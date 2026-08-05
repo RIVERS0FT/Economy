@@ -17,6 +17,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'server/src/facility-groups.js',
   'server/test/gem-shop.test.js',
   'server/test/gem-construction-acceleration.test.js',
+  'server/test/research-gem-acceleration.test.js',
   'src/pages/GemShopPage.tsx',
   'src/pages/ProductionPage.tsx',
   'src/pages/production/ProductionFacilityDetail.tsx',
@@ -57,6 +58,8 @@ for (const text of [
   'economy_gem_shop_quote_decisions',
   'economy_facility_gem_actions',
   'recordConstructionAcceleration',
+  'economy_research_gem_actions',
+  'recordResearchAcceleration',
 ]) requireText('server/src/gem-economy-store.js', text);
 for (const text of [
   'CREATE TABLE IF NOT EXISTS economy_gem_shop_exchanges',
@@ -64,6 +67,7 @@ for (const text of [
   "action === 'exchangeGems'",
   "action === 'rejectGemShopQuote'",
   "action === 'accelerateFacilityConstruction'",
+  "action === 'accelerateResearch'",
   'getGemShopSummary',
 ]) requireText('server/src/storage.js', text);
 for (const text of [
@@ -75,6 +79,7 @@ requireText('server/src/app.js', "path === '/api/game/gem-shop'");
 requireText('server/src/game-routes.js', "path === '/api/game/gem-shop/exchange'");
 requireText('server/src/game-routes.js', "path === '/api/game/gem-shop/quote/reject'");
 requireText('server/src/game-routes.js', "path === '/api/game/facilities/construction/accelerate'");
+requireText('server/src/game-routes.js', "path === '/api/game/research/accelerate'");
 requireText('src/config/navigation.ts', "{ id: 'gem-shop', label: '商店' }");
 
 for (const text of [
@@ -175,10 +180,13 @@ for (const text of [
   '/api/game/gem-shop/exchange',
   '/api/game/gem-shop/quote/reject',
   '/api/game/facilities/construction/accelerate',
+  '/api/game/research/accelerate',
   'economy_gem_shop_exchanges',
+  'economy_research_gem_actions',
 ]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 for (const text of [
   '每次固定消耗 1 宝石，减少当前施工 30 分钟',
+  '每次固定消耗 1 宝石，减少当前研发 30 分钟',
   '初始报价为 1 宝石兑换 100 普通货币',
   '每日绝对变化上限为最高报价 10000 的 10%',
   '不得增加宝石兑换工厂产量',
@@ -193,4 +201,4 @@ if (failures.length) {
   console.error(`商店与邀请布局验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('商店验证通过：每日终端报价、动态汇率、建设卡施工宝石加速、原子兑换与共享一级卡片规则均已锁定。');
+console.log('商店验证通过：每日终端报价、动态汇率、施工与研发宝石加速、原子兑换与共享一级卡片规则均已锁定。');

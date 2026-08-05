@@ -1,4 +1,17 @@
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type RefObject,
+} from 'react';
+import { createPortal } from 'react-dom';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
+import { FacilityIcon } from '../components/icons/FacilityIcons';
+import { ScrollArea } from '../components/ui/ScrollArea';
 import {
   Button,
   DataList,
@@ -8,20 +21,372 @@ import {
   StatusTag,
   WidgetHeading,
 } from '../components/ui/layout';
-import { CurrencyAmount } from '../components/ui/CurrencyAmount';
+import {
+  WorkspaceFloatingLayerContext,
+  useWorkspaceDialogLayer,
+} from '../components/ui/WorkspaceFloatingLayer';
 import { useNow } from '../hooks/useNow';
 import { formatDuration, formatNumber } from '../utils/formatters';
-import type { FacilityComplexity, ResearchLevelDefinition } from '../types';
+import type {
+  FacilityComplexity,
+  FacilityTypeDefinition,
+  ResearchLevelDefinition,
+} from '../types';
+
+type ResearchNodeStatus = 'mastered' | 'active' | 'available' | 'locked';
+
+const RESEARCH_ACCELERATION_FALLBACK_MS = 30 * 60 * 1000;
+const RESEARCH_ACCELERATION_FALLBACK_COST = 1;
 
 function rankOf(level: FacilityComplexity) {
   return Number(level.slice(1));
 }
 
-function levelStatus(level: ResearchLevelDefinition, unlockedRank: number, activeTarget?: FacilityComplexity) {
-  if (level.rank <= unlockedRank) return { label: '已掌握', tone: 'success' as const };
-  if (level.id === activeTarget) return { label: '研发中', tone: 'info' as const };
-  if (level.rank === unlockedRank + 1) return { label: '可研发', tone: 'warning' as const };
-  return { label: '尚未开放', tone: 'neutral' as const };
+function isMobileResearchLayout() {
+  return typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches;
+}
+
+function statusFor(
+  level: ResearchLevelDefinition,
+  unlockedRank: number,
+  activeTarget?: FacilityComplexity,
+): ResearchNodeStatus {
+  if (level.rank <= unlockedRank) return 'mastered';
+  if (level.id === activeTarget) return 'active';
+  if (level.rank === unlockedRank + 1) return 'available';
+  return 'locked';
+}
+
+const statusLabels: Record<ResearchNodeStatus, string> = {
+  mastered: '已掌握',
+  active: '研发中',
+  available: '可研发',
+  locked: '尚未开放',
+};
+
+const statusTones = {
+  mastered: 'success',
+  active: 'info',
+  available: 'warning',
+  locked: 'neutral',
+} as const;
+
+function progressForResearchLevel(
+  level: ResearchLevelDefinition,
+  active: { targetComplexity: FacilityComplexity; completesAt: number } | null,
+  now: number,
+  isMastered: boolean,
+) {
+  if (active?.targetComplexity !== level.id) return isMastered ? 1 : 0;
+  const duration = Math.max(1, level.durationMs);
+  const remaining = Math.max(0, active.completesAt - now);
+  return Math.max(0, Math.min(1, (duration - remaining) / duration));
+}
+
+interface ResearchDetailProps {
+  model: TutorialAwareGameViewModel;
+  level: ResearchLevelDefinition;
+  facilities: FacilityTypeDefinition[];
+  now: number;
+  unlockedRank: number;
+  isAccelerating: boolean;
+  onStart: () => void;
+  onAccelerate: () => void;
+}
+
+function ResearchDetailContent({
+  model,
+  level,
+  facilities,
+  now,
+  unlockedRank,
+  isAccelerating,
+  onStart,
+  onAccelerate,
+}: ResearchDetailProps) {
+  const active = model.game.research.active;
+  const status = statusFor(level, unlockedRank, active?.targetComplexity);
+  const isSelectedActive = active?.targetComplexity === level.id;
+  const isMastered = level.rank <= unlockedRank;
+  const isNext = level.rank === unlockedRank + 1;
+  const hasOtherResearch = Boolean(active && !isSelectedActive);
+  const canStart = !active && isNext;
+  const fundsMet = model.game.credits >= level.cost;
+  const prerequisiteLevels = model.game.researchLevels
+    .filter((candidate) => candidate.rank > unlockedRank && candidate.rank < level.rank)
+    .map((candidate) => candidate.id);
+  const remaining = isSelectedActive && active ? Math.max(0, active.completesAt - now) : 0;
+  const awaitingConfirmation = isSelectedActive && remaining === 0;
+  const accelerationMs = active?.gemAccelerationMs ?? RESEARCH_ACCELERATION_FALLBACK_MS;
+  const accelerationCost = active?.gemAccelerationCost ?? RESEARCH_ACCELERATION_FALLBACK_COST;
+  const remainingAfterAcceleration = Math.max(0, remaining - accelerationMs);
+  const progress = progressForResearchLevel(level, active, now, isMastered);
+  const shortfall = Math.max(0, level.cost - model.game.credits);
+  const actionLabel = isMastered
+    ? `已掌握 ${level.id}`
+    : isSelectedActive
+      ? awaitingConfirmation ? '确认研发完成中…' : `研发中 · 剩余 ${formatDuration(remaining)}`
+      : hasOtherResearch
+        ? `正在研发 ${active?.targetComplexity}`
+        : !isNext
+          ? `需要先完成 C${Math.max(1, level.rank - 1)}`
+          : !fundsMet
+            ? '可用资金不足'
+            : `开始研发 ${level.id}`;
+
+  return (
+    <div className="research-detail-content">
+      <WidgetHeading
+        title="研发新技术"
+        action={<StatusTag tone={statusTones[status]}>{statusLabels[status]}</StatusTag>}
+      />
+
+      <section className="research-detail-hero">
+        <div className="research-detail-level-artwork" aria-hidden="true">
+          {facilities[0] ? <FacilityIcon facilityTypeId={facilities[0].id} /> : <span>{level.id}</span>}
+        </div>
+        <div>
+          <h3>{level.id} 产业技术</h3>
+          <p>完成后解锁 {formatNumber(facilities.length)} 种工厂及对应建设、购买、竞拍和运营资格。</p>
+        </div>
+      </section>
+
+      <section className="research-requirements" aria-labelledby={`research-requirements-${level.id}`}>
+        <strong id={`research-requirements-${level.id}`}>具体要求</strong>
+        <ul>
+          <li data-met={isMastered || level.rank === 1 || level.rank <= unlockedRank + 1}>
+            <span aria-hidden="true">{isMastered || level.rank === 1 || level.rank <= unlockedRank + 1 ? '✓' : '×'}</span>
+            <div>
+              <strong>前置技术</strong>
+              <small>
+                {isMastered
+                  ? '前置技术已经完成'
+                  : prerequisiteLevels.length > 0
+                    ? `需要依次完成 ${prerequisiteLevels.join('、')}`
+                    : level.rank === 1 ? '新玩家初始掌握' : `已满足 ${level.id} 的前置等级`}
+              </small>
+            </div>
+          </li>
+          <li data-met={isMastered || fundsMet}>
+            <span aria-hidden="true">{isMastered || fundsMet ? '✓' : '×'}</span>
+            <div>
+              <strong>研发费用</strong>
+              <small>
+                {level.cost === 0
+                  ? '初始掌握，无需费用'
+                  : `需要 ${formatNumber(level.cost)}，当前 ${formatNumber(model.game.credits)}${
+                      shortfall > 0 ? `，还差 ${formatNumber(shortfall)}` : ''
+                    }`}
+              </small>
+            </div>
+          </li>
+          <li data-met={isMastered || !hasOtherResearch}>
+            <span aria-hidden="true">{isMastered || !hasOtherResearch ? '✓' : '×'}</span>
+            <div>
+              <strong>研发队列</strong>
+              <small>{hasOtherResearch ? `当前由 ${active?.targetComplexity} 占用` : '当前可以安排研发'}</small>
+            </div>
+          </li>
+          <li data-met="true">
+            <span aria-hidden="true">✓</span>
+            <div>
+              <strong>基础时间</strong>
+              <small>{level.durationMs > 0 ? formatDuration(level.durationMs) : '立即掌握'}</small>
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      <section className="research-unlocks" aria-labelledby={`research-unlocks-${level.id}`}>
+        <strong id={`research-unlocks-${level.id}`}>解锁工厂</strong>
+        {facilities.length > 0 ? (
+          <div className="research-unlock-list">
+            {facilities.map((facility) => (
+              <div className="research-unlock-item" key={facility.id}>
+                <span className="research-unlock-artwork" aria-hidden="true">
+                  <FacilityIcon facilityTypeId={facility.id} />
+                </span>
+                <span>{facility.name}</span>
+              </div>
+            ))}
+          </div>
+        ) : <p className="ui-helper-text">当前正式目录没有该等级工厂。</p>}
+      </section>
+
+      {isSelectedActive && active ? (
+        <section className="research-progress-section" aria-live="polite">
+          <div className="research-progress-heading">
+            <strong>研发进度</strong>
+            <span>{awaitingConfirmation ? '等待服务器确认' : formatDuration(remaining)}</span>
+          </div>
+          <div
+            className="research-progress-track"
+            role="progressbar"
+            aria-label={`${level.id} 研发进度`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(progress * 100)}
+          >
+            <span style={{ width: `${progress * 100}%` }} />
+          </div>
+          <DataList>
+            <DataRow
+              label="就业资金已释放"
+              value={`${formatNumber(active.employmentReleased)} / ${formatNumber(active.cost)}`}
+              tone="info"
+            />
+          </DataList>
+          <div className="research-gem-acceleration">
+            <div>
+              <strong>宝石加速</strong>
+              <span>{formatNumber(accelerationCost)} 宝石固定减少 {formatDuration(accelerationMs)}</span>
+            </div>
+            <p>
+              {awaitingConfirmation
+                ? '等待服务器确认研发完成'
+                : remainingAfterAcceleration > 0
+                  ? `使用后剩余 ${formatDuration(remainingAfterAcceleration)}`
+                  : '使用后立即完成；不足 30m 的部分不退还宝石'}
+            </p>
+            <Button
+              block
+              disabled={awaitingConfirmation || model.game.gems < accelerationCost || isAccelerating}
+              onClick={onAccelerate}
+            >
+              {isAccelerating
+                ? '加速处理中…'
+                : model.game.gems < accelerationCost
+                  ? '宝石不足'
+                  : `${formatNumber(accelerationCost)} 宝石 · 加速 ${formatDuration(accelerationMs)}`}
+            </Button>
+          </div>
+        </section>
+      ) : null}
+
+      <div className="research-detail-actions">
+        <Button
+          block
+          disabled={!canStart || !fundsMet}
+          onClick={onStart}
+        >
+          {actionLabel}
+        </Button>
+        <small className="ui-helper-text">研发只能按 C1–C7 顺序进行；开始后不可取消或排队。</small>
+      </div>
+    </div>
+  );
+}
+
+interface MobileResearchDetailSheetProps extends ResearchDetailProps {
+  isOpen: boolean;
+  returnFocusRef: RefObject<HTMLButtonElement | null>;
+  onClose: () => void;
+}
+
+function MobileResearchDetailSheet({
+  isOpen,
+  returnFocusRef,
+  onClose,
+  ...detailProps
+}: MobileResearchDetailSheetProps) {
+  const dialogLayer = useWorkspaceDialogLayer();
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!isOpen) return undefined;
+    const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
+    const previousOverflow = pageScroll?.style.overflowY ?? '';
+    const previousScrollTop = pageScroll?.scrollTop ?? 0;
+    if (pageScroll) pageScroll.style.overflowY = 'hidden';
+    sheetRef.current?.focus({ preventScroll: true });
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = Array.from(
+        sheetRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+      if (focusable.length === 0) {
+        event.preventDefault();
+        sheetRef.current?.focus({ preventScroll: true });
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === sheetRef.current)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === sheetRef.current)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (pageScroll) {
+        pageScroll.style.overflowY = previousOverflow;
+        pageScroll.scrollTop = previousScrollTop;
+      }
+      requestAnimationFrame(() => returnFocusRef.current?.focus({ preventScroll: true }));
+    };
+  }, [isOpen, onClose, returnFocusRef]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const mediaQuery = window.matchMedia('(max-width: 720px)');
+    const handleChange = (event: MediaQueryListEvent) => {
+      if (!event.matches) onClose();
+    };
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !dialogLayer) return null;
+
+  return createPortal(
+    <WorkspaceFloatingLayerContext.Provider value={dialogLayer}>
+      <div
+        className="facility-detail-sheet-backdrop research-detail-sheet-backdrop"
+        onPointerDown={(event) => {
+          if (event.target === event.currentTarget) onClose();
+        }}
+      >
+        <div
+          ref={sheetRef}
+          className="facility-detail-sheet research-detail-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${detailProps.level.id} 研发新技术`}
+          tabIndex={-1}
+        >
+          <div className="facility-detail-sheet-header">
+            <div className="facility-detail-sheet-drag-handle" aria-hidden="true">
+              <span className="facility-detail-sheet-handle" />
+            </div>
+          </div>
+          <ScrollArea
+            axis="y"
+            className="research-detail-sheet-scroll-area"
+            viewportClassName="research-detail-sheet-scroll"
+            viewportRole="region"
+            viewportAriaLabel={`${detailProps.level.id} 研发要求`}
+            viewportTabIndex={0}
+            scrollbarVisibility="adaptive"
+          >
+            <ResearchDetailContent {...detailProps} />
+          </ScrollArea>
+        </div>
+      </div>
+    </WorkspaceFloatingLayerContext.Provider>,
+    dialogLayer,
+  );
 }
 
 export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
@@ -29,69 +394,178 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
   const research = model.game.research;
   const active = research.active;
   const unlockedRank = rankOf(research.unlockedComplexity);
-  const ownedGroups = model.game.facilityGroups.filter((group) => group.count > 0);
-  const facilitiesByComplexity = new Map<FacilityComplexity, string[]>();
-  for (const facility of model.game.facilityTypes) {
-    const names = facilitiesByComplexity.get(facility.complexity) ?? [];
-    names.push(facility.name);
-    facilitiesByComplexity.set(facility.complexity, names);
+  const facilitiesByComplexity = useMemo(() => {
+    const groups = new Map<FacilityComplexity, FacilityTypeDefinition[]>();
+    for (const facility of model.game.facilityTypes) {
+      const facilities = groups.get(facility.complexity) ?? [];
+      facilities.push(facility);
+      groups.set(facility.complexity, facilities);
+    }
+    return groups;
+  }, [model.game.facilityTypes]);
+  const initialLevelId = active?.targetComplexity
+    ?? model.game.researchLevels.find((level) => level.rank === unlockedRank + 1)?.id
+    ?? model.game.researchLevels[model.game.researchLevels.length - 1]?.id
+    ?? 'C1';
+  const [selectedLevelId, setSelectedLevelId] = useState<FacilityComplexity>(initialLevelId);
+  const [isDetailOpen, setDetailOpen] = useState(false);
+  const [isAccelerating, setAccelerating] = useState(false);
+  const detailTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const selectedLevel = model.game.researchLevels.find((level) => level.id === selectedLevelId)
+    ?? model.game.researchLevels[0];
+  const selectedFacilities = selectedLevel
+    ? facilitiesByComplexity.get(selectedLevel.id) ?? []
+    : [];
+
+  useEffect(() => {
+  const defaultLevelId = active?.targetComplexity
+    ?? model.game.researchLevels.find((level) => level.rank === unlockedRank + 1)?.id
+    ?? model.game.researchLevels[model.game.researchLevels.length - 1]?.id
+    ?? 'C1';
+  setSelectedLevelId(defaultLevelId);
+}, [active?.targetComplexity, unlockedRank]);
+
+  const selectLevel = useCallback((levelId: FacilityComplexity, trigger: HTMLButtonElement) => {
+    detailTriggerRef.current = trigger;
+    setSelectedLevelId(levelId);
+    if (isMobileResearchLayout()) setDetailOpen(true);
+  }, []);
+
+  const startSelectedResearch = useCallback(() => {
+    if (!selectedLevel) return;
+    const confirmed = window.confirm(
+      `将支付 ${selectedLevel.cost} 普通货币并开始研发 ${selectedLevel.id}，基础时间 ${formatDuration(selectedLevel.durationMs)}。研发开始后不可取消，是否继续？`,
+    );
+    if (confirmed) void model.showResult(model.startResearch(selectedLevel.id));
+  }, [model, selectedLevel]);
+
+  const accelerateResearch = useCallback(async () => {
+    if (!active || isAccelerating) return;
+    setAccelerating(true);
+    try {
+      await model.showResult(model.accelerateResearch());
+    } finally {
+      setAccelerating(false);
+    }
+  }, [active, isAccelerating, model]);
+
+  if (!selectedLevel) {
+    return (
+      <PageLayout title="研发" description="服务器尚未返回研发目录。">
+        <PagePanel className="empty-state">暂无研发等级。</PagePanel>
+      </PageLayout>
+    );
   }
 
-  const startResearch = (level: ResearchLevelDefinition) => {
-    const confirmed = window.confirm(
-      `将支付 ${level.cost} 普通货币并开始研发 ${level.id}。研发开始后不可取消，是否继续？`,
-    );
-    if (confirmed) void model.showResult(model.startResearch(level.id));
+  const detailProps: ResearchDetailProps = {
+    model,
+    level: selectedLevel,
+    facilities: selectedFacilities,
+    now,
+    unlockedRank,
+    isAccelerating,
+    onStart: startSelectedResearch,
+    onAccelerate: () => void accelerateResearch(),
   };
 
   return (
-    <PageLayout title="研发" description="顺序研发 C1-C7，解锁更高复杂度的工厂建设、购买和运营资格。">
-      <PagePanel className="research-baseline-card">
-        <WidgetHeading
-          title="当前研发状态"
-          action={<StatusTag tone={active ? 'info' : 'success'}>{active ? `研发 ${active.targetComplexity}` : `已掌握 ${research.unlockedComplexity}`}</StatusTag>}
-        />
-        <DataList>
-          <DataRow label="已拥有工厂" value={formatNumber(ownedGroups.reduce((sum, group) => sum + group.count, 0))} />
-          <DataRow label="已布局工厂类型" value={formatNumber(ownedGroups.length)} />
-          <DataRow label="最高产业复杂度" value={research.unlockedComplexity} tone="success" />
-          <DataRow
-            label={active ? '剩余研发时间' : '下一步'}
-            value={active
-              ? (now >= active.completesAt ? '确认研发完成中…' : formatDuration(active.completesAt - now))
-              : unlockedRank >= 7 ? '全部研发完成' : `研发 C${unlockedRank + 1}`}
-            tone={active ? 'info' : 'neutral'}
-          />
-        </DataList>
-      </PagePanel>
+    <PageLayout
+      title="研发"
+      description="沿 C1–C7 技术主干顺序研发；圆形支线节点展示每级解锁的正式工厂。"
+      actions={
+        <>
+          <StatusTag tone="success">已掌握 {research.unlockedComplexity}</StatusTag>
+          <StatusTag tone={active ? 'info' : 'neutral'}>
+            {active ? `研发 ${active.targetComplexity}` : '研发队列空闲'}
+          </StatusTag>
+        </>
+      }
+    >
+      <div className="research-workspace">
+        <PagePanel className="research-action-panel">
+          <ResearchDetailContent {...detailProps} />
+        </PagePanel>
 
-      {model.game.researchLevels.map((level) => {
-        const status = levelStatus(level, unlockedRank, active?.targetComplexity);
-        const facilityNames = facilitiesByComplexity.get(level.id) ?? [];
-        const canStart = !active && level.rank === unlockedRank + 1;
-        return (
-          <PagePanel className="research-level-card" key={level.id}>
-            <WidgetHeading title={`${level.id} 产业技术`} action={<StatusTag tone={status.tone}>{status.label}</StatusTag>} />
-            <p>{facilityNames.length > 0 ? `解锁工厂：${facilityNames.join('、')}` : '当前目录没有该复杂度工厂。'}</p>
-            <DataList>
-              <DataRow label="研发费用" value={level.cost > 0 ? <CurrencyAmount>{formatNumber(level.cost)}</CurrencyAmount> : '初始掌握'} />
-              <DataRow label="研发时间" value={level.durationMs > 0 ? formatDuration(level.durationMs) : '立即'} />
-              {active?.targetComplexity === level.id ? (
-                <DataRow label="就业资金已释放" value={`${formatNumber(active.employmentReleased)} / ${formatNumber(active.cost)}`} tone="info" />
-              ) : null}
-            </DataList>
-            {canStart ? (
-              <Button
-                block
-                disabled={model.game.credits < level.cost}
-                onClick={() => startResearch(level)}
-              >
-                {model.game.credits < level.cost ? '可用资金不足' : `开始研发 ${level.id}`}
-              </Button>
-            ) : null}
-          </PagePanel>
-        );
-      })}
+        <PagePanel className="research-tree-panel">
+          <div className="research-tree-heading">
+            <div>
+              <h2>技术树</h2>
+              <p>主干表示强制研发顺序，支线表示完成该等级后解锁的工厂。</p>
+            </div>
+            <StatusTag tone="neutral">{formatNumber(model.game.researchLevels.length)} 级</StatusTag>
+          </div>
+
+          <div className="research-tree-scroll">
+            <div className="research-tree" role="tree" aria-label="C1 到 C7 产业技术树">
+              {model.game.researchLevels.map((level) => {
+                const facilities = facilitiesByComplexity.get(level.id) ?? [];
+                const status = statusFor(level, unlockedRank, active?.targetComplexity);
+                const isSelected = selectedLevel.id === level.id;
+                const progress = progressForResearchLevel(
+        level,
+        active,
+        now,
+        status === 'mastered',
+      );
+                const nodeStyle = {
+                  '--research-node-progress': `${Math.round(progress * 360)}deg`,
+                } as CSSProperties;
+                return (
+                  <div
+                    className="research-tree-level"
+                    data-status={status}
+                    data-selected={isSelected || undefined}
+                    role="treeitem"
+                    aria-expanded="true"
+                    key={level.id}
+                  >
+                    <button
+                      className="research-level-node"
+                      type="button"
+                      style={nodeStyle}
+                      aria-pressed={isSelected}
+                      aria-label={`${level.id} 产业技术，${statusLabels[status]}，解锁 ${facilities.length} 种工厂`}
+                      onClick={(event) => selectLevel(level.id, event.currentTarget)}
+                    >
+                      <span className="research-level-artwork" aria-hidden="true">
+                        {facilities[0] ? <FacilityIcon facilityTypeId={facilities[0].id} /> : <span>{level.id}</span>}
+                      </span>
+                      <span className="research-level-code">{level.id}</span>
+                    </button>
+                    <div className="research-level-caption">
+                      <strong>{level.id} 产业技术</strong>
+                      <span>{statusLabels[status]}</span>
+                    </div>
+                    <div className="research-facility-branches" role="group" aria-label={`${level.id} 解锁工厂`}>
+                      {facilities.map((facility) => (
+                        <button
+                          type="button"
+                          className="research-facility-node"
+                          key={facility.id}
+                          aria-label={`${facility.name}，由 ${level.id} 解锁`}
+                          onClick={(event) => selectLevel(level.id, event.currentTarget)}
+                        >
+                          <span className="research-facility-artwork" aria-hidden="true">
+                            <FacilityIcon facilityTypeId={facility.id} />
+                          </span>
+                          <span>{facility.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </PagePanel>
+      </div>
+
+      <MobileResearchDetailSheet
+        {...detailProps}
+        isOpen={isDetailOpen}
+        returnFocusRef={detailTriggerRef}
+        onClose={() => setDetailOpen(false)}
+      />
     </PageLayout>
   );
 }

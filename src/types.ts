@@ -159,6 +159,8 @@ export interface ActiveResearch {
   completesAt: number;
   cost: number;
   employmentReleased: number;
+  gemAccelerationMs?: number;
+  gemAccelerationCost?: number;
 }
 
 export interface ResearchState {

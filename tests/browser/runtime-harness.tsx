@@ -13,6 +13,7 @@ import { ContractPage } from '../../src/pages/ContractPage';
 import { GemShopPage } from '../../src/pages/GemShopPage';
 import { OverviewPage } from '../../src/pages/OverviewPage';
 import { ProductionPage } from '../../src/pages/ProductionPage';
+import { ResearchPage } from '../../src/pages/ResearchPage';
 import { FacilityRecipeProfitMarketsProvider } from '../../src/components/facilities/FacilityRecipeProfitContext';
 import { SettingsPage } from '../../src/pages/SettingsPage';
 import type { TabId } from '../../src/config/navigation';
@@ -32,6 +33,7 @@ import '../../src/styles/product-artwork.css';
 import '../../src/styles/industry-system.css';
 import '../../src/styles/facility-production-formula.css';
 import '../../src/styles/facility-group-card-grid.css';
+import '../../src/styles/research-page.css';
 import '../../src/styles/facility-detail-sheet.css';
 import '../../src/styles/warehouse-expansion.css';
 import '../../src/styles/production-surface.css';
@@ -106,7 +108,7 @@ const completedTutorial: GameTutorialController = {
   recordSellOrderSubmit: () => {},
 };
 
-document.documentElement.dataset.appSurface = ['overview', 'production', 'contracts', 'auction', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
+document.documentElement.dataset.appSurface = ['overview', 'production', 'research', 'contracts', 'auction', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
 
 function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const hasActivity = ['activity', 'two-sided', 'many-orders'].includes(scenario);
@@ -657,6 +659,94 @@ function ProductionHarness() {
   );
 }
 
+
+function ResearchHarness() {
+  const [tab, setTab] = useState<TabId>('research');
+  const model = useMemo(() => {
+    const next = buildOverviewModel(tab, setTab);
+    const baseType = next.game.facilityTypes[0];
+    const facilityCatalog = [
+      { id: 'farm', name: '农场', complexity: 'C1' },
+      { id: 'orchard', name: '果园', complexity: 'C1' },
+      { id: 'mine', name: '矿场', complexity: 'C2' },
+      { id: 'sawmill', name: '锯木厂', complexity: 'C2' },
+      { id: 'steelworks', name: '冶炼厂', complexity: 'C3' },
+      { id: 'food-factory', name: '食品厂', complexity: 'C3' },
+      { id: 'refinery', name: '炼油厂', complexity: 'C4' },
+      { id: 'machine-factory', name: '机械厂', complexity: 'C5' },
+      { id: 'electronics-factory', name: '电子厂', complexity: 'C6' },
+      { id: 'appliance-factory', name: '家电厂', complexity: 'C7' },
+    ] as const;
+    next.game.facilityTypes = facilityCatalog.map((facility) => ({
+      ...baseType,
+      ...facility,
+    }));
+    next.game.researchLevels = [
+      { id: 'C1', rank: 1, cost: 0, durationMs: 0 },
+      { id: 'C2', rank: 2, cost: 300, durationMs: 5 * 60_000 },
+      { id: 'C3', rank: 3, cost: 700, durationMs: 20 * 60_000 },
+      { id: 'C4', rank: 4, cost: 1_200, durationMs: 45 * 60_000 },
+      { id: 'C5', rank: 5, cost: 2_400, durationMs: 90 * 60_000 },
+      { id: 'C6', rank: 6, cost: 4_200, durationMs: 3 * 60 * 60_000 },
+      { id: 'C7', rank: 7, cost: 6_700, durationMs: 6 * 60 * 60_000 },
+    ];
+    next.game.credits = 5_000;
+    next.game.gems = 4;
+    next.game.research = scenario === 'research-active'
+      ? {
+          unlockedComplexity: 'C2',
+          completedAt: fixedNow - 60_000,
+          active: {
+            targetComplexity: 'C3',
+            startedAt: fixedNow - 5 * 60_000,
+            completesAt: fixedNow + 15 * 60_000,
+            cost: 700,
+            employmentReleased: 175,
+            gemAccelerationMs: 30 * 60_000,
+            gemAccelerationCost: 1,
+        },
+      }
+    : scenario === 'research-accelerated'
+      ? {
+          unlockedComplexity: 'C4',
+          completedAt: fixedNow - 60_000,
+          active: {
+            targetComplexity: 'C5',
+            startedAt: fixedNow - 30 * 60_000,
+            completesAt: fixedNow + 30 * 60_000,
+            cost: 2_400,
+            employmentReleased: 1_600,
+            gemAccelerationMs: 30 * 60_000,
+            gemAccelerationCost: 1,
+          },
+        }
+      : {
+          unlockedComplexity: 'C2',
+          completedAt: fixedNow - 60_000,
+          active: null,
+        };
+    Object.assign(next, {
+      startResearch: async () => ({ ok: true, message: '测试研发开始' }),
+      accelerateResearch: async () => ({ ok: true, message: '测试研发加速' }),
+    });
+    return next;
+  }, [tab]);
+
+  const statusItems: StatusBarItem[] = [
+    { id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>, detail: <>冻结 <CurrencyAmount>{formatCurrency(model.game.frozenCredits)}</CurrencyAmount></> },
+    { id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('bank') },
+    { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
+    { id: 'rank', icon: <RankIcon />, label: '排行榜', value: formatRank(model.derived.currentRank?.rank), detail: '当前位于榜首' },
+    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(model.game.warehouseAvailableCapacity), detail: `已用 ${formatNumber(model.game.warehouseUsedCapacity)}/${formatNumber(model.game.inventoryCapacity)}` },
+  ];
+
+  return (
+    <GameShell model={model} statusItems={statusItems}>
+      <ResearchPage model={model} />
+    </GameShell>
+  );
+}
+
 function GemShopHarness() {
   const [tab, setTab] = useState<TabId>('gem-shop');
   const model = useMemo(() => {
@@ -948,7 +1038,9 @@ createRoot(document.getElementById('root') as HTMLElement).render(
     ? <OverviewHarness />
     : view === 'production'
       ? <ProductionHarness />
-      : view === 'contracts'
+      : view === 'research'
+      ? <ResearchHarness />
+    : view === 'contracts'
       ? <ContractHarness />
       : view === 'auction'
         ? <AuctionHarness />
