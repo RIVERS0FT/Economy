@@ -34,7 +34,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .agent-contract-types/part-* | base64 -d > /tmp/contract-types.tar.gz
+          cat \
+            .agent-contract-types/part-00 \
+            .agent-contract-types/part-01 \
+            .agent-contract-types/fix-02-0 \
+            .agent-contract-types/fix-02-1 \
+            .agent-contract-types/fix-02-2 \
+            .agent-contract-types/part-03 \
+            .agent-contract-types/fix-04-0 \
+            .agent-contract-types/fix-04-1 \
+            .agent-contract-types/fix-04-2 \
+            .agent-contract-types/fix-05-0 \
+            .agent-contract-types/fix-05-1 \
+            .agent-contract-types/fix-05-2 \
+            .agent-contract-types/part-06 \
+            .agent-contract-types/fix-07-0 \
+            .agent-contract-types/fix-07-1 \
+            .agent-contract-types/fix-07-2 \
+            .agent-contract-types/part-08 \
+            .agent-contract-types/part-09 \
+            | base64 -d > /tmp/contract-types.tar.gz
           echo "52eb6b7adde0f086cd62b127ec1e6ef81c5732c01987e9198922b5dbd491ec4d  /tmp/contract-types.tar.gz" | sha256sum -c -
           tar -xzf /tmp/contract-types.tar.gz -C /tmp
           python3 /tmp/economy-contract-types/apply.py
