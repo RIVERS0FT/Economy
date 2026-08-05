@@ -214,13 +214,26 @@ export function installPersistentServerRuntimeMetrics({
 } = {}) {
   if (installation.persistence?.enabled) return installation;
 
-  const store = new ServerMetricsStore(databasePath, { now });
-  const startedAt = finiteNonNegative(installation.startedAt || now());
-  const releaseSha = releaseShaFromEnvironment(environment);
-  store.startBoot(bootId, startedAt, releaseSha);
-
   const originalSnapshot = installation.snapshot.bind(installation);
   const originalUninstall = installation.uninstall.bind(installation);
+  const startedAt = finiteNonNegative(installation.startedAt || now());
+  const releaseSha = releaseShaFromEnvironment(environment);
+  let store;
+  try {
+    store = new ServerMetricsStore(databasePath, { now });
+    store.startBoot(bootId, startedAt, releaseSha);
+  } catch (error) {
+    try { store?.close(); } catch { /* best-effort diagnostic cleanup */ }
+    warn('Economy server metrics storage unavailable; continuing without persistence', error);
+    installation.persistence = {
+      enabled: false,
+      degraded: true,
+      bootId,
+      databasePath,
+    };
+    return installation;
+  }
+
   let closed = false;
 
   function persist() {
@@ -237,8 +250,10 @@ export function installPersistentServerRuntimeMetrics({
   function persistSafely() {
     try {
       persist();
+      return true;
     } catch (error) {
       warn('Economy server metrics persistence failed', error);
+      return false;
     }
   }
 
@@ -248,21 +263,38 @@ export function installPersistentServerRuntimeMetrics({
     const live = originalSnapshot({ rangeKey: normalizedRangeKey, ...options });
     const generatedAt = finiteNonNegative(live.generatedAt || now());
     const cutoff = Math.max(0, generatedAt - range.milliseconds);
-    const persistedRows = store.listBuckets(range.granularity, cutoff, { excludeBootId: bootId });
-    const trendBuckets = mergeBucketCollections(persistedRows, live.trendBuckets, cutoff);
-    return {
-      ...live,
-      trendBuckets,
-      trendHistory: trendBuckets.map(publicServerMetricBucket),
-      persistence: {
-        enabled: true,
-        historyStartedAt: trendBuckets[0]?.startsAt ?? generatedAt,
-        retainedMilliseconds: SERVER_METRICS_RETENTION[range.granularity],
-      },
-    };
+    try {
+      const persistedRows = store.listBuckets(range.granularity, cutoff, { excludeBootId: bootId });
+      const trendBuckets = mergeBucketCollections(persistedRows, live.trendBuckets, cutoff);
+      return {
+        ...live,
+        trendBuckets,
+        trendHistory: trendBuckets.map(publicServerMetricBucket),
+        persistence: {
+          enabled: true,
+          degraded: false,
+          historyStartedAt: trendBuckets[0]?.startsAt ?? generatedAt,
+          retainedMilliseconds: SERVER_METRICS_RETENTION[range.granularity],
+        },
+      };
+    } catch (error) {
+      warn('Economy server metrics history read failed; returning live metrics only', error);
+      return {
+        ...live,
+        persistence: {
+          enabled: false,
+          degraded: true,
+          historyStartedAt: live.trendBuckets?.[0]?.startsAt ?? generatedAt,
+          retainedMilliseconds: SERVER_METRICS_RETENTION[range.granularity],
+        },
+      };
+    }
   };
 
-  const timer = setInterval(persistSafely, Math.max(1_000, Number(persistIntervalMs) || DEFAULT_PERSIST_INTERVAL_MS));
+  const timer = setInterval(
+    persistSafely,
+    Math.max(1_000, Number(persistIntervalMs) || DEFAULT_PERSIST_INTERVAL_MS),
+  );
   timer.unref();
   persistSafely();
 
@@ -290,8 +322,14 @@ export function installPersistentServerRuntimeMetrics({
     }
     try {
       store.stopBoot(bootId, now());
-    } finally {
+    } catch (error) {
+      warn('Economy server metrics boot shutdown record failed', error);
+    }
+    try {
       store.close();
+    } catch (error) {
+      warn('Economy server metrics database close failed', error);
+    } finally {
       originalUninstall();
     }
   }
@@ -300,6 +338,7 @@ export function installPersistentServerRuntimeMetrics({
   installation.uninstall = close;
   installation.persistence = {
     enabled: true,
+    degraded: false,
     bootId,
     databasePath,
     store,
