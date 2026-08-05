@@ -6,6 +6,7 @@ import {
   createMarketDemandRuntime,
   MARKET_DEMAND_GROUP_CATALOG,
   MARKET_DEMAND_MODEL_VERSION,
+  MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION,
   MARKET_DEMAND_PRODUCT_IDS,
 } from './market-demand.js';
 import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
@@ -17,6 +18,7 @@ export * from './domain-core.js';
 export {
   MARKET_DEMAND_GROUP_CATALOG,
   MARKET_DEMAND_MODEL_VERSION,
+  MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION,
   MARKET_DEMAND_PRODUCT_IDS,
 } from './market-demand.js';
 
@@ -186,9 +188,10 @@ export function migrateWorld(world, now = Date.now()) {
   if (!world || typeof world !== 'object') return createWorld(now);
   const previousVersion = Number(world.version || 0);
   const needsOrderBookRepair = Number(world.orderBookIntegrityVersion || 0) < ORDER_BOOK_INTEGRITY_VERSION;
-  const hadCurrentMarketDemandModel = Number(world.marketDemand?.modelVersion || 0) >= MARKET_DEMAND_MODEL_VERSION;
+  const hadCompatibleMarketDemandModel = Number(world.marketDemand?.modelVersion || 0)
+    >= MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION;
   const hadCurrentPopulationModel = Number(world.populationEconomy?.modelVersion || 0) >= 7;
-  const hadCurrentDemandSystem = hadCurrentMarketDemandModel && hadCurrentPopulationModel;
+  const hadCompatibleDemandSystem = hadCompatibleMarketDemandModel && hadCurrentPopulationModel;
   const existingMarketIds = new Set(Object.keys(world.markets || {}));
   const legacy = {
     price: Number.isFinite(Number(world.marketPrice)) ? Number(world.marketPrice) : undefined,
@@ -200,7 +203,7 @@ export function migrateWorld(world, now = Date.now()) {
   };
   const migrated = core.migrateWorld(world, now);
   balancedMarket.repairMissingMarkets(migrated, existingMarketIds, now, legacy);
-  if (!hadCurrentDemandSystem) {
+  if (!hadCompatibleDemandSystem) {
     ensurePopulationEconomy(migrated, now);
     for (const order of migrated.orders || []) {
       if (order.ownerType !== 'population' || !balancedMarket.isOpenOrder(order)) continue;
@@ -212,7 +215,7 @@ export function migrateWorld(world, now = Date.now()) {
   const retainedOrders = migratedOrders.filter((order) => {
     if (order.ownerType === 'player') return true;
     if (order.ownerType !== 'population') return false;
-    return hadCurrentDemandSystem && marketDemand.isValidMarketOrder(order);
+    return hadCompatibleDemandSystem && marketDemand.isValidMarketOrder(order);
   });
   if (retainedOrders.length !== migratedOrders.length) migrated.orders = retainedOrders;
   if (previousVersion < 9) {
@@ -222,7 +225,7 @@ export function migrateWorld(world, now = Date.now()) {
     }
   }
   marketDemand.normalizeWorld(migrated, now, {
-    forceRebuild: !hadCurrentDemandSystem,
+    forceRebuild: !hadCompatibleDemandSystem,
   });
   if (needsOrderBookRepair) reconcileCommodityOrderBook(migrated, now);
   ensurePopulationEconomy(migrated, now);

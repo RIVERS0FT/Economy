@@ -4,7 +4,8 @@ const freezeClasses = (classes) => Object.freeze(classes.map((demandClass) => Ob
   products: freezeOptions(demandClass.products),
 })));
 
-export const MARKET_DEMAND_MODEL_VERSION = 16;
+export const MARKET_DEMAND_MODEL_VERSION = 17;
+export const MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION = 16;
 export const PRICE_WINDOW_MS = 30 * 60 * 1000;
 export const ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const ACTIVE_PLAYER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -25,11 +26,11 @@ export const DEMAND_CURVE = Object.freeze([
   Object.freeze({ weight: 0.20, multiplier: 0.93 }),
 ]);
 export const DEMAND_CURVE_SHORTAGE_MULTIPLIER = 1.03;
-export const DIRECT_DEMAND_UNFILLED_PRICE_STEP = 1.0075;
-export const DIRECT_DEMAND_UNFILLED_REFERENCE_GAP_RATE = 0.05;
-export const DIRECT_DEMAND_UNFILLED_REFERENCE_MAX_RATE = 0.02;
-export const DIRECT_DEMAND_BELOW_REFERENCE_RECOVERY_RATE = 0.025;
-export const DIRECT_DEMAND_SHORTAGE_PRICE_STEP = 1.005;
+export const DIRECT_DEMAND_UNFILLED_PRICE_STEP = 1.0025;
+export const DIRECT_DEMAND_UNFILLED_REFERENCE_GAP_RATE = 0.02;
+export const DIRECT_DEMAND_UNFILLED_REFERENCE_MAX_RATE = 0.0075;
+export const DIRECT_DEMAND_BELOW_REFERENCE_RECOVERY_RATE = 0.01;
+export const DIRECT_DEMAND_SHORTAGE_PRICE_STEP = 1.0025;
 export const DIRECT_DEMAND_PRICE_RECOVERY_RATE = 0.30;
 export const DIRECT_DEMAND_OVERSUPPLY_PRICE_STEP = 0.98;
 export const DIRECT_DEMAND_OVERSUPPLY_ENTRY_CYCLES = 2;

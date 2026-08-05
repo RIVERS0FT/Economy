@@ -1,4 +1,10 @@
-import { DIRECT_DEMAND_MIN_PRICE, MARKET_DEMAND_GROUP_CATALOG, MARKET_DEMAND_MODEL_VERSION, PRICE_MAX_MULTIPLIER } from './catalog.js';
+import {
+  DIRECT_DEMAND_MIN_PRICE,
+  MARKET_DEMAND_GROUP_CATALOG,
+  MARKET_DEMAND_MODEL_VERSION,
+  MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION,
+  PRICE_MAX_MULTIPLIER,
+} from './catalog.js';
 import { clamp, roundMoney } from './math.js';
 import { ensurePopulationEconomy, releasePopulationOrderFunds } from '../population-economy.js';
 import { closeOrderInOrderBook } from '../order-book-runtime.js';
@@ -124,7 +130,9 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
     ensurePopulationEconomy(world, now);
     const legacyGroups = world.demandGroups && typeof world.demandGroups === 'object' ? world.demandGroups : {};
     const previousModel = world.marketDemand && typeof world.marketDemand === 'object' ? world.marketDemand : null;
-    const isUpgrade = forceRebuild || Number(previousModel?.modelVersion || 0) < MARKET_DEMAND_MODEL_VERSION;
+    const previousModelVersion = Number(previousModel?.modelVersion || 0);
+    const requiresDemandRebuild = forceRebuild
+      || previousModelVersion < MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION;
     const fallback = defaultWorldState(now);
     world.marketDemand = {
       ...fallback,
@@ -188,7 +196,7 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
       state.recipeShares = state.recipeShares && typeof state.recipeShares === 'object' ? state.recipeShares : {};
       state.lastInventoryBoost = 0;
       state.lastStockValue = 0;
-      if (isUpgrade) {
+      if (requiresDemandRebuild) {
         state.nextDemandAt = now;
         state.lastCycleId = Math.floor(now / group.cycleMs) - 1;
         state.lastTargetBudget = state.lastBudget;
@@ -250,7 +258,7 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
       });
     }
     world.marketDemand.priceTransmission = transmission;
-    if (isUpgrade) {
+    if (requiresDemandRebuild) {
       for (const group of MARKET_DEMAND_GROUP_CATALOG) {
         const groupState = world.marketDemand.groups[group.id];
         const defaults = defaultDirectQuoteAnchors(group);
@@ -269,7 +277,7 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
     world.demandGroups = world.marketDemand.groups;
     world.priceTransmission = world.marketDemand.priceTransmission;
 
-    if (isUpgrade) {
+    if (requiresDemandRebuild) {
       for (const order of world.orders || []) {
         if (order.ownerType !== 'population' || !isOpenOrder(order)) continue;
         releasePopulationOrderFunds(world, order);

@@ -19,6 +19,7 @@ import {
   DERIVED_UNMET_WEIGHT,
   MARKET_DEMAND_GROUP_CATALOG,
   MARKET_DEMAND_MODEL_VERSION,
+  MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION,
   MARKET_DEMAND_PRODUCT_IDS,
   PRICE_MAX_MULTIPLIER,
   PRODUCT_ORDER_VALUE_CYCLES,
@@ -48,7 +49,12 @@ import {
 } from './population-economy.js';
 import { economicEventClassShares, economicEventProductWeight } from './economic-events.js';
 
-export { MARKET_DEMAND_GROUP_CATALOG, MARKET_DEMAND_MODEL_VERSION, MARKET_DEMAND_PRODUCT_IDS } from './market-demand/catalog.js';
+export {
+  MARKET_DEMAND_GROUP_CATALOG,
+  MARKET_DEMAND_MODEL_VERSION,
+  MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION,
+  MARKET_DEMAND_PRODUCT_IDS,
+} from './market-demand/catalog.js';
 
 const CONSUMPTION_TIERS = new Set(['direct', 'derived-liquidity']);
 const LIQUIDITY_TIERS = new Set(['liquidity-buy', 'liquidity-sell']);
@@ -114,10 +120,10 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
 
   function normalizeWorld(world, now = Date.now(), options = {}) {
     const previousVersion = Number(world.marketDemand?.modelVersion || 0);
+    const requiresDemandRebuild = Boolean(options.forceRebuild)
+      || previousVersion < MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION;
     stateRuntime.normalizeWorld(world, now, options);
-    liquidityRuntime.normalizeWorld(world, {
-      seed: Boolean(options.forceRebuild) || previousVersion < MARKET_DEMAND_MODEL_VERSION,
-    });
+    liquidityRuntime.normalizeWorld(world, { seed: requiresDemandRebuild });
     return world;
   }
 

@@ -15,8 +15,8 @@ const now = 1_700_000_000_000;
 const cycleMs = 5 * 60 * 1000;
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 
-test('market demand model 16 gives every product direct terminal demand', () => {
-  assert.equal(MARKET_DEMAND_MODEL_VERSION, 16);
+test('market demand model 17 gives every product direct terminal demand', () => {
+  assert.equal(MARKET_DEMAND_MODEL_VERSION, 17);
   assert.equal(MARKET_DEMAND_GROUP_CATALOG.reduce((sum, group) => sum + group.baseBudget, 0), 5_700);
   assert.equal(MARKET_DEMAND_GROUP_CATALOG.find((group) => group.id === 'household')?.name, '社会消费市场');
 
@@ -46,7 +46,74 @@ test('market demand model 16 gives every product direct terminal demand', () => 
 });
 
 
-test('population model 6 migration refunds current model 16 escrow before rebuilding demand', () => {
+test('model 16 to 17 rate migration preserves demand escrow and quote state', () => {
+  const world = createWorld(now);
+  ensurePlayer(world, alice, now);
+  for (const state of Object.values(world.demandGroups)) {
+    state.nextDemandAt = now;
+    state.lastCycleId = Math.floor(now / cycleMs) - 1;
+  }
+  processWorld(world, now + 1);
+
+  const oldOrders = world.orders.filter((order) => (
+    order.ownerType === 'population'
+    && (order.demandTier === 'direct' || order.demandTier === 'derived-liquidity')
+    && order.remaining > 0
+    && (order.status === 'open' || order.status === 'partial')
+  ));
+  assert.ok(oldOrders.length > 0);
+  const oldOrderState = new Map(oldOrders.map((order) => [order.id, {
+    status: order.status,
+    remaining: order.remaining,
+    price: order.price,
+  }]));
+  const frozenBefore = Object.fromEntries(Object.entries(world.populationEconomy.models).map(([id, model]) => [
+    id,
+    model.frozenCredits,
+  ]));
+  const reserveBefore = Object.fromEntries(Object.entries(world.marketDemand.liquidity.groups).map(([groupId, group]) => [
+    groupId,
+    {
+      credits: group.credits + group.frozenCredits,
+      inventories: Object.fromEntries(Object.entries(group.reserves).map(([productId, reserve]) => [
+        productId,
+        reserve.inventory + reserve.frozenInventory,
+      ])),
+    },
+  ]));
+  const wheatReference = world.marketDemand.priceTransmission.products.wheat.referencePrice;
+  world.marketDemand.groups.food.directQuoteAnchors.wheat = wheatReference * 1.25;
+  world.marketDemand.groups.food.directOversupplyCycles.wheat = 4;
+  world.marketDemand.modelVersion = 16;
+
+  migrateWorld(world, now + 2);
+
+  assert.equal(world.marketDemand.modelVersion, 17);
+  assert.equal(world.marketDemand.groups.food.directQuoteAnchors.wheat, wheatReference * 1.25);
+  assert.equal(world.marketDemand.groups.food.directOversupplyCycles.wheat, 4);
+  for (const [orderId, snapshot] of oldOrderState) {
+    const order = world.orders.find((item) => item.id === orderId);
+    assert.ok(order, orderId);
+    assert.deepEqual({ status: order.status, remaining: order.remaining, price: order.price }, snapshot);
+  }
+  assert.deepEqual(Object.fromEntries(Object.entries(world.populationEconomy.models).map(([id, model]) => [
+    id,
+    model.frozenCredits,
+  ])), frozenBefore);
+  for (const [groupId, group] of Object.entries(world.marketDemand.liquidity.groups)) {
+    assert.equal(group.credits + group.frozenCredits, reserveBefore[groupId].credits, groupId);
+    for (const [productId, reserve] of Object.entries(group.reserves)) {
+      assert.equal(
+        reserve.inventory + reserve.frozenInventory,
+        reserveBefore[groupId].inventories[productId],
+        `${groupId}/${productId}`,
+      );
+    }
+  }
+});
+
+
+test('population model 6 migration refunds current model 17 escrow before rebuilding demand', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
   for (const state of Object.values(world.demandGroups)) {
@@ -86,7 +153,7 @@ test('population model 6 migration refunds current model 16 escrow before rebuil
   }
   migrateWorld(world, now + 2);
 
-  assert.equal(world.marketDemand.modelVersion, 16);
+  assert.equal(world.marketDemand.modelVersion, 17);
   assert.equal(world.populationEconomy.modelVersion, 7);
   assert.equal(world.populationEconomy.demographics.currentPopulation, 10_000);
   assert.equal(world.orders.some((order) => oldOrderIds.has(order.id)), false);
@@ -104,7 +171,7 @@ test('population model 6 migration refunds current model 16 escrow before rebuil
   }
 });
 
-test('model 9 migration refunds population escrow before model 16 rebuild', () => {
+test('model 9 migration refunds population escrow before model 17 rebuild', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
   for (const state of Object.values(world.demandGroups)) {
@@ -132,7 +199,7 @@ test('model 9 migration refunds population escrow before model 16 rebuild', () =
   world.marketDemand.modelVersion = 9;
   migrateWorld(world, now + 2);
 
-  assert.equal(world.marketDemand.modelVersion, 16);
+  assert.equal(world.marketDemand.modelVersion, 17);
   assert.equal(world.marketDemand.groups.food.directQuoteAnchors.wheat, wheatReference);
   assert.equal(world.marketDemand.groups.food.directOversupplyCycles.wheat, 0);
   assert.equal(world.orders.some((order) => oldOrderIds.has(order.id)), false);
