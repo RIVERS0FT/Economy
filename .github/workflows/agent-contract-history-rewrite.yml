@@ -75,19 +75,18 @@ jobs:
 
           expected_file="$(mktemp)"
           actual_file="$(mktemp)"
-          cat > "$expected_file" <<'FILES'
-          docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
-          docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
-          scripts/verify-contract-audit.mjs
-          scripts/verify-contract-layout.mjs
-          server/src/contract-audit-store.js
-          server/test/contract-audit.test.js
-          src/contracts/api.ts
-          src/contracts/types.ts
-          src/pages/ContractPage.tsx
-          src/styles/contract-audit.css
-          tests/browser/contract-layout.spec.ts
-          FILES
+          printf '%s\n' \
+            'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md' \
+            'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md' \
+            'scripts/verify-contract-audit.mjs' \
+            'scripts/verify-contract-layout.mjs' \
+            'server/src/contract-audit-store.js' \
+            'server/test/contract-audit.test.js' \
+            'src/contracts/api.ts' \
+            'src/contracts/types.ts' \
+            'src/pages/ContractPage.tsx' \
+            'src/styles/contract-audit.css' \
+            'tests/browser/contract-layout.spec.ts' > "$expected_file"
           git diff --name-only 5e8a8ce9dbe868038dd8fae1f860ec1842e20465...HEAD | grep -v '^\.agent/' | grep -v '^\.github/workflows/agent-contract-history-rewrite.yml$' | sort -u > "$actual_file"
           git diff --name-only | grep -v '^\.agent/' | grep -v '^\.github/workflows/agent-contract-history-rewrite.yml$' | sort -u >> "$actual_file"
           sort -u -o "$actual_file" "$actual_file"
