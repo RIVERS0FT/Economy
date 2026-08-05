@@ -30,10 +30,11 @@ jobs:
         run: |
           set -euo pipefail
           python3 .agent-contract-review-fixes.py
-          rm -f .agent-contract-review-fixes.py
+          python3 .agent-current-contract-fixtures.py
+          rm -f .agent-contract-review-fixes.py .agent-current-contract-fixtures.py
           rm -f .github/workflows/agent-contract-review-fixes.yml
           rm -f .github/workflows/agent-contract-review-fixes-v2.yml
-          git add -u -- .agent-contract-review-fixes.py .github/workflows/agent-contract-review-fixes.yml .github/workflows/agent-contract-review-fixes-v2.yml
+          git add -u -- .agent-contract-review-fixes.py .agent-current-contract-fixtures.py .github/workflows/agent-contract-review-fixes.yml .github/workflows/agent-contract-review-fixes-v2.yml
           git diff --check
       - run: npm ci
       - name: Validate
