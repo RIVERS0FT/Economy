@@ -10,7 +10,12 @@
     "  const [historyError, setHistoryError] = useState('');\n  const [republishContract, setRepublishContract] = useState<ContractAuditHistoryItem | null>(null);",
     'replace audit detail state with republish state',
   );
-  content = replaceOnce(content, '    setExpandedContractId(null);\n', '', 'remove history expansion reset');
+  content = replaceOnce(
+    content,
+    "    setHistoryError('');\n    setExpandedContractId(null);\n    productionContractAudit.history(historyQuery)",
+    "    setHistoryError('');\n    productionContractAudit.history(historyQuery)",
+    'remove history expansion reset',
+  );
   content = replaceOnce(
     content,
     "        if (key === 'publish') setShowPublish(false);",
