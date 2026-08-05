@@ -41,6 +41,7 @@ const storageSource = readFileSync('server/src/storage.js', 'utf8');
 const countdownSource = readFileSync('src/utils/authoritativeCountdowns.ts', 'utf8');
 const pageSource = readFileSync('src/pages/ResearchPage.tsx', 'utf8');
 assert.ok(routeSource.includes("/api/game/research/start"));
+assert.ok(routeSource.includes("/api/game/research/accelerate"));
 assert.ok(storageSource.includes('validateResearchAccess'));
 assert.ok(storageSource.includes('processResearchWorld'));
 assert.ok(countdownSource.includes('game.research?.active?.completesAt'));

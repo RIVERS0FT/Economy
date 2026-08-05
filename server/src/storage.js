@@ -83,7 +83,7 @@ const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'collectFacility', 'placeOrder', 'cancelOrder', 'listFacility',
   'cancelFacilityListing', 'buyFacility', 'upgradeWarehouse', 'redeemGift',
   'exchangeGems', 'accelerateFacilityConstruction', 'createAuction', 'placeAuctionBid', 'cancelAuction',
-  'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay', 'startResearch',
+  'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay', 'startResearch', 'accelerateResearch',
 ]);
 
 function normalizeJson(value) {
@@ -949,7 +949,7 @@ export class EconomyStore {
       const researchAccess = validateResearchAccess(world, user, action, payload, now);
       if (researchAccess) {
         gameResult = researchAccess;
-      } else if (action === 'startResearch') {
+      } else if (action === 'startResearch' || action === 'accelerateResearch') {
         gameResult = applyResearchAction(world, user, action, payload, now);
       } else if (action === 'checkIn') {
         gameResult = this.checkInInTransaction(player, requestKey, now);
@@ -970,6 +970,9 @@ export class EconomyStore {
       }
       if (action === 'accelerateFacilityConstruction' && gameResult?.ok) {
         this.gemEconomy.recordConstructionAcceleration(user.id, requestKey, gameResult, now);
+      }
+      if (action === 'accelerateResearch' && gameResult?.ok) {
+        this.gemEconomy.recordResearchAcceleration(user.id, requestKey, gameResult, now);
       }
       const activePlayer = world.players[String(user.id)];
       collectPlayerWeeklyCashSettlement(world, activePlayer, now);

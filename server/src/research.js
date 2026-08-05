@@ -2,6 +2,8 @@ import { FACILITY_TYPE_CATALOG } from './industry-catalog.js';
 import { creditPopulationEmployment } from './population-economy.js';
 
 export const RESEARCH_WORLD_VERSION = 26;
+export const GEM_RESEARCH_ACCELERATION_MS = 30 * 60 * 1000;
+export const GEM_RESEARCH_ACCELERATION_COST = 1;
 export const RESEARCH_LEVEL_CATALOG = Object.freeze([
   Object.freeze({ id: 'C1', rank: 1, cost: 0, durationMs: 0 }),
   Object.freeze({ id: 'C2', rank: 2, cost: 300, durationMs: 5 * 60_000 }),
@@ -97,6 +99,7 @@ export function ensurePlayerResearch(world, player, now = Date.now()) {
   player.research = research;
   player.stats ||= {};
   player.stats.researchPayroll = Math.max(0, Number(player.stats.researchPayroll || 0));
+  player.stats.researchGemSpent = Math.max(0, Number(player.stats.researchGemSpent || 0));
   return research;
 }
 
@@ -111,11 +114,12 @@ export function releaseResearchEmployment(world, player, now = Date.now()) {
   const research = ensurePlayerResearch(world, player, now);
   const active = research?.active;
   if (!active) return 0;
-  const duration = Math.max(1, active.completesAt - active.startedAt);
-  const elapsed = Math.max(0, Math.min(duration, Number(now) - active.startedAt));
+  const duration = Math.max(1, levelFor(active.targetComplexity).durationMs);
+  const remaining = Math.max(0, Number(active.completesAt) - Number(now));
+  const effectiveElapsed = Math.max(0, Math.min(duration, duration - remaining));
   const targetReleased = Number(now) >= active.completesAt
     ? active.cost
-    : Math.floor(active.cost * elapsed / duration);
+    : Math.floor(active.cost * effectiveElapsed / duration);
   const release = Math.max(0, targetReleased - active.employmentReleased);
   if (release > 0) {
     creditPopulationEmployment(world, release, 'research');
@@ -126,27 +130,30 @@ export function releaseResearchEmployment(world, player, now = Date.now()) {
   return release;
 }
 
+function completeResearchIfDue(world, player, now) {
+  const active = player?.research?.active;
+  if (!active || Number(now) < Number(active.completesAt)) return false;
+  releaseResearchEmployment(world, player, now);
+  const currentResearch = player.research;
+  if (!currentResearch?.active) return false;
+  currentResearch.unlockedComplexity = currentResearch.active.targetComplexity;
+  currentResearch.completedAt = currentResearch.active.completesAt;
+  currentResearch.active = null;
+  return true;
+}
+
 export function processResearchWorld(world, now = Date.now()) {
   migrateResearchWorld(world, now);
   for (const player of Object.values(world.players || {})) {
     const research = ensurePlayerResearch(world, player, now);
     if (!research?.active) continue;
     releaseResearchEmployment(world, player, now);
-    const currentResearch = player.research;
-    if (currentResearch?.active && Number(now) >= currentResearch.active.completesAt) {
-      currentResearch.unlockedComplexity = currentResearch.active.targetComplexity;
-      currentResearch.completedAt = currentResearch.active.completesAt;
-      currentResearch.active = null;
-    }
+    completeResearchIfDue(world, player, now);
   }
   return world;
 }
 
-export function applyResearchAction(world, user, action, payload = {}, now = Date.now()) {
-  if (action !== 'startResearch') return null;
-  processResearchWorld(world, now);
-  const player = world.players?.[String(user?.id)];
-  if (!player) return { ok: false, message: '玩家不存在' };
+function startResearch(world, player, payload, now) {
   const research = ensurePlayerResearch(world, player, now);
   if (research.active) return { ok: false, message: '已有研发项目正在进行' };
   const current = levelFor(research.unlockedComplexity);
@@ -166,6 +173,58 @@ export function applyResearchAction(world, user, action, payload = {}, now = Dat
     },
   };
   return { ok: true, message: `已开始研发 ${target.id}` };
+}
+
+function accelerateResearch(world, player, now) {
+  const research = ensurePlayerResearch(world, player, now);
+  const active = research?.active;
+  if (!active) return { ok: false, message: '当前没有正在进行的研发' };
+  if (Number(player.gems || 0) < GEM_RESEARCH_ACCELERATION_COST) {
+    return { ok: false, message: '宝石余额不足' };
+  }
+
+  const target = levelFor(active.targetComplexity);
+  const remainingMsBefore = Math.max(0, Number(active.completesAt) - Number(now));
+  if (remainingMsBefore <= 0) {
+    completeResearchIfDue(world, player, now);
+    return { ok: false, message: '研发已经完成，正在等待服务器确认' };
+  }
+
+  const previousCompletesAt = Number(active.completesAt);
+  player.gems = Number(player.gems || 0) - GEM_RESEARCH_ACCELERATION_COST;
+  active.completesAt = Math.max(Number(now), previousCompletesAt - GEM_RESEARCH_ACCELERATION_MS);
+  const employmentReleased = releaseResearchEmployment(world, player, now);
+  const completedImmediately = completeResearchIfDue(world, player, now);
+  const remainingMsAfter = completedImmediately
+    ? 0
+    : Math.max(0, Number(player.research.active?.completesAt || now) - Number(now));
+  player.stats ||= {};
+  player.stats.researchGemSpent = Number(player.stats.researchGemSpent || 0) + GEM_RESEARCH_ACCELERATION_COST;
+
+  return {
+    ok: true,
+    message: completedImmediately
+      ? `已使用 1 宝石，${target.id} 研发立即完成`
+      : `已使用 1 宝石，${target.id} 研发减少 30m`,
+    targetComplexity: target.id,
+    gemsSpent: GEM_RESEARCH_ACCELERATION_COST,
+    balanceAfter: Number(player.gems || 0),
+    reducedMs: Math.min(GEM_RESEARCH_ACCELERATION_MS, remainingMsBefore),
+    remainingMsBefore,
+    remainingMsAfter,
+    completedImmediately,
+    employmentReleased,
+  };
+}
+
+export function applyResearchAction(world, user, action, payload = {}, now = Date.now()) {
+  if (action !== 'startResearch' && action !== 'accelerateResearch') return null;
+  processResearchWorld(world, now);
+  const player = world.players?.[String(user?.id)];
+  if (!player) return { ok: false, message: '玩家不存在' };
+  return action === 'startResearch'
+    ? startResearch(world, player, payload, now)
+    : accelerateResearch(world, player, now);
 }
 
 function lockedResult(playerResearch, facilityTypeId) {
@@ -206,9 +265,14 @@ export function createResearchClientState(world, player) {
     completedAt: null,
     active: null,
   };
+  const research = clone(player?.research && typeof player.research === 'object' ? player.research : fallback);
+  if (research.active) {
+    research.active.gemAccelerationMs = GEM_RESEARCH_ACCELERATION_MS;
+    research.active.gemAccelerationCost = GEM_RESEARCH_ACCELERATION_COST;
+  }
   return {
     researchLevels: clone(RESEARCH_LEVEL_CATALOG),
-    research: clone(player?.research && typeof player.research === 'object' ? player.research : fallback),
+    research,
   };
 }
 
@@ -216,11 +280,13 @@ export function nextResearchEmploymentAt(active) {
   if (!active) return null;
   const startedAt = Number(active.startedAt);
   const completesAt = Number(active.completesAt);
+  const duration = Math.max(1, levelFor(active.targetComplexity).durationMs);
   const cost = Math.max(0, Math.floor(Number(active.cost || 0)));
   const released = Math.max(0, Math.floor(Number(active.employmentReleased || 0)));
   if (!Number.isFinite(startedAt) || !Number.isFinite(completesAt) || completesAt <= startedAt) return null;
   if (cost <= 0 || released >= cost) return completesAt;
-  return Math.min(completesAt, startedAt + Math.ceil((released + 1) * (completesAt - startedAt) / cost));
+  const effectiveStartedAt = completesAt - duration;
+  return Math.min(completesAt, effectiveStartedAt + Math.ceil((released + 1) * duration / cost));
 }
 
 export function nextResearchDeadlineAt(world) {

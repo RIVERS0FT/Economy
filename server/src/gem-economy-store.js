@@ -89,6 +89,23 @@ export class GemEconomyStore {
       ) STRICT;
       CREATE INDEX IF NOT EXISTS idx_economy_facility_gem_actions_user
         ON economy_facility_gem_actions(user_id, created_at DESC);
+      CREATE TABLE IF NOT EXISTS economy_research_gem_actions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        request_key TEXT NOT NULL UNIQUE,
+        action_type TEXT NOT NULL CHECK (action_type = 'research_acceleration'),
+        target_complexity TEXT NOT NULL CHECK (target_complexity IN ('C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7')),
+        gems_spent INTEGER NOT NULL CHECK (gems_spent > 0),
+        balance_after INTEGER NOT NULL CHECK (balance_after >= 0),
+        reduced_ms INTEGER NOT NULL CHECK (reduced_ms > 0),
+        remaining_ms_before INTEGER NOT NULL CHECK (remaining_ms_before > 0),
+        remaining_ms_after INTEGER NOT NULL CHECK (remaining_ms_after >= 0),
+        completed_immediately INTEGER NOT NULL CHECK (completed_immediately IN (0, 1)),
+        employment_released INTEGER NOT NULL CHECK (employment_released >= 0),
+        created_at INTEGER NOT NULL
+      ) STRICT;
+      CREATE INDEX IF NOT EXISTS idx_economy_research_gem_actions_user
+        ON economy_research_gem_actions(user_id, created_at DESC);
     `);
     database.exec(`
       INSERT OR IGNORE INTO economy_gem_shop_quote_decisions (
@@ -165,6 +182,13 @@ export class GemEconomyStore {
         user_id, request_key, action_type, facility_type_id, gems_spent, balance_after,
         reduced_ms, remaining_ms_before, remaining_ms_after, completed_immediately, created_at
       ) VALUES (?, ?, 'construction_acceleration', ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    this.insertResearchGemAction = database.prepare(`
+      INSERT INTO economy_research_gem_actions (
+        user_id, request_key, action_type, target_complexity, gems_spent, balance_after,
+        reduced_ms, remaining_ms_before, remaining_ms_after, completed_immediately,
+        employment_released, created_at
+      ) VALUES (?, ?, 'research_acceleration', ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
   }
 
@@ -269,6 +293,22 @@ export class GemEconomyStore {
       Number(actionResult.remainingMsBefore),
       Number(actionResult.remainingMsAfter),
       actionResult.completedImmediately ? 1 : 0,
+      Number(now),
+    );
+  }
+
+  recordResearchAcceleration(userId, requestKey, actionResult, now = Date.now()) {
+    this.insertResearchGemAction.run(
+      Number(userId),
+      String(requestKey),
+      String(actionResult.targetComplexity),
+      Number(actionResult.gemsSpent),
+      Number(actionResult.balanceAfter),
+      Number(actionResult.reducedMs),
+      Number(actionResult.remainingMsBefore),
+      Number(actionResult.remainingMsAfter),
+      actionResult.completedImmediately ? 1 : 0,
+      Number(actionResult.employmentReleased || 0),
       Number(now),
     );
   }
