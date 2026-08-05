@@ -1,0 +1,117 @@
+name: Temporary Fix Server Metrics Install Race
+
+on:
+  push:
+    branches:
+      - fix/persist-admin-server-metrics
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/persist-admin-server-metrics
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Add bounded metrics database readiness polling
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+
+          path = Path('scripts/install-economy-api.py')
+          content = path.read_text(encoding='utf-8')
+          if 'import time\n' not in content:
+              content = content.replace('import subprocess\n', 'import subprocess\nimport time\n', 1)
+
+          old = '''    metrics_database = STATE_DIRECTORY / "server-metrics.sqlite"
+    if not metrics_database.is_file():
+        raise RuntimeError(f"server metrics database was not created: {metrics_database}")
+    metrics_uri = f"file:{metrics_database.as_posix()}?mode=ro"
+    with sqlite3.connect(metrics_uri, uri=True, timeout=10) as connection:
+        connection.execute("PRAGMA query_only = ON")
+        metrics_quick_check = str(connection.execute("PRAGMA quick_check(1)").fetchone()[0])
+        metric_tables = {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+    required_metric_tables = {
+        "economy_server_metric_boots",
+        "economy_server_metric_buckets",
+    }
+    if metrics_quick_check != "ok":
+        raise RuntimeError(f"server metrics quick check failed: {metrics_quick_check}")
+    missing_metric_tables = sorted(required_metric_tables - metric_tables)
+    if missing_metric_tables:
+        raise RuntimeError(
+            "server metrics tables are missing: " + ", ".join(missing_metric_tables)
+        )
+    print("ECONOMY_SERVER_METRICS_DATABASE_VERIFIED")'''
+
+          new = '''    metrics_database = STATE_DIRECTORY / "server-metrics.sqlite"
+    required_metric_tables = {
+        "economy_server_metric_boots",
+        "economy_server_metric_buckets",
+    }
+    metrics_failure = "server metrics database was not created"
+    for _attempt in range(40):
+        if metrics_database.is_file():
+            try:
+                metrics_uri = f"file:{metrics_database.as_posix()}?mode=ro"
+                with sqlite3.connect(metrics_uri, uri=True, timeout=10) as connection:
+                    connection.execute("PRAGMA query_only = ON")
+                    metrics_quick_check = str(
+                        connection.execute("PRAGMA quick_check(1)").fetchone()[0]
+                    )
+                    metric_tables = {
+                        str(row[0])
+                        for row in connection.execute(
+                            "SELECT name FROM sqlite_master WHERE type = 'table'"
+                        )
+                    }
+                missing_metric_tables = sorted(required_metric_tables - metric_tables)
+                if metrics_quick_check == "ok" and not missing_metric_tables:
+                    break
+                metrics_failure = (
+                    f"quick_check={metrics_quick_check} "
+                    f"missing_tables={missing_metric_tables}"
+                )
+            except sqlite3.Error as error:
+                metrics_failure = str(error)
+        time.sleep(0.25)
+    else:
+        raise RuntimeError(
+            f"server metrics database verification failed: {metrics_failure}"
+        )
+    print("ECONOMY_SERVER_METRICS_DATABASE_VERIFIED")'''
+
+          if new not in content:
+              if old not in content:
+                  raise SystemExit('INSTALL_METRICS_VERIFICATION_ANCHOR_MISSING')
+              content = content.replace(old, new, 1)
+          path.write_text(content, encoding='utf-8')
+          PYTHON
+      - run: npm ci
+      - run: |
+          npm run verify:server-metrics-persistence
+          node --test server/test/server-metrics-persistence.test.js server/test/server-metrics-degradation.test.js
+          npm run server:check
+          npm run build
+          git diff --check
+      - name: Commit verified installer fix
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- scripts/install-economy-api.py
+          git diff --cached --check
+          git commit -m 'fix: wait for server metrics database readiness'
+          git push origin HEAD:fix/persist-admin-server-metrics
