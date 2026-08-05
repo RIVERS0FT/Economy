@@ -35,7 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           cat .agent/contract-history-rewrite.part-* > /tmp/contract-history-rewrite.mjs
-          echo '89d1db47290757df53f7b8e1ed950417a9ccbd7f1373a8f51e666098098c27e1  /tmp/contract-history-rewrite.mjs' | sha256sum --check
+          echo '09a800565e8c2ad3fb5d4efb9d700ac6d1928a13ea030a38ebbbaf196c4c27ec  /tmp/contract-history-rewrite.mjs' | sha256sum --check
           node --check /tmp/contract-history-rewrite.mjs
           node /tmp/contract-history-rewrite.mjs
 
@@ -112,6 +112,7 @@ jobs:
             .agent/contract-history-rewrite.part-03 \
             .agent/contract-history-rewrite.part-04 \
             .agent/contract-history-rewrite.part-05 \
+            .agent/contract-history-rewrite.part-06 \
             .github/workflows/agent-contract-history-rewrite.yml
           git diff --cached --check
           git commit -m '精简历史合同并支持重新拟定'
