@@ -28,14 +28,15 @@ import {
   type ContractAuditEvent,
   type ContractAuditHistoryItem,
   type ContractAuditTransfer,
+  type ContractKind,
   type ProductionContract,
-  type ProductionContractRole,
   type ProductionContractStatus,
 } from '../contracts/types';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
 import { parseMoneyDraft } from '../utils/moneyDraft';
 import '../styles/contract-audit.css';
+import '../styles/contract-commercial.css';
 
 const INTERVAL_OPTIONS = [
   [10 * 60 * 1000, '每 10 分钟'],
@@ -99,6 +100,12 @@ const AUDIT_EVENT_LABELS: Record<string, string> = {
   renewal_expired: '续签提议过期',
   renewal_activated: '续签合同生效',
   renewal_cancelled_parent_ended: '父合同结束并取消续签',
+  loan_contract_accepted: '玩家贷款放款',
+  loan_repaid: '玩家贷款偿还',
+  loan_defaulted: '玩家贷款违约处置',
+  lease_contract_accepted: '工厂租赁生效',
+  lease_rent_paid: '租金周期结算',
+  lease_terminated: '工厂租赁终止',
 };
 
 const REASON_LABELS: Record<string, string> = {
@@ -177,14 +184,23 @@ function contractNeedsAttention(contract: ProductionContract) {
   );
 }
 
-function contractTitle(contract: Pick<ProductionContract, 'productId'>, productName: string) {
-  void contract;
-  return `${productName}长期供货合同`;
+function contractTitle(contract: Pick<ProductionContract, 'kind' | 'publisherSide' | 'publisherRole' | 'productId'>, productName: string) {
+  if (contract.kind === 'loan') return `${contract.publisherSide === 'lender' ? '放贷' : '贷款'}合同 · ${productName}`;
+  if (contract.kind === 'facility_lease') return `${contract.publisherSide === 'lessor' ? '出租' : '租赁'}合同 · ${productName}`;
+  return `${productName}${contract.publisherRole === 'supplier' ? '供应' : '采购'}合同`;
 }
 
-function RoleTag({ contract }: {
-  contract: Pick<ProductionContract, 'isBuyer' | 'isSupplier' | 'publisherRole'>;
-}) {
+function RoleTag({ contract }: { contract: ProductionContract }) {
+  if (contract.kind === 'loan') {
+    if (contract.isLender) return <StatusTag tone="success">我放贷</StatusTag>;
+    if (contract.isBorrower) return <StatusTag tone="info">我贷款</StatusTag>;
+    return <StatusTag>{contract.publisherSide === 'lender' ? '放贷报价' : '贷款需求'}</StatusTag>;
+  }
+  if (contract.kind === 'facility_lease') {
+    if (contract.isLessor) return <StatusTag tone="success">我出租</StatusTag>;
+    if (contract.isLessee) return <StatusTag tone="info">我租赁</StatusTag>;
+    return <StatusTag>{contract.publisherSide === 'lessor' ? '出租报价' : '租赁需求'}</StatusTag>;
+  }
   if (contract.isBuyer) return <StatusTag tone="info">我采购</StatusTag>;
   if (contract.isSupplier) return <StatusTag tone="success">我供货</StatusTag>;
   return <StatusTag>{contract.publisherRole === 'buyer' ? '采购需求' : '供应报价'}</StatusTag>;
@@ -341,7 +357,117 @@ function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
   );
 }
 
+function contractKindLabel(contract: Pick<ProductionContract, 'kind' | 'publisherSide' | 'publisherRole'>) {
+  if (contract.kind === 'loan') return contract.publisherSide === 'lender' ? '放贷合同' : '贷款合同';
+  if (contract.kind === 'facility_lease') return contract.publisherSide === 'lessor' ? '出租合同' : '租赁合同';
+  return contract.publisherRole === 'supplier' ? '供应合同' : '采购合同';
+}
+
+function commercialCounterparty(contract: ProductionContract) {
+  if (contract.kind === 'loan') return contract.isLender ? contract.borrowerName : contract.lenderName;
+  if (contract.kind === 'facility_lease') return contract.isLessor ? contract.lesseeName : contract.lessorName;
+  return contract.isBuyer ? contract.supplierName : contract.buyerName;
+}
+
+function CommercialOpenContractCard({ contract, productName, busy, run }: ContractCardProps) {
+  const isLoan = contract.kind === 'loan';
+  const rate = Number(contract.interestRateBps || 0) / 100;
+  return (
+    <PagePanel className="contract-card contract-offer-card contract-commercial-card">
+      <header className="contract-card-heading">
+        <div className="contract-card-title">
+          <div className="contract-card-tags"><RoleTag contract={contract} /><StatusTag>{contractKindLabel(contract)}</StatusTag></div>
+          <h2>{isLoan ? '玩家抵押借贷' : productName}</h2>
+          <p>发布者：{contract.publisherName}</p>
+        </div>
+        <strong className="contract-offer-price"><CurrencyAmount>{formatCurrency(isLoan ? contract.principal || 0 : contract.rentPerPeriod || 0)}</CurrencyAmount><small>{isLoan ? ' 本金' : ' / 期'}</small></strong>
+      </header>
+      <div className="contract-offer-terms">
+        <DataList className="compact">
+          {isLoan ? <DataRow label="固定总利率" value={`${rate.toFixed(2)}%`} /> : <DataRow label="工厂数量" value={`${productName} × ${formatNumber(contract.quantity || 0)}`} />}
+          {isLoan ? <DataRow label="贷款期限" value={durationLabel(contract.termMs || 0)} /> : <DataRow label="租金周期" value={durationLabel(contract.periodMs || 0)} />}
+        </DataList>
+        <DataList className="compact">
+          <DataRow label={isLoan ? '抵押工厂' : '总租期'} value={isLoan ? `${productName} × ${formatNumber(contract.collateralQuantity || 0)}` : `${formatNumber(contract.totalPeriods || 0)} 期`} />
+          <DataRow label="到期方式" value={isLoan ? '本金与利息一次结清' : '每期服务器自动结算'} />
+        </DataList>
+      </div>
+      <p className="contract-offer-note">{isLoan ? '抵押工厂继续生产，但合同期间不得出售、拍卖、重复抵押或出租。' : '所有权仍归出租方；承租方承担生产投入并获得租赁期间产出。'}</p>
+      <footer className="contract-card-actions">
+        {contract.isPublisher ? (
+          <Button variant="danger" disabled={busy} onClick={() => void run(`${contract.id}:cancel`, () => productionContractActions.cancel(contract.id))}>取消发布</Button>
+        ) : (
+          <Button disabled={busy} onClick={() => {
+            const message = isLoan
+              ? '签订后将立即放款并锁定约定抵押工厂，是否继续？'
+              : '签订后将冻结首期租金和双方保证金，并转移临时生产使用权，是否继续？';
+            if (window.confirm(message)) void run(`${contract.id}:accept`, () => productionContractActions.accept(contract.id));
+          }}>承接并签订</Button>
+        )}
+      </footer>
+    </PagePanel>
+  );
+}
+
+function CommercialActiveContractCard({ contract, productName, busy, run }: ContractCardProps) {
+  const isLoan = contract.kind === 'loan';
+  const counterparty = commercialCounterparty(contract);
+  const dueAt = isLoan ? contract.dueAt : contract.nextDueAt;
+  const totalLoanDue = Number(contract.principalOutstanding || 0) + Number(contract.interestDue || 0);
+  const canFundLease = !isLoan && contract.isLessee && Number(contract.lesseeEscrowCredits || 0) < Number(contract.rentPerPeriod || 0);
+  return (
+    <PagePanel className={`contract-card contract-commercial-card contract-card--${contract.graceEndsAt ? 'danger' : contract.issue ? 'attention' : 'normal'}`}>
+      <header className="contract-card-heading">
+        <div className="contract-card-title">
+          <div className="contract-card-tags"><RoleTag contract={contract} /><StatusTag tone={statusTone(contract)}>{contract.graceEndsAt ? '宽限期' : contractKindLabel(contract)}</StatusTag>{contract.issue ? <StatusTag tone="warning">待处理</StatusTag> : null}</div>
+          <h2>{isLoan ? '玩家抵押借贷' : productName}</h2>
+          <p>合作方：{counterparty || '等待服务器同步'}</p>
+        </div>
+        <ContractProgress contract={contract} />
+      </header>
+      <div className="contract-detail-layout">
+        <section className="contract-detail-panel contract-current-batch">
+          <h3>{isLoan ? '还款状态' : '当前租期'}</h3>
+          <DataList className="compact">
+            <DataRow label={isLoan ? '到期应还' : '本期租金'} value={<CurrencyAmount>{formatCurrency(isLoan ? totalLoanDue : contract.rentPerPeriod || 0)}</CurrencyAmount>} />
+            {!isLoan ? <DataRow label="已托管租金" value={<CurrencyAmount>{formatCurrency(contract.lesseeEscrowCredits || 0)}</CurrencyAmount>} /> : null}
+            <DataRow label={isLoan ? '贷款到期' : '下次结算'} value={dateTimeLabel(dueAt)} />
+            {contract.graceEndsAt ? <DataRow label="宽限期结束" value={dateTimeLabel(contract.graceEndsAt)} tone="danger" /> : null}
+          </DataList>
+          {contract.issue ? <p className="contract-issue" role="status">{contract.issue}</p> : <p className="contract-ok">合同状态正常</p>}
+        </section>
+        <section className="contract-detail-panel">
+          <h3>合同条款</h3>
+          <DataList className="compact">
+            {isLoan ? <DataRow label="贷款本金" value={<CurrencyAmount>{formatCurrency(contract.principal || 0)}</CurrencyAmount>} /> : <DataRow label="租赁工厂" value={`${productName} × ${formatNumber(contract.quantity || 0)}`} />}
+            {isLoan ? <DataRow label="固定总利率" value={`${(Number(contract.interestRateBps || 0) / 100).toFixed(2)}%`} /> : <DataRow label="租金周期" value={durationLabel(contract.periodMs || 0)} />}
+            {isLoan ? <DataRow label="抵押工厂" value={`${productName} × ${formatNumber(contract.collateralQuantity || 0)}`} /> : <DataRow label="完成租期" value={`${formatNumber(contract.completedPeriods || 0)} / ${formatNumber(contract.totalPeriods || 0)}`} />}
+            <DataRow label="对方" value={counterparty || '—'} />
+          </DataList>
+        </section>
+      </div>
+      <div className="contract-fulfillment-controls">
+        <div className="contract-primary-actions">
+          {isLoan && contract.isBorrower ? <Button disabled={busy} onClick={() => void run(`${contract.id}:repay`, () => productionContractActions.repayLoan(contract.id))}>偿还本金和利息</Button> : null}
+          {canFundLease ? <Button disabled={busy} onClick={() => void run(`${contract.id}:lease-fund`, () => productionContractActions.fundLease(contract.id))}>补充本期租金</Button> : null}
+          {!((isLoan && contract.isBorrower) || canFundLease) ? <StatusTag tone={contract.issue ? 'warning' : 'success'}>{contract.issue ? '等待责任方处理' : '当前无需手动处理'}</StatusTag> : null}
+        </div>
+        <div className="contract-automation">
+          {isLoan && contract.isBorrower ? <ToggleField label="自动还款" description="到期优先使用可用资金一次性结清。" checked={contract.autoRepay !== false} disabled={busy} onChange={() => void run(`${contract.id}:auto-repay`, () => productionContractActions.setLoanAutoRepay(contract.id, contract.autoRepay === false))} /> : null}
+          {!isLoan && contract.isLessee ? <ToggleField label="自动补充租金" description="每期从当前可用资金补足托管租金。" checked={contract.autoFund !== false} disabled={busy} onChange={() => void run(`${contract.id}:lease-auto-fund`, () => productionContractActions.setLeaseAutoFund(contract.id, contract.autoFund === false))} /> : null}
+        </div>
+      </div>
+      {!isLoan ? <footer className="contract-management-actions">
+        {!contract.terminationRequestedBy ? <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:notice`, () => productionContractActions.requestTermination(contract.id))}>申请本期后结束</Button> : <StatusTag tone="warning">已申请本期后结束</StatusTag>}
+        <Button variant="danger" disabled={busy} onClick={() => { if (window.confirm('立即终止会由发起方承担保证金赔付，是否继续？')) void run(`${contract.id}:terminate`, () => productionContractActions.terminateNow(contract.id)); }}>立即违约终止</Button>
+      </footer> : null}
+    </PagePanel>
+  );
+}
+
+
 function ActiveContractCard({ contract, productName, busy, run }: ContractCardProps) {
+  if (contract.kind !== 'supply') return <CommercialActiveContractCard contract={contract} productName={productName} busy={busy} run={run} />;
   const canPrepare = contract.isSupplier && contract.supplierReservedQuantity < contract.quantityPerDelivery;
   const canFund = contract.isBuyer && contract.buyerEscrowCredits < contract.batchGross;
   const counterparty = contract.isBuyer ? contract.supplierName : contract.buyerName;
@@ -448,6 +574,7 @@ function ActiveContractCard({ contract, productName, busy, run }: ContractCardPr
 }
 
 function OpenContractCard({ contract, productName, busy, run }: ContractCardProps) {
+  if (contract.kind !== 'supply') return <CommercialOpenContractCard contract={contract} productName={productName} busy={busy} run={run} />;
   return (
     <PagePanel className="contract-card contract-offer-card">
       <header className="contract-card-heading">
@@ -684,155 +811,133 @@ function PublishContractPanel({
   close: () => void;
   run: (key: string, operation: () => Promise<{ result: { ok: boolean; message: string } }>) => Promise<void>;
 }) {
+  type PublishType = 'supply' | 'purchase' | 'lend' | 'borrow' | 'lease-out' | 'lease-in';
   const initialProduct = model.game.products[0];
-  const initialUnitPrice = initialProduct?.basePrice ?? 1;
-  const [publisherRole, setPublisherRole] = useState<ProductionContractRole>('buyer');
+  const initialFacility = model.game.facilityTypes[0];
+  const [publishType, setPublishType] = useState<PublishType>('purchase');
   const [productId, setProductId] = useState(initialProduct?.id ?? '');
-  const [quantity, setQuantity] = useState(100);
+  const [facilityTypeId, setFacilityTypeId] = useState(initialFacility?.id ?? '');
   const [quantityInput, setQuantityInput] = useState('100');
-  const [unitPrice, setUnitPrice] = useState(initialUnitPrice);
-  const [unitPriceInput, setUnitPriceInput] = useState(String(initialUnitPrice));
+  const [unitPriceInput, setUnitPriceInput] = useState(String(initialProduct?.basePrice ?? 1));
   const [interval, setIntervalValue] = useState<number>(60 * 60 * 1000);
-  const [deliveries, setDeliveries] = useState(12);
   const [deliveriesInput, setDeliveriesInput] = useState('12');
   const [firstDelay, setFirstDelay] = useState<number>(60 * 60 * 1000);
+  const [principalInput, setPrincipalInput] = useState('1000');
+  const [interestInput, setInterestInput] = useState('5');
+  const [loanTerm, setLoanTerm] = useState(24 * 60 * 60 * 1000);
+  const [collateralInput, setCollateralInput] = useState('1');
+  const [rentInput, setRentInput] = useState('100');
+  const [leasePeriod, setLeasePeriod] = useState(3 * 60 * 60 * 1000);
+  const [leasePeriodsInput, setLeasePeriodsInput] = useState('12');
 
-  const parsedQuantity = parseIntegerDraft(quantityInput, { min: 1, max: 1_000_000 });
-  const parsedUnitPrice = parseMoneyDraft(unitPriceInput, { min: 0.01, max: 1_000_000 });
-  const parsedDeliveries = parseIntegerDraft(deliveriesInput, { min: 2, max: 100 });
-  const batchGross = parsedQuantity !== null && parsedUnitPrice !== null
-    ? parsedQuantity * parsedUnitPrice
-    : null;
-  const totalGross = batchGross !== null && parsedDeliveries !== null
-    ? batchGross * parsedDeliveries
-    : null;
+  const quantity = parseIntegerDraft(quantityInput, { min: 1, max: 1_000_000 });
+  const unitPrice = parseMoneyDraft(unitPriceInput, { min: 0.01, max: 1_000_000 });
+  const deliveries = parseIntegerDraft(deliveriesInput, { min: 2, max: 100 });
+  const principal = parseMoneyDraft(principalInput, { min: 0.01, max: 1_000_000 });
+  const interestPercent = parseMoneyDraft(interestInput, { min: 1, max: 20 });
+  const collateralQuantity = parseIntegerDraft(collateralInput, { min: 1, max: 1_000_000 });
+  const rent = parseMoneyDraft(rentInput, { min: 0.01, max: 1_000_000 });
+  const leasePeriods = parseIntegerDraft(leasePeriodsInput, { min: 2, max: 100 });
+  const isSupply = publishType === 'supply' || publishType === 'purchase';
+  const isLoan = publishType === 'lend' || publishType === 'borrow';
+  const batchGross = quantity !== null && unitPrice !== null ? quantity * unitPrice : null;
   const bond = batchGross !== null ? Math.ceil(batchGross * 20) / 100 : null;
-  const canSubmit = Boolean(productId)
-    && parsedQuantity !== null
-    && parsedUnitPrice !== null
-    && parsedDeliveries !== null;
-
-  function updateQuantity(value: string) {
-    setQuantityInput(value);
-    const parsed = parseIntegerDraft(value, { min: 1, max: 1_000_000 });
-    if (parsed !== null) setQuantity(parsed);
-  }
-
-  function updateUnitPrice(value: string) {
-    setUnitPriceInput(value);
-    const parsed = parseMoneyDraft(value, { min: 0.01, max: 1_000_000 });
-    if (parsed !== null) setUnitPrice(parsed);
-  }
-
-  function updateDeliveries(value: string) {
-    setDeliveriesInput(value);
-    const parsed = parseIntegerDraft(value, { min: 2, max: 100 });
-    if (parsed !== null) setDeliveries(parsed);
-  }
+  const loanInterest = principal !== null && interestPercent !== null ? Math.ceil(principal * interestPercent) / 100 : null;
+  const leaseBond = rent !== null ? Math.ceil(rent * 20) / 100 : null;
+  const canSubmit = isSupply
+    ? Boolean(productId && quantity !== null && unitPrice !== null && deliveries !== null)
+    : isLoan
+      ? Boolean(facilityTypeId && principal !== null && interestPercent !== null && collateralQuantity !== null)
+      : Boolean(facilityTypeId && quantity !== null && rent !== null && leasePeriods !== null);
 
   const submit = async () => {
-    if (parsedQuantity === null || parsedUnitPrice === null || parsedDeliveries === null) return;
-    const input: CreateProductionContractInput = {
-      publisherRole,
-      productId,
-      quantityPerDelivery: parsedQuantity,
-      unitPrice: parsedUnitPrice,
-      deliveryIntervalMs: interval,
-      totalDeliveries: parsedDeliveries,
-      firstDeliveryDelayMs: firstDelay,
-    };
+    let input: CreateProductionContractInput;
+    if (isSupply) {
+      if (quantity === null || unitPrice === null || deliveries === null) return;
+      input = {
+        kind: 'supply',
+        publisherRole: publishType === 'supply' ? 'supplier' : 'buyer',
+        productId, quantityPerDelivery: quantity, unitPrice,
+        deliveryIntervalMs: interval, totalDeliveries: deliveries, firstDeliveryDelayMs: firstDelay,
+      };
+    } else if (isLoan) {
+      if (principal === null || interestPercent === null || collateralQuantity === null) return;
+      input = {
+        kind: 'loan', publisherSide: publishType === 'lend' ? 'lender' : 'borrower',
+        principal, interestRateBps: Math.round(interestPercent * 100), termMs: loanTerm,
+        facilityTypeId, collateralQuantity,
+      };
+    } else {
+      if (quantity === null || rent === null || leasePeriods === null) return;
+      input = {
+        kind: 'facility_lease', publisherSide: publishType === 'lease-out' ? 'lessor' : 'lessee',
+        facilityTypeId, quantity, rentPerPeriod: rent, periodMs: leasePeriod,
+        totalPeriods: leasePeriods, firstPeriodDelayMs: firstDelay,
+      };
+    }
     await run('publish', () => productionContractActions.create(input));
   };
 
+  const types: Array<[PublishType, string, string]> = [
+    ['supply', '供应合同', '我提供长期商品'],
+    ['purchase', '采购合同', '我寻找长期供应'],
+    ['lend', '放贷合同', '我提供抵押贷款'],
+    ['borrow', '贷款合同', '我寻找出借资金'],
+    ['lease-out', '出租合同', '我提供工厂使用权'],
+    ['lease-in', '租赁合同', '我寻找工厂使用权'],
+  ];
+
   return (
     <PagePanel className="contract-publish-panel">
-      <WidgetHeading title="发布长期供货合同" action={<Button variant="text" onClick={close}>关闭</Button>} />
-      <p className="contract-section-description">只约定商品、价格、周期和批次，不出租工厂，不涉及其他资产类型。</p>
+      <WidgetHeading title="发布合同" action={<Button variant="text" onClick={close}>关闭</Button>} />
+      <p className="contract-section-description">选择商品合作、玩家借贷或工厂租赁。六种名称表示发布方向，签订后双方共享同一份服务器权威合同。</p>
+      <div className="contract-type-grid" role="group" aria-label="合同类型">
+        {types.map(([value, label, description]) => (
+          <Button key={value} variant="text" className={publishType === value ? 'contract-type-option active' : 'contract-type-option'} aria-pressed={publishType === value} onClick={() => setPublishType(value)}>
+            <strong>{label}</strong><span>{description}</span>
+          </Button>
+        ))}
+      </div>
       <div className="contract-publish-layout">
         <div className="contract-publish-form">
-          <fieldset className="contract-direction-field">
-            <legend>发布方向</legend>
-            <div className="ui-segmented contract-direction-switch" role="group" aria-label="发布方向">
-              <Button
-                variant="text"
-                className={publisherRole === 'buyer' ? 'ui-segmented__button active' : 'ui-segmented__button'}
-                aria-pressed={publisherRole === 'buyer'}
-                onClick={() => setPublisherRole('buyer')}
-              >我长期采购</Button>
-              <Button
-                variant="text"
-                className={publisherRole === 'supplier' ? 'ui-segmented__button active' : 'ui-segmented__button'}
-                aria-pressed={publisherRole === 'supplier'}
-                onClick={() => setPublisherRole('supplier')}
-              >我长期供应</Button>
-            </div>
-          </fieldset>
           <div className="contract-publish-grid">
-            <SelectInput
-              label="合同商品"
-              value={productId}
-              onChange={(event) => {
+            {isSupply ? <>
+              <SelectInput label="合同商品" value={productId} onChange={(event) => {
                 const next = event.target.value;
                 const nextPrice = model.game.products.find((item) => item.id === next)?.basePrice ?? 1;
-                setProductId(next);
-                setUnitPrice(nextPrice);
-                setUnitPriceInput(String(nextPrice));
-              }}
-            >
-              {model.game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
-            </SelectInput>
-            <IntegerInput
-              label="每批数量"
-              value={quantityInput}
-              fallbackValue={quantity}
-              min={1}
-              max={1_000_000}
-              error={parsedQuantity === null ? '请输入 1～1000000 的整数。' : undefined}
-              onValueChange={updateQuantity}
-            />
-            <MoneyInput
-              label="单位价格"
-              value={unitPriceInput}
-              fallbackValue={unitPrice}
-              min={1}
-              max={1_000_000}
-              error={parsedUnitPrice === null ? '请输入 0.01～1000000 的金额；超过两位小数会向下截断。' : undefined}
-              onValueChange={updateUnitPrice}
-            />
-            <SelectInput
-              label="交付周期"
-              value={interval}
-              onChange={(event) => setIntervalValue(Number.parseInt(event.target.value, 10))}
-            >
-              {INTERVAL_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </SelectInput>
-            <IntegerInput
-              label="总交付批次"
-              value={deliveriesInput}
-              fallbackValue={deliveries}
-              min={2}
-              max={100}
-              error={parsedDeliveries === null ? '请输入 2～100 的整数。' : undefined}
-              onValueChange={updateDeliveries}
-            />
-            <SelectInput
-              label="首次交付"
-              value={firstDelay}
-              onChange={(event) => setFirstDelay(Number.parseInt(event.target.value, 10))}
-            >
-              {FIRST_DELAY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </SelectInput>
+                setProductId(next); setUnitPriceInput(String(nextPrice));
+              }}>{model.game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</SelectInput>
+              <IntegerInput label="每批数量" value={quantityInput} fallbackValue={100} min={1} max={1_000_000} error={quantity === null ? '请输入 1～1000000 的整数。' : undefined} onValueChange={setQuantityInput} />
+              <MoneyInput label="单位价格" value={unitPriceInput} fallbackValue={1} min={0.01} max={1_000_000} error={unitPrice === null ? '请输入有效金额。' : undefined} onValueChange={setUnitPriceInput} />
+              <SelectInput label="交付周期" value={interval} onChange={(event) => setIntervalValue(Number.parseInt(event.target.value, 10))}>{INTERVAL_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</SelectInput>
+              <IntegerInput label="总交付批次" value={deliveriesInput} fallbackValue={12} min={2} max={100} error={deliveries === null ? '请输入 2～100 的整数。' : undefined} onValueChange={setDeliveriesInput} />
+              <SelectInput label="首次交付" value={firstDelay} onChange={(event) => setFirstDelay(Number.parseInt(event.target.value, 10))}>{FIRST_DELAY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</SelectInput>
+            </> : null}
+            {isLoan ? <>
+              <MoneyInput label="贷款本金" value={principalInput} fallbackValue={1000} min={0.01} max={1_000_000} error={principal === null ? '请输入有效本金。' : undefined} onValueChange={setPrincipalInput} />
+              <MoneyInput label="固定总利率（%）" value={interestInput} fallbackValue={5} min={1} max={20} error={interestPercent === null ? '请输入 1～20。' : undefined} onValueChange={setInterestInput} />
+              <SelectInput label="贷款期限" value={loanTerm} onChange={(event) => setLoanTerm(Number.parseInt(event.target.value, 10))}><option value={12 * 60 * 60 * 1000}>12 小时</option><option value={24 * 60 * 60 * 1000}>24 小时</option><option value={72 * 60 * 60 * 1000}>72 小时</option></SelectInput>
+              <SelectInput label="抵押工厂" value={facilityTypeId} onChange={(event) => setFacilityTypeId(event.target.value)}>{model.game.facilityTypes.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}</SelectInput>
+              <IntegerInput label="抵押数量" value={collateralInput} fallbackValue={1} min={1} max={1_000_000} error={collateralQuantity === null ? '请输入有效数量。' : undefined} onValueChange={setCollateralInput} />
+            </> : null}
+            {!isSupply && !isLoan ? <>
+              <SelectInput label="租赁工厂" value={facilityTypeId} onChange={(event) => setFacilityTypeId(event.target.value)}>{model.game.facilityTypes.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}</SelectInput>
+              <IntegerInput label="工厂数量" value={quantityInput} fallbackValue={100} min={1} max={1_000_000} error={quantity === null ? '请输入有效数量。' : undefined} onValueChange={setQuantityInput} />
+              <MoneyInput label="每期租金" value={rentInput} fallbackValue={100} min={0.01} max={1_000_000} error={rent === null ? '请输入有效租金。' : undefined} onValueChange={setRentInput} />
+              <SelectInput label="租金周期" value={leasePeriod} onChange={(event) => setLeasePeriod(Number.parseInt(event.target.value, 10))}><option value={1 * 60 * 60 * 1000}>每 1 小时</option><option value={3 * 60 * 60 * 1000}>每 3 小时</option><option value={6 * 60 * 60 * 1000}>每 6 小时</option><option value={12 * 60 * 60 * 1000}>每 12 小时</option><option value={24 * 60 * 60 * 1000}>每天</option></SelectInput>
+              <IntegerInput label="总租期" value={leasePeriodsInput} fallbackValue={12} min={2} max={100} error={leasePeriods === null ? '请输入 2～100 的整数。' : undefined} onValueChange={setLeasePeriodsInput} />
+              <SelectInput label="首次生效" value={firstDelay} onChange={(event) => setFirstDelay(Number.parseInt(event.target.value, 10))}>{FIRST_DELAY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</SelectInput>
+            </> : null}
           </div>
         </div>
-
         <aside className="contract-publish-preview" aria-label="合同预览">
-          <h3>合同预览</h3>
+          <h3>{types.find(([value]) => value === publishType)?.[1]}</h3>
           <DataList>
-            <DataRow label="每批货款" value={<CurrencyAmount>{batchGross === null ? '—' : formatCurrency(batchGross)}</CurrencyAmount>} />
-            <DataRow label="理论合同总额" value={<CurrencyAmount>{totalGross === null ? '—' : formatCurrency(totalGross)}</CurrencyAmount>} />
-            <DataRow label="履约保证金 / 方" value={<CurrencyAmount>{bond === null ? '—' : formatCurrency(bond)}</CurrencyAmount>} />
+            {isSupply ? <><DataRow label="每批货款" value={<CurrencyAmount>{batchGross === null ? '—' : formatCurrency(batchGross)}</CurrencyAmount>} /><DataRow label="理论合同总额" value={<CurrencyAmount>{batchGross === null || deliveries === null ? '—' : formatCurrency(batchGross * deliveries)}</CurrencyAmount>} /><DataRow label="单方保证金" value={<CurrencyAmount>{bond === null ? '—' : formatCurrency(bond)}</CurrencyAmount>} /></> : null}
+            {isLoan ? <><DataRow label="贷款本金" value={<CurrencyAmount>{principal === null ? '—' : formatCurrency(principal)}</CurrencyAmount>} /><DataRow label="固定利息" value={<CurrencyAmount>{loanInterest === null ? '—' : formatCurrency(loanInterest)}</CurrencyAmount>} /><DataRow label="到期应还" value={<CurrencyAmount>{principal === null || loanInterest === null ? '—' : formatCurrency(principal + loanInterest)}</CurrencyAmount>} /></> : null}
+            {!isSupply && !isLoan ? <><DataRow label="每期租金" value={<CurrencyAmount>{rent === null ? '—' : formatCurrency(rent)}</CurrencyAmount>} /><DataRow label="理论租金总额" value={<CurrencyAmount>{rent === null || leasePeriods === null ? '—' : formatCurrency(rent * leasePeriods)}</CurrencyAmount>} /><DataRow label="单方保证金" value={<CurrencyAmount>{leaseBond === null ? '—' : formatCurrency(leaseBond)}</CurrencyAmount>} /></> : null}
           </DataList>
-          <p className="contract-offer-note">签订时采购方冻结首批货款和 20% 保证金，供应方冻结 20% 保证金。每批成功交付按卖方累计货款收取 1% 市场服务费。</p>
+          <p className="contract-offer-note">{isSupply ? '商品与货款逐批托管，卖方累计收取 1% 服务费。' : isLoan ? '本金不得超过抵押工厂审慎价值的 50%，逾期 12 小时后处置最少足额抵押工厂。' : '租入工厂不计入承租方资产；欠租会暂停使用权并进入 12 小时宽限期。'}</p>
           <Button block disabled={busy || !canSubmit} onClick={() => void submit()}>{busy ? '发布中' : '发布合同'}</Button>
         </aside>
       </div>
@@ -840,11 +945,13 @@ function PublishContractPanel({
   );
 }
 
+
 export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
   const [personalView, setPersonalView] = useState<PersonalContractView>('active');
   const [showPublish, setShowPublish] = useState(false);
   const [busyKey, setBusyKey] = useState('');
   const [historyStatus, setHistoryStatus] = useState<ProductionContractStatus | ''>('');
+  const [historyKind, setHistoryKind] = useState<ContractKind | ''>('');
   const [historyRole, setHistoryRole] = useState<HistoryRole>('any');
   const [historyProductId, setHistoryProductId] = useState('');
   const [historyFrom, setHistoryFrom] = useState('');
@@ -857,10 +964,14 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
   const [auditDetails, setAuditDetails] = useState<Record<string, ContractAuditDetail>>({});
   const [auditLoadingId, setAuditLoadingId] = useState<string | null>(null);
   const { productionContracts, productionContractSummary } = productionContractStateFromGame(model.game);
-  const productNames = useMemo(() => new Map(model.game.products.map((product) => [product.id, product.name])), [model.game.products]);
+  const productNames = useMemo(() => new Map([
+    ...model.game.products.map((product) => [product.id, product.name] as const),
+    ['credits', '普通货币'] as const,
+    ...model.game.facilityTypes.map((facility) => [`facility:${facility.id}`, facility.name] as const),
+  ]), [model.game.facilityTypes, model.game.products]);
 
   const activeContracts = productionContracts
-    .filter((contract) => contract.status === 'active' && (contract.isBuyer || contract.isSupplier))
+    .filter((contract) => contract.status === 'active' && (contract.isParticipant || contract.isBuyer || contract.isSupplier))
     .sort((left, right) => (
       Number(Boolean(right.graceEndsAt)) - Number(Boolean(left.graceEndsAt))
       || Number(contractNeedsAttention(right)) - Number(contractNeedsAttention(left))
@@ -873,11 +984,12 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
   const historyQuery = useMemo<ContractHistoryQuery>(() => ({
     limit: 20,
     status: historyStatus,
+    kind: historyKind,
     productId: historyProductId,
     role: historyRole,
     from: dateBoundary(historyFrom),
     to: dateBoundary(historyTo, true),
-  }), [historyFrom, historyProductId, historyRole, historyStatus, historyTo]);
+  }), [historyFrom, historyKind, historyProductId, historyRole, historyStatus, historyTo]);
 
   useEffect(() => {
     if (personalView !== 'history') return undefined;
@@ -983,11 +1095,11 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
   return (
     <PageLayout
       title="合同"
-      description="与其他玩家签订长期周期供货协议，稳定上下游生产合作。合同不绑定工厂、不控制配方，也不涉及其他资产类型。"
+      description="通过商品供货、玩家抵押借贷和工厂使用权租赁建立长期合作。所有资产冻结、到期结算、宽限与违约均由服务器确认。"
       actions={<Button onClick={() => setShowPublish((current) => !current)}>{showPublish ? '收起发布表单' : '发布合同'}</Button>}
     >
       <div className="contract-summary-grid">
-        <MetricCard label="进行中的合同" value={formatNumber(productionContractSummary.active)} detail="我采购或我供货" tone="info" />
+        <MetricCard label="进行中的合同" value={formatNumber(productionContractSummary.active)} detail="供货、借贷或租赁" tone="info" />
         <MetricCard label="等待我处理" value={formatNumber(productionContractSummary.needsAttention)} detail="商品、货款或仓库异常" tone={productionContractSummary.needsAttention ? 'warning' : 'success'} />
         <MetricCard label="24 小时内交付" value={formatNumber(productionContractSummary.upcomingWithin24Hours)} detail="即将到期批次" />
         <MetricCard label="我的公开合同" value={formatNumber(productionContractSummary.open)} detail="尚未被其他玩家承接" />
@@ -1038,6 +1150,9 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
             {personalView === 'history' ? (
           <PagePanel className="contract-history-panel">
             <div className="contract-history-filters" aria-label="合同历史筛选">
+              <SelectInput label="合同领域" value={historyKind} onChange={(event) => setHistoryKind(event.target.value as ContractKind | '')}>
+                <option value="">全部领域</option><option value="supply">商品合作</option><option value="loan">资金借贷</option><option value="facility_lease">工厂租赁</option>
+              </SelectInput>
               <SelectInput label="最终状态" value={historyStatus} onChange={(event) => setHistoryStatus(event.target.value as ProductionContractStatus | '')}>
                 <option value="">全部状态</option>
                 <option value="completed">已完成</option>
@@ -1062,6 +1177,7 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
                 variant="text"
                 onClick={() => {
                   setHistoryStatus('');
+                  setHistoryKind('');
                   setHistoryRole('any');
                   setHistoryProductId('');
                   setHistoryFrom('');

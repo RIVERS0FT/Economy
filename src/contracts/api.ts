@@ -2,6 +2,7 @@ import { GameApiError, type GameActionResponse } from '../api/game';
 import type {
   ContractAuditDetail,
   ContractAuditHistoryPage,
+  ContractKind,
   ProductionContractRole,
   ProductionContractStatus,
 } from './types';
@@ -10,7 +11,8 @@ const GAME_API_BASE = '/economy-api/game';
 const WRITE_TIMEOUT_MS = 12_000;
 const READ_TIMEOUT_MS = 12_000;
 
-export interface CreateProductionContractInput {
+export interface CreateSupplyContractInput {
+  kind?: 'supply';
   publisherRole: ProductionContractRole;
   productId: string;
   quantityPerDelivery: number;
@@ -20,12 +22,35 @@ export interface CreateProductionContractInput {
   firstDeliveryDelayMs: number;
 }
 
-export type RenewProductionContractInput = Omit<CreateProductionContractInput, 'publisherRole' | 'productId'>;
+export interface CreateLoanContractInput {
+  kind: 'loan';
+  publisherSide: 'lender' | 'borrower';
+  principal: number;
+  interestRateBps: number;
+  termMs: number;
+  facilityTypeId: string;
+  collateralQuantity: number;
+}
+
+export interface CreateFacilityLeaseContractInput {
+  kind: 'facility_lease';
+  publisherSide: 'lessor' | 'lessee';
+  facilityTypeId: string;
+  quantity: number;
+  rentPerPeriod: number;
+  periodMs: number;
+  totalPeriods: number;
+  firstPeriodDelayMs: number;
+}
+
+export type CreateProductionContractInput = CreateSupplyContractInput | CreateLoanContractInput | CreateFacilityLeaseContractInput;
+export type RenewProductionContractInput = Omit<CreateSupplyContractInput, 'kind' | 'publisherRole' | 'productId'>;
 
 export interface ContractHistoryQuery {
   cursor?: string | null;
   limit?: number;
   status?: ProductionContractStatus | '';
+  kind?: ContractKind | '';
   productId?: string;
   role?: 'any' | 'publisher' | 'buyer' | 'supplier';
   from?: number | null;
@@ -51,21 +76,14 @@ async function post(path: string, body: unknown = {}): Promise<GameActionRespons
   const timeout = globalThis.setTimeout(() => controller.abort(), WRITE_TIMEOUT_MS);
   try {
     const response = await fetch(`${GAME_API_BASE}${path}`, {
-      method: 'POST',
-      credentials: 'include',
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        'Idempotency-Key': requestKey(),
-      },
+      method: 'POST', credentials: 'include', signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': requestKey() },
       body: JSON.stringify(body),
     });
     if (!response.ok) throw new GameApiError(response.status, await readError(response, '合同操作失败'));
     return await response.json() as GameActionResponse;
   } catch (reason) {
-    if (reason instanceof Error && reason.name === 'AbortError') {
-      throw new GameApiError(408, '合同操作超时，请稍后重试');
-    }
+    if (reason instanceof Error && reason.name === 'AbortError') throw new GameApiError(408, '合同操作超时，请稍后重试');
     throw reason;
   } finally {
     globalThis.clearTimeout(timeout);
@@ -78,17 +96,12 @@ async function getJson<T>(path: string, search?: URLSearchParams): Promise<T> {
   try {
     const query = search && search.size > 0 ? `?${search.toString()}` : '';
     const response = await fetch(`${GAME_API_BASE}${path}${query}`, {
-      method: 'GET',
-      credentials: 'include',
-      signal: controller.signal,
-      headers: { Accept: 'application/json' },
+      method: 'GET', credentials: 'include', signal: controller.signal, headers: { Accept: 'application/json' },
     });
     if (!response.ok) throw new GameApiError(response.status, await readError(response, '合同审计读取失败'));
     return await response.json() as T;
   } catch (reason) {
-    if (reason instanceof Error && reason.name === 'AbortError') {
-      throw new GameApiError(408, '合同审计读取超时，请稍后重试');
-    }
+    if (reason instanceof Error && reason.name === 'AbortError') throw new GameApiError(408, '合同审计读取超时，请稍后重试');
     throw reason;
   } finally {
     globalThis.clearTimeout(timeout);
@@ -109,6 +122,10 @@ export const productionContractActions = {
   setAutoFund: (contractId: string, enabled: boolean) => post(contractPath(contractId, 'auto-fund'), { enabled }),
   requestTermination: (contractId: string) => post(contractPath(contractId, 'request-termination')),
   terminateNow: (contractId: string) => post(contractPath(contractId, 'terminate-now')),
+  repayLoan: (contractId: string) => post(contractPath(contractId, 'repay')),
+  setLoanAutoRepay: (contractId: string, enabled: boolean) => post(contractPath(contractId, 'auto-repay'), { enabled }),
+  fundLease: (contractId: string) => post(contractPath(contractId, 'lease-fund')),
+  setLeaseAutoFund: (contractId: string, enabled: boolean) => post(contractPath(contractId, 'lease-auto-fund'), { enabled }),
   proposeRenewal: (contractId: string, input: RenewProductionContractInput) => post(`${contractPath(contractId, 'renewal')}/propose`, input),
   acceptRenewal: (contractId: string) => post(`${contractPath(contractId, 'renewal')}/accept`),
   rejectRenewal: (contractId: string) => post(`${contractPath(contractId, 'renewal')}/reject`),
@@ -121,6 +138,7 @@ export const productionContractAudit = {
     if (query.cursor) search.set('cursor', query.cursor);
     if (query.limit) search.set('limit', String(query.limit));
     if (query.status) search.set('status', query.status);
+    if (query.kind) search.set('kind', query.kind);
     if (query.productId) search.set('productId', query.productId);
     if (query.role && query.role !== 'any') search.set('role', query.role);
     if (query.from) search.set('from', String(query.from));
@@ -131,10 +149,7 @@ export const productionContractAudit = {
   detail: async (contractId: string, cursor?: string | null, limit = 100) => {
     const search = new URLSearchParams({ limit: String(limit) });
     if (cursor) search.set('cursor', cursor);
-    const payload = await getJson<{ audit: ContractAuditDetail }>(
-      `/contracts/${encodeURIComponent(contractId)}/audit`,
-      search,
-    );
+    const payload = await getJson<{ audit: ContractAuditDetail }>(`/contracts/${encodeURIComponent(contractId)}/audit`, search);
     return payload.audit;
   },
 };

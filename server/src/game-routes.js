@@ -51,7 +51,7 @@ if (method === 'POST' && contractRenewalAction) {
   };
 }
 
-const contractAction = path.match(/^\/api\/game\/contracts\/([^/]+)\/(accept|cancel|prepare|fund|auto-reserve|auto-fund|request-termination|terminate-now)$/);
+const contractAction = path.match(/^\/api\/game\/contracts\/([^/]+)\/(accept|cancel|prepare|fund|auto-reserve|auto-fund|request-termination|terminate-now|repay|auto-repay|lease-fund|lease-auto-fund)$/);
   if (method === 'POST' && contractAction) {
     const actionMap = {
       accept: 'acceptProductionContract',
@@ -62,6 +62,10 @@ const contractAction = path.match(/^\/api\/game\/contracts\/([^/]+)\/(accept|can
       'auto-fund': 'setProductionContractAutoFund',
       'request-termination': 'requestProductionContractTermination',
       'terminate-now': 'terminateProductionContractNow',
+      repay: 'repayPlayerLoan',
+      'auto-repay': 'setPlayerLoanAutoRepay',
+      'lease-fund': 'fundFacilityLease',
+      'lease-auto-fund': 'setFacilityLeaseAutoFund',
     };
     return {
       action: actionMap[contractAction[2]],

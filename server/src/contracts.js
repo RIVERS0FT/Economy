@@ -4,9 +4,18 @@ import { calculateCumulativeMarketSellFee } from './market-sell-fee.js';
 import { creditPopulationEmployment } from './population-economy.js';
 import { ensureWarehouse } from './warehouse.js';
 import { createContractRuntimeIndex } from './contract-runtime-index.js';
+import {
+  acceptCommercialContract,
+  applyCommercialContractAction,
+  commercialIssue,
+  createCommercialContract,
+  normalizeCommercialContract,
+  processCommercialContract,
+  publicCommercialContract,
+} from './commercial-contracts.js';
 import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 
-export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 4;
+export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 5;
 export const PRODUCTION_CONTRACT_INTERVALS = Object.freeze([
   10 * 60 * 1000,
   30 * 60 * 1000,
@@ -126,6 +135,8 @@ function normalizeContract(contract) {
     id: String(contract?.id || `contract-${randomUUID()}`),
     publisherId: Number(contract?.publisherId),
     publisherName: String(contract?.publisherName || '玩家'),
+    kind: 'supply',
+    publisherSide: contract?.publisherRole === 'supplier' ? 'supplier' : 'buyer',
     publisherRole: contract?.publisherRole === 'supplier' ? 'supplier' : 'buyer',
     buyerId: contract?.buyerId === null || contract?.buyerId === undefined ? null : Number(contract.buyerId),
     buyerName: contract?.buyerName ? String(contract.buyerName) : null,
@@ -171,7 +182,11 @@ function normalizeContract(contract) {
 
 export function migrateProductionContractWorld(world) {
   world.productionContracts = Array.isArray(world.productionContracts)
-    ? world.productionContracts.map(normalizeContract)
+    ? world.productionContracts.map((contract) => (
+      contract?.kind && contract.kind !== 'supply'
+        ? normalizeCommercialContract(contract)
+        : normalizeContract(contract)
+    )).filter(Boolean)
     : [];
   world.productionContractSchemaVersion = PRODUCTION_CONTRACT_SCHEMA_VERSION;
   for (const player of Object.values(world.players || {})) normalizeStats(player);
@@ -589,6 +604,10 @@ function processProductionContractsWithIndex(world, now = Date.now()) {
   }
   for (const contract of runtimeIndex.activeContracts) {
     if (contract.status !== 'active') continue;
+    if (contract.kind !== 'supply') {
+      processCommercialContract(world, contract, now, runtimeIndex);
+      continue;
+    }
     if (contract.renewalProposal?.status === 'proposed' && now >= Number(contract.renewalProposal.expiresAt || 0)) {
       runtimeIndex.transition(contract, () => releaseRenewalEscrow(
         contract,
@@ -609,6 +628,9 @@ export function processProductionContracts(world, now = Date.now()) {
 }
 
 function createContract(world, user, payload, now, runtimeIndex) {
+  if (payload.kind && payload.kind !== 'supply') {
+    return createCommercialContract(world, user, payload, now, runtimeIndex) || result(false, '合同类型不存在');
+  }
   const publisherRole = payload.publisherRole === 'supplier' ? 'supplier' : payload.publisherRole === 'buyer' ? 'buyer' : null;
   const productId = PRODUCT_IDS.has(String(payload.productId || '')) ? String(payload.productId) : null;
   const quantityPerDelivery = positiveInteger(payload.quantityPerDelivery, MAX_QUANTITY);
@@ -655,6 +677,9 @@ function acceptContract(world, user, payload, now, runtimeIndex) {
   const contract = runtimeIndex.contractById(payload.contractId);
   if (!contract || contract.status !== 'open') return result(false, '合同不存在或已被承接');
   if (contract.publisherId === Number(user.id)) return result(false, '不能承接自己发布的合同');
+  if (contract.kind !== 'supply') {
+    return acceptCommercialContract(world, contract, user, now, runtimeIndex) || result(false, '合同类型不存在');
+  }
   if (runtimeIndex.activeCountForParticipant(user.id) >= MAX_ACTIVE_CONTRACTS_PER_PLAYER) return result(false, '进行中的合同数量已达上限');
   if (runtimeIndex.activeCountForParticipant(contract.publisherId) >= MAX_ACTIVE_CONTRACTS_PER_PLAYER) return result(false, '发布者进行中的合同数量已达上限');
 
@@ -875,6 +900,8 @@ function terminateNow(world, user, payload, now, runtimeIndex) {
 
 export function applyProductionContractAction(world, user, action, payload = {}, now = Date.now()) {
   const runtimeIndex = processProductionContractsWithIndex(world, now);
+  const commercialResult = applyCommercialContractAction(world, user, action, payload, now, runtimeIndex);
+  if (commercialResult) return commercialResult;
   if (action === 'createProductionContract') return createContract(world, user, payload, now, runtimeIndex);
   if (action === 'acceptProductionContract') return acceptContract(world, user, payload, now, runtimeIndex);
   if (action === 'cancelProductionContract') return cancelOpenContract(world, user, payload, now, runtimeIndex);
@@ -892,6 +919,7 @@ export function applyProductionContractAction(world, user, action, payload = {},
 }
 
 function issueForContract(world, contract, runtimeIndex, userId = null) {
+  if (contract.kind !== 'supply') return commercialIssue(contract);
   if (contract.status !== 'active') return null;
   const buyer = playerFor(world, contract.buyerId);
   const supplier = playerFor(world, contract.supplierId);
@@ -913,9 +941,12 @@ function issueForContract(world, contract, runtimeIndex, userId = null) {
 }
 
 function publicContract(world, contract, userId, runtimeIndex) {
+  if (contract.kind !== 'supply') return publicCommercialContract(contract, userId);
   const gross = batchGross(contract) || 0;
   return {
     id: contract.id,
+    kind: 'supply',
+    publisherSide: contract.publisherRole,
     publisherId: contract.publisherId,
     publisherName: contract.publisherName,
     publisherRole: contract.publisherRole,
@@ -959,6 +990,7 @@ function publicContract(world, contract, userId, runtimeIndex) {
     isPublisher: contract.publisherId === Number(userId),
     isBuyer: contract.buyerId === Number(userId),
     isSupplier: contract.supplierId === Number(userId),
+    isParticipant: contract.buyerId === Number(userId) || contract.supplierId === Number(userId),
   };
 }
 

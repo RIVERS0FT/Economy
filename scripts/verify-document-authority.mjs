@@ -151,7 +151,7 @@ for (const path of versionedDocs) {
   if (!existsSync(pathFor(path))) continue;
   const content = read(path);
   if (!content.includes(`客户端状态版本：${CURRENT_CLIENT_STATE_VERSION}`)) failures.push(`${path} 客户端状态版本必须为 ${CURRENT_CLIENT_STATE_VERSION}`);
-  if (!content.includes('世界状态版本：25')) failures.push(`${path} 世界状态版本必须为 25`);
+  if (!content.includes('世界状态版本：26')) failures.push(`${path} 世界状态版本必须为 25`);
 }
 
 if (existsSync(pathFor('docs/README.md'))) {

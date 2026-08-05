@@ -3,6 +3,7 @@ import { FACILITY_TYPE_CATALOG } from './domain.js';
 import { facilitySellQuantityForOwner } from './order-book-runtime.js';
 import { creditPopulationEmployment } from './population-economy.js';
 import { calculateRateMoney, floorInternalMoney, internalMoneyToMicros, microsToInternalMoney, multiplyMoneyRatio, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
+import { contractLockedFacilityQuantity } from './contract-asset-locks.js';
 import {
   createWeeklyCashSettlementClientState,
   isPlayerWeeklyInterestEligible,
@@ -283,7 +284,9 @@ export function transferableFacilityQuantity(world, player, facilityTypeId) {
   if (!group) return 0;
   const listed = facilitySellQuantityForOwner(world, player.userId, facilityTypeId);
   const auctioned = auctionedFacilityQuantity(world, player.userId, facilityTypeId);
-  return Math.max(0, safeNonNegativeInteger(group.count) - listed - auctioned - mortgagedFacilityQuantity(player, facilityTypeId));
+  return Math.max(0, safeNonNegativeInteger(group.count) - listed - auctioned
+    - mortgagedFacilityQuantity(player, facilityTypeId)
+    - contractLockedFacilityQuantity(world, player.userId, facilityTypeId));
 }
 
 function prudentFacilityValue(world, facilityTypeId) {

@@ -38,6 +38,10 @@ const CONTRACT_ACTIONS = new Set([
   'revokeProductionContractRenewal',
   'requestProductionContractTermination',
   'terminateProductionContractNow',
+  'repayPlayerLoan',
+  'setPlayerLoanAutoRepay',
+  'fundFacilityLease',
+  'setFacilityLeaseAutoFund',
 ]);
 
 function normalizeJson(value) {
@@ -127,7 +131,7 @@ export class EconomyStore extends PersistentEconomyStore {
   migrateLoadedWorld(world, now) {
     const prepared = super.migrateLoadedWorld(world, now);
     migrateProductionContractWorld(prepared);
-    prepared.version = 25;
+    prepared.version = 26;
     return this.finalizeWorldForStorage(prepared, now);
   }
 
