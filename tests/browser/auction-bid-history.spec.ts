@@ -83,3 +83,34 @@ test('auction facility artwork fills the main and summary slots within a 256px t
   expect(summaryGeometry.backgroundImage).not.toBe('none');
   expect(summaryGeometry.backgroundSize).toBe('cover');
 });
+
+test('auction asset matrix tiles show name and quantity while the main visual remains static', async ({ page }) => {
+  await page.setViewportSize({ width: 476, height: 900 });
+  await page.goto('runtime-test.html?view=auction&scenario=bid-history');
+
+  const tooltip = page.locator('.safe-tooltip');
+  const mainTile = page.locator('.asset-auction-bundle-tile').first();
+  await mainTile.scrollIntoViewIfNeeded();
+  await mainTile.hover();
+  await expect(tooltip).toHaveCount(0);
+  expect(await mainTile.getAttribute('tabindex')).toBeNull();
+  expect(await mainTile.evaluate((node) => node.closest('.safe-tooltip-anchor') === null)).toBe(true);
+
+  const summaryTile = page.locator('.asset-auction-summary-icon').first();
+  await summaryTile.hover();
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toHaveText('机械 ×5');
+
+  await page.mouse.move(0, 0);
+  await expect(tooltip).toHaveCount(0);
+
+  await summaryTile.focus();
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toHaveText('机械 ×5');
+  expect(await summaryTile.getAttribute('title')).toBeNull();
+
+  await page.keyboard.press('Tab');
+  await expect(tooltip).toHaveCount(0);
+  await expect(page.locator('.asset-auction-item-tooltip-anchor')).toHaveCount(1);
+  await expect(page.locator('.asset-auction-summary-placeholder')).toHaveCount(19);
+});
