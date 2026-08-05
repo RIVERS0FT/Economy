@@ -120,7 +120,7 @@ test.describe('research technology tree', () => {
         width: sheetBox.width,
         bottom: sheetBox.bottom,
         borderTopLeftRadius: sheetStyle.borderTopLeftRadius,
-        gridTemplateRows: sheetStyle.gridTemplateRows,
+        gridRowCount: sheetStyle.gridTemplateRows.split(' ').filter(Boolean).length,
         handleWidth: handleBox?.width ?? 0,
         handleHeight: handleBox?.height ?? 0,
         viewportPaddingLeft: viewportStyle?.paddingLeft ?? '',
@@ -155,7 +155,6 @@ test.describe('research technology tree', () => {
     }
     for (const key of [
       'borderTopLeftRadius',
-      'gridTemplateRows',
       'viewportPaddingLeft',
       'viewportPaddingRight',
       'footerPaddingLeft',
@@ -167,6 +166,7 @@ test.describe('research technology tree', () => {
     ] as const) {
       expect(researchGeometry[key]).toBe(factoryGeometry[key]);
     }
-    expect(researchGeometry.gridTemplateRows).not.toBe('none');
+    expect(factoryGeometry.gridRowCount).toBe(3);
+    expect(researchGeometry.gridRowCount).toBe(factoryGeometry.gridRowCount);
   });
 });
