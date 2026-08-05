@@ -94,12 +94,12 @@ test.describe('research technology tree', () => {
 
   test('mobile research and factory details share the same sheet geometry', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
 
-    const waitForSheetAnimations = async () => {
-      const sheet = page.locator('.mobile-detail-sheet');
-      await expect.poll(() => sheet.evaluate((element) => (
-        element.getAnimations({ subtree: true }).every((animation) => animation.playState === 'finished')
-      ))).toBe(true);
+    const waitForStableSheetLayout = async () => {
+      await page.locator('.mobile-detail-sheet').evaluate(() => new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }));
     };
 
     const readGeometry = async () => page.locator('.mobile-detail-sheet').evaluate((sheet) => {
@@ -138,7 +138,7 @@ test.describe('research technology tree', () => {
     await page.getByRole('button', { name: /机械工厂，数量 18，运行中/ }).click();
     const factoryDialog = page.getByRole('dialog', { name: /机械工厂/ });
     await expect(factoryDialog).toBeVisible();
-    await waitForSheetAnimations();
+    await waitForStableSheetLayout();
     const factoryGeometry = await readGeometry();
     await page.keyboard.press('Escape');
     await expect(factoryDialog).toBeHidden();
@@ -147,7 +147,7 @@ test.describe('research technology tree', () => {
     await page.getByRole('button', { name: /C3 产业技术，研发中/ }).click();
     const researchDialog = page.getByRole('dialog', { name: 'C3 研发新技术' });
     await expect(researchDialog).toBeVisible();
-    await waitForSheetAnimations();
+    await waitForStableSheetLayout();
     const researchGeometry = await readGeometry();
 
     for (const key of ['x', 'width', 'bottom', 'handleWidth', 'handleHeight'] as const) {
