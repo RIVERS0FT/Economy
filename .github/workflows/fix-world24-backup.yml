@@ -107,4 +107,5 @@ jobs:
             .github/workflows/fix-world24-backup.yml
           git diff --cached --check
           git commit -m "修复 world 24 部署前备份目标"
+          echo "VERIFIED_HOTFIX_COMMIT=$(git rev-parse HEAD)"
           git push origin HEAD:fix/world24-deploy-backup
