@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   patch:
-    if: ${{ github.event.head_commit.message == 'chore: apply client update design patch' }}
+    if: "${{ github.event.head_commit.message == 'chore: apply client update design patch' }}"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
