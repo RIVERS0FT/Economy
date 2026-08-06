@@ -44,7 +44,7 @@ jobs:
               file = Path(path)
               text = file.read_text()
               if old not in text:
-                  raise SystemExit(f'{path} missing expected appliance balance text')
+                  raise SystemExit(f'{path} missing expected balance text: {old}')
               file.write_text(text.replace(old, new, 1))
 
           replace(
@@ -56,6 +56,21 @@ jobs:
               'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
               '| 家电 (`appliance`) | 92 | 1 机械 + 1 电子产品 → 2 家电 | 60 秒 | 12 | 12 |',
               '| 家电 (`appliance`) | 92 | 1 机械 + 1 电子产品 → 2 家电 | 60 秒 | 72.45 | 12 |',
+          )
+          replace(
+              'scripts/verify-industry-catalog.mjs',
+              "assert.deepEqual(standardRecipes(facilities.get('tool-workshop'))[0].output, { productId: 'tools', quantity: 1 });",
+              "assert.deepEqual(standardRecipes(facilities.get('tool-workshop'))[0].output, { productId: 'tools', quantity: 5 });",
+          )
+          replace(
+              'scripts/verify-industry-catalog.mjs',
+              "assert.deepEqual(standardRecipes(fertilizerFacility)[0].output, { productId: 'fertilizer', quantity: 1 });",
+              "assert.deepEqual(standardRecipes(fertilizerFacility)[0].output, { productId: 'fertilizer', quantity: 6 });",
+          )
+          replace(
+              'scripts/verify-industry-catalog.mjs',
+              'assert.equal(standardRecipes(fertilizerFacility)[0].operatingCost, 10);',
+              'assert.equal(standardRecipes(fertilizerFacility)[0].operatingCost, 16.56);',
           )
           PY
       - run: npm run build
