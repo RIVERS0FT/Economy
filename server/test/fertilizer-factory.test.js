@@ -43,7 +43,13 @@ test('化肥与化肥厂进入正式目录并保持 C4 参考利润', () => {
   assert.deepEqual(recipe.output, { productId: 'fertilizer', quantity: 1 });
   assert.equal(recipe.cycleMs, 60_000);
   assert.equal(recipe.operatingCost, 10);
-  assert.equal((34 - 2 * 9 - 10) * 60_000 / recipe.cycleMs, 6);
+  const inputValue = recipe.inputs.reduce((sum, input) => (
+    sum + PRODUCT_CATALOG.find((item) => item.id === input.productId).basePrice * input.quantity
+  ), 0);
+  const profitPerMinute = (
+    product.basePrice * recipe.output.quantity - inputValue - recipe.operatingCost
+  ) * 60_000 / recipe.cycleMs;
+  assert.ok(Math.abs(profitPerMinute - 6) < 1e-9);
   assert.equal(facility.recipes.length, 4);
   assert.equal(MARKET_DEMAND_MODEL_VERSION, 17);
 });
