@@ -658,3 +658,64 @@
     stroke: currentColor;
   }
 }
+
+/* Split technology nodes: C1-C7 remain visual stages while access belongs to each node. */
+.research-stage-node {
+  cursor: default;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
+}
+
+.research-stage-node .research-level-code {
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+}
+
+.research-technology-node {
+  position: relative;
+  min-height: 7.5rem;
+  isolation: isolate;
+}
+
+.research-technology-node::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  border-radius: inherit;
+  background: conic-gradient(
+    var(--color-info) var(--research-node-progress, 0deg),
+    transparent 0deg
+  );
+  opacity: 0;
+}
+
+.research-technology-node[data-status="mastered"] {
+  border-color: color-mix(in srgb, var(--color-success) 65%, var(--border-subtle));
+}
+
+.research-technology-node[data-status="active"] {
+  border-color: var(--color-info);
+  background: color-mix(in srgb, var(--color-info) 10%, var(--surface-raised));
+}
+
+.research-technology-node[data-status="active"]::before {
+  opacity: 1;
+}
+
+.research-technology-node[data-status="available"] {
+  border-color: color-mix(in srgb, var(--color-warning) 70%, var(--border-subtle));
+}
+
+.research-technology-node[data-status="locked"] {
+  opacity: 0.62;
+}
+
+.research-technology-node[data-selected="true"] {
+  box-shadow: 0 0 0 2px var(--surface-base), 0 0 0 4px var(--color-accent);
+}
+
+.research-technology-node > small {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}

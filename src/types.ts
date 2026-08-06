@@ -153,18 +153,39 @@ export interface ResearchLevelDefinition {
   durationMs: number;
 }
 
+export interface ResearchTechnologyDefinition {
+  id: string;
+  name: string;
+  stage: FacilityComplexity;
+  rank: number;
+  cost: number;
+  durationMs: number;
+  prerequisiteTechnologyIds: string[];
+  unlockFacilityTypeIds: string[];
+  description: string;
+  initial?: boolean;
+  legacy?: boolean;
+}
+
 export interface ActiveResearch {
+  technologyId?: string;
+  technologyName?: string;
   targetComplexity: FacilityComplexity;
   startedAt: number;
   completesAt: number;
+  durationMs?: number;
   cost: number;
   employmentReleased: number;
+  legacy?: boolean;
+  grantTechnologyIds?: string[];
   gemAccelerationMs?: number;
   gemAccelerationCost?: number;
 }
 
 export interface ResearchState {
   unlockedComplexity: FacilityComplexity;
+  completedTechnologyIds?: string[];
+  completedAtByTechnologyId?: Record<string, number>;
   completedAt: number | null;
   active: ActiveResearch | null;
 }
@@ -533,6 +554,7 @@ export interface EconomyState {
   facilityGroups: FacilityGroup[];
   facilityConstruction?: FacilityConstruction;
   researchLevels: ResearchLevelDefinition[];
+  researchTechnologies?: ResearchTechnologyDefinition[];
   research: ResearchState;
   products: ProductDefinition[];
   facilityTypes: FacilityTypeDefinition[];
