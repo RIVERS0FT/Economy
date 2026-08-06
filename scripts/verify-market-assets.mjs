@@ -116,7 +116,7 @@ for (const text of [
   '>保存计划</Button>','下一周期按 ','<span>冻结 <strong>{group.listedCount}</strong></span>',
   '下一周期加入','下一周期切换为：'
 ]) forbidText('src/pages/ProductionPage.tsx', text);
-for (const text of ['点击工作次数','生产商品总数','买入商品总数','卖出商品总数','礼品兑换','退出登录']) requireText('src/pages/SettingsPage.tsx', text);
+for (const text of ['点击工作次数','生产商品总数','买入商品总数','卖出商品总数','礼品兑换','存档管理','删除存档','退出登录']) requireText('src/pages/SettingsPage.tsx', text);
 for (const text of ['登录会话','重置经济状态','重置服务器经济状态']) forbidText('src/pages/SettingsPage.tsx', text);
 for (const text of ["label: '仓库剩余'", "id: 'warehouse'"]) requireText('src/app/GameApp.tsx', text);
 for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);

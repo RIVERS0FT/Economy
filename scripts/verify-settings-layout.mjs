@@ -36,6 +36,8 @@ if (failures.length === 0) {
     '账号与管理',
     '账号资料',
     '当前会话',
+    '存档管理',
+    '删除存档',
   ]) {
     if (!page.includes(text)) failures.push(`SettingsPage 缺少设置页结构或文案: ${text}`);
   }
@@ -45,8 +47,6 @@ if (failures.length === 0) {
     'settings-grid unified-settings-grid',
     'profile-settings-card span-2',
     'profile-action-stack',
-    'settings-danger-zone',
-    '重置经济状态',
     '危险区域',
   ]) {
     if (page.includes(forbidden)) failures.push(`SettingsPage 不应包含: ${forbidden}`);
@@ -89,7 +89,7 @@ if (failures.length === 0) {
   for (const text of [
     '两个互不共享网格行高的纵向内容栈',
     '玩家资料／游戏设置／礼品兑换／账号与管理',
-    '不得提供经济状态重置',
+    '设置页“存档管理”',
     '共享三列网格',
   ]) {
     if (!pageDesign.includes(text)) failures.push(`页面职责设计缺少设置页防回退规则: ${text}`);
@@ -108,7 +108,7 @@ if (failures.length === 0) {
   }
 
   for (const text of [
-    'desktop settings columns stack independently without invitation content',
+    'desktop settings columns stack independently with save deletion management',
     "name: '邀请好友'",
     'toHaveCount(0)',
   ]) {
@@ -120,4 +120,4 @@ if (failures.length) {
   console.error(`设置页独立列、统计密度、账号分组和邀请移除验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('设置页独立主列／侧列、四项统计、账号分组、邀请移出与禁用重置验证通过。');
+console.log('设置页独立主列／侧列、四项统计、账号分组、邀请移出与存档管理验证通过。');

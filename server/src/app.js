@@ -28,6 +28,11 @@ import { EconomyStore } from './runtime-store.js';
 import { createTutorialStore, CURRENT_TUTORIAL_VERSION } from './tutorial-store.js';
 import { cleanupEmailVerificationRecords } from './verification-retention.js';
 import { measureRequestPhase, setRequestGauge } from './request-performance.js';
+import {
+  assertPlayerSaveEpoch,
+  deletePlayerSave,
+  getPlayerSaveDeletionPreflight,
+} from './save-deletion.js';
 
 const port = Number(process.env.PORT || 3002);
 const databasePath = process.env.ECONOMY_DB_PATH || '/var/lib/riversoft-economy/economy.sqlite';
@@ -435,6 +440,37 @@ const server = createServer(async (request, response) => {
     }
     registrationStore.assertPlayerActive(user.id);
 
+    if (method === 'GET' && path === '/api/game/save-deletion/preflight') {
+      const preflight = await enqueueAuthoritativeWrite(
+        userWriteOptions(user, 'save-deletion-preflight'),
+        () => getPlayerSaveDeletionPreflight(store, user),
+      );
+      sendJson(response, 200, { preflight });
+      return;
+    }
+
+    if (method === 'POST' && path === '/api/game/save-deletion') {
+      const retryAfter = checkRateLimit(user.id, 'general');
+      if (retryAfter) {
+        response.setHeader('Retry-After', String(retryAfter));
+        sendError(response, 429, `操作过于频繁，请在 ${retryAfter} 秒后重试`);
+        return;
+      }
+      const requestKey = requireIdempotencyKey(request);
+      const body = await readJson(request);
+      const result = await enqueueAuthoritativeWrite(
+        userWriteOptions(user, 'save-deletion'),
+        () => deletePlayerSave(store, user, {
+          confirmation: body.confirmation,
+          requestKey,
+          method,
+          path,
+        }),
+      );
+      sendJson(response, 200, result);
+      return;
+    }
+
     if (method === 'GET' && path === '/api/game/tutorial') {
       sendJson(response, 200, {
         tutorial: tutorialStore.getStatus(user.id),
@@ -576,13 +612,16 @@ const server = createServer(async (request, response) => {
     const payload = { ...body, ...(route.routePayload || {}) };
     const actionResponse = await enqueueAuthoritativeWrite(
       userWriteOptions(user, `game-action:${route.action}`),
-      () => store.apply(user, {
-        action: route.action,
-        payload,
-        requestKey,
-        method,
-        path,
-      }),
+      () => {
+        assertPlayerSaveEpoch(store, user, request.headers['x-economy-save-epoch']);
+        return store.apply(user, {
+          action: route.action,
+          payload,
+          requestKey,
+          method,
+          path,
+        });
+      },
     );
     const knownPartitions = readKnownPartitionRevisionsFromHeader(
       request.headers['x-economy-state-revisions'],
