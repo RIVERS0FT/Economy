@@ -24,11 +24,22 @@ test.describe('research technology tree', () => {
       const action = document.querySelector<HTMLElement>('.research-action-panel')?.getBoundingClientRect();
       const tree = document.querySelector<HTMLElement>('.research-tree-panel')?.getBoundingClientRect();
       const node = document.querySelector<HTMLElement>('.research-level-node');
+      const detailArtwork = document.querySelector<HTMLElement>(
+        '.research-action-panel .research-detail-level-artwork',
+      );
+      const detailArtworkBox = detailArtwork?.getBoundingClientRect();
+      const detailArtworkStyle = detailArtwork ? getComputedStyle(detailArtwork) : null;
+      const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
       return {
         actionWidth: action?.width ?? 0,
         contentLeft: tree?.left ?? 0,
         contentRight: tree?.right ?? 0,
         nodeRadius: node ? getComputedStyle(node).borderRadius : '',
+        detailArtworkWidth: detailArtworkBox?.width ?? 0,
+        detailArtworkHeight: detailArtworkBox?.height ?? 0,
+        detailArtworkAspectRatio: detailArtworkStyle?.aspectRatio ?? '',
+        detailArtworkRadius: detailArtworkStyle?.borderRadius ?? '',
+        expectedDetailArtworkSize: rootFontSize * 4.5,
         fitsViewport: document.documentElement.scrollWidth <= window.innerWidth,
       };
     });
@@ -37,6 +48,10 @@ test.describe('research technology tree', () => {
     expect(Math.abs(researchGeometry.contentLeft - productionGeometry.contentLeft)).toBeLessThanOrEqual(1);
     expect(Math.abs(researchGeometry.contentRight - productionGeometry.contentRight)).toBeLessThanOrEqual(1);
     expect(researchGeometry.nodeRadius).toBe('50%');
+    expect(researchGeometry.detailArtworkWidth).toBeCloseTo(researchGeometry.expectedDetailArtworkSize, 0);
+    expect(Math.abs(researchGeometry.detailArtworkWidth - researchGeometry.detailArtworkHeight)).toBeLessThanOrEqual(1);
+    expect(researchGeometry.detailArtworkAspectRatio).toBe('1 / 1');
+    expect(researchGeometry.detailArtworkRadius).toBe('50%');
     expect(researchGeometry.fitsViewport).toBe(true);
     await expect(page.locator('.research-level-node').nth(2).locator('.facility-icon')).toHaveAttribute('data-facility-icon');
   });

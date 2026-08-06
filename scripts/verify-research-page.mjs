@@ -87,6 +87,10 @@ for (const text of [
   'summaryColumns',
   'footerPaddingBottom',
   'artworkAspectRatio',
+  'detailArtworkWidth',
+  'detailArtworkHeight',
+  'detailArtworkAspectRatio',
+  'expectedDetailArtworkSize',
 ]) requireText('tests/browser/research-technology-tree.spec.ts', text);
 
 for (const text of [
@@ -97,6 +101,11 @@ for (const text of [
   '.research-action-panel {\n    display: none;',
   '.mobile-detail-sheet-footer .research-detail-actions',
   '.mobile-detail-sheet .research-detail-summary-status',
+  '.mobile-detail-summary.research-detail-summary {',
+  '.mobile-detail-summary__artwork.research-detail-level-artwork {',
+  'min-width: 4.5rem;',
+  'max-width: 4.5rem;',
+  'aspect-ratio: 1 / 1;',
 ]) requireText('src/styles/research-page.css', text);
 
 for (const text of [
@@ -168,6 +177,7 @@ for (const text of [
   'MobileWorkspaceDetailSheet',
   'MobileDetailSummary',
   '固定底栏',
+  '桌面“研发新技术”摘要中的代表工厂图标固定为 1:1 正圆',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
