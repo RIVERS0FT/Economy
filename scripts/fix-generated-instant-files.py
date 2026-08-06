@@ -31,4 +31,9 @@ text = text.replace(
     1,
 )
 path.write_text(text, encoding='utf-8')
+
+path = Path('scripts/verify-runtime-efficiency.mjs')
+text = path.read_text(encoding='utf-8')
+text = text.replace("  'next integer release boundary',", "  'instant construction registers no employment deadline',", 1)
+path.write_text(text, encoding='utf-8')
 print('generated instant files fixed')
