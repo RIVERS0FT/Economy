@@ -27,4 +27,13 @@ replace_once(
     'verify-authoritative-countdowns construction presentation guard',
 )
 
-print('dependent construction presentation guards updated')
+old_warehouse = "    assert.equal(state.warehouseStoredQuantity, 6);\n    assert.equal(state.warehouseReservedQuantity, 0);\n    assert.equal(state.warehouseUsedCapacity, 6);\n    assert.equal(state.warehouseAvailableCapacity, 494);"
+new_warehouse = "    assert.equal(state.warehouseStoredQuantity, 0);\n    assert.equal(state.warehouseReservedQuantity, 0);\n    assert.equal(state.warehouseUsedCapacity, 0);\n    assert.equal(state.warehouseAvailableCapacity, 500);"
+replace_once(
+    'server/test/warehouse.test.js',
+    old_warehouse,
+    new_warehouse,
+    'warehouse default usage after starter material retirement',
+)
+
+print('dependent construction presentation guards and warehouse baseline updated')
