@@ -29,6 +29,7 @@ jobs:
       - name: Apply split technology implementation
         run: |
           python3 .agent/split_research.py
+          git restore --source=HEAD -- .github/workflows/agent-split-research.yml
           python3 - <<'PY'
           from pathlib import Path
 
@@ -60,7 +61,7 @@ jobs:
           ]:
               path.write_text(path.read_text(encoding='utf-8').rstrip() + '\n', encoding='utf-8')
           PY
-          git add -u -- .agent .github/workflows/agent-split-research.yml
+          git add -u -- .agent
 
       - name: Install dependencies
         run: npm ci
@@ -95,22 +96,31 @@ jobs:
           set -euo pipefail
           git config user.name "RIVERSOFT Automation"
           git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
-          mapfile -t changed < <(git status --porcelain=v1 | sed -E 's/^...//')
-          if [ "${#changed[@]}" -eq 0 ]; then
-            echo "No changes to commit"
-            exit 1
-          fi
-          for path in "${changed[@]}"; do
-            case "$path" in
-              README.md|docs/*.md|server/src/research-catalog.js|server/src/research.js|server/src/state-partitions.js|server/src/commercial-contracts.js|server/test/research.test.js|server/test/research-gem-acceleration.test.js|src/types.ts|src/api/game.ts|src/app/gameViewModel.ts|src/pages/ResearchPage.tsx|src/styles/research-page.css|tests/browser/runtime-harness.tsx|tests/browser/research-technology-tree.spec.ts|scripts/verify-research-progression.mjs|scripts/verify-research-page.mjs|scripts/verify-document-authority.mjs|scripts/verify-client-state-version.mjs|scripts/verify-state-delivery-capacity.mjs|scripts/verify-runtime-reliability.mjs|scripts/verify-asset-auctions.mjs|.agent/*|.github/workflows/agent-split-research.yml)
-                git add -- "$path"
-                ;;
-              *)
-                echo "Unexpected changed path: $path" >&2
-                exit 1
-                ;;
-            esac
-          done
+          git add -- \
+            README.md \
+            docs/*.md \
+            server/src/research-catalog.js \
+            server/src/research.js \
+            server/src/state-partitions.js \
+            server/src/commercial-contracts.js \
+            server/test/research.test.js \
+            server/test/research-gem-acceleration.test.js \
+            src/types.ts \
+            src/api/game.ts \
+            src/app/gameViewModel.ts \
+            src/pages/ResearchPage.tsx \
+            src/styles/research-page.css \
+            tests/browser/runtime-harness.tsx \
+            tests/browser/research-technology-tree.spec.ts \
+            scripts/verify-research-progression.mjs \
+            scripts/verify-research-page.mjs \
+            scripts/verify-document-authority.mjs \
+            scripts/verify-client-state-version.mjs \
+            scripts/verify-state-delivery-capacity.mjs \
+            scripts/verify-runtime-reliability.mjs \
+            scripts/verify-asset-auctions.mjs
+          git add -u -- .agent
           git diff --cached --check
+          git status --short
           git commit -m "拆分产业科技研发"
           git push origin HEAD:feature/split-research-technologies
