@@ -23,160 +23,137 @@ jobs:
           python <<'PY'
           from pathlib import Path
 
-          def replace_once(path: str, old: str, new: str) -> None:
-              file_path = Path(path)
-              text = file_path.read_text(encoding='utf-8')
+          def read(path: str) -> str:
+              return Path(path).read_text(encoding='utf-8').replace('\r\n', '\n')
+
+          def write(path: str, text: str) -> None:
+              Path(path).write_text(text, encoding='utf-8')
+
+          def replace_unique(path: str, old: str, new: str, label: str) -> None:
+              text = read(path)
               count = text.count(old)
               if count != 1:
-                  raise SystemExit(f'{path}: expected one replacement, found {count}')
-              file_path.write_text(text.replace(old, new), encoding='utf-8')
+                  raise SystemExit(f'{path} [{label}]: expected one replacement, found {count}')
+              write(path, text.replace(old, new))
 
-          replace_once(
-              'src/styles/financial-backdrop.css',
+          css_path = 'src/styles/financial-backdrop.css'
+          replace_unique(
+              css_path,
+              '.application-atmosphere-layer {\n  z-index: -1;\n  overflow: hidden;',
               '''.application-atmosphere-layer {
             z-index: -1;
             overflow: hidden;
-          }''',
-              '''.application-atmosphere-layer {
-            z-index: -1;
-            overflow: hidden;
-            --application-atmosphere-background:
-              radial-gradient(circle at 18% 20%, rgba(86, 224, 137, 0.10), transparent 30%),
-              radial-gradient(circle at 84% 78%, rgba(44, 176, 102, 0.06), transparent 34%),
-              linear-gradient(90deg, rgba(1, 7, 4, 0.96) 0%, rgba(2, 10, 6, 0.90) 38%, rgba(3, 12, 8, 0.84) 67%, rgba(2, 9, 6, 0.90) 100%);
+            --application-atmosphere-primary-glow: rgba(86, 224, 137, 0.10);
+            --application-atmosphere-secondary-glow: rgba(44, 176, 102, 0.06);
+            --application-atmosphere-shade-start: rgba(1, 7, 4, 0.96);
+            --application-atmosphere-shade-mid: rgba(2, 10, 6, 0.90);
+            --application-atmosphere-shade-focus: rgba(3, 12, 8, 0.84);
+            --application-atmosphere-shade-end: rgba(2, 9, 6, 0.90);
             --application-atmosphere-grid-opacity: 0.16;
             --application-atmosphere-grid-size: 46px 46px;
-            --application-atmosphere-grid-mask: linear-gradient(to bottom, rgba(0, 0, 0, 0.78), transparent 92%);
-            --application-atmosphere-noise-opacity: 0.045;
-          }''',
+            --application-atmosphere-noise-opacity: 0.045;''',
+              'desktop variables',
           )
-          replace_once(
-              'src/styles/financial-backdrop.css',
-              '''  background:
-            radial-gradient(circle at 18% 20%, rgba(86, 224, 137, 0.16), transparent 30%),
-            radial-gradient(circle at 84% 78%, rgba(44, 176, 102, 0.11), transparent 34%),
-            linear-gradient(90deg, rgba(1, 7, 4, 0.94) 0%, rgba(2, 10, 6, 0.82) 38%, rgba(3, 12, 8, 0.69) 67%, rgba(2, 9, 6, 0.82) 100%);''',
-              '''  background: var(--application-atmosphere-background);''',
-          )
-          replace_once(
-              'src/styles/financial-backdrop.css',
-              '''  opacity: 0.24;
-            background-image:
-              linear-gradient(rgba(210, 244, 222, 0.07) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(210, 244, 222, 0.07) 1px, transparent 1px);
-            mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.78), transparent 92%);''',
-              '''  opacity: var(--application-atmosphere-grid-opacity);
-            background-image:
-              linear-gradient(rgba(210, 244, 222, 0.07) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(210, 244, 222, 0.07) 1px, transparent 1px);
-            background-size: var(--application-atmosphere-grid-size);
-            mask-image: var(--application-atmosphere-grid-mask);''',
-          )
-          replace_once(
-              'src/styles/financial-backdrop.css',
-              '''  opacity: 0.075;''',
-              '''  opacity: var(--application-atmosphere-noise-opacity);''',
-          )
-          replace_once(
-              'src/styles/financial-backdrop.css',
-              '''  html[data-app-backdrop="auth"] .application-atmosphere-layer,
-            html[data-app-backdrop="game"] .application-atmosphere-layer,
-            html[data-app-backdrop="admin"] .application-atmosphere-layer {
-              background:
-                radial-gradient(circle at 20% 14%, rgba(86, 224, 137, 0.15), transparent 30%),
-                linear-gradient(180deg, rgba(1, 7, 4, 0.62) 0%, rgba(2, 10, 6, 0.6) 36%, rgba(2, 8, 5, 0.82) 100%);
-            }
+          for old, new, label in [
+              ('rgba(86, 224, 137, 0.16)', 'var(--application-atmosphere-primary-glow)', 'desktop primary glow'),
+              ('rgba(44, 176, 102, 0.11)', 'var(--application-atmosphere-secondary-glow)', 'desktop secondary glow'),
+              ('rgba(1, 7, 4, 0.94)', 'var(--application-atmosphere-shade-start)', 'desktop shade start'),
+              ('rgba(2, 10, 6, 0.82)', 'var(--application-atmosphere-shade-mid)', 'desktop shade mid'),
+              ('rgba(3, 12, 8, 0.69)', 'var(--application-atmosphere-shade-focus)', 'desktop shade focus'),
+              ('rgba(2, 9, 6, 0.82)', 'var(--application-atmosphere-shade-end)', 'desktop shade end'),
+              ('  opacity: 0.24;', '  opacity: var(--application-atmosphere-grid-opacity);', 'desktop grid opacity'),
+              ('  opacity: 0.075;', '  opacity: var(--application-atmosphere-noise-opacity);', 'desktop noise opacity'),
+              ('  background-size: 46px 46px;', '  background-size: var(--application-atmosphere-grid-size);', 'desktop grid size'),
+          ]:
+              replace_unique(css_path, old, new, label)
 
-            html[data-app-backdrop="auth"] .application-atmosphere-layer::before,
-            html[data-app-backdrop="game"] .application-atmosphere-layer::before,
-            html[data-app-backdrop="admin"] .application-atmosphere-layer::before {
-              opacity: 0.12;
-              background-size: 42px 42px;
-            }
-
-            html[data-app-backdrop="auth"] .application-atmosphere-layer::after,
-            html[data-app-backdrop="game"] .application-atmosphere-layer::after,
-            html[data-app-backdrop="admin"] .application-atmosphere-layer::after {
-              opacity: 0.05;
-            }''',
-              '''  .application-atmosphere-layer {
-              --application-atmosphere-background:
-                radial-gradient(circle at 20% 14%, rgba(86, 224, 137, 0.09), transparent 30%),
-                linear-gradient(180deg, rgba(1, 7, 4, 0.78) 0%, rgba(2, 10, 6, 0.76) 36%, rgba(2, 8, 5, 0.90) 100%);
+          replace_unique(
+              css_path,
+              '@media (max-width: 720px) {\n',
+              '''@media (max-width: 720px) {
+            .application-atmosphere-layer {
+              --application-atmosphere-primary-glow: rgba(86, 224, 137, 0.09);
+              --application-atmosphere-shade-start: rgba(1, 7, 4, 0.78);
+              --application-atmosphere-shade-mid: rgba(2, 10, 6, 0.76);
+              --application-atmosphere-shade-end: rgba(2, 8, 5, 0.90);
               --application-atmosphere-grid-opacity: 0.08;
               --application-atmosphere-grid-size: 42px 42px;
               --application-atmosphere-noise-opacity: 0.03;
-            }''',
-          )
+            }
 
-          replace_once(
+          ''',
+              'mobile variables',
+          )
+          for old, new, label in [
+              ('rgba(86, 224, 137, 0.15)', 'var(--application-atmosphere-primary-glow)', 'mobile primary glow'),
+              ('rgba(1, 7, 4, 0.62)', 'var(--application-atmosphere-shade-start)', 'mobile shade start'),
+              ('rgba(2, 10, 6, 0.6)', 'var(--application-atmosphere-shade-mid)', 'mobile shade mid'),
+              ('rgba(2, 8, 5, 0.82)', 'var(--application-atmosphere-shade-end)', 'mobile shade end'),
+              ('    opacity: 0.12;', '    opacity: var(--application-atmosphere-grid-opacity);', 'mobile grid opacity'),
+              ('    opacity: 0.05;', '    opacity: var(--application-atmosphere-noise-opacity);', 'mobile noise opacity'),
+              ('    background-size: 42px 42px;', '    background-size: var(--application-atmosphere-grid-size);', 'mobile grid size'),
+          ]:
+              replace_unique(css_path, old, new, label)
+
+          replace_unique(
               'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
               '> 更新时间：2026-08-03',
               '> 更新时间：2026-08-06',
+              'registration design date',
           )
-          replace_once(
+          replace_unique(
               'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
               '全应用氛围基线：认证、注册、九个玩家页面、管理员后台以及根级加载／异常状态继续保留 `auth`、`game`、`admin` 语义变体，但三者必须共享登录／注册页当前的摄影滤镜、渐变遮罩、网格和噪点参数；页面或角色不得再覆盖这些参数。',
               '全应用氛围基线：认证、注册、九个玩家页面、管理员后台以及根级加载／异常状态继续保留 `auth`、`game`、`admin` 语义变体，但三者必须共享登录／注册页当前的摄影滤镜、渐变遮罩、网格和噪点参数；页面或角色不得再覆盖这些参数。正常态摄影图片只作为低对比度空间纹理，第一视觉层必须是状态栏、导航、业务卡片和正文；不得通过降低共享遮罩、增强绿光、网格或噪点，使人物、窗框或建筑轮廓与业务内容争夺注意力。',
+              'registration atmosphere principle',
           )
-          replace_once(
+          replace_unique(
               'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
               '桌面渐变固定复用登录页横向明暗分布，网格与噪点透明度固定为 `0.24` 和 `0.075`；',
               '桌面渐变固定使用两处低强度绿光 `0.10 / 0.06` 与横向主遮罩 `0.96 / 0.90 / 0.84 / 0.90`，网格与噪点透明度固定为 `0.16` 和 `0.045`；',
+              'desktop design values',
           )
-          replace_once(
+          replace_unique(
               'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
               '移动图片滤镜固定为 `saturate(0.68) contrast(1.08) brightness(0.62)`，纵向主遮罩固定使用 `rgba(1, 7, 4, 0.62)`、`rgba(2, 10, 6, 0.6)`、`rgba(2, 8, 5, 0.82)`，网格与噪点透明度固定为 `0.12` 和 `0.05`。',
               '移动图片滤镜固定为 `saturate(0.68) contrast(1.08) brightness(0.62)`，顶部低强度绿光固定为 `0.09`，纵向主遮罩固定使用 `rgba(1, 7, 4, 0.78)`、`rgba(2, 10, 6, 0.76)`、`rgba(2, 8, 5, 0.90)`，网格与噪点透明度固定为 `0.08` 和 `0.03`。',
+              'mobile design values',
           )
 
-          replace_once(
+          replace_unique(
               'docs/LIQUID_GLASS_CHROME_DESIGN.md',
               '> 更新时间：2026-08-04',
               '> 更新时间：2026-08-06',
+              'liquid glass design date',
           )
-          replace_once(
+          replace_unique(
               'docs/LIQUID_GLASS_CHROME_DESIGN.md',
               '全应用摄影氛围只允许一套正常态视觉参数：登录、玩家与管理员必须使用完全相同的摄影滤镜、渐变遮罩、网格与噪点，并以登录／注册页参数为基线。`data-app-backdrop` 只保留语义和状态路由职责，不得触发角色级或页面级视觉覆盖；`critical` 只允许在共享氛围之上增加红色内暗角。',
               '全应用摄影氛围只允许一套正常态视觉参数：登录、玩家与管理员必须使用完全相同的摄影滤镜、渐变遮罩、网格与噪点，并以登录／注册页参数为基线。正常态摄影图片只承担低对比度空间纹理职责，状态栏、导航、业务卡片和正文必须保持第一视觉优先级；不得通过角色级覆盖或降低遮罩重新强化图片细节。`data-app-backdrop` 只保留语义和状态路由职责，不得触发角色级或页面级视觉覆盖；`critical` 只允许在共享氛围之上增加红色内暗角。',
+              'liquid glass atmosphere principle',
           )
 
-          replace_once(
-              'scripts/verify-game-three-layer.mjs',
-              '''for (const text of [
+          game_verify_path = 'scripts/verify-game-three-layer.mjs'
+          game_verify = read(game_verify_path)
+          section_start = game_verify.index('const unifiedAtmosphereCss = read(')
+          require_start = game_verify.index('for (const text of [', section_start)
+          forbid_end_marker = "]) forbidText('src/styles/financial-backdrop.css', text);"
+          forbid_end = game_verify.index(forbid_end_marker, require_start) + len(forbid_end_marker)
+          new_atmosphere_checks = '''for (const text of [
             'filter: saturate(0.72) contrast(1.08) brightness(0.72);',
             'filter: saturate(0.68) contrast(1.08) brightness(0.62);',
-            'opacity: 0.24;',
-            'opacity: 0.075;',
-            'opacity: 0.12;',
-            'opacity: 0.05;',
-          ]) requireText('src/styles/financial-backdrop.css', text);
-          for (const text of [
-            'brightness(0.5)',
-            'brightness(0.42)',
-            'brightness(0.43)',
-            'brightness(0.36)',
-            'opacity: 0.065;',
-            'opacity: 0.045;',
-            'opacity: 0.16;',
-            'opacity: 0.09;',
-          ]) forbidText('src/styles/financial-backdrop.css', text);''',
-              '''for (const text of [
-            'filter: saturate(0.72) contrast(1.08) brightness(0.72);',
-            'filter: saturate(0.68) contrast(1.08) brightness(0.62);',
-            '--application-atmosphere-background:',
-            'rgba(86, 224, 137, 0.10)',
-            'rgba(44, 176, 102, 0.06)',
-            'rgba(1, 7, 4, 0.96) 0%',
-            'rgba(2, 10, 6, 0.90) 38%',
-            'rgba(3, 12, 8, 0.84) 67%',
-            'rgba(2, 9, 6, 0.90) 100%',
+            '--application-atmosphere-primary-glow: rgba(86, 224, 137, 0.10);',
+            '--application-atmosphere-secondary-glow: rgba(44, 176, 102, 0.06);',
+            '--application-atmosphere-shade-start: rgba(1, 7, 4, 0.96);',
+            '--application-atmosphere-shade-mid: rgba(2, 10, 6, 0.90);',
+            '--application-atmosphere-shade-focus: rgba(3, 12, 8, 0.84);',
+            '--application-atmosphere-shade-end: rgba(2, 9, 6, 0.90);',
             '--application-atmosphere-grid-opacity: 0.16;',
             '--application-atmosphere-noise-opacity: 0.045;',
-            'rgba(86, 224, 137, 0.09)',
-            'rgba(1, 7, 4, 0.78) 0%',
-            'rgba(2, 10, 6, 0.76) 36%',
-            'rgba(2, 8, 5, 0.90) 100%',
+            '--application-atmosphere-primary-glow: rgba(86, 224, 137, 0.09);',
+            '--application-atmosphere-shade-start: rgba(1, 7, 4, 0.78);',
+            '--application-atmosphere-shade-mid: rgba(2, 10, 6, 0.76);',
+            '--application-atmosphere-shade-end: rgba(2, 8, 5, 0.90);',
             '--application-atmosphere-grid-opacity: 0.08;',
             '--application-atmosphere-noise-opacity: 0.03;',
           ]) requireText('src/styles/financial-backdrop.css', text);
@@ -189,43 +166,64 @@ jobs:
             'opacity: 0.075;',
             'opacity: 0.12;',
             'opacity: 0.05;',
-          ]) forbidText('src/styles/financial-backdrop.css', text);''',
+          ]) forbidText('src/styles/financial-backdrop.css', text);'''
+          game_verify = game_verify[:require_start] + new_atmosphere_checks + game_verify[forbid_end:]
+          game_verify = game_verify.replace(
+              "  '页面或角色不得再覆盖这些参数',\n",
+              "  '页面或角色不得再覆盖这些参数',\n  '正常态摄影图片只作为低对比度空间纹理',\n",
+              1,
           )
-          replace_once(
-              'scripts/verify-game-three-layer.mjs',
-              '''for (const text of [
+          game_verify = game_verify.replace(
+              "  '`data-app-backdrop` 只保留语义和状态路由职责',\n",
+              "  '`data-app-backdrop` 只保留语义和状态路由职责',\n  '正常态摄影图片只承担低对比度空间纹理职责',\n",
+              1,
+          )
+          old_test_checks = '''for (const text of [
             'auth, game and admin share the desktop atmosphere baseline',
             'auth, game and admin share the mobile atmosphere baseline',
-          ]) requireText('tests/browser/application-atmosphere-consistency.spec.ts', text);''',
-              '''for (const text of [
+          ]) requireText('tests/browser/application-atmosphere-consistency.spec.ts', text);'''
+          new_test_checks = '''for (const text of [
             'auth, game and admin share the desktop atmosphere baseline',
             'auth, game and admin share the mobile atmosphere baseline',
             'locks the desktop atmosphere intensity',
             'locks the mobile atmosphere intensity',
-          ]) requireText('tests/browser/application-atmosphere-consistency.spec.ts', text);''',
-          )
+          ]) requireText('tests/browser/application-atmosphere-consistency.spec.ts', text);'''
+          if game_verify.count(old_test_checks) != 1:
+              raise SystemExit('verify-game-three-layer: atmosphere browser check block changed')
+          game_verify = game_verify.replace(old_test_checks, new_test_checks)
+          write(game_verify_path, game_verify)
 
-          replace_once(
-              'scripts/verify-auth-three-layer.mjs',
-              '''  'rgba(1, 7, 4, 0.62) 0%',
-            'rgba(2, 10, 6, 0.6) 36%',
-            'rgba(2, 8, 5, 0.82) 100%',
-            'html[data-app-backdrop="auth"] .application-atmosphere-layer::before',
-            'opacity: 0.12;',
-            'html[data-app-backdrop="auth"] .application-atmosphere-layer::after',
-            'opacity: 0.05;',
-          ''',
-              '''  'rgba(1, 7, 4, 0.78) 0%',
-            'rgba(2, 10, 6, 0.76) 36%',
-            'rgba(2, 8, 5, 0.90) 100%',
+          auth_verify_path = 'scripts/verify-auth-three-layer.mjs'
+          auth_verify = read(auth_verify_path)
+          anchor = auth_verify.index("  'rgba(1, 7, 4, 0.62) 0%',")
+          block_start = auth_verify.rindex('for (const text of [', 0, anchor)
+          block_end_marker = "]) requireText('src/styles/financial-backdrop.css', text);"
+          block_end = auth_verify.index(block_end_marker, anchor) + len(block_end_marker)
+          new_auth_background_checks = '''for (const text of [
+            '.application-image-layer,',
+            '.application-atmosphere-layer {',
+            'html[data-app-backdrop="auth"] .application-image-layer img',
+            'html[data-app-backdrop="auth"] .application-atmosphere-layer',
+            '--application-atmosphere-shade-start: rgba(1, 7, 4, 0.78);',
+            '--application-atmosphere-shade-mid: rgba(2, 10, 6, 0.76);',
+            '--application-atmosphere-shade-end: rgba(2, 8, 5, 0.90);',
             'html[data-app-backdrop="auth"] .application-atmosphere-layer::before',
             '--application-atmosphere-grid-opacity: 0.08;',
             'html[data-app-backdrop="auth"] .application-atmosphere-layer::after',
             '--application-atmosphere-noise-opacity: 0.03;',
-          ''',
-          )
+            '.application-content-root .login-shell',
+            'background: transparent !important;',
+            '.application-content-root {',
+            'z-index: auto;',
+            '.application-image-layer {',
+            'z-index: -2;',
+            '.application-atmosphere-layer {',
+            'z-index: -1;',
+          ]) requireText('src/styles/financial-backdrop.css', text);'''
+          auth_verify = auth_verify[:block_start] + new_auth_background_checks + auth_verify[block_end:]
+          write(auth_verify_path, auth_verify)
 
-          replace_once(
+          replace_unique(
               'tests/browser/auth-three-layer.spec.ts',
               '''      expect(atmosphere.backgroundImage).toContain('rgba(1, 7, 4, 0.62)');
             expect(atmosphere.backgroundImage).toContain('rgba(2, 10, 6, 0.6)');
@@ -237,16 +235,22 @@ jobs:
             expect(atmosphere.backgroundImage).toContain('rgba(2, 8, 5, 0.9)');
             expect(atmosphere.gridOpacity).toBe('0.08');
             expect(atmosphere.noiseOpacity).toBe('0.03');''',
+              'mobile browser atmosphere assertions',
           )
 
-          Path('tests/browser/application-atmosphere-consistency.spec.ts').write_text('''import { expect, test, type Page } from '@playwright/test';
+          write('tests/browser/application-atmosphere-consistency.spec.ts', '''import { expect, test, type Page } from '@playwright/test';
 
           type BackdropVariant = 'auth' | 'game' | 'admin';
 
           type AtmosphereSnapshot = {
             imageFilter: string;
             atmosphereBackground: string;
-            atmosphereToken: string;
+            primaryGlow: string;
+            secondaryGlow: string;
+            shadeStart: string;
+            shadeMid: string;
+            shadeFocus: string;
+            shadeEnd: string;
             gridOpacity: string;
             gridOpacityToken: string;
             gridSizeToken: string;
@@ -271,17 +275,23 @@ jobs:
               const atmosphereStyle = getComputedStyle(atmosphere);
               const gridStyle = getComputedStyle(atmosphere, '::before');
               const noiseStyle = getComputedStyle(atmosphere, '::after');
+              const token = (name: string) => atmosphereStyle.getPropertyValue(name).trim();
               return {
                 imageFilter: getComputedStyle(image).filter,
                 atmosphereBackground: atmosphereStyle.backgroundImage,
-                atmosphereToken: atmosphereStyle.getPropertyValue('--application-atmosphere-background').trim(),
+                primaryGlow: token('--application-atmosphere-primary-glow'),
+                secondaryGlow: token('--application-atmosphere-secondary-glow'),
+                shadeStart: token('--application-atmosphere-shade-start'),
+                shadeMid: token('--application-atmosphere-shade-mid'),
+                shadeFocus: token('--application-atmosphere-shade-focus'),
+                shadeEnd: token('--application-atmosphere-shade-end'),
                 gridOpacity: gridStyle.opacity,
-                gridOpacityToken: atmosphereStyle.getPropertyValue('--application-atmosphere-grid-opacity').trim(),
-                gridSizeToken: atmosphereStyle.getPropertyValue('--application-atmosphere-grid-size').trim(),
+                gridOpacityToken: token('--application-atmosphere-grid-opacity'),
+                gridSizeToken: token('--application-atmosphere-grid-size'),
                 gridBackground: gridStyle.backgroundImage,
                 gridMask: gridStyle.maskImage,
                 noiseOpacity: noiseStyle.opacity,
-                noiseOpacityToken: atmosphereStyle.getPropertyValue('--application-atmosphere-noise-opacity').trim(),
+                noiseOpacityToken: token('--application-atmosphere-noise-opacity'),
                 noiseBackground: noiseStyle.backgroundImage,
                 noiseBlendMode: noiseStyle.mixBlendMode,
               };
@@ -315,14 +325,12 @@ jobs:
             const atmosphere = await expectUnifiedAtmosphere(page, { width: 1440, height: 900 });
 
             expect(atmosphere.imageFilter).toBe('saturate(0.72) contrast(1.08) brightness(0.72)');
-            for (const fragment of [
-              'rgba(86, 224, 137, 0.10)',
-              'rgba(44, 176, 102, 0.06)',
-              'rgba(1, 7, 4, 0.96)',
-              'rgba(2, 10, 6, 0.90)',
-              'rgba(3, 12, 8, 0.84)',
-              'rgba(2, 9, 6, 0.90)',
-            ]) expect(atmosphere.atmosphereToken).toContain(fragment);
+            expect(atmosphere.primaryGlow).toBe('rgba(86, 224, 137, 0.10)');
+            expect(atmosphere.secondaryGlow).toBe('rgba(44, 176, 102, 0.06)');
+            expect(atmosphere.shadeStart).toBe('rgba(1, 7, 4, 0.96)');
+            expect(atmosphere.shadeMid).toBe('rgba(2, 10, 6, 0.90)');
+            expect(atmosphere.shadeFocus).toBe('rgba(3, 12, 8, 0.84)');
+            expect(atmosphere.shadeEnd).toBe('rgba(2, 9, 6, 0.90)');
             expect(atmosphere.gridOpacity).toBe('0.16');
             expect(atmosphere.gridOpacityToken).toBe('0.16');
             expect(atmosphere.gridSizeToken).toBe('46px 46px');
@@ -334,19 +342,17 @@ jobs:
             const atmosphere = await expectUnifiedAtmosphere(page, { width: 390, height: 844 });
 
             expect(atmosphere.imageFilter).toBe('saturate(0.68) contrast(1.08) brightness(0.62)');
-            for (const fragment of [
-              'rgba(86, 224, 137, 0.09)',
-              'rgba(1, 7, 4, 0.78)',
-              'rgba(2, 10, 6, 0.76)',
-              'rgba(2, 8, 5, 0.90)',
-            ]) expect(atmosphere.atmosphereToken).toContain(fragment);
+            expect(atmosphere.primaryGlow).toBe('rgba(86, 224, 137, 0.09)');
+            expect(atmosphere.shadeStart).toBe('rgba(1, 7, 4, 0.78)');
+            expect(atmosphere.shadeMid).toBe('rgba(2, 10, 6, 0.76)');
+            expect(atmosphere.shadeEnd).toBe('rgba(2, 8, 5, 0.90)');
             expect(atmosphere.gridOpacity).toBe('0.08');
             expect(atmosphere.gridOpacityToken).toBe('0.08');
             expect(atmosphere.gridSizeToken).toBe('42px 42px');
             expect(atmosphere.noiseOpacity).toBe('0.03');
             expect(atmosphere.noiseOpacityToken).toBe('0.03');
           });
-          ''', encoding='utf-8')
+          ''')
           PY
 
       - name: Run focused verification
