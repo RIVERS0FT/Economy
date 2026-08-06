@@ -47,6 +47,12 @@ jobs:
           if content.count(old) != 1:
               raise SystemExit('generated legacy research duration did not match')
           page.write_text(content.replace(old, new, 1), encoding='utf-8')
+
+          auction_verifier = Path('scripts/verify-asset-auctions.mjs')
+          content = auction_verifier.read_text(encoding='utf-8')
+          if content.count('世界状态版本：26') != 1:
+              raise SystemExit('asset auction world-version assertion did not match')
+          auction_verifier.write_text(content.replace('世界状态版本：26', '世界状态版本：27', 1), encoding='utf-8')
           PY
           git add -u -- .agent .github/workflows/agent-split-research.yml
 
@@ -90,7 +96,7 @@ jobs:
           fi
           for path in "${changed[@]}"; do
             case "$path" in
-              README.md|docs/*.md|server/src/research-catalog.js|server/src/research.js|server/src/state-partitions.js|server/src/commercial-contracts.js|server/test/research.test.js|server/test/research-gem-acceleration.test.js|src/types.ts|src/api/game.ts|src/app/gameViewModel.ts|src/pages/ResearchPage.tsx|src/styles/research-page.css|tests/browser/runtime-harness.tsx|tests/browser/research-technology-tree.spec.ts|scripts/verify-research-progression.mjs|scripts/verify-research-page.mjs|scripts/verify-document-authority.mjs|scripts/verify-client-state-version.mjs|scripts/verify-state-delivery-capacity.mjs|scripts/verify-runtime-reliability.mjs|.agent/*|.github/workflows/agent-split-research.yml)
+              README.md|docs/*.md|server/src/research-catalog.js|server/src/research.js|server/src/state-partitions.js|server/src/commercial-contracts.js|server/test/research.test.js|server/test/research-gem-acceleration.test.js|src/types.ts|src/api/game.ts|src/app/gameViewModel.ts|src/pages/ResearchPage.tsx|src/styles/research-page.css|tests/browser/runtime-harness.tsx|tests/browser/research-technology-tree.spec.ts|scripts/verify-research-progression.mjs|scripts/verify-research-page.mjs|scripts/verify-document-authority.mjs|scripts/verify-client-state-version.mjs|scripts/verify-state-delivery-capacity.mjs|scripts/verify-runtime-reliability.mjs|scripts/verify-asset-auctions.mjs|.agent/*|.github/workflows/agent-split-research.yml)
                 git add -- "$path"
                 ;;
               *)
