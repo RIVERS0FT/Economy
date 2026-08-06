@@ -1,0 +1,80 @@
+name: Apply atmosphere adjustment v5
+
+on:
+  push:
+    branches:
+      - codex/dim-shared-atmosphere
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply changes and update remaining verifier values
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          from textwrap import dedent
+
+          workflow = Path('.github/workflows/apply-atmosphere-adjustment-v4.yml').read_text(encoding='utf-8')
+          marker = "          python <<'PY'\n"
+          start = workflow.index(marker) + len(marker)
+          end = workflow.index("\n          PY\n\n      - name: Run focused verification", start)
+          exec(compile(dedent(workflow[start:end]), '<atmosphere-adjustment-v4>', 'exec'), {})
+
+          path = Path('scripts/verify-auth-three-layer.mjs')
+          text = path.read_text(encoding='utf-8').replace('\r\n', '\n')
+          replacements = [
+              ('`rgba(1, 7, 4, 0.62)`', '`rgba(1, 7, 4, 0.78)`'),
+              ('`rgba(2, 10, 6, 0.6)`', '`rgba(2, 10, 6, 0.76)`'),
+              ('`rgba(2, 8, 5, 0.82)`', '`rgba(2, 8, 5, 0.90)`'),
+              ("expect(atmosphere.gridOpacity).toBe('0.12')", "expect(atmosphere.gridOpacity).toBe('0.08')"),
+              ("expect(atmosphere.noiseOpacity).toBe('0.05')", "expect(atmosphere.noiseOpacity).toBe('0.03')"),
+          ]
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'verify-auth-three-layer expected one {old!r}, found {count}')
+              text = text.replace(old, new)
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Run focused verification
+        shell: bash
+        run: |
+          node scripts/verify-auth-three-layer.mjs
+          node scripts/verify-game-three-layer.mjs
+          node scripts/verify-document-authority.mjs
+          git diff --check
+
+      - name: Commit implementation
+        shell: bash
+        run: |
+          rm .github/workflows/apply-atmosphere-adjustment.yml
+          rm .github/workflows/apply-atmosphere-adjustment-v3.yml
+          rm .github/workflows/apply-atmosphere-adjustment-v4.yml
+          rm .github/workflows/apply-atmosphere-adjustment-v5.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            docs/REGISTRATION_INVITE_FLOW_DESIGN.md \
+            docs/LIQUID_GLASS_CHROME_DESIGN.md \
+            scripts/verify-auth-three-layer.mjs \
+            scripts/verify-game-three-layer.mjs \
+            src/styles/financial-backdrop.css \
+            tests/browser/application-atmosphere-consistency.spec.ts \
+            tests/browser/auth-three-layer.spec.ts \
+            .github/workflows/apply-atmosphere-adjustment.yml \
+            .github/workflows/apply-atmosphere-adjustment-v3.yml \
+            .github/workflows/apply-atmosphere-adjustment-v4.yml \
+            .github/workflows/apply-atmosphere-adjustment-v5.yml
+          git commit -m "降低共享摄影背景强度"
+          git push origin HEAD:${{ github.ref_name }}
