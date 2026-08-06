@@ -53,6 +53,12 @@ jobs:
           if content.count('世界状态版本：26') != 1:
               raise SystemExit('asset auction world-version assertion did not match')
           auction_verifier.write_text(content.replace('世界状态版本：26', '世界状态版本：27', 1), encoding='utf-8')
+
+          for path in [
+              Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md'),
+              Path('src/styles/research-page.css'),
+          ]:
+              path.write_text(path.read_text(encoding='utf-8').rstrip() + '\n', encoding='utf-8')
           PY
           git add -u -- .agent .github/workflows/agent-split-research.yml
 
