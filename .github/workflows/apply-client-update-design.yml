@@ -1,0 +1,83 @@
+name: Apply Client Update Design Patch
+
+on:
+  push:
+    branches:
+      - fix/client-version-refresh-cache
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'chore: apply client update design patch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/client-version-refresh-cache
+          fetch-depth: 0
+
+      - name: Patch authoritative design and existing verifier
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+
+          design_path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          design = design_path.read_text(encoding='utf-8')
+
+          version_rule = '当前客户端只接受版本 30；版本低于下限或高于当前值时必须明确返回“客户端状态版本不兼容”，不得伪装成初始分区缺失。'
+          version_addition = '''\n\n客户端状态版本不兼容属于当前页面不可恢复错误。客户端必须保留明确的版本不兼容文案，并只提供刷新页面以重新加载入口 HTML；不得在旧 JavaScript 运行时中原地重试状态请求。登录、注册、会话初始化和游戏状态请求捕获浏览器原生 `Failed to fetch`、`Load failed`、`NetworkError` 等网络异常后，必须转换为中文刷新提示，不得直接展示浏览器英文错误。'''
+          if version_rule not in design:
+              raise SystemExit('CLIENT_VERSION_RULE_NOT_FOUND')
+          design = design.replace(version_rule, version_rule + version_addition, 1)
+
+          cache_rule = '`/economy/assets/` 与 `/economy/` 两个静态 `location` 必须直接输出 `Vary: Accept-Encoding`，不得只依赖服务器级继承；资产位置原有 `Cache-Control` 必须保留。'
+          cache_replacement = '''`/economy/assets/` 与 `/economy/` 两个静态 `location` 必须直接输出 `Vary: Accept-Encoding`，不得只依赖服务器级继承；资产位置原有 `Cache-Control` 必须保留。哈希静态资源缓存固定为 365 天，使用 `public, max-age=31536000, immutable`；入口 HTML 固定使用 `no-cache, max-age=0, must-revalidate`，确保刷新页面重新验证并取得最新资源地址。`scripts/configure-economy-static-cache.py` 必须幂等修补这两个位置、通过本机正式 HTTPS 验证入口与实际构建资源的缓存头，并在验证失败时回滚配置。'''
+          if cache_rule not in design:
+              raise SystemExit('STATIC_CACHE_RULE_NOT_FOUND')
+          design = design.replace(cache_rule, cache_replacement, 1)
+
+          import_rule = '管理员入口、游戏入口和十个游戏页面必须使用动态 `import()` 按需拆包。'
+          import_replacement = import_rule + ' 根应用必须在登录页首次执行时启动管理员与游戏入口分块预加载，避免已打开的旧登录页在部署完成后才请求已过期入口分块；页面组件仍由 `lazy` 与 `Suspense` 按需渲染。'
+          if import_rule not in design:
+              raise SystemExit('DYNAMIC_IMPORT_RULE_NOT_FOUND')
+          design = design.replace(import_rule, import_replacement, 1)
+
+          deploy_rule = '网站、API 和便携 Node 运行时三次同步统一使用 `rsync --delete-before`，先删除将被新发布完整替换的旧文件，降低发布峰值空间。'
+          deploy_replacement = '''API 和便携 Node 运行时继续使用 `rsync --delete-before` 完整替换；网站发布必须把 `dist/assets/` 以只增加方式先同步，其他非哈希文件使用排除 `assets/` 与 `index.html` 的受控删除同步。服务安装、Nginx 路由和缓存验证全部成功后，才允许上传临时入口并最后原子替换 `index.html`。旧哈希资源至少保留 400 天，再按最后修改时间清理，使其长于浏览器 365 天不可变缓存；部署过程中不得立即删除仍可能被旧标签页引用的 JavaScript、CSS、图片或字体。'''
+          if deploy_rule not in design:
+              raise SystemExit('DEPLOY_SYNC_RULE_NOT_FOUND')
+          design = design.replace(deploy_rule, deploy_replacement, 1)
+
+          acceptance_rule = '邮件配置工作流另行验证运行进程实际环境和服务健康，并以 `deploy/economy-email` 独立状态防止主部署误报验证码可用。'
+          acceptance_addition = ''' 静态发布验收还必须确认 `/economy/` 与 `/economy/index.html` 返回入口重新验证策略、实际构建哈希资源返回一年 `immutable` 策略、新入口引用的全部资源可读取，并且入口只在服务与 Nginx 验证通过后发布。'''
+          if acceptance_rule not in design:
+              raise SystemExit('DEPLOY_ACCEPTANCE_RULE_NOT_FOUND')
+          design = design.replace(acceptance_rule, acceptance_rule + acceptance_addition, 1)
+
+          regression_marker = '未更新设计文档的架构回退不应合并。未更新防回退检查的架构变更同样不应合并。'
+          regression_addition = '''- 在客户端状态版本不兼容时继续原地重试状态请求、把刷新按钮改回普通重试、直接展示浏览器原生 `Failed to fetch`／`Load failed`／`NetworkError`，或让登录后才首次请求游戏入口分块；\n- 缩短哈希资源一年不可变缓存、把入口 HTML 设为长期或 `immutable` 缓存、在新入口发布前删除旧哈希资源、让旧资源保留期短于 400 天，或在服务与 Nginx 验证完成前发布 `index.html`；\n'''
+          if regression_marker not in design:
+              raise SystemExit('REGRESSION_MARKER_NOT_FOUND')
+          design = design.replace(regression_marker, regression_addition + '\n' + regression_marker, 1)
+          design_path.write_text(design, encoding='utf-8', newline='\n')
+
+          verifier_path = Path('scripts/verify-state-delivery-capacity.mjs')
+          verifier = verifier_path.read_text(encoding='utf-8')
+          old_cache_check = '  \'add_header Cache-Control "public, max-age=604800, immutable";\',\n'
+          new_cache_check = '''  'add_header Cache-Control "public, max-age=31536000, immutable" always;',\n  'add_header Cache-Control "no-cache, max-age=0, must-revalidate" always;',\n'''
+          if old_cache_check not in verifier:
+              raise SystemExit('OLD_CACHE_CHECK_NOT_FOUND')
+          verifier = verifier.replace(old_cache_check, new_cache_check, 1)
+          verifier_path.write_text(verifier, encoding='utf-8', newline='\n')
+          PYTHON
+
+      - name: Commit patch
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md scripts/verify-state-delivery-capacity.mjs
+          git commit -m "docs: define client update and cache recovery"
+          git push origin HEAD:fix/client-version-refresh-cache
