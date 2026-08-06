@@ -230,10 +230,9 @@ export const gameActions = {
     postAction(`/bank/loans/${encodeURIComponent(loanId)}/auto-repay`, { enabled })
   ),
   upgradeWarehouse: () => postAction('/warehouse/upgrade'),
-  buildFacility: (facilityTypeId: string) => postAction('/facilities', { facilityTypeId }),
+  buildFacility: (facilityTypeId: string, quantity = 1) => postAction('/facilities', { facilityTypeId, quantity }),
   startResearch: (technologyId: string) => postAction('/research/start', { technologyId }),
   accelerateResearch: () => postAction('/research/accelerate'),
-  accelerateFacilityConstruction: () => postAction('/facilities/construction/accelerate'),
   startFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/start`),
   stopFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/stop`),
   pauseFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/pause`),

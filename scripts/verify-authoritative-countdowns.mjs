@@ -38,7 +38,6 @@ Object.values(paths).forEach(requireFile);
 
 if (failures.length === 0) {
   for (const text of [
-    'game.facilityConstruction?.completesAt',
     "group.status !== 'running'",
     'Number(group.cycleStartedAt) + recipe.cycleMs',
     "auction.status === 'open'",
@@ -98,12 +97,12 @@ if (failures.length === 0) {
   ]) requireText(paths.app, text);
 
   for (const text of [
-    'constructionAwaitingConfirmation',
-    "constructionRemaining === 0",
-    '确认完工中…',
-    '正在同步服务器结算结果',
-    'disabled={hasConstruction || game.credits < selectedType.buildCost}',
+    'label="建造数量"',
+    'label="建造资金"',
+    'label="最多可建"',
+    '立即扣除资金与建造材料',
   ]) requireText(paths.production, text);
+  for (const text of ['constructionAwaitingConfirmation', '确认完工中', '施工时间', '宝石加速']) forbidText(paths.production, text);
 
   for (const text of [
     'const workRemaining = Math.max(0, game.work.cooldownUntil - now);',
@@ -147,7 +146,7 @@ if (failures.length === 0) {
     '完整快照，不是分区对象内部的字段级补丁',
     '整块替换同名分区',
     '从 11 增加到 12',
-    '施工卡固定在归零后显示“确认完工中…”',
+    '工厂即时建设不注册权威倒计时',
     '普通状态读取超时为 8 秒',
     '同一事件可见窗口内连续请求必须产生相同的 `market` 分区哈希',
     '按请求时刻生成的榜单 `generatedAt` 和逐行 `updatedAt` 不得进入状态分区',
@@ -187,4 +186,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('权威倒计时验证通过：GET state 使用独立 serverNow 校准共享单调服务器时钟，market 与排行榜分区不携带请求时刻字段；权威刷新可抢占普通轮询，请求具备超时，施工、生产周期、拍卖和排行榜到期采用串行每秒确认，状态分区使用完整快照替换。');
+console.log('权威倒计时验证通过：GET state 使用独立 serverNow 校准共享单调服务器时钟，market 与排行榜分区不携带请求时刻字段；权威刷新可抢占普通轮询，请求具备超时，生产周期、拍卖和排行榜到期采用串行每秒确认；工厂即时建设不注册倒计时，状态分区使用完整快照替换。');

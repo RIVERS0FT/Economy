@@ -5,7 +5,7 @@ const standards = (facility) => facility.recipes.filter((recipe) => recipe.produ
 test('工具与工具工坊进入正式目录并保持 C4 参考利润', () => {
   assert.equal(PRODUCT_CATALOG.length, 36); assert.equal(FACILITY_TYPE_CATALOG.length, 26); assert.equal(ECONOMY_CONSTANTS.maxOpenOrders, 62);
   assert.deepEqual(PRODUCT_CATALOG.find((x) => x.id === 'tools'), { id: 'tools', name: '工具', category: 'industrial', basePrice: 12, marketDemandGroupId: 'household', marketDemandRole: 'direct', marketDemandTier: 'final', populationDemandGroupId: 'household', populationDemandTier: 'final' });
-  const f = FACILITY_TYPE_CATALOG.find((x) => x.id === 'tool-workshop'); assert.ok(f); assert.equal(f.complexity, 'C4'); assert.equal(f.buildCost, 320); assert.equal(f.buildTimeMs, 75 * 60_000); assert.equal(f.systemValue, 420);
+  const f = FACILITY_TYPE_CATALOG.find((x) => x.id === 'tool-workshop'); assert.ok(f); assert.equal(f.complexity, 'C4'); assert.equal(f.buildCost, 136); assert.deepEqual(f.buildInputs, [{ productId: 'lumber', quantity: 4 }, { productId: 'steel', quantity: 4 }]); assert.equal(f.systemValue, 420);
   const r = standards(f)[0]; assert.deepEqual(r.inputs, [{ productId: 'steel', quantity: 1 }, { productId: 'lumber', quantity: 1 }]); assert.deepEqual(r.output, { productId: 'tools', quantity: 5 }); assert.equal(r.cycleMs, 60_000); assert.equal(r.operatingCost, 8); assert.equal((12 * 5 - 29 - 17 - 8) * 60_000 / r.cycleMs, 6);
   assert.deepEqual(f.recipes.map((x) => [x.productionMethodId, x.cycleMs, x.operatingCost, x.output.quantity]), [['standard',60000,8,5],['rapid',30000,11,5],['economical',90000,5,5],['high-yield',60000,22,10]]);
   assert.deepEqual(standards(FACILITY_TYPE_CATALOG.find((x) => x.id === 'machine-factory'))[0].inputs, [{ productId: 'steel', quantity: 2 }]);

@@ -166,3 +166,8 @@ npm run test:browser
 ```
 
 Pull Request 会触发 [Economy CI](.github/workflows/ci.yml)。修改压缩合并到 `main` 后，[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) 会重新构建、运行浏览器测试、部署正式环境并执行线上验收。
+
+
+### 工厂即时建设
+
+工厂通过现金与正式商品材料即时建成；服务端原子校验和扣除全部成本，运行中的同类集群保持生产进度并按扩容规则重新计算满员率。工厂施工时间和施工宝石加速已经退役。

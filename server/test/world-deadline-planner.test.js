@@ -55,19 +55,8 @@ function createScheduledStore(clock, options = {}) {
   });
 }
 
-test('construction employment deadline is the next integer release boundary', () => {
-  assert.equal(nextConstructionEmploymentAt({
-    startedAt: 1_000,
-    completesAt: 11_000,
-    buildCost: 4,
-    employmentReleased: 0,
-  }), 3_500);
-  assert.equal(nextConstructionEmploymentAt({
-    startedAt: 1_000,
-    completesAt: 11_000,
-    buildCost: 4,
-    employmentReleased: 3,
-  }), 11_000);
+test('instant construction registers no employment deadline', () => {
+  assert.equal(nextConstructionEmploymentAt(), null);
 });
 
 test('world deadline planner selects the earliest authoritative event', () => {

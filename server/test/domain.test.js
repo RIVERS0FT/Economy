@@ -35,6 +35,7 @@ test('different products never match in the same order book', () => {
   deferDemand(world);
   const seller = ensurePlayer(world, bob, now);
   const buyer = ensurePlayer(world, alice, now);
+  buyer.inventories.ore.available = 0;
   seller.inventories.ore.available = 10;
   buyer.credits = 1_000;
 

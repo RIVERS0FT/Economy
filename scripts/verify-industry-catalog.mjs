@@ -26,41 +26,32 @@ const expectedPrices = {
   tractor: 15.35, electronics: 84, appliance: 92,
 };
 const expectedConstruction = {
-  farm: { complexity: 'C1', buildCost: 50, buildTimeMs: 30_000, systemValue: 65 },
-  orchard: { complexity: 'C1', buildCost: 70, buildTimeMs: 40_000, systemValue: 95 },
-  'logging-camp': { complexity: 'C2', buildCost: 120, buildTimeMs: 5 * 60_000, systemValue: 160 },
-  mine: { complexity: 'C2', buildCost: 140, buildTimeMs: 6 * 60_000, systemValue: 185 },
-  ranch: { complexity: 'C1', buildCost: 90, buildTimeMs: 50_000, systemValue: 120 },
-  fishery: { complexity: 'C1', buildCost: 100, buildTimeMs: 60_000, systemValue: 130 },
-  'oil-field': { complexity: 'C2', buildCost: 180, buildTimeMs: 10 * 60_000, systemValue: 235 },
-  mill: { complexity: 'C2', buildCost: 150, buildTimeMs: 7 * 60_000, systemValue: 195 },
-  sawmill: { complexity: 'C2', buildCost: 170, buildTimeMs: 8 * 60_000, systemValue: 225 },
-  'feed-factory': { complexity: 'C2', buildCost: 160, buildTimeMs: 8 * 60_000, systemValue: 210 },
-  'pulp-mill': { complexity: 'C3', buildCost: 190, buildTimeMs: 30 * 60_000, systemValue: 250 },
-  steelworks: { complexity: 'C3', buildCost: 240, buildTimeMs: 40 * 60_000, systemValue: 315 },
-  refinery: { complexity: 'C4', buildCost: 300, buildTimeMs: 80 * 60_000, systemValue: 390 },
-  'fertilizer-factory': { complexity: 'C4', buildCost: 330, buildTimeMs: 85 * 60_000, systemValue: 430 },
-  'veterinary-medicine-factory': { complexity: 'C4', buildCost: 360, buildTimeMs: 95 * 60_000, systemValue: 470 },
-  'textile-mill': { complexity: 'C3', buildCost: 220, buildTimeMs: 35 * 60_000, systemValue: 290 },
-  'food-factory': { complexity: 'C3', buildCost: 230, buildTimeMs: 45 * 60_000, systemValue: 300 },
-  'beverage-factory': { complexity: 'C4', buildCost: 280, buildTimeMs: 60 * 60_000, systemValue: 365 },
-  'paper-mill': { complexity: 'C3', buildCost: 250, buildTimeMs: 60 * 60_000, systemValue: 325 },
-  'furniture-factory': { complexity: 'C4', buildCost: 300, buildTimeMs: 70 * 60_000, systemValue: 390 },
-  'garment-factory': { complexity: 'C4', buildCost: 350, buildTimeMs: 90 * 60_000, systemValue: 455 },
-  'tool-workshop': { complexity: 'C4', buildCost: 320, buildTimeMs: 75 * 60_000, systemValue: 420 },
-  'machine-factory': { complexity: 'C5', buildCost: 480, buildTimeMs: 100 * 60_000, systemValue: 625 },
-  'tractor-factory': { complexity: 'C5', buildCost: 520, buildTimeMs: 105 * 60_000, systemValue: 680 },
-  'electronics-factory': { complexity: 'C6', buildCost: 700, buildTimeMs: 110 * 60_000, systemValue: 910 },
-  'appliance-factory': { complexity: 'C7', buildCost: 950, buildTimeMs: 120 * 60_000, systemValue: 1235 },
-};
-const constructionTimeRanges = {
-  C1: [30_000, 60_000],
-  C2: [5 * 60_000, 10 * 60_000],
-  C3: [30 * 60_000, 60 * 60_000],
-  C4: [60 * 60_000, 120 * 60_000],
-  C5: [60 * 60_000, 120 * 60_000],
-  C6: [60 * 60_000, 120 * 60_000],
-  C7: [60 * 60_000, 120 * 60_000],
+  'farm': { complexity: 'C1', buildCost: 31, buildInputs: [{ productId: 'timber', quantity: 2 }, { productId: 'ore', quantity: 1 }], systemValue: 65 },
+  'orchard': { complexity: 'C1', buildCost: 45, buildInputs: [{ productId: 'timber', quantity: 3 }, { productId: 'ore', quantity: 1 }], systemValue: 95 },
+  'ranch': { complexity: 'C1', buildCost: 58, buildInputs: [{ productId: 'timber', quantity: 3 }, { productId: 'ore', quantity: 2 }], systemValue: 120 },
+  'fishery': { complexity: 'C1', buildCost: 62, buildInputs: [{ productId: 'timber', quantity: 4 }, { productId: 'ore', quantity: 2 }], systemValue: 130 },
+  'logging-camp': { complexity: 'C2', buildCost: 85, buildInputs: [{ productId: 'cotton', quantity: 6 }, { productId: 'ore', quantity: 4 }], systemValue: 160 },
+  'mine': { complexity: 'C2', buildCost: 109, buildInputs: [{ productId: 'timber', quantity: 4 }, { productId: 'cotton', quantity: 6 }], systemValue: 185 },
+  'oil-field': { complexity: 'C2', buildCost: 121, buildInputs: [{ productId: 'timber', quantity: 4 }, { productId: 'ore', quantity: 4 }, { productId: 'copper-ore', quantity: 1 }], systemValue: 235 },
+  'mill': { complexity: 'C2', buildCost: 98, buildInputs: [{ productId: 'timber', quantity: 4 }, { productId: 'ore', quantity: 3 }, { productId: 'copper-ore', quantity: 1 }], systemValue: 195 },
+  'sawmill': { complexity: 'C2', buildCost: 112, buildInputs: [{ productId: 'timber', quantity: 5 }, { productId: 'ore', quantity: 3 }, { productId: 'copper-ore', quantity: 1 }], systemValue: 225 },
+  'feed-factory': { complexity: 'C2', buildCost: 108, buildInputs: [{ productId: 'timber', quantity: 4 }, { productId: 'ore', quantity: 3 }, { productId: 'copper-ore', quantity: 1 }], systemValue: 210 },
+  'pulp-mill': { complexity: 'C3', buildCost: 110, buildInputs: [{ productId: 'lumber', quantity: 3 }, { productId: 'steel', quantity: 1 }], systemValue: 250 },
+  'steelworks': { complexity: 'C3', buildCost: 137, buildInputs: [{ productId: 'lumber', quantity: 4 }, { productId: 'ore', quantity: 5 }], systemValue: 315 },
+  'textile-mill': { complexity: 'C3', buildCost: 111, buildInputs: [{ productId: 'lumber', quantity: 3 }, { productId: 'steel', quantity: 2 }], systemValue: 290 },
+  'food-factory': { complexity: 'C3', buildCost: 121, buildInputs: [{ productId: 'lumber', quantity: 3 }, { productId: 'steel', quantity: 2 }], systemValue: 300 },
+  'paper-mill': { complexity: 'C3', buildCost: 124, buildInputs: [{ productId: 'lumber', quantity: 4 }, { productId: 'steel', quantity: 2 }], systemValue: 325 },
+  'refinery': { complexity: 'C4', buildCost: 104, buildInputs: [{ productId: 'lumber', quantity: 3 }, { productId: 'steel', quantity: 4 }, { productId: 'copper', quantity: 1 }], systemValue: 390 },
+  'fertilizer-factory': { complexity: 'C4', buildCost: 134, buildInputs: [{ productId: 'lumber', quantity: 3 }, { productId: 'steel', quantity: 4 }, { productId: 'copper', quantity: 1 }], systemValue: 430 },
+  'veterinary-medicine-factory': { complexity: 'C4', buildCost: 163, buildInputs: [{ productId: 'lumber', quantity: 3 }, { productId: 'steel', quantity: 4 }, { productId: 'plastic', quantity: 1 }], systemValue: 470 },
+  'beverage-factory': { complexity: 'C4', buildCost: 96, buildInputs: [{ productId: 'lumber', quantity: 4 }, { productId: 'steel', quantity: 3 }, { productId: 'copper', quantity: 1 }], systemValue: 365 },
+  'furniture-factory': { complexity: 'C4', buildCost: 140, buildInputs: [{ productId: 'lumber', quantity: 6 }, { productId: 'steel', quantity: 2 }], systemValue: 390 },
+  'garment-factory': { complexity: 'C4', buildCost: 165, buildInputs: [{ productId: 'lumber', quantity: 4 }, { productId: 'steel', quantity: 3 }, { productId: 'plastic', quantity: 1 }], systemValue: 455 },
+  'tool-workshop': { complexity: 'C4', buildCost: 136, buildInputs: [{ productId: 'lumber', quantity: 4 }, { productId: 'steel', quantity: 4 }], systemValue: 420 },
+  'machine-factory': { complexity: 'C5', buildCost: 130, buildInputs: [{ productId: 'steel', quantity: 7 }, { productId: 'copper', quantity: 3 }, { productId: 'plastic', quantity: 2 }], systemValue: 625 },
+  'tractor-factory': { complexity: 'C5', buildCost: 214, buildInputs: [{ productId: 'steel', quantity: 8 }, { productId: 'copper', quantity: 2 }, { productId: 'machinery', quantity: 1 }], systemValue: 680 },
+  'electronics-factory': { complexity: 'C6', buildCost: 216, buildInputs: [{ productId: 'steel', quantity: 6 }, { productId: 'copper', quantity: 6 }, { productId: 'plastic', quantity: 4 }, { productId: 'machinery', quantity: 1 }], systemValue: 910 },
+  'appliance-factory': { complexity: 'C7', buildCost: 468, buildInputs: [{ productId: 'steel', quantity: 8 }, { productId: 'plastic', quantity: 5 }, { productId: 'machinery', quantity: 1 }, { productId: 'electronics', quantity: 1 }], systemValue: 1235 },
 };
 const expectedProfitByComplexity = { C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
 const expectedC1ProfitByFacility = { farm: 0.6, orchard: 0.9, ranch: 0.8, fishery: 1 };
@@ -101,7 +92,7 @@ assert.deepEqual(Object.fromEntries(PRODUCT_CATALOG.map((item) => [item.id, item
 assert.deepEqual(Object.fromEntries(FACILITY_TYPE_CATALOG.map((item) => [item.id, {
   complexity: item.complexity,
   buildCost: item.buildCost,
-  buildTimeMs: item.buildTimeMs,
+  buildInputs: item.buildInputs,
   systemValue: item.systemValue,
 }])), expectedConstruction);
 
@@ -112,17 +103,18 @@ for (const product of PRODUCT_CATALOG) {
 }
 for (const facility of FACILITY_TYPE_CATALOG) {
   assert.equal(Number.isInteger(facility.buildCost), true, `${facility.id} 建造费必须为整数`);
-  assert.equal(Number.isInteger(facility.buildTimeMs / 1_000), true, `${facility.id} 施工时间必须为整秒`);
-  assert.ok(constructionTimeRanges[facility.complexity], `${facility.id} 建设复杂度无效`);
-  const [minimumBuildTime, maximumBuildTime] = constructionTimeRanges[facility.complexity];
-  assert.ok(
-    facility.buildTimeMs >= minimumBuildTime && facility.buildTimeMs <= maximumBuildTime,
-    `${facility.id} 施工时间超出 ${facility.complexity} 区间`,
-  );
+  assert.ok(Array.isArray(facility.buildInputs) && facility.buildInputs.length > 0, `${facility.id} 必须声明建造材料`);
+  let materialReferenceValue = 0;
+  for (const item of facility.buildInputs) {
+    assert.ok(productIds.has(item.productId), `${facility.id} 建造材料必须引用正式商品`);
+    assert.equal(Number.isSafeInteger(item.quantity) && item.quantity > 0, true, `${facility.id} 建造材料数量必须为安全正整数`);
+    assert.notEqual(item.productId, facility.output.productId, `${facility.id} 不得使用自身产出作为建造材料`);
+    materialReferenceValue += expectedPrices[item.productId] * item.quantity;
+  }
   assert.equal(
     facility.systemValue,
-    Math.ceil((facility.buildCost * 1.3) / 5) * 5,
-    `${facility.id} 系统参考值必须按建造费 130% 向上取整到 5`,
+    Math.ceil(((facility.buildCost + materialReferenceValue) * 1.3) / 5) * 5,
+    `${facility.id} 系统参考值必须按资金与材料参考总值的 130% 向上取整到 5`,
   );
 
   const routes = standardRecipes(facility);
@@ -249,10 +241,10 @@ for (const [path, texts] of [
     '不新增铜冶炼厂',
     '任一输入不足时不得扣除其他输入',
     '模型 1 的未完成市场需求订单',
-    'C1 为 30 秒～1 分钟',
-    'C2 为 5～10 分钟',
-    'C3 为 30 分钟～1 小时',
-    'C4～C7 为 1～2 小时',
+    '正式目录为每座工厂声明现金 `buildCost` 与商品数组 `buildInputs`',
+    '客户端兼容字段 `buildTimeMs` 固定返回 `0`',
+    '资金和全部材料必须先完整校验，再原子扣除',
+    '首座工厂建造材料包',
     '标准生产、高速生产、节约生产和高产生产',
     '基础、工具／饲料、化肥／药剂、拖拉机／机械化',
     '每周期整件消耗',

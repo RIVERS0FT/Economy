@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test.describe('production cluster status summary', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('counts clusters and keeps gem acceleration only in the build card', async ({ page }) => {
+  test('instant construction shows credits and materials without gem acceleration', async ({ page }) => {
     await page.goto('runtime-test.html?view=production&scenario=cluster-summary');
 
     const summary = page.locator('.page-heading-actions');
@@ -12,11 +12,13 @@ test.describe('production cluster status summary', () => {
     await expect(summary).toContainText('异常 1');
     await expect(summary).not.toContainText('施工');
 
-    const buildConstruction = page.locator('.production-build-card .construction-status');
-    await expect(buildConstruction).toHaveCount(1);
-    await expect(buildConstruction).toContainText('施工中');
-    await expect(buildConstruction).toContainText('宝石加速');
-    await expect(buildConstruction.getByRole('button', { name: '1 宝石 · 加速 30m' })).toBeVisible();
+    const buildCard = page.locator('.production-build-card');
+    await expect(buildCard).toContainText('建造数量');
+    await expect(buildCard).toContainText('建造资金');
+    await expect(buildCard).toContainText('最多可建');
+    await expect(buildCard).not.toContainText('宝石加速');
+    await expect(buildCard).not.toContainText('施工中');
+    await expect(buildCard).not.toContainText('施工时间');
 
     await expect(page.locator('.facility-cluster-detail-card')).not.toContainText('宝石加速');
     await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);

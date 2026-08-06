@@ -83,6 +83,8 @@ export interface FacilityTypeDefinition {
   category: 'raw' | 'processing' | 'consumer' | 'industrial';
   complexity: FacilityComplexity;
   buildCost: number;
+  buildInputs?: FacilityRecipeItem[];
+  /** @deprecated Instant construction returns 0 to compatible clients. */
   buildTimeMs: number;
   cycleMs: number;
   operatingCost: number;
@@ -320,6 +322,8 @@ export interface EconomyStats {
   employmentPayments: number;
   productionPayroll: number;
   constructionPayroll: number;
+  facilitiesConstructed?: number;
+  constructionMaterialsConsumed?: Record<string, number>;
   warehousePayroll: number;
   marketServiceFees: number;
   researchPayroll?: number;

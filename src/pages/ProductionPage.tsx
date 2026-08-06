@@ -15,7 +15,7 @@ import {
   WidgetHeading,
 } from '../components/ui/layout';
 import type { FacilityGroup } from '../types';
-import { formatCurrency, formatDuration, formatNumber } from '../utils/formatters';
+import { formatCurrency, formatNumber } from '../utils/formatters';
 import {
   FacilityClusterDetailContent,
   FacilityClusterSelectorCard,
@@ -25,7 +25,6 @@ import {
   type FacilityClusterEntry,
 } from './production/ProductionFacilityDetail';
 import { MobileFacilityDetailSheet } from './production/MobileFacilityDetailSheet';
-import '../styles/production-gem-acceleration.css';
 import '../styles/production-methods.css';
 
 /*
@@ -49,7 +48,6 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     selectedFacilityTypeId,
     setSelectedFacilityTypeId,
     buildFacility,
-    accelerateFacilityConstruction,
     startFacility,
     stopFacility,
     setFacilityRecipe,
@@ -60,7 +58,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const now = useNow(game.lastProcessedAt);
   const [selectedFacilityGroupId, setSelectedFacilityGroupId] = useState('');
   const [isFacilityDetailOpen, setFacilityDetailOpen] = useState(false);
-  const [acceleratingConstruction, setAcceleratingConstruction] = useState(false);
+  const [buildQuantity, setBuildQuantity] = useState(1);
   const detailTriggerRef = useRef<HTMLButtonElement | null>(null);
   const closeFacilityDetail = useCallback(() => setFacilityDetailOpen(false), []);
 
@@ -92,8 +90,15 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const selectedFacilityEntry =
     orderedFacilityGroups.find(({ type }) => type.id === selectedFacilityGroupId) ?? orderedFacilityGroups[0];
   const effectiveSelectedFacilityGroupId = selectedFacilityEntry?.type.id ?? '';
-  const hasConstruction = Boolean(game.facilityConstruction);
   const selectedRecipes = selectedType ? recipesForType(selectedType) : [];
+  const selectedBuildInputs = selectedType.buildInputs ?? [];
+  const maxBuildable = Math.max(0, Math.min(
+    100,
+    Math.floor(game.credits / Math.max(1, selectedType.buildCost)),
+    ...selectedBuildInputs.map((item) => Math.floor(
+      (game.inventories[item.productId]?.available ?? 0) / Math.max(1, item.quantity),
+    )),
+  ));
 
   useEffect(() => {
     if (effectiveSelectedFacilityGroupId !== selectedFacilityGroupId) {
@@ -112,16 +117,6 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     );
   }
 
-  const constructionType = game.facilityConstruction
-    ? game.facilityTypes.find((type) => type.id === game.facilityConstruction?.facilityTypeId)
-    : undefined;
-  const constructionRemaining = game.facilityConstruction
-    ? Math.max(0, game.facilityConstruction.completesAt - now)
-    : 0;
-  const constructionAwaitingConfirmation = Boolean(game.facilityConstruction && constructionRemaining === 0);
-  const constructionAccelerationMs = game.facilityConstruction?.gemAccelerationMs ?? 30 * 60 * 1000;
-  const constructionAccelerationCost = game.facilityConstruction?.gemAccelerationCost ?? 1;
-  const constructionRemainingAfterAcceleration = Math.max(0, constructionRemaining - constructionAccelerationMs);
 
   const selectFacilityEntry = (facilityTypeId: string, trigger: HTMLButtonElement) => {
     detailTriggerRef.current = trigger;
@@ -146,15 +141,6 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const openSelectedFacilityMarket = () => {
     if (!selectedFacilityEntry) return;
     selectMarketAsset('facility', selectedFacilityEntry.group.facilityTypeId);
-  };
-  const accelerateSelectedConstruction = async () => {
-    if (!game.facilityConstruction || acceleratingConstruction) return;
-    setAcceleratingConstruction(true);
-    try {
-      await showResult(accelerateFacilityConstruction());
-    } finally {
-      setAcceleratingConstruction(false);
-    }
   };
 
   return (
@@ -195,64 +181,44 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                 : `固定产物：${selectedRecipes[0]?.name ?? selectedType.name}`}
             </p>
           </div>
+          <SelectInput
+            label="建造数量"
+            value={String(buildQuantity)}
+            onChange={(event) => setBuildQuantity(Math.max(1, Math.min(100, Number(event.target.value) || 1)))}
+          >
+            {[1, 5, 10, 25, 50, 100].map((quantity) => (
+              <option value={quantity} key={quantity}>{quantity}</option>
+            ))}
+          </SelectInput>
           <DataList>
             <DataRow
-              label="建造费用"
-              value={<CurrencyAmount>{formatCurrency(selectedType.buildCost)}</CurrencyAmount>}
-              tone="danger"
+              label="建造资金"
+              value={<CurrencyAmount>{formatCurrency(selectedType.buildCost * buildQuantity)}</CurrencyAmount>}
+              tone={game.credits >= selectedType.buildCost * buildQuantity ? 'neutral' : 'danger'}
             />
-            <DataRow label="施工时间" value={formatDuration(selectedType.buildTimeMs)} tone="warning" />
+            {selectedBuildInputs.map((item) => {
+              const product = game.products.find((candidate) => candidate.id === item.productId);
+              const available = game.inventories[item.productId]?.available ?? 0;
+              const required = item.quantity * buildQuantity;
+              return (
+                <DataRow
+                  key={item.productId}
+                  label={product?.name ?? item.productId}
+                  value={`${formatNumber(required)} / 库存 ${formatNumber(available)}`}
+                  tone={available >= required ? 'neutral' : 'danger'}
+                />
+              );
+            })}
+            <DataRow label="最多可建" value={`${formatNumber(maxBuildable)} 座`} />
           </DataList>
-          {game.facilityConstruction ? (
-            <div className="construction-status" aria-live="polite">
-              <strong>
-                {constructionType?.name ?? '工厂'}
-                {constructionAwaitingConfirmation ? '确认完工中' : '施工中'}
-              </strong>
-              <span>
-                {constructionAwaitingConfirmation
-                  ? '正在同步服务器结算结果'
-                  : `剩余 ${formatDuration(constructionRemaining)}`}
-              </span>
-              <div className="build-card-gem-acceleration">
-                <strong>宝石加速</strong>
-                <span>
-                  {constructionAwaitingConfirmation
-                    ? '等待服务器确认完工'
-                    : constructionRemainingAfterAcceleration > 0
-                      ? `使用后剩余 ${formatDuration(constructionRemainingAfterAcceleration)}`
-                      : '使用后立即完工'}
-                </span>
-                <Button
-                  block
-                  disabled={
-                    constructionAwaitingConfirmation ||
-                    game.gems < constructionAccelerationCost ||
-                    acceleratingConstruction
-                  }
-                  onClick={() => void accelerateSelectedConstruction()}
-                >
-                  {acceleratingConstruction
-                    ? '加速处理中…'
-                    : `${formatNumber(constructionAccelerationCost)} 宝石 · 加速 ${formatDuration(constructionAccelerationMs)}`}
-                </Button>
-                <small>每次固定减少 30m；剩余不足 30m 时直接完工，不退还部分宝石。</small>
-              </div>
-              <small>建成后直接加入运行中的同类集群，不重置当前进度，并按扩容比例同步稀释满员率。</small>
-            </div>
-          ) : null}
           <Button
             block
-            onClick={() => void showResult(buildFacility(selectedType.id))}
-            disabled={hasConstruction || game.credits < selectedType.buildCost}
+            onClick={() => void showResult(buildFacility(selectedType.id, buildQuantity))}
+            disabled={buildQuantity > maxBuildable}
           >
-            {constructionAwaitingConfirmation
-              ? '确认完工中…'
-              : hasConstruction
-                ? '已有工厂正在施工'
-                : `建设${selectedType.name}`}
+            {buildQuantity === 1 ? `立即建造${selectedType.name}` : `立即建造 ${buildQuantity} 座${selectedType.name}`}
           </Button>
-          <small className="ui-helper-text">工厂按类型和数量保存；同一时间只能施工一座工厂。</small>
+          <small className="ui-helper-text">提交后立即扣除资金与建造材料，工厂直接加入同类集群；运行中的集群保持当前进度并重新计算满员率。</small>
         </PagePanel>
 
         <PagePanel className="production-surface facility-cluster-navigation">
