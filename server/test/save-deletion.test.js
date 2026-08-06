@@ -104,6 +104,10 @@ test('delete save recreates the player baseline and preserves permanent account 
       () => assertPlayerSaveEpoch(store, user, '0', now + 7),
       (error) => error.statusCode === 409 && error.code === 'SAVE_EPOCH_MISMATCH',
     );
+    assert.throws(
+      () => assertPlayerSaveEpoch(store, user, undefined, now + 7),
+      (error) => error.statusCode === 409 && error.code === 'SAVE_EPOCH_MISMATCH',
+    );
   } finally {
     store.close();
   }
