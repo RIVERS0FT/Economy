@@ -1,0 +1,78 @@
+name: Apply farm orchard batch build fix
+
+on:
+  push:
+    branches:
+      - agent/fix-farm-orchard-batch-build-bootstrap
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ contains(github.event.head_commit.message, '[farm-orchard-build-bootstrap]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Checkout bootstrap branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply, validate, and publish clean branch
+        shell: bash
+        run: |
+          set -u
+          log_file="$RUNNER_TEMP/farm-orchard-batch-build.log"
+          applicator="$RUNNER_TEMP/apply-farm-orchard-batch-build.py"
+          : > "$log_file"
+
+          base64 -d scripts/apply-farm-orchard-batch-build.py.gz.b64 | gzip -d > "$applicator"
+          python3 -m py_compile "$applicator" >> "$log_file" 2>&1
+
+          git checkout -B agent/fix-farm-orchard-batch-build origin/main >> "$log_file" 2>&1
+
+          status=0
+          run_step() {
+            if [ "$status" -ne 0 ]; then
+              return
+            fi
+            printf '\n===== %s =====\n' "$1" >> "$log_file"
+            shift
+            "$@" >> "$log_file" 2>&1 || status=$?
+          }
+
+          run_step "apply changes" python3 "$applicator"
+          run_step "install dependencies" npm ci
+          run_step "catalog verification" node scripts/verify-industry-catalog.mjs
+          run_step "form state verification" node scripts/verify-form-state-isolation.mjs
+          run_step "construction server regression" node --test server/test/instant-facility-construction.test.js
+          run_step "starting funds regression" node --test server/test/starting-funds.test.js
+          run_step "repository diff check" git diff --check
+          run_step "full production build" npm run build
+          run_step "install chromium" npx playwright install --with-deps chromium
+          run_step "full browser regression" npm run test:browser
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$status" -eq 0 ]; then
+            target_branch="agent/fix-farm-orchard-batch-build"
+            git add -A
+            git commit -m "修复农场果园建造与批量建设"
+          else
+            target_branch="agent/fix-farm-orchard-batch-build-diagnostic"
+            cp "$log_file" farm-orchard-batch-build.log
+            git add -A
+            git commit -m "记录农场果园建造修复失败诊断"
+          fi
+
+          git push --force origin "HEAD:$target_branch"
+          cat "$log_file"
+          exit "$status"
