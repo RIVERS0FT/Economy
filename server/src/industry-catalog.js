@@ -46,8 +46,8 @@ export const PRODUCT_CATALOG = Object.freeze(rawProducts.map((product) => Object
 
 const rawFacilities = [
   {
-    id: 'farm', name: '农场', category: 'raw', complexity: 'C1', buildCost: 31, buildTimeMs: 30_000,
-    buildInputs: [{ productId: 'timber', quantity: 2 }, { productId: 'ore', quantity: 1 }],
+    id: 'farm', name: '农场', category: 'raw', complexity: 'C1', buildCost: 50, buildTimeMs: 30_000,
+    buildInputs: [],
     defaultRecipeId: 'wheat-crop', internalCapacity: 40, systemValue: 65,
     recipes: [
       { id: 'wheat-crop', name: '种植小麦', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'wheat', quantity: 1 } },
@@ -57,8 +57,8 @@ const rawFacilities = [
     ],
   },
   {
-    id: 'orchard', name: '果园', category: 'raw', complexity: 'C1', buildCost: 45, buildTimeMs: 40_000,
-    buildInputs: [{ productId: 'timber', quantity: 3 }, { productId: 'ore', quantity: 1 }],
+    id: 'orchard', name: '果园', category: 'raw', complexity: 'C1', buildCost: 70, buildTimeMs: 40_000,
+    buildInputs: [],
     defaultRecipeId: 'orchard-fruit', internalCapacity: 40, systemValue: 95,
     recipes: [{ id: 'orchard-fruit', name: '种植水果', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'fruit', quantity: 1 } }],
   },

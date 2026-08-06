@@ -971,13 +971,13 @@ function buildFacilityGroup(world, userId, payload, now) {
   if (!quantity) return result(false, '建造数量必须为 1 到 100 的整数');
   const totalCost = multiplyMoneyByInteger(type.buildCost, quantity);
   if (totalCost === null) return result(false, '建造资金超出系统可表示范围');
+  if (!Array.isArray(type.buildInputs)) return result(false, '工厂建造材料目录无效');
   const buildInputs = [];
-  for (const item of Array.isArray(type.buildInputs) ? type.buildInputs : []) {
+  for (const item of type.buildInputs) {
     const required = Number(item.quantity) * quantity;
     if (!Number.isSafeInteger(required) || required < 1) return result(false, '建造材料数量超出系统可表示范围');
     buildInputs.push({ productId: String(item.productId || ''), quantity: required });
   }
-  if (buildInputs.length === 0) return result(false, '工厂建造材料目录无效');
   if (player.credits < totalCost) return result(false, '建造资金不足');
   const missingInput = buildInputs.find((item) => inventoryFor(player, item.productId).available < item.quantity);
   if (missingInput) {
