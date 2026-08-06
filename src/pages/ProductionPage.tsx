@@ -196,7 +196,9 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
               value={<CurrencyAmount>{formatCurrency(selectedType.buildCost * buildQuantity)}</CurrencyAmount>}
               tone={game.credits >= selectedType.buildCost * buildQuantity ? 'neutral' : 'danger'}
             />
-            {selectedBuildInputs.map((item) => {
+            {selectedBuildInputs.length === 0 ? (
+              <DataRow label="建造材料" value="无需材料" />
+            ) : selectedBuildInputs.map((item) => {
               const product = game.products.find((candidate) => candidate.id === item.productId);
               const available = game.inventories[item.productId]?.available ?? 0;
               const required = item.quantity * buildQuantity;
@@ -218,7 +220,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
           >
             {buildQuantity === 1 ? `立即建造${selectedType.name}` : `立即建造 ${buildQuantity} 座${selectedType.name}`}
           </Button>
-          <small className="ui-helper-text">提交后立即扣除资金与建造材料，工厂直接加入同类集群；运行中的集群保持当前进度并重新计算满员率。</small>
+          <small className="ui-helper-text">提交后立即扣除{selectedBuildInputs.length === 0 ? '建造资金' : '资金与建造材料'}，工厂直接加入同类集群；运行中的集群保持当前进度并重新计算满员率。</small>
         </PagePanel>
 
         <PagePanel className="production-surface facility-cluster-navigation">
