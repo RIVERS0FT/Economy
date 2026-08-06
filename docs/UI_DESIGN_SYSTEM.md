@@ -3,7 +3,7 @@
 > 状态：当前视觉、共享组件、响应式与可访问性实现基线
 > 适用项目：`RIVERS0FT/Economy`
 > 当前平台：网页端
-> 更新时间：2026-08-05
+> 更新时间：2026-08-06
 
 产品和页面职责分别以 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；应用外壳几何和玻璃材质以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。
 
@@ -98,6 +98,8 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 `src/components/ui/FormControls.tsx` 是文本、整数、原生纯文字选择器、文本域、文件与组合输入的唯一 React 包装层；紧凑表格行内输入可以直接使用原生控件，但必须带 `.ui-control` 并遵守相同解析和状态规则。需要在收起状态和选项中显示商品图片或语义 Icon 时，必须使用共享 `RichSelectInput`，不得由业务页面自行实现下拉弹层。`RichSelectInput` 的触发器、深色列表、选项高度、圆角、悬停、选中、禁用、键盘导航、焦点返回和工作区安全浮层定位统一由 `form-controls.css` 与组件实现；生产产物使用 `ProductArtwork`，作业制度使用统一功能 Icon，不得手写 `<svg>`、`<path>`、Emoji、字符或字体图标。 移动工厂详情中的生产产物与作业制度必须在同一行双列显示，作业制度说明不得显示；根级 Dialog 内的 `RichSelectInput` 列表必须复用该 Dialog 根作为安全定位边界并位于详情遮罩之上。
 
 管理员入口、游戏入口和十个游戏页面必须使用 `React.lazy` 与动态 `import()` 按需加载；登录页不得静态拉入管理员和全部游戏页面。根游戏模型不得维护每秒变化的时间状态，倒计时只在概览、生产、拍卖、合同和银行等实际需要的局部页面通过共享 `useNow` 维护，市场订单簿、导航和银行资产总览等静态区域不得被全局秒级时钟重渲染。
+
+服务器快照与客户端交互状态必须使用不同原语。实体选择使用 `src/hooks/useStableSelection.ts` 的 `useStableSelection`，有效选择在任意轮询快照和无关分区变化中保持不变；服务器字段编辑使用 `src/hooks/useServerDraft.ts` 的 `useServerDraft`，以 `dirty`、`baseRevision` 和 `conflicted` 区分已确认值与未提交草稿。业务页面不得通过依赖完整 `game` 对象的 Effect 无条件重置本地 setter，也不得用服务器修订号、时间戳或完整状态作为 React `key` 触发重新挂载。
 
 `SwitchControl` 是布尔开关的唯一 React 基础组件，`.ui-switch` 是唯一视觉实现。不得新增工厂开关、音乐开关或设置开关的平行 CSS。
 

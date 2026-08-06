@@ -26,6 +26,7 @@ import { canAcceptRevision } from './revisionGate.js';
 import type { StatePartitionName } from './stateDelivery.js';
 import { buildAssetAllocation } from '../utils/assetAllocation';
 import { defaultOrderPrice } from '../utils/defaultOrderPrice';
+import { useServerDraft } from '../hooks/useServerDraft';
 import {
   clearLocalTrades as clearLocalTradesStore,
   loadLocalActivity,
@@ -195,7 +196,6 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const [orderSide, setOrderSideState] = useState<OrderSide>('buy');
   const [orderQuantity, setOrderQuantity] = useState(1);
   const [orderPrice, setOrderPrice] = useState(1);
-  const [playerName, setPlayerName] = useState('');
   const [compactNumbers, setCompactNumbers] = useState(() => (
     typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches
   ));
@@ -210,6 +210,11 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const checkInPendingRef = useRef(false);
   const orderPendingRef = useRef(false);
   const noticeTimerRef = useRef<number | null>(null);
+  const playerNameDraft = useServerDraft({
+    serverValue: game?.playerName ?? '',
+    serverRevision: game?.lastProcessedAt ?? 0,
+    resetKey: user.id,
+  });
 
   const handleUnauthorized = useCallback(() => {
     gameRef.current = null;
@@ -304,11 +309,13 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     const timer = window.setInterval(() => void refresh(), Math.max(1, Number(refreshRate)) * 1_000);
     return () => window.clearInterval(timer);
   }, [game, refresh, refreshRate]);
+  const facilityTypes = game?.facilityTypes;
   useEffect(() => {
-    if (!game) return;
-    setPlayerName(game.playerName);
-    if (!game.facilityTypes.some((facility) => facility.id === selectedFacilityTypeId)) setSelectedFacilityTypeId(game.facilityTypes[0]?.id ?? 'farm');
-  }, [game, selectedFacilityTypeId]);
+    if (!facilityTypes) return;
+    if (!facilityTypes.some((facility) => facility.id === selectedFacilityTypeId)) {
+      setSelectedFacilityTypeId(facilityTypes[0]?.id ?? 'farm');
+    }
+  }, [facilityTypes, selectedFacilityTypeId]);
   useEffect(() => {
     if (!game) return;
     if (marketAssetKind === 'commodity') {
@@ -464,7 +471,8 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     selectedFacilityTypeId, setSelectedFacilityTypeId,
     marketAssetKind, marketAssetId, selectMarketAsset,
     orderSide, selectOrderSide, orderQuantity, setOrderQuantity, orderPrice, setOrderPrice,
-    playerName, setPlayerName, compactNumbers, setCompactNumbers, refreshRate, setRefreshRate,
+    playerName: playerNameDraft.draft, setPlayerName: playerNameDraft.setDraft,
+    compactNumbers, setCompactNumbers, refreshRate, setRefreshRate,
     isWorking, isCheckingIn, inventoryUsed: derived.inventoryUsed,
     cashShare, commodityShare, facilityShare, avatarText,
     showResult, notify, refresh,

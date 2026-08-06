@@ -18,7 +18,13 @@ const forbidText = (source, text, label) => {
 const viewModel = read('src/app/gameViewModel.ts');
 const productionPage = read('src/pages/ProductionPage.tsx');
 const auctionPage = read('src/pages/AuctionPage.tsx');
+const researchPage = read('src/pages/ResearchPage.tsx');
+const stableSelection = read('src/hooks/useStableSelection.ts');
+const serverDraft = read('src/hooks/useServerDraft.ts');
+const researchBrowserTest = read('tests/browser/research-technology-tree.spec.ts');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
+const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
+const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 
 requireText(
   viewModel,
@@ -75,15 +81,66 @@ requireText(
   'value={selectedAssetId}',
   'auction select single source of truth',
 );
+
+requireText(stableSelection, 'export function useStableSelection', 'shared stable selection hook');
 requireText(
-  pageDesign,
-  '### 1.1 跨页面表单状态隔离',
-  'page design state isolation rule',
+  stableSelection,
+  'if (currentId && availableIds.has(currentId)) return currentId;',
+  'valid explicit selection preservation',
 );
+requireText(serverDraft, 'export function useServerDraft', 'shared server draft hook');
+requireText(
+  serverDraft,
+  'if (current.dirty && isEqual(current.draft, serverValue))',
+  'server-confirmed draft cleanup',
+);
+requireText(
+  viewModel,
+  "import { useServerDraft } from '../hooks/useServerDraft';",
+  'player name server draft adoption',
+);
+requireText(viewModel, 'playerName: playerNameDraft.draft', 'player name draft value');
+requireText(viewModel, 'setPlayerName: playerNameDraft.setDraft', 'player name draft setter');
+forbidText(viewModel, 'setPlayerName(game.playerName);', 'poll refresh player name overwrite');
+requireText(
+  researchPage,
+  "import { useStableSelection } from '../hooks/useStableSelection';",
+  'research stable selection adoption',
+);
+requireText(researchPage, 'fallbackId: fallbackTechnologyId', 'research explicit fallback');
+forbidText(
+  researchPage,
+  'setSelectedTechnologyId(defaultTechnologyId);',
+  'research refresh selection overwrite',
+);
+forbidText(
+  researchPage,
+  'technologies[technologies.length - 1]',
+  'catalog tail fallback',
+);
+requireText(
+  researchBrowserTest,
+  'preserves an explicit technology selection across refreshed snapshots',
+  'research refresh transparency browser regression',
+);
+
+requireText(pageDesign, '### 1.1 跨页面表单状态隔离', 'page design state isolation rule');
 requireText(
   pageDesign,
   '建设动作必须显式提交表单当前选择的 `facilityTypeId`',
   'explicit construction submission design rule',
+);
+requireText(
+  pageDesign,
+  '周期轮询、动作后同步和权威倒计时确认对客户端交互状态必须透明',
+  'page refresh transparency rule',
+);
+requireText(uiDesign, '`useStableSelection`', 'UI stable selection primitive rule');
+requireText(uiDesign, '`useServerDraft`', 'UI server draft primitive rule');
+requireText(
+  serverDesign,
+  '不承担客户端选择、表单草稿、弹层、焦点或滚动位置的初始化和重置职责',
+  'server delivery interaction boundary',
 );
 
 const sourceRoot = path.join(root, 'src');
@@ -98,9 +155,16 @@ const walk = (directory) => {
 walk(sourceRoot);
 for (const file of sourceFiles) {
   const source = fs.readFileSync(file, 'utf8');
+  const relativePath = path.relative(root, file);
   if (/\bbuildFacility\s*\(\s*\)/.test(source)) {
-    fail(`${path.relative(root, file)} calls buildFacility without a facilityTypeId`);
+    fail(`${relativePath} calls buildFacility without a facilityTypeId`);
+  }
+  if (/key\s*=\s*\{\s*(?:model\.)?game\.(?:revision|lastProcessedAt)\s*\}/.test(source)) {
+    fail(`${relativePath} remounts UI from a server revision or timestamp key`);
+  }
+  if (/key\s*=\s*\{\s*JSON\.stringify\(\s*(?:model\.)?game\s*\)\s*\}/.test(source)) {
+    fail(`${relativePath} remounts UI from the complete game snapshot`);
   }
 }
 
-if (!process.exitCode) console.log('form state isolation verification passed');
+if (!process.exitCode) console.log('form state and polling refresh isolation verification passed');
