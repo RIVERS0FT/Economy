@@ -20,6 +20,7 @@ for (const path of [
   'server/src/research.js',
   'server/src/state-partitions.js',
   'server/src/commercial-contracts.js',
+  'src/hooks/useStableSelection.ts',
   'src/pages/ResearchPage.tsx',
   'src/styles/research-page.css',
   'src/api/game.ts',
@@ -66,7 +67,9 @@ for (const text of [
   'MobileResearchDetailSheet',
   'MobileWorkspaceDetailSheet',
   'MobileDetailSummary',
-  'model.startResearch(selectedTechnology.id)',
+  'useStableSelection<string>',
+  'const technologyId = selectedTechnology.id;',
+  'model.startResearch(technologyId)',
   'model.accelerateResearch()',
   '宝石固定减少',
   '按产业链选择科技节点',
@@ -85,6 +88,7 @@ for (const text of [
 
 for (const text of [
   'renders seven stages and split technology nodes',
+  'preserves an explicit technology selection across refreshed snapshots',
   'shows concrete prerequisite requirements',
   'uses the stored base duration for accelerated node research progress',
   'opens technology details in the shared mobile sheet',
@@ -108,6 +112,7 @@ for (const text of [
   'C1–C7 只作为产业阶段',
   '其余节点按照真实产业链设置前置关系',
   '旧客户端',
+  '周期轮询、动作后同步和权威倒计时确认对客户端交互状态必须透明',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
   'completedTechnologyIds',
@@ -118,11 +123,16 @@ for (const forbidden of [
   'C1-C7 是不可跳级的主干',
   '只能启动当前等级的下一级',
 ]) forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', forbidden);
-for (const forbidden of ['createPortal', 'useWorkspaceDialogLayer']) forbidText('src/pages/ResearchPage.tsx', forbidden);
+for (const forbidden of [
+  'createPortal',
+  'useWorkspaceDialogLayer',
+  'setSelectedTechnologyId(defaultTechnologyId);',
+  'technologies[technologies.length - 1]',
+]) forbidText('src/pages/ResearchPage.tsx', forbidden);
 
 if (failures.length > 0) {
   console.error(`research page verification failed:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('split technology tree, detail requirements, mobile sheet, acceleration, server access and design verification passed');
+console.log('split technology tree, refresh-stable selection, detail requirements, mobile sheet, acceleration, server access and design verification passed');

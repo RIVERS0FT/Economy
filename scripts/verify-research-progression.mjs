@@ -80,7 +80,7 @@ const sourceChecks = [
   ['server/src/commercial-contracts.js', 'hasResearchAccessForFacility'],
   ['src/types.ts', 'ResearchTechnologyDefinition'],
   ['src/types.ts', 'researchTechnologies?: ResearchTechnologyDefinition[]'],
-  ['src/pages/ResearchPage.tsx', 'model.startResearch(selectedTechnology.id)'],
+  ['src/pages/ResearchPage.tsx', 'model.startResearch(technologyId)'],
   ['src/pages/ResearchPage.tsx', '按产业链选择科技节点'],
   ['src/api/game.ts', "postAction('/research/start', { technologyId })"],
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '工厂研发准入由具体科技节点决定'],
