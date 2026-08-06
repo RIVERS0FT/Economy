@@ -22,7 +22,21 @@ jobs:
           node-version: 24.4.0
           cache: npm
       - run: npm ci
-      - run: node scripts/apply-c1-input-balance.mjs
+      - name: Apply implementation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply-c1-input-balance.mjs')
+          text = path.read_text()
+          text = text.replace(
+              "  const previous = readFileSync(fullPath, 'utf8');",
+              "  const previous = existsSync(fullPath) ? readFileSync(fullPath, 'utf8') : null;",
+              1,
+          )
+          path.write_text(text)
+          PY
+          node scripts/apply-c1-input-balance.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
