@@ -43,13 +43,18 @@ forbidText('src/app/GameApp.tsx', [
 ]);
 
 requireText('deploy/nginx/game.riversoft.top.economy-location.conf', [
-  'expires 1y;',
   'add_header Cache-Control "public, max-age=31536000, immutable" always;',
   'add_header Cache-Control "no-cache, max-age=0, must-revalidate" always;',
+]);
+forbidText('deploy/nginx/game.riversoft.top.economy-location.conf', [
+  'expires 7d;',
+  'expires 1y;',
 ]);
 requireText('scripts/configure-economy-static-cache.py', [
   'STATIC_ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable"',
   'STATIC_HTML_CACHE_CONTROL = "no-cache, max-age=0, must-revalidate"',
+  'remove_managed_headers',
+  'actual_max_ages',
   'ECONOMY_STATIC_CACHE_VERIFIED',
   'systemctl", "reload", "nginx',
 ]);
@@ -63,7 +68,7 @@ requireText('.github/workflows/deploy.yml', [
   'find /var/www/game/economy/assets -type f -mtime +400 -delete',
 ]);
 forbidText('.github/workflows/deploy.yml', [
-  'rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \\\n            dist/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy/"',
+  'dist/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy/"\n          rsync -az --delete-before',
 ]);
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '客户端状态版本不兼容属于当前页面不可恢复错误',
