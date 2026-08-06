@@ -100,7 +100,8 @@ requireText('deploy/nginx/game.riversoft.top.economy-location.conf', [
   'location ^~ /economy/assets/',
   'location ^~ /economy/',
   'add_header Vary "Accept-Encoding" always;',
-  'add_header Cache-Control "public, max-age=604800, immutable";',
+  'add_header Cache-Control "public, max-age=31536000, immutable" always;',
+  'add_header Cache-Control "no-cache, max-age=0, must-revalidate" always;',
 ]);
 forbidText('scripts/configure-economy-nginx.py', [
   'image/png',
