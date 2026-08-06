@@ -25,7 +25,7 @@ import { formatDuration, formatNumber } from '../utils/formatters';
 import type {
   FacilityComplexity,
   FacilityTypeDefinition,
-  ResearchLevelDefinition,
+  ResearchTechnologyDefinition,
 } from '../types';
 
 type ResearchNodeStatus = 'mastered' | 'active' | 'available' | 'locked';
@@ -33,23 +33,8 @@ type ResearchNodeStatus = 'mastered' | 'active' | 'available' | 'locked';
 const RESEARCH_ACCELERATION_FALLBACK_MS = 30 * 60 * 1000;
 const RESEARCH_ACCELERATION_FALLBACK_COST = 1;
 
-function rankOf(level: FacilityComplexity) {
-  return Number(level.slice(1));
-}
-
 function isMobileResearchLayout() {
   return typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches;
-}
-
-function statusFor(
-  level: ResearchLevelDefinition,
-  unlockedRank: number,
-  activeTarget?: FacilityComplexity,
-): ResearchNodeStatus {
-  if (level.rank <= unlockedRank) return 'mastered';
-  if (level.id === activeTarget) return 'active';
-  if (level.rank === unlockedRank + 1) return 'available';
-  return 'locked';
 }
 
 const statusLabels: Record<ResearchNodeStatus, string> = {
@@ -66,24 +51,70 @@ const statusTones = {
   locked: 'neutral',
 } as const;
 
-function progressForResearchLevel(
-  level: ResearchLevelDefinition,
-  active: { targetComplexity: FacilityComplexity; completesAt: number } | null,
+function missingPrerequisites(
+  technology: ResearchTechnologyDefinition,
+  completed: ReadonlySet<string>,
+  technologiesById: ReadonlyMap<string, ResearchTechnologyDefinition>,
+) {
+  return technology.prerequisiteTechnologyIds
+    .map((technologyId) => technologiesById.get(technologyId))
+    .filter((candidate): candidate is ResearchTechnologyDefinition => Boolean(candidate && !completed.has(candidate.id)));
+}
+
+function statusFor(
+  technology: ResearchTechnologyDefinition,
+  completed: ReadonlySet<string>,
+  technologiesById: ReadonlyMap<string, ResearchTechnologyDefinition>,
+  activeTechnologyId?: string,
+): ResearchNodeStatus {
+  if (completed.has(technology.id)) return 'mastered';
+  if (technology.id === activeTechnologyId) return 'active';
+  return missingPrerequisites(technology, completed, technologiesById).length === 0
+    ? 'available'
+    : 'locked';
+}
+
+function progressForResearchTechnology(
+  technology: ResearchTechnologyDefinition,
+  active: {
+    technologyId?: string;
+    completesAt: number;
+    durationMs?: number;
+  } | null,
   now: number,
   isMastered: boolean,
 ) {
-  if (active?.targetComplexity !== level.id) return isMastered ? 1 : 0;
-  const duration = Math.max(1, level.durationMs);
+  if (active?.technologyId !== technology.id) return isMastered ? 1 : 0;
+  const duration = Math.max(1, active.durationMs ?? technology.durationMs);
   const remaining = Math.max(0, active.completesAt - now);
   return Math.max(0, Math.min(1, (duration - remaining) / duration));
 }
 
+function pseudoTechnologyForActive(
+  active: TutorialAwareGameViewModel['game']['research']['active'],
+): ResearchTechnologyDefinition | null {
+  if (!active) return null;
+  return {
+    id: active.technologyId ?? `legacy-stage-${active.targetComplexity}`,
+    name: active.technologyName ?? `${active.targetComplexity} 阶段研发`,
+    stage: active.targetComplexity,
+    rank: Number(active.targetComplexity.slice(1)),
+    cost: active.cost,
+    durationMs: active.durationMs ?? Math.max(1, active.completesAt - active.startedAt),
+    prerequisiteTechnologyIds: [],
+    unlockFacilityTypeIds: [],
+    description: '从旧版整级研发迁移而来的阶段项目，完成后授予该阶段剩余科技。',
+    legacy: true,
+  };
+}
+
 interface ResearchDetailProps {
   model: TutorialAwareGameViewModel;
-  level: ResearchLevelDefinition;
+  technology: ResearchTechnologyDefinition;
   facilities: FacilityTypeDefinition[];
+  technologiesById: ReadonlyMap<string, ResearchTechnologyDefinition>;
+  completed: ReadonlySet<string>;
   now: number;
-  unlockedRank: number;
   isAccelerating: boolean;
   onStart: () => void;
   onAccelerate: () => void;
@@ -91,39 +122,39 @@ interface ResearchDetailProps {
 
 function resolveResearchDetailPresentation({
   model,
-  level,
+  technology,
+  technologiesById,
+  completed,
   now,
-  unlockedRank,
-}: Pick<ResearchDetailProps, 'model' | 'level' | 'now' | 'unlockedRank'>) {
+}: Pick<ResearchDetailProps, 'model' | 'technology' | 'technologiesById' | 'completed' | 'now'>) {
   const active = model.game.research.active;
-  const status = statusFor(level, unlockedRank, active?.targetComplexity);
-  const isSelectedActive = active?.targetComplexity === level.id;
-  const isMastered = level.rank <= unlockedRank;
-  const isNext = level.rank === unlockedRank + 1;
+  const status = statusFor(technology, completed, technologiesById, active?.technologyId);
+  const isSelectedActive = active?.technologyId === technology.id;
+  const isMastered = completed.has(technology.id);
+  const missing = missingPrerequisites(technology, completed, technologiesById);
   const hasOtherResearch = Boolean(active && !isSelectedActive);
-  const canStart = !active && isNext;
-  const fundsMet = model.game.credits >= level.cost;
-  const prerequisiteLevels = model.game.researchLevels
-    .filter((candidate) => candidate.rank > unlockedRank && candidate.rank < level.rank)
-    .map((candidate) => candidate.id);
+  const canStart = !technology.initial && !technology.legacy && !active && !isMastered && missing.length === 0;
+  const fundsMet = model.game.credits >= technology.cost;
   const remaining = isSelectedActive && active ? Math.max(0, active.completesAt - now) : 0;
   const awaitingConfirmation = isSelectedActive && remaining === 0;
   const accelerationMs = active?.gemAccelerationMs ?? RESEARCH_ACCELERATION_FALLBACK_MS;
   const accelerationCost = active?.gemAccelerationCost ?? RESEARCH_ACCELERATION_FALLBACK_COST;
   const remainingAfterAcceleration = Math.max(0, remaining - accelerationMs);
-  const progress = progressForResearchLevel(level, active, now, isMastered);
-  const shortfall = Math.max(0, level.cost - model.game.credits);
+  const progress = progressForResearchTechnology(technology, active, now, isMastered);
+  const shortfall = Math.max(0, technology.cost - model.game.credits);
   const actionLabel = isMastered
-    ? `已掌握 ${level.id}`
+    ? `已掌握「${technology.name}」`
     : isSelectedActive
       ? awaitingConfirmation ? '确认研发完成中…' : `研发中 · 剩余 ${formatDuration(remaining)}`
       : hasOtherResearch
-        ? `正在研发 ${active?.targetComplexity}`
-        : !isNext
-          ? `需要先完成 C${Math.max(1, level.rank - 1)}`
+        ? `正在研发「${active?.technologyName ?? active?.targetComplexity}」`
+        : missing.length > 0
+          ? `需要先完成「${missing[0].name}」`
           : !fundsMet
             ? '可用资金不足'
-            : `开始研发 ${level.id}`;
+            : technology.initial
+              ? '新玩家初始掌握'
+              : `开始研发「${technology.name}」`;
 
   return {
     active,
@@ -133,7 +164,7 @@ function resolveResearchDetailPresentation({
     hasOtherResearch,
     canStart,
     fundsMet,
-    prerequisiteLevels,
+    missing,
     remaining,
     awaitingConfirmation,
     accelerationMs,
@@ -147,21 +178,28 @@ function resolveResearchDetailPresentation({
 
 function ResearchDetailBody({
   model,
-  level,
+  technology,
   facilities,
+  technologiesById,
+  completed,
   now,
-  unlockedRank,
   isAccelerating,
   onAccelerate,
 }: ResearchDetailProps) {
-  const presentation = resolveResearchDetailPresentation({ model, level, now, unlockedRank });
+  const presentation = resolveResearchDetailPresentation({
+    model,
+    technology,
+    technologiesById,
+    completed,
+    now,
+  });
   const {
     active,
     status,
     isSelectedActive,
     isMastered,
     hasOtherResearch,
-    prerequisiteLevels,
+    missing,
     remaining,
     awaitingConfirmation,
     accelerationMs,
@@ -182,39 +220,37 @@ function ResearchDetailBody({
       <MobileDetailSummary
         className="research-detail-summary"
         artworkClassName="research-detail-level-artwork"
-        artwork={facilities[0] ? <FacilityIcon facilityTypeId={facilities[0].id} /> : <span>{level.id}</span>}
-        title={<h3>{level.id} 产业技术</h3>}
+        artwork={facilities[0] ? <FacilityIcon facilityTypeId={facilities[0].id} /> : <span>{technology.stage}</span>}
+        title={<h3>{technology.name}</h3>}
         meta={
           <>
             <span className="research-detail-summary-status">
               <StatusTag tone={statusTones[status]}>{statusLabels[status]}</StatusTag>
             </span>
             <span className="research-detail-summary-metric">
-              {level.durationMs > 0 ? formatDuration(level.durationMs) : '立即掌握'}
+              {technology.durationMs > 0 ? formatDuration(technology.durationMs) : '初始掌握'}
             </span>
           </>
         }
-        description={
-          <p>完成后解锁 {formatNumber(facilities.length)} 种工厂及对应建设、购买、竞拍和运营资格。</p>
-        }
+        description={<p>{technology.description}</p>}
       />
 
       <section
         className="research-requirements mobile-detail-section"
-        aria-labelledby={`research-requirements-${level.id}`}
+        aria-labelledby={`research-requirements-${technology.id}`}
       >
-        <strong id={`research-requirements-${level.id}`}>具体要求</strong>
+        <strong id={`research-requirements-${technology.id}`}>具体要求</strong>
         <ul>
-          <li data-met={isMastered || level.rank === 1 || level.rank <= unlockedRank + 1}>
-            <span aria-hidden="true">{isMastered || level.rank === 1 || level.rank <= unlockedRank + 1 ? '✓' : '×'}</span>
+          <li data-met={isMastered || missing.length === 0}>
+            <span aria-hidden="true">{isMastered || missing.length === 0 ? '✓' : '×'}</span>
             <div>
-              <strong>前置技术</strong>
+              <strong>前置科技</strong>
               <small>
                 {isMastered
-                  ? '前置技术已经完成'
-                  : prerequisiteLevels.length > 0
-                    ? `需要依次完成 ${prerequisiteLevels.join('、')}`
-                    : level.rank === 1 ? '新玩家初始掌握' : `已满足 ${level.id} 的前置等级`}
+                  ? '前置科技已经完成'
+                  : missing.length > 0
+                    ? `还需完成 ${missing.map((item) => `「${item.name}」`).join('、')}`
+                    : technology.initial ? '新玩家初始掌握' : '全部前置科技已经完成'}
               </small>
             </div>
           </li>
@@ -223,11 +259,11 @@ function ResearchDetailBody({
             <div>
               <strong>研发费用</strong>
               <small>
-                {level.cost === 0
+                {technology.cost === 0
                   ? '初始掌握，无需费用'
-                  : `需要 ${formatNumber(level.cost)}，当前 ${formatNumber(model.game.credits)}${
-                      shortfall > 0 ? `，还差 ${formatNumber(shortfall)}` : ''
-                    }`}
+                  : `需要 ${formatNumber(technology.cost)}，当前 ${formatNumber(model.game.credits)}${
+                    shortfall > 0 ? `，还差 ${formatNumber(shortfall)}` : ''
+                  }`}
               </small>
             </div>
           </li>
@@ -235,14 +271,14 @@ function ResearchDetailBody({
             <span aria-hidden="true">{isMastered || !hasOtherResearch ? '✓' : '×'}</span>
             <div>
               <strong>研发队列</strong>
-              <small>{hasOtherResearch ? `当前由 ${active?.targetComplexity} 占用` : '当前可以安排研发'}</small>
+              <small>{hasOtherResearch ? `当前由「${active?.technologyName ?? active?.targetComplexity}」占用` : '当前可以安排研发'}</small>
             </div>
           </li>
           <li data-met="true">
             <span aria-hidden="true">✓</span>
             <div>
-              <strong>基础时间</strong>
-              <small>{level.durationMs > 0 ? formatDuration(level.durationMs) : '立即掌握'}</small>
+              <strong>产业阶段</strong>
+              <small>{technology.stage} · 基础时间 {technology.durationMs > 0 ? formatDuration(technology.durationMs) : '立即掌握'}</small>
             </div>
           </li>
         </ul>
@@ -250,9 +286,9 @@ function ResearchDetailBody({
 
       <section
         className="research-unlocks mobile-detail-section"
-        aria-labelledby={`research-unlocks-${level.id}`}
+        aria-labelledby={`research-unlocks-${technology.id}`}
       >
-        <strong id={`research-unlocks-${level.id}`}>解锁工厂</strong>
+        <strong id={`research-unlocks-${technology.id}`}>解锁工厂</strong>
         {facilities.length > 0 ? (
           <div className="research-unlock-list">
             {facilities.map((facility) => (
@@ -264,7 +300,7 @@ function ResearchDetailBody({
               </div>
             ))}
           </div>
-        ) : <p className="ui-helper-text">当前正式目录没有该等级工厂。</p>}
+        ) : <p className="ui-helper-text">该项目完成后授予阶段剩余科技，不直接对应单座工厂。</p>}
       </section>
 
       {isSelectedActive && active ? (
@@ -276,7 +312,7 @@ function ResearchDetailBody({
           <div
             className="research-progress-track"
             role="progressbar"
-            aria-label={`${level.id} 研发进度`}
+            aria-label={`${technology.name}研发进度`}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(progress * 100)}
@@ -320,30 +356,14 @@ function ResearchDetailBody({
   );
 }
 
-function ResearchDetailActions({
-  model,
-  level,
-  now,
-  unlockedRank,
-  onStart,
-}: ResearchDetailProps) {
-  const { canStart, fundsMet, actionLabel } = resolveResearchDetailPresentation({
-    model,
-    level,
-    now,
-    unlockedRank,
-  });
-
+function ResearchDetailActions(props: ResearchDetailProps) {
+  const { canStart, fundsMet, actionLabel } = resolveResearchDetailPresentation(props);
   return (
     <div className="research-detail-actions">
-      <Button
-        block
-        disabled={!canStart || !fundsMet}
-        onClick={onStart}
-      >
+      <Button block disabled={!canStart || !fundsMet} onClick={props.onStart}>
         {actionLabel}
       </Button>
-      <small className="ui-helper-text">研发只能按 C1–C7 顺序进行；开始后不可取消或排队。</small>
+      <small className="ui-helper-text">同时只能研发一项科技；开始后不可取消或排队。</small>
     </div>
   );
 }
@@ -372,8 +392,8 @@ function MobileResearchDetailSheet({
   return (
     <MobileWorkspaceDetailSheet
       isOpen={isOpen}
-      ariaLabel={`${detailProps.level.id} 研发新技术`}
-      viewportAriaLabel={`${detailProps.level.id} 研发要求`}
+      ariaLabel={`${detailProps.technology.name}研发新技术`}
+      viewportAriaLabel={`${detailProps.technology.name}研发要求`}
       returnFocusRef={returnFocusRef}
       onClose={onClose}
       footer={<ResearchDetailActions {...detailProps} />}
@@ -387,51 +407,70 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
   const now = useNow(model.game.lastProcessedAt);
   const research = model.game.research;
   const active = research.active;
-  const unlockedRank = rankOf(research.unlockedComplexity);
-  const facilitiesByComplexity = useMemo(() => {
-    const groups = new Map<FacilityComplexity, FacilityTypeDefinition[]>();
-    for (const facility of model.game.facilityTypes) {
-      const facilities = groups.get(facility.complexity) ?? [];
-      facilities.push(facility);
-      groups.set(facility.complexity, facilities);
-    }
-    return groups;
-  }, [model.game.facilityTypes]);
-  const initialLevelId = active?.targetComplexity
-    ?? model.game.researchLevels.find((level) => level.rank === unlockedRank + 1)?.id
-    ?? model.game.researchLevels[model.game.researchLevels.length - 1]?.id
-    ?? 'C1';
-  const [selectedLevelId, setSelectedLevelId] = useState<FacilityComplexity>(initialLevelId);
+  const technologies = model.game.researchTechnologies ?? [];
+  const technologiesById = useMemo(
+    () => new Map(technologies.map((technology) => [technology.id, technology])),
+    [technologies],
+  );
+  const completed = useMemo(
+    () => new Set(research.completedTechnologyIds ?? []),
+    [research.completedTechnologyIds],
+  );
+  const facilitiesById = useMemo(
+    () => new Map(model.game.facilityTypes.map((facility) => [facility.id, facility])),
+    [model.game.facilityTypes],
+  );
+  const activeTechnology = active
+    ? (active.technologyId ? technologiesById.get(active.technologyId) : null) ?? pseudoTechnologyForActive(active)
+    : null;
+  const firstAvailable = technologies.find((technology) => (
+    !technology.initial
+    && !completed.has(technology.id)
+    && missingPrerequisites(technology, completed, technologiesById).length === 0
+  ));
+  const initialTechnologyId = activeTechnology?.id
+    ?? firstAvailable?.id
+    ?? technologies[technologies.length - 1]?.id
+    ?? '';
+  const [selectedTechnologyId, setSelectedTechnologyId] = useState(initialTechnologyId);
   const [isDetailOpen, setDetailOpen] = useState(false);
   const [isAccelerating, setAccelerating] = useState(false);
   const detailTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const selectedLevel = model.game.researchLevels.find((level) => level.id === selectedLevelId)
-    ?? model.game.researchLevels[0];
-  const selectedFacilities = selectedLevel
-    ? facilitiesByComplexity.get(selectedLevel.id) ?? []
+  const selectedTechnology = technologiesById.get(selectedTechnologyId)
+    ?? (activeTechnology?.id === selectedTechnologyId ? activeTechnology : null)
+    ?? firstAvailable
+    ?? technologies[0];
+  const selectedFacilities = selectedTechnology
+    ? selectedTechnology.unlockFacilityTypeIds
+      .map((facilityTypeId) => facilitiesById.get(facilityTypeId))
+      .filter((facility): facility is FacilityTypeDefinition => Boolean(facility))
     : [];
 
   useEffect(() => {
-    const defaultLevelId = active?.targetComplexity
-      ?? model.game.researchLevels.find((level) => level.rank === unlockedRank + 1)?.id
-      ?? model.game.researchLevels[model.game.researchLevels.length - 1]?.id
-      ?? 'C1';
-    setSelectedLevelId(defaultLevelId);
-  }, [active?.targetComplexity, unlockedRank]);
+    const defaultTechnologyId = activeTechnology?.id
+      ?? technologies.find((technology) => (
+        !technology.initial
+        && !completed.has(technology.id)
+        && missingPrerequisites(technology, completed, technologiesById).length === 0
+      ))?.id
+      ?? technologies[technologies.length - 1]?.id
+      ?? '';
+    setSelectedTechnologyId(defaultTechnologyId);
+  }, [activeTechnology?.id, completed, technologies, technologiesById]);
 
-  const selectLevel = useCallback((levelId: FacilityComplexity, trigger: HTMLButtonElement) => {
+  const selectTechnology = useCallback((technologyId: string, trigger: HTMLButtonElement) => {
     detailTriggerRef.current = trigger;
-    setSelectedLevelId(levelId);
+    setSelectedTechnologyId(technologyId);
     if (isMobileResearchLayout()) setDetailOpen(true);
   }, []);
 
   const startSelectedResearch = useCallback(() => {
-    if (!selectedLevel) return;
+    if (!selectedTechnology || selectedTechnology.legacy) return;
     const confirmed = window.confirm(
-      `将支付 ${selectedLevel.cost} 普通货币并开始研发 ${selectedLevel.id}，基础时间 ${formatDuration(selectedLevel.durationMs)}。研发开始后不可取消，是否继续？`,
+      `将支付 ${selectedTechnology.cost} 普通货币并开始研发「${selectedTechnology.name}」，基础时间 ${formatDuration(selectedTechnology.durationMs)}。研发开始后不可取消，是否继续？`,
     );
-    if (confirmed) void model.showResult(model.startResearch(selectedLevel.id));
-  }, [model, selectedLevel]);
+    if (confirmed) void model.showResult(model.startResearch(selectedTechnology.id));
+  }, [model, selectedTechnology]);
 
   const accelerateResearch = useCallback(async () => {
     if (!active || isAccelerating) return;
@@ -443,20 +482,21 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
     }
   }, [active, isAccelerating, model]);
 
-  if (!selectedLevel) {
+  if (!selectedTechnology) {
     return (
-      <PageLayout title="研发" description="服务器尚未返回研发目录。">
-        <PagePanel className="empty-state">暂无研发等级。</PagePanel>
+      <PageLayout title="研发" description="服务器尚未返回科技目录。">
+        <PagePanel className="empty-state">暂无研发科技。</PagePanel>
       </PageLayout>
     );
   }
 
   const detailProps: ResearchDetailProps = {
     model,
-    level: selectedLevel,
+    technology: selectedTechnology,
     facilities: selectedFacilities,
+    technologiesById,
+    completed,
     now,
-    unlockedRank,
     isAccelerating,
     onStart: startSelectedResearch,
     onAccelerate: () => void accelerateResearch(),
@@ -465,12 +505,12 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
   return (
     <PageLayout
       title="研发"
-      description="沿 C1–C7 技术主干顺序研发；圆形支线节点展示每级解锁的正式工厂。"
+      description="按产业链选择科技节点；C1–C7 仅表示产业阶段，工厂准入由具体科技决定。"
       actions={
         <>
-          <StatusTag tone="success">已掌握 {research.unlockedComplexity}</StatusTag>
+          <StatusTag tone="success">完整阶段 {research.unlockedComplexity}</StatusTag>
           <StatusTag tone={active ? 'info' : 'neutral'}>
-            {active ? `研发 ${active.targetComplexity}` : '研发队列空闲'}
+            {active ? `研发「${active.technologyName ?? active.targetComplexity}」` : `已掌握 ${formatNumber(completed.size)} 项`}
           </StatusTag>
         </>
       }
@@ -484,67 +524,67 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
           <div className="research-tree-heading">
             <div>
               <h2>技术树</h2>
-              <p>主干表示强制研发顺序，支线表示完成该等级后解锁的工厂。</p>
+              <p>阶段只用于组织难度；节点前置关系决定可研发路线。</p>
             </div>
-            <StatusTag tone="neutral">{formatNumber(model.game.researchLevels.length)} 级</StatusTag>
+            <StatusTag tone="neutral">{formatNumber(technologies.length)} 项科技</StatusTag>
           </div>
 
           <div className="research-tree-scroll">
-            <div className="research-tree" role="tree" aria-label="C1 到 C7 产业技术树">
-              {model.game.researchLevels.map((level) => {
-                const facilities = facilitiesByComplexity.get(level.id) ?? [];
-                const status = statusFor(level, unlockedRank, active?.targetComplexity);
-                const isSelected = selectedLevel.id === level.id;
-                const progress = progressForResearchLevel(
-                  level,
-                  active,
-                  now,
-                  status === 'mastered',
-                );
-                const nodeStyle = {
-                  '--research-node-progress': `${Math.round(progress * 360)}deg`,
-                } as CSSProperties;
+            <div className="research-tree" role="tree" aria-label="产业科技树">
+              {model.game.researchLevels.map((stage) => {
+                const stageTechnologies = technologies.filter((technology) => technology.stage === stage.id);
+                const completedCount = stageTechnologies.filter((technology) => completed.has(technology.id)).length;
                 return (
                   <div
                     className="research-tree-level"
-                    data-status={status}
-                    data-selected={isSelected || undefined}
+                    data-stage={stage.id}
                     role="treeitem"
                     aria-expanded="true"
-                    key={level.id}
+                    key={stage.id}
                   >
-                    <button
-                      className="research-level-node"
-                      type="button"
-                      style={nodeStyle}
-                      aria-pressed={isSelected}
-                      aria-label={`${level.id} 产业技术，${statusLabels[status]}，解锁 ${facilities.length} 种工厂`}
-                      onClick={(event) => selectLevel(level.id, event.currentTarget)}
-                    >
-                      <span className="research-level-artwork" aria-hidden="true">
-                        {facilities[0] ? <FacilityIcon facilityTypeId={facilities[0].id} /> : <span>{level.id}</span>}
-                      </span>
-                      <span className="research-level-code">{level.id}</span>
-                    </button>
-                    <div className="research-level-caption">
-                      <strong>{level.id} 产业技术</strong>
-                      <span>{statusLabels[status]}</span>
+                    <div className="research-level-node research-stage-node" aria-label={`${stage.id} 产业阶段`}>
+                      <span className="research-level-code">{stage.id}</span>
                     </div>
-                    <div className="research-facility-branches" role="group" aria-label={`${level.id} 解锁工厂`}>
-                      {facilities.map((facility) => (
-                        <button
-                          type="button"
-                          className="research-facility-node"
-                          key={facility.id}
-                          aria-label={`${facility.name}，由 ${level.id} 解锁`}
-                          onClick={(event) => selectLevel(level.id, event.currentTarget)}
-                        >
-                          <span className="research-facility-artwork" aria-hidden="true">
-                            <FacilityIcon facilityTypeId={facility.id} />
-                          </span>
-                          <span>{facility.name}</span>
-                        </button>
-                      ))}
+                    <div className="research-level-caption">
+                      <strong>{stage.id} 产业阶段</strong>
+                      <span>{completedCount}/{stageTechnologies.length} 已掌握</span>
+                    </div>
+                    <div className="research-facility-branches" role="group" aria-label={`${stage.id} 科技节点`}>
+                      {stageTechnologies.map((technology) => {
+                        const status = statusFor(technology, completed, technologiesById, active?.technologyId);
+                        const isSelected = selectedTechnology.id === technology.id;
+                        const progress = progressForResearchTechnology(
+                          technology,
+                          active,
+                          now,
+                          status === 'mastered',
+                        );
+                        const nodeStyle = {
+                          '--research-node-progress': `${Math.round(progress * 360)}deg`,
+                        } as CSSProperties;
+                        const facility = technology.unlockFacilityTypeIds
+                          .map((facilityTypeId) => facilitiesById.get(facilityTypeId))
+                          .find(Boolean);
+                        return (
+                          <button
+                            type="button"
+                            className="research-facility-node research-technology-node"
+                            data-status={status}
+                            data-selected={isSelected || undefined}
+                            style={nodeStyle}
+                            key={technology.id}
+                            aria-pressed={isSelected}
+                            aria-label={`${technology.name}，${statusLabels[status]}，${technology.stage} 科技`}
+                            onClick={(event) => selectTechnology(technology.id, event.currentTarget)}
+                          >
+                            <span className="research-facility-artwork" aria-hidden="true">
+                              {facility ? <FacilityIcon facilityTypeId={facility.id} /> : <span>{technology.stage}</span>}
+                            </span>
+                            <span>{technology.name}</span>
+                            <small>{statusLabels[status]}</small>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 );

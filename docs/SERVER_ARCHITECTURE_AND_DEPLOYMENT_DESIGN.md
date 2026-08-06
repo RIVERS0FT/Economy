@@ -4,7 +4,7 @@
 > 适用项目：`RIVERS0FT/Economy`
 > 更新时间：2026-08-06
 > 客户端状态版本：30
-> 世界状态版本：26
+> 世界状态版本：27
 > 市场需求模型版本：17
 
 ## 1. 权威边界
@@ -636,3 +636,9 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 ## 研发宝石加速接口
 
 正式写接口增加 `POST /api/game/research/accelerate`，继续要求 `Idempotency-Key` 并只返回 `{ result: { ok, message }, revision }`。存储事务必须先推进世界和研发，确认玩家存在进行中的未到期研发与至少 1 宝石，再扣费、将截止时间最多提前 30 分钟、释放对应研发就业收入、完成到期等级、更新周活跃经济状态并写入 `economy_research_gem_actions`。审计记录目标等级、请求键、宝石余额、前后剩余时间、实际缩短时间、是否立即完成和本次就业资金释放量；失败动作不得扣费、改写截止时间或写审计。
+
+## 科技节点研发状态与迁移
+
+世界版本 27 将研发持久状态从单一 `unlockedComplexity` 扩展为 `completedTechnologyIds`、`completedAtByTechnologyId` 和单个 `active` 科技项目。`active` 保存 `technologyId`、所属阶段、原始 `durationMs`、截止时间、费用和已释放就业资金；宝石加速只缩短截止时间，进度和就业释放仍使用原始基础时长计算。
+
+服务器 `research-catalog.js` 是科技节点、前置关系与工厂映射的唯一目录。所有工厂资产入口、生产操作和工厂租赁运营资格均调用同一具体科技校验；`unlockedComplexity` 只作为连续完整阶段的兼容派生值。旧世界按既有等级、资产、施工、买单与最高竞拍承诺授予科技及前置闭包；旧进行中阶段研发保存为 `legacy-stage-Cn`，到期授予该阶段剩余节点。迁移、处理和加速必须幂等，不得重复扣费、重复发放就业资金或降低既有准入。

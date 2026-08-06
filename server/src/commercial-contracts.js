@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { FACILITY_TYPE_CATALOG } from './domain.js';
 import { calculateCumulativeMarketSellFee } from './market-sell-fee.js';
 import { creditPopulationEmployment } from './population-economy.js';
-import { ensurePlayerResearch } from './research.js';
+import { hasResearchAccessForFacility } from './research.js';
 import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 import { transferableFacilityQuantity } from './banking.js';
 
@@ -73,15 +73,8 @@ function prudentFacilityUnitValue(world, facilityTypeId) {
   const marketValue = traded !== null && traded > 0 ? traded : facility.systemValue;
   return Math.max(0.01, Math.min(Number(facility.systemValue || 0), Number(marketValue || 0)));
 }
-function researchRank(value) {
-  const rank = Number(String(value || 'C1').slice(1));
-  return Number.isInteger(rank) ? Math.max(1, Math.min(7, rank)) : 1;
-}
 function canOperateFacility(world, player, facilityTypeId, now) {
-  const facility = FACILITY_BY_ID.get(String(facilityTypeId));
-  if (!facility) return false;
-  const research = ensurePlayerResearch(world, player, now);
-  return researchRank(research?.unlockedComplexity) >= researchRank(facility.complexity);
+  return hasResearchAccessForFacility(world, player, facilityTypeId, now);
 }
 function bondFor(value) {
   return calculateRateMoney(value, BOND_RATE_BPS, BASIS_POINTS, 'ceil');

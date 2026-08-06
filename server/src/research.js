@@ -1,34 +1,43 @@
 import { FACILITY_TYPE_CATALOG } from './industry-catalog.js';
 import { creditPopulationEmployment } from './population-economy.js';
+import {
+  RESEARCH_LEVEL_CATALOG,
+  RESEARCH_TECHNOLOGY_CATALOG,
+  RESEARCH_TECHNOLOGY_BY_ID,
+  researchTechnologiesForStage,
+  researchTechnologyClosure,
+  researchTechnologyFor,
+  researchTechnologyForFacility,
+} from './research-catalog.js';
 
-export const RESEARCH_WORLD_VERSION = 26;
+export { RESEARCH_LEVEL_CATALOG, RESEARCH_TECHNOLOGY_CATALOG };
+
+export const RESEARCH_WORLD_VERSION = 27;
 export const GEM_RESEARCH_ACCELERATION_MS = 30 * 60 * 1000;
 export const GEM_RESEARCH_ACCELERATION_COST = 1;
-export const RESEARCH_LEVEL_CATALOG = Object.freeze([
-  Object.freeze({ id: 'C1', rank: 1, cost: 0, durationMs: 0 }),
-  Object.freeze({ id: 'C2', rank: 2, cost: 300, durationMs: 5 * 60_000 }),
-  Object.freeze({ id: 'C3', rank: 3, cost: 700, durationMs: 20 * 60_000 }),
-  Object.freeze({ id: 'C4', rank: 4, cost: 1_200, durationMs: 45 * 60_000 }),
-  Object.freeze({ id: 'C5', rank: 5, cost: 2_400, durationMs: 90 * 60_000 }),
-  Object.freeze({ id: 'C6', rank: 6, cost: 4_200, durationMs: 3 * 60 * 60_000 }),
-  Object.freeze({ id: 'C7', rank: 7, cost: 6_700, durationMs: 6 * 60 * 60_000 }),
-]);
 
-const LEVEL_BY_ID = new Map(RESEARCH_LEVEL_CATALOG.map((level) => [level.id, level]));
+const LEGACY_LEVELS = Object.freeze({
+  C1: Object.freeze({ cost: 0, durationMs: 0 }),
+  C2: Object.freeze({ cost: 300, durationMs: 5 * 60_000 }),
+  C3: Object.freeze({ cost: 700, durationMs: 20 * 60_000 }),
+  C4: Object.freeze({ cost: 1_200, durationMs: 45 * 60_000 }),
+  C5: Object.freeze({ cost: 2_400, durationMs: 90 * 60_000 }),
+  C6: Object.freeze({ cost: 4_200, durationMs: 3 * 60 * 60_000 }),
+  C7: Object.freeze({ cost: 6_700, durationMs: 6 * 60 * 60_000 }),
+});
+const STAGE_BY_ID = new Map(RESEARCH_LEVEL_CATALOG.map((stage) => [stage.id, stage]));
 const FACILITY_BY_ID = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
+const TECHNOLOGY_ORDER = new Map(RESEARCH_TECHNOLOGY_CATALOG.map((technology, index) => [technology.id, index]));
 
 function clone(value) { return structuredClone(value); }
 function complexityRank(value) {
   const rank = Number(String(value || '').slice(1));
   return Number.isInteger(rank) && rank >= 1 && rank <= 7 ? rank : 1;
 }
-function levelForRank(rank) {
+function stageForRank(rank) {
   return RESEARCH_LEVEL_CATALOG[Math.max(0, Math.min(6, Number(rank || 1) - 1))];
 }
-function levelFor(value) { return LEVEL_BY_ID.get(String(value || '')) || RESEARCH_LEVEL_CATALOG[0]; }
-function facilityComplexity(facilityTypeId) {
-  return FACILITY_BY_ID.get(String(facilityTypeId || ''))?.complexity || 'C1';
-}
+function stageFor(value) { return STAGE_BY_ID.get(String(value || '')) || RESEARCH_LEVEL_CATALOG[0]; }
 function isOpenOrder(order) {
   return Number(order?.remaining || 0) > 0 && (order?.status === 'open' || order?.status === 'partial');
 }
@@ -37,65 +46,143 @@ function auctionItems(auction) {
   const assetId = String(auction?.assetId || auction?.facilityTypeId || '');
   return assetId ? [{ assetKind: auction?.assetKind, assetId, quantity: auction?.quantity }] : [];
 }
-function legacyUnlockedRank(world, player) {
-  let rank = 1;
-  const includeFacility = (facilityTypeId) => {
-    rank = Math.max(rank, complexityRank(facilityComplexity(facilityTypeId)));
+function sortedTechnologyIds(values) {
+  return [...new Set(values || [])]
+    .filter((technologyId) => RESEARCH_TECHNOLOGY_BY_ID.has(technologyId))
+    .sort((left, right) => (TECHNOLOGY_ORDER.get(left) ?? 999) - (TECHNOLOGY_ORDER.get(right) ?? 999));
+}
+function grantTechnologyClosure(completed, technologyIds) {
+  for (const technologyId of researchTechnologyClosure(technologyIds)) completed.add(technologyId);
+}
+function collectLegacyFacilityTypeIds(world, player) {
+  const facilityTypeIds = new Set();
+  const include = (facilityTypeId) => {
+    if (FACILITY_BY_ID.has(String(facilityTypeId || ''))) facilityTypeIds.add(String(facilityTypeId));
   };
   for (const group of player?.facilityGroups || []) {
-    if (Number(group?.count || 0) > 0) includeFacility(group.facilityTypeId);
+    if (Number(group?.count || 0) > 0) include(group.facilityTypeId);
   }
-  if (player?.facilityConstruction?.facilityTypeId) includeFacility(player.facilityConstruction.facilityTypeId);
+  include(player?.facilityConstruction?.facilityTypeId);
   for (const order of world?.orders || []) {
     if (
       Number(order?.ownerId) === Number(player?.userId)
       && order?.side === 'buy'
       && (order?.assetKind === 'facility' || order?.facilityTypeId)
       && isOpenOrder(order)
-    ) includeFacility(order.facilityTypeId || order.assetId);
+    ) include(order.facilityTypeId || order.assetId);
   }
   for (const auction of world?.assetAuctions || []) {
     if (auction?.status !== 'open' || Number(auction?.highestBidderId) !== Number(player?.userId)) continue;
     for (const item of auctionItems(auction)) {
-      if (item?.assetKind === 'facility') includeFacility(item.assetId || item.facilityTypeId);
+      if (item?.assetKind === 'facility') include(item.assetId || item.facilityTypeId);
     }
   }
-  return rank;
+  return [...facilityTypeIds];
+}
+function deriveUnlockedComplexity(completed) {
+  let rank = 1;
+  for (let candidateRank = 1; candidateRank <= 7; candidateRank += 1) {
+    const stageTechnologies = RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.rank === candidateRank);
+    if (!stageTechnologies.every((technology) => completed.has(technology.id))) break;
+    rank = candidateRank;
+  }
+  return stageForRank(rank).id;
+}
+function normalizeCompletedAtMap(previous, completed, now) {
+  const source = previous?.completedAtByTechnologyId && typeof previous.completedAtByTechnologyId === 'object'
+    ? previous.completedAtByTechnologyId
+    : {};
+  const fallback = Number.isFinite(Number(previous?.completedAt)) ? Number(previous.completedAt) : Number(now);
+  return Object.fromEntries(sortedTechnologyIds(completed).map((technologyId) => {
+    const value = Number(source[technologyId]);
+    return [technologyId, Number.isFinite(value) && value >= 0 ? value : fallback];
+  }));
+}
+function normalizeActiveResearch(previousActive, completed) {
+  if (!previousActive || typeof previousActive !== 'object') return null;
+  const startedAt = Number(previousActive.startedAt);
+  const completesAt = Number(previousActive.completesAt);
+  if (!Number.isFinite(startedAt) || !Number.isFinite(completesAt) || completesAt <= startedAt) return null;
+
+  const technology = researchTechnologyFor(previousActive.technologyId);
+  if (technology && !completed.has(technology.id)) {
+    const cost = Math.max(0, Math.floor(Number(previousActive.cost ?? technology.cost)));
+    if (cost !== technology.cost) return null;
+    return {
+      technologyId: technology.id,
+      technologyName: technology.name,
+      targetComplexity: technology.stage,
+      startedAt,
+      completesAt,
+      durationMs: technology.durationMs,
+      cost,
+      employmentReleased: Math.min(cost, Math.max(0, Math.floor(Number(previousActive.employmentReleased || 0)))),
+    };
+  }
+
+  const legacyTechnologyId = String(previousActive.technologyId || '');
+  const targetComplexity = legacyTechnologyId.startsWith('legacy-stage-')
+    ? legacyTechnologyId.slice('legacy-stage-'.length)
+    : previousActive.targetComplexity;
+  const target = stageFor(targetComplexity);
+  if (target.rank <= 1) return null;
+  const requestedGrantIds = Array.isArray(previousActive.grantTechnologyIds)
+    ? previousActive.grantTechnologyIds
+    : researchTechnologiesForStage(target.id).map((technologyItem) => technologyItem.id);
+  const grantTechnologyIds = sortedTechnologyIds(requestedGrantIds).filter((technologyId) => !completed.has(technologyId));
+  if (grantTechnologyIds.length === 0) return null;
+  const legacy = LEGACY_LEVELS[target.id] || target;
+  const cost = Math.max(0, Math.floor(Number(previousActive.cost ?? legacy.cost)));
+  const durationMs = Math.max(1, Math.floor(Number(previousActive.durationMs ?? legacy.durationMs ?? (completesAt - startedAt))));
+  return {
+    technologyId: `legacy-stage-${target.id}`,
+    technologyName: `${target.id} 旧版阶段研发`,
+    targetComplexity: target.id,
+    legacy: true,
+    grantTechnologyIds,
+    startedAt,
+    completesAt,
+    durationMs,
+    cost,
+    employmentReleased: Math.min(cost, Math.max(0, Math.floor(Number(previousActive.employmentReleased || 0)))),
+  };
 }
 
 export function ensurePlayerResearch(world, player, now = Date.now()) {
   if (!player || typeof player !== 'object') return null;
   const previous = player.research && typeof player.research === 'object' ? player.research : null;
-  const inferredRank = legacyUnlockedRank(world, player);
-  const storedRank = complexityRank(previous?.unlockedComplexity);
-  const unlockedRank = Math.max(inferredRank, storedRank);
-  const research = {
-    unlockedComplexity: levelForRank(unlockedRank).id,
-    completedAt: Number.isFinite(Number(previous?.completedAt)) ? Number(previous.completedAt) : null,
-    active: null,
-  };
-  const active = previous?.active;
-  if (active && typeof active === 'object') {
-    const target = levelFor(active.targetComplexity);
-    const startedAt = Number(active.startedAt);
-    const completesAt = Number(active.completesAt);
-    const cost = Math.max(0, Math.floor(Number(active.cost ?? target.cost)));
-    if (
-      target.rank === unlockedRank + 1
-      && Number.isFinite(startedAt)
-      && Number.isFinite(completesAt)
-      && completesAt > startedAt
-      && cost === target.cost
-    ) {
-      research.active = {
-        targetComplexity: target.id,
-        startedAt,
-        completesAt,
-        cost,
-        employmentReleased: Math.min(cost, Math.max(0, Math.floor(Number(active.employmentReleased || 0)))),
-      };
+  const completed = new Set();
+  const hasNodeState = Array.isArray(previous?.completedTechnologyIds);
+  if (hasNodeState) {
+    for (const technologyId of previous.completedTechnologyIds) {
+      if (RESEARCH_TECHNOLOGY_BY_ID.has(String(technologyId))) completed.add(String(technologyId));
+    }
+  } else {
+    const legacyRank = complexityRank(previous?.unlockedComplexity);
+    for (const technology of RESEARCH_TECHNOLOGY_CATALOG) {
+      if (technology.rank <= legacyRank) completed.add(technology.id);
     }
   }
+  for (const technology of RESEARCH_TECHNOLOGY_CATALOG) {
+    if (technology.initial) completed.add(technology.id);
+  }
+  for (const facilityTypeId of collectLegacyFacilityTypeIds(world, player)) {
+    const technology = researchTechnologyForFacility(facilityTypeId);
+    if (technology) grantTechnologyClosure(completed, [technology.id]);
+  }
+
+  const completedTechnologyIds = sortedTechnologyIds(completed);
+  const completedAtByTechnologyId = normalizeCompletedAtMap(previous, completedTechnologyIds, now);
+  const active = normalizeActiveResearch(previous?.active, completed);
+  const completedAtValues = Object.values(completedAtByTechnologyId).map(Number).filter(Number.isFinite);
+  const completedAt = completedAtValues.length > 0 ? Math.max(...completedAtValues) : null;
+  const research = {
+    unlockedComplexity: deriveUnlockedComplexity(completed),
+    completedTechnologyIds,
+    completedAtByTechnologyId,
+    completedAt,
+    active,
+  };
   player.research = research;
   player.stats ||= {};
   player.stats.researchPayroll = Math.max(0, Number(player.stats.researchPayroll || 0));
@@ -114,7 +201,7 @@ export function releaseResearchEmployment(world, player, now = Date.now()) {
   const research = ensurePlayerResearch(world, player, now);
   const active = research?.active;
   if (!active) return 0;
-  const duration = Math.max(1, levelFor(active.targetComplexity).durationMs);
+  const duration = Math.max(1, Number(active.durationMs || (active.completesAt - active.startedAt)));
   const remaining = Math.max(0, Number(active.completesAt) - Number(now));
   const effectiveElapsed = Math.max(0, Math.min(duration, duration - remaining));
   const targetReleased = Number(now) >= active.completesAt
@@ -135,9 +222,22 @@ function completeResearchIfDue(world, player, now) {
   if (!active || Number(now) < Number(active.completesAt)) return false;
   releaseResearchEmployment(world, player, now);
   const currentResearch = player.research;
-  if (!currentResearch?.active) return false;
-  currentResearch.unlockedComplexity = currentResearch.active.targetComplexity;
-  currentResearch.completedAt = currentResearch.active.completesAt;
+  const currentActive = currentResearch?.active;
+  if (!currentActive) return false;
+  const completed = new Set(currentResearch.completedTechnologyIds || []);
+  const grantTechnologyIds = Array.isArray(currentActive.grantTechnologyIds)
+    ? currentActive.grantTechnologyIds
+    : [currentActive.technologyId];
+  grantTechnologyClosure(completed, grantTechnologyIds);
+  currentResearch.completedTechnologyIds = sortedTechnologyIds(completed);
+  currentResearch.completedAtByTechnologyId ||= {};
+  for (const technologyId of grantTechnologyIds) {
+    if (RESEARCH_TECHNOLOGY_BY_ID.has(technologyId)) {
+      currentResearch.completedAtByTechnologyId[technologyId] = Number(currentActive.completesAt);
+    }
+  }
+  currentResearch.unlockedComplexity = deriveUnlockedComplexity(completed);
+  currentResearch.completedAt = Number(currentActive.completesAt);
   currentResearch.active = null;
   return true;
 }
@@ -153,26 +253,72 @@ export function processResearchWorld(world, now = Date.now()) {
   return world;
 }
 
-function startResearch(world, player, payload, now) {
+function startTechnologyResearch(world, player, technologyId, now) {
   const research = ensurePlayerResearch(world, player, now);
   if (research.active) return { ok: false, message: '已有研发项目正在进行' };
-  const current = levelFor(research.unlockedComplexity);
-  if (current.rank >= 7) return { ok: false, message: 'C1-C7 研发已经全部完成' };
-  const target = levelFor(payload.targetComplexity);
-  if (target.rank !== current.rank + 1) return { ok: false, message: '只能研发当前等级的下一级' };
-  if (Number(player.credits || 0) < target.cost) return { ok: false, message: '可用资金不足' };
-  player.credits = Number(player.credits || 0) - target.cost;
+  const technology = researchTechnologyFor(technologyId);
+  if (!technology || technology.initial) return { ok: false, message: '科技节点不存在或已初始掌握' };
+  const completed = new Set(research.completedTechnologyIds || []);
+  if (completed.has(technology.id)) return { ok: false, message: `「${technology.name}」已经完成` };
+  const missing = technology.prerequisiteTechnologyIds
+    .map((prerequisiteId) => researchTechnologyFor(prerequisiteId))
+    .filter((prerequisite) => prerequisite && !completed.has(prerequisite.id));
+  if (missing.length > 0) return { ok: false, message: `需要先完成「${missing.map((item) => item.name).join('」「')}」` };
+  if (Number(player.credits || 0) < technology.cost) return { ok: false, message: '可用资金不足' };
+  player.credits = Number(player.credits || 0) - technology.cost;
   player.research = {
     ...research,
     active: {
-      targetComplexity: target.id,
+      technologyId: technology.id,
+      technologyName: technology.name,
+      targetComplexity: technology.stage,
       startedAt: Number(now),
-      completesAt: Number(now) + target.durationMs,
-      cost: target.cost,
+      completesAt: Number(now) + technology.durationMs,
+      durationMs: technology.durationMs,
+      cost: technology.cost,
       employmentReleased: 0,
     },
   };
-  return { ok: true, message: `已开始研发 ${target.id}` };
+  return { ok: true, message: `已开始研发「${technology.name}」` };
+}
+
+function startLegacyStageResearch(world, player, targetComplexity, now) {
+  const research = ensurePlayerResearch(world, player, now);
+  if (research.active) return { ok: false, message: '已有研发项目正在进行' };
+  const current = stageFor(research.unlockedComplexity);
+  const target = stageFor(targetComplexity);
+  if (current.rank >= 7) return { ok: false, message: '全部研发已经完成' };
+  if (target.rank !== current.rank + 1) return { ok: false, message: '旧版客户端只能研发当前完整阶段的下一级' };
+  const completed = new Set(research.completedTechnologyIds || []);
+  const grantTechnologyIds = researchTechnologiesForStage(target.id)
+    .map((technology) => technology.id)
+    .filter((technologyId) => !completed.has(technologyId));
+  if (grantTechnologyIds.length === 0) return { ok: false, message: `${target.id} 阶段已经完成` };
+  const cost = grantTechnologyIds.reduce((sum, technologyId) => sum + researchTechnologyFor(technologyId).cost, 0);
+  const durationMs = grantTechnologyIds.reduce((sum, technologyId) => sum + researchTechnologyFor(technologyId).durationMs, 0);
+  if (Number(player.credits || 0) < cost) return { ok: false, message: '可用资金不足' };
+  player.credits = Number(player.credits || 0) - cost;
+  player.research = {
+    ...research,
+    active: {
+      technologyId: `legacy-stage-${target.id}`,
+      technologyName: `${target.id} 阶段研发`,
+      targetComplexity: target.id,
+      legacy: true,
+      grantTechnologyIds,
+      startedAt: Number(now),
+      completesAt: Number(now) + durationMs,
+      durationMs,
+      cost,
+      employmentReleased: 0,
+    },
+  };
+  return { ok: true, message: `已开始研发 ${target.id} 阶段` };
+}
+
+function startResearch(world, player, payload, now) {
+  if (payload?.technologyId) return startTechnologyResearch(world, player, payload.technologyId, now);
+  return startLegacyStageResearch(world, player, payload?.targetComplexity, now);
 }
 
 function accelerateResearch(world, player, now) {
@@ -182,8 +328,6 @@ function accelerateResearch(world, player, now) {
   if (Number(player.gems || 0) < GEM_RESEARCH_ACCELERATION_COST) {
     return { ok: false, message: '宝石余额不足' };
   }
-
-  const target = levelFor(active.targetComplexity);
   const remainingMsBefore = Math.max(0, Number(active.completesAt) - Number(now));
   if (remainingMsBefore <= 0) {
     completeResearchIfDue(world, player, now);
@@ -200,13 +344,15 @@ function accelerateResearch(world, player, now) {
     : Math.max(0, Number(player.research.active?.completesAt || now) - Number(now));
   player.stats ||= {};
   player.stats.researchGemSpent = Number(player.stats.researchGemSpent || 0) + GEM_RESEARCH_ACCELERATION_COST;
+  const technologyName = String(active.technologyName || active.targetComplexity || '研发');
 
   return {
     ok: true,
     message: completedImmediately
-      ? `已使用 1 宝石，${target.id} 研发立即完成`
-      : `已使用 1 宝石，${target.id} 研发减少 30m`,
-    targetComplexity: target.id,
+      ? `已使用 1 宝石，「${technologyName}」立即完成`
+      : `已使用 1 宝石，「${technologyName}」减少 30m`,
+    technologyId: active.technologyId,
+    targetComplexity: active.targetComplexity,
     gemsSpent: GEM_RESEARCH_ACCELERATION_COST,
     balanceAfter: Number(player.gems || 0),
     reducedMs: Math.min(GEM_RESEARCH_ACCELERATION_MS, remainingMsBefore),
@@ -227,17 +373,24 @@ export function applyResearchAction(world, user, action, payload = {}, now = Dat
     : accelerateResearch(world, player, now);
 }
 
-function lockedResult(playerResearch, facilityTypeId) {
-  const required = facilityComplexity(facilityTypeId);
-  if (complexityRank(required) <= complexityRank(playerResearch.unlockedComplexity)) return null;
-  return { ok: false, message: `需要先完成 ${required} 研发` };
+export function hasResearchAccessForFacility(world, player, facilityTypeId, now = Date.now()) {
+  const technology = researchTechnologyForFacility(facilityTypeId);
+  if (!technology) return false;
+  const research = ensurePlayerResearch(world, player, now);
+  return Boolean(research?.completedTechnologyIds?.includes(technology.id));
+}
+
+function lockedResult(world, player, facilityTypeId, now) {
+  const technology = researchTechnologyForFacility(facilityTypeId);
+  if (!technology) return { ok: false, message: '该工厂没有配置研发科技' };
+  if (hasResearchAccessForFacility(world, player, facilityTypeId, now)) return null;
+  return { ok: false, message: `需要先完成「${technology.name}」研发` };
 }
 
 export function validateResearchAccess(world, user, action, payload = {}, now = Date.now()) {
   if (!world?.players?.[String(user?.id)]) return null;
   processResearchWorld(world, now);
   const player = world.players[String(user.id)];
-  const research = ensurePlayerResearch(world, player, now);
   let facilityTypeId = null;
   if (['buildFacility', 'startFacility', 'setFacilityRecipe'].includes(action)) {
     facilityTypeId = payload.facilityTypeId;
@@ -247,12 +400,12 @@ export function validateResearchAccess(world, user, action, payload = {}, now = 
     const listing = (world.facilityListings || []).find((item) => item.id === payload.listingId);
     facilityTypeId = listing?.facilityTypeId || listing?.facility?.facilityTypeId;
   }
-  if (facilityTypeId) return lockedResult(research, facilityTypeId);
+  if (facilityTypeId) return lockedResult(world, player, facilityTypeId, now);
   if (action === 'placeAuctionBid') {
     const auction = (world.assetAuctions || []).find((item) => item.id === payload.auctionId);
     for (const item of auctionItems(auction)) {
       if (item?.assetKind !== 'facility') continue;
-      const locked = lockedResult(research, item.assetId || item.facilityTypeId);
+      const locked = lockedResult(world, player, item.assetId || item.facilityTypeId, now);
       if (locked) return locked;
     }
   }
@@ -260,18 +413,14 @@ export function validateResearchAccess(world, user, action, payload = {}, now = 
 }
 
 export function createResearchClientState(world, player) {
-  const fallback = {
-    unlockedComplexity: levelForRank(legacyUnlockedRank(world, player)).id,
-    completedAt: null,
-    active: null,
-  };
-  const research = clone(player?.research && typeof player.research === 'object' ? player.research : fallback);
+  const research = clone(ensurePlayerResearch(world, player));
   if (research.active) {
     research.active.gemAccelerationMs = GEM_RESEARCH_ACCELERATION_MS;
     research.active.gemAccelerationCost = GEM_RESEARCH_ACCELERATION_COST;
   }
   return {
     researchLevels: clone(RESEARCH_LEVEL_CATALOG),
+    researchTechnologies: clone(RESEARCH_TECHNOLOGY_CATALOG),
     research,
   };
 }
@@ -280,7 +429,7 @@ export function nextResearchEmploymentAt(active) {
   if (!active) return null;
   const startedAt = Number(active.startedAt);
   const completesAt = Number(active.completesAt);
-  const duration = Math.max(1, levelFor(active.targetComplexity).durationMs);
+  const duration = Math.max(1, Number(active.durationMs || (completesAt - startedAt)));
   const cost = Math.max(0, Math.floor(Number(active.cost || 0)));
   const released = Math.max(0, Math.floor(Number(active.employmentReleased || 0)));
   if (!Number.isFinite(startedAt) || !Number.isFinite(completesAt) || completesAt <= startedAt) return null;
