@@ -27,7 +27,27 @@ jobs:
           cache: npm
 
       - name: Apply split technology implementation
-        run: python3 .agent/split_research.py
+        run: |
+          python3 .agent/split_research.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          view_model = Path('src/app/gameViewModel.ts')
+          content = view_model.read_text(encoding='utf-8')
+          old = "startResearch: (targetComplexity) => runAction('startResearch', () => gameActions.startResearch(technologyId)),"
+          new = "startResearch: (technologyId) => runAction('startResearch', () => gameActions.startResearch(technologyId)),"
+          if content.count(old) != 1:
+              raise SystemExit('generated view-model research callback did not match')
+          view_model.write_text(content.replace(old, new, 1), encoding='utf-8')
+
+          page = Path('src/pages/ResearchPage.tsx')
+          content = page.read_text(encoding='utf-8')
+          old = '    durationMs: active.durationMs,\n'
+          new = '    durationMs: active.durationMs ?? Math.max(1, active.completesAt - active.startedAt),\n'
+          if content.count(old) != 1:
+              raise SystemExit('generated legacy research duration did not match')
+          page.write_text(content.replace(old, new, 1), encoding='utf-8')
+          PY
 
       - name: Install dependencies
         run: npm ci
