@@ -50,18 +50,18 @@ jobs:
       - name: Run focused browser regression
         run: npm run test:browser -- tests/browser/research-technology-tree.spec.ts
 
-      - name: Run full build
-        run: npm run build
-
-      - name: Run full browser regression
-        run: npm run test:browser
-
       - name: Remove temporary implementation files
         run: |
           rm -f .agent/apply-client-refresh-isolation.mjs
           rm -f .agent/fix-client-refresh-isolation-build.mjs
           rm -f .github/workflows/agent-client-refresh-isolation.yml
           rmdir .agent 2>/dev/null || true
+
+      - name: Run full build
+        run: npm run build
+
+      - name: Run full browser regression
+        run: npm run test:browser
 
       - name: Check and commit product changes
         run: |
