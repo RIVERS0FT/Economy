@@ -65,7 +65,13 @@ test('delete save recreates the player baseline and preserves permanent account 
     assert.equal(response.result.ok, true);
     assert.equal(response.saveEpoch, 1);
 
-    const world = store.loadWorld(now + 5).world;
+    const replay = deletePlayerSave(store, user, {
+      confirmation: '删除存档',
+      requestKey: 'save-delete-request-0001',
+    }, now + 5);
+    assert.deepEqual(replay, response);
+
+    const world = store.loadWorld(now + 6).world;
     const player = world.players[String(user.id)];
     assert.equal(player.credits, 500);
     assert.equal(player.frozenCredits, 0);
@@ -88,14 +94,14 @@ test('delete save recreates the player baseline and preserves permanent account 
       1,
     );
 
-    const after = getPlayerSaveDeletionPreflight(store, user, now + 6);
+    const after = getPlayerSaveDeletionPreflight(store, user, now + 7);
     assert.equal(after.allowed, false);
     assert.equal(after.alreadyUsed, true);
     assert.match(after.blockers[0].message, /已经使用过一次/);
 
-    assert.doesNotThrow(() => assertPlayerSaveEpoch(store, user, '1', now + 6));
+    assert.doesNotThrow(() => assertPlayerSaveEpoch(store, user, '1', now + 7));
     assert.throws(
-      () => assertPlayerSaveEpoch(store, user, '0', now + 6),
+      () => assertPlayerSaveEpoch(store, user, '0', now + 7),
       (error) => error.statusCode === 409 && error.code === 'SAVE_EPOCH_MISMATCH',
     );
   } finally {
