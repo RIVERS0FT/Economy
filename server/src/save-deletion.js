@@ -113,12 +113,19 @@ export function getPlayerSaveCreatedAt(store, userId) {
 }
 
 export function assertPlayerSaveEpoch(store, user, rawExpectedEpoch, now = Date.now()) {
-  if (rawExpectedEpoch === undefined || rawExpectedEpoch === null || rawExpectedEpoch === '') return;
+  const actual = safeNonNegativeInteger(currentPlayer(store, user, now)?.saveEpoch);
+  if (rawExpectedEpoch === undefined || rawExpectedEpoch === null || rawExpectedEpoch === '') {
+    if (actual === 0) return;
+    throw httpError(
+      '当前页面缺少新存档世代，请刷新后继续操作',
+      409,
+      'SAVE_EPOCH_MISMATCH',
+    );
+  }
   if (!/^\d+$/.test(String(rawExpectedEpoch))) {
     throw httpError('存档世代请求头无效', 400, 'INVALID_SAVE_EPOCH');
   }
   const expected = Number(rawExpectedEpoch);
-  const actual = safeNonNegativeInteger(currentPlayer(store, user, now)?.saveEpoch);
   if (expected !== actual) {
     throw httpError(
       '当前页面使用的是旧存档，请刷新后继续操作',
