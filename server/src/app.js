@@ -555,6 +555,10 @@ const server = createServer(async (request, response) => {
     }
 
     const route = resolveAction(method, path);
+    if (route?.action === 'retiredFacilityConstructionAcceleration') {
+      sendError(response, 410, '工厂建造已改为资金与材料即时完成，施工加速接口已退役');
+      return;
+    }
     if (!route) {
       sendError(response, 404, '游戏操作不存在');
       return;

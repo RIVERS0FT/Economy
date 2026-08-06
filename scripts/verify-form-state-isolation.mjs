@@ -28,12 +28,12 @@ const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 
 requireText(
   viewModel,
-  'buildFacility: (facilityTypeId: string) => Promise<ActionResult>;',
+  'buildFacility: (facilityTypeId: string, quantity?: number) => Promise<ActionResult>;',
   'required buildFacility interface parameter',
 );
 requireText(
   viewModel,
-  "buildFacility: (facilityTypeId) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId))",
+  "buildFacility: (facilityTypeId, quantity = 1) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId, quantity))",
   'explicit buildFacility implementation parameter',
 );
 forbidText(
@@ -63,7 +63,7 @@ requireText(
 );
 requireText(
   productionPage,
-  'buildFacility(selectedType.id)',
+  'buildFacility(selectedType.id, buildQuantity)',
   'production page explicit facility submission',
 );
 requireText(

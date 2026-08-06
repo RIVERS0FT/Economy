@@ -42,30 +42,13 @@ function recipeForGroup(group) {
     || null;
 }
 
-export function nextConstructionEmploymentAt(construction) {
-  if (!construction) return null;
-  const startedAt = finiteTimestamp(construction.startedAt);
-  const completesAt = finiteTimestamp(construction.completesAt);
-  if (startedAt === null || completesAt === null || completesAt <= startedAt) return completesAt;
-  const buildCost = Math.max(0, Math.floor(Number(construction.buildCost || 0)));
-  const released = Math.max(0, Math.floor(Number(construction.employmentReleased || 0)));
-  if (buildCost <= 0 || released >= buildCost) return completesAt;
-  const duration = completesAt - startedAt;
-  const nextReleased = Math.min(buildCost, released + 1);
-  return Math.min(
-    completesAt,
-    startedAt + Math.ceil(nextReleased * duration / buildCost),
-  );
+export function nextConstructionEmploymentAt() {
+  return null;
 }
 
 function facilityDeadline(world) {
   let deadline = null;
   for (const player of Object.values(world.players || {})) {
-    const construction = player.facilityConstruction;
-    if (construction) {
-      deadline = earlier(deadline, finiteTimestamp(construction.completesAt));
-      deadline = earlier(deadline, nextConstructionEmploymentAt(construction));
-    }
     for (const group of player.facilityGroups || []) {
       if (group.status !== 'running' || !group.cycleStartedAt) continue;
       const recipe = recipeForGroup(group);

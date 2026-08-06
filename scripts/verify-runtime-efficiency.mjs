@@ -265,7 +265,7 @@ requireText('server/test/registration.test.js', [
 requireText('server/test/world-deadline-planner.test.js', [
   'zero world transactions during a 60 second idle window',
   'wakes at the planned event and processes one world transaction',
-  'next integer release boundary',
+  'instant construction registers no employment deadline',
   'long deadline timer segments early wakeups without opening a world transaction',
   'scheduler transaction failure preserves authority and retries after the one second floor',
 ]);

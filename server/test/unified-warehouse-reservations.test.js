@@ -57,6 +57,8 @@ function activeContract(id, buyerId, supplierId, quantityPerDelivery) {
 test('warehouse usage combines inventory, buy orders, highest bids, and active contract next batches', () => {
   const world = createWorld(now);
   const buyer = ensurePlayer(world, buyerUser, now);
+  buyer.inventories.timber.available = 0;
+  buyer.inventories.ore.available = 0;
   buyer.inventoryCapacity = 500;
   buyer.inventories.wheat.available = 10;
   world.orders.push(commodityBuyOrder(buyerUser.id, 40));

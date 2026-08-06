@@ -646,3 +646,8 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 世界版本 27 将研发持久状态从单一 `unlockedComplexity` 扩展为 `completedTechnologyIds`、`completedAtByTechnologyId` 和单个 `active` 科技项目。`active` 保存 `technologyId`、所属阶段、原始 `durationMs`、截止时间、费用和已释放就业资金；宝石加速只缩短截止时间，进度和就业释放仍使用原始基础时长计算。
 
 服务器 `research-catalog.js` 是科技节点、前置关系与工厂映射的唯一目录。所有工厂资产入口、生产操作和工厂租赁运营资格均调用同一具体科技校验；`unlockedComplexity` 只作为连续完整阶段的兼容派生值。旧世界按既有等级、资产、施工、买单与最高竞拍承诺授予科技及前置闭包；旧进行中阶段研发保存为 `legacy-stage-Cn`，到期授予该阶段剩余节点。迁移、处理和加速必须幂等，不得重复扣费、重复发放就业资金或降低既有准入。
+
+
+## 工厂即时建设事务
+
+`POST /api/game/facilities` 接受 `facilityTypeId` 与可选 `quantity`（1～100）。服务器必须在同一幂等写事务中校验科技准入、现金、全部 `buildInputs` 可用库存和安全乘法；任一失败时完全回滚。成功时扣除现金与材料、将现金记入人口建造业就业收入、增加材料消耗统计并立即扩充同类集群。`POST /api/game/facilities/construction/accelerate` 固定返回 `410 Gone`，不得进入经济写事务或写入新的施工宝石审计。

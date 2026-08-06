@@ -132,10 +132,9 @@ export interface LoadedGameViewModel {
   bankRepay: (loanId: string, amount: number | 'all') => Promise<ActionResult>;
   bankSetAutoRepay: (loanId: string, enabled: boolean) => Promise<ActionResult>;
   upgradeWarehouse: () => Promise<ActionResult>;
-  buildFacility: (facilityTypeId: string) => Promise<ActionResult>;
+  buildFacility: (facilityTypeId: string, quantity?: number) => Promise<ActionResult>;
   startResearch: (technologyId: string) => Promise<ActionResult>;
   accelerateResearch: () => Promise<ActionResult>;
-  accelerateFacilityConstruction: () => Promise<ActionResult>;
   startFacility: (facilityTypeId: string) => Promise<ActionResult>;
   stopFacility: (facilityTypeId: string) => Promise<ActionResult>;
   pauseFacility: (facilityTypeId: string) => Promise<ActionResult>;
@@ -486,10 +485,9 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     bankRepay: (loanId, amount) => runAction('bankRepay', () => gameActions.bankRepay(loanId, amount)),
     bankSetAutoRepay: (loanId, enabled) => runAction('bankSetAutoRepay', () => gameActions.bankSetAutoRepay(loanId, enabled)),
     upgradeWarehouse: () => runAction('upgradeWarehouse', gameActions.upgradeWarehouse),
-    buildFacility: (facilityTypeId) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId)),
+    buildFacility: (facilityTypeId, quantity = 1) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId, quantity)),
     startResearch: (technologyId) => runAction('startResearch', () => gameActions.startResearch(technologyId)),
     accelerateResearch: () => runAction('startResearch', gameActions.accelerateResearch),
-    accelerateFacilityConstruction: () => runAction('buildFacility', gameActions.accelerateFacilityConstruction),
     startFacility: (facilityTypeId) => runAction('startFacility', () => gameActions.startFacility(facilityTypeId)),
     stopFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.stopFacility(facilityTypeId)),
     pauseFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.pauseFacility(facilityTypeId)),

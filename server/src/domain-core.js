@@ -54,6 +54,7 @@ export const DEMAND_GROUP_CATALOG = Object.freeze([
 
 const PRODUCTS = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 const FACILITY_TYPES = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
+const STARTER_CONSTRUCTION_MATERIALS = Object.freeze({ timber: 4, ore: 2 });
 const DEMAND_GROUPS = new Map(DEMAND_GROUP_CATALOG.map((group) => [group.id, group]));
 
 function createId(prefix) {
@@ -74,6 +75,13 @@ function facilityTypeDefinition(typeId) {
 
 function createInventories() {
   return Object.fromEntries(PRODUCT_CATALOG.map((product) => [product.id, { available: 0, frozen: 0 }]));
+}
+
+function grantStarterConstructionMaterials(player) {
+  for (const [productId, quantity] of Object.entries(STARTER_CONSTRUCTION_MATERIALS)) {
+    inventoryFor(player, productId).available += quantity;
+  }
+  player.starterConstructionMaterialsGranted = true;
 }
 
 function inventoryFor(player, productId) {
@@ -240,6 +248,7 @@ export function createWorld(now = Date.now()) {
 }
 
 function createPlayer(user, now) {
+  const inventories = createInventories();
   const player = {
     userId: Number(user.id),
     playerName: String(user.name || user.email?.split('@')[0] || '新玩家').trim().slice(0, 32) || '新玩家',
@@ -247,7 +256,7 @@ function createPlayer(user, now) {
     lastEconomicActivityAt: now,
     credits: 500,
     frozenCredits: 0,
-    inventories: createInventories(),
+    inventories,
     inventoryCapacity: ECONOMY_CONSTANTS.defaultInventoryCapacity,
     facilities: [],
     trades: [],
@@ -279,6 +288,7 @@ function createPlayer(user, now) {
       bankFacilitiesSeized: 0,
     },
   };
+  grantStarterConstructionMaterials(player);
   addLedger(player, 'system', 500, '服务器发放玩家启动资金', now);
   return player;
 }
@@ -383,6 +393,13 @@ export function migrateWorld(world, now = Date.now()) {
     for (const product of PRODUCT_CATALOG) inventoryFor(player, product.id);
     player.inventoryCapacity = Number(player.inventoryCapacity || ECONOMY_CONSTANTS.defaultInventoryCapacity);
     player.facilities = (player.facilities || []).map((facility) => migrateFacility(facility, player.userId));
+    const hasFacilityAssets = player.facilities.length > 0
+      || (player.facilityGroups || []).some((group) => Number(group.count || 0) > 0);
+    if (!player.starterConstructionMaterialsGranted && !hasFacilityAssets && !player.facilityConstruction) {
+      grantStarterConstructionMaterials(player);
+    } else if (hasFacilityAssets || player.facilityConstruction) {
+      player.starterConstructionMaterialsGranted = true;
+    }
     player.trades ||= [];
     for (const trade of player.trades) {
       if (trade.productId === 'grain') trade.productId = 'wheat';

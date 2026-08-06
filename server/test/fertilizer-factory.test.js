@@ -34,8 +34,12 @@ test('化肥与化肥厂进入正式目录并保持 C4 参考利润', () => {
   });
   assert.ok(facility);
   assert.equal(facility.complexity, 'C4');
-  assert.equal(facility.buildCost, 330);
-  assert.equal(facility.buildTimeMs, 85 * 60_000);
+  assert.equal(facility.buildCost, 134);
+  assert.deepEqual(facility.buildInputs, [
+    { productId: 'lumber', quantity: 3 },
+    { productId: 'steel', quantity: 4 },
+    { productId: 'copper', quantity: 1 },
+  ]);
   assert.equal(facility.systemValue, 430);
   const recipe = standardRecipe(facility);
   assert.ok(recipe);

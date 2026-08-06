@@ -27,6 +27,8 @@ function seedStore({ credits = 10_000, inventoryCapacity = 500, warehouseLevel, 
   const store = new EconomyStore(':memory:');
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
+  player.inventories.timber.available = 0;
+  player.inventories.ore.available = 0;
   player.credits = credits;
   player.inventoryCapacity = inventoryCapacity;
   player.inventories.wheat.available = wheatAvailable;
@@ -67,10 +69,10 @@ test('warehouse state defaults to level 1 and current client version', () => {
     assert.equal(state.warehouseUpgradeCost, 150);
     assert.equal(state.warehouseNextCapacity, 750);
     assert.equal(state.warehouseNextCapacityIncrease, 250);
-    assert.equal(state.warehouseStoredQuantity, 0);
+    assert.equal(state.warehouseStoredQuantity, 6);
     assert.equal(state.warehouseReservedQuantity, 0);
-    assert.equal(state.warehouseUsedCapacity, 0);
-    assert.equal(state.warehouseAvailableCapacity, 500);
+    assert.equal(state.warehouseUsedCapacity, 6);
+    assert.equal(state.warehouseAvailableCapacity, 494);
   } finally { store.close(); }
 });
 

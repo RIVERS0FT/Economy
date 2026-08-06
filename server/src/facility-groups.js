@@ -11,7 +11,7 @@ import { matchIncomingOrder } from './order-matching.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
 import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
 import { closeOrderInOrderBook, countOpenOrdersForOwner, facilitySellQuantityForOwner, orderById } from './order-book-runtime.js';
-import { creditPopulationEmployment, ensurePopulationEconomy, releaseConstructionEmployment } from './population-economy.js';
+import { creditPopulationEmployment, ensurePopulationEconomy } from './population-economy.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import { activeLoanLiability, ensurePlayerBankAccount, mortgagedFacilityQuantity } from './banking.js';
 import {
@@ -22,7 +22,6 @@ import {
   playerLoanFinancialPosition,
 } from './contract-asset-locks.js';
 import { weeklySettlementLiability } from './weekly-cash-settlement.js';
-import { ensureGemState } from './invitations.js';
 import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 
 const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
@@ -33,8 +32,6 @@ export const FACILITY_STAFFING_FULL_BPS = 10_000;
 export const FACILITY_STAFFING_RECOVERY_MS = 10 * 60 * 1000;
 export const FACILITY_STAFFING_DECAY_MS = 30 * 60 * 1000;
 export const FACILITY_CONFIGURATION_STAFFING_PENALTY_BPS = 2_000;
-export const GEM_CONSTRUCTION_ACCELERATION_MS = 30 * 60 * 1000;
-export const GEM_CONSTRUCTION_ACCELERATION_COST = 1;
 export const CLIENT_RECENT_CLOSED_ORDER_LIMIT = ECONOMY_CONSTANTS.maxOpenOrders;
 
 function result(ok, message) {
@@ -521,7 +518,7 @@ export function removeSystemFacilityOrders(world) {
   return world;
 }
 
-function migrateLegacyPlayer(player, now) {
+function migrateLegacyPlayer(world, player, now) {
   ensureWarehouse(player);
   player.facilityGroups ||= [];
   player.stats ||= {};
@@ -535,6 +532,10 @@ function migrateLegacyPlayer(player, now) {
   player.stats.employmentPayments = Number(player.stats.employmentPayments || 0);
   player.stats.productionPayroll = Number(player.stats.productionPayroll || 0);
   player.stats.constructionPayroll = Number(player.stats.constructionPayroll || 0);
+  player.stats.facilitiesConstructed = Number(player.stats.facilitiesConstructed || 0);
+  player.stats.constructionMaterialsConsumed = player.stats.constructionMaterialsConsumed && typeof player.stats.constructionMaterialsConsumed === 'object'
+    ? player.stats.constructionMaterialsConsumed
+    : {};
   player.stats.warehousePayroll = Number(player.stats.warehousePayroll || 0);
   player.stats.marketServiceFees = Number(player.stats.marketServiceFees || 0);
   player.stats.bankCreditIssued = Number(player.stats.bankCreditIssued || 0);
@@ -544,12 +545,20 @@ function migrateLegacyPlayer(player, now) {
   player.stats.bankDefaults = Number(player.stats.bankDefaults || 0);
   player.stats.bankFacilitiesSeized = Number(player.stats.bankFacilitiesSeized || 0);
 
+  let migratedConstructionTypeId = null;
   if (player.facilityConstruction) {
-    const constructionType = typeFor(player.facilityConstruction.facilityTypeId);
-    if (constructionType && player.facilityConstruction.buildCost === undefined) {
-      player.facilityConstruction.buildCost = constructionType.buildCost;
-      player.facilityConstruction.employmentReleased = constructionType.buildCost;
+    const construction = player.facilityConstruction;
+    const constructionType = typeFor(construction.facilityTypeId);
+    if (constructionType) {
+      const paidBuildCost = Math.max(0, Number(construction.buildCost ?? constructionType.buildCost) || 0);
+      const employmentReleased = Math.max(0, Number(construction.employmentReleased || 0));
+      const remainingEmployment = Math.max(0, paidBuildCost - employmentReleased);
+      if (remainingEmployment > 0) creditPopulationEmployment(world, remainingEmployment, 'construction');
+      addPurchasedGroup(world, player, constructionType.id, 1, now);
+      player.stats.facilitiesConstructed += 1;
+      migratedConstructionTypeId = constructionType.id;
     }
+    delete player.facilityConstruction;
   }
 
   if (Array.isArray(player.facilities) && player.facilities.length > 0) {
@@ -560,14 +569,9 @@ function migrateLegacyPlayer(player, now) {
       const legacyGoods = Math.max(0, Number(facility.internalGoods || 0));
       if (legacyGoods > 0) inventoryFor(player, type.output.productId).available += legacyGoods;
       if (facility.status === 'constructing') {
-        if (!player.facilityConstruction) {
-          player.facilityConstruction = {
-            facilityTypeId: type.id,
-            startedAt: Math.max(0, Number(facility.constructionCompletesAt || now) - type.buildTimeMs),
-            completesAt: Number(facility.constructionCompletesAt || now),
-            buildCost: type.buildCost,
-            employmentReleased: type.buildCost,
-          };
+        if (type.id !== migratedConstructionTypeId) {
+          addPurchasedGroup(world, player, type.id, 1, now);
+          player.stats.facilitiesConstructed += 1;
         }
         continue;
       }
@@ -608,7 +612,7 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
       market.lastTradePrice = latestTrade ? Number(latestTrade.price) : null;
     }
   }
-  for (const player of Object.values(world.players)) migrateLegacyPlayer(player, now);
+  for (const player of Object.values(world.players)) migrateLegacyPlayer(world, player, now);
 
   for (const player of Object.values(world.players)) {
     player.facilityGroups = (player.facilityGroups || [])
@@ -830,18 +834,6 @@ function executeCycle(world, player, group, type, count, capacity, cycleDueAt, n
   group.cycleWageMultiplierBps = currentProductionWageMultiplier(world, now);
 }
 
-function finishConstruction(world, player, now) {
-  const construction = player.facilityConstruction;
-  if (!construction) return;
-  releaseConstructionEmployment(world, construction, now);
-  if (now < construction.completesAt) return;
-  const group = groupFor(player, construction.facilityTypeId, true, now);
-  const previousAvailable = availableGroupCount(world, player, group);
-  group.count += 1;
-  const nextAvailable = availableGroupCount(world, player, group);
-  expandAvailableFacilities(group, previousAvailable, nextAvailable, now);
-  delete player.facilityConstruction;
-}
 
 function processGroup(world, player, group, now) {
   reconcileFacilityGroup(world, player, group, now);
@@ -958,7 +950,6 @@ export function processFacilityGroupWorld(world, now = Date.now()) {
   removeSystemFacilityOrders(world);
   for (const player of Object.values(world.players || {})) {
     ensureWarehouse(player);
-    finishConstruction(world, player, now);
     for (const group of player.facilityGroups || []) processGroup(world, player, group, now);
   }
   reconcileAllFacilityGroups(world, now);
@@ -976,61 +967,38 @@ function buildFacilityGroup(world, userId, payload, now) {
   const player = getPlayer(world, userId);
   const type = typeFor(payload.facilityTypeId);
   if (!type) return result(false, '工厂类型不存在');
-  if (player.facilityConstruction) return result(false, '同时只能施工一座工厂');
-  if (player.credits < type.buildCost) return result(false, '建造资金不足');
-  player.credits -= type.buildCost;
-  player.stats.constructionPayroll = Number(player.stats.constructionPayroll || 0) + type.buildCost;
-  player.stats.employmentPayments = Number(player.stats.employmentPayments || 0) + type.buildCost;
-  player.facilityConstruction = {
-    facilityTypeId: type.id,
-    startedAt: now,
-    completesAt: now + type.buildTimeMs,
-    buildCost: type.buildCost,
-    employmentReleased: 0,
-  };
-  return result(true, `${type.name}开始施工，建成后将直接加入同类工厂集群；运行中集群会同步调整满员率`);
-}
-
-function accelerateFacilityConstruction(world, userId, now) {
-  const player = getPlayer(world, userId);
-  ensureGemState(player);
-  const construction = player.facilityConstruction;
-  if (!construction) return result(false, '当前没有正在施工的工厂');
-  const type = typeFor(construction.facilityTypeId);
-  if (!type) return result(false, '施工中的工厂类型不存在');
-  const remainingMsBefore = Math.max(0, Number(construction.completesAt || 0) - now);
-  if (remainingMsBefore <= 0) return result(false, '施工已经完成，正在等待服务器确认');
-  if (player.gems < GEM_CONSTRUCTION_ACCELERATION_COST) return result(false, '宝石余额不足');
-
-  releaseConstructionEmployment(world, construction, now);
-  player.gems -= GEM_CONSTRUCTION_ACCELERATION_COST;
-  const shortenedCompletesAt = Number(construction.completesAt) - GEM_CONSTRUCTION_ACCELERATION_MS;
-  const completedImmediately = shortenedCompletesAt <= now;
-  if (completedImmediately) {
-    const settlementNow = Math.max(now, Number(construction.startedAt || now) + 1);
-    construction.completesAt = settlementNow;
-    releaseConstructionEmployment(world, construction, settlementNow);
-    finishConstruction(world, player, settlementNow);
-  } else {
-    construction.completesAt = shortenedCompletesAt;
-    releaseConstructionEmployment(world, construction, now);
+  const quantity = normalizePositiveInteger(payload.quantity ?? 1, 100);
+  if (!quantity) return result(false, '建造数量必须为 1 到 100 的整数');
+  const totalCost = multiplyMoneyByInteger(type.buildCost, quantity);
+  if (totalCost === null) return result(false, '建造资金超出系统可表示范围');
+  const buildInputs = [];
+  for (const item of Array.isArray(type.buildInputs) ? type.buildInputs : []) {
+    const required = Number(item.quantity) * quantity;
+    if (!Number.isSafeInteger(required) || required < 1) return result(false, '建造材料数量超出系统可表示范围');
+    buildInputs.push({ productId: String(item.productId || ''), quantity: required });
   }
-  const remainingMsAfter = completedImmediately
-    ? 0
-    : Math.max(0, Number(player.facilityConstruction?.completesAt || 0) - now);
-  return {
-    ok: true,
-    message: completedImmediately
-      ? `消耗 ${GEM_CONSTRUCTION_ACCELERATION_COST} 宝石，${type.name}已立即完工`
-      : `消耗 ${GEM_CONSTRUCTION_ACCELERATION_COST} 宝石，${type.name}施工减少 30m`,
-    gemsSpent: GEM_CONSTRUCTION_ACCELERATION_COST,
-    balanceAfter: player.gems,
-    facilityTypeId: type.id,
-    reducedMs: Math.min(GEM_CONSTRUCTION_ACCELERATION_MS, remainingMsBefore),
-    remainingMsBefore,
-    remainingMsAfter,
-    completedImmediately,
-  };
+  if (buildInputs.length === 0) return result(false, '工厂建造材料目录无效');
+  if (player.credits < totalCost) return result(false, '建造资金不足');
+  const missingInput = buildInputs.find((item) => inventoryFor(player, item.productId).available < item.quantity);
+  if (missingInput) {
+    const product = PRODUCT_CATALOG.find((item) => item.id === missingInput.productId);
+    return result(false, `${product?.name || missingInput.productId}建造材料不足`);
+  }
+
+  player.credits -= totalCost;
+  for (const item of buildInputs) inventoryFor(player, item.productId).available -= item.quantity;
+  player.stats.constructionPayroll = Number(player.stats.constructionPayroll || 0) + totalCost;
+  player.stats.employmentPayments = Number(player.stats.employmentPayments || 0) + totalCost;
+  player.stats.facilitiesConstructed = Number(player.stats.facilitiesConstructed || 0) + quantity;
+  player.stats.constructionMaterialsConsumed ||= {};
+  for (const item of buildInputs) {
+    player.stats.constructionMaterialsConsumed[item.productId] = Number(
+      player.stats.constructionMaterialsConsumed[item.productId] || 0,
+    ) + item.quantity;
+  }
+  creditPopulationEmployment(world, totalCost, 'construction');
+  addPurchasedGroup(world, player, type.id, quantity, now);
+  return result(true, `${quantity} 座${type.name}已建成并加入同类工厂集群`);
 }
 
 function startFacilityGroup(world, userId, payload, now) {
@@ -1275,7 +1243,6 @@ export function applyFacilityGroupAction(world, user, action, payload = {}, now 
   let actionResult;
 
   if (action === 'buildFacility') actionResult = buildFacilityGroup(world, userId, payload, now);
-  else if (action === 'accelerateFacilityConstruction') actionResult = accelerateFacilityConstruction(world, userId, now);
   else if (action === 'startFacility') actionResult = startFacilityGroup(world, userId, payload, now);
   else if (action === 'pauseFacility') actionResult = pauseFacilityGroup(world, userId, payload, now);
   else if (action === 'setFacilityRecipe') actionResult = setGroupRecipe(world, userId, payload, now);
@@ -1475,13 +1442,9 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
     ...withoutFacilities,
     version: CURRENT_CLIENT_STATE_VERSION,
     facilityGroups: (player.facilityGroups || []).map((group) => clientGroup(world, player, group, now)),
-    facilityConstruction: player.facilityConstruction ? {
-      ...clone(player.facilityConstruction),
-      gemAccelerationMs: GEM_CONSTRUCTION_ACCELERATION_MS,
-      gemAccelerationCost: GEM_CONSTRUCTION_ACCELERATION_COST,
-    } : undefined,
     facilityTypes: FACILITY_TYPE_CATALOG.map(({ internalCapacity: _internalCapacity, ...type }) => clone({
       ...type,
+      buildTimeMs: 0,
       recipes: recipesFor(type).filter(
         (recipe) => (recipe.productionMethodId || 'standard') === 'standard',
       ),

@@ -10,7 +10,6 @@ function addDeadline(deadlines: number[], value: unknown) {
 export function authoritativeCountdownDeadlines(game: EconomyState): number[] {
   const deadlines: number[] = [];
 
-  addDeadline(deadlines, game.facilityConstruction?.completesAt);
   addDeadline(deadlines, game.research?.active?.completesAt);
 
   for (const group of game.facilityGroups) {
