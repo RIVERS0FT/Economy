@@ -86,6 +86,19 @@ test('new players receive one starter construction material pack', () => {
 text = replace_once(text, "test('construction atomically consumes credits", insert + "test('construction atomically consumes credits", str(path))
 path.write_text(text, encoding='utf-8')
 
+path = Path('scripts/verify-industry-catalog.mjs')
+text = path.read_text(encoding='utf-8')
+text = replace_once(
+    text,
+    "    'C1 为 30 秒～1 分钟',\n    'C2 为 5～10 分钟',\n    'C3 为 30 分钟～1 小时',\n    'C4～C7 为 1～2 小时',",
+    "    '正式目录为每座工厂声明现金 `buildCost` 与商品数组 `buildInputs`',\n"
+    "    '客户端兼容字段 `buildTimeMs` 固定返回 `0`',\n"
+    "    '资金和全部材料必须先完整校验，再原子扣除',\n"
+    "    '首座工厂建造材料包',",
+    str(path),
+)
+path.write_text(text, encoding='utf-8')
+
 for filename, marker, addition in [
     (
         'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
@@ -107,8 +120,6 @@ for filename, marker, addition in [
     text = path.read_text(encoding='utf-8')
     if filename == 'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md':
         text = replace_once(text, marker, addition + marker, filename)
-    elif filename == 'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md':
-        text = replace_once(text, marker, marker + addition, filename)
     else:
         text = replace_once(text, marker, marker + addition, filename)
     path.write_text(text, encoding='utf-8')
