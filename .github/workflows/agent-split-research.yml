@@ -61,7 +61,50 @@ jobs:
           ]:
               path.write_text(path.read_text(encoding='utf-8').rstrip() + '\n', encoding='utf-8')
           PY
-          git add -u -- .agent
+
+      - name: Stage documentation
+        run: git add -- README.md docs
+
+      - name: Stage server implementation
+        run: |
+          git add -- \
+            server/src/research-catalog.js \
+            server/src/research.js \
+            server/src/state-partitions.js \
+            server/src/commercial-contracts.js \
+            server/test/research.test.js \
+            server/test/research-gem-acceleration.test.js
+
+      - name: Stage client implementation
+        run: |
+          git add -- \
+            src/types.ts \
+            src/api/game.ts \
+            src/app/gameViewModel.ts \
+            src/pages/ResearchPage.tsx \
+            src/styles/research-page.css
+
+      - name: Stage tests and verifiers
+        run: |
+          git add -- \
+            tests/browser/runtime-harness.tsx \
+            tests/browser/research-technology-tree.spec.ts \
+            scripts/verify-research-progression.mjs \
+            scripts/verify-research-page.mjs \
+            scripts/verify-document-authority.mjs \
+            scripts/verify-client-state-version.mjs \
+            scripts/verify-state-delivery-capacity.mjs \
+            scripts/verify-runtime-reliability.mjs \
+            scripts/verify-asset-auctions.mjs
+
+      - name: Stage temporary file removal
+        run: git add -u -- .agent
+
+      - name: Check staged implementation
+        run: |
+          git diff --cached --check
+          git status --short
+          git diff --cached --stat
 
       - name: Install dependencies
         run: npm ci
@@ -89,38 +132,6 @@ jobs:
           git diff --check
           git status --short
           git diff --stat
-
-      - name: Stage verified implementation
-        shell: bash
-        run: |
-          set -euo pipefail
-          git add -- \
-            README.md \
-            docs/*.md \
-            server/src/research-catalog.js \
-            server/src/research.js \
-            server/src/state-partitions.js \
-            server/src/commercial-contracts.js \
-            server/test/research.test.js \
-            server/test/research-gem-acceleration.test.js \
-            src/types.ts \
-            src/api/game.ts \
-            src/app/gameViewModel.ts \
-            src/pages/ResearchPage.tsx \
-            src/styles/research-page.css \
-            tests/browser/runtime-harness.tsx \
-            tests/browser/research-technology-tree.spec.ts \
-            scripts/verify-research-progression.mjs \
-            scripts/verify-research-page.mjs \
-            scripts/verify-document-authority.mjs \
-            scripts/verify-client-state-version.mjs \
-            scripts/verify-state-delivery-capacity.mjs \
-            scripts/verify-runtime-reliability.mjs \
-            scripts/verify-asset-auctions.mjs
-          git add -u -- .agent
-          git diff --cached --check
-          git status --short
-          git diff --cached --stat
 
       - name: Commit verified implementation
         shell: bash
