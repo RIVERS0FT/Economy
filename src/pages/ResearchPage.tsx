@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -21,6 +20,7 @@ import {
   WidgetHeading,
 } from '../components/ui/layout';
 import { useNow } from '../hooks/useNow';
+import { useStableSelection } from '../hooks/useStableSelection';
 import { formatDuration, formatNumber } from '../utils/formatters';
 import type {
   FacilityComplexity,
@@ -428,17 +428,28 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
     && !completed.has(technology.id)
     && missingPrerequisites(technology, completed, technologiesById).length === 0
   ));
-  const initialTechnologyId = activeTechnology?.id
+  const fallbackTechnologyId = activeTechnology?.id
     ?? firstAvailable?.id
-    ?? technologies[technologies.length - 1]?.id
+    ?? technologies[0]?.id
     ?? '';
-  const [selectedTechnologyId, setSelectedTechnologyId] = useState(initialTechnologyId);
+  const selectableTechnologyIds = useMemo(() => {
+    const technologyIds = technologies.map((technology) => technology.id);
+    if (activeTechnology && !technologyIds.includes(activeTechnology.id)) {
+      technologyIds.push(activeTechnology.id);
+    }
+    return technologyIds;
+  }, [activeTechnology, technologies]);
+  const [selectedTechnologyId, setSelectedTechnologyId] = useStableSelection<string>({
+    availableIds: selectableTechnologyIds,
+    fallbackId: fallbackTechnologyId,
+  });
   const [isDetailOpen, setDetailOpen] = useState(false);
   const [isAccelerating, setAccelerating] = useState(false);
   const detailTriggerRef = useRef<HTMLButtonElement | null>(null);
   const selectedTechnology = technologiesById.get(selectedTechnologyId)
     ?? (activeTechnology?.id === selectedTechnologyId ? activeTechnology : null)
-    ?? firstAvailable
+    ?? technologiesById.get(fallbackTechnologyId)
+    ?? (activeTechnology?.id === fallbackTechnologyId ? activeTechnology : null)
     ?? technologies[0];
   const selectedFacilities = selectedTechnology
     ? selectedTechnology.unlockFacilityTypeIds
@@ -446,17 +457,6 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
       .filter((facility): facility is FacilityTypeDefinition => Boolean(facility))
     : [];
 
-  useEffect(() => {
-    const defaultTechnologyId = activeTechnology?.id
-      ?? technologies.find((technology) => (
-        !technology.initial
-        && !completed.has(technology.id)
-        && missingPrerequisites(technology, completed, technologiesById).length === 0
-      ))?.id
-      ?? technologies[technologies.length - 1]?.id
-      ?? '';
-    setSelectedTechnologyId(defaultTechnologyId);
-  }, [activeTechnology?.id, completed, technologies, technologiesById]);
 
   const selectTechnology = useCallback((technologyId: string, trigger: HTMLButtonElement) => {
     detailTriggerRef.current = trigger;
@@ -466,10 +466,14 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
 
   const startSelectedResearch = useCallback(() => {
     if (!selectedTechnology || selectedTechnology.legacy) return;
+    const technologyId = selectedTechnology.id;
+    const technologyName = selectedTechnology.name;
+    const technologyCost = selectedTechnology.cost;
+    const technologyDurationMs = selectedTechnology.durationMs;
     const confirmed = window.confirm(
-      `将支付 ${selectedTechnology.cost} 普通货币并开始研发「${selectedTechnology.name}」，基础时间 ${formatDuration(selectedTechnology.durationMs)}。研发开始后不可取消，是否继续？`,
+      `将支付 ${technologyCost} 普通货币并开始研发「${technologyName}」，基础时间 ${formatDuration(technologyDurationMs)}。研发开始后不可取消，是否继续？`,
     );
-    if (confirmed) void model.showResult(model.startResearch(selectedTechnology.id));
+    if (confirmed) void model.showResult(model.startResearch(technologyId));
   }, [model, selectedTechnology]);
 
   const accelerateResearch = useCallback(async () => {

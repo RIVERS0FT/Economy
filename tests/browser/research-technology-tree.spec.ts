@@ -52,6 +52,24 @@ test.describe('research technology tree', () => {
     expect(researchGeometry.fitsViewport).toBe(true);
   });
 
+  test('preserves an explicit technology selection across refreshed snapshots', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('runtime-test.html?view=research&scenario=research-active');
+
+    const applianceNode = page.getByRole('button', { name: /家电工程，尚未开放/ });
+    await applianceNode.click();
+    await expect(applianceNode).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.research-action-panel')).toContainText('家电工程');
+
+    const assetsButton = page.locator('button').filter({ hasText: '净资产' }).first();
+    await expect(assetsButton).toBeVisible();
+    await assetsButton.click();
+
+    await expect(applianceNode).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.research-action-panel')).toContainText('家电工程');
+    await expect(page.getByRole('button', { name: /冶金技术，研发中/ })).toHaveAttribute('aria-pressed', 'false');
+  });
+
   test('shows concrete prerequisite requirements and active acceleration', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=research&scenario=research-active');
