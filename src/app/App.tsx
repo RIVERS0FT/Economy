@@ -8,11 +8,13 @@ import type {
 import { PhotographicStateShell } from '../components/visual/PhotographicStateShell';
 import type { AuthUser } from '../types';
 import { LoginPage } from './LoginPage';
-const adminAppModule = import('./AdminApp');
-const gameAppModule = import('./GameApp');
-const AdminApp = lazy(() => adminAppModule.then((module) => ({ default: module.AdminApp })));
-const GameApp = lazy(() => gameAppModule.then((module) => ({ default: module.GameApp })));
 import '../styles/invitations.css';
+
+const initialAdminPath = window.location.pathname.replace(/\/+$/, '') === '/economy/admin';
+const adminAppModule = initialAdminPath ? import('./AdminApp') : null;
+const gameAppModule = initialAdminPath ? null : import('./GameApp');
+const AdminApp = lazy(() => (adminAppModule ?? import('./AdminApp')).then((module) => ({ default: module.AdminApp })));
+const GameApp = lazy(() => (gameAppModule ?? import('./GameApp')).then((module) => ({ default: module.GameApp })));
 
 type AppSurface = 'loading' | 'auth' | 'game' | 'admin' | 'banned';
 
