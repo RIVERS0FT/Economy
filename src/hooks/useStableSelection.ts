@@ -25,6 +25,9 @@ export function resolveStableSelection<Id extends string>(
   return '';
 }
 
+/**
+ * Use for selections backed by polled catalogs so new pages preserve valid user intent.
+ */
 export function useStableSelection<Id extends string>({
   availableIds,
   fallbackId,
