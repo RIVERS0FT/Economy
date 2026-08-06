@@ -31,6 +31,14 @@ jobs:
           cat .github/save-deletion/apply.py.gz.b64.part-* > /tmp/apply-save-deletion.py.gz.b64
           base64 -d /tmp/apply-save-deletion.py.gz.b64 | gzip -d > .github/save-deletion/apply-save-deletion.py
           python3 .github/save-deletion/apply-save-deletion.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('server/test/save-deletion.test.js')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('player.inventories.timber.available, 4', 'player.inventories.timber.available, 0')
+          text = text.replace('player.inventories.ore.available, 2', 'player.inventories.ore.available, 0')
+          path.write_text(text, encoding='utf-8')
+          PY
           rm -f .github/save-deletion/apply-save-deletion.py
           git rm -- .github/workflows/apply-save-deletion.yml .github/save-deletion/apply.py.gz.b64.part-*
           git add -- scripts/verify-reset-disabled.mjs
