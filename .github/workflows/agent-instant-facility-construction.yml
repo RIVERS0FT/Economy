@@ -1,0 +1,91 @@
+name: Agent Instant Facility Construction
+
+on:
+  push:
+    branches:
+      - agent/instant-facility-construction
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agent-instant-facility-construction
+  cancel-in-progress: false
+
+jobs:
+  apply-and-verify:
+    if: ${{ !startsWith(github.event.head_commit.message, 'feat: make facility construction instant') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/instant-facility-construction
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply migration
+        run: python3 scripts/apply-instant-facility-construction.py
+
+      - name: Remove temporary automation
+        run: |
+          rm scripts/apply-instant-facility-construction.py
+          rm .github/workflows/agent-instant-facility-construction.yml
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify focused behavior
+        run: |
+          node scripts/verify-industry-catalog.mjs
+          node scripts/verify-gem-shop.mjs
+          node scripts/verify-authoritative-countdowns.mjs
+          node --test server/test/instant-facility-construction.test.js
+
+      - name: Build
+        run: npm run build
+
+      - name: Browser tests
+        run: npm run test:browser
+
+      - name: Check diff
+        run: |
+          git diff --check
+          git status --short
+          git diff --stat
+
+      - name: Commit implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -- scripts/apply-instant-facility-construction.py .github/workflows/agent-instant-facility-construction.yml src/styles/production-gem-acceleration.css server/test/gem-construction-acceleration.test.js
+          git add -- \
+            README.md \
+            docs/README.md \
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
+            docs/PRODUCT_AND_GAMEPLAY_DESIGN.md \
+            docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md \
+            docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md \
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
+            server/src/industry-catalog.js \
+            server/src/facility-groups.js \
+            server/src/game-routes.js \
+            server/src/app.js \
+            server/src/world-deadline-planner.js \
+            server/test/instant-facility-construction.test.js \
+            src/types.ts \
+            src/api/game.ts \
+            src/app/gameViewModel.ts \
+            src/pages/ProductionPage.tsx \
+            src/utils/authoritativeCountdowns.ts \
+            scripts/verify-industry-catalog.mjs \
+            scripts/verify-gem-shop.mjs \
+            scripts/verify-authoritative-countdowns.mjs \
+            tests/browser/production-status-summary.spec.ts
+          git commit -m "feat: make facility construction instant"
+          git push origin HEAD:agent/instant-facility-construction
