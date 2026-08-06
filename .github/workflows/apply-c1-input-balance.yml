@@ -37,6 +37,27 @@ jobs:
           path.write_text(text)
           PY
           node scripts/apply-c1-input-balance.mjs
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              file = Path(path)
+              text = file.read_text()
+              if old not in text:
+                  raise SystemExit(f'{path} missing expected appliance balance text')
+              file.write_text(text.replace(old, new, 1))
+
+          replace(
+              'server/src/industry-catalog.js',
+              "recipes: [{ id: 'appliance-factory-default', name: '生产家电', cycleMs: 60_000, operatingCost: 12, inputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'electronics', quantity: 1 }], output: { productId: 'appliance', quantity: 2 } }]",
+              "recipes: [{ id: 'appliance-factory-default', name: '生产家电', cycleMs: 60_000, operatingCost: 72.45, inputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'electronics', quantity: 1 }], output: { productId: 'appliance', quantity: 2 } }]",
+          )
+          replace(
+              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+              '| 家电 (`appliance`) | 92 | 1 机械 + 1 电子产品 → 2 家电 | 60 秒 | 12 | 12 |',
+              '| 家电 (`appliance`) | 92 | 1 机械 + 1 电子产品 → 2 家电 | 60 秒 | 72.45 | 12 |',
+          )
+          PY
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
