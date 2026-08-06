@@ -61,6 +61,7 @@ requireText('scripts/configure-economy-static-cache.py', [
 ]);
 requireText('.github/workflows/deploy.yml', [
   'scripts/configure-economy-static-cache.py',
+  'rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT"',
   'dist/assets/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy/assets/"',
   '--exclude assets/',
   '--exclude index.html',
@@ -68,9 +69,9 @@ requireText('.github/workflows/deploy.yml', [
   'mv -f /var/www/game/economy/index.html.next /var/www/game/economy/index.html',
   'find /var/www/game/economy/assets -type f -mtime +400 -delete',
 ]);
-forbidText('.github/workflows/deploy.yml', [
-  'dist/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy/"\n          rsync -az --delete-before',
-]);
+const legacyWebsiteDeleteBefore = String.raw`rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+            dist/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy/"`;
+forbidText('.github/workflows/deploy.yml', [legacyWebsiteDeleteBefore]);
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '客户端状态版本不兼容属于当前页面不可恢复错误',
   '浏览器原生 `Failed to fetch`',
