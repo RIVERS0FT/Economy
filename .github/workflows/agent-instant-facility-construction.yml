@@ -44,32 +44,8 @@ jobs:
           rm scripts/fix-generated-instant-files.py
           rm .github/workflows/agent-instant-facility-construction.yml
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Verify focused behavior
+      - name: Stage implementation scope
         run: |
-          node scripts/verify-industry-catalog.mjs
-          node scripts/verify-gem-shop.mjs
-          node scripts/verify-authoritative-countdowns.mjs
-          node --test server/test/instant-facility-construction.test.js
-
-      - name: Build
-        run: npm run build
-
-      - name: Browser tests
-        run: npm run test:browser
-
-      - name: Check diff
-        run: |
-          git diff --check
-          git status --short
-          git diff --stat
-
-      - name: Commit implementation
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git rm -- scripts/apply-instant-facility-construction.py scripts/apply-instant-construction-starter.py scripts/fix-instant-patcher.py scripts/fix-generated-instant-files.py .github/workflows/agent-instant-facility-construction.yml src/styles/production-gem-acceleration.css server/test/gem-construction-acceleration.test.js
           git add -- \
             README.md \
@@ -96,5 +72,32 @@ jobs:
             scripts/verify-gem-shop.mjs \
             scripts/verify-authoritative-countdowns.mjs \
             tests/browser/production-status-summary.spec.ts
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify focused behavior
+        run: |
+          node scripts/verify-industry-catalog.mjs
+          node scripts/verify-gem-shop.mjs
+          node scripts/verify-authoritative-countdowns.mjs
+          node --test server/test/instant-facility-construction.test.js
+
+      - name: Build
+        run: npm run build
+
+      - name: Browser tests
+        run: npm run test:browser
+
+      - name: Check diff
+        run: |
+          git diff --check --cached
+          git status --short
+          git diff --stat --cached
+
+      - name: Commit implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "feat: make facility construction instant"
           git push origin HEAD:agent/instant-facility-construction
