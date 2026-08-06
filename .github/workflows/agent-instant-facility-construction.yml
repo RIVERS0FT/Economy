@@ -31,11 +31,14 @@ jobs:
         run: python3 scripts/fix-instant-patcher.py
 
       - name: Apply migration
-        run: python3 scripts/apply-instant-facility-construction.py
+        run: |
+          python3 scripts/apply-instant-facility-construction.py
+          python3 scripts/apply-instant-construction-starter.py
 
       - name: Remove temporary automation
         run: |
           rm scripts/apply-instant-facility-construction.py
+          rm scripts/apply-instant-construction-starter.py
           rm scripts/fix-instant-patcher.py
           rm .github/workflows/agent-instant-facility-construction.yml
 
@@ -65,7 +68,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm -- scripts/apply-instant-facility-construction.py scripts/fix-instant-patcher.py .github/workflows/agent-instant-facility-construction.yml src/styles/production-gem-acceleration.css server/test/gem-construction-acceleration.test.js
+          git rm -- scripts/apply-instant-facility-construction.py scripts/apply-instant-construction-starter.py scripts/fix-instant-patcher.py .github/workflows/agent-instant-facility-construction.yml src/styles/production-gem-acceleration.css server/test/gem-construction-acceleration.test.js
           git add -- \
             README.md \
             docs/README.md \
@@ -75,6 +78,7 @@ jobs:
             docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md \
             docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
             docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
+            server/src/domain-core.js \
             server/src/industry-catalog.js \
             server/src/facility-groups.js \
             server/src/game-routes.js \
