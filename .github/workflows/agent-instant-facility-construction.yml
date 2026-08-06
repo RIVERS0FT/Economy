@@ -71,6 +71,7 @@ jobs:
             scripts/verify-industry-catalog.mjs \
             scripts/verify-gem-shop.mjs \
             scripts/verify-authoritative-countdowns.mjs \
+            scripts/verify-form-state-isolation.mjs \
             tests/browser/production-status-summary.spec.ts
 
       - name: Install dependencies
