@@ -12,6 +12,7 @@ const GAME_API_BASE = '/economy-api/game';
 const stateDeliveryCache = createStateDeliveryCache();
 const DEFAULT_READ_TIMEOUT_MS = 8_000;
 const DEFAULT_WRITE_TIMEOUT_MS = 12_000;
+const NETWORK_ERROR_MESSAGE = '无法连接服务器，客户端或服务器可能已经更新，请刷新页面后重试';
 
 export const DEFAULT_QQ_GROUP_URL = 'https://qm.qq.com/q/eN8hya0Yn0';
 
@@ -92,6 +93,12 @@ function isStateDeliveryPayload(value: unknown): value is StateDeliveryEnvelope 
   return Number.isInteger(payload.revision) && typeof payload.unchanged === 'boolean';
 }
 
+function isBrowserNetworkError(reason: unknown) {
+  if (reason instanceof TypeError) return true;
+  if (!(reason instanceof Error)) return false;
+  return /failed to fetch|load failed|networkerror|network request failed/i.test(reason.message);
+}
+
 function knownPartitionRevisions() {
   return stateDeliveryCache.getPartitionRevisions();
 }
@@ -153,6 +160,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } catch (reason) {
     if (timedSignal.didTimeout() && reason instanceof Error && reason.name === 'AbortError') {
       throw new GameApiError(408, '游戏服务器响应超时，请稍后重试');
+    }
+    if (isBrowserNetworkError(reason)) {
+      throw new GameApiError(0, NETWORK_ERROR_MESSAGE);
     }
     throw reason;
   } finally {
