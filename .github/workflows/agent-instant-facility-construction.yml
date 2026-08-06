@@ -62,6 +62,12 @@ jobs:
             server/src/game-routes.js \
             server/src/app.js \
             server/src/world-deadline-planner.js \
+            server/test/domain.test.js \
+            server/test/fertilizer-factory.test.js \
+            server/test/tool-workshop.test.js \
+            server/test/unified-warehouse-reservations.test.js \
+            server/test/warehouse.test.js \
+            server/test/world-deadline-planner.test.js \
             server/test/instant-facility-construction.test.js \
             src/types.ts \
             src/api/game.ts \
