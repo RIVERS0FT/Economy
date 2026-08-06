@@ -1,0 +1,79 @@
+name: Agent Client Refresh Isolation
+
+on:
+  push:
+    branches:
+      - fix/client-refresh-isolation
+
+permissions:
+  contents: write
+
+jobs:
+  implement-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v5
+        with:
+          ref: fix/client-refresh-isolation
+          fetch-depth: 0
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply implementation
+        run: node .agent/apply-client-refresh-isolation.mjs
+
+      - name: Verify refresh isolation architecture
+        run: |
+          node scripts/verify-form-state-isolation.mjs
+          node scripts/verify-research-page.mjs
+          npm run typecheck
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run focused browser regression
+        run: npm run test:browser -- tests/browser/research-technology-tree.spec.ts
+
+      - name: Run full build
+        run: npm run build
+
+      - name: Run full browser regression
+        run: npm run test:browser
+
+      - name: Remove temporary implementation files
+        run: |
+          rm -f .agent/apply-client-refresh-isolation.mjs
+          rm -f .github/workflows/agent-client-refresh-isolation.yml
+          rmdir .agent 2>/dev/null || true
+
+      - name: Check and commit product changes
+        run: |
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- \
+            src/hooks/useStableSelection.ts \
+            src/hooks/useServerDraft.ts \
+            src/pages/ResearchPage.tsx \
+            src/app/gameViewModel.ts \
+            tests/browser/research-technology-tree.spec.ts \
+            scripts/verify-form-state-isolation.mjs \
+            scripts/verify-research-page.mjs \
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
+            docs/UI_DESIGN_SYSTEM.md \
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
+            .agent/apply-client-refresh-isolation.mjs \
+            .github/workflows/agent-client-refresh-isolation.yml
+          git commit -m "隔离轮询与客户端交互状态 [agent-applied]"
+          git push origin HEAD:fix/client-refresh-isolation
+          test -z "$(git status --porcelain)"
