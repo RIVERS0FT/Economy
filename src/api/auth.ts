@@ -1,6 +1,7 @@
 import type { AuthUser } from '../types';
 
 const API_BASE = '/economy-api';
+const NETWORK_ERROR_MESSAGE = '无法连接服务器，客户端或服务器可能已经更新，请刷新页面后重试';
 
 interface AuthResponse {
   user: AuthUser;
@@ -41,8 +42,25 @@ function createIdempotencyKey(prefix: string) {
   return `${prefix}:${token}`;
 }
 
+function isBrowserNetworkError(reason: unknown) {
+  if (reason instanceof TypeError) return true;
+  if (!(reason instanceof Error)) return false;
+  return /failed to fetch|load failed|networkerror|network request failed/i.test(reason.message);
+}
+
+async function fetchApi(input: RequestInfo | URL, init?: RequestInit) {
+  try {
+    return await fetch(input, init);
+  } catch (reason) {
+    if (isBrowserNetworkError(reason)) {
+      throw new ApiRequestError(0, NETWORK_ERROR_MESSAGE, { code: 'CLIENT_NETWORK_ERROR' });
+    }
+    throw reason;
+  }
+}
+
 async function request<T>(base: string, path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${base}${path}`, {
+  const response = await fetchApi(`${base}${path}`, {
     ...init,
     credentials: 'include',
     headers: {
@@ -74,7 +92,7 @@ async function requestGameApi<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  const response = await fetch(`${API_BASE}/me`, { credentials: 'include' });
+  const response = await fetchApi(`${API_BASE}/me`, { credentials: 'include' });
   if (response.status === 401) return null;
   if (!response.ok) throw new Error('无法连接主页账号服务');
   return ((await response.json()) as AuthResponse).user;

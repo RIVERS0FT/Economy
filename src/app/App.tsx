@@ -8,9 +8,13 @@ import type {
 import { PhotographicStateShell } from '../components/visual/PhotographicStateShell';
 import type { AuthUser } from '../types';
 import { LoginPage } from './LoginPage';
-const AdminApp = lazy(() => import('./AdminApp').then((module) => ({ default: module.AdminApp })));
-const GameApp = lazy(() => import('./GameApp').then((module) => ({ default: module.GameApp })));
 import '../styles/invitations.css';
+
+const initialAdminPath = window.location.pathname.replace(/\/+$/, '') === '/economy/admin';
+const adminAppModule = initialAdminPath ? import('./AdminApp') : null;
+const gameAppModule = initialAdminPath ? null : import('./GameApp');
+const AdminApp = lazy(() => (adminAppModule ?? import('./AdminApp')).then((module) => ({ default: module.AdminApp })));
+const GameApp = lazy(() => (gameAppModule ?? import('./GameApp')).then((module) => ({ default: module.GameApp })));
 
 type AppSurface = 'loading' | 'auth' | 'game' | 'admin' | 'banned';
 
@@ -130,7 +134,12 @@ export default function App() {
     return (
       <>
         <LoginPage inviteCode={inviteCode} onAuthenticated={authenticated} />
-        {authError ? <div className="auth-service-warning">{authError}。请确认服务器已启用金融帝国账号代理。</div> : null}
+        {authError ? (
+          <div className="auth-service-warning" role="alert">
+            <span>{authError}</span>
+            <button type="button" onClick={() => window.location.reload()}>刷新页面</button>
+          </div>
+        ) : null}
       </>
     );
   }

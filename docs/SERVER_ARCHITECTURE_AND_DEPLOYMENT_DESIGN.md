@@ -136,6 +136,8 @@ JSON.parse
 
 客户端状态版本固定使用 `server/shared/economy-state-version.js` 的 `CURRENT_CLIENT_STATE_VERSION`；浏览器兼容窗口使用同文件的 `MIN_COMPATIBLE_CLIENT_STATE_VERSION`。服务器响应、`src/types.ts`、浏览器合并器、README、权威设计和验证脚本不得维护独立常量。世界 15 永久删除艺术资产字段和客户端分区，客户端状态版本 20 增加银行账户、抵押贷款、存款利息与净资产字段；客户端状态版本 23 删除请求时刻派生字段并把四榜提升到独立排行榜分区；客户端状态版本 25 删除拍卖竞买人身份与内嵌出价数组，增加收费、保留价、延时和只读匿名出价历史；客户端状态版本 26 增加研发目录、玩家研发等级与进行中研发，成为新的破坏性边界；客户端状态版本 30 增加三种商品、三种工厂以及 C1 专用作业制度 ID。当前客户端只接受版本 30；版本低于下限或高于当前值时必须明确返回“客户端状态版本不兼容”，不得伪装成初始分区缺失。
 
+客户端状态版本不兼容属于当前页面不可恢复错误。客户端必须保留明确的版本不兼容文案，并只提供刷新页面以重新加载入口 HTML；不得在旧 JavaScript 运行时中原地重试状态请求。登录、注册、会话初始化和游戏状态请求捕获浏览器原生 `Failed to fetch`、`Load failed`、`NetworkError` 等网络异常后，必须转换为中文刷新提示，不得直接展示浏览器英文错误。
+
 世界 26 是当前持久化边界。世界 23 在既有世界 22 上增加聚合人口、工厂承载、迁入迁出、就业诊断和动态人口预算；当前客户端状态版本为 30。世界 16 的银行和净资产结构继续保留；`world.bank`、`player.bankAccount`、贷款抵押明细和银行统计都保存在 `economy_world.state_json`，与玩家资金、工厂和订单共享同一事务、修订号和回滚边界，不另建可与世界失配的余额表。银行最近记录只保留每名玩家最近 100 条，普通客户端序列化最近 50 条；利息微单位余数和资金池微单位仍是服务器内部整数，不得暴露为可直接使用的普通货币。
 
 世界 15 的资产拍卖迁移由 `asset-auctions.js` 在工厂集群规范化之前执行，并与世界写回处于同一 SQLite 事务。迁移同时读取旧 `collectibleAuctions` 和新 `assetAuctions`，按稳定 ID 去重；纯商品／工厂拍卖保留截止时间、出价、冻结资金、仓库预占和托管状态。任何含已删除艺术资产项目的开放资产包必须整包取消，完整退回最高出价并释放同包商品／工厂，随后删除 `collectibles`、`collectibleOwnershipHistory` 与 `collectibleAuctions`。重复加载不得重复退款、重复解冻或复制拍卖。
@@ -211,7 +213,7 @@ JSON.parse
 - 禁止玩家自成交；任何两个系统商品订单也必须禁止互相成交。储备买单必须验证并冻结真实储备资金，储备卖单必须验证并冻结真实储备库存。卖家不得竞拍自己的商品或工厂，玩家不得填写自己的邀请码，也不得承接自己发布的合同。
 - 每名玩家最多 10 笔未完成商品／工厂订单、10 份公开合同和 20 份进行中合同。
 - Nginx 游戏 API 请求体上限为 256 KB；普通 JSON 仍由应用限制为 16 KB。
-- 生产 HTTPS `server` 必须由 `scripts/configure-economy-nginx.py` 统一维护动态 gzip：`gzip_vary on`、`gzip_proxied any`、最小长度 `1024`、静态资源压缩级别 `6`。超过 1 KB 的 HTML、JavaScript、CSS、JSON、SVG、Web Manifest、XML 与 WASM 必须压缩；游戏 API `location` 继续使用面向 JSON 的压缩级别 `5`。PNG、JPEG、WebP、AVIF 与 WOFF2 等已经压缩的媒体和字体不得加入 `gzip_types` 重复压缩。`/economy/assets/` 与 `/economy/` 两个静态 `location` 必须直接输出 `Vary: Accept-Encoding`，不得只依赖服务器级继承；资产位置原有 `Cache-Control` 必须保留。配置脚本必须扫描 `sites-enabled`、`conf.d`、`sites-available` 与 `snippets` 四个 Nginx 配置根目录，按解析后的真实路径去重，并修补位于主 `server` 文件或任意被 include 的独立 snippet 中的 Economy 静态位置；扫描时必须跳过 `.bak`、`.backup-*` 与 `.economy-proxy.bak` 等备份文件，已规范的 `Vary` 指令必须保持幂等。脚本必须清除目标 `server` 中冲突的顶层 gzip 指令、写入唯一托管块并保持重复执行幂等；`scripts/configure-economy-nginx.py` 重载 Nginx 后必须通过 `--resolve game.riversoft.top:443:127.0.0.1` 命中本机正式 HTTPS 与 TLS SNI 入口，禁止使用可能返回 301 跳转页的 80 端口；Nginx reload 后必须在 5 秒窗口内对旧 worker 导致的缺 gzip、缺 `Vary` 或本机 curl 暂态失败进行有限重试，确定性内容错误必须立即失败；必须以 `Accept-Encoding: gzip` 实测 HTML、实际构建 JS 与 CSS，要求 `Content-Encoding: gzip`、`Vary: Accept-Encoding`、压缩流可解码且正文与磁盘源文件一致，线上压缩响应体必须小于构建产物原始字节数；任一检查最终失败必须恢复旧配置并重新加载 Nginx。
+- 生产 HTTPS `server` 必须由 `scripts/configure-economy-nginx.py` 统一维护动态 gzip：`gzip_vary on`、`gzip_proxied any`、最小长度 `1024`、静态资源压缩级别 `6`。超过 1 KB 的 HTML、JavaScript、CSS、JSON、SVG、Web Manifest、XML 与 WASM 必须压缩；游戏 API `location` 继续使用面向 JSON 的压缩级别 `5`。PNG、JPEG、WebP、AVIF 与 WOFF2 等已经压缩的媒体和字体不得加入 `gzip_types` 重复压缩。`/economy/assets/` 与 `/economy/` 两个静态 `location` 必须直接输出 `Vary: Accept-Encoding`，不得只依赖服务器级继承；资产位置原有 `Cache-Control` 必须保留。哈希静态资源缓存固定为 365 天，使用 `public, max-age=31536000, immutable`；入口 HTML 固定使用 `no-cache, max-age=0, must-revalidate`，确保刷新页面重新验证并取得最新资源地址。`scripts/configure-economy-static-cache.py` 必须幂等修补这两个位置、通过本机正式 HTTPS 验证入口与实际构建资源的缓存头，并在验证失败时回滚配置。配置脚本必须扫描 `sites-enabled`、`conf.d`、`sites-available` 与 `snippets` 四个 Nginx 配置根目录，按解析后的真实路径去重，并修补位于主 `server` 文件或任意被 include 的独立 snippet 中的 Economy 静态位置；扫描时必须跳过 `.bak`、`.backup-*` 与 `.economy-proxy.bak` 等备份文件，已规范的 `Vary` 指令必须保持幂等。脚本必须清除目标 `server` 中冲突的顶层 gzip 指令、写入唯一托管块并保持重复执行幂等；`scripts/configure-economy-nginx.py` 重载 Nginx 后必须通过 `--resolve game.riversoft.top:443:127.0.0.1` 命中本机正式 HTTPS 与 TLS SNI 入口，禁止使用可能返回 301 跳转页的 80 端口；Nginx reload 后必须在 5 秒窗口内对旧 worker 导致的缺 gzip、缺 `Vary` 或本机 curl 暂态失败进行有限重试，确定性内容错误必须立即失败；必须以 `Accept-Encoding: gzip` 实测 HTML、实际构建 JS 与 CSS，要求 `Content-Encoding: gzip`、`Vary: Accept-Encoding`、压缩流可解码且正文与磁盘源文件一致，线上压缩响应体必须小于构建产物原始字节数；任一检查最终失败必须恢复旧配置并重新加载 Nginx。
 - 单进程操作限流缓存每分钟清理已过期桶，并限制最多 10,000 个用户／类别桶；不得让历史用户键永久累积。
 
 ### 5.1 Economy 注册、邀请归因、异常上报与管理员封禁
@@ -367,7 +369,7 @@ QQ群入口与经济世界快照分离，保存在 `economy_settings`，修改�
 
 阶段指标只能使用 `AsyncLocalStorage` 在请求内部聚合，不得写入世界、分区、SQLite 或客户端响应。异常摘要和周期日志不得记录 Cookie、请求体、邮箱、玩家 ID、玩家资产、合同内容、订单内容或其他敏感数据。阶段样本必须有固定上限，路由和阶段名称必须使用固定枚举或归一化名称，防止高基数内存增长。压力测试基线必须保留 GitHub Node 24 的用户数、轮询频率、RPS、状态 p95／p99 和写动作 p95／p99，用于后续优化前后比较。
 
-正式客户端默认每 5 秒轮询一次修订号，可选 3／5／10 秒，不得恢复每 1 秒完整状态轮询。客户端根游戏模型不得维护每秒 `now` 状态；倒计时与进度只在概览、生产、拍卖、合同和银行等实际需要时间变化的局部页面维护，市场订单簿、导航和银行资产总览等静态区域不得被全局秒级时钟重渲染。每次 `GET state` 的顶层 `serverNow` 用于向前校准共享单调服务器时钟，局部倒计时只叠加该响应在当前浏览器接收后的单调经过时长；迟到或较旧响应不得让时钟回退。`lastProcessedAt` 只作为世界最后保存时间和旧响应兼容回退值，不得在每次轮询时重新建立本地时钟，也不得直接以客户端墙上时间替代服务器时间。管理员入口、游戏入口和十个游戏页面必须使用动态 `import()` 按需拆包。只有 `GET state` 的分区交付响应可以更新 `EconomyState` 和客户端已接受修订号；动作确认不直接更新界面状态，其 `revision` 只用于校验随后补拉的状态不得落后。低修订号或缺少修订号的迟到状态响应不得覆盖新状态。
+正式客户端默认每 5 秒轮询一次修订号，可选 3／5／10 秒，不得恢复每 1 秒完整状态轮询。客户端根游戏模型不得维护每秒 `now` 状态；倒计时与进度只在概览、生产、拍卖、合同和银行等实际需要时间变化的局部页面维护，市场订单簿、导航和银行资产总览等静态区域不得被全局秒级时钟重渲染。每次 `GET state` 的顶层 `serverNow` 用于向前校准共享单调服务器时钟，局部倒计时只叠加该响应在当前浏览器接收后的单调经过时长；迟到或较旧响应不得让时钟回退。`lastProcessedAt` 只作为世界最后保存时间和旧响应兼容回退值，不得在每次轮询时重新建立本地时钟，也不得直接以客户端墙上时间替代服务器时间。管理员入口、游戏入口和十个游戏页面必须使用动态 `import()` 按需拆包。 根应用必须在登录页首次执行时启动管理员与游戏入口分块预加载，避免已打开的旧登录页在部署完成后才请求已过期入口分块；页面组件仍由 `lazy` 与 `Suspense` 按需渲染。只有 `GET state` 的分区交付响应可以更新 `EconomyState` 和客户端已接受修订号；动作确认不直接更新界面状态，其 `revision` 只用于校验随后补拉的状态不得落后。低修订号或缺少修订号的迟到状态响应不得覆盖新状态。
 
 分区内容哈希只能由业务内容决定。响应生成时间只能位于 envelope `serverNow`；经济日历滚动窗口、排行榜生成时刻及其他逐请求时间不得进入分区。全局修订因其他玩家操作前进时，服务器仍必须使用当前查看者的六个已知分区哈希逐个比较，不得因为全局修订变化无条件返回完整 `market`、`player` 或排行榜分区。
 
@@ -400,7 +402,7 @@ QQ群入口与经济世界快照分离，保存在 `economy_settings`，修改�
 - 正式 SQLite 必须保持 `auto_vacuum=INCREMENTAL`。从 `NONE` 迁移只能由受控维护执行停服、WAL 收口、`VACUUM INTO`、逻辑哈希校验、原子替换与失败回滚；普通玩家事务不得执行 `incremental_vacuum`。每周一北京时间 02:30 的维护只在可回收空间不少于 64 MiB 且 freelist 比例不少于 25% 时运行，每批固定 1,024 页、单次最多四批。维护互斥锁在 Linux 正式环境使用 `fcntl.flock`，Windows 本地行为验证使用等价的 `msvcrt.locking`，不得因测试平台差异绕过互斥。
 - 正式 SQLite 迁移备份的目标世界版本必须与待部署代码的当前世界版本一致；当前为 26，禁止继续传入旧版本导致升级前快照被跳过。
 - 正式 SQLite 迁移备份按文件名中的迁移族统一管理：每个迁移族只保留最新一份紧凑 gzip SQLite 快照，最多保留最近 5 个迁移族。备份统一以 `VACUUM INTO` 消除 freelist，完成 `quick_check`、外键和模式校验后使用 gzip 级别 6 流式压缩并校验解压哈希；解压后的 `auto_vacuum` 必须保持 `INCREMENTAL`。部署必须先执行全局备份清理，再判断是否需要创建当前迁移备份；版本已经满足目标时也不得跳过清理。备份工具必须在删除临时 SQLite 前显式关闭全部连接；所有权变更和目录 `fsync` 只在操作系统支持时执行，使 Windows 本地行为验证与 Linux 正式部署共用同一实现。不得删除正式数据库、注册 HMAC 秘密或运行中的权威状态。
-- 创建新迁移备份前，可用空间必须至少为预计有效数据两倍再加 512 MiB 余量；不得按包含 freelist 的历史高水位主文件大小要求第二份同等空间。上传前 `/var/www/game` 所在文件系统可用空间不得低于 1 GiB。空间不足必须在写入发布文件前明确失败。网站、API 和便携 Node 运行时三次同步统一使用 `rsync --delete-before`，先删除将被新发布完整替换的旧文件，降低发布峰值空间。
+- 创建新迁移备份前，可用空间必须至少为预计有效数据两倍再加 512 MiB 余量；不得按包含 freelist 的历史高水位主文件大小要求第二份同等空间。上传前 `/var/www/game` 所在文件系统可用空间不得低于 1 GiB。空间不足必须在写入发布文件前明确失败。API 和便携 Node 运行时继续使用 `rsync --delete-before` 完整替换；网站发布必须把 `dist/assets/` 以只增加方式先同步，其他非哈希文件使用排除 `assets/` 与 `index.html` 的受控删除同步。服务安装、Nginx 路由和缓存验证全部成功后，才允许上传临时入口并最后原子替换 `index.html`。旧哈希资源至少保留 400 天，再按最后修改时间清理，使其长于浏览器 365 天不可变缓存；部署过程中不得立即删除仍可能被旧标签页引用的 JavaScript、CSS、图片或字体。
 - 浏览器运行时测试使用固定 Playwright 版本与 Chromium，至少覆盖 localStorage 拒绝访问仍能渲染、正式设置控件存在以及无效设置控件不存在；测试 artifact 只在失败时上传并保留 3 天，完整标准输出继续保存在 Actions job log。
 - 部署中的每个 shell 命令步骤必须把标准输出和标准错误保存到独立临时日志；任一步失败时只把该失败步骤的完整命令输出复制到 `economy-deploy-failure-<run>-<attempt>` Artifact，成功步骤日志不得上传。Artifact 保留 3 天并使用文本高压缩；完整失败输出不得依赖可能被截断的 job log，也不得再为单次构建失败创建临时诊断工作流。
 - 部署工作流只在运行器缺少 `rsync` 时执行 APT 安装，不得每次无条件更新软件包索引。
@@ -459,7 +461,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 修改 Nginx 前保留回滚配置；修改后执行 `nginx -t`，成功才 reload，失败立即恢复。
 
-`npm run build` 必须执行设计与架构验证、Nginx 测试、服务器语法和测试、TypeScript 与 Vite 构建。服务器语法检查由 Node 枚举 `server/src` 顶层 JavaScript 文件并逐个调用当前 Node 的 `--check`，不得依赖 shell 展开通配符，确保 Windows 本地与 Linux CI 检查同一文件集。CI 和主部署都必须安装固定 Chromium 并执行 `npm run test:browser`；应用根节点必须由错误边界包裹，意外渲染异常只能显示可恢复页面，不得留下空白屏。主部署后验证 API 健康、静态网页、账号代理、注册代理、未登录 401、systemd 用户／端口／数据库、注册秘密和无重复路由；邀请与封禁专项验收必须覆盖分享链接即时奖励、手动邀请码唯一绑定、同 IP 异常上报不封禁、管理员手动封禁、423 响应、历史自动封禁幂等迁移和管理员解禁。邮件配置工作流另行验证运行进程实际环境和服务健康，并以 `deploy/economy-email` 独立状态防止主部署误报验证码可用。
+`npm run build` 必须执行设计与架构验证、Nginx 测试、服务器语法和测试、TypeScript 与 Vite 构建。服务器语法检查由 Node 枚举 `server/src` 顶层 JavaScript 文件并逐个调用当前 Node 的 `--check`，不得依赖 shell 展开通配符，确保 Windows 本地与 Linux CI 检查同一文件集。CI 和主部署都必须安装固定 Chromium 并执行 `npm run test:browser`；应用根节点必须由错误边界包裹，意外渲染异常只能显示可恢复页面，不得留下空白屏。主部署后验证 API 健康、静态网页、账号代理、注册代理、未登录 401、systemd 用户／端口／数据库、注册秘密和无重复路由；邀请与封禁专项验收必须覆盖分享链接即时奖励、手动邀请码唯一绑定、同 IP 异常上报不封禁、管理员手动封禁、423 响应、历史自动封禁幂等迁移和管理员解禁。邮件配置工作流另行验证运行进程实际环境和服务健康，并以 `deploy/economy-email` 独立状态防止主部署误报验证码可用。 静态发布验收还必须确认 `/economy/` 与 `/economy/index.html` 返回入口重新验证策略、实际构建哈希资源返回一年 `immutable` 策略、新入口引用的全部资源可读取，并且入口只在服务与 Nginx 验证通过后发布。
 
 仓库所有文本文件必须通过根目录 `.gitattributes` 在所有平台统一为 LF，Git 索引与工作区均不得保留 CRLF 或混合换行；PNG、字体、压缩包、SQLite 等二进制资源必须标记为 `binary`，禁止参与文本转换。该规则不得依赖开发者的全局 `core.autocrlf` 配置；`npm run normalize:repository-text` 只允许转换 Git 已跟踪文本文件的换行字节，`scripts/verify-repository-text-format.mjs` 必须在其他架构校验前检查属性文件、索引行尾、工作区行尾和二进制属性，避免 Windows 本地源码精确匹配与 Linux CI 产生不同结果。
 
@@ -537,6 +539,9 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 - 让旧 `/api/game/collectible-auctions*` 或 `/api/game/admin/collectibles*` 路径返回成功、隐藏数据或兼容业务；这些墓碑路径必须固定返回 `410 Gone`；
 - 在没有世界 15／21 数据库快照与 `PRAGMA quick_check` 成功结果时上传新服务，或将含旧艺术资产项目的开放资产包删项后继续竞价；
 - 在拍卖主状态恢复真实竞买人 ID／名称、内嵌出价数组或别名映射，让出价历史进入常规轮询，允许接口返回超过最近 10 条、分页或加载更多，或让浏览器决定保留价、最低加价、延时、发布费及结算手续费。
+
+- 在客户端状态版本不兼容时继续原地重试状态请求、把刷新按钮改回普通重试、直接展示浏览器原生 `Failed to fetch`／`Load failed`／`NetworkError`，或让登录后才首次请求游戏入口分块；
+- 缩短哈希资源一年不可变缓存、把入口 HTML 设为长期或 `immutable` 缓存、在新入口发布前删除旧哈希资源、让旧资源保留期短于 400 天，或在服务与 Nginx 验证完成前发布 `index.html`；
 
 未更新设计文档的架构回退不应合并。未更新防回退检查的架构变更同样不应合并。
 
