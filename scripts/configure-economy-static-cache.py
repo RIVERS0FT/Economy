@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
 import time
@@ -108,6 +109,24 @@ def canonical_vary_header() -> str:
     return f'add_header Vary "{STATIC_VARY_VALUE}" always;'
 
 
+def remove_managed_headers(body: str) -> str:
+    body = re.sub(
+        r'(?im)^[ \t]*expires\s+[^;]*;[ \t]*(?:\n|$)',
+        "",
+        body,
+    )
+    body = re.sub(
+        r'(?im)^[ \t]*add_header\s+Cache-Control\s+[^;]*;[ \t]*(?:\n|$)',
+        "",
+        body,
+    )
+    return re.sub(
+        r'(?im)^[ \t]*add_header\s+Vary\s+[^;]*;[ \t]*(?:\n|$)',
+        "",
+        body,
+    )
+
+
 def ensure_location_headers(text: str, location_path: str, cache_control: str) -> tuple[str, bool, bool]:
     view = masked(text)
     location = re.search(
@@ -120,17 +139,7 @@ def ensure_location_headers(text: str, location_path: str, cache_control: str) -
 
     opening = view.find("{", location.start())
     closing = matching_brace(text, opening)
-    body = text[opening + 1 : closing]
-    body = re.sub(
-        r'(?im)^[ \t]*add_header\s+Cache-Control\s+[^;]*;[ \t]*(?:\n|$)',
-        "",
-        body,
-    )
-    body = re.sub(
-        r'(?im)^[ \t]*add_header\s+Vary\s+[^;]*;[ \t]*(?:\n|$)',
-        "",
-        body,
-    )
+    body = remove_managed_headers(text[opening + 1 : closing])
 
     closing_line = text.rfind("\n", 0, closing) + 1
     closing_indent_match = re.match(r"[ \t]*", text[closing_line:closing])
@@ -187,7 +196,7 @@ def write_atomic(path: Path, content: str) -> None:
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
             handle.write(content)
-        os.chmod(temp_name, path.stat().st_mode)
+        os.chmod(temp_name, stat.S_IMODE(path.stat().st_mode))
         os.replace(temp_name, path)
     finally:
         if os.path.exists(temp_name):
@@ -249,7 +258,9 @@ def fetch_headers(path: str) -> dict[str, str]:
 def validate_cache_headers(label: str, headers: dict[str, str], expected_cache_control: str) -> None:
     actual_cache = headers.get("cache-control", "").lower().replace(" ", "")
     expected_cache = expected_cache_control.lower().replace(" ", "")
-    if expected_cache not in actual_cache:
+    expected_max_age = re.search(r"max-age=(\d+)", expected_cache)
+    actual_max_ages = set(re.findall(r"max-age=(\d+)", actual_cache))
+    if expected_cache not in actual_cache or not expected_max_age or actual_max_ages != {expected_max_age.group(1)}:
         raise RuntimeError(
             f"ECONOMY_STATIC_CACHE_CONTROL_INVALID label={label} actual={actual_cache}"
         )
