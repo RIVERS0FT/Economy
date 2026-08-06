@@ -42,7 +42,7 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
       return model.buildFacility(facilityTypeId);
     },
     startFacility: (facilityTypeId) => {
-      tutorial.recordFacilityStartClick();
+      tutorial.recordFacilityStartClick(facilityTypeId);
       return model.startFacility(facilityTypeId);
     },
     placeAssetOrder: (assetKind, assetId, side, quantity, price) => {
