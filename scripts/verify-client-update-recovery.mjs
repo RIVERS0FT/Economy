@@ -18,10 +18,11 @@ function forbidText(path, fragments) {
 }
 
 requireText('src/app/App.tsx', [
-  "const adminAppModule = import('./AdminApp');",
-  "const gameAppModule = import('./GameApp');",
-  'lazy(() => adminAppModule.then',
-  'lazy(() => gameAppModule.then',
+  "const initialAdminPath = window.location.pathname.replace(/\\/+$/, '') === '/economy/admin';",
+  "const adminAppModule = initialAdminPath ? import('./AdminApp') : null;",
+  "const gameAppModule = initialAdminPath ? null : import('./GameApp');",
+  "(adminAppModule ?? import('./AdminApp')).then",
+  "(gameAppModule ?? import('./GameApp')).then",
   'onClick={() => window.location.reload()}>刷新页面</button>',
 ]);
 requireText('src/api/auth.ts', [
