@@ -25,6 +25,7 @@ jobs:
       - name: Apply implementation
         shell: bash
         run: |
+          git show origin/main:scripts/verify-staple-crops-demand.mjs > scripts/verify-staple-crops-demand.mjs
           python3 - <<'PY'
           from pathlib import Path
           path = Path('scripts/apply-c1-input-balance.mjs')
@@ -150,6 +151,11 @@ jobs:
               'server/test/tool-workshop.test.js',
               "test('市场需求模型 17 在固定耐用品预算内加入工具需求'",
               "test('市场需求模型 18 在固定耐用品预算内加入工具需求'",
+          )
+          replace(
+              'scripts/verify-staple-crops-demand.mjs',
+              'model 16 to 17 rate migration preserves demand escrow and quote state',
+              'model 17 to 18 rebalance rebuilds system demand without losing population or reserve assets',
           )
           replace(
               'scripts/verify-staple-crops-demand.mjs',
