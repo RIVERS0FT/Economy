@@ -99,22 +99,59 @@ text = replace_once(
 )
 path.write_text(text, encoding='utf-8')
 
+# Existing tests that intentionally exercise unrelated systems clear the starter pack; direct onboarding tests keep it.
+path = Path('server/test/domain.test.js')
+text = path.read_text(encoding='utf-8')
+text = replace_once(text, '  const buyer = ensurePlayer(world, alice, now);\n  seller.inventories.ore.available = 10;', '  const buyer = ensurePlayer(world, alice, now);\n  buyer.inventories.ore.available = 0;\n  seller.inventories.ore.available = 10;', str(path))
+path.write_text(text, encoding='utf-8')
+
+path = Path('server/test/fertilizer-factory.test.js')
+text = path.read_text(encoding='utf-8')
+text = replace_once(text, "  assert.equal(facility.buildCost, 330);\n  assert.equal(facility.buildTimeMs, 85 * 60_000);\n  assert.equal(facility.systemValue, 430);", "  assert.equal(facility.buildCost, 134);\n  assert.deepEqual(facility.buildInputs, [\n    { productId: 'lumber', quantity: 3 },\n    { productId: 'steel', quantity: 4 },\n    { productId: 'copper', quantity: 1 },\n  ]);\n  assert.equal(facility.systemValue, 430);", str(path))
+path.write_text(text, encoding='utf-8')
+
+path = Path('server/test/tool-workshop.test.js')
+text = path.read_text(encoding='utf-8')
+text = replace_once(text, "const f = FACILITY_TYPE_CATALOG.find((x) => x.id === 'tool-workshop'); assert.ok(f); assert.equal(f.complexity, 'C4'); assert.equal(f.buildCost, 320); assert.equal(f.buildTimeMs, 75 * 60_000); assert.equal(f.systemValue, 420);", "const f = FACILITY_TYPE_CATALOG.find((x) => x.id === 'tool-workshop'); assert.ok(f); assert.equal(f.complexity, 'C4'); assert.equal(f.buildCost, 136); assert.deepEqual(f.buildInputs, [{ productId: 'lumber', quantity: 4 }, { productId: 'steel', quantity: 4 }]); assert.equal(f.systemValue, 420);", str(path))
+path.write_text(text, encoding='utf-8')
+
+path = Path('server/test/unified-warehouse-reservations.test.js')
+text = path.read_text(encoding='utf-8')
+text = replace_once(text, '  const buyer = ensurePlayer(world, buyerUser, now);\n  buyer.inventoryCapacity = 500;', '  const buyer = ensurePlayer(world, buyerUser, now);\n  buyer.inventories.timber.available = 0;\n  buyer.inventories.ore.available = 0;\n  buyer.inventoryCapacity = 500;', str(path))
+path.write_text(text, encoding='utf-8')
+
+path = Path('server/test/warehouse.test.js')
+text = path.read_text(encoding='utf-8')
+text = replace_once(text, '  const player = ensurePlayer(world, alice, now);\n  player.credits = credits;', '  const player = ensurePlayer(world, alice, now);\n  player.inventories.timber.available = 0;\n  player.inventories.ore.available = 0;\n  player.credits = credits;', str(path))
+text = replace_once(text, '    assert.equal(state.warehouseStoredQuantity, 0);', '    assert.equal(state.warehouseStoredQuantity, 6);', str(path))
+text = replace_once(text, '    assert.equal(state.warehouseUsedCapacity, 0);', '    assert.equal(state.warehouseUsedCapacity, 6);', str(path))
+text = replace_once(text, '    assert.equal(state.warehouseAvailableCapacity, 500);', '    assert.equal(state.warehouseAvailableCapacity, 494);', str(path))
+path.write_text(text, encoding='utf-8')
+
+path = Path('server/test/world-deadline-planner.test.js')
+text = path.read_text(encoding='utf-8')
+text = replace_once(text, '''test('construction employment deadline is the next integer release boundary', () => {
+  assert.equal(nextConstructionEmploymentAt({
+    startedAt: 1_000,
+    completesAt: 11_000,
+    buildCost: 4,
+    employmentReleased: 0,
+  }), 3_500);
+  assert.equal(nextConstructionEmploymentAt({
+    startedAt: 1_000,
+    completesAt: 11_000,
+    buildCost: 4,
+    employmentReleased: 3,
+  }), 11_000);
+});''', '''test('instant construction registers no employment deadline', () => {
+  assert.equal(nextConstructionEmploymentAt(), null);
+});''', str(path))
+path.write_text(text, encoding='utf-8')
+
 for filename, marker, addition in [
-    (
-        'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
-        '服务端允许单次建设 1～100 座并按数量安全相乘。',
-        '新玩家首次建档固定获得 4 木材与 2 铁矿石的首座工厂建造材料包；既有且没有任何已建工厂或施工承诺的玩家在迁移时最多补发一次。该材料包只解决首座 C1 工厂启动，不进入现金发行、人口就业收入或市场成交统计。\n\n',
-    ),
-    (
-        'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
-        '新玩家首次创建 Economy 玩家档案时，服务器一次性发放 **500 普通货币**作为启动资金，并写入同额系统账本；该规则只作用于此后首次建档，不迁移、不补发，也不改写既有玩家余额。',
-        '\n\n新玩家同时一次性获得 **4 木材与 2 铁矿石**作为首座 C1 工厂建造材料包。即时建设上线迁移时，仅对没有任何工厂资产或施工承诺且尚未领取过材料包的既有玩家补发一次；不得重复发放，也不得把材料包计为货币发行或就业收入。',
-    ),
-    (
-        'docs/README.md',
-        '工厂建设以服务器正式目录的 `buildCost + buildInputs` 为唯一成本，',
-        '新玩家首座工厂材料包固定为 4 木材与 2 铁矿石，既有空白玩家只迁移补发一次；',
-    ),
+    ('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '服务端允许单次建设 1～100 座并按数量安全相乘。', '新玩家首次建档固定获得 4 木材与 2 铁矿石的首座工厂建造材料包；既有且没有任何已建工厂或施工承诺的玩家在迁移时最多补发一次。该材料包只解决首座 C1 工厂启动，不进入现金发行、人口就业收入或市场成交统计。\n\n'),
+    ('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '新玩家首次创建 Economy 玩家档案时，服务器一次性发放 **500 普通货币**作为启动资金，并写入同额系统账本；该规则只作用于此后首次建档，不迁移、不补发，也不改写既有玩家余额。', '\n\n新玩家同时一次性获得 **4 木材与 2 铁矿石**作为首座 C1 工厂建造材料包。即时建设上线迁移时，仅对没有任何工厂资产或施工承诺且尚未领取过材料包的既有玩家补发一次；不得重复发放，也不得把材料包计为货币发行或就业收入。'),
+    ('docs/README.md', '工厂建设以服务器正式目录的 `buildCost + buildInputs` 为唯一成本，', '新玩家首座工厂材料包固定为 4 木材与 2 铁矿石，既有空白玩家只迁移补发一次；'),
 ]:
     path = Path(filename)
     text = path.read_text(encoding='utf-8')
