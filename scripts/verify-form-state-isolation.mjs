@@ -16,6 +16,7 @@ const forbidText = (source, text, label) => {
 };
 
 const viewModel = read('src/app/gameViewModel.ts');
+const gameApp = read('src/app/GameApp.tsx');
 const productionPage = read('src/pages/ProductionPage.tsx');
 const auctionPage = read('src/pages/AuctionPage.tsx');
 const researchPage = read('src/pages/ResearchPage.tsx');
@@ -62,9 +63,29 @@ requireText(
   'market-only validation dependencies',
 );
 requireText(
+  gameApp,
+  'buildFacility: (facilityTypeId = model.selectedFacilityTypeId, quantity = 1) => {',
+  'tutorial wrapper quantity parameter',
+);
+requireText(
+  gameApp,
+  'return model.buildFacility(facilityTypeId, quantity);',
+  'tutorial wrapper quantity forwarding',
+);
+forbidText(
+  gameApp,
+  'return model.buildFacility(facilityTypeId);',
+  'quantity-dropping tutorial wrapper',
+);
+requireText(
   productionPage,
   'buildFacility(selectedType.id, buildQuantity)',
   'production page explicit facility submission',
+);
+requireText(
+  productionPage,
+  '<DataRow label="建造材料" value="无需材料" />',
+  'cash-only facility material presentation',
 );
 requireText(
   auctionPage,
@@ -127,7 +148,7 @@ requireText(
 requireText(pageDesign, '### 1.1 跨页面表单状态隔离', 'page design state isolation rule');
 requireText(
   pageDesign,
-  '建设动作必须显式提交表单当前选择的 `facilityTypeId`',
+  '建设动作必须显式提交表单当前选择的 `facilityTypeId` 与 `quantity`',
   'explicit construction submission design rule',
 );
 requireText(

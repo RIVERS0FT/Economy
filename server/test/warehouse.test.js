@@ -69,10 +69,10 @@ test('warehouse state defaults to level 1 and current client version', () => {
     assert.equal(state.warehouseUpgradeCost, 150);
     assert.equal(state.warehouseNextCapacity, 750);
     assert.equal(state.warehouseNextCapacityIncrease, 250);
-    assert.equal(state.warehouseStoredQuantity, 6);
+    assert.equal(state.warehouseStoredQuantity, 0);
     assert.equal(state.warehouseReservedQuantity, 0);
-    assert.equal(state.warehouseUsedCapacity, 6);
-    assert.equal(state.warehouseAvailableCapacity, 494);
+    assert.equal(state.warehouseUsedCapacity, 0);
+    assert.equal(state.warehouseAvailableCapacity, 500);
   } finally { store.close(); }
 });
 

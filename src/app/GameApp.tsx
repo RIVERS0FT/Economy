@@ -37,9 +37,9 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
       tutorial.recordWorkClick();
       return model.work();
     },
-    buildFacility: (facilityTypeId = model.selectedFacilityTypeId) => {
+    buildFacility: (facilityTypeId = model.selectedFacilityTypeId, quantity = 1) => {
       tutorial.recordBuildSubmit(facilityTypeId);
-      return model.buildFacility(facilityTypeId);
+      return model.buildFacility(facilityTypeId, quantity);
     },
     startFacility: (facilityTypeId) => {
       tutorial.recordFacilityStartClick(facilityTypeId);

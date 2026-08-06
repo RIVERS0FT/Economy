@@ -52,7 +52,13 @@ for (const text of ['GEM_CONSTRUCTION_ACCELERATION_MS', 'gemAccelerationMs', 'ac
 }
 requireText('server/src/game-routes.js', "retiredFacilityConstructionAcceleration");
 requireText('server/src/app.js', '施工加速接口已退役');
-for (const text of ['label="建造数量"', 'label="建造资金"', '立即扣除资金与建造材料']) {
+for (const text of [
+  'label="建造数量"',
+  'label="建造资金"',
+  'label="建造材料"',
+  'value="无需材料"',
+  "'建造资金' : '资金与建造材料'",
+]) {
   requireText('src/pages/ProductionPage.tsx', text);
 }
 for (const text of ['宝石加速', '施工时间', 'constructionRemainingAfterAcceleration', 'accelerateFacilityConstruction']) {

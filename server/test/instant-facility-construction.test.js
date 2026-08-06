@@ -17,47 +17,53 @@ function prepareStore(now) {
 }
 
 
-test('new players receive one starter construction material pack', () => {
+test('new players do not receive a starter construction material pack', () => {
   const now = 1_699_900_000_000;
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(user, now);
-    assert.equal(state.inventories.timber.available, 4);
-    assert.equal(state.inventories.ore.available, 2);
+    assert.equal(state.inventories.timber.available, 0);
+    assert.equal(state.inventories.ore.available, 0);
   } finally {
     store.close();
   }
 });
 
-test('construction atomically consumes credits and materials and completes immediately', () => {
+test('farm and orchard batches atomically consume only credits and complete immediately', () => {
   const now = 1_700_000_000_000;
   const store = prepareStore(now);
   try {
     const before = store.getState(user, now + 2);
     const farm = FACILITY_TYPE_CATALOG.find((item) => item.id === 'farm');
-    const request = {
+    const orchard = FACILITY_TYPE_CATALOG.find((item) => item.id === 'orchard');
+    const farmRequest = {
       action: 'buildFacility', payload: { facilityTypeId: 'farm', quantity: 2 }, requestKey: 'instant-build-0001',
       method: 'POST', path: '/api/game/facilities',
     };
-    const first = store.apply(user, request, now + 3);
-    const repeated = store.apply(user, request, now + 4);
+    const first = store.apply(user, farmRequest, now + 3);
+    const repeated = store.apply(user, farmRequest, now + 4);
     assert.deepEqual(repeated, first, '幂等重试必须返回原结果');
     assert.equal(first.result.ok, true);
 
-    const state = store.getState(user, now + 5);
+    const orchardResult = store.apply(user, {
+      action: 'buildFacility', payload: { facilityTypeId: 'orchard', quantity: 3 }, requestKey: 'instant-build-0002',
+      method: 'POST', path: '/api/game/facilities',
+    }, now + 5);
+    assert.equal(orchardResult.result.ok, true);
+
+    const state = store.getState(user, now + 6);
     assert.equal(state.facilityConstruction, undefined);
     assert.equal(state.facilityGroups.find((group) => group.facilityTypeId === 'farm')?.count, 2);
-    assert.equal(state.credits, before.credits - farm.buildCost * 2);
-    for (const item of farm.buildInputs) {
-      assert.equal(state.inventories[item.productId].available, before.inventories[item.productId].available - item.quantity * 2);
-    }
-    assert.equal(state.stats.facilitiesConstructed, 2);
+    assert.equal(state.facilityGroups.find((group) => group.facilityTypeId === 'orchard')?.count, 3);
+    assert.equal(state.credits, before.credits - farm.buildCost * 2 - orchard.buildCost * 3);
+    assert.deepEqual(state.inventories, before.inventories, '现金建造不得扣除任何商品库存');
+    assert.equal(state.stats.facilitiesConstructed, 5);
   } finally {
     store.close();
   }
 });
 
-test('construction rolls back completely when one material is missing', () => {
+test('material-backed construction rolls back completely when one material is missing', () => {
   const now = 1_700_100_000_000;
   const store = prepareStore(now);
   try {
@@ -66,7 +72,7 @@ test('construction rolls back completely when one material is missing', () => {
     store.saveWorld(loaded.revision, loaded.world, now + 2);
     const before = store.getState(user, now + 3);
     const result = store.apply(user, {
-      action: 'buildFacility', payload: { facilityTypeId: 'farm', quantity: 1 }, requestKey: 'instant-build-0002',
+      action: 'buildFacility', payload: { facilityTypeId: 'ranch', quantity: 1 }, requestKey: 'instant-build-0003',
       method: 'POST', path: '/api/game/facilities',
     }, now + 4);
     assert.equal(result.result.ok, false);
@@ -74,7 +80,7 @@ test('construction rolls back completely when one material is missing', () => {
     const after = store.getState(user, now + 5);
     assert.equal(after.credits, before.credits);
     assert.deepEqual(after.inventories, before.inventories);
-    assert.equal(after.facilityGroups.find((group) => group.facilityTypeId === 'farm'), undefined);
+    assert.equal(after.facilityGroups.find((group) => group.facilityTypeId === 'ranch'), undefined);
   } finally {
     store.close();
   }

@@ -26,8 +26,8 @@ const expectedPrices = {
   tractor: 15.35, electronics: 84, appliance: 92,
 };
 const expectedConstruction = {
-  'farm': { complexity: 'C1', buildCost: 31, buildInputs: [{ productId: 'timber', quantity: 2 }, { productId: 'ore', quantity: 1 }], systemValue: 65 },
-  'orchard': { complexity: 'C1', buildCost: 45, buildInputs: [{ productId: 'timber', quantity: 3 }, { productId: 'ore', quantity: 1 }], systemValue: 95 },
+  'farm': { complexity: 'C1', buildCost: 50, buildInputs: [], systemValue: 65 },
+  'orchard': { complexity: 'C1', buildCost: 70, buildInputs: [], systemValue: 95 },
   'ranch': { complexity: 'C1', buildCost: 58, buildInputs: [{ productId: 'timber', quantity: 3 }, { productId: 'ore', quantity: 2 }], systemValue: 120 },
   'fishery': { complexity: 'C1', buildCost: 62, buildInputs: [{ productId: 'timber', quantity: 4 }, { productId: 'ore', quantity: 2 }], systemValue: 130 },
   'logging-camp': { complexity: 'C2', buildCost: 85, buildInputs: [{ productId: 'cotton', quantity: 6 }, { productId: 'ore', quantity: 4 }], systemValue: 160 },
@@ -97,13 +97,19 @@ assert.deepEqual(Object.fromEntries(FACILITY_TYPE_CATALOG.map((item) => [item.id
 }])), expectedConstruction);
 
 const productIds = new Set(expectedProducts);
+const cashOnlyFacilityIds = new Set(['farm', 'orchard']);
 for (const product of PRODUCT_CATALOG) {
   assert.equal(hasAtMostTwoDecimals(product.basePrice), true, `${product.id} 初始参考价最多保留两位小数`);
   assert.ok(product.marketDemandGroupId === undefined || ['food', 'household'].includes(product.marketDemandGroupId), `${product.id} 市场需求组无效`);
 }
 for (const facility of FACILITY_TYPE_CATALOG) {
   assert.equal(Number.isInteger(facility.buildCost), true, `${facility.id} 建造费必须为整数`);
-  assert.ok(Array.isArray(facility.buildInputs) && facility.buildInputs.length > 0, `${facility.id} 必须声明建造材料`);
+  assert.ok(Array.isArray(facility.buildInputs), `${facility.id} 必须声明 buildInputs 数组`);
+  if (cashOnlyFacilityIds.has(facility.id)) {
+    assert.deepEqual(facility.buildInputs, [], `${facility.id} 必须使用空建造材料数组`);
+  } else {
+    assert.ok(facility.buildInputs.length > 0, `${facility.id} 必须声明至少一种建造材料`);
+  }
   let materialReferenceValue = 0;
   for (const item of facility.buildInputs) {
     assert.ok(productIds.has(item.productId), `${facility.id} 建造材料必须引用正式商品`);
@@ -216,6 +222,8 @@ const catalogSource = readFileSync('server/src/industry-catalog.js', 'utf8');
 const methodSource = readFileSync('server/src/production-methods.js', 'utf8');
 assert.ok(coreSource.includes("from './industry-catalog.js'"), '核心领域必须读取单一产业目录');
 assert.equal(coreSource.includes('export const PRODUCT_CATALOG = Object.freeze(['), false, 'domain-core.js 不得复制正式商品目录');
+assert.equal(coreSource.includes('STARTER_CONSTRUCTION_MATERIALS'), false, '不得恢复新玩家建造材料包');
+assert.equal(coreSource.includes('grantStarterConstructionMaterials'), false, '不得恢复建造材料补发逻辑');
 assert.ok(catalogSource.includes("from './production-methods.js'"));
 assert.ok(methodSource.includes("id: 'rapid'"));
 assert.ok(methodSource.includes("id: 'economical'"));
@@ -243,8 +251,9 @@ for (const [path, texts] of [
     '模型 1 的未完成市场需求订单',
     '正式目录为每座工厂声明现金 `buildCost` 与商品数组 `buildInputs`',
     '客户端兼容字段 `buildTimeMs` 固定返回 `0`',
-    '资金和全部材料必须先完整校验，再原子扣除',
-    '首座工厂建造材料包',
+    '资金和适用的全部材料必须先完整校验，再原子扣除',
+    '农场和果园固定使用空 `buildInputs`',
+    '新玩家不再获得首座工厂建造材料包',
     '标准生产、高速生产、节约生产和高产生产',
     '基础、工具／饲料、化肥／药剂、拖拉机／机械化',
     '每周期整件消耗',
@@ -258,7 +267,7 @@ for (const [path, texts] of [
   for (const text of texts) assert.ok(content.includes(text), `${path} 缺少: ${text}`);
 }
 
-console.log('产业目录验证通过：36 种商品、26 种工厂、C1 固定作业制度、两位小数成本及 C2～C7 参考分钟利润梯度。');
+console.log('产业目录验证通过：36 种商品、26 种工厂、农场与果园现金建造、C1 固定作业制度及参考分钟利润梯度。');
 
 const fertilizerFacility = facilities.get('fertilizer-factory');
 assert.ok(fertilizerFacility, '化肥厂必须存在于正式目录');
