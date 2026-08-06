@@ -93,7 +93,7 @@ for (const text of [
 requireText('src/api/game.ts', "postAction('/research/start', { technologyId })");
 requireText('src/api/game.ts', "postAction('/research/accelerate')");
 requireText('src/types.ts', 'export interface ResearchTechnologyDefinition');
-requireText('src/types.ts', 'researchTechnologies: ResearchTechnologyDefinition[]');
+requireText('src/types.ts', 'researchTechnologies?: ResearchTechnologyDefinition[]');
 requireText('src/utils/authoritativeCountdowns.ts', 'game.research?.active?.completesAt');
 requireText('server/src/game-routes.js', "path === '/api/game/research/start'");
 requireText('server/src/game-routes.js', "path === '/api/game/research/accelerate'");
@@ -106,7 +106,7 @@ for (const text of [
 ]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 for (const text of [
   'C1–C7 只作为产业阶段',
-  '科技节点按照真实产业链设置前置关系',
+  '其余节点按照真实产业链设置前置关系',
   '旧客户端',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
