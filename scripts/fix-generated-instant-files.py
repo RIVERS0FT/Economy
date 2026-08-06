@@ -12,4 +12,23 @@ text = text[:start] + '''if (failures.length) {
 }
 ''' + text[end:]
 path.write_text(text, encoding='utf-8')
+
+path = Path('scripts/verify-form-state-isolation.mjs')
+text = path.read_text(encoding='utf-8')
+text = text.replace(
+    "'buildFacility: (facilityTypeId: string) => Promise<ActionResult>;',",
+    "'buildFacility: (facilityTypeId: string, quantity?: number) => Promise<ActionResult>;',",
+    1,
+)
+text = text.replace(
+    '''"buildFacility: (facilityTypeId) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId))",''',
+    '''"buildFacility: (facilityTypeId, quantity = 1) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId, quantity))",''',
+    1,
+)
+text = text.replace(
+    "'buildFacility(selectedType.id)',",
+    "'buildFacility(selectedType.id, buildQuantity)',",
+    1,
+)
+path.write_text(text, encoding='utf-8')
 print('generated instant files fixed')
