@@ -64,27 +64,27 @@ test('C1 work systems keep fixed time and cash cost while consuming whole goods 
   const plans = {
     farm: [
       { inputs: [], output: 1 },
-      { inputs: [{ productId: 'tools', quantity: 1 }], output: 51 },
-      { inputs: [{ productId: 'fertilizer', quantity: 2 }], output: 58 },
-      { inputs: [{ productId: 'tractor', quantity: 1 }], output: 102 },
+      { inputs: [{ productId: 'tools', quantity: 1 }], output: 12 },
+      { inputs: [{ productId: 'fertilizer', quantity: 2 }], output: 14 },
+      { inputs: [{ productId: 'tractor', quantity: 1 }], output: 16 },
     ],
     orchard: [
       { inputs: [], output: 1 },
-      { inputs: [{ productId: 'tools', quantity: 1 }], output: 48 },
-      { inputs: [{ productId: 'fertilizer', quantity: 2 }], output: 55 },
-      { inputs: [{ productId: 'tractor', quantity: 1 }], output: 96 },
+      { inputs: [{ productId: 'tools', quantity: 1 }], output: 11 },
+      { inputs: [{ productId: 'fertilizer', quantity: 2 }], output: 13 },
+      { inputs: [{ productId: 'tractor', quantity: 1 }], output: 15 },
     ],
     ranch: [
       { inputs: [], output: 1 },
-      { inputs: [{ productId: 'feed', quantity: 1 }], output: 6 },
-      { inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], output: 19 },
-      { inputs: [{ productId: 'machinery', quantity: 1 }], output: 35 },
+      { inputs: [{ productId: 'feed', quantity: 1 }], output: 4 },
+      { inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], output: 8 },
+      { inputs: [{ productId: 'machinery', quantity: 1 }], output: 9 },
     ],
     fishery: [
       { inputs: [], output: 1 },
-      { inputs: [{ productId: 'feed', quantity: 1 }], output: 5 },
-      { inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], output: 18 },
-      { inputs: [{ productId: 'machinery', quantity: 1 }], output: 33 },
+      { inputs: [{ productId: 'feed', quantity: 1 }], output: 4 },
+      { inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], output: 8 },
+      { inputs: [{ productId: 'machinery', quantity: 1 }], output: 9 },
     ],
   };
 

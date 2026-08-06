@@ -7,208 +7,195 @@ import {
   MARKET_DEMAND_PRODUCT_IDS,
   PRODUCT_CATALOG,
 } from '../server/src/domain.js';
+import {
+  POPULATION_BASE_WORLD,
+  POPULATION_C1_CAPACITY,
+  POPULATION_COMPLEXITY_WEIGHTS_BPS,
+  POPULATION_MIGRATION_IN_BPS,
+  POPULATION_MIGRATION_OUT_BPS,
+  POPULATION_STANDARD_BUDGET,
+  POPULATION_STANDARD_POPULATION,
+} from '../server/src/population-demographics.js';
 
 const read = (path) => readFileSync(path, 'utf8');
 const products = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 assert.equal(PRODUCT_CATALOG.length, 36);
-assert.equal(MARKET_DEMAND_MODEL_VERSION, 17);
+assert.equal(MARKET_DEMAND_MODEL_VERSION, 18);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.id), ['food', 'household']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.ownerName), ['食品市场需求', '家庭消费市场需求']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.name), ['食品市场', '社会消费市场']);
-assert.equal(MARKET_DEMAND_GROUP_CATALOG.reduce((sum, group) => sum + group.baseBudget, 0), 5_700);
-assert.equal(MARKET_DEMAND_GROUP_CATALOG.find((group) => group.id === 'food').baseBudget, 3_000);
-assert.equal(MARKET_DEMAND_GROUP_CATALOG.find((group) => group.id === 'household').baseBudget, 2_700);
-assert.deepEqual([...MARKET_DEMAND_PRODUCT_IDS].sort(), [...products.keys()].sort());
+assert.ok(MARKET_DEMAND_GROUP_CATALOG.every((group) => group.directBudgetShare === 0.70));
 
-const productGroups = new Map();
-for (const group of MARKET_DEMAND_GROUP_CATALOG) {
-  let classBudgetShare = 0;
-  for (const demandClass of group.classes) {
-    classBudgetShare += demandClass.budgetShare;
-    assert.ok(demandClass.minBudgetShare <= demandClass.budgetShare);
-    assert.ok(demandClass.budgetShare <= demandClass.maxBudgetShare);
-    const optionWeight = demandClass.products.reduce((sum, option) => sum + option.baseWeight, 0);
-    assert.ok(Math.abs(optionWeight - 1) < 1e-9, `${group.id}/${demandClass.id} 权重未归一`);
-    const minimumShare = demandClass.products.reduce((sum, option) => sum + Number(option.minShare || 0), 0);
-    assert.ok(minimumShare > 0 && minimumShare <= 1, `${group.id}/${demandClass.id} 最低份额总和无效`);
-    for (const option of demandClass.products) {
-      assert.ok(products.has(option.productId), `${option.productId} 不在正式目录`);
-      assert.ok(option.baseWeight > 0);
-      assert.ok(Number(option.minShare || 0) > 0);
-      const groups = productGroups.get(option.productId) || new Set();
-      groups.add(group.id);
-      productGroups.set(option.productId, groups);
-    }
-  }
-  assert.ok(Math.abs(classBudgetShare - 1) < 1e-9, `${group.id} 类别预算未归一`);
-}
+const groups = new Map(MARKET_DEMAND_GROUP_CATALOG.map((group) => [group.id, group]));
+assert.deepEqual(groups.get('food').classes.map((item) => item.id), ['staples', 'protein', 'fresh-drinks', 'convenience']);
+assert.deepEqual(groups.get('household').classes.map((item) => item.id), ['home', 'wear', 'daily', 'durables']);
+assert.ok(groups.get('food').classes.find((item) => item.id === 'fresh-drinks').products.some((item) => item.productId === 'fruit'));
+assert.ok(groups.get('household').classes.find((item) => item.id === 'durables').products.some((item) => item.productId === 'appliance'));
 
+assert.deepEqual([...MARKET_DEMAND_PRODUCT_IDS].sort(), PRODUCT_CATALOG.map((product) => product.id).sort());
 for (const product of PRODUCT_CATALOG) {
   assert.equal(product.marketDemandRole, 'direct', product.id);
-  assert.equal(product.populationDemandGroupId, product.marketDemandGroupId, product.id);
-  assert.equal(product.populationDemandTier, product.marketDemandTier, product.id);
-  assert.equal(productGroups.get(product.id)?.size, 1, `${product.id} 必须且只能属于一个直接需求市场`);
-  assert.equal(product.marketDemandGroupId, [...productGroups.get(product.id)][0], product.id);
+  assert.ok(product.marketDemandGroupId === 'food' || product.marketDemandGroupId === 'household', product.id);
 }
+for (const group of MARKET_DEMAND_GROUP_CATALOG) {
+  for (const demandClass of group.classes) {
+    const minimumTotal = demandClass.products.reduce((sum, option) => sum + Number(option.minShare || 0), 0);
+    assert.ok(minimumTotal > 0 && minimumTotal <= 1, `${group.id}/${demandClass.id} 最低份额无效`);
+    assert.ok(demandClass.products.every((option) => Number(option.minShare || 0) > 0));
+  }
+}
+assert.equal(MARKET_DEMAND_GROUP_CATALOG.reduce((sum, group) => sum + group.baseBudget, 0), 5_700);
+assert.equal(POPULATION_BASE_WORLD, 1_000);
+assert.equal(POPULATION_C1_CAPACITY, 11);
+assert.equal(POPULATION_STANDARD_POPULATION, 10_000);
+assert.equal(POPULATION_STANDARD_BUDGET, 5_700);
+assert.equal(POPULATION_MIGRATION_IN_BPS, 200);
+assert.equal(POPULATION_MIGRATION_OUT_BPS, 50);
+assert.deepEqual(POPULATION_COMPLEXITY_WEIGHTS_BPS, { C1: 10_000, C2: 15_000, C3: 22_000, C4: 32_000, C5: 45_000, C6: 62_000, C7: 85_000 });
 
 const runtime = [
-  'server/src/market-demand.js',
-  'server/src/market-demand/allocation.js',
-  'server/src/market-demand/state.js',
-  'server/src/market-demand/price-transmission.js',
   'server/src/population-economy.js',
   'server/src/population-demographics.js',
-  'server/src/population-policy.js',
-  'server/src/facility-groups.js',
-  'server/src/domain.js',
+  'server/src/market-demand.js',
+  'server/src/market-liquidity.js',
+  'server/src/market-demand/catalog.js',
+  'server/src/market-demand/math.js',
+  'server/src/market-demand/signals.js',
+  'server/src/market-demand/state.js',
+  'server/src/market-demand/price-transmission.js',
+  'server/src/market-demand/allocation.js',
+  'server/src/balanced-market.js',
+  'server/src/order-matching.js',
   'server/src/order-book-integrity.js',
 ].map(read).join('\n');
 for (const text of [
-  'MARKET_DEMAND_MODEL_VERSION = 17',
+  'MARKET_DEMAND_MODEL_VERSION = 18',
+  'MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION = 16',
   'DIRECT_BUDGET_SHARE = 0.70',
   "POPULATION_MODEL_IDS = Object.freeze(['basic', 'skilled', 'professional'])",
   "POPULATION_CONSUMPTION_STATES = Object.freeze(['lavish', 'prosperous', 'normal', 'strained', 'subsistence'])",
   'POPULATION_ECONOMY_VERSION = 7',
-  'POPULATION_DEMOGRAPHICS_VERSION = 2',
-  'BASE_POPULATION = 1_000',
-  'C1_CAPACITY_PER_FACTORY = 11',
-  'ACTIVE_CAPACITY_EMA_BPS = 2_000',
-  'MIGRATION_GAP_RATE_BPS = 200',
-  'BASELINE_OCCUPANCY_BPS = 3_500',
-  'BASELINE_DISPLACEMENT_BPS = 1_500',
-  'POPULATION_POLICY_DEFAULTS',
-  'populationPolicyValue',
-  'STABILIZATION_HORIZON_CYCLES = 3',
-  'DIRECT_BUDGET_SHARE',
-  'DERIVED_BUDGET_SHARE',
-  'PER_CAPITA_STABLE_BUDGET = 0.57',
-  'STRUCTURE_ADJUSTMENT_RATE_BPS = 250',
-  'EMPLOYMENT_DISTRIBUTION_BY_COMPLEXITY',
-  'CONSTRUCTION_EMPLOYMENT_DISTRIBUTION',
-  'function ensureEmploymentRemainders',
-  'function settleConstructionEmployment',
-  'function settleProductionEmployment',
-  'function assessPopulationConsumptionState',
-  'function derivePopulationBudgetSplit',
-  'function populationPressureEvidence',
-  'function directDemandTargetPrice',
-  'function reserveTargetPrice',
-  'function directAnchorCeiling',
-  'function normalQuoteShareForTier',
-  'function normalizePopulationEconomy',
-  'function normalizePopulationDemographics',
-  'function updatePopulationDemographics',
-  'function estimatePopulationDemandBudget',
-  'function computeEmploymentDiagnostics',
-  'function calculateFacilityPopulationCapacity',
-  'function schedulePopulationOrders',
-  'fundingSlices',
-  'stabilizationCredits',
-  'migrationFlow',
+  'POPULATION_BASE_WORLD = 1_000',
+  'POPULATION_C1_CAPACITY = 11',
+  'POPULATION_MIGRATION_IN_BPS = 200',
+  'POPULATION_MIGRATION_OUT_BPS = 50',
+  'POPULATION_CLASS_CONVERSION_BPS = 100',
+  'POPULATION_LABOR_PARTICIPATION_BPS = 5_500',
+  'populationReferenceBudget',
+  'advancePopulationDemographics',
+  'POPULATION_GROUP_SHARES_BY_STATE',
+  'PROSPEROUS_ENTRY_CYCLES = 2',
+  'LAVISH_ENTRY_CYCLES = 3',
+  'UPPER_STATE_DOWNGRADE_CYCLES = 2',
+  'model.recentPeakIncome = Math.max(model.incomeEma',
+  "setConsumptionState(model, 'strained'",
+  "setConsumptionState(model, 'subsistence'",
+  "const CONSTRUCTION_PROFILE = Object.freeze({ basic: 0.60, skilled: 0.30, professional: 0.10 })",
+  'preparePopulationDemandCycle',
+  'populationClassShares',
+  'reservePopulationOrder',
+  'settlePopulationPurchase',
   'populationModelId',
-  'populationClass',
-  'populationCount',
-  'populationClassShareBps',
   'fundingPool',
-  'ownerType: \'population\'',
-  'openingDemandCredits',
-  'openingDirectQuantity',
-  'deriveConsumptionService',
-  'rememberConsumptionService',
-  'demandClassPressure',
-  'demandClassPressureBps',
-  'quoteAnchors',
+  'fundingSlices',
+  'productBudgetDeficits',
+  "direct: 'direct'",
+  "'derived-liquidity': 'derived'",
+  'marginalPropensityToConsume: 0.95',
+  'marginalPropensityToConsume: 0.85',
+  'marginalPropensityToConsume: 0.72',
+  'LIQUIDITY_BASE_SPREAD = 0.08',
+  'LIQUIDITY_MIN_SPREAD = 0.04',
+  'LIQUIDITY_MAX_SPREAD = 0.24',
+  'LIQUIDITY_TARGET_MAX_RISE = 0.50',
+  'LIQUIDITY_TARGET_MAX_FALL = 0.25',
+  'POPULATION_STABILIZATION_BUDGET_SHARE = 0.12',
+  'POPULATION_STABILIZATION_TARGET_CYCLES = 3',
+  'POPULATION_STABILIZATION_DIRECT_SHARE = 0.85',
+  'INCOME_EMA_PREVIOUS_WEIGHT = 0.85',
+  'BUDGET_MAX_FALL = 0.12',
+  'PRODUCT_PRESSURE_ACTIVE_IMBALANCE_WEIGHT = 0.08',
+  'PRODUCT_PRESSURE_SUPPLY_RELIEF_WEIGHT = 0.10',
+  'PRODUCT_PRESSURE_EVIDENCE_TARGET = 8',
+  'LIQUIDITY_SIGNAL_WEIGHT = 0.50',
+  "LIQUIDITY_BUY = 'liquidity-buy'",
+  "LIQUIDITY_SELL = 'liquidity-sell'",
+  'seeded: wasSeeded || seedNow',
+  'groupState.frozenCredits = roundMoney(groupState.frozenCredits + reservedCredits)',
+  'reserve.frozenInventory += sellQuantity',
+  "resting.ownerType === 'population' && incoming.ownerType === 'population'",
+  'settleLiquidityBuy',
+  'settleLiquiditySell',
+  'SYSTEM_ORDER_RETENTION_RATE',
+  'DEMAND_CURVE',
+  'DIRECT_DEMAND_UNFILLED_PRICE_STEP = 1.0025',
+  'DIRECT_DEMAND_UNFILLED_REFERENCE_GAP_RATE = 0.02',
+  'DIRECT_DEMAND_BELOW_REFERENCE_RECOVERY_RATE = 0.01',
+  'DIRECT_DEMAND_UNFILLED_REFERENCE_MAX_RATE = 0.0075',
+  'DIRECT_DEMAND_SHORTAGE_PRICE_STEP = 1.0025',
+  'DIRECT_DEMAND_PRICE_RECOVERY_RATE = 0.30',
+  'DIRECT_DEMAND_OVERSUPPLY_PRICE_STEP = 0.98',
+  'DIRECT_DEMAND_OVERSUPPLY_ENTRY_CYCLES = 2',
+  'DIRECT_DEMAND_OVERSUPPLY_FILL_RATIO = 0.95',
+  'DIRECT_DEMAND_OVERSUPPLY_DELAY_SCORE = 0.85',
+  'DIRECT_DEMAND_MIN_PRICE = 0.01',
   'directQuoteAnchors',
+  'requiresDemandRebuild',
   'directOversupplyCycles',
-  'directServiceRatesBps',
-  'directQuoteRemainders',
-  'derivedQuoteAnchors',
-  'lastPressureSignals',
-  'playerOnlyMarketActivityAt',
-  'activityDecayFactor',
-  'reserveQuantityForQuote',
-  'limitReserveOrdersByValue',
-  'demandTier: \'market-reserve\'',
-  'reserveLiquidityForGroup',
-  'const initialCredits = group.initialCredits',
-  'releaseMarketDemandOrders',
-  'releasePopulationOrders',
-  'delete world.demandSystem',
-  'delete migrated.demandSystem',
-  'delete migrated.demandSystemVersion',
-  'delete state.dailyBudgets',
-  'delete state.dailyCredits',
-  'delete state.initialCredits',
-  'delete state.orderIds',
-  'delete state.initialSeeded',
-  'delete state.seedCredits',
-  'delete state.reservedCredits',
-  'delete state.reservedProducts',
-  'delete state.remainderCredits',
-  'delete state.remainderProducts',
-  'delete state.totalCredits',
-  'delete state.totalProducts',
-  'delete state.lastFilledAt',
-  'delete state.lastUnfilledAt',
-  'delete state.lastUnfilledQuantity',
-  'delete state.estimatedDemand',
-  'delete state.estimatedSupply',
-  'delete state.targetQuantity',
-  'delete state.quoteQuantity',
-  'delete state.maxQuantity',
-  'delete state.minQuantity',
-  'delete state.priceFloor',
-  'delete state.priceCeiling',
-  'delete state.priceStep',
-  'delete state.inventoryTarget',
-  'delete state.cashTarget',
-  'delete state.recentTrades',
-  'delete state.lastTradeAt',
-  'delete state.volumeEma',
-  'delete state.priceEma',
-  'delete state.lastMarketPrice',
-  'delete state.lastReferencePrice',
-  'delete state.lastTargetPrice',
-  'delete state.lastQuotePrice',
-  'delete state.lastQuoteQuantity',
-  'delete state.pendingQuantity',
-  'delete state.fulfilledQuantity',
-  'delete state.fillRate',
-  'delete state.orderCount',
-  'delete state.cycleCount',
-  'delete state.lastCycleBudget',
-  'delete state.cumulativeBudget',
-  'delete state.cumulativeSpend',
-  'delete state.lastCycleSpend',
-  'delete state.lastCycleQuantity',
-  'delete state.cumulativeQuantity',
-  'delete state.lastCyclePrice',
-  'delete state.priceHistory',
-  'delete state.quantityHistory',
-  'delete state.budgetHistory',
-  'delete state.spendHistory',
-  'delete state.serviceHistory',
-  'delete state.pressureHistory',
-  'delete state.lastUpdatedAt',
-  'delete state.createdAt',
-  'delete state.updatedAt',
-  'delete state.metadata',
-  'delete state.notes',
-  'delete state.description',
-  'delete state.label',
-  'delete state.displayName',
-  'delete state.ownerName',
-  'delete state.ownerId',
-  'delete state.ownerType',
-  'delete state.productId',
-  'delete state.groupId',
-  'delete state.classId',
-  'delete state.tierId',
-  'delete state.modelId',
-  'delete state.version',
-]) assert.ok(runtime.includes(text), '运行时缺少: ' + text);
+  'directDelayScore',
+  'PRODUCT_ORDER_VALUE_CYCLES',
+  'PRODUCT_PRESSURE_SMOOTHING',
+  'DERIVED_UNMET_WEIGHT',
+  'recipeSharesFor',
+  'complementGate',
+  'derivedRequirements',
+  'previousDemandQuantities',
+  'processPriceTransmission',
+]) assert.ok(runtime.includes(text), '市场需求实现缺少: ' + text);
+for (const forbidden of ['DEMAND_INVENTORY_BOOST_RATE', 'stockSnapshot.totalValue', 'inventoryFactor', 'playerScaleBudget * tradeActivityFactor', 'totalPopulationBaseBudget']) {
+  assert.equal(runtime.includes(forbidden), false, '人口需求不得恢复库存或活跃玩家增发预算: ' + forbidden);
+}
 
-const populationTests = read('server/test/all-products-demand.test.js') + read('server/test/population-economy.test.js');
+const domain = read('server/src/domain.js');
+for (const text of [
+  'buildMarketDemandMetadata',
+  'reachableGroups',
+  'MARKET_DEMAND_MODEL_VERSION',
+  'marketDemand.initializeWorld',
+  'marketDemand.normalizeWorld',
+  'marketDemand.process',
+  'balancedMarket.matchOrder(world, incoming, now)',
+  'reconcileCommodityOrderBook',
+  'ensurePopulationEconomy',
+  'world.version = 26',
+]) assert.ok(domain.includes(text), 'domain.js 缺少: ' + text);
+
+const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
+const standardRecipes = (facility) => facility.recipes.filter(
+  (recipe) => (recipe.productionMethodId || 'standard') === 'standard',
+);
+assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((recipe) => recipe.inputs), [
+  [{ productId: 'sugar', quantity: 1 }, { productId: 'milk', quantity: 1 }],
+  [{ productId: 'fruit', quantity: 2 }, { productId: 'sugar', quantity: 1 }],
+]);
+assert.deepEqual(facilities.get('appliance-factory').recipes[0].inputs, [
+  { productId: 'machinery', quantity: 1 }, { productId: 'electronics', quantity: 1 },
+]);
+
+const marketDemandTests = read('server/test/market-demand-v6.test.js');
+for (const text of [
+  'direct demand quote anchor accumulates fractional no-fill increases and recovers after service',
+  'sustained fast full service lowers all direct demand tiers below reference price',
+  'direct demand quote anchor stops at one cent',
+  'zero fill below reference recovers slowly while partial service recovers more gently',
+  'no direct demand converges toward reference and derived liquidity ignores a low direct anchor',
+  'shortage pressure approaches the reference premium by at most a quarter percent per cycle',
+  'market model 18 preserves model 16 demand state and escrow during rate-only migration',
+]) assert.ok(marketDemandTests.includes(text), '市场需求测试缺少模型 10 双向报价回归: ' + text);
+
+const populationTests = read('server/test/population-economy.test.js')
+  + read('server/test/population-demographics.test.js')
+  + read('server/test/all-products-demand.test.js');
 for (const text of [
   'production employment uses factory complexity and preserves every integer credit',
   'construction employment is fixed at 60/30/10 and ignores factory complexity',
@@ -237,78 +224,67 @@ for (const text of [
 ]) assert.ok(liquidityTests.includes(text), '储备测试缺少: ' + text);
 
 for (const [path, texts] of [
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：17', '单座 C1 工厂人口承载基数固定为 **11**', '每五分钟迁入剩余缺口的 **2%**', '实际人口 × 0.57', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点', '上一锚点的 0.75%', '参考价缺口的 5%', '最多为参考价的 2%', '只恢复 2.5% 缺口', '当前报价锚点上追涨 0.5%']],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：17', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '双向报价锚点']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：18', '单座 C1 工厂人口承载基数固定为 **11**', '每五分钟迁入剩余缺口的 **2%**', '实际人口 × 0.57', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点', '上一锚点的 0.25%', '参考价缺口的 2%', '最多为参考价的 0.75%', '只恢复 1% 缺口', '当前报价锚点上追涨 0.25%']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：18', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '双向报价锚点']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', 'population-demographics.js', '人口经济内部版本固定为 7', '五档状态只重新分配食品／家庭与类别份额', '市场需求模型 17', '人口消费不得发行普通货币']],
   ['src/api/admin.ts', ["'lavish' | 'prosperous' | 'normal' | 'strained' | 'subsistence'", 'PopulationDemographicsAdminSummary', 'currentPopulation', 'targetPopulation', 'structuralCapacityByComplexity', 'laborForce', 'employed', 'unemployed', 'vacancies', 'perCapitaIncomeEma', 'stateCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps', 'stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
   ['src/components/AdminPopulationHealth.tsx', ['实际／目标人口', '结构人口承载', '活跃承载 EMA', '就业／失业／岗位缺口', '人均收入 EMA', '产业人口承载', '累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充']],
   ['src/components/AdminPopulationSection.tsx', ['AdminPopulationControl']],
+  ['tests/browser/admin-runtime.spec.ts', ["consumptionState: 'lavish'", "consumptionState: 'prosperous'", "consumptionState: 'strained'", '状态判定指标', 'stabilization: 684', 'adminPopulation: 0', '累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充', '人口政策调控']],
 ]) {
   const content = read(path);
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
 
-console.log('市场需求验证通过：模型 17 使用工厂承载驱动的实际人口与真实钱包覆盖全部 36 种商品，并保持双向报价、派生流动性和市场储备约束。');
+console.log('市场需求验证通过：模型 18 使用工厂承载驱动的实际人口与真实钱包覆盖全部 36 种商品，并保持双向报价、派生流动性和市场储备约束。');
 
 const populationPolicy = read('server/src/population-policy.js');
 const populationControl = read('server/src/population-admin-control.js');
-const adminApi = read('server/src/admin-api.js');
-const populationPolicyTest = read('server/test/population-policy.test.js');
-const adminPopulationSource = read('src/components/AdminPopulationControl.tsx');
-const adminPopulationStyles = read('src/styles/admin-population.css');
-const adminPopulationBrowser = read('tests/browser/admin-population-control.spec.ts');
-for (const text of [
-  'function normalizePopulationPolicyValue',
-  'Number.isSafeInteger(units)',
-  'Math.abs(numeric) <= Number.MAX_SAFE_INTEGER',
-  'function projectedPopulationBudget',
-  'function projectedProductionWage',
-  'assertSafeMoneyValue(total, \'人口需求预算\')',
-  'assertSafeMoneyValue(scaledCost, \'人口工资系数\')',
-]) assert.ok(populationPolicy.includes(text), `人口政策安全边界缺少 ${text}`);
-for (const forbidden of [
-  'maximum:',
-  'MAX_DEMAND_MULTIPLIER_BPS',
-  'MAX_STABILIZATION_MULTIPLIER_BPS',
-  'MAX_PRODUCTION_WAGE_MULTIPLIER_BPS',
-]) assert.equal(populationPolicy.includes(forbidden), false, `人口政策不得恢复业务上限: ${forbidden}`);
-for (const text of [
-  'createPopulationPolicyRevision',
-  'world.revision = revision',
+const runtimeStore = read('server/src/runtime-store.js');
+const serverApp = read('server/src/app.js');
+const adminPopulationUi = read('src/components/AdminPopulationControl.tsx');
+for (const required of [
+  'POPULATION_POLICY_DEFAULTS',
+  'stabilizationShareBps: 1_200',
+  'targetWalletCycles: 3',
+  'refillCapBps: 10_000',
+  'durationCycles: Object.freeze({ min: 1 })',
+  'validatePopulationPolicyCapacity',
+  'safeMultiplyDivideFloor',
+]) {
+  if (!populationPolicy.includes(required)) throw new Error(`人口政策默认值或安全边界缺失: ${required}`);
+}
+for (const forbidden of ['max: 2_000', 'max: 5', 'max: 15_000', 'max: 288', 'noteLength', 'normalizePopulationAdminNote']) {
+  assert.equal(populationPolicy.includes(forbidden), false, `人口政策不得恢复业务上限或管理备注: ${forbidden}`);
+}
+for (const required of [
+  'topUpPopulationByPolicy',
+  'policyCycle.issuedByModel',
+  'state.stats.adminPopulationIssued',
+  'populationPolicyWalletTarget',
+]) {
+  if (!populationControl.includes(required)) throw new Error(`人口主动调控约束缺失: ${required}`);
+}
+for (const required of [
+  'class EconomyStore extends PersistentEconomyStore',
   'updatePopulationPolicy',
-  'topUpPopulationWallets',
-  'delete world.populationControlLog',
-]) assert.ok(populationControl.includes(text), `人口政策运行时缺少 ${text}`);
-for (const forbidden of [
-  'controlLog',
-  'adminNote',
-  'operatorNote',
-  '调控记录',
-]) assert.equal(populationControl.includes(forbidden), false, `人口政策不得保存管理备注或记录: ${forbidden}`);
-for (const text of [
-  "action: 'updatePopulationPolicy'",
-  "action: 'topUpPopulationWallets'",
-  'request.body?.expectedRevision',
-]) assert.ok(adminApi.includes(text), `管理员人口路由缺少 ${text}`);
-for (const text of [
-  'policy accepts values above former caps while preserving safe integer validation',
-  'policy rejects only unsafe numeric results rather than fixed business maxima',
-  'runtime population policy mutations are idempotent, accept values above former caps, and create no audit rows',
-]) assert.ok(populationPolicyTest.includes(text), `人口政策测试缺少 ${text}`);
-for (const text of [
-  'updatePopulationPolicy',
-  'topUpPopulationWallets',
-  '需求预算系数',
-  '稳定补充系数',
-  '生产工资系数',
-  '立即补充人口钱包',
-]) assert.ok(adminPopulationSource.includes(text), `管理员人口控件缺少 ${text}`);
-for (const forbidden of [
-  'admin-population-control__log',
-  '调控记录',
-  '最近操作',
-]) assert.equal(adminPopulationSource.includes(forbidden), false, `管理员人口控件不得恢复调控记录: ${forbidden}`);
-assert.ok(adminPopulationStyles.includes('.admin-population-control__grid'));
-assert.ok(adminPopulationBrowser.includes('管理员人口策略不要求备注且不显示调控记录'));
-
-console.log('人口政策验证通过：参数无业务上限、结果范围安全校验、同周期约束、到期恢复、幂等和无备注无记录均已锁定。');
+  'resetPopulationPolicy',
+  'topUpPopulation',
+]) {
+  if (!runtimeStore.includes(required)) throw new Error(`运行时人口政策存储缺失: ${required}`);
+}
+assert.ok(serverApp.includes("from './runtime-store.js'"), '生产服务必须使用不写入人口调控记录的运行时存储');
+assert.equal(serverApp.includes('/population-economy/audit'), false, '人口调控记录接口不得恢复');
+for (const required of [
+  '人口政策调控',
+  '当前政策',
+  '基础／技术／专业人口倍率',
+  '总持续时间',
+  '按当前政策立即补充',
+  '参数不设业务上限',
+]) {
+  if (!adminPopulationUi.includes(required)) throw new Error(`管理员人口调控界面缺失: ${required}`);
+}
+for (const forbidden of ['管理备注', '人口调控记录', 'populationPolicyAudit', 'max={20}', 'max={150}', 'max={288}']) {
+  assert.equal(adminPopulationUi.includes(forbidden), false, `管理员人口政策界面不得恢复: ${forbidden}`);
+}

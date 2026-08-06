@@ -4,17 +4,17 @@ import { ECONOMY_CONSTANTS, FACILITY_TYPE_CATALOG, MARKET_DEMAND_GROUP_CATALOG, 
 const standards = (facility) => facility.recipes.filter((recipe) => recipe.productionMethodId === 'standard');
 test('工具与工具工坊进入正式目录并保持 C4 参考利润', () => {
   assert.equal(PRODUCT_CATALOG.length, 36); assert.equal(FACILITY_TYPE_CATALOG.length, 26); assert.equal(ECONOMY_CONSTANTS.maxOpenOrders, 62);
-  assert.deepEqual(PRODUCT_CATALOG.find((x) => x.id === 'tools'), { id: 'tools', name: '工具', category: 'industrial', basePrice: 60, marketDemandGroupId: 'household', marketDemandRole: 'direct', marketDemandTier: 'final', populationDemandGroupId: 'household', populationDemandTier: 'final' });
+  assert.deepEqual(PRODUCT_CATALOG.find((x) => x.id === 'tools'), { id: 'tools', name: '工具', category: 'industrial', basePrice: 12, marketDemandGroupId: 'household', marketDemandRole: 'direct', marketDemandTier: 'final', populationDemandGroupId: 'household', populationDemandTier: 'final' });
   const f = FACILITY_TYPE_CATALOG.find((x) => x.id === 'tool-workshop'); assert.ok(f); assert.equal(f.complexity, 'C4'); assert.equal(f.buildCost, 320); assert.equal(f.buildTimeMs, 75 * 60_000); assert.equal(f.systemValue, 420);
-  const r = standards(f)[0]; assert.deepEqual(r.inputs, [{ productId: 'steel', quantity: 1 }, { productId: 'lumber', quantity: 1 }]); assert.deepEqual(r.output, { productId: 'tools', quantity: 1 }); assert.equal(r.cycleMs, 60_000); assert.equal(r.operatingCost, 8); assert.equal((60 - 29 - 17 - 8) * 60_000 / r.cycleMs, 6);
-  assert.deepEqual(f.recipes.map((x) => [x.productionMethodId, x.cycleMs, x.operatingCost, x.output.quantity]), [['standard',60000,8,1],['rapid',30000,11,1],['economical',90000,5,1],['high-yield',60000,22,2]]);
+  const r = standards(f)[0]; assert.deepEqual(r.inputs, [{ productId: 'steel', quantity: 1 }, { productId: 'lumber', quantity: 1 }]); assert.deepEqual(r.output, { productId: 'tools', quantity: 5 }); assert.equal(r.cycleMs, 60_000); assert.equal(r.operatingCost, 8); assert.equal((12 * 5 - 29 - 17 - 8) * 60_000 / r.cycleMs, 6);
+  assert.deepEqual(f.recipes.map((x) => [x.productionMethodId, x.cycleMs, x.operatingCost, x.output.quantity]), [['standard',60000,8,5],['rapid',30000,11,5],['economical',90000,5,5],['high-yield',60000,22,10]]);
   assert.deepEqual(standards(FACILITY_TYPE_CATALOG.find((x) => x.id === 'machine-factory'))[0].inputs, [{ productId: 'steel', quantity: 2 }]);
   const farm = FACILITY_TYPE_CATALOG.find((x) => x.id === 'farm');
   assert.deepEqual(farm.recipes.find((x) => x.id === 'wheat-crop--assisted').inputs, [{ productId: 'tools', quantity: 1 }]);
 });
-test('市场需求模型 17 在固定耐用品预算内加入工具需求', () => {
-  assert.equal(MARKET_DEMAND_MODEL_VERSION, 17); const h = MARKET_DEMAND_GROUP_CATALOG.find((x) => x.id === 'household'); const d = h.classes.find((x) => x.id === 'durables'); assert.equal(d.name, '金属、工具与耐用品'); assert.equal(d.budgetShare, .30); assert.equal(d.products.reduce((a,x)=>a+x.baseWeight,0), 1); assert.deepEqual(d.products.find((x)=>x.productId==='tools'), { productId:'tools', baseWeight:.14, utilityPerUnit:3, minShare:.06 }); assert.equal(h.seedDemandQuantities.tools,2);
+test('市场需求模型 18 在固定耐用品预算内加入工具需求', () => {
+  assert.equal(MARKET_DEMAND_MODEL_VERSION, 18); const h = MARKET_DEMAND_GROUP_CATALOG.find((x) => x.id === 'household'); const d = h.classes.find((x) => x.id === 'durables'); assert.equal(d.name, '金属、工具与耐用品'); assert.equal(d.budgetShare, .30); assert.equal(d.products.reduce((a,x)=>a+x.baseWeight,0), 1); assert.deepEqual(d.products.find((x)=>x.productId==='tools'), { productId:'tools', baseWeight:.14, utilityPerUnit:3, minShare:.06 }); assert.equal(h.seedDemandQuantities.tools,2);
 });
 test('世界版本 25 迁移补齐工具库存与市场且保留资产', () => {
-  const now=1786100000000,w=createWorld(now),p=ensurePlayer(w,{id:8,name:'迁移玩家'},now); p.credits=23456;p.inventories.steel.available=11;delete p.inventories.tools;delete w.markets.tools;w.version=24;const m=migrateWorld(w,now+1000);assert.equal(m.version,26);assert.equal(m.players['8'].credits,23456);assert.equal(m.players['8'].inventories.steel.available,11);assert.deepEqual(m.players['8'].inventories.tools,{available:0,frozen:0});assert.equal(m.markets.tools.lastPrice,60);
+  const now=1786100000000,w=createWorld(now),p=ensurePlayer(w,{id:8,name:'迁移玩家'},now); p.credits=23456;p.inventories.steel.available=11;delete p.inventories.tools;delete w.markets.tools;w.version=24;const m=migrateWorld(w,now+1000);assert.equal(m.version,26);assert.equal(m.players['8'].credits,23456);assert.equal(m.players['8'].inventories.steel.available,11);assert.deepEqual(m.players['8'].inventories.tools,{available:0,frozen:0});assert.equal(m.markets.tools.lastPrice,12);
 });

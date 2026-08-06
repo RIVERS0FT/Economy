@@ -5,10 +5,10 @@ import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../server/src/domain.js'
 const genericMethodIds = ['standard', 'rapid', 'economical', 'high-yield'];
 const c1MethodIds = ['standard', 'assisted', 'intensive', 'mechanized'];
 const expectedC1Plans = {
-  farm: [[], [['tools', 1], 51], [['fertilizer', 2], 58], [['tractor', 1], 102]],
-  orchard: [[], [['tools', 1], 48], [['fertilizer', 2], 55], [['tractor', 1], 96]],
-  ranch: [[], [['feed', 1], 6], [['veterinary-medicine', 1], 19], [['machinery', 1], 35]],
-  fishery: [[], [['feed', 1], 5], [['veterinary-medicine', 1], 18], [['machinery', 1], 33]],
+  farm: [[], [['tools', 1], 12], [['fertilizer', 2], 14], [['tractor', 1], 16]],
+  orchard: [[], [['tools', 1], 11], [['fertilizer', 2], 13], [['tractor', 1], 15]],
+  ranch: [[], [['feed', 1], 4], [['veterinary-medicine', 1], 8], [['machinery', 1], 9]],
+  fishery: [[], [['feed', 1], 4], [['veterinary-medicine', 1], 8], [['machinery', 1], 9]],
 };
 const productPrices = new Map(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice]));
 function hasAtMostTwoDecimals(value) {

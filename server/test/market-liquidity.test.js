@@ -65,14 +65,14 @@ function reserveTotals(world, groupId) {
   };
 }
 
-test('market model 17 creates inventory-backed buy and sell orders without system self-trades', () => {
+test('market model 18 creates inventory-backed buy and sell orders without system self-trades', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
   world.marketDemand.liquidity.groups.food.reserves.wheat.inventory = 6;
   prepareAllDemand(world);
   processWorld(world, now + 1);
 
-  assert.equal(MARKET_DEMAND_MODEL_VERSION, 17);
+  assert.equal(MARKET_DEMAND_MODEL_VERSION, 18);
   const systemOrders = world.orders.filter((order) => order.ownerType === 'population');
   assert.ok(systemOrders.some((order) => order.demandTier === 'direct'));
   assert.ok(systemOrders.some((order) => order.demandTier === 'derived-liquidity'));
@@ -234,7 +234,7 @@ test('model 3 migrates directly to model 17 with one-time reserve seeding', () =
 
   migrateWorld(world, now + 1);
 
-  assert.equal(world.marketDemand.modelVersion, 17);
+  assert.equal(world.marketDemand.modelVersion, 18);
   assert.equal(world.players[String(alice.id)].credits, 777);
   assert.equal(world.players[String(alice.id)].inventories.wheat.available, 9);
   assert.equal(world.orders.some((order) => order.id === 'model-3-market-order'), false);
@@ -257,7 +257,7 @@ test('model 5 migrates to model 17 and releases obsolete liquidity reservations'
 
   migrateWorld(world, now + 2);
 
-  assert.equal(world.marketDemand.modelVersion, 17);
+  assert.equal(world.marketDemand.modelVersion, 18);
   assert.equal(world.players[String(alice.id)].credits, 777);
   assert.equal(world.players[String(alice.id)].inventories.wheat.available, 9);
   assert.equal(world.orders.some((order) => oldSystemOrderIds.has(order.id)), false);

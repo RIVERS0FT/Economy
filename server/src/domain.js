@@ -24,6 +24,16 @@ export {
 
 const clone = (value) => structuredClone(value);
 const ORDER_BOOK_INTEGRITY_VERSION = 1;
+const C1_INPUT_BALANCE_MODEL_VERSION = 18;
+const C1_INPUT_BALANCE_PRODUCT_IDS = Object.freeze([
+  'tools',
+  'fertilizer',
+  'tractor',
+  'feed',
+  'veterinary-medicine',
+  'machinery',
+]);
+const C1_INPUT_BALANCE_PRODUCT_ID_SET = new Set(C1_INPUT_BALANCE_PRODUCT_IDS);
 const processedWorldAt = new WeakMap();
 
 function buildMarketDemandMetadata() {
@@ -130,7 +140,7 @@ function cancelLegacyCommodityOrder(world, order) {
   const player = world.players?.[String(order.ownerId)];
   const remaining = Math.max(0, Math.floor(Number(order.remaining || 0)));
   if (player && order.side === 'buy') {
-    const expectedRelease = remaining * Math.max(1, Math.floor(Number(order.price || 1)));
+    const expectedRelease = multiplyMoneyByInteger(Number(order.price || 0), remaining) || 0;
     const release = Math.min(Math.max(0, Number(player.frozenCredits || 0)), expectedRelease);
     player.frozenCredits = Math.max(0, Number(player.frozenCredits || 0) - release);
     player.credits = Number(player.credits || 0) + release;
@@ -145,6 +155,42 @@ function cancelLegacyCommodityOrder(world, order) {
   order.status = 'cancelled';
   closeOrderInOrderBook(world, order);
   return true;
+}
+
+function migrateC1InputBalance(world) {
+  for (const order of world.orders || []) {
+    if (
+      order.ownerType === 'player'
+      && orderKind(order) === 'commodity'
+      && C1_INPUT_BALANCE_PRODUCT_ID_SET.has(orderAssetId(order))
+      && balancedMarket.isOpenOrder(order)
+    ) cancelLegacyCommodityOrder(world, order);
+  }
+
+  const productMap = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
+  for (const productId of C1_INPUT_BALANCE_PRODUCT_IDS) {
+    const product = productMap.get(productId);
+    const market = world.markets?.[productId];
+    if (!product || !market) continue;
+    market.lastPrice = product.basePrice;
+    market.lastTradePrice = null;
+    market.demand ||= {};
+    Object.assign(market.demand, {
+      lastPrice: product.basePrice,
+      referencePrice: product.basePrice,
+      observedPrice: product.basePrice,
+      costAnchor: null,
+      downstreamValueAnchor: null,
+      demandPressureAnchor: product.basePrice,
+      targetPrice: product.basePrice,
+    });
+    if (world.marketDemand?.priceTransmission?.products) {
+      delete world.marketDemand.priceTransmission.products[productId];
+    }
+    if (world.priceTransmission?.products) delete world.priceTransmission.products[productId];
+    if (world.marketDemand?.productPressure) world.marketDemand.productPressure[productId] = 1;
+  }
+  if (world.marketDemand && typeof world.marketDemand === 'object') world.marketDemand.relations = {};
 }
 
 function reconcileCommodityOrderBook(world, now) {
@@ -188,8 +234,11 @@ export function migrateWorld(world, now = Date.now()) {
   if (!world || typeof world !== 'object') return createWorld(now);
   const previousVersion = Number(world.version || 0);
   const needsOrderBookRepair = Number(world.orderBookIntegrityVersion || 0) < ORDER_BOOK_INTEGRITY_VERSION;
-  const hadCompatibleMarketDemandModel = Number(world.marketDemand?.modelVersion || 0)
-    >= MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION;
+  const previousMarketDemandModelVersion = Number(world.marketDemand?.modelVersion || 0);
+  const needsC1InputBalanceMigration = previousMarketDemandModelVersion < C1_INPUT_BALANCE_MODEL_VERSION;
+  const hadCompatibleMarketDemandModel = previousMarketDemandModelVersion
+    >= MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION
+    && !needsC1InputBalanceMigration;
   const hadCurrentPopulationModel = Number(world.populationEconomy?.modelVersion || 0) >= 7;
   const hadCompatibleDemandSystem = hadCompatibleMarketDemandModel && hadCurrentPopulationModel;
   const existingMarketIds = new Set(Object.keys(world.markets || {}));
@@ -203,6 +252,7 @@ export function migrateWorld(world, now = Date.now()) {
   };
   const migrated = core.migrateWorld(world, now);
   balancedMarket.repairMissingMarkets(migrated, existingMarketIds, now, legacy);
+  if (needsC1InputBalanceMigration) migrateC1InputBalance(migrated);
   if (!hadCompatibleDemandSystem) {
     ensurePopulationEconomy(migrated, now);
     for (const order of migrated.orders || []) {
