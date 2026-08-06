@@ -43,12 +43,21 @@ if (failures.length === 0) {
     'minimum_free_kb=$((1024 * 1024))',
     'ECONOMY_DEPLOY_INSUFFICIENT_DISK',
     'ECONOMY_DEPLOY_AVAILABLE_KB=',
+    'dist/assets/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy/assets/"',
+    '--exclude assets/',
+    '--exclude index.html',
+    'index.html.next',
   ]) requireText(files.workflow, text);
 
   const workflow = read(files.workflow);
   const deleteBeforeCount = (workflow.match(/rsync -az --delete-before/g) ?? []).length;
-  if (deleteBeforeCount !== 3) {
-    failures.push(`部署工作流必须有 3 次 rsync --delete-before，当前为 ${deleteBeforeCount}`);
+  if (deleteBeforeCount !== 2) {
+    failures.push(`部署工作流必须只为 API 与便携 Node 运行时保留 2 次 rsync --delete-before，当前为 ${deleteBeforeCount}`);
+  }
+  const legacyWebsiteDeleteBefore = String.raw`rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+            dist/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy/"`;
+  if (workflow.includes(legacyWebsiteDeleteBefore)) {
+    failures.push('网站同步不得使用 rsync --delete-before 删除仍被旧客户端引用的哈希资源');
   }
 
   for (const text of [
@@ -91,6 +100,8 @@ if (failures.length === 0) {
     '至少为预计有效数据两倍再加 512 MiB',
     '删除临时 SQLite 前显式关闭全部连接',
     'Windows 本地行为验证与 Linux 正式部署共用同一实现',
+    'API 和便携 Node 运行时继续使用 `rsync --delete-before` 完整替换',
+    '旧哈希资源至少保留 400 天',
   ]) requireText(files.design, text);
 }
 
