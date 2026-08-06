@@ -1,0 +1,41 @@
+name: Apply C1 input balance
+
+on:
+  push:
+    branches:
+      - fix/c1-input-balance
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm ci
+      - run: node scripts/apply-c1-input-balance.mjs
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - name: Commit verified implementation
+        shell: bash
+        run: |
+          rm -- scripts/apply-c1-input-balance.mjs .github/workflows/apply-c1-input-balance.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          mapfile -t paths < <(git status --porcelain | sed -E 's/^.. //')
+          for path in "${paths[@]}"; do
+            git add -- "$path"
+          done
+          git diff --cached --check
+          git commit -m "平衡 C1 投入品价格与产量"
+          git push origin HEAD:fix/c1-input-balance
