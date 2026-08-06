@@ -31,10 +31,12 @@ jobs:
           set -u
           log_file="$RUNNER_TEMP/farm-orchard-batch-build.log"
           applicator="$RUNNER_TEMP/apply-farm-orchard-batch-build.py"
+          verifier_patch="$RUNNER_TEMP/patch-farm-orchard-build-verifiers.py"
           : > "$log_file"
 
           base64 -d scripts/apply-farm-orchard-batch-build.py.gz.b64 | gzip -d > "$applicator"
-          python3 -m py_compile "$applicator" >> "$log_file" 2>&1
+          cp scripts/patch-farm-orchard-build-verifiers.py "$verifier_patch"
+          python3 -m py_compile "$applicator" "$verifier_patch" >> "$log_file" 2>&1
 
           git checkout -B agent/fix-farm-orchard-batch-build origin/main >> "$log_file" 2>&1
 
@@ -49,6 +51,7 @@ jobs:
           }
 
           run_step "apply changes" python3 "$applicator"
+          run_step "update dependent verifiers" python3 "$verifier_patch"
           run_step "install dependencies" npm ci
           run_step "catalog verification" node scripts/verify-industry-catalog.mjs
           run_step "form state verification" node scripts/verify-form-state-isolation.mjs
