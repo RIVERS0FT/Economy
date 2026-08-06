@@ -34,12 +34,14 @@ jobs:
         run: |
           python3 scripts/apply-instant-facility-construction.py
           python3 scripts/apply-instant-construction-starter.py
+          python3 scripts/fix-generated-instant-files.py
 
       - name: Remove temporary automation
         run: |
           rm scripts/apply-instant-facility-construction.py
           rm scripts/apply-instant-construction-starter.py
           rm scripts/fix-instant-patcher.py
+          rm scripts/fix-generated-instant-files.py
           rm .github/workflows/agent-instant-facility-construction.yml
 
       - name: Install dependencies
@@ -68,7 +70,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm -- scripts/apply-instant-facility-construction.py scripts/apply-instant-construction-starter.py scripts/fix-instant-patcher.py .github/workflows/agent-instant-facility-construction.yml src/styles/production-gem-acceleration.css server/test/gem-construction-acceleration.test.js
+          git rm -- scripts/apply-instant-facility-construction.py scripts/apply-instant-construction-starter.py scripts/fix-instant-patcher.py scripts/fix-generated-instant-files.py .github/workflows/agent-instant-facility-construction.yml src/styles/production-gem-acceleration.css server/test/gem-construction-acceleration.test.js
           git add -- \
             README.md \
             docs/README.md \
