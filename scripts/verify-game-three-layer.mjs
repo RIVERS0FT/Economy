@@ -315,20 +315,30 @@ const unifiedAtmosphereCss = read('src/styles/financial-backdrop.css');
 for (const text of [
   'filter: saturate(0.72) contrast(1.08) brightness(0.72);',
   'filter: saturate(0.68) contrast(1.08) brightness(0.62);',
-  'opacity: 0.24;',
-  'opacity: 0.075;',
-  'opacity: 0.12;',
-  'opacity: 0.05;',
+  '--application-atmosphere-primary-glow: rgba(86, 224, 137, 0.10);',
+  '--application-atmosphere-secondary-glow: rgba(44, 176, 102, 0.06);',
+  '--application-atmosphere-shade-start: rgba(1, 7, 4, 0.96);',
+  '--application-atmosphere-shade-mid: rgba(2, 10, 6, 0.90);',
+  '--application-atmosphere-shade-focus: rgba(3, 12, 8, 0.84);',
+  '--application-atmosphere-shade-end: rgba(2, 9, 6, 0.90);',
+  '--application-atmosphere-grid-opacity: 0.16;',
+  '--application-atmosphere-noise-opacity: 0.045;',
+  '--application-atmosphere-primary-glow: rgba(86, 224, 137, 0.09);',
+  '--application-atmosphere-shade-start: rgba(1, 7, 4, 0.78);',
+  '--application-atmosphere-shade-mid: rgba(2, 10, 6, 0.76);',
+  '--application-atmosphere-shade-end: rgba(2, 8, 5, 0.90);',
+  '--application-atmosphere-grid-opacity: 0.08;',
+  '--application-atmosphere-noise-opacity: 0.03;',
 ]) requireText('src/styles/financial-backdrop.css', text);
 for (const text of [
   'brightness(0.5)',
   'brightness(0.42)',
   'brightness(0.43)',
   'brightness(0.36)',
-  'opacity: 0.065;',
-  'opacity: 0.045;',
-  'opacity: 0.16;',
-  'opacity: 0.09;',
+  'opacity: 0.24;',
+  'opacity: 0.075;',
+  'opacity: 0.12;',
+  'opacity: 0.05;',
 ]) forbidText('src/styles/financial-backdrop.css', text);
 if ((unifiedAtmosphereCss.match(/filter: saturate\(0\.72\) contrast\(1\.08\) brightness\(0\.72\);/g) ?? []).length !== 1) {
   failures.push('桌面认证、玩家与管理员必须且只能共享一套登录页摄影滤镜');
@@ -339,15 +349,19 @@ if ((unifiedAtmosphereCss.match(/filter: saturate\(0\.68\) contrast\(1\.08\) bri
 for (const text of [
   '认证、注册、九个玩家页面、管理员后台以及根级加载／异常状态',
   '页面或角色不得再覆盖这些参数',
+  '正常态摄影图片只作为低对比度空间纹理',
 ]) requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', text);
 for (const text of [
   '登录、玩家与管理员必须使用完全相同的摄影滤镜',
   '`data-app-backdrop` 只保留语义和状态路由职责',
+  '正常态摄影图片只承担低对比度空间纹理职责',
 ]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
 requireFile('tests/browser/application-atmosphere-consistency.spec.ts');
 for (const text of [
   'auth, game and admin share the desktop atmosphere baseline',
   'auth, game and admin share the mobile atmosphere baseline',
+  'locks the desktop atmosphere intensity',
+  'locks the mobile atmosphere intensity',
 ]) requireText('tests/browser/application-atmosphere-consistency.spec.ts', text);
 
 if (failures.length) {

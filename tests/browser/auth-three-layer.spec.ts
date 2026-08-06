@@ -407,11 +407,11 @@ test.describe('auth three-layer layout', () => {
       const loginGlass = await readAuthGlass(page);
       const atmosphere = await readMobileAtmosphere(page);
 
-      expect(atmosphere.backgroundImage).toContain('rgba(1, 7, 4, 0.62)');
-      expect(atmosphere.backgroundImage).toContain('rgba(2, 10, 6, 0.6)');
-      expect(atmosphere.backgroundImage).toContain('rgba(2, 8, 5, 0.82)');
-      expect(atmosphere.gridOpacity).toBe('0.12');
-      expect(atmosphere.noiseOpacity).toBe('0.05');
+      expect(atmosphere.backgroundImage).toContain('rgba(1, 7, 4, 0.78)');
+      expect(atmosphere.backgroundImage).toContain('rgba(2, 10, 6, 0.76)');
+      expect(atmosphere.backgroundImage).toContain('rgba(2, 8, 5, 0.9)');
+      expect(atmosphere.gridOpacity).toBe('0.08');
+      expect(atmosphere.noiseOpacity).toBe('0.03');
       expect(loginGlass.surfaceBackground).toBe('rgba(0, 0, 0, 0)');
       expect(loginGlass.surfaceBoxShadow).toBe('none');
       expect(loginGlass.surfaceElasticity).toBe('0');

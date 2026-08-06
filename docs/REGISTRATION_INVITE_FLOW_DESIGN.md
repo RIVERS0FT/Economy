@@ -1,10 +1,10 @@
 # Economy 注册邀请码与共享金融背景设计
 
 > 状态：当前权威设计  
-> 更新时间：2026-08-03
+> 更新时间：2026-08-06
 
 
-全应用氛围基线：认证、注册、九个玩家页面、管理员后台以及根级加载／异常状态继续保留 `auth`、`game`、`admin` 语义变体，但三者必须共享登录／注册页当前的摄影滤镜、渐变遮罩、网格和噪点参数；页面或角色不得再覆盖这些参数。仅 `data-app-tone="critical"` 允许叠加红色内暗角，且不得改变共享基线。
+全应用氛围基线：认证、注册、九个玩家页面、管理员后台以及根级加载／异常状态继续保留 `auth`、`game`、`admin` 语义变体，但三者必须共享登录／注册页当前的摄影滤镜、渐变遮罩、网格和噪点参数；页面或角色不得再覆盖这些参数。正常态摄影图片只作为低对比度空间纹理，第一视觉层必须是状态栏、导航、业务卡片和正文；不得通过降低共享遮罩、增强绿光、网格或噪点，使人物、窗框或建筑轮廓与业务内容争夺注意力。仅 `data-app-tone="critical"` 允许叠加红色内暗角，且不得改变共享基线。
 
 ## 1. 注册邀请码流程
 
@@ -32,7 +32,7 @@
 共享背景严格分为三个视觉层级：
 
 1. 图片层由根级 `.application-image-layer` 承载，统一使用响应式 `<picture>`、`object-fit: cover` 和装饰性空替代文本。桌面使用原图，移动端通过 `<source media="(max-width: 720px)">` 使用 `960px` 版本。页面、管理员分区、弹窗、详情抽屉、页内空状态和根级状态切换只复用同一图片 DOM 节点；浏览器缓存、解码结果和合成表面不得因为业务页面切换而失效。
-2. 氛围层由根级 `.application-atmosphere-layer` 承载。`data-app-backdrop` 只保留认证／玩家／管理员语义和状态路由职责，`data-app-tone` 只负责普通或 critical 警示暗角；对应选择器为 `html[data-app-backdrop="auth"|"game"|"admin"]` 与 `html[data-app-tone="normal"|"critical"]`。认证、九个玩家页面、管理员五个分区及根级普通状态必须使用完全相同的正常态视觉参数，并以登录／注册页当前样式为唯一基线：桌面图片滤镜固定为 `saturate(0.72) contrast(1.08) brightness(0.72)`，桌面渐变固定复用登录页横向明暗分布，网格与噪点透明度固定为 `0.24` 和 `0.075`；移动图片滤镜固定为 `saturate(0.68) contrast(1.08) brightness(0.62)`，纵向主遮罩固定使用 `rgba(1, 7, 4, 0.62)`、`rgba(2, 10, 6, 0.6)`、`rgba(2, 8, 5, 0.82)`，网格与噪点透明度固定为 `0.12` 和 `0.05`。`auth`、`game`、`admin` 不得再拥有角色级或页面级图片滤镜、渐变、网格或噪点覆盖；仅 `html[data-app-tone="critical"]` 可以在共享基线之上增加红色内暗角，且不得改变共享参数。`html[data-app-surface="auth"|"game"|"admin"|"loading"|"banned"|"error"] body::before` 必须关闭，网格只能存在于氛围层，避免形成第四个全局背景层。封禁、无权限和致命错误不得替换为纯色页面或另一张图片。
+2. 氛围层由根级 `.application-atmosphere-layer` 承载。`data-app-backdrop` 只保留认证／玩家／管理员语义和状态路由职责，`data-app-tone` 只负责普通或 critical 警示暗角；对应选择器为 `html[data-app-backdrop="auth"|"game"|"admin"]` 与 `html[data-app-tone="normal"|"critical"]`。认证、九个玩家页面、管理员五个分区及根级普通状态必须使用完全相同的正常态视觉参数，并以登录／注册页当前样式为唯一基线：桌面图片滤镜固定为 `saturate(0.72) contrast(1.08) brightness(0.72)`，桌面渐变固定使用两处低强度绿光 `0.10 / 0.06` 与横向主遮罩 `0.96 / 0.90 / 0.84 / 0.90`，网格与噪点透明度固定为 `0.16` 和 `0.045`；移动图片滤镜固定为 `saturate(0.68) contrast(1.08) brightness(0.62)`，顶部低强度绿光固定为 `0.09`，纵向主遮罩固定使用 `rgba(1, 7, 4, 0.78)`、`rgba(2, 10, 6, 0.76)`、`rgba(2, 8, 5, 0.90)`，网格与噪点透明度固定为 `0.08` 和 `0.03`。`auth`、`game`、`admin` 不得再拥有角色级或页面级图片滤镜、渐变、网格或噪点覆盖；仅 `html[data-app-tone="critical"]` 可以在共享基线之上增加红色内暗角，且不得改变共享参数。`html[data-app-surface="auth"|"game"|"admin"|"loading"|"banned"|"error"] body::before` 必须关闭，网格只能存在于氛围层，避免形成第四个全局背景层。封禁、无权限和致命错误不得替换为纯色页面或另一张图片。
 3. 内容层由根级 `.application-content-root`、现有认证内容、登录后共享外壳或根级状态外壳承担。认证、玩家、管理员与根级状态的图片层、氛围层和 `.application-content-root` 必须是同一个 `#root` 隔离根的直接子节点；图片与氛围固定使用 `z-index: -2 / -1`，`.application-content-root` 及其认证或登录后外壳全链保持 `z-index:auto`、`isolation:auto`、`filter:none` 与 `transform:none`，不得建立额外 stacking context，也不得按 `data-app-surface` 恢复状态专属层级。登录入口继续使用 `login-content-layer` 的桌面双列和移动单列；玩家游戏与管理员后台继续由 `SignedInShell` 承载桌面侧栏、唯一页面 `ScrollArea`、工作栏和移动导航；统一账号服务连接、代码包加载与权威游戏服务器连接统一由 `ApplicationLoadingState` 承载同一全屏居中加载结构，只允许替换中文文字，不得恢复深色加载卡片或创建平行加载样式；游戏状态加载失败由 `GameErrorStateShell` 使用同一基础布局承载错误内容。封禁、无权限和致命错误仍由 `PhotographicStateShell` 承载单一可滚动状态卡。不得为三层背景重建业务页面外壳、增加第二个主滚动容器或把整个页面恢复成不透明纯色面板。
 
 认证卡片必须使用 `src/components/auth/AuthCardSurface.tsx` 包装，并通过统一 `LiquidGlassSurface` 的 `desktopAuthCard`／`mobileAuthCard` 预设渲染。认证卡片任一时刻只能存在一个玻璃实例，`720px` 断点只允许在原位置切换预设，不得同时挂载桌面和移动卡片后用 CSS 隐藏。认证卡片继续使用 `layout="content"` 的自然内容高度，但真实登录／注册内容必须与状态栏相同，位于第三方 `.glass` 内的 `.liquid-glass-surface__content`，不得再作为玻璃效果外部的兄弟层。登录／注册、邀请码、验证码、错误和状态提示等由 React 直接提交的内容变化，必须在 `useLayoutEffect` 中读取 `scrollHeight`／`offsetHeight` 并于首次绘制前同步提交宿主高度；同一节点上的单个 `ResizeObserver` 和条件 `MutationObserver` 只负责字体、异步提示和容器宽度等提交后的补充变化。不得读取认证内容的 `getBoundingClientRect()` 作为高度权威，不得通过 revision 或 React `key` 重建认证内容，所有模式切换和 `720px` 断点切换都不得清空原生未受控表单值。

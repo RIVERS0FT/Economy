@@ -101,6 +101,15 @@ html[data-app-backdrop="admin"] .application-image-layer img {
 .application-atmosphere-layer {
   z-index: -1;
   overflow: hidden;
+  --application-atmosphere-primary-glow: rgba(86, 224, 137, 0.10);
+  --application-atmosphere-secondary-glow: rgba(44, 176, 102, 0.06);
+  --application-atmosphere-shade-start: rgba(1, 7, 4, 0.96);
+  --application-atmosphere-shade-mid: rgba(2, 10, 6, 0.90);
+  --application-atmosphere-shade-focus: rgba(3, 12, 8, 0.84);
+  --application-atmosphere-shade-end: rgba(2, 9, 6, 0.90);
+  --application-atmosphere-grid-opacity: 0.16;
+  --application-atmosphere-grid-size: 46px 46px;
+  --application-atmosphere-noise-opacity: 0.045;
 }
 
 
@@ -108,9 +117,9 @@ html[data-app-backdrop="auth"] .application-atmosphere-layer,
 html[data-app-backdrop="game"] .application-atmosphere-layer,
 html[data-app-backdrop="admin"] .application-atmosphere-layer {
   background:
-    radial-gradient(circle at 18% 20%, rgba(86, 224, 137, 0.16), transparent 30%),
-    radial-gradient(circle at 84% 78%, rgba(44, 176, 102, 0.11), transparent 34%),
-    linear-gradient(90deg, rgba(1, 7, 4, 0.94) 0%, rgba(2, 10, 6, 0.82) 38%, rgba(3, 12, 8, 0.69) 67%, rgba(2, 9, 6, 0.82) 100%);
+    radial-gradient(circle at 18% 20%, var(--application-atmosphere-primary-glow), transparent 30%),
+    radial-gradient(circle at 84% 78%, var(--application-atmosphere-secondary-glow), transparent 34%),
+    linear-gradient(90deg, var(--application-atmosphere-shade-start) 0%, var(--application-atmosphere-shade-mid) 38%, var(--application-atmosphere-shade-focus) 67%, var(--application-atmosphere-shade-end) 100%);
 }
 
 .application-atmosphere-layer::before,
@@ -124,14 +133,14 @@ html[data-app-backdrop="admin"] .application-atmosphere-layer {
   background-image:
     linear-gradient(rgba(210, 244, 222, 0.065) 1px, transparent 1px),
     linear-gradient(90deg, rgba(210, 244, 222, 0.065) 1px, transparent 1px);
-  background-size: 46px 46px;
+  background-size: var(--application-atmosphere-grid-size);
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.82), transparent 94%);
 }
 
 html[data-app-backdrop="auth"] .application-atmosphere-layer::before,
 html[data-app-backdrop="game"] .application-atmosphere-layer::before,
 html[data-app-backdrop="admin"] .application-atmosphere-layer::before {
-  opacity: 0.24;
+  opacity: var(--application-atmosphere-grid-opacity);
   background-image:
     linear-gradient(rgba(210, 244, 222, 0.07) 1px, transparent 1px),
     linear-gradient(90deg, rgba(210, 244, 222, 0.07) 1px, transparent 1px);
@@ -146,7 +155,7 @@ html[data-app-backdrop="admin"] .application-atmosphere-layer::before {
 html[data-app-backdrop="auth"] .application-atmosphere-layer::after,
 html[data-app-backdrop="game"] .application-atmosphere-layer::after,
 html[data-app-backdrop="admin"] .application-atmosphere-layer::after {
-  opacity: 0.075;
+  opacity: var(--application-atmosphere-noise-opacity);
 }
 
 html[data-app-tone="critical"] .application-atmosphere-layer {
@@ -259,6 +268,16 @@ html[data-app-tone="critical"] .application-atmosphere-layer {
 }
 
 @media (max-width: 720px) {
+  .application-atmosphere-layer {
+    --application-atmosphere-primary-glow: rgba(86, 224, 137, 0.09);
+    --application-atmosphere-shade-start: rgba(1, 7, 4, 0.78);
+    --application-atmosphere-shade-mid: rgba(2, 10, 6, 0.76);
+    --application-atmosphere-shade-end: rgba(2, 8, 5, 0.90);
+    --application-atmosphere-grid-opacity: 0.08;
+    --application-atmosphere-grid-size: 42px 42px;
+    --application-atmosphere-noise-opacity: 0.03;
+  }
+
   .application-image-layer img {
     object-position: 52% 48%;
   }
@@ -273,21 +292,21 @@ html[data-app-tone="critical"] .application-atmosphere-layer {
   html[data-app-backdrop="game"] .application-atmosphere-layer,
   html[data-app-backdrop="admin"] .application-atmosphere-layer {
     background:
-      radial-gradient(circle at 20% 14%, rgba(86, 224, 137, 0.15), transparent 30%),
-      linear-gradient(180deg, rgba(1, 7, 4, 0.62) 0%, rgba(2, 10, 6, 0.6) 36%, rgba(2, 8, 5, 0.82) 100%);
+      radial-gradient(circle at 20% 14%, var(--application-atmosphere-primary-glow), transparent 30%),
+      linear-gradient(180deg, var(--application-atmosphere-shade-start) 0%, var(--application-atmosphere-shade-mid) 36%, var(--application-atmosphere-shade-end) 100%);
   }
 
   html[data-app-backdrop="auth"] .application-atmosphere-layer::before,
   html[data-app-backdrop="game"] .application-atmosphere-layer::before,
   html[data-app-backdrop="admin"] .application-atmosphere-layer::before {
-    opacity: 0.12;
-    background-size: 42px 42px;
+    opacity: var(--application-atmosphere-grid-opacity);
+    background-size: var(--application-atmosphere-grid-size);
   }
 
   html[data-app-backdrop="auth"] .application-atmosphere-layer::after,
   html[data-app-backdrop="game"] .application-atmosphere-layer::after,
   html[data-app-backdrop="admin"] .application-atmosphere-layer::after {
-    opacity: 0.05;
+    opacity: var(--application-atmosphere-noise-opacity);
   }
 
   .photographic-state-shell {
