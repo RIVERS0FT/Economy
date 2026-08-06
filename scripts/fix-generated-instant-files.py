@@ -3,6 +3,7 @@ from pathlib import Path
 
 path = Path('scripts/verify-gem-shop.mjs')
 text = path.read_text(encoding='utf-8')
+text = text.replace("'工厂施工加速接口返回 `410 Gone`'", "'固定返回 `410 Gone`'", 1)
 start = text.index('if (failures.length) {')
 end = text.index("console.log('商店验证通过", start)
 text = text[:start] + '''if (failures.length) {
