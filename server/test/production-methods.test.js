@@ -38,27 +38,27 @@ const genericMethods = ['standard', 'rapid', 'economical', 'high-yield'];
 const expectedC1Methods = {
   farm: {
     standard: { inputs: [], output: 1 },
-    assisted: { inputs: [{ productId: 'tools', quantity: 1 }], output: 51 },
-    intensive: { inputs: [{ productId: 'fertilizer', quantity: 2 }], output: 58 },
-    mechanized: { inputs: [{ productId: 'tractor', quantity: 1 }], output: 102 },
+    assisted: { inputs: [{ productId: 'tools', quantity: 1 }], output: 12 },
+    intensive: { inputs: [{ productId: 'fertilizer', quantity: 2 }], output: 14 },
+    mechanized: { inputs: [{ productId: 'tractor', quantity: 1 }], output: 16 },
   },
   orchard: {
     standard: { inputs: [], output: 1 },
-    assisted: { inputs: [{ productId: 'tools', quantity: 1 }], output: 48 },
-    intensive: { inputs: [{ productId: 'fertilizer', quantity: 2 }], output: 55 },
-    mechanized: { inputs: [{ productId: 'tractor', quantity: 1 }], output: 96 },
+    assisted: { inputs: [{ productId: 'tools', quantity: 1 }], output: 11 },
+    intensive: { inputs: [{ productId: 'fertilizer', quantity: 2 }], output: 13 },
+    mechanized: { inputs: [{ productId: 'tractor', quantity: 1 }], output: 15 },
   },
   ranch: {
     standard: { inputs: [], output: 1 },
-    assisted: { inputs: [{ productId: 'feed', quantity: 1 }], output: 6 },
-    intensive: { inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], output: 19 },
-    mechanized: { inputs: [{ productId: 'machinery', quantity: 1 }], output: 35 },
+    assisted: { inputs: [{ productId: 'feed', quantity: 1 }], output: 4 },
+    intensive: { inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], output: 8 },
+    mechanized: { inputs: [{ productId: 'machinery', quantity: 1 }], output: 9 },
   },
   fishery: {
     standard: { inputs: [], output: 1 },
-    assisted: { inputs: [{ productId: 'feed', quantity: 1 }], output: 5 },
-    intensive: { inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], output: 18 },
-    mechanized: { inputs: [{ productId: 'machinery', quantity: 1 }], output: 33 },
+    assisted: { inputs: [{ productId: 'feed', quantity: 1 }], output: 4 },
+    intensive: { inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], output: 8 },
+    mechanized: { inputs: [{ productId: 'machinery', quantity: 1 }], output: 9 },
   },
 };
 
@@ -129,9 +129,9 @@ test('representative production method plans use the approved fixed-precision va
     }),
     [
       [20_000, [], 1, 1],
-      [20_000, [{ productId: 'tools', quantity: 1 }], 51, 1],
-      [20_000, [{ productId: 'fertilizer', quantity: 2 }], 58, 1],
-      [20_000, [{ productId: 'tractor', quantity: 1 }], 102, 1],
+      [20_000, [{ productId: 'tools', quantity: 1 }], 12, 1],
+      [20_000, [{ productId: 'fertilizer', quantity: 2 }], 14, 1],
+      [20_000, [{ productId: 'tractor', quantity: 1 }], 16, 1],
     ],
   );
 
@@ -214,10 +214,10 @@ test('running factory switches production method immediately with one staffing p
   processFacilityGroupWorld(world, now + 20_000);
   assert.equal(player.inventories.wheat.available, 0);
   processFacilityGroupWorld(world, now + 20_001);
-  assert.equal(player.inventories.wheat.available, 204);
+  assert.equal(player.inventories.wheat.available, 48);
   assert.equal(player.inventories.tools.available, 6);
   assert.ok(Math.abs(player.credits - 96) < 1e-9);
-  assert.equal(player.facilityGroups[0].lifetimeOutput, 204);
+  assert.equal(player.facilityGroups[0].lifetimeOutput, 48);
 });
 
 test('legacy C1 generic method IDs migrate safely to the base method', () => {

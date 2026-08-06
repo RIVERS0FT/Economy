@@ -25,7 +25,7 @@ test('化肥与化肥厂进入正式目录并保持 C4 参考利润', () => {
     id: 'fertilizer',
     name: '化肥',
     category: 'intermediate',
-    basePrice: 34,
+    basePrice: 6.76,
     marketDemandGroupId: 'household',
     marketDemandRole: 'direct',
     marketDemandTier: 'intermediate',
@@ -40,12 +40,18 @@ test('化肥与化肥厂进入正式目录并保持 C4 参考利润', () => {
   const recipe = standardRecipe(facility);
   assert.ok(recipe);
   assert.deepEqual(recipe.inputs, [{ productId: 'crude-oil', quantity: 2 }]);
-  assert.deepEqual(recipe.output, { productId: 'fertilizer', quantity: 1 });
+  assert.deepEqual(recipe.output, { productId: 'fertilizer', quantity: 6 });
   assert.equal(recipe.cycleMs, 60_000);
-  assert.equal(recipe.operatingCost, 10);
-  assert.equal((34 - 2 * 9 - 10) * 60_000 / recipe.cycleMs, 6);
+  assert.equal(recipe.operatingCost, 16.56);
+  const inputValue = recipe.inputs.reduce((sum, input) => (
+    sum + PRODUCT_CATALOG.find((item) => item.id === input.productId).basePrice * input.quantity
+  ), 0);
+  const profitPerMinute = (
+    product.basePrice * recipe.output.quantity - inputValue - recipe.operatingCost
+  ) * 60_000 / recipe.cycleMs;
+  assert.ok(Math.abs(profitPerMinute - 6) < 1e-9);
   assert.equal(facility.recipes.length, 4);
-  assert.equal(MARKET_DEMAND_MODEL_VERSION, 17);
+  assert.equal(MARKET_DEMAND_MODEL_VERSION, 18);
 });
 
 test('世界版本 25 迁移仍补齐化肥库存与市场且保留既有资产', () => {
@@ -64,5 +70,5 @@ test('世界版本 25 迁移仍补齐化肥库存与市场且保留既有资产'
   assert.equal(migrated.players['7'].inventories.wheat.available, 77);
   assert.deepEqual(migrated.players['7'].inventories.fertilizer, { available: 0, frozen: 0 });
   assert.equal(migrated.markets.fertilizer.productId, 'fertilizer');
-  assert.equal(migrated.markets.fertilizer.lastPrice, 34);
+  assert.equal(migrated.markets.fertilizer.lastPrice, 6.76);
 });

@@ -20,10 +20,10 @@ const expectedFacilities = [
 const expectedPrices = {
   wheat: 1.2, rice: 1.2, cotton: 1.2, sugarcane: 1.2, fruit: 1.3, timber: 6, ore: 7,
   'copper-ore': 7, 'crude-oil': 9, meat: 2.4, eggs: 2.4, milk: 2.4, fish: 2.5, wool: 2.4,
-  flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, fertilizer: 34, feed: 10,
-  'veterinary-medicine': 40, textile: 20, pulp: 20, food: 15, beverage: 18,
-  'prepared-meal': 18, paper: 15, furniture: 24, clothing: 55, tools: 60, machinery: 76,
-  tractor: 120, electronics: 84, appliance: 92,
+  flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, fertilizer: 6.76, feed: 5.8,
+  'veterinary-medicine': 14.1, textile: 20, pulp: 20, food: 15, beverage: 18,
+  'prepared-meal': 18, paper: 15, furniture: 24, clothing: 55, tools: 12, machinery: 15.55,
+  tractor: 15.35, electronics: 84, appliance: 92,
 };
 const expectedConstruction = {
   farm: { complexity: 'C1', buildCost: 50, buildTimeMs: 30_000, systemValue: 65 },
@@ -67,10 +67,10 @@ const expectedC1ProfitByFacility = { farm: 0.6, orchard: 0.9, ranch: 0.8, fisher
 const expectedProductionMethods = ['standard', 'rapid', 'economical', 'high-yield'];
 const expectedC1ProductionMethods = ['standard', 'assisted', 'intensive', 'mechanized'];
 const expectedC1Plans = {
-  farm: [[], [['tools', 1], 51], [['fertilizer', 2], 58], [['tractor', 1], 102]],
-  orchard: [[], [['tools', 1], 48], [['fertilizer', 2], 55], [['tractor', 1], 96]],
-  ranch: [[], [['feed', 1], 6], [['veterinary-medicine', 1], 19], [['machinery', 1], 35]],
-  fishery: [[], [['feed', 1], 5], [['veterinary-medicine', 1], 18], [['machinery', 1], 33]],
+  farm: [[], [['tools', 1], 12], [['fertilizer', 2], 14], [['tractor', 1], 16]],
+  orchard: [[], [['tools', 1], 11], [['fertilizer', 2], 13], [['tractor', 1], 15]],
+  ranch: [[], [['feed', 1], 4], [['veterinary-medicine', 1], 8], [['machinery', 1], 9]],
+  fishery: [[], [['feed', 1], 4], [['veterinary-medicine', 1], 8], [['machinery', 1], 9]],
 };
 
 function standardRecipes(facility) {
@@ -211,7 +211,7 @@ assert.equal(standardRecipes(facilities.get('food-factory'))[1].operatingCost, 1
 assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.operatingCost), [14.6, 14.4]);
 assert.equal(standardRecipes(facilities.get('furniture-factory'))[0].operatingCost, 8);
 assert.deepEqual(standardRecipes(facilities.get('tool-workshop'))[0].inputs, [{ productId: 'steel', quantity: 1 }, { productId: 'lumber', quantity: 1 }]);
-assert.deepEqual(standardRecipes(facilities.get('tool-workshop'))[0].output, { productId: 'tools', quantity: 1 });
+assert.deepEqual(standardRecipes(facilities.get('tool-workshop'))[0].output, { productId: 'tools', quantity: 5 });
 assert.deepEqual(standardRecipes(facilities.get('electronics-factory'))[0].inputs, [
   { productId: 'plastic', quantity: 1 }, { productId: 'copper', quantity: 1 },
 ]);
@@ -272,6 +272,6 @@ const fertilizerFacility = facilities.get('fertilizer-factory');
 assert.ok(fertilizerFacility, '化肥厂必须存在于正式目录');
 assert.equal(fertilizerFacility.name, '化肥厂');
 assert.deepEqual(standardRecipes(fertilizerFacility)[0].inputs, [{ productId: 'crude-oil', quantity: 2 }]);
-assert.deepEqual(standardRecipes(fertilizerFacility)[0].output, { productId: 'fertilizer', quantity: 1 });
+assert.deepEqual(standardRecipes(fertilizerFacility)[0].output, { productId: 'fertilizer', quantity: 6 });
 assert.equal(standardRecipes(fertilizerFacility)[0].cycleMs, 60_000);
-assert.equal(standardRecipes(fertilizerFacility)[0].operatingCost, 10);
+assert.equal(standardRecipes(fertilizerFacility)[0].operatingCost, 16.56);

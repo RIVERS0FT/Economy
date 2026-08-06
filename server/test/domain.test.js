@@ -194,10 +194,10 @@ test('expanded industry catalog exposes fruit and complete production chains', (
   const expectedPrices = {
     wheat: 1.2, rice: 1.2, cotton: 1.2, sugarcane: 1.2, fruit: 1.3, timber: 6, ore: 7,
     'copper-ore': 7, 'crude-oil': 9, meat: 2.4, eggs: 2.4, milk: 2.4, fish: 2.5, wool: 2.4,
-    flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, fertilizer: 34, feed: 10,
-    'veterinary-medicine': 40, textile: 20, pulp: 20, food: 15, beverage: 18,
-    'prepared-meal': 18, paper: 15, furniture: 24, clothing: 55, tools: 60, machinery: 76,
-    tractor: 120, electronics: 84, appliance: 92,
+    flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, fertilizer: 6.76, feed: 5.8,
+    'veterinary-medicine': 14.1, textile: 20, pulp: 20, food: 15, beverage: 18,
+    'prepared-meal': 18, paper: 15, furniture: 24, clothing: 55, tools: 12, machinery: 15.55,
+    tractor: 15.35, electronics: 84, appliance: 92,
   };
   assert.deepEqual(Object.fromEntries(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice])), expectedPrices);
 

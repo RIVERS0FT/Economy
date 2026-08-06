@@ -281,7 +281,7 @@ test('shortage pressure approaches the reference premium by at most a quarter pe
 });
 
 
-test('market model 17 preserves model 16 demand state and escrow during rate-only migration', () => {
+test('market model 18 preserves model 16 demand state and escrow during rate-only migration', () => {
   const now = 1_700_000_000_000;
   const runtime = createRuntime();
   const world = createTestWorld(now);
@@ -311,7 +311,7 @@ test('market model 17 preserves model 16 demand state and escrow during rate-onl
   world.marketDemand.modelVersion = 16;
   runtime.normalizeWorld(world, now + 1_000);
 
-  assert.equal(world.marketDemand.modelVersion, 17);
+  assert.equal(world.marketDemand.modelVersion, 18);
   assert.equal(world.marketDemand.groups.food.directQuoteAnchors[productId], 2.3456);
   assert.equal(world.marketDemand.groups.food.directOversupplyCycles[productId], 4);
   assert.deepEqual({ status: order.status, remaining: order.remaining, price: order.price }, orderBefore);
