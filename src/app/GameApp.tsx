@@ -42,7 +42,7 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
       return model.buildFacility(facilityTypeId);
     },
     startFacility: (facilityTypeId) => {
-      tutorial.recordFacilityStartClick(facilityTypeId);
+      tutorial.recordFacilityStartClick();
       return model.startFacility(facilityTypeId);
     },
     placeAssetOrder: (assetKind, assetId, side, quantity, price) => {
@@ -122,7 +122,7 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
   if (viewModel.status === 'error') {
     return (
       <GameErrorStateShell>
-        <div><strong>无法加载游戏状态</strong><p><CurrencyText>{viewModel.message}</CurrencyText></p><button type="button" onClick={viewModel.retry}>重新连接</button></div>
+        <div><strong>无法加载游戏状态</strong><p><CurrencyText>{viewModel.message}</CurrencyText></p><button type="button" onClick={() => window.location.reload()}>刷新页面</button></div>
       </GameErrorStateShell>
     );
   }
