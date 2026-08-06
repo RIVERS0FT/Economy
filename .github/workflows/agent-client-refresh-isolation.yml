@@ -50,12 +50,16 @@ jobs:
       - name: Run focused browser regression
         run: npm run test:browser -- tests/browser/research-technology-tree.spec.ts
 
-      - name: Remove temporary implementation files
+      - name: Remove and stage temporary implementation files
         run: |
           rm -f .agent/apply-client-refresh-isolation.mjs
           rm -f .agent/fix-client-refresh-isolation-build.mjs
           rm -f .github/workflows/agent-client-refresh-isolation.yml
           rmdir .agent 2>/dev/null || true
+          git add -u -- \
+            .agent/apply-client-refresh-isolation.mjs \
+            .agent/fix-client-refresh-isolation-build.mjs \
+            .github/workflows/agent-client-refresh-isolation.yml
 
       - name: Run full build
         run: npm run build
@@ -79,10 +83,7 @@ jobs:
             scripts/verify-research-progression.mjs \
             docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
             docs/UI_DESIGN_SYSTEM.md \
-            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
-            .agent/apply-client-refresh-isolation.mjs \
-            .agent/fix-client-refresh-isolation-build.mjs \
-            .github/workflows/agent-client-refresh-isolation.yml
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
           git commit -m "隔离轮询与客户端交互状态 [agent-applied]"
           git push origin HEAD:fix/client-refresh-isolation
           test -z "$(git status --porcelain)"
