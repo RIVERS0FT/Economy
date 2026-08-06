@@ -90,12 +90,10 @@ jobs:
           git status --short
           git diff --stat
 
-      - name: Commit verified implementation
+      - name: Stage verified implementation
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "RIVERSOFT Automation"
-          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
           git add -- \
             README.md \
             docs/*.md \
@@ -122,5 +120,19 @@ jobs:
           git add -u -- .agent
           git diff --cached --check
           git status --short
+          git diff --cached --stat
+
+      - name: Commit verified implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "RIVERSOFT Automation"
+          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
           git commit -m "拆分产业科技研发"
+          git rev-parse HEAD
+
+      - name: Push verified implementation
+        shell: bash
+        run: |
+          set -euo pipefail
           git push origin HEAD:feature/split-research-technologies
