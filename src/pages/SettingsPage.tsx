@@ -1,5 +1,14 @@
 import { type ChangeEvent, useState } from 'react';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
+import {
+  deleteGameSave,
+  getSaveDeletionPreflight,
+  resetGameStateDelivery,
+  type SaveDeletionPreflight,
+} from '../api/game';
+import { clearTutorialRun, setPendingTutorialCompletion } from '../game-guide/tutorialStorage';
+import { notificationStorageKey } from '../notifications/notificationCenter';
+import { navigationBadgeStorageKey } from '../navigation/navigationBadges';
 import { SelectInput, TextInput } from '../components/ui/FormControls';
 import {
   Button,
@@ -29,6 +38,8 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
     tutorial,
   } = model;
   const [giftCode, setGiftCode] = useState('');
+  const [saveDeletionPreflight, setSaveDeletionPreflight] = useState<SaveDeletionPreflight | null>(null);
+  const [deletingSave, setDeletingSave] = useState(false);
   const roleLabel = user.role === 'admin' ? '管理员' : '普通用户';
 
   async function submitGift() {
@@ -46,8 +57,61 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
     if (confirmed) tutorial.restart();
   }
 
+  function clearDeletedSaveClientState() {
+    clearTutorialRun(user.id);
+    setPendingTutorialCompletion(user.id, false);
+    model.clearLocalTrades();
+    try {
+      window.localStorage.removeItem(notificationStorageKey(user.id));
+      window.localStorage.removeItem(navigationBadgeStorageKey(user.id));
+    } catch {
+      // Browser-local history is optional and must not make an authoritative deletion look failed.
+    }
+    resetGameStateDelivery();
+  }
+
+  async function requestSaveDeletion() {
+    if (deletingSave) return;
+    setDeletingSave(true);
+    try {
+      const preflight = await getSaveDeletionPreflight();
+      setSaveDeletionPreflight(preflight);
+      if (!preflight.allowed) {
+        model.notify(preflight.blockers.map((entry) => entry.message).join('；'));
+        return;
+      }
+
+      const autoCloseCount = Object.values(preflight.autoClose)
+        .reduce((sum, value) => sum + Number(value || 0), 0);
+      const confirmed = window.confirm(
+        [
+          '删除后将恢复为新玩家初始经济状态：普通货币、库存、工厂、研发、银行资产和经营统计会被清空。',
+          '统一账号、注册时间、宝石、邀请码、签到、礼品兑换、封禁和服务器审计记录会保留。',
+          autoCloseCount > 0 ? `服务器将先自动关闭 ${autoCloseCount} 个可安全取消的订单、挂牌、拍卖或合同。` : '',
+          '该操作每个账号只能自行执行一次，且不可撤销。',
+        ].filter(Boolean).join('\n\n'),
+      );
+      if (!confirmed) return;
+
+      const confirmation = window.prompt('请输入“删除存档”确认永久删除当前经济存档。');
+      if (confirmation !== '删除存档') {
+        model.notify('确认文字不匹配，未删除存档');
+        return;
+      }
+
+      const response = await deleteGameSave(confirmation);
+      clearDeletedSaveClientState();
+      model.notify(response.result.message);
+      window.location.assign('/economy/');
+    } catch (error) {
+      model.notify(error instanceof Error ? error.message : '删除存档失败');
+    } finally {
+      setDeletingSave(false);
+    }
+  }
+
   return (
-    <PageLayout title="设置" description="管理玩家资料、客户端偏好、基础教程和礼品兑换。">
+    <PageLayout title="设置" description="管理玩家资料、客户端偏好、基础教程、礼品兑换和当前经济存档。">
       <div className="settings-layout">
         <div className="settings-primary-column">
           <Panel className="widget profile-settings-card">
@@ -146,6 +210,32 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
                 </div>
               </section>
             ) : null}
+
+            <section className="account-action-group save-deletion-group" aria-labelledby="save-deletion-heading">
+              <div className="save-deletion-heading">
+                <h3 id="save-deletion-heading">存档管理</h3>
+                <StatusTag tone="danger">不可撤销</StatusTag>
+              </div>
+              <p>
+                恢复为新玩家初始经济状态。普通货币、库存、工厂、研发、银行资产和经营统计将被清空；
+                账号、注册时间、宝石、邀请码及领取和审计记录保留。
+              </p>
+              {saveDeletionPreflight?.blockers.length ? (
+                <ul className="save-deletion-blockers" aria-label="删除存档阻止事项">
+                  {saveDeletionPreflight.blockers.map((entry) => (
+                    <li key={`${entry.type}-${entry.message}`}>{entry.message}</li>
+                  ))}
+                </ul>
+              ) : null}
+              <Button
+                block
+                variant="danger"
+                disabled={deletingSave || saveDeletionPreflight?.alreadyUsed === true}
+                onClick={() => void requestSaveDeletion()}
+              >
+                {deletingSave ? '正在检查存档…' : '删除存档'}
+              </Button>
+            </section>
 
             <section className="account-action-group" aria-labelledby="current-session-heading">
               <h3 id="current-session-heading">当前会话</h3>

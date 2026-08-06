@@ -10,6 +10,7 @@ import { acceptServerNow, resetServerClock } from '../utils/serverClock.js';
 
 const GAME_API_BASE = '/economy-api/game';
 const stateDeliveryCache = createStateDeliveryCache();
+let currentSaveEpoch: number | null = null;
 const DEFAULT_READ_TIMEOUT_MS = 8_000;
 const DEFAULT_WRITE_TIMEOUT_MS = 12_000;
 const NETWORK_ERROR_MESSAGE = '无法连接服务器，客户端或服务器可能已经更新，请刷新页面后重试';
@@ -20,6 +21,28 @@ export interface GameActionResult { ok: boolean; message: string; }
 export interface GameActionResponse {
   result: GameActionResult;
   revision: number;
+}
+export interface SaveDeletionBlocker {
+  type: string;
+  message: string;
+  targetTab?: 'market' | 'auction' | 'contracts' | 'bank' | 'settings';
+}
+export interface SaveDeletionPreflight {
+  allowed: boolean;
+  alreadyUsed: boolean;
+  blockers: SaveDeletionBlocker[];
+  autoClose: {
+    orders: number;
+    facilityListings: number;
+    auctions: number;
+    contracts: number;
+  };
+  saveEpoch: number;
+  checkedAt: number;
+  revision: number;
+}
+export interface SaveDeletionResponse extends GameActionResponse {
+  saveEpoch: number;
 }
 export interface GameStatePollResponse extends StateDeliveryEnvelope { state?: EconomyState; }
 export interface TutorialCompletionState {
@@ -105,6 +128,7 @@ function knownPartitionRevisions() {
 
 export function resetGameStateDelivery() {
   stateDeliveryCache.reset();
+  currentSaveEpoch = null;
   resetServerClock();
 }
 
@@ -131,7 +155,12 @@ function createTimedSignal(source: AbortSignal | null | undefined, timeoutMs: nu
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   if (init?.body) headers.set('Content-Type', 'application/json');
-  if (init?.method && init.method !== 'GET') headers.set('Idempotency-Key', createRequestKey());
+  if (init?.method && init.method !== 'GET') {
+    headers.set('Idempotency-Key', createRequestKey());
+    if (Number.isInteger(currentSaveEpoch)) {
+      headers.set('X-Economy-Save-Epoch', String(currentSaveEpoch));
+    }
+  }
   const timeoutMs = init?.method && init.method !== 'GET'
     ? DEFAULT_WRITE_TIMEOUT_MS
     : DEFAULT_READ_TIMEOUT_MS;
@@ -154,7 +183,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const payload = await response.json() as unknown;
     if (isStateDeliveryPayload(payload)) {
       acceptServerNow(payload.serverNow);
-      return stateDeliveryCache.accept(payload) as T;
+      const accepted = stateDeliveryCache.accept(payload);
+      const deliveredState = (accepted as StateDeliveryEnvelope & { state?: EconomyState }).state;
+      if (Number.isInteger(deliveredState?.saveEpoch)) {
+        currentSaveEpoch = Number(deliveredState?.saveEpoch);
+      }
+      return accepted as T;
     }
     return payload as T;
   } catch (reason) {
@@ -213,6 +247,21 @@ export async function getAuctionBidHistory(auctionId: string, signal?: AbortSign
     { method: 'GET', signal },
   );
   return payload.history;
+}
+
+export async function getSaveDeletionPreflight(signal?: AbortSignal): Promise<SaveDeletionPreflight> {
+  const payload = await request<{ preflight: SaveDeletionPreflight }>(
+    '/save-deletion/preflight',
+    { method: 'GET', signal },
+  );
+  return payload.preflight;
+}
+
+export async function deleteGameSave(confirmation: string): Promise<SaveDeletionResponse> {
+  return request<SaveDeletionResponse>('/save-deletion', {
+    method: 'POST',
+    body: JSON.stringify({ confirmation }),
+  });
 }
 
 export const gameActions = {

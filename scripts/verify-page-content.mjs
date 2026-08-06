@@ -458,6 +458,7 @@ for (const text of ["import { InvitationSettings }", '<InvitationSettings />']) 
 for (const text of ['登录会话', '重置经济状态', '重置服务器经济状态', '使用万和百万单位缩写大额资产', '全局使用 K/M/B/T 缩写大额金额与状态栏容量']) {
   forbidText('src/pages/SettingsPage.tsx', text);
 }
+for (const text of ['存档管理', '删除存档']) requireText('src/pages/SettingsPage.tsx', text);
 
 for (const text of [
   "label: '仓库剩余'",

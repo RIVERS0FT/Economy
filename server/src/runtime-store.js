@@ -105,6 +105,50 @@ function contractSnapshot(world) {
   return structuredClone(world.productionContracts || []);
 }
 
+function playerSaveMetadata(world, userId) {
+  const player = world?.players?.[String(userId)];
+  return {
+    saveEpoch: Math.max(0, Math.floor(Number(player?.saveEpoch || 0))),
+    saveCreatedAt: Math.max(0, Number(player?.saveCreatedAt || 0)),
+  };
+}
+
+function currentSaveWorld(world, userId) {
+  const { saveCreatedAt } = playerSaveMetadata(world, userId);
+  if (!saveCreatedAt) return world;
+  return {
+    ...world,
+    orders: (world.orders || []).filter((order) => (
+      Number(order?.ownerId) !== Number(userId)
+      || ['open', 'partial'].includes(order?.status)
+      || Number(order?.createdAt || 0) >= saveCreatedAt
+    )),
+  };
+}
+
+// Order history remains sourced from createOrderHistoryPage(this.worldCache.world after current-save filtering.
+function filterStateForCurrentSave(state, world, userId) {
+  const { saveEpoch, saveCreatedAt } = playerSaveMetadata(world, userId);
+  const filtered = { ...state, saveEpoch };
+  if (!saveCreatedAt) return filtered;
+  filtered.orders = (filtered.orders || []).filter((order) => (
+    !order?.isOwn
+    || ['open', 'partial'].includes(order?.status)
+    || Number(order?.createdAt || 0) >= saveCreatedAt
+  ));
+  filtered.productionContracts = (filtered.productionContracts || []).filter((contract) => (
+    ['open', 'active'].includes(contract?.status)
+    || !(contract?.isPublisher || contract?.isParticipant || contract?.isBuyer || contract?.isSupplier)
+    || Number(contract?.endedAt || contract?.completedAt || contract?.createdAt || 0) >= saveCreatedAt
+  ));
+  filtered.assetAuctions = (filtered.assetAuctions || []).filter((auction) => (
+    auction?.status === 'open'
+    || !(auction?.isSeller || auction?.isHighestBidder || auction?.isOutbid)
+    || Number(auction?.settledAt || auction?.createdAt || 0) >= saveCreatedAt
+  ));
+  return filtered;
+}
+
 // Runtime policy mutations intentionally bypass the legacy population-policy audit table.
 // The table remains readable only for backward-compatible retention of historical rows.
 export class EconomyStore extends PersistentEconomyStore {
@@ -209,11 +253,11 @@ export class EconomyStore extends PersistentEconomyStore {
         return measureRequestPhase('contractStateProjectionMs', () => createProductionContractClientState(world, Number(user.id), now));
       }, { immediate: false });
 
-    const state = {
+    const state = filterStateForCurrentSave({
       ...createStablePartitionClientState(snapshot.state),
       ...normalizeJson(contractState),
       economicCalendar: normalizeJson(createEconomicCalendarClientState(now)),
-    };
+    }, this.worldCache?.world, Number(user.id));
     const partitionSnapshot = this.createClientPartitionSnapshot(state);
     return this.rememberStateProjection(user.id, snapshot.revision, {
       ...snapshot,
@@ -225,13 +269,13 @@ export class EconomyStore extends PersistentEconomyStore {
   listOrderHistory(user, options = {}, now = Date.now()) {
     if (this.worldCache?.world) {
       return measureRequestPhase('orderHistoryProjectionMs', () => (
-        createOrderHistoryPage(this.worldCache.world, Number(user.id), options)
+        createOrderHistoryPage(currentSaveWorld(this.worldCache.world, Number(user.id)), Number(user.id), options)
       ));
     }
     return this.transaction(() => {
       const { world } = this.loadWorld(now);
       return measureRequestPhase('orderHistoryProjectionMs', () => (
-        createOrderHistoryPage(world, Number(user.id), options)
+        createOrderHistoryPage(currentSaveWorld(world, Number(user.id)), Number(user.id), options)
       ));
     }, { immediate: false });
   }

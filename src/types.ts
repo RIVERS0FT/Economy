@@ -536,6 +536,7 @@ export interface EconomyState {
   userId: number;
   playerName: string;
   registeredAt: number;
+  saveEpoch: number;
   credits: number;
   frozenCredits: number;
   gems: number;

@@ -61,7 +61,8 @@
 - `account-registration.js`：主页已登录账号首次进入 Economy 时的共用建档入口；
 - `ip-bans.js`：注册 IP 指纹、同 IP 异常上报与管理员手动封禁边界；
 - `storage.js`：SQLite、事务、修订号、幂等响应、礼品码、商店流水与管理员查询；
-- `runtime-store.js`：运行时存储扩展、合同动作、人口政策与管理员运行时能力；
+- `runtime-store.js`：运行时存储扩展、合同动作、人口政策、存档世代投影隔离与管理员运行时能力；
+- `save-deletion.js`：一次性玩家存档删除预检、共享关系阻断、自动关闭、重新初始化、审计与旧标签页世代防护；
 - `state-partitions.js`：目录、玩家、市场、拍卖、合同和排行榜六个状态分区、分区哈希与精简动作确认；
 - `server/shared/economy-state-version.js`：当前客户端状态版本与最低兼容版本的唯一来源；
 - `game-routes.js`：普通游戏动作路由；
@@ -304,6 +305,8 @@ JSON.parse
 | ANY | `/api/game/collectible-auctions*` | 已永久移除；固定返回 `410 Gone`，不得读取或写入业务状态 |
 | ANY | `/api/game/admin/collectibles*` | 已永久移除；固定返回 `410 Gone`，不得读取或写入业务状态 |
 | PATCH | `/api/game/profile` | 修改昵称 |
+| GET | `/api/game/save-deletion/preflight` | 返回删除存档阻止事项、一次性额度和可自动关闭项目 |
+| POST | `/api/game/save-deletion` | 精确确认后原子删除当前经济存档并恢复新玩家初始状态 |
 | POST | `/api/game/reset` | 已永久移除；兼容旧客户端固定返回 `410 Gone`，不得执行任何状态写入 |
 | GET | `/api/game/admin/community-link` | 管理员读取社区跳转链接 |
 | PUT | `/api/game/admin/community-link` | 管理员幂等更新社区跳转链接 |
@@ -651,3 +654,11 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 ## 工厂即时建设事务
 
 `POST /api/game/facilities` 接受 `facilityTypeId` 与可选 `quantity`（1～100）。服务器必须在同一幂等写事务中校验科技准入、现金、全部 `buildInputs` 可用库存和安全乘法；任一失败时完全回滚。成功时扣除现金与材料、将现金记入人口建造业就业收入、增加材料消耗统计并立即扩充同类集群。`POST /api/game/facilities/construction/accelerate` 固定返回 `410 Gone`，不得进入经济写事务或写入新的施工宝石审计。
+
+## 12. 玩家自助删除存档
+
+`save-deletion.js` 是玩家自助删除存档的唯一领域入口。`GET /api/game/save-deletion/preflight` 在权威写队列中推进到当前世界状态并返回阻止事项与可自动关闭项目；`POST /api/game/save-deletion` 使用 `Idempotency-Key`、精确确认文字“删除存档”和同一 `BEGIN IMMEDIATE` 事务再次检查。开放订单、旧工厂挂牌、无出价自有拍卖和未承接自有合同按现有取消逻辑正常释放；未偿银行贷款、未完成周资金结算、已有出价的自有拍卖、当前最高出价和履约合同必须返回 `409 SAVE_DELETION_BLOCKED`，任何资产不得改变。
+
+删除事务通过首次建档共用的 `ensurePlayer` 初始化重新创建玩家，保留原 `registeredAt`、宝石余额和宝石发行统计，写入递增 `saveEpoch`、`saveCreatedAt` 与一次性删除审计。`economy_save_deletions` 对 `user_id` 与 `request_key` 分别唯一，保存前后世代、删除时间、资产摘要和自动关闭数量；同一幂等键只返回第一次结果，每个账号只能成功一次。`economy_registrations`、邀请码与邀请关系、宝石账本、商店兑换、每日签到、礼品兑换、封禁、拍卖审计和合同审计不得删除或重置。教程完成行在同一事务删除，使新存档重新进入基础教程。
+
+服务器状态固定下发 `saveEpoch`。当前客户端对普通写请求发送 `X-Economy-Save-Epoch`；服务器允许没有该请求头的兼容旧客户端，但新客户端携带的世代与当前玩家不一致时必须返回 `409 SAVE_EPOCH_MISMATCH`，防止删档前的旧标签页把操作写入新存档。旧 `POST /api/game/reset` 继续固定返回 `410 Gone`，不得映射到删除存档领域能力。
