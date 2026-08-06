@@ -4,6 +4,17 @@ from pathlib import Path
 path = Path('scripts/apply-instant-facility-construction.py')
 text = path.read_text(encoding='utf-8')
 
+text = text.replace(
+    "    'logging-camp': [('timber', 3), ('ore', 3)],",
+    "    'logging-camp': [('cotton', 6), ('ore', 4)],",
+    1,
+)
+text = text.replace(
+    "    'mine': [('timber', 3), ('ore', 4)],",
+    "    'mine': [('timber', 4), ('cotton', 6)],",
+    1,
+)
+
 values = {
     'farm': 65,
     'orchard': 95,
