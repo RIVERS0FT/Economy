@@ -26,6 +26,7 @@ class StaticCacheConfigurationTests(unittest.TestCase):
     }
     location ^~ /economy/ {
         root /var/www/game;
+        expires -1;
         add_header Cache-Control "public, max-age=60";
         try_files $uri $uri/ /economy/index.html;
     }
@@ -45,6 +46,7 @@ class StaticCacheConfigurationTests(unittest.TestCase):
         )
         self.assertEqual(updated.count(cache.canonical_vary_header()), 2)
         self.assertNotIn("max-age=604800", updated)
+        self.assertNotRegex(updated, r"(?im)^\s*expires\s+")
         self.assertEqual(
             cache.ensure_static_cache_headers(updated),
             (updated, False, {"/economy/assets/", "/economy/"}),
@@ -112,6 +114,15 @@ class StaticCacheConfigurationTests(unittest.TestCase):
             cache.validate_cache_headers(
                 "asset",
                 {"cache-control": "max-age=60", "vary": "Accept-Encoding"},
+                cache.STATIC_ASSET_CACHE_CONTROL,
+            )
+        with self.assertRaisesRegex(RuntimeError, "ECONOMY_STATIC_CACHE_CONTROL_INVALID"):
+            cache.validate_cache_headers(
+                "asset",
+                {
+                    "cache-control": "max-age=604800, public, max-age=31536000, immutable",
+                    "vary": "Accept-Encoding",
+                },
                 cache.STATIC_ASSET_CACHE_CONTROL,
             )
         with self.assertRaisesRegex(RuntimeError, "ECONOMY_STATIC_CACHE_VARY_MISSING"):
