@@ -5,13 +5,30 @@ import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
 import { arch, cpus, platform, totalmem } from 'node:os';
+import { RESEARCH_TECHNOLOGY_CATALOG } from '../../server/src/research-catalog.js';
 import { loadStressAccounts } from './loadAccounts.mjs';
 import { startLocalStressHarness } from './localHarness.mjs';
 import { evaluateStressBudget, StressMetrics } from './metrics.mjs';
 import { STRESS_PROFILES, validateStressSafety } from './safety.mjs';
 
 const STATE_PARTITIONS = Object.freeze(['catalog', 'player', 'market', 'auction', 'contract', 'leaderboard']);
+const TRANSACTION_MIX_WEIGHTS = Object.freeze({
+  state: 60,
+  work: 10,
+  order: 10,
+  facilityToggle: 8,
+  recipe: 5,
+  build: 4,
+  research: 3,
+});
+const TRANSACTION_MIX_TOTAL = Object.values(TRANSACTION_MIX_WEIGHTS).reduce((sum, value) => sum + value, 0);
+const STRESS_FACILITY_TYPE_ID = 'farm';
+const STRESS_PRODUCT_ID = 'wheat';
+const STRESS_ORDER_PRICE = 0.01;
+const STRESS_FARM_RECIPES = Object.freeze(['wheat-crop', 'rice-crop', 'cotton-crop', 'sugarcane-crop']);
 const budgetsUrl = new URL('./budgets.json', import.meta.url);
+
+assert.equal(TRANSACTION_MIX_TOTAL, 100, '事务混合比例必须合计 100%');
 
 function integerOption(value, fallback, label) {
   if (value === undefined) return fallback;
@@ -38,6 +55,7 @@ async function requestJson(metrics, {
   cookie,
   body,
   idempotencyKey,
+  headers: extraHeaders,
   timeoutMs,
   expectedStatuses = [200],
 }) {
@@ -47,7 +65,7 @@ async function requestJson(metrics, {
   let response;
   let text = '';
   try {
-    const headers = new Headers();
+    const headers = new Headers(extraHeaders || {});
     if (cookie) headers.set('Cookie', cookie);
     if (body !== undefined) headers.set('Content-Type', 'application/json');
     if (idempotencyKey) headers.set('Idempotency-Key', idempotencyKey);
@@ -115,6 +133,19 @@ function stateUrl(client, gameBaseUrl) {
   return `${gameBaseUrl}/state${query ? `?${query}` : ''}`;
 }
 
+function rebuildClientState(client, payload) {
+  if (payload.patches && typeof payload.patches === 'object') {
+    for (const [name, patch] of Object.entries(payload.patches)) {
+      if (STATE_PARTITIONS.includes(name) && patch && typeof patch === 'object') {
+        client.partitions[name] = patch;
+      }
+    }
+  }
+  const state = {};
+  for (const name of STATE_PARTITIONS) Object.assign(state, client.partitions[name] || {});
+  client.state = state;
+}
+
 async function fetchState(metrics, client, endpoints, invariants) {
   const { payload } = await requestJson(metrics, {
     url: stateUrl(client, endpoints.gameBaseUrl),
@@ -142,10 +173,18 @@ async function fetchState(metrics, client, endpoints, invariants) {
       if (revision) client.partitionRevisions[name] = revision;
     }
   }
+  rebuildClientState(client, payload);
   client.revision = payload.revision;
   client.serverNow = payload.serverNow;
   invariants.stateResponses += 1;
   return payload;
+}
+
+function saveEpochHeader(client) {
+  const epoch = Number(client.state?.saveEpoch);
+  return Number.isSafeInteger(epoch) && epoch >= 0
+    ? { 'X-Economy-Save-Epoch': String(epoch) }
+    : {};
 }
 
 async function postAction(metrics, client, endpoints, path, route, body, idempotencyKey) {
@@ -156,9 +195,10 @@ async function postAction(metrics, client, endpoints, path, route, body, idempot
     cookie: client.cookie,
     body,
     idempotencyKey,
+    headers: saveEpochHeader(client),
   });
   assert.ok(Number.isInteger(payload.revision), `${route} 确认缺少修订号`);
-  assert.equal(payload.result?.ok, true, `${route} 业务结果失败`);
+  assert.equal(payload.result?.ok, true, `${route} 业务结果失败：${String(payload.result?.message || '')}`);
   assert.equal(typeof payload.result?.message, 'string', `${route} 确认缺少消息`);
   return payload;
 }
@@ -181,6 +221,9 @@ async function loginAccount(metrics, account, endpoints) {
     revision: null,
     serverNow: null,
     partitionRevisions: {},
+    partitions: {},
+    state: null,
+    operationIndex: 0,
     nextWorkAt: Number.POSITIVE_INFINITY,
   };
 }
@@ -208,26 +251,229 @@ async function verifyIdempotency(metrics, client, endpoints, runId, invariants) 
   await fetchState(metrics, client, endpoints, invariants);
 }
 
+function transactionMixCategory(client) {
+  const slot = (client.operationIndex * 37 + client.slot * 11) % TRANSACTION_MIX_TOTAL;
+  client.operationIndex += 1;
+  let threshold = TRANSACTION_MIX_WEIGHTS.state;
+  if (slot < threshold) return 'state';
+  threshold += TRANSACTION_MIX_WEIGHTS.work;
+  if (slot < threshold) return 'work';
+  threshold += TRANSACTION_MIX_WEIGHTS.order;
+  if (slot < threshold) return 'order';
+  threshold += TRANSACTION_MIX_WEIGHTS.facilityToggle;
+  if (slot < threshold) return 'facilityToggle';
+  threshold += TRANSACTION_MIX_WEIGHTS.recipe;
+  if (slot < threshold) return 'recipe';
+  threshold += TRANSACTION_MIX_WEIGHTS.build;
+  if (slot < threshold) return 'build';
+  return 'research';
+}
+
+function stressOpenOrder(client) {
+  return (client.state?.orders || []).find((order) => (
+    order?.isOwn
+    && order?.side === 'buy'
+    && String(order?.assetId || order?.productId || '') === STRESS_PRODUCT_ID
+    && Number(order?.price) === STRESS_ORDER_PRICE
+    && Number(order?.remaining || 0) > 0
+    && (order?.status === 'open' || order?.status === 'partial')
+  ));
+}
+
+function stressFarmGroup(client) {
+  return (client.state?.facilityGroups || []).find(
+    (group) => String(group?.facilityTypeId || '') === STRESS_FACILITY_TYPE_ID,
+  ) || null;
+}
+
+function nextResearchTechnology(client) {
+  const completed = new Set(client.state?.research?.completedTechnologyIds || []);
+  return RESEARCH_TECHNOLOGY_CATALOG.find((technology) => (
+    !technology.initial
+    && !completed.has(technology.id)
+    && technology.prerequisiteTechnologyIds.every((technologyId) => completed.has(technologyId))
+  )) || null;
+}
+
+async function confirmAction(metrics, client, endpoints, path, route, body, runId, invariants, suffix) {
+  await postAction(
+    metrics,
+    client,
+    endpoints,
+    path,
+    route,
+    body,
+    `stress:${runId}:${suffix}:${client.slot}:${randomUUID()}`,
+  );
+  invariants.actionConfirmations += 1;
+  await fetchState(metrics, client, endpoints, invariants);
+}
+
+async function runTransactionMixOperation(metrics, client, endpoints, runId, invariants) {
+  const category = transactionMixCategory(client);
+  invariants.transactionMix[category] += 1;
+
+  if (category === 'state') {
+    await fetchState(metrics, client, endpoints, invariants);
+    return;
+  }
+
+  if (category === 'work') {
+    if (performance.now() < client.nextWorkAt) {
+      await fetchState(metrics, client, endpoints, invariants);
+      return;
+    }
+    await confirmAction(metrics, client, endpoints, '/work', '/api/game/work', {}, runId, invariants, 'work');
+    client.nextWorkAt = performance.now() + 3_200;
+    return;
+  }
+
+  if (category === 'order') {
+    const openOrder = stressOpenOrder(client);
+    if (openOrder) {
+      await confirmAction(
+        metrics,
+        client,
+        endpoints,
+        `/orders/${encodeURIComponent(String(openOrder.id))}/cancel`,
+        '/api/game/orders/:id/cancel',
+        {},
+        runId,
+        invariants,
+        'order-cancel',
+      );
+    } else {
+      await confirmAction(
+        metrics,
+        client,
+        endpoints,
+        '/orders',
+        '/api/game/orders',
+        {
+          assetKind: 'commodity',
+          assetId: STRESS_PRODUCT_ID,
+          productId: STRESS_PRODUCT_ID,
+          side: 'buy',
+          quantity: 1,
+          price: STRESS_ORDER_PRICE,
+        },
+        runId,
+        invariants,
+        'order-place',
+      );
+    }
+    return;
+  }
+
+  if (category === 'facilityToggle') {
+    const group = stressFarmGroup(client);
+    const running = Boolean(group?.enabled && group?.status === 'running');
+    const operation = running ? 'pause' : 'start';
+    await confirmAction(
+      metrics,
+      client,
+      endpoints,
+      `/facilities/${STRESS_FACILITY_TYPE_ID}/${operation}`,
+      `/api/game/facilities/:id/${operation}`,
+      {},
+      runId,
+      invariants,
+      `facility-${operation}`,
+    );
+    return;
+  }
+
+  if (category === 'recipe') {
+    const group = stressFarmGroup(client);
+    const currentRecipe = String(group?.pendingRecipeId || group?.activeRecipeId || STRESS_FARM_RECIPES[0]);
+    const currentIndex = Math.max(0, STRESS_FARM_RECIPES.indexOf(currentRecipe));
+    const recipeId = STRESS_FARM_RECIPES[(currentIndex + 1) % STRESS_FARM_RECIPES.length];
+    await confirmAction(
+      metrics,
+      client,
+      endpoints,
+      `/facilities/${STRESS_FACILITY_TYPE_ID}/recipe`,
+      '/api/game/facilities/:id/recipe',
+      { recipeId },
+      runId,
+      invariants,
+      'facility-recipe',
+    );
+    return;
+  }
+
+  if (category === 'build') {
+    await confirmAction(
+      metrics,
+      client,
+      endpoints,
+      '/facilities',
+      '/api/game/facilities',
+      { facilityTypeId: STRESS_FACILITY_TYPE_ID, quantity: 1 },
+      runId,
+      invariants,
+      'facility-build',
+    );
+    return;
+  }
+
+  const activeResearch = client.state?.research?.active;
+  if (activeResearch) {
+    await confirmAction(
+      metrics,
+      client,
+      endpoints,
+      '/research/accelerate',
+      '/api/game/research/accelerate',
+      {},
+      runId,
+      invariants,
+      'research-accelerate',
+    );
+    return;
+  }
+  const technology = nextResearchTechnology(client);
+  if (!technology) {
+    await fetchState(metrics, client, endpoints, invariants);
+    return;
+  }
+  await confirmAction(
+    metrics,
+    client,
+    endpoints,
+    '/research/start',
+    '/api/game/research/start',
+    { technologyId: technology.id },
+    runId,
+    invariants,
+    'research-start',
+  );
+}
+
 async function runClientLoop(metrics, client, endpoints, definition, config, runId, invariants, deadline) {
   let nextPollAt = performance.now();
   if (config.profile !== 'burst') nextPollAt += (client.slot % 8) * Math.min(50, config.pollIntervalMs / 8);
   while (performance.now() < deadline) {
-    const now = performance.now();
-    if (definition.writes && now >= client.nextWorkAt) {
-      await postAction(
-        metrics,
-        client,
-        endpoints,
-        '/work',
-        '/api/game/work',
-        {},
-        `stress:${runId}:work:${client.slot}:${randomUUID()}`,
-      );
-      invariants.actionConfirmations += 1;
-      client.nextWorkAt = performance.now() + 3_200;
-      await fetchState(metrics, client, endpoints, invariants);
+    if (config.profile === 'transaction-mix') {
+      await runTransactionMixOperation(metrics, client, endpoints, runId, invariants);
     } else {
-      await fetchState(metrics, client, endpoints, invariants);
+      const now = performance.now();
+      if (definition.writes && now >= client.nextWorkAt) {
+        await postAction(
+          metrics,
+          client,
+          endpoints,
+          '/work',
+          '/api/game/work',
+          {},
+          `stress:${runId}:work:${client.slot}:${randomUUID()}`,
+        );
+        invariants.actionConfirmations += 1;
+        client.nextWorkAt = performance.now() + 3_200;
+        await fetchState(metrics, client, endpoints, invariants);
+      } else {
+        await fetchState(metrics, client, endpoints, invariants);
+      }
     }
     nextPollAt += config.pollIntervalMs;
     await sleep(Math.min(Math.max(0, nextPollAt - performance.now()), Math.max(0, deadline - performance.now())));
@@ -298,6 +544,7 @@ export async function runStressTest(options = {}) {
     unchangedStateResponses: 0,
     actionConfirmations: 0,
     idempotencyChecks: 0,
+    transactionMix: Object.fromEntries(Object.keys(TRANSACTION_MIX_WEIGHTS).map((name) => [name, 0])),
   };
   let harness = null;
   let storageBefore = null;
@@ -389,7 +636,12 @@ export async function runStressTest(options = {}) {
     profile,
     users,
     accountSlots: { offset, limit: users },
-    configuration: { durationSeconds, pollIntervalMs, writes: definition.writes },
+    configuration: {
+      durationSeconds,
+      pollIntervalMs,
+      writes: definition.writes,
+      ...(profile === 'transaction-mix' ? { transactionMixWeights: TRANSACTION_MIX_WEIGHTS } : {}),
+    },
     runtime: {
       node: process.versions.node,
       platform: platform(),
