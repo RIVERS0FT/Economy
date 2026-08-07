@@ -45,6 +45,7 @@ if (failures.length === 0) {
     'leaderboardsFromGame(game)?.period.endsAt',
     'return deadlines.sort((left, right) => left - right);',
   ]) requireText(paths.registry, text);
+  forbidText(paths.registry, 'facilityConstruction');
 
   for (const text of [
     'createServerClock',
@@ -147,14 +148,20 @@ if (failures.length === 0) {
     '到期状态的分区替换语义',
     '完整快照，不是分区对象内部的字段级补丁',
     '整块替换同名分区',
-    '从 11 增加到 12',
+    '对应科技加入 `completedTechnologyIds` 并删除 `research.active`',
     '工厂即时建设不注册权威倒计时',
+    '不得等待或恢复 `facilityConstruction`',
     '普通状态读取超时为 8 秒',
     '同一事件可见窗口内连续请求必须产生相同的 `market` 分区哈希',
     '按请求时刻生成的榜单 `generatedAt` 和逐行 `updatedAt` 不得进入状态分区',
     '四榜不得继续嵌入玩家 `stats`',
     '`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`',
   ]) requireText(paths.design, text);
+  for (const text of [
+    '工厂施工完成 `facilityConstruction.completesAt`',
+    '施工倒计时归零后仍长期显示',
+    '施工确认文案',
+  ]) forbidText(paths.design, text);
 
   for (const text of [
     '`AUTHORITATIVE_COUNTDOWN_DESIGN.md`',
@@ -188,4 +195,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('权威倒计时验证通过：GET state 使用独立 serverNow 校准共享单调服务器时钟，market 与排行榜分区不携带请求时刻字段；权威刷新可抢占普通轮询，请求具备超时，生产周期、拍卖和排行榜到期采用串行每秒确认；工厂即时建设不注册倒计时，状态分区使用完整快照替换。');
+console.log('权威倒计时验证通过：GET state 使用独立 serverNow 校准共享单调服务器时钟，market 与排行榜分区不携带请求时刻字段；权威刷新可抢占普通轮询，请求具备超时，生产周期、研发、拍卖、合同和排行榜到期采用串行每秒确认；工厂即时建设不注册倒计时，状态分区使用完整快照替换。');
