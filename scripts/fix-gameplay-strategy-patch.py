@@ -9,6 +9,13 @@ text = text.replace(
     'store.getContractAuditDetail = (user, contractId, rawOptions = {}) => store.transaction(() => {',
     'store.getContractAuditDetail = (user, contractId, options = {}) => store.transaction(() => {',
 )
+text = text.replace(
+    '"""  ContractAuditHistoryPage,\\n  ContractAuditDetail,"""',
+    '"""  ContractAuditDetail,\\n  ContractAuditHistoryPage,"""',
+).replace(
+    '"""  ContractAuditHistoryPage,\\n  ContractAuditDetail,\\n  ContractPerformanceSummary,"""',
+    '"""  ContractAuditDetail,\\n  ContractAuditHistoryPage,\\n  ContractPerformanceSummary,"""',
+)
 
 old_literal = '"""  products,\\n  inventories,\\n  now,\\n  onToggle,"""'
 new_literal = '"""  products,\\n  inventories,\\n  markets,\\n  credits,\\n  warehouseAvailableCapacity,\\n  now,\\n  onToggle,"""'
