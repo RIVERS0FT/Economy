@@ -1,0 +1,57 @@
+name: Patch admin player statistics browser fixture
+
+on:
+  push:
+    branches:
+      - agent/gameplay-strategy-next-phase
+
+permissions:
+  contents: write
+
+concurrency:
+  group: patch-admin-player-statistics-browser-fixture
+  cancel-in-progress: true
+
+jobs:
+  patch-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/gameplay-strategy-next-phase
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Patch browser fixture
+        run: python3 scripts/patch-admin-player-statistics-browser-fixture.py
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify full build
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify admin browser runtime
+        run: npx playwright test tests/browser/admin-runtime.spec.ts --project=chromium
+
+      - name: Commit verified fixture and remove temporary tooling
+        run: |
+          rm scripts/patch-admin-player-statistics-browser-fixture.py
+          rm .github/workflows/patch-admin-player-statistics-browser-fixture.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            tests/browser/admin-runtime.spec.ts \
+            scripts/patch-admin-player-statistics-browser-fixture.py \
+            .github/workflows/patch-admin-player-statistics-browser-fixture.yml
+          git diff --cached --check
+          git commit -m "同步管理员成长漏斗浏览器夹具"
+          git push origin HEAD:agent/gameplay-strategy-next-phase
