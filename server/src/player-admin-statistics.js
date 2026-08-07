@@ -1,5 +1,6 @@
 import { PRODUCT_CATALOG } from './domain.js';
 import { wealthAssetsFor } from './leaderboards.js';
+import { CURRENT_TUTORIAL_VERSION } from './tutorial-store.js';
 import { roundInternalMoney } from './money.js';
 
 export const PLAYER_STATISTICS_TIME_ZONE = 'Asia/Shanghai';
@@ -12,6 +13,7 @@ export const PLAYER_STATISTICS_RANGE_DAYS = Object.freeze({
 const DAY_MS = 24 * 60 * 60 * 1000;
 const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000;
 const CONFIGURED = Symbol('player-admin-statistics-configured');
+const STRATEGY_FUNNEL_COVERAGE_KEY = 'gameplay_strategy_funnel_coverage_started_at';
 const CONTRACT_ACTIONS = new Set([
   'createProductionContract',
   'acceptProductionContract',
@@ -226,6 +228,21 @@ function tableExists(database, name) {
   return Boolean(row?.present);
 }
 
+function tableColumns(database, name) {
+  return new Set(database.prepare(`PRAGMA table_info(${name})`).all().map((row) => String(row.name)));
+}
+
+function playerGrowthLineCompletions(database) {
+  if (!tableExists(database, 'economy_tutorial_completions')) return [];
+  if (!tableColumns(database, 'economy_tutorial_completions').has('completion_source')) return [];
+  return rowsOrEmpty(database, `
+    SELECT user_id, completed_at
+    FROM economy_tutorial_completions
+    WHERE completed_version >= ? AND completion_source = 'player'
+    ORDER BY completed_at, user_id
+  `, CURRENT_TUTORIAL_VERSION);
+}
+
 function rowsOrEmpty(database, sql, ...parameters) {
   try {
     return database.prepare(sql).all(...parameters);
@@ -283,7 +300,9 @@ function configureSchema(store, now) {
       first_production_at INTEGER,
       first_trade_at INTEGER,
       first_contract_at INTEGER,
-      first_auction_at INTEGER
+      first_auction_at INTEGER,
+      first_research_at INTEGER,
+      first_bank_deposit_at INTEGER
     ) STRICT;
     CREATE TABLE IF NOT EXISTS economy_player_statistics_meta (
       meta_key TEXT PRIMARY KEY,
@@ -294,6 +313,17 @@ function configureSchema(store, now) {
     INSERT OR IGNORE INTO economy_player_statistics_meta (meta_key, meta_value)
     VALUES ('coverage_started_at', ?)
   `).run(now);
+  const milestoneColumns = tableColumns(store.database, 'economy_player_milestones');
+  if (!milestoneColumns.has('first_research_at')) {
+    store.database.exec('ALTER TABLE economy_player_milestones ADD COLUMN first_research_at INTEGER');
+  }
+  if (!milestoneColumns.has('first_bank_deposit_at')) {
+    store.database.exec('ALTER TABLE economy_player_milestones ADD COLUMN first_bank_deposit_at INTEGER');
+  }
+  store.database.prepare(`
+    INSERT OR IGNORE INTO economy_player_statistics_meta (meta_key, meta_value)
+    VALUES (?, ?)
+  `).run(STRATEGY_FUNNEL_COVERAGE_KEY, now);
 
   return {
     actionContext: null,
@@ -329,19 +359,24 @@ function configureSchema(store, now) {
     upsertMilestones: store.database.prepare(`
       INSERT INTO economy_player_milestones (
         user_id, first_economic_action_at, first_facility_at, first_production_at,
-        first_trade_at, first_contract_at, first_auction_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        first_trade_at, first_contract_at, first_auction_at, first_research_at, first_bank_deposit_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET
         first_economic_action_at = COALESCE(first_economic_action_at, excluded.first_economic_action_at),
         first_facility_at = COALESCE(first_facility_at, excluded.first_facility_at),
         first_production_at = COALESCE(first_production_at, excluded.first_production_at),
         first_trade_at = COALESCE(first_trade_at, excluded.first_trade_at),
         first_contract_at = COALESCE(first_contract_at, excluded.first_contract_at),
-        first_auction_at = COALESCE(first_auction_at, excluded.first_auction_at)
+        first_auction_at = COALESCE(first_auction_at, excluded.first_auction_at),
+        first_research_at = COALESCE(first_research_at, excluded.first_research_at),
+        first_bank_deposit_at = COALESCE(first_bank_deposit_at, excluded.first_bank_deposit_at)
     `),
     coverageStartedAt: () => Number(store.database.prepare(`
       SELECT meta_value FROM economy_player_statistics_meta WHERE meta_key = 'coverage_started_at'
     `).get()?.meta_value || now),
+    funnelCoverageStartedAt: () => Number(store.database.prepare(`
+      SELECT meta_value FROM economy_player_statistics_meta WHERE meta_key = ?
+    `).get(STRATEGY_FUNNEL_COVERAGE_KEY)?.meta_value || now),
   };
 }
 
@@ -375,6 +410,8 @@ function recordAction(state, context, beforeWorld, world, now) {
     null,
     CONTRACT_ACTIONS.has(context.action) ? now : null,
     AUCTION_ACTIONS.has(context.action) ? now : null,
+    context.action === 'startResearch' ? now : null,
+    context.action === 'bankDeposit' ? now : null,
   );
 }
 
@@ -403,6 +440,8 @@ function recordWorldDeltas(state, beforeWorld, world, now) {
         firstFacilityAt,
         firstProductionAt,
         firstTradeAt,
+        null,
+        null,
         null,
         null,
       );
@@ -624,6 +663,7 @@ function attentionSummary({
 function createStatisticsSummary(store, world, rangeKey, now) {
   const range = rangeFor(rangeKey, now);
   const coverageStartedAt = store[CONFIGURED].coverageStartedAt();
+  const funnelCoverageStartedAt = store[CONFIGURED].funnelCoverageStartedAt();
   const players = Object.values(world?.players || {});
   const registrations = rowsOrEmpty(store.database, `
     SELECT user_id, registered_at, source FROM economy_registrations
@@ -632,6 +672,10 @@ function createStatisticsSummary(store, world, rangeKey, now) {
   const registrationsByUser = new Map(registrations.map((row) => [Number(row.user_id), row]));
   const milestones = rowsOrEmpty(store.database, 'SELECT * FROM economy_player_milestones ORDER BY user_id');
   const milestonesByUser = new Map(milestones.map((row) => [Number(row.user_id), row]));
+  const growthLineCompletions = playerGrowthLineCompletions(store.database);
+  const growthLineCompletionByUser = new Map(
+    growthLineCompletions.map((row) => [Number(row.user_id), safeTimestamp(row.completed_at)]),
+  );
   const activityStart = Math.min(range.startsAt, now - 30 * DAY_MS);
   const activities = activityRows(store.database, activityStart, now);
   const activitiesInRange = activities.filter((row) => row.day_key >= dayKey(range.startsAt));
@@ -736,51 +780,69 @@ function createStatisticsSummary(store, world, rangeKey, now) {
   const retention = { d1: retentionFor(1), d7: retentionFor(7), d30: retentionFor(30) };
 
   const currentMetrics = new Map(players.map((player) => [Number(player.userId), metricsForPlayer(player)]));
-  const stageCounts = {
-    registered: players.length,
-    action: players.filter((player) => hasEconomicActivity(
-      player,
-      actionUsers,
-      milestonesByUser.get(Number(player.userId)),
-    )).length,
-    facility: players.filter((player) => {
-      const userId = Number(player.userId);
-      return safeTimestamp(milestonesByUser.get(userId)?.first_facility_at) > 0
-        || currentMetrics.get(userId).facilityCount > 0;
-    }).length,
-    production: players.filter((player) => {
-      const userId = Number(player.userId);
-      return safeTimestamp(milestonesByUser.get(userId)?.first_production_at) > 0
-        || currentMetrics.get(userId).productionOutput > 0;
-    }).length,
-    trade: players.filter((player) => {
-      const userId = Number(player.userId);
-      return safeTimestamp(milestonesByUser.get(userId)?.first_trade_at) > 0
-        || currentMetrics.get(userId).tradeQuantity > 0;
-    }).length,
-  };
+  const trackedRegistrations = registrations.filter((row) => safeTimestamp(row.registered_at) >= funnelCoverageStartedAt);
+  const trackedUserIds = new Set(trackedRegistrations.map((row) => Number(row.user_id)));
+  const trackedPlayers = players.filter((player) => trackedUserIds.has(Number(player.userId)));
+  const trackedMilestones = milestones.filter((row) => trackedUserIds.has(Number(row.user_id)));
+  const registeredStage = trackedPlayers;
+  const actionStage = registeredStage.filter((player) => hasEconomicActivity(
+    player, actionUsers, milestonesByUser.get(Number(player.userId)),
+  ));
+  const facilityStage = actionStage.filter((player) => {
+    const userId = Number(player.userId);
+    return safeTimestamp(milestonesByUser.get(userId)?.first_facility_at) > 0
+      || currentMetrics.get(userId).facilityCount > 0;
+  });
+  const productionStage = facilityStage.filter((player) => {
+    const userId = Number(player.userId);
+    return safeTimestamp(milestonesByUser.get(userId)?.first_production_at) > 0
+      || currentMetrics.get(userId).productionOutput > 0;
+  });
+  const tradeStage = productionStage.filter((player) => {
+    const userId = Number(player.userId);
+    return safeTimestamp(milestonesByUser.get(userId)?.first_trade_at) > 0
+      || currentMetrics.get(userId).tradeQuantity > 0;
+  });
+  const researchStage = tradeStage.filter((player) => (
+    safeTimestamp(milestonesByUser.get(Number(player.userId))?.first_research_at) > 0
+  ));
+  const bankStage = researchStage.filter((player) => (
+    safeTimestamp(milestonesByUser.get(Number(player.userId))?.first_bank_deposit_at) > 0
+  ));
+  const growthLineStage = bankStage.filter((player) => (
+    safeTimestamp(growthLineCompletionByUser.get(Number(player.userId))) > 0
+  ));
+  const growthLineRows = growthLineCompletions
+    .filter((row) => trackedUserIds.has(Number(row.user_id)))
+    .map((row) => ({ user_id: row.user_id, first_growth_line_at: row.completed_at }));
   const funnelStages = [
-    { id: 'registered', label: '完成建档', count: stageCounts.registered, medianHours: 0 },
-    {
-      id: 'first-action', label: '首次经济操作', count: stageCounts.action,
-      medianHours: stageMedianHours(milestones, registrationsByUser, 'first_economic_action_at'),
-    },
-    {
-      id: 'first-facility', label: '获得第一座工厂', count: stageCounts.facility,
-      medianHours: stageMedianHours(milestones, registrationsByUser, 'first_facility_at'),
-    },
-    {
-      id: 'first-production', label: '完成首次生产', count: stageCounts.production,
-      medianHours: stageMedianHours(milestones, registrationsByUser, 'first_production_at'),
-    },
-    {
-      id: 'first-trade', label: '完成首次订单簿成交', count: stageCounts.trade,
-      medianHours: stageMedianHours(milestones, registrationsByUser, 'first_trade_at'),
-    },
+    { id: 'registered', label: '完成建档', count: registeredStage.length, medianHours: 0 },
+    { id: 'first-action', label: '首次经济操作', count: actionStage.length, medianHours: stageMedianHours(trackedMilestones, registrationsByUser, 'first_economic_action_at') },
+    { id: 'first-facility', label: '获得第一座工厂', count: facilityStage.length, medianHours: stageMedianHours(trackedMilestones.filter((row) => new Set(facilityStage.map((player) => Number(player.userId))).has(Number(row.user_id))), registrationsByUser, 'first_facility_at') },
+    { id: 'first-production', label: '完成首次生产', count: productionStage.length, medianHours: stageMedianHours(trackedMilestones.filter((row) => new Set(productionStage.map((player) => Number(player.userId))).has(Number(row.user_id))), registrationsByUser, 'first_production_at') },
+    { id: 'first-trade', label: '完成首次订单簿成交', count: tradeStage.length, medianHours: stageMedianHours(trackedMilestones.filter((row) => new Set(tradeStage.map((player) => Number(player.userId))).has(Number(row.user_id))), registrationsByUser, 'first_trade_at') },
+    { id: 'first-research', label: '开始首次产业研发', count: researchStage.length, medianHours: stageMedianHours(trackedMilestones.filter((row) => new Set(researchStage.map((player) => Number(player.userId))).has(Number(row.user_id))), registrationsByUser, 'first_research_at') },
+    { id: 'first-bank-deposit', label: '完成首次银行存款', count: bankStage.length, medianHours: stageMedianHours(trackedMilestones.filter((row) => new Set(bankStage.map((player) => Number(player.userId))).has(Number(row.user_id))), registrationsByUser, 'first_bank_deposit_at') },
+    { id: 'growth-line-complete', label: '完成经营成长线', count: growthLineStage.length, medianHours: stageMedianHours(growthLineRows.filter((row) => new Set(growthLineStage.map((player) => Number(player.userId))).has(Number(row.user_id))), registrationsByUser, 'first_growth_line_at') },
   ].map((stage, index, stages) => ({
     ...stage,
     conversionBps: index === 0 ? 10_000 : ratioBps(stage.count, stages[index - 1].count),
   }));
+
+  function growthLineCompletionWithin(windowMs) {
+    let eligible = 0;
+    let completed = 0;
+    for (const registration of trackedRegistrations) {
+      const registeredAt = safeTimestamp(registration.registered_at);
+      if (registeredAt <= 0 || registeredAt + windowMs > now) continue;
+      eligible += 1;
+      const completedAt = safeTimestamp(growthLineCompletionByUser.get(Number(registration.user_id)));
+      if (completedAt >= registeredAt && completedAt <= registeredAt + windowMs) completed += 1;
+    }
+    return { eligible, retained: completed, rateBps: ratioBps(completed, eligible) };
+  }
+  const growthLineCompletion24h = growthLineCompletionWithin(DAY_MS);
+  const growthLineCompletion7d = growthLineCompletionWithin(7 * DAY_MS);
 
   const wealth = wealthSummary(world, players);
   const participation = currentParticipation(world, players, active7dUsers);
@@ -846,7 +908,7 @@ function createStatisticsSummary(store, world, rangeKey, now) {
       tradeParticipantsInRange: tradeUsersInRange.size,
     },
     retention,
-    funnel: { stages: funnelStages, retained7d: retention.d7 },
+    funnel: { stages: funnelStages, retained7d: retention.d7, coverageStartsAt: funnelCoverageStartedAt, completion24h: growthLineCompletion24h, completion7d: growthLineCompletion7d },
     participation,
     wealth: publicWealth,
     attention,

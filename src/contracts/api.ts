@@ -2,6 +2,7 @@ import { GameApiError, type GameActionResponse } from '../api/game';
 import type {
   ContractAuditDetail,
   ContractAuditHistoryPage,
+  ContractPerformanceSummary,
   ContractKind,
   ProductionContractRole,
   ProductionContractStatus,
@@ -133,6 +134,7 @@ export const productionContractActions = {
 };
 
 export const productionContractAudit = {
+  performance: async () => (await getJson<{ performance: ContractPerformanceSummary }>('/contracts/performance')).performance,
   history: async (query: ContractHistoryQuery = {}) => {
     const search = new URLSearchParams();
     if (query.cursor) search.set('cursor', query.cursor);

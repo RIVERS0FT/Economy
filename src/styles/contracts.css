@@ -653,3 +653,48 @@
   .contract-renewal-panel--available .button,
   .contract-renewal-actions .button { width: 100%; }
 }
+
+.contract-performance-panel {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.contract-performance-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.contract-performance-recent {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.contract-performance-recent > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.contract-performance-recent > div > span:last-child {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+@media (max-width: 960px) {
+  .contract-performance-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .contract-performance-recent > div {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .contract-performance-recent > div > span:last-child {
+    grid-column: 1 / -1;
+  }
+}

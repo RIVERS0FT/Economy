@@ -1,0 +1,94 @@
+.facility-operating-diagnostics {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.facility-operating-diagnostics__heading,
+.facility-operating-diagnostics__heading > div,
+.facility-operating-diagnostics__inputs > div,
+.facility-operating-diagnostics__markets > div {
+  display: flex;
+  align-items: center;
+}
+
+.facility-operating-diagnostics__heading {
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.facility-operating-diagnostics__heading > div {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.facility-operating-diagnostics__heading small,
+.facility-operating-diagnostics__metrics small,
+.facility-operating-diagnostics__inputs small {
+  color: var(--text-muted);
+}
+
+.facility-operating-diagnostics__heading > span {
+  color: var(--text-warning);
+  font-weight: 700;
+}
+
+.facility-operating-diagnostics__metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.facility-operating-diagnostics__metrics > div {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+
+.facility-operating-diagnostics__metrics > div > span,
+.facility-operating-diagnostics__markets > div > span:first-child {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.facility-operating-diagnostics__inputs,
+.facility-operating-diagnostics__markets {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.facility-operating-diagnostics__inputs > div,
+.facility-operating-diagnostics__markets > div {
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.facility-operating-diagnostics__inputs img,
+.facility-operating-diagnostics__markets img {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+}
+
+.facility-operating-diagnostics__inputs > div > span:nth-of-type(1) {
+  display: grid;
+  min-width: 0;
+  margin-right: auto;
+}
+
+.facility-operating-diagnostics__markets > div > strong {
+  margin-right: auto;
+}
+
+@media (max-width: 720px) {
+  .facility-operating-diagnostics__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .facility-operating-diagnostics__heading {
+    align-items: flex-start;
+  }
+}

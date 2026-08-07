@@ -44,6 +44,9 @@ check(!server.includes('delta * safeNonNegativeInteger(product?.basePrice)'), 'p
 check(server.includes("description: '本周服务器确认完成的商品产出总数量'"), 'production board copy must describe weekly quantity');
 check(server.includes("unit: 'quantity'"), 'production board must expose a quantity unit');
 check(server.includes('tieBreakActivityAt: entry.activityAt'), 'weekly history must audit the tie-break timestamp');
+check(server.includes('function updatePersonalBest(player, boardId, score, periodKey)'), 'server must maintain authoritative personal best scores');
+check(server.includes('currentIsRecord: !state.partial'), 'current-week record status must ignore partial weeks');
+check(server.includes('if (!state.partial)'), 'personal bests must only settle from complete weeks');
 check(!publicEntrySource.includes('activityAt'), 'public leaderboard entries must not expose activity timestamps');
 check(domain.includes('lastEconomicActivityAt: now'), 'new players must receive an activity baseline');
 check(domain.includes(': player.registeredAt;'), 'legacy players must fall back to registration time');
@@ -73,6 +76,9 @@ check(page.includes("if (board.unit === 'quantity') return formatNumber(score);"
 check(!page.includes('`${formatNumber(score)} 个`'), 'production quantity must not append the 个 unit');
 check(page.includes('50 / 30 / 20 宝石'), 'leaderboard page must show the authoritative rewards');
 check(page.includes('最后有效经济活动时间越近者排名越高'), 'leaderboard page must explain the tie-break rule');
+check(page.includes('leaderboard-personal-best'), 'leaderboard page must show personal best scores');
+check(page.includes('本周已刷新个人纪录'), 'leaderboard page must identify a current-week record');
+check(leaderboardTypes.includes('LeaderboardPersonalBest'), 'leaderboard client types must expose authoritative personal bests');
 check(styles.includes('grid-template-columns: repeat(4, minmax(280px, 1fr))'), 'desktop leaderboard must remain a four-column grid');
 check(styles.includes('overflow-x: auto'), 'narrow viewports must preserve four columns with horizontal scrolling');
 check(productDesign.includes('50 / 30 / 20'), 'product design must record gem rewards');

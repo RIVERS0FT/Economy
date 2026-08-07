@@ -21,6 +21,10 @@ test('existing players migrate as completed while new players start incomplete',
       tutorialStore.getStatus(oldUser.id).completedVersion,
       CURRENT_TUTORIAL_VERSION,
     );
+    assert.equal(
+      store.database.prepare('SELECT completion_source FROM economy_tutorial_completions WHERE user_id = ?').get(oldUser.id)?.completion_source,
+      'migration',
+    );
     assert.equal(store.loadWorld(1_003).revision, beforeMigration);
 
     store.getState(newUser, 2_000);
@@ -61,6 +65,10 @@ test('tutorial completion is idempotent and does not mutate world state', () => 
     assert.equal(first.result.ok, true);
     assert.equal(first.tutorial.completedVersion, CURRENT_TUTORIAL_VERSION);
     assert.equal(first.tutorial.completedAt, 3_000);
+    assert.equal(
+      store.database.prepare('SELECT completion_source FROM economy_tutorial_completions WHERE user_id = ?').get(newUser.id)?.completion_source,
+      'player',
+    );
     assert.equal(store.loadWorld(3_001).revision, beforeCompletion);
 
     const changesBeforeNewKey = totalChanges(store);

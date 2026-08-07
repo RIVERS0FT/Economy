@@ -21,7 +21,8 @@ import {
 } from '../components/ui/layout';
 import { useNow } from '../hooks/useNow';
 import { useStableSelection } from '../hooks/useStableSelection';
-import { formatDuration, formatNumber } from '../utils/formatters';
+import { formatCurrency, formatDuration, formatNumber } from '../utils/formatters';
+import { marketDecisionSignal, marketTrendGlyph } from '../utils/marketDecisionSignals';
 import type {
   FacilityComplexity,
   FacilityTypeDefinition,
@@ -303,7 +304,44 @@ function ResearchDetailBody({
         ) : <p className="ui-helper-text">该项目完成后授予阶段剩余科技，不直接对应单座工厂。</p>}
       </section>
 
+      <section className="research-industry-context mobile-detail-section" aria-label="产业经营视角">
+        <div className="research-industry-context__heading">
+          <strong>产业经营视角</strong>
+          <small>科技只决定准入；以下使用当前持有资产、库存与最近真实成交价辅助判断产业方向。</small>
+        </div>
+        <div className="research-industry-context__list">
+          {facilities.map((facility) => {
+            const recipe = facility.recipes.find((candidate) => candidate.id === facility.defaultRecipeId) ?? facility.recipes[0];
+            const held = model.game.facilityGroups.find((group) => group.facilityTypeId === facility.id)?.count ?? 0;
+            const inputs = recipe?.inputs ?? [];
+            const output = recipe?.output;
+            const signalText = (productId: string) => {
+              const product = model.game.products.find((candidate) => candidate.id === productId);
+              const signal = marketDecisionSignal(model.game.markets[productId]);
+              const inventory = model.game.inventories[productId]?.available ?? 0;
+              return `${product?.name ?? productId} · 库存 ${formatNumber(inventory)} · ${signal.price === null ? '暂无真实成交' : `${formatCurrency(signal.price)} ${marketTrendGlyph(signal.trend)}`}`;
+            };
+            return (
+              <article className="research-industry-context__item" key={facility.id}>
+                <header>
+                  <span aria-hidden="true"><FacilityIcon facilityTypeId={facility.id} /></span>
+                  <strong>{facility.name}</strong>
+                  <StatusTag tone={held > 0 ? 'success' : 'neutral'}>{held > 0 ? `持有 ${formatNumber(held)}` : '未持有'}</StatusTag>
+                </header>
+                <DataList className="compact">
+                  <DataRow label="主要投入" value={inputs.length > 0 ? inputs.map((input) => signalText(input.productId)).join('；') : '无原料生产'} />
+                  <DataRow label="产出市场" value={output ? signalText(output.productId) : '—'} />
+                </DataList>
+              </article>
+            );
+          })}
+          {facilities.length === 0 ? <p className="ui-helper-text">该科技没有直接解锁工厂，经营影响由后续科技节点体现。</p> : null}
+        </div>
+        <p className="ui-helper-text">不提供“最佳科技”或最高利润自动推荐，玩家仍需结合供需、资金和产业链自行选择。</p>
+      </section>
+
       {isSelectedActive && active ? (
+
         <section className="research-progress-section mobile-detail-section" aria-live="polite">
           <div className="research-progress-heading">
             <strong>研发进度</strong>

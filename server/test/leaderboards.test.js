@@ -184,6 +184,18 @@ test('three weekly boards grant 50, 30, and 20 gems and allow repeat winners', (
   assert.equal(world.leaderboardHistory[0].boards.production[0].tieBreakActivityAt, players[0].lastEconomicActivityAt);
   assert.equal(ledgerEvents.length, 9);
   assert.equal(new Set(ledgerEvents.map((event) => event.sourceKey)).size, 9);
+  assert.equal(players[0].stats.leaderboardPersonalBests.growth.score, 300);
+  assert.equal(players[0].stats.leaderboardPersonalBests.production.score, 30);
+  assert.equal(players[0].stats.leaderboardPersonalBests.trading.score, 300);
+  assert.equal(players[0].stats.leaderboardPersonalBests.production.periodKey, state.periodKey);
+
+  const settledSnapshot = createLeaderboardSnapshot(world, 1, state.endsAt + 1);
+  assert.equal(settledSnapshot.boards.production.personalBest.score, 30);
+  assert.equal(settledSnapshot.boards.production.personalBest.currentIsRecord, false);
+  world.leaderboardState.production['1'] = { score: 31, quantity: 31 };
+  const recordSnapshot = createLeaderboardSnapshot(world, 1, state.endsAt + 2);
+  assert.equal(recordSnapshot.boards.production.personalBest.score, 30);
+  assert.equal(recordSnapshot.boards.production.personalBest.currentIsRecord, true);
 
   processLeaderboardWorld(world, state.endsAt, { onGemReward: (reward) => ledgerEvents.push(reward) });
   assert.equal(world.players['1'].gems, 150);
@@ -205,6 +217,7 @@ test('the first partial week records results without granting gems', () => {
   assert.equal(Number(player.gems || 0), 0);
   assert.equal(world.leaderboardHistory[0].partial, true);
   assert.equal(world.leaderboardHistory[0].boards.production[0].gems, 0);
+  assert.equal(player.stats.leaderboardPersonalBests.production, undefined);
 });
 
 test('top ten payload still returns the current player outside the visible rows', () => {

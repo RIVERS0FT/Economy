@@ -719,3 +719,48 @@
   color: var(--text-muted);
   font-size: 0.7rem;
 }
+
+.research-industry-context {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.research-industry-context__heading {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.research-industry-context__heading small {
+  color: var(--text-muted);
+}
+
+.research-industry-context__list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.research-industry-context__item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+
+.research-industry-context__item > header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.research-industry-context__item > header > span:first-child {
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+}
+
+.research-industry-context__item > header > strong {
+  margin-right: auto;
+}

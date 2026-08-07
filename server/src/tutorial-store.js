@@ -31,9 +31,18 @@ export function createTutorialStore(store, now = Date.now()) {
     CREATE TABLE IF NOT EXISTS economy_tutorial_completions (
       user_id INTEGER PRIMARY KEY,
       completed_version INTEGER NOT NULL CHECK (completed_version >= 0),
-      completed_at INTEGER NOT NULL
+      completed_at INTEGER NOT NULL,
+      completion_source TEXT NOT NULL DEFAULT 'legacy'
+        CHECK (completion_source IN ('legacy', 'migration', 'player'))
     ) STRICT;
   `);
+  const tutorialCompletionColumns = new Set(
+    database.prepare('PRAGMA table_info(economy_tutorial_completions)').all()
+      .map((row) => String(row.name)),
+  );
+  if (!tutorialCompletionColumns.has('completion_source')) {
+    database.exec("ALTER TABLE economy_tutorial_completions ADD COLUMN completion_source TEXT NOT NULL DEFAULT 'legacy' CHECK (completion_source IN ('legacy', 'migration', 'player'))");
+  }
 
   const selectStatus = database.prepare(`
     SELECT completed_version, completed_at
@@ -41,14 +50,19 @@ export function createTutorialStore(store, now = Date.now()) {
     WHERE user_id = ?
   `);
   const upsertStatus = database.prepare(`
-    INSERT INTO economy_tutorial_completions (user_id, completed_version, completed_at)
-    VALUES (?, ?, ?)
+    INSERT INTO economy_tutorial_completions (user_id, completed_version, completed_at, completion_source)
+    VALUES (?, ?, ?, ?)
     ON CONFLICT(user_id) DO UPDATE SET
       completed_version = MAX(economy_tutorial_completions.completed_version, excluded.completed_version),
       completed_at = CASE
         WHEN excluded.completed_version > economy_tutorial_completions.completed_version
           THEN excluded.completed_at
         ELSE economy_tutorial_completions.completed_at
+      END,
+      completion_source = CASE
+        WHEN excluded.completed_version > economy_tutorial_completions.completed_version
+          THEN excluded.completion_source
+        ELSE economy_tutorial_completions.completion_source
       END
   `);
   const selectMigration = database.prepare(`
@@ -88,7 +102,7 @@ export function createTutorialStore(store, now = Date.now()) {
     for (const player of Object.values(world.players || {})) {
       const userId = Number(player?.userId);
       if (!Number.isInteger(userId) || userId <= 0) continue;
-      upsertStatus.run(userId, CURRENT_TUTORIAL_VERSION, now);
+      upsertStatus.run(userId, CURRENT_TUTORIAL_VERSION, now, 'migration');
     }
     upsertMigration.run(
       MIGRATION_SETTING_KEY,
@@ -133,7 +147,7 @@ export function createTutorialStore(store, now = Date.now()) {
     if (existing.completedVersion >= version) return completionResponse(existing);
 
     return store.transaction(() => {
-      upsertStatus.run(normalizedUserId, version, completedAt);
+      upsertStatus.run(normalizedUserId, version, completedAt, 'player');
       const response = completionResponse(getStatus(normalizedUserId));
       insertIdempotency.run(
         normalizedUserId,

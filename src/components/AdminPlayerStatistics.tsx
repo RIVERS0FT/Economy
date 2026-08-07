@@ -130,8 +130,15 @@ export function AdminPlayerStatistics({
 
       <section className="admin-player-statistics__two-column">
         <article className="admin-player-statistics__card">
-          <header><div><h3>经营成长漏斗</h3><small>阶段人数使用当前权威状态与已记录里程碑，耗时只统计精确时间</small></div></header>
+          <header><div><h3>经营成长漏斗</h3><small>只统计 {formatDate(funnel.coverageStartsAt)} 起新建档玩家；阶段按真实顺序收敛，迁移完成不计入成长线完成</small></div></header>
           <HorizontalPercentChart rows={funnelRows} ariaLabel="玩家经营成长阶段相邻转化率" className="admin-echart--tall" />
+          <div className="admin-player-statistics__acquisition">
+            <h4>成长线完成时效</h4>
+            <dl>
+              <div><dt>24 小时内</dt><dd>{formatPercentBps(funnel.completion24h.rateBps)} · {funnel.completion24h.retained}/{funnel.completion24h.eligible}</dd></div>
+              <div><dt>7 日内</dt><dd>{formatPercentBps(funnel.completion7d.rateBps)} · {funnel.completion7d.retained}/{funnel.completion7d.eligible}</dd></div>
+            </dl>
+          </div>
         </article>
 
         <article className="admin-player-statistics__card">

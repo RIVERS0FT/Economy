@@ -21,6 +21,10 @@ requireText('server/src/player-admin-statistics.js', [
   'PLAYER_STATISTICS_TIME_ZONE',
   'economy_player_activity_daily',
   'economy_player_milestones',
+  'first_research_at',
+  'first_bank_deposit_at',
+  'gameplay_strategy_funnel_coverage_started_at',
+  'completion_source',
   'wealthAssetsFor',
   'lastEconomicActivityAt',
   'configurePlayerAdminStatistics',
@@ -65,6 +69,9 @@ requireText('src/components/AdminPlayerStatistics.tsx', [
   '24 小时经济活跃',
   '新增与经济活跃趋势',
   '经营成长漏斗',
+  '成长线完成时效',
+  'funnel.completion24h',
+  'funnel.completion7d',
   '财富分布',
   '需要关注的玩家群体',
   '只统计成功经济写操作',
@@ -100,10 +107,19 @@ requireText('server/test/player-admin-statistics.test.js', [
   'assert.equal(activity.successful_action_count, 1)',
   'assert.equal(second.revision, statistics.revision)',
 ]);
+requireText('tests/browser/admin-runtime.spec.ts', [
+  'coverageStartsAt:',
+  'completion24h:',
+  'completion7d:',
+  "id: 'first-research'",
+  "id: 'first-bank-deposit'",
+  "id: 'growth-line-complete'",
+]);
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '玩家运营统计固定归属“玩家”分区',
   '成功经济写操作',
   '精确日活动覆盖起点',
+  '完整经营漏斗覆盖起点',
   '不得把统计结果用于扩张人口需求预算',
   'ECharts',
 ]);

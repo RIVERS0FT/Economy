@@ -507,12 +507,18 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (method === 'GET' && path === '/api/game/contracts/performance') {
+      sendJson(response, 200, { performance: store.getContractPerformance(user) });
+      return;
+    }
+
     if (method === 'GET' && path === '/api/game/contracts/history') {
       sendJson(response, 200, {
         history: store.listContractAuditHistory(user, {
           cursor: url.searchParams.get('cursor'),
           limit: url.searchParams.get('limit'),
           status: url.searchParams.get('status'),
+          kind: url.searchParams.get('kind'),
           productId: url.searchParams.get('productId'),
           role: url.searchParams.get('role'),
           from: url.searchParams.get('from'),

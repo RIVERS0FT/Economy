@@ -664,3 +664,11 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 删除事务通过首次建档共用的 `ensurePlayer` 初始化重新创建玩家，保留原 `registeredAt`、宝石余额和宝石发行统计，写入递增 `saveEpoch`、`saveCreatedAt` 与一次性删除审计。`economy_save_deletions` 对 `user_id` 与 `request_key` 分别唯一，保存前后世代、删除时间、资产摘要和自动关闭数量；同一幂等键只返回第一次结果，每个账号只能成功一次。`economy_registrations`、邀请码与邀请关系、宝石账本、商店兑换、每日签到、礼品兑换、封禁、拍卖审计和合同审计不得删除或重置。教程完成行在同一事务删除，使新存档重新进入基础教程。
 
 服务器状态固定下发 `saveEpoch`。当前客户端对普通写请求发送 `X-Economy-Save-Epoch`；仅当当前存档仍处于初始 `saveEpoch = 0` 时允许兼容旧客户端缺失该请求头。一旦玩家成功删除存档进入更高世代，缺失或与当前玩家不一致的世代都必须在 `store.apply()` 之前返回 `409 SAVE_EPOCH_MISMATCH`，不得推进世界修订号或改变现金、订单、工厂、研发等新存档状态，从而防止删档前的旧标签页把操作写入新存档；当前世代请求仍必须保持可写。旧 `POST /api/game/reset` 继续固定返回 `410 Gone`，不得映射到删除存档领域能力。
+
+### 经营决策支持与精确漏斗
+
+`economy_player_milestones` 增加 `first_research_at` 与 `first_bank_deposit_at`，并以 `economy_player_statistics_meta.gameplay_strategy_funnel_coverage_started_at` 记录完整新漏斗开始覆盖的服务器时间。`economy_tutorial_completions` 增加 `completion_source`，固定为 `legacy`、`migration` 或 `player`；历史行迁移默认 `legacy`，版本迁移写 `migration`，玩家实际完成幂等接口只写 `player`。管理员经营成长漏斗只把覆盖起点之后新建档玩家和 `player` 来源完成计入完整转化与 24h／7d 完成率。
+
+合同新增只读 `GET /api/game/contracts/performance`，服务端直接从参与者可见的追加式合同审计汇总已结束合同、完成、异常、违约、赔付和最近结果，不进入六分区状态轮询，也不产生信用分。工厂经营诊断、研发产业视角、排行榜分段和经济事件结果反馈均由客户端对已经加载的服务器权威状态做无副作用派生；它们不得产生新的经济写操作。公开经济事件日历额外保留结束后 24 小时的事件供事后反馈，实际需求重分配仍只在正式事件生效窗口内发生。
+
+排行榜个人最好成绩保存在玩家权威 `stats.leaderboardPersonalBests` 中，按 `wealth/growth/production/trading` 保存已结算最好分数与 `periodKey`。只有完整周结算可以更新该历史值；排行榜读取只比较当前完整周成绩与已结算最好成绩并返回 `currentIsRecord`，不得由 GET 请求或浏览器本地状态写入历史纪录。

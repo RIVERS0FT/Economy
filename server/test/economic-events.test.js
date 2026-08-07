@@ -8,7 +8,7 @@ import {
   nextEconomicEventDeadline,
 } from '../src/economic-events.js';
 
-test('公开经济事件日历只返回当前与未来七天事件，并在同一事件窗口内保持确定性', () => {
+test('公开经济事件日历保留最近一天已结束事件并返回未来七天事件，且窗口内保持确定性', () => {
   const now = ECONOMIC_EVENT_EPOCH_MS + 6 * 60 * 60 * 1000;
   const first = createEconomicCalendarClientState(now);
   const second = createEconomicCalendarClientState(now + 1);
@@ -17,8 +17,15 @@ test('公开经济事件日历只返回当前与未来七天事件，并在同�
   assert.equal(first.timeZone, 'Asia/Shanghai');
   assert.equal('visibleUntil' in first, false);
   assert.ok(first.events.length >= 2);
-  assert.ok(first.events.every((event) => event.endsAt > now && event.startsAt <= now + 7 * 24 * 60 * 60 * 1000));
+  assert.ok(first.events.every((event) => event.endsAt > now - 24 * 60 * 60 * 1000 && event.startsAt <= now + 7 * 24 * 60 * 60 * 1000));
   assert.ok(nextEconomicEventDeadline(now) > now);
+});
+
+test('事件结束后一天内继续公开结果窗口', () => {
+  const now = ECONOMIC_EVENT_EPOCH_MS + 30 * 60 * 60 * 1000;
+  const calendar = createEconomicCalendarClientState(now);
+  assert.ok(calendar.events.some((event) => event.endsAt <= now));
+  assert.ok(calendar.events.every((event) => event.endsAt > now - 24 * 60 * 60 * 1000));
 });
 
 test('经济事件只重分配类别份额和商品选择权重，不扩大类别份额总和', () => {

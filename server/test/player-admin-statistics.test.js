@@ -80,6 +80,26 @@ test('player statistics record successful economic actions once and keep reads r
     assert.equal(operational.successful_action_count, 1);
     assert.equal(operational.trade_quantity, 4);
 
+    const research = store.apply(player, {
+      action: 'startResearch',
+      payload: { technologyId: 'forestry-development' },
+      requestKey: 'player-stats-research-1',
+      method: 'POST',
+      path: '/api/game/research/start',
+    }, now + 10);
+    assert.equal(research.result.ok, true);
+    const deposit = store.apply(player, {
+      action: 'bankDeposit',
+      payload: { amount: 10 },
+      requestKey: 'player-stats-bank-1',
+      method: 'POST',
+      path: '/api/game/bank/deposits',
+    }, now + 20);
+    assert.equal(deposit.result.ok, true);
+    const milestones = store.database.prepare('SELECT first_research_at, first_bank_deposit_at FROM economy_player_milestones WHERE user_id = ?').get(player.id);
+    assert.equal(milestones.first_research_at, now + 10);
+    assert.equal(milestones.first_bank_deposit_at, now + 20);
+
     const statistics = store.getPlayerStatistics(admin, '30d', now + 3);
     assert.equal(statistics.snapshot.totalPlayers, 1);
     assert.equal(statistics.snapshot.active24h, 1);
