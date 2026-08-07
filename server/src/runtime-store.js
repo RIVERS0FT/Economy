@@ -27,6 +27,11 @@ const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const CONTRACT_ACTIONS = new Set([
   'createProductionContract',
   'acceptProductionContract',
+  'proposeProductionContractNegotiation',
+  'counterProductionContractNegotiation',
+  'acceptProductionContractNegotiation',
+  'rejectProductionContractNegotiation',
+  'revokeProductionContractNegotiation',
   'cancelProductionContract',
   'prepareProductionContract',
   'fundProductionContract',

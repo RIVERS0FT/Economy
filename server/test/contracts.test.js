@@ -216,3 +216,150 @@ test('合同最后三批可提出续签，双方确认后预留资产并在原�
     'acceptProductionContractRenewal',
   );
 });
+
+
+test('公开商品合同支持结构化议价，议价阶段不冻结资产，双方接受后按最终条款原子签约', () => {
+  const { world, buyerUser, supplierUser, buyer, supplier, now } = setup();
+  applyProductionContractAction(world, buyerUser, 'createProductionContract', {
+    publisherRole: 'buyer',
+    productId: 'wheat',
+    quantityPerDelivery: 100,
+    unitPrice: 3,
+    deliveryIntervalMs: 30 * 60 * 1000,
+    totalDeliveries: 6,
+    firstDeliveryDelayMs: 30 * 60 * 1000,
+  }, now);
+  const contract = world.productionContracts[0];
+  const buyerCreditsBefore = buyer.credits;
+  const supplierCreditsBefore = supplier.credits;
+
+  assert.equal(applyProductionContractAction(world, supplierUser, 'proposeProductionContractNegotiation', {
+    contractId: contract.id,
+    quantityPerDelivery: 80,
+    unitPrice: 2.8,
+    deliveryIntervalMs: 60 * 60 * 1000,
+    totalDeliveries: 8,
+    firstDeliveryDelayMs: 10 * 60 * 1000,
+  }, now + 1).ok, true);
+  assert.equal(contractById(world, contract.id).negotiations.length, 1);
+  assert.equal(buyer.credits, buyerCreditsBefore);
+  assert.equal(supplier.credits, supplierCreditsBefore);
+  assert.equal(buyer.frozenCredits, 0);
+  assert.equal(supplier.frozenCredits, 0);
+
+  const negotiationId = contractById(world, contract.id).negotiations[0].id;
+  assert.equal(applyProductionContractAction(world, buyerUser, 'counterProductionContractNegotiation', {
+    contractId: contract.id,
+    negotiationId,
+    quantityPerDelivery: 90,
+    unitPrice: 3.2,
+    deliveryIntervalMs: 60 * 60 * 1000,
+    totalDeliveries: 7,
+    firstDeliveryDelayMs: 10 * 60 * 1000,
+  }, now + 2).ok, true);
+  assert.equal(contractById(world, contract.id).negotiations[0].revision, 2);
+
+  assert.equal(applyProductionContractAction(world, supplierUser, 'acceptProductionContractNegotiation', {
+    contractId: contract.id,
+    negotiationId,
+  }, now + 3).ok, true);
+  const activeContract = contractById(world, contract.id);
+  assert.equal(activeContract.status, 'active');
+  assert.equal(activeContract.quantityPerDelivery, 90);
+  assert.equal(activeContract.unitPrice, 3.2);
+  assert.equal(activeContract.totalDeliveries, 7);
+  assert.equal(activeContract.negotiations.length, 0);
+  assert.equal(activeContract.buyerEscrowCredits, 288);
+  assert.equal(activeContract.buyerBondCredits, 57.6);
+  assert.equal(activeContract.supplierBondCredits, 57.6);
+  assert.equal(activeContract.supplierReservedQuantity, 90);
+});
+
+test('商品合同议价最多同时三个线程、最多五轮，并只向发布者和对应发起者投影', () => {
+  const { world, buyerUser, supplierUser, now } = setup();
+  const thirdUser = { id: 303, email: 'third@example.com', name: '第三方' };
+  const fourthUser = { id: 404, email: 'fourth@example.com', name: '第四方' };
+  const fifthUser = { id: 505, email: 'fifth@example.com', name: '第五方' };
+  for (const user of [thirdUser, fourthUser, fifthUser]) {
+    const player = ensurePlayer(world, user, now);
+    player.credits = 100_000;
+    player.inventories.wheat.available = 1_000;
+  }
+  applyProductionContractAction(world, buyerUser, 'createProductionContract', {
+    publisherRole: 'buyer',
+    productId: 'wheat',
+    quantityPerDelivery: 20,
+    unitPrice: 3,
+    deliveryIntervalMs: 30 * 60 * 1000,
+    totalDeliveries: 6,
+    firstDeliveryDelayMs: 0,
+  }, now);
+  const contract = world.productionContracts[0];
+  const offer = (user, price, at) => applyProductionContractAction(world, user, 'proposeProductionContractNegotiation', {
+    contractId: contract.id,
+    quantityPerDelivery: 20,
+    unitPrice: price,
+    deliveryIntervalMs: 30 * 60 * 1000,
+    totalDeliveries: 6,
+    firstDeliveryDelayMs: 0,
+  }, at);
+  assert.equal(offer(supplierUser, 2.8, now + 1).ok, true);
+  assert.equal(offer(thirdUser, 2.9, now + 2).ok, true);
+  assert.equal(offer(fourthUser, 3.1, now + 3).ok, true);
+  assert.equal(offer(fifthUser, 3.2, now + 4).ok, false);
+
+  const publisherState = createProductionContractClientState(world, buyerUser.id, now + 5);
+  const supplierState = createProductionContractClientState(world, supplierUser.id, now + 5);
+  const outsiderState = createProductionContractClientState(world, fifthUser.id, now + 5);
+  const publisherContract = publisherState.productionContracts.find((item) => item.id === contract.id);
+  const supplierContract = supplierState.productionContracts.find((item) => item.id === contract.id);
+  const outsiderContract = outsiderState.productionContracts.find((item) => item.id === contract.id);
+  assert.equal(publisherContract.negotiations.length, 3);
+  assert.equal(supplierContract.negotiations.length, 1);
+  assert.equal(supplierContract.negotiations[0].isProposer, true);
+  assert.equal('proposerId' in supplierContract.negotiations[0], false);
+  assert.equal(outsiderContract.negotiations.length, 0);
+  assert.equal(publisherState.productionContractSummary.needsAttention, 3);
+
+  const negotiationId = contractById(world, contract.id).negotiations[0].id;
+  let actor = buyerUser;
+  for (let revision = 2; revision <= 5; revision += 1) {
+    const response = applyProductionContractAction(world, actor, 'counterProductionContractNegotiation', {
+      contractId: contract.id,
+      negotiationId,
+      quantityPerDelivery: 20,
+      unitPrice: Number((2.8 + revision / 100).toFixed(2)),
+      deliveryIntervalMs: 30 * 60 * 1000,
+      totalDeliveries: 6,
+      firstDeliveryDelayMs: 0,
+    }, now + 10 + revision);
+    assert.equal(response.ok, true);
+    actor = actor.id === buyerUser.id ? supplierUser : buyerUser;
+  }
+  assert.equal(contractById(world, contract.id).negotiations[0].revision, 5);
+  assert.equal(applyProductionContractAction(world, actor, 'counterProductionContractNegotiation', {
+    contractId: contract.id,
+    negotiationId,
+    quantityPerDelivery: 20,
+    unitPrice: 3,
+    deliveryIntervalMs: 30 * 60 * 1000,
+    totalDeliveries: 6,
+    firstDeliveryDelayMs: 0,
+  }, now + 20).ok, false);
+
+  processProductionContracts(world, now + 24 * 60 * 60 * 1000 + 100);
+  assert.equal(contractById(world, contract.id).negotiations.length, 0);
+});
+
+test('合同议价路由只解析结构化动作和稳定合同／议价 ID', () => {
+  const contractId = 'contract-a';
+  const negotiationId = 'negotiation-b';
+  assert.equal(resolveAction('POST', `/api/game/contracts/${contractId}/negotiations`).action, 'proposeProductionContractNegotiation');
+  assert.deepEqual(
+    resolveAction('POST', `/api/game/contracts/${contractId}/negotiations/${negotiationId}/counter`),
+    { action: 'counterProductionContractNegotiation', category: 'orders', routePayload: { contractId, negotiationId } },
+  );
+  assert.equal(resolveAction('POST', `/api/game/contracts/${contractId}/negotiations/${negotiationId}/accept`).action, 'acceptProductionContractNegotiation');
+  assert.equal(resolveAction('POST', `/api/game/contracts/${contractId}/negotiations/${negotiationId}/reject`).action, 'rejectProductionContractNegotiation');
+  assert.equal(resolveAction('POST', `/api/game/contracts/${contractId}/negotiations/${negotiationId}/revoke`).action, 'revokeProductionContractNegotiation');
+});

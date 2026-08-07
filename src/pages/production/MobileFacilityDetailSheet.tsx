@@ -22,6 +22,7 @@ export function MobileFacilityDetailSheet({
   onToggle,
   onRecipeChange,
   onOpenMarket,
+  onOpenContracts,
 }: Omit<FacilityClusterDetailSharedProps, 'entry'> & {
   entry: FacilityClusterEntry | undefined;
   isOpen: boolean;
@@ -58,6 +59,7 @@ export function MobileFacilityDetailSheet({
         warehouseAvailableCapacity={warehouseAvailableCapacity}
         now={now}
         onRecipeChange={onRecipeChange}
+        onOpenContracts={onOpenContracts}
       />
     </MobileWorkspaceDetailSheet>
   );

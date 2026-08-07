@@ -16,6 +16,7 @@ import {
 } from '../components/ui/layout';
 import type { FacilityGroup } from '../types';
 import { formatCurrency, formatNumber } from '../utils/formatters';
+import { setContractMarketIntent } from '../contracts/navigation';
 import {
   FacilityClusterDetailContent,
   FacilityClusterSelectorCard,
@@ -142,6 +143,10 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     if (!selectedFacilityEntry) return;
     selectMarketAsset('facility', selectedFacilityEntry.group.facilityTypeId);
   };
+  const openProductContracts = (productId: string) => {
+    setContractMarketIntent(productId);
+    model.setTab('contracts');
+  };
 
   return (
     <PageLayout
@@ -263,6 +268,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                 onToggle={toggleSelectedFacility}
                 onRecipeChange={changeSelectedFacilityRecipe}
                 onOpenMarket={openSelectedFacilityMarket}
+                onOpenContracts={openProductContracts}
                 titleId="desktop-facility-detail-title"
               />
             </PagePanel>
@@ -288,6 +294,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
         onToggle={toggleSelectedFacility}
         onRecipeChange={changeSelectedFacilityRecipe}
         onOpenMarket={openSelectedFacilityMarket}
+        onOpenContracts={openProductContracts}
       />
     </PageLayout>
   );

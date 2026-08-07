@@ -93,11 +93,11 @@ test('loan default transfers only enough collateral and releases the remainder',
   assert.equal(state.players['2'].facilityGroups[0].count, 11);
 });
 
-test('schema 5 migrates legacy supply contracts without changing roles', () => {
+test('schema 6 migrates legacy supply contracts without changing roles', () => {
   const state = world();
   state.productionContracts = [{ id: 'legacy', publisherId: 1, publisherName: '甲', publisherRole: 'buyer', buyerId: 1, buyerName: '甲', supplierId: null, supplierName: null, productId: 'wheat', quantityPerDelivery: 1, unitPrice: 1, deliveryIntervalMs: 600000, totalDeliveries: 2, completedDeliveries: 0, firstDeliveryDelayMs: 0, createdAt: 1, offerExpiresAt: 2, status: 'open' }];
   migrateProductionContractWorld(state);
-  assert.equal(state.productionContractSchemaVersion, 5);
+  assert.equal(state.productionContractSchemaVersion, 6);
   assert.equal(state.productionContracts[0].kind, 'supply');
   assert.equal(state.productionContracts[0].publisherSide, 'buyer');
 });
