@@ -128,6 +128,7 @@ if (existsSync(pathFor('README.md'))) {
     'npm run test:browser',
     '.github/workflows/deploy.yml',
     '本文件不复制会随产品迭代变化的详细口径',
+    '当前研发支持 1 宝石减少 30 分钟的服务器权威加速，工厂建设即时完成且不产生施工加速',
   ]) {
     if (!rootReadme.includes(text)) failures.push(`README.md 缺少项目入口信息: ${text}`);
   }
@@ -142,8 +143,9 @@ if (existsSync(pathFor('README.md'))) {
     '## 生产与仓库布局 V3',
     '## 统一资产订单簿与玩家系统（',
     '## 扩展产业目录',
+    '施工与研发均支持 1 宝石减少 30 分钟',
   ]) {
-    if (rootReadme.includes(text)) failures.push(`README.md 不得重新承载详细业务章节: ${text}`);
+    if (rootReadme.includes(text)) failures.push(`README.md 不得重新承载旧规则或详细业务章节: ${text}`);
   }
 }
 
@@ -151,7 +153,7 @@ for (const path of versionedDocs) {
   if (!existsSync(pathFor(path))) continue;
   const content = read(path);
   if (!content.includes(`客户端状态版本：${CURRENT_CLIENT_STATE_VERSION}`)) failures.push(`${path} 客户端状态版本必须为 ${CURRENT_CLIENT_STATE_VERSION}`);
-  if (!content.includes('世界状态版本：27')) failures.push(`${path} 世界状态版本必须为 25`);
+  if (!content.includes('世界状态版本：27')) failures.push(`${path} 世界状态版本必须为 27`);
 }
 
 if (existsSync(pathFor('docs/README.md'))) {
@@ -164,7 +166,7 @@ if (existsSync(pathFor('docs/README.md'))) {
     '`scripts/verify-document-authority.mjs` 必须遍历 `docs/*.md`',
     '参考分钟利润必须由正式目录自动校验',
     '人口数量、工厂承载、迁入迁出、就业收入、三类人口真实钱包、生产复杂度岗位结构',
-    '商店每日终端动态报价、全服同价、接受／拒绝决策、单向兑换、直接货币发行、施工宝石加速',
+    '商店每日终端动态报价、全服同价、接受／拒绝决策、单向兑换、直接货币发行、研发宝石加速、工厂施工加速退役',
     '普通玩家成交记录不得暴露来源、去向或对手订单',
     '库存与资金守恒的双边市场储备',
     '长期生产合作合同的页面职责归 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`',
@@ -187,8 +189,20 @@ if (existsSync(pathFor('docs/README.md'))) {
     '`scripts/verify-facility-artwork.mjs`',
     '`128 × 128`',
     '不得重新创建 `GAME_SHELL_LAYOUT_DESIGN.md`、`OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md`',
+    '服务器 26 种正式工厂 ID',
+    '工厂即时建设不得注册施工完成或施工就业截止时间',
+    '当前唯一研发任务允许 1 宝石减少 30 分钟',
+    '历史 `economy_facility_gem_actions` 仅保留只读审计',
   ]) {
     if (!index.includes(text)) failures.push(`docs/README.md 缺少防回退规则: ${text}`);
+  }
+  for (const text of [
+    '服务器 22 种正式工厂 ID',
+    '直接货币发行、施工宝石加速、兑换幂等',
+    '施工就业必须按下一整数释放边界调度',
+    '不得恢复只读占位、研发点、宝石加速、并行队列',
+  ]) {
+    if (index.includes(text)) failures.push(`docs/README.md 不得保留旧规则: ${text}`);
   }
 }
 
@@ -235,4 +249,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`文档权威性验证通过：精简协作入口与项目 README、登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/26、500 新玩家启动资金、市场需求模型 18、固定银行收益与周资金结算、商品供货、玩家抵押借贷与工厂使用权租赁合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备和十页导航与银行资产总览职责均满足当前基线。`);
+console.log(`文档权威性验证通过：精简协作入口与项目 README、登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/27、500 新玩家启动资金、市场需求模型 18、固定银行收益与周资金结算、商品供货、玩家抵押借贷与工厂使用权租赁合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备和十页导航与银行资产总览职责均满足当前基线。`);

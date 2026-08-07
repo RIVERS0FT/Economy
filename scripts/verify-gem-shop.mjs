@@ -9,6 +9,7 @@ const requireText = (path, text) => { if (!read(path).includes(text)) failures.p
 const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不得包含: ${text}`); };
 
 [
+  'README.md',
   'server/src/gem-shop.js',
   'server/src/gem-economy-store.js',
   'server/src/storage.js',
@@ -28,6 +29,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'tests/browser/production-status-summary.spec.ts',
   'src/config/navigation.ts',
   'src/pages/PageRouter.tsx',
+  'docs/README.md',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
@@ -41,12 +43,21 @@ for (const text of [
   'calculateNextGemShopRate',
   'player.gems -= gems',
 ]) requireText('server/src/gem-shop.js', text);
-for (const text of ['economy_gem_shop_daily_rates', 'economy_research_gem_actions', 'recordResearchAcceleration']) {
+for (const text of [
+  'economy_gem_shop_daily_rates',
+  'economy_facility_gem_actions',
+  'economy_research_gem_actions',
+  'recordResearchAcceleration',
+]) {
   requireText('server/src/gem-economy-store.js', text);
+}
+for (const text of ['insertFacilityGemAction', 'recordConstructionAcceleration', 'INSERT INTO economy_facility_gem_actions']) {
+  forbidText('server/src/gem-economy-store.js', text);
 }
 for (const text of ["action === 'exchangeGems'", "action === 'rejectGemShopQuote'", "action === 'accelerateResearch'"]) {
   requireText('server/src/storage.js', text);
 }
+forbidText('server/src/storage.js', 'accelerateFacilityConstruction');
 for (const text of ['GEM_CONSTRUCTION_ACCELERATION_MS', 'gemAccelerationMs', 'accelerateFacilityConstruction']) {
   forbidText('server/src/facility-groups.js', text);
 }
@@ -67,10 +78,22 @@ for (const text of ['宝石加速', '施工时间', 'constructionRemainingAfterA
 for (const text of ['instant construction shows credits and materials without gem acceleration', "not.toContainText('宝石加速')", "not.toContainText('施工中')"]) {
   requireText('tests/browser/production-status-summary.spec.ts', text);
 }
-for (const text of ['每次固定消耗 1 宝石，减少当前研发 30 分钟', '固定返回 `410 Gone`', '不得增加宝石兑换工厂产量']) {
+for (const text of [
+  '宝石只有两种正式使用方式',
+  '每次固定消耗 1 宝石，减少当前研发 30 分钟',
+  '正式运行时不得再准备 INSERT、暴露写方法或新增记录',
+  '固定返回 `410 Gone`',
+  '世界状态版本继续为 27',
+  '不得增加宝石兑换工厂产量',
+]) {
   requireText('docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md', text);
 }
+forbidText('docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md', '世界状态版本继续为 26');
 forbidText('docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md', '每次固定消耗 1 宝石，减少当前施工 30 分钟');
+requireText('README.md', '当前研发支持 1 宝石减少 30 分钟的服务器权威加速，工厂建设即时完成且不产生施工加速');
+forbidText('README.md', '施工与研发均支持 1 宝石减少 30 分钟');
+requireText('docs/README.md', '研发宝石加速、工厂施工加速退役');
+forbidText('docs/README.md', '直接货币发行、施工宝石加速、兑换幂等');
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '/api/game/facilities/construction/accelerate');
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '410 Gone');
 
@@ -78,4 +101,4 @@ if (failures.length) {
   console.error(`商店与宝石验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('商店验证通过：每日终端报价和研发宝石加速保持有效，工厂施工加速已退役并由资金与材料即时建造取代。');
+console.log('商店验证通过：每日终端报价和研发宝石加速保持有效，工厂施工加速仅保留只读历史审计与 410 兼容墓碑。');

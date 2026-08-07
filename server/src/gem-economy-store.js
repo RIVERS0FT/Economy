@@ -177,12 +177,6 @@ export class GemEconomyStore {
       FROM economy_gem_shop_daily_rates
       WHERE date_key <= ? ORDER BY date_key DESC LIMIT 14
     `);
-    this.insertFacilityGemAction = database.prepare(`
-      INSERT INTO economy_facility_gem_actions (
-        user_id, request_key, action_type, facility_type_id, gems_spent, balance_after,
-        reduced_ms, remaining_ms_before, remaining_ms_after, completed_immediately, created_at
-      ) VALUES (?, ?, 'construction_acceleration', ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
     this.insertResearchGemAction = database.prepare(`
       INSERT INTO economy_research_gem_actions (
         user_id, request_key, action_type, target_complexity, gems_spent, balance_after,
@@ -280,21 +274,6 @@ export class GemEconomyStore {
       0, 0, String(requestKey), Number(now),
     );
     return { ok: true, message: '已放弃今日终端报价，明日将获得新报价' };
-  }
-
-  recordConstructionAcceleration(userId, requestKey, actionResult, now = Date.now()) {
-    this.insertFacilityGemAction.run(
-      Number(userId),
-      String(requestKey),
-      String(actionResult.facilityTypeId),
-      Number(actionResult.gemsSpent),
-      Number(actionResult.balanceAfter),
-      Number(actionResult.reducedMs),
-      Number(actionResult.remainingMsBefore),
-      Number(actionResult.remainingMsAfter),
-      actionResult.completedImmediately ? 1 : 0,
-      Number(now),
-    );
   }
 
   recordResearchAcceleration(userId, requestKey, actionResult, now = Date.now()) {
