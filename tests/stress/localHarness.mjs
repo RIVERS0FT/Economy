@@ -4,9 +4,17 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
+import { ensurePlayer, PRODUCT_CATALOG } from '../../server/src/domain.js';
+import { applyFacilityGroupAction } from '../../server/src/facility-groups.js';
+import { EconomyStore } from '../../server/src/runtime-store.js';
 import { loadStressAccountRegistry } from './loadAccounts.mjs';
 
 const MAX_CAPTURED_LOG_BYTES = 512 * 1024;
+const LOCAL_STRESS_CREDITS = 1_000_000;
+const LOCAL_STRESS_GEMS = 1_000;
+const LOCAL_STRESS_INVENTORY_CAPACITY = 1_000_000;
+const LOCAL_STRESS_INVENTORY_PER_PRODUCT = 1_000;
+const LOCAL_STRESS_FARM_COUNT = 10;
 
 async function listen(server) {
   await new Promise((resolveListen, reject) => {
@@ -43,14 +51,18 @@ function sendJson(response, statusCode, payload, headers = {}) {
   response.end(body);
 }
 
-async function startFakeAccountService(password) {
-  const registry = await loadStressAccountRegistry();
-  const usersByEmail = new Map(registry.accounts.map((account) => [account.email, {
+function stressUsers(registry) {
+  return registry.accounts.map((account) => ({
     id: 910_000 + account.slot,
     email: account.email,
+    name: account.id,
     nickname: account.id,
     role: 'player',
-  }]));
+  }));
+}
+
+async function startFakeAccountService(password, registry) {
+  const usersByEmail = new Map(stressUsers(registry).map((user) => [user.email, user]));
   const usersBySession = new Map([...usersByEmail.values()].map((user) => [`stress-${user.id}`, user]));
 
   const server = createServer(async (request, response) => {
@@ -92,6 +104,41 @@ async function startFakeAccountService(password) {
   };
 }
 
+function seedStressPlayer(store, user, now) {
+  store.getState(user, now);
+  store.transaction(() => {
+    const { revision, world } = store.loadWorld(now);
+    const player = ensurePlayer(world, user, now);
+    player.credits = LOCAL_STRESS_CREDITS;
+    player.gems = LOCAL_STRESS_GEMS;
+    player.inventoryCapacity = LOCAL_STRESS_INVENTORY_CAPACITY;
+    for (const product of PRODUCT_CATALOG) {
+      const inventory = player.inventories[product.id] ||= { available: 0, frozen: 0 };
+      inventory.available = LOCAL_STRESS_INVENTORY_PER_PRODUCT;
+      inventory.frozen = 0;
+    }
+    const built = applyFacilityGroupAction(
+      world,
+      user,
+      'buildFacility',
+      { facilityTypeId: 'farm', quantity: LOCAL_STRESS_FARM_COUNT },
+      now,
+    );
+    if (!built?.ok) throw new Error(`本地压力测试预置农场失败：${String(built?.message || '')}`);
+    store.saveWorld(revision, world, now);
+  });
+}
+
+function seedLocalStressDatabase(databasePath, registry) {
+  const store = new EconomyStore(databasePath, { scheduledProcessing: false });
+  try {
+    const now = Date.now();
+    for (const user of stressUsers(registry)) seedStressPlayer(store, user, now);
+  } finally {
+    store.close();
+  }
+}
+
 async function waitForHealth(url, child, timeoutMs = 15_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -123,9 +170,11 @@ async function fileSize(path) {
 
 export async function startLocalStressHarness() {
   const password = `local-stress-${randomUUID()}`;
-  const accountService = await startFakeAccountService(password);
+  const registry = await loadStressAccountRegistry();
+  const accountService = await startFakeAccountService(password, registry);
   const directory = await mkdtemp(join(tmpdir(), 'economy-stress-'));
   const databasePath = join(directory, 'economy.sqlite');
+  seedLocalStressDatabase(databasePath, registry);
   const port = await reservePort();
   let stdout = '';
   let stderr = '';
