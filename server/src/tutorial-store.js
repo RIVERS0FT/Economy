@@ -1,4 +1,4 @@
-export const CURRENT_TUTORIAL_VERSION = 1;
+export const CURRENT_TUTORIAL_VERSION = 2;
 
 const MIGRATION_SETTING_KEY = 'game_tutorial_completion_migration_version';
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
@@ -20,7 +20,7 @@ function normalizeStatus(row) {
 
 function completionResponse(tutorial) {
   return {
-    result: { ok: true, message: '基础教程已完成' },
+    result: { ok: true, message: '经营成长线已完成' },
     tutorial,
   };
 }
@@ -110,7 +110,7 @@ export function createTutorialStore(store, now = Date.now()) {
       throw error;
     }
     if (version !== CURRENT_TUTORIAL_VERSION) {
-      const error = new Error('教程版本无效');
+      const error = new Error('成长线版本无效');
       error.statusCode = 400;
       throw error;
     }
