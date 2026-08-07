@@ -495,7 +495,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 - 隔离环境使用模拟统一账号服务、临时 SQLite 和真实 Economy API 进程，允许执行 `mixed`／`transaction-mix`／`soak` 写入场景；`transaction-mix` 固定只允许本地隔离环境，临时 SQLite 可为固定测试账号预置充足现金、宝石、库存、仓库和农场资产，但不得增加生产调试接口或改变正式玩家初始资产。结束后必须关闭子进程并删除临时数据库。PR 和 `npm run build` 只运行短时隔离行为测试，证明执行器、状态协议、幂等和安全门禁正确，不把共享 CI 机器延迟作为正式容量基线。
 - 远程 staging 必须由受保护的 `economy-stress` GitHub Environment 提供固定目标和密码，可以执行完整写压测，但目标不得解析为生产域名。生产环境只允许 `smoke`／`poll`，必须使用明确确认词、至少 3 秒轮询、最多 5 分钟，并且固定账号必须已经完成 Economy 建档；生产模式不得调用游戏写操作、初始化会话、注册、管理员、礼品码、封禁或数据库维护接口。
 
-正式场景为 `smoke`、`poll`、`burst`、`mixed` 和 `soak`：`smoke` 验证登录与完整／增量状态，`poll` 模拟正常轮询，`burst` 验证隔离环境冷状态尖峰，`mixed` 在隔离环境混合状态读取、工作动作、动作补拉和幂等重放，`soak` 长时间验证延迟、SQLite／WAL 与错误是否持续增长。未专门声明限流场景时，超时、5xx、非预期 4xx 和 429 必须为零。
+正式场景为 `smoke`、`poll`、`burst`、`mixed`、`transaction-mix` 和 `soak`：`smoke` 验证登录与完整／增量状态，`poll` 模拟正常轮询，`burst` 验证隔离环境冷状态尖峰，`mixed` 在隔离环境混合状态读取、工作动作、动作补拉和幂等重放，`transaction-mix` 在本地隔离环境覆盖状态、工作、订单、工厂启停、配方、即时建设和研发，`soak` 长时间验证延迟、SQLite／WAL 与错误是否持续增长。未专门声明限流场景时，超时、5xx、非预期 4xx 和 429 必须为零。
 
 `.github/workflows/stress.yml` 是唯一完整压力测试工作流。每周运行一次五分钟隔离 `poll`，人工运行可选择目标、场景、1～24 个槽位、最长一小时和轮询间隔；同一目标不得并行压测。成功或失败都把脱敏 JSON 与 Markdown 报告写入 Job Summary 并作为 14 天 Artifact 保存，报告只记录槽位范围，不得记录邮箱、密码、Cookie、Token、Session 或请求正文。完整压力测试不得绑定到每个 PR 或主部署；性能预算调整必须依据至少三次同环境基线并作为独立审查修改，所用 GitHub Actions run ID、环境和观测值必须随 `budgets.json` 保存。
 
@@ -663,4 +663,4 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 删除事务通过首次建档共用的 `ensurePlayer` 初始化重新创建玩家，保留原 `registeredAt`、宝石余额和宝石发行统计，写入递增 `saveEpoch`、`saveCreatedAt` 与一次性删除审计。`economy_save_deletions` 对 `user_id` 与 `request_key` 分别唯一，保存前后世代、删除时间、资产摘要和自动关闭数量；同一幂等键只返回第一次结果，每个账号只能成功一次。`economy_registrations`、邀请码与邀请关系、宝石账本、商店兑换、每日签到、礼品兑换、封禁、拍卖审计和合同审计不得删除或重置。教程完成行在同一事务删除，使新存档重新进入基础教程。
 
-服务器状态固定下发 `saveEpoch`。当前客户端对普通写请求发送 `X-Economy-Save-Epoch`；服务器允许没有该请求头的兼容旧客户端，但新客户端携带的世代与当前玩家不一致时必须返回 `409 SAVE_EPOCH_MISMATCH`，防止删档前的旧标签页把操作写入新存档。旧 `POST /api/game/reset` 继续固定返回 `410 Gone`，不得映射到删除存档领域能力。
+服务器状态固定下发 `saveEpoch`。当前客户端对普通写请求发送 `X-Economy-Save-Epoch`；仅当当前存档仍处于初始 `saveEpoch = 0` 时允许兼容旧客户端缺失该请求头。一旦玩家成功删除存档进入更高世代，缺失或与当前玩家不一致的世代都必须在 `store.apply()` 之前返回 `409 SAVE_EPOCH_MISMATCH`，不得推进世界修订号或改变现金、订单、工厂、研发等新存档状态，从而防止删档前的旧标签页把操作写入新存档；当前世代请求仍必须保持可写。旧 `POST /api/game/reset` 继续固定返回 `410 Gone`，不得映射到删除存档领域能力。
