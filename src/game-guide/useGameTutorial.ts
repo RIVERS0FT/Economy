@@ -44,6 +44,8 @@ export interface GameTutorialController {
     assetId: string,
     side: OrderSide,
   ) => void;
+  recordResearchStart: () => void;
+  recordBankDeposit: () => void;
 }
 
 export type TutorialAwareGameViewModel = LoadedGameViewModel & {
@@ -176,7 +178,7 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     finishingRef.current = true;
     clearTutorialRun(userId);
     setRun(null);
-    model.notify('基础教程已完成');
+    model.notify('经营成长线已完成');
 
     if ((serverStatus?.completedVersion || 0) >= CURRENT_TUTORIAL_VERSION) {
       finishingRef.current = false;
@@ -190,7 +192,7 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
         setPendingTutorialCompletion(userId, false);
       })
       .catch(() => {
-        model.notify('教程已在本机完成，服务器完成记录将在下次进入时重试');
+        model.notify('成长线已在本机完成，服务器完成记录将在下次进入时重试');
       })
       .finally(() => {
         finishingRef.current = false;
@@ -222,26 +224,25 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
       )
     ));
     if (!order) return;
-    setRun((current) => {
-      if (!current || current.currentStep !== 'complete-sale') return current;
-      return {
-        ...current,
-        completedStepIds: current.completedStepIds.includes('complete-sale')
-          ? current.completedStepIds
-          : [...current.completedStepIds, 'complete-sale'],
-        stats: { ...current.stats, saleCompletions: current.stats.saleCompletions + 1 },
-        updatedAt: Date.now(),
-      };
-    });
+    updateCurrentRun('complete-sale', 'saleCompletions');
+  }, [model.game.orders, run, updateCurrentRun]);
+
+  useEffect(() => {
+    if (!run || run.currentStep !== 'review-contracts' || model.tab !== 'contracts') return;
+    updateCurrentRun('review-contracts', 'contractReviews');
+  }, [model.tab, run, updateCurrentRun]);
+
+  useEffect(() => {
+    if (!run || run.currentStep !== 'review-leaderboard' || model.tab !== 'leaderboard') return;
     finishTutorial();
-  }, [finishTutorial, model.game.orders, run]);
+  }, [finishTutorial, model.tab, run]);
 
   const restart = useCallback(() => {
     const fresh = createTutorialRun();
     persistRun(fresh);
     finishingRef.current = false;
     model.setTab('home');
-    model.notify('基础教程已从第一步重新开始');
+    model.notify('经营成长线已从第一步重新开始');
   }, [model, persistRun]);
 
   const hide = useCallback(() => {
@@ -297,6 +298,14 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     });
   }, [model, updateCurrentRun]);
 
+  const recordResearchStart = useCallback(() => {
+    updateCurrentRun('start-research', 'researchStarts');
+  }, [updateCurrentRun]);
+
+  const recordBankDeposit = useCallback(() => {
+    updateCurrentRun('make-bank-deposit', 'bankDeposits');
+  }, [updateCurrentRun]);
+
   const currentStep = run ? tutorialStepDefinition(run.currentStep) : null;
   const currentStepIndex = run ? TUTORIAL_STEP_IDS.indexOf(run.currentStep) + 1 : 0;
   const serverCompleted = (serverStatus?.completedVersion || 0) >= CURRENT_TUTORIAL_VERSION
@@ -314,10 +323,10 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     statusLabel: run
       ? `${run.status === 'hidden' ? '已隐藏' : '进行中'} · 步骤 ${currentStepIndex}/${TUTORIAL_STEPS.length}`
       : serverCompleted
-        ? '已完成当前版本教程'
+        ? '已完成当前版本经营成长线'
         : ready
           ? '尚未开始'
-          : '正在读取教程状态',
+          : '正在读取成长线状态',
     restart,
     hide,
     show,
@@ -326,14 +335,18 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     recordBuildSubmit,
     recordFacilityStartClick,
     recordSellOrderSubmit,
+    recordResearchStart,
+    recordBankDeposit,
   }), [
     currentStep,
     currentStepIndex,
     hide,
     openCurrentTarget,
     ready,
+    recordBankDeposit,
     recordBuildSubmit,
     recordFacilityStartClick,
+    recordResearchStart,
     recordSellOrderSubmit,
     recordWorkClick,
     restart,
