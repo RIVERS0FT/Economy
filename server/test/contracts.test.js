@@ -241,13 +241,13 @@ test('公开商品合同支持结构化议价，议价阶段不冻结资产，�
     totalDeliveries: 8,
     firstDeliveryDelayMs: 10 * 60 * 1000,
   }, now + 1).ok, true);
-  assert.equal(contract.negotiations.length, 1);
+  assert.equal(contractById(world, contract.id).negotiations.length, 1);
   assert.equal(buyer.credits, buyerCreditsBefore);
   assert.equal(supplier.credits, supplierCreditsBefore);
   assert.equal(buyer.frozenCredits, 0);
   assert.equal(supplier.frozenCredits, 0);
 
-  const negotiationId = contract.negotiations[0].id;
+  const negotiationId = contractById(world, contract.id).negotiations[0].id;
   assert.equal(applyProductionContractAction(world, buyerUser, 'counterProductionContractNegotiation', {
     contractId: contract.id,
     negotiationId,
@@ -257,21 +257,22 @@ test('公开商品合同支持结构化议价，议价阶段不冻结资产，�
     totalDeliveries: 7,
     firstDeliveryDelayMs: 10 * 60 * 1000,
   }, now + 2).ok, true);
-  assert.equal(contract.negotiations[0].revision, 2);
+  assert.equal(contractById(world, contract.id).negotiations[0].revision, 2);
 
   assert.equal(applyProductionContractAction(world, supplierUser, 'acceptProductionContractNegotiation', {
     contractId: contract.id,
     negotiationId,
   }, now + 3).ok, true);
-  assert.equal(contract.status, 'active');
-  assert.equal(contract.quantityPerDelivery, 90);
-  assert.equal(contract.unitPrice, 3.2);
-  assert.equal(contract.totalDeliveries, 7);
-  assert.equal(contract.negotiations.length, 0);
-  assert.equal(contract.buyerEscrowCredits, 288);
-  assert.equal(contract.buyerBondCredits, 57.6);
-  assert.equal(contract.supplierBondCredits, 57.6);
-  assert.equal(contract.supplierReservedQuantity, 90);
+  const activeContract = contractById(world, contract.id);
+  assert.equal(activeContract.status, 'active');
+  assert.equal(activeContract.quantityPerDelivery, 90);
+  assert.equal(activeContract.unitPrice, 3.2);
+  assert.equal(activeContract.totalDeliveries, 7);
+  assert.equal(activeContract.negotiations.length, 0);
+  assert.equal(activeContract.buyerEscrowCredits, 288);
+  assert.equal(activeContract.buyerBondCredits, 57.6);
+  assert.equal(activeContract.supplierBondCredits, 57.6);
+  assert.equal(activeContract.supplierReservedQuantity, 90);
 });
 
 test('商品合同议价最多同时三个线程、最多五轮，并只向发布者和对应发起者投影', () => {
@@ -320,7 +321,7 @@ test('商品合同议价最多同时三个线程、最多五轮，并只向发�
   assert.equal(outsiderContract.negotiations.length, 0);
   assert.equal(publisherState.productionContractSummary.needsAttention, 3);
 
-  const negotiationId = contract.negotiations[0].id;
+  const negotiationId = contractById(world, contract.id).negotiations[0].id;
   let actor = buyerUser;
   for (let revision = 2; revision <= 5; revision += 1) {
     const response = applyProductionContractAction(world, actor, 'counterProductionContractNegotiation', {
@@ -335,7 +336,7 @@ test('商品合同议价最多同时三个线程、最多五轮，并只向发�
     assert.equal(response.ok, true);
     actor = actor.id === buyerUser.id ? supplierUser : buyerUser;
   }
-  assert.equal(contract.negotiations[0].revision, 5);
+  assert.equal(contractById(world, contract.id).negotiations[0].revision, 5);
   assert.equal(applyProductionContractAction(world, actor, 'counterProductionContractNegotiation', {
     contractId: contract.id,
     negotiationId,
@@ -347,7 +348,7 @@ test('商品合同议价最多同时三个线程、最多五轮，并只向发�
   }, now + 20).ok, false);
 
   processProductionContracts(world, now + 24 * 60 * 60 * 1000 + 100);
-  assert.equal(contract.negotiations.length, 0);
+  assert.equal(contractById(world, contract.id).negotiations.length, 0);
 });
 
 test('合同议价路由只解析结构化动作和稳定合同／议价 ID', () => {
