@@ -35,23 +35,39 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          path = Path('src/pages/ResearchPage.tsx')
-          text = path.read_text(encoding='utf-8')
+          research_path = Path('src/pages/ResearchPage.tsx')
+          research = research_path.read_text(encoding='utf-8')
           conditional = '      {isSelectedActive && active ? (\n'
           section_marker = '      <section className="research-industry-context mobile-detail-section" aria-label="产业经营视角">\n'
-          conditional_index = text.find(conditional)
-          section_start = text.find(section_marker, conditional_index)
+          conditional_index = research.find(conditional)
+          section_start = research.find(section_marker, conditional_index)
           if conditional_index < 0 or section_start < 0:
               raise SystemExit('Could not locate generated research industry context placement')
-          section_end = text.find('      </section>\n', section_start)
+          section_end = research.find('      </section>\n', section_start)
           if section_end < 0:
               raise SystemExit('Could not locate research industry context end')
           section_end += len('      </section>\n')
-          block = text[section_start:section_end]
-          text = text[:section_start] + text[section_end:]
-          conditional_index = text.find(conditional)
-          text = text[:conditional_index] + block + '\n' + text[conditional_index:]
-          path.write_text(text, encoding='utf-8')
+          block = research[section_start:section_end]
+          research = research[:section_start] + research[section_end:]
+          conditional_index = research.find(conditional)
+          research = research[:conditional_index] + block + '\n' + research[conditional_index:]
+          research_path.write_text(research, encoding='utf-8')
+
+          contract_path = Path('src/contracts/api.ts')
+          contract = contract_path.read_text(encoding='utf-8')
+          contract = contract.replace(
+              "performance: async () => (await get<{ performance: ContractPerformanceSummary }>('/contracts/performance')).performance,",
+              "performance: async () => (await getJson<{ performance: ContractPerformanceSummary }>('/contracts/performance')).performance,",
+          )
+          contract_path.write_text(contract, encoding='utf-8')
+
+          market_path = Path('src/utils/marketDecisionSignals.ts')
+          market = market_path.read_text(encoding='utf-8')
+          market = market.replace(
+              '  const latest = points.at(-1);\n  const previous = points.length >= 2 ? points.at(-2) : undefined;',
+              '  const latest = points.length > 0 ? points[points.length - 1] : undefined;\n  const previous = points.length >= 2 ? points[points.length - 2] : undefined;',
+          )
+          market_path.write_text(market, encoding='utf-8')
           PY
 
       - name: Install dependencies
