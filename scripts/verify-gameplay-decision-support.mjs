@@ -80,10 +80,14 @@ for (const text of [
 ]) requireText('server/src/player-admin-statistics.js', text);
 requireText('server/src/tutorial-store.js', "completion_source IN ('legacy', 'migration', 'player')");
 requireText('src/components/facilities/FacilityOperatingDiagnostics.tsx', '不自动推荐最高利润产物');
+requireText('src/pages/production/MobileFacilityDetailSheet.tsx', 'markets={markets}');
+requireText('src/pages/production/MobileFacilityDetailSheet.tsx', 'warehouseAvailableCapacity={warehouseAvailableCapacity}');
 requireText('src/pages/ResearchPage.tsx', '产业经营视角');
 requireText('server/src/contract-audit-store.js', 'store.getContractPerformance');
+requireText('src/contracts/api.ts', "getJson<{ performance: ContractPerformanceSummary }>('/contracts/performance')");
 requireText('src/pages/ContractPage.tsx', '我的履约档案');
 requireText('src/pages/ContractPage.tsx', '不生成星级、信用等级或主观评分');
+requireText('src/pages/LeaderboardPage.tsx', 'personalLeaderboardGoal(board)');
 requireText('src/pages/LeaderboardPage.tsx', 'leaderboard-personal-goal');
 requireText('src/pages/OverviewPage.tsx', '事件窗口真实成交');
 requireText('server/src/economic-events.js', 'EVENT_RESULT_WINDOW_MS');
