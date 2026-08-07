@@ -4,39 +4,19 @@ path = Path(__file__).resolve().with_name('apply-gameplay-strategy-next-phase.py
 text = path.read_text(encoding='utf-8')
 text = text.replace('\\)', ')')
 
-ambiguous = r'''replace_once(
-    'src/pages/production/ProductionFacilityDetail.tsx',
-    """  products,
-  inventories,
-  now,
-  onToggle,""",
-    """  products,
-  inventories,
-  markets,
-  credits,
-  warehouseAvailableCapacity,
-  now,
-  onToggle,""",
-)'''
-specific = r'''replace_once(
-    'src/pages/production/ProductionFacilityDetail.tsx',
-    """export function FacilityClusterDetailContent({
-  entry,
-  products,
-  inventories,
-  now,
-  onToggle,""",
-    """export function FacilityClusterDetailContent({
-  entry,
-  products,
-  inventories,
-  markets,
-  credits,
-  warehouseAvailableCapacity,
-  now,
-  onToggle,""",
-)'''
-text = text.replace(ambiguous, specific)
+old_literal = '"""  products,\\n  inventories,\\n  now,\\n  onToggle,"""'
+new_literal = '"""  products,\\n  inventories,\\n  markets,\\n  credits,\\n  warehouseAvailableCapacity,\\n  now,\\n  onToggle,"""'
+old_index = text.find(old_literal)
+if old_index < 0:
+    raise SystemExit('Could not find ambiguous FacilityClusterDetailContent old literal')
+new_index = text.find(new_literal, old_index + len(old_literal))
+if new_index < 0:
+    raise SystemExit('Could not find FacilityClusterDetailContent replacement literal')
+specific_old = '"""export function FacilityClusterDetailContent({\\n  entry,\\n  products,\\n  inventories,\\n  now,\\n  onToggle,"""'
+specific_new = '"""export function FacilityClusterDetailContent({\\n  entry,\\n  products,\\n  inventories,\\n  markets,\\n  credits,\\n  warehouseAvailableCapacity,\\n  now,\\n  onToggle,"""'
+text = text[:old_index] + specific_old + text[old_index + len(old_literal):]
+new_index = text.find(new_literal, old_index + len(specific_old))
+text = text[:new_index] + specific_new + text[new_index + len(new_literal):]
 
 sentinel = '# MOBILE_FACILITY_DIAGNOSTICS_FORWARDING'
 if sentinel not in text:
