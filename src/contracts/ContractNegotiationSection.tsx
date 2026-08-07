@@ -38,13 +38,41 @@ function durationLabel(value: number) {
   return INTERVAL_OPTIONS.find(([candidate]) => candidate === value)?.[1] ?? `${Math.round(value / 60_000)} 分钟`;
 }
 
-function TermsSummary({ terms }: { terms: ProductionContractNegotiationTerms }) {
+function firstDelayLabel(value: number) {
+  return FIRST_DELAY_OPTIONS.find(([candidate]) => candidate === value)?.[1]
+    ?? (value === 0 ? '签订后立即进入首批交付' : `签订后 ${Math.round(value / 60_000)} 分钟`);
+}
+
+function TermsSummary({
+  terms,
+  baseTerms,
+}: {
+  terms: ProductionContractNegotiationTerms;
+  baseTerms: ProductionContractNegotiationTerms;
+}) {
+  const quantityLabel = terms.quantityPerDelivery === baseTerms.quantityPerDelivery
+    ? formatNumber(terms.quantityPerDelivery)
+    : `${formatNumber(baseTerms.quantityPerDelivery)} → ${formatNumber(terms.quantityPerDelivery)}`;
+  const priceLabel = terms.unitPrice === baseTerms.unitPrice
+    ? formatCurrency(terms.unitPrice)
+    : `${formatCurrency(baseTerms.unitPrice)} → ${formatCurrency(terms.unitPrice)}`;
+  const intervalLabel = terms.deliveryIntervalMs === baseTerms.deliveryIntervalMs
+    ? durationLabel(terms.deliveryIntervalMs)
+    : `${durationLabel(baseTerms.deliveryIntervalMs)} → ${durationLabel(terms.deliveryIntervalMs)}`;
+  const deliveriesLabel = terms.totalDeliveries === baseTerms.totalDeliveries
+    ? `${formatNumber(terms.totalDeliveries)} 批`
+    : `${formatNumber(baseTerms.totalDeliveries)} 批 → ${formatNumber(terms.totalDeliveries)} 批`;
+  const firstDelay = terms.firstDeliveryDelayMs === baseTerms.firstDeliveryDelayMs
+    ? firstDelayLabel(terms.firstDeliveryDelayMs)
+    : `${firstDelayLabel(baseTerms.firstDeliveryDelayMs)} → ${firstDelayLabel(terms.firstDeliveryDelayMs)}`;
+
   return (
     <DataList className="compact contract-negotiation-summary">
-      <DataRow label="每批数量" value={formatNumber(terms.quantityPerDelivery)} />
-      <DataRow label="单位价格" value={<CurrencyAmount>{formatCurrency(terms.unitPrice)}</CurrencyAmount>} />
-      <DataRow label="交付周期" value={durationLabel(terms.deliveryIntervalMs)} />
-      <DataRow label="总批次" value={`${formatNumber(terms.totalDeliveries)} 批`} />
+      <DataRow label="每批数量" value={quantityLabel} />
+      <DataRow label="单位价格" value={<CurrencyAmount>{priceLabel}</CurrencyAmount>} />
+      <DataRow label="交付周期" value={intervalLabel} />
+      <DataRow label="总批次" value={deliveriesLabel} />
+      <DataRow label="首次交付" value={firstDelay} />
     </DataList>
   );
 }
@@ -142,7 +170,7 @@ export function ContractNegotiationSection({
                 <div><strong>{negotiation.proposerName || '议价玩家'}</strong><span>第 {negotiation.revision} 轮</span></div>
                 <StatusTag tone={negotiation.awaitingMyResponse ? 'warning' : 'info'}>{negotiation.awaitingMyResponse ? '等待你处理' : '等待对方'}</StatusTag>
               </header>
-              <TermsSummary terms={negotiation.terms} />
+              <TermsSummary terms={negotiation.terms} baseTerms={baseTerms} />
               {editing === negotiation.id ? (
                 <TermsEditor
                   key={`${negotiation.id}:${negotiation.revision}`}
@@ -203,7 +231,7 @@ export function ContractNegotiationSection({
         <div><strong>{ownNegotiation.awaitingMyResponse ? '收到反报价' : '我的议价'}</strong><span>第 {ownNegotiation.revision} 轮</span></div>
         <StatusTag tone={ownNegotiation.awaitingMyResponse ? 'warning' : 'info'}>{ownNegotiation.awaitingMyResponse ? '等待你处理' : '等待发布者'}</StatusTag>
       </div>
-      <TermsSummary terms={ownNegotiation.terms} />
+      <TermsSummary terms={ownNegotiation.terms} baseTerms={baseTerms} />
       {editing === ownNegotiation.id ? (
         <TermsEditor
           key={`${ownNegotiation.id}:${ownNegotiation.revision}`}
