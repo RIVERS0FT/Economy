@@ -82,7 +82,7 @@ const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'work', 'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',
   'collectFacility', 'placeOrder', 'cancelOrder', 'listFacility',
   'cancelFacilityListing', 'buyFacility', 'upgradeWarehouse', 'redeemGift',
-  'exchangeGems', 'accelerateFacilityConstruction', 'createAuction', 'placeAuctionBid', 'cancelAuction',
+  'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
   'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay', 'startResearch', 'accelerateResearch',
 ]);
 
@@ -967,9 +967,6 @@ export class EconomyStore {
         gameResult = applyBankAction(world, user, action, payload, now);
       } else {
         gameResult = applyFacilityGroupAction(world, user, action, payload, now);
-      }
-      if (action === 'accelerateFacilityConstruction' && gameResult?.ok) {
-        this.gemEconomy.recordConstructionAcceleration(user.id, requestKey, gameResult, now);
       }
       if (action === 'accelerateResearch' && gameResult?.ok) {
         this.gemEconomy.recordResearchAcceleration(user.id, requestKey, gameResult, now);
