@@ -18,6 +18,14 @@ text = text[:old_index] + specific_old + text[old_index + len(old_literal):]
 new_index = text.find(new_literal, old_index + len(specific_old))
 text = text[:new_index] + specific_new + text[new_index + len(new_literal):]
 
+noop_contract_patch = r'''insert_after(
+    'server/src/contract-audit-store.js',
+    """  store.listContractAuditHistory = (user, rawOptions = {}) => store.transaction(() => {""",
+    """\n""",
+)
+'''
+text = text.replace(noop_contract_patch, '')
+
 sentinel = '# MOBILE_FACILITY_DIAGNOSTICS_FORWARDING'
 if sentinel not in text:
     text += r'''
