@@ -556,7 +556,9 @@ export async function runStressTest(options = {}) {
 
   try {
     if (targetMode === 'local') {
-      harness = await startLocalStressHarness();
+      harness = await startLocalStressHarness({
+        seedTransactionAssets: profile === 'transaction-mix',
+      });
       Object.assign(env, harness.env);
       storageBefore = await harness.storageSnapshot();
     }

@@ -54,11 +54,14 @@ for (const text of [
   "'/api/game/research/start'",
   "'/api/game/research/accelerate'",
   'X-Economy-Save-Epoch',
+  "seedTransactionAssets: profile === 'transaction-mix'",
 ]) assert.equal(runner.includes(text), true, `压力测试执行器缺少 ${text}`);
 
 const harness = read('tests/stress/localHarness.mjs');
 for (const text of [
   'seedLocalStressDatabase',
+  'seedTransactionAssets = false',
+  'if (seedTransactionAssets) seedLocalStressDatabase',
   'LOCAL_STRESS_CREDITS = 1_000_000',
   'LOCAL_STRESS_GEMS = 1_000',
   'LOCAL_STRESS_INVENTORY_CAPACITY = 1_000_000',
