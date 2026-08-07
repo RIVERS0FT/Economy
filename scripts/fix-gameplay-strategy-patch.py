@@ -4,6 +4,40 @@ path = Path(__file__).resolve().with_name('apply-gameplay-strategy-next-phase.py
 text = path.read_text(encoding='utf-8')
 text = text.replace('\\)', ')')
 
+ambiguous = r'''replace_once(
+    'src/pages/production/ProductionFacilityDetail.tsx',
+    """  products,
+  inventories,
+  now,
+  onToggle,""",
+    """  products,
+  inventories,
+  markets,
+  credits,
+  warehouseAvailableCapacity,
+  now,
+  onToggle,""",
+)'''
+specific = r'''replace_once(
+    'src/pages/production/ProductionFacilityDetail.tsx',
+    """export function FacilityClusterDetailContent({
+  entry,
+  products,
+  inventories,
+  now,
+  onToggle,""",
+    """export function FacilityClusterDetailContent({
+  entry,
+  products,
+  inventories,
+  markets,
+  credits,
+  warehouseAvailableCapacity,
+  now,
+  onToggle,""",
+)'''
+text = text.replace(ambiguous, specific)
+
 sentinel = '# MOBILE_FACILITY_DIAGNOSTICS_FORWARDING'
 if sentinel not in text:
     text += r'''
