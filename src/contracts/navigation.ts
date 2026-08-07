@@ -13,6 +13,7 @@ export function setContractMarketIntent(productId: string) {
   }
 }
 
+// Consume once so a refresh never keeps forcing an old factory-origin product filter.
 export function consumeContractMarketIntent(): ContractMarketIntent | null {
   if (typeof sessionStorage === 'undefined') return null;
   let raw: string | null = null;
