@@ -7,6 +7,26 @@ export type ProductionContractStatus = 'open' | 'active' | 'completed' | 'cancel
 export type ProductionContractRoundStatus = 'preparing' | 'ready' | 'grace';
 export type ContractAuditCompleteness = 'full' | 'legacy_partial';
 
+export interface ProductionContractNegotiationTerms {
+  quantityPerDelivery: number;
+  unitPrice: number;
+  deliveryIntervalMs: number;
+  totalDeliveries: number;
+  firstDeliveryDelayMs: number;
+}
+
+export interface ProductionContractNegotiation {
+  id: string;
+  revision: number;
+  terms: ProductionContractNegotiationTerms;
+  createdAt: number;
+  updatedAt: number;
+  expiresAt: number;
+  proposerName: string | null;
+  isProposer: boolean;
+  awaitingMyResponse: boolean;
+}
+
 export interface ProductionContractRenewalProposal {
   id: string;
   status: 'proposed' | 'accepted' | 'activated';
@@ -64,6 +84,7 @@ export interface ProductionContract {
   buyerAutoFund: boolean;
   supplierAutoReserve: boolean;
   renewalProposal?: ProductionContractRenewalProposal | null;
+  negotiations?: ProductionContractNegotiation[];
   renewedFromContractId?: string;
   renewedToContractId?: string;
   renewalCancellationReason?: string;

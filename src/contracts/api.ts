@@ -46,6 +46,7 @@ export interface CreateFacilityLeaseContractInput {
 
 export type CreateProductionContractInput = CreateSupplyContractInput | CreateLoanContractInput | CreateFacilityLeaseContractInput;
 export type RenewProductionContractInput = Omit<CreateSupplyContractInput, 'kind' | 'publisherRole' | 'productId'>;
+export type SupplyNegotiationTermsInput = RenewProductionContractInput;
 
 export interface ContractHistoryQuery {
   cursor?: string | null;
@@ -116,6 +117,11 @@ function contractPath(contractId: string, action: string) {
 export const productionContractActions = {
   create: (input: CreateProductionContractInput) => post('/contracts', input),
   accept: (contractId: string) => post(contractPath(contractId, 'accept')),
+  proposeNegotiation: (contractId: string, input: SupplyNegotiationTermsInput) => post(contractPath(contractId, 'negotiations'), input),
+  counterNegotiation: (contractId: string, negotiationId: string, input: SupplyNegotiationTermsInput) => post(`${contractPath(contractId, 'negotiations')}/${encodeURIComponent(negotiationId)}/counter`, input),
+  acceptNegotiation: (contractId: string, negotiationId: string) => post(`${contractPath(contractId, 'negotiations')}/${encodeURIComponent(negotiationId)}/accept`),
+  rejectNegotiation: (contractId: string, negotiationId: string) => post(`${contractPath(contractId, 'negotiations')}/${encodeURIComponent(negotiationId)}/reject`),
+  revokeNegotiation: (contractId: string, negotiationId: string) => post(`${contractPath(contractId, 'negotiations')}/${encodeURIComponent(negotiationId)}/revoke`),
   cancel: (contractId: string) => post(contractPath(contractId, 'cancel')),
   prepare: (contractId: string) => post(contractPath(contractId, 'prepare')),
   fund: (contractId: string) => post(contractPath(contractId, 'fund')),

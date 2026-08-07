@@ -84,11 +84,25 @@
   margin-right: auto;
 }
 
+.facility-operating-diagnostics__market-price {
+  white-space: nowrap;
+}
+
+.facility-operating-diagnostics__contract-link {
+  flex: 0 0 auto;
+}
+
 @media (max-width: 720px) {
   .facility-operating-diagnostics__metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .facility-operating-diagnostics__heading {
     align-items: flex-start;
+  }
+  .facility-operating-diagnostics__markets > div {
+    flex-wrap: wrap;
+  }
+  .facility-operating-diagnostics__contract-link {
+    margin-left: auto;
   }
 }

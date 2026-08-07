@@ -15,7 +15,7 @@ import {
 } from './commercial-contracts.js';
 import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 
-export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 5;
+export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 6;
 export const PRODUCTION_CONTRACT_INTERVALS = Object.freeze([
   10 * 60 * 1000,
   30 * 60 * 1000,
@@ -48,6 +48,9 @@ const MAX_DELIVERIES = 100;
 const OFFER_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const RENEWAL_TTL_MS = 24 * 60 * 60 * 1000;
 const RENEWAL_WINDOW_DELIVERIES = 3;
+const NEGOTIATION_TTL_MS = 24 * 60 * 60 * 1000;
+const MAX_NEGOTIATIONS_PER_CONTRACT = 3;
+const MAX_NEGOTIATION_REVISIONS = 5;
 const BOND_RATE_BPS = 2_000;
 const BASIS_POINTS = 10_000;
 const PRODUCT_IDS = new Set(PRODUCT_CATALOG.map((product) => product.id));
@@ -129,6 +132,37 @@ function normalizeRenewalProposal(contract, proposal) {
   };
 }
 
+function normalizeNegotiation(contract, negotiation) {
+  if (!negotiation || typeof negotiation !== 'object') return null;
+  const proposerId = Number(negotiation.proposerId);
+  const lastActionBy = Number(negotiation.lastActionBy);
+  const terms = renewalTerms(negotiation.terms || {});
+  if (!Number.isSafeInteger(proposerId) || proposerId <= 0 || !Number.isSafeInteger(lastActionBy) || lastActionBy <= 0 || !terms) return null;
+  return {
+    id: String(negotiation.id || `contract-negotiation-${randomUUID()}`),
+    proposerId,
+    revision: Math.max(1, Math.min(MAX_NEGOTIATION_REVISIONS, Math.floor(Number(negotiation.revision || 1)))),
+    terms,
+    lastActionBy,
+    createdAt: Math.max(0, Number(negotiation.createdAt || contract?.createdAt || Date.now())),
+    updatedAt: Math.max(0, Number(negotiation.updatedAt || negotiation.createdAt || contract?.createdAt || Date.now())),
+    expiresAt: Math.max(0, Number(negotiation.expiresAt || 0)),
+  };
+}
+
+function normalizeNegotiations(contract, negotiations) {
+  if (!Array.isArray(negotiations)) return [];
+  const seenIds = new Set();
+  const seenProposers = new Set();
+  return negotiations.flatMap((negotiation) => {
+    const normalized = normalizeNegotiation(contract, negotiation);
+    if (!normalized || seenIds.has(normalized.id) || seenProposers.has(normalized.proposerId)) return [];
+    seenIds.add(normalized.id);
+    seenProposers.add(normalized.proposerId);
+    return [normalized];
+  }).slice(0, MAX_NEGOTIATIONS_PER_CONTRACT);
+}
+
 function normalizeContract(contract) {
   const normalized = {
     ...contract,
@@ -161,6 +195,7 @@ function normalizeContract(contract) {
     buyerAutoFund: contract?.buyerAutoFund !== false,
     supplierAutoReserve: contract?.supplierAutoReserve !== false,
     renewalProposal: normalizeRenewalProposal(contract, contract?.renewalProposal),
+    negotiations: normalizeNegotiations(contract, contract?.negotiations),
     renewedFromContractId: contract?.renewedFromContractId ? String(contract.renewedFromContractId) : undefined,
     renewedToContractId: contract?.renewedToContractId ? String(contract.renewedToContractId) : undefined,
     renewalCancellationReason: contract?.renewalCancellationReason ? String(contract.renewalCancellationReason) : undefined,
@@ -595,8 +630,17 @@ function processProductionContractsWithIndex(world, now = Date.now()) {
   migrateProductionContractWorld(world);
   const runtimeIndex = createContractRuntimeIndex(world);
   for (const contract of runtimeIndex.openContracts) {
+    if (contract.kind === 'supply' && contract.status === 'open' && Array.isArray(contract.negotiations)) {
+      const activeNegotiations = contract.negotiations.filter((negotiation) => now < Number(negotiation.expiresAt || 0));
+      if (activeNegotiations.length !== contract.negotiations.length) {
+        runtimeIndex.transition(contract, () => {
+          contract.negotiations = activeNegotiations;
+        });
+      }
+    }
     if (contract.status === 'open' && now >= contract.offerExpiresAt) {
       runtimeIndex.transition(contract, () => {
+        if (contract.kind === 'supply') contract.negotiations = [];
         contract.status = 'expired';
         contract.endedAt = now;
       });
@@ -716,10 +760,115 @@ function acceptContract(world, user, payload, now, runtimeIndex) {
     contract.nextDueAt = now + contract.firstDeliveryDelayMs;
     contract.status = 'active';
     contract.roundStatus = 'preparing';
+    contract.negotiations = [];
     reserveSupplierBatch(contract, supplier);
     if (contract.supplierReservedQuantity >= contract.quantityPerDelivery) contract.roundStatus = 'ready';
   });
   return result(true, '合同已签订并进入履约');
+}
+
+function openSupplyContract(runtimeIndex, contractId) {
+  const contract = runtimeIndex.contractById(contractId);
+  return contract?.kind === 'supply' && contract.status === 'open' ? contract : null;
+}
+
+function negotiationFor(contract, negotiationId) {
+  return contract?.negotiations?.find((item) => item.id === String(negotiationId || '')) || null;
+}
+
+function proposeNegotiation(world, user, payload, now, runtimeIndex) {
+  const contract = openSupplyContract(runtimeIndex, payload.contractId);
+  if (!contract) return result(false, '可议价的商品合同不存在');
+  if (contract.publisherId === Number(user.id)) return result(false, '发布者不能向自己的合同发起议价');
+  contract.negotiations ||= [];
+  if (contract.negotiations.some((item) => item.proposerId === Number(user.id))) return result(false, '你已经有一个进行中的议价');
+  if (contract.negotiations.length >= MAX_NEGOTIATIONS_PER_CONTRACT) return result(false, '该合同同时进行中的议价已达上限');
+  const terms = renewalTerms(payload);
+  if (!terms) return result(false, '议价条款无效');
+  const expiresAt = Math.min(contract.offerExpiresAt, now + NEGOTIATION_TTL_MS);
+  runtimeIndex.transition(contract, () => {
+    contract.negotiations.push({
+      id: `contract-negotiation-${randomUUID()}`,
+      proposerId: Number(user.id),
+      revision: 1,
+      terms,
+      lastActionBy: Number(user.id),
+      createdAt: now,
+      updatedAt: now,
+      expiresAt,
+    });
+  });
+  return result(true, '议价提议已发送');
+}
+
+function counterNegotiation(world, user, payload, now, runtimeIndex) {
+  const contract = openSupplyContract(runtimeIndex, payload.contractId);
+  const negotiation = negotiationFor(contract, payload.negotiationId);
+  if (!contract || !negotiation) return result(false, '可反报价的议价不存在');
+  const userId = Number(user.id);
+  if (![contract.publisherId, negotiation.proposerId].includes(userId)) return result(false, '你不是该议价的参与者');
+  if (negotiation.lastActionBy === userId) return result(false, '请等待对方回应当前报价');
+  if (negotiation.revision >= MAX_NEGOTIATION_REVISIONS) return result(false, `议价最多 ${MAX_NEGOTIATION_REVISIONS} 轮`);
+  const terms = renewalTerms(payload);
+  if (!terms) return result(false, '议价条款无效');
+  runtimeIndex.transition(contract, () => {
+    negotiation.terms = terms;
+    negotiation.revision += 1;
+    negotiation.lastActionBy = userId;
+    negotiation.updatedAt = now;
+    negotiation.expiresAt = Math.min(contract.offerExpiresAt, now + NEGOTIATION_TTL_MS);
+  });
+  return result(true, '反报价已发送');
+}
+
+function rejectNegotiation(world, user, payload, runtimeIndex) {
+  const contract = openSupplyContract(runtimeIndex, payload.contractId);
+  const negotiation = negotiationFor(contract, payload.negotiationId);
+  if (!contract || !negotiation) return result(false, '可拒绝的议价不存在');
+  const userId = Number(user.id);
+  if (![contract.publisherId, negotiation.proposerId].includes(userId)) return result(false, '你不是该议价的参与者');
+  if (negotiation.lastActionBy === userId) return result(false, '当前报价由你提出，请撤回而不是拒绝');
+  runtimeIndex.transition(contract, () => {
+    contract.negotiations = contract.negotiations.filter((item) => item.id !== negotiation.id);
+  });
+  return result(true, '议价已拒绝');
+}
+
+function revokeNegotiation(world, user, payload, runtimeIndex) {
+  const contract = openSupplyContract(runtimeIndex, payload.contractId);
+  const negotiation = negotiationFor(contract, payload.negotiationId);
+  if (!contract || !negotiation) return result(false, '可撤回的议价不存在');
+  if (negotiation.proposerId !== Number(user.id)) return result(false, '只有议价发起者可以撤回');
+  if (negotiation.lastActionBy !== Number(user.id)) return result(false, '对方已经反报价，请接受、再报价或拒绝');
+  runtimeIndex.transition(contract, () => {
+    contract.negotiations = contract.negotiations.filter((item) => item.id !== negotiation.id);
+  });
+  return result(true, '议价已撤回');
+}
+
+function acceptNegotiation(world, user, payload, now, runtimeIndex) {
+  const contract = openSupplyContract(runtimeIndex, payload.contractId);
+  const negotiation = negotiationFor(contract, payload.negotiationId);
+  if (!contract || !negotiation) return result(false, '可接受的议价不存在');
+  const userId = Number(user.id);
+  if (![contract.publisherId, negotiation.proposerId].includes(userId)) return result(false, '你不是该议价的参与者');
+  if (negotiation.lastActionBy === userId) return result(false, '不能接受自己刚提出的报价');
+  if (now >= Number(negotiation.expiresAt || 0)) return result(false, '议价已经过期');
+
+  const previousTerms = {
+    quantityPerDelivery: contract.quantityPerDelivery,
+    unitPrice: contract.unitPrice,
+    deliveryIntervalMs: contract.deliveryIntervalMs,
+    totalDeliveries: contract.totalDeliveries,
+    firstDeliveryDelayMs: contract.firstDeliveryDelayMs,
+  };
+  Object.assign(contract, negotiation.terms);
+  const accepted = acceptContract(world, { id: negotiation.proposerId }, { contractId: contract.id }, now, runtimeIndex);
+  if (!accepted.ok) {
+    Object.assign(contract, previousTerms);
+    return accepted;
+  }
+  return result(true, '议价条款已接受，合同已签订并进入履约');
 }
 
 function ownActiveContract(runtimeIndex, userId, contractId) {
@@ -904,6 +1053,11 @@ export function applyProductionContractAction(world, user, action, payload = {},
   if (commercialResult) return commercialResult;
   if (action === 'createProductionContract') return createContract(world, user, payload, now, runtimeIndex);
   if (action === 'acceptProductionContract') return acceptContract(world, user, payload, now, runtimeIndex);
+  if (action === 'proposeProductionContractNegotiation') return proposeNegotiation(world, user, payload, now, runtimeIndex);
+  if (action === 'counterProductionContractNegotiation') return counterNegotiation(world, user, payload, now, runtimeIndex);
+  if (action === 'acceptProductionContractNegotiation') return acceptNegotiation(world, user, payload, now, runtimeIndex);
+  if (action === 'rejectProductionContractNegotiation') return rejectNegotiation(world, user, payload, runtimeIndex);
+  if (action === 'revokeProductionContractNegotiation') return revokeNegotiation(world, user, payload, runtimeIndex);
   if (action === 'cancelProductionContract') return cancelOpenContract(world, user, payload, now, runtimeIndex);
   if (action === 'prepareProductionContract') return prepareContract(world, user, payload, runtimeIndex);
   if (action === 'fundProductionContract') return fundContract(world, user, payload, runtimeIndex);
@@ -938,6 +1092,29 @@ function issueForContract(world, contract, runtimeIndex, userId = null) {
     && userId !== null
     && Number(contract.renewalProposal.proposedBy) !== Number(userId)) return '等待你确认续签提议';
   return null;
+}
+
+function publicNegotiations(world, contract, userId) {
+  if (contract.kind !== 'supply' || contract.status !== 'open') return [];
+  const viewerId = Number(userId);
+  const visible = contract.publisherId === viewerId
+    ? contract.negotiations || []
+    : (contract.negotiations || []).filter((item) => item.proposerId === viewerId);
+  return visible.map((negotiation) => ({
+    id: negotiation.id,
+    revision: negotiation.revision,
+    terms: clone(negotiation.terms),
+    createdAt: negotiation.createdAt,
+    updatedAt: negotiation.updatedAt,
+    expiresAt: negotiation.expiresAt,
+    proposerName: contract.publisherId === viewerId
+      ? String(playerFor(world, negotiation.proposerId)?.playerName || '议价玩家')
+      : null,
+    isProposer: negotiation.proposerId === viewerId,
+    awaitingMyResponse: contract.publisherId === viewerId
+      ? negotiation.lastActionBy !== viewerId
+      : negotiation.lastActionBy === contract.publisherId,
+  }));
 }
 
 function publicContract(world, contract, userId, runtimeIndex) {
@@ -979,6 +1156,7 @@ function publicContract(world, contract, userId, runtimeIndex) {
       ...clone(contract.renewalProposal),
       isProposer: Number(contract.renewalProposal.proposedBy) === Number(userId),
     } : null,
+    negotiations: publicNegotiations(world, contract, userId),
     renewedFromContractId: contract.renewedFromContractId,
     renewedToContractId: contract.renewedToContractId,
     renewalCancellationReason: contract.renewalCancellationReason,
@@ -1006,6 +1184,13 @@ export function createProductionContractClientState(world, userId, now = Date.no
     .sort((left, right) => Number(right.endedAt || right.createdAt) - Number(left.endedAt || left.createdAt))
     .slice(0, MAX_VISIBLE_RECENT_CONTRACTS);
   const ownOpen = own.filter((contract) => contract.status === 'open');
+  const negotiationAttention = runtimeIndex.currentOpenContracts().reduce((sum, contract) => {
+    if (contract.kind !== 'supply') return sum;
+    return sum + (contract.negotiations || []).filter((negotiation) => (
+      (contract.publisherId === Number(userId) && negotiation.lastActionBy !== Number(userId))
+      || (negotiation.proposerId === Number(userId) && negotiation.lastActionBy === contract.publisherId)
+    )).length;
+  }, 0);
   const byId = new Map([...visibleOpen, ...active, ...recent, ...ownOpen].map((contract) => [contract.id, contract]));
   const productionContracts = [...byId.values()]
     .map((contract) => publicContract(world, contract, userId, runtimeIndex));
@@ -1014,7 +1199,7 @@ export function createProductionContractClientState(world, userId, now = Date.no
     productionContractSummary: {
       active: active.length,
       open: ownOpen.length,
-      needsAttention: active.filter((contract) => Boolean(issueForContract(world, contract, runtimeIndex, userId))).length,
+      needsAttention: active.filter((contract) => Boolean(issueForContract(world, contract, runtimeIndex, userId))).length + negotiationAttention,
       upcomingWithin24Hours: active.filter((contract) => Number(contract.nextDueAt || 0) <= now + 24 * 60 * 60 * 1000).length,
     },
   };

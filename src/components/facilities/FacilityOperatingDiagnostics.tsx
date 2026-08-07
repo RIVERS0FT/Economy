@@ -8,6 +8,7 @@ import { formatCurrency, formatNumber } from '../../utils/formatters';
 import { buildFacilityOperatingDiagnosis } from '../../utils/facilityOperatingDiagnostics';
 import { marketDecisionSignal, marketTrendGlyph } from '../../utils/marketDecisionSignals';
 import { ProductArtwork } from '../products/ProductArtwork';
+import { Button } from '../ui/layout';
 import '../../styles/facility-operating-diagnostics.css';
 
 function cyclesLabel(value: number | null) {
@@ -22,6 +23,7 @@ export function FacilityOperatingDiagnostics({
   markets,
   credits,
   warehouseAvailableCapacity,
+  onOpenContracts,
 }: {
   recipe: FacilityRecipeDefinition;
   productionCount: number;
@@ -30,6 +32,7 @@ export function FacilityOperatingDiagnostics({
   markets: Record<string, ProductMarketState>;
   credits: number;
   warehouseAvailableCapacity: number;
+  onOpenContracts: (productId: string) => void;
 }) {
   const productNames = new Map(products.map((product) => [product.id, product.name]));
   const diagnosis = buildFacilityOperatingDiagnosis({
@@ -79,7 +82,8 @@ export function FacilityOperatingDiagnostics({
               <span>{role}</span>
               <ProductArtwork productId={productId} />
               <strong>{productNames.get(productId) ?? productId}</strong>
-              <span>{signal.price === null ? '暂无真实成交' : `${formatCurrency(signal.price)} ${marketTrendGlyph(signal.trend)}`}</span>
+              <span className="facility-operating-diagnostics__market-price">{signal.price === null ? '暂无真实成交' : `${formatCurrency(signal.price)} ${marketTrendGlyph(signal.trend)}`}</span>
+              <Button variant="text" className="facility-operating-diagnostics__contract-link" onClick={() => onOpenContracts(productId)}>查看相关合同</Button>
             </div>
           );
         })}

@@ -103,6 +103,7 @@ function contractSnapshot(contract) {
     terminationRequestedAt: nullableInteger(contract.terminationRequestedAt),
     terminationReason: contract.terminationReason ? String(contract.terminationReason) : null,
     renewalProposal: contract.renewalProposal ? clone(contract.renewalProposal) : null,
+    negotiations: Array.isArray(contract.negotiations) ? clone(contract.negotiations) : [],
     renewedFromContractId: contract.renewedFromContractId ? String(contract.renewedFromContractId) : null,
     renewedToContractId: contract.renewedToContractId ? String(contract.renewedToContractId) : null,
     renewalCancellationReason: contract.renewalCancellationReason ? String(contract.renewalCancellationReason) : null,
@@ -907,6 +908,44 @@ export function configureContractAuditStore(store) {
         continue;
       }
 
+      const beforeNegotiations = new Map((before.negotiations || []).map((item) => [item.id, item]));
+      const afterNegotiations = new Map((after.negotiations || []).map((item) => [item.id, item]));
+      for (const current of afterNegotiations.values()) {
+        const previous = beforeNegotiations.get(current.id);
+        if (!previous) {
+          queueTransitionEvent(world, normalizedContext, after, 'negotiation_proposed', {
+            before,
+            after,
+            metadata: { negotiation: clone(current) },
+          });
+        } else if (previous.revision !== current.revision) {
+          queueTransitionEvent(world, normalizedContext, after, 'negotiation_countered', {
+            before,
+            after,
+            metadata: { previousNegotiation: clone(previous), negotiation: clone(current) },
+          });
+        }
+      }
+      for (const previous of beforeNegotiations.values()) {
+        if (afterNegotiations.has(previous.id)) continue;
+        const acceptedParticipantId = after.publisherRole === 'buyer' ? after.supplierId : after.buyerId;
+        const acceptedThisNegotiation = normalizedContext.action === 'acceptProductionContractNegotiation'
+          && Number(previous.proposerId) === Number(acceptedParticipantId);
+        const eventType = acceptedThisNegotiation
+          ? 'negotiation_accepted'
+          : normalizedContext.action === 'rejectProductionContractNegotiation'
+            ? 'negotiation_rejected'
+            : normalizedContext.action === 'revokeProductionContractNegotiation'
+              ? 'negotiation_revoked'
+              : after.status === 'open'
+                ? 'negotiation_expired'
+                : 'negotiation_closed';
+        queueTransitionEvent(world, normalizedContext, after, eventType, {
+          before,
+          after,
+          metadata: { negotiation: clone(previous) },
+        });
+      }
 
 const beforeRenewal = before.renewalProposal;
 const afterRenewal = after.renewalProposal;

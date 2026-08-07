@@ -33,7 +33,10 @@ import {
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
 import { parseMoneyDraft } from '../utils/moneyDraft';
+import { ContractNegotiationSection } from '../contracts/ContractNegotiationSection';
+import { consumeContractMarketIntent } from '../contracts/navigation';
 import '../styles/contract-audit.css';
+import '../styles/contract-negotiation.css';
 import '../styles/contract-commercial.css';
 
 const INTERVAL_OPTIONS = [
@@ -538,6 +541,7 @@ function OpenContractCard({ contract, productName, busy, run }: ContractCardProp
         </DataList>
       </div>
       <p className="contract-offer-note">合同不会控制你的工厂或配方；你需要自行保证每批商品、资金和仓库条件。</p>
+      <ContractNegotiationSection contract={contract} busy={busy} run={run} />
       <footer className="contract-card-actions">
         {contract.isPublisher ? (
           <Button variant="danger" disabled={busy} onClick={() => void run(`${contract.id}:cancel`, () => productionContractActions.cancel(contract.id))}>取消发布</Button>
@@ -897,6 +901,8 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
   const [personalView, setPersonalView] = useState<PersonalContractView>('active');
   const [showPublish, setShowPublish] = useState(false);
   const [busyKey, setBusyKey] = useState('');
+  const [marketProductId, setMarketProductId] = useState(() => consumeContractMarketIntent()?.productId ?? '');
+  const [marketKind, setMarketKind] = useState<ContractKind | ''>(() => marketProductId ? 'supply' : '');
   const [historyStatus, setHistoryStatus] = useState<ProductionContractStatus | ''>('');
   const [historyKind, setHistoryKind] = useState<ContractKind | ''>('');
   const [historyRole, setHistoryRole] = useState<HistoryRole>('any');
@@ -925,7 +931,11 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
       || Number(Boolean(right.issue)) - Number(Boolean(left.issue))
       || Number(left.nextDueAt || Infinity) - Number(right.nextDueAt || Infinity)
     ));
-  const openContracts = productionContracts.filter((contract) => contract.status === 'open').sort((left, right) => right.createdAt - left.createdAt);
+  const allOpenContracts = productionContracts.filter((contract) => contract.status === 'open').sort((left, right) => right.createdAt - left.createdAt);
+  const openContracts = allOpenContracts.filter((contract) => (
+    (!marketKind || contract.kind === marketKind)
+    && (!marketProductId || (contract.kind === 'supply' && contract.productId === marketProductId))
+  ));
   const pendingContracts = activeContracts.filter(contractNeedsAttention);
 
   useEffect(() => {
@@ -1061,12 +1071,32 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
           <header className="contract-pane-heading">
             <div>
               <h2 id="contract-market-heading">合同广场</h2>
-              <p>公开合同常驻显示，可随时承接或管理自己发布的合同。</p>
+              <p>公开合同常驻显示，可按领域和商品筛选；商品合作支持直接承接或结构化议价。</p>
             </div>
-            <StatusTag>{formatNumber(openContracts.length)} 个公开合同</StatusTag>
+            <StatusTag>{formatNumber(openContracts.length)} / {formatNumber(allOpenContracts.length)} 个公开合同</StatusTag>
           </header>
+          <div className="contract-market-filters" aria-label="合同广场筛选">
+            <SelectInput label="合同领域" value={marketKind} onChange={(event) => {
+              const next = event.target.value as ContractKind | '';
+              setMarketKind(next);
+              if (next && next !== 'supply') setMarketProductId('');
+            }}>
+              <option value="">全部领域</option>
+              <option value="supply">商品合作</option>
+              <option value="loan">资金借贷</option>
+              <option value="facility_lease">工厂租赁</option>
+            </SelectInput>
+            <SelectInput label="商品" value={marketProductId} onChange={(event) => {
+              const next = event.target.value;
+              setMarketProductId(next);
+              if (next) setMarketKind('supply');
+            }}>
+              <option value="">全部商品</option>
+              {model.game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
+            </SelectInput>
+          </div>
           <div className="contract-pane-grid contract-market-grid">
-            {openContracts.length === 0 ? <EmptyState>当前没有可承接的公开合同。</EmptyState> : openContracts.map((contract) => (
+            {openContracts.length === 0 ? <EmptyState>当前没有符合筛选条件的公开合同。</EmptyState> : openContracts.map((contract) => (
               <OpenContractCard key={contract.id} contract={contract} productName={productNames.get(contract.productId) ?? contract.productId} busy={Boolean(busyKey)} run={run} />
             ))}
           </div>

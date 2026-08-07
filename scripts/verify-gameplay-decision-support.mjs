@@ -89,6 +89,17 @@ requireText('server/src/contract-audit-store.js', 'store.getContractPerformance'
 requireText('src/contracts/api.ts', "getJson<{ performance: ContractPerformanceSummary }>('/contracts/performance')");
 requireText('src/pages/ContractPage.tsx', '我的履约档案');
 requireText('src/pages/ContractPage.tsx', '不生成星级、信用等级或主观评分');
+requireText('server/src/contracts.js', 'MAX_NEGOTIATIONS_PER_CONTRACT = 3');
+requireText('server/src/contracts.js', 'MAX_NEGOTIATION_REVISIONS = 5');
+requireText('server/src/contracts.js', 'NEGOTIATION_TTL_MS = 24 * 60 * 60 * 1000');
+requireText('server/src/contracts.js', 'proposeProductionContractNegotiation');
+requireText('server/src/contracts.js', 'publicNegotiations');
+requireText('server/src/contract-audit-store.js', 'negotiation_proposed');
+requireText('server/src/contract-audit-store.js', 'negotiation_accepted');
+requireText('src/contracts/ContractNegotiationSection.tsx', '议价阶段不冻结资产');
+requireText('src/contracts/navigation.ts', 'sessionStorage.removeItem');
+requireText('src/components/facilities/FacilityOperatingDiagnostics.tsx', '查看相关合同');
+forbidText('src/contracts/types.ts', 'proposerId: number;');
 requireText('src/pages/LeaderboardPage.tsx', 'personalLeaderboardGoal(board)');
 requireText('src/pages/LeaderboardPage.tsx', 'leaderboard-personal-goal');
 requireText('src/pages/LeaderboardPage.tsx', 'leaderboard-personal-best');
@@ -107,5 +118,9 @@ requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '经营决策支持固
 requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '工厂经营诊断');
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '完整经营漏斗覆盖起点');
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'completion_source');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '结构化议价');
+requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '多人供应链议价');
+requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '查看相关合同');
+requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '议价线程');
 
 console.log('Gameplay decision support verification passed.');

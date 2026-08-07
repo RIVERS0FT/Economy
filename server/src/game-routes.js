@@ -37,6 +37,33 @@ export function resolveAction(method, path) {
   }
 
 
+const contractNegotiationCreate = path.match(/^\/api\/game\/contracts\/([^/]+)\/negotiations$/);
+if (method === 'POST' && contractNegotiationCreate) {
+  return {
+    action: 'proposeProductionContractNegotiation',
+    category: 'orders',
+    routePayload: { contractId: decodeRouteParameter(contractNegotiationCreate[1]) },
+  };
+}
+
+const contractNegotiationAction = path.match(/^\/api\/game\/contracts\/([^/]+)\/negotiations\/([^/]+)\/(counter|accept|reject|revoke)$/);
+if (method === 'POST' && contractNegotiationAction) {
+  const actionMap = {
+    counter: 'counterProductionContractNegotiation',
+    accept: 'acceptProductionContractNegotiation',
+    reject: 'rejectProductionContractNegotiation',
+    revoke: 'revokeProductionContractNegotiation',
+  };
+  return {
+    action: actionMap[contractNegotiationAction[3]],
+    category: 'orders',
+    routePayload: {
+      contractId: decodeRouteParameter(contractNegotiationAction[1]),
+      negotiationId: decodeRouteParameter(contractNegotiationAction[2]),
+    },
+  };
+}
+
 const contractRenewalAction = path.match(/^\/api\/game\/contracts\/([^/]+)\/renewal\/(propose|accept|reject|revoke)$/);
 if (method === 'POST' && contractRenewalAction) {
   const actionMap = {
