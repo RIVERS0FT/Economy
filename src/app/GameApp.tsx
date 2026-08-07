@@ -33,21 +33,35 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
   const tutorialModel = useMemo<TutorialAwareGameViewModel>(() => ({
     ...pollingModel,
     tutorial,
-    work: () => {
-      tutorial.recordWorkClick();
-      return model.work();
+    work: async () => {
+      const result = await model.work();
+      if (result.ok) tutorial.recordWorkClick();
+      return result;
     },
-    buildFacility: (facilityTypeId = model.selectedFacilityTypeId, quantity = 1) => {
-      tutorial.recordBuildSubmit(facilityTypeId);
-      return model.buildFacility(facilityTypeId, quantity);
+    bankDeposit: async (amount) => {
+      const result = await model.bankDeposit(amount);
+      if (result.ok) tutorial.recordBankDeposit();
+      return result;
     },
-    startFacility: (facilityTypeId) => {
-      tutorial.recordFacilityStartClick(facilityTypeId);
-      return model.startFacility(facilityTypeId);
+    buildFacility: async (facilityTypeId = model.selectedFacilityTypeId, quantity = 1) => {
+      const result = await model.buildFacility(facilityTypeId, quantity);
+      if (result.ok) tutorial.recordBuildSubmit(facilityTypeId);
+      return result;
     },
-    placeAssetOrder: (assetKind, assetId, side, quantity, price) => {
-      tutorial.recordSellOrderSubmit(assetKind, assetId, side);
-      return model.placeAssetOrder(assetKind, assetId, side, quantity, price);
+    startResearch: async (technologyId) => {
+      const result = await model.startResearch(technologyId);
+      if (result.ok) tutorial.recordResearchStart();
+      return result;
+    },
+    startFacility: async (facilityTypeId) => {
+      const result = await model.startFacility(facilityTypeId);
+      if (result.ok) tutorial.recordFacilityStartClick(facilityTypeId);
+      return result;
+    },
+    placeAssetOrder: async (assetKind, assetId, side, quantity, price) => {
+      const result = await model.placeAssetOrder(assetKind, assetId, side, quantity, price);
+      if (result.ok) tutorial.recordSellOrderSubmit(assetKind, assetId, side);
+      return result;
     },
   }), [model, pollingModel, tutorial]);
   const compactNumbers = tutorialModel.compactNumbers;

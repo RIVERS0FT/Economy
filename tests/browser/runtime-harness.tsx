@@ -96,8 +96,8 @@ const completedTutorial: GameTutorialController = {
   isCompleted: true,
   currentStep: null,
   currentStepIndex: 0,
-  totalSteps: 6,
-  statusLabel: '已完成当前版本教程',
+  totalSteps: 10,
+  statusLabel: '已完成当前版本经营成长线',
   restart: () => {},
   hide: () => {},
   show: () => {},
@@ -106,6 +106,8 @@ const completedTutorial: GameTutorialController = {
   recordBuildSubmit: () => {},
   recordFacilityStartClick: () => {},
   recordSellOrderSubmit: () => {},
+  recordResearchStart: () => {},
+  recordBankDeposit: () => {},
 };
 
 document.documentElement.dataset.appSurface = ['overview', 'production', 'research', 'contracts', 'auction', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
