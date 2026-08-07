@@ -168,13 +168,13 @@ async function fileSize(path) {
   }
 }
 
-export async function startLocalStressHarness() {
+export async function startLocalStressHarness({ seedTransactionAssets = false } = {}) {
   const password = `local-stress-${randomUUID()}`;
   const registry = await loadStressAccountRegistry();
   const accountService = await startFakeAccountService(password, registry);
   const directory = await mkdtemp(join(tmpdir(), 'economy-stress-'));
   const databasePath = join(directory, 'economy.sqlite');
-  seedLocalStressDatabase(databasePath, registry);
+  if (seedTransactionAssets) seedLocalStressDatabase(databasePath, registry);
   const port = await reservePort();
   let stdout = '';
   let stderr = '';
