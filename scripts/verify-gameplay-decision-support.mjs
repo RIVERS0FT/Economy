@@ -34,7 +34,8 @@ const market = {
   priceHistory: [
     { price: 99, quantity: 9, createdAt: 1 },
     { price: 10, quantity: 2, createdAt: 2, takerSide: 'buy' },
-    { price: 12, quantity: 3, createdAt: 3, takerSide: 'sell' },
+    { price: 11, quantity: 4, createdAt: 3, takerSide: 'buy' },
+    { price: 12, quantity: 3, createdAt: 4, takerSide: 'sell' },
   ],
   demand: {
     cycleMs: 1,
@@ -45,9 +46,10 @@ const market = {
     satisfaction: 1,
   },
 };
-assert.equal(marketDecisionSignal(market).changeBps, 2000);
-const feedback = eventMarketFeedback({ wheat: market }, ['wheat'], 2, 3);
-assert.equal(feedback.volume, 5);
+assert.equal(marketDecisionSignal(market).changeBps, 909);
+const feedback = eventMarketFeedback({ wheat: market }, ['wheat'], 2, 4);
+assert.equal(feedback.volume, 9);
+assert.equal(feedback.tradeCount, 3);
 assert.equal(feedback.averageChangeBps, 2000);
 
 const goal = personalLeaderboardGoal({
@@ -91,6 +93,7 @@ requireText('src/pages/LeaderboardPage.tsx', 'personalLeaderboardGoal(board)');
 requireText('src/pages/LeaderboardPage.tsx', 'leaderboard-personal-goal');
 requireText('src/pages/OverviewPage.tsx', '事件窗口真实成交');
 requireText('server/src/economic-events.js', 'EVENT_RESULT_WINDOW_MS');
+requireText('src/utils/marketDecisionSignals.ts', 'const first = points.length > 0 ? points[0] : undefined;');
 forbidText('src/components/facilities/FacilityOperatingDiagnostics.tsx', '最佳配方');
 forbidText('src/pages/ResearchPage.tsx', '最佳科技推荐');
 forbidText('src/pages/ContractPage.tsx', 'creditScore');
