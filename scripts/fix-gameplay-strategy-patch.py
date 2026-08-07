@@ -5,6 +5,10 @@ text = path.read_text(encoding='utf-8')
 text = text.replace('\\)', ')')
 text = text.replace("'## 6. 研发\\n\\n'", "'### 5.4 研发页面\\n\\n'")
 text = text.replace("'## 8. 合同\\n\\n'", "'## 7. 合同\\n\\n'")
+text = text.replace(
+    'store.getContractAuditDetail = (user, contractId, rawOptions = {}) => store.transaction(() => {',
+    'store.getContractAuditDetail = (user, contractId, options = {}) => store.transaction(() => {',
+)
 
 old_literal = '"""  products,\\n  inventories,\\n  now,\\n  onToggle,"""'
 new_literal = '"""  products,\\n  inventories,\\n  markets,\\n  credits,\\n  warehouseAvailableCapacity,\\n  now,\\n  onToggle,"""'
