@@ -26,7 +26,6 @@ export interface TutorialRunStats {
   researchStarts: number;
   contractReviews: number;
   bankDeposits: number;
-  leaderboardReviews: number;
 }
 
 export interface TutorialRunContext {
@@ -74,7 +73,6 @@ function emptyStats(): TutorialRunStats {
     researchStarts: 0,
     contractReviews: 0,
     bankDeposits: 0,
-    leaderboardReviews: 0,
   };
 }
 
@@ -130,7 +128,6 @@ function normalizeRun(value: unknown): LocalTutorialRun | null {
       researchStarts: Math.max(0, Number(stats.researchStarts || 0)),
       contractReviews: Math.max(0, Number(stats.contractReviews || 0)),
       bankDeposits: Math.max(0, Number(stats.bankDeposits || 0)),
-      leaderboardReviews: Math.max(0, Number(stats.leaderboardReviews || 0)),
     },
     context: {
       facilityTypeId: typeof raw.context?.facilityTypeId === 'string' ? raw.context.facilityTypeId : undefined,
