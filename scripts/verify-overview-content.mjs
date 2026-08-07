@@ -214,7 +214,7 @@ requireAll(paths.browserSpec, [
   'scrollWidth > element.clientWidth + 1',
 ]);
 
-requireAll(paths.pageDesign, ['概览是经营决策首页', '宽度比例为 `5:7`', '签到日历', '`1920×1080`', '`1440×900`', '基础教程显示时']);
+requireAll(paths.pageDesign, ['概览是经营决策首页', '宽度比例为 `5:7`', '签到日历', '`1920×1080`', '`1440×900`', '经营成长线显示时']);
 requireAll(paths.uiDesign, ['## 10. 概览布局', '经营决策优先', '桌面按 `5:7` 分栏', '签到日历']);
 requireAll(paths.integrityDesign, [
   '外层轨道唯一性',
