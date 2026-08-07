@@ -44,7 +44,26 @@ function playerStats(player) {
   player.stats.marketTradeCount = safeNonNegativeInteger(player.stats.marketTradeCount);
   player.stats.gemExchangeCredits = safeNonNegativeInteger(player.stats.gemExchangeCredits);
   player.stats.leaderboardGemsIssued = safeNonNegativeInteger(player.stats.leaderboardGemsIssued);
+  if (!player.stats.leaderboardPersonalBests || typeof player.stats.leaderboardPersonalBests !== 'object' || Array.isArray(player.stats.leaderboardPersonalBests)) {
+    player.stats.leaderboardPersonalBests = {};
+  }
   return player.stats;
+}
+
+function settledPersonalBestFor(player, boardId) {
+  const best = playerStats(player).leaderboardPersonalBests?.[boardId];
+  const score = Number(best?.score);
+  const periodKey = typeof best?.periodKey === 'string' ? best.periodKey : '';
+  return Number.isFinite(score) && periodKey ? { score, periodKey } : null;
+}
+
+function updatePersonalBest(player, boardId, score, periodKey) {
+  const normalizedScore = Number(score);
+  if (!Number.isFinite(normalizedScore) || typeof periodKey !== 'string' || !periodKey) return;
+  const stats = playerStats(player);
+  const current = settledPersonalBestFor(player, boardId);
+  if (current && normalizedScore <= current.score) return;
+  stats.leaderboardPersonalBests[boardId] = { score: normalizedScore, periodKey };
 }
 
 function beijingDateKey(timestamp) {
@@ -383,12 +402,18 @@ export function createLeaderboardSnapshot(world, currentUserId, now = Date.now()
     const rows = internalRowsFor(world, state, boardId);
     const rewardEnabled = definition.rewarded && !state.partial;
     const current = rows.find((entry) => Number(entry.userId) === Number(currentUserId));
+    const currentPlayer = world.players?.[String(currentUserId)];
+    const personalBest = currentPlayer ? settledPersonalBestFor(currentPlayer, boardId) : null;
     boards[boardId] = {
       id: boardId,
       ...definition,
       entries: rows.slice(0, LEADERBOARD_TOP_LIMIT).map((entry) => publicEntry(entry, currentUserId, rewardEnabled)),
       currentPlayer: current ? publicEntry(current, currentUserId, rewardEnabled) : null,
       totalPlayers: rows.length,
+      personalBest: personalBest ? {
+        ...personalBest,
+        currentIsRecord: !state.partial && Boolean(current) && Number(current.score) > personalBest.score,
+      } : null,
     };
   }
   return {
@@ -408,9 +433,21 @@ export function createLeaderboardSnapshot(world, currentUserId, now = Date.now()
 function awardPeriod(world, state, settledAt, onGemReward) {
   world.leaderboardHistory = Array.isArray(world.leaderboardHistory) ? world.leaderboardHistory : [];
   if (world.leaderboardHistory.some((period) => period.periodKey === state.periodKey)) return;
+  const settledRowsByBoard = {};
+  for (const boardId of BOARD_IDS) {
+    const rows = internalRowsFor(world, state, boardId);
+    settledRowsByBoard[boardId] = rows;
+    if (!state.partial) {
+      for (const entry of rows) {
+        const player = world.players?.[String(entry.userId)];
+        if (player) updatePersonalBest(player, boardId, entry.score, state.periodKey);
+      }
+    }
+  }
+
   const historyBoards = {};
   for (const boardId of REWARDED_BOARD_IDS) {
-    const rows = internalRowsFor(world, state, boardId).filter((entry) => entry.score > 0);
+    const rows = settledRowsByBoard[boardId].filter((entry) => entry.score > 0);
     const winners = rows.slice(0, 3).map((entry, index) => {
       const gems = state.partial ? 0 : LEADERBOARD_REWARDS[index];
       const player = world.players[String(entry.userId)];

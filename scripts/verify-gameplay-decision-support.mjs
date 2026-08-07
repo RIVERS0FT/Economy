@@ -91,6 +91,8 @@ requireText('src/pages/ContractPage.tsx', '我的履约档案');
 requireText('src/pages/ContractPage.tsx', '不生成星级、信用等级或主观评分');
 requireText('src/pages/LeaderboardPage.tsx', 'personalLeaderboardGoal(board)');
 requireText('src/pages/LeaderboardPage.tsx', 'leaderboard-personal-goal');
+requireText('src/pages/LeaderboardPage.tsx', 'leaderboard-personal-best');
+requireText('server/src/leaderboards.js', 'leaderboardPersonalBests');
 requireText('src/pages/OverviewPage.tsx', '事件窗口真实成交');
 requireText('server/src/economic-events.js', 'EVENT_RESULT_WINDOW_MS');
 requireText('src/utils/marketDecisionSignals.ts', 'const first = points.length > 0 ? points[0] : undefined;');

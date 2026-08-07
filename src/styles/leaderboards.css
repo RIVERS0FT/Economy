@@ -198,11 +198,38 @@
   text-align: right;
 }
 
+.leaderboard-personal-best {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+
+.leaderboard-personal-best > span,
+.leaderboard-personal-best > small {
+  color: var(--text-muted);
+}
+
+.leaderboard-personal-best > small {
+  text-align: right;
+}
+
 @media (max-width: 560px) {
   .leaderboard-personal-goal {
     grid-template-columns: auto 1fr;
   }
   .leaderboard-personal-goal > small {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+  .leaderboard-personal-best {
+    grid-template-columns: auto 1fr;
+  }
+  .leaderboard-personal-best > small {
     grid-column: 1 / -1;
     text-align: left;
   }

@@ -155,6 +155,15 @@ function LeaderboardCard({ board, period }: { board: RankedLeaderboardBoard; per
           <small>{personalGoal.distance > 0 ? `距离目标还差 ${formatNumber(personalGoal.distance)} 名` : '当前目标已达成'}</small>
         </div>
       ) : null}
+      <div className="leaderboard-personal-best" aria-label={`${board.title}个人最好成绩`}>
+        <span>个人最好</span>
+        <strong>{board.personalBest ? scoreValue(board, board.personalBest.score) : '暂无已结算纪录'}</strong>
+        <small>{board.personalBest
+          ? board.personalBest.currentIsRecord
+            ? '本周已刷新个人纪录'
+            : `最好结算周 ${board.personalBest.periodKey}`
+          : '完整周结算后开始记录'}</small>
+      </div>
     </Panel>
   );
 }

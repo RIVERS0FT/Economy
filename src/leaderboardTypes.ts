@@ -13,6 +13,12 @@ export interface RankedLeaderboardEntry {
   rewardGems?: number;
 }
 
+export interface LeaderboardPersonalBest {
+  score: number;
+  periodKey: string;
+  currentIsRecord: boolean;
+}
+
 export interface RankedLeaderboardBoard {
   id: LeaderboardBoardId;
   title: string;
@@ -22,6 +28,7 @@ export interface RankedLeaderboardBoard {
   entries: RankedLeaderboardEntry[];
   currentPlayer: RankedLeaderboardEntry | null;
   totalPlayers: number;
+  personalBest?: LeaderboardPersonalBest | null;
 }
 
 export interface RankedLeaderboardsState {
