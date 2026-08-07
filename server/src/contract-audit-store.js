@@ -1207,6 +1207,48 @@ const accepted = before.status === 'open' && after.status === 'active';
     };
   }, { immediate: false });
 
+  store.getContractPerformance = (user) => store.transaction(() => {
+    const userId = Number(user.id);
+    const rows = store.database.prepare(`
+      SELECT * FROM economy_contract_audit_contracts
+      WHERE status NOT IN ('open', 'active')
+        AND (publisher_id = ? OR buyer_id = ? OR supplier_id = ?)
+      ORDER BY sort_at DESC, contract_id DESC
+    `).all(userId, userId, userId);
+    const settlementSummaries = contractHistorySettlementSummaries(store, rows, userId);
+    const history = rows.map((row) => publicHistoryRow(
+      row, userId, settlementSummaries.get(String(row.contract_id)) || emptyHistorySettlement(),
+    ));
+    const completed = history.filter((item) => item.status === 'completed').length;
+    const defaulted = history.filter((item) => (
+      /default/.test(String(item.endSummary?.reasonCode || ''))
+      || item.endSummary?.reasonCode === 'immediate_by_participant'
+    )).length;
+    const compensationPaid = roundInternalMoney(history.reduce(
+      (sum, item) => sum + Number(item.endSummary?.settlement?.compensationPaidByMe || 0), 0,
+    )) || 0;
+    const compensationReceived = roundInternalMoney(history.reduce(
+      (sum, item) => sum + Number(item.endSummary?.settlement?.compensationReceivedByMe || 0), 0,
+    )) || 0;
+    return {
+      totalEnded: history.length,
+      completed,
+      abnormalEnded: Math.max(0, history.length - completed),
+      defaulted,
+      completionRateBps: history.length > 0 ? Math.round(completed * 10_000 / history.length) : 0,
+      compensationPaid,
+      compensationReceived,
+      recent: history.slice(0, 5).map((item) => ({
+        id: item.id,
+        kind: item.kind,
+        status: item.status,
+        endedAt: item.endSummary.endedAt,
+        reasonCode: item.endSummary.reasonCode,
+        completionRatioBps: item.endSummary.completion.ratioBps,
+      })),
+    };
+  }, { immediate: false });
+
   store.getContractAuditDetail = (user, contractId, options = {}) => store.transaction(() => {
     const userId = Number(user.id);
     const summary = store.database.prepare(`

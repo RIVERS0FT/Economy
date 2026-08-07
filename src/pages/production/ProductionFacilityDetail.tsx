@@ -3,6 +3,7 @@ import { AssetsIcon, CreditsIcon, CycleIcon, ProductionIcon } from '../../compon
 import { ProductArtwork } from '../../components/products/ProductArtwork';
 import { useFacilityRecipeProfitMarkets } from '../../components/facilities/FacilityRecipeProfitContext';
 import { FacilityRecipeProfitAnalysis } from '../../components/facilities/FacilityRecipeProfitAnalysis';
+import { FacilityOperatingDiagnostics } from '../../components/facilities/FacilityOperatingDiagnostics';
 import { MobileDetailSummary } from '../../components/ui/MobileDetailSummary';
 import { RichSelectInput } from '../../components/ui/RichSelectInput';
 import {
@@ -24,6 +25,7 @@ import type {
   FacilityTypeDefinition,
   ProductDefinition,
   ProductInventory,
+  ProductMarketState,
 } from '../../types';
 import { formatNumber } from '../../utils/formatters';
 import { resolveFacilityProfitPresentation } from '../../utils/facilityProfitPresentation';
@@ -38,6 +40,9 @@ export interface FacilityClusterDetailSharedProps {
   entry: FacilityClusterEntry;
   products: ProductDefinition[];
   inventories: Record<string, ProductInventory>;
+  markets: Record<string, ProductMarketState>;
+  credits: number;
+  warehouseAvailableCapacity: number;
   now: number;
   onToggle: (enabled: boolean) => void;
   onRecipeChange: (recipeId: string) => void;
@@ -383,11 +388,15 @@ export function FacilityClusterDetailBody({
   entry,
   products,
   inventories,
+  markets,
+  credits,
+  warehouseAvailableCapacity,
   now,
   onRecipeChange,
 }: Omit<FacilityClusterDetailSharedProps, 'onToggle' | 'onOpenMarket'>) {
   const { group, type } = entry;
   const recipeState = resolveFacilityDetailRecipeState(entry);
+  const operatingScope = currentFormulaScope(group, now);
   const selectConfiguration = (
     selectedBaseRecipeId: string,
     selectedProductionMethodId: FacilityProductionMethodId,
@@ -451,6 +460,15 @@ export function FacilityClusterDetailBody({
         inventories={inventories}
         now={now}
       />
+      <FacilityOperatingDiagnostics
+        recipe={recipeState.activeRecipe}
+        productionCount={operatingScope.count}
+        products={products}
+        inventories={inventories}
+        markets={markets}
+        credits={credits}
+        warehouseAvailableCapacity={warehouseAvailableCapacity}
+      />
     </>
   );
 }
@@ -469,6 +487,9 @@ export function FacilityClusterDetailContent({
   entry,
   products,
   inventories,
+  markets,
+  credits,
+  warehouseAvailableCapacity,
   now,
   onToggle,
   onRecipeChange,
@@ -492,6 +513,9 @@ export function FacilityClusterDetailContent({
         entry={entry}
         products={products}
         inventories={inventories}
+        markets={markets}
+        credits={credits}
+        warehouseAvailableCapacity={warehouseAvailableCapacity}
         now={now}
         onRecipeChange={onRecipeChange}
       />

@@ -721,3 +721,12 @@
 @container overview (max-width: 580px) {
   .overview-economic-event-list { grid-template-columns: minmax(0, 1fr); }
 }
+
+.overview-economic-event.is-completed {
+  opacity: 0.88;
+}
+
+.overview-economic-event-feedback {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}

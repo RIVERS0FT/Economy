@@ -12,6 +12,9 @@ export function MobileFacilityDetailSheet({
   entry,
   products,
   inventories,
+  markets,
+  credits,
+  warehouseAvailableCapacity,
   now,
   isOpen,
   returnFocusRef,
@@ -50,6 +53,9 @@ export function MobileFacilityDetailSheet({
         entry={entry}
         products={products}
         inventories={inventories}
+        markets={markets}
+        credits={credits}
+        warehouseAvailableCapacity={warehouseAvailableCapacity}
         now={now}
         onRecipeChange={onRecipeChange}
       />

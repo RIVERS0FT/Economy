@@ -2,6 +2,7 @@ const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const EVENT_SLOT_MS = 3 * DAY_MS;
 const EVENT_DURATION_MS = DAY_MS;
+const EVENT_RESULT_WINDOW_MS = DAY_MS;
 const EVENT_RAMP_MS = 30 * 60 * 1000;
 const VISIBLE_WINDOW_MS = 7 * DAY_MS;
 
@@ -108,7 +109,7 @@ export function createEconomicCalendarClientState(now = Date.now()) {
   const normalizedNow = Math.max(0, Number(now) || 0);
   const visibleUntil = normalizedNow + VISIBLE_WINDOW_MS;
   const events = nearbyEvents(normalizedNow, 1, 4)
-    .filter((event) => event.endsAt > normalizedNow && event.startsAt <= visibleUntil)
+    .filter((event) => event.endsAt > normalizedNow - EVENT_RESULT_WINDOW_MS && event.startsAt <= visibleUntil)
     .sort((left, right) => left.startsAt - right.startsAt)
     .map((event) => ({
       id: event.id,

@@ -96,6 +96,14 @@ test('合同审计与世界状态在同一事务提交，逐批资产转移可�
   assert.equal(history.items[0].endSummary.settlement.goodsDelivered, 200);
   assert.equal(history.items[0].endSummary.settlement.compensationReceivedByMe, 0);
 
+  const performance = store.getContractPerformance(buyerUser);
+  assert.equal(performance.totalEnded, 1);
+  assert.equal(performance.completed, 1);
+  assert.equal(performance.abnormalEnded, 0);
+  assert.equal(performance.defaulted, 0);
+  assert.equal(performance.completionRateBps, 10_000);
+  assert.equal(performance.recent[0].reasonCode, 'completed');
+
   const detail = store.getContractAuditDetail(buyerUser, contractId, { limit: 100 });
   assert.equal(detail.events.filter((event) => event.eventType === 'delivery_completed').length, 2);
   assert.equal(detail.events.at(-1).eventType, 'contract_completed');
@@ -147,6 +155,12 @@ test('异常结束统计按当前玩家方向返回赔付款', () => {
   assert.equal(buyerHistory.endSummary.settlement.compensationPaidByMe, 0);
   assert.equal(supplierHistory.endSummary.settlement.compensationPaidByMe, 60);
   assert.equal(supplierHistory.endSummary.settlement.compensationReceivedByMe, 0);
+  const buyerPerformance = store.getContractPerformance(buyerUser);
+  const supplierPerformance = store.getContractPerformance(supplierUser);
+  assert.equal(buyerPerformance.abnormalEnded, 1);
+  assert.equal(buyerPerformance.defaulted, 1);
+  assert.equal(buyerPerformance.compensationReceived, 60);
+  assert.equal(supplierPerformance.compensationPaid, 60);
   store.close();
 });
 

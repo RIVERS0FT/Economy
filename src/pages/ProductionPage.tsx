@@ -256,6 +256,9 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                 entry={selectedFacilityEntry}
                 products={game.products}
                 inventories={game.inventories}
+                markets={game.markets}
+                credits={game.credits}
+                warehouseAvailableCapacity={game.warehouseAvailableCapacity}
                 now={now}
                 onToggle={toggleSelectedFacility}
                 onRecipeChange={changeSelectedFacilityRecipe}
@@ -275,6 +278,9 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
         entry={selectedFacilityEntry}
         products={game.products}
         inventories={game.inventories}
+        markets={game.markets}
+        credits={game.credits}
+        warehouseAvailableCapacity={game.warehouseAvailableCapacity}
         now={now}
         isOpen={isFacilityDetailOpen}
         returnFocusRef={detailTriggerRef}

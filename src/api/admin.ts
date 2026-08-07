@@ -341,6 +341,9 @@ export interface AdminPlayerStatistics {
   funnel: {
     stages: AdminPlayerStatisticsFunnelStage[];
     retained7d: AdminPlayerStatisticsRetentionRow;
+    coverageStartsAt: number;
+    completion24h: AdminPlayerStatisticsRetentionRow;
+    completion7d: AdminPlayerStatisticsRetentionRow;
   };
   participation: {
     active7d: number;

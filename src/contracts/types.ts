@@ -188,6 +188,26 @@ export interface ContractAuditHistoryPage {
   nextCursor: string | null;
 }
 
+export interface ContractPerformanceRecentItem {
+  id: string;
+  kind: ContractKind;
+  status: ProductionContractStatus;
+  endedAt: number;
+  reasonCode: string;
+  completionRatioBps: number;
+}
+
+export interface ContractPerformanceSummary {
+  totalEnded: number;
+  completed: number;
+  abnormalEnded: number;
+  defaulted: number;
+  completionRateBps: number;
+  compensationPaid: number;
+  compensationReceived: number;
+  recent: ContractPerformanceRecentItem[];
+}
+
 export interface ContractAuditDetail {
   contract: ContractAuditHistoryItem;
   events: ContractAuditEvent[];

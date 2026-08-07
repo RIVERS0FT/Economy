@@ -26,6 +26,7 @@ import {
   productionContractStateFromGame,
   type ContractAuditHistoryItem,
   type ContractKind,
+  type ContractPerformanceSummary,
   type ProductionContract,
   type ProductionContractStatus,
 } from '../contracts/types';
@@ -907,6 +908,8 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
   const [republishContract, setRepublishContract] = useState<ContractAuditHistoryItem | null>(null);
+  const [contractPerformance, setContractPerformance] = useState<ContractPerformanceSummary | null>(null);
+  const [contractPerformanceError, setContractPerformanceError] = useState('');
   const { productionContracts, productionContractSummary } = productionContractStateFromGame(model.game);
   const productNames = useMemo(() => new Map([
     ...model.game.products.map((product) => [product.id, product.name] as const),
@@ -924,6 +927,14 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
     ));
   const openContracts = productionContracts.filter((contract) => contract.status === 'open').sort((left, right) => right.createdAt - left.createdAt);
   const pendingContracts = activeContracts.filter(contractNeedsAttention);
+
+  useEffect(() => {
+    let cancelled = false;
+    void productionContractAudit.performance()
+      .then((performance) => { if (!cancelled) setContractPerformance(performance); })
+      .catch((reason) => { if (!cancelled) setContractPerformanceError(reason instanceof Error ? reason.message : '履约档案读取失败'); });
+    return () => { cancelled = true; };
+  }, []);
 
   const historyQuery = useMemo<ContractHistoryQuery>(() => ({
     limit: 20,
@@ -1015,6 +1026,33 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
         <MetricCard label="24 小时内交付" value={formatNumber(productionContractSummary.upcomingWithin24Hours)} detail="即将到期批次" />
         <MetricCard label="我的公开合同" value={formatNumber(productionContractSummary.open)} detail="尚未被其他玩家承接" />
       </div>
+
+      <PagePanel className="contract-performance-panel">
+        <WidgetHeading title="我的履约档案" action={<StatusTag tone="info">真实合同历史</StatusTag>} />
+        {contractPerformance ? (
+          <>
+            <div className="contract-performance-grid">
+              <MetricCard label="已结束合同" value={formatNumber(contractPerformance.totalEnded)} />
+              <MetricCard label="正常完成" value={formatNumber(contractPerformance.completed)} detail={`完成率 ${(contractPerformance.completionRateBps / 100).toFixed(1)}%`} tone="success" />
+              <MetricCard label="异常结束" value={formatNumber(contractPerformance.abnormalEnded)} tone={contractPerformance.abnormalEnded > 0 ? 'warning' : 'neutral'} />
+              <MetricCard label="违约／主动违约" value={formatNumber(contractPerformance.defaulted)} tone={contractPerformance.defaulted > 0 ? 'danger' : 'neutral'} />
+              <MetricCard label="累计赔付" value={<CurrencyAmount>{formatCurrency(contractPerformance.compensationPaid)}</CurrencyAmount>} detail={`累计获得 ${formatCurrency(contractPerformance.compensationReceived)}`} />
+            </div>
+            {contractPerformance.recent.length > 0 ? (
+              <div className="contract-performance-recent" aria-label="近期合同结果">
+                {contractPerformance.recent.map((item) => (
+                  <div key={item.id}>
+                    <StatusTag tone={item.status === 'completed' ? 'success' : 'warning'}>{item.kind === 'supply' ? '商品合作' : item.kind === 'loan' ? '资金借贷' : '工厂租赁'}</StatusTag>
+                    <strong>{END_REASON_LABELS[item.reasonCode] ?? item.reasonCode}</strong>
+                    <span>完成 {(item.completionRatioBps / 100).toFixed(0)}% · {dateTimeLabel(item.endedAt)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="ui-helper-text">暂无已结束合同，履约事实会在合同结束后自动累计。</p>}
+          </>
+        ) : <p className={contractPerformanceError ? 'contract-issue' : 'ui-helper-text'}>{contractPerformanceError || '正在读取履约档案…'}</p>}
+        <p className="ui-helper-text">只展示真实完成、异常结束、赔付和近期结果，不生成星级、信用等级或主观评分。</p>
+      </PagePanel>
 
       {showPublish ? <PublishContractPanel key={republishContract?.id || 'new'} model={model} busy={Boolean(busyKey)} close={() => { setShowPublish(false); setRepublishContract(null); }} run={run} initialContract={republishContract} /> : null}
 
