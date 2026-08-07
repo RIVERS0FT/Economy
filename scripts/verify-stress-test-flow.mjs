@@ -82,6 +82,7 @@ for (const text of [
   'npm run stress:run',
   'actions/upload-artifact@v4',
   'retention-days: 14',
+  '          - transaction-mix',
 ]) assert.equal(workflow.includes(text), true, `压力测试工作流缺少 ${text}`);
 assert.equal(workflow.includes('pull_request:'), false, '完整压力测试工作流不得在每个 PR 自动运行');
 
