@@ -1,0 +1,54 @@
+name: Agent Supply Negotiation Test Fix
+
+on:
+  push:
+    branches:
+      - agent/supply-contract-negotiation
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/supply-contract-negotiation
+      - name: Fix negotiation tests
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          commercial = Path('server/test/commercial-contracts.test.js')
+          text = commercial.read_text()
+          text = text.replace("test('schema 5 migrates legacy supply contracts without changing roles'", "test('schema 6 migrates legacy supply contracts without changing roles'", 1)
+          text = text.replace('assert.equal(state.productionContractSchemaVersion, 5);', 'assert.equal(state.productionContractSchemaVersion, 6);', 1)
+          commercial.write_text(text)
+          tests = Path('server/test/contracts.test.js')
+          text = tests.read_text()
+          old = "  assert.equal(contract.negotiations.length, 1);\n  assert.equal(buyer.credits, buyerCreditsBefore);"
+          new = "  assert.equal(contractById(world, contract.id).negotiations.length, 1);\n  assert.equal(buyer.credits, buyerCreditsBefore);"
+          if old not in text:
+              raise SystemExit('first negotiation length anchor missing')
+          text = text.replace(old, new, 1)
+          text = text.replace('  const negotiationId = contract.negotiations[0].id;', '  const negotiationId = contractById(world, contract.id).negotiations[0].id;', 1)
+          text = text.replace('  assert.equal(contract.negotiations[0].revision, 2);', '  assert.equal(contractById(world, contract.id).negotiations[0].revision, 2);', 1)
+          old = "  }, now + 3).ok, true);\n  assert.equal(contract.status, 'active');\n  assert.equal(contract.quantityPerDelivery, 90);\n  assert.equal(contract.unitPrice, 3.2);\n  assert.equal(contract.totalDeliveries, 7);\n  assert.equal(contract.negotiations.length, 0);\n  assert.equal(contract.buyerEscrowCredits, 288);\n  assert.equal(contract.buyerBondCredits, 57.6);\n  assert.equal(contract.supplierBondCredits, 57.6);\n  assert.equal(contract.supplierReservedQuantity, 90);"
+          new = "  }, now + 3).ok, true);\n  const activeContract = contractById(world, contract.id);\n  assert.equal(activeContract.status, 'active');\n  assert.equal(activeContract.quantityPerDelivery, 90);\n  assert.equal(activeContract.unitPrice, 3.2);\n  assert.equal(activeContract.totalDeliveries, 7);\n  assert.equal(activeContract.negotiations.length, 0);\n  assert.equal(activeContract.buyerEscrowCredits, 288);\n  assert.equal(activeContract.buyerBondCredits, 57.6);\n  assert.equal(activeContract.supplierBondCredits, 57.6);\n  assert.equal(activeContract.supplierReservedQuantity, 90);"
+          if old not in text:
+              raise SystemExit('signed contract assertion anchor missing')
+          text = text.replace(old, new, 1)
+          text = text.replace('  const negotiationId = contract.negotiations[0].id;', '  const negotiationId = contractById(world, contract.id).negotiations[0].id;', 1)
+          text = text.replace('  assert.equal(contract.negotiations[0].revision, 5);', '  assert.equal(contractById(world, contract.id).negotiations[0].revision, 5);', 1)
+          text = text.replace('  assert.equal(contract.negotiations.length, 0);\n});\n\ntest(\'合同议价路由只解析结构化动作和稳定合同／议价 ID\'', '  assert.equal(contractById(world, contract.id).negotiations.length, 0);\n});\n\ntest(\'合同议价路由只解析结构化动作和稳定合同／议价 ID\'', 1)
+          tests.write_text(text)
+          PY
+          git diff --check
+          git rm .github/workflows/agent-supply-negotiation-test-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- server/test/commercial-contracts.test.js server/test/contracts.test.js
+          git commit -m "修正合同议价测试权威引用"
+          git push origin HEAD:agent/supply-contract-negotiation
