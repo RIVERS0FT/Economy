@@ -41,6 +41,29 @@ if call_start < 0 or next_block < 0:
     raise SystemExit('Could not locate obsolete contract no-op patch boundaries')
 text = text[:call_start] + text[next_block:]
 
+phase4_start = text.find('# Phase 4: leaderboard current-segment goals')
+leaderboard_style_start = text.find("append_once('src/styles/leaderboards.css'", phase4_start)
+if phase4_start < 0 or leaderboard_style_start < 0:
+    raise SystemExit('Could not locate leaderboard patch section')
+leaderboard_patch = r'''# Phase 4: leaderboard current-segment goals ----------------------------------------
+replace_once(
+    'src/pages/LeaderboardPage.tsx',
+    "import { formatCurrency, formatNumber, formatRank } from '../utils/formatters';",
+    "import { formatCurrency, formatNumber, formatRank } from '../utils/formatters';\nimport { personalLeaderboardGoal } from '../utils/leaderboardGoals';",
+)
+insert_after(
+    'src/pages/LeaderboardPage.tsx',
+    """  const current = board.currentPlayer;\n  const currentRank = current?.rank;\n""",
+    """  const personalGoal = personalLeaderboardGoal(board);\n""",
+)
+insert_after(
+    'src/pages/LeaderboardPage.tsx',
+    """      <footer className=\"leaderboard-current-player\">\n        <div>\n          <span>我的排名</span>\n          <strong>{formatRank(currentRank)}</strong>\n        </div>\n        <div>\n          <span>我的成绩</span>\n          <strong>{current ? scoreValue(board, current.score) : '暂无'}</strong>\n        </div>\n      </footer>\n""",
+    """      {personalGoal ? (\n        <div className=\"leaderboard-personal-goal\" aria-label={`${board.title}个人竞争目标`}>\n          <span>当前 {personalGoal.bandLabel}</span>\n          <strong>{personalGoal.targetLabel}</strong>\n          <small>{personalGoal.distance > 0 ? `距离目标还差 ${formatNumber(personalGoal.distance)} 名` : '当前目标已达成'}</small>\n        </div>\n      ) : null}\n""",
+)
+'''
+text = text[:phase4_start] + leaderboard_patch + text[leaderboard_style_start:]
+
 sentinel = '# MOBILE_FACILITY_DIAGNOSTICS_FORWARDING'
 if sentinel not in text:
     text += r'''
