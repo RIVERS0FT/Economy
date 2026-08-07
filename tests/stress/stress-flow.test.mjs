@@ -38,6 +38,13 @@ test('stress safety prevents production writes and unsafe targets', () => {
     targetMode: 'local',
     profile: 'smoke',
   }), /回环地址/);
+  assert.throws(() => validateStressSafety({
+    ...base,
+    targetMode: 'staging',
+    profile: 'transaction-mix',
+    authUrl: 'https://staging.example.com/api/login',
+    gameBaseUrl: 'https://staging.example.com/api/game',
+  }), /只能在本地隔离环境/);
 });
 
 test('isolated mixed stress exercises real authentication, state delivery, writes and idempotency', { timeout: 30_000 }, async () => {
@@ -63,4 +70,32 @@ test('isolated mixed stress exercises real authentication, state delivery, write
   assert.equal(serialized.includes('@riversoft.top'), false);
   assert.equal(serialized.includes('session='), false);
   assert.equal(serialized.includes('local-stress-'), false);
+});
+
+test('isolated transaction mix exercises state, work, orders, facilities, recipes, builds and research', { timeout: 40_000 }, async () => {
+  const report = await runStressTest({
+    targetMode: 'local',
+    profile: 'transaction-mix',
+    users: 4,
+    durationSeconds: 6,
+    pollIntervalMs: 200,
+    enforcePerformanceBudget: false,
+  });
+  assert.equal(report.passed, true, report.failures.join('\n'));
+  assert.equal(report.configuration.transactionMixWeights.state, 60);
+  assert.equal(report.configuration.transactionMixWeights.work, 10);
+  assert.equal(report.configuration.transactionMixWeights.order, 10);
+  assert.equal(report.configuration.transactionMixWeights.facilityToggle, 8);
+  assert.equal(report.configuration.transactionMixWeights.recipe, 5);
+  assert.equal(report.configuration.transactionMixWeights.build, 4);
+  assert.equal(report.configuration.transactionMixWeights.research, 3);
+  for (const [category, count] of Object.entries(report.invariants.transactionMix)) {
+    assert.ok(count > 0, `事务混合场景未覆盖 ${category}`);
+  }
+  assert.ok(report.invariants.actionConfirmations > 0);
+  assert.ok(report.invariants.stateResponses > 4);
+  assert.equal(report.metrics.serverErrorCount, 0);
+  assert.equal(report.metrics.timeoutCount, 0);
+  assert.equal(report.metrics.unexpectedStatusCount, 0);
+  assert.ok(report.storage.after.databaseBytes > 0);
 });

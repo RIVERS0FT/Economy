@@ -27,6 +27,11 @@ function apply(store, action, payload, requestKey, at) {
   }, at);
 }
 
+function applyWithEpoch(store, expectedEpoch, action, payload, requestKey, at) {
+  assertPlayerSaveEpoch(store, user, expectedEpoch, at);
+  return apply(store, action, payload, requestKey, at);
+}
+
 test('delete save recreates the player baseline and preserves permanent account rewards', () => {
   const store = new EconomyStore(':memory:', { scheduledProcessing: false });
   try {
@@ -107,6 +112,81 @@ test('delete save recreates the player baseline and preserves permanent account 
     assert.throws(
       () => assertPlayerSaveEpoch(store, user, undefined, now + 7),
       (error) => error.statusCode === 409 && error.code === 'SAVE_EPOCH_MISMATCH',
+    );
+  } finally {
+    store.close();
+  }
+});
+
+test('stale tab writes are rejected after save deletion while the new epoch remains writable', () => {
+  const store = new EconomyStore(':memory:', { scheduledProcessing: false });
+  try {
+    store.getState(user, now);
+    const oldEpoch = '0';
+    const deletion = deletePlayerSave(store, user, {
+      confirmation: '删除存档',
+      requestKey: 'save-delete-stale-tab-0001',
+    }, now + 1);
+    assert.equal(deletion.saveEpoch, 1);
+
+    const afterDeletion = store.loadWorld(now + 2);
+    const revisionAfterDeletion = afterDeletion.revision;
+    const playerAfterDeletion = afterDeletion.world.players[String(user.id)];
+    assert.equal(playerAfterDeletion.saveEpoch, 1);
+    assert.equal(playerAfterDeletion.credits, 500);
+    assert.equal((playerAfterDeletion.facilityGroups || []).length, 0);
+    assert.equal(playerAfterDeletion.research?.active || null, null);
+    assert.equal(afterDeletion.world.orders.some((order) => Number(order.ownerId) === Number(user.id)), false);
+
+    const staleWrites = [
+      ['buildFacility', { facilityTypeId: 'farm', quantity: 1 }, 'save-stale-build-0001'],
+      ['placeOrder', {
+        assetKind: 'commodity',
+        assetId: 'wheat',
+        productId: 'wheat',
+        side: 'buy',
+        quantity: 1,
+        price: 0.01,
+      }, 'save-stale-order-0001'],
+      ['startResearch', { technologyId: 'forestry-development' }, 'save-stale-research-0001'],
+    ];
+    for (const [action, payload, requestKey] of staleWrites) {
+      assert.throws(
+        () => applyWithEpoch(store, oldEpoch, action, payload, requestKey, now + 3),
+        (error) => error.statusCode === 409 && error.code === 'SAVE_EPOCH_MISMATCH',
+        `旧存档世代不得执行 ${action}`,
+      );
+    }
+    assert.throws(
+      () => applyWithEpoch(store, undefined, 'buildFacility', { facilityTypeId: 'farm', quantity: 1 }, 'save-stale-missing-0001', now + 3),
+      (error) => error.statusCode === 409 && error.code === 'SAVE_EPOCH_MISMATCH',
+      '删档后的缺失存档世代不得继续写入',
+    );
+
+    const afterRejectedWrites = store.loadWorld(now + 4);
+    assert.equal(afterRejectedWrites.revision, revisionAfterDeletion, '旧标签页请求不得推进世界修订号');
+    const unchangedPlayer = afterRejectedWrites.world.players[String(user.id)];
+    assert.equal(unchangedPlayer.credits, 500, '旧标签页请求不得扣除资金');
+    assert.equal((unchangedPlayer.facilityGroups || []).length, 0, '旧标签页请求不得创建工厂');
+    assert.equal(unchangedPlayer.research?.active || null, null, '旧标签页请求不得启动研发');
+    assert.equal(afterRejectedWrites.world.orders.some((order) => Number(order.ownerId) === Number(user.id)), false, '旧标签页请求不得创建订单');
+
+    const currentWrite = applyWithEpoch(
+      store,
+      '1',
+      'buildFacility',
+      { facilityTypeId: 'farm', quantity: 1 },
+      'save-current-build-0001',
+      now + 5,
+    );
+    assert.equal(currentWrite.result.ok, true);
+    const currentWorld = store.loadWorld(now + 6).world;
+    const currentPlayer = currentWorld.players[String(user.id)];
+    assert.equal(currentPlayer.credits, 450);
+    assert.equal(
+      currentPlayer.facilityGroups.find((group) => group.facilityTypeId === 'farm')?.count,
+      1,
+      '当前存档世代必须保持可写',
     );
   } finally {
     store.close();

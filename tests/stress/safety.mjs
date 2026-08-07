@@ -3,6 +3,13 @@ export const STRESS_PROFILES = Object.freeze({
   poll: Object.freeze({ writes: false, defaultUsers: 24, defaultDurationSeconds: 300, defaultPollIntervalMs: 5_000 }),
   burst: Object.freeze({ writes: false, defaultUsers: 24, defaultDurationSeconds: 60, defaultPollIntervalMs: 100 }),
   mixed: Object.freeze({ writes: true, defaultUsers: 24, defaultDurationSeconds: 300, defaultPollIntervalMs: 1_000 }),
+  'transaction-mix': Object.freeze({
+    writes: true,
+    localOnly: true,
+    defaultUsers: 24,
+    defaultDurationSeconds: 120,
+    defaultPollIntervalMs: 1_000,
+  }),
   soak: Object.freeze({ writes: true, defaultUsers: 24, defaultDurationSeconds: 1_800, defaultPollIntervalMs: 5_000 }),
 });
 
@@ -43,6 +50,9 @@ export function validateStressSafety({
   }
   if (!Number.isInteger(pollIntervalMs) || pollIntervalMs < 100 || pollIntervalMs > 60_000) {
     throw new Error('压力测试轮询间隔必须为 100～60000 毫秒');
+  }
+  if (definition.localOnly && targetMode !== 'local') {
+    throw new Error(`${profile} 场景只能在本地隔离环境运行`);
   }
 
   const auth = parsedOrigin(authUrl, '认证地址');
