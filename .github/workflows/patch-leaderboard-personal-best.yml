@@ -28,7 +28,9 @@ jobs:
           cache: npm
 
       - name: Apply personal best patch
-        run: python3 scripts/patch-leaderboard-personal-best.py
+        run: |
+          python3 scripts/fix-leaderboard-personal-best-patch.py
+          python3 scripts/patch-leaderboard-personal-best.py
 
       - name: Install dependencies
         run: npm ci
@@ -39,6 +41,7 @@ jobs:
       - name: Commit verified patch and remove temporary tooling
         run: |
           rm scripts/patch-leaderboard-personal-best.py
+          rm scripts/fix-leaderboard-personal-best-patch.py
           rm .github/workflows/patch-leaderboard-personal-best.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -54,6 +57,7 @@ jobs:
             docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
             docs/PRODUCT_AND_GAMEPLAY_DESIGN.md \
             scripts/patch-leaderboard-personal-best.py \
+            scripts/fix-leaderboard-personal-best-patch.py \
             .github/workflows/patch-leaderboard-personal-best.yml
           git diff --cached --check
           git commit -m "增加排行榜权威个人最好成绩"
