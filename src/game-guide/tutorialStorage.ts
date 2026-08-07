@@ -1,4 +1,4 @@
-export const CURRENT_TUTORIAL_VERSION = 1 as const;
+export const CURRENT_TUTORIAL_VERSION = 2 as const;
 
 export const TUTORIAL_STEP_IDS = [
   'work',
@@ -7,6 +7,10 @@ export const TUTORIAL_STEP_IDS = [
   'complete-production',
   'place-sell-order',
   'complete-sale',
+  'start-research',
+  'review-contracts',
+  'make-bank-deposit',
+  'review-leaderboard',
 ] as const;
 
 export type TutorialStepId = typeof TUTORIAL_STEP_IDS[number];
@@ -19,6 +23,10 @@ export interface TutorialRunStats {
   productionCompletions: number;
   sellOrderSubmits: number;
   saleCompletions: number;
+  researchStarts: number;
+  contractReviews: number;
+  bankDeposits: number;
+  leaderboardReviews: number;
 }
 
 export interface TutorialRunContext {
@@ -63,6 +71,10 @@ function emptyStats(): TutorialRunStats {
     productionCompletions: 0,
     sellOrderSubmits: 0,
     saleCompletions: 0,
+    researchStarts: 0,
+    contractReviews: 0,
+    bankDeposits: 0,
+    leaderboardReviews: 0,
   };
 }
 
@@ -115,6 +127,10 @@ function normalizeRun(value: unknown): LocalTutorialRun | null {
       productionCompletions: Math.max(0, Number(stats.productionCompletions || 0)),
       sellOrderSubmits: Math.max(0, Number(stats.sellOrderSubmits || 0)),
       saleCompletions: Math.max(0, Number(stats.saleCompletions || 0)),
+      researchStarts: Math.max(0, Number(stats.researchStarts || 0)),
+      contractReviews: Math.max(0, Number(stats.contractReviews || 0)),
+      bankDeposits: Math.max(0, Number(stats.bankDeposits || 0)),
+      leaderboardReviews: Math.max(0, Number(stats.leaderboardReviews || 0)),
     },
     context: {
       facilityTypeId: typeof raw.context?.facilityTypeId === 'string' ? raw.context.facilityTypeId : undefined,
