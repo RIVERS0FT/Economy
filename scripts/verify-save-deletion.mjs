@@ -74,6 +74,21 @@ if (failures.length === 0) {
   ]) {
     if (!app.includes(text)) failures.push(`服务器路由缺少: ${text}`);
   }
+  const actionBoundaryStart = app.indexOf('const actionResponse = await enqueueAuthoritativeWrite');
+  const actionBoundaryEnd = app.indexOf('const knownPartitions = readKnownPartitionRevisionsFromHeader', actionBoundaryStart);
+  const actionBoundary = actionBoundaryStart >= 0 && actionBoundaryEnd > actionBoundaryStart
+    ? app.slice(actionBoundaryStart, actionBoundaryEnd)
+    : '';
+  if (!actionBoundary.includes("assertPlayerSaveEpoch(store, user, request.headers['x-economy-save-epoch']);")) {
+    failures.push('普通写请求必须在权威写队列内校验 X-Economy-Save-Epoch');
+  }
+  if (
+    actionBoundary.indexOf('assertPlayerSaveEpoch') < 0
+    || actionBoundary.indexOf('return store.apply') < 0
+    || actionBoundary.indexOf('assertPlayerSaveEpoch') > actionBoundary.indexOf('return store.apply')
+  ) {
+    failures.push('存档世代校验必须发生在 store.apply 之前，旧标签页不得进入经济事务');
+  }
 
   for (const text of [
     'economy_save_deletions',
@@ -111,6 +126,13 @@ if (failures.length === 0) {
   for (const text of [
     'delete save recreates the player baseline',
     'active liabilities block save deletion',
+    'stale tab writes are rejected after save deletion while the new epoch remains writable',
+    '旧标签页请求不得推进世界修订号',
+    '旧标签页请求不得扣除资金',
+    '旧标签页请求不得创建工厂',
+    '旧标签页请求不得启动研发',
+    '旧标签页请求不得创建订单',
+    '当前存档世代必须保持可写',
     'assertPlayerSaveEpoch',
   ]) {
     if (!test.includes(text)) failures.push(`服务器测试缺少: ${text}`);
@@ -124,6 +146,8 @@ if (failures.length === 0) {
     ['页面设计', pageDesign, '设置页“存档管理”'],
     ['UI 设计', uiDesign, '存档管理'],
     ['服务器设计', serverDesign, 'economy_save_deletions'],
+    ['服务器设计', serverDesign, '409 SAVE_EPOCH_MISMATCH'],
+    ['服务器设计', serverDesign, '旧标签页把操作写入新存档'],
     ['管理员设计', adminDesign, '删除存档不得删除或重置'],
   ]) {
     if (!source.includes(requiredText)) failures.push(`${name}缺少: ${requiredText}`);
@@ -139,4 +163,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('删除存档的确认、阻断、自动关闭、账号级数据保留、审计、存档世代与旧接口墓碑验证通过。');
+console.log('删除存档的确认、阻断、自动关闭、账号级数据保留、审计、存档世代、旧标签页写入隔离与旧接口墓碑验证通过。');
