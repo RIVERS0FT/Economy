@@ -23,6 +23,10 @@ text = text.replace(
     '"""    .filter((event) => event.endsAt > now - EVENT_RESULT_WINDOW_MS && event.startsAt <= visibleUntil)"""',
     '"""    .filter((event) => event.endsAt > normalizedNow - EVENT_RESULT_WINDOW_MS && event.startsAt <= visibleUntil)"""',
 )
+text = text.replace(
+    '"""    assert.equal(activity.trade_quantity, 0);\\n"""',
+    '"""    assert.equal(operational.trade_quantity, 4);\\n"""',
+)
 
 old_literal = '"""  products,\\n  inventories,\\n  now,\\n  onToggle,"""'
 new_literal = '"""  products,\\n  inventories,\\n  markets,\\n  credits,\\n  warehouseAvailableCapacity,\\n  now,\\n  onToggle,"""'
