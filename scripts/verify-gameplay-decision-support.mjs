@@ -99,6 +99,8 @@ requireText('server/src/contracts.js', 'publicNegotiations');
 requireText('server/src/contract-audit-store.js', 'negotiation_proposed');
 requireText('server/src/contract-audit-store.js', 'negotiation_accepted');
 requireText('src/contracts/ContractNegotiationSection.tsx', '议价阶段不冻结资产');
+requireText('src/contracts/ContractNegotiationSection.tsx', 'baseTerms={baseTerms}');
+requireText('src/contracts/ContractNegotiationSection.tsx', 'label="首次交付"');
 requireText('src/contracts/navigation.ts', 'sessionStorage.removeItem');
 requireText('src/components/facilities/FacilityOperatingDiagnostics.tsx', '查看相关合同');
 forbidText('src/contracts/types.ts', 'proposerId: number;');
