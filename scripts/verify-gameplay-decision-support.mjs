@@ -91,6 +91,8 @@ requireText('src/pages/ContractPage.tsx', '我的履约档案');
 requireText('src/pages/ContractPage.tsx', '不生成星级、信用等级或主观评分');
 requireText('server/src/contracts.js', 'MAX_NEGOTIATIONS_PER_CONTRACT = 3');
 requireText('server/src/contracts.js', 'MAX_NEGOTIATION_REVISIONS = 5');
+const negotiationContractSource = read('server/src/contracts.js');
+assert.match(negotiationContractSource, /function cancelOpenContract[\s\S]*?contract\.negotiations = \[\];[\s\S]*?contract\.status = 'cancelled'/);
 requireText('server/src/contracts.js', 'NEGOTIATION_TTL_MS = 24 * 60 * 60 * 1000');
 requireText('server/src/contracts.js', 'proposeProductionContractNegotiation');
 requireText('server/src/contracts.js', 'publicNegotiations');

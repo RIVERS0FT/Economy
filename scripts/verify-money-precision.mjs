@@ -78,7 +78,7 @@ assert.match(banking, /microsToInternalMoney\(fundedByPoolMicros\)/);
 assert.doesNotMatch(banking, /Math\.floor\(shareMicros \/ 10_000\) \* 10_000/);
 
 const contracts = read('server/src/contracts.js');
-assert.match(contracts, /PRODUCTION_CONTRACT_SCHEMA_VERSION = 5/);
+assert.match(contracts, /PRODUCTION_CONTRACT_SCHEMA_VERSION = 6/);
 assert.match(contracts, /multiplyMoneyByInteger\(contract\.unitPrice, contract\.quantityPerDelivery\)/);
 assert.doesNotMatch(contracts, /floorPlayerMoney/);
 

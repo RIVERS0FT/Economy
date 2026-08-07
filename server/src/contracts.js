@@ -881,6 +881,7 @@ function cancelOpenContract(world, user, payload, now, runtimeIndex) {
   const contract = runtimeIndex.contractById(payload.contractId);
   if (!contract || contract.status !== 'open' || contract.publisherId !== Number(user.id)) return result(false, '可取消的公开合同不存在');
   runtimeIndex.transition(contract, () => {
+    contract.negotiations = [];
     contract.status = 'cancelled';
     contract.endedAt = now;
   });
