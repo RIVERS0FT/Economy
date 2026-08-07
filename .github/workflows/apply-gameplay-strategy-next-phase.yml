@@ -1,0 +1,91 @@
+name: Apply gameplay strategy next phase
+
+on:
+  push:
+    branches:
+      - agent/gameplay-strategy-next-phase
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gameplay-strategy-next-phase
+  cancel-in-progress: true
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/gameplay-strategy-next-phase
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Normalize and apply gameplay changes
+        run: |
+          python3 scripts/fix-gameplay-strategy-patch.py
+          python3 scripts/apply-gameplay-strategy-next-phase.py
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify full build
+        run: npm run build
+
+      - name: Commit verified changes and remove temporary tooling
+        run: |
+          rm scripts/apply-gameplay-strategy-next-phase.py
+          rm scripts/fix-gameplay-strategy-patch.py
+          rm .github/workflows/apply-gameplay-strategy-next-phase.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            server/src/tutorial-store.js \
+            server/src/player-admin-statistics.js \
+            server/src/contract-audit-store.js \
+            server/src/app.js \
+            server/src/economic-events.js \
+            server/test/tutorial-store.test.js \
+            server/test/player-admin-statistics.test.js \
+            server/test/contract-audit.test.js \
+            server/test/economic-events.test.js \
+            src/api/admin.ts \
+            src/components/AdminPlayerStatistics.tsx \
+            src/utils/marketDecisionSignals.ts \
+            src/utils/facilityOperatingDiagnostics.ts \
+            src/components/facilities/FacilityOperatingDiagnostics.tsx \
+            src/styles/facility-operating-diagnostics.css \
+            src/pages/production/ProductionFacilityDetail.tsx \
+            src/pages/production/MobileFacilityDetailSheet.tsx \
+            src/pages/ProductionPage.tsx \
+            src/pages/ResearchPage.tsx \
+            src/styles/research-page.css \
+            src/contracts/types.ts \
+            src/contracts/api.ts \
+            src/pages/ContractPage.tsx \
+            src/styles/contracts.css \
+            src/utils/leaderboardGoals.ts \
+            src/pages/LeaderboardPage.tsx \
+            src/styles/leaderboards.css \
+            src/pages/OverviewPage.tsx \
+            src/styles/overview.css \
+            scripts/verify-gameplay-decision-support.mjs \
+            scripts/verify-admin-player-statistics.mjs \
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
+            docs/GIFT_CODE_AND_ADMIN_DESIGN.md \
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
+            docs/PRODUCT_AND_GAMEPLAY_DESIGN.md \
+            package.json \
+            scripts/apply-gameplay-strategy-next-phase.py \
+            scripts/fix-gameplay-strategy-patch.py \
+            .github/workflows/apply-gameplay-strategy-next-phase.yml
+          git diff --cached --check
+          git commit -m "实现中期经营决策支持与完整成长漏斗"
+          git push origin HEAD:agent/gameplay-strategy-next-phase
