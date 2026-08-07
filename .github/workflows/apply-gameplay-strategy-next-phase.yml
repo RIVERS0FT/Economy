@@ -32,6 +32,27 @@ jobs:
           python3 scripts/fix-gameplay-strategy-patch.py
           python3 scripts/apply-gameplay-strategy-next-phase.py
           git checkout HEAD -- scripts/verify-gameplay-decision-support.mjs src/utils/leaderboardGoals.ts
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/pages/ResearchPage.tsx')
+          text = path.read_text(encoding='utf-8')
+          conditional = '      {isSelectedActive && active ? (\n'
+          section_marker = '      <section className="research-industry-context mobile-detail-section" aria-label="产业经营视角">\n'
+          conditional_index = text.find(conditional)
+          section_start = text.find(section_marker, conditional_index)
+          if conditional_index < 0 or section_start < 0:
+              raise SystemExit('Could not locate generated research industry context placement')
+          section_end = text.find('      </section>\n', section_start)
+          if section_end < 0:
+              raise SystemExit('Could not locate research industry context end')
+          section_end += len('      </section>\n')
+          block = text[section_start:section_end]
+          text = text[:section_start] + text[section_end:]
+          conditional_index = text.find(conditional)
+          text = text[:conditional_index] + block + '\n' + text[conditional_index:]
+          path.write_text(text, encoding='utf-8')
+          PY
 
       - name: Install dependencies
         run: npm ci
