@@ -3,6 +3,8 @@ from pathlib import Path
 path = Path(__file__).resolve().with_name('apply-gameplay-strategy-next-phase.py')
 text = path.read_text(encoding='utf-8')
 text = text.replace('\\)', ')')
+text = text.replace("'## 6. 研发\\n\\n'", "'### 5.4 研发页面\\n\\n'")
+text = text.replace("'## 8. 合同\\n\\n'", "'## 7. 合同\\n\\n'")
 
 old_literal = '"""  products,\\n  inventories,\\n  now,\\n  onToggle,"""'
 new_literal = '"""  products,\\n  inventories,\\n  markets,\\n  credits,\\n  warehouseAvailableCapacity,\\n  now,\\n  onToggle,"""'
