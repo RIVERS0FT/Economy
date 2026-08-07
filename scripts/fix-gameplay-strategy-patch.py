@@ -25,10 +25,10 @@ marker_index = text.find(contract_marker)
 if marker_index < 0:
     raise SystemExit('Could not locate obsolete contract no-op patch marker')
 call_start = text.rfind('insert_after(', 0, marker_index)
-call_end = text.find('\n)\n', marker_index)
-if call_start < 0 or call_end < 0:
+next_block = text.find('# Insert the new method immediately before the existing detail method for a stable API surface.', marker_index)
+if call_start < 0 or next_block < 0:
     raise SystemExit('Could not locate obsolete contract no-op patch boundaries')
-text = text[:call_start] + text[call_end + 3:]
+text = text[:call_start] + text[next_block:]
 
 sentinel = '# MOBILE_FACILITY_DIAGNOSTICS_FORWARDING'
 if sentinel not in text:
