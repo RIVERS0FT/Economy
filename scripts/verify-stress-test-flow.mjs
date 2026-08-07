@@ -56,6 +56,11 @@ for (const text of [
   'X-Economy-Save-Epoch',
   "seedTransactionAssets: profile === 'transaction-mix'",
 ]) assert.equal(runner.includes(text), true, `压力测试执行器缺少 ${text}`);
+assert.equal(
+  runner.includes('seedTransactionAssets: true'),
+  false,
+  '隔离资产预置不得无条件启用，避免改变 mixed 等既有校准场景',
+);
 
 const harness = read('tests/stress/localHarness.mjs');
 for (const text of [
