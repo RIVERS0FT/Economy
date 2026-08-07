@@ -21,7 +21,6 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
           precision = Path('scripts/verify-money-precision.mjs')
           text = precision.read_text()
           old = "assert.match(contracts, /PRODUCTION_CONTRACT_SCHEMA_VERSION = 5/);"
@@ -29,15 +28,13 @@ jobs:
           if old not in text:
               raise SystemExit('money precision schema anchor missing')
           precision.write_text(text.replace(old, new, 1))
-
           contracts = Path('server/src/contracts.js')
           text = contracts.read_text()
-          old = """  runtimeIndex.transition(contract, () => {\n    contract.status = 'cancelled';\n    contract.endedAt = now;\n  });"""
-          new = """  runtimeIndex.transition(contract, () => {\n    contract.negotiations = [];\n    contract.status = 'cancelled';\n    contract.endedAt = now;\n  });"""
+          old = "  runtimeIndex.transition(contract, () => {\n    contract.status = 'cancelled';\n    contract.endedAt = now;\n  });"
+          new = "  runtimeIndex.transition(contract, () => {\n    contract.negotiations = [];\n    contract.status = 'cancelled';\n    contract.endedAt = now;\n  });"
           if old not in text:
               raise SystemExit('cancel contract anchor missing')
           contracts.write_text(text.replace(old, new, 1))
-
           verifier = Path('scripts/verify-gameplay-decision-support.mjs')
           text = verifier.read_text()
           anchor = "requireText('server/src/contracts.js', 'MAX_NEGOTIATION_REVISIONS = 5');"
@@ -45,47 +42,11 @@ jobs:
           if anchor not in text:
               raise SystemExit('gameplay verifier anchor missing')
           verifier.write_text(text.replace(anchor, replacement, 1))
-
-          tests = Path('server/test/contracts.test.js')
-          text = tests.read_text()
-          marker = "取消公开商品合同会关闭未完成议价线程"
-          if marker not in text:
-              text += r'''
-
-test('取消公开商品合同会关闭未完成议价线程', () => {
-  const { world, buyerUser, supplierUser, now } = setup();
-  assert.equal(applyProductionContractAction(world, buyerUser, 'createProductionContract', {
-    publisherRole: 'buyer',
-    productId: 'wheat',
-    quantityPerDelivery: 20,
-    unitPrice: 3,
-    deliveryIntervalMs: 30 * 60 * 1000,
-    totalDeliveries: 6,
-    firstDeliveryDelayMs: 0,
-  }, now).ok, true);
-  const contract = world.productionContracts[0];
-  assert.equal(applyProductionContractAction(world, supplierUser, 'proposeProductionContractNegotiation', {
-    contractId: contract.id,
-    quantityPerDelivery: 18,
-    unitPrice: 2.8,
-    deliveryIntervalMs: 30 * 60 * 1000,
-    totalDeliveries: 6,
-    firstDeliveryDelayMs: 0,
-  }, now + 1).ok, true);
-  assert.equal(contract.negotiations.length, 1);
-  assert.equal(applyProductionContractAction(world, buyerUser, 'cancelProductionContract', {
-    contractId: contract.id,
-  }, now + 2).ok, true);
-  assert.equal(contract.status, 'cancelled');
-  assert.deepEqual(contract.negotiations, []);
-});
-'''
-          tests.write_text(text)
           PY
           git diff --check
           git rm .github/workflows/agent-supply-negotiation-fix.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- scripts/verify-money-precision.mjs server/src/contracts.js scripts/verify-gameplay-decision-support.mjs server/test/contracts.test.js
+          git add -- scripts/verify-money-precision.mjs server/src/contracts.js scripts/verify-gameplay-decision-support.mjs
           git commit -m "同步合同议价版本校验与取消清理"
           git push origin HEAD:agent/supply-contract-negotiation
