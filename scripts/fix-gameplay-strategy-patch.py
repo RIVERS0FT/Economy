@@ -16,6 +16,13 @@ text = text.replace(
     '"""  ContractAuditHistoryPage,\\n  ContractAuditDetail,\\n  ContractPerformanceSummary,"""',
     '"""  ContractAuditDetail,\\n  ContractAuditHistoryPage,\\n  ContractPerformanceSummary,"""',
 )
+text = text.replace(
+    '"""    .filter((event) => event.endsAt > now && event.startsAt <= visibleUntil)"""',
+    '"""    .filter((event) => event.endsAt > normalizedNow && event.startsAt <= visibleUntil)"""',
+).replace(
+    '"""    .filter((event) => event.endsAt > now - EVENT_RESULT_WINDOW_MS && event.startsAt <= visibleUntil)"""',
+    '"""    .filter((event) => event.endsAt > normalizedNow - EVENT_RESULT_WINDOW_MS && event.startsAt <= visibleUntil)"""',
+)
 
 old_literal = '"""  products,\\n  inventories,\\n  now,\\n  onToggle,"""'
 new_literal = '"""  products,\\n  inventories,\\n  markets,\\n  credits,\\n  warehouseAvailableCapacity,\\n  now,\\n  onToggle,"""'
