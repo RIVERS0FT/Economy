@@ -64,13 +64,18 @@ requireText(
 );
 requireText(
   gameApp,
-  'buildFacility: (facilityTypeId = model.selectedFacilityTypeId, quantity = 1) => {',
+  'buildFacility: async (facilityTypeId = model.selectedFacilityTypeId, quantity = 1) => {',
   'tutorial wrapper quantity parameter',
 );
 requireText(
   gameApp,
-  'return model.buildFacility(facilityTypeId, quantity);',
+  'const result = await model.buildFacility(facilityTypeId, quantity);',
   'tutorial wrapper quantity forwarding',
+);
+requireText(
+  gameApp,
+  'if (result.ok) tutorial.recordBuildSubmit(facilityTypeId);',
+  'tutorial wrapper success-gated advancement',
 );
 forbidText(
   gameApp,
