@@ -22,6 +22,7 @@ on:
           - poll
           - burst
           - mixed
+          - transaction-mix
           - soak
       users:
         description: Fixed account slots to use (1-24)
