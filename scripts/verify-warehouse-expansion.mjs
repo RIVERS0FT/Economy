@@ -38,7 +38,7 @@ for (const text of [
   'WAREHOUSE_CAPACITY_STEP = 250',
   'WAREHOUSE_CAPACITY_STEP_GROWTH = 50',
   'WAREHOUSE_BASE_UPGRADE_COST = 150',
-  'WAREHOUSE_COST_SLOPE_NUMERATOR = 6',
+  'WAREHOUSE_COST_SLOPE_NUMERATOR = 4',
   'WAREHOUSE_COST_SLOPE_DENOMINATOR = 5',
   'warehouseCapacityIncreaseForLevel',
   'warehouseUpgradeCostForCapacity',
@@ -63,11 +63,14 @@ for (const forbidden of [
   'warehouseUpgradeCostForLevel',
   'WAREHOUSE_BASE_UPGRADE_COST * normalized * normalized',
   'WAREHOUSE_COST_SLOPE_NUMERATOR = 3',
+  'WAREHOUSE_COST_SLOPE_NUMERATOR = 6',
 ]) forbidText('server/src/warehouse.js', forbidden);
 
 for (const [path, forbidden] of [
   ['docs/WAREHOUSE_EXPANSION_DESIGN.md', '× 0.6'],
   ['docs/WAREHOUSE_EXPANSION_DESIGN.md', '3 / 5'],
+  ['docs/WAREHOUSE_EXPANSION_DESIGN.md', '× 1.2'],
+  ['docs/WAREHOUSE_EXPANSION_DESIGN.md', '6 / 5'],
 ]) forbidText(path, forbidden);
 
 for (const text of [
@@ -81,12 +84,16 @@ for (const text of [
 
 for (const text of [
   'warehouseUpgradeCostForCapacity',
-  '[150, 450, 810, 1_230, 1_710, 2_250]',
+  '[150, 350, 590, 870, 1_190, 1_550]',
   'warehouse summary price matches the amount deducted for the same actual capacity',
-  'warehouseUpgradeCostForCapacity(501), 152',
-  'warehouseUpgradeCostForCapacity(502), 153',
+  'warehouseUpgradeCostForCapacity(900), 470',
+  'warehouseUpgradeCostForCapacity(501), 151',
+  'warehouseUpgradeCostForCapacity(502), 152',
 ]) requireText('server/test/warehouse.test.js', text);
-for (const forbidden of ['warehouseUpgradeCostForLevel']) forbidText('server/test/warehouse.test.js', forbidden);
+for (const forbidden of [
+  'warehouseUpgradeCostForLevel',
+  '[150, 450, 810, 1_230, 1_710, 2_250]',
+]) forbidText('server/test/warehouse.test.js', forbidden);
 for (const text of [
   'warehouse usage combines inventory, buy orders, highest bids, and active contract next batches',
   'contract acceptance rejects capacity already reserved by buy orders and highest bids',
@@ -288,7 +295,8 @@ for (const text of [
   '无限等级、容量与费用',
   '扩容费用必须由当前实际总容量线性计算',
   '仓库等级只能决定容量增量，不能直接决定扩容费用',
-  '当前扩容斜率固定为 1.2（整数比例 `6 / 5`）',
+  '当前扩容斜率固定为 0.8（整数比例 `4 / 5`）',
+  '根 `README.md` 只保留项目概览，不复制仓库业务参数',
   '仓库没有玩家可见的最高等级',
   '合同预占 = Σ(当前玩家作为采购方的进行中合同下一批商品数量)',
   '已用容量 = 实物库存 + 订单预占 + 拍卖预占 + 合同预占',
