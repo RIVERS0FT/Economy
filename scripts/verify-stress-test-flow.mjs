@@ -18,14 +18,18 @@ const requiredFiles = [
 for (const path of requiredFiles) assert.equal(existsSync(resolve(root, path)), true, `缺少压力测试流程文件 ${path}`);
 
 for (const text of [
-  "production-readonly",
-  "ECONOMY_PRODUCTION_READ_ONLY",
-  "definition.writes",
-  "pollIntervalMs < 3_000",
-  "users > 24",
-  "本地隔离压力测试只能访问回环地址",
+  'production-readonly',
+  'ECONOMY_PRODUCTION_READ_ONLY',
+  'definition.writes',
+  'pollIntervalMs < 3_000',
+  'users > 24',
+  '本地隔离压力测试只能访问回环地址',
+  "'transaction-mix'",
+  'localOnly: true',
+  '场景只能在本地隔离环境运行',
 ]) assert.equal(read('tests/stress/safety.mjs').includes(text), true, `压力测试安全门禁缺少 ${text}`);
 
+const runner = read('tests/stress/run.mjs');
 for (const text of [
   'STATE_PARTITIONS',
   '状态修订号发生倒退',
@@ -34,7 +38,35 @@ for (const text of [
   'Promise.allSettled',
   'accountSlots',
   'unexpectedStatusCount',
-]) assert.equal(read('tests/stress/run.mjs').includes(text), true, `压力测试执行器缺少 ${text}`);
+  'TRANSACTION_MIX_WEIGHTS',
+  'state: 60',
+  'work: 10',
+  'order: 10',
+  'facilityToggle: 8',
+  'recipe: 5',
+  'build: 4',
+  'research: 3',
+  "'/api/game/orders'",
+  "'/api/game/facilities/:id/start'",
+  "'/api/game/facilities/:id/pause'",
+  "'/api/game/facilities/:id/recipe'",
+  "'/api/game/facilities'",
+  "'/api/game/research/start'",
+  "'/api/game/research/accelerate'",
+  'X-Economy-Save-Epoch',
+]) assert.equal(runner.includes(text), true, `压力测试执行器缺少 ${text}`);
+
+const harness = read('tests/stress/localHarness.mjs');
+for (const text of [
+  'seedLocalStressDatabase',
+  'LOCAL_STRESS_CREDITS = 1_000_000',
+  'LOCAL_STRESS_GEMS = 1_000',
+  'LOCAL_STRESS_INVENTORY_CAPACITY = 1_000_000',
+  'LOCAL_STRESS_INVENTORY_PER_PRODUCT = 1_000',
+  'LOCAL_STRESS_FARM_COUNT = 10',
+  "'buildFacility'",
+  "{ facilityTypeId: 'farm', quantity: LOCAL_STRESS_FARM_COUNT }",
+]) assert.equal(harness.includes(text), true, `本地隔离压力预置缺少 ${text}`);
 
 for (const text of ['p50Ms', 'p90Ms', 'p95Ms', 'p99Ms', 'serverErrorCount', 'timeoutCount', 'statusCodes']) {
   assert.equal(read('tests/stress/metrics.mjs').includes(text), true, `压力测试指标缺少 ${text}`);
@@ -63,10 +95,37 @@ const budgets = JSON.parse(read('tests/stress/budgets.json'));
 assert.equal(budgets.profiles?.mixed?.routes?.['POST /api/game/work']?.maxP95Ms, 1_100, 'mixed work p95 预算必须使用三次 Node 24 基线校准值');
 assert.equal(budgets.baselines?.mixedGithubNode24?.runIds?.length, 3, 'mixed 预算校准必须保存三个同环境 run ID');
 assert.equal(budgets.baselines?.mixedGithubNode24?.workP95Ms?.length, 3, 'mixed 预算校准必须保存三个同环境观测值');
+assert.equal(budgets.profiles?.['transaction-mix']?.maxTimeouts, 0, 'transaction-mix 不允许超时');
+assert.equal(budgets.profiles?.['transaction-mix']?.maxServerErrors, 0, 'transaction-mix 不允许 5xx');
+assert.equal(budgets.profiles?.['transaction-mix']?.maxUnexpectedStatuses, 0, 'transaction-mix 不允许非预期状态码');
+assert.equal(budgets.profiles?.['transaction-mix']?.maxP95Ms, 1_000, 'transaction-mix 总体 p95 预算必须为 1000ms');
+assert.equal(budgets.profiles?.['transaction-mix']?.maxP99Ms, 3_000, 'transaction-mix 总体 p99 预算必须为 3000ms');
 
-for (const text of ['隔离环境', '生产环境只允许', 'p50／p90／p95／p99', 'GitHub Actions', 'run ID、环境和观测值']) {
+const stressTests = read('tests/stress/stress-flow.test.mjs');
+for (const text of [
+  'isolated transaction mix exercises state, work, orders, facilities, recipes, builds and research',
+  "profile: 'transaction-mix'",
+  '事务混合场景未覆盖',
+  'report.metrics.unexpectedStatusCount',
+]) assert.equal(stressTests.includes(text), true, `压力测试回归缺少 ${text}`);
+
+for (const text of [
+  '隔离环境',
+  '生产环境只允许',
+  'p50／p90／p95／p99',
+  'GitHub Actions',
+  'run ID、环境和观测值',
+  '`transaction-mix`',
+  '60% 状态读取',
+  '10% 工作',
+  '10% 商品订单',
+  '8% 工厂启停',
+  '5% 配方切换',
+  '4% 即时建设',
+  '3% 研发',
+]) {
   assert.equal(read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md').includes(text), true, `服务器设计缺少压力测试规则 ${text}`);
 }
 assert.equal(read('docs/README.md').includes('压力测试执行器、环境隔离、安全门禁'), true, '设计索引缺少压力测试跨模块规则');
 
-console.log('压力测试执行器、隔离环境、协议断言、性能预算、生产安全门禁、报告和工作流均已锁定。');
+console.log('压力测试执行器、事务混合覆盖、隔离预置、协议断言、性能预算、生产安全门禁、报告和工作流均已锁定。');
