@@ -73,18 +73,27 @@ export function eventMarketFeedback(
   startsAt: number,
   endsAt: number,
 ) {
-  const signals = productIds.map((productId) => ({
-    productId,
-    signal: marketDecisionSignal(markets[productId], startsAt, endsAt),
-  }));
-  const comparable = signals.filter(({ signal }) => signal.changeBps !== null);
-  const volume = signals.reduce((sum, { signal }) => sum + signal.volume, 0);
+  const productFeedback = productIds.map((productId) => {
+    const points = realTradePoints(markets[productId], startsAt, endsAt);
+    const first = points.length > 0 ? points[0] : undefined;
+    const last = points.length > 0 ? points[points.length - 1] : undefined;
+    const changeBps = points.length >= 2 && first && last && first.price > 0
+      ? Math.round((last.price - first.price) / first.price * 10_000)
+      : null;
+    return {
+      productId,
+      tradeCount: points.length,
+      volume: points.reduce((sum, point) => sum + Math.max(0, Number(point.quantity) || 0), 0),
+      changeBps,
+    };
+  });
+  const comparable = productFeedback.filter((item) => item.changeBps !== null);
   return {
-    volume,
-    tradeCount: signals.reduce((sum, { signal }) => sum + signal.tradeCount, 0),
-    productsWithTrades: signals.filter(({ signal }) => signal.tradeCount > 0).length,
+    volume: productFeedback.reduce((sum, item) => sum + item.volume, 0),
+    tradeCount: productFeedback.reduce((sum, item) => sum + item.tradeCount, 0),
+    productsWithTrades: productFeedback.filter((item) => item.tradeCount > 0).length,
     averageChangeBps: comparable.length > 0
-      ? Math.round(comparable.reduce((sum, { signal }) => sum + Number(signal.changeBps), 0) / comparable.length)
+      ? Math.round(comparable.reduce((sum, item) => sum + Number(item.changeBps), 0) / comparable.length)
       : null,
   };
 }
