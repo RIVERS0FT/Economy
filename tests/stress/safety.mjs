@@ -8,7 +8,7 @@ export const STRESS_PROFILES = Object.freeze({
     localOnly: true,
     defaultUsers: 24,
     defaultDurationSeconds: 120,
-    defaultPollIntervalMs: 250,
+    defaultPollIntervalMs: 1_000,
   }),
   soak: Object.freeze({ writes: true, defaultUsers: 24, defaultDurationSeconds: 1_800, defaultPollIntervalMs: 5_000 }),
 });
