@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 path = Path(__file__).resolve().with_name('apply-gameplay-strategy-next-phase.py')
 text = path.read_text(encoding='utf-8')
@@ -18,13 +19,14 @@ text = text[:old_index] + specific_old + text[old_index + len(old_literal):]
 new_index = text.find(new_literal, old_index + len(specific_old))
 text = text[:new_index] + specific_new + text[new_index + len(new_literal):]
 
-noop_contract_patch = r'''insert_after(
-    'server/src/contract-audit-store.js',
-    """  store.listContractAuditHistory = (user, rawOptions = {}) => store.transaction(() => {""",
-    """\n""",
+text, removed = re.subn(
+    r"insert_after\(\n\s*'server/src/contract-audit-store\.js',\n\s*\"\"\"  store\.listContractAuditHistory = \(user, rawOptions = \{\}\) => store\.transaction\(\(\) => \{\"\"\",\n\s*\"\"\"\\n\"\"\",\n\)\n",
+    '',
+    text,
+    count=1,
 )
-'''
-text = text.replace(noop_contract_patch, '')
+if removed != 1:
+    raise SystemExit(f'Expected to remove one obsolete contract no-op patch, removed {removed}')
 
 sentinel = '# MOBILE_FACILITY_DIAGNOSTICS_FORWARDING'
 if sentinel not in text:
@@ -60,7 +62,6 @@ replace_once(
         onRecipeChange={onRecipeChange}""",
 )
 
-# Keep generated funnel code simple after the cohort replacement.
 statistics_path = 'server/src/player-admin-statistics.js'
 statistics_text = read(statistics_path)
 statistics_text = statistics_text.replace(
