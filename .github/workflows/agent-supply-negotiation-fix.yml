@@ -1,0 +1,55 @@
+name: Agent Supply Negotiation Follow-up Fix
+
+on:
+  push:
+    branches:
+      - agent/supply-contract-negotiation
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/supply-contract-negotiation
+      - name: Apply follow-up fixes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          precision = Path('scripts/verify-money-precision.mjs')
+          text = precision.read_text()
+          old = "assert.match(contracts, /PRODUCTION_CONTRACT_SCHEMA_VERSION = 5/);"
+          new = "assert.match(contracts, /PRODUCTION_CONTRACT_SCHEMA_VERSION = 6/);"
+          if old not in text:
+              raise SystemExit('money precision schema anchor missing')
+          precision.write_text(text.replace(old, new, 1))
+
+          contracts = Path('server/src/contracts.js')
+          text = contracts.read_text()
+          old = """  runtimeIndex.transition(contract, () => {\n    contract.status = 'cancelled';\n    contract.endedAt = now;\n  });"""
+          new = """  runtimeIndex.transition(contract, () => {\n    contract.negotiations = [];\n    contract.status = 'cancelled';\n    contract.endedAt = now;\n  });"""
+          if old not in text:
+              raise SystemExit('cancel contract anchor missing')
+          contracts.write_text(text.replace(old, new, 1))
+
+          verifier = Path('scripts/verify-gameplay-decision-support.mjs')
+          text = verifier.read_text()
+          anchor = "assert.match(contractsServer, /MAX_NEGOTIATION_REVISIONS = 5/);"
+          replacement = anchor + "\nassert.match(contractsServer, /function cancelOpenContract[\\s\\S]*contract\\.negotiations = \[\];[\\s\\S]*contract\\.status = 'cancelled'/);"
+          if anchor not in text:
+              raise SystemExit('gameplay verifier anchor missing')
+          verifier.write_text(text.replace(anchor, replacement, 1))
+          PY
+          git diff --check
+          git rm .github/workflows/agent-supply-negotiation-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- scripts/verify-money-precision.mjs server/src/contracts.js scripts/verify-gameplay-decision-support.mjs
+          git commit -m "同步合同议价版本校验与取消清理"
+          git push origin HEAD:agent/supply-contract-negotiation
