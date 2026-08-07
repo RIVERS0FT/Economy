@@ -107,6 +107,14 @@ requireText('server/test/player-admin-statistics.test.js', [
   'assert.equal(activity.successful_action_count, 1)',
   'assert.equal(second.revision, statistics.revision)',
 ]);
+requireText('tests/browser/admin-runtime.spec.ts', [
+  'coverageStartsAt:',
+  'completion24h:',
+  'completion7d:',
+  "id: 'first-research'",
+  "id: 'first-bank-deposit'",
+  "id: 'growth-line-complete'",
+]);
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '玩家运营统计固定归属“玩家”分区',
   '成功经济写操作',
