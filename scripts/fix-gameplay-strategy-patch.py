@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 
 path = Path(__file__).resolve().with_name('apply-gameplay-strategy-next-phase.py')
 text = path.read_text(encoding='utf-8')
@@ -19,14 +18,15 @@ text = text[:old_index] + specific_old + text[old_index + len(old_literal):]
 new_index = text.find(new_literal, old_index + len(specific_old))
 text = text[:new_index] + specific_new + text[new_index + len(new_literal):]
 
-text, removed = re.subn(
-    r"insert_after\(\n\s*'server/src/contract-audit-store\.js',\n\s*\"\"\"  store\.listContractAuditHistory = \(user, rawOptions = \{\}\) => store\.transaction\(\(\) => \{\"\"\",\n\s*\"\"\"\\n\"\"\",\n\)\n",
-    '',
-    text,
-    count=1,
-)
-if removed != 1:
-    raise SystemExit(f'Expected to remove one obsolete contract no-op patch, removed {removed}')
+contract_marker = 'store.listContractAuditHistory = (user, rawOptions = {}) => store.transaction(() => {'
+marker_index = text.find(contract_marker)
+if marker_index < 0:
+    raise SystemExit('Could not locate obsolete contract no-op patch marker')
+call_start = text.rfind('insert_after(', 0, marker_index)
+call_end = text.find('\n)\n', marker_index)
+if call_start < 0 or call_end < 0:
+    raise SystemExit('Could not locate obsolete contract no-op patch boundaries')
+text = text[:call_start] + text[call_end + 3:]
 
 sentinel = '# MOBILE_FACILITY_DIAGNOSTICS_FORWARDING'
 if sentinel not in text:
