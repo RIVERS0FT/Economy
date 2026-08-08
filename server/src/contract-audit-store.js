@@ -66,6 +66,9 @@ function contractSnapshot(contract) {
     publisherSide: String(contract.publisherSide || contract.publisherRole || 'buyer'),
     publisherId: nullableInteger(contract.publisherId),
     publisherName: String(contract.publisherName || '玩家'),
+    publisherType: contract.publisherType === 'market_reserve' ? 'market_reserve' : 'player',
+    fixedTerms: contract.fixedTerms === true,
+    marketReserveGroupId: contract.marketReserveGroupId ? String(contract.marketReserveGroupId) : null,
     publisherRole: contract.publisherRole === 'supplier' ? 'supplier' : 'buyer',
     buyerId: nullableInteger(contract.buyerId),
     buyerName: contract.buyerName ? String(contract.buyerName) : null,
@@ -137,7 +140,7 @@ function inventoryStored(player) {
 function reservedIncomingByBuyer(world) {
   const reserved = new Map();
   for (const contract of world.productionContracts || []) {
-    if (contract?.status !== 'active' || contract.buyerId === null || contract.buyerId === undefined) continue;
+    if (contract?.status !== 'active' || contract.publisherType === 'market_reserve' || contract.buyerId === null || contract.buyerId === undefined) continue;
     const buyerId = Number(contract.buyerId);
     const renewalQuantity = contract.renewalProposal?.status === 'accepted'
       ? Math.max(0, safeInteger(contract.renewalProposal?.terms?.quantityPerDelivery, 0))
@@ -154,10 +157,11 @@ function graceReasonCode(world, contract, incomingByBuyer) {
     reasons.push('supplier_goods');
   }
   if (safeMoney(contract.buyerEscrowCredits, 0) < gross) reasons.push('buyer_funds');
-  const buyer = world.players?.[String(contract.buyerId)];
-  if (!buyer) {
+  const reserveBuyer = contract.publisherType === 'market_reserve';
+  const buyer = reserveBuyer ? null : world.players?.[String(contract.buyerId)];
+  if (!reserveBuyer && !buyer) {
     reasons.push('participant_missing');
-  } else {
+  } else if (!reserveBuyer) {
     const capacity = Math.max(0, safeInteger(buyer.inventoryCapacity, 0));
     const used = inventoryStored(buyer) + Math.max(0, safeInteger(incomingByBuyer.get(Number(contract.buyerId)), 0));
     if (used > capacity) reasons.push('buyer_warehouse');
@@ -281,10 +285,20 @@ function queueTransitionEvent(world, context, contract, eventType, {
   });
 }
 
+function isMarketReserveContract(contract) {
+  return contract?.publisherType === 'market_reserve';
+}
+
 function acceptedTransfers(contract) {
+  const reserveBuyer = isMarketReserveContract(contract);
+  const buyerType = reserveBuyer ? 'system' : 'player';
+  const buyerId = reserveBuyer ? null : contract.buyerId;
+  const availableAccount = reserveBuyer ? 'market_reserve_available' : 'available';
+  const escrowAccount = reserveBuyer ? 'market_reserve_contract_escrow' : 'contract_escrow';
+  const bondAccount = reserveBuyer ? 'market_reserve_contract_bond' : 'contract_bond';
   return compactTransfers([
-    transfer({ assetType: 'credits', quantity: contract.batchGross, fromType: 'player', fromId: contract.buyerId, fromAccount: 'available', toType: 'player', toId: contract.buyerId, toAccount: 'contract_escrow', purpose: 'first_batch_funding' }),
-    transfer({ assetType: 'credits', quantity: contract.buyerBondCredits, fromType: 'player', fromId: contract.buyerId, fromAccount: 'available', toType: 'player', toId: contract.buyerId, toAccount: 'contract_bond', purpose: 'buyer_bond' }),
+    transfer({ assetType: 'credits', quantity: contract.batchGross, fromType: buyerType, fromId: buyerId, fromAccount: availableAccount, toType: buyerType, toId: buyerId, toAccount: escrowAccount, purpose: 'first_batch_funding' }),
+    transfer({ assetType: 'credits', quantity: contract.buyerBondCredits, fromType: buyerType, fromId: buyerId, fromAccount: availableAccount, toType: buyerType, toId: buyerId, toAccount: bondAccount, purpose: 'buyer_bond' }),
     transfer({ assetType: 'credits', quantity: contract.supplierBondCredits, fromType: 'player', fromId: contract.supplierId, fromAccount: 'available', toType: 'player', toId: contract.supplierId, toAccount: 'contract_bond', purpose: 'supplier_bond' }),
     transfer({ assetType: 'commodity', productId: contract.productId, quantity: contract.supplierReservedQuantity, fromType: 'player', fromId: contract.supplierId, fromAccount: 'inventory_available', toType: 'player', toId: contract.supplierId, toAccount: 'contract_goods_escrow', purpose: 'first_batch_goods' }),
   ]);
@@ -314,16 +328,21 @@ function deliveryTransfers(before, after) {
   const feeDelta = Math.max(0, roundInternalMoney(safeMoney(after.marketSellFeeCharged, 0) - safeMoney(before.marketSellFeeCharged, 0)) || 0);
   const fee = safeMoney(after.lastDeliveryFee, 0) || feeDelta;
   const net = Math.max(0, roundInternalMoney(gross - fee) || 0);
+  const reserveBuyer = isMarketReserveContract(after);
+  const buyerType = reserveBuyer ? 'system' : 'player';
+  const buyerId = reserveBuyer ? null : after.buyerId;
+  const escrowAccount = reserveBuyer ? 'market_reserve_contract_escrow' : 'contract_escrow';
   return compactTransfers([
-    transfer({ assetType: 'commodity', productId: after.productId, quantity: after.quantityPerDelivery, fromType: 'player', fromId: after.supplierId, fromAccount: 'contract_goods_escrow', toType: 'player', toId: after.buyerId, toAccount: 'inventory_available', purpose: 'delivery_goods' }),
-    transfer({ assetType: 'credits', quantity: net, fromType: 'player', fromId: after.buyerId, fromAccount: 'contract_escrow', toType: 'player', toId: after.supplierId, toAccount: 'available', purpose: 'delivery_net_payment' }),
-    transfer({ assetType: 'credits', quantity: fee, fromType: 'player', fromId: after.buyerId, fromAccount: 'contract_escrow', toType: 'system', toAccount: 'population_market_service', purpose: 'market_service_fee' }),
+    transfer({ assetType: 'commodity', productId: after.productId, quantity: after.quantityPerDelivery, fromType: 'player', fromId: after.supplierId, fromAccount: 'contract_goods_escrow', toType: reserveBuyer ? 'system' : 'player', toId: reserveBuyer ? null : after.buyerId, toAccount: reserveBuyer ? 'market_reserve_inventory' : 'inventory_available', purpose: 'delivery_goods' }),
+    transfer({ assetType: 'credits', quantity: net, fromType: buyerType, fromId: buyerId, fromAccount: escrowAccount, toType: 'player', toId: after.supplierId, toAccount: 'available', purpose: 'delivery_net_payment' }),
+    transfer({ assetType: 'credits', quantity: fee, fromType: buyerType, fromId: buyerId, fromAccount: escrowAccount, toType: 'system', toAccount: 'population_market_service', purpose: 'market_service_fee' }),
   ]);
 }
 
 function completionTransfers(before) {
+  const reserveBuyer = isMarketReserveContract(before);
   return compactTransfers([
-    transfer({ assetType: 'credits', quantity: before.buyerBondCredits, fromType: 'player', fromId: before.buyerId, fromAccount: 'contract_bond', toType: 'player', toId: before.buyerId, toAccount: 'available', purpose: 'buyer_bond_release' }),
+    transfer({ assetType: 'credits', quantity: before.buyerBondCredits, fromType: reserveBuyer ? 'system' : 'player', fromId: reserveBuyer ? null : before.buyerId, fromAccount: reserveBuyer ? 'market_reserve_contract_bond' : 'contract_bond', toType: reserveBuyer ? 'system' : 'player', toId: reserveBuyer ? null : before.buyerId, toAccount: reserveBuyer ? 'market_reserve_available' : 'available', purpose: 'buyer_bond_release' }),
     transfer({ assetType: 'credits', quantity: before.supplierBondCredits, fromType: 'player', fromId: before.supplierId, fromAccount: 'contract_bond', toType: 'player', toId: before.supplierId, toAccount: 'available', purpose: 'supplier_bond_release' }),
   ]);
 }
@@ -333,8 +352,14 @@ function terminationTransfers(before, after, actorUserId, completedDelta) {
   const deliveredGoods = Math.max(0, completedDelta) * before.quantityPerDelivery;
   const escrow = Math.max(0, roundInternalMoney(before.buyerEscrowCredits - deliveredGross) || 0);
   const goods = Math.max(0, before.supplierReservedQuantity - deliveredGoods);
+  const reserveBuyer = isMarketReserveContract(before);
+  const buyerType = reserveBuyer ? 'system' : 'player';
+  const buyerId = reserveBuyer ? null : before.buyerId;
+  const availableAccount = reserveBuyer ? 'market_reserve_available' : 'available';
+  const escrowAccount = reserveBuyer ? 'market_reserve_contract_escrow' : 'contract_escrow';
+  const bondAccount = reserveBuyer ? 'market_reserve_contract_bond' : 'contract_bond';
   const commonReleases = {
-    buyerEscrowRelease: transfer({ assetType: 'credits', quantity: escrow, fromType: 'player', fromId: before.buyerId, fromAccount: 'contract_escrow', toType: 'player', toId: before.buyerId, toAccount: 'available', purpose: 'unused_escrow_release' }),
+    buyerEscrowRelease: transfer({ assetType: 'credits', quantity: escrow, fromType: buyerType, fromId: buyerId, fromAccount: escrowAccount, toType: buyerType, toId: buyerId, toAccount: availableAccount, purpose: 'unused_escrow_release' }),
     goodsRelease: transfer({ assetType: 'commodity', productId: before.productId, quantity: goods, fromType: 'player', fromId: before.supplierId, fromAccount: 'contract_goods_escrow', toType: 'player', toId: before.supplierId, toAccount: 'inventory_available', purpose: 'unused_goods_release' }),
   };
   const reason = after.terminationReason;
@@ -343,7 +368,7 @@ function terminationTransfers(before, after, actorUserId, completedDelta) {
   if (reason === 'supplier_default') defaultParty = 'supplier';
   if (reason === 'both_default') defaultParty = 'both';
   if (reason === 'immediate_by_participant') {
-    defaultParty = Number(actorUserId) === Number(before.buyerId) ? 'buyer' : 'supplier';
+    defaultParty = Number(actorUserId) === Number(before.buyerId) && !reserveBuyer ? 'buyer' : 'supplier';
   }
   if (reason === 'notice_completed') {
     return compactTransfers([
@@ -356,7 +381,7 @@ function terminationTransfers(before, after, actorUserId, completedDelta) {
     return compactTransfers([
       commonReleases.buyerEscrowRelease,
       commonReleases.goodsRelease,
-      transfer({ assetType: 'credits', quantity: before.buyerBondCredits, fromType: 'player', fromId: before.buyerId, fromAccount: 'contract_bond', toType: 'player', toId: before.supplierId, toAccount: 'available', purpose: 'bond_compensation' }),
+      transfer({ assetType: 'credits', quantity: before.buyerBondCredits, fromType: buyerType, fromId: buyerId, fromAccount: bondAccount, toType: 'player', toId: before.supplierId, toAccount: 'available', purpose: 'bond_compensation' }),
       transfer({ assetType: 'credits', quantity: before.supplierBondCredits, fromType: 'player', fromId: before.supplierId, fromAccount: 'contract_bond', toType: 'player', toId: before.supplierId, toAccount: 'available', purpose: 'supplier_bond_release' }),
     ]);
   }
@@ -364,8 +389,8 @@ function terminationTransfers(before, after, actorUserId, completedDelta) {
     return compactTransfers([
       commonReleases.buyerEscrowRelease,
       commonReleases.goodsRelease,
-      transfer({ assetType: 'credits', quantity: before.buyerBondCredits, fromType: 'player', fromId: before.buyerId, fromAccount: 'contract_bond', toType: 'player', toId: before.buyerId, toAccount: 'available', purpose: 'buyer_bond_release' }),
-      transfer({ assetType: 'credits', quantity: before.supplierBondCredits, fromType: 'player', fromId: before.supplierId, fromAccount: 'contract_bond', toType: 'player', toId: before.buyerId, toAccount: 'available', purpose: 'bond_compensation' }),
+      transfer({ assetType: 'credits', quantity: before.buyerBondCredits, fromType: buyerType, fromId: buyerId, fromAccount: bondAccount, toType: buyerType, toId: buyerId, toAccount: availableAccount, purpose: 'buyer_bond_release' }),
+      transfer({ assetType: 'credits', quantity: before.supplierBondCredits, fromType: 'player', fromId: before.supplierId, fromAccount: 'contract_bond', toType: buyerType, toId: buyerId, toAccount: availableAccount, purpose: 'bond_compensation' }),
     ]);
   }
   if (defaultParty === 'both') {

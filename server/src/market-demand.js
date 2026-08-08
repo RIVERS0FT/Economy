@@ -57,7 +57,7 @@ export {
 } from './market-demand/catalog.js';
 
 const CONSUMPTION_TIERS = new Set(['direct', 'derived-liquidity']);
-const LIQUIDITY_TIERS = new Set(['liquidity-buy', 'liquidity-sell']);
+const LIQUIDITY_TIERS = new Set(['liquidity-buy', 'liquidity-sell', 'liquidity-emergency-sell']);
 const FUNDING_POOL_BY_ROLE = Object.freeze({ direct: 'direct', 'derived-liquidity': 'derived' });
 
 export function createMarketDemandRuntime({ products, facilities, constants, marketFor, matchOrder, isOpenOrder }) {

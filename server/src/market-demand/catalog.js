@@ -59,6 +59,7 @@ export const LIQUIDITY_TARGET_MAX_RISE = 0.50;
 export const LIQUIDITY_TARGET_MAX_FALL = 0.25;
 export const LIQUIDITY_MIN_TARGET = 2;
 export const LIQUIDITY_SIGNAL_WEIGHT = 0.50;
+export const LIQUIDITY_EMERGENCY_SIGNAL_WEIGHT = 0.25;
 
 export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([
   Object.freeze({

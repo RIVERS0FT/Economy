@@ -17,12 +17,14 @@ import { ceilPlayerMoney, floorPlayerMoney, multiplyMoneyByInteger, ORDER_PRICE_
 import { bestSystemPrice, systemBookIsCrossed } from './order-book-integrity.js';
 import {
   bestSystemOrder as indexedBestSystemOrder,
+  getOrderBookSide,
   ordersForDemandGroup,
   recordOrderBookReduction,
 } from './order-book-runtime.js';
 
 const LIQUIDITY_BUY = 'liquidity-buy';
 const LIQUIDITY_SELL = 'liquidity-sell';
+const LIQUIDITY_EMERGENCY_SELL = 'liquidity-emergency-sell';
 
 export function createMarketLiquidityRuntime({
   products,
@@ -56,6 +58,9 @@ export function createMarketLiquidityRuntime({
       totalSold: 0,
       totalBuyValue: 0,
       totalSellValue: 0,
+      shortageCycles: 0,
+      surplusCycles: 0,
+      lastAuctionSettledAt: 0,
     };
   }
 
@@ -74,6 +79,9 @@ export function createMarketLiquidityRuntime({
       totalSold: Math.max(0, Math.floor(Number(previous?.totalSold || 0))),
       totalBuyValue: roundMoney(Number(previous?.totalBuyValue || 0)),
       totalSellValue: roundMoney(Number(previous?.totalSellValue || 0)),
+      shortageCycles: Math.max(0, Math.floor(Number(previous?.shortageCycles || 0))),
+      surplusCycles: Math.max(0, Math.floor(Number(previous?.surplusCycles || 0))),
+      lastAuctionSettledAt: Math.max(0, Number(previous?.lastAuctionSettledAt || 0)),
     };
   }
 
@@ -156,7 +164,7 @@ export function createMarketLiquidityRuntime({
   for (const order of ordersForDemandGroup(world, groupId)) {
     if (
       order.ownerType === 'population'
-      && (order.demandTier === LIQUIDITY_BUY || order.demandTier === LIQUIDITY_SELL)
+      && (order.demandTier === LIQUIDITY_BUY || order.demandTier === LIQUIDITY_SELL || order.demandTier === LIQUIDITY_EMERGENCY_SELL)
     ) releaseOpenOrder(world, order);
   }
 }
@@ -170,7 +178,7 @@ export function createMarketLiquidityRuntime({
     while (systemBookIsCrossed(world, productId) && repaired < 4) {
       const bid = bestSystemOrder(world, productId, 'buy');
       const ask = bestSystemOrder(world, productId, 'sell');
-      const removable = ask?.demandGroupId === groupId && ask?.demandTier === LIQUIDITY_SELL
+      const removable = ask?.demandGroupId === groupId && [LIQUIDITY_SELL, LIQUIDITY_EMERGENCY_SELL].includes(ask?.demandTier)
         ? ask
         : bid?.demandGroupId === groupId && bid?.demandTier === LIQUIDITY_BUY
           ? bid
@@ -249,7 +257,30 @@ export function createMarketLiquidityRuntime({
     return { bid, ask, midpoint: round4(midpoint), spread: round4(spread) };
   }
 
-  function createOrder(world, group, product, side, price, quantity, cycleId, now) {
+  function hasPlayerSellOrder(world, productId) {
+    return getOrderBookSide(world, { assetKind: 'commodity', assetId: productId, side: 'sell' })
+      .some((order) => order.ownerType === 'player');
+  }
+
+  function emergencyAskFor(world, product, reserve) {
+    const referencePrice = Math.max(ORDER_PRICE_TICK, Number(
+      world.marketDemand.priceTransmission.products[product.id]?.referencePrice || product.basePrice,
+    ));
+    const target = Math.max(1, Number(reserve.targetInventory || 1));
+    const totalInventory = reserve.inventory + reserve.frozenInventory;
+    const shortageRate = clamp(0, 1, 1 - totalInventory / target);
+    const minimum = Math.max(ORDER_PRICE_TICK, ceilPlayerMoney(product.basePrice * PRICE_MIN_MULTIPLIER) || ORDER_PRICE_TICK);
+    const maximum = Math.max(minimum, floorPlayerMoney(product.basePrice * PRICE_MAX_MULTIPLIER) || minimum);
+    const highestSystemBid = bestSystemPrice(world, product.id, 'buy');
+    const nonCrossingFloor = highestSystemBid === null
+      ? minimum
+      : (ceilPlayerMoney(highestSystemBid + ORDER_PRICE_TICK) || maximum + ORDER_PRICE_TICK);
+    const raw = ceilPlayerMoney(referencePrice * (1.25 + 0.35 * shortageRate)) || minimum;
+    const ask = Math.max(minimum, nonCrossingFloor, raw);
+    return ask <= maximum ? ask : null;
+  }
+
+  function createOrder(world, group, product, side, price, quantity, cycleId, now, demandTier = null) {
     if (quantity < 1 || !Number.isFinite(price) || price < ORDER_PRICE_TICK || floorPlayerMoney(price) !== price) return null;
     const order = {
       id: `market-liquidity-order-${randomUUID()}`,
@@ -260,7 +291,7 @@ export function createMarketLiquidityRuntime({
       ownerType: 'population',
       ownerName: group.ownerName,
       demandGroupId: group.id,
-      demandTier: side === 'buy' ? LIQUIDITY_BUY : LIQUIDITY_SELL,
+      demandTier: demandTier || (side === 'buy' ? LIQUIDITY_BUY : LIQUIDITY_SELL),
       demandCycleId: cycleId,
       price,
       quantity,
@@ -321,6 +352,7 @@ export function createMarketLiquidityRuntime({
       }
 
       let sellQuantity = 0;
+      let sellPrice = quote.ask;
       if (quote.ask !== null) {
         const safetyStock = Math.max(LIQUIDITY_MIN_TARGET, Math.floor(reserve.targetInventory * 0.20));
         sellQuantity = Math.max(0, reserve.inventory - safetyStock);
@@ -331,9 +363,27 @@ export function createMarketLiquidityRuntime({
         }
       }
 
+      if (sellQuantity === 0 && reserve.inventory > 0 && !hasPlayerSellOrder(world, product.id)) {
+        const emergencyAsk = emergencyAskFor(world, product, reserve);
+        const emergencyQuantity = Math.min(
+          reserve.inventory,
+          Math.max(1, Math.ceil(reserve.targetInventory * 0.05)),
+        );
+        if (emergencyAsk !== null && emergencyQuantity > 0) {
+          reserve.inventory -= emergencyQuantity;
+          reserve.frozenInventory += emergencyQuantity;
+          createOrder(
+            world, group, product, 'sell', emergencyAsk, emergencyQuantity, cycleId, now,
+            LIQUIDITY_EMERGENCY_SELL,
+          );
+          sellQuantity = emergencyQuantity;
+          sellPrice = emergencyAsk;
+        }
+      }
+
       repairCrossedSystemBook(world, group.id, product.id);
       reserve.lastBidPrice = quote.bid ?? 0;
-      reserve.lastAskPrice = quote.ask ?? 0;
+      reserve.lastAskPrice = sellPrice ?? 0;
       reserve.lastBidQuantity = buyQuantity;
       reserve.lastAskQuantity = sellQuantity;
       reserve.lastMidpoint = quote.midpoint;
@@ -350,5 +400,6 @@ export function createMarketLiquidityRuntime({
     reserveFor,
     LIQUIDITY_BUY,
     LIQUIDITY_SELL,
+    LIQUIDITY_EMERGENCY_SELL,
   };
 }
