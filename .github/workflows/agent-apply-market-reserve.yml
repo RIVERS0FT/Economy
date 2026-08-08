@@ -35,6 +35,10 @@ jobs:
                   raise SystemExit('contracts helper anchor unavailable')
               source = source.replace(anchor, replacement, 1)
           source = source.replace('## 4. 商品／工厂资产拍卖', '## 2. 商品与工厂资产拍卖')
+          source = source.replace(
+              "assert.equal(world.productionContracts?.some((contract) => contract.publisherType === 'market_reserve'), false);",
+              "assert.equal(Boolean(world.productionContracts?.some((contract) => contract.publisherType === 'market_reserve')), false);",
+          )
           path.write_text(source, encoding='utf-8')
           PY
       - name: Apply implementation patch
