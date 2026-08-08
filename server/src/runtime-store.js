@@ -19,6 +19,7 @@ import { ensureGemState } from './invitations.js';
 import { configurePlayerAdminStatistics } from './player-admin-statistics.js';
 import { ensureWarehouse } from './warehouse.js';
 import { createEconomicCalendarClientState } from './economic-events.js';
+import { processMarketReserveOperations } from './market-reserve-operations.js';
 import { flushAuctionAuditEvents } from './auction-audit-store.js';
 import { measureRequestPhase, setRequestGauge } from './request-performance.js';
 import { createStatePartitionSnapshot } from './state-partitions.js';
@@ -219,6 +220,7 @@ export class EconomyStore extends PersistentEconomyStore {
     const beforeContracts = contractSnapshot(world);
     const processed = super.processWorldIfDue(world, now, currentUserId, options);
     if (processed) {
+      processMarketReserveOperations(world, now);
       processProductionContracts(world, now);
       this.captureContractAuditTransition(beforeContracts, world, {
         triggerType: options.auditTrigger || (currentUserId === undefined ? 'scheduler' : 'request_world_process'),

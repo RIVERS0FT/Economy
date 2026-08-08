@@ -223,8 +223,9 @@ forbidText('server/src/facility-groups.js', 'MAX_OPEN_ORDERS');
 for (const text of [
   '只表示技术安全边界，不构成固定业务数量上限',
   'PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length',
-  '当前上限为 52 笔',
+  '当前权威目录为 36 种商品与 26 种工厂类型，即当前上限 62 笔',
 ]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
+forbidText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '当前上限为 52 笔');
 for (const text of [
   '商品和工厂合计未完成订单达到当前商品类型数与工厂类型数之和',
   '说明动态上限并禁用提交',

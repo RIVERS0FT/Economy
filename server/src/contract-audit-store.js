@@ -66,6 +66,9 @@ function contractSnapshot(contract) {
     publisherSide: String(contract.publisherSide || contract.publisherRole || 'buyer'),
     publisherId: nullableInteger(contract.publisherId),
     publisherName: String(contract.publisherName || '玩家'),
+    publisherType: contract.publisherType === 'market_reserve' ? 'market_reserve' : 'player',
+    fixedTerms: contract.fixedTerms === true,
+    marketReserveGroupId: contract.marketReserveGroupId ? String(contract.marketReserveGroupId) : null,
     publisherRole: contract.publisherRole === 'supplier' ? 'supplier' : 'buyer',
     buyerId: nullableInteger(contract.buyerId),
     buyerName: contract.buyerName ? String(contract.buyerName) : null,
@@ -154,10 +157,11 @@ function graceReasonCode(world, contract, incomingByBuyer) {
     reasons.push('supplier_goods');
   }
   if (safeMoney(contract.buyerEscrowCredits, 0) < gross) reasons.push('buyer_funds');
-  const buyer = world.players?.[String(contract.buyerId)];
-  if (!buyer) {
+  const reserveBuyer = contract.publisherType === 'market_reserve';
+  const buyer = reserveBuyer ? null : world.players?.[String(contract.buyerId)];
+  if (!reserveBuyer && !buyer) {
     reasons.push('participant_missing');
-  } else {
+  } else if (!reserveBuyer) {
     const capacity = Math.max(0, safeInteger(buyer.inventoryCapacity, 0));
     const used = inventoryStored(buyer) + Math.max(0, safeInteger(incomingByBuyer.get(Number(contract.buyerId)), 0));
     if (used > capacity) reasons.push('buyer_warehouse');

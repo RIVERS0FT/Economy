@@ -59,6 +59,28 @@ function text(value, max, fallback = '') {
 }
 function player(world, id) { return world.players?.[String(id)] || null; }
 function playerName(world, id, fallback = '未分配') { return player(world, id)?.playerName || fallback; }
+
+function marketReserveGroup(world, groupId) {
+  return world.marketDemand?.liquidity?.groups?.[String(groupId || '')] || null;
+}
+function marketReserveProduct(world, groupId, productId) {
+  return marketReserveGroup(world, groupId)?.reserves?.[String(productId || '')] || null;
+}
+function holdMarketReserveAuctionInventory(world, groupId, productId, quantity) {
+  const reserve = marketReserveProduct(world, groupId, productId);
+  if (!reserve || Number(reserve.inventory || 0) < quantity) return false;
+  reserve.inventory = Math.max(0, Math.floor(Number(reserve.inventory || 0)) - quantity);
+  reserve.frozenInventory = Math.max(0, Math.floor(Number(reserve.frozenInventory || 0))) + quantity;
+  return true;
+}
+function releaseMarketReserveAuctionInventory(world, groupId, productId, quantity) {
+  const reserve = marketReserveProduct(world, groupId, productId);
+  if (!reserve) return 0;
+  const released = Math.min(Math.max(0, Math.floor(Number(reserve.frozenInventory || 0))), quantity);
+  reserve.frozenInventory -= released;
+  reserve.inventory = Math.max(0, Math.floor(Number(reserve.inventory || 0))) + released;
+  return released;
+}
 function inventoryFor(account, productId) {
   account.inventories ||= {};
   account.inventories[productId] ||= { available: 0, frozen: 0 };
@@ -209,8 +231,10 @@ function normalizeAuction(rawAuction, now, items = undefined) {
   applyAuctionAliases(auction);
   auction.id = String(auction.id || '');
   if (!auction.id) return null;
-  auction.sellerId = integer(auction.sellerId) || 0;
-  auction.sellerName = text(auction.sellerName, 64, `玩家 ${auction.sellerId}`);
+  auction.sellerType = auction.sellerType === 'market_reserve' ? 'market_reserve' : 'player';
+  auction.marketReserveGroupId = auction.sellerType === 'market_reserve' ? String(auction.marketReserveGroupId || '') : null;
+  auction.sellerId = auction.sellerType === 'market_reserve' ? 0 : (integer(auction.sellerId) || 0);
+  auction.sellerName = text(auction.sellerName, 64, auction.sellerType === 'market_reserve' ? '市场储备' : `玩家 ${auction.sellerId}`);
   auction.startingBid = money(auction.startingBid, MAX_BID) || 0.01;
   auction.highestBid = auction.highestBid ? money(auction.highestBid, MAX_BID) : null;
   auction.highestBidderId = auction.highestBidderId ? integer(auction.highestBidderId) : null;
@@ -279,7 +303,17 @@ function releaseItems(world, sellerId, items, now, assumeReserved = false) {
 
 function releaseAuctionAsset(world, auction, now) {
   if (auction.escrowStatus !== 'held') return;
-  releaseItems(world, auction.sellerId, auctionItems(auction), now);
+  if (auction.sellerType === 'market_reserve') {
+    for (const item of auctionItems(auction)) {
+      if (item.assetKind === 'commodity') {
+        releaseMarketReserveAuctionInventory(
+          world, auction.marketReserveGroupId, item.assetId, item.quantity,
+        );
+      }
+    }
+  } else {
+    releaseItems(world, auction.sellerId, auctionItems(auction), now);
+  }
   auction.escrowStatus = 'released';
 }
 
@@ -402,11 +436,16 @@ export function migrateAssetAuctionWorld(world, now = Date.now()) {
 }
 
 function validateAuctionTransfer(world, auction, bidder) {
-  const seller = player(world, auction.sellerId);
-  if (!seller) return result(false, '卖家不存在');
+  const reserveSeller = auction.sellerType === 'market_reserve';
+  const seller = reserveSeller ? null : player(world, auction.sellerId);
+  if (!seller && !reserveSeller) return result(false, '卖家不存在');
   for (const item of auctionItems(auction)) {
+    if (reserveSeller && item.assetKind !== 'commodity') return result(false, '市场储备只能拍卖商品');
     if (item.assetKind === 'commodity') {
-      if (inventoryFor(seller, item.assetId).frozen < item.quantity) return result(false, '拍卖商品冻结数量不足');
+      const frozen = reserveSeller
+        ? Number(marketReserveProduct(world, auction.marketReserveGroupId, item.assetId)?.frozenInventory || 0)
+        : Number(inventoryFor(seller, item.assetId).frozen || 0);
+      if (frozen < item.quantity) return result(false, '拍卖商品冻结数量不足');
     } else {
       const validation = validateFacilityAuctionTransferQuantity(world, auction.sellerId, item.assetId, item.quantity);
       if (!validation.ok) return validation;
@@ -420,10 +459,12 @@ function validateAuctionTransfer(world, auction, bidder) {
 }
 
 function transferAuctionAsset(world, auction, bidder, now) {
-  const seller = player(world, auction.sellerId);
+  const reserveSeller = auction.sellerType === 'market_reserve';
+  const seller = reserveSeller ? null : player(world, auction.sellerId);
   const validation = validateAuctionTransfer(world, auction, bidder);
-  if (!seller || !validation.ok) return validation;
-  const sellerSnapshot = structuredClone(seller);
+  if ((!seller && !reserveSeller) || !validation.ok) return validation;
+  const sellerSnapshot = seller ? structuredClone(seller) : null;
+  const reserveSnapshot = reserveSeller ? structuredClone(marketReserveGroup(world, auction.marketReserveGroupId)) : null;
   const bidderSnapshot = structuredClone(bidder);
   try {
     for (const item of auctionItems(auction).filter((entry) => entry.assetKind === 'facility')) {
@@ -439,14 +480,19 @@ function transferAuctionAsset(world, auction, bidder, now) {
     }
     for (const item of auctionItems(auction)) {
       if (item.assetKind === 'commodity') {
-        const sellerInventory = inventoryFor(seller, item.assetId);
-        sellerInventory.frozen -= item.quantity;
+        if (reserveSeller) {
+          const reserve = marketReserveProduct(world, auction.marketReserveGroupId, item.assetId);
+          reserve.frozenInventory -= item.quantity;
+        } else {
+          const sellerInventory = inventoryFor(seller, item.assetId);
+          sellerInventory.frozen -= item.quantity;
+          seller.stats ||= {};
+          seller.stats.commodityVolume = Number(seller.stats.commodityVolume || 0) + item.quantity;
+          seller.stats.soldGoods = Number(seller.stats.soldGoods || 0) + item.quantity;
+        }
         inventoryFor(bidder, item.assetId).available += item.quantity;
-        seller.stats ||= {};
         bidder.stats ||= {};
-        seller.stats.commodityVolume = Number(seller.stats.commodityVolume || 0) + item.quantity;
         bidder.stats.commodityVolume = Number(bidder.stats.commodityVolume || 0) + item.quantity;
-        seller.stats.soldGoods = Number(seller.stats.soldGoods || 0) + item.quantity;
         bidder.stats.boughtGoods = Number(bidder.stats.boughtGoods || 0) + item.quantity;
       }
     }
@@ -458,7 +504,8 @@ function transferAuctionAsset(world, auction, bidder, now) {
       bidder.stats.facilityVolume = Number(bidder.stats.facilityVolume || 0) + auction.highestBid;
     }
   } catch (error) {
-    world.players[String(auction.sellerId)] = sellerSnapshot;
+    if (sellerSnapshot) world.players[String(auction.sellerId)] = sellerSnapshot;
+    if (reserveSnapshot) world.marketDemand.liquidity.groups[auction.marketReserveGroupId] = reserveSnapshot;
     world.players[String(auction.highestBidderId)] = bidderSnapshot;
     return result(false, error instanceof Error ? error.message : '拍卖资产转移失败');
   }
@@ -470,6 +517,10 @@ function finalizeAuction(world, auction, now, status, reason) {
   auction.status = status;
   auction.settlementReason = reason;
   auction.settledAt = now;
+  if (auction.sellerType === 'market_reserve') {
+    const reserve = marketReserveProduct(world, auction.marketReserveGroupId, auction.productId);
+    if (reserve) reserve.lastAuctionSettledAt = now;
+  }
 }
 
 function cancelBrokenAuction(world, auction, now, message = '拍卖结算校验失败') {
@@ -488,8 +539,9 @@ function cancelBrokenAuction(world, auction, now, message = '拍卖结算校验�
 
 function settleAuction(world, auction, now) {
   if (auction.status !== 'open') return;
-  const seller = player(world, auction.sellerId);
-  if (!seller) {
+  const reserveSeller = auction.sellerType === 'market_reserve';
+  const seller = reserveSeller ? null : player(world, auction.sellerId);
+  if (!seller && !reserveSeller) {
     cancelBrokenAuction(world, auction, now, '卖家不存在');
     return;
   }
@@ -537,12 +589,23 @@ function settleAuction(world, auction, now) {
     : 0;
   const net = Math.max(0, roundInternalMoney(auction.highestBid - sellerFee) || 0);
   bidder.frozenCredits = subtractMoney(bidder.frozenCredits, auction.highestBid);
-  seller.credits = addMoney(seller.credits, net);
+  if (reserveSeller) {
+    const group = marketReserveGroup(world, auction.marketReserveGroupId);
+    if (!group) {
+      cancelBrokenAuction(world, auction, now, '市场储备账户不存在');
+      return;
+    }
+    group.credits = addMoney(group.credits, net);
+  } else {
+    seller.credits = addMoney(seller.credits, net);
+  }
   if (sellerFee > 0) {
     creditPopulationEmployment(world, sellerFee, 'marketService');
-    seller.stats ||= {};
-    seller.stats.marketServiceFees = addMoney(seller.stats.marketServiceFees, sellerFee);
-    seller.stats.employmentPayments = addMoney(seller.stats.employmentPayments, sellerFee);
+    if (seller) {
+      seller.stats ||= {};
+      seller.stats.marketServiceFees = addMoney(seller.stats.marketServiceFees, sellerFee);
+      seller.stats.employmentPayments = addMoney(seller.stats.employmentPayments, sellerFee);
+    }
   }
   const listingFee = distributeListingFee(world, auction, now, 'sold');
   if (sellerFee > 0) {
@@ -695,6 +758,81 @@ function createAuction(world, userId, payload, now) {
   });
   const label = items.length > 1 ? '资产包' : items[0].assetKind === 'commodity' ? '商品' : '工厂';
   return result(true, `${label}拍卖已发布，已支付发布费 ¤${listingFee.toFixed(2)}，资产已冻结`);
+}
+
+export function createMarketReserveAuction(world, payload, now = Date.now()) {
+  migrateAssetAuctionWorld(world, now);
+  const groupId = String(payload?.groupId || '');
+  const group = marketReserveGroup(world, groupId);
+  const productId = String(payload?.productId || '');
+  const product = PRODUCTS.get(productId);
+  const quantity = integer(payload?.quantity, MAX_AUCTION_QUANTITY);
+  const startingBid = money(payload?.startingBid, MAX_BID);
+  const reservePrice = optionalMoney(payload?.reservePrice, MAX_BID);
+  const durationHours = integer(payload?.durationHours || 3, MAX_AUCTION_HOURS);
+  if (!group || !product || !quantity || !startingBid || !durationHours) return null;
+  if (reservePrice !== null && reservePrice < startingBid) return null;
+  if ((world.assetAuctions || []).some((auction) => (
+    auction.sellerType === 'market_reserve'
+      && auction.marketReserveGroupId === groupId
+      && auction.productId === productId
+      && auction.status === 'open'
+  ))) return null;
+  const listingFee = calculateAuctionListingFee(startingBid, reservePrice);
+  const minimumIncrement = calculateAuctionMinimumIncrement(startingBid);
+  if (listingFee === null || minimumIncrement === null || Number(group.credits || 0) < listingFee) return null;
+  if (!holdMarketReserveAuctionInventory(world, groupId, productId, quantity)) return null;
+
+  group.credits = subtractMoney(group.credits, listingFee);
+  world.auctionFeeEscrowCredits = addMoney(world.auctionFeeEscrowCredits, listingFee);
+  const originalEndsAt = now + durationHours * 60 * 60 * 1_000;
+  const groupName = String(payload?.groupName || groupId);
+  const auction = applyAuctionAliases({
+    id: `market-reserve-auction-${randomUUID()}`,
+    auctionRuleVersion: ASSET_AUCTION_RULE_VERSION,
+    items: [{ assetKind: 'commodity', assetId: productId, quantity }],
+    sellerType: 'market_reserve',
+    marketReserveGroupId: groupId,
+    sellerId: 0,
+    sellerName: `${groupName}储备`,
+    startingBid,
+    reservePrice,
+    minimumIncrement,
+    highestBid: null,
+    highestBidderId: null,
+    bidderAliases: {},
+    bidCount: 0,
+    latestBidAt: null,
+    status: 'open',
+    escrowStatus: 'held',
+    createdAt: now,
+    originalEndsAt,
+    endsAt: originalEndsAt,
+    extensionWindowMs: AUCTION_EXTENSION_WINDOW_MS,
+    extensionDurationMs: AUCTION_EXTENSION_DURATION_MS,
+    maxExtensionMs: AUCTION_MAX_EXTENSION_MS,
+    extensionCount: 0,
+    listingFeeRuleVersion: 1,
+    listingFee,
+    listingFeeStatus: 'held',
+    sellerFeeBps: AUCTION_SELLER_FEE_BPS,
+    buyerFeeBps: AUCTION_BUYER_FEE_BPS,
+    sellerFee: null,
+    sellerNetProceeds: null,
+    settlementReason: null,
+    bids: [],
+  });
+  world.assetAuctions.push(auction);
+  world.assetAuctions = world.assetAuctions.slice(-MAX_AUCTIONS);
+  queueAuctionAuditEvent(world, {
+    auctionId: auction.id,
+    eventType: 'created',
+    actorUserId: null,
+    amount: listingFee,
+    metadata: { marketReserveGroupId: groupId, startingBid, reservePrice, minimumIncrement, listingFee },
+    createdAt: now,
+  });
+  return auction;
 }
 
 function minimumBidFor(auction) {
@@ -867,6 +1005,7 @@ function clientAuction(auction, userId) {
     quantity: auction.quantity,
     asset,
     sellerName: auction.sellerName,
+    sellerType: auction.sellerType,
     startingBid: auction.startingBid,
     highestBid: auction.highestBid,
     highestBidderLabel: auction.highestBidderId ? storedBidderLabel(auction, auction.highestBidderId) : null,

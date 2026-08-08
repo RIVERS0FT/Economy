@@ -57,6 +57,8 @@ export interface ProductionContract {
   publisherSide: ContractPublisherSide;
   publisherId: number;
   publisherName: string;
+  publisherType?: 'player' | 'market_reserve';
+  fixedTerms?: boolean;
   publisherRole: ProductionContractRole;
   buyerId: number | null;
   buyerName: string | null;
