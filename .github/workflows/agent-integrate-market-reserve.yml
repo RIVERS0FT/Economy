@@ -1,0 +1,26 @@
+name: Agent Integrate Market Reserve
+
+on:
+  push:
+    branches:
+      - feat/market-reserve-operations-main-20260808
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/market-reserve-operations-main-20260808
+          fetch-depth: 0
+      - name: Diagnose implementation cherry-pick
+        run: |
+          set +e
+          git cherry-pick -n bc4b06209dfb733d868383ec0a323c1332710399
+          code=$?
+          git status --short
+          git diff --name-only --diff-filter=U
+          exit $code
