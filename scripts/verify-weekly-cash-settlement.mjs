@@ -22,8 +22,14 @@ for (const path of [
 ]) requireFile(path);
 
 for (const text of [
+  'WEEKLY_CASH_SETTLEMENT_VERSION = 2',
   'WEEKLY_CASH_SETTLEMENT_RATE_BPS = 1_000',
   "WEEKLY_CASH_TIME_ZONE = 'Asia/Shanghai'",
+  'MARKET_DEMAND_GROUP_CATALOG',
+  'allocateMoneyBudget',
+  'reserveTransferredCredits',
+  'weeklyCashSettlementReserveTransferred',
+  "destination: 'market_reserve'",
   'activateWeeklyCashSettlement',
   'interestEligibleFrom',
   "type === 'returning_player'",
@@ -51,6 +57,11 @@ for (const text of [
 requireText('server/src/facility-groups.js', 'weeklySettlementLiability');
 requireText('server/src/leaderboards.js', 'openingPolicyAdjustments');
 requireText('server/src/world-deadline-planner.js', 'weeklyCashSettlement');
+requireText('src/types.ts', 'weeklyCashSettlementReserveTransferred?: number;');
+forbidText('server/src/weekly-cash-settlement.js', 'playerState.totals.burnedCredits = addMoney');
+forbidText('server/src/weekly-cash-settlement.js', 'player.stats.weeklyCashSettlementBurned = addMoney');
+forbidText('server/src/weekly-cash-settlement.js', 'world.stats.weeklyCashSettlementBurned = addMoney');
+forbidText('server/src/weekly-cash-settlement.js', 'worldState.totals.burnedCredits = addMoney');
 
 for (const text of [
   '固定日利率',
@@ -68,11 +79,20 @@ for (const text of [
   '3%／4%／6%',
   '同一自然周内的普通状态读取',
   '不属于经营增长',
+  '实际收取部分按食品市场与社会消费市场的 `baseBudget` 权重',
+  '`weeklyCashSettlementReserveTransferred`',
 ]) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
+
+for (const text of [
+  '实际收取额必须在同一世界事务中转入市场储备',
+  '3000:2700',
+  '`weeklyCashSettlementReserveTransferred`',
+]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 
 forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '2%／3%／5%');
 forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '固定存款日利率为每日 1%，固定存款日利率为每日 1%');
 forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '每周 10% 的资金扣除只适用于完整活跃周。每周 10% 的资金扣除只适用于完整活跃周。');
+forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '周资金扣除作为 `weeklyCashSettlementBurned` 直接销毁');
 forbidText('server/src/banking.js', 'BANK_DAILY_INTEREST_CAP_BPS = 25');
 forbidText('src/pages/BankPage.tsx', '动态收益');
 
@@ -80,4 +100,4 @@ if (failures.length) {
   console.error(`固定利息与周资金结算验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('固定利息与周资金结算验证通过：活跃周每日 1%、周末 10% 账单、登录扣款、长期回归一次性结算、冻结资金守恒和排行榜调整均已锁定。');
+console.log('固定利息与周资金结算验证通过：活跃周每日 1%、周末 10% 账单、登录扣款、实际收取额转入市场储备、长期回归一次性结算、冻结资金守恒和排行榜调整均已锁定。');

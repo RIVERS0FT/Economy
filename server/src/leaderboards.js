@@ -97,7 +97,8 @@ function externalCreditsFor(player) {
 function policyAdjustmentFor(player) {
   const stats = playerStats(player);
   return Number(stats.bankDepositInterestEarned || 0)
-    - Number(stats.weeklyCashSettlementBurned || 0);
+    - Number(stats.weeklyCashSettlementBurned || 0)
+    - Number(stats.weeklyCashSettlementReserveTransferred || 0);
 }
 
 function inventoryQuantity(player, productId) {
