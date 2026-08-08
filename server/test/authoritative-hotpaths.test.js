@@ -53,6 +53,20 @@ test('deadline domain selection only reports authoritative deadlines that are ac
   assert.deepEqual(dueWorldDeadlineDomains(plan, now), ['facility', 'contract']);
 });
 
+test('scheduler-style forced processing uses due domains instead of the legacy full-world force path', () => {
+  const now = 1_800_000_000_000;
+  const store = new EconomyStore(':memory:', { scheduledProcessing: false });
+  try {
+    const world = createWorld(now);
+    store.resetSchedulerDiagnostics();
+    store.processWorldIfDue(world, now, undefined, { force: true, auditTrigger: 'scheduler' });
+    const diagnostics = store.getSchedulerDiagnostics().deadlineRuntime;
+    assert.equal(diagnostics.lastDueDomains.includes('legacy-force'), false);
+  } finally {
+    store.close();
+  }
+});
+
 test('economic action boundary restores world state after a failed mutation', () => {
   const now = 1_800_000_000_000;
   const world = createWorld(now);
