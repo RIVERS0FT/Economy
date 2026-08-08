@@ -191,11 +191,14 @@
   }
 
   .mobile-detail-sheet-scroll {
+    width: 100%;
     height: 100%;
     min-height: 0;
     display: grid;
-    grid-template-rows: auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: max-content;
     align-content: start;
+    align-items: start;
     gap: var(--space-2);
     overflow-x: hidden;
     overflow-y: auto;
@@ -204,6 +207,11 @@
     touch-action: pan-y;
     padding: var(--space-2) var(--space-3);
     container-type: inline-size;
+  }
+
+  .mobile-detail-sheet-scroll > * {
+    min-width: 0;
+    align-self: start;
   }
 
   .mobile-detail-sheet-footer {
@@ -232,6 +240,7 @@
   .mobile-detail-sheet .mobile-detail-section {
     min-width: 0;
     display: grid;
+    align-self: start;
     gap: var(--space-2);
     border-top: 1px solid var(--color-divider);
     padding-top: var(--space-2);
