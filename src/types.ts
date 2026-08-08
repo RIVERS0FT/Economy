@@ -335,6 +335,7 @@ export interface EconomyStats {
   weeklyCashSettlementAssessed?: number;
   weeklyCashSettlementCollected?: number;
   weeklyCashSettlementBurned?: number;
+  weeklyCashSettlementReserveTransferred?: number;
   bankDefaults?: number;
   bankFacilitiesSeized?: number;
   invitationGemsIssued: number;

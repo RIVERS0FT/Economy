@@ -42,6 +42,9 @@ test('successful economic activity activates only the current week and interest 
 test('an active week closes one immutable ten-percent assessment and login collects deposit before cash', () => {
   const world = createWorld(monday);
   const player = preparedPlayer(world, 30, 70, 200);
+  const foodReserveBefore = world.marketDemand.liquidity.groups.food.credits;
+  const householdReserveBefore = world.marketDemand.liquidity.groups.household.credits;
+  const populationBefore = structuredClone(world.populationEconomy);
   const state = ensureWeeklyCashSettlementWorld(world, monday);
   state.partial = false;
   assert.equal(activateWeeklyCashSettlement(world, player, monday + 1), true);
@@ -58,7 +61,15 @@ test('an active week closes one immutable ten-percent assessment and login colle
   assert.equal(player.bankAccount.depositCredits, 40);
   assert.equal(player.credits, 30);
   assert.equal(player.weeklyCashSettlement.pendingSettlement, null);
-  assert.equal(player.stats.weeklyCashSettlementBurned, 30);
+  assert.equal(player.stats.weeklyCashSettlementReserveTransferred, 30);
+  assert.equal(player.stats.weeklyCashSettlementBurned || 0, 0);
+  assert.equal(world.weeklyCashSettlement.totals.reserveTransferredCredits, 30);
+  assert.equal(Number((world.marketDemand.liquidity.groups.food.credits - foodReserveBefore).toFixed(6)), 15.789474);
+  assert.equal(Number((world.marketDemand.liquidity.groups.household.credits - householdReserveBefore).toFixed(6)), 14.210526);
+  assert.deepEqual(world.populationEconomy, populationBefore);
+  const transaction = player.bankAccount.recentTransactions.at(-1);
+  assert.equal(transaction.destination, 'market_reserve');
+  assert.deepEqual(transaction.reserveAllocations, { food: 15.789474, household: 14.210526 });
 });
 
 test('frozen money is assessed without breaking escrow and unpaid settlement remains a liability', () => {
@@ -73,6 +84,7 @@ test('frozen money is assessed without breaking escrow and unpaid settlement rem
   const result = collectPlayerWeeklyCashSettlement(world, player, weeklyCashPeriodFor(monday).endsAt + 1);
   assert.equal(result.collected, 5);
   assert.equal(result.outstanding, 15);
+  assert.equal(world.stats.weeklyCashSettlementReserveTransferred, 5);
   assert.equal(player.frozenCredits, 195, 'escrow remains untouched');
   assert.equal(weeklySettlementLiability(player), 15);
 
@@ -81,6 +93,7 @@ test('frozen money is assessed without breaking escrow and unpaid settlement rem
   assert.equal(second.collected, 15);
   assert.equal(player.credits, 5);
   assert.equal(weeklySettlementLiability(player), 0);
+  assert.equal(world.stats.weeklyCashSettlementReserveTransferred, 20);
 });
 
 test('a long inactive return produces one login assessment instead of one assessment per missed week', () => {

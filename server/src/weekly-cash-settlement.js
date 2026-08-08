@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import { MARKET_DEMAND_GROUP_CATALOG } from './market-demand/catalog.js';
+import { allocateMoneyBudget } from './market-demand/math.js';
 import { calculateRateMoney, internalMoneyToMicros, roundInternalMoney } from './money.js';
 
-export const WEEKLY_CASH_SETTLEMENT_VERSION = 1;
+export const WEEKLY_CASH_SETTLEMENT_VERSION = 2;
 export const WEEKLY_CASH_SETTLEMENT_RATE_BPS = 1_000;
 export const WEEKLY_CASH_TIME_ZONE = 'Asia/Shanghai';
 
@@ -30,6 +32,44 @@ function addMoney(left, right, message = '周资金结算金额超出系统可�
   const total = roundInternalMoney(Number(left || 0) + Number(right || 0));
   if (total === null || internalMoneyToMicros(total) === null) throw new Error(message);
   return total;
+}
+
+function creditMarketReserve(world, amount) {
+  const normalized = safeMoney(amount);
+  if (normalized <= 0) return {};
+  const groups = world.marketDemand?.liquidity?.groups;
+  if (!groups || typeof groups !== 'object') {
+    throw new Error('市场储备未初始化，无法接收周资金结算');
+  }
+  const entries = MARKET_DEMAND_GROUP_CATALOG.map((group) => {
+    const state = groups[group.id];
+    if (!state || typeof state !== 'object') {
+      throw new Error(`市场储备账户缺失: ${group.id}`);
+    }
+    return {
+      id: group.id,
+      weight: Math.max(0, Number(group.baseBudget || 0)),
+      maxBudget: normalized,
+    };
+  });
+  const allocations = allocateMoneyBudget(entries, normalized);
+  const transferredByGroup = {};
+  let transferred = 0;
+  for (const entry of entries) {
+    const credit = safeMoney(allocations.get(entry.id));
+    const state = groups[entry.id];
+    state.credits = addMoney(
+      state.credits,
+      credit,
+      '市场储备周资金结算金额超出系统可表示范围',
+    );
+    transferred = addMoney(transferred, credit);
+    transferredByGroup[entry.id] = credit;
+  }
+  if (internalMoneyToMicros(transferred) !== internalMoneyToMicros(normalized)) {
+    throw new Error('周资金结算转入市场储备时发生资金守恒错误');
+  }
+  return transferredByGroup;
 }
 
 function subtractMoney(left, right) {
@@ -87,6 +127,7 @@ function defaultWorldState(now) {
       collectedCredits: 0,
       outstandingCredits: 0,
       burnedCredits: 0,
+      reserveTransferredCredits: 0,
     },
   };
 }
@@ -108,6 +149,7 @@ function defaultPlayerState(now) {
       assessedCredits: 0,
       collectedCredits: 0,
       burnedCredits: 0,
+      reserveTransferredCredits: 0,
     },
   };
 }
@@ -338,24 +380,39 @@ export function collectPlayerWeeklyCashSettlement(world, player, now = Date.now(
   }
   const collected = addMoney(fromDeposit, fromCash);
   if (collected > 0) {
+    const reserveAllocations = creditMarketReserve(world, collected);
     pending.amountCollected = addMoney(pending.amountCollected, collected);
     pending.amountOutstanding = remaining;
     pending.appliedAt = now;
     playerState.totals.collectedCredits = addMoney(playerState.totals.collectedCredits, collected);
-    playerState.totals.burnedCredits = addMoney(playerState.totals.burnedCredits, collected);
+    playerState.totals.reserveTransferredCredits = addMoney(
+      playerState.totals.reserveTransferredCredits,
+      collected,
+    );
     player.stats ||= {};
     player.stats.weeklyCashSettlementCollected = addMoney(player.stats.weeklyCashSettlementCollected, collected);
-    player.stats.weeklyCashSettlementBurned = addMoney(player.stats.weeklyCashSettlementBurned, collected);
+    player.stats.weeklyCashSettlementReserveTransferred = addMoney(
+      player.stats.weeklyCashSettlementReserveTransferred,
+      collected,
+    );
     world.stats ||= {};
     world.stats.weeklyCashSettlementCollected = addMoney(world.stats.weeklyCashSettlementCollected, collected);
-    world.stats.weeklyCashSettlementBurned = addMoney(world.stats.weeklyCashSettlementBurned, collected);
+    world.stats.weeklyCashSettlementReserveTransferred = addMoney(
+      world.stats.weeklyCashSettlementReserveTransferred,
+      collected,
+    );
     worldState.totals.collectedCredits = addMoney(worldState.totals.collectedCredits, collected);
-    worldState.totals.burnedCredits = addMoney(worldState.totals.burnedCredits, collected);
+    worldState.totals.reserveTransferredCredits = addMoney(
+      worldState.totals.reserveTransferredCredits,
+      collected,
+    );
     worldState.totals.outstandingCredits = subtractMoney(worldState.totals.outstandingCredits, collected);
-    addBankTransaction(player, 'weekly_cash_settlement', collected, now, '完成周资金扣除结算', {
+    addBankTransaction(player, 'weekly_cash_settlement', collected, now, '完成周资金扣除结算，资金转入市场储备', {
       settlementId: pending.id,
       weekKey: pending.weekKey,
       source: fromDeposit > 0 && fromCash > 0 ? 'deposit_and_cash' : fromDeposit > 0 ? 'deposit' : 'cash',
+      destination: 'market_reserve',
+      reserveAllocations,
     });
   }
 
