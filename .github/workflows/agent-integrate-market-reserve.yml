@@ -26,6 +26,10 @@ jobs:
         with:
           node-version: 24.4.0
           cache: npm
+      - name: Configure Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       - name: Cherry-pick verified implementation
         run: |
           set +e
@@ -68,8 +72,6 @@ jobs:
           git diff --check
           git status --short
           git diff --stat HEAD
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- \
             package.json \
             server/src/runtime-store.js \
