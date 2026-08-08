@@ -62,6 +62,14 @@ jobs:
           if expanded not in docs:
               raise SystemExit('reserve authority index expansion unavailable')
           docs_path.write_text(docs.replace(expanded, preserved, 1), encoding='utf-8')
+
+          verifier_path = Path('scripts/verify-market-assets.mjs')
+          verifier = verifier_path.read_text(encoding='utf-8')
+          stale = "  '当前上限为 52 笔',\n]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);"
+          current = "  '当前权威目录为 36 种商品与 26 种工厂类型，即当前上限 62 笔',\n]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);\nforbidText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '当前上限为 52 笔');"
+          if stale not in verifier:
+              raise SystemExit('stale 52-order verifier anchor unavailable')
+          verifier_path.write_text(verifier.replace(stale, current, 1), encoding='utf-8')
           PY
       - name: Install dependencies
         run: npm ci
@@ -93,6 +101,7 @@ jobs:
             server/src/contract-audit-store.js \
             server/test/market-reserve-operations.test.js \
             scripts/verify-market-reserve-operations.mjs \
+            scripts/verify-market-assets.mjs \
             src/contracts/types.ts \
             src/pages/ContractPage.tsx \
             docs/PRODUCT_AND_GAMEPLAY_DESIGN.md \
