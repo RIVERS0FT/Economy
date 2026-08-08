@@ -42,6 +42,7 @@ jobs:
           Path('/tmp/apply_market_reserve.py').write_text(source, encoding='utf-8')
           PY
           rm -rf .agent
+          git add -u -- .agent/apply_market_reserve.py
       - name: Apply implementation patch
         run: python3 /tmp/apply_market_reserve.py
       - name: Normalize generated test and authority wording
@@ -89,7 +90,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -u -- .agent/apply_market_reserve.py
           git add -- \
             package.json \
             server/src/market-reserve-operations.js \
