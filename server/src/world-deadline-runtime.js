@@ -15,7 +15,12 @@ export function dueWorldDeadlineDomains(plan, now = Date.now()) {
   const timestamp = normalizedNow(now);
   if (!plan || typeof plan !== 'object' || !plan.deadlines || typeof plan.deadlines !== 'object') return [];
   return Object.entries(plan.deadlines)
-    .filter(([, deadline]) => Number.isFinite(Number(deadline)) && Number(deadline) <= timestamp)
+    .filter(([, deadline]) => (
+      deadline !== null
+      && deadline !== undefined
+      && Number.isFinite(Number(deadline))
+      && Number(deadline) <= timestamp
+    ))
     .map(([name]) => name);
 }
 
