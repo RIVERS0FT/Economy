@@ -5,12 +5,16 @@ on:
     branches:
       - feat/market-reserve-operations-main-20260808
 
+concurrency:
+  group: market-reserve-integration
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
 jobs:
   integrate:
-    if: ${{ !contains(github.event.head_commit.message, '[market-reserve-integrated]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[market-reserve-applied]') && !contains(github.event.head_commit.message, '[market-reserve-integrated]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -64,14 +68,12 @@ jobs:
                   raise SystemExit(f'{path}: next function after {name} not found')
               target.write_text(source[:start] + new_body.rstrip() + '\n' + source[next_start:], encoding='utf-8')
 
-          # Preserve PR #502 hot-path verification and only add the new reserve verifier.
           replace_once(
               'package.json',
               'node scripts/verify-staple-crops-demand.mjs && node --experimental-strip-types scripts/verify-market-assets.mjs',
               'node scripts/verify-staple-crops-demand.mjs && node scripts/verify-market-reserve-operations.mjs && node --experimental-strip-types scripts/verify-market-assets.mjs',
           )
 
-          # Integrate reserve operations into the deadline-domain scheduler introduced by PR #502.
           replace_once(
               'server/src/runtime-store.js',
               "import { createEconomicCalendarClientState } from './economic-events.js';",
@@ -200,7 +202,6 @@ jobs:
   return [];
 }''')
 
-          # One authoritative reserve conservation formula; do not leave the obsolete order-book-only formula beside it.
           full_formula = """```text\n当前储备库存 = 一次性种子库存 + 订单簿买入数量 + 储备采购合同交付数量 - 普通储备卖出数量 - 紧急储备卖出数量 - 储备拍卖成交数量\n当前储备资金 = 一次性种子资金 + 普通／紧急储备卖出收入 + 储备拍卖净收入 - 订单簿买入支出 - 储备采购合同货款 - 储备拍卖发布费 - 储备拍卖卖方手续费\n```"""
           replace_once(
               'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
@@ -228,7 +229,6 @@ jobs:
               "`demandTier = 'direct' | 'derived-liquidity' | 'liquidity-buy' | 'liquidity-sell' | 'liquidity-emergency-sell'`；",
           )
 
-          # Strengthen anti-regression checks for the system-account audit boundary.
           verify = Path('scripts/verify-market-reserve-operations.mjs')
           source = verify.read_text(encoding='utf-8')
           anchor = "requireText('server/src/runtime-store.js', 'processMarketReserveOperations(world, now)');\n"
