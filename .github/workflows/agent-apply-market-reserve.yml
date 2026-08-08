@@ -43,17 +43,25 @@ jobs:
           PY
       - name: Apply implementation patch
         run: python3 .agent/apply_market_reserve.py
-      - name: Normalize generated contract test references
+      - name: Normalize generated test and authority wording
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('server/test/market-reserve-operations.test.js')
-          source = path.read_text(encoding='utf-8')
+          test_path = Path('server/test/market-reserve-operations.test.js')
+          source = test_path.read_text(encoding='utf-8')
           old = """  assert.equal(accepted.ok, true);\n  assert.equal(contract.status, 'active');\n  assert.ok(reserveGroup(world).frozenCredits >= contract.batchGross + contract.buyerBondCredits);\n  assert.equal(contract.negotiations.length, 0);\n\n  processProductionContracts(world, Number(contract.nextDueAt) + 1);\n  assert.equal(contract.completedDeliveries, 1);\n  assert.equal(reserve.inventory + reserve.frozenInventory, inventoryBefore + contract.quantityPerDelivery);\n  assert.ok(reserveGroup(world).credits + reserveGroup(world).frozenCredits < fundsBefore);\n  assert.ok(supplier.stats.contractGoodsSupplied >= contract.quantityPerDelivery);\n"""
           new = """  assert.equal(accepted.ok, true);\n  const activeContract = world.productionContracts.find((item) => item.id === contract.id);\n  assert.ok(activeContract);\n  assert.equal(activeContract.status, 'active');\n  assert.ok(activeContract.buyerEscrowCredits > 0);\n  assert.ok(activeContract.buyerBondCredits > 0);\n  assert.ok(reserveGroup(world).frozenCredits >= activeContract.buyerEscrowCredits + activeContract.buyerBondCredits);\n  assert.equal(activeContract.negotiations.length, 0);\n\n  processProductionContracts(world, Number(activeContract.nextDueAt) + 1);\n  const settledContract = world.productionContracts.find((item) => item.id === contract.id);\n  assert.ok(settledContract);\n  assert.equal(settledContract.completedDeliveries, 1);\n  assert.equal(reserve.inventory + reserve.frozenInventory, inventoryBefore + settledContract.quantityPerDelivery);\n  assert.ok(reserveGroup(world).credits + reserveGroup(world).frozenCredits < fundsBefore);\n  assert.ok(supplier.stats.contractGoodsSupplied >= settledContract.quantityPerDelivery);\n"""
           if old not in source:
               raise SystemExit('reserve contract test block unavailable')
-          path.write_text(source.replace(old, new, 1), encoding='utf-8')
+          test_path.write_text(source.replace(old, new, 1), encoding='utf-8')
+
+          docs_path = Path('docs/README.md')
+          docs = docs_path.read_text(encoding='utf-8')
+          expanded = '库存与资金守恒且可通过订单簿、固定采购合同与储备清仓拍卖跨市场调节的市场储备、生产链双向滞后价格传导'
+          preserved = '库存与资金守恒的双边市场储备（可通过订单簿、固定采购合同与储备清仓拍卖跨市场调节）、生产链双向滞后价格传导'
+          if expanded not in docs:
+              raise SystemExit('reserve authority index expansion unavailable')
+          docs_path.write_text(docs.replace(expanded, preserved, 1), encoding='utf-8')
           PY
       - name: Install dependencies
         run: npm ci
