@@ -28,6 +28,7 @@ import { processResearchWorld } from './research.js';
 import { executeRuntimeAction } from './runtime-action-executor.js';
 import { ensureWarehouse } from './warehouse.js';
 import { createEconomicCalendarClientState } from './economic-events.js';
+import { processMarketReserveOperations } from './market-reserve-operations.js';
 import { flushAuctionAuditEvents } from './auction-audit-store.js';
 import { measureRequestPhase, setRequestGauge } from './request-performance.js';
 import { createStatePartitionSnapshot } from './state-partitions.js';
@@ -288,6 +289,7 @@ export class EconomyStore extends PersistentEconomyStore {
       const beforeContracts = contractSnapshot(world);
       const processed = super.processWorldIfDue(world, now, currentUserId, options);
       if (processed) {
+        processMarketReserveOperations(world, now);
         processProductionContracts(world, now);
         this.captureContractAuditTransition(beforeContracts, world, {
           triggerType: options.auditTrigger || 'request_world_process',
@@ -316,6 +318,14 @@ export class EconomyStore extends PersistentEconomyStore {
           onGemReward: (reward) => this.recordGemLedgerEvent(reward),
         });
         processed = true;
+      }
+      if (dueDomains.has('market')) {
+        const beforeReserveContracts = contractSnapshot(world);
+        processMarketReserveOperations(world, now);
+        this.captureContractAuditTransition(beforeReserveContracts, world, {
+          triggerType: options.auditTrigger || (currentUserId === undefined ? 'scheduler' : 'request_world_process'),
+          now,
+        });
       }
       if (dueDomains.has('bank')) {
         processBankWorld(world, now);

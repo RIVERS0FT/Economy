@@ -81,6 +81,53 @@ function playerFor(world, userId) {
   return world.players?.[String(userId)] || null;
 }
 
+function addMoney(...values) {
+  return roundInternalMoney(values.reduce((sum, value) => sum + Number(value || 0), 0));
+}
+
+function marketReserveGroupFor(world, contract) {
+  return world.marketDemand?.liquidity?.groups?.[String(contract?.marketReserveGroupId || '')] || null;
+}
+
+function marketReserveProductFor(world, contract) {
+  return marketReserveGroupFor(world, contract)?.reserves?.[String(contract?.productId || '')] || null;
+}
+
+function holdMarketReserveCredits(group, amount) {
+  const target = Math.max(0, roundInternalMoney(amount || 0) || 0);
+  if (target <= 0) return true;
+  if (!group || Number(group.credits || 0) + 0.0000001 < target) return false;
+  group.credits = Math.max(0, roundInternalMoney(Number(group.credits || 0) - target) || 0);
+  group.frozenCredits = Math.max(0, roundInternalMoney(Number(group.frozenCredits || 0) + target) || 0);
+  return true;
+}
+
+function consumeMarketReserveFrozenCredits(group, amount) {
+  const target = Math.max(0, roundInternalMoney(amount || 0) || 0);
+  if (!group || target <= 0) return 0;
+  const consumed = Math.min(target, Math.max(0, roundInternalMoney(group.frozenCredits || 0) || 0));
+  group.frozenCredits = Math.max(0, roundInternalMoney(Number(group.frozenCredits || 0) - consumed) || 0);
+  return consumed;
+}
+
+function releaseMarketReserveCredits(group, amount) {
+  const released = consumeMarketReserveFrozenCredits(group, amount);
+  if (group && released > 0) group.credits = Math.max(0, roundInternalMoney(Number(group.credits || 0) + released) || 0);
+  return released;
+}
+
+function transferMarketReserveBondToPlayer(group, player, amount) {
+  const transferred = consumeMarketReserveFrozenCredits(group, amount);
+  if (player && transferred > 0) player.credits = Math.max(0, roundInternalMoney(Number(player.credits || 0) + transferred) || 0);
+  return transferred;
+}
+
+function transferPlayerBondToMarketReserve(player, group, amount) {
+  const transferred = consumeFrozenCredits(player, amount);
+  if (group && transferred > 0) group.credits = Math.max(0, roundInternalMoney(Number(group.credits || 0) + transferred) || 0);
+  return transferred;
+}
+
 function inventoryFor(player, productId) {
   player.inventories ||= {};
   player.inventories[productId] ||= { available: 0, frozen: 0 };
@@ -169,6 +216,9 @@ function normalizeContract(contract) {
     id: String(contract?.id || `contract-${randomUUID()}`),
     publisherId: Number(contract?.publisherId),
     publisherName: String(contract?.publisherName || '玩家'),
+    publisherType: contract?.publisherType === 'market_reserve' ? 'market_reserve' : 'player',
+    fixedTerms: contract?.fixedTerms === true,
+    marketReserveGroupId: contract?.marketReserveGroupId ? String(contract.marketReserveGroupId) : null,
     kind: 'supply',
     publisherSide: contract?.publisherRole === 'supplier' ? 'supplier' : 'buyer',
     publisherRole: contract?.publisherRole === 'supplier' ? 'supplier' : 'buyer',
@@ -412,6 +462,183 @@ function gracePeriodFor(contract) {
   return Math.max(10 * 60 * 1000, Math.min(Math.floor(contract.deliveryIntervalMs / 2), 6 * 60 * 60 * 1000));
 }
 
+function fundMarketReserveBatch(world, contract) {
+  const group = marketReserveGroupFor(world, contract);
+  const gross = batchGross(contract);
+  if (!group || !gross) return false;
+  if (contract.buyerEscrowCredits >= gross) return true;
+  const required = roundInternalMoney(gross - contract.buyerEscrowCredits) || 0;
+  if (!holdMarketReserveCredits(group, required)) return false;
+  contract.buyerEscrowCredits = addMoney(contract.buyerEscrowCredits, required) || 0;
+  return true;
+}
+
+function completeMarketReserveContract(world, contract, supplier, now) {
+  const group = marketReserveGroupFor(world, contract);
+  releaseMarketReserveCredits(group, contract.buyerBondCredits);
+  releaseFrozenCredits(supplier, contract.supplierBondCredits);
+  contract.buyerBondCredits = 0;
+  contract.supplierBondCredits = 0;
+  contract.status = 'completed';
+  contract.completedAt = now;
+  contract.nextDueAt = null;
+  contract.roundStatus = 'ready';
+  delete contract.graceEndsAt;
+}
+
+function releaseMarketReserveContractEscrow(world, contract, supplier) {
+  const group = marketReserveGroupFor(world, contract);
+  releaseMarketReserveCredits(group, addMoney(contract.buyerEscrowCredits, contract.buyerBondCredits));
+  releaseFrozenCredits(supplier, contract.supplierBondCredits);
+  releaseSupplierGoods(contract, supplier);
+  contract.buyerEscrowCredits = 0;
+  contract.buyerBondCredits = 0;
+  contract.supplierBondCredits = 0;
+}
+
+function settleMarketReserveBatch(world, contract, supplier, now, runtimeIndex) {
+  const group = marketReserveGroupFor(world, contract);
+  const reserve = marketReserveProductFor(world, contract);
+  const gross = batchGross(contract);
+  if (!group || !reserve || !gross) return false;
+  if (contract.buyerEscrowCredits < gross || contract.supplierReservedQuantity < contract.quantityPerDelivery) return false;
+  const supplierInventory = inventoryFor(supplier, contract.productId);
+  if (supplierInventory.frozen < contract.quantityPerDelivery) return false;
+
+  return runtimeIndex.transition(contract, () => {
+    supplierInventory.frozen -= contract.quantityPerDelivery;
+    contract.supplierReservedQuantity -= contract.quantityPerDelivery;
+    reserve.inventory = Math.max(0, Math.floor(Number(reserve.inventory || 0))) + contract.quantityPerDelivery;
+    consumeMarketReserveFrozenCredits(group, gross);
+    contract.buyerEscrowCredits = Math.max(0, roundInternalMoney(contract.buyerEscrowCredits - gross) || 0);
+
+    const previousGross = contract.marketSellFeeGross;
+    const previousFee = contract.marketSellFeeCharged;
+    const nextGross = roundInternalMoney(previousGross + gross) || 0;
+    const nextFee = calculateCumulativeMarketSellFee(nextGross);
+    const fee = Math.max(0, roundInternalMoney(nextFee - previousFee) || 0);
+    const net = Math.max(0, roundInternalMoney(gross - fee) || 0);
+    contract.marketSellFeeGross = nextGross;
+    contract.marketSellFeeCharged = nextFee;
+    supplier.credits = roundInternalMoney(Number(supplier.credits || 0) + net) || 0;
+    if (fee > 0) creditPopulationEmployment(world, fee, 'marketService');
+
+    const supplierStats = normalizeStats(supplier);
+    supplierStats.contractDeliveriesCompleted += 1;
+    supplierStats.contractGoodsSupplied += contract.quantityPerDelivery;
+    supplierStats.contractCreditsReceived += net;
+    supplierStats.soldGoods += contract.quantityPerDelivery;
+    supplierStats.commodityVolume += contract.quantityPerDelivery;
+    supplierStats.marketServiceFees += fee;
+    supplierStats.employmentPayments += fee;
+
+    contract.completedDeliveries += 1;
+    contract.lastDeliveryAt = now;
+    contract.lastDeliveryGross = gross;
+    contract.lastDeliveryFee = fee;
+    contract.roundStatus = 'preparing';
+    delete contract.graceEndsAt;
+
+    if (contract.completedDeliveries >= contract.totalDeliveries) {
+      completeMarketReserveContract(world, contract, supplier, now);
+      return true;
+    }
+    if (contract.terminationRequestedBy) {
+      releaseMarketReserveContractEscrow(world, contract, supplier);
+      contract.status = 'terminated';
+      contract.endedAt = now;
+      contract.terminationReason = 'notice_completed';
+      contract.nextDueAt = null;
+      return true;
+    }
+
+    contract.nextDueAt = Math.max(
+      Number(contract.nextDueAt || now) + contract.deliveryIntervalMs,
+      now + contract.deliveryIntervalMs,
+    );
+    if (contract.buyerAutoFund) fundMarketReserveBatch(world, contract);
+    if (contract.supplierAutoReserve) reserveSupplierBatch(contract, supplier);
+    contract.roundStatus = contract.buyerEscrowCredits >= gross
+      && contract.supplierReservedQuantity >= contract.quantityPerDelivery
+      ? 'ready'
+      : 'preparing';
+    return true;
+  });
+}
+
+function terminateMarketReserveForDefault(world, contract, supplier, defaultParty, now, runtimeIndex) {
+  const group = marketReserveGroupFor(world, contract);
+  runtimeIndex.transition(contract, () => {
+    if (defaultParty === 'buyer') {
+      releaseMarketReserveCredits(group, contract.buyerEscrowCredits);
+      transferMarketReserveBondToPlayer(group, supplier, contract.buyerBondCredits);
+      releaseFrozenCredits(supplier, contract.supplierBondCredits);
+      releaseSupplierGoods(contract, supplier);
+    } else if (defaultParty === 'supplier') {
+      releaseMarketReserveCredits(group, addMoney(contract.buyerEscrowCredits, contract.buyerBondCredits));
+      transferPlayerBondToMarketReserve(supplier, group, contract.supplierBondCredits);
+      releaseSupplierGoods(contract, supplier);
+      normalizeStats(supplier).contractDefaults += 1;
+    } else {
+      releaseMarketReserveCredits(group, addMoney(contract.buyerEscrowCredits, contract.buyerBondCredits));
+      releaseFrozenCredits(supplier, contract.supplierBondCredits);
+      releaseSupplierGoods(contract, supplier);
+      normalizeStats(supplier).contractDefaults += 1;
+    }
+    contract.buyerEscrowCredits = 0;
+    contract.buyerBondCredits = 0;
+    contract.supplierBondCredits = 0;
+    contract.status = 'terminated';
+    contract.endedAt = now;
+    contract.terminationReason = `${defaultParty}_default`;
+    contract.roundStatus = 'preparing';
+    delete contract.graceEndsAt;
+  });
+}
+
+function processMarketReserveContract(world, contract, now, runtimeIndex) {
+  const group = marketReserveGroupFor(world, contract);
+  const reserve = marketReserveProductFor(world, contract);
+  const supplier = playerFor(world, contract.supplierId);
+  if (!group || !reserve || !supplier) {
+    runtimeIndex.transition(contract, () => {
+      if (supplier) {
+        releaseFrozenCredits(supplier, contract.supplierBondCredits);
+        releaseSupplierGoods(contract, supplier);
+      }
+      contract.status = 'terminated';
+      contract.endedAt = now;
+      contract.terminationReason = 'participant_missing';
+    });
+    return;
+  }
+  normalizeStats(supplier);
+  if (contract.buyerAutoFund) fundMarketReserveBatch(world, contract);
+  if (contract.supplierAutoReserve) reserveSupplierBatch(contract, supplier);
+
+  const gross = batchGross(contract);
+  const fundsReady = Boolean(gross && contract.buyerEscrowCredits >= gross);
+  const goodsReady = contract.supplierReservedQuantity >= contract.quantityPerDelivery;
+  contract.roundStatus = fundsReady && goodsReady ? 'ready' : contract.graceEndsAt ? 'grace' : 'preparing';
+  if (now < Number(contract.nextDueAt || Number.POSITIVE_INFINITY)) return;
+  if (fundsReady && goodsReady) {
+    settleMarketReserveBatch(world, contract, supplier, now, runtimeIndex);
+    return;
+  }
+  if (!contract.graceEndsAt) {
+    contract.graceEndsAt = now + gracePeriodFor(contract);
+    contract.roundStatus = 'grace';
+    return;
+  }
+  if (now < contract.graceEndsAt) return;
+  const defaultParty = goodsReady && !fundsReady
+    ? 'buyer'
+    : !goodsReady && fundsReady
+      ? 'supplier'
+      : 'both';
+  terminateMarketReserveForDefault(world, contract, supplier, defaultParty, now, runtimeIndex);
+}
+
 function releaseAllEscrow(contract, buyer, supplier) {
   releaseFrozenCredits(buyer, contract.buyerEscrowCredits);
   releaseFrozenCredits(buyer, contract.buyerBondCredits);
@@ -652,6 +879,10 @@ function processProductionContractsWithIndex(world, now = Date.now()) {
       processCommercialContract(world, contract, now, runtimeIndex);
       continue;
     }
+    if (contract.publisherType === 'market_reserve') {
+      processMarketReserveContract(world, contract, now, runtimeIndex);
+      continue;
+    }
     if (contract.renewalProposal?.status === 'proposed' && now >= Number(contract.renewalProposal.expiresAt || 0)) {
       runtimeIndex.transition(contract, () => releaseRenewalEscrow(
         contract,
@@ -669,6 +900,56 @@ function processProductionContractsWithIndex(world, now = Date.now()) {
 export function processProductionContracts(world, now = Date.now()) {
   processProductionContractsWithIndex(world, now);
   return world;
+}
+
+export function createMarketReserveProcurementContract(world, payload, now = Date.now()) {
+  migrateProductionContractWorld(world);
+  const groupId = String(payload?.groupId || '');
+  const group = world.marketDemand?.liquidity?.groups?.[groupId];
+  const productId = PRODUCT_IDS.has(String(payload?.productId || '')) ? String(payload.productId) : null;
+  const quantityPerDelivery = positiveInteger(payload?.quantityPerDelivery, MAX_QUANTITY);
+  const unitPrice = positiveMoney(payload?.unitPrice, MAX_UNIT_PRICE);
+  const deliveryIntervalMs = exactAllowedInteger(payload?.deliveryIntervalMs, PRODUCTION_CONTRACT_INTERVALS);
+  const totalDeliveries = positiveInteger(payload?.totalDeliveries, MAX_DELIVERIES);
+  const firstDeliveryDelayMs = exactAllowedInteger(payload?.firstDeliveryDelayMs, PRODUCTION_CONTRACT_FIRST_DELAYS);
+  if (!group || !productId || !quantityPerDelivery || !unitPrice || !deliveryIntervalMs || !totalDeliveries || firstDeliveryDelayMs === null) return null;
+  if (totalDeliveries < MIN_DELIVERIES) return null;
+  if ((world.productionContracts || []).some((contract) => (
+    contract.publisherType === 'market_reserve'
+      && contract.marketReserveGroupId === groupId
+      && contract.productId === productId
+      && ['open', 'active'].includes(contract.status)
+  ))) return null;
+  const groupName = String(payload?.groupName || groupId);
+  const offerTtlMs = Math.max(10 * 60 * 1000, Number(payload?.offerTtlMs || 60 * 60 * 1000));
+  const contract = normalizeContract({
+    id: `market-reserve-contract-${randomUUID()}`,
+    publisherId: 0,
+    publisherName: `${groupName}储备`,
+    publisherType: 'market_reserve',
+    fixedTerms: true,
+    marketReserveGroupId: groupId,
+    publisherRole: 'buyer',
+    buyerId: 0,
+    buyerName: `${groupName}储备`,
+    supplierId: null,
+    supplierName: null,
+    productId,
+    quantityPerDelivery,
+    unitPrice,
+    deliveryIntervalMs,
+    totalDeliveries,
+    completedDeliveries: 0,
+    firstDeliveryDelayMs,
+    createdAt: now,
+    offerExpiresAt: now + offerTtlMs,
+    buyerAutoFund: true,
+    supplierAutoReserve: true,
+    negotiations: [],
+    status: 'open',
+  });
+  world.productionContracts.push(contract);
+  return contract;
 }
 
 function createContract(world, user, payload, now, runtimeIndex) {
@@ -717,15 +998,46 @@ function createContract(world, user, payload, now, runtimeIndex) {
   return result(true, '长期供货合同已发布');
 }
 
+function acceptMarketReserveContract(world, contract, user, now, runtimeIndex) {
+  const supplier = playerFor(world, user.id);
+  const group = marketReserveGroupFor(world, contract);
+  const gross = batchGross(contract);
+  const bond = gross ? bondFor(gross) : null;
+  if (!supplier || !group || !gross || !bond) return result(false, '市场储备合同状态异常');
+  if (Number(group.credits || 0) < gross + bond) return result(false, '市场储备当前可用采购资金不足，请稍后再试');
+  if (Number(supplier.credits || 0) < bond) return result(false, `供应方需要至少 ¤${bond} 履约保证金`);
+
+  runtimeIndex.transition(contract, () => {
+    if (!holdMarketReserveCredits(group, gross + bond)) return;
+    supplier.credits = roundInternalMoney(Number(supplier.credits || 0) - bond) || 0;
+    supplier.frozenCredits = addMoney(supplier.frozenCredits, bond) || 0;
+    contract.supplierId = Number(supplier.userId);
+    contract.supplierName = supplier.playerName;
+    contract.buyerEscrowCredits = gross;
+    contract.buyerBondCredits = bond;
+    contract.supplierBondCredits = bond;
+    contract.acceptedAt = now;
+    contract.nextDueAt = now + contract.firstDeliveryDelayMs;
+    contract.status = 'active';
+    contract.roundStatus = 'preparing';
+    contract.negotiations = [];
+    reserveSupplierBatch(contract, supplier);
+    if (contract.supplierReservedQuantity >= contract.quantityPerDelivery) contract.roundStatus = 'ready';
+  });
+  return result(true, '市场储备采购合同已签订并进入履约');
+}
+
 function acceptContract(world, user, payload, now, runtimeIndex) {
   const contract = runtimeIndex.contractById(payload.contractId);
   if (!contract || contract.status !== 'open') return result(false, '合同不存在或已被承接');
   if (contract.publisherId === Number(user.id)) return result(false, '不能承接自己发布的合同');
   if (runtimeIndex.activeCountForParticipant(user.id) >= MAX_ACTIVE_CONTRACTS_PER_PLAYER) return result(false, '进行中的合同数量已达上限');
-  if (runtimeIndex.activeCountForParticipant(contract.publisherId) >= MAX_ACTIVE_CONTRACTS_PER_PLAYER) return result(false, '发布者进行中的合同数量已达上限');
+  if (contract.publisherType !== 'market_reserve'
+    && runtimeIndex.activeCountForParticipant(contract.publisherId) >= MAX_ACTIVE_CONTRACTS_PER_PLAYER) return result(false, '发布者进行中的合同数量已达上限');
   if (contract.kind !== 'supply') {
     return acceptCommercialContract(world, contract, user, now, runtimeIndex) || result(false, '合同类型不存在');
   }
+  if (contract.publisherType === 'market_reserve') return acceptMarketReserveContract(world, contract, user, now, runtimeIndex);
 
   const accepter = playerFor(world, user.id);
   const publisher = playerFor(world, contract.publisherId);
@@ -769,7 +1081,7 @@ function acceptContract(world, user, payload, now, runtimeIndex) {
 
 function openSupplyContract(runtimeIndex, contractId) {
   const contract = runtimeIndex.contractById(contractId);
-  return contract?.kind === 'supply' && contract.status === 'open' ? contract : null;
+  return contract?.kind === 'supply' && contract.status === 'open' && contract.fixedTerms !== true ? contract : null;
 }
 
 function negotiationFor(contract, negotiationId) {
@@ -918,6 +1230,7 @@ function setAutoMode(world, user, payload, field, role, runtimeIndex) {
 function proposeRenewal(world, user, payload, now, runtimeIndex) {
   const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
   if (!contract) return result(false, '进行中的合同不存在');
+  if (contract.fixedTerms) return result(false, '市场储备采购合同使用固定条款，不支持续签议价');
   const remaining = Math.max(0, contract.totalDeliveries - contract.completedDeliveries);
   if (remaining < 1 || remaining > RENEWAL_WINDOW_DELIVERIES) return result(false, '仅可在合同剩余三批以内提出续签');
   if (contract.graceEndsAt) return result(false, '宽限期内不能提出续签');
@@ -1020,6 +1333,24 @@ function requestTermination(world, user, payload, now, runtimeIndex) {
 function terminateNow(world, user, payload, now, runtimeIndex) {
   const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
   if (!contract) return result(false, '进行中的合同不存在');
+  if (contract.publisherType === 'market_reserve') {
+    const supplier = playerFor(world, contract.supplierId);
+    const group = marketReserveGroupFor(world, contract);
+    if (!supplier || !group || contract.supplierId !== Number(user.id)) return result(false, '市场储备合同参与者异常');
+    runtimeIndex.transition(contract, () => {
+      releaseMarketReserveCredits(group, addMoney(contract.buyerEscrowCredits, contract.buyerBondCredits));
+      transferPlayerBondToMarketReserve(supplier, group, contract.supplierBondCredits);
+      releaseSupplierGoods(contract, supplier);
+      contract.buyerEscrowCredits = 0;
+      contract.buyerBondCredits = 0;
+      contract.supplierBondCredits = 0;
+      contract.status = 'terminated';
+      contract.endedAt = now;
+      contract.terminationReason = 'immediate_by_participant';
+      normalizeStats(supplier).contractDefaults += 1;
+    });
+    return result(true, '合同已立即终止，供应方履约保证金已赔付市场储备');
+  }
   const buyer = playerFor(world, contract.buyerId);
   const supplier = playerFor(world, contract.supplierId);
   if (!buyer || !supplier) return result(false, '合同参与者不存在');
@@ -1076,6 +1407,21 @@ export function applyProductionContractAction(world, user, action, payload = {},
 function issueForContract(world, contract, runtimeIndex, userId = null) {
   if (contract.kind !== 'supply') return commercialIssue(contract);
   if (contract.status !== 'active') return null;
+  if (contract.publisherType === 'market_reserve') {
+    const supplier = playerFor(world, contract.supplierId);
+    const group = marketReserveGroupFor(world, contract);
+    const reserve = marketReserveProductFor(world, contract);
+    const gross = batchGross(contract) || 0;
+    if (!supplier || !group || !reserve) return '市场储备合同参与者异常';
+    if (contract.graceEndsAt) {
+      if (contract.supplierReservedQuantity < contract.quantityPerDelivery) return '供应方商品不足，正在宽限期';
+      if (contract.buyerEscrowCredits < gross) return '市场储备采购资金不足，正在宽限期';
+      return '宽限期内等待结算';
+    }
+    if (contract.supplierReservedQuantity < contract.quantityPerDelivery) return '等待供应方准备商品';
+    if (contract.buyerEscrowCredits < gross) return '等待市场储备补充本批采购资金';
+    return null;
+  }
   const buyer = playerFor(world, contract.buyerId);
   const supplier = playerFor(world, contract.supplierId);
   const gross = batchGross(contract) || 0;
@@ -1096,7 +1442,7 @@ function issueForContract(world, contract, runtimeIndex, userId = null) {
 }
 
 function publicNegotiations(world, contract, userId) {
-  if (contract.kind !== 'supply' || contract.status !== 'open') return [];
+  if (contract.kind !== 'supply' || contract.status !== 'open' || contract.fixedTerms) return [];
   const viewerId = Number(userId);
   const visible = contract.publisherId === viewerId
     ? contract.negotiations || []
@@ -1127,6 +1473,8 @@ function publicContract(world, contract, userId, runtimeIndex) {
     publisherSide: contract.publisherRole,
     publisherId: contract.publisherId,
     publisherName: contract.publisherName,
+    publisherType: contract.publisherType,
+    fixedTerms: contract.fixedTerms,
     publisherRole: contract.publisherRole,
     buyerId: contract.buyerId,
     buyerName: contract.buyerName,

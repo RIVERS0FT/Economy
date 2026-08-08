@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { isOpenOrder } from './order-identity.js';
 import { matchIncomingOrder } from './order-matching.js';
-import { LIQUIDITY_SIGNAL_WEIGHT } from './market-demand/catalog.js';
+import { LIQUIDITY_EMERGENCY_SIGNAL_WEIGHT, LIQUIDITY_SIGNAL_WEIGHT } from './market-demand/catalog.js';
 import { multiplyMoneyByInteger, roundInternalMoney } from './money.js';
 import {
   creditPopulationEmployment,
@@ -11,6 +11,7 @@ import {
 
 const LIQUIDITY_BUY = 'liquidity-buy';
 const LIQUIDITY_SELL = 'liquidity-sell';
+const LIQUIDITY_EMERGENCY_SELL = 'liquidity-emergency-sell';
 
 export function createBalancedMarketRuntime({ products, constants }) {
   const productMap = new Map(products.map((product) => [product.id, product]));
@@ -18,7 +19,9 @@ export function createBalancedMarketRuntime({ products, constants }) {
   const productFor = (productId) => productMap.get(String(productId || '')) || productMap.get('wheat');
   const isCommodityOwner = (order) => order?.ownerType === 'player' || order?.ownerType === 'population';
   const isLiquidityOrder = (order) => order?.ownerType === 'population'
-    && (order?.demandTier === LIQUIDITY_BUY || order?.demandTier === LIQUIDITY_SELL);
+    && [LIQUIDITY_BUY, LIQUIDITY_SELL, LIQUIDITY_EMERGENCY_SELL].includes(order?.demandTier);
+  const isEmergencyLiquidityOrder = (order) => order?.ownerType === 'population'
+    && order?.demandTier === LIQUIDITY_EMERGENCY_SELL;
   const isConsumptionOrder = (order) => order?.ownerType === 'population' && !isLiquidityOrder(order);
   const hasValidOwner = (world, order) => order?.ownerType !== 'player'
     || Boolean(world.players?.[String(order.ownerId)]);
@@ -200,12 +203,15 @@ export function createBalancedMarketRuntime({ products, constants }) {
         if (isConsumptionOrder(buy)) settlePopulationBuy(world, buy, quantity, price);
         if (buy.demandTier === LIQUIDITY_BUY) settleLiquidityBuy(world, buy, quantity, price);
         if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, sellerSettlement, createdAt);
-        if (sell.demandTier === LIQUIDITY_SELL) settleLiquiditySell(world, sell, quantity, price);
+        if ([LIQUIDITY_SELL, LIQUIDITY_EMERGENCY_SELL].includes(sell.demandTier)) settleLiquiditySell(world, sell, quantity, price);
       },
       recordTrade: ({ buy, sell, quantity, price, takerSide }) => {
         const liquidityTrade = isLiquidityOrder(buy) || isLiquidityOrder(sell);
         const consumptionTrade = !liquidityTrade && (isConsumptionOrder(buy) || isConsumptionOrder(sell));
-        const signalWeight = liquidityTrade ? LIQUIDITY_SIGNAL_WEIGHT : 1;
+        const emergencyLiquidityTrade = isEmergencyLiquidityOrder(buy) || isEmergencyLiquidityOrder(sell);
+        const signalWeight = emergencyLiquidityTrade
+          ? LIQUIDITY_EMERGENCY_SIGNAL_WEIGHT
+          : liquidityTrade ? LIQUIDITY_SIGNAL_WEIGHT : 1;
         const marketRole = liquidityTrade ? 'liquidity' : consumptionTrade ? 'consumption' : 'player';
         recordPrice(world, incoming.productId, price, quantity, takerSide, createdAt, signalWeight, marketRole);
       },

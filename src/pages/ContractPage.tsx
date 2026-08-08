@@ -132,6 +132,7 @@ function contractTitle(contract: Pick<ProductionContract, 'kind' | 'publisherSid
 }
 
 function RoleTag({ contract }: { contract: ProductionContract }) {
+  if (contract.publisherType === 'market_reserve') return <StatusTag tone="info">市场储备采购</StatusTag>;
   if (contract.kind === 'loan') {
     if (contract.isLender) return <StatusTag tone="success">我放贷</StatusTag>;
     if (contract.isBorrower) return <StatusTag tone="info">我贷款</StatusTag>;
@@ -197,6 +198,7 @@ interface ContractCardProps {
 
 
 function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
+  if (contract.fixedTerms) return null;
   const proposal = contract.renewalProposal;
   const remaining = Math.max(0, contract.totalDeliveries - contract.completedDeliveries);
   const eligible = !proposal
@@ -540,8 +542,10 @@ function OpenContractCard({ contract, productName, busy, run }: ContractCardProp
           <DataRow label="总批次" value={`${formatNumber(contract.totalDeliveries)} 批`} />
         </DataList>
       </div>
-      <p className="contract-offer-note">合同不会控制你的工厂或配方；你需要自行保证每批商品、资金和仓库条件。</p>
-      <ContractNegotiationSection contract={contract} busy={busy} run={run} />
+      <p className="contract-offer-note">{contract.fixedTerms
+        ? '市场储备采购使用固定条款，不参与议价；承接后仍按正式托管、履约保证金和交付规则结算。'
+        : '合同不会控制你的工厂或配方；你需要自行保证每批商品、资金和仓库条件。'}</p>
+      {contract.fixedTerms ? null : <ContractNegotiationSection contract={contract} busy={busy} run={run} />}
       <footer className="contract-card-actions">
         {contract.isPublisher ? (
           <Button variant="danger" disabled={busy} onClick={() => void run(`${contract.id}:cancel`, () => productionContractActions.cancel(contract.id))}>取消发布</Button>
