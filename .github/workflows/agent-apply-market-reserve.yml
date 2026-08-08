@@ -39,10 +39,11 @@ jobs:
               "assert.equal(world.productionContracts?.some((contract) => contract.publisherType === 'market_reserve'), false);",
               "assert.equal(Boolean(world.productionContracts?.some((contract) => contract.publisherType === 'market_reserve')), false);",
           )
-          path.write_text(source, encoding='utf-8')
+          Path('/tmp/apply_market_reserve.py').write_text(source, encoding='utf-8')
           PY
+          rm -rf .agent
       - name: Apply implementation patch
-        run: python3 .agent/apply_market_reserve.py
+        run: python3 /tmp/apply_market_reserve.py
       - name: Normalize generated test and authority wording
         run: |
           python3 - <<'PY'
@@ -88,6 +89,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -u -- .agent/apply_market_reserve.py
           git add -- \
             package.json \
             server/src/market-reserve-operations.js \
