@@ -20,7 +20,17 @@ export interface StatePatchMerge {
   state: EconomyState;
 }
 
+export interface StateAuthoritySnapshot {
+  revision: number | null;
+  state: EconomyState | null;
+  partitions: StatePartitionSnapshots;
+  changedPartitions: readonly StatePartitionName[];
+}
+
 export const STATE_PARTITION_NAMES: readonly StatePartitionName[];
+export function getStateAuthoritySnapshot(): StateAuthoritySnapshot;
+export function getStateAuthorityPartition(name: StatePartitionName): Partial<EconomyState> | null;
+export function subscribeStateAuthority(listener: () => void): () => void;
 export function mergeStatePatches(
   currentPartitions: StatePartitionSnapshots | undefined,
   patches: StatePartitionPatches | undefined,
@@ -28,6 +38,11 @@ export function mergeStatePatches(
 export function createStateDeliveryCache(): {
   reset(): void;
   getPartitionRevisions(): StatePartitionRevisions;
+  getSnapshot(): {
+    revision: number | null;
+    state: EconomyState | null;
+    partitions: StatePartitionSnapshots;
+  };
   accept<T extends StateDeliveryEnvelope>(payload: T): T & {
     state?: EconomyState;
     stateChanged: boolean;

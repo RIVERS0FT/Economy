@@ -1,4 +1,4 @@
-import { getOrderBookSide, recordOrderBookVisit } from '../order-book-runtime.js';
+import { iterateOrderBookSide, recordOrderBookVisit } from '../order-book-runtime.js';
 import { PRICE_WINDOW_MS } from './catalog.js';
 import { clamp } from './math.js';
 
@@ -36,7 +36,7 @@ export function createMarketSignalRuntime({ marketFor, isOpenOrder }) {
   }
 
   function orderBookQuote(world, product, depth, referencePrice) {
-    const asks = getOrderBookSide(world, {
+    const asks = iterateOrderBookSide(world, {
       assetKind: 'commodity',
       assetId: product.id,
       side: 'sell',

@@ -21,7 +21,11 @@ function assetKey(assetKind, assetId) {
 }
 
 function sideRecord() {
-  return { orders: [] };
+  return {
+    levels: new Map(),
+    sortedPrices: [],
+    openCount: 0,
+  };
 }
 
 function bookRecord() {
@@ -32,25 +36,132 @@ function sequenceFor(state, order) {
   return Number(state.sequenceByOrder.get(order) ?? Number.MAX_SAFE_INTEGER);
 }
 
-function compareForSide(state, side, left, right) {
-  const leftPrice = Number(left.price || 0);
-  const rightPrice = Number(right.price || 0);
-  if (leftPrice !== rightPrice) return side === 'buy' ? rightPrice - leftPrice : leftPrice - rightPrice;
+function compareWithinLevel(state, left, right) {
   const leftCreatedAt = Number(left.createdAt || 0);
   const rightCreatedAt = Number(right.createdAt || 0);
   if (leftCreatedAt !== rightCreatedAt) return leftCreatedAt - rightCreatedAt;
   return sequenceFor(state, left) - sequenceFor(state, right);
 }
 
-function insertSorted(state, record, side, order) {
+function comparePrice(side, left, right) {
+  return side === 'buy' ? right - left : left - right;
+}
+
+function insertPrice(record, side, price) {
   let low = 0;
-  let high = record.orders.length;
+  let high = record.sortedPrices.length;
   while (low < high) {
     const middle = Math.floor((low + high) / 2);
-    if (compareForSide(state, side, record.orders[middle], order) <= 0) low = middle + 1;
+    if (comparePrice(side, record.sortedPrices[middle], price) <= 0) low = middle + 1;
     else high = middle;
   }
-  record.orders.splice(low, 0, order);
+  record.sortedPrices.splice(low, 0, price);
+}
+
+function ensureLevel(record, side, price, { sorted = true } = {}) {
+  const normalizedPrice = Number(price || 0);
+  let level = record.levels.get(normalizedPrice);
+  if (level) return level;
+  level = {
+    price: normalizedPrice,
+    head: null,
+    tail: null,
+    count: 0,
+    totalQuantity: 0,
+  };
+  record.levels.set(normalizedPrice, level);
+  if (sorted) insertPrice(record, side, normalizedPrice);
+  else record.sortedPrices.push(normalizedPrice);
+  return level;
+}
+
+function registerNode(state, order, node) {
+  const nodes = state.nodesByOrder.get(order) || [];
+  nodes.push(node);
+  state.nodesByOrder.set(order, nodes);
+}
+
+function appendNode(level, node) {
+  node.prev = level.tail;
+  node.next = null;
+  if (level.tail) level.tail.next = node;
+  else level.head = node;
+  level.tail = node;
+  level.count += 1;
+}
+
+function insertNode(state, record, side, order, { sorted }) {
+  const level = ensureLevel(record, side, order.price, { sorted });
+  const node = { order, record, side, level, prev: null, next: null };
+  const remaining = Math.max(0, Number(order.remaining || 0));
+  level.totalQuantity += remaining;
+  record.openCount += 1;
+
+  if (!sorted || !level.tail || compareWithinLevel(state, level.tail.order, order) <= 0) {
+    appendNode(level, node);
+    registerNode(state, order, node);
+    return node;
+  }
+
+  let cursor = level.tail;
+  while (cursor && compareWithinLevel(state, cursor.order, order) > 0) cursor = cursor.prev;
+  if (!cursor) {
+    node.next = level.head;
+    if (level.head) level.head.prev = node;
+    else level.tail = node;
+    level.head = node;
+    level.count += 1;
+  } else {
+    node.prev = cursor;
+    node.next = cursor.next;
+    if (cursor.next) cursor.next.prev = node;
+    else level.tail = node;
+    cursor.next = node;
+    level.count += 1;
+  }
+  registerNode(state, order, node);
+  return node;
+}
+
+function removePrice(record, price) {
+  const index = record.sortedPrices.indexOf(price);
+  if (index >= 0) record.sortedPrices.splice(index, 1);
+  record.levels.delete(price);
+}
+
+function unlinkNode(node, remainingToRemove = 0) {
+  const { level, record } = node;
+  if (!level || !record) return;
+  if (node.prev) node.prev.next = node.next;
+  else if (level.head === node) level.head = node.next;
+  if (node.next) node.next.prev = node.prev;
+  else if (level.tail === node) level.tail = node.prev;
+  node.prev = null;
+  node.next = null;
+  level.count = Math.max(0, level.count - 1);
+  level.totalQuantity = Math.max(0, Number(level.totalQuantity || 0) - Math.max(0, Number(remainingToRemove || 0)));
+  record.openCount = Math.max(0, record.openCount - 1);
+  if (level.count === 0) removePrice(record, level.price);
+  node.level = null;
+  node.record = null;
+}
+
+function sortLevel(state, level) {
+  if (!level || level.count < 2) return;
+  const nodes = [];
+  for (let node = level.head; node; node = node.next) nodes.push(node);
+  nodes.sort((left, right) => compareWithinLevel(state, left.order, right.order));
+  level.head = nodes[0] || null;
+  level.tail = nodes[nodes.length - 1] || null;
+  for (let index = 0; index < nodes.length; index += 1) {
+    nodes[index].prev = nodes[index - 1] || null;
+    nodes[index].next = nodes[index + 1] || null;
+  }
+}
+
+function sortRecord(state, record, side) {
+  record.sortedPrices = [...new Set(record.sortedPrices)].sort((left, right) => comparePrice(side, left, right));
+  for (const level of record.levels.values()) sortLevel(state, level);
 }
 
 function ownerBookFor(state, ownerId, key) {
@@ -112,8 +223,7 @@ function addOpenOrder(state, order, { sorted }) {
     book = bookRecord();
     state.books.set(key, book);
   }
-  if (sorted) insertSorted(state, book[side], side, order);
-  else book[side].orders.push(order);
+  insertNode(state, book[side], side, order, { sorted });
 
   if (order.ownerType === 'player' && Number.isFinite(Number(order.ownerId))) {
     const ownerId = Number(order.ownerId);
@@ -122,11 +232,8 @@ function addOpenOrder(state, order, { sorted }) {
     state.ownerOrders.set(ownerId, ownerOrders);
     adjustMapValue(state.ownerOpenOrderCounts, ownerId, 1);
     adjustOwnerQuantityAggregates(state, order, Math.max(0, Number(order.remaining || 0)));
-    const ownerRecord = ownerBookFor(state, ownerId, key)[side];
-    if (sorted) insertSorted(state, ownerRecord, side, order);
-    else ownerRecord.orders.push(order);
+    insertNode(state, ownerBookFor(state, ownerId, key)[side], side, order, { sorted });
   }
-
 }
 
 function addOrder(state, order, sequence, { sorted }) {
@@ -142,57 +249,42 @@ function addOrder(state, order, sequence, { sorted }) {
   addOpenOrder(state, order, { sorted });
 }
 
-function sortBook(state, book) {
-  book.buy.orders.sort((left, right) => compareForSide(state, 'buy', left, right));
-  book.sell.orders.sort((left, right) => compareForSide(state, 'sell', left, right));
-}
-
 function finalizeRuntimeBooks(state) {
-  for (const book of state.books.values()) sortBook(state, book);
+  for (const book of state.books.values()) {
+    sortRecord(state, book.buy, 'buy');
+    sortRecord(state, book.sell, 'sell');
+  }
   for (const assets of state.ownerBooks.values()) {
-    for (const book of assets.values()) sortBook(state, book);
+    for (const book of assets.values()) {
+      sortRecord(state, book.buy, 'buy');
+      sortRecord(state, book.sell, 'sell');
+    }
   }
 }
 
 function retireOpenOrder(state, order, { quantityAlreadyAdjusted = false } = {}) {
   if (!state.openOrders.has(order)) return false;
   state.openOrders.delete(order);
+  const remaining = quantityAlreadyAdjusted ? 0 : Math.max(0, Number(order.remaining || 0));
+  for (const node of state.nodesByOrder.get(order) || []) unlinkNode(node, remaining);
+  state.nodesByOrder.delete(order);
 
   if (order.ownerType === 'player' && Number.isFinite(Number(order.ownerId))) {
     const ownerId = Number(order.ownerId);
     adjustMapValue(state.ownerOpenOrderCounts, ownerId, -1);
-    if (!quantityAlreadyAdjusted) {
-      adjustOwnerQuantityAggregates(state, order, -Math.max(0, Number(order.remaining || 0)));
-    }
+    if (!quantityAlreadyAdjusted) adjustOwnerQuantityAggregates(state, order, -remaining);
     const ownerOrders = state.ownerOrders.get(ownerId);
     ownerOrders?.delete(order);
     if (ownerOrders?.size === 0) state.ownerOrders.delete(ownerId);
   }
-
   return true;
-}
-
-function compactClosedOrders(state, record) {
-  if (!record || record.orders.length === 0) return record?.orders || EMPTY_ORDERS;
-  let writeIndex = 0;
-  for (let readIndex = 0; readIndex < record.orders.length; readIndex += 1) {
-    const order = record.orders[readIndex];
-    if (!isOpenOrder(order)) {
-      retireOpenOrder(state, order);
-      continue;
-    }
-    record.orders[writeIndex] = order;
-    writeIndex += 1;
-  }
-  if (writeIndex !== record.orders.length) record.orders.length = writeIndex;
-  return record.orders;
 }
 
 function compactOwnerOrders(state, ownerId) {
   const normalizedOwnerId = Number(ownerId);
   const orders = state.ownerOrders.get(normalizedOwnerId);
   if (!orders) return;
-  for (const order of orders) {
+  for (const order of [...orders]) {
     if (!isOpenOrder(order)) retireOpenOrder(state, order);
   }
 }
@@ -206,6 +298,7 @@ function buildRuntime(world) {
     sequenceByOrder: new WeakMap(),
     byId: new Map(),
     openOrders: new WeakSet(),
+    nodesByOrder: new WeakMap(),
     books: new Map(),
     ownerBooks: new Map(),
     ownerOrders: new Map(),
@@ -262,6 +355,25 @@ function recordFor(world, assetKind, assetId, side, ownerId = null) {
   return { state, record: book[side] };
 }
 
+function* iterateRecord(state, record) {
+  if (!record) return;
+  for (const price of [...record.sortedPrices]) {
+    const level = record.levels.get(price);
+    if (!level) continue;
+    let node = level.head;
+    while (node) {
+      const current = node;
+      node = node.next;
+      const order = current.order;
+      if (!isOpenOrder(order)) {
+        retireOpenOrder(state, order);
+        continue;
+      }
+      yield order;
+    }
+  }
+}
+
 export function invalidateOrderBookRuntime(world) {
   runtimeByWorld.delete(world);
 }
@@ -283,7 +395,12 @@ export function recordOrderBookReduction(world, order, quantity) {
   const state = runtimeFor(world);
   if (!state.openOrders.has(order)) return;
   const reduction = Math.max(0, Number(quantity) || 0);
-  if (reduction > 0) adjustOwnerQuantityAggregates(state, order, -reduction);
+  if (reduction > 0) {
+    adjustOwnerQuantityAggregates(state, order, -reduction);
+    for (const node of state.nodesByOrder.get(order) || []) {
+      if (node.level) node.level.totalQuantity = Math.max(0, Number(node.level.totalQuantity || 0) - reduction);
+    }
+  }
   if (!isOpenOrder(order)) retireOpenOrder(state, order, { quantityAlreadyAdjusted: true });
 }
 
@@ -291,14 +408,45 @@ export function closeOrderInOrderBook(world, order) {
   retireOpenOrder(runtimeFor(world), order);
 }
 
-export function getOrderBookSide(world, { assetKind = 'commodity', assetId, side }) {
+export function iterateOrderBookSide(world, { assetKind = 'commodity', assetId, side }) {
   const { state, record } = recordFor(world, assetKind, assetId, side);
-  return record ? compactClosedOrders(state, record) : EMPTY_ORDERS;
+  return iterateRecord(state, record);
+}
+
+export function getOrderBookSide(world, { assetKind = 'commodity', assetId, side }) {
+  return [...iterateOrderBookSide(world, { assetKind, assetId, side })];
 }
 
 export function getOwnerOrderBookSide(world, ownerId, { assetKind = 'commodity', assetId, side }) {
   const { state, record } = recordFor(world, assetKind, assetId, side, ownerId);
-  return record ? compactClosedOrders(state, record) : EMPTY_ORDERS;
+  return record ? [...iterateRecord(state, record)] : EMPTY_ORDERS;
+}
+
+export function getOrderBookDepth(world, { assetKind = 'commodity', assetId, side, limit = 5 }) {
+  const { state, record } = recordFor(world, assetKind, assetId, side);
+  if (!record) return EMPTY_ORDERS;
+  const levels = [];
+  const normalizedLimit = Math.max(1, Math.floor(Number(limit) || 5));
+  for (const price of [...record.sortedPrices]) {
+    const level = record.levels.get(price);
+    if (!level) continue;
+    let quantity = 0;
+    let orderCount = 0;
+    let node = level.head;
+    while (node) {
+      const current = node;
+      node = node.next;
+      if (!isOpenOrder(current.order)) {
+        retireOpenOrder(state, current.order);
+        continue;
+      }
+      quantity += Math.max(0, Number(current.order.remaining || 0));
+      orderCount += 1;
+    }
+    if (orderCount > 0) levels.push({ price, quantity, orderCount });
+    if (levels.length >= normalizedLimit) break;
+  }
+  return levels;
 }
 
 export function orderById(world, orderId) {
@@ -330,9 +478,8 @@ export function facilitySellQuantityForOwner(world, ownerId, facilityTypeId) {
 }
 
 export function bestSystemOrder(world, assetKind, assetId, side) {
-  const orders = getOrderBookSide(world, { assetKind, assetId, side });
   let visited = 0;
-  for (const order of orders) {
+  for (const order of iterateOrderBookSide(world, { assetKind, assetId, side })) {
     visited += 1;
     if (order.ownerType === 'population') {
       recordOrderBookVisit(world, visited);

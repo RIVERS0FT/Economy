@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util';
+import { processBankWorld } from './banking.js';
 import {
   applyPopulationPolicy,
   createPopulationAdminSummary,
@@ -15,15 +16,37 @@ import {
   processProductionContracts,
 } from './contracts.js';
 import { configureContractAuditStore } from './contract-audit-store.js';
+import {
+  assertEconomicStateInvariants,
+  beginEconomicSavepoint,
+  createEconomicActionBoundary,
+} from './economic-mutation.js';
 import { ensureGemState } from './invitations.js';
+import { processLeaderboardWorld } from './leaderboards.js';
 import { configurePlayerAdminStatistics } from './player-admin-statistics.js';
+import { processResearchWorld } from './research.js';
+import { executeRuntimeAction } from './runtime-action-executor.js';
 import { ensureWarehouse } from './warehouse.js';
 import { createEconomicCalendarClientState } from './economic-events.js';
 import { flushAuctionAuditEvents } from './auction-audit-store.js';
 import { measureRequestPhase, setRequestGauge } from './request-performance.js';
 import { createStatePartitionSnapshot } from './state-partitions.js';
+import { processWeeklyCashSettlementWorld } from './weekly-cash-settlement.js';
+import {
+  dueWorldDeadlineDomains,
+  worldDeadlineRuntimeFor,
+} from './world-deadline-runtime.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+const WORLD_PROCESS_INTERVAL_MS = 1_000;
+const ECONOMY_DEADLINE_DOMAINS = new Set([
+  'facility',
+  'market',
+  'auction',
+  'leaderboard',
+  'checkIn',
+  'orderPrune',
+]);
 const CONTRACT_ACTIONS = new Set([
   'createProductionContract',
   'acceptProductionContract',
@@ -154,6 +177,11 @@ function filterStateForCurrentSave(state, world, userId) {
   return filtered;
 }
 
+function anyDueDomain(domains, candidates) {
+  for (const domain of domains) if (candidates.has(domain)) return true;
+  return false;
+}
+
 // Runtime policy mutations intentionally bypass the legacy population-policy audit table.
 // The table remains readable only for backward-compatible retention of historical rows.
 export class EconomyStore extends PersistentEconomyStore {
@@ -161,6 +189,45 @@ export class EconomyStore extends PersistentEconomyStore {
     super(...args);
     configureContractAuditStore(this);
     configurePlayerAdminStatistics(this);
+  }
+
+  scheduleWorldProcessing() {
+    if (!this.scheduledProcessing || this.schedulerClosed) return null;
+    this.clearWorldProcessingTimer();
+    const now = Math.max(0, Number(this.nowProvider()) || 0);
+    const planned = this.worldCache
+      ? worldDeadlineRuntimeFor(this).planFor(
+        this.worldCache.world,
+        this.worldCache.revision,
+        now,
+      ).nextDueAt
+      : now;
+    if (planned === null) {
+      this.nextWorldProcessingAt = Number.POSITIVE_INFINITY;
+      this.schedulerDiagnostics.nextDueAt = null;
+      return null;
+    }
+    const dueAt = Math.max(Number(planned), Number(this.schedulerNotBefore || 0));
+    this.nextWorldProcessingAt = dueAt;
+    this.schedulerDiagnostics.nextDueAt = dueAt;
+    this.schedulerDiagnostics.schedules += 1;
+    const generation = ++this.schedulerGeneration;
+    const delay = Math.min(this.schedulerMaxDelayMs, Math.max(0, dueAt - now));
+    this.processingTimer = this.setTimeoutFn(() => this.handleScheduledWorldWake(generation), delay);
+    this.processingTimer?.unref?.();
+    return dueAt;
+  }
+
+  getSchedulerDiagnostics() {
+    return {
+      ...super.getSchedulerDiagnostics(),
+      deadlineRuntime: worldDeadlineRuntimeFor(this).getDiagnostics(),
+    };
+  }
+
+  resetSchedulerDiagnostics() {
+    super.resetSchedulerDiagnostics();
+    worldDeadlineRuntimeFor(this).resetDiagnostics();
   }
 
   createClientPartitionSnapshot(state) {
@@ -216,14 +283,69 @@ export class EconomyStore extends PersistentEconomyStore {
   }
 
   processWorldIfDue(world, now, currentUserId, options = {}) {
-    const beforeContracts = contractSnapshot(world);
-    const processed = super.processWorldIfDue(world, now, currentUserId, options);
-    if (processed) {
-      processProductionContracts(world, now);
-      this.captureContractAuditTransition(beforeContracts, world, {
-        triggerType: options.auditTrigger || (currentUserId === undefined ? 'scheduler' : 'request_world_process'),
-        now,
-      });
+    const explicitForceDomains = Array.isArray(options.forceDomains);
+    if (options.force && !explicitForceDomains && currentUserId !== undefined) {
+      const beforeContracts = contractSnapshot(world);
+      const processed = super.processWorldIfDue(world, now, currentUserId, options);
+      if (processed) {
+        processProductionContracts(world, now);
+        this.captureContractAuditTransition(beforeContracts, world, {
+          triggerType: options.auditTrigger || 'request_world_process',
+          now,
+        });
+        assertEconomicStateInvariants(world);
+      }
+      worldDeadlineRuntimeFor(this).recordDueDomains(processed ? ['legacy-force'] : []);
+      return processed;
+    }
+
+    const runtime = worldDeadlineRuntimeFor(this);
+    const plan = runtime.planFor(world, this.worldCache?.revision, now, { force: true });
+    const dueDomains = new Set(dueWorldDeadlineDomains(plan, now));
+    for (const domain of options.forceDomains || []) dueDomains.add(String(domain));
+    if (!options.force && now < this.nextWorldProcessingAt && dueDomains.size === 0) return false;
+    if (dueDomains.size === 0) {
+      runtime.recordDueDomains([]);
+      return false;
+    }
+
+    let processed = false;
+    measureRequestPhase('worldProcessMs', () => {
+      if (anyDueDomain(dueDomains, ECONOMY_DEADLINE_DOMAINS)) {
+        processLeaderboardWorld(world, now, {
+          onGemReward: (reward) => this.recordGemLedgerEvent(reward),
+        });
+        processed = true;
+      }
+      if (dueDomains.has('bank')) {
+        processBankWorld(world, now);
+        processed = true;
+      }
+      if (dueDomains.has('weeklyCashSettlement')) {
+        processWeeklyCashSettlementWorld(world, now);
+        processed = true;
+      }
+      if (dueDomains.has('research')) {
+        processResearchWorld(world, now);
+        processed = true;
+      }
+      if (dueDomains.has('contract')) {
+        const beforeContracts = contractSnapshot(world);
+        processProductionContracts(world, now);
+        this.captureContractAuditTransition(beforeContracts, world, {
+          triggerType: options.auditTrigger || (currentUserId === undefined ? 'scheduler' : 'request_world_process'),
+          now,
+        });
+        processed = true;
+      }
+    });
+
+    if (processed) assertEconomicStateInvariants(world);
+    runtime.recordDueDomains([...dueDomains]);
+    if (this.scheduledProcessing) {
+      this.schedulerNotBefore = Math.max(this.schedulerNotBefore, now + WORLD_PROCESS_INTERVAL_MS);
+    } else {
+      this.nextWorldProcessingAt = now + WORLD_PROCESS_INTERVAL_MS;
     }
     return processed;
   }
@@ -286,7 +408,7 @@ export class EconomyStore extends PersistentEconomyStore {
   }
 
   apply(user, requestMeta, now = Date.now()) {
-    if (!CONTRACT_ACTIONS.has(requestMeta.action)) return super.apply(user, requestMeta, now);
+    if (!CONTRACT_ACTIONS.has(requestMeta.action)) return executeRuntimeAction(this, user, requestMeta, now);
 
     const {
       action,
@@ -308,15 +430,36 @@ export class EconomyStore extends PersistentEconomyStore {
         return createActionAcknowledgement(cachedResponse.result, cachedResponse.revision);
       }
 
-      const { revision, world } = this.loadWorld(now);
+      const { revision, stateJson, world } = this.loadWorld(now);
       const player = ensurePlayer(world, user, now);
       ensureWarehouse(player);
       ensureGemState(player);
-      this.processWorldIfDue(world, now, Number(user.id), { force: true, auditTrigger: 'action_preprocess' });
+      this.processWorldIfDue(world, now, Number(user.id), {
+        force: true,
+        forceDomains: [],
+        auditTrigger: 'action_preprocess',
+      });
 
-      const beforeActionPlayer = structuredClone(world.players[String(user.id)]);
-      const beforeActionContracts = contractSnapshot(world);
-      const gameResult = applyProductionContractAction(world, user, action, payload, now);
+      const boundary = createEconomicActionBoundary(world);
+      const savepoint = beginEconomicSavepoint(this, 'economy_contract_action');
+      const beforeActionPlayer = boundary.playerBefore(user.id);
+      const beforeActionContracts = structuredClone(boundary.snapshot.productionContracts || []);
+      let gameResult;
+      try {
+        gameResult = applyProductionContractAction(world, user, action, payload, now);
+        if (gameResult?.ok) {
+          boundary.assert();
+          savepoint.release();
+        } else {
+          savepoint.rollback();
+          boundary.rollback();
+        }
+      } catch (error) {
+        try { savepoint.rollback(); } catch { /* outer transaction remains authoritative */ }
+        boundary.rollback();
+        throw error;
+      }
+
       const activePlayer = world.players[String(user.id)];
       const actionChanged = activePlayer && (
         !isDeepStrictEqual(activePlayer, beforeActionPlayer)
@@ -342,9 +485,10 @@ export class EconomyStore extends PersistentEconomyStore {
         requestKey,
         now,
       });
+      assertEconomicStateInvariants(world);
       ensureWarehouse(world.players[String(user.id)]);
       ensureGemState(world.players[String(user.id)]);
-      const nextRevision = this.saveWorld(revision, world, now);
+      const nextRevision = this.saveWorldIfChanged(revision, world, now, stateJson);
       const response = createActionAcknowledgement(gameResult, nextRevision);
       this.insertIdempotency.run(
         Number(user.id),

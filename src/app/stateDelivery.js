@@ -13,6 +13,15 @@ export const STATE_PARTITION_NAMES = Object.freeze([
   'leaderboard',
 ]);
 
+const EMPTY_AUTHORITY_SNAPSHOT = Object.freeze({
+  revision: null,
+  state: null,
+  partitions: Object.freeze({}),
+  changedPartitions: Object.freeze([]),
+});
+let authoritySnapshot = EMPTY_AUTHORITY_SNAPSHOT;
+const authorityListeners = new Set();
+
 function validRevision(value) {
   return Number.isInteger(value) && value >= 0;
 }
@@ -36,6 +45,30 @@ function changedPartitionNames(patches) {
 
 function describeVersion(value) {
   return Number.isInteger(value) ? String(value) : '无效值';
+}
+
+function publishAuthority(revision, state, partitions, changedPartitions) {
+  authoritySnapshot = {
+    revision: validRevision(revision) ? revision : null,
+    state: state || null,
+    partitions: { ...(partitions || {}) },
+    changedPartitions: Object.freeze([...(changedPartitions || [])]),
+  };
+  for (const listener of [...authorityListeners]) listener();
+}
+
+export function getStateAuthoritySnapshot() {
+  return authoritySnapshot;
+}
+
+export function getStateAuthorityPartition(name) {
+  return authoritySnapshot.partitions?.[name] || null;
+}
+
+export function subscribeStateAuthority(listener) {
+  if (typeof listener !== 'function') return () => {};
+  authorityListeners.add(listener);
+  return () => authorityListeners.delete(listener);
 }
 
 export function mergeStatePatches(currentPartitions, patches) {
@@ -83,9 +116,17 @@ export function createStateDeliveryCache() {
       revision = null;
       partitionRevisions = {};
       partitions = {};
+      publishAuthority(null, null, {}, []);
     },
     getPartitionRevisions() {
       return { ...partitionRevisions };
+    },
+    getSnapshot() {
+      return {
+        revision,
+        state,
+        partitions: { ...partitions },
+      };
     },
     accept(payload) {
       if (!payload || typeof payload !== 'object' || !validRevision(payload.revision)) return payload;
@@ -103,6 +144,7 @@ export function createStateDeliveryCache() {
         state = merged.state;
       }
       revision = payload.revision;
+      publishAuthority(revision, state, partitions, changedPartitions);
       const acceptance = {
         ...payload,
         stateChanged: changedPartitions.length > 0,

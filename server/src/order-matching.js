@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
 import { centsToPlayerMoney, multiplyMoneyByInteger, playerMoneyToCents } from './money.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
-import { getOrderBookSide, recordOrderBookReduction, recordOrderBookVisit } from './order-book-runtime.js';
+import { iterateOrderBookSide, recordOrderBookReduction, recordOrderBookVisit } from './order-book-runtime.js';
 
 const MAX_PLAYER_FILLS = 120;
 
@@ -67,21 +67,21 @@ export function matchIncomingOrder({
   const oppositeSide = incoming.side === 'buy' ? 'sell' : incoming.side === 'sell' ? 'buy' : null;
   if (!oppositeSide || !incomingAssetId) return { fillCount: 0, filledQuantity: 0 };
 
-  const candidates = getOrderBookSide(world, {
-  assetKind: incomingKind,
-  assetId: incomingAssetId,
-  side: oppositeSide,
-});
+  const candidates = iterateOrderBookSide(world, {
+    assetKind: incomingKind,
+    assetId: incomingAssetId,
+    side: oppositeSide,
+  });
 
-let fillCount = 0;
-let filledQuantity = 0;
-let visited = 0;
-for (const resting of candidates) {
-  if (!isOpenOrder(incoming)) break;
-  visited += 1;
-  if (resting.id === incoming.id || !isOpenOrder(resting)) continue;
-  if (!orderPricesCross(incoming.side, incoming.price, resting.price)) break;
-  if (samePlayer(incoming, resting) || !canMatch({ world, incoming, resting })) continue;
+  let fillCount = 0;
+  let filledQuantity = 0;
+  let visited = 0;
+  for (const resting of candidates) {
+    if (!isOpenOrder(incoming)) break;
+    visited += 1;
+    if (resting.id === incoming.id || !isOpenOrder(resting)) continue;
+    if (!orderPricesCross(incoming.side, incoming.price, resting.price)) break;
+    if (samePlayer(incoming, resting) || !canMatch({ world, incoming, resting })) continue;
 
     const quantity = Math.min(Number(incoming.remaining), Number(resting.remaining));
     if (!Number.isFinite(quantity) || quantity <= 0) continue;
