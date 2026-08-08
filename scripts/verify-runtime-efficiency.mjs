@@ -63,7 +63,7 @@ requireText('server/src/storage.js', [
 assert.doesNotMatch(read('server/src/storage.js'), /setInterval\(/, '正式世界调度不得恢复固定 setInterval');
 assert.equal(read('server/src/storage.js').includes('prepareWorldForStorage'), false, '热保存不得恢复完整冷加载迁移入口');
 const storageApply = read('server/src/storage.js').slice(read('server/src/storage.js').indexOf('  apply(user,'), read('server/src/storage.js').indexOf('  requireAdmin(user)'));
-assert.equal((storageApply.match(/processWorldIfDue\(/g) || []).length, 1, '普通动作只允许一次全局到期推进');
+assert.equal((storageApply.match(/processWorldIfDue\(/g) || []).length, 1, '兼容普通动作入口只允许一次权威到期推进调用');
 assert.equal((storageApply.match(/normalizeWorldMoneyPrecision\(world\)/g) || []).length, 0, '普通动作不得在最终保存前重复全世界资金扫描');
 assert.equal((storageApply.match(/cleanupExpiredIdempotency\(now\)/g) || []).length, 1, '普通动作必须使用门控幂等清理');
 requireText('server/src/index.js', [
@@ -315,7 +315,7 @@ requireText('docs/README.md', [
   '`DatabaseSync` 的 5 秒超时是 SQLite 锁等待上限',
   '不得记录 Cookie、请求体、玩家资产或其他敏感内容',
   '世界冷加载迁移与热保存必须分离',
-  '普通动作热路径只允许一次全局到期推进',
+  '只按实际到期领域推进',
   '幂等记录过期清理最多每 5 分钟执行一次',
   '最终客户端状态必须在运行时存储层直接形成六分区快照',
   '目录分区固定为进程内共享静态快照',
@@ -353,4 +353,4 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '优雅关闭必须先停止 HTTP 接收与世界调度',
 ]);
 
-console.log('运行时效率验证通过：自适应轮询、到期驱动调度、无变化动作不写世界、合同审计事务与缓存顺序、单一混合订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');
+console.log('运行时效率验证通过：自适应轮询、按到期领域调度、无变化动作不写世界、合同审计事务与缓存顺序、单一混合订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');
