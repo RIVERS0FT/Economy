@@ -284,13 +284,13 @@ export class EconomyStore extends PersistentEconomyStore {
 
   processWorldIfDue(world, now, currentUserId, options = {}) {
     const explicitForceDomains = Array.isArray(options.forceDomains);
-    if (options.force && !explicitForceDomains) {
+    if (options.force && !explicitForceDomains && currentUserId !== undefined) {
       const beforeContracts = contractSnapshot(world);
       const processed = super.processWorldIfDue(world, now, currentUserId, options);
       if (processed) {
         processProductionContracts(world, now);
         this.captureContractAuditTransition(beforeContracts, world, {
-          triggerType: options.auditTrigger || (currentUserId === undefined ? 'scheduler' : 'request_world_process'),
+          triggerType: options.auditTrigger || 'request_world_process',
           now,
         });
         assertEconomicStateInvariants(world);
