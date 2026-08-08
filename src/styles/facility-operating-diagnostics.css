@@ -1,5 +1,7 @@
 .facility-operating-diagnostics {
+  min-width: 0;
   display: grid;
+  align-content: start;
   gap: var(--space-3);
 }
 
@@ -7,6 +9,7 @@
 .facility-operating-diagnostics__heading > div,
 .facility-operating-diagnostics__inputs > div,
 .facility-operating-diagnostics__markets > div {
+  min-width: 0;
   display: flex;
   align-items: center;
 }
@@ -25,38 +28,43 @@
 .facility-operating-diagnostics__heading small,
 .facility-operating-diagnostics__metrics small,
 .facility-operating-diagnostics__inputs small {
-  color: var(--text-muted);
+  color: var(--color-text-muted);
 }
 
 .facility-operating-diagnostics__heading > span {
-  color: var(--text-warning);
+  flex: 0 0 auto;
+  color: var(--color-warning);
   font-weight: 700;
+  text-align: right;
 }
 
 .facility-operating-diagnostics__metrics {
+  min-width: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-2);
 }
 
 .facility-operating-diagnostics__metrics > div {
-  display: grid;
-  gap: var(--space-1);
   min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
   padding: var(--space-2);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-surface-soft) 72%, var(--color-surface-inset));
 }
 
 .facility-operating-diagnostics__metrics > div > span,
 .facility-operating-diagnostics__markets > div > span:first-child {
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   font-size: var(--font-size-xs);
 }
 
 .facility-operating-diagnostics__inputs,
 .facility-operating-diagnostics__markets {
+  min-width: 0;
   display: grid;
   gap: var(--space-2);
 }
@@ -64,27 +72,33 @@
 .facility-operating-diagnostics__inputs > div,
 .facility-operating-diagnostics__markets > div {
   gap: var(--space-2);
-  min-width: 0;
 }
 
-.facility-operating-diagnostics__inputs img,
-.facility-operating-diagnostics__markets img {
+.facility-operating-diagnostics .product-artwork {
   width: 28px;
   height: 28px;
   flex: 0 0 28px;
 }
 
 .facility-operating-diagnostics__inputs > div > span:nth-of-type(1) {
-  display: grid;
   min-width: 0;
+  display: grid;
   margin-right: auto;
+}
+
+.facility-operating-diagnostics__inputs > div > span:last-child {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .facility-operating-diagnostics__markets > div > strong {
+  min-width: 0;
   margin-right: auto;
+  overflow-wrap: anywhere;
 }
 
 .facility-operating-diagnostics__market-price {
+  flex: 0 0 auto;
   white-space: nowrap;
 }
 
@@ -93,16 +107,65 @@
 }
 
 @media (max-width: 720px) {
+  .facility-operating-diagnostics {
+    gap: var(--space-2);
+  }
+
+  .facility-operating-diagnostics__heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--space-2);
+  }
+
+  .facility-operating-diagnostics__heading > span {
+    max-width: 7.5rem;
+    white-space: normal;
+  }
+
   .facility-operating-diagnostics__metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .facility-operating-diagnostics__heading {
-    align-items: flex-start;
+
+  .facility-operating-diagnostics__metrics > div {
+    min-height: 4.5rem;
   }
+
+  .facility-operating-diagnostics__inputs > div {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-1) var(--space-2);
+  }
+
+  .facility-operating-diagnostics__inputs > div > span:nth-of-type(1) {
+    margin-right: 0;
+  }
+
+  .facility-operating-diagnostics__inputs > div > span:last-child {
+    justify-self: end;
+    text-align: right;
+  }
+
   .facility-operating-diagnostics__markets > div {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-1) var(--space-2);
   }
+
+  .facility-operating-diagnostics__markets > div > strong {
+    margin-right: 0;
+  }
+
+  .facility-operating-diagnostics__market-price {
+    justify-self: end;
+    text-align: right;
+  }
+
   .facility-operating-diagnostics__contract-link {
-    margin-left: auto;
+    grid-column: 3 / -1;
+    justify-self: end;
+    margin-left: 0;
   }
 }

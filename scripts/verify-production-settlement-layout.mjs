@@ -8,6 +8,8 @@ const richSelect = read('src/components/ui/RichSelectInput.tsx');
 const productArtwork = read('src/components/products/ProductArtwork.tsx');
 const formulaCss = read('src/styles/facility-production-formula.css');
 const groupCss = read('src/styles/facility-group-card-grid.css');
+const diagnosticsCss = read('src/styles/facility-operating-diagnostics.css');
+const mobileDetailCss = read('src/styles/mobile-detail-sheet.css');
 const controlsCss = read('src/styles/form-controls.css');
 const artworkCss = read('src/styles/product-artwork.css');
 const profitCss = read('src/styles/facility-recipe-profit-analysis.css');
@@ -93,7 +95,9 @@ for (const forbidden of [
   '.facility-formula-meta-divider',
   'grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);',
   '.facility-formula-separator',
-  '  .facility-formula-meta {\n    width: 100%;\n  }',
+  '  .facility-formula-meta {\
+    width: 100%;\
+  }',
 ]) assert.equal(formulaCss.includes(forbidden), false, `生产结算样式不得包含: ${forbidden}`);
 for (const forbidden of [
   '@container (max-width: 519px)',
@@ -101,6 +105,30 @@ for (const forbidden of [
   'grid-area: output;',
   '.facility-formula-center',
 ]) assert.equal(groupCss.includes(forbidden), false, `工厂主从样式不得控制生产结算内部网格: ${forbidden}`);
+
+for (const text of [
+  'grid-template-columns: minmax(0, 1fr);',
+  'grid-auto-rows: max-content;',
+  'align-items: start;',
+  '.mobile-detail-sheet-scroll > * {',
+  '.mobile-detail-sheet .mobile-detail-section {',
+]) assert.equal(mobileDetailCss.includes(text), true, `移动详情正文纵向流缺少: ${text}`);
+
+for (const text of [
+  '.facility-operating-diagnostics .product-artwork {',
+  'grid-template-columns: repeat(2, minmax(0, 1fr));',
+  'background: color-mix(in srgb, var(--color-surface-soft) 72%, var(--color-surface-inset));',
+  'grid-template-columns: auto minmax(0, 1fr) auto;',
+  'grid-template-columns: auto auto minmax(0, 1fr) auto;',
+  'grid-column: 3 / -1;',
+]) assert.equal(diagnosticsCss.includes(text), true, `经营诊断响应式样式缺少: ${text}`);
+for (const forbidden of [
+  'var(--text-muted)',
+  'var(--text-warning)',
+  'var(--border-subtle)',
+  'var(--surface-muted)',
+  'var(--radius-md)',
+]) assert.equal(diagnosticsCss.includes(forbidden), false, `经营诊断不得恢复失效设计令牌: ${forbidden}`);
 
 for (const text of [
   'export function RichSelectInput',
@@ -161,9 +189,14 @@ for (const text of [
   'expect(Math.abs(costBox.y - cycleBox.y)).toBeLessThanOrEqual(1)',
   'expect(Math.abs(inputBox.y - outputBox.y)).toBeLessThanOrEqual(1)',
   'settlementOverflow.scrollWidth',
-  'for (const width of [320, 390, 430])',
+  'diagnosticsOverflow.scrollWidth',
+  'scrollOverflow.scrollWidth',
+  'expect(diagnosticsBox.y).toBeGreaterThanOrEqual(settlementBox.y + settlementBox.height + 6)',
+  'expect(mobileDiagnosticsIndex).toBeGreaterThan(mobileSettlementIndex)',
+  'expect(helperBox.y + helperBox.height).toBeLessThanOrEqual(footerBox.y + 1)',
+  'for (const width of [320, 360, 390, 430, 720])',
   'arrowClipPath',
-]) assert.equal(browserTest.includes(text), true, `生产结算浏览器回归缺少: ${text}`);
+]) assert.equal(browserTest.includes(text), true, `生产详情浏览器回归缺少: ${text}`);
 
 for (const text of [
   '工厂生产公式固定采用双列顶层布局',
@@ -176,4 +209,10 @@ for (const text of [
   '移动端不得拉伸为全宽',
 ]) assert.equal(uiDesign.includes(text) || industryDesign.includes(text), true, `权威设计缺少: ${text}`);
 
-console.log('生产结算商品 PNG、投入产出、单行周期成本操作带、实时满员率、响应式与工厂信息利润归属验证通过。');
+for (const text of [
+  '生产结算 → 经营诊断 → 市场入口',
+  '经营诊断固定紧跟生产结算',
+  '不得与生产结算发生视觉重叠',
+]) assert.equal(industryDesign.includes(text), true, `移动经营诊断权威设计缺少: ${text}`);
+
+console.log('生产结算商品 PNG、投入产出、移动详情纵向流、经营诊断响应式与几何防回退验证通过。');

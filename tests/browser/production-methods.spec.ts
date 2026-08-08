@@ -12,6 +12,7 @@ test.describe('factory production methods', () => {
     await expect(detail).not.toContainText('生产配方');
     await expect(detail).toContainText('作业制度');
     await expect(detail).toContainText('生产结算');
+    await expect(detail).toContainText('经营诊断');
     await expect(detail).not.toContainText('下一周期');
     await expect(detail.getByRole('radio')).toHaveCount(0);
 
@@ -64,20 +65,22 @@ test.describe('factory production methods', () => {
     await expect(artwork).toHaveCount(1);
     await expect.poll(() => artwork.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('machine-factory');
 
-const artworkBox = await detail.locator('.facility-detail-artwork').boundingBox();
-expect(artworkBox).not.toBeNull();
-if (!artworkBox) throw new Error('工厂信息纵向插画几何不可用');
-expect(artworkBox.height / artworkBox.width).toBeCloseTo(1.25, 1);
+    const artworkBox = await detail.locator('.facility-detail-artwork').boundingBox();
+    expect(artworkBox).not.toBeNull();
+    if (!artworkBox) throw new Error('工厂信息纵向插画几何不可用');
+    expect(artworkBox.height / artworkBox.width).toBeCloseTo(1.25, 1);
 
-const sectionOrder = await detail.evaluate((element) => Array.from(element.children).map((child) => child.className));
-const informationIndex = sectionOrder.findIndex((value) => String(value).includes('facility-information'));
-const staffingIndex = sectionOrder.findIndex((value) => String(value).includes('facility-staffing-summary'));
-const settingsIndex = sectionOrder.findIndex((value) => String(value).includes('facility-production-settings'));
-const settlementIndex = sectionOrder.findIndex((value) => String(value).includes('facility-production-formula'));
-expect(informationIndex).toBeGreaterThanOrEqual(0);
-expect(staffingIndex).toBeGreaterThan(informationIndex);
-expect(settingsIndex).toBeGreaterThan(staffingIndex);
-expect(settlementIndex).toBeGreaterThan(settingsIndex);
+    const sectionOrder = await detail.evaluate((element) => Array.from(element.children).map((child) => child.className));
+    const informationIndex = sectionOrder.findIndex((value) => String(value).includes('facility-information'));
+    const staffingIndex = sectionOrder.findIndex((value) => String(value).includes('facility-staffing-summary'));
+    const settingsIndex = sectionOrder.findIndex((value) => String(value).includes('facility-production-settings'));
+    const settlementIndex = sectionOrder.findIndex((value) => String(value).includes('facility-production-formula'));
+    const diagnosticsIndex = sectionOrder.findIndex((value) => String(value).includes('facility-operating-diagnostics'));
+    expect(informationIndex).toBeGreaterThanOrEqual(0);
+    expect(staffingIndex).toBeGreaterThan(informationIndex);
+    expect(settingsIndex).toBeGreaterThan(staffingIndex);
+    expect(settlementIndex).toBeGreaterThan(settingsIndex);
+    expect(diagnosticsIndex).toBeGreaterThan(settlementIndex);
 
     const staffingStyle = await detail.locator('.facility-staffing-summary').evaluate((element) => {
       const style = getComputedStyle(element);
@@ -199,106 +202,173 @@ expect(settlementIndex).toBeGreaterThan(settingsIndex);
     ]);
   });
 
-  test('keeps mobile production controls and settlement aligned inside the top dialog layer', async ({ page }) => {
-    for (const width of [320, 390, 430]) {
+  test('keeps mobile production controls, settlement, and diagnostics in one non-overlapping detail flow', async ({ page }) => {
+    for (const width of [320, 360, 390, 430, 720]) {
       await page.setViewportSize({ width, height: 844 });
       await page.goto('runtime-test.html?view=production&scenario=production-methods');
 
-    await page.locator('.facility-cluster-selector-card').first().click();
-    const dialogLayer = page.locator('.workspace-dialog-layer');
-    const sheet = page.locator('.mobile-detail-sheet');
-    await expect(sheet).toBeVisible();
-    await expect(sheet.locator('.facility-detail-artwork-icon')).toHaveCount(1);
-    await expect.poll(() => sheet.locator('.facility-detail-artwork-icon').evaluate((element) => (
-      getComputedStyle(element).backgroundImage
-    ))).toContain('machine-factory');
-    await expect(sheet.locator('.facility-staffing-track')).toBeVisible();
-    await expect(sheet.locator('.facility-staffing-fill')).toBeVisible();
+      await page.locator('.facility-cluster-selector-card').first().click();
+      const dialogLayer = page.locator('.workspace-dialog-layer');
+      const sheet = page.locator('.mobile-detail-sheet');
+      const scroll = sheet.locator('.mobile-detail-sheet-scroll');
+      await expect(sheet).toBeVisible();
+      await expect(sheet.locator('.facility-detail-artwork-icon')).toHaveCount(1);
+      await expect.poll(() => sheet.locator('.facility-detail-artwork-icon').evaluate((element) => (
+        getComputedStyle(element).backgroundImage
+      ))).toContain('machine-factory');
+      await expect(sheet.locator('.facility-staffing-track')).toBeVisible();
+      await expect(sheet.locator('.facility-staffing-fill')).toBeVisible();
 
-await expect(sheet.locator('.mobile-detail-sheet-header > :not(.mobile-detail-sheet-drag-handle)')).toHaveCount(0);
-await expect(sheet.locator('.facility-information')).toHaveCount(1);
-await expect(sheet.locator('.facility-information .facility-average-profit')).toHaveCount(1);
-await expect(sheet.locator('.facility-production-formula .facility-average-profit')).toHaveCount(0);
-const mobileArtworkBox = await sheet.locator('.facility-detail-artwork').boundingBox();
-expect(mobileArtworkBox).not.toBeNull();
-if (!mobileArtworkBox) throw new Error(`移动工厂信息纵向插画几何不可用: ${width}px`);
-expect(mobileArtworkBox.height / mobileArtworkBox.width).toBeCloseTo(1.25, 1);
-    await expect(sheet.locator('.facility-production-method-summary')).toHaveCount(0);
-    await expect(sheet.locator('.facility-staffing-meta')).toHaveCount(0);
-    await expect(sheet.locator('.facility-formula-scope')).toHaveCount(0);
-    await expect(sheet).not.toContainText('缩短周期并提高成本');
+      await expect(sheet.locator('.mobile-detail-sheet-header > :not(.mobile-detail-sheet-drag-handle)')).toHaveCount(0);
+      await expect(sheet.locator('.facility-information')).toHaveCount(1);
+      await expect(sheet.locator('.facility-information .facility-average-profit')).toHaveCount(1);
+      await expect(sheet.locator('.facility-production-formula .facility-average-profit')).toHaveCount(0);
+      const mobileArtworkBox = await sheet.locator('.facility-detail-artwork').boundingBox();
+      expect(mobileArtworkBox).not.toBeNull();
+      if (!mobileArtworkBox) throw new Error(`移动工厂信息纵向插画几何不可用: ${width}px`);
+      expect(mobileArtworkBox.height / mobileArtworkBox.width).toBeCloseTo(1.25, 1);
+      await expect(sheet.locator('.facility-production-method-summary')).toHaveCount(0);
+      await expect(sheet.locator('.facility-staffing-meta')).toHaveCount(0);
+      await expect(sheet.locator('.facility-formula-scope')).toHaveCount(0);
+      await expect(sheet).not.toContainText('缩短周期并提高成本');
 
-    const recipeSelect = sheet.getByRole('combobox', { name: '机械工厂生产产物' });
-    const methodSelect = sheet.getByRole('combobox', { name: '机械工厂生产方式' });
-    const [recipeBox, methodBox] = await Promise.all([
-      recipeSelect.boundingBox(),
-      methodSelect.boundingBox(),
-    ]);
-    expect(recipeBox).not.toBeNull();
-    expect(methodBox).not.toBeNull();
-    if (!recipeBox || !methodBox) throw new Error('移动生产设置几何不可用');
-    expect(Math.abs(recipeBox.y - methodBox.y)).toBeLessThanOrEqual(1);
-    expect(methodBox.x).toBeGreaterThan(recipeBox.x + recipeBox.width - 1);
+      const mobileSectionOrder = await scroll.evaluate((element) => Array.from(element.children).map((child) => child.className));
+      const mobileSettlementIndex = mobileSectionOrder.findIndex((value) => String(value).includes('facility-production-formula'));
+      const mobileDiagnosticsIndex = mobileSectionOrder.findIndex((value) => String(value).includes('facility-operating-diagnostics'));
+      expect(mobileSettlementIndex).toBeGreaterThanOrEqual(0);
+      expect(mobileDiagnosticsIndex).toBeGreaterThan(mobileSettlementIndex);
 
-    const settlement = sheet.locator('.facility-production-formula');
-    const visual = settlement.locator('.facility-formula-visual');
-    const inputSlot = settlement.locator('.facility-formula-input .facility-formula-item-group').first();
-    const outputSlot = settlement.locator('.facility-formula-output .facility-formula-item-group').first();
-    const formulaMeta = settlement.locator('.facility-formula-meta');
-    const progress = settlement.locator('.facility-formula-progress');
-    const metaUnits = formulaMeta.locator(':scope > .facility-formula-meta-unit');
-    const [visualBox, inputBox, outputBox, metaBox, progressBox, cycleBox, costBox] = await Promise.all([
-      visual.boundingBox(),
-      inputSlot.boundingBox(),
-      outputSlot.boundingBox(),
-      formulaMeta.boundingBox(),
-      progress.boundingBox(),
-      metaUnits.nth(0).boundingBox(),
-      metaUnits.nth(1).boundingBox(),
-    ]);
-    expect(visualBox).not.toBeNull();
-    expect(inputBox).not.toBeNull();
-    expect(outputBox).not.toBeNull();
-    expect(metaBox).not.toBeNull();
-    expect(progressBox).not.toBeNull();
-    expect(cycleBox).not.toBeNull();
-    expect(costBox).not.toBeNull();
-    if (!visualBox || !inputBox || !outputBox || !metaBox || !progressBox || !cycleBox || !costBox) {
-      throw new Error(`移动生产结算几何不可用: ${width}px`);
-    }
-    expect(Math.abs(inputBox.y - outputBox.y)).toBeLessThanOrEqual(1);
-    expect(metaBox.y).toBeGreaterThanOrEqual(Math.max(inputBox.y + inputBox.height, outputBox.y + outputBox.height) - 1);
-    expect(Math.abs(metaBox.x - visualBox.x)).toBeLessThanOrEqual(1);
-    expect(metaBox.width).toBeLessThan(visualBox.width - 8);
-    expect(progressBox.y).toBeGreaterThanOrEqual(
-      Math.max(metaBox.y + metaBox.height, outputBox.y + outputBox.height) - 1,
-    );
-    expect(Math.abs(costBox.y - cycleBox.y)).toBeLessThanOrEqual(1);
-    expect(costBox.x).toBeGreaterThan(cycleBox.x + cycleBox.width - 1);
-    expect(await metaUnits.nth(1).evaluate((element) => (
-      Number.parseFloat(getComputedStyle(element).borderLeftWidth)
-    ))).toBeGreaterThan(0);
-    const settlementOverflow = await settlement.evaluate((element) => ({
-      clientWidth: element.clientWidth,
-      scrollWidth: element.scrollWidth,
-    }));
-    expect(settlementOverflow.scrollWidth).toBeLessThanOrEqual(settlementOverflow.clientWidth + 1);
+      const recipeSelect = sheet.getByRole('combobox', { name: '机械工厂生产产物' });
+      const methodSelect = sheet.getByRole('combobox', { name: '机械工厂生产方式' });
+      const [recipeBox, methodBox] = await Promise.all([
+        recipeSelect.boundingBox(),
+        methodSelect.boundingBox(),
+      ]);
+      expect(recipeBox).not.toBeNull();
+      expect(methodBox).not.toBeNull();
+      if (!recipeBox || !methodBox) throw new Error('移动生产设置几何不可用');
+      expect(Math.abs(recipeBox.y - methodBox.y)).toBeLessThanOrEqual(1);
+      expect(methodBox.x).toBeGreaterThan(recipeBox.x + recipeBox.width - 1);
 
-    await recipeSelect.click();
-    const listbox = page.getByRole('listbox', { name: '机械工厂生产产物' });
-    await expect(listbox).toBeVisible();
-    await expect(dialogLayer.locator(':scope > .ui-rich-select__listbox')).toHaveCount(1);
-    const box = await listbox.boundingBox();
-    expect(box).not.toBeNull();
-    if (!box) throw new Error('移动生产产物下拉框几何不可用');
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.y).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width).toBeLessThanOrEqual(width);
-    expect(box.y + box.height).toBeLessThanOrEqual(844);
-    await expect(listbox.locator('[data-product-artwork="machinery"]')).toHaveCount(1);
-    await page.keyboard.press('Escape');
-    await expect(listbox).toHaveCount(0);
-    await expect(recipeSelect).toBeFocused();
+      const settlement = sheet.locator('.facility-production-formula');
+      const visual = settlement.locator('.facility-formula-visual');
+      const inputSlot = settlement.locator('.facility-formula-input .facility-formula-item-group').first();
+      const outputSlot = settlement.locator('.facility-formula-output .facility-formula-item-group').first();
+      const formulaMeta = settlement.locator('.facility-formula-meta');
+      const progress = settlement.locator('.facility-formula-progress');
+      const metaUnits = formulaMeta.locator(':scope > .facility-formula-meta-unit');
+      const diagnostics = sheet.locator('.facility-operating-diagnostics');
+      const [visualBox, inputBox, outputBox, metaBox, progressBox, cycleBox, costBox, settlementBox, diagnosticsBox] = await Promise.all([
+        visual.boundingBox(),
+        inputSlot.boundingBox(),
+        outputSlot.boundingBox(),
+        formulaMeta.boundingBox(),
+        progress.boundingBox(),
+        metaUnits.nth(0).boundingBox(),
+        metaUnits.nth(1).boundingBox(),
+        settlement.boundingBox(),
+        diagnostics.boundingBox(),
+      ]);
+      expect(visualBox).not.toBeNull();
+      expect(inputBox).not.toBeNull();
+      expect(outputBox).not.toBeNull();
+      expect(metaBox).not.toBeNull();
+      expect(progressBox).not.toBeNull();
+      expect(cycleBox).not.toBeNull();
+      expect(costBox).not.toBeNull();
+      expect(settlementBox).not.toBeNull();
+      expect(diagnosticsBox).not.toBeNull();
+      if (!visualBox || !inputBox || !outputBox || !metaBox || !progressBox || !cycleBox || !costBox || !settlementBox || !diagnosticsBox) {
+        throw new Error(`移动生产详情几何不可用: ${width}px`);
+      }
+      expect(Math.abs(inputBox.y - outputBox.y)).toBeLessThanOrEqual(1);
+      expect(metaBox.y).toBeGreaterThanOrEqual(Math.max(inputBox.y + inputBox.height, outputBox.y + outputBox.height) - 1);
+      expect(Math.abs(metaBox.x - visualBox.x)).toBeLessThanOrEqual(1);
+      expect(metaBox.width).toBeLessThan(visualBox.width - 8);
+      expect(progressBox.y).toBeGreaterThanOrEqual(
+        Math.max(metaBox.y + metaBox.height, outputBox.y + outputBox.height) - 1,
+      );
+      expect(Math.abs(costBox.y - cycleBox.y)).toBeLessThanOrEqual(1);
+      expect(costBox.x).toBeGreaterThan(cycleBox.x + cycleBox.width - 1);
+      expect(diagnosticsBox.y).toBeGreaterThanOrEqual(settlementBox.y + settlementBox.height + 6);
+      expect(await metaUnits.nth(1).evaluate((element) => (
+        Number.parseFloat(getComputedStyle(element).borderLeftWidth)
+      ))).toBeGreaterThan(0);
+
+      const settlementOverflow = await settlement.evaluate((element) => ({
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      }));
+      expect(settlementOverflow.scrollWidth).toBeLessThanOrEqual(settlementOverflow.clientWidth + 1);
+      const diagnosticsOverflow = await diagnostics.evaluate((element) => ({
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      }));
+      expect(diagnosticsOverflow.scrollWidth).toBeLessThanOrEqual(diagnosticsOverflow.clientWidth + 1);
+      const scrollOverflow = await scroll.evaluate((element) => ({
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      }));
+      expect(scrollOverflow.scrollWidth).toBeLessThanOrEqual(scrollOverflow.clientWidth + 1);
+
+      const metrics = diagnostics.locator('.facility-operating-diagnostics__metrics');
+      expect(await metrics.evaluate((element) => (
+        getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length
+      ))).toBe(2);
+      const metricBoxes = await metrics.locator(':scope > div').evaluateAll((elements) => elements.map((element) => {
+        const box = element.getBoundingClientRect();
+        return { x: box.x, y: box.y, width: box.width, height: box.height };
+      }));
+      expect(metricBoxes).toHaveLength(4);
+      expect(Math.abs(metricBoxes[0].y - metricBoxes[1].y)).toBeLessThanOrEqual(1);
+      expect(Math.abs(metricBoxes[2].y - metricBoxes[3].y)).toBeLessThanOrEqual(1);
+      expect(metricBoxes[2].y).toBeGreaterThanOrEqual(metricBoxes[0].y + metricBoxes[0].height - 1);
+      expect(metricBoxes[3].y).toBeGreaterThanOrEqual(metricBoxes[1].y + metricBoxes[1].height - 1);
+      const metricStyle = await metrics.locator(':scope > div').first().evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          borderWidth: Number.parseFloat(style.borderLeftWidth),
+          borderRadius: style.borderRadius,
+          backgroundColor: style.backgroundColor,
+        };
+      });
+      expect(metricStyle.borderWidth).toBeGreaterThan(0);
+      expect(metricStyle.borderRadius).not.toBe('0px');
+      expect(metricStyle.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+
+      const diagnosticArtworkSizes = await diagnostics.locator('.product-artwork').evaluateAll((elements) => elements.map((element) => {
+        const box = element.getBoundingClientRect();
+        return { width: box.width, height: box.height };
+      }));
+      expect(diagnosticArtworkSizes.length).toBeGreaterThan(0);
+      expect(diagnosticArtworkSizes.every((box) => Math.abs(box.width - 28) <= 1 && Math.abs(box.height - 28) <= 1)).toBe(true);
+
+      const helper = diagnostics.locator('.ui-helper-text');
+      await helper.scrollIntoViewIfNeeded();
+      const [helperBox, footerBox] = await Promise.all([
+        helper.boundingBox(),
+        sheet.locator('.mobile-detail-sheet-footer').boundingBox(),
+      ]);
+      expect(helperBox).not.toBeNull();
+      expect(footerBox).not.toBeNull();
+      if (!helperBox || !footerBox) throw new Error(`移动经营诊断底部几何不可用: ${width}px`);
+      expect(helperBox.y + helperBox.height).toBeLessThanOrEqual(footerBox.y + 1);
+
+      await recipeSelect.click();
+      const listbox = page.getByRole('listbox', { name: '机械工厂生产产物' });
+      await expect(listbox).toBeVisible();
+      await expect(dialogLayer.locator(':scope > .ui-rich-select__listbox')).toHaveCount(1);
+      const box = await listbox.boundingBox();
+      expect(box).not.toBeNull();
+      if (!box) throw new Error('移动生产产物下拉框几何不可用');
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+      expect(box.y + box.height).toBeLessThanOrEqual(844);
+      await expect(listbox.locator('[data-product-artwork="machinery"]')).toHaveCount(1);
+      await page.keyboard.press('Escape');
+      await expect(listbox).toHaveCount(0);
+      await expect(recipeSelect).toBeFocused();
     }
   });
 });
