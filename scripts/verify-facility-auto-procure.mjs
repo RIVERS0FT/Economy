@@ -62,7 +62,7 @@ for (const [file, texts] of Object.entries({
   'docs/WAREHOUSE_EXPANSION_DESIGN.md': ['一键购齐建造材料', '临时交割空间'],
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md': ['库存可直接建', '一键购齐并建造'],
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md': ['facility-auto-procure.js', 'maxProcurementTotal', 'materialPriceCaps'],
-  'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md': ['一键购齐并建造仍属于即时建设'],
+  'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md': ['“一键购齐并建造”仍属于即时建设'],
   'docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md': ['一键购齐并建造不会产生施工任务'],
   'docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md': ['一键购齐并建造同样不注册施工截止时间'],
   'docs/README.md': ['缺料时允许在同一建造事务内执行真实统一订单簿 FOK 采购'],
