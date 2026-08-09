@@ -66,12 +66,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
 
   const unlockedFacilityTypes = useMemo(
     () => getUnlockedFacilityTypes(game),
-    [
-      game.facilityTypes,
-      game.research.completedTechnologyIds,
-      game.research.unlockedComplexity,
-      game.researchTechnologies,
-    ],
+    [game.facilityTypes, game.research, game.researchTechnologies],
   );
   const selectedType = useMemo(
     () => unlockedFacilityTypes.find((type) => type.id === selectedFacilityTypeId) ?? unlockedFacilityTypes[0],
