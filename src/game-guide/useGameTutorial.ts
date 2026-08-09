@@ -5,8 +5,7 @@ import {
   type TutorialCompletionState,
 } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
-import type { AssetKind, OrderSide } from '../types';
-import { defaultOrderPrice } from '../utils/defaultOrderPrice';
+import { requestAutoSellPanel } from '../auto-sell/autoSellStorage';
 import { tutorialStepDefinition, TUTORIAL_STEPS } from './tutorialDefinition';
 import {
   clearTutorialRun,
@@ -39,11 +38,8 @@ export interface GameTutorialController {
   recordWorkClick: () => void;
   recordBuildSubmit: (facilityTypeId: string) => void;
   recordFacilityStartClick: (facilityTypeId: string) => void;
-  recordSellOrderSubmit: (
-    assetKind: AssetKind,
-    assetId: string,
-    side: OrderSide,
-  ) => void;
+  recordAutoSellSetting: (productId: string) => void;
+  recordAutoSellCompletion: (productId: string) => void;
   recordResearchStart: () => void;
   recordBankDeposit: () => void;
 }
@@ -80,12 +76,6 @@ function advanceRun(
   };
 }
 
-function ownCommoditySellOrderIds(model: LoadedGameViewModel) {
-  return model.game.orders
-    .filter((order) => order.isOwn && order.assetKind === 'commodity' && order.side === 'sell')
-    .map((order) => order.id);
-}
-
 function preferredSellProductId(model: LoadedGameViewModel, requested?: string) {
   if (requested && model.game.products.some((product) => product.id === requested)) return requested;
   const stocked = model.game.products.find((product) => (
@@ -120,32 +110,32 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
         let response = await getTutorialStatus(controller.signal);
         if (cancelled) return;
         if (
-          response.tutorial.completedVersion < CURRENT_TUTORIAL_VERSION
-          && hasPendingTutorialCompletion(userId)
+response.tutorial.completedVersion < CURRENT_TUTORIAL_VERSION
+&& hasPendingTutorialCompletion(userId)
         ) {
-          try {
-            const completion = await completeTutorial(CURRENT_TUTORIAL_VERSION);
-            response = {
-              tutorial: completion.tutorial,
-              currentVersion: CURRENT_TUTORIAL_VERSION,
-            };
-            setPendingTutorialCompletion(userId, false);
-          } catch {
-            // Keep the pending marker. Replays do not need to restart after a completed local run.
-          }
+try {
+  const completion = await completeTutorial(CURRENT_TUTORIAL_VERSION);
+  response = {
+    tutorial: completion.tutorial,
+    currentVersion: CURRENT_TUTORIAL_VERSION,
+  };
+  setPendingTutorialCompletion(userId, false);
+} catch {
+  // Keep the pending marker. Replays do not need to restart after a completed local run.
+}
         } else if (response.tutorial.completedVersion >= CURRENT_TUTORIAL_VERSION) {
-          setPendingTutorialCompletion(userId, false);
+setPendingTutorialCompletion(userId, false);
         }
         if (cancelled) return;
         setServerStatus(response.tutorial);
         const persisted = loadTutorialRun(userId);
         if (!persisted && response.tutorial.completedVersion < CURRENT_TUTORIAL_VERSION
-          && !hasPendingTutorialCompletion(userId)) {
-          const fresh = createTutorialRun();
-          saveTutorialRun(userId, fresh);
-          setRun(fresh);
+&& !hasPendingTutorialCompletion(userId)) {
+const fresh = createTutorialRun();
+saveTutorialRun(userId, fresh);
+setRun(fresh);
         } else {
-          setRun(persisted);
+setRun(persisted);
         }
       } catch {
         if (!cancelled) setServerStatus(null);
@@ -210,24 +200,6 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
   }, [model.game.facilityGroups, run, updateCurrentRun]);
 
   useEffect(() => {
-    if (!run || run.currentStep !== 'complete-sale') return;
-    const baselineIds = new Set(run.context.sellOrderBaselineIds);
-    const order = model.game.orders.find((candidate) => (
-      candidate.isOwn
-      && candidate.assetKind === 'commodity'
-      && candidate.side === 'sell'
-      && candidate.assetId === run.context.productId
-      && !baselineIds.has(candidate.id)
-      && (
-        (candidate.fills?.length || 0) > 0
-        || candidate.remaining < candidate.quantity
-      )
-    ));
-    if (!order) return;
-    updateCurrentRun('complete-sale', 'saleCompletions');
-  }, [model.game.orders, run, updateCurrentRun]);
-
-  useEffect(() => {
     if (!run || run.currentStep !== 'review-contracts' || model.tab !== 'contracts') return;
     updateCurrentRun('review-contracts', 'contractReviews');
   }, [model.tab, run, updateCurrentRun]);
@@ -259,16 +231,14 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
   const openCurrentTarget = useCallback(() => {
     if (!run) return;
     const definition = tutorialStepDefinition(run.currentStep);
-    if (definition.targetTab !== 'market') {
-      model.setTab(definition.targetTab);
+    if (run.currentStep === 'set-auto-sell') {
+      const productId = preferredSellProductId(model, run.context.productId);
+      requestAutoSellPanel(userId, productId);
+      model.setTab('production');
       return;
     }
-    const productId = preferredSellProductId(model, run.context.productId);
-    model.selectOrderSide('sell');
-    model.selectMarketAsset('commodity', productId);
-    model.setOrderQuantity(1);
-    model.setOrderPrice(defaultOrderPrice(model.game.orders, 'commodity', productId, 'sell'));
-  }, [model, run]);
+    model.setTab(definition.targetTab);
+  }, [model, run, userId]);
 
   const recordWorkClick = useCallback(() => {
     updateCurrentRun('work', 'workClicks');
@@ -286,17 +256,25 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     });
   }, [model.game.facilityGroups, updateCurrentRun]);
 
-  const recordSellOrderSubmit = useCallback((
-    assetKind: AssetKind,
-    assetId: string,
-    side: OrderSide,
-  ) => {
-    if (assetKind !== 'commodity' || side !== 'sell') return;
-    updateCurrentRun('place-sell-order', 'sellOrderSubmits', {
-      productId: assetId,
-      sellOrderBaselineIds: ownCommoditySellOrderIds(model),
+  const recordAutoSellSetting = useCallback((productId: string) => {
+    updateCurrentRun('set-auto-sell', 'autoSellSettings', {
+      productId,
+      autoSellStartedAt: Date.now(),
     });
-  }, [model, updateCurrentRun]);
+  }, [updateCurrentRun]);
+
+  const recordAutoSellCompletion = useCallback((productId: string) => {
+    setRun((current) => {
+      if (
+        !current
+        || current.currentStep !== 'complete-sale'
+        || current.context.productId !== productId
+      ) return current;
+      const next = advanceRun(current, 'complete-sale', 'saleCompletions');
+      if (next !== current) saveTutorialRun(userId, next);
+      return next;
+    });
+  }, [userId]);
 
   const recordResearchStart = useCallback(() => {
     updateCurrentRun('start-research', 'researchStarts');
@@ -325,8 +303,8 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
       : serverCompleted
         ? '已完成当前版本经营成长线'
         : ready
-          ? '尚未开始'
-          : '正在读取成长线状态',
+? '尚未开始'
+: '正在读取成长线状态',
     restart,
     hide,
     show,
@@ -334,7 +312,8 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     recordWorkClick,
     recordBuildSubmit,
     recordFacilityStartClick,
-    recordSellOrderSubmit,
+    recordAutoSellSetting,
+    recordAutoSellCompletion,
     recordResearchStart,
     recordBankDeposit,
   }), [
@@ -343,11 +322,12 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     hide,
     openCurrentTarget,
     ready,
+    recordAutoSellCompletion,
+    recordAutoSellSetting,
     recordBankDeposit,
     recordBuildSubmit,
     recordFacilityStartClick,
     recordResearchStart,
-    recordSellOrderSubmit,
     recordWorkClick,
     restart,
     run,

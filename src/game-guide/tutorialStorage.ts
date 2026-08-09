@@ -1,11 +1,11 @@
-export const CURRENT_TUTORIAL_VERSION = 2 as const;
+export const CURRENT_TUTORIAL_VERSION = 3 as const;
 
 export const TUTORIAL_STEP_IDS = [
   'work',
   'build-facility',
   'start-facility',
   'complete-production',
-  'place-sell-order',
+  'set-auto-sell',
   'complete-sale',
   'start-research',
   'review-contracts',
@@ -21,7 +21,7 @@ export interface TutorialRunStats {
   buildSubmits: number;
   facilityStartClicks: number;
   productionCompletions: number;
-  sellOrderSubmits: number;
+  autoSellSettings: number;
   saleCompletions: number;
   researchStarts: number;
   contractReviews: number;
@@ -32,7 +32,7 @@ export interface TutorialRunContext {
   facilityTypeId?: string;
   productionBaseline?: number;
   productId?: string;
-  sellOrderBaselineIds: string[];
+  autoSellStartedAt?: number;
 }
 
 export interface LocalTutorialRun {
@@ -68,7 +68,7 @@ function emptyStats(): TutorialRunStats {
     buildSubmits: 0,
     facilityStartClicks: 0,
     productionCompletions: 0,
-    sellOrderSubmits: 0,
+    autoSellSettings: 0,
     saleCompletions: 0,
     researchStarts: 0,
     contractReviews: 0,
@@ -123,7 +123,7 @@ function normalizeRun(value: unknown): LocalTutorialRun | null {
       buildSubmits: Math.max(0, Number(stats.buildSubmits || 0)),
       facilityStartClicks: Math.max(0, Number(stats.facilityStartClicks || 0)),
       productionCompletions: Math.max(0, Number(stats.productionCompletions || 0)),
-      sellOrderSubmits: Math.max(0, Number(stats.sellOrderSubmits || 0)),
+      autoSellSettings: Math.max(0, Number(stats.autoSellSettings || 0)),
       saleCompletions: Math.max(0, Number(stats.saleCompletions || 0)),
       researchStarts: Math.max(0, Number(stats.researchStarts || 0)),
       contractReviews: Math.max(0, Number(stats.contractReviews || 0)),
@@ -135,9 +135,9 @@ function normalizeRun(value: unknown): LocalTutorialRun | null {
         ? Number(raw.context?.productionBaseline)
         : undefined,
       productId: typeof raw.context?.productId === 'string' ? raw.context.productId : undefined,
-      sellOrderBaselineIds: Array.isArray(raw.context?.sellOrderBaselineIds)
-        ? raw.context.sellOrderBaselineIds.filter((item): item is string => typeof item === 'string')
-        : [],
+      autoSellStartedAt: Number.isFinite(Number(raw.context?.autoSellStartedAt))
+        ? Number(raw.context?.autoSellStartedAt)
+        : undefined,
     },
     startedAt: Number(raw.startedAt || Date.now()),
     updatedAt: Number(raw.updatedAt || Date.now()),
@@ -152,7 +152,7 @@ export function createTutorialRun(now = Date.now()): LocalTutorialRun {
     currentStep: TUTORIAL_STEP_IDS[0],
     completedStepIds: [],
     stats: emptyStats(),
-    context: { sellOrderBaselineIds: [] },
+    context: {},
     startedAt: now,
     updatedAt: now,
   };

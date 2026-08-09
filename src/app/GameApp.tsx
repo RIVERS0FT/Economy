@@ -10,6 +10,7 @@ import { CurrencyAmount, CurrencyText } from '../components/ui/CurrencyAmount';
 import { PageRouter } from '../pages/PageRouter';
 import { formatCompactNumber, formatCurrency, formatNumber, formatRank, setCompactNumbersEnabled } from '../utils/formatters';
 import { useGameTutorial, type TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
+import { useOnlineAutoSell, type OnlineAutoSellAwareGameViewModel } from '../auto-sell/useOnlineAutoSell';
 import { useGameViewModel, type LoadedGameViewModel } from './gameViewModel';
 import { useAdaptivePolling } from './useAdaptivePolling';
 import '../styles/game-guide.css';
@@ -30,6 +31,10 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
     setRefreshRate: pollingPreference.setRefreshRate,
   }), [model, pollingPreference.refreshRate, pollingPreference.setRefreshRate]);
   const tutorial = useGameTutorial(pollingModel);
+  const autoSell = useOnlineAutoSell(pollingModel, {
+    onPolicyEnabled: tutorial.recordAutoSellSetting,
+    onSale: tutorial.recordAutoSellCompletion,
+  });
   const tutorialModel = useMemo<TutorialAwareGameViewModel>(() => ({
     ...pollingModel,
     tutorial,
@@ -58,19 +63,18 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
       if (result.ok) tutorial.recordFacilityStartClick(facilityTypeId);
       return result;
     },
-    placeAssetOrder: async (assetKind, assetId, side, quantity, price) => {
-      const result = await model.placeAssetOrder(assetKind, assetId, side, quantity, price);
-      if (result.ok) tutorial.recordSellOrderSubmit(assetKind, assetId, side);
-      return result;
-    },
   }), [model, pollingModel, tutorial]);
-  const compactNumbers = tutorialModel.compactNumbers;
+  const appModel = useMemo<OnlineAutoSellAwareGameViewModel>(() => ({
+    ...tutorialModel,
+    autoSell,
+  }), [autoSell, tutorialModel]);
+  const compactNumbers = appModel.compactNumbers;
 
   useEffect(() => {
     setCompactNumbersEnabled(compactNumbers);
   }, [compactNumbers]);
 
-  const { game, derived } = tutorialModel;
+  const { game, derived } = appModel;
   const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
   const weeklyMagnitude = Math.abs(weeklyChange);
   const currentRank = derived.currentRank?.rank ?? '--';
@@ -92,7 +96,7 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
       compactValue: formatCompactNumber(derived.totalAssets),
       detail: <span className={weeklyChange > 0 ? 'positive' : weeklyChange < 0 ? 'negative' : 'neutral'} aria-label={weeklyChangeLabel}>{weeklyTrend} 本周 <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>,
       emphasis: 'primary',
-      onClick: () => tutorialModel.setTab('bank'),
+      onClick: () => appModel.setTab('bank'),
     },
     {
       id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(game.gems),
@@ -120,8 +124,8 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
   return (
     <>
       <AuthoritativeCountdownRefresh game={game} refresh={model.refresh} />
-      <GameShell model={tutorialModel} statusItems={statusItems}>
-        <PageRouter model={tutorialModel} />
+      <GameShell model={appModel} statusItems={statusItems}>
+        <PageRouter model={appModel} />
       </GameShell>
     </>
   );

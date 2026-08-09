@@ -20,6 +20,7 @@ export type LocalActivityAction =
   | 'checkIn'
   | 'upgradeWarehouse'
   | 'placeOrder'
+  | 'onlineAutoSell'
   | 'cancelOrder'
   | 'buildFacility'
   | 'startResearch'

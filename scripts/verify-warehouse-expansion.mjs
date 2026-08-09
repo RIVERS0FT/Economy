@@ -14,11 +14,14 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'server/src/contract-runtime-index.js',
   'server/src/contracts.js',
   'server/src/facility-groups.js',
+  'server/src/online-auto-sell.js',
   'server/test/warehouse.test.js',
   'server/test/unified-warehouse-reservations.test.js',
   'src/types.ts',
   'src/app/GameApp.tsx',
   'src/components/warehouse/WarehouseUpgradeCard.tsx',
+  'src/auto-sell/autoSellStorage.ts',
+  'src/auto-sell/useOnlineAutoSell.ts',
   'src/components/facilities/FacilityProductionFormula.tsx',
   'src/pages/ProductionPage.tsx',
   'src/styles/warehouse-expansion.css',
@@ -149,7 +152,10 @@ for (const text of [
   '<ProductIcon productId={product.id} />',
   '可用 {formatNumber(inventory.available)}',
   '冻结 {formatNumber(inventory.frozen)}',
-  "selectMarketAsset('commodity', product.id)",
+  'openAutoSellPanel(product.id)',
+  '最低自动出售价格',
+  '仅客户端在线',
+  '预计可自动出售',
   '等级 {formatNumber(game.warehouseLevel)}',
   'const orderReserved = game.warehouseOrderReservedQuantity ?? 0',
   'const contractReserved = game.warehouseContractReservedQuantity ?? 0',
@@ -162,7 +168,7 @@ for (const text of [
   'warehouse-summary-swatch',
   'warehouse-summary-item--available',
 ]) requireText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
-for (const forbidden of ['warehouseMaxLevel', '已达最高等级', '种商品有库存', '<strong>库存 {total}</strong>', 'ProductIconLabel', '<dt>买单预占</dt>']) {
+for (const forbidden of ['warehouseMaxLevel', '已达最高等级', '种商品有库存', '<strong>库存 {total}</strong>', 'ProductIconLabel', '<dt>买单预占</dt>', "selectMarketAsset('commodity', product.id)"]) {
   forbidText('src/components/warehouse/WarehouseUpgradeCard.tsx', forbidden);
 }
 requireText('src/app/GameApp.tsx', ' · 预占 ${formatNumber(game.warehouseReservedQuantity)}');
@@ -323,7 +329,7 @@ for (const text of [
   '名称参与正常网格布局',
   '`src/styles/product-artwork.css` 只负责商品 PNG 路径映射',
   '不得再次声明 `.warehouse-product-card` 高度',
-  '只以本文第 7.1 节为准',
+  '只以本文第 7.2 节为准',
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
 for (const forbidden of [
   '升级费用：150 × L²',
@@ -335,7 +341,7 @@ for (const forbidden of [
   '`30px` 图标',
 ]) forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', forbidden);
 
-requireText('docs/UI_DESIGN_SYSTEM.md', '仓库商品网格的列数、容器断点、卡片高度、内边距和图标尺寸唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md` 第 7.1 节');
+requireText('docs/UI_DESIGN_SYSTEM.md', '仓库商品网格的列数、容器断点、卡片高度、内边距和图标尺寸唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md` 第 7.2 节');
 forbidText('docs/UI_DESIGN_SYSTEM.md', '2／3／4／5／6 列');
 
 requireText('docs/README.md', '仓库商品卡结构与网格密度唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md`');
