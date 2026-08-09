@@ -226,9 +226,11 @@ export function populationPolicySnapshot(state, now = Date.now()) {
     isDefault,
     currentCycleId,
     durationCycles,
-    elapsedCycles: durationCycles === null
+    elapsedCycles: isDefault
       ? null
-      : Math.min(durationCycles, Math.max(0, currentCycleId - policy.effectiveCycleId)),
+      : durationCycles === null
+        ? Math.max(0, currentCycleId - policy.effectiveCycleId)
+        : Math.min(durationCycles, Math.max(0, currentCycleId - policy.effectiveCycleId)),
     remainingCycles,
     effectiveAt: isDefault ? null : policy.effectiveCycleId * POPULATION_POLICY_CYCLE_MS,
     expiresAt: policy.expiresAfterCycleId === null
@@ -245,16 +247,24 @@ export function populationPolicySnapshot(state, now = Date.now()) {
 
 export function createPopulationPolicyFromPayload(payload, { adminUserId, now = Date.now() } = {}) {
   const currentCycleId = populationPolicyCycleId(now);
-  const durationCycles = requireIntegerAtLeast(
-    payload?.durationCycles,
-    '政策有效周期',
-    POPULATION_POLICY_LIMITS.durationCycles.min,
-  );
-  const expiresAfterCycleId = currentCycleId + durationCycles;
-  if (!Number.isSafeInteger(expiresAfterCycleId)) {
-    throw invalid('政策到期周期超出系统可表示范围');
+  const requestedDurationMode = payload?.durationMode;
+  const durationMode = requestedDurationMode === undefined ? 'temporary' : String(requestedDurationMode);
+  if (durationMode !== 'temporary' && durationMode !== 'permanent') {
+    throw invalid('政策生效方式无效');
   }
-  safeMultiply(expiresAfterCycleId, POPULATION_POLICY_CYCLE_MS, '政策到期时间');
+  let expiresAfterCycleId = null;
+  if (durationMode === 'temporary') {
+    const durationCycles = requireIntegerAtLeast(
+      payload?.durationCycles,
+      '政策有效周期',
+      POPULATION_POLICY_LIMITS.durationCycles.min,
+    );
+    expiresAfterCycleId = currentCycleId + durationCycles;
+    if (!Number.isSafeInteger(expiresAfterCycleId)) {
+      throw invalid('政策到期周期超出系统可表示范围');
+    }
+    safeMultiply(expiresAfterCycleId, POPULATION_POLICY_CYCLE_MS, '政策到期时间');
+  }
   const modelMultipliers = payload?.modelMultipliersBps || {};
   return {
     stabilizationShareBps: requireIntegerAtLeast(
