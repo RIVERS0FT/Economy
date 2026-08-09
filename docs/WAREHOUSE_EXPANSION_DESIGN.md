@@ -118,7 +118,7 @@ warehouseAvailableCapacity
 
 已经进入 `supplierReservedQuantity`／续签 `supplierReservedQuantity` 的商品继续属于真实 `frozen` 库存，本来就不在 `available` 中，不得重复扣除；普通手动商品卖单、商品拍卖等冻结资产同理已经从 `available` 排除。生产预定只保护 `enabled=true` 的工厂，并按下一完整周期投入保守计算。
 
-上述生产预定和合同可用保留只决定“现有可用库存中哪些暂时不可由自动出售消耗”，不得恢复 `warehouseAvailableCapacity`、买方合同入库预留、拍卖入库预留或任何仓库容量检查。
+上述生产预定和合同可用保留只决定“现有可用库存中哪些暂时不可由自动出售消耗”，不得恢复 `warehouseAvailableCapacity`、买方合同入库预留、拍卖入库预留或任何仓库容量检查。自动出售策略本身不改变 `warehouseStoredQuantity` 的定义，也不形成第二份库存或预留账本。
 
 自动出售使用 `execution: online-auto-sell` 的临时卖单撮合，完成可成交部分后必须立即撤销剩余开放数量，该临时执行不占用普通开放订单配额，也不得留下客户端离线后仍可继续成交的开放卖单。自己的反向买单达到最低价时必须拒绝本次自动出售，避免自成交。
 
