@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: feature/online-auto-sell
-          fetch-depth: 8
+          fetch-depth: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -116,6 +116,18 @@ jobs:
               '仓库商品网格的列数、容器断点、卡片高度、内边距和图标尺寸唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md` 第 7.2 节',
           )
           ui_path.write_text(ui, encoding='utf-8')
+
+          auto_procure_verify_path = Path('scripts/verify-facility-auto-procure.mjs')
+          auto_procure_verify = auto_procure_verify_path.read_text(encoding='utf-8')
+          old_limit = "    '!fillOrKill && countOpenOrdersForOwner',"
+          if old_limit not in auto_procure_verify:
+              raise SystemExit('facility auto-procure open-order verifier marker not found')
+          auto_procure_verify = auto_procure_verify.replace(
+              old_limit,
+              "    \"const transientExecution = fillOrKill || onlineAutoSell;\",\n    '!transientExecution && countOpenOrdersForOwner',",
+              1,
+          )
+          auto_procure_verify_path.write_text(auto_procure_verify, encoding='utf-8')
           PY
 
       - name: Install dependencies
@@ -127,6 +139,7 @@ jobs:
           node scripts/verify-online-auto-sell.mjs
           node scripts/verify-game-tutorial.mjs
           node scripts/verify-warehouse-expansion.mjs
+          node scripts/verify-facility-auto-procure.mjs
 
       - name: Run full build verification
         run: npm run build
@@ -150,6 +163,7 @@ jobs:
             docs/WAREHOUSE_EXPANSION_DESIGN.md \
             docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
             docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md \
+            scripts/verify-facility-auto-procure.mjs \
             scripts/verify-game-tutorial.mjs \
             scripts/verify-online-auto-sell.mjs \
             scripts/verify-warehouse-expansion.mjs \
