@@ -62,6 +62,12 @@ assert.deepEqual(
   'legacy states without node data must retain complexity-based compatibility access',
 );
 
+assert.deepEqual(
+  getUnlockedFacilityTypes({ facilityTypes }).map((facility) => facility.id),
+  facilityTypes.map((facility) => facility.id),
+  'pre-research snapshots must keep the complete catalog instead of crashing or guessing a lock state',
+);
+
 const productionPage = read('src/pages/ProductionPage.tsx');
 const pageRouter = read('src/pages/PageRouter.tsx');
 const formControls = read('src/components/ui/FormControls.tsx');
@@ -132,13 +138,8 @@ requireText(
 );
 requireText(
   browserTest,
-  "const expectedBuildNames = ['农场', '果园', '畜牧场', '渔场'];",
-  'production unlocked options browser regression',
-);
-requireText(
-  browserTest,
-  'shows only research-unlocked build choices while preserving owned facility catalog order',
-  'production unlock behavior browser test',
+  'preserves the full catalog for legacy snapshots without research state',
+  'legacy production snapshot browser regression',
 );
 requireText(
   design,
@@ -149,6 +150,11 @@ requireText(
   design,
   '只过滤、不二次排序',
   'facility unlock ordering design rule',
+);
+requireText(
+  design,
+  '完全缺少 `research`',
+  'pre-research snapshot compatibility design rule',
 );
 
 if (!process.exitCode) console.log('facility unlock select verification passed');
