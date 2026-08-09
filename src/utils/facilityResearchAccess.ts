@@ -1,9 +1,9 @@
 import type { EconomyState, FacilityTypeDefinition } from '../types';
 
-type FacilityResearchState = Pick<
+type FacilityResearchState = Pick<EconomyState, 'facilityTypes'> & Partial<Pick<
   EconomyState,
-  'facilityTypes' | 'research' | 'researchTechnologies'
->;
+  'research' | 'researchTechnologies'
+>>;
 
 function complexityRank(value: string) {
   const rank = Number.parseInt(String(value).slice(1), 10);
@@ -11,8 +11,13 @@ function complexityRank(value: string) {
 }
 
 export function getUnlockedFacilityTypeIds(game: FacilityResearchState) {
+  const research = game.research;
+  if (!research) {
+    return new Set(game.facilityTypes.map((facility) => facility.id));
+  }
+
   const technologies = game.researchTechnologies;
-  const completedTechnologyIds = game.research.completedTechnologyIds;
+  const completedTechnologyIds = research.completedTechnologyIds;
 
   if (Array.isArray(technologies) && Array.isArray(completedTechnologyIds)) {
     const completed = new Set(completedTechnologyIds);
@@ -24,7 +29,7 @@ export function getUnlockedFacilityTypeIds(game: FacilityResearchState) {
     return unlocked;
   }
 
-  const unlockedRank = complexityRank(game.research.unlockedComplexity);
+  const unlockedRank = complexityRank(research.unlockedComplexity);
   return new Set(
     game.facilityTypes
       .filter((facility) => complexityRank(facility.complexity) <= unlockedRank)
