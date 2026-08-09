@@ -97,8 +97,18 @@ requireText(
 );
 requireText(
   formControls,
-  'optionValues.every((value) => value === \'\' || availability.restrictedOptionValues.has(value))',
+  "optionValues.every((value) => value === '' || restrictedOptionValues.has(value))",
   'pure restricted-catalog detection',
+);
+requireText(
+  formControls,
+  "select.dispatchEvent(new Event('change', { bubbles: true }));",
+  'filtered controlled select legalization',
+);
+requireText(
+  formControls,
+  "if (currentValue === '' || optionAvailability.allowedRestrictedOptionValues.has(currentValue)) return;",
+  'valid filtered selection preservation',
 );
 requireText(
   availabilityScope,
