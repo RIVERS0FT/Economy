@@ -107,9 +107,31 @@ function dateTimeLabel(timestamp?: number | null) {
   }).format(timestamp);
 }
 
-function statusTone(contract: Pick<ProductionContract, 'status'> & Partial<Pick<ProductionContract, 'graceEndsAt' | 'issue'>>) {
+function isConfirmedDefault(contract: Pick<ProductionContract, 'status' | 'terminationReason'> & Partial<Pick<ProductionContract, 'breachedAt'>>) {
+  return contract.status === 'active'
+    && Boolean(contract.breachedAt)
+    && ['buyer_default', 'supplier_default', 'both_default', 'borrower_default', 'lessee_default'].includes(String(contract.terminationReason || ''));
+}
+
+function canClaimConfirmedDefault(contract: ProductionContract) {
+  if (!isConfirmedDefault(contract)) return false;
+  if (contract.terminationReason === 'buyer_default') return Boolean(contract.isSupplier);
+  if (contract.terminationReason === 'supplier_default') return Boolean(contract.isBuyer);
+  if (contract.terminationReason === 'both_default') return Boolean(contract.isParticipant || contract.isBuyer || contract.isSupplier);
+  if (contract.terminationReason === 'borrower_default') return Boolean(contract.isLender);
+  if (contract.terminationReason === 'lessee_default') return Boolean(contract.isLessor);
+  return false;
+}
+
+function defaultClaimLabel(contract: ProductionContract) {
+  if (contract.kind === 'loan') return '解除合同并处置抵押';
+  if (contract.terminationReason === 'both_default') return '解除合同';
+  return '解除合同并领取违约金';
+}
+
+function statusTone(contract: Pick<ProductionContract, 'status' | 'terminationReason'> & Partial<Pick<ProductionContract, 'graceEndsAt' | 'issue' | 'breachedAt'>>) {
   if (contract.status === 'completed') return 'success' as const;
-  if (contract.status === 'terminated') return 'danger' as const;
+  if (contract.status === 'terminated' || isConfirmedDefault(contract)) return 'danger' as const;
   if (contract.status !== 'active') return 'neutral' as const;
   if (contract.graceEndsAt) return 'danger' as const;
   if (contract.issue) return 'warning' as const;
@@ -118,7 +140,8 @@ function statusTone(contract: Pick<ProductionContract, 'status'> & Partial<Pick<
 
 function contractNeedsAttention(contract: ProductionContract) {
   return Boolean(
-    contract.graceEndsAt
+    isConfirmedDefault(contract)
+    || contract.graceEndsAt
     || contract.issue
     || contract.terminationRequestedBy
     || (contract.renewalProposal?.status === 'proposed' && !contract.renewalProposal.isProposer),
@@ -205,6 +228,7 @@ function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
     && remaining >= 1
     && remaining <= 3
     && !contract.graceEndsAt
+    && !isConfirmedDefault(contract)
     && !contract.terminationRequestedBy;
   const [editing, setEditing] = useState(false);
   const [quantityInput, setQuantityInput] = useState(String(contract.quantityPerDelivery));
@@ -357,12 +381,14 @@ function CommercialActiveContractCard({ contract, productName, busy, run }: Cont
   const counterparty = commercialCounterparty(contract);
   const dueAt = isLoan ? contract.dueAt : contract.nextDueAt;
   const totalLoanDue = Number(contract.principalOutstanding || 0) + Number(contract.interestDue || 0);
-  const canFundLease = !isLoan && contract.isLessee && Number(contract.lesseeEscrowCredits || 0) < Number(contract.rentPerPeriod || 0);
+  const confirmedDefault = isConfirmedDefault(contract);
+  const canClaimDefault = canClaimConfirmedDefault(contract);
+  const canFundLease = !confirmedDefault && !isLoan && contract.isLessee && Number(contract.lesseeEscrowCredits || 0) < Number(contract.rentPerPeriod || 0);
   return (
-    <PagePanel className={`contract-card contract-commercial-card contract-card--${contract.graceEndsAt ? 'danger' : contract.issue ? 'attention' : 'normal'}`}>
+    <PagePanel className={`contract-card contract-commercial-card contract-card--${confirmedDefault || contract.graceEndsAt ? 'danger' : contract.issue ? 'attention' : 'normal'}`}>
       <header className="contract-card-heading">
         <div className="contract-card-title">
-          <div className="contract-card-tags"><RoleTag contract={contract} /><StatusTag tone={statusTone(contract)}>{contract.graceEndsAt ? '宽限期' : contractKindLabel(contract)}</StatusTag>{contract.issue ? <StatusTag tone="warning">待处理</StatusTag> : null}</div>
+          <div className="contract-card-tags"><RoleTag contract={contract} /><StatusTag tone={statusTone(contract)}>{confirmedDefault ? '已违约 · 待解除' : contract.graceEndsAt ? '宽限期' : contractKindLabel(contract)}</StatusTag>{contract.issue ? <StatusTag tone={confirmedDefault ? 'danger' : 'warning'}>待处理</StatusTag> : null}</div>
           <h2>{isLoan ? '玩家抵押借贷' : productName}</h2>
           <p>合作方：{counterparty || '等待服务器同步'}</p>
         </div>
@@ -375,7 +401,7 @@ function CommercialActiveContractCard({ contract, productName, busy, run }: Cont
             <DataRow label={isLoan ? '到期应还' : '本期租金'} value={<CurrencyAmount>{formatCurrency(isLoan ? totalLoanDue : contract.rentPerPeriod || 0)}</CurrencyAmount>} />
             {!isLoan ? <DataRow label="已托管租金" value={<CurrencyAmount>{formatCurrency(contract.lesseeEscrowCredits || 0)}</CurrencyAmount>} /> : null}
             <DataRow label={isLoan ? '贷款到期' : '下次结算'} value={dateTimeLabel(dueAt)} />
-            {contract.graceEndsAt ? <DataRow label="宽限期结束" value={dateTimeLabel(contract.graceEndsAt)} tone="danger" /> : null}
+            {confirmedDefault ? <DataRow label="违约确认时间" value={dateTimeLabel(contract.breachedAt)} tone="danger" /> : contract.graceEndsAt ? <DataRow label="宽限期结束" value={dateTimeLabel(contract.graceEndsAt)} tone="danger" /> : null}
           </DataList>
           {contract.issue ? <p className="contract-issue" role="status">{contract.issue}</p> : <p className="contract-ok">合同状态正常</p>}
         </section>
@@ -391,16 +417,24 @@ function CommercialActiveContractCard({ contract, productName, busy, run }: Cont
       </div>
       <div className="contract-fulfillment-controls">
         <div className="contract-primary-actions">
-          {isLoan && contract.isBorrower ? <Button disabled={busy} onClick={() => void run(`${contract.id}:repay`, () => productionContractActions.repayLoan(contract.id))}>偿还本金和利息</Button> : null}
-          {canFundLease ? <Button disabled={busy} onClick={() => void run(`${contract.id}:lease-fund`, () => productionContractActions.fundLease(contract.id))}>补充本期租金</Button> : null}
-          {!((isLoan && contract.isBorrower) || canFundLease) ? <StatusTag tone={contract.issue ? 'warning' : 'success'}>{contract.issue ? '等待责任方处理' : '当前无需手动处理'}</StatusTag> : null}
+          {confirmedDefault ? (
+            canClaimDefault
+              ? <Button variant="danger" disabled={busy} onClick={() => void run(`${contract.id}:default-claim`, () => productionContractActions.terminateNow(contract.id))}>{defaultClaimLabel(contract)}</Button>
+              : <StatusTag tone="danger">等待受偿方处理</StatusTag>
+          ) : (
+            <>
+              {isLoan && contract.isBorrower ? <Button disabled={busy} onClick={() => void run(`${contract.id}:repay`, () => productionContractActions.repayLoan(contract.id))}>偿还本金和利息</Button> : null}
+              {canFundLease ? <Button disabled={busy} onClick={() => void run(`${contract.id}:lease-fund`, () => productionContractActions.fundLease(contract.id))}>补充本期租金</Button> : null}
+              {!((isLoan && contract.isBorrower) || canFundLease) ? <StatusTag tone={contract.issue ? 'warning' : 'success'}>{contract.issue ? '等待责任方处理' : '当前无需手动处理'}</StatusTag> : null}
+            </>
+          )}
         </div>
-        <div className="contract-automation">
+        {!confirmedDefault ? <div className="contract-automation">
           {isLoan && contract.isBorrower ? <ToggleField label="自动还款" description="到期优先使用可用资金一次性结清。" checked={contract.autoRepay !== false} disabled={busy} onChange={() => void run(`${contract.id}:auto-repay`, () => productionContractActions.setLoanAutoRepay(contract.id, contract.autoRepay === false))} /> : null}
           {!isLoan && contract.isLessee ? <ToggleField label="自动补充租金" description="每期从当前可用资金补足托管租金。" checked={contract.autoFund !== false} disabled={busy} onChange={() => void run(`${contract.id}:lease-auto-fund`, () => productionContractActions.setLeaseAutoFund(contract.id, contract.autoFund === false))} /> : null}
-        </div>
+        </div> : null}
       </div>
-      {!isLoan ? <footer className="contract-management-actions">
+      {!isLoan && !confirmedDefault ? <footer className="contract-management-actions">
         {!contract.terminationRequestedBy ? <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:notice`, () => productionContractActions.requestTermination(contract.id))}>申请本期后结束</Button> : <StatusTag tone="warning">已申请本期后结束</StatusTag>}
         <Button variant="danger" disabled={busy} onClick={() => { if (window.confirm('立即终止会由发起方承担保证金赔付，是否继续？')) void run(`${contract.id}:terminate`, () => productionContractActions.terminateNow(contract.id)); }}>立即违约终止</Button>
       </footer> : null}
@@ -411,17 +445,19 @@ function CommercialActiveContractCard({ contract, productName, busy, run }: Cont
 
 function ActiveContractCard({ contract, productName, busy, run }: ContractCardProps) {
   if (contract.kind !== 'supply') return <CommercialActiveContractCard contract={contract} productName={productName} busy={busy} run={run} />;
-  const canPrepare = contract.isSupplier && contract.supplierReservedQuantity < contract.quantityPerDelivery;
-  const canFund = contract.isBuyer && contract.buyerEscrowCredits < contract.batchGross;
+  const confirmedDefault = isConfirmedDefault(contract);
+  const canClaimDefault = canClaimConfirmedDefault(contract);
+  const canPrepare = !confirmedDefault && contract.isSupplier && contract.supplierReservedQuantity < contract.quantityPerDelivery;
+  const canFund = !confirmedDefault && contract.isBuyer && contract.buyerEscrowCredits < contract.batchGross;
   const counterparty = contract.isBuyer ? contract.supplierName : contract.buyerName;
-  const statusLabel = contract.graceEndsAt ? '宽限期' : STATUS_LABELS[contract.status];
+  const statusLabel = confirmedDefault ? '已违约 · 待解除' : contract.graceEndsAt ? '宽限期' : STATUS_LABELS[contract.status];
   const needsAttention = contractNeedsAttention(contract);
 
   return (
-    <PagePanel className={`contract-card contract-card--${contract.graceEndsAt ? 'danger' : needsAttention ? 'attention' : 'normal'}`}>
+    <PagePanel className={`contract-card contract-card--${confirmedDefault || contract.graceEndsAt ? 'danger' : needsAttention ? 'attention' : 'normal'}`}>
       <header className="contract-card-heading">
         <div className="contract-card-title">
-          <div className="contract-card-tags"><RoleTag contract={contract} /><StatusTag tone={statusTone(contract)}>{statusLabel}</StatusTag>{needsAttention && !contract.graceEndsAt ? <StatusTag tone="warning">待处理</StatusTag> : null}</div>
+          <div className="contract-card-tags"><RoleTag contract={contract} /><StatusTag tone={statusTone(contract)}>{statusLabel}</StatusTag>{needsAttention && !contract.graceEndsAt ? <StatusTag tone={confirmedDefault ? 'danger' : 'warning'}>待处理</StatusTag> : null}</div>
           <h2><ProductIconLabel productId={contract.productId}>{contractTitle(contract, productName)}</ProductIconLabel></h2>
           <p>合作方：{counterparty || '等待服务器同步'}</p>
         </div>
@@ -444,7 +480,7 @@ function ActiveContractCard({ contract, productName, busy, run }: ContractCardPr
           />
           <DataList className="compact contract-schedule-list">
             <DataRow label="下次交付" value={dateTimeLabel(contract.nextDueAt)} />
-            {contract.graceEndsAt ? <DataRow label="宽限期结束" value={dateTimeLabel(contract.graceEndsAt)} tone="danger" /> : null}
+            {confirmedDefault ? <DataRow label="违约确认时间" value={dateTimeLabel(contract.breachedAt)} tone="danger" /> : contract.graceEndsAt ? <DataRow label="宽限期结束" value={dateTimeLabel(contract.graceEndsAt)} tone="danger" /> : null}
           </DataList>
           {contract.issue ? <p className="contract-issue" role="status">{contract.issue}</p> : <p className="contract-ok">本批履约条件正常</p>}
         </section>
@@ -462,11 +498,19 @@ function ActiveContractCard({ contract, productName, busy, run }: ContractCardPr
 
       <div className="contract-fulfillment-controls">
         <div className="contract-primary-actions">
-          {canPrepare ? <Button disabled={busy} onClick={() => void run(`${contract.id}:prepare`, () => productionContractActions.prepare(contract.id))}>准备本批商品</Button> : null}
-          {canFund ? <Button disabled={busy} onClick={() => void run(`${contract.id}:fund`, () => productionContractActions.fund(contract.id))}>补充本批货款</Button> : null}
-          {!canPrepare && !canFund ? <StatusTag tone={contract.issue ? 'warning' : 'success'}>{contract.issue ? '请先处理上方异常' : '当前无需手动处理'}</StatusTag> : null}
+          {confirmedDefault ? (
+            canClaimDefault
+              ? <Button variant="danger" disabled={busy} onClick={() => void run(`${contract.id}:default-claim`, () => productionContractActions.terminateNow(contract.id))}>{defaultClaimLabel(contract)}</Button>
+              : <StatusTag tone="danger">等待受偿方处理</StatusTag>
+          ) : (
+            <>
+              {canPrepare ? <Button disabled={busy} onClick={() => void run(`${contract.id}:prepare`, () => productionContractActions.prepare(contract.id))}>准备本批商品</Button> : null}
+              {canFund ? <Button disabled={busy} onClick={() => void run(`${contract.id}:fund`, () => productionContractActions.fund(contract.id))}>补充本批货款</Button> : null}
+              {!canPrepare && !canFund ? <StatusTag tone={contract.issue ? 'warning' : 'success'}>{contract.issue ? '请先处理上方异常' : '当前无需手动处理'}</StatusTag> : null}
+            </>
+          )}
         </div>
-        <div className="contract-automation">
+        {!confirmedDefault ? <div className="contract-automation">
           {contract.isSupplier ? (
             <ToggleField
               label="自动准备商品"
@@ -485,12 +529,12 @@ function ActiveContractCard({ contract, productName, busy, run }: ContractCardPr
               onChange={() => void run(`${contract.id}:auto-fund`, () => productionContractActions.setAutoFund(contract.id, !contract.buyerAutoFund))}
             />
           ) : null}
-        </div>
+        </div> : null}
       </div>
 
       <ContractRenewalSection contract={contract} productName={productName} busy={busy} run={run} />
 
-      <footer className="contract-management-actions">
+      {!confirmedDefault ? <footer className="contract-management-actions">
         {!contract.terminationRequestedBy ? (
           <Button
             variant="text"
@@ -511,7 +555,7 @@ function ActiveContractCard({ contract, productName, busy, run }: ContractCardPr
             }
           }}
         >立即违约终止</Button>
-      </footer>
+      </footer> : null}
     </PagePanel>
   );
 }

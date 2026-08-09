@@ -142,10 +142,10 @@ function commercialAliases(contract) {
     contract.buyerEscrowCredits = contract.lesseeEscrowCredits;
     contract.buyerBondCredits = contract.lesseeBondCredits;
     contract.supplierBondCredits = contract.lessorBondCredits;
-    contract.supplierReservedQuantity = contract.status === 'active' && !contract.graceEndsAt ? contract.quantity : 0;
+    contract.supplierReservedQuantity = contract.status === 'active' && !contract.graceEndsAt && !contract.breachedAt ? contract.quantity : 0;
   }
   contract.publisherRole = ['lender', 'lessor'].includes(contract.publisherSide) ? 'supplier' : 'buyer';
-  contract.roundStatus = contract.graceEndsAt ? 'grace' : contract.status === 'active' ? 'ready' : 'preparing';
+  contract.roundStatus = contract.breachedAt ? 'grace' : contract.graceEndsAt ? 'grace' : contract.status === 'active' ? 'ready' : 'preparing';
   return contract;
 }
 
@@ -184,6 +184,9 @@ function normalizeLoan(contract) {
     acceptedAt: contract?.acceptedAt == null ? undefined : Math.max(0, Number(contract.acceptedAt)),
     dueAt: contract?.dueAt == null ? null : Math.max(0, Number(contract.dueAt)),
     graceEndsAt: contract?.graceEndsAt == null ? undefined : Math.max(0, Number(contract.graceEndsAt)),
+    breachedAt: contract?.breachedAt == null ? undefined : Math.max(0, Number(contract.breachedAt)),
+    defaultCollateralQuantity: Math.max(0, Math.floor(Number(contract?.defaultCollateralQuantity || 0))),
+    defaultCollateralUnitValue: Math.max(0, Number(contract?.defaultCollateralUnitValue || 0)),
     endedAt: contract?.endedAt == null ? undefined : Math.max(0, Number(contract.endedAt)),
     completedAt: contract?.completedAt == null ? undefined : Math.max(0, Number(contract.completedAt)),
     marketSellFeeGross: Math.max(0, Number(contract?.marketSellFeeGross || 0)),
@@ -230,6 +233,7 @@ function normalizeLease(contract) {
     acceptedAt: contract?.acceptedAt == null ? undefined : Math.max(0, Number(contract.acceptedAt)),
     nextDueAt: contract?.nextDueAt == null ? null : Math.max(0, Number(contract.nextDueAt)),
     graceEndsAt: contract?.graceEndsAt == null ? undefined : Math.max(0, Number(contract.graceEndsAt)),
+    breachedAt: contract?.breachedAt == null ? undefined : Math.max(0, Number(contract.breachedAt)),
     endedAt: contract?.endedAt == null ? undefined : Math.max(0, Number(contract.endedAt)),
     completedAt: contract?.completedAt == null ? undefined : Math.max(0, Number(contract.completedAt)),
     marketSellFeeGross: Math.max(0, Number(contract?.marketSellFeeGross || 0)),
@@ -399,6 +403,29 @@ function repayLoan(world, contract, borrower, now, runtimeIndex, automatic = fal
   return true;
 }
 
+function confirmLoanDefault(world, contract, now, runtimeIndex) {
+  const borrower = playerFor(world, contract.borrowerId);
+  const lender = playerFor(world, contract.lenderId);
+  const borrowerGroup = borrower && groupFor(borrower, contract.facilityTypeId);
+  if (!borrower || !lender || !borrowerGroup) {
+    transferLoanCollateral(world, contract, now, runtimeIndex);
+    return;
+  }
+  const unitValue = Math.max(0.01, prudentFacilityUnitValue(world, contract.facilityTypeId) * 0.8);
+  const due = addMoney(contract.principalOutstanding, contract.interestDue) || 0;
+  const required = Math.max(1, Math.ceil(due / unitValue));
+  const quantity = Math.min(contract.collateralQuantity, borrowerGroup.count, required);
+  runtimeIndex.transition(contract, () => {
+    contract.defaultCollateralQuantity = quantity;
+    contract.defaultCollateralUnitValue = unitValue;
+    contract.breachedAt = now;
+    contract.terminationReason = 'borrower_default';
+    contract.dueAt = null;
+    delete contract.graceEndsAt;
+    commercialAliases(contract);
+  });
+}
+
 function transferLoanCollateral(world, contract, now, runtimeIndex) {
   const borrower = playerFor(world, contract.borrowerId);
   const lender = playerFor(world, contract.lenderId);
@@ -410,10 +437,11 @@ function transferLoanCollateral(world, contract, now, runtimeIndex) {
     });
     return;
   }
-  const unitValue = Math.max(0.01, prudentFacilityUnitValue(world, contract.facilityTypeId) * 0.8);
+  const unitValue = Math.max(0.01, Number(contract.defaultCollateralUnitValue || 0) || prudentFacilityUnitValue(world, contract.facilityTypeId) * 0.8);
   const due = addMoney(contract.principalOutstanding, contract.interestDue) || 0;
   const required = Math.max(1, Math.ceil(due / unitValue));
-  const quantity = Math.min(contract.collateralQuantity, borrowerGroup.count, required);
+  const plannedQuantity = Math.max(0, Math.floor(Number(contract.defaultCollateralQuantity || 0)));
+  const quantity = Math.min(contract.collateralQuantity, borrowerGroup.count, plannedQuantity || required);
   runtimeIndex.transition(contract, () => {
     borrowerGroup.count = Math.max(0, borrowerGroup.count - quantity);
     if (borrowerGroup.count === 0) borrower.facilityGroups = borrower.facilityGroups.filter((candidate) => candidate !== borrowerGroup);
@@ -477,27 +505,36 @@ function settleLeasePeriod(world, contract, lessee, lessor, now, runtimeIndex) {
   return true;
 }
 
-function terminateLeaseDefault(contract, lessee, lessor, now, runtimeIndex) {
+function confirmLeaseDefault(contract, lessee, lessor, now, runtimeIndex) {
   runtimeIndex.transition(contract, () => {
     releaseFrozenCredits(lessee, contract.lesseeEscrowCredits);
-    transferFrozenCredits(lessee, lessor, contract.lesseeBondCredits);
     releaseFrozenCredits(lessor, contract.lessorBondCredits);
-    contract.lastCompensation = contract.lesseeBondCredits;
-    contract.lastCompensationFromId = Number(lessee.userId);
-    contract.lastCompensationToId = Number(lessor.userId);
     contract.lesseeEscrowCredits = 0;
-    contract.lesseeBondCredits = 0;
     contract.lessorBondCredits = 0;
-    contract.status = 'terminated';
+    contract.breachedAt = now;
     contract.terminationReason = 'lessee_default';
-    contract.endedAt = now;
     contract.nextDueAt = null;
     delete contract.graceEndsAt;
     commercialAliases(contract);
   });
 }
 
+function claimLeaseDefault(contract, lessee, lessor, now, runtimeIndex) {
+  const compensation = Math.max(0, Number(contract.lesseeBondCredits || 0));
+  runtimeIndex.transition(contract, () => {
+    transferFrozenCredits(lessee, lessor, compensation);
+    contract.lastCompensation = compensation;
+    contract.lastCompensationFromId = Number(lessee.userId);
+    contract.lastCompensationToId = Number(lessor.userId);
+    contract.lesseeBondCredits = 0;
+    contract.status = 'terminated';
+    contract.endedAt = now;
+    commercialAliases(contract);
+  });
+}
+
 export function processCommercialContract(world, contract, now, runtimeIndex) {
+  if (contract.status === 'active' && contract.breachedAt && String(contract.terminationReason || '').endsWith('_default')) return;
   if (contract.kind === 'loan') {
     const borrower = playerFor(world, contract.borrowerId);
     if (!borrower || !playerFor(world, contract.lenderId)) {
@@ -512,7 +549,7 @@ export function processCommercialContract(world, contract, now, runtimeIndex) {
     }
     if (now < contract.graceEndsAt) return;
     if (repayLoan(world, contract, borrower, now, runtimeIndex, true)) return;
-    transferLoanCollateral(world, contract, now, runtimeIndex);
+    confirmLoanDefault(world, contract, now, runtimeIndex);
     return;
   }
   if (contract.kind === 'facility_lease') {
@@ -532,7 +569,7 @@ export function processCommercialContract(world, contract, now, runtimeIndex) {
     }
     if (now < contract.graceEndsAt) return;
     if (settleLeasePeriod(world, contract, lessee, lessor, now, runtimeIndex)) return;
-    terminateLeaseDefault(contract, lessee, lessor, now, runtimeIndex);
+    confirmLeaseDefault(contract, lessee, lessor, now, runtimeIndex);
   }
 }
 
@@ -544,6 +581,22 @@ function ownCommercialContract(runtimeIndex, userId, contractId) {
 
 export function applyCommercialContractAction(world, user, action, payload, now, runtimeIndex) {
   const contract = ownCommercialContract(runtimeIndex, user.id, payload.contractId);
+  if (contract?.breachedAt && String(contract.terminationReason || '').endsWith('_default')) {
+    if (action !== 'terminateProductionContractNow') return result(false, '合同已确认违约，不能再补救、还款或修改自动履约设置');
+    if (contract.kind === 'loan') {
+      if (Number(contract.lenderId) !== Number(user.id)) return result(false, '只有出借方可以解除违约贷款并处置抵押');
+      transferLoanCollateral(world, contract, now, runtimeIndex);
+      return result(true, '违约贷款已解除，抵押工厂已按违约确认时快照处置');
+    }
+    if (contract.kind === 'facility_lease') {
+      if (Number(contract.lessorId) !== Number(user.id)) return result(false, '只有出租方可以解除违约租赁并领取违约金');
+      const lessee = playerFor(world, contract.lesseeId);
+      const lessor = playerFor(world, contract.lessorId);
+      if (!lessee || !lessor) return result(false, '合同参与者不存在');
+      claimLeaseDefault(contract, lessee, lessor, now, runtimeIndex);
+      return result(true, '租赁合同已解除，承租方违约保证金已领取');
+    }
+  }
   if (action === 'repayPlayerLoan') {
     if (!contract || contract.kind !== 'loan' || Number(contract.borrowerId) !== Number(user.id)) return result(false, '只有借款方可以还款');
     return repayLoan(world, contract, playerFor(world, user.id), now, runtimeIndex, false)
@@ -598,8 +651,17 @@ export function applyCommercialContractAction(world, user, action, payload, now,
   return null;
 }
 
-export function commercialIssue(contract) {
+export function commercialIssue(contract, userId = null) {
   if (contract.status !== 'active') return null;
+  if (contract.breachedAt && String(contract.terminationReason || '').endsWith('_default')) {
+    const claimantId = contract.kind === 'loan' ? contract.lenderId : contract.lessorId;
+    if (Number(claimantId) === Number(userId)) {
+      return contract.kind === 'loan'
+        ? '借款方已违约，请主动解除贷款并处置抵押'
+        : '承租方已违约，请主动解除租赁并领取违约金';
+    }
+    return '合同已确认违约，等待受偿方解除合同';
+  }
   if (contract.graceEndsAt) return contract.kind === 'loan' ? '贷款已进入还款宽限期' : '租金不足，租赁使用权已暂停';
   if (contract.kind === 'loan') return contract.autoRepay ? null : '自动还款已关闭，请在到期前手动还款';
   if (contract.kind === 'facility_lease' && contract.lesseeEscrowCredits < contract.rentPerPeriod) return '等待承租方补充本期租金';
@@ -610,7 +672,7 @@ export function publicCommercialContract(contract, userId) {
   commercialAliases(contract);
   return {
     ...structuredClone(contract),
-    issue: commercialIssue(contract),
+    issue: commercialIssue(contract, userId),
     isPublisher: Number(contract.publisherId) === Number(userId),
     isBuyer: Number(contract.buyerId) === Number(userId),
     isSupplier: Number(contract.supplierId) === Number(userId),

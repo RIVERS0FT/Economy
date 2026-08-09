@@ -112,12 +112,19 @@ test('合同忽略非商品资产字段，商品不足时进入宽限期并由�
 
   processProductionContracts(world, contract.graceEndsAt + 1);
   contract = contractById(world, contract.id);
-  assert.equal(contract.status, 'terminated');
+  assert.equal(contract.status, 'active');
   assert.equal(contract.terminationReason, 'supplier_default');
-  assert.equal(buyer.frozenCredits, 0);
-  assert.equal(supplier.frozenCredits, 0);
-  assert.equal(buyer.credits, 100_100, '采购方收回货款与自己的保证金，并获得供应方保证金');
+  assert.ok(contract.breachedAt);
+  assert.equal(buyer.frozenCredits, 0, '采购方货款与自身保证金应在违约确认时释放');
+  assert.equal(supplier.frozenCredits, 100, '供应方违约保证金保持冻结，等待采购方主动领取');
+  assert.equal(buyer.credits, 100_000, '违约确认时不得自动领取供应方保证金');
   assert.equal(supplier.stats.contractDefaults, 1);
+  assert.equal(applyProductionContractAction(world, supplierUser, 'terminateProductionContractNow', { contractId: contract.id }, contract.breachedAt + 1).ok, false, '责任方不能主动解除逃避赔付');
+  assert.equal(applyProductionContractAction(world, buyerUser, 'terminateProductionContractNow', { contractId: contract.id }, contract.breachedAt + 2).ok, true);
+  contract = contractById(world, contract.id);
+  assert.equal(contract.status, 'terminated');
+  assert.equal(buyer.credits, 100_100, '采购方主动解除后才领取供应方保证金');
+  assert.equal(supplier.frozenCredits, 0);
   assert.equal(contract.unsupportedAssetId, undefined);
   assert.equal(contract.facilityTypeId, undefined);
 });
