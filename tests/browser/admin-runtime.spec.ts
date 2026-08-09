@@ -174,10 +174,10 @@ async function configureAdminRoutes(page: Page) {
           detected_user_count: 2,
           fingerprint_preview: 'family-network',
           active_ban_count: 1,
-        new_member_count: 0,
-        reviewed_at: null,
-        reviewed_by: null,
-        review_note: '',
+          new_member_count: 0,
+          reviewed_at: null,
+          reviewed_by: null,
+          review_note: '',
           created_reason: 'duplicate_ip',
         },
         members: [
@@ -225,17 +225,17 @@ test('admin desktop shares the game shell gutter, command bar and edge scrollbar
   await page.goto('/economy/admin');
 
   await expect(page.getByRole('heading', { name: '世界概览', exact: true })).toBeVisible();
-await expect(page.locator('.admin-command-bar')).toBeVisible();
-await expect(page.locator('.admin-command-bar .liquid-glass-surface--desktopStatusBar')).toHaveCount(1);
-await expect(page.locator('.admin-summary-grid .ui-metric-card')).toHaveCount(6);
-await expect(page.getByRole('heading', { name: '玩家社区入口', exact: true })).toBeVisible();
-await expect(page.getByLabel('QQ群跳转链接', { exact: true })).toHaveValue('https://qm.qq.com/q/admin-test');
-await expect(page.getByRole('heading', { name: '玩家运营分析', exact: true })).toHaveCount(0);
-await expect(page.getByRole('heading', { name: '人口经济总览', exact: true })).toHaveCount(0);
-await expect(page.locator('.admin-page-frame .page-heading')).toHaveCSS('display', 'none');
+  await expect(page.locator('.admin-command-bar')).toBeVisible();
+  await expect(page.locator('.admin-command-bar .liquid-glass-surface--desktopStatusBar')).toHaveCount(1);
+  await expect(page.locator('.admin-summary-grid .ui-metric-card')).toHaveCount(6);
+  await expect(page.getByRole('heading', { name: '玩家社区入口', exact: true })).toBeVisible();
+  await expect(page.getByLabel('QQ群跳转链接', { exact: true })).toHaveValue('https://qm.qq.com/q/admin-test');
+  await expect(page.getByRole('heading', { name: '玩家运营分析', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '人口经济总览', exact: true })).toHaveCount(0);
+  await expect(page.locator('.admin-page-frame .page-heading')).toHaveCSS('display', 'none');
 
-const desktopNavigationLabels = await page.locator('.admin-sidebar .sidebar-nav-button strong').allTextContents();
-expect(desktopNavigationLabels).toEqual(['概览', '玩家', '人口', '礼品', '封禁']);
+  const desktopNavigationLabels = await page.locator('.admin-sidebar .sidebar-nav-button strong').allTextContents();
+  expect(desktopNavigationLabels).toEqual(['概览', '玩家', '人口', '礼品', '封禁']);
 
   const geometry = await page.evaluate(() => {
     const workspace = document.querySelector<HTMLElement>('.admin-workspace');
@@ -322,76 +322,93 @@ expect(desktopNavigationLabels).toEqual(['概览', '玩家', '人口', '礼品',
   expect(metricColumns).toBe(6);
 
   await page.getByRole('button', { name: '玩家', exact: true }).click();
-await expect(page.getByRole('heading', { name: '玩家运营', exact: true })).toBeVisible();
-await expect(page.getByRole('heading', { name: '玩家运营分析', exact: true })).toBeVisible();
-await expect(page.getByRole('group', { name: '玩家统计时间范围' })).toBeVisible();
-await expect(page.getByRole('button', { name: '30 日', exact: true })).toHaveAttribute('aria-pressed', 'true');
-await expect(page.getByText('24 小时经济活跃', { exact: true })).toBeVisible();
-await expect(page.getByRole('heading', { name: '新增与经济活跃趋势', exact: true })).toBeVisible();
-await expect(page.getByRole('heading', { name: '财富分布', exact: true })).toBeVisible();
-await expect(page.getByRole('heading', { name: '需要关注的玩家群体', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '玩家运营', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '玩家运营分析', exact: true })).toBeVisible();
+  await expect(page.getByRole('group', { name: '玩家统计时间范围' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '30 日', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText('24 小时经济活跃', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '新增与经济活跃趋势', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '财富分布', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '需要关注的玩家群体', exact: true })).toBeVisible();
 
-await page.getByRole('button', { name: '人口', exact: true }).click();
-await expect(page.getByRole('heading', { name: '人口经济', exact: true })).toBeVisible();
-await expect(page.getByRole('heading', { name: '人口经济总览', exact: true })).toBeVisible();
-await expect(page.getByRole('table', { name: '人口需求比较矩阵' })).toBeVisible();
-await expect(page.getByText('当前钱包总缺口', { exact: true })).toBeVisible();
-await expect(page.locator('.admin-population-ledger').getByText('累计稳定需求补充', { exact: true })).toBeVisible();
-await expect(page.locator('.admin-population-ledger').getByText('累计管理员人口补充', { exact: true })).toBeVisible();
-await expect(page.locator('.admin-population-matrix').getByText('稳定预算／自动补充', { exact: true })).toBeVisible();
-await expect(page.locator('.admin-population-matrix').getByText('奢靡', { exact: true })).toBeVisible();
-await expect(page.locator('.admin-population-matrix').getByText('繁荣', { exact: true })).toBeVisible();
-await expect(page.locator('.admin-population-matrix').getByText('拮据', { exact: true })).toBeVisible();
-await expect(page.locator('.admin-population-matrix').getByText('状态判定指标', { exact: true })).toBeVisible();
-await expect(page.locator('.admin-population-matrix').getByText('健康 98%', { exact: true })).toBeVisible();
-await expect(page.locator('.admin-population-matrix').getByText('收入覆盖 160% · 判定钱包 170%', { exact: true })).toBeVisible();
-await expect(page.getByRole('heading', { name: '人口政策调控', exact: true })).toBeVisible();
-await expect(page.getByRole('heading', { name: '当前政策', exact: true })).toBeVisible();
-await expect(page.getByText('最低消费保障率／目标钱包', { exact: true })).toBeVisible();
-await expect(page.getByText('基础／技术／专业人口倍率', { exact: true })).toBeVisible();
-await expect(page.getByText('总持续时间', { exact: true })).toBeVisible();
-await expect(page.locator('.admin-population-policy-current--summary').getByText('长期', { exact: true }).first()).toBeVisible();
-await expect(page.getByRole('button', { name: '展开拟应用政策', exact: true })).toBeVisible();
-await page.getByRole('button', { name: '展开拟应用政策', exact: true }).click();
-await expect(page.getByLabel('生产工资系数（%）', { exact: true })).toHaveValue('100');
-await expect(page.getByLabel('最低消费保障率（%）', { exact: true })).not.toHaveAttribute('max');
-await expect(page.getByLabel('政策有效周期', { exact: true })).not.toHaveAttribute('max');
-await expect(page.getByRole('button', { name: '预览政策', exact: true })).toBeVisible();
-await expect(page.getByText('人口调控记录', { exact: true })).toHaveCount(0);
-await expect(page.getByText('管理备注', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '人口', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '人口经济', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '人口经济总览', exact: true })).toBeVisible();
+  await expect(page.getByRole('table', { name: '人口需求比较矩阵' })).toBeVisible();
+  await expect(page.getByText('当前钱包总缺口', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-ledger').getByText('累计稳定需求补充', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-ledger').getByText('累计管理员人口补充', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-matrix').getByText('稳定预算／自动补充', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-matrix').getByText('奢靡', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-matrix').getByText('繁荣', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-matrix').getByText('拮据', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-matrix').getByText('状态判定指标', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-matrix').getByText('健康 98%', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-matrix').getByText('收入覆盖 160% · 判定钱包 170%', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '人口政策调控', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '当前政策', exact: true })).toBeVisible();
+  await expect(page.getByText('最低消费保障率／目标钱包', { exact: true })).toBeVisible();
+  await expect(page.getByText('基础／技术／专业人口倍率', { exact: true })).toBeVisible();
+  await expect(page.getByText('总持续时间', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-policy-current--summary').getByText('长期', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: '展开拟应用政策', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '展开拟应用政策', exact: true }).click();
+  await expect(page.getByLabel('生产工资系数（%）', { exact: true })).toHaveValue('100');
+  await expect(page.getByLabel('最低消费保障率（%）', { exact: true })).not.toHaveAttribute('max');
+  await expect(page.getByRole('button', { name: '限时生效', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '永久生效', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByLabel('政策有效周期', { exact: true })).toHaveValue('12');
+  await expect(page.getByLabel('政策有效周期', { exact: true })).not.toHaveAttribute('max');
+  await expect(page.getByRole('button', { name: '预览政策', exact: true })).toHaveCount(0);
+  await expect(page.getByText('实时预览', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '发布 12 周期限时政策', exact: true })).toBeVisible();
+  await page.getByLabel('政策有效周期', { exact: true }).fill('18');
+  await page.getByRole('button', { name: '强力刺激', exact: true }).click();
+  await expect(page.getByLabel('政策有效周期', { exact: true })).toHaveValue('18');
+  await page.getByRole('button', { name: '永久生效', exact: true }).click();
+  await expect(page.getByRole('button', { name: '永久生效', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '限时生效', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByLabel('政策有效周期', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('此政策不会自动到期，将持续到下一次发布政策或手动恢复默认政策。', { exact: true })).toBeVisible();
+  await expect(page.getByText('永久（不自动到期）', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '发布永久政策', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '当前政策操作', exact: true })).toBeVisible();
+  await expect(page.getByText('人口调控记录', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('管理备注', { exact: true })).toHaveCount(0);
 
-const employmentSourceCard = page.locator('.admin-population-analysis-card').filter({ has: page.getByRole('heading', { name: '就业收入来源', exact: true }) });
-const employmentSourceChart = employmentSourceCard.locator('.economy-chart');
-await expect(employmentSourceChart).toHaveAttribute('data-echarts-ready', 'true');
-await expect(employmentSourceChart.locator('.economy-chart__canvas svg')).toBeVisible();
-const employmentSourceSummary = employmentSourceChart.locator('.economy-chart__accessible-summary');
-await expect(employmentSourceSummary).toContainText('市场服务1.00');
-await expect(employmentSourceSummary).toContainText('仓库扩容0.00');
+  const employmentSourceCard = page.locator('.admin-population-analysis-card').filter({ has: page.getByRole('heading', { name: '就业收入来源', exact: true }) });
+  const employmentSourceChart = employmentSourceCard.locator('.economy-chart');
+  await expect(employmentSourceChart).toHaveAttribute('data-echarts-ready', 'true');
+  await expect(employmentSourceChart.locator('.economy-chart__canvas svg')).toBeVisible();
+  const employmentSourceSummary = employmentSourceChart.locator('.economy-chart__accessible-summary');
+  await expect(employmentSourceSummary).toContainText('市场服务1.00');
+  await expect(employmentSourceSummary).toContainText('仓库扩容0.00');
 
-await page.getByLabel('生产工资系数（%）', { exact: true }).fill('135');
-await page.getByRole('button', { name: '玩家', exact: true }).click();
-await page.getByRole('button', { name: '人口', exact: true }).click();
-await expect(page.getByLabel('生产工资系数（%）', { exact: true })).toHaveValue('135');
+  await page.getByLabel('生产工资系数（%）', { exact: true }).fill('135');
+  await page.getByRole('button', { name: '玩家', exact: true }).click();
+  await page.getByRole('button', { name: '人口', exact: true }).click();
+  await expect(page.getByLabel('生产工资系数（%）', { exact: true })).toHaveValue('135');
+  await expect(page.getByRole('button', { name: '永久生效', exact: true })).toHaveAttribute('aria-pressed', 'true');
 
-await page.getByRole('button', { name: '礼品', exact: true }).click();
-await expect(page.getByRole('heading', { name: '创建礼品码', exact: true })).toBeVisible();
-await expect(page.getByText('暂无礼品码。', { exact: true })).toBeVisible();
-const giftColumns = await page.locator('.admin-gift-console').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
-expect(giftColumns).toBe(2);
+  await page.getByRole('button', { name: '礼品', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '创建礼品码', exact: true })).toBeVisible();
+  await expect(page.getByText('暂无礼品码。', { exact: true })).toBeVisible();
+  const giftColumns = await page.locator('.admin-gift-console').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
+  expect(giftColumns).toBe(2);
 
-await page.getByRole('button', { name: '封禁', exact: true }).click();
-await expect(page.getByRole('heading', { name: '异常上报与封禁', exact: true })).toBeVisible();
-const incident = page.locator('.admin-ban-incidents .virtual-list__item > button');
-await expect(page.locator('.admin-ban-incidents .virtual-list__canvas')).toHaveCount(1);
-await expect(incident).toHaveCount(1);
-await incident.click();
-await expect(page.getByText('one@example.com', { exact: false })).toBeVisible();
-await expect(page.getByRole('button', { name: '解禁', exact: true })).toBeVisible();
-await expect(page.getByText('系统只上报同一注册网络的异常', { exact: false })).toBeVisible();
-await expect(page.getByRole('button', { name: '封禁账号', exact: true })).toBeVisible();
-await page.getByLabel('管理员备注', { exact: true }).fill('人工复核');
-await page.getByRole('button', { name: '解禁', exact: true }).click();
-await expect(page.getByText('账号已解禁', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '封禁', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '异常上报与封禁', exact: true })).toBeVisible();
+  const incident = page.locator('.admin-ban-incidents .virtual-list__item > button');
+  await expect(page.locator('.admin-ban-incidents .virtual-list__canvas')).toHaveCount(1);
+  await expect(incident).toHaveCount(1);
+  await incident.click();
+  await expect(page.getByText('one@example.com', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: '解禁', exact: true })).toBeVisible();
+  await expect(page.getByText('系统只上报同一注册网络的异常', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: '封禁账号', exact: true })).toBeVisible();
+  await page.getByLabel('管理员备注', { exact: true }).fill('人工复核');
+  await page.getByRole('button', { name: '解禁', exact: true }).click();
+  await expect(page.getByText('账号已解禁', { exact: true })).toBeVisible();
 
   const adminSidebar = page.locator('.admin-sidebar');
   await page.getByRole('button', { name: '折叠侧栏' }).click();
