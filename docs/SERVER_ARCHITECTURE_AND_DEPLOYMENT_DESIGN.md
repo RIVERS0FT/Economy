@@ -2,7 +2,7 @@
 
 > 状态：当前服务器、API、持久化和部署基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-08
+> 更新时间：2026-08-09
 > 客户端状态版本：30
 > 世界状态版本：27
 > 市场需求模型版本：18
@@ -42,6 +42,7 @@
 - `domain-core.js`：商品目录、工厂目录、世界和玩家基础结构、商品订单与市场核心；
 - `domain.js`：唯一公共领域门面，其他服务器模块只从此导入公共能力；
 - `facility-groups.js`：工厂集群、统一周期、配方切换和工厂订单适配；
+- `facility-auto-procure.js`：即时建厂缺料预检、真实商品卖盘价格保护、仓库／资金校验和事务内 FOK 采购编排；
 - `research.js`：产业科技节点研发、旧等级与资产承诺迁移、就业进度释放、具体科技准入校验、研发宝石加速、客户端状态与最近调度截止时间；
 - `order-matching.js`：商品与工厂共用的价格优先、同价时间优先、maker price、部分成交、订单状态推进、逐笔 fill 与手续费结算编排；
 - `order-book-runtime.js`：按资产、方向、价格、时间和原数组顺序建立的事务内订单簿派生索引，以及玩家订单计数、仓库买单预占、工厂卖单冻结和需求组订单查询；
@@ -280,7 +281,7 @@ JSON.parse
 | POST | `/api/game/gem-shop/quote/reject` | 明确放弃今日报价；当天不可恢复 |
 | GET | `/api/game/community-link` | 获取侧边栏社区跳转链接 |
 | POST | `/api/game/work` | 工作 |
-| POST | `/api/game/facilities` | 建设工厂 |
+| POST | `/api/game/facilities` | 建设工厂；可选在同一事务内 FOK 购齐缺少的正式建造材料 |
 | POST | `/api/game/facilities/construction/accelerate` | 已退役兼容墓碑，固定返回 `410 Gone` 且不进入经济事务 |
 | POST | `/api/game/facilities/:facilityTypeId/start` | 开启工厂集群 |
 | POST | `/api/game/facilities/:facilityTypeId/pause` | 停止工厂集群 |
@@ -664,7 +665,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 ## 工厂即时建设事务
 
-`POST /api/game/facilities` 接受 `facilityTypeId` 与可选 `quantity`（1～100）。服务器必须在同一幂等写事务中校验科技准入、现金、全部 `buildInputs` 可用库存和安全乘法；任一失败时完全回滚。成功时扣除现金与材料、将现金记入人口建造业就业收入、增加材料消耗统计并立即扩充同类集群。`POST /api/game/facilities/construction/accelerate` 固定返回 `410 Gone`，不得进入经济写事务或写入新的施工宝石审计。
+`POST /api/game/facilities` 接受 `facilityTypeId` 与可选 `quantity`（1～100）；省略 `autoProcure` 时保持原有“库存齐全才建设”行为。缺料时客户端可以提交 `autoProcure = true`、`materialPriceCaps: Record<productId, price>` 与 `maxProcurementTotal`。服务器必须在同一幂等写事务和经济回滚边界中先计算真实库存缺口，再按统一商品订单簿重新预扫非本人卖盘；只有全部缺口都能在逐材料价格上限内一次成交、当前仓库临时交割空间足够且“建造费 + 当前真实采购额”可支付时，才按价格档位执行内部 Fill-or-Kill 买入。价格下降按当前更低 maker price 成交，盘口深度、逐材料价格或采购总额任一超过客户端确认边界时拒绝。内部 FOK 买单因预检保证本事务关闭，可跳过普通玩家“同时未完成订单”数量上限，但不得跳过自成交检查、仓库、资金、手续费、成交记录、市场储备和订单簿撮合规则。全部买入完成后复用既有即时建设逻辑扣除材料与建造资金；采购、卖方结算、市场记录或建设任一步失败都通过同一 SQLite savepoint 与世界快照完全回滚，不留下部分材料、部分卖方结算或未完成订单。`POST /api/game/facilities/construction/accelerate` 固定返回 `410 Gone`，不得进入经济写事务或写入新的施工宝石审计。
 
 ## 12. 玩家自助删除存档
 

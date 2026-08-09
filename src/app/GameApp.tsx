@@ -43,8 +43,8 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
       if (result.ok) tutorial.recordBankDeposit();
       return result;
     },
-    buildFacility: async (facilityTypeId = model.selectedFacilityTypeId, quantity = 1) => {
-      const result = await model.buildFacility(facilityTypeId, quantity);
+    buildFacility: async (facilityTypeId = model.selectedFacilityTypeId, quantity = 1, procurement) => {
+      const result = await model.buildFacility(facilityTypeId, quantity, procurement);
       if (result.ok) tutorial.recordBuildSubmit(facilityTypeId);
       return result;
     },
