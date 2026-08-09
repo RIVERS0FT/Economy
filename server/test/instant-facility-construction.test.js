@@ -127,8 +127,8 @@ test('one-click construction buys every missing material from the real order boo
   const now = 1_700_150_000_000;
   const store = prepareProcurementStore(now);
   try {
-    assert.equal(placeMaterialSell(store, 'timber', 3, 6, 'material-sell-0001', now + 10).result.ok, true);
-    assert.equal(placeMaterialSell(store, 'ore', 2, 7, 'material-sell-0002', now + 20).result.ok, true);
+    assert.equal(placeMaterialSell(store, 'timber', 3, 60, 'material-sell-0001', now + 10).result.ok, true);
+    assert.equal(placeMaterialSell(store, 'ore', 2, 70, 'material-sell-0002', now + 20).result.ok, true);
     const before = store.getState(user, now + 30);
     const ranch = FACILITY_TYPE_CATALOG.find((item) => item.id === 'ranch');
     const request = {
@@ -137,8 +137,8 @@ test('one-click construction buys every missing material from the real order boo
         facilityTypeId: 'ranch',
         quantity: 1,
         autoProcure: true,
-        maxProcurementTotal: 32,
-        materialPriceCaps: { timber: 6, ore: 7 },
+        maxProcurementTotal: 320,
+        materialPriceCaps: { timber: 60, ore: 70 },
       },
       requestKey: 'instant-build-procure-0001',
       method: 'POST',
@@ -152,15 +152,15 @@ test('one-click construction buys every missing material from the real order boo
 
     const after = store.getState(user, now + 33);
     assert.equal(after.facilityGroups.find((group) => group.facilityTypeId === 'ranch')?.count, 1);
-    assert.equal(after.credits, before.credits - ranch.buildCost - 32);
+    assert.equal(after.credits, before.credits - ranch.buildCost - 320);
     assert.equal(after.inventories.timber.available, 0);
     assert.equal(after.inventories.ore.available, 0);
     const procurementOrders = after.orders.filter((order) => (
       order.isOwn && order.assetKind === 'commodity' && order.status === 'filled'
     ));
     assert.equal(procurementOrders.reduce((sum, order) => sum + order.quantity, 0), 5);
-    assert.equal(after.markets.timber.lastTradePrice, 6);
-    assert.equal(after.markets.ore.lastTradePrice, 7);
+    assert.equal(after.markets.timber.lastTradePrice, 60);
+    assert.equal(after.markets.ore.lastTradePrice, 70);
   } finally {
     store.close();
   }
@@ -170,15 +170,15 @@ test('one-click construction rolls back completely when market depth cannot fill
   const now = 1_700_160_000_000;
   const store = prepareProcurementStore(now);
   try {
-    assert.equal(placeMaterialSell(store, 'timber', 2, 6, 'material-sell-0011', now + 10).result.ok, true);
-    assert.equal(placeMaterialSell(store, 'ore', 2, 7, 'material-sell-0012', now + 20).result.ok, true);
+    assert.equal(placeMaterialSell(store, 'timber', 2, 60, 'material-sell-0011', now + 10).result.ok, true);
+    assert.equal(placeMaterialSell(store, 'ore', 2, 70, 'material-sell-0012', now + 20).result.ok, true);
     const beforeBuyer = store.getState(user, now + 30);
     const beforeSeller = store.getState(seller, now + 30);
     const result = store.apply(user, {
       action: 'buildFacility',
       payload: {
         facilityTypeId: 'ranch', quantity: 1, autoProcure: true,
-        maxProcurementTotal: 100, materialPriceCaps: { timber: 10, ore: 10 },
+        maxProcurementTotal: 1_000, materialPriceCaps: { timber: 100, ore: 100 },
       },
       requestKey: 'instant-build-procure-0002', method: 'POST', path: '/api/game/facilities',
     }, now + 31);
@@ -201,14 +201,14 @@ test('one-click construction rejects stale price protection without buying anyth
   const now = 1_700_170_000_000;
   const store = prepareProcurementStore(now);
   try {
-    assert.equal(placeMaterialSell(store, 'timber', 3, 6, 'material-sell-0021', now + 10).result.ok, true);
-    assert.equal(placeMaterialSell(store, 'ore', 2, 7, 'material-sell-0022', now + 20).result.ok, true);
+    assert.equal(placeMaterialSell(store, 'timber', 3, 60, 'material-sell-0021', now + 10).result.ok, true);
+    assert.equal(placeMaterialSell(store, 'ore', 2, 70, 'material-sell-0022', now + 20).result.ok, true);
     const before = store.getState(user, now + 30);
     const result = store.apply(user, {
       action: 'buildFacility',
       payload: {
         facilityTypeId: 'ranch', quantity: 1, autoProcure: true,
-        maxProcurementTotal: 32, materialPriceCaps: { timber: 5.99, ore: 7 },
+        maxProcurementTotal: 320, materialPriceCaps: { timber: 59.99, ore: 70 },
       },
       requestKey: 'instant-build-procure-0003', method: 'POST', path: '/api/game/facilities',
     }, now + 31);
@@ -228,13 +228,13 @@ test('one-click construction still requires warehouse space for market delivery'
   const now = 1_700_180_000_000;
   const store = prepareProcurementStore(now, { warehouseFill: 499 });
   try {
-    assert.equal(placeMaterialSell(store, 'timber', 3, 6, 'material-sell-0031', now + 10).result.ok, true);
-    assert.equal(placeMaterialSell(store, 'ore', 2, 7, 'material-sell-0032', now + 20).result.ok, true);
+    assert.equal(placeMaterialSell(store, 'timber', 3, 60, 'material-sell-0031', now + 10).result.ok, true);
+    assert.equal(placeMaterialSell(store, 'ore', 2, 70, 'material-sell-0032', now + 20).result.ok, true);
     const result = store.apply(user, {
       action: 'buildFacility',
       payload: {
         facilityTypeId: 'ranch', quantity: 1, autoProcure: true,
-        maxProcurementTotal: 32, materialPriceCaps: { timber: 6, ore: 7 },
+        maxProcurementTotal: 320, materialPriceCaps: { timber: 60, ore: 70 },
       },
       requestKey: 'instant-build-procure-0004', method: 'POST', path: '/api/game/facilities',
     }, now + 31);
