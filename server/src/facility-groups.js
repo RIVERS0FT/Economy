@@ -887,6 +887,26 @@ function reconcileAllFacilityGroups(world, now) {
   }
 }
 
+export function productionReservedQuantitiesForPlayer(world, userId) {
+  const player = world.players?.[String(userId)];
+  const reserved = {};
+  if (!player) return reserved;
+  for (const group of player.facilityGroups || []) {
+    if (!group.enabled) continue;
+    const type = typeFor(group.facilityTypeId);
+    if (!type) continue;
+    const physicalCount = group.status === 'running'
+      ? Math.max(0, Math.floor(Number(group.participatingCount || 0)))
+      : availableGroupCount(world, player, group);
+    if (physicalCount < 1) continue;
+    for (const input of recipeInputs(activeRecipeFor(type, group))) {
+      const quantity = Math.max(0, Math.floor(Number(input.quantity || 0))) * physicalCount;
+      if (quantity > 0) reserved[input.productId] = Number(reserved[input.productId] || 0) + quantity;
+    }
+  }
+  return reserved;
+}
+
 function describeCounterparty(order) {
   return order.ownerName || (order.ownerType === 'market' ? '系统资产市场' : '玩家');
 }

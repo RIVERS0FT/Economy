@@ -1,4 +1,4 @@
-export const CURRENT_TUTORIAL_VERSION = 2;
+export const CURRENT_TUTORIAL_VERSION = 3;
 
 const MIGRATION_SETTING_KEY = 'game_tutorial_completion_migration_version';
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;

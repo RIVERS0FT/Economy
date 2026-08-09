@@ -7,6 +7,7 @@ import { autoProcureFacilityBuildMaterials } from './facility-auto-procure.js';
 import { applyFacilityGroupAction } from './facility-groups.js';
 import { ensureGemState } from './invitations.js';
 import { normalizePlayerMoneyPayload } from './money.js';
+import { applyOnlineAutoSell } from './online-auto-sell.js';
 import { applyResearchAction, validateResearchAccess } from './research.js';
 import { ensureWarehouse, upgradeWarehouse } from './warehouse.js';
 import {
@@ -51,6 +52,8 @@ function executeActionBody(store, world, user, action, payload, requestKey, now)
       gameResult = researchAccess;
     } else if (action === 'startResearch' || action === 'accelerateResearch') {
       gameResult = applyResearchAction(world, user, action, payload, now);
+    } else if (action === 'placeOrder' && payload.execution === 'online-auto-sell') {
+      gameResult = applyOnlineAutoSell(world, user, payload, now);
     } else if (action === 'checkIn') {
       gameResult = store.checkInInTransaction(world.players[String(user.id)], requestKey, now);
     } else if (action === 'upgradeWarehouse') {

@@ -7,6 +7,7 @@ import {
   type SaveDeletionPreflight,
 } from '../api/game';
 import { clearTutorialRun, setPendingTutorialCompletion } from '../game-guide/tutorialStorage';
+import { clearAutoSellPolicies } from '../auto-sell/autoSellStorage';
 import { notificationStorageKey } from '../notifications/notificationCenter';
 import { navigationBadgeStorageKey } from '../navigation/navigationBadges';
 import { SelectInput, TextInput } from '../components/ui/FormControls';
@@ -52,7 +53,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
 
   function restartTutorial() {
     const confirmed = window.confirm(
-      '重新开始后，当前成长线进度会被清除。工作、建设、启动、生产、挂单、成交、研发、合同浏览、银行存款和排行榜浏览均需重新完成；游戏资产不会重置。',
+      '重新开始后，当前成长线进度会被清除。工作、建设、启动、生产、自动出售设置、自动成交、研发、合同浏览、银行存款和排行榜浏览均需重新完成；游戏资产不会重置。',
     );
     if (confirmed) tutorial.restart();
   }
@@ -60,6 +61,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
   function clearDeletedSaveClientState() {
     clearTutorialRun(user.id);
     setPendingTutorialCompletion(user.id, false);
+    clearAutoSellPolicies(user.id);
     model.clearLocalTrades();
     try {
       window.localStorage.removeItem(notificationStorageKey(user.id));
