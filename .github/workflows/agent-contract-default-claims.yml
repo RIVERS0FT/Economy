@@ -21,14 +21,14 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - name: Tighten temporary patch locator
+      - name: Tighten temporary patch locators
         run: |
           python3 - <<'PY'
           from pathlib import Path
           path = Path('scripts/apply-contract-default-claims-temp.py')
           text = path.read_text(encoding='utf-8')
           old = """    if count != 1:\n        raise SystemExit(f'{label}: expected exactly one match, found {count}')\n    return text.replace(old, new, 1)\n"""
-          new = """    if count != 1:\n        if label == 'normalize loan default snapshot' and count == 2:\n            return text.replace(old, new, 1)\n        raise SystemExit(f'{label}: expected exactly one match, found {count}')\n    return text.replace(old, new, 1)\n"""
+          new = """    if count != 1:\n        if label == 'normalize loan default snapshot' and count == 2:\n            return text.replace(old, new, 1)\n        if label == 'loan claim locked collateral snapshot' and count == 2:\n            index = text.rfind(old)\n            return text[:index] + new + text[index + len(old):]\n        raise SystemExit(f'{label}: expected exactly one match, found {count}')\n    return text.replace(old, new, 1)\n"""
           if old not in text:
               raise SystemExit('temporary replace_once helper not found')
           path.write_text(text.replace(old, new, 1), encoding='utf-8')
