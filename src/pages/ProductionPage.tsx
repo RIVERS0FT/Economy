@@ -16,6 +16,7 @@ import {
 } from '../components/ui/layout';
 import type { FacilityGroup } from '../types';
 import { formatCurrency, formatNumber } from '../utils/formatters';
+import { getUnlockedFacilityTypes } from '../utils/facilityResearchAccess';
 import { setContractMarketIntent } from '../contracts/navigation';
 import {
   FacilityClusterDetailContent,
@@ -63,9 +64,18 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const detailTriggerRef = useRef<HTMLButtonElement | null>(null);
   const closeFacilityDetail = useCallback(() => setFacilityDetailOpen(false), []);
 
+  const unlockedFacilityTypes = useMemo(
+    () => getUnlockedFacilityTypes(game),
+    [
+      game.facilityTypes,
+      game.research.completedTechnologyIds,
+      game.research.unlockedComplexity,
+      game.researchTechnologies,
+    ],
+  );
   const selectedType = useMemo(
-    () => game.facilityTypes.find((type) => type.id === selectedFacilityTypeId) ?? game.facilityTypes[0],
-    [game.facilityTypes, selectedFacilityTypeId],
+    () => unlockedFacilityTypes.find((type) => type.id === selectedFacilityTypeId) ?? unlockedFacilityTypes[0],
+    [selectedFacilityTypeId, unlockedFacilityTypes],
   );
   const orderedFacilityGroups = useMemo<FacilityClusterEntry[]>(() => {
     const groupsByTypeId = new Map<string, FacilityGroup>(
@@ -91,15 +101,12 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const selectedFacilityEntry =
     orderedFacilityGroups.find(({ type }) => type.id === selectedFacilityGroupId) ?? orderedFacilityGroups[0];
   const effectiveSelectedFacilityGroupId = selectedFacilityEntry?.type.id ?? '';
-  const selectedRecipes = selectedType ? recipesForType(selectedType) : [];
-  const selectedBuildInputs = selectedType.buildInputs ?? [];
-  const maxBuildable = Math.max(0, Math.min(
-    100,
-    Math.floor(game.credits / Math.max(1, selectedType.buildCost)),
-    ...selectedBuildInputs.map((item) => Math.floor(
-      (game.inventories[item.productId]?.available ?? 0) / Math.max(1, item.quantity),
-    )),
-  ));
+
+  useEffect(() => {
+    if (selectedType && selectedType.id !== selectedFacilityTypeId) {
+      setSelectedFacilityTypeId(selectedType.id);
+    }
+  }, [selectedFacilityTypeId, selectedType, setSelectedFacilityTypeId]);
 
   useEffect(() => {
     if (effectiveSelectedFacilityGroupId !== selectedFacilityGroupId) {
@@ -111,13 +118,28 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   }, [effectiveSelectedFacilityGroupId, isFacilityDetailOpen, selectedFacilityGroupId]);
 
   if (!selectedType) {
+    const hasCatalog = game.facilityTypes.length > 0;
     return (
-      <PageLayout title="生产" description="服务器尚未返回工厂目录。">
-        <Panel className="empty-state">暂无工厂类型。</Panel>
+      <PageLayout
+        title="生产"
+        description={hasCatalog ? '当前没有已解锁工厂，请先前往研发页面完成对应科技。' : '服务器尚未返回工厂目录。'}
+      >
+        <Panel className="empty-state">
+          {hasCatalog ? '当前没有已解锁工厂。' : '暂无工厂类型。'}
+        </Panel>
       </PageLayout>
     );
   }
 
+  const selectedRecipes = recipesForType(selectedType);
+  const selectedBuildInputs = selectedType.buildInputs ?? [];
+  const maxBuildable = Math.max(0, Math.min(
+    100,
+    Math.floor(game.credits / Math.max(1, selectedType.buildCost)),
+    ...selectedBuildInputs.map((item) => Math.floor(
+      (game.inventories[item.productId]?.available ?? 0) / Math.max(1, item.quantity),
+    )),
+  ));
 
   const selectFacilityEntry = (facilityTypeId: string, trigger: HTMLButtonElement) => {
     detailTriggerRef.current = trigger;
@@ -172,7 +194,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
             value={selectedType.id}
             onChange={(event) => setSelectedFacilityTypeId(event.target.value)}
           >
-            {game.facilityTypes.map((type) => (
+            {unlockedFacilityTypes.map((type) => (
               <option value={type.id} key={type.id}>
                 {type.name}
               </option>
