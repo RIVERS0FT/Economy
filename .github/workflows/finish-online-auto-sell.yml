@@ -59,32 +59,32 @@ jobs:
           component_path = Path('src/components/warehouse/WarehouseUpgradeCard.tsx')
           component = component_path.read_text(encoding='utf-8')
           old = "  const { game, autoSell, showResult, upgradeWarehouse } = model;\n"
-          new = """  const { game, showResult, upgradeWarehouse } = model;
-            const autoSell = useMemo(() => model.autoSell ?? ({
-              policies: {},
-              busyProductId: null,
-              policyFor: (productId: string) => ({
-                enabled: false,
-                price: Math.max(0.01, Number(game.products.find((product) => product.id === productId)?.basePrice || 1)),
-              }),
-              statusFor: (productId: string) => {
-                const inventory = game.inventories[productId] ?? { available: 0, frozen: 0 };
-                return {
-                  availableInventory: Math.max(0, Math.floor(Number(inventory.available || 0))),
-                  productionReserved: 0,
-                  contractReserved: 0,
-                  eligibleQuantity: 0,
-                  blockedByOwnBuy: false,
-                  hasCrossingBuyer: false,
-                };
-              },
-              setPolicy: () => undefined,
-            }), [game.inventories, game.products, model.autoSell]);
-"""
+          new = '\n'.join([
+              "  const { game, showResult, upgradeWarehouse } = model;",
+              "  const autoSell = useMemo(() => model.autoSell ?? ({",
+              "    policies: {},",
+              "    busyProductId: null,",
+              "    policyFor: (productId: string) => ({",
+              "      enabled: false,",
+              "      price: Math.max(0.01, Number(game.products.find((product) => product.id === productId)?.basePrice || 1)),",
+              "    }),",
+              "    statusFor: (productId: string) => {",
+              "      const inventory = game.inventories[productId] ?? { available: 0, frozen: 0 };",
+              "      return {",
+              "        availableInventory: Math.max(0, Math.floor(Number(inventory.available || 0))),",
+              "        productionReserved: 0,",
+              "        contractReserved: 0,",
+              "        eligibleQuantity: 0,",
+              "        blockedByOwnBuy: false,",
+              "        hasCrossingBuyer: false,",
+              "      };",
+              "    },",
+              "    setPolicy: () => undefined,",
+              "  }), [game.inventories, game.products, model.autoSell]);",
+          ]) + '\n'
           if old not in component:
               raise SystemExit('WarehouseUpgradeCard autoSell destructure marker not found')
-          component = component.replace(old, new, 1)
-          component_path.write_text(component, encoding='utf-8')
+          component_path.write_text(component.replace(old, new, 1), encoding='utf-8')
 
           design_path = Path('docs/WAREHOUSE_EXPANSION_DESIGN.md')
           design = design_path.read_text(encoding='utf-8')
@@ -96,10 +96,10 @@ jobs:
           verify_path = Path('scripts/verify-online-auto-sell.mjs')
           verify = verify_path.read_text(encoding='utf-8')
           marker = "console.log('Online auto-sell verification passed.');"
-          guard = """requireText('src/components/warehouse/WarehouseUpgradeCard.tsx', 'model.autoSell ??');
-          requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '在线自动出售控制器属于浏览器本地增强');
-
-          """
+          guard = (
+              "requireText('src/components/warehouse/WarehouseUpgradeCard.tsx', 'model.autoSell ??');\n"
+              "requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '在线自动出售控制器属于浏览器本地增强');\n\n"
+          )
           if guard.strip() not in verify:
               if marker not in verify:
                   raise SystemExit('online auto-sell verifier completion marker not found')
