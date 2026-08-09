@@ -1,0 +1,39 @@
+name: Agent contract default claims
+
+on:
+  push:
+    branches:
+      - feat/contract-default-claims
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/contract-default-claims
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: python3 scripts/apply-contract-default-claims-temp.py
+      - run: npm ci
+      - run: node --test server/test/contracts.test.js server/test/commercial-contracts.test.js server/test/contract-runtime-index.test.js server/test/contract-audit.test.js
+      - run: npm run verify:contract-types
+      - run: npm run verify:contract-audit
+      - run: npm run verify:contract-layout
+      - run: npm run server:check
+      - run: npm run typecheck
+      - run: git diff --check
+      - name: Commit verified patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/src/contracts.js server/src/commercial-contracts.js server/src/contract-runtime-index.js server/src/contract-asset-locks.js server/src/contract-audit-store.js server/test/contracts.test.js server/test/commercial-contracts.test.js src/contracts/types.ts src/pages/ContractPage.tsx scripts/verify-contract-types.mjs scripts/verify-contract-audit.mjs docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
+          git commit -m "feat: require manual contract default claims"
+          git push origin HEAD:feat/contract-default-claims
