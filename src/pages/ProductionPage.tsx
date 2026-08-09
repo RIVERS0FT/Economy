@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNow } from '../hooks/useNow';
-import { type LoadedGameViewModel } from '../app/gameViewModel';
+import type { OnlineAutoSellAwareGameViewModel } from '../auto-sell/useOnlineAutoSell';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { SelectInput } from '../components/ui/FormControls';
 import { WarehouseInventoryPanel } from '../components/warehouse/WarehouseInventoryPanel';
@@ -45,7 +45,7 @@ import '../styles/production-methods.css';
  * construction tasks no longer create selector/detail entries.
  */
 
-export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
+export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewModel }) {
   const {
     game,
     selectedFacilityTypeId,

@@ -308,6 +308,11 @@ export const gameActions = {
   placeCommodityOrder: (productId: string, side: OrderSide, quantity: number, price: number) => (
     postAction('/orders', { assetKind: 'commodity', assetId: productId, productId, side, quantity, price })
   ),
+  autoSellCommodity: (productId: string, price: number) => (
+    postAction('/orders', {
+      assetKind: 'commodity', assetId: productId, productId, side: 'sell', price, execution: 'online-auto-sell',
+    })
+  ),
   cancelOrder: (orderId: string) => postAction(`/orders/${encodeURIComponent(orderId)}/cancel`),
   createAuction: (items: AuctionItem[], startingBid: number, reservePrice: number | null, durationHours: number) => (
     postAction('/auctions', { items, startingBid, reservePrice, durationHours })

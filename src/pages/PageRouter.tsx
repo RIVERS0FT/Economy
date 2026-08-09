@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { FacilityRecipeProfitMarketsProvider } from '../components/facilities/FacilityRecipeProfitContext';
 import { FacilitySelectAvailabilityScope } from '../components/facilities/FacilitySelectAvailabilityScope';
 import type { TabId } from '../config/navigation';
-import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
+import type { OnlineAutoSellAwareGameViewModel } from '../auto-sell/useOnlineAutoSell';
 
 function cachedLoader<T>(loader: () => Promise<T>) {
   let promise: Promise<T> | null = null;
@@ -51,7 +51,7 @@ const ResearchPage = lazy(() => import('./ResearchPage').then((module) => ({ def
 const GemShopPage = lazy(() => import('./GemShopPage').then((module) => ({ default: module.GemShopPage })));
 const SettingsPage = lazy(() => import('./SettingsPage').then((module) => ({ default: module.SettingsPage })));
 
-export function PageRouter({ model }: { model: TutorialAwareGameViewModel }) {
+export function PageRouter({ model }: { model: OnlineAutoSellAwareGameViewModel }) {
   let page;
   switch (model.tab) {
     case 'market':
