@@ -1,0 +1,33 @@
+name: Integrate online auto-sell main
+
+on:
+  push:
+    branches: [codex/infinite-warehouse-latest-main]
+    paths: [.github/workflows/integrate-online-auto-sell-main.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/infinite-warehouse-latest-main
+          fetch-depth: 0
+      - name: Diagnose current main merge
+        shell: bash
+        run: |
+          git fetch origin main
+          set +e
+          git merge --no-commit --no-ff origin/main
+          result=$?
+          set -e
+          echo "merge exit=$result"
+          echo '--- status ---'
+          git status --short
+          echo '--- conflicts ---'
+          git diff --name-only --diff-filter=U
+          exit "$result"
