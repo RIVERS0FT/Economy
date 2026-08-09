@@ -1,0 +1,34 @@
+name: Integrate infinite warehouse latest main
+
+on:
+  push:
+    branches: [codex/infinite-warehouse-latest-main]
+    paths: [.github/workflows/integrate-infinite-warehouse-latest-main.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/infinite-warehouse-latest-main
+          fetch-depth: 0
+      - name: Diagnose cherry-pick
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+RIVERS0FT@users.noreply.github.com'
+          set +e
+          git cherry-pick --no-commit 3c127d231e641317725d052c983e5a9acfba3607
+          result=$?
+          set -e
+          echo "cherry-pick exit=$result"
+          echo '--- status ---'
+          git status --short
+          echo '--- conflicts ---'
+          git diff --name-only --diff-filter=U
+          if [ "$result" -ne 0 ]; then exit 1; fi
