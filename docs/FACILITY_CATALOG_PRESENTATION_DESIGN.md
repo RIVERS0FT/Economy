@@ -14,7 +14,7 @@
 
 ## 2. 已解锁目录与工厂选择下拉框
 
-完整工厂目录继续由 `game.facilityTypes` 提供，研发准入由服务器返回的科技节点状态决定。现代状态必须使用 `research.completedTechnologyIds` 对照 `researchTechnologies[].unlockFacilityTypeIds` 计算玩家已解锁工厂；不得仅根据 `research.unlockedComplexity` 推断整个 C 等级已经开放。只有缺少科技节点数据的旧兼容状态才允许按 `unlockedComplexity` 回退。
+完整工厂目录继续由 `game.facilityTypes` 提供，研发准入由服务器返回的科技节点状态决定。现代状态必须使用 `research.completedTechnologyIds` 对照 `researchTechnologies[].unlockFacilityTypeIds` 计算玩家已解锁工厂；不得仅根据 `research.unlockedComplexity` 推断整个 C 等级已经开放。只有缺少科技节点数据但仍包含 `research` 的旧兼容状态才允许按 `unlockedComplexity` 回退。若旧快照或测试夹具完全缺少 `research`，客户端不得猜测研发锁定状态，应暂时保留完整工厂目录并继续依赖服务端权威校验；正式客户端状态不得依赖这一兼容路径。
 
 所有用于发起新业务操作、并以正式 `facilityTypeId` 作为选项值的工厂下拉框，都必须只展示当前玩家已解锁工厂，包括但不限于：
 
@@ -96,7 +96,8 @@ const selectedFacilityEntry = orderedFacilityGroups.find(
 7. 侧栏展开、折叠、轮询刷新和移动悬浮框开关后顺序及有效详情目标不变，选择卡始终没有持久选中视觉；触摸关闭后基础背景、边框和变换恢复，键盘关闭后焦点可见；
 8. 当前工厂数量降为零后按正式目录回退，无已拥有工厂时清空详情；
 9. 客户端代码不存在以 `facilityGroups` 为渲染入口的直接选择卡遍历；
-10. 合同历史等混合历史筛选器仍能查询完整历史标的，不把历史可见性误当成新业务准入。
+10. 合同历史等混合历史筛选器仍能查询完整历史标的，不把历史可见性误当成新业务准入；
+11. 完全缺少 `research` 的旧兼容快照不得导致生产页崩溃或客户端自行猜测锁定状态。
 
 ## 7. 不可回退规则
 
