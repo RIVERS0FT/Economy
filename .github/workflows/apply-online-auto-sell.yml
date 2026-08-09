@@ -17,14 +17,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: feature/online-auto-sell
-          fetch-depth: 2
+          fetch-depth: 4
 
       - uses: actions/setup-node@v4
         with:
           node-version: '24.4.0'
           cache: npm
 
-      - name: Apply implementation from staged parent
+      - name: Apply implementation from staged source
         shell: bash
         run: |
           python3 - <<'PY'
@@ -32,7 +32,7 @@ jobs:
           import subprocess
 
           source = subprocess.check_output(
-              ['git', 'show', 'HEAD^:.github/workflows/apply-online-auto-sell.yml'],
+              ['git', 'show', '61adde712eceb1f6d13e3f084a19893e9c401b1c:.github/workflows/apply-online-auto-sell.yml'],
               text=True,
           )
           lines = source.splitlines()
@@ -45,6 +45,14 @@ jobs:
           Path('/tmp/apply-online-auto-sell.py').write_text(script, encoding='utf-8')
           PY
           python3 /tmp/apply-online-auto-sell.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('server/src/online-auto-sell.js')
+          source = path.read_text(encoding='utf-8')
+          source = source.replace('  processFacilityGroupWorld,\n', '')
+          source = source.replace('\n  processFacilityGroupWorld(world, now);\n', '\n')
+          path.write_text(source, encoding='utf-8')
+          PY
 
       - name: Install dependencies
         run: npm ci
