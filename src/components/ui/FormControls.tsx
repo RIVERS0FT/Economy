@@ -1,6 +1,11 @@
 import {
+  Children,
+  createContext,
+  isValidElement,
+  useContext,
   useEffect,
   useId,
+  useMemo,
   useRef,
   type ChangeEvent,
   type HTMLAttributes,
@@ -26,6 +31,58 @@ function clampInteger(value: number, min?: number, max?: number) {
     max ?? Number.MAX_SAFE_INTEGER,
     Math.max(min ?? Number.MIN_SAFE_INTEGER, value),
   );
+}
+
+interface SelectOptionAvailabilityContextValue {
+  restrictedOptionValues: ReadonlySet<string>;
+  allowedRestrictedOptionValues: ReadonlySet<string>;
+}
+
+const SelectOptionAvailabilityContext = createContext<SelectOptionAvailabilityContextValue | null>(null);
+
+export function SelectOptionAvailabilityProvider({
+  restrictedOptionValues,
+  allowedRestrictedOptionValues,
+  children,
+}: SelectOptionAvailabilityContextValue & { children: ReactNode }) {
+  const value = useMemo(() => ({
+    restrictedOptionValues,
+    allowedRestrictedOptionValues,
+  }), [allowedRestrictedOptionValues, restrictedOptionValues]);
+  return (
+    <SelectOptionAvailabilityContext.Provider value={value}>
+      {children}
+    </SelectOptionAvailabilityContext.Provider>
+  );
+}
+
+function explicitOptionValue(node: ReactNode) {
+  if (!isValidElement<{ value?: string | number | readonly string[] }>(node) || node.type !== 'option') return null;
+  const value = node.props.value;
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : null;
+}
+
+function availableSelectChildren(
+  children: ReactNode,
+  availability: SelectOptionAvailabilityContextValue | null,
+) {
+  if (!availability || availability.restrictedOptionValues.size === 0) return children;
+  const childArray = Children.toArray(children);
+  const optionValues = childArray
+    .map(explicitOptionValue)
+    .filter((value): value is string => value !== null);
+  const isRestrictedCatalog = optionValues.length > 0
+    && optionValues.some((value) => availability.restrictedOptionValues.has(value))
+    && optionValues.every((value) => value === '' || availability.restrictedOptionValues.has(value));
+  if (!isRestrictedCatalog) return children;
+
+  return childArray.filter((child) => {
+    const value = explicitOptionValue(child);
+    return value === null
+      || value === ''
+      || !availability.restrictedOptionValues.has(value)
+      || availability.allowedRestrictedOptionValues.has(value);
+  });
 }
 
 export function FormField({
@@ -122,6 +179,8 @@ export function SelectInput({
 }: SelectInputProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
+  const optionAvailability = useContext(SelectOptionAvailabilityContext);
+  const visibleChildren = availableSelectChildren(children, optionAvailability);
   return (
     <FormField
       label={label}
@@ -145,7 +204,7 @@ export function SelectInput({
             error ? `${inputId}-error` : undefined,
           )}
         >
-          {children}
+          {visibleChildren}
         </select>
       </span>
     </FormField>
