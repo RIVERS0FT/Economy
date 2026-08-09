@@ -16,12 +16,7 @@ export function FacilitySelectAvailabilityScope({
   );
   const allowedRestrictedOptionValues = useMemo(
     () => getUnlockedFacilityTypeIds(game),
-    [
-      game.facilityTypes,
-      game.research.completedTechnologyIds,
-      game.research.unlockedComplexity,
-      game.researchTechnologies,
-    ],
+    [game.facilityTypes, game.research, game.researchTechnologies],
   );
 
   return (
