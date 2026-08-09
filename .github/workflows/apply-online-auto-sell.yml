@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: feature/online-auto-sell
-          fetch-depth: 4
+          fetch-depth: 5
 
       - uses: actions/setup-node@v4
         with:
@@ -47,10 +47,49 @@ jobs:
           python3 /tmp/apply-online-auto-sell.py
           python3 - <<'PY'
           from pathlib import Path
+
+          domain_path = Path('server/src/domain.js')
+          domain = domain_path.read_text(encoding='utf-8')
+          marker = "export function applyImmediateCommodityBuy(world, user, payload = {}, now = Date.now()) {\n"
+          helper = """export function applySettledCommodityOrder(world, user, payload = {}, now = Date.now()) {
+            return applyCommodityOrder(world, user, payload, now);
+          }
+
+          export function cancelSettledCommodityOrder(world, user, orderId) {
+            const order = (world.orders || []).find((candidate) => String(candidate?.id || '') === String(orderId || ''));
+            if (
+              !order
+              || Number(order.ownerId) !== Number(user.id)
+              || orderKind(order) !== 'commodity'
+              || !balancedMarket.isOpenOrder(order)
+            ) return false;
+            return cancelLegacyCommodityOrder(world, order);
+          }
+
+          """
+          if helper.strip() not in domain:
+              if marker not in domain:
+                  raise SystemExit('domain helper marker not found')
+              domain = domain.replace(marker, helper + marker, 1)
+          domain_path.write_text(domain, encoding='utf-8')
+
           path = Path('server/src/online-auto-sell.js')
           source = path.read_text(encoding='utf-8')
+          source = source.replace(
+              "import { PRODUCT_CATALOG } from './domain.js';\n",
+              "import {\n  PRODUCT_CATALOG,\n  applySettledCommodityOrder,\n  cancelSettledCommodityOrder,\n} from './domain.js';\n",
+          )
+          source = source.replace('  applyFacilityGroupAction,\n', '')
           source = source.replace('  processFacilityGroupWorld,\n', '')
           source = source.replace('\n  processFacilityGroupWorld(world, now);\n', '\n')
+          source = source.replace(
+              "const placed = applyFacilityGroupAction(world, user, 'placeOrder', {",
+              "const placed = applySettledCommodityOrder(world, user, {",
+          )
+          source = source.replace(
+              "applyFacilityGroupAction(world, user, 'cancelOrder', { orderId: order.id }, now);",
+              "cancelSettledCommodityOrder(world, user, order.id);",
+          )
           path.write_text(source, encoding='utf-8')
           PY
 
