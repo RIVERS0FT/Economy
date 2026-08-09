@@ -1,0 +1,2046 @@
+name: Apply online auto-sell implementation
+
+on:
+  push:
+    branches:
+      - feature/online-auto-sell
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: github.actor != 'github-actions[bot]' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/online-auto-sell
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply implementation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, content):
+              target = Path(path)
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_text(content, encoding='utf-8')
+
+          def replace(path, old, new, count=1):
+              source = read(path)
+              actual = source.count(old)
+              if actual < count:
+                  raise SystemExit(f'{path}: expected at least {count} occurrence(s), found {actual}: {old[:120]!r}')
+              source = source.replace(old, new, count)
+              write(path, source)
+
+          write('src/auto-sell/autoSellStorage.ts', r'''export interface AutoSellPolicy {
+            enabled: boolean;
+            price: number;
+          }
+
+          export type AutoSellPolicyMap = Record<string, AutoSellPolicy>;
+
+          export const AUTO_SELL_PANEL_EVENT = 'economy:auto-sell-panel';
+          const STORAGE_VERSION = 1;
+
+          export function autoSellStorageKey(userId: number) {
+            return `economy.online-auto-sell.v${STORAGE_VERSION}.${userId}`;
+          }
+
+          function panelRequestKey(userId: number) {
+            return `economy.online-auto-sell-panel.v${STORAGE_VERSION}.${userId}`;
+          }
+
+          function normalizePolicy(value: unknown): AutoSellPolicy | null {
+            if (!value || typeof value !== 'object') return null;
+            const raw = value as Partial<AutoSellPolicy>;
+            const price = Number(raw.price);
+            if (!Number.isFinite(price) || price < 0.01) return null;
+            return {
+              enabled: raw.enabled === true,
+              price: Math.round(price * 100) / 100,
+            };
+          }
+
+          export function loadAutoSellPolicies(userId: number): AutoSellPolicyMap {
+            if (typeof window === 'undefined') return {};
+            try {
+              const raw = window.localStorage.getItem(autoSellStorageKey(userId));
+              if (!raw) return {};
+              const parsed = JSON.parse(raw) as Record<string, unknown>;
+              return Object.fromEntries(Object.entries(parsed).flatMap(([productId, value]) => {
+                const policy = normalizePolicy(value);
+                return policy ? [[productId, policy]] : [];
+              }));
+            } catch {
+              return {};
+            }
+          }
+
+          export function saveAutoSellPolicies(userId: number, policies: AutoSellPolicyMap) {
+            if (typeof window === 'undefined') return;
+            try {
+              window.localStorage.setItem(autoSellStorageKey(userId), JSON.stringify(policies));
+            } catch {
+              // Browser-local automation preferences must never block authoritative gameplay.
+            }
+          }
+
+          export function clearAutoSellPolicies(userId: number) {
+            if (typeof window === 'undefined') return;
+            try {
+              window.localStorage.removeItem(autoSellStorageKey(userId));
+              window.sessionStorage.removeItem(panelRequestKey(userId));
+            } catch {
+              // Optional browser-local state may be unavailable.
+            }
+          }
+
+          export function requestAutoSellPanel(userId: number, productId: string) {
+            if (typeof window === 'undefined') return;
+            try {
+              window.sessionStorage.setItem(panelRequestKey(userId), productId);
+            } catch {
+              // The event below still supports an already-mounted production page.
+            }
+            window.dispatchEvent(new CustomEvent(AUTO_SELL_PANEL_EVENT, {
+              detail: { userId, productId },
+            }));
+          }
+
+          export function consumeAutoSellPanelRequest(userId: number) {
+            if (typeof window === 'undefined') return null;
+            try {
+              const key = panelRequestKey(userId);
+              const productId = window.sessionStorage.getItem(key);
+              if (productId) window.sessionStorage.removeItem(key);
+              return productId || null;
+            } catch {
+              return null;
+            }
+          }
+          ''')
+
+          write('src/auto-sell/useOnlineAutoSell.ts', r'''import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+          import type { LoadedGameViewModel } from '../app/gameViewModel';
+          import { productionContractStateFromGame } from '../contracts/types';
+          import type { EconomyState, FacilityGroup, FacilityRecipeItem } from '../types';
+          import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
+          import {
+            loadAutoSellPolicies,
+            saveAutoSellPolicies,
+            type AutoSellPolicy,
+            type AutoSellPolicyMap,
+          } from './autoSellStorage';
+
+          export interface AutoSellProductStatus {
+            availableInventory: number;
+            productionReserved: number;
+            contractReserved: number;
+            eligibleQuantity: number;
+            blockedByOwnBuy: boolean;
+            hasCrossingBuyer: boolean;
+          }
+
+          export interface OnlineAutoSellController {
+            policies: AutoSellPolicyMap;
+            busyProductId: string | null;
+            policyFor: (productId: string) => AutoSellPolicy;
+            statusFor: (productId: string) => AutoSellProductStatus;
+            setPolicy: (productId: string, policy: AutoSellPolicy) => void;
+          }
+
+          export type OnlineAutoSellAwareGameViewModel = TutorialAwareGameViewModel & {
+            autoSell: OnlineAutoSellController;
+          };
+
+          function nonNegativeInteger(value: unknown) {
+            const normalized = Math.floor(Number(value));
+            return Number.isSafeInteger(normalized) && normalized > 0 ? normalized : 0;
+          }
+
+          function activeRecipeInputs(game: EconomyState, group: FacilityGroup): FacilityRecipeItem[] {
+            const type = game.facilityTypes.find((candidate) => candidate.id === group.facilityTypeId);
+            if (!type) return [];
+            const directRecipe = type.recipes.find((recipe) => recipe.id === group.activeRecipeId);
+            if (directRecipe) return directRecipe.inputs;
+            for (const methodGroup of type.productionMethodGroups ?? []) {
+              for (const method of methodGroup.methods) {
+                for (const plan of Object.values(method.plansByRecipeId)) {
+                  if (plan.recipeId === group.activeRecipeId) return plan.inputs;
+                }
+              }
+            }
+            return type.inputs;
+          }
+
+          function productionReservations(game: EconomyState) {
+            const reserved: Record<string, number> = {};
+            for (const group of game.facilityGroups) {
+              if (!group.enabled) continue;
+              const physicalCount = group.status === 'running'
+                ? nonNegativeInteger(group.participatingCount)
+                : nonNegativeInteger(group.productionAvailableCount ?? group.count);
+              if (physicalCount < 1) continue;
+              for (const input of activeRecipeInputs(game, group)) {
+                const quantity = nonNegativeInteger(input.quantity) * physicalCount;
+                if (quantity > 0) reserved[input.productId] = (reserved[input.productId] ?? 0) + quantity;
+              }
+            }
+            return reserved;
+          }
+
+          interface ContractReservation {
+            display: number;
+            availableHold: number;
+          }
+
+          function contractReservations(game: EconomyState) {
+            const reserved: Record<string, ContractReservation> = {};
+            const contracts = productionContractStateFromGame(game).productionContracts;
+            const add = (productId: string, display: number, availableHold: number) => {
+              const current = reserved[productId] ?? { display: 0, availableHold: 0 };
+              current.display += nonNegativeInteger(display);
+              current.availableHold += nonNegativeInteger(availableHold);
+              reserved[productId] = current;
+            };
+            for (const contract of contracts) {
+              if (
+                contract.kind !== 'supply'
+                || contract.status !== 'active'
+                || !contract.isSupplier
+                || contract.completedDeliveries >= contract.totalDeliveries
+              ) continue;
+              const quantity = nonNegativeInteger(contract.quantityPerDelivery);
+              const frozen = Math.min(quantity, nonNegativeInteger(contract.supplierReservedQuantity));
+              if (contract.supplierAutoReserve !== false) add(contract.productId, quantity, Math.max(0, quantity - frozen));
+              else add(contract.productId, frozen, 0);
+
+              const proposal = contract.renewalProposal;
+              if (proposal?.status === 'accepted') {
+                const renewalQuantity = nonNegativeInteger(proposal.terms.quantityPerDelivery);
+                const renewalFrozen = Math.min(renewalQuantity, nonNegativeInteger(proposal.supplierReservedQuantity));
+                if (contract.supplierAutoReserve !== false) {
+                  add(contract.productId, renewalQuantity, Math.max(0, renewalQuantity - renewalFrozen));
+                } else {
+                  add(contract.productId, renewalFrozen, 0);
+                }
+              }
+            }
+            return reserved;
+          }
+
+          function isOpenCommodityBuy(game: EconomyState, productId: string, own: boolean, minimumPrice: number) {
+            return game.orders.some((order) => (
+              order.assetKind === 'commodity'
+              && order.assetId === productId
+              && order.side === 'buy'
+              && ['open', 'partial'].includes(order.status)
+              && Number(order.remaining || 0) > 0
+              && Number(order.price || 0) >= minimumPrice
+              && Boolean(order.isOwn) === own
+            ));
+          }
+
+          export function useOnlineAutoSell(
+            model: LoadedGameViewModel,
+            callbacks: {
+              onPolicyEnabled?: (productId: string) => void;
+              onSale?: (productId: string) => void;
+            } = {},
+          ): OnlineAutoSellController {
+            const userId = model.user.id;
+            const [policies, setPolicies] = useState<AutoSellPolicyMap>(() => loadAutoSellPolicies(userId));
+            const [busyProductId, setBusyProductId] = useState<string | null>(null);
+            const busyRef = useRef(false);
+            const productionReserved = useMemo(() => productionReservations(model.game), [model.game]);
+            const contractReserved = useMemo(() => contractReservations(model.game), [model.game]);
+
+            useEffect(() => {
+              setPolicies(loadAutoSellPolicies(userId));
+            }, [userId]);
+
+            const policyFor = useCallback((productId: string): AutoSellPolicy => {
+              const existing = policies[productId];
+              if (existing) return existing;
+              const product = model.game.products.find((candidate) => candidate.id === productId);
+              return { enabled: false, price: Math.max(0.01, Number(product?.basePrice || 1)) };
+            }, [model.game.products, policies]);
+
+            const statusFor = useCallback((productId: string): AutoSellProductStatus => {
+              const policy = policyFor(productId);
+              const availableInventory = nonNegativeInteger(model.game.inventories[productId]?.available);
+              const production = nonNegativeInteger(productionReserved[productId]);
+              const contract = contractReserved[productId] ?? { display: 0, availableHold: 0 };
+              return {
+                availableInventory,
+                productionReserved: production,
+                contractReserved: nonNegativeInteger(contract.display),
+                eligibleQuantity: Math.max(0, availableInventory - production - nonNegativeInteger(contract.availableHold)),
+                blockedByOwnBuy: isOpenCommodityBuy(model.game, productId, true, policy.price),
+                hasCrossingBuyer: isOpenCommodityBuy(model.game, productId, false, policy.price),
+              };
+            }, [contractReserved, model.game, policyFor, productionReserved]);
+
+            const setPolicy = useCallback((productId: string, policy: AutoSellPolicy) => {
+              const price = Math.round(Number(policy.price) * 100) / 100;
+              if (!Number.isFinite(price) || price < 0.01) return;
+              const normalized = { enabled: policy.enabled === true, price };
+              setPolicies((current) => {
+                const next = { ...current, [productId]: normalized };
+                saveAutoSellPolicies(userId, next);
+                return next;
+              });
+              if (normalized.enabled) callbacks.onPolicyEnabled?.(productId);
+            }, [callbacks.onPolicyEnabled, userId]);
+
+            useEffect(() => {
+              if (busyRef.current) return;
+              const candidate = model.game.products.find((product) => {
+                const policy = policies[product.id];
+                if (!policy?.enabled) return false;
+                const status = statusFor(product.id);
+                return status.eligibleQuantity > 0 && !status.blockedByOwnBuy && status.hasCrossingBuyer;
+              });
+              if (!candidate) return;
+              const policy = policies[candidate.id];
+              if (!policy) return;
+
+              busyRef.current = true;
+              setBusyProductId(candidate.id);
+              void model.onlineAutoSell(candidate.id, policy.price)
+                .then((result) => {
+                  if (result.ok) callbacks.onSale?.(candidate.id);
+                })
+                .finally(() => {
+                  busyRef.current = false;
+                  setBusyProductId(null);
+                });
+            }, [callbacks.onSale, model, policies, statusFor]);
+
+            return useMemo(() => ({
+              policies,
+              busyProductId,
+              policyFor,
+              statusFor,
+              setPolicy,
+            }), [busyProductId, policies, policyFor, setPolicy, statusFor]);
+          }
+          ''')
+
+          write('server/src/online-auto-sell.js', r'''import { PRODUCT_CATALOG } from './domain.js';
+          import {
+            applyFacilityGroupAction,
+            processFacilityGroupWorld,
+            productionReservedQuantitiesForPlayer,
+          } from './facility-groups.js';
+          import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
+          import { normalizePlayerMoneyInput } from './money.js';
+
+          const PRODUCT_BY_ID = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
+
+          function positiveInteger(value) {
+            const normalized = Math.floor(Number(value));
+            return Number.isSafeInteger(normalized) && normalized > 0 ? normalized : 0;
+          }
+
+          function activeSupplyContractsFor(world, userId, productId) {
+            return (world.productionContracts || []).filter((contract) => (
+              contract?.kind === 'supply'
+              && contract?.status === 'active'
+              && Number(contract?.supplierId) === Number(userId)
+              && String(contract?.productId || '') === productId
+              && positiveInteger(contract?.completedDeliveries) < positiveInteger(contract?.totalDeliveries)
+            ));
+          }
+
+          export function contractAvailableHoldForAutoSell(world, userId, productId) {
+            let hold = 0;
+            for (const contract of activeSupplyContractsFor(world, userId, productId)) {
+              if (contract.supplierAutoReserve !== false) {
+                const required = positiveInteger(contract.quantityPerDelivery);
+                const frozen = Math.min(required, positiveInteger(contract.supplierReservedQuantity));
+                hold += Math.max(0, required - frozen);
+              }
+              const proposal = contract.renewalProposal;
+              if (proposal?.status === 'accepted' && contract.supplierAutoReserve !== false) {
+                const required = positiveInteger(proposal.terms?.quantityPerDelivery);
+                const frozen = Math.min(required, positiveInteger(proposal.supplierReservedQuantity));
+                hold += Math.max(0, required - frozen);
+              }
+            }
+            return hold;
+          }
+
+          function qualifyingBuyOrders(world, userId, productId, minimumPrice) {
+            return (world.orders || []).filter((order) => (
+              orderKind(order) === 'commodity'
+              && orderAssetId(order) === productId
+              && order.side === 'buy'
+              && isOpenOrder(order)
+              && positiveInteger(order.remaining) > 0
+              && Number(order.price || 0) >= minimumPrice
+              && Number(order.ownerId) !== Number(userId)
+            ));
+          }
+
+          export function crossingBuyQuantityForAutoSell(world, userId, productId, minimumPrice) {
+            let total = 0;
+            for (const order of qualifyingBuyOrders(world, userId, productId, minimumPrice)) {
+              total = Math.min(Number.MAX_SAFE_INTEGER, total + positiveInteger(order.remaining));
+            }
+            return total;
+          }
+
+          function hasOwnCrossingBuy(world, userId, productId, minimumPrice) {
+            return (world.orders || []).some((order) => (
+              orderKind(order) === 'commodity'
+              && orderAssetId(order) === productId
+              && order.side === 'buy'
+              && isOpenOrder(order)
+              && Number(order.ownerId) === Number(userId)
+              && Number(order.price || 0) >= minimumPrice
+            ));
+          }
+
+          export function applyOnlineAutoSell(world, user, payload = {}, now = Date.now()) {
+            const userId = Number(user.id);
+            const productId = String(payload.productId || payload.assetId || '');
+            const product = PRODUCT_BY_ID.get(productId);
+            const minimumPrice = normalizePlayerMoneyInput(payload.price, { min: 0.01 });
+            if (!product || minimumPrice === null) return { ok: false, message: '自动出售参数无效' };
+
+            processFacilityGroupWorld(world, now);
+            const player = world.players?.[String(userId)];
+            if (!player) return { ok: false, message: '玩家不存在' };
+            if (hasOwnCrossingBuy(world, userId, productId, minimumPrice)) {
+              return { ok: false, message: '自己的买单达到自动出售价格，请先撤销反向订单' };
+            }
+
+            const inventory = player.inventories?.[productId] || { available: 0, frozen: 0 };
+            const productionReserved = positiveInteger(
+              productionReservedQuantitiesForPlayer(world, userId)[productId],
+            );
+            const contractHold = positiveInteger(contractAvailableHoldForAutoSell(world, userId, productId));
+            const eligible = Math.max(0, positiveInteger(inventory.available) - productionReserved - contractHold);
+            if (eligible < 1) return { ok: false, message: '当前没有扣除生产预定和合同预定后的可自动出售库存' };
+
+            const crossingQuantity = crossingBuyQuantityForAutoSell(world, userId, productId, minimumPrice);
+            const quantity = Math.min(eligible, crossingQuantity);
+            if (quantity < 1) return { ok: false, message: '当前没有达到自动出售最低价的买单' };
+
+            const existingOrderIds = new Set((world.orders || []).map((order) => String(order.id)));
+            const placed = applyFacilityGroupAction(world, user, 'placeOrder', {
+              assetKind: 'commodity',
+              assetId: productId,
+              productId,
+              side: 'sell',
+              quantity,
+              price: minimumPrice,
+              execution: 'online-auto-sell',
+            }, now);
+            if (!placed?.ok) return placed;
+
+            const order = [...(world.orders || [])].reverse().find((candidate) => (
+              !existingOrderIds.has(String(candidate.id))
+              && Number(candidate.ownerId) === userId
+              && orderKind(candidate) === 'commodity'
+              && orderAssetId(candidate) === productId
+              && candidate.side === 'sell'
+            ));
+            const filled = order
+              ? Math.max(0, positiveInteger(order.quantity) - positiveInteger(order.remaining))
+              : 0;
+
+            if (order && isOpenOrder(order)) {
+              applyFacilityGroupAction(world, user, 'cancelOrder', { orderId: order.id }, now);
+            }
+            if (filled < 1) return { ok: false, message: '买盘已变化，本次没有发生自动出售' };
+            return {
+              ok: true,
+              message: `已按不低于 ${minimumPrice.toFixed(2)} 的价格自动出售 ${filled} 个${product.name}`,
+            };
+          }
+          ''')
+
+          write('server/test/online-auto-sell.test.js', r'''import assert from 'node:assert/strict';
+          import test from 'node:test';
+          import { createWorld, ensurePlayer } from '../src/domain.js';
+          import {
+            migrateFacilityGroupWorld,
+            productionReservedQuantitiesForPlayer,
+          } from '../src/facility-groups.js';
+          import {
+            applyOnlineAutoSell,
+            contractAvailableHoldForAutoSell,
+          } from '../src/online-auto-sell.js';
+          import { isOpenOrder } from '../src/order-identity.js';
+
+          const now = 1_700_000_000_000;
+          const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
+          const bob = { id: 2, email: 'bob@example.com', name: 'Bob' };
+
+          function addBuyOrder(world, buyer, productId, quantity, price, id = `buy-${productId}`) {
+            const total = quantity * price;
+            buyer.credits -= total;
+            buyer.frozenCredits += total;
+            world.orders.push({
+              id,
+              assetKind: 'commodity',
+              assetId: productId,
+              productId,
+              side: 'buy',
+              ownerType: 'player',
+              ownerId: buyer.userId,
+              ownerName: buyer.playerName,
+              price,
+              quantity,
+              remaining: quantity,
+              status: 'open',
+              fills: [],
+              createdAt: now + 1,
+            });
+          }
+
+          function group(typeId, count, overrides = {}) {
+            return {
+              facilityTypeId: typeId,
+              count,
+              participatingCount: 0,
+              enabled: false,
+              status: 'stopped',
+              statusReason: 'manual',
+              activeRecipeId: `${typeId}-default`,
+              lifetimeOutput: 0,
+              ...overrides,
+            };
+          }
+
+          test('online auto sell keeps one full enabled production cycle of inputs', () => {
+            const world = createWorld(now);
+            const seller = ensurePlayer(world, alice, now);
+            const buyer = ensurePlayer(world, bob, now);
+            seller.credits = 1_000;
+            buyer.credits = 10_000;
+            seller.inventories.plastic.available = 5;
+            seller.inventories.copper.available = 2;
+            seller.facilityGroups = [group('electronics-factory', 2, {
+              enabled: true,
+              status: 'running',
+              participatingCount: 2,
+              cycleStartedAt: now,
+            })];
+            migrateFacilityGroupWorld(world, now);
+            addBuyOrder(world, buyer, 'plastic', 10, 100);
+
+            assert.equal(productionReservedQuantitiesForPlayer(world, alice.id).plastic, 2);
+            const result = applyOnlineAutoSell(world, alice, {
+              productId: 'plastic',
+              price: 50,
+            }, now + 2);
+
+            assert.equal(result.ok, true);
+            assert.equal(seller.inventories.plastic.available, 2);
+            assert.equal(seller.inventories.plastic.frozen, 0);
+            assert.equal(seller.facilityGroups[0].status, 'running');
+            const ownAutoOrders = world.orders.filter((order) => (
+              Number(order.ownerId) === alice.id && order.productId === 'plastic' && order.side === 'sell'
+            ));
+            assert.equal(ownAutoOrders.length, 1);
+            assert.equal(ownAutoOrders[0].status, 'filled');
+            assert.equal(ownAutoOrders[0].remaining, 0);
+          });
+
+          test('online auto sell preserves the unfrozen shortfall of an auto-reserved supply contract', () => {
+            const world = createWorld(now);
+            const seller = ensurePlayer(world, alice, now);
+            const buyer = ensurePlayer(world, bob, now);
+            buyer.credits = 10_000;
+            seller.inventories.wheat.available = 9;
+            seller.inventories.wheat.frozen = 1;
+            world.productionContracts = [{
+              id: 'supply-1',
+              kind: 'supply',
+              status: 'active',
+              supplierId: alice.id,
+              productId: 'wheat',
+              quantityPerDelivery: 4,
+              supplierReservedQuantity: 1,
+              supplierAutoReserve: true,
+              completedDeliveries: 0,
+              totalDeliveries: 10,
+            }];
+            addBuyOrder(world, buyer, 'wheat', 10, 10);
+
+            assert.equal(contractAvailableHoldForAutoSell(world, alice.id, 'wheat'), 3);
+            const result = applyOnlineAutoSell(world, alice, {
+              productId: 'wheat',
+              price: 5,
+            }, now + 2);
+
+            assert.equal(result.ok, true);
+            assert.equal(seller.inventories.wheat.available, 3);
+            assert.equal(seller.inventories.wheat.frozen, 1);
+          });
+
+          test('online auto sell leaves no standing sell order when qualifying demand disappears', () => {
+            const world = createWorld(now);
+            const seller = ensurePlayer(world, alice, now);
+            seller.inventories.wheat.available = 10;
+            const beforeOrders = world.orders.length;
+
+            const result = applyOnlineAutoSell(world, alice, {
+              productId: 'wheat',
+              price: 5,
+            }, now + 1);
+
+            assert.equal(result.ok, false);
+            assert.equal(world.orders.length, beforeOrders);
+            assert.equal(seller.inventories.wheat.available, 10);
+            assert.equal(seller.inventories.wheat.frozen, 0);
+          });
+
+          test('own crossing buy blocks online auto sell instead of creating a self-cross', () => {
+            const world = createWorld(now);
+            const seller = ensurePlayer(world, alice, now);
+            const buyer = ensurePlayer(world, bob, now);
+            seller.credits = 1_000;
+            buyer.credits = 1_000;
+            seller.inventories.wheat.available = 10;
+            addBuyOrder(world, seller, 'wheat', 1, 8, 'own-buy');
+            addBuyOrder(world, buyer, 'wheat', 2, 8, 'external-buy');
+
+            const result = applyOnlineAutoSell(world, alice, {
+              productId: 'wheat',
+              price: 5,
+            }, now + 2);
+
+            assert.equal(result.ok, false);
+            assert.match(result.message, /自己的买单/);
+            assert.equal(seller.inventories.wheat.available, 10);
+            assert.equal(world.orders.filter((order) => Number(order.ownerId) === alice.id && order.side === 'sell').length, 0);
+            assert.equal(world.orders.filter((order) => isOpenOrder(order) && order.side === 'buy').length, 2);
+          });
+          ''')
+
+          insert_point = "function describeCounterparty(order) {\n"
+          production_helper = r'''export function productionReservedQuantitiesForPlayer(world, userId) {
+            const player = world.players?.[String(userId)];
+            const reserved = {};
+            if (!player) return reserved;
+            for (const group of player.facilityGroups || []) {
+              if (!group.enabled) continue;
+              const type = typeFor(group.facilityTypeId);
+              if (!type) continue;
+              const physicalCount = group.status === 'running'
+                ? Math.max(0, Math.floor(Number(group.participatingCount || 0)))
+                : availableGroupCount(world, player, group);
+              if (physicalCount < 1) continue;
+              for (const input of recipeInputs(activeRecipeFor(type, group))) {
+                const quantity = Math.max(0, Math.floor(Number(input.quantity || 0))) * physicalCount;
+                if (quantity > 0) reserved[input.productId] = Number(reserved[input.productId] || 0) + quantity;
+              }
+            }
+            return reserved;
+          }
+
+          '''
+          replace('server/src/facility-groups.js', insert_point, production_helper + insert_point)
+
+          replace(
+              'server/src/domain.js',
+              "  const fillOrKill = payload.execution === 'fill-or-kill';\n",
+              "  const fillOrKill = payload.execution === 'fill-or-kill';\n  const onlineAutoSell = payload.execution === 'online-auto-sell';\n  const transientExecution = fillOrKill || onlineAutoSell;\n",
+          )
+          replace(
+              'server/src/domain.js',
+              "  if (!fillOrKill && countOpenOrdersForOwner(world, userId) >= core.ECONOMY_CONSTANTS.maxOpenOrders) {\n",
+              "  if (!transientExecution && countOpenOrdersForOwner(world, userId) >= core.ECONOMY_CONSTANTS.maxOpenOrders) {\n",
+          )
+
+          replace(
+              'server/src/runtime-action-executor.js',
+              "import { normalizePlayerMoneyPayload } from './money.js';\n",
+              "import { normalizePlayerMoneyPayload } from './money.js';\nimport { applyOnlineAutoSell } from './online-auto-sell.js';\n",
+          )
+          replace(
+              'server/src/runtime-action-executor.js',
+              "    } else if (action === 'checkIn') {\n",
+              "    } else if (action === 'placeOrder' && payload.execution === 'online-auto-sell') {\n      gameResult = applyOnlineAutoSell(world, user, payload, now);\n    } else if (action === 'checkIn') {\n",
+          )
+
+          replace(
+              'src/api/game.ts',
+              "  placeCommodityOrder: (productId: string, side: OrderSide, quantity: number, price: number) => (\n    postAction('/orders', { assetKind: 'commodity', assetId: productId, productId, side, quantity, price })\n  ),\n",
+              "  placeCommodityOrder: (productId: string, side: OrderSide, quantity: number, price: number) => (\n    postAction('/orders', { assetKind: 'commodity', assetId: productId, productId, side, quantity, price })\n  ),\n  autoSellCommodity: (productId: string, price: number) => (\n    postAction('/orders', {\n      assetKind: 'commodity', assetId: productId, productId, side: 'sell', price, execution: 'online-auto-sell',\n    })\n  ),\n",
+          )
+
+          replace(
+              'src/utils/localActivityStore.ts',
+              "  | 'placeOrder'\n",
+              "  | 'placeOrder'\n  | 'onlineAutoSell'\n",
+          )
+          replace(
+              'src/app/gameViewModel.ts',
+              "  placeAssetOrder: (assetKind: AssetKind, assetId: string, side: OrderSide, quantity: number, price: number) => Promise<ActionResult>;\n",
+              "  placeAssetOrder: (assetKind: AssetKind, assetId: string, side: OrderSide, quantity: number, price: number) => Promise<ActionResult>;\n  onlineAutoSell: (productId: string, price: number) => Promise<ActionResult>;\n",
+          )
+          replace(
+              'src/app/gameViewModel.ts',
+              "    placeAssetOrder,\n    cancelOrder:",
+              "    placeAssetOrder,\n    onlineAutoSell: (productId, price) => runAction('onlineAutoSell', () => gameActions.autoSellCommodity(productId, price)),\n    cancelOrder:",
+          )
+
+          write('src/game-guide/tutorialStorage.ts', r'''export const CURRENT_TUTORIAL_VERSION = 3 as const;
+
+          export const TUTORIAL_STEP_IDS = [
+            'work',
+            'build-facility',
+            'start-facility',
+            'complete-production',
+            'set-auto-sell',
+            'complete-sale',
+            'start-research',
+            'review-contracts',
+            'make-bank-deposit',
+            'review-leaderboard',
+          ] as const;
+
+          export type TutorialStepId = typeof TUTORIAL_STEP_IDS[number];
+          export type TutorialRunStatus = 'active' | 'hidden';
+
+          export interface TutorialRunStats {
+            workClicks: number;
+            buildSubmits: number;
+            facilityStartClicks: number;
+            productionCompletions: number;
+            autoSellSettings: number;
+            saleCompletions: number;
+            researchStarts: number;
+            contractReviews: number;
+            bankDeposits: number;
+          }
+
+          export interface TutorialRunContext {
+            facilityTypeId?: string;
+            productionBaseline?: number;
+            productId?: string;
+            autoSellStartedAt?: number;
+          }
+
+          export interface LocalTutorialRun {
+            version: typeof CURRENT_TUTORIAL_VERSION;
+            runId: string;
+            status: TutorialRunStatus;
+            currentStep: TutorialStepId;
+            completedStepIds: TutorialStepId[];
+            stats: TutorialRunStats;
+            context: TutorialRunContext;
+            startedAt: number;
+            updatedAt: number;
+          }
+
+          function storageKey(userId: number) {
+            return `economy.game-tutorial.v${CURRENT_TUTORIAL_VERSION}.${userId}`;
+          }
+
+          function pendingCompletionKey(userId: number) {
+            return `economy.game-tutorial-completion-pending.v${CURRENT_TUTORIAL_VERSION}.${userId}`;
+          }
+
+          function createRunId() {
+            if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+              return crypto.randomUUID();
+            }
+            return `tutorial-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          }
+
+          function emptyStats(): TutorialRunStats {
+            return {
+              workClicks: 0,
+              buildSubmits: 0,
+              facilityStartClicks: 0,
+              productionCompletions: 0,
+              autoSellSettings: 0,
+              saleCompletions: 0,
+              researchStarts: 0,
+              contractReviews: 0,
+              bankDeposits: 0,
+            };
+          }
+
+          function readItem(key: string) {
+            try {
+              return window.localStorage.getItem(key);
+            } catch {
+              return null;
+            }
+          }
+
+          function writeItem(key: string, value: string) {
+            try {
+              window.localStorage.setItem(key, value);
+            } catch {
+              // Tutorial persistence is optional and must never block gameplay.
+            }
+          }
+
+          function removeItem(key: string) {
+            try {
+              window.localStorage.removeItem(key);
+            } catch {
+              // Tutorial persistence is optional and must never block gameplay.
+            }
+          }
+
+          function isTutorialStep(value: unknown): value is TutorialStepId {
+            return typeof value === 'string' && TUTORIAL_STEP_IDS.includes(value as TutorialStepId);
+          }
+
+          function normalizeRun(value: unknown): LocalTutorialRun | null {
+            if (!value || typeof value !== 'object') return null;
+            const raw = value as Partial<LocalTutorialRun>;
+            if (raw.version !== CURRENT_TUTORIAL_VERSION || !isTutorialStep(raw.currentStep)) return null;
+            const completedStepIds = Array.isArray(raw.completedStepIds)
+              ? raw.completedStepIds.filter(isTutorialStep)
+              : [];
+            const stats = raw.stats ?? emptyStats();
+            return {
+              version: CURRENT_TUTORIAL_VERSION,
+              runId: typeof raw.runId === 'string' && raw.runId ? raw.runId : createRunId(),
+              status: raw.status === 'hidden' ? 'hidden' : 'active',
+              currentStep: raw.currentStep,
+              completedStepIds,
+              stats: {
+                workClicks: Math.max(0, Number(stats.workClicks || 0)),
+                buildSubmits: Math.max(0, Number(stats.buildSubmits || 0)),
+                facilityStartClicks: Math.max(0, Number(stats.facilityStartClicks || 0)),
+                productionCompletions: Math.max(0, Number(stats.productionCompletions || 0)),
+                autoSellSettings: Math.max(0, Number(stats.autoSellSettings || 0)),
+                saleCompletions: Math.max(0, Number(stats.saleCompletions || 0)),
+                researchStarts: Math.max(0, Number(stats.researchStarts || 0)),
+                contractReviews: Math.max(0, Number(stats.contractReviews || 0)),
+                bankDeposits: Math.max(0, Number(stats.bankDeposits || 0)),
+              },
+              context: {
+                facilityTypeId: typeof raw.context?.facilityTypeId === 'string' ? raw.context.facilityTypeId : undefined,
+                productionBaseline: Number.isFinite(Number(raw.context?.productionBaseline))
+                  ? Number(raw.context?.productionBaseline)
+                  : undefined,
+                productId: typeof raw.context?.productId === 'string' ? raw.context.productId : undefined,
+                autoSellStartedAt: Number.isFinite(Number(raw.context?.autoSellStartedAt))
+                  ? Number(raw.context?.autoSellStartedAt)
+                  : undefined,
+              },
+              startedAt: Number(raw.startedAt || Date.now()),
+              updatedAt: Number(raw.updatedAt || Date.now()),
+            };
+          }
+
+          export function createTutorialRun(now = Date.now()): LocalTutorialRun {
+            return {
+              version: CURRENT_TUTORIAL_VERSION,
+              runId: createRunId(),
+              status: 'active',
+              currentStep: TUTORIAL_STEP_IDS[0],
+              completedStepIds: [],
+              stats: emptyStats(),
+              context: {},
+              startedAt: now,
+              updatedAt: now,
+            };
+          }
+
+          export function loadTutorialRun(userId: number): LocalTutorialRun | null {
+            if (typeof window === 'undefined') return null;
+            const raw = readItem(storageKey(userId));
+            if (!raw) return null;
+            try {
+              const run = normalizeRun(JSON.parse(raw));
+              if (!run) removeItem(storageKey(userId));
+              return run;
+            } catch {
+              removeItem(storageKey(userId));
+              return null;
+            }
+          }
+
+          export function saveTutorialRun(userId: number, run: LocalTutorialRun) {
+            if (typeof window === 'undefined') return;
+            writeItem(storageKey(userId), JSON.stringify(run));
+          }
+
+          export function clearTutorialRun(userId: number) {
+            if (typeof window === 'undefined') return;
+            removeItem(storageKey(userId));
+          }
+
+          export function hasPendingTutorialCompletion(userId: number) {
+            return typeof window !== 'undefined' && readItem(pendingCompletionKey(userId)) === '1';
+          }
+
+          export function setPendingTutorialCompletion(userId: number, pending: boolean) {
+            if (typeof window === 'undefined') return;
+            if (pending) writeItem(pendingCompletionKey(userId), '1');
+            else removeItem(pendingCompletionKey(userId));
+          }
+          ''')
+
+          write('src/game-guide/tutorialDefinition.ts', r'''import type { TabId } from '../config/navigation';
+          import type { TutorialStepId } from './tutorialStorage';
+
+          export interface TutorialStepDefinition {
+            id: TutorialStepId;
+            title: string;
+            description: string;
+            actionLabel: string;
+            targetTab: TabId;
+          }
+
+          export const TUTORIAL_STEPS: TutorialStepDefinition[] = [
+            {
+              id: 'work',
+              title: '完成一次工作',
+              description: '点击“开始工作”，了解经营失败时的基础资金来源。',
+              actionLabel: '查看工作',
+              targetTab: 'home',
+            },
+            {
+              id: 'build-facility',
+              title: '建设一座工厂',
+              description: '前往生产页选择工厂并成功建设。每次重开成长线都需要重新操作。',
+              actionLabel: '前往建设',
+              targetTab: 'production',
+            },
+            {
+              id: 'start-facility',
+              title: '启动生产设施',
+              description: '选择一组已有工厂并成功启动，成长线会记录本轮选择的工厂。',
+              actionLabel: '管理工厂',
+              targetTab: 'production',
+            },
+            {
+              id: 'complete-production',
+              title: '完成一次生产',
+              description: '等待本轮启动的工厂完成一个新周期。资金、原料和仓库条件必须满足。',
+              actionLabel: '查看生产',
+              targetTab: 'production',
+            },
+            {
+              id: 'set-auto-sell',
+              title: '设置商品自动出售',
+              description: '点击仓库中的商品，启用自动出售并设置最低出售价格。自动出售只在当前客户端在线时生效。',
+              actionLabel: '前往仓库',
+              targetTab: 'production',
+            },
+            {
+              id: 'complete-sale',
+              title: '完成一次自动出售',
+              description: '保持客户端在线，等待市场买价达到你设置的最低价并完成一次自动出售。',
+              actionLabel: '查看仓库',
+              targetTab: 'production',
+            },
+            {
+              id: 'start-research',
+              title: '选择产业方向',
+              description: '前往研发页，从满足前置条件的产业科技中选择一项并成功开始研发。',
+              actionLabel: '前往研发',
+              targetTab: 'research',
+            },
+            {
+              id: 'review-contracts',
+              title: '了解长期合作',
+              description: '查看合同页，了解商品供货、玩家借贷和工厂租赁如何形成长期协作。',
+              actionLabel: '查看合同',
+              targetTab: 'contracts',
+            },
+            {
+              id: 'make-bank-deposit',
+              title: '建立银行存款',
+              description: '前往银行成功存入任意正数金额，了解现金与银行存款之间的资产配置。',
+              actionLabel: '前往银行',
+              targetTab: 'bank',
+            },
+            {
+              id: 'review-leaderboard',
+              title: '确定长期目标',
+              description: '查看排行榜中的财富、增长、生产和交易四榜，把经营结果转化为长期竞争目标。',
+              actionLabel: '查看排行榜',
+              targetTab: 'leaderboard',
+            },
+          ];
+
+          export function tutorialStepDefinition(stepId: TutorialStepId) {
+            return TUTORIAL_STEPS.find((step) => step.id === stepId) ?? TUTORIAL_STEPS[0];
+          }
+          ''')
+
+          write('src/game-guide/useGameTutorial.ts', r'''import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+          import {
+            completeTutorial,
+            getTutorialStatus,
+            type TutorialCompletionState,
+          } from '../api/game';
+          import type { LoadedGameViewModel } from '../app/gameViewModel';
+          import { requestAutoSellPanel } from '../auto-sell/autoSellStorage';
+          import { tutorialStepDefinition, TUTORIAL_STEPS } from './tutorialDefinition';
+          import {
+            clearTutorialRun,
+            createTutorialRun,
+            CURRENT_TUTORIAL_VERSION,
+            hasPendingTutorialCompletion,
+            loadTutorialRun,
+            saveTutorialRun,
+            setPendingTutorialCompletion,
+            TUTORIAL_STEP_IDS,
+            type LocalTutorialRun,
+            type TutorialRunStats,
+            type TutorialStepId,
+          } from './tutorialStorage';
+
+          export interface GameTutorialController {
+            ready: boolean;
+            run: LocalTutorialRun | null;
+            isActive: boolean;
+            isVisible: boolean;
+            isCompleted: boolean;
+            currentStep: ReturnType<typeof tutorialStepDefinition> | null;
+            currentStepIndex: number;
+            totalSteps: number;
+            statusLabel: string;
+            restart: () => void;
+            hide: () => void;
+            show: () => void;
+            openCurrentTarget: () => void;
+            recordWorkClick: () => void;
+            recordBuildSubmit: (facilityTypeId: string) => void;
+            recordFacilityStartClick: (facilityTypeId: string) => void;
+            recordAutoSellSetting: (productId: string) => void;
+            recordAutoSellCompletion: (productId: string) => void;
+            recordResearchStart: () => void;
+            recordBankDeposit: () => void;
+          }
+
+          export type TutorialAwareGameViewModel = LoadedGameViewModel & {
+            tutorial: GameTutorialController;
+          };
+
+          type TutorialStatKey = keyof TutorialRunStats;
+
+          function nextStep(stepId: TutorialStepId) {
+            const index = TUTORIAL_STEP_IDS.indexOf(stepId);
+            return TUTORIAL_STEP_IDS[index + 1];
+          }
+
+          function advanceRun(
+            run: LocalTutorialRun,
+            expectedStep: TutorialStepId,
+            statKey: TutorialStatKey,
+            contextPatch: Partial<LocalTutorialRun['context']> = {},
+          ): LocalTutorialRun {
+            if (run.currentStep !== expectedStep) return run;
+            const following = nextStep(expectedStep);
+            if (!following) return run;
+            return {
+              ...run,
+              currentStep: following,
+              completedStepIds: run.completedStepIds.includes(expectedStep)
+                ? run.completedStepIds
+                : [...run.completedStepIds, expectedStep],
+              stats: { ...run.stats, [statKey]: run.stats[statKey] + 1 },
+              context: { ...run.context, ...contextPatch },
+              updatedAt: Date.now(),
+            };
+          }
+
+          function preferredSellProductId(model: LoadedGameViewModel, requested?: string) {
+            if (requested && model.game.products.some((product) => product.id === requested)) return requested;
+            const stocked = model.game.products.find((product) => (
+              Number(model.game.inventories[product.id]?.available || 0) > 0
+            ));
+            return stocked?.id ?? model.game.products[0]?.id ?? 'wheat';
+          }
+
+          export function useGameTutorial(model: LoadedGameViewModel): GameTutorialController {
+            const userId = model.user.id;
+            const [run, setRun] = useState<LocalTutorialRun | null>(() => loadTutorialRun(userId));
+            const [serverStatus, setServerStatus] = useState<TutorialCompletionState | null>(null);
+            const [ready, setReady] = useState(false);
+            const finishingRef = useRef(false);
+
+            const persistRun = useCallback((nextRun: LocalTutorialRun | null) => {
+              if (nextRun) saveTutorialRun(userId, nextRun);
+              else clearTutorialRun(userId);
+              setRun(nextRun);
+            }, [userId]);
+
+            useEffect(() => {
+              let cancelled = false;
+              const controller = new AbortController();
+              setReady(false);
+              finishingRef.current = false;
+              const storedRun = loadTutorialRun(userId);
+              setRun(storedRun);
+
+              void (async () => {
+                try {
+                  let response = await getTutorialStatus(controller.signal);
+                  if (cancelled) return;
+                  if (
+                    response.tutorial.completedVersion < CURRENT_TUTORIAL_VERSION
+                    && hasPendingTutorialCompletion(userId)
+                  ) {
+                    try {
+                      const completion = await completeTutorial(CURRENT_TUTORIAL_VERSION);
+                      response = {
+                        tutorial: completion.tutorial,
+                        currentVersion: CURRENT_TUTORIAL_VERSION,
+                      };
+                      setPendingTutorialCompletion(userId, false);
+                    } catch {
+                      // Keep the pending marker. Replays do not need to restart after a completed local run.
+                    }
+                  } else if (response.tutorial.completedVersion >= CURRENT_TUTORIAL_VERSION) {
+                    setPendingTutorialCompletion(userId, false);
+                  }
+                  if (cancelled) return;
+                  setServerStatus(response.tutorial);
+                  const persisted = loadTutorialRun(userId);
+                  if (!persisted && response.tutorial.completedVersion < CURRENT_TUTORIAL_VERSION
+                    && !hasPendingTutorialCompletion(userId)) {
+                    const fresh = createTutorialRun();
+                    saveTutorialRun(userId, fresh);
+                    setRun(fresh);
+                  } else {
+                    setRun(persisted);
+                  }
+                } catch {
+                  if (!cancelled) setServerStatus(null);
+                } finally {
+                  if (!cancelled) setReady(true);
+                }
+              })();
+
+              return () => {
+                cancelled = true;
+                controller.abort();
+              };
+            }, [userId]);
+
+            const updateCurrentRun = useCallback((
+              expectedStep: TutorialStepId,
+              statKey: TutorialStatKey,
+              contextPatch: Partial<LocalTutorialRun['context']> = {},
+            ) => {
+              setRun((current) => {
+                if (!current) return current;
+                const next = advanceRun(current, expectedStep, statKey, contextPatch);
+                if (next !== current) saveTutorialRun(userId, next);
+                return next;
+              });
+            }, [userId]);
+
+            const finishTutorial = useCallback(() => {
+              if (finishingRef.current) return;
+              finishingRef.current = true;
+              clearTutorialRun(userId);
+              setRun(null);
+              model.notify('经营成长线已完成');
+
+              if ((serverStatus?.completedVersion || 0) >= CURRENT_TUTORIAL_VERSION) {
+                finishingRef.current = false;
+                return;
+              }
+
+              setPendingTutorialCompletion(userId, true);
+              void completeTutorial(CURRENT_TUTORIAL_VERSION)
+                .then((response) => {
+                  setServerStatus(response.tutorial);
+                  setPendingTutorialCompletion(userId, false);
+                })
+                .catch(() => {
+                  model.notify('成长线已在本机完成，服务器完成记录将在下次进入时重试');
+                })
+                .finally(() => {
+                  finishingRef.current = false;
+                });
+            }, [model, serverStatus?.completedVersion, userId]);
+
+            useEffect(() => {
+              if (!run || run.currentStep !== 'complete-production') return;
+              const facilityTypeId = run.context.facilityTypeId;
+              const baseline = run.context.productionBaseline;
+              if (!facilityTypeId || baseline === undefined) return;
+              const group = model.game.facilityGroups.find((item) => item.facilityTypeId === facilityTypeId);
+              if (!group || group.lifetimeOutput <= baseline) return;
+              updateCurrentRun('complete-production', 'productionCompletions');
+            }, [model.game.facilityGroups, run, updateCurrentRun]);
+
+            useEffect(() => {
+              if (!run || run.currentStep !== 'review-contracts' || model.tab !== 'contracts') return;
+              updateCurrentRun('review-contracts', 'contractReviews');
+            }, [model.tab, run, updateCurrentRun]);
+
+            useEffect(() => {
+              if (!run || run.currentStep !== 'review-leaderboard' || model.tab !== 'leaderboard') return;
+              finishTutorial();
+            }, [finishTutorial, model.tab, run]);
+
+            const restart = useCallback(() => {
+              const fresh = createTutorialRun();
+              persistRun(fresh);
+              finishingRef.current = false;
+              model.setTab('home');
+              model.notify('经营成长线已从第一步重新开始');
+            }, [model, persistRun]);
+
+            const hide = useCallback(() => {
+              if (!run) return;
+              persistRun({ ...run, status: 'hidden', updatedAt: Date.now() });
+            }, [persistRun, run]);
+
+            const show = useCallback(() => {
+              if (!run) return;
+              persistRun({ ...run, status: 'active', updatedAt: Date.now() });
+              model.setTab('home');
+            }, [model, persistRun, run]);
+
+            const openCurrentTarget = useCallback(() => {
+              if (!run) return;
+              const definition = tutorialStepDefinition(run.currentStep);
+              if (run.currentStep === 'set-auto-sell') {
+                const productId = preferredSellProductId(model, run.context.productId);
+                requestAutoSellPanel(userId, productId);
+                model.setTab('production');
+                return;
+              }
+              model.setTab(definition.targetTab);
+            }, [model, run, userId]);
+
+            const recordWorkClick = useCallback(() => {
+              updateCurrentRun('work', 'workClicks');
+            }, [updateCurrentRun]);
+
+            const recordBuildSubmit = useCallback((facilityTypeId: string) => {
+              updateCurrentRun('build-facility', 'buildSubmits', { facilityTypeId });
+            }, [updateCurrentRun]);
+
+            const recordFacilityStartClick = useCallback((facilityTypeId: string) => {
+              const group = model.game.facilityGroups.find((item) => item.facilityTypeId === facilityTypeId);
+              updateCurrentRun('start-facility', 'facilityStartClicks', {
+                facilityTypeId,
+                productionBaseline: Number(group?.lifetimeOutput || 0),
+              });
+            }, [model.game.facilityGroups, updateCurrentRun]);
+
+            const recordAutoSellSetting = useCallback((productId: string) => {
+              updateCurrentRun('set-auto-sell', 'autoSellSettings', {
+                productId,
+                autoSellStartedAt: Date.now(),
+              });
+            }, [updateCurrentRun]);
+
+            const recordAutoSellCompletion = useCallback((productId: string) => {
+              setRun((current) => {
+                if (
+                  !current
+                  || current.currentStep !== 'complete-sale'
+                  || current.context.productId !== productId
+                ) return current;
+                const next = advanceRun(current, 'complete-sale', 'saleCompletions');
+                if (next !== current) saveTutorialRun(userId, next);
+                return next;
+              });
+            }, [userId]);
+
+            const recordResearchStart = useCallback(() => {
+              updateCurrentRun('start-research', 'researchStarts');
+            }, [updateCurrentRun]);
+
+            const recordBankDeposit = useCallback(() => {
+              updateCurrentRun('make-bank-deposit', 'bankDeposits');
+            }, [updateCurrentRun]);
+
+            const currentStep = run ? tutorialStepDefinition(run.currentStep) : null;
+            const currentStepIndex = run ? TUTORIAL_STEP_IDS.indexOf(run.currentStep) + 1 : 0;
+            const serverCompleted = (serverStatus?.completedVersion || 0) >= CURRENT_TUTORIAL_VERSION
+              || hasPendingTutorialCompletion(userId);
+
+            return useMemo(() => ({
+              ready,
+              run,
+              isActive: Boolean(run),
+              isVisible: run?.status === 'active',
+              isCompleted: !run && serverCompleted,
+              currentStep,
+              currentStepIndex,
+              totalSteps: TUTORIAL_STEPS.length,
+              statusLabel: run
+                ? `${run.status === 'hidden' ? '已隐藏' : '进行中'} · 步骤 ${currentStepIndex}/${TUTORIAL_STEPS.length}`
+                : serverCompleted
+                  ? '已完成当前版本经营成长线'
+                  : ready
+                    ? '尚未开始'
+                    : '正在读取成长线状态',
+              restart,
+              hide,
+              show,
+              openCurrentTarget,
+              recordWorkClick,
+              recordBuildSubmit,
+              recordFacilityStartClick,
+              recordAutoSellSetting,
+              recordAutoSellCompletion,
+              recordResearchStart,
+              recordBankDeposit,
+            }), [
+              currentStep,
+              currentStepIndex,
+              hide,
+              openCurrentTarget,
+              ready,
+              recordAutoSellCompletion,
+              recordAutoSellSetting,
+              recordBankDeposit,
+              recordBuildSubmit,
+              recordFacilityStartClick,
+              recordResearchStart,
+              recordWorkClick,
+              restart,
+              run,
+              serverCompleted,
+              show,
+            ]);
+          }
+          ''')
+
+          replace('server/src/tutorial-store.js', 'export const CURRENT_TUTORIAL_VERSION = 2;', 'export const CURRENT_TUTORIAL_VERSION = 3;')
+
+          replace(
+              'src/app/GameApp.tsx',
+              "import { useGameTutorial, type TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';\n",
+              "import { useGameTutorial, type TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';\nimport { useOnlineAutoSell, type OnlineAutoSellAwareGameViewModel } from '../auto-sell/useOnlineAutoSell';\n",
+          )
+          replace(
+              'src/app/GameApp.tsx',
+              "  const tutorial = useGameTutorial(pollingModel);\n  const tutorialModel = useMemo<TutorialAwareGameViewModel>(() => ({\n",
+              "  const tutorial = useGameTutorial(pollingModel);\n  const autoSell = useOnlineAutoSell(pollingModel, {\n    onPolicyEnabled: tutorial.recordAutoSellSetting,\n    onSale: tutorial.recordAutoSellCompletion,\n  });\n  const tutorialModel = useMemo<TutorialAwareGameViewModel>(() => ({\n",
+          )
+          replace(
+              'src/app/GameApp.tsx',
+              "    placeAssetOrder: async (assetKind, assetId, side, quantity, price) => {\n      const result = await model.placeAssetOrder(assetKind, assetId, side, quantity, price);\n      if (result.ok) tutorial.recordSellOrderSubmit(assetKind, assetId, side);\n      return result;\n    },\n",
+              "",
+          )
+          replace(
+              'src/app/GameApp.tsx',
+              "  }), [model, pollingModel, tutorial]);\n  const compactNumbers = tutorialModel.compactNumbers;\n",
+              "  }), [model, pollingModel, tutorial]);\n  const appModel = useMemo<OnlineAutoSellAwareGameViewModel>(() => ({\n    ...tutorialModel,\n    autoSell,\n  }), [autoSell, tutorialModel]);\n  const compactNumbers = appModel.compactNumbers;\n",
+          )
+          replace('src/app/GameApp.tsx', '  const { game, derived } = tutorialModel;\n', '  const { game, derived } = appModel;\n')
+          replace('src/app/GameApp.tsx', "      onClick: () => tutorialModel.setTab('bank'),\n", "      onClick: () => appModel.setTab('bank'),\n")
+          replace('src/app/GameApp.tsx', '      <GameShell model={tutorialModel} statusItems={statusItems}>\n        <PageRouter model={tutorialModel} />\n', '      <GameShell model={appModel} statusItems={statusItems}>\n        <PageRouter model={appModel} />\n')
+
+          replace(
+              'src/pages/PageRouter.tsx',
+              "import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';\n",
+              "import type { OnlineAutoSellAwareGameViewModel } from '../auto-sell/useOnlineAutoSell';\n",
+          )
+          replace('src/pages/PageRouter.tsx', 'export function PageRouter({ model }: { model: TutorialAwareGameViewModel }) {', 'export function PageRouter({ model }: { model: OnlineAutoSellAwareGameViewModel }) {')
+          replace(
+              'src/pages/ProductionPage.tsx',
+              "import { type LoadedGameViewModel } from '../app/gameViewModel';\n",
+              "import type { OnlineAutoSellAwareGameViewModel } from '../auto-sell/useOnlineAutoSell';\n",
+          )
+          replace('src/pages/ProductionPage.tsx', 'export function ProductionPage({ model }: { model: LoadedGameViewModel }) {', 'export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewModel }) {')
+
+          write('src/components/warehouse/WarehouseUpgradeCard.tsx', r'''import { useCallback, useEffect, useMemo, useState } from 'react';
+          import type { OnlineAutoSellAwareGameViewModel } from '../../auto-sell/useOnlineAutoSell';
+          import {
+            AUTO_SELL_PANEL_EVENT,
+            consumeAutoSellPanelRequest,
+          } from '../../auto-sell/autoSellStorage';
+          import { formatCurrency, formatNumber } from '../../utils/formatters';
+          import { formatMoneyDraft, parseMoneyDraft } from '../../utils/moneyDraft';
+          import { ProductIcon } from '../icons/ProductIcons';
+          import { CurrencyAmount } from '../ui/CurrencyAmount';
+          import { MoneyInput } from '../ui/FormControls';
+          import { Button, Panel, StatusTag, ToggleField, WidgetHeading } from '../ui/layout';
+
+          export function WarehouseUpgradeCard({
+            model,
+            className = '',
+            compact = false,
+          }: {
+            model: OnlineAutoSellAwareGameViewModel;
+            className?: string;
+            compact?: boolean;
+          }) {
+            const { game, autoSell, showResult, upgradeWarehouse } = model;
+            const [submitting, setSubmitting] = useState(false);
+            const [selectedProductId, setSelectedProductId] = useState('');
+            const [autoSellEnabledDraft, setAutoSellEnabledDraft] = useState(false);
+            const [autoSellPriceDraft, setAutoSellPriceDraft] = useState('1.00');
+            const upgradeUnavailable = game.warehouseUpgradeCost === null || game.warehouseNextCapacityIncrease <= 0;
+            const canAfford = game.warehouseUpgradeCost !== null && game.credits >= game.warehouseUpgradeCost;
+            const overCapacity = game.warehouseUsedCapacity > game.inventoryCapacity;
+            const usagePercent = game.inventoryCapacity > 0
+              ? Math.min(100, Math.round((game.warehouseUsedCapacity / game.inventoryCapacity) * 100))
+              : 0;
+            const capacityScale = Math.max(1, game.inventoryCapacity);
+            const orderReserved = game.warehouseOrderReservedQuantity ?? 0;
+            const contractReserved = game.warehouseContractReservedQuantity ?? 0;
+            const auctionReserved = game.warehouseAuctionReservedQuantity ?? 0;
+            const capacitySegments = [
+              { id: 'stored', label: '实物库存', value: game.warehouseStoredQuantity },
+              { id: 'order', label: '市场订单预占', value: orderReserved },
+              { id: 'contract', label: '合同预占', value: contractReserved },
+              { id: 'auction', label: '拍卖预占', value: auctionReserved },
+            ];
+            const stockedProducts = useMemo(
+              () => game.products.filter((product) => {
+                const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
+                return inventory.available > 0 || inventory.frozen > 0 || autoSell.policyFor(product.id).enabled;
+              }),
+              [autoSell, game.inventories, game.products],
+            );
+            const selectedProduct = game.products.find((product) => product.id === selectedProductId) ?? null;
+            const selectedAutoSellStatus = selectedProduct ? autoSell.statusFor(selectedProduct.id) : null;
+            const selectedPolicy = selectedProduct ? autoSell.policyFor(selectedProduct.id) : null;
+            const parsedAutoSellPrice = parseMoneyDraft(autoSellPriceDraft, { min: 0.01 });
+
+            const openAutoSellPanel = useCallback((productId: string) => {
+              const product = game.products.find((candidate) => candidate.id === productId);
+              if (!product) return;
+              const policy = autoSell.policyFor(product.id);
+              setSelectedProductId(product.id);
+              setAutoSellEnabledDraft(policy.enabled);
+              setAutoSellPriceDraft(formatMoneyDraft(policy.price));
+            }, [autoSell, game.products]);
+
+            useEffect(() => {
+              const requested = consumeAutoSellPanelRequest(model.user.id);
+              if (requested) openAutoSellPanel(requested);
+              const handlePanelRequest = (event: Event) => {
+                const detail = (event as CustomEvent<{ userId?: number; productId?: string }>).detail;
+                if (Number(detail?.userId) !== Number(model.user.id) || !detail?.productId) return;
+                openAutoSellPanel(detail.productId);
+              };
+              window.addEventListener(AUTO_SELL_PANEL_EVENT, handlePanelRequest);
+              return () => window.removeEventListener(AUTO_SELL_PANEL_EVENT, handlePanelRequest);
+            }, [model.user.id, openAutoSellPanel]);
+
+            async function upgrade() {
+              if (submitting || upgradeUnavailable) return;
+              setSubmitting(true);
+              try {
+                await showResult(upgradeWarehouse());
+              } finally {
+                setSubmitting(false);
+              }
+            }
+
+            function saveAutoSellPolicy() {
+              if (!selectedProduct || parsedAutoSellPrice === null) return;
+              autoSell.setPolicy(selectedProduct.id, {
+                enabled: autoSellEnabledDraft,
+                price: parsedAutoSellPrice,
+              });
+              model.notify(autoSellEnabledDraft
+                ? `${selectedProduct.name}自动出售已开启，最低价 ${parsedAutoSellPrice.toFixed(2)}`
+                : `${selectedProduct.name}自动出售已关闭`);
+            }
+
+            return (
+              <Panel className={`production-surface warehouse-upgrade-card ${compact ? 'compact' : ''} ${className}`.trim()}>
+                <WidgetHeading
+                  title="共享仓库"
+                  action={(
+                    <div className="warehouse-heading-status">
+                      {overCapacity ? <StatusTag tone="danger">容量超限</StatusTag> : null}
+                      <StatusTag tone="info">等级 {formatNumber(game.warehouseLevel)}</StatusTag>
+                    </div>
+                  )}
+                />
+
+                <div className="warehouse-layout">
+                  <section className="warehouse-management" aria-label="仓库容量与升级">
+                    <div
+                      className="warehouse-capacity-progress"
+                      aria-label={`仓库已使用 ${formatNumber(game.warehouseUsedCapacity)}/${formatNumber(game.inventoryCapacity)}，实物库存 ${formatNumber(game.warehouseStoredQuantity)}，市场订单预占 ${formatNumber(orderReserved)}，合同预占 ${formatNumber(contractReserved)}，拍卖预占 ${formatNumber(auctionReserved)}`}
+                    >
+                      <div>
+                        <span>已使用</span>
+                        <strong>{formatNumber(game.warehouseUsedCapacity)}/{formatNumber(game.inventoryCapacity)}</strong>
+                      </div>
+                      <div className={`progress-track warehouse-capacity-track ${overCapacity ? 'is-over-capacity' : ''}`} aria-hidden="true">
+                        {capacitySegments.map((segment) => (
+                          <span
+                            className={`warehouse-capacity-segment warehouse-capacity-segment--${segment.id}`}
+                            key={segment.id}
+                            style={{ width: `${(Math.max(0, segment.value) / capacityScale) * 100}%` }}
+                          />
+                        ))}
+                      </div>
+                      <small>{usagePercent}% 已使用 · 所有商品共用容量</small>
+                    </div>
+
+                    <dl className="warehouse-summary-list">
+                      {capacitySegments.map((segment) => (
+                        <div className={`warehouse-summary-item warehouse-summary-item--${segment.id}`} key={segment.id}>
+                          <dt><span className="warehouse-summary-swatch" aria-hidden="true" />{segment.label}</dt>
+                          <dd>{formatNumber(segment.value)}</dd>
+                        </div>
+                      ))}
+                      <div className="warehouse-summary-item warehouse-summary-item--available">
+                        <dt>剩余容量</dt>
+                        <dd className={game.warehouseAvailableCapacity > 0 ? 'positive' : 'negative'}>{formatNumber(game.warehouseAvailableCapacity)}</dd>
+                      </div>
+                    </dl>
+
+                    <div className="warehouse-upgrade-summary">
+                      <div>
+                        <span>下一等级容量</span>
+                        <strong>{formatNumber(game.warehouseNextCapacity)}</strong>
+                        <small>增加 {formatNumber(game.warehouseNextCapacityIncrease)} 容量</small>
+                      </div>
+                      <div>
+                        <span>升级费用</span>
+                        <strong>{game.warehouseUpgradeCost === null ? '数值不可用' : <CurrencyAmount>{formatCurrency(game.warehouseUpgradeCost)}</CurrencyAmount>}</strong>
+                        <small>当前可用资金 <CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount></small>
+                      </div>
+                    </div>
+
+                    {overCapacity ? <p className="warehouse-capacity-warning">当前占用超过容量，释放库存或扩容前不能继续增加库存或新增预占。</p> : null}
+
+                    <Button
+                      block
+                      onClick={() => void upgrade()}
+                      disabled={submitting || upgradeUnavailable || !canAfford}
+                    >
+                      {submitting
+                        ? '正在扩容…'
+                        : upgradeUnavailable
+                          ? '扩容数值不可用'
+                          : canAfford
+                            ? <>支付 <CurrencyAmount>{formatCurrency(game.warehouseUpgradeCost ?? 0)}</CurrencyAmount> 扩容</>
+                            : <>资金不足 · 需要 <CurrencyAmount>{formatCurrency(game.warehouseUpgradeCost ?? 0)}</CurrencyAmount></>}
+                    </Button>
+                  </section>
+
+                  <section className="warehouse-content" aria-label="仓库内容">
+                    <header className="warehouse-content-heading">
+                      <strong>仓库内容</strong>
+                    </header>
+
+                    {stockedProducts.length > 0 ? (
+                      <div className="warehouse-product-grid">
+                        {stockedProducts.map((product) => {
+                          const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
+                          const policy = autoSell.policyFor(product.id);
+                          return (
+                            <button
+                              type="button"
+                              className={`warehouse-product-card ${policy.enabled ? 'is-auto-sell-enabled' : ''}`}
+                              key={product.id}
+                              aria-label={`${product.name}，可用 ${formatNumber(inventory.available)}，冻结 ${formatNumber(inventory.frozen)}，设置自动出售`}
+                              onClick={() => openAutoSellPanel(product.id)}
+                            >
+                              <span className="warehouse-product-card-name">{product.name}</span>
+                              <span className="warehouse-product-card-icon">
+                                <ProductIcon productId={product.id} />
+                              </span>
+                              <strong className="warehouse-product-card-available">
+                                可用 {formatNumber(inventory.available)}
+                              </strong>
+                              <small className="warehouse-product-card-frozen">
+                                冻结 {formatNumber(inventory.frozen)}{policy.enabled ? ' · 自动' : ''}
+                              </small>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="empty-state warehouse-content-empty">
+                        <strong>仓库中暂无商品</strong>
+                        <span>生产或买入商品后，商品会显示在这里。</span>
+                      </div>
+                    )}
+
+                    {selectedProduct && selectedAutoSellStatus && selectedPolicy ? (
+                      <section className="warehouse-auto-sell-panel" aria-label={`${selectedProduct.name}自动出售设置`}>
+                        <WidgetHeading
+                          title={`${selectedProduct.name} · 自动出售`}
+                          action={<Button variant="secondary" onClick={() => setSelectedProductId('')}>关闭面板</Button>}
+                        />
+                        <div className="warehouse-auto-sell-status">
+                          <StatusTag tone="info">仅客户端在线</StatusTag>
+                          {autoSell.busyProductId === selectedProduct.id ? <StatusTag tone="success">正在自动出售</StatusTag> : null}
+                          {autoSellEnabledDraft && selectedAutoSellStatus.blockedByOwnBuy ? <StatusTag tone="warning">自己的买单阻止自动出售</StatusTag> : null}
+                          {autoSellEnabledDraft && !selectedAutoSellStatus.blockedByOwnBuy ? (
+                            <StatusTag tone={selectedAutoSellStatus.hasCrossingBuyer ? 'success' : 'neutral'}>
+                              {selectedAutoSellStatus.hasCrossingBuyer ? '已有买盘达到价格' : '等待达到价格的买盘'}
+                            </StatusTag>
+                          ) : null}
+                        </div>
+                        <div className="warehouse-auto-sell-summary">
+                          <div><span>自由可用</span><strong>{formatNumber(selectedAutoSellStatus.availableInventory)}</strong></div>
+                          <div><span>生产预定</span><strong>{formatNumber(selectedAutoSellStatus.productionReserved)}</strong></div>
+                          <div><span>合同预定</span><strong>{formatNumber(selectedAutoSellStatus.contractReserved)}</strong></div>
+                          <div><span>预计可自动出售</span><strong>{formatNumber(selectedAutoSellStatus.eligibleQuantity)}</strong></div>
+                        </div>
+                        <ToggleField
+                          label="启用自动出售"
+                          description="仅当前客户端在线时生效；关闭页面、退出登录或断网后不会继续发起自动成交。"
+                          checked={autoSellEnabledDraft}
+                          onChange={(event) => setAutoSellEnabledDraft(event.target.checked)}
+                        />
+                        <MoneyInput
+                          label="最低自动出售价格"
+                          description="只有市场中现有买单价格达到或高于该价格时才会出售。"
+                          value={autoSellPriceDraft}
+                          fallbackValue={selectedPolicy.price}
+                          min={0.01}
+                          wheelStep={0.01}
+                          error={parsedAutoSellPrice === null ? '请输入不低于 0.01、最多两位小数的价格' : undefined}
+                          onValueChange={setAutoSellPriceDraft}
+                        />
+                        <p className="warehouse-auto-sell-note">
+                          数量由服务器成交前重新计算：先保留开启中工厂下一完整周期的原料，再保留自动准备的合同批次；普通手动卖单仍只在市场页发布。
+                        </p>
+                        <Button block disabled={parsedAutoSellPrice === null} onClick={saveAutoSellPolicy}>
+                          {autoSellEnabledDraft ? '保存并启用自动出售' : '保存并关闭自动出售'}
+                        </Button>
+                      </section>
+                    ) : null}
+                  </section>
+                </div>
+              </Panel>
+            );
+          }
+          ''')
+
+          with Path('src/styles/warehouse-expansion.css').open('a', encoding='utf-8') as handle:
+              handle.write(r'''
+
+          .warehouse-product-card.is-auto-sell-enabled {
+            border-color: color-mix(in srgb, var(--color-success) 42%, var(--color-border));
+          }
+
+          .warehouse-auto-sell-panel {
+            display: grid;
+            gap: var(--space-3);
+            border-top: 1px solid var(--color-border);
+            padding-top: var(--space-3);
+          }
+
+          .warehouse-auto-sell-status {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-2);
+          }
+
+          .warehouse-auto-sell-summary {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: var(--space-2);
+          }
+
+          .warehouse-auto-sell-summary > div {
+            min-width: 0;
+            display: grid;
+            gap: 2px;
+            border: 1px solid var(--color-divider);
+            border-radius: var(--radius-control);
+            padding: var(--space-2);
+            background: var(--color-surface-inset);
+          }
+
+          .warehouse-auto-sell-summary span,
+          .warehouse-auto-sell-note {
+            color: var(--color-text-muted);
+            font-size: var(--font-size-xs);
+          }
+
+          .warehouse-auto-sell-summary strong {
+            color: var(--color-text-primary);
+            font-variant-numeric: tabular-nums;
+          }
+
+          .warehouse-auto-sell-note {
+            margin: 0;
+            line-height: var(--line-height-relaxed);
+          }
+
+          @media (max-width: 720px) {
+            .warehouse-auto-sell-summary {
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+          }
+
+          @media (max-width: 420px) {
+            .warehouse-auto-sell-summary {
+              grid-template-columns: 1fr;
+            }
+          }
+          ''')
+
+          replace(
+              'src/pages/SettingsPage.tsx',
+              "import { clearTutorialRun, setPendingTutorialCompletion } from '../game-guide/tutorialStorage';\n",
+              "import { clearTutorialRun, setPendingTutorialCompletion } from '../game-guide/tutorialStorage';\nimport { clearAutoSellPolicies } from '../auto-sell/autoSellStorage';\n",
+          )
+          replace(
+              'src/pages/SettingsPage.tsx',
+              "'重新开始后，当前成长线进度会被清除。工作、建设、启动、生产、挂单、成交、研发、合同浏览、银行存款和排行榜浏览均需重新完成；游戏资产不会重置。',",
+              "'重新开始后，当前成长线进度会被清除。工作、建设、启动、生产、自动出售设置、自动成交、研发、合同浏览、银行存款和排行榜浏览均需重新完成；游戏资产不会重置。',",
+          )
+          replace(
+              'src/pages/SettingsPage.tsx',
+              "    setPendingTutorialCompletion(user.id, false);\n    model.clearLocalTrades();\n",
+              "    setPendingTutorialCompletion(user.id, false);\n    clearAutoSellPolicies(user.id);\n    model.clearLocalTrades();\n",
+          )
+
+          replace(
+              'docs/README.md',
+              '商品卡、商品网格密度和生产空间约束',
+              '商品卡、客户端在线自动出售设置、商品网格密度和生产空间约束',
+          )
+
+          old_warehouse_rule = '冻结数量为零时仍显示“冻结 0”，保证商品卡结构和高度一致。整张卡进入对应商品市场。不得把插画恢复为商品名称旁的 `1em` 小图标，也不得显示“库存 N”总量行、估值、买一价、最近成交价、单项容量、买单预占或直接出售表单。'
+          new_warehouse_rule = '''冻结数量为零时仍显示“冻结 0”，保证商品卡结构和高度一致。整张商品卡不再进入市场，而是在生产页仓库内容区打开该商品的“自动出售”设置面板；仓库不得恢复普通手动下单表单，普通买卖继续唯一归属市场页。启用自动出售的商品即使当前可用与冻结库存均为 `0` 也继续显示，确保玩家可以修改价格或关闭策略。不得把插画恢复为商品名称旁的 `1em` 小图标，也不得显示“库存 N”总量行、估值、买一价、最近成交价、单项容量或买单预占。
+
+### 7.1 在线自动出售
+
+自动出售是玩家当前浏览器客户端的在线自动化，不是服务器后台策略，也不是长期卖单。设置按玩家 ID 保存在浏览器本地，只包含“启用／关闭”和最低出售价格；价格遵守商品订单相同的最低 `0.01` 与两位小数规则，不提供数量输入。客户端关闭、退出登录、断网或没有运行 Economy 页面时不会发起新的自动出售；不得为此增加在线心跳、自动出售专用轮询、全世界扫描调度器或后台常驻任务。正式状态刷新已经包含公开订单簿，在线客户端只在该状态中发现存在价格不低于最低出售价的现有买单时尝试一次自动出售。
+
+服务器在每次自动出售事务内重新计算数量，客户端估算不得成为资产扣减依据：
+
+```text
+生产预定 = Σ(所有 enabled 工厂集群下一完整周期按当前生产配置所需的输入商品)
+合同可用保留 = Σ(当前玩家作为供应方且启用自动准备的活跃供货合同／已接受续签中，下一批尚未进入 frozen 的缺口)
+可自动出售 = max(0, available - 生产预定 - 合同可用保留)
+本次自动出售数量 = min(可自动出售, 当前价格达到阈值的外部买单剩余量)
+```
+
+合同已经进入 `supplierReservedQuantity`／续签 `supplierReservedQuantity` 的商品继续属于真实 `frozen` 库存，本来就不在 `available` 中，不得重复扣除；普通手动商品卖单、商品拍卖等冻结资产同理已经从 `available` 排除。生产预定只保护 `enabled=true` 的工厂，运行中使用当前参与生产的实体数量，等待恢复的异常工厂使用当前生产可用实体数量；玩家手动关闭的工厂不形成生产预定。为了避免满员率恢复过程中提前卖掉原料，生产预定按实体工厂的完整周期投入保守保护，不按当前折算就业产能缩小。
+
+自动出售复用现有 `POST /api/game/orders`，通过内部执行语义 `execution: online-auto-sell` 表示一次在线即时出售。服务器忽略客户端数量，自行按上述规则和当前达到阈值的买盘决定数量，再进入正式商品订单簿按价格优先／同价时间优先、maker price、卖方手续费、匿名成交和资产守恒规则成交；预期数量必须全部命中当时已经存在的买盘，若并发变化留下未成交部分，服务器在同一事务立即撤销余量并释放冻结商品。自动出售不得留下客户端离线后仍可继续成交的开放卖单，也不得通过该执行语义绕过自成交保护或扩大玩家普通未完成订单配额。
+
+面板必须显示“自由可用／生产预定／合同预定／预计可自动出售”，并明确“仅客户端在线”。如果玩家本人同商品买单价格达到自动出售阈值，自动出售暂停并提示先处理自己的反向订单；玩家明确发布的普通手动订单不由自动出售策略撤销。'''
+          replace('docs/WAREHOUSE_EXPANSION_DESIGN.md', old_warehouse_rule, new_warehouse_rule)
+          replace('docs/WAREHOUSE_EXPANSION_DESIGN.md', '### 7.1 商品网格密度与主视觉尺寸', '### 7.2 商品网格密度与主视觉尺寸')
+
+          replace(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '| 生产 | `production` | `ProductionPage` | 仓库、建设、工厂集群，以及玩家可见“生产产物／作业制度”配置 |',
+              '| 生产 | `production` | `ProductionPage` | 仓库与在线自动出售设置、建设、工厂集群，以及玩家可见“生产产物／作业制度”配置 |',
+          )
+          replace(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '经营成长线固定为十步：工作、建设工厂、启动工厂、完成生产、提交商品卖单、完成商品出售、开始一项产业科技研发、查看合同、完成一次银行存款、查看排行榜。前六步建立“生产—交易”基础循环，后四步把玩家继续引导到产业选择、长期协作、资产配置和四榜竞争；不得新增第十一个一级页面或独立任务资产。',
+              '经营成长线固定为十步：工作、建设工厂、启动工厂、完成生产、设置商品自动出售价格、完成一次自动出售、开始一项产业科技研发、查看合同、完成一次银行存款、查看排行榜。前六步建立“生产—在线自动出售”基础循环，后四步把玩家继续引导到产业选择、长期协作、资产配置和四榜竞争；不得新增第十一个一级页面或独立任务资产。',
+          )
+          replace(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '需要原有服务器写操作的步骤只在对应请求返回 `result.ok = true` 后推进：工作、建设、启动、商品卖单、开始研发和银行存款的失败请求均不得形成成长进度。生产步骤只比较本轮启动设施的 `lifetimeOutput` 与启动时基线；成交步骤只观察本轮成功提交卖单前不存在的新自有商品卖单是否出现 fill 或剩余数量下降。查看合同和查看排行榜只根据当前正式 `TabId` 是否实际进入对应页面推进，不要求存在公开合同、成交合同或特定排名，避免把新玩家成长线绑定到其他玩家供给。生产、成交和页面观察全部复用正式状态刷新与现有页面状态，不得增加成长线专用轮询。',
+              '需要原有服务器写操作的步骤只在对应请求返回 `result.ok = true` 后推进：工作、建设、启动、开始研发和银行存款的失败请求均不得形成成长进度。生产步骤只比较本轮启动设施的 `lifetimeOutput` 与启动时基线；“设置商品自动出售价格”只在玩家从仓库面板保存合法最低价并启用当前浏览器策略后推进，同时记录本轮商品 ID；“完成一次自动出售”只接受该商品后续由在线自动出售动作返回 `result.ok = true` 的新成交，历史卖单、手动卖单、历史成交和全局累计统计均不得自动完成。查看合同和查看排行榜只根据当前正式 `TabId` 是否实际进入对应页面推进，不要求存在公开合同、成交合同或特定排名，避免把新玩家成长线绑定到其他玩家供给。生产、自动出售和页面观察全部复用正式状态刷新与现有页面状态，不得增加成长线专用轮询。',
+          )
+          replace(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '| 统一资产下单、价格档位订单簿、逐单撤单和本地成交 | 市场 |\n| 仓库管理、商品库存和扩容 | 生产 |',
+              '| 统一资产普通手动下单、价格档位订单簿、逐单撤单和本地成交 | 市场 |\n| 仓库管理、商品库存、客户端在线自动出售设置和扩容 | 生产 |',
+          )
+          replace(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '让工作、建设、启动、商品卖单、研发或银行存款步骤在服务器返回成功前推进，或让失败请求形成成长进度；让历史生产和历史订单自动完成本轮步骤；',
+              '让工作、建设、启动、研发或银行存款步骤在服务器返回成功前推进，或让失败请求形成成长进度；让未启用的自动出售设置、历史生产、历史手动订单或历史成交自动完成本轮步骤；',
+          )
+
+          replace(
+              'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+              '- 所有写操作使用 `Idempotency-Key`。',
+              '- 所有写操作使用 `Idempotency-Key`。\n- 仓库“在线自动出售”继续复用商品订单写接口与正式撮合，不形成第二套订单类型。`execution: online-auto-sell` 只表示一次由在线客户端触发的服务器权威即时卖出：客户端不得提交可信数量，服务器在事务内扣除生产预定和自动准备合同缺口后，以达到最低价的现有外部买单深度决定数量；成交仍使用 resting maker price、卖方累计手续费、自成交保护与匿名公开序列化。并发变化产生的未成交余量必须同事务撤销，不能留下玩家离线后仍继续成交的自动开放卖单；该临时执行不占用普通开放订单配额，但不得被普通手动下单借用。',
+          )
+
+          write('scripts/verify-game-tutorial.mjs', r'''import { readFileSync } from 'node:fs';
+
+          function read(path) {
+            return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+          }
+
+          function requireText(source, text, message) {
+            if (!source.includes(text)) throw new Error(message);
+          }
+
+          function forbidText(source, text, message) {
+            if (source.includes(text)) throw new Error(message);
+          }
+
+          const storage = read('src/game-guide/tutorialStorage.ts');
+          const controller = read('src/game-guide/useGameTutorial.ts');
+          const definition = read('src/game-guide/tutorialDefinition.ts');
+          const gameApp = read('src/app/GameApp.tsx');
+          const autoSell = read('src/auto-sell/useOnlineAutoSell.ts');
+          const guide = read('src/components/GameGuideStrip.tsx');
+          const overview = read('src/pages/OverviewPage.tsx');
+          const settings = read('src/pages/SettingsPage.tsx');
+          const serverApp = read('server/src/app.js');
+          const tutorialStore = read('server/src/tutorial-store.js');
+          const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
+
+          requireText(storage, 'CURRENT_TUTORIAL_VERSION = 3', '经营成长线客户端版本必须升级为 3');
+          requireText(storage, 'economy.game-tutorial.v', '成长线本轮状态必须按玩家保存在浏览器本地');
+          requireText(storage, 'autoSellSettings', '成长线必须记录本轮自动出售设置');
+          requireText(storage, "'set-auto-sell'", '成长线必须包含自动出售设置步骤');
+          forbidText(storage, 'sellOrderBaselineIds', '成长线不得继续依赖手动卖单基线');
+          for (const stepId of ['start-research', 'review-contracts', 'make-bank-deposit', 'review-leaderboard']) {
+            requireText(storage, `'${stepId}'`, `经营成长线缺少步骤 ${stepId}`);
+          }
+          forbidText(controller, 'game.stats.', '成长线不得读取玩家全局累计统计');
+          requireText(controller, "updateCurrentRun('set-auto-sell', 'autoSellSettings'", '自动出售设置成功后必须推进第五步');
+          requireText(controller, "current.currentStep !== 'complete-sale'", '自动出售成交必须只推进当前第六步');
+          requireText(controller, 'current.context.productId !== productId', '自动出售成交必须绑定本轮商品');
+          requireText(controller, 'group.lifetimeOutput <= baseline', '生产步骤必须使用本轮设施产量基线');
+          requireText(controller, "run.currentStep !== 'review-contracts' || model.tab !== 'contracts'", '合同目标必须在玩家实际打开合同页后推进');
+          requireText(controller, "run.currentStep !== 'review-leaderboard' || model.tab !== 'leaderboard'", '排行榜目标必须在玩家实际打开排行榜后完成');
+          requireText(controller, 'requestAutoSellPanel(userId, productId)', '教程第五步必须直接打开仓库自动出售面板');
+          requireText(definition, "id: 'set-auto-sell'", '成长线第五步必须改为自动出售设置');
+          requireText(definition, "title: '设置商品自动出售'", '成长线必须明确教玩家设置自动出售');
+          requireText(definition, "targetTab: 'production'", '自动出售教程必须引导到生产页仓库');
+
+          for (const text of [
+            'const result = await model.work();',
+            'if (result.ok) tutorial.recordWorkClick();',
+            'const result = await model.buildFacility(facilityTypeId, quantity, procurement);',
+            'if (result.ok) tutorial.recordBuildSubmit(facilityTypeId);',
+            'const result = await model.startFacility(facilityTypeId);',
+            'if (result.ok) tutorial.recordFacilityStartClick(facilityTypeId);',
+            'const result = await model.startResearch(technologyId);',
+            'if (result.ok) tutorial.recordResearchStart();',
+            'const result = await model.bankDeposit(amount);',
+            'if (result.ok) tutorial.recordBankDeposit();',
+            'onPolicyEnabled: tutorial.recordAutoSellSetting',
+            'onSale: tutorial.recordAutoSellCompletion',
+          ]) requireText(gameApp, text, `经营成长线操作必须使用当前成功语义：${text}`);
+          forbidText(gameApp, 'tutorial.recordSellOrderSubmit', '成长线不得继续把手动卖单作为第五步');
+          requireText(autoSell, 'if (result.ok) callbacks.onSale?.(candidate.id);', '第六步必须只由服务器确认的自动出售成交推进');
+
+          requireText(guide, '<span>经营成长线</span>', '概览引导条必须显示经营成长线名称');
+          requireText(guide, 'aria-label="经营成长线进度"', '成长线进度必须有正确无障碍名称');
+          requireText(overview, '<GameGuideStrip tutorial={model.tutorial} />', '概览今日经营必须显示经营成长线');
+          requireText(overview, 'model.tutorial.isVisible ? 2 : 3', '成长线显示时经营提醒必须限制为两条');
+          requireText(settings, '重新开始成长线', '设置页必须提供重新开始成长线按钮');
+          requireText(settings, '自动出售设置、自动成交', '设置页重开说明必须反映新版成长线');
+          requireText(settings, 'tutorial.restart()', '设置页重开必须只调用客户端成长线状态机');
+          requireText(serverApp, "path === '/api/game/tutorial'", '服务器必须提供一次性成长线状态读取接口');
+          requireText(serverApp, "path === '/api/game/tutorial/complete'", '服务器必须提供幂等完成记录接口');
+          requireText(tutorialStore, 'CURRENT_TUTORIAL_VERSION = 3', '服务器成长线版本必须与客户端一致');
+          requireText(tutorialStore, 'economy_tutorial_completions', '服务器必须独立存储成长线完成版本');
+          requireText(tutorialStore, 'game_tutorial_completion_migration_version', '老玩家默认完成必须有一次性迁移标记');
+          forbidText(tutorialStore, 'workClicks', '服务器成长线完成记录不得保存步骤统计');
+          forbidText(tutorialStore, 'producedGoods', '服务器成长线完成记录不得读取生产累计统计');
+          forbidText(tutorialStore, 'soldGoods', '服务器成长线完成记录不得读取出售累计统计');
+          requireText(pageDesign, '### 11.1 客户端经营成长线', '页面权威设计必须记录客户端经营成长线规则');
+          requireText(pageDesign, '固定为十步', '页面权威设计必须锁定经营成长线十步结构');
+          requireText(pageDesign, '设置商品自动出售价格、完成一次自动出售', '页面权威设计必须记录新版生产—自动出售成长线');
+          requireText(pageDesign, 'economy_tutorial_completions', '页面权威设计必须记录成长线完成表和服务器负担边界');
+
+          console.log('Operating growth line verification passed.');
+          ''')
+
+          write('scripts/verify-online-auto-sell.mjs', r'''import { readFileSync } from 'node:fs';
+          import { resolve } from 'node:path';
+
+          const read = (path) => readFileSync(resolve(process.cwd(), path), 'utf8');
+          const requireText = (path, text) => {
+            if (!read(path).includes(text)) throw new Error(`${path} 缺少: ${text}`);
+          };
+          const forbidText = (path, text) => {
+            if (read(path).includes(text)) throw new Error(`${path} 不应包含: ${text}`);
+          };
+
+          for (const [path, texts] of Object.entries({
+            'server/src/online-auto-sell.js': [
+              'productionReservedQuantitiesForPlayer',
+              'contractAvailableHoldForAutoSell',
+              'crossingBuyQuantityForAutoSell',
+              "execution: 'online-auto-sell'",
+              "applyFacilityGroupAction(world, user, 'cancelOrder'",
+            ],
+            'server/src/runtime-action-executor.js': [
+              "payload.execution === 'online-auto-sell'",
+              'applyOnlineAutoSell(world, user, payload, now)',
+            ],
+            'server/src/facility-groups.js': [
+              'export function productionReservedQuantitiesForPlayer',
+              'if (!group.enabled) continue;',
+              "group.status === 'running'",
+            ],
+            'src/api/game.ts': [
+              'autoSellCommodity',
+              "execution: 'online-auto-sell'",
+            ],
+            'src/auto-sell/useOnlineAutoSell.ts': [
+              'useOnlineAutoSell',
+              'eligibleQuantity',
+              'productionReservations',
+              'contractReservations',
+              'model.onlineAutoSell',
+            ],
+            'src/components/warehouse/WarehouseUpgradeCard.tsx': [
+              '设置自动出售',
+              '最低自动出售价格',
+              '仅客户端在线',
+              '生产预定',
+              '合同预定',
+              '预计可自动出售',
+            ],
+            'docs/WAREHOUSE_EXPANSION_DESIGN.md': [
+              '### 7.1 在线自动出售',
+              '不得为此增加在线心跳、自动出售专用轮询、全世界扫描调度器或后台常驻任务',
+              '可自动出售 = max(0, available - 生产预定 - 合同可用保留)',
+              '不得留下客户端离线后仍可继续成交的开放卖单',
+            ],
+            'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md': [
+              'execution: online-auto-sell',
+              '该临时执行不占用普通开放订单配额',
+            ],
+          })) {
+            for (const text of texts) requireText(path, text);
+          }
+
+          forbidText('src/components/warehouse/WarehouseUpgradeCard.tsx', "selectMarketAsset('commodity', product.id)");
+          forbidText('src/auto-sell/useOnlineAutoSell.ts', 'setInterval(');
+          forbidText('src/auto-sell/useOnlineAutoSell.ts', 'setTimeout(');
+          forbidText('server/src/online-auto-sell.js', 'setInterval(');
+          forbidText('server/src/online-auto-sell.js', 'setTimeout(');
+
+          console.log('Online auto-sell verification passed.');
+          ''')
+
+          replace(
+              'scripts/verify-warehouse-expansion.mjs',
+              "  'server/src/facility-groups.js',\n",
+              "  'server/src/facility-groups.js',\n  'server/src/online-auto-sell.js',\n",
+          )
+          replace(
+              'scripts/verify-warehouse-expansion.mjs',
+              "  'src/components/warehouse/WarehouseUpgradeCard.tsx',\n",
+              "  'src/components/warehouse/WarehouseUpgradeCard.tsx',\n  'src/auto-sell/autoSellStorage.ts',\n  'src/auto-sell/useOnlineAutoSell.ts',\n",
+          )
+          replace(
+              'scripts/verify-warehouse-expansion.mjs',
+              "  \"selectMarketAsset('commodity', product.id)\",\n",
+              "  'openAutoSellPanel(product.id)',\n  '最低自动出售价格',\n  '仅客户端在线',\n  '预计可自动出售',\n",
+          )
+          replace(
+              'scripts/verify-warehouse-expansion.mjs',
+              "for (const forbidden of ['warehouseMaxLevel', '已达最高等级', '种商品有库存', '<strong>库存 {total}</strong>', 'ProductIconLabel', '<dt>买单预占</dt>']) {\n",
+              "for (const forbidden of ['warehouseMaxLevel', '已达最高等级', '种商品有库存', '<strong>库存 {total}</strong>', 'ProductIconLabel', '<dt>买单预占</dt>', \"selectMarketAsset('commodity', product.id)\"]) {\n",
+          )
+
+          replace(
+              'package.json',
+              '&& node scripts/verify-game-tutorial.mjs && node scripts/verify-assets-page.mjs',
+              '&& node scripts/verify-game-tutorial.mjs && node scripts/verify-online-auto-sell.mjs && node scripts/verify-assets-page.mjs',
+          )
+
+          # Current warehouse section number references following the inserted online-auto-sell subsection.
+          warehouse = read('docs/WAREHOUSE_EXPANSION_DESIGN.md')
+          warehouse = warehouse.replace('本文第 7.1 节', '本文第 7.2 节')
+          write('docs/WAREHOUSE_EXPANSION_DESIGN.md', warehouse)
+
+          # Normalize indentation introduced by raw multi-line literals in new files.
+          for path in [
+              'src/auto-sell/autoSellStorage.ts',
+              'src/auto-sell/useOnlineAutoSell.ts',
+              'server/src/online-auto-sell.js',
+              'server/test/online-auto-sell.test.js',
+              'src/game-guide/tutorialStorage.ts',
+              'src/game-guide/tutorialDefinition.ts',
+              'src/game-guide/useGameTutorial.ts',
+              'src/components/warehouse/WarehouseUpgradeCard.tsx',
+              'scripts/verify-game-tutorial.mjs',
+              'scripts/verify-online-auto-sell.mjs',
+          ]:
+              lines = read(path).splitlines()
+              normalized = []
+              for line in lines:
+                  normalized.append(line[10:] if line.startswith('          ') else line)
+              write(path, '\n'.join(normalized).rstrip() + '\n')
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused server and regression checks
+        run: |
+          node --test server/test/online-auto-sell.test.js server/test/tutorial-store.test.js
+          node scripts/verify-online-auto-sell.mjs
+          node scripts/verify-game-tutorial.mjs
+          node scripts/verify-warehouse-expansion.mjs
+
+      - name: Run full build verification
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser suite
+        run: npm run test:browser
+
+      - name: Check diff hygiene
+        run: |
+          git diff --check
+          git status --short
+
+      - name: Commit verified implementation
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            package.json \
+            docs/README.md \
+            docs/WAREHOUSE_EXPANSION_DESIGN.md \
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
+            docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md \
+            scripts/verify-game-tutorial.mjs \
+            scripts/verify-online-auto-sell.mjs \
+            scripts/verify-warehouse-expansion.mjs \
+            server/src/domain.js \
+            server/src/facility-groups.js \
+            server/src/online-auto-sell.js \
+            server/src/runtime-action-executor.js \
+            server/src/tutorial-store.js \
+            server/test/online-auto-sell.test.js \
+            src/api/game.ts \
+            src/app/GameApp.tsx \
+            src/app/gameViewModel.ts \
+            src/auto-sell/autoSellStorage.ts \
+            src/auto-sell/useOnlineAutoSell.ts \
+            src/components/warehouse/WarehouseUpgradeCard.tsx \
+            src/game-guide/tutorialDefinition.ts \
+            src/game-guide/tutorialStorage.ts \
+            src/game-guide/useGameTutorial.ts \
+            src/pages/PageRouter.tsx \
+            src/pages/ProductionPage.tsx \
+            src/pages/SettingsPage.tsx \
+            src/styles/warehouse-expansion.css \
+            src/utils/localActivityStore.ts
+          git diff --cached --check
+          git commit -m "feat: add online warehouse auto-sell"
+          git push origin HEAD:feature/online-auto-sell
