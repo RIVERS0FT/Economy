@@ -77,16 +77,18 @@ test.describe('production facility selector cards', () => {
     expect((cardBox?.height ?? 0) / (cardBox?.width ?? 1)).toBeCloseTo(1.25, 1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
-  test('uses server C1 to C7 order even when facility groups arrive reversed', async ({ page }) => {
+
+  test('shows only research-unlocked build choices while preserving owned facility catalog order', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=production&scenario=facility-order');
 
-    const expectedNames = [
+    const expectedBuildNames = ['农场', '果园', '畜牧场', '渔场'];
+    const expectedOwnedNames = [
       '农场', '果园', '畜牧场', '渔场', '矿场',
       '冶炼厂', '炼油厂', '机械厂', '电子厂', '家电厂',
     ];
-    await expect(page.getByLabel('工厂类型').locator('option')).toHaveText(expectedNames);
-    await expect(page.locator('.facility-cluster-name')).toHaveText(expectedNames);
+    await expect(page.getByLabel('工厂类型').locator('option')).toHaveText(expectedBuildNames);
+    await expect(page.locator('.facility-cluster-name')).toHaveText(expectedOwnedNames);
     await expect(page.locator('#desktop-facility-detail-title')).toContainText('农场');
     await expect(page.getByText('按复杂度从 C1 到 C7 选择工厂并查看生产详情。')).toBeVisible();
   });
