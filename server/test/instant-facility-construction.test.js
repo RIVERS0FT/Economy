@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { EconomyStore } from '../src/storage.js';
+import { EconomyStore } from '../src/runtime-store.js';
 import { FACILITY_TYPE_CATALOG } from '../src/domain.js';
 
 const user = { id: 91, email: 'builder@example.com', name: '建设玩家', role: 'user' };
