@@ -42,7 +42,7 @@ requireText(definition, "targetTab: 'leaderboard'", '成长线必须以长期排
 for (const text of [
   'const result = await model.work();',
   'if (result.ok) tutorial.recordWorkClick();',
-  'const result = await model.buildFacility(facilityTypeId, quantity);',
+  'const result = await model.buildFacility(facilityTypeId, quantity, procurement);',
   'if (result.ok) tutorial.recordBuildSubmit(facilityTypeId);',
   'const result = await model.startFacility(facilityTypeId);',
   'if (result.ok) tutorial.recordFacilityStartClick(facilityTypeId);',
