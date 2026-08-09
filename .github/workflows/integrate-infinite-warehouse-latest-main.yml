@@ -17,18 +17,19 @@ jobs:
         with:
           ref: codex/infinite-warehouse-latest-main
           fetch-depth: 0
-      - name: Diagnose cherry-pick
+      - name: Inspect cherry-pick conflicts
         shell: bash
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+RIVERS0FT@users.noreply.github.com'
           set +e
           git cherry-pick --no-commit 3c127d231e641317725d052c983e5a9acfba3607
           result=$?
           set -e
-          echo "cherry-pick exit=$result"
-          echo '--- status ---'
-          git status --short
-          echo '--- conflicts ---'
-          git diff --name-only --diff-filter=U
-          if [ "$result" -ne 0 ]; then exit 1; fi
+          for path in \
+            docs/GIFT_CODE_AND_ADMIN_DESIGN.md \
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
+            server/src/contract-runtime-index.js; do
+            echo "===== $path ====="
+            grep -n -C 12 -E '^(<<<<<<<|=======|>>>>>>>)' "$path" || true
+          done
+          exit "$result"
