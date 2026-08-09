@@ -6,7 +6,7 @@ import {
   PRODUCT_CATALOG,
   processWorld,
 } from './domain.js';
-import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';
+import { ensureWarehouse } from './warehouse.js';
 import { matchIncomingOrder } from './order-matching.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
 import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
@@ -345,10 +345,11 @@ function frozenFacilityQuantity(world, ownerId, typeId) {
 
 function normalizeStatusReason(value, enabled) {
   const raw = String(value || '');
-  const mapped = raw === 'output_full' ? 'warehouse_full' : raw === 'listed' ? 'no_available_facility' : raw;
+  if (raw === 'warehouse_full' || raw === 'output_full') return enabled ? undefined : 'manual';
+  const mapped = raw === 'listed' ? 'no_available_facility' : raw;
   const allowed = new Set([
     'manual', 'insufficient_funds',
-    'insufficient_input', 'warehouse_full', 'no_available_facility', 'maintenance',
+    'insufficient_input', 'no_available_facility', 'maintenance',
   ]);
   if (!allowed.has(mapped)) return enabled ? undefined : 'manual';
   if (!enabled && mapped !== 'manual') return 'manual';
@@ -727,9 +728,6 @@ function blockReason(world, player, group, type, physicalCount, effectiveCount =
   const recipe = activeRecipeFor(type, group);
   if (physicalCount <= 0) return { reason: 'no_available_facility', message: '没有可参与生产的工厂' };
   const requirements = groupRequirements(recipe, effectiveCount);
-  if (requirements.netStorage > createWarehouseUsage(world, player).warehouseAvailableCapacity) {
-    return { reason: 'warehouse_full', message: '共享仓库空间不足' };
-  }
   if (requirements.cost > player.credits) {
     return { reason: 'insufficient_funds', message: '运营资金不足' };
   }

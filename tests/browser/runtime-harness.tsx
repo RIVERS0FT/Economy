@@ -149,11 +149,9 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   ] : [];
   const facilityStatus = hasAlerts ? 'error' : 'running';
   const facilityStatusReason = hasAlerts ? 'insufficient_input' : undefined;
-  const warehouseAvailableCapacity = hasAlerts ? 12 : 1335;
-  const inventoryCapacity = 6650;
 
   const game = {
-    version: 26,
+    version: 31,
     lastProcessedAt: fixedNow,
     userId: 123,
     playerName: 'MEVIUS',
@@ -180,15 +178,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
       weeklyBonusGems: 5,
     },
     inventories: { machinery: { available: 580, frozen: 0 } },
-    inventoryCapacity,
-    warehouseLevel: 12,
-    warehouseUpgradeCost: 2400,
-    warehouseNextCapacity: 7000,
-    warehouseNextCapacityIncrease: 350,
-    warehouseStoredQuantity: inventoryCapacity - warehouseAvailableCapacity,
-    warehouseReservedQuantity: 0,
-    warehouseUsedCapacity: inventoryCapacity - warehouseAvailableCapacity,
-    warehouseAvailableCapacity,
+    warehouseStoredQuantity: 580,
     facilityGroups: [{
       facilityTypeId: 'machine-factory',
       count: 18,
@@ -391,7 +381,7 @@ function OverviewHarness() {
     { id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: <span className="negative" aria-label={`本周净资产下降 ${formatCurrency(weeklyMagnitude)}`}>↓ 本周 <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>, emphasis: 'primary', onClick: () => model.setTab('bank') },
     { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
     { id: 'rank', icon: <RankIcon />, label: '排行榜', value: formatRank(model.derived.currentRank?.rank), detail: '当前位于榜首' },
-    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(model.game.warehouseAvailableCapacity), detail: `已用 ${formatNumber(model.game.warehouseUsedCapacity)}/${formatNumber(model.game.inventoryCapacity)}` },
+    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库库存', value: formatNumber(model.game.warehouseStoredQuantity), detail: '无限容量 · 实物库存总量' },
   ];
 
   return (
@@ -640,7 +630,6 @@ function ProductionHarness() {
         productionRecipeRequests.push(`${facilityTypeId}:${recipeId}`);
         return { ok: true, message: '测试配方完成' };
       },
-      upgradeWarehouse: async () => ({ ok: true, message: '测试扩容完成' }),
     });
     return next;
   }, [tab]);
@@ -649,7 +638,7 @@ function ProductionHarness() {
     { id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('bank') },
     { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
     { id: 'rank', icon: <RankIcon />, label: '排行榜', value: formatRank(model.derived.currentRank?.rank), detail: '当前位于榜首' },
-    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(model.game.warehouseAvailableCapacity), detail: `已用 ${formatNumber(model.game.warehouseUsedCapacity)}/${formatNumber(model.game.inventoryCapacity)}` },
+    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库库存', value: formatNumber(model.game.warehouseStoredQuantity), detail: '无限容量 · 实物库存总量' },
   ];
 
   return (
@@ -1167,7 +1156,7 @@ function ResearchHarness() {
     { id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('bank') },
     { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
     { id: 'rank', icon: <RankIcon />, label: '排行榜', value: formatRank(model.derived.currentRank?.rank), detail: '当前位于榜首' },
-    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(model.game.warehouseAvailableCapacity), detail: `已用 ${formatNumber(model.game.warehouseUsedCapacity)}/${formatNumber(model.game.inventoryCapacity)}` },
+    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库库存', value: formatNumber(model.game.warehouseStoredQuantity), detail: '无限容量 · 实物库存总量' },
   ];
 
   return (
@@ -1190,7 +1179,7 @@ function GemShopHarness() {
     { id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('bank') },
     { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
     { id: 'rank', icon: <RankIcon />, label: '排行榜', value: formatRank(model.derived.currentRank?.rank), detail: '当前位于榜首' },
-    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(model.game.warehouseAvailableCapacity), detail: `已用 ${formatNumber(model.game.warehouseUsedCapacity)}/${formatNumber(model.game.inventoryCapacity)}` },
+    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库库存', value: formatNumber(model.game.warehouseStoredQuantity), detail: '无限容量 · 实物库存总量' },
   ];
 
   return (
@@ -1365,7 +1354,7 @@ function ContractHarness() {
     { id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('bank') },
     { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
     { id: 'rank', icon: <RankIcon />, label: '排行榜', value: formatRank(model.derived.currentRank?.rank), detail: '当前位于榜首' },
-    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(model.game.warehouseAvailableCapacity), detail: `已用 ${formatNumber(model.game.warehouseUsedCapacity)}/${formatNumber(model.game.inventoryCapacity)}` },
+    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库库存', value: formatNumber(model.game.warehouseStoredQuantity), detail: '无限容量 · 实物库存总量' },
   ];
 
   return (

@@ -60,7 +60,7 @@ for (const text of [
   'FACILITY_CONFIGURATION_STAFFING_PENALTY_BPS',
   'setGroupRecipe',
   'activeRecipeFor',
-  "reason: 'warehouse_full'",
+  "reason: 'no_available_facility'",
   "reason: 'insufficient_funds'",
   "reason: 'insufficient_input'",
   'world.version = 20',
@@ -93,7 +93,6 @@ for (const text of [
   'checked={group.enabled}',
   'facilityStatusLabel',
   '异常：资金不足',
-  '异常：仓库已满',
   '异常：原料不足',
   'facility-status-header',
   'facility-card-title-row',
@@ -108,6 +107,7 @@ for (const text of [
   'now={now}',
   'setFacilityRecipe',
 ]) requireText('src/pages/ProductionPage.tsx', text);
+forbidText('src/pages/ProductionPage.tsx', '异常：仓库已满');
 
 for (const text of [
   'facility-production-settings',
@@ -324,7 +324,7 @@ for (const text of [
   'running farm crop changes apply immediately with a staffing penalty and progress reset',
   'legacy pending factory and recipe state migrates once into immediate participation',
   'purchased factories join a running group immediately and dilute live staffing',
-  'warehouse errors recover without backfilling missed cycles',
+  'legacy warehouse capacity errors are retired during migration',
   'manual stop disables automatic recovery',
   'stopped factory staffing decays linearly from its stored timestamp',
   'running factory settles each completed cycle at its completion staffing rate and carries fractional capacity',

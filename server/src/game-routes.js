@@ -15,7 +15,6 @@ export function resolveAction(method, path) {
   if (method === 'POST' && path === '/api/game/research/start') return { action: 'startResearch', category: 'general' };
   if (method === 'POST' && path === '/api/game/research/accelerate') return { action: 'accelerateResearch', category: 'general' };
   if (method === 'POST' && path === '/api/game/orders') return { action: 'placeOrder', category: 'orders' };
-  if (method === 'POST' && path === '/api/game/warehouse/upgrade') return { action: 'upgradeWarehouse', category: 'general' };
   if (method === 'POST' && path === '/api/game/gifts/redeem') return { action: 'redeemGift', category: 'general' };
   if (method === 'POST' && path === '/api/game/gem-shop/exchange') return { action: 'exchangeGems', category: 'general' };
   if (method === 'POST' && path === '/api/game/gem-shop/quote/reject') return { action: 'rejectGemShopQuote', category: 'general' };

@@ -20,11 +20,9 @@ const diagnosis = buildFacilityOperatingDiagnosis({
   productionCount: 2,
   inventories: { wheat: { available: 5, frozen: 0 } },
   credits: 100,
-  warehouseAvailableCapacity: 6,
 });
 assert.equal(diagnosis.inputCycles, 1);
 assert.equal(diagnosis.cashCycles, 5);
-assert.equal(diagnosis.warehouseCycles, 3);
 assert.equal(diagnosis.bottleneck.id, 'inputs');
 
 const market = {
@@ -83,7 +81,7 @@ for (const text of [
 requireText('server/src/tutorial-store.js', "completion_source IN ('legacy', 'migration', 'player')");
 requireText('src/components/facilities/FacilityOperatingDiagnostics.tsx', '不自动推荐最高利润产物');
 requireText('src/pages/production/MobileFacilityDetailSheet.tsx', 'markets={markets}');
-requireText('src/pages/production/MobileFacilityDetailSheet.tsx', 'warehouseAvailableCapacity={warehouseAvailableCapacity}');
+forbidText('src/pages/production/MobileFacilityDetailSheet.tsx', 'warehouseStoredQuantity');
 requireText('src/pages/ResearchPage.tsx', '产业经营视角');
 requireText('server/src/contract-audit-store.js', 'store.getContractPerformance');
 requireText('src/contracts/api.ts', "getJson<{ performance: ContractPerformanceSummary }>('/contracts/performance')");
@@ -120,6 +118,9 @@ forbidText('src/pages/ResearchPage.tsx', '最佳科技推荐');
 forbidText('src/pages/ContractPage.tsx', 'creditScore');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '经营决策支持固定边界');
 requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '工厂经营诊断');
+forbidText('src/utils/facilityOperatingDiagnostics.ts', 'warehouseAvailableCapacity');
+forbidText('src/utils/facilityOperatingDiagnostics.ts', 'warehouseStoredQuantity');
+forbidText('src/utils/facilityOperatingDiagnostics.ts', 'warehouseCycles');
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '完整经营漏斗覆盖起点');
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'completion_source');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '结构化议价');

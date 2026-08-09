@@ -42,7 +42,6 @@ export interface FacilityClusterDetailSharedProps {
   inventories: Record<string, ProductInventory>;
   markets: Record<string, ProductMarketState>;
   credits: number;
-  warehouseAvailableCapacity: number;
   now: number;
   onToggle: (enabled: boolean) => void;
   onRecipeChange: (recipeId: string) => void;
@@ -73,8 +72,6 @@ export function facilityStatusLabel(group: FacilityGroup) {
   if (group.status === 'running') return '运行中';
   if (group.status === 'stopped') return '已停止';
   switch (group.statusReason) {
-    case 'warehouse_full':
-      return '异常：仓库已满';
     case 'insufficient_funds':
       return '异常：资金不足';
     case 'insufficient_input':
@@ -391,7 +388,6 @@ export function FacilityClusterDetailBody({
   inventories,
   markets,
   credits,
-  warehouseAvailableCapacity,
   now,
   onRecipeChange,
   onOpenContracts,
@@ -469,7 +465,6 @@ export function FacilityClusterDetailBody({
         inventories={inventories}
         markets={markets}
         credits={credits}
-        warehouseAvailableCapacity={warehouseAvailableCapacity}
         onOpenContracts={onOpenContracts}
       />
     </>
@@ -492,7 +487,6 @@ export function FacilityClusterDetailContent({
   inventories,
   markets,
   credits,
-  warehouseAvailableCapacity,
   now,
   onToggle,
   onRecipeChange,
@@ -519,7 +513,6 @@ export function FacilityClusterDetailContent({
         inventories={inventories}
         markets={markets}
         credits={credits}
-        warehouseAvailableCapacity={warehouseAvailableCapacity}
         now={now}
         onRecipeChange={onRecipeChange}
         onOpenContracts={onOpenContracts}

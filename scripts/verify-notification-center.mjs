@@ -35,8 +35,6 @@ notifications = appendNotification([], { title: '可删除通知', createdAt: 12
 assert.equal(deleteNotification(notifications, notifications[0].id).length, 0);
 
 const pendingItems = derivePendingNotificationItems({
-  inventoryCapacity: 100,
-  warehouseAvailableCapacity: 0,
   facilityTypes: [{ id: 'farm', name: '农场' }],
   facilityGroups: [{
     facilityTypeId: 'farm',
@@ -58,7 +56,6 @@ assert.deepEqual(
   new Set(pendingItems.map((item) => item.key)),
   new Set([
     'facility:farm',
-    'warehouse:capacity',
     'contract:issue:contract-1',
     'auction:outbid:auction-1',
     'bank:loan-grace',
@@ -75,8 +72,6 @@ assert.deepEqual(
   derivePendingNotificationItems({
     facilityTypes: [],
     facilityGroups: [],
-    inventoryCapacity: undefined,
-    warehouseAvailableCapacity: undefined,
     bankAccount: undefined,
     bankSummary: undefined,
   }),
@@ -115,7 +110,7 @@ const notificationModel = read('src/notifications/notificationCenter.ts');
 assert.match(notificationModel, /Omit<Partial<EconomyState>/);
 assert.match(notificationModel, /Array\.isArray\(game\.facilityTypes\)/);
 assert.match(notificationModel, /Array\.isArray\(game\.facilityGroups\)/);
-assert.match(notificationModel, /Number\.isFinite\(inventoryCapacity\)/);
+assert.doesNotMatch(notificationModel, /warehouseAvailableCapacity|inventoryCapacity/);
 assert.match(notificationModel, /game\.bankAccount\?\.activeLoan\?\.status/);
 assert.match(notificationModel, /game\.bankSummary\?\.weeklyCashSettlement\?\.outstandingCredits/);
 

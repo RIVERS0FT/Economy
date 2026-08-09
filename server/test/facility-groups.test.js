@@ -289,26 +289,20 @@ test('legacy pending factory and recipe state migrates once into immediate parti
   assert.equal(farm.staffingRateBps, 4_400);
 });
 
-test('warehouse errors recover without backfilling missed cycles', () => {
+test('legacy warehouse capacity errors are retired during migration', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
-  player.warehouseLevel = 1;
+  player.warehouseLevel = 9;
   player.inventoryCapacity = 500;
-  player.inventories.wheat.available = 500;
+  player.inventories.wheat.available = 50_000;
   player.facilityGroups = [group('farm', 1, {
     enabled: true, status: 'error', statusReason: 'warehouse_full', staffingBatchCarryBps: 9_999,
   })];
   migrateFacilityGroupWorld(world, now);
+  assert.notEqual(player.facilityGroups[0].statusReason, 'warehouse_full');
   processFacilityGroupWorld(world, now + 20_000);
-  assert.equal(player.facilityGroups[0].status, 'error');
-  assert.equal(player.inventories.wheat.available, 500);
-
-  player.warehouseLevel = 2;
-  player.inventoryCapacity = 750;
-  processFacilityGroupWorld(world, now + 120_001);
-  assert.equal(player.facilityGroups[0].status, 'running');
-  assert.equal(player.facilityGroups[0].cycleStartedAt, now + 120_001);
-  assert.equal(player.inventories.wheat.available, 500);
+  assert.notEqual(player.facilityGroups[0].statusReason, 'warehouse_full');
+  assert.equal(player.inventories.wheat.available >= 50_000, true);
 });
 
 test('stopped facilities apply recipes immediately and fixed recipes are idempotent', () => {

@@ -38,7 +38,7 @@ for (const [path, texts] of Object.entries({
     'contractReservations',
     'model.onlineAutoSell',
   ],
-  'src/components/warehouse/WarehouseUpgradeCard.tsx': [
+  'src/components/warehouse/WarehouseInventoryPanel.tsx': [
     '设置自动出售',
     '最低自动出售价格',
     '仅客户端在线',
@@ -47,7 +47,7 @@ for (const [path, texts] of Object.entries({
     '预计可自动出售',
   ],
   'docs/WAREHOUSE_EXPANSION_DESIGN.md': [
-    '### 7.1 在线自动出售',
+    '### 4.1 在线自动出售',
     '不得为此增加在线心跳、自动出售专用轮询、全世界扫描调度器或后台常驻任务',
     '可自动出售 = max(0, available - 生产预定 - 合同可用保留)',
     '不得留下客户端离线后仍可继续成交的开放卖单',
@@ -60,13 +60,13 @@ for (const [path, texts] of Object.entries({
   for (const text of texts) requireText(path, text);
 }
 
-forbidText('src/components/warehouse/WarehouseUpgradeCard.tsx', "selectMarketAsset('commodity', product.id)");
+forbidText('src/components/warehouse/WarehouseInventoryPanel.tsx', "selectMarketAsset('commodity', product.id)");
 forbidText('src/auto-sell/useOnlineAutoSell.ts', 'setInterval(');
 forbidText('src/auto-sell/useOnlineAutoSell.ts', 'setTimeout(');
 forbidText('server/src/online-auto-sell.js', 'setInterval(');
 forbidText('server/src/online-auto-sell.js', 'setTimeout(');
 
-requireText('src/components/warehouse/WarehouseUpgradeCard.tsx', 'model.autoSell ??');
+requireText('src/components/warehouse/WarehouseInventoryPanel.tsx', 'model.autoSell ??');
 requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '在线自动出售控制器属于浏览器本地增强');
 
 console.log('Online auto-sell verification passed.');

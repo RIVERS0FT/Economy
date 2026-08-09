@@ -13,7 +13,6 @@ import {
   createFacilityGroupClientState,
   migrateFacilityGroupWorld,
 } from '../src/facility-groups.js';
-import { createWarehouseUsage, ensureWarehouse } from '../src/warehouse.js';
 
 const seller = { id: 1, name: '卖家' };
 const bidderA = { id: 2, name: '买家甲' };
@@ -26,7 +25,6 @@ function world(now = 1_000) {
     account.playerName = user.name;
     account.credits = user.id === 1 ? 100 : 500;
     account.frozenCredits = 0;
-    ensureWarehouse(account);
   }
   migrateAssetAuctionWorld(state, now);
   migrateFacilityGroupWorld(state, now);
@@ -41,7 +39,7 @@ function bid(state, user, auctionId, amount, now) {
   return applyAssetAuctionAction(state, user, 'placeAuctionBid', { auctionId, amount }, now);
 }
 
-test('商品拍卖冻结商品、为最高出价者预占仓库并在成交后转移数量', () => {
+test('商品拍卖冻结商品并在成交后转移数量，不产生仓库容量预占', () => {
   const state = world();
   state.players['1'].inventories.wheat.available = 10;
   const priceHistoryLength = state.markets.wheat.priceHistory.length;
@@ -58,10 +56,7 @@ test('商品拍卖冻结商品、为最高出价者预占仓库并在成交后�
   const auction = state.assetAuctions.at(-1);
 
   assert.equal(bid(state, bidderA, auction.id, 90, 3_000).ok, true);
-  assert.equal(createWarehouseUsage(state, state.players['2']).warehouseReservedQuantity, 4);
   assert.equal(bid(state, bidderB, auction.id, 110, 4_000).ok, true);
-  assert.equal(createWarehouseUsage(state, state.players['2']).warehouseReservedQuantity, 0);
-  assert.equal(createWarehouseUsage(state, state.players['3']).warehouseReservedQuantity, 4);
 
   processAssetAuctions(state, auction.endsAt + 1);
   assert.equal(auction.status, 'sold');
@@ -72,24 +67,21 @@ test('商品拍卖冻结商品、为最高出价者预占仓库并在成交后�
   assert.equal(state.markets.wheat.priceHistory.length, priceHistoryLength, '拍卖成交不得写入订单簿行情');
 });
 
-test('商品竞拍必须有足够仓库容量，取消无出价拍卖释放商品', () => {
+test('商品竞拍不受旧仓库容量字段限制', () => {
   const state = world();
   state.players['1'].inventories.rice.available = 5;
-  state.players['2'].inventoryCapacity = 500;
+  state.players['2'].inventoryCapacity = 1;
+  state.players['2'].warehouseLevel = 1;
   state.players['2'].inventories.wheat.available = 500;
   const created = createAuction(state, seller, {
     assetKind: 'commodity', assetId: 'rice', quantity: 3, startingBid: 20, durationHours: 2,
   });
   assert.equal(created.ok, true);
   const auction = state.assetAuctions.at(-1);
-  const failedBid = bid(state, bidderA, auction.id, 20, 3_000);
-  assert.equal(failedBid.ok, false);
-  assert.match(failedBid.message, /仓库/);
-
-  const cancelled = applyAssetAuctionAction(state, seller, 'cancelAuction', { auctionId: auction.id }, 4_000);
-  assert.equal(cancelled.ok, true);
-  assert.deepEqual(state.players['1'].inventories.rice, { available: 5, frozen: 0 });
-  assert.equal(auction.escrowStatus, 'released');
+  assert.equal(bid(state, bidderA, auction.id, 20, 3_000).ok, true);
+  processAssetAuctions(state, auction.endsAt + 1);
+  assert.equal(auction.status, 'sold');
+  assert.equal(state.players['2'].inventories.rice.available, 3);
 });
 
 test('工厂拍卖冻结运行数量，成交后转移工厂且不写入工厂行情', () => {
@@ -157,7 +149,6 @@ test('商品与工厂资产包整体冻结并原子成交', () => {
   assert.equal(state.players['1'].facilityGroups[0].participatingCount, 1);
 
   assert.equal(bid(state, bidderA, auction.id, 120, 3_000).ok, true);
-  assert.equal(createWarehouseUsage(state, state.players['2']).warehouseReservedQuantity, 5);
   processAssetAuctions(state, auction.endsAt + 1);
 
   assert.equal(auction.status, 'sold');

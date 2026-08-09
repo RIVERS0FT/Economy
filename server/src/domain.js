@@ -11,7 +11,7 @@ import {
 } from './market-demand.js';
 import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
 import { orderAssetId, orderKind } from './order-identity.js';
-import { closeOrderInOrderBook, countOpenOrdersForOwner, pendingCommodityBuyQuantityForOwner } from './order-book-runtime.js';
+import { closeOrderInOrderBook, countOpenOrdersForOwner } from './order-book-runtime.js';
 import { ensurePopulationEconomy, releasePopulationOrderFunds } from './population-economy.js';
 
 export * from './domain-core.js';
@@ -316,15 +316,6 @@ function playerInventoryFor(player, productId) {
   return player.inventories[productId];
 }
 
-function playerInventoryUsed(player) {
-  return Object.values(player.inventories || {}).reduce((sum, inventory) => (
-    sum + Math.max(0, Number(inventory.available || 0)) + Math.max(0, Number(inventory.frozen || 0))
-  ), 0);
-}
-
-function pendingPlayerBuyQuantity(world, userId) {
-  return pendingCommodityBuyQuantityForOwner(world, userId);
-}
 
 function applyCommodityOrder(world, user, payload, now) {
   const userId = Number(user.id);
@@ -356,10 +347,6 @@ function applyCommodityOrder(world, user, payload, now) {
   const player = core.ensurePlayer(world, user, now);
   if (side === 'buy') {
     if (Number(player.credits || 0) < total) return { ok: false, message: '可用资金不足' };
-    const capacity = Math.max(0, Number(player.inventoryCapacity || 0))
-      - playerInventoryUsed(player)
-      - pendingPlayerBuyQuantity(world, userId);
-    if (capacity < quantity) return { ok: false, message: '仓库容量不足' };
     player.credits -= total;
     player.frozenCredits = Number(player.frozenCredits || 0) + total;
   } else {

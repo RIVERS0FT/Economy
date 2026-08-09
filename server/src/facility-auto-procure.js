@@ -11,7 +11,6 @@ import {
   multiplyMoneyByInteger,
   normalizePlayerMoneyInput,
 } from './money.js';
-import { createWarehouseUsage } from './warehouse.js';
 
 const FACILITY_TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 const PRODUCTS = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
@@ -162,11 +161,6 @@ export function autoProcureFacilityBuildMaterials(world, user, payload = {}, now
   }
   if (creditsMicros < buildCostMicros + expectedProcurementMicros) {
     return result(false, '建造与采购总资金不足');
-  }
-
-  const warehouse = createWarehouseUsage(world, player);
-  if (warehouse.warehouseAvailableCapacity < missingQuantity) {
-    return result(false, `共享仓库空间不足，一键采购还需要 ${missingQuantity} 格临时交割空间`);
   }
 
   for (const plan of plans) {

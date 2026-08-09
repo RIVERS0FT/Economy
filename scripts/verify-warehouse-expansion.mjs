@@ -1,375 +1,120 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8').replace(/\r\n?/g, '\n');
 const failures = [];
-const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`); };
-const requireText = (path, text) => { if (!read(path).includes(text)) failures.push(`${path} 缺少: ${text}`); };
-const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`); };
+const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.push('缺少文件: ' + path); };
+const requireText = (path, text) => { if (!read(path).includes(text)) failures.push(path + ' 缺少: ' + text); };
+const forbidText = (path, text) => { if (existsSync(resolve(root, path)) && read(path).includes(text)) failures.push(path + ' 不应包含: ' + text); };
 
-[
+for (const path of [
   'server/src/warehouse.js',
-  'server/src/warehouse-reservations.js',
-  'server/src/contract-runtime-index.js',
+  'server/src/domain.js',
+  'server/src/domain-core.js',
   'server/src/contracts.js',
+  'server/src/asset-auctions.js',
   'server/src/facility-groups.js',
-  'server/src/online-auto-sell.js',
+  'server/src/game-routes.js',
+  'server/src/runtime-action-executor.js',
+  'server/src/storage.js',
   'server/test/warehouse.test.js',
-  'server/test/unified-warehouse-reservations.test.js',
   'src/types.ts',
+  'src/api/game.ts',
+  'src/app/gameViewModel.ts',
   'src/app/GameApp.tsx',
-  'src/components/warehouse/WarehouseUpgradeCard.tsx',
-  'src/auto-sell/autoSellStorage.ts',
-  'src/auto-sell/useOnlineAutoSell.ts',
-  'src/components/facilities/FacilityProductionFormula.tsx',
+  'src/components/warehouse/WarehouseInventoryPanel.tsx',
+  'src/pages/MarketPage.tsx',
+  'src/pages/OverviewPage.tsx',
   'src/pages/ProductionPage.tsx',
   'src/styles/warehouse-expansion.css',
-  'src/styles/product-artwork.css',
-  'src/styles/facility-production-formula.css',
-  'src/styles/facility-group-card-grid.css',
   'docs/README.md',
   'docs/WAREHOUSE_EXPANSION_DESIGN.md',
-  'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
-  'docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md',
-  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
-  'docs/UI_DESIGN_SYSTEM.md',
-].forEach(requireFile);
+]) requireFile(path);
 
-for (const text of [
-  'WAREHOUSE_BASE_CAPACITY = 500',
-  'WAREHOUSE_CAPACITY_STEP = 250',
-  'WAREHOUSE_CAPACITY_STEP_GROWTH = 50',
-  'WAREHOUSE_BASE_UPGRADE_COST = 150',
-  'WAREHOUSE_COST_SLOPE_NUMERATOR = 4',
-  'WAREHOUSE_COST_SLOPE_DENOMINATOR = 5',
-  'warehouseCapacityIncreaseForLevel',
-  'warehouseUpgradeCostForCapacity',
-  'warehouseUpgradeCostForCapacity(player.inventoryCapacity)',
-  'warehouseNextCapacityIncrease',
-  'export function createWarehouseUsage',
-  'createContractRuntimeIndex',
-  'contractRuntimeIndex = null',
-  'runtimeIndex.reservedContractIncomingForBuyer',
-  'nonContractWarehouseReservations',
-  'warehouseOrderReservedQuantity: orderReserved',
-  'warehouseContractReservedQuantity: contractReserved',
-  'warehouseAuctionReservedQuantity: auctionReserved',
-  'warehouseReservedQuantity: reserved',
-  'warehouseAvailableCapacity: Math.max(0, player.inventoryCapacity - used)',
-  'player.credits -= cost',
-  'player.warehouseLevel = nextLevel',
-]) requireText('server/src/warehouse.js', text);
-for (const forbidden of [
-  'WAREHOUSE_MAX_LEVEL',
-  '仓库已达到最高等级',
-  'warehouseUpgradeCostForLevel',
-  'WAREHOUSE_BASE_UPGRADE_COST * normalized * normalized',
-  'WAREHOUSE_COST_SLOPE_NUMERATOR = 3',
-  'WAREHOUSE_COST_SLOPE_NUMERATOR = 6',
-]) forbidText('server/src/warehouse.js', forbidden);
-
-for (const [path, forbidden] of [
-  ['docs/WAREHOUSE_EXPANSION_DESIGN.md', '× 0.6'],
-  ['docs/WAREHOUSE_EXPANSION_DESIGN.md', '3 / 5'],
-  ['docs/WAREHOUSE_EXPANSION_DESIGN.md', '× 1.2'],
-  ['docs/WAREHOUSE_EXPANSION_DESIGN.md', '6 / 5'],
-]) forbidText(path, forbidden);
-
-for (const text of [
-  'export function nonContractWarehouseReservations',
-  'const orderReserved = pendingCommodityBuyQuantityForOwner',
-  'const auctionReserved = (world?.assetAuctions || []).reduce',
-  'totalReserved: orderReserved + auctionReserved',
-  'export function nonContractWarehouseReservation',
-  'nonContractWarehouseReservations(world, userId).totalReserved',
-]) requireText('server/src/warehouse-reservations.js', text);
-
-for (const text of [
-  'warehouseUpgradeCostForCapacity',
-  '[150, 350, 590, 870, 1_190, 1_550]',
-  'warehouse summary price matches the amount deducted for the same actual capacity',
-  'warehouseUpgradeCostForCapacity(900), 470',
-  'warehouseUpgradeCostForCapacity(501), 151',
-  'warehouseUpgradeCostForCapacity(502), 152',
-]) requireText('server/test/warehouse.test.js', text);
-for (const forbidden of [
-  'warehouseUpgradeCostForLevel',
-  '[150, 450, 810, 1_230, 1_710, 2_250]',
-]) forbidText('server/test/warehouse.test.js', forbidden);
-for (const text of [
-  'warehouse usage combines inventory, buy orders, highest bids, and active contract next batches',
-  'contract acceptance rejects capacity already reserved by buy orders and highest bids',
-  'usage.warehouseOrderReservedQuantity, 40',
-  'usage.warehouseContractReservedQuantity, 70',
-  'usage.warehouseAuctionReservedQuantity, 30',
-  'excludingCurrent.warehouseContractReservedQuantity, 20',
-]) requireText('server/test/unified-warehouse-reservations.test.js', text);
-requireText('server/src/contract-runtime-index.js', 'reservedIncomingForBuyer(userId, exceptContractId = null)');
-
-for (const text of [
-  'warehouseOrderReservedQuantity: number;',
-  'warehouseContractReservedQuantity: number;',
-  'warehouseAuctionReservedQuantity: number;',
-]) requireText('src/types.ts', text);
-
-for (const text of [
-  'title="生产"',
-  'WarehouseUpgradeCard',
-  '建设新工厂',
-  'const orderedFacilityGroups = useMemo',
-  'const groupsByTypeId = new Map<string, FacilityGroup>',
-  'game.facilityTypes.flatMap',
-  'orderedFacilityGroups.map',
-  'facility-status-header',
-  'FacilityProductionFormula',
-  '生产产物',
-  '固定产物：',
-  '前往市场交易该工厂',
-]) requireText('src/pages/ProductionPage.tsx', text);
-for (const forbidden of [
-  '{game.facilityGroups.map(',
-  'label="生产周期"',
-  'label="单座周期产量"',
-  'label="单座周期成本"',
-  '当前计划：持续生产',
-  '保存下一周期计划',
-]) forbidText('src/pages/ProductionPage.tsx', forbidden);
-
-for (const text of [
-  "import { ProductIcon } from '../icons/ProductIcons'",
-  'warehouse-layout',
-  'warehouse-management',
-  'warehouse-content',
-  'warehouse-product-grid',
-  'warehouse-product-card',
-  'const stockedProducts = useMemo',
-  'inventory.available > 0 || inventory.frozen > 0',
-  'warehouse-product-card-name',
-  'warehouse-product-card-icon',
-  'warehouse-product-card-available',
-  'warehouse-product-card-frozen',
-  '<ProductIcon productId={product.id} />',
-  '可用 {formatNumber(inventory.available)}',
-  '冻结 {formatNumber(inventory.frozen)}',
-  'openAutoSellPanel(product.id)',
-  '最低自动出售价格',
-  '仅客户端在线',
-  '预计可自动出售',
-  '等级 {formatNumber(game.warehouseLevel)}',
-  'const orderReserved = game.warehouseOrderReservedQuantity ?? 0',
-  'const contractReserved = game.warehouseContractReservedQuantity ?? 0',
-  'const auctionReserved = game.warehouseAuctionReservedQuantity ?? 0',
-  "{ id: 'stored', label: '实物库存'",
-  "{ id: 'order', label: '市场订单预占'",
-  "{ id: 'contract', label: '合同预占'",
-  "{ id: 'auction', label: '拍卖预占'",
-  'warehouse-capacity-segment--${segment.id}',
-  'warehouse-summary-swatch',
-  'warehouse-summary-item--available',
-]) requireText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
-for (const forbidden of ['warehouseMaxLevel', '已达最高等级', '种商品有库存', '<strong>库存 {total}</strong>', 'ProductIconLabel', '<dt>买单预占</dt>', "selectMarketAsset('commodity', product.id)"]) {
-  forbidText('src/components/warehouse/WarehouseUpgradeCard.tsx', forbidden);
+for (const removed of [
+  'server/src/warehouse-reservations.js',
+  'server/test/unified-warehouse-reservations.test.js',
+  'src/components/warehouse/WarehouseUpgradeCard.tsx',
+]) {
+  if (existsSync(resolve(root, removed))) failures.push('旧仓库容量文件不得恢复: ' + removed);
 }
-requireText('src/app/GameApp.tsx', ' · 预占 ${formatNumber(game.warehouseReservedQuantity)}');
-forbidText('src/app/GameApp.tsx', ' · 买单预占 ');
 
-const css = 'src/styles/warehouse-expansion.css';
-const cssContent = read(css);
 for (const text of [
-  'grid-template-columns: minmax(220px, 1fr) minmax(0, 3fr);',
-  'container-type: inline-size;',
-  '--warehouse-stored-color: var(--color-success);',
-  '--warehouse-order-color: var(--color-info);',
-  '--warehouse-contract-color: var(--color-warning);',
-  '--warehouse-auction-color: var(--color-accent-violet);',
-  '.warehouse-capacity-track .warehouse-capacity-segment',
-  '.warehouse-capacity-segment--stored',
-  '.warehouse-capacity-segment--order',
-  '.warehouse-capacity-segment--contract',
-  '.warehouse-capacity-segment--auction',
-  '.warehouse-summary-swatch',
-  '.warehouse-summary-item--available',
-  'grid-column: 1 / -1;',
-  '.warehouse-product-grid',
+  'delete player.inventoryCapacity;',
+  'delete player.warehouseLevel;',
+  'warehouseStoredQuantity: storedQuantity(player)',
+]) requireText('server/src/warehouse.js', text);
+for (const text of [
+  'WarehouseInventoryPanel',
+  '无限容量',
+  'warehouseStoredQuantity',
+  'inventory.available > 0 || inventory.frozen > 0',
+]) requireText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);
+for (const text of [
+  '仓库容量永久无限',
+  '不存在仓库等级、总容量、剩余容量、扩容、升级费用或最高等级',
+  '不得以超大整数',
+  '商品买单、商品拍卖和采购合同不再预占仓库空间',
+  '工厂生产不再检查仓库空间',
+  '客户端状态版本从 30 升至 31',
+]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
+
+const runtimePaths = [
+  'server/src',
+  'src',
+];
+const bannedRuntimeTokens = [
+  'warehouseUpgradeCost', 'warehouseNextCapacity', 'warehouseAvailableCapacity',
+  'warehouseReservedQuantity', 'warehouseOrderReservedQuantity', 'warehouseContractReservedQuantity',
+  'warehouseAuctionReservedQuantity', 'warehouseUsedCapacity', 'upgradeWarehouse',
+  'WAREHOUSE_BASE_CAPACITY', 'WAREHOUSE_CAPACITY_STEP', 'WAREHOUSE_BASE_UPGRADE_COST',
+  'warehouseCapacityForLevel', 'warehouseCapacityIncreaseForLevel', 'warehouseUpgradeCostForCapacity',
+  "statusReason === 'warehouse_full'", "reason: 'warehouse_full'",
+];
+function walk(directory) {
+  const base = resolve(root, directory);
+  return readdirSync(base, { withFileTypes: true }).flatMap((entry) => {
+    const relative = directory + '/' + entry.name;
+    if (entry.isDirectory()) return walk(relative);
+    return /\.(?:js|ts|tsx)$/.test(entry.name) ? [relative] : [];
+  });
+}
+for (const path of runtimePaths.flatMap(walk)) {
+  const content = read(path);
+  for (const token of bannedRuntimeTokens) {
+    if (content.includes(token)) failures.push(path + ' 不得恢复仓库容量机制: ' + token);
+  }
+}
+
+for (const [path, text] of [
+  ['server/src/game-routes.js', '/api/game/warehouse/upgrade'],
+  ['server/src/contracts.js', '采购方仓库空间不足'],
+  ['server/src/contracts.js', '采购方仓库无法容纳'],
+  ['server/src/asset-auctions.js', '仓库剩余容量不足'],
+  ['server/src/asset-auctions.js', '买家仓库容量不足'],
+  ['server/src/domain.js', '仓库容量不足'],
+  ['server/src/domain-core.js', '仓库容量不足'],
+  ['src/pages/MarketPage.tsx', '仓库已满，无法买入'],
+  ['src/pages/OverviewPage.tsx', '共享仓库已满'],
+  ['src/notifications/notificationCenter.ts', 'warehouse:capacity'],
+  ['src/navigation/navigationBadges.ts', 'warehouse-capacity'],
+]) forbidText(path, text);
+
+const css = read('src/styles/warehouse-expansion.css');
+for (const text of [
   'grid-template-columns: repeat(5, minmax(0, 1fr));',
-  'gap: 6px;',
-  'min-height: 104px;',
-  'grid-template-rows: auto minmax(46px, 1fr) auto auto;',
-  'align-self: start;',
-  'padding: 6px;',
-  '.warehouse-product-card-name',
-  'position: static;',
-  '.warehouse-product-card-icon .product-icon',
-  'width: 46px;',
-  'height: 46px;',
   '@container (max-width: 559px)',
   'grid-template-columns: repeat(4, minmax(0, 1fr));',
-  'gap: 4px;',
-  'min-height: 96px;',
-  'grid-template-rows: auto minmax(40px, 1fr) auto auto;',
-  'padding: 4px;',
-  'width: 40px;',
-  'height: 40px;',
   '@container (min-width: 760px)',
   'grid-template-columns: repeat(6, minmax(0, 1fr));',
-  'min-height: 112px;',
-  'grid-template-rows: auto minmax(52px, 1fr) auto auto;',
-  'width: 52px;',
-  'height: 52px;',
-  'font-size: var(--font-size-md);',
   '@container (min-width: 960px)',
   'grid-template-columns: repeat(7, minmax(0, 1fr));',
-  'min-height: 120px;',
-  'grid-template-rows: auto minmax(58px, 1fr) auto auto;',
-  'width: 58px;',
-  'height: 58px;',
-  '@media (max-width: 960px)',
-]) requireText(css, text);
-if (!/^\.warehouse-product-grid\s*\{[^}]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/ms.test(cssContent)) {
-  failures.push('仓库商品网格默认必须为五列');
-}
-if (!/@container \(max-width: 559px\)[\s\S]*?\.warehouse-product-grid\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/m.test(cssContent)) {
-  failures.push('窄容器仓库商品网格必须为四列');
-}
-if (!/\.warehouse-product-card-name\s*\{[^}]*position:\s*static;/s.test(cssContent)) {
-  failures.push('仓库商品名称必须参与正常网格布局');
-}
-for (const text of [
-  'padding: 30px var(--space-2) var(--space-2);',
-  'padding: 24px 4px 6px;',
-  'position: absolute;',
-  '@container (min-width: 300px)',
-  '@container (min-width: 560px)',
-  '@container (max-width: 359px)',
-  'repeat(4, minmax(130px, 1fr))',
-  '@media (max-width: 1220px)',
-  'grid-template-columns: repeat(3, minmax(130px, 1fr));',
-  '@container (min-width: 360px)',
-  'min-height: 116px;',
-  'grid-template-rows: auto minmax(56px, 1fr) auto auto;',
-  'width: 56px;',
-  'height: 56px;',
-  'padding: 6px 4px;',
-  'min-height: 124px;',
-  'grid-template-rows: auto minmax(64px, 1fr) auto auto;',
-  'width: 64px;',
-  'height: 64px;',
-  'min-height: 132px;',
-  'grid-template-rows: auto minmax(72px, 1fr) auto auto;',
-  'width: 72px;',
-  'height: 72px;',
-]) forbidText(css, text);
-
-const artworkCss = 'src/styles/product-artwork.css';
-const artworkContent = read(artworkCss);
-for (const text of [
-  '.warehouse-product-card-icon,',
-  'background-image: var(--product-artwork-image, none);',
-  '@media (prefers-reduced-data: reduce)',
-]) requireText(artworkCss, text);
-if (/^\.warehouse-product-card\s*\{/m.test(artworkContent)) {
-  failures.push('product-artwork.css 不得重新定义仓库商品卡几何');
-}
-if (/^\.warehouse-product-card-icon\s*\{/m.test(artworkContent)) {
-  failures.push('product-artwork.css 不得重新定义仓库商品插画尺寸');
-}
-
-for (const text of [
-  'facility-formula-input-side',
-  'facility-formula-input-group',
-  'facility-formula-meta',
-  'facility-formula-output-group',
-  'facility-formula-progress',
-  'function currentFormulaScope',
-  'group.participatingCount',
-  'group.productionAvailableCount',
-  'projectFacilityStaffingRate',
-  'facilityEffectiveCount',
-  'item.quantity * multiplier',
-  'type.operatingCost * scope.count',
-]) requireText('src/components/facilities/FacilityProductionFormula.tsx', text);
-for (const text of [
-  'facility-formula-center',
-  '单座配方每',
-  'multiplier={group.count}',
-  'type.operatingCost * group.count',
-  'item.quantity * group.count',
-]) forbidText('src/components/facilities/FacilityProductionFormula.tsx', text);
-
-for (const text of [
-  '无限等级、容量与费用',
-  '扩容费用必须由当前实际总容量线性计算',
-  '仓库等级只能决定容量增量，不能直接决定扩容费用',
-  '当前扩容斜率固定为 0.8（整数比例 `4 / 5`）',
-  '根 `README.md` 只保留项目概览，不复制仓库业务参数',
-  '仓库没有玩家可见的最高等级',
-  '合同预占 = Σ(当前玩家作为采购方的进行中合同下一批商品数量)',
-  '已用容量 = 实物库存 + 订单预占 + 拍卖预占 + 合同预占',
-  'warehouseOrderReservedQuantity: number;',
-  'warehouseContractReservedQuantity: number;',
-  'warehouseAuctionReservedQuantity: number;',
-  '订单与拍卖必须在同一次权威派生扫描中同时得到拆分值与合计值',
-  '实物库存 → 市场订单预占 → 合同预占 → 拍卖预占 → 剩余容量底色',
-  '实物库存使用 `--color-success`',
-  '市场订单预占使用 `--color-info`',
-  '合同预占使用 `--color-warning`',
-  '拍卖预占使用 `--color-accent-violet`',
-  '四类占用即使为 `0` 也不得隐藏',
-  '不得把订单、合同和拍卖的合计错误标记为“买单预占”',
-  '容器查询',
-  '4／5／6／7 列',
-  '`< 560px` | 4 列 | `96px` | `40px`',
-  '`560px–759px` | 5 列 | `104px` | `46px`',
-  '`760px–959px` | 6 列 | `112px` | `52px`',
-  '`≥ 960px` | 7 列 | `120px` | `58px`',
-  '任何移动或窄容器都不得少于四列',
-  '正常四行网格',
-  '插画是卡片第一视觉主体',
-  '名称参与正常网格布局',
-  '`src/styles/product-artwork.css` 只负责商品 PNG 路径映射',
-  '不得再次声明 `.warehouse-product-card` 高度',
-  '只以本文第 7.2 节为准',
-]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
-for (const forbidden of [
-  '升级费用：150 × L²',
-  'warehouseUpgradeCostForLevel',
-  '2／3／4／5／6 列',
-  '| `< 300px` | 2 列 |',
-  '| `300px–559px` | 3 列 |',
-  '常规尺寸为 `44px`',
-  '`30px` 图标',
-]) forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', forbidden);
-
-requireText('docs/UI_DESIGN_SYSTEM.md', '仓库商品网格的列数、容器断点、卡片高度、内边距和图标尺寸唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md` 第 7.2 节');
-forbidText('docs/UI_DESIGN_SYSTEM.md', '2／3／4／5／6 列');
-
-requireText('docs/README.md', '仓库商品卡结构与网格密度唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md`');
-requireText('docs/README.md', '移动和窄容器固定每行四张卡');
-requireText('docs/README.md', '共享仓库统一预占必须同时包含未完成商品买单');
-for (const text of ['建设卡不得显示生产周期、单座周期产量或单座周期成本', '生产公式只展示集群参数']) {
-  requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
-}
-for (const text of [
-  '`game.facilityTypes` 是客户端工厂展示顺序的唯一权威',
-  '工厂类型下拉框与已拥有工厂卡片必须保持完全相同的目录顺序',
-  '不得按 `facilityGroups` 返回顺序、中文名称、ID 或 `localeCompare` 重新排序',
-]) requireText('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md', text);
-for (const text of [
-  '商品名称固定在左上角',
-  '居中大尺寸统一商品 SVG',
-  '建设卡不显示生产周期、单座产量和单座成本',
-  '公式只展示集群输入、输出、周期和成本',
-]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
-for (const text of [
-  '仓库商品网格使用容器查询',
-  '左上名称／居中大图标／可用主值／冻结辅助值',
-  '生产公式是集群运行能力展示',
-  '工厂生产公式固定采用双列顶层布局',
-]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
+  'width: 40px;', 'width: 46px;', 'width: 52px;', 'width: 58px;',
+]) if (!css.includes(text)) failures.push('仓库商品卡样式缺少: ' + text);
 
 if (failures.length) {
-  console.error(`仓库扩容与生产卡片架构验证失败:\n- ${failures.join('\n- ')}`);
+  console.error('无限仓库防回退验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
-console.log('仓库无限扩容、预占来源分段、容量线性定价、紧凑商品插画布局、移动端四列、桌面七列、目录顺序工厂卡、建设卡精简和输入侧周期成本集群公式验证通过。');
+console.log('无限仓库防回退验证通过：容量、扩容、预占与 warehouse_full 已退役，真实库存与商品卡布局保持。');

@@ -289,10 +289,6 @@ test('market order form explains why an order cannot be submitted', async ({ pag
   await expect(page.getByRole('button', { name: '资金不足，无法买入小麦' })).toBeDisabled();
   await expect(page.getByText('当前没有可出售的', { exact: false })).toHaveCount(0);
 
-  await page.goto('market-runtime-test.html?scenario=warehouse-full');
-  await expect(page.getByRole('spinbutton', { name: '数量' })).toBeDisabled();
-  await expect(page.getByRole('button', { name: '仓库已满，无法买入小麦' })).toBeDisabled();
-
   await page.goto('market-runtime-test.html?scenario=sell-empty');
   await expect(page.getByRole('button', { name: '暂无小麦可卖' })).toBeDisabled();
   await expect(page.getByText('当前没有可出售的', { exact: false })).toHaveCount(0);

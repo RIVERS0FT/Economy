@@ -88,7 +88,7 @@ test('delete save recreates the player baseline and preserves permanent account 
     assert.equal(player.saveResetCount, 1);
     assert.equal(player.inventories.timber.available, 0);
     assert.equal(player.inventories.ore.available, 0);
-    assert.equal(player.inventoryCapacity, 500);
+    assert.equal('inventoryCapacity' in player, false);
     assert.equal(player.bankAccount.depositCredits, 0);
     assert.equal(player.bankAccount.activeLoan, null);
     assert.equal((player.facilityGroups || []).length, 0);

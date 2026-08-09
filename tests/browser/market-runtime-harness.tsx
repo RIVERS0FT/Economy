@@ -93,7 +93,6 @@ function MarketHarness() {
       { price: 12, quantity: 4, createdAt: fixedNow - 30 * 60_000, takerSide: 'buy' },
     ];
     const inventoryAvailable = scenario === 'sell-empty' ? 0 : 8;
-    const warehouseAvailableCapacity = scenario === 'warehouse-full' ? 0 : 1311;
     const credits = scenario === 'funds-empty' ? 0 : 1000;
     const orders = [
       {
@@ -186,7 +185,7 @@ function MarketHarness() {
       },
     ]));
     const game = {
-      version: 26,
+      version: 31,
       lastProcessedAt: fixedNow,
       userId: 123,
       playerName: 'MEVIUS',
@@ -195,15 +194,7 @@ function MarketHarness() {
       frozenCredits: 0,
       gems: 0,
       inventories,
-      inventoryCapacity: 6650,
-      warehouseLevel: 12,
-      warehouseUpgradeCost: 2400,
-      warehouseNextCapacity: 7000,
-      warehouseNextCapacityIncrease: 350,
-      warehouseStoredQuantity: 6650 - warehouseAvailableCapacity,
-      warehouseReservedQuantity: 0,
-      warehouseUsedCapacity: 6650 - warehouseAvailableCapacity,
-      warehouseAvailableCapacity,
+      warehouseStoredQuantity: inventoryAvailable,
       facilityGroups,
       products,
       facilityTypes,
@@ -254,7 +245,7 @@ function MarketHarness() {
       constructingFacilities: 0,
       stoppedFacilities: 18,
       blockedFacilities: 0,
-      inventoryUsed: game.warehouseUsedCapacity,
+      inventoryUsed: game.warehouseStoredQuantity,
     };
 
     return {
@@ -305,7 +296,7 @@ function MarketHarness() {
       refreshRate: '5',
       setRefreshRate: () => {},
       isWorking: false,
-      inventoryUsed: game.warehouseUsedCapacity,
+      inventoryUsed: game.warehouseStoredQuantity,
       cashShare: 0,
       commodityShare: 100,
       facilityShare: 0,
@@ -335,7 +326,7 @@ function MarketHarness() {
     { id: 'assets', icon: <AssetsIcon />, label: '总资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: <span className="negative">↓ 本周 <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>, emphasis: 'primary' },
     { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
     { id: 'rank', icon: <RankIcon />, label: '排行榜', value: formatRank(model.derived.currentRank?.rank), detail: '当前位于榜首' },
-    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(model.game.warehouseAvailableCapacity), detail: `已用 ${formatNumber(model.game.warehouseUsedCapacity)}/${formatNumber(model.game.inventoryCapacity)}` },
+    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库库存', value: formatNumber(model.game.warehouseStoredQuantity), detail: '无限容量 · 实物库存总量' },
   ];
 
   return (

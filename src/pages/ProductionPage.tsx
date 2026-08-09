@@ -3,7 +3,7 @@ import { useNow } from '../hooks/useNow';
 import type { OnlineAutoSellAwareGameViewModel } from '../auto-sell/useOnlineAutoSell';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { SelectInput } from '../components/ui/FormControls';
-import { WarehouseUpgradeCard } from '../components/warehouse/WarehouseUpgradeCard';
+import { WarehouseInventoryPanel } from '../components/warehouse/WarehouseInventoryPanel';
 import {
   Button,
   DataList,
@@ -35,7 +35,7 @@ import '../styles/production-methods.css';
  * production/ProductionFacilityDetail.tsx and production/MobileFacilityDetailSheet.tsx:
  * SwitchControl; checked={group.enabled}; facilityStatusLabel; facility-status-header;
  * facility-card-title-row; facility-card-title-block; facility-count-summary; facility-staffing-summary;
- * 异常：资金不足; 异常：仓库已满; 异常：原料不足;
+ * 异常：资金不足; 异常：原料不足;
  * 运行中 <strong>{formatNumber(group.participatingCount)}</strong>;
  * 新增生产可用工厂立即参与运行并同步稀释满员率;
  * 冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>;
@@ -162,9 +162,7 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
       ? `${procurementQuote.unavailableProductIds.map(productName).join('、') || '建造材料'}市场卖盘不足，无法一次购齐。`
       : needsProcurement && procurementQuote.selfCrossingProductIds.length > 0
         ? `${procurementQuote.selfCrossingProductIds.map(productName).join('、')}存在自己的交叉卖单，请先撤单。`
-        : needsProcurement && game.warehouseAvailableCapacity < procurementQuote.missingQuantity
-          ? `共享仓库空间不足，一键采购需要 ${formatNumber(procurementQuote.missingQuantity)} 格临时交割空间。`
-          : needsProcurement && game.credits < estimatedTotalSpend
+      : needsProcurement && game.credits < estimatedTotalSpend
             ? `建造与采购总资金不足，预计需要 ${formatCurrency(estimatedTotalSpend)}。`
             : undefined;
 
@@ -223,7 +221,7 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
         </>
       }
     >
-      <WarehouseUpgradeCard model={model} className="factory-warehouse-card" />
+      <WarehouseInventoryPanel model={model} className="factory-warehouse-card" />
 
       <div className="production-grid production-workspace">
         <PagePanel className="production-surface build-card production-build-card">
@@ -334,7 +332,7 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
           </div>
 
           {orderedFacilityGroups.length === 0 ? (
-            <div className="empty-state tall">尚未拥有工厂集群。先确认共享仓库容量，再建设第一座工厂。</div>
+            <div className="empty-state tall">尚未拥有工厂集群。先建设第一座工厂。</div>
           ) : null}
         </PagePanel>
 
@@ -347,7 +345,6 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
                 inventories={game.inventories}
                 markets={game.markets}
                 credits={game.credits}
-                warehouseAvailableCapacity={game.warehouseAvailableCapacity}
                 now={now}
                 onToggle={toggleSelectedFacility}
                 onRecipeChange={changeSelectedFacilityRecipe}
@@ -370,7 +367,6 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
         inventories={game.inventories}
         markets={game.markets}
         credits={game.credits}
-        warehouseAvailableCapacity={game.warehouseAvailableCapacity}
         now={now}
         isOpen={isFacilityDetailOpen}
         returnFocusRef={detailTriggerRef}

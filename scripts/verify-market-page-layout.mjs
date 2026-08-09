@@ -150,7 +150,7 @@ requireText(marketPage, 'aria-label="填写最大可交易数量"', '快捷数�
 requireText(marketPage, '>25%</Button>', '快捷数量可见文案必须保持紧凑的 25%。');
 requireText(marketPage, '>50%</Button>', '快捷数量可见文案必须保持紧凑的 50%。');
 requireText(marketPage, '>最大</Button>', '快捷数量可见文案必须保持紧凑的最大值。');
-requireText(marketPage, "marketAssetKind === 'commodity' && game.warehouseAvailableCapacity < 1", '商品买入必须识别仓库空间阻断。');
+forbidText(marketPage, 'warehouseAvailableCapacity', '商品买入不得重新依赖仓库容量。');
 requireText(marketPage, 'aria-label={orderActionLabel}', '提交按钮必须直接承载字段外阻断原因。');
 requireText(marketPage, 'const orderLimitReason = ownOpenOrders.length >= maxOpenOrders', '提交区必须覆盖商品与工厂合计未完成订单的动态上限。');
 forbidText(marketPage, "aria-describedby={orderDisabledReason ? 'order-disabled-reason' : undefined}", '数量字段不得重复关联提交区的同一错误。');
@@ -168,7 +168,7 @@ requireText(marketPage, "buildOrderBookLevels(selectedOrders, 'buy')", '买盘�
 requireText(marketHistory, 'export function getMarketWindowBounds', '市场窗口边界必须由共享函数生成。');
 requireText(marketHistory, 'export function countMarketHistoryPointsInWindow', '共享市场历史仍必须提供最近 24h 成交计数函数供其他统计使用。');
 requireText(runtimeHarness, "scenario === 'funds-empty'", '浏览器运行时必须覆盖资金不足。');
-requireText(runtimeHarness, "scenario === 'warehouse-full'", '浏览器运行时必须覆盖仓库不足。');
+forbidText(runtimeHarness, "scenario === 'warehouse-full'", '浏览器运行时不得恢复仓库不足场景。');
 requireText(runtimeHarness, "scenario === 'sell-empty'", '浏览器运行时必须覆盖无可卖库存。');
 requireText(runtimeHarness, '...Array.from({ length: 5 }', '浏览器运行时必须提供五张同价买单。');
 requireText(runtimeHarness, 'remaining: 1', '同价档位测试必须使用当前剩余数量。');

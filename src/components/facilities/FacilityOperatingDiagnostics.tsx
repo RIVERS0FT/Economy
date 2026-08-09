@@ -22,7 +22,6 @@ export function FacilityOperatingDiagnostics({
   inventories,
   markets,
   credits,
-  warehouseAvailableCapacity,
   onOpenContracts,
 }: {
   recipe: FacilityRecipeDefinition;
@@ -31,7 +30,6 @@ export function FacilityOperatingDiagnostics({
   inventories: Record<string, ProductInventory>;
   markets: Record<string, ProductMarketState>;
   credits: number;
-  warehouseAvailableCapacity: number;
   onOpenContracts: (productId: string) => void;
 }) {
   const productNames = new Map(products.map((product) => [product.id, product.name]));
@@ -40,7 +38,6 @@ export function FacilityOperatingDiagnostics({
     productionCount,
     inventories,
     credits,
-    warehouseAvailableCapacity,
   });
   const marketProductIds = [...new Set([
     ...recipe.inputs.map((item) => item.productId),
@@ -52,14 +49,14 @@ export function FacilityOperatingDiagnostics({
       <div className="facility-operating-diagnostics__heading">
         <div>
           <strong>经营诊断</strong>
-          <small>按当前等效产能、可用库存、现金、仓库和真实成交快照计算</small>
+          <small>按当前等效产能、可用库存、现金和真实成交快照计算</small>
         </div>
         <span>{diagnosis.bottleneck.label}</span>
       </div>
       <div className="facility-operating-diagnostics__metrics">
         <div><span>原料续航</span><strong>{cyclesLabel(diagnosis.inputCycles)}</strong></div>
         <div><span>现金续航</span><strong>{cyclesLabel(diagnosis.cashCycles)}</strong><small>每周期 {formatCurrency(diagnosis.cashPerCycle)}</small></div>
-        <div><span>仓库余量</span><strong>{cyclesLabel(diagnosis.warehouseCycles)}</strong><small>每周期入库 {formatNumber(diagnosis.outputPerCycle)}</small></div>
+        <div><span>周期产出</span><strong>{formatNumber(diagnosis.outputPerCycle)}</strong><small>无限仓库直接入库</small></div>
         <div><span>第一瓶颈</span><strong>{diagnosis.bottleneck.label}</strong><small>{cyclesLabel(diagnosis.bottleneck.cycles)}</small></div>
       </div>
       {diagnosis.inputRows.length > 0 ? (

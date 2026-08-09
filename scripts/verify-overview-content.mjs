@@ -56,7 +56,6 @@ requireAll(paths.overview, [
   '<GameGuideStrip tutorial={model.tutorial} />',
   '<strong>经营提醒</strong>',
   'const visibleAlerts = businessAlerts.slice(0, model.tutorial.isVisible ? 2 : 3)',
-  "id: 'warehouse-full'",
   "id: `facility-error-${group.facilityTypeId}`",
   "id: 'open-orders'",
   'const primaryAction = ownOpenOrders.length > 0',
@@ -183,7 +182,7 @@ const gameApp = read(paths.gameApp);
 const statusOrder = ["id: 'credits'", "id: 'assets'", "id: 'gems'", "id: 'rank'", "id: 'warehouse'"];
 for (let index = 1; index < statusOrder.length; index += 1) {
   if (gameApp.indexOf(statusOrder[index - 1]) >= gameApp.indexOf(statusOrder[index])) {
-    failures.push('src/app/GameApp.tsx 状态栏顺序必须为可用资金／总资产／宝石／排行榜／仓库剩余');
+    failures.push('src/app/GameApp.tsx 状态栏顺序必须为可用资金／总资产／宝石／排行榜／仓库库存');
     break;
   }
 }

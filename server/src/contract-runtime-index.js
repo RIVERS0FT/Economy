@@ -1,5 +1,3 @@
-import { nonContractWarehouseReservation } from './warehouse-reservations.js';
-
 const runtimeByWorld = new WeakMap();
 const diagnosticsByWorld = new WeakMap();
 
@@ -42,29 +40,6 @@ function contractSnapshot(contract) {
   };
 }
 
-function currentReservationQuantity(snapshot) {
-  if (
-    snapshot.kind !== 'supply'
-    || snapshot.status !== 'active'
-    || (Number.isFinite(snapshot.breachedAt) && snapshot.terminationReason.endsWith('_default'))
-    || snapshot.buyerId === null
-    || snapshot.completedDeliveries >= snapshot.totalDeliveries
-  ) return 0;
-  return snapshot.quantityPerDelivery;
-}
-
-function renewalReservationQuantity(snapshot) {
-  return snapshot.status === 'active'
-    && !(Number.isFinite(snapshot.breachedAt) && snapshot.terminationReason.endsWith('_default'))
-    && snapshot.renewalStatus === 'accepted'
-    ? snapshot.renewalQuantity
-    : 0;
-}
-
-function reservationQuantity(snapshot) {
-  return currentReservationQuantity(snapshot) + renewalReservationQuantity(snapshot);
-}
-
 function deadlineFor(snapshot) {
   if (snapshot.status === 'open' && Number.isFinite(snapshot.offerExpiresAt)) {
     return snapshot.offerExpiresAt;
@@ -105,7 +80,6 @@ function buildContractRuntimeIndex(world) {
   const snapshots = new Map();
   const openCountByPublisher = new Map();
   const activeCountByParticipant = new Map();
-  const reservedIncomingByBuyer = new Map();
   const ownedByPlayer = new Map();
   const openContracts = [];
   const activeContracts = [];
@@ -136,11 +110,6 @@ function buildContractRuntimeIndex(world) {
       for (const userId of uniqueIds(snapshot.buyerId, snapshot.supplierId)) {
         increment(activeCountByParticipant, userId, 1);
       }
-      increment(
-        reservedIncomingByBuyer,
-        snapshot.buyerId,
-        reservationQuantity(snapshot),
-      );
     }
   }
 
@@ -152,11 +121,6 @@ function buildContractRuntimeIndex(world) {
       for (const userId of uniqueIds(snapshot.buyerId, snapshot.supplierId)) {
         increment(activeCountByParticipant, userId, -1);
       }
-      increment(
-        reservedIncomingByBuyer,
-        snapshot.buyerId,
-        -reservationQuantity(snapshot),
-      );
     }
   }
 
@@ -209,15 +173,6 @@ function buildContractRuntimeIndex(world) {
 
   for (const contract of world.productionContracts || []) addContract(contract);
 
-  function reservedContractIncomingForBuyer(userId, exceptContractId = null) {
-    const normalizedUserId = Number(userId);
-    let reserved = Number(reservedIncomingByBuyer.get(normalizedUserId) || 0);
-    if (exceptContractId) {
-      const except = snapshots.get(String(exceptContractId));
-      if (except?.buyerId === normalizedUserId) reserved -= currentReservationQuantity(except);
-    }
-    return Math.max(0, reserved);
-  }
 
   return {
     byId,
@@ -235,11 +190,6 @@ function buildContractRuntimeIndex(world) {
     },
     activeCountForParticipant(userId) {
       return Number(activeCountByParticipant.get(Number(userId)) || 0);
-    },
-    reservedContractIncomingForBuyer,
-    reservedIncomingForBuyer(userId, exceptContractId = null) {
-      return reservedContractIncomingForBuyer(userId, exceptContractId)
-        + nonContractWarehouseReservation(world, userId);
     },
     ownContractsFor(userId) {
       return [...(ownedByPlayer.get(Number(userId)) || [])]

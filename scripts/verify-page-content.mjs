@@ -24,7 +24,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/contracts/types.ts',
   'src/components/InvitationSettings.tsx',
   'src/components/facilities/FacilityProductionFormula.tsx',
-  'src/components/warehouse/WarehouseUpgradeCard.tsx',
+  'src/components/warehouse/WarehouseInventoryPanel.tsx',
   'src/components/shell/NavigationItems.tsx',
   'src/components/shell/DesktopSidebar.tsx',
   'src/components/shell/SidebarFrame.tsx',
@@ -152,7 +152,7 @@ for (const text of [
   'facility-card-title-row',
   'facility-card-title-block',
   '异常：资金不足',
-  '异常：仓库已满',
+  '异常：原料不足',
   '异常：原料不足',
   '运行中',
   '新增生产可用工厂立即参与运行并同步稀释满员率',
@@ -416,8 +416,8 @@ for (const text of [
   '<ProductIcon productId={product.id} />',
   '可用 {formatNumber(inventory.available)}',
   '冻结 {formatNumber(inventory.frozen)}',
-  '等级 {formatNumber(game.warehouseLevel)}',
-]) requireText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
+  '无限容量',
+]) requireText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);
 for (const text of [
   'WarehouseContentFilter',
   '全部商品',
@@ -428,7 +428,7 @@ for (const text of [
   'const total = inventory.available + inventory.frozen',
   '<strong>库存 {total}</strong>',
   'ProductIconLabel',
-]) forbidText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
+]) forbidText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);
 
 for (const text of [
   "window.matchMedia('(max-width: 720px)').matches",
@@ -461,10 +461,10 @@ for (const text of ['登录会话', '重置经济状态', '重置服务器经济
 for (const text of ['存档管理', '删除存档']) requireText('src/pages/SettingsPage.tsx', text);
 
 for (const text of [
-  "label: '仓库剩余'",
+  "label: '仓库库存'",
   "id: 'warehouse'",
   'setCompactNumbersEnabled(compactNumbers)',
-  'formatNumber(game.warehouseUsedCapacity)',
+  'formatNumber(game.warehouseStoredQuantity)',
 ]) requireText('src/app/GameApp.tsx', text);
 for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
 

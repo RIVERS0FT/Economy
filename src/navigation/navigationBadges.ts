@@ -207,10 +207,6 @@ export function buildNavigationBadges(
   const productionIssueIds = game.facilityGroups
     .filter((group) => group.status === 'error')
     .map((group) => `facility:${group.facilityTypeId}`);
-  const lowCapacityThreshold = Math.max(25, Math.ceil(game.inventoryCapacity * 0.1));
-  if (game.warehouseAvailableCapacity <= lowCapacityThreshold) {
-    productionIssueIds.push('warehouse-capacity');
-  }
   const productionCount = new Set(productionIssueIds).size;
   result.production = badge(productionCount, `${productionCount} 项生产问题需要处理`);
 

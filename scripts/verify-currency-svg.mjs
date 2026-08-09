@@ -35,7 +35,6 @@ const usagePaths = [
   'src/pages/LeaderboardPage.tsx',
   'src/pages/AuctionPage.tsx',
   'src/pages/ProductionPage.tsx',
-  'src/components/warehouse/WarehouseUpgradeCard.tsx',
   'src/app/AdminApp.tsx',
 ];
 

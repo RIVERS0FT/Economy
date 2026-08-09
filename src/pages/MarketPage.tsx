@@ -108,9 +108,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const maxBuyByFunds = effectiveOrderPrice > 0
     ? Math.max(0, Math.floor(game.credits / effectiveOrderPrice))
     : 0;
-  const maxBuyQuantity = marketAssetKind === 'commodity'
-    ? Math.min(game.warehouseAvailableCapacity, maxBuyByFunds)
-    : maxBuyByFunds;
+  const maxBuyQuantity = maxBuyByFunds;
   const maxSellQuantity = marketAssetKind === 'commodity'
     ? selectedInventory.available
     : selectedGroup?.availableCount ?? 0;
@@ -143,9 +141,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     : orderSide === 'buy'
       ? game.credits < parsedOrderPrice
         ? `可用资金不足，当前价格至少需要 ${formatCurrency(parsedOrderPrice)}。`
-        : marketAssetKind === 'commodity' && game.warehouseAvailableCapacity < 1
-          ? '仓库剩余空间不足，无法提交商品买单。'
-          : undefined
+        : undefined
       : marketAssetKind === 'commodity'
         ? selectedInventory.available < 1
           ? '暂无可售库存。'
@@ -173,9 +169,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
         ? `价格无效，无法${orderSide === 'buy' ? '买入' : '卖出'}${assetName}`
         : availabilityReason
           ? orderSide === 'buy'
-            ? game.credits < (parsedOrderPrice ?? 0)
-              ? `资金不足，无法买入${assetName}`
-              : `仓库已满，无法买入${assetName}`
+            ? `资金不足，无法买入${assetName}`
             : `暂无${assetName}可卖`
           : `数量超出范围，无法${orderSide === 'buy' ? '买入' : '卖出'}${assetName}`
     : orderSide === 'buy'

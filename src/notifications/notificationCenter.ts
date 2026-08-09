@@ -87,11 +87,6 @@ const FACILITY_REASON_COPY: Record<FacilityStatusReason, {
     title: '工厂缺少生产原料',
     detail: '因生产原料不足停止生产',
   },
-  warehouse_full: {
-    severity: 'critical',
-    title: '仓库空间阻塞生产',
-    detail: '因共享仓库空间不足停止生产',
-  },
   no_available_facility: {
     severity: 'warning',
     title: '没有可参与生产的工厂',
@@ -264,25 +259,6 @@ function facilityPendingItems(game: NotificationGameState): PendingNotificationI
   });
 }
 
-function warehousePendingItem(game: NotificationGameState): PendingNotificationItem[] {
-  const inventoryCapacity = Number(game.inventoryCapacity);
-  const availableCapacity = Number(game.warehouseAvailableCapacity);
-  if (!Number.isFinite(inventoryCapacity) || !Number.isFinite(availableCapacity)) return [];
-  const threshold = Math.max(25, Math.ceil(Math.max(0, inventoryCapacity) * 0.1));
-  if (availableCapacity > threshold) return [];
-  const full = availableCapacity <= 0;
-  return [{
-    key: 'warehouse:capacity',
-    signature: `warehouse:capacity:${full ? 'full' : 'low'}`,
-    category: 'production',
-    severity: full ? 'critical' : 'warning',
-    title: full ? '共享仓库已满' : '共享仓库空间不足',
-    message: full
-      ? '商品买入、合同采购或工厂产出可能被阻塞'
-      : `仓库仅剩 ${Math.max(0, availableCapacity)} 个容量`,
-    targetTab: 'production',
-  }];
-}
 
 function auctionPendingItems(game: NotificationGameState): PendingNotificationItem[] {
   const auctions = Array.isArray(game.assetAuctions) ? game.assetAuctions : [];
@@ -353,7 +329,6 @@ export function derivePendingNotificationItems(
 ): PendingNotificationItem[] {
   return [
     ...facilityPendingItems(game),
-    ...warehousePendingItem(game),
     ...contractPendingItems(game),
     ...auctionPendingItems(game),
     ...bankPendingItems(game),

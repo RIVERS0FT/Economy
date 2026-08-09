@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { PRODUCT_CATALOG } from './domain.js';
 import { calculateCumulativeMarketSellFee } from './market-sell-fee.js';
 import { creditPopulationEmployment } from './population-economy.js';
-import { ensureWarehouse } from './warehouse.js';
 import { createContractRuntimeIndex } from './contract-runtime-index.js';
 import {
   acceptCommercialContract,
@@ -279,18 +278,6 @@ export function migrateProductionContractWorld(world) {
   return world;
 }
 
-function storedQuantity(player) {
-  return Object.values(player.inventories || {}).reduce((sum, inventory) => (
-    sum + Math.max(0, Number(inventory?.available || 0)) + Math.max(0, Number(inventory?.frozen || 0))
-  ), 0);
-}
-
-function hasWarehouseCapacity(world, buyer, quantity, exceptContractId, runtimeIndex) {
-  ensureWarehouse(buyer);
-  const used = storedQuantity(buyer)
-    + runtimeIndex.reservedIncomingForBuyer(buyer.userId, exceptContractId);
-  return buyer.inventoryCapacity - used >= quantity;
-}
 
 function batchGross(contract) {
   const gross = multiplyMoneyByInteger(contract.unitPrice, contract.quantityPerDelivery);
@@ -420,7 +407,6 @@ function activateRenewal(world, contract, buyer, supplier, now, runtimeIndex) {
   }
   nextContract.roundStatus = nextContract.buyerEscrowCredits >= batchGross(nextContract)
     && nextContract.supplierReservedQuantity >= nextContract.quantityPerDelivery
-    && hasWarehouseCapacity(world, buyer, nextContract.quantityPerDelivery, contract.id, runtimeIndex)
     ? 'ready'
     : 'preparing';
   contract.renewedToContractId = nextContract.id;
@@ -732,7 +718,6 @@ function completeContract(contract, buyer, supplier, now) {
 function settleBatch(world, contract, buyer, supplier, now, runtimeIndex) {
   const gross = batchGross(contract);
   if (!gross || contract.buyerEscrowCredits < gross || contract.supplierReservedQuantity < contract.quantityPerDelivery) return false;
-  if (!hasWarehouseCapacity(world, buyer, contract.quantityPerDelivery, contract.id, runtimeIndex)) return false;
 
   const supplierInventory = inventoryFor(supplier, contract.productId);
   const buyerInventory = inventoryFor(buyer, contract.productId);
@@ -823,8 +808,6 @@ function processActiveContract(world, contract, now, runtimeIndex) {
     return;
   }
 
-  ensureWarehouse(buyer);
-  ensureWarehouse(supplier);
   normalizeStats(buyer);
   normalizeStats(supplier);
   if (contract.buyerAutoFund) reserveBuyerBatch(contract, buyer);
@@ -833,17 +816,10 @@ function processActiveContract(world, contract, now, runtimeIndex) {
   const gross = batchGross(contract);
   const fundsReady = Boolean(gross && contract.buyerEscrowCredits >= gross);
   const goodsReady = contract.supplierReservedQuantity >= contract.quantityPerDelivery;
-  const capacityReady = hasWarehouseCapacity(
-    world,
-    buyer,
-    contract.quantityPerDelivery,
-    contract.id,
-    runtimeIndex,
-  );
-  contract.roundStatus = fundsReady && goodsReady && capacityReady ? 'ready' : contract.graceEndsAt ? 'grace' : 'preparing';
+  contract.roundStatus = fundsReady && goodsReady ? 'ready' : contract.graceEndsAt ? 'grace' : 'preparing';
 
   if (now < Number(contract.nextDueAt || Number.POSITIVE_INFINITY)) return;
-  if (fundsReady && goodsReady && capacityReady) {
+  if (fundsReady && goodsReady) {
     settleBatch(world, contract, buyer, supplier, now, runtimeIndex);
     return;
   }
@@ -855,7 +831,7 @@ function processActiveContract(world, contract, now, runtimeIndex) {
   }
   if (now < contract.graceEndsAt) return;
 
-  const buyerReady = fundsReady && capacityReady;
+  const buyerReady = fundsReady;
   const defaultParty = goodsReady && !buyerReady
     ? 'buyer'
     : !goodsReady && buyerReady
@@ -1079,9 +1055,6 @@ function acceptContract(world, user, payload, now, runtimeIndex) {
   if (!gross || !bond) return result(false, '合同金额超出安全范围');
   if (buyer.credits < gross + bond) return result(false, `采购方需要至少 ¤${gross + bond} 用于首批货款和保证金`);
   if (supplier.credits < bond) return result(false, `供应方需要至少 ¤${bond} 履约保证金`);
-  if (!hasWarehouseCapacity(world, buyer, contract.quantityPerDelivery, null, runtimeIndex)) {
-    return result(false, '采购方仓库无法容纳下一批商品');
-  }
 
   runtimeIndex.transition(contract, () => {
     buyer.credits -= gross + bond;
@@ -1297,9 +1270,6 @@ function acceptRenewal(world, user, payload, now, runtimeIndex) {
   if (!gross || !bond) return result(false, '续签金额超出安全范围');
   if (buyer.credits < gross + bond) return result(false, `采购方需要至少 ¤${gross + bond} 用于续签首批货款和保证金`);
   if (supplier.credits < bond) return result(false, `供应方需要至少 ¤${bond} 续签履约保证金`);
-  if (!hasWarehouseCapacity(world, buyer, proposal.terms.quantityPerDelivery, null, runtimeIndex)) {
-    return result(false, '采购方仓库无法为续签首批商品预留空间');
-  }
   runtimeIndex.transition(contract, () => {
     buyer.credits -= gross + bond;
     buyer.frozenCredits += gross + bond;
@@ -1529,12 +1499,10 @@ function issueForContract(world, contract, runtimeIndex, userId = null) {
   if (contract.graceEndsAt) {
     if (contract.supplierReservedQuantity < contract.quantityPerDelivery) return '供应方商品不足，正在宽限期';
     if (contract.buyerEscrowCredits < gross) return '采购方货款不足，正在宽限期';
-    if (!hasWarehouseCapacity(world, buyer, contract.quantityPerDelivery, contract.id, runtimeIndex)) return '采购方仓库空间不足，正在宽限期';
     return '宽限期内等待结算';
   }
   if (contract.supplierReservedQuantity < contract.quantityPerDelivery) return '等待供应方准备商品';
   if (contract.buyerEscrowCredits < gross) return '等待采购方补充货款';
-  if (!hasWarehouseCapacity(world, buyer, contract.quantityPerDelivery, contract.id, runtimeIndex)) return '采购方仓库空间不足';
   if (contract.renewalProposal?.status === 'proposed'
     && userId !== null
     && Number(contract.renewalProposal.proposedBy) !== Number(userId)) return '等待你确认续签提议';

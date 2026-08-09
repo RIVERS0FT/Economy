@@ -9,7 +9,7 @@ import { ensureGemState } from './invitations.js';
 import { normalizePlayerMoneyPayload } from './money.js';
 import { applyOnlineAutoSell } from './online-auto-sell.js';
 import { applyResearchAction, validateResearchAccess } from './research.js';
-import { ensureWarehouse, upgradeWarehouse } from './warehouse.js';
+import { ensureWarehouse } from './warehouse.js';
 import {
   activateWeeklyCashSettlement,
   collectPlayerWeeklyCashSettlement,
@@ -23,7 +23,7 @@ const BANK_ACTIONS = new Set(['bankDeposit', 'bankWithdraw', 'bankBorrow', 'bank
 const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'work', 'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',
   'collectFacility', 'placeOrder', 'cancelOrder', 'listFacility',
-  'cancelFacilityListing', 'buyFacility', 'upgradeWarehouse', 'redeemGift',
+  'cancelFacilityListing', 'buyFacility', 'redeemGift',
   'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
   'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay', 'startResearch', 'accelerateResearch',
 ]);
@@ -56,8 +56,6 @@ function executeActionBody(store, world, user, action, payload, requestKey, now)
       gameResult = applyOnlineAutoSell(world, user, payload, now);
     } else if (action === 'checkIn') {
       gameResult = store.checkInInTransaction(world.players[String(user.id)], requestKey, now);
-    } else if (action === 'upgradeWarehouse') {
-      gameResult = upgradeWarehouse(world.players[String(user.id)]);
     } else if (action === 'redeemGift') {
       gameResult = store.redeemGiftInTransaction(world, user, payload, now);
     } else if (action === 'exchangeGems') {
