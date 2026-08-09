@@ -7,7 +7,6 @@ import {
   validateFacilityAuctionQuantity,
   validateFacilityAuctionTransferQuantity,
 } from './facility-groups.js';
-import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';
 import {
   calculateRateMoney,
   ceilPlayerMoney,
@@ -451,10 +450,6 @@ function validateAuctionTransfer(world, auction, bidder) {
       if (!validation.ok) return validation;
     }
   }
-  ensureWarehouse(bidder);
-  if (createWarehouseUsage(world, bidder).warehouseUsedCapacity > bidder.inventoryCapacity) {
-    return result(false, '买家仓库容量不足');
-  }
   return result(true, '拍卖资产可以转移');
 }
 
@@ -865,16 +860,6 @@ function placeBid(world, userId, payload, now) {
   if (!amount || amount < minimum) return result(false, `出价不得低于 ¤${minimum.toFixed(2)}`);
   const bidder = player(world, userId);
   if (!bidder) return result(false, '玩家不存在');
-
-  const requiredCommodityCapacity = auctionItems(auction)
-    .filter((item) => item.assetKind === 'commodity')
-    .reduce((sum, item) => sum + item.quantity, 0);
-  if (requiredCommodityCapacity > 0 && auction.highestBidderId !== userId) {
-    ensureWarehouse(bidder);
-    if (createWarehouseUsage(world, bidder).warehouseAvailableCapacity < requiredCommodityCapacity) {
-      return result(false, '仓库剩余容量不足，无法竞拍该资产包');
-    }
-  }
 
   if (auction.highestBidderId === userId && auction.highestBid) {
     const difference = roundInternalMoney(amount - auction.highestBid) || 0;

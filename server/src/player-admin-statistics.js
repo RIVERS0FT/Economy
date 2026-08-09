@@ -35,7 +35,6 @@ const FACILITY_ACTIONS = new Set([
   'listFacility',
   'cancelFacilityListing',
   'buyFacility',
-  'upgradeWarehouse',
 ]);
 const ORDER_ACTIONS = new Set(['placeOrder', 'cancelOrder']);
 

@@ -118,7 +118,7 @@ for (const text of [
 ]) forbidText('src/pages/ProductionPage.tsx', text);
 for (const text of ['点击工作次数','生产商品总数','买入商品总数','卖出商品总数','礼品兑换','存档管理','删除存档','退出登录']) requireText('src/pages/SettingsPage.tsx', text);
 for (const text of ['登录会话','重置经济状态','重置服务器经济状态']) forbidText('src/pages/SettingsPage.tsx', text);
-for (const text of ["label: '仓库剩余'", "id: 'warehouse'"]) requireText('src/app/GameApp.tsx', text);
+for (const text of ["label: '仓库库存'", "id: 'warehouse'"]) requireText('src/app/GameApp.tsx', text);
 for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
 for (const text of ['assetKind','matchFacilityOrder','reduceRunningGroupForSellOrder','valuationPricesFor','recentTradePriceFor','lastTradePrice','world.version = 20','reconcileFacilityGroup','activeRecipeId','pendingRecipeId','removeSystemFacilityOrders','SELF_CROSS_MESSAGE']) requireText('server/src/facility-groups.js', text);
 for (const text of ['refreshFacilityLiquidity','系统资产采购','系统资产供给']) forbidText('server/src/facility-groups.js', text);

@@ -190,21 +190,21 @@ requireText('server/src/market-demand/state.js', [
 requireText('server/src/contract-runtime-index.js', [
   'runtimeByWorld',
   'createContractRuntimeIndex',
-  'reservedIncomingForBuyer',
   'activeCountForParticipant',
   'openCountForPublisher',
   'nextDeadlineAt',
 ]);
-requireText('server/src/warehouse.js', [
-  'createContractRuntimeIndex',
-  'runtimeIndex.reservedContractIncomingForBuyer',
-]);
 requireText('server/src/contracts.js', [
   'processProductionContractsWithIndex',
-  'runtimeIndex.reservedIncomingForBuyer',
   'runtimeIndex.activeCountForParticipant',
   'runtimeIndex.openCountForPublisher',
 ]);
+for (const path of ['server/src/contract-runtime-index.js', 'server/src/contracts.js', 'server/src/warehouse.js']) {
+  const source = read(path);
+  assert.equal(source.includes('reservedIncomingForBuyer'), false, `${path} 不得恢复合同入库预留量索引`);
+  assert.equal(source.includes('reservedContractIncomingForBuyer'), false, `${path} 不得恢复合同仓库预留量索引`);
+}
+assert.equal(read('server/src/warehouse.js').includes('createContractRuntimeIndex'), false, '无限仓库不得重新依赖合同运行时索引');
 requireText('server/src/runtime-store.js', [
   'createClientPartitionSnapshot',
   'cachedStateProjection(user.id, currentRevision)',
@@ -282,8 +282,9 @@ requireText('server/test/order-book-pruning.test.js', [
   'legacy system facility cleanup preserves the array when there is nothing to remove',
 ]);
 requireText('server/test/contract-runtime-index.test.js', [
-  'contract runtime index matches the reference reservation scan for 2000 contracts',
-  'contract runtime transitions release and acquire counts without rebuilding',
+  'contract runtime index caches counts for large contract sets without warehouse reservations',
+  'contract runtime transitions update participant and publisher counts without rebuilding',
+  'contract runtime deadline reads a live grace deadline without rebuilding',
 ]);
 requireText('server/test/state-polling.test.js', [
   'runtime failed actions keep the world row unchanged',

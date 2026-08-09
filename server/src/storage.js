@@ -17,7 +17,7 @@ import {
   migrateFacilityGroupWorld,
   stripLegacyFacilityInstances,
 } from './facility-groups.js';
-import { createWarehouseSummary, ensureWarehouse, upgradeWarehouse } from './warehouse.js';
+import { createWarehouseSummary, ensureWarehouse } from './warehouse.js';
 import {
   applyAssetAuctionAction,
   createAssetAuctionClientState,
@@ -81,7 +81,7 @@ const BANK_ACTIONS = new Set(['bankDeposit', 'bankWithdraw', 'bankBorrow', 'bank
 const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'work', 'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',
   'collectFacility', 'placeOrder', 'cancelOrder', 'listFacility',
-  'cancelFacilityListing', 'buyFacility', 'upgradeWarehouse', 'redeemGift',
+  'cancelFacilityListing', 'buyFacility', 'redeemGift',
   'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
   'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay', 'startResearch', 'accelerateResearch',
 ]);
@@ -169,7 +169,7 @@ function createVersionedClientState(world, userId, now, checkIn) {
     },
     gems: player.gems,
     checkIn,
-    ...createWarehouseSummary(world, player),
+    ...createWarehouseSummary(player),
     ...createAssetAuctionClientState(world, userId, now),
     ...createBankClientState(world, player, now),
     ...createResearchClientState(world, player, now),
@@ -953,8 +953,6 @@ export class EconomyStore {
         gameResult = applyResearchAction(world, user, action, payload, now);
       } else if (action === 'checkIn') {
         gameResult = this.checkInInTransaction(player, requestKey, now);
-      } else if (action === 'upgradeWarehouse') {
-        gameResult = upgradeWarehouse(world.players[String(user.id)]);
       } else if (action === 'redeemGift') {
         gameResult = this.redeemGiftInTransaction(world, user, payload, now);
       } else if (action === 'exchangeGems') {

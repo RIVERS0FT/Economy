@@ -1,183 +1,17 @@
-.warehouse-upgrade-card {
-  --warehouse-stored-color: var(--color-success);
-  --warehouse-order-color: var(--color-info);
-  --warehouse-contract-color: var(--color-warning);
-  --warehouse-auction-color: var(--color-accent-violet);
-
+.warehouse-inventory-panel {
   display: grid;
   gap: var(--space-3);
   padding: var(--space-4);
 }
 
-.factory-warehouse-card {
-  margin-bottom: var(--space-4);
-}
-
-.warehouse-heading-status {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-2);
-}
-
-.warehouse-layout {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(0, 3fr);
-  gap: 0;
-}
-
-.warehouse-management {
-  min-width: 0;
-  display: grid;
-  align-content: start;
-  gap: var(--space-3);
-  border-right: 1px solid var(--color-border);
-  padding-right: var(--space-4);
-}
+.factory-warehouse-card { margin-bottom: var(--space-4); }
 
 .warehouse-content {
   min-width: 0;
   display: grid;
   align-content: start;
   gap: var(--space-3);
-  padding-left: var(--space-4);
   container-type: inline-size;
-}
-
-.warehouse-capacity-progress {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.warehouse-capacity-progress > div:first-child {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.warehouse-capacity-progress span,
-.warehouse-capacity-progress small,
-.warehouse-upgrade-summary span,
-.warehouse-upgrade-summary small {
-  color: var(--color-text-muted);
-}
-
-.warehouse-capacity-progress strong,
-.warehouse-upgrade-summary strong,
-.warehouse-summary-list dd,
-.warehouse-product-card-available {
-  color: var(--color-text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.warehouse-capacity-progress .progress-track {
-  display: flex;
-  margin: 0;
-}
-
-.warehouse-capacity-track.is-over-capacity {
-  box-shadow: inset 0 0 0 1px var(--color-danger);
-}
-
-.warehouse-capacity-track .warehouse-capacity-segment {
-  min-width: 0;
-  flex: 0 0 auto;
-  border-radius: 0;
-}
-
-.warehouse-capacity-track .warehouse-capacity-segment--stored,
-.warehouse-summary-item--stored .warehouse-summary-swatch {
-  background: var(--warehouse-stored-color);
-}
-
-.warehouse-capacity-track .warehouse-capacity-segment--order,
-.warehouse-summary-item--order .warehouse-summary-swatch {
-  background: var(--warehouse-order-color);
-}
-
-.warehouse-capacity-track .warehouse-capacity-segment--contract,
-.warehouse-summary-item--contract .warehouse-summary-swatch {
-  background: var(--warehouse-contract-color);
-}
-
-.warehouse-capacity-track .warehouse-capacity-segment--auction,
-.warehouse-summary-item--auction .warehouse-summary-swatch {
-  background: var(--warehouse-auction-color);
-}
-
-.warehouse-summary-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-1) var(--space-3);
-  margin: 0;
-}
-
-.warehouse-summary-list > div {
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-2);
-  border-bottom: 1px solid var(--color-divider);
-  padding: var(--space-2) 0;
-}
-
-.warehouse-summary-list dt {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.warehouse-summary-list dd {
-  margin: 0;
-  font-weight: 850;
-}
-
-.warehouse-summary-swatch {
-  width: 0.5rem;
-  height: 0.5rem;
-  flex: 0 0 auto;
-  border-radius: var(--radius-pill);
-}
-
-.warehouse-summary-item--available {
-  grid-column: 1 / -1;
-}
-
-.warehouse-upgrade-summary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
-  border-top: 1px solid var(--color-border);
-  padding-top: var(--space-3);
-}
-
-.warehouse-upgrade-summary > div {
-  min-width: 0;
-  display: grid;
-  gap: 0.1rem;
-  border: 1px solid var(--color-divider);
-  border-radius: var(--radius-control);
-  padding: var(--space-2);
-  background: var(--color-surface-inset);
-}
-
-.warehouse-upgrade-summary strong {
-  font-size: var(--font-size-lg);
-}
-
-.warehouse-upgrade-summary small {
-  font-size: var(--font-size-xs);
-}
-
-.warehouse-capacity-warning {
-  margin: 0;
-  color: var(--color-danger);
-  font-size: var(--font-size-sm);
 }
 
 .warehouse-content-heading {
@@ -185,6 +19,12 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+}
+
+.warehouse-content-heading span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
 }
 
 .warehouse-product-grid {
@@ -242,10 +82,7 @@
   color: var(--color-text-secondary);
 }
 
-.warehouse-product-card-icon .product-icon {
-  width: 46px;
-  height: 46px;
-}
+.warehouse-product-card-icon .product-icon { width: 46px; height: 46px; }
 
 .warehouse-product-card-available,
 .warehouse-product-card-frozen {
@@ -262,10 +99,7 @@
   line-height: var(--line-height-tight);
 }
 
-.warehouse-product-card-frozen {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-}
+.warehouse-product-card-frozen { color: var(--color-text-muted); font-size: var(--font-size-xs); }
 
 .warehouse-content-empty {
   min-height: 180px;
@@ -276,104 +110,33 @@
   text-align: center;
 }
 
-.warehouse-content-empty span {
-  color: var(--color-text-muted);
-}
+.warehouse-content-empty span { color: var(--color-text-muted); }
 
 @container (max-width: 559px) {
-  .warehouse-product-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 4px;
-  }
-
-  .warehouse-product-card {
-    min-height: 96px;
-    grid-template-rows: auto minmax(40px, 1fr) auto auto;
-    padding: 4px;
-    gap: 0;
-  }
-
-  .warehouse-product-card-name {
-    font-size: var(--font-size-xs);
-  }
-
+  .warehouse-product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+  .warehouse-product-card { min-height: 96px; grid-template-rows: auto minmax(40px, 1fr) auto auto; padding: 4px; gap: 0; }
+  .warehouse-product-card-name { font-size: var(--font-size-xs); }
   .warehouse-product-card-icon,
-  .warehouse-product-card-icon .product-icon {
-    width: 40px;
-    height: 40px;
-  }
-
-  .warehouse-product-card-available {
-    font-size: var(--font-size-xs);
-  }
+  .warehouse-product-card-icon .product-icon { width: 40px; height: 40px; }
+  .warehouse-product-card-available { font-size: var(--font-size-xs); }
 }
 
 @container (min-width: 760px) {
-  .warehouse-product-grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .warehouse-product-card {
-    min-height: 112px;
-    grid-template-rows: auto minmax(52px, 1fr) auto auto;
-  }
-
+  .warehouse-product-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .warehouse-product-card { min-height: 112px; grid-template-rows: auto minmax(52px, 1fr) auto auto; }
   .warehouse-product-card-icon,
-  .warehouse-product-card-icon .product-icon {
-    width: 52px;
-    height: 52px;
-  }
-
-  .warehouse-product-card-available {
-    font-size: var(--font-size-md);
-  }
+  .warehouse-product-card-icon .product-icon { width: 52px; height: 52px; }
+  .warehouse-product-card-available { font-size: var(--font-size-md); }
 }
 
 @container (min-width: 960px) {
-  .warehouse-product-grid {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-  }
-
-  .warehouse-product-card {
-    min-height: 120px;
-    grid-template-rows: auto minmax(58px, 1fr) auto auto;
-  }
-
+  .warehouse-product-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .warehouse-product-card { min-height: 120px; grid-template-rows: auto minmax(58px, 1fr) auto auto; }
   .warehouse-product-card-icon,
-  .warehouse-product-card-icon .product-icon {
-    width: 58px;
-    height: 58px;
-  }
-}
-
-@media (max-width: 960px) {
-  .warehouse-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .warehouse-management {
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border);
-    padding-right: 0;
-    padding-bottom: var(--space-4);
-  }
-
-  .warehouse-content {
-    padding-top: var(--space-4);
-    padding-left: 0;
-  }
+  .warehouse-product-card-icon .product-icon { width: 58px; height: 58px; }
 }
 
 @media (max-width: 720px) {
-  .warehouse-upgrade-card {
-    gap: var(--space-2);
-    padding: var(--space-3);
-  }
-}
-
-@media (max-width: 420px) {
-  .warehouse-summary-list,
-  .warehouse-upgrade-summary {
-    grid-template-columns: 1fr;
-  }
+  .warehouse-inventory-panel { gap: var(--space-2); padding: var(--space-3); }
+  .warehouse-content-heading { align-items: baseline; }
 }

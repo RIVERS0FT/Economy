@@ -18,7 +18,6 @@ export type LocalActivityAction =
   | 'refresh'
   | 'work'
   | 'checkIn'
-  | 'upgradeWarehouse'
   | 'placeOrder'
   | 'cancelOrder'
   | 'buildFacility'

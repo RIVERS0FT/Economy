@@ -17,15 +17,9 @@ function gameFixture() {
     frozenCredits: 0,
     gems: 0,
     inventories: {},
-    inventoryCapacity: 100,
-    warehouseLevel: 1,
-    warehouseUpgradeCost: 100,
-    warehouseNextCapacity: 200,
-    warehouseNextCapacityIncrease: 100,
+    warehouseStoredQuantity: 100,
     warehouseStoredQuantity: 0,
-    warehouseReservedQuantity: 0,
-    warehouseUsedCapacity: 0,
-    warehouseAvailableCapacity: 100,
+    warehouseStoredQuantity: 100,
     facilityGroups: [],
     products: [],
     facilityTypes: [],
@@ -107,7 +101,7 @@ changedGame.orders = Array.from({ length: 120 }, (_, index) => ({
   createdAt: index,
 }));
 changedGame.facilityGroups = [{ facilityTypeId: 'farm', status: 'error' }];
-changedGame.warehouseAvailableCapacity = 10;
+changedGame.warehouseStoredQuantity = 10;
 changedGame.assetAuctions = [
   {
     id: 'auction-seen', status: 'open', isSeller: false, isHighestBidder: false, isOutbid: true,
@@ -131,7 +125,7 @@ changedGame.stats.leaderboards.period.key = '2026-07-27';
 const badges = buildNavigationBadges(changedGame, baseline);
 assert.equal(badges.market?.count, 120);
 assert.equal(formatNavigationBadgeCount(badges.market?.count || 0), '99+');
-assert.equal(badges.production?.count, 2);
+assert.equal(badges.production?.count, 1);
 assert.equal(badges.auction?.count, 2, 'new and outbid auctions must merge by auction id');
 assert.equal(badges.contracts?.count, 2, 'new and actionable contracts must merge by contract id');
 assert.equal(badges.leaderboard?.count, 1);

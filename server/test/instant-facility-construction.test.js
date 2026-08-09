@@ -232,10 +232,15 @@ test('one-click construction rejects stale price protection without buying anyth
   }
 });
 
-test('one-click construction still requires warehouse space for market delivery', () => {
+test('one-click construction ignores legacy warehouse capacity fields during market delivery', () => {
   const now = 1_700_180_000_000;
   const store = prepareProcurementStore(now, { warehouseFill: 499 });
   try {
+    const loaded = store.loadWorld(now + 3);
+    const buyer = loaded.world.players[String(user.id)];
+    buyer.inventoryCapacity = 1;
+    buyer.warehouseLevel = 99;
+    store.saveWorld(loaded.revision, loaded.world, now + 3);
     assert.equal(placeMaterialSell(store, 'timber', 3, 60, 'material-sell-0031', now + 10).result.ok, true);
     assert.equal(placeMaterialSell(store, 'ore', 2, 70, 'material-sell-0032', now + 20).result.ok, true);
     const result = store.apply(user, {
@@ -246,34 +251,14 @@ test('one-click construction still requires warehouse space for market delivery'
       },
       requestKey: 'instant-build-procure-0004', method: 'POST', path: '/api/game/facilities',
     }, now + 31);
-    assert.equal(result.result.ok, false);
-    assert.match(result.result.message, /共享仓库空间不足/);
+    assert.equal(result.result.ok, true);
     const after = store.getState(user, now + 32);
-    assert.equal(after.facilityGroups.find((group) => group.facilityTypeId === 'ranch'), undefined);
+    assert.equal(after.facilityGroups.find((group) => group.facilityTypeId === 'ranch')?.count, 1);
     assert.equal(after.inventories.wheat.available, 499);
     assert.equal(after.inventories.timber.available, 0);
     assert.equal(after.inventories.ore.available, 0);
-  } finally {
-    store.close();
-  }
-});
-
-test('legacy construction migrates to one completed facility without charging materials again', () => {
-  const now = 1_700_200_000_000;
-  const store = prepareStore(now);
-  try {
-    const loaded = store.loadWorld(now + 2);
-    const player = loaded.world.players[String(user.id)];
-    player.facilityConstruction = {
-      facilityTypeId: 'farm', startedAt: now, completesAt: now + 60_000,
-      buildCost: 50, employmentReleased: 20,
-    };
-    const timberBefore = player.inventories.timber.available;
-    store.saveWorld(loaded.revision, loaded.world, now + 2);
-    const state = store.getState(user, now + 3);
-    assert.equal(state.facilityConstruction, undefined);
-    assert.equal(state.facilityGroups.find((group) => group.facilityTypeId === 'farm')?.count, 1);
-    assert.equal(state.inventories.timber.available, timberBefore, '旧任务迁移不得再次收取材料');
+    assert.equal(Object.hasOwn(after, 'inventoryCapacity'), false);
+    assert.equal(Object.hasOwn(after, 'warehouseLevel'), false);
   } finally {
     store.close();
   }

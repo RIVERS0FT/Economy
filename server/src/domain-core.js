@@ -14,7 +14,6 @@ export const ECONOMY_CONSTANTS = Object.freeze({
   maxPricePoints: 288,
   maxTradesPerPlayer: 240,
   maxLedgerPerPlayer: 360,
-  defaultInventoryCapacity: 500,
   maxFacilitiesProcessedPerTick: 10_000,
 });
 
@@ -81,13 +80,6 @@ function inventoryFor(player, productId) {
   player.inventories ||= createInventories();
   player.inventories[id] ||= { available: 0, frozen: 0 };
   return player.inventories[id];
-}
-
-function inventoryUsed(player) {
-  return Object.values(player.inventories || {}).reduce(
-    (sum, inventory) => sum + Number(inventory.available || 0) + Number(inventory.frozen || 0),
-    0,
-  );
 }
 
 function addLedger(player, category, amount, description, createdAt = Date.now()) {
@@ -249,7 +241,6 @@ function createPlayer(user, now) {
     credits: 500,
     frozenCredits: 0,
     inventories,
-    inventoryCapacity: ECONOMY_CONSTANTS.defaultInventoryCapacity,
     facilities: [],
     trades: [],
     ledger: [],
@@ -383,7 +374,6 @@ export function migrateWorld(world, now = Date.now()) {
       delete player.inventories.grain;
     }
     for (const product of PRODUCT_CATALOG) inventoryFor(player, product.id);
-    player.inventoryCapacity = Number(player.inventoryCapacity || ECONOMY_CONSTANTS.defaultInventoryCapacity);
     player.facilities = (player.facilities || []).map((facility) => migrateFacility(facility, player.userId));
     player.starterConstructionMaterialsGranted = true;
     player.trades ||= [];
@@ -463,29 +453,6 @@ function totalAssets(world, player) {
     sum + facility.systemValue + facility.internalGoods * marketFor(world, facility.outputProductId).lastPrice
   ), 0);
   return player.credits + player.frozenCredits + inventoryValue + facilityValue;
-}
-
-function pendingBuyQuantity(world, userId) {
-  const orderQuantity = world.orders
-    .filter((order) => order.ownerId === userId && order.side === 'buy' && order.assetKind !== 'facility' && isOpenOrder(order))
-    .reduce((sum, order) => sum + order.remaining, 0);
-  const auctionQuantity = (world.assetAuctions || []).reduce((sum, auction) => {
-    if (
-      Number(auction?.highestBidderId) !== Number(userId)
-      || auction?.status !== 'open'
-      || auction?.escrowStatus === 'released'
-      || auction?.escrowStatus === 'transferred'
-    ) return sum;
-    const items = Array.isArray(auction?.items) && auction.items.length > 0
-      ? auction.items
-      : [auction];
-    return sum + items.reduce((itemSum, item) => (
-      item?.assetKind === 'commodity'
-        ? itemSum + Math.max(0, Number(item.quantity || 0))
-        : itemSum
-    ), 0);
-  }, 0);
-  return orderQuantity + auctionQuantity;
 }
 
 function sortCandidates(orders, side) {
@@ -941,9 +908,7 @@ function collectFacility(world, userId, payload, now) {
   const player = getPlayer(world, userId);
   const facility = findOwnedFacility(player, payload.facilityId);
   if (!facility || facility.internalGoods <= 0) return result(false, '没有可领取的产成品');
-  const availableCapacity = player.inventoryCapacity - inventoryUsed(player) - pendingBuyQuantity(world, userId);
-  if (availableCapacity <= 0) return result(false, '玩家仓库已满或已被买单预占');
-  const quantity = Math.min(facility.internalGoods, availableCapacity);
+  const quantity = facility.internalGoods;
   facility.internalGoods -= quantity;
   inventoryFor(player, facility.outputProductId).available += quantity;
   if (facility.status === 'full' && facility.internalGoods + facility.outputPerCycle <= facility.internalCapacity) {
@@ -1075,8 +1040,6 @@ function placeOrder(world, userId, payload, now) {
 
   if (side === 'buy') {
     if (player.credits < total) return result(false, '可用资金不足');
-    const capacity = player.inventoryCapacity - inventoryUsed(player) - pendingBuyQuantity(world, userId);
-    if (capacity < quantity) return result(false, '仓库容量不足');
     player.credits -= total;
     player.frozenCredits += total;
   } else {

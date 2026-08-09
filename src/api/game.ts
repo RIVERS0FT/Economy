@@ -283,7 +283,6 @@ export const gameActions = {
   bankSetAutoRepay: (loanId: string, enabled: boolean) => (
     postAction(`/bank/loans/${encodeURIComponent(loanId)}/auto-repay`, { enabled })
   ),
-  upgradeWarehouse: () => postAction('/warehouse/upgrade'),
   buildFacility: (facilityTypeId: string, quantity = 1, procurement?: FacilityBuildProcurementOptions) => (
     postAction('/facilities', { facilityTypeId, quantity, ...procurement })
   ),

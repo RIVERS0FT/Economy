@@ -84,26 +84,6 @@ export function OverviewPage({ model }: OverviewPageProps) {
     const alerts: OverviewAlert[] = [];
     const productionAction = () => setTab('production');
 
-    if (game.warehouseAvailableCapacity <= 0) {
-      alerts.push({
-        id: 'warehouse-full',
-        tone: 'danger',
-        title: '共享仓库已满',
-        detail: '生产无法继续入库，请扩容、出售库存或取消占用容量的买单。',
-        actionLabel: '处理仓库',
-        onAction: productionAction,
-      });
-    } else if (game.warehouseAvailableCapacity <= Math.max(25, Math.ceil(game.inventoryCapacity * 0.1))) {
-      alerts.push({
-        id: 'warehouse-low',
-        tone: 'warning',
-        title: '共享仓库空间偏低',
-        detail: `当前仅剩 ${formatNumber(game.warehouseAvailableCapacity)} 容量，建议提前处理库存。`,
-        actionLabel: '查看仓库',
-        onAction: productionAction,
-      });
-    }
-
     for (const group of game.facilityGroups.filter((item) => item.status === 'error').slice(0, 2)) {
       const facilityName = game.facilityTypes.find((item) => item.id === group.facilityTypeId)?.name ?? group.facilityTypeId;
       alerts.push({
@@ -171,7 +151,7 @@ export function OverviewPage({ model }: OverviewPageProps) {
   return (
     <PageLayout
       title={<>{greeting}，{game.playerName}</>}
-      description="优先处理生产、仓库与订单提醒，并领取服务器每日签到奖励。"
+      description="优先处理生产与订单提醒，并领取服务器每日签到奖励。"
       actions={(
         <>
           <StatusTag tone={businessAlerts.length > 0 ? 'warning' : 'success'}>
@@ -207,7 +187,7 @@ export function OverviewPage({ model }: OverviewPageProps) {
             <div className="overview-alert-heading">
               <div>
                 <strong>经营提醒</strong>
-                <span>按仓库、生产、订单和停工优先级排列</span>
+                <span>按生产、订单和停工优先级排列</span>
               </div>
               <StatusTag tone={businessAlerts.length > 0 ? 'warning' : 'success'}>{formatNumber(businessAlerts.length)}</StatusTag>
             </div>

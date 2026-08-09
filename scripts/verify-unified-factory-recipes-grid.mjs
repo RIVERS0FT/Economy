@@ -439,9 +439,9 @@ for (const text of [
 ])
   assert.equal(primarySurfaceCss.includes(text), true, `共享一级表面样式缺少: ${text}`);
 
-const warehouse = read('src/components/warehouse/WarehouseUpgradeCard.tsx');
+const warehouse = read('src/components/warehouse/WarehouseInventoryPanel.tsx');
 assert.equal(
-  warehouse.includes('production-surface warehouse-upgrade-card'),
+  warehouse.includes('production-surface warehouse-inventory-panel'),
   true,
   '共享仓库必须使用 production-surface',
 );

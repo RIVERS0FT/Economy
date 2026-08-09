@@ -363,7 +363,6 @@ test('overview keeps the decision rows visible and adapts to a narrower desktop'
   const productionBox = await productionHeading.boundingBox();
   expect(productionBox).not.toBeNull();
   expect(productionBox!.y).toBeLessThan(900);
-  await expect(page.getByText('共享仓库空间偏低', { exact: true })).toBeVisible();
   await expect(page.getByText('机械工厂生产受阻', { exact: true })).toBeVisible();
 
   await page.setViewportSize({ width: 900, height: 1000 });

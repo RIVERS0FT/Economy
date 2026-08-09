@@ -104,7 +104,6 @@ export type FacilityStatusReason =
   | 'manual'
   | 'insufficient_funds'
   | 'insufficient_input'
-  | 'warehouse_full'
   | 'no_available_facility'
   | 'maintenance';
 
@@ -533,7 +532,7 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState {
-  version: 30;
+  version: 31;
   userId: number;
   playerName: string;
   registeredAt: number;
@@ -545,18 +544,7 @@ export interface EconomyState {
   bankAccount: BankAccountState;
   bankSummary: BankSummaryState;
   inventories: Record<string, ProductInventory>;
-  inventoryCapacity: number;
-  warehouseLevel: number;
-  warehouseUpgradeCost: number | null;
-  warehouseNextCapacity: number;
-  warehouseNextCapacityIncrease: number;
   warehouseStoredQuantity: number;
-  warehouseOrderReservedQuantity: number;
-  warehouseContractReservedQuantity: number;
-  warehouseAuctionReservedQuantity: number;
-  warehouseReservedQuantity: number;
-  warehouseUsedCapacity: number;
-  warehouseAvailableCapacity: number;
   facilityGroups: FacilityGroup[];
   facilityConstruction?: FacilityConstruction;
   researchLevels: ResearchLevelDefinition[];

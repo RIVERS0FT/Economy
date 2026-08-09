@@ -54,7 +54,6 @@ export const facilityStatusReasonNames: Record<FacilityStatusReason, string> = {
   manual: '手动停止',
   insufficient_funds: '运营资金不足',
   insufficient_input: '生产原料不足',
-  warehouse_full: '共享仓库空间不足',
   no_available_facility: '没有未冻结工厂可参与生产',
   maintenance: '系统维护',
 };
@@ -140,7 +139,6 @@ export interface LoadedGameViewModel {
   bankBorrow: (amount: number, collateral: Array<{ facilityTypeId: string; quantity: number }>, autoRepay?: boolean) => Promise<ActionResult>;
   bankRepay: (loanId: string, amount: number | 'all') => Promise<ActionResult>;
   bankSetAutoRepay: (loanId: string, enabled: boolean) => Promise<ActionResult>;
-  upgradeWarehouse: () => Promise<ActionResult>;
   buildFacility: (facilityTypeId: string, quantity?: number, procurement?: FacilityBuildProcurementOptions) => Promise<ActionResult>;
   startResearch: (technologyId: string) => Promise<ActionResult>;
   accelerateResearch: () => Promise<ActionResult>;
@@ -495,7 +493,6 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     bankBorrow: (amount, collateral, autoRepay = true) => runAction('bankBorrow', () => gameActions.bankBorrow(amount, collateral, autoRepay)),
     bankRepay: (loanId, amount) => runAction('bankRepay', () => gameActions.bankRepay(loanId, amount)),
     bankSetAutoRepay: (loanId, enabled) => runAction('bankSetAutoRepay', () => gameActions.bankSetAutoRepay(loanId, enabled)),
-    upgradeWarehouse: () => runAction('upgradeWarehouse', gameActions.upgradeWarehouse),
     buildFacility: (facilityTypeId, quantity = 1, procurement) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId, quantity, procurement)),
     startResearch: (technologyId) => runAction('startResearch', () => gameActions.startResearch(technologyId)),
     accelerateResearch: () => runAction('startResearch', gameActions.accelerateResearch),
