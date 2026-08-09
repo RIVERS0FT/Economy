@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { FacilityRecipeProfitMarketsProvider } from '../components/facilities/FacilityRecipeProfitContext';
+import { FacilitySelectAvailabilityScope } from '../components/facilities/FacilitySelectAvailabilityScope';
 import type { TabId } from '../config/navigation';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 
@@ -89,5 +90,11 @@ export function PageRouter({ model }: { model: TutorialAwareGameViewModel }) {
       page = <OverviewPage model={model} />;
   }
 
-  return <Suspense fallback={<div className="page-loading" role="status">正在加载页面…</div>}>{page}</Suspense>;
+  return (
+    <Suspense fallback={<div className="page-loading" role="status">正在加载页面…</div>}>
+      <FacilitySelectAvailabilityScope game={model.game}>
+        {page}
+      </FacilitySelectAvailabilityScope>
+    </Suspense>
+  );
 }
