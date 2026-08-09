@@ -70,10 +70,11 @@ function restrictedSelectCatalog(
   const optionValues = childArray
     .map(explicitOptionValue)
     .filter((value): value is string => value !== null);
-  const isRestrictedCatalog = Boolean(availability)
-    && optionValues.length > 0
-    && optionValues.some((value) => availability.restrictedOptionValues.has(value))
-    && optionValues.every((value) => value === '' || availability.restrictedOptionValues.has(value));
+  if (!availability) return { childArray, optionValues, isRestrictedCatalog: false };
+  const restrictedOptionValues = availability.restrictedOptionValues;
+  const isRestrictedCatalog = optionValues.length > 0
+    && optionValues.some((value) => restrictedOptionValues.has(value))
+    && optionValues.every((value) => value === '' || restrictedOptionValues.has(value));
   return { childArray, optionValues, isRestrictedCatalog };
 }
 
