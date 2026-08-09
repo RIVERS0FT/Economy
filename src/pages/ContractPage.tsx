@@ -936,7 +936,7 @@ function PublishContractPanel({
             {isLoan ? <><DataRow label="贷款本金" value={<CurrencyAmount>{principal === null ? '—' : formatCurrency(principal)}</CurrencyAmount>} /><DataRow label="固定利息" value={<CurrencyAmount>{loanInterest === null ? '—' : formatCurrency(loanInterest)}</CurrencyAmount>} /><DataRow label="到期应还" value={<CurrencyAmount>{principal === null || loanInterest === null ? '—' : formatCurrency(principal + loanInterest)}</CurrencyAmount>} /></> : null}
             {!isSupply && !isLoan ? <><DataRow label="每期租金" value={<CurrencyAmount>{rent === null ? '—' : formatCurrency(rent)}</CurrencyAmount>} /><DataRow label="理论租金总额" value={<CurrencyAmount>{rent === null || leasePeriods === null ? '—' : formatCurrency(rent * leasePeriods)}</CurrencyAmount>} /><DataRow label="单方保证金" value={<CurrencyAmount>{leaseBond === null ? '—' : formatCurrency(leaseBond)}</CurrencyAmount>} /></> : null}
           </DataList>
-          <p className="contract-offer-note">{isSupply ? '商品与货款逐批托管，卖方累计收取 1% 服务费。' : isLoan ? '本金不得超过抵押工厂审慎价值的 50%，逾期 12 小时后处置最少足额抵押工厂。' : '租入工厂不计入承租方资产；欠租会暂停使用权并进入 12 小时宽限期。'}</p>
+          <p className="contract-offer-note">{isSupply ? '商品与货款逐批托管，卖方累计收取 1% 服务费。' : isLoan ? '本金不得超过抵押工厂审慎价值的 50%；宽限结束仍未还款时确认违约，由出借方主动解除并按确认时快照处置抵押。' : '租入工厂不计入承租方资产；欠租会暂停使用权，宽限结束仍欠租时由出租方主动解除并领取违约金。'}</p>
           <Button block disabled={busy || !canSubmit} onClick={() => void submit()}>{busy ? '发布中' : '发布合同'}</Button>
         </aside>
       </div>
@@ -974,7 +974,8 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
   const activeContracts = productionContracts
     .filter((contract) => contract.status === 'active' && (contract.isParticipant || contract.isBuyer || contract.isSupplier))
     .sort((left, right) => (
-      Number(Boolean(right.graceEndsAt)) - Number(Boolean(left.graceEndsAt))
+      Number(isConfirmedDefault(right)) - Number(isConfirmedDefault(left))
+      || Number(Boolean(right.graceEndsAt)) - Number(Boolean(left.graceEndsAt))
       || Number(contractNeedsAttention(right)) - Number(contractNeedsAttention(left))
       || Number(Boolean(right.issue)) - Number(Boolean(left.issue))
       || Number(left.nextDueAt || Infinity) - Number(right.nextDueAt || Infinity)
