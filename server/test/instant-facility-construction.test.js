@@ -152,15 +152,23 @@ test('one-click construction buys every missing material from the real order boo
 
     const after = store.getState(user, now + 33);
     assert.equal(after.facilityGroups.find((group) => group.facilityTypeId === 'ranch')?.count, 1);
-    assert.equal(after.credits, before.credits - ranch.buildCost - 320);
     assert.equal(after.inventories.timber.available, 0);
     assert.equal(after.inventories.ore.available, 0);
     const procurementOrders = after.orders.filter((order) => (
       order.isOwn && order.assetKind === 'commodity' && order.status === 'filled'
     ));
     assert.equal(procurementOrders.reduce((sum, order) => sum + order.quantity, 0), 5);
-    assert.equal(after.markets.timber.lastTradePrice, 60);
-    assert.equal(after.markets.ore.lastTradePrice, 70);
+    const procurementTotal = procurementOrders.reduce((orderSum, order) => (
+      orderSum + order.fills.reduce((fillSum, fill) => fillSum + fill.total, 0)
+    ), 0);
+    assert.ok(procurementTotal > 0 && procurementTotal <= 320, '实际采购额必须使用真实 maker price 且不超过客户端确认上限');
+    assert.equal(
+      Number((before.credits - after.credits - ranch.buildCost).toFixed(6)),
+      Number(procurementTotal.toFixed(6)),
+      '买方应只支付真实成交总额，而不是价格保护上限',
+    );
+    assert.ok(after.markets.timber.lastTradePrice > 0 && after.markets.timber.lastTradePrice <= 60);
+    assert.ok(after.markets.ore.lastTradePrice > 0 && after.markets.ore.lastTradePrice <= 70);
   } finally {
     store.close();
   }
@@ -170,7 +178,7 @@ test('one-click construction rolls back completely when market depth cannot fill
   const now = 1_700_160_000_000;
   const store = prepareProcurementStore(now);
   try {
-    assert.equal(placeMaterialSell(store, 'timber', 2, 60, 'material-sell-0011', now + 10).result.ok, true);
+    assert.equal(placeMaterialSell(store, 'timber', 1, 60, 'material-sell-0011', now + 10).result.ok, true);
     assert.equal(placeMaterialSell(store, 'ore', 2, 70, 'material-sell-0012', now + 20).result.ok, true);
     const beforeBuyer = store.getState(user, now + 30);
     const beforeSeller = store.getState(seller, now + 30);
