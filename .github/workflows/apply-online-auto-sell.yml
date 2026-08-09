@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: feature/online-auto-sell
-          fetch-depth: 6
+          fetch-depth: 7
 
       - uses: actions/setup-node@v4
         with:
@@ -94,10 +94,10 @@ jobs:
 
           verify_path = Path('scripts/verify-online-auto-sell.mjs')
           verify = verify_path.read_text(encoding='utf-8')
-          verify = verify.replace(
-              "              \"applyFacilityGroupAction(world, user, 'cancelOrder'\",\n",
-              "              'applySettledCommodityOrder',\n              'cancelSettledCommodityOrder',\n",
-          )
+          old = "\"applyFacilityGroupAction(world, user, 'cancelOrder'\","
+          if old not in verify:
+              raise SystemExit('old verifier requirement not found')
+          verify = verify.replace(old, "'applySettledCommodityOrder',\n      'cancelSettledCommodityOrder',", 1)
           verify_path.write_text(verify, encoding='utf-8')
           PY
 
