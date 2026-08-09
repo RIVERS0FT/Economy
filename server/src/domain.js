@@ -338,6 +338,8 @@ function applyCommodityOrder(world, user, payload, now) {
   const total = multiplyMoneyByInteger(price, quantity);
   if (total === null) return { ok: false, message: '订单总额超出系统可表示范围' };
   const fillOrKill = payload.execution === 'fill-or-kill';
+  const onlineAutoSell = payload.execution === 'online-auto-sell';
+  const transientExecution = fillOrKill || onlineAutoSell;
   if (findSelfCrossingOrder(world, {
     ownerId: userId,
     assetKind: 'commodity',
@@ -347,7 +349,7 @@ function applyCommodityOrder(world, user, payload, now) {
   })) return { ok: false, message: SELF_CROSS_MESSAGE };
 
   world.orders ||= [];
-  if (!fillOrKill && countOpenOrdersForOwner(world, userId) >= core.ECONOMY_CONSTANTS.maxOpenOrders) {
+  if (!transientExecution && countOpenOrdersForOwner(world, userId) >= core.ECONOMY_CONSTANTS.maxOpenOrders) {
     return { ok: false, message: '未完成订单数量已达上限' };
   }
 
@@ -389,6 +391,21 @@ function applyCommodityOrder(world, user, payload, now) {
   if (fillOrKill) return { ok: false, message: '市场卖盘已变化，未能一次购齐' };
   if (incoming.status === 'partial') return { ok: true, message: '订单已部分成交' };
   return { ok: true, message: '订单已进入订单簿' };
+}
+
+export function applySettledCommodityOrder(world, user, payload = {}, now = Date.now()) {
+  return applyCommodityOrder(world, user, payload, now);
+}
+
+export function cancelSettledCommodityOrder(world, user, orderId) {
+  const order = (world.orders || []).find((candidate) => String(candidate?.id || '') === String(orderId || ''));
+  if (
+    !order
+    || Number(order.ownerId) !== Number(user.id)
+    || orderKind(order) !== 'commodity'
+    || !balancedMarket.isOpenOrder(order)
+  ) return false;
+  return cancelLegacyCommodityOrder(world, order);
 }
 
 export function applyImmediateCommodityBuy(world, user, payload = {}, now = Date.now()) {
