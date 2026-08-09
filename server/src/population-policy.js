@@ -48,7 +48,7 @@ function atLeast(value, min, fallback) {
 function invalid(message) {
   const error = new Error(message);
   error.statusCode = 400;
-  return error;
+  throw error;
 }
 
 function requireIntegerAtLeast(value, name, min) {
@@ -208,6 +208,7 @@ export function isDefaultPopulationPolicy(policy) {
     && Number(policy?.refillCapBps) === POPULATION_POLICY_DEFAULTS.refillCapBps
     && Number(policy?.productionWageMultiplierBps) === POPULATION_POLICY_DEFAULTS.productionWageMultiplierBps
     && MODEL_IDS.every((id) => Number(policy?.modelMultipliersBps?.[id]) === DEFAULT_MODEL_MULTIPLIERS_BPS[id])
+    && Number(policy?.effectiveCycleId) === 0
     && policy?.expiresAfterCycleId === null;
 }
 
