@@ -31,6 +31,7 @@ includesAll(auditStore, [
   'store.captureContractAuditTransition', 'store.flushContractAuditEvents',
   'store.listContractAuditHistory', 'store.getContractAuditDetail',
   'contractHistorySettlementSummaries', 'endSummary', 'compensationReceivedByMe', 'compensationPaidByMe',
+  'contract_default_confirmed', 'contract_default_claimed', 'loan_default_confirmed', 'loan_default_claimed',
 ], 'contract audit store');
 assert.ok(
   runtimeStore.indexOf('this.updateWorld.run(nextRevision, stateJson, now)')

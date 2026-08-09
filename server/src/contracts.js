@@ -15,7 +15,7 @@ import {
 } from './commercial-contracts.js';
 import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 
-export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 6;
+export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 7;
 export const PRODUCTION_CONTRACT_INTERVALS = Object.freeze([
   10 * 60 * 1000,
   30 * 60 * 1000,
@@ -238,6 +238,7 @@ function normalizeContract(contract) {
     acceptedAt: contract?.acceptedAt === undefined ? undefined : Math.max(0, Number(contract.acceptedAt)),
     nextDueAt: contract?.nextDueAt === null || contract?.nextDueAt === undefined ? null : Math.max(0, Number(contract.nextDueAt)),
     graceEndsAt: contract?.graceEndsAt === undefined ? undefined : Math.max(0, Number(contract.graceEndsAt)),
+    breachedAt: contract?.breachedAt === undefined ? undefined : Math.max(0, Number(contract.breachedAt)),
     buyerEscrowCredits: Math.max(0, roundInternalMoney(contract?.buyerEscrowCredits || 0) || 0),
     supplierReservedQuantity: Math.max(0, Math.floor(Number(contract?.supplierReservedQuantity || 0))),
     buyerBondCredits: Math.max(0, roundInternalMoney(contract?.buyerBondCredits || 0) || 0),
@@ -596,7 +597,30 @@ function terminateMarketReserveForDefault(world, contract, supplier, defaultPart
   });
 }
 
+function confirmMarketReserveBuyerDefault(world, contract, supplier, now, runtimeIndex) {
+  const group = marketReserveGroupFor(world, contract);
+  runtimeIndex.transition(contract, () => {
+    releaseMarketReserveCredits(group, contract.buyerEscrowCredits);
+    releaseFrozenCredits(supplier, contract.supplierBondCredits);
+    releaseSupplierGoods(contract, supplier);
+    contract.buyerEscrowCredits = 0;
+    contract.supplierBondCredits = 0;
+    contract.breachedAt = now;
+    contract.terminationReason = 'buyer_default';
+    contract.nextDueAt = null;
+    contract.roundStatus = 'grace';
+    delete contract.graceEndsAt;
+  });
+}
+
+function isConfirmedDefault(contract) {
+  return contract?.status === 'active'
+    && Number(contract?.breachedAt || 0) > 0
+    && String(contract?.terminationReason || '').endsWith('_default');
+}
+
 function processMarketReserveContract(world, contract, now, runtimeIndex) {
+  if (isConfirmedDefault(contract)) return;
   const group = marketReserveGroupFor(world, contract);
   const reserve = marketReserveProductFor(world, contract);
   const supplier = playerFor(world, contract.supplierId);
@@ -636,6 +660,10 @@ function processMarketReserveContract(world, contract, now, runtimeIndex) {
     : !goodsReady && fundsReady
       ? 'supplier'
       : 'both';
+  if (defaultParty === 'buyer') {
+    confirmMarketReserveBuyerDefault(world, contract, supplier, now, runtimeIndex);
+    return;
+  }
   terminateMarketReserveForDefault(world, contract, supplier, defaultParty, now, runtimeIndex);
 }
 
@@ -649,43 +677,44 @@ function releaseAllEscrow(contract, buyer, supplier) {
   contract.supplierBondCredits = 0;
 }
 
-function terminateForDefault(world, contract, defaultParty, now) {
+function confirmDefault(world, contract, defaultParty, now, runtimeIndex) {
   const buyer = playerFor(world, contract.buyerId);
   const supplier = playerFor(world, contract.supplierId);
-  releaseRenewalEscrow(contract, buyer, supplier, `${defaultParty}_default`);
-  if (!buyer || !supplier) {
-    contract.status = 'terminated';
-    contract.endedAt = now;
-    contract.terminationReason = 'participant_missing';
-    return;
-  }
+  runtimeIndex.transition(contract, () => {
+    releaseRenewalEscrow(contract, buyer, supplier, `${defaultParty}_default`);
+    if (!buyer || !supplier) {
+      contract.status = 'terminated';
+      contract.endedAt = now;
+      contract.terminationReason = 'participant_missing';
+      return;
+    }
 
-  if (defaultParty === 'buyer') {
-    releaseFrozenCredits(buyer, contract.buyerEscrowCredits);
-    transferFrozenCredits(buyer, supplier, contract.buyerBondCredits);
-    releaseFrozenCredits(supplier, contract.supplierBondCredits);
-    releaseSupplierGoods(contract, supplier);
-    normalizeStats(buyer).contractDefaults += 1;
-  } else if (defaultParty === 'supplier') {
-    releaseFrozenCredits(buyer, contract.buyerEscrowCredits);
-    releaseFrozenCredits(buyer, contract.buyerBondCredits);
-    transferFrozenCredits(supplier, buyer, contract.supplierBondCredits);
-    releaseSupplierGoods(contract, supplier);
-    normalizeStats(supplier).contractDefaults += 1;
-  } else {
-    releaseAllEscrow(contract, buyer, supplier);
-    normalizeStats(buyer).contractDefaults += 1;
-    normalizeStats(supplier).contractDefaults += 1;
-  }
+    if (defaultParty === 'buyer') {
+      releaseFrozenCredits(buyer, contract.buyerEscrowCredits);
+      contract.buyerEscrowCredits = 0;
+      releaseFrozenCredits(supplier, contract.supplierBondCredits);
+      contract.supplierBondCredits = 0;
+      releaseSupplierGoods(contract, supplier);
+      normalizeStats(buyer).contractDefaults += 1;
+    } else if (defaultParty === 'supplier') {
+      releaseFrozenCredits(buyer, contract.buyerEscrowCredits);
+      releaseFrozenCredits(buyer, contract.buyerBondCredits);
+      contract.buyerEscrowCredits = 0;
+      contract.buyerBondCredits = 0;
+      releaseSupplierGoods(contract, supplier);
+      normalizeStats(supplier).contractDefaults += 1;
+    } else {
+      releaseAllEscrow(contract, buyer, supplier);
+      normalizeStats(buyer).contractDefaults += 1;
+      normalizeStats(supplier).contractDefaults += 1;
+    }
 
-  contract.buyerEscrowCredits = 0;
-  contract.buyerBondCredits = 0;
-  contract.supplierBondCredits = 0;
-  contract.status = 'terminated';
-  contract.endedAt = now;
-  contract.terminationReason = `${defaultParty}_default`;
-  contract.roundStatus = 'preparing';
-  delete contract.graceEndsAt;
+    contract.breachedAt = now;
+    contract.terminationReason = `${defaultParty}_default`;
+    contract.nextDueAt = null;
+    contract.roundStatus = 'grace';
+    delete contract.graceEndsAt;
+  });
 }
 
 function completeContract(contract, buyer, supplier, now) {
@@ -781,6 +810,7 @@ function settleBatch(world, contract, buyer, supplier, now, runtimeIndex) {
 }
 
 function processActiveContract(world, contract, now, runtimeIndex) {
+  if (isConfirmedDefault(contract)) return;
   const buyer = playerFor(world, contract.buyerId);
   const supplier = playerFor(world, contract.supplierId);
   if (!buyer || !supplier) {
@@ -831,7 +861,7 @@ function processActiveContract(world, contract, now, runtimeIndex) {
     : !goodsReady && buyerReady
       ? 'supplier'
       : 'both';
-  runtimeIndex.transition(contract, () => terminateForDefault(world, contract, defaultParty, now));
+  confirmDefault(world, contract, defaultParty, now, runtimeIndex);
 }
 
 function trimContractHistory(world, runtimeIndex) {
@@ -1330,6 +1360,62 @@ function requestTermination(world, user, payload, now, runtimeIndex) {
   return result(true, '合同将在当前批次完成后结束');
 }
 
+function claimConfirmedDefault(world, user, contract, now, runtimeIndex) {
+  const reason = String(contract.terminationReason || '');
+  const userId = Number(user.id);
+  if (!isConfirmedDefault(contract)) return result(false, '合同尚未确认违约');
+
+  if (contract.publisherType === 'market_reserve') {
+    const supplier = playerFor(world, contract.supplierId);
+    const group = marketReserveGroupFor(world, contract);
+    if (reason !== 'buyer_default' || !supplier || !group || Number(contract.supplierId) !== userId) {
+      return result(false, '只有受偿供应方可以解除该违约合同');
+    }
+    const compensation = Math.max(0, Number(contract.buyerBondCredits || 0));
+    runtimeIndex.transition(contract, () => {
+      transferMarketReserveBondToPlayer(group, supplier, compensation);
+      contract.lastCompensation = compensation;
+      contract.lastCompensationFromId = null;
+      contract.lastCompensationToId = userId;
+      contract.buyerBondCredits = 0;
+      contract.status = 'terminated';
+      contract.endedAt = now;
+      contract.roundStatus = 'preparing';
+    });
+    return result(true, '合同已解除，市场储备违约保证金已领取');
+  }
+
+  const buyer = playerFor(world, contract.buyerId);
+  const supplier = playerFor(world, contract.supplierId);
+  if (!buyer || !supplier) return result(false, '合同参与者不存在');
+  if (reason === 'buyer_default' && Number(contract.supplierId) !== userId) return result(false, '只有受偿供应方可以解除合同并领取违约金');
+  if (reason === 'supplier_default' && Number(contract.buyerId) !== userId) return result(false, '只有受偿采购方可以解除合同并领取违约金');
+  if (reason === 'both_default' && ![contract.buyerId, contract.supplierId].some((id) => Number(id) === userId)) return result(false, '无权解除该合同');
+  if (!['buyer_default', 'supplier_default', 'both_default'].includes(reason)) return result(false, '当前违约状态不支持领取');
+
+  runtimeIndex.transition(contract, () => {
+    if (reason === 'buyer_default') {
+      const compensation = Math.max(0, Number(contract.buyerBondCredits || 0));
+      transferFrozenCredits(buyer, supplier, compensation);
+      contract.lastCompensation = compensation;
+      contract.lastCompensationFromId = Number(contract.buyerId);
+      contract.lastCompensationToId = Number(contract.supplierId);
+      contract.buyerBondCredits = 0;
+    } else if (reason === 'supplier_default') {
+      const compensation = Math.max(0, Number(contract.supplierBondCredits || 0));
+      transferFrozenCredits(supplier, buyer, compensation);
+      contract.lastCompensation = compensation;
+      contract.lastCompensationFromId = Number(contract.supplierId);
+      contract.lastCompensationToId = Number(contract.buyerId);
+      contract.supplierBondCredits = 0;
+    }
+    contract.status = 'terminated';
+    contract.endedAt = now;
+    contract.roundStatus = 'preparing';
+  });
+  return result(true, reason === 'both_default' ? '双方违约合同已解除' : '合同已解除，违约金已领取');
+}
+
 function terminateNow(world, user, payload, now, runtimeIndex) {
   const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
   if (!contract) return result(false, '进行中的合同不存在');
@@ -1381,6 +1467,13 @@ function terminateNow(world, user, payload, now, runtimeIndex) {
 
 export function applyProductionContractAction(world, user, action, payload = {}, now = Date.now()) {
   const runtimeIndex = processProductionContractsWithIndex(world, now);
+  const pendingSupply = runtimeIndex.contractById(payload.contractId);
+  if (pendingSupply?.kind === 'supply' && isConfirmedDefault(pendingSupply)) {
+    const participant = [pendingSupply.buyerId, pendingSupply.supplierId].some((id) => Number(id) === Number(user.id));
+    if (!participant) return result(false, '无权处理该违约合同');
+    if (action === 'terminateProductionContractNow') return claimConfirmedDefault(world, user, pendingSupply, now, runtimeIndex);
+    return result(false, '合同已确认违约，不能继续补货、补款、续签或修改自动履约设置');
+  }
   const commercialResult = applyCommercialContractAction(world, user, action, payload, now, runtimeIndex);
   if (commercialResult) return commercialResult;
   if (action === 'createProductionContract') return createContract(world, user, payload, now, runtimeIndex);
@@ -1405,8 +1498,15 @@ export function applyProductionContractAction(world, user, action, payload = {},
 }
 
 function issueForContract(world, contract, runtimeIndex, userId = null) {
-  if (contract.kind !== 'supply') return commercialIssue(contract);
+  if (contract.kind !== 'supply') return commercialIssue(contract, userId);
   if (contract.status !== 'active') return null;
+  if (isConfirmedDefault(contract)) {
+    if (contract.terminationReason === 'both_default') return '双方均未满足履约条件，合同等待任一参与方主动解除';
+    const claimantId = contract.terminationReason === 'buyer_default' ? contract.supplierId : contract.buyerId;
+    return Number(claimantId) === Number(userId)
+      ? '合同已确认违约，请主动解除合同并领取违约金'
+      : '合同已确认违约，等待受偿方解除合同';
+  }
   if (contract.publisherType === 'market_reserve') {
     const supplier = playerFor(world, contract.supplierId);
     const group = marketReserveGroupFor(world, contract);
@@ -1493,6 +1593,7 @@ function publicContract(world, contract, userId, runtimeIndex) {
     acceptedAt: contract.acceptedAt,
     nextDueAt: contract.nextDueAt,
     graceEndsAt: contract.graceEndsAt,
+    breachedAt: contract.breachedAt,
     status: contract.status,
     roundStatus: contract.roundStatus,
     buyerEscrowCredits: contract.buyerEscrowCredits,
@@ -1549,7 +1650,7 @@ export function createProductionContractClientState(world, userId, now = Date.no
       active: active.length,
       open: ownOpen.length,
       needsAttention: active.filter((contract) => Boolean(issueForContract(world, contract, runtimeIndex, userId))).length + negotiationAttention,
-      upcomingWithin24Hours: active.filter((contract) => Number(contract.nextDueAt || 0) <= now + 24 * 60 * 60 * 1000).length,
+      upcomingWithin24Hours: active.filter((contract) => contract.nextDueAt !== null && !isConfirmedDefault(contract) && Number(contract.nextDueAt) <= now + 24 * 60 * 60 * 1000).length,
     },
   };
 }

@@ -77,6 +77,7 @@ export interface ProductionContract {
   acceptedAt?: number;
   nextDueAt: number | null;
   graceEndsAt?: number;
+  breachedAt?: number;
   status: ProductionContractStatus;
   roundStatus: ProductionContractRoundStatus;
   buyerEscrowCredits: number;
@@ -113,6 +114,8 @@ export interface ProductionContract {
   collateralQuantity?: number;
   collateralUnitValue?: number;
   collateralTransferredQuantity?: number;
+  defaultCollateralQuantity?: number;
+  defaultCollateralUnitValue?: number;
   autoRepay?: boolean;
   isLender?: boolean;
   isBorrower?: boolean;

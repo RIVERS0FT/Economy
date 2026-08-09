@@ -33,6 +33,8 @@ function contractSnapshot(contract) {
     offerExpiresAt: Number(contract?.offerExpiresAt),
     nextDueAt: Number(contract?.nextDueAt),
     graceEndsAt: Number(contract?.graceEndsAt),
+    breachedAt: Number(contract?.breachedAt),
+    terminationReason: String(contract?.terminationReason || ''),
     renewalStatus: String(contract?.renewalProposal?.status || ''),
     renewalExpiresAt: Number(contract?.renewalProposal?.expiresAt),
     renewalBuyerId: numericId(contract?.buyerId),
@@ -44,6 +46,7 @@ function currentReservationQuantity(snapshot) {
   if (
     snapshot.kind !== 'supply'
     || snapshot.status !== 'active'
+    || (Number.isFinite(snapshot.breachedAt) && snapshot.terminationReason.endsWith('_default'))
     || snapshot.buyerId === null
     || snapshot.completedDeliveries >= snapshot.totalDeliveries
   ) return 0;
@@ -51,7 +54,9 @@ function currentReservationQuantity(snapshot) {
 }
 
 function renewalReservationQuantity(snapshot) {
-  return snapshot.status === 'active' && snapshot.renewalStatus === 'accepted'
+  return snapshot.status === 'active'
+    && !(Number.isFinite(snapshot.breachedAt) && snapshot.terminationReason.endsWith('_default'))
+    && snapshot.renewalStatus === 'accepted'
     ? snapshot.renewalQuantity
     : 0;
 }
@@ -65,6 +70,7 @@ function deadlineFor(snapshot) {
     return snapshot.offerExpiresAt;
   }
   if (snapshot.status !== 'active') return null;
+  if (Number.isFinite(snapshot.breachedAt) && snapshot.terminationReason.endsWith('_default')) return null;
   if (snapshot.kind === 'supply' && snapshot.renewalStatus === 'proposed' && Number.isFinite(snapshot.renewalExpiresAt)) return Math.min(
     Number.isFinite(snapshot.graceEndsAt) ? snapshot.graceEndsAt : Number.POSITIVE_INFINITY,
     Number.isFinite(snapshot.nextDueAt) ? snapshot.nextDueAt : Number.POSITIVE_INFINITY,

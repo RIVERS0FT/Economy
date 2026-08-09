@@ -7,6 +7,10 @@ function activeContracts(world) {
   return (world?.productionContracts || []).filter((contract) => contract?.status === 'active');
 }
 
+function confirmedDefault(contract) {
+  return Number(contract?.breachedAt || 0) > 0 && String(contract?.terminationReason || '').endsWith('_default');
+}
+
 export function playerLoanCollateralQuantity(world, userId, facilityTypeId) {
   return activeContracts(world).reduce((sum, contract) => (
     contract.kind === 'loan'
@@ -21,6 +25,7 @@ export function leasedOutFacilityQuantity(world, userId, facilityTypeId) {
   return activeContracts(world).reduce((sum, contract) => (
     contract.kind === 'facility_lease'
     && !contract.graceEndsAt
+    && !confirmedDefault(contract)
     && Number(contract.lessorId ?? contract.supplierId) === Number(userId)
     && String(contract.facilityTypeId) === String(facilityTypeId)
       ? sum + quantity(contract.quantity)
@@ -31,6 +36,7 @@ export function leasedOutFacilityQuantity(world, userId, facilityTypeId) {
 export function leasedOutLockedFacilityQuantity(world, userId, facilityTypeId) {
   return activeContracts(world).reduce((sum, contract) => (
     contract.kind === 'facility_lease'
+    && !confirmedDefault(contract)
     && Number(contract.lessorId ?? contract.supplierId) === Number(userId)
     && String(contract.facilityTypeId) === String(facilityTypeId)
       ? sum + quantity(contract.quantity)
@@ -42,6 +48,7 @@ export function leasedInFacilityQuantity(world, userId, facilityTypeId) {
   return activeContracts(world).reduce((sum, contract) => (
     contract.kind === 'facility_lease'
     && !contract.graceEndsAt
+    && !confirmedDefault(contract)
     && Number(contract.lesseeId ?? contract.buyerId) === Number(userId)
     && String(contract.facilityTypeId) === String(facilityTypeId)
       ? sum + quantity(contract.quantity)
