@@ -29,12 +29,12 @@ const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 
 requireText(
   viewModel,
-  'buildFacility: (facilityTypeId: string, quantity?: number) => Promise<ActionResult>;',
+  'buildFacility: (facilityTypeId: string, quantity?: number, procurement?: FacilityBuildProcurementOptions) => Promise<ActionResult>;',
   'required buildFacility interface parameter',
 );
 requireText(
   viewModel,
-  "buildFacility: (facilityTypeId, quantity = 1) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId, quantity))",
+  "buildFacility: (facilityTypeId, quantity = 1, procurement) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId, quantity, procurement))",
   'explicit buildFacility implementation parameter',
 );
 forbidText(
@@ -64,12 +64,12 @@ requireText(
 );
 requireText(
   gameApp,
-  'buildFacility: async (facilityTypeId = model.selectedFacilityTypeId, quantity = 1) => {',
+  'buildFacility: async (facilityTypeId = model.selectedFacilityTypeId, quantity = 1, procurement) => {',
   'tutorial wrapper quantity parameter',
 );
 requireText(
   gameApp,
-  'const result = await model.buildFacility(facilityTypeId, quantity);',
+  'const result = await model.buildFacility(facilityTypeId, quantity, procurement);',
   'tutorial wrapper quantity forwarding',
 );
 requireText(

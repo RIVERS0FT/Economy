@@ -15,8 +15,9 @@ import {
   WidgetHeading,
 } from '../components/ui/layout';
 import type { FacilityGroup } from '../types';
-import { formatCurrency, formatNumber } from '../utils/formatters';
+import { quoteFacilityBuildProcurement } from '../utils/facilityBuildProcurement';
 import { getUnlockedFacilityTypes } from '../utils/facilityResearchAccess';
+import { formatCurrency, formatNumber } from '../utils/formatters';
 import { setContractMarketIntent } from '../contracts/navigation';
 import {
   FacilityClusterDetailContent,
@@ -128,13 +129,44 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
 
   const selectedRecipes = recipesForType(selectedType);
   const selectedBuildInputs = selectedType.buildInputs ?? [];
-  const maxBuildable = Math.max(0, Math.min(
+  const buildCashCost = selectedType.buildCost * buildQuantity;
+  const buildMaterialRequirements = selectedBuildInputs.map((item) => {
+    const available = game.inventories[item.productId]?.available ?? 0;
+    const required = item.quantity * buildQuantity;
+    return {
+      productId: item.productId,
+      available,
+      required,
+      missing: Math.max(0, required - available),
+    };
+  });
+  const missingBuildMaterials = buildMaterialRequirements
+    .filter((item) => item.missing > 0)
+    .map((item) => ({ productId: item.productId, quantity: item.missing }));
+  const procurementQuote = quoteFacilityBuildProcurement(game.orders, missingBuildMaterials);
+  const needsProcurement = procurementQuote.missingQuantity > 0;
+  const estimatedTotalSpend = buildCashCost + procurementQuote.estimatedTotal;
+  const inventoryBuildable = Math.max(0, Math.min(
     100,
     Math.floor(game.credits / Math.max(1, selectedType.buildCost)),
     ...selectedBuildInputs.map((item) => Math.floor(
       (game.inventories[item.productId]?.available ?? 0) / Math.max(1, item.quantity),
     )),
   ));
+  const productName = (productId: string) => (
+    game.products.find((candidate) => candidate.id === productId)?.name ?? productId
+  );
+  const buildDisabledReason = game.credits < buildCashCost
+    ? `建造资金不足，还需要 ${formatCurrency(buildCashCost - game.credits)}。`
+    : needsProcurement && !procurementQuote.complete
+      ? `${procurementQuote.unavailableProductIds.map(productName).join('、') || '建造材料'}市场卖盘不足，无法一次购齐。`
+      : needsProcurement && procurementQuote.selfCrossingProductIds.length > 0
+        ? `${procurementQuote.selfCrossingProductIds.map(productName).join('、')}存在自己的交叉卖单，请先撤单。`
+        : needsProcurement && game.warehouseAvailableCapacity < procurementQuote.missingQuantity
+          ? `共享仓库空间不足，一键采购需要 ${formatNumber(procurementQuote.missingQuantity)} 格临时交割空间。`
+          : needsProcurement && game.credits < estimatedTotalSpend
+            ? `建造与采购总资金不足，预计需要 ${formatCurrency(estimatedTotalSpend)}。`
+            : undefined;
 
   const selectFacilityEntry = (facilityTypeId: string, trigger: HTMLButtonElement) => {
     detailTriggerRef.current = trigger;
@@ -163,6 +195,18 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const openProductContracts = (productId: string) => {
     setContractMarketIntent(productId);
     model.setTab('contracts');
+  };
+  const submitBuild = () => {
+    if (buildDisabledReason) return;
+    if (!needsProcurement) {
+      void showResult(buildFacility(selectedType.id, buildQuantity));
+      return;
+    }
+    void showResult(buildFacility(selectedType.id, buildQuantity, {
+      autoProcure: true,
+      maxProcurementTotal: procurementQuote.estimatedTotal,
+      materialPriceCaps: procurementQuote.materialPriceCaps,
+    }));
   };
 
   return (
@@ -220,29 +264,52 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
             />
             {selectedBuildInputs.length === 0 ? (
               <DataRow label="建造材料" value="无需材料" />
-            ) : selectedBuildInputs.map((item) => {
-              const product = game.products.find((candidate) => candidate.id === item.productId);
-              const available = game.inventories[item.productId]?.available ?? 0;
-              const required = item.quantity * buildQuantity;
-              return (
-                <DataRow
-                  key={item.productId}
-                  label={product?.name ?? item.productId}
-                  value={`${formatNumber(required)} / 库存 ${formatNumber(available)}`}
-                  tone={available >= required ? 'neutral' : 'danger'}
-                />
-              );
-            })}
-            <DataRow label="最多可建" value={`${formatNumber(maxBuildable)} 座`} />
+            ) : buildMaterialRequirements.map((item) => (
+              <DataRow
+                key={item.productId}
+                label={productName(item.productId)}
+                value={item.missing > 0
+                  ? `${formatNumber(item.required)} / 库存 ${formatNumber(item.available)} · 缺 ${formatNumber(item.missing)}`
+                  : `${formatNumber(item.required)} / 库存 ${formatNumber(item.available)}`}
+                tone={item.missing > 0 ? 'danger' : 'neutral'}
+              />
+            ))}
+            <DataRow label="库存可直接建" value={`${formatNumber(inventoryBuildable)} 座`} />
+            {needsProcurement ? (
+              <DataRow
+                label="预计采购"
+                value={procurementQuote.complete
+                  ? <CurrencyAmount>{formatCurrency(procurementQuote.estimatedTotal)}</CurrencyAmount>
+                  : '卖盘不足'}
+                tone={procurementQuote.complete ? 'neutral' : 'danger'}
+              />
+            ) : null}
+            {needsProcurement && procurementQuote.complete ? (
+              <DataRow
+                label="预计总支出"
+                value={<CurrencyAmount>{formatCurrency(estimatedTotalSpend)}</CurrencyAmount>}
+                tone={game.credits >= estimatedTotalSpend ? 'neutral' : 'danger'}
+              />
+            ) : null}
           </DataList>
           <Button
             block
-            onClick={() => void showResult(buildFacility(selectedType.id, buildQuantity))}
-            disabled={buildQuantity > maxBuildable}
+            onClick={submitBuild}
+            disabled={Boolean(buildDisabledReason)}
           >
-            {buildQuantity === 1 ? `立即建造${selectedType.name}` : `立即建造 ${buildQuantity} 座${selectedType.name}`}
+            {needsProcurement
+              ? buildQuantity === 1
+                ? `一键购齐并建造${selectedType.name}`
+                : `一键购齐并建造 ${buildQuantity} 座${selectedType.name}`
+              : buildQuantity === 1
+                ? `立即建造${selectedType.name}`
+                : `立即建造 ${buildQuantity} 座${selectedType.name}`}
           </Button>
-          <small className="ui-helper-text">提交后立即扣除{selectedBuildInputs.length === 0 ? '建造资金' : '资金与建造材料'}，工厂直接加入同类集群；运行中的集群保持当前进度并重新计算满员率。</small>
+          <small className="ui-helper-text">
+            {buildDisabledReason ?? (needsProcurement
+              ? '提交时服务器按当前卖盘价格上限一次购齐缺料；任一材料不足或价格超限时整笔采购与建造全部回滚。'
+              : <>提交后立即扣除{selectedBuildInputs.length === 0 ? '建造资金' : '资金与建造材料'}，工厂直接加入同类集群；运行中的集群保持当前进度并重新计算满员率。</>)}
+          </small>
         </PagePanel>
 
         <PagePanel className="production-surface facility-cluster-navigation">

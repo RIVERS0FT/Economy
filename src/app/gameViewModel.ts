@@ -12,6 +12,7 @@ import {
   GameApiError,
   getGameState,
   resetGameStateDelivery,
+  type FacilityBuildProcurementOptions,
   type GameActionResponse,
   type GameActionResult,
 } from '../api/game';
@@ -140,7 +141,7 @@ export interface LoadedGameViewModel {
   bankRepay: (loanId: string, amount: number | 'all') => Promise<ActionResult>;
   bankSetAutoRepay: (loanId: string, enabled: boolean) => Promise<ActionResult>;
   upgradeWarehouse: () => Promise<ActionResult>;
-  buildFacility: (facilityTypeId: string, quantity?: number) => Promise<ActionResult>;
+  buildFacility: (facilityTypeId: string, quantity?: number, procurement?: FacilityBuildProcurementOptions) => Promise<ActionResult>;
   startResearch: (technologyId: string) => Promise<ActionResult>;
   accelerateResearch: () => Promise<ActionResult>;
   startFacility: (facilityTypeId: string) => Promise<ActionResult>;
@@ -495,7 +496,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     bankRepay: (loanId, amount) => runAction('bankRepay', () => gameActions.bankRepay(loanId, amount)),
     bankSetAutoRepay: (loanId, enabled) => runAction('bankSetAutoRepay', () => gameActions.bankSetAutoRepay(loanId, enabled)),
     upgradeWarehouse: () => runAction('upgradeWarehouse', gameActions.upgradeWarehouse),
-    buildFacility: (facilityTypeId, quantity = 1) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId, quantity)),
+    buildFacility: (facilityTypeId, quantity = 1, procurement) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId, quantity, procurement)),
     startResearch: (technologyId) => runAction('startResearch', () => gameActions.startResearch(technologyId)),
     accelerateResearch: () => runAction('startResearch', gameActions.accelerateResearch),
     startFacility: (facilityTypeId) => runAction('startFacility', () => gameActions.startFacility(facilityTypeId)),

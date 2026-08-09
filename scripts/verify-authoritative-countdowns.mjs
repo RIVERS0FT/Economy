@@ -102,7 +102,7 @@ if (failures.length === 0) {
     'label="建造资金"',
     'label="建造材料"',
     'value="无需材料"',
-    'label="最多可建"',
+    'label="库存可直接建"',
     "'建造资金' : '资金与建造材料'",
   ]) requireText(paths.production, text);
   for (const text of ['constructionAwaitingConfirmation', '确认完工中', '施工时间', '宝石加速']) forbidText(paths.production, text);

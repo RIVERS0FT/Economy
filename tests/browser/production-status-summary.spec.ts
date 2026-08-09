@@ -15,7 +15,7 @@ test.describe('production cluster status summary', () => {
     const buildCard = page.locator('.production-build-card');
     await expect(buildCard).toContainText('建造数量');
     await expect(buildCard).toContainText('建造资金');
-    await expect(buildCard).toContainText('最多可建');
+    await expect(buildCard).toContainText('库存可直接建');
     await expect(buildCard).not.toContainText('宝石加速');
     await expect(buildCard).not.toContainText('施工中');
     await expect(buildCard).not.toContainText('施工时间');

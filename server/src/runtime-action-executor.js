@@ -3,6 +3,7 @@ import { applyAssetAuctionAction } from './asset-auctions.js';
 import { applyBankAction, ensureBankWorld, ensurePlayerBankAccount } from './banking.js';
 import { ensurePlayer } from './domain.js';
 import { createEconomicActionBoundary, beginEconomicSavepoint } from './economic-mutation.js';
+import { autoProcureFacilityBuildMaterials } from './facility-auto-procure.js';
 import { applyFacilityGroupAction } from './facility-groups.js';
 import { ensureGemState } from './invitations.js';
 import { normalizePlayerMoneyPayload } from './money.js';
@@ -64,6 +65,15 @@ function executeActionBody(store, world, user, action, payload, requestKey, now)
       gameResult = applyAssetAuctionAction(world, user, action, payload, now);
     } else if (BANK_ACTIONS.has(action)) {
       gameResult = applyBankAction(world, user, action, payload, now);
+    } else if (action === 'buildFacility' && payload.autoProcure === true) {
+      const procurement = autoProcureFacilityBuildMaterials(world, user, payload, now);
+      if (!procurement.ok) gameResult = procurement;
+      else {
+        gameResult = applyFacilityGroupAction(world, user, action, payload, now);
+        if (gameResult?.ok && procurement.purchasedQuantity > 0) {
+          gameResult.message = `${gameResult.message}；已一键购齐 ${procurement.purchasedQuantity} 件建造材料`;
+        }
+      }
     } else {
       gameResult = applyFacilityGroupAction(world, user, action, payload, now);
     }

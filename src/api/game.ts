@@ -22,6 +22,11 @@ export interface GameActionResponse {
   result: GameActionResult;
   revision: number;
 }
+export interface FacilityBuildProcurementOptions {
+  autoProcure: true;
+  maxProcurementTotal: number;
+  materialPriceCaps: Record<string, number>;
+}
 export interface SaveDeletionBlocker {
   type: string;
   message: string;
@@ -279,7 +284,9 @@ export const gameActions = {
     postAction(`/bank/loans/${encodeURIComponent(loanId)}/auto-repay`, { enabled })
   ),
   upgradeWarehouse: () => postAction('/warehouse/upgrade'),
-  buildFacility: (facilityTypeId: string, quantity = 1) => postAction('/facilities', { facilityTypeId, quantity }),
+  buildFacility: (facilityTypeId: string, quantity = 1, procurement?: FacilityBuildProcurementOptions) => (
+    postAction('/facilities', { facilityTypeId, quantity, ...procurement })
+  ),
   startResearch: (technologyId: string) => postAction('/research/start', { technologyId }),
   accelerateResearch: () => postAction('/research/accelerate'),
   startFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/start`),
