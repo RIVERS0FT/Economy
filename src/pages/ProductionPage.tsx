@@ -16,6 +16,7 @@ import {
 } from '../components/ui/layout';
 import type { FacilityGroup } from '../types';
 import { quoteFacilityBuildProcurement } from '../utils/facilityBuildProcurement';
+import { getUnlockedFacilityTypes } from '../utils/facilityResearchAccess';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { setContractMarketIntent } from '../contracts/navigation';
 import {
@@ -64,9 +65,13 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const detailTriggerRef = useRef<HTMLButtonElement | null>(null);
   const closeFacilityDetail = useCallback(() => setFacilityDetailOpen(false), []);
 
+  const unlockedFacilityTypes = useMemo(
+    () => getUnlockedFacilityTypes(game),
+    [game.facilityTypes, game.research, game.researchTechnologies],
+  );
   const selectedType = useMemo(
-    () => game.facilityTypes.find((type) => type.id === selectedFacilityTypeId) ?? game.facilityTypes[0],
-    [game.facilityTypes, selectedFacilityTypeId],
+    () => unlockedFacilityTypes.find((type) => type.id === selectedFacilityTypeId) ?? unlockedFacilityTypes[0],
+    [selectedFacilityTypeId, unlockedFacilityTypes],
   );
   const orderedFacilityGroups = useMemo<FacilityClusterEntry[]>(() => {
     const groupsByTypeId = new Map<string, FacilityGroup>(
@@ -92,7 +97,37 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const selectedFacilityEntry =
     orderedFacilityGroups.find(({ type }) => type.id === selectedFacilityGroupId) ?? orderedFacilityGroups[0];
   const effectiveSelectedFacilityGroupId = selectedFacilityEntry?.type.id ?? '';
-  const selectedRecipes = selectedType ? recipesForType(selectedType) : [];
+
+  useEffect(() => {
+    if (selectedType && selectedType.id !== selectedFacilityTypeId) {
+      setSelectedFacilityTypeId(selectedType.id);
+    }
+  }, [selectedFacilityTypeId, selectedType, setSelectedFacilityTypeId]);
+
+  useEffect(() => {
+    if (effectiveSelectedFacilityGroupId !== selectedFacilityGroupId) {
+      setSelectedFacilityGroupId(effectiveSelectedFacilityGroupId);
+    }
+    if (!effectiveSelectedFacilityGroupId && isFacilityDetailOpen) {
+      setFacilityDetailOpen(false);
+    }
+  }, [effectiveSelectedFacilityGroupId, isFacilityDetailOpen, selectedFacilityGroupId]);
+
+  if (!selectedType) {
+    const hasCatalog = game.facilityTypes.length > 0;
+    return (
+      <PageLayout
+        title="生产"
+        description={hasCatalog ? '当前没有已解锁工厂，请先前往研发页面完成对应科技。' : '服务器尚未返回工厂目录。'}
+      >
+        <Panel className="empty-state">
+          {hasCatalog ? '当前没有已解锁工厂。' : '暂无工厂类型。'}
+        </Panel>
+      </PageLayout>
+    );
+  }
+
+  const selectedRecipes = recipesForType(selectedType);
   const selectedBuildInputs = selectedType.buildInputs ?? [];
   const buildCashCost = selectedType.buildCost * buildQuantity;
   const buildMaterialRequirements = selectedBuildInputs.map((item) => {
@@ -132,24 +167,6 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
           : needsProcurement && game.credits < estimatedTotalSpend
             ? `建造与采购总资金不足，预计需要 ${formatCurrency(estimatedTotalSpend)}。`
             : undefined;
-
-  useEffect(() => {
-    if (effectiveSelectedFacilityGroupId !== selectedFacilityGroupId) {
-      setSelectedFacilityGroupId(effectiveSelectedFacilityGroupId);
-    }
-    if (!effectiveSelectedFacilityGroupId && isFacilityDetailOpen) {
-      setFacilityDetailOpen(false);
-    }
-  }, [effectiveSelectedFacilityGroupId, isFacilityDetailOpen, selectedFacilityGroupId]);
-
-  if (!selectedType) {
-    return (
-      <PageLayout title="生产" description="服务器尚未返回工厂目录。">
-        <Panel className="empty-state">暂无工厂类型。</Panel>
-      </PageLayout>
-    );
-  }
-
 
   const selectFacilityEntry = (facilityTypeId: string, trigger: HTMLButtonElement) => {
     detailTriggerRef.current = trigger;
@@ -216,7 +233,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
             value={selectedType.id}
             onChange={(event) => setSelectedFacilityTypeId(event.target.value)}
           >
-            {game.facilityTypes.map((type) => (
+            {unlockedFacilityTypes.map((type) => (
               <option value={type.id} key={type.id}>
                 {type.name}
               </option>

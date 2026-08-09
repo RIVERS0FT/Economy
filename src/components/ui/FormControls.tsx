@@ -1,6 +1,11 @@
 import {
+  Children,
+  createContext,
+  isValidElement,
+  useContext,
   useEffect,
   useId,
+  useMemo,
   useRef,
   type ChangeEvent,
   type HTMLAttributes,
@@ -26,6 +31,66 @@ function clampInteger(value: number, min?: number, max?: number) {
     max ?? Number.MAX_SAFE_INTEGER,
     Math.max(min ?? Number.MIN_SAFE_INTEGER, value),
   );
+}
+
+interface SelectOptionAvailabilityContextValue {
+  restrictedOptionValues: ReadonlySet<string>;
+  allowedRestrictedOptionValues: ReadonlySet<string>;
+}
+
+const SelectOptionAvailabilityContext = createContext<SelectOptionAvailabilityContextValue | null>(null);
+
+export function SelectOptionAvailabilityProvider({
+  restrictedOptionValues,
+  allowedRestrictedOptionValues,
+  children,
+}: SelectOptionAvailabilityContextValue & { children: ReactNode }) {
+  const value = useMemo(() => ({
+    restrictedOptionValues,
+    allowedRestrictedOptionValues,
+  }), [allowedRestrictedOptionValues, restrictedOptionValues]);
+  return (
+    <SelectOptionAvailabilityContext.Provider value={value}>
+      {children}
+    </SelectOptionAvailabilityContext.Provider>
+  );
+}
+
+function explicitOptionValue(node: ReactNode) {
+  if (!isValidElement<{ value?: string | number | readonly string[] }>(node) || node.type !== 'option') return null;
+  const value = node.props.value;
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : null;
+}
+
+function restrictedSelectCatalog(
+  children: ReactNode,
+  availability: SelectOptionAvailabilityContextValue | null,
+) {
+  const childArray = Children.toArray(children);
+  const optionValues = childArray
+    .map(explicitOptionValue)
+    .filter((value): value is string => value !== null);
+  if (!availability) return { childArray, optionValues, isRestrictedCatalog: false };
+  const restrictedOptionValues = availability.restrictedOptionValues;
+  const isRestrictedCatalog = optionValues.length > 0
+    && optionValues.some((value) => restrictedOptionValues.has(value))
+    && optionValues.every((value) => value === '' || restrictedOptionValues.has(value));
+  return { childArray, optionValues, isRestrictedCatalog };
+}
+
+function availableSelectChildren(
+  childArray: ReactNode[],
+  availability: SelectOptionAvailabilityContextValue | null,
+  isRestrictedCatalog: boolean,
+) {
+  if (!availability || !isRestrictedCatalog) return childArray;
+  return childArray.filter((child) => {
+    const value = explicitOptionValue(child);
+    return value === null
+      || value === ''
+      || !availability.restrictedOptionValues.has(value)
+      || availability.allowedRestrictedOptionValues.has(value);
+  });
 }
 
 export function FormField({
@@ -122,6 +187,34 @@ export function SelectInput({
 }: SelectInputProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
+  const selectRef = useRef<HTMLSelectElement>(null);
+  const optionAvailability = useContext(SelectOptionAvailabilityContext);
+  const catalog = restrictedSelectCatalog(children, optionAvailability);
+  const visibleChildren = availableSelectChildren(
+    catalog.childArray,
+    optionAvailability,
+    catalog.isRestrictedCatalog,
+  );
+  const fallbackRestrictedValue = catalog.optionValues.find((value) => (
+    value === '' || optionAvailability?.allowedRestrictedOptionValues.has(value)
+  )) ?? '';
+
+  useEffect(() => {
+    if (!catalog.isRestrictedCatalog || props.value === undefined || !props.onChange || !optionAvailability) return;
+    const currentValue = String(props.value ?? '');
+    if (currentValue === '' || optionAvailability.allowedRestrictedOptionValues.has(currentValue)) return;
+    const select = selectRef.current;
+    if (!select) return;
+    select.value = fallbackRestrictedValue;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  }, [
+    catalog.isRestrictedCatalog,
+    fallbackRestrictedValue,
+    optionAvailability,
+    props.onChange,
+    props.value,
+  ]);
+
   return (
     <FormField
       label={label}
@@ -135,6 +228,7 @@ export function SelectInput({
         {leadingIcon ? <span className="ui-control-leading-icon" aria-hidden="true">{leadingIcon}</span> : null}
         <select
           {...props}
+          ref={selectRef}
           id={inputId}
           required={required}
           className={classNames('ui-control', className)}
@@ -145,7 +239,7 @@ export function SelectInput({
             error ? `${inputId}-error` : undefined,
           )}
         >
-          {children}
+          {visibleChildren}
         </select>
       </span>
     </FormField>

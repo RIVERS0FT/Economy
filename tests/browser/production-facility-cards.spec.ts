@@ -77,7 +77,8 @@ test.describe('production facility selector cards', () => {
     expect((cardBox?.height ?? 0) / (cardBox?.width ?? 1)).toBeCloseTo(1.25, 1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
-  test('uses server C1 to C7 order even when facility groups arrive reversed', async ({ page }) => {
+
+  test('preserves the full catalog for legacy snapshots without research state', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=production&scenario=facility-order');
 
