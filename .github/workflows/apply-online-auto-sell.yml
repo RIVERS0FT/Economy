@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: feature/online-auto-sell
-          fetch-depth: 7
+          fetch-depth: 8
 
       - uses: actions/setup-node@v4
         with:
@@ -99,6 +99,23 @@ jobs:
               raise SystemExit('old verifier requirement not found')
           verify = verify.replace(old, "'applySettledCommodityOrder',\n      'cancelSettledCommodityOrder',", 1)
           verify_path.write_text(verify, encoding='utf-8')
+
+          warehouse_verify_path = Path('scripts/verify-warehouse-expansion.mjs')
+          warehouse_verify = warehouse_verify_path.read_text(encoding='utf-8')
+          warehouse_verify = warehouse_verify.replace("'只以本文第 7.1 节为准',", "'只以本文第 7.2 节为准',")
+          warehouse_verify = warehouse_verify.replace(
+              "仓库商品网格的列数、容器断点、卡片高度、内边距和图标尺寸唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md` 第 7.1 节",
+              "仓库商品网格的列数、容器断点、卡片高度、内边距和图标尺寸唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md` 第 7.2 节",
+          )
+          warehouse_verify_path.write_text(warehouse_verify, encoding='utf-8')
+
+          ui_path = Path('docs/UI_DESIGN_SYSTEM.md')
+          ui = ui_path.read_text(encoding='utf-8')
+          ui = ui.replace(
+              '仓库商品网格的列数、容器断点、卡片高度、内边距和图标尺寸唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md` 第 7.1 节',
+              '仓库商品网格的列数、容器断点、卡片高度、内边距和图标尺寸唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md` 第 7.2 节',
+          )
+          ui_path.write_text(ui, encoding='utf-8')
           PY
 
       - name: Install dependencies
@@ -129,6 +146,7 @@ jobs:
           git add -- \
             package.json \
             docs/README.md \
+            docs/UI_DESIGN_SYSTEM.md \
             docs/WAREHOUSE_EXPANSION_DESIGN.md \
             docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
             docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md \
