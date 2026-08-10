@@ -6,8 +6,11 @@ const design = readFileSync('docs/UI_DESIGN_SYSTEM.md', 'utf8');
 const browser = readFileSync('tests/browser/production-config-visual.spec.ts', 'utf8');
 
 for (const text of [
-  ".ui-rich-select[data-variant='production-config'] {",
+  ".ui-form-field:has(> .ui-rich-select[data-variant='production-config']) {",
   'width: fit-content;',
+  'justify-self: start;',
+  'justify-items: start;',
+  ".ui-rich-select[data-variant='production-config'] {",
   ".ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger {",
   'width: 52px;',
   'height: 52px;',
@@ -30,7 +33,8 @@ for (const text of [
   '只显示当前产物／作业制度图片',
   '不显示名称、参数摘要或下拉箭头',
   '图片槽不得绘制独立黑色底板',
-  '不得横向拉伸填满所在列',
+  '字段容器与触发按钮的实际命中区域必须随内容收缩并自动左对齐',
+  '列内剩余空白不得属于该控件的点击区域',
   '完整名称与参数只在展开候选中显示',
 ]) {
   assert.ok(design.includes(text), `UI 设计文档缺少生产配置规则：${text}`);
@@ -40,12 +44,22 @@ assert.equal(
   false,
   'UI 设计文档不得保留旧的收起态名称与参数规则',
 );
+assert.equal(
+  browser.includes('geometry.fieldWidth - geometry.width).toBeGreaterThan(24)'),
+  false,
+  '浏览器回归不得继续要求生产配置字段逻辑区域宽于按钮',
+);
 
 for (const text of [
-  'collapsed production selectors use square artwork buttons without filling their columns',
+  'left-aligned square artwork buttons with inactive column remainder',
   'expectSquareImageOnlyTrigger',
   'Math.abs(geometry.width - geometry.height)',
-  'geometry.fieldWidth - geometry.width',
+  'geometry.fieldWidth - Math.max(geometry.labelWidth, geometry.width)',
+  'geometry.columnWidth - geometry.fieldWidth',
+  'geometry.fieldLeft - geometry.expectedFieldLeft',
+  'expectColumnRemainderInactive',
+  'page.mouse.click',
+  "toHaveAttribute('aria-expanded', 'false')",
   'expectedSize',
   "innerText.trim()",
   "toBe('')",
@@ -60,4 +74,4 @@ for (const text of [
   assert.ok(browser.includes(text), `生产配置浏览器回归缺少 ${text}`);
 }
 
-console.log('生产配置视觉验证通过：收起态使用不拉伸的正方形透明底图片按钮且无箭头，完整详情只在展开菜单中显示。');
+console.log('生产配置视觉验证通过：字段和正方形图片按钮按内容宽度自动左对齐，列内剩余空白不触发下拉，展开菜单保留完整详情。');

@@ -51,15 +51,16 @@ test('commodity and facility orders share one safe-integer quantity boundary wit
   assert.equal(world.orders.find((order) => order.ownerId === bob.id && order.assetKind === 'facility')?.quantity, 1_000_001);
 });
 
-test('commodity and facility books share the catalog-sized unfinished order limit', () => {
+test('commodity and facility books share the ten-times-catalog-sized unfinished order limit', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 1_000_000;
   processFacilityGroupWorld(world, now);
 
-  const expectedLimit = PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length;
+  const catalogSize = PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length;
+  const expectedLimit = catalogSize * 10;
   assert.equal(ECONOMY_CONSTANTS.maxOpenOrders, expectedLimit);
-  assert.equal(expectedLimit, 62);
+  assert.equal(expectedLimit, 620);
 
   world.orders = [
     ...PRODUCT_CATALOG.map((product, index) => ({
@@ -93,6 +94,12 @@ test('commodity and facility books share the catalog-sized unfinished order limi
       createdAt: now + PRODUCT_CATALOG.length + index,
     })),
   ];
+  const baseOrders = world.orders;
+  world.orders = Array.from({ length: 10 }, (_, batchIndex) => baseOrders.map((order, index) => ({
+    ...order,
+    id: `${order.id}-${batchIndex}`,
+    createdAt: now + batchIndex * catalogSize + index,
+  }))).flat();
 
   const commodityResult = applyFacilityGroupAction(world, alice, 'placeOrder', {
     assetKind: 'commodity', assetId: 'wheat', side: 'buy', quantity: 1, price: 1,
