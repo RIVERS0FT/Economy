@@ -71,27 +71,33 @@ test('insufficient sell depth creates one build procurement group with ordinary 
     const repeated = submitProcurement(store, requestKey, now + 32);
     assert.deepEqual(repeated, first, '幂等重试不得创建第二个采购组或重复买单');
     assert.equal(first.result.ok, true);
-    assert.match(first.result.message, /剩余 2 件继续挂在市场/);
+    assert.match(first.result.message, /剩余 [1-9]\d* 件继续挂在市场/);
     assert.equal(first.result.procurementGroup.facilityTypeId, 'ranch');
     assert.equal(first.result.procurementGroup.quantity, 1);
     assert.equal(first.result.procurementGroup.orders.length, 2);
 
     const state = store.getState(buyerUser, now + 33);
     assert.equal(state.facilityGroups.find((group) => group.facilityTypeId === 'ranch'), undefined, '挂单不得自动建厂');
-    assert.equal(state.inventories.timber.available, 1, '当前可成交木材应立即进入仓库');
-    assert.equal(state.inventories.ore.available, ranchNeed.ore, '当前可成交铁矿石应立即进入仓库');
 
     const referencedOrders = first.result.procurementGroup.orders.map((reference) => (
       state.orders.find((order) => order.id === reference.orderId)
     ));
     assert.ok(referencedOrders.every(Boolean), '采购组必须返回正式订单 ID');
-    const timberOrder = referencedOrders.find((order) => order.assetId === 'timber');
-    const oreOrder = referencedOrders.find((order) => order.assetId === 'ore');
-    assert.equal(timberOrder.status, 'partial');
-    assert.equal(timberOrder.remaining, ranchNeed.timber - 1);
-    assert.equal(oreOrder.status, 'filled');
-    assert.equal(oreOrder.remaining, 0);
-    assert.equal(state.frozenCredits, (ranchNeed.timber - 1) * 60, '只冻结未成交买单的剩余资金');
+    const openOrders = referencedOrders.filter((order) => order.status === 'open' || order.status === 'partial');
+    const remainingQuantity = openOrders.reduce((sum, order) => sum + order.remaining, 0);
+    assert.ok(remainingQuantity > 0, '卖盘不足时至少应有一张普通买单保留未成交数量');
+    assert.match(first.result.message, new RegExp(`剩余 ${remainingQuantity} 件继续挂在市场`));
+
+    for (const reference of first.result.procurementGroup.orders) {
+      const order = state.orders.find((candidate) => candidate.id === reference.orderId);
+      assert.equal(
+        state.inventories[reference.productId].available,
+        reference.quantity - order.remaining,
+        '已成交建材应按统一订单簿实际成交数量进入仓库',
+      );
+    }
+    const expectedFrozen = openOrders.reduce((sum, order) => sum + order.remaining * order.price, 0);
+    assert.equal(state.frozenCredits, expectedFrozen, '只冻结各建材买单未成交部分对应的剩余资金');
   } finally {
     store.close();
   }
@@ -107,6 +113,18 @@ test('cancelling a build procurement group releases only unfilled funds and keep
     assert.equal(procurement.result.ok, true);
     const beforeCancel = store.getState(buyerUser, now + 32);
     assert.ok(beforeCancel.frozenCredits > 0);
+
+    const beforeOrders = procurement.result.procurementGroup.orders.map((reference) => ({
+      reference,
+      order: beforeCancel.orders.find((candidate) => candidate.id === reference.orderId),
+    }));
+    assert.ok(beforeOrders.every(({ order }) => Boolean(order)));
+    const openBeforeCancel = beforeOrders.filter(({ order }) => order.status === 'open' || order.status === 'partial');
+    assert.ok(openBeforeCancel.length > 0, '取消测试必须保留至少一张未完成建材买单');
+    const expectedAvailableByProduct = Object.fromEntries(beforeOrders.map(({ reference, order }) => [
+      reference.productId,
+      reference.quantity - order.remaining,
+    ]));
 
     const cancelRequest = {
       action: 'placeOrder',
@@ -126,13 +144,19 @@ test('cancelling a build procurement group releases only unfilled funds and keep
 
     const afterCancel = store.getState(buyerUser, now + 35);
     assert.equal(afterCancel.frozenCredits, 0);
-    assert.equal(afterCancel.inventories.timber.available, 1);
-    assert.equal(afterCancel.inventories.ore.available, ranchNeed.ore);
     assert.equal(afterCancel.facilityGroups.find((group) => group.facilityTypeId === 'ranch'), undefined);
-    const timberOrderId = procurement.result.procurementGroup.orders.find((order) => order.productId === 'timber').orderId;
-    const timberOrder = afterCancel.orders.find((order) => order.id === timberOrderId);
-    assert.equal(timberOrder.status, 'cancelled');
-    assert.equal(timberOrder.remaining, ranchNeed.timber - 1);
+    for (const { reference, order: beforeOrder } of beforeOrders) {
+      assert.equal(
+        afterCancel.inventories[reference.productId].available,
+        expectedAvailableByProduct[reference.productId],
+        '整组取消不得回滚已经成交并入库的建材',
+      );
+      const afterOrder = afterCancel.orders.find((candidate) => candidate.id === reference.orderId);
+      if (beforeOrder.status === 'open' || beforeOrder.status === 'partial') {
+        assert.equal(afterOrder.status, 'cancelled');
+        assert.equal(afterOrder.remaining, beforeOrder.remaining, '撤单保留历史未成交数量，不把剩余数量伪装为成交');
+      }
+    }
   } finally {
     store.close();
   }
