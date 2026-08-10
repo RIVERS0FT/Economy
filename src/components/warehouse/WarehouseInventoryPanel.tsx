@@ -44,13 +44,14 @@ export function WarehouseInventoryPanel({
         hasCrossingBuyer: false,
       };
     },
-    setPolicy: () => undefined,
+    setPolicy: async () => ({ ok: false, message: '自动出售控制器不可用' }),
   }), [game.inventories, game.products, model.autoSell]);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [isMobileAutoSellOpen, setMobileAutoSellOpen] = useState(false);
   const [autoSellEnabledDraft, setAutoSellEnabledDraft] = useState(false);
   const [autoSellPriceDraft, setAutoSellPriceDraft] = useState('1.00');
   const [autoSellMinimumInventoryDraft, setAutoSellMinimumInventoryDraft] = useState('0');
+  const [savingAutoSellPolicy, setSavingAutoSellPolicy] = useState(false);
   const autoSellTriggerRef = useRef<HTMLButtonElement | null>(null);
   const stockedProducts = useMemo(
     () => game.products.filter((product) => {
@@ -94,16 +95,24 @@ export function WarehouseInventoryPanel({
     return () => window.removeEventListener(AUTO_SELL_PANEL_EVENT, handlePanelRequest);
   }, [model.user.id, openAutoSellPanel]);
 
-  function saveAutoSellPolicy() {
-    if (!selectedProduct || parsedAutoSellPrice === null || parsedAutoSellMinimumInventory === null) return;
-    autoSell.setPolicy(selectedProduct.id, {
-      enabled: autoSellEnabledDraft,
-      price: parsedAutoSellPrice,
-      minimumFreeInventory: parsedAutoSellMinimumInventory,
-    });
-    model.notify(autoSellEnabledDraft
-      ? `${selectedProduct.name}自动出售已开启，最低价 ${parsedAutoSellPrice.toFixed(2)}，最低自由库存 ${formatNumber(parsedAutoSellMinimumInventory)}`
-      : `${selectedProduct.name}自动出售已关闭`);
+  async function saveAutoSellPolicy() {
+    if (
+      savingAutoSellPolicy
+      || !selectedProduct
+      || parsedAutoSellPrice === null
+      || parsedAutoSellMinimumInventory === null
+    ) return;
+    setSavingAutoSellPolicy(true);
+    try {
+      const result = await autoSell.setPolicy(selectedProduct.id, {
+        enabled: autoSellEnabledDraft,
+        price: parsedAutoSellPrice,
+        minimumFreeInventory: parsedAutoSellMinimumInventory,
+      });
+      model.notify(result.message);
+    } finally {
+      setSavingAutoSellPolicy(false);
+    }
   }
 
   const renderAutoSellFields = () => {
@@ -111,6 +120,7 @@ export function WarehouseInventoryPanel({
     return (
       <>
         <div className="warehouse-auto-sell-status">
+          <StatusTag tone="info">设置保存至存档 · 仅在线执行</StatusTag>
           {autoSell.busyProductId === selectedProduct.id ? <StatusTag tone="success">正在自动出售</StatusTag> : null}
           {autoSellEnabledDraft && selectedAutoSellStatus.blockedByOwnBuy ? <StatusTag tone="warning">自己的买单阻止自动出售</StatusTag> : null}
           {autoSellEnabledDraft && !selectedAutoSellStatus.blockedByOwnBuy ? (
@@ -128,7 +138,7 @@ export function WarehouseInventoryPanel({
         </div>
         <ToggleField
           label="启用自动出售"
-          description="仅当前客户端在线时生效；关闭页面、退出登录或断网后不会继续发起自动成交。"
+          description="设置会跟随当前经济存档同步；只有 Economy 客户端在线时才会发起新的自动成交。"
           checked={autoSellEnabledDraft}
           onChange={(event) => setAutoSellEnabledDraft(event.target.checked)}
         />
@@ -152,7 +162,7 @@ export function WarehouseInventoryPanel({
           onValueChange={setAutoSellPriceDraft}
         />
         <p className="warehouse-auto-sell-note">
-          数量由服务器成交前重新计算：先保留开启中工厂下一完整周期的原料，再保留自动准备的合同批次，最后额外保留你设置的最低自由库存；该值不限制生产、合同履约、手动卖出或拍卖。
+          数量和策略均由服务器成交前重新读取并计算：先保留开启中工厂下一完整周期的原料，再保留自动准备的合同批次，最后额外保留你设置的最低自由库存；该值不限制生产、合同履约、手动卖出或拍卖。
         </p>
       </>
     );
@@ -161,10 +171,12 @@ export function WarehouseInventoryPanel({
   const renderSaveButton = () => (
     <Button
       block
-      disabled={parsedAutoSellPrice === null || parsedAutoSellMinimumInventory === null}
-      onClick={saveAutoSellPolicy}
+      disabled={savingAutoSellPolicy || parsedAutoSellPrice === null || parsedAutoSellMinimumInventory === null}
+      onClick={() => void saveAutoSellPolicy()}
     >
-      {autoSellEnabledDraft ? '保存并启用自动出售' : '保存并关闭自动出售'}
+      {savingAutoSellPolicy
+        ? '正在保存…'
+        : autoSellEnabledDraft ? '保存并启用自动出售' : '保存并关闭自动出售'}
     </Button>
   );
 

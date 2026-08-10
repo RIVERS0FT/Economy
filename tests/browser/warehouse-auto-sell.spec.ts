@@ -26,6 +26,7 @@ test.describe('warehouse online auto sell policy', () => {
 
     const productCard = page.locator('.warehouse-product-card').first();
     await productCard.click();
+    await expect(autoSellCard).toContainText('设置保存至存档 · 仅在线执行');
     await expect(autoSellCard).toContainText('最低自由库存');
     await expect(autoSellCard.getByLabel('最低自由库存')).toHaveValue('0');
     await expect(autoSellCard.getByLabel('最低自动出售价格')).toBeVisible();
@@ -43,6 +44,7 @@ test.describe('warehouse online auto sell policy', () => {
 
     const sheet = page.locator('.mobile-detail-sheet');
     await expect(sheet).toBeVisible();
+    await expect(sheet).toContainText('设置保存至存档 · 仅在线执行');
     await expect(sheet).toContainText('最低自由库存');
     await expect(sheet.getByLabel('最低自由库存')).toHaveValue('0');
     await expect(sheet.getByLabel('最低自动出售价格')).toBeVisible();
@@ -60,6 +62,7 @@ test.describe('warehouse online auto sell policy', () => {
     const autoSellCard = page.locator('.warehouse-auto-sell-card');
     await expect(autoSellCard).toBeVisible();
     await page.locator('.warehouse-product-card').first().click();
+    await expect(autoSellCard).toContainText('设置保存至存档 · 仅在线执行');
     await expect(autoSellCard).toContainText('最低自由库存');
     await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
   });

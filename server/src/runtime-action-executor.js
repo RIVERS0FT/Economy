@@ -8,6 +8,7 @@ import { applyFacilityGroupAction } from './facility-groups.js';
 import { ensureGemState } from './invitations.js';
 import { normalizePlayerMoneyPayload } from './money.js';
 import { applyOnlineAutoSell } from './online-auto-sell.js';
+import { applyOnlineAutoSellPolicyAction } from './online-auto-sell-policy.js';
 import { applyResearchAction, validateResearchAccess } from './research.js';
 import { ensureWarehouse } from './warehouse.js';
 import {
@@ -52,6 +53,8 @@ function executeActionBody(store, world, user, action, payload, requestKey, now)
       gameResult = researchAccess;
     } else if (action === 'startResearch' || action === 'accelerateResearch') {
       gameResult = applyResearchAction(world, user, action, payload, now);
+    } else if (action === 'placeOrder' && payload.execution === 'online-auto-sell-policy') {
+      gameResult = applyOnlineAutoSellPolicyAction(world, user, payload);
     } else if (action === 'placeOrder' && payload.execution === 'online-auto-sell') {
       gameResult = applyOnlineAutoSell(world, user, payload, now);
     } else if (action === 'checkIn') {
@@ -150,7 +153,8 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
 
     const activePlayer = world.players[String(user.id)];
     collectPlayerWeeklyCashSettlement(world, activePlayer, now);
-    if (gameResult?.ok && ECONOMIC_ACTIVITY_ACTIONS.has(action)) {
+    const isPolicySave = action === 'placeOrder' && payload.execution === 'online-auto-sell-policy';
+    if (gameResult?.ok && ECONOMIC_ACTIVITY_ACTIONS.has(action) && !isPolicySave) {
       if (activePlayer && !isDeepStrictEqual(activePlayer, playerBeforeAction)) {
         activePlayer.lastEconomicActivityAt = now;
         const activated = activateWeeklyCashSettlement(world, activePlayer, now);

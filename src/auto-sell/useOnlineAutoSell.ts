@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
+import {
+  importLegacyOnlineAutoSellPolicies,
+  saveOnlineAutoSellPolicy,
+} from '../api/game';
 import { productionContractStateFromGame } from '../contracts/types';
 import type { EconomyState, FacilityGroup, FacilityRecipeItem } from '../types';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import {
+  clearAutoSellPolicies,
   loadAutoSellPolicies,
-  saveAutoSellPolicies,
   type AutoSellPolicy,
   type AutoSellPolicyMap,
 } from './autoSellStorage';
@@ -25,7 +29,7 @@ export interface OnlineAutoSellController {
   busyProductId: string | null;
   policyFor: (productId: string) => AutoSellPolicy;
   statusFor: (productId: string) => AutoSellProductStatus;
-  setPolicy: (productId: string, policy: AutoSellPolicy) => void;
+  setPolicy: (productId: string, policy: AutoSellPolicy) => Promise<{ ok: boolean; message: string }>;
 }
 
 export type OnlineAutoSellAwareGameViewModel = TutorialAwareGameViewModel & {
@@ -128,15 +132,34 @@ export function useOnlineAutoSell(
   } = {},
 ): OnlineAutoSellController {
   const userId = model.user.id;
-  const [policies, setPolicies] = useState<AutoSellPolicyMap>(() => loadAutoSellPolicies(userId));
+  const policies = model.game.onlineAutoSellPolicies ?? {};
   const [busyProductId, setBusyProductId] = useState<string | null>(null);
   const busyRef = useRef(false);
+  const legacyMigrationUserRef = useRef<number | null>(null);
   const productionReserved = useMemo(() => productionReservations(model.game), [model.game]);
   const contractReserved = useMemo(() => contractReservations(model.game), [model.game]);
 
   useEffect(() => {
-    setPolicies(loadAutoSellPolicies(userId));
-  }, [userId]);
+    if (legacyMigrationUserRef.current === userId) return;
+    legacyMigrationUserRef.current = userId;
+    const legacyPolicies = loadAutoSellPolicies(userId);
+    if (Object.keys(legacyPolicies).length === 0) return;
+    if (model.game.saveEpoch > 0) {
+      clearAutoSellPolicies(userId);
+      return;
+    }
+
+    void (async () => {
+      try {
+        const response = await importLegacyOnlineAutoSellPolicies(legacyPolicies);
+        if (!response.result.ok) return;
+        await model.refresh({ mode: 'authoritative' });
+        clearAutoSellPolicies(userId);
+      } catch {
+        // Keep legacy browser data intact so a later session can retry the atomic import.
+      }
+    })();
+  }, [model, userId]);
 
   const policyFor = useCallback((productId: string): AutoSellPolicy => {
     const existing = policies[productId];
@@ -169,19 +192,28 @@ export function useOnlineAutoSell(
     };
   }, [contractReserved, model.game, policyFor, productionReserved]);
 
-  const setPolicy = useCallback((productId: string, policy: AutoSellPolicy) => {
+  const setPolicy = useCallback(async (productId: string, policy: AutoSellPolicy) => {
     const price = Math.round(Number(policy.price) * 100) / 100;
     const minimumFreeInventory = Number(policy.minimumFreeInventory);
-    if (!Number.isFinite(price) || price < 0.01) return;
-    if (!Number.isSafeInteger(minimumFreeInventory) || minimumFreeInventory < 0) return;
+    if (!Number.isFinite(price) || price < 0.01) return { ok: false, message: '最低自动出售价格无效' };
+    if (!Number.isSafeInteger(minimumFreeInventory) || minimumFreeInventory < 0) {
+      return { ok: false, message: '最低自由库存必须是不小于 0 的整数' };
+    }
     const normalized = { enabled: policy.enabled === true, price, minimumFreeInventory };
-    setPolicies((current) => {
-      const next = { ...current, [productId]: normalized };
-      saveAutoSellPolicies(userId, next);
-      return next;
-    });
-    if (normalized.enabled) callbacks.onPolicyEnabled?.(productId);
-  }, [callbacks.onPolicyEnabled, userId]);
+    try {
+      const response = await saveOnlineAutoSellPolicy(productId, normalized);
+      if (!response.result.ok) return response.result;
+      await model.refresh({ mode: 'authoritative' });
+      clearAutoSellPolicies(userId);
+      if (normalized.enabled) callbacks.onPolicyEnabled?.(productId);
+      return response.result;
+    } catch (reason) {
+      return {
+        ok: false,
+        message: reason instanceof Error ? reason.message : '保存自动出售设置失败',
+      };
+    }
+  }, [callbacks.onPolicyEnabled, model, userId]);
 
   useEffect(() => {
     if (busyRef.current) return;

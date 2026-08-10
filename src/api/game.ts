@@ -22,6 +22,11 @@ export interface GameActionResponse {
   result: GameActionResult;
   revision: number;
 }
+export interface OnlineAutoSellPolicyInput {
+  enabled: boolean;
+  price: number;
+  minimumFreeInventory: number;
+}
 export interface FacilityBuildProcurementOptions {
   autoProcure: true;
   maxProcurementTotal: number;
@@ -266,6 +271,26 @@ export async function deleteGameSave(confirmation: string): Promise<SaveDeletion
   return request<SaveDeletionResponse>('/save-deletion', {
     method: 'POST',
     body: JSON.stringify({ confirmation }),
+  });
+}
+
+export function saveOnlineAutoSellPolicy(productId: string, policy: OnlineAutoSellPolicyInput) {
+  return postAction('/orders', {
+    assetKind: 'commodity',
+    assetId: productId,
+    productId,
+    execution: 'online-auto-sell-policy',
+    enabled: policy.enabled,
+    price: policy.price,
+    minimumFreeInventory: policy.minimumFreeInventory,
+  });
+}
+
+export function importLegacyOnlineAutoSellPolicies(policies: Record<string, OnlineAutoSellPolicyInput>) {
+  return postAction('/orders', {
+    execution: 'online-auto-sell-policy',
+    legacyImport: true,
+    policies,
   });
 }
 
