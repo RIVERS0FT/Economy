@@ -35,14 +35,20 @@ export function ensureOnlineAutoSellPolicies(player) {
   return normalized;
 }
 
+function managedOrderLinksForClient(player) {
+  const source = player?.onlineAutoSellOrderIds;
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return {};
+  return Object.fromEntries(Object.entries(source).flatMap(([productId, orderId]) => (
+    PRODUCT_IDS.has(productId) && String(orderId || '')
+      ? [[productId, String(orderId)]]
+      : []
+  )));
+}
+
 export function createOnlineAutoSellPolicyClientState(player) {
-  const managedSource = player?.onlineAutoSellOrderIds;
-  const managedProductIds = managedSource && typeof managedSource === 'object' && !Array.isArray(managedSource)
-    ? Object.keys(managedSource).filter((productId) => PRODUCT_IDS.has(productId))
-    : [];
   return {
     onlineAutoSellPolicies: structuredClone(ensureOnlineAutoSellPolicies(player)),
-    onlineAutoSellManagedProductIds: managedProductIds,
+    onlineAutoSellManagedOrderIds: managedOrderLinksForClient(player),
   };
 }
 
