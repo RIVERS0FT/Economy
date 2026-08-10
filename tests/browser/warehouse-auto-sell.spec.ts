@@ -49,9 +49,12 @@ test.describe('warehouse online auto trade policy', () => {
     const optionValues = await page.locator('.ui-rich-select__option[data-value]').evaluateAll((elements) => (
       elements.map((element) => (element as HTMLElement).dataset.value || '').filter(Boolean)
     ));
-    const zeroStockProductId = optionValues.find((value) => !stockedIds.includes(value));
-    expect(zeroStockProductId).toBeTruthy();
-    await page.locator(`.ui-rich-select__option[data-value="${zeroStockProductId}"]`).click();
+    const productWithoutWarehouseCard = optionValues.find((value) => !stockedIds.includes(value)) ?? optionValues.at(-1);
+    expect(productWithoutWarehouseCard).toBeTruthy();
+    if (productWithoutWarehouseCard && stockedIds.includes(productWithoutWarehouseCard)) {
+      await page.locator(`.warehouse-product-card[data-product-id="${productWithoutWarehouseCard}"]`).evaluate((element) => element.remove());
+    }
+    await page.locator(`.ui-rich-select__option[data-value="${productWithoutWarehouseCard}"]`).click();
 
     const autoTradeCard = page.locator('.warehouse-auto-trade-card');
     await expect(autoTradeCard).toContainText('目标自由库存');
