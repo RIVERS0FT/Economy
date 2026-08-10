@@ -43,8 +43,7 @@ export function WarehouseInventoryPanel({
   const stockedProducts = useMemo(
     () => game.products.filter((product) => {
       const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
-      return inventory.available > 0
-        || inventory.frozen > 0
+      return inventory.available > 0 || inventory.frozen > 0
         || autoTrade.buyPolicyFor(product.id).enabled
         || autoTrade.sellPolicyFor(product.id).enabled;
     }),
