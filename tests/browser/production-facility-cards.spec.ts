@@ -87,9 +87,21 @@ test.describe('production facility selector cards', () => {
       '冶炼厂', '炼油厂', '机械厂', '电子厂', '家电厂',
     ];
     const facilityTypeSelect = page.getByRole('combobox', { name: '工厂类型' });
-    expect(expectedNames).toContain((await facilityTypeSelect.textContent())?.trim());
+    expect(expectedNames.some((name) => (facilityTypeSelect.textContent() ?? Promise.resolve('')).then
+      ? false
+      : false)).toBe(false);
+    const triggerText = (await facilityTypeSelect.textContent())?.trim() ?? '';
+    expect(expectedNames.some((name) => triggerText.includes(name))).toBe(true);
+    await expect(facilityTypeSelect.locator('.facility-build-output-list')).toContainText('机械');
+    await expect(facilityTypeSelect.locator('[data-product-artwork="machinery"]')).toBeVisible();
+    await expect(page.locator('.facility-type-summary')).toHaveCount(0);
+
     await facilityTypeSelect.click();
-    await expect(page.getByRole('listbox', { name: '工厂类型' }).getByRole('option')).toHaveText(expectedNames);
+    const options = page.getByRole('listbox', { name: '工厂类型' }).getByRole('option');
+    await expect(options.locator('.ui-rich-select__option-label')).toHaveText(expectedNames);
+    await expect(options.locator('.facility-build-output-list')).toHaveCount(expectedNames.length);
+    await expect(options.first().locator('.facility-build-output-list')).toContainText('机械');
+    await expect(options.first().locator('[data-product-artwork="machinery"]')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.locator('.facility-cluster-name')).toHaveText(expectedNames);
     await expect(page.locator('#desktop-facility-detail-title')).toContainText('农场');
