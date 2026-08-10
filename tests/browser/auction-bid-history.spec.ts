@@ -114,3 +114,29 @@ test('auction asset matrix tiles show name and quantity while the main visual re
   await expect(page.locator('.asset-auction-item-tooltip-anchor')).toHaveCount(1);
   await expect(page.locator('.asset-auction-summary-placeholder')).toHaveCount(19);
 });
+
+test('auction bid input and submit action stay on one row at narrow mobile width', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto('runtime-test.html?view=auction&scenario=bid-history');
+
+  const form = page.locator('.asset-bid-form').first();
+  const input = form.locator('.ui-control--money');
+  const button = form.getByRole('button', { name: /提交出价|提高出价/ });
+  await form.scrollIntoViewIfNeeded();
+  await expect(input).toBeVisible();
+  await expect(button).toBeVisible();
+
+  const [formBox, inputBox, buttonBox] = await Promise.all([
+    form.boundingBox(),
+    input.boundingBox(),
+    button.boundingBox(),
+  ]);
+  expect(formBox).not.toBeNull();
+  expect(inputBox).not.toBeNull();
+  expect(buttonBox).not.toBeNull();
+  if (!formBox || !inputBox || !buttonBox) return;
+
+  expect(buttonBox.x).toBeGreaterThanOrEqual(inputBox.x + inputBox.width - 0.5);
+  expect(Math.abs((inputBox.y + inputBox.height) - (buttonBox.y + buttonBox.height))).toBeLessThan(1);
+  expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(formBox.x + formBox.width + 0.5);
+});

@@ -220,6 +220,14 @@ forbidText('src/pages/AuctionPage.tsx', [
   'title={`${item.name} ×${formatNumber(item.quantity)}`}',
   'asset-auction-item-tooltip-anchor--main',
 ]);
+requireText('src/styles/asset-auctions.css', [
+  '.asset-bid-form {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;',
+  '.asset-bid-form label { display: grid; min-width: 0;',
+  '.asset-bid-form .ui-button { white-space: nowrap; }',
+]);
+forbidText('src/styles/asset-auctions.css', [
+  '.asset-auction-actions,\n.asset-bid-form {\n  display: flex;',
+]);
 requireText('src/styles/auction-card-layers.css', [
   '.asset-auction-item-tooltip-anchor {',
   'aspect-ratio: 1;',
@@ -258,6 +266,10 @@ requireText('tests/browser/auction-bid-history.spec.ts', [
   "expect(await summaryTile.getAttribute('title')).toBeNull();",
   "toHaveCount(1)",
   "page.locator('.asset-auction-summary-placeholder')",
+  'auction bid input and submit action stay on one row at narrow mobile width',
+  'page.setViewportSize({ width: 320, height: 900 })',
+  '(inputBox.y + inputBox.height) - (buttonBox.y + buttonBox.height)',
+  'buttonBox.x + buttonBox.width',
 ]);
 
 requireText('.github/workflows/deploy.yml', [
@@ -284,7 +296,10 @@ requireText('docs/UI_DESIGN_SYSTEM.md', [
   '资产矩阵的非空格子必须复用 `SafeTooltip`',
   '格式固定为“名称 ×数量”',
   '主视觉只作静态展示',
+  '“整包出价”的 `MoneyInput` 与“提交出价”／“提高出价”按钮在所有断点保持同一操作行',
+  '不得渲染最近结束或历史结算区域',
 ]);
+forbidText('docs/UI_DESIGN_SYSTEM.md', ['最近结束区域始终渲染']);
 requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['拍卖服务费用与货币流', '世界级拍卖费用托管']);
 
 for (const path of filesUnder('src')) {
@@ -299,4 +314,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('资产包拍卖发布费、卖方手续费、保留价、最低加价、自动延时、匿名竞价、最近十条按需历史、工厂插画铺满与 256px 主视觉上限、主视觉静态展示与资产矩阵名称数量安全悬浮、SQLite 审计、世界 21 迁移、原子托管及订单簿隔离验证通过。');
+console.log('资产包拍卖发布费、卖方手续费、保留价、最低加价、自动延时、匿名竞价、最近十条按需历史、窄屏出价输入与操作同行、工厂插画铺满与 256px 主视觉上限、主视觉静态展示与资产矩阵名称数量安全悬浮、SQLite 审计、世界 21 迁移、原子托管及订单簿隔离验证通过。');
