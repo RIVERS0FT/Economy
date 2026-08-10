@@ -10,6 +10,9 @@ const forbidText = (path, text) => { if (existsSync(resolve(root, path)) && read
 
 for (const path of [
   'server/src/warehouse.js',
+  'server/src/online-auto-buy-policy.js',
+  'server/src/online-auto-buy-orders.js',
+  'server/src/online-auto-trade-policy.js',
   'server/src/online-auto-sell-policy.js',
   'server/src/online-auto-sell-orders.js',
   'server/src/domain.js',
@@ -23,6 +26,7 @@ for (const path of [
   'server/test/warehouse.test.js',
   'src/types.ts',
   'src/auto-sell/economy-state.d.ts',
+  'src/auto-trade/useOnlineAutoTrade.ts',
   'src/api/game.ts',
   'src/app/gameViewModel.ts',
   'src/app/GameApp.tsx',
@@ -38,6 +42,7 @@ for (const path of [
   'docs/UI_DESIGN_SYSTEM.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+  'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
 ]) requireFile(path);
 
 for (const removed of [
@@ -52,6 +57,7 @@ for (const text of [
   'delete player.inventoryCapacity;',
   'delete player.warehouseLevel;',
   'warehouseStoredQuantity: storedQuantity(player)',
+  'createOnlineAutoBuyPolicyClientState(player)',
   'createOnlineAutoSellPolicyClientState(player)',
 ]) requireText('server/src/warehouse.js', text);
 
@@ -59,15 +65,22 @@ for (const text of [
   'WarehouseInventoryPanel',
   '无限容量',
   'warehouseStoredQuantity',
-  'inventory.available > 0 || inventory.frozen > 0',
+  'autoTrade.buyPolicyFor(product.id).enabled',
+  'autoTrade.sellPolicyFor(product.id).enabled',
+  '自动交易商品',
+  '目标自由库存',
+  '最高自动采购价格',
   '最低自由库存',
+  '最低自动出售价格',
+  '设置保存至存档 · 在线维护买单',
   '设置保存至存档 · 在线维护卖单',
-  '没有买盘时则持续留下卖盘供应',
+  '保存自动交易设置',
   'production-warehouse-workspace',
-  'warehouse-auto-sell-card',
+  'warehouse-auto-trade-card',
+  'warehouse-auto-trade-mobile-trigger',
   'MobileWorkspaceDetailSheet',
   "window.matchMedia('(max-width: 720px)')",
-  'returnFocusRef={autoSellTriggerRef}',
+  'returnFocusRef={autoTradeTriggerRef}',
   'data-product-id={product.id}',
 ]) requireText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);
 forbidText('src/components/warehouse/WarehouseInventoryPanel.tsx', '关闭面板');
@@ -80,23 +93,20 @@ for (const text of [
   '工厂生产不再检查仓库空间',
   '客户端状态版本：33',
   '世界状态版本：27',
+  'onlineAutoBuyPolicies',
   'onlineAutoSellPolicies',
-  '自动出售策略属于玩家经济存档',
-  '最低自由库存保留量本身不进入 `frozen`',
-  '不限制生产消耗、合同履约、市场手动卖出或拍卖',
-  '未成交剩余量继续留在卖盘中提供供应',
+  '在线自动采购',
+  '在线自动出售',
+  '目标自由库存',
+  '最低自由库存',
   '不占玩家普通开放订单配额',
-  '桌面自动出售控制卡固定位于共享仓库左侧',
+  '桌面自动交易控制卡固定位于共享仓库左侧',
   '与“建设新工厂”使用同一 `minmax(280px, 320px)` 控制列',
   '`720px` 及以下',
   '`MobileWorkspaceDetailSheet`',
+  '全商品选择器',
+  '零库存',
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
-requireText('docs/UI_DESIGN_SYSTEM.md', '移动工厂详情、移动研发详情与仓库自动出售设置');
-for (const text of [
-  '左侧：自动出售',
-  '右侧：共享仓库',
-  '移动端自动出售使用与工厂详情相同的底部抽屉',
-]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 const runtimePaths = [
   'server/src',
@@ -139,10 +149,17 @@ for (const [path, text] of [
   ['src/navigation/navigationBadges.ts', 'warehouse-capacity'],
 ]) forbidText(path, text);
 
+for (const text of [
+  '共享仓库永久无限',
+  '商品买单、商品拍卖和采购合同不预占仓库容量',
+]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
+forbidText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', 'warehouseAvailableCapacity');
+
 const css = read('src/styles/warehouse-expansion.css');
 for (const text of [
   'grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);',
-  '.warehouse-auto-sell-card',
+  '.warehouse-auto-trade-card',
+  '.warehouse-auto-trade-mobile-trigger',
   'display: none;',
   '@media (max-width: 720px)',
   'grid-template-columns: repeat(5, minmax(0, 1fr));',
@@ -153,23 +170,22 @@ for (const text of [
   '@container (min-width: 960px)',
   'grid-template-columns: repeat(7, minmax(0, 1fr));',
   'width: 40px;', 'width: 46px;', 'width: 52px;', 'width: 58px;',
-]) if (!css.includes(text)) failures.push('仓库商品卡/自动出售布局样式缺少: ' + text);
+]) if (!css.includes(text)) failures.push('仓库商品卡/自动交易布局样式缺少: ' + text);
 
 const productionGridCss = read('src/styles/facility-group-card-grid.css');
 if (!productionGridCss.includes('grid-template-columns: minmax(280px, 320px) minmax(300px, 360px) minmax(480px, 1fr);')) {
-  failures.push('建设新工厂控制列宽度基线已变化，必须同步复核自动出售控制列');
+  failures.push('建设新工厂控制列宽度基线已变化，必须同步复核自动交易控制列');
 }
 
 for (const text of [
-  'auto-sell panel left of the warehouse at the build-card width',
+  'auto-trade panel left of the warehouse at the build-card width',
   'uses the shared bottom sheet at 720px',
   'keeps the desktop side panel at 721px',
-  '设置保存至存档 · 在线维护卖单',
-  '没有买盘时则持续留下卖盘供应',
+  'opens auto-trade for a zero-stock product',
 ]) requireText('tests/browser/warehouse-auto-sell.spec.ts', text);
 
 if (failures.length) {
   console.error('无限仓库防回退验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
-console.log('无限仓库防回退验证通过：容量机制保持退役，桌面/移动仓库布局与存档自动出售持续卖盘设置保持。');
+console.log('无限仓库防回退验证通过：容量机制保持退役，桌面/移动仓库布局与存档商品自动交易设置保持。');
