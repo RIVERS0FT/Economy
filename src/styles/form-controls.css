@@ -639,7 +639,14 @@ input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill {
   }
 }
 
-/* Production configuration triggers are image-only; full labels and metrics stay in the opened listbox. */
+/* Production configuration fields and triggers shrink to their intrinsic content width. */
+.ui-form-field:has(> .ui-rich-select[data-variant='production-config']) {
+  width: fit-content;
+  max-width: 100%;
+  justify-self: start;
+  justify-items: start;
+}
+
 .ui-rich-select[data-variant='production-config'] {
   width: fit-content;
   max-width: 100%;
