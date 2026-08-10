@@ -21,6 +21,7 @@ export function MobileFacilityDetailSheet({
   onToggle,
   onRecipeChange,
   onOpenMarket,
+  onOpenProductMarket,
   onOpenContracts,
 }: Omit<FacilityClusterDetailSharedProps, 'entry'> & {
   entry: FacilityClusterEntry | undefined;
@@ -57,6 +58,7 @@ export function MobileFacilityDetailSheet({
         credits={credits}
         now={now}
         onRecipeChange={onRecipeChange}
+        onOpenProductMarket={onOpenProductMarket}
         onOpenContracts={onOpenContracts}
       />
     </MobileWorkspaceDetailSheet>

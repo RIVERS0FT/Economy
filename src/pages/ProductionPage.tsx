@@ -219,6 +219,9 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
     if (!selectedFacilityEntry) return;
     selectMarketAsset('facility', selectedFacilityEntry.group.facilityTypeId);
   };
+  const openProductMarket = (productId: string) => {
+    selectMarketAsset('commodity', productId);
+  };
   const openProductContracts = (productId: string) => {
     setContractMarketIntent(productId);
     model.setTab('contracts');
@@ -365,6 +368,7 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
                 onToggle={toggleSelectedFacility}
                 onRecipeChange={changeSelectedFacilityRecipe}
                 onOpenMarket={openSelectedFacilityMarket}
+                onOpenProductMarket={openProductMarket}
                 onOpenContracts={openProductContracts}
                 titleId="desktop-facility-detail-title"
               />
@@ -390,6 +394,7 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
         onToggle={toggleSelectedFacility}
         onRecipeChange={changeSelectedFacilityRecipe}
         onOpenMarket={openSelectedFacilityMarket}
+        onOpenProductMarket={openProductMarket}
         onOpenContracts={openProductContracts}
       />
     </PageLayout>

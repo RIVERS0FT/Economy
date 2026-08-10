@@ -1,4 +1,3 @@
-import { Fragment } from 'react';
 import { CreditsIcon, CycleIcon, WarehouseIcon } from '../icons/GameIcons';
 import { ProductArtwork } from '../products/ProductArtwork';
 import type {
@@ -92,6 +91,7 @@ function RecipeItems({
   multiplier,
   groupClassName,
   itemClassName,
+  onOpenProductMarket,
 }: {
   items: FacilityRecipeItem[];
   productNames: ProductNameMap;
@@ -99,6 +99,7 @@ function RecipeItems({
   multiplier: number;
   groupClassName: string;
   itemClassName: string;
+  onOpenProductMarket: (productId: string) => void;
 }) {
   return (
     <div className={groupClassName}>
@@ -107,21 +108,24 @@ function RecipeItems({
         const quantity = item.quantity * multiplier;
         const warehouseQuantity = inventories[item.productId]?.available ?? 0;
         return (
-          <Fragment key={`${item.productId}-${index}`}>
-            <span className="facility-formula-item-group">
-              <span
-                className={itemClassName}
-                title={`${productName}：生产 ${formatNumber(quantity)}，仓库可用 ${formatNumber(warehouseQuantity)}`}
-              >
-                <ProductArtwork productId={item.productId} className="facility-formula-product-artwork" />
-                <strong>{formatNumber(quantity)}</strong>
-                <span className="facility-formula-inventory" title={`${productName}仓库可用数量`}>
-                  <WarehouseIcon className="facility-formula-meta-icon" />
-                  <span>{formatNumber(warehouseQuantity)}</span>
-                </span>
+          <button
+            type="button"
+            className="facility-formula-item-group"
+            data-ui-interactive="surface"
+            key={`${item.productId}-${index}`}
+            aria-label={`查看${productName}市场，生产数量 ${formatNumber(quantity)}，仓库可用 ${formatNumber(warehouseQuantity)}`}
+            title={`查看${productName}市场 · 生产 ${formatNumber(quantity)} · 仓库可用 ${formatNumber(warehouseQuantity)}`}
+            onClick={() => onOpenProductMarket(item.productId)}
+          >
+            <span className={itemClassName}>
+              <ProductArtwork productId={item.productId} className="facility-formula-product-artwork" />
+              <strong>{formatNumber(quantity)}</strong>
+              <span className="facility-formula-inventory" title={`${productName}仓库可用数量`}>
+                <WarehouseIcon className="facility-formula-meta-icon" />
+                <span>{formatNumber(warehouseQuantity)}</span>
               </span>
             </span>
-          </Fragment>
+          </button>
         );
       })}
     </div>
@@ -158,12 +162,14 @@ export function FacilityProductionFormula({
   products,
   inventories,
   now,
+  onOpenProductMarket,
 }: {
   group: FacilityGroup;
   type: FacilityTypeDefinition;
   products: ProductDefinition[];
   inventories: Record<string, ProductInventory>;
   now: number;
+  onOpenProductMarket: (productId: string) => void;
 }) {
   const inputs = recipeInputs(type);
   const outputs = recipeOutputs(type);
@@ -183,7 +189,7 @@ export function FacilityProductionFormula({
       <div className="facility-production-formula-heading">
         <strong>生产结算</strong>
       </div>
-      <div className="facility-formula-visual" aria-hidden="true">
+      <div className="facility-formula-visual">
         <div className="facility-formula-top">
           <div className="facility-formula-input-side">
             <span className="facility-formula-side-label">投入</span>
@@ -196,6 +202,7 @@ export function FacilityProductionFormula({
                   multiplier={scope.count}
                   groupClassName="facility-formula-input-group"
                   itemClassName="facility-formula-input-item"
+                  onOpenProductMarket={onOpenProductMarket}
                 />
               ) : <span className="facility-formula-empty">无</span>}
             </div>
@@ -205,18 +212,19 @@ export function FacilityProductionFormula({
             <span className="facility-formula-side-label">产出</span>
             <div className="facility-formula-output">
               <RecipeItems
-              items={outputs}
-              productNames={productNames}
-              inventories={inventories}
-              multiplier={scope.count}
-              groupClassName="facility-formula-output-group"
+                items={outputs}
+                productNames={productNames}
+                inventories={inventories}
+                multiplier={scope.count}
+                groupClassName="facility-formula-output-group"
                 itemClassName="facility-formula-output-item"
+                onOpenProductMarket={onOpenProductMarket}
               />
             </div>
           </div>
         </div>
 
-        <div className="facility-formula-meta">
+        <div className="facility-formula-meta" aria-hidden="true">
           <span className="facility-formula-meta-unit is-cycle">
             <CycleIcon className="facility-formula-meta-icon" />
             <span>{formatDuration(type.cycleMs)}</span>
@@ -227,7 +235,7 @@ export function FacilityProductionFormula({
           </span>
         </div>
 
-        <div className="facility-formula-progress">
+        <div className="facility-formula-progress" aria-hidden="true">
           <FacilityGroupProgress group={group} type={type} now={now} />
         </div>
       </div>

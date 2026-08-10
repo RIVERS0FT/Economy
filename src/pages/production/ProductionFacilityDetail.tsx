@@ -44,6 +44,7 @@ export interface FacilityClusterDetailSharedProps {
   onToggle: (enabled: boolean) => void;
   onRecipeChange: (recipeId: string) => void;
   onOpenMarket: () => void;
+  onOpenProductMarket: (productId: string) => void;
   onOpenContracts: (productId: string) => void;
 }
 
@@ -373,6 +374,7 @@ export function FacilityClusterDetailBody({
   credits,
   now,
   onRecipeChange,
+  onOpenProductMarket,
   onOpenContracts,
 }: Omit<FacilityClusterDetailSharedProps, 'onToggle' | 'onOpenMarket'>) {
   const { group, type } = entry;
@@ -419,6 +421,7 @@ export function FacilityClusterDetailBody({
         products={products}
         inventories={inventories}
         now={now}
+        onOpenProductMarket={onOpenProductMarket}
       />
       <FacilityOperatingDiagnostics
         recipe={recipeState.activeRecipe}
@@ -453,6 +456,7 @@ export function FacilityClusterDetailContent({
   onToggle,
   onRecipeChange,
   onOpenMarket,
+  onOpenProductMarket,
   onOpenContracts,
   titleId,
 }: FacilityClusterDetailSharedProps & {
@@ -476,6 +480,7 @@ export function FacilityClusterDetailContent({
         credits={credits}
         now={now}
         onRecipeChange={onRecipeChange}
+        onOpenProductMarket={onOpenProductMarket}
         onOpenContracts={onOpenContracts}
       />
       <FacilityMarketAction onOpenMarket={onOpenMarket} />
