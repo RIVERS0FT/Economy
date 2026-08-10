@@ -79,7 +79,9 @@ function contractSnapshot(contract) {
     unitPrice: safeMoney(contract.unitPrice, 0),
     batchGross: batchGross(contract),
     deliveryIntervalMs: Math.max(0, safeInteger(contract.deliveryIntervalMs, 0)),
-    totalDeliveries: Math.max(0, safeInteger(contract.totalDeliveries, 0)),
+    totalDeliveries: contract.kind === 'supply' && contract.totalDeliveries === null
+      ? null
+      : Math.max(0, safeInteger(contract.totalDeliveries, 0)),
     completedDeliveries: Math.max(0, safeInteger(contract.completedDeliveries, 0)),
     firstDeliveryDelayMs: Math.max(0, safeInteger(contract.firstDeliveryDelayMs, 0)),
     createdAt: Math.max(0, safeInteger(contract.createdAt, 0)),
@@ -597,12 +599,16 @@ function historyCompletion(contract) {
     : Math.max(0, safeInteger(contract.completedDeliveries, 0));
   const total = contract.kind === 'facility_lease'
     ? Math.max(0, safeInteger(contract.totalPeriods ?? contract.totalDeliveries, 0))
-    : Math.max(0, safeInteger(contract.totalDeliveries, 0));
+    : contract.totalDeliveries === null
+      ? null
+      : Math.max(0, safeInteger(contract.totalDeliveries, 0));
   return {
     completed,
     total,
     unit: contract.kind === 'facility_lease' ? 'lease_period' : 'delivery',
-    ratioBps: total > 0 ? Math.min(10_000, Math.floor(completed * 10_000 / total)) : 0,
+    ratioBps: total === null
+      ? null
+      : total > 0 ? Math.min(10_000, Math.floor(completed * 10_000 / total)) : 0,
   };
 }
 
@@ -1303,7 +1309,7 @@ const accepted = before.status === 'open' && after.status === 'active';
         endedAt,
         sortAt,
         after.completedDeliveries,
-        after.totalDeliveries,
+        after.totalDeliveries ?? 0,
         after.quantityPerDelivery,
         storedMoney(after.unitPrice),
         storedMoney(after.batchGross),
@@ -1385,7 +1391,7 @@ const accepted = before.status === 'open' && after.status === 'active';
         status: item.status,
         endedAt: item.endSummary.endedAt,
         reasonCode: item.endSummary.reasonCode,
-        completionRatioBps: item.endSummary.completion.ratioBps,
+        completionRatioBps: item.endSummary.completion.ratioBps ?? (item.status === 'completed' ? 10_000 : 0),
       })),
     };
   }, { immediate: false });
@@ -1501,7 +1507,7 @@ const accepted = before.status === 'open' && after.status === 'active';
       store.upsertContractAuditSummary.run(
         after.id, after.publisherId, after.buyerId, after.supplierId, after.productId, after.status,
         'legacy_partial', after.createdAt, after.acceptedAt, endedAt, sortAt,
-        after.completedDeliveries, after.totalDeliveries, after.quantityPerDelivery, storedMoney(after.unitPrice),
+        after.completedDeliveries, after.totalDeliveries ?? 0, after.quantityPerDelivery, storedMoney(after.unitPrice),
         storedMoney(after.batchGross), storedMoney(grossTotal), storedMoney(feeTotal),
         storedMoney(Math.max(0, roundInternalMoney(grossTotal - feeTotal) || 0)),
         Math.max(0, after.completedDeliveries * after.quantityPerDelivery), storedMoney(0),

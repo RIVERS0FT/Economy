@@ -127,6 +127,27 @@ test('online auto sell preserves the unfrozen shortfall of an auto-reserved supp
   assert.equal(seller.inventories.wheat.frozen, 1);
 });
 
+test('online auto sell preserves the next batch hold for a long-term supply contract', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, alice, now);
+  seller.inventories.wheat.available = 9;
+  seller.inventories.wheat.frozen = 1;
+  world.productionContracts = [{
+    id: 'long-term-supply',
+    kind: 'supply',
+    status: 'active',
+    supplierId: alice.id,
+    productId: 'wheat',
+    quantityPerDelivery: 4,
+    supplierReservedQuantity: 1,
+    supplierAutoReserve: true,
+    completedDeliveries: 25,
+    totalDeliveries: null,
+  }];
+
+  assert.equal(contractAvailableHoldForAutoSell(world, alice.id, 'wheat'), 3);
+});
+
 test('online auto sell leaves no standing sell order when qualifying demand disappears', () => {
   const world = createWorld(now);
   const seller = ensurePlayer(world, alice, now);

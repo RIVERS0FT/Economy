@@ -91,7 +91,7 @@ function contractReservations(game: EconomyState) {
       contract.kind !== 'supply'
       || contract.status !== 'active'
       || !contract.isSupplier
-      || contract.completedDeliveries >= contract.totalDeliveries
+      || (contract.totalDeliveries !== null && contract.completedDeliveries >= contract.totalDeliveries)
     ) continue;
     const quantity = nonNegativeInteger(contract.quantityPerDelivery);
     const frozen = Math.min(quantity, nonNegativeInteger(contract.supplierReservedQuantity));
