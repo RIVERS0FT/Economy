@@ -1,0 +1,62 @@
+name: Patch facility build procurement order limit
+
+on:
+  push:
+    branches:
+      - feature/facility-build-procurement-orders
+
+permissions:
+  contents: write
+
+jobs:
+  patch-order-limit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/facility-build-procurement-orders
+          fetch-depth: 0
+      - name: Incorporate latest main order-limit rule
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              target = Path(path)
+              text = target.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one match, got {count}')
+              target.write_text(text.replace(old, new), encoding='utf-8')
+
+          replace_once(
+              'src/pages/ProductionPage.tsx',
+              "import { formatCurrency, formatNumber } from '../utils/formatters';\nimport { setContractMarketIntent } from '../contracts/navigation';",
+              "import { formatCurrency, formatNumber } from '../utils/formatters';\nimport { openOrderLimitForCatalog } from '../config/economy';\nimport { setContractMarketIntent } from '../contracts/navigation';",
+          )
+          replace_once(
+              'src/pages/ProductionPage.tsx',
+              '  const maxOpenOrderCount = game.products.length + game.facilityTypes.length;',
+              '  const maxOpenOrderCount = openOrderLimitForCatalog(game.products.length, game.facilityTypes.length);',
+          )
+          replace_once(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '玩家商品和工厂合计未完成订单达到当前商品类型数与工厂类型数之和时，也必须在提交区说明动态上限并禁用提交。',
+              '玩家商品和工厂合计未完成订单达到当前商品类型数与工厂类型数之和的 10 倍时，也必须在提交区说明动态上限并禁用提交。',
+          )
+          replace_once(
+              'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+              '- 每名玩家的商品和工厂订单合计最多同时存在 `PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length` 笔未完成订单；上限必须始终由正式目录动态计算，不得在业务逻辑或防回退检查中固化旧目录数量。当前权威目录为 36 种商品与 26 种工厂类型，即当前上限 62 笔；目录增减时自动变化。',
+              '- 每名玩家的商品和工厂订单合计最多同时存在 `(PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length) * 10` 笔未完成订单；上限必须始终由正式目录动态计算，不得在业务逻辑或防回退检查中固化旧目录数量。当前权威目录为 36 种商品与 26 种工厂类型，即当前上限 620 笔；目录增减时按商品与工厂类型总数的 10 倍自动变化。',
+          )
+          PY
+
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- src/pages/ProductionPage.tsx docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md
+          git rm -- .github/workflows/patch-facility-build-procurement-order-limit.yml
+          git commit -m "同步最新玩家订单上限"
+          git push origin HEAD:feature/facility-build-procurement-orders
