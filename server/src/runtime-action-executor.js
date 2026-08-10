@@ -26,8 +26,7 @@ import {
 const AUCTION_ACTIONS = new Set(['createAuction', 'placeAuctionBid', 'cancelAuction']);
 const BANK_ACTIONS = new Set(['bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay']);
 const ECONOMIC_ACTIVITY_ACTIONS = new Set([
-  'work', 'buildFacility', 'createFacilityBuildProcurement', 'cancelFacilityBuildProcurement',
-  'startFacility', 'pauseFacility', 'setFacilityRecipe',
+  'work', 'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',
   'collectFacility', 'placeOrder', 'cancelOrder', 'listFacility',
   'cancelFacilityListing', 'buyFacility', 'redeemGift',
   'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
@@ -57,12 +56,18 @@ function executeActionBody(store, world, user, action, payload, requestKey, now)
   const savepoint = beginEconomicSavepoint(store, 'economy_player_action');
   let gameResult;
   try {
-    const researchAction = action === 'createFacilityBuildProcurement' ? 'buildFacility' : action;
+    const isFacilityBuildProcurement = action === 'placeOrder'
+      && payload.execution === 'facility-build-procurement';
+    const researchAction = isFacilityBuildProcurement ? 'buildFacility' : action;
     const researchAccess = validateResearchAccess(world, user, researchAction, payload, now);
     if (researchAccess) {
       gameResult = researchAccess;
     } else if (action === 'startResearch' || action === 'accelerateResearch') {
       gameResult = applyResearchAction(world, user, action, payload, now);
+    } else if (action === 'placeOrder' && payload.execution === 'facility-build-procurement') {
+      gameResult = createFacilityBuildProcurementOrders(world, user, payload, now);
+    } else if (action === 'placeOrder' && payload.execution === 'facility-build-procurement-cancel') {
+      gameResult = cancelFacilityBuildProcurementOrders(world, user, payload, now);
     } else if (action === 'placeOrder' && payload.execution === 'online-auto-sell-policy') {
       gameResult = applyOnlineAutoSellPolicyAction(world, user, payload);
     } else if (action === 'placeOrder' && payload.execution === 'online-auto-sell') {
@@ -79,10 +84,6 @@ function executeActionBody(store, world, user, action, payload, requestKey, now)
       gameResult = applyAssetAuctionAction(world, user, action, payload, now);
     } else if (BANK_ACTIONS.has(action)) {
       gameResult = applyBankAction(world, user, action, payload, now);
-    } else if (action === 'createFacilityBuildProcurement') {
-      gameResult = createFacilityBuildProcurementOrders(world, user, payload, now);
-    } else if (action === 'cancelFacilityBuildProcurement') {
-      gameResult = cancelFacilityBuildProcurementOrders(world, user, payload, now);
     } else if (action === 'buildFacility' && payload.autoProcure === true) {
       const procurement = autoProcureFacilityBuildMaterials(world, user, payload, now);
       if (!procurement.ok) gameResult = procurement;
