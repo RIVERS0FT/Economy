@@ -307,14 +307,22 @@ export function createFacilityBuildProcurement(
   quantity: number,
   materialOrderPrices: Record<string, number>,
 ) {
-  return request<FacilityBuildProcurementActionResponse>('/facilities/procurements', {
+  return request<FacilityBuildProcurementActionResponse>('/orders', {
     method: 'POST',
-    body: JSON.stringify({ facilityTypeId, quantity, materialOrderPrices }),
+    body: JSON.stringify({
+      execution: 'facility-build-procurement',
+      facilityTypeId,
+      quantity,
+      materialOrderPrices,
+    }),
   });
 }
 
 export function cancelFacilityBuildProcurement(orderIds: string[]) {
-  return postAction('/facilities/procurements/cancel', { orderIds });
+  return postAction('/orders', {
+    execution: 'facility-build-procurement-cancel',
+    orderIds,
+  });
 }
 
 export const gameActions = {
