@@ -396,6 +396,7 @@ export function FacilityClusterDetailBody({
         </div>
 
         <FacilityProductionConfigControls
+          className="facility-production-settings-grid"
           typeName={type.name}
           products={products}
           recipes={recipeState.recipes}
