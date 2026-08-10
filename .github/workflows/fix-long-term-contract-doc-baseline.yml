@@ -1,0 +1,53 @@
+name: Fix long-term contract design baseline
+
+on:
+  push:
+    branches:
+      - agent/long-term-supply-contracts
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/long-term-supply-contracts
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+      - name: Correct authoritative baseline text
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          text = path.read_text()
+          replacements = {
+              '合同 schema 8 同时': '合同 schema 9 同时',
+              '世界 26 是当前持久化边界。': '世界 27 是当前持久化边界。',
+              '当前客户端状态版本为 30。': '当前客户端状态版本为 33。',
+          }
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one {old!r}, found {count}')
+              text = text.replace(old, new)
+          path.write_text(text)
+          PY
+          git rm .github/workflows/fix-long-term-contract-doc-baseline.yml
+      - name: Verify documentation and contract guard
+        run: |
+          node scripts/verify-document-authority.mjs
+          node scripts/verify-contract-renewal-economic-events.mjs
+          git diff --check
+      - name: Commit corrections
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
+          git commit -m "修正长期合同设计版本基线"
+          git push origin HEAD:agent/long-term-supply-contracts
