@@ -55,6 +55,7 @@ const filesUnder = (directory) => {
   'src/styles/asset-auctions.css',
   'src/styles/auction-card-layers.css',
   'tests/browser/auction-bid-history.spec.ts',
+  'tests/browser/auction-bid-layout.spec.ts',
   '.github/workflows/deploy.yml',
   'scripts/manage-production-backups.py',
   'docs/README.md',
@@ -220,6 +221,11 @@ forbidText('src/pages/AuctionPage.tsx', [
   'title={`${item.name} ×${formatNumber(item.quantity)}`}',
   'asset-auction-item-tooltip-anchor--main',
 ]);
+requireText('src/styles/asset-auctions.css', [
+  '.asset-bid-form {',
+  'grid-template-columns: minmax(0, 1fr) auto;',
+  '.asset-bid-form .ui-button { width: auto; white-space: nowrap; }',
+]);
 requireText('src/styles/auction-card-layers.css', [
   '.asset-auction-item-tooltip-anchor {',
   'aspect-ratio: 1;',
@@ -259,6 +265,14 @@ requireText('tests/browser/auction-bid-history.spec.ts', [
   "toHaveCount(1)",
   "page.locator('.asset-auction-summary-placeholder')",
 ]);
+requireText('tests/browser/auction-bid-layout.spec.ts', [
+  'auction bundle bid input and submit stay on one row',
+  "{ name: 'desktop', width: 1280, height: 900 }",
+  "{ name: 'mobile', width: 390, height: 844 }",
+  "expect(geometry.display).toBe('grid');",
+  'expect(Math.abs(geometry.inputTop - geometry.buttonTop)).toBeLessThan(1);',
+  'expect(Math.abs(geometry.inputBottom - geometry.buttonBottom)).toBeLessThan(1);',
+]);
 
 requireText('.github/workflows/deploy.yml', [
   'backup before world 25 migration',
@@ -273,7 +287,15 @@ requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '最近 10 条匿名有效出价',
   '世界 21 收费、延时与隐私迁移',
 ]);
-requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['发布费、最低加价、卖方 1% 成交手续费', '出价记录默认折叠', '固定只返回最近 10 条匿名记录', '被超价', '本次访问新增集合', '不得渲染最近结束或历史结算区域']);
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
+  '发布费、最低加价、卖方 1% 成交手续费',
+  '出价记录默认折叠',
+  '固定只返回最近 10 条匿名记录',
+  '被超价',
+  '本次访问新增集合',
+  '不得渲染最近结束或历史结算区域',
+  '整包出价输入框与“提交出价／提高出价”按钮在桌面和移动宽度都必须保持同一横向操作行',
+]);
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['`auction-audit-store.js`', '`economy_asset_auction_events`', 'GET | `/api/game/auctions/:auctionId/bids`', '世界 21 迁移']);
 requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['拍卖使用自身规则快照', '拍卖独立收费不得被误删']);
 requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['未达保留价']);
@@ -299,4 +321,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('资产包拍卖发布费、卖方手续费、保留价、最低加价、自动延时、匿名竞价、最近十条按需历史、工厂插画铺满与 256px 主视觉上限、主视觉静态展示与资产矩阵名称数量安全悬浮、SQLite 审计、世界 21 迁移、原子托管及订单簿隔离验证通过。');
+console.log('资产包拍卖发布费、卖方手续费、保留价、最低加价、自动延时、匿名竞价、最近十条按需历史、整包出价同行操作、工厂插画铺满与 256px 主视觉上限、主视觉静态展示与资产矩阵名称数量安全悬浮、SQLite 审计、世界 21 迁移、原子托管及订单簿隔离验证通过。');
