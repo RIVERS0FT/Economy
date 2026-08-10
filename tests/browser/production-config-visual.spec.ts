@@ -1,8 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 
-async function expectImageOnlyTrigger(
-  trigger: ReturnType<Parameters<typeof expect>[0]['locator']>,
-) {
+async function expectImageOnlyTrigger(trigger: Locator) {
   await expect(trigger.locator('.ui-rich-select__visual')).toHaveCount(1);
   await expect(trigger.locator('.ui-rich-select__content')).toBeHidden();
   await expect(trigger.locator('.ui-rich-select__chevron')).toBeHidden();
