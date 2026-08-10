@@ -34,6 +34,15 @@ type RunContractAction = (
   operation: () => Promise<{ result: { ok: boolean; message: string } }>,
 ) => Promise<void>;
 
+function parseOptionalDeliveriesDraft(value: string): number | null | undefined {
+  if (value.trim() === '') return null;
+  return parseIntegerDraft(value, { min: 2, max: 100 }) ?? undefined;
+}
+
+function deliveryCountLabel(value: number | null) {
+  return value === null ? '长期' : `${formatNumber(value)} 批`;
+}
+
 function durationLabel(value: number) {
   return INTERVAL_OPTIONS.find(([candidate]) => candidate === value)?.[1] ?? `${Math.round(value / 60_000)} 分钟`;
 }
@@ -60,8 +69,8 @@ function TermsSummary({
     ? durationLabel(terms.deliveryIntervalMs)
     : `${durationLabel(baseTerms.deliveryIntervalMs)} → ${durationLabel(terms.deliveryIntervalMs)}`;
   const deliveriesLabel = terms.totalDeliveries === baseTerms.totalDeliveries
-    ? `${formatNumber(terms.totalDeliveries)} 批`
-    : `${formatNumber(baseTerms.totalDeliveries)} 批 → ${formatNumber(terms.totalDeliveries)} 批`;
+    ? deliveryCountLabel(terms.totalDeliveries)
+    : `${deliveryCountLabel(baseTerms.totalDeliveries)} → ${deliveryCountLabel(terms.totalDeliveries)}`;
   const firstDelay = terms.firstDeliveryDelayMs === baseTerms.firstDeliveryDelayMs
     ? firstDelayLabel(terms.firstDeliveryDelayMs)
     : `${firstDelayLabel(baseTerms.firstDeliveryDelayMs)} → ${firstDelayLabel(terms.firstDeliveryDelayMs)}`;
@@ -92,13 +101,13 @@ function TermsEditor({
 }) {
   const [quantityInput, setQuantityInput] = useState(String(initial.quantityPerDelivery));
   const [unitPriceInput, setUnitPriceInput] = useState(String(initial.unitPrice));
-  const [deliveriesInput, setDeliveriesInput] = useState(String(initial.totalDeliveries));
+  const [deliveriesInput, setDeliveriesInput] = useState(initial.totalDeliveries === null ? '' : String(initial.totalDeliveries));
   const [interval, setInterval] = useState(initial.deliveryIntervalMs);
   const [firstDelay, setFirstDelay] = useState(initial.firstDeliveryDelayMs);
   const quantity = parseIntegerDraft(quantityInput, { min: 1, max: 1_000_000 });
   const unitPrice = parseMoneyDraft(unitPriceInput, { min: 0.01, max: 1_000_000 });
-  const deliveries = parseIntegerDraft(deliveriesInput, { min: 2, max: 100 });
-  const canSubmit = quantity !== null && unitPrice !== null && deliveries !== null;
+  const deliveries = parseOptionalDeliveriesDraft(deliveriesInput);
+  const canSubmit = quantity !== null && unitPrice !== null && deliveries !== undefined;
 
   return (
     <div className="contract-negotiation-editor">
@@ -108,14 +117,14 @@ function TermsEditor({
         <SelectInput label="交付周期" value={interval} onChange={(event) => setInterval(Number.parseInt(event.target.value, 10))}>
           {INTERVAL_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </SelectInput>
-        <IntegerInput label="总交付批次" value={deliveriesInput} fallbackValue={initial.totalDeliveries} min={2} max={100} error={deliveries === null ? '请输入 2～100 的整数。' : undefined} onValueChange={setDeliveriesInput} />
+        <IntegerInput label="总交付批次（可选）" description="留空表示长期合同。" value={deliveriesInput} fallbackValue={initial.totalDeliveries ?? 12} allowEmpty min={2} max={100} error={deliveries === undefined ? '请输入 2～100 的整数，或留空设为长期合同。' : undefined} onValueChange={setDeliveriesInput} />
         <SelectInput label="首次交付" value={firstDelay} onChange={(event) => setFirstDelay(Number.parseInt(event.target.value, 10))}>
           {FIRST_DELAY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </SelectInput>
       </div>
       <div className="contract-negotiation-actions">
         <Button disabled={busy || !canSubmit} onClick={() => {
-          if (!canSubmit || quantity === null || unitPrice === null || deliveries === null) return;
+          if (!canSubmit || quantity === null || unitPrice === null || deliveries === undefined) return;
           onSubmit({
             quantityPerDelivery: quantity,
             unitPrice,
@@ -203,7 +212,7 @@ export function ContractNegotiationSection({
       return (
         <div className="contract-negotiation-entry">
           <Button variant="secondary" disabled={busy} onClick={() => setEditing('new')}>提出议价</Button>
-          <span>只修改数量、价格、周期、批次和首次交付；议价阶段不冻结资产。</span>
+          <span>只修改数量、价格、周期、批次和首次交付；总批次留空即改为长期合同，议价阶段不冻结资产。</span>
         </div>
       );
     }

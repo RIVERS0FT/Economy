@@ -19,7 +19,7 @@ export interface CreateSupplyContractInput {
   quantityPerDelivery: number;
   unitPrice: number;
   deliveryIntervalMs: number;
-  totalDeliveries: number;
+  totalDeliveries: number | null;
   firstDeliveryDelayMs: number;
 }
 

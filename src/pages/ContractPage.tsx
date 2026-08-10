@@ -95,6 +95,15 @@ function durationLabel(milliseconds: number) {
   return minutes < 60 ? `每 ${minutes} 分钟` : `每 ${Math.round(minutes / 60)} 小时`;
 }
 
+function parseOptionalDeliveriesDraft(value: string): number | null | undefined {
+  if (value.trim() === '') return null;
+  return parseIntegerDraft(value, { min: 2, max: 100 }) ?? undefined;
+}
+
+function deliveryCountLabel(value: number | null) {
+  return value === null ? '长期' : `${formatNumber(value)} 批`;
+}
+
 function dateTimeLabel(timestamp?: number | null) {
   if (!timestamp) return '—';
   return new Intl.DateTimeFormat('zh-CN', {
@@ -172,6 +181,13 @@ function RoleTag({ contract }: { contract: ProductionContract }) {
 }
 
 function ContractProgress({ contract }: { contract: ProductionContract }) {
+  if (contract.totalDeliveries === null) {
+    return (
+      <div className="contract-progress" aria-label={`长期合同，已履约 ${contract.completedDeliveries} 批`}>
+        <strong>长期合同 · 已履约 {formatNumber(contract.completedDeliveries)} 批</strong>
+      </div>
+    );
+  }
   const percentage = Math.min(
     100,
     Math.round(contract.completedDeliveries / Math.max(1, contract.totalDeliveries) * 100),
@@ -221,7 +237,7 @@ interface ContractCardProps {
 
 
 function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
-  if (contract.fixedTerms) return null;
+  if (contract.fixedTerms || contract.totalDeliveries === null) return null;
   const proposal = contract.renewalProposal;
   const remaining = Math.max(0, contract.totalDeliveries - contract.completedDeliveries);
   const eligible = !proposal
@@ -238,7 +254,7 @@ function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
   const [firstDelay, setFirstDelay] = useState(contract.firstDeliveryDelayMs);
   const quantity = parseIntegerDraft(quantityInput, { min: 1, max: 1_000_000 });
   const unitPrice = parseMoneyDraft(unitPriceInput, { min: 0.01, max: 1_000_000 });
-  const deliveries = parseIntegerDraft(deliveriesInput, { min: 2, max: 100 });
+  const deliveries = parseOptionalDeliveriesDraft(deliveriesInput);
 
   if (proposal) {
     const terms = proposal.terms;
@@ -259,7 +275,7 @@ function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
           <DataRow label="每批数量" value={formatNumber(terms.quantityPerDelivery)} />
           <DataRow label="单位价格" value={<CurrencyAmount>{formatCurrency(terms.unitPrice)}</CurrencyAmount>} />
           <DataRow label="交付周期" value={durationLabel(terms.deliveryIntervalMs)} />
-          <DataRow label="总批次" value={`${formatNumber(terms.totalDeliveries)} 批`} />
+          <DataRow label="总批次" value={deliveryCountLabel(terms.totalDeliveries)} />
           <DataRow label="采购方确认" value={<StatusTag tone={proposal.buyerApproved ? 'success' : 'neutral'}>{proposal.buyerApproved ? '已同意' : '待确认'}</StatusTag>} />
           <DataRow label="供应方确认" value={<StatusTag tone={proposal.supplierApproved ? 'success' : 'neutral'}>{proposal.supplierApproved ? '已同意' : '待确认'}</StatusTag>} />
         </DataList>
@@ -294,9 +310,9 @@ function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
     );
   }
 
-  const canSubmit = quantity !== null && unitPrice !== null && deliveries !== null;
+  const canSubmit = quantity !== null && unitPrice !== null && deliveries !== undefined;
   const submit = () => {
-    if (!canSubmit || quantity === null || unitPrice === null || deliveries === null) return;
+    if (!canSubmit || quantity === null || unitPrice === null || deliveries === undefined) return;
     const input: RenewProductionContractInput = {
       quantityPerDelivery: quantity,
       unitPrice,
@@ -318,7 +334,7 @@ function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
         <SelectInput label="交付周期" value={interval} onChange={(event) => setInterval(Number.parseInt(event.target.value, 10))}>
           {INTERVAL_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </SelectInput>
-        <IntegerInput label="总交付批次" value={deliveriesInput} fallbackValue={contract.totalDeliveries} min={2} max={100} error={deliveries === null ? '请输入 2～100 的整数。' : undefined} onValueChange={setDeliveriesInput} />
+        <IntegerInput label="总交付批次（可选）" description="留空表示长期合同。" value={deliveriesInput} fallbackValue={contract.totalDeliveries} allowEmpty min={2} max={100} error={deliveries === undefined ? '请输入 2～100 的整数，或留空设为长期合同。' : undefined} onValueChange={setDeliveriesInput} />
         <SelectInput label="首次交付" value={firstDelay} onChange={(event) => setFirstDelay(Number.parseInt(event.target.value, 10))}>
           {FIRST_DELAY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </SelectInput>
@@ -589,7 +605,7 @@ function OpenContractCard({ contract, productName, busy, run }: ContractCardProp
         </DataList>
         <DataList className="compact">
           <DataRow label="交付周期" value={durationLabel(contract.deliveryIntervalMs)} />
-          <DataRow label="总批次" value={`${formatNumber(contract.totalDeliveries)} 批`} />
+          <DataRow label="总批次" value={deliveryCountLabel(contract.totalDeliveries)} />
         </DataList>
       </div>
       <p className="contract-offer-note">{contract.fixedTerms
@@ -657,7 +673,7 @@ function HistoryContractRow({
   const completion = summary.completion;
   const settlement = summary.settlement;
   const unit = completionUnitLabel(completion.unit);
-  const percentage = Math.min(100, Math.max(0, completion.ratioBps / 100));
+  const percentage = completion.ratioBps === null ? 0 : Math.min(100, Math.max(0, completion.ratioBps / 100));
   const counterparty = contract.kind === 'loan'
     ? (contract.isLender ? contract.borrowerName : contract.lenderName)
     : contract.kind === 'facility_lease'
@@ -684,7 +700,7 @@ function HistoryContractRow({
               <DataRow label="单位价格" value={<CurrencyAmount>{formatCurrency(contract.unitPrice)}</CurrencyAmount>} />
               <DataRow label="每批货款" value={<CurrencyAmount>{formatCurrency(contract.batchGross)}</CurrencyAmount>} />
               <DataRow label="交付周期" value={durationLabel(contract.deliveryIntervalMs)} />
-              <DataRow label="总批次" value={formatNumber(contract.totalDeliveries) + ' 批'} />
+              <DataRow label="总批次" value={deliveryCountLabel(contract.totalDeliveries)} />
               <DataRow label="首次交付" value={'签订后 ' + plainDurationLabel(contract.firstDeliveryDelayMs)} />
             </> : null}
             {contract.kind === 'loan' ? <>
@@ -709,10 +725,16 @@ function HistoryContractRow({
 
         <section className="contract-history-section" aria-label="完成情况">
           <h3>完成情况</h3>
-          <div className="contract-progress" aria-label={'已完成 ' + completion.completed + ' / ' + completion.total + ' ' + unit}>
-            <div className="contract-progress-track"><span style={{ width: String(percentage) + '%' }} /></div>
-            <strong>{formatNumber(completion.completed)} / {formatNumber(completion.total)} {unit}</strong>
-          </div>
+          {completion.total === null ? (
+            <div className="contract-progress" aria-label={'长期合同，已履约 ' + completion.completed + ' ' + unit}>
+              <strong>长期合同 · 已履约 {formatNumber(completion.completed)} {unit}</strong>
+            </div>
+          ) : (
+            <div className="contract-progress" aria-label={'已完成 ' + completion.completed + ' / ' + completion.total + ' ' + unit}>
+              <div className="contract-progress-track"><span style={{ width: String(percentage ?? 0) + '%' }} /></div>
+              <strong>{formatNumber(completion.completed)} / {formatNumber(completion.total)} {unit}</strong>
+            </div>
+          )}
           <DataList className="compact">
             <DataRow label="完成率" value={percentage.toFixed(0) + '%'} />
             {contract.kind === 'supply' ? <DataRow label="实际交付" value={formatNumber(settlement.goodsDelivered) + ' 个'} /> : null}
@@ -806,7 +828,7 @@ function PublishContractPanel({
       setQuantityInput(String(initialContract.quantityPerDelivery));
       setUnitPriceInput(String(initialContract.unitPrice));
       setIntervalValue(initialContract.deliveryIntervalMs);
-      setDeliveriesInput(String(initialContract.totalDeliveries));
+      setDeliveriesInput(initialContract.totalDeliveries === null ? '' : String(initialContract.totalDeliveries));
       setFirstDelay(initialContract.firstDeliveryDelayMs);
     } else if (initialContract.kind === 'loan') {
       const asLender = Number(initialContract.lenderId) === userId
@@ -837,7 +859,7 @@ function PublishContractPanel({
 
   const quantity = parseIntegerDraft(quantityInput, { min: 1, max: 1_000_000 });
   const unitPrice = parseMoneyDraft(unitPriceInput, { min: 0.01, max: 1_000_000 });
-  const deliveries = parseIntegerDraft(deliveriesInput, { min: 2, max: 100 });
+  const deliveries = parseOptionalDeliveriesDraft(deliveriesInput);
   const principal = parseMoneyDraft(principalInput, { min: 0.01, max: 1_000_000 });
   const interestPercent = parseMoneyDraft(interestInput, { min: 1, max: 20 });
   const collateralQuantity = parseIntegerDraft(collateralInput, { min: 1, max: 1_000_000 });
@@ -850,7 +872,7 @@ function PublishContractPanel({
   const loanInterest = principal !== null && interestPercent !== null ? Math.ceil(principal * interestPercent) / 100 : null;
   const leaseBond = rent !== null ? Math.ceil(rent * 20) / 100 : null;
   const canSubmit = isSupply
-    ? Boolean(productId && quantity !== null && unitPrice !== null && deliveries !== null)
+    ? Boolean(productId && quantity !== null && unitPrice !== null && deliveries !== undefined)
     : isLoan
       ? Boolean(facilityTypeId && principal !== null && interestPercent !== null && collateralQuantity !== null)
       : Boolean(facilityTypeId && quantity !== null && rent !== null && leasePeriods !== null);
@@ -858,7 +880,7 @@ function PublishContractPanel({
   const submit = async () => {
     let input: CreateProductionContractInput;
     if (isSupply) {
-      if (quantity === null || unitPrice === null || deliveries === null) return;
+      if (quantity === null || unitPrice === null || deliveries === undefined) return;
       input = {
         kind: 'supply',
         publisherRole: publishType === 'supply' ? 'supplier' : 'buyer',
@@ -915,7 +937,7 @@ function PublishContractPanel({
               <IntegerInput label="每批数量" value={quantityInput} fallbackValue={100} min={1} max={1_000_000} error={quantity === null ? '请输入 1～1000000 的整数。' : undefined} onValueChange={setQuantityInput} />
               <MoneyInput label="单位价格" value={unitPriceInput} fallbackValue={1} min={0.01} max={1_000_000} error={unitPrice === null ? '请输入有效金额。' : undefined} onValueChange={setUnitPriceInput} />
               <SelectInput label="交付周期" value={interval} onChange={(event) => setIntervalValue(Number.parseInt(event.target.value, 10))}>{INTERVAL_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</SelectInput>
-              <IntegerInput label="总交付批次" value={deliveriesInput} fallbackValue={12} min={2} max={100} error={deliveries === null ? '请输入 2～100 的整数。' : undefined} onValueChange={setDeliveriesInput} />
+              <IntegerInput label="总交付批次（可选）" description="留空表示长期合同。" value={deliveriesInput} fallbackValue={12} allowEmpty min={2} max={100} error={deliveries === undefined ? '请输入 2～100 的整数，或留空设为长期合同。' : undefined} onValueChange={setDeliveriesInput} />
               <SelectInput label="首次交付" value={firstDelay} onChange={(event) => setFirstDelay(Number.parseInt(event.target.value, 10))}>{FIRST_DELAY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</SelectInput>
             </> : null}
             {isLoan ? <>
@@ -938,7 +960,7 @@ function PublishContractPanel({
         <aside className="contract-publish-preview" aria-label="合同预览">
           <h3>{types.find(([value]) => value === publishType)?.[1]}</h3>
           <DataList>
-            {isSupply ? <><DataRow label="每批货款" value={<CurrencyAmount>{batchGross === null ? '—' : formatCurrency(batchGross)}</CurrencyAmount>} /><DataRow label="理论合同总额" value={<CurrencyAmount>{batchGross === null || deliveries === null ? '—' : formatCurrency(batchGross * deliveries)}</CurrencyAmount>} /><DataRow label="单方保证金" value={<CurrencyAmount>{bond === null ? '—' : formatCurrency(bond)}</CurrencyAmount>} /></> : null}
+            {isSupply ? <><DataRow label="每批货款" value={<CurrencyAmount>{batchGross === null ? '—' : formatCurrency(batchGross)}</CurrencyAmount>} /><DataRow label="合同期限" value={deliveries === null ? '长期' : deliveries === undefined ? '—' : deliveryCountLabel(deliveries)} /><DataRow label="理论合同总额" value={<CurrencyAmount>{batchGross === null || deliveries === null || deliveries === undefined ? '—' : formatCurrency(batchGross * deliveries)}</CurrencyAmount>} /><DataRow label="单方保证金" value={<CurrencyAmount>{bond === null ? '—' : formatCurrency(bond)}</CurrencyAmount>} /></> : null}
             {isLoan ? <><DataRow label="贷款本金" value={<CurrencyAmount>{principal === null ? '—' : formatCurrency(principal)}</CurrencyAmount>} /><DataRow label="固定利息" value={<CurrencyAmount>{loanInterest === null ? '—' : formatCurrency(loanInterest)}</CurrencyAmount>} /><DataRow label="到期应还" value={<CurrencyAmount>{principal === null || loanInterest === null ? '—' : formatCurrency(principal + loanInterest)}</CurrencyAmount>} /></> : null}
             {!isSupply && !isLoan ? <><DataRow label="每期租金" value={<CurrencyAmount>{rent === null ? '—' : formatCurrency(rent)}</CurrencyAmount>} /><DataRow label="理论租金总额" value={<CurrencyAmount>{rent === null || leasePeriods === null ? '—' : formatCurrency(rent * leasePeriods)}</CurrencyAmount>} /><DataRow label="单方保证金" value={<CurrencyAmount>{leaseBond === null ? '—' : formatCurrency(leaseBond)}</CurrencyAmount>} /></> : null}
           </DataList>

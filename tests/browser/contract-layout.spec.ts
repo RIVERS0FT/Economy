@@ -221,6 +221,13 @@ test('desktop contract workspace uses shared controls and dense two-column layou
   await quantity.blur();
   await expect(quantity).toHaveValue('100');
 
+  const totalDeliveries = page.getByLabel('总交付批次（可选）');
+  await totalDeliveries.fill('');
+  await totalDeliveries.blur();
+  await expect(totalDeliveries).toHaveValue('');
+  await expect(page.locator('.contract-publish-preview').getByText('长期', { exact: true })).toBeVisible();
+  await expect(submit).toBeEnabled();
+
   await page.getByRole('tab', { name: /历史合同/ }).click();
   await expect(page.locator('.contract-history-panel')).toHaveCount(1);
   await expect(page.locator('.contract-history-entry')).toHaveCount(1);
@@ -238,7 +245,7 @@ test('desktop contract workspace uses shared controls and dense two-column layou
   await expect(page.locator('.contract-type-option').filter({ hasText: '采购合同' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByLabel('每批数量')).toHaveValue('60');
   await expect(page.getByLabel('单位价格')).toHaveValue('45');
-  await expect(page.getByLabel('总交付批次')).toHaveValue('8');
+  await expect(page.getByLabel('总交付批次（可选）')).toHaveValue('8');
   expect(await page.locator('body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 });
 
