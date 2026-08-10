@@ -23,6 +23,7 @@ jobs:
         run: |
           set -euo pipefail
           cat .agent-renewal.patch.part-* > /tmp/renewal.patch
+          sed -i 's/筛选器固定覆盖合同领域、最终状态、我的角色和合同标的和日期范围/筛选器固定覆盖合同领域、最终状态、我的角色、合同标的和日期范围/' /tmp/renewal.patch
           git apply --check /tmp/renewal.patch
           git apply /tmp/renewal.patch
           git rm -- .agent-renewal.patch.part-00 .agent-renewal.patch.part-01 .agent-renewal.patch.part-02 .agent-renewal.patch.part-03 .agent-renewal.patch.part-04
