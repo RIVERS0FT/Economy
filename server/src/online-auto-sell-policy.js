@@ -1,5 +1,6 @@
 import { PRODUCT_CATALOG } from './industry-catalog.js';
 import { normalizePlayerMoneyInput } from './money.js';
+import { cancelManagedOnlineAutoSellOrder } from './online-auto-sell-orders.js';
 
 const PRODUCT_IDS = new Set(PRODUCT_CATALOG.map((product) => product.id));
 
@@ -63,6 +64,16 @@ function importLegacyOnlineAutoSellPolicies(player, payload) {
   return { ok: true, message: '旧版自动出售设置已合并到当前存档' };
 }
 
+function samePolicy(left, right) {
+  return Boolean(
+    left
+    && right
+    && left.enabled === right.enabled
+    && Number(left.price) === Number(right.price)
+    && Number(left.minimumFreeInventory) === Number(right.minimumFreeInventory),
+  );
+}
+
 export function applyOnlineAutoSellPolicyAction(world, user, payload = {}) {
   const player = world.players?.[String(user.id)];
   if (!player) return { ok: false, message: '玩家不存在' };
@@ -76,6 +87,8 @@ export function applyOnlineAutoSellPolicyAction(world, user, payload = {}) {
   if (!policy) return { ok: false, message: '自动出售设置无效' };
 
   const policies = ensureOnlineAutoSellPolicies(player);
+  const previous = policies[productId] || null;
+  if (!samePolicy(previous, policy)) cancelManagedOnlineAutoSellOrder(world, user.id, productId);
   policies[productId] = policy;
   player.onlineAutoSellPolicies = policies;
   return {
