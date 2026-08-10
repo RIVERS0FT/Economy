@@ -201,6 +201,7 @@ for (const text of [
 for (const text of [
   'maxOrderQuantity: Number.MAX_SAFE_INTEGER',
   'openOrderLimitForCatalog',
+  'return (products + facilities) * 10;',
 ]) requireText('src/config/economy.ts', text);
 for (const text of [
   'openOrderLimitForCatalog(game.products.length, game.facilityTypes.length)',
@@ -209,7 +210,7 @@ for (const text of [
   'formatNumber(maxOpenOrders)',
 ]) requireText('src/pages/MarketPage.tsx', text);
 for (const text of [
-  'maxOpenOrders: PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length',
+  'maxOpenOrders: (PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length) * 10',
   'maxOrderQuantity: Number.MAX_SAFE_INTEGER',
 ]) requireText('server/src/domain-core.js', text);
 for (const text of [
@@ -222,12 +223,13 @@ forbidText('server/src/facility-groups.js', 'MAX_FACILITY_ORDER_QUANTITY');
 forbidText('server/src/facility-groups.js', 'MAX_OPEN_ORDERS');
 for (const text of [
   '只表示技术安全边界，不构成固定业务数量上限',
-  'PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length',
-  '当前权威目录为 36 种商品与 26 种工厂类型，即当前上限 62 笔',
+  '(PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length) * 10',
+  '当前权威目录为 36 种商品与 26 种工厂类型，即当前上限 620 笔',
 ]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
 forbidText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '当前上限为 52 笔');
+forbidText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '当前上限 62 笔');
 for (const text of [
-  '商品和工厂合计未完成订单达到当前商品类型数与工厂类型数之和',
+  '商品和工厂合计未完成订单达到当前商品类型数与工厂类型数之和的 10 倍',
   '说明动态上限并禁用提交',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
