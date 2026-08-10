@@ -1,71 +1,113 @@
 import { expect, test } from '@playwright/test';
 
-test.describe('warehouse online auto sell policy', () => {
+test.describe('warehouse online auto trade policy', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('places the desktop auto-sell panel left of the warehouse at the build-card width', async ({ page }) => {
+  test('places the desktop auto-trade panel left of the warehouse at the build-card width', async ({ page }) => {
     await page.goto('runtime-test.html?view=production&scenario=cluster-summary');
 
-    const autoSellCard = page.locator('.warehouse-auto-sell-card');
+    const autoTradeCard = page.locator('.warehouse-auto-trade-card');
     const warehouseCard = page.locator('.warehouse-inventory-panel');
     const buildCard = page.locator('.production-build-card');
-    await expect(autoSellCard).toBeVisible();
+    await expect(autoTradeCard).toBeVisible();
     await expect(warehouseCard).toBeVisible();
     await expect(buildCard).toBeVisible();
 
-    const [autoSellBox, warehouseBox, buildBox] = await Promise.all([
-      autoSellCard.boundingBox(),
+    const [autoTradeBox, warehouseBox, buildBox] = await Promise.all([
+      autoTradeCard.boundingBox(),
       warehouseCard.boundingBox(),
       buildCard.boundingBox(),
     ]);
-    expect(autoSellBox).not.toBeNull();
+    expect(autoTradeBox).not.toBeNull();
     expect(warehouseBox).not.toBeNull();
     expect(buildBox).not.toBeNull();
-    expect(autoSellBox!.x).toBeLessThan(warehouseBox!.x);
-    expect(Math.abs(autoSellBox!.width - buildBox!.width)).toBeLessThanOrEqual(1);
+    expect(autoTradeBox!.x).toBeLessThan(warehouseBox!.x);
+    expect(Math.abs(autoTradeBox!.width - buildBox!.width)).toBeLessThanOrEqual(1);
 
     const productCard = page.locator('.warehouse-product-card').first();
     await productCard.click();
-    await expect(autoSellCard).toContainText('设置保存至存档 · 在线维护卖单');
-    await expect(autoSellCard).toContainText('最低自由库存');
-    await expect(autoSellCard.getByLabel('最低自由库存')).toHaveValue('0');
-    await expect(autoSellCard.getByLabel('最低自动出售价格')).toBeVisible();
-    await expect(autoSellCard).toContainText('没有买盘时则持续留下卖盘供应');
+    await expect(autoTradeCard.getByRole('button', { name: '自动采购' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(autoTradeCard).toContainText('设置保存至存档 · 在线维护买单');
+    await expect(autoTradeCard.getByLabel('目标自由库存')).toHaveValue('0');
+    await expect(autoTradeCard.getByLabel('最高自动采购价格')).toBeVisible();
+
+    await autoTradeCard.getByRole('button', { name: '自动出售' }).click();
+    await expect(autoTradeCard).toContainText('设置保存至存档 · 在线维护卖单');
+    await expect(autoTradeCard.getByLabel('最低自由库存')).toHaveValue('0');
+    await expect(autoTradeCard.getByLabel('最低自动出售价格')).toBeVisible();
     await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
+  });
+
+  test('opens auto-trade for a zero-stock product from the full catalog selector', async ({ page }) => {
+    await page.goto('runtime-test.html?view=production&scenario=cluster-summary');
+
+    const stockedIds = await page.locator('.warehouse-product-card[data-product-id]').evaluateAll((elements) => (
+      elements.map((element) => (element as HTMLElement).dataset.productId || '').filter(Boolean)
+    ));
+    const selector = page.getByRole('combobox', { name: '自动交易商品' });
+    await selector.click();
+    const optionValues = await page.locator('.ui-rich-select__option[data-value]').evaluateAll((elements) => (
+      elements.map((element) => (element as HTMLElement).dataset.value || '').filter(Boolean)
+    ));
+    const zeroStockProductId = optionValues.find((value) => !stockedIds.includes(value));
+    expect(zeroStockProductId).toBeTruthy();
+    await page.locator(`.ui-rich-select__option[data-value="${zeroStockProductId}"]`).click();
+
+    const autoTradeCard = page.locator('.warehouse-auto-trade-card');
+    await expect(autoTradeCard).toContainText('目标自由库存');
+    await expect(autoTradeCard).toContainText('预计自动采购');
+    await expect(autoTradeCard.getByRole('button', { name: '保存自动交易设置' })).toBeVisible();
   });
 
   test('uses the shared bottom sheet at 720px and restores focus after closing', async ({ page }) => {
     await page.setViewportSize({ width: 720, height: 900 });
     await page.goto('runtime-test.html?view=production&scenario=cluster-summary');
 
-    const autoSellCard = page.locator('.warehouse-auto-sell-card');
+    const autoTradeCard = page.locator('.warehouse-auto-trade-card');
     const productCard = page.locator('.warehouse-product-card').first();
-    await expect(autoSellCard).toBeHidden();
+    await expect(autoTradeCard).toBeHidden();
     await productCard.click();
 
     const sheet = page.locator('.mobile-detail-sheet');
     await expect(sheet).toBeVisible();
-    await expect(sheet).toContainText('设置保存至存档 · 在线维护卖单');
-    await expect(sheet).toContainText('最低自由库存');
-    await expect(sheet.getByLabel('最低自由库存')).toHaveValue('0');
-    await expect(sheet.getByLabel('最低自动出售价格')).toBeVisible();
-    await expect(sheet).toContainText('没有买盘时则持续留下卖盘供应');
-    await expect(page.locator('.mobile-detail-sheet-footer').getByRole('button')).toBeVisible();
+    await expect(sheet).toContainText('自动交易');
+    await expect(sheet).toContainText('设置保存至存档 · 在线维护买单');
+    await expect(sheet.getByLabel('目标自由库存')).toHaveValue('0');
+    await expect(sheet.getByLabel('最高自动采购价格')).toBeVisible();
+    await expect(page.locator('.mobile-detail-sheet-footer').getByRole('button', { name: '保存自动交易设置' })).toBeVisible();
 
     await page.keyboard.press('Escape');
     await expect(sheet).toHaveCount(0);
     await expect(productCard).toBeFocused();
   });
 
+  test('opens the shared bottom sheet from the mobile warehouse header without stock selection', async ({ page }) => {
+    await page.setViewportSize({ width: 720, height: 900 });
+    await page.goto('runtime-test.html?view=production&scenario=cluster-summary');
+
+    const trigger = page.getByRole('button', { name: '自动交易' }).last();
+    await expect(trigger).toBeVisible();
+    await trigger.click();
+
+    const sheet = page.locator('.mobile-detail-sheet');
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByRole('combobox', { name: '自动交易商品' })).toBeVisible();
+    await expect(sheet).toContainText('选择商品设置自动交易');
+
+    await page.keyboard.press('Escape');
+    await expect(sheet).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+  });
+
   test('keeps the desktop side panel at 721px instead of opening a mobile sheet', async ({ page }) => {
     await page.setViewportSize({ width: 721, height: 900 });
     await page.goto('runtime-test.html?view=production&scenario=cluster-summary');
 
-    const autoSellCard = page.locator('.warehouse-auto-sell-card');
-    await expect(autoSellCard).toBeVisible();
+    const autoTradeCard = page.locator('.warehouse-auto-trade-card');
+    await expect(autoTradeCard).toBeVisible();
     await page.locator('.warehouse-product-card').first().click();
-    await expect(autoSellCard).toContainText('设置保存至存档 · 在线维护卖单');
-    await expect(autoSellCard).toContainText('最低自由库存');
+    await expect(autoTradeCard).toContainText('设置保存至存档 · 在线维护买单');
+    await expect(autoTradeCard).toContainText('目标自由库存');
     await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
   });
 });
