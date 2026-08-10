@@ -203,6 +203,13 @@ assert.equal(facilities.get('steelworks').name, '冶炼厂');
 assert.equal(facilities.has('copper-smelter'), false, '不得新增铜冶炼厂');
 assert.deepEqual(standardRecipes(facilities.get('food-factory')).map((item) => item.id), ['food-factory-default', 'prepared-meal-production']);
 assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.id), ['milk-beverage', 'fruit-beverage']);
+const feedRecipe = standardRecipes(facilities.get('feed-factory'))[0];
+assert.deepEqual(feedRecipe.inputs, [
+  { productId: 'wheat', quantity: 2 }, { productId: 'fruit', quantity: 1 },
+]);
+assert.deepEqual(feedRecipe.output, { productId: 'feed', quantity: 2 });
+assert.equal(feedRecipe.cycleMs, 60_000);
+assert.equal(feedRecipe.operatingCost, 4.9);
 assert.deepEqual(standardRecipes(facilities.get('mill')).map((item) => item.operatingCost), [8.6, 8.6]);
 assert.deepEqual(standardRecipes(facilities.get('textile-mill')).map((item) => item.operatingCost), [8.8, 11.2]);
 assert.equal(standardRecipes(facilities.get('food-factory'))[1].operatingCost, 14.5);
@@ -246,6 +253,7 @@ for (const [path, texts] of [
     '当前基线为 36 种商品和 26 种工厂类型',
     'C1 基础制度采用工厂级参考分钟利润',
     '农场 0.6、果园 0.9、畜牧场 0.8、渔场 1.0',
+    '固定消耗 2 小麦 + 1 水果并产出 2 配合饲料',
     '不新增铜冶炼厂',
     '任一输入不足时不得扣除其他输入',
     '模型 1 的未完成市场需求订单',

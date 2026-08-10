@@ -254,7 +254,7 @@ test('expanded industry catalog exposes fruit and complete production chains', (
     { productId: 'machinery', quantity: 1 }, { productId: 'electronics', quantity: 1 },
   ]);
   assert.deepEqual(standardRecipes(facilities.get('feed-factory'))[0].inputs, [
-    { productId: 'wheat', quantity: 2 }, { productId: 'sugarcane', quantity: 1 },
+    { productId: 'wheat', quantity: 2 }, { productId: 'fruit', quantity: 1 },
   ]);
   assert.deepEqual(standardRecipes(facilities.get('veterinary-medicine-factory'))[0].inputs, [
     { productId: 'fertilizer', quantity: 1 }, { productId: 'plastic', quantity: 1 },
