@@ -43,8 +43,7 @@
   font-weight: 750;
 }
 
-.asset-auction-actions,
-.asset-bid-form {
+.asset-auction-actions {
   display: flex;
   align-items: end;
   gap: .65rem;
@@ -52,7 +51,15 @@
 }
 
 .asset-auction-actions > * { flex: 1 1 auto; }
-.asset-bid-form label { display: grid; flex: 1 1 190px; gap: .4rem; color: var(--color-text-secondary); font-size: .84rem; }
+.asset-bid-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: .65rem;
+  min-width: 0;
+}
+.asset-bid-form label { display: grid; min-width: 0; gap: .4rem; color: var(--color-text-secondary); font-size: .84rem; }
+.asset-bid-form .ui-button { width: auto; white-space: nowrap; }
 
 .asset-auction-create,
 .asset-auction-history {
