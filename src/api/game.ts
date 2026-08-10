@@ -1,5 +1,6 @@
 import type { AssetKind, EconomyState, OrderSide } from '../types';
 import type { AuctionBidHistory, AuctionItem } from '../auctions/types';
+import type { FacilityBuildProcurementGroup } from '../utils/facilityBuildProcurementGroups';
 import {
   createStateDeliveryCache,
   type StateDeliveryEnvelope,
@@ -20,6 +21,13 @@ export const DEFAULT_QQ_GROUP_URL = 'https://qm.qq.com/q/eN8hya0Yn0';
 export interface GameActionResult { ok: boolean; message: string; }
 export interface GameActionResponse {
   result: GameActionResult;
+  revision: number;
+}
+export interface FacilityBuildProcurementActionResult extends GameActionResult {
+  procurementGroup?: FacilityBuildProcurementGroup;
+}
+export interface FacilityBuildProcurementActionResponse {
+  result: FacilityBuildProcurementActionResult;
   revision: number;
 }
 export interface OnlineAutoSellPolicyInput {
@@ -292,6 +300,21 @@ export function importLegacyOnlineAutoSellPolicies(policies: Record<string, Onli
     legacyImport: true,
     policies,
   });
+}
+
+export function createFacilityBuildProcurement(
+  facilityTypeId: string,
+  quantity: number,
+  materialOrderPrices: Record<string, number>,
+) {
+  return request<FacilityBuildProcurementActionResponse>('/facilities/procurements', {
+    method: 'POST',
+    body: JSON.stringify({ facilityTypeId, quantity, materialOrderPrices }),
+  });
+}
+
+export function cancelFacilityBuildProcurement(orderIds: string[]) {
+  return postAction('/facilities/procurements/cancel', { orderIds });
 }
 
 export const gameActions = {
