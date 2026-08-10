@@ -42,6 +42,8 @@ export function WarehouseInventoryPanel({
         eligibleQuantity: 0,
         blockedByOwnBuy: false,
         hasCrossingBuyer: false,
+        hasManagedOrder: false,
+        reservationShortfall: false,
       };
     },
     setPolicy: async () => ({ ok: false, message: '自动出售控制器不可用' }),
@@ -120,12 +122,14 @@ export function WarehouseInventoryPanel({
     return (
       <>
         <div className="warehouse-auto-sell-status">
-          <StatusTag tone="info">设置保存至存档 · 仅在线执行</StatusTag>
-          {autoSell.busyProductId === selectedProduct.id ? <StatusTag tone="success">正在自动出售</StatusTag> : null}
+          <StatusTag tone="info">设置保存至存档 · 在线维护卖单</StatusTag>
+          {autoSell.busyProductId === selectedProduct.id ? <StatusTag tone="success">正在维护自动卖单</StatusTag> : null}
           {autoSellEnabledDraft && selectedAutoSellStatus.blockedByOwnBuy ? <StatusTag tone="warning">自己的买单阻止自动出售</StatusTag> : null}
           {autoSellEnabledDraft && !selectedAutoSellStatus.blockedByOwnBuy ? (
-            <StatusTag tone={selectedAutoSellStatus.hasCrossingBuyer ? 'success' : 'neutral'}>
-              {selectedAutoSellStatus.hasCrossingBuyer ? '已有买盘达到价格' : '等待达到价格的买盘'}
+            <StatusTag tone={selectedAutoSellStatus.hasManagedOrder || selectedAutoSellStatus.hasCrossingBuyer ? 'success' : 'neutral'}>
+              {selectedAutoSellStatus.hasManagedOrder
+                ? '已在市场挂单供应'
+                : selectedAutoSellStatus.hasCrossingBuyer ? '已有买盘达到价格' : '等待维护市场供应'}
             </StatusTag>
           ) : null}
         </div>
@@ -138,7 +142,7 @@ export function WarehouseInventoryPanel({
         </div>
         <ToggleField
           label="启用自动出售"
-          description="设置会跟随当前经济存档同步；只有 Economy 客户端在线时才会发起新的自动成交。"
+          description="设置跟随当前经济存档同步；Economy 客户端在线时创建和调整自动卖单，已经进入订单簿的自动卖单在离线后仍可继续成交。"
           checked={autoSellEnabledDraft}
           onChange={(event) => setAutoSellEnabledDraft(event.target.checked)}
         />
@@ -153,7 +157,7 @@ export function WarehouseInventoryPanel({
         />
         <MoneyInput
           label="最低自动出售价格"
-          description="只有市场中现有买单价格达到或高于该价格时才会出售。"
+          description="自动卖单按该最低价进入订单簿；达到或高于该价格的买单会立即成交，没有买盘时则持续留下卖盘供应。"
           value={autoSellPriceDraft}
           fallbackValue={selectedPolicy.price}
           min={0.01}
@@ -162,7 +166,7 @@ export function WarehouseInventoryPanel({
           onValueChange={setAutoSellPriceDraft}
         />
         <p className="warehouse-auto-sell-note">
-          数量和策略均由服务器成交前重新读取并计算：先保留开启中工厂下一完整周期的原料，再保留自动准备的合同批次，最后额外保留你设置的最低自由库存；该值不限制生产、合同履约、手动卖出或拍卖。
+          数量和策略由服务器重新读取并计算：先保留开启中工厂下一完整周期的原料，再保留自动准备的合同批次，最后保留最低自由库存；剩余商品作为真实冻结卖单进入统一订单簿。生产或合同需要更多库存时会优先收回自动卖单，在线后再按最新库存补挂。
         </p>
       </>
     );
@@ -186,7 +190,7 @@ export function WarehouseInventoryPanel({
         <PagePanel className="production-surface warehouse-auto-sell-card">
           <WidgetHeading
             title={selectedProduct ? `${selectedProduct.name} · 自动出售` : '自动出售'}
-            action={<StatusTag tone="info">仅客户端在线</StatusTag>}
+            action={<StatusTag tone="info">在线维护</StatusTag>}
           />
           {selectedProduct && selectedAutoSellStatus && selectedPolicy ? (
             <section className="warehouse-auto-sell-panel" aria-label={`${selectedProduct.name}自动出售设置`}>
@@ -252,7 +256,7 @@ export function WarehouseInventoryPanel({
           <section className="warehouse-auto-sell-sheet-content">
             <WidgetHeading
               title={`${selectedProduct.name} · 自动出售`}
-              action={<StatusTag tone="info">仅客户端在线</StatusTag>}
+              action={<StatusTag tone="info">在线维护</StatusTag>}
             />
             {renderAutoSellFields()}
           </section>
