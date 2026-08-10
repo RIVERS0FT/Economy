@@ -23,6 +23,7 @@ test('plain SelectInput uses the production rich select interaction', async ({ p
   await expect(nativeSelect).toHaveValue('10');
 
   await trigger.focus();
+  await page.keyboard.press('Enter');
   await page.keyboard.press('Home');
   await page.keyboard.press('Enter');
   await expect(trigger).toContainText('每 3s');
