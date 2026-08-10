@@ -11,6 +11,7 @@ export interface FacilityBuildProcurementQuote {
   estimatedTotal: number;
   missingQuantity: number;
   materialPriceCaps: Record<string, number>;
+  materialOrderPrices: Record<string, number>;
   unavailableProductIds: string[];
   selfCrossingProductIds: string[];
 }
@@ -22,6 +23,39 @@ function priceCents(value: number) {
 
 function openOrder(order: AssetOrder) {
   return order.status === 'open' || order.status === 'partial';
+}
+
+function matchingOrders(orders: AssetOrder[], productId: string, side: 'buy' | 'sell') {
+  return orders
+    .map((order, index) => ({ order, index }))
+    .filter(({ order }) => (
+      openOrder(order)
+      && orderKind(order) === 'commodity'
+      && orderAssetId(order) === productId
+      && order.side === side
+      && Math.max(0, Math.floor(Number(order.remaining || 0))) > 0
+      && priceCents(order.price) !== null
+    ));
+}
+
+export function defaultFacilityBuildOrderPrice(orders: AssetOrder[], productId: string) {
+  const asks = matchingOrders(orders, productId, 'sell')
+    .sort((left, right) => (
+      Number(left.order.price || 0) - Number(right.order.price || 0)
+      || Number(left.order.createdAt || 0) - Number(right.order.createdAt || 0)
+      || left.index - right.index
+    ));
+  const bestAskCents = priceCents(asks[0]?.order.price);
+  if (bestAskCents !== null) return bestAskCents / 100;
+
+  const bids = matchingOrders(orders, productId, 'buy')
+    .sort((left, right) => (
+      Number(right.order.price || 0) - Number(left.order.price || 0)
+      || Number(left.order.createdAt || 0) - Number(right.order.createdAt || 0)
+      || left.index - right.index
+    ));
+  const bestBidCents = priceCents(bids[0]?.order.price);
+  return bestBidCents === null ? 1 : bestBidCents / 100;
 }
 
 export function quoteFacilityBuildProcurement(
@@ -38,20 +72,15 @@ export function quoteFacilityBuildProcurement(
   let totalCents = 0n;
   let missingQuantity = 0;
   const materialPriceCaps: Record<string, number> = {};
+  const materialOrderPrices: Record<string, number> = {};
   const unavailableProductIds: string[] = [];
   const selfCrossingProductIds: string[] = [];
 
   for (const [productId, quantity] of needs) {
     missingQuantity += quantity;
-    const asks = orders
-      .map((order, index) => ({ order, index }))
-      .filter(({ order }) => (
-        openOrder(order)
-        && orderKind(order) === 'commodity'
-        && orderAssetId(order) === productId
-        && order.side === 'sell'
-        && !order.isOwn
-      ))
+    materialOrderPrices[productId] = defaultFacilityBuildOrderPrice(orders, productId);
+    const asks = matchingOrders(orders, productId, 'sell')
+      .filter(({ order }) => !order.isOwn)
       .sort((left, right) => (
         Number(left.order.price || 0) - Number(right.order.price || 0)
         || Number(left.order.createdAt || 0) - Number(right.order.createdAt || 0)
@@ -93,6 +122,7 @@ export function quoteFacilityBuildProcurement(
     estimatedTotal: safeTotal ? numericTotalCents / 100 : 0,
     missingQuantity,
     materialPriceCaps,
+    materialOrderPrices,
     unavailableProductIds,
     selfCrossingProductIds,
   };
