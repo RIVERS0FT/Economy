@@ -1,10 +1,26 @@
-.warehouse-inventory-panel {
+.production-warehouse-workspace {
   display: grid;
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+  align-items: start;
   gap: var(--space-3);
-  padding: var(--space-4);
+}
+
+.production-warehouse-workspace > * {
+  min-width: 0;
 }
 
 .factory-warehouse-card { margin-bottom: var(--space-4); }
+
+.warehouse-auto-sell-card,
+.warehouse-inventory-panel {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+}
+
+.warehouse-inventory-panel {
+  padding: var(--space-4);
+}
 
 .warehouse-content {
   min-width: 0;
@@ -101,7 +117,8 @@
 
 .warehouse-product-card-frozen { color: var(--color-text-muted); font-size: var(--font-size-xs); }
 
-.warehouse-content-empty {
+.warehouse-content-empty,
+.warehouse-auto-sell-empty {
   min-height: 180px;
   display: grid;
   place-content: center;
@@ -110,7 +127,16 @@
   text-align: center;
 }
 
-.warehouse-content-empty span { color: var(--color-text-muted); }
+.warehouse-content-empty span,
+.warehouse-auto-sell-empty span {
+  color: var(--color-text-muted);
+}
+
+.warehouse-auto-sell-empty span {
+  max-width: 16rem;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+}
 
 @container (max-width: 559px) {
   .warehouse-product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
@@ -136,21 +162,16 @@
   .warehouse-product-card-icon .product-icon { width: 58px; height: 58px; }
 }
 
-@media (max-width: 720px) {
-  .warehouse-inventory-panel { gap: var(--space-2); padding: var(--space-3); }
-  .warehouse-content-heading { align-items: baseline; }
-}
-
-
 .warehouse-product-card.is-auto-sell-enabled {
   border-color: color-mix(in srgb, var(--color-success) 42%, var(--color-border));
 }
 
-.warehouse-auto-sell-panel {
+.warehouse-auto-sell-panel,
+.warehouse-auto-sell-sheet-content {
+  min-width: 0;
   display: grid;
+  align-content: start;
   gap: var(--space-3);
-  border-top: 1px solid var(--color-border);
-  padding-top: var(--space-3);
 }
 
 .warehouse-auto-sell-status {
@@ -159,9 +180,13 @@
   gap: var(--space-2);
 }
 
+.warehouse-auto-sell-status:empty {
+  display: none;
+}
+
 .warehouse-auto-sell-summary {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
 }
 
@@ -173,6 +198,11 @@
   border-radius: var(--radius-control);
   padding: var(--space-2);
   background: var(--color-surface-inset);
+}
+
+.warehouse-auto-sell-summary > .is-primary {
+  border-color: color-mix(in srgb, var(--color-success) 42%, var(--color-divider));
+  background: color-mix(in srgb, var(--color-success-soft) 58%, var(--color-surface-inset));
 }
 
 .warehouse-auto-sell-summary span,
@@ -192,8 +222,26 @@
 }
 
 @media (max-width: 720px) {
-  .warehouse-auto-sell-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .production-warehouse-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .warehouse-auto-sell-card {
+    display: none;
+  }
+
+  .warehouse-inventory-panel {
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+
+  .warehouse-content-heading {
+    align-items: baseline;
+  }
+
+  .warehouse-auto-sell-sheet-content {
+    padding: 0 var(--space-3) var(--space-3);
   }
 }
 
