@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNow } from '../hooks/useNow';
 import type { OnlineAutoSellAwareGameViewModel } from '../auto-sell/useOnlineAutoSell';
+import { ProductArtwork } from '../components/products/ProductArtwork';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { SelectInput } from '../components/ui/FormControls';
+import { RichSelectInput } from '../components/ui/RichSelectInput';
 import { WarehouseInventoryPanel } from '../components/warehouse/WarehouseInventoryPanel';
 import {
   Button,
@@ -29,6 +31,7 @@ import {
 } from './production/ProductionFacilityDetail';
 import { MobileFacilityDetailSheet } from './production/MobileFacilityDetailSheet';
 import '../styles/production-methods.css';
+import '../styles/facility-build-select.css';
 
 /*
  * Split-module ownership manifest for static page-contract verification. Runtime implementations live in
@@ -69,6 +72,33 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
     () => getUnlockedFacilityTypes(game),
     [game.facilityTypes, game.research, game.researchTechnologies],
   );
+  const productNamesById = useMemo(
+    () => new Map(game.products.map((product) => [product.id, product.name])),
+    [game.products],
+  );
+  const buildFacilityOptions = useMemo(() => unlockedFacilityTypes.map((type) => {
+    const seenProductIds = new Set<string>();
+    const outputProductIds = recipesForType(type).flatMap((recipe) => {
+      const productId = recipe.output.productId;
+      if (seenProductIds.has(productId)) return [];
+      seenProductIds.add(productId);
+      return [productId];
+    });
+    return {
+      value: type.id,
+      label: type.name,
+      detail: (
+        <span className="facility-build-output-list">
+          {outputProductIds.map((productId) => (
+            <span className="facility-build-output-item" key={productId}>
+              <ProductArtwork productId={productId} />
+              <span>{productNamesById.get(productId) ?? productId}</span>
+            </span>
+          ))}
+        </span>
+      ),
+    };
+  }), [productNamesById, unlockedFacilityTypes]);
   const selectedType = useMemo(
     () => unlockedFacilityTypes.find((type) => type.id === selectedFacilityTypeId) ?? unlockedFacilityTypes[0],
     [selectedFacilityTypeId, unlockedFacilityTypes],
@@ -127,7 +157,6 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
     );
   }
 
-  const selectedRecipes = recipesForType(selectedType);
   const selectedBuildInputs = selectedType.buildInputs ?? [];
   const buildCashCost = selectedType.buildCost * buildQuantity;
   const buildMaterialRequirements = selectedBuildInputs.map((item) => {
@@ -226,25 +255,12 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
       <div className="production-grid production-workspace">
         <PagePanel className="production-surface build-card production-build-card">
           <WidgetHeading title="建设新工厂" />
-          <SelectInput
+          <RichSelectInput
             label="工厂类型"
             value={selectedType.id}
-            onChange={(event) => setSelectedFacilityTypeId(event.target.value)}
-          >
-            {unlockedFacilityTypes.map((type) => (
-              <option value={type.id} key={type.id}>
-                {type.name}
-              </option>
-            ))}
-          </SelectInput>
-          <div className="facility-type-summary">
-            <h3>{selectedType.name}</h3>
-            <p>
-              {selectedRecipes.length > 1
-                ? `可选产物：${selectedRecipes.map((recipe) => recipe.name).join('／')}`
-                : `固定产物：${selectedRecipes[0]?.name ?? selectedType.name}`}
-            </p>
-          </div>
+            options={buildFacilityOptions}
+            onValueChange={setSelectedFacilityTypeId}
+          />
           <SelectInput
             label="建造数量"
             value={String(buildQuantity)}
