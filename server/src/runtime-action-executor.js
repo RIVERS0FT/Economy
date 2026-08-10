@@ -3,7 +3,11 @@ import { applyAssetAuctionAction } from './asset-auctions.js';
 import { applyBankAction, ensureBankWorld, ensurePlayerBankAccount } from './banking.js';
 import { ensurePlayer } from './domain.js';
 import { createEconomicActionBoundary, beginEconomicSavepoint } from './economic-mutation.js';
-import { autoProcureFacilityBuildMaterials } from './facility-auto-procure.js';
+import {
+  autoProcureFacilityBuildMaterials,
+  cancelFacilityBuildProcurementOrders,
+  createFacilityBuildProcurementOrders,
+} from './facility-auto-procure.js';
 import { applyFacilityGroupAction } from './facility-groups.js';
 import { ensureGemState } from './invitations.js';
 import { normalizePlayerMoneyPayload } from './money.js';
@@ -34,11 +38,15 @@ function normalizeJson(value) {
 }
 
 function createActionAcknowledgement(result, revision) {
+  const acknowledgementResult = {
+    ok: result?.ok === true,
+    message: String(result?.message || ''),
+  };
+  if (result?.procurementGroup) {
+    acknowledgementResult.procurementGroup = normalizeJson(result.procurementGroup);
+  }
   return normalizeJson({
-    result: {
-      ok: result?.ok === true,
-      message: String(result?.message || ''),
-    },
+    result: acknowledgementResult,
     revision: Number(revision),
   });
 }
@@ -48,11 +56,18 @@ function executeActionBody(store, world, user, action, payload, requestKey, now)
   const savepoint = beginEconomicSavepoint(store, 'economy_player_action');
   let gameResult;
   try {
-    const researchAccess = validateResearchAccess(world, user, action, payload, now);
+    const isFacilityBuildProcurement = action === 'placeOrder'
+      && payload.execution === 'facility-build-procurement';
+    const researchAction = isFacilityBuildProcurement ? 'buildFacility' : action;
+    const researchAccess = validateResearchAccess(world, user, researchAction, payload, now);
     if (researchAccess) {
       gameResult = researchAccess;
     } else if (action === 'startResearch' || action === 'accelerateResearch') {
       gameResult = applyResearchAction(world, user, action, payload, now);
+    } else if (action === 'placeOrder' && payload.execution === 'facility-build-procurement') {
+      gameResult = createFacilityBuildProcurementOrders(world, user, payload, now);
+    } else if (action === 'placeOrder' && payload.execution === 'facility-build-procurement-cancel') {
+      gameResult = cancelFacilityBuildProcurementOrders(world, user, payload, now);
     } else if (action === 'placeOrder' && payload.execution === 'online-auto-sell-policy') {
       gameResult = applyOnlineAutoSellPolicyAction(world, user, payload);
     } else if (action === 'placeOrder' && payload.execution === 'online-auto-sell') {

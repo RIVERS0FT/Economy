@@ -1,10 +1,14 @@
+import { randomUUID } from 'node:crypto';
 import {
+  applyAction,
   applyImmediateCommodityBuy,
+  ECONOMY_CONSTANTS,
   FACILITY_TYPE_CATALOG,
   PRODUCT_CATALOG,
 } from './domain.js';
 import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
+import { countOpenOrdersForOwner, orderById } from './order-book-runtime.js';
 import {
   internalMoneyToMicros,
   microsToInternalMoney,
@@ -30,6 +34,36 @@ function inventoryFor(player, productId) {
   player.inventories ||= {};
   player.inventories[productId] ||= { available: 0, frozen: 0 };
   return player.inventories[productId];
+}
+
+function facilityBuildContext(world, user, payload = {}) {
+  const userId = Number(user.id);
+  const player = world.players?.[String(userId)];
+  const type = FACILITY_TYPES.get(String(payload.facilityTypeId || ''));
+  if (!player) return { error: result(false, '玩家状态不存在') };
+  if (!type) return { error: result(false, '工厂类型不存在') };
+  const quantity = normalizePositiveInteger(payload.quantity ?? 1, 100);
+  if (!quantity) return { error: result(false, '建造数量必须为 1 到 100 的整数') };
+  if (!Array.isArray(type.buildInputs)) return { error: result(false, '工厂建造材料目录无效') };
+
+  const missing = [];
+  let missingQuantity = 0;
+  for (const item of type.buildInputs) {
+    const required = Number(item.quantity) * quantity;
+    if (!Number.isSafeInteger(required) || required < 1) {
+      return { error: result(false, '建造材料数量超出系统可表示范围') };
+    }
+    const productId = String(item.productId || '');
+    const deficit = Math.max(0, required - Number(inventoryFor(player, productId).available || 0));
+    if (deficit <= 0) continue;
+    if (!Number.isSafeInteger(deficit) || !Number.isSafeInteger(missingQuantity + deficit)) {
+      return { error: result(false, '建造材料数量超出系统可表示范围') };
+    }
+    missing.push({ productId, quantity: deficit });
+    missingQuantity += deficit;
+  }
+
+  return { userId, player, type, quantity, missing, missingQuantity };
 }
 
 function externalSellOrders(world, userId, productId) {
@@ -84,29 +118,11 @@ function quoteMaterial(world, userId, productId, quantity, priceCap) {
 }
 
 export function autoProcureFacilityBuildMaterials(world, user, payload = {}, now = Date.now()) {
-  const userId = Number(user.id);
-  const player = world.players?.[String(userId)];
-  const type = FACILITY_TYPES.get(String(payload.facilityTypeId || ''));
-  if (!player) return result(false, '玩家状态不存在');
-  if (!type) return result(false, '工厂类型不存在');
-  const quantity = normalizePositiveInteger(payload.quantity ?? 1, 100);
-  if (!quantity) return result(false, '建造数量必须为 1 到 100 的整数');
-  if (!Array.isArray(type.buildInputs)) return result(false, '工厂建造材料目录无效');
-
-  const missing = [];
-  let missingQuantity = 0;
-  for (const item of type.buildInputs) {
-    const required = Number(item.quantity) * quantity;
-    if (!Number.isSafeInteger(required) || required < 1) return result(false, '建造材料数量超出系统可表示范围');
-    const productId = String(item.productId || '');
-    const deficit = Math.max(0, required - Number(inventoryFor(player, productId).available || 0));
-    if (deficit <= 0) continue;
-    if (!Number.isSafeInteger(deficit) || !Number.isSafeInteger(missingQuantity + deficit)) {
-      return result(false, '建造材料数量超出系统可表示范围');
-    }
-    missing.push({ productId, quantity: deficit });
-    missingQuantity += deficit;
-  }
+  const context = facilityBuildContext(world, user, payload);
+  if (context.error) return context.error;
+  const {
+    userId, player, type, quantity, missing, missingQuantity,
+  } = context;
 
   if (missing.length === 0) {
     return result(true, '建造材料库存充足，无需市场采购', {
@@ -180,4 +196,137 @@ export function autoProcureFacilityBuildMaterials(world, user, payload = {}, now
     procurementTotal,
     purchasedQuantity: missingQuantity,
   });
+}
+
+export function createFacilityBuildProcurementOrders(world, user, payload = {}, now = Date.now()) {
+  const context = facilityBuildContext(world, user, payload);
+  if (context.error) return context.error;
+  const {
+    userId, player, type, quantity, missing,
+  } = context;
+  if (missing.length === 0) return result(false, '建造材料库存已充足，无需提交买单');
+
+  const materialOrderPrices = payload.materialOrderPrices && typeof payload.materialOrderPrices === 'object'
+    ? payload.materialOrderPrices
+    : {};
+  const plans = [];
+  let orderTotalMicros = 0n;
+  for (const item of missing) {
+    const product = PRODUCTS.get(item.productId);
+    const price = normalizePlayerMoneyInput(materialOrderPrices[item.productId], { min: 0.01 });
+    if (typeof price !== 'number') return result(false, `${product?.name || item.productId}买单价格无效`);
+    if (findSelfCrossingOrder(world, {
+      ownerId: userId,
+      assetKind: 'commodity',
+      assetId: item.productId,
+      side: 'buy',
+      price,
+    })) return result(false, SELF_CROSS_MESSAGE);
+    const total = multiplyMoneyByInteger(price, item.quantity);
+    const totalMicros = internalMoneyToMicros(total);
+    if (total === null || totalMicros === null) return result(false, `${product?.name || item.productId}买单总额超出系统可表示范围`);
+    orderTotalMicros += totalMicros;
+    plans.push({ ...item, price });
+  }
+
+  const openOrders = countOpenOrdersForOwner(world, userId);
+  if (openOrders + plans.length > ECONOMY_CONSTANTS.maxOpenOrders) {
+    return result(false, `未完成订单数量不足以提交本次 ${plans.length} 张建造材料买单`);
+  }
+
+  const buildCost = multiplyMoneyByInteger(type.buildCost, quantity);
+  const buildCostMicros = internalMoneyToMicros(buildCost);
+  const creditsMicros = internalMoneyToMicros(player.credits);
+  if (buildCost === null || buildCostMicros === null || creditsMicros === null) {
+    return result(false, '建造与挂单资金超出系统可表示范围');
+  }
+  if (creditsMicros < buildCostMicros + orderTotalMicros) {
+    return result(false, '建造与缺料买单总资金不足');
+  }
+
+  const knownOrderIds = new Set((world.orders || []).map((order) => String(order.id || '')));
+  const orderRefs = [];
+  for (const plan of plans) {
+    const placed = applyAction(world, user, 'placeOrder', {
+      assetKind: 'commodity',
+      assetId: plan.productId,
+      productId: plan.productId,
+      side: 'buy',
+      quantity: plan.quantity,
+      price: plan.price,
+    }, now);
+    if (!placed?.ok) return result(false, placed?.message || '建造材料买单提交失败');
+    const createdOrder = [...(world.orders || [])].reverse().find((order) => (
+      !knownOrderIds.has(String(order.id || ''))
+      && Number(order.ownerId) === userId
+      && orderKind(order) === 'commodity'
+      && orderAssetId(order) === plan.productId
+      && order.side === 'buy'
+    ));
+    if (!createdOrder) return result(false, '建造材料买单创建后未找到对应订单');
+    knownOrderIds.add(String(createdOrder.id));
+    orderRefs.push({
+      orderId: String(createdOrder.id),
+      productId: plan.productId,
+      quantity: plan.quantity,
+      price: plan.price,
+    });
+  }
+
+  const remainingQuantity = orderRefs.reduce((sum, reference) => {
+    const order = orderById(world, reference.orderId);
+    return sum + (isOpenOrder(order) ? Math.max(0, Number(order.remaining || 0)) : 0);
+  }, 0);
+  const procurementGroup = {
+    id: `facility-procurement-${randomUUID()}`,
+    facilityTypeId: type.id,
+    quantity,
+    createdAt: now,
+    orders: orderRefs,
+  };
+  return result(
+    true,
+    remainingQuantity > 0
+      ? `已提交 ${orderRefs.length} 张建造材料买单；可成交部分已立即成交，剩余 ${remainingQuantity} 件继续挂在市场`
+      : '建造材料买单已全部成交，请确认库存后建造',
+    { procurementGroup },
+  );
+}
+
+export function cancelFacilityBuildProcurementOrders(world, user, payload = {}, now = Date.now()) {
+  const userId = Number(user.id);
+  const rawIds = Array.isArray(payload.orderIds) ? payload.orderIds : [];
+  const orderIds = [...new Set(rawIds.map((value) => String(value || '')).filter(Boolean))];
+  if (orderIds.length === 0 || orderIds.length > ECONOMY_CONSTANTS.maxOpenOrders) {
+    return result(false, '建造材料买单组无效');
+  }
+
+  const knownOrders = [];
+  for (const orderId of orderIds) {
+    const order = orderById(world, orderId);
+    if (!order) continue;
+    if (
+      Number(order.ownerId) !== userId
+      || orderKind(order) !== 'commodity'
+      || order.side !== 'buy'
+    ) return result(false, '建造材料买单组包含不可取消的订单');
+    knownOrders.push(order);
+  }
+  if (knownOrders.length === 0) return result(false, '建造材料买单已不存在');
+
+  const player = world.players?.[String(userId)];
+  const beforeFrozen = Number(player?.frozenCredits || 0);
+  let cancelled = 0;
+  for (const order of knownOrders) {
+    if (!isOpenOrder(order)) continue;
+    const cancelledOrder = applyAction(world, user, 'cancelOrder', { orderId: order.id }, now);
+    if (!cancelledOrder?.ok) return result(false, cancelledOrder?.message || '建造材料买单取消失败');
+    cancelled += 1;
+  }
+  const afterFrozen = Number(player?.frozenCredits || 0);
+  const released = Math.max(0, beforeFrozen - afterFrozen);
+  const releasedText = released > 0 ? `，释放 ${released.toFixed(2)} 资金` : '';
+  return result(true, cancelled > 0
+    ? `已取消 ${cancelled} 张剩余建造材料买单${releasedText}；已成交材料保留在仓库`
+    : '本组建造材料买单已全部成交或取消；已成交材料保留在仓库');
 }
