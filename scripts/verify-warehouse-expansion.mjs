@@ -152,8 +152,8 @@ for (const [path, text] of [
 for (const text of [
   '共享仓库永久无限',
   '商品买单、商品拍卖和采购合同不预占仓库容量',
+  '恢复商品买单、商品拍卖或采购合同的仓库容量预占',
 ]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
-forbidText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', 'warehouseAvailableCapacity');
 
 const css = read('src/styles/warehouse-expansion.css');
 for (const text of [
