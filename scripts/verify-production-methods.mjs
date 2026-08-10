@@ -72,8 +72,11 @@ const domainTestSource = readFileSync('server/test/domain.test.js', 'utf8');
 const stapleVerifierSource = readFileSync('scripts/verify-staple-crops-demand.mjs', 'utf8');
 const typesSource = readFileSync('src/types.ts', 'utf8');
 const detailSource = readFileSync('src/pages/production/ProductionFacilityDetail.tsx', 'utf8');
+const configControlsSource = readFileSync('src/components/facilities/FacilityProductionConfigControls.tsx', 'utf8');
+const richSelectSource = readFileSync('src/components/ui/RichSelectInput.tsx', 'utf8');
 const pageSource = readFileSync('src/pages/ProductionPage.tsx', 'utf8');
 const styleSource = readFileSync('src/styles/production-methods.css', 'utf8');
+const formControlStyleSource = readFileSync('src/styles/form-controls.css', 'utf8');
 const browserHarnessSource = readFileSync('tests/browser/runtime-harness.tsx', 'utf8');
 const browserSpecSource = readFileSync('tests/browser/production-methods.spec.ts', 'utf8');
 const versionSource = readFileSync('server/shared/economy-state-version.js', 'utf8');
@@ -131,22 +134,62 @@ for (const text of [
   'productionRecipeVariantId',
   'const methodGroup = productionMethodGroupForType(type);',
   'id: plan.recipeId',
-  'aria-label={`${type.name}生产方式`}',
-  'value={recipeState.selectedProductionMethodId}',
-  'methodId as FacilityProductionMethodId',
-  'RichSelectInput',
-  'onValueChange={(methodId)',
+  '<FacilityProductionConfigControls',
+  'onProductChange={(baseRecipeId)',
+  'onMethodChange={(methodId)',
 ]) assert.ok(detailSource.includes(text), `生产方式客户端合成缺少 ${text}`);
+for (const text of [
+  'export function FacilityProductionConfigControls',
+  'variant="production-config"',
+  'aria-label={`${typeName}生产产物`}',
+  'aria-label={`${typeName}生产方式`}',
+  'plansByRecipeId[baseRecipeId]',
+  'triggerDetail:',
+  '<ProductPlanDetail',
+  '<MethodPlanDetail',
+  'metricTone(',
+  'ProductionMethodIcon',
+  'ProductArtwork',
+  '周期 {seconds(plan.cycleMs)}',
+  '成本 {formatNumber(plan.operatingCost)}',
+  '产出 ×{formatNumber(plan.output.quantity)}',
+]) assert.ok(configControlsSource.includes(text), `生产配置方案菜单缺少 ${text}`);
 for (const forbidden of [
+  'method.description',
+  'selectedMethod.description',
   'role="radiogroup"',
   'role="radio"',
   'facility-production-method-option',
-  'selectedMethod.description',
 ]) {
-  assert.equal(detailSource.includes(forbidden), false, `生产方式不得恢复旧展示: ${forbidden}`);
+  assert.equal(
+    detailSource.includes(forbidden) || configControlsSource.includes(forbidden),
+    false,
+    `生产方式不得恢复旧展示: ${forbidden}`,
+  );
 }
+for (const text of [
+  "export type RichSelectVariant = 'default' | 'production-config';",
+  "variant === 'production-config'",
+  'PRODUCTION_CONFIG_MENU_WIDTH',
+  'PRODUCTION_CONFIG_OPTION_HEIGHT',
+  'triggerDetail?: ReactNode;',
+  'className="ui-rich-select__selected-mark"',
+  'data-variant={variant}',
+]) assert.ok(richSelectSource.includes(text), `共享富下拉生产配置变体缺少 ${text}`);
 assert.ok(pageSource.includes("import '../styles/production-methods.css'"));
 assert.equal(styleSource.includes('.facility-production-method-summary'), false, '生产方式规格摘要必须删除');
+for (const text of [
+  '.production-config-detail',
+  '.production-config-flow-row',
+  '.production-config-material',
+  '.production-config-metric.is-positive',
+  '.production-config-metric.is-negative',
+]) assert.ok(styleSource.includes(text), `生产配置业务摘要样式缺少 ${text}`);
+for (const text of [
+  ".ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger",
+  ".ui-rich-select__listbox[data-variant='production-config']",
+  '.ui-rich-select__selected-mark',
+]) assert.ok(formControlStyleSource.includes(text), `统一生产配置下拉视觉缺少 ${text}`);
 for (const forbidden of [
   '.facility-production-method-grid',
   '.facility-production-method-option',
@@ -165,7 +208,11 @@ for (const text of [
   "'machine-factory:machinery-recipe--economical'",
   "getByRole('combobox', { name: '机械工厂生产方式' })",
   "getByRole('option', { name: '节约生产' })",
-  "methodListbox.getByRole('option', { name: '节约生产' }).click()",
+  "toHaveAttribute('data-variant', 'production-config')",
+  "toContainText('周期 180s ↑')",
+  "toContainText('成本 4 ↓')",
+  "toContainText('产出 ×2 ↑')",
+  "expect(recipeListboxBox.width).toBeGreaterThan(recipeTriggerBox.width + 80)",
   "not.toContainText('缩短周期并提高成本')",
   "locator('.facility-production-method-summary')).toHaveCount(0)",
 ]) assert.ok(browserSpecSource.includes(text), `生产方式浏览器回归缺少 ${text}`);
@@ -181,6 +228,8 @@ for (const [path, required] of [
     '生产方式与配方必须在同一次配置动作中原子切换',
     '不得新增单座工厂生产方式状态',
     '生产设置下方不得再显示“周期 · 产出 · 成本”摘要',
+    '生产配置菜单必须直接展示候选方案的投入、产出、周期与周期成本',
+    '作业制度必须相对当前方案标示周期、成本与产量变化',
   ]],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
     '作业制度',
@@ -191,6 +240,10 @@ for (const [path, required] of [
     '生产方式下拉选择',
     'combobox',
     '作业制度说明不得显示',
+    '`production-config`',
+    '生产方案槽',
+    '菜单允许宽于触发器',
+    '不得复制第二套 Popover、键盘导航或刷新状态',
   ]],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
     '生产方式配方变体',
@@ -202,4 +255,4 @@ for (const [path, required] of [
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);
 }
 
-console.log('生产方式验证通过：C1 固定时间与现金成本、整件投入和渐进产出，C2～C7 固定精度平衡、稳定变体 ID、配置立即切换、进度清零、满员率惩罚、需求图去重和浏览器交互均已锁定。');
+console.log('生产方式验证通过：C1 固定时间与现金成本、整件投入和渐进产出，C2～C7 固定精度平衡、稳定变体 ID、维多利亚式生产方案菜单、配置立即切换、进度清零、满员率惩罚、需求图去重和浏览器交互均已锁定。');
