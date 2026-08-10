@@ -1,0 +1,137 @@
+name: Apply market order limit change
+
+on:
+  push:
+    branches:
+      - codex/increase-market-order-limit
+    paths:
+      - .github/workflows/apply-market-order-limit.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/increase-market-order-limit
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply precise replacements
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one match, found {count}: {old!r}')
+              file.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          config = Path('src/config/economy.ts')
+          config_text = config.read_text(encoding='utf-8')
+          if 'return (products + facilities) * 10;' not in config_text:
+              replace_once(
+                  config,
+                  '  return products + facilities;\n',
+                  '  return (products + facilities) * 10;\n',
+              )
+
+          replace_once(
+              'server/src/domain-core.js',
+              '  maxOpenOrders: PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length,\n',
+              '  maxOpenOrders: (PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length) * 10,\n',
+          )
+
+          replace_once(
+              'server/test/order-limits.test.js',
+              "test('commodity and facility books share the catalog-sized unfinished order limit', () => {",
+              "test('commodity and facility books share the ten-times-catalog-sized unfinished order limit', () => {",
+          )
+          replace_once(
+              'server/test/order-limits.test.js',
+              '  const expectedLimit = PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length;\n',
+              '  const catalogSize = PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length;\n  const expectedLimit = catalogSize * 10;\n',
+          )
+          replace_once(
+              'server/test/order-limits.test.js',
+              '  assert.equal(expectedLimit, 62);\n',
+              '  assert.equal(expectedLimit, 620);\n',
+          )
+          replace_once(
+              'server/test/order-limits.test.js',
+              "  ];\n\n  const commodityResult = applyFacilityGroupAction(world, alice, 'placeOrder', {\n",
+              "  ];\n  const baseOrders = world.orders;\n  world.orders = Array.from({ length: 10 }, (_, batchIndex) => baseOrders.map((order, index) => ({\n    ...order,\n    id: `${order.id}-${batchIndex}`,\n    createdAt: now + batchIndex * catalogSize + index,\n  }))).flat();\n\n  const commodityResult = applyFacilityGroupAction(world, alice, 'placeOrder', {\n",
+          )
+
+          replace_once(
+              'scripts/verify-market-assets.mjs',
+              "  'maxOrderQuantity: Number.MAX_SAFE_INTEGER',\n  'openOrderLimitForCatalog',\n",
+              "  'maxOrderQuantity: Number.MAX_SAFE_INTEGER',\n  'openOrderLimitForCatalog',\n  'return (products + facilities) * 10;',\n",
+          )
+          replace_once(
+              'scripts/verify-market-assets.mjs',
+              "  'maxOpenOrders: PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length',\n",
+              "  'maxOpenOrders: (PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length) * 10',\n",
+          )
+          replace_once(
+              'scripts/verify-market-assets.mjs',
+              "  'PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length',\n  '当前权威目录为 36 种商品与 26 种工厂类型，即当前上限 62 笔',\n",
+              "  '(PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length) * 10',\n  '当前权威目录为 36 种商品与 26 种工厂类型，即当前上限 620 笔',\n",
+          )
+          replace_once(
+              'scripts/verify-market-assets.mjs',
+              "forbidText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '当前上限为 52 笔');\n",
+              "forbidText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '当前上限为 52 笔');\nforbidText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '当前上限 62 笔');\n",
+          )
+          replace_once(
+              'scripts/verify-market-assets.mjs',
+              "  '商品和工厂合计未完成订单达到当前商品类型数与工厂类型数之和',\n",
+              "  '商品和工厂合计未完成订单达到当前商品类型数与工厂类型数之和的 10 倍',\n",
+          )
+
+          replace_once(
+              'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+              '> 更新时间：2026-08-09\n',
+              '> 更新时间：2026-08-10\n',
+          )
+          replace_once(
+              'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+              '- 每名玩家的商品和工厂订单合计最多同时存在 `PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length` 笔未完成订单；上限必须始终由正式目录动态计算，不得在业务逻辑或防回退检查中固化旧目录数量。当前权威目录为 36 种商品与 26 种工厂类型，即当前上限 62 笔；目录增减时自动变化。\n',
+              '- 每名玩家的商品和工厂订单合计最多同时存在 `(PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length) * 10` 笔未完成订单；上限必须始终由正式目录动态计算，不得在业务逻辑或防回退检查中固化旧目录数量。当前权威目录为 36 种商品与 26 种工厂类型，即当前上限 620 笔；目录增减时按商品与工厂类型总数的 10 倍自动变化。\n',
+          )
+          replace_once(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '玩家商品和工厂合计未完成订单达到当前商品类型数与工厂类型数之和时，也必须在提交区说明动态上限并禁用提交。',
+              '玩家商品和工厂合计未完成订单达到当前商品类型数与工厂类型数之和的 10 倍时，也必须在提交区说明动态上限并禁用提交。',
+          )
+          PY
+
+      - name: Focused validation
+        run: |
+          node --test server/test/order-limits.test.js
+          node scripts/verify-market-assets.mjs
+          npm run build
+
+      - name: Commit applied change and remove helper workflow
+        shell: bash
+        run: |
+          rm .github/workflows/apply-market-order-limit.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m "提高玩家市场订单上限至目录总数十倍"
+          git push origin HEAD:codex/increase-market-order-limit
