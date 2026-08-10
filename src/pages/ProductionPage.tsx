@@ -543,7 +543,7 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
                   return {
                     ...reference,
                     remaining,
-                    filled: Math.max(0, reference.quantity - remaining),
+                    filled: order ? Math.max(0, reference.quantity - Math.max(0, Number(order.remaining || 0))) : 0,
                   };
                 });
                 const remainingQuantity = rows.reduce((sum, row) => sum + row.remaining, 0);
