@@ -22,6 +22,8 @@ export interface AutoSellProductStatus {
   eligibleQuantity: number;
   blockedByOwnBuy: boolean;
   hasCrossingBuyer: boolean;
+  hasManagedOrder: boolean;
+  reservationShortfall: boolean;
 }
 
 export interface OnlineAutoSellController {
@@ -138,6 +140,10 @@ export function useOnlineAutoSell(
   const legacyMigrationUserRef = useRef<number | null>(null);
   const productionReserved = useMemo(() => productionReservations(model.game), [model.game]);
   const contractReserved = useMemo(() => contractReservations(model.game), [model.game]);
+  const managedProducts = useMemo(
+    () => new Set(model.game.onlineAutoSellManagedProductIds ?? []),
+    [model.game.onlineAutoSellManagedProductIds],
+  );
 
   useEffect(() => {
     if (legacyMigrationUserRef.current === userId) return;
@@ -178,19 +184,20 @@ export function useOnlineAutoSell(
     const production = nonNegativeInteger(productionReserved[productId]);
     const contract = contractReserved[productId] ?? { display: 0, availableHold: 0 };
     const minimumFreeInventory = nonNegativeInteger(policy.minimumFreeInventory);
+    const hasManagedOrder = managedProducts.has(productId);
+    const requiredAvailable = production + nonNegativeInteger(contract.availableHold) + minimumFreeInventory;
     return {
       availableInventory,
       productionReserved: production,
       contractReserved: nonNegativeInteger(contract.display),
       minimumFreeInventory,
-      eligibleQuantity: Math.max(
-        0,
-        availableInventory - production - nonNegativeInteger(contract.availableHold) - minimumFreeInventory,
-      ),
+      eligibleQuantity: Math.max(0, availableInventory - requiredAvailable),
       blockedByOwnBuy: isOpenCommodityBuy(model.game, productId, true, policy.price),
       hasCrossingBuyer: isOpenCommodityBuy(model.game, productId, false, policy.price),
+      hasManagedOrder,
+      reservationShortfall: hasManagedOrder && availableInventory < requiredAvailable,
     };
-  }, [contractReserved, model.game, policyFor, productionReserved]);
+  }, [contractReserved, managedProducts, model.game, policyFor, productionReserved]);
 
   const setPolicy = useCallback(async (productId: string, policy: AutoSellPolicy) => {
     const price = Math.round(Number(policy.price) * 100) / 100;
@@ -221,7 +228,7 @@ export function useOnlineAutoSell(
       const policy = policies[product.id];
       if (!policy?.enabled) return false;
       const status = statusFor(product.id);
-      return status.eligibleQuantity > 0 && !status.blockedByOwnBuy && status.hasCrossingBuyer;
+      return !status.blockedByOwnBuy && (status.eligibleQuantity > 0 || status.reservationShortfall);
     });
     if (!candidate) return;
     const policy = policies[candidate.id];
@@ -231,7 +238,7 @@ export function useOnlineAutoSell(
     setBusyProductId(candidate.id);
     void model.onlineAutoSell(candidate.id, policy.price, policy.minimumFreeInventory)
       .then((result) => {
-        if (result.ok) callbacks.onSale?.(candidate.id);
+        if (result.ok && result.message.includes('自动出售')) callbacks.onSale?.(candidate.id);
       })
       .finally(() => {
         busyRef.current = false;
