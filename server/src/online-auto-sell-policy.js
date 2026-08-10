@@ -1,5 +1,6 @@
 import { PRODUCT_CATALOG } from './industry-catalog.js';
 import { normalizePlayerMoneyInput } from './money.js';
+import { ensureOnlineAutoBuyPolicies } from './online-auto-buy-policy.js';
 import { cancelManagedOnlineAutoSellOrder } from './online-auto-sell-orders.js';
 
 const PRODUCT_IDS = new Set(PRODUCT_CATALOG.map((product) => product.id));
@@ -52,6 +53,19 @@ export function createOnlineAutoSellPolicyClientState(player) {
   };
 }
 
+function conflictsWithAutoBuy(player, productId, sellPolicy) {
+  if (!sellPolicy.enabled) return null;
+  const buyPolicy = ensureOnlineAutoBuyPolicies(player)[productId];
+  if (!buyPolicy?.enabled) return null;
+  if (buyPolicy.targetFreeInventory > sellPolicy.minimumFreeInventory) {
+    return '自动采购目标自由库存不能高于自动出售最低自由库存';
+  }
+  if (buyPolicy.maxPrice >= sellPolicy.price) {
+    return '最高自动采购价格必须低于最低自动出售价格';
+  }
+  return null;
+}
+
 function importLegacyOnlineAutoSellPolicies(player, payload) {
   if (Number(player.saveEpoch || 0) > 0) {
     return { ok: false, message: '旧浏览器自动出售设置不能导入已重建的经济存档' };
@@ -67,6 +81,8 @@ function importLegacyOnlineAutoSellPolicies(player, payload) {
     if (!PRODUCT_IDS.has(productId) || Object.hasOwn(existing, productId)) continue;
     const policy = normalizeOnlineAutoSellPolicy(value);
     if (!policy) return { ok: false, message: '旧版自动出售设置无效' };
+    const conflict = conflictsWithAutoBuy(player, productId, policy);
+    if (conflict) return { ok: false, message: conflict };
     merged[productId] = policy;
   }
   if (Object.keys(merged).length > Object.keys(existing).length) {
@@ -96,6 +112,8 @@ export function applyOnlineAutoSellPolicyAction(world, user, payload = {}) {
   }
   const policy = normalizeOnlineAutoSellPolicy(payload);
   if (!policy) return { ok: false, message: '自动出售设置无效' };
+  const conflict = conflictsWithAutoBuy(player, productId, policy);
+  if (conflict) return { ok: false, message: conflict };
 
   const policies = ensureOnlineAutoSellPolicies(player);
   const previous = policies[productId] || null;
