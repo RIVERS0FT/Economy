@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FACILITY_TYPE_CATALOG } from '../src/domain.js';
-import { resolveAction } from '../src/game-routes.js';
 import { EconomyStore } from '../src/runtime-store.js';
 
 const buyerUser = { id: 191, email: 'build-orders@example.com', name: '采购建设玩家', role: 'user' };
@@ -45,24 +44,18 @@ function placeSell(store, productId, quantity, price, requestKey, now) {
 
 function submitProcurement(store, requestKey, now, materialOrderPrices = { timber: 60, ore: 70 }) {
   return store.apply(buyerUser, {
-    action: 'createFacilityBuildProcurement',
-    payload: { facilityTypeId: 'ranch', quantity: 1, materialOrderPrices },
+    action: 'placeOrder',
+    payload: {
+      execution: 'facility-build-procurement',
+      facilityTypeId: 'ranch',
+      quantity: 1,
+      materialOrderPrices,
+    },
     requestKey,
     method: 'POST',
-    path: '/api/game/facilities/procurements',
+    path: '/api/game/orders',
   }, now);
 }
-
-test('facility procurement routes resolve to grouped commodity-order actions', () => {
-  assert.deepEqual(
-    resolveAction('POST', '/api/game/facilities/procurements'),
-    { action: 'createFacilityBuildProcurement', category: 'orders' },
-  );
-  assert.deepEqual(
-    resolveAction('POST', '/api/game/facilities/procurements/cancel'),
-    { action: 'cancelFacilityBuildProcurement', category: 'orders' },
-  );
-});
 
 test('insufficient sell depth creates one build procurement group with ordinary partial buy orders', () => {
   const now = 1_700_190_000_000;
@@ -116,11 +109,14 @@ test('cancelling a build procurement group releases only unfilled funds and keep
     assert.ok(beforeCancel.frozenCredits > 0);
 
     const cancelRequest = {
-      action: 'cancelFacilityBuildProcurement',
-      payload: { orderIds: procurement.result.procurementGroup.orders.map((order) => order.orderId) },
+      action: 'placeOrder',
+      payload: {
+        execution: 'facility-build-procurement-cancel',
+        orderIds: procurement.result.procurementGroup.orders.map((order) => order.orderId),
+      },
       requestKey: 'facility-build-orders-cancel-0011',
       method: 'POST',
-      path: '/api/game/facilities/procurements/cancel',
+      path: '/api/game/orders',
     };
     const firstCancel = store.apply(buyerUser, cancelRequest, now + 33);
     const repeatedCancel = store.apply(buyerUser, cancelRequest, now + 34);
