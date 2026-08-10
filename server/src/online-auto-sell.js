@@ -22,7 +22,8 @@ function activeSupplyContractsFor(world, userId, productId) {
     && contract?.status === 'active'
     && Number(contract?.supplierId) === Number(userId)
     && String(contract?.productId || '') === productId
-    && positiveInteger(contract?.completedDeliveries) < positiveInteger(contract?.totalDeliveries)
+    && (contract?.totalDeliveries === null
+      || positiveInteger(contract?.completedDeliveries) < positiveInteger(contract?.totalDeliveries))
   ));
 }
 

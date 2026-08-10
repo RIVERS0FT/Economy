@@ -11,7 +11,7 @@ export interface ProductionContractNegotiationTerms {
   quantityPerDelivery: number;
   unitPrice: number;
   deliveryIntervalMs: number;
-  totalDeliveries: number;
+  totalDeliveries: number | null;
   firstDeliveryDelayMs: number;
 }
 
@@ -48,7 +48,7 @@ export interface ProductionContractRenewalProposal {
     quantityPerDelivery: number;
     unitPrice: number;
     deliveryIntervalMs: number;
-    totalDeliveries: number;
+    totalDeliveries: number | null;
     firstDeliveryDelayMs: number;
   };
   buyerEscrowCredits: number;
@@ -75,7 +75,7 @@ export interface ProductionContract {
   unitPrice: number;
   batchGross: number;
   deliveryIntervalMs: number;
-  totalDeliveries: number;
+  totalDeliveries: number | null;
   completedDeliveries: number;
   firstDeliveryDelayMs: number;
   createdAt: number;
@@ -168,9 +168,9 @@ export interface ContractEndSummary {
   endedAt: number;
   completion: {
     completed: number;
-    total: number;
+    total: number | null;
     unit: ContractCompletionUnit;
-    ratioBps: number;
+    ratioBps: number | null;
   };
   settlement: ContractEndSettlementSummary;
 }

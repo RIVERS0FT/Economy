@@ -14,7 +14,7 @@ import {
 } from './commercial-contracts.js';
 import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 
-export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 8;
+export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 9;
 export const PRODUCTION_CONTRACT_INTERVALS = Object.freeze([
   10 * 60 * 1000,
   30 * 60 * 1000,
@@ -65,6 +65,12 @@ function result(ok, message) {
 function positiveInteger(value, max) {
   const normalized = Math.floor(Number(value));
   return Number.isSafeInteger(normalized) && normalized >= 1 && normalized <= max ? normalized : null;
+}
+
+function optionalTotalDeliveries(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const normalized = positiveInteger(value, MAX_DELIVERIES);
+  return normalized !== null && normalized >= MIN_DELIVERIES ? normalized : undefined;
 }
 
 function positiveMoney(value, max) {
@@ -193,7 +199,9 @@ function normalizeRenewalProposal(contract, proposal) {
       quantityPerDelivery: Math.max(1, Math.floor(Number(terms.quantityPerDelivery || contract?.quantityPerDelivery || 1))),
       unitPrice: positiveMoney(terms.unitPrice ?? contract?.unitPrice ?? 1, MAX_UNIT_PRICE) || 0.01,
       deliveryIntervalMs: Number(terms.deliveryIntervalMs || contract?.deliveryIntervalMs || PRODUCTION_CONTRACT_INTERVALS[2]),
-      totalDeliveries: Math.max(MIN_DELIVERIES, Math.floor(Number(terms.totalDeliveries || contract?.totalDeliveries || MIN_DELIVERIES))),
+      totalDeliveries: terms.totalDeliveries === null
+        ? null
+        : Math.max(MIN_DELIVERIES, Math.floor(Number(terms.totalDeliveries || contract?.totalDeliveries || MIN_DELIVERIES))),
       firstDeliveryDelayMs: Math.max(0, Math.floor(Number(terms.firstDeliveryDelayMs || 0))),
     },
     buyerEscrowCredits: Math.max(0, roundInternalMoney(proposal.buyerEscrowCredits || 0) || 0),
@@ -266,7 +274,9 @@ function normalizeContract(contract) {
     quantityPerDelivery: Math.max(1, Math.floor(Number(contract?.quantityPerDelivery || 1))),
     unitPrice: positiveMoney(contract?.unitPrice ?? 1, MAX_UNIT_PRICE) || 0.01,
     deliveryIntervalMs: Number(contract?.deliveryIntervalMs || PRODUCTION_CONTRACT_INTERVALS[2]),
-    totalDeliveries: Math.max(MIN_DELIVERIES, Math.floor(Number(contract?.totalDeliveries || MIN_DELIVERIES))),
+    totalDeliveries: contract?.totalDeliveries === null
+      ? null
+      : Math.max(MIN_DELIVERIES, Math.floor(Number(contract?.totalDeliveries || MIN_DELIVERIES))),
     completedDeliveries: Math.max(0, Math.floor(Number(contract?.completedDeliveries || 0))),
     firstDeliveryDelayMs: Math.max(0, Math.floor(Number(contract?.firstDeliveryDelayMs || 0))),
     createdAt: Math.max(0, Number(contract?.createdAt || Date.now())),
@@ -296,7 +306,9 @@ function normalizeContract(contract) {
       : 'preparing',
   };
   if (!normalized.offerExpiresAt) normalized.offerExpiresAt = normalized.createdAt + OFFER_TTL_MS;
-  if (normalized.completedDeliveries >= normalized.totalDeliveries && normalized.status === 'active') {
+  if (normalized.totalDeliveries !== null
+    && normalized.completedDeliveries >= normalized.totalDeliveries
+    && normalized.status === 'active') {
     normalized.status = 'completed';
   }
   return normalized;
@@ -338,10 +350,9 @@ function renewalTerms(payload) {
   const quantityPerDelivery = positiveInteger(payload.quantityPerDelivery, MAX_QUANTITY);
   const unitPrice = positiveMoney(payload.unitPrice, MAX_UNIT_PRICE);
   const deliveryIntervalMs = exactAllowedInteger(payload.deliveryIntervalMs, PRODUCTION_CONTRACT_INTERVALS);
-  const totalDeliveries = positiveInteger(payload.totalDeliveries, MAX_DELIVERIES);
+  const totalDeliveries = optionalTotalDeliveries(payload.totalDeliveries);
   const firstDeliveryDelayMs = exactAllowedInteger(payload.firstDeliveryDelayMs, PRODUCTION_CONTRACT_FIRST_DELAYS);
-  if (!quantityPerDelivery || !unitPrice || !deliveryIntervalMs || !totalDeliveries || firstDeliveryDelayMs === null) return null;
-  if (totalDeliveries < MIN_DELIVERIES) return null;
+  if (!quantityPerDelivery || !unitPrice || !deliveryIntervalMs || totalDeliveries === undefined || firstDeliveryDelayMs === null) return null;
   const gross = multiplyMoneyByInteger(unitPrice, quantityPerDelivery);
   if (gross === null || gross <= 0) return null;
   return { quantityPerDelivery, unitPrice, deliveryIntervalMs, totalDeliveries, firstDeliveryDelayMs };
@@ -802,7 +813,7 @@ function settleBatch(world, contract, buyer, supplier, now, runtimeIndex) {
     contract.roundStatus = 'preparing';
     delete contract.graceEndsAt;
 
-    if (contract.completedDeliveries >= contract.totalDeliveries) {
+    if (contract.totalDeliveries !== null && contract.completedDeliveries >= contract.totalDeliveries) {
       completeContract(contract, buyer, supplier, now);
       activateRenewal(world, contract, buyer, supplier, now, runtimeIndex);
       return true;
@@ -811,8 +822,9 @@ function settleBatch(world, contract, buyer, supplier, now, runtimeIndex) {
     if (contract.terminationRequestedBy) {
       releaseRenewalEscrow(contract, buyer, supplier, 'notice_completed');
       releaseAllEscrow(contract, buyer, supplier);
-      contract.status = 'terminated';
+      contract.status = contract.totalDeliveries === null ? 'completed' : 'terminated';
       contract.endedAt = now;
+      if (contract.totalDeliveries === null) contract.completedAt = now;
       contract.terminationReason = 'notice_completed';
       contract.nextDueAt = null;
       return true;
@@ -1004,12 +1016,11 @@ function createContract(world, user, payload, now, runtimeIndex) {
   const quantityPerDelivery = positiveInteger(payload.quantityPerDelivery, MAX_QUANTITY);
   const unitPrice = positiveMoney(payload.unitPrice, MAX_UNIT_PRICE);
   const deliveryIntervalMs = exactAllowedInteger(payload.deliveryIntervalMs, PRODUCTION_CONTRACT_INTERVALS);
-  const totalDeliveries = positiveInteger(payload.totalDeliveries, MAX_DELIVERIES);
+  const totalDeliveries = optionalTotalDeliveries(payload.totalDeliveries);
   const firstDeliveryDelayMs = exactAllowedInteger(payload.firstDeliveryDelayMs, PRODUCTION_CONTRACT_FIRST_DELAYS);
-  if (!publisherRole || !productId || !quantityPerDelivery || !unitPrice || !deliveryIntervalMs || !totalDeliveries || firstDeliveryDelayMs === null) {
+  if (!publisherRole || !productId || !quantityPerDelivery || !unitPrice || !deliveryIntervalMs || totalDeliveries === undefined || firstDeliveryDelayMs === null) {
     return result(false, '合同参数无效');
   }
-  if (totalDeliveries < MIN_DELIVERIES) return result(false, `合同至少需要 ${MIN_DELIVERIES} 批交付`);
   const gross = roundInternalMoney(quantityPerDelivery * unitPrice);
   if (!Number.isFinite(gross)) return result(false, '单批货款超出安全范围');
   if (runtimeIndex.openCountForPublisher(user.id) >= MAX_OPEN_CONTRACTS_PER_PLAYER) return result(false, '公开合同数量已达上限');
@@ -1271,6 +1282,7 @@ function proposeRenewal(world, user, payload, now, runtimeIndex) {
   const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
   if (!contract) return result(false, '进行中的合同不存在');
   if (contract.fixedTerms) return result(false, '市场储备采购合同使用固定条款，不支持续签议价');
+  if (contract.totalDeliveries === null) return result(false, '长期合同无需续签');
   const remaining = Math.max(0, contract.totalDeliveries - contract.completedDeliveries);
   if (remaining < 1 || remaining > RENEWAL_WINDOW_DELIVERIES) return result(false, '仅可在合同剩余三批以内提出续签');
   if (contract.graceEndsAt) return result(false, '宽限期内不能提出续签');
