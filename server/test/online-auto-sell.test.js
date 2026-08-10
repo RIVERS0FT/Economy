@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createWorld, ensurePlayer } from '../src/domain.js';
+import { applySettledCommodityOrder, createWorld, ensurePlayer } from '../src/domain.js';
 import {
   migrateFacilityGroupWorld,
   productionReservedQuantitiesForPlayer,
@@ -11,6 +11,7 @@ import {
 } from '../src/online-auto-sell.js';
 import { applyOnlineAutoSellPolicyAction } from '../src/online-auto-sell-policy.js';
 import { isOpenOrder } from '../src/order-identity.js';
+import { countOpenOrdersForOwner } from '../src/order-book-runtime.js';
 
 const now = 1_700_000_000_000;
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
@@ -64,6 +65,12 @@ function group(typeId, count, overrides = {}) {
   };
 }
 
+function ownSellOrders(world, productId) {
+  return world.orders.filter((order) => (
+    Number(order.ownerId) === alice.id && order.productId === productId && order.side === 'sell'
+  ));
+}
+
 test('online auto sell keeps one full enabled production cycle of inputs', () => {
   const world = createWorld(now);
   const seller = ensurePlayer(world, alice, now);
@@ -89,12 +96,10 @@ test('online auto sell keeps one full enabled production cycle of inputs', () =>
   assert.equal(seller.inventories.plastic.available, 2);
   assert.equal(seller.inventories.plastic.frozen, 0);
   assert.equal(seller.facilityGroups[0].status, 'running');
-  const ownAutoOrders = world.orders.filter((order) => (
-    Number(order.ownerId) === alice.id && order.productId === 'plastic' && order.side === 'sell'
-  ));
-  assert.equal(ownAutoOrders.length, 1);
-  assert.equal(ownAutoOrders[0].status, 'filled');
-  assert.equal(ownAutoOrders[0].remaining, 0);
+  const orders = ownSellOrders(world, 'plastic');
+  assert.equal(orders.length, 1);
+  assert.equal(orders[0].status, 'filled');
+  assert.equal(orders[0].remaining, 0);
 });
 
 test('online auto sell preserves the unfrozen shortfall of an auto-reserved supply contract', () => {
@@ -148,19 +153,39 @@ test('online auto sell preserves the next batch hold for a long-term supply cont
   assert.equal(contractAvailableHoldForAutoSell(world, alice.id, 'wheat'), 3);
 });
 
-test('online auto sell leaves no standing sell order when qualifying demand disappears', () => {
+test('online auto sell leaves standing supply when no qualifying buyer exists', () => {
   const world = createWorld(now);
   const seller = ensurePlayer(world, alice, now);
+  const buyer = ensurePlayer(world, bob, now);
   seller.inventories.wheat.available = 10;
+  buyer.credits = 10_000;
   setAutoSellPolicy(world, alice, 'wheat');
-  const beforeOrders = world.orders.length;
 
   const result = applyOnlineAutoSell(world, alice, { productId: 'wheat' }, now + 1);
 
-  assert.equal(result.ok, false);
-  assert.equal(world.orders.length, beforeOrders);
-  assert.equal(seller.inventories.wheat.available, 10);
-  assert.equal(seller.inventories.wheat.frozen, 0);
+  assert.equal(result.ok, true);
+  assert.match(result.message, /已挂出 10 个小麦/);
+  assert.equal(seller.inventories.wheat.available, 0);
+  assert.equal(seller.inventories.wheat.frozen, 10);
+  const order = ownSellOrders(world, 'wheat').at(-1);
+  assert.ok(order);
+  assert.equal(order.status, 'open');
+  assert.equal(order.remaining, 10);
+  assert.equal(order.price, 5);
+  assert.equal(seller.onlineAutoSellOrderIds.wheat, order.id);
+  assert.equal(countOpenOrdersForOwner(world, alice.id), 0);
+
+  const buy = applySettledCommodityOrder(world, bob, {
+    assetKind: 'commodity',
+    assetId: 'wheat',
+    side: 'buy',
+    quantity: 4,
+    price: 6,
+  }, now + 2);
+  assert.equal(buy.ok, true);
+  assert.equal(order.status, 'partial');
+  assert.equal(order.remaining, 6);
+  assert.equal(seller.inventories.wheat.frozen, 6);
 });
 
 test('own crossing buy blocks online auto sell instead of creating a self-cross', () => {
@@ -179,7 +204,7 @@ test('own crossing buy blocks online auto sell instead of creating a self-cross'
   assert.equal(result.ok, false);
   assert.match(result.message, /自己的买单/);
   assert.equal(seller.inventories.wheat.available, 10);
-  assert.equal(world.orders.filter((order) => Number(order.ownerId) === alice.id && order.side === 'sell').length, 0);
+  assert.equal(ownSellOrders(world, 'wheat').length, 0);
   assert.equal(world.orders.filter((order) => isOpenOrder(order) && order.side === 'buy').length, 2);
 });
 
@@ -221,7 +246,7 @@ test('online auto sell preserves minimum free inventory in addition to productio
   assert.equal(seller.inventories.plastic.frozen, 1);
 });
 
-test('online auto sell does not sell below the configured minimum free inventory', () => {
+test('online auto sell leaves the configured minimum free inventory untouched', () => {
   const world = createWorld(now);
   const seller = ensurePlayer(world, alice, now);
   const buyer = ensurePlayer(world, bob, now);
@@ -232,10 +257,10 @@ test('online auto sell does not sell below the configured minimum free inventory
 
   const result = applyOnlineAutoSell(world, alice, { productId: 'wheat' }, now + 2);
 
-  assert.equal(result.ok, false);
-  assert.match(result.message, /最低自由库存/);
+  assert.equal(result.ok, true);
+  assert.match(result.message, /可自动挂单库存/);
   assert.equal(seller.inventories.wheat.available, 5);
-  assert.equal(world.orders.filter((order) => Number(order.ownerId) === alice.id && order.side === 'sell').length, 0);
+  assert.equal(ownSellOrders(world, 'wheat').length, 0);
 });
 
 test('online auto sell policy rejects invalid minimum free inventory values', () => {
@@ -254,7 +279,7 @@ test('online auto sell policy rejects invalid minimum free inventory values', ()
   }
 });
 
-test('online auto sell execution ignores client thresholds and uses the saved policy', () => {
+test('online auto sell execution ignores client thresholds and uses the saved standing price', () => {
   const world = createWorld(now);
   const seller = ensurePlayer(world, alice, now);
   const buyer = ensurePlayer(world, bob, now);
@@ -263,23 +288,44 @@ test('online auto sell execution ignores client thresholds and uses the saved po
   setAutoSellPolicy(world, alice, 'wheat', { price: 9, minimumFreeInventory: 2 });
   addBuyOrder(world, buyer, 'wheat', 3, 8, 'below-saved-price');
 
-  const below = applyOnlineAutoSell(world, alice, {
+  const result = applyOnlineAutoSell(world, alice, {
     productId: 'wheat',
     price: 1,
     minimumFreeInventory: 0,
   }, now + 2);
-  assert.equal(below.ok, false);
-  assert.match(below.message, /没有达到自动出售最低价/);
-  assert.equal(seller.inventories.wheat.available, 8);
 
-  addBuyOrder(world, buyer, 'wheat', 10, 9, 'at-saved-price');
-  const filled = applyOnlineAutoSell(world, alice, {
-    productId: 'wheat',
-    price: 1,
-    minimumFreeInventory: 0,
-  }, now + 3);
-  assert.equal(filled.ok, true);
+  assert.equal(result.ok, true);
   assert.equal(seller.inventories.wheat.available, 2);
+  assert.equal(seller.inventories.wheat.frozen, 6);
+  const order = ownSellOrders(world, 'wheat').at(-1);
+  assert.ok(order);
+  assert.equal(order.status, 'open');
+  assert.equal(order.price, 9);
+  assert.equal(order.remaining, 6);
+});
+
+test('changing an auto sell policy cancels the old standing order and releases its inventory', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, alice, now);
+  seller.inventories.wheat.available = 10;
+  setAutoSellPolicy(world, alice, 'wheat', { price: 5 });
+  const first = applyOnlineAutoSell(world, alice, { productId: 'wheat' }, now + 1);
+  assert.equal(first.ok, true);
+  const oldOrder = ownSellOrders(world, 'wheat').at(-1);
+  assert.ok(oldOrder && isOpenOrder(oldOrder));
+
+  setAutoSellPolicy(world, alice, 'wheat', { price: 6 });
+
+  assert.equal(oldOrder.status, 'cancelled');
+  assert.equal(seller.inventories.wheat.available, 10);
+  assert.equal(seller.inventories.wheat.frozen, 0);
+  assert.equal(seller.onlineAutoSellOrderIds?.wheat, undefined);
+
+  const second = applyOnlineAutoSell(world, alice, { productId: 'wheat' }, now + 2);
+  assert.equal(second.ok, true);
+  const newOrder = ownSellOrders(world, 'wheat').at(-1);
+  assert.notEqual(newOrder.id, oldOrder.id);
+  assert.equal(newOrder.price, 6);
 });
 
 test('online auto sell requires an enabled saved policy', () => {
