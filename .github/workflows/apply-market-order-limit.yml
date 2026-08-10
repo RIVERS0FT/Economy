@@ -117,6 +117,10 @@ jobs:
               '玩家商品和工厂合计未完成订单达到当前商品类型数与工厂类型数之和时，也必须在提交区说明动态上限并禁用提交。',
               '玩家商品和工厂合计未完成订单达到当前商品类型数与工厂类型数之和的 10 倍时，也必须在提交区说明动态上限并禁用提交。',
           )
+
+          tool_test = Path('server/test/tool-workshop.test.js').read_text(encoding='utf-8')
+          if 'assert.equal(ECONOMY_CONSTANTS.maxOpenOrders, (PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length) * 10);' not in tool_test:
+              raise SystemExit('server/test/tool-workshop.test.js: dynamic ten-times order-limit assertion missing')
           PY
 
       - name: Focused validation
