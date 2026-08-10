@@ -22,6 +22,8 @@ export interface AutoSellProductStatus {
   eligibleQuantity: number;
   blockedByOwnBuy: boolean;
   hasCrossingBuyer: boolean;
+  hasManagedOrder: boolean;
+  reservationShortfall: boolean;
 }
 
 export interface OnlineAutoSellController {
@@ -178,17 +180,27 @@ export function useOnlineAutoSell(
     const production = nonNegativeInteger(productionReserved[productId]);
     const contract = contractReserved[productId] ?? { display: 0, availableHold: 0 };
     const minimumFreeInventory = nonNegativeInteger(policy.minimumFreeInventory);
+    const managedOrderId = String(model.game.onlineAutoSellManagedOrderIds?.[productId] || '');
+    const hasManagedOrder = Boolean(managedOrderId && model.game.orders.some((order) => (
+      order.id === managedOrderId
+      && order.isOwn === true
+      && order.assetKind === 'commodity'
+      && order.assetId === productId
+      && order.side === 'sell'
+      && ['open', 'partial'].includes(order.status)
+      && Number(order.remaining || 0) > 0
+    )));
+    const requiredAvailable = production + nonNegativeInteger(contract.availableHold) + minimumFreeInventory;
     return {
       availableInventory,
       productionReserved: production,
       contractReserved: nonNegativeInteger(contract.display),
       minimumFreeInventory,
-      eligibleQuantity: Math.max(
-        0,
-        availableInventory - production - nonNegativeInteger(contract.availableHold) - minimumFreeInventory,
-      ),
+      eligibleQuantity: Math.max(0, availableInventory - requiredAvailable),
       blockedByOwnBuy: isOpenCommodityBuy(model.game, productId, true, policy.price),
       hasCrossingBuyer: isOpenCommodityBuy(model.game, productId, false, policy.price),
+      hasManagedOrder,
+      reservationShortfall: hasManagedOrder && availableInventory < requiredAvailable,
     };
   }, [contractReserved, model.game, policyFor, productionReserved]);
 
@@ -221,7 +233,7 @@ export function useOnlineAutoSell(
       const policy = policies[product.id];
       if (!policy?.enabled) return false;
       const status = statusFor(product.id);
-      return status.eligibleQuantity > 0 && !status.blockedByOwnBuy && status.hasCrossingBuyer;
+      return !status.blockedByOwnBuy && (status.eligibleQuantity > 0 || status.reservationShortfall);
     });
     if (!candidate) return;
     const policy = policies[candidate.id];
@@ -231,7 +243,7 @@ export function useOnlineAutoSell(
     setBusyProductId(candidate.id);
     void model.onlineAutoSell(candidate.id, policy.price, policy.minimumFreeInventory)
       .then((result) => {
-        if (result.ok) callbacks.onSale?.(candidate.id);
+        if (result.ok && result.message.includes('自动出售')) callbacks.onSale?.(candidate.id);
       })
       .finally(() => {
         busyRef.current = false;

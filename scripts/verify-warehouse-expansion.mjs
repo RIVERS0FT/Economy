@@ -11,6 +11,7 @@ const forbidText = (path, text) => { if (existsSync(resolve(root, path)) && read
 for (const path of [
   'server/src/warehouse.js',
   'server/src/online-auto-sell-policy.js',
+  'server/src/online-auto-sell-orders.js',
   'server/src/domain.js',
   'server/src/domain-core.js',
   'server/src/contracts.js',
@@ -60,7 +61,8 @@ for (const text of [
   'warehouseStoredQuantity',
   'inventory.available > 0 || inventory.frozen > 0',
   '最低自由库存',
-  '设置保存至存档 · 仅在线执行',
+  '设置保存至存档 · 在线维护卖单',
+  '没有买盘时则持续留下卖盘供应',
   'production-warehouse-workspace',
   'warehouse-auto-sell-card',
   'MobileWorkspaceDetailSheet',
@@ -80,8 +82,10 @@ for (const text of [
   '世界状态版本：27',
   'onlineAutoSellPolicies',
   '自动出售策略属于玩家经济存档',
-  '最低自由库存保留量只限制在线自动出售',
+  '最低自由库存保留量本身不进入 `frozen`',
   '不限制生产消耗、合同履约、市场手动卖出或拍卖',
+  '未成交剩余量继续留在卖盘中提供供应',
+  '不占玩家普通开放订单配额',
   '桌面自动出售控制卡固定位于共享仓库左侧',
   '与“建设新工厂”使用同一 `minmax(280px, 320px)` 控制列',
   '`720px` 及以下',
@@ -160,11 +164,12 @@ for (const text of [
   'auto-sell panel left of the warehouse at the build-card width',
   'uses the shared bottom sheet at 720px',
   'keeps the desktop side panel at 721px',
-  '设置保存至存档 · 仅在线执行',
+  '设置保存至存档 · 在线维护卖单',
+  '没有买盘时则持续留下卖盘供应',
 ]) requireText('tests/browser/warehouse-auto-sell.spec.ts', text);
 
 if (failures.length) {
   console.error('无限仓库防回退验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
-console.log('无限仓库防回退验证通过：容量机制保持退役，桌面/移动仓库布局与存档自动出售设置保持。');
+console.log('无限仓库防回退验证通过：容量机制保持退役，桌面/移动仓库布局与存档自动出售持续卖盘设置保持。');
