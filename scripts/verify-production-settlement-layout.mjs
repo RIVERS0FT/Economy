@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 const read = (path) => readFileSync(path, 'utf8');
 const formula = read('src/components/facilities/FacilityProductionFormula.tsx');
 const detail = read('src/pages/production/ProductionFacilityDetail.tsx');
+const productionPage = read('src/pages/ProductionPage.tsx');
 const configControls = read('src/components/facilities/FacilityProductionConfigControls.tsx');
 const richSelect = read('src/components/ui/RichSelectInput.tsx');
 const productArtwork = read('src/components/products/ProductArtwork.tsx');
@@ -16,6 +17,7 @@ const artworkCss = read('src/styles/product-artwork.css');
 const profitCss = read('src/styles/facility-recipe-profit-analysis.css');
 const browserTest = read('tests/browser/production-methods.spec.ts');
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
+const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const industryDesign = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
 const main = read('src/main.tsx');
 
@@ -33,9 +35,16 @@ for (const text of [
   '<ProductArtwork productId={item.productId} className="facility-formula-product-artwork" />',
   '<WarehouseIcon className="facility-formula-meta-icon" />',
   '<FacilityGroupProgress group={group} type={type} now={now} />',
+  'type="button"',
+  'className="facility-formula-item-group"',
+  'data-ui-interactive="surface"',
+  'aria-label={`查看${productName}市场，生产数量 ${formatNumber(quantity)}，仓库可用 ${formatNumber(warehouseQuantity)}`}',
+  'onClick={() => onOpenProductMarket(item.productId)}',
+  'onOpenProductMarket={onOpenProductMarket}',
 ]) assert.equal(formula.includes(text), true, `生产结算结构缺少: ${text}`);
 
 assert.equal((formula.match(/<RecipeItems/g) ?? []).length, 2, '生产结算必须保留输入和输出调用');
+assert.equal((formula.match(/onOpenProductMarket=\{onOpenProductMarket\}/g) ?? []).length, 2, '投入和产出都必须传递商品市场入口');
 for (const forbidden of [
   '<ProductIcon',
   'showInventory',
@@ -43,6 +52,7 @@ for (const forbidden of [
   '<strong>{formatNumber(quantity)} ×</strong>',
   'facility-formula-center',
   'facility-formula-separator',
+  'className="facility-formula-visual" aria-hidden="true"',
 ]) assert.equal(formula.includes(forbidden), false, `生产结算不得包含: ${forbidden}`);
 
 const itemStart = formula.indexOf('className={itemClassName}');
@@ -89,6 +99,10 @@ for (const text of [
   'clip-path: polygon(0 0, 100% 50%, 0 100%);',
   '@container (max-width: 420px)',
   '@media (prefers-reduced-motion: reduce)',
+  'appearance: none;',
+  'font: inherit;',
+  'cursor: pointer;',
+  '--ui-interactive-hover-border-color:',
 ]) assert.equal(formulaCss.includes(text), true, `生产结算样式缺少: ${text}`);
 
 for (const forbidden of [
@@ -170,6 +184,20 @@ for (const forbidden of ['<SelectInput', '<option']) {
   assert.equal(settingsSource.includes(forbidden), false, `生产设置不得恢复: ${forbidden}`);
 }
 
+for (const text of [
+  'onOpenProductMarket: (productId: string) => void;',
+  'onOpenProductMarket={onOpenProductMarket}',
+]) assert.equal(detail.includes(text), true, `工厂详情商品市场回调缺少: ${text}`);
+for (const text of [
+  "selectMarketAsset('commodity', productId);",
+  'onOpenProductMarket={openProductMarket}',
+]) assert.equal(productionPage.includes(text), true, `生产页商品市场导航缺少: ${text}`);
+assert.equal(
+  (productionPage.match(/onOpenProductMarket=\{openProductMarket\}/g) ?? []).length,
+  2,
+  '桌面与移动工厂详情都必须接入商品市场导航',
+);
+
 const groupCssImport = main.indexOf("import './styles/facility-group-card-grid.css';");
 const formulaCssImport = main.indexOf("import './styles/facility-production-formula.css';");
 assert.ok(groupCssImport >= 0 && formulaCssImport > groupCssImport, '生产结算样式必须在工厂详情基础样式之后加载');
@@ -190,9 +218,15 @@ for (const text of [
   "getByRole('combobox', { name: '机械工厂生产产物' })",
   "getByRole('listbox', { name: '机械工厂生产产物' })",
   "getByRole('option', { name: '节约生产' })",
+  "getByRole('button', { name: /^查看钢材市场/ })",
+  "getByRole('button', { name: /^查看机械市场/ })",
   "settlement.locator('svg.product-icon')",
   "settlement.locator('.product-artwork')",
   "settlement.locator('.facility-formula-separator')",
+  "asset: 'steel'",
+  "asset: 'machinery'",
+  'await inputSlot.click();',
+  'not.toHaveClass(/is-dragging/)',
   'expect(box.x + box.width).toBeLessThanOrEqual(width)',
   'expect(metaBox.width).toBeLessThan(visualBox.width - 8)',
   'expect(Math.abs(costBox.y - cycleBox.y)).toBeLessThanOrEqual(1)',
@@ -216,12 +250,20 @@ for (const text of [
   '输入与输出均显示当前可用库存',
   '不显示 `+` 或其他连接字符',
   '移动端不得拉伸为全宽',
+  '每个投入／产出物资槽整体使用原生按钮语义并可直接打开对应商品市场',
+  '不得把承载可交互物资槽的 `.facility-formula-visual` 整体设为 `aria-hidden`',
 ]) assert.equal(uiDesign.includes(text) || industryDesign.includes(text), true, `权威设计缺少: ${text}`);
 
 for (const text of [
   '生产结算 → 经营诊断 → 市场入口',
   '经营诊断固定紧跟生产结算',
   '不得与生产结算发生视觉重叠',
-]) assert.equal(industryDesign.includes(text), true, `移动经营诊断权威设计缺少: ${text}`);
+]) assert.equal(industryDesign.includes(text) || uiDesign.includes(text), true, `移动经营诊断权威设计缺少: ${text}`);
 
-console.log('生产结算商品 PNG、生产配置方案下拉、投入产出、移动详情纵向流、经营诊断响应式与几何防回退验证通过。');
+for (const text of [
+  '工厂详情“生产结算”的投入／产出物资槽是商品市场的直接导航入口',
+  '不得自动选择买入／卖出方向、数量或价格',
+  '不得改写生产页建设工厂类型、数量、配方、作业制度或任何服务器权威生产状态',
+]) assert.equal(pageDesign.includes(text), true, `生产商品市场导航权威设计缺少: ${text}`);
+
+console.log('生产结算商品 PNG、生产配置方案下拉、投入产出市场跳转、移动详情纵向流、经营诊断响应式与几何防回退验证通过。');
