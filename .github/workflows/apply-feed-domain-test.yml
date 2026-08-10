@@ -1,0 +1,58 @@
+name: Apply feed domain test
+
+on:
+  push:
+    branches:
+      - codex/feed-fruit-recipe-20260810
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update exact feed test expectation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('server/test/domain.test.js')
+          text = path.read_text(encoding='utf-8')
+          old = "  assert.deepEqual(standardRecipes(facilities.get('feed-factory'))[0].inputs, [\n    { productId: 'wheat', quantity: 2 }, { productId: 'sugarcane', quantity: 1 },\n  ]);"
+          new = "  assert.deepEqual(standardRecipes(facilities.get('feed-factory'))[0].inputs, [\n    { productId: 'wheat', quantity: 2 }, { productId: 'fruit', quantity: 1 },\n  ]);"
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one feed assertion, got {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify server domain test
+        run: node --test server/test/domain.test.js
+
+      - name: Commit final test and remove helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/apply-feed-domain-test.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- server/test/domain.test.js .github/workflows/apply-feed-domain-test.yml
+          git diff --cached --check
+          git commit -m "Update feed domain test"
+          git push origin HEAD:codex/feed-fruit-recipe-20260810
