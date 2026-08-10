@@ -1,0 +1,30 @@
+name: Merge latest main for facility procurement
+
+on:
+  push:
+    branches:
+      - feature/facility-build-procurement-orders
+
+permissions:
+  contents: write
+
+jobs:
+  merge-main:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/facility-build-procurement-orders
+          fetch-depth: 0
+      - name: Merge latest main
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git merge --no-commit --no-ff origin/main
+          git rm -- .github/workflows/merge-latest-main-for-facility-procurement.yml
+          git diff --check --cached
+          git commit -m "合入最新主分支自动出售改动"
+          git push origin HEAD:feature/facility-build-procurement-orders
