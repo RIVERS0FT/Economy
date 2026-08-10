@@ -20,6 +20,7 @@ const auditStore = read('server/src/contract-audit-store.js');
 const rootReadme = read('README.md');
 
 for (const token of [
+  'PRODUCTION_CONTRACT_SCHEMA_VERSION = 8',
   'proposeProductionContractRenewal',
   'acceptProductionContractRenewal',
   'renewedFromContractId',
@@ -47,6 +48,7 @@ assert.ok(productDesign.includes('每类人口的周期总预算'), 'product des
 assert.ok(productDesign.includes('直接／派生预算'), 'product design must preserve direct and derived budgets');
 assert.ok(pageDesign.includes('提出续签条款不代表同意续签'), 'page design must require explicit bilateral renewal approval');
 assert.ok(serverDesign.includes('单方同意不冻结任何续签资产'), 'server design must define single-party approval without escrow');
+assert.ok(serverDesign.includes('旧 schema 7'), 'server design must preserve the legacy renewal migration rule');
 assert.ok(rootReadme.includes('单方同意不冻结续签资产'), 'root README must summarize explicit bilateral renewal approval');
 for (const token of ['renewal_approved', 'renewal_approval_revoked', 'renewal_confirmed']) assert.ok(auditStore.includes(token), `contract audit store missing ${token}`);
 
