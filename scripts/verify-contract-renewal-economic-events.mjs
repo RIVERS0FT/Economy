@@ -20,7 +20,7 @@ const auditStore = read('server/src/contract-audit-store.js');
 const rootReadme = read('README.md');
 
 for (const token of [
-  'PRODUCTION_CONTRACT_SCHEMA_VERSION = 8',
+  'PRODUCTION_CONTRACT_SCHEMA_VERSION = 9',
   'proposeProductionContractRenewal',
   'acceptProductionContractRenewal',
   'renewedFromContractId',
@@ -50,6 +50,14 @@ assert.ok(pageDesign.includes('提出续签条款不代表同意续签'), 'page 
 assert.ok(serverDesign.includes('单方同意不冻结任何续签资产'), 'server design must define single-party approval without escrow');
 assert.ok(serverDesign.includes('旧 schema 7'), 'server design must preserve the legacy renewal migration rule');
 assert.ok(rootReadme.includes('单方同意不冻结续签资产'), 'root README must summarize explicit bilateral renewal approval');
+for (const token of ['optionalTotalDeliveries', "contract.totalDeliveries === null ? 'completed' : 'terminated'", "return result(false, '长期合同无需续签')"]) {
+  assert.ok(contracts.includes(token), `contracts.js missing long-term contract rule ${token}`);
+}
+assert.ok(contractPage.includes('总交付批次（可选）') && contractPage.includes('留空表示长期合同'), 'contract page must expose optional long-term total deliveries');
+assert.ok(contractPage.includes('长期合同 · 已履约'), 'contract page must avoid fake infinite progress');
+assert.ok(pageDesign.includes('`totalDeliveries = null`') && pageDesign.includes('长期合同不会因完成批次数自动结束'), 'page design must own long-term supply contract semantics');
+assert.ok(serverDesign.includes('`totalDeliveries` 允许为 2～100 的整数或 `null`') && serverDesign.includes('长期合同不接受续签'), 'server design must own long-term supply lifecycle');
+assert.ok(rootReadme.includes('可留空总批次形成长期合同'), 'root README must summarize long-term supply contracts');
 for (const token of ['renewal_approved', 'renewal_approval_revoked', 'renewal_confirmed']) assert.ok(auditStore.includes(token), `contract audit store missing ${token}`);
 
 const now = ECONOMIC_EVENT_EPOCH_MS + 6 * 60 * 60 * 1000;

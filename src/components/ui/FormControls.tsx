@@ -345,6 +345,7 @@ type IntegerInputProps = Omit<
 > & SharedFieldProps & {
   value: string;
   fallbackValue: number;
+  allowEmpty?: boolean;
   min?: number;
   max?: number;
   onValueChange: (value: string) => void;
@@ -359,6 +360,7 @@ export function IntegerInput({
   id,
   value,
   fallbackValue,
+  allowEmpty = false,
   min,
   max,
   required,
@@ -424,7 +426,8 @@ export function IntegerInput({
         )}
         onChange={handleChange}
         onBlur={(event) => {
-          onValueChange(normalizeIntegerDraft(event.currentTarget.value, fallbackValue, { min, max }));
+          if (allowEmpty && event.currentTarget.value.trim() === '') onValueChange('');
+          else onValueChange(normalizeIntegerDraft(event.currentTarget.value, fallbackValue, { min, max }));
           onBlur?.(event);
         }}
         onKeyDown={(event) => {

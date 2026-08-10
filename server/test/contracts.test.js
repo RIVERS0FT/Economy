@@ -245,7 +245,50 @@ test('合同最后三批可提出续签，双方确认后预留资产并在原�
   );
 });
 
-test('schema 8 迁移不会把旧 proposed 提出方隐式视为同意，旧 accepted 补齐双方确认', () => {
+test('采购与供应合同允许省略总批次形成长期合同，并在当前批完成后正常结束', () => {
+  const { world, buyerUser, supplierUser, buyer, supplier, now } = setup();
+  const createLongTerm = (publisher, role) => applyProductionContractAction(world, publisher, 'createProductionContract', {
+    publisherRole: role,
+    productId: 'wheat',
+    quantityPerDelivery: 10,
+    unitPrice: 3,
+    deliveryIntervalMs: 10 * 60 * 1000,
+    totalDeliveries: null,
+    firstDeliveryDelayMs: 10 * 60 * 1000,
+  }, now);
+
+  assert.equal(createLongTerm(buyerUser, 'buyer').ok, true);
+  let contract = world.productionContracts[0];
+  assert.equal(contract.totalDeliveries, null);
+  assert.equal(applyProductionContractAction(world, supplierUser, 'acceptProductionContract', { contractId: contract.id }, now + 1).ok, true);
+  for (let batch = 1; batch <= 3; batch += 1) {
+    processProductionContracts(world, now + batch * 10 * 60 * 1000 + batch + 1);
+  }
+  contract = contractById(world, contract.id);
+  assert.equal(contract.completedDeliveries, 3);
+  assert.equal(contract.status, 'active', '长期合同不应按完成批次数自动结束');
+  assert.equal(applyProductionContractAction(world, buyerUser, 'proposeProductionContractRenewal', {
+    contractId: contract.id,
+    quantityPerDelivery: 10, unitPrice: 3, deliveryIntervalMs: 10 * 60 * 1000, totalDeliveries: 2, firstDeliveryDelayMs: 0,
+  }, now + 31 * 60 * 1000).message, '长期合同无需续签');
+  assert.equal(applyProductionContractAction(world, buyerUser, 'requestProductionContractTermination', { contractId: contract.id }, now + 31 * 60 * 1000 + 1).ok, true);
+  processProductionContracts(world, now + 40 * 60 * 1000 + 5);
+  contract = contractById(world, contract.id);
+  assert.equal(contract.status, 'completed');
+  assert.equal(contract.terminationReason, 'notice_completed');
+  assert.equal(contract.completedDeliveries, 4);
+  assert.ok(contract.completedAt);
+
+  assert.equal(createLongTerm(supplierUser, 'supplier').ok, true, '供应方向也应允许长期合同');
+  const supplierOffer = world.productionContracts.find((item) => item.status === 'open' && item.publisherRole === 'supplier');
+  assert.ok(supplierOffer);
+  assert.equal(supplierOffer.totalDeliveries, null);
+  assert.equal(applyProductionContractAction(world, buyerUser, 'acceptProductionContract', { contractId: supplierOffer.id }, now + 50 * 60 * 1000).ok, true);
+  assert.equal(contractById(world, supplierOffer.id).status, 'active');
+  assert.ok(buyer.credits >= 0 && supplier.credits >= 0);
+});
+
+test('schema 9 迁移不会把旧 proposed 提出方隐式视为同意，旧 accepted 补齐双方确认', () => {
   const { world, buyerUser, supplierUser, now } = setup();
   const base = {
     id: 'legacy-renewal', publisherId: buyerUser.id, publisherName: '采购方', publisherRole: 'buyer',
@@ -264,7 +307,7 @@ test('schema 8 迁移不会把旧 proposed 提出方隐式视为同意，旧 acc
   }];
   world.productionContractSchemaVersion = 7;
   migrateProductionContractWorld(world);
-  assert.equal(world.productionContractSchemaVersion, 8);
+  assert.equal(world.productionContractSchemaVersion, 9);
   assert.equal(world.productionContracts[0].renewalProposal.buyerApprovedAt, undefined);
   assert.equal(world.productionContracts[0].renewalProposal.supplierApprovedAt, undefined);
 

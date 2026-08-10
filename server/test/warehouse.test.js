@@ -15,7 +15,7 @@ test('warehouse state is inventory-only and uses current client version', () => 
   try {
     const state = store.getState(alice, now);
     assert.equal(state.version, CURRENT_CLIENT_STATE_VERSION);
-    assert.equal(state.version, 32);
+    assert.equal(state.version, 33);
     assert.equal(state.warehouseStoredQuantity, 0);
     assert.deepEqual(state.onlineAutoSellPolicies, {});
     for (const field of [
