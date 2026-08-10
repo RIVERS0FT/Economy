@@ -1,0 +1,431 @@
+name: Apply auto-sell minimum inventory
+
+on:
+  push:
+    branches:
+      - feature/auto-sell-minimum-inventory
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/auto-sell-minimum-inventory
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.4.0'
+          cache: npm
+
+      - name: Apply implementation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, content):
+              target = Path(path)
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_text(content, encoding='utf-8')
+
+          def replace(path, old, new):
+              source = read(path)
+              if old not in source:
+                  raise SystemExit(f'{path}: replacement marker not found: {old[:160]!r}')
+              write(path, source.replace(old, new, 1))
+
+          replace(
+              'src/auto-sell/autoSellStorage.ts',
+              '''export interface AutoSellPolicy {\n  enabled: boolean;\n  price: number;\n}\n''',
+              '''export interface AutoSellPolicy {\n  enabled: boolean;\n  price: number;\n  minimumFreeInventory: number;\n}\n''',
+          )
+          replace(
+              'src/auto-sell/autoSellStorage.ts',
+              '''function normalizePolicy(value: unknown): AutoSellPolicy | null {\n  if (!value || typeof value !== 'object') return null;\n  const raw = value as Partial<AutoSellPolicy>;\n  const price = Number(raw.price);\n  if (!Number.isFinite(price) || price < 0.01) return null;\n  return {\n    enabled: raw.enabled === true,\n    price: Math.round(price * 100) / 100,\n  };\n}\n''',
+              '''function normalizePolicy(value: unknown): AutoSellPolicy | null {\n  if (!value || typeof value !== 'object') return null;\n  const raw = value as Partial<AutoSellPolicy>;\n  const price = Number(raw.price);\n  const minimumFreeInventory = Number(raw.minimumFreeInventory ?? 0);\n  if (!Number.isFinite(price) || price < 0.01) return null;\n  if (!Number.isSafeInteger(minimumFreeInventory) || minimumFreeInventory < 0) return null;\n  return {\n    enabled: raw.enabled === true,\n    price: Math.round(price * 100) / 100,\n    minimumFreeInventory,\n  };\n}\n''',
+          )
+
+          replace(
+              'src/auto-sell/useOnlineAutoSell.ts',
+              '''  contractReserved: number;\n  eligibleQuantity: number;\n''',
+              '''  contractReserved: number;\n  minimumFreeInventory: number;\n  eligibleQuantity: number;\n''',
+          )
+          replace(
+              'src/auto-sell/useOnlineAutoSell.ts',
+              '''    return { enabled: false, price: Math.max(0.01, Number(product?.basePrice || 1)) };\n''',
+              '''    return {\n      enabled: false,\n      price: Math.max(0.01, Number(product?.basePrice || 1)),\n      minimumFreeInventory: 0,\n    };\n''',
+          )
+          replace(
+              'src/auto-sell/useOnlineAutoSell.ts',
+              '''    const contract = contractReserved[productId] ?? { display: 0, availableHold: 0 };\n    return {\n      availableInventory,\n      productionReserved: production,\n      contractReserved: nonNegativeInteger(contract.display),\n      eligibleQuantity: Math.max(0, availableInventory - production - nonNegativeInteger(contract.availableHold)),\n      blockedByOwnBuy: isOpenCommodityBuy(model.game, productId, true, policy.price),\n      hasCrossingBuyer: isOpenCommodityBuy(model.game, productId, false, policy.price),\n    };\n''',
+              '''    const contract = contractReserved[productId] ?? { display: 0, availableHold: 0 };\n    const minimumFreeInventory = nonNegativeInteger(policy.minimumFreeInventory);\n    return {\n      availableInventory,\n      productionReserved: production,\n      contractReserved: nonNegativeInteger(contract.display),\n      minimumFreeInventory,\n      eligibleQuantity: Math.max(\n        0,\n        availableInventory - production - nonNegativeInteger(contract.availableHold) - minimumFreeInventory,\n      ),\n      blockedByOwnBuy: isOpenCommodityBuy(model.game, productId, true, policy.price),\n      hasCrossingBuyer: isOpenCommodityBuy(model.game, productId, false, policy.price),\n    };\n''',
+          )
+          replace(
+              'src/auto-sell/useOnlineAutoSell.ts',
+              '''  const setPolicy = useCallback((productId: string, policy: AutoSellPolicy) => {\n    const price = Math.round(Number(policy.price) * 100) / 100;\n    if (!Number.isFinite(price) || price < 0.01) return;\n    const normalized = { enabled: policy.enabled === true, price };\n''',
+              '''  const setPolicy = useCallback((productId: string, policy: AutoSellPolicy) => {\n    const price = Math.round(Number(policy.price) * 100) / 100;\n    const minimumFreeInventory = Number(policy.minimumFreeInventory);\n    if (!Number.isFinite(price) || price < 0.01) return;\n    if (!Number.isSafeInteger(minimumFreeInventory) || minimumFreeInventory < 0) return;\n    const normalized = { enabled: policy.enabled === true, price, minimumFreeInventory };\n''',
+          )
+          replace(
+              'src/auto-sell/useOnlineAutoSell.ts',
+              '''    void model.onlineAutoSell(candidate.id, policy.price)\n''',
+              '''    void model.onlineAutoSell(candidate.id, policy.price, policy.minimumFreeInventory)\n''',
+          )
+
+          replace(
+              'src/api/game.ts',
+              '''  autoSellCommodity: (productId: string, price: number) => (\n''',
+              '''  autoSellCommodity: (productId: string, price: number, minimumFreeInventory = 0) => (\n''',
+          )
+          replace(
+              'src/api/game.ts',
+              '''      assetKind: 'commodity', assetId: productId, productId, side: 'sell', price, execution: 'online-auto-sell',\n''',
+              '''      assetKind: 'commodity',\n      assetId: productId,\n      productId,\n      side: 'sell',\n      price,\n      minimumFreeInventory,\n      execution: 'online-auto-sell',\n''',
+          )
+
+          replace(
+              'src/app/gameViewModel.ts',
+              '''  onlineAutoSell: (productId: string, price: number) => Promise<ActionResult>;\n''',
+              '''  onlineAutoSell: (productId: string, price: number, minimumFreeInventory?: number) => Promise<ActionResult>;\n''',
+          )
+          replace(
+              'src/app/gameViewModel.ts',
+              '''    onlineAutoSell: (productId, price) => runAction('onlineAutoSell', () => gameActions.autoSellCommodity(productId, price)),\n''',
+              '''    onlineAutoSell: (productId, price, minimumFreeInventory = 0) => runAction(\n      'onlineAutoSell',\n      () => gameActions.autoSellCommodity(productId, price, minimumFreeInventory),\n    ),\n''',
+          )
+
+          replace(
+              'src/components/warehouse/WarehouseInventoryPanel.tsx',
+              '''import { formatMoneyDraft, parseMoneyDraft } from '../../utils/moneyDraft';\n''',
+              '''import { parseIntegerDraft } from '../../utils/integerDraft';\nimport { formatMoneyDraft, parseMoneyDraft } from '../../utils/moneyDraft';\n''',
+          )
+          replace(
+              'src/components/warehouse/WarehouseInventoryPanel.tsx',
+              '''import { MoneyInput } from '../ui/FormControls';\n''',
+              '''import { IntegerInput, MoneyInput } from '../ui/FormControls';\n''',
+          )
+          replace(
+              'src/components/warehouse/WarehouseInventoryPanel.tsx',
+              '''    policyFor: (productId: string) => ({\n      enabled: false,\n      price: Math.max(0.01, Number(game.products.find((product) => product.id === productId)?.basePrice || 1)),\n    }),\n''',
+              '''    policyFor: (productId: string) => ({\n      enabled: false,\n      price: Math.max(0.01, Number(game.products.find((product) => product.id === productId)?.basePrice || 1)),\n      minimumFreeInventory: 0,\n    }),\n''',
+          )
+          replace(
+              'src/components/warehouse/WarehouseInventoryPanel.tsx',
+              '''        contractReserved: 0,\n        eligibleQuantity: 0,\n''',
+              '''        contractReserved: 0,\n        minimumFreeInventory: 0,\n        eligibleQuantity: 0,\n''',
+          )
+          replace(
+              'src/components/warehouse/WarehouseInventoryPanel.tsx',
+              '''  const [autoSellEnabledDraft, setAutoSellEnabledDraft] = useState(false);\n  const [autoSellPriceDraft, setAutoSellPriceDraft] = useState('1.00');\n''',
+              '''  const [autoSellEnabledDraft, setAutoSellEnabledDraft] = useState(false);\n  const [autoSellPriceDraft, setAutoSellPriceDraft] = useState('1.00');\n  const [autoSellMinimumInventoryDraft, setAutoSellMinimumInventoryDraft] = useState('0');\n''',
+          )
+          replace(
+              'src/components/warehouse/WarehouseInventoryPanel.tsx',
+              '''  const parsedAutoSellPrice = parseMoneyDraft(autoSellPriceDraft, { min: 0.01 });\n''',
+              '''  const parsedAutoSellPrice = parseMoneyDraft(autoSellPriceDraft, { min: 0.01 });\n  const parsedAutoSellMinimumInventory = parseIntegerDraft(autoSellMinimumInventoryDraft, { min: 0 });\n''',
+          )
+          replace(
+              'src/components/warehouse/WarehouseInventoryPanel.tsx',
+              '''    setAutoSellEnabledDraft(policy.enabled);\n    setAutoSellPriceDraft(formatMoneyDraft(policy.price));\n''',
+              '''    setAutoSellEnabledDraft(policy.enabled);\n    setAutoSellPriceDraft(formatMoneyDraft(policy.price));\n    setAutoSellMinimumInventoryDraft(String(policy.minimumFreeInventory));\n''',
+          )
+          replace(
+              'src/components/warehouse/WarehouseInventoryPanel.tsx',
+              '''  function saveAutoSellPolicy() {\n    if (!selectedProduct || parsedAutoSellPrice === null) return;\n    autoSell.setPolicy(selectedProduct.id, {\n      enabled: autoSellEnabledDraft,\n      price: parsedAutoSellPrice,\n    });\n    model.notify(autoSellEnabledDraft\n      ? `${selectedProduct.name}自动出售已开启，最低价 ${parsedAutoSellPrice.toFixed(2)}`\n      : `${selectedProduct.name}自动出售已关闭`);\n  }\n''',
+              '''  function saveAutoSellPolicy() {\n    if (!selectedProduct || parsedAutoSellPrice === null || parsedAutoSellMinimumInventory === null) return;\n    autoSell.setPolicy(selectedProduct.id, {\n      enabled: autoSellEnabledDraft,\n      price: parsedAutoSellPrice,\n      minimumFreeInventory: parsedAutoSellMinimumInventory,\n    });\n    model.notify(autoSellEnabledDraft\n      ? `${selectedProduct.name}自动出售已开启，最低价 ${parsedAutoSellPrice.toFixed(2)}，最低自由库存 ${formatNumber(parsedAutoSellMinimumInventory)}`\n      : `${selectedProduct.name}自动出售已关闭`);\n  }\n''',
+          )
+          replace(
+              'src/components/warehouse/WarehouseInventoryPanel.tsx',
+              '''              <div><span>自由可用</span><strong>{formatNumber(selectedAutoSellStatus.availableInventory)}</strong></div>\n              <div><span>生产预定</span><strong>{formatNumber(selectedAutoSellStatus.productionReserved)}</strong></div>\n              <div><span>合同预定</span><strong>{formatNumber(selectedAutoSellStatus.contractReserved)}</strong></div>\n              <div><span>预计可自动出售</span><strong>{formatNumber(selectedAutoSellStatus.eligibleQuantity)}</strong></div>\n''',
+              '''              <div><span>当前可用</span><strong>{formatNumber(selectedAutoSellStatus.availableInventory)}</strong></div>\n              <div><span>生产预定</span><strong>{formatNumber(selectedAutoSellStatus.productionReserved)}</strong></div>\n              <div><span>合同预定</span><strong>{formatNumber(selectedAutoSellStatus.contractReserved)}</strong></div>\n              <div><span>最低自由库存</span><strong>{formatNumber(selectedAutoSellStatus.minimumFreeInventory)}</strong></div>\n              <div><span>预计可自动出售</span><strong>{formatNumber(selectedAutoSellStatus.eligibleQuantity)}</strong></div>\n''',
+          )
+          replace(
+              'src/components/warehouse/WarehouseInventoryPanel.tsx',
+              '''            <MoneyInput\n              label="最低自动出售价格"\n''',
+              '''            <IntegerInput\n              label="最低自由库存"\n              description="在生产预定和合同预定之外额外保留的可用库存；填写 0 表示不额外保留。该值只限制自动出售。"\n              value={autoSellMinimumInventoryDraft}\n              fallbackValue={selectedPolicy.minimumFreeInventory}\n              min={0}\n              error={parsedAutoSellMinimumInventory === null ? '请输入不小于 0 的整数' : undefined}\n              onValueChange={setAutoSellMinimumInventoryDraft}\n            />\n            <MoneyInput\n              label="最低自动出售价格"\n''',
+          )
+          replace(
+              'src/components/warehouse/WarehouseInventoryPanel.tsx',
+              '''              数量由服务器成交前重新计算：先保留开启中工厂下一完整周期的原料，再保留自动准备的合同批次；普通手动卖单仍只在市场页发布。\n''',
+              '''              数量由服务器成交前重新计算：先保留开启中工厂下一完整周期的原料，再保留自动准备的合同批次，最后额外保留你设置的最低自由库存；该值不限制生产、合同履约、手动卖出或拍卖。\n''',
+          )
+          replace(
+              'src/components/warehouse/WarehouseInventoryPanel.tsx',
+              '''            <Button block disabled={parsedAutoSellPrice === null} onClick={saveAutoSellPolicy}>\n''',
+              '''            <Button\n              block\n              disabled={parsedAutoSellPrice === null || parsedAutoSellMinimumInventory === null}\n              onClick={saveAutoSellPolicy}\n            >\n''',
+          )
+
+          replace(
+              'src/styles/warehouse-expansion.css',
+              '''  grid-template-columns: repeat(4, minmax(0, 1fr));\n  gap: var(--space-2);\n}\n\n.warehouse-auto-sell-summary > div {\n''',
+              '''  grid-template-columns: repeat(5, minmax(0, 1fr));\n  gap: var(--space-2);\n}\n\n.warehouse-auto-sell-summary > div {\n''',
+          )
+
+          replace(
+              'server/src/online-auto-sell.js',
+              '''function positiveInteger(value) {\n  const normalized = Math.floor(Number(value));\n  return Number.isSafeInteger(normalized) && normalized > 0 ? normalized : 0;\n}\n''',
+              '''function positiveInteger(value) {\n  const normalized = Math.floor(Number(value));\n  return Number.isSafeInteger(normalized) && normalized > 0 ? normalized : 0;\n}\n\nfunction nonNegativeSafeInteger(value) {\n  const normalized = Number(value);\n  return Number.isSafeInteger(normalized) && normalized >= 0 ? normalized : null;\n}\n''',
+          )
+          replace(
+              'server/src/online-auto-sell.js',
+              '''  const minimumPrice = normalizePlayerMoneyInput(payload.price, { min: 0.01 });\n  if (!product || minimumPrice === null) return { ok: false, message: '自动出售参数无效' };\n''',
+              '''  const minimumPrice = normalizePlayerMoneyInput(payload.price, { min: 0.01 });\n  const minimumFreeInventory = nonNegativeSafeInteger(payload.minimumFreeInventory ?? 0);\n  if (!product || minimumPrice === null || minimumFreeInventory === null) {\n    return { ok: false, message: '自动出售参数无效' };\n  }\n''',
+          )
+          replace(
+              'server/src/online-auto-sell.js',
+              '''  const eligible = Math.max(0, positiveInteger(inventory.available) - productionReserved - contractHold);\n  if (eligible < 1) return { ok: false, message: '当前没有扣除生产预定和合同预定后的可自动出售库存' };\n''',
+              '''  const eligible = Math.max(\n    0,\n    positiveInteger(inventory.available) - productionReserved - contractHold - minimumFreeInventory,\n  );\n  if (eligible < 1) {\n    return { ok: false, message: '当前没有扣除生产预定、合同预定和最低自由库存后的可自动出售库存' };\n  }\n''',
+          )
+
+          tests_path = 'server/test/online-auto-sell.test.js'
+          tests = read(tests_path)
+          tests += r'''
+
+test('online auto sell preserves minimum free inventory in addition to production and contract holds', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, alice, now);
+  const buyer = ensurePlayer(world, bob, now);
+  buyer.credits = 10_000;
+  seller.inventories.plastic.available = 20;
+  seller.inventories.plastic.frozen = 1;
+  seller.facilityGroups = [group('electronics-factory', 2, {
+    enabled: true,
+    status: 'running',
+    participatingCount: 2,
+    cycleStartedAt: now,
+  })];
+  world.productionContracts = [{
+    id: 'supply-plastic',
+    kind: 'supply',
+    status: 'active',
+    supplierId: alice.id,
+    productId: 'plastic',
+    quantityPerDelivery: 4,
+    supplierReservedQuantity: 1,
+    supplierAutoReserve: true,
+    completedDeliveries: 0,
+    totalDeliveries: 10,
+  }];
+  migrateFacilityGroupWorld(world, now);
+  addBuyOrder(world, buyer, 'plastic', 20, 10);
+
+  assert.equal(productionReservedQuantitiesForPlayer(world, alice.id).plastic, 2);
+  assert.equal(contractAvailableHoldForAutoSell(world, alice.id, 'plastic'), 3);
+  const result = applyOnlineAutoSell(world, alice, {
+    productId: 'plastic',
+    price: 5,
+    minimumFreeInventory: 5,
+  }, now + 2);
+
+  assert.equal(result.ok, true);
+  assert.equal(seller.inventories.plastic.available, 10);
+  assert.equal(seller.inventories.plastic.frozen, 1);
+});
+
+test('online auto sell does not sell below the configured minimum free inventory', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, alice, now);
+  const buyer = ensurePlayer(world, bob, now);
+  buyer.credits = 10_000;
+  seller.inventories.wheat.available = 5;
+  addBuyOrder(world, buyer, 'wheat', 10, 10);
+
+  const result = applyOnlineAutoSell(world, alice, {
+    productId: 'wheat',
+    price: 5,
+    minimumFreeInventory: 5,
+  }, now + 2);
+
+  assert.equal(result.ok, false);
+  assert.match(result.message, /最低自由库存/);
+  assert.equal(seller.inventories.wheat.available, 5);
+  assert.equal(world.orders.filter((order) => Number(order.ownerId) === alice.id && order.side === 'sell').length, 0);
+});
+
+test('online auto sell rejects invalid minimum free inventory values', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, alice, now);
+  const buyer = ensurePlayer(world, bob, now);
+  buyer.credits = 10_000;
+  seller.inventories.wheat.available = 10;
+  addBuyOrder(world, buyer, 'wheat', 10, 10);
+
+  for (const minimumFreeInventory of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+    const result = applyOnlineAutoSell(world, alice, {
+      productId: 'wheat',
+      price: 5,
+      minimumFreeInventory,
+    }, now + 2);
+    assert.equal(result.ok, false);
+    assert.match(result.message, /参数无效/);
+  }
+  assert.equal(seller.inventories.wheat.available, 10);
+});
+'''
+          write(tests_path, tests)
+
+          replace(
+              'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+              '''在线自动出售控制器属于浏览器本地增强，不是服务器后台策略，也不是长期卖单。设置按玩家 ID 仅保存在当前浏览器，包含“启用／关闭”和最低出售价格；价格遵守普通商品订单相同的最低 `0.01` 与两位小数规则，不提供数量输入。客户端关闭、退出登录、断网或没有运行 Economy 页面时不会发起新的自动出售；不得为此增加在线心跳、自动出售专用轮询、全世界扫描调度器或后台常驻任务。''',
+              '''在线自动出售控制器属于浏览器本地增强，不是服务器后台策略，也不是长期卖单。设置按玩家 ID 仅保存在当前浏览器，包含“启用／关闭”、最低出售价格和最低自由库存保留量；价格遵守普通商品订单相同的最低 `0.01` 与两位小数规则，最低自由库存保留量必须为不小于 `0` 的安全整数并默认 `0`。客户端关闭、退出登录、断网或没有运行 Economy 页面时不会发起新的自动出售；不得为此增加在线心跳、自动出售专用轮询、全世界扫描调度器或后台常驻任务。''',
+          )
+          replace(
+              'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+              '''可自动出售 = max(0, available - 生产预定 - 合同可用保留)\n''',
+              '''可自动出售 = max(0, available - 生产预定 - 合同可用保留 - 最低自由库存保留量)\n''',
+          )
+          replace(
+              'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+              '''已经进入 `supplierReservedQuantity`／续签 `supplierReservedQuantity` 的商品继续属于真实 `frozen` 库存，本来就不在 `available` 中，不得重复扣除；普通手动商品卖单、商品拍卖等冻结资产同理已经从 `available` 排除。生产预定只保护 `enabled=true` 的工厂，并按下一完整周期投入保守计算。\n\n上述生产预定和合同可用保留只决定“现有可用库存中哪些暂时不可由自动出售消耗”，不得恢复 `warehouseAvailableCapacity`、买方合同入库预留、拍卖入库预留或任何仓库容量检查。''',
+              '''已经进入 `supplierReservedQuantity`／续签 `supplierReservedQuantity` 的商品继续属于真实 `frozen` 库存，本来就不在 `available` 中，不得重复扣除；普通手动商品卖单、商品拍卖等冻结资产同理已经从 `available` 排除。生产预定只保护 `enabled=true` 的工厂，并按下一完整周期投入保守计算。\n\n最低自由库存保留量只限制在线自动出售，是生产预定和合同可用保留之外由玩家自行指定的额外可用库存下限；它不进入 `frozen`，不限制生产消耗、合同履约、市场手动卖出或拍卖，也不是仓库总容量、剩余容量或入库预占。客户端发起临时自动出售时必须把该策略值一并提交，服务器只接受非负安全整数并在成交事务中用真实 `available`、生产预定和合同可用保留重新计算出售数量；客户端显示的预计数量不得成为资产扣减依据。\n\n上述生产预定、合同可用保留和最低自由库存保留量只决定“现有可用库存中哪些暂时不可由自动出售消耗”，不得恢复 `warehouseAvailableCapacity`、买方合同入库预留、拍卖入库预留或任何仓库容量检查。''',
+          )
+          replace(
+              'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+              '''- 在线自动出售必须只保护卖方生产与供货义务，不得恢复仓库容量、入库预占或后台常驻自动出售任务。''',
+              '''- 在线自动出售必须只保护卖方生产、供货义务和玩家显式设置的最低自由库存；最低自由库存只限制自动出售，不得恢复仓库容量、入库预占、资产冻结或后台常驻自动出售任务。\n- 最低自由库存必须由客户端与服务器同时校验为非负安全整数，旧浏览器本地策略缺少该字段时必须按 `0` 兼容。''',
+          )
+
+          replace(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '''经营成长线固定为十步：工作、建设工厂、启动工厂、完成生产、设置商品自动出售价格、完成一次自动出售、开始一项产业科技研发、查看合同、完成一次银行存款、查看排行榜。''',
+              '''经营成长线固定为十步：工作、建设工厂、启动工厂、完成生产、设置商品自动出售、完成一次自动出售、开始一项产业科技研发、查看合同、完成一次银行存款、查看排行榜。''',
+          )
+          replace(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '''“设置商品自动出售价格”只在玩家从仓库面板保存合法最低价并启用当前浏览器策略后推进，同时记录本轮商品 ID；''',
+              '''“设置商品自动出售”只在玩家从仓库面板保存合法最低价、合法最低自由库存保留量（允许 `0`）并启用当前浏览器策略后推进，同时记录本轮商品 ID；''',
+          )
+
+          replace(
+              'src/game-guide/tutorialDefinition.ts',
+              '''    description: '点击仓库中的商品，启用自动出售并设置最低出售价格。自动出售只在当前客户端在线时生效。',\n''',
+              '''    description: '点击仓库中的商品，启用自动出售并设置最低出售价格；最低自由库存可填写 0，生产和合同预定会由系统另外保护。自动出售只在当前客户端在线时生效。',\n''',
+          )
+
+          replace(
+              'scripts/verify-online-auto-sell.mjs',
+              '''  'server/src/online-auto-sell.js': [\n    'productionReservedQuantitiesForPlayer',\n''',
+              '''  'server/src/online-auto-sell.js': [\n    'productionReservedQuantitiesForPlayer',\n    'minimumFreeInventory',\n''',
+          )
+          replace(
+              'scripts/verify-online-auto-sell.mjs',
+              '''  'src/api/game.ts': [\n    'autoSellCommodity',\n    "execution: 'online-auto-sell'",\n  ],\n''',
+              '''  'src/api/game.ts': [\n    'autoSellCommodity',\n    'minimumFreeInventory',\n    "execution: 'online-auto-sell'",\n  ],\n  'src/auto-sell/autoSellStorage.ts': [\n    'minimumFreeInventory',\n    'raw.minimumFreeInventory ?? 0',\n  ],\n''',
+          )
+          replace(
+              'scripts/verify-online-auto-sell.mjs',
+              '''    'contractReservations',\n    'model.onlineAutoSell',\n''',
+              '''    'contractReservations',\n    'minimumFreeInventory',\n    'model.onlineAutoSell',\n''',
+          )
+          replace(
+              'scripts/verify-online-auto-sell.mjs',
+              '''    '最低自动出售价格',\n    '仅客户端在线',\n''',
+              '''    '最低自动出售价格',\n    '最低自由库存',\n    'parseIntegerDraft',\n    '仅客户端在线',\n''',
+          )
+          replace(
+              'scripts/verify-online-auto-sell.mjs',
+              '''    '可自动出售 = max(0, available - 生产预定 - 合同可用保留)',\n''',
+              '''    '可自动出售 = max(0, available - 生产预定 - 合同可用保留 - 最低自由库存保留量)',\n    '最低自由库存保留量只限制在线自动出售',\n''',
+          )
+
+          replace(
+              'scripts/verify-warehouse-expansion.mjs',
+              '''  'inventory.available > 0 || inventory.frozen > 0',\n]) requireText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);\n''',
+              '''  'inventory.available > 0 || inventory.frozen > 0',\n  '最低自由库存',\n]) requireText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);\n''',
+          )
+          replace(
+              'scripts/verify-warehouse-expansion.mjs',
+              '''  '客户端状态版本从 30 升至 31',\n]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);\n''',
+              '''  '客户端状态版本从 30 升至 31',\n  '最低自由库存保留量只限制在线自动出售',\n  '不限制生产消耗、合同履约、市场手动卖出或拍卖',\n]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);\n''',
+          )
+
+          replace(
+              'scripts/verify-game-tutorial.mjs',
+              '''requireText(definition, "title: '设置商品自动出售'", '成长线必须明确教玩家设置自动出售');\n''',
+              '''requireText(definition, "title: '设置商品自动出售'", '成长线必须明确教玩家设置自动出售');\nrequireText(definition, '最低自由库存可填写 0', '成长线必须说明最低自由库存是可选的额外保留');\n''',
+          )
+          replace(
+              'scripts/verify-game-tutorial.mjs',
+              '''requireText(pageDesign, '设置商品自动出售价格、完成一次自动出售', '页面权威设计必须记录新版生产—自动出售成长线');\n''',
+              '''requireText(pageDesign, '设置商品自动出售、完成一次自动出售', '页面权威设计必须记录新版生产—自动出售成长线');\nrequireText(pageDesign, '合法最低自由库存保留量（允许 `0`）', '页面权威设计必须记录自动出售自由库存设置');\n''',
+          )
+
+          write('tests/browser/warehouse-auto-sell.spec.ts', r'''import { expect, test } from '@playwright/test';
+
+test.describe('warehouse online auto sell policy', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test('shows a zero-default minimum free inventory alongside the minimum price', async ({ page }) => {
+    await page.goto('runtime-test.html?view=production&scenario=cluster-summary');
+
+    const productCard = page.locator('.warehouse-product-card').first();
+    await expect(productCard).toBeVisible();
+    await productCard.click();
+
+    const panel = page.locator('.warehouse-auto-sell-panel');
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText('最低自由库存');
+    await expect(panel.getByLabel('最低自由库存')).toHaveValue('0');
+    await expect(panel.getByLabel('最低自动出售价格')).toBeVisible();
+  });
+});
+''')
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused checks
+        run: |
+          node --test server/test/online-auto-sell.test.js
+          node scripts/verify-online-auto-sell.mjs
+          node scripts/verify-warehouse-expansion.mjs
+          node scripts/verify-game-tutorial.mjs
+
+      - name: Run full build verification
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run focused browser check
+        run: npx playwright test tests/browser/warehouse-auto-sell.spec.ts
+
+      - name: Run full browser suite
+        run: npm run test:browser
+
+      - name: Commit verified implementation
+        shell: bash
+        run: |
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-auto-sell-minimum-inventory.yml
+          git add -- \
+            docs/WAREHOUSE_EXPANSION_DESIGN.md \
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
+            scripts/verify-online-auto-sell.mjs \
+            scripts/verify-warehouse-expansion.mjs \
+            scripts/verify-game-tutorial.mjs \
+            server/src/online-auto-sell.js \
+            server/test/online-auto-sell.test.js \
+            src/api/game.ts \
+            src/app/gameViewModel.ts \
+            src/auto-sell/autoSellStorage.ts \
+            src/auto-sell/useOnlineAutoSell.ts \
+            src/components/warehouse/WarehouseInventoryPanel.tsx \
+            src/game-guide/tutorialDefinition.ts \
+            src/styles/warehouse-expansion.css \
+            tests/browser/warehouse-auto-sell.spec.ts
+          git diff --cached --check
+          git status --short
+          git commit -m "feat: add auto-sell minimum free inventory"
+          git push origin HEAD:feature/auto-sell-minimum-inventory
