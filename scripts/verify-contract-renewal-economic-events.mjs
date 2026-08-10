@@ -15,13 +15,20 @@ const overview = read('src/pages/OverviewPage.tsx');
 const contractPage = read('src/pages/ContractPage.tsx');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
+const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
+const auditStore = read('server/src/contract-audit-store.js');
+const rootReadme = read('README.md');
 
 for (const token of [
+  'PRODUCTION_CONTRACT_SCHEMA_VERSION = 8',
   'proposeProductionContractRenewal',
   'acceptProductionContractRenewal',
   'renewedFromContractId',
   'renewedToContractId',
   'renewalProposal',
+  'buyerApprovedAt',
+  'supplierApprovedAt',
+  'confirmedAt',
 ]) assert.ok(contracts.includes(token), `contracts.js missing ${token}`);
 for (const token of [String.raw`/renewal\/(propose|accept|reject|revoke)`, 'proposeProductionContractRenewal']) {
   assert.ok(routes.includes(token), `game-routes.js missing ${token}`);
@@ -34,9 +41,16 @@ assert.ok(overview.includes('公开经济事件日历'), 'overview must own the 
 assert.ok(overview.includes('未来 7 天'), 'overview must limit the visible calendar to seven days');
 assert.ok(!read('src/pages/MarketPage.tsx').includes('公开经济事件日历'), 'market page must not own the economic calendar');
 assert.ok(contractPage.includes('提出续签'), 'contract page must expose renewal controls');
+assert.ok(contractPage.includes('同意续签') && contractPage.includes('撤销同意'), 'contract page must expose bilateral renewal approval controls');
+assert.ok(contractPage.includes('采购方确认') && contractPage.includes('供应方确认'), 'contract page must show both renewal approval states');
 assert.ok(pageDesign.includes('未来七天'), 'page design must define the seven-day overview calendar');
 assert.ok(productDesign.includes('每类人口的周期总预算'), 'product design must preserve each population model budget');
 assert.ok(productDesign.includes('直接／派生预算'), 'product design must preserve direct and derived budgets');
+assert.ok(pageDesign.includes('提出续签条款不代表同意续签'), 'page design must require explicit bilateral renewal approval');
+assert.ok(serverDesign.includes('单方同意不冻结任何续签资产'), 'server design must define single-party approval without escrow');
+assert.ok(serverDesign.includes('旧 schema 7'), 'server design must preserve the legacy renewal migration rule');
+assert.ok(rootReadme.includes('单方同意不冻结续签资产'), 'root README must summarize explicit bilateral renewal approval');
+for (const token of ['renewal_approved', 'renewal_approval_revoked', 'renewal_confirmed']) assert.ok(auditStore.includes(token), `contract audit store missing ${token}`);
 
 const now = ECONOMIC_EVENT_EPOCH_MS + 6 * 60 * 60 * 1000;
 const calendar = createEconomicCalendarClientState(now);

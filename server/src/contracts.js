@@ -14,7 +14,7 @@ import {
 } from './commercial-contracts.js';
 import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 
-export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 7;
+export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 8;
 export const PRODUCTION_CONTRACT_INTERVALS = Object.freeze([
   10 * 60 * 1000,
   30 * 60 * 1000,
@@ -150,18 +150,43 @@ function normalizeStats(player) {
 }
 
 
+function normalizeRenewalApprovalAt(value) {
+  if (value === undefined || value === null) return undefined;
+  const normalized = Math.max(0, Number(value));
+  return Number.isFinite(normalized) && normalized > 0 ? normalized : undefined;
+}
+
 function normalizeRenewalProposal(contract, proposal) {
   if (!proposal || typeof proposal !== 'object') return null;
   const status = ['proposed', 'accepted', 'activated'].includes(proposal.status) ? proposal.status : 'proposed';
   const terms = proposal.terms && typeof proposal.terms === 'object' ? proposal.terms : {};
+  const proposedBy = Number(proposal.proposedBy);
+  const proposedAt = Math.max(0, Number(proposal.proposedAt || contract?.createdAt || Date.now()));
+  const legacyAcceptedBy = proposal.acceptedBy === undefined ? undefined : Number(proposal.acceptedBy);
+  const legacyAcceptedAt = normalizeRenewalApprovalAt(proposal.acceptedAt);
+  let buyerApprovedAt = normalizeRenewalApprovalAt(proposal.buyerApprovedAt);
+  let supplierApprovedAt = normalizeRenewalApprovalAt(proposal.supplierApprovedAt);
+  if ((status === 'accepted' || status === 'activated') && (!buyerApprovedAt || !supplierApprovedAt)) {
+    if (proposedBy === Number(contract?.buyerId)) buyerApprovedAt ||= proposedAt;
+    if (proposedBy === Number(contract?.supplierId)) supplierApprovedAt ||= proposedAt;
+    if (legacyAcceptedBy === Number(contract?.buyerId)) buyerApprovedAt ||= legacyAcceptedAt || proposedAt;
+    if (legacyAcceptedBy === Number(contract?.supplierId)) supplierApprovedAt ||= legacyAcceptedAt || proposedAt;
+    buyerApprovedAt ||= legacyAcceptedAt || proposedAt;
+    supplierApprovedAt ||= legacyAcceptedAt || proposedAt;
+  }
+  const confirmedAt = status === 'accepted' || status === 'activated'
+    ? normalizeRenewalApprovalAt(proposal.confirmedAt) || legacyAcceptedAt || Math.max(buyerApprovedAt || 0, supplierApprovedAt || 0) || proposedAt
+    : undefined;
   return {
     id: String(proposal.id || `contract-renewal-${randomUUID()}`),
     status,
-    proposedBy: Number(proposal.proposedBy),
-    proposedAt: Math.max(0, Number(proposal.proposedAt || contract?.createdAt || Date.now())),
+    revision: Math.max(1, Math.floor(Number(proposal.revision || 1))),
+    proposedBy,
+    proposedAt,
     expiresAt: Math.max(0, Number(proposal.expiresAt || 0)),
-    acceptedBy: proposal.acceptedBy === undefined ? undefined : Number(proposal.acceptedBy),
-    acceptedAt: proposal.acceptedAt === undefined ? undefined : Math.max(0, Number(proposal.acceptedAt)),
+    buyerApprovedAt,
+    supplierApprovedAt,
+    confirmedAt,
     activatedAt: proposal.activatedAt === undefined ? undefined : Math.max(0, Number(proposal.activatedAt)),
     activatedContractId: proposal.activatedContractId ? String(proposal.activatedContractId) : undefined,
     terms: {
@@ -176,6 +201,18 @@ function normalizeRenewalProposal(contract, proposal) {
     supplierBondCredits: Math.max(0, roundInternalMoney(proposal.supplierBondCredits || 0) || 0),
     supplierReservedQuantity: Math.max(0, Math.floor(Number(proposal.supplierReservedQuantity || 0))),
   };
+}
+
+function renewalApprovalField(contract, userId) {
+  const normalizedUserId = Number(userId);
+  if (Number(contract?.buyerId) === normalizedUserId) return 'buyerApprovedAt';
+  if (Number(contract?.supplierId) === normalizedUserId) return 'supplierApprovedAt';
+  return null;
+}
+
+function renewalApprovedBy(contract, proposal, userId) {
+  const field = renewalApprovalField(contract, userId);
+  return Boolean(field && proposal?.[field]);
 }
 
 function normalizeNegotiation(contract, negotiation) {
@@ -390,7 +427,7 @@ function activateRenewal(world, contract, buyer, supplier, now, runtimeIndex) {
     completedDeliveries: 0,
     createdAt: now,
     offerExpiresAt: now,
-    acceptedAt: proposal.acceptedAt || now,
+    acceptedAt: proposal.confirmedAt || now,
     nextDueAt: now + proposal.terms.firstDeliveryDelayMs,
     buyerEscrowCredits: proposal.buyerEscrowCredits,
     buyerBondCredits: proposal.buyerBondCredits,
@@ -1258,10 +1295,23 @@ function proposeRenewal(world, user, payload, now, runtimeIndex) {
 function acceptRenewal(world, user, payload, now, runtimeIndex) {
   const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
   const proposal = contract?.renewalProposal;
-  if (!contract || !proposal || proposal.status !== 'proposed') return result(false, '可接受的续签提议不存在');
-  if (Number(proposal.proposedBy) === Number(user.id)) return result(false, '不能接受自己提出的续签');
+  if (!contract || !proposal || proposal.status !== 'proposed') return result(false, '可确认的续签提议不存在');
+  const approvalField = renewalApprovalField(contract, user.id);
+  if (!approvalField) return result(false, '只有合同参与方可以确认续签');
+  if (proposal[approvalField]) return result(true, '你已同意当前续签条款，正在等待合作方确认');
   if (now >= Number(proposal.expiresAt || 0)) return result(false, '续签提议已过期');
   if (contract.graceEndsAt || contract.terminationRequestedBy) return result(false, '当前合同状态不允许续签');
+
+  const counterpartyApproved = approvalField === 'buyerApprovedAt'
+    ? Boolean(proposal.supplierApprovedAt)
+    : Boolean(proposal.buyerApprovedAt);
+  if (!counterpartyApproved) {
+    runtimeIndex.transition(contract, () => {
+      proposal[approvalField] = now;
+    });
+    return result(true, '已同意当前续签条款，等待合作方确认');
+  }
+
   const buyer = playerFor(world, contract.buyerId);
   const supplier = playerFor(world, contract.supplierId);
   if (!buyer || !supplier) return result(false, '合同参与者不存在');
@@ -1271,47 +1321,48 @@ function acceptRenewal(world, user, payload, now, runtimeIndex) {
   if (buyer.credits < gross + bond) return result(false, `采购方需要至少 ¤${gross + bond} 用于续签首批货款和保证金`);
   if (supplier.credits < bond) return result(false, `供应方需要至少 ¤${bond} 续签履约保证金`);
   runtimeIndex.transition(contract, () => {
+    proposal[approvalField] = now;
     buyer.credits -= gross + bond;
     buyer.frozenCredits += gross + bond;
     supplier.credits -= bond;
     supplier.frozenCredits += bond;
     proposal.status = 'accepted';
-    proposal.acceptedBy = Number(user.id);
-    proposal.acceptedAt = now;
+    proposal.confirmedAt = now;
     proposal.buyerEscrowCredits = gross;
     proposal.buyerBondCredits = bond;
     proposal.supplierBondCredits = bond;
     if (contract.supplierAutoReserve) reserveRenewalSupplierGoods(contract, supplier);
   });
-  return result(true, '续签已确认，将在当前合同正常完成后自动生效');
+  return result(true, '双方已同意续签，将在当前合同正常完成后自动生效');
 }
 
 function rejectRenewal(world, user, payload, runtimeIndex) {
   const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
   const proposal = contract?.renewalProposal;
-  if (!contract || !proposal || proposal.status !== 'proposed') return result(false, '可拒绝的续签提议不存在');
-  if (Number(proposal.proposedBy) === Number(user.id)) return result(false, '提议人应撤回而不是拒绝续签');
+  if (!contract || !proposal || proposal.status !== 'proposed') return result(false, '可取消的续签提议不存在');
+  const participant = renewalApprovalField(contract, user.id);
+  if (!participant) return result(false, '只有合同参与方可以处理续签');
+  const proposerCancelled = Number(proposal.proposedBy) === Number(user.id);
   runtimeIndex.transition(contract, () => releaseRenewalEscrow(
     contract,
     playerFor(world, contract.buyerId),
     playerFor(world, contract.supplierId),
-    'rejected',
+    proposerCancelled ? 'cancelled_by_proposer' : 'rejected',
   ));
-  return result(true, '续签提议已拒绝');
+  return result(true, proposerCancelled ? '续签提议已取消' : '续签提议已拒绝');
 }
 
 function revokeRenewal(world, user, payload, runtimeIndex) {
   const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
   const proposal = contract?.renewalProposal;
-  if (!contract || !proposal || proposal.status !== 'proposed') return result(false, '可撤回的续签提议不存在');
-  if (Number(proposal.proposedBy) !== Number(user.id)) return result(false, '只有提议人可以撤回续签');
-  runtimeIndex.transition(contract, () => releaseRenewalEscrow(
-    contract,
-    playerFor(world, contract.buyerId),
-    playerFor(world, contract.supplierId),
-    'revoked',
-  ));
-  return result(true, '续签提议已撤回');
+  if (!contract || !proposal || proposal.status !== 'proposed') return result(false, '可撤销同意的续签提议不存在');
+  const approvalField = renewalApprovalField(contract, user.id);
+  if (!approvalField) return result(false, '只有合同参与方可以处理续签');
+  if (!proposal[approvalField]) return result(false, '你尚未同意当前续签条款');
+  runtimeIndex.transition(contract, () => {
+    proposal[approvalField] = undefined;
+  });
+  return result(true, '已撤销对当前续签条款的同意');
 }
 
 function requestTermination(world, user, payload, now, runtimeIndex) {
@@ -1505,7 +1556,7 @@ function issueForContract(world, contract, runtimeIndex, userId = null) {
   if (contract.buyerEscrowCredits < gross) return '等待采购方补充货款';
   if (contract.renewalProposal?.status === 'proposed'
     && userId !== null
-    && Number(contract.renewalProposal.proposedBy) !== Number(userId)) return '等待你确认续签提议';
+    && !renewalApprovedBy(contract, contract.renewalProposal, userId)) return '等待你确认续签提议';
   return null;
 }
 
@@ -1573,6 +1624,11 @@ function publicContract(world, contract, userId, runtimeIndex) {
     renewalProposal: contract.renewalProposal ? {
       ...clone(contract.renewalProposal),
       isProposer: Number(contract.renewalProposal.proposedBy) === Number(userId),
+      buyerApproved: Boolean(contract.renewalProposal.buyerApprovedAt),
+      supplierApproved: Boolean(contract.renewalProposal.supplierApprovedAt),
+      approvedByMe: renewalApprovedBy(contract, contract.renewalProposal, userId),
+      awaitingMyApproval: contract.renewalProposal.status === 'proposed'
+        && !renewalApprovedBy(contract, contract.renewalProposal, userId),
     } : null,
     negotiations: publicNegotiations(world, contract, userId),
     renewedFromContractId: contract.renewedFromContractId,

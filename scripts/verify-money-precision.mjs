@@ -61,8 +61,8 @@ for (const path of ['src/pages/MarketPage.tsx', 'src/pages/BankPage.tsx', 'src/p
   assert.match(read(path), /MoneyInput/);
 }
 
-assert.match(read('server/shared/economy-state-version.js'), /CURRENT_CLIENT_STATE_VERSION = 31/);
-assert.match(read('server/shared/economy-state-version.js'), /MIN_COMPATIBLE_CLIENT_STATE_VERSION = 31/);
+assert.match(read('server/shared/economy-state-version.js'), /CURRENT_CLIENT_STATE_VERSION = 32/);
+assert.match(read('server/shared/economy-state-version.js'), /MIN_COMPATIBLE_CLIENT_STATE_VERSION = 32/);
 assert.match(read('server/src/market-demand/catalog.js'), /MARKET_DEMAND_MODEL_VERSION = 18/);
 assert.match(read('server/src/storage.js'), /normalizeWorldMoneyPrecision/);
 assert.match(read('server/src/storage.js'), /world\.version = 26/);
@@ -78,7 +78,7 @@ assert.match(banking, /microsToInternalMoney\(fundedByPoolMicros\)/);
 assert.doesNotMatch(banking, /Math\.floor\(shareMicros \/ 10_000\) \* 10_000/);
 
 const contracts = read('server/src/contracts.js');
-assert.match(contracts, /PRODUCTION_CONTRACT_SCHEMA_VERSION = 7/);
+assert.match(contracts, /PRODUCTION_CONTRACT_SCHEMA_VERSION = 8/);
 assert.match(contracts, /multiplyMoneyByInteger\(contract\.unitPrice, contract\.quantityPerDelivery\)/);
 assert.doesNotMatch(contracts, /floorPlayerMoney/);
 

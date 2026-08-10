@@ -144,7 +144,7 @@ function contractNeedsAttention(contract: ProductionContract) {
     || contract.graceEndsAt
     || contract.issue
     || contract.terminationRequestedBy
-    || (contract.renewalProposal?.status === 'proposed' && !contract.renewalProposal.isProposer),
+    || contract.renewalProposal?.awaitingMyApproval,
   );
 }
 
@@ -242,15 +242,17 @@ function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
 
   if (proposal) {
     const terms = proposal.terms;
+    const approvedCount = Number(Boolean(proposal.buyerApproved)) + Number(Boolean(proposal.supplierApproved));
+    const pendingText = proposal.approvedByMe ? '你已同意，等待合作方确认' : '等待你确认续签条款';
     return (
       <section className="contract-renewal-panel" aria-label="合同续签">
         <div className="contract-renewal-heading">
           <div>
             <strong>合同续签</strong>
-            <span>{proposal.status === 'proposed' ? '等待双方确认' : proposal.status === 'accepted' ? '已锁定，当前合同完成后生效' : '后续合同已经生效'}</span>
+            <span>{proposal.status === 'proposed' ? pendingText : proposal.status === 'accepted' ? '双方已同意，当前合同完成后生效' : '后续合同已经生效'}</span>
           </div>
           <StatusTag tone={proposal.status === 'accepted' || proposal.status === 'activated' ? 'success' : 'info'}>
-            {proposal.status === 'proposed' ? '待确认' : proposal.status === 'accepted' ? '已确认' : '已生效'}
+            {proposal.status === 'proposed' ? `${approvedCount}/2 已同意` : proposal.status === 'accepted' ? '已锁定' : '已生效'}
           </StatusTag>
         </div>
         <DataList className="compact contract-renewal-summary">
@@ -258,17 +260,21 @@ function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
           <DataRow label="单位价格" value={<CurrencyAmount>{formatCurrency(terms.unitPrice)}</CurrencyAmount>} />
           <DataRow label="交付周期" value={durationLabel(terms.deliveryIntervalMs)} />
           <DataRow label="总批次" value={`${formatNumber(terms.totalDeliveries)} 批`} />
+          <DataRow label="采购方确认" value={<StatusTag tone={proposal.buyerApproved ? 'success' : 'neutral'}>{proposal.buyerApproved ? '已同意' : '待确认'}</StatusTag>} />
+          <DataRow label="供应方确认" value={<StatusTag tone={proposal.supplierApproved ? 'success' : 'neutral'}>{proposal.supplierApproved ? '已同意' : '待确认'}</StatusTag>} />
         </DataList>
         {proposal.status === 'proposed' ? (
           <div className="contract-renewal-actions">
-            {proposal.isProposer ? (
-              <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:renewal-revoke`, () => productionContractActions.revokeRenewal(contract.id))}>撤回续签</Button>
+            {proposal.approvedByMe ? (
+              <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:renewal-revoke`, () => productionContractActions.revokeRenewal(contract.id))}>撤销同意</Button>
             ) : (
-              <>
-                <Button disabled={busy} onClick={() => void run(`${contract.id}:renewal-accept`, () => productionContractActions.acceptRenewal(contract.id))}>接受续签</Button>
-                <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:renewal-reject`, () => productionContractActions.rejectRenewal(contract.id))}>拒绝续签</Button>
-              </>
+              <Button disabled={busy} onClick={() => void run(`${contract.id}:renewal-accept`, () => productionContractActions.acceptRenewal(contract.id))}>同意续签</Button>
             )}
+            {proposal.isProposer ? (
+              <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:renewal-cancel`, () => productionContractActions.rejectRenewal(contract.id))}>取消续签提议</Button>
+            ) : !proposal.approvedByMe ? (
+              <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:renewal-reject`, () => productionContractActions.rejectRenewal(contract.id))}>拒绝续签</Button>
+            ) : null}
           </div>
         ) : null}
       </section>
