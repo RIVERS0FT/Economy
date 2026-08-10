@@ -195,6 +195,11 @@ test('desktop contract workspace uses shared controls and dense two-column layou
   await expect(page.getByText('采购 机械', { exact: true })).toBeVisible();
   await expect(page.locator('.contract-active-grid .contract-card').first()).toHaveClass(/contract-card--attention/);
   await expect(page.locator('.contract-active-grid .contract-card').first().getByText('待处理', { exact: true })).toBeVisible();
+  const renewal = page.locator('.contract-active-grid .contract-card').first().locator('.contract-renewal-panel');
+  await expect(renewal.getByText('采购方确认', { exact: true })).toBeVisible();
+  await expect(renewal.getByText('供应方确认', { exact: true })).toBeVisible();
+  await expect(renewal.getByText('1/2 已同意', { exact: true })).toBeVisible();
+  await expect(renewal.getByRole('button', { name: '同意续签', exact: true })).toBeVisible();
   await expectPersonalContractTabs(page);
   await expectUniformPageSectionGaps(page);
 

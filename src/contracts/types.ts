@@ -30,14 +30,20 @@ export interface ProductionContractNegotiation {
 export interface ProductionContractRenewalProposal {
   id: string;
   status: 'proposed' | 'accepted' | 'activated';
+  revision: number;
   proposedBy: number;
   proposedAt: number;
   expiresAt: number;
-  acceptedBy?: number;
-  acceptedAt?: number;
+  buyerApprovedAt?: number;
+  supplierApprovedAt?: number;
+  confirmedAt?: number;
   activatedAt?: number;
   activatedContractId?: string;
   isProposer?: boolean;
+  buyerApproved?: boolean;
+  supplierApproved?: boolean;
+  approvedByMe?: boolean;
+  awaitingMyApproval?: boolean;
   terms: {
     quantityPerDelivery: number;
     unitPrice: number;

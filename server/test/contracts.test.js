@@ -4,6 +4,7 @@ import { createWorld, ensurePlayer } from '../src/domain.js';
 import {
   applyProductionContractAction,
   createProductionContractClientState,
+  migrateProductionContractWorld,
   processProductionContracts,
 } from '../src/contracts.js';
 import { resolveAction } from '../src/game-routes.js';
@@ -188,19 +189,39 @@ test('合同最后三批可提出续签，双方确认后预留资产并在原�
   }, now + 10 * 60 * 1000 + 3).ok, true);
   contract = contractById(world, contract.id);
   assert.equal(contract.renewalProposal.status, 'proposed');
+  assert.equal(contract.renewalProposal.buyerApprovedAt, undefined, '提出续签不应被视为提出方已经同意');
+  assert.equal(contract.renewalProposal.supplierApprovedAt, undefined);
+
+  const buyerCreditsBeforeApproval = buyer.credits;
+  const supplierCreditsBeforeApproval = supplier.credits;
   assert.equal(applyProductionContractAction(world, supplierUser, 'acceptProductionContractRenewal', {
     contractId: contract.id,
   }, now + 10 * 60 * 1000 + 4).ok, true);
   contract = contractById(world, contract.id);
+  assert.equal(contract.renewalProposal.status, 'proposed', '单方同意不得正式确认续签');
+  assert.equal(contract.renewalProposal.supplierApprovedAt, now + 10 * 60 * 1000 + 4);
+  assert.equal(contract.renewalProposal.buyerApprovedAt, undefined);
+  assert.equal(contract.renewalProposal.buyerEscrowCredits, 0, '单方同意不得冻结续签货款');
+  assert.equal(contract.renewalProposal.buyerBondCredits, 0, '单方同意不得冻结采购方保证金');
+  assert.equal(contract.renewalProposal.supplierBondCredits, 0, '单方同意不得冻结供应方保证金');
+  assert.equal(buyer.credits, buyerCreditsBeforeApproval);
+  assert.equal(supplier.credits, supplierCreditsBeforeApproval);
+
+  assert.equal(applyProductionContractAction(world, buyerUser, 'acceptProductionContractRenewal', {
+    contractId: contract.id,
+  }, now + 10 * 60 * 1000 + 5).ok, true);
+  contract = contractById(world, contract.id);
   assert.equal(contract.renewalProposal.status, 'accepted');
+  assert.equal(contract.renewalProposal.buyerApprovedAt, now + 10 * 60 * 1000 + 5);
+  assert.equal(contract.renewalProposal.confirmedAt, now + 10 * 60 * 1000 + 5);
   assert.equal(contract.renewalProposal.buyerEscrowCredits, 120);
   assert.equal(contract.renewalProposal.buyerBondCredits, 24);
   assert.equal(contract.renewalProposal.supplierBondCredits, 24);
   assert.equal(contract.renewalProposal.supplierReservedQuantity, 30);
 
-  processProductionContracts(world, now + 20 * 60 * 1000 + 5);
-  processProductionContracts(world, now + 30 * 60 * 1000 + 6);
-  processProductionContracts(world, now + 40 * 60 * 1000 + 7);
+  processProductionContracts(world, now + 20 * 60 * 1000 + 6);
+  processProductionContracts(world, now + 30 * 60 * 1000 + 7);
+  processProductionContracts(world, now + 40 * 60 * 1000 + 8);
   contract = contractById(world, contract.id);
   assert.equal(contract.status, 'completed');
   assert.ok(contract.renewedToContractId);
@@ -222,6 +243,71 @@ test('合同最后三批可提出续签，双方确认后预留资产并在原�
     resolveAction('POST', `/api/game/contracts/${contract.id}/renewal/accept`).action,
     'acceptProductionContractRenewal',
   );
+});
+
+test('schema 8 迁移不会把旧 proposed 提出方隐式视为同意，旧 accepted 补齐双方确认', () => {
+  const { world, buyerUser, supplierUser, now } = setup();
+  const base = {
+    id: 'legacy-renewal', publisherId: buyerUser.id, publisherName: '采购方', publisherRole: 'buyer',
+    buyerId: buyerUser.id, buyerName: '采购方', supplierId: supplierUser.id, supplierName: '供应方',
+    productId: 'wheat', quantityPerDelivery: 10, unitPrice: 2, deliveryIntervalMs: 10 * 60 * 1000,
+    totalDeliveries: 2, completedDeliveries: 0, firstDeliveryDelayMs: 10 * 60 * 1000,
+    createdAt: now - 1000, offerExpiresAt: now + 1000, acceptedAt: now - 500, nextDueAt: now + 1000,
+    status: 'active', roundStatus: 'ready', buyerEscrowCredits: 20, supplierReservedQuantity: 10,
+    buyerBondCredits: 4, supplierBondCredits: 4, buyerAutoFund: true, supplierAutoReserve: true,
+  };
+  const terms = { quantityPerDelivery: 12, unitPrice: 2.5, deliveryIntervalMs: 30 * 60 * 1000, totalDeliveries: 3, firstDeliveryDelayMs: 0 };
+
+  world.productionContracts = [{
+    ...base,
+    renewalProposal: { id: 'legacy-proposed', status: 'proposed', proposedBy: buyerUser.id, proposedAt: now, expiresAt: now + 1000, terms },
+  }];
+  world.productionContractSchemaVersion = 7;
+  migrateProductionContractWorld(world);
+  assert.equal(world.productionContractSchemaVersion, 8);
+  assert.equal(world.productionContracts[0].renewalProposal.buyerApprovedAt, undefined);
+  assert.equal(world.productionContracts[0].renewalProposal.supplierApprovedAt, undefined);
+
+  world.productionContracts = [{
+    ...base,
+    renewalProposal: {
+      id: 'legacy-accepted', status: 'accepted', proposedBy: buyerUser.id, proposedAt: now, expiresAt: now + 1000,
+      acceptedBy: supplierUser.id, acceptedAt: now + 1, terms, buyerEscrowCredits: 30, buyerBondCredits: 6, supplierBondCredits: 6,
+    },
+  }];
+  world.productionContractSchemaVersion = 7;
+  migrateProductionContractWorld(world);
+  const migrated = world.productionContracts[0].renewalProposal;
+  assert.equal(migrated.status, 'accepted');
+  assert.equal(migrated.buyerApprovedAt, now);
+  assert.equal(migrated.supplierApprovedAt, now + 1);
+  assert.equal(migrated.confirmedAt, now + 1);
+});
+
+test('续签单方同意可撤销，双方未确认前不冻结资产', () => {
+  const { world, buyerUser, supplierUser, buyer, supplier, now } = setup();
+  applyProductionContractAction(world, buyerUser, 'createProductionContract', {
+    publisherRole: 'buyer', productId: 'wheat', quantityPerDelivery: 10, unitPrice: 2,
+    deliveryIntervalMs: 10 * 60 * 1000, totalDeliveries: 2, firstDeliveryDelayMs: 10 * 60 * 1000,
+  }, now);
+  const id = world.productionContracts[0].id;
+  assert.equal(applyProductionContractAction(world, supplierUser, 'acceptProductionContract', { contractId: id }, now + 1).ok, true);
+  assert.equal(applyProductionContractAction(world, buyerUser, 'proposeProductionContractRenewal', {
+    contractId: id, quantityPerDelivery: 12, unitPrice: 2.5, deliveryIntervalMs: 30 * 60 * 1000,
+    totalDeliveries: 3, firstDeliveryDelayMs: 10 * 60 * 1000,
+  }, now + 2).ok, true);
+  const buyerCredits = buyer.credits;
+  const supplierCredits = supplier.credits;
+  assert.equal(applyProductionContractAction(world, buyerUser, 'acceptProductionContractRenewal', { contractId: id }, now + 3).ok, true);
+  let contract = contractById(world, id);
+  assert.ok(contract.renewalProposal.buyerApprovedAt);
+  assert.equal(contract.renewalProposal.status, 'proposed');
+  assert.equal(applyProductionContractAction(world, buyerUser, 'revokeProductionContractRenewal', { contractId: id }, now + 4).ok, true);
+  contract = contractById(world, id);
+  assert.equal(contract.renewalProposal.buyerApprovedAt, undefined);
+  assert.equal(contract.renewalProposal.status, 'proposed');
+  assert.equal(buyer.credits, buyerCredits);
+  assert.equal(supplier.credits, supplierCredits);
 });
 
 

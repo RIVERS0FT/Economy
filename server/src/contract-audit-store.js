@@ -306,7 +306,7 @@ function acceptedTransfers(contract) {
   ]);
 }
 
-function renewalAcceptedTransfers(contract) {
+function renewalConfirmedTransfers(contract) {
   const proposal = contract.renewalProposal;
   return compactTransfers([
     transfer({ assetType: 'credits', quantity: proposal?.buyerEscrowCredits, fromType: 'player', fromId: contract.buyerId, fromAccount: 'available', toType: 'player', toId: contract.buyerId, toAccount: 'renewal_escrow', purpose: 'renewal_first_batch_funding' }),
@@ -1015,19 +1015,50 @@ if (!beforeRenewal && afterRenewal?.status === 'proposed') {
     metadata: { proposal: clone(afterRenewal) },
   });
 }
+if (beforeRenewal?.status === 'proposed' && afterRenewal?.status === 'proposed') {
+  for (const [side, field] of [['buyer', 'buyerApprovedAt'], ['supplier', 'supplierApprovedAt']]) {
+    const beforeApprovedAt = nullableInteger(beforeRenewal[field]);
+    const afterApprovedAt = nullableInteger(afterRenewal[field]);
+    if (beforeApprovedAt === null && afterApprovedAt !== null) {
+      queueTransitionEvent(world, normalizedContext, after, 'renewal_approved', {
+        before,
+        after,
+        metadata: { side, revision: safeInteger(afterRenewal.revision, 1), approvedAt: afterApprovedAt },
+      });
+    } else if (beforeApprovedAt !== null && afterApprovedAt === null) {
+      queueTransitionEvent(world, normalizedContext, after, 'renewal_approval_revoked', {
+        before,
+        after,
+        metadata: { side, revision: safeInteger(afterRenewal.revision, 1) },
+      });
+    }
+  }
+}
 if (beforeRenewal?.status === 'proposed' && afterRenewal?.status === 'accepted') {
-  queueTransitionEvent(world, normalizedContext, after, 'renewal_accepted', {
+  const approvalField = Number(normalizedContext.actorUserId) === Number(after.buyerId) ? 'buyerApprovedAt' : 'supplierApprovedAt';
+  queueTransitionEvent(world, normalizedContext, after, 'renewal_approved', {
     before,
     after,
-    transfers: renewalAcceptedTransfers(after),
+    metadata: {
+      side: approvalField === 'buyerApprovedAt' ? 'buyer' : 'supplier',
+      revision: safeInteger(afterRenewal.revision, 1),
+      approvedAt: nullableInteger(afterRenewal[approvalField]),
+    },
+  });
+  queueTransitionEvent(world, normalizedContext, after, 'renewal_confirmed', {
+    before,
+    after,
+    transfers: renewalConfirmedTransfers(after),
     metadata: { proposal: clone(afterRenewal) },
   });
 }
 if (beforeRenewal?.status === 'proposed' && !afterRenewal) {
-  const eventType = normalizedContext.action === 'rejectProductionContractRenewal'
-    ? 'renewal_rejected'
-    : normalizedContext.action === 'revokeProductionContractRenewal'
-      ? 'renewal_revoked'
+  const proposerCancelled = normalizedContext.action === 'rejectProductionContractRenewal'
+    && Number(normalizedContext.actorUserId) === Number(beforeRenewal.proposedBy);
+  const eventType = proposerCancelled
+    ? 'renewal_cancelled'
+    : normalizedContext.action === 'rejectProductionContractRenewal'
+      ? 'renewal_rejected'
       : 'renewal_expired';
   queueTransitionEvent(world, normalizedContext, after, eventType, { before, after });
 }
