@@ -7,6 +7,7 @@ import {
   useId,
   useMemo,
   useRef,
+  useState,
   type ChangeEvent,
   type HTMLAttributes,
   type InputHTMLAttributes,
@@ -16,6 +17,7 @@ import {
 } from 'react';
 import { normalizeIntegerDraft, parseIntegerDraft } from '../../utils/integerDraft';
 import { formatMoneyDraft, normalizeMoneyDraft, parseMoneyDraft } from '../../utils/moneyDraft';
+import { RichSelectInput, type RichSelectOption } from './RichSelectInput';
 
 function classNames(...values: Array<string | number | bigint | false | null | undefined>) {
   return values.filter(Boolean).join(' ');
@@ -90,6 +92,34 @@ function availableSelectChildren(
       || value === ''
       || !availability.restrictedOptionValues.has(value)
       || availability.allowedRestrictedOptionValues.has(value);
+  });
+}
+
+function selectOptionLabel(node: ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(selectOptionLabel).join('');
+  if (isValidElement<{ children?: ReactNode }>(node)) return selectOptionLabel(node.props.children);
+  return '';
+}
+
+function richSelectOptions(children: ReactNode[], leadingIcon?: ReactNode): RichSelectOption[] {
+  return children.flatMap((child) => {
+    if (!isValidElement<{
+      value?: string | number | readonly string[];
+      disabled?: boolean;
+      children?: ReactNode;
+    }>(child) || child.type !== 'option') return [];
+    const label = selectOptionLabel(child.props.children);
+    const explicitValue = child.props.value;
+    const value = typeof explicitValue === 'string' || typeof explicitValue === 'number'
+      ? String(explicitValue)
+      : label;
+    return [{
+      value,
+      label,
+      visual: leadingIcon,
+      disabled: child.props.disabled,
+    }];
   });
 }
 
@@ -181,8 +211,13 @@ export function SelectInput({
   id,
   required,
   leadingIcon,
-  'aria-describedby': ariaDescribedBy,
   children,
+  value,
+  defaultValue,
+  onChange,
+  disabled,
+  name,
+  'aria-label': ariaLabel,
   ...props
 }: SelectInputProps) {
   const generatedId = useId();
@@ -195,13 +230,17 @@ export function SelectInput({
     optionAvailability,
     catalog.isRestrictedCatalog,
   );
-  const fallbackRestrictedValue = catalog.optionValues.find((value) => (
-    value === '' || optionAvailability?.allowedRestrictedOptionValues.has(value)
+  const options = richSelectOptions(visibleChildren, leadingIcon);
+  const firstEnabledValue = options.find((option) => !option.disabled)?.value ?? options[0]?.value ?? '';
+  const [uncontrolledValue, setUncontrolledValue] = useState(() => String(defaultValue ?? firstEnabledValue));
+  const currentValue = value === undefined ? uncontrolledValue : String(value ?? '');
+  const fallbackRestrictedValue = catalog.optionValues.find((optionValue) => (
+    optionValue === '' || optionAvailability?.allowedRestrictedOptionValues.has(optionValue)
   )) ?? '';
 
   useEffect(() => {
-    if (!catalog.isRestrictedCatalog || props.value === undefined || !props.onChange || !optionAvailability) return;
-    const currentValue = String(props.value ?? '');
+    if (!catalog.isRestrictedCatalog || value === undefined || !onChange || !optionAvailability) return;
+    const currentValue = String(value ?? '');
     if (currentValue === '' || optionAvailability.allowedRestrictedOptionValues.has(currentValue)) return;
     const select = selectRef.current;
     if (!select) return;
@@ -210,39 +249,55 @@ export function SelectInput({
   }, [
     catalog.isRestrictedCatalog,
     fallbackRestrictedValue,
+    onChange,
     optionAvailability,
-    props.onChange,
-    props.value,
+    value,
   ]);
 
+  const handleNativeChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    if (value === undefined) setUncontrolledValue(event.target.value);
+    onChange?.(event);
+  };
+
+  const handleValueChange = (nextValue: string) => {
+    const select = selectRef.current;
+    if (!select || disabled) return;
+    if (value === undefined) setUncontrolledValue(nextValue);
+    select.value = nextValue;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
   return (
-    <FormField
-      label={label}
-      htmlFor={inputId}
-      description={description}
-      error={error}
-      required={required}
-      className={fieldClassName}
-    >
-      <span className={classNames('ui-control-shell', leadingIcon && 'ui-control-shell--with-leading-icon')}>
-        {leadingIcon ? <span className="ui-control-leading-icon" aria-hidden="true">{leadingIcon}</span> : null}
-        <select
-          {...props}
-          ref={selectRef}
-          id={inputId}
-          required={required}
-          className={classNames('ui-control', className)}
-          aria-invalid={error ? true : props['aria-invalid']}
-          aria-describedby={mergeDescribedBy(
-            ariaDescribedBy,
-            description ? `${inputId}-description` : undefined,
-            error ? `${inputId}-error` : undefined,
-          )}
-        >
-          {visibleChildren}
-        </select>
-      </span>
-    </FormField>
+    <>
+      <RichSelectInput
+        label={label}
+        value={currentValue}
+        options={options}
+        onValueChange={handleValueChange}
+        description={description}
+        error={error}
+        fieldClassName={fieldClassName}
+        id={inputId}
+        disabled={disabled}
+        required={required}
+        aria-label={ariaLabel}
+      />
+      <select
+        {...props}
+        ref={selectRef}
+        id={`${inputId}-native`}
+        name={name}
+        required={required}
+        disabled={disabled}
+        value={currentValue}
+        className={classNames('ui-rich-select__native', className)}
+        aria-hidden="true"
+        tabIndex={-1}
+        onChange={handleNativeChange}
+      >
+        {visibleChildren}
+      </select>
+    </>
   );
 }
 

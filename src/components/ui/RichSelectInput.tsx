@@ -23,6 +23,7 @@ const FLOATING_GAP = 6;
 const FLOATING_INSET = 8;
 const OPTION_HEIGHT = 48;
 const MAX_VISIBLE_OPTIONS = 6;
+const TYPEAHEAD_RESET_MS = 700;
 
 type RichSelectPosition = {
   left: number;
@@ -61,6 +62,22 @@ function nextEnabledIndex(
   return -1;
 }
 
+function matchingOptionIndex(
+  options: readonly RichSelectOption[],
+  startIndex: number,
+  query: string,
+) {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  if (!normalizedQuery || options.length === 0) return -1;
+  for (let offset = 1; offset <= options.length; offset += 1) {
+    const candidate = (startIndex + offset + options.length) % options.length;
+    const option = options[candidate];
+    if (!option || option.disabled) continue;
+    if (option.label.trim().toLocaleLowerCase().startsWith(normalizedQuery)) return candidate;
+  }
+  return -1;
+}
+
 export function RichSelectInput({
   label,
   value,
@@ -93,8 +110,10 @@ export function RichSelectInput({
   const listboxId = `${inputId}-listbox`;
   const floatingLayer = useWorkspaceFloatingLayer();
   const topLayerSupported = supportsTopLayerPopover();
+  const viewportLayer = topLayerSupported || !floatingLayer;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listboxRef = useRef<HTMLDivElement>(null);
+  const typeaheadRef = useRef({ query: '', lastTypedAt: 0 });
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [position, setPosition] = useState<RichSelectPosition>({
@@ -139,7 +158,7 @@ export function RichSelectInput({
       : 'below';
     const availableHeight = placement === 'above' ? availableAbove : availableBelow;
     const maxHeight = Math.max(OPTION_HEIGHT, Math.min(estimatedHeight, availableHeight || estimatedHeight));
-    const left = topLayerSupported
+    const left = viewportLayer
       ? clamp(
         triggerRect.left,
         layerRect.left + FLOATING_INSET,
@@ -150,7 +169,7 @@ export function RichSelectInput({
         FLOATING_INSET,
         layerRect.width - width - FLOATING_INSET,
       );
-    const top = topLayerSupported
+    const top = viewportLayer
       ? placement === 'above'
         ? triggerRect.top - FLOATING_GAP - maxHeight
         : triggerRect.bottom + FLOATING_GAP
@@ -159,7 +178,7 @@ export function RichSelectInput({
         : triggerRect.bottom - layerRect.top + FLOATING_GAP;
 
     setPosition({ left, top, width, maxHeight, placement });
-  }, [floatingLayer, options.length, topLayerSupported]);
+  }, [floatingLayer, options.length, viewportLayer]);
 
   const openList = useCallback((direction: 1 | -1 = 1) => {
     if (disabled || options.length === 0) return;
@@ -173,6 +192,7 @@ export function RichSelectInput({
   const closeList = useCallback(() => {
     setOpen(false);
     setActiveIndex(-1);
+    typeaheadRef.current = { query: '', lastTypedAt: 0 };
   }, []);
 
   const selectIndex = useCallback((index: number) => {
@@ -230,6 +250,11 @@ export function RichSelectInput({
     if (selectedIndex >= 0 && !options[selectedIndex]?.disabled) setActiveIndex(selectedIndex);
   }, [open, options, selectedIndex]);
 
+  useEffect(() => {
+    if (!open || activeIndex < 0) return;
+    document.getElementById(`${listboxId}-option-${activeIndex}`)?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex, listboxId, open]);
+
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     switch (event.key) {
       case 'ArrowDown':
@@ -269,16 +294,47 @@ export function RichSelectInput({
       case 'Tab':
         closeList();
         return;
-      default:
+      default: {
+        if (
+          event.nativeEvent.isComposing
+          || event.ctrlKey
+          || event.metaKey
+          || event.altKey
+          || event.key.length !== 1
+        ) return;
+        const typedAt = Date.now();
+        const previous = typeaheadRef.current;
+        let query = typedAt - previous.lastTypedAt > TYPEAHEAD_RESET_MS
+          ? event.key
+          : `${previous.query}${event.key}`;
+        let matchIndex = matchingOptionIndex(
+          options,
+          open ? activeIndex : selectedIndex,
+          query,
+        );
+        if (matchIndex < 0 && query.length > 1) {
+          query = event.key;
+          matchIndex = matchingOptionIndex(
+            options,
+            open ? activeIndex : selectedIndex,
+            query,
+          );
+        }
+        typeaheadRef.current = { query, lastTypedAt: typedAt };
+        if (matchIndex < 0) return;
+        event.preventDefault();
+        if (open) setActiveIndex(matchIndex);
+        else selectIndex(matchIndex);
         return;
+      }
     }
   };
 
   const listboxStyle: CSSProperties = {
-    position: topLayerSupported ? 'fixed' : undefined,
-    inset: topLayerSupported ? 'auto' : undefined,
-    margin: topLayerSupported ? 0 : undefined,
-    zIndex: topLayerSupported ? 'auto' : undefined,
+    position: viewportLayer ? 'fixed' : undefined,
+    inset: viewportLayer ? 'auto' : undefined,
+    margin: viewportLayer ? 0 : undefined,
+    zIndex: topLayerSupported ? 'auto' : viewportLayer ? 120 : undefined,
     left: `${position.left}px`,
     top: `${position.top}px`,
     width: `${position.width}px`,
@@ -329,7 +385,9 @@ export function RichSelectInput({
       ? createPortal(listboxNode, floatingLayer)
       : topLayerSupported
         ? listboxNode
-        : null;
+        : typeof document !== 'undefined'
+          ? createPortal(listboxNode, document.body)
+          : null;
 
   return (
     <FormField

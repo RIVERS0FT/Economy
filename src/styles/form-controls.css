@@ -309,6 +309,10 @@ input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill {
     background-color var(--motion-fast) ease;
 }
 
+.ui-rich-select__trigger:not(:has(.ui-rich-select__visual)) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 @media (hover: hover) and (pointer: fine) {
   html[data-input-modality='mouse'] .ui-rich-select__trigger:hover:not(:disabled) {
     border-color: var(--color-border-strong);
@@ -413,6 +417,10 @@ input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill {
   cursor: pointer;
 }
 
+.ui-rich-select__option:not(:has(.ui-rich-select__visual)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .ui-rich-select__option .ui-rich-select__visual {
   width: 2rem;
   height: 2rem;
@@ -452,6 +460,26 @@ input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill {
   opacity: 0.48;
 }
 
+.ui-rich-select__native {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 1px !important;
+  min-width: 0 !important;
+  height: 1px !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  color: transparent !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 @media (max-width: 720px) {
   .ui-rich-select__trigger,
   .ui-rich-select__option {
@@ -463,5 +491,10 @@ input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill {
   .ui-rich-select__option .product-artwork {
     width: 2.25rem;
     height: 2.25rem;
+  }
+
+  .ui-rich-select__native {
+    min-height: 0 !important;
+    font-size: 1px !important;
   }
 }
