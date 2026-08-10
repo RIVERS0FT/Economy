@@ -1,10 +1,26 @@
 import { expect, test, type Locator } from '@playwright/test';
 
-async function expectImageOnlyTrigger(trigger: Locator) {
+async function expectSquareImageOnlyTrigger(trigger: Locator, expectedSize: number) {
   await expect(trigger.locator('.ui-rich-select__visual')).toHaveCount(1);
   await expect(trigger.locator('.ui-rich-select__content')).toBeHidden();
   await expect(trigger.locator('.ui-rich-select__chevron')).toBeHidden();
   await expect.poll(() => trigger.evaluate((element) => (element as HTMLElement).innerText.trim())).toBe('');
+
+  const geometry = await trigger.evaluate((element) => {
+    const triggerRect = element.getBoundingClientRect();
+    const wrapperRect = element.closest('.ui-rich-select')?.getBoundingClientRect();
+    const fieldRect = element.closest('.ui-form-field')?.getBoundingClientRect();
+    return {
+      width: triggerRect.width,
+      height: triggerRect.height,
+      wrapperWidth: wrapperRect?.width ?? 0,
+      fieldWidth: fieldRect?.width ?? 0,
+    };
+  });
+  expect(Math.abs(geometry.width - geometry.height)).toBeLessThanOrEqual(0.5);
+  expect(Math.round(geometry.width)).toBe(expectedSize);
+  expect(Math.abs(geometry.wrapperWidth - geometry.width)).toBeLessThanOrEqual(0.5);
+  expect(geometry.fieldWidth - geometry.width).toBeGreaterThan(24);
 
   const visualStyle = await trigger.locator('.ui-rich-select__visual').evaluate((element) => {
     const style = getComputedStyle(element);
@@ -18,7 +34,7 @@ async function expectImageOnlyTrigger(trigger: Locator) {
 }
 
 test.describe('production configuration visual triggers', () => {
-  test('collapsed production selectors show only artwork without arrows or image backplates', async ({ page }) => {
+  test('collapsed production selectors use square artwork buttons without filling their columns', async ({ page }) => {
     for (const viewport of [
       { width: 1440, height: 900 },
       { width: 390, height: 844 },
@@ -35,9 +51,10 @@ test.describe('production configuration visual triggers', () => {
         : page.locator('.facility-cluster-detail-card');
       const recipeSelect = scope.getByRole('combobox', { name: '机械工厂生产产物' });
       const methodSelect = scope.getByRole('combobox', { name: '机械工厂生产方式' });
+      const expectedSize = viewport.width <= 720 ? 48 : 52;
 
-      await expectImageOnlyTrigger(recipeSelect);
-      await expectImageOnlyTrigger(methodSelect);
+      await expectSquareImageOnlyTrigger(recipeSelect, expectedSize);
+      await expectSquareImageOnlyTrigger(methodSelect, expectedSize);
       await expect(recipeSelect.locator('[data-product-artwork="machinery"]')).toHaveCount(1);
       await expect(methodSelect.locator('[data-production-method-icon="rapid"]')).toHaveCount(1);
 
