@@ -19,6 +19,17 @@ for (const [path, texts] of Object.entries({
     'payload.legacyImport === true',
     'Number(player.saveEpoch || 0) > 0',
     'Object.hasOwn(existing, productId)',
+    'cancelManagedOnlineAutoSellOrder',
+    'onlineAutoSellManagedOrderIds',
+  ],
+  'server/src/online-auto-sell-orders.js': [
+    'onlineAutoSellOrderIds',
+    'managedOnlineAutoSellOrderFor',
+    'linkManagedOnlineAutoSellOrder',
+    'cancelManagedOnlineAutoSellOrder',
+    'closeOrderInOrderBook',
+    "orderKind(order) === 'commodity'",
+    "order.side === 'sell'",
   ],
   'server/src/warehouse.js': [
     'createOnlineAutoSellPolicyClientState',
@@ -29,11 +40,20 @@ for (const [path, texts] of Object.entries({
     'minimumFreeInventory',
     'contractAvailableHoldForAutoSell',
     'contract?.totalDeliveries === null',
-    'crossingBuyQuantityForAutoSell',
     'onlineAutoSellPolicyFor',
     "execution: 'online-auto-sell'",
     'applySettledCommodityOrder',
-    'cancelSettledCommodityOrder',
+    'standingTarget',
+    'managedOnlineAutoSellOrderFor',
+    'linkManagedOnlineAutoSellOrder',
+    'cancelManagedOnlineAutoSellOrder',
+    '继续挂单供应',
+    '已挂出',
+  ],
+  'server/src/order-book-runtime.js': [
+    'onlineAutoSellOrderIds',
+    'managedOpen',
+    'return Math.max(0, total - managedOpen);',
   ],
   'server/src/runtime-action-executor.js': [
     "payload.execution === 'online-auto-sell-policy'",
@@ -46,6 +66,12 @@ for (const [path, texts] of Object.entries({
     'export function productionReservedQuantitiesForPlayer',
     'if (!group.enabled) continue;',
     "group.status === 'running'",
+  ],
+  'server/test/online-auto-sell.test.js': [
+    'leaves standing supply when no qualifying buyer exists',
+    'countOpenOrdersForOwner(world, alice.id), 0',
+    "order.status, 'open'",
+    'changing an auto sell policy cancels the old standing order',
   ],
   'server/test/online-auto-sell-persistence.test.js': [
     "execution: 'online-auto-sell-policy'",
@@ -63,6 +89,7 @@ for (const [path, texts] of Object.entries({
     "declare module '../types'",
     'interface EconomyState',
     'onlineAutoSellPolicies?: AutoSellPolicyMap;',
+    'onlineAutoSellManagedOrderIds?: Record<string, string>;',
   ],
   'src/api/game.ts': [
     'autoSellCommodity',
@@ -94,6 +121,10 @@ for (const [path, texts] of Object.entries({
     'contractReservations',
     'contract.totalDeliveries !== null',
     'minimumFreeInventory',
+    'onlineAutoSellManagedOrderIds',
+    'hasManagedOrder',
+    'reservationShortfall',
+    'status.eligibleQuantity > 0 || status.reservationShortfall',
     'model.onlineAutoSell',
   ],
   'src/components/warehouse/WarehouseInventoryPanel.tsx': [
@@ -101,38 +132,42 @@ for (const [path, texts] of Object.entries({
     '最低自动出售价格',
     '最低自由库存',
     'parseIntegerDraft',
-    '设置保存至存档 · 仅在线执行',
+    '设置保存至存档 · 在线维护卖单',
+    '没有买盘时则持续留下卖盘供应',
     '生产预定',
     '合同预定',
     '预计可自动出售',
     '正在保存…',
   ],
   'tests/browser/warehouse-auto-sell.spec.ts': [
-    '设置保存至存档 · 仅在线执行',
+    '设置保存至存档 · 在线维护卖单',
+    '没有买盘时则持续留下卖盘供应',
   ],
   'docs/WAREHOUSE_EXPANSION_DESIGN.md': [
     '客户端状态版本：33',
     '世界状态版本：27',
     '### 4.1 在线自动出售',
     '自动出售策略属于玩家经济存档',
-    '执行器仍属于在线客户端',
+    '自动卖单的创建、补挂和重平衡控制器仍属于在线客户端',
     '单次原子请求导入旧策略',
     '导入只能补齐缺失商品，绝不能覆盖服务器已有策略',
     '客户端状态版本以当前全局基线 33 为准',
-    '不为旧客户端保留“执行时从请求阈值补写策略”的兼容桥接',
     '`saveEpoch = 0`',
     '`saveEpoch > 0`',
     '已删除存档的自动出售配置污染新存档',
     '不得为此增加在线心跳、自动出售专用轮询、全世界扫描调度器或后台常驻任务',
-    '可自动出售 = max(0, available - 生产预定 - 合同可用保留 - 最低自由库存保留量)',
+    '目标自动卖单剩余量 = max(0, 自动卖单可管理库存 - 生产预定 - 合同可用保留 - 最低自由库存保留量)',
     '长期供货合同始终按仍在履约的下一批计入',
-    '最低自由库存保留量只限制在线自动出售',
+    '最低自由库存保留量本身不进入 `frozen`',
     '重新读取存档中的当前策略',
-    '不得留下客户端离线后仍可继续成交的开放卖单',
+    '未成交剩余量继续留在卖盘中提供供应',
+    '不占玩家普通开放订单配额',
+    '离线后仍可继续按普通订单簿规则成交',
   ],
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md': [
     'execution: online-auto-sell',
-    '该临时执行不占用普通开放订单配额',
+    '不占用普通开放订单配额',
+    '未成交剩余量继续作为真实开放卖单留在统一订单簿',
   ],
 })) {
   for (const text of texts) requireText(path, text);
@@ -153,6 +188,9 @@ forbidText('server/src/online-auto-sell.js', 'payload.minimumFreeInventory');
 forbidText('server/src/online-auto-sell.js', 'migrateLegacyExecutionPolicy');
 forbidText('server/src/online-auto-sell.js', 'setInterval(');
 forbidText('server/src/online-auto-sell.js', 'setTimeout(');
+forbidText('server/src/online-auto-sell.js', 'cancelSettledCommodityOrder');
+forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '可成交部分完成后立即撤销剩余开放数量');
+forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '不得留下客户端离线后仍可继续成交的开放卖单');
 
 requireText('src/components/warehouse/WarehouseInventoryPanel.tsx', 'model.autoSell ??');
 forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '在线自动出售控制器属于浏览器本地增强');

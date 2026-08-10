@@ -18,6 +18,7 @@ test('warehouse state is inventory-only and uses current client version', () => 
     assert.equal(state.version, 33);
     assert.equal(state.warehouseStoredQuantity, 0);
     assert.deepEqual(state.onlineAutoSellPolicies, {});
+    assert.deepEqual(state.onlineAutoSellManagedOrderIds, {});
     for (const field of [
       'inventoryCapacity', 'warehouseLevel', 'warehouseUpgradeCost', 'warehouseNextCapacity',
       'warehouseNextCapacityIncrease', 'warehouseOrderReservedQuantity', 'warehouseContractReservedQuantity',
@@ -39,12 +40,19 @@ test('warehouse summary counts goods and exposes normalized auto-sell settings w
       wheat: { enabled: true, price: 8.25, minimumFreeInventory: 4 },
       unknown: { enabled: true, price: 1, minimumFreeInventory: 0 },
     },
+    onlineAutoSellOrderIds: {
+      wheat: 'order-auto-wheat',
+      unknown: 'order-unknown',
+    },
   };
   const summary = createWarehouseSummary(player);
   assert.deepEqual(summary, {
     warehouseStoredQuantity: 40,
     onlineAutoSellPolicies: {
       wheat: { enabled: true, price: 8.25, minimumFreeInventory: 4 },
+    },
+    onlineAutoSellManagedOrderIds: {
+      wheat: 'order-auto-wheat',
     },
   });
   assert.equal(Object.hasOwn(player, 'inventoryCapacity'), false);
@@ -74,6 +82,7 @@ test('saved auto-sell policy is included in formal client state', () => {
       price: 7.5,
       minimumFreeInventory: 3,
     });
+    assert.deepEqual(state.onlineAutoSellManagedOrderIds, {});
   } finally { store.close(); }
 });
 

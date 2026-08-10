@@ -460,7 +460,17 @@ export function ordersForDemandGroup(world, groupId) {
 export function countOpenOrdersForOwner(world, ownerId) {
   const state = runtimeFor(world);
   compactOwnerOrders(state, ownerId);
-  return Number(state.ownerOpenOrderCounts.get(Number(ownerId)) || 0);
+  const normalizedOwnerId = Number(ownerId);
+  const total = Number(state.ownerOpenOrderCounts.get(normalizedOwnerId) || 0);
+  const linkedIds = new Set(Object.values(
+    world.players?.[String(normalizedOwnerId)]?.onlineAutoSellOrderIds || {},
+  ).map((value) => String(value || '')).filter(Boolean));
+  let managedOpen = 0;
+  for (const orderId of linkedIds) {
+    const order = state.byId.get(orderId);
+    if (order && Number(order.ownerId) === normalizedOwnerId && isOpenOrder(order)) managedOpen += 1;
+  }
+  return Math.max(0, total - managedOpen);
 }
 
 export function pendingCommodityBuyQuantityForOwner(world, ownerId) {
