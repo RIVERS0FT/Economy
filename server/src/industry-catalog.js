@@ -119,7 +119,7 @@ const rawFacilities = [
     id: 'feed-factory', name: '饲料厂', category: 'processing', complexity: 'C2', buildCost: 108, buildTimeMs: 8 * 60 * 1000,
     buildInputs: [{ productId: 'timber', quantity: 4 }, { productId: 'ore', quantity: 3 }, { productId: 'copper-ore', quantity: 1 }],
     defaultRecipeId: 'feed-factory-default', internalCapacity: 30, systemValue: 210,
-    recipes: [{ id: 'feed-factory-default', name: '生产配合饲料', cycleMs: 60_000, operatingCost: 5, inputs: [{ productId: 'wheat', quantity: 2 }, { productId: 'sugarcane', quantity: 1 }], output: { productId: 'feed', quantity: 2 } }],
+    recipes: [{ id: 'feed-factory-default', name: '生产配合饲料', cycleMs: 60_000, operatingCost: 4.9, inputs: [{ productId: 'wheat', quantity: 2 }, { productId: 'fruit', quantity: 1 }], output: { productId: 'feed', quantity: 2 } }],
   },
   {
     id: 'pulp-mill', name: '纸浆厂', category: 'processing', complexity: 'C3', buildCost: 110, buildTimeMs: 30 * 60 * 1000,
