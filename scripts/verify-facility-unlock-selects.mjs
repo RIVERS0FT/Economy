@@ -70,6 +70,7 @@ assert.deepEqual(
 
 const productionPage = read('src/pages/ProductionPage.tsx');
 const richSelect = read('src/components/ui/RichSelectInput.tsx');
+const formControlStyles = read('src/styles/form-controls.css');
 const buildSelectStyles = read('src/styles/facility-build-select.css');
 const pageRouter = read('src/pages/PageRouter.tsx');
 const formControls = read('src/components/ui/FormControls.tsx');
@@ -135,13 +136,23 @@ requireText(
 );
 requireText(
   richSelect,
-  'data-has-detail={selectedOption?.detail ? \'true\' : undefined}',
+  'const selectedTriggerDetail = selectedOption?.triggerDetail ?? selectedOption?.detail;',
+  'rich select detailed trigger compatibility',
+);
+requireText(
+  richSelect,
+  "data-has-detail={selectedTriggerDetail ? 'true' : undefined}",
   'rich select detailed trigger marker',
 );
 requireText(
+  formControlStyles,
+  ".ui-rich-select__trigger[data-has-detail='true']",
+  'shared detailed trigger height style',
+);
+forbidText(
   buildSelectStyles,
   ".ui-rich-select__trigger[data-has-detail='true']",
-  'construction detailed trigger height style',
+  'construction page-owned shared trigger style',
 );
 requireText(
   buildSelectStyles,
