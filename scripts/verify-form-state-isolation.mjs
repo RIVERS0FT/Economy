@@ -20,9 +20,11 @@ const gameApp = read('src/app/GameApp.tsx');
 const productionPage = read('src/pages/ProductionPage.tsx');
 const auctionPage = read('src/pages/AuctionPage.tsx');
 const researchPage = read('src/pages/ResearchPage.tsx');
+const richSelect = read('src/components/ui/RichSelectInput.tsx');
 const stableSelection = read('src/hooks/useStableSelection.ts');
 const serverDraft = read('src/hooks/useServerDraft.ts');
 const researchBrowserTest = read('tests/browser/research-technology-tree.spec.ts');
+const unifiedSelectBrowserTest = read('tests/browser/unified-selects.spec.ts');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
@@ -149,6 +151,31 @@ requireText(
   'preserves an explicit technology selection across refreshed snapshots',
   'research refresh transparency browser regression',
 );
+requireText(
+  richSelect,
+  'const [activeValue, setActiveValue] = useState<string | null>(null);',
+  'rich select stable active option identity',
+);
+requireText(
+  richSelect,
+  'const activeOption = activeValue === null',
+  'rich select active option legalization',
+);
+requireText(
+  richSelect,
+  'if (activeOption && !activeOption.disabled) return;',
+  'rich select valid active option preservation',
+);
+forbidText(
+  richSelect,
+  'if (selectedIndex >= 0 && !options[selectedIndex]?.disabled) setActiveIndex(selectedIndex);',
+  'poll-rerender active index reset',
+);
+requireText(
+  unifiedSelectBrowserTest,
+  'open select preserves active option, focus, and scroll across periodic production rerenders',
+  'select refresh transparency browser regression',
+);
 
 requireText(pageDesign, '### 1.1 跨页面表单状态隔离', 'page design state isolation rule');
 requireText(
@@ -160,6 +187,11 @@ requireText(
   pageDesign,
   '周期轮询、动作后同步和权威倒计时确认对客户端交互状态必须透明',
   'page refresh transparency rule',
+);
+requireText(
+  pageDesign,
+  '不得覆盖仍然有效的页面选择、未提交表单草稿、弹层、展开状态、焦点或滚动位置',
+  'page refresh interaction preservation rule',
 );
 requireText(uiDesign, '`useStableSelection`', 'UI stable selection primitive rule');
 requireText(uiDesign, '`useServerDraft`', 'UI server draft primitive rule');
