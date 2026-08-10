@@ -296,7 +296,7 @@ export function RichSelectInput({
         return;
       default: {
         if (
-          event.isComposing
+          event.nativeEvent.isComposing
           || event.ctrlKey
           || event.metaKey
           || event.altKey
