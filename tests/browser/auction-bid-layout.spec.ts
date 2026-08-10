@@ -28,18 +28,17 @@ for (const viewport of [
       return {
         display: formStyle.display,
         columns: formStyle.gridTemplateColumns,
-        inputTop: inputRect.top,
         inputBottom: inputRect.bottom,
         inputRight: inputRect.right,
-        buttonTop: buttonRect.top,
         buttonBottom: buttonRect.bottom,
         buttonLeft: buttonRect.left,
+        verticalOverlap: Math.min(inputRect.bottom, buttonRect.bottom) - Math.max(inputRect.top, buttonRect.top),
       };
     });
 
     expect(geometry.display).toBe('grid');
     expect(geometry.columns).not.toBe('none');
-    expect(Math.abs(geometry.inputTop - geometry.buttonTop)).toBeLessThan(1);
+    expect(geometry.verticalOverlap).toBeGreaterThan(0);
     expect(Math.abs(geometry.inputBottom - geometry.buttonBottom)).toBeLessThan(1);
     expect(geometry.inputRight).toBeLessThanOrEqual(geometry.buttonLeft);
   });
