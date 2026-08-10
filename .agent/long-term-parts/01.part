@@ -1,0 +1,75 @@
+import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+function read(path) {
+  return readFileSync(path, 'utf8');
+}
+
+function write(path, content) {
+  writeFileSync(path, content);
+}
+
+function replaceExact(path, oldText, newText, expected = 1) {
+  const source = read(path);
+  const count = source.split(oldText).length - 1;
+  if (count !== expected) {
+    throw new Error(`${path}: expected ${expected} occurrence(s), found ${count}: ${oldText.slice(0, 120)}`);
+  }
+  write(path, source.split(oldText).join(newText));
+}
+
+function replaceFirst(path, oldText, newText) {
+  const source = read(path);
+  const index = source.indexOf(oldText);
+  if (index < 0) throw new Error(`${path}: occurrence not found: ${oldText.slice(0, 120)}`);
+  write(path, source.slice(0, index) + newText + source.slice(index + oldText.length));
+}
+
+function replaceAllIfPresent(path, oldText, newText) {
+  const source = read(path);
+  if (!source.includes(oldText)) return 0;
+  const count = source.split(oldText).length - 1;
+  write(path, source.split(oldText).join(newText));
+  return count;
+}
+
+function appendBefore(path, marker, insertion) {
+  const source = read(path);
+  if (source.includes(insertion.trim())) return;
+  const index = source.indexOf(marker);
+  if (index < 0) throw new Error(`${path}: marker not found: ${marker}`);
+  write(path, source.slice(0, index) + insertion + source.slice(index));
+}
+
+// Shared integer control: keep the current normalization behavior by default, but allow explicit optional numeric drafts.
+replaceFirst(
+  'src/components/ui/FormControls.tsx',
+  `  fallbackValue: number;\n  min?: number;\n`,
+  `  fallbackValue: number;\n  allowEmpty?: boolean;\n  min?: number;\n`,
+);
+replaceFirst(
+  'src/components/ui/FormControls.tsx',
+  `  fallbackValue,\n  min,\n  max,\n`,
+  `  fallbackValue,\n  allowEmpty = false,\n  min,\n  max,\n`,
+);
+replaceExact(
+  'src/components/ui/FormControls.tsx',
+  `        onBlur={(event) => {\n          onValueChange(normalizeIntegerDraft(event.currentTarget.value, fallbackValue, { min, max }));\n          onBlur?.(event);\n        }}\n`,
+  `        onBlur={(event) => {\n          if (allowEmpty && event.currentTarget.value.trim() === '') onValueChange('');\n          else onValueChange(normalizeIntegerDraft(event.currentTarget.value, fallbackValue, { min, max }));\n          onBlur?.(event);\n        }}\n`,
+  1,
+);
+
+// Supply contract client/API types: null totalDeliveries is the sole long-term sentinel.
+replaceExact('src/contracts/api.ts', `  totalDeliveries: number;\n`, `  totalDeliveries: number | null;\n`, 1);
+replaceExact('src/contracts/types.ts', `    totalDeliveries: number;\n`, `    totalDeliveries: number | null;\n`, 1);
+replaceExact('src/contracts/types.ts', `  totalDeliveries: number;\n`, `  totalDeliveries: number | null;\n`, 2);
+replaceExact(
+  'src/contracts/types.ts',
+  `    completed: number;\n    total: number;\n    unit: ContractCompletionUnit;\n    ratioBps: number;\n`,
+  `    completed: number;\n    total: number | null;\n    unit: ContractCompletionUnit;\n    ratioBps: number | null;\n`,
+);
+
+// Server lifecycle and validation.
+replaceExact('server/src/contracts.js', 'export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 8;', 'export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 9;');
+replaceExact(
+  'server/src/contracts.js',

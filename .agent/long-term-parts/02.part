@@ -1,0 +1,75 @@
+  `function positiveInteger(value, max) {\n  const normalized = Math.floor(Number(value));\n  return Number.isSafeInteger(normalized) && normalized >= 1 && normalized <= max ? normalized : null;\n}\n\nfunction positiveMoney(value, max) {\n`,
+  `function positiveInteger(value, max) {\n  const normalized = Math.floor(Number(value));\n  return Number.isSafeInteger(normalized) && normalized >= 1 && normalized <= max ? normalized : null;\n}\n\nfunction optionalTotalDeliveries(value) {\n  if (value === null || value === undefined || value === '') return null;\n  const normalized = positiveInteger(value, MAX_DELIVERIES);\n  return normalized !== null && normalized >= MIN_DELIVERIES ? normalized : undefined;\n}\n\nfunction positiveMoney(value, max) {\n`,
+);
+replaceExact(
+  'server/src/contracts.js',
+  `      totalDeliveries: Math.max(MIN_DELIVERIES, Math.floor(Number(terms.totalDeliveries || contract?.totalDeliveries || MIN_DELIVERIES))),\n`,
+  `      totalDeliveries: terms.totalDeliveries === null\n        ? null\n        : Math.max(MIN_DELIVERIES, Math.floor(Number(terms.totalDeliveries || contract?.totalDeliveries || MIN_DELIVERIES))),\n`,
+);
+replaceExact(
+  'server/src/contracts.js',
+  `    totalDeliveries: Math.max(MIN_DELIVERIES, Math.floor(Number(contract?.totalDeliveries || MIN_DELIVERIES))),\n`,
+  `    totalDeliveries: contract?.totalDeliveries === null\n      ? null\n      : Math.max(MIN_DELIVERIES, Math.floor(Number(contract?.totalDeliveries || MIN_DELIVERIES))),\n`,
+);
+replaceExact(
+  'server/src/contracts.js',
+  `  if (normalized.completedDeliveries >= normalized.totalDeliveries && normalized.status === 'active') {\n`,
+  `  if (normalized.totalDeliveries !== null\n    && normalized.completedDeliveries >= normalized.totalDeliveries\n    && normalized.status === 'active') {\n`,
+);
+replaceExact(
+  'server/src/contracts.js',
+  `  const totalDeliveries = positiveInteger(payload.totalDeliveries, MAX_DELIVERIES);\n  const firstDeliveryDelayMs = exactAllowedInteger(payload.firstDeliveryDelayMs, PRODUCTION_CONTRACT_FIRST_DELAYS);\n  if (!quantityPerDelivery || !unitPrice || !deliveryIntervalMs || !totalDeliveries || firstDeliveryDelayMs === null) return null;\n  if (totalDeliveries < MIN_DELIVERIES) return null;\n`,
+  `  const totalDeliveries = optionalTotalDeliveries(payload.totalDeliveries);\n  const firstDeliveryDelayMs = exactAllowedInteger(payload.firstDeliveryDelayMs, PRODUCTION_CONTRACT_FIRST_DELAYS);\n  if (!quantityPerDelivery || !unitPrice || !deliveryIntervalMs || totalDeliveries === undefined || firstDeliveryDelayMs === null) return null;\n`,
+  1,
+);
+replaceExact(
+  'server/src/contracts.js',
+  `  const totalDeliveries = positiveInteger(payload.totalDeliveries, MAX_DELIVERIES);\n  const firstDeliveryDelayMs = exactAllowedInteger(payload.firstDeliveryDelayMs, PRODUCTION_CONTRACT_FIRST_DELAYS);\n  if (!publisherRole || !productId || !quantityPerDelivery || !unitPrice || !deliveryIntervalMs || !totalDeliveries || firstDeliveryDelayMs === null) {\n    return result(false, '合同参数无效');\n  }\n  if (totalDeliveries < MIN_DELIVERIES) return result(false, \`合同至少需要 \${MIN_DELIVERIES} 批交付\`);\n`,
+  `  const totalDeliveries = optionalTotalDeliveries(payload.totalDeliveries);\n  const firstDeliveryDelayMs = exactAllowedInteger(payload.firstDeliveryDelayMs, PRODUCTION_CONTRACT_FIRST_DELAYS);\n  if (!publisherRole || !productId || !quantityPerDelivery || !unitPrice || !deliveryIntervalMs || totalDeliveries === undefined || firstDeliveryDelayMs === null) {\n    return result(false, '合同参数无效');\n  }\n`,
+  1,
+);
+replaceExact(
+  'server/src/contracts.js',
+  `    if (contract.completedDeliveries >= contract.totalDeliveries) {\n      completeContract(contract, buyer, supplier, now);\n`,
+  `    if (contract.totalDeliveries !== null && contract.completedDeliveries >= contract.totalDeliveries) {\n      completeContract(contract, buyer, supplier, now);\n`,
+  1,
+);
+replaceExact(
+  'server/src/contracts.js',
+  `  if (contract.fixedTerms) return result(false, '市场储备采购合同使用固定条款，不支持续签议价');\n  const remaining = Math.max(0, contract.totalDeliveries - contract.completedDeliveries);\n`,
+  `  if (contract.fixedTerms) return result(false, '市场储备采购合同使用固定条款，不支持续签议价');\n  if (contract.totalDeliveries === null) return result(false, '长期合同无需续签');\n  const remaining = Math.max(0, contract.totalDeliveries - contract.completedDeliveries);\n`,
+  1,
+);
+replaceExact(
+  'server/src/contracts.js',
+  `    if (contract.terminationRequestedBy) {\n      releaseRenewalEscrow(contract, buyer, supplier, 'notice_completed');\n      releaseAllEscrow(contract, buyer, supplier);\n      contract.status = 'terminated';\n      contract.endedAt = now;\n      contract.terminationReason = 'notice_completed';\n      contract.nextDueAt = null;\n      return true;\n    }\n`,
+  `    if (contract.terminationRequestedBy) {\n      releaseRenewalEscrow(contract, buyer, supplier, 'notice_completed');\n      releaseAllEscrow(contract, buyer, supplier);\n      contract.status = contract.totalDeliveries === null ? 'completed' : 'terminated';\n      contract.endedAt = now;\n      if (contract.totalDeliveries === null) contract.completedAt = now;\n      contract.terminationReason = 'notice_completed';\n      contract.nextDueAt = null;\n      return true;\n    }\n`,
+  1,
+);
+
+// Audit preserves the null sentinel in contract JSON while keeping the legacy summary column numeric.
+replaceExact(
+  'server/src/contract-audit-store.js',
+  `    totalDeliveries: Math.max(0, safeInteger(contract.totalDeliveries, 0)),\n`,
+  `    totalDeliveries: contract.kind === 'supply' && contract.totalDeliveries === null\n      ? null\n      : Math.max(0, safeInteger(contract.totalDeliveries, 0)),\n`,
+  1,
+);
+replaceExact(
+  'server/src/contract-audit-store.js',
+  `  const total = contract.kind === 'facility_lease'\n    ? Math.max(0, safeInteger(contract.totalPeriods ?? contract.totalDeliveries, 0))\n    : Math.max(0, safeInteger(contract.totalDeliveries, 0));\n  return {\n    completed,\n    total,\n    unit: contract.kind === 'facility_lease' ? 'lease_period' : 'delivery',\n    ratioBps: total > 0 ? Math.min(10_000, Math.floor(completed * 10_000 / total)) : 0,\n  };\n`,
+  `  const total = contract.kind === 'facility_lease'\n    ? Math.max(0, safeInteger(contract.totalPeriods ?? contract.totalDeliveries, 0))\n    : contract.totalDeliveries === null\n      ? null\n      : Math.max(0, safeInteger(contract.totalDeliveries, 0));\n  return {\n    completed,\n    total,\n    unit: contract.kind === 'facility_lease' ? 'lease_period' : 'delivery',\n    ratioBps: total === null\n      ? null\n      : total > 0 ? Math.min(10_000, Math.floor(completed * 10_000 / total)) : 0,\n  };\n`,
+  1,
+);
+replaceExact('server/src/contract-audit-store.js', `        after.totalDeliveries,\n`, `        after.totalDeliveries ?? 0,\n`, 1);
+replaceExact('server/src/contract-audit-store.js', `        after.completedDeliveries, after.totalDeliveries, after.quantityPerDelivery, storedMoney(after.unitPrice),\n`, `        after.completedDeliveries, after.totalDeliveries ?? 0, after.quantityPerDelivery, storedMoney(after.unitPrice),\n`, 1);
+replaceExact('server/src/contract-audit-store.js', `        completionRatioBps: item.endSummary.completion.ratioBps,\n`, `        completionRatioBps: item.endSummary.completion.ratioBps ?? (item.status === 'completed' ? 10_000 : 0),\n`, 1);
+
+// Online auto-sell must reserve the next batch for active long-term supply contracts too.
+replaceExact(
+  'server/src/online-auto-sell.js',
+  `    && positiveInteger(contract?.completedDeliveries) < positiveInteger(contract?.totalDeliveries)\n`,
+  `    && (contract?.totalDeliveries === null\n      || positiveInteger(contract?.completedDeliveries) < positiveInteger(contract?.totalDeliveries))\n`,
+  1,
+);
+replaceExact(
+  'src/auto-sell/useOnlineAutoSell.ts',

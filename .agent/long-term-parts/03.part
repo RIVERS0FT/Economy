@@ -1,0 +1,75 @@
+  `      || contract.completedDeliveries >= contract.totalDeliveries\n`,
+  `      || (contract.totalDeliveries !== null && contract.completedDeliveries >= contract.totalDeliveries)\n`,
+  1,
+);
+
+// Contract page: optional drafts, long-term summaries, no artificial infinite progress/renewal.
+replaceExact(
+  'src/pages/ContractPage.tsx',
+  `function dateTimeLabel(timestamp?: number | null) {\n`,
+  `function parseOptionalDeliveriesDraft(value: string): number | null | undefined {\n  if (value.trim() === '') return null;\n  return parseIntegerDraft(value, { min: 2, max: 100 }) ?? undefined;\n}\n\nfunction deliveryCountLabel(value: number | null) {\n  return value === null ? '长期' : \`\${formatNumber(value)} 批\`;\n}\n\nfunction dateTimeLabel(timestamp?: number | null) {\n`,
+  1,
+);
+replaceExact(
+  'src/pages/ContractPage.tsx',
+  `function ContractProgress({ contract }: { contract: ProductionContract }) {\n  const percentage = Math.min(\n    100,\n    Math.round(contract.completedDeliveries / Math.max(1, contract.totalDeliveries) * 100),\n  );\n  return (\n    <div className="contract-progress" aria-label={\`已完成 \${contract.completedDeliveries} / \${contract.totalDeliveries} 批\`}>\n      <div className="contract-progress-track"><span style={{ width: \`\${percentage}%\` }} /></div>\n      <strong>{formatNumber(contract.completedDeliveries)} / {formatNumber(contract.totalDeliveries)} 批</strong>\n    </div>\n  );\n}\n`,
+  `function ContractProgress({ contract }: { contract: ProductionContract }) {\n  if (contract.totalDeliveries === null) {\n    return (\n      <div className="contract-progress" aria-label={\`长期合同，已履约 \${contract.completedDeliveries} 批\`}>\n        <strong>长期合同 · 已履约 {formatNumber(contract.completedDeliveries)} 批</strong>\n      </div>\n    );\n  }\n  const percentage = Math.min(\n    100,\n    Math.round(contract.completedDeliveries / Math.max(1, contract.totalDeliveries) * 100),\n  );\n  return (\n    <div className="contract-progress" aria-label={\`已完成 \${contract.completedDeliveries} / \${contract.totalDeliveries} 批\`}>\n      <div className="contract-progress-track"><span style={{ width: \`\${percentage}%\` }} /></div>\n      <strong>{formatNumber(contract.completedDeliveries)} / {formatNumber(contract.totalDeliveries)} 批</strong>\n    </div>\n  );\n}\n`,
+  1,
+);
+replaceExact(
+  'src/pages/ContractPage.tsx',
+  `function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {\n  if (contract.fixedTerms) return null;\n  const proposal = contract.renewalProposal;\n  const remaining = Math.max(0, contract.totalDeliveries - contract.completedDeliveries);\n`,
+  `function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {\n  if (contract.fixedTerms || contract.totalDeliveries === null) return null;\n  const proposal = contract.renewalProposal;\n  const remaining = Math.max(0, contract.totalDeliveries - contract.completedDeliveries);\n`,
+  1,
+);
+replaceExact(
+  'src/pages/ContractPage.tsx',
+  `  const deliveries = parseIntegerDraft(deliveriesInput, { min: 2, max: 100 });\n`,
+  `  const deliveries = parseOptionalDeliveriesDraft(deliveriesInput);\n`,
+  2,
+);
+replaceExact(
+  'src/pages/ContractPage.tsx',
+  `          <DataRow label="总批次" value={\`\${formatNumber(terms.totalDeliveries)} 批\`} />\n`,
+  `          <DataRow label="总批次" value={deliveryCountLabel(terms.totalDeliveries)} />\n`,
+  1,
+);
+replaceExact(
+  'src/pages/ContractPage.tsx',
+  `  const canSubmit = quantity !== null && unitPrice !== null && deliveries !== null;\n  const submit = () => {\n    if (!canSubmit || quantity === null || unitPrice === null || deliveries === null) return;\n`,
+  `  const canSubmit = quantity !== null && unitPrice !== null && deliveries !== undefined;\n  const submit = () => {\n    if (!canSubmit || quantity === null || unitPrice === null || deliveries === undefined) return;\n`,
+  1,
+);
+replaceExact(
+  'src/pages/ContractPage.tsx',
+  `        <IntegerInput label="总交付批次" value={deliveriesInput} fallbackValue={contract.totalDeliveries} min={2} max={100} error={deliveries === null ? '请输入 2～100 的整数。' : undefined} onValueChange={setDeliveriesInput} />\n`,
+  `        <IntegerInput label="总交付批次（可选）" description="留空表示长期合同。" value={deliveriesInput} fallbackValue={contract.totalDeliveries} allowEmpty min={2} max={100} error={deliveries === undefined ? '请输入 2～100 的整数，或留空设为长期合同。' : undefined} onValueChange={setDeliveriesInput} />\n`,
+  1,
+);
+replaceExact(
+  'src/pages/ContractPage.tsx',
+  `          <DataRow label="总批次" value={\`\${formatNumber(contract.totalDeliveries)} 批\`} />\n`,
+  `          <DataRow label="总批次" value={deliveryCountLabel(contract.totalDeliveries)} />\n`,
+  1,
+);
+replaceExact(
+  'src/pages/ContractPage.tsx',
+  `              <DataRow label="总批次" value={formatNumber(contract.totalDeliveries) + ' 批'} />\n`,
+  `              <DataRow label="总批次" value={deliveryCountLabel(contract.totalDeliveries)} />\n`,
+  1,
+);
+replaceExact(
+  'src/pages/ContractPage.tsx',
+  `      setDeliveriesInput(String(initialContract.totalDeliveries));\n`,
+  `      setDeliveriesInput(initialContract.totalDeliveries === null ? '' : String(initialContract.totalDeliveries));\n`,
+  1,
+);
+replaceExact(
+  'src/pages/ContractPage.tsx',
+  `  const canSubmit = isSupply\n    ? Boolean(productId && quantity !== null && unitPrice !== null && deliveries !== null)\n`,
+  `  const canSubmit = isSupply\n    ? Boolean(productId && quantity !== null && unitPrice !== null && deliveries !== undefined)\n`,
+  1,
+);
+replaceExact(
+  'src/pages/ContractPage.tsx',
+  `    if (isSupply) {\n      if (quantity === null || unitPrice === null || deliveries === null) return;\n`,

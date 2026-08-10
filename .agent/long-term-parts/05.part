@@ -1,0 +1,75 @@
+replaceExact('src/types.ts', '  version: 32;\n', '  version: 33;\n', 1);
+for (const name of readdirSync('docs')) {
+  if (!name.endsWith('.md')) continue;
+  replaceAllIfPresent(join('docs', name), '客户端状态版本：32', '客户端状态版本：33');
+  replaceAllIfPresent(join('docs', name), '当前全局基线 32', '当前全局基线 33');
+}
+replaceAllIfPresent('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '当前客户端只接受版本 32', '当前客户端只接受版本 33');
+for (const name of readdirSync('scripts')) {
+  if (!name.endsWith('.mjs')) continue;
+  const path = join('scripts', name);
+  replaceAllIfPresent(path, '客户端状态版本：32', '客户端状态版本：33');
+  replaceAllIfPresent(path, '当前全局基线 32', '当前全局基线 33');
+  replaceAllIfPresent(path, 'CURRENT_CLIENT_STATE_VERSION = 32', 'CURRENT_CLIENT_STATE_VERSION = 33');
+  replaceAllIfPresent(path, 'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 32', 'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 33');
+  replaceAllIfPresent(path, 'PRODUCTION_CONTRACT_SCHEMA_VERSION = 8', 'PRODUCTION_CONTRACT_SCHEMA_VERSION = 9');
+}
+replaceExact('scripts/verify-online-auto-sell.mjs', "    'contractAvailableHoldForAutoSell',\n", "    'contractAvailableHoldForAutoSell',\n    'contract?.totalDeliveries === null',\n", 1);
+replaceExact('scripts/verify-online-auto-sell.mjs', "    'contractReservations',\n", "    'contractReservations',\n    'contract.totalDeliveries !== null',\n", 1);
+replaceExact('scripts/verify-online-auto-sell.mjs', "    '可自动出售 = max(0, available - 生产预定 - 合同可用保留 - 最低自由库存保留量)',\n", "    '可自动出售 = max(0, available - 生产预定 - 合同可用保留 - 最低自由库存保留量)',\n    '长期供货合同始终按仍在履约的下一批计入',\n", 1);
+replaceExact('server/test/warehouse.test.js', '    assert.equal(state.version, 32);', '    assert.equal(state.version, 33);', 1);
+
+// Authoritative design rules.
+replaceExact(
+  'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+  '合同可用保留 = Σ(当前玩家作为供应方且启用自动准备的活跃供货合同／已接受续签中，下一批尚未进入 frozen 的缺口)',
+  '合同可用保留 = Σ(当前玩家作为供应方且启用自动准备的活跃供货合同／已接受续签中，下一批尚未进入 frozen 的缺口)；长期供货合同始终按仍在履约的下一批计入，不得因 `totalDeliveries = null` 被误判为已完成',
+  1,
+);
+replaceExact(
+  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  '公开商品合作合同支持可选的结构化议价，直接承接始终保留。议价只能修改每批数量、单位价格、交付周期、总批次和首次交付延迟；商品、发布方向和发布者固定，不得加入自由文本、聊天、备注、额外资产或附加条款。',
+  '公开商品合作合同支持可选的结构化议价，直接承接始终保留。玩家发布的采购／供应商品合同允许将总批次设置为 2～100 批，或留空形成长期合同；服务器唯一持久化语义为 `totalDeliveries = null`，不得使用超大批次数模拟无限期。长期合同仍只逐批托管下一批商品和货款，不因长期状态冻结未来全部资产；长期合同不会因完成批次数自动结束，也不显示或接受续签，任一参与方申请“完成当前批次后结束”后在该批成功交付时按正常完成计入履约档案。市场储备采购继续使用固定有限批次，不开放长期模式。议价只能修改每批数量、单位价格、交付周期、总批次和首次交付延迟，其中总批次可以在固定批次与长期之间双向修改；商品、发布方向和发布者固定，不得加入自由文本、聊天、备注、额外资产或附加条款。',
+  1,
+);
+replaceExact(
+  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  '发布方向使用两项分段选择器，商品和周期使用 `SelectInput`，每批数量、单位价格和总批次使用 `IntegerInput` 与字符串草稿；空白或非法草稿不得参与预览或提交，失焦后才按统一规则恢复合法值。',
+  '发布方向使用两项分段选择器，商品和周期使用 `SelectInput`，每批数量、单位价格和总批次使用 `IntegerInput` 与字符串草稿；每批数量和单位价格的空白或非法草稿不得参与预览或提交并在失焦后按统一规则恢复合法值；总批次是明确的可选整数，空白在失焦后必须保持空白并提交 `null` 表示长期合同，非空时只接受 2～100。预览对长期合同显示“长期”，理论合同总额显示为不可定义，不得用无穷大或虚假总额代替。',
+  1,
+);
+replaceExact(
+  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  '合同剩余三批以内且不在宽限期、未申请结束时显示续签区；商品与合作方固定继承，可调整数量、价格、周期、总批次和首次交付延迟。',
+  '仅固定批次合同在剩余三批以内且不在宽限期、未申请结束时显示续签区；长期合同没有到期批次，不显示续签入口。商品与合作方固定继承，可调整数量、价格、周期、总批次和首次交付延迟，续签的新条款允许将总批次留空，从下一份关联合同开始转为长期合同。',
+  1,
+);
+replaceExact(
+  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  '完成情况按批次、一次性偿还或租金期数展示服务器完成比例；',
+  '完成情况对固定商品合同按批次展示服务器完成比例，对长期商品合同只展示累计已履约批次且不伪造总批次或百分比，借贷按一次性偿还、租赁按租金期数展示服务器完成比例；',
+  1,
+);
+replaceExact(
+  'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+  '租赁合同只转移 `facilityTypeId + quantity` 的临时生产使用权，不创建单座工厂实例，租金周期允许 1／3／6／12／24 小时，总租期 2～100 期，宽限固定 12 小时。\n\n承接时采购方冻结首批完整货款',
+  '租赁合同只转移 `facilityTypeId + quantity` 的临时生产使用权，不创建单座工厂实例，租金周期允许 1／3／6／12／24 小时，总租期 2～100 期，宽限固定 12 小时。玩家发布的商品采购／供应合同中，`totalDeliveries` 允许为 2～100 的整数或 `null`；`null` 是长期合同的唯一权威表示，旧合同缺失该字段仍按既有有限批次迁移，不得把存量合同自动改成长约。市场储备采购合同继续要求有限批次。长期合同的批次结算、20% 双方保证金、当前批商品／货款托管、仓库预占、宽限与违约规则全部与固定批次合同相同，但每批结算后不执行按批次数自动完成；参与方申请批次后结束时，在下一次成功交付当前批后释放托管与保证金并以正常完成终态结束。长期合同不接受续签；固定批次合同的议价与续签条款可以把下一份合同切换为长期。\n\n承接时采购方冻结首批完整货款',
+  1,
+);
+replaceExact(
+  'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+  '仅剩余三批以内的进行中合同可以提出续签；',
+  '仅剩余三批以内的固定批次进行中合同可以提出续签，长期合同无需且不得提出续签；',
+  1,
+);
+replaceExact(
+  'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+  '客户端状态版本 32 将供货合同续签改为采购方与供应方显式独立同意，并删除“提出方天然视为已同意”的旧客户端语义。',
+  '客户端状态版本 32 将供货合同续签改为采购方与供应方显式独立同意，并删除“提出方天然视为已同意”的旧客户端语义；客户端状态版本 33 将玩家采购／供应商品合同的 `totalDeliveries` 扩展为可空字段，`null` 表示长期合同，并要求客户端按长期语义展示进度、历史和续签边界。',
+  1,
+);
+replaceExact(
+  'README.md',
+  '- **合同与拍卖**：发布和承接供应／采购、放贷／贷款、出租／租赁合同；供货合同续签由采购方与供应方分别明确同意，单方同意不冻结续签资产；也可通过资产包拍卖完成更复杂的资产流转。',
+  '- **合同与拍卖**：发布和承接供应／采购、放贷／贷款、出租／租赁合同；商品采购／供应合同可留空总批次形成长期合同，仍按批次托管并可在当前批完成后正常结束；固定批次供货合同续签由采购方与供应方分别明确同意，单方同意不冻结续签资产；也可通过资产包拍卖完成更复杂的资产流转。',
+  1,

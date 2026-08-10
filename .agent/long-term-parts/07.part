@@ -1,0 +1,12 @@
+replaceExact(
+  'server/test/commercial-contracts.test.js',
+  "test('schema 8 migrates legacy supply contracts without changing roles',",
+  "test('schema 9 migrates legacy supply contracts without changing roles',",
+  1,
+);
+replaceExact(
+  'server/test/commercial-contracts.test.js',
+  '  assert.equal(state.productionContractSchemaVersion, 8);',
+  '  assert.equal(state.productionContractSchemaVersion, 9);',
+  1,
+);
