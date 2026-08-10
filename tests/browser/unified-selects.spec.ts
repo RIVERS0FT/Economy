@@ -44,7 +44,7 @@ test('open select preserves active option, focus, and scroll across periodic pro
   await page.keyboard.press('Home');
   const activeOption = listbox.locator('[data-active="true"]');
   await expect(activeOption).toHaveAttribute('data-value', 'farm');
-  await expect(activeOption).toHaveText('农场');
+  await expect(activeOption.locator('.ui-rich-select__option-label')).toHaveText('农场');
   await expect(trigger).toBeFocused();
   const scrollTopBefore = await listbox.evaluate((element) => element.scrollTop);
 
@@ -53,7 +53,7 @@ test('open select preserves active option, focus, and scroll across periodic pro
   await expect(trigger).toHaveAttribute('aria-expanded', 'true');
   await expect(trigger).toBeFocused();
   await expect(activeOption).toHaveAttribute('data-value', 'farm');
-  await expect(activeOption).toHaveText('农场');
+  await expect(activeOption.locator('.ui-rich-select__option-label')).toHaveText('农场');
   const scrollTopAfter = await listbox.evaluate((element) => element.scrollTop);
   expect(Math.abs(scrollTopAfter - scrollTopBefore)).toBeLessThanOrEqual(1);
 });

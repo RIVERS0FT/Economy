@@ -22,6 +22,7 @@ import { useWorkspaceFloatingLayer } from './WorkspaceFloatingLayer';
 const FLOATING_GAP = 6;
 const FLOATING_INSET = 8;
 const OPTION_HEIGHT = 48;
+const DETAIL_OPTION_HEIGHT = 64;
 const MAX_VISIBLE_OPTIONS = 6;
 const TYPEAHEAD_RESET_MS = 700;
 
@@ -37,6 +38,7 @@ export type RichSelectOption = {
   value: string;
   label: string;
   visual?: ReactNode;
+  detail?: ReactNode;
   disabled?: boolean;
 };
 
@@ -137,6 +139,9 @@ export function RichSelectInput({
   const selectedOption = options[selectedIndex]
     ?? options.find((option) => !option.disabled)
     ?? options[0];
+  const optionHeight = options.some((option) => Boolean(option.detail))
+    ? DETAIL_OPTION_HEIGHT
+    : OPTION_HEIGHT;
 
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current;
@@ -147,8 +152,8 @@ export function RichSelectInput({
     const triggerRect = trigger.getBoundingClientRect();
     const width = Math.min(triggerRect.width, Math.max(1, layerRect.width - FLOATING_INSET * 2));
     const estimatedHeight = Math.min(
-      OPTION_HEIGHT * MAX_VISIBLE_OPTIONS + FLOATING_INSET,
-      Math.max(OPTION_HEIGHT, options.length * OPTION_HEIGHT + FLOATING_INSET),
+      optionHeight * MAX_VISIBLE_OPTIONS + FLOATING_INSET,
+      Math.max(optionHeight, options.length * optionHeight + FLOATING_INSET),
     );
     const availableBelow = Math.max(
       0,
@@ -158,12 +163,12 @@ export function RichSelectInput({
       0,
       triggerRect.top - layerRect.top - FLOATING_GAP - FLOATING_INSET,
     );
-    const placement = availableBelow < Math.min(estimatedHeight, OPTION_HEIGHT * 3)
+    const placement = availableBelow < Math.min(estimatedHeight, optionHeight * 3)
       && availableAbove > availableBelow
       ? 'above'
       : 'below';
     const availableHeight = placement === 'above' ? availableAbove : availableBelow;
-    const maxHeight = Math.max(OPTION_HEIGHT, Math.min(estimatedHeight, availableHeight || estimatedHeight));
+    const maxHeight = Math.max(optionHeight, Math.min(estimatedHeight, availableHeight || estimatedHeight));
     const left = viewportLayer
       ? clamp(
         triggerRect.left,
@@ -184,7 +189,7 @@ export function RichSelectInput({
         : triggerRect.bottom - layerRect.top + FLOATING_GAP;
 
     setPosition({ left, top, width, maxHeight, placement });
-  }, [floatingLayer, options.length, viewportLayer]);
+  }, [floatingLayer, optionHeight, options.length, viewportLayer]);
 
   const openList = useCallback((direction: 1 | -1 = 1) => {
     if (disabled || options.length === 0) return;
@@ -379,6 +384,7 @@ export function RichSelectInput({
           aria-selected={option.value === value}
           aria-disabled={option.disabled || undefined}
           data-active={option.value === activeValue ? 'true' : undefined}
+          data-has-detail={option.detail ? 'true' : undefined}
           data-value={option.value}
           disabled={option.disabled}
           tabIndex={-1}
@@ -389,7 +395,14 @@ export function RichSelectInput({
           onClick={() => selectIndex(index)}
         >
           {option.visual ? <span className="ui-rich-select__visual">{option.visual}</span> : null}
-          <span className="ui-rich-select__option-label">{option.label}</span>
+          {option.detail ? (
+            <span className="ui-rich-select__content">
+              <span className="ui-rich-select__option-label">{option.label}</span>
+              <span className="ui-rich-select__detail">{option.detail}</span>
+            </span>
+          ) : (
+            <span className="ui-rich-select__option-label">{option.label}</span>
+          )}
         </button>
       ))}
     </div>
@@ -433,6 +446,7 @@ export function RichSelectInput({
           aria-invalid={error ? true : undefined}
           aria-required={required || undefined}
           disabled={disabled}
+          data-has-detail={selectedOption?.detail ? 'true' : undefined}
           data-facility-sheet-no-drag="true"
           onClick={() => {
             if (open) closeList();
@@ -443,7 +457,14 @@ export function RichSelectInput({
           {selectedOption?.visual ? (
             <span className="ui-rich-select__visual">{selectedOption.visual}</span>
           ) : null}
-          <span className="ui-rich-select__value">{selectedOption?.label ?? '暂无选项'}</span>
+          {selectedOption?.detail ? (
+            <span className="ui-rich-select__content">
+              <span className="ui-rich-select__value">{selectedOption.label}</span>
+              <span className="ui-rich-select__detail">{selectedOption.detail}</span>
+            </span>
+          ) : (
+            <span className="ui-rich-select__value">{selectedOption?.label ?? '暂无选项'}</span>
+          )}
           <span className="ui-rich-select__chevron" aria-hidden="true" />
         </button>
         {name ? <input type="hidden" name={name} value={value} /> : null}

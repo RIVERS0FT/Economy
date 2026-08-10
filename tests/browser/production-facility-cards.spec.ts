@@ -87,13 +87,35 @@ test.describe('production facility selector cards', () => {
       '冶炼厂', '炼油厂', '机械厂', '电子厂', '家电厂',
     ];
     const facilityTypeSelect = page.getByRole('combobox', { name: '工厂类型' });
-    expect(expectedNames).toContain((await facilityTypeSelect.textContent())?.trim());
+    const triggerText = (await facilityTypeSelect.textContent())?.trim() ?? '';
+    expect(expectedNames.some((name) => triggerText.includes(name))).toBe(true);
     await facilityTypeSelect.click();
-    await expect(page.getByRole('listbox', { name: '工厂类型' }).getByRole('option')).toHaveText(expectedNames);
+    const options = page.getByRole('listbox', { name: '工厂类型' }).getByRole('option');
+    await expect(options.locator('.ui-rich-select__option-label')).toHaveText(expectedNames);
     await page.keyboard.press('Escape');
     await expect(page.locator('.facility-cluster-name')).toHaveText(expectedNames);
     await expect(page.locator('#desktop-facility-detail-title')).toContainText('农场');
     await expect(page.getByText('按复杂度从 C1 到 C7 选择工厂并查看生产详情。')).toBeVisible();
+  });
+
+  test('facility build selector shows production outputs in trigger and options', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('runtime-test.html?view=production&scenario=facility-order');
+
+    const trigger = page.getByRole('combobox', { name: '工厂类型' });
+    await expect(trigger.locator('.facility-build-output-list')).toContainText('机械');
+    await expect(trigger.locator('[data-product-artwork="machinery"]')).toBeVisible();
+    await expect(page.locator('.facility-type-summary')).toHaveCount(0);
+    const triggerBox = await trigger.boundingBox();
+    expect(triggerBox?.height ?? 0).toBeGreaterThanOrEqual(63);
+
+    await trigger.click();
+    const options = page.getByRole('listbox', { name: '工厂类型' }).getByRole('option');
+    await expect(options.locator('.facility-build-output-list')).toHaveCount(10);
+    await expect(options.first().locator('.facility-build-output-list')).toContainText('机械');
+    await expect(options.first().locator('[data-product-artwork="machinery"]')).toBeVisible();
+    const optionBox = await options.first().boundingBox();
+    expect(optionBox?.height ?? 0).toBeGreaterThanOrEqual(63);
   });
 
   test('expands selector cards from three to six columns on wide desktops', async ({ page }) => {
