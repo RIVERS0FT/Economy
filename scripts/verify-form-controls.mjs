@@ -114,6 +114,8 @@ for (const text of [
   'matchingOptionIndex(',
   "scrollIntoView({ block: 'nearest' })",
   'data-facility-sheet-no-drag="true"',
+  "export type RichSelectVariant = 'default' | 'production-config';",
+  'triggerDetail?: ReactNode;',
 ]) requireText(richSelectPath, text);
 
 for (const text of [
@@ -156,6 +158,8 @@ for (const text of [
   '.ui-rich-select__native',
   '.ui-rich-select__trigger:not(:has(.ui-rich-select__visual))',
   '.ui-rich-select__option:not(:has(.ui-rich-select__visual))',
+  ".ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger",
+  ".ui-rich-select__listbox[data-variant='production-config']",
 ]) requireText(stylePath, text);
 
 for (const text of [
@@ -227,8 +231,12 @@ for (const text of [
   '统一表单控件',
   '`FormControls.tsx`',
   '`form-controls.css`',
-  '所有玩家端和管理员端可见下拉选择器必须使用生产产物同款富下拉视觉与交互',
+  '所有玩家端和管理员端可见下拉选择器必须使用共享富下拉视觉与交互',
   '浏览器原生 `select` 只允许作为 `SelectInput` 内不可见的表单值与旧 `onChange` 兼容层',
+  '`production-config`',
+  '生产方案槽',
+  '菜单允许宽于触发器',
+  '不得复制第二套 Popover、键盘导航或刷新状态',
   '字符串草稿',
   '不得在 `onChange` 中直接执行 `Number(event.target.value)`',
   '移动端输入字号不得低于 `16px`',
@@ -237,7 +245,7 @@ for (const text of [
   '展开态固定在第三网格列右侧',
   '折叠态、`721px–960px` 自动紧凑侧栏和移动底栏固定在按钮内部右上角',
   '只显示 `1`～`99` 或 `99+`',
-  '根级 Dialog 内的 `RichSelectInput` 列表必须复用该 Dialog 根作为安全定位边界并位于详情遮罩之上',
+  '根级 Dialog 内的 `RichSelectInput` 列表继续复用该 Dialog 根作为安全定位边界并位于详情遮罩之上',
   '只检查 `z-index` 或 Option 字符串不能证明安全区有效',
 ]) requireText(designDocPath, text);
 
@@ -271,4 +279,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('统一表单、统一可见下拉、顶层浮层、数字草稿、整数输入滚轮归属、统一导航角标与移动端尺寸验证通过。');
+console.log('统一表单、统一可见下拉、受控生产配置变体、顶层浮层、数字草稿、整数输入滚轮归属、统一导航角标与移动端尺寸验证通过。');
