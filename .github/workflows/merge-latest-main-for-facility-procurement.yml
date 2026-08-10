@@ -23,7 +23,30 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main
+          set +e
           git merge --no-commit --no-ff origin/main
+          merge_status=$?
+          set -e
+          if [ "$merge_status" -ne 0 ]; then
+            conflicts="$(git diff --name-only --diff-filter=U)"
+            if [ "$conflicts" != "docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md" ]; then
+              echo "Unexpected merge conflicts: $conflicts" >&2
+              exit 1
+            fi
+            git checkout --theirs -- docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md
+            python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md')
+          text = path.read_text(encoding='utf-8')
+          old = '- 建厂一键购料属于现有商品订单簿的事务内 `Fill-or-Kill`（FOK）买入，不是系统商店：只采购建设所缺数量，按当前真实卖盘价格优先／同价时间优先逐档成交并继续使用 maker price、玩家卖出手续费、普通成交记录与市场储备真实库存。客户端必须提交逐材料价格上限与本次采购总额上限；服务器重新预扫盘口，价格下降按更低真实成交价执行，任一材料深度不足、价格超过上限、自成交、资金／仓库不足或最终建设失败时整个组合事务回滚。FOK 建材买单经过完整预检后必须在本事务全部成交并立即关闭，因此不占“同时未完成订单”数量上限，但其已完成订单与 fills 仍按普通真实交易保留。'
+          new = '- 建厂一键购料属于现有商品订单簿的事务内 `Fill-or-Kill`（FOK）买入，不是系统商店：只采购建设所缺数量，按当前真实卖盘价格优先／同价时间优先逐档成交并继续使用 maker price、玩家卖出手续费、普通成交记录与市场储备真实库存。客户端必须提交逐材料价格上限与本次采购总额上限；服务器重新预扫盘口，价格下降按更低真实成交价执行，任一材料深度不足、价格超过上限、自成交、资金不足或最终建设失败时整个组合事务回滚。FOK 建材买单经过完整预检后必须在本事务全部成交并立即关闭，因此不占“同时未完成订单”数量上限，但其已完成订单与 fills 仍按普通真实交易保留。\n- 当前卖盘不足时的建造采购组仍然不是第二套订单。`POST /api/game/orders` 的内部 `execution = facility-build-procurement` 只负责在一个幂等事务中按服务器重新计算的真实缺口批量创建普通玩家商品 BUY；每张子订单都进入唯一 `world.orders`，照常执行价格时间优先、maker price、资金冻结、部分成交、自交叉阻断、玩家未完成订单上限、成交记录和逐单撤销。`execution = facility-build-procurement-cancel` 只批量调用同一玩家这些正式订单的普通撤销语义；已成交数量不得回滚，剩余冻结资金正常释放。一次建造提交形成一个浏览器可见采购组，但组 ID 与订单关联仅用于当前玩家建设卡聚类，不写入公开 `AssetOrder`、不改变匿名序列化、不建立第二套盘口，也不改变市场页“我的订单”逐单展示和逐单撤销。采购完成不得自动创建工厂，建造现金不得作为订单冻结资金。'
+          if text.count(old) != 1:
+              raise SystemExit(f'Expected one main FOK paragraph, got {text.count(old)}')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+            git add -- docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md
+          fi
           git rm -- .github/workflows/merge-latest-main-for-facility-procurement.yml
           git diff --check --cached
           git commit -m "合入最新主分支自动出售改动"
