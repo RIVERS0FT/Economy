@@ -12,6 +12,8 @@ export function resolveAction(method, path) {
   if (method === 'POST' && path === '/api/game/work') return { action: 'work', category: 'general' };
   if (method === 'POST' && path === '/api/game/check-in') return { action: 'checkIn', category: 'general' };
   if (method === 'POST' && path === '/api/game/facilities') return { action: 'buildFacility', category: 'general' };
+  if (method === 'POST' && path === '/api/game/facilities/procurements') return { action: 'createFacilityBuildProcurement', category: 'orders' };
+  if (method === 'POST' && path === '/api/game/facilities/procurements/cancel') return { action: 'cancelFacilityBuildProcurement', category: 'orders' };
   if (method === 'POST' && path === '/api/game/research/start') return { action: 'startResearch', category: 'general' };
   if (method === 'POST' && path === '/api/game/research/accelerate') return { action: 'accelerateResearch', category: 'general' };
   if (method === 'POST' && path === '/api/game/orders') return { action: 'placeOrder', category: 'orders' };
