@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 const read = (path) => readFileSync(path, 'utf8');
 const formula = read('src/components/facilities/FacilityProductionFormula.tsx');
 const detail = read('src/pages/production/ProductionFacilityDetail.tsx');
+const configControls = read('src/components/facilities/FacilityProductionConfigControls.tsx');
 const richSelect = read('src/components/ui/RichSelectInput.tsx');
 const productArtwork = read('src/components/products/ProductArtwork.tsx');
 const formulaCss = read('src/styles/facility-production-formula.css');
@@ -140,6 +141,7 @@ for (const text of [
   "event.key === 'ArrowDown'",
   "case 'Escape':",
   'data-facility-sheet-no-drag="true"',
+  "export type RichSelectVariant = 'default' | 'production-config';",
 ]) assert.equal(richSelect.includes(text), true, `统一富内容下拉框缺少: ${text}`);
 for (const text of [
   '.ui-rich-select__trigger',
@@ -147,18 +149,25 @@ for (const text of [
   '.ui-rich-select__option',
   "[aria-selected='true']",
   'min-height: 48px;',
+  ".ui-rich-select__listbox[data-variant='production-config']",
 ]) assert.equal(controlsCss.includes(text), true, `统一富内容下拉框样式缺少: ${text}`);
+const productionSettingsSource = `${detail}\n${configControls}`;
 for (const text of [
+  '<FacilityProductionConfigControls',
   'label="生产产物"',
-  'aria-label={`${type.name}生产产物`}',
-  'visual: <ProductArtwork productId={recipe.output.productId} />',
+  'aria-label={`${typeName}生产产物`}',
+  'visual: <ProductArtwork productId={plan.output.productId} />',
   'visual: <ProductionMethodIcon methodId={method.id} />',
   'data-production-method-icon={methodId}',
-]) assert.equal(detail.includes(text), true, `生产设置富内容选项缺少: ${text}`);
+  'variant="production-config"',
+  '<ProductPlanDetail',
+  '<MethodPlanDetail',
+]) assert.equal(productionSettingsSource.includes(text), true, `生产设置富内容选项缺少: ${text}`);
 for (const forbidden of ['<SelectInput', '<option']) {
-  const settingsStart = detail.indexOf('<section className="facility-production-settings">');
+  const settingsStart = detail.indexOf('<section className="facility-production-settings mobile-detail-section">');
   const settingsEnd = detail.indexOf('<FacilityProductionFormula', settingsStart);
-  assert.equal(detail.slice(settingsStart, settingsEnd).includes(forbidden), false, `生产设置不得恢复: ${forbidden}`);
+  const settingsSource = `${detail.slice(settingsStart, settingsEnd)}\n${configControls}`;
+  assert.equal(settingsSource.includes(forbidden), false, `生产设置不得恢复: ${forbidden}`);
 }
 
 const groupCssImport = main.indexOf("import './styles/facility-group-card-grid.css';");
@@ -215,4 +224,4 @@ for (const text of [
   '不得与生产结算发生视觉重叠',
 ]) assert.equal(industryDesign.includes(text), true, `移动经营诊断权威设计缺少: ${text}`);
 
-console.log('生产结算商品 PNG、投入产出、移动详情纵向流、经营诊断响应式与几何防回退验证通过。');
+console.log('生产结算商品 PNG、生产配置方案下拉、投入产出、移动详情纵向流、经营诊断响应式与几何防回退验证通过。');
