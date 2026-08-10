@@ -1,0 +1,98 @@
+name: Apply feed fruit recipe
+
+on:
+  push:
+    branches:
+      - codex/feed-fruit-recipe-20260810
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply exact catalog, design, and regression changes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              file_path = Path(path)
+              text = file_path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one match, got {count}: {old!r}')
+              file_path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_once(
+              'server/src/industry-catalog.js',
+              "    recipes: [{ id: 'feed-factory-default', name: '生产配合饲料', cycleMs: 60_000, operatingCost: 5, inputs: [{ productId: 'wheat', quantity: 2 }, { productId: 'sugarcane', quantity: 1 }], output: { productId: 'feed', quantity: 2 } }],",
+              "    recipes: [{ id: 'feed-factory-default', name: '生产配合饲料', cycleMs: 60_000, operatingCost: 4.9, inputs: [{ productId: 'wheat', quantity: 2 }, { productId: 'fruit', quantity: 1 }], output: { productId: 'feed', quantity: 2 } }],",
+          )
+
+          replace_once(
+              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+              '> 更新时间：2026-08-09',
+              '> 更新时间：2026-08-10',
+          )
+          replace_once(
+              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+              '| 配合饲料 (`feed`) | 5.8 | 2 小麦 + 1 甘蔗 → 2 配合饲料 | 60 秒 | 5 | 3 |',
+              '| 配合饲料 (`feed`) | 5.8 | 2 小麦 + 1 水果 → 2 配合饲料 | 60 秒 | 4.9 | 3 |',
+          )
+          replace_once(
+              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+              '- 化肥厂只有一个正式配方，固定消耗 2 原油并产出 6 化肥；化肥是社会消费市场的直接需求中间品，本次不得改写农场现有无原料配方。',
+              '- 饲料厂只有一个正式配方，固定消耗 2 小麦 + 1 水果并产出 2 配合饲料；周期固定 60 秒，周期成本固定 4.9，以保持 C2 参考分钟利润 3；不得恢复甘蔗作为饲料输入。\n- 化肥厂只有一个正式配方，固定消耗 2 原油并产出 6 化肥；化肥是社会消费市场的直接需求中间品，本次不得改写农场现有无原料配方。',
+          )
+
+          replace_once(
+              'scripts/verify-industry-catalog.mjs',
+              "assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.id), ['milk-beverage', 'fruit-beverage']);",
+              "assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.id), ['milk-beverage', 'fruit-beverage']);\nconst feedRecipe = standardRecipes(facilities.get('feed-factory'))[0];\nassert.deepEqual(feedRecipe.inputs, [\n  { productId: 'wheat', quantity: 2 }, { productId: 'fruit', quantity: 1 },\n]);\nassert.deepEqual(feedRecipe.output, { productId: 'feed', quantity: 2 });\nassert.equal(feedRecipe.cycleMs, 60_000);\nassert.equal(feedRecipe.operatingCost, 4.9);",
+          )
+          replace_once(
+              'scripts/verify-industry-catalog.mjs',
+              "    '农场 0.6、果园 0.9、畜牧场 0.8、渔场 1.0',",
+              "    '农场 0.6、果园 0.9、畜牧场 0.8、渔场 1.0',\n    '固定消耗 2 小麦 + 1 水果并产出 2 配合饲料',",
+          )
+          PY
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify-industry-catalog.mjs
+          node scripts/verify-production-methods.mjs
+          node --experimental-strip-types scripts/verify-recipe-profit-analysis.mjs
+          git diff --check
+
+      - name: Commit final change and remove helper workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/apply-feed-fruit-recipe.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- server/src/industry-catalog.js docs/INDUSTRY_AND_PRODUCTION_DESIGN.md scripts/verify-industry-catalog.mjs .github/workflows/apply-feed-fruit-recipe.yml
+          git diff --cached --check
+          git commit -m "Change feed recipe to fruit"
+          git push origin HEAD:codex/feed-fruit-recipe-20260810
