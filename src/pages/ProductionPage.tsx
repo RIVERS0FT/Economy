@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { cancelFacilityBuildProcurement, createFacilityBuildProcurement } from '../api/game';
 import { useNow } from '../hooks/useNow';
 import type { OnlineAutoSellAwareGameViewModel } from '../auto-sell/useOnlineAutoSell';
 import { ProductArtwork } from '../components/products/ProductArtwork';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
-import { SelectInput } from '../components/ui/FormControls';
+import { MoneyInput, SelectInput } from '../components/ui/FormControls';
 import { RichSelectInput } from '../components/ui/RichSelectInput';
 import { WarehouseInventoryPanel } from '../components/warehouse/WarehouseInventoryPanel';
 import {
@@ -16,8 +17,14 @@ import {
   StatusTag,
   WidgetHeading,
 } from '../components/ui/layout';
-import type { FacilityGroup } from '../types';
+import type { AssetOrder, FacilityGroup } from '../types';
 import { quoteFacilityBuildProcurement } from '../utils/facilityBuildProcurement';
+import {
+  activeFacilityBuildProcurementGroups,
+  loadFacilityBuildProcurementGroups,
+  saveFacilityBuildProcurementGroups,
+  type FacilityBuildProcurementGroup,
+} from '../utils/facilityBuildProcurementGroups';
 import { getUnlockedFacilityTypes } from '../utils/facilityResearchAccess';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { setContractMarketIntent } from '../contracts/navigation';
@@ -48,6 +55,24 @@ import '../styles/facility-build-select.css';
  * construction tasks no longer create selector/detail entries.
  */
 
+function normalizeOrderPrice(value: string) {
+  const text = value.trim();
+  if (!/^\d+(?:\.\d{0,2})?$/.test(text)) return null;
+  const number = Number(text);
+  const cents = Math.round(number * 100);
+  return Number.isSafeInteger(cents) && cents >= 1 ? cents / 100 : null;
+}
+
+function openOwnCommoditySell(order: AssetOrder, productId: string, price: number) {
+  return order.isOwn
+    && order.assetKind === 'commodity'
+    && order.assetId === productId
+    && order.side === 'sell'
+    && (order.status === 'open' || order.status === 'partial')
+    && order.remaining > 0
+    && order.price <= price;
+}
+
 export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewModel }) {
   const {
     game,
@@ -65,6 +90,13 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
   const [selectedFacilityGroupId, setSelectedFacilityGroupId] = useState('');
   const [isFacilityDetailOpen, setFacilityDetailOpen] = useState(false);
   const [buildQuantity, setBuildQuantity] = useState(1);
+  const [procurementPriceDrafts, setProcurementPriceDrafts] = useState<Record<string, string>>({});
+  const [procurementGroups, setProcurementGroups] = useState<FacilityBuildProcurementGroup[]>(
+    () => loadFacilityBuildProcurementGroups(game.userId),
+  );
+  const [procurementPending, setProcurementPending] = useState(false);
+  const [cancellingProcurementId, setCancellingProcurementId] = useState('');
+  const procurementPriceContextRef = useRef('');
   const detailTriggerRef = useRef<HTMLButtonElement | null>(null);
   const closeFacilityDetail = useCallback(() => setFacilityDetailOpen(false), []);
 
@@ -143,6 +175,38 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
     }
   }, [effectiveSelectedFacilityGroupId, isFacilityDetailOpen, selectedFacilityGroupId]);
 
+  useEffect(() => {
+    setProcurementGroups(loadFacilityBuildProcurementGroups(game.userId));
+  }, [game.userId]);
+
+  useEffect(() => {
+    setProcurementGroups((current) => {
+      const active = activeFacilityBuildProcurementGroups(current, game.orders);
+      if (active.length === current.length && active.every((group, index) => group.id === current[index]?.id)) {
+        return current;
+      }
+      saveFacilityBuildProcurementGroups(game.userId, active);
+      return active;
+    });
+  }, [game.orders, game.userId]);
+
+  useEffect(() => {
+    if (!selectedType) return;
+    const contextKey = `${selectedType.id}:${buildQuantity}`;
+    if (procurementPriceContextRef.current === contextKey) return;
+    procurementPriceContextRef.current = contextKey;
+    const missing = (selectedType.buildInputs ?? []).flatMap((item) => {
+      const required = item.quantity * buildQuantity;
+      const available = game.inventories[item.productId]?.available ?? 0;
+      const quantity = Math.max(0, required - available);
+      return quantity > 0 ? [{ productId: item.productId, quantity }] : [];
+    });
+    const quote = quoteFacilityBuildProcurement(game.orders, missing);
+    setProcurementPriceDrafts(Object.fromEntries(
+      missing.map((item) => [item.productId, quote.materialOrderPrices[item.productId].toFixed(2)]),
+    ));
+  }, [buildQuantity, game.inventories, game.orders, selectedType]);
+
   if (!selectedType) {
     const hasCatalog = game.facilityTypes.length > 0;
     return (
@@ -185,15 +249,55 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
   const productName = (productId: string) => (
     game.products.find((candidate) => candidate.id === productId)?.name ?? productId
   );
+
+  const materialOrderPrices = Object.fromEntries(missingBuildMaterials.flatMap((item) => {
+    const fallback = procurementQuote.materialOrderPrices[item.productId];
+    const normalized = normalizeOrderPrice(procurementPriceDrafts[item.productId] ?? fallback.toFixed(2));
+    return normalized === null ? [] : [[item.productId, normalized]];
+  }));
+  const invalidOrderPriceProductIds = missingBuildMaterials
+    .filter((item) => materialOrderPrices[item.productId] === undefined)
+    .map((item) => item.productId);
+  const selfCrossingOrderProductIds = missingBuildMaterials
+    .filter((item) => {
+      const price = materialOrderPrices[item.productId];
+      return price !== undefined && game.orders.some((order) => openOwnCommoditySell(order, item.productId, price));
+    })
+    .map((item) => item.productId);
+  const procurementOrderTotalCents = missingBuildMaterials.reduce((total, item) => {
+    const price = materialOrderPrices[item.productId];
+    if (price === undefined) return total;
+    const cents = Math.round(price * 100);
+    const lineTotal = cents * item.quantity;
+    return Number.isSafeInteger(lineTotal) && Number.isSafeInteger(total + lineTotal)
+      ? total + lineTotal
+      : Number.MAX_SAFE_INTEGER;
+  }, 0);
+  const procurementOrderTotal = procurementOrderTotalCents / 100;
+  const ownOpenOrderCount = game.orders.filter((order) => (
+    order.isOwn && (order.status === 'open' || order.status === 'partial')
+  )).length;
+  const maxOpenOrderCount = game.products.length + game.facilityTypes.length;
+
   const buildDisabledReason = game.credits < buildCashCost
     ? `建造资金不足，还需要 ${formatCurrency(buildCashCost - game.credits)}。`
-    : needsProcurement && !procurementQuote.complete
-      ? `${procurementQuote.unavailableProductIds.map(productName).join('、') || '建造材料'}市场卖盘不足，无法一次购齐。`
-      : needsProcurement && procurementQuote.selfCrossingProductIds.length > 0
-        ? `${procurementQuote.selfCrossingProductIds.map(productName).join('、')}存在自己的交叉卖单，请先撤单。`
-      : needsProcurement && game.credits < estimatedTotalSpend
-            ? `建造与采购总资金不足，预计需要 ${formatCurrency(estimatedTotalSpend)}。`
-            : undefined;
+    : needsProcurement && procurementQuote.complete && procurementQuote.selfCrossingProductIds.length > 0
+      ? `${procurementQuote.selfCrossingProductIds.map(productName).join('、')}存在自己的交叉卖单，请先撤单。`
+      : needsProcurement && procurementQuote.complete && game.credits < estimatedTotalSpend
+        ? `建造与采购总资金不足，预计需要 ${formatCurrency(estimatedTotalSpend)}。`
+        : undefined;
+  const procurementOrderDisabledReason = invalidOrderPriceProductIds.length > 0
+    ? `${invalidOrderPriceProductIds.map(productName).join('、')}买单价格无效。`
+    : selfCrossingOrderProductIds.length > 0
+      ? `${selfCrossingOrderProductIds.map(productName).join('、')}买价会与自己的卖单交叉，请先撤单或降低价格。`
+      : ownOpenOrderCount + missingBuildMaterials.length > maxOpenOrderCount
+        ? `未完成订单数量不足以再提交 ${formatNumber(missingBuildMaterials.length)} 张建造材料买单。`
+        : game.credits < buildCashCost + procurementOrderTotal
+          ? `建造与缺料买单总资金不足，最多需要 ${formatCurrency(buildCashCost + procurementOrderTotal)}。`
+          : undefined;
+  const actionDisabledReason = needsProcurement && !procurementQuote.complete
+    ? procurementOrderDisabledReason
+    : buildDisabledReason;
 
   const selectFacilityEntry = (facilityTypeId: string, trigger: HTMLButtonElement) => {
     detailTriggerRef.current = trigger;
@@ -226,10 +330,64 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
     setContractMarketIntent(productId);
     model.setTab('contracts');
   };
+
+  const submitBuildProcurementOrders = async () => {
+    if (procurementPending || procurementOrderDisabledReason) {
+      return { ok: false, message: procurementOrderDisabledReason ?? '建造材料买单正在提交' };
+    }
+    setProcurementPending(true);
+    try {
+      const response = await createFacilityBuildProcurement(
+        selectedType.id,
+        buildQuantity,
+        materialOrderPrices,
+      );
+      const group = response.result.procurementGroup;
+      if (response.result.ok && group) {
+        setProcurementGroups((current) => {
+          const next = [group, ...current.filter((item) => item.id !== group.id)];
+          saveFacilityBuildProcurementGroups(game.userId, next);
+          return next;
+        });
+      }
+      await model.refresh({ mode: 'authoritative' });
+      return response.result;
+    } catch (reason) {
+      return { ok: false, message: reason instanceof Error ? reason.message : '建造材料买单提交失败' };
+    } finally {
+      setProcurementPending(false);
+    }
+  };
+
+  const cancelProcurementGroup = async (group: FacilityBuildProcurementGroup) => {
+    if (cancellingProcurementId) return { ok: false, message: '正在取消建造材料买单' };
+    setCancellingProcurementId(group.id);
+    try {
+      const response = await cancelFacilityBuildProcurement(group.orders.map((order) => order.orderId));
+      if (response.result.ok) {
+        setProcurementGroups((current) => {
+          const next = current.filter((item) => item.id !== group.id);
+          saveFacilityBuildProcurementGroups(game.userId, next);
+          return next;
+        });
+      }
+      await model.refresh({ mode: 'authoritative' });
+      return response.result;
+    } catch (reason) {
+      return { ok: false, message: reason instanceof Error ? reason.message : '建造材料买单取消失败' };
+    } finally {
+      setCancellingProcurementId('');
+    }
+  };
+
   const submitBuild = () => {
-    if (buildDisabledReason) return;
+    if (actionDisabledReason || procurementPending) return;
     if (!needsProcurement) {
       void showResult(buildFacility(selectedType.id, buildQuantity));
+      return;
+    }
+    if (!procurementQuote.complete) {
+      void showResult(submitBuildProcurementOrders());
       return;
     }
     void showResult(buildFacility(selectedType.id, buildQuantity, {
@@ -238,6 +396,8 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
       materialPriceCaps: procurementQuote.materialPriceCaps,
     }));
   };
+
+  const orderById = new Map(game.orders.map((order) => [order.id, order]));
 
   return (
     <PageLayout
@@ -297,7 +457,7 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
                 label="预计采购"
                 value={procurementQuote.complete
                   ? <CurrencyAmount>{formatCurrency(procurementQuote.estimatedTotal)}</CurrencyAmount>
-                  : '卖盘不足'}
+                  : '卖盘不足 · 可挂买单'}
                 tone={procurementQuote.complete ? 'neutral' : 'danger'}
               />
             ) : null}
@@ -308,25 +468,113 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
                 tone={game.credits >= estimatedTotalSpend ? 'neutral' : 'danger'}
               />
             ) : null}
+            {needsProcurement && !procurementQuote.complete && invalidOrderPriceProductIds.length === 0 ? (
+              <DataRow
+                label="买单最高占用"
+                value={<CurrencyAmount>{formatCurrency(procurementOrderTotal)}</CurrencyAmount>}
+                tone={game.credits >= buildCashCost + procurementOrderTotal ? 'neutral' : 'danger'}
+              />
+            ) : null}
           </DataList>
+
+          {needsProcurement && !procurementQuote.complete ? (
+            <div className="facility-build-order-prices">
+              {missingBuildMaterials.map((item) => {
+                const fallbackPrice = procurementQuote.materialOrderPrices[item.productId];
+                return (
+                  <MoneyInput
+                    key={item.productId}
+                    label={`${productName(item.productId)}买单价格`}
+                    value={procurementPriceDrafts[item.productId] ?? fallbackPrice.toFixed(2)}
+                    fallbackValue={fallbackPrice}
+                    min={0.01}
+                    wheelStep={0.01}
+                    onValueChange={(value) => setProcurementPriceDrafts((current) => ({
+                      ...current,
+                      [item.productId]: value,
+                    }))}
+                  />
+                );
+              })}
+            </div>
+          ) : null}
+
           <Button
             block
             onClick={submitBuild}
-            disabled={Boolean(buildDisabledReason)}
+            disabled={Boolean(actionDisabledReason) || procurementPending}
           >
             {needsProcurement
-              ? buildQuantity === 1
-                ? `一键购齐并建造${selectedType.name}`
-                : `一键购齐并建造 ${buildQuantity} 座${selectedType.name}`
+              ? procurementQuote.complete
+                ? buildQuantity === 1
+                  ? `一键购齐并建造${selectedType.name}`
+                  : `一键购齐并建造 ${buildQuantity} 座${selectedType.name}`
+                : procurementPending
+                  ? '正在提交缺料买单…'
+                  : buildQuantity === 1
+                    ? `一键提交${selectedType.name}缺料买单`
+                    : `一键提交 ${buildQuantity} 座${selectedType.name}缺料买单`
               : buildQuantity === 1
                 ? `立即建造${selectedType.name}`
                 : `立即建造 ${buildQuantity} 座${selectedType.name}`}
           </Button>
           <small className="ui-helper-text">
-            {buildDisabledReason ?? (needsProcurement
-              ? '提交时服务器按当前卖盘价格上限一次购齐缺料；任一材料不足或价格超限时整笔采购与建造全部回滚。'
+            {actionDisabledReason ?? (needsProcurement
+              ? procurementQuote.complete
+                ? '提交时服务器按当前卖盘价格上限一次购齐缺料；任一材料不足或价格超限时整笔采购与建造全部回滚。'
+                : '当前卖盘无法一次购齐。提交后可成交部分立即按正式订单簿成交，剩余数量作为普通商品买单留在市场；建造资金不会冻结，材料购齐后再点击建造。'
               : <>提交后立即扣除{selectedBuildInputs.length === 0 ? '建造资金' : '资金与建造材料'}，工厂直接加入同类集群；运行中的集群保持当前进度并重新计算满员率。</>)}
           </small>
+
+          {procurementGroups.length > 0 ? (
+            <div className="facility-build-procurements">
+              <div className="facility-build-procurements__heading">
+                <strong>待采购</strong>
+                <StatusTag tone="neutral">{formatNumber(procurementGroups.length)} 次</StatusTag>
+              </div>
+              {procurementGroups.map((group) => {
+                const facilityType = game.facilityTypes.find((type) => type.id === group.facilityTypeId);
+                const rows = group.orders.map((reference) => {
+                  const order = orderById.get(reference.orderId);
+                  const remaining = order && (order.status === 'open' || order.status === 'partial')
+                    ? Math.max(0, order.remaining)
+                    : 0;
+                  return {
+                    ...reference,
+                    remaining,
+                    filled: Math.max(0, reference.quantity - remaining),
+                  };
+                });
+                const remainingQuantity = rows.reduce((sum, row) => sum + row.remaining, 0);
+                const openOrderCount = rows.filter((row) => row.remaining > 0).length;
+                return (
+                  <div className="facility-build-procurement-group" key={group.id}>
+                    <div className="facility-build-procurement-group__title">
+                      <strong>{facilityType?.name ?? group.facilityTypeId} × {formatNumber(group.quantity)}</strong>
+                      <span>{formatNumber(openOrderCount)} 张买单 · 剩余 {formatNumber(remainingQuantity)} 件</span>
+                    </div>
+                    <div className="facility-build-procurement-group__orders">
+                      {rows.map((row) => (
+                        <div className="facility-build-procurement-order" key={row.orderId}>
+                          <span>{productName(row.productId)}</span>
+                          <span>
+                            已成交 {formatNumber(row.filled)} / {formatNumber(row.quantity)} · 剩余 {formatNumber(row.remaining)} · {formatCurrency(row.price)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <Button
+                      block
+                      disabled={Boolean(cancellingProcurementId)}
+                      onClick={() => void showResult(cancelProcurementGroup(group))}
+                    >
+                      {cancellingProcurementId === group.id ? '正在取消…' : '取消全部'}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
         </PagePanel>
 
         <PagePanel className="production-surface facility-cluster-navigation">
