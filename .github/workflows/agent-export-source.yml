@@ -1,0 +1,23 @@
+name: Agent Export Source
+
+on:
+  push:
+    branches:
+      - agent/renewal-explicit-bilateral-approval
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Upload source
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-agent-source
+          path: .
+          include-hidden-files: true
+          retention-days: 1
