@@ -401,14 +401,16 @@
 
 .facility-production-settings-grid {
   min-width: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: start;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
   gap: var(--space-2);
 }
 
 .facility-production-settings-grid > * {
   min-width: 0;
+  flex: 0 0 auto;
 }
 
 .facility-production-settings select {
@@ -571,12 +573,12 @@
   }
 
   .mobile-detail-sheet .facility-production-settings-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-1);
   }
 
   .mobile-detail-sheet .facility-production-settings-grid > * {
     min-width: 0;
+    flex: 0 0 auto;
   }
 
   .mobile-detail-sheet .facility-production-settings-grid .ui-form-field {

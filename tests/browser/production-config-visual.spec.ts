@@ -11,18 +11,9 @@ async function expectSquareImageOnlyTrigger(trigger: Locator, expectedSize: numb
     const wrapper = element.closest('.ui-rich-select');
     const field = element.closest('.ui-form-field');
     const fieldLabel = field?.querySelector('.ui-form-field__label');
-    const grid = field?.parentElement;
     const wrapperRect = wrapper?.getBoundingClientRect();
     const fieldRect = field?.getBoundingClientRect();
     const labelRect = fieldLabel?.getBoundingClientRect();
-    const gridRect = grid?.getBoundingClientRect();
-    const gridStyle = grid ? getComputedStyle(grid) : null;
-    const columnGap = Number.parseFloat(gridStyle?.columnGap ?? '0') || 0;
-    const fieldIndex = field && grid ? Array.from(grid.children).indexOf(field) : -1;
-    const columnWidth = gridRect ? (gridRect.width - columnGap) / 2 : 0;
-    const expectedFieldLeft = gridRect && fieldIndex >= 0
-      ? gridRect.left + fieldIndex * (columnWidth + columnGap)
-      : 0;
     return {
       width: triggerRect.width,
       height: triggerRect.height,
@@ -31,16 +22,12 @@ async function expectSquareImageOnlyTrigger(trigger: Locator, expectedSize: numb
       fieldWidth: fieldRect?.width ?? 0,
       fieldLeft: fieldRect?.left ?? 0,
       labelWidth: labelRect?.width ?? 0,
-      columnWidth,
-      expectedFieldLeft,
     };
   });
   expect(Math.abs(geometry.width - geometry.height)).toBeLessThanOrEqual(0.5);
   expect(Math.round(geometry.width)).toBe(expectedSize);
   expect(Math.abs(geometry.wrapperWidth - geometry.width)).toBeLessThanOrEqual(0.5);
   expect(Math.abs(geometry.fieldWidth - Math.max(geometry.labelWidth, geometry.width))).toBeLessThanOrEqual(1);
-  expect(geometry.columnWidth - geometry.fieldWidth).toBeGreaterThan(24);
-  expect(Math.abs(geometry.fieldLeft - geometry.expectedFieldLeft)).toBeLessThanOrEqual(1);
   expect(Math.abs(geometry.left - geometry.fieldLeft)).toBeLessThanOrEqual(1);
 
   const visualStyle = await trigger.locator('.ui-rich-select__visual').evaluate((element) => {
@@ -54,31 +41,68 @@ async function expectSquareImageOnlyTrigger(trigger: Locator, expectedSize: numb
   expect(visualStyle.borderTopWidth).toBe('0px');
 }
 
-async function expectColumnRemainderInactive(page: Page, trigger: Locator) {
-  const point = await trigger.evaluate((element) => {
-    const triggerRect = element.getBoundingClientRect();
+async function expectAutoSlotRow(page: Page, trigger: Locator) {
+  const geometry = await trigger.evaluate((element) => {
     const field = element.closest('.ui-form-field');
-    const grid = field?.parentElement;
-    const gridRect = grid?.getBoundingClientRect();
-    const gridStyle = grid ? getComputedStyle(grid) : null;
-    const columnGap = Number.parseFloat(gridStyle?.columnGap ?? '0') || 0;
-    const fieldIndex = field && grid ? Array.from(grid.children).indexOf(field) : -1;
-    if (!gridRect || fieldIndex < 0) return null;
-    const columnWidth = (gridRect.width - columnGap) / 2;
-    const columnLeft = gridRect.left + fieldIndex * (columnWidth + columnGap);
+    const row = field?.parentElement;
+    if (!row) return null;
+    const fields = Array.from(row.children)
+      .filter((child): child is HTMLElement => child instanceof HTMLElement && child.classList.contains('ui-form-field'));
+    const rowRect = row.getBoundingClientRect();
+    const rowStyle = getComputedStyle(row);
     return {
-      x: columnLeft + columnWidth - 8,
-      y: triggerRect.top + triggerRect.height / 2,
+      display: rowStyle.display,
+      justifyContent: rowStyle.justifyContent,
+      flexWrap: rowStyle.flexWrap,
+      gap: Number.parseFloat(rowStyle.columnGap || rowStyle.gap || '0') || 0,
+      rowLeft: rowRect.left,
+      rowRight: rowRect.right,
+      rowTop: rowRect.top,
+      rowHeight: rowRect.height,
+      fields: fields.map((item) => {
+        const rect = item.getBoundingClientRect();
+        const style = getComputedStyle(item);
+        return {
+          left: rect.left,
+          right: rect.right,
+          width: rect.width,
+          flexGrow: style.flexGrow,
+          flexShrink: style.flexShrink,
+          flexBasis: style.flexBasis,
+        };
+      }),
     };
   });
-  expect(point).not.toBeNull();
-  if (!point) return;
-  await page.mouse.click(point.x, point.y);
-  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+  expect(geometry).not.toBeNull();
+  if (!geometry) return;
+  expect(geometry.display).toBe('flex');
+  expect(geometry.justifyContent).toBe('flex-start');
+  expect(geometry.flexWrap).toBe('nowrap');
+  expect(geometry.fields).toHaveLength(2);
+  for (const field of geometry.fields) {
+    expect(field.flexGrow).toBe('0');
+    expect(field.flexShrink).toBe('0');
+    expect(field.flexBasis).toBe('auto');
+  }
+  expect(Math.abs(geometry.fields[0].left - geometry.rowLeft)).toBeLessThanOrEqual(1);
+  expect(Math.abs((geometry.fields[1].left - geometry.fields[0].right) - geometry.gap)).toBeLessThanOrEqual(1);
+  expect(geometry.rowRight - geometry.fields[1].right).toBeGreaterThan(24);
+
+  await page.mouse.click(
+    geometry.rowRight - 8,
+    geometry.rowTop + Math.max(1, geometry.rowHeight / 2),
+  );
+  const expanded = await trigger.evaluate((element) => {
+    const row = element.closest('.ui-form-field')?.parentElement;
+    return Array.from(row?.querySelectorAll('[role="combobox"]') ?? [])
+      .map((item) => item.getAttribute('aria-expanded'));
+  });
+  expect(expanded).toEqual(['false', 'false']);
 }
 
 test.describe('production configuration visual triggers', () => {
-  test('collapsed production selectors use left-aligned square artwork buttons with inactive column remainder', async ({ page }) => {
+  test('collapsed production selectors use UMG-like auto slots instead of fill tracks', async ({ page }) => {
     for (const viewport of [
       { width: 1440, height: 900 },
       { width: 390, height: 844 },
@@ -99,8 +123,7 @@ test.describe('production configuration visual triggers', () => {
 
       await expectSquareImageOnlyTrigger(recipeSelect, expectedSize);
       await expectSquareImageOnlyTrigger(methodSelect, expectedSize);
-      await expectColumnRemainderInactive(page, recipeSelect);
-      await expectColumnRemainderInactive(page, methodSelect);
+      await expectAutoSlotRow(page, recipeSelect);
       await expect(recipeSelect.locator('[data-product-artwork="machinery"]')).toHaveCount(1);
       await expect(methodSelect.locator('[data-production-method-icon="rapid"]')).toHaveCount(1);
 

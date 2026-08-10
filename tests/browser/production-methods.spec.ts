@@ -68,10 +68,24 @@ test.describe('factory production methods', () => {
     await expect(detail).not.toContainText('配置切换结果会提示');
     await expect(detail).not.toContainText('1m · 产出 1 · 成本 12');
 
-    await expect(settings.locator('.facility-production-settings-grid')).toHaveCount(1);
-    expect(await settings.locator('.facility-production-settings-grid').evaluate((element) => (
-      getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length
-    ))).toBe(2);
+    const settingsRow = settings.locator('.facility-production-settings-grid');
+    await expect(settingsRow).toHaveCount(1);
+    const settingsRowStyle = await settingsRow.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        display: style.display,
+        justifyContent: style.justifyContent,
+        flexWrap: style.flexWrap,
+        childFlex: Array.from(element.children).map((child) => {
+          const childStyle = getComputedStyle(child);
+          return `${childStyle.flexGrow} ${childStyle.flexShrink} ${childStyle.flexBasis}`;
+        }),
+      };
+    });
+    expect(settingsRowStyle.display).toBe('flex');
+    expect(settingsRowStyle.justifyContent).toBe('flex-start');
+    expect(settingsRowStyle.flexWrap).toBe('nowrap');
+    expect(settingsRowStyle.childFlex).toEqual(['0 0 auto', '0 0 auto']);
     await expect(detail.locator('.facility-recipe-section')).toHaveCount(0);
     await expect(detail.locator('.facility-production-method-section')).toHaveCount(0);
 
