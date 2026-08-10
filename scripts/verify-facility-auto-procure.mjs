@@ -133,7 +133,7 @@ for (const [file, texts] of Object.entries({
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md': ['“一键购齐并建造”仍属于即时建设'],
   'docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md': ['一键购齐并建造不会产生施工任务'],
   'docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md': ['一键购齐并建造同样不注册施工截止时间'],
-  'docs/README.md': ['缺料时允许在同一建造事务内执行真实统一订单簿 FOK 采购', '缺料买单'],
+  'docs/README.md': ['缺料且当前卖盘足够时允许在同一建造事务内执行真实统一订单簿 FOK 采购', '缺料买单'],
   'README.md': ['缺料且当前卖盘足够时可继续一键从真实统一订单簿 FOK 购齐后建造', '缺料买单'],
 })) {
   if (!fs.existsSync(path.join(root, file))) {
