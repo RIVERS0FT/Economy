@@ -41,7 +41,7 @@
 - `domain-core.js`：商品目录、工厂目录、世界和玩家基础结构、商品订单与市场核心；
 - `domain.js`：唯一公共领域门面，其他服务器模块只从此导入公共能力；
 - `facility-groups.js`：工厂集群、统一周期、配方切换和工厂订单适配；
-- `facility-auto-procure.js`：即时建厂缺料预检、真实商品卖盘价格保护、仓库／资金校验和事务内 FOK 采购编排；
+- `facility-auto-procure.js`：即时建厂缺料预检、真实商品卖盘价格保护、资金校验、事务内 FOK 采购，以及卖盘不足时按单次建造批量创建／取消正式商品买单的编排；
 - `research.js`：产业科技节点研发、旧等级与资产承诺迁移、就业进度释放、具体科技准入校验、研发宝石加速、客户端状态与最近调度截止时间；
 - `order-matching.js`：商品与工厂共用的价格优先、同价时间优先、maker price、部分成交、订单状态推进、逐笔 fill 与手续费结算编排；
 - `order-book-runtime.js`：按资产、方向、价格、时间和原数组顺序建立的事务内订单簿派生索引，以及玩家订单计数、仓库买单预占、工厂卖单冻结和需求组订单查询；
@@ -664,7 +664,9 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 ## 工厂即时建设事务
 
-`POST /api/game/facilities` 接受 `facilityTypeId` 与可选 `quantity`（1～100）；省略 `autoProcure` 时保持原有“库存齐全才建设”行为。缺料时客户端可以提交 `autoProcure = true`、`materialPriceCaps: Record<productId, price>` 与 `maxProcurementTotal`。服务器必须在同一幂等写事务和经济回滚边界中先计算真实库存缺口，再按统一商品订单簿重新预扫非本人卖盘；只有全部缺口都能在逐材料价格上限内一次成交、当前仓库临时交割空间足够且“建造费 + 当前真实采购额”可支付时，才按价格档位执行内部 Fill-or-Kill 买入。价格下降按当前更低 maker price 成交，盘口深度、逐材料价格或采购总额任一超过客户端确认边界时拒绝。内部 FOK 买单因预检保证本事务关闭，可跳过普通玩家“同时未完成订单”数量上限，但不得跳过自成交检查、仓库、资金、手续费、成交记录、市场储备和订单簿撮合规则。全部买入完成后复用既有即时建设逻辑扣除材料与建造资金；采购、卖方结算、市场记录或建设任一步失败都通过同一 SQLite savepoint 与世界快照完全回滚，不留下部分材料、部分卖方结算或未完成订单。`POST /api/game/facilities/construction/accelerate` 固定返回 `410 Gone`，不得进入经济写事务或写入新的施工宝石审计。
+`POST /api/game/facilities` 接受 `facilityTypeId` 与可选 `quantity`（1～100）；省略 `autoProcure` 时保持原有“库存齐全才建设”行为。缺料但当前卖盘足以一次购齐时，客户端可以提交 `autoProcure = true`、`materialPriceCaps: Record<productId, price>` 与 `maxProcurementTotal`。服务器必须在同一幂等写事务和经济回滚边界中先计算真实库存缺口，再按统一商品订单簿重新预扫非本人卖盘；只有全部缺口都能在逐材料价格上限内一次成交且“建造费 + 当前真实采购额”可支付时，才按价格档位执行内部 Fill-or-Kill 买入。无限共享仓库不检查旧容量或临时交割空间。价格下降按当前更低 maker price 成交，盘口深度、逐材料价格或采购总额任一超过客户端确认边界时拒绝。内部 FOK 买单因预检保证本事务关闭，可跳过普通玩家“同时未完成订单”数量上限，但不得跳过自成交检查、资金、手续费、成交记录、市场储备和订单簿撮合规则。全部买入完成后复用既有即时建设逻辑扣除材料与建造资金；采购、卖方结算、市场记录或建设任一步失败都通过同一 SQLite savepoint 与世界快照完全回滚，不留下部分材料、部分卖方结算或未完成订单。
+
+卖盘不足时继续复用 `POST /api/game/orders`，不新增建厂采购路由。`execution = facility-build-procurement` 只表示一次建造意图的批量普通商品买单：服务器重新计算缺口并校验具体科技、1～100 数量、逐材料 `materialOrderPrices`、自交叉、动态未完成订单上限、安全金额和“可用资金 ≥ 建造费 + 全部新买单最大金额”，再在同一个 SQLite savepoint／世界回滚边界内逐材料调用正式 `placeOrder`；任何一张失败必须回滚本次已经创建或成交的其他子订单。成功响应可以额外返回仅供当前浏览器立即建立聚类关系的 `procurementGroup`（工厂类型、建造数量、正式订单 ID、商品、原始数量和提交价格），但该组不进入世界 JSON、六分区、客户端状态版本或额外轮询。`execution = facility-build-procurement-cancel` 在同一 `/orders` 写接口中批量撤销所给当前玩家普通商品 BUY 的未完成部分，已成交材料保持在仓库。两种 execution 都继续使用请求 `Idempotency-Key`；前者按 `buildFacility` 复用科技准入，后者不触发自动建厂。建造现金不被冻结。`POST /api/game/facilities/construction/accelerate` 固定返回 `410 Gone`，不得进入经济写事务或写入新的施工宝石审计。
 
 ## 12. 玩家自助删除存档
 
