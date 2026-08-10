@@ -69,6 +69,8 @@ assert.deepEqual(
 );
 
 const productionPage = read('src/pages/ProductionPage.tsx');
+const richSelect = read('src/components/ui/RichSelectInput.tsx');
+const buildSelectStyles = read('src/styles/facility-build-select.css');
 const pageRouter = read('src/pages/PageRouter.tsx');
 const formControls = read('src/components/ui/FormControls.tsx');
 const availabilityScope = read('src/components/facilities/FacilitySelectAvailabilityScope.tsx');
@@ -83,18 +85,68 @@ requireText(
 );
 requireText(
   productionPage,
-  '{unlockedFacilityTypes.map((type) => (',
-  'production unlocked construction options',
+  'const buildFacilityOptions = useMemo(() => unlockedFacilityTypes.map((type) => {',
+  'production unlocked construction rich options',
+);
+requireText(
+  productionPage,
+  'const outputProductIds = recipesForType(type).flatMap((recipe) => {',
+  'production recipe-derived output products',
+);
+requireText(
+  productionPage,
+  '<ProductArtwork productId={productId} />',
+  'production output product artwork',
+);
+requireText(
+  productionPage,
+  'detail: (',
+  'production rich option secondary output detail',
+);
+requireText(
+  productionPage,
+  '<RichSelectInput\n            label="工厂类型"',
+  'production rich construction selector',
 );
 forbidText(
   productionPage,
   '{game.facilityTypes.map((type) => (',
   'production full-catalog construction options',
 );
+forbidText(
+  productionPage,
+  'facility-type-summary',
+  'duplicate construction output summary',
+);
 requireText(
   productionPage,
   'setSelectedFacilityTypeId(selectedType.id);',
   'production invalid selection legalization',
+);
+requireText(
+  richSelect,
+  'detail?: ReactNode;',
+  'rich select secondary detail slot',
+);
+requireText(
+  richSelect,
+  'const DETAIL_OPTION_HEIGHT = 64;',
+  'rich select detailed option positioning height',
+);
+requireText(
+  richSelect,
+  'data-has-detail={selectedOption?.detail ? \'true\' : undefined}',
+  'rich select detailed trigger marker',
+);
+requireText(
+  buildSelectStyles,
+  ".ui-rich-select__trigger[data-has-detail='true']",
+  'construction detailed trigger height style',
+);
+requireText(
+  buildSelectStyles,
+  '.facility-build-output-item .product-artwork',
+  'construction output artwork sizing',
 );
 requireText(
   formControls,
@@ -142,6 +194,11 @@ requireText(
   'legacy production snapshot browser regression',
 );
 requireText(
+  browserTest,
+  'facility build selector shows production outputs in trigger and options',
+  'construction output-rich selector browser regression',
+);
+requireText(
   design,
   '未解锁工厂不得进入新业务操作型工厂下拉框',
   'facility unlock select design rule',
@@ -150,6 +207,11 @@ requireText(
   design,
   '只过滤、不二次排序',
   'facility unlock ordering design rule',
+);
+requireText(
+  design,
+  '建设新工厂的“工厂类型”选择器必须在收起按钮和展开选项中直接展示该工厂可生产的商品',
+  'construction output presentation design rule',
 );
 requireText(
   design,
