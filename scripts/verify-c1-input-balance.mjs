@@ -9,7 +9,7 @@ const expectedUpstream = {
   'tool-workshop': { output: 5, cost: 8, profit: 6 },
   'fertilizer-factory': { output: 6, cost: 16.56, profit: 6 },
   'tractor-factory': { output: 4, cost: 8.85, profit: 8 },
-  'feed-factory': { output: 2, cost: 5, profit: 3 },
+  'feed-factory': { output: 2, cost: 4.9, profit: 3 },
   'veterinary-medicine-factory': { output: 4, cost: 13.64, profit: 6 },
   'machine-factory': { output: 5, cost: 11.75, profit: 8 },
 };
@@ -29,6 +29,11 @@ for (const [facilityId, expected] of Object.entries(expectedUpstream)) {
   assert.equal(recipe.operatingCost, expected.cost, facilityId);
   assert.ok(Math.abs(profit(recipe) - expected.profit) < 1e-9, facilityId);
 }
+const feedRecipe = facilities.get('feed-factory').recipes.find((item) => item.productionMethodId === 'standard');
+assert.deepEqual(feedRecipe.inputs, [
+  { productId: 'wheat', quantity: 2 },
+  { productId: 'fruit', quantity: 1 },
+]);
 const profitsByMethod = { assisted: [], intensive: [], mechanized: [] };
 for (const facilityId of c1Ids) {
   const facility = facilities.get(facilityId);

@@ -640,12 +640,21 @@ input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill {
 }
 
 /* Production configuration triggers are image-only; full labels and metrics stay in the opened listbox. */
+.ui-rich-select[data-variant='production-config'] {
+  width: fit-content;
+  max-width: 100%;
+}
+
 .ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger {
+  width: 52px;
+  min-width: 52px;
+  height: 52px;
   min-height: 52px;
+  aspect-ratio: 1;
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   gap: 0;
-  padding-block: 0.4rem;
+  padding: 0.4rem;
 }
 
 .ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger .ui-rich-select__content,
@@ -662,6 +671,9 @@ input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill {
 
 @media (max-width: 720px) {
   .ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger {
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
     min-height: 48px;
   }
 }
