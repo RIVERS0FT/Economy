@@ -144,6 +144,7 @@ export function FacilityProductionConfigControls({
   selectedBaseRecipeId,
   selectedProductionMethodId,
   disabled,
+  className = 'facility-production-settings-grid',
   onProductChange,
   onMethodChange,
 }: {
@@ -154,6 +155,7 @@ export function FacilityProductionConfigControls({
   selectedBaseRecipeId: string;
   selectedProductionMethodId: FacilityProductionMethodId;
   disabled: boolean;
+  className?: string;
   onProductChange: (baseRecipeId: string) => void;
   onMethodChange: (methodId: FacilityProductionMethodId) => void;
 }) {
@@ -165,7 +167,7 @@ export function FacilityProductionConfigControls({
   );
 
   return (
-    <div className="facility-production-settings-grid">
+    <div className={className}>
       <RichSelectInput
         variant="production-config"
         label="生产产物"
