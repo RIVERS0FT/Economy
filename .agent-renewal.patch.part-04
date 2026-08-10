@@ -1,0 +1,102 @@
+@@ -258,17 +260,21 @@ function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
+           <DataRow label="单位价格" value={<CurrencyAmount>{formatCurrency(terms.unitPrice)}</CurrencyAmount>} />
+           <DataRow label="交付周期" value={durationLabel(terms.deliveryIntervalMs)} />
+           <DataRow label="总批次" value={`${formatNumber(terms.totalDeliveries)} 批`} />
++          <DataRow label="采购方确认" value={<StatusTag tone={proposal.buyerApproved ? 'success' : 'neutral'}>{proposal.buyerApproved ? '已同意' : '待确认'}</StatusTag>} />
++          <DataRow label="供应方确认" value={<StatusTag tone={proposal.supplierApproved ? 'success' : 'neutral'}>{proposal.supplierApproved ? '已同意' : '待确认'}</StatusTag>} />
+         </DataList>
+         {proposal.status === 'proposed' ? (
+           <div className="contract-renewal-actions">
+-            {proposal.isProposer ? (
+-              <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:renewal-revoke`, () => productionContractActions.revokeRenewal(contract.id))}>撤回续签</Button>
++            {proposal.approvedByMe ? (
++              <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:renewal-revoke`, () => productionContractActions.revokeRenewal(contract.id))}>撤销同意</Button>
+             ) : (
+-              <>
+-                <Button disabled={busy} onClick={() => void run(`${contract.id}:renewal-accept`, () => productionContractActions.acceptRenewal(contract.id))}>接受续签</Button>
+-                <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:renewal-reject`, () => productionContractActions.rejectRenewal(contract.id))}>拒绝续签</Button>
+-              </>
++              <Button disabled={busy} onClick={() => void run(`${contract.id}:renewal-accept`, () => productionContractActions.acceptRenewal(contract.id))}>同意续签</Button>
+             )}
++            {proposal.isProposer ? (
++              <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:renewal-cancel`, () => productionContractActions.rejectRenewal(contract.id))}>取消续签提议</Button>
++            ) : !proposal.approvedByMe ? (
++              <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:renewal-reject`, () => productionContractActions.rejectRenewal(contract.id))}>拒绝续签</Button>
++            ) : null}
+           </div>
+         ) : null}
+       </section>
+diff --git a/src/types.ts b/src/types.ts
+index 9a92123..94e5cad 100644
+--- a/src/types.ts
++++ b/src/types.ts
+@@ -532,7 +532,7 @@ export interface EconomicCalendarState {
+ }
+ 
+ export interface EconomyState {
+-  version: 31;
++  version: 32;
+   userId: number;
+   playerName: string;
+   registeredAt: number;
+diff --git a/tests/browser/contract-layout.spec.ts b/tests/browser/contract-layout.spec.ts
+index b6d7245..2e457da 100644
+--- a/tests/browser/contract-layout.spec.ts
++++ b/tests/browser/contract-layout.spec.ts
+@@ -195,6 +195,11 @@ test('desktop contract workspace uses shared controls and dense two-column layou
+   await expect(page.getByText('采购 机械', { exact: true })).toBeVisible();
+   await expect(page.locator('.contract-active-grid .contract-card').first()).toHaveClass(/contract-card--attention/);
+   await expect(page.locator('.contract-active-grid .contract-card').first().getByText('待处理', { exact: true })).toBeVisible();
++  const renewal = page.locator('.contract-active-grid .contract-card').first().locator('.contract-renewal-panel');
++  await expect(renewal.getByText('采购方确认', { exact: true })).toBeVisible();
++  await expect(renewal.getByText('供应方确认', { exact: true })).toBeVisible();
++  await expect(renewal.getByText('1/2 已同意', { exact: true })).toBeVisible();
++  await expect(renewal.getByRole('button', { name: '同意续签', exact: true })).toBeVisible();
+   await expectPersonalContractTabs(page);
+   await expectUniformPageSectionGaps(page);
+ 
+diff --git a/tests/browser/runtime-harness.tsx b/tests/browser/runtime-harness.tsx
+index 8a6be1e..abfa277 100644
+--- a/tests/browser/runtime-harness.tsx
++++ b/tests/browser/runtime-harness.tsx
+@@ -1212,7 +1212,7 @@ function ContractHarness() {
+           batchGross: 4_700,
+           deliveryIntervalMs: 60 * 60_000,
+           totalDeliveries: 12,
+-          completedDeliveries: 4,
++          completedDeliveries: 10,
+           firstDeliveryDelayMs: 60 * 60_000,
+           createdAt: fixedNow - 4 * 86_400_000,
+           offerExpiresAt: fixedNow + 3 * 86_400_000,
+@@ -1226,6 +1226,31 @@ function ContractHarness() {
+           supplierBondCredits: 940,
+           buyerAutoFund: false,
+           supplierAutoReserve: true,
++          renewalProposal: {
++            id: 'renewal-awaiting-buyer',
++            status: 'proposed',
++            revision: 1,
++            proposedBy: 456,
++            proposedAt: fixedNow - 10 * 60_000,
++            expiresAt: fixedNow + 23 * 60 * 60_000,
++            supplierApprovedAt: fixedNow - 5 * 60_000,
++            buyerApproved: false,
++            supplierApproved: true,
++            approvedByMe: false,
++            awaitingMyApproval: true,
++            isProposer: false,
++            terms: {
++              quantityPerDelivery: 120,
++              unitPrice: 48,
++              deliveryIntervalMs: 3 * 60 * 60_000,
++              totalDeliveries: 8,
++              firstDeliveryDelayMs: 60 * 60_000,
++            },
++            buyerEscrowCredits: 0,
++            buyerBondCredits: 0,
++            supplierBondCredits: 0,
++            supplierReservedQuantity: 0,
++          },
+           issue: '采购方货款不足，请补充本批货款。',
+           isPublisher: false,
+           isBuyer: true,
