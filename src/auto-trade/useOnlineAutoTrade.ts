@@ -396,14 +396,14 @@ export function useOnlineAutoTrade(
       const policy = sellPolicies[product.id];
       if (!policy?.enabled) return false;
       const status = statusFor(product.id);
-      return status.sellNeedsMaintenance
+      return (!status.blockedSellByOwnBuy && status.sellNeedsMaintenance)
         || (status.blockedSellByOwnBuy && status.hasManagedSellOrder);
     });
     const buyCandidate = sellCandidate ? null : model.game.products.find((product) => {
       const policy = buyPolicies[product.id];
       if (!policy?.enabled) return false;
       const status = statusFor(product.id);
-      return status.buyNeedsMaintenance
+      return (!status.blockedBuyByOwnSell && status.buyNeedsMaintenance)
         || (status.blockedBuyByOwnSell && status.hasManagedBuyOrder);
     });
     const candidate = sellCandidate ?? buyCandidate;
