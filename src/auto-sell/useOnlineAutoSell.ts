@@ -140,10 +140,6 @@ export function useOnlineAutoSell(
   const legacyMigrationUserRef = useRef<number | null>(null);
   const productionReserved = useMemo(() => productionReservations(model.game), [model.game]);
   const contractReserved = useMemo(() => contractReservations(model.game), [model.game]);
-  const managedProducts = useMemo(
-    () => new Set(model.game.onlineAutoSellManagedProductIds ?? []),
-    [model.game.onlineAutoSellManagedProductIds],
-  );
 
   useEffect(() => {
     if (legacyMigrationUserRef.current === userId) return;
@@ -184,7 +180,16 @@ export function useOnlineAutoSell(
     const production = nonNegativeInteger(productionReserved[productId]);
     const contract = contractReserved[productId] ?? { display: 0, availableHold: 0 };
     const minimumFreeInventory = nonNegativeInteger(policy.minimumFreeInventory);
-    const hasManagedOrder = managedProducts.has(productId);
+    const managedOrderId = String(model.game.onlineAutoSellManagedOrderIds?.[productId] || '');
+    const hasManagedOrder = Boolean(managedOrderId && model.game.orders.some((order) => (
+      order.id === managedOrderId
+      && order.isOwn === true
+      && order.assetKind === 'commodity'
+      && order.assetId === productId
+      && order.side === 'sell'
+      && ['open', 'partial'].includes(order.status)
+      && Number(order.remaining || 0) > 0
+    )));
     const requiredAvailable = production + nonNegativeInteger(contract.availableHold) + minimumFreeInventory;
     return {
       availableInventory,
@@ -197,7 +202,7 @@ export function useOnlineAutoSell(
       hasManagedOrder,
       reservationShortfall: hasManagedOrder && availableInventory < requiredAvailable,
     };
-  }, [contractReserved, managedProducts, model.game, policyFor, productionReserved]);
+  }, [contractReserved, model.game, policyFor, productionReserved]);
 
   const setPolicy = useCallback(async (productId: string, policy: AutoSellPolicy) => {
     const price = Math.round(Number(policy.price) * 100) / 100;
