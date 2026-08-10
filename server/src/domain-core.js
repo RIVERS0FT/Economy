@@ -7,7 +7,7 @@ import { closeOrderInOrderBook, orderById } from './order-book-runtime.js';
 export { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
 
 export const ECONOMY_CONSTANTS = Object.freeze({
-  maxOpenOrders: PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length,
+  maxOpenOrders: (PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length) * 10,
   maxOrderQuantity: Number.MAX_SAFE_INTEGER,
   workCooldownMs: 3_000,
   demandCycleMs: 5 * 60 * 1000,
