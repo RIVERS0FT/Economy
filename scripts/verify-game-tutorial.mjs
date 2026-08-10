@@ -60,7 +60,7 @@ for (const text of [
   'onSale: tutorial.recordAutoSellCompletion',
 ]) requireText(gameApp, text, `经营成长线操作必须使用当前成功语义：${text}`);
 forbidText(gameApp, 'tutorial.recordSellOrderSubmit', '成长线不得继续把手动卖单作为第五步');
-requireText(autoSell, 'if (result.ok) callbacks.onSale?.(candidate.id);', '第六步必须只由服务器确认的自动出售成交推进');
+requireText(autoSell, "if (result.ok && result.message.includes('自动出售')) callbacks.onSale?.(candidate.id);", '第六步必须只由服务器确认发生实际自动出售成交后推进，单纯挂出自动卖单不得推进');
 
 requireText(guide, '<span>经营成长线</span>', '概览引导条必须显示经营成长线名称');
 requireText(guide, 'aria-label="经营成长线进度"', '成长线进度必须有正确无障碍名称');
