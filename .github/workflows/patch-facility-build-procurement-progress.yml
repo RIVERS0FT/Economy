@@ -24,37 +24,10 @@ jobs:
           from pathlib import Path
           path = Path('src/pages/ProductionPage.tsx')
           text = path.read_text(encoding='utf-8')
-          old = """                const rows = group.orders.map((reference) => {
-                  const order = orderById.get(reference.orderId);
-                  const remaining = order && (order.status === 'open' || order.status === 'partial')
-                    ? Math.max(0, order.remaining)
-                    : 0;
-                  return {
-                    ...reference,
-                    remaining,
-                    filled: Math.max(0, reference.quantity - remaining),
-                  };
-                });"""
-          new = """                const rows = group.orders.map((reference) => {
-                  const order = orderById.get(reference.orderId);
-                  const remaining = order && (order.status === 'open' || order.status === 'partial')
-                    ? Math.max(0, order.remaining)
-                    : 0;
-                  const fillQuantity = order?.fills?.reduce(
-                    (sum, fill) => sum + Math.max(0, Number(fill.quantity || 0)),
-                    0,
-                  ) ?? 0;
-                  const filled = order?.status === 'filled'
-                    ? reference.quantity
-                    : Math.min(reference.quantity, fillQuantity);
-                  return {
-                    ...reference,
-                    remaining,
-                    filled,
-                  };
-                });"""
+          old = '                    filled: Math.max(0, reference.quantity - remaining),'
+          new = '                    filled: order ? Math.max(0, reference.quantity - Math.max(0, Number(order.remaining || 0))) : 0,'
           if text.count(old) != 1:
-              raise SystemExit(f'expected one progress block, got {text.count(old)}')
+              raise SystemExit(f'expected one progress expression, got {text.count(old)}')
           path.write_text(text.replace(old, new), encoding='utf-8')
           PY
           git diff --check
