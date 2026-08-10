@@ -114,6 +114,7 @@ test.describe('factory production methods', () => {
     await expect(output).toHaveCount(1);
     await expect(profit).toHaveCount(1);
     await expect(settlement.locator('.facility-average-profit')).toHaveCount(0);
+    await expect(settlement.locator('.facility-formula-visual')).not.toHaveAttribute('aria-hidden', 'true');
 
     const formulaColumns = await formulaTop.evaluate((element) => (
       getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length
@@ -149,7 +150,12 @@ test.describe('factory production methods', () => {
     expect(costDividerWidth).toBeGreaterThan(0);
 
     const materialRows = settlement.locator('.facility-formula-item-group');
+    const inputMarketButton = settlement.getByRole('button', { name: /^查看钢材市场/ });
+    const outputMarketButton = settlement.getByRole('button', { name: /^查看机械市场/ });
     await expect(materialRows).toHaveCount(2);
+    await expect(inputMarketButton).toHaveCount(1);
+    await expect(outputMarketButton).toHaveCount(1);
+    await expect(inputMarketButton).toHaveAttribute('data-ui-interactive', 'surface');
     await expect(settlement.locator('.facility-formula-separator')).toHaveCount(0);
     await expect(settlement.locator('.facility-formula-inventory')).toHaveCount(2);
     await expect(settlement.locator('.facility-formula-input .facility-formula-inventory')).toHaveCount(1);
@@ -179,6 +185,19 @@ test.describe('factory production methods', () => {
     expect(slotStyle.borderRadius).not.toBe('0px');
     expect(slotStyle.childCount).toBe(3);
     expect(slotStyle.ordered).toBe(true);
+
+    await inputMarketButton.focus();
+    await expect(inputMarketButton).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => page.evaluate(() => {
+      const state = window as typeof window & { __lastSelectedTab?: string; __lastSelectedAsset?: string };
+      return { tab: state.__lastSelectedTab, asset: state.__lastSelectedAsset };
+    })).toEqual({ tab: 'market', asset: 'steel' });
+    await outputMarketButton.click();
+    await expect.poll(() => page.evaluate(() => {
+      const state = window as typeof window & { __lastSelectedTab?: string; __lastSelectedAsset?: string };
+      return { tab: state.__lastSelectedTab, asset: state.__lastSelectedAsset };
+    })).toEqual({ tab: 'market', asset: 'machinery' });
 
     const flowStyle = await settlement.locator('.facility-formula-progress .progress-track span').evaluate((element) => {
       const style = getComputedStyle(element.parentElement!);
@@ -324,6 +343,16 @@ test.describe('factory production methods', () => {
       expect(await metaUnits.nth(1).evaluate((element) => (
         Number.parseFloat(getComputedStyle(element).borderLeftWidth)
       ))).toBeGreaterThan(0);
+
+      await expect(inputSlot).toHaveAttribute('data-ui-interactive', 'surface');
+      await expect(inputSlot).toHaveAttribute('aria-label', /^查看钢材市场/);
+      await inputSlot.click();
+      await expect.poll(() => page.evaluate(() => {
+        const state = window as typeof window & { __lastSelectedTab?: string; __lastSelectedAsset?: string };
+        return { tab: state.__lastSelectedTab, asset: state.__lastSelectedAsset };
+      })).toEqual({ tab: 'market', asset: 'steel' });
+      await expect(sheet).toBeVisible();
+      await expect(sheet).not.toHaveClass(/is-dragging/);
 
       const settlementOverflow = await settlement.evaluate((element) => ({
         clientWidth: element.clientWidth,
