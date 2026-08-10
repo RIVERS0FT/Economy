@@ -12,6 +12,7 @@ const forbidText = (path, text) => {
 for (const [path, texts] of Object.entries({
   'server/src/online-auto-sell.js': [
     'productionReservedQuantitiesForPlayer',
+    'minimumFreeInventory',
     'contractAvailableHoldForAutoSell',
     'crossingBuyQuantityForAutoSell',
     "execution: 'online-auto-sell'",
@@ -29,18 +30,26 @@ for (const [path, texts] of Object.entries({
   ],
   'src/api/game.ts': [
     'autoSellCommodity',
+    'minimumFreeInventory',
     "execution: 'online-auto-sell'",
+  ],
+  'src/auto-sell/autoSellStorage.ts': [
+    'minimumFreeInventory',
+    'raw.minimumFreeInventory ?? 0',
   ],
   'src/auto-sell/useOnlineAutoSell.ts': [
     'useOnlineAutoSell',
     'eligibleQuantity',
     'productionReservations',
     'contractReservations',
+    'minimumFreeInventory',
     'model.onlineAutoSell',
   ],
   'src/components/warehouse/WarehouseInventoryPanel.tsx': [
     '设置自动出售',
     '最低自动出售价格',
+    '最低自由库存',
+    'parseIntegerDraft',
     '仅客户端在线',
     '生产预定',
     '合同预定',
@@ -49,7 +58,8 @@ for (const [path, texts] of Object.entries({
   'docs/WAREHOUSE_EXPANSION_DESIGN.md': [
     '### 4.1 在线自动出售',
     '不得为此增加在线心跳、自动出售专用轮询、全世界扫描调度器或后台常驻任务',
-    '可自动出售 = max(0, available - 生产预定 - 合同可用保留)',
+    '可自动出售 = max(0, available - 生产预定 - 合同可用保留 - 最低自由库存保留量)',
+    '最低自由库存保留量只限制在线自动出售',
     '不得留下客户端离线后仍可继续成交的开放卖单',
   ],
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md': [

@@ -16,6 +16,11 @@ function positiveInteger(value) {
   return Number.isSafeInteger(normalized) && normalized > 0 ? normalized : 0;
 }
 
+function nonNegativeSafeInteger(value) {
+  const normalized = Number(value);
+  return Number.isSafeInteger(normalized) && normalized >= 0 ? normalized : null;
+}
+
 function activeSupplyContractsFor(world, userId, productId) {
   return (world.productionContracts || []).filter((contract) => (
     contract?.kind === 'supply'
@@ -80,7 +85,10 @@ export function applyOnlineAutoSell(world, user, payload = {}, now = Date.now())
   const productId = String(payload.productId || payload.assetId || '');
   const product = PRODUCT_BY_ID.get(productId);
   const minimumPrice = normalizePlayerMoneyInput(payload.price, { min: 0.01 });
-  if (!product || minimumPrice === null) return { ok: false, message: '自动出售参数无效' };
+  const minimumFreeInventory = nonNegativeSafeInteger(payload.minimumFreeInventory ?? 0);
+  if (!product || minimumPrice === null || minimumFreeInventory === null) {
+    return { ok: false, message: '自动出售参数无效' };
+  }
 
   const player = world.players?.[String(userId)];
   if (!player) return { ok: false, message: '玩家不存在' };
@@ -93,8 +101,13 @@ export function applyOnlineAutoSell(world, user, payload = {}, now = Date.now())
     productionReservedQuantitiesForPlayer(world, userId)[productId],
   );
   const contractHold = positiveInteger(contractAvailableHoldForAutoSell(world, userId, productId));
-  const eligible = Math.max(0, positiveInteger(inventory.available) - productionReserved - contractHold);
-  if (eligible < 1) return { ok: false, message: '当前没有扣除生产预定和合同预定后的可自动出售库存' };
+  const eligible = Math.max(
+    0,
+    positiveInteger(inventory.available) - productionReserved - contractHold - minimumFreeInventory,
+  );
+  if (eligible < 1) {
+    return { ok: false, message: '当前没有扣除生产预定、合同预定和最低自由库存后的可自动出售库存' };
+  }
 
   const crossingQuantity = crossingBuyQuantityForAutoSell(world, userId, productId, minimumPrice);
   const quantity = Math.min(eligible, crossingQuantity);

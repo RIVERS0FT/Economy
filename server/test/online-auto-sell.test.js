@@ -156,3 +156,85 @@ test('own crossing buy blocks online auto sell instead of creating a self-cross'
   assert.equal(world.orders.filter((order) => Number(order.ownerId) === alice.id && order.side === 'sell').length, 0);
   assert.equal(world.orders.filter((order) => isOpenOrder(order) && order.side === 'buy').length, 2);
 });
+
+
+test('online auto sell preserves minimum free inventory in addition to production and contract holds', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, alice, now);
+  const buyer = ensurePlayer(world, bob, now);
+  buyer.credits = 10_000;
+  seller.inventories.plastic.available = 20;
+  seller.inventories.plastic.frozen = 1;
+  seller.facilityGroups = [group('electronics-factory', 2, {
+    enabled: true,
+    status: 'running',
+    participatingCount: 2,
+    cycleStartedAt: now,
+  })];
+  world.productionContracts = [{
+    id: 'supply-plastic',
+    kind: 'supply',
+    status: 'active',
+    supplierId: alice.id,
+    productId: 'plastic',
+    quantityPerDelivery: 4,
+    supplierReservedQuantity: 1,
+    supplierAutoReserve: true,
+    completedDeliveries: 0,
+    totalDeliveries: 10,
+  }];
+  migrateFacilityGroupWorld(world, now);
+  addBuyOrder(world, buyer, 'plastic', 20, 10);
+
+  assert.equal(productionReservedQuantitiesForPlayer(world, alice.id).plastic, 2);
+  assert.equal(contractAvailableHoldForAutoSell(world, alice.id, 'plastic'), 3);
+  const result = applyOnlineAutoSell(world, alice, {
+    productId: 'plastic',
+    price: 5,
+    minimumFreeInventory: 5,
+  }, now + 2);
+
+  assert.equal(result.ok, true);
+  assert.equal(seller.inventories.plastic.available, 10);
+  assert.equal(seller.inventories.plastic.frozen, 1);
+});
+
+test('online auto sell does not sell below the configured minimum free inventory', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, alice, now);
+  const buyer = ensurePlayer(world, bob, now);
+  buyer.credits = 10_000;
+  seller.inventories.wheat.available = 5;
+  addBuyOrder(world, buyer, 'wheat', 10, 10);
+
+  const result = applyOnlineAutoSell(world, alice, {
+    productId: 'wheat',
+    price: 5,
+    minimumFreeInventory: 5,
+  }, now + 2);
+
+  assert.equal(result.ok, false);
+  assert.match(result.message, /最低自由库存/);
+  assert.equal(seller.inventories.wheat.available, 5);
+  assert.equal(world.orders.filter((order) => Number(order.ownerId) === alice.id && order.side === 'sell').length, 0);
+});
+
+test('online auto sell rejects invalid minimum free inventory values', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, alice, now);
+  const buyer = ensurePlayer(world, bob, now);
+  buyer.credits = 10_000;
+  seller.inventories.wheat.available = 10;
+  addBuyOrder(world, buyer, 'wheat', 10, 10);
+
+  for (const minimumFreeInventory of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+    const result = applyOnlineAutoSell(world, alice, {
+      productId: 'wheat',
+      price: 5,
+      minimumFreeInventory,
+    }, now + 2);
+    assert.equal(result.ok, false);
+    assert.match(result.message, /参数无效/);
+  }
+  assert.equal(seller.inventories.wheat.available, 10);
+});

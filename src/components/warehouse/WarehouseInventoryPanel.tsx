@@ -5,9 +5,10 @@ import {
   consumeAutoSellPanelRequest,
 } from '../../auto-sell/autoSellStorage';
 import { formatNumber } from '../../utils/formatters';
+import { parseIntegerDraft } from '../../utils/integerDraft';
 import { formatMoneyDraft, parseMoneyDraft } from '../../utils/moneyDraft';
 import { ProductIcon } from '../icons/ProductIcons';
-import { MoneyInput } from '../ui/FormControls';
+import { IntegerInput, MoneyInput } from '../ui/FormControls';
 import { Button, Panel, StatusTag, ToggleField, WidgetHeading } from '../ui/layout';
 
 export function WarehouseInventoryPanel({
@@ -24,6 +25,7 @@ export function WarehouseInventoryPanel({
     policyFor: (productId: string) => ({
       enabled: false,
       price: Math.max(0.01, Number(game.products.find((product) => product.id === productId)?.basePrice || 1)),
+      minimumFreeInventory: 0,
     }),
     statusFor: (productId: string) => {
       const inventory = game.inventories[productId] ?? { available: 0, frozen: 0 };
@@ -31,6 +33,7 @@ export function WarehouseInventoryPanel({
         availableInventory: Math.max(0, Math.floor(Number(inventory.available || 0))),
         productionReserved: 0,
         contractReserved: 0,
+        minimumFreeInventory: 0,
         eligibleQuantity: 0,
         blockedByOwnBuy: false,
         hasCrossingBuyer: false,
@@ -41,6 +44,7 @@ export function WarehouseInventoryPanel({
   const [selectedProductId, setSelectedProductId] = useState('');
   const [autoSellEnabledDraft, setAutoSellEnabledDraft] = useState(false);
   const [autoSellPriceDraft, setAutoSellPriceDraft] = useState('1.00');
+  const [autoSellMinimumInventoryDraft, setAutoSellMinimumInventoryDraft] = useState('0');
   const stockedProducts = useMemo(
     () => game.products.filter((product) => {
       const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
@@ -52,6 +56,7 @@ export function WarehouseInventoryPanel({
   const selectedAutoSellStatus = selectedProduct ? autoSell.statusFor(selectedProduct.id) : null;
   const selectedPolicy = selectedProduct ? autoSell.policyFor(selectedProduct.id) : null;
   const parsedAutoSellPrice = parseMoneyDraft(autoSellPriceDraft, { min: 0.01 });
+  const parsedAutoSellMinimumInventory = parseIntegerDraft(autoSellMinimumInventoryDraft, { min: 0 });
 
   const openAutoSellPanel = useCallback((productId: string) => {
     const product = game.products.find((candidate) => candidate.id === productId);
@@ -60,6 +65,7 @@ export function WarehouseInventoryPanel({
     setSelectedProductId(product.id);
     setAutoSellEnabledDraft(policy.enabled);
     setAutoSellPriceDraft(formatMoneyDraft(policy.price));
+    setAutoSellMinimumInventoryDraft(String(policy.minimumFreeInventory));
   }, [autoSell, game.products]);
 
   useEffect(() => {
@@ -75,13 +81,14 @@ export function WarehouseInventoryPanel({
   }, [model.user.id, openAutoSellPanel]);
 
   function saveAutoSellPolicy() {
-    if (!selectedProduct || parsedAutoSellPrice === null) return;
+    if (!selectedProduct || parsedAutoSellPrice === null || parsedAutoSellMinimumInventory === null) return;
     autoSell.setPolicy(selectedProduct.id, {
       enabled: autoSellEnabledDraft,
       price: parsedAutoSellPrice,
+      minimumFreeInventory: parsedAutoSellMinimumInventory,
     });
     model.notify(autoSellEnabledDraft
-      ? `${selectedProduct.name}自动出售已开启，最低价 ${parsedAutoSellPrice.toFixed(2)}`
+      ? `${selectedProduct.name}自动出售已开启，最低价 ${parsedAutoSellPrice.toFixed(2)}，最低自由库存 ${formatNumber(parsedAutoSellMinimumInventory)}`
       : `${selectedProduct.name}自动出售已关闭`);
   }
 
@@ -138,9 +145,10 @@ export function WarehouseInventoryPanel({
               ) : null}
             </div>
             <div className="warehouse-auto-sell-summary">
-              <div><span>自由可用</span><strong>{formatNumber(selectedAutoSellStatus.availableInventory)}</strong></div>
+              <div><span>当前可用</span><strong>{formatNumber(selectedAutoSellStatus.availableInventory)}</strong></div>
               <div><span>生产预定</span><strong>{formatNumber(selectedAutoSellStatus.productionReserved)}</strong></div>
               <div><span>合同预定</span><strong>{formatNumber(selectedAutoSellStatus.contractReserved)}</strong></div>
+              <div><span>最低自由库存</span><strong>{formatNumber(selectedAutoSellStatus.minimumFreeInventory)}</strong></div>
               <div><span>预计可自动出售</span><strong>{formatNumber(selectedAutoSellStatus.eligibleQuantity)}</strong></div>
             </div>
             <ToggleField
@@ -148,6 +156,15 @@ export function WarehouseInventoryPanel({
               description="仅当前客户端在线时生效；关闭页面、退出登录或断网后不会继续发起自动成交。"
               checked={autoSellEnabledDraft}
               onChange={(event) => setAutoSellEnabledDraft(event.target.checked)}
+            />
+            <IntegerInput
+              label="最低自由库存"
+              description="在生产预定和合同预定之外额外保留的可用库存；填写 0 表示不额外保留。该值只限制自动出售。"
+              value={autoSellMinimumInventoryDraft}
+              fallbackValue={selectedPolicy.minimumFreeInventory}
+              min={0}
+              error={parsedAutoSellMinimumInventory === null ? '请输入不小于 0 的整数' : undefined}
+              onValueChange={setAutoSellMinimumInventoryDraft}
             />
             <MoneyInput
               label="最低自动出售价格"
@@ -160,9 +177,13 @@ export function WarehouseInventoryPanel({
               onValueChange={setAutoSellPriceDraft}
             />
             <p className="warehouse-auto-sell-note">
-              数量由服务器成交前重新计算：先保留开启中工厂下一完整周期的原料，再保留自动准备的合同批次；普通手动卖单仍只在市场页发布。
+              数量由服务器成交前重新计算：先保留开启中工厂下一完整周期的原料，再保留自动准备的合同批次，最后额外保留你设置的最低自由库存；该值不限制生产、合同履约、手动卖出或拍卖。
             </p>
-            <Button block disabled={parsedAutoSellPrice === null} onClick={saveAutoSellPolicy}>
+            <Button
+              block
+              disabled={parsedAutoSellPrice === null || parsedAutoSellMinimumInventory === null}
+              onClick={saveAutoSellPolicy}
+            >
               {autoSellEnabledDraft ? '保存并启用自动出售' : '保存并关闭自动出售'}
             </Button>
           </section>

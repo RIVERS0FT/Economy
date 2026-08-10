@@ -308,9 +308,15 @@ export const gameActions = {
   placeCommodityOrder: (productId: string, side: OrderSide, quantity: number, price: number) => (
     postAction('/orders', { assetKind: 'commodity', assetId: productId, productId, side, quantity, price })
   ),
-  autoSellCommodity: (productId: string, price: number) => (
+  autoSellCommodity: (productId: string, price: number, minimumFreeInventory = 0) => (
     postAction('/orders', {
-      assetKind: 'commodity', assetId: productId, productId, side: 'sell', price, execution: 'online-auto-sell',
+      assetKind: 'commodity',
+      assetId: productId,
+      productId,
+      side: 'sell',
+      price,
+      minimumFreeInventory,
+      execution: 'online-auto-sell',
     })
   ),
   cancelOrder: (orderId: string) => postAction(`/orders/${encodeURIComponent(orderId)}/cancel`),

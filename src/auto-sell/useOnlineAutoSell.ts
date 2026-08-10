@@ -14,6 +14,7 @@ export interface AutoSellProductStatus {
   availableInventory: number;
   productionReserved: number;
   contractReserved: number;
+  minimumFreeInventory: number;
   eligibleQuantity: number;
   blockedByOwnBuy: boolean;
   hasCrossingBuyer: boolean;
@@ -141,7 +142,11 @@ export function useOnlineAutoSell(
     const existing = policies[productId];
     if (existing) return existing;
     const product = model.game.products.find((candidate) => candidate.id === productId);
-    return { enabled: false, price: Math.max(0.01, Number(product?.basePrice || 1)) };
+    return {
+      enabled: false,
+      price: Math.max(0.01, Number(product?.basePrice || 1)),
+      minimumFreeInventory: 0,
+    };
   }, [model.game.products, policies]);
 
   const statusFor = useCallback((productId: string): AutoSellProductStatus => {
@@ -149,11 +154,16 @@ export function useOnlineAutoSell(
     const availableInventory = nonNegativeInteger(model.game.inventories[productId]?.available);
     const production = nonNegativeInteger(productionReserved[productId]);
     const contract = contractReserved[productId] ?? { display: 0, availableHold: 0 };
+    const minimumFreeInventory = nonNegativeInteger(policy.minimumFreeInventory);
     return {
       availableInventory,
       productionReserved: production,
       contractReserved: nonNegativeInteger(contract.display),
-      eligibleQuantity: Math.max(0, availableInventory - production - nonNegativeInteger(contract.availableHold)),
+      minimumFreeInventory,
+      eligibleQuantity: Math.max(
+        0,
+        availableInventory - production - nonNegativeInteger(contract.availableHold) - minimumFreeInventory,
+      ),
       blockedByOwnBuy: isOpenCommodityBuy(model.game, productId, true, policy.price),
       hasCrossingBuyer: isOpenCommodityBuy(model.game, productId, false, policy.price),
     };
@@ -161,8 +171,10 @@ export function useOnlineAutoSell(
 
   const setPolicy = useCallback((productId: string, policy: AutoSellPolicy) => {
     const price = Math.round(Number(policy.price) * 100) / 100;
+    const minimumFreeInventory = Number(policy.minimumFreeInventory);
     if (!Number.isFinite(price) || price < 0.01) return;
-    const normalized = { enabled: policy.enabled === true, price };
+    if (!Number.isSafeInteger(minimumFreeInventory) || minimumFreeInventory < 0) return;
+    const normalized = { enabled: policy.enabled === true, price, minimumFreeInventory };
     setPolicies((current) => {
       const next = { ...current, [productId]: normalized };
       saveAutoSellPolicies(userId, next);
@@ -185,7 +197,7 @@ export function useOnlineAutoSell(
 
     busyRef.current = true;
     setBusyProductId(candidate.id);
-    void model.onlineAutoSell(candidate.id, policy.price)
+    void model.onlineAutoSell(candidate.id, policy.price, policy.minimumFreeInventory)
       .then((result) => {
         if (result.ok) callbacks.onSale?.(candidate.id);
       })

@@ -50,6 +50,7 @@ for (const text of [
   '无限容量',
   'warehouseStoredQuantity',
   'inventory.available > 0 || inventory.frozen > 0',
+  '最低自由库存',
 ]) requireText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);
 for (const text of [
   '仓库容量永久无限',
@@ -58,6 +59,8 @@ for (const text of [
   '商品买单、商品拍卖和采购合同不再预占仓库空间',
   '工厂生产不再检查仓库空间',
   '客户端状态版本从 30 升至 31',
+  '最低自由库存保留量只限制在线自动出售',
+  '不限制生产消耗、合同履约、市场手动卖出或拍卖',
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
 
 const runtimePaths = [

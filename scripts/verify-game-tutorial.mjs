@@ -42,6 +42,7 @@ requireText(controller, "run.currentStep !== 'review-leaderboard' || model.tab !
 requireText(controller, 'requestAutoSellPanel(userId, productId)', '教程第五步必须直接打开仓库自动出售面板');
 requireText(definition, "id: 'set-auto-sell'", '成长线第五步必须改为自动出售设置');
 requireText(definition, "title: '设置商品自动出售'", '成长线必须明确教玩家设置自动出售');
+requireText(definition, '最低自由库存可填写 0', '成长线必须说明最低自由库存是可选的额外保留');
 requireText(definition, "targetTab: 'production'", '自动出售教程必须引导到生产页仓库');
 
 for (const text of [
@@ -78,7 +79,8 @@ forbidText(tutorialStore, 'producedGoods', '服务器成长线完成记录不得
 forbidText(tutorialStore, 'soldGoods', '服务器成长线完成记录不得读取出售累计统计');
 requireText(pageDesign, '### 11.1 客户端经营成长线', '页面权威设计必须记录客户端经营成长线规则');
 requireText(pageDesign, '固定为十步', '页面权威设计必须锁定经营成长线十步结构');
-requireText(pageDesign, '设置商品自动出售价格、完成一次自动出售', '页面权威设计必须记录新版生产—自动出售成长线');
+requireText(pageDesign, '设置商品自动出售、完成一次自动出售', '页面权威设计必须记录新版生产—自动出售成长线');
+requireText(pageDesign, '合法最低自由库存保留量（允许 `0`）', '页面权威设计必须记录自动出售自由库存设置');
 requireText(pageDesign, 'economy_tutorial_completions', '页面权威设计必须记录成长线完成表和服务器负担边界');
 
 console.log('Operating growth line verification passed.');
