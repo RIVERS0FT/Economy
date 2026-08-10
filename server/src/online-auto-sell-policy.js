@@ -36,8 +36,13 @@ export function ensureOnlineAutoSellPolicies(player) {
 }
 
 export function createOnlineAutoSellPolicyClientState(player) {
+  const managedSource = player?.onlineAutoSellOrderIds;
+  const managedProductIds = managedSource && typeof managedSource === 'object' && !Array.isArray(managedSource)
+    ? Object.keys(managedSource).filter((productId) => PRODUCT_IDS.has(productId))
+    : [];
   return {
     onlineAutoSellPolicies: structuredClone(ensureOnlineAutoSellPolicies(player)),
+    onlineAutoSellManagedProductIds: managedProductIds,
   };
 }
 
