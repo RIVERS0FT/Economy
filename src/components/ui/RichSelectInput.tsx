@@ -115,7 +115,7 @@ export function RichSelectInput({
   const listboxRef = useRef<HTMLDivElement>(null);
   const typeaheadRef = useRef({ query: '', lastTypedAt: 0 });
   const [open, setOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
+  const [activeValue, setActiveValue] = useState<string | null>(null);
   const [position, setPosition] = useState<RichSelectPosition>({
     left: FLOATING_INSET,
     top: FLOATING_INSET,
@@ -127,6 +127,12 @@ export function RichSelectInput({
   const selectedIndex = useMemo(
     () => options.findIndex((option) => option.value === value),
     [options, value],
+  );
+  const activeIndex = useMemo(
+    () => activeValue === null
+      ? -1
+      : options.findIndex((option) => option.value === activeValue),
+    [activeValue, options],
   );
   const selectedOption = options[selectedIndex]
     ?? options.find((option) => !option.disabled)
@@ -185,13 +191,13 @@ export function RichSelectInput({
     const initialIndex = selectedIndex >= 0 && !options[selectedIndex]?.disabled
       ? selectedIndex
       : nextEnabledIndex(options, direction > 0 ? -1 : 0, direction);
-    setActiveIndex(initialIndex);
+    setActiveValue(options[initialIndex]?.value ?? null);
     setOpen(true);
   }, [disabled, options, selectedIndex]);
 
   const closeList = useCallback(() => {
     setOpen(false);
-    setActiveIndex(-1);
+    setActiveValue(null);
     typeaheadRef.current = { query: '', lastTypedAt: 0 };
   }, []);
 
@@ -247,8 +253,16 @@ export function RichSelectInput({
 
   useEffect(() => {
     if (!open) return;
-    if (selectedIndex >= 0 && !options[selectedIndex]?.disabled) setActiveIndex(selectedIndex);
-  }, [open, options, selectedIndex]);
+    const activeOption = activeValue === null
+      ? undefined
+      : options.find((option) => option.value === activeValue);
+    if (activeOption && !activeOption.disabled) return;
+    const fallbackIndex = selectedIndex >= 0 && !options[selectedIndex]?.disabled
+      ? selectedIndex
+      : nextEnabledIndex(options, -1, 1);
+    const fallbackValue = options[fallbackIndex]?.value ?? null;
+    if (fallbackValue !== activeValue) setActiveValue(fallbackValue);
+  }, [activeValue, open, options, selectedIndex]);
 
   useEffect(() => {
     if (!open || activeIndex < 0) return;
@@ -265,7 +279,8 @@ export function RichSelectInput({
           openList(direction);
           return;
         }
-        setActiveIndex((current) => nextEnabledIndex(options, current, direction));
+        const nextIndex = nextEnabledIndex(options, activeIndex, direction);
+        setActiveValue(options[nextIndex]?.value ?? null);
         return;
       }
       case 'Home':
@@ -274,7 +289,8 @@ export function RichSelectInput({
         event.preventDefault();
         const direction = event.key === 'Home' ? 1 : -1;
         const start = event.key === 'Home' ? -1 : 0;
-        setActiveIndex(nextEnabledIndex(options, start, direction));
+        const nextIndex = nextEnabledIndex(options, start, direction);
+        setActiveValue(options[nextIndex]?.value ?? null);
         return;
       }
       case 'Enter':
@@ -323,7 +339,7 @@ export function RichSelectInput({
         typeaheadRef.current = { query, lastTypedAt: typedAt };
         if (matchIndex < 0) return;
         event.preventDefault();
-        if (open) setActiveIndex(matchIndex);
+        if (open) setActiveValue(options[matchIndex]?.value ?? null);
         else selectIndex(matchIndex);
         return;
       }
@@ -362,13 +378,13 @@ export function RichSelectInput({
           role="option"
           aria-selected={option.value === value}
           aria-disabled={option.disabled || undefined}
-          data-active={index === activeIndex ? 'true' : undefined}
+          data-active={option.value === activeValue ? 'true' : undefined}
           data-value={option.value}
           disabled={option.disabled}
           tabIndex={-1}
           onMouseDown={(event) => event.preventDefault()}
           onPointerMove={() => {
-            if (!option.disabled) setActiveIndex(index);
+            if (!option.disabled) setActiveValue(option.value);
           }}
           onClick={() => selectIndex(index)}
         >
