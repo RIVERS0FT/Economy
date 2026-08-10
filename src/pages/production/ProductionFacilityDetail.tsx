@@ -1,11 +1,9 @@
 import { FacilityIcon } from '../../components/icons/FacilityIcons';
-import { AssetsIcon, CreditsIcon, CycleIcon, ProductionIcon } from '../../components/icons/GameIcons';
-import { ProductArtwork } from '../../components/products/ProductArtwork';
 import { useFacilityRecipeProfitMarkets } from '../../components/facilities/FacilityRecipeProfitContext';
 import { FacilityRecipeProfitAnalysis } from '../../components/facilities/FacilityRecipeProfitAnalysis';
 import { FacilityOperatingDiagnostics } from '../../components/facilities/FacilityOperatingDiagnostics';
+import { FacilityProductionConfigControls } from '../../components/facilities/FacilityProductionConfigControls';
 import { MobileDetailSummary } from '../../components/ui/MobileDetailSummary';
-import { RichSelectInput } from '../../components/ui/RichSelectInput';
 import {
   Button,
   StatusTag,
@@ -175,21 +173,6 @@ function baseRecipeId(recipe: FacilityRecipeDefinition) {
 
 function productionMethodId(recipe: FacilityRecipeDefinition): FacilityProductionMethodId {
   return recipe.productionMethodId ?? 'standard';
-}
-
-function ProductionMethodIcon({ methodId }: { methodId: FacilityProductionMethodId }) {
-  const icon = methodId === 'rapid' || methodId === 'assisted'
-    ? <CycleIcon />
-    : methodId === 'economical' || methodId === 'intensive'
-      ? <CreditsIcon />
-      : methodId === 'high-yield' || methodId === 'mechanized'
-        ? <AssetsIcon />
-        : <ProductionIcon />;
-  return (
-    <span className="production-method-icon" data-production-method-icon={methodId}>
-      {icon}
-    </span>
-  );
 }
 
 function productionMethodGroupForType(type: FacilityTypeDefinition) {
@@ -412,43 +395,22 @@ export function FacilityClusterDetailBody({
           <strong>生产设置</strong>
         </div>
 
-        <div className="facility-production-settings-grid">
-          <RichSelectInput
-            label="生产产物"
-            aria-label={`${type.name}生产产物`}
-            value={recipeState.selectedBaseRecipeId}
-            options={recipeState.recipes.map((recipe) => ({
-              value: recipe.id,
-              label: recipe.name,
-              visual: <ProductArtwork productId={recipe.output.productId} />,
-            }))}
-            disabled={group.count < 1 || recipeState.recipes.length === 0}
-            onValueChange={(baseRecipeId) => {
-              selectConfiguration(baseRecipeId, recipeState.selectedProductionMethodId);
-            }}
-          />
-
-          {recipeState.productionMethodGroup ? (
-            <RichSelectInput
-              label={recipeState.productionMethodGroup.name}
-              aria-label={`${type.name}生产方式`}
-              value={recipeState.selectedProductionMethodId}
-              options={recipeState.productionMethodGroup.methods.map((method) => ({
-                value: method.id,
-                label: method.name,
-                disabled: !method.plansByRecipeId[recipeState.selectedBaseRecipeId],
-                visual: <ProductionMethodIcon methodId={method.id} />,
-              }))}
-              disabled={group.count < 1}
-              onValueChange={(methodId) => {
-                selectConfiguration(
-                  recipeState.selectedBaseRecipeId,
-                  methodId as FacilityProductionMethodId,
-                );
-              }}
-            />
-          ) : null}
-        </div>
+        <FacilityProductionConfigControls
+          className="facility-production-settings-grid"
+          typeName={type.name}
+          products={products}
+          recipes={recipeState.recipes}
+          productionMethodGroup={recipeState.productionMethodGroup}
+          selectedBaseRecipeId={recipeState.selectedBaseRecipeId}
+          selectedProductionMethodId={recipeState.selectedProductionMethodId}
+          disabled={group.count < 1}
+          onProductChange={(baseRecipeId) => {
+            selectConfiguration(baseRecipeId, recipeState.selectedProductionMethodId);
+          }}
+          onMethodChange={(methodId) => {
+            selectConfiguration(recipeState.selectedBaseRecipeId, methodId);
+          }}
+        />
       </section>
 
       <FacilityProductionFormula
@@ -498,15 +460,14 @@ export function FacilityClusterDetailContent({
 }) {
   return (
     <>
-
-<FacilityClusterInformation
-  entry={entry}
-  products={products}
-  inventories={inventories}
-  now={now}
-  onToggle={onToggle}
-  titleId={titleId}
-/>
+      <FacilityClusterInformation
+        entry={entry}
+        products={products}
+        inventories={inventories}
+        now={now}
+        onToggle={onToggle}
+        titleId={titleId}
+      />
       <FacilityClusterDetailBody
         entry={entry}
         products={products}

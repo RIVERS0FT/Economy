@@ -260,7 +260,7 @@ for (const [path, texts] of [
     '不累计折旧',
     '生产方式与配方必须在同一次配置动作中原子切换',
   ]],
-  ['docs/UI_DESIGN_SYSTEM.md', ['当前 36 种正式商品', '服务器未来返回未知商品 ID', '生产方式下拉选择', '不得恢复 `radiogroup`、选择卡或按钮组']],
+  ['docs/UI_DESIGN_SYSTEM.md', ['当前 36 种正式商品', '服务器未来返回未知商品 ID', '生产方式下拉选择', '不得恢复 `radiogroup`、选择卡、按钮组、可见原生 `select`']],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['36 种商品和 26 种工厂', '饮料、预制餐、电子产品和家电', '作业制度']],
 ]) {
   const content = readFileSync(path, 'utf8');

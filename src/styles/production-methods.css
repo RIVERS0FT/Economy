@@ -10,3 +10,131 @@
   width: 100%;
   height: 100%;
 }
+
+.production-config-detail {
+  min-width: 0;
+  display: grid;
+  gap: 0.3rem;
+  line-height: 1.15;
+}
+
+.production-config-flow-row,
+.production-config-metric-row,
+.production-config-material-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+}
+
+.production-config-flow-row {
+  flex-wrap: nowrap;
+}
+
+.production-config-metric-row,
+.production-config-material-row {
+  flex-wrap: wrap;
+}
+
+.production-config-material-row {
+  overflow: hidden;
+}
+
+.production-config-material-row-label {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.production-config-material,
+.production-config-metric {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  border-radius: var(--radius-pill);
+  padding: 0.12rem 0.35rem;
+  background: color-mix(in srgb, var(--color-surface-hover) 72%, transparent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.production-config-material {
+  color: var(--color-text-secondary);
+}
+
+.production-config-material .product-artwork {
+  width: 0.9rem !important;
+  height: 0.9rem !important;
+  flex: 0 0 0.9rem;
+}
+
+.production-config-material strong {
+  color: var(--color-text-primary);
+  font-size: inherit;
+}
+
+.production-config-material-empty {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.production-config-flow-arrow {
+  position: relative;
+  flex: 0 0 1.15rem;
+  height: 0.45rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-text-muted) 70%, transparent);
+}
+
+.production-config-flow-arrow::after {
+  content: '';
+  position: absolute;
+  top: -0.25rem;
+  right: 0;
+  width: 0.38rem;
+  height: 0.38rem;
+  border-top: 1px solid var(--color-text-muted);
+  border-right: 1px solid var(--color-text-muted);
+  transform: rotate(45deg);
+}
+
+.production-config-metric.is-positive {
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+}
+
+.production-config-metric.is-negative {
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+}
+
+.production-config-metric.is-neutral {
+  color: var(--color-text-secondary);
+}
+
+.production-config-unavailable {
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+  font-weight: 650;
+}
+
+@media (max-width: 720px) {
+  .production-config-flow-row {
+    flex-wrap: wrap;
+  }
+
+  .production-config-flow-arrow {
+    display: none;
+  }
+
+  .production-config-material,
+  .production-config-metric,
+  .production-config-material-row-label,
+  .production-config-material-empty,
+  .production-config-unavailable {
+    font-size: 0.68rem;
+  }
+}

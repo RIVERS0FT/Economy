@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test.describe('factory production methods', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('uses product artwork and unified rich selects while submitting stable recipe variants', async ({ page }) => {
+  test('uses Victoria-style production configuration menus while submitting stable recipe variants', async ({ page }) => {
     await page.goto('runtime-test.html?view=production&scenario=production-methods');
 
     const detail = page.locator('.facility-cluster-detail-card');
@@ -20,10 +20,15 @@ test.describe('factory production methods', () => {
     const methodSelect = detail.getByRole('combobox', { name: '机械工厂生产方式' });
     await expect(recipeSelect).toHaveCount(1);
     await expect(methodSelect).toHaveCount(1);
+    await expect(recipeSelect).toHaveAttribute('data-variant', 'production-config');
+    await expect(methodSelect).toHaveAttribute('data-variant', 'production-config');
+    await expect(recipeSelect).toContainText('机械制造');
+    await expect(recipeSelect).toContainText('机械 ×1 · 60s');
     await expect(methodSelect).toContainText('高速生产');
+    await expect(methodSelect).toContainText('60s · 成本 12 · 产出 ×1');
 
     const settings = detail.locator('.facility-production-settings');
-    await expect(settings.locator('.ui-rich-select')).toHaveCount(2);
+    await expect(settings.locator('.ui-rich-select[data-variant="production-config"]')).toHaveCount(2);
     await expect(recipeSelect.locator('[data-product-artwork="machinery"]')).toHaveCount(1);
     await expect(methodSelect.locator('[data-production-method-icon="rapid"]')).toHaveCount(1);
     await expect(settings.locator('select')).toHaveCount(0);
@@ -31,8 +36,17 @@ test.describe('factory production methods', () => {
     await recipeSelect.click();
     const recipeListbox = page.getByRole('listbox', { name: '机械工厂生产产物' });
     await expect(recipeListbox).toBeVisible();
+    await expect(recipeListbox).toHaveAttribute('data-variant', 'production-config');
     const recipeOption = recipeListbox.getByRole('option', { name: '机械制造' });
-    await expect(recipeOption.locator('[data-product-artwork="machinery"]')).toHaveCount(1);
+    await expect(recipeOption.locator('[data-product-artwork="machinery"]')).toHaveCount(2);
+    await expect(recipeOption).toContainText('投入');
+    await expect(recipeOption).toContainText('钢材');
+    await expect(recipeOption).toContainText('×2');
+    await expect(recipeOption).toContainText('产出');
+    await expect(recipeOption).toContainText('机械');
+    await expect(recipeOption).toContainText('周期 60s');
+    await expect(recipeOption).toContainText('成本 12');
+    await expect(recipeOption.locator('.ui-rich-select__selected-mark')).toHaveAttribute('data-visible', 'true');
     const [recipeTriggerBox, recipeListboxBox] = await Promise.all([
       recipeSelect.boundingBox(),
       recipeListbox.boundingBox(),
@@ -40,7 +54,7 @@ test.describe('factory production methods', () => {
     expect(recipeTriggerBox).not.toBeNull();
     expect(recipeListboxBox).not.toBeNull();
     if (!recipeTriggerBox || !recipeListboxBox) throw new Error('生产产物下拉框几何不可用');
-    expect(Math.abs(recipeTriggerBox.width - recipeListboxBox.width)).toBeLessThanOrEqual(1);
+    expect(recipeListboxBox.width).toBeGreaterThan(recipeTriggerBox.width + 80);
     const listboxBackground = await recipeListbox.evaluate((element) => getComputedStyle(element).backgroundColor);
     expect(listboxBackground).not.toBe('rgb(255, 255, 255)');
     expect(listboxBackground).not.toBe('rgba(0, 0, 0, 0)');
@@ -194,7 +208,21 @@ test.describe('factory production methods', () => {
     await methodSelect.click();
     const methodListbox = page.getByRole('listbox', { name: '机械工厂生产方式' });
     await expect(methodListbox).toBeVisible();
-    await methodListbox.getByRole('option', { name: '节约生产' }).click();
+    await expect(methodListbox).toHaveAttribute('data-variant', 'production-config');
+    const currentMethod = methodListbox.getByRole('option', { name: '高速生产' });
+    await expect(currentMethod.locator('.ui-rich-select__selected-mark')).toHaveAttribute('data-visible', 'true');
+    const economical = methodListbox.getByRole('option', { name: '节约生产' });
+    await expect(economical).toContainText('周期 180s ↑');
+    await expect(economical).toContainText('成本 4 ↓');
+    await expect(economical).toContainText('产出 ×1');
+    await expect(economical).toContainText('投入');
+    await expect(economical).toContainText('钢材');
+    await expect(economical.locator('.production-config-metric.is-negative')).toContainText('周期 180s ↑');
+    await expect(economical.locator('.production-config-metric.is-positive')).toContainText('成本 4 ↓');
+    const highYield = methodListbox.getByRole('option', { name: '高产生产' });
+    await expect(highYield).toContainText('产出 ×2 ↑');
+    await expect(highYield.locator('.production-config-metric.is-positive')).toContainText('产出 ×2 ↑');
+    await economical.click();
     await expect.poll(async () => page.evaluate(() => (
       window as typeof window & { __productionRecipeRequests?: string[] }
     ).__productionRecipeRequests ?? [])).toEqual([
@@ -240,6 +268,8 @@ test.describe('factory production methods', () => {
 
       const recipeSelect = sheet.getByRole('combobox', { name: '机械工厂生产产物' });
       const methodSelect = sheet.getByRole('combobox', { name: '机械工厂生产方式' });
+      await expect(recipeSelect).toHaveAttribute('data-variant', 'production-config');
+      await expect(methodSelect).toHaveAttribute('data-variant', 'production-config');
       const [recipeBox, methodBox] = await Promise.all([
         recipeSelect.boundingBox(),
         methodSelect.boundingBox(),
@@ -357,6 +387,7 @@ test.describe('factory production methods', () => {
       await recipeSelect.click();
       const listbox = page.getByRole('listbox', { name: '机械工厂生产产物' });
       await expect(listbox).toBeVisible();
+      await expect(listbox).toHaveAttribute('data-variant', 'production-config');
       await expect(dialogLayer.locator(':scope > .ui-rich-select__listbox')).toHaveCount(1);
       const box = await listbox.boundingBox();
       expect(box).not.toBeNull();
@@ -365,10 +396,23 @@ test.describe('factory production methods', () => {
       expect(box.y).toBeGreaterThanOrEqual(0);
       expect(box.x + box.width).toBeLessThanOrEqual(width);
       expect(box.y + box.height).toBeLessThanOrEqual(844);
-      await expect(listbox.locator('[data-product-artwork="machinery"]')).toHaveCount(1);
+      expect(box.width).toBeGreaterThan(recipeBox.width + 40);
+      await expect(listbox.locator('[data-product-artwork="machinery"]')).toHaveCount(2);
+      await expect(listbox.getByRole('option', { name: '机械制造' })).toContainText('周期 60s');
       await page.keyboard.press('Escape');
       await expect(listbox).toHaveCount(0);
       await expect(recipeSelect).toBeFocused();
+
+      await methodSelect.click();
+      const methodListbox = page.getByRole('listbox', { name: '机械工厂生产方式' });
+      await expect(methodListbox).toBeVisible();
+      const methodBoxOpen = await methodListbox.boundingBox();
+      expect(methodBoxOpen).not.toBeNull();
+      if (!methodBoxOpen) throw new Error('移动作业制度下拉框几何不可用');
+      expect(methodBoxOpen.x).toBeGreaterThanOrEqual(0);
+      expect(methodBoxOpen.x + methodBoxOpen.width).toBeLessThanOrEqual(width);
+      await expect(methodListbox.getByRole('option', { name: '节约生产' })).toContainText('成本 4 ↓');
+      await page.keyboard.press('Escape');
     }
   });
 });

@@ -313,6 +313,11 @@ input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.ui-rich-select__trigger[data-has-detail='true'],
+.ui-rich-select__option[data-has-detail='true'] {
+  min-height: 64px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   html[data-input-modality='mouse'] .ui-rich-select__trigger:hover:not(:disabled) {
     border-color: var(--color-border-strong);
@@ -356,6 +361,21 @@ input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill {
 .ui-rich-select__visual .production-method-icon {
   width: 1.25rem;
   height: 1.25rem;
+}
+
+.ui-rich-select__content {
+  min-width: 0;
+  display: grid;
+  gap: 0.18rem;
+}
+
+.ui-rich-select__detail {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .ui-rich-select__value,
@@ -460,6 +480,107 @@ input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill {
   opacity: 0.48;
 }
 
+.ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger {
+  min-height: 64px;
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  border-color: color-mix(in srgb, var(--color-border-strong) 72%, var(--color-border));
+  padding: 0.45rem 0.6rem;
+  background: color-mix(in srgb, var(--color-surface-inset) 62%, var(--color-surface-control));
+}
+
+.ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger .ui-rich-select__visual {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 66%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-bg-deep) 72%, var(--color-surface-inset));
+}
+
+.ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger .product-artwork {
+  width: 1.9rem;
+  height: 1.9rem;
+}
+
+.ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger .game-icon,
+.ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger .production-method-icon {
+  width: 1.55rem;
+  height: 1.55rem;
+}
+
+.ui-rich-select[data-variant='production-config'] .ui-rich-select__value {
+  color: var(--color-text-primary);
+  font-weight: 780;
+}
+
+.ui-rich-select[data-variant='production-config'] .ui-rich-select__detail {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.ui-rich-select__listbox[data-variant='production-config'] {
+  gap: 0.3rem;
+  padding: 0.4rem;
+}
+
+.ui-rich-select__listbox[data-variant='production-config'] .ui-rich-select__option {
+  min-height: 88px;
+  grid-template-columns: 2.6rem minmax(0, 1fr) 1rem;
+  align-items: center;
+  gap: 0.65rem;
+  border: 1px solid transparent;
+  padding: 0.55rem 0.65rem;
+}
+
+.ui-rich-select__listbox[data-variant='production-config'] .ui-rich-select__option .ui-rich-select__visual {
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 62%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-bg-deep) 70%, var(--color-surface-inset));
+}
+
+.ui-rich-select__listbox[data-variant='production-config'] .ui-rich-select__option .product-artwork {
+  width: 2.15rem;
+  height: 2.15rem;
+}
+
+.ui-rich-select__listbox[data-variant='production-config'] .ui-rich-select__option .game-icon,
+.ui-rich-select__listbox[data-variant='production-config'] .ui-rich-select__option .production-method-icon {
+  width: 1.7rem;
+  height: 1.7rem;
+}
+
+.ui-rich-select__listbox[data-variant='production-config'] .ui-rich-select__option-label {
+  color: var(--color-text-primary);
+  font-weight: 780;
+}
+
+.ui-rich-select__listbox[data-variant='production-config'] .ui-rich-select__option[data-active='true']:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-success) 44%, var(--color-border-strong));
+  background: color-mix(in srgb, var(--color-success) 8%, var(--color-surface-hover));
+}
+
+.ui-rich-select__listbox[data-variant='production-config'] .ui-rich-select__option[aria-selected='true'] {
+  border-color: color-mix(in srgb, var(--color-success) 56%, var(--color-border-strong));
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-success) 10%, var(--color-surface-inset));
+}
+
+.ui-rich-select__selected-mark {
+  width: 0.7rem;
+  height: 0.42rem;
+  justify-self: center;
+  border-left: 2px solid var(--color-success);
+  border-bottom: 2px solid var(--color-success);
+  transform: translateY(-0.08rem) rotate(-45deg);
+  opacity: 0;
+}
+
+.ui-rich-select__selected-mark[data-visible='true'] {
+  opacity: 1;
+}
+
 .ui-rich-select__native {
   position: fixed !important;
   top: 0 !important;
@@ -487,10 +608,29 @@ input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill {
     font-size: 16px;
   }
 
+  .ui-rich-select__trigger[data-has-detail='true'],
+  .ui-rich-select__option[data-has-detail='true'] {
+    min-height: 64px;
+  }
+
+  .ui-rich-select__detail {
+    font-size: 13px;
+  }
+
   .ui-rich-select__option .ui-rich-select__visual,
   .ui-rich-select__option .product-artwork {
     width: 2.25rem;
     height: 2.25rem;
+  }
+
+  .ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger {
+    min-height: 64px;
+    font-size: 14px;
+  }
+
+  .ui-rich-select__listbox[data-variant='production-config'] .ui-rich-select__option {
+    min-height: 92px;
+    font-size: 14px;
   }
 
   .ui-rich-select__native {

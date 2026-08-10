@@ -17,6 +17,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/main.tsx',
   'src/pages/ProductionPage.tsx',
   'src/pages/production/ProductionFacilityDetail.tsx',
+  'src/components/facilities/FacilityProductionConfigControls.tsx',
   'src/components/ui/layout.tsx',
   'src/components/icons/GameIcons.tsx',
   'src/components/facilities/FacilityProgress.tsx',
@@ -71,7 +72,6 @@ for (const text of [
   'cycleDueAt',
 ]) requireText('server/src/facility-groups.js', text);
 
-
 for (const forbidden of [
   'cycleStaffingRateBps?: number',
   'cycleEffectiveCount?: number',
@@ -113,8 +113,14 @@ for (const text of [
   'facility-production-settings',
   'facility-production-settings-grid',
   '<strong>生产设置</strong>',
-  '生产产物',
+  '<FacilityProductionConfigControls',
 ]) requireText('src/pages/production/ProductionFacilityDetail.tsx', text);
+for (const text of [
+  'label="生产产物"',
+  'aria-label={`${typeName}生产产物`}',
+  'aria-label={`${typeName}生产方式`}',
+  'variant="production-config"',
+]) requireText('src/components/facilities/FacilityProductionConfigControls.tsx', text);
 for (const forbidden of [
   'facility-recipe-section',
   'facility-production-method-section',
@@ -378,7 +384,7 @@ for (const text of [
   '生产进度条',
   '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字',
   '完整文本无障碍描述',
-  '玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区',
+  '玩家可见的“生产产物”与“作业制度”固定使用同一个“生产设置”区',
   '首次可见绘制前通过 `useLayoutEffect` 完成页面滚动锁定',
   '`focus({ preventScroll: true })`',
   '生产进度位于数据带下方，并且是生产结算最后一个可见元素',
