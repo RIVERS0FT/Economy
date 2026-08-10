@@ -1,0 +1,246 @@
+-  if (!contract || !proposal || proposal.status !== 'proposed') return result(false, '可撤回的续签提议不存在');
+-  if (Number(proposal.proposedBy) !== Number(user.id)) return result(false, '只有提议人可以撤回续签');
+-  runtimeIndex.transition(contract, () => releaseRenewalEscrow(
+-    contract,
+-    playerFor(world, contract.buyerId),
+-    playerFor(world, contract.supplierId),
+-    'revoked',
+-  ));
+-  return result(true, '续签提议已撤回');
++  if (!contract || !proposal || proposal.status !== 'proposed') return result(false, '可撤销同意的续签提议不存在');
++  const approvalField = renewalApprovalField(contract, user.id);
++  if (!approvalField) return result(false, '只有合同参与方可以处理续签');
++  if (!proposal[approvalField]) return result(false, '你尚未同意当前续签条款');
++  runtimeIndex.transition(contract, () => {
++    proposal[approvalField] = undefined;
++  });
++  return result(true, '已撤销对当前续签条款的同意');
+ }
+ 
+ function requestTermination(world, user, payload, now, runtimeIndex) {
+@@ -1505,7 +1556,7 @@ function issueForContract(world, contract, runtimeIndex, userId = null) {
+   if (contract.buyerEscrowCredits < gross) return '等待采购方补充货款';
+   if (contract.renewalProposal?.status === 'proposed'
+     && userId !== null
+-    && Number(contract.renewalProposal.proposedBy) !== Number(userId)) return '等待你确认续签提议';
++    && !renewalApprovedBy(contract, contract.renewalProposal, userId)) return '等待你确认续签提议';
+   return null;
+ }
+ 
+@@ -1573,6 +1624,11 @@ function publicContract(world, contract, userId, runtimeIndex) {
+     renewalProposal: contract.renewalProposal ? {
+       ...clone(contract.renewalProposal),
+       isProposer: Number(contract.renewalProposal.proposedBy) === Number(userId),
++      buyerApproved: Boolean(contract.renewalProposal.buyerApprovedAt),
++      supplierApproved: Boolean(contract.renewalProposal.supplierApprovedAt),
++      approvedByMe: renewalApprovedBy(contract, contract.renewalProposal, userId),
++      awaitingMyApproval: contract.renewalProposal.status === 'proposed'
++        && !renewalApprovedBy(contract, contract.renewalProposal, userId),
+     } : null,
+     negotiations: publicNegotiations(world, contract, userId),
+     renewedFromContractId: contract.renewedFromContractId,
+diff --git a/server/test/commercial-contracts.test.js b/server/test/commercial-contracts.test.js
+index 4ecc1b6..7d0ff9c 100644
+--- a/server/test/commercial-contracts.test.js
++++ b/server/test/commercial-contracts.test.js
+@@ -114,11 +114,11 @@ test('loan default transfers only enough collateral and releases the remainder',
+   assert.equal(state.players['2'].facilityGroups[0].count, 11);
+ });
+ 
+-test('schema 7 migrates legacy supply contracts without changing roles', () => {
++test('schema 8 migrates legacy supply contracts without changing roles', () => {
+   const state = world();
+   state.productionContracts = [{ id: 'legacy', publisherId: 1, publisherName: '甲', publisherRole: 'buyer', buyerId: 1, buyerName: '甲', supplierId: null, supplierName: null, productId: 'wheat', quantityPerDelivery: 1, unitPrice: 1, deliveryIntervalMs: 600000, totalDeliveries: 2, completedDeliveries: 0, firstDeliveryDelayMs: 0, createdAt: 1, offerExpiresAt: 2, status: 'open' }];
+   migrateProductionContractWorld(state);
+-  assert.equal(state.productionContractSchemaVersion, 7);
++  assert.equal(state.productionContractSchemaVersion, 8);
+   assert.equal(state.productionContracts[0].kind, 'supply');
+   assert.equal(state.productionContracts[0].publisherSide, 'buyer');
+ });
+diff --git a/server/test/contracts.test.js b/server/test/contracts.test.js
+index f27f849..0f2bcf7 100644
+--- a/server/test/contracts.test.js
++++ b/server/test/contracts.test.js
+@@ -4,6 +4,7 @@ import { createWorld, ensurePlayer } from '../src/domain.js';
+ import {
+   applyProductionContractAction,
+   createProductionContractClientState,
++  migrateProductionContractWorld,
+   processProductionContracts,
+ } from '../src/contracts.js';
+ import { resolveAction } from '../src/game-routes.js';
+@@ -188,19 +189,39 @@ test('合同最后三批可提出续签，双方确认后预留资产并在原
+   }, now + 10 * 60 * 1000 + 3).ok, true);
+   contract = contractById(world, contract.id);
+   assert.equal(contract.renewalProposal.status, 'proposed');
++  assert.equal(contract.renewalProposal.buyerApprovedAt, undefined, '提出续签不应被视为提出方已经同意');
++  assert.equal(contract.renewalProposal.supplierApprovedAt, undefined);
++
++  const buyerCreditsBeforeApproval = buyer.credits;
++  const supplierCreditsBeforeApproval = supplier.credits;
+   assert.equal(applyProductionContractAction(world, supplierUser, 'acceptProductionContractRenewal', {
+     contractId: contract.id,
+   }, now + 10 * 60 * 1000 + 4).ok, true);
+   contract = contractById(world, contract.id);
++  assert.equal(contract.renewalProposal.status, 'proposed', '单方同意不得正式确认续签');
++  assert.equal(contract.renewalProposal.supplierApprovedAt, now + 10 * 60 * 1000 + 4);
++  assert.equal(contract.renewalProposal.buyerApprovedAt, undefined);
++  assert.equal(contract.renewalProposal.buyerEscrowCredits, 0, '单方同意不得冻结续签货款');
++  assert.equal(contract.renewalProposal.buyerBondCredits, 0, '单方同意不得冻结采购方保证金');
++  assert.equal(contract.renewalProposal.supplierBondCredits, 0, '单方同意不得冻结供应方保证金');
++  assert.equal(buyer.credits, buyerCreditsBeforeApproval);
++  assert.equal(supplier.credits, supplierCreditsBeforeApproval);
++
++  assert.equal(applyProductionContractAction(world, buyerUser, 'acceptProductionContractRenewal', {
++    contractId: contract.id,
++  }, now + 10 * 60 * 1000 + 5).ok, true);
++  contract = contractById(world, contract.id);
+   assert.equal(contract.renewalProposal.status, 'accepted');
++  assert.equal(contract.renewalProposal.buyerApprovedAt, now + 10 * 60 * 1000 + 5);
++  assert.equal(contract.renewalProposal.confirmedAt, now + 10 * 60 * 1000 + 5);
+   assert.equal(contract.renewalProposal.buyerEscrowCredits, 120);
+   assert.equal(contract.renewalProposal.buyerBondCredits, 24);
+   assert.equal(contract.renewalProposal.supplierBondCredits, 24);
+   assert.equal(contract.renewalProposal.supplierReservedQuantity, 30);
+ 
+-  processProductionContracts(world, now + 20 * 60 * 1000 + 5);
+-  processProductionContracts(world, now + 30 * 60 * 1000 + 6);
+-  processProductionContracts(world, now + 40 * 60 * 1000 + 7);
++  processProductionContracts(world, now + 20 * 60 * 1000 + 6);
++  processProductionContracts(world, now + 30 * 60 * 1000 + 7);
++  processProductionContracts(world, now + 40 * 60 * 1000 + 8);
+   contract = contractById(world, contract.id);
+   assert.equal(contract.status, 'completed');
+   assert.ok(contract.renewedToContractId);
+@@ -224,6 +245,71 @@ test('合同最后三批可提出续签，双方确认后预留资产并在原
+   );
+ });
+ 
++test('schema 8 迁移不会把旧 proposed 提出方隐式视为同意，旧 accepted 补齐双方确认', () => {
++  const { world, buyerUser, supplierUser, now } = setup();
++  const base = {
++    id: 'legacy-renewal', publisherId: buyerUser.id, publisherName: '采购方', publisherRole: 'buyer',
++    buyerId: buyerUser.id, buyerName: '采购方', supplierId: supplierUser.id, supplierName: '供应方',
++    productId: 'wheat', quantityPerDelivery: 10, unitPrice: 2, deliveryIntervalMs: 10 * 60 * 1000,
++    totalDeliveries: 2, completedDeliveries: 0, firstDeliveryDelayMs: 10 * 60 * 1000,
++    createdAt: now - 1000, offerExpiresAt: now + 1000, acceptedAt: now - 500, nextDueAt: now + 1000,
++    status: 'active', roundStatus: 'ready', buyerEscrowCredits: 20, supplierReservedQuantity: 10,
++    buyerBondCredits: 4, supplierBondCredits: 4, buyerAutoFund: true, supplierAutoReserve: true,
++  };
++  const terms = { quantityPerDelivery: 12, unitPrice: 2.5, deliveryIntervalMs: 30 * 60 * 1000, totalDeliveries: 3, firstDeliveryDelayMs: 0 };
++
++  world.productionContracts = [{
++    ...base,
++    renewalProposal: { id: 'legacy-proposed', status: 'proposed', proposedBy: buyerUser.id, proposedAt: now, expiresAt: now + 1000, terms },
++  }];
++  world.productionContractSchemaVersion = 7;
++  migrateProductionContractWorld(world);
++  assert.equal(world.productionContractSchemaVersion, 8);
++  assert.equal(world.productionContracts[0].renewalProposal.buyerApprovedAt, undefined);
++  assert.equal(world.productionContracts[0].renewalProposal.supplierApprovedAt, undefined);
++
++  world.productionContracts = [{
++    ...base,
++    renewalProposal: {
++      id: 'legacy-accepted', status: 'accepted', proposedBy: buyerUser.id, proposedAt: now, expiresAt: now + 1000,
++      acceptedBy: supplierUser.id, acceptedAt: now + 1, terms, buyerEscrowCredits: 30, buyerBondCredits: 6, supplierBondCredits: 6,
++    },
++  }];
++  world.productionContractSchemaVersion = 7;
++  migrateProductionContractWorld(world);
++  const migrated = world.productionContracts[0].renewalProposal;
++  assert.equal(migrated.status, 'accepted');
++  assert.equal(migrated.buyerApprovedAt, now);
++  assert.equal(migrated.supplierApprovedAt, now + 1);
++  assert.equal(migrated.confirmedAt, now + 1);
++});
++
++test('续签单方同意可撤销，双方未确认前不冻结资产', () => {
++  const { world, buyerUser, supplierUser, buyer, supplier, now } = setup();
++  applyProductionContractAction(world, buyerUser, 'createProductionContract', {
++    publisherRole: 'buyer', productId: 'wheat', quantityPerDelivery: 10, unitPrice: 2,
++    deliveryIntervalMs: 10 * 60 * 1000, totalDeliveries: 2, firstDeliveryDelayMs: 10 * 60 * 1000,
++  }, now);
++  const id = world.productionContracts[0].id;
++  assert.equal(applyProductionContractAction(world, supplierUser, 'acceptProductionContract', { contractId: id }, now + 1).ok, true);
++  assert.equal(applyProductionContractAction(world, buyerUser, 'proposeProductionContractRenewal', {
++    contractId: id, quantityPerDelivery: 12, unitPrice: 2.5, deliveryIntervalMs: 30 * 60 * 1000,
++    totalDeliveries: 3, firstDeliveryDelayMs: 10 * 60 * 1000,
++  }, now + 2).ok, true);
++  const buyerCredits = buyer.credits;
++  const supplierCredits = supplier.credits;
++  assert.equal(applyProductionContractAction(world, buyerUser, 'acceptProductionContractRenewal', { contractId: id }, now + 3).ok, true);
++  let contract = contractById(world, id);
++  assert.ok(contract.renewalProposal.buyerApprovedAt);
++  assert.equal(contract.renewalProposal.status, 'proposed');
++  assert.equal(applyProductionContractAction(world, buyerUser, 'revokeProductionContractRenewal', { contractId: id }, now + 4).ok, true);
++  contract = contractById(world, id);
++  assert.equal(contract.renewalProposal.buyerApprovedAt, undefined);
++  assert.equal(contract.renewalProposal.status, 'proposed');
++  assert.equal(buyer.credits, buyerCredits);
++  assert.equal(supplier.credits, supplierCredits);
++});
++
+ 
+ test('公开商品合同支持结构化议价，议价阶段不冻结资产，双方接受后按最终条款原子签约', () => {
+   const { world, buyerUser, supplierUser, buyer, supplier, now } = setup();
+diff --git a/src/contracts/types.ts b/src/contracts/types.ts
+index b9771bb..dc20642 100644
+--- a/src/contracts/types.ts
++++ b/src/contracts/types.ts
+@@ -30,14 +30,20 @@ export interface ProductionContractNegotiation {
+ export interface ProductionContractRenewalProposal {
+   id: string;
+   status: 'proposed' | 'accepted' | 'activated';
++  revision: number;
+   proposedBy: number;
+   proposedAt: number;
+   expiresAt: number;
+-  acceptedBy?: number;
+-  acceptedAt?: number;
++  buyerApprovedAt?: number;
++  supplierApprovedAt?: number;
++  confirmedAt?: number;
+   activatedAt?: number;
+   activatedContractId?: string;
+   isProposer?: boolean;
++  buyerApproved?: boolean;
++  supplierApproved?: boolean;
++  approvedByMe?: boolean;
++  awaitingMyApproval?: boolean;
+   terms: {
+     quantityPerDelivery: number;
+     unitPrice: number;
+diff --git a/src/pages/ContractPage.tsx b/src/pages/ContractPage.tsx
+index 9fc1194..efc97d8 100644
+--- a/src/pages/ContractPage.tsx
++++ b/src/pages/ContractPage.tsx
+@@ -144,7 +144,7 @@ function contractNeedsAttention(contract: ProductionContract) {
+     || contract.graceEndsAt
+     || contract.issue
+     || contract.terminationRequestedBy
+-    || (contract.renewalProposal?.status === 'proposed' && !contract.renewalProposal.isProposer),
++    || contract.renewalProposal?.awaitingMyApproval,
+   );
+ }
+ 
+@@ -242,15 +242,17 @@ function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
+ 
+   if (proposal) {
+     const terms = proposal.terms;
++    const approvedCount = Number(Boolean(proposal.buyerApproved)) + Number(Boolean(proposal.supplierApproved));
++    const pendingText = proposal.approvedByMe ? '你已同意，等待合作方确认' : '等待你确认续签条款';
+     return (
+       <section className="contract-renewal-panel" aria-label="合同续签">
+         <div className="contract-renewal-heading">
+           <div>
+             <strong>合同续签</strong>
+-            <span>{proposal.status === 'proposed' ? '等待双方确认' : proposal.status === 'accepted' ? '已锁定，当前合同完成后生效' : '后续合同已经生效'}</span>
++            <span>{proposal.status === 'proposed' ? pendingText : proposal.status === 'accepted' ? '双方已同意，当前合同完成后生效' : '后续合同已经生效'}</span>
+           </div>
+           <StatusTag tone={proposal.status === 'accepted' || proposal.status === 'activated' ? 'success' : 'info'}>
+-            {proposal.status === 'proposed' ? '待确认' : proposal.status === 'accepted' ? '已确认' : '已生效'}
++            {proposal.status === 'proposed' ? `${approvedCount}/2 已同意` : proposal.status === 'accepted' ? '已锁定' : '已生效'}
+           </StatusTag>
+         </div>
+         <DataList className="compact contract-renewal-summary">
