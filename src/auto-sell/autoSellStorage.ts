@@ -31,6 +31,7 @@ function normalizePolicy(value: unknown): AutoSellPolicy | null {
   };
 }
 
+/** Read-only compatibility source for importing pre-save auto-sell settings. */
 export function loadAutoSellPolicies(userId: number): AutoSellPolicyMap {
   if (typeof window === 'undefined') return {};
   try {
@@ -46,22 +47,14 @@ export function loadAutoSellPolicies(userId: number): AutoSellPolicyMap {
   }
 }
 
-export function saveAutoSellPolicies(userId: number, policies: AutoSellPolicyMap) {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(autoSellStorageKey(userId), JSON.stringify(policies));
-  } catch {
-    // Browser-local automation preferences must never block authoritative gameplay.
-  }
-}
-
+/** Remove the retired browser policy copy after successful server import or save deletion. */
 export function clearAutoSellPolicies(userId: number) {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.removeItem(autoSellStorageKey(userId));
     window.sessionStorage.removeItem(panelRequestKey(userId));
   } catch {
-    // Optional browser-local state may be unavailable.
+    // Legacy browser state is optional and must never block authoritative gameplay.
   }
 }
 

@@ -3,6 +3,7 @@ import test from 'node:test';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import { resolveAction } from '../src/game-routes.js';
+import { applyOnlineAutoSellPolicyAction } from '../src/online-auto-sell-policy.js';
 import { EconomyStore } from '../src/storage.js';
 import { createWarehouseSummary, ensureWarehouse } from '../src/warehouse.js';
 
@@ -16,6 +17,7 @@ test('warehouse state is inventory-only and uses current client version', () => 
     assert.equal(state.version, CURRENT_CLIENT_STATE_VERSION);
     assert.equal(state.version, 32);
     assert.equal(state.warehouseStoredQuantity, 0);
+    assert.deepEqual(state.onlineAutoSellPolicies, {});
     for (const field of [
       'inventoryCapacity', 'warehouseLevel', 'warehouseUpgradeCost', 'warehouseNextCapacity',
       'warehouseNextCapacityIncrease', 'warehouseOrderReservedQuantity', 'warehouseContractReservedQuantity',
@@ -24,7 +26,7 @@ test('warehouse state is inventory-only and uses current client version', () => 
   } finally { store.close(); }
 });
 
-test('warehouse summary counts available and frozen goods without capacity state', () => {
+test('warehouse summary counts goods and exposes normalized auto-sell settings without capacity state', () => {
   const player = {
     userId: 1,
     inventoryCapacity: 999,
@@ -33,11 +35,46 @@ test('warehouse summary counts available and frozen goods without capacity state
       wheat: { available: 25, frozen: 5 },
       steel: { available: 7, frozen: 3 },
     },
+    onlineAutoSellPolicies: {
+      wheat: { enabled: true, price: 8.25, minimumFreeInventory: 4 },
+      unknown: { enabled: true, price: 1, minimumFreeInventory: 0 },
+    },
   };
   const summary = createWarehouseSummary(player);
-  assert.deepEqual(summary, { warehouseStoredQuantity: 40 });
+  assert.deepEqual(summary, {
+    warehouseStoredQuantity: 40,
+    onlineAutoSellPolicies: {
+      wheat: { enabled: true, price: 8.25, minimumFreeInventory: 4 },
+    },
+  });
   assert.equal(Object.hasOwn(player, 'inventoryCapacity'), false);
   assert.equal(Object.hasOwn(player, 'warehouseLevel'), false);
+});
+
+test('saved auto-sell policy is included in formal client state', () => {
+  const store = new EconomyStore(':memory:');
+  try {
+    store.transaction(() => {
+      const loaded = store.loadWorld(now);
+      const player = ensurePlayer(loaded.world, alice, now);
+      const result = applyOnlineAutoSellPolicyAction(loaded.world, alice, {
+        productId: 'wheat',
+        enabled: true,
+        price: 7.5,
+        minimumFreeInventory: 3,
+      });
+      assert.equal(result.ok, true);
+      store.saveWorld(loaded.revision, loaded.world, now + 1);
+      assert.equal(player.onlineAutoSellPolicies.wheat.price, 7.5);
+    });
+
+    const state = store.getState(alice, now + 2);
+    assert.deepEqual(state.onlineAutoSellPolicies.wheat, {
+      enabled: true,
+      price: 7.5,
+      minimumFreeInventory: 3,
+    });
+  } finally { store.close(); }
 });
 
 test('legacy capacity fields are removed when players are normalized', () => {

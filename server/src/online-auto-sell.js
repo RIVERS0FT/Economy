@@ -7,18 +7,13 @@ import {
   productionReservedQuantitiesForPlayer,
 } from './facility-groups.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
-import { normalizePlayerMoneyInput } from './money.js';
+import { onlineAutoSellPolicyFor } from './online-auto-sell-policy.js';
 
 const PRODUCT_BY_ID = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 
 function positiveInteger(value) {
   const normalized = Math.floor(Number(value));
   return Number.isSafeInteger(normalized) && normalized > 0 ? normalized : 0;
-}
-
-function nonNegativeSafeInteger(value) {
-  const normalized = Number(value);
-  return Number.isSafeInteger(normalized) && normalized >= 0 ? normalized : null;
 }
 
 function activeSupplyContractsFor(world, userId, productId) {
@@ -84,14 +79,15 @@ export function applyOnlineAutoSell(world, user, payload = {}, now = Date.now())
   const userId = Number(user.id);
   const productId = String(payload.productId || payload.assetId || '');
   const product = PRODUCT_BY_ID.get(productId);
-  const minimumPrice = normalizePlayerMoneyInput(payload.price, { min: 0.01 });
-  const minimumFreeInventory = nonNegativeSafeInteger(payload.minimumFreeInventory ?? 0);
-  if (!product || minimumPrice === null || minimumFreeInventory === null) {
-    return { ok: false, message: '自动出售参数无效' };
-  }
+  if (!product) return { ok: false, message: '自动出售商品不存在' };
 
   const player = world.players?.[String(userId)];
   if (!player) return { ok: false, message: '玩家不存在' };
+  const policy = onlineAutoSellPolicyFor(player, productId);
+  if (!policy?.enabled) return { ok: false, message: '该商品未启用自动出售' };
+  const minimumPrice = policy.price;
+  const minimumFreeInventory = policy.minimumFreeInventory;
+
   if (hasOwnCrossingBuy(world, userId, productId, minimumPrice)) {
     return { ok: false, message: '自己的买单达到自动出售价格，请先撤销反向订单' };
   }

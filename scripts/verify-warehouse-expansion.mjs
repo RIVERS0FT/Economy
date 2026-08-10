@@ -10,6 +10,7 @@ const forbidText = (path, text) => { if (existsSync(resolve(root, path)) && read
 
 for (const path of [
   'server/src/warehouse.js',
+  'server/src/online-auto-sell-policy.js',
   'server/src/domain.js',
   'server/src/domain-core.js',
   'server/src/contracts.js',
@@ -20,6 +21,7 @@ for (const path of [
   'server/src/storage.js',
   'server/test/warehouse.test.js',
   'src/types.ts',
+  'src/auto-sell/economy-state.d.ts',
   'src/api/game.ts',
   'src/app/gameViewModel.ts',
   'src/app/GameApp.tsx',
@@ -49,13 +51,16 @@ for (const text of [
   'delete player.inventoryCapacity;',
   'delete player.warehouseLevel;',
   'warehouseStoredQuantity: storedQuantity(player)',
+  'createOnlineAutoSellPolicyClientState(player)',
 ]) requireText('server/src/warehouse.js', text);
+
 for (const text of [
   'WarehouseInventoryPanel',
   '无限容量',
   'warehouseStoredQuantity',
   'inventory.available > 0 || inventory.frozen > 0',
   '最低自由库存',
+  '设置保存至存档 · 仅在线执行',
   'production-warehouse-workspace',
   'warehouse-auto-sell-card',
   'MobileWorkspaceDetailSheet',
@@ -64,13 +69,17 @@ for (const text of [
   'data-product-id={product.id}',
 ]) requireText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);
 forbidText('src/components/warehouse/WarehouseInventoryPanel.tsx', '关闭面板');
+
 for (const text of [
   '仓库容量永久无限',
   '不存在仓库等级、总容量、剩余容量、扩容、升级费用或最高等级',
   '不得以超大整数',
   '商品买单、商品拍卖和采购合同不再预占仓库空间',
   '工厂生产不再检查仓库空间',
-  '客户端状态版本从 30 升至 31',
+  '客户端状态版本：32',
+  '世界状态版本：27',
+  'onlineAutoSellPolicies',
+  '自动出售策略属于玩家经济存档',
   '最低自由库存保留量只限制在线自动出售',
   '不限制生产消耗、合同履约、市场手动卖出或拍卖',
   '桌面自动出售控制卡固定位于共享仓库左侧',
@@ -151,10 +160,11 @@ for (const text of [
   'auto-sell panel left of the warehouse at the build-card width',
   'uses the shared bottom sheet at 720px',
   'keeps the desktop side panel at 721px',
+  '设置保存至存档 · 仅在线执行',
 ]) requireText('tests/browser/warehouse-auto-sell.spec.ts', text);
 
 if (failures.length) {
   console.error('无限仓库防回退验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
-console.log('无限仓库防回退验证通过：容量机制保持退役，桌面自动出售控制列、仓库商品卡密度与移动底部抽屉布局保持。');
+console.log('无限仓库防回退验证通过：容量机制保持退役，桌面/移动仓库布局与存档自动出售设置保持。');

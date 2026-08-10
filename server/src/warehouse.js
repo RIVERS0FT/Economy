@@ -1,3 +1,5 @@
+import { createOnlineAutoSellPolicyClientState } from './online-auto-sell-policy.js';
+
 function storedQuantity(player) {
   return Object.values(player?.inventories || {}).reduce(
     (sum, inventory) => (
@@ -20,5 +22,6 @@ export function createWarehouseSummary(player) {
   ensureWarehouse(player);
   return {
     warehouseStoredQuantity: storedQuantity(player),
+    ...createOnlineAutoSellPolicyClientState(player),
   };
 }
