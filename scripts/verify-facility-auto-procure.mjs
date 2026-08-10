@@ -71,6 +71,7 @@ for (const [file, texts] of Object.entries({
   ],
   'src/pages/ProductionPage.tsx': [
     'quoteFacilityBuildProcurement(game.orders, missingBuildMaterials)',
+    'openOrderLimitForCatalog(game.products.length, game.facilityTypes.length)',
     'label="库存可直接建"',
     'label="预计采购"',
     'label="预计总支出"',
@@ -85,6 +86,7 @@ for (const [file, texts] of Object.entries({
     '取消全部',
     'createFacilityBuildProcurement',
     'cancelFacilityBuildProcurement',
+    'reference.quantity - Math.max(0, Number(order.remaining || 0))',
   ],
   'server/test/instant-facility-construction.test.js': [
     'buys every missing material from the real order book and stays idempotent',
@@ -111,6 +113,7 @@ for (const [file, texts] of Object.entries({
     'Fill-or-Kill',
     'facility-build-procurement',
     '建造采购组',
+    '(PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length) * 10',
   ],
   'docs/WAREHOUSE_EXPANSION_DESIGN.md': ['“一键购齐并建造”', '同样不检查仓库空间'],
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md': [
@@ -118,6 +121,7 @@ for (const [file, texts] of Object.entries({
     '一键购齐并建造',
     '一键提交缺料买单',
     '待采购',
+    '商品类型数与工厂类型数之和的 10 倍',
   ],
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md': [
     'facility-auto-procure.js',
@@ -130,7 +134,7 @@ for (const [file, texts] of Object.entries({
   'docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md': ['一键购齐并建造不会产生施工任务'],
   'docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md': ['一键购齐并建造同样不注册施工截止时间'],
   'docs/README.md': ['缺料时允许在同一建造事务内执行真实统一订单簿 FOK 采购', '缺料买单'],
-  'README.md': ['缺料时可一键从真实统一订单簿购齐后建造', '缺料买单'],
+  'README.md': ['缺料且当前卖盘足够时可继续一键从真实统一订单簿 FOK 购齐后建造', '缺料买单'],
 })) {
   if (!fs.existsSync(path.join(root, file))) {
     failures.push(`缺少文件：${file}`);
