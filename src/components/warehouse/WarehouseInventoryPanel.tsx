@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { OnlineAutoTradeAwareGameViewModel } from '../../auto-trade/useOnlineAutoTrade';
+import type {
+  OnlineAutoTradeAwareGameViewModel,
+  OnlineAutoTradeController,
+} from '../../auto-trade/useOnlineAutoTrade';
 import {
   AUTO_SELL_PANEL_EVENT,
   consumeAutoSellPanelRequest,
@@ -26,7 +29,46 @@ export function WarehouseInventoryPanel({
   model: OnlineAutoTradeAwareGameViewModel;
   className?: string;
 }) {
-  const { game, autoTrade } = model;
+  const { game } = model;
+  const autoTrade = useMemo<OnlineAutoTradeController>(() => model.autoTrade ?? ({
+    buyPolicies: {},
+    sellPolicies: {},
+    busyProductId: null,
+    busySide: null,
+    buyPolicyFor: (productId: string) => ({
+      enabled: false,
+      maxPrice: Math.max(0.01, Number(game.products.find((product) => product.id === productId)?.basePrice || 1)),
+      targetFreeInventory: 0,
+    }),
+    sellPolicyFor: (productId: string) => ({
+      enabled: false,
+      price: Math.max(0.01, Number(game.products.find((product) => product.id === productId)?.basePrice || 1)),
+      minimumFreeInventory: 0,
+    }),
+    statusFor: (productId: string) => {
+      const inventory = game.inventories[productId] ?? { available: 0, frozen: 0 };
+      const availableInventory = Math.max(0, Math.floor(Number(inventory.available || 0)));
+      return {
+        availableInventory,
+        productionReserved: 0,
+        contractReserved: 0,
+        currentFreeInventory: availableInventory,
+        buyDesiredQuantity: 0,
+        buyEligibleQuantity: 0,
+        buyFundingLimited: false,
+        blockedBuyByOwnSell: false,
+        hasCrossingSeller: false,
+        hasManagedBuyOrder: false,
+        buyNeedsMaintenance: false,
+        sellEligibleQuantity: availableInventory,
+        blockedSellByOwnBuy: false,
+        hasCrossingBuyer: false,
+        hasManagedSellOrder: false,
+        sellNeedsMaintenance: false,
+      };
+    },
+    setPolicy: async () => ({ ok: false, message: '自动交易控制器不可用' }),
+  }), [game.inventories, game.products, model.autoTrade]);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [activeMode, setActiveMode] = useState<AutoTradeMode>('buy');
   const [isMobileAutoTradeOpen, setMobileAutoTradeOpen] = useState(false);
