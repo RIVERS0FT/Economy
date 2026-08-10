@@ -27,6 +27,7 @@ import {
 } from '../utils/facilityBuildProcurementGroups';
 import { getUnlockedFacilityTypes } from '../utils/facilityResearchAccess';
 import { formatCurrency, formatNumber } from '../utils/formatters';
+import { openOrderLimitForCatalog } from '../config/economy';
 import { setContractMarketIntent } from '../contracts/navigation';
 import {
   FacilityClusterDetailContent,
@@ -277,7 +278,7 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
   const ownOpenOrderCount = game.orders.filter((order) => (
     order.isOwn && (order.status === 'open' || order.status === 'partial')
   )).length;
-  const maxOpenOrderCount = game.products.length + game.facilityTypes.length;
+  const maxOpenOrderCount = openOrderLimitForCatalog(game.products.length, game.facilityTypes.length);
 
   const buildDisabledReason = game.credits < buildCashCost
     ? `建造资金不足，还需要 ${formatCurrency(buildCashCost - game.credits)}。`
