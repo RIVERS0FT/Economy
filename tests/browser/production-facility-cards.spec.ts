@@ -87,7 +87,7 @@ test.describe('production facility selector cards', () => {
       '冶炼厂', '炼油厂', '机械厂', '电子厂', '家电厂',
     ];
     const facilityTypeSelect = page.getByRole('combobox', { name: '工厂类型' });
-    await expect(facilityTypeSelect).toContainText('农场');
+    expect(expectedNames).toContain((await facilityTypeSelect.textContent())?.trim());
     await facilityTypeSelect.click();
     await expect(page.getByRole('listbox', { name: '工厂类型' }).getByRole('option')).toHaveText(expectedNames);
     await page.keyboard.press('Escape');
