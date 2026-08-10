@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = process.cwd();
@@ -13,6 +13,12 @@ const requireText = (path, text) => {
 const forbidText = (path, text) => {
   if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`);
 };
+const sourceFiles = (directory) => readdirSync(resolve(root, directory), { withFileTypes: true })
+  .flatMap((entry) => {
+    const relativePath = `${directory}/${entry.name}`;
+    if (entry.isDirectory()) return sourceFiles(relativePath);
+    return entry.isFile() && /\.(?:ts|tsx)$/.test(entry.name) ? [relativePath] : [];
+  });
 
 const componentPath = 'src/components/ui/FormControls.tsx';
 const richSelectPath = 'src/components/ui/RichSelectInput.tsx';
@@ -27,6 +33,7 @@ const designDocPath = 'docs/UI_DESIGN_SYSTEM.md';
 const integerWheelTestPath = 'tests/browser/gem-shop-layout.spec.ts';
 const sidebarBadgeTestPath = 'tests/browser/sidebar-badge.spec.ts';
 const topLayerTestPath = 'tests/browser/top-layer-overlays.spec.ts';
+const unifiedSelectTestPath = 'tests/browser/unified-selects.spec.ts';
 const adminGiftCodesPath = 'src/components/AdminGiftCodesSection.tsx';
 
 [
@@ -43,6 +50,7 @@ const adminGiftCodesPath = 'src/components/AdminGiftCodesSection.tsx';
   integerWheelTestPath,
   sidebarBadgeTestPath,
   topLayerTestPath,
+  unifiedSelectTestPath,
   'src/app/LoginPage.tsx',
   'src/app/AdminApp.tsx',
   adminGiftCodesPath,
@@ -64,6 +72,12 @@ for (const text of [
   'export function TextArea',
   'export function FileInput',
   'export function InputGroup',
+  "import { RichSelectInput, type RichSelectOption } from './RichSelectInput';",
+  'const options = richSelectOptions(visibleChildren, leadingIcon);',
+  '<RichSelectInput',
+  "classNames('ui-rich-select__native', className)",
+  'aria-hidden="true"',
+  "select.dispatchEvent(new Event('change', { bubbles: true }));",
   "classNames('ui-control'",
   "classNames('ui-control', 'ui-control--integer'",
   'useEffect',
@@ -73,6 +87,13 @@ for (const text of [
   'event.preventDefault();',
   'event.stopPropagation();',
 ]) requireText(componentPath, text);
+
+for (const path of sourceFiles('src')) {
+  if (path === componentPath) continue;
+  if (/<select\b/.test(read(path))) {
+    failures.push(`${path} 不得直接渲染可见原生 <select>；必须使用共享 SelectInput／RichSelectInput`);
+  }
+}
 
 for (const text of [
   'export function RichSelectInput',
@@ -86,8 +107,12 @@ for (const text of [
   'hideTopLayerPopover(listbox)',
   "popover={topLayerSupported ? 'manual' : undefined}",
   "data-top-layer={topLayerSupported ? 'true' : undefined}",
-  "position: topLayerSupported ? 'fixed' : undefined",
-  "zIndex: topLayerSupported ? 'auto' : undefined",
+  "position: viewportLayer ? 'fixed' : undefined",
+  "zIndex: topLayerSupported ? 'auto' : viewportLayer ? 120 : undefined",
+  'createPortal(listboxNode, document.body)',
+  'TYPEAHEAD_RESET_MS',
+  'matchingOptionIndex(',
+  "scrollIntoView({ block: 'nearest' })",
   'data-facility-sheet-no-drag="true"',
 ]) requireText(richSelectPath, text);
 
@@ -128,6 +153,9 @@ for (const text of [
   '.ui-rich-select__trigger',
   '.ui-rich-select__listbox',
   '.ui-rich-select__option',
+  '.ui-rich-select__native',
+  '.ui-rich-select__trigger:not(:has(.ui-rich-select__visual))',
+  '.ui-rich-select__option:not(:has(.ui-rich-select__visual))',
 ]) requireText(stylePath, text);
 
 for (const text of [
@@ -199,6 +227,8 @@ for (const text of [
   '统一表单控件',
   '`FormControls.tsx`',
   '`form-controls.css`',
+  '所有玩家端和管理员端可见下拉选择器必须使用生产产物同款富下拉视觉与交互',
+  '浏览器原生 `select` 只允许作为 `SelectInput` 内不可见的表单值与旧 `onChange` 兼容层',
   '字符串草稿',
   '不得在 `onChange` 中直接执行 `Number(event.target.value)`',
   '移动端输入字号不得低于 `16px`',
@@ -229,10 +259,16 @@ for (const text of [
   'expectTopLayerHitTarget',
   "toHaveAttribute('data-top-layer', 'true')",
 ]) requireText(topLayerTestPath, text);
+for (const text of [
+  'plain SelectInput uses the production rich select interaction',
+  "getByRole('combobox', { name: '状态刷新频率' })",
+  "getByRole('listbox', { name: '状态刷新频率' })",
+  "locator('select.ui-rich-select__native')",
+]) requireText(unifiedSelectTestPath, text);
 
 if (failures.length) {
   console.error(`统一表单、顶层浮层与统一导航角标验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('统一表单、顶层浮层、数字草稿、整数输入滚轮归属、统一导航角标与移动端尺寸验证通过。');
+console.log('统一表单、统一可见下拉、顶层浮层、数字草稿、整数输入滚轮归属、统一导航角标与移动端尺寸验证通过。');
