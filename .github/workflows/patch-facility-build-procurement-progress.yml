@@ -1,0 +1,66 @@
+name: Patch facility build procurement progress
+
+on:
+  push:
+    branches:
+      - feature/facility-build-procurement-orders
+
+permissions:
+  contents: write
+
+jobs:
+  patch-progress:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/facility-build-procurement-orders
+          fetch-depth: 0
+      - name: Fix cancelled partial order progress
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('src/pages/ProductionPage.tsx')
+          text = path.read_text(encoding='utf-8')
+          old = """                const rows = group.orders.map((reference) => {
+                  const order = orderById.get(reference.orderId);
+                  const remaining = order && (order.status === 'open' || order.status === 'partial')
+                    ? Math.max(0, order.remaining)
+                    : 0;
+                  return {
+                    ...reference,
+                    remaining,
+                    filled: Math.max(0, reference.quantity - remaining),
+                  };
+                });"""
+          new = """                const rows = group.orders.map((reference) => {
+                  const order = orderById.get(reference.orderId);
+                  const remaining = order && (order.status === 'open' || order.status === 'partial')
+                    ? Math.max(0, order.remaining)
+                    : 0;
+                  const fillQuantity = order?.fills?.reduce(
+                    (sum, fill) => sum + Math.max(0, Number(fill.quantity || 0)),
+                    0,
+                  ) ?? 0;
+                  const filled = order?.status === 'filled'
+                    ? reference.quantity
+                    : Math.min(reference.quantity, fillQuantity);
+                  return {
+                    ...reference,
+                    remaining,
+                    filled,
+                  };
+                });"""
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one progress block, got {text.count(old)}')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- src/pages/ProductionPage.tsx
+          git rm -- .github/workflows/patch-facility-build-procurement-progress.yml
+          git commit -m "修正采购组部分撤单成交进度"
+          git push origin HEAD:feature/facility-build-procurement-orders
