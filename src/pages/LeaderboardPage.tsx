@@ -10,7 +10,6 @@ import {
   type RankedLeaderboardsState,
 } from '../leaderboardTypes';
 import { formatCurrency, formatNumber, formatRank } from '../utils/formatters';
-import { personalLeaderboardGoal } from '../utils/leaderboardGoals';
 
 const BOARD_ORDER: LeaderboardBoardId[] = ['wealth', 'growth', 'production', 'trading'];
 const FALLBACK_TITLES: Record<LeaderboardBoardId, string> = {
@@ -114,7 +113,6 @@ function LeaderboardRow({ board, entry }: { board: RankedLeaderboardBoard; entry
 function LeaderboardCard({ board, period }: { board: RankedLeaderboardBoard; period: RankedLeaderboardsState['period'] }) {
   const current = board.currentPlayer;
   const currentRank = current?.rank;
-  const personalGoal = personalLeaderboardGoal(board);
   return (
     <Panel className="leaderboard-board-card">
       <header className="leaderboard-board-heading">
@@ -148,13 +146,6 @@ function LeaderboardCard({ board, period }: { board: RankedLeaderboardBoard; per
           <strong>{current ? scoreValue(board, current.score) : '暂无'}</strong>
         </div>
       </footer>
-      {personalGoal ? (
-        <div className="leaderboard-personal-goal" aria-label={`${board.title}个人竞争目标`}>
-          <span>当前 {personalGoal.bandLabel}</span>
-          <strong>{personalGoal.targetLabel}</strong>
-          <small>{personalGoal.distance > 0 ? `距离目标还差 ${formatNumber(personalGoal.distance)} 名` : '当前目标已达成'}</small>
-        </div>
-      ) : null}
       <div className="leaderboard-personal-best" aria-label={`${board.title}个人最好成绩`}>
         <span>个人最好</span>
         <strong>{board.personalBest ? scoreValue(board, board.personalBest.score) : '暂无已结算纪录'}</strong>

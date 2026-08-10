@@ -177,32 +177,12 @@
   }
 }
 
-.leaderboard-personal-goal {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-muted);
-}
-
-.leaderboard-personal-goal > span,
-.leaderboard-personal-goal > small {
-  color: var(--text-muted);
-}
-
-.leaderboard-personal-goal > small {
-  text-align: right;
-}
-
 .leaderboard-personal-best {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-2);
+  margin-top: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -219,13 +199,6 @@
 }
 
 @media (max-width: 560px) {
-  .leaderboard-personal-goal {
-    grid-template-columns: auto 1fr;
-  }
-  .leaderboard-personal-goal > small {
-    grid-column: 1 / -1;
-    text-align: left;
-  }
   .leaderboard-personal-best {
     grid-template-columns: auto 1fr;
   }
