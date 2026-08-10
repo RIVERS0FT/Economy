@@ -1,6 +1,7 @@
 export interface AutoSellPolicy {
   enabled: boolean;
   price: number;
+  minimumFreeInventory: number;
 }
 
 export type AutoSellPolicyMap = Record<string, AutoSellPolicy>;
@@ -20,10 +21,13 @@ function normalizePolicy(value: unknown): AutoSellPolicy | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Partial<AutoSellPolicy>;
   const price = Number(raw.price);
+  const minimumFreeInventory = Number(raw.minimumFreeInventory ?? 0);
   if (!Number.isFinite(price) || price < 0.01) return null;
+  if (!Number.isSafeInteger(minimumFreeInventory) || minimumFreeInventory < 0) return null;
   return {
     enabled: raw.enabled === true,
     price: Math.round(price * 100) / 100,
+    minimumFreeInventory,
   };
 }
 

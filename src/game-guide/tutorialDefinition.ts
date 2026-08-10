@@ -41,7 +41,7 @@ export const TUTORIAL_STEPS: TutorialStepDefinition[] = [
   {
     id: 'set-auto-sell',
     title: '设置商品自动出售',
-    description: '点击仓库中的商品，启用自动出售并设置最低出售价格。自动出售只在当前客户端在线时生效。',
+    description: '点击仓库中的商品，启用自动出售并设置最低出售价格；最低自由库存可填写 0，生产和合同预定会由系统另外保护。自动出售只在当前客户端在线时生效。',
     actionLabel: '前往仓库',
     targetTab: 'production',
   },
