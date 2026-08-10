@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { buildFacilityOperatingDiagnosis } from '../src/utils/facilityOperatingDiagnostics.ts';
 import { eventMarketFeedback, marketDecisionSignal } from '../src/utils/marketDecisionSignals.ts';
-import { personalLeaderboardGoal } from '../src/utils/leaderboardGoals.ts';
 
 function read(path) { return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'); }
 function requireText(path, text) { if (!read(path).includes(text)) throw new Error(`${path} 缺少: ${text}`); }
@@ -50,26 +49,6 @@ assert.equal(feedback.volume, 9);
 assert.equal(feedback.tradeCount, 3);
 assert.equal(feedback.averageChangeBps, 2000);
 
-const goal = personalLeaderboardGoal({
-  id: 'wealth',
-  title: '财富榜',
-  description: '',
-  unit: 'currency',
-  rewarded: false,
-  entries: [],
-  currentPlayer: {
-    userId: 1,
-    playerName: 'P',
-    rank: 30,
-    score: 1,
-    isCurrentPlayer: true,
-  },
-  totalPlayers: 100,
-});
-assert.equal(goal?.bandLabel, '前 50%');
-assert.equal(goal?.targetLabel, '前 25%');
-assert.equal(goal?.distance, 5);
-
 for (const text of [
   'first_research_at',
   'first_bank_deposit_at',
@@ -102,13 +81,17 @@ requireText('src/contracts/ContractNegotiationSection.tsx', 'label="首次交付
 requireText('src/contracts/navigation.ts', 'sessionStorage.removeItem');
 requireText('src/components/facilities/FacilityOperatingDiagnostics.tsx', '查看相关合同');
 forbidText('src/contracts/types.ts', 'proposerId: number;');
-requireText('src/pages/LeaderboardPage.tsx', 'personalLeaderboardGoal(board)');
-requireText('src/pages/LeaderboardPage.tsx', 'leaderboard-personal-goal');
+assert.equal(existsSync(new URL('../src/utils/leaderboardGoals.ts', import.meta.url)), false);
+forbidText('src/pages/LeaderboardPage.tsx', 'personalLeaderboardGoal');
+forbidText('src/pages/LeaderboardPage.tsx', 'leaderboard-personal-goal');
+forbidText('src/styles/leaderboards.css', 'leaderboard-personal-goal');
 requireText('src/pages/LeaderboardPage.tsx', 'leaderboard-personal-best');
 requireText('server/src/leaderboards.js', 'leaderboardPersonalBests');
 requireText('server/src/leaderboards.js', 'if (!state.partial)');
 requireText('server/src/leaderboards.js', 'currentIsRecord: !state.partial');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '排行榜页面不得显示个人竞争分段、下一目标或“距离目标还差 N 名”提示');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '四榜个人最好成绩由服务器在完整周结算时写入玩家权威统计');
+requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '排行榜只保留当前真实名次、当前成绩和服务器完整周结算的个人最好成绩');
 forbidText('src/pages/LeaderboardPage.tsx', 'localStorage');
 requireText('src/pages/OverviewPage.tsx', '事件窗口真实成交');
 requireText('server/src/economic-events.js', 'EVENT_RESULT_WINDOW_MS');
