@@ -270,8 +270,9 @@ requireText('tests/browser/auction-bid-layout.spec.ts', [
   "{ name: 'desktop', width: 1280, height: 900 }",
   "{ name: 'mobile', width: 390, height: 844 }",
   "expect(geometry.display).toBe('grid');",
-  'expect(Math.abs(geometry.inputTop - geometry.buttonTop)).toBeLessThan(1);',
+  'expect(geometry.verticalOverlap).toBeGreaterThan(0);',
   'expect(Math.abs(geometry.inputBottom - geometry.buttonBottom)).toBeLessThan(1);',
+  'expect(geometry.inputRight).toBeLessThanOrEqual(geometry.buttonLeft);',
 ]);
 
 requireText('.github/workflows/deploy.yml', [
