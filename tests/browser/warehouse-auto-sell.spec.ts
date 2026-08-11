@@ -84,7 +84,7 @@ test.describe('warehouse online auto trade policy', () => {
     await expect(productCard).toBeFocused();
   });
 
-  test('opens the shared bottom sheet from the mobile warehouse header without stock selection', async ({ page }) => {
+  test('opens the shared bottom sheet from the mobile warehouse header with the full catalog selector', async ({ page }) => {
     await page.setViewportSize({ width: 720, height: 900 });
     await page.goto('runtime-test.html?view=production&scenario=cluster-summary');
 
@@ -95,7 +95,7 @@ test.describe('warehouse online auto trade policy', () => {
     const sheet = page.locator('.mobile-detail-sheet');
     await expect(sheet).toBeVisible();
     await expect(sheet.getByRole('combobox', { name: '自动交易商品' })).toBeVisible();
-    await expect(sheet).toContainText('选择商品设置自动交易');
+    await expect(sheet).toContainText('可选择任意商品，包括当前库存为 0 的商品。');
 
     await page.keyboard.press('Escape');
     await expect(sheet).toHaveCount(0);
