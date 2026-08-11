@@ -1,3 +1,4 @@
+import { createOnlineAutoBuyPolicyClientState } from './online-auto-buy-policy.js';
 import { createOnlineAutoSellPolicyClientState } from './online-auto-sell-policy.js';
 
 function storedQuantity(player) {
@@ -22,6 +23,7 @@ export function createWarehouseSummary(player) {
   ensureWarehouse(player);
   return {
     warehouseStoredQuantity: storedQuantity(player),
+    ...createOnlineAutoBuyPolicyClientState(player),
     ...createOnlineAutoSellPolicyClientState(player),
   };
 }

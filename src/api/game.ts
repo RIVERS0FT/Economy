@@ -35,6 +35,15 @@ export interface OnlineAutoSellPolicyInput {
   price: number;
   minimumFreeInventory: number;
 }
+export interface OnlineAutoBuyPolicyInput {
+  enabled: boolean;
+  maxPrice: number;
+  targetFreeInventory: number;
+}
+export interface OnlineAutoTradePolicyInput {
+  buy: OnlineAutoBuyPolicyInput;
+  sell: OnlineAutoSellPolicyInput;
+}
 export interface FacilityBuildProcurementOptions {
   autoProcure: true;
   maxProcurementTotal: number;
@@ -294,6 +303,17 @@ export function saveOnlineAutoSellPolicy(productId: string, policy: OnlineAutoSe
   });
 }
 
+export function saveOnlineAutoTradePolicy(productId: string, policy: OnlineAutoTradePolicyInput) {
+  return postAction('/orders', {
+    assetKind: 'commodity',
+    assetId: productId,
+    productId,
+    execution: 'online-auto-trade-policy',
+    buy: policy.buy,
+    sell: policy.sell,
+  });
+}
+
 export function importLegacyOnlineAutoSellPolicies(policies: Record<string, OnlineAutoSellPolicyInput>) {
   return postAction('/orders', {
     execution: 'online-auto-sell-policy',
@@ -363,6 +383,17 @@ export const gameActions = {
   ),
   placeCommodityOrder: (productId: string, side: OrderSide, quantity: number, price: number) => (
     postAction('/orders', { assetKind: 'commodity', assetId: productId, productId, side, quantity, price })
+  ),
+  autoBuyCommodity: (productId: string, maxPrice: number, targetFreeInventory = 0) => (
+    postAction('/orders', {
+      assetKind: 'commodity',
+      assetId: productId,
+      productId,
+      side: 'buy',
+      price: maxPrice,
+      targetFreeInventory,
+      execution: 'online-auto-buy',
+    })
   ),
   autoSellCommodity: (productId: string, price: number, minimumFreeInventory = 0) => (
     postAction('/orders', {

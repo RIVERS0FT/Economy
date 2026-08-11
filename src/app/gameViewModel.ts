@@ -147,6 +147,7 @@ export interface LoadedGameViewModel {
   pauseFacility: (facilityTypeId: string) => Promise<ActionResult>;
   setFacilityRecipe: (facilityTypeId: string, recipeId: string) => Promise<ActionResult>;
   placeAssetOrder: (assetKind: AssetKind, assetId: string, side: OrderSide, quantity: number, price: number) => Promise<ActionResult>;
+  onlineAutoBuy: (productId: string, maxPrice: number, targetFreeInventory?: number) => Promise<ActionResult>;
   onlineAutoSell: (productId: string, price: number, minimumFreeInventory?: number) => Promise<ActionResult>;
   cancelOrder: (orderId: string) => Promise<ActionResult>;
   renamePlayer: (name: string) => Promise<ActionResult>;
@@ -502,6 +503,10 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     pauseFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.pauseFacility(facilityTypeId)),
     setFacilityRecipe: (facilityTypeId, recipeId) => runAction('setFacilityRecipe', () => gameActions.setFacilityRecipe(facilityTypeId, recipeId)),
     placeAssetOrder,
+    onlineAutoBuy: (productId, maxPrice, targetFreeInventory = 0) => runAction(
+      'placeOrder',
+      () => gameActions.autoBuyCommodity(productId, maxPrice, targetFreeInventory),
+    ),
     onlineAutoSell: (productId, price, minimumFreeInventory = 0) => runAction(
       'onlineAutoSell',
       () => gameActions.autoSellCommodity(productId, price, minimumFreeInventory),

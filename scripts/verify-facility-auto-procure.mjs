@@ -31,7 +31,7 @@ for (const [file, texts] of Object.entries({
   ],
   'server/src/domain.js': [
     "payload.execution === 'fill-or-kill'",
-    "const transientExecution = fillOrKill || onlineAutoSell;",
+    "const transientExecution = fillOrKill || onlineAutoSell || onlineAutoBuy;",
     '!transientExecution && countOpenOrdersForOwner',
     'export function applyImmediateCommodityBuy',
     '市场卖盘已变化，未能一次购齐',

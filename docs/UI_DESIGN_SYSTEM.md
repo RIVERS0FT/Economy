@@ -3,7 +3,7 @@
 > 状态：当前视觉、共享组件、响应式与可访问性实现基线
 > 适用项目：`RIVERS0FT/Economy`
 > 当前平台：网页端
-> 更新时间：2026-08-10
+> 更新时间：2026-08-11
 
 产品和页面职责分别以 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；应用外壳几何和玻璃材质以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。
 
@@ -41,12 +41,12 @@
 | `src/styles/industry-system.css` | 工厂、建设列、自适应同行等高卡片与生产密度 |
 | `src/styles/facility-group-card-grid.css` | 生产主从布局、工厂集群详情内部排列和“生产产物／作业制度”横向 Auto 槽位布局 |
 | `src/styles/facility-production-formula.css` | 工厂集群生产结算的输入侧周期成本、物资槽、流向进度、范围标识和响应式布局 |
-| `src/styles/warehouse-expansion.css` | 共享仓库工作区、桌面自动出售控制列、容器查询、紧凑商品卡和自动出售正文布局 |
+| `src/styles/warehouse-expansion.css` | 共享仓库工作区、桌面自动交易控制列、容器查询、紧凑商品卡和自动采购／自动出售正文布局 |
 | `src/styles/production-surface.css` | 生产页共享仓库、建设卡和工厂详情的标题锚点、名称下状态与紧凑开关；不得定义一级卡片外层内边距 |
 | `src/styles/auth.css` | 登录布局、动态视口与认证自动填充兼容例外 |
 | `src/styles/card-system.css` | 卡片圆角映射 |
 | `src/styles/desktop-sidebar.css` | 桌面侧栏宽度、折叠、导航固有行高、统一导航角标与可访问状态 |
-| `src/styles/mobile-detail-sheet.css` | 移动工厂、研发详情与仓库自动出售设置共享的根级 Dialog 遮罩、圆角、拖动、滚动区、固定底栏、安全区、摘要几何和动效最终权威 |
+| `src/styles/mobile-detail-sheet.css` | 移动工厂、研发详情与仓库自动交易设置共享的根级 Dialog 遮罩、圆角、拖动、滚动区、固定底栏、安全区、摘要几何和动效最终权威 |
 | `src/styles/scrollbars.css` | 全局覆盖式滚动条宽度、颜色、层级、显隐与移动页面／根级 Dialog 安全边缘轨道 |
 | `src/styles/performance.css` | 渲染性能保护和触控惯性；不得阻断页面或虚拟列表的纵向滚动链 |
 | `src/styles/liquid-glass-surfaces.css` | 正式状态栏与移动底栏玻璃宿主、材质适配和结构描边 |
@@ -127,7 +127,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 ### 3.1.1 登录后根级 Dialog
 
-普通 Tooltip、Popover、菜单和不应覆盖应用 Chrome 的业务浮层继续使用 `.workspace-floating-layer`，不得与桌面顶部状态栏／管理员工作栏、桌面侧栏或移动底栏重叠。必须覆盖完整移动视口的模态业务详情统一使用 `SignedInShell` 唯一 `.workspace-dialog-layer` 根级 Dialog 层；该根位于 Chrome 之后、保持开放采样链并只让实际 Dialog 恢复指针事件。移动工厂详情、移动研发详情与仓库自动出售设置是当前批准用途，必须共同复用 `MobileWorkspaceDetailSheet`，由 `src/styles/mobile-detail-sheet.css` 唯一控制遮罩、圆角、最大高度、拖动、页面滚动锁、焦点限制、唯一 `ScrollArea`、固定底栏和安全区；工厂与研发详情首区共同复用 `MobileDetailSummary`，仓库自动出售设置复用既有仓库表单信息层级并把保存动作放在共享固定底栏。页面业务 CSS 只能定义正文内容和按钮语义，不得重新定义根级 Sheet 几何、滚动区内边距、sticky 底栏或第二套 Portal；详情内富内容列表继续使用同一根并位于遮罩上方，不得追加到 `document.body`。
+普通 Tooltip、Popover、菜单和不应覆盖应用 Chrome 的业务浮层继续使用 `.workspace-floating-layer`，不得与桌面顶部状态栏／管理员工作栏、桌面侧栏或移动底栏重叠。必须覆盖完整移动视口的模态业务详情统一使用 `SignedInShell` 唯一 `.workspace-dialog-layer` 根级 Dialog 层；该根位于 Chrome 之后、保持开放采样链并只让实际 Dialog 恢复指针事件。移动工厂详情、移动研发详情与仓库自动交易设置是当前批准用途，必须共同复用 `MobileWorkspaceDetailSheet`，由 `src/styles/mobile-detail-sheet.css` 唯一控制遮罩、圆角、最大高度、拖动、页面滚动锁、焦点限制、唯一 `ScrollArea`、固定底栏和安全区；工厂与研发详情首区共同复用 `MobileDetailSummary`，仓库自动交易设置复用统一商品选择器、采购／出售页签和既有仓库表单信息层级，并把原子保存动作放在共享固定底栏。页面业务 CSS 只能定义正文内容和按钮语义，不得重新定义根级 Sheet 几何、滚动区内边距、sticky 底栏或第二套 Portal；详情内富内容列表继续使用同一根并位于遮罩上方，不得追加到 `document.body`。
 
 ### 3.2 输入方式与共享交互状态
 

@@ -330,7 +330,8 @@ function applyCommodityOrder(world, user, payload, now) {
   if (total === null) return { ok: false, message: '订单总额超出系统可表示范围' };
   const fillOrKill = payload.execution === 'fill-or-kill';
   const onlineAutoSell = payload.execution === 'online-auto-sell';
-  const transientExecution = fillOrKill || onlineAutoSell;
+  const onlineAutoBuy = payload.execution === 'online-auto-buy';
+  const transientExecution = fillOrKill || onlineAutoSell || onlineAutoBuy;
   if (findSelfCrossingOrder(world, {
     ownerId: userId,
     assetKind: 'commodity',

@@ -10,7 +10,7 @@ import { CurrencyAmount, CurrencyText } from '../components/ui/CurrencyAmount';
 import { PageRouter } from '../pages/PageRouter';
 import { formatCompactNumber, formatCurrency, formatNumber, formatRank, setCompactNumbersEnabled } from '../utils/formatters';
 import { useGameTutorial, type TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
-import { useOnlineAutoSell, type OnlineAutoSellAwareGameViewModel } from '../auto-sell/useOnlineAutoSell';
+import { useOnlineAutoTrade, type OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { useGameViewModel, type LoadedGameViewModel } from './gameViewModel';
 import { useAdaptivePolling } from './useAdaptivePolling';
 import '../styles/game-guide.css';
@@ -31,8 +31,8 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
     setRefreshRate: pollingPreference.setRefreshRate,
   }), [model, pollingPreference.refreshRate, pollingPreference.setRefreshRate]);
   const tutorial = useGameTutorial(pollingModel);
-  const autoSell = useOnlineAutoSell(pollingModel, {
-    onPolicyEnabled: tutorial.recordAutoSellSetting,
+  const autoTrade = useOnlineAutoTrade(pollingModel, {
+    onAutoSellPolicyEnabled: tutorial.recordAutoSellSetting,
     onSale: tutorial.recordAutoSellCompletion,
   });
   const tutorialModel = useMemo<TutorialAwareGameViewModel>(() => ({
@@ -64,10 +64,10 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
       return result;
     },
   }), [model, pollingModel, tutorial]);
-  const appModel = useMemo<OnlineAutoSellAwareGameViewModel>(() => ({
+  const appModel = useMemo<OnlineAutoTradeAwareGameViewModel>(() => ({
     ...tutorialModel,
-    autoSell,
-  }), [autoSell, tutorialModel]);
+    autoTrade,
+  }), [autoTrade, tutorialModel]);
   const compactNumbers = appModel.compactNumbers;
 
   useEffect(() => {

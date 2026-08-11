@@ -462,9 +462,11 @@ export function countOpenOrdersForOwner(world, ownerId) {
   compactOwnerOrders(state, ownerId);
   const normalizedOwnerId = Number(ownerId);
   const total = Number(state.ownerOpenOrderCounts.get(normalizedOwnerId) || 0);
-  const linkedIds = new Set(Object.values(
-    world.players?.[String(normalizedOwnerId)]?.onlineAutoSellOrderIds || {},
-  ).map((value) => String(value || '')).filter(Boolean));
+  const player = world.players?.[String(normalizedOwnerId)];
+  const linkedIds = new Set([
+    ...Object.values(player?.onlineAutoSellOrderIds || {}),
+    ...Object.values(player?.onlineAutoBuyOrderIds || {}),
+  ].map((value) => String(value || '')).filter(Boolean));
   let managedOpen = 0;
   for (const orderId of linkedIds) {
     const order = state.byId.get(orderId);

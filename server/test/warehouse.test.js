@@ -3,7 +3,7 @@ import test from 'node:test';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import { resolveAction } from '../src/game-routes.js';
-import { applyOnlineAutoSellPolicyAction } from '../src/online-auto-sell-policy.js';
+import { applyOnlineAutoTradePolicyAction } from '../src/online-auto-trade-policy.js';
 import { EconomyStore } from '../src/storage.js';
 import { createWarehouseSummary, ensureWarehouse } from '../src/warehouse.js';
 
@@ -17,6 +17,8 @@ test('warehouse state is inventory-only and uses current client version', () => 
     assert.equal(state.version, CURRENT_CLIENT_STATE_VERSION);
     assert.equal(state.version, 33);
     assert.equal(state.warehouseStoredQuantity, 0);
+    assert.deepEqual(state.onlineAutoBuyPolicies, {});
+    assert.deepEqual(state.onlineAutoBuyManagedOrderIds, {});
     assert.deepEqual(state.onlineAutoSellPolicies, {});
     assert.deepEqual(state.onlineAutoSellManagedOrderIds, {});
     for (const field of [
@@ -27,7 +29,7 @@ test('warehouse state is inventory-only and uses current client version', () => 
   } finally { store.close(); }
 });
 
-test('warehouse summary counts goods and exposes normalized auto-sell settings without capacity state', () => {
+test('warehouse summary counts goods and exposes normalized auto-trade settings without capacity state', () => {
   const player = {
     userId: 1,
     inventoryCapacity: 999,
@@ -36,51 +38,79 @@ test('warehouse summary counts goods and exposes normalized auto-sell settings w
       wheat: { available: 25, frozen: 5 },
       steel: { available: 7, frozen: 3 },
     },
+    onlineAutoBuyPolicies: {
+      wheat: { enabled: true, maxPrice: 6.75, targetFreeInventory: 12 },
+      unknown: { enabled: true, maxPrice: 1, targetFreeInventory: 1 },
+    },
+    onlineAutoBuyOrderIds: {
+      wheat: 'order-auto-buy-wheat',
+      unknown: 'order-auto-buy-unknown',
+    },
     onlineAutoSellPolicies: {
-      wheat: { enabled: true, price: 8.25, minimumFreeInventory: 4 },
+      wheat: { enabled: true, price: 8.25, minimumFreeInventory: 20 },
       unknown: { enabled: true, price: 1, minimumFreeInventory: 0 },
     },
     onlineAutoSellOrderIds: {
-      wheat: 'order-auto-wheat',
-      unknown: 'order-unknown',
+      wheat: 'order-auto-sell-wheat',
+      unknown: 'order-auto-sell-unknown',
     },
   };
   const summary = createWarehouseSummary(player);
   assert.deepEqual(summary, {
     warehouseStoredQuantity: 40,
+    onlineAutoBuyPolicies: {
+      wheat: { enabled: true, maxPrice: 6.75, targetFreeInventory: 12 },
+    },
+    onlineAutoBuyManagedOrderIds: {
+      wheat: 'order-auto-buy-wheat',
+    },
     onlineAutoSellPolicies: {
-      wheat: { enabled: true, price: 8.25, minimumFreeInventory: 4 },
+      wheat: { enabled: true, price: 8.25, minimumFreeInventory: 20 },
     },
     onlineAutoSellManagedOrderIds: {
-      wheat: 'order-auto-wheat',
+      wheat: 'order-auto-sell-wheat',
     },
   });
   assert.equal(Object.hasOwn(player, 'inventoryCapacity'), false);
   assert.equal(Object.hasOwn(player, 'warehouseLevel'), false);
 });
 
-test('saved auto-sell policy is included in formal client state', () => {
+test('saved auto-trade policy is included in formal client state', () => {
   const store = new EconomyStore(':memory:');
   try {
     store.transaction(() => {
       const loaded = store.loadWorld(now);
       const player = ensurePlayer(loaded.world, alice, now);
-      const result = applyOnlineAutoSellPolicyAction(loaded.world, alice, {
+      const result = applyOnlineAutoTradePolicyAction(loaded.world, alice, {
         productId: 'wheat',
-        enabled: true,
-        price: 7.5,
-        minimumFreeInventory: 3,
+        buy: {
+          enabled: true,
+          maxPrice: 6,
+          targetFreeInventory: 10,
+        },
+        sell: {
+          enabled: true,
+          price: 7.5,
+          minimumFreeInventory: 12,
+        },
       });
       assert.equal(result.ok, true);
       store.saveWorld(loaded.revision, loaded.world, now + 1);
+      assert.equal(player.onlineAutoBuyPolicies.wheat.maxPrice, 6);
       assert.equal(player.onlineAutoSellPolicies.wheat.price, 7.5);
     });
 
     const state = store.getState(alice, now + 2);
+    assert.deepEqual(state.onlineAutoBuyPolicies.wheat, {
+      enabled: true,
+      maxPrice: 6,
+      targetFreeInventory: 10,
+    });
+    assert.deepEqual(state.onlineAutoBuyManagedOrderIds, {});
     assert.deepEqual(state.onlineAutoSellPolicies.wheat, {
       enabled: true,
       price: 7.5,
-      minimumFreeInventory: 3,
+      minimumFreeInventory: 12,
     });
     assert.deepEqual(state.onlineAutoSellManagedOrderIds, {});
   } finally { store.close(); }
