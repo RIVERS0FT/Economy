@@ -43,6 +43,7 @@ for (const path of [
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/WAREHOUSE_EXPANSION_DESIGN.md',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+  'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
 ]) requireFile(path);
 
 for (const removed of [
@@ -107,6 +108,43 @@ for (const text of [
   '全商品选择器',
   '零库存',
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
+
+for (const text of [
+  '客户端在线自动采购／自动出售',
+  '商品自动交易卡和商品网格密度',
+]) requireText('docs/README.md', text);
+
+for (const text of [
+  '仓库与商品在线自动交易设置',
+  '├─ 左侧：自动交易',
+  '自动交易、共享仓库、建设新工厂和工厂集群',
+  '其他零库存商品通过自动交易卡的全商品选择器配置',
+  '共享仓库标题右侧“自动交易”入口在零库存时打开全商品选择器',
+  '与仓库工作区的自动交易控制卡共用同一宽度基线',
+  '仓库管理、商品库存与客户端在线自动交易设置',
+]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '├─ 左侧：自动出售');
+forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '仓库与在线自动出售设置、建设、工厂集群');
+
+for (const text of [
+  '桌面自动交易控制列',
+  '自动采购／自动出售正文布局',
+  '仓库自动交易设置共享的根级 Dialog',
+  '仓库自动交易设置是当前批准用途',
+  '统一商品选择器、采购／出售页签',
+]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
+forbidText('docs/UI_DESIGN_SYSTEM.md', '桌面自动出售控制列');
+forbidText('docs/UI_DESIGN_SYSTEM.md', '仓库自动出售设置共享的根级 Dialog');
+
+for (const text of [
+  '商品级在线自动采购／自动出售策略',
+  '`online-auto-trade-reservations.js`',
+  '`online-auto-trade-policy.js`',
+  '`online-auto-buy-policy.js`、`online-auto-buy-orders.js`、`online-auto-buy.js`',
+  '`online-auto-sell-policy.js`、`online-auto-sell-orders.js`、`online-auto-sell.js`',
+  '自动交易托管订单配额豁免',
+  '无限共享仓库真实库存汇总',
+]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 
 const runtimePaths = [
   'server/src',
@@ -182,6 +220,7 @@ for (const text of [
   'uses the shared bottom sheet at 720px',
   'keeps the desktop side panel at 721px',
   'opens auto-trade for a zero-stock product',
+  'mobile warehouse header with the full catalog selector',
 ]) requireText('tests/browser/warehouse-auto-sell.spec.ts', text);
 
 if (failures.length) {
