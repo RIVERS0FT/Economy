@@ -1,6 +1,7 @@
 import { FACILITY_TYPE_CATALOG } from './industry-catalog.js';
 import { creditPopulationEmployment } from './population-economy.js';
 import {
+  RESEARCH_DURATION_MS,
   RESEARCH_LEVEL_CATALOG,
   RESEARCH_TECHNOLOGY_CATALOG,
   RESEARCH_TECHNOLOGY_BY_ID,
@@ -10,7 +11,7 @@ import {
   researchTechnologyForFacility,
 } from './research-catalog.js';
 
-export { RESEARCH_LEVEL_CATALOG, RESEARCH_TECHNOLOGY_CATALOG };
+export { RESEARCH_DURATION_MS, RESEARCH_LEVEL_CATALOG, RESEARCH_TECHNOLOGY_CATALOG };
 
 export const RESEARCH_WORLD_VERSION = 27;
 export const GEM_RESEARCH_ACCELERATION_MS = 30 * 60 * 1000;
@@ -98,6 +99,15 @@ function normalizeCompletedAtMap(previous, completed, now) {
     return [technologyId, Number.isFinite(value) && value >= 0 ? value : fallback];
   }));
 }
+function normalizeFixedResearchTiming(startedAt, completesAt, previousDurationMs) {
+  const previousDuration = Math.max(1, Math.floor(Number(previousDurationMs || (completesAt - startedAt))));
+  const previousBaseCompletesAt = startedAt + previousDuration;
+  const appliedDeadlineReductionMs = Math.max(0, previousBaseCompletesAt - completesAt);
+  return {
+    durationMs: RESEARCH_DURATION_MS,
+    completesAt: Math.max(startedAt, startedAt + RESEARCH_DURATION_MS - appliedDeadlineReductionMs),
+  };
+}
 function normalizeActiveResearch(previousActive, completed) {
   if (!previousActive || typeof previousActive !== 'object') return null;
   const startedAt = Number(previousActive.startedAt);
@@ -108,13 +118,18 @@ function normalizeActiveResearch(previousActive, completed) {
   if (technology && !completed.has(technology.id)) {
     const cost = Math.max(0, Math.floor(Number(previousActive.cost ?? technology.cost)));
     if (cost !== technology.cost) return null;
+    const timing = normalizeFixedResearchTiming(
+      startedAt,
+      completesAt,
+      previousActive.durationMs ?? (completesAt - startedAt),
+    );
     return {
       technologyId: technology.id,
       technologyName: technology.name,
       targetComplexity: technology.stage,
       startedAt,
-      completesAt,
-      durationMs: technology.durationMs,
+      completesAt: timing.completesAt,
+      durationMs: timing.durationMs,
       cost,
       employmentReleased: Math.min(cost, Math.max(0, Math.floor(Number(previousActive.employmentReleased || 0)))),
     };
@@ -133,7 +148,11 @@ function normalizeActiveResearch(previousActive, completed) {
   if (grantTechnologyIds.length === 0) return null;
   const legacy = LEGACY_LEVELS[target.id] || target;
   const cost = Math.max(0, Math.floor(Number(previousActive.cost ?? legacy.cost)));
-  const durationMs = Math.max(1, Math.floor(Number(previousActive.durationMs ?? legacy.durationMs ?? (completesAt - startedAt))));
+  const timing = normalizeFixedResearchTiming(
+    startedAt,
+    completesAt,
+    previousActive.durationMs ?? legacy.durationMs ?? (completesAt - startedAt),
+  );
   return {
     technologyId: `legacy-stage-${target.id}`,
     technologyName: `${target.id} 旧版阶段研发`,
@@ -141,8 +160,8 @@ function normalizeActiveResearch(previousActive, completed) {
     legacy: true,
     grantTechnologyIds,
     startedAt,
-    completesAt,
-    durationMs,
+    completesAt: timing.completesAt,
+    durationMs: timing.durationMs,
     cost,
     employmentReleased: Math.min(cost, Math.max(0, Math.floor(Number(previousActive.employmentReleased || 0)))),
   };
@@ -273,8 +292,8 @@ function startTechnologyResearch(world, player, technologyId, now) {
       technologyName: technology.name,
       targetComplexity: technology.stage,
       startedAt: Number(now),
-      completesAt: Number(now) + technology.durationMs,
-      durationMs: technology.durationMs,
+      completesAt: Number(now) + RESEARCH_DURATION_MS,
+      durationMs: RESEARCH_DURATION_MS,
       cost: technology.cost,
       employmentReleased: 0,
     },
@@ -295,7 +314,6 @@ function startLegacyStageResearch(world, player, targetComplexity, now) {
     .filter((technologyId) => !completed.has(technologyId));
   if (grantTechnologyIds.length === 0) return { ok: false, message: `${target.id} 阶段已经完成` };
   const cost = grantTechnologyIds.reduce((sum, technologyId) => sum + researchTechnologyFor(technologyId).cost, 0);
-  const durationMs = grantTechnologyIds.reduce((sum, technologyId) => sum + researchTechnologyFor(technologyId).durationMs, 0);
   if (Number(player.credits || 0) < cost) return { ok: false, message: '可用资金不足' };
   player.credits = Number(player.credits || 0) - cost;
   player.research = {
@@ -307,8 +325,8 @@ function startLegacyStageResearch(world, player, targetComplexity, now) {
       legacy: true,
       grantTechnologyIds,
       startedAt: Number(now),
-      completesAt: Number(now) + durationMs,
-      durationMs,
+      completesAt: Number(now) + RESEARCH_DURATION_MS,
+      durationMs: RESEARCH_DURATION_MS,
       cost,
       employmentReleased: 0,
     },

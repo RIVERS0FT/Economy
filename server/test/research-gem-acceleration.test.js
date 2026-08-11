@@ -3,6 +3,7 @@ import test from 'node:test';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import {
   GEM_RESEARCH_ACCELERATION_MS,
+  RESEARCH_DURATION_MS,
   applyResearchAction,
   ensurePlayerResearch,
 } from '../src/research.js';
@@ -20,21 +21,24 @@ function setup(id, unlockedComplexity = 'C1') {
   return { world, user, player };
 }
 
-test('immediately completes research shorter than thirty minutes', () => {
+test('immediately completes research when less than thirty minutes remain', () => {
   const { world, user, player } = setup(9911);
   assert.equal(applyResearchAction(world, user, 'startResearch', { technologyId: 'grain-processing' }, NOW).ok, true);
-  const result = applyResearchAction(world, user, 'accelerateResearch', {}, NOW + 60_000);
+  assert.equal(player.research.active.durationMs, RESEARCH_DURATION_MS);
+  const accelerateAt = NOW + RESEARCH_DURATION_MS - 15 * 60_000;
+  const result = applyResearchAction(world, user, 'accelerateResearch', {}, accelerateAt);
   assert.equal(result.ok, true);
   assert.equal(result.completedImmediately, true);
-  assert.equal(result.reducedMs, 2 * 60_000);
+  assert.equal(result.reducedMs, 15 * 60_000);
   assert.equal(player.research.active, null);
   assert.equal(player.research.completedTechnologyIds.includes('grain-processing'), true);
   assert.equal(player.gems, 1);
 });
 
-test('shortens a long active project by exactly thirty minutes', () => {
+test('shortens a six-hour active project by exactly thirty minutes', () => {
   const { world, user, player } = setup(9912, 'C5');
   assert.equal(applyResearchAction(world, user, 'startResearch', { technologyId: 'electronics-engineering' }, NOW).ok, true);
+  assert.equal(player.research.active.durationMs, RESEARCH_DURATION_MS);
   const previousCompletesAt = player.research.active.completesAt;
   const result = applyResearchAction(world, user, 'accelerateResearch', {}, NOW + 10 * 60_000);
   assert.equal(result.ok, true);
