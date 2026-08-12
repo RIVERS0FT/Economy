@@ -102,8 +102,8 @@ class EconomyIpFallbackNginxTests(unittest.TestCase):
     def test_deploy_uses_one_production_ip_for_ssh_fallback_and_verification(self):
         workflow = (ROOT / ".github/workflows/deploy.yml").read_text(encoding="utf-8")
         self.assertIn(f"ECONOMY_PRODUCTION_PUBLIC_IP: {PRODUCTION_IP}", workflow)
-        self.assertIn('if [ "$SERVER_HOST" != "$ECONOMY_PRODUCTION_PUBLIC_IP" ]; then', workflow)
-        self.assertIn("ECONOMY_DEPLOY_TARGET_MISMATCH", workflow)
+        self.assertNotIn("secrets.SERVER_HOST", workflow)
+        self.assertIn('"$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP"', workflow)
         self.assertIn("scripts/configure-economy-ip-fallback-nginx.py", workflow)
         self.assertIn('"$ECONOMY_PRODUCTION_PUBLIC_IP"', workflow)
         self.assertIn("ECONOMY_IP_HTTP_REDIRECT_INVALID", workflow)
@@ -115,7 +115,8 @@ class EconomyIpFallbackNginxTests(unittest.TestCase):
     def test_authority_design_records_single_source_and_restore_boundaries(self):
         design = (ROOT / "docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md").read_text(encoding="utf-8")
         self.assertIn(f"`ECONOMY_PRODUCTION_PUBLIC_IP={PRODUCTION_IP}`", design)
-        self.assertIn("`SERVER_HOST` 必须与该值完全一致", design)
+        self.assertIn("SSH、IP 证书、临时 Nginx 入口和 Deploy 外部验收必须全部读取该值", design)
+        self.assertIn("不得继续使用独立 `SERVER_HOST` Secret", design)
         self.assertIn("不得在脚本中维护第二个独立 IP 常量", design)
         self.assertIn("COOKIE_SECURE=true", design)
         self.assertIn("--preferred-profile shortlived", design)
