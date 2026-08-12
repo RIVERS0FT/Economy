@@ -209,19 +209,50 @@ export function createFacilityBuildProcurementOrders(world, user, payload = {}, 
   const materialOrderPrices = payload.materialOrderPrices && typeof payload.materialOrderPrices === 'object'
     ? payload.materialOrderPrices
     : {};
-  const plans = [];
-  let orderTotalMicros = 0n;
+  const validatedPrices = {};
   for (const item of missing) {
     const product = PRODUCTS.get(item.productId);
     const price = normalizePlayerMoneyInput(materialOrderPrices[item.productId], { min: 0.01 });
     if (typeof price !== 'number') return result(false, `${product?.name || item.productId}买单价格无效`);
-    if (findSelfCrossingOrder(world, {
-      ownerId: userId,
-      assetKind: 'commodity',
-      assetId: item.productId,
-      side: 'buy',
-      price,
-    })) return result(false, SELF_CROSS_MESSAGE);
+    validatedPrices[item.productId] = price;
+  }
+
+  let autoCancelledSellOrders = 0;
+  for (const item of missing) {
+    const price = validatedPrices[item.productId];
+    while (true) {
+      const crossingOrder = findSelfCrossingOrder(world, {
+        ownerId: userId,
+        assetKind: 'commodity',
+        assetId: item.productId,
+        side: 'buy',
+        price,
+      });
+      if (!crossingOrder) break;
+      const cancelled = applyAction(world, user, 'cancelOrder', { orderId: crossingOrder.id }, now);
+      if (!cancelled?.ok) return result(false, cancelled?.message || '交叉卖单自动撤销失败');
+      autoCancelledSellOrders += 1;
+    }
+  }
+
+  const refreshedContext = facilityBuildContext(world, user, payload);
+  if (refreshedContext.error) return refreshedContext.error;
+  const refreshedMissing = refreshedContext.missing;
+  if (refreshedMissing.length === 0) {
+    return result(
+      true,
+      autoCancelledSellOrders > 0
+        ? `已自动撤销 ${autoCancelledSellOrders} 张交叉卖单；释放库存后建造材料已充足，无需提交买单`
+        : '建造材料库存已充足，无需提交买单',
+    );
+  }
+
+  const plans = [];
+  let orderTotalMicros = 0n;
+  for (const item of refreshedMissing) {
+    const product = PRODUCTS.get(item.productId);
+    const price = validatedPrices[item.productId];
+    if (typeof price !== 'number') return result(false, `${product?.name || item.productId}买单价格无效`);
     const total = multiplyMoneyByInteger(price, item.quantity);
     const totalMicros = internalMoneyToMicros(total);
     if (total === null || totalMicros === null) return result(false, `${product?.name || item.productId}买单总额超出系统可表示范围`);
@@ -284,11 +315,14 @@ export function createFacilityBuildProcurementOrders(world, user, payload = {}, 
     createdAt: now,
     orders: orderRefs,
   };
+  const autoCancelPrefix = autoCancelledSellOrders > 0
+    ? `已自动撤销 ${autoCancelledSellOrders} 张交叉卖单；`
+    : '';
   return result(
     true,
     remainingQuantity > 0
-      ? `已提交 ${orderRefs.length} 张建造材料买单；可成交部分已立即成交，剩余 ${remainingQuantity} 件继续挂在市场`
-      : '建造材料买单已全部成交，请确认库存后建造',
+      ? `${autoCancelPrefix}已提交 ${orderRefs.length} 张建造材料买单；可成交部分已立即成交，剩余 ${remainingQuantity} 件继续挂在市场`
+      : `${autoCancelPrefix}建造材料买单已全部成交，请确认库存后建造`,
     { procurementGroup },
   );
 }
