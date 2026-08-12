@@ -11,7 +11,6 @@ from pathlib import Path
 PUBLIC_IP = "123.60.108.5"
 FORMAL_DOMAIN = "game.riversoft.top"
 WEB_ROOT = Path("/var/www/game")
-ECONOMY_ROOT = WEB_ROOT / "economy"
 CONFIG_PATH = Path("/etc/nginx/conf.d/riversoft-economy-ip-fallback.conf")
 CERTBOT_ROOT = Path("/opt/riversoft-certbot")
 CERTBOT_VERSION = "5.4.0"
@@ -305,8 +304,6 @@ def restore_config(previous: bytes | None) -> None:
 def main() -> int:
     if os.geteuid() != 0:
         raise RuntimeError("This script must run as root")
-    if not ECONOMY_ROOT.joinpath("index.html").is_file():
-        raise RuntimeError(f"Economy entry is missing: {ECONOMY_ROOT / 'index.html'}")
 
     previous = CONFIG_PATH.read_bytes() if CONFIG_PATH.exists() else None
     (WEB_ROOT / ".well-known/acme-challenge").mkdir(parents=True, exist_ok=True)
