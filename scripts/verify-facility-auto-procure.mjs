@@ -122,7 +122,7 @@ for (const [file, texts] of Object.entries({
     '全部采购与建设一起回滚',
     '缺料买单',
     '自动撤销',
-    '释放库存后重新计算',
+    '撤单释放剩余冻结库存后重新计算真实库存缺口',
     '不得自动建厂',
   ],
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md': [
@@ -140,7 +140,7 @@ for (const [file, texts] of Object.entries({
     '一键购齐并建造',
     '一键提交缺料买单',
     '自动撤销',
-    '释放库存后重新计算',
+    '释放其剩余冻结库存后重新计算真实缺口',
     '待采购',
     '商品类型数与工厂类型数之和的 10 倍',
   ],
