@@ -38,12 +38,12 @@ const forbidText = (path, text) => {
 if (failures.length === 0) {
   for (const text of [
     'manage-production-backups.py',
-    'backup-world --target-world-version 25',
+    'backup-world --target-world-version 26',
     'ECONOMY_DATABASE_INCREMENTAL_VERIFIED',
     'minimum_free_kb=$((1024 * 1024))',
     'ECONOMY_DEPLOY_INSUFFICIENT_DISK',
     'ECONOMY_DEPLOY_AVAILABLE_KB=',
-    'dist/assets/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy/assets/"',
+    'dist/assets/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy/assets/"',
     '--exclude assets/',
     '--exclude index.html',
     'index.html.next',
@@ -55,7 +55,7 @@ if (failures.length === 0) {
     failures.push(`部署工作流必须只为 API 与便携 Node 运行时保留 2 次 rsync --delete-before，当前为 ${deleteBeforeCount}`);
   }
   const legacyWebsiteDeleteBefore = String.raw`rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
-            dist/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy/"`;
+            dist/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy/"`;
   if (workflow.includes(legacyWebsiteDeleteBefore)) {
     failures.push('网站同步不得使用 rsync --delete-before 删除仍被旧客户端引用的哈希资源');
   }
