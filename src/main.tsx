@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AppErrorBoundary } from './app/AppErrorBoundary';
 import './app/interactionBootstrap';
+import { installIdempotentGameWriteFetch } from './api/idempotentGameWriteFetch';
 import { FinancialBackdrop } from './components/visual/FinancialBackdrop';
 import { configureRuntimePerformance } from './utils/runtimePerformance';
 import './styles/globals.css';
@@ -57,6 +58,7 @@ import './styles/form-controls.css';
 import './styles/market-desktop-cleanup.css';
 import './styles/notification-center.css';
 
+installIdempotentGameWriteFetch();
 configureRuntimePerformance();
 
 const initialPath = window.location.pathname.replace(/\/+$/, '');
