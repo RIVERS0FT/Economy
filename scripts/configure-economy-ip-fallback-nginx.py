@@ -104,6 +104,22 @@ def registration_location() -> str:
 """.strip("\n")
 
 
+def origin_maps() -> str:
+    return f"""map $http_origin $economy_ip_origin_allowed {{
+    default 0;
+    "" 1;
+    "https://{PUBLIC_IP}" 1;
+}}
+
+map $http_sec_fetch_site $economy_ip_fetch_site_allowed {{
+    default 0;
+    "" 1;
+    same-origin 1;
+    same-site 1;
+}}
+"""
+
+
 def bootstrap_config() -> str:
     return f"""# Temporary Economy public-IP ACME bootstrap. Managed by {Path(__file__).name}.
 server {{
@@ -125,6 +141,7 @@ server {{
 
 def final_config() -> str:
     return f"""# Temporary Economy public-IP HTTPS fallback. Managed by {Path(__file__).name}.
+{origin_maps()}
 server {{
     listen 80;
     listen [::]:80;
@@ -144,6 +161,9 @@ server {{
     listen 443 ssl;
     listen [::]:443 ssl;
     server_name {PUBLIC_IP};
+
+    if ($economy_ip_origin_allowed = 0) {{ return 403; }}
+    if ($economy_ip_fetch_site_allowed = 0) {{ return 403; }}
 
     ssl_certificate {CERTIFICATE};
     ssl_certificate_key {PRIVATE_KEY};
