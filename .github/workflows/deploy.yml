@@ -275,6 +275,7 @@ jobs:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          ECONOMY_PUBLIC_ORIGIN: http://123.60.108.5
         run: |
           exec > >(tee /tmp/economy-verify.log) 2>&1
           set -euo pipefail
@@ -301,12 +302,11 @@ jobs:
           REMOTE
 
           curl --fail --silent --show-error \
-            --resolve "game.riversoft.top:443:$SERVER_HOST" \
             --retry 3 --retry-delay 2 \
-            https://game.riversoft.top/economy/ >/dev/null
+            "$ECONOMY_PUBLIC_ORIGIN/economy/" >/dev/null
 
           AUTH_STATUS="$(curl --silent --show-error --output /tmp/economy-auth-response.json --write-out '%{http_code}' \
-            --resolve "game.riversoft.top:443:$SERVER_HOST" https://game.riversoft.top/economy-api/me || true)"
+            "$ECONOMY_PUBLIC_ORIGIN/economy-api/me" || true)"
           if [ "$AUTH_STATUS" != "200" ] && [ "$AUTH_STATUS" != "401" ]; then
             cat /tmp/economy-auth-response.json 2>/dev/null || true
             echo AUTH_PROXY_UNAVAILABLE
@@ -314,7 +314,7 @@ jobs:
           fi
 
           GAME_STATUS="$(curl --silent --show-error --output /tmp/economy-game-response.json --write-out '%{http_code}' \
-            --resolve "game.riversoft.top:443:$SERVER_HOST" https://game.riversoft.top/economy-api/game/state || true)"
+            "$ECONOMY_PUBLIC_ORIGIN/economy-api/game/state" || true)"
           if [ "$GAME_STATUS" != "401" ]; then
             cat /tmp/economy-game-response.json 2>/dev/null || true
             echo ECONOMY_GAME_API_PROXY_UNAVAILABLE
@@ -322,8 +322,8 @@ jobs:
           fi
 
           LOGIN_STATUS="$(curl --silent --show-error --output /tmp/economy-login-response.json --write-out '%{http_code}' \
-            --resolve "game.riversoft.top:443:$SERVER_HOST" --request POST --header 'Content-Type: application/json' \
-            --data '{}' https://game.riversoft.top/economy-api/login || true)"
+            --request POST --header 'Content-Type: application/json' \
+            --data '{}' "$ECONOMY_PUBLIC_ORIGIN/economy-api/login" || true)"
           if [ "$LOGIN_STATUS" != "400" ]; then
             cat /tmp/economy-login-response.json 2>/dev/null || true
             echo ECONOMY_LOGIN_PROXY_UNAVAILABLE
@@ -331,9 +331,9 @@ jobs:
           fi
 
           REGISTRATION_STATUS="$(curl --silent --show-error --output /tmp/economy-registration-response.json --write-out '%{http_code}' \
-            --resolve "game.riversoft.top:443:$SERVER_HOST" --request POST --header 'Content-Type: application/json' \
+            --request POST --header 'Content-Type: application/json' \
             --header 'Idempotency-Key: deploy-registration-route-check' --data '{}' \
-            https://game.riversoft.top/economy-api/registration/email-code || true)"
+            "$ECONOMY_PUBLIC_ORIGIN/economy-api/registration/email-code" || true)"
           if [ "$REGISTRATION_STATUS" != "400" ]; then
             cat /tmp/economy-registration-response.json 2>/dev/null || true
             echo ECONOMY_REGISTRATION_PROXY_UNAVAILABLE
