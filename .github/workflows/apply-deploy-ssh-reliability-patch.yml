@@ -34,32 +34,18 @@ jobs:
           }
 
           const deploy = '.github/workflows/deploy.yml';
-          replaceOnce(
-            deploy,
-`      - name: Configure SSH
+          const secret = (name) => '$' + `{{ secrets.${name} }}`;
+          const source = fs.readFileSync(deploy, 'utf8');
+          const configurePattern = /      - name: Configure SSH\n[\s\S]*?(?=\n      - name: Prune backups)/;
+          const configureMatch = source.match(configurePattern);
+          if (!configureMatch) throw new Error('deploy.yml: Configure SSH block not found');
+          const configure = `      - name: Configure SSH
         id: configure_ssh
         env:
-          SERVER_HOST: \${{ secrets.SERVER_HOST }}
-          SERVER_PORT: \${{ secrets.SERVER_PORT }}
-          SERVER_SSH_KEY: \${{ secrets.SERVER_SSH_KEY }}
-        run: |
-          exec > >(tee /tmp/economy-ssh.log) 2>&1
-          set -euo pipefail
-          test -n "$SERVER_HOST"
-          test -n "$SERVER_PORT"
-          test -n "$SERVER_SSH_KEY"
-          mkdir -p ~/.ssh
-          printf '%s\\n' "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "$SERVER_PORT" "$SERVER_HOST" >> ~/.ssh/known_hosts
-`,
-`      - name: Configure SSH
-        id: configure_ssh
-        env:
-          SERVER_HOST: \${{ secrets.SERVER_HOST }}
-          SERVER_USER: \${{ secrets.SERVER_USER }}
-          SERVER_PORT: \${{ secrets.SERVER_PORT }}
-          SERVER_SSH_KEY: \${{ secrets.SERVER_SSH_KEY }}
+          SERVER_HOST: ${secret('SERVER_HOST')}
+          SERVER_USER: ${secret('SERVER_USER')}
+          SERVER_PORT: ${secret('SERVER_PORT')}
+          SERVER_SSH_KEY: ${secret('SERVER_SSH_KEY')}
         run: |
           exec > >(tee /tmp/economy-ssh.log) 2>&1
           set -euo pipefail
@@ -96,8 +82,8 @@ jobs:
             echo "ECONOMY_SSH_PREFLIGHT_FAILED attempts=5" >&2
             exit 1
           fi
-`
-          );
+`;
+          fs.writeFileSync(deploy, source.replace(configurePattern, configure));
 
           const design = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md';
           replaceOnce(
