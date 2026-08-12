@@ -1,0 +1,89 @@
+name: Apply facility procurement design patch
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'fix/facility-procurement-auto-cancel-crossing-sells'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.4.0'
+          cache: npm
+      - name: Patch authoritative design documents
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          function replaceOnce(path, from, to) {
+            const source = fs.readFileSync(path, 'utf8');
+            const count = source.split(from).length - 1;
+            if (count !== 1) throw new Error(`${path}: expected exactly one match, got ${count}: ${from}`);
+            fs.writeFileSync(path, source.replace(from, to));
+          }
+
+          function updateDate(path) {
+            const source = fs.readFileSync(path, 'utf8');
+            const next = source.replace(/^> 更新时间：\d{4}-\d{2}-\d{2}$/m, '> 更新时间：2026-08-12');
+            if (next === source) throw new Error(`${path}: update date not found`);
+            fs.writeFileSync(path, next);
+          }
+
+          const page = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md';
+          replaceOnce(
+            page,
+            '并继续校验自己的交叉卖单、未完成订单配额以及“建造现金 + 买单最大冻结额”的可用资金。',
+            '提交缺料买单时不得因自己的交叉卖单直接禁用按钮：服务器必须在同一幂等事务内自动撤销与各材料提交买价交叉的本人未完成商品卖单，释放其剩余冻结库存后重新计算真实缺口；客户端的买单最高占用与未完成订单配额提示也按这些预计撤单释放后的缺口和订单槽位计算。未交叉卖单保持不动，再按撤单后的缺口校验未完成订单配额以及“建造现金 + 买单最大冻结额”的可用资金。'
+          );
+          updateDate(page);
+
+          const unified = 'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md';
+          replaceOnce(
+            unified,
+            '当前卖盘不足时的建造采购组仍然不是第二套订单。`POST /api/game/orders` 的内部 `execution = facility-build-procurement` 只负责在一个幂等事务中按服务器重新计算的真实缺口批量创建普通玩家商品 BUY；每张子订单都进入唯一 `world.orders`，照常执行价格时间优先、maker price、资金冻结、部分成交、自交叉阻断、玩家未完成订单上限、成交记录和逐单撤销。`execution = facility-build-procurement-cancel` 只批量调用同一玩家这些正式订单的普通撤销语义；已成交数量不得回滚，剩余冻结资金正常释放。一次建造提交形成一个浏览器可见采购组，但组 ID 与订单关联仅用于当前玩家建设卡聚类，不写入公开 `AssetOrder`、不改变匿名序列化、不建立第二套盘口，也不改变市场页“我的订单”逐单展示和逐单撤销。采购完成不得自动创建工厂，建造现金不得作为订单冻结资金。',
+            '当前卖盘不足时的建造采购组仍然不是第二套订单。`POST /api/game/orders` 的内部 `execution = facility-build-procurement` 是普通玩家订单“禁止自交叉”的唯一受控例外：服务器必须先校验本次建造原始缺口对应的逐材料买价，再自动撤销与这些买价交叉的本人同商品未完成 SELL；相等价格也属于交叉，高于买价的本人卖单不得撤销。撤单释放剩余冻结库存后必须重新计算真实建造缺口、未完成订单数量和新买单最大冻结额，释放库存已经补足的材料不得继续创建 BUY；若全部缺口因此归零则成功结束且不创建空采购组。随后仅对仍有缺口的材料批量创建普通玩家商品 BUY，每张子订单都进入唯一 `world.orders`，继续执行价格时间优先、maker price、资金冻结、部分成交、玩家未完成订单上限、成交记录和逐单撤销；由于交叉卖单已在同一事务中消除，子订单本身仍不得与任何剩余本人反向订单交叉。自动撤单、缺口重算与全部子订单创建属于同一个幂等经济回滚边界，后续订单额度、资金或任一子订单失败时必须恢复已撤销卖单及其冻结库存。普通手动订单和建厂 `Fill-or-Kill` 一键购齐仍保持原自交叉拒绝规则，不得扩展此例外。`execution = facility-build-procurement-cancel` 只批量调用同一玩家这些正式 BUY 的普通撤销语义；已成交数量不得回滚，剩余冻结资金正常释放。一次建造提交形成一个浏览器可见采购组，但组 ID 与订单关联仅用于当前玩家建设卡聚类，不写入公开 `AssetOrder`、不改变匿名序列化、不建立第二套盘口，也不改变市场页“我的订单”逐单展示和逐单撤销。采购完成不得自动创建工厂，建造现金不得作为订单冻结资金。'
+          );
+          updateDate(unified);
+
+          const industry = 'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md';
+          replaceOnce(
+            industry,
+            '服务器必须重新计算真实库存缺口并校验具体科技、1～100 座数量、逐材料价格、自交叉、未完成订单配额、安全金额以及“当前可用资金 ≥ 建造现金 + 全部新买单最大冻结额”，随后在同一幂等事务中为每种缺料创建一张正式玩家商品买单；',
+            '服务器必须先校验具体科技、1～100 座数量和原始缺口对应的逐材料价格，再在同一幂等事务中自动撤销与本次买价交叉的本人同商品未完成卖单；撤单释放剩余冻结库存后重新计算真实库存缺口、未完成订单配额与买单最大冻结额，未交叉卖单保持不动，并继续校验安全金额以及“当前可用资金 ≥ 建造现金 + 全部新买单最大冻结额”，随后只为仍然缺料的商品各创建一张正式玩家商品买单；'
+          );
+          updateDate(industry);
+
+          const server = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md';
+          replaceOnce(
+            server,
+            '`execution = facility-build-procurement` 只表示一次建造意图的批量普通商品买单：服务器重新计算缺口并校验具体科技、1～100 数量、逐材料 `materialOrderPrices`、自交叉、动态未完成订单上限、安全金额和“可用资金 ≥ 建造费 + 全部新买单最大金额”，再在同一个 SQLite savepoint／世界回滚边界内逐材料调用正式 `placeOrder`；任何一张失败必须回滚本次已经创建或成交的其他子订单。',
+            '`execution = facility-build-procurement` 只表示一次建造意图的批量普通商品买单：服务器先计算原始缺口并校验具体科技、1～100 数量及逐材料 `materialOrderPrices`，随后在同一个 SQLite savepoint／世界回滚边界内自动撤销与本次买价交叉的本人同商品未完成卖单；撤单释放剩余冻结库存后必须重新计算真实缺口、动态未完成订单上限和全部新买单最大金额，释放库存已经补足的材料不得继续下 BUY，未交叉卖单保持不动。完成重算后再校验安全金额和“可用资金 ≥ 建造费 + 全部新买单最大金额”并逐材料调用正式 `placeOrder`；自动撤单或任何一张子订单之后失败，都必须恢复本次已撤销卖单、释放库存以及已经创建或成交的其他子订单。普通手动订单与 `autoProcure = true` 的 FOK 建材采购仍按原规则拒绝自交叉，不使用该自动撤单例外。'
+          );
+          updateDate(server);
+          NODE
+      - run: npm ci
+      - run: node scripts/verify-facility-auto-procure.mjs
+      - run: node --test server/test/facility-build-procurement-orders.test.js server/test/facility-build-procurement-self-cross.test.js
+      - run: npm run build
+      - name: Commit patched documents and remove one-shot workflow
+        shell: bash
+        run: |
+          rm .github/workflows/apply-facility-procurement-doc-patch.yml
+          git diff --check
+          git config user.name 'RIVERSOFT'
+          git config user.email '105160096+RIVERS0FT@users.noreply.github.com'
+          git add -- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md docs/INDUSTRY_AND_PRODUCTION_DESIGN.md docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md .github/workflows/apply-facility-procurement-doc-patch.yml
+          git commit -m 'docs: define build procurement auto-cancel rule'
+          git push origin HEAD:${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
