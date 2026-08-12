@@ -29,11 +29,13 @@ class EconomyIpFallbackNginxTests(unittest.TestCase):
         self.assertIn(str(module.CERTIFICATE), config)
         self.assertIn(str(module.PRIVATE_KEY), config)
         self.assertIn("ssl_protocols TLSv1.2 TLSv1.3;", config)
+        self.assertIn("gzip_comp_level 6;", config)
         self.assertIn("location ^~ /economy/", config)
         self.assertIn("try_files $uri $uri/ /economy/index.html;", config)
         self.assertIn('/economy/assets/', config)
         self.assertIn('public, max-age=31536000, immutable', config)
         self.assertIn('no-cache, max-age=0, must-revalidate', config)
+        self.assertIn("location / {\n        return 404;\n    }", config)
 
     def test_final_config_proxies_every_same_origin_api_needed_by_client(self):
         config = module.final_config()
