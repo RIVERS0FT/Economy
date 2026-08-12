@@ -23,6 +23,11 @@ for (const [file, texts] of Object.entries({
     'createFacilityBuildProcurementOrders',
     'cancelFacilityBuildProcurementOrders',
     'materialOrderPrices',
+    'validatedPrices',
+    'autoCancelledSellOrders',
+    "applyAction(world, user, 'cancelOrder', { orderId: crossingOrder.id }, now)",
+    '交叉卖单自动撤销失败',
+    'const refreshedContext = facilityBuildContext(world, user, payload)',
     'countOpenOrdersForOwner',
     'ECONOMY_CONSTANTS.maxOpenOrders',
     "applyAction(world, user, 'placeOrder'",
@@ -72,6 +77,10 @@ for (const [file, texts] of Object.entries({
   'src/pages/ProductionPage.tsx': [
     'quoteFacilityBuildProcurement(game.orders, missingBuildMaterials)',
     'openOrderLimitForCatalog(game.products.length, game.facilityTypes.length)',
+    'crossingSellOrderIds',
+    'effectiveProcurementMaterials',
+    'effectiveOwnOpenOrderCount',
+    '服务器会先自动撤销',
     'label="库存可直接建"',
     'label="预计采购"',
     'label="预计总支出"',
@@ -102,16 +111,26 @@ for (const [file, texts] of Object.entries({
     "execution: 'facility-build-procurement-cancel'",
     "path: '/api/game/orders'",
   ],
+  'server/test/facility-build-procurement-self-cross.test.js': [
+    'auto-cancels crossing own sells and recalculates the released inventory deficit',
+    'creates no buy order when released inventory covers all deficits',
+    'leaves non-crossing own sells untouched',
+    'rolls back auto-cancelled sells and released inventory',
+  ],
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md': [
     '一键购齐并建造',
     '全部采购与建设一起回滚',
     '缺料买单',
+    '自动撤销',
+    '撤单释放剩余冻结库存后重新计算真实库存缺口',
     '不得自动建厂',
   ],
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md': [
     '建厂一键购料',
     'Fill-or-Kill',
     'facility-build-procurement',
+    '受控例外',
+    '自动撤销',
     '建造采购组',
     '(PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length) * 10',
   ],
@@ -120,6 +139,8 @@ for (const [file, texts] of Object.entries({
     '库存可直接建',
     '一键购齐并建造',
     '一键提交缺料买单',
+    '自动撤销',
+    '释放其剩余冻结库存后重新计算真实缺口',
     '待采购',
     '商品类型数与工厂类型数之和的 10 倍',
   ],
@@ -128,6 +149,8 @@ for (const [file, texts] of Object.entries({
     'maxProcurementTotal',
     'materialPriceCaps',
     'facility-build-procurement',
+    '自动撤销',
+    '重新计算真实缺口',
     'facility-build-procurement-cancel',
   ],
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md': ['“一键购齐并建造”仍属于即时建设'],
@@ -153,6 +176,7 @@ for (const text of ['/facilities/procurements', '/facilities/procurements/cancel
   forbidText('server/src/game-routes.js', text);
   forbidText('src/api/game.ts', text);
 }
+forbidText('src/pages/ProductionPage.tsx', '买价会与自己的卖单交叉，请先撤单或降低价格。');
 forbidText('server/test/instant-facility-construction.test.js', 'still requires warehouse space for market delivery');
 forbidText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '资金或仓库不足');
 forbidText('docs/README.md', '仓库临时交割');
