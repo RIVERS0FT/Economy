@@ -14,6 +14,9 @@ permissions:
   contents: read
   statuses: write
 
+env:
+  ECONOMY_PRODUCTION_PUBLIC_IP: 116.204.134.56
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -70,14 +73,13 @@ jobs:
       - name: Configure SSH
         id: configure_ssh
         env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
           SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
         run: |
           exec > >(tee /tmp/economy-ssh.log) 2>&1
           set -euo pipefail
-          test -n "$SERVER_HOST"
+          test -n "$ECONOMY_PRODUCTION_PUBLIC_IP"
           test -n "$SERVER_USER"
           test -n "$SERVER_PORT"
           test -n "$SERVER_SSH_KEY"
@@ -97,7 +99,7 @@ jobs:
               -o ConnectTimeout=15 \
               -o StrictHostKeyChecking=accept-new \
               -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
-              "$SERVER_USER@$SERVER_HOST" true; then
+              "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" true; then
               ssh_connected=1
               break
             fi
@@ -111,30 +113,28 @@ jobs:
             exit 1
           fi
 
-      - name: Prune backups and create compact compressed database backup before world 25 migration
+      - name: Prune backups and create compact compressed database backup before world 26 migration
         id: backup_database
         env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
         run: |
           exec > >(tee /tmp/economy-database-backup.log) 2>&1
           set -euo pipefail
-          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
-            'if [ "$(id -u)" -eq 0 ]; then exec python3 - backup-world --target-world-version 25; elif command -v sudo >/dev/null 2>&1 && sudo -n true; then exec sudo -n python3 - backup-world --target-world-version 25; else echo ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE >&2; exit 1; fi' \
+          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" \
+            'if [ "$(id -u)" -eq 0 ]; then exec python3 - backup-world --target-world-version 26; elif command -v sudo >/dev/null 2>&1 && sudo -n true; then exec sudo -n python3 - backup-world --target-world-version 26; else echo ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE >&2; exit 1; fi' \
             < scripts/manage-production-backups.py
 
       - name: Prepare remote directories
         id: prepare_remote
         env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
         run: |
           exec > >(tee /tmp/economy-deploy.log) 2>&1
           set -euo pipefail
           test -n "$SERVER_USER"
-          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" 'bash -s' <<'REMOTE'
+          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" 'bash -s' <<'REMOTE'
           set -euo pipefail
           deploy_user="$(id -un)"
           deploy_group="$(id -gn)"
@@ -176,13 +176,12 @@ jobs:
       - name: Prepare portable Node runtime
         id: prepare_runtime
         env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
         run: |
           exec > >(tee /tmp/economy-runtime.log) 2>&1
           set -euo pipefail
-          remote_machine="$(ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" uname -m)"
+          remote_machine="$(ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" uname -m)"
           case "$remote_machine" in
             x86_64|amd64) node_arch="x64" ;;
             aarch64|arm64) node_arch="arm64" ;;
@@ -202,40 +201,37 @@ jobs:
       - name: Upload website and game API
         id: upload_assets
         env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
         run: |
           exec > >(tee /tmp/economy-upload.log) 2>&1
           set -euo pipefail
           rsync -az -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
-            dist/assets/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy/assets/"
+            dist/assets/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy/assets/"
           rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
             --exclude assets/ \
             --exclude index.html \
-            dist/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy/"
+            dist/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy/"
           rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
-            server/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy-api/"
+            server/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy-api/"
           rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
-            /tmp/economy-node-runtime/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy-api/runtime/"
+            /tmp/economy-node-runtime/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy-api/runtime/"
 
       - name: Install authoritative game service
         id: install_service
         env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
         run: |
           exec > >(tee /tmp/economy-api-install.log) 2>&1
           set -euo pipefail
-          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" \
             "if [ \$(id -u) -eq 0 ]; then exec python3 - /var/www/game/economy-api '$SERVER_USER'; elif command -v sudo >/dev/null 2>&1 && sudo -n true; then exec sudo -n python3 - /var/www/game/economy-api '$SERVER_USER'; else echo ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE >&2; exit 1; fi" \
             < scripts/install-economy-api.py
 
       - name: Configure Nginx routes and static cache
         id: configure_nginx
         env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
         run: |
@@ -244,25 +240,26 @@ jobs:
           for script in \
             scripts/configure-economy-nginx.py \
             scripts/configure-economy-static-cache.py \
-            scripts/configure-economy-registration-nginx.py \
-            scripts/configure-economy-ip-fallback-nginx.py; do
-            ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+            scripts/configure-economy-registration-nginx.py; do
+            ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" \
               'if [ "$(id -u)" -eq 0 ]; then exec python3 -; elif command -v sudo >/dev/null 2>&1 && sudo -n true; then exec sudo -n python3 -; else echo ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE >&2; exit 1; fi' \
               < "$script"
           done
+          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" \
+            "if [ \$(id -u) -eq 0 ]; then exec python3 - '$ECONOMY_PRODUCTION_PUBLIC_IP'; elif command -v sudo >/dev/null 2>&1 && sudo -n true; then exec sudo -n python3 - '$ECONOMY_PRODUCTION_PUBLIC_IP'; else echo ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE >&2; exit 1; fi" \
+            < scripts/configure-economy-ip-fallback-nginx.py
 
       - name: Publish website entry and prune expired assets
         id: publish_entry
         env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
         run: |
           exec > >(tee /tmp/economy-publish-entry.log) 2>&1
           set -euo pipefail
           rsync -az -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
-            dist/index.html "$SERVER_USER@$SERVER_HOST:/var/www/game/economy/index.html.next"
-          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" 'bash -s' <<'REMOTE'
+            dist/index.html "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy/index.html.next"
+          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" 'bash -s' <<'REMOTE'
           set -euo pipefail
           test -s /var/www/game/economy/index.html.next
           mv -f /var/www/game/economy/index.html.next /var/www/game/economy/index.html
@@ -273,22 +270,24 @@ jobs:
       - name: Verify website, account routes, and game API
         id: verify_deployment
         env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
-          ECONOMY_PUBLIC_ORIGIN: https://123.60.108.5
         run: |
           exec > >(tee /tmp/economy-verify.log) 2>&1
           set -euo pipefail
-          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" 'bash -s' <<'REMOTE'
+          ECONOMY_PUBLIC_ORIGIN="https://$ECONOMY_PRODUCTION_PUBLIC_IP"
+          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" \
+            "bash -s -- '$ECONOMY_PRODUCTION_PUBLIC_IP'" <<'REMOTE'
           set -euo pipefail
+          PUBLIC_IP="$1"
+          PUBLIC_IP_SLUG="${PUBLIC_IP//./-}"
           test -x /var/www/game/economy-api/runtime/bin/node
           curl --fail --silent --show-error http://127.0.0.1:3002/health >/dev/null
           curl --fail --silent --show-error -H "Host: game.riversoft.top" http://127.0.0.1/economy/ >/dev/null
           test -f /var/www/game/economy/index.html
           test -s /var/lib/riversoft-economy/registration-secret
-          test -s /etc/letsencrypt/live/riversoft-economy-ip-123-60-108-5/fullchain.pem
-          test -s /etc/letsencrypt/live/riversoft-economy-ip-123-60-108-5/privkey.pem
+          test -s "/etc/letsencrypt/live/riversoft-economy-ip-${PUBLIC_IP_SLUG}/fullchain.pem"
+          test -s "/etc/letsencrypt/live/riversoft-economy-ip-${PUBLIC_IP_SLUG}/privkey.pem"
           systemctl is-enabled --quiet riversoft-economy-ip-cert-renew.timer
           systemctl is-active --quiet riversoft-economy-ip-cert-renew.timer
           python3 - <<'PYTHON'
@@ -307,7 +306,7 @@ jobs:
           REMOTE
 
           REDIRECT_STATUS="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
-            "http://123.60.108.5/economy/" || true)"
+            "http://$ECONOMY_PRODUCTION_PUBLIC_IP/economy/" || true)"
           if [ "$REDIRECT_STATUS" != "308" ]; then
             echo "ECONOMY_IP_HTTP_REDIRECT_INVALID=$REDIRECT_STATUS"
             exit 1
