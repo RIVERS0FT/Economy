@@ -132,13 +132,12 @@ jobs:
       - run: npm ci
       - run: node scripts/verify-runtime-reliability.mjs
       - run: npm run build
-      - name: Commit verified patch and remove one-shot workflow
+      - name: Commit verified non-workflow changes
         shell: bash
         run: |
-          rm .github/workflows/apply-deploy-ssh-reliability-patch.yml
           git diff --check
           git config user.name 'RIVERSOFT'
           git config user.email '105160096+RIVERS0FT@users.noreply.github.com'
-          git add -- .github/workflows/deploy.yml docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md scripts/verify-runtime-reliability.mjs .github/workflows/apply-deploy-ssh-reliability-patch.yml
-          git commit -m 'fix: harden deployment SSH preflight'
+          git add -- docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md scripts/verify-runtime-reliability.mjs
+          git commit -m 'docs: lock deployment SSH preflight reliability'
           git push origin HEAD:fix/deploy-ssh-preflight-retry
