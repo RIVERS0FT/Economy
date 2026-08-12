@@ -37,6 +37,16 @@ class EconomyIpFallbackNginxTests(unittest.TestCase):
         self.assertIn('no-cache, max-age=0, must-revalidate', config)
         self.assertIn("location / {\n        return 404;\n    }", config)
 
+    def test_final_config_rechecks_original_browser_origin_before_proxying(self):
+        config = module.final_config()
+        self.assertIn("map $http_origin $economy_ip_origin_allowed", config)
+        self.assertIn('"https://123.60.108.5" 1;', config)
+        self.assertIn("map $http_sec_fetch_site $economy_ip_fetch_site_allowed", config)
+        self.assertIn("same-origin 1;", config)
+        self.assertIn("same-site 1;", config)
+        self.assertIn("if ($economy_ip_origin_allowed = 0) { return 403; }", config)
+        self.assertIn("if ($economy_ip_fetch_site_allowed = 0) { return 403; }", config)
+
     def test_final_config_proxies_every_same_origin_api_needed_by_client(self):
         config = module.final_config()
         for path in (
