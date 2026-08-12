@@ -259,13 +259,21 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
   const invalidOrderPriceProductIds = missingBuildMaterials
     .filter((item) => materialOrderPrices[item.productId] === undefined)
     .map((item) => item.productId);
-  const selfCrossingOrderProductIds = missingBuildMaterials
-    .filter((item) => {
-      const price = materialOrderPrices[item.productId];
-      return price !== undefined && game.orders.some((order) => openOwnCommoditySell(order, item.productId, price));
-    })
-    .map((item) => item.productId);
-  const procurementOrderTotalCents = missingBuildMaterials.reduce((total, item) => {
+  const crossingSellOrderIds = new Set<string>();
+  const effectiveProcurementMaterials = missingBuildMaterials.flatMap((item) => {
+    const price = materialOrderPrices[item.productId];
+    if (price === undefined) return [{ ...item }];
+    let releasedQuantity = 0;
+    for (const order of game.orders) {
+      if (!openOwnCommoditySell(order, item.productId, price)) continue;
+      crossingSellOrderIds.add(order.id);
+      releasedQuantity += Math.max(0, Number(order.remaining || 0));
+    }
+    const quantity = Math.max(0, item.quantity - releasedQuantity);
+    return quantity > 0 ? [{ productId: item.productId, quantity }] : [];
+  });
+  const crossingSellOrderCount = crossingSellOrderIds.size;
+  const procurementOrderTotalCents = effectiveProcurementMaterials.reduce((total, item) => {
     const price = materialOrderPrices[item.productId];
     if (price === undefined) return total;
     const cents = Math.round(price * 100);
@@ -278,6 +286,7 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
   const ownOpenOrderCount = game.orders.filter((order) => (
     order.isOwn && (order.status === 'open' || order.status === 'partial')
   )).length;
+  const effectiveOwnOpenOrderCount = Math.max(0, ownOpenOrderCount - crossingSellOrderCount);
   const maxOpenOrderCount = openOrderLimitForCatalog(game.products.length, game.facilityTypes.length);
 
   const buildDisabledReason = game.credits < buildCashCost
@@ -289,13 +298,11 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
         : undefined;
   const procurementOrderDisabledReason = invalidOrderPriceProductIds.length > 0
     ? `${invalidOrderPriceProductIds.map(productName).join('、')}买单价格无效。`
-    : selfCrossingOrderProductIds.length > 0
-      ? `${selfCrossingOrderProductIds.map(productName).join('、')}买价会与自己的卖单交叉，请先撤单或降低价格。`
-      : ownOpenOrderCount + missingBuildMaterials.length > maxOpenOrderCount
-        ? `未完成订单数量不足以再提交 ${formatNumber(missingBuildMaterials.length)} 张建造材料买单。`
-        : game.credits < buildCashCost + procurementOrderTotal
-          ? `建造与缺料买单总资金不足，最多需要 ${formatCurrency(buildCashCost + procurementOrderTotal)}。`
-          : undefined;
+    : effectiveOwnOpenOrderCount + effectiveProcurementMaterials.length > maxOpenOrderCount
+      ? `未完成订单数量不足以再提交 ${formatNumber(effectiveProcurementMaterials.length)} 张建造材料买单。`
+      : game.credits < buildCashCost + procurementOrderTotal
+        ? `建造与缺料买单总资金不足，最多需要 ${formatCurrency(buildCashCost + procurementOrderTotal)}。`
+        : undefined;
   const actionDisabledReason = needsProcurement && !procurementQuote.complete
     ? procurementOrderDisabledReason
     : buildDisabledReason;
@@ -397,7 +404,6 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
       materialPriceCaps: procurementQuote.materialPriceCaps,
     }));
   };
-
   const orderById = new Map(game.orders.map((order) => [order.id, order]));
 
   return (
@@ -523,7 +529,9 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
             {actionDisabledReason ?? (needsProcurement
               ? procurementQuote.complete
                 ? '提交时服务器按当前卖盘价格上限一次购齐缺料；任一材料不足或价格超限时整笔采购与建造全部回滚。'
-                : '当前卖盘无法一次购齐。提交后可成交部分立即按正式订单簿成交，剩余数量作为普通商品买单留在市场；建造资金不会冻结，材料购齐后再点击建造。'
+                : crossingSellOrderCount > 0
+                  ? `提交时服务器会先自动撤销 ${formatNumber(crossingSellOrderCount)} 张与本次买价交叉的本人卖单，释放库存后重新计算真实缺口；可成交部分立即按正式订单簿成交，剩余数量继续挂在市场。`
+                  : '当前卖盘无法一次购齐。提交后可成交部分立即按正式订单簿成交，剩余数量作为普通商品买单留在市场；建造资金不会冻结，材料购齐后再点击建造。'
               : <>提交后立即扣除{selectedBuildInputs.length === 0 ? '建造资金' : '资金与建造材料'}，工厂直接加入同类集群；运行中的集群保持当前进度并重新计算满员率。</>)}
           </small>
 
