@@ -1,25 +1,50 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import ipaddress
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
-PUBLIC_IP = "123.60.108.5"
 FORMAL_DOMAIN = "game.riversoft.top"
 WEB_ROOT = Path("/var/www/game")
 CONFIG_PATH = Path("/etc/nginx/conf.d/riversoft-economy-ip-fallback.conf")
 CERTBOT_ROOT = Path("/opt/riversoft-certbot")
 CERTBOT_VERSION = "5.4.0"
 CERTBOT = CERTBOT_ROOT / "bin/certbot"
-CERT_NAME = "riversoft-economy-ip-123-60-108-5"
-CERTIFICATE = Path(f"/etc/letsencrypt/live/{CERT_NAME}/fullchain.pem")
-PRIVATE_KEY = Path(f"/etc/letsencrypt/live/{CERT_NAME}/privkey.pem")
 RENEW_SERVICE = Path("/etc/systemd/system/riversoft-economy-ip-cert-renew.service")
 RENEW_TIMER = Path("/etc/systemd/system/riversoft-economy-ip-cert-renew.timer")
+
+
+@dataclass(frozen=True)
+class PublicIpTarget:
+    public_ip: str
+    cert_name: str
+    certificate: Path
+    private_key: Path
+
+
+def public_ip_target(value: str) -> PublicIpTarget:
+    try:
+        address = ipaddress.ip_address(value)
+    except ValueError as error:
+        raise RuntimeError("Economy fallback target must be a literal public IPv4 address") from error
+    if not isinstance(address, ipaddress.IPv4Address) or not address.is_global:
+        raise RuntimeError("Economy fallback target must be a literal public IPv4 address")
+
+    public_ip = str(address)
+    cert_name = f"riversoft-economy-ip-{public_ip.replace('.', '-')}"
+    certificate_root = Path("/etc/letsencrypt/live") / cert_name
+    return PublicIpTarget(
+        public_ip=public_ip,
+        cert_name=cert_name,
+        certificate=certificate_root / "fullchain.pem",
+        private_key=certificate_root / "privkey.pem",
+    )
 
 
 def account_locations() -> str:
@@ -104,11 +129,11 @@ def registration_location() -> str:
 """.strip("\n")
 
 
-def origin_maps() -> str:
+def origin_maps(target: PublicIpTarget) -> str:
     return f"""map $http_origin $economy_ip_origin_allowed {{
     default 0;
     "" 1;
-    "https://{PUBLIC_IP}" 1;
+    "https://{target.public_ip}" 1;
 }}
 
 map $http_sec_fetch_site $economy_ip_fetch_site_allowed {{
@@ -120,12 +145,12 @@ map $http_sec_fetch_site $economy_ip_fetch_site_allowed {{
 """
 
 
-def bootstrap_config() -> str:
+def bootstrap_config(target: PublicIpTarget) -> str:
     return f"""# Temporary Economy public-IP ACME bootstrap. Managed by {Path(__file__).name}.
 server {{
     listen 80;
     listen [::]:80;
-    server_name {PUBLIC_IP};
+    server_name {target.public_ip};
 
     location ^~ /.well-known/acme-challenge/ {{
         root {WEB_ROOT};
@@ -139,13 +164,13 @@ server {{
 """
 
 
-def final_config() -> str:
+def final_config(target: PublicIpTarget) -> str:
     return f"""# Temporary Economy public-IP HTTPS fallback. Managed by {Path(__file__).name}.
-{origin_maps()}
+{origin_maps(target)}
 server {{
     listen 80;
     listen [::]:80;
-    server_name {PUBLIC_IP};
+    server_name {target.public_ip};
 
     location ^~ /.well-known/acme-challenge/ {{
         root {WEB_ROOT};
@@ -153,20 +178,20 @@ server {{
     }}
 
     location / {{
-        return 308 https://{PUBLIC_IP}$request_uri;
+        return 308 https://{target.public_ip}$request_uri;
     }}
 }}
 
 server {{
     listen 443 ssl;
     listen [::]:443 ssl;
-    server_name {PUBLIC_IP};
+    server_name {target.public_ip};
 
     if ($economy_ip_origin_allowed = 0) {{ return 403; }}
     if ($economy_ip_fetch_site_allowed = 0) {{ return 403; }}
 
-    ssl_certificate {CERTIFICATE};
-    ssl_certificate_key {PRIVATE_KEY};
+    ssl_certificate {target.certificate};
+    ssl_certificate_key {target.private_key};
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_session_cache shared:ECONOMY_IP_SSL:10m;
     ssl_session_timeout 1d;
@@ -215,7 +240,7 @@ server {{
 """
 
 
-def certbot_command() -> list[str]:
+def certbot_command(target: PublicIpTarget) -> list[str]:
     return [
         str(CERTBOT),
         "certonly",
@@ -228,14 +253,14 @@ def certbot_command() -> list[str]:
         "--webroot-path",
         str(WEB_ROOT),
         "--ip-address",
-        PUBLIC_IP,
+        target.public_ip,
         "--cert-name",
-        CERT_NAME,
+        target.cert_name,
         "--keep-until-expiring",
     ]
 
 
-def renewal_service() -> str:
+def renewal_service(target: PublicIpTarget) -> str:
     return f"""[Unit]
 Description=Renew temporary Economy public-IP certificate
 After=network-online.target nginx.service
@@ -243,7 +268,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart={CERTBOT} renew --quiet --cert-name {CERT_NAME} --deploy-hook \"/usr/bin/systemctl reload nginx\"
+ExecStart={CERTBOT} renew --quiet --cert-name {target.cert_name} --deploy-hook \"/usr/bin/systemctl reload nginx\"
 """
 
 
@@ -312,8 +337,8 @@ def ensure_certbot() -> None:
     )
 
 
-def install_renewal_timer() -> None:
-    write_atomic(RENEW_SERVICE, renewal_service())
+def install_renewal_timer(target: PublicIpTarget) -> None:
+    write_atomic(RENEW_SERVICE, renewal_service(target))
     write_atomic(RENEW_TIMER, renewal_timer())
     run("systemctl", "daemon-reload")
     run("systemctl", "enable", "--now", RENEW_TIMER.name)
@@ -332,7 +357,12 @@ def restore_config(previous: bytes | None) -> None:
         print(f"ECONOMY_IP_FALLBACK_ROLLBACK_FAILED: {error}", file=sys.stderr)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    arguments = sys.argv[1:] if argv is None else argv
+    if len(arguments) != 1:
+        raise RuntimeError("Usage: configure-economy-ip-fallback-nginx.py <public-ipv4>")
+    target = public_ip_target(arguments[0])
+
     if os.geteuid() != 0:
         raise RuntimeError("This script must run as root")
 
@@ -341,21 +371,21 @@ def main() -> int:
 
     try:
         ensure_certbot()
-        if not CERTIFICATE.is_file() or not PRIVATE_KEY.is_file():
-            write_atomic(CONFIG_PATH, bootstrap_config())
+        if not target.certificate.is_file() or not target.private_key.is_file():
+            write_atomic(CONFIG_PATH, bootstrap_config(target))
             nginx_reload()
-        run(*certbot_command())
-        if not CERTIFICATE.is_file() or not PRIVATE_KEY.is_file():
+        run(*certbot_command(target))
+        if not target.certificate.is_file() or not target.private_key.is_file():
             raise RuntimeError("Certbot completed without creating the IP certificate")
-        write_atomic(CONFIG_PATH, final_config())
+        write_atomic(CONFIG_PATH, final_config(target))
         nginx_reload()
-        install_renewal_timer()
+        install_renewal_timer(target)
     except Exception:
         restore_config(previous)
         raise
 
     print(
-        f"Configured trusted temporary Economy fallback at https://{PUBLIC_IP}/economy/ "
+        f"Configured trusted temporary Economy fallback at https://{target.public_ip}/economy/ "
         f"with Certbot {CERTBOT_VERSION} and 6-hour renewal checks"
     )
     return 0
