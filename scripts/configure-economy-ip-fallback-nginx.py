@@ -152,6 +152,13 @@ server {{
     ssl_session_timeout 1d;
     ssl_session_tickets off;
 
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_min_length 1024;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css application/json application/javascript application/xml image/svg+xml application/manifest+json application/wasm;
+
     root {WEB_ROOT};
     index index.html;
 
@@ -180,6 +187,10 @@ server {{
 {game_api_location()}
 
 {registration_location()}
+
+    location / {{
+        return 404;
+    }}
 }}
 """
 
