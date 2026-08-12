@@ -29,6 +29,7 @@ for (const path of [
   '.github/workflows/configure-registration-email.yml',
 ]) requireFile(path);
 forbidFile('.github/workflows/web-build.yml');
+forbidText('.github/workflows/deploy.yml', 'ssh-keyscan -p \"$SERVER_PORT\" \"$SERVER_HOST\"');
 
 const packageJson = JSON.parse(read('package.json'));
 for (const [group, dependencies] of Object.entries({
@@ -83,6 +84,12 @@ for (const text of [
   'npm run build',
   'Ensure rsync is available',
   'if ! command -v rsync >/dev/null 2>&1; then',
+  'StrictHostKeyChecking=accept-new',
+  'BatchMode=yes',
+  'ConnectTimeout=15',
+  'for attempt in 1 2 3 4 5; do',
+  'ECONOMY_SSH_PREFLIGHT_RETRY attempt=$attempt',
+  'ECONOMY_SSH_PREFLIGHT_FAILED attempts=5',
   'Collect failed step log',
   'collect_failed_log',
   'if [ "$outcome" != "failure" ]; then',
@@ -104,6 +111,9 @@ for (const [path, text] of [
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得写入 commit status'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不保留第二个重复的 PR Web Build 工作流'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得用手工成功状态替代任一真实检查'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得依赖单次 `ssh-keyscan`'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '最多尝试 5 次'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '数据库备份、文件上传和服务变更之前终止'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '成功步骤日志不得上传'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得再为单次构建失败创建临时诊断工作流'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '服务器语法检查由 Node 枚举'],
