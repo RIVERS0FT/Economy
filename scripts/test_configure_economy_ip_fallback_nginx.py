@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 SCRIPT = Path(__file__).with_name("configure-economy-ip-fallback-nginx.py")
+ROOT = SCRIPT.parent.parent
 spec = importlib.util.spec_from_file_location("economy_ip_fallback", SCRIPT)
 module = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
@@ -68,6 +69,24 @@ class EconomyIpFallbackNginxTests(unittest.TestCase):
         self.assertIn("systemctl reload nginx", service)
         self.assertIn("OnCalendar=*-*-* 00/6:17:00", timer)
         self.assertIn("Persistent=true", timer)
+
+    def test_deploy_installs_and_validates_https_ip_without_insecure_tls(self):
+        workflow = (ROOT / ".github/workflows/deploy.yml").read_text(encoding="utf-8")
+        self.assertIn("scripts/configure-economy-ip-fallback-nginx.py", workflow)
+        self.assertIn("ECONOMY_PUBLIC_ORIGIN: https://123.60.108.5", workflow)
+        self.assertIn("ECONOMY_IP_HTTP_REDIRECT_INVALID", workflow)
+        self.assertIn("riversoft-economy-ip-cert-renew.timer", workflow)
+        self.assertNotIn("curl -k", workflow)
+        self.assertNotIn("--insecure", workflow)
+
+    def test_authority_design_records_security_and_restore_boundaries(self):
+        design = (ROOT / "docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md").read_text(encoding="utf-8")
+        self.assertIn("https://123.60.108.5/economy/", design)
+        self.assertIn("COOKIE_SECURE=true", design)
+        self.assertIn("--preferred-profile shortlived", design)
+        self.assertIn("riversoft-economy-ip-cert-renew.timer", design)
+        self.assertIn("不得加 `-k`", design)
+        self.assertIn("删除临时 IP 虚拟主机、续签 timer 和专用短期证书", design)
 
 
 if __name__ == "__main__":
