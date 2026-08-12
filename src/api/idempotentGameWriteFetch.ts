@@ -143,9 +143,13 @@ function shouldKeepReservation(response: Response) {
   return response.status === 408 || response.status >= 500;
 }
 
+function errorName(reason: unknown) {
+  if (!reason || typeof reason !== 'object' || !('name' in reason)) return '';
+  return String((reason as { name?: unknown }).name || '');
+}
+
 function isAmbiguousTransportFailure(reason: unknown) {
-  if (reason instanceof TypeError) return true;
-  return reason instanceof Error && reason.name === 'AbortError';
+  return reason instanceof TypeError || errorName(reason) === 'AbortError';
 }
 
 async function fetchWriteAttempt(
