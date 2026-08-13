@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { useGameAuthorityPartitions } from '../app/gameAuthorityStore';
+import { useGameAuthorityDependencies } from '../app/gameAuthorityStore';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import type { EconomyState } from '../types';
 import {
@@ -30,9 +30,9 @@ function loadReadState(model: LoadedGameViewModel, game: EconomyState): Navigati
 }
 
 export function useNavigationBadges(model: LoadedGameViewModel) {
-  const authorityGame = useGameAuthorityPartitions([
-    'player',
-    'market',
+  const authorityGame = useGameAuthorityDependencies([
+    'player.production',
+    'market.orders',
     'auction',
     'contract',
     'leaderboard',
