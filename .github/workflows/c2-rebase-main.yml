@@ -41,6 +41,7 @@ jobs:
             docs/README.md \
             docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
             docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
+            docs/UI_DESIGN_SYSTEM.md \
             docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md \
             docs/WAREHOUSE_EXPANSION_DESIGN.md \
             src/pages/ProductionPage.tsx \
