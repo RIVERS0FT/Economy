@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import { applyAssetAuctionAction } from './asset-auctions.js';
 import { applyBankAction, ensureBankWorld, ensurePlayerBankAccount } from './banking.js';
+import { applyProductionContractAction, processProductionContracts } from './contracts.js';
 import { applySettledCommodityOrder, cancelSettledCommodityOrder, ensurePlayer } from './domain.js';
 import { assertEconomicStateInvariants, beginEconomicSavepoint } from './economic-mutation.js';
 import {
@@ -29,6 +30,30 @@ import {
 
 const AUCTION_ACTIONS = new Set(['createAuction', 'placeAuctionBid', 'cancelAuction']);
 const BANK_ACTIONS = new Set(['bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay']);
+const CONTRACT_ACTIONS = new Set([
+  'createProductionContract',
+  'acceptProductionContract',
+  'proposeProductionContractNegotiation',
+  'counterProductionContractNegotiation',
+  'acceptProductionContractNegotiation',
+  'rejectProductionContractNegotiation',
+  'revokeProductionContractNegotiation',
+  'cancelProductionContract',
+  'prepareProductionContract',
+  'fundProductionContract',
+  'setProductionContractAutoReserve',
+  'setProductionContractAutoFund',
+  'proposeProductionContractRenewal',
+  'acceptProductionContractRenewal',
+  'rejectProductionContractRenewal',
+  'revokeProductionContractRenewal',
+  'requestProductionContractTermination',
+  'terminateProductionContractNow',
+  'repayPlayerLoan',
+  'setPlayerLoanAutoRepay',
+  'fundFacilityLease',
+  'setFacilityLeaseAutoFund',
+]);
 const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'work', 'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',
   'collectFacility', 'placeOrder', 'cancelOrder', 'listFacility',
@@ -72,57 +97,64 @@ function cancelRuntimeCommodityOrder(world, user, orderId, now) {
 
 function executeActionBody(store, world, user, action, payload, requestKey, now) {
   const playerBeforeAction = structuredClone(world.players?.[String(user.id)] ?? null);
+  const contractsBeforeAction = CONTRACT_ACTIONS.has(action)
+    ? structuredClone(world.productionContracts || [])
+    : null;
   const savepoint = beginEconomicSavepoint(store, 'economy_player_action');
   let gameResult;
   try {
-    const isFacilityBuildProcurement = action === 'placeOrder'
-      && payload.execution === 'facility-build-procurement';
-    const researchAction = isFacilityBuildProcurement ? 'buildFacility' : action;
-    const researchAccess = validateResearchAccess(world, user, researchAction, payload, now);
-    if (researchAccess) {
-      gameResult = researchAccess;
-    } else if (action === 'startResearch' || action === 'accelerateResearch') {
-      gameResult = applyResearchAction(world, user, action, payload, now);
-    } else if (action === 'placeOrder' && payload.execution === 'facility-build-procurement') {
-      gameResult = createFacilityBuildProcurementOrders(world, user, payload, now);
-    } else if (action === 'placeOrder' && payload.execution === 'facility-build-procurement-cancel') {
-      gameResult = cancelFacilityBuildProcurementOrders(world, user, payload, now);
-    } else if (action === 'placeOrder' && payload.execution === 'online-auto-sell-policy') {
-      gameResult = applyOnlineAutoSellPolicyAction(world, user, payload);
-    } else if (action === 'placeOrder' && payload.execution === 'online-auto-trade-policy') {
-      gameResult = applyOnlineAutoTradePolicyAction(world, user, payload);
-    } else if (action === 'placeOrder' && payload.execution === 'online-auto-buy') {
-      gameResult = applyOnlineAutoBuy(world, user, payload, now);
-    } else if (action === 'placeOrder' && payload.execution === 'online-auto-sell') {
-      gameResult = applyOnlineAutoSell(world, user, payload, now);
-    } else if (action === 'placeOrder' && payload.assetKind !== 'facility') {
-      gameResult = applySettledCommodityOrder(world, user, payload, now);
-    } else if (action === 'checkIn') {
-      gameResult = store.checkInInTransaction(world.players[String(user.id)], requestKey, now);
-    } else if (action === 'redeemGift') {
-      gameResult = store.redeemGiftInTransaction(world, user, payload, now);
-    } else if (action === 'exchangeGems') {
-      gameResult = store.gemEconomy.exchange(world.players[String(user.id)], payload.gems, requestKey, now);
-    } else if (action === 'rejectGemShopQuote') {
-      gameResult = store.gemEconomy.rejectQuote(world.players[String(user.id)], requestKey, now);
-    } else if (AUCTION_ACTIONS.has(action)) {
-      gameResult = applyAssetAuctionAction(world, user, action, payload, now);
-    } else if (BANK_ACTIONS.has(action)) {
-      gameResult = applyBankAction(world, user, action, payload, now);
-    } else if (action === 'cancelOrder') {
-      gameResult = cancelRuntimeCommodityOrder(world, user, payload.orderId, now)
-        ?? applyFacilityGroupAction(world, user, action, payload, now);
-    } else if (action === 'buildFacility' && payload.autoProcure === true) {
-      const procurement = autoProcureFacilityBuildMaterials(world, user, payload, now);
-      if (!procurement.ok) gameResult = procurement;
-      else {
-        gameResult = applyFacilityGroupAction(world, user, action, payload, now);
-        if (gameResult?.ok && procurement.purchasedQuantity > 0) {
-          gameResult.message = `${gameResult.message}；已一键购齐 ${procurement.purchasedQuantity} 件建造材料`;
-        }
-      }
+    if (CONTRACT_ACTIONS.has(action)) {
+      gameResult = applyProductionContractAction(world, user, action, payload, now);
     } else {
-      gameResult = applyFacilityGroupAction(world, user, action, payload, now);
+      const isFacilityBuildProcurement = action === 'placeOrder'
+        && payload.execution === 'facility-build-procurement';
+      const researchAction = isFacilityBuildProcurement ? 'buildFacility' : action;
+      const researchAccess = validateResearchAccess(world, user, researchAction, payload, now);
+      if (researchAccess) {
+        gameResult = researchAccess;
+      } else if (action === 'startResearch' || action === 'accelerateResearch') {
+        gameResult = applyResearchAction(world, user, action, payload, now);
+      } else if (action === 'placeOrder' && payload.execution === 'facility-build-procurement') {
+        gameResult = createFacilityBuildProcurementOrders(world, user, payload, now);
+      } else if (action === 'placeOrder' && payload.execution === 'facility-build-procurement-cancel') {
+        gameResult = cancelFacilityBuildProcurementOrders(world, user, payload, now);
+      } else if (action === 'placeOrder' && payload.execution === 'online-auto-sell-policy') {
+        gameResult = applyOnlineAutoSellPolicyAction(world, user, payload);
+      } else if (action === 'placeOrder' && payload.execution === 'online-auto-trade-policy') {
+        gameResult = applyOnlineAutoTradePolicyAction(world, user, payload);
+      } else if (action === 'placeOrder' && payload.execution === 'online-auto-buy') {
+        gameResult = applyOnlineAutoBuy(world, user, payload, now);
+      } else if (action === 'placeOrder' && payload.execution === 'online-auto-sell') {
+        gameResult = applyOnlineAutoSell(world, user, payload, now);
+      } else if (action === 'placeOrder' && payload.assetKind !== 'facility') {
+        gameResult = applySettledCommodityOrder(world, user, payload, now);
+      } else if (action === 'checkIn') {
+        gameResult = store.checkInInTransaction(world.players[String(user.id)], requestKey, now);
+      } else if (action === 'redeemGift') {
+        gameResult = store.redeemGiftInTransaction(world, user, payload, now);
+      } else if (action === 'exchangeGems') {
+        gameResult = store.gemEconomy.exchange(world.players[String(user.id)], payload.gems, requestKey, now);
+      } else if (action === 'rejectGemShopQuote') {
+        gameResult = store.gemEconomy.rejectQuote(world.players[String(user.id)], requestKey, now);
+      } else if (AUCTION_ACTIONS.has(action)) {
+        gameResult = applyAssetAuctionAction(world, user, action, payload, now);
+      } else if (BANK_ACTIONS.has(action)) {
+        gameResult = applyBankAction(world, user, action, payload, now);
+      } else if (action === 'cancelOrder') {
+        gameResult = cancelRuntimeCommodityOrder(world, user, payload.orderId, now)
+          ?? applyFacilityGroupAction(world, user, action, payload, now);
+      } else if (action === 'buildFacility' && payload.autoProcure === true) {
+        const procurement = autoProcureFacilityBuildMaterials(world, user, payload, now);
+        if (!procurement.ok) gameResult = procurement;
+        else {
+          gameResult = applyFacilityGroupAction(world, user, action, payload, now);
+          if (gameResult?.ok && procurement.purchasedQuantity > 0) {
+            gameResult.message = `${gameResult.message}；已一键购齐 ${procurement.purchasedQuantity} 件建造材料`;
+          }
+        }
+      } else {
+        gameResult = applyFacilityGroupAction(world, user, action, payload, now);
+      }
     }
 
     if (gameResult?.ok) {
@@ -139,6 +171,7 @@ function executeActionBody(store, world, user, action, payload, requestKey, now)
   return {
     gameResult,
     playerBeforeAction,
+    contractsBeforeAction,
   };
 }
 
@@ -180,7 +213,7 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     }
     settlePlayerWeeklyCashOnLogin(world, world.players[String(user.id)], now);
 
-    const { gameResult, playerBeforeAction } = executeActionBody(
+    const { gameResult, playerBeforeAction, contractsBeforeAction } = executeActionBody(
       store,
       world,
       user,
@@ -209,11 +242,15 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     }
 
     const activePlayer = world.players[String(user.id)];
-    collectPlayerWeeklyCashSettlement(world, activePlayer, now);
+    const playerChanged = Boolean(activePlayer && !isDeepStrictEqual(activePlayer, playerBeforeAction));
+    const contractChanged = Boolean(
+      contractsBeforeAction
+      && !isDeepStrictEqual(world.productionContracts || [], contractsBeforeAction),
+    );
     const isPolicySave = action === 'placeOrder'
       && (payload.execution === 'online-auto-sell-policy' || payload.execution === 'online-auto-trade-policy');
-    if (ECONOMIC_ACTIVITY_ACTIONS.has(action) && !isPolicySave) {
-      if (activePlayer && !isDeepStrictEqual(activePlayer, playerBeforeAction)) {
+    if ((ECONOMIC_ACTIVITY_ACTIONS.has(action) || CONTRACT_ACTIONS.has(action)) && !isPolicySave) {
+      if (activePlayer && (playerChanged || contractChanged)) {
         activePlayer.lastEconomicActivityAt = now;
         const activated = activateWeeklyCashSettlement(world, activePlayer, now);
         if (activated) {
@@ -223,6 +260,27 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
       }
     }
 
+    if (contractsBeforeAction) {
+      store.captureContractAuditTransition(contractsBeforeAction, world, {
+        actorUserId: Number(user.id),
+        triggerType: 'player_action',
+        action,
+        requestKey,
+        now,
+      });
+      const beforePostActionContracts = structuredClone(world.productionContracts || []);
+      processProductionContracts(world, now);
+      store.captureContractAuditTransition(beforePostActionContracts, world, {
+        actorUserId: Number(user.id),
+        triggerType: 'action_postprocess',
+        action,
+        requestKey,
+        now,
+      });
+      assertEconomicStateInvariants(world);
+    }
+
+    collectPlayerWeeklyCashSettlement(world, activePlayer, now);
     ensureWarehouse(world.players[String(user.id)]);
     ensureGemState(world.players[String(user.id)]);
     ensurePlayerBankAccount(world.players[String(user.id)], now);

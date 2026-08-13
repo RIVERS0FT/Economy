@@ -1,4 +1,5 @@
 import { measureRequestPhase } from './request-performance.js';
+import { executeRuntimeAction } from './runtime-action-executor.js';
 import { EconomyStore as CoreEconomyStore } from './runtime-store-core.js';
 
 const WORLD_PROCESS_INTERVAL_MS = 1_000;
@@ -7,6 +8,12 @@ export class EconomyStore extends CoreEconomyStore {
   constructor(...args) {
     super(...args);
     this.schedulerBarrierPromise = null;
+    this.stateProjectionCacheIsolationDepth = 0;
+  }
+
+  committedWorldForCache(world) {
+    if (this.stateProjectionCacheIsolationDepth <= 0) return world;
+    return measureRequestPhase('worldCacheIsolationCloneMs', () => structuredClone(world));
   }
 
   cacheWorld(revision, stateJson, world, needsPersistence = false) {
@@ -15,7 +22,7 @@ export class EconomyStore extends CoreEconomyStore {
     this.worldCache = {
       revision: nextRevision,
       stateJson,
-      world,
+      world: this.committedWorldForCache(world),
       needsPersistence: Boolean(needsPersistence),
     };
   }
@@ -29,12 +36,25 @@ export class EconomyStore extends CoreEconomyStore {
     };
   }
 
+  getStateSnapshot(user, knownRevision, now = Date.now()) {
+    this.stateProjectionCacheIsolationDepth += 1;
+    try {
+      return super.getStateSnapshot(user, knownRevision, now);
+    } finally {
+      this.stateProjectionCacheIsolationDepth -= 1;
+    }
+  }
+
   trackSchedulerBarrier(barrier, { reschedule = true } = {}) {
+    const settledSynchronously = this.authoritativeWriteExecutor.isIdle();
     const wrappedBarrier = barrier.finally(() => {
       if (this.schedulerBarrierPromise === wrappedBarrier) this.schedulerBarrierPromise = null;
       if (reschedule && !this.processingTimer && !this.schedulerClosed) this.scheduleWorldProcessing();
     });
     this.schedulerBarrierPromise = wrappedBarrier;
+    if (settledSynchronously && reschedule && !this.processingTimer && !this.schedulerClosed) {
+      this.scheduleWorldProcessing();
+    }
     return wrappedBarrier;
   }
 
@@ -85,6 +105,10 @@ export class EconomyStore extends CoreEconomyStore {
       captureRequestContext: false,
     }, () => this.processScheduledWorld(now));
     return this.trackSchedulerBarrier(barrier);
+  }
+
+  apply(user, requestMeta, now = Date.now()) {
+    return executeRuntimeAction(this, user, requestMeta, now);
   }
 
   enqueueAuthoritativeWrite(options, callback) {
