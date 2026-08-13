@@ -46,6 +46,18 @@ jobs:
           if text.count(old) != 1:
               raise SystemExit('money precision world-version assertion not found exactly once')
           path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          for verifier in [
+              'scripts/verify-online-auto-sell.mjs',
+              'scripts/verify-asset-auctions.mjs',
+              'scripts/verify-warehouse-expansion.mjs',
+          ]:
+              path = Path(verifier)
+              text = path.read_text(encoding='utf-8')
+              old = '世界状态版本：28'
+              if text.count(old) != 1:
+                  raise SystemExit(f'{verifier}: expected one current world-version marker, found {text.count(old)}')
+              path.write_text(text.replace(old, '世界状态版本：29', 1), encoding='utf-8')
           PY
       - name: Install dependencies
         run: npm ci
@@ -85,6 +97,9 @@ jobs:
             scripts/verify-production-methods.mjs \
             scripts/verify-document-authority.mjs \
             scripts/verify-money-precision.mjs \
+            scripts/verify-online-auto-sell.mjs \
+            scripts/verify-asset-auctions.mjs \
+            scripts/verify-warehouse-expansion.mjs \
             docs/README.md \
             docs/PRODUCT_AND_GAMEPLAY_DESIGN.md \
             docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md \
