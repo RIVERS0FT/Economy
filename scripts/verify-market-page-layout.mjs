@@ -152,7 +152,8 @@ requireText(marketPage, '>50%</Button>', '快捷数量可见文案必须保持�
 requireText(marketPage, '>最大</Button>', '快捷数量可见文案必须保持紧凑的最大值。');
 forbidText(marketPage, 'warehouseAvailableCapacity', '商品买入不得重新依赖仓库容量。');
 requireText(marketPage, 'aria-label={orderActionLabel}', '提交按钮必须直接承载字段外阻断原因。');
-requireText(marketPage, 'const orderLimitReason = ownOpenOrders.length >= maxOpenOrders', '提交区必须覆盖商品与工厂合计未完成订单的动态上限。');
+requireText(marketPage, 'const orderLimitReason = ownOpenOrderCount >= maxOpenOrders', '隔离后的提交区必须继续覆盖商品与工厂合计未完成订单的动态上限。');
+requireText(marketPage, 'ownOpenOrderCount={ownOpenOrders.length}', '父级必须把当前商品与工厂合计未完成订单数量传入局部提交区。');
 forbidText(marketPage, "aria-describedby={orderDisabledReason ? 'order-disabled-reason' : undefined}", '数量字段不得重复关联提交区的同一错误。');
 requireText(marketPage, '<VirtualRecordTable', '本地成交必须使用单一双轴虚拟表格。');
 forbidText(marketPage, 'virtual-record-viewport', '本地成交不得恢复内层纵向视口。');
