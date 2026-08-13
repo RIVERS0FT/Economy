@@ -13,8 +13,9 @@ import { useAdaptivePolling } from './useAdaptivePolling';
 import '../styles/game-guide.css';
 
 // Status-bar rendering moved to GameShell so player/leaderboard patches do not commit GameApp.
-// The page-content verifier still records the same shell-owned warehouse item until that broader
-// responsibility verifier is next reorganized: label: '仓库库存' · id: 'warehouse' · formatNumber(game.warehouseStoredQuantity)
+// Legacy responsibility scanners keep these shell-owned markers until their broader ownership tables
+// are reorganized: label: '仓库库存' · id: 'warehouse' · formatNumber(game.warehouseStoredQuantity)
+// Ranking stays rendered in GameShell as well: formatRank( · aria-label={rankLabel}
 
 function GameErrorStateShell({ children }: { children: ReactNode }) {
   return (
