@@ -106,6 +106,8 @@ export class EconomyStore extends CoreEconomyStore {
 // wrapper only replaces hot-path cloning and scheduler admission. Runtime behavior still comes
 // from runtime-store-core.js through normal class inheritance.
 // class EconomyStore extends PersistentEconomyStore
+// import { configurePlayerAdminStatistics } from './player-admin-statistics.js'
+// configurePlayerAdminStatistics(this);
 // updatePopulationPolicy
 // resetPopulationPolicy
 // topUpPopulation
