@@ -21,6 +21,7 @@ for (const path of [
   'server/src/state-partitions.js',
   'server/src/commercial-contracts.js',
   'src/hooks/useStableSelection.ts',
+  'src/research/researchTreeLayout.ts',
   'src/pages/ResearchPage.tsx',
   'src/styles/research-page.css',
   'src/api/game.ts',
@@ -63,7 +64,9 @@ for (const text of [
 for (const text of [
   'className="research-workspace"',
   'className="research-tree"',
-  'research-stage-node',
+  'data-layout-direction="downward"',
+  'research-tree-connections--desktop',
+  'research-tree-connections--mobile',
   'research-technology-node',
   'ResearchDetailBody',
   'ResearchDetailActions',
@@ -79,20 +82,33 @@ for (const text of [
   "technology.kind === 'operation' ? '作业科技' : '生产科技'",
   "technology.kind === 'operation' ? '解锁作业制度' : '解锁工厂'",
   'active.durationMs ?? technology.durationMs',
+  'buildResearchTreeLayout(technologies)',
+  'buildResearchTreeFocus(technologies',
 ]) requireText('src/pages/ResearchPage.tsx', text);
 
 for (const text of [
-  '.research-stage-node',
+  'technologyDepths',
+  'orderedLayers',
+  'MOBILE_COLUMNS = 2',
+  'desktopPath',
+  'mobilePath',
+  'buildResearchTreeFocus',
+]) requireText('src/research/researchTreeLayout.ts', text);
+
+for (const text of [
+  '.research-tree-connections',
+  ".research-tree-edge[data-highlighted='true']",
   '.research-technology-node',
-  '.research-technology-node[data-status="active"]',
-  '.research-technology-node[data-selected="true"]',
+  '.research-technology-node[data-status=',
+  '.research-technology-node[data-selected=',
   '@media (max-width: 720px)',
   '.mobile-detail-summary.research-detail-summary {',
   'aspect-ratio: 1 / 1;',
 ]) requireText('src/styles/research-page.css', text);
 
 for (const text of [
-  'renders seven stages and split technology nodes',
+  'renders a downward prerequisite tree on desktop',
+  'keeps every mobile dependency below its prerequisite without horizontal tree scrolling',
   'preserves an explicit technology selection across refreshed snapshots',
   'shows concrete prerequisite requirements',
   'uses the stored base duration for accelerated node research progress',
@@ -117,6 +133,8 @@ for (const text of [
 for (const text of [
   'C1–C7 只作为产业阶段',
   '其余节点按照真实产业链设置前置关系',
+  '自上而下 DAG',
+  '最多两条横向节点轨道',
   '旧客户端',
   '周期轮询、动作后同步和权威倒计时确认对客户端交互状态必须透明',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
@@ -134,11 +152,16 @@ for (const forbidden of [
   'useWorkspaceDialogLayer',
   'setSelectedTechnologyId(defaultTechnologyId);',
   'technologies[technologies.length - 1]',
+  'research-stage-node',
 ]) forbidText('src/pages/ResearchPage.tsx', forbidden);
+for (const forbidden of [
+  'grid-template-columns: repeat(7',
+  '.research-stage-node',
+]) forbidText('src/styles/research-page.css', forbidden);
 
 if (failures.length > 0) {
   console.error(`research page verification failed:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('split technology tree, refresh-stable selection, detail requirements, mobile sheet, acceleration, server access and design verification passed');
+console.log('downward prerequisite research DAG, deterministic layout, mobile two-lane tree, stable selection, detail sheet and design verification passed');

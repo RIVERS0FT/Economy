@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('research technology tree', () => {
-  test('renders seven stages and split technology nodes', async ({ page }) => {
+  test('renders a downward prerequisite tree on desktop', async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 1000 });
 
     await page.goto('runtime-test.html?view=production&scenario=facility-order');
@@ -17,27 +17,36 @@ test.describe('research technology tree', () => {
     });
 
     await page.goto('runtime-test.html?view=research&scenario=research-active');
-    await expect(page.locator('.research-stage-node')).toHaveCount(7);
+    await expect(page.locator('.research-stage-node')).toHaveCount(0);
     await expect(page.locator('.research-technology-node')).toHaveCount(32);
     const researchGeometry = await page.evaluate(() => {
       const action = document.querySelector<HTMLElement>('.research-action-panel')?.getBoundingClientRect();
-      const tree = document.querySelector<HTMLElement>('.research-tree-panel')?.getBoundingClientRect();
-      const stage = document.querySelector<HTMLElement>('.research-stage-node');
-      const detailArtwork = document.querySelector<HTMLElement>(
-        '.research-action-panel .research-detail-level-artwork',
-      );
+      const treePanel = document.querySelector<HTMLElement>('.research-tree-panel')?.getBoundingClientRect();
+      const tree = document.querySelector<HTMLElement>('.research-tree');
+      const treeScroll = document.querySelector<HTMLElement>('.research-tree-scroll');
+      const detailArtwork = document.querySelector<HTMLElement>('.research-action-panel .research-detail-level-artwork');
       const detailArtworkBox = detailArtwork?.getBoundingClientRect();
       const detailArtworkStyle = detailArtwork ? getComputedStyle(detailArtwork) : null;
       const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const nodes = Array.from(document.querySelectorAll<HTMLElement>('.research-technology-node'));
+      const topById = new Map(nodes.map((node) => [node.dataset.technologyId ?? '', node.getBoundingClientRect().top]));
+      const allDependenciesDownward = nodes.every((node) => {
+        const childTop = node.getBoundingClientRect().top;
+        const prerequisiteIds = (node.dataset.prerequisites ?? '').split(',').filter(Boolean);
+        return prerequisiteIds.every((parentId) => childTop > (topById.get(parentId) ?? -Infinity) + 24);
+      });
       return {
         actionWidth: action?.width ?? 0,
-        contentLeft: tree?.left ?? 0,
-        contentRight: tree?.right ?? 0,
-        stageRadius: stage ? getComputedStyle(stage).borderRadius : '',
+        contentLeft: treePanel?.left ?? 0,
+        contentRight: treePanel?.right ?? 0,
         detailArtworkWidth: detailArtworkBox?.width ?? 0,
         detailArtworkHeight: detailArtworkBox?.height ?? 0,
         detailArtworkAspectRatio: detailArtworkStyle?.aspectRatio ?? '',
         expectedDetailArtworkSize: rootFontSize * 4.5,
+        layoutDirection: tree?.dataset.layoutDirection ?? '',
+        connectionCount: document.querySelectorAll('.research-tree-connections--desktop .research-tree-edge').length,
+        allDependenciesDownward,
+        treeOwnsHorizontalOverflow: (treeScroll?.scrollWidth ?? 0) >= (treeScroll?.clientWidth ?? 0),
         fitsViewport: document.documentElement.scrollWidth <= window.innerWidth,
       };
     });
@@ -45,10 +54,13 @@ test.describe('research technology tree', () => {
     expect(Math.abs(researchGeometry.actionWidth - productionGeometry.actionWidth)).toBeLessThanOrEqual(1);
     expect(Math.abs(researchGeometry.contentLeft - productionGeometry.contentLeft)).toBeLessThanOrEqual(1);
     expect(Math.abs(researchGeometry.contentRight - productionGeometry.contentRight)).toBeLessThanOrEqual(1);
-    expect(researchGeometry.stageRadius).toBe('50%');
     expect(researchGeometry.detailArtworkWidth).toBeCloseTo(researchGeometry.expectedDetailArtworkSize, 0);
     expect(Math.abs(researchGeometry.detailArtworkWidth - researchGeometry.detailArtworkHeight)).toBeLessThanOrEqual(1);
     expect(researchGeometry.detailArtworkAspectRatio).toBe('1 / 1');
+    expect(researchGeometry.layoutDirection).toBe('downward');
+    expect(researchGeometry.connectionCount).toBeGreaterThan(0);
+    expect(researchGeometry.allDependenciesDownward).toBe(true);
+    expect(researchGeometry.treeOwnsHorizontalOverflow).toBe(true);
     expect(researchGeometry.fitsViewport).toBe(true);
   });
 
@@ -79,6 +91,10 @@ test.describe('research technology tree', () => {
     await applianceNode.click();
     await expect(applianceNode).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.research-action-panel')).toContainText('家电工程');
+    const beforeRefreshPosition = await applianceNode.evaluate((element) => ({
+      x: (element as HTMLElement).style.getPropertyValue('--research-node-desktop-x'),
+      y: (element as HTMLElement).style.getPropertyValue('--research-node-desktop-y'),
+    }));
 
     const assetsButton = page.locator('button').filter({ hasText: '净资产' }).first();
     await expect(assetsButton).toBeVisible();
@@ -87,6 +103,11 @@ test.describe('research technology tree', () => {
     await expect(applianceNode).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.research-action-panel')).toContainText('家电工程');
     await expect(page.getByRole('button', { name: /冶金技术，研发中/ })).toHaveAttribute('aria-pressed', 'false');
+    const afterRefreshPosition = await applianceNode.evaluate((element) => ({
+      x: (element as HTMLElement).style.getPropertyValue('--research-node-desktop-x'),
+      y: (element as HTMLElement).style.getPropertyValue('--research-node-desktop-y'),
+    }));
+    expect(afterRefreshPosition).toEqual(beforeRefreshPosition);
   });
 
   test('shows concrete prerequisite requirements and active acceleration', async ({ page }) => {
@@ -112,6 +133,33 @@ test.describe('research technology tree', () => {
       getComputedStyle(element).getPropertyValue('--research-node-progress').trim()
     ));
     expect(ringProgress).toBe('240deg');
+  });
+
+  test('keeps every mobile dependency below its prerequisite without horizontal tree scrolling', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('runtime-test.html?view=research&scenario=research-active');
+
+    const geometry = await page.evaluate(() => {
+      const treeScroll = document.querySelector<HTMLElement>('.research-tree-scroll');
+      const nodes = Array.from(document.querySelectorAll<HTMLElement>('.research-technology-node'));
+      const topById = new Map(nodes.map((node) => [node.dataset.technologyId ?? '', node.getBoundingClientRect().top]));
+      const allDependenciesDownward = nodes.every((node) => {
+        const childTop = node.getBoundingClientRect().top;
+        const prerequisiteIds = (node.dataset.prerequisites ?? '').split(',').filter(Boolean);
+        return prerequisiteIds.every((parentId) => childTop > (topById.get(parentId) ?? -Infinity) + 20);
+      });
+      return {
+        allDependenciesDownward,
+        treeHasNoHorizontalScroll: (treeScroll?.scrollWidth ?? 0) <= (treeScroll?.clientWidth ?? 0) + 1,
+        pageFitsViewport: document.documentElement.scrollWidth <= window.innerWidth,
+        mobileConnectionsVisible: getComputedStyle(document.querySelector<HTMLElement>('.research-tree-connections--mobile')!).display !== 'none',
+      };
+    });
+
+    expect(geometry.allDependenciesDownward).toBe(true);
+    expect(geometry.treeHasNoHorizontalScroll).toBe(true);
+    expect(geometry.pageFitsViewport).toBe(true);
+    expect(geometry.mobileConnectionsVisible).toBe(true);
   });
 
   test('opens technology details in the shared mobile sheet', async ({ page }) => {

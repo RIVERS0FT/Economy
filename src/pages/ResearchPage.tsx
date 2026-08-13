@@ -22,6 +22,7 @@ import {
 } from '../components/ui/layout';
 import { useNow } from '../hooks/useNow';
 import { useStableSelection } from '../hooks/useStableSelection';
+import { buildResearchTreeFocus, buildResearchTreeLayout } from '../research/researchTreeLayout';
 import { formatCurrency, formatDuration, formatNumber } from '../utils/formatters';
 import { marketDecisionSignal, marketTrendGlyph } from '../utils/marketDecisionSignals';
 import type {
@@ -537,6 +538,14 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
     ?? technologiesById.get(fallbackTechnologyId)
     ?? (activeTechnology?.id === fallbackTechnologyId ? activeTechnology : null)
     ?? technologies[0];
+  const researchTreeLayout = useMemo(
+    () => buildResearchTreeLayout(technologies),
+    [technologies],
+  );
+  const researchTreeFocus = useMemo(
+    () => buildResearchTreeFocus(technologies, selectedTechnology?.id ?? ''),
+    [selectedTechnology?.id, technologies],
+  );
   const selectedFacilities = selectedTechnology
     ? selectedTechnology.unlockFacilityTypeIds
       .map((facilityTypeId) => facilitiesById.get(facilityTypeId))
@@ -620,66 +629,100 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
           </div>
 
           <div className="research-tree-scroll">
-            <div className="research-tree" role="tree" aria-label="产业科技树">
-              {model.game.researchLevels.map((stage) => {
-                const stageTechnologies = technologies.filter((technology) => technology.stage === stage.id);
-                const completedCount = stageTechnologies.filter((technology) => completed.has(technology.id)).length;
+            <div
+              className="research-tree"
+              role="tree"
+              aria-label="产业科技树"
+              data-layout-direction="downward"
+              style={{
+                '--research-tree-desktop-width': `${researchTreeLayout.desktopWidth}px`,
+                '--research-tree-desktop-height': `${researchTreeLayout.desktopHeight}px`,
+                '--research-tree-mobile-height': `${researchTreeLayout.mobileHeight}px`,
+              } as CSSProperties}
+            >
+              <svg
+                className="research-tree-connections research-tree-connections--desktop"
+                viewBox={`0 0 ${researchTreeLayout.desktopWidth} ${researchTreeLayout.desktopHeight}`}
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                {researchTreeLayout.edges.map((edge) => (
+                  <path
+                    className="research-tree-edge"
+                    data-highlighted={researchTreeFocus.upstreamEdgeKeys.has(edge.key) || undefined}
+                    data-related={researchTreeFocus.downstreamEdgeKeys.has(edge.key) || undefined}
+                    d={edge.desktopPath}
+                    key={`desktop:${edge.key}`}
+                  />
+                ))}
+              </svg>
+              <svg
+                className="research-tree-connections research-tree-connections--mobile"
+                viewBox={`0 0 1000 ${researchTreeLayout.mobileHeight}`}
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                {researchTreeLayout.edges.map((edge) => (
+                  <path
+                    className="research-tree-edge"
+                    data-highlighted={researchTreeFocus.upstreamEdgeKeys.has(edge.key) || undefined}
+                    data-related={researchTreeFocus.downstreamEdgeKeys.has(edge.key) || undefined}
+                    d={edge.mobilePath}
+                    key={`mobile:${edge.key}`}
+                  />
+                ))}
+              </svg>
+              {researchTreeLayout.nodes.map((layoutNode) => {
+                const technology = technologiesById.get(layoutNode.id);
+                if (!technology) return null;
+                const status = statusFor(technology, completed, technologiesById, active?.technologyId);
+                const isSelected = selectedTechnology.id === technology.id;
+                const progress = progressForResearchTechnology(
+                  technology,
+                  active,
+                  now,
+                  status === 'mastered',
+                );
+                const facility = technology.unlockFacilityTypeIds
+                  .map((facilityTypeId) => facilitiesById.get(facilityTypeId))
+                  .find(Boolean);
+                const operationProductId = technology.kind === 'operation' ? technology.operationProductIds?.[0] : undefined;
+                const isAncestor = researchTreeFocus.ancestorIds.has(technology.id);
+                const isDirectChild = researchTreeFocus.directChildIds.has(technology.id);
+                const nodeStyle = {
+                  '--research-node-progress': `${Math.round(progress * 360)}deg`,
+                  '--research-node-desktop-x': `${layoutNode.desktopX}px`,
+                  '--research-node-desktop-y': `${layoutNode.desktopY}px`,
+                  '--research-node-mobile-x': `${layoutNode.mobileXPercent}%`,
+                  '--research-node-mobile-y': `${layoutNode.mobileY}px`,
+                } as CSSProperties;
                 return (
-                  <div
-                    className="research-tree-level"
-                    data-stage={stage.id}
-                    role="treeitem"
-                    aria-expanded="true"
-                    key={stage.id}
+                  <button
+                    type="button"
+                    className="research-facility-node research-technology-node"
+                    data-technology-id={technology.id}
+                    data-depth={layoutNode.depth}
+                    data-prerequisites={technology.prerequisiteTechnologyIds.join(',')}
+                    data-status={status}
+                    data-selected={isSelected || undefined}
+                    data-path={isAncestor ? 'ancestor' : isDirectChild ? 'descendant' : undefined}
+                    style={nodeStyle}
+                    key={technology.id}
+                    aria-pressed={isSelected}
+                    aria-label={`${technology.name}，${statusLabels[status]}，${technology.stage} ${technology.kind === 'operation' ? '作业科技' : '生产科技'}`}
+                    onClick={(event) => selectTechnology(technology.id, event.currentTarget)}
                   >
-                    <div className="research-level-node research-stage-node" aria-label={`${stage.id} 产业阶段`}>
-                      <span className="research-level-code">{stage.id}</span>
-                    </div>
-                    <div className="research-level-caption">
-                      <strong>{stage.id} 产业阶段</strong>
-                      <span>{completedCount}/{stageTechnologies.length} 已掌握</span>
-                    </div>
-                    <div className="research-facility-branches" role="group" aria-label={`${stage.id} 科技节点`}>
-                      {stageTechnologies.map((technology) => {
-                        const status = statusFor(technology, completed, technologiesById, active?.technologyId);
-                        const isSelected = selectedTechnology.id === technology.id;
-                        const progress = progressForResearchTechnology(
-                          technology,
-                          active,
-                          now,
-                          status === 'mastered',
-                        );
-                        const nodeStyle = {
-                          '--research-node-progress': `${Math.round(progress * 360)}deg`,
-                        } as CSSProperties;
-                        const facility = technology.unlockFacilityTypeIds
-                          .map((facilityTypeId) => facilitiesById.get(facilityTypeId))
-                          .find(Boolean);
-                        const operationProductId = technology.kind === 'operation' ? technology.operationProductIds?.[0] : undefined;
-                        return (
-                          <button
-                            type="button"
-                            className="research-facility-node research-technology-node"
-                            data-status={status}
-                            data-selected={isSelected || undefined}
-                            style={nodeStyle}
-                            key={technology.id}
-                            aria-pressed={isSelected}
-                            aria-label={`${technology.name}，${statusLabels[status]}，${technology.stage} ${technology.kind === 'operation' ? '作业科技' : '生产科技'}`}
-                            onClick={(event) => selectTechnology(technology.id, event.currentTarget)}
-                          >
-                            <span className="research-facility-artwork" aria-hidden="true">
-                              {operationProductId
-                                ? <ProductArtwork productId={operationProductId} />
-                                : facility ? <FacilityIcon facilityTypeId={facility.id} /> : <span>{technology.stage}</span>}
-                            </span>
-                            <span>{technology.name}</span>
-                            <small>{statusLabels[status]}</small>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                    <span className="research-facility-artwork" aria-hidden="true">
+                      {operationProductId
+                        ? <ProductArtwork productId={operationProductId} />
+                        : facility ? <FacilityIcon facilityTypeId={facility.id} /> : <span>{technology.stage}</span>}
+                    </span>
+                    <span className="research-technology-node-name">{technology.name}</span>
+                    <small className="research-technology-node-meta">
+                      {technology.stage} · {technology.kind === 'operation' ? '作业科技' : '生产科技'}
+                    </small>
+                    <small className="research-technology-node-status">{statusLabels[status]}</small>
+                  </button>
                 );
               })}
             </div>
