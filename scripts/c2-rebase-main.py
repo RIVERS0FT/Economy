@@ -147,6 +147,9 @@ for required in [
 write(path, content)
 
 
+if conflicts:
+    subprocess.run(['git', 'add', '--', *sorted(conflicts)], check=True)
+
 unresolved = subprocess.check_output(
     ['git', 'diff', '--name-only', '--diff-filter=U'], text=True
 ).strip()
