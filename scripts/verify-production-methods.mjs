@@ -3,37 +3,54 @@ import { readFileSync } from 'node:fs';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../server/src/domain.js';
 
 const genericMethodIds = ['standard', 'rapid', 'economical', 'high-yield'];
-const c1MethodIds = ['standard', 'assisted', 'intensive', 'mechanized'];
+const dedicatedMethodIds = ['standard', 'assisted', 'intensive', 'mechanized'];
 const expectedC1Plans = {
   farm: [[], [['tools', 1], 12], [['fertilizer', 2], 14], [['tractor', 1], 16]],
   orchard: [[], [['tools', 1], 11], [['fertilizer', 2], 13], [['tractor', 1], 15]],
   ranch: [[], [['feed', 1], 4], [['veterinary-medicine', 1], 8], [['machinery', 1], 9]],
   fishery: [[], [['feed', 1], 4], [['veterinary-medicine', 1], 8], [['machinery', 1], 9]],
 };
+const c2ProfitByMethod = { standard: 3, assisted: 6, intensive: 9, mechanized: 10.5 };
 const productPrices = new Map(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice]));
 function hasAtMostTwoDecimals(value) {
   return Math.abs(Number(value) - Math.round(Number(value) * 100) / 100) < 1e-9;
+}
+function profitPerMinute(recipe) {
+  const inputValue = recipe.inputs.reduce(
+    (sum, input) => sum + productPrices.get(input.productId) * input.quantity,
+    0,
+  );
+  const outputValue = productPrices.get(recipe.output.productId) * recipe.output.quantity;
+  return (outputValue - inputValue - recipe.operatingCost) * 60_000 / recipe.cycleMs;
 }
 
 for (const facility of FACILITY_TYPE_CATALOG) {
   const group = facility.productionMethodGroups?.find((candidate) => candidate.id === 'operation');
   assert.ok(group, `${facility.id} 缺少作业制度`);
-  const methodIds = facility.complexity === 'C1' ? c1MethodIds : genericMethodIds;
+  const dedicated = facility.complexity === 'C1' || facility.complexity === 'C2';
+  const methodIds = dedicated ? dedicatedMethodIds : genericMethodIds;
   assert.deepEqual(group.methods.map((method) => method.id), methodIds);
-  const baseRecipes = facility.recipes.filter((recipe) => recipe.productionMethodId === 'standard');
+  for (const method of group.methods) {
+    assert.ok(Array.isArray(method.requiredTechnologyIds), `${facility.id}/${method.id} 缺少研发依赖数组`);
+    if (dedicated && method.id !== 'standard') assert.ok(method.requiredTechnologyIds.length > 0);
+  }
+  const baseRecipes = facility.recipes.filter((recipe) => (
+    !recipe.legacyProductionMethod && recipe.productionMethodId === 'standard'
+  ));
   assert.ok(baseRecipes.length > 0, `${facility.id} 缺少标准生产配方`);
 
   for (const baseRecipe of baseRecipes) {
-    const baseInputValue = baseRecipe.inputs.reduce(
-      (sum, input) => sum + productPrices.get(input.productId) * input.quantity,
-      0,
-    );
-    const baseOutputValue = productPrices.get(baseRecipe.output.productId) * baseRecipe.output.quantity;
-    const baseProfit = (baseOutputValue - baseInputValue - baseRecipe.operatingCost) * 60_000 / baseRecipe.cycleMs;
+    const baseProfit = profitPerMinute(baseRecipe);
     const variants = methodIds.map((methodId) => facility.recipes.find((recipe) => (
-      recipe.baseRecipeId === baseRecipe.id && recipe.productionMethodId === methodId
+      !recipe.legacyProductionMethod
+      && recipe.baseRecipeId === baseRecipe.id
+      && recipe.productionMethodId === methodId
     )));
     assert.equal(variants.every(Boolean), true, `${facility.id}/${baseRecipe.id} 生产方式不完整`);
+    for (const recipe of variants) {
+      assert.equal(hasAtMostTwoDecimals(recipe.operatingCost), true);
+      assert.equal(recipe.operatingCost >= 0, true);
+    }
     if (facility.complexity === 'C1') {
       assert.equal(variants.every((recipe) => recipe.cycleMs === baseRecipe.cycleMs), true);
       assert.equal(variants.every((recipe) => recipe.operatingCost === baseRecipe.operatingCost), true);
@@ -49,23 +66,27 @@ for (const facility of FACILITY_TYPE_CATALOG) {
       }
       continue;
     }
+    if (facility.complexity === 'C2') {
+      for (const recipe of variants) {
+        assert.ok(
+          Math.abs(profitPerMinute(recipe) - c2ProfitByMethod[recipe.productionMethodId]) < 1e-9,
+          `${facility.id}/${recipe.id} C2 利润梯度漂移`,
+        );
+        assert.equal(recipe.cycleMs, baseRecipe.cycleMs, `${facility.id}/${recipe.id} C2 周期不得改变`);
+      }
+      continue;
+    }
     for (const recipe of variants) {
-      const inputValue = recipe.inputs.reduce(
-        (sum, input) => sum + productPrices.get(input.productId) * input.quantity,
-        0,
-      );
-      const outputValue = productPrices.get(recipe.output.productId) * recipe.output.quantity;
-      const profitPerMinute = (outputValue - inputValue - recipe.operatingCost) * 60_000 / recipe.cycleMs;
-      assert.ok(Math.abs(profitPerMinute - baseProfit) < 1e-9, `${facility.id}/${recipe.id} 利润基线漂移`);
-      assert.equal(hasAtMostTwoDecimals(recipe.operatingCost), true);
-      assert.equal(recipe.operatingCost >= 0, true);
+      assert.ok(Math.abs(profitPerMinute(recipe) - baseProfit) < 1e-9, `${facility.id}/${recipe.id} 利润基线漂移`);
     }
   }
 }
 
 const methodSource = readFileSync('server/src/production-methods.js', 'utf8');
+const legacyMethodSource = readFileSync('server/src/legacy-production-methods.js', 'utf8');
 const catalogSource = readFileSync('server/src/industry-catalog.js', 'utf8');
 const runtimeSource = readFileSync('server/src/facility-groups.js', 'utf8');
+const researchSource = readFileSync('server/src/research.js', 'utf8');
 const allocationSource = readFileSync('server/src/market-demand/allocation.js', 'utf8');
 const transmissionSource = readFileSync('server/src/market-demand/price-transmission.js', 'utf8');
 const domainTestSource = readFileSync('server/test/domain.test.js', 'utf8');
@@ -89,11 +110,24 @@ for (const text of [
   "id: 'assisted'",
   "id: 'intensive'",
   "id: 'mechanized'",
-  'C1_METHOD_BLUEPRINTS',
+  'FACILITY_METHOD_BLUEPRINTS',
+  'createDedicatedProductionMethodGroups',
   'createProductionMethodRecipes',
   'alignedCycleMs',
-  'id: plan.recipeId',
+  'requiredTechnologyIds',
+  "name: '基础采伐'",
+  "name: '机械化采矿'",
+  "name: '动力机械钻采'",
+  "name: '连续化加工'",
+  "name: '动力连续制材'",
+  "name: '动力连续混配'",
 ]) assert.ok(methodSource.includes(text), `生产方式计算缺少 ${text}`);
+for (const text of ['legacyProductionMethod', "['rapid', 'economical', 'high-yield']"]) {
+  assert.ok(legacyMethodSource.includes(text), `旧 C2 迁移别名缺少 ${text}`);
+}
+for (const text of ["id: 'industrial-fuel'", "id: 'industrial-chemicals'", 'appendLegacyC2RecipeAliases']) {
+  assert.ok(catalogSource.includes(text), `产业目录缺少 ${text}`);
+}
 assert.ok(catalogSource.includes('productionMethodGroups'));
 assert.ok(catalogSource.includes('createProductionMethodRecipes'));
 assert.ok(runtimeSource.includes('group.activeRecipeId = recipe.id'));
@@ -104,13 +138,19 @@ for (const text of [
   "(recipe.productionMethodId || 'standard') === 'standard'",
 ]) assert.ok(runtimeSource.includes(text), `公开工厂目录兼容缺少 ${text}`);
 for (const text of [
+  'productionMethodLockedResult',
+  'requiredTechnologyIds',
+  'normalizeProductionMethodAccess',
+  '该旧作业制度已退役',
+]) assert.ok(researchSource.includes(text), `作业制度研发校验缺少 ${text}`);
+for (const text of [
   "String(recipe?.recipeId || '').split('--')[0]",
   'function baseProductionRecipes(outputProductId)',
   'const candidates = baseProductionRecipes(outputProductId)',
 ]) assert.ok(allocationSource.includes(text), `派生需求生产路线去重缺少 ${text}`);
 assert.ok(
   readFileSync('server/src/market-demand.js', 'utf8').includes('for (const recipe of allRecipes)'),
-  '派生需求必须在过滤无投入路线前先纳入标准配方，以免把 C1 投入型变体当成基础路线',
+  '派生需求必须在过滤无投入路线前先纳入标准配方，以免把投入型变体当成基础路线',
 );
 for (const text of [
   "const baseRecipes = recipes.filter((recipe) => !String(recipe.recipeId || '').includes('--'))",
@@ -150,9 +190,10 @@ for (const text of [
   'metricTone(',
   'ProductionMethodIcon',
   'ProductArtwork',
-  '周期 {seconds(plan.cycleMs)}',
-  '成本 {formatNumber(plan.operatingCost)}',
-  '产出 ×{formatNumber(plan.output.quantity)}',
+  'completedTechnologyIds',
+  'researchTechnologies',
+  'missingTechnologyNames',
+  '需要完成「{missingTechnologyNames.join',
 ]) assert.ok(configControlsSource.includes(text), `生产配置方案菜单缺少 ${text}`);
 for (const forbidden of [
   'method.description',
@@ -221,22 +262,28 @@ assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 33'));
 
 for (const [path, required] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
-    '标准生产、高速生产、节约生产和高产生产',
-    '基础、工具／饲料、化肥／药剂、拖拉机／机械化',
+    'C1 与 C2 使用工厂专属作业制度',
+    'C3～C7 继续使用标准生产、高速生产、节约生产和高产生产',
+    'C2 四级制度参考分钟利润固定为 3、6、9、10.5',
+    '工业燃料 (`industrial-fuel`)',
+    '工业化学品 (`industrial-chemicals`)',
     '每周期整件消耗',
     '不累计折旧',
+    '非基础作业制度必须校验 `requiredTechnologyIds`',
     '生产方式与配方必须在同一次配置动作中原子切换',
     '不得新增单座工厂生产方式状态',
     '生产设置下方不得再显示“周期 · 产出 · 成本”摘要',
   ]],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
     '作业制度',
+    '未解锁作业制度',
     '立即切换',
     '不显示作业制度说明',
   ]],
   ['docs/UI_DESIGN_SYSTEM.md', [
     '生产方式下拉选择',
     'combobox',
+    '未解锁作业制度',
     '作业制度说明不得显示',
     '`production-config`',
     '生产方案槽',
@@ -246,11 +293,13 @@ for (const [path, required] of [
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
     '生产方式配方变体',
     'setFacilityRecipe',
+    '`requiredTechnologyIds`',
     '普通玩家状态中的 `facilityTypes[].recipes` 继续只公开标准生产路线',
+    '旧 C2 作业制度',
   ]],
 ]) {
   const content = readFileSync(path, 'utf8');
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);
 }
 
-console.log('生产方式验证通过：C1 固定时间与现金成本、整件投入和渐进产出，C2～C7 固定精度平衡、稳定变体 ID、维多利亚式生产方案菜单、配置立即切换、进度清零、满员率惩罚、需求图去重和浏览器交互均已锁定。');
+console.log('生产方式验证通过：C1/C2 工厂专属整件投入制度、C2 3/6/9/10.5 利润梯度、研发门槛与旧制度迁移，C3～C7 通用固定精度平衡、稳定变体 ID、生产方案菜单与配置原子切换均已锁定。');
