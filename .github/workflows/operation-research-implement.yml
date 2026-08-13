@@ -61,6 +61,7 @@ jobs:
           PY
           rm -f .agent/apply-operation-research.py
           rmdir .agent
+          git add -- .agent/apply-operation-research.py
       - name: Install dependencies
         run: npm ci
       - name: Run targeted research tests
@@ -111,7 +112,6 @@ jobs:
             docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
             docs/LOCAL_ACTIVITY_LOG_DESIGN.md \
             docs/GIFT_CODE_AND_ADMIN_DESIGN.md \
-            .agent/apply-operation-research.py \
             .github/workflows/operation-research-implement.yml
           git diff --cached --check
           git commit -m "feat: separate production and operation research"
