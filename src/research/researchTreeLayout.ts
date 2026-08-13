@@ -3,26 +3,22 @@ import type { ResearchTechnologyDefinition } from '../types';
 export interface ResearchTreeLayoutNode {
   id: string;
   depth: number;
-  desktopX: number;
-  desktopY: number;
-  mobileXPercent: number;
-  mobileY: number;
+  x: number;
+  y: number;
 }
 
 export interface ResearchTreeLayoutEdge {
   key: string;
   parentId: string;
   childId: string;
-  desktopPath: string;
-  mobilePath: string;
+  path: string;
 }
 
 export interface ResearchTreeLayout {
   nodes: ResearchTreeLayoutNode[];
   edges: ResearchTreeLayoutEdge[];
-  desktopWidth: number;
-  desktopHeight: number;
-  mobileHeight: number;
+  width: number;
+  height: number;
 }
 
 export interface ResearchTreeFocus {
@@ -32,12 +28,9 @@ export interface ResearchTreeFocus {
   downstreamEdgeKeys: ReadonlySet<string>;
 }
 
-const DESKTOP_LAYER_GAP = 164;
-const DESKTOP_NODE_GAP = 148;
-const DESKTOP_MIN_WIDTH = 820;
-const MOBILE_ROW_GAP = 132;
-const MOBILE_LAYER_GAP = 72;
-const MOBILE_COLUMNS = 2;
+const LAYER_GAP = 164;
+const NODE_GAP = 148;
+const MIN_WIDTH = 820;
 const EDGE_NODE_OFFSET = 52;
 
 function average(values: number[]) {
@@ -139,32 +132,19 @@ export function buildResearchTreeLayout(technologies: ResearchTechnologyDefiniti
   const depths = technologyDepths(technologies);
   const layers = orderedLayers(technologies, depths);
   const maxLayerSize = Math.max(1, ...layers.map((layer) => layer.length));
-  const desktopWidth = Math.max(DESKTOP_MIN_WIDTH, maxLayerSize * DESKTOP_NODE_GAP);
-  const desktopHeight = Math.max(220, (layers.length - 1) * DESKTOP_LAYER_GAP + 176);
+  const width = Math.max(MIN_WIDTH, maxLayerSize * NODE_GAP);
+  const height = Math.max(220, (layers.length - 1) * LAYER_GAP + 176);
   const nodeById = new Map<string, ResearchTreeLayoutNode>();
-  let mobileLayerTop = 76;
 
   for (const [depth, layer] of layers.entries()) {
-    const mobileRows = Math.max(1, Math.ceil(layer.length / MOBILE_COLUMNS));
     layer.forEach((technology, index) => {
-      const desktopX = desktopWidth * ((index + 1) / (layer.length + 1));
-      const desktopY = 82 + depth * DESKTOP_LAYER_GAP;
-      const mobileRow = Math.floor(index / MOBILE_COLUMNS);
-      const mobileRowStart = mobileRow * MOBILE_COLUMNS;
-      const mobileRowSize = Math.min(MOBILE_COLUMNS, layer.length - mobileRowStart);
-      const mobileColumn = index % MOBILE_COLUMNS;
-      const mobileXPercent = mobileRowSize === 1 ? 50 : mobileColumn === 0 ? 25 : 75;
-      const mobileY = mobileLayerTop + mobileRow * MOBILE_ROW_GAP;
       nodeById.set(technology.id, {
         id: technology.id,
         depth,
-        desktopX,
-        desktopY,
-        mobileXPercent,
-        mobileY,
+        x: width * ((index + 1) / (layer.length + 1)),
+        y: 82 + depth * LAYER_GAP,
       });
     });
-    mobileLayerTop += mobileRows * MOBILE_ROW_GAP + MOBILE_LAYER_GAP;
   }
 
   const edges: ResearchTreeLayoutEdge[] = [];
@@ -178,8 +158,7 @@ export function buildResearchTreeLayout(technologies: ResearchTechnologyDefiniti
         key: `${parentId}->${technology.id}`,
         parentId,
         childId: technology.id,
-        desktopPath: curvePath(parent.desktopX, parent.desktopY, child.desktopX, child.desktopY),
-        mobilePath: curvePath(parent.mobileXPercent * 10, parent.mobileY, child.mobileXPercent * 10, child.mobileY),
+        path: curvePath(parent.x, parent.y, child.x, child.y),
       });
     }
   }
@@ -187,9 +166,8 @@ export function buildResearchTreeLayout(technologies: ResearchTechnologyDefiniti
   return {
     nodes: technologies.map((technology) => nodeById.get(technology.id)).filter((node): node is ResearchTreeLayoutNode => Boolean(node)),
     edges,
-    desktopWidth,
-    desktopHeight,
-    mobileHeight: Math.max(260, mobileLayerTop - MOBILE_LAYER_GAP + 72),
+    width,
+    height,
   };
 }
 

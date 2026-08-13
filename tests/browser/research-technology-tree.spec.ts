@@ -23,7 +23,6 @@ test.describe('research technology tree', () => {
       const action = document.querySelector<HTMLElement>('.research-action-panel')?.getBoundingClientRect();
       const treePanel = document.querySelector<HTMLElement>('.research-tree-panel')?.getBoundingClientRect();
       const tree = document.querySelector<HTMLElement>('.research-tree');
-      const treeScroll = document.querySelector<HTMLElement>('.research-tree-scroll');
       const detailArtwork = document.querySelector<HTMLElement>('.research-action-panel .research-detail-level-artwork');
       const detailArtworkBox = detailArtwork?.getBoundingClientRect();
       const detailArtworkStyle = detailArtwork ? getComputedStyle(detailArtwork) : null;
@@ -44,9 +43,9 @@ test.describe('research technology tree', () => {
         detailArtworkAspectRatio: detailArtworkStyle?.aspectRatio ?? '',
         expectedDetailArtworkSize: rootFontSize * 4.5,
         layoutDirection: tree?.dataset.layoutDirection ?? '',
-        connectionCount: document.querySelectorAll('.research-tree-connections--desktop .research-tree-edge').length,
+        connectionCount: document.querySelectorAll('.research-tree-connections .research-tree-edge').length,
         allDependenciesDownward,
-        treeOwnsHorizontalOverflow: (treeScroll?.scrollWidth ?? 0) >= (treeScroll?.clientWidth ?? 0),
+        viewportClipsCanvas: getComputedStyle(document.querySelector<HTMLElement>('.research-tree-viewport')!).overflow === 'hidden',
         fitsViewport: document.documentElement.scrollWidth <= window.innerWidth,
       };
     });
@@ -60,7 +59,7 @@ test.describe('research technology tree', () => {
     expect(researchGeometry.layoutDirection).toBe('downward');
     expect(researchGeometry.connectionCount).toBeGreaterThan(0);
     expect(researchGeometry.allDependenciesDownward).toBe(true);
-    expect(researchGeometry.treeOwnsHorizontalOverflow).toBe(true);
+    expect(researchGeometry.viewportClipsCanvas).toBe(true);
     expect(researchGeometry.fitsViewport).toBe(true);
   });
 
@@ -82,12 +81,43 @@ test.describe('research technology tree', () => {
         const edges = Array.from(document.querySelectorAll(selector));
         return { count: edges.length, visible: edges.every((edge) => getComputedStyle(edge).stroke !== 'none') };
       };
-      return { highlighted: check('.research-tree-connections--desktop [data-highlighted=\"true\"]'), related: check('.research-tree-connections--desktop [data-related=\"true\"]') };
+      return { highlighted: check('.research-tree-connections [data-highlighted=\"true\"]'), related: check('.research-tree-connections [data-related=\"true\"]') };
     });
     expect(state.highlighted.count).toBeGreaterThan(0);
     expect(state.related.count).toBeGreaterThan(0);
     expect(state.highlighted.visible).toBe(true);
     expect(state.related.visible).toBe(true);
+  });
+
+  test('supports desktop drag and ctrl-wheel zoom without changing world coordinates', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('runtime-test.html?view=research&scenario=research-active');
+    const viewport = page.locator('.research-tree-viewport');
+    const node = page.getByRole('button', { name: /工具作业，可研发，C2 作业科技/ });
+    const beforeWorld = await node.evaluate((element) => ({
+      x: (element as HTMLElement).style.getPropertyValue('--research-node-x'),
+      y: (element as HTMLElement).style.getPropertyValue('--research-node-y'),
+    }));
+    const box = await viewport.boundingBox();
+    expect(box).not.toBeNull();
+    const panBefore = Number(await viewport.getAttribute('data-pan-y'));
+    await page.mouse.move((box?.x ?? 0) + 360, (box?.y ?? 0) + 260);
+    await page.mouse.down();
+    await page.mouse.move((box?.x ?? 0) + 320, (box?.y ?? 0) + 310, { steps: 4 });
+    await page.mouse.up();
+    expect(Math.abs(Number(await viewport.getAttribute('data-pan-y')) - panBefore)).toBeGreaterThan(10);
+
+    const zoomBefore = Number(await viewport.getAttribute('data-zoom'));
+    await page.keyboard.down('Control');
+    await page.mouse.move((box?.x ?? 0) + 420, (box?.y ?? 0) + 300);
+    await page.mouse.wheel(0, -180);
+    await page.keyboard.up('Control');
+    expect(Number(await viewport.getAttribute('data-zoom'))).toBeGreaterThan(zoomBefore);
+    const afterWorld = await node.evaluate((element) => ({
+      x: (element as HTMLElement).style.getPropertyValue('--research-node-x'),
+      y: (element as HTMLElement).style.getPropertyValue('--research-node-y'),
+    }));
+    expect(afterWorld).toEqual(beforeWorld);
   });
 
   test('distinguishes operation research from production research', async ({ page }) => {
@@ -104,7 +134,7 @@ test.describe('research technology tree', () => {
     await expect(panel).not.toContainText('工具作坊');
 
     const toolManufacturing = page.getByRole('button', { name: /工具制造，尚未开放，C4 生产科技/ });
-    await toolManufacturing.click();
+    await toolManufacturing.press('Enter');
     await expect(panel).toContainText('生产科技');
     await expect(panel).toContainText('解锁工厂');
   });
@@ -114,12 +144,12 @@ test.describe('research technology tree', () => {
     await page.goto('runtime-test.html?view=research&scenario=research-active');
 
     const applianceNode = page.getByRole('button', { name: /家电工程，尚未开放/ });
-    await applianceNode.click();
+    await applianceNode.press('Enter');
     await expect(applianceNode).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.research-action-panel')).toContainText('家电工程');
     const beforeRefreshPosition = await applianceNode.evaluate((element) => ({
-      x: (element as HTMLElement).style.getPropertyValue('--research-node-desktop-x'),
-      y: (element as HTMLElement).style.getPropertyValue('--research-node-desktop-y'),
+      x: (element as HTMLElement).style.getPropertyValue('--research-node-x'),
+      y: (element as HTMLElement).style.getPropertyValue('--research-node-y'),
     }));
 
     const assetsButton = page.locator('button').filter({ hasText: '净资产' }).first();
@@ -130,8 +160,8 @@ test.describe('research technology tree', () => {
     await expect(page.locator('.research-action-panel')).toContainText('家电工程');
     await expect(page.getByRole('button', { name: /冶金技术，研发中/ })).toHaveAttribute('aria-pressed', 'false');
     const afterRefreshPosition = await applianceNode.evaluate((element) => ({
-      x: (element as HTMLElement).style.getPropertyValue('--research-node-desktop-x'),
-      y: (element as HTMLElement).style.getPropertyValue('--research-node-desktop-y'),
+      x: (element as HTMLElement).style.getPropertyValue('--research-node-x'),
+      y: (element as HTMLElement).style.getPropertyValue('--research-node-y'),
     }));
     expect(afterRefreshPosition).toEqual(beforeRefreshPosition);
   });
@@ -140,12 +170,12 @@ test.describe('research technology tree', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=research&scenario=research-active');
 
-    await page.getByRole('button', { name: /家电工程，尚未开放/ }).click();
+    await page.getByRole('button', { name: /家电工程，尚未开放/ }).press('Enter');
     await expect(page.locator('.research-action-panel')).toContainText('还需完成');
     await expect(page.locator('.research-action-panel')).toContainText('电子工程');
     await expect(page.locator('.research-action-panel')).toContainText('研发费用');
 
-    await page.getByRole('button', { name: /冶金技术，研发中/ }).click();
+    await page.getByRole('button', { name: /冶金技术，研发中/ }).press('Enter');
     await expect(page.locator('.research-action-panel')).toContainText('宝石加速');
     await expect(page.getByRole('button', { name: '1 宝石 · 加速 30m' })).toBeVisible();
   });
@@ -161,31 +191,63 @@ test.describe('research technology tree', () => {
     expect(ringProgress).toBe('240deg');
   });
 
-  test('keeps every mobile dependency below its prerequisite without horizontal tree scrolling', async ({ page }) => {
+  test('uses one world geometry on mobile with pan and zoom instead of two-lane reflow', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('runtime-test.html?view=research&scenario=research-active');
+    const desktopWorld = await page.locator('.research-technology-node').evaluateAll((nodes) => Object.fromEntries(nodes.map((node) => [
+      (node as HTMLElement).dataset.technologyId,
+      {
+        x: (node as HTMLElement).style.getPropertyValue('--research-node-x'),
+        y: (node as HTMLElement).style.getPropertyValue('--research-node-y'),
+      },
+    ])));
+
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=research&scenario=research-active');
+    const viewport = page.locator('.research-tree-viewport');
+    const mobileWorld = await page.locator('.research-technology-node').evaluateAll((nodes) => Object.fromEntries(nodes.map((node) => [
+      (node as HTMLElement).dataset.technologyId,
+      {
+        x: (node as HTMLElement).style.getPropertyValue('--research-node-x'),
+        y: (node as HTMLElement).style.getPropertyValue('--research-node-y'),
+      },
+    ])));
+    expect(mobileWorld).toEqual(desktopWorld);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
-    const geometry = await page.evaluate(() => {
-      const treeScroll = document.querySelector<HTMLElement>('.research-tree-scroll');
-      const nodes = Array.from(document.querySelectorAll<HTMLElement>('.research-technology-node'));
-      const topById = new Map(nodes.map((node) => [node.dataset.technologyId ?? '', node.getBoundingClientRect().top]));
-      const allDependenciesDownward = nodes.every((node) => {
-        const childTop = node.getBoundingClientRect().top;
-        const prerequisiteIds = (node.dataset.prerequisites ?? '').split(',').filter(Boolean);
-        return prerequisiteIds.every((parentId) => childTop > (topById.get(parentId) ?? -Infinity) + 20);
-      });
-      return {
-        allDependenciesDownward,
-        treeHasNoHorizontalScroll: (treeScroll?.scrollWidth ?? 0) <= (treeScroll?.clientWidth ?? 0) + 1,
-        pageFitsViewport: document.documentElement.scrollWidth <= window.innerWidth,
-        mobileConnectionsVisible: getComputedStyle(document.querySelector<HTMLElement>('.research-tree-connections--mobile')!).display !== 'none',
-      };
+    const beforePan = Number(await viewport.getAttribute('data-pan-x'));
+    const box = await viewport.boundingBox();
+    expect(box).not.toBeNull();
+    await page.mouse.move((box?.x ?? 0) + 120, (box?.y ?? 0) + 180);
+    await page.mouse.down();
+    await page.mouse.move((box?.x ?? 0) + 170, (box?.y ?? 0) + 210, { steps: 4 });
+    await page.mouse.up();
+    const afterPan = Number(await viewport.getAttribute('data-pan-x'));
+    expect(Math.abs(afterPan - beforePan)).toBeGreaterThan(10);
+
+    const beforeZoom = Number(await viewport.getAttribute('data-zoom'));
+    await page.getByRole('button', { name: '放大技术树' }).click();
+    const afterZoom = Number(await viewport.getAttribute('data-zoom'));
+    expect(afterZoom).toBeGreaterThan(beforeZoom);
+
+    await viewport.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      const fire = (type: string, pointerId: number, x: number, y: number, buttons: number) => element.dispatchEvent(new PointerEvent(type, {
+        bubbles: true,
+        pointerId,
+        pointerType: 'touch',
+        clientX: rect.left + x,
+        clientY: rect.top + y,
+        buttons,
+      }));
+      fire('pointerdown', 41, 120, 180, 1);
+      fire('pointerdown', 42, 220, 180, 1);
+      fire('pointermove', 42, 270, 180, 1);
+      fire('pointerup', 42, 270, 180, 0);
+      fire('pointerup', 41, 120, 180, 0);
     });
-
-    expect(geometry.allDependenciesDownward).toBe(true);
-    expect(geometry.treeHasNoHorizontalScroll).toBe(true);
-    expect(geometry.pageFitsViewport).toBe(true);
-    expect(geometry.mobileConnectionsVisible).toBe(true);
+    const pinchZoom = Number(await viewport.getAttribute('data-zoom'));
+    expect(pinchZoom).toBeGreaterThan(afterZoom);
   });
 
   test('opens technology details in the shared mobile sheet', async ({ page }) => {
