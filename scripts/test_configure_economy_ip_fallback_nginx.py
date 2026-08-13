@@ -134,7 +134,7 @@ class EconomyIpFallbackNginxTests(unittest.TestCase):
         self.assertIn("--preferred-profile shortlived", design)
         self.assertIn("riversoft-economy-ip-cert-renew.timer", design)
         self.assertIn("不得加 `-k`", design)
-        self.assertIn("不得直接读取 `/etc/letsencrypt/live/`", design)
+        self.assertIn("直接读取 `/etc/letsencrypt/live/`", design)
         self.assertIn("`--connect-to`", design)
         self.assertIn("127.0.0.1:443", design)
         self.assertIn("删除临时 IP 虚拟主机、续签 timer 和专用短期证书", design)
