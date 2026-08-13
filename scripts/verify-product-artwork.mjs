@@ -1,48 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { PRODUCT_CATALOG } from '../server/src/domain.js';
 
 const root = process.cwd();
 const failures = [];
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
-
-const productIds = [
-  'wheat',
-  'rice',
-  'cotton',
-  'sugarcane',
-  'fruit',
-  'timber',
-  'ore',
-  'copper-ore',
-  'crude-oil',
-  'meat',
-  'eggs',
-  'milk',
-  'fish',
-  'wool',
-  'flour',
-  'sugar',
-  'lumber',
-  'steel',
-  'copper',
-  'plastic',
-  'fertilizer',
-  'feed',
-  'veterinary-medicine',
-  'textile',
-  'pulp',
-  'food',
-  'beverage',
-  'prepared-meal',
-  'paper',
-  'furniture',
-  'clothing',
-  'tools',
-  'machinery',
-  'tractor',
-  'electronics',
-  'appliance',
-];
+const productIds = PRODUCT_CATALOG.map((product) => product.id);
 
 const artworkStylePath = 'src/styles/product-artwork.css';
 const generatorPath = 'scripts/generate-product-artwork-thumbnails.mjs';
@@ -127,12 +90,13 @@ if (failures.length === 0) {
     if (artworkStyles.includes(`../assets/product-icons/${productId}.png`)) {
       failures.push(`${artworkStylePath} 不得直接加载 1024×1024 源图片 ${sourcePath}`);
     }
-    if (!productIcons.includes(`'${productId}'`)) {
-      failures.push(`${productIconsPath} 未声明商品 ${productId}`);
-    }
     if (!generator.includes(`'${productId}'`)) {
       failures.push(`${generatorPath} 未生成商品 ${productId}`);
     }
+  }
+
+  if (!productIcons.includes('default:') || !productIcons.includes('data-product-icon={productId}')) {
+    failures.push(`${productIconsPath} 必须保留未知商品 ID 的通用 SVG 回退`);
   }
 
   for (const required of [
@@ -230,5 +194,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `商品图片视觉验证通过：${productIds.length} 种 1024×1024 RGBA PNG 源图已生成 128×128 运行时缩略图，生产结算与富内容下拉框使用 ProductArtwork PNG，其余紧凑语义位置继续使用 SVG。`,
+  `商品图片视觉验证通过：${productIds.length} 种正式商品的 1024×1024 RGBA PNG 源图已生成 128×128 运行时缩略图，生产结算与富内容下拉框使用 ProductArtwork PNG，其余紧凑语义位置继续使用 SVG 或通用回退。`,
 );
