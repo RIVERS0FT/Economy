@@ -1,0 +1,33 @@
+name: Phase 3 capacity verifier transform
+
+on:
+  push:
+    branches:
+      - agent/client-response-phase3
+
+permissions:
+  contents: write
+
+jobs:
+  transform:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/client-response-phase3
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+      - name: Migrate verifier
+        run: node scripts/phase3-capacity-verifier-transform.mjs
+      - name: Remove temporary transformer and commit
+        run: |
+          rm scripts/phase3-capacity-verifier-transform.mjs .github/workflows/phase3-capacity-verifier-transform.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "test: 迁移状态容量验证到共享叶子时钟"
+          git push origin HEAD:agent/client-response-phase3
