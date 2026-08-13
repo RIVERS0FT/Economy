@@ -250,8 +250,8 @@ requireText('docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md', [
   '页面和外壳必须声明自己消费的状态分区',
 ]);
 requireText('docs/README.md', [
-  '六分区 React 消费边界',
-  '根游戏控制器的权威状态视图必须保持稳定对象身份',
+  '允许页面或共享组件按分区订阅',
+  '`useSyncExternalStore`',
 ]);
 requireText('package.json', [
   '"verify:client-response": "node scripts/verify-client-response-performance.mjs"',
