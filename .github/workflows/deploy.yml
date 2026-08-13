@@ -249,6 +249,22 @@ jobs:
             "if [ \$(id -u) -eq 0 ]; then exec python3 - '$ECONOMY_PRODUCTION_PUBLIC_IP'; elif command -v sudo >/dev/null 2>&1 && sudo -n true; then exec sudo -n python3 - '$ECONOMY_PRODUCTION_PUBLIC_IP'; else echo ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE >&2; exit 1; fi" \
             < scripts/configure-economy-ip-fallback-nginx.py
 
+      - name: Verify production host before publishing entry
+        id: verify_remote
+        shell: bash
+        env:
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+        run: |
+          set -uo pipefail
+          set +e
+          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" \
+            "bash -s -- remote '$ECONOMY_PRODUCTION_PUBLIC_IP'" \
+            < scripts/verify-production-deployment.sh 2>&1 | tee /tmp/economy-pre-publish-verify.log
+          verification_status=${PIPESTATUS[0]}
+          set -e
+          exit "$verification_status"
+
       - name: Publish website entry and prune expired assets
         id: publish_entry
         env:
@@ -267,89 +283,17 @@ jobs:
           find /var/www/game/economy/assets -mindepth 1 -type d -empty -delete
           REMOTE
 
-      - name: Verify website, account routes, and game API
-        id: verify_deployment
-        env:
-          SERVER_USER: ${{ secrets.SERVER_USER }}
-          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+      - name: Verify public website, account routes, and game API
+        id: verify_public
+        shell: bash
         run: |
-          exec > >(tee /tmp/economy-verify.log) 2>&1
-          set -euo pipefail
-          ECONOMY_PUBLIC_ORIGIN="https://$ECONOMY_PRODUCTION_PUBLIC_IP"
-          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" \
-            "bash -s -- '$ECONOMY_PRODUCTION_PUBLIC_IP'" <<'REMOTE'
-          set -euo pipefail
-          PUBLIC_IP="$1"
-          PUBLIC_IP_SLUG="${PUBLIC_IP//./-}"
-          test -x /var/www/game/economy-api/runtime/bin/node
-          curl --fail --silent --show-error http://127.0.0.1:3002/health >/dev/null
-          curl --fail --silent --show-error -H "Host: game.riversoft.top" http://127.0.0.1/economy/ >/dev/null
-          test -f /var/www/game/economy/index.html
-          test -s /var/lib/riversoft-economy/registration-secret
-          test -s "/etc/letsencrypt/live/riversoft-economy-ip-${PUBLIC_IP_SLUG}/fullchain.pem"
-          test -s "/etc/letsencrypt/live/riversoft-economy-ip-${PUBLIC_IP_SLUG}/privkey.pem"
-          systemctl is-enabled --quiet riversoft-economy-ip-cert-renew.timer
-          systemctl is-active --quiet riversoft-economy-ip-cert-renew.timer
-          python3 - <<'PYTHON'
-          import sqlite3
-          database = '/var/lib/riversoft-economy/economy.sqlite'
-          with sqlite3.connect(f'file:{database}?mode=ro', uri=True) as connection:
-              connection.execute('PRAGMA query_only = ON')
-              auto_vacuum = int(connection.execute('PRAGMA auto_vacuum').fetchone()[0])
-              quick_check = str(connection.execute('PRAGMA quick_check(1)').fetchone()[0])
-          if auto_vacuum != 2:
-              raise SystemExit(f'ECONOMY_DATABASE_AUTO_VACUUM_INVALID={auto_vacuum}')
-          if quick_check != 'ok':
-              raise SystemExit(f'ECONOMY_DATABASE_QUICK_CHECK_FAILED={quick_check}')
-          print('ECONOMY_DATABASE_INCREMENTAL_VERIFIED')
-          PYTHON
-          REMOTE
-
-          REDIRECT_STATUS="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
-            "http://$ECONOMY_PRODUCTION_PUBLIC_IP/economy/" || true)"
-          if [ "$REDIRECT_STATUS" != "308" ]; then
-            echo "ECONOMY_IP_HTTP_REDIRECT_INVALID=$REDIRECT_STATUS"
-            exit 1
-          fi
-
-          curl --fail --silent --show-error \
-            --retry 3 --retry-delay 2 \
-            "$ECONOMY_PUBLIC_ORIGIN/economy/" >/dev/null
-
-          AUTH_STATUS="$(curl --silent --show-error --output /tmp/economy-auth-response.json --write-out '%{http_code}' \
-            "$ECONOMY_PUBLIC_ORIGIN/economy-api/me" || true)"
-          if [ "$AUTH_STATUS" != "200" ] && [ "$AUTH_STATUS" != "401" ]; then
-            cat /tmp/economy-auth-response.json 2>/dev/null || true
-            echo AUTH_PROXY_UNAVAILABLE
-            exit 1
-          fi
-
-          GAME_STATUS="$(curl --silent --show-error --output /tmp/economy-game-response.json --write-out '%{http_code}' \
-            "$ECONOMY_PUBLIC_ORIGIN/economy-api/game/state" || true)"
-          if [ "$GAME_STATUS" != "401" ]; then
-            cat /tmp/economy-game-response.json 2>/dev/null || true
-            echo ECONOMY_GAME_API_PROXY_UNAVAILABLE
-            exit 1
-          fi
-
-          LOGIN_STATUS="$(curl --silent --show-error --output /tmp/economy-login-response.json --write-out '%{http_code}' \
-            --request POST --header 'Content-Type: application/json' \
-            --data '{}' "$ECONOMY_PUBLIC_ORIGIN/economy-api/login" || true)"
-          if [ "$LOGIN_STATUS" != "400" ]; then
-            cat /tmp/economy-login-response.json 2>/dev/null || true
-            echo ECONOMY_LOGIN_PROXY_UNAVAILABLE
-            exit 1
-          fi
-
-          REGISTRATION_STATUS="$(curl --silent --show-error --output /tmp/economy-registration-response.json --write-out '%{http_code}' \
-            --request POST --header 'Content-Type: application/json' \
-            --header 'Idempotency-Key: deploy-registration-route-check' --data '{}' \
-            "$ECONOMY_PUBLIC_ORIGIN/economy-api/registration/email-code" || true)"
-          if [ "$REGISTRATION_STATUS" != "400" ]; then
-            cat /tmp/economy-registration-response.json 2>/dev/null || true
-            echo ECONOMY_REGISTRATION_PROXY_UNAVAILABLE
-            exit 1
-          fi
+          set -uo pipefail
+          set +e
+          bash scripts/verify-production-deployment.sh public "$ECONOMY_PRODUCTION_PUBLIC_IP" \
+            2>&1 | tee /tmp/economy-post-publish-verify.log
+          verification_status=${PIPESTATUS[0]}
+          set -e
+          exit "$verification_status"
 
       - name: Collect failed step log
         if: failure()
@@ -367,13 +311,16 @@ jobs:
           UPLOAD_ASSETS_OUTCOME: ${{ steps.upload_assets.outcome }}
           INSTALL_SERVICE_OUTCOME: ${{ steps.install_service.outcome }}
           CONFIGURE_NGINX_OUTCOME: ${{ steps.configure_nginx.outcome }}
+          VERIFY_REMOTE_OUTCOME: ${{ steps.verify_remote.outcome }}
           PUBLISH_ENTRY_OUTCOME: ${{ steps.publish_entry.outcome }}
-          VERIFY_DEPLOYMENT_OUTCOME: ${{ steps.verify_deployment.outcome }}
+          VERIFY_PUBLIC_OUTCOME: ${{ steps.verify_public.outcome }}
         run: |
           set -euo pipefail
           failure_dir="$RUNNER_TEMP/economy-failure-log"
+          summary_file=/tmp/economy-failure-summary.txt
           rm -rf "$failure_dir"
           mkdir -p "$failure_dir"
+          : > "$summary_file"
 
           collect_failed_log() {
             local outcome="$1"
@@ -401,12 +348,29 @@ jobs:
           collect_failed_log "$UPLOAD_ASSETS_OUTCOME" /tmp/economy-upload.log upload-assets.log
           collect_failed_log "$INSTALL_SERVICE_OUTCOME" /tmp/economy-api-install.log install-service.log
           collect_failed_log "$CONFIGURE_NGINX_OUTCOME" /tmp/economy-proxy-configure.log configure-nginx.log
+          collect_failed_log "$VERIFY_REMOTE_OUTCOME" /tmp/economy-pre-publish-verify.log pre-publish-verification.log
           collect_failed_log "$PUBLISH_ENTRY_OUTCOME" /tmp/economy-publish-entry.log publish-entry.log
-          collect_failed_log "$VERIFY_DEPLOYMENT_OUTCOME" /tmp/economy-verify.log verify-deployment.log
+          collect_failed_log "$VERIFY_PUBLIC_OUTCOME" /tmp/economy-post-publish-verify.log post-publish-verification.log
 
           if ! compgen -G "$failure_dir/*" > /dev/null; then
             printf '失败发生在非 shell Action 步骤；完整输出保留在 GitHub Actions job log。\n' > "$failure_dir/action-step-failure.txt"
           fi
+
+          for failed_log in "$failure_dir"/*; do
+            [ -f "$failed_log" ] || continue
+            detail="$(grep -Eai 'ECONOMY_DEPLOY_VERIFY_FAILED|ECONOMY_[A-Z0-9_]+_(FAILED|INVALID|UNAVAILABLE)|AUTH_PROXY_UNAVAILABLE|permission denied|command not found|connection refused|failed|error' "$failed_log" | tail -n 1 || true)"
+            if [ -z "$detail" ]; then
+              detail="$(awk 'NF { line=$0 } END { print line }' "$failed_log")"
+            fi
+            if [ -n "$detail" ]; then
+              printf '%s\n' "$detail" > "$summary_file"
+              break
+            fi
+          done
+          if [ ! -s "$summary_file" ]; then
+            printf 'Economy deployment failed; see failure artifact\n' > "$summary_file"
+          fi
+          cp "$summary_file" "$failure_dir/failure-summary.txt"
 
       - name: Upload failed step log
         if: failure()
@@ -431,22 +395,7 @@ jobs:
           else
             STATE="failure"
             DESCRIPTION="Economy deployment failed"
-            DETAIL="$({
-              cat /tmp/economy-install-dependencies.log 2>/dev/null || true
-              cat /tmp/economy-build.log 2>/dev/null || true
-              cat /tmp/economy-install-chromium.log 2>/dev/null || true
-              cat /tmp/economy-browser-test.log 2>/dev/null || true
-              cat /tmp/economy-rsync.log 2>/dev/null || true
-              cat /tmp/economy-ssh.log 2>/dev/null || true
-              cat /tmp/economy-database-backup.log 2>/dev/null || true
-              cat /tmp/economy-deploy.log 2>/dev/null || true
-              cat /tmp/economy-runtime.log 2>/dev/null || true
-              cat /tmp/economy-upload.log 2>/dev/null || true
-              cat /tmp/economy-api-install.log 2>/dev/null || true
-              cat /tmp/economy-proxy-configure.log 2>/dev/null || true
-              cat /tmp/economy-publish-entry.log 2>/dev/null || true
-              cat /tmp/economy-verify.log 2>/dev/null || true
-            } | grep -Eai 'TS[0-9]+|ECONOMY_[A-Z0-9_]+|AUTH_PROXY_UNAVAILABLE|permission denied|command not found|connection refused|failed|error' | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
+            DETAIL="$(cat /tmp/economy-failure-summary.txt 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
             if [ -n "$DETAIL" ]; then DESCRIPTION="$DETAIL"; fi
           fi
 

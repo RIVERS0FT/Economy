@@ -27,6 +27,7 @@ const files = [
   'src/pages/GemShopPage.tsx',
   'src/components/InvitationSettings.tsx',
   'scripts/configure-economy-registration-nginx.py',
+  'scripts/verify-production-deployment.sh',
   'scripts/test_configure_economy_registration_nginx.py',
   '.github/workflows/configure-registration-email.yml',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
@@ -175,8 +176,11 @@ for (const text of [
   'EnvironmentFile=-{ENVIRONMENT_FILE}',
   'registration-secret',
 ]) requireText('scripts/install-economy-api.py', text);
-for (const text of ['configure-economy-registration-nginx.py', 'ECONOMY_REGISTRATION_PROXY_UNAVAILABLE']) {
+for (const text of ['configure-economy-registration-nginx.py', 'scripts/verify-production-deployment.sh']) {
   requireText('.github/workflows/deploy.yml', text);
+}
+for (const text of ['registration-api', '/economy-api/registration/email-code', 'ECONOMY_REGISTRATION_PROXY_UNAVAILABLE']) {
+  requireText('scripts/verify-production-deployment.sh', text);
 }
 for (const text of [
   'Validate running Resend configuration',

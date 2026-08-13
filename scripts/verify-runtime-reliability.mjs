@@ -14,6 +14,7 @@ for (const path of [
   'playwright.config.ts',
   'runtime-test.html',
   'scripts/check-server-syntax.mjs',
+  'scripts/verify-production-deployment.sh',
   'tests/browser/runtime-harness.tsx',
   'tests/browser/runtime.spec.ts',
   'src/app/AppErrorBoundary.tsx',
@@ -30,6 +31,7 @@ for (const path of [
 ]) requireFile(path);
 forbidFile('.github/workflows/web-build.yml');
 forbidText('.github/workflows/deploy.yml', 'ssh-keyscan -p \"$SERVER_PORT\" \"$SERVER_HOST\"');
+forbidText('.github/workflows/deploy.yml', 'cat /tmp/economy-install-dependencies.log 2>/dev/null || true');
 
 const packageJson = JSON.parse(read('package.json'));
 for (const [group, dependencies] of Object.entries({
@@ -98,7 +100,31 @@ for (const text of [
   'path: ${{ runner.temp }}/economy-failure-log',
   'retention-days: 3',
   'compression-level: 9',
+  'Verify production host before publishing entry',
+  'Verify public website, account routes, and game API',
+  'economy-pre-publish-verify.log',
+  'economy-post-publish-verify.log',
+  'economy-failure-summary.txt',
+  'cat /tmp/economy-failure-summary.txt',
 ]) requireText('.github/workflows/deploy.yml', text);
+
+for (const text of [
+  'trap report_unexpected_failure ERR',
+  'ECONOMY_DEPLOY_VERIFY_START',
+  'ECONOMY_DEPLOY_VERIFY_OK',
+  'ECONOMY_DEPLOY_VERIFY_FAILED',
+  'verify_remote',
+  'verify_public',
+  'database-incremental',
+]) requireText('scripts/verify-production-deployment.sh', text);
+
+const deployWorkflow = read('.github/workflows/deploy.yml');
+const prePublishVerificationIndex = deployWorkflow.indexOf('Verify production host before publishing entry');
+const publishEntryIndex = deployWorkflow.indexOf('Publish website entry and prune expired assets');
+const postPublishVerificationIndex = deployWorkflow.indexOf('Verify public website, account routes, and game API');
+if (!(prePublishVerificationIndex >= 0 && prePublishVerificationIndex < publishEntryIndex && publishEntryIndex < postPublishVerificationIndex)) {
+  failures.push('部署验收必须保持发布前远端验收 → 原子入口发布 → 发布后公网验收的顺序');
+}
 
 for (const [path, text] of [
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', '读取、写入或删除 localStorage 失败'],
@@ -115,6 +141,10 @@ for (const [path, text] of [
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '最多尝试 5 次'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '数据库备份、文件上传和服务变更之前终止'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '成功步骤日志不得上传'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '发布前远端验收和发布后公网验收'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'ECONOMY_DEPLOY_VERIFY_START'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'economy-failure-summary.txt'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '禁止重新扫描或拼接成功步骤日志'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得再为单次构建失败创建临时诊断工作流'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '服务器语法检查由 Node 枚举'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得显示没有实际运行效果的“界面音效”或“画面性能”控件'],

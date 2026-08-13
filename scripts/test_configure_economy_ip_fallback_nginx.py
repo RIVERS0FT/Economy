@@ -103,16 +103,23 @@ class EconomyIpFallbackNginxTests(unittest.TestCase):
 
     def test_deploy_uses_one_production_ip_for_ssh_fallback_and_verification(self):
         workflow = (ROOT / ".github/workflows/deploy.yml").read_text(encoding="utf-8")
+        verification = (ROOT / "scripts/verify-production-deployment.sh").read_text(encoding="utf-8")
         self.assertIn(f"ECONOMY_PRODUCTION_PUBLIC_IP: {PRODUCTION_IP}", workflow)
         self.assertNotIn("secrets.SERVER_HOST", workflow)
         self.assertIn('"$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP"', workflow)
         self.assertIn("scripts/configure-economy-ip-fallback-nginx.py", workflow)
+        self.assertIn("scripts/verify-production-deployment.sh", workflow)
         self.assertIn('"$ECONOMY_PRODUCTION_PUBLIC_IP"', workflow)
-        self.assertIn("ECONOMY_IP_HTTP_REDIRECT_INVALID", workflow)
-        self.assertIn("riversoft-economy-ip-cert-renew.timer", workflow)
+        self.assertIn("ECONOMY_IP_HTTP_REDIRECT_INVALID", verification)
+        self.assertIn("riversoft-economy-ip-cert-renew.timer", verification)
+        self.assertIn('"http://${PUBLIC_IP}/economy/"', verification)
+        self.assertIn('"https://${PUBLIC_IP}/economy/"', verification)
         self.assertNotIn(OLD_PUBLIC_IP, workflow)
+        self.assertNotIn(OLD_PUBLIC_IP, verification)
         self.assertNotIn("curl -k", workflow)
+        self.assertNotIn("curl -k", verification)
         self.assertNotIn("--insecure", workflow)
+        self.assertNotIn("--insecure", verification)
 
     def test_authority_design_records_single_source_and_restore_boundaries(self):
         design = (ROOT / "docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md").read_text(encoding="utf-8")

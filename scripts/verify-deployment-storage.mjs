@@ -19,6 +19,7 @@ const read = (path) => readFileSync(resolve(root, path), 'utf8');
 
 const files = {
   workflow: '.github/workflows/deploy.yml',
+  verification: 'scripts/verify-production-deployment.sh',
   backupTool: 'scripts/manage-production-backups.py',
   installer: 'scripts/install-economy-api.py',
   design: 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
@@ -39,7 +40,8 @@ if (failures.length === 0) {
   for (const text of [
     'manage-production-backups.py',
     'backup-world --target-world-version 26',
-    'ECONOMY_DATABASE_INCREMENTAL_VERIFIED',
+    'Verify production host before publishing entry',
+    'scripts/verify-production-deployment.sh',
     'minimum_free_kb=$((1024 * 1024))',
     'ECONOMY_DEPLOY_INSUFFICIENT_DISK',
     'ECONOMY_DEPLOY_AVAILABLE_KB=',
@@ -48,6 +50,10 @@ if (failures.length === 0) {
     '--exclude index.html',
     'index.html.next',
   ]) requireText(files.workflow, text);
+
+  for (const text of ['database-incremental', 'ECONOMY_DATABASE_INCREMENTAL_VERIFIED']) {
+    requireText(files.verification, text);
+  }
 
   const workflow = read(files.workflow);
   const deleteBeforeCount = (workflow.match(/rsync -az --delete-before/g) ?? []).length;
