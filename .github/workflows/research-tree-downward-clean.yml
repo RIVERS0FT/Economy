@@ -29,7 +29,6 @@ jobs:
           python3 .agent/apply-research-tree-downward.py
           python3 - <<'PY'
           from pathlib import Path
-
           verifier = Path('scripts/verify-research-page.mjs')
           text = verifier.read_text(encoding='utf-8')
           replacements = {
@@ -43,33 +42,22 @@ jobs:
                   raise SystemExit(f'expected one verifier marker: {bad!r}; found {text.count(bad)}')
               text = text.replace(bad, good, 1)
           verifier.write_text(text, encoding='utf-8')
-
           page = Path('src/pages/ResearchPage.tsx')
           text = page.read_text(encoding='utf-8')
-          old = '''                    role="treeitem"\n                    aria-level={layoutNode.depth + 1}\n                    aria-pressed={isSelected}\n'''
-          new = '''                    aria-pressed={isSelected}\n'''
+          old = '                    role="treeitem"\n                    aria-level={layoutNode.depth + 1}\n                    aria-pressed={isSelected}\n'
+          new = '                    aria-pressed={isSelected}\n'
           if text.count(old) != 1:
               raise SystemExit(f'expected one technology role override, found {text.count(old)}')
           page.write_text(text.replace(old, new, 1), encoding='utf-8')
-
           test = Path('tests/browser/research-technology-tree.spec.ts')
           text = test.read_text(encoding='utf-8')
-          old = "    const beforeRefreshPosition = await applianceNode.boundingBox();"
-          new = """    const beforeRefreshPosition = await applianceNode.evaluate((element) => ({
-      x: (element as HTMLElement).style.getPropertyValue('--research-node-desktop-x'),
-      y: (element as HTMLElement).style.getPropertyValue('--research-node-desktop-y'),
-    }));"""
+          old = '    const beforeRefreshPosition = await applianceNode.boundingBox();'
+          new = "    const beforeRefreshPosition = await applianceNode.evaluate((element) => ({\n      x: (element as HTMLElement).style.getPropertyValue('--research-node-desktop-x'),\n      y: (element as HTMLElement).style.getPropertyValue('--research-node-desktop-y'),\n    }));"
           if text.count(old) != 1:
               raise SystemExit(f'expected one pre-refresh physical position assertion, found {text.count(old)}')
           text = text.replace(old, new, 1)
-          old = """    const afterRefreshPosition = await applianceNode.boundingBox();
-    expect(afterRefreshPosition?.x).toBeCloseTo(beforeRefreshPosition?.x ?? 0, 0);
-    expect(afterRefreshPosition?.y).toBeCloseTo(beforeRefreshPosition?.y ?? 0, 0);"""
-          new = """    const afterRefreshPosition = await applianceNode.evaluate((element) => ({
-      x: (element as HTMLElement).style.getPropertyValue('--research-node-desktop-x'),
-      y: (element as HTMLElement).style.getPropertyValue('--research-node-desktop-y'),
-    }));
-    expect(afterRefreshPosition).toEqual(beforeRefreshPosition);"""
+          old = "    const afterRefreshPosition = await applianceNode.boundingBox();\n    expect(afterRefreshPosition?.x).toBeCloseTo(beforeRefreshPosition?.x ?? 0, 0);\n    expect(afterRefreshPosition?.y).toBeCloseTo(beforeRefreshPosition?.y ?? 0, 0);"
+          new = "    const afterRefreshPosition = await applianceNode.evaluate((element) => ({\n      x: (element as HTMLElement).style.getPropertyValue('--research-node-desktop-x'),\n      y: (element as HTMLElement).style.getPropertyValue('--research-node-desktop-y'),\n    }));\n    expect(afterRefreshPosition).toEqual(beforeRefreshPosition);"
           if text.count(old) != 1:
               raise SystemExit(f'expected one post-refresh physical position assertion, found {text.count(old)}')
           test.write_text(text.replace(old, new, 1), encoding='utf-8')
