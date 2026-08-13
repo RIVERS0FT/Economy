@@ -9,9 +9,11 @@ const required = [
   'server/src/runtime-store.js',
   'server/src/order-book-runtime.js',
   'server/src/order-matching.js',
+  'server/shared/economy-state-slices.js',
   'src/app/stateDelivery.js',
   'src/app/stateDelivery.d.ts',
   'src/app/gameAuthorityStore.ts',
+  'src/app/clientOrderIndex.ts',
   'src/app/gameViewModel.ts',
   'src/pages/PageRouter.tsx',
   'server/test/authoritative-hotpaths.test.js',
@@ -73,17 +75,28 @@ const matching = read('server/src/order-matching.js');
 assert.ok(matching.includes('iterateOrderBookSide'), '撮合必须流式遍历价格档位订单');
 assert.equal(matching.includes('getOrderBookSide'), false, '撮合不得重新物化完整盘口侧数组');
 
+const stateSlices = read('server/shared/economy-state-slices.js');
+for (const text of [
+  "'player.assets'",
+  "'player.production'",
+  "'market.orders'",
+  "'market.quotes'",
+  'stateSliceNameForKey',
+]) assert.ok(stateSlices.includes(text), `客户端状态子切片缺少: ${text}`);
+
 const stateDelivery = read('src/app/stateDelivery.js');
 for (const text of [
   'authorityListeners',
   'partitionAuthorityListeners',
+  'sliceAuthorityListeners',
   'export function getStateAuthoritySnapshot',
   'export function getStateAuthorityPartition',
   'export function subscribeStateAuthority',
   'export function subscribeStateAuthorityPartition',
-  'export function subscribeStateAuthorityPartitions',
+  'export function subscribeStateAuthorityDependencies',
+  'reuseUnchangedSliceReferences',
   'notifyPartitionListeners',
-  'publishAuthority(revision, state, partitions, changedPartitions)',
+  'notifySliceListeners',
 ]) assert.ok(stateDelivery.includes(text), `客户端权威状态交付缺少: ${text}`);
 const authorityStore = read('src/app/gameAuthorityStore.ts');
 for (const text of [
@@ -91,23 +104,31 @@ for (const text of [
   'AUTHORITY_STATE_VIEW',
   'getStateAuthoritySnapshot().state !== null',
   'useGameAuthorityState',
-  'useGameAuthorityPartitions',
+  'useGameAuthorityDependencies',
   'useGameAuthorityRevision',
   'useGameAuthorityPartition',
-  'subscribeStateAuthorityPartitions',
+  'getStateAuthoritySliceRevision',
 ]) assert.ok(authorityStore.includes(text), `客户端权威订阅缺少: ${text}`);
 const viewModel = read('src/app/gameViewModel.ts');
 assert.ok(viewModel.includes('const authorityGame = useGameAuthorityState();'), '根游戏控制器必须读取稳定权威状态视图');
 assert.equal(viewModel.includes('const [game, setGame] = useState<EconomyState | null>'), false, '视图模型不得重新持有第二份 EconomyState React 状态');
 const pageRouter = read('src/pages/PageRouter.tsx');
 for (const text of [
-  'PAGE_AUTHORITY_PARTITIONS',
+  'PAGE_AUTHORITY_DEPENDENCIES',
   'AuthorityPageBoundary',
-  'useGameAuthorityPartitions(partitions);',
-  "market: ['catalog', 'player', 'market']",
-  "auction: ['catalog', 'player', 'auction']",
-  "leaderboard: ['catalog', 'player', 'leaderboard']",
-]) assert.ok(pageRouter.includes(text), `页面分区消费边界缺少: ${text}`);
+  'useGameAuthorityDependencies(dependencies);',
+  "'player.assets'",
+  "'player.production'",
+  "'market.orders'",
+  "'market.quotes'",
+]) assert.ok(pageRouter.includes(text), `页面子切片消费边界缺少: ${text}`);
+const clientOrderIndex = read('src/app/clientOrderIndex.ts');
+for (const text of [
+  'orderById',
+  'ownOpenOrders',
+  'openOrdersByAsset',
+  'commodityPriceExtrema',
+]) assert.ok(clientOrderIndex.includes(text), `客户端订单热路径索引缺少: ${text}`);
 
 const design = read('docs/README.md');
 for (const text of [
@@ -116,6 +137,7 @@ for (const text of [
   'SQLite `SAVEPOINT`',
   '`useSyncExternalStore`',
   '允许页面或共享组件按分区订阅',
+  '子修订',
 ]) assert.ok(design.includes(text), `设计索引缺少权威热路径规则: ${text}`);
 
-console.log('权威热路径验证通过：按领域截止时间推进、经济动作保存点回滚、价格档位撮合以及稳定根视图 + 页面六分区 React 消费边界均受防回退约束。');
+console.log('权威热路径验证通过：按领域截止时间推进、经济动作保存点回滚、价格档位撮合、六分区稳定根视图、player/market 子切片 React 消费边界与客户端订单索引均受防回退约束。');
