@@ -658,3 +658,7 @@ Playwright 必须验证 `1684×931`、`1280×900` 和 `900×1000` 下的真实�
 ### 未解锁作业制度的研发锁定
 
 生产方式下拉选择继续复用共享 `production-config` `combobox` 与生产方案槽。未解锁作业制度必须保留在候选列表中并显示禁用状态，同时明确所需研发科技；不得通过隐藏选项、复制第二套选择器或仅依赖客户端禁用来代替权限控制。客户端禁用只负责提示，服务器 `setFacilityRecipe` 必须按正式 `requiredTechnologyIds` 再次校验；研发完成后的状态刷新应使原候选项自然转为可选，作业制度说明不得显示在收起态生产设置区。
+
+### 生产页缺失研发状态兼容
+
+正式服务器快照继续返回 `research` 与 `researchTechnologies`；但浏览器历史回归快照、逐步发布兼容数据或旧客户端缓存可能暂时缺少 `research`。生产页不得因此在首屏读取 `completedTechnologyIds` 时崩溃：工厂目录准入继续复用 `getUnlockedFacilityTypes` 的既有兼容语义，作业制度研发状态在缺少 `research` 时仅按空 `completedTechnologyIds` 渲染锁定提示。该客户端兜底不得绕过服务器 `setFacilityRecipe` 的正式科技校验，也不得把缺失研发状态写回服务器或永久视为已完成科技。
