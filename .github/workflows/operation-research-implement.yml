@@ -30,12 +30,21 @@ jobs:
           python3 .agent/apply-operation-research.py
           python3 - <<'PY'
           from pathlib import Path
+
           path = Path('server/test/research.test.js')
           text = path.read_text(encoding='utf-8')
           old = "assert.deepEqual(player.research.active.grantTechnologyIds, ['tool-manufacturing', 'tool-operation']);"
           new = "assert.deepEqual(player.research.active.grantTechnologyIds, ['tool-operation', 'tool-manufacturing']);"
           if text.count(old) != 1:
               raise SystemExit('active grant ordering assertion not found exactly once')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          path = Path('scripts/verify-money-precision.mjs')
+          text = path.read_text(encoding='utf-8')
+          old = "assert.match(read('server/src/storage.js'), /world\\.version = 28/);"
+          new = "assert.match(read('server/src/storage.js'), /world\\.version = 29/);"
+          if text.count(old) != 1:
+              raise SystemExit('money precision world-version assertion not found exactly once')
           path.write_text(text.replace(old, new, 1), encoding='utf-8')
           PY
       - name: Install dependencies
@@ -75,6 +84,7 @@ jobs:
             scripts/verify-research-page.mjs \
             scripts/verify-production-methods.mjs \
             scripts/verify-document-authority.mjs \
+            scripts/verify-money-precision.mjs \
             docs/README.md \
             docs/PRODUCT_AND_GAMEPLAY_DESIGN.md \
             docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md \
