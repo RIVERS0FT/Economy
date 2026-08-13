@@ -1,20 +1,22 @@
 import { isDeepStrictEqual } from 'node:util';
 import { applyAssetAuctionAction } from './asset-auctions.js';
 import { applyBankAction, ensureBankWorld, ensurePlayerBankAccount } from './banking.js';
-import { ensurePlayer } from './domain.js';
+import { cancelSettledCommodityOrder, ensurePlayer } from './domain.js';
 import { createEconomicActionBoundary, beginEconomicSavepoint } from './economic-mutation.js';
 import {
   autoProcureFacilityBuildMaterials,
   cancelFacilityBuildProcurementOrders,
   createFacilityBuildProcurementOrders,
 } from './facility-auto-procure.js';
-import { applyFacilityGroupAction } from './facility-groups.js';
+import { applyFacilityGroupAction, processFacilityGroupWorld } from './facility-groups.js';
 import { ensureGemState } from './invitations.js';
 import { normalizePlayerMoneyPayload } from './money.js';
 import { applyOnlineAutoBuy } from './online-auto-buy.js';
 import { applyOnlineAutoSell } from './online-auto-sell.js';
 import { applyOnlineAutoSellPolicyAction } from './online-auto-sell-policy.js';
 import { applyOnlineAutoTradePolicyAction } from './online-auto-trade-policy.js';
+import { isOpenOrder, orderKind } from './order-identity.js';
+import { orderById } from './order-book-runtime.js';
 import { applyResearchAction, validateResearchAccess } from './research.js';
 import { ensureWarehouse } from './warehouse.js';
 import {
@@ -51,6 +53,21 @@ function createActionAcknowledgement(result, revision) {
     result: acknowledgementResult,
     revision: Number(revision),
   });
+}
+
+function cancelRuntimeCommodityOrder(world, user, orderId, now) {
+  const candidate = orderById(world, orderId);
+  if (
+    !candidate
+    || Number(candidate.ownerId) !== Number(user.id)
+    || orderKind(candidate) !== 'commodity'
+    || !isOpenOrder(candidate)
+  ) return null;
+
+  processFacilityGroupWorld(world, now);
+  return cancelSettledCommodityOrder(world, user, orderId)
+    ? { ok: true, message: '订单已撤销，冻结资产已释放' }
+    : { ok: false, message: '未找到可撤销订单' };
 }
 
 function executeActionBody(store, world, user, action, payload, requestKey, now) {
@@ -90,6 +107,9 @@ function executeActionBody(store, world, user, action, payload, requestKey, now)
       gameResult = applyAssetAuctionAction(world, user, action, payload, now);
     } else if (BANK_ACTIONS.has(action)) {
       gameResult = applyBankAction(world, user, action, payload, now);
+    } else if (action === 'cancelOrder') {
+      gameResult = cancelRuntimeCommodityOrder(world, user, payload.orderId, now)
+        ?? applyFacilityGroupAction(world, user, action, payload, now);
     } else if (action === 'buildFacility' && payload.autoProcure === true) {
       const procurement = autoProcureFacilityBuildMaterials(world, user, payload, now);
       if (!procurement.ok) gameResult = procurement;
