@@ -621,6 +621,8 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
                 inventories={game.inventories}
                 markets={game.markets}
                 credits={game.credits}
+                completedTechnologyIds={game.research.completedTechnologyIds ?? []}
+                researchTechnologies={game.researchTechnologies ?? []}
                 now={now}
                 onToggle={toggleSelectedFacility}
                 onRecipeChange={changeSelectedFacilityRecipe}
@@ -644,6 +646,8 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
         inventories={game.inventories}
         markets={game.markets}
         credits={game.credits}
+        completedTechnologyIds={game.research.completedTechnologyIds ?? []}
+        researchTechnologies={game.researchTechnologies ?? []}
         now={now}
         isOpen={isFacilityDetailOpen}
         returnFocusRef={detailTriggerRef}
