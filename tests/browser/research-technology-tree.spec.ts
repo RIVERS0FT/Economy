@@ -64,6 +64,32 @@ test.describe('research technology tree', () => {
     expect(researchGeometry.fitsViewport).toBe(true);
   });
 
+  test('keeps node geometry stable on hover and selected dependency lines visible', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('runtime-test.html?view=research&scenario=research-active');
+    const node = page.getByRole('button', { name: /工具作业，可研发，C2 作业科技/ });
+    await node.scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
+    const before = await node.boundingBox();
+    await node.hover();
+    const after = await node.boundingBox();
+    expect(Math.abs((after?.x ?? 0) - (before?.x ?? 0))).toBeLessThanOrEqual(1);
+    expect(Math.abs((after?.y ?? 0) - (before?.y ?? 0))).toBeLessThanOrEqual(2);
+    await expect(node).toHaveCSS('translate', '-50% -50%');
+    await node.click();
+    const state = await page.evaluate(() => {
+      const check = (selector: string) => {
+        const edges = Array.from(document.querySelectorAll(selector));
+        return { count: edges.length, visible: edges.every((edge) => getComputedStyle(edge).stroke !== 'none') };
+      };
+      return { highlighted: check('.research-tree-connections--desktop [data-highlighted=\"true\"]'), related: check('.research-tree-connections--desktop [data-related=\"true\"]') };
+    });
+    expect(state.highlighted.count).toBeGreaterThan(0);
+    expect(state.related.count).toBeGreaterThan(0);
+    expect(state.highlighted.visible).toBe(true);
+    expect(state.related.visible).toBe(true);
+  });
+
   test('distinguishes operation research from production research', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=research&scenario=research-active');
