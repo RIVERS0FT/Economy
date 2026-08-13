@@ -61,13 +61,31 @@ if (/setInterval\s*\([^)]*1_?000/.test(viewModel) || /\bsetNow\b/.test(viewModel
 if (/\bworkRemaining\b/.test(viewModel)) fail('workRemaining 必须由局部页面计算');
 
 for (const [path, pattern] of [
-  ['src/pages/OverviewPage.tsx', /useNow\(game\.lastProcessedAt\)/],
-  ['src/pages/ProductionPage.tsx', /useNow\(game\.lastProcessedAt\)/],
-  ['src/pages/AuctionPage.tsx', /useNow\(model\.game\.lastProcessedAt\)/],
-  ['src/pages/BankPage.tsx', /useNow\(model\.game\.lastProcessedAt\)/],
+  ['src/pages/OverviewPage.tsx', /useNow\(game\.lastProcessedAt,\s*60_000\)/],
+  ['src/pages/ProductionPage.tsx', /const now = game\.lastProcessedAt/],
+  ['src/pages/AuctionPage.tsx', /const referenceNow = model\.game\.lastProcessedAt/],
+  ['src/pages/BankPage.tsx', /const referenceNow = model\.game\.lastProcessedAt/],
   ['src/pages/MarketPage.tsx', /const now = game\.lastProcessedAt/],
 ]) {
   if (!pattern.test(read(path))) fail(`${path} 必须以权威 lastProcessedAt 作为局部时间基准`);
+}
+for (const [path, pattern] of [
+  ['src/pages/overview/OverviewLiveSections.tsx', /LiveServerTime referenceNow=\{referenceNow\}/],
+  ['src/pages/AuctionPage.tsx', /LiveDurationUntil deadline=\{endsAt\} referenceNow=\{referenceNow\}/],
+  ['src/pages/BankPage.tsx', /LiveDurationUntil/],
+  ['src/pages/production/ProductionFacilityDetail.tsx', /const liveNow = useNow\(now\)/],
+  ['src/pages/ResearchPage.tsx', /const liveNow = useNow\(now\)/],
+]) {
+  if (!pattern.test(read(path))) fail(`${path} 必须把秒级权威时间更新下沉到动态叶子`);
+}
+for (const path of [
+  'src/pages/OverviewPage.tsx',
+  'src/pages/ProductionPage.tsx',
+  'src/pages/AuctionPage.tsx',
+  'src/pages/BankPage.tsx',
+  'src/pages/GemShopPage.tsx',
+]) {
+  if (/useNow\([^,)]*lastProcessedAt\s*\)/.test(read(path))) fail(`${path} 页面根不得恢复默认 1 秒 useNow 订阅`);
 }
 
 const virtualWindow = read('src/hooks/useVirtualWindow.ts');
@@ -123,4 +141,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('运行时架构验证通过：页面动态拆包、局部时钟、虚拟列表二分与滚动合并、ECharts 资产圆环、资产比例和本地匿名成交缓存均已锁定。');
+console.log('运行时架构验证通过：页面动态拆包、权威时间基准与叶子级共享时钟、虚拟列表二分与滚动合并、ECharts 资产圆环、资产比例和本地匿名成交缓存均已锁定。');
