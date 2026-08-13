@@ -1,4 +1,5 @@
 import type { EconomyState } from '../types';
+import { readGameAuthorityState } from './gameAuthorityStore';
 import type { DerivedGameData } from './gameViewModel';
 
 let cachedOrders: EconomyState['orders'] | undefined;
@@ -101,6 +102,29 @@ export function deriveGameDataSnapshot(game: EconomyState | null): DerivedGameDa
   return cachedResult;
 }
 
+function currentDerivedProperty(property: PropertyKey) {
+  const derived = deriveGameDataSnapshot(readGameAuthorityState());
+  return derived?.[property as keyof DerivedGameData];
+}
+
+const DERIVED_GAME_DATA_VIEW = new Proxy<Record<PropertyKey, unknown>>({}, {
+  get: (_target, property) => currentDerivedProperty(property),
+  ownKeys: () => Reflect.ownKeys(deriveGameDataSnapshot(readGameAuthorityState()) ?? {}),
+  getOwnPropertyDescriptor: (_target, property) => {
+    const derived = deriveGameDataSnapshot(readGameAuthorityState());
+    if (!derived || !(property in derived)) return undefined;
+    return {
+      configurable: true,
+      enumerable: true,
+      writable: false,
+      value: derived[property as keyof DerivedGameData],
+    };
+  },
+  set: () => {
+    throw new TypeError('派生游戏状态视图为只读');
+  },
+}) as DerivedGameData;
+
 export function useDerivedGameData(game: EconomyState | null): DerivedGameData | null {
-  return deriveGameDataSnapshot(game);
+  return game ? DERIVED_GAME_DATA_VIEW : null;
 }
