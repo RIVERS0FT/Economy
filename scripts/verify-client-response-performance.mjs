@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { CURRENT_CLIENT_STATE_VERSION } from '../server/shared/economy-state-version.js';
-import { createStateDeliveryCache, STATE_PARTITION_NAMES } from '../src/app/stateDelivery.js';
+import {
+  createStateDeliveryCache,
+  STATE_PARTITION_NAMES,
+  subscribeStateAuthorityPartition,
+  subscribeStateAuthorityPartitions,
+} from '../src/app/stateDelivery.js';
 
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
@@ -83,6 +88,66 @@ assert.equal(stale.stateChanged, false);
 assert.deepEqual(stale.changedPartitions, []);
 assert.equal(stale.state, marketChanged.state, '迟到响应不得替换当前状态对象');
 
+let marketSignals = 0;
+let auctionSignals = 0;
+let marketOrContractSignals = 0;
+const unsubscribeMarket = subscribeStateAuthorityPartition('market', () => { marketSignals += 1; });
+const unsubscribeAuction = subscribeStateAuthorityPartition('auction', () => { auctionSignals += 1; });
+const unsubscribeMarketOrContract = subscribeStateAuthorityPartitions(
+  ['market', 'contract'],
+  () => { marketOrContractSignals += 1; },
+);
+
+cache.accept({
+  revision: 4,
+  unchanged: false,
+  serverNow: 6_000,
+  patches: { auction: { assetAuctions: [] } },
+});
+assert.equal(auctionSignals, 1, 'auction 更新必须只通知 auction 订阅');
+assert.equal(marketSignals, 0, 'auction 更新不得通知 market 订阅');
+assert.equal(marketOrContractSignals, 0, 'auction 更新不得通知 market+contract 订阅');
+
+cache.accept({
+  revision: 5,
+  unchanged: false,
+  serverNow: 7_000,
+  patches: { contract: { productionContracts: [] } },
+});
+assert.equal(marketOrContractSignals, 1, 'contract 更新必须通知声明 contract 的组合订阅');
+assert.equal(marketSignals, 0, 'contract 更新不得通知仅 market 订阅');
+
+cache.accept({
+  revision: 6,
+  unchanged: false,
+  serverNow: 8_000,
+  patches: { market: { orders: [{ id: 'order-2' }] } },
+});
+assert.equal(marketSignals, 1, 'market 更新必须通知 market 订阅');
+assert.equal(marketOrContractSignals, 2, 'market 更新必须通知声明 market 的组合订阅');
+assert.equal(auctionSignals, 1, 'market 更新不得通知 auction 订阅');
+
+cache.accept({ revision: 6, unchanged: true, serverNow: 9_000 });
+assert.equal(marketSignals, 1, '无变化轮询不得通知分区订阅');
+assert.equal(auctionSignals, 1, '无变化轮询不得通知分区订阅');
+assert.equal(marketOrContractSignals, 2, '无变化轮询不得通知组合分区订阅');
+unsubscribeMarket();
+unsubscribeAuction();
+unsubscribeMarketOrContract();
+
+requireText('src/app/stateDelivery.js', [
+  'partitionAuthorityListeners',
+  'notifyPartitionListeners',
+  'export function subscribeStateAuthorityPartition',
+  'export function subscribeStateAuthorityPartitions',
+]);
+requireText('src/app/gameAuthorityStore.ts', [
+  'AUTHORITY_STATE_VIEW',
+  'readGameAuthorityState',
+  'getStateAuthoritySnapshot().state !== null',
+  'export function useGameAuthorityPartitions',
+  'subscribeStateAuthorityPartitions',
+]);
 requireText('src/app/gameViewModel.ts', [
   'const gameRef = useRef<EconomyState | null>(null);',
   'if (gameRef.current === state) return false;',
@@ -92,11 +157,16 @@ requireText('src/app/gameViewModel.ts', [
   "import { useDerivedGameData } from './useDerivedGameData';",
   'const derived = useDerivedGameData(game);',
 ]);
+forbidText('src/app/gameViewModel.ts', [
+  'const [game, setGame] = useState<EconomyState | null>',
+]);
 requireText('src/app/useDerivedGameData.ts', [
+  'deriveGameDataSnapshot',
   'orders?.filter',
   'leaderboard?.find',
   'for (const group of facilityGroups ?? [])',
-  'assetSummary.facilityValue',
+  'DERIVED_GAME_DATA_VIEW',
+  'readGameAuthorityState()',
 ]);
 requireText('src/pages/MarketPage.tsx', [
   'const MarketOrderEntry = memo(forwardRef',
@@ -115,16 +185,54 @@ forbidText('src/pages/MarketPage.tsx', [
   'setOrderPrice(normalized)',
   'setOrderQuantity(normalized)',
 ]);
-requireText('src/app/GameApp.tsx', [
-  'const setTabRef = useRef(appModel.setTab);',
-  "const openBank = useCallback(() => setTabRef.current('bank'), []);",
-  'const statusItems = useMemo<StatusBarItem[]>(() => [',
-  'onClick: openBank,',
-]);
 requireText('src/pages/PageRouter.tsx', [
   'function cachedLoader<T>',
   'export function preloadPage(tab: TabId)',
   'const pagePreloaders: Record<TabId, () => Promise<unknown>>',
+  'const PAGE_AUTHORITY_PARTITIONS: Record<TabId, readonly StatePartitionName[]>',
+  "market: ['catalog', 'player', 'market']",
+  "production: ['catalog', 'player', 'market', 'contract']",
+  "auction: ['catalog', 'player', 'auction']",
+  "contracts: ['catalog', 'player', 'market', 'contract']",
+  "leaderboard: ['catalog', 'player', 'leaderboard']",
+  'function AuthorityPageBoundary',
+  'useGameAuthorityPartitions(partitions);',
+]);
+requireText('src/components/shell/GameShell.tsx', [
+  "useGameAuthorityPartitions(['player', 'leaderboard'])",
+  'const statusItems = useMemo<StatusBarItem[]>(() => [',
+  'onClick: openBank,',
+  'playerName={game.playerName}',
+]);
+requireText('src/hooks/useNavigationBadges.ts', [
+  'useGameAuthorityPartitions([',
+  "'market'",
+  "'auction'",
+  "'contract'",
+  "'leaderboard'",
+]);
+requireText('src/hooks/useNotificationCenter.ts', [
+  "useGameAuthorityPartitions(['catalog', 'player', 'auction', 'contract'])",
+  'derivePendingNotificationItems(game)',
+]);
+requireText('src/components/system/AuthoritativeCountdownRefresh.tsx', [
+  'useGameAuthorityPartitions([',
+  "'auction'",
+  "'contract'",
+  "'leaderboard'",
+]);
+requireText('src/auto-trade/useOnlineAutoTrade.ts', [
+  'subscribeStateAuthorityPartitions(',
+  "['catalog', 'player', 'market', 'contract']",
+  'maintainAutoTrade',
+]);
+requireText('src/game-guide/useGameTutorial.ts', [
+  "subscribeStateAuthorityPartition('player', confirmProduction)",
+]);
+forbidText('src/app/GameApp.tsx', [
+  'const statusItems = useMemo<StatusBarItem[]>',
+  'useGameAuthorityState()',
+  'useGameAuthorityPartitions(',
 ]);
 requireText('src/components/shell/NavigationItems.tsx', [
   'onPointerEnter={preload}',
@@ -137,7 +245,13 @@ requireText('docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md', [
   '不得执行 `setGame`',
   '市场下单的价格与数量草稿必须留在 `MarketOrderEntry` 局部状态',
   '根级 `derived` 只能按真实数据引用分组重算',
-  '状态栏五项资产数据必须使用稳定 `statusItems` 引用',
+  '根级游戏控制器只允许持有稳定的只读权威状态视图',
+  '`useGameAuthorityPartitions`',
+  '页面和外壳必须声明自己消费的状态分区',
+]);
+requireText('docs/README.md', [
+  '六分区 React 消费边界',
+  '根游戏控制器的权威状态视图必须保持稳定对象身份',
 ]);
 requireText('package.json', [
   '"verify:client-response": "node scripts/verify-client-response-performance.mjs"',
@@ -150,4 +264,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('客户端响应性能防回退验证通过：状态复用、分区门控、导航预加载、市场草稿隔离、窄依赖派生和稳定状态栏均已锁定。');
+console.log('客户端响应性能防回退验证通过：状态复用、分区通知、页面与外壳六分区 React 隔离、市场草稿隔离、窄依赖派生和导航预加载均已锁定。');
