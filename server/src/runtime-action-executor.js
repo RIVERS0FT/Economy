@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import { applyAssetAuctionAction } from './asset-auctions.js';
 import { applyBankAction, ensureBankWorld, ensurePlayerBankAccount } from './banking.js';
-import { cancelSettledCommodityOrder, ensurePlayer } from './domain.js';
+import { applySettledCommodityOrder, cancelSettledCommodityOrder, ensurePlayer } from './domain.js';
 import { assertEconomicStateInvariants, beginEconomicSavepoint } from './economic-mutation.js';
 import {
   autoProcureFacilityBuildMaterials,
@@ -95,6 +95,8 @@ function executeActionBody(store, world, user, action, payload, requestKey, now)
       gameResult = applyOnlineAutoBuy(world, user, payload, now);
     } else if (action === 'placeOrder' && payload.execution === 'online-auto-sell') {
       gameResult = applyOnlineAutoSell(world, user, payload, now);
+    } else if (action === 'placeOrder' && payload.assetKind !== 'facility') {
+      gameResult = applySettledCommodityOrder(world, user, payload, now);
     } else if (action === 'checkIn') {
       gameResult = store.checkInInTransaction(world.players[String(user.id)], requestKey, now);
     } else if (action === 'redeemGift') {
