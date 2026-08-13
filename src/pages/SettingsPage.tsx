@@ -25,7 +25,6 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
   const {
     user,
     game,
-    avatarText,
     playerName,
     setPlayerName,
     compactNumbers,
@@ -38,6 +37,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
     signOut,
     tutorial,
   } = model;
+  const avatarText = (game.playerName || user.email).slice(0, 1).toUpperCase();
   const [giftCode, setGiftCode] = useState('');
   const [saveDeletionPreflight, setSaveDeletionPreflight] = useState<SaveDeletionPreflight | null>(null);
   const [deletingSave, setDeletingSave] = useState(false);

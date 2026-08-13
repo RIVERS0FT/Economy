@@ -5,6 +5,7 @@ import {
   type TutorialCompletionState,
 } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
+import { subscribeStateAuthorityPartition } from '../app/stateDelivery.js';
 import { requestAutoSellPanel } from '../auto-sell/autoSellStorage';
 import { tutorialStepDefinition, TUTORIAL_STEPS } from './tutorialDefinition';
 import {
@@ -190,14 +191,18 @@ setRun(persisted);
   }, [model, serverStatus?.completedVersion, userId]);
 
   useEffect(() => {
-    if (!run || run.currentStep !== 'complete-production') return;
+    if (!run || run.currentStep !== 'complete-production') return undefined;
     const facilityTypeId = run.context.facilityTypeId;
     const baseline = run.context.productionBaseline;
-    if (!facilityTypeId || baseline === undefined) return;
-    const group = model.game.facilityGroups.find((item) => item.facilityTypeId === facilityTypeId);
-    if (!group || group.lifetimeOutput <= baseline) return;
-    updateCurrentRun('complete-production', 'productionCompletions');
-  }, [model.game.facilityGroups, run, updateCurrentRun]);
+    if (!facilityTypeId || baseline === undefined) return undefined;
+    const confirmProduction = () => {
+      const group = model.game.facilityGroups.find((item) => item.facilityTypeId === facilityTypeId);
+      if (!group || group.lifetimeOutput <= baseline) return;
+      updateCurrentRun('complete-production', 'productionCompletions');
+    };
+    confirmProduction();
+    return subscribeStateAuthorityPartition('player', confirmProduction);
+  }, [model, run, updateCurrentRun]);
 
   useEffect(() => {
     if (!run || run.currentStep !== 'review-contracts' || model.tab !== 'contracts') return;
@@ -254,7 +259,7 @@ setRun(persisted);
       facilityTypeId,
       productionBaseline: Number(group?.lifetimeOutput || 0),
     });
-  }, [model.game.facilityGroups, updateCurrentRun]);
+  }, [model, updateCurrentRun]);
 
   const recordAutoSellSetting = useCallback((productId: string) => {
     updateCurrentRun('set-auto-sell', 'autoSellSettings', {

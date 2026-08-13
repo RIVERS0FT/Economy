@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useGameAuthorityPartitions } from '../app/gameAuthorityStore';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import {
   appendNotification,
@@ -48,6 +49,8 @@ export interface NotificationCenterController {
 }
 
 export function useNotificationCenter(model: LoadedGameViewModel): NotificationCenterController {
+  const authorityGame = useGameAuthorityPartitions(['catalog', 'player', 'auction', 'contract']);
+  const game = authorityGame ?? model.game;
   const [panelOpen, setPanelOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationRecord[]>(() => (
     loadNotifications(model.user.id)
@@ -59,8 +62,8 @@ export function useNotificationCenter(model: LoadedGameViewModel): NotificationC
   const lastNoticeRef = useRef('');
   const pendingSignaturesRef = useRef<Map<string, string> | null>(null);
   const pendingItems = useMemo(
-    () => derivePendingNotificationItems(model.game),
-    [model.game],
+    () => derivePendingNotificationItems(game),
+    [game],
   );
 
   const removeToast = useCallback((toastId: string) => {

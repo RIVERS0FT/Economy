@@ -13,6 +13,7 @@ const required = [
   'src/app/stateDelivery.d.ts',
   'src/app/gameAuthorityStore.ts',
   'src/app/gameViewModel.ts',
+  'src/pages/PageRouter.tsx',
   'server/test/authoritative-hotpaths.test.js',
   'server/test/order-book-price-level.test.js',
   'docs/README.md',
@@ -75,21 +76,38 @@ assert.equal(matching.includes('getOrderBookSide'), false, '撮合不得重新�
 const stateDelivery = read('src/app/stateDelivery.js');
 for (const text of [
   'authorityListeners',
+  'partitionAuthorityListeners',
   'export function getStateAuthoritySnapshot',
   'export function getStateAuthorityPartition',
   'export function subscribeStateAuthority',
+  'export function subscribeStateAuthorityPartition',
+  'export function subscribeStateAuthorityPartitions',
+  'notifyPartitionListeners',
   'publishAuthority(revision, state, partitions, changedPartitions)',
 ]) assert.ok(stateDelivery.includes(text), `客户端权威状态交付缺少: ${text}`);
 const authorityStore = read('src/app/gameAuthorityStore.ts');
 for (const text of [
-  "useSyncExternalStore",
+  'useSyncExternalStore',
+  'AUTHORITY_STATE_VIEW',
+  'getStateAuthoritySnapshot().state !== null',
   'useGameAuthorityState',
+  'useGameAuthorityPartitions',
   'useGameAuthorityRevision',
   'useGameAuthorityPartition',
+  'subscribeStateAuthorityPartitions',
 ]) assert.ok(authorityStore.includes(text), `客户端权威订阅缺少: ${text}`);
 const viewModel = read('src/app/gameViewModel.ts');
-assert.ok(viewModel.includes('const authorityGame = useGameAuthorityState();'), '大型视图模型必须读取独立权威状态存储');
+assert.ok(viewModel.includes('const authorityGame = useGameAuthorityState();'), '根游戏控制器必须读取稳定权威状态视图');
 assert.equal(viewModel.includes('const [game, setGame] = useState<EconomyState | null>'), false, '视图模型不得重新持有第二份 EconomyState React 状态');
+const pageRouter = read('src/pages/PageRouter.tsx');
+for (const text of [
+  'PAGE_AUTHORITY_PARTITIONS',
+  'AuthorityPageBoundary',
+  'useGameAuthorityPartitions(partitions);',
+  "market: ['catalog', 'player', 'market']",
+  "auction: ['catalog', 'player', 'auction']",
+  "leaderboard: ['catalog', 'player', 'leaderboard']",
+]) assert.ok(pageRouter.includes(text), `页面分区消费边界缺少: ${text}`);
 
 const design = read('docs/README.md');
 for (const text of [
@@ -97,6 +115,7 @@ for (const text of [
   '按实际到期领域推进',
   'SQLite `SAVEPOINT`',
   '`useSyncExternalStore`',
+  '允许页面或共享组件按分区订阅',
 ]) assert.ok(design.includes(text), `设计索引缺少权威热路径规则: ${text}`);
 
-console.log('权威热路径验证通过：按领域截止时间推进、经济动作保存点回滚、价格档位撮合和客户端六分区订阅均受防回退约束。');
+console.log('权威热路径验证通过：按领域截止时间推进、经济动作保存点回滚、价格档位撮合以及稳定根视图 + 页面六分区 React 消费边界均受防回退约束。');

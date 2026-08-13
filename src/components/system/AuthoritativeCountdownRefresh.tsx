@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useGameAuthorityPartitions } from '../../app/gameAuthorityStore';
 import type { RefreshOptions } from '../../app/gameViewModel';
 import type { EconomyState } from '../../types';
 import { nextAuthoritativeCountdownDeadline } from '../../utils/authoritativeCountdowns';
@@ -13,7 +14,15 @@ export function AuthoritativeCountdownRefresh({
   game: EconomyState;
   refresh: (options?: RefreshOptions) => Promise<void>;
 }) {
-  const deadline = nextAuthoritativeCountdownDeadline(game);
+  const authorityGame = useGameAuthorityPartitions([
+    'catalog',
+    'player',
+    'auction',
+    'contract',
+    'leaderboard',
+  ]);
+  const currentGame = authorityGame ?? game;
+  const deadline = nextAuthoritativeCountdownDeadline(currentGame);
 
   useEffect(() => {
     if (deadline === null) return undefined;
@@ -38,7 +47,7 @@ export function AuthoritativeCountdownRefresh({
     const scheduleDeadline = () => {
       if (disposed || confirming) return;
       if (deadlineTimer !== null) window.clearTimeout(deadlineTimer);
-      const remaining = Math.max(0, deadline - estimateServerNow(game.lastProcessedAt));
+      const remaining = Math.max(0, deadline - estimateServerNow(currentGame.lastProcessedAt));
       if (remaining === 0) beginConfirmation();
       else deadlineTimer = window.setTimeout(beginConfirmation, remaining);
     };
@@ -57,7 +66,7 @@ export function AuthoritativeCountdownRefresh({
       if (deadlineTimer !== null) window.clearTimeout(deadlineTimer);
       if (confirmationTimer !== null) window.clearTimeout(confirmationTimer);
     };
-  }, [deadline, game.lastProcessedAt, refresh]);
+  }, [currentGame.lastProcessedAt, deadline, refresh]);
 
   return null;
 }

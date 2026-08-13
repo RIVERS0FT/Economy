@@ -49,7 +49,7 @@ function forbidText(path, fragments) {
   }
 }
 
-requireText('src/app/GameApp.tsx', ['formatRank(', 'aria-label={rankLabel}']);
+requireText('src/components/shell/GameShell.tsx', ['formatRank(', 'aria-label={rankLabel}']);
 requireText('src/pages/OverviewPage.tsx', [
   '固定 3s 冷却',
   'formatDuration(workRemaining)',
@@ -81,7 +81,7 @@ forbidText('src/pages/LeaderboardPage.tsx', [
   'value={`第 ${',
   '>{entry.rank}</span>',
 ]);
-forbidText('src/app/GameApp.tsx', ['<>第 {currentRank} 名</>']);
+forbidText('src/components/shell/GameShell.tsx', ['<>第 {currentRank} 名</>']);
 forbidText('src/pages/OverviewPage.tsx', [
   'formatRank(',
   '排名第 ${currentRank} 名',

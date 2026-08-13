@@ -43,9 +43,10 @@ const paths = {
 Object.values(paths).forEach(requireFile);
 
 requireAll(paths.router, [
-  "import { lazy, Suspense } from 'react'",
+  "import { lazy, Suspense, type ReactNode } from 'react'",
   "const OverviewPage = lazy(() => import('./OverviewPage')",
-  'page = <OverviewPage model={model} />',
+  'renderPage = () => <OverviewPage model={model} />',
+  "home: ['catalog', 'player', 'market']",
 ]);
 forbidAll(paths.router, ['localStorage', 'sessionStorage', 'marketAssetId']);
 
@@ -142,6 +143,7 @@ requireAll(paths.guideStyle, ['.game-guide-strip {', '.game-guide-progress {', '
 
 requireAll(paths.shell, [
   'const [sidebarCollapsed, setSidebarCollapsed] = useState(false)',
+  "useGameAuthorityPartitions(['player', 'leaderboard'])",
   '<SignedInShell',
   'rootClassName="game-shell"',
   'sidebarCollapsed={sidebarCollapsed}',
@@ -171,21 +173,28 @@ requireAll(paths.shellLayoutStyle, ['.signed-in-shell__body {', 'grid-template-c
 forbidAll(paths.sidebarStyle, ['right: -11px;']);
 requireAll(paths.statusBar, ['onClick?: () => void;', "if (item.onClick) classNames.push('asset-bar-item--interactive')", "aria-label={`${item.label}，打开详情`}"]);
 
-requireAll(paths.gameApp, [
+requireAll(paths.shell, [
   "id: 'credits'", "id: 'assets'", "id: 'gems'", "id: 'rank'", "id: 'warehouse'",
   "const weeklyTrend = weeklyChange > 0 ? '↑' : weeklyChange < 0 ? '↓' : '→'",
   'const weeklyMagnitude = Math.abs(weeklyChange);',
   '本周净资产下降',
   'aria-label={weeklyChangeLabel}',
 ]);
-const gameApp = read(paths.gameApp);
+const shell = read(paths.shell);
 const statusOrder = ["id: 'credits'", "id: 'assets'", "id: 'gems'", "id: 'rank'", "id: 'warehouse'"];
 for (let index = 1; index < statusOrder.length; index += 1) {
-  if (gameApp.indexOf(statusOrder[index - 1]) >= gameApp.indexOf(statusOrder[index])) {
-    failures.push('src/app/GameApp.tsx 状态栏顺序必须为可用资金／总资产／宝石／排行榜／仓库库存');
+  if (shell.indexOf(statusOrder[index - 1]) >= shell.indexOf(statusOrder[index])) {
+    failures.push('src/components/shell/GameShell.tsx 状态栏顺序必须为可用资金／总资产／宝石／排行榜／仓库库存');
     break;
   }
 }
+forbidAll(paths.gameApp, [
+  'const statusItems = useMemo<StatusBarItem[]>',
+  "id: 'credits'",
+  "id: 'assets'",
+  "id: 'gems'",
+  "id: 'rank'",
+]);
 
 requireAll(paths.harness, [
   "view === 'overview'",

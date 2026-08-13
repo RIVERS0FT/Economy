@@ -21,6 +21,9 @@ const EMPTY_AUTHORITY_SNAPSHOT = Object.freeze({
 });
 let authoritySnapshot = EMPTY_AUTHORITY_SNAPSHOT;
 const authorityListeners = new Set();
+const partitionAuthorityListeners = new Map(
+  STATE_PARTITION_NAMES.map((name) => [name, new Set()]),
+);
 
 function validRevision(value) {
   return Number.isInteger(value) && value >= 0;
@@ -47,7 +50,18 @@ function describeVersion(value) {
   return Number.isInteger(value) ? String(value) : '无效值';
 }
 
+function notifyPartitionListeners(names) {
+  const listeners = new Set();
+  for (const name of names) {
+    const partitionListeners = partitionAuthorityListeners.get(name);
+    if (!partitionListeners) continue;
+    for (const listener of partitionListeners) listeners.add(listener);
+  }
+  for (const listener of listeners) listener();
+}
+
 function publishAuthority(revision, state, partitions, changedPartitions) {
+  const previousState = authoritySnapshot.state;
   authoritySnapshot = {
     revision: validRevision(revision) ? revision : null,
     state: state || null,
@@ -55,6 +69,10 @@ function publishAuthority(revision, state, partitions, changedPartitions) {
     changedPartitions: Object.freeze([...(changedPartitions || [])]),
   };
   for (const listener of [...authorityListeners]) listener();
+  const partitionNotifications = state === null && previousState !== null
+    ? STATE_PARTITION_NAMES
+    : changedPartitions;
+  notifyPartitionListeners(partitionNotifications || []);
 }
 
 export function getStateAuthoritySnapshot() {
@@ -69,6 +87,22 @@ export function subscribeStateAuthority(listener) {
   if (typeof listener !== 'function') return () => {};
   authorityListeners.add(listener);
   return () => authorityListeners.delete(listener);
+}
+
+export function subscribeStateAuthorityPartition(name, listener) {
+  const listeners = partitionAuthorityListeners.get(name);
+  if (!listeners || typeof listener !== 'function') return () => {};
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export function subscribeStateAuthorityPartitions(names, listener) {
+  if (typeof listener !== 'function') return () => {};
+  const uniqueNames = [...new Set((Array.isArray(names) ? names : []).filter(
+    (name) => partitionAuthorityListeners.has(name),
+  ))];
+  const unsubscribers = uniqueNames.map((name) => subscribeStateAuthorityPartition(name, listener));
+  return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
 }
 
 export function mergeStatePatches(currentPartitions, patches) {

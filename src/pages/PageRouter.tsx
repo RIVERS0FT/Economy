@@ -1,4 +1,6 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
+import { useGameAuthorityPartitions } from '../app/gameAuthorityStore';
+import type { StatePartitionName } from '../app/stateDelivery.js';
 import { FacilityRecipeProfitMarketsProvider } from '../components/facilities/FacilityRecipeProfitContext';
 import { FacilitySelectAvailabilityScope } from '../components/facilities/FacilitySelectAvailabilityScope';
 import type { TabId } from '../config/navigation';
@@ -36,6 +38,19 @@ const pagePreloaders: Record<TabId, () => Promise<unknown>> = {
   settings: loadSettingsPage,
 };
 
+const PAGE_AUTHORITY_PARTITIONS: Record<TabId, readonly StatePartitionName[]> = {
+  home: ['catalog', 'player', 'market'],
+  market: ['catalog', 'player', 'market'],
+  production: ['catalog', 'player', 'market', 'contract'],
+  research: ['catalog', 'player'],
+  auction: ['catalog', 'player', 'auction'],
+  contracts: ['catalog', 'player', 'market', 'contract'],
+  bank: ['catalog', 'player'],
+  leaderboard: ['catalog', 'player', 'leaderboard'],
+  'gem-shop': ['catalog', 'player'],
+  settings: ['catalog', 'player'],
+};
+
 export function preloadPage(tab: TabId) {
   return pagePreloaders[tab]();
 }
@@ -51,50 +66,71 @@ const ResearchPage = lazy(() => import('./ResearchPage').then((module) => ({ def
 const GemShopPage = lazy(() => import('./GemShopPage').then((module) => ({ default: module.GemShopPage })));
 const SettingsPage = lazy(() => import('./SettingsPage').then((module) => ({ default: module.SettingsPage })));
 
+function AuthorityPageBoundary({
+  model,
+  partitions,
+  render,
+}: {
+  model: OnlineAutoTradeAwareGameViewModel;
+  partitions: readonly StatePartitionName[];
+  render: () => ReactNode;
+}) {
+  useGameAuthorityPartitions(partitions);
+  return (
+    <FacilitySelectAvailabilityScope game={model.game}>
+      {render()}
+    </FacilitySelectAvailabilityScope>
+  );
+}
+
 export function PageRouter({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
-  let page;
-  switch (model.tab) {
+  const tab = model.tab;
+  let renderPage: () => ReactNode;
+  switch (tab) {
     case 'market':
-      page = <MarketPage model={model} />;
+      renderPage = () => <MarketPage model={model} />;
       break;
     case 'production':
-      page = (
+      renderPage = () => (
         <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
           <ProductionPage model={model} />
         </FacilityRecipeProfitMarketsProvider>
       );
       break;
     case 'research':
-      page = <ResearchPage model={model} />;
+      renderPage = () => <ResearchPage model={model} />;
       break;
     case 'auction':
-      page = <AuctionPage model={model} />;
+      renderPage = () => <AuctionPage model={model} />;
       break;
     case 'contracts':
-      page = <ContractPage model={model} />;
+      renderPage = () => <ContractPage model={model} />;
       break;
     case 'bank':
-      page = <BankPage model={model} />;
+      renderPage = () => <BankPage model={model} />;
       break;
     case 'leaderboard':
-      page = <LeaderboardPage model={model} />;
+      renderPage = () => <LeaderboardPage model={model} />;
       break;
     case 'gem-shop':
-      page = <GemShopPage model={model} />;
+      renderPage = () => <GemShopPage model={model} />;
       break;
     case 'settings':
-      page = <SettingsPage model={model} />;
+      renderPage = () => <SettingsPage model={model} />;
       break;
     case 'home':
     default:
-      page = <OverviewPage model={model} />;
+      renderPage = () => <OverviewPage model={model} />;
   }
 
   return (
     <Suspense fallback={<div className="page-loading" role="status">正在加载页面…</div>}>
-      <FacilitySelectAvailabilityScope game={model.game}>
-        {page}
-      </FacilitySelectAvailabilityScope>
+      <AuthorityPageBoundary
+        key={tab}
+        model={model}
+        partitions={PAGE_AUTHORITY_PARTITIONS[tab]}
+        render={renderPage}
+      />
     </Suspense>
   );
 }

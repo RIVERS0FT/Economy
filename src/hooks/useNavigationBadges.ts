@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useGameAuthorityPartitions } from '../app/gameAuthorityStore';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
+import type { EconomyState } from '../types';
 import {
   buildNavigationBadges,
   createNavigationBadgeBaseline,
@@ -16,25 +18,33 @@ export function useAuctionNewIds() {
   return useContext(AuctionNewIdsContext);
 }
 
-function loadReadState(model: LoadedGameViewModel): NavigationBadgeReadState {
-  const baseline = createNavigationBadgeBaseline(model.game);
+function loadReadState(model: LoadedGameViewModel, game: EconomyState): NavigationBadgeReadState {
+  const baseline = createNavigationBadgeBaseline(game);
   if (typeof window === 'undefined') return baseline;
   try {
     const raw = window.localStorage.getItem(navigationBadgeStorageKey(model.user.id));
-    return raw ? normalizeNavigationBadgeReadState(JSON.parse(raw), model.game) : baseline;
+    return raw ? normalizeNavigationBadgeReadState(JSON.parse(raw), game) : baseline;
   } catch {
     return baseline;
   }
 }
 
 export function useNavigationBadges(model: LoadedGameViewModel) {
+  const authorityGame = useGameAuthorityPartitions([
+    'player',
+    'market',
+    'auction',
+    'contract',
+    'leaderboard',
+  ]);
+  const game = authorityGame ?? model.game;
   const storageKey = navigationBadgeStorageKey(model.user.id);
-  const [readState, setReadState] = useState<NavigationBadgeReadState>(() => loadReadState(model));
+  const [readState, setReadState] = useState<NavigationBadgeReadState>(() => loadReadState(model, game));
   const [auctionVisitUnreadIds, setAuctionVisitUnreadIds] = useState<string[]>([]);
 
   const currentUnreadAuctionIds = useMemo(() => (
-    getUnreadAuctionIds(model.game, readState)
-  ), [model.game, readState]);
+    getUnreadAuctionIds(game, readState)
+  ), [game, readState]);
 
   useEffect(() => {
     if (model.tab !== 'auction') {
@@ -48,8 +58,8 @@ export function useNavigationBadges(model: LoadedGameViewModel) {
   }, [currentUnreadAuctionIds, model.tab]);
 
   const effectiveReadState = useMemo(() => (
-    markNavigationBadgeTabRead(readState, model.tab, model.game)
-  ), [model.game, model.tab, readState]);
+    markNavigationBadgeTabRead(readState, model.tab, game)
+  ), [game, model.tab, readState]);
 
   useEffect(() => {
     if (effectiveReadState !== readState) setReadState(effectiveReadState);
@@ -65,8 +75,8 @@ export function useNavigationBadges(model: LoadedGameViewModel) {
   }, [readState, storageKey]);
 
   const badges = useMemo(() => (
-    buildNavigationBadges(model.game, effectiveReadState)
-  ), [effectiveReadState, model.game]);
+    buildNavigationBadges(game, effectiveReadState)
+  ), [effectiveReadState, game]);
 
   return { badges, auctionNewIds: auctionVisitUnreadIds };
 }
