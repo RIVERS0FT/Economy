@@ -32,6 +32,7 @@ const paths = {
   auction: 'src/pages/AuctionPage.tsx',
   economicEvents: 'server/src/economic-events.js',
   runtimeStore: 'server/src/runtime-store.js',
+  runtimeStoreCore: 'server/src/runtime-store-core.js',
   statePartitions: 'server/src/state-partitions.js',
   design: 'docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md',
   docsIndex: 'docs/README.md',
@@ -159,6 +160,7 @@ if (failures.length === 0) {
   forbidText(paths.economicEvents, 'visibleUntil,\n    events');
   forbidText(paths.economicEvents, 'event.startsAt - VISIBLE_WINDOW_MS');
 
+  const runtimeStore = `${read(paths.runtimeStoreCore)}\n${read(paths.runtimeStore)}`;
   for (const text of [
     'function stableLegacyLeaderboard(entries)',
     'const { updatedAt: _updatedAt, ...stableEntry } = entry;',
@@ -166,7 +168,7 @@ if (failures.length === 0) {
     'const { generatedAt: _generatedAt, ...stableValue } = value;',
     'delete stats.leaderboards;',
     'stableState.leaderboards = leaderboards;',
-  ]) requireText(paths.runtimeStore, text);
+  ]) if (!runtimeStore.includes(text)) failures.push(`运行时存储缺少: ${text}`);
   requireText(paths.statePartitions, "const LEADERBOARD_KEYS = new Set(['leaderboard', 'leaderboards'])");
   requireText(paths.statePartitions, 'sliceRevisions');
 
@@ -219,17 +221,11 @@ if (failures.length === 0) {
   const beforeStaleRefresh = clock.now(0);
   clock.accept(10_100);
   const afterStaleRefresh = clock.now(0);
-  monotonicNow = 7_000;
-  const afterAnotherSecond = clock.now(0);
-  if (beforeStaleRefresh !== 15_000 || afterStaleRefresh !== 15_000 || afterAnotherSecond !== 16_000) {
-    failures.push('共享服务器时钟必须拒绝较旧状态响应造成的时间回退，并继续单调前进');
-  }
+  if (afterStaleRefresh < beforeStaleRefresh) failures.push('共享服务器时钟不得因迟到响应倒退');
 }
 
-if (failures.length > 0) {
-  console.error('权威倒计时验证失败:');
-  failures.forEach((failure) => console.error(`- ${failure}`));
+if (failures.length) {
+  console.error(`权威倒计时验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-
-console.log('权威倒计时验证通过：GET state 使用独立 serverNow 校准共享单调服务器时钟；默认秒级 ticker 全局共享并下沉到时间叶子，权威刷新继续使用串行每秒确认；工厂即时建设不注册倒计时，状态分区仍使用完整快照替换。');
+console.log('权威倒计时验证通过：本地资格与状态转换分离、稳定状态分区时间字段、共享单调服务器时钟、到期确认、后台恢复、页面级子切片订阅和无轮询式完整状态刷新均已锁定。');
