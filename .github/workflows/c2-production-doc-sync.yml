@@ -21,6 +21,17 @@ jobs:
           node-version: '24.4.0'
       - name: Sync authoritative docs and current world version
         run: node scripts/sync-c2-production-docs.mjs
+      - name: Complete UI authority rule
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'docs/UI_DESIGN_SYSTEM.md';
+          let content = fs.readFileSync(path, 'utf8');
+          if (!content.includes('未解锁作业制度')) {
+            content = `${content.trimEnd()}\n\n### 商品与生产方式扩展\n\n当前 38 种正式商品继续由服务器目录动态驱动，商品图片映射覆盖工业燃料与工业化学品；服务器未来返回未知商品 ID 时必须回退到通用商品 SVG，不得导致布局或市场卡片失效。\n\n生产方式下拉选择继续使用共享 \`RichSelectInput\` 的 \`production-config\` 变体和 \`combobox\`／\`listbox\`／\`option\` 语义。未解锁作业制度保持在同一个生产方案槽中并禁用，详情显示所需研发科技；作业制度说明不得显示。不得恢复 \`radiogroup\`、选择卡、按钮组、可见原生 \`select\`，菜单允许宽于触发器，不得复制第二套 Popover、键盘导航或刷新状态。\n`;
+            fs.writeFileSync(path, content);
+          }
+          NODE
       - name: Commit synchronized authority
         run: |
           if git diff --quiet; then
