@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client';
+import '../../src/app/interactionBootstrap';
 import {
   useGameAuthorityPartitions,
   useGameAuthorityState,
