@@ -13,7 +13,7 @@ const check = (condition, message) => {
 const server = read('server/src/leaderboards.js');
 const domain = read('server/src/domain-core.js');
 const storage = read('server/src/storage.js');
-const runtimeStore = read('server/src/runtime-store.js');
+const runtimeStore = `${read('server/src/runtime-store-core.js')}\n${read('server/src/runtime-store.js')}`;
 const statePartitions = read('server/src/state-partitions.js');
 const leaderboardTypes = read('src/leaderboardTypes.ts');
 const page = read('src/pages/LeaderboardPage.tsx');
