@@ -54,6 +54,7 @@ export interface FacilityProductionMethodDefinition {
   name: string;
   description: string;
   tone: 'neutral' | 'warning' | 'success' | 'accent';
+  requiredTechnologyIds?: string[];
   plansByRecipeId: Record<string, FacilityProductionMethodPlan>;
 }
 

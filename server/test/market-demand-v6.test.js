@@ -281,7 +281,7 @@ test('shortage pressure approaches the reference premium by at most a quarter pe
 });
 
 
-test('market model 18 preserves model 16 demand state and escrow during rate-only migration', () => {
+test('market model 19 rebuilds model 18 population demand escrow but preserves player orders', () => {
   const now = 1_700_000_000_000;
   const runtime = createRuntime();
   const world = createTestWorld(now);
@@ -289,36 +289,41 @@ test('market model 18 preserves model 16 demand state and escrow during rate-onl
   world.marketDemand.groups.food.nextDemandAt = now;
   runtime.processGroup(world, 'food', now);
 
-  const order = world.orders.find((item) => (
+  const populationOrder = world.orders.find((item) => (
     item.demandGroupId === 'food'
     && item.demandTier === 'direct'
     && isOpenOrder(item)
   ));
-  assert.ok(order);
-  const productId = order.productId;
+  assert.ok(populationOrder);
+  const productId = populationOrder.productId;
   world.marketDemand.groups.food.directQuoteAnchors[productId] = 2.3456;
   world.marketDemand.groups.food.directOversupplyCycles[productId] = 4;
-  const orderBefore = {
-    status: order.status,
-    remaining: order.remaining,
-    price: order.price,
+  const playerOrder = {
+    id: 'player-order',
+    ownerType: 'player',
+    ownerId: 1,
+    productId: 'wheat',
+    status: 'open',
+    remaining: 2,
+    price: 1,
   };
-  const frozenBefore = Object.fromEntries(Object.entries(world.populationEconomy.models).map(([id, model]) => [
-    id,
-    model.frozenCredits,
-  ]));
+  world.orders.push(playerOrder);
+  const frozenBefore = Object.values(world.populationEconomy.models)
+    .reduce((sum, model) => sum + Number(model.frozenCredits || 0), 0);
+  assert.ok(frozenBefore > 0);
 
-  world.marketDemand.modelVersion = 16;
+  world.marketDemand.modelVersion = 18;
   runtime.normalizeWorld(world, now + 1_000);
 
-  assert.equal(world.marketDemand.modelVersion, 18);
-  assert.equal(world.marketDemand.groups.food.directQuoteAnchors[productId], 2.3456);
-  assert.equal(world.marketDemand.groups.food.directOversupplyCycles[productId], 4);
-  assert.deepEqual({ status: order.status, remaining: order.remaining, price: order.price }, orderBefore);
-  assert.deepEqual(Object.fromEntries(Object.entries(world.populationEconomy.models).map(([id, model]) => [
-    id,
-    model.frozenCredits,
-  ])), frozenBefore);
+  assert.equal(world.marketDemand.modelVersion, 19);
+  assert.equal(populationOrder.status, 'cancelled');
+  assert.equal(world.orders.find((order) => order.id === 'player-order'), playerOrder);
+  assert.equal(world.marketDemand.groups.food.directQuoteAnchors[productId], products.find((product) => product.id === productId).basePrice);
+  assert.equal(world.marketDemand.groups.food.directOversupplyCycles[productId], 0);
+  assert.equal(world.marketDemand.groups.food.nextDemandAt, now + 1_000);
+  const frozenAfter = Object.values(world.populationEconomy.models)
+    .reduce((sum, model) => sum + Number(model.frozenCredits || 0), 0);
+  assert.equal(frozenAfter, 0);
 });
 
 test('market model 12 uses funded population wallets when no player is active', () => {

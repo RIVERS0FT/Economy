@@ -7,6 +7,7 @@ import {
   applyResearchAction,
   ensurePlayerResearch,
   hasResearchAccessForFacility,
+  migrateResearchWorld,
   processResearchWorld,
   validateResearchAccess,
 } from '../src/research.js';
@@ -100,7 +101,7 @@ test('active research migration adopts six hours while preserving applied accele
   assert.equal(player.research.active.employmentReleased, 25);
 });
 
-test('legacy levels and existing facility commitments migrate without removing access', () => {
+test('legacy levels and existing facility commitments migrate without removing facility access', () => {
   const { world, player } = createPlayer(9904);
   player.research = { unlockedComplexity: 'C4', completedAt: NOW - 1, active: null };
   ensurePlayerResearch(world, player, NOW);
@@ -116,4 +117,62 @@ test('legacy levels and existing facility commitments migrate without removing a
   assert.equal(assetPlayer.research.completedTechnologyIds.includes('tool-manufacturing'), true);
   assert.equal(assetPlayer.research.completedTechnologyIds.includes('oil-refining'), false);
   assert.equal(hasResearchAccessForFacility(assetWorld, assetPlayer, 'machine-factory', NOW), true);
+});
+
+test('C1 and C2 non-base production methods require their declared technologies', () => {
+  const { world, user, player } = createPlayer(9907);
+  player.facilityGroups = [{
+    facilityTypeId: 'logging-camp', count: 1, participatingCount: 1, enabled: false,
+    status: 'stopped', staffingRateBps: 10_000, staffingUpdatedAt: NOW,
+    activeRecipeId: 'logging-camp-default', lifetimeOutput: 0,
+  }];
+  ensurePlayerResearch(world, player, NOW);
+  assert.equal(player.research.completedTechnologyIds.includes('forestry-development'), true);
+
+  const blockedTool = validateResearchAccess(world, user, 'setFacilityRecipe', {
+    facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--assisted',
+  }, NOW);
+  assert.equal(blockedTool?.ok, false);
+  assert.match(blockedTool.message, /工具制造/);
+
+  player.research.completedTechnologyIds.push('tool-manufacturing');
+  assert.equal(validateResearchAccess(world, user, 'setFacilityRecipe', {
+    facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--assisted',
+  }, NOW), null);
+
+  const blockedMechanized = validateResearchAccess(world, user, 'setFacilityRecipe', {
+    facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--mechanized',
+  }, NOW);
+  assert.equal(blockedMechanized?.ok, false);
+  assert.match(blockedMechanized.message, /机械工程/);
+  assert.match(blockedMechanized.message, /石油炼化/);
+
+  player.research.completedTechnologyIds.push('mechanical-engineering', 'oil-refining');
+  assert.equal(validateResearchAccess(world, user, 'setFacilityRecipe', {
+    facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--mechanized',
+  }, NOW), null);
+
+  const retired = validateResearchAccess(world, user, 'setFacilityRecipe', {
+    facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--rapid',
+  }, NOW);
+  assert.equal(retired?.ok, false);
+  assert.match(retired.message, /旧作业制度已退役/);
+});
+
+test('migration resets unavailable advanced methods without applying a staffing penalty', () => {
+  const { world, player } = createPlayer(9908);
+  player.facilityGroups = [{
+    facilityTypeId: 'farm', count: 1, participatingCount: 1, enabled: true,
+    status: 'running', cycleStartedAt: NOW - 10_000, staffingRateBps: 8_700,
+    staffingUpdatedAt: NOW, staffingBatchCarryBps: 432, activeRecipeId: 'wheat-crop--mechanized', lifetimeOutput: 0,
+  }];
+  player.research.completedTechnologyIds = ['basic-crops', 'basic-livestock'];
+
+  migrateResearchWorld(world, NOW + 1);
+
+  assert.equal(world.version, 28);
+  assert.equal(player.facilityGroups[0].activeRecipeId, 'wheat-crop');
+  assert.equal(player.facilityGroups[0].cycleStartedAt, NOW + 1);
+  assert.equal(player.facilityGroups[0].staffingRateBps, 8_700);
+  assert.equal(player.facilityGroups[0].staffingBatchCarryBps, 432);
 });

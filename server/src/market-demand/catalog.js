@@ -4,8 +4,8 @@ const freezeClasses = (classes) => Object.freeze(classes.map((demandClass) => Ob
   products: freezeOptions(demandClass.products),
 })));
 
-export const MARKET_DEMAND_MODEL_VERSION = 18;
-export const MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION = 16;
+export const MARKET_DEMAND_MODEL_VERSION = 19;
+export const MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION = 19;
 export const PRICE_WINDOW_MS = 30 * 60 * 1000;
 export const ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const ACTIVE_PLAYER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -151,12 +151,14 @@ export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([
         id: 'daily', name: '能源、化工与日用消耗', budgetShare: 0.20, minBudgetShare: 0.10, maxBudgetShare: 0.35,
         elasticity: 0.9,
         products: [
-          { productId: 'paper', baseWeight: 0.30, utilityPerUnit: 2, minShare: 0.12 },
-          { productId: 'crude-oil', baseWeight: 0.13, utilityPerUnit: 1, minShare: 0.05 },
-          { productId: 'plastic', baseWeight: 0.22, utilityPerUnit: 2, minShare: 0.08 },
-          { productId: 'fertilizer', baseWeight: 0.20, utilityPerUnit: 2, minShare: 0.08 },
-          { productId: 'feed', baseWeight: 0.08, utilityPerUnit: 2, minShare: 0.03 },
-          { productId: 'veterinary-medicine', baseWeight: 0.07, utilityPerUnit: 3, minShare: 0.03 },
+          { productId: 'paper', baseWeight: 0.22, utilityPerUnit: 2, minShare: 0.09 },
+          { productId: 'crude-oil', baseWeight: 0.10, utilityPerUnit: 1, minShare: 0.04 },
+          { productId: 'plastic', baseWeight: 0.16, utilityPerUnit: 2, minShare: 0.06 },
+          { productId: 'fertilizer', baseWeight: 0.14, utilityPerUnit: 2, minShare: 0.06 },
+          { productId: 'feed', baseWeight: 0.06, utilityPerUnit: 2, minShare: 0.025 },
+          { productId: 'veterinary-medicine', baseWeight: 0.05, utilityPerUnit: 3, minShare: 0.025 },
+          { productId: 'industrial-fuel', baseWeight: 0.15, utilityPerUnit: 2, minShare: 0.06 },
+          { productId: 'industrial-chemicals', baseWeight: 0.12, utilityPerUnit: 2, minShare: 0.05 },
         ],
       },
       {
@@ -179,6 +181,7 @@ export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([
       timber: 6, lumber: 3, pulp: 3, furniture: 7,
       cotton: 8, wool: 4, textile: 3, clothing: 5,
       paper: 7, 'crude-oil': 4, plastic: 3, fertilizer: 3, feed: 2, 'veterinary-medicine': 1,
+      'industrial-fuel': 3, 'industrial-chemicals': 2,
       ore: 5, 'copper-ore': 5, steel: 2, copper: 2, tools: 2, machinery: 1, tractor: 1, electronics: 4, appliance: 3,
     }),
   }),

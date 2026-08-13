@@ -5,9 +5,9 @@ import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../server/src/domain.js'
 const expectedProducts = [
   'wheat', 'rice', 'cotton', 'sugarcane', 'fruit', 'timber', 'ore', 'copper-ore', 'crude-oil',
   'meat', 'eggs', 'milk', 'fish', 'wool', 'flour', 'sugar', 'lumber', 'steel', 'copper',
-  'plastic', 'fertilizer', 'feed', 'veterinary-medicine', 'textile', 'pulp', 'food', 'beverage',
-  'prepared-meal', 'paper', 'furniture', 'clothing', 'tools', 'machinery', 'tractor', 'electronics',
-  'appliance',
+  'plastic', 'industrial-fuel', 'industrial-chemicals', 'fertilizer', 'feed', 'veterinary-medicine',
+  'textile', 'pulp', 'food', 'beverage', 'prepared-meal', 'paper', 'furniture', 'clothing', 'tools',
+  'machinery', 'tractor', 'electronics', 'appliance',
 ];
 const expectedFacilities = [
   'farm', 'orchard', 'ranch', 'fishery',
@@ -20,28 +20,29 @@ const expectedFacilities = [
 const expectedPrices = {
   wheat: 1.2, rice: 1.2, cotton: 1.2, sugarcane: 1.2, fruit: 1.3, timber: 6, ore: 7,
   'copper-ore': 7, 'crude-oil': 9, meat: 2.4, eggs: 2.4, milk: 2.4, fish: 2.5, wool: 2.4,
-  flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, fertilizer: 6.76, feed: 5.8,
+  flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30,
+  'industrial-fuel': 4, 'industrial-chemicals': 5, fertilizer: 6.76, feed: 5.8,
   'veterinary-medicine': 14.1, textile: 20, pulp: 20, food: 15, beverage: 18,
   'prepared-meal': 18, paper: 15, furniture: 24, clothing: 55, tools: 12, machinery: 15.55,
   tractor: 15.35, electronics: 84, appliance: 92,
 };
 const expectedConstruction = {
-  'farm': { complexity: 'C1', buildCost: 50, buildInputs: [], systemValue: 65 },
-  'orchard': { complexity: 'C1', buildCost: 70, buildInputs: [], systemValue: 95 },
-  'ranch': { complexity: 'C1', buildCost: 58, buildInputs: [{ productId: 'timber', quantity: 3 }, { productId: 'ore', quantity: 2 }], systemValue: 120 },
-  'fishery': { complexity: 'C1', buildCost: 62, buildInputs: [{ productId: 'timber', quantity: 4 }, { productId: 'ore', quantity: 2 }], systemValue: 130 },
+  farm: { complexity: 'C1', buildCost: 50, buildInputs: [], systemValue: 65 },
+  orchard: { complexity: 'C1', buildCost: 70, buildInputs: [], systemValue: 95 },
+  ranch: { complexity: 'C1', buildCost: 58, buildInputs: [{ productId: 'timber', quantity: 3 }, { productId: 'ore', quantity: 2 }], systemValue: 120 },
+  fishery: { complexity: 'C1', buildCost: 62, buildInputs: [{ productId: 'timber', quantity: 4 }, { productId: 'ore', quantity: 2 }], systemValue: 130 },
   'logging-camp': { complexity: 'C2', buildCost: 85, buildInputs: [{ productId: 'cotton', quantity: 6 }, { productId: 'ore', quantity: 4 }], systemValue: 160 },
-  'mine': { complexity: 'C2', buildCost: 109, buildInputs: [{ productId: 'timber', quantity: 4 }, { productId: 'cotton', quantity: 6 }], systemValue: 185 },
+  mine: { complexity: 'C2', buildCost: 109, buildInputs: [{ productId: 'timber', quantity: 4 }, { productId: 'cotton', quantity: 6 }], systemValue: 185 },
   'oil-field': { complexity: 'C2', buildCost: 121, buildInputs: [{ productId: 'timber', quantity: 4 }, { productId: 'ore', quantity: 4 }, { productId: 'copper-ore', quantity: 1 }], systemValue: 235 },
-  'mill': { complexity: 'C2', buildCost: 98, buildInputs: [{ productId: 'timber', quantity: 4 }, { productId: 'ore', quantity: 3 }, { productId: 'copper-ore', quantity: 1 }], systemValue: 195 },
-  'sawmill': { complexity: 'C2', buildCost: 112, buildInputs: [{ productId: 'timber', quantity: 5 }, { productId: 'ore', quantity: 3 }, { productId: 'copper-ore', quantity: 1 }], systemValue: 225 },
+  mill: { complexity: 'C2', buildCost: 98, buildInputs: [{ productId: 'timber', quantity: 4 }, { productId: 'ore', quantity: 3 }, { productId: 'copper-ore', quantity: 1 }], systemValue: 195 },
+  sawmill: { complexity: 'C2', buildCost: 112, buildInputs: [{ productId: 'timber', quantity: 5 }, { productId: 'ore', quantity: 3 }, { productId: 'copper-ore', quantity: 1 }], systemValue: 225 },
   'feed-factory': { complexity: 'C2', buildCost: 108, buildInputs: [{ productId: 'timber', quantity: 4 }, { productId: 'ore', quantity: 3 }, { productId: 'copper-ore', quantity: 1 }], systemValue: 210 },
   'pulp-mill': { complexity: 'C3', buildCost: 110, buildInputs: [{ productId: 'lumber', quantity: 3 }, { productId: 'steel', quantity: 1 }], systemValue: 250 },
-  'steelworks': { complexity: 'C3', buildCost: 137, buildInputs: [{ productId: 'lumber', quantity: 4 }, { productId: 'ore', quantity: 5 }], systemValue: 315 },
+  steelworks: { complexity: 'C3', buildCost: 137, buildInputs: [{ productId: 'lumber', quantity: 4 }, { productId: 'ore', quantity: 5 }], systemValue: 315 },
   'textile-mill': { complexity: 'C3', buildCost: 111, buildInputs: [{ productId: 'lumber', quantity: 3 }, { productId: 'steel', quantity: 2 }], systemValue: 290 },
   'food-factory': { complexity: 'C3', buildCost: 121, buildInputs: [{ productId: 'lumber', quantity: 3 }, { productId: 'steel', quantity: 2 }], systemValue: 300 },
   'paper-mill': { complexity: 'C3', buildCost: 124, buildInputs: [{ productId: 'lumber', quantity: 4 }, { productId: 'steel', quantity: 2 }], systemValue: 325 },
-  'refinery': { complexity: 'C4', buildCost: 104, buildInputs: [{ productId: 'lumber', quantity: 3 }, { productId: 'steel', quantity: 4 }, { productId: 'copper', quantity: 1 }], systemValue: 390 },
+  refinery: { complexity: 'C4', buildCost: 104, buildInputs: [{ productId: 'lumber', quantity: 3 }, { productId: 'steel', quantity: 4 }, { productId: 'copper', quantity: 1 }], systemValue: 390 },
   'fertilizer-factory': { complexity: 'C4', buildCost: 134, buildInputs: [{ productId: 'lumber', quantity: 3 }, { productId: 'steel', quantity: 4 }, { productId: 'copper', quantity: 1 }], systemValue: 430 },
   'veterinary-medicine-factory': { complexity: 'C4', buildCost: 163, buildInputs: [{ productId: 'lumber', quantity: 3 }, { productId: 'steel', quantity: 4 }, { productId: 'plastic', quantity: 1 }], systemValue: 470 },
   'beverage-factory': { complexity: 'C4', buildCost: 96, buildInputs: [{ productId: 'lumber', quantity: 4 }, { productId: 'steel', quantity: 3 }, { productId: 'copper', quantity: 1 }], systemValue: 365 },
@@ -55,30 +56,75 @@ const expectedConstruction = {
 };
 const expectedProfitByComplexity = { C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
 const expectedC1ProfitByFacility = { farm: 0.6, orchard: 0.9, ranch: 0.8, fishery: 1 };
-const expectedProductionMethods = ['standard', 'rapid', 'economical', 'high-yield'];
-const expectedC1ProductionMethods = ['standard', 'assisted', 'intensive', 'mechanized'];
+const genericMethodIds = ['standard', 'rapid', 'economical', 'high-yield'];
+const dedicatedMethodIds = ['standard', 'assisted', 'intensive', 'mechanized'];
 const expectedC1Plans = {
   farm: [[], [['tools', 1], 12], [['fertilizer', 2], 14], [['tractor', 1], 16]],
   orchard: [[], [['tools', 1], 11], [['fertilizer', 2], 13], [['tractor', 1], 15]],
   ranch: [[], [['feed', 1], 4], [['veterinary-medicine', 1], 8], [['machinery', 1], 9]],
   fishery: [[], [['feed', 1], 4], [['veterinary-medicine', 1], 8], [['machinery', 1], 9]],
 };
+const expectedC2FirstRoutePlans = {
+  'logging-camp': [
+    [[], 2, 9],
+    [[['tools', 1]], 4, 6],
+    [[['tools', 1], ['industrial-fuel', 1]], 5, 5],
+    [[['machinery', 1], ['industrial-fuel', 2]], 7, 7.95],
+  ],
+  mine: [
+    [[], 2, 11],
+    [[['tools', 1]], 4, 10],
+    [[['tools', 1], ['industrial-chemicals', 1]], 5, 9],
+    [[['machinery', 1], ['industrial-chemicals', 1], ['industrial-fuel', 1]], 6, 6.95],
+  ],
+  'oil-field': [
+    [[], 2, 15],
+    [[['industrial-chemicals', 1]], 3, 16],
+    [[['machinery', 1], ['industrial-chemicals', 1]], 5, 15.45],
+    [[['machinery', 1], ['industrial-chemicals', 1], ['industrial-fuel', 1]], 6, 18.95],
+  ],
+  mill: [
+    [[['wheat', 2]], 1, 8.6],
+    [[['wheat', 4], ['tools', 1]], 2, 5.2],
+    [[['wheat', 6], ['machinery', 1]], 3, 10.25],
+    [[['wheat', 6], ['machinery', 1], ['industrial-fuel', 1]], 4, 18.25],
+  ],
+  sawmill: [
+    [[['timber', 2]], 1, 3],
+    [[['timber', 8], ['tools', 1]], 4, 4],
+    [[['timber', 7], ['machinery', 1]], 4, 4.45],
+    [[['timber', 8], ['machinery', 1], ['industrial-fuel', 1]], 5, 10.45],
+  ],
+  'feed-factory': [
+    [[['wheat', 2], ['fruit', 1]], 2, 4.9],
+    [[['wheat', 4], ['fruit', 2], ['tools', 1]], 5, 3.6],
+    [[['wheat', 6], ['fruit', 3], ['machinery', 1]], 8, 10.75],
+    [[['wheat', 8], ['fruit', 4], ['machinery', 1], ['industrial-fuel', 1]], 11, 18.95],
+  ],
+};
+const c2ProfitByMethod = { standard: 3, assisted: 6, intensive: 9, mechanized: 10.5 };
 
 function standardRecipes(facility) {
-  return facility.recipes.filter((recipe) => (recipe.productionMethodId || 'standard') === 'standard');
+  return facility.recipes.filter((recipe) => (
+    !recipe.legacyProductionMethod && (recipe.productionMethodId || 'standard') === 'standard'
+  ));
+}
+
+function currentVariantsForRoute(facility, routeId) {
+  return facility.recipes.filter((recipe) => recipe.baseRecipeId === routeId && !recipe.legacyProductionMethod);
 }
 
 function hasAtMostTwoDecimals(value) {
   return Math.abs(Number(value) - Math.round(Number(value) * 100) / 100) < 1e-9;
 }
 
-function expectedProfitFor(facility) {
-  return facility.complexity === 'C1'
-    ? expectedC1ProfitByFacility[facility.id]
-    : expectedProfitByComplexity[facility.complexity];
+function profitPerMinute(recipe) {
+  const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
+  return (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
+    * 60_000 / recipe.cycleMs;
 }
 
-assert.equal(PRODUCT_CATALOG.length, 36, '商品目录必须为 36 项');
+assert.equal(PRODUCT_CATALOG.length, 38, '商品目录必须为 38 项');
 assert.equal(FACILITY_TYPE_CATALOG.length, 26, '工厂目录必须为 26 项');
 assert.deepEqual(PRODUCT_CATALOG.map((item) => item.id), expectedProducts);
 assert.deepEqual(FACILITY_TYPE_CATALOG.map((item) => item.id), expectedFacilities);
@@ -102,14 +148,13 @@ for (const product of PRODUCT_CATALOG) {
   assert.equal(hasAtMostTwoDecimals(product.basePrice), true, `${product.id} 初始参考价最多保留两位小数`);
   assert.ok(product.marketDemandGroupId === undefined || ['food', 'household'].includes(product.marketDemandGroupId), `${product.id} 市场需求组无效`);
 }
+
 for (const facility of FACILITY_TYPE_CATALOG) {
   assert.equal(Number.isInteger(facility.buildCost), true, `${facility.id} 建造费必须为整数`);
   assert.ok(Array.isArray(facility.buildInputs), `${facility.id} 必须声明 buildInputs 数组`);
-  if (cashOnlyFacilityIds.has(facility.id)) {
-    assert.deepEqual(facility.buildInputs, [], `${facility.id} 必须使用空建造材料数组`);
-  } else {
-    assert.ok(facility.buildInputs.length > 0, `${facility.id} 必须声明至少一种建造材料`);
-  }
+  if (cashOnlyFacilityIds.has(facility.id)) assert.deepEqual(facility.buildInputs, [], `${facility.id} 必须使用空建造材料数组`);
+  else assert.ok(facility.buildInputs.length > 0, `${facility.id} 必须声明至少一种建造材料`);
+
   let materialReferenceValue = 0;
   for (const item of facility.buildInputs) {
     assert.ok(productIds.has(item.productId), `${facility.id} 建造材料必须引用正式商品`);
@@ -132,12 +177,27 @@ for (const facility of FACILITY_TYPE_CATALOG) {
   const methodGroup = facility.productionMethodGroups.find((group) => group.id === 'operation');
   assert.ok(methodGroup, `${facility.id} 必须声明作业制度`);
   assert.equal(methodGroup.defaultMethodId, 'standard');
-  const methodIds = facility.complexity === 'C1' ? expectedC1ProductionMethods : expectedProductionMethods;
+  const isDedicated = facility.complexity === 'C1' || facility.complexity === 'C2';
+  const methodIds = isDedicated ? dedicatedMethodIds : genericMethodIds;
   assert.deepEqual(methodGroup.methods.map((method) => method.id), methodIds);
-  assert.equal(facility.recipes.length, routes.length * methodIds.length);
+  for (const method of methodGroup.methods) {
+    assert.ok(Array.isArray(method.requiredTechnologyIds), `${facility.id}/${method.id} 必须声明研发依赖数组`);
+    if (isDedicated && method.id !== 'standard') assert.ok(method.requiredTechnologyIds.length > 0, `${facility.id}/${method.id} 必须有研发门槛`);
+    if (!isDedicated) assert.deepEqual(method.requiredTechnologyIds, [], `${facility.id}/${method.id} 通用制度不得新增隐式研发门槛`);
+  }
+
+  const currentRecipes = facility.recipes.filter((recipe) => !recipe.legacyProductionMethod);
+  assert.equal(currentRecipes.length, routes.length * methodIds.length);
+  if (facility.complexity === 'C2') {
+    const aliases = facility.recipes.filter((recipe) => recipe.legacyProductionMethod);
+    assert.equal(aliases.length, routes.length * 3, `${facility.id} 必须只保留三种旧 C2 迁移别名`);
+    assert.equal(aliases.every((recipe) => ['rapid', 'economical', 'high-yield'].includes(recipe.productionMethodId)), true);
+  } else {
+    assert.equal(facility.recipes.some((recipe) => recipe.legacyProductionMethod), false);
+  }
 
   for (const route of routes) {
-    const variants = facility.recipes.filter((recipe) => recipe.baseRecipeId === route.id);
+    const variants = currentVariantsForRoute(facility, route.id);
     assert.deepEqual(variants.map((recipe) => recipe.productionMethodId), methodIds);
     for (const recipe of variants) {
       assert.ok(Array.isArray(recipe.inputs), `${facility.id}/${recipe.id} 必须使用 inputs[]`);
@@ -150,13 +210,15 @@ for (const facility of FACILITY_TYPE_CATALOG) {
       }
       assert.ok(productIds.has(recipe.output.productId));
       assert.equal(Number.isInteger(recipe.output.quantity), true);
-      if (facility.complexity !== 'C1' || recipe.productionMethodId === 'standard') {
-        const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
-        const profit = (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
-          * 60_000 / recipe.cycleMs;
-        assert.ok(Math.abs(profit - expectedProfitFor(facility)) < 1e-9, `${facility.id}/${recipe.id} 参考分钟利润错误: ${profit}`);
+      if (facility.complexity === 'C1' && recipe.productionMethodId === 'standard') {
+        assert.ok(Math.abs(profitPerMinute(recipe) - expectedC1ProfitByFacility[facility.id]) < 1e-9);
+      } else if (facility.complexity === 'C2') {
+        assert.ok(Math.abs(profitPerMinute(recipe) - c2ProfitByMethod[recipe.productionMethodId]) < 1e-9, `${facility.id}/${recipe.id} C2 利润梯度错误`);
+      } else if (facility.complexity !== 'C1') {
+        assert.ok(Math.abs(profitPerMinute(recipe) - expectedProfitByComplexity[facility.complexity]) < 1e-9, `${facility.id}/${recipe.id} 参考分钟利润错误`);
       }
     }
+
     if (facility.complexity === 'C1') {
       assert.equal(variants.every((recipe) => recipe.cycleMs === route.cycleMs), true);
       assert.equal(variants.every((recipe) => recipe.operatingCost === route.operatingCost), true);
@@ -169,6 +231,8 @@ for (const facility of FACILITY_TYPE_CATALOG) {
       }
       continue;
     }
+    if (facility.complexity === 'C2') continue;
+
     const rapid = variants.find((recipe) => recipe.productionMethodId === 'rapid');
     const economical = variants.find((recipe) => recipe.productionMethodId === 'economical');
     const highYield = variants.find((recipe) => recipe.productionMethodId === 'high-yield');
@@ -181,19 +245,17 @@ for (const facility of FACILITY_TYPE_CATALOG) {
 }
 
 const facilities = new Map(FACILITY_TYPE_CATALOG.map((item) => [item.id, item]));
-const expectedC1Standard = {
-  farm: { cycleMs: 20_000, operatingCost: 1, outputQuantity: 1 },
-  orchard: { cycleMs: 20_000, operatingCost: 1, outputQuantity: 1 },
-  ranch: { cycleMs: 30_000, operatingCost: 2, outputQuantity: 1 },
-  fishery: { cycleMs: 30_000, operatingCost: 2, outputQuantity: 1 },
-};
-for (const [facilityId, expected] of Object.entries(expectedC1Standard)) {
-  for (const recipe of standardRecipes(facilities.get(facilityId))) {
-    assert.equal(recipe.cycleMs, expected.cycleMs);
-    assert.equal(recipe.operatingCost, expected.operatingCost);
-    assert.equal(recipe.output.quantity, expected.outputQuantity);
-  }
+for (const [facilityId, plans] of Object.entries(expectedC2FirstRoutePlans)) {
+  const facility = facilities.get(facilityId);
+  const route = standardRecipes(facility)[0];
+  const variants = currentVariantsForRoute(facility, route.id);
+  assert.deepEqual(variants.map((recipe) => [
+    recipe.inputs.map((input) => [input.productId, input.quantity]),
+    recipe.output.quantity,
+    recipe.operatingCost,
+  ]), plans, `${facilityId} C2 作业制度数值漂移`);
 }
+
 assert.deepEqual(standardRecipes(facilities.get('farm')).map((item) => item.id), ['wheat-crop', 'rice-crop', 'cotton-crop', 'sugarcane-crop']);
 assert.equal(standardRecipes(facilities.get('orchard'))[0].output.productId, 'fruit');
 assert.equal(standardRecipes(facilities.get('fishery'))[0].output.productId, 'fish');
@@ -204,9 +266,7 @@ assert.equal(facilities.has('copper-smelter'), false, '不得新增铜冶炼厂'
 assert.deepEqual(standardRecipes(facilities.get('food-factory')).map((item) => item.id), ['food-factory-default', 'prepared-meal-production']);
 assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.id), ['milk-beverage', 'fruit-beverage']);
 const feedRecipe = standardRecipes(facilities.get('feed-factory'))[0];
-assert.deepEqual(feedRecipe.inputs, [
-  { productId: 'wheat', quantity: 2 }, { productId: 'fruit', quantity: 1 },
-]);
+assert.deepEqual(feedRecipe.inputs, [{ productId: 'wheat', quantity: 2 }, { productId: 'fruit', quantity: 1 }]);
 assert.deepEqual(feedRecipe.output, { productId: 'feed', quantity: 2 });
 assert.equal(feedRecipe.cycleMs, 60_000);
 assert.equal(feedRecipe.operatingCost, 4.9);
@@ -217,65 +277,76 @@ assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) 
 assert.equal(standardRecipes(facilities.get('furniture-factory'))[0].operatingCost, 8);
 assert.deepEqual(standardRecipes(facilities.get('tool-workshop'))[0].inputs, [{ productId: 'steel', quantity: 1 }, { productId: 'lumber', quantity: 1 }]);
 assert.deepEqual(standardRecipes(facilities.get('tool-workshop'))[0].output, { productId: 'tools', quantity: 5 });
-assert.deepEqual(standardRecipes(facilities.get('electronics-factory'))[0].inputs, [
-  { productId: 'plastic', quantity: 1 }, { productId: 'copper', quantity: 1 },
-]);
-assert.deepEqual(standardRecipes(facilities.get('appliance-factory'))[0].inputs, [
-  { productId: 'machinery', quantity: 1 }, { productId: 'electronics', quantity: 1 },
-]);
+assert.deepEqual(standardRecipes(facilities.get('electronics-factory'))[0].inputs, [{ productId: 'plastic', quantity: 1 }, { productId: 'copper', quantity: 1 }]);
+assert.deepEqual(standardRecipes(facilities.get('appliance-factory'))[0].inputs, [{ productId: 'machinery', quantity: 1 }, { productId: 'electronics', quantity: 1 }]);
+
+const refineryRecipes = standardRecipes(facilities.get('refinery'));
+assert.deepEqual(refineryRecipes.map((recipe) => recipe.id), ['refinery-default', 'industrial-fuel-refining', 'industrial-chemicals-refining']);
+assert.deepEqual(refineryRecipes[1].inputs, [{ productId: 'crude-oil', quantity: 1 }]);
+assert.deepEqual(refineryRecipes[1].output, { productId: 'industrial-fuel', quantity: 4 });
+assert.equal(refineryRecipes[1].cycleMs, 60_000);
+assert.equal(refineryRecipes[1].operatingCost, 1);
+assert.deepEqual(refineryRecipes[2].inputs, [{ productId: 'crude-oil', quantity: 2 }]);
+assert.deepEqual(refineryRecipes[2].output, { productId: 'industrial-chemicals', quantity: 6 });
+assert.equal(refineryRecipes[2].cycleMs, 60_000);
+assert.equal(refineryRecipes[2].operatingCost, 6);
 
 const coreSource = readFileSync('server/src/domain-core.js', 'utf8');
 const catalogSource = readFileSync('server/src/industry-catalog.js', 'utf8');
 const methodSource = readFileSync('server/src/production-methods.js', 'utf8');
+const legacyMethodSource = readFileSync('server/src/legacy-production-methods.js', 'utf8');
 assert.ok(coreSource.includes("from './industry-catalog.js'"), '核心领域必须读取单一产业目录');
 assert.equal(coreSource.includes('export const PRODUCT_CATALOG = Object.freeze(['), false, 'domain-core.js 不得复制正式商品目录');
 assert.equal(coreSource.includes('STARTER_CONSTRUCTION_MATERIALS'), false, '不得恢复新玩家建造材料包');
 assert.equal(coreSource.includes('grantStarterConstructionMaterials'), false, '不得恢复建造材料补发逻辑');
 assert.ok(catalogSource.includes("from './production-methods.js'"));
-assert.ok(methodSource.includes("id: 'rapid'"));
-assert.ok(methodSource.includes("id: 'economical'"));
-assert.ok(methodSource.includes("id: 'high-yield'"));
-assert.ok(methodSource.includes("id: 'assisted'"));
-assert.ok(methodSource.includes("id: 'intensive'"));
-assert.ok(methodSource.includes("id: 'mechanized'"));
-assert.ok(catalogSource.includes("id: 'fruit'"));
-assert.ok(catalogSource.includes("id: 'appliance-factory'"));
-assert.ok(catalogSource.includes("id: 'feed-factory'"));
-assert.ok(catalogSource.includes("id: 'veterinary-medicine-factory'"));
-assert.ok(catalogSource.includes("id: 'tractor-factory'"));
+assert.ok(catalogSource.includes("from './legacy-production-methods.js'"));
+for (const text of [
+  'FACILITY_METHOD_BLUEPRINTS',
+  "id: 'industrial-fuel'",
+  "id: 'industrial-chemicals'",
+  "name: '基础采伐'",
+  "name: '机械化采矿'",
+  "name: '连续化加工'",
+  "name: '动力连续混配'",
+  'requiredTechnologyIds',
+]) assert.ok(methodSource.includes(text) || catalogSource.includes(text), `C2 目录缺少 ${text}`);
+assert.ok(legacyMethodSource.includes('legacyProductionMethod'));
+assert.ok(legacyMethodSource.includes("['rapid', 'economical', 'high-yield']"));
 
-const iconSource = readFileSync('src/components/icons/ProductIcons.tsx', 'utf8');
-assert.equal(existsSync('src/components/icons/ProductIcons.tsx'), true);
-for (const id of expectedProducts) assert.match(iconSource, new RegExp(`case '${id}':`), `${id} 缺少显式 SVG 图标`);
+assert.equal(existsSync('src/assets/product-icons/industrial-fuel.png'), true, '工业燃料缺少商品插画源文件');
+assert.equal(existsSync('src/assets/product-icons/industrial-chemicals.png'), true, '工业化学品缺少商品插画源文件');
+const artworkStyle = readFileSync('src/styles/product-artwork.css', 'utf8');
+const artworkGenerator = readFileSync('scripts/generate-product-artwork-thumbnails.mjs', 'utf8');
+for (const id of ['industrial-fuel', 'industrial-chemicals']) {
+  assert.ok(artworkStyle.includes(`[data-product-icon='${id}']`), `${id} 缺少商品插画映射`);
+  assert.ok(artworkGenerator.includes(`'${id}'`), `${id} 缩略图生成清单缺失`);
+}
 
 for (const [path, texts] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
-    '当前基线为 36 种商品和 26 种工厂类型',
+    '当前基线为 38 种商品和 26 种工厂类型',
     'C1 基础制度采用工厂级参考分钟利润',
-    '农场 0.6、果园 0.9、畜牧场 0.8、渔场 1.0',
-    '固定消耗 2 小麦 + 1 水果并产出 2 配合饲料',
-    '不新增铜冶炼厂',
-    '任一输入不足时不得扣除其他输入',
-    '模型 1 的未完成市场需求订单',
-    '正式目录为每座工厂声明现金 `buildCost` 与商品数组 `buildInputs`',
-    '客户端兼容字段 `buildTimeMs` 固定返回 `0`',
-    '资金和适用的全部材料必须先完整校验，再原子扣除',
-    '农场和果园固定使用空 `buildInputs`',
-    '新玩家不再获得首座工厂建造材料包',
-    '标准生产、高速生产、节约生产和高产生产',
-    '基础、工具／饲料、化肥／药剂、拖拉机／机械化',
+    'C2 四级制度参考分钟利润固定为 3、6、9、10.5',
+    '工业燃料 (`industrial-fuel`)',
+    '工业化学品 (`industrial-chemicals`)',
+    '炼油厂同时提供塑料、工业燃料和工业化学品三条正式配方',
+    'C1 与 C2 使用工厂专属作业制度',
+    'C3～C7 继续使用标准生产、高速生产、节约生产和高产生产',
+    '非基础作业制度必须校验 `requiredTechnologyIds`',
+    '旧 C2 `rapid`／`economical`／`high-yield`',
     '每周期整件消耗',
     '不累计折旧',
     '生产方式与配方必须在同一次配置动作中原子切换',
   ]],
-  ['docs/UI_DESIGN_SYSTEM.md', ['当前 36 种正式商品', '服务器未来返回未知商品 ID', '生产方式下拉选择', '不得恢复 `radiogroup`、选择卡、按钮组、可见原生 `select`']],
-  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['36 种商品和 26 种工厂', '饮料、预制餐、电子产品和家电', '作业制度']],
+  ['docs/UI_DESIGN_SYSTEM.md', ['当前 38 种正式商品', '服务器未来返回未知商品 ID', '生产方式下拉选择', '不得恢复 `radiogroup`、选择卡、按钮组、可见原生 `select`']],
+  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['38 种商品和 26 种工厂', '作业制度', '未解锁作业制度']],
 ]) {
   const content = readFileSync(path, 'utf8');
   for (const text of texts) assert.ok(content.includes(text), `${path} 缺少: ${text}`);
 }
 
-console.log('产业目录验证通过：36 种商品、26 种工厂、农场与果园现金建造、C1 固定作业制度及参考分钟利润梯度。');
+console.log('产业目录验证通过：38 种商品、26 种工厂、C1/C2 工厂专属作业制度、炼油工业耗材和 C2 3/6/9/10.5 利润梯度。');
 
 const fertilizerFacility = facilities.get('fertilizer-factory');
 assert.ok(fertilizerFacility, '化肥厂必须存在于正式目录');

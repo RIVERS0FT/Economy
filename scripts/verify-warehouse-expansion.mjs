@@ -93,7 +93,7 @@ for (const text of [
   '商品买单、商品拍卖和采购合同不再预占仓库空间',
   '工厂生产不再检查仓库空间',
   '客户端状态版本：33',
-  '世界状态版本：27',
+  '世界状态版本：28',
   'onlineAutoBuyPolicies',
   'onlineAutoSellPolicies',
   '在线自动采购',

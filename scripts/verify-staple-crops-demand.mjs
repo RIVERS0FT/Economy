@@ -19,8 +19,8 @@ import {
 
 const read = (path) => readFileSync(path, 'utf8');
 const products = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
-assert.equal(PRODUCT_CATALOG.length, 36);
-assert.equal(MARKET_DEMAND_MODEL_VERSION, 18);
+assert.equal(PRODUCT_CATALOG.length, 38);
+assert.equal(MARKET_DEMAND_MODEL_VERSION, 19);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.id), ['food', 'household']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.ownerName), ['食品市场需求', '家庭消费市场需求']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.name), ['食品市场', '社会消费市场']);
@@ -31,6 +31,8 @@ assert.deepEqual(groups.get('food').classes.map((item) => item.id), ['staples', 
 assert.deepEqual(groups.get('household').classes.map((item) => item.id), ['home', 'wear', 'daily', 'durables']);
 assert.ok(groups.get('food').classes.find((item) => item.id === 'fresh-drinks').products.some((item) => item.productId === 'fruit'));
 assert.ok(groups.get('household').classes.find((item) => item.id === 'durables').products.some((item) => item.productId === 'appliance'));
+assert.ok(groups.get('household').classes.find((item) => item.id === 'daily').products.some((item) => item.productId === 'industrial-fuel'));
+assert.ok(groups.get('household').classes.find((item) => item.id === 'daily').products.some((item) => item.productId === 'industrial-chemicals'));
 
 assert.deepEqual([...MARKET_DEMAND_PRODUCT_IDS].sort(), PRODUCT_CATALOG.map((product) => product.id).sort());
 for (const product of PRODUCT_CATALOG) {
@@ -69,8 +71,8 @@ const runtime = [
   'server/src/order-book-integrity.js',
 ].map(read).join('\n');
 for (const text of [
-  'MARKET_DEMAND_MODEL_VERSION = 18',
-  'MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION = 16',
+  'MARKET_DEMAND_MODEL_VERSION = 19',
+  'MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION = 19',
   'DIRECT_BUDGET_SHARE = 0.70',
   "POPULATION_MODEL_IDS = Object.freeze(['basic', 'skilled', 'professional'])",
   "POPULATION_CONSUMPTION_STATES = Object.freeze(['lavish', 'prosperous', 'normal', 'strained', 'subsistence'])",
@@ -172,13 +174,13 @@ for (const text of [
 
 const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
 const standardRecipes = (facility) => facility.recipes.filter(
-  (recipe) => (recipe.productionMethodId || 'standard') === 'standard',
+  (recipe) => !recipe.legacyProductionMethod && (recipe.productionMethodId || 'standard') === 'standard',
 );
 assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((recipe) => recipe.inputs), [
   [{ productId: 'sugar', quantity: 1 }, { productId: 'milk', quantity: 1 }],
   [{ productId: 'fruit', quantity: 2 }, { productId: 'sugar', quantity: 1 }],
 ]);
-assert.deepEqual(facilities.get('appliance-factory').recipes[0].inputs, [
+assert.deepEqual(standardRecipes(facilities.get('appliance-factory'))[0].inputs, [
   { productId: 'machinery', quantity: 1 }, { productId: 'electronics', quantity: 1 },
 ]);
 
@@ -190,8 +192,8 @@ for (const text of [
   'zero fill below reference recovers slowly while partial service recovers more gently',
   'no direct demand converges toward reference and derived liquidity ignores a low direct anchor',
   'shortage pressure approaches the reference premium by at most a quarter percent per cycle',
-  'market model 18 preserves model 16 demand state and escrow during rate-only migration',
-]) assert.ok(marketDemandTests.includes(text), '市场需求测试缺少模型 10 双向报价回归: ' + text);
+  'market model 19 rebuilds model 18 population demand escrow but preserves player orders',
+]) assert.ok(marketDemandTests.includes(text), '市场需求测试缺少模型 19 回归: ' + text);
 
 const populationTests = read('server/test/population-economy.test.js')
   + read('server/test/population-demographics.test.js')
@@ -212,21 +214,22 @@ for (const text of [
   'one C1 factory adds exactly eleven structural capacity and transfer keeps world capacity',
   'population migration is directional, bounded, and idempotent within one cycle',
   'dynamic stabilization budget follows actual population and preserves wallet-gap cap',
-  'model 17 to 18 rebalance rebuilds system demand without losing population or reserve assets',
-  'population model 6 migration refunds current model 17 escrow before rebuilding demand',
+  'model 17 to current rebalance rebuilds system demand without losing population or reserve assets',
+  'population model 6 migration refunds current demand escrow before rebuilding demand',
 ]) assert.ok(populationTests.includes(text), '人口经济测试缺少: ' + text);
 
 const liquidityTests = read('server/test/market-liquidity.test.js');
 for (const text of [
+  'market model 19 creates inventory-backed buy and sell orders without system self-trades',
   'system liquidity asks reprice above retained consumption bids instead of crossing',
   'selling to a reserve transfers reserve funds and does not count as consumption issuance',
   'buying from a reserve transfers real inventory and returns credits to the reserve',
 ]) assert.ok(liquidityTests.includes(text), '储备测试缺少: ' + text);
 
 for (const [path, texts] of [
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：18', '单座 C1 工厂人口承载基数固定为 **11**', '每五分钟迁入剩余缺口的 **2%**', '实际人口 × 0.57', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点', '上一锚点的 0.25%', '参考价缺口的 2%', '最多为参考价的 0.75%', '只恢复 1% 缺口', '当前报价锚点上追涨 0.25%']],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：18', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '双向报价锚点']],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', 'population-demographics.js', '人口经济内部版本固定为 7', '五档状态只重新分配食品／家庭与类别份额', '市场需求模型 17', '人口消费不得发行普通货币']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：19', '38 种正式商品', '单座 C1 工厂人口承载基数固定为 **11**', '每五分钟迁入剩余缺口的 **2%**', '实际人口 × 0.57', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点', '上一锚点的 0.25%', '参考价缺口的 2%', '最多为参考价的 0.75%', '只恢复 1% 缺口', '当前报价锚点上追涨 0.25%']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：19', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '双向报价锚点']],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', 'population-demographics.js', '人口经济内部版本固定为 7', '五档状态只重新分配食品／家庭与类别份额', '市场需求模型 19', '人口消费不得发行普通货币']],
   ['src/api/admin.ts', ["'lavish' | 'prosperous' | 'normal' | 'strained' | 'subsistence'", 'PopulationDemographicsAdminSummary', 'currentPopulation', 'targetPopulation', 'structuralCapacityByComplexity', 'laborForce', 'employed', 'unemployed', 'vacancies', 'perCapitaIncomeEma', 'stateCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps', 'stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
   ['src/components/AdminPopulationHealth.tsx', ['实际／目标人口', '结构人口承载', '活跃承载 EMA', '就业／失业／岗位缺口', '人均收入 EMA', '产业人口承载', '累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充']],
   ['src/components/AdminPopulationSection.tsx', ['AdminPopulationControl']],
@@ -236,7 +239,7 @@ for (const [path, texts] of [
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
 
-console.log('市场需求验证通过：模型 18 使用工厂承载驱动的实际人口与真实钱包覆盖全部 36 种商品，并保持双向报价、派生流动性和市场储备约束。');
+console.log('市场需求验证通过：模型 19 使用工厂承载驱动的实际人口与真实钱包覆盖全部 38 种商品，并保持双向报价、派生流动性和市场储备约束。');
 
 const populationPolicy = read('server/src/population-policy.js');
 const populationControl = read('server/src/population-admin-control.js');
