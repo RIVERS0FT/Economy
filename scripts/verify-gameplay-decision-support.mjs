@@ -93,7 +93,9 @@ requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '排行榜页面不得
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '四榜个人最好成绩由服务器在完整周结算时写入玩家权威统计');
 requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '排行榜只保留当前真实名次、当前成绩和服务器完整周结算的个人最好成绩');
 forbidText('src/pages/LeaderboardPage.tsx', 'localStorage');
-requireText('src/pages/OverviewPage.tsx', '事件窗口真实成交');
+requireText('src/pages/OverviewPage.tsx', '<OverviewEconomicCalendarPanel');
+requireText('src/pages/overview/OverviewLiveSections.tsx', '事件窗口真实成交');
+requireText('src/pages/overview/OverviewLiveSections.tsx', 'eventMarketFeedback(markets, event.productIds, event.startsAt, event.endsAt)');
 requireText('server/src/economic-events.js', 'EVENT_RESULT_WINDOW_MS');
 requireText('src/utils/marketDecisionSignals.ts', 'const first = points.length > 0 ? points[0] : undefined;');
 forbidText('src/components/facilities/FacilityOperatingDiagnostics.tsx', '最佳配方');
