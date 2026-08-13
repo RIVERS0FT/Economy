@@ -1,14 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import type { AuthUser } from '../types';
 import { ApplicationLoadingState } from '../components/system/ApplicationLoadingState';
-import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../components/icons/GameIcons';
-import { GemIcon } from '../components/icons/GemIcon';
 import { GameShell } from '../components/shell/GameShell';
-import type { StatusBarItem } from '../components/shell/StatusBar';
 import { AuthoritativeCountdownRefresh } from '../components/system/AuthoritativeCountdownRefresh';
-import { CurrencyAmount, CurrencyText } from '../components/ui/CurrencyAmount';
+import { CurrencyText } from '../components/ui/CurrencyAmount';
 import { PageRouter } from '../pages/PageRouter';
-import { formatCompactNumber, formatCurrency, formatNumber, formatRank, setCompactNumbersEnabled } from '../utils/formatters';
+import { setCompactNumbersEnabled } from '../utils/formatters';
 import { useGameTutorial, type TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { useOnlineAutoTrade, type OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { useGameViewModel, type LoadedGameViewModel } from './gameViewModel';
@@ -74,77 +71,10 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
     setCompactNumbersEnabled(compactNumbers);
   }, [compactNumbers]);
 
-  const { game, derived } = appModel;
-  const setTabRef = useRef(appModel.setTab);
-  setTabRef.current = appModel.setTab;
-  const openBank = useCallback(() => setTabRef.current('bank'), []);
-  const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
-  const weeklyMagnitude = Math.abs(weeklyChange);
-  const currentRank = derived.currentRank?.rank ?? '--';
-  const formattedRank = formatRank(derived.currentRank?.rank);
-  const rankLabel = derived.currentRank ? `排名第 ${derived.currentRank.rank} 名` : '暂无排名';
-  const weeklyTrend = weeklyChange > 0 ? '↑' : weeklyChange < 0 ? '↓' : '→';
-  const weeklyChangeLabel = weeklyChange > 0
-    ? `本周净资产上升 ${formatCurrency(weeklyMagnitude)}`
-    : weeklyChange < 0
-      ? `本周净资产下降 ${formatCurrency(weeklyMagnitude)}`
-      : '本周净资产无变化';
-  const statusItems = useMemo<StatusBarItem[]>(() => [
-    {
-      id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount>,
-      compactValue: formatCompactNumber(game.credits), detail: <>冻结 <CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount></>,
-    },
-    {
-      id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>,
-      compactValue: formatCompactNumber(derived.totalAssets),
-      detail: <span className={weeklyChange > 0 ? 'positive' : weeklyChange < 0 ? 'negative' : 'neutral'} aria-label={weeklyChangeLabel}>{weeklyTrend} 本周 <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>,
-      emphasis: 'primary',
-      onClick: openBank,
-    },
-    {
-      id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(game.gems),
-      compactValue: formatCompactNumber(game.gems), detail: <>邀请好友可获得宝石</>,
-    },
-    {
-      id: 'rank', icon: <RankIcon />, label: '排行榜',
-      value: <span aria-label={rankLabel}>{formattedRank}</span>,
-      compactValue: <>#{currentRank}</>,
-      detail: !derived.currentRank
-        ? <>暂无排名数据</>
-        : derived.currentRank.rank === 1
-          ? <>当前位于榜首</>
-          : derived.previousRank
-            ? <>距上一名 <CurrencyAmount>{formatCurrency(derived.previousRank.totalAssets - derived.totalAssets)}</CurrencyAmount></>
-            : <>暂无上一名数据</>,
-    },
-    {
-      id: 'warehouse', icon: <WarehouseIcon />, label: '仓库库存', value: formatNumber(game.warehouseStoredQuantity),
-      compactValue: formatCompactNumber(game.warehouseStoredQuantity),
-      detail: <>无限容量 · 实物库存总量</>,
-    },
-  ], [
-    compactNumbers,
-    currentRank,
-    derived.currentRank,
-    derived.previousRank,
-    derived.totalAssets,
-    formattedRank,
-    game.credits,
-    game.frozenCredits,
-    game.gems,
-    game.warehouseStoredQuantity,
-    openBank,
-    rankLabel,
-    weeklyChange,
-    weeklyChangeLabel,
-    weeklyMagnitude,
-    weeklyTrend,
-  ]);
-
   return (
     <>
-      <AuthoritativeCountdownRefresh game={game} refresh={model.refresh} />
-      <GameShell model={appModel} statusItems={statusItems}>
+      <AuthoritativeCountdownRefresh game={appModel.game} refresh={model.refresh} />
+      <GameShell model={appModel}>
         <PageRouter model={appModel} />
       </GameShell>
     </>
