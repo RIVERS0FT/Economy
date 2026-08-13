@@ -58,6 +58,7 @@
 
 .research-tree {
   --research-trunk-color: color-mix(in srgb, var(--color-border-strong) 78%, transparent);
+  --research-focus-color: var(--color-accent-violet);
   position: relative;
   min-width: var(--research-tree-desktop-width);
   width: var(--research-tree-desktop-width);
@@ -88,15 +89,15 @@
   transition: opacity 160ms ease, stroke 160ms ease, stroke-width 160ms ease;
 }
 
-.research-tree-edge[data-highlighted='true'] {
-  stroke: var(--color-accent);
-  stroke-width: 3;
-  opacity: 0.95;
+.research-tree-edge[data-related='true'] {
+  stroke: color-mix(in srgb, var(--research-focus-color) 62%, var(--color-border-strong));
+  opacity: 0.76;
 }
 
-.research-tree-edge[data-related='true'] {
-  stroke: color-mix(in srgb, var(--color-accent) 62%, var(--color-border-strong));
-  opacity: 0.76;
+.research-tree-edge[data-highlighted='true'] {
+  stroke: var(--research-focus-color);
+  stroke-width: 3;
+  opacity: 0.95;
 }
 
 .research-facility-node {
@@ -121,7 +122,8 @@
   gap: 0.16rem;
   border: 0;
   padding: 0.25rem;
-  transform: translate(-50%, -50%);
+  translate: -50% -50%;
+  transform: none;
   color: var(--color-text-secondary);
   background: transparent;
   text-align: center;
@@ -192,11 +194,11 @@
 .research-technology-node[data-selected='true'] .research-facility-artwork {
   box-shadow:
     0 0 0 2px var(--color-surface),
-    0 0 0 5px var(--color-accent);
+    0 0 0 5px var(--research-focus-color);
 }
 
 .research-technology-node[data-path='ancestor'] .research-facility-artwork {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 48%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--research-focus-color) 48%, transparent);
 }
 
 .research-technology-node[data-path='descendant'] .research-facility-artwork {
