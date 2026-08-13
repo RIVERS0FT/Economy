@@ -1,0 +1,35 @@
+name: Research tree pan zoom apply
+on:
+  push:
+    branches: [feature/research-tree-pan-zoom]
+    paths: [.github/workflows/research-tree-pan-zoom-apply.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/research-tree-pan-zoom
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: python3 .agent/apply-research-tree-pan-zoom.py
+      - run: npm ci
+      - run: node scripts/verify-research-page.mjs
+      - run: npm run typecheck
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test tests/browser/research-technology-tree.spec.ts
+      - run: npm run build
+      - run: npm run test:browser
+      - run: git diff --check
+      - name: Commit implementation
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- src/research/ResearchTreeViewport.tsx src/research/researchTreeLayout.ts src/pages/ResearchPage.tsx src/styles/research-page.css tests/browser/research-technology-tree.spec.ts scripts/verify-research-page.mjs docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
+          git commit -m "feat: add pan and zoom research tree viewport"
+          git push origin HEAD:feature/research-tree-pan-zoom
