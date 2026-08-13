@@ -4,6 +4,7 @@ import {
   saveOnlineAutoTradePolicy,
 } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
+import { subscribeStateAuthorityPartitions } from '../app/stateDelivery.js';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { productionContractStateFromGame } from '../contracts/types';
 import type { AssetOrder, EconomyState, FacilityGroup, FacilityRecipeItem } from '../types';
@@ -85,6 +86,20 @@ function productionReservations(game: EconomyState) {
   return reserved;
 }
 
+let cachedProductionGroups: EconomyState['facilityGroups'] | null = null;
+let cachedProductionTypes: EconomyState['facilityTypes'] | null = null;
+let cachedProductionReservations: Record<string, number> = {};
+
+function currentProductionReservations(game: EconomyState) {
+  if (cachedProductionGroups === game.facilityGroups && cachedProductionTypes === game.facilityTypes) {
+    return cachedProductionReservations;
+  }
+  cachedProductionGroups = game.facilityGroups;
+  cachedProductionTypes = game.facilityTypes;
+  cachedProductionReservations = productionReservations(game);
+  return cachedProductionReservations;
+}
+
 interface ContractReservation {
   display: number;
   availableHold: number;
@@ -123,6 +138,17 @@ function contractReservations(game: EconomyState) {
     }
   }
   return reserved;
+}
+
+let cachedContractSource: unknown = null;
+let cachedContractReservations: Record<string, ContractReservation> = {};
+
+function currentContractReservations(game: EconomyState) {
+  const source = game.productionContracts;
+  if (cachedContractSource === source) return cachedContractReservations;
+  cachedContractSource = source;
+  cachedContractReservations = contractReservations(game);
+  return cachedContractReservations;
 }
 
 function isOpenCommodityOrder(
@@ -183,14 +209,10 @@ export function useOnlineAutoTrade(
   } = {},
 ): OnlineAutoTradeController {
   const userId = model.user.id;
-  const buyPolicies = model.game.onlineAutoBuyPolicies ?? {};
-  const sellPolicies = model.game.onlineAutoSellPolicies ?? {};
   const [busyProductId, setBusyProductId] = useState<string | null>(null);
   const [busySide, setBusySide] = useState<'buy' | 'sell' | null>(null);
   const busyRef = useRef(false);
   const legacyMigrationUserRef = useRef<number | null>(null);
-  const productionReserved = useMemo(() => productionReservations(model.game), [model.game]);
-  const contractReserved = useMemo(() => contractReservations(model.game), [model.game]);
 
   useEffect(() => {
     if (legacyMigrationUserRef.current === userId) return;
@@ -215,39 +237,44 @@ export function useOnlineAutoTrade(
   }, [model, userId]);
 
   const buyPolicyFor = useCallback((productId: string): AutoBuyPolicy => {
-    const existing = buyPolicies[productId];
+    const game = model.game;
+    const existing = game.onlineAutoBuyPolicies?.[productId];
     if (existing) return existing;
-    const product = model.game.products.find((candidate) => candidate.id === productId);
+    const product = game.products.find((candidate) => candidate.id === productId);
     return {
       enabled: false,
       maxPrice: Math.max(0.01, Number(product?.basePrice || 1)),
       targetFreeInventory: 0,
     };
-  }, [buyPolicies, model.game.products]);
+  }, [model]);
 
   const sellPolicyFor = useCallback((productId: string): AutoSellPolicy => {
-    const existing = sellPolicies[productId];
+    const game = model.game;
+    const existing = game.onlineAutoSellPolicies?.[productId];
     if (existing) return existing;
-    const product = model.game.products.find((candidate) => candidate.id === productId);
+    const product = game.products.find((candidate) => candidate.id === productId);
     return {
       enabled: false,
       price: Math.max(0.01, Number(product?.basePrice || 1)),
       minimumFreeInventory: 0,
     };
-  }, [model.game.products, sellPolicies]);
+  }, [model]);
 
   const statusFor = useCallback((productId: string): AutoTradeProductStatus => {
+    const game = model.game;
+    const productionReserved = currentProductionReservations(game);
+    const contractReserved = currentContractReservations(game);
     const buyPolicy = buyPolicyFor(productId);
     const sellPolicy = sellPolicyFor(productId);
-    const availableInventory = nonNegativeInteger(model.game.inventories[productId]?.available);
+    const availableInventory = nonNegativeInteger(game.inventories[productId]?.available);
     const production = nonNegativeInteger(productionReserved[productId]);
     const contract = contractReserved[productId] ?? { display: 0, availableHold: 0 };
     const contractHold = nonNegativeInteger(contract.availableHold);
     const currentFreeInventory = Math.max(0, availableInventory - production - contractHold);
 
     const buyManaged = managedOrder(
-      model.game,
-      model.game.onlineAutoBuyManagedOrderIds?.[productId],
+      game,
+      game.onlineAutoBuyManagedOrderIds?.[productId],
       productId,
       'buy',
     );
@@ -256,7 +283,7 @@ export function useOnlineAutoTrade(
       production + contractHold + nonNegativeInteger(buyPolicy.targetFreeInventory) - availableInventory,
     );
     const buyEligibleQuantity = affordableBuyQuantity(
-      model.game.credits,
+      game.credits,
       buyPolicy,
       buyManaged,
       buyDesiredQuantity,
@@ -274,8 +301,8 @@ export function useOnlineAutoTrade(
     );
 
     const sellManaged = managedOrder(
-      model.game,
-      model.game.onlineAutoSellManagedOrderIds?.[productId],
+      game,
+      game.onlineAutoSellManagedOrderIds?.[productId],
       productId,
       'sell',
     );
@@ -308,14 +335,14 @@ export function useOnlineAutoTrade(
       buyEligibleQuantity,
       buyFundingLimited: buyEligibleQuantity < buyDesiredQuantity,
       blockedBuyByOwnSell: isOpenCommodityOrder(
-        model.game,
+        game,
         productId,
         'sell',
         true,
         (price) => price <= buyPolicy.maxPrice,
       ),
       hasCrossingSeller: isOpenCommodityOrder(
-        model.game,
+        game,
         productId,
         'sell',
         false,
@@ -325,14 +352,14 @@ export function useOnlineAutoTrade(
       buyNeedsMaintenance,
       sellEligibleQuantity,
       blockedSellByOwnBuy: isOpenCommodityOrder(
-        model.game,
+        game,
         productId,
         'buy',
         true,
         (price) => price >= sellPolicy.price,
       ),
       hasCrossingBuyer: isOpenCommodityOrder(
-        model.game,
+        game,
         productId,
         'buy',
         false,
@@ -341,7 +368,7 @@ export function useOnlineAutoTrade(
       hasManagedSellOrder: Boolean(sellManaged),
       sellNeedsMaintenance,
     };
-  }, [buyPolicyFor, contractReserved, model.game, productionReserved, sellPolicyFor]);
+  }, [buyPolicyFor, model, sellPolicyFor]);
 
   const setPolicy = useCallback(async (productId: string, policy: AutoTradePolicyInput) => {
     const buyMaxPrice = Math.round(Number(policy.buy.maxPrice) * 100) / 100;
@@ -389,17 +416,20 @@ export function useOnlineAutoTrade(
     }
   }, [callbacks.onAutoSellPolicyEnabled, model, userId]);
 
-  useEffect(() => {
+  const maintainAutoTrade = useCallback(() => {
     if (busyRef.current) return;
+    const game = model.game;
+    const sellPolicies = game.onlineAutoSellPolicies ?? {};
+    const buyPolicies = game.onlineAutoBuyPolicies ?? {};
 
-    const sellCandidate = model.game.products.find((product) => {
+    const sellCandidate = game.products.find((product) => {
       const policy = sellPolicies[product.id];
       if (!policy?.enabled) return false;
       const status = statusFor(product.id);
       return (!status.blockedSellByOwnBuy && status.sellNeedsMaintenance)
         || (status.blockedSellByOwnBuy && status.hasManagedSellOrder);
     });
-    const buyCandidate = sellCandidate ? null : model.game.products.find((product) => {
+    const buyCandidate = sellCandidate ? null : game.products.find((product) => {
       const policy = buyPolicies[product.id];
       if (!policy?.enabled) return false;
       const status = statusFor(product.id);
@@ -429,11 +459,23 @@ export function useOnlineAutoTrade(
         setBusyProductId(null);
         setBusySide(null);
       });
-  }, [buyPolicies, callbacks.onSale, model, sellPolicies, statusFor]);
+  }, [callbacks.onSale, model, statusFor]);
+
+  useEffect(() => {
+    maintainAutoTrade();
+    return subscribeStateAuthorityPartitions(
+      ['catalog', 'player', 'market', 'contract'],
+      maintainAutoTrade,
+    );
+  }, [busyProductId, busySide, maintainAutoTrade]);
 
   return useMemo(() => ({
-    buyPolicies,
-    sellPolicies,
+    get buyPolicies() {
+      return model.game.onlineAutoBuyPolicies ?? {};
+    },
+    get sellPolicies() {
+      return model.game.onlineAutoSellPolicies ?? {};
+    },
     busyProductId,
     busySide,
     buyPolicyFor,
@@ -441,11 +483,10 @@ export function useOnlineAutoTrade(
     statusFor,
     setPolicy,
   }), [
-    buyPolicies,
     busyProductId,
     busySide,
     buyPolicyFor,
-    sellPolicies,
+    model,
     sellPolicyFor,
     setPolicy,
     statusFor,
