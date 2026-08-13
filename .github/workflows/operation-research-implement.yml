@@ -37,7 +37,7 @@ jobs:
           new = "assert.deepEqual(player.research.active.grantTechnologyIds, ['tool-operation', 'tool-manufacturing']);"
           if text.count(old) != 1:
               raise SystemExit('active grant ordering assertion not found exactly once')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          path.write_text(text.replace(old, new, 1).rstrip() + '\n', encoding='utf-8')
 
           path = Path('server/test/domain.test.js')
           text = path.read_text(encoding='utf-8')
