@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { AuthUser } from '../types';
 import { ApplicationLoadingState } from '../components/system/ApplicationLoadingState';
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../components/icons/GameIcons';
@@ -75,6 +75,9 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
   }, [compactNumbers]);
 
   const { game, derived } = appModel;
+  const setTabRef = useRef(appModel.setTab);
+  setTabRef.current = appModel.setTab;
+  const openBank = useCallback(() => setTabRef.current('bank'), []);
   const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
   const weeklyMagnitude = Math.abs(weeklyChange);
   const currentRank = derived.currentRank?.rank ?? '--';
@@ -86,7 +89,7 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
     : weeklyChange < 0
       ? `本周净资产下降 ${formatCurrency(weeklyMagnitude)}`
       : '本周净资产无变化';
-  const statusItems: StatusBarItem[] = [
+  const statusItems = useMemo<StatusBarItem[]>(() => [
     {
       id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount>,
       compactValue: formatCompactNumber(game.credits), detail: <>冻结 <CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount></>,
@@ -96,7 +99,7 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
       compactValue: formatCompactNumber(derived.totalAssets),
       detail: <span className={weeklyChange > 0 ? 'positive' : weeklyChange < 0 ? 'negative' : 'neutral'} aria-label={weeklyChangeLabel}>{weeklyTrend} 本周 <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>,
       emphasis: 'primary',
-      onClick: () => appModel.setTab('bank'),
+      onClick: openBank,
     },
     {
       id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(game.gems),
@@ -119,7 +122,24 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
       compactValue: formatCompactNumber(game.warehouseStoredQuantity),
       detail: <>无限容量 · 实物库存总量</>,
     },
-  ];
+  ], [
+    compactNumbers,
+    currentRank,
+    derived.currentRank,
+    derived.previousRank,
+    derived.totalAssets,
+    formattedRank,
+    game.credits,
+    game.frozenCredits,
+    game.gems,
+    game.warehouseStoredQuantity,
+    openBank,
+    rankLabel,
+    weeklyChange,
+    weeklyChangeLabel,
+    weeklyMagnitude,
+    weeklyTrend,
+  ]);
 
   return (
     <>
