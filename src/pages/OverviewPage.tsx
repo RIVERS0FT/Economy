@@ -271,7 +271,7 @@ export function OverviewPage({ model }: OverviewPageProps) {
   referenceNow={game.lastProcessedAt}
 />
 
-<div className="overview-summary-row"><div className="overview-summary-row">
+<div className="overview-summary-row">
           <Panel className="widget production-summary overview-summary-card">
             <WidgetHeading title="生产摘要" action={<Button variant="text" onClick={() => setTab('production')}>管理工厂</Button>} />
             <DataList className="compact overview-core-data">

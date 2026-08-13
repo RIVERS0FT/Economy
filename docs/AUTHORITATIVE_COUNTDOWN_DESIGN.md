@@ -182,3 +182,15 @@ HTTP 2xx、3xx 或除 408、429 之外的明确 4xx 响应表示本次网络结�
 ## 工厂即时建设边界
 
 工厂建设没有施工截止时间、倒计时或到期确认状态，不得注册到 `authoritativeCountdownDeadlines` 或世界截止时间规划器。建设动作响应确认后，客户端通过权威状态刷新直接看到现金、材料库存和工厂集群数量变化。
+
+### 客户端第三阶段响应边界
+
+客户端继续只接受 `catalog / player / market / auction / contract / leaderboard` 六个外层权威分区；不得为了 React 性能增加第七个业务分区。服务器可在状态 envelope 顶层返回可选 `sliceRevisions`，仅描述 `player` 与 `market` 内稳定字段组是否变化。当前子修订固定为 `player.identity`、`player.assets`、`player.production`、`player.progression`、`player.bank`、`player.stats`、`market.orders`、`market.quotes`、`market.calendar`，以及各父分区的兼容 `misc` 子切片。
+
+`sliceRevisions` 不是 `EconomyState`、不是世界状态，也不改变外层分区完整快照语义。服务器仍在父分区变化时返回完整 `player` 或 `market` 快照；客户端只有在同名子修订与上一份完全相同时，才允许把该子切片对应的顶层字段引用替换回旧引用，以减少 React 与派生索引失效。子修订变化时必须完整接受服务器新字段，包括字段删除；不得用结构共享复活服务器已经删除的字段。旧服务器缺少 `sliceRevisions` 时必须退化为父分区整体变化并清除陈旧子修订 token，不能漏掉 React 更新。
+
+页面与外壳可以通过 `useGameAuthorityDependencies` 同时声明外层分区或子切片。纯银行变化不得提交市场页，纯行情变化不得通知 `market.orders` 消费者，纯订单变化不得通知 `market.quotes` / `market.calendar` 消费者；根 `GameApp` 继续保持稳定只读权威视图。
+
+所有默认 1 秒可见时间刷新必须共享同一秒级 ticker；不得为每个 `useNow` 调用分别创建 `setInterval`。页面根组件不得订阅默认 1 秒 ticker：工作冷却、生产进度、研发倒计时、拍卖剩余时间、银行期限、商店报价倒计时和经济事件倒计时应下沉到最小可见叶子或独立动态区块。确实不需要秒级精度的根级判断可以使用至少 10 秒或 60 秒的共享慢速 ticker，但不能因此降低原本需要秒级显示的倒计时精度。
+
+浏览器回归必须同时证明：子切片 patch 只提交声明该依赖的 React 消费者；共享秒级 ticker 连续运行时父组件 render count 保持不变、时间叶子正常更新。

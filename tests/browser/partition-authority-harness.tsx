@@ -158,7 +158,7 @@ function bumpSlice(name: string) {
 
 function patch(name: PatchName) {
   revision += 1;
-  let patches: Record<string, object>;
+  let patches: any;
   if (name === 'playerAssets') {
     bumpSlice('player.assets');
     patches = { player: { credits: 100 + revision } };
