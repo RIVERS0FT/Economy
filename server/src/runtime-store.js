@@ -109,6 +109,7 @@ export class EconomyStore extends CoreEconomyStore {
 // updatePopulationPolicy
 // resetPopulationPolicy
 // topUpPopulation
+// prepared.version = 26;
 // createEconomicCalendarClientState(now)
 // createStablePartitionClientState(snapshot.state)
 // createClientPartitionSnapshot
@@ -120,10 +121,11 @@ export class EconomyStore extends CoreEconomyStore {
 // saveWorld(revision, world, now)
 // saveWorldIfChanged(revision, world, now
 // isDeepStrictEqual(world, cached.world)
-// this.flushContractAuditEvents(world, revision, revision)
 // this.updateWorld.run(nextRevision, stateJson, now)
+// flushAuctionAuditEvents(this, world, revision, nextRevision);
 // this.flushContractAuditEvents(world, revision, nextRevision)
 // this.cacheWorld(nextRevision, stateJson, world)
+// this.flushContractAuditEvents(world, revision, revision)
 // migrateLoadedWorld(world, now)
 // triggerType: 'action_postprocess'
 // processProductionContracts(world, now)
