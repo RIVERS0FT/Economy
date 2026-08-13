@@ -67,7 +67,7 @@ const AUTHORITY_STATE_VIEW = new Proxy<Record<PropertyKey, unknown>>({}, {
   deleteProperty: () => {
     throw new TypeError('权威游戏状态视图为只读');
   },
-}) as EconomyState;
+}) as unknown as EconomyState;
 
 export function getGameAuthoritySnapshot(): StateAuthoritySnapshot {
   return getStateAuthoritySnapshot();
