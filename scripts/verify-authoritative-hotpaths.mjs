@@ -115,7 +115,7 @@ for (const text of [
   '按实际到期领域推进',
   'SQLite `SAVEPOINT`',
   '`useSyncExternalStore`',
-  '六分区 React 消费边界',
+  '允许页面或共享组件按分区订阅',
 ]) assert.ok(design.includes(text), `设计索引缺少权威热路径规则: ${text}`);
 
 console.log('权威热路径验证通过：按领域截止时间推进、经济动作保存点回滚、价格档位撮合以及稳定根视图 + 页面六分区 React 消费边界均受防回退约束。');
