@@ -113,8 +113,8 @@ export function openOrdersForAsset(
   index: ClientOrderIndex,
   kind: AssetKind,
   assetId: string,
-): readonly AssetOrder[] {
-  return index.openOrdersByAsset.get(assetKey(kind, assetId)) ?? [];
+): AssetOrder[] {
+  return [...(index.openOrdersByAsset.get(assetKey(kind, assetId)) ?? [])];
 }
 
 export function managedCommodityOrder(
