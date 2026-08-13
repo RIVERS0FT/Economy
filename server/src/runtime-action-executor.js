@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import { applyAssetAuctionAction } from './asset-auctions.js';
 import { applyBankAction, ensureBankWorld, ensurePlayerBankAccount } from './banking.js';
-import { ensurePlayer } from './domain.js';
+import { cancelSettledCommodityOrder, ensurePlayer } from './domain.js';
 import { createEconomicActionBoundary, beginEconomicSavepoint } from './economic-mutation.js';
 import {
   autoProcureFacilityBuildMaterials,
@@ -90,6 +90,11 @@ function executeActionBody(store, world, user, action, payload, requestKey, now)
       gameResult = applyAssetAuctionAction(world, user, action, payload, now);
     } else if (BANK_ACTIONS.has(action)) {
       gameResult = applyBankAction(world, user, action, payload, now);
+    } else if (action === 'cancelOrder') {
+      const cancelledCommodityOrder = cancelSettledCommodityOrder(world, user, payload.orderId);
+      gameResult = cancelledCommodityOrder
+        ? { ok: true, message: '订单已撤销，冻结资产已释放' }
+        : applyFacilityGroupAction(world, user, action, payload, now);
     } else if (action === 'buildFacility' && payload.autoProcure === true) {
       const procurement = autoProcureFacilityBuildMaterials(world, user, payload, now);
       if (!procurement.ok) gameResult = procurement;
