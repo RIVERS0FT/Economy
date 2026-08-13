@@ -1,0 +1,33 @@
+name: Phase 3 client transform
+
+on:
+  push:
+    branches:
+      - agent/client-response-phase3
+
+permissions:
+  contents: write
+
+jobs:
+  transform:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/client-response-phase3
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+      - name: Apply exact transformations
+        run: node scripts/phase3-client-transform.mjs
+      - name: Remove temporary transformer and commit
+        run: |
+          rm scripts/phase3-client-transform.mjs .github/workflows/phase3-client-transform.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "perf: 下沉页面秒级时钟热路径"
+          git push origin HEAD:agent/client-response-phase3
