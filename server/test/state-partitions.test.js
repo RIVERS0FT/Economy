@@ -23,14 +23,30 @@ function sampleState(overrides = {}) {
     facilityTypes: [{ id: 'farm' }],
     userId: 1,
     playerName: 'Alice',
+    registeredAt: 1,
+    saveEpoch: 0,
     credits: 100,
+    frozenCredits: 0,
+    gems: 0,
     inventories: {},
+    warehouseStoredQuantity: 0,
+    assetSummary: { totalAssets: 100 },
+    facilityGroups: [],
+    research: { active: null },
+    work: { cooldownUntil: 0 },
+    checkIn: {},
+    bankAccount: {},
+    bankSummary: {},
+    stats: {},
+    lastProcessedAt: 1,
     markets: { wheat: { lastPrice: 2 } },
     facilityMarkets: {},
     orders: [],
     facilityListings: [],
     valuationPrices: {},
+    economicCalendar: { version: 2, events: [] },
     assetAuctions: [],
+    productionContracts: [],
     leaderboard: [{ rank: 1, playerName: 'Alice' }],
     leaderboards: rankedLeaderboards(),
     ...overrides,
@@ -56,6 +72,10 @@ test('initial delivery returns all six state partitions without a full state fie
   assert.equal(delivery.patches.market.markets.wheat.lastPrice, 2);
   assert.equal(delivery.patches.leaderboard.leaderboards.period.key, '2026-07-27');
   assert.equal('leaderboards' in delivery.patches.player, false);
+  assert.match(delivery.sliceRevisions['player.assets'], /^[A-Za-z0-9_-]{8,64}$/);
+  assert.match(delivery.sliceRevisions['player.production'], /^[A-Za-z0-9_-]{8,64}$/);
+  assert.match(delivery.sliceRevisions['market.orders'], /^[A-Za-z0-9_-]{8,64}$/);
+  assert.match(delivery.sliceRevisions['market.quotes'], /^[A-Za-z0-9_-]{8,64}$/);
 });
 
 
@@ -70,6 +90,7 @@ test('precomputed partition snapshots bypass state splitting and hashing during 
   assert.strictEqual(delivery.patches.catalog, prepared.partitions.catalog);
   assert.strictEqual(delivery.patches.player, prepared.partitions.player);
   assert.deepEqual(delivery.partitionRevisions, prepared.partitionRevisions);
+  assert.deepEqual(delivery.sliceRevisions, prepared.sliceRevisions);
 });
 
 test('catalog snapshots reuse one static partition and revision across player projections', () => {
@@ -84,9 +105,11 @@ test('catalog snapshots reuse one static partition and revision across player pr
   assert.strictEqual(second.partitions.catalog, first.partitions.catalog);
   assert.equal(second.partitionRevisions.catalog, first.partitionRevisions.catalog);
   assert.notEqual(second.partitionRevisions.player, first.partitionRevisions.player);
+  assert.notEqual(second.sliceRevisions['player.identity'], first.sliceRevisions['player.identity']);
+  assert.equal(second.sliceRevisions['player.assets'], first.sliceRevisions['player.assets']);
 });
 
-test('known partition revisions suppress unchanged partitions', () => {
+test('known partition revisions suppress unchanged partitions and isolate player slices', () => {
   const initial = createPartitionedStateDelivery({
     revision: 7,
     unchanged: false,
@@ -103,6 +126,36 @@ test('known partition revisions suppress unchanged partitions', () => {
   assert.equal(changed.patches.player.credits, 101);
   assert.equal(changed.partitionRevisions.catalog, initial.partitionRevisions.catalog);
   assert.notEqual(changed.partitionRevisions.player, initial.partitionRevisions.player);
+  assert.notEqual(changed.sliceRevisions['player.assets'], initial.sliceRevisions['player.assets']);
+  assert.equal(changed.sliceRevisions['player.production'], initial.sliceRevisions['player.production']);
+  assert.equal(changed.sliceRevisions['player.bank'], initial.sliceRevisions['player.bank']);
+});
+
+test('market quote changes keep the market order slice revision stable', () => {
+  const initial = createPartitionedStateDelivery({ revision: 40, unchanged: false, state: sampleState() });
+  const changed = createPartitionedStateDelivery({
+    revision: 41,
+    unchanged: false,
+    state: sampleState({ markets: { wheat: { lastPrice: 2.1 } } }),
+  }, initial.partitionRevisions);
+
+  assert.deepEqual(Object.keys(changed.patches), ['market']);
+  assert.equal(changed.sliceRevisions['market.orders'], initial.sliceRevisions['market.orders']);
+  assert.notEqual(changed.sliceRevisions['market.quotes'], initial.sliceRevisions['market.quotes']);
+});
+
+test('order changes keep market quote and calendar slice revisions stable', () => {
+  const initial = createPartitionedStateDelivery({ revision: 50, unchanged: false, state: sampleState() });
+  const changed = createPartitionedStateDelivery({
+    revision: 51,
+    unchanged: false,
+    state: sampleState({ orders: [{ id: 'order-1' }] }),
+  }, initial.partitionRevisions);
+
+  assert.deepEqual(Object.keys(changed.patches), ['market']);
+  assert.notEqual(changed.sliceRevisions['market.orders'], initial.sliceRevisions['market.orders']);
+  assert.equal(changed.sliceRevisions['market.quotes'], initial.sliceRevisions['market.quotes']);
+  assert.equal(changed.sliceRevisions['market.calendar'], initial.sliceRevisions['market.calendar']);
 });
 
 test('ranked leaderboard changes stay inside the leaderboard partition', () => {

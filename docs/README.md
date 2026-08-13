@@ -122,3 +122,7 @@
 ## 即时建设不可回退规则
 
 工厂建设以服务器正式目录的 `buildCost + buildInputs` 为唯一成本；在一个幂等事务中原子扣除资金和材料、一次性记入建造业就业收入并立即增加同类集群数量。农场和果园当前按正式目录不消耗建造材料，其他工厂使用各自正式 `buildInputs`。缺料且当前卖盘足够时允许在同一建造事务内执行真实统一订单簿 FOK 采购，保留逐材料价格保护、采购总额保护、自成交阻断、卖方手续费、无限共享仓库入库与全事务回滚。卖盘不足时允许通过统一 `/orders` 提交按单次建造聚类的缺料买单：服务器重新计算缺口，每种缺料创建普通玩家商品买单，可成交部分立即成交、剩余正常挂盘并冻结资金；整组取消只撤销该次提交剩余订单，已成交材料保留，建造现金不冻结且不得自动建厂。两条路径都不得创建系统材料商店、第二套订单类型、施工任务或绕过市场资产守恒。不得恢复施工时间、施工任务、施工队列、施工倒计时或工厂宝石加速。历史 `economy_facility_gem_actions` 仅保留只读审计，不得恢复 INSERT 写路径；旧 `POST /api/game/facilities/construction/accelerate` 必须继续在进入经济事务前返回 `410 Gone`。规则变更必须同步更新产业、产品、订单簿、仓库、页面、服务器、宝石与权威倒计时文档，以及一键采购、目录、宝石、倒计时和服务器测试。
+
+### 客户端子修订与叶子时钟索引
+
+客户端仍以六个外层完整状态分区为传输边界；`player / market` 的 `sliceRevisions`、结构共享、`useSyncExternalStore` 子切片 React 消费和共享秒级叶子 ticker 以 `AUTHORITATIVE_COUNTDOWN_DESIGN.md` 为准，服务器 envelope 元数据边界以 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` 为准。客户端订单索引分别受 `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` 与 `WAREHOUSE_EXPANSION_DESIGN.md` 约束，只允许作为只读派生加速器。

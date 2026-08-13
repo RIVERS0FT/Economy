@@ -25,6 +25,7 @@ import type {
   ProductInventory,
   ProductMarketState,
 } from '../../types';
+import { useNow } from '../../hooks/useNow';
 import { formatNumber } from '../../utils/formatters';
 import { resolveFacilityProfitPresentation } from '../../utils/facilityProfitPresentation';
 import { facilityEffectiveCount, projectFacilityStaffingRate } from '../../utils/facilityStaffing';
@@ -259,9 +260,10 @@ export function FacilityClusterSelectorCard({
   onSelect: (trigger: HTMLButtonElement) => void;
 }) {
   const { group, type } = entry;
+  const liveNow = useNow(now, 10_000);
   const markets = useFacilityRecipeProfitMarkets();
   const recipeState = resolveFacilityDetailRecipeState(entry);
-  const profitScope = currentFormulaScope(group, now);
+  const profitScope = currentFormulaScope(group, liveNow);
   const profitType = recipeState.formulaType;
   const profit = resolveFacilityProfitPresentation({
     type: profitType,
@@ -308,8 +310,9 @@ export function FacilityClusterInformation({
   titleId: string;
 }) {
   const { group, type } = entry;
+  const liveNow = useNow(now);
   const recipeState = resolveFacilityDetailRecipeState(entry);
-  const profitScope = currentFormulaScope(group, now);
+  const profitScope = currentFormulaScope(group, liveNow);
 
   return (
     <section
@@ -378,8 +381,9 @@ export function FacilityClusterDetailBody({
   onOpenContracts,
 }: Omit<FacilityClusterDetailSharedProps, 'onToggle' | 'onOpenMarket'>) {
   const { group, type } = entry;
+  const liveNow = useNow(now);
   const recipeState = resolveFacilityDetailRecipeState(entry);
-  const operatingScope = currentFormulaScope(group, now);
+  const operatingScope = currentFormulaScope(group, liveNow);
   const selectConfiguration = (
     selectedBaseRecipeId: string,
     selectedProductionMethodId: FacilityProductionMethodId,
@@ -390,7 +394,7 @@ export function FacilityClusterDetailBody({
 
   return (
     <>
-      <FacilityStaffingSummary entry={entry} now={now} />
+      <FacilityStaffingSummary entry={entry} now={liveNow} />
 
       <section className="facility-production-settings mobile-detail-section">
         <div className="facility-production-settings-heading">
@@ -420,7 +424,7 @@ export function FacilityClusterDetailBody({
         type={recipeState.formulaType}
         products={products}
         inventories={inventories}
-        now={now}
+        now={liveNow}
         onOpenProductMarket={onOpenProductMarket}
       />
       <FacilityOperatingDiagnostics

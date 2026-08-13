@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useGameAuthorityPartitions } from '../../app/gameAuthorityStore';
+import { useGameAuthorityDependencies } from '../../app/gameAuthorityStore';
 import type { RefreshOptions } from '../../app/gameViewModel';
 import type { EconomyState } from '../../types';
 import { nextAuthoritativeCountdownDeadline } from '../../utils/authoritativeCountdowns';
@@ -14,9 +14,11 @@ export function AuthoritativeCountdownRefresh({
   game: EconomyState;
   refresh: (options?: RefreshOptions) => Promise<void>;
 }) {
-  const authorityGame = useGameAuthorityPartitions([
+  const authorityGame = useGameAuthorityDependencies([
     'catalog',
-    'player',
+    'player.production',
+    'player.progression',
+    'player.bank',
     'auction',
     'contract',
     'leaderboard',
@@ -66,7 +68,7 @@ export function AuthoritativeCountdownRefresh({
       if (deadlineTimer !== null) window.clearTimeout(deadlineTimer);
       if (confirmationTimer !== null) window.clearTimeout(confirmationTimer);
     };
-  }, [currentGame.lastProcessedAt, deadline, refresh]);
+  }, [deadline, refresh]);
 
   return null;
 }

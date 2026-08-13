@@ -9,6 +9,7 @@ import {
   useState,
   type CSSProperties,
 } from 'react';
+import { getClientOrderIndex, openOrdersForAsset } from '../app/clientOrderIndex';
 import { orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
@@ -358,18 +359,16 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const assetName = selectedProduct?.name ?? selectedFacility?.name ?? '资产';
   const assetId = selectedProduct?.id ?? selectedFacility?.id ?? marketAssetId;
 
-  const selectedOrders = useMemo(() => game.orders.filter((order) => (
-    orderKind(order) === marketAssetKind
-    && orderAssetId(order) === assetId
-    && ['open', 'partial'].includes(order.status)
-  )), [assetId, game.orders, marketAssetKind]);
+  const orderIndex = useMemo(() => getClientOrderIndex(game.orders), [game.orders]);
+  const selectedOrders = useMemo(
+    () => openOrdersForAsset(orderIndex, marketAssetKind, assetId),
+    [assetId, marketAssetKind, orderIndex],
+  );
   const ownSelectedOrders = useMemo(
     () => selectedOrders.filter((order) => order.isOwn),
     [selectedOrders],
   );
-  const ownOpenOrders = useMemo(() => game.orders.filter((order) => (
-    order.isOwn && ['open', 'partial'].includes(order.status)
-  )), [game.orders]);
+  const ownOpenOrders = orderIndex.ownOpenOrders;
   const maxOpenOrders = openOrderLimitForCatalog(game.products.length, game.facilityTypes.length);
   const bestAsks = useMemo(
     () => buildOrderBookLevels(selectedOrders, 'sell').reverse(),

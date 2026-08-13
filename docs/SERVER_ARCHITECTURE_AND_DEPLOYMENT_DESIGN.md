@@ -692,3 +692,11 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 合同新增只读 `GET /api/game/contracts/performance`，服务端直接从参与者可见的追加式合同审计汇总已结束合同、完成、异常、违约、赔付和最近结果，不进入六分区状态轮询，也不产生信用分。工厂经营诊断、研发产业视角、排行榜分段和经济事件结果反馈均由客户端对已经加载的服务器权威状态做无副作用派生；它们不得产生新的经济写操作。公开经济事件日历额外保留结束后 24 小时的事件供事后反馈，实际需求重分配仍只在正式事件生效窗口内发生。
 
 排行榜个人最好成绩保存在玩家权威 `stats.leaderboardPersonalBests` 中，按 `wealth/growth/production/trading` 保存已结算最好分数与 `periodKey`。只有完整周结算可以更新该历史值；排行榜读取只比较当前完整周成绩与已结算最好成绩并返回 `currentIsRecord`，不得由 GET 请求或浏览器本地状态写入历史纪录。
+
+### 六分区内部子修订元数据
+
+状态交付的六个外层分区保持不变，字段归属仍由 `state-partitions.js` 决定。为允许新客户端在收到完整 `player` / `market` 快照时复用未变化字段引用，服务器可在 envelope 顶层同时返回 `sliceRevisions`。子切片定义唯一维护在 `server/shared/economy-state-slices.js`；服务端与客户端必须共享同一字段归属，禁止各自复制一套映射。
+
+`sliceRevisions` 只是传输元数据，不写入世界 JSON、SQLite 玩家状态或 `EconomyState`，也不参与经济规则。客户端仍只提交六个父分区 revision 作为已知状态，服务器仍以父分区 revision 判断是否需要发送完整父分区 patch；子修订不能让服务器发送字段级 patch。没有父分区 patch 的轻量无变化响应仍可省略子修订。
+
+增加、删除或调整子切片不得修改客户端状态版本或世界状态版本，除非实际 `EconomyState` 字段或持久化结构同时发生了不兼容变化。旧客户端会忽略 `sliceRevisions`；新客户端遇到缺少该元数据的旧响应必须按整个父分区变化处理，因此发布期间不需要双协议切换。

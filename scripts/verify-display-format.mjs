@@ -52,7 +52,11 @@ function forbidText(path, fragments) {
 requireText('src/components/shell/GameShell.tsx', ['formatRank(', 'aria-label={rankLabel}']);
 requireText('src/pages/OverviewPage.tsx', [
   '固定 3s 冷却',
-  'formatDuration(workRemaining)',
+  '<OverviewWorkButton',
+]);
+requireText('src/pages/overview/OverviewLiveSections.tsx', [
+  'formatDuration(remaining)',
+  'disabled={isWorking || remaining > 0}',
 ]);
 requireText('src/pages/LeaderboardPage.tsx', [
   'formatRank(currentRank)',
@@ -60,9 +64,13 @@ requireText('src/pages/LeaderboardPage.tsx', [
   'aria-label={`排名第 ${entry.rank} 名`}',
 ]);
 requireText('src/pages/AuctionPage.tsx', [
-  'formatDuration(remaining)',
+  'function AuctionRemainingTime',
   '最长 168h',
   '时长（h）',
+]);
+requireText('src/components/time/LiveServerTime.tsx', [
+  'formatDuration(remaining)',
+  'zeroText',
 ]);
 requireText('src/pages/SettingsPage.tsx', [
   '<option value="3">每 3s</option>',

@@ -17,6 +17,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/types.ts',
   'src/app/gameViewModel.ts',
   'src/app/useDerivedGameData.ts',
+  'src/app/clientOrderIndex.ts',
   'src/utils/localActivityStore.ts',
   'src/pages/MarketPage.tsx',
   'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
@@ -45,7 +46,6 @@ for (const text of [
   'createOrderHistoryPage',
   'isOpenOrder(order) || recentClosedIds.has',
 ]) requireText('server/src/facility-groups.js', text);
-
 
 for (const text of [
   "path === '/api/game/orders/history'",
@@ -76,7 +76,11 @@ for (const text of [
 for (const text of ['AssetEvent', 'assetEvents', 'diffInventories']) forbidText('src/utils/localActivityStore.ts', text);
 for (const text of ['fill.counterparty', 'trade.counterparty', 'counterparty:', 'populationModelId', 'fundingPool']) forbidText('src/utils/localActivityStore.ts', text);
 
-requireText('src/app/useDerivedGameData.ts', 'order.isOwn &&');
+for (const text of [
+  'if (order.isOwn === true) ownOpenOrders.push(order);',
+  'order.isOwn === true',
+]) requireText('src/app/clientOrderIndex.ts', text);
+requireText('src/app/useDerivedGameData.ts', 'getClientOrderIndex(orders).ownOpenOrders');
 requireText('src/pages/MarketPage.tsx', 'order.isOwn');
 for (const text of ['trade.counterparty', 'role="columnheader">来源', '人口经济', 'fundingSlices']) forbidText('src/pages/MarketPage.tsx', text);
 
@@ -96,4 +100,4 @@ if (failures.length) {
   console.error(`普通玩家成交匿名化验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('普通玩家订单 API、本地存储和市场成交展示均已匿名化，人口模型及资金池字段不会公开。');
+console.log('普通玩家订单 API、本地存储和市场成交展示均已匿名化，客户端订单索引只依据 isOwn 识别当前玩家订单，人口模型及资金池字段不会公开。');
