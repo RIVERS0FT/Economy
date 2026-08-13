@@ -192,6 +192,14 @@
   text-align: center;
 }
 
+@supports (translate: -50% -50%) {
+  .research-technology-node {
+    left: var(--research-node-x);
+    top: var(--research-node-y);
+    translate: -50% -50%;
+  }
+}
+
 .research-technology-node[data-status='mastered'] {
   --research-node-color: var(--color-success);
   --research-node-soft: var(--color-success-soft);
