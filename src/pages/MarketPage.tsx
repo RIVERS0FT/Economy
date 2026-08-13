@@ -163,7 +163,7 @@ const MarketOrderEntry = memo(forwardRef<MarketOrderEntryHandle, MarketOrderEntr
       economyConstants.maxOrderPrice,
       Math.max(0.01, Math.round(value * 100) / 100),
     );
-    setPriceDraft(normalized.toFixed(2));
+    setPriceDraft(String(normalized));
   }, []);
 
   useImperativeHandle(ref, () => ({ fillPrice: setPriceValue }), [setPriceValue]);
