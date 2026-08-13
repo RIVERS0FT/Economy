@@ -4,7 +4,7 @@
 > 适用项目：`RIVERS0FT/Economy`
 > 更新时间：2026-08-11
 > 客户端状态版本：33
-> 世界状态版本：27
+> 世界状态版本：28
 
 生产与工厂集群以 `INDUSTRY_AND_PRODUCTION_DESIGN.md` 为准；页面归属以 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准。仓库商品卡密度、桌面自动交易控制列、移动端自动交易抽屉，以及商品级在线自动采购／自动出售存档规则以本文为准。
 

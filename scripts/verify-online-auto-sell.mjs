@@ -193,7 +193,7 @@ for (const [path, texts] of Object.entries({
   ],
   'docs/WAREHOUSE_EXPANSION_DESIGN.md': [
     '客户端状态版本：33',
-    '世界状态版本：27',
+    '世界状态版本：28',
     '### 4.2 在线自动采购',
     '### 4.3 在线自动出售',
     '### 4.4 双向自动交易区间',

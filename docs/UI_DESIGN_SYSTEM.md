@@ -3,7 +3,7 @@
 > 状态：当前视觉、共享组件、响应式与可访问性实现基线
 > 适用项目：`RIVERS0FT/Economy`
 > 当前平台：网页端
-> 更新时间：2026-08-11
+> 更新时间：2026-08-13
 
 产品和页面职责分别以 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；应用外壳几何和玻璃材质以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。
 
@@ -183,7 +183,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 ### 5.1 商品 SVG 图标目录
 
-当前 36 种正式商品必须在 `ProductIcons.tsx` 中各有一个独立、可辨识的本地内联 SVG。甘蔗、水果、鱼类、砂糖、纸浆、饮料、预制餐、纸品、配合饲料、养殖药剂、拖拉机和家电不得使用默认包装箱图标。
+当前 38 种正式商品必须在 `ProductIcons.tsx` 中各有一个独立、可辨识的本地内联 SVG。甘蔗、水果、鱼类、砂糖、纸浆、饮料、预制餐、纸品、配合饲料、养殖药剂、拖拉机和家电不得使用默认包装箱图标。
 
 - `wheat`：麦穗；
 - `rice`：稻穗与米碗；
