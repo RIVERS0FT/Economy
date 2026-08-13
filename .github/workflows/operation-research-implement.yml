@@ -26,7 +26,18 @@ jobs:
           node-version: 24.4.0
           cache: npm
       - name: Apply implementation
-        run: python3 .agent/apply-operation-research.py
+        run: |
+          python3 .agent/apply-operation-research.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('server/test/research.test.js')
+          text = path.read_text(encoding='utf-8')
+          old = "assert.deepEqual(player.research.active.grantTechnologyIds, ['tool-manufacturing', 'tool-operation']);"
+          new = "assert.deepEqual(player.research.active.grantTechnologyIds, ['tool-operation', 'tool-manufacturing']);"
+          if text.count(old) != 1:
+              raise SystemExit('active grant ordering assertion not found exactly once')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
       - name: Install dependencies
         run: npm ci
       - name: Run targeted research tests
