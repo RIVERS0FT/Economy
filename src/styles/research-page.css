@@ -48,22 +48,44 @@
   line-height: var(--line-height-normal);
 }
 
-.research-tree-scroll {
+.research-tree-viewport {
+  position: relative;
   min-width: 0;
-  overflow-x: auto;
-  overflow-y: visible;
-  overscroll-behavior-x: contain;
-  padding: var(--space-2) var(--space-1) var(--space-4);
+  width: 100%;
+  height: clamp(560px, 72dvh, 820px);
+  min-height: 480px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-inset);
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+
+.research-tree-viewport[data-dragging='true'] {
+  cursor: grabbing;
+}
+
+.research-tree-viewport:focus-visible {
+  outline: 2px solid var(--color-focus-ring, var(--color-success));
+  outline-offset: 2px;
+}
+
+.research-tree-transform-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
 }
 
 .research-tree {
   --research-trunk-color: color-mix(in srgb, var(--color-border-strong) 78%, transparent);
   --research-focus-color: var(--color-accent-violet);
   position: relative;
-  min-width: var(--research-tree-desktop-width);
-  width: var(--research-tree-desktop-width);
-  height: var(--research-tree-desktop-height);
-  margin-inline: auto;
+  width: 100%;
+  height: 100%;
 }
 
 .research-tree-connections {
@@ -74,10 +96,6 @@
   height: 100%;
   overflow: visible;
   pointer-events: none;
-}
-
-.research-tree-connections--mobile {
-  display: none;
 }
 
 .research-tree-edge {
@@ -100,6 +118,52 @@
   opacity: 0.95;
 }
 
+.research-tree-controls {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  padding: var(--space-1);
+  background: color-mix(in srgb, var(--color-surface-panel) 92%, transparent);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(12px);
+  touch-action: manipulation;
+}
+
+.research-tree-control {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-2);
+  color: var(--color-text-primary);
+  background: var(--color-surface-control);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+}
+
+.research-tree-control--text {
+  min-width: 3rem;
+}
+
+.research-tree-zoom-readout {
+  min-width: 3.2rem;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.research-tree-viewport[data-zoom-tier='overview'] .research-technology-node-meta,
+.research-tree-viewport[data-zoom-tier='overview'] .research-technology-node-status {
+  opacity: 0;
+}
+
 .research-facility-node {
   min-width: 0;
   color: var(--color-text-secondary);
@@ -112,8 +176,8 @@
   --research-node-soft: color-mix(in srgb, var(--color-text-muted) 10%, var(--color-surface-inset));
   position: absolute;
   z-index: 1;
-  left: var(--research-node-desktop-x);
-  top: var(--research-node-desktop-y);
+  left: var(--research-node-x);
+  top: var(--research-node-y);
   width: 7.5rem;
   min-height: 7rem;
   display: grid;
@@ -498,50 +562,23 @@
     gap: var(--space-2);
   }
 
+  .research-tree-viewport {
+    height: clamp(420px, 62dvh, 620px);
+    min-height: 420px;
+  }
+
   .research-tree-heading p {
-    display: none;
-  }
-
-  .research-tree-scroll {
-    overflow-x: visible;
-    padding: var(--space-1) 0 var(--space-3);
-  }
-
-  .research-tree {
-    min-width: 0;
-    width: 100%;
-    height: var(--research-tree-mobile-height);
-    margin-inline: 0;
-  }
-
-  .research-tree-connections--desktop {
-    display: none;
-  }
-
-  .research-tree-connections--mobile {
     display: block;
   }
 
-  .research-technology-node {
-    left: var(--research-node-mobile-x);
-    top: var(--research-node-mobile-y);
-    width: min(8.5rem, calc(50% - var(--space-2)));
-    min-height: 6.5rem;
-    padding-inline: 0.15rem;
+  .research-tree-controls {
+    right: var(--space-1);
+    bottom: var(--space-1);
   }
 
-  .research-facility-artwork {
-    width: 3rem;
-    height: 3rem;
-  }
-
-  .research-technology-node-name {
-    font-size: 0.7rem;
-  }
-
-  .research-technology-node-meta,
-  .research-technology-node-status {
-    font-size: 0.63rem;
+  .research-tree-control {
+    min-width: 2.5rem;
+    min-height: 2.5rem;
   }
 
   .mobile-detail-sheet .research-detail-content > .widget-heading {

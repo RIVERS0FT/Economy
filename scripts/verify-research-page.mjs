@@ -22,6 +22,7 @@ for (const path of [
   'server/src/commercial-contracts.js',
   'src/hooks/useStableSelection.ts',
   'src/research/researchTreeLayout.ts',
+  'src/research/ResearchTreeViewport.tsx',
   'src/pages/ResearchPage.tsx',
   'src/styles/research-page.css',
   'src/api/game.ts',
@@ -65,8 +66,8 @@ for (const text of [
   'className="research-workspace"',
   'className="research-tree"',
   'data-layout-direction="downward"',
-  'research-tree-connections--desktop',
-  'research-tree-connections--mobile',
+  'ResearchTreeViewport',
+  'className="research-tree-connections"',
   'research-technology-node',
   'ResearchDetailBody',
   'ResearchDetailActions',
@@ -89,14 +90,17 @@ for (const text of [
 for (const text of [
   'technologyDepths',
   'orderedLayers',
-  'MOBILE_COLUMNS = 2',
-  'desktopPath',
-  'mobilePath',
+  'x: number',
+  'y: number',
+  'path: string',
   'buildResearchTreeFocus',
 ]) requireText('src/research/researchTreeLayout.ts', text);
 
 for (const text of [
+  '.research-tree-viewport',
+  '.research-tree-transform-layer',
   '.research-tree-connections',
+  'touch-action: none;',
   '--research-focus-color: var(--color-accent-violet);',
   ".research-tree-edge[data-related='true']",
   ".research-tree-edge[data-highlighted='true']",
@@ -113,13 +117,24 @@ for (const text of [
 for (const text of [
   'renders a downward prerequisite tree on desktop',
   'keeps node geometry stable on hover and selected dependency lines visible',
-  'keeps every mobile dependency below its prerequisite without horizontal tree scrolling',
   'preserves an explicit technology selection across refreshed snapshots',
   'shows concrete prerequisite requirements',
   'uses the stored base duration for accelerated node research progress',
+  'uses one world geometry on mobile with pan and zoom instead of two-lane reflow',
+  'supports desktop drag and ctrl-wheel zoom without changing world coordinates',
   'opens technology details in the shared mobile sheet',
   'distinguishes operation research from production research',
 ]) requireText('tests/browser/research-technology-tree.spec.ts', text);
+
+for (const text of [
+  'clampResearchTreeViewport',
+  'zoomResearchTreeAtPoint',
+  'translate3d(',
+  'data-pan-x',
+  'data-zoom',
+  '定位当前科技',
+  '查看完整技术树',
+]) requireText('src/research/ResearchTreeViewport.tsx', text);
 
 requireText('src/api/game.ts', "postAction('/research/start', { technologyId })");
 requireText('src/api/game.ts', "postAction('/research/accelerate')");
@@ -141,7 +156,9 @@ for (const text of [
   '自上而下 DAG',
   '结构定位不得复用 `transform`',
   '选中科技只能改变节点和连接线的强调状态',
-  '最多两条横向节点轨道',
+  '同一确定性 DAG 世界坐标',
+  '单指平移',
+  '双指缩放',
   '旧客户端',
   '周期轮询、动作后同步和权威倒计时确认对客户端交互状态必须透明',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
@@ -166,7 +183,23 @@ for (const forbidden of [
   '.research-stage-node',
   'var(--color-accent)',
   'transform: translate(-50%, -50%)',
+  '.research-tree-scroll',
+  '.research-tree-connections--mobile',
+  '--research-node-mobile-x',
+  '--research-node-desktop-x',
 ]) forbidText('src/styles/research-page.css', forbidden);
+for (const forbidden of [
+  'MOBILE_COLUMNS',
+  'mobileXPercent',
+  'mobileY',
+  'mobilePath',
+  'desktopX',
+  'desktopPath',
+]) forbidText('src/research/researchTreeLayout.ts', forbidden);
+for (const forbidden of [
+  'research-tree-connections--mobile',
+  'research-tree-connections--desktop',
+]) forbidText('src/pages/ResearchPage.tsx', forbidden);
 
 const researchCss = read('src/styles/research-page.css');
 const relatedEdgeIndex = researchCss.indexOf(".research-tree-edge[data-related='true']");
@@ -180,4 +213,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('downward prerequisite research DAG, stable hover geometry, visible selected links, deterministic layout, mobile two-lane tree, stable selection, detail sheet and design verification passed');
+console.log('downward prerequisite research DAG, stable hover geometry, visible selected links, deterministic layout, shared pan/zoom viewport, stable selection, detail sheet and design verification passed');

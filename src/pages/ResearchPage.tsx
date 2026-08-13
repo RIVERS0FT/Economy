@@ -22,6 +22,7 @@ import {
 } from '../components/ui/layout';
 import { useNow } from '../hooks/useNow';
 import { useStableSelection } from '../hooks/useStableSelection';
+import { ResearchTreeViewport } from '../research/ResearchTreeViewport';
 import { buildResearchTreeFocus, buildResearchTreeLayout } from '../research/researchTreeLayout';
 import { formatCurrency, formatDuration, formatNumber } from '../utils/formatters';
 import { marketDecisionSignal, marketTrendGlyph } from '../utils/marketDecisionSignals';
@@ -546,6 +547,7 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
     () => buildResearchTreeFocus(technologies, selectedTechnology?.id ?? ''),
     [selectedTechnology?.id, technologies],
   );
+  const selectedTreeNode = researchTreeLayout.nodes.find((node) => node.id === selectedTechnology?.id);
   const selectedFacilities = selectedTechnology
     ? selectedTechnology.unlockFacilityTypeIds
       .map((facilityTypeId) => facilitiesById.get(facilityTypeId))
@@ -623,27 +625,25 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
           <div className="research-tree-heading">
             <div>
               <h2>技术树</h2>
-              <p>阶段只用于组织难度；节点前置关系决定可研发路线。</p>
+              <p>拖动浏览 · Ctrl/⌘+滚轮或双指缩放；节点前置关系决定可研发路线。</p>
             </div>
             <StatusTag tone="neutral">{formatNumber(technologies.length)} 项科技</StatusTag>
           </div>
 
-          <div className="research-tree-scroll">
+          <ResearchTreeViewport
+            width={researchTreeLayout.width}
+            height={researchTreeLayout.height}
+            focusPoint={selectedTreeNode ? { x: selectedTreeNode.x, y: selectedTreeNode.y } : undefined}
+          >
             <div
               className="research-tree"
               role="tree"
               aria-label="产业科技树"
               data-layout-direction="downward"
-              style={{
-                '--research-tree-desktop-width': `${researchTreeLayout.desktopWidth}px`,
-                '--research-tree-desktop-height': `${researchTreeLayout.desktopHeight}px`,
-                '--research-tree-mobile-height': `${researchTreeLayout.mobileHeight}px`,
-              } as CSSProperties}
             >
               <svg
-                className="research-tree-connections research-tree-connections--desktop"
-                viewBox={`0 0 ${researchTreeLayout.desktopWidth} ${researchTreeLayout.desktopHeight}`}
-                preserveAspectRatio="none"
+                className="research-tree-connections"
+                viewBox={`0 0 ${researchTreeLayout.width} ${researchTreeLayout.height}`}
                 aria-hidden="true"
               >
                 {researchTreeLayout.edges.map((edge) => (
@@ -651,24 +651,8 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
                     className="research-tree-edge"
                     data-highlighted={researchTreeFocus.upstreamEdgeKeys.has(edge.key) || undefined}
                     data-related={researchTreeFocus.downstreamEdgeKeys.has(edge.key) || undefined}
-                    d={edge.desktopPath}
-                    key={`desktop:${edge.key}`}
-                  />
-                ))}
-              </svg>
-              <svg
-                className="research-tree-connections research-tree-connections--mobile"
-                viewBox={`0 0 1000 ${researchTreeLayout.mobileHeight}`}
-                preserveAspectRatio="none"
-                aria-hidden="true"
-              >
-                {researchTreeLayout.edges.map((edge) => (
-                  <path
-                    className="research-tree-edge"
-                    data-highlighted={researchTreeFocus.upstreamEdgeKeys.has(edge.key) || undefined}
-                    data-related={researchTreeFocus.downstreamEdgeKeys.has(edge.key) || undefined}
-                    d={edge.mobilePath}
-                    key={`mobile:${edge.key}`}
+                    d={edge.path}
+                    key={edge.key}
                   />
                 ))}
               </svg>
@@ -691,10 +675,8 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
                 const isDirectChild = researchTreeFocus.directChildIds.has(technology.id);
                 const nodeStyle = {
                   '--research-node-progress': `${Math.round(progress * 360)}deg`,
-                  '--research-node-desktop-x': `${layoutNode.desktopX}px`,
-                  '--research-node-desktop-y': `${layoutNode.desktopY}px`,
-                  '--research-node-mobile-x': `${layoutNode.mobileXPercent}%`,
-                  '--research-node-mobile-y': `${layoutNode.mobileY}px`,
+                  '--research-node-x': `${layoutNode.x}px`,
+                  '--research-node-y': `${layoutNode.y}px`,
                 } as CSSProperties;
                 return (
                   <button
@@ -703,6 +685,8 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
                     data-technology-id={technology.id}
                     data-depth={layoutNode.depth}
                     data-prerequisites={technology.prerequisiteTechnologyIds.join(',')}
+                    data-research-node-x={layoutNode.x}
+                    data-research-node-y={layoutNode.y}
                     data-status={status}
                     data-selected={isSelected || undefined}
                     data-path={isAncestor ? 'ancestor' : isDirectChild ? 'descendant' : undefined}
@@ -726,7 +710,7 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
                 );
               })}
             </div>
-          </div>
+          </ResearchTreeViewport>
         </PagePanel>
       </div>
 
