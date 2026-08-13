@@ -4,7 +4,7 @@ const TEST_PATH = '/economy-api/game/idempotency-runtime-test';
 const HISTORY_KEY = 'economy-write-idempotency-test-history';
 const MODE_KEY = 'economy-write-idempotency-test-mode';
 
-type MockMode = 'abort-first' | 'network-error' | 'success';
+type MockMode = 'abort-first' | 'network-error' | 'rate-limited' | 'success';
 
 async function installNativeWriteMock(page: Page, initialMode: MockMode) {
   await page.addInitScript(({ historyKey, modeKey, initialModeValue, testPath }) => {
@@ -51,6 +51,15 @@ async function installNativeWriteMock(page: Page, initialMode: MockMode) {
       }
       if (mode === 'network-error') {
         throw new TypeError('Failed to fetch');
+      }
+      if (mode === 'rate-limited') {
+        return new Response(JSON.stringify({ message: '操作过于频繁，请稍后重试' }), {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': '1',
+          },
+        });
       }
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
@@ -114,7 +123,7 @@ test('ambiguous abort retries once with the original idempotency key', async ({ 
   expect(result.history).toEqual(['logical-action-key-1', 'logical-action-key-1']);
 });
 
-test('unconfirmed write survives reload and only releases its key after a definitive response', async ({ page }) => {
+test('unconfirmed write survives reload and rate limiting until a definitive response', async ({ page }) => {
   await installNativeWriteMock(page, 'network-error');
 
   const unresolved = await submitTestWrite(page, 'original-action-key', '{"quantity":2}');
@@ -122,12 +131,23 @@ test('unconfirmed write survives reload and only releases its key after a defini
   expect(unresolved.errorName).toBe('TypeError');
   expect(unresolved.history).toEqual(['original-action-key', 'original-action-key']);
 
-  await page.evaluate(({ modeKey }) => window.sessionStorage.setItem(modeKey, 'success'), { modeKey: MODE_KEY });
+  await page.evaluate(({ modeKey }) => window.sessionStorage.setItem(modeKey, 'rate-limited'), { modeKey: MODE_KEY });
   await page.reload();
 
-  const confirmed = await submitTestWrite(page, 'new-key-that-must-not-be-used', '{"quantity":2}');
+  const rateLimited = await submitTestWrite(page, 'new-key-that-must-not-be-used', '{"quantity":2}');
+  expect(rateLimited.status).toBe(429);
+  expect(rateLimited.history).toEqual([
+    'original-action-key',
+    'original-action-key',
+    'original-action-key',
+  ]);
+
+  await page.evaluate(({ modeKey }) => window.sessionStorage.setItem(modeKey, 'success'), { modeKey: MODE_KEY });
+
+  const confirmed = await submitTestWrite(page, 'second-new-key-that-must-not-be-used', '{"quantity":2}');
   expect(confirmed.status).toBe(200);
   expect(confirmed.history).toEqual([
+    'original-action-key',
     'original-action-key',
     'original-action-key',
     'original-action-key',
@@ -136,6 +156,7 @@ test('unconfirmed write survives reload and only releases its key after a defini
   const newLogicalAction = await submitTestWrite(page, 'fresh-key-after-confirmation', '{"quantity":2}');
   expect(newLogicalAction.status).toBe(200);
   expect(newLogicalAction.history).toEqual([
+    'original-action-key',
     'original-action-key',
     'original-action-key',
     'original-action-key',
