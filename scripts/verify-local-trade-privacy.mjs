@@ -16,6 +16,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'server/test/order-history.test.js',
   'src/types.ts',
   'src/app/gameViewModel.ts',
+  'src/app/useDerivedGameData.ts',
   'src/utils/localActivityStore.ts',
   'src/pages/MarketPage.tsx',
   'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
@@ -75,7 +76,7 @@ for (const text of [
 for (const text of ['AssetEvent', 'assetEvents', 'diffInventories']) forbidText('src/utils/localActivityStore.ts', text);
 for (const text of ['fill.counterparty', 'trade.counterparty', 'counterparty:', 'populationModelId', 'fundingPool']) forbidText('src/utils/localActivityStore.ts', text);
 
-requireText('src/app/gameViewModel.ts', 'order.isOwn &&');
+requireText('src/app/useDerivedGameData.ts', 'order.isOwn &&');
 requireText('src/pages/MarketPage.tsx', 'order.isOwn');
 for (const text of ['trade.counterparty', 'role="columnheader">来源', '人口经济', 'fundingSlices']) forbidText('src/pages/MarketPage.tsx', text);
 
