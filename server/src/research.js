@@ -13,7 +13,7 @@ import {
 
 export { RESEARCH_DURATION_MS, RESEARCH_LEVEL_CATALOG, RESEARCH_TECHNOLOGY_CATALOG };
 
-export const RESEARCH_WORLD_VERSION = 27;
+export const RESEARCH_WORLD_VERSION = 28;
 export const GEM_RESEARCH_ACCELERATION_MS = 30 * 60 * 1000;
 export const GEM_RESEARCH_ACCELERATION_COST = 1;
 
@@ -54,6 +54,45 @@ function sortedTechnologyIds(values) {
 }
 function grantTechnologyClosure(completed, technologyIds) {
   for (const technologyId of researchTechnologyClosure(technologyIds)) completed.add(technologyId);
+}
+function productionMethodGroupForFacility(facility) {
+  return facility?.productionMethodGroups?.find((group) => group.id === 'operation')
+    || facility?.productionMethodGroups?.[0]
+    || null;
+}
+function productionMethodForRecipe(facility, recipe) {
+  const group = productionMethodGroupForFacility(facility);
+  if (!group || !recipe) return null;
+  const methodId = String(recipe.productionMethodId || group.defaultMethodId || 'standard');
+  return group.methods.find((method) => method.id === methodId) || null;
+}
+function standardRecipeForFacility(facility, recipeId) {
+  if (!facility) return null;
+  const baseRecipeId = String(recipeId || '').split('--')[0];
+  return facility.recipes.find((recipe) => (
+    recipe.id === baseRecipeId
+    && (recipe.productionMethodId || 'standard') === 'standard'
+  )) || facility.recipes.find((recipe) => (
+    recipe.baseRecipeId === baseRecipeId
+    && (recipe.productionMethodId || 'standard') === 'standard'
+  )) || facility.recipes.find((recipe) => recipe.id === facility.defaultRecipeId) || facility.recipes[0] || null;
+}
+function normalizeProductionMethodAccess(player, completed, now) {
+  for (const group of player?.facilityGroups || []) {
+    const facility = FACILITY_BY_ID.get(String(group?.facilityTypeId || ''));
+    if (!facility) continue;
+    const recipeId = String(group?.activeRecipeId || facility.defaultRecipeId || '');
+    const recipe = facility.recipes.find((candidate) => candidate.id === recipeId);
+    const method = productionMethodForRecipe(facility, recipe);
+    const requiredTechnologyIds = method?.requiredTechnologyIds || [];
+    const lacksRequiredTechnology = requiredTechnologyIds.some((technologyId) => !completed.has(technologyId));
+    const isLegacyMethod = Boolean(recipe?.legacyProductionMethod) || (recipe && !method);
+    if (!lacksRequiredTechnology && !isLegacyMethod) continue;
+    const standardRecipe = standardRecipeForFacility(facility, recipe?.baseRecipeId || recipeId);
+    if (!standardRecipe || standardRecipe.id === group.activeRecipeId) continue;
+    group.activeRecipeId = standardRecipe.id;
+    if (group.enabled && group.status === 'running') group.cycleStartedAt = Number(now);
+  }
 }
 function collectLegacyFacilityTypeIds(world, player) {
   const facilityTypeIds = new Set();
@@ -203,6 +242,7 @@ export function ensurePlayerResearch(world, player, now = Date.now()) {
     active,
   };
   player.research = research;
+  normalizeProductionMethodAccess(player, completed, now);
   player.stats ||= {};
   player.stats.researchPayroll = Math.max(0, Number(player.stats.researchPayroll || 0));
   player.stats.researchGemSpent = Math.max(0, Number(player.stats.researchGemSpent || 0));
@@ -258,6 +298,7 @@ function completeResearchIfDue(world, player, now) {
   currentResearch.unlockedComplexity = deriveUnlockedComplexity(completed);
   currentResearch.completedAt = Number(currentActive.completesAt);
   currentResearch.active = null;
+  normalizeProductionMethodAccess(player, completed, now);
   return true;
 }
 
@@ -405,6 +446,24 @@ function lockedResult(world, player, facilityTypeId, now) {
   return { ok: false, message: `需要先完成「${technology.name}」研发` };
 }
 
+function productionMethodLockedResult(world, player, facilityTypeId, recipeId, now) {
+  const facility = FACILITY_BY_ID.get(String(facilityTypeId || ''));
+  if (!facility) return null;
+  const recipe = facility.recipes.find((candidate) => candidate.id === String(recipeId || ''));
+  if (!recipe) return null;
+  if (recipe.legacyProductionMethod) return { ok: false, message: '该旧作业制度已退役，请选择当前作业制度' };
+  const method = productionMethodForRecipe(facility, recipe);
+  if (!method) return { ok: false, message: '该旧作业制度已退役，请选择当前作业制度' };
+  const research = ensurePlayerResearch(world, player, now);
+  const completed = new Set(research?.completedTechnologyIds || []);
+  const missing = (method.requiredTechnologyIds || [])
+    .map((technologyId) => researchTechnologyFor(technologyId))
+    .filter((technology) => technology && !completed.has(technology.id));
+  return missing.length > 0
+    ? { ok: false, message: `需要先完成「${missing.map((technology) => technology.name).join('」「')}」研发` }
+    : null;
+}
+
 export function validateResearchAccess(world, user, action, payload = {}, now = Date.now()) {
   if (!world?.players?.[String(user?.id)]) return null;
   processResearchWorld(world, now);
@@ -418,7 +477,14 @@ export function validateResearchAccess(world, user, action, payload = {}, now = 
     const listing = (world.facilityListings || []).find((item) => item.id === payload.listingId);
     facilityTypeId = listing?.facilityTypeId || listing?.facility?.facilityTypeId;
   }
-  if (facilityTypeId) return lockedResult(world, player, facilityTypeId, now);
+  if (facilityTypeId) {
+    const facilityLocked = lockedResult(world, player, facilityTypeId, now);
+    if (facilityLocked) return facilityLocked;
+    if (action === 'setFacilityRecipe') {
+      return productionMethodLockedResult(world, player, facilityTypeId, payload.recipeId, now);
+    }
+    return null;
+  }
   if (action === 'placeAuctionBid') {
     const auction = (world.assetAuctions || []).find((item) => item.id === payload.auctionId);
     for (const item of auctionItems(auction)) {
