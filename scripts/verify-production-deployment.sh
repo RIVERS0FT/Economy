@@ -74,6 +74,8 @@ check_registration_secret() {
 
 check_ip_certificate() {
   curl --fail --silent --show-error \
+    --connect-timeout 5 \
+    --noproxy '*' \
     --connect-to "${PUBLIC_IP}:443:127.0.0.1:443" \
     "https://${PUBLIC_IP}/economy/" >/dev/null
 }
