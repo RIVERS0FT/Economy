@@ -93,7 +93,7 @@ export class EconomyStore extends CoreEconomyStore {
       const barrier = this.ensureScheduledProcessingBarrier();
       if (barrier) {
         return measureRequestPhase('schedulerBarrierWaitMs', () => barrier).then(() => (
-          this.authoritativeWriteExecutor.submit(options, callback)
+          this.enqueueAuthoritativeWrite(options, callback)
         ));
       }
     }
