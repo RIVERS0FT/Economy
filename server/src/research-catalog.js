@@ -42,6 +42,16 @@ const rawTechnologies = [
     description: '生产标准化配合饲料。',
   },
   {
+    id: 'tool-operation', name: '工具作业', stage: 'C2', rank: 2, cost: 300, durationMs: RESEARCH_DURATION_MS,
+    prerequisiteTechnologyIds: ['basic-crops'], unlockFacilityTypeIds: [], kind: 'operation', operationProductIds: ['tools'],
+    description: '掌握在农业、采掘和初级加工中使用工业工具的作业能力，不提供工具制造能力。',
+  },
+  {
+    id: 'feed-husbandry', name: '饲料饲养', stage: 'C2', rank: 2, cost: 200, durationMs: RESEARCH_DURATION_MS,
+    prerequisiteTechnologyIds: ['basic-livestock'], unlockFacilityTypeIds: [], kind: 'operation', operationProductIds: ['feed'],
+    description: '掌握使用配合饲料进行标准化养殖的作业能力，不提供饲料生产能力。',
+  },
+  {
     id: 'pulp-technology', name: '制浆技术', stage: 'C3', rank: 3, cost: 550, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['forestry-development'], unlockFacilityTypeIds: ['pulp-mill'],
     description: '将木材转化为工业纸浆。',
@@ -65,6 +75,26 @@ const rawTechnologies = [
     id: 'papermaking', name: '造纸技术', stage: 'C3', rank: 3, cost: 700, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['pulp-technology'], unlockFacilityTypeIds: ['paper-mill'],
     description: '将纸浆加工为终端纸品。',
+  },
+  {
+    id: 'fertilizer-application', name: '化肥施用', stage: 'C3', rank: 3, cost: 400, durationMs: RESEARCH_DURATION_MS,
+    prerequisiteTechnologyIds: ['basic-crops'], unlockFacilityTypeIds: [], kind: 'operation', operationProductIds: ['fertilizer'],
+    description: '掌握在农场与果园中使用工业化肥的施用能力，不提供化肥生产能力。',
+  },
+  {
+    id: 'veterinary-application', name: '药剂精养', stage: 'C3', rank: 3, cost: 450, durationMs: RESEARCH_DURATION_MS,
+    prerequisiteTechnologyIds: ['feed-husbandry'], unlockFacilityTypeIds: [], kind: 'operation', operationProductIds: ['veterinary-medicine'],
+    description: '掌握在畜牧与渔业中使用养殖药剂的精养能力，不提供养殖药剂生产能力。',
+  },
+  {
+    id: 'industrial-fuel-operation', name: '工业动力作业', stage: 'C3', rank: 3, cost: 450, durationMs: RESEARCH_DURATION_MS,
+    prerequisiteTechnologyIds: ['tool-operation'], unlockFacilityTypeIds: [], kind: 'operation', operationProductIds: ['industrial-fuel'],
+    description: '掌握将工业燃料用于动力采伐和连续化加工的作业能力，不提供炼油能力。',
+  },
+  {
+    id: 'industrial-chemical-operation', name: '工业化学作业', stage: 'C3', rank: 3, cost: 500, durationMs: RESEARCH_DURATION_MS,
+    prerequisiteTechnologyIds: ['tool-operation'], unlockFacilityTypeIds: [], kind: 'operation', operationProductIds: ['industrial-chemicals'],
+    description: '掌握将工业化学品用于强化采矿与采油的作业能力，不提供炼化生产能力。',
   },
   {
     id: 'oil-refining', name: '石油炼化', stage: 'C4', rank: 4, cost: 950, durationMs: RESEARCH_DURATION_MS,
@@ -102,6 +132,16 @@ const rawTechnologies = [
     description: '生产工业工具并奠定机械工业基础。',
   },
   {
+    id: 'machinery-operation', name: '机械化作业', stage: 'C4', rank: 4, cost: 700, durationMs: RESEARCH_DURATION_MS,
+    prerequisiteTechnologyIds: ['tool-operation'], unlockFacilityTypeIds: [], kind: 'operation', operationProductIds: ['machinery'],
+    description: '掌握在农业、养殖、采掘与加工中使用通用机械的作业能力，不提供机械制造能力。',
+  },
+  {
+    id: 'tractor-operation', name: '拖拉机作业', stage: 'C4', rank: 4, cost: 800, durationMs: RESEARCH_DURATION_MS,
+    prerequisiteTechnologyIds: ['machinery-operation'], unlockFacilityTypeIds: [], kind: 'operation', operationProductIds: ['tractor'],
+    description: '掌握在农场与果园中使用拖拉机的农业作业能力，不提供拖拉机制造能力。',
+  },
+  {
     id: 'mechanical-engineering', name: '机械工程', stage: 'C5', rank: 5, cost: 2_500, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['tool-manufacturing', 'metallurgy'], unlockFacilityTypeIds: ['machine-factory'],
     description: '建立通用机械制造体系。',
@@ -125,8 +165,10 @@ const rawTechnologies = [
 
 export const RESEARCH_TECHNOLOGY_CATALOG = Object.freeze(rawTechnologies.map((technology) => Object.freeze({
   ...technology,
+  kind: technology.kind || 'production',
   prerequisiteTechnologyIds: Object.freeze([...technology.prerequisiteTechnologyIds]),
   unlockFacilityTypeIds: Object.freeze([...technology.unlockFacilityTypeIds]),
+  operationProductIds: Object.freeze([...(technology.operationProductIds || [])]),
 })));
 
 export const RESEARCH_TECHNOLOGY_BY_ID = new Map(

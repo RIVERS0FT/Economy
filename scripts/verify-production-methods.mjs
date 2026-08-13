@@ -4,6 +4,10 @@ import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../server/src/domain.js'
 
 const genericMethodIds = ['standard', 'rapid', 'economical', 'high-yield'];
 const dedicatedMethodIds = ['standard', 'assisted', 'intensive', 'mechanized'];
+const operationTechnologyIds = new Set([
+  'tool-operation', 'feed-husbandry', 'fertilizer-application', 'veterinary-application',
+  'industrial-fuel-operation', 'industrial-chemical-operation', 'machinery-operation', 'tractor-operation',
+]);
 const expectedC1Plans = {
   farm: [[], [['tools', 1], 12], [['fertilizer', 2], 14], [['tractor', 1], 16]],
   orchard: [[], [['tools', 1], 11], [['fertilizer', 2], 13], [['tractor', 1], 15]],
@@ -32,7 +36,11 @@ for (const facility of FACILITY_TYPE_CATALOG) {
   assert.deepEqual(group.methods.map((method) => method.id), methodIds);
   for (const method of group.methods) {
     assert.ok(Array.isArray(method.requiredTechnologyIds), `${facility.id}/${method.id} 缺少研发依赖数组`);
-    if (dedicated && method.id !== 'standard') assert.ok(method.requiredTechnologyIds.length > 0);
+    if (dedicated && method.id !== 'standard') {
+      assert.ok(method.requiredTechnologyIds.length > 0);
+      assert.equal(method.requiredTechnologyIds.every((technologyId) => operationTechnologyIds.has(technologyId)), true,
+        `${facility.id}/${method.id} 高级制度只能依赖作业科技`);
+    }
   }
   const baseRecipes = facility.recipes.filter((recipe) => (
     !recipe.legacyProductionMethod && recipe.productionMethodId === 'standard'
@@ -142,6 +150,7 @@ for (const text of [
   'requiredTechnologyIds',
   'normalizeProductionMethodAccess',
   '该旧作业制度已退役',
+  'LEGACY_OPERATION_TECHNOLOGY_GRANTS',
 ]) assert.ok(researchSource.includes(text), `作业制度研发校验缺少 ${text}`);
 for (const text of [
   "String(recipe?.recipeId || '').split('--')[0]",

@@ -164,6 +164,8 @@ export interface ResearchTechnologyDefinition {
   durationMs: number;
   prerequisiteTechnologyIds: string[];
   unlockFacilityTypeIds: string[];
+  kind?: 'production' | 'operation';
+  operationProductIds?: string[];
   description: string;
   initial?: boolean;
   legacy?: boolean;

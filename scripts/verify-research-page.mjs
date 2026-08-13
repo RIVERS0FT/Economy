@@ -44,6 +44,9 @@ for (const text of [
   "id: 'appliance-engineering'",
   'prerequisiteTechnologyIds',
   'unlockFacilityTypeIds',
+  "id: 'tool-operation'",
+  "kind: 'operation'",
+  'operationProductIds',
 ]) requireText('server/src/research-catalog.js', text);
 
 for (const text of [
@@ -73,6 +76,8 @@ for (const text of [
   'model.accelerateResearch()',
   '宝石固定减少',
   '按产业链选择科技节点',
+  "technology.kind === 'operation' ? '作业科技' : '生产科技'",
+  "technology.kind === 'operation' ? '解锁作业制度' : '解锁工厂'",
   'active.durationMs ?? technology.durationMs',
 ]) requireText('src/pages/ResearchPage.tsx', text);
 
@@ -92,6 +97,7 @@ for (const text of [
   'shows concrete prerequisite requirements',
   'uses the stored base duration for accelerated node research progress',
   'opens technology details in the shared mobile sheet',
+  'distinguishes operation research from production research',
 ]) requireText('tests/browser/research-technology-tree.spec.ts', text);
 
 requireText('src/api/game.ts', "postAction('/research/start', { technologyId })");

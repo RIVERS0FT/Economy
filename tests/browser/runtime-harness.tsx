@@ -838,6 +838,32 @@ function ResearchHarness() {
             "description": "生产标准化配合饲料。"
       },
       {
+            "id": "tool-operation",
+            "name": "工具作业",
+            "stage": "C2",
+            "rank": 2,
+            "cost": 300,
+            "durationMs": 21600000,
+            "prerequisiteTechnologyIds": ["basic-crops"],
+            "unlockFacilityTypeIds": [],
+            "kind": "operation",
+            "operationProductIds": ["tools"],
+            "description": "掌握使用工业工具的作业能力，不提供工具制造能力。"
+      },
+      {
+            "id": "feed-husbandry",
+            "name": "饲料饲养",
+            "stage": "C2",
+            "rank": 2,
+            "cost": 200,
+            "durationMs": 21600000,
+            "prerequisiteTechnologyIds": ["basic-livestock"],
+            "unlockFacilityTypeIds": [],
+            "kind": "operation",
+            "operationProductIds": ["feed"],
+            "description": "掌握使用配合饲料的作业能力，不提供饲料生产能力。"
+      },
+      {
             "id": "pulp-technology",
             "name": "制浆技术",
             "stage": "C3",
@@ -912,6 +938,22 @@ function ResearchHarness() {
                   "paper-mill"
             ],
             "description": "将纸浆加工为终端纸品。"
+      },
+      {
+            "id": "fertilizer-application", "name": "化肥施用", "stage": "C3", "rank": 3, "cost": 400, "durationMs": 21600000,
+            "prerequisiteTechnologyIds": ["basic-crops"], "unlockFacilityTypeIds": [], "kind": "operation", "operationProductIds": ["fertilizer"], "description": "掌握化肥施用能力。"
+      },
+      {
+            "id": "veterinary-application", "name": "药剂精养", "stage": "C3", "rank": 3, "cost": 450, "durationMs": 21600000,
+            "prerequisiteTechnologyIds": ["feed-husbandry"], "unlockFacilityTypeIds": [], "kind": "operation", "operationProductIds": ["veterinary-medicine"], "description": "掌握养殖药剂使用能力。"
+      },
+      {
+            "id": "industrial-fuel-operation", "name": "工业动力作业", "stage": "C3", "rank": 3, "cost": 450, "durationMs": 21600000,
+            "prerequisiteTechnologyIds": ["tool-operation"], "unlockFacilityTypeIds": [], "kind": "operation", "operationProductIds": ["industrial-fuel"], "description": "掌握工业燃料作业能力。"
+      },
+      {
+            "id": "industrial-chemical-operation", "name": "工业化学作业", "stage": "C3", "rank": 3, "cost": 500, "durationMs": 21600000,
+            "prerequisiteTechnologyIds": ["tool-operation"], "unlockFacilityTypeIds": [], "kind": "operation", "operationProductIds": ["industrial-chemicals"], "description": "掌握工业化学品作业能力。"
       },
       {
             "id": "oil-refining",
@@ -1020,6 +1062,14 @@ function ResearchHarness() {
                   "tool-workshop"
             ],
             "description": "生产工业工具并奠定机械工业基础。"
+      },
+      {
+            "id": "machinery-operation", "name": "机械化作业", "stage": "C4", "rank": 4, "cost": 700, "durationMs": 21600000,
+            "prerequisiteTechnologyIds": ["tool-operation"], "unlockFacilityTypeIds": [], "kind": "operation", "operationProductIds": ["machinery"], "description": "掌握机械化作业能力。"
+      },
+      {
+            "id": "tractor-operation", "name": "拖拉机作业", "stage": "C4", "rank": 4, "cost": 800, "durationMs": 21600000,
+            "prerequisiteTechnologyIds": ["machinery-operation"], "unlockFacilityTypeIds": [], "kind": "operation", "operationProductIds": ["tractor"], "description": "掌握拖拉机农业作业能力。"
       },
       {
             "id": "mechanical-engineering",

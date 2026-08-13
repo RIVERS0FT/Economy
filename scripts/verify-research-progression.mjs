@@ -17,17 +17,24 @@ import {
 import { createWorld, ensurePlayer } from '../server/src/domain.js';
 
 assert.equal(RESEARCH_DURATION_MS, 6 * 60 * 60_000);
-assert.equal(RESEARCH_TECHNOLOGY_CATALOG.length, 24);
+assert.equal(RESEARCH_TECHNOLOGY_CATALOG.length, 32);
 assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.initial).length, 2);
 assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.initial)
   .every((technology) => technology.durationMs === 0), true);
 assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => !technology.initial)
   .every((technology) => technology.durationMs === RESEARCH_DURATION_MS), true);
 assert.equal(RESEARCH_LEVEL_CATALOG.length, 7);
-assert.equal(RESEARCH_LEVEL_CATALOG.reduce((sum, stage) => sum + stage.cost, 0), 27_900);
+assert.equal(RESEARCH_LEVEL_CATALOG.reduce((sum, stage) => sum + stage.cost, 0), 31_700);
 assert.equal(RESEARCH_LEVEL_CATALOG.every((stage) => stage.durationMs === RESEARCH_DURATION_MS), true);
 
 const technologyIds = new Set(RESEARCH_TECHNOLOGY_CATALOG.map((technology) => technology.id));
+const operationTechnologyIds = new Set([
+  'tool-operation', 'feed-husbandry', 'fertilizer-application', 'veterinary-application',
+  'industrial-fuel-operation', 'industrial-chemical-operation', 'machinery-operation', 'tractor-operation',
+]);
+assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.kind === 'operation').length, 8);
+assert.equal(RESEARCH_TECHNOLOGY_CATALOG.filter((technology) => technology.kind === 'operation')
+  .every((technology) => operationTechnologyIds.has(technology.id) && technology.unlockFacilityTypeIds.length === 0), true);
 assert.equal(technologyIds.size, RESEARCH_TECHNOLOGY_CATALOG.length);
 for (const technology of RESEARCH_TECHNOLOGY_CATALOG) {
   for (const prerequisiteId of technology.prerequisiteTechnologyIds) {
@@ -110,6 +117,9 @@ const sourceChecks = [
   ['server/src/research.js', 'hasResearchAccessForFacility'],
   ['server/src/research.js', 'legacy-stage-'],
   ['server/src/research-catalog.js', 'RESEARCH_DURATION_MS = 6 * 60 * 60_000'],
+  ['server/src/research-catalog.js', "id: 'tool-operation'"],
+  ['server/src/research-catalog.js', "kind: 'operation'"],
+  ['server/src/research.js', 'LEGACY_OPERATION_TECHNOLOGY_GRANTS'],
   ['server/src/state-partitions.js', "'researchTechnologies'"],
   ['server/src/commercial-contracts.js', 'hasResearchAccessForFacility'],
   ['src/types.ts', 'ResearchTechnologyDefinition'],
