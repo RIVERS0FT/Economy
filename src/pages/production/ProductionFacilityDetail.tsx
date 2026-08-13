@@ -24,6 +24,7 @@ import type {
   ProductDefinition,
   ProductInventory,
   ProductMarketState,
+  ResearchTechnologyDefinition,
 } from '../../types';
 import { formatNumber } from '../../utils/formatters';
 import { resolveFacilityProfitPresentation } from '../../utils/facilityProfitPresentation';
@@ -40,6 +41,8 @@ export interface FacilityClusterDetailSharedProps {
   inventories: Record<string, ProductInventory>;
   markets: Record<string, ProductMarketState>;
   credits: number;
+  completedTechnologyIds: string[];
+  researchTechnologies: ResearchTechnologyDefinition[];
   now: number;
   onToggle: (enabled: boolean) => void;
   onRecipeChange: (recipeId: string) => void;
@@ -372,6 +375,8 @@ export function FacilityClusterDetailBody({
   inventories,
   markets,
   credits,
+  completedTechnologyIds,
+  researchTechnologies,
   now,
   onRecipeChange,
   onOpenProductMarket,
@@ -405,9 +410,11 @@ export function FacilityClusterDetailBody({
           productionMethodGroup={recipeState.productionMethodGroup}
           selectedBaseRecipeId={recipeState.selectedBaseRecipeId}
           selectedProductionMethodId={recipeState.selectedProductionMethodId}
+          completedTechnologyIds={completedTechnologyIds}
+          researchTechnologies={researchTechnologies}
           disabled={group.count < 1}
-          onProductChange={(baseRecipeId) => {
-            selectConfiguration(baseRecipeId, recipeState.selectedProductionMethodId);
+          onProductChange={(selectedBaseRecipeId) => {
+            selectConfiguration(selectedBaseRecipeId, recipeState.selectedProductionMethodId);
           }}
           onMethodChange={(methodId) => {
             selectConfiguration(recipeState.selectedBaseRecipeId, methodId);
@@ -452,6 +459,8 @@ export function FacilityClusterDetailContent({
   inventories,
   markets,
   credits,
+  completedTechnologyIds,
+  researchTechnologies,
   now,
   onToggle,
   onRecipeChange,
@@ -478,6 +487,8 @@ export function FacilityClusterDetailContent({
         inventories={inventories}
         markets={markets}
         credits={credits}
+        completedTechnologyIds={completedTechnologyIds}
+        researchTechnologies={researchTechnologies}
         now={now}
         onRecipeChange={onRecipeChange}
         onOpenProductMarket={onOpenProductMarket}
