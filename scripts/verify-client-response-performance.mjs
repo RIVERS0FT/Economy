@@ -15,6 +15,13 @@ function requireText(path, fragments) {
   }
 }
 
+function forbidText(path, fragments) {
+  const content = read(path);
+  for (const fragment of fragments) {
+    if (content.includes(fragment)) failures.push(`${path} 不得恢复客户端响应性能反模式: ${fragment}`);
+  }
+}
+
 const revisions = Object.fromEntries(STATE_PARTITION_NAMES.map((name, index) => [
   name,
   `partition-${index + 1}`,
@@ -82,6 +89,37 @@ requireText('src/app/gameViewModel.ts', [
   "changedPartitions.includes('catalog') || changedPartitions.includes('market')",
   'response.changedPartitions',
   'stateResponse.changedPartitions',
+  "import { useDerivedGameData } from './useDerivedGameData';",
+  'const derived = useDerivedGameData(game);',
+]);
+requireText('src/app/useDerivedGameData.ts', [
+  'orders?.filter',
+  'leaderboard?.find',
+  'for (const group of facilityGroups ?? [])',
+  'assetSummary.facilityValue',
+]);
+requireText('src/pages/MarketPage.tsx', [
+  'const MarketOrderEntry = memo(forwardRef',
+  'useImperativeHandle(ref, () => ({ fillPrice: setPriceValue })',
+  'const productById = useMemo',
+  'const facilityGroupByTypeId = useMemo',
+  'const selectedOrders = useMemo',
+  'const ownOpenOrders = useMemo',
+  'const bestAsks = useMemo',
+  'const marketBuckets = useMemo',
+  'key={`${marketAssetKind}:${assetId}:${orderSide}`}',
+]);
+forbidText('src/pages/MarketPage.tsx', [
+  'setOrderPrice(parsed)',
+  'setOrderQuantity(parsed)',
+  'setOrderPrice(normalized)',
+  'setOrderQuantity(normalized)',
+]);
+requireText('src/app/GameApp.tsx', [
+  'const setTabRef = useRef(appModel.setTab);',
+  "const openBank = useCallback(() => setTabRef.current('bank'), []);",
+  'const statusItems = useMemo<StatusBarItem[]>(() => [',
+  'onClick: openBank,',
 ]);
 requireText('src/pages/PageRouter.tsx', [
   'function cachedLoader<T>',
@@ -97,6 +135,9 @@ requireText('docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md', [
   '`stateChanged`',
   '`changedPartitions`',
   '不得执行 `setGame`',
+  '市场下单的价格与数量草稿必须留在 `MarketOrderEntry` 局部状态',
+  '根级 `derived` 只能按真实数据引用分组重算',
+  '状态栏五项资产数据必须使用稳定 `statusItems` 引用',
 ]);
 requireText('package.json', [
   '"verify:client-response": "node scripts/verify-client-response-performance.mjs"',
@@ -109,4 +150,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('客户端响应性能防回退验证通过：未变化与迟到状态复用引用、成交扫描按分区门控、导航意图预加载均已锁定。');
+console.log('客户端响应性能防回退验证通过：状态复用、分区门控、导航预加载、市场草稿隔离、窄依赖派生和稳定状态栏均已锁定。');

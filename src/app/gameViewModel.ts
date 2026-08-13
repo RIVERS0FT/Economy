@@ -3,7 +3,6 @@ import {
   type SetStateAction,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -33,6 +32,7 @@ import type {
 import { canAcceptRevision } from './revisionGate.js';
 import type { StatePartitionName } from './stateDelivery.js';
 import { useGameAuthorityState } from './gameAuthorityStore';
+import { useDerivedGameData } from './useDerivedGameData';
 import { buildAssetAllocation } from '../utils/assetAllocation';
 import { defaultOrderPrice } from '../utils/defaultOrderPrice';
 import { useServerDraft } from '../hooks/useServerDraft';
@@ -159,28 +159,6 @@ export type GameViewModelState =
   | { status: 'loading' }
   | { status: 'error'; message: string; retry: () => void }
   | { status: 'ready'; model: LoadedGameViewModel };
-
-function deriveGameData(game: EconomyState): DerivedGameData {
-  const ownOpenOrders = game.orders.filter((order) => (
-    order.isOwn && ['open', 'partial'].includes(order.status)
-  ));
-  const currentRank = game.leaderboard.find((entry) => entry.isCurrentPlayer);
-  const previousRank = currentRank ? game.leaderboard.find((entry) => entry.rank === currentRank.rank - 1) ?? null : null;
-  return {
-    ownOpenOrders,
-    facilityValue: game.assetSummary.facilityValue,
-    commodityValue: game.assetSummary.commodityValue,
-    cashValue: game.assetSummary.cashValue,
-    totalAssets: game.assetSummary.totalAssets,
-    currentRank,
-    previousRank,
-    runningFacilities: game.facilityGroups.reduce((sum, group) => sum + (group.status === 'running' ? group.participatingCount : 0), 0),
-    constructingFacilities: game.facilityConstruction ? 1 : 0,
-    stoppedFacilities: game.facilityGroups.reduce((sum, group) => sum + (group.status === 'stopped' ? group.count : 0), 0),
-    blockedFacilities: game.facilityGroups.reduce((sum, group) => sum + (group.status === 'error' ? group.count : 0), 0),
-    inventoryUsed: game.warehouseStoredQuantity,
-  };
-}
 
 function messageFromError(reason: unknown) {
   return reason instanceof Error ? reason.message : '游戏服务器请求失败';
@@ -425,7 +403,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     }
   }, [handleUnauthorized, syncConfirmedAction]);
 
-  const derived = useMemo(() => (game ? deriveGameData(game) : null), [game]);
+  const derived = useDerivedGameData(game);
   function notify(message: string) {
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
     setNotice(message);
