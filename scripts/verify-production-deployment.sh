@@ -32,11 +32,12 @@ run_check() {
   shift
   CURRENT_CHECK="$check_name"
   printf 'ECONOMY_DEPLOY_VERIFY_START phase=%s check=%s\n' "$PHASE" "$CURRENT_CHECK"
-  if "$@"; then
+  local status=0
+  "$@" || status=$?
+  if [ "$status" -eq 0 ]; then
     printf 'ECONOMY_DEPLOY_VERIFY_OK phase=%s check=%s\n' "$PHASE" "$CURRENT_CHECK"
     return 0
   fi
-  local status="$?"
   fail_check "$status"
 }
 
@@ -88,6 +89,7 @@ check_renew_timer_active() {
 check_database_incremental() {
   python3 - <<'PYTHON'
 import sqlite3
+import sys
 
 database = '/var/lib/riversoft-economy/economy.sqlite'
 with sqlite3.connect(f'file:{database}?mode=ro', uri=True) as connection:
@@ -95,10 +97,10 @@ with sqlite3.connect(f'file:{database}?mode=ro', uri=True) as connection:
     auto_vacuum = int(connection.execute('PRAGMA auto_vacuum').fetchone()[0])
     quick_check = str(connection.execute('PRAGMA quick_check(1)').fetchone()[0])
 if auto_vacuum != 2:
-    print(f'ECONOMY_DATABASE_AUTO_VACUUM_INVALID={auto_vacuum}', file=__import__('sys').stderr)
+    print(f'ECONOMY_DATABASE_AUTO_VACUUM_INVALID={auto_vacuum}', file=sys.stderr)
     raise SystemExit(1)
 if quick_check != 'ok':
-    print(f'ECONOMY_DATABASE_QUICK_CHECK_FAILED={quick_check}', file=__import__('sys').stderr)
+    print(f'ECONOMY_DATABASE_QUICK_CHECK_FAILED={quick_check}', file=sys.stderr)
     raise SystemExit(1)
 PYTHON
 }
