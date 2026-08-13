@@ -24,6 +24,8 @@ const rawProducts = [
   { id: 'steel', name: '钢材', category: 'intermediate', basePrice: 29 },
   { id: 'copper', name: '铜材', category: 'intermediate', basePrice: 29 },
   { id: 'plastic', name: '塑料', category: 'intermediate', basePrice: 30 },
+  { id: 'industrial-fuel', name: '工业燃料', category: 'intermediate', basePrice: 4 },
+  { id: 'industrial-chemicals', name: '工业化学品', category: 'intermediate', basePrice: 5 },
   { id: 'fertilizer', name: '化肥', category: 'intermediate', basePrice: 6.76 },
   { id: 'feed', name: '配合饲料', category: 'intermediate', basePrice: 5.8 },
   { id: 'veterinary-medicine', name: '养殖药剂', category: 'intermediate', basePrice: 14.1 },
@@ -164,7 +166,11 @@ const rawFacilities = [
     id: 'refinery', name: '炼油厂', category: 'processing', complexity: 'C4', buildCost: 104, buildTimeMs: 80 * 60 * 1000,
     buildInputs: [{ productId: 'lumber', quantity: 3 }, { productId: 'steel', quantity: 4 }, { productId: 'copper', quantity: 1 }],
     defaultRecipeId: 'refinery-default', internalCapacity: 25, systemValue: 390,
-    recipes: [{ id: 'refinery-default', name: '生产塑料', cycleMs: 40_000, operatingCost: 8, inputs: [{ productId: 'crude-oil', quantity: 2 }], output: { productId: 'plastic', quantity: 1 } }],
+    recipes: [
+      { id: 'refinery-default', name: '生产塑料', cycleMs: 40_000, operatingCost: 8, inputs: [{ productId: 'crude-oil', quantity: 2 }], output: { productId: 'plastic', quantity: 1 } },
+      { id: 'industrial-fuel-refining', name: '生产工业燃料', cycleMs: 60_000, operatingCost: 1, inputs: [{ productId: 'crude-oil', quantity: 1 }], output: { productId: 'industrial-fuel', quantity: 4 } },
+      { id: 'industrial-chemicals-refining', name: '生产工业化学品', cycleMs: 60_000, operatingCost: 6, inputs: [{ productId: 'crude-oil', quantity: 2 }], output: { productId: 'industrial-chemicals', quantity: 6 } },
+    ],
   },
   {
     id: 'fertilizer-factory', name: '化肥厂', category: 'processing', complexity: 'C4', buildCost: 134, buildTimeMs: 85 * 60 * 1000,
