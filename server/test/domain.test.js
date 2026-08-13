@@ -562,7 +562,7 @@ test('new worlds create private market demand orders during the first authoritat
     assert.deepEqual([...new Set(marketOrders.map((order) => order.ownerName))].sort(), [
       '家庭消费市场需求', '食品市场需求',
     ]);
-    assert.equal(persisted.version, 28);
+    assert.equal(persisted.version, 29);
     assert.equal(persisted.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
     assert.ok(persisted.demandGroups.food.lastCommitted <= persisted.demandGroups.food.lastBudget);
     assert.ok(persisted.demandGroups.household.lastCommitted <= persisted.demandGroups.household.lastBudget);

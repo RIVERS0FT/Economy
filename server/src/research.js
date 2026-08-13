@@ -13,7 +13,7 @@ import {
 
 export { RESEARCH_DURATION_MS, RESEARCH_LEVEL_CATALOG, RESEARCH_TECHNOLOGY_CATALOG };
 
-export const RESEARCH_WORLD_VERSION = 28;
+export const RESEARCH_WORLD_VERSION = 29;
 export const GEM_RESEARCH_ACCELERATION_MS = 30 * 60 * 1000;
 export const GEM_RESEARCH_ACCELERATION_COST = 1;
 
@@ -29,6 +29,15 @@ const LEGACY_LEVELS = Object.freeze({
 const STAGE_BY_ID = new Map(RESEARCH_LEVEL_CATALOG.map((stage) => [stage.id, stage]));
 const FACILITY_BY_ID = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
 const TECHNOLOGY_ORDER = new Map(RESEARCH_TECHNOLOGY_CATALOG.map((technology, index) => [technology.id, index]));
+const LEGACY_OPERATION_TECHNOLOGY_GRANTS = Object.freeze({
+  'tool-manufacturing': Object.freeze(['tool-operation']),
+  'fertilizer-engineering': Object.freeze(['fertilizer-application']),
+  'feed-processing': Object.freeze(['feed-husbandry']),
+  'veterinary-medicine': Object.freeze(['veterinary-application']),
+  'oil-refining': Object.freeze(['industrial-fuel-operation', 'industrial-chemical-operation']),
+  'mechanical-engineering': Object.freeze(['machinery-operation']),
+  'agricultural-machinery': Object.freeze(['tractor-operation']),
+});
 
 function clone(value) { return structuredClone(value); }
 function complexityRank(value) {
@@ -54,6 +63,24 @@ function sortedTechnologyIds(values) {
 }
 function grantTechnologyClosure(completed, technologyIds) {
   for (const technologyId of researchTechnologyClosure(technologyIds)) completed.add(technologyId);
+}
+function grantLegacyOperationTechnologies(completed) {
+  for (const [productionTechnologyId, operationTechnologyIds] of Object.entries(LEGACY_OPERATION_TECHNOLOGY_GRANTS)) {
+    if (completed.has(productionTechnologyId)) grantTechnologyClosure(completed, operationTechnologyIds);
+  }
+}
+function activeResearchWithLegacyOperationGrants(previousActive) {
+  if (!previousActive || typeof previousActive !== 'object') return previousActive;
+  const additional = LEGACY_OPERATION_TECHNOLOGY_GRANTS[String(previousActive.technologyId || '')];
+  if (!additional) return previousActive;
+  return {
+    ...previousActive,
+    grantTechnologyIds: sortedTechnologyIds([
+      previousActive.technologyId,
+      ...(Array.isArray(previousActive.grantTechnologyIds) ? previousActive.grantTechnologyIds : []),
+      ...additional,
+    ]),
+  };
 }
 function productionMethodGroupForFacility(facility) {
   return facility?.productionMethodGroups?.find((group) => group.id === 'operation')
@@ -162,6 +189,9 @@ function normalizeActiveResearch(previousActive, completed) {
       completesAt,
       previousActive.durationMs ?? (completesAt - startedAt),
     );
+    const grantTechnologyIds = Array.isArray(previousActive.grantTechnologyIds)
+      ? sortedTechnologyIds(previousActive.grantTechnologyIds).filter((technologyId) => !completed.has(technologyId))
+      : [];
     return {
       technologyId: technology.id,
       technologyName: technology.name,
@@ -171,6 +201,7 @@ function normalizeActiveResearch(previousActive, completed) {
       durationMs: timing.durationMs,
       cost,
       employmentReleased: Math.min(cost, Math.max(0, Math.floor(Number(previousActive.employmentReleased || 0)))),
+      ...(grantTechnologyIds.length > 0 ? { grantTechnologyIds } : {}),
     };
   }
 
@@ -206,7 +237,7 @@ function normalizeActiveResearch(previousActive, completed) {
   };
 }
 
-export function ensurePlayerResearch(world, player, now = Date.now()) {
+export function ensurePlayerResearch(world, player, now = Date.now(), migrationOptions = null) {
   if (!player || typeof player !== 'object') return null;
   const previous = player.research && typeof player.research === 'object' ? player.research : null;
   const completed = new Set();
@@ -228,10 +259,14 @@ export function ensurePlayerResearch(world, player, now = Date.now()) {
     const technology = researchTechnologyForFacility(facilityTypeId);
     if (technology) grantTechnologyClosure(completed, [technology.id]);
   }
+  if (migrationOptions?.grantLegacyOperationAccess) grantLegacyOperationTechnologies(completed);
 
   const completedTechnologyIds = sortedTechnologyIds(completed);
   const completedAtByTechnologyId = normalizeCompletedAtMap(previous, completedTechnologyIds, now);
-  const active = normalizeActiveResearch(previous?.active, completed);
+  const activeSource = migrationOptions?.grantLegacyOperationAccess
+    ? activeResearchWithLegacyOperationGrants(previous?.active)
+    : previous?.active;
+  const active = normalizeActiveResearch(activeSource, completed);
   const completedAtValues = Object.values(completedAtByTechnologyId).map(Number).filter(Number.isFinite);
   const completedAt = completedAtValues.length > 0 ? Math.max(...completedAtValues) : null;
   const research = {
@@ -251,7 +286,10 @@ export function ensurePlayerResearch(world, player, now = Date.now()) {
 
 export function migrateResearchWorld(world, now = Date.now()) {
   if (!world || typeof world !== 'object') return world;
-  for (const player of Object.values(world.players || {})) ensurePlayerResearch(world, player, now);
+  const grantLegacyOperationAccess = Number(world.version || 0) < RESEARCH_WORLD_VERSION;
+  for (const player of Object.values(world.players || {})) {
+    ensurePlayerResearch(world, player, now, { grantLegacyOperationAccess });
+  }
   world.version = RESEARCH_WORLD_VERSION;
   return world;
 }

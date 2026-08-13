@@ -18,7 +18,7 @@ test.describe('research technology tree', () => {
 
     await page.goto('runtime-test.html?view=research&scenario=research-active');
     await expect(page.locator('.research-stage-node')).toHaveCount(7);
-    await expect(page.locator('.research-technology-node')).toHaveCount(24);
+    await expect(page.locator('.research-technology-node')).toHaveCount(32);
     const researchGeometry = await page.evaluate(() => {
       const action = document.querySelector<HTMLElement>('.research-action-panel')?.getBoundingClientRect();
       const tree = document.querySelector<HTMLElement>('.research-tree-panel')?.getBoundingClientRect();
@@ -50,6 +50,25 @@ test.describe('research technology tree', () => {
     expect(Math.abs(researchGeometry.detailArtworkWidth - researchGeometry.detailArtworkHeight)).toBeLessThanOrEqual(1);
     expect(researchGeometry.detailArtworkAspectRatio).toBe('1 / 1');
     expect(researchGeometry.fitsViewport).toBe(true);
+  });
+
+  test('distinguishes operation research from production research', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('runtime-test.html?view=research&scenario=research-active');
+
+    const toolOperation = page.getByRole('button', { name: /工具作业，可研发，C2 作业科技/ });
+    await toolOperation.click();
+    const panel = page.locator('.research-action-panel');
+    await expect(panel).toContainText('工具作业');
+    await expect(panel).toContainText('作业科技');
+    await expect(panel).toContainText('解锁作业制度');
+    await expect(panel).toContainText('工具');
+    await expect(panel).not.toContainText('工具作坊');
+
+    const toolManufacturing = page.getByRole('button', { name: /工具制造，尚未开放，C4 生产科技/ });
+    await toolManufacturing.click();
+    await expect(panel).toContainText('生产科技');
+    await expect(panel).toContainText('解锁工厂');
   });
 
   test('preserves an explicit technology selection across refreshed snapshots', async ({ page }) => {
