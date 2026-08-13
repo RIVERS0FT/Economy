@@ -56,8 +56,12 @@ if (failures.length === 0) {
 
   for (const text of [
     'AUTHORITY_CONFIRMATION_RETRY_MS = 1_000',
-    'nextAuthoritativeCountdownDeadline(game)',
-    'estimateServerNow(game.lastProcessedAt)',
+    'useGameAuthorityPartitions([',
+    "'auction'",
+    "'contract'",
+    "'leaderboard'",
+    'nextAuthoritativeCountdownDeadline(currentGame)',
+    'estimateServerNow(currentGame.lastProcessedAt)',
     'subscribeServerClock(scheduleDeadline)',
     "mode: 'authoritative'",
     'expectedDeadline: deadline',
@@ -94,7 +98,7 @@ if (failures.length === 0) {
 
   for (const text of [
     "import { AuthoritativeCountdownRefresh } from '../components/system/AuthoritativeCountdownRefresh';",
-    '<AuthoritativeCountdownRefresh game={game} refresh={model.refresh} />',
+    '<AuthoritativeCountdownRefresh game={appModel.game} refresh={model.refresh} />',
   ]) requireText(paths.app, text);
 
   for (const text of [
@@ -155,6 +159,7 @@ if (failures.length === 0) {
     '同一事件可见窗口内连续请求必须产生相同的 `market` 分区哈希',
     '按请求时刻生成的榜单 `generatedAt` 和逐行 `updatedAt` 不得进入状态分区',
     '四榜不得继续嵌入玩家 `stats`',
+    '权威倒计时协调器只订阅当前截止时间来源所需的',
     '`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`',
   ]) requireText(paths.design, text);
   for (const text of [
