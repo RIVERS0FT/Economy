@@ -305,8 +305,13 @@ export function createStateDeliveryCache() {
         partitions = merged.partitions;
         state = merged.state;
       }
-      if (Object.keys(incomingSliceRevisions).length > 0) {
-        sliceRevisions = { ...sliceRevisions, ...incomingSliceRevisions };
+      for (const partitionName of ['player', 'market']) {
+        if (!changedPartitions.includes(partitionName)) continue;
+        for (const sliceName of STATE_SLICE_NAMES_BY_PARTITION[partitionName] || []) {
+          const incomingRevision = incomingSliceRevisions[sliceName];
+          if (validRevisionToken(incomingRevision)) sliceRevisions[sliceName] = incomingRevision;
+          else delete sliceRevisions[sliceName];
+        }
       }
       revision = payload.revision;
       publishAuthority(revision, state, partitions, sliceRevisions, changedPartitions, changedSlices);

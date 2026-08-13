@@ -187,12 +187,13 @@ function ResearchDetailBody({
   isAccelerating,
   onAccelerate,
 }: ResearchDetailProps) {
+  const liveNow = useNow(now);
   const presentation = resolveResearchDetailPresentation({
     model,
     technology,
     technologiesById,
     completed,
-    now,
+    now: liveNow,
   });
   const {
     active,
@@ -395,7 +396,8 @@ function ResearchDetailBody({
 }
 
 function ResearchDetailActions(props: ResearchDetailProps) {
-  const { canStart, fundsMet, actionLabel } = resolveResearchDetailPresentation(props);
+  const liveNow = useNow(props.now);
+  const { canStart, fundsMet, actionLabel } = resolveResearchDetailPresentation({ ...props, now: liveNow });
   return (
     <div className="research-detail-actions">
       <Button block disabled={!canStart || !fundsMet} onClick={props.onStart}>
@@ -442,7 +444,7 @@ function MobileResearchDetailSheet({
 }
 
 export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
-  const now = useNow(model.game.lastProcessedAt);
+  const now = useNow(model.game.lastProcessedAt, 10_000);
   const research = model.game.research;
   const active = research.active;
   const technologies = model.game.researchTechnologies ?? [];

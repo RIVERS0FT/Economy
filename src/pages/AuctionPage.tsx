@@ -16,8 +16,8 @@ import { IntegerInput, MoneyInput, SelectInput } from '../components/ui/FormCont
 import { Button, EmptyState, PageLayout, Panel, StatusTag, WidgetHeading } from '../components/ui/layout';
 import { SafeTooltip } from '../components/ui/SafeTooltip';
 import { useAuctionNewIds } from '../hooks/useNavigationBadges';
-import { useNow } from '../hooks/useNow';
-import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
+import { LiveDurationUntil } from '../components/time/LiveServerTime';
+import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
 import { parseMoneyDraft } from '../utils/moneyDraft';
 import '../styles/auction-card-layers.css';
@@ -53,9 +53,8 @@ function auctionItemKey(item: Pick<AuctionItem, 'assetKind' | 'assetId'>) {
   return `${item.assetKind}:${item.assetId}`;
 }
 
-function remainingText(endsAt: number, now: number) {
-  const remaining = Math.max(0, endsAt - now);
-  return remaining === 0 ? '等待服务器结算' : formatDuration(remaining);
+function AuctionRemainingTime({ endsAt, referenceNow }: { endsAt: number; referenceNow: number }) {
+  return <LiveDurationUntil deadline={endsAt} referenceNow={referenceNow} zeroText="等待服务器结算" />;
 }
 
 function auctionItems(auction: AssetAuction): AuctionItemSummary[] {
@@ -224,7 +223,7 @@ function BidHistoryPanel({
 }
 
 export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
-  const now = useNow(model.game.lastProcessedAt);
+  const referenceNow = model.game.lastProcessedAt;
   const auctionNewIds = useAuctionNewIds();
   const { assetAuctions } = getAuctionState(model.game);
   const openAuctions = useMemo(() => (
@@ -648,7 +647,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                       <div className="asset-auction-card-heading-status">
                         {auction.isOutbid ? <StatusTag tone="danger">被超价</StatusTag> : null}
                         {isNewAuction ? <StatusTag tone="success">新增</StatusTag> : null}
-                        <StatusTag tone="warning">{remainingText(auction.endsAt, now)}</StatusTag>
+                        <StatusTag tone="warning"><AuctionRemainingTime endsAt={auction.endsAt} referenceNow={referenceNow} /></StatusTag>
                       </div>
                     </div>
                     <AuctionAssetSummary auction={auction} />

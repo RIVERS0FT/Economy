@@ -7,8 +7,8 @@ import { GemIcon } from '../components/icons/GemIcon';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { IntegerInput } from '../components/ui/FormControls';
 import { Button, PageLayout, Panel, StatusTag, WidgetHeading } from '../components/ui/layout';
-import { useNow } from '../hooks/useNow';
-import { formatCurrency, formatDate, formatDuration, formatNumber } from '../utils/formatters';
+import { LiveDurationUntil } from '../components/time/LiveServerTime';
+import { formatCurrency, formatDate, formatNumber } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
 
 const QUICK_AMOUNTS = [1, 5, 10, 25];
@@ -21,7 +21,6 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
   const [exchanging, setExchanging] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [error, setError] = useState('');
-  const now = useNow(model.game.lastProcessedAt);
 
   async function load() {
     try {
@@ -54,7 +53,6 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
     && quoteDecision === 'pending'
     && parsedAmount !== null
     && parsedAmount <= model.game.gems;
-  const quoteRemaining = summary?.nextRateAt ? Math.max(0, summary.nextRateAt - now) : 0;
   const quoteTone = summary?.demandTone === 'high'
     ? 'danger'
     : summary?.demandTone === 'low'
@@ -125,7 +123,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
                     ? `较昨日 ${summary.rateDelta > 0 ? '+' : ''}${summary.rateDelta}`
                     : '较昨日不变'}
                   {' · '}
-                  {quoteRemaining > 0 ? formatDuration(quoteRemaining) : '即将更新'}
+                  <LiveDurationUntil deadline={summary.nextRateAt} referenceNow={model.game.lastProcessedAt} zeroText="即将更新" />
                 </small>
               ) : null}
             </div>

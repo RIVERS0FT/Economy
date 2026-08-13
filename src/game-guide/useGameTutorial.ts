@@ -5,7 +5,7 @@ import {
   type TutorialCompletionState,
 } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
-import { subscribeStateAuthorityPartition } from '../app/stateDelivery.js';
+import { subscribeStateAuthoritySlice } from '../app/stateDelivery.js';
 import { requestAutoSellPanel } from '../auto-sell/autoSellStorage';
 import { tutorialStepDefinition, TUTORIAL_STEPS } from './tutorialDefinition';
 import {
@@ -201,7 +201,7 @@ setRun(persisted);
       updateCurrentRun('complete-production', 'productionCompletions');
     };
     confirmProduction();
-    return subscribeStateAuthorityPartition('player', confirmProduction);
+    return subscribeStateAuthoritySlice('player.production', confirmProduction);
   }, [model, run, updateCurrentRun]);
 
   useEffect(() => {

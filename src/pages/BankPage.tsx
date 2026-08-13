@@ -16,8 +16,9 @@ import {
   ToggleField,
   WidgetHeading,
 } from '../components/ui/layout';
+import { LiveDurationUntil } from '../components/time/LiveServerTime';
 import { useNow } from '../hooks/useNow';
-import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
+import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
 import { parseMoneyDraft } from '../utils/moneyDraft';
 
@@ -46,7 +47,8 @@ function transactionTone(type: string) {
 export function BankPage({ model }: { model: LoadedGameViewModel }) {
   const { bankAccount, bankSummary } = model.game;
   const weeklyCashSettlement = bankSummary.weeklyCashSettlement;
-  const now = useNow(model.game.lastProcessedAt);
+  const referenceNow = model.game.lastProcessedAt;
+  const riskNow = useNow(referenceNow, 60_000);
   const [depositDraft, setDepositDraft] = useState('');
   const [withdrawDraft, setWithdrawDraft] = useState('');
   const [loanDraft, setLoanDraft] = useState('');
@@ -73,7 +75,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
     0,
   );
   const depositBufferEligible = collateralValue > 0 && bankAccount.depositCredits * 10 >= collateralValue;
-  const recentDefault = bankAccount.recentDefaultAt !== null && now - bankAccount.recentDefaultAt < RECENT_DEFAULT_MS;
+  const recentDefault = bankAccount.recentDefaultAt !== null && riskNow - bankAccount.recentDefaultAt < RECENT_DEFAULT_MS;
   const goodRepayment = bankAccount.repaidLoanCount > 0 && !recentDefault;
   const loanToValueBps = Math.min(
     bankSummary.maximumLoanToValueBps,
@@ -102,8 +104,6 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
     ? parseMoneyDraft(repayDraft, { min: 0.01, max: Math.max(0.01, activeLiability) })
     : null;
   const loanDeadline = activeLoan?.status === 'grace' ? activeLoan.graceEndsAt : activeLoan?.dueAt;
-  const loanRemaining = loanDeadline ? Math.max(0, loanDeadline - now) : 0;
-  const settlementRemaining = Math.max(0, bankSummary.nextInterestSettlementAt - now);
 
   async function submit(action: Exclude<PendingAction, null>, operation: () => Promise<{ ok: boolean; message: string }>, clear?: () => void) {
     if (pending) return;
@@ -190,7 +190,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
             <DataRow label="昨日入账利息" value={<CurrencyAmount>{formatCurrency(bankAccount.lastDepositInterestEarned)}</CurrencyAmount>} tone="success" />
             <DataRow label="累计存款利息" value={<CurrencyAmount>{formatCurrency(bankAccount.totalDepositInterestEarned)}</CurrencyAmount>} />
           </DataList>
-          <p className="bank-settlement-countdown">下一次结息：{settlementRemaining > 0 ? formatDuration(settlementRemaining) : '等待服务器结算'} · {formatTime(bankSummary.nextInterestSettlementAt)}</p>
+          <p className="bank-settlement-countdown">下一次结息：<LiveDurationUntil deadline={bankSummary.nextInterestSettlementAt} referenceNow={referenceNow} zeroText="等待服务器结算" /> · {formatTime(bankSummary.nextInterestSettlementAt)}</p>
           <p className="bank-panel-note">成功经济操作会激活本周，存款从下一个北京时间自然日按每日 1% 计息；周末按净货币资金生成 10% 账单，并在下一次登录时优先从存款、再从可用资金完成。贷款利息池优先支付收益，缺口作为受审计补贴发行。</p>
         </PagePanel>
       </div>
@@ -205,7 +205,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
             <div className="bank-loan-summary-grid">
               <MetricCard label="未偿本金" value={<CurrencyAmount>{formatCurrency(activeLoan.principalOutstanding)}</CurrencyAmount>} />
               <MetricCard label="未付利息" value={<CurrencyAmount>{formatCurrency(activeLoan.interestOutstanding)}</CurrencyAmount>} tone="warning" />
-              <MetricCard label="剩余时间" value={loanRemaining > 0 ? formatDuration(loanRemaining) : '等待服务器结算'} detail={formatTime(loanDeadline || 0)} tone={activeLoan.status === 'grace' ? 'danger' : 'neutral'} />
+              <MetricCard label="剩余时间" value={loanDeadline ? <LiveDurationUntil deadline={loanDeadline} referenceNow={referenceNow} zeroText="等待服务器结算" /> : '—'} detail={formatTime(loanDeadline || 0)} tone={activeLoan.status === 'grace' ? 'danger' : 'neutral'} />
               <MetricCard label="贷款总利率" value={formatRateBps(activeLoan.interestRateBps)} />
             </div>
             <div className="bank-collateral-summary">
