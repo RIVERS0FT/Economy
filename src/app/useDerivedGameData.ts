@@ -123,7 +123,7 @@ const DERIVED_GAME_DATA_VIEW = new Proxy<Record<PropertyKey, unknown>>({}, {
   set: () => {
     throw new TypeError('派生游戏状态视图为只读');
   },
-}) as DerivedGameData;
+}) as unknown as DerivedGameData;
 
 export function useDerivedGameData(game: EconomyState | null): DerivedGameData | null {
   return game ? DERIVED_GAME_DATA_VIEW : null;
