@@ -25,7 +25,8 @@ for (const [file, texts] of Object.entries({
     'materialOrderPrices',
     'validatedPrices',
     'autoCancelledSellOrders',
-    "applyAction(world, user, 'cancelOrder', { orderId: crossingOrder.id }, now)",
+    'cancelSettledCommodityOrder',
+    'if (!cancelSettledCommodityOrder(world, user, crossingOrder.id))',
     '交叉卖单自动撤销失败',
     'const refreshedContext = facilityBuildContext(world, user, payload)',
     'countOpenOrdersForOwner',
@@ -172,6 +173,7 @@ requireText('package.json', 'npm run verify:facility-auto-procure');
 for (const text of ['createWarehouseUsage', 'warehouseAvailableCapacity', '共享仓库空间不足']) {
   forbidText('server/src/facility-auto-procure.js', text);
 }
+forbidText('server/src/facility-auto-procure.js', "applyAction(world, user, 'cancelOrder'");
 for (const text of ['/facilities/procurements', '/facilities/procurements/cancel']) {
   forbidText('server/src/game-routes.js', text);
   forbidText('src/api/game.ts', text);

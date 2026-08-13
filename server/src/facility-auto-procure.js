@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   applyAction,
   applyImmediateCommodityBuy,
+  cancelSettledCommodityOrder,
   ECONOMY_CONSTANTS,
   FACILITY_TYPE_CATALOG,
   PRODUCT_CATALOG,
@@ -229,8 +230,9 @@ export function createFacilityBuildProcurementOrders(world, user, payload = {}, 
         price,
       });
       if (!crossingOrder) break;
-      const cancelled = applyAction(world, user, 'cancelOrder', { orderId: crossingOrder.id }, now);
-      if (!cancelled?.ok) return result(false, cancelled?.message || '交叉卖单自动撤销失败');
+      if (!cancelSettledCommodityOrder(world, user, crossingOrder.id)) {
+        return result(false, '交叉卖单自动撤销失败');
+      }
       autoCancelledSellOrders += 1;
     }
   }
@@ -353,8 +355,9 @@ export function cancelFacilityBuildProcurementOrders(world, user, payload = {}, 
   let cancelled = 0;
   for (const order of knownOrders) {
     if (!isOpenOrder(order)) continue;
-    const cancelledOrder = applyAction(world, user, 'cancelOrder', { orderId: order.id }, now);
-    if (!cancelledOrder?.ok) return result(false, cancelledOrder?.message || '建造材料买单取消失败');
+    if (!cancelSettledCommodityOrder(world, user, order.id)) {
+      return result(false, '建造材料买单取消失败');
+    }
     cancelled += 1;
   }
   const afterFrozen = Number(player?.frozenCredits || 0);
