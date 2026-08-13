@@ -97,7 +97,11 @@ for (const text of [
 
 for (const text of [
   '.research-tree-connections',
+  '--research-focus-color: var(--color-accent-violet);',
+  ".research-tree-edge[data-related='true']",
   ".research-tree-edge[data-highlighted='true']",
+  'translate: -50% -50%;',
+  'transform: none;',
   '.research-technology-node',
   '.research-technology-node[data-status=',
   '.research-technology-node[data-selected=',
@@ -108,6 +112,7 @@ for (const text of [
 
 for (const text of [
   'renders a downward prerequisite tree on desktop',
+  'keeps node geometry stable on hover and selected dependency lines visible',
   'keeps every mobile dependency below its prerequisite without horizontal tree scrolling',
   'preserves an explicit technology selection across refreshed snapshots',
   'shows concrete prerequisite requirements',
@@ -134,6 +139,8 @@ for (const text of [
   'C1–C7 只作为产业阶段',
   '其余节点按照真实产业链设置前置关系',
   '自上而下 DAG',
+  '结构定位不得复用 `transform`',
+  '选中科技只能改变节点和连接线的强调状态',
   '最多两条横向节点轨道',
   '旧客户端',
   '周期轮询、动作后同步和权威倒计时确认对客户端交互状态必须透明',
@@ -157,11 +164,20 @@ for (const forbidden of [
 for (const forbidden of [
   'grid-template-columns: repeat(7',
   '.research-stage-node',
+  'var(--color-accent)',
+  'transform: translate(-50%, -50%)',
 ]) forbidText('src/styles/research-page.css', forbidden);
+
+const researchCss = read('src/styles/research-page.css');
+const relatedEdgeIndex = researchCss.indexOf(".research-tree-edge[data-related='true']");
+const highlightedEdgeIndex = researchCss.indexOf(".research-tree-edge[data-highlighted='true']");
+if (relatedEdgeIndex < 0 || highlightedEdgeIndex < relatedEdgeIndex) {
+  failures.push('research highlighted edge rule must follow the weaker related edge rule');
+}
 
 if (failures.length > 0) {
   console.error(`research page verification failed:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('downward prerequisite research DAG, deterministic layout, mobile two-lane tree, stable selection, detail sheet and design verification passed');
+console.log('downward prerequisite research DAG, stable hover geometry, visible selected links, deterministic layout, mobile two-lane tree, stable selection, detail sheet and design verification passed');
