@@ -1,0 +1,84 @@
+name: Apply Deploy Verification Diagnostics
+
+on:
+  push:
+    branches:
+      - fix/deploy-verification-diagnostics
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/deploy-verification-diagnostics
+          fetch-depth: 0
+
+      - name: Update authoritative design and regression guard
+        run: |
+          set -euo pipefail
+          python3 - <<'PYTHON'
+          from pathlib import Path
+
+          design_path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          design = design_path.read_text(encoding='utf-8')
+          design_needle = '- 部署中的每个 shell 命令步骤必须把标准输出和标准错误保存到独立临时日志；任一步失败时只把该失败步骤的完整命令输出复制到 `economy-deploy-failure-<run>-<attempt>` Artifact，成功步骤日志不得上传。Artifact 保留 3 天并使用文本高压缩；完整失败输出不得依赖可能被截断的 job log，也不得再为单次构建失败创建临时诊断工作流。\n'
+          design_replacement = design_needle + (
+              '- 主部署线上验收固定拆分为发布前远端验收和发布后公网验收：远端验收必须在原子替换 `index.html` 前确认 Node runtime、API health、正式域名本机 Nginx、当前入口、注册秘密、生产 IP 证书、续签 timer 和 SQLite `auto_vacuum=INCREMENTAL`／`quick_check`；全部通过后才允许发布新入口。公网验收在发布后从 GitHub Runner 直接检查生产 IP 的 80→443、受信任 HTTPS 页面、账号代理、未登录游戏 401、登录参数 400 与注册参数 400。两阶段统一由 `scripts/verify-production-deployment.sh` 执行，每个检查必须输出稳定的 `ECONOMY_DEPLOY_VERIFY_START`／`OK`／`FAILED` 检查名，未包装的意外错误也必须由 trap 输出当前检查名和退出码，不得再以无说明的 `exit 1` 结束。\n'
+              '- 两阶段验收日志必须通过 `set -o pipefail` 与同步 `tee` 在步骤退出前完整落盘，失败 Artifact 只收集真实失败步骤及其派生摘要。`deploy/economy` 失败状态的 description 只能读取该次失败步骤生成的 `economy-failure-summary.txt`，优先使用稳定 `ECONOMY_DEPLOY_VERIFY_FAILED`／明确失败标记，禁止重新扫描或拼接成功步骤日志来猜测失败原因。\n'
+          )
+          if design.count(design_needle) != 1:
+              raise SystemExit('authoritative deployment log rule not found exactly once')
+          design_path.write_text(design.replace(design_needle, design_replacement), encoding='utf-8', newline='\n')
+
+          verify_path = Path('scripts/verify-runtime-reliability.mjs')
+          verify = verify_path.read_text(encoding='utf-8')
+
+          file_needle = "  'scripts/check-server-syntax.mjs',\n"
+          file_replacement = file_needle + "  'scripts/verify-production-deployment.sh',\n"
+          if verify.count(file_needle) != 1:
+              raise SystemExit('runtime reliability file anchor missing')
+          verify = verify.replace(file_needle, file_replacement)
+
+          deploy_guard_needle = "  'compression-level: 9',\n]) requireText('.github/workflows/deploy.yml', text);\n"
+          deploy_guard_replacement = "  'compression-level: 9',\n  'Verify production host before publishing entry',\n  'Verify public website, account routes, and game API',\n  'economy-pre-publish-verify.log',\n  'economy-post-publish-verify.log',\n  'economy-failure-summary.txt',\n  'cat /tmp/economy-failure-summary.txt',\n]) requireText('.github/workflows/deploy.yml', text);\n\nfor (const text of [\n  'trap report_unexpected_failure ERR',\n  'ECONOMY_DEPLOY_VERIFY_START',\n  'ECONOMY_DEPLOY_VERIFY_OK',\n  'ECONOMY_DEPLOY_VERIFY_FAILED',\n  'verify_remote',\n  'verify_public',\n  'database-incremental',\n]) requireText('scripts/verify-production-deployment.sh', text);\n\nconst deployWorkflow = read('.github/workflows/deploy.yml');\nconst prePublishVerificationIndex = deployWorkflow.indexOf('Verify production host before publishing entry');\nconst publishEntryIndex = deployWorkflow.indexOf('Publish website entry and prune expired assets');\nconst postPublishVerificationIndex = deployWorkflow.indexOf('Verify public website, account routes, and game API');\nif (!(prePublishVerificationIndex >= 0 && prePublishVerificationIndex < publishEntryIndex && publishEntryIndex < postPublishVerificationIndex)) {\n  failures.push('部署验收必须保持发布前远端验收 → 原子入口发布 → 发布后公网验收的顺序');\n}\n"
+          if verify.count(deploy_guard_needle) != 1:
+              raise SystemExit('deploy regression guard anchor missing')
+          verify = verify.replace(deploy_guard_needle, deploy_guard_replacement)
+
+          forbid_needle = "forbidText('.github/workflows/deploy.yml', 'ssh-keyscan -p \\\"$SERVER_PORT\\\" \\\"$SERVER_HOST\\\"');\n"
+          forbid_replacement = forbid_needle + "forbidText('.github/workflows/deploy.yml', 'cat /tmp/economy-install-dependencies.log 2>/dev/null || true');\n"
+          if verify.count(forbid_needle) != 1:
+              raise SystemExit('deploy forbidden text anchor missing')
+          verify = verify.replace(forbid_needle, forbid_replacement)
+
+          design_guard_needle = "  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '成功步骤日志不得上传'],\n"
+          design_guard_replacement = design_guard_needle + (
+              "  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '发布前远端验收和发布后公网验收'],\n"
+              "  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'ECONOMY_DEPLOY_VERIFY_START'],\n"
+              "  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'economy-failure-summary.txt'],\n"
+              "  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '禁止重新扫描或拼接成功步骤日志'],\n"
+          )
+          if verify.count(design_guard_needle) != 1:
+              raise SystemExit('design regression guard anchor missing')
+          verify = verify.replace(design_guard_needle, design_guard_replacement)
+          verify_path.write_text(verify, encoding='utf-8', newline='\n')
+          PYTHON
+
+          bash -n scripts/verify-production-deployment.sh
+          node scripts/verify-runtime-reliability.mjs
+
+      - name: Commit guarded changes and remove temporary workflow
+        run: |
+          set -euo pipefail
+          rm .github/workflows/apply-deploy-verification-diagnostics.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md scripts/verify-runtime-reliability.mjs .github/workflows/apply-deploy-verification-diagnostics.yml
+          git diff --cached --check
+          git commit -m 'test: lock deployment verification diagnostics'
+          git push origin HEAD:fix/deploy-verification-diagnostics
