@@ -151,7 +151,8 @@ const MarketOrderEntry = memo(forwardRef<MarketOrderEntryHandle, MarketOrderEntr
       : `卖出${assetName}`;
 
   function updatePriceDraft(value: string) {
-    setPriceDraft(value);
+    const parsed = parseMoneyDraft(value, { min: 0.01, max: economyConstants.maxOrderPrice });
+    setPriceDraft(parsed !== null && parsed !== parsedOrderPrice ? String(parsed) : value);
   }
 
   function updateQuantityDraft(value: string) {
