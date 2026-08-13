@@ -18,7 +18,7 @@ function validOrderPrice(price: number) {
  * and cancels every order independently using price-time priority.
  */
 export function buildOrderBookLevels(
-  orders: AssetOrder[],
+  orders: readonly AssetOrder[],
   side: OrderSide,
   limit = 5,
 ): OrderBookLevel[] {
