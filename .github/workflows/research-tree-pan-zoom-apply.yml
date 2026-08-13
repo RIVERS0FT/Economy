@@ -1,8 +1,10 @@
 name: Research tree pan zoom apply
 on:
   push:
-    branches: [feature/research-tree-pan-zoom]
-    paths: [.github/workflows/research-tree-pan-zoom-apply.yml]
+    branches:
+      - feature/research-tree-pan-zoom
+    paths:
+      - .github/workflows/research-tree-pan-zoom-apply.yml
 permissions:
   contents: write
 jobs:
@@ -17,6 +19,7 @@ jobs:
         with:
           node-version: 24.4.0
           cache: npm
+      - run: python3 .agent/fix-research-tree-pan-zoom-script.py
       - run: python3 .agent/apply-research-tree-pan-zoom.py
       - run: npm ci
       - run: node scripts/verify-research-page.mjs
