@@ -10,10 +10,15 @@ test('runtime hot path keeps one committed-world draft and scheduler barrier', (
   const executor = read('server/src/authoritative-write-executor.js');
   const action = read('server/src/runtime-action-executor.js');
 
+  const cacheStart = runtime.indexOf('  cacheWorld(');
+  const loadStart = runtime.indexOf('  loadWorld(', cacheStart);
+  assert.ok(cacheStart >= 0 && loadStart > cacheStart);
+  const cacheBody = runtime.slice(cacheStart, loadStart);
+
   assert.match(runtime, /EconomyStore as CoreEconomyStore/);
   assert.match(runtime, /worldDraftCloneMs/);
   assert.match(runtime, /world:\s*measureRequestPhase\('worldDraftCloneMs'/);
-  assert.doesNotMatch(runtime, /cacheWorld[\s\S]*?world:\s*measureRequestPhase/);
+  assert.doesNotMatch(cacheBody, /structuredClone/);
   assert.match(runtime, /ensureScheduledProcessingBarrier/);
   assert.match(runtime, /schedulerBarrierPromise/);
   assert.match(runtime, /schedulerBarrierWaitMs/);
