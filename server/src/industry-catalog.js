@@ -2,6 +2,7 @@ import {
   createProductionMethodGroups,
   createProductionMethodRecipes,
 } from './production-methods.js';
+import { appendLegacyC2RecipeAliases } from './legacy-production-methods.js';
 
 const rawProducts = [
   { id: 'wheat', name: '小麦', category: 'raw', basePrice: 1.2 },
@@ -253,7 +254,8 @@ export const FACILITY_TYPE_CATALOG = Object.freeze(rawFacilities.map((facility) 
     { ...facility, recipes: baseRecipes },
     PRODUCT_CATALOG,
   );
-  const recipes = createProductionMethodRecipes({ ...facility, recipes: baseRecipes }, productionMethodGroups);
+  const currentRecipes = createProductionMethodRecipes({ ...facility, recipes: baseRecipes }, productionMethodGroups);
+  const recipes = appendLegacyC2RecipeAliases(facility, currentRecipes);
   const defaultRecipe = recipes.find((recipe) => recipe.id === facility.defaultRecipeId) || recipes[0];
   return Object.freeze({
     ...facility,
