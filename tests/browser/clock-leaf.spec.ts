@@ -15,5 +15,7 @@ test('shared second ticker only commits the clock leaf, not its parent', async (
   await expect.poll(() => counts(page)).toEqual({ parent: 1, leaf: 1 });
   const initial = await counts(page);
   await expect.poll(async () => (await counts(page)).leaf, { timeout: 4_000 }).toBeGreaterThan(initial.leaf);
-  expect((await counts(page)).parent).toBe(1);
+  const later = await counts(page);
+  expect(later.parent).toBe(1);
+  expect(later.leaf).toBeGreaterThan(initial.leaf);
 });
