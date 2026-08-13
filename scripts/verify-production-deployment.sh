@@ -102,6 +102,7 @@ if auto_vacuum != 2:
 if quick_check != 'ok':
     print(f'ECONOMY_DATABASE_QUICK_CHECK_FAILED={quick_check}', file=sys.stderr)
     raise SystemExit(1)
+print('ECONOMY_DATABASE_INCREMENTAL_VERIFIED')
 PYTHON
 }
 
@@ -122,7 +123,8 @@ check_status() {
   local check_name="$1"
   local output_file="$2"
   local expected_csv="$3"
-  shift 3
+  local legacy_failure_marker="$4"
+  shift 4
   CURRENT_CHECK="$check_name"
   printf 'ECONOMY_DEPLOY_VERIFY_START phase=%s check=%s\n' "$PHASE" "$CURRENT_CHECK"
   local status
@@ -134,6 +136,7 @@ check_status() {
       ;;
   esac
   cat "$output_file" 2>/dev/null || true
+  printf '%s status=%s expected=%s\n' "$legacy_failure_marker" "${status:-none}" "$expected_csv" >&2
   fail_check 1 "status=${status:-none} expected=$expected_csv"
 }
 
@@ -154,10 +157,10 @@ verify_public() {
   run_check public-ip require_public_ipv4
   run_check http-redirect check_http_redirect
   run_check https-page check_https_page
-  check_status account-proxy /tmp/economy-auth-response.json '200,401' "https://${PUBLIC_IP}/economy-api/me"
-  check_status game-api /tmp/economy-game-response.json '401' "https://${PUBLIC_IP}/economy-api/game/state"
-  check_status login-api /tmp/economy-login-response.json '400' --request POST --header 'Content-Type: application/json' --data '{}' "https://${PUBLIC_IP}/economy-api/login"
-  check_status registration-api /tmp/economy-registration-response.json '400' --request POST --header 'Content-Type: application/json' --header 'Idempotency-Key: deploy-registration-route-check' --data '{}' "https://${PUBLIC_IP}/economy-api/registration/email-code"
+  check_status account-proxy /tmp/economy-auth-response.json '200,401' AUTH_PROXY_UNAVAILABLE "https://${PUBLIC_IP}/economy-api/me"
+  check_status game-api /tmp/economy-game-response.json '401' ECONOMY_GAME_API_PROXY_UNAVAILABLE "https://${PUBLIC_IP}/economy-api/game/state"
+  check_status login-api /tmp/economy-login-response.json '400' ECONOMY_LOGIN_PROXY_UNAVAILABLE --request POST --header 'Content-Type: application/json' --data '{}' "https://${PUBLIC_IP}/economy-api/login"
+  check_status registration-api /tmp/economy-registration-response.json '400' ECONOMY_REGISTRATION_PROXY_UNAVAILABLE --request POST --header 'Content-Type: application/json' --header 'Idempotency-Key: deploy-registration-route-check' --data '{}' "https://${PUBLIC_IP}/economy-api/registration/email-code"
 }
 
 case "$PHASE" in
