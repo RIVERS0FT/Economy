@@ -7,6 +7,8 @@ const required = [
   'server/src/economic-mutation.js',
   'server/src/runtime-action-executor.js',
   'server/src/runtime-store.js',
+  'server/src/runtime-store-core.js',
+  'server/src/authoritative-write-executor.js',
   'server/src/order-book-runtime.js',
   'server/src/order-matching.js',
   'server/shared/economy-state-slices.js',
@@ -17,6 +19,7 @@ const required = [
   'src/app/gameViewModel.ts',
   'src/pages/PageRouter.tsx',
   'server/test/authoritative-hotpaths.test.js',
+  'server/test/runtime-hotpath-architecture.test.js',
   'server/test/order-book-price-level.test.js',
   'docs/README.md',
 ];
@@ -31,7 +34,7 @@ for (const text of [
   'cacheHits',
 ]) assert.ok(deadline.includes(text), `截止时间运行时缺少: ${text}`);
 
-const runtimeStore = read('server/src/runtime-store.js');
+const runtimeStore = `${read('server/src/runtime-store-core.js')}\n${read('server/src/runtime-store.js')}`;
 for (const text of [
   "from './world-deadline-runtime.js'",
   'deadlineRuntime: worldDeadlineRuntimeFor(this).getDiagnostics()',
@@ -42,6 +45,9 @@ for (const text of [
   "if (dueDomains.has('contract'))",
   'assertEconomicStateInvariants(world)',
   'return executeRuntimeAction(this, user, requestMeta, now)',
+  'worldDraftCloneMs',
+  'ensureScheduledProcessingBarrier',
+  'schedulerBarrierWaitMs',
 ]) assert.ok(runtimeStore.includes(text), `运行时存储缺少权威热路径规则: ${text}`);
 
 const mutation = read('server/src/economic-mutation.js');
@@ -56,11 +62,20 @@ for (const text of [
 const actionExecutor = read('server/src/runtime-action-executor.js');
 for (const text of [
   "beginEconomicSavepoint(store, 'economy_player_action')",
-  'boundary.rollback()',
-  'boundary.assert()',
+  'assertEconomicStateInvariants(world)',
+  'structuredClone(world.players?.[String(user.id)]',
+  'applySettledCommodityOrder',
+  'if (!store.scheduledProcessing)',
   'savepoint.release()',
   'store.insertIdempotency.run(',
 ]) assert.ok(actionExecutor.includes(text), `普通经济动作执行器缺少: ${text}`);
+assert.equal(actionExecutor.includes('createEconomicActionBoundary'), false, '普通玩家动作不得恢复第二份全世界回滚快照');
+
+const writeExecutor = read('server/src/authoritative-write-executor.js');
+for (const text of [
+  'captureRequestContext = true',
+  'captureRequestContext ? requestPerformanceContext() : null',
+]) assert.ok(writeExecutor.includes(text), `权威写执行器缺少调度上下文隔离: ${text}`);
 
 const orderBook = read('server/src/order-book-runtime.js');
 for (const text of [
@@ -140,4 +155,4 @@ for (const text of [
   '子修订',
 ]) assert.ok(design.includes(text), `设计索引缺少权威热路径规则: ${text}`);
 
-console.log('权威热路径验证通过：按领域截止时间推进、经济动作保存点回滚、价格档位撮合、六分区稳定根视图、player/market 子切片 React 消费边界与客户端订单索引均受防回退约束。');
+console.log('权威热路径验证通过：按领域截止时间推进、单草稿经济动作回滚、调度 barrier、商品订单快速撮合、价格档位订单簿、六分区稳定根视图与客户端订单索引均受防回退约束。');
