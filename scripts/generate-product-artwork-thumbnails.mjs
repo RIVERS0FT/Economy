@@ -22,6 +22,8 @@ const productIds = [
   'steel',
   'copper',
   'plastic',
+  'industrial-fuel',
+  'industrial-chemicals',
   'fertilizer',
   'feed',
   'veterinary-medicine',
