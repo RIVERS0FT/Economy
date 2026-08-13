@@ -20,6 +20,7 @@ import { StatusBar, type StatusBarItem } from './StatusBar';
 
 export function GameShell({ model, children }: {
   model: LoadedGameViewModel;
+  statusItems?: StatusBarItem[];
   children: ReactNode;
 }) {
   const authorityGame = useGameAuthorityPartitions(['player', 'leaderboard']);
