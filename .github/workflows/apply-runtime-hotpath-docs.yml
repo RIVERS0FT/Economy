@@ -1,0 +1,45 @@
+name: Apply runtime hotpath docs
+
+on:
+  push:
+    branches:
+      - perf/runtime-hotpath-final-20260814
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: perf/runtime-hotpath-final-20260814
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+
+      - name: Patch authority documents
+        run: node scripts/patch-runtime-hotpath-docs.mjs
+
+      - name: Verify authority rules
+        run: node scripts/verify-authoritative-hotpaths.mjs
+
+      - name: Remove temporary migration files
+        run: rm scripts/patch-runtime-hotpath-docs.mjs .github/workflows/apply-runtime-hotpath-docs.yml
+
+      - name: Verify diff
+        run: git diff --check
+
+      - name: Commit authority documents
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m '记录运行时热路径权威规则'
+          git push origin HEAD:perf/runtime-hotpath-final-20260814
