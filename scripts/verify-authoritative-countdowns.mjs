@@ -18,13 +18,17 @@ const forbidText = (path, text) => {
 const paths = {
   registry: 'src/utils/authoritativeCountdowns.ts',
   clock: 'src/utils/serverClock.js',
+  nowHook: 'src/hooks/useNow.ts',
+  liveTime: 'src/components/time/LiveServerTime.tsx',
   coordinator: 'src/components/system/AuthoritativeCountdownRefresh.tsx',
   model: 'src/app/gameViewModel.ts',
   api: 'src/api/game.ts',
   delivery: 'src/app/stateDelivery.js',
   app: 'src/app/GameApp.tsx',
   production: 'src/pages/ProductionPage.tsx',
+  productionDetail: 'src/pages/production/ProductionFacilityDetail.tsx',
   overview: 'src/pages/OverviewPage.tsx',
+  overviewLive: 'src/pages/overview/OverviewLiveSections.tsx',
   auction: 'src/pages/AuctionPage.tsx',
   economicEvents: 'server/src/economic-events.js',
   runtimeStore: 'server/src/runtime-store.js',
@@ -55,8 +59,22 @@ if (failures.length === 0) {
   ]) requireText(paths.clock, text);
 
   for (const text of [
+    'const sharedTickers = new Map',
+    'subscribeSharedTicker',
+    'useSyncExternalStore',
+    'window.setInterval(() => signalTicker(ticker), interval)',
+  ]) requireText(paths.nowHook, text);
+  for (const text of [
+    'export function LiveServerTime',
+    'export function LiveDurationUntil',
+  ]) requireText(paths.liveTime, text);
+
+  for (const text of [
     'AUTHORITY_CONFIRMATION_RETRY_MS = 1_000',
-    'useGameAuthorityPartitions([',
+    'useGameAuthorityDependencies([',
+    "'player.production'",
+    "'player.progression'",
+    "'player.bank'",
     "'auction'",
     "'contract'",
     "'leaderboard'",
@@ -93,6 +111,7 @@ if (failures.length === 0) {
     'validPartitionSnapshot',
     'partitions[name] = { ...patch }',
     'Object.assign(state, partition)',
+    'reuseUnchangedSliceReferences',
   ]) requireText(paths.delivery, text);
   forbidText(paths.delivery, 'Object.assign(next, patch)');
 
@@ -108,20 +127,29 @@ if (failures.length === 0) {
     'value="无需材料"',
     'label="库存可直接建"',
     "'建造资金' : '资金与建造材料'",
+    'const now = game.lastProcessedAt;',
   ]) requireText(paths.production, text);
   for (const text of ['constructionAwaitingConfirmation', '确认完工中', '施工时间', '宝石加速']) forbidText(paths.production, text);
+  for (const text of ['const liveNow = useNow(now);', 'useNow(now, 10_000)']) requireText(paths.productionDetail, text);
+
+  requireText(paths.overview, 'const now = useNow(game.lastProcessedAt, 60_000);');
+  requireText(paths.overview, '<OverviewWorkButton');
+  requireText(paths.overview, '<OverviewEconomicCalendarPanel');
+  forbidText(paths.overview, 'const now = useNow(game.lastProcessedAt);');
+  for (const text of [
+    '<LiveServerTime referenceNow={referenceNow}>',
+    'disabled={isWorking || remaining > 0}',
+    'formatDuration(remaining)',
+  ]) requireText(paths.overviewLive, text);
 
   for (const text of [
-    'const workRemaining = Math.max(0, game.work.cooldownUntil - now);',
-    'disabled={isWorking || workRemaining > 0}',
-  ]) requireText(paths.overview, text);
-
-  for (const text of [
-    "return remaining === 0 ? '等待服务器结算' : formatDuration(remaining);",
+    'function AuctionRemainingTime',
+    '<LiveDurationUntil deadline={endsAt} referenceNow={referenceNow} zeroText="等待服务器结算" />',
     ".filter((auction) => auction.status === 'open')",
     'const openAuctions = useMemo(() => (',
     'auctionActivityAt(right) - auctionActivityAt(left)',
   ]) requireText(paths.auction, text);
+  forbidText(paths.auction, 'const now = useNow(model.game.lastProcessedAt);');
 
   for (const text of [
     'version: 2',
@@ -140,6 +168,7 @@ if (failures.length === 0) {
     'stableState.leaderboards = leaderboards;',
   ]) requireText(paths.runtimeStore, text);
   requireText(paths.statePartitions, "const LEADERBOARD_KEYS = new Set(['leaderboard', 'leaderboards'])");
+  requireText(paths.statePartitions, 'sliceRevisions');
 
   for (const text of [
     '本地资格倒计时',
@@ -160,6 +189,8 @@ if (failures.length === 0) {
     '按请求时刻生成的榜单 `generatedAt` 和逐行 `updatedAt` 不得进入状态分区',
     '四榜不得继续嵌入玩家 `stats`',
     '权威倒计时协调器只订阅当前截止时间来源所需的',
+    '共享秒级 ticker',
+    '页面根组件不得订阅默认 1 秒 ticker',
     '`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`',
   ]) requireText(paths.design, text);
   for (const text of [
@@ -175,6 +206,7 @@ if (failures.length === 0) {
     '每个返回分区内部都是完整快照',
     '状态版本 22 固定稳定分区时间字段',
     '`scripts/verify-authoritative-countdowns.mjs`',
+    '子修订',
   ]) requireText(paths.docsIndex, text);
 
   requireText(paths.package, '"verify:authoritative-countdowns": "node scripts/verify-authoritative-countdowns.mjs"');
@@ -200,4 +232,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('权威倒计时验证通过：GET state 使用独立 serverNow 校准共享单调服务器时钟，market 与排行榜分区不携带请求时刻字段；权威刷新可抢占普通轮询，请求具备超时，生产周期、研发、拍卖、合同和排行榜到期采用串行每秒确认；工厂即时建设不注册倒计时，状态分区使用完整快照替换。');
+console.log('权威倒计时验证通过：GET state 使用独立 serverNow 校准共享单调服务器时钟；默认秒级 ticker 全局共享并下沉到时间叶子，权威刷新继续使用串行每秒确认；工厂即时建设不注册倒计时，状态分区仍使用完整快照替换。');
