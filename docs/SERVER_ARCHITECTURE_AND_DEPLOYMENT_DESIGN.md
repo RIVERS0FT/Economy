@@ -426,6 +426,7 @@ QQ群入口与经济世界快照分离，保存在 `economy_settings`，修改�
 - 浏览器运行时测试使用固定 Playwright 版本与 Chromium，至少覆盖 localStorage 拒绝访问仍能渲染、正式设置控件存在以及无效设置控件不存在；测试 artifact 只在失败时上传并保留 3 天，完整标准输出继续保存在 Actions job log。
 - 部署中的每个 shell 命令步骤必须把标准输出和标准错误保存到独立临时日志；任一步失败时只把该失败步骤的完整命令输出复制到 `economy-deploy-failure-<run>-<attempt>` Artifact，成功步骤日志不得上传。Artifact 保留 3 天并使用文本高压缩；完整失败输出不得依赖可能被截断的 job log，也不得再为单次构建失败创建临时诊断工作流。
 - 主部署线上验收固定拆分为发布前远端验收和发布后公网验收：远端验收必须在原子替换 `index.html` 前确认 Node runtime、API health、正式域名本机 Nginx、当前入口、注册秘密、生产 IP 证书、续签 timer 和 SQLite `auto_vacuum=INCREMENTAL`／`quick_check`；全部通过后才允许发布新入口。公网验收在发布后从 GitHub Runner 直接检查生产 IP 的 80→443、受信任 HTTPS 页面、账号代理、未登录游戏 401、登录参数 400 与注册参数 400。两阶段统一由 `scripts/verify-production-deployment.sh` 执行，每个检查必须输出稳定的 `ECONOMY_DEPLOY_VERIFY_START`／`OK`／`FAILED` 检查名，未包装的意外错误也必须由 trap 输出当前检查名和退出码，不得再以无说明的 `exit 1` 结束。
+- 发布前远端的生产 IP 证书验收不得由非 root 的 `deploy` 用户直接读取 `/etc/letsencrypt/live/` 下的证书或私钥路径，也不得为验收扩大证书文件权限或部署账号权限；`scripts/configure-economy-ip-fallback-nginx.py` 仍在 root 配置阶段确认 Certbot 已生成证书文件。远端验收必须通过 Nginx 实际 TLS 行为确认该证书：使用生产公网 IP 作为 URL／TLS 身份，以 `--connect-to` 把 TCP 连接固定到 `127.0.0.1:443`，禁用环境代理并保持系统正常证书校验，不得使用 `-k`／`--insecure`；发布后的公网验收继续从 GitHub Runner 直接访问生产 IP，形成本机证书服务与真实公网链路两层验证。
 - 两阶段验收日志必须通过 `set -o pipefail` 与同步 `tee` 在步骤退出前完整落盘，失败 Artifact 只收集真实失败步骤及其派生摘要。`deploy/economy` 失败状态的 description 只能读取该次失败步骤生成的 `economy-failure-summary.txt`，优先使用稳定 `ECONOMY_DEPLOY_VERIFY_FAILED`／明确失败标记，禁止重新扫描或拼接成功步骤日志来猜测失败原因。
 - 部署工作流只在运行器缺少 `rsync` 时执行 APT 安装，不得每次无条件更新软件包索引。
 - 部署包携带匹配架构的官方 Node 运行时。

@@ -73,9 +73,11 @@ check_registration_secret() {
 }
 
 check_ip_certificate() {
-  local slug="${PUBLIC_IP//./-}"
-  test -s "/etc/letsencrypt/live/riversoft-economy-ip-${slug}/fullchain.pem"
-  test -s "/etc/letsencrypt/live/riversoft-economy-ip-${slug}/privkey.pem"
+  curl --fail --silent --show-error \
+    --connect-timeout 5 \
+    --noproxy '*' \
+    --connect-to "${PUBLIC_IP}:443:127.0.0.1:443" \
+    "https://${PUBLIC_IP}/economy/" >/dev/null
 }
 
 check_renew_timer_enabled() {
