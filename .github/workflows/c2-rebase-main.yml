@@ -35,15 +35,19 @@ jobs:
           echo "merge_status=${merge_status}"
           git diff --name-only --diff-filter=U || true
           python3 scripts/c2-rebase-main.py
+          python3 scripts/c2-fix-economical.py
           git add -- \
             docs/README.md \
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
             docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
             docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md \
             docs/WAREHOUSE_EXPANSION_DESIGN.md \
             src/pages/ProductionPage.tsx \
             src/pages/production/ProductionFacilityDetail.tsx \
-            scripts/verify-money-precision.mjs \
-            server/test/domain.test.js
+            server/src/production-methods.js \
+            server/test/domain.test.js \
+            server/test/production-methods.test.js \
+            scripts/verify-money-precision.mjs
           git diff --check
 
       - name: Install dependencies
@@ -56,7 +60,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git rm -- .github/workflows/c2-rebase-main.yml scripts/c2-rebase-main.py
+          git rm -- .github/workflows/c2-rebase-main.yml scripts/c2-rebase-main.py scripts/c2-fix-economical.py
           git diff --check
           git status --short
           git commit -m "merge: integrate latest main into C2 production methods"
