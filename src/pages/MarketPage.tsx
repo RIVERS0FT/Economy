@@ -378,9 +378,10 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     () => buildOrderBookLevels(selectedOrders, 'buy'),
     [selectedOrders],
   );
-  const maxBookDepth = useMemo(
-    () => Math.max(1, ...bestAsks.map((level) => level.remaining), ...bestBids.map((level) => level.remaining)),
-    [bestAsks, bestBids],
+  const maxBookDepth = Math.max(
+    1,
+    ...bestAsks.map((level) => level.remaining),
+    ...bestBids.map((level) => level.remaining),
   );
   const selectedLastTradePrice = selectedMarket?.lastTradePrice;
   const marketHistory = selectedMarket?.priceHistory ?? [];
@@ -403,6 +404,10 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     const active = assetDirectoryRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
     active?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [assetId, marketAssetKind]);
+
+  function fillOrderPrice(price: number) {
+    orderEntryRef.current?.fillPrice(price);
+  }
 
   function assetLabel(order: AssetOrder) {
     const id = orderAssetId(order);
@@ -591,7 +596,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                         aria-label={`${levelName}，价格 ${formatCurrency(level.price)}，合计剩余 ${formatNumber(level.remaining)}，点击填入价格`}
                         data-order-count={level.orderCount}
                         style={bookDepthStyle(level.remaining)}
-                        onClick={() => orderEntryRef.current?.fillPrice(level.price)}
+                        onClick={() => fillOrderPrice(level.price)}
                       >
                         <span className="market-book-level">{levelName}</span>
                         <strong><CurrencyAmount>{formatCurrency(level.price)}</CurrencyAmount></strong>
@@ -610,7 +615,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                         aria-label={`${levelName}，价格 ${formatCurrency(level.price)}，合计剩余 ${formatNumber(level.remaining)}，点击填入价格`}
                         data-order-count={level.orderCount}
                         style={bookDepthStyle(level.remaining)}
-                        onClick={() => orderEntryRef.current?.fillPrice(level.price)}
+                        onClick={() => fillOrderPrice(level.price)}
                       >
                         <span className="market-book-level">{levelName}</span>
                         <strong><CurrencyAmount>{formatCurrency(level.price)}</CurrencyAmount></strong>
