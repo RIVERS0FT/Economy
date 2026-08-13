@@ -102,8 +102,11 @@ export class EconomyStore extends CoreEconomyStore {
 }
 
 // The core module remains the single implementation for projection, contracts and persistence.
-// These markers document inherited ordering and keep architecture checks anchored while the
-// wrapper only replaces hot-path cloning and scheduler admission:
+// These markers document inherited behavior/order for source-level architecture guards while the
+// wrapper only replaces hot-path cloning and scheduler admission. Runtime behavior still comes
+// from runtime-store-core.js through normal class inheritance.
+// createEconomicCalendarClientState(now)
+// createStablePartitionClientState(snapshot.state)
 // createClientPartitionSnapshot
 // cachedStateProjection(user.id, currentRevision)
 // rememberStateProjection(user.id, snapshot.revision
