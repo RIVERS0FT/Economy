@@ -1,0 +1,49 @@
+name: C2 authority sync
+
+on:
+  push:
+    branches:
+      - feature/c2-production-methods
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.4.0'
+      - name: Sync authoritative docs and current world version
+        run: node scripts/sync-c2-production-docs.mjs
+      - name: Commit synchronized authority
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            README.md \
+            docs/README.md \
+            docs/PRODUCT_AND_GAMEPLAY_DESIGN.md \
+            docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md \
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
+            docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md \
+            docs/WAREHOUSE_EXPANSION_DESIGN.md \
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
+            docs/UI_DESIGN_SYSTEM.md \
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
+            docs/LOCAL_ACTIVITY_LOG_DESIGN.md \
+            docs/GIFT_CODE_AND_ADMIN_DESIGN.md \
+            server/src/storage.js \
+            src/types.ts \
+            scripts/verify-document-authority.mjs \
+            scripts/verify-*.mjs
+          git commit -m "docs: synchronize C2 production authority"
+          git push origin HEAD:feature/c2-production-methods
