@@ -1,0 +1,96 @@
+name: Apply Deploy Verification Guard Migration
+
+on:
+  push:
+    branches:
+      - fix/deploy-verification-diagnostics
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/deploy-verification-diagnostics
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+
+      - name: Migrate regression guards to shared verifier
+        run: |
+          set -euo pipefail
+          python3 - <<'PYTHON'
+          from pathlib import Path
+
+          def replace_once(path_string: str, old: str, new: str) -> None:
+              path = Path(path_string)
+              source = path.read_text(encoding='utf-8')
+              if source.count(old) != 1:
+                  raise SystemExit(f'{path_string}: expected one replacement anchor, found {source.count(old)}')
+              path.write_text(source.replace(old, new), encoding='utf-8', newline='\n')
+
+          email = 'scripts/verify-email-registration.mjs'
+          replace_once(
+              email,
+              "  'scripts/configure-economy-registration-nginx.py',\n",
+              "  'scripts/configure-economy-registration-nginx.py',\n  'scripts/verify-production-deployment.sh',\n",
+          )
+          replace_once(
+              email,
+              "for (const text of ['configure-economy-registration-nginx.py', 'ECONOMY_REGISTRATION_PROXY_UNAVAILABLE']) {\n  requireText('.github/workflows/deploy.yml', text);\n}\n",
+              "for (const text of ['configure-economy-registration-nginx.py', 'scripts/verify-production-deployment.sh']) {\n  requireText('.github/workflows/deploy.yml', text);\n}\nfor (const text of ['registration-api', '/economy-api/registration/email-code', 'ECONOMY_REGISTRATION_PROXY_UNAVAILABLE']) {\n  requireText('scripts/verify-production-deployment.sh', text);\n}\n",
+          )
+
+          auctions = 'scripts/verify-asset-auctions.mjs'
+          replace_once(
+              auctions,
+              "  '.github/workflows/deploy.yml',\n  'scripts/manage-production-backups.py',\n",
+              "  '.github/workflows/deploy.yml',\n  'scripts/verify-production-deployment.sh',\n  'scripts/manage-production-backups.py',\n",
+          )
+          replace_once(
+              auctions,
+              "requireText('.github/workflows/deploy.yml', [\n  'backup before world 26 migration',\n  'backup-world --target-world-version 26',\n  'ECONOMY_DATABASE_INCREMENTAL_VERIFIED',\n]);\n",
+              "requireText('.github/workflows/deploy.yml', [\n  'backup before world 26 migration',\n  'backup-world --target-world-version 26',\n  'Verify production host before publishing entry',\n  'scripts/verify-production-deployment.sh',\n]);\nrequireText('scripts/verify-production-deployment.sh', [\n  'database-incremental',\n  'ECONOMY_DATABASE_INCREMENTAL_VERIFIED',\n]);\n",
+          )
+
+          storage = 'scripts/verify-deployment-storage.mjs'
+          replace_once(
+              storage,
+              "  workflow: '.github/workflows/deploy.yml',\n  backupTool: 'scripts/manage-production-backups.py',\n",
+              "  workflow: '.github/workflows/deploy.yml',\n  verification: 'scripts/verify-production-deployment.sh',\n  backupTool: 'scripts/manage-production-backups.py',\n",
+          )
+          replace_once(
+              storage,
+              "    'backup-world --target-world-version 26',\n    'ECONOMY_DATABASE_INCREMENTAL_VERIFIED',\n    'minimum_free_kb=$((1024 * 1024))',\n",
+              "    'backup-world --target-world-version 26',\n    'Verify production host before publishing entry',\n    'scripts/verify-production-deployment.sh',\n    'minimum_free_kb=$((1024 * 1024))',\n",
+          )
+          replace_once(
+              storage,
+              "  const workflow = read(files.workflow);\n",
+              "  for (const text of ['database-incremental', 'ECONOMY_DATABASE_INCREMENTAL_VERIFIED']) {\n    requireText(files.verification, text);\n  }\n\n  const workflow = read(files.workflow);\n",
+          )
+          PYTHON
+
+          bash -n scripts/verify-production-deployment.sh
+          node scripts/verify-email-registration.mjs
+          node scripts/verify-asset-auctions.mjs
+          node scripts/verify-deployment-storage.mjs
+          node scripts/verify-runtime-reliability.mjs
+
+      - name: Commit guard migration and remove temporary workflow
+        run: |
+          set -euo pipefail
+          rm .github/workflows/apply-deploy-verification-guard-migration.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add scripts/verify-email-registration.mjs scripts/verify-asset-auctions.mjs scripts/verify-deployment-storage.mjs .github/workflows/apply-deploy-verification-guard-migration.yml
+          git diff --cached --check
+          git commit -m 'test: migrate deployment verification guards'
+          git push origin HEAD:fix/deploy-verification-diagnostics
