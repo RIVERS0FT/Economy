@@ -140,7 +140,7 @@ function canonicalRequestPath(input: RequestInfo | URL) {
 }
 
 function shouldKeepReservation(response: Response) {
-  return response.status === 408 || response.status >= 500;
+  return response.status === 408 || response.status === 429 || response.status >= 500;
 }
 
 function errorName(reason: unknown) {
