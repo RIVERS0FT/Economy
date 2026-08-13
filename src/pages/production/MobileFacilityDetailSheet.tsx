@@ -14,6 +14,8 @@ export function MobileFacilityDetailSheet({
   inventories,
   markets,
   credits,
+  completedTechnologyIds,
+  researchTechnologies,
   now,
   isOpen,
   returnFocusRef,
@@ -56,6 +58,8 @@ export function MobileFacilityDetailSheet({
         inventories={inventories}
         markets={markets}
         credits={credits}
+        completedTechnologyIds={completedTechnologyIds}
+        researchTechnologies={researchTechnologies}
         now={now}
         onRecipeChange={onRecipeChange}
         onOpenProductMarket={onOpenProductMarket}
