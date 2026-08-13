@@ -105,6 +105,7 @@ export class EconomyStore extends CoreEconomyStore {
 // These markers document inherited behavior/order for source-level architecture guards while the
 // wrapper only replaces hot-path cloning and scheduler admission. Runtime behavior still comes
 // from runtime-store-core.js through normal class inheritance.
+// class EconomyStore extends PersistentEconomyStore
 // createEconomicCalendarClientState(now)
 // createStablePartitionClientState(snapshot.state)
 // createClientPartitionSnapshot
