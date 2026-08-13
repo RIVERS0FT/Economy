@@ -36,6 +36,7 @@ jobs:
           git diff --name-only --diff-filter=U || true
           python3 scripts/c2-rebase-main.py
           python3 scripts/c2-fix-economical.py
+          python3 scripts/c2-fix-production-verifier.py
           git add -- \
             docs/README.md \
             docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
@@ -47,7 +48,8 @@ jobs:
             server/src/production-methods.js \
             server/test/domain.test.js \
             server/test/production-methods.test.js \
-            scripts/verify-money-precision.mjs
+            scripts/verify-money-precision.mjs \
+            scripts/verify-production-methods.mjs
           git diff --check
 
       - name: Install dependencies
@@ -60,7 +62,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git rm -- .github/workflows/c2-rebase-main.yml scripts/c2-rebase-main.py scripts/c2-fix-economical.py
+          git rm -- \
+            .github/workflows/c2-rebase-main.yml \
+            scripts/c2-rebase-main.py \
+            scripts/c2-fix-economical.py \
+            scripts/c2-fix-production-verifier.py
           git diff --check
           git status --short
           git commit -m "merge: integrate latest main into C2 production methods"
