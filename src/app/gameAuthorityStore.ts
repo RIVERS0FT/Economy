@@ -78,11 +78,12 @@ export function readGameAuthorityState(): EconomyState | null {
 }
 
 export function useGameAuthorityState(): EconomyState | null {
-  return useSyncExternalStore(
+  const ready = useSyncExternalStore(
     subscribe,
-    () => getStateAuthoritySnapshot().state,
-    () => null,
+    () => getStateAuthoritySnapshot().state !== null,
+    () => false,
   );
+  return ready ? AUTHORITY_STATE_VIEW : null;
 }
 
 export function useGameAuthorityView(userId: number): EconomyState | null {
