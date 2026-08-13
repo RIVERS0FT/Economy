@@ -69,6 +69,14 @@ assert.match(read('server/src/storage.js'), /world\.version = 26/);
 assert.match(read('server/src/population-economy.js'), /POPULATION_ECONOMY_VERSION = 7/);
 assert.match(read('server/src/market-sell-fee.js'), /MARKET_SELL_FEE_VERSION = 4/);
 
+const runtimeActionExecutor = read('server/src/runtime-action-executor.js');
+assert.match(runtimeActionExecutor, /cancelSettledCommodityOrder/);
+assert.match(runtimeActionExecutor, /action === 'cancelOrder'/);
+
+const facilityAutoProcure = read('server/src/facility-auto-procure.js');
+assert.match(facilityAutoProcure, /cancelSettledCommodityOrder/);
+assert.doesNotMatch(facilityAutoProcure, /applyAction\(world, user, 'cancelOrder'/);
+
 const banking = read('server/src/banking.js');
 assert.match(banking, /BANKING_VERSION = 3/);
 assert.match(banking, /BANK_DAILY_INTEREST_RATE_BPS = 100/);
