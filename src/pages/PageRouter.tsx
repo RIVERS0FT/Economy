@@ -1,6 +1,6 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { useGameAuthorityPartitions } from '../app/gameAuthorityStore';
-import type { StatePartitionName } from '../app/stateDelivery.js';
+import { useGameAuthorityDependencies } from '../app/gameAuthorityStore';
+import type { StateAuthorityDependency } from '../app/stateDelivery.js';
 import { FacilityRecipeProfitMarketsProvider } from '../components/facilities/FacilityRecipeProfitContext';
 import { FacilitySelectAvailabilityScope } from '../components/facilities/FacilitySelectAvailabilityScope';
 import type { TabId } from '../config/navigation';
@@ -38,17 +38,34 @@ const pagePreloaders: Record<TabId, () => Promise<unknown>> = {
   settings: loadSettingsPage,
 };
 
-const PAGE_AUTHORITY_PARTITIONS: Record<TabId, readonly StatePartitionName[]> = {
-  home: ['catalog', 'player', 'market'],
-  market: ['catalog', 'player', 'market'],
-  production: ['catalog', 'player', 'market', 'contract'],
-  research: ['catalog', 'player'],
-  auction: ['catalog', 'player', 'auction'],
-  contracts: ['catalog', 'player', 'market', 'contract'],
-  bank: ['catalog', 'player'],
-  leaderboard: ['catalog', 'player', 'leaderboard'],
-  'gem-shop': ['catalog', 'player'],
-  settings: ['catalog', 'player'],
+const PAGE_AUTHORITY_DEPENDENCIES: Record<TabId, readonly StateAuthorityDependency[]> = {
+  home: [
+    'catalog',
+    'player.identity',
+    'player.assets',
+    'player.production',
+    'player.progression',
+    'market.orders',
+    'market.quotes',
+    'market.calendar',
+  ],
+  market: ['catalog', 'player.assets', 'player.production', 'market.orders', 'market.quotes'],
+  production: [
+    'catalog',
+    'player.assets',
+    'player.production',
+    'player.progression',
+    'market.orders',
+    'market.quotes',
+    'contract',
+  ],
+  research: ['catalog', 'player.assets', 'player.production', 'player.progression', 'market.quotes'],
+  auction: ['catalog', 'player.assets', 'player.production', 'auction'],
+  contracts: ['catalog', 'player.assets', 'player.production', 'market.quotes', 'contract'],
+  bank: ['catalog', 'player.assets', 'player.production', 'player.bank'],
+  leaderboard: ['catalog', 'player.identity', 'player.assets', 'leaderboard'],
+  'gem-shop': ['catalog', 'player.assets'],
+  settings: ['catalog', 'player.identity', 'player.assets', 'player.stats'],
 };
 
 export function preloadPage(tab: TabId) {
@@ -68,14 +85,14 @@ const SettingsPage = lazy(() => import('./SettingsPage').then((module) => ({ def
 
 function AuthorityPageBoundary({
   model,
-  partitions,
+  dependencies,
   render,
 }: {
   model: OnlineAutoTradeAwareGameViewModel;
-  partitions: readonly StatePartitionName[];
+  dependencies: readonly StateAuthorityDependency[];
   render: () => ReactNode;
 }) {
-  useGameAuthorityPartitions(partitions);
+  useGameAuthorityDependencies(dependencies);
   return (
     <FacilitySelectAvailabilityScope game={model.game}>
       {render()}
@@ -128,7 +145,7 @@ export function PageRouter({ model }: { model: OnlineAutoTradeAwareGameViewModel
       <AuthorityPageBoundary
         key={tab}
         model={model}
-        partitions={PAGE_AUTHORITY_PARTITIONS[tab]}
+        dependencies={PAGE_AUTHORITY_DEPENDENCIES[tab]}
         render={renderPage}
       />
     </Suspense>
