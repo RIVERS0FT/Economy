@@ -7,6 +7,7 @@ import type {
   FacilityProductionMethodPlan,
   FacilityRecipeDefinition,
   ProductDefinition,
+  ResearchTechnologyDefinition,
 } from '../../types';
 import { formatNumber } from '../../utils/formatters';
 
@@ -136,6 +137,11 @@ function planForMethod(
   return group?.methods.find((method) => method.id === methodId)?.plansByRecipeId[baseRecipeId];
 }
 
+function requiredTechnologyIdsForMethod(method: FacilityProductionMethodGroupDefinition['methods'][number]) {
+  const extended = method as typeof method & { requiredTechnologyIds?: string[] };
+  return Array.isArray(extended.requiredTechnologyIds) ? extended.requiredTechnologyIds : [];
+}
+
 export function FacilityProductionConfigControls({
   typeName,
   products,
@@ -143,6 +149,8 @@ export function FacilityProductionConfigControls({
   productionMethodGroup,
   selectedBaseRecipeId,
   selectedProductionMethodId,
+  completedTechnologyIds,
+  researchTechnologies,
   disabled,
   className = 'facility-production-settings-grid',
   onProductChange,
@@ -154,12 +162,16 @@ export function FacilityProductionConfigControls({
   productionMethodGroup: FacilityProductionMethodGroupDefinition | undefined;
   selectedBaseRecipeId: string;
   selectedProductionMethodId: FacilityProductionMethodId;
+  completedTechnologyIds: string[];
+  researchTechnologies: ResearchTechnologyDefinition[];
   disabled: boolean;
   className?: string;
   onProductChange: (baseRecipeId: string) => void;
   onMethodChange: (methodId: FacilityProductionMethodId) => void;
 }) {
   const productsById = productMap(products);
+  const completedTechnologies = new Set(completedTechnologyIds);
+  const technologyNamesById = new Map(researchTechnologies.map((technology) => [technology.id, technology.name]));
   const currentPlan = planForMethod(
     productionMethodGroup,
     selectedProductionMethodId,
@@ -196,17 +208,23 @@ export function FacilityProductionConfigControls({
           value={selectedProductionMethodId}
           options={productionMethodGroup.methods.map((method) => {
             const plan = method.plansByRecipeId[selectedBaseRecipeId];
+            const missingTechnologyNames = requiredTechnologyIdsForMethod(method)
+              .filter((technologyId) => !completedTechnologies.has(technologyId))
+              .map((technologyId) => technologyNamesById.get(technologyId) ?? technologyId);
+            const locked = missingTechnologyNames.length > 0;
             return {
               value: method.id,
               label: method.name,
-              disabled: !plan,
+              disabled: !plan || locked,
               visual: <ProductionMethodIcon methodId={method.id} />,
               triggerDetail: plan
                 ? `${seconds(plan.cycleMs)} · 成本 ${formatNumber(plan.operatingCost)} · 产出 ×${formatNumber(plan.output.quantity)}`
                 : undefined,
-              detail: plan
-                ? <MethodPlanDetail plan={plan} currentPlan={currentPlan} productsById={productsById} />
-                : <span className="production-config-unavailable">当前产物不可用</span>,
+              detail: !plan
+                ? <span className="production-config-unavailable">当前产物不可用</span>
+                : locked
+                  ? <span className="production-config-unavailable">需要完成「{missingTechnologyNames.join('」「')}」研发</span>
+                  : <MethodPlanDetail plan={plan} currentPlan={currentPlan} productsById={productsById} />,
             };
           })}
           disabled={disabled}
