@@ -201,16 +201,35 @@ function createBalancedPlan(recipe, methodId, prices, expectedProfitPerMinute) {
   const scale = methodId === 'high-yield' ? 2 : 1;
   const inputs = baseInputs.map((item) => ({ ...item, quantity: item.quantity * scale }));
   const output = { ...baseOutput, quantity: baseOutput.quantity * scale };
-  const cycleMs = methodId === 'high-yield'
+  let cycleMs = methodId === 'high-yield'
     ? recipe.cycleMs
     : alignedCycleMs(recipe.cycleMs, expectedProfitPerMinute, methodId);
   const outputValueUnits = valueOfItemsUnits([output], prices);
   const inputValueUnits = valueOfItemsUnits(inputs, prices);
-  const profitNumerator = moneyUnits(expectedProfitPerMinute, '参考分钟利润') * cycleMs;
+  const profitPerMinuteUnits = moneyUnits(expectedProfitPerMinute, '参考分钟利润');
+  let profitNumerator = profitPerMinuteUnits * cycleMs;
   if (!Number.isSafeInteger(profitNumerator) || profitNumerator % 60_000 !== 0) {
     throw new Error(`${baseRecipeId}/${methodId} 无法形成分币精确的参考利润`);
   }
-  const operatingCostUnits = outputValueUnits - inputValueUnits - profitNumerator / 60_000;
+  let operatingCostUnits = outputValueUnits - inputValueUnits - profitNumerator / 60_000;
+  if (methodId === 'economical' && operatingCostUnits < 0) {
+    const baseOperatingCostUnits = moneyUnits(recipe.operatingCost, '基础周期成本');
+    for (let candidateCycleMs = cycleMs - 1_000; candidateCycleMs > recipe.cycleMs; candidateCycleMs -= 1_000) {
+      const candidateProfitNumerator = profitPerMinuteUnits * candidateCycleMs;
+      if (!Number.isSafeInteger(candidateProfitNumerator) || candidateProfitNumerator % 60_000 !== 0) continue;
+      const candidateOperatingCostUnits = outputValueUnits - inputValueUnits - candidateProfitNumerator / 60_000;
+      if (
+        Number.isSafeInteger(candidateOperatingCostUnits)
+        && candidateOperatingCostUnits >= 0
+        && candidateOperatingCostUnits < baseOperatingCostUnits
+      ) {
+        cycleMs = candidateCycleMs;
+        profitNumerator = candidateProfitNumerator;
+        operatingCostUnits = candidateOperatingCostUnits;
+        break;
+      }
+    }
+  }
   if (!Number.isSafeInteger(operatingCostUnits) || operatingCostUnits < 0) {
     throw new Error(`${baseRecipeId}/${methodId} 无法形成非负两位小数周期成本`);
   }

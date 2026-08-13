@@ -2,31 +2,47 @@ import { useCallback, useSyncExternalStore } from 'react';
 import type { EconomyState } from '../types';
 import {
   getStateAuthorityPartition,
+  getStateAuthoritySliceRevision,
   getStateAuthoritySnapshot,
   subscribeStateAuthority,
+  subscribeStateAuthorityDependencies,
   subscribeStateAuthorityPartition,
-  subscribeStateAuthorityPartitions,
+  type StateAuthorityDependency,
   type StateAuthoritySnapshot,
   type StatePartitionName,
+  type StateSliceName,
 } from './stateDelivery.js';
 
 const subscribe = (listener: () => void) => subscribeStateAuthority(listener);
 const EMPTY_SELECTION_SNAPSHOT = Object.freeze({ ready: false, refs: Object.freeze([]) });
 const selectionCache = new Map<string, {
   ready: boolean;
-  refs: Array<Partial<EconomyState> | null>;
-  snapshot: { ready: boolean; refs: readonly (Partial<EconomyState> | null)[] };
+  refs: unknown[];
+  snapshot: { ready: boolean; refs: readonly unknown[] };
 }>();
 
-function normalizedSelectionNames(key: string): StatePartitionName[] {
-  return key.split('|').filter(Boolean) as StatePartitionName[];
+function normalizedDependencyNames(key: string): StateAuthorityDependency[] {
+  return key.split('|').filter(Boolean) as StateAuthorityDependency[];
+}
+
+function parentPartitionForSlice(name: StateSliceName): StatePartitionName {
+  return name.startsWith('market.') ? 'market' : 'player';
+}
+
+function authorityDependencyReference(name: StateAuthorityDependency) {
+  if (name.includes('.')) {
+    const sliceName = name as StateSliceName;
+    return getStateAuthoritySliceRevision(sliceName)
+      ?? getStateAuthorityPartition(parentPartitionForSlice(sliceName));
+  }
+  return getStateAuthorityPartition(name as StatePartitionName);
 }
 
 function selectionSnapshot(key: string) {
-  const names = normalizedSelectionNames(key);
+  const names = normalizedDependencyNames(key);
   const state = getStateAuthoritySnapshot().state;
   const ready = state !== null;
-  const refs = names.map((name) => getStateAuthorityPartition(name));
+  const refs = names.map(authorityDependencyReference);
   const cached = selectionCache.get(key);
   if (
     cached
@@ -95,12 +111,12 @@ export function useGameAuthorityView(userId: number): EconomyState | null {
   return ready ? AUTHORITY_STATE_VIEW : null;
 }
 
-export function useGameAuthorityPartitions(
-  names: readonly StatePartitionName[],
+export function useGameAuthorityDependencies(
+  names: readonly StateAuthorityDependency[],
 ): EconomyState | null {
   const key = names.join('|');
   const subscribeSelection = useCallback(
-    (listener: () => void) => subscribeStateAuthorityPartitions(normalizedSelectionNames(key), listener),
+    (listener: () => void) => subscribeStateAuthorityDependencies(normalizedDependencyNames(key), listener),
     [key],
   );
   const getSelectionSnapshot = useCallback(() => selectionSnapshot(key), [key]);
@@ -110,6 +126,12 @@ export function useGameAuthorityPartitions(
     () => EMPTY_SELECTION_SNAPSHOT,
   );
   return getStateAuthoritySnapshot().state;
+}
+
+export function useGameAuthorityPartitions(
+  names: readonly StatePartitionName[],
+): EconomyState | null {
+  return useGameAuthorityDependencies(names);
 }
 
 export function useGameAuthorityRevision(): number | null {

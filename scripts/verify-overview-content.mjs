@@ -46,7 +46,14 @@ requireAll(paths.router, [
   "import { lazy, Suspense, type ReactNode } from 'react'",
   "const OverviewPage = lazy(() => import('./OverviewPage')",
   'renderPage = () => <OverviewPage model={model} />',
-  "home: ['catalog', 'player', 'market']",
+  'home: [',
+  "'player.identity'",
+  "'player.assets'",
+  "'player.production'",
+  "'player.progression'",
+  "'market.orders'",
+  "'market.quotes'",
+  "'market.calendar'",
 ]);
 forbidAll(paths.router, ['localStorage', 'sessionStorage', 'marketAssetId']);
 
@@ -143,7 +150,7 @@ requireAll(paths.guideStyle, ['.game-guide-strip {', '.game-guide-progress {', '
 
 requireAll(paths.shell, [
   'const [sidebarCollapsed, setSidebarCollapsed] = useState(false)',
-  "useGameAuthorityPartitions(['player', 'leaderboard'])",
+  "useGameAuthorityDependencies(['player.identity', 'player.assets', 'leaderboard'])",
   '<SignedInShell',
   'rootClassName="game-shell"',
   'sidebarCollapsed={sidebarCollapsed}',
@@ -245,4 +252,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('概览验证通过：共享外壳折叠、教程提醒容量、签到日历、服务器日期语义、权威资产状态、状态栏趋势与浏览器碰撞回归满足设计基线。');
+console.log('概览验证通过：共享外壳折叠、教程提醒容量、签到日历、服务器日期语义、权威资产状态、子切片依赖、状态栏趋势与浏览器碰撞回归满足设计基线。');

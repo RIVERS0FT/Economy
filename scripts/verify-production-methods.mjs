@@ -175,8 +175,8 @@ for (const text of [
   'const methodGroup = productionMethodGroupForType(type);',
   'id: plan.recipeId',
   '<FacilityProductionConfigControls',
-  'onProductChange={(baseRecipeId)',
-  'onMethodChange={(methodId)',
+  'selectConfiguration(selectedBaseRecipeId, recipeState.selectedProductionMethodId);',
+  'selectConfiguration(recipeState.selectedBaseRecipeId, methodId);',
 ]) assert.ok(detailSource.includes(text), `生产方式客户端合成缺少 ${text}`);
 for (const text of [
   'export function FacilityProductionConfigControls',

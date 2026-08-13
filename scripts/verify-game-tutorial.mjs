@@ -41,6 +41,7 @@ requireText(controller, 'group.lifetimeOutput <= baseline', '生产步骤必须�
 requireText(controller, "run.currentStep !== 'review-contracts' || model.tab !== 'contracts'", '合同目标必须在玩家实际打开合同页后推进');
 requireText(controller, "run.currentStep !== 'review-leaderboard' || model.tab !== 'leaderboard'", '排行榜目标必须在玩家实际打开排行榜后完成');
 requireText(controller, 'requestAutoSellPanel(userId, productId)', '教程第五步必须直接打开仓库自动交易卡的自动出售方向');
+requireText(controller, "subscribeStateAuthoritySlice('player.production', confirmProduction)", '生产完成检测必须只监听玩家生产子切片');
 requireText(definition, "id: 'set-auto-sell'", '成长线第五步必须保持自动出售设置');
 requireText(definition, "title: '设置商品自动出售'", '成长线必须明确教玩家设置自动出售');
 requireText(definition, '最低自由库存可填写 0', '成长线必须说明最低自由库存是可选的额外保留');
@@ -62,7 +63,7 @@ for (const text of [
 ]) requireText(gameApp, text, `经营成长线操作必须使用当前成功语义：${text}`);
 forbidText(gameApp, 'tutorial.recordSellOrderSubmit', '成长线不得继续把手动卖单作为第五步');
 requireText(autoTrade, "if (side === 'sell' && result.ok && result.message.includes('自动出售'))", '第六步必须只由服务器确认发生实际自动出售成交后推进，单纯挂出自动卖单不得推进');
-requireText(autoTrade, 'callbacks.onSale?.(candidate.id);', '统一自动交易控制器必须把实际自动出售成交回传成长线');
+requireText(autoTrade, 'callbacks.onSale?.(productId);', '统一自动交易控制器必须把实际自动出售成交回传成长线');
 requireText(autoSellCompat, "from '../auto-trade/useOnlineAutoTrade'", '旧自动出售 hook 入口必须转发到统一自动交易控制器');
 
 requireText(guide, '<span>经营成长线</span>', '概览引导条必须显示经营成长线名称');

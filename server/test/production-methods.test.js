@@ -201,6 +201,11 @@ test('C4 refinery provides plastic, industrial fuel, and industrial chemicals at
   const routes = refinery.recipes.filter((recipe) => !recipe.legacyProductionMethod && recipe.productionMethodId === 'standard');
   assert.deepEqual(routes.map((recipe) => recipe.output.productId), ['plastic', 'industrial-fuel', 'industrial-chemicals']);
   assert.equal(routes.every((recipe) => Math.abs(referenceProfitPerMinute(recipe) - 6) < 1e-9), true);
+
+  const fuelEconomical = variant(refinery, 'industrial-fuel-refining', 'economical');
+  assert.equal(fuelEconomical.cycleMs, 70_000);
+  assert.equal(fuelEconomical.operatingCost, 0);
+  assert.ok(Math.abs(referenceProfitPerMinute(fuelEconomical) - 6) < 1e-9);
 });
 
 test('public client state hides legacy C2 aliases and exposes current method metadata', () => {

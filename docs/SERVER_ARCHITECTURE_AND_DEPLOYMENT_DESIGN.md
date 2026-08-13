@@ -698,3 +698,11 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 服务器生产目录继续把基础配方编译为生产方式配方变体；C1 与 C2 的当前制度由工厂专属蓝图生成，C3～C7 保留通用生成器。`setFacilityRecipe` 必须先校验工厂准入科技，再校验目标制度的 `requiredTechnologyIds`；客户端禁用状态不得替代服务器校验。普通玩家状态中的 `facilityTypes[].recipes` 继续只公开标准生产路线，完整当前制度通过 `productionMethodGroups` 下发。
 
 旧 C2 作业制度 `rapid`／`economical`／`high-yield` 仅在服务器内部作为迁移别名识别，迁移到同一基础产物路线的标准制度后不再公开或接受主动选择。持久化世界版本固定为 28；市场需求模型 19 对新增工业燃料和工业化学品建立直接需求，并在模型 18 升级时释放并重建人口消费与市场储备系统订单，不改写玩家真实资产和成交历史。
+
+### 六分区内部子修订元数据
+
+状态交付的六个外层分区保持不变，字段归属仍由 `state-partitions.js` 决定。为允许新客户端在收到完整 `player` / `market` 快照时复用未变化字段引用，服务器可在 envelope 顶层同时返回 `sliceRevisions`。子切片定义唯一维护在 `server/shared/economy-state-slices.js`；服务端与客户端必须共享同一字段归属，禁止各自复制一套映射。
+
+`sliceRevisions` 只是传输元数据，不写入世界 JSON、SQLite 玩家状态或 `EconomyState`，也不参与经济规则。客户端仍只提交六个父分区 revision 作为已知状态，服务器仍以父分区 revision 判断是否需要发送完整父分区 patch；子修订不能让服务器发送字段级 patch。没有父分区 patch 的轻量无变化响应仍可省略子修订。
+
+增加、删除或调整子切片不得修改客户端状态版本或世界状态版本，除非实际 `EconomyState` 字段或持久化结构同时发生了不兼容变化。旧客户端会忽略 `sliceRevisions`；新客户端遇到缺少该元数据的旧响应必须按整个父分区变化处理，因此发布期间不需要双协议切换。

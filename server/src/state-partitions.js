@@ -1,4 +1,8 @@
 import { createHash } from 'node:crypto';
+import {
+  STATE_SLICE_NAMES,
+  stateSliceNameForKey,
+} from '../shared/economy-state-slices.js';
 import { measureRequestPhase, setRequestGauge } from './request-performance.js';
 
 export const STATE_PARTITION_NAMES = Object.freeze([
@@ -66,6 +70,25 @@ export function splitClientState(state) {
   return partitions;
 }
 
+function splitStateSlices(partitions) {
+  const slices = Object.fromEntries(STATE_SLICE_NAMES.map((name) => [name, {}]));
+  for (const partitionName of ['player', 'market']) {
+    for (const [key, value] of Object.entries(partitions[partitionName] || {})) {
+      const sliceName = stateSliceNameForKey(partitionName, key);
+      if (sliceName) slices[sliceName][key] = value;
+    }
+  }
+  return slices;
+}
+
+export function createSliceRevisions(partitions) {
+  const slices = splitStateSlices(partitions);
+  return Object.fromEntries(STATE_SLICE_NAMES.map((name) => [
+    name,
+    revisionForPartition(slices[name] || {}),
+  ]));
+}
+
 export function createPartitionRevisions(partitions, { catalogSnapshot } = {}) {
   return Object.fromEntries(STATE_PARTITION_NAMES.map((name) => {
     if (
@@ -84,8 +107,10 @@ export function createPartitionRevisions(partitions, { catalogSnapshot } = {}) {
 export function createStatePartitionSnapshot(state, { catalogSnapshot } = {}) {
   const partitions = measureRequestPhase('partitionBuildMs', () => splitClientState(state));
   const partitionRevisions = createPartitionRevisions(partitions, { catalogSnapshot });
+  const sliceRevisions = createSliceRevisions(partitions);
   setRequestGauge('statePartitionCount', STATE_PARTITION_NAMES.length);
-  return { partitions, partitionRevisions };
+  setRequestGauge('stateSliceCount', STATE_SLICE_NAMES.length);
+  return { partitions, partitionRevisions, sliceRevisions };
 }
 
 export function combineStatePartitions(partitions = {}) {
@@ -111,12 +136,16 @@ export function createPartitionedStateDelivery(snapshot, knownRevisions = {}, se
   const responseServerNow = normalizeServerNow(serverNow);
   if (snapshot?.unchanged) return { revision: snapshot.revision, unchanged: true, serverNow: responseServerNow };
   const prepared = snapshot?.partitions && snapshot?.partitionRevisions
-    ? { partitions: snapshot.partitions, partitionRevisions: snapshot.partitionRevisions }
+    ? {
+        partitions: snapshot.partitions,
+        partitionRevisions: snapshot.partitionRevisions,
+        sliceRevisions: snapshot.sliceRevisions ?? createSliceRevisions(snapshot.partitions),
+      }
     : snapshot?.state
       ? createStatePartitionSnapshot(snapshot.state)
       : null;
   if (!prepared) return { revision: snapshot?.revision, unchanged: true, serverNow: responseServerNow };
-  const { partitions, partitionRevisions } = prepared;
+  const { partitions, partitionRevisions, sliceRevisions } = prepared;
   const known = normalizeRevisionRecord(knownRevisions);
   const patches = {};
   for (const name of STATE_PARTITION_NAMES) {
@@ -127,6 +156,7 @@ export function createPartitionedStateDelivery(snapshot, knownRevisions = {}, se
     unchanged: Object.keys(patches).length === 0,
     serverNow: responseServerNow,
     partitionRevisions,
+    sliceRevisions,
     patches,
   };
 }

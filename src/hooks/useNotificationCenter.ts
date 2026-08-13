@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useGameAuthorityPartitions } from '../app/gameAuthorityStore';
+import { useGameAuthorityDependencies } from '../app/gameAuthorityStore';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import {
   appendNotification,
@@ -49,7 +49,13 @@ export interface NotificationCenterController {
 }
 
 export function useNotificationCenter(model: LoadedGameViewModel): NotificationCenterController {
-  const authorityGame = useGameAuthorityPartitions(['catalog', 'player', 'auction', 'contract']);
+  const authorityGame = useGameAuthorityDependencies([
+    'catalog',
+    'player.production',
+    'player.bank',
+    'auction',
+    'contract',
+  ]);
   const game = authorityGame ?? model.game;
   const [panelOpen, setPanelOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationRecord[]>(() => (

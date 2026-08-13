@@ -1,4 +1,5 @@
 import type { EconomyState } from '../types';
+import { getClientOrderIndex } from './clientOrderIndex';
 import { readGameAuthorityState } from './gameAuthorityStore';
 import type { DerivedGameData } from './gameViewModel';
 
@@ -34,9 +35,7 @@ export function deriveGameDataSnapshot(game: EconomyState | null): DerivedGameDa
   const orders = game.orders;
   if (orders !== cachedOrders) {
     cachedOrders = orders;
-    cachedOwnOpenOrders = orders?.filter(
-      (order) => order.isOwn && ['open', 'partial'].includes(order.status),
-    ) ?? [];
+    cachedOwnOpenOrders = getClientOrderIndex(orders).ownOpenOrders as DerivedGameData['ownOpenOrders'];
   }
 
   const leaderboard = game.leaderboard;

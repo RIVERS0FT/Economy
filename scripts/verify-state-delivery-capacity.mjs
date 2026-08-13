@@ -241,16 +241,24 @@ forbidText('src/app/gameViewModel.ts', [
 
 requireText('src/hooks/useNow.ts', [
   'estimateServerNow(referenceNow)',
-  'subscribeServerClock(update)',
-  'Math.max(current, estimateServerNow(referenceNow))',
+  'const sharedTickers = new Map',
+  'subscribeServerClock(() => signalTicker(ticker))',
+  'useSyncExternalStore',
+  'window.setInterval(() => signalTicker(ticker), interval)',
 ]);
 forbidText('src/hooks/useNow.ts', [
   'referenceNow + Math.max(0, Date.now() - receivedAt)',
 ]);
 
 requireText('src/pages/OverviewPage.tsx', [
+  '<OverviewWorkButton',
+  'referenceNow={game.lastProcessedAt}',
+  'cooldownUntil={game.work.cooldownUntil}',
+]);
+requireText('src/pages/overview/OverviewLiveSections.tsx', [
   "isWorking ? '处理中…'",
-  'disabled={isWorking || workRemaining > 0}',
+  'disabled={isWorking || remaining > 0}',
+  '<LiveServerTime referenceNow={referenceNow}>',
 ]);
 
 if (!canAcceptRevision(null, 1)

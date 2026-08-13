@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cancelFacilityBuildProcurement, createFacilityBuildProcurement } from '../api/game';
-import { useNow } from '../hooks/useNow';
 import type { OnlineAutoSellAwareGameViewModel } from '../auto-sell/useOnlineAutoSell';
 import { ProductArtwork } from '../components/products/ProductArtwork';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
@@ -87,7 +86,7 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
     showResult,
   } = model;
 
-  const now = useNow(game.lastProcessedAt);
+  const now = game.lastProcessedAt;
   const [selectedFacilityGroupId, setSelectedFacilityGroupId] = useState('');
   const [isFacilityDetailOpen, setFacilityDetailOpen] = useState(false);
   const [buildQuantity, setBuildQuantity] = useState(1);

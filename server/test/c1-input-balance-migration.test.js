@@ -5,7 +5,7 @@ import { createWorld, ensurePlayer, migrateWorld } from '../src/domain.js';
 const now = 1_786_000_000_000;
 const alice = { id: 91, name: '平衡迁移玩家' };
 
-test('model 18 cancels affected open orders, preserves quantities and resets current anchors once', () => {
+test('model 18 rebalance remains preserved when migrating through current model 19', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   world.marketDemand.modelVersion = 17;
@@ -26,7 +26,7 @@ test('model 18 cancels affected open orders, preserves quantities and resets cur
 
   migrateWorld(world, now + 1);
 
-  assert.equal(world.marketDemand.modelVersion, 18);
+  assert.equal(world.marketDemand.modelVersion, 19);
   assert.equal(world.orders.find((order) => order.id === 'affected-buy').status, 'cancelled');
   assert.equal(world.orders.find((order) => order.id === 'affected-sell').status, 'cancelled');
   assert.equal(world.orders.find((order) => order.id === 'unaffected-buy').status, 'open');

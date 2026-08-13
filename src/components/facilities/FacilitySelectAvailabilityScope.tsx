@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
+import { useGameAuthorityDependencies } from '../../app/gameAuthorityStore';
 import type { EconomyState } from '../../types';
 import { getUnlockedFacilityTypeIds } from '../../utils/facilityResearchAccess';
 import { SelectOptionAvailabilityProvider } from '../ui/FormControls';
@@ -10,6 +11,7 @@ export function FacilitySelectAvailabilityScope({
   game: EconomyState;
   children: ReactNode;
 }) {
+  useGameAuthorityDependencies(['catalog', 'player.progression']);
   const restrictedOptionValues = useMemo(
     () => new Set(game.facilityTypes.map((facility) => facility.id)),
     [game.facilityTypes],

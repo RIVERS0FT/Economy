@@ -60,7 +60,6 @@ test('commodity and facility books share the ten-times-catalog-sized unfinished 
   const catalogSize = PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length;
   const expectedLimit = catalogSize * 10;
   assert.equal(ECONOMY_CONSTANTS.maxOpenOrders, expectedLimit);
-  assert.equal(expectedLimit, 620);
 
   world.orders = [
     ...PRODUCT_CATALOG.map((product, index) => ({

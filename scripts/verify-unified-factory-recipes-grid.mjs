@@ -79,7 +79,7 @@ for (const text of [
   '<FacilityIcon facilityTypeId={type.id} className="facility-cluster-icon" />',
   'artworkClassName="facility-detail-artwork facility-information-artwork"',
   'className="facility-detail-artwork-icon"',
-  '<FacilityStaffingSummary entry={entry} now={now} />',
+  '<FacilityStaffingSummary entry={entry} now={liveNow} />',
   'return createPortal(',
   "const [selectedFacilityGroupId, setSelectedFacilityGroupId] = useState('')",
   'const [isFacilityDetailOpen, setFacilityDetailOpen] = useState(false)',
