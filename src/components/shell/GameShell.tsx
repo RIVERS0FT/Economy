@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useGameAuthorityPartitions } from '../../app/gameAuthorityStore';
+import { useGameAuthorityDependencies } from '../../app/gameAuthorityStore';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { DEFAULT_QQ_GROUP_URL, getCommunityLink } from '../../api/game';
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../icons/GameIcons';
@@ -23,7 +23,7 @@ export function GameShell({ model, children }: {
   statusItems?: StatusBarItem[];
   children: ReactNode;
 }) {
-  const authorityGame = useGameAuthorityPartitions(['player', 'leaderboard']);
+  const authorityGame = useGameAuthorityDependencies(['player.identity', 'player.assets', 'leaderboard']);
   const game = authorityGame ?? model.game;
   const derived = model.derived;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
