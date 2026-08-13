@@ -31,6 +31,14 @@ export const STATE_PARTITION_NAMES: readonly StatePartitionName[];
 export function getStateAuthoritySnapshot(): StateAuthoritySnapshot;
 export function getStateAuthorityPartition(name: StatePartitionName): Partial<EconomyState> | null;
 export function subscribeStateAuthority(listener: () => void): () => void;
+export function subscribeStateAuthorityPartition(
+  name: StatePartitionName,
+  listener: () => void,
+): () => void;
+export function subscribeStateAuthorityPartitions(
+  names: readonly StatePartitionName[],
+  listener: () => void,
+): () => void;
 export function mergeStatePatches(
   currentPartitions: StatePartitionSnapshots | undefined,
   patches: StatePartitionPatches | undefined,
