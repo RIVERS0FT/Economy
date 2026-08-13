@@ -7,51 +7,102 @@ const METHOD_DEFINITIONS = Object.freeze([
     name: '标准生产',
     description: '保持正式配方的标准周期、投入、产出与成本。',
     tone: 'neutral',
+    requiredTechnologyIds: Object.freeze([]),
   }),
   Object.freeze({
     id: 'rapid',
     name: '高速生产',
     description: '缩短生产周期并提高单周期成本，更快消耗资金与原料。',
     tone: 'warning',
+    requiredTechnologyIds: Object.freeze([]),
   }),
   Object.freeze({
     id: 'economical',
     name: '节约生产',
     description: '延长生产周期并降低单周期成本，减少短期资金压力。',
     tone: 'success',
+    requiredTechnologyIds: Object.freeze([]),
   }),
   Object.freeze({
     id: 'high-yield',
     name: '高产生产',
     description: '同周期投入与产出翻倍，提高吞吐量与仓库压力。',
     tone: 'accent',
+    requiredTechnologyIds: Object.freeze([]),
   }),
 ]);
 
-const C1_METHOD_BLUEPRINTS = Object.freeze({
+function dedicatedMethod(definition) {
+  return Object.freeze({
+    ...definition,
+    additionalInputs: Object.freeze((definition.additionalInputs || []).map((item) => Object.freeze({ ...item }))),
+    baseInputQuantities: definition.baseInputQuantities
+      ? Object.freeze([...definition.baseInputQuantities])
+      : undefined,
+    requiredTechnologyIds: Object.freeze([...(definition.requiredTechnologyIds || [])]),
+  });
+}
+
+const FACILITY_METHOD_BLUEPRINTS = Object.freeze({
   farm: Object.freeze([
-    Object.freeze({ id: 'standard', name: '基础耕作', description: '保持基础耕作，不消耗额外生产资料。', tone: 'neutral', inputs: [], outputQuantity: 1 }),
-    Object.freeze({ id: 'assisted', name: '工具耕作', description: '每周期整件消耗 1 工具并提高作物产量。', tone: 'warning', inputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 12 }),
-    Object.freeze({ id: 'intensive', name: '化肥耕作', description: '每周期整件消耗 2 化肥并进一步提高作物产量。', tone: 'success', inputs: [{ productId: 'fertilizer', quantity: 2 }], outputQuantity: 14 }),
-    Object.freeze({ id: 'mechanized', name: '拖拉机耕作', description: '每周期整件消耗 1 拖拉机并获得最高作物产量。', tone: 'accent', inputs: [{ productId: 'tractor', quantity: 1 }], outputQuantity: 16 }),
+    dedicatedMethod({ id: 'standard', name: '基础耕作', description: '保持基础耕作，不消耗额外生产资料。', tone: 'neutral', outputQuantity: 1 }),
+    dedicatedMethod({ id: 'assisted', name: '工具耕作', description: '每周期整件消耗 1 工具并提高作物产量。', tone: 'warning', additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 12, requiredTechnologyIds: ['tool-manufacturing'] }),
+    dedicatedMethod({ id: 'intensive', name: '化肥耕作', description: '每周期整件消耗 2 化肥并进一步提高作物产量。', tone: 'success', additionalInputs: [{ productId: 'fertilizer', quantity: 2 }], outputQuantity: 14, requiredTechnologyIds: ['fertilizer-engineering'] }),
+    dedicatedMethod({ id: 'mechanized', name: '拖拉机耕作', description: '每周期整件消耗 1 拖拉机并获得最高作物产量。', tone: 'accent', additionalInputs: [{ productId: 'tractor', quantity: 1 }], outputQuantity: 16, requiredTechnologyIds: ['agricultural-machinery'] }),
   ]),
   orchard: Object.freeze([
-    Object.freeze({ id: 'standard', name: '基础管护', description: '保持基础果园管护，不消耗额外生产资料。', tone: 'neutral', inputs: [], outputQuantity: 1 }),
-    Object.freeze({ id: 'assisted', name: '工具管护', description: '每周期整件消耗 1 工具并提高水果产量。', tone: 'warning', inputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 11 }),
-    Object.freeze({ id: 'intensive', name: '化肥管护', description: '每周期整件消耗 2 化肥并进一步提高水果产量。', tone: 'success', inputs: [{ productId: 'fertilizer', quantity: 2 }], outputQuantity: 13 }),
-    Object.freeze({ id: 'mechanized', name: '拖拉机管护', description: '每周期整件消耗 1 拖拉机并获得最高水果产量。', tone: 'accent', inputs: [{ productId: 'tractor', quantity: 1 }], outputQuantity: 15 }),
+    dedicatedMethod({ id: 'standard', name: '基础管护', description: '保持基础果园管护，不消耗额外生产资料。', tone: 'neutral', outputQuantity: 1 }),
+    dedicatedMethod({ id: 'assisted', name: '工具管护', description: '每周期整件消耗 1 工具并提高水果产量。', tone: 'warning', additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 11, requiredTechnologyIds: ['tool-manufacturing'] }),
+    dedicatedMethod({ id: 'intensive', name: '化肥管护', description: '每周期整件消耗 2 化肥并进一步提高水果产量。', tone: 'success', additionalInputs: [{ productId: 'fertilizer', quantity: 2 }], outputQuantity: 13, requiredTechnologyIds: ['fertilizer-engineering'] }),
+    dedicatedMethod({ id: 'mechanized', name: '拖拉机管护', description: '每周期整件消耗 1 拖拉机并获得最高水果产量。', tone: 'accent', additionalInputs: [{ productId: 'tractor', quantity: 1 }], outputQuantity: 15, requiredTechnologyIds: ['agricultural-machinery'] }),
   ]),
   ranch: Object.freeze([
-    Object.freeze({ id: 'standard', name: '粗放饲养', description: '保持粗放饲养，不消耗额外生产资料。', tone: 'neutral', inputs: [], outputQuantity: 1 }),
-    Object.freeze({ id: 'assisted', name: '饲料饲养', description: '每周期整件消耗 1 配合饲料并提高畜产品产量。', tone: 'warning', inputs: [{ productId: 'feed', quantity: 1 }], outputQuantity: 4 }),
-    Object.freeze({ id: 'intensive', name: '药剂精养', description: '每周期整件消耗 1 养殖药剂并进一步提高畜产品产量。', tone: 'success', inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], outputQuantity: 8 }),
-    Object.freeze({ id: 'mechanized', name: '机械化养殖', description: '每周期整件消耗 1 机械并获得最高畜产品产量。', tone: 'accent', inputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 9 }),
+    dedicatedMethod({ id: 'standard', name: '粗放饲养', description: '保持粗放饲养，不消耗额外生产资料。', tone: 'neutral', outputQuantity: 1 }),
+    dedicatedMethod({ id: 'assisted', name: '饲料饲养', description: '每周期整件消耗 1 配合饲料并提高畜产品产量。', tone: 'warning', additionalInputs: [{ productId: 'feed', quantity: 1 }], outputQuantity: 4, requiredTechnologyIds: ['feed-processing'] }),
+    dedicatedMethod({ id: 'intensive', name: '药剂精养', description: '每周期整件消耗 1 养殖药剂并进一步提高畜产品产量。', tone: 'success', additionalInputs: [{ productId: 'veterinary-medicine', quantity: 1 }], outputQuantity: 8, requiredTechnologyIds: ['veterinary-medicine'] }),
+    dedicatedMethod({ id: 'mechanized', name: '机械化养殖', description: '每周期整件消耗 1 机械并获得最高畜产品产量。', tone: 'accent', additionalInputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 9, requiredTechnologyIds: ['mechanical-engineering'] }),
   ]),
   fishery: Object.freeze([
-    Object.freeze({ id: 'standard', name: '粗放养殖', description: '保持粗放养殖，不消耗额外生产资料。', tone: 'neutral', inputs: [], outputQuantity: 1 }),
-    Object.freeze({ id: 'assisted', name: '饲料精养', description: '每周期整件消耗 1 配合饲料并提高鱼类产量。', tone: 'warning', inputs: [{ productId: 'feed', quantity: 1 }], outputQuantity: 4 }),
-    Object.freeze({ id: 'intensive', name: '药剂精养', description: '每周期整件消耗 1 养殖药剂并进一步提高鱼类产量。', tone: 'success', inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], outputQuantity: 8 }),
-    Object.freeze({ id: 'mechanized', name: '机械化养殖', description: '每周期整件消耗 1 机械并获得最高鱼类产量。', tone: 'accent', inputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 9 }),
+    dedicatedMethod({ id: 'standard', name: '粗放养殖', description: '保持粗放养殖，不消耗额外生产资料。', tone: 'neutral', outputQuantity: 1 }),
+    dedicatedMethod({ id: 'assisted', name: '饲料精养', description: '每周期整件消耗 1 配合饲料并提高鱼类产量。', tone: 'warning', additionalInputs: [{ productId: 'feed', quantity: 1 }], outputQuantity: 4, requiredTechnologyIds: ['feed-processing'] }),
+    dedicatedMethod({ id: 'intensive', name: '药剂精养', description: '每周期整件消耗 1 养殖药剂并进一步提高鱼类产量。', tone: 'success', additionalInputs: [{ productId: 'veterinary-medicine', quantity: 1 }], outputQuantity: 8, requiredTechnologyIds: ['veterinary-medicine'] }),
+    dedicatedMethod({ id: 'mechanized', name: '机械化养殖', description: '每周期整件消耗 1 机械并获得最高鱼类产量。', tone: 'accent', additionalInputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 9, requiredTechnologyIds: ['mechanical-engineering'] }),
+  ]),
+  'logging-camp': Object.freeze([
+    dedicatedMethod({ id: 'standard', name: '基础采伐', description: '采用基础人工作业采伐木材。', tone: 'neutral', outputQuantity: 2, operatingCost: 9 }),
+    dedicatedMethod({ id: 'assisted', name: '锯具采伐', description: '每周期整件消耗 1 工具，提高木材采伐量。', tone: 'warning', additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 4, operatingCost: 6, requiredTechnologyIds: ['tool-manufacturing'] }),
+    dedicatedMethod({ id: 'intensive', name: '动力采伐', description: '工具配合工业燃料形成动力采伐线。', tone: 'success', additionalInputs: [{ productId: 'tools', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 5, operatingCost: 5, requiredTechnologyIds: ['tool-manufacturing', 'oil-refining'] }),
+    dedicatedMethod({ id: 'mechanized', name: '机械化采伐', description: '机械与工业燃料共同驱动最高强度采伐。', tone: 'accent', additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-fuel', quantity: 2 }], outputQuantity: 7, operatingCost: 7.95, requiredTechnologyIds: ['mechanical-engineering', 'oil-refining'] }),
+  ]),
+  mine: Object.freeze([
+    dedicatedMethod({ id: 'standard', name: '常规开采', description: '保持常规矿井开采方式。', tone: 'neutral', outputQuantity: 2, operatingCost: 11 }),
+    dedicatedMethod({ id: 'assisted', name: '钻具开采', description: '每周期整件消耗 1 工具，提高矿石产量。', tone: 'warning', additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 4, operatingCost: 10, requiredTechnologyIds: ['tool-manufacturing'] }),
+    dedicatedMethod({ id: 'intensive', name: '爆破开采', description: '工具与工业化学品配合进行强化开采。', tone: 'success', additionalInputs: [{ productId: 'tools', quantity: 1 }, { productId: 'industrial-chemicals', quantity: 1 }], outputQuantity: 5, operatingCost: 9, requiredTechnologyIds: ['tool-manufacturing', 'oil-refining'] }),
+    dedicatedMethod({ id: 'mechanized', name: '机械化采矿', description: '机械、工业化学品与工业燃料组成完整机械化矿山。', tone: 'accent', additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-chemicals', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 6, operatingCost: 6.95, requiredTechnologyIds: ['mechanical-engineering', 'oil-refining'] }),
+  ]),
+  'oil-field': Object.freeze([
+    dedicatedMethod({ id: 'standard', name: '常规抽采', description: '保持常规油井抽采方式。', tone: 'neutral', outputQuantity: 2, operatingCost: 15 }),
+    dedicatedMethod({ id: 'assisted', name: '化学辅助采油', description: '每周期整件消耗 1 工业化学品提高采收率。', tone: 'warning', additionalInputs: [{ productId: 'industrial-chemicals', quantity: 1 }], outputQuantity: 3, operatingCost: 16, requiredTechnologyIds: ['oil-refining'] }),
+    dedicatedMethod({ id: 'intensive', name: '机械增产钻采', description: '机械配合工业化学品进行强化钻采。', tone: 'success', additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-chemicals', quantity: 1 }], outputQuantity: 5, operatingCost: 15.45, requiredTechnologyIds: ['mechanical-engineering', 'oil-refining'] }),
+    dedicatedMethod({ id: 'mechanized', name: '动力机械钻采', description: '机械、工业化学品与工业燃料组成最高强度钻采体系。', tone: 'accent', additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-chemicals', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 6, operatingCost: 18.95, requiredTechnologyIds: ['mechanical-engineering', 'oil-refining'] }),
+  ]),
+  mill: Object.freeze([
+    dedicatedMethod({ id: 'standard', name: '基础加工', description: '保持基础粮食或糖料加工。', tone: 'neutral', outputQuantity: 1, operatingCost: 8.6 }),
+    dedicatedMethod({ id: 'assisted', name: '辊式加工', description: '扩大原料批量并整件消耗工具进行辊式加工。', tone: 'warning', baseInputQuantities: [4], additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 2, operatingCost: 5.2, requiredTechnologyIds: ['tool-manufacturing'] }),
+    dedicatedMethod({ id: 'intensive', name: '机械加工', description: '扩大原料批量并整件消耗机械进行加工。', tone: 'success', baseInputQuantities: [6], additionalInputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 3, operatingCost: 10.25, requiredTechnologyIds: ['mechanical-engineering'] }),
+    dedicatedMethod({ id: 'mechanized', name: '连续化加工', description: '机械与工业燃料驱动连续化加工线。', tone: 'accent', baseInputQuantities: [6], additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 4, operatingCost: 18.25, requiredTechnologyIds: ['mechanical-engineering', 'oil-refining'] }),
+  ]),
+  sawmill: Object.freeze([
+    dedicatedMethod({ id: 'standard', name: '基础锯切', description: '保持基础木材锯切方式。', tone: 'neutral', outputQuantity: 1, operatingCost: 3 }),
+    dedicatedMethod({ id: 'assisted', name: '锯具流水线', description: '扩大木材批量并整件消耗工具形成锯切流水线。', tone: 'warning', baseInputQuantities: [8], additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 4, operatingCost: 4, requiredTechnologyIds: ['tool-manufacturing'] }),
+    dedicatedMethod({ id: 'intensive', name: '机械制材', description: '机械提高木材利用率与制材吞吐。', tone: 'success', baseInputQuantities: [7], additionalInputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 4, operatingCost: 4.45, requiredTechnologyIds: ['mechanical-engineering'] }),
+    dedicatedMethod({ id: 'mechanized', name: '动力连续制材', description: '机械与工业燃料驱动连续制材线。', tone: 'accent', baseInputQuantities: [8], additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 5, operatingCost: 10.45, requiredTechnologyIds: ['mechanical-engineering', 'oil-refining'] }),
+  ]),
+  'feed-factory': Object.freeze([
+    dedicatedMethod({ id: 'standard', name: '基础配制', description: '保持基础配合饲料配制方式。', tone: 'neutral', outputQuantity: 2, operatingCost: 4.9 }),
+    dedicatedMethod({ id: 'assisted', name: '批量配料', description: '扩大原料批量并整件消耗工具辅助配料。', tone: 'warning', baseInputQuantities: [4, 2], additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 5, operatingCost: 3.6, requiredTechnologyIds: ['tool-manufacturing'] }),
+    dedicatedMethod({ id: 'intensive', name: '机械混配', description: '机械完成大批量稳定混配。', tone: 'success', baseInputQuantities: [6, 3], additionalInputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 8, operatingCost: 10.75, requiredTechnologyIds: ['mechanical-engineering'] }),
+    dedicatedMethod({ id: 'mechanized', name: '动力连续混配', description: '机械与工业燃料驱动连续混配生产线。', tone: 'accent', baseInputQuantities: [8, 4], additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 11, operatingCost: 18.95, requiredTechnologyIds: ['mechanical-engineering', 'oil-refining'] }),
   ]),
 });
 
@@ -108,14 +159,12 @@ function variantRecipeId(baseRecipeId, methodId) {
     : `${baseRecipeId}--${methodId}`;
 }
 
-function alignedCycleMs(baseCycleMs, expectedProfitPerMinute, mode, useCentAlignment = false) {
+function alignedCycleMs(baseCycleMs, expectedProfitPerMinute, mode) {
   const base = Math.max(1_000, Math.floor(Number(baseCycleMs) / 1_000) * 1_000);
   const target = mode === 'rapid'
     ? Math.max(1_000, Math.floor(base / 2_000) * 1_000)
     : Math.ceil((base * 3) / 2_000) * 1_000;
-  const profit = useCentAlignment
-    ? moneyUnits(expectedProfitPerMinute, '参考分钟利润')
-    : Math.max(1, Math.floor(Number(expectedProfitPerMinute) || 1));
+  const profit = Math.max(1, Math.floor(Number(expectedProfitPerMinute) || 1));
 
   if (mode === 'rapid') {
     for (let cycleMs = target; cycleMs < base; cycleMs += 1_000) {
@@ -130,7 +179,7 @@ function alignedCycleMs(baseCycleMs, expectedProfitPerMinute, mode, useCentAlign
   return base * 2;
 }
 
-function createBalancedPlan(recipe, methodId, prices, expectedProfitPerMinute, useCentAlignment) {
+function createBalancedPlan(recipe, methodId, prices, expectedProfitPerMinute) {
   const baseInputs = cloneItems(recipe.inputs || (recipe.input ? [recipe.input] : []));
   const baseOutput = {
     productId: String(recipe.output.productId),
@@ -154,7 +203,7 @@ function createBalancedPlan(recipe, methodId, prices, expectedProfitPerMinute, u
   const output = { ...baseOutput, quantity: baseOutput.quantity * scale };
   const cycleMs = methodId === 'high-yield'
     ? recipe.cycleMs
-    : alignedCycleMs(recipe.cycleMs, expectedProfitPerMinute, methodId, useCentAlignment);
+    : alignedCycleMs(recipe.cycleMs, expectedProfitPerMinute, methodId);
   const outputValueUnits = valueOfItemsUnits([output], prices);
   const inputValueUnits = valueOfItemsUnits(inputs, prices);
   const profitNumerator = moneyUnits(expectedProfitPerMinute, '参考分钟利润') * cycleMs;
@@ -186,8 +235,22 @@ function freezePlan(plan) {
   });
 }
 
-function createC1ProductionMethodGroups(facility) {
-  const blueprints = C1_METHOD_BLUEPRINTS[facility.id];
+function inputsForDedicatedMethod(recipe, blueprint) {
+  const baseInputs = cloneItems(recipe.inputs || (recipe.input ? [recipe.input] : []));
+  const normalizedBaseInputs = blueprint.baseInputQuantities
+    ? baseInputs.map((item, index) => ({
+      ...item,
+      quantity: Math.max(0, Math.floor(Number(blueprint.baseInputQuantities[index]) || 0)),
+    }))
+    : baseInputs;
+  if (blueprint.baseInputQuantities && blueprint.baseInputQuantities.length !== baseInputs.length) {
+    throw new Error(`${recipe.id}/${blueprint.id} 基础投入数量与配方输入数量不一致`);
+  }
+  return [...normalizedBaseInputs, ...cloneItems(blueprint.additionalInputs)];
+}
+
+function createDedicatedProductionMethodGroups(facility) {
+  const blueprints = FACILITY_METHOD_BLUEPRINTS[facility.id];
   if (!blueprints) return null;
   const methods = blueprints.map((blueprint) => {
     const plansByRecipeId = Object.freeze(Object.fromEntries(facility.recipes.map((recipe) => [
@@ -197,15 +260,21 @@ function createC1ProductionMethodGroups(facility) {
         baseRecipeId: recipe.id,
         productionMethodId: blueprint.id,
         cycleMs: recipe.cycleMs,
-        operatingCost: recipe.operatingCost,
-        inputs: cloneItems(blueprint.inputs),
+        operatingCost: blueprint.operatingCost ?? recipe.operatingCost,
+        inputs: inputsForDedicatedMethod(recipe, blueprint),
         output: {
           productId: String(recipe.output.productId),
-          quantity: blueprint.outputQuantity,
+          quantity: blueprint.outputQuantity ?? recipe.output.quantity,
         },
       }),
     ])));
-    const { inputs: _inputs, outputQuantity: _outputQuantity, ...definition } = blueprint;
+    const {
+      additionalInputs: _additionalInputs,
+      baseInputQuantities: _baseInputQuantities,
+      outputQuantity: _outputQuantity,
+      operatingCost: _operatingCost,
+      ...definition
+    } = blueprint;
     return Object.freeze({ ...definition, plansByRecipeId });
   });
   return Object.freeze([
@@ -219,19 +288,16 @@ function createC1ProductionMethodGroups(facility) {
 }
 
 export function createProductionMethodGroups(facility, products) {
-  const c1Groups = createC1ProductionMethodGroups(facility);
-  if (c1Groups) return c1Groups;
+  const dedicatedGroups = createDedicatedProductionMethodGroups(facility);
+  if (dedicatedGroups) return dedicatedGroups;
   const prices = productPriceMap(products);
-  const useCentAlignment = facility.complexity === 'C1';
   const methods = METHOD_DEFINITIONS.map((definition) => {
     const plansByRecipeId = Object.freeze(Object.fromEntries(
       facility.recipes.map((recipe) => {
         const expectedProfitPerMinute = referenceProfitPerMinute(recipe, prices);
         return [
           recipe.id,
-          freezePlan(createBalancedPlan(
-            recipe, definition.id, prices, expectedProfitPerMinute, useCentAlignment,
-          )),
+          freezePlan(createBalancedPlan(recipe, definition.id, prices, expectedProfitPerMinute)),
         ];
       }),
     ));
