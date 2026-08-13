@@ -1,3 +1,5 @@
+// Slice revisions are transport metadata inside the existing player/market partitions.
+// They never create field-level server patches or another EconomyState partition.
 export const STATE_SLICE_DEFINITIONS = Object.freeze({
   'player.identity': Object.freeze({
     partition: 'player',
