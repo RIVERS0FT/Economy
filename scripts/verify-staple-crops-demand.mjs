@@ -243,7 +243,7 @@ console.log('市场需求验证通过：模型 19 使用工厂承载驱动的实
 
 const populationPolicy = read('server/src/population-policy.js');
 const populationControl = read('server/src/population-admin-control.js');
-const runtimeStore = read('server/src/runtime-store.js');
+const runtimeStore = `${read('server/src/runtime-store-core.js')}\n${read('server/src/runtime-store.js')}`;
 const serverApp = read('server/src/app.js');
 const adminPopulationUi = read('src/components/AdminPopulationControl.tsx');
 for (const required of [
