@@ -9,7 +9,7 @@ function includesAll(content, needles, label) {
 }
 
 const auditStore = read('server/src/contract-audit-store.js');
-const runtimeStore = read('server/src/runtime-store.js');
+const runtimeStore = `${read('server/src/runtime-store-core.js')}\n${read('server/src/runtime-store.js')}`;
 const app = read('server/src/app.js');
 const statePartitions = read('server/src/state-partitions.js');
 const contractApi = read('src/contracts/api.ts');

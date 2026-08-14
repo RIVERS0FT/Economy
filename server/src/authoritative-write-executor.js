@@ -98,6 +98,7 @@ export class AuthoritativeWriteExecutor {
     allowWhenFull = false,
     timeoutMs = this.maxWaitMs,
     onSettled = null,
+    captureRequestContext = true,
   } = {}, callback) {
     if (typeof callback !== 'function') throw new TypeError('权威写执行器缺少回调');
     if (!this.accepting) {
@@ -122,7 +123,7 @@ export class AuthoritativeWriteExecutor {
       ? null
       : positiveInteger(timeoutMs, this.maxWaitMs);
     const submittedAt = this.now();
-    const context = requestPerformanceContext();
+    const context = captureRequestContext ? requestPerformanceContext() : null;
     this.pendingByActor.set(normalizedActor, actorPending + 1);
     this.diagnostics.submitted += 1;
 

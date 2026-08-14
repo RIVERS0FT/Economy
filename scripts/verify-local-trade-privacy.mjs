@@ -13,6 +13,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'server/src/facility-groups.js',
   'server/src/app.js',
   'server/src/runtime-store.js',
+  'server/src/runtime-store-core.js',
   'server/test/order-history.test.js',
   'src/types.ts',
   'src/app/gameViewModel.ts',
@@ -51,10 +52,11 @@ for (const text of [
   "path === '/api/game/orders/history'",
   'store.listOrderHistory(user',
 ]) requireText('server/src/app.js', text);
+const runtimeStore = `${read('server/src/runtime-store-core.js')}\n${read('server/src/runtime-store.js')}`;
 for (const text of [
   'listOrderHistory(user, options = {}',
   'createOrderHistoryPage(this.worldCache.world',
-]) requireText('server/src/runtime-store.js', text);
+]) if (!runtimeStore.includes(text)) failures.push('运行时存储缺少: ' + text);
 for (const text of [
   'main state keeps all open orders and only bounded recent closed orders for the current player',
   'order history provides opaque cursor pagination with only the current player anonymous fills',

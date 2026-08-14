@@ -10,6 +10,7 @@ const required = [
   'src/types.ts',
   'server/src/app.js',
   'server/src/runtime-store.js',
+  'server/src/runtime-store-core.js',
   'server/src/save-deletion.js',
   'server/test/save-deletion.test.js',
   'tests/browser/settings-layout.spec.ts',
@@ -29,7 +30,7 @@ if (failures.length === 0) {
   const clientApi = read('src/api/game.ts');
   const types = read('src/types.ts');
   const app = read('server/src/app.js');
-  const runtime = read('server/src/runtime-store.js');
+  const runtime = `${read('server/src/runtime-store-core.js')}\n${read('server/src/runtime-store.js')}`;
   const deletion = read('server/src/save-deletion.js');
   const test = read('server/test/save-deletion.test.js');
   const browser = read('tests/browser/settings-layout.spec.ts');

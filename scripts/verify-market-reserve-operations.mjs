@@ -11,6 +11,7 @@ const requiredFiles = [
   'server/src/contracts.js',
   'server/src/asset-auctions.js',
   'server/src/runtime-store.js',
+  'server/src/runtime-store-core.js',
   'server/test/market-reserve-operations.test.js',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
@@ -32,7 +33,8 @@ for (const text of ['liquidity-emergency-sell', 'referencePrice * (1.25 + 0.35 *
 requireText('server/src/market-demand/catalog.js', 'LIQUIDITY_EMERGENCY_SIGNAL_WEIGHT = 0.25');
 for (const text of ["publisherType: 'market_reserve'", 'fixedTerms: true', '市场储备采购合同已签订并进入履约']) requireText('server/src/contracts.js', text);
 for (const text of ["sellerType: 'market_reserve'", 'market-reserve-auction-', 'group.credits = addMoney(group.credits, net)']) requireText('server/src/asset-auctions.js', text);
-requireText('server/src/runtime-store.js', 'processMarketReserveOperations(world, now)');
+const runtimeStore = `${read('server/src/runtime-store-core.js')}\n${read('server/src/runtime-store.js')}`;
+if (!runtimeStore.includes('processMarketReserveOperations(world, now)')) failures.push('运行时存储缺少: processMarketReserveOperations(world, now)');
 for (const text of ['isMarketReserveContract', 'market_reserve_contract_escrow', 'market_reserve_contract_bond', 'market_reserve_inventory', "publisherType: contract.publisherType === 'market_reserve'"]) requireText('server/src/contract-audit-store.js', text);
 for (const path of ['server/src/contracts.js', 'server/src/asset-auctions.js', 'server/src/market-reserve-operations.js']) {
   const source = read(path);
