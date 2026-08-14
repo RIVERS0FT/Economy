@@ -83,6 +83,7 @@ function inventoryFor(player, productId) {
 }
 
 function addLedger(player, category, amount, description, createdAt = Date.now()) {
+  if (!Array.isArray(player.ledger)) return;
   player.ledger.unshift({
     id: createId('ledger'),
     category,
@@ -95,6 +96,7 @@ function addLedger(player, category, amount, description, createdAt = Date.now()
 }
 
 function addTrade(player, trade) {
+  if (!Array.isArray(player.trades)) return;
   player.trades.unshift({ id: createId('trade'), ...trade });
   player.trades = player.trades.slice(0, ECONOMY_CONSTANTS.maxTradesPerPlayer);
 }

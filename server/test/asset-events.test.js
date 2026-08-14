@@ -3,6 +3,7 @@ import test from 'node:test';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import { EconomyStore } from '../src/storage.js';
+import { EconomyStore as RuntimeEconomyStore } from '../src/runtime-store.js';
 import { readSegmentedWorld } from '../src/world-storage-v2.js';
 
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
@@ -37,6 +38,25 @@ test('current client state version excludes all player log arrays and factory in
     assert.equal(Object.hasOwn(state, 'assetEvents'), false);
     assert.equal(Object.hasOwn(state, 'facilities'), false);
     assert.equal(Array.isArray(state.facilityGroups), true);
+    assertPlayerLogsAbsent(persistedWorld(store).players['1']);
+  } finally {
+    store.close();
+  }
+});
+
+test('runtime COW work remains valid after V2 persistence strips presentation logs', () => {
+  const store = new RuntimeEconomyStore(':memory:', { scheduledProcessing: false });
+  const now = 1_700_000_000_000;
+  try {
+    store.getState(alice, now);
+    assertPlayerLogsAbsent(persistedWorld(store).players['1']);
+    const worked = store.apply(alice, request(
+      'work',
+      {},
+      'work-after-log-strip-12345678',
+      '/api/game/work',
+    ), now + 1);
+    assert.equal(worked.result.ok, true);
     assertPlayerLogsAbsent(persistedWorld(store).players['1']);
   } finally {
     store.close();
