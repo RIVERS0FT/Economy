@@ -751,6 +751,7 @@ export class EconomyStore {
   if (!force && now < this.nextWorldProcessingAt) return false;
   measureRequestPhase('worldProcessMs', () => {
     processLeaderboardWorld(world, now, {
+      migrate: false,
       onGemReward: (reward) => this.recordGemLedgerEvent(reward),
     });
     processBankWorld(world, now);

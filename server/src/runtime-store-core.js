@@ -302,6 +302,7 @@ export class EconomyStore extends PersistentEconomyStore {
     measureRequestPhase('worldProcessMs', () => {
       if (anyDueDomain(dueDomains, ECONOMY_DEADLINE_DOMAINS)) {
         processLeaderboardWorld(world, now, {
+          migrate: false,
           onGemReward: (reward) => this.recordGemLedgerEvent(reward),
         });
         processed = true;
