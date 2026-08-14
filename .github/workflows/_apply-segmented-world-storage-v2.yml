@@ -1,0 +1,47 @@
+name: Apply segmented world storage v2
+
+on:
+  push:
+    branches:
+      - perf/segmented-world-storage-v2
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    if: github.event.head_commit.message == 'Run segmented storage patch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/segmented-world-storage-v2
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.4.0'
+          cache: npm
+      - name: Apply core patch
+        run: |
+          node --check scripts/.apply-segmented-world-storage-v2.mjs
+          node scripts/.apply-segmented-world-storage-v2.mjs
+          node --check server/src/world-storage-v2.js
+          git diff --check
+      - name: Install dependencies
+        run: npm ci
+      - name: Run focused server tests
+        run: |
+          node --test \
+            server/test/world-storage-v2.test.js \
+            server/test/state-polling.test.js \
+            server/test/runtime-hotpath-architecture.test.js \
+            server/test/authoritative-hotpaths.test.js \
+            server/test/research.test.js \
+            server/test/banking.test.js \
+            server/test/asset-auctions.test.js \
+            server/test/online-auto-sell-persistence.test.js
+      - name: Preserve workspace for follow-up
+        if: always()
+        run: |
+          git status --short
