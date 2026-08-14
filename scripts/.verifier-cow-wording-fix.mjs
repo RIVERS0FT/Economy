@@ -117,3 +117,13 @@ patch(
   "    if (!expected) throw new Error(`${method} ${route} 返回非预期状态 ${response.status}`);",
   "    if (!expected) throw new Error(`${method} ${route} 返回非预期状态 ${response.status}：${text.slice(0, 500)}`);",
 );
+patch(
+  'tests/stress/localHarness.mjs',
+  `      return {\n        serverOutlierCount: (stdout.match(/Economy request outlier/g) || []).length\n          + (stderr.match(/Economy request outlier/g) || []).length,\n        serverErrorLogCount: (stderr.match(/Error:/g) || []).length,\n      };`,
+  `      return {\n        serverOutlierCount: (stdout.match(/Economy request outlier/g) || []).length\n          + (stderr.match(/Economy request outlier/g) || []).length,\n        serverErrorLogCount: (stderr.match(/Error:/g) || []).length,\n        serverErrorTail: stderr.slice(-4_000),\n      };`,
+);
+patch(
+  'tests/stress/run.mjs',
+  "  if (diagnostics?.serverErrorLogCount > 0) failures.push(`隔离服务器记录了 ${diagnostics.serverErrorLogCount} 条错误日志`);",
+  "  if (diagnostics?.serverErrorLogCount > 0) failures.push(`隔离服务器记录了 ${diagnostics.serverErrorLogCount} 条错误日志：${diagnostics.serverErrorTail || ''}`);",
+);
