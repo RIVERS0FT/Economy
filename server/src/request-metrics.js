@@ -150,7 +150,7 @@ export function createRequestMetricsCollector({
       overflowedRequestCount += 1;
     }
     const duration = finiteNonNegative(durationMs);
-    const bytes = finiteNonNegative(responseBytes);
+    const bytes = finiteNonNegative(gauges?.responseJsonBytes ?? responseBytes);
     const status = Number(statusCode) || 0;
     requestCount += 1;
     if (status >= 400 && status < 500) clientErrorCount += 1;

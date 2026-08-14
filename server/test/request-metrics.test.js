@@ -161,6 +161,25 @@ test('request metrics cap route cardinality and aggregate overflow', () => {
 });
 
 
+test('request metrics prefer application response byte gauges when response headers are unavailable', () => {
+  const collector = createRequestMetricsCollector({
+    now: () => 1_000,
+    log: () => {},
+    warn: () => {},
+  });
+  collector.record({
+    method: 'GET',
+    url: '/api/game/state',
+    statusCode: 200,
+    durationMs: 5,
+    responseBytes: undefined,
+    gauges: { responseJsonBytes: 321 },
+  });
+  const summary = collector.snapshot();
+  assert.equal(summary.routes[0].averageResponseBytes, 321);
+  assert.equal(summary.routes[0].maxResponseBytes, 321);
+});
+
 test('request latency histograms merge across minute, hour, and day rollups', () => {
   const first = createLatencyHistogram();
   const second = createLatencyHistogram();

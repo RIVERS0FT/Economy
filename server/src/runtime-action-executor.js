@@ -12,6 +12,7 @@ import {
 import { applyFacilityGroupAction, processFacilityGroupWorld } from './facility-groups.js';
 import { ensureGemState } from './invitations.js';
 import { normalizePlayerMoneyPayload } from './money.js';
+import { measureRequestPhase } from './request-performance.js';
 import { applyOnlineAutoBuy } from './online-auto-buy.js';
 import { applyOnlineAutoSell } from './online-auto-sell.js';
 import { applyOnlineAutoSellPolicyAction } from './online-auto-sell-policy.js';
@@ -96,7 +97,9 @@ function cancelRuntimeCommodityOrder(world, user, orderId, now) {
 }
 
 function executeActionBody(store, world, user, action, payload, requestKey, now) {
-  const playerBeforeAction = structuredClone(world.players?.[String(user.id)] ?? null);
+  const playerBeforeAction = measureRequestPhase('playerSnapshotMs', () => (
+    structuredClone(world.players?.[String(user.id)] ?? null)
+  ));
   const contractsBeforeAction = CONTRACT_ACTIONS.has(action)
     ? structuredClone(world.productionContracts || [])
     : null;
@@ -158,7 +161,7 @@ function executeActionBody(store, world, user, action, payload, requestKey, now)
     }
 
     if (gameResult?.ok) {
-      assertEconomicStateInvariants(world);
+      measureRequestPhase('economicInvariantMs', () => assertEconomicStateInvariants(world));
       savepoint.release();
     } else {
       savepoint.rollback();
@@ -277,7 +280,7 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
         requestKey,
         now,
       });
-      assertEconomicStateInvariants(world);
+      measureRequestPhase('economicInvariantMs', () => assertEconomicStateInvariants(world));
     }
 
     collectPlayerWeeklyCashSettlement(world, activePlayer, now);

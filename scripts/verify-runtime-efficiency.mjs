@@ -80,6 +80,7 @@ requireText('server/src/request-metrics.js', [
   'Economy request outlier',
   'Economy request metrics',
   "response.getHeader('Content-Length')",
+  'gauges?.responseJsonBytes ?? responseBytes',
   'DEFAULT_MAX_ROUTE_KEYS = 256',
   "OVERFLOW_ROUTE = '/api/other'",
   'overflowedRequestCount',
@@ -145,6 +146,17 @@ requireText('server/src/app.js', [
   "response.setHeader('Retry-After'",
   'void store.shutdown().then(',
 ]);
+const appSource = read('server/src/app.js');
+assert.ok(appSource.includes('getStableAdminSummary(store, user)'), '管理员汇总只读接口必须直接读取已提交世界');
+assert.equal(appSource.includes("userWriteOptions(user, 'admin-summary')"), false, '管理员汇总不得进入权威写队列');
+assert.equal(appSource.includes("userWriteOptions(user, 'admin-population-summary')"), false, '人口经济汇总不得进入权威写队列');
+requireText('server/src/admin-summary.js', [
+  'store.worldCache?.world',
+  "measureRequestPhase('adminSummaryProjectionMs'",
+  '{ immediate: false }',
+]);
+assert.equal(read('server/src/admin-summary.js').includes('processWorldIfDue'), false, '管理员汇总不得强制推进世界');
+assert.equal(read('server/src/admin-summary.js').includes('saveWorldIfChanged'), false, '管理员汇总不得保存世界');
 requireText('server/src/order-book-runtime.js', [
   'getOrderBookSide',
   'getOwnerOrderBookSide',
@@ -205,6 +217,15 @@ for (const path of ['server/src/contract-runtime-index.js', 'server/src/contract
   assert.equal(source.includes('reservedContractIncomingForBuyer'), false, `${path} 不得恢复合同仓库预留量索引`);
 }
 assert.equal(read('server/src/warehouse.js').includes('createContractRuntimeIndex'), false, '无限仓库不得重新依赖合同运行时索引');
+requireText('server/src/runtime-store-core.js', [
+  "measureRequestPhase('worldEqualityMs'",
+  "measureRequestPhase('serializeWorldMs'",
+  "measureRequestPhase('worldUpdateMs'",
+]);
+requireText('server/src/runtime-action-executor.js', [
+  "measureRequestPhase('playerSnapshotMs'",
+  "measureRequestPhase('economicInvariantMs'",
+]);
 requireText('server/src/runtime-store.js', [
   'createClientPartitionSnapshot',
   'cachedStateProjection(user.id, currentRevision)',
@@ -235,6 +256,7 @@ requireText('server/test/request-metrics.test.js', [
   'request metrics normalize route identifiers',
   'request metrics aggregate duration and application response bytes',
   'request metrics cap route cardinality and aggregate overflow',
+  'request metrics prefer application response byte gauges when response headers are unavailable',
   'p95DurationMs',
   'worldCloneMs',
   'worldJsonBytes',
@@ -299,7 +321,6 @@ requireText('docs/README.md', [
   '页面隐藏时临时使用 60 秒',
   '重新可见、网络恢复或从限速状态恢复交互时立即请求一次权威状态',
   '每 60 秒输出一次按方法与归一化路由聚合的请求指标',
-  '平均／p50／p95／p99／最大处理时长、应用层 JSON 响应字节数、固定阶段耗时、事件循环延迟和无身份容量指标',
   '超过 1 秒、超过 200 KB 或返回 5xx',
   '单个窗口最多保留 256 个方法／路由键',
   '`OTHER /api/other`',
@@ -317,6 +338,8 @@ requireText('docs/README.md', [
   '世界冷加载迁移与热保存必须分离',
   '只按实际到期领域推进',
   '幂等记录过期清理最多每 5 分钟执行一次',
+  '`responseJsonBytes`',
+  '管理员 `GET /api/game/admin/summary` 与 `GET /api/game/admin/population-economy`',
   '最终客户端状态必须在运行时存储层直接形成六分区快照',
   '目录分区固定为进程内共享静态快照',
   '所有可能修改 SQLite、世界状态、审计、注册、封禁、礼品、教程或运行时调度状态的操作必须进入同一进程内有界权威写执行器',
@@ -350,6 +373,9 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '默认总深度上限固定为 128',
   '同一玩家、注册网络指纹或系统主体最多保留 4 个正在执行或排队任务',
   '统一账号可用性检查、邮件发送和统一账号创建／登录等外部网络调用必须在队列外执行',
+  '`responseJsonBytes`',
+  '`worldEqualityMs`',
+  '管理员 `/api/game/admin/summary` 与 `/api/game/admin/population-economy`',
   '优雅关闭必须先停止 HTTP 接收与世界调度',
 ]);
 
