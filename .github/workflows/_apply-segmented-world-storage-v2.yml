@@ -38,6 +38,8 @@ jobs:
           git diff --cached --quiet || git commit -m 'Remove forced migration work from compatibility actions'
           git push origin HEAD:perf/segmented-world-storage-v2
       - run: npm ci
+      - name: Trace duplicate daily check-in state delta
+        run: node scripts/.trace-daily-check-in-v2.mjs
       - name: Verify focused V2 regressions
         run: node --test server/test/daily-check-in.test.js server/test/asset-events.test.js server/test/world-storage-v2.test.js
       - name: Verify stress flow
