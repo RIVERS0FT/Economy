@@ -111,3 +111,9 @@ for (const before of [
   const name = before.match(/const (\w+)/)?.[1];
   patch('server/test/domain.test.js', before, `const ${name} = persistedWorld(store);`);
 }
+
+patch(
+  'tests/stress/run.mjs',
+  "    if (!expected) throw new Error(`${method} ${route} 返回非预期状态 ${response.status}`);",
+  "    if (!expected) throw new Error(`${method} ${route} 返回非预期状态 ${response.status}：${text.slice(0, 500)}`);",
+);
