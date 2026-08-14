@@ -95,6 +95,54 @@ jobs:
           git diff --check
       - name: Install dependencies
         run: npm ci
+      - name: Diagnose cold restart migration
+        run: |
+          node --input-type=module <<'JS'
+          import { mkdtempSync, rmSync } from 'node:fs';
+          import { tmpdir } from 'node:os';
+          import { join } from 'node:path';
+          import { EconomyStore } from './server/src/runtime-store.js';
+          import { readSegmentedWorld, snapshotSegmentedWorld, segmentedSnapshotsEqual } from './server/src/world-storage-v2.js';
+          const directory = mkdtempSync(join(tmpdir(), 'storage-v2-diag-'));
+          const databasePath = join(directory, 'economy.sqlite');
+          const user = { id: 1, email: 'alice@example.com', name: 'Alice', role: 'user' };
+          const now = 1_700_000_000_000;
+          try {
+            const first = new EconomyStore(databasePath, { scheduledProcessing: false });
+            first.getState(user, now);
+            const action = first.apply(user, { action: 'bankDeposit', payload: { amount: 25 }, requestKey: 'diag-restart-12345678', method: 'POST', path: '/api/game/bank' }, now + 1);
+            console.log('first revision', action.revision, first.worldCache.revision);
+            first.close();
+
+            const second = new EconomyStore(databasePath, { scheduledProcessing: true });
+            try {
+              const before = readSegmentedWorld(second);
+              console.log('stored revision', before.revision);
+              const loaded = second.transaction(() => second.loadWorld(now + 2), { immediate: false });
+              console.log('after load', { revision: loaded.revision, cacheRevision: second.worldCache?.revision, needsPersistence: second.worldCache?.needsPersistence });
+              const afterSnapshot = snapshotSegmentedWorld(second.worldCache.world);
+              console.log('equal', segmentedSnapshotsEqual(before.snapshot, afterSnapshot));
+              for (const [id, oldJson] of before.snapshot.playerStateJsonById) {
+                const newJson = afterSnapshot.playerStateJsonById.get(id);
+                if (oldJson !== newJson) {
+                  const a = JSON.parse(oldJson); const b = JSON.parse(newJson);
+                  const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter((key) => JSON.stringify(a[key]) !== JSON.stringify(b[key]));
+                  console.log('changed player', id, keys);
+                  for (const key of keys) console.log('player diff', key, JSON.stringify(a[key]), JSON.stringify(b[key]));
+                }
+              }
+              for (const [key, oldJson] of before.snapshot.segmentStateJsonByKey) {
+                const newJson = afterSnapshot.segmentStateJsonByKey.get(key);
+                if (oldJson !== newJson) {
+                  console.log('changed segment', key);
+                  const start = (() => { let i = 0; while (i < oldJson.length && i < (newJson || '').length && oldJson[i] === newJson[i]) i += 1; return i; })();
+                  console.log('segment diff', key, { start, before: oldJson.slice(Math.max(0,start-120), start+360), after: (newJson || '').slice(Math.max(0,start-120), start+360) });
+                }
+              }
+              for (const key of afterSnapshot.segmentStateJsonByKey.keys()) if (!before.snapshot.segmentStateJsonByKey.has(key)) console.log('new segment', key);
+            } finally { second.stopScheduler(); second.close(); }
+          } finally { rmSync(directory, { recursive: true, force: true }); }
+          JS
       - name: Run focused server tests
         run: |
           node --test \
