@@ -1,4 +1,4 @@
-name: Apply projection purity fix
+name: Apply segmented storage V2 authority update
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   patch-and-verify:
-    if: github.event.head_commit.message == 'Apply projection purity fix'
+    if: github.event.head_commit.message == 'Apply segmented storage V2 authority update'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -22,25 +22,27 @@ jobs:
         with:
           node-version: '24.4.0'
           cache: npm
-      - name: Apply projection purity fix
+      - name: Apply authority and verifier update
         run: |
-          node --check scripts/.projection-purity-fix.mjs
-          node scripts/.projection-purity-fix.mjs
+          node --check scripts/.authority-v2.mjs
+          node scripts/.authority-v2.mjs
           git diff --check
       - name: Commit implementation checkpoint
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add server/src/facility-groups.js server/src/storage.js
+          git add README.md docs/README.md docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md server/src/runtime-store.js scripts/verify-runtime-efficiency.mjs scripts/verify-authoritative-hotpaths.mjs
           if ! git diff --cached --quiet; then
-            git commit -m 'Keep state projection read-only'
+            git commit -m 'Document segmented storage V2 authority'
             git push origin HEAD:perf/segmented-world-storage-v2
           fi
       - run: npm ci
-      - name: Run focused server tests
+      - name: Run authority verification and focused server tests
         shell: bash
         run: |
           set -o pipefail
+          node scripts/verify-runtime-efficiency.mjs 2>&1 | tee authority.log
+          node scripts/verify-authoritative-hotpaths.mjs 2>&1 | tee -a authority.log
           node --test \
             server/test/world-storage-v2.test.js \
             server/test/state-polling.test.js \
@@ -50,12 +52,12 @@ jobs:
             server/test/banking.test.js \
             server/test/asset-auctions.test.js \
             server/test/online-auto-sell-persistence.test.js \
-            2>&1 | tee focused-tests.log
-      - name: Upload focused test log
+            2>&1 | tee -a authority.log
+      - name: Upload verification log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: focused-segmented-storage-tests
-          path: focused-tests.log
+          name: segmented-storage-v2-authority
+          path: authority.log
           if-no-files-found: warn
           retention-days: 1
