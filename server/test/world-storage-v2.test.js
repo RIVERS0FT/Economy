@@ -204,9 +204,17 @@ test('legacy monolithic world migrates to V2 only once', () => {
 
 test('dirty player write leaves unrelated player and market rows byte-identical', () => {
   const store = new EconomyStore(':memory:', { scheduledProcessing: true });
+  store.stopScheduler();
   try {
     store.getState(alice, now);
     store.getState(bob, now + 1);
+    const scope = createRuntimeMutationScope(store.worldCache.world, alice.id, 'bankDeposit', { amount: 10 }, {
+      scheduledProcessing: store.scheduledProcessing,
+    });
+    assert.equal(scope.allPlayers, false);
+    assert.deepEqual([...scope.playerIds], ['1']);
+    const committedBob = store.worldCache.world.players['2'];
+    assert.equal(Object.hasOwn(committedBob, 'facilities'), false);
     const bobBefore = store.database.prepare(
       'SELECT updated_revision, state_json FROM economy_world_players WHERE user_id = 2',
     ).get();
@@ -216,6 +224,8 @@ test('dirty player write leaves unrelated player and market rows byte-identical'
 
     const result = store.apply(alice, action('bankDeposit', { amount: 10 }, 'storage-v2-dirty-12345678'), now + 2);
     assert.equal(result.result.ok, true);
+    assert.equal(store.worldCache.world.players['2'], committedBob);
+    assert.equal(Object.hasOwn(store.worldCache.world.players['2'], 'facilities'), false);
 
     const bobAfter = store.database.prepare(
       'SELECT updated_revision, state_json FROM economy_world_players WHERE user_id = 2',
@@ -226,7 +236,6 @@ test('dirty player write leaves unrelated player and market rows byte-identical'
     assert.deepEqual(bobAfter, bobBefore);
     assert.deepEqual(marketsAfter, marketsBefore);
   } finally {
-    store.stopScheduler();
     store.close();
   }
 });
