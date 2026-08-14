@@ -100,20 +100,36 @@ jobs:
           const user = { id: 1, email: 'alice@example.com', name: 'Alice', role: 'user' };
           const now = 1_700_000_000_000;
           const store = new EconomyStore(':memory:');
-          const dump = (label) => {
-            const revision = store.worldCache?.revision;
-            const dirtyPlayers = store.database.prepare('SELECT user_id, updated_revision FROM economy_world_players WHERE updated_revision = ? ORDER BY user_id').all(Number(revision || 0));
-            const dirtySegments = store.database.prepare('SELECT segment_key, updated_revision FROM economy_world_segments WHERE updated_revision = ? ORDER BY segment_key').all(Number(revision || 0));
-            console.log(label, { revision, next: store.nextWorldProcessingAt, scheduled: store.scheduledProcessing, dirtyPlayers, dirtySegments });
-          };
           const initial = store.getStateSnapshot(user, undefined, now);
-          dump('after initial');
-          const action = store.apply(user, { action: 'work', payload: {}, requestKey: 'diag-base-work-v2-12345678', method: 'POST', path: '/api/game/work' }, now + 2_000);
-          dump('after action');
-          console.log('initial/action', initial.revision, action.revision);
+          const action = store.apply(user, { action: 'work', payload: {}, requestKey: 'diag-base-work-v3-12345678', method: 'POST', path: '/api/game/work' }, now + 2_000);
+          const committed = structuredClone(store.worldCache.world);
+          const originalSave = store.saveWorldIfChanged.bind(store);
+          store.saveWorldIfChanged = (revision, world, at, previous, scope) => {
+            const changedTop = [];
+            for (const key of new Set([...Object.keys(committed), ...Object.keys(world)])) {
+              if (JSON.stringify(committed[key]) !== JSON.stringify(world[key])) changedTop.push(key);
+            }
+            const playerBefore = committed.players?.['1'] || {};
+            const playerAfter = world.players?.['1'] || {};
+            const changedPlayer = [];
+            for (const key of new Set([...Object.keys(playerBefore), ...Object.keys(playerAfter)])) {
+              if (JSON.stringify(playerBefore[key]) !== JSON.stringify(playerAfter[key])) changedPlayer.push(key);
+            }
+            console.log('pre-save changedTop', changedTop);
+            console.log('pre-save changedPlayer', changedPlayer);
+            for (const key of changedTop) {
+              if (['demandGroups', 'marketDemand', 'weeklyCashSettlement', 'stats', 'lastProcessedAt'].includes(key)) {
+                const before = JSON.stringify(committed[key]);
+                const after = JSON.stringify(world[key]);
+                let index = 0;
+                while (index < before.length && index < after.length && before[index] === after[index]) index += 1;
+                console.log('diff', key, { index, before: before.slice(Math.max(0,index-120), index+240), after: after.slice(Math.max(0,index-120), index+240) });
+              }
+            }
+            return originalSave(revision, world, at, previous, scope);
+          };
           const changed = store.getStateSnapshot(user, initial.revision, now + 2_001);
-          dump('after +2001 poll');
-          console.log('changed', changed.revision, changed.unchanged);
+          console.log('revisions', { initial: initial.revision, action: action.revision, changed: changed.revision });
           store.close();
           JS
       - name: Run focused server tests
