@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   apply:
-    if: github.event.head_commit.message == 'Verify storage V2 deployment backup'
+    if: github.event.head_commit.message == 'Finalize storage V2 deployment backup verification'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -22,16 +22,16 @@ jobs:
         with:
           node-version: '24.4.0'
           cache: npm
-      - name: Fix deployment backup verifier
+      - name: Finalize deployment backup verifiers
         run: |
           node scripts/.fix-storage-v2-backup-verifier.mjs
           git diff --check
-      - name: Commit verifier fix
+      - name: Commit verifier cleanup
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add scripts/verify-deployment-storage.mjs
-          git commit -m 'Fix storage V2 backup source integrity verification'
+          git add -A
+          git commit -m 'Finalize storage V2 deployment backup verification'
           git push origin HEAD:perf/segmented-world-storage-v2
       - run: npm ci
       - name: Verify deployment storage and full build
