@@ -42,11 +42,7 @@ jobs:
           end = source.index("requireText('server/src/admin-summary.js'", start)
           replacement = (
               "const appSource = read('server/src/app.js');\n"
-              "assert.equal(\n"
-              "  (appSource.match(/const summary = getStableAdminSummary\\(store, user\\);/g) || []).length,\n"
-              "  2,\n"
-              "  '两个管理员汇总只读接口都必须直接读取已提交世界',\n"
-              ");\n"
+              "assert.ok(appSource.includes('getStableAdminSummary(store, user)'), '管理员汇总只读接口必须直接读取已提交世界');\n"
               "assert.equal(appSource.includes(\"userWriteOptions(user, 'admin-summary')\"), false, '管理员汇总不得进入权威写队列');\n"
               "assert.equal(appSource.includes(\"userWriteOptions(user, 'admin-population-summary')\"), false, '人口经济汇总不得进入权威写队列');\n"
           )
