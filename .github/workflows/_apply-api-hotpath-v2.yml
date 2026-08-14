@@ -1,0 +1,66 @@
+name: Apply API hotpath v2
+
+on:
+  push:
+    branches:
+      - perf/api-hotpath-v2
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    if: github.event.head_commit.message == 'Bootstrap API hotpath patch workflow'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/api-hotpath-v2
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.4.0'
+          cache: npm
+      - name: Apply guarded patch
+        run: |
+          node scripts/.fix-api-hotpath-patcher.mjs
+          node --check scripts/.apply-api-hotpath-v2.mjs
+          node scripts/.apply-api-hotpath-v2.mjs
+      - name: Install dependencies
+        run: npm ci
+      - name: Run focused server regression
+        run: |
+          node --test server/test/runtime-hotpath-architecture.test.js server/test/authoritative-hotpaths.test.js server/test/request-metrics.test.js
+          npm run verify:authoritative-hotpaths
+          npm run verify:runtime-efficiency
+      - name: Run full build verification
+        run: npm run build
+      - name: Commit verified patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/_apply-api-hotpath-v2.yml scripts/.apply-api-hotpath-v2.mjs scripts/.fix-api-hotpath-patcher.mjs
+          git add \
+            server/src/runtime-store.js \
+            server/src/storage.js \
+            server/src/domain-core.js \
+            server/src/facility-groups.js \
+            server/src/warehouse.js \
+            server/src/asset-auctions.js \
+            server/src/contracts.js \
+            server/src/contract-runtime-index.js \
+            server/src/weekly-cash-settlement.js \
+            server/src/banking.js \
+            server/src/research.js \
+            server/src/leaderboards.js \
+            server/src/runtime-store-core.js \
+            server/test/runtime-hotpath-architecture.test.js \
+            scripts/verify-authoritative-hotpaths.mjs \
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
+            docs/README.md
+          git diff --check
+          git diff --cached --check
+          git status --short
+          git commit -m '优化 API 状态投影与写入草稿热路径'
+          git push origin perf/api-hotpath-v2
