@@ -27,13 +27,14 @@ jobs:
         run: |
           node scripts/.verifier-cow-wording-fix.mjs
           node scripts/.trace-stress-catch.mjs
+          node scripts/.fix-cow-presentation-logs.mjs
           git diff --check
       - name: Commit V2 fixes
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add scripts/verify-authoritative-hotpaths.mjs scripts/verify-state-delivery-capacity.mjs scripts/verify-staple-crops-demand.mjs scripts/verify-asset-auctions.mjs scripts/verify-admin-player-statistics.mjs server/src/storage.js server/src/contract-audit-store.js server/test/asset-events.test.js server/test/domain.test.js tests/stress/run.mjs tests/stress/localHarness.mjs
-          git commit -m 'Trace segmented storage V2 stress regression'
+          git add scripts/verify-authoritative-hotpaths.mjs scripts/verify-state-delivery-capacity.mjs scripts/verify-staple-crops-demand.mjs scripts/verify-asset-auctions.mjs scripts/verify-admin-player-statistics.mjs server/src/storage.js server/src/contract-audit-store.js server/src/domain-core.js server/test/asset-events.test.js server/test/domain.test.js tests/stress/run.mjs tests/stress/localHarness.mjs
+          git commit -m 'Fix COW actions after presentation log stripping'
           git push origin HEAD:perf/segmented-world-storage-v2
       - run: npm ci
       - name: Verify stress flow first
@@ -43,4 +44,4 @@ jobs:
           npm run build
           node scripts/verify-runtime-efficiency.mjs
           node scripts/verify-authoritative-hotpaths.mjs
-          node --test server/test/world-storage-v2.test.js server/test/state-polling.test.js server/test/runtime-hotpath-architecture.test.js server/test/authoritative-hotpaths.test.js server/test/research.test.js server/test/banking.test.js server/test/asset-auctions.test.js server/test/online-auto-sell-persistence.test.js
+          node --test server/test/world-storage-v2.test.js server/test/state-polling.test.js server/test/runtime-hotpath-architecture.test.js server/test/authoritative-hotpaths.test.js server/test/research.test.js server/test/banking.test.js server/test/asset-auctions.test.js server/test/online-auto-sell-persistence.test.js server/test/asset-events.test.js
