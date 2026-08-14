@@ -25,6 +25,7 @@ jobs:
       - name: Apply deployment backup patch
         run: |
           node scripts/.apply-storage-v2-backup.mjs
+          git checkout HEAD -- .github/workflows/_apply-storage-v2-backup.yml
           git diff --check
       - name: Commit clean tree
         run: |
