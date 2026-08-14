@@ -1,4 +1,4 @@
-name: Apply segmented storage V2 authority update
+name: Verify segmented storage V2 authority
 
 on:
   push:
@@ -9,8 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  patch-and-verify:
-    if: github.event.head_commit.message == 'Retry segmented storage V2 authority update'
+  verify:
+    if: github.event.head_commit.message == 'Finalize segmented storage V2 authority'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -22,43 +22,29 @@ jobs:
         with:
           node-version: '24.4.0'
           cache: npm
-      - name: Apply authority and verifier update
+      - name: Apply authority follow-up
         run: |
-          node --check scripts/.authority-v2.mjs
-          node scripts/.authority-v2.mjs
-          node scripts/.fix-authority-eof.mjs
+          node scripts/.authority-followup.mjs
           git diff --check
-      - name: Commit implementation checkpoint
+      - name: Commit authority follow-up
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add README.md docs/README.md docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md server/src/runtime-store.js scripts/verify-runtime-efficiency.mjs scripts/verify-authoritative-hotpaths.mjs
-          if ! git diff --cached --quiet; then
-            git commit -m 'Document segmented storage V2 authority'
-            git push origin HEAD:perf/segmented-world-storage-v2
-          fi
+          git add docs/README.md
+          git commit -m 'Complete segmented storage authority guards'
+          git push origin HEAD:perf/segmented-world-storage-v2
       - run: npm ci
-      - name: Run authority verification and focused server tests
+      - name: Verify
         shell: bash
         run: |
           set -o pipefail
-          node scripts/verify-runtime-efficiency.mjs 2>&1 | tee authority.log
-          node scripts/verify-authoritative-hotpaths.mjs 2>&1 | tee -a authority.log
-          node --test \
-            server/test/world-storage-v2.test.js \
-            server/test/state-polling.test.js \
-            server/test/runtime-hotpath-architecture.test.js \
-            server/test/authoritative-hotpaths.test.js \
-            server/test/research.test.js \
-            server/test/banking.test.js \
-            server/test/asset-auctions.test.js \
-            server/test/online-auto-sell-persistence.test.js \
-            2>&1 | tee -a authority.log
-      - name: Upload verification log
+          node scripts/verify-runtime-efficiency.mjs 2>&1 | tee verify.log
+          node scripts/verify-authoritative-hotpaths.mjs 2>&1 | tee -a verify.log
+          node --test server/test/world-storage-v2.test.js server/test/state-polling.test.js server/test/runtime-hotpath-architecture.test.js server/test/authoritative-hotpaths.test.js server/test/research.test.js server/test/banking.test.js server/test/asset-auctions.test.js server/test/online-auto-sell-persistence.test.js 2>&1 | tee -a verify.log
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: segmented-storage-v2-authority
-          path: authority.log
+          name: segmented-storage-v2-final-verify
+          path: verify.log
           if-no-files-found: warn
           retention-days: 1
