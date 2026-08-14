@@ -1,4 +1,4 @@
-name: Apply commodity order COW optimization
+name: Apply auction runtime migration fix
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   patch-and-verify:
-    if: github.event.head_commit.message == 'Apply commodity order COW optimization'
+    if: github.event.head_commit.message == 'Apply auction runtime migration fix'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -22,22 +22,21 @@ jobs:
         with:
           node-version: '24.4.0'
           cache: npm
-      - name: Apply commodity order COW optimization
+      - name: Apply auction runtime migration fix
         run: |
-          node --check scripts/.commodity-cow-fix.mjs
-          node scripts/.commodity-cow-fix.mjs
+          node --check scripts/.auction-hotpath-fix.mjs
+          node scripts/.auction-hotpath-fix.mjs
           git diff --check
       - name: Commit implementation checkpoint
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add server/src/world-storage-v2.js server/test/world-storage-v2.test.js
+          git add server/src/asset-auctions.js server/src/runtime-action-executor.js server/src/leaderboards.js server/src/market-reserve-operations.js
           if ! git diff --cached --quiet; then
-            git commit -m 'Use Copy-on-Write for commodity orders'
+            git commit -m 'Keep auction runtime paths migration-free'
             git push origin HEAD:perf/segmented-world-storage-v2
           fi
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
       - name: Run focused server tests
         shell: bash
         run: |
