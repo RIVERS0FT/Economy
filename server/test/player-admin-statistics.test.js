@@ -100,6 +100,27 @@ test('player statistics record successful economic actions once and keep reads r
     assert.equal(milestones.first_research_at, now + 10);
     assert.equal(milestones.first_bank_deposit_at, now + 20);
 
+    const revisionBeforeStatistics = store.worldCache.revision;
+    const worldBeforeStatistics = JSON.stringify(store.worldCache.world);
+    let loadWorldCalls = 0;
+    let processWorldCalls = 0;
+    let saveWorldCalls = 0;
+    const originalLoadWorld = store.loadWorld.bind(store);
+    const originalProcessWorldIfDue = store.processWorldIfDue.bind(store);
+    const originalSaveWorldIfChanged = store.saveWorldIfChanged.bind(store);
+    store.loadWorld = (...args) => {
+      loadWorldCalls += 1;
+      return originalLoadWorld(...args);
+    };
+    store.processWorldIfDue = (...args) => {
+      processWorldCalls += 1;
+      return originalProcessWorldIfDue(...args);
+    };
+    store.saveWorldIfChanged = (...args) => {
+      saveWorldCalls += 1;
+      return originalSaveWorldIfChanged(...args);
+    };
+
     const statistics = store.getPlayerStatistics(admin, '30d', now + 3);
     assert.equal(statistics.snapshot.totalPlayers, 1);
     assert.equal(statistics.snapshot.active24h, 1);
@@ -110,9 +131,48 @@ test('player statistics record successful economic actions once and keep reads r
     assert.equal(statistics.range.timeZone, 'Asia/Shanghai');
     assert.equal(JSON.stringify(statistics).includes(player.email), false);
     assert.equal(JSON.stringify(statistics).includes('test-fingerprint'), false);
+    assert.equal(loadWorldCalls, 0);
+    assert.equal(processWorldCalls, 0);
+    assert.equal(saveWorldCalls, 0);
+    assert.equal(statistics.revision, revisionBeforeStatistics);
+    assert.equal(store.worldCache.revision, revisionBeforeStatistics);
+    assert.equal(JSON.stringify(store.worldCache.world), worldBeforeStatistics);
 
     const second = store.getPlayerStatistics(admin, '30d', now + 3);
     assert.equal(second.revision, statistics.revision);
+  } finally {
+    store.close();
+  }
+});
+
+test('player statistics persistence wrappers preserve local mutation scopes', () => {
+  const store = new EconomyStore(':memory:', { scheduledProcessing: true });
+  const player = { id: 2, email: 'player@example.com', name: '玩家', role: 'user' };
+  const now = Date.UTC(2026, 6, 24, 3, 0, 0);
+  try {
+    store.stopScheduler();
+    store.getStateSnapshot(player, undefined, now);
+    let capturedScope = null;
+    const originalPersistSegmentedWorld = store.persistSegmentedWorld.bind(store);
+    store.persistSegmentedWorld = (revision, world, savedAt, mutationScope) => {
+      capturedScope = mutationScope;
+      return originalPersistSegmentedWorld(revision, world, savedAt, mutationScope);
+    };
+
+    const result = store.apply(player, {
+      action: 'bankDeposit',
+      payload: { amount: 1 },
+      requestKey: 'player-stats-scope-bank-1',
+      method: 'POST',
+      path: '/api/game/bank/deposits',
+    }, now + 1);
+
+    assert.equal(result.result.ok, true);
+    assert.ok(capturedScope);
+    assert.equal(capturedScope.allPlayers, false);
+    assert.equal(capturedScope.allSegments, false);
+    assert.deepEqual([...capturedScope.playerIds], [String(player.id)]);
+    assert.equal(capturedScope.label, 'local:bankDeposit');
   } finally {
     store.close();
   }

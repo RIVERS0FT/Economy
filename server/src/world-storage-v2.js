@@ -15,6 +15,7 @@ const LOCAL_PLAYER_ACTIONS = new Set([
   'redeemGift',
   'exchangeGems',
   'rejectGemShopQuote',
+  'setFacilityRecipe',
 ]);
 
 const AUCTION_ACTIONS = new Set(['createAuction', 'placeAuctionBid', 'cancelAuction']);

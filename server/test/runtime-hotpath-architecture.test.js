@@ -52,6 +52,7 @@ test('runtime hot path uses segmented copy-on-write drafts and scheduler barrier
   assert.match(storageV2, /economy_world_segments/);
   assert.match(storageV2, /worldDirtyPlayerRows/);
   assert.match(storageV2, /worldDirtySegments/);
+  assert.match(storageV2, /'setFacilityRecipe'/);
 
   assert.match(executor, /captureRequestContext = true/);
   assert.match(executor, /captureRequestContext \? requestPerformanceContext\(\) : null/);
@@ -110,6 +111,36 @@ test('segmented copy-on-write draft isolates the mutated player and shares untou
     assert.equal(loaded.world.markets, committed.markets);
     loaded.world.players[String(alice.id)].credits += 1;
     assert.notEqual(loaded.world.players[String(alice.id)].credits, committed.players[String(alice.id)].credits);
+  } finally {
+    store.stopScheduler();
+    store.close();
+  }
+});
+
+test('facility recipe changes stay on the player-local copy-on-write scope', () => {
+  const store = new EconomyStore(':memory:', { scheduledProcessing: true });
+  try {
+    const now = 1_700_000_000_000;
+    store.getStateSnapshot(alice, undefined, now);
+    const committed = store.worldCache.world;
+    const scope = createRuntimeMutationScope(committed, alice.id, 'setFacilityRecipe', {
+      facilityTypeId: 'farm',
+      recipeId: 'farm-wheat',
+    }, { scheduledProcessing: true });
+
+    assert.equal(scope.allPlayers, false);
+    assert.equal(scope.allSegments, false);
+    assert.equal(scope.label, 'local:setFacilityRecipe');
+    assert.deepEqual([...scope.playerIds], [String(alice.id)]);
+    assert.equal(scope.segments.has('populationEconomy'), true);
+    assert.equal(scope.segments.has('orders'), false);
+    assert.equal(scope.segments.has('markets'), false);
+
+    const loaded = store.loadWorld(now + 1, scope);
+    assert.notEqual(loaded.world.players[String(alice.id)], committed.players[String(alice.id)]);
+    assert.equal(loaded.world.orders, committed.orders);
+    assert.equal(loaded.world.markets, committed.markets);
+    assert.equal(loaded.world.assetAuctions, committed.assetAuctions);
   } finally {
     store.stopScheduler();
     store.close();

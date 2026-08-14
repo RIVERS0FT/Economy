@@ -30,13 +30,28 @@ requireText('server/src/player-admin-statistics.js', [
   'configurePlayerAdminStatistics',
   'coverage_started_at',
   'world?.assetAuctions',
+  'buildFrozenFacilityQuantityIndex',
+  'scopedPlayerIds',
+  'committedWorldForPlayerStatistics',
+  "measureRequestPhase('playerStatisticsProjectionMs'",
+  'store.saveWorld = (revision, world, savedAt, mutationScope)',
+  'store.saveWorldIfChanged = (revision, world, savedAt, previousStateJson, mutationScope)',
+  'recordWorldDeltas(state, beforeWorld, world, savedAt, mutationScope)',
 ]);
 forbidText('server/src/player-admin-statistics.js', [
   'collectibleAuctions',
   'createCollectibleAuction',
   'placeCollectibleBid',
   'cancelCollectibleAuction',
+  'function frozenFacilityQuantity(world, userId, facilityTypeId)',
 ]);
+const playerStatisticsSource = read('server/src/player-admin-statistics.js');
+const playerStatisticsReadStart = playerStatisticsSource.indexOf('  store.getPlayerStatistics = function getPlayerStatistics');
+const playerStatisticsReadEnd = playerStatisticsSource.indexOf('\n\n  return store;', playerStatisticsReadStart);
+const playerStatisticsRead = playerStatisticsSource.slice(playerStatisticsReadStart, playerStatisticsReadEnd);
+for (const forbidden of ['processWorldIfDue(', 'saveWorldIfChanged(', 'const { revision, stateJson, world } = this.loadWorld']) {
+  if (playerStatisticsRead.includes(forbidden)) failures.push(`管理员玩家运营统计只读路径不得包含: ${forbidden}`);
+}
 const runtimeStoreSource = `${read('server/src/runtime-store-core.js')}\n${read('server/src/runtime-store.js')}`;
 for (const fragment of ["import { configurePlayerAdminStatistics } from './player-admin-statistics.js'", 'configurePlayerAdminStatistics(this);']) {
   if (!runtimeStoreSource.includes(fragment)) failures.push(`runtime store 缺少玩家运营统计规则: ${fragment}`);
@@ -44,6 +59,10 @@ for (const fragment of ["import { configurePlayerAdminStatistics } from './playe
 requireText('server/src/app.js', [
   "path === '/api/game/admin/player-statistics'",
   'store.getPlayerStatistics(',
+]);
+requireText('server/src/world-storage-v2.js', [
+  "'setFacilityRecipe'",
+  'label: `local:${action}`',
 ]);
 requireText('src/api/admin.ts', [
   "export type AdminPlayerStatisticsRange = '7d' | '30d' | '90d'",
@@ -105,7 +124,16 @@ forbidText('src/styles/admin-player-statistics.css', ['.admin-player-statistics_
 requireText('server/test/player-admin-statistics.test.js', [
   'successful economic actions once',
   'assert.equal(activity.successful_action_count, 1)',
+  'assert.equal(loadWorldCalls, 0)',
+  'assert.equal(processWorldCalls, 0)',
+  'assert.equal(saveWorldCalls, 0)',
+  'persistence wrappers preserve local mutation scopes',
+  "assert.equal(capturedScope.label, 'local:bankDeposit')",
   'assert.equal(second.revision, statistics.revision)',
+]);
+requireText('server/test/runtime-hotpath-architecture.test.js', [
+  'facility recipe changes stay on the player-local copy-on-write scope',
+  "assert.equal(scope.label, 'local:setFacilityRecipe')",
 ]);
 requireText('tests/browser/admin-runtime.spec.ts', [
   'coverageStartsAt:',
@@ -138,4 +166,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('管理员玩家运营统计验证通过：ECharts 趋势、比例、财富图表与成功经济写操作、精确覆盖、隐私边界和移动响应式均已锁定。');
+console.log('管理员玩家运营统计验证通过：运营统计保持 committed world 只读，写入透传 Mutation Scope，冻结工厂索引只扫描一次，并保留 ECharts、精确覆盖和隐私边界。');
