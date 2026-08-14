@@ -986,7 +986,7 @@ export class EconomyStore {
     const changed = this.incrementGiftRedemption.run(Number(row.id));
     if (Number(changed.changes || 0) !== 1) return { ok: false, message: '礼品兑换码使用次数已满' };
     this.insertGiftRedemption.run(Number(row.id), Number(user.id), Number(row.reward_credits), now);
-    const player = ensurePlayer(world, user, now);
+    const player = ensurePlayer(world, user, now, { migrate: false });
     player.credits += Number(row.reward_credits);
     player.stats ||= {};
     player.stats.giftIssued = Number(player.stats.giftIssued || 0) + Number(row.reward_credits);
@@ -998,9 +998,9 @@ export class EconomyStore {
       const { revision, stateJson, world } = this.loadWorld(now);
       const playerId = String(user.id);
       const playerWasPresent = Boolean(world.players?.[playerId]);
-      const player = ensurePlayer(world, user, now);
+      const player = ensurePlayer(world, user, now, { migrate: false });
       ensureGemState(player);
-      ensureBankWorld(world, now);
+      ensureBankWorld(world, now, { normalizePlayers: false });
       ensurePlayerBankAccount(player, now);
       if (!this.scheduledProcessing || !playerWasPresent) {
         this.processWorldIfDue(world, now, Number(user.id), { force: !playerWasPresent });
@@ -1033,7 +1033,7 @@ export class EconomyStore {
       ensurePlayerBankAccount(player, now);
       ensureWeeklyCashSettlementWorld(world, now);
       ensurePlayerWeeklyCashSettlement(player, now);
-      this.processWorldIfDue(world, now, Number(user.id), { force: true });
+      this.processWorldIfDue(world, now, Number(user.id));
       settlePlayerWeeklyCashOnLogin(world, player, now);
       const playerBeforeAction = structuredClone(world.players[String(user.id)]);
       let gameResult;

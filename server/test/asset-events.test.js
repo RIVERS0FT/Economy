@@ -5,8 +5,6 @@ import { createWorld, ensurePlayer } from '../src/domain.js';
 import { EconomyStore } from '../src/storage.js';
 import { EconomyStore as RuntimeEconomyStore } from '../src/runtime-store.js';
 import { readSegmentedWorld } from '../src/world-storage-v2.js';
-import { EconomyStore as RuntimeEconomyStore } from '../src/runtime-store.js';
-import { readSegmentedWorld } from '../src/world-storage-v2.js';
 
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 
