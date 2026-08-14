@@ -619,7 +619,7 @@ export async function runStressTest(options = {}) {
     : profileBudget;
   const budgetResult = evaluateStressBudget(summary, enforcedBudget);
   failures.push(...budgetResult.failures);
-  if (diagnostics?.serverErrorLogCount > 0) failures.push(`隔离服务器记录了 ${diagnostics.serverErrorLogCount} 条错误日志`);
+  if (diagnostics?.serverErrorLogCount > 0) failures.push(`隔离服务器记录了 ${diagnostics.serverErrorLogCount} 条错误日志：${diagnostics.serverErrorTail || ''}`);
   if (options.enforcePerformanceBudget !== false && storageAfter) {
     if (storageAfter.databaseBytes > Number(profileBudget.maxLocalDatabaseBytes)) {
       failures.push(`隔离数据库 ${storageAfter.databaseBytes} 字节超过预算 ${profileBudget.maxLocalDatabaseBytes} 字节`);

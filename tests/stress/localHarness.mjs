@@ -224,6 +224,7 @@ export async function startLocalStressHarness({ seedTransactionAssets = false } 
         serverOutlierCount: (stdout.match(/Economy request outlier/g) || []).length
           + (stderr.match(/Economy request outlier/g) || []).length,
         serverErrorLogCount: (stderr.match(/Error:/g) || []).length,
+        serverErrorTail: stderr.slice(-4_000),
       };
     },
     async close() {
