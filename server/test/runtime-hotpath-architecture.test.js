@@ -53,6 +53,8 @@ test('runtime hot path uses segmented copy-on-write drafts and scheduler barrier
   assert.match(storageV2, /worldDirtyPlayerRows/);
   assert.match(storageV2, /worldDirtySegments/);
   assert.match(storageV2, /'setFacilityRecipe'/);
+  assert.match(storageV2, /cloneScopedOrders/);
+  assert.match(storageV2, /LOCAL_ORDER_POLICY_EXECUTIONS/);
 
   assert.match(executor, /captureRequestContext = true/);
   assert.match(executor, /captureRequestContext \? requestPerformanceContext\(\) : null/);
@@ -141,6 +143,41 @@ test('facility recipe changes stay on the player-local copy-on-write scope', () 
     assert.equal(loaded.world.orders, committed.orders);
     assert.equal(loaded.world.markets, committed.markets);
     assert.equal(loaded.world.assetAuctions, committed.assetAuctions);
+  } finally {
+    store.stopScheduler();
+    store.close();
+  }
+});
+
+test('commodity order drafts clone only open orders and the market for the affected asset', () => {
+  const store = new EconomyStore(':memory:', { scheduledProcessing: true });
+  try {
+    const now = 1_700_000_000_000;
+    store.getStateSnapshot(alice, undefined, now);
+    const committed = store.worldCache.world;
+    committed.orders.push(
+      { id: 'wheat-open', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat', side: 'sell', ownerType: 'market', ownerId: 0, price: 10, quantity: 1, remaining: 1, status: 'open', createdAt: now },
+      { id: 'rice-open', assetKind: 'commodity', assetId: 'rice', productId: 'rice', side: 'sell', ownerType: 'market', ownerId: 0, price: 10, quantity: 1, remaining: 1, status: 'open', createdAt: now },
+      { id: 'wheat-closed', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat', side: 'sell', ownerType: 'market', ownerId: 0, price: 10, quantity: 1, remaining: 0, status: 'filled', createdAt: now },
+    );
+    committed.markets.wheat ||= { priceHistory: [] };
+    committed.markets.rice ||= { priceHistory: [] };
+
+    const scope = createRuntimeMutationScope(committed, alice.id, 'placeOrder', {
+      assetKind: 'commodity', assetId: 'wheat', productId: 'wheat', side: 'buy', quantity: 1, price: 10,
+    }, { scheduledProcessing: true });
+    const loaded = store.loadWorld(now + 1, scope);
+
+    assert.equal(scope.allPlayers, false);
+    assert.equal(scope.allSegments, false);
+    assert.equal(scope.label, 'commodity:placeOrder');
+    assert.notEqual(loaded.world.orders, committed.orders);
+    assert.notEqual(loaded.world.orders.at(-3), committed.orders.at(-3));
+    assert.equal(loaded.world.orders.at(-2), committed.orders.at(-2));
+    assert.equal(loaded.world.orders.at(-1), committed.orders.at(-1));
+    assert.notEqual(loaded.world.markets, committed.markets);
+    assert.notEqual(loaded.world.markets.wheat, committed.markets.wheat);
+    assert.equal(loaded.world.markets.rice, committed.markets.rice);
   } finally {
     store.stopScheduler();
     store.close();
