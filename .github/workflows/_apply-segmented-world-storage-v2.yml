@@ -1,4 +1,4 @@
-name: Verify segmented world storage v2
+name: Apply current-world hot path fixes
 
 on:
   push:
@@ -6,11 +6,11 @@ on:
       - perf/segmented-world-storage-v2
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  focused-tests:
-    if: github.event.head_commit.message == 'Run focused segmented storage tests'
+  patch-and-verify:
+    if: github.event.head_commit.message == 'Apply current-world hot path fixes'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -22,6 +22,20 @@ jobs:
         with:
           node-version: '24.4.0'
           cache: npm
+      - name: Apply current-world hot path fixes
+        run: |
+          node --check scripts/.fix-segmented-world-storage-v2.mjs
+          node scripts/.fix-segmented-world-storage-v2.mjs
+          git diff --check
+      - name: Commit implementation checkpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add server/src
+          if ! git diff --cached --quiet; then
+            git commit -m 'Separate cold migrations from runtime hot paths'
+            git push origin HEAD:perf/segmented-world-storage-v2
+          fi
       - name: Install dependencies
         run: npm ci
       - name: Run focused server tests
