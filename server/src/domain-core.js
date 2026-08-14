@@ -425,9 +425,10 @@ export function migrateWorld(world, now = Date.now()) {
   return world;
 }
 
-export function ensurePlayer(world, user, now = Date.now()) {
-  migrateWorld(world, now);
+export function ensurePlayer(world, user, now = Date.now(), { migrate = true } = {}) {
+  if (migrate) migrateWorld(world, now);
   const key = String(user.id);
+  world.players ||= {};
   if (!world.players[key]) world.players[key] = createPlayer(user, now);
   return world.players[key];
 }
@@ -613,7 +614,7 @@ function stopFacility(facility, status, reason) {
 }
 
 function processFacilities(player, now) {
-  for (const facility of player.facilities.slice(0, ECONOMY_CONSTANTS.maxFacilitiesProcessedPerTick)) {
+  for (const facility of (player.facilities || []).slice(0, ECONOMY_CONSTANTS.maxFacilitiesProcessedPerTick)) {
     if (facility.status === 'constructing' && facility.constructionCompletesAt && now >= facility.constructionCompletesAt) {
       facility.status = 'ready';
       facility.stopReason = 'manual';
@@ -695,9 +696,9 @@ function pruneWorld(world, now) {
   if (world.facilityListings.length > 800) world.facilityListings = world.facilityListings.slice(-800);
 }
 
-export function processWorld(world, now = Date.now()) {
-  migrateWorld(world, now);
-  for (const player of Object.values(world.players)) processFacilities(player, now);
+export function processWorld(world, now = Date.now(), { migrate = true } = {}) {
+  if (migrate) migrateWorld(world, now);
+  for (const player of Object.values(world.players || {})) processFacilities(player, now);
   pruneWorld(world, now);
   return world;
 }
@@ -1097,10 +1098,17 @@ function renamePlayer(world, userId, payload) {
   return result(true, '玩家昵称已更新');
 }
 
-export function applyAction(world, user, action, payload = {}, now = Date.now()) {
-  migrateWorld(world, now);
-  ensurePlayer(world, user, now);
-  processWorld(world, now);
+export function applyAction(
+  world,
+  user,
+  action,
+  payload = {},
+  now = Date.now(),
+  { migrate = true, process = true } = {},
+) {
+  if (migrate) migrateWorld(world, now);
+  ensurePlayer(world, user, now, { migrate: false });
+  if (process) processWorld(world, now, { migrate: false });
   const userId = Number(user.id);
   switch (action) {
     case 'work': return work(world, userId, now);

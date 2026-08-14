@@ -821,10 +821,10 @@ export class EconomyStore {
           ))),
         };
       }
-      const player = ensurePlayer(world, user, now);
+      const player = ensurePlayer(world, user, now, { migrate: false });
       ensureWarehouse(player);
       ensureGemState(player);
-      ensureBankWorld(world, now);
+      ensureBankWorld(world, now, { normalizePlayers: false });
       ensurePlayerBankAccount(player, now);
       if (!this.scheduledProcessing || !playerWasPresent) {
         this.processWorldIfDue(world, now, Number(user.id), { force: !playerWasPresent });

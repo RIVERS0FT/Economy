@@ -82,7 +82,7 @@ function createActionAcknowledgement(result, revision) {
   });
 }
 
-function cancelRuntimeCommodityOrder(world, user, orderId, now) {
+function cancelRuntimeCommodityOrder(world, user, orderId, now, { processWorld = true } = {}) {
   const candidate = orderById(world, orderId);
   if (
     !candidate
@@ -91,7 +91,7 @@ function cancelRuntimeCommodityOrder(world, user, orderId, now) {
     || !isOpenOrder(candidate)
   ) return null;
 
-  processFacilityGroupWorld(world, now);
+  if (processWorld) processFacilityGroupWorld(world, now, { migrate: false });
   return cancelSettledCommodityOrder(world, user, orderId)
     ? { ok: true, message: '订单已撤销，冻结资产已释放' }
     : { ok: false, message: '未找到可撤销订单' };
@@ -147,19 +147,29 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
           processWorld: !store.scheduledProcessing,
         });
       } else if (action === 'cancelOrder') {
-        gameResult = cancelRuntimeCommodityOrder(world, user, payload.orderId, now)
-          ?? applyFacilityGroupAction(world, user, action, payload, now);
+        gameResult = cancelRuntimeCommodityOrder(world, user, payload.orderId, now, {
+          processWorld: !store.scheduledProcessing,
+        }) ?? applyFacilityGroupAction(world, user, action, payload, now, {
+          migrate: false,
+          process: !store.scheduledProcessing,
+        });
       } else if (action === 'buildFacility' && payload.autoProcure === true) {
         const procurement = autoProcureFacilityBuildMaterials(world, user, payload, now);
         if (!procurement.ok) gameResult = procurement;
         else {
-          gameResult = applyFacilityGroupAction(world, user, action, payload, now);
+          gameResult = applyFacilityGroupAction(world, user, action, payload, now, {
+            migrate: false,
+            process: !store.scheduledProcessing,
+          });
           if (gameResult?.ok && procurement.purchasedQuantity > 0) {
             gameResult.message = `${gameResult.message}；已一键购齐 ${procurement.purchasedQuantity} 件建造材料`;
           }
         }
       } else {
-        gameResult = applyFacilityGroupAction(world, user, action, payload, now);
+        gameResult = applyFacilityGroupAction(world, user, action, payload, now, {
+          migrate: false,
+          process: !store.scheduledProcessing,
+        });
       }
     }
 
@@ -210,7 +220,7 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     }
 
     const { revision, stateJson, world } = store.loadWorld(now, mutationScope);
-    const player = ensurePlayer(world, user, now);
+    const player = ensurePlayer(world, user, now, { migrate: false });
     ensureWarehouse(player);
     ensureGemState(player);
     ensureBankWorld(world, now, { normalizePlayers: !store.scheduledProcessing });

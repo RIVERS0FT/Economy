@@ -960,18 +960,19 @@ function matchFacilityOrder(world, incoming, createdAt) {
   });
 }
 
-export function processFacilityGroupWorld(world, now = Date.now()) {
+export function processFacilityGroupWorld(world, now = Date.now(), { migrate = true } = {}) {
   removeSystemFacilityOrders(world);
-  migrateFacilityGroupWorld(world, now);
-  withLegacyFacilitiesSuppressed(world, () => processWorld(world, now));
-  migrateFacilityGroupWorld(world, now);
+  if (migrate) migrateFacilityGroupWorld(world, now);
+  if (migrate) withLegacyFacilitiesSuppressed(world, () => processWorld(world, now, { migrate: false }));
+  else processWorld(world, now, { migrate: false });
+  if (migrate) migrateFacilityGroupWorld(world, now);
   removeSystemFacilityOrders(world);
   for (const player of Object.values(world.players || {})) {
     ensureWarehouse(player);
     for (const group of player.facilityGroups || []) processGroup(world, player, group, now);
   }
   reconcileAllFacilityGroups(world, now);
-  stripLegacyFacilityInstances(world);
+  if (migrate) stripLegacyFacilityInstances(world);
   return world;
 }
 
@@ -1255,9 +1256,17 @@ function renameFacilityOrders(world, userId) {
   for (const order of world.orders || []) if (order.ownerId === userId) order.ownerName = player.playerName;
 }
 
-export function applyFacilityGroupAction(world, user, action, payload = {}, now = Date.now()) {
-  processFacilityGroupWorld(world, now);
+export function applyFacilityGroupAction(
+  world,
+  user,
+  action,
+  payload = {},
+  now = Date.now(),
+  { migrate = true, process = true } = {},
+) {
+  if (process) processFacilityGroupWorld(world, now, { migrate });
   const userId = Number(user.id);
+  const applyBaseAction = () => applyAction(world, user, action, payload, now, { migrate: false, process: false });
   let actionResult;
 
   if (action === 'buildFacility') actionResult = buildFacilityGroup(world, userId, payload, now);
@@ -1276,7 +1285,7 @@ export function applyFacilityGroupAction(world, user, action, payload = {}, now 
     const order = orderById(world, payload.orderId);
     actionResult = order && Number(order.ownerId) === userId && isOpenOrder(order) && orderKind(order) === 'facility'
       ? cancelFacilityOrder(world, userId, order, now)
-      : withLegacyFacilitiesSuppressed(world, () => applyAction(world, user, action, payload, now));
+      : (migrate ? withLegacyFacilitiesSuppressed(world, applyBaseAction) : applyBaseAction());
   } else if (action === 'cancelFacilityListing') {
     const order = orderById(world, payload.listingId);
     actionResult = order && Number(order.ownerId) === userId && isOpenOrder(order) && orderKind(order) === 'facility'
@@ -1291,13 +1300,13 @@ export function applyFacilityGroupAction(world, user, action, payload = {}, now 
       }, now)
       : result(false, '工厂卖单不存在');
   } else {
-    actionResult = withLegacyFacilitiesSuppressed(world, () => applyAction(world, user, action, payload, now));
+    actionResult = migrate ? withLegacyFacilitiesSuppressed(world, applyBaseAction) : applyBaseAction();
   }
 
-  migrateFacilityGroupWorld(world, now);
+  if (migrate) migrateFacilityGroupWorld(world, now);
   if (action === 'renamePlayer' && actionResult.ok) renameFacilityOrders(world, userId);
   reconcileAllFacilityGroups(world, now);
-  stripLegacyFacilityInstances(world);
+  if (migrate) stripLegacyFacilityInstances(world);
   return actionResult;
 }
 

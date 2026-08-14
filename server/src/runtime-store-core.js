@@ -455,7 +455,7 @@ export class EconomyStore extends PersistentEconomyStore {
       }
 
       const { revision, stateJson, world } = this.loadWorld(now);
-      const player = ensurePlayer(world, user, now);
+      const player = ensurePlayer(world, user, now, { migrate: false });
       ensureWarehouse(player);
       ensureGemState(player);
       this.processWorldIfDue(world, now, Number(user.id), {
