@@ -14,6 +14,7 @@ function boundedInteger(value, fallback, minimum, maximum) {
 export const AUTHENTICATION_CACHE_POLICY = Object.freeze({
   stateMaxAgeMs: boundedInteger(process.env.ACCOUNT_AUTH_STATE_CACHE_TTL_MS, 10_000, 0, 10_000),
   writeMaxAgeMs: boundedInteger(process.env.ACCOUNT_AUTH_WRITE_CACHE_TTL_MS, 2_000, 0, 2_000),
+  adminReadMaxAgeMs: boundedInteger(process.env.ACCOUNT_AUTH_ADMIN_READ_CACHE_TTL_MS, 2_000, 0, 2_000),
   negativeTtlMs: boundedInteger(process.env.ACCOUNT_AUTH_NEGATIVE_CACHE_TTL_MS, 1_000, 0, 1_000),
   maxEntries: boundedInteger(process.env.ACCOUNT_AUTH_CACHE_MAX_ENTRIES, 5_000, 100, 5_000),
 });
@@ -27,7 +28,9 @@ function authenticationCacheKey(cookie) {
 }
 
 export function authenticationCacheMaxAgeForRequest(method, path) {
-  if (String(path).startsWith('/api/game/admin/')) return 0;
+  if (String(path).startsWith('/api/game/admin/')) {
+    return method === 'GET' ? AUTHENTICATION_CACHE_POLICY.adminReadMaxAgeMs : 0;
+  }
   if (method === 'GET' && path === '/api/game/state') {
     return AUTHENTICATION_CACHE_POLICY.stateMaxAgeMs;
   }
