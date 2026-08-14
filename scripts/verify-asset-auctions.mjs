@@ -277,7 +277,7 @@ requireText('tests/browser/auction-bid-layout.spec.ts', [
 ]);
 
 requireText('.github/workflows/deploy.yml', [
-  'backup before world 26 migration',
+  'backup before storage V2 migration',
   'backup-world --target-storage-schema-version 2',
   'Verify production host before publishing entry',
   'scripts/verify-production-deployment.sh',
