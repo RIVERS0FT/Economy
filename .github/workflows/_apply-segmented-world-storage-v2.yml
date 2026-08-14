@@ -31,10 +31,12 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add scripts/verify-authoritative-hotpaths.mjs scripts/verify-state-delivery-capacity.mjs scripts/verify-staple-crops-demand.mjs scripts/verify-asset-auctions.mjs scripts/verify-admin-player-statistics.mjs server/src/storage.js server/src/contract-audit-store.js server/test/asset-events.test.js server/test/domain.test.js
+          git add scripts/verify-authoritative-hotpaths.mjs scripts/verify-state-delivery-capacity.mjs scripts/verify-staple-crops-demand.mjs scripts/verify-asset-auctions.mjs scripts/verify-admin-player-statistics.mjs server/src/storage.js server/src/contract-audit-store.js server/test/asset-events.test.js server/test/domain.test.js tests/stress/run.mjs
           git commit -m 'Fix segmented storage V2 compatibility regressions'
           git push origin HEAD:perf/segmented-world-storage-v2
       - run: npm ci
+      - name: Verify stress flow first
+        run: npm run test:stress
       - name: Verify authority and regressions
         run: |
           npm run build
