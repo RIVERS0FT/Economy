@@ -28,6 +28,29 @@ jobs:
           node scripts/.fix-api-hotpath-patcher-2.mjs
           node --check scripts/.apply-api-hotpath-v2.mjs
           node scripts/.apply-api-hotpath-v2.mjs
+      - name: Complete read-only domain projection
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          function replace(path, before, after) {
+            const source = fs.readFileSync(path, 'utf8');
+            if (!source.includes(before)) throw new Error(`missing target in ${path}`);
+            fs.writeFileSync(path, source.replace(before, after));
+          }
+          replace(
+            'server/src/domain.js',
+            "export function createClientState(world, userId, now = Date.now()) {\n  migrateWorld(world, now);\n  const state = core.createClientState(world, userId, now);\n",
+            "export function createClientState(world, userId, now = Date.now(), { migrate = true } = {}) {\n  if (migrate) migrateWorld(world, now);\n  const state = core.createClientState(world, userId, now, { migrate });\n",
+          );
+          replace(
+            'server/src/domain-core.js',
+            "  const player = getPlayer(world, userId);\n  const wheatInventory = inventoryFor(player, 'wheat');\n  const wheatMarket = marketFor(world, 'wheat');\n",
+            "  const player = getPlayer(world, userId);\n  const wheatInventory = migrate\n    ? inventoryFor(player, 'wheat')\n    : player.inventories?.wheat || { available: 0, frozen: 0 };\n  const wheatMarket = migrate\n    ? marketFor(world, 'wheat')\n    : world.markets?.wheat || createMarket(productDefinition('wheat'), now);\n",
+          );
+          replace('server/src/domain-core.js', '    facilities: clone(player.facilities),\n', '    facilities: clone(player.facilities || []),\n');
+          replace('server/src/domain-core.js', '    trades: clone(player.trades),\n    ledger: clone(player.ledger),\n', '    trades: clone(player.trades || []),\n    ledger: clone(player.ledger || []),\n');
+          replace('server/src/domain-core.js', '    leaderboard: createLeaderboard(world, userId, now),\n', '    leaderboard: migrate ? createLeaderboard(world, userId, now) : [],\n');
+          NODE
       - name: Install dependencies
         run: npm ci
       - name: Run focused server regression
@@ -46,10 +69,12 @@ jobs:
             .github/workflows/_apply-api-hotpath-v2-retry.yml \
             scripts/.apply-api-hotpath-v2.mjs \
             scripts/.fix-api-hotpath-patcher.mjs \
-            scripts/.fix-api-hotpath-patcher-2.mjs
+            scripts/.fix-api-hotpath-patcher-2.mjs \
+            scripts/.fix-api-hotpath-patcher-3.mjs
           git add \
             server/src/runtime-store.js \
             server/src/storage.js \
+            server/src/domain.js \
             server/src/domain-core.js \
             server/src/facility-groups.js \
             server/src/warehouse.js \
