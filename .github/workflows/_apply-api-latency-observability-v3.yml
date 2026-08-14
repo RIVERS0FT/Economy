@@ -34,6 +34,37 @@ jobs:
           PY
           node --check scripts/.apply-api-latency-observability-v3.mjs
           node scripts/.apply-api-latency-observability-v3.mjs
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-runtime-efficiency.mjs')
+          source = path.read_text()
+          before = '''const appSource = read('server/src/app.js');
+const adminSummaryRoute = appSource.slice(
+  appSource.indexOf("if (method === 'GET' && path === '/api/game/admin/summary')"),
+  appSource.indexOf("if (method === 'GET' && path === '/api/game/admin/server-status')"),
+);
+const adminPopulationRoute = appSource.slice(
+  appSource.indexOf("if (method === 'GET' && path === '/api/game/admin/population-economy')"),
+  appSource.indexOf("if (method === 'GET' && path === '/api/game/admin/player-statistics')"),
+);
+for (const [label, source] of [['admin summary', adminSummaryRoute], ['admin population', adminPopulationRoute]]) {
+  assert.ok(source.includes('getStableAdminSummary(store, user)'), label + ' 必须直接读取已提交世界');
+  assert.equal(source.includes('enqueueAuthoritativeWrite'), false, label + ' 只读接口不得进入权威写队列');
+}
+'''
+          after = '''const appSource = read('server/src/app.js');
+assert.equal(
+  (appSource.match(/const summary = getStableAdminSummary\\(store, user\\);/g) || []).length,
+  2,
+  '两个管理员汇总只读接口都必须直接读取已提交世界',
+);
+assert.equal(appSource.includes("userWriteOptions(user, 'admin-summary')"), false, '管理员汇总不得进入权威写队列');
+assert.equal(appSource.includes("userWriteOptions(user, 'admin-population-summary')"), false, '人口经济汇总不得进入权威写队列');
+'''
+          if before not in source:
+            raise SystemExit('missing admin route verifier block')
+          path.write_text(source.replace(before, after, 1))
+          PY
           git diff --check
       - name: Install dependencies
         run: npm ci
