@@ -87,15 +87,12 @@ jobs:
           PY
           node --check scripts/.apply-segmented-world-storage-v2.mjs
           node scripts/.apply-segmented-world-storage-v2.mjs
-          node --check scripts/.apply-segmented-world-storage-v2-followup.mjs
           node scripts/.apply-segmented-world-storage-v2-followup.mjs
-          node --check scripts/.apply-segmented-world-storage-v2-coldread.mjs
           node scripts/.apply-segmented-world-storage-v2-coldread.mjs
-          node --check server/src/world-storage-v2.js
           git diff --check
       - name: Install dependencies
         run: npm ci
-      - name: Diagnose cold restart migration
+      - name: Trace money normalization
         run: |
           node --input-type=module <<'JS'
           import { mkdtempSync, rmSync } from 'node:fs';
@@ -103,48 +100,33 @@ jobs:
           import { join } from 'node:path';
           import { EconomyStore } from './server/src/runtime-store.js';
           import { readSegmentedWorld } from './server/src/world-storage-v2.js';
-          import { processDailyCheckInWorld } from './server/src/daily-check-in.js';
-          import { migrateBankWorld, ensurePlayerBankAccount } from './server/src/banking.js';
-          import { ensureWeeklyCashSettlementWorld, ensurePlayerWeeklyCashSettlement } from './server/src/weekly-cash-settlement.js';
-          import { ensureWarehouse } from './server/src/warehouse.js';
-          import { ensureGemState } from './server/src/invitations.js';
-          import { migrateAssetAuctionWorld } from './server/src/asset-auctions.js';
-          import { migrateFacilityGroupWorld } from './server/src/facility-groups.js';
-          import { migrateResearchWorld } from './server/src/research.js';
-          import { migrateProductionContractWorld } from './server/src/contracts.js';
-          import { normalizeWorldMoneyPrecision } from './server/src/money.js';
-          const directory = mkdtempSync(join(tmpdir(), 'storage-v2-diag-'));
+          import { normalizeWorldMoneyPrecision, floorPlayerMoney, roundInternalMoney } from './server/src/money.js';
+          const directory = mkdtempSync(join(tmpdir(), 'storage-v2-trace-'));
           const databasePath = join(directory, 'economy.sqlite');
           const user = { id: 1, email: 'alice@example.com', name: 'Alice', role: 'user' };
           const now = 1_700_000_000_000;
-          const price = (world) => world.facilityMarkets?.industrial_land?.lastPrice;
           try {
             const first = new EconomyStore(databasePath, { scheduledProcessing: false });
             first.getState(user, now);
-            first.apply(user, { action: 'bankDeposit', payload: { amount: 25 }, requestKey: 'diag-restart-12345678', method: 'POST', path: '/api/game/bank' }, now + 1);
+            first.apply(user, { action: 'bankDeposit', payload: { amount: 25 }, requestKey: 'trace-money-12345678', method: 'POST', path: '/api/game/bank' }, now + 1);
             first.close();
-
             const second = new EconomyStore(databasePath, { scheduledProcessing: true });
             try {
               const stored = readSegmentedWorld(second);
               const world = structuredClone(stored.world);
-              const log = (label) => console.log(label, { price: price(world), version: world.version });
-              log('stored');
-              processDailyCheckInWorld(world, now + 2); log('daily');
-              migrateBankWorld(world, now + 2); log('bank');
-              ensureWeeklyCashSettlementWorld(world, now + 2); log('weekly-world');
-              for (const player of Object.values(world.players || {})) {
-                ensureWarehouse(player);
-                ensureGemState(player);
-                ensurePlayerBankAccount(player, now + 2);
-                ensurePlayerWeeklyCashSettlement(player, now + 2);
-              }
-              log('player-ensures');
-              migrateAssetAuctionWorld(world, now + 2); log('auction');
-              migrateFacilityGroupWorld(world, now + 2); log('facility');
-              migrateResearchWorld(world, now + 2); log('research');
-              migrateProductionContractWorld(world); log('contract');
-              normalizeWorldMoneyPrecision(world); log('money');
+              const original = world.facilityMarkets.industrial_land;
+              console.log('helpers', { floor60000: floorPlayerMoney(60000), round60000: roundInternalMoney(60000), market: original });
+              world.facilityMarkets.industrial_land = new Proxy(original, {
+                set(target, prop, value) {
+                  if (prop === 'lastPrice' || prop === 'lastTradePrice') {
+                    console.log('SET', prop, target[prop], '=>', value, new Error('trace').stack);
+                  }
+                  target[prop] = value;
+                  return true;
+                },
+              });
+              normalizeWorldMoneyPrecision(world);
+              console.log('after', world.facilityMarkets.industrial_land);
             } finally { second.stopScheduler(); second.close(); }
           } finally { rmSync(directory, { recursive: true, force: true }); }
           JS
