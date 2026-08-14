@@ -222,7 +222,7 @@ function publicOrderFill(fill) {
 }
 
 export function publicOrderView(order, userId) {
-  const normalized = clone(normalizeOrder(order));
+  const normalized = normalizeOrder(clone(order));
   const isOwn = Number(normalized.ownerId) === Number(userId);
   normalized.isOwn = isOwn;
   delete normalized.ownerType;
