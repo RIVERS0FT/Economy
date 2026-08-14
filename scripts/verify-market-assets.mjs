@@ -84,7 +84,7 @@ for (const text of [
   "const [tab, setActiveTab] = useState<TabId>('home');",
   "const [orderSide, setOrderSideState] = useState<OrderSide>('buy');",
   'const [orderPrice, setOrderPrice] = useState(1);',
-  'const loadedGame = game;',
+  'const loadedGame = scopedGame;',
   "if (nextTab === 'market' && tab !== 'market')",
   'defaultOrderPrice(loadedGame.orders, marketAssetKind, marketAssetId, orderSide)',
   "if (changed || tab !== 'market')",
@@ -153,7 +153,7 @@ for (const text of ['market.lastPrice - 2','market.lastPrice + 2']) {
 }
 for (const text of ['economy_gift_codes','economy_gift_redemptions','requireAdmin','getAdminSummary']) requireText('server/src/storage.js', text);
 for (const text of ['export interface OrderFill','fills?: OrderFill[]','isOwn?: boolean',"FacilityStatus = 'running' | 'stopped' | 'error'"]) requireText('src/types.ts', text);
-for (const text of ['STORAGE_VERSION = 6','previousFillIds','fill.price','fill.total','normalizeTrades']) requireText('src/utils/localActivityStore.ts', text);
+for (const text of ['STORAGE_VERSION = 7','previousFillIds','fill.price','fill.total','normalizeTrades']) requireText('src/utils/localActivityStore.ts', text);
 for (const text of ['makerOrderId','takerOrderId','counterparty: string']) forbidText('src/types.ts', text);
 for (const text of ['fill.counterparty','trade.counterparty']) forbidText('src/utils/localActivityStore.ts', text);
 for (const text of ['after.markets[assetId]?.lastPrice','after.facilityMarkets[assetId]?.lastPrice','executedQuantity * price']) forbidText('src/utils/localActivityStore.ts', text);
@@ -178,7 +178,7 @@ for (const text of [
   '字段标签／内嵌减号按钮／共享输入控件／内嵌加号按钮',
   '最高系统买价 < 最低系统卖价',
   '服务器必须在冻结任何资金、商品或工厂之前拒绝新订单',
-  '不同主体之间可成交的交叉订单必须在新订单进入订单簿时立即按 maker price 撮合',
+  '不同主体之间可成交的同地区交叉订单必须在新订单进入订单簿时立即按 maker price 撮合',
   '模型 4 升级到 5 时必须删除全部旧系统商品订单',
 ]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
 for (const text of [

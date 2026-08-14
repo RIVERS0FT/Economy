@@ -80,7 +80,7 @@ test('market desktop layout keeps order entry and order book in one trade card b
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('market-runtime-test.html?scenario=active');
 
-  await expect(page.getByRole('heading', { name: '市场', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '北京本地市场', exact: true })).toBeVisible();
   const tradeCard = page.locator('.market-trade-card');
   const orderEntry = tradeCard.locator('.order-entry');
   const orderBook = tradeCard.locator('.single-order-book');

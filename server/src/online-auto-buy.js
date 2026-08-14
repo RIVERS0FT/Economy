@@ -12,6 +12,7 @@ import {
 } from './online-auto-buy-orders.js';
 import { onlineAutoBuyPolicyFor } from './online-auto-buy-policy.js';
 import { contractAvailableHoldForOnlineTrade } from './online-auto-trade-reservations.js';
+import { inventoryForProvince, normalizeProvinceId } from './provinces.js';
 
 const PRODUCT_BY_ID = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 
@@ -20,10 +21,11 @@ function positiveInteger(value) {
   return Number.isSafeInteger(normalized) && normalized > 0 ? normalized : 0;
 }
 
-function hasOwnCrossingSell(world, userId, productId, maximumPrice) {
+function hasOwnCrossingSell(world, userId, productId, maximumPrice, provinceId) {
   return (world.orders || []).some((order) => (
     orderKind(order) === 'commodity'
     && orderAssetId(order) === productId
+    && normalizeProvinceId(order.provinceId) === normalizeProvinceId(provinceId)
     && order.side === 'sell'
     && isOpenOrder(order)
     && Number(order.ownerId) === Number(userId)
@@ -31,13 +33,13 @@ function hasOwnCrossingSell(world, userId, productId, maximumPrice) {
   ));
 }
 
-function desiredQuantity(world, player, productId, policy) {
-  const inventory = player.inventories?.[productId] || { available: 0, frozen: 0 };
+function desiredQuantity(world, player, productId, policy, provinceId) {
+  const inventory = inventoryForProvince(player, productId, provinceId);
   const productionReserved = positiveInteger(
-    productionReservedQuantitiesForPlayer(world, player.userId)[productId],
+    productionReservedQuantitiesForPlayer(world, player.userId, provinceId)[productId],
   );
   const contractHold = positiveInteger(
-    contractAvailableHoldForOnlineTrade(world, player.userId, productId),
+    contractAvailableHoldForOnlineTrade(world, player.userId, productId, provinceId),
   );
   const requiredAvailable = Math.min(
     Number.MAX_SAFE_INTEGER,
@@ -67,12 +69,13 @@ function affordableQuantity(player, maximumPrice, managedOrder, desired) {
   return Math.min(desired, Math.max(0, capped));
 }
 
-function newManagedOrder(world, userId, productId, previousOrderIds) {
+function newManagedOrder(world, userId, productId, previousOrderIds, provinceId) {
   return [...(world.orders || [])].reverse().find((candidate) => (
     !previousOrderIds.has(String(candidate.id))
     && Number(candidate.ownerId) === Number(userId)
     && orderKind(candidate) === 'commodity'
     && orderAssetId(candidate) === productId
+    && normalizeProvinceId(candidate.provinceId) === normalizeProvinceId(provinceId)
     && candidate.side === 'buy'
   )) || null;
 }
@@ -80,25 +83,26 @@ function newManagedOrder(world, userId, productId, previousOrderIds) {
 export function applyOnlineAutoBuy(world, user, payload = {}, now = Date.now()) {
   const userId = Number(user.id);
   const productId = String(payload.productId || payload.assetId || '');
+  const provinceId = normalizeProvinceId(payload.provinceId);
   const product = PRODUCT_BY_ID.get(productId);
   if (!product) return { ok: false, message: '自动采购商品不存在' };
 
   const player = world.players?.[String(userId)];
   if (!player) return { ok: false, message: '玩家不存在' };
-  const policy = onlineAutoBuyPolicyFor(player, productId);
+  const policy = onlineAutoBuyPolicyFor(player, productId, provinceId);
   if (!policy?.enabled) {
-    cancelManagedOnlineAutoBuyOrder(world, userId, productId);
+    cancelManagedOnlineAutoBuyOrder(world, userId, productId, provinceId);
     return { ok: false, message: '该商品未启用自动采购' };
   }
   const maximumPrice = policy.maxPrice;
 
-  let managedOrder = managedOnlineAutoBuyOrderFor(world, userId, productId);
-  if (hasOwnCrossingSell(world, userId, productId, maximumPrice)) {
-    if (managedOrder) cancelManagedOnlineAutoBuyOrder(world, userId, productId);
+  let managedOrder = managedOnlineAutoBuyOrderFor(world, userId, productId, provinceId);
+  if (hasOwnCrossingSell(world, userId, productId, maximumPrice, provinceId)) {
+    if (managedOrder) cancelManagedOnlineAutoBuyOrder(world, userId, productId, provinceId);
     return { ok: false, message: '自己的卖单达到自动采购价格，请先撤销反向订单' };
   }
 
-  const desired = desiredQuantity(world, player, productId, policy);
+  const desired = desiredQuantity(world, player, productId, policy, provinceId);
   const target = affordableQuantity(player, maximumPrice, managedOrder, desired);
   if (
     managedOrder
@@ -114,7 +118,7 @@ export function applyOnlineAutoBuy(world, user, payload = {}, now = Date.now()) 
   }
 
   if (managedOrder) {
-    cancelManagedOnlineAutoBuyOrder(world, userId, productId);
+    cancelManagedOnlineAutoBuyOrder(world, userId, productId, provinceId);
     managedOrder = null;
   }
   if (desired < 1) {
@@ -131,6 +135,7 @@ export function applyOnlineAutoBuy(world, user, payload = {}, now = Date.now()) 
     assetKind: 'commodity',
     assetId: productId,
     productId,
+    provinceId,
     side: 'buy',
     quantity: refreshedTarget,
     price: maximumPrice,
@@ -138,11 +143,11 @@ export function applyOnlineAutoBuy(world, user, payload = {}, now = Date.now()) 
   }, now);
   if (!placed?.ok) return placed;
 
-  const order = newManagedOrder(world, userId, productId, previousOrderIds);
+  const order = newManagedOrder(world, userId, productId, previousOrderIds, provinceId);
   if (!order) return { ok: false, message: '自动采购买单创建失败' };
   const filled = Math.max(0, positiveInteger(order.quantity) - positiveInteger(order.remaining));
   const remaining = isOpenOrder(order) ? positiveInteger(order.remaining) : 0;
-  if (remaining > 0) linkManagedOnlineAutoBuyOrder(player, productId, order.id);
+  if (remaining > 0) linkManagedOnlineAutoBuyOrder(player, productId, order.id, provinceId);
 
   const fundingNote = refreshedTarget < desired ? '，当前采购数量受可用资金限制' : '';
   if (filled > 0 && remaining > 0) {

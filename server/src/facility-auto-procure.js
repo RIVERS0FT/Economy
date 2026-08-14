@@ -16,6 +16,7 @@ import {
   multiplyMoneyByInteger,
   normalizePlayerMoneyInput,
 } from './money.js';
+import { inventoryForProvince, normalizeProvinceId } from './provinces.js';
 
 const FACILITY_TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 const PRODUCTS = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
@@ -31,10 +32,8 @@ function normalizePositiveInteger(value, max = Number.MAX_SAFE_INTEGER) {
   return Number.isSafeInteger(normalized) && normalized >= 1 && normalized <= max ? normalized : null;
 }
 
-function inventoryFor(player, productId) {
-  player.inventories ||= {};
-  player.inventories[productId] ||= { available: 0, frozen: 0 };
-  return player.inventories[productId];
+function inventoryFor(player, productId, provinceId) {
+  return inventoryForProvince(player, productId, provinceId);
 }
 
 function facilityBuildContext(world, user, payload = {}) {
@@ -44,6 +43,7 @@ function facilityBuildContext(world, user, payload = {}) {
   if (!player) return { error: result(false, '玩家状态不存在') };
   if (!type) return { error: result(false, '工厂类型不存在') };
   const quantity = normalizePositiveInteger(payload.quantity ?? 1, 100);
+  const provinceId = normalizeProvinceId(payload.provinceId);
   if (!quantity) return { error: result(false, '建造数量必须为 1 到 100 的整数') };
   if (!Array.isArray(type.buildInputs)) return { error: result(false, '工厂建造材料目录无效') };
 
@@ -55,7 +55,7 @@ function facilityBuildContext(world, user, payload = {}) {
       return { error: result(false, '建造材料数量超出系统可表示范围') };
     }
     const productId = String(item.productId || '');
-    const deficit = Math.max(0, required - Number(inventoryFor(player, productId).available || 0));
+    const deficit = Math.max(0, required - Number(inventoryFor(player, productId, provinceId).available || 0));
     if (deficit <= 0) continue;
     if (!Number.isSafeInteger(deficit) || !Number.isSafeInteger(missingQuantity + deficit)) {
       return { error: result(false, '建造材料数量超出系统可表示范围') };
@@ -64,16 +64,17 @@ function facilityBuildContext(world, user, payload = {}) {
     missingQuantity += deficit;
   }
 
-  return { userId, player, type, quantity, missing, missingQuantity };
+  return { userId, player, type, quantity, provinceId, missing, missingQuantity };
 }
 
-function externalSellOrders(world, userId, productId) {
+function externalSellOrders(world, userId, productId, provinceId) {
   return (world.orders || [])
     .map((order, index) => ({ order, index }))
     .filter(({ order }) => (
       isOpenOrder(order)
       && orderKind(order) === 'commodity'
       && orderAssetId(order) === productId
+      && normalizeProvinceId(order.provinceId) === normalizeProvinceId(provinceId)
       && order.side === 'sell'
       && !(order.ownerType === 'player' && Number(order.ownerId) === Number(userId))
     ))
@@ -84,8 +85,8 @@ function externalSellOrders(world, userId, productId) {
     ));
 }
 
-function quoteMaterial(world, userId, productId, quantity, priceCap) {
-  const orders = externalSellOrders(world, userId, productId);
+function quoteMaterial(world, userId, productId, quantity, priceCap, provinceId) {
+  const orders = externalSellOrders(world, userId, productId, provinceId);
   const allAvailable = orders.reduce((sum, { order }) => sum + Math.max(0, Number(order.remaining || 0)), 0);
   const eligible = orders.filter(({ order }) => Number(order.price || 0) <= priceCap);
   const eligibleAvailable = eligible.reduce((sum, { order }) => sum + Math.max(0, Number(order.remaining || 0)), 0);
@@ -122,7 +123,7 @@ export function autoProcureFacilityBuildMaterials(world, user, payload = {}, now
   const context = facilityBuildContext(world, user, payload);
   if (context.error) return context.error;
   const {
-    userId, player, type, quantity, missing, missingQuantity,
+    userId, player, type, quantity, provinceId, missing, missingQuantity,
   } = context;
 
   if (missing.length === 0) {
@@ -152,11 +153,12 @@ export function autoProcureFacilityBuildMaterials(world, user, payload = {}, now
       ownerId: userId,
       assetKind: 'commodity',
       assetId: item.productId,
+      provinceId,
       side: 'buy',
       price: priceCap,
     })) return result(false, SELF_CROSS_MESSAGE);
 
-    const quote = quoteMaterial(world, userId, item.productId, item.quantity, priceCap);
+    const quote = quoteMaterial(world, userId, item.productId, item.quantity, priceCap, provinceId);
     if (!quote.ok) {
       if (quote.priceChanged) return result(false, `${product?.name || item.productId}市场价格已变化，请重新确认`);
       if (quote.invalid) return result(false, `${product?.name || item.productId}市场报价超出系统可表示范围`);
@@ -184,6 +186,7 @@ export function autoProcureFacilityBuildMaterials(world, user, payload = {}, now
     for (const level of plan.levels) {
       const purchase = applyImmediateCommodityBuy(world, user, {
         productId: plan.productId,
+        provinceId,
         quantity: level.quantity,
         price: level.price,
       }, now);
@@ -203,7 +206,7 @@ export function createFacilityBuildProcurementOrders(world, user, payload = {}, 
   const context = facilityBuildContext(world, user, payload);
   if (context.error) return context.error;
   const {
-    userId, player, type, quantity, missing,
+    userId, player, type, quantity, provinceId, missing,
   } = context;
   if (missing.length === 0) return result(false, '建造材料库存已充足，无需提交买单');
 
@@ -226,6 +229,7 @@ export function createFacilityBuildProcurementOrders(world, user, payload = {}, 
         ownerId: userId,
         assetKind: 'commodity',
         assetId: item.productId,
+        provinceId,
         side: 'buy',
         price,
       });
@@ -284,6 +288,7 @@ export function createFacilityBuildProcurementOrders(world, user, payload = {}, 
       assetKind: 'commodity',
       assetId: plan.productId,
       productId: plan.productId,
+      provinceId,
       side: 'buy',
       quantity: plan.quantity,
       price: plan.price,
@@ -294,6 +299,7 @@ export function createFacilityBuildProcurementOrders(world, user, payload = {}, 
       && Number(order.ownerId) === userId
       && orderKind(order) === 'commodity'
       && orderAssetId(order) === plan.productId
+      && normalizeProvinceId(order.provinceId) === provinceId
       && order.side === 'buy'
     ));
     if (!createdOrder) return result(false, '建造材料买单创建后未找到对应订单');
@@ -312,6 +318,7 @@ export function createFacilityBuildProcurementOrders(world, user, payload = {}, 
   }, 0);
   const procurementGroup = {
     id: `facility-procurement-${randomUUID()}`,
+    provinceId,
     facilityTypeId: type.id,
     quantity,
     createdAt: now,

@@ -19,6 +19,7 @@ const loadBankPage = cachedLoader(() => import('./BankPage'));
 const loadContractPage = cachedLoader(() => import('./ContractPage'));
 const loadLeaderboardPage = cachedLoader(() => import('./LeaderboardPage'));
 const loadMarketPage = cachedLoader(() => import('./MarketPage'));
+const loadMapPage = cachedLoader(() => import('./MapPage'));
 const loadOverviewPage = cachedLoader(() => import('./OverviewPage'));
 const loadProductionPage = cachedLoader(() => import('./ProductionPage'));
 const loadResearchPage = cachedLoader(() => import('./ResearchPage'));
@@ -27,6 +28,7 @@ const loadSettingsPage = cachedLoader(() => import('./SettingsPage'));
 
 const pagePreloaders: Record<TabId, () => Promise<unknown>> = {
   home: loadOverviewPage,
+  map: loadMapPage,
   market: loadMarketPage,
   production: loadProductionPage,
   research: loadResearchPage,
@@ -49,6 +51,7 @@ const PAGE_AUTHORITY_DEPENDENCIES: Record<TabId, readonly StateAuthorityDependen
     'market.quotes',
     'market.calendar',
   ],
+  map: ['catalog', 'player.assets', 'player.production', 'market.orders', 'market.quotes'],
   market: ['catalog', 'player.assets', 'player.production', 'market.orders', 'market.quotes'],
   production: [
     'catalog',
@@ -77,6 +80,7 @@ const BankPage = lazy(() => import('./BankPage').then((module) => ({ default: mo
 const ContractPage = lazy(() => import('./ContractPage').then((module) => ({ default: module.ContractPage })));
 const LeaderboardPage = lazy(() => import('./LeaderboardPage').then((module) => ({ default: module.LeaderboardPage })));
 const MarketPage = lazy(() => import('./MarketPage').then((module) => ({ default: module.MarketPage })));
+const MapPage = lazy(() => import('./MapPage').then((module) => ({ default: module.MapPage })));
 const OverviewPage = lazy(() => import('./OverviewPage').then((module) => ({ default: module.OverviewPage })));
 const ProductionPage = lazy(() => import('./ProductionPage').then((module) => ({ default: module.ProductionPage })));
 const ResearchPage = lazy(() => import('./ResearchPage').then((module) => ({ default: module.ResearchPage })));
@@ -104,6 +108,9 @@ export function PageRouter({ model }: { model: OnlineAutoTradeAwareGameViewModel
   const tab = model.tab;
   let renderPage: () => ReactNode;
   switch (tab) {
+    case 'map':
+      renderPage = () => <MapPage model={model} />;
+      break;
     case 'market':
       renderPage = () => <MarketPage model={model} />;
       break;

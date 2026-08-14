@@ -9,8 +9,8 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
+import { pythonFailureOutput, spawnPythonSync } from './python-runtime.mjs';
 
 const root = process.cwd();
 const workflowPath = '.github/workflows/diagnose-production-database.yml';
@@ -134,13 +134,12 @@ if (failures.length === 0) {
     database.close();
 
     const before = snapshotDatabaseFiles(databasePath);
-    const diagnosis = spawnSync(
-      'python3',
+    const diagnosis = spawnPythonSync(
       [resolve(root, diagnosticPath), 'diagnose', databasePath, '--top-objects', '10'],
       { encoding: 'utf8' },
     );
     if (diagnosis.status !== 0) {
-      failures.push(`只读诊断执行失败: ${diagnosis.stderr || diagnosis.stdout}`);
+      failures.push(`只读诊断执行失败: ${pythonFailureOutput(diagnosis)}`);
     } else {
       let report;
       try {
@@ -161,13 +160,12 @@ if (failures.length === 0) {
         const reportPath = join(temporaryDirectory, 'report.json');
         const summaryPath = join(temporaryDirectory, 'summary.md');
         writeFileSync(reportPath, diagnosis.stdout, 'utf8');
-        const rendered = spawnSync(
-          'python3',
+        const rendered = spawnPythonSync(
           [resolve(root, diagnosticPath), 'render-summary', reportPath, summaryPath],
           { encoding: 'utf8' },
         );
         if (rendered.status !== 0) {
-          failures.push(`诊断摘要渲染失败: ${rendered.stderr || rendered.stdout}`);
+          failures.push(`诊断摘要渲染失败: ${pythonFailureOutput(rendered)}`);
         } else {
           const summary = readFileSync(summaryPath, 'utf8');
           for (const text of ['生产数据库只读诊断', '可复用空页', 'quick_check', '最大 SQLite 对象']) {

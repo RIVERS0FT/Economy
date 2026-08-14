@@ -3,6 +3,7 @@ import {
   type SetStateAction,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -28,6 +29,7 @@ import type {
   OrderSide,
   OrderStatus,
   TradeRecord,
+  ProvinceDefinition,
 } from '../types';
 import { canAcceptRevision } from './revisionGate.js';
 import type { StatePartitionName } from './stateDelivery.js';
@@ -43,6 +45,7 @@ import {
   type LocalActivityAction,
   type LocalActivityView,
 } from '../utils/localActivityStore';
+import { DEFAULT_PROVINCE_ID, scopeEconomyState } from '../utils/provinceScope';
 
 export const facilityStatusNames: Record<FacilityStatus, string> = {
   running: '运行',
@@ -102,6 +105,9 @@ export interface LoadedGameViewModel {
   localTrades: TradeRecord[];
   tab: TabId;
   setTab: (tab: TabId) => void;
+  selectedProvinceId: string;
+  selectedProvince: ProvinceDefinition;
+  setSelectedProvinceId: (provinceId: string) => void;
   notice: string;
   selectedFacilityTypeId: string;
   setSelectedFacilityTypeId: Dispatch<SetStateAction<string>>;
@@ -136,7 +142,7 @@ export interface LoadedGameViewModel {
   checkIn: () => Promise<ActionResult>;
   bankDeposit: (amount: number) => Promise<ActionResult>;
   bankWithdraw: (amount: number) => Promise<ActionResult>;
-  bankBorrow: (amount: number, collateral: Array<{ facilityTypeId: string; quantity: number }>, autoRepay?: boolean) => Promise<ActionResult>;
+  bankBorrow: (amount: number, collateral: Array<{ provinceId: string; facilityTypeId: string; quantity: number }>, autoRepay?: boolean) => Promise<ActionResult>;
   bankRepay: (loanId: string, amount: number | 'all') => Promise<ActionResult>;
   bankSetAutoRepay: (loanId: string, enabled: boolean) => Promise<ActionResult>;
   buildFacility: (facilityTypeId: string, quantity?: number, procurement?: FacilityBuildProcurementOptions) => Promise<ActionResult>;
@@ -176,6 +182,10 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const [loadError, setLoadError] = useState('');
   const [reloadVersion, setReloadVersion] = useState(0);
   const [tab, setActiveTab] = useState<TabId>('home');
+  const provincePreferenceKey = `economy.selected-province.v1:${user.id}`;
+  const [selectedProvinceId, setSelectedProvinceIdState] = useState(() => {
+    try { return localStorage.getItem(provincePreferenceKey) || DEFAULT_PROVINCE_ID; } catch { return DEFAULT_PROVINCE_ID; }
+  });
   const [notice, setNotice] = useState('');
   const [selectedFacilityTypeId, setSelectedFacilityTypeId] = useState('farm');
   const [marketAssetKind, setMarketAssetKind] = useState<AssetKind>('commodity');
@@ -202,6 +212,10 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     serverRevision: game?.lastProcessedAt ?? 0,
     resetKey: user.id,
   });
+  const scopedGame = useMemo(
+    () => game ? scopeEconomyState(game, selectedProvinceId) : null,
+    [game, selectedProvinceId],
+  );
 
   const handleUnauthorized = useCallback(() => {
     gameRef.current = null;
@@ -288,6 +302,14 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     setLocalActivity(loadLocalActivity(user.id));
     void refresh();
   }, [refresh, reloadVersion, user.id]);
+  useEffect(() => {
+    if (!game) return;
+    const normalized = game.provinces.some((province) => province.id === selectedProvinceId)
+      ? selectedProvinceId
+      : game.defaultProvinceId;
+    if (normalized !== selectedProvinceId) setSelectedProvinceIdState(normalized);
+    try { localStorage.setItem(provincePreferenceKey, normalized); } catch { /* preference is best-effort */ }
+  }, [game, provincePreferenceKey, selectedProvinceId]);
   useEffect(() => () => {
     refreshTaskRef.current?.controller.abort();
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
@@ -413,7 +435,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
       orderPendingRef.current = false;
     };
     try {
-      const response = await gameActions.placeAssetOrder(assetKind, assetId, side, quantity, price);
+      const response = await gameActions.placeAssetOrder(selectedProvinceId, assetKind, assetId, side, quantity, price);
       void syncConfirmedAction(response, 'placeOrder').finally(finish);
       return response.result;
     } catch (reason) {
@@ -421,7 +443,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
       if (reason instanceof GameApiError && reason.status === 401) handleUnauthorized();
       return { ok: false, message: messageFromError(reason) };
     }
-  }, [handleUnauthorized, syncConfirmedAction]);
+  }, [handleUnauthorized, selectedProvinceId, syncConfirmedAction]);
 
   const derived = useDerivedGameData(game);
   function notify(message: string) {
@@ -435,18 +457,25 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   async function showResult(actionResult: ActionResult | Promise<ActionResult>) { notify((await actionResult).message); }
   async function signOut() { try { await logout(); } finally { resetGameStateDelivery(); onSignedOut(); } }
 
-  if (!game || !derived) {
+  if (!game || !scopedGame || !derived) {
     if (loadError) return { status: 'error', message: loadError, retry: () => { setLoadError(''); setReloadVersion((current) => current + 1); } };
     return { status: 'loading' };
   }
 
-  const loadedGame = game;
+  const loadedGame = scopedGame;
   const { cashShare, commodityShare, facilityShare } = buildAssetAllocation(
     derived.cashValue,
     derived.commodityValue,
     derived.facilityValue,
   );
   const avatarText = (loadedGame.playerName || user.email).slice(0, 1).toUpperCase();
+  const selectedProvince = loadedGame.provinces.find((province) => province.id === selectedProvinceId)
+    ?? loadedGame.provinces[0];
+  function setSelectedProvinceId(provinceId: string) {
+    if (!loadedGame.provinces.some((province) => province.id === provinceId) || provinceId === selectedProvinceId) return;
+    setSelectedProvinceIdState(provinceId);
+    setOrderQuantity(1);
+  }
   function setTab(nextTab: TabId) {
     if (nextTab === 'market' && tab !== 'market') {
       setOrderPrice(defaultOrderPrice(loadedGame.orders, marketAssetKind, marketAssetId, orderSide));
@@ -474,8 +503,11 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
 
   const model: LoadedGameViewModel = {
     user, game: loadedGame, derived,
-    localTrades: localActivity.trades,
+    localTrades: localActivity.trades.filter((trade) => (
+      (trade.provinceId || DEFAULT_PROVINCE_ID) === selectedProvinceId
+    )),
     tab, setTab, notice,
+    selectedProvinceId, selectedProvince, setSelectedProvinceId,
     selectedFacilityTypeId, setSelectedFacilityTypeId,
     marketAssetKind, marketAssetId, selectMarketAsset,
     orderSide, selectOrderSide, orderQuantity, setOrderQuantity, orderPrice, setOrderPrice,
@@ -493,24 +525,24 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     bankBorrow: (amount, collateral, autoRepay = true) => runAction('bankBorrow', () => gameActions.bankBorrow(amount, collateral, autoRepay)),
     bankRepay: (loanId, amount) => runAction('bankRepay', () => gameActions.bankRepay(loanId, amount)),
     bankSetAutoRepay: (loanId, enabled) => runAction('bankSetAutoRepay', () => gameActions.bankSetAutoRepay(loanId, enabled)),
-    buildFacility: (facilityTypeId, quantity = 1, procurement) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId, quantity, procurement)),
+    buildFacility: (facilityTypeId, quantity = 1, procurement) => runAction('buildFacility', () => gameActions.buildFacility(selectedProvinceId, facilityTypeId, quantity, procurement)),
     startResearch: (technologyId) => runAction('startResearch', () => gameActions.startResearch(technologyId)),
     accelerateResearch: () => runAction('startResearch', gameActions.accelerateResearch),
-    startFacility: (facilityTypeId) => runAction('startFacility', () => gameActions.startFacility(facilityTypeId)),
-    stopFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.stopFacility(facilityTypeId)),
-    pauseFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.pauseFacility(facilityTypeId)),
+    startFacility: (facilityTypeId) => runAction('startFacility', () => gameActions.startFacility(selectedProvinceId, facilityTypeId)),
+    stopFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.stopFacility(selectedProvinceId, facilityTypeId)),
+    pauseFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.pauseFacility(selectedProvinceId, facilityTypeId)),
     setFacilityRecipe: (facilityTypeId, recipeId) => runAcknowledgedAction(
       'setFacilityRecipe',
-      () => gameActions.setFacilityRecipe(facilityTypeId, recipeId),
+      () => gameActions.setFacilityRecipe(selectedProvinceId, facilityTypeId, recipeId),
     ),
     placeAssetOrder,
     onlineAutoBuy: (productId, maxPrice, targetFreeInventory = 0) => runAction(
       'placeOrder',
-      () => gameActions.autoBuyCommodity(productId, maxPrice, targetFreeInventory),
+      () => gameActions.autoBuyCommodity(selectedProvinceId, productId, maxPrice, targetFreeInventory),
     ),
     onlineAutoSell: (productId, price, minimumFreeInventory = 0) => runAction(
       'onlineAutoSell',
-      () => gameActions.autoSellCommodity(productId, price, minimumFreeInventory),
+      () => gameActions.autoSellCommodity(selectedProvinceId, productId, price, minimumFreeInventory),
     ),
     cancelOrder: (orderId) => runAction('cancelOrder', () => gameActions.cancelOrder(orderId)),
     renamePlayer: (name) => runAction('renamePlayer', () => gameActions.renamePlayer(name)),

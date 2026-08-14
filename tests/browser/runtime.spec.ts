@@ -60,7 +60,7 @@ test('storage denial does not block the settings runtime', async ({ page }) => {
 });
 
 
-test('local activity v5 migrates only anonymous trades into v6', async ({ page }) => {
+test('local activity v5 migrates only anonymous trades into v7', async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('economy.local-activity.v5.123', JSON.stringify({
       version: 5,
@@ -85,7 +85,7 @@ test('local activity v5 migrates only anonymous trades into v6', async ({ page }
   await page.goto('runtime-test.html');
   const result = await page.evaluate(() => ({
     view: (window as typeof window & { __localActivityResult: { trades: unknown[] } }).__localActivityResult,
-    current: JSON.parse(window.localStorage.getItem('economy.local-activity.v6.123') || '{}'),
+    current: JSON.parse(window.localStorage.getItem('economy.local-activity.v7.123') || '{}'),
     legacy: window.localStorage.getItem('economy.local-activity.v5.123'),
   }));
   expect(result.view.trades).toHaveLength(1);

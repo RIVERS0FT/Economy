@@ -21,7 +21,7 @@ for (const text of [
   'export function compareRestingOrders',
   'export function orderPricesCross',
   "import { applyMarketSellFee } from './market-sell-fee.js'",
-  "import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js'",
+  "import { isOpenOrder, orderAssetId, orderKind, orderProvinceId } from './order-identity.js'",
   "import { iterateOrderBookSide, recordOrderBookReduction, recordOrderBookVisit } from './order-book-runtime.js'",
   'multiplyMoneyByInteger',
   "throw new RangeError('成交总额超出系统可表示范围')",

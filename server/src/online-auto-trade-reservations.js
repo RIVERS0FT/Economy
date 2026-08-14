@@ -14,7 +14,8 @@ function activeSupplyContractsFor(world, userId, productId) {
   ));
 }
 
-export function contractAvailableHoldForOnlineTrade(world, userId, productId) {
+export function contractAvailableHoldForOnlineTrade(world, userId, productId, provinceId = DEFAULT_PROVINCE_ID) {
+  if (normalizeProvinceId(provinceId) !== DEFAULT_PROVINCE_ID) return 0;
   let hold = 0;
   for (const contract of activeSupplyContractsFor(world, userId, productId)) {
     if (contract.supplierAutoReserve !== false) {
@@ -31,3 +32,4 @@ export function contractAvailableHoldForOnlineTrade(world, userId, productId) {
   }
   return hold;
 }
+import { DEFAULT_PROVINCE_ID, normalizeProvinceId } from './provinces.js';

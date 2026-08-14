@@ -57,6 +57,7 @@ import './styles/registration-auth.css';
 import './styles/form-controls.css';
 import './styles/market-desktop-cleanup.css';
 import './styles/notification-center.css';
+import './styles/province-map.css';
 
 installIdempotentGameWriteFetch();
 configureRuntimePerformance();

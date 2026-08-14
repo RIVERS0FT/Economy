@@ -89,15 +89,15 @@ for (const text of [
 ]) requireText(designPath, text);
 
 for (const text of [
-  '本地文档版本：v6',
-  'economy.local-activity.v6.<userId>',
-  '`snapshot.orders[]` 只保存当前玩家自己的公开订单与匿名 fills',
+  '本地文档版本：v7',
+  'economy.local-activity.v7.<userId>',
+  '`snapshot.orders[]` 只保存当前玩家自己的公开订单、省级地区 ID 与匿名 fills',
   '永久丢弃全部 `assetEvents[]`',
 ]) requireText(localDesignPath, text);
 for (const text of ['assetEvents', 'AssetEvent']) forbidText(localStorePath, text);
 forbidText(typesPath, 'export interface AssetEvent');
 requireText(localStorePath, 'export function clearLocalTrades');
-requireText(localStorePath, 'const STORAGE_VERSION = 6');
+requireText(localStorePath, 'const STORAGE_VERSION = 7');
 
 requireText(runtimeHarnessPath, '<BankPage model={model} />');
 for (const text of [
@@ -113,4 +113,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('银行资产总览、十页导航、本地成交 v6、移动资产构成与独立资产页删除验证通过。');
+console.log('银行资产总览、十一页导航、本地成交 v7、移动资产构成与独立资产页删除验证通过。');

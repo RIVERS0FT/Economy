@@ -262,8 +262,8 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   const [loadingBidHistoryIds, setLoadingBidHistoryIds] = useState<Set<string>>(() => new Set());
   const [bidHistoryErrors, setBidHistoryErrors] = useState<Record<string, string>>({});
 
-  const bundledQuantity = (kind: AuctionAssetKind, id: string) => (
-    bundleItems.find((item) => item.assetKind === kind && item.assetId === id)?.quantity ?? 0
+  const bundledQuantity = (kind: AuctionAssetKind, id: string, provinceId = model.selectedProvinceId) => (
+    bundleItems.find((item) => item.provinceId === provinceId && item.assetKind === kind && item.assetId === id)?.quantity ?? 0
   );
 
   const availableOptions = useMemo<AuctionOption[]>(() => {
@@ -355,8 +355,11 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   }
 
   function availableForItem(item: AuctionItem) {
-    if (item.assetKind === 'commodity') return Number(model.game.inventories[item.assetId]?.available || 0);
-    return model.game.facilityGroups.find((entry) => entry.facilityTypeId === item.assetId)?.availableCount ?? 0;
+    if (item.assetKind === 'commodity') {
+      return Number(model.game.provinceInventories[item.provinceId]?.[item.assetId]?.available || 0);
+    }
+    return model.game.provinceFacilityGroups[item.provinceId]
+      ?.find((entry) => entry.facilityTypeId === item.assetId)?.availableCount ?? 0;
   }
 
   function clearBundleQuantityDraft(key: string) {
@@ -394,11 +397,20 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
 
   function addSelectedItem() {
     if (!selectedOption || !canAdd || selectedQuantity === null) return;
-    const key = `${assetKind}:${selectedOption.id}`;
+    const key = `${model.selectedProvinceId}:${assetKind}:${selectedOption.id}`;
     setBundleItems((current) => {
-      const existing = current.find((item) => item.assetKind === assetKind && item.assetId === selectedOption.id);
+      const existing = current.find((item) => (
+        item.provinceId === model.selectedProvinceId
+        && item.assetKind === assetKind
+        && item.assetId === selectedOption.id
+      ));
       if (existing) return current.map((item) => item === existing ? { ...item, quantity: item.quantity + selectedQuantity } : item);
-      return [...current, { assetKind, assetId: selectedOption.id, quantity: selectedQuantity }];
+      return [...current, {
+        provinceId: model.selectedProvinceId,
+        assetKind,
+        assetId: selectedOption.id,
+        quantity: selectedQuantity,
+      }];
     });
     clearBundleQuantityDraft(key);
     setSelectedAssetId('');

@@ -7,6 +7,7 @@ import {
   validateFacilityAuctionQuantity,
   validateFacilityAuctionTransferQuantity,
 } from './facility-groups.js';
+import { inventoryForProvince, normalizeProvinceId } from './provinces.js';
 import {
   calculateRateMoney,
   ceilPlayerMoney,
@@ -80,10 +81,8 @@ function releaseMarketReserveAuctionInventory(world, groupId, productId, quantit
   reserve.inventory = Math.max(0, Math.floor(Number(reserve.inventory || 0))) + released;
   return released;
 }
-function inventoryFor(account, productId) {
-  account.inventories ||= {};
-  account.inventories[productId] ||= { available: 0, frozen: 0 };
-  return account.inventories[productId];
+function inventoryFor(account, productId, provinceId) {
+  return inventoryForProvince(account, productId, provinceId);
 }
 function addMoney(left, right) { return roundInternalMoney(Number(left || 0) + Number(right || 0)) || 0; }
 function subtractMoney(left, right) { return Math.max(0, roundInternalMoney(Number(left || 0) - Number(right || 0)) || 0); }
@@ -124,7 +123,12 @@ function migrationAuctionItem(raw) {
       ? String(raw?.assetId || raw?.facilityTypeId || '')
       : String(raw?.assetId || raw?.collectibleId || '');
   const quantity = assetKind === 'collectible' ? 1 : integer(raw?.quantity, MAX_AUCTION_QUANTITY);
-  return assetId && quantity ? { assetKind, assetId, quantity } : null;
+  return assetId && quantity ? {
+    assetKind,
+    assetId,
+    provinceId: normalizeProvinceId(raw?.provinceId),
+    quantity,
+  } : null;
 }
 
 function normalizeAuctionItem(raw) {
@@ -139,7 +143,7 @@ function normalizeAuctionItems(source) {
   for (const raw of source) {
     const item = normalizeAuctionItem(raw);
     if (!item) return null;
-    const key = `${item.assetKind}:${item.assetId}`;
+    const key = `${item.provinceId}:${item.assetKind}:${item.assetId}`;
     const existing = byKey.get(key);
     if (existing) {
       const quantity = existing.quantity + item.quantity;
@@ -290,12 +294,12 @@ function releaseItems(world, sellerId, items, now, assumeReserved = false) {
   const seller = player(world, sellerId);
   for (const item of items) {
     if (item.assetKind === 'commodity' && seller) {
-      const inventory = inventoryFor(seller, item.assetId);
+      const inventory = inventoryFor(seller, item.assetId, item.provinceId);
       const quantity = Math.min(Number(inventory.frozen || 0), item.quantity);
       inventory.frozen = Math.max(0, Number(inventory.frozen || 0) - quantity);
       inventory.available = Number(inventory.available || 0) + quantity;
     } else if (item.assetKind === 'facility') {
-      releaseFacilityAuctionQuantity(world, sellerId, item.assetId, item.quantity, now, assumeReserved);
+      releaseFacilityAuctionQuantity(world, sellerId, item.assetId, item.quantity, now, assumeReserved, item.provinceId);
     }
   }
 }
@@ -443,10 +447,16 @@ function validateAuctionTransfer(world, auction, bidder) {
     if (item.assetKind === 'commodity') {
       const frozen = reserveSeller
         ? Number(marketReserveProduct(world, auction.marketReserveGroupId, item.assetId)?.frozenInventory || 0)
-        : Number(inventoryFor(seller, item.assetId).frozen || 0);
+        : Number(inventoryFor(seller, item.assetId, item.provinceId).frozen || 0);
       if (frozen < item.quantity) return result(false, '拍卖商品冻结数量不足');
     } else {
-      const validation = validateFacilityAuctionTransferQuantity(world, auction.sellerId, item.assetId, item.quantity);
+      const validation = validateFacilityAuctionTransferQuantity(
+        world,
+        auction.sellerId,
+        item.assetId,
+        item.quantity,
+        item.provinceId,
+      );
       if (!validation.ok) return validation;
     }
   }
@@ -470,6 +480,7 @@ function transferAuctionAsset(world, auction, bidder, now) {
         item.assetId,
         item.quantity,
         now,
+        item.provinceId,
       );
       if (!transferred.ok) throw new Error(transferred.message);
     }
@@ -479,13 +490,13 @@ function transferAuctionAsset(world, auction, bidder, now) {
           const reserve = marketReserveProduct(world, auction.marketReserveGroupId, item.assetId);
           reserve.frozenInventory -= item.quantity;
         } else {
-          const sellerInventory = inventoryFor(seller, item.assetId);
+          const sellerInventory = inventoryFor(seller, item.assetId, item.provinceId);
           sellerInventory.frozen -= item.quantity;
           seller.stats ||= {};
           seller.stats.commodityVolume = Number(seller.stats.commodityVolume || 0) + item.quantity;
           seller.stats.soldGoods = Number(seller.stats.soldGoods || 0) + item.quantity;
         }
-        inventoryFor(bidder, item.assetId).available += item.quantity;
+        inventoryFor(bidder, item.assetId, item.provinceId).available += item.quantity;
         bidder.stats ||= {};
         bidder.stats.commodityVolume = Number(bidder.stats.commodityVolume || 0) + item.quantity;
         bidder.stats.boughtGoods = Number(bidder.stats.boughtGoods || 0) + item.quantity;
@@ -643,10 +654,10 @@ function validateAuctionItems(world, seller, userId, items) {
   for (const item of items) {
     if (item.assetKind === 'commodity') {
       if (!PRODUCTS.has(item.assetId)) return result(false, '商品不存在');
-      if (inventoryFor(seller, item.assetId).available < item.quantity) return result(false, '可拍卖商品数量不足');
+      if (inventoryFor(seller, item.assetId, item.provinceId).available < item.quantity) return result(false, '可拍卖商品数量不足');
     } else {
       if (!FACILITY_TYPES.has(item.assetId)) return result(false, '工厂类型不存在');
-      const validation = validateFacilityAuctionQuantity(world, userId, item.assetId, item.quantity);
+      const validation = validateFacilityAuctionQuantity(world, userId, item.assetId, item.quantity, item.provinceId);
       if (!validation.ok) return validation;
     }
   }
@@ -658,11 +669,11 @@ function holdAuctionItems(world, seller, userId, items, now) {
   const facilityGroupsBefore = structuredClone(seller.facilityGroups || []);
   for (const item of items) {
     if (item.assetKind === 'commodity') {
-      const inventory = inventoryFor(seller, item.assetId);
+      const inventory = inventoryFor(seller, item.assetId, item.provinceId);
       inventory.available -= item.quantity;
       inventory.frozen += item.quantity;
     } else {
-      const reserved = reserveFacilityAuctionQuantity(world, userId, item.assetId, item.quantity, now);
+      const reserved = reserveFacilityAuctionQuantity(world, userId, item.assetId, item.quantity, now, item.provinceId);
       if (!reserved.ok) {
         seller.inventories = inventoriesBefore;
         seller.facilityGroups = facilityGroupsBefore;

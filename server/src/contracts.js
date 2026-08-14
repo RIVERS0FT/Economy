@@ -13,6 +13,7 @@ import {
   publicCommercialContract,
 } from './commercial-contracts.js';
 import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
+import { inventoryForProvince } from './provinces.js';
 
 export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 9;
 export const PRODUCTION_CONTRACT_INTERVALS = Object.freeze([
@@ -134,9 +135,7 @@ function transferPlayerBondToMarketReserve(player, group, amount) {
 }
 
 function inventoryFor(player, productId) {
-  player.inventories ||= {};
-  player.inventories[productId] ||= { available: 0, frozen: 0 };
-  return player.inventories[productId];
+  return inventoryForProvince(player, productId);
 }
 
 function normalizeStats(player) {

@@ -2,7 +2,7 @@ import type { PropsWithChildren, SVGProps } from 'react';
 import { GemIcon } from './GemIcon';
 
 type GameIconProps = SVGProps<SVGSVGElement>;
-export type NavigationIconName = 'home' | 'market' | 'production' | 'research' | 'auction' | 'contracts' | 'bank' | 'leaderboard' | 'gem-shop' | 'settings';
+export type NavigationIconName = 'home' | 'map' | 'market' | 'production' | 'research' | 'auction' | 'contracts' | 'bank' | 'leaderboard' | 'gem-shop' | 'settings';
 
 function GameIcon({ children, className, ...props }: PropsWithChildren<GameIconProps>) {
   return (
@@ -51,6 +51,10 @@ export function HomeIcon(props: GameIconProps) {
 
 export function MarketIcon(props: GameIconProps) {
   return <GameIcon {...props}><path d="M7 4v16M4 7l3-3 3 3M17 20V4M14 17l3 3 3-3" /></GameIcon>;
+}
+
+export function MapIcon(props: GameIconProps) {
+  return <GameIcon {...props}><path d="m3 6 5-2 8 3 5-2v13l-5 2-8-3-5 2V6Z" /><path d="M8 4v13M16 7v13" /><circle cx="12" cy="11" r="1.5" /></GameIcon>;
 }
 
 export function ProductionIcon(props: GameIconProps) {
@@ -162,6 +166,7 @@ export function ShieldIcon(props: GameIconProps) {
 export function NavigationIcon({ name, ...props }: { name: NavigationIconName } & GameIconProps) {
   switch (name) {
     case 'home': return <HomeIcon {...props} />;
+    case 'map': return <MapIcon {...props} />;
     case 'market': return <MarketIcon {...props} />;
     case 'production': return <ProductionIcon {...props} />;
     case 'research': return <ResearchIcon {...props} />;

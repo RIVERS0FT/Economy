@@ -66,9 +66,9 @@ for (const text of ['isOwn?: boolean', `version: ${CURRENT_CLIENT_STATE_VERSION}
 for (const text of ['counterparty: string', 'makerOrderId', 'takerOrderId', "liquidity: 'maker' | 'taker'", 'populationModelId?:', 'fundingPool?:']) forbidText('src/types.ts', text);
 
 for (const text of [
-  'STORAGE_VERSION = 6',
+  'STORAGE_VERSION = 7',
   'normalizeTrades',
-  'legacyVersion of [5, 4, 3, 2, 1]',
+  'legacyVersion of [6, 5, 4, 3, 2, 1]',
   'window.localStorage.removeItem(storageKey(userId, legacyVersion))',
   'orders: state.orders.filter((order) => order.isOwn)',
   'products: state.products.map(({ id, name }) => ({ id, name }))',

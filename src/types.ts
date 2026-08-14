@@ -10,6 +10,23 @@ export type ProductCategory = 'raw' | 'intermediate' | 'consumer' | 'industrial'
 export type AssetKind = 'commodity' | 'facility';
 export type FacilityComplexity = 'C1' | 'C2' | 'C3' | 'C4' | 'C5' | 'C6' | 'C7';
 
+export interface ProvinceDefinition {
+  id: string;
+  name: string;
+  shortName: string;
+  longitude: number;
+  latitude: number;
+}
+
+export interface ProvinceAssetSummary {
+  provinceId: string;
+  storedQuantity: number;
+  facilityCount: number;
+  runningFacilityCount: number;
+  blockedFacilityCount: number;
+  openOrderCount: number;
+}
+
 export interface ProductDefinition {
   id: string;
   name: string;
@@ -110,6 +127,7 @@ export type FacilityStatusReason =
 
 export interface FacilityGroup {
   facilityTypeId: string;
+  provinceId: string;
   count: number;
   participatingCount: number;
   /** Production-eligible factories after order-book and auction freezes. Mortgaged factories remain eligible. */
@@ -217,6 +235,7 @@ export interface AssetOrder {
   assetId: string;
   productId?: string;
   facilityTypeId?: string;
+  provinceId: string;
   side: OrderSide;
   /** True only for the authenticated player's own order. */
   isOwn?: boolean;
@@ -255,6 +274,7 @@ export interface TradeRecord {
   type: AssetKind;
   productId?: string;
   facilityTypeId?: string;
+  provinceId?: string;
   side: OrderSide;
   quantity: number;
   price: number;
@@ -295,6 +315,7 @@ export interface PricePoint {
 
 export interface ProductMarketState {
   productId: string;
+  provinceId?: string;
   lastPrice: number;
   lastTradePrice: number | null;
   priceHistory: PricePoint[];
@@ -303,6 +324,7 @@ export interface ProductMarketState {
 
 export interface FacilityMarketState {
   facilityTypeId: string;
+  provinceId?: string;
   lastPrice: number;
   lastTradePrice: number | null;
   priceHistory: PricePoint[];
@@ -406,6 +428,7 @@ export interface DailyCheckInState {
 export type BankLoanStatus = 'active' | 'grace';
 
 export interface BankLoanCollateral {
+  provinceId: string;
   facilityTypeId: string;
   quantity: number;
   prudentUnitValue: number;
@@ -429,6 +452,7 @@ export interface BankLoan {
 }
 
 export interface BankCollateralAvailability {
+  provinceId: string;
   facilityTypeId: string;
   totalQuantity: number;
   mortgagedQuantity: number;
@@ -535,7 +559,7 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState {
-  version: 33;
+  version: 34;
   userId: number;
   playerName: string;
   registeredAt: number;
@@ -547,8 +571,13 @@ export interface EconomyState {
   bankAccount: BankAccountState;
   bankSummary: BankSummaryState;
   inventories: Record<string, ProductInventory>;
+  provinces: ProvinceDefinition[];
+  defaultProvinceId: string;
+  provinceInventories: Record<string, Record<string, ProductInventory>>;
+  provinceAssetSummaries: Record<string, ProvinceAssetSummary>;
   warehouseStoredQuantity: number;
   facilityGroups: FacilityGroup[];
+  provinceFacilityGroups: Record<string, FacilityGroup[]>;
   facilityConstruction?: FacilityConstruction;
   researchLevels: ResearchLevelDefinition[];
   researchTechnologies?: ResearchTechnologyDefinition[];
@@ -556,7 +585,9 @@ export interface EconomyState {
   products: ProductDefinition[];
   facilityTypes: FacilityTypeDefinition[];
   markets: Record<string, ProductMarketState>;
+  provinceMarkets: Record<string, Record<string, ProductMarketState>>;
   facilityMarkets: Record<string, FacilityMarketState>;
+  provinceFacilityMarkets: Record<string, Record<string, FacilityMarketState>>;
   orders: AssetOrder[];
   facilityListings: FacilityListing[];
   valuationPrices: Record<string, number>;

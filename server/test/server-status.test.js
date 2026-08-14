@@ -120,6 +120,7 @@ test('server status is read-only and returns bounded diagnostics', () => {
       now: () => 1_700_000_000_000,
       requestMetricsSnapshot,
       runtimeMetricsSnapshot,
+      statFileSystem: () => ({ bsize: 4_096, blocks: 2_000_000, bavail: 1_000_000 }),
     });
     const after = fixture.store.database.prepare('SELECT revision, state_json, updated_at FROM economy_world WHERE id = 1').get();
     assert.deepEqual(after, before);
@@ -274,4 +275,3 @@ test('runtime collector rolls completed minutes into bounded hour and day bucket
     installation.uninstall();
   }
 });
-

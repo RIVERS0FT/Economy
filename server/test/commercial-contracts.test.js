@@ -122,3 +122,32 @@ test('schema 9 migrates legacy supply contracts without changing roles', () => {
   assert.equal(state.productionContracts[0].kind, 'supply');
   assert.equal(state.productionContracts[0].publisherSide, 'buyer');
 });
+
+test('facility lease usage and locks stay in the contract province', () => {
+  const state = world(); const facility = FACILITY_TYPE_CATALOG[0]; const now = 5_000_000;
+  state.players['1'].facilityGroups = [
+    { ...state.players['1'].facilityGroups[0], provinceId: '110000', count: 4 },
+    { ...state.players['1'].facilityGroups[0], provinceId: '440000', count: 6 },
+  ];
+  state.players['2'].facilityGroups = [];
+  assert.equal(applyProductionContractAction(state, { id: 1 }, 'createProductionContract', {
+    kind: 'facility_lease',
+    publisherSide: 'lessor',
+    provinceId: '440000',
+    facilityTypeId: facility.id,
+    quantity: 3,
+    rentPerPeriod: 10,
+    periodMs: 60 * 60 * 1000,
+    totalPeriods: 2,
+    firstPeriodDelayMs: 0,
+  }, now).ok, true);
+  const contractId = state.productionContracts[0].id;
+  assert.equal(applyProductionContractAction(state, { id: 2 }, 'acceptProductionContract', { contractId }, now).ok, true);
+  assert.equal(leasedOutFacilityQuantity(state, 1, facility.id, '110000'), 0);
+  assert.equal(leasedOutFacilityQuantity(state, 1, facility.id, '440000'), 3);
+  assert.equal(leasedInFacilityQuantity(state, 2, facility.id, '110000'), 0);
+  assert.equal(leasedInFacilityQuantity(state, 2, facility.id, '440000'), 3);
+  assert.equal(state.players['2'].facilityGroups.some((group) => (
+    group.provinceId === '440000' && group.facilityTypeId === facility.id && group.count === 0
+  )), true);
+});

@@ -8,6 +8,12 @@ import {
   createWeeklyCashSettlementClientState,
   isPlayerWeeklyInterestEligible,
 } from './weekly-cash-settlement.js';
+import {
+  DEFAULT_PROVINCE_ID,
+  normalizeProvinceId,
+  provinceScopedKey,
+  splitProvinceScopedKey,
+} from './provinces.js';
 
 export const BANKING_VERSION = 3;
 export const BANK_TIME_ZONE = 'Asia/Shanghai';
@@ -131,11 +137,18 @@ function normalizeCollateral(items) {
   const quantities = new Map();
   for (const item of Array.isArray(items) ? items : []) {
     const facilityTypeId = String(item?.facilityTypeId || item?.assetId || '');
+    const provinceId = normalizeProvinceId(item?.provinceId);
     const quantity = safePositiveInteger(item?.quantity, 1_000_000);
     if (!FACILITY_BY_ID.has(facilityTypeId) || !quantity) continue;
-    quantities.set(facilityTypeId, addSafe(quantities.get(facilityTypeId) || 0, quantity));
+    const key = provinceScopedKey(provinceId, facilityTypeId);
+    const existing = quantities.get(key);
+    quantities.set(key, {
+      provinceId,
+      facilityTypeId,
+      quantity: addSafe(existing?.quantity || 0, quantity),
+    });
   }
-  return [...quantities].map(([facilityTypeId, quantity]) => ({ facilityTypeId, quantity }));
+  return [...quantities.values()];
 }
 
 function normalizeLoan(loan) {
@@ -143,7 +156,10 @@ function normalizeLoan(loan) {
   const collateral = normalizeCollateral(loan.collateral).map((item) => ({
     ...item,
     prudentUnitValue: safeNonNegativeMoney(
-      loan.collateral?.find?.((candidate) => String(candidate?.facilityTypeId) === item.facilityTypeId)?.prudentUnitValue,
+      loan.collateral?.find?.((candidate) => (
+        String(candidate?.facilityTypeId) === item.facilityTypeId
+        && normalizeProvinceId(candidate?.provinceId) === item.provinceId
+      ))?.prudentUnitValue,
       FACILITY_BY_ID.get(item.facilityTypeId)?.systemValue || 0,
     ),
   }));
@@ -177,10 +193,16 @@ export function ensureBankWorld(world, now = Date.now(), { normalizePlayers = tr
   bank.nextInterestSettlementAt = safeNonNegativeInteger(bank.nextInterestSettlementAt, fallback.nextInterestSettlementAt);
   bank.interestPoolMicros = safeNonNegativeInteger(bank.interestPoolMicros);
   bank.riskReserveCredits = safeNonNegativeMoney(bank.riskReserveCredits);
-  bank.facilityReserves = bank.facilityReserves && typeof bank.facilityReserves === 'object' ? bank.facilityReserves : {};
-  for (const facility of FACILITY_TYPE_CATALOG) {
-    bank.facilityReserves[facility.id] = safeNonNegativeInteger(bank.facilityReserves[facility.id]);
+  const facilityReserves = {};
+  for (const [rawKey, rawQuantity] of Object.entries(
+    bank.facilityReserves && typeof bank.facilityReserves === 'object' ? bank.facilityReserves : {},
+  )) {
+    const { provinceId, assetId } = splitProvinceScopedKey(rawKey);
+    if (!FACILITY_BY_ID.has(assetId)) continue;
+    const key = provinceScopedKey(provinceId, assetId);
+    facilityReserves[key] = safeNonNegativeInteger(facilityReserves[key]) + safeNonNegativeInteger(rawQuantity);
   }
+  bank.facilityReserves = facilityReserves;
   bank.lastDailyInterestCredits = safeNonNegativeMoney(bank.lastDailyInterestCredits);
   bank.lastDailyRatePpm = safeNonNegativeInteger(bank.lastDailyRatePpm);
   bank.recentDailyRatesPpm = (Array.isArray(bank.recentDailyRatesPpm) ? bank.recentDailyRatesPpm : [])
@@ -242,18 +264,28 @@ function recordTransaction(account, type, amount, createdAt, description, metada
   account.recentTransactions = account.recentTransactions.slice(-MAX_TRANSACTION_HISTORY);
 }
 
-function groupFor(player, facilityTypeId) {
-  return (player.facilityGroups || []).find((group) => String(group.facilityTypeId) === String(facilityTypeId));
+function groupFor(player, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
+  const selectedProvinceId = normalizeProvinceId(provinceId);
+  return (player.facilityGroups || []).find((group) => (
+    String(group.facilityTypeId) === String(facilityTypeId)
+    && normalizeProvinceId(group.provinceId) === selectedProvinceId
+  ));
 }
 
 function auctionItems(auction) {
   if (Array.isArray(auction?.items) && auction.items.length > 0) return auction.items;
   const assetKind = auction?.assetKind;
   const assetId = String(auction?.assetId || auction?.facilityTypeId || auction?.productId || '');
-  return assetKind && assetId ? [{ assetKind, assetId, quantity: safeNonNegativeInteger(auction.quantity, 1) }] : [];
+  return assetKind && assetId ? [{
+    assetKind,
+    assetId,
+    provinceId: normalizeProvinceId(auction?.provinceId),
+    quantity: safeNonNegativeInteger(auction.quantity, 1),
+  }] : [];
 }
 
-function auctionedFacilityQuantity(world, userId, facilityTypeId) {
+function auctionedFacilityQuantity(world, userId, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
+  const selectedProvinceId = normalizeProvinceId(provinceId);
   return (world.assetAuctions || []).reduce((sum, auction) => {
     if (
       Number(auction?.sellerId) !== Number(userId)
@@ -261,18 +293,24 @@ function auctionedFacilityQuantity(world, userId, facilityTypeId) {
       || ['released', 'transferred'].includes(auction?.escrowStatus)
     ) return sum;
     return sum + auctionItems(auction).reduce((itemSum, item) => (
-      item?.assetKind === 'facility' && String(item.assetId) === String(facilityTypeId)
+      item?.assetKind === 'facility'
+        && String(item.assetId) === String(facilityTypeId)
+        && normalizeProvinceId(item.provinceId) === selectedProvinceId
         ? itemSum + safeNonNegativeInteger(item.quantity)
         : itemSum
     ), 0);
   }, 0);
 }
 
-export function mortgagedFacilityQuantity(player, facilityTypeId) {
+export function mortgagedFacilityQuantity(player, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
+  const selectedProvinceId = normalizeProvinceId(provinceId);
   const loan = player?.bankAccount?.activeLoan || null;
   if (!loan) return 0;
   return loan.collateral.reduce((sum, item) => (
-    String(item.facilityTypeId) === String(facilityTypeId) ? sum + safeNonNegativeInteger(item.quantity) : sum
+    String(item.facilityTypeId) === String(facilityTypeId)
+    && normalizeProvinceId(item.provinceId) === selectedProvinceId
+      ? sum + safeNonNegativeInteger(item.quantity)
+      : sum
   ), 0);
 }
 
@@ -281,20 +319,23 @@ export function activeLoanLiability(player) {
   return loan ? addSafe(loan.principalOutstanding, loan.interestOutstanding) : 0;
 }
 
-export function transferableFacilityQuantity(world, player, facilityTypeId) {
-  const group = groupFor(player, facilityTypeId);
+export function transferableFacilityQuantity(world, player, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
+  const selectedProvinceId = normalizeProvinceId(provinceId);
+  const group = groupFor(player, facilityTypeId, selectedProvinceId);
   if (!group) return 0;
-  const listed = facilitySellQuantityForOwner(world, player.userId, facilityTypeId);
-  const auctioned = auctionedFacilityQuantity(world, player.userId, facilityTypeId);
+  const listed = facilitySellQuantityForOwner(world, player.userId, facilityTypeId, selectedProvinceId);
+  const auctioned = auctionedFacilityQuantity(world, player.userId, facilityTypeId, selectedProvinceId);
   return Math.max(0, safeNonNegativeInteger(group.count) - listed - auctioned
-    - mortgagedFacilityQuantity(player, facilityTypeId)
-    - contractLockedFacilityQuantity(world, player.userId, facilityTypeId));
+    - mortgagedFacilityQuantity(player, facilityTypeId, selectedProvinceId)
+    - contractLockedFacilityQuantity(world, player.userId, facilityTypeId, selectedProvinceId));
 }
 
-function prudentFacilityValue(world, facilityTypeId) {
+function prudentFacilityValue(world, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
   const facility = FACILITY_BY_ID.get(String(facilityTypeId));
   if (!facility) return 0;
-  const lastTradePrice = roundInternalMoney(world.facilityMarkets?.[facility.id]?.lastTradePrice);
+  const lastTradePrice = roundInternalMoney(
+    world.facilityMarkets?.[provinceScopedKey(provinceId, facility.id)]?.lastTradePrice,
+  );
   const marketPrice = lastTradePrice !== null && lastTradePrice > 0 ? lastTradePrice : facility.systemValue;
   return Math.max(0.01, Math.min(safeNonNegativeMoney(facility.systemValue), safeNonNegativeMoney(marketPrice)));
 }
@@ -302,8 +343,8 @@ function prudentFacilityValue(world, facilityTypeId) {
 function normalizeCollateralWithValues(world, player, collateral) {
   return normalizeCollateral(collateral).map((item) => ({
     ...item,
-    availableQuantity: transferableFacilityQuantity(world, player, item.facilityTypeId),
-    prudentUnitValue: prudentFacilityValue(world, item.facilityTypeId),
+    availableQuantity: transferableFacilityQuantity(world, player, item.facilityTypeId, item.provinceId),
+    prudentUnitValue: prudentFacilityValue(world, item.facilityTypeId, item.provinceId),
   }));
 }
 
@@ -478,8 +519,10 @@ function settleDefault(world, player, now) {
   let liability = activeLoanLiability(player);
   const collateral = loan.collateral.map((item) => ({
     ...item,
-    disposalUnitValue: Math.max(1, multiplyFloor(prudentFacilityValue(world, item.facilityTypeId), 80, 100)),
-  })).sort((left, right) => right.disposalUnitValue - left.disposalUnitValue || left.facilityTypeId.localeCompare(right.facilityTypeId));
+    disposalUnitValue: Math.max(1, multiplyFloor(prudentFacilityValue(world, item.facilityTypeId, item.provinceId), 80, 100)),
+  })).sort((left, right) => right.disposalUnitValue - left.disposalUnitValue
+    || left.provinceId.localeCompare(right.provinceId)
+    || left.facilityTypeId.localeCompare(right.facilityTypeId));
   let proceeds = 0;
   let seizedCount = 0;
   const seized = [];
@@ -487,16 +530,22 @@ function settleDefault(world, player, now) {
     if (liability <= proceeds) break;
     const needed = Math.max(1, Math.ceil((liability - proceeds) / item.disposalUnitValue));
     const quantity = Math.min(item.quantity, needed);
-    const group = groupFor(player, item.facilityTypeId);
+    const group = groupFor(player, item.facilityTypeId, item.provinceId);
     if (!group || quantity <= 0) continue;
     const removed = reduceGroupForSeizure(group, quantity);
     if (removed <= 0) continue;
     const value = multiplyFloor(removed, item.disposalUnitValue, 1);
     proceeds = addSafe(proceeds, value);
     seizedCount += removed;
-    seized.push({ facilityTypeId: item.facilityTypeId, quantity: removed, disposalUnitValue: item.disposalUnitValue });
+    seized.push({
+      provinceId: item.provinceId,
+      facilityTypeId: item.facilityTypeId,
+      quantity: removed,
+      disposalUnitValue: item.disposalUnitValue,
+    });
     const bank = ensureBankWorld(world, now);
-    bank.facilityReserves[item.facilityTypeId] = addSafe(bank.facilityReserves[item.facilityTypeId], removed);
+    const reserveKey = provinceScopedKey(item.provinceId, item.facilityTypeId);
+    bank.facilityReserves[reserveKey] = addSafe(bank.facilityReserves[reserveKey], removed);
   }
   player.facilityGroups = (player.facilityGroups || []).filter((group) => safeNonNegativeInteger(group.count) > 0);
   const applied = Math.min(proceeds, liability);
@@ -720,7 +769,8 @@ function applyBorrow(world, player, payload, now) {
     interestOriginal: assessment.totalInterestCredits,
     interestOutstanding: assessment.totalInterestCredits,
     interestRateBps: assessment.interestRateBps,
-    collateral: assessment.collateral.map(({ facilityTypeId, quantity, prudentUnitValue }) => ({
+    collateral: assessment.collateral.map(({ provinceId, facilityTypeId, quantity, prudentUnitValue }) => ({
+      provinceId,
       facilityTypeId,
       quantity,
       prudentUnitValue,
@@ -783,13 +833,18 @@ export function createBankClientState(world, player, now = Date.now()) {
     ...(player?.bankAccount && typeof player.bankAccount === 'object' ? player.bankAccount : {}),
   };
   const eligibleDepositCredits = Math.min(account.dayOpeningDepositCredits, account.dayMinimumDepositCredits);
-  const availableCollateral = FACILITY_TYPE_CATALOG.map((facility) => ({
-    facilityTypeId: facility.id,
-    totalQuantity: safeNonNegativeInteger(groupFor(player, facility.id)?.count),
-    mortgagedQuantity: mortgagedFacilityQuantity(player, facility.id),
-    availableQuantity: transferableFacilityQuantity(world, player, facility.id),
-    prudentUnitValue: prudentFacilityValue(world, facility.id),
-  })).filter((item) => item.totalQuantity > 0);
+  const availableCollateral = (player?.facilityGroups || []).map((group) => {
+    const facilityTypeId = String(group?.facilityTypeId || '');
+    const provinceId = normalizeProvinceId(group?.provinceId);
+    return {
+      provinceId,
+      facilityTypeId,
+      totalQuantity: safeNonNegativeInteger(group?.count),
+      mortgagedQuantity: mortgagedFacilityQuantity(player, facilityTypeId, provinceId),
+      availableQuantity: transferableFacilityQuantity(world, player, facilityTypeId, provinceId),
+      prudentUnitValue: prudentFacilityValue(world, facilityTypeId, provinceId),
+    };
+  }).filter((item) => FACILITY_BY_ID.has(item.facilityTypeId) && item.totalQuantity > 0);
   const sevenDayAverageRatePpm = bank.recentDailyRatesPpm.length > 0
     ? Math.floor(bank.recentDailyRatesPpm.reduce((sum, rate) => sum + rate, 0) / bank.recentDailyRatesPpm.length)
     : 0;

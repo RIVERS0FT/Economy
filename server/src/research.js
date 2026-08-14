@@ -290,7 +290,7 @@ export function migrateResearchWorld(world, now = Date.now()) {
   for (const player of Object.values(world.players || {})) {
     ensurePlayerResearch(world, player, now, { grantLegacyOperationAccess });
   }
-  world.version = RESEARCH_WORLD_VERSION;
+  world.version = Math.max(Number(world.version || 0), RESEARCH_WORLD_VERSION);
   return world;
 }
 

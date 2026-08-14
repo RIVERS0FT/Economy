@@ -4,6 +4,7 @@ import { processAssetAuctions } from './asset-auctions.js';
 import { ensureGemState } from './invitations.js';
 import { activeLoanLiability } from './banking.js';
 import { weeklySettlementLiability } from './weekly-cash-settlement.js';
+import { DEFAULT_PROVINCE_ID, provinceScopedKey, splitProvinceScopedKey } from './provinces.js';
 
 export const LEADERBOARD_TIME_ZONE = 'Asia/Shanghai';
 export const LEADERBOARD_REWARDS = Object.freeze([50, 30, 20]);
@@ -102,8 +103,11 @@ function policyAdjustmentFor(player) {
 }
 
 function inventoryQuantity(player, productId) {
-  const inventory = player.inventories?.[productId] || {};
-  return safeNonNegativeInteger(inventory.available) + safeNonNegativeInteger(inventory.frozen);
+  return Object.entries(player.inventories || {}).reduce((sum, [key, inventory]) => (
+    splitProvinceScopedKey(key).assetId === productId
+      ? sum + safeNonNegativeInteger(inventory.available) + safeNonNegativeInteger(inventory.frozen)
+      : sum
+  ), 0);
 }
 
 export function operatingAssetsFor(player) {
@@ -120,21 +124,28 @@ export function operatingAssetsFor(player) {
   return cash + commodity + facilities - activeLoanLiability(player) - weeklySettlementLiability(player);
 }
 
-function recentTradePriceFor(world, kind, assetId) {
-  const market = kind === 'facility' ? world.facilityMarkets?.[assetId] : world.markets?.[assetId];
+function recentTradePriceFor(world, kind, assetId, provinceId = DEFAULT_PROVINCE_ID) {
+  const marketKey = provinceScopedKey(provinceId, assetId);
+  const market = kind === 'facility' ? world.facilityMarkets?.[marketKey] : world.markets?.[marketKey];
   return Number.isFinite(Number(market?.lastTradePrice)) ? safeNonNegativeInteger(market.lastTradePrice) : 0;
+}
+
+function commodityTradeValueFor(world, player) {
+  return Object.entries(player.inventories || {}).reduce((sum, [key, inventory]) => {
+    const { provinceId, assetId } = splitProvinceScopedKey(key);
+    const quantity = safeNonNegativeInteger(inventory?.available) + safeNonNegativeInteger(inventory?.frozen);
+    return sum + quantity * recentTradePriceFor(world, 'commodity', assetId, provinceId);
+  }, 0);
 }
 
 export function wealthAssetsFor(world, player) {
   const cash = safeNonNegativeInteger(player.credits)
     + safeNonNegativeInteger(player.frozenCredits)
     + safeNonNegativeInteger(player?.bankAccount?.depositCredits);
-  const commodity = PRODUCT_CATALOG.reduce((sum, product) => (
-    sum + inventoryQuantity(player, product.id) * recentTradePriceFor(world, 'commodity', product.id)
-  ), 0);
+  const commodity = commodityTradeValueFor(world, player);
   const facility = (player.facilityGroups || []).reduce((sum, group) => (
     sum + safeNonNegativeInteger(group.count)
-      * recentTradePriceFor(world, 'facility', String(group.facilityTypeId || ''))
+      * recentTradePriceFor(world, 'facility', String(group.facilityTypeId || ''), group.provinceId)
   ), 0);
   return cash + commodity + facility - activeLoanLiability(player) - weeklySettlementLiability(player);
 }
@@ -163,7 +174,8 @@ function ensureProductionCheckpoint(state, player) {
   const userId = String(player.userId);
   state.productionCheckpoints[userId] ||= {};
   for (const group of player.facilityGroups || []) {
-    state.productionCheckpoints[userId][String(group.facilityTypeId)] = {
+    const checkpointKey = provinceScopedKey(group.provinceId, group.facilityTypeId);
+    state.productionCheckpoints[userId][checkpointKey] = {
       lifetimeOutput: safeNonNegativeInteger(group.lifetimeOutput),
       recipeId: String(group.activeRecipeId || ''),
     };
@@ -218,10 +230,11 @@ function captureProduction(world, state) {
     const checkpoints = state.productionCheckpoints[userId] ||= {};
     for (const group of player.facilityGroups || []) {
       const facilityTypeId = String(group.facilityTypeId || '');
+      const checkpointKey = provinceScopedKey(group.provinceId, facilityTypeId);
       const currentOutput = safeNonNegativeInteger(group.lifetimeOutput);
-      const previous = checkpoints[facilityTypeId];
+      const previous = checkpoints[checkpointKey];
       if (!previous || currentOutput < safeNonNegativeInteger(previous.lifetimeOutput)) {
-        checkpoints[facilityTypeId] = {
+        checkpoints[checkpointKey] = {
           lifetimeOutput: currentOutput,
           recipeId: String(group.activeRecipeId || ''),
         };
@@ -232,7 +245,7 @@ function captureProduction(world, state) {
         state.production[userId].quantity += delta;
         state.production[userId].score = state.production[userId].quantity;
       }
-      checkpoints[facilityTypeId] = {
+      checkpoints[checkpointKey] = {
         lifetimeOutput: currentOutput,
         recipeId: String(group.activeRecipeId || ''),
       };

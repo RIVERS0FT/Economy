@@ -26,6 +26,7 @@ export interface CreateSupplyContractInput {
 export interface CreateLoanContractInput {
   kind: 'loan';
   publisherSide: 'lender' | 'borrower';
+  provinceId: string;
   principal: number;
   interestRateBps: number;
   termMs: number;
@@ -36,6 +37,7 @@ export interface CreateLoanContractInput {
 export interface CreateFacilityLeaseContractInput {
   kind: 'facility_lease';
   publisherSide: 'lessor' | 'lessee';
+  provinceId: string;
   facilityTypeId: string;
   quantity: number;
   rentPerPeriod: number;

@@ -2,6 +2,12 @@ import { PRODUCT_CATALOG } from './industry-catalog.js';
 import { normalizePlayerMoneyInput } from './money.js';
 import { ensureOnlineAutoBuyPolicies } from './online-auto-buy-policy.js';
 import { cancelManagedOnlineAutoSellOrder } from './online-auto-sell-orders.js';
+import {
+  DEFAULT_PROVINCE_ID,
+  installDefaultProvinceAliases,
+  provinceScopedKey,
+  splitProvinceScopedKey,
+} from './provinces.js';
 
 const PRODUCT_IDS = new Set(PRODUCT_CATALOG.map((product) => product.id));
 
@@ -27,23 +33,25 @@ export function ensureOnlineAutoSellPolicies(player) {
   const source = player.onlineAutoSellPolicies;
   const normalized = {};
   if (source && typeof source === 'object' && !Array.isArray(source)) {
-    for (const [productId, value] of Object.entries(source)) {
+    for (const [sourceKey, value] of Object.entries(source)) {
+      const { provinceId, assetId: productId } = splitProvinceScopedKey(sourceKey);
       if (!PRODUCT_IDS.has(productId)) continue;
       const policy = normalizeOnlineAutoSellPolicy(value);
-      if (policy) normalized[productId] = policy;
+      if (policy) normalized[provinceScopedKey(provinceId, productId)] = policy;
     }
   }
-  return normalized;
+  return installDefaultProvinceAliases(normalized);
 }
 
 function managedOrderLinksForClient(player) {
   const source = player?.onlineAutoSellOrderIds;
   if (!source || typeof source !== 'object' || Array.isArray(source)) return {};
-  return Object.fromEntries(Object.entries(source).flatMap(([productId, orderId]) => (
-    PRODUCT_IDS.has(productId) && String(orderId || '')
-      ? [[productId, String(orderId)]]
+  return Object.fromEntries(Object.entries(source).flatMap(([sourceKey, orderId]) => {
+    const { provinceId, assetId: productId } = splitProvinceScopedKey(sourceKey);
+    return PRODUCT_IDS.has(productId) && String(orderId || '')
+      ? [[provinceScopedKey(provinceId, productId), String(orderId)]]
       : []
-  )));
+  }));
 }
 
 export function createOnlineAutoSellPolicyClientState(player) {
@@ -78,15 +86,16 @@ function importLegacyOnlineAutoSellPolicies(player, payload) {
   const existing = ensureOnlineAutoSellPolicies(player);
   const merged = { ...existing };
   for (const [productId, value] of Object.entries(source)) {
-    if (!PRODUCT_IDS.has(productId) || Object.hasOwn(existing, productId)) continue;
+    const policyKey = provinceScopedKey(DEFAULT_PROVINCE_ID, productId);
+    if (!PRODUCT_IDS.has(productId) || Object.hasOwn(existing, policyKey)) continue;
     const policy = normalizeOnlineAutoSellPolicy(value);
     if (!policy) return { ok: false, message: '旧版自动出售设置无效' };
-    const conflict = conflictsWithAutoBuy(player, productId, policy);
+    const conflict = conflictsWithAutoBuy(player, policyKey, policy);
     if (conflict) return { ok: false, message: conflict };
-    merged[productId] = policy;
+    merged[provinceScopedKey(DEFAULT_PROVINCE_ID, productId)] = policy;
   }
   if (Object.keys(merged).length > Object.keys(existing).length) {
-    player.onlineAutoSellPolicies = merged;
+    player.onlineAutoSellPolicies = installDefaultProvinceAliases(merged);
   }
   return { ok: true, message: '旧版自动出售设置已合并到当前存档' };
 }
@@ -107,19 +116,20 @@ export function applyOnlineAutoSellPolicyAction(world, user, payload = {}) {
   if (payload.legacyImport === true) return importLegacyOnlineAutoSellPolicies(player, payload);
 
   const productId = String(payload.productId || payload.assetId || '');
+  const policyKey = provinceScopedKey(payload.provinceId, productId);
   if (!PRODUCT_IDS.has(productId)) {
     return { ok: false, message: '自动出售商品不存在' };
   }
   const policy = normalizeOnlineAutoSellPolicy(payload);
   if (!policy) return { ok: false, message: '自动出售设置无效' };
-  const conflict = conflictsWithAutoBuy(player, productId, policy);
+  const conflict = conflictsWithAutoBuy(player, policyKey, policy);
   if (conflict) return { ok: false, message: conflict };
 
   const policies = ensureOnlineAutoSellPolicies(player);
-  const previous = policies[productId] || null;
-  if (!samePolicy(previous, policy)) cancelManagedOnlineAutoSellOrder(world, user.id, productId);
-  policies[productId] = policy;
-  player.onlineAutoSellPolicies = policies;
+  const previous = policies[policyKey] || null;
+  if (!samePolicy(previous, policy)) cancelManagedOnlineAutoSellOrder(world, user.id, productId, payload.provinceId);
+  policies[policyKey] = policy;
+  player.onlineAutoSellPolicies = installDefaultProvinceAliases(policies);
   return {
     ok: true,
     message: policy.enabled
@@ -128,7 +138,7 @@ export function applyOnlineAutoSellPolicyAction(world, user, payload = {}) {
   };
 }
 
-export function onlineAutoSellPolicyFor(player, productId) {
+export function onlineAutoSellPolicyFor(player, productId, provinceId = DEFAULT_PROVINCE_ID) {
   const policies = ensureOnlineAutoSellPolicies(player);
-  return policies[String(productId || '')] || null;
+  return policies[provinceScopedKey(provinceId, productId)] || null;
 }

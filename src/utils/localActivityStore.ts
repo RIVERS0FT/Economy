@@ -6,7 +6,7 @@ import type {
   TradeRecord,
 } from '../types';
 
-const STORAGE_VERSION = 6;
+const STORAGE_VERSION = 7;
 const MAX_TRADES = 240;
 const documentCache = new Map<number, LocalActivityDocument>();
 const pendingDocuments = new Map<number, LocalActivityDocument>();
@@ -46,6 +46,7 @@ interface LocalTradeOrderSnapshot {
   id: string;
   assetKind: AssetKind;
   assetId: string;
+  provinceId: string;
   productId?: string;
   facilityTypeId?: string;
   side: OrderSide;
@@ -103,6 +104,7 @@ function normalizeTrades(trades: unknown[]): TradeRecord[] {
       type: trade.type === 'facility' ? 'facility' : 'commodity',
       productId: typeof trade.productId === 'string' ? trade.productId : undefined,
       facilityTypeId: typeof trade.facilityTypeId === 'string' ? trade.facilityTypeId : undefined,
+      provinceId: typeof trade.provinceId === 'string' ? trade.provinceId : undefined,
       side: trade.side === 'sell' ? 'sell' : 'buy',
       quantity: Number(trade.quantity || 0),
       price: Number(trade.price || 0),
@@ -135,6 +137,7 @@ function normalizeSnapshot(raw: unknown): LocalTradeSnapshot | undefined {
         id: order.id,
         assetKind: order.assetKind as AssetKind,
         assetId: order.assetId,
+        provinceId: typeof order.provinceId === 'string' ? order.provinceId : '110000',
         productId: typeof order.productId === 'string' ? order.productId : undefined,
         facilityTypeId: typeof order.facilityTypeId === 'string' ? order.facilityTypeId : undefined,
         side: order.side as OrderSide,
@@ -199,7 +202,7 @@ function persistDocument(userId: number, document: LocalActivityDocument) {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(storageKey(userId), JSON.stringify(document));
-    for (const legacyVersion of [5, 4, 3, 2, 1]) {
+    for (const legacyVersion of [6, 5, 4, 3, 2, 1]) {
       window.localStorage.removeItem(storageKey(userId, legacyVersion));
     }
   } catch {
@@ -260,7 +263,7 @@ function readDocument(userId: number): LocalActivityDocument {
     return current;
   }
 
-  for (const legacyVersion of [5, 4, 3, 2, 1]) {
+  for (const legacyVersion of [6, 5, 4, 3, 2, 1]) {
     const trades = parseLegacyTrades(readStorageItem(storageKey(userId, legacyVersion)));
     if (trades !== null) {
       const migrated: LocalActivityDocument = {
@@ -285,6 +288,7 @@ function snapshotState(state: EconomyState): LocalTradeSnapshot {
       id: order.id,
       assetKind: order.assetKind,
       assetId: order.assetId,
+      provinceId: order.provinceId,
       productId: order.productId,
       facilityTypeId: order.facilityTypeId,
       side: order.side,
@@ -322,6 +326,7 @@ function deriveAssetTrades(
         type: kind,
         productId: kind === 'commodity' ? assetId : undefined,
         facilityTypeId: kind === 'facility' ? assetId : undefined,
+        provinceId: order.provinceId,
         side: order.side,
         quantity: fill.quantity,
         price: fill.price,

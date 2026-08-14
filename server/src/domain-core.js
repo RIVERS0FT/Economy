@@ -3,6 +3,21 @@ import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
 import { closeOrderInOrderBook, orderById } from './order-book-runtime.js';
+import {
+  DEFAULT_PROVINCE_ID,
+  PROVINCE_CATALOG,
+  inventoriesForProvince,
+  installDefaultProvinceAliases,
+  inventoryForProvince,
+  inventoryStatesByProvince,
+  marketStatesByProvince,
+  migrateProvinceFields,
+  migrateProvinceInventories,
+  normalizeProvinceId,
+  provinceAssetSummaries,
+  provinceScopedKey,
+  splitProvinceScopedKey,
+} from './provinces.js';
 
 export { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
 
@@ -72,14 +87,16 @@ function facilityTypeDefinition(typeId) {
 }
 
 function createInventories() {
-  return Object.fromEntries(PRODUCT_CATALOG.map((product) => [product.id, { available: 0, frozen: 0 }]));
+  return installDefaultProvinceAliases(Object.fromEntries(PRODUCT_CATALOG.map((product) => [
+    provinceScopedKey(DEFAULT_PROVINCE_ID, product.id),
+    { available: 0, frozen: 0 },
+  ])));
 }
 
-function inventoryFor(player, productId) {
+function inventoryFor(player, productId, provinceId = DEFAULT_PROVINCE_ID) {
   const id = productDefinition(productId).id;
   player.inventories ||= createInventories();
-  player.inventories[id] ||= { available: 0, frozen: 0 };
-  return player.inventories[id];
+  return inventoryForProvince(player, id, provinceId);
 }
 
 function addLedger(player, category, amount, description, createdAt = Date.now()) {
@@ -110,9 +127,10 @@ function seedPriceHistory(product, now) {
   }));
 }
 
-function createMarket(product, now) {
+function createMarket(product, now, provinceId = DEFAULT_PROVINCE_ID) {
   return {
     productId: product.id,
+    provinceId: normalizeProvinceId(provinceId),
     lastPrice: product.basePrice,
     lastTradePrice: null,
     priceHistory: seedPriceHistory(product, now),
@@ -128,7 +146,10 @@ function createMarket(product, now) {
 }
 
 function createMarkets(now) {
-  return Object.fromEntries(PRODUCT_CATALOG.map((product) => [product.id, createMarket(product, now)]));
+  return installDefaultProvinceAliases(Object.fromEntries(PRODUCT_CATALOG.map((product) => [
+    provinceScopedKey(DEFAULT_PROVINCE_ID, product.id),
+    createMarket(product, now, DEFAULT_PROVINCE_ID),
+  ])));
 }
 
 function createDemandGroups(now) {
@@ -144,11 +165,14 @@ function createDemandGroups(now) {
   }]));
 }
 
-function marketFor(world, productId) {
+function marketFor(world, productId, provinceId = DEFAULT_PROVINCE_ID) {
   const product = productDefinition(productId);
   world.markets ||= createMarkets(Date.now());
-  world.markets[product.id] ||= createMarket(product, Date.now());
-  return world.markets[product.id];
+  const selectedProvinceId = normalizeProvinceId(provinceId);
+  const key = provinceScopedKey(selectedProvinceId, product.id);
+  world.markets[key] ||= createMarket(product, Date.now(), selectedProvinceId);
+  installDefaultProvinceAliases(world.markets);
+  return world.markets[key];
 }
 
 function seedOrders() {
@@ -221,7 +245,7 @@ function seedFacilityListings(now) {
 
 export function createWorld(now = Date.now()) {
   return {
-    version: 26,
+    version: 30,
     auctionFeeEscrowCredits: 0,
     players: {},
     orders: seedOrders(now),
@@ -312,26 +336,30 @@ export function migrateWorld(world, now = Date.now()) {
 
   if (!world.markets) {
     const markets = createMarkets(now);
-    if (Number.isFinite(world.marketPrice)) markets.wheat.lastPrice = Number(world.marketPrice);
+    const wheatMarket = markets[provinceScopedKey(DEFAULT_PROVINCE_ID, 'wheat')];
+    if (Number.isFinite(world.marketPrice)) wheatMarket.lastPrice = Number(world.marketPrice);
     if (Array.isArray(world.marketPriceHistory) && world.marketPriceHistory.length) {
-      markets.wheat.priceHistory = world.marketPriceHistory.map((point) => ({
-        price: Number(point.price || markets.wheat.lastPrice),
+      wheatMarket.priceHistory = world.marketPriceHistory.map((point) => ({
+        price: Number(point.price || wheatMarket.lastPrice),
         quantity: Number(point.quantity || 1),
         createdAt: Number(point.createdAt || now),
       }));
     }
-    if (world.demand) markets.wheat.demand = { ...markets.wheat.demand, ...world.demand };
+    if (world.demand) wheatMarket.demand = { ...wheatMarket.demand, ...world.demand };
     world.markets = markets;
   }
 
   if (world.markets.grain) {
-    if (!world.markets.wheat) world.markets.wheat = world.markets.grain;
-    world.markets.wheat.productId = 'wheat';
+    const legacyGrainMarket = world.markets.grain;
+    const hasLegacyWheat = Object.prototype.propertyIsEnumerable.call(world.markets, 'wheat');
+    if (!hasLegacyWheat) world.markets[provinceScopedKey(DEFAULT_PROVINCE_ID, 'wheat')] = legacyGrainMarket;
+    world.markets[provinceScopedKey(DEFAULT_PROVINCE_ID, 'wheat')].productId = 'wheat';
     delete world.markets.grain;
+    delete world.markets[provinceScopedKey(DEFAULT_PROVINCE_ID, 'grain')];
   }
+  migrateProvinceFields(world);
   for (const product of PRODUCT_CATALOG) {
-    world.markets[product.id] ||= createMarket(product, now);
-    const market = world.markets[product.id];
+    const market = marketFor(world, product.id, DEFAULT_PROVINCE_ID);
     if (market.lastTradePrice === undefined) {
       const latestTrade = [...(market.priceHistory || [])].reverse().find((point) => point.takerSide === 'buy' || point.takerSide === 'sell');
       market.lastTradePrice = latestTrade ? Number(latestTrade.price) : null;
@@ -344,6 +372,7 @@ export function migrateWorld(world, now = Date.now()) {
     if (order.assetId === 'grain') order.assetId = 'wheat';
     order.productId ||= 'wheat';
     order.fills = Array.isArray(order.fills) ? order.fills : [];
+    order.provinceId = normalizeProvinceId(order.provinceId);
   }
 
   world.facilityListings ||= [];
@@ -366,14 +395,16 @@ export function migrateWorld(world, now = Date.now()) {
       : player.registeredAt;
     if (!player.inventories) {
       player.inventories = createInventories();
-      player.inventories.wheat.available = Number(player.inventory || 0);
-      player.inventories.wheat.frozen = Number(player.frozenInventory || 0);
+      inventoryFor(player, 'wheat').available = Number(player.inventory || 0);
+      inventoryFor(player, 'wheat').frozen = Number(player.frozenInventory || 0);
     }
-    if (player.inventories.grain) {
-      player.inventories.wheat ||= { available: 0, frozen: 0 };
-      player.inventories.wheat.available += Number(player.inventories.grain.available || 0);
-      player.inventories.wheat.frozen += Number(player.inventories.grain.frozen || 0);
-      delete player.inventories.grain;
+    migrateProvinceInventories(player);
+    const legacyGrainKey = provinceScopedKey(DEFAULT_PROVINCE_ID, 'grain');
+    if (player.inventories[legacyGrainKey]) {
+      const wheat = inventoryFor(player, 'wheat');
+      wheat.available += Number(player.inventories[legacyGrainKey].available || 0);
+      wheat.frozen += Number(player.inventories[legacyGrainKey].frozen || 0);
+      delete player.inventories[legacyGrainKey];
     }
     for (const product of PRODUCT_CATALOG) inventoryFor(player, product.id);
     player.facilities = (player.facilities || []).map((facility) => migrateFacility(facility, player.userId));
@@ -423,7 +454,7 @@ export function migrateWorld(world, now = Date.now()) {
     world.demandGroups[group.id] = { ...createDemandGroups(now)[group.id], ...world.demandGroups[group.id] };
   }
   world.auctionFeeEscrowCredits = Math.max(0, Number(world.auctionFeeEscrowCredits || 0));
-  world.version = 26;
+  world.version = Math.max(30, Number(world.version || 0));
   return world;
 }
 
@@ -439,8 +470,8 @@ function isOpenOrder(order) {
   return order.remaining > 0 && (order.status === 'open' || order.status === 'partial');
 }
 
-function recordPrice(world, productId, price, quantity, takerSide, createdAt) {
-  const market = marketFor(world, productId);
+function recordPrice(world, productId, price, quantity, takerSide, createdAt, provinceId) {
+  const market = marketFor(world, productId, provinceId);
   market.lastPrice = price;
   market.lastTradePrice = price;
   market.priceHistory.push({ price, quantity, createdAt, takerSide });
@@ -448,9 +479,10 @@ function recordPrice(world, productId, price, quantity, takerSide, createdAt) {
 }
 
 function totalAssets(world, player) {
-  const inventoryValue = PRODUCT_CATALOG.reduce((sum, product) => {
-    const inventory = inventoryFor(player, product.id);
-    return sum + (inventory.available + inventory.frozen) * marketFor(world, product.id).lastPrice;
+  const inventoryValue = Object.entries(player.inventories || {}).reduce((sum, [key, inventory]) => {
+    const { provinceId, assetId } = splitProvinceScopedKey(key);
+    return sum + (Number(inventory?.available || 0) + Number(inventory?.frozen || 0))
+      * marketFor(world, assetId, provinceId).lastPrice;
   }, 0);
   const facilityValue = player.facilities.reduce((sum, facility) => (
     sum + facility.systemValue + facility.internalGoods * marketFor(world, facility.outputProductId).lastPrice
@@ -483,13 +515,14 @@ function settlePlayerBuy(world, order, quantity, tradePrice, sellerName, created
   const actual = quantity * tradePrice;
   player.frozenCredits -= reserved;
   player.credits += reserved - actual;
-  inventoryFor(player, order.productId).available += quantity;
+  inventoryFor(player, order.productId, order.provinceId).available += quantity;
   player.stats.commodityVolume += quantity;
   player.stats.boughtGoods = Number(player.stats.boughtGoods || 0) + quantity;
   const product = productDefinition(order.productId);
   addTrade(player, {
     type: 'commodity',
     productId: product.id,
+    provinceId: normalizeProvinceId(order.provinceId),
     side: 'buy',
     quantity,
     price: tradePrice,
@@ -504,7 +537,7 @@ function settlePlayerBuy(world, order, quantity, tradePrice, sellerName, created
 function settlePlayerSell(world, order, quantity, tradePrice, buyer, settlement, createdAt) {
   const player = world.players[String(order.ownerId)];
   if (!player) throw new Error(`Missing seller ${order.ownerId}`);
-  const inventory = inventoryFor(player, order.productId);
+  const inventory = inventoryFor(player, order.productId, order.provinceId);
   const total = quantity * tradePrice;
   inventory.frozen -= quantity;
   player.credits += settlement.netTotal;
@@ -516,6 +549,7 @@ function settlePlayerSell(world, order, quantity, tradePrice, buyer, settlement,
   addTrade(player, {
     type: 'commodity',
     productId: product.id,
+    provinceId: normalizeProvinceId(order.provinceId),
     side: 'sell',
     quantity,
     price: tradePrice,
@@ -571,7 +605,7 @@ function executeTrade(world, incoming, resting, quantity, createdAt) {
   });
   if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, describeCounterparty(sell), createdAt);
   if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, settlement, createdAt);
-  recordPrice(world, incoming.productId, price, quantity, incoming.side, createdAt);
+  recordPrice(world, incoming.productId, price, quantity, incoming.side, createdAt, incoming.provinceId);
 }
 
 function matchOrder(world, incoming, createdAt) {
@@ -1149,23 +1183,30 @@ export function createClientState(world, userId, now = Date.now(), { migrate = t
   const player = getPlayer(world, userId);
   const wheatInventory = migrate
     ? inventoryFor(player, 'wheat')
-    : player.inventories?.wheat || { available: 0, frozen: 0 };
+    : inventoriesForProvince(player, DEFAULT_PROVINCE_ID).wheat || { available: 0, frozen: 0 };
   const wheatMarket = migrate
     ? marketFor(world, 'wheat')
-    : world.markets?.wheat || createMarket(productDefinition('wheat'), now);
+    : world.markets?.[provinceScopedKey(DEFAULT_PROVINCE_ID, 'wheat')] || createMarket(productDefinition('wheat'), now);
+  const provinceInventories = inventoryStatesByProvince(player);
+  const provinceMarkets = marketStatesByProvince(world.markets);
   return {
-    version: 5,
+    version: 34,
     userId: player.userId,
     playerName: player.playerName,
     registeredAt: player.registeredAt,
     credits: player.credits,
     frozenCredits: player.frozenCredits,
-    inventories: clone(player.inventories),
+    provinces: clone(PROVINCE_CATALOG),
+    defaultProvinceId: DEFAULT_PROVINCE_ID,
+    provinceInventories: clone(provinceInventories),
+    provinceAssetSummaries: clone(provinceAssetSummaries(player, world.orders)),
+    inventories: clone(provinceInventories[DEFAULT_PROVINCE_ID] || {}),
     ...(migrate && player.inventoryCapacity !== undefined ? { inventoryCapacity: player.inventoryCapacity } : {}),
     facilities: migrate ? clone(player.facilities || []) : [],
     products: migrate ? clone(PRODUCT_CATALOG) : PRODUCT_CATALOG,
     facilityTypes: migrate ? clone(FACILITY_TYPE_CATALOG) : [],
-    markets: clone(world.markets),
+    provinceMarkets: clone(provinceMarkets),
+    markets: clone(provinceMarkets[DEFAULT_PROVINCE_ID] || {}),
     orders: migrate ? clone(world.orders) : [],
     facilityListings: migrate ? clone(world.facilityListings) : [],
     trades: migrate ? clone(player.trades || []) : [],

@@ -8,6 +8,13 @@ import {
   recordPopulationSellerIncome,
   settlePopulationPurchase,
 } from './population-economy.js';
+import {
+  DEFAULT_PROVINCE_ID,
+  installDefaultProvinceAliases,
+  inventoryForProvince,
+  normalizeProvinceId,
+  provinceScopedKey,
+} from './provinces.js';
 
 const LIQUIDITY_BUY = 'liquidity-buy';
 const LIQUIDITY_SELL = 'liquidity-sell';
@@ -26,10 +33,11 @@ export function createBalancedMarketRuntime({ products, constants }) {
   const hasValidOwner = (world, order) => order?.ownerType !== 'player'
     || Boolean(world.players?.[String(order.ownerId)]);
 
-  function createMarket(product, now) {
+  function createMarket(product, now, provinceId = DEFAULT_PROVINCE_ID) {
     const offsets = [-1, 0, 1, 0, 1, 1, 0, -1, 0, 1, 0, 0, 1, -1, 0, 1, 0, 1, 0, -1, 0, 1, 0, 0];
     return {
       productId: product.id,
+      provinceId: normalizeProvinceId(provinceId),
       lastPrice: product.basePrice,
       lastTradePrice: null,
       priceHistory: offsets.map((offset, index) => ({
@@ -54,17 +62,18 @@ export function createBalancedMarketRuntime({ products, constants }) {
     };
   }
 
-  function marketFor(world, productId, now = Date.now()) {
+  function marketFor(world, productId, now = Date.now(), provinceId = DEFAULT_PROVINCE_ID) {
     const product = productFor(productId);
+    const selectedProvinceId = normalizeProvinceId(provinceId);
+    const key = provinceScopedKey(selectedProvinceId, product.id);
     world.markets ||= {};
-    world.markets[product.id] ||= createMarket(product, now);
-    return world.markets[product.id];
+    world.markets[key] ||= createMarket(product, now, selectedProvinceId);
+    installDefaultProvinceAliases(world.markets);
+    return world.markets[key];
   }
 
-  function inventoryFor(player, productId) {
-    player.inventories ||= {};
-    player.inventories[productId] ||= { available: 0, frozen: 0 };
-    return player.inventories[productId];
+  function inventoryFor(player, productId, provinceId) {
+    return inventoryForProvince(player, productId, provinceId);
   }
 
   function liquidityGroupFor(world, order) {
@@ -98,8 +107,18 @@ export function createBalancedMarketRuntime({ products, constants }) {
     return order.ownerName || (order.ownerType === 'population' ? '市场系统' : '玩家');
   }
 
-  function recordPrice(world, productId, price, quantity, takerSide, createdAt, signalWeight = 1, marketRole = 'player') {
-    const market = marketFor(world, productId, createdAt);
+  function recordPrice(
+    world,
+    productId,
+    price,
+    quantity,
+    takerSide,
+    createdAt,
+    signalWeight = 1,
+    marketRole = 'player',
+    provinceId = DEFAULT_PROVINCE_ID,
+  ) {
+    const market = marketFor(world, productId, createdAt, provinceId);
     market.lastPrice = price;
     market.lastTradePrice = price;
     market.priceHistory ||= [];
@@ -114,13 +133,13 @@ export function createBalancedMarketRuntime({ products, constants }) {
     const actual = multiplyMoneyByInteger(tradePrice, quantity) || 0;
     player.frozenCredits = roundInternalMoney(player.frozenCredits - reserved) || 0;
     player.credits = roundInternalMoney(player.credits + reserved - actual) || 0;
-    inventoryFor(player, order.productId).available += quantity;
+    inventoryFor(player, order.productId, order.provinceId).available += quantity;
     player.stats ||= {};
     player.stats.commodityVolume = Number(player.stats.commodityVolume || 0) + quantity;
     player.stats.boughtGoods = Number(player.stats.boughtGoods || 0) + quantity;
     const product = productFor(order.productId);
     addTrade(player, {
-      type: 'commodity', productId: product.id, side: 'buy', quantity, price: tradePrice,
+      type: 'commodity', productId: product.id, provinceId: normalizeProvinceId(order.provinceId), side: 'buy', quantity, price: tradePrice,
       total: actual, counterparty: sellerName, createdAt, description: `买入 ${product.name}`,
     });
     addLedger(player, 'market_trade', -actual, `买入 ${quantity} 个${product.name}，成交价 ${tradePrice}`, createdAt);
@@ -129,7 +148,7 @@ export function createBalancedMarketRuntime({ products, constants }) {
   function settlePlayerSell(world, order, quantity, tradePrice, buyer, settlement, createdAt) {
     const player = world.players?.[String(order.ownerId)];
     if (!player) throw new Error(`Missing seller ${order.ownerId}`);
-    const inventory = inventoryFor(player, order.productId);
+    const inventory = inventoryFor(player, order.productId, order.provinceId);
     const total = multiplyMoneyByInteger(tradePrice, quantity) || 0;
     inventory.frozen -= quantity;
     player.credits = roundInternalMoney(player.credits + settlement.netTotal) || 0;
@@ -145,7 +164,7 @@ export function createBalancedMarketRuntime({ products, constants }) {
     if (consumptionIncome) recordPopulationSellerIncome(player, settlement.netTotal);
     const product = productFor(order.productId);
     addTrade(player, {
-      type: 'commodity', productId: product.id, side: 'sell', quantity, price: tradePrice,
+      type: 'commodity', productId: product.id, provinceId: normalizeProvinceId(order.provinceId), side: 'sell', quantity, price: tradePrice,
       total, fee: settlement.fee, netTotal: settlement.netTotal,
       counterparty: counterparty(buyer), createdAt, description: `卖出 ${product.name}`,
     });
@@ -213,13 +232,16 @@ export function createBalancedMarketRuntime({ products, constants }) {
           ? LIQUIDITY_EMERGENCY_SIGNAL_WEIGHT
           : liquidityTrade ? LIQUIDITY_SIGNAL_WEIGHT : 1;
         const marketRole = liquidityTrade ? 'liquidity' : consumptionTrade ? 'consumption' : 'player';
-        recordPrice(world, incoming.productId, price, quantity, takerSide, createdAt, signalWeight, marketRole);
+        recordPrice(world, incoming.productId, price, quantity, takerSide, createdAt, signalWeight, marketRole, incoming.provinceId);
       },
     });
   }
 
   function rebalanceNewWorld(world, now) {
-    world.markets = Object.fromEntries(products.map((product) => [product.id, createMarket(product, now)]));
+    world.markets = installDefaultProvinceAliases(Object.fromEntries(products.map((product) => [
+      provinceScopedKey(DEFAULT_PROVINCE_ID, product.id),
+      createMarket(product, now, DEFAULT_PROVINCE_ID),
+    ])));
     world.orders = (world.orders || []).filter((order) => isCommodityOwner(order));
     return world;
   }
@@ -227,8 +249,9 @@ export function createBalancedMarketRuntime({ products, constants }) {
   function repairMissingMarkets(world, existingMarketIds, now, legacy = {}) {
     world.markets ||= {};
     for (const product of products) {
-      if (existingMarketIds.has(product.id)) continue;
-      const market = createMarket(product, now);
+      const key = provinceScopedKey(DEFAULT_PROVINCE_ID, product.id);
+      if (existingMarketIds.has(product.id) || existingMarketIds.has(key)) continue;
+      const market = createMarket(product, now, DEFAULT_PROVINCE_ID);
       if (product.id === 'wheat' && legacy.grainMarket) {
         Object.assign(market, legacy.grainMarket, { productId: 'wheat' });
       }
@@ -242,7 +265,7 @@ export function createBalancedMarketRuntime({ products, constants }) {
       const latestTrade = [...market.priceHistory].reverse().find((point) => point.takerSide === 'buy' || point.takerSide === 'sell');
       market.lastTradePrice = latestTrade ? Number(latestTrade.price) : null;
       if (product.id === 'wheat' && legacy.demand) market.demand = { ...market.demand, ...legacy.demand };
-      world.markets[product.id] = market;
+      world.markets[key] = market;
     }
     return world;
   }

@@ -490,13 +490,13 @@ for (const text of ['openOrderCount', "id === 'market'", 'sidebar-nav-count']) {
 }
 
 for (const text of [
-  '概览｜市场｜生产｜研发｜拍卖｜合同｜银行｜排行｜商店｜设置',
+  '概览｜地图｜市场｜生产｜研发｜拍卖｜合同｜银行｜排行｜商店｜设置',
   '| 拍卖 | `auction` | `AuctionPage` | 商品与工厂资产包发布及进行中竞价 |',
   '| 合同 | `contracts` | `ContractPage` | 商品供货、玩家抵押借贷和工厂使用权租赁合同的发布、承接、履约与历史 |',
   '| 银行 | `bank` | `BankPage` | 资产总览、存取款、活跃周固定存款利息、周资金结算、工厂抵押贷款、额度评估与还款 |',
   '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与每日终端动态报价兑换普通货币 |',
   '| 设置 | `settings` | `SettingsPage` | 资料、偏好、经营成长线控制、礼品和退出 |',
-  '页面主标题固定为“生产”',
+  '页面主标题固定为“{省级地区全称}生产”',
   '不显示独立库存总量行',
   '仓库商品网格按自身内容区宽度使用容器查询',
   '独立资产页面已经永久删除，资产总览唯一归属银行页',
@@ -544,8 +544,8 @@ for (const text of [
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 for (const text of [
-  '本地文档版本：v6',
-  'economy.local-activity.v6.<userId>',
+  '本地文档版本：v7',
+  'economy.local-activity.v7.<userId>',
   '市场页是本地匿名成交的唯一完整展示位置',
   '永久丢弃全部 `assetEvents[]`',
   '对本地成交直接使用全量 `.map()` 创建全部 DOM',
@@ -564,4 +564,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、十页导航与银行资产总览、合同默认进行中视图、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、商品／工厂资产拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');
+console.log('页面内容、十一页导航与省级地图、银行资产总览、合同默认进行中视图、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、商品／工厂资产拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');

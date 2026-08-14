@@ -192,8 +192,8 @@ for (const [path, texts] of Object.entries({
     'MobileWorkspaceDetailSheet',
   ],
   'docs/WAREHOUSE_EXPANSION_DESIGN.md': [
-    '客户端状态版本：33',
-    '世界状态版本：29',
+    '客户端状态版本：34',
+    '世界状态版本：30',
     '### 4.2 在线自动采购',
     '### 4.3 在线自动出售',
     '### 4.4 双向自动交易区间',

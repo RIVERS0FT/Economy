@@ -521,11 +521,11 @@ function aggregateRequestWindows(snapshot) {
   return aggregateRequestAccumulators(accumulators, snapshot.generatedAt || Date.now());
 }
 
-function readDatabaseStatus(store, databasePath) {
+function readDatabaseStatus(store, databasePath, statFileSystem = safeStatFs) {
   const databaseStat = safeStat(databasePath);
   const walStat = safeStat(`${databasePath}-wal`);
   const shmStat = safeStat(`${databasePath}-shm`);
-  const fileSystem = safeStatFs(dirname(databasePath));
+  const fileSystem = statFileSystem(dirname(databasePath));
   const pageCount = Number(store.database.prepare('PRAGMA page_count').get()?.page_count || 0);
   const freelistCount = Number(store.database.prepare('PRAGMA freelist_count').get()?.freelist_count || 0);
   const pageSize = Number(store.database.prepare('PRAGMA page_size').get()?.page_size || 0);
@@ -640,6 +640,7 @@ export function createAdminServerStatus({
   now = Date.now,
   requestMetricsSnapshot,
   runtimeMetricsSnapshot,
+  statFileSystem = safeStatFs,
 } = {}) {
   const rangeKey = normalizeServerStatusRange(range);
   const rangeConfig = SERVER_STATUS_RANGES[rangeKey];
@@ -657,7 +658,7 @@ export function createAdminServerStatus({
   const healthRequests = requestMetricsSnapshot
     ? aggregateRequestWindows(requestSnapshot)
     : aggregateRequestWindows(getRequestMetricsSnapshot(3 * MINUTE_MS));
-  const database = readDatabaseStatus(store, databasePath);
+  const database = readDatabaseStatus(store, databasePath, statFileSystem);
   const scheduler = {
     schedules: 0,
     wakeups: 0,

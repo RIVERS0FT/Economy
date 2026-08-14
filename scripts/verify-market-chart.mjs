@@ -215,9 +215,9 @@ for (const text of [
 
 assert.ok(types.includes('takerSide?: OrderSide;'), 'PricePoint 必须保存可选吃单方向');
 assert.ok(matchingCore.includes('takerSide: incoming.side'), '撮合内核必须记录吃单方向');
-assert.ok(commodityMarket.includes('recordPrice(world, incoming.productId, price, quantity, takerSide, createdAt, signalWeight, marketRole);'), '商品成交必须记录方向与信号');
+assert.ok(commodityMarket.includes('recordPrice(world, incoming.productId, price, quantity, takerSide, createdAt, signalWeight, marketRole, incoming.provinceId);'), '商品成交必须记录方向、信号与地区');
 assert.ok(commodityMarket.includes('LIQUIDITY_SIGNAL_WEIGHT'), '储备成交必须降低传导信号权重');
-assert.ok(facilityMarket.includes('recordFacilityPrice(world, typeId, price, quantity, takerSide, createdAt);'), '工厂成交必须记录吃单方向');
+assert.ok(facilityMarket.includes('recordFacilityPrice(world, typeId, price, quantity, takerSide, createdAt, incoming.provinceId);'), '工厂成交必须记录吃单方向与地区');
 
 for (const text of [
   '市场页的商品行情统一统计当前资产最近 24h', '柱高始终表示总成交量',

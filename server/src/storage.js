@@ -66,6 +66,7 @@ import {
   validateResearchAccess,
 } from './research.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
+import { installProvinceRuntimeAliases } from './provinces.js';
 import { normalizePlayerMoneyPayload, normalizeWorldMoneyPrecision, normalizeWorldMoneyPrecisionScoped } from './money.js';
 import {
   configureAuctionAuditStore,
@@ -632,7 +633,7 @@ export class EconomyStore {
     this.worldCache = {
       revision: nextRevision,
       stateJson,
-      world: measureRequestPhase('worldCloneMs', () => structuredClone(world)),
+      world: measureRequestPhase('worldCloneMs', () => installProvinceRuntimeAliases(structuredClone(world))),
       needsPersistence: Boolean(needsPersistence),
       segmentedSnapshot: segmentedSnapshot || snapshotSegmentedWorld(world),
       storageSchemaVersion: 2,
@@ -674,7 +675,7 @@ export class EconomyStore {
       return {
         revision: this.worldCache.revision,
         stateJson: null,
-        world: measureRequestPhase('worldCloneMs', () => structuredClone(this.worldCache.world)),
+        world: measureRequestPhase('worldCloneMs', () => installProvinceRuntimeAliases(structuredClone(this.worldCache.world))),
       };
     }
 
@@ -688,7 +689,7 @@ export class EconomyStore {
         return {
           revision: segmented.revision,
           stateJson: null,
-          world: measureRequestPhase('worldCloneMs', () => structuredClone(segmented.world)),
+          world: measureRequestPhase('worldCloneMs', () => installProvinceRuntimeAliases(structuredClone(segmented.world))),
         };
       }
 
@@ -704,7 +705,7 @@ export class EconomyStore {
       return {
         revision,
         stateJson: null,
-        world: measureRequestPhase('worldCloneMs', () => structuredClone(world)),
+        world: measureRequestPhase('worldCloneMs', () => installProvinceRuntimeAliases(structuredClone(world))),
       };
     }
 
@@ -715,7 +716,7 @@ export class EconomyStore {
       this.insertWorld.run(1, legacyStateJson, now);
       const snapshot = writeFullSegmentedWorld(this, 1, world, now);
       this.cacheWorld(1, null, world, false, snapshot);
-      return { revision: 1, stateJson: null, world: measureRequestPhase('worldCloneMs', () => structuredClone(world)) };
+      return { revision: 1, stateJson: null, world: measureRequestPhase('worldCloneMs', () => installProvinceRuntimeAliases(structuredClone(world))) };
     }
 
     const persistedStateJson = String(row.state_json);
@@ -726,7 +727,7 @@ export class EconomyStore {
     const snapshot = writeFullSegmentedWorld(this, revision, world, now);
     this.cacheWorld(revision, null, world, false, snapshot);
     setRequestGauge('legacyWorldJsonBytes', Buffer.byteLength(persistedStateJson));
-    return { revision, stateJson: null, world: measureRequestPhase('worldCloneMs', () => structuredClone(world)) };
+    return { revision, stateJson: null, world: measureRequestPhase('worldCloneMs', () => installProvinceRuntimeAliases(structuredClone(world))) };
   }
 
   serializeWorld(world, now) {

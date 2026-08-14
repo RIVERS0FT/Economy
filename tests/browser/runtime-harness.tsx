@@ -12,6 +12,7 @@ import { AuctionPage } from '../../src/pages/AuctionPage';
 import { ContractPage } from '../../src/pages/ContractPage';
 import { GemShopPage } from '../../src/pages/GemShopPage';
 import { OverviewPage } from '../../src/pages/OverviewPage';
+import { MapPage } from '../../src/pages/MapPage';
 import { ProductionPage } from '../../src/pages/ProductionPage';
 import { ResearchPage } from '../../src/pages/ResearchPage';
 import { FacilityRecipeProfitMarketsProvider } from '../../src/components/facilities/FacilityRecipeProfitContext';
@@ -49,6 +50,8 @@ import '../../src/styles/primary-surfaces.css';
 import '../../src/styles/form-controls.css';
 import '../../src/styles/overview-polish.css';
 import '../../src/styles/game-guide.css';
+import '../../src/styles/province-map.css';
+import provinces from '../../shared/provinces.json';
 
 const localActivityResult = loadLocalActivity(123);
 Object.assign(window, { __localActivityResult: localActivityResult });
@@ -151,7 +154,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const facilityStatusReason = hasAlerts ? 'insufficient_input' : undefined;
 
   const game = {
-    version: 31,
+    version: 34,
     lastProcessedAt: fixedNow,
     userId: 123,
     playerName: 'MEVIUS',
@@ -178,8 +181,20 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
       weeklyBonusGems: 5,
     },
     inventories: { machinery: { available: 580, frozen: 0 } },
+    defaultProvinceId: '110000',
+    provinces,
+    provinceInventories: { '110000': { machinery: { available: 580, frozen: 0 } } },
+    provinceAssetSummaries: Object.fromEntries(provinces.map((province) => [province.id, {
+      provinceId: province.id,
+      storedQuantity: province.id === '110000' ? 580 : 0,
+      facilityCount: province.id === '110000' ? 18 : 0,
+      runningFacilityCount: province.id === '110000' ? 12 : 0,
+      blockedFacilityCount: 0,
+      openOrderCount: province.id === '110000' ? orders.length : 0,
+    }])),
     warehouseStoredQuantity: 580,
     facilityGroups: [{
+      provinceId: '110000',
       facilityTypeId: 'machine-factory',
       count: 18,
       participatingCount: hasAlerts ? 0 : 12,
@@ -237,6 +252,9 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
       },
     },
     facilityMarkets: {},
+    provinceFacilityGroups: {},
+    provinceMarkets: {},
+    provinceFacilityMarkets: {},
     orders,
     leaderboard: [{
       rank: 1,
@@ -298,6 +316,9 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
       setTabState(nextTab);
     },
     notice: '',
+    selectedProvinceId: '110000',
+    selectedProvince: provinces[0],
+    setSelectedProvinceId: () => {},
     selectedFacilityTypeId: 'machine-factory',
     setSelectedFacilityTypeId: () => {},
     marketAssetKind: 'commodity',
@@ -335,6 +356,21 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     exchangeGems: async () => ({ ok: true, message: '兑换成功' }),
     tutorial: completedTutorial,
   } as unknown as TutorialAwareGameViewModel;
+}
+
+function MapHarness() {
+  const [tab, setTab] = useState<TabId>('map');
+  const [provinceId, setProvinceId] = useState('110000');
+  const model = useMemo(() => {
+    const next = buildOverviewModel(tab, setTab);
+    return {
+      ...next,
+      selectedProvinceId: provinceId,
+      selectedProvince: provinces.find((province) => province.id === provinceId) || provinces[0],
+      setSelectedProvinceId: setProvinceId,
+    };
+  }, [provinceId, tab]);
+  return <MapPage model={model} />;
 }
 
 function SettingsHarness() {
@@ -1530,6 +1566,8 @@ function ScrollOwnershipHarness() {
 createRoot(document.getElementById('root') as HTMLElement).render(
   view === 'overview'
     ? <OverviewHarness />
+    : view === 'map'
+      ? <MapHarness />
     : view === 'production'
       ? <ProductionHarness />
       : view === 'research'

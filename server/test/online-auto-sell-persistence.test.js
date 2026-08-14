@@ -41,7 +41,7 @@ test('runtime store persists auto-sell policy and returns it in formal client st
     assert.equal(saved.result.ok, true);
 
     const persisted = persistedPlayer(store);
-    assert.deepEqual(persisted.onlineAutoSellPolicies.wheat, {
+    assert.deepEqual(persisted.onlineAutoSellPolicies['110000:wheat'], {
       enabled: true,
       price: 6.25,
       minimumFreeInventory: 4,
@@ -49,7 +49,7 @@ test('runtime store persists auto-sell policy and returns it in formal client st
     assert.equal(persisted.lastEconomicActivityAt, activityBefore);
 
     const reloaded = store.getState(alice, now + 2);
-    assert.deepEqual(reloaded.onlineAutoSellPolicies.wheat, {
+    assert.deepEqual(reloaded.onlineAutoSellPolicies['110000:wheat'], {
       enabled: true,
       price: 6.25,
       minimumFreeInventory: 4,
@@ -71,7 +71,7 @@ test('runtime store keeps last legal thresholds when auto-sell is disabled', () 
       minimumFreeInventory: 7,
     }, 'auto-sell-policy-off-12345678'), now + 1);
     assert.equal(saved.result.ok, true);
-    assert.deepEqual(store.getState(alice, now + 2).onlineAutoSellPolicies.wheat, {
+    assert.deepEqual(store.getState(alice, now + 2).onlineAutoSellPolicies['110000:wheat'], {
       enabled: false,
       price: 9.5,
       minimumFreeInventory: 7,

@@ -1,6 +1,7 @@
 import { createMarketReserveAuction } from './asset-auctions.js';
 import { createMarketReserveProcurementContract } from './contracts.js';
 import { PRODUCT_CATALOG } from './industry-catalog.js';
+import { DEFAULT_PROVINCE_ID, provinceScopedKey } from './provinces.js';
 import {
   MARKET_DEMAND_GROUP_CATALOG,
   PRICE_MAX_MULTIPLIER,
@@ -35,7 +36,7 @@ function totalInventory(reserve) {
 function referencePriceFor(world, product) {
   return Math.max(0.01, Number(
     world.marketDemand?.priceTransmission?.products?.[product.id]?.referencePrice
-      || world.markets?.[product.id]?.demand?.referencePrice
+      || world.markets?.[provinceScopedKey(DEFAULT_PROVINCE_ID, product.id)]?.demand?.referencePrice
       || product.basePrice,
   ));
 }

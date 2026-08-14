@@ -25,7 +25,7 @@ class EconomyIpFallbackNginxTests(unittest.TestCase):
         self.assertEqual(self.target.public_ip, PRODUCTION_IP)
         self.assertEqual(self.target.cert_name, "riversoft-economy-ip-116-204-134-56")
         self.assertEqual(
-            str(self.target.certificate),
+            self.target.certificate.as_posix(),
             "/etc/letsencrypt/live/riversoft-economy-ip-116-204-134-56/fullchain.pem",
         )
         for invalid in ("game.riversoft.top", "127.0.0.1", "10.0.0.1", "::1"):
@@ -45,7 +45,7 @@ class EconomyIpFallbackNginxTests(unittest.TestCase):
         self.assertIn(f"return 308 https://{PRODUCTION_IP}$request_uri;", config)
         self.assertIn("listen 443 ssl;", config)
         self.assertIn(f"server_name {PRODUCTION_IP};", config)
-        self.assertIn(str(self.target.certificate), config)
+        self.assertIn(self.target.certificate.as_posix(), config.replace('\\', '/'))
         self.assertIn(str(self.target.private_key), config)
         self.assertIn("ssl_protocols TLSv1.2 TLSv1.3;", config)
         self.assertIn("gzip_comp_level 6;", config)

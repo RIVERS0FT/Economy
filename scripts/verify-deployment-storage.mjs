@@ -9,9 +9,9 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { gunzipSync } from 'node:zlib';
 import { DatabaseSync } from 'node:sqlite';
+import { pythonFailureOutput, spawnPythonSync } from './python-runtime.mjs';
 
 const root = process.cwd();
 const failures = [];
@@ -149,8 +149,7 @@ if (failures.length === 0) {
 
     const sourceSizeBefore = statSync(databasePath).size;
     const sourceDigestBefore = digest(databasePath);
-    const result = spawnSync(
-      'python3',
+    const result = spawnPythonSync(
       [
         resolve(root, files.backupTool),
         'backup-world',
@@ -161,7 +160,7 @@ if (failures.length === 0) {
       { encoding: 'utf8' },
     );
     if (result.status !== 0) {
-      failures.push(`紧凑压缩备份执行失败: ${result.stderr || result.stdout}`);
+      failures.push(`紧凑压缩备份执行失败: ${pythonFailureOutput(result)}`);
     } else {
       const report = JSON.parse(result.stdout);
       if (report.status !== 'created') failures.push(`备份状态异常: ${report.status}`);
@@ -188,8 +187,7 @@ if (failures.length === 0) {
       }
     }
 
-    const storageBackupResult = spawnSync(
-      'python3',
+    const storageBackupResult = spawnPythonSync(
       [
         resolve(root, files.backupTool),
         'backup-world',
@@ -200,7 +198,7 @@ if (failures.length === 0) {
       { encoding: 'utf8' },
     );
     if (storageBackupResult.status !== 0) {
-      failures.push(`存储 V2 迁移备份执行失败: ${storageBackupResult.stderr || storageBackupResult.stdout}`);
+      failures.push(`存储 V2 迁移备份执行失败: ${pythonFailureOutput(storageBackupResult)}`);
     } else {
       const storageReport = JSON.parse(storageBackupResult.stdout);
       if (storageReport.status !== 'created') failures.push(`存储 V2 首次备份状态异常: ${storageReport.status}`);
@@ -229,8 +227,7 @@ if (failures.length === 0) {
     `);
     migrated.close();
 
-    const storageSkipResult = spawnSync(
-      'python3',
+    const storageSkipResult = spawnPythonSync(
       [
         resolve(root, files.backupTool),
         'backup-world',
@@ -241,7 +238,7 @@ if (failures.length === 0) {
       { encoding: 'utf8' },
     );
     if (storageSkipResult.status !== 0) {
-      failures.push(`已迁移 V2 的备份检查失败: ${storageSkipResult.stderr || storageSkipResult.stdout}`);
+      failures.push(`已迁移 V2 的备份检查失败: ${pythonFailureOutput(storageSkipResult)}`);
     } else {
       const storageSkipReport = JSON.parse(storageSkipResult.stdout);
       if (storageSkipReport.status !== 'skipped' || storageSkipReport.reason !== 'storage-schema-current') {

@@ -1,5 +1,11 @@
 import { PRODUCT_CATALOG } from './industry-catalog.js';
 import { normalizePlayerMoneyInput } from './money.js';
+import {
+  DEFAULT_PROVINCE_ID,
+  installDefaultProvinceAliases,
+  provinceScopedKey,
+  splitProvinceScopedKey,
+} from './provinces.js';
 
 const PRODUCT_IDS = new Set(PRODUCT_CATALOG.map((product) => product.id));
 
@@ -25,23 +31,25 @@ export function ensureOnlineAutoBuyPolicies(player) {
   const source = player.onlineAutoBuyPolicies;
   const normalized = {};
   if (source && typeof source === 'object' && !Array.isArray(source)) {
-    for (const [productId, value] of Object.entries(source)) {
+    for (const [sourceKey, value] of Object.entries(source)) {
+      const { provinceId, assetId: productId } = splitProvinceScopedKey(sourceKey);
       if (!PRODUCT_IDS.has(productId)) continue;
       const policy = normalizeOnlineAutoBuyPolicy(value);
-      if (policy) normalized[productId] = policy;
+      if (policy) normalized[provinceScopedKey(provinceId, productId)] = policy;
     }
   }
-  return normalized;
+  return installDefaultProvinceAliases(normalized);
 }
 
 function managedOrderLinksForClient(player) {
   const source = player?.onlineAutoBuyOrderIds;
   if (!source || typeof source !== 'object' || Array.isArray(source)) return {};
-  return Object.fromEntries(Object.entries(source).flatMap(([productId, orderId]) => (
-    PRODUCT_IDS.has(productId) && String(orderId || '')
-      ? [[productId, String(orderId)]]
+  return Object.fromEntries(Object.entries(source).flatMap(([sourceKey, orderId]) => {
+    const { provinceId, assetId: productId } = splitProvinceScopedKey(sourceKey);
+    return PRODUCT_IDS.has(productId) && String(orderId || '')
+      ? [[provinceScopedKey(provinceId, productId), String(orderId)]]
       : []
-  )));
+  }));
 }
 
 export function createOnlineAutoBuyPolicyClientState(player) {
@@ -51,7 +59,7 @@ export function createOnlineAutoBuyPolicyClientState(player) {
   };
 }
 
-export function onlineAutoBuyPolicyFor(player, productId) {
+export function onlineAutoBuyPolicyFor(player, productId, provinceId = DEFAULT_PROVINCE_ID) {
   const policies = ensureOnlineAutoBuyPolicies(player);
-  return policies[String(productId || '')] || null;
+  return policies[provinceScopedKey(provinceId, productId)] || null;
 }

@@ -1,6 +1,7 @@
 import { measureRequestPhase } from './request-performance.js';
 import { executeRuntimeAction } from './runtime-action-executor.js';
 import { EconomyStore as CoreEconomyStore } from './runtime-store-core.js';
+import { installProvinceRuntimeAliases } from './provinces.js';
 import { cloneWorldForMutation } from './world-storage-v2.js';
 
 const WORLD_PROCESS_INTERVAL_MS = 1_000;
@@ -17,7 +18,7 @@ export class EconomyStore extends CoreEconomyStore {
     this.worldCache = {
       revision: nextRevision,
       stateJson,
-      world,
+      world: installProvinceRuntimeAliases(world),
       needsPersistence: Boolean(needsPersistence),
       segmentedSnapshot: segmentedSnapshot || this.worldCache?.segmentedSnapshot || null,
       storageSchemaVersion: 2,
@@ -31,7 +32,7 @@ export class EconomyStore extends CoreEconomyStore {
       stateJson: null,
       world: mutationScope
         ? measureRequestPhase('worldDraftCowMs', () => cloneWorldForMutation(this.worldCache.world, mutationScope))
-        : measureRequestPhase('worldDraftCloneMs', () => structuredClone(this.worldCache.world)),
+        : measureRequestPhase('worldDraftCloneMs', () => installProvinceRuntimeAliases(structuredClone(this.worldCache.world))),
     };
   }
 

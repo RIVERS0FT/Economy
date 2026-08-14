@@ -5,6 +5,7 @@ import { creditPopulationEmployment } from './population-economy.js';
 import { hasResearchAccessForFacility } from './research.js';
 import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 import { transferableFacilityQuantity } from './banking.js';
+import { DEFAULT_PROVINCE_ID, normalizeProvinceId, provinceScopedKey } from './provinces.js';
 
 export const COMMERCIAL_CONTRACT_KINDS = Object.freeze(['loan', 'facility_lease']);
 export const PLAYER_LOAN_TERMS = Object.freeze([12, 24, 72].map((hours) => hours * 60 * 60 * 1000));
@@ -52,11 +53,16 @@ function transferFrozenCredits(from, to, amount) {
   to.credits = Math.max(0, roundInternalMoney(Number(to.credits || 0) + transferred) || 0);
   return transferred;
 }
-function groupFor(player, facilityTypeId, create = false, now = Date.now()) {
+function groupFor(player, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID, create = false, now = Date.now()) {
+  const selectedProvinceId = normalizeProvinceId(provinceId);
   player.facilityGroups ||= [];
-  let group = player.facilityGroups.find((candidate) => String(candidate.facilityTypeId) === String(facilityTypeId));
+  let group = player.facilityGroups.find((candidate) => (
+    String(candidate.facilityTypeId) === String(facilityTypeId)
+    && normalizeProvinceId(candidate.provinceId) === selectedProvinceId
+  ));
   if (!group && create) {
     group = {
+      provinceId: selectedProvinceId,
       facilityTypeId: String(facilityTypeId), count: 0, participatingCount: 0,
       enabled: false, status: 'stopped', statusReason: 'manual', lifetimeOutput: 0,
       activeRecipeId: FACILITY_BY_ID.get(String(facilityTypeId))?.defaultRecipeId,
@@ -66,10 +72,12 @@ function groupFor(player, facilityTypeId, create = false, now = Date.now()) {
   }
   return group;
 }
-function prudentFacilityUnitValue(world, facilityTypeId) {
+function prudentFacilityUnitValue(world, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
   const facility = FACILITY_BY_ID.get(String(facilityTypeId));
   if (!facility) return 0;
-  const traded = roundInternalMoney(world.facilityMarkets?.[facility.id]?.lastTradePrice);
+  const traded = roundInternalMoney(
+    world.facilityMarkets?.[provinceScopedKey(provinceId, facility.id)]?.lastTradePrice,
+  );
   const marketValue = traded !== null && traded > 0 ? traded : facility.systemValue;
   return Math.max(0.01, Math.min(Number(facility.systemValue || 0), Number(marketValue || 0)));
 }
@@ -154,6 +162,7 @@ function normalizeLoan(contract) {
   const interestRateBps = integer(contract?.interestRateBps, MIN_LOAN_RATE_BPS, MAX_LOAN_RATE_BPS) || MIN_LOAN_RATE_BPS;
   const termMs = allowedInteger(contract?.termMs ?? contract?.deliveryIntervalMs, PLAYER_LOAN_TERMS) || PLAYER_LOAN_TERMS[1];
   const facilityTypeId = FACILITY_BY_ID.has(String(contract?.facilityTypeId || '')) ? String(contract.facilityTypeId) : FACILITY_TYPE_CATALOG[0]?.id;
+  const provinceId = normalizeProvinceId(contract?.provinceId);
   const collateralQuantity = integer(contract?.collateralQuantity, 1, MAX_FACILITY_QUANTITY) || 1;
   const status = ['open', 'active', 'completed', 'cancelled', 'terminated', 'expired'].includes(contract?.status) ? contract.status : 'open';
   const createdAt = Math.max(0, Number(contract?.createdAt || Date.now()));
@@ -173,6 +182,7 @@ function normalizeLoan(contract) {
     interestRateBps,
     interestDue: Math.max(0, money(contract?.interestDue, 0, MAX_MONEY) ?? loanInterest(principal, interestRateBps) ?? 0),
     termMs,
+    provinceId,
     facilityTypeId,
     collateralQuantity,
     collateralUnitValue: Math.max(0, Number(contract?.collateralUnitValue || 0)),
@@ -202,6 +212,7 @@ function normalizeLease(contract) {
   const completedPeriods = Math.max(0, Math.min(totalPeriods, Math.floor(Number(contract?.completedPeriods ?? contract?.completedDeliveries ?? 0))));
   const firstPeriodDelayMs = allowedInteger(contract?.firstPeriodDelayMs ?? contract?.firstDeliveryDelayMs ?? 0, [0, ...FACILITY_LEASE_INTERVALS]) ?? 0;
   const facilityTypeId = FACILITY_BY_ID.has(String(contract?.facilityTypeId || '')) ? String(contract.facilityTypeId) : FACILITY_TYPE_CATALOG[0]?.id;
+  const provinceId = normalizeProvinceId(contract?.provinceId);
   const quantity = integer(contract?.quantity ?? contract?.quantityPerDelivery, 1, MAX_FACILITY_QUANTITY) || 1;
   const status = ['open', 'active', 'completed', 'cancelled', 'terminated', 'expired'].includes(contract?.status) ? contract.status : 'open';
   const createdAt = Math.max(0, Number(contract?.createdAt || Date.now()));
@@ -216,6 +227,7 @@ function normalizeLease(contract) {
     lessorName: contract?.lessorName ? String(contract.lessorName) : null,
     lesseeId: contract?.lesseeId == null ? null : Number(contract.lesseeId),
     lesseeName: contract?.lesseeName ? String(contract.lesseeName) : null,
+    provinceId,
     facilityTypeId,
     quantity,
     rentPerPeriod,
@@ -256,6 +268,7 @@ export function createCommercialContract(world, user, payload, now, runtimeIndex
     const principal = money(payload.principal);
     const interestRateBps = integer(payload.interestRateBps, MIN_LOAN_RATE_BPS, MAX_LOAN_RATE_BPS);
     const termMs = allowedInteger(payload.termMs, PLAYER_LOAN_TERMS);
+    const provinceId = normalizeProvinceId(payload.provinceId);
     const facilityTypeId = FACILITY_BY_ID.has(String(payload.facilityTypeId || '')) ? String(payload.facilityTypeId) : null;
     const collateralQuantity = integer(payload.collateralQuantity, 1, MAX_FACILITY_QUANTITY);
     if (!publisherSide || !principal || !interestRateBps || !termMs || !facilityTypeId || !collateralQuantity) return result(false, '借贷合同参数无效');
@@ -268,7 +281,7 @@ export function createCommercialContract(world, user, payload, now, runtimeIndex
       borrowerId: publisherSide === 'borrower' ? Number(user.id) : null,
       borrowerName: publisherSide === 'borrower' ? publisher.playerName : null,
       principal, principalOutstanding: 0, interestRateBps, interestDue: loanInterest(principal, interestRateBps),
-      termMs, facilityTypeId, collateralQuantity, autoRepay: true,
+      termMs, provinceId, facilityTypeId, collateralQuantity, autoRepay: true,
       status: 'open', createdAt: now, offerExpiresAt: now + 7 * 24 * 60 * 60 * 1000,
     });
     world.productionContracts.push(contract);
@@ -277,6 +290,7 @@ export function createCommercialContract(world, user, payload, now, runtimeIndex
   }
   if (payload.kind === 'facility_lease') {
     const publisherSide = payload.publisherSide === 'lessor' ? 'lessor' : payload.publisherSide === 'lessee' ? 'lessee' : null;
+    const provinceId = normalizeProvinceId(payload.provinceId);
     const facilityTypeId = FACILITY_BY_ID.has(String(payload.facilityTypeId || '')) ? String(payload.facilityTypeId) : null;
     const quantity = integer(payload.quantity, 1, MAX_FACILITY_QUANTITY);
     const rentPerPeriod = money(payload.rentPerPeriod);
@@ -292,7 +306,7 @@ export function createCommercialContract(world, user, payload, now, runtimeIndex
       lessorName: publisherSide === 'lessor' ? publisher.playerName : null,
       lesseeId: publisherSide === 'lessee' ? Number(user.id) : null,
       lesseeName: publisherSide === 'lessee' ? publisher.playerName : null,
-      facilityTypeId, quantity, rentPerPeriod, periodMs, totalPeriods, completedPeriods: 0,
+      provinceId, facilityTypeId, quantity, rentPerPeriod, periodMs, totalPeriods, completedPeriods: 0,
       firstPeriodDelayMs, autoFund: true, status: 'open', createdAt: now,
       offerExpiresAt: now + 7 * 24 * 60 * 60 * 1000,
     });
@@ -309,12 +323,12 @@ function acceptLoan(world, contract, user, now, runtimeIndex) {
   if (!accepter || !publisher) return result(false, '合同参与者不存在');
   const lender = contract.publisherSide === 'lender' ? publisher : accepter;
   const borrower = contract.publisherSide === 'borrower' ? publisher : accepter;
-  const unitValue = prudentFacilityUnitValue(world, contract.facilityTypeId);
+  const unitValue = prudentFacilityUnitValue(world, contract.facilityTypeId, contract.provinceId);
   const collateralValue = multiplyMoneyByInteger(unitValue, contract.collateralQuantity);
   const maxPrincipal = collateralValue === null ? null : calculateRateMoney(collateralValue, MAX_LOAN_TO_VALUE_BPS, BASIS_POINTS, 'floor');
   if (!maxPrincipal || contract.principal > maxPrincipal) return result(false, '贷款本金超过抵押工厂审慎价值的 50%');
   if (lender.credits < contract.principal) return result(false, '出借方可用资金不足');
-  if (transferableFacilityQuantity(world, borrower, contract.facilityTypeId) < contract.collateralQuantity) return result(false, '借款方可抵押工厂数量不足');
+  if (transferableFacilityQuantity(world, borrower, contract.facilityTypeId, contract.provinceId) < contract.collateralQuantity) return result(false, '借款方可抵押工厂数量不足');
   runtimeIndex.transition(contract, () => {
     lender.credits = roundInternalMoney(lender.credits - contract.principal) || 0;
     borrower.credits = addMoney(borrower.credits, contract.principal) || 0;
@@ -341,7 +355,7 @@ function acceptLease(world, contract, user, now, runtimeIndex) {
   const lessor = contract.publisherSide === 'lessor' ? publisher : accepter;
   const lessee = contract.publisherSide === 'lessee' ? publisher : accepter;
   if (!canOperateFacility(world, lessee, contract.facilityTypeId, now)) return result(false, '承租方尚未解锁对应复杂度研发');
-  if (transferableFacilityQuantity(world, lessor, contract.facilityTypeId) < contract.quantity) return result(false, '出租方可出租工厂数量不足');
+  if (transferableFacilityQuantity(world, lessor, contract.facilityTypeId, contract.provinceId) < contract.quantity) return result(false, '出租方可出租工厂数量不足');
   const gross = leaseGross(contract);
   const bond = bondFor(gross);
   if (!gross || !bond) return result(false, '租赁金额超出安全范围');
@@ -356,7 +370,7 @@ function acceptLease(world, contract, user, now, runtimeIndex) {
     contract.lessorName = lessor.playerName;
     contract.lesseeId = Number(lessee.userId);
     contract.lesseeName = lessee.playerName;
-    groupFor(lessee, contract.facilityTypeId, true, now);
+    groupFor(lessee, contract.facilityTypeId, contract.provinceId, true, now);
     contract.lesseeEscrowCredits = gross;
     contract.lesseeBondCredits = bond;
     contract.lessorBondCredits = bond;
@@ -406,12 +420,12 @@ function repayLoan(world, contract, borrower, now, runtimeIndex, automatic = fal
 function confirmLoanDefault(world, contract, now, runtimeIndex) {
   const borrower = playerFor(world, contract.borrowerId);
   const lender = playerFor(world, contract.lenderId);
-  const borrowerGroup = borrower && groupFor(borrower, contract.facilityTypeId);
+  const borrowerGroup = borrower && groupFor(borrower, contract.facilityTypeId, contract.provinceId);
   if (!borrower || !lender || !borrowerGroup) {
     transferLoanCollateral(world, contract, now, runtimeIndex);
     return;
   }
-  const unitValue = Math.max(0.01, prudentFacilityUnitValue(world, contract.facilityTypeId) * 0.8);
+  const unitValue = Math.max(0.01, prudentFacilityUnitValue(world, contract.facilityTypeId, contract.provinceId) * 0.8);
   const due = addMoney(contract.principalOutstanding, contract.interestDue) || 0;
   const required = Math.max(1, Math.ceil(due / unitValue));
   const quantity = Math.min(contract.collateralQuantity, borrowerGroup.count, required);
@@ -429,7 +443,7 @@ function confirmLoanDefault(world, contract, now, runtimeIndex) {
 function transferLoanCollateral(world, contract, now, runtimeIndex) {
   const borrower = playerFor(world, contract.borrowerId);
   const lender = playerFor(world, contract.lenderId);
-  const borrowerGroup = borrower && groupFor(borrower, contract.facilityTypeId);
+  const borrowerGroup = borrower && groupFor(borrower, contract.facilityTypeId, contract.provinceId);
   if (!borrower || !lender || !borrowerGroup) {
     runtimeIndex.transition(contract, () => {
       contract.status = 'terminated'; contract.terminationReason = 'participant_missing'; contract.endedAt = now;
@@ -437,7 +451,7 @@ function transferLoanCollateral(world, contract, now, runtimeIndex) {
     });
     return;
   }
-  const unitValue = Math.max(0.01, Number(contract.defaultCollateralUnitValue || 0) || prudentFacilityUnitValue(world, contract.facilityTypeId) * 0.8);
+  const unitValue = Math.max(0.01, Number(contract.defaultCollateralUnitValue || 0) || prudentFacilityUnitValue(world, contract.facilityTypeId, contract.provinceId) * 0.8);
   const due = addMoney(contract.principalOutstanding, contract.interestDue) || 0;
   const required = Math.max(1, Math.ceil(due / unitValue));
   const plannedQuantity = Math.max(0, Math.floor(Number(contract.defaultCollateralQuantity || 0)));
@@ -445,7 +459,7 @@ function transferLoanCollateral(world, contract, now, runtimeIndex) {
   runtimeIndex.transition(contract, () => {
     borrowerGroup.count = Math.max(0, borrowerGroup.count - quantity);
     if (borrowerGroup.count === 0) borrower.facilityGroups = borrower.facilityGroups.filter((candidate) => candidate !== borrowerGroup);
-    const lenderGroup = groupFor(lender, contract.facilityTypeId, true, now);
+    const lenderGroup = groupFor(lender, contract.facilityTypeId, contract.provinceId, true, now);
     lenderGroup.count += quantity;
     contract.collateralTransferredQuantity = quantity;
     contract.lastCollateralUnitValue = unitValue;
