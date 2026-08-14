@@ -85,7 +85,7 @@ async function requestJson(metrics, {
       responseBytes: Buffer.byteLength(text),
       expected,
     });
-    if (!expected) throw new Error(`${method} ${route} 返回非预期状态 ${response.status}`);
+    if (!expected) throw new Error(`${method} ${route} 返回非预期状态 ${response.status}：${text.slice(0, 500)}`);
     let payload;
     try {
       payload = text ? JSON.parse(text) : {};
