@@ -31,8 +31,8 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add scripts/verify-authoritative-hotpaths.mjs scripts/verify-state-delivery-capacity.mjs scripts/verify-staple-crops-demand.mjs
-          git commit -m 'Align runtime split verifiers with segmented storage V2'
+          git add scripts/verify-authoritative-hotpaths.mjs scripts/verify-state-delivery-capacity.mjs scripts/verify-staple-crops-demand.mjs scripts/verify-asset-auctions.mjs
+          git commit -m 'Align storage V2 architecture verifiers'
           git push origin HEAD:perf/segmented-world-storage-v2
       - run: npm ci
       - name: Verify authority and regressions
