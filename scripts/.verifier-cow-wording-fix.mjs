@@ -14,3 +14,11 @@ if (!capacitySource.includes("requireText('server/src/world-storage-v2.js'")) {
   capacitySource = capacitySource.replace(storageForbidMarker, `\nrequireText('server/src/world-storage-v2.js', [\n  'prepareSegmentedWorldWrite(',\n  'segmentedSnapshotsEqual(',\n  'applySegmentedWorldWrite(',\n]);\n${storageForbidMarker}`);
 }
 writeFileSync(capacityPath, capacitySource);
+
+const populationVerifierPath = 'scripts/verify-staple-crops-demand.mjs';
+let populationVerifierSource = readFileSync(populationVerifierPath, 'utf8');
+populationVerifierSource = populationVerifierSource.replace(
+  "const runtimeStore = read('server/src/runtime-store.js');",
+  "const runtimeStore = `${read('server/src/runtime-store-core.js')}\\n${read('server/src/runtime-store.js')}`;",
+);
+writeFileSync(populationVerifierPath, populationVerifierSource);
