@@ -2,6 +2,7 @@ import { PRODUCT_CATALOG } from './domain.js';
 import { wealthAssetsFor } from './leaderboards.js';
 import { CURRENT_TUTORIAL_VERSION } from './tutorial-store.js';
 import { roundInternalMoney } from './money.js';
+import { measureRequestPhase } from './request-performance.js';
 
 export const PLAYER_STATISTICS_TIME_ZONE = 'Asia/Shanghai';
 export const PLAYER_STATISTICS_RANGE_DAYS = Object.freeze({
@@ -139,53 +140,69 @@ function valuationPrice(world, kind, assetId) {
   return safeNonNegativeMoney(market?.lastTradePrice);
 }
 
-function frozenFacilityQuantity(world, userId, facilityTypeId) {
-  const listed = (world?.orders || []).reduce((sum, order) => (
-    order?.ownerType === 'player'
-      && Number(order?.ownerId) === Number(userId)
-      && order?.side === 'sell'
-      && order?.assetKind === 'facility'
-      && String(order?.assetId || order?.facilityTypeId || '') === facilityTypeId
-      && isOpenOrder(order)
-      ? sum + safeNonNegativeInteger(order?.remaining)
-      : sum
-  ), 0);
-  const auctioned = (world?.assetAuctions || []).reduce((sum, auction) => {
-    if (
-      Number(auction?.sellerId) !== Number(userId)
-      || auction?.status !== 'open'
-      || auction?.escrowStatus === 'released'
-      || auction?.escrowStatus === 'transferred'
-    ) return sum;
-    return sum + auctionItems(auction).reduce((itemSum, item) => (
-      item.assetKind === 'facility' && String(item.assetId) === facilityTypeId
-        ? itemSum + safeNonNegativeInteger(item.quantity)
-        : itemSum
-    ), 0);
-  }, 0);
-  return listed + auctioned;
+function frozenFacilityIndexKey(userId, facilityTypeId) {
+  return `${Number(userId)}:${String(facilityTypeId || '')}`;
 }
 
-function wealthBreakdown(world, player) {
+function buildFrozenFacilityQuantityIndex(world) {
+  const quantities = new Map();
+  const add = (userId, facilityTypeId, quantity) => {
+    const normalizedUserId = Number(userId);
+    const normalizedTypeId = String(facilityTypeId || '');
+    const normalizedQuantity = safeNonNegativeInteger(quantity);
+    if (!Number.isSafeInteger(normalizedUserId) || normalizedUserId <= 0 || !normalizedTypeId || normalizedQuantity <= 0) return;
+    const key = frozenFacilityIndexKey(normalizedUserId, normalizedTypeId);
+    quantities.set(key, (quantities.get(key) || 0) + normalizedQuantity);
+  };
+
+  for (const order of world?.orders || []) {
+    if (
+      order?.ownerType !== 'player'
+      || order?.side !== 'sell'
+      || order?.assetKind !== 'facility'
+      || !isOpenOrder(order)
+    ) continue;
+    add(order.ownerId, order.assetId || order.facilityTypeId, order.remaining);
+  }
+
+  for (const auction of world?.assetAuctions || []) {
+    if (
+      auction?.status !== 'open'
+      || auction?.escrowStatus === 'released'
+      || auction?.escrowStatus === 'transferred'
+    ) continue;
+    for (const item of auctionItems(auction)) {
+      if (item.assetKind === 'facility') add(auction.sellerId, item.assetId, item.quantity);
+    }
+  }
+  return quantities;
+}
+
+function frozenFacilityQuantity(index, userId, facilityTypeId) {
+  return index.get(frozenFacilityIndexKey(userId, facilityTypeId)) || 0;
+}
+
+function wealthBreakdown(world, player, frozenFacilityQuantities) {
   const cash = safeNonNegativeMoney(player?.credits) + safeNonNegativeMoney(player?.frozenCredits);
-  const commodities = PRODUCT_CATALOG.reduce((sum, product) => {
-    const quantity = inventoryQuantity(player, product.id, 'available')
-      + inventoryQuantity(player, product.id, 'frozen');
-    return sum + quantity * valuationPrice(world, 'commodity', product.id);
-  }, 0);
-  const facilities = (player?.facilityGroups || []).reduce((sum, group) => (
-    sum + safeNonNegativeInteger(group?.count)
-      * valuationPrice(world, 'facility', String(group?.facilityTypeId || ''))
-  ), 0);
-  const frozenCommodities = PRODUCT_CATALOG.reduce((sum, product) => (
-    sum + inventoryQuantity(player, product.id, 'frozen')
-      * valuationPrice(world, 'commodity', product.id)
-  ), 0);
-  const frozenFacilities = (player?.facilityGroups || []).reduce((sum, group) => {
+  let commodities = 0;
+  let frozenCommodities = 0;
+  for (const product of PRODUCT_CATALOG) {
+    const price = valuationPrice(world, 'commodity', product.id);
+    const availableQuantity = inventoryQuantity(player, product.id, 'available');
+    const frozenQuantity = inventoryQuantity(player, product.id, 'frozen');
+    commodities += (availableQuantity + frozenQuantity) * price;
+    frozenCommodities += frozenQuantity * price;
+  }
+
+  let facilities = 0;
+  let frozenFacilities = 0;
+  for (const group of player?.facilityGroups || []) {
     const facilityTypeId = String(group?.facilityTypeId || '');
-    return sum + frozenFacilityQuantity(world, player?.userId, facilityTypeId)
-      * valuationPrice(world, 'facility', facilityTypeId);
-  }, 0);
+    const price = valuationPrice(world, 'facility', facilityTypeId);
+    facilities += safeNonNegativeInteger(group?.count) * price;
+    frozenFacilities += frozenFacilityQuantity(frozenFacilityQuantities, player?.userId, facilityTypeId) * price;
+  }
+
   const total = wealthAssetsFor(world, player);
   const frozen = Math.min(
     total,
@@ -414,9 +431,18 @@ function recordAction(state, context, beforeWorld, world, now) {
   );
 }
 
-function recordWorldDeltas(state, beforeWorld, world, now) {
+function scopedPlayerIds(mutationScope) {
+  if (!mutationScope || mutationScope.allPlayers || mutationScope.playerIds === null) return null;
+  return [...new Set([...(mutationScope.playerIds || [])].map((value) => String(value)))];
+}
+
+function recordWorldDeltas(state, beforeWorld, world, now, mutationScope = null) {
   if (!beforeWorld?.players || !world?.players) return;
-  for (const [userIdText, player] of Object.entries(world.players)) {
+  const playerIds = scopedPlayerIds(mutationScope);
+  const entries = playerIds === null
+    ? Object.entries(world.players)
+    : playerIds.map((userIdText) => [userIdText, world.players[userIdText]]).filter(([, player]) => Boolean(player));
+  for (const [userIdText, player] of entries) {
     const beforePlayer = beforeWorld.players[userIdText];
     if (!beforePlayer) continue;
     const userId = Number(userIdText);
@@ -546,6 +572,7 @@ function currentParticipation(world, players, active7dUsers) {
 function wealthSummary(world, players) {
   const values = [];
   const breakdowns = [];
+  const frozenFacilityQuantities = buildFrozenFacilityQuantityIndex(world);
   let total = 0;
   let cash = 0;
   let commodities = 0;
@@ -553,7 +580,7 @@ function wealthSummary(world, players) {
   let frozen = 0;
   let unpricedAssetPlayers = 0;
   for (const player of players) {
-    const breakdown = wealthBreakdown(world, player);
+    const breakdown = wealthBreakdown(world, player, frozenFacilityQuantities);
     values.push(breakdown.total);
     breakdowns.push([Number(player.userId), breakdown]);
     total += breakdown.total;
@@ -915,27 +942,46 @@ function createStatisticsSummary(store, world, rangeKey, now) {
   };
 }
 
+function committedWorldForPlayerStatistics(store, now) {
+  if (store.worldCache?.world) {
+    return {
+      revision: Number(store.worldCache.revision),
+      world: store.worldCache.world,
+    };
+  }
+  return store.transaction(() => {
+    const { revision, world } = store.loadWorld(now);
+    return { revision: Number(revision), world };
+  }, { immediate: false });
+}
+
 export function configurePlayerAdminStatistics(store, now = Date.now()) {
   if (store[CONFIGURED]) return store;
   const state = configureSchema(store, now);
   Object.defineProperty(store, CONFIGURED, { value: state, enumerable: false });
 
   const originalSaveWorld = store.saveWorld.bind(store);
-  store.saveWorld = (revision, world, savedAt) => {
+  store.saveWorld = (revision, world, savedAt, mutationScope) => {
     const beforeWorld = store.worldCache?.world || null;
-    const nextRevision = originalSaveWorld(revision, world, savedAt);
+    const nextRevision = originalSaveWorld(revision, world, savedAt, mutationScope);
     recordAction(state, state.actionContext, beforeWorld, world, savedAt);
-    recordWorldDeltas(state, beforeWorld, world, savedAt);
+    recordWorldDeltas(state, beforeWorld, world, savedAt, mutationScope);
     return nextRevision;
   };
 
   const originalSaveWorldIfChanged = store.saveWorldIfChanged.bind(store);
-  store.saveWorldIfChanged = (revision, world, savedAt, previousStateJson) => {
+  store.saveWorldIfChanged = (revision, world, savedAt, previousStateJson, mutationScope) => {
     const beforeWorld = store.worldCache?.world || null;
-    const nextRevision = originalSaveWorldIfChanged(revision, world, savedAt, previousStateJson);
+    const nextRevision = originalSaveWorldIfChanged(
+      revision,
+      world,
+      savedAt,
+      previousStateJson,
+      mutationScope,
+    );
     if (nextRevision !== revision) {
       recordAction(state, state.actionContext, beforeWorld, world, savedAt);
-      recordWorldDeltas(state, beforeWorld, world, savedAt);
+      recordWorldDeltas(state, beforeWorld, world, savedAt, mutationScope);
     }
     return nextRevision;
   };
@@ -958,15 +1004,11 @@ export function configurePlayerAdminStatistics(store, now = Date.now()) {
 
   store.getPlayerStatistics = function getPlayerStatistics(user, rangeKey, generatedAt = Date.now()) {
     this.requireAdmin(user);
-    return this.transaction(() => {
-      const { revision, stateJson, world } = this.loadWorld(generatedAt);
-      this.processWorldIfDue(world, generatedAt, Number(user.id), { force: true });
-      const nextRevision = this.saveWorldIfChanged(revision, world, generatedAt, stateJson);
-      return {
-        ...createStatisticsSummary(this, world, rangeKey, generatedAt),
-        revision: nextRevision,
-      };
-    });
+    const { revision, world } = committedWorldForPlayerStatistics(this, generatedAt);
+    return measureRequestPhase('playerStatisticsProjectionMs', () => ({
+      ...createStatisticsSummary(this, world, rangeKey, generatedAt),
+      revision,
+    }));
   };
 
   return store;
