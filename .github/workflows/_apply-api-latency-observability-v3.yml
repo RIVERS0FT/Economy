@@ -24,7 +24,14 @@ jobs:
           cache: npm
       - name: Apply guarded patch
         run: |
-          sed -i 's/${label}/\\${label}/g' scripts/.apply-api-latency-observability-v3.mjs
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/.apply-api-latency-observability-v3.mjs')
+          source = path.read_text()
+          source = source.replace("`${label} 必须直接读取已提交世界`", "label + ' 必须直接读取已提交世界'")
+          source = source.replace("`${label} 只读接口不得进入权威写队列`", "label + ' 只读接口不得进入权威写队列'")
+          path.write_text(source)
+          PY
           node --check scripts/.apply-api-latency-observability-v3.mjs
           node scripts/.apply-api-latency-observability-v3.mjs
           git diff --check
