@@ -1,3 +1,4 @@
+# Temporary branch-only verification workflow; removed before squash merge.
 name: Verify segmented storage V2 authority
 
 on:
