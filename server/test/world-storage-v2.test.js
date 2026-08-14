@@ -239,3 +239,61 @@ test('dirty player write leaves unrelated player and market rows byte-identical'
     store.close();
   }
 });
+
+test('commodity order COW scope clones actor and crossing counterparties only', () => {
+  const world = {
+    players: {
+      1: { userId: 1, marker: 'actor' },
+      2: { userId: 2, marker: 'crossing' },
+      3: { userId: 3, marker: 'non-crossing' },
+    },
+    orders: [
+      { id: 'crossing', assetKind: 'commodity', productId: 'wheat', side: 'sell', ownerType: 'player', ownerId: 2, price: 9, remaining: 4, status: 'open' },
+      { id: 'expensive', assetKind: 'commodity', productId: 'wheat', side: 'sell', ownerType: 'player', ownerId: 3, price: 12, remaining: 4, status: 'open' },
+    ],
+    markets: { wheat: { lastPrice: 10 } },
+    bank: {},
+    weeklyCashSettlement: {},
+    populationEconomy: {},
+    marketDemand: {},
+    stats: {},
+    moneyPrecision: { version: 2 },
+    auctionFeeEscrowCredits: 0,
+    version: 29,
+  };
+  const scope = createRuntimeMutationScope(world, 1, 'placeOrder', {
+    assetKind: 'commodity',
+    productId: 'wheat',
+    side: 'buy',
+    quantity: 2,
+    price: 10,
+  }, { scheduledProcessing: true });
+  assert.equal(scope.allPlayers, false);
+  assert.equal(scope.allSegments, false);
+  assert.deepEqual([...scope.playerIds].sort(), ['1', '2']);
+  assert.equal(scope.segments.has('orders'), true);
+  assert.equal(scope.segments.has('markets'), true);
+
+  const draft = cloneWorldForMutation(world, scope);
+  assert.notEqual(draft.players['1'], world.players['1']);
+  assert.notEqual(draft.players['2'], world.players['2']);
+  assert.equal(draft.players['3'], world.players['3']);
+  assert.notEqual(draft.orders, world.orders);
+  assert.notEqual(draft.markets, world.markets);
+});
+
+test('commodity cancel COW scope stays on the actor and order segment', () => {
+  const world = {
+    players: { 1: { userId: 1 }, 2: { userId: 2 } },
+    orders: [
+      { id: 'mine', assetKind: 'commodity', productId: 'wheat', side: 'buy', ownerType: 'player', ownerId: 1, price: 10, remaining: 1, status: 'open' },
+    ],
+  };
+  const scope = createRuntimeMutationScope(world, 1, 'cancelOrder', { orderId: 'mine' }, {
+    scheduledProcessing: true,
+  });
+  assert.equal(scope.allPlayers, false);
+  assert.deepEqual([...scope.playerIds], ['1']);
+  assert.equal(scope.segments.has('orders'), true);
+  assert.equal(scope.segments.has('markets'), false);
+});

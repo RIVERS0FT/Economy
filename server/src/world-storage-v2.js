@@ -159,6 +159,65 @@ function auctionParticipantIds(world, payload, userId) {
   return ids;
 }
 
+function isOpenOrder(order) {
+  return Number(order?.remaining || 0) > 0 && ['open', 'partial'].includes(String(order?.status || ''));
+}
+
+function commodityProductId(value) {
+  return String(value?.productId || value?.assetId || 'wheat');
+}
+
+function isCommodityOrder(order) {
+  if (!order || order.assetKind === 'facility') return false;
+  return order.assetKind === 'commodity' || Boolean(order.productId);
+}
+
+function isOrdinaryCommodityPlacement(action, payload) {
+  if (action !== 'placeOrder' || payload?.assetKind === 'facility') return false;
+  return ![
+    'facility-build-procurement',
+    'facility-build-procurement-cancel',
+    'online-auto-sell-policy',
+    'online-auto-trade-policy',
+    'online-auto-buy',
+    'online-auto-sell',
+  ].includes(String(payload?.execution || ''));
+}
+
+function commodityOrderParticipantIds(world, payload, userId) {
+  const ids = new Set([playerKey(userId)]);
+  const side = payload?.side === 'buy' ? 'buy' : payload?.side === 'sell' ? 'sell' : null;
+  const productId = commodityProductId(payload);
+  const price = Number(payload?.price);
+  if (!side || !Number.isFinite(price)) return ids;
+  const opposite = side === 'buy' ? 'sell' : 'buy';
+  for (const order of world?.orders || []) {
+    if (!isCommodityOrder(order) || !isOpenOrder(order)) continue;
+    if (order.side !== opposite || commodityProductId(order) !== productId) continue;
+    const restingPrice = Number(order.price);
+    if (!Number.isFinite(restingPrice)) continue;
+    const crosses = side === 'buy' ? restingPrice <= price : restingPrice >= price;
+    if (!crosses || order.ownerType !== 'player') continue;
+    const ownerId = Number(order.ownerId);
+    if (Number.isSafeInteger(ownerId) && ownerId > 0) ids.add(playerKey(ownerId));
+  }
+  return ids;
+}
+
+function commodityCancelScope(world, userId, payload) {
+  const orderId = String(payload?.orderId || '');
+  const order = (world?.orders || []).find((candidate) => String(candidate?.id || '') === orderId);
+  if (!isCommodityOrder(order) || Number(order?.ownerId) !== Number(userId)) return null;
+  return {
+    allPlayers: false,
+    allSegments: false,
+    playerIds: new Set([playerKey(userId)]),
+    segments: new Set([...CORE_LOCAL_SEGMENTS, 'orders']),
+    includeAuctionEscrow: false,
+    label: 'commodity:cancelOrder',
+  };
+}
+
 export function createRuntimeMutationScope(world, userId, action, payload, {
   scheduledProcessing = true,
 } = {}) {
@@ -184,6 +243,22 @@ export function createRuntimeMutationScope(world, userId, action, payload, {
       includeAuctionEscrow: true,
       label: `auction:${action}`,
     };
+  }
+
+  if (isOrdinaryCommodityPlacement(action, payload)) {
+    return {
+      allPlayers: false,
+      allSegments: false,
+      playerIds: commodityOrderParticipantIds(world, payload, userId),
+      segments: new Set([...CORE_LOCAL_SEGMENTS, 'orders', 'markets']),
+      includeAuctionEscrow: false,
+      label: 'commodity:placeOrder',
+    };
+  }
+
+  if (action === 'cancelOrder') {
+    const scope = commodityCancelScope(world, userId, payload);
+    if (scope) return scope;
   }
 
   return createFullMutationScope();
