@@ -160,5 +160,5 @@ jobs:
             server/test/asset-auctions.test.js \
             server/test/online-auto-sell-persistence.test.js
       - name: Preserve workspace for follow-up
-        if: always
+        if: always()
         run: git status --short
