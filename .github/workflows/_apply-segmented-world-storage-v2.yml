@@ -1,4 +1,4 @@
-# Temporary branch-only verification workflow; removed before squash merge. Retry after precise base-action patch.
+# Temporary branch-only finalization workflow; it deletes itself before the final PR.
 name: Verify segmented storage V2 authority
 
 on:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   verify:
-    if: github.event.head_commit.message == 'Verify segmented storage V2 authority'
+    if: github.event.head_commit.message == 'Finalize segmented storage V2 cleanup'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -23,30 +23,23 @@ jobs:
         with:
           node-version: '24.4.0'
           cache: npm
-      - name: Fix V2 verifiers and regressions
+      - name: Finalize V2 source tree
         run: |
-          node scripts/.verifier-cow-wording-fix.mjs
-          node scripts/.trace-stress-catch.mjs
-          node scripts/.fix-cow-presentation-logs.mjs
-          node scripts/.fix-v2-action-hotpath.mjs
+          node scripts/.finalize-v2-cleanup.mjs
+          git checkout origin/main -- tests/stress/run.mjs tests/stress/localHarness.mjs
           git diff --check
-      - name: Commit V2 fixes
+      - name: Commit final source tree
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add scripts/verify-authoritative-hotpaths.mjs scripts/verify-state-delivery-capacity.mjs scripts/verify-staple-crops-demand.mjs scripts/verify-asset-auctions.mjs scripts/verify-admin-player-statistics.mjs server/src/storage.js server/src/contract-audit-store.js server/src/domain-core.js server/test/asset-events.test.js server/test/domain.test.js tests/stress/run.mjs tests/stress/localHarness.mjs
-          git diff --cached --quiet || git commit -m 'Remove forced migration work from compatibility actions'
+          git add -A
+          git commit -m 'Finalize segmented world storage V2'
           git push origin HEAD:perf/segmented-world-storage-v2
       - run: npm ci
-      - name: Trace duplicate daily check-in state delta
-        run: node scripts/.trace-daily-check-in-v2.mjs
-      - name: Verify focused V2 regressions
-        run: node --test server/test/daily-check-in.test.js server/test/asset-events.test.js server/test/world-storage-v2.test.js
-      - name: Verify stress flow
-        run: npm run test:stress
-      - name: Verify full build and authority
+      - name: Verify final source tree
         run: |
           npm run build
+          npm run test:stress
           node scripts/verify-runtime-efficiency.mjs
           node scripts/verify-authoritative-hotpaths.mjs
-          node --test server/test/state-polling.test.js server/test/runtime-hotpath-architecture.test.js server/test/authoritative-hotpaths.test.js server/test/research.test.js server/test/banking.test.js server/test/asset-auctions.test.js server/test/online-auto-sell-persistence.test.js
+          node --test server/test/world-storage-v2.test.js server/test/daily-check-in.test.js server/test/asset-events.test.js server/test/state-polling.test.js server/test/runtime-hotpath-architecture.test.js server/test/authoritative-hotpaths.test.js server/test/research.test.js server/test/banking.test.js server/test/asset-auctions.test.js server/test/online-auto-sell-persistence.test.js
