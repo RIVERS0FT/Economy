@@ -37,10 +37,10 @@ forbidText('server/src/player-admin-statistics.js', [
   'placeCollectibleBid',
   'cancelCollectibleAuction',
 ]);
-requireText('server/src/runtime-store.js', [
-  "import { configurePlayerAdminStatistics } from './player-admin-statistics.js'",
-  'configurePlayerAdminStatistics(this);',
-]);
+const runtimeStoreSource = `${read('server/src/runtime-store-core.js')}\n${read('server/src/runtime-store.js')}`;
+for (const fragment of ["import { configurePlayerAdminStatistics } from './player-admin-statistics.js'", 'configurePlayerAdminStatistics(this);']) {
+  if (!runtimeStoreSource.includes(fragment)) failures.push(`runtime store 缺少玩家运营统计规则: ${fragment}`);
+}
 requireText('server/src/app.js', [
   "path === '/api/game/admin/player-statistics'",
   'store.getPlayerStatistics(',
