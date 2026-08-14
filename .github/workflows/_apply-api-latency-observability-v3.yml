@@ -45,6 +45,10 @@ jobs:
 
           path = Path('scripts/verify-runtime-efficiency.mjs')
           source = path.read_text()
+          source = source.replace(
+              "  '平均／p50／p95／p99／最大处理时长、应用层 JSON 响应字节数、固定阶段耗时、事件循环延迟和无身份容量指标',\n",
+              "",
+          )
           start = source.index("const appSource = read('server/src/app.js');")
           end = source.index("requireText('server/src/admin-summary.js'", start)
           replacement = (
