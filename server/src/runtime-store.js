@@ -114,34 +114,3 @@ export class EconomyStore extends CoreEconomyStore {
     return this.authoritativeWriteExecutor.submit(options, callback);
   }
 }
-
-// The core module remains the single implementation for projection, contracts and persistence.
-// These markers document inherited behavior/order for source-level architecture guards while the
-// wrapper only replaces hot-path cloning and scheduler admission. Runtime behavior still comes
-// from runtime-store-core.js through normal class inheritance.
-// class EconomyStore extends PersistentEconomyStore
-// import { configurePlayerAdminStatistics } from './player-admin-statistics.js'
-// configurePlayerAdminStatistics(this);
-// updatePopulationPolicy
-// resetPopulationPolicy
-// topUpPopulation
-// prepared.version = 26;
-// createEconomicCalendarClientState(now)
-// createStablePartitionClientState(snapshot.state)
-// createClientPartitionSnapshot
-// cachedStateProjection(user.id, currentRevision)
-// rememberStateProjection(user.id, snapshot.revision
-// setRequestGauge('stateProjectionCacheHit', 1)
-// cached.revision === snapshot.revision
-// saveWorld(revision, world, now)
-// saveWorldIfChanged(revision, world, now
-// isDeepStrictEqual(world, cached.world)
-// this.updateWorld.run(nextRevision, stateJson, now)
-// flushAuctionAuditEvents(this, world, revision, nextRevision);
-// this.flushContractAuditEvents(world, revision, nextRevision)
-// this.cacheWorld(nextRevision, stateJson, world)
-// this.flushContractAuditEvents(world, revision, revision)
-// migrateLoadedWorld(world, now)
-// triggerType: 'action_postprocess'
-// processProductionContracts(world, now)
-// this.cleanupExpiredIdempotency(now)
