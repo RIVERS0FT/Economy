@@ -1,4 +1,4 @@
-name: Apply segmented world storage v2
+name: Diagnose segmented world storage v2
 
 on:
   push:
@@ -6,11 +6,11 @@ on:
       - perf/segmented-world-storage-v2
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch-and-verify:
-    if: github.event.head_commit.message == 'Run segmented storage fix'
+  focused-tests:
+    if: github.event.head_commit.message == 'Run focused segmented storage tests'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -22,24 +22,13 @@ jobs:
         with:
           node-version: '24.4.0'
           cache: npm
-      - name: Apply storage correctness fixes
-        run: |
-          node --check scripts/.fix-segmented-world-storage-v2.mjs
-          node scripts/.fix-segmented-world-storage-v2.mjs
-          git diff --check
-      - name: Commit generated implementation checkpoint
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add server/src
-          if ! git diff --cached --quiet; then
-            git commit -m 'Fix segmented world storage correctness'
-            git push origin HEAD:perf/segmented-world-storage-v2
-          fi
       - name: Install dependencies
         run: npm ci
       - name: Run focused server tests
+        id: focused
+        shell: bash
         run: |
+          set -o pipefail
           node --test \
             server/test/world-storage-v2.test.js \
             server/test/state-polling.test.js \
@@ -48,9 +37,13 @@ jobs:
             server/test/research.test.js \
             server/test/banking.test.js \
             server/test/asset-auctions.test.js \
-            server/test/online-auto-sell-persistence.test.js
-      - name: Show resulting diff
+            server/test/online-auto-sell-persistence.test.js \
+            2>&1 | tee focused-tests.log
+      - name: Upload focused test log
         if: always()
-        run: |
-          git status --short
-          git log -3 --oneline
+        uses: actions/upload-artifact@v4
+        with:
+          name: focused-segmented-storage-tests
+          path: focused-tests.log
+          if-no-files-found: error
+          retention-days: 1
