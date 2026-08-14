@@ -11,8 +11,12 @@ function replaceOnce(path, before, after) {
 const assetTestPath = 'server/test/asset-events.test.js';
 let assetTest = readFileSync(assetTestPath, 'utf8');
 assetTest = assetTest
-  .replace(/(?:import \{ EconomyStore as RuntimeEconomyStore \} from '\.\.\/src\/runtime-store\.js';\n)+/, "import { EconomyStore as RuntimeEconomyStore } from '../src/runtime-store.js';\n")
-  .replace(/(?:import \{ readSegmentedWorld \} from '\.\.\/src\/world-storage-v2\.js';\n)+/, "import { readSegmentedWorld } from '../src/world-storage-v2.js';\n");
+  .replace(/import \{ EconomyStore as RuntimeEconomyStore \} from '\.\.\/src\/runtime-store\.js';\n/g, '')
+  .replace(/import \{ readSegmentedWorld \} from '\.\.\/src\/world-storage-v2\.js';\n/g, '')
+  .replace(
+    "import { EconomyStore } from '../src/storage.js';\n",
+    "import { EconomyStore } from '../src/storage.js';\nimport { EconomyStore as RuntimeEconomyStore } from '../src/runtime-store.js';\nimport { readSegmentedWorld } from '../src/world-storage-v2.js';\n",
+  );
 writeFileSync(assetTestPath, assetTest);
 
 replaceOnce(
