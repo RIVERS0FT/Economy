@@ -148,6 +148,10 @@ economy_world_segments(
 
 V2 热保存不得做完整世界 `isDeepStrictEqual`、完整世界 `JSON.stringify` 或全世界资金精度扫描。保存层只序列化 Mutation Scope 覆盖的玩家与 segment，与 committed segmented snapshot 比较并形成 Dirty Set；没有 Dirty Row 时世界修订号保持不变。写入成功后草稿直接成为新的 committed world，未变玩家和 segment 的 SQLite 行内容及 `updated_revision` 必须保持原值。
 
+玩家 V2 持久化行不得保存仅用于旧客户端展示的 `trades`、`ledger`、`assetEvents` 或旧 `facilities` 实例日志。Copy-on-Write 动作必须把这些字段视为可缺省展示数据：写动作不得因为字段不存在而失败，也不得为了兼容旧展示结构重新把它们写回玩家行；历史审计继续由各自独立追加式 SQLite 表承担。
+
+失败动作、重复操作或其他无业务状态变化的动作可以保存精简幂等确认，但不得仅因兼容规范化、空数组补全、`lastProcessedAt` 更新时间或其他派生容器初始化而产生 Dirty Row、写回世界或推进全局 `revision`。这类结构迁移只允许发生在冷加载、旧单行世界迁移或明确世界版本升级。合同历史冷启动导入必须优先读取 V2 分段世界；只有尚未建立 V2 元数据时才允许回退读取旧 `economy_world.state_json`。
+
 `GET state` 的正式投影路径必须是纯只读操作：已有玩家、无需登录周结算且后台调度启用时，缓存未命中也直接从 committed world 构造当前玩家状态、合同／拍卖／银行／研发／排行榜投影和六分区，不得创建 world draft，不得执行世界迁移、领域结算、全玩家兼容初始化或持久化，也不得再通过 `worldCacheIsolationCloneMs` 复制 committed world 来容忍投影写入。首次建档或登录周结算等确实需要写入的 GET 必须先完成权威事务，再从新 committed world 执行同一只读投影。
 
 正式服务的到期世界推进仍由单一权威调度器负责。若普通玩家写入到达时全局最早截止时间已经到期，`runtime-store.js` 必须先建立一个可复用的系统调度 barrier，在同一权威写执行器中先完成一次到期世界处理，再放行随后到达的玩家写入；同一到期窗口不得由多个玩家请求重复承担全服推进。系统调度任务不继承玩家 HTTP 请求的性能采集上下文，玩家请求只记录等待 barrier 的 `schedulerBarrierWaitMs`，不得把系统 `worldProcessMs` 伪装成该玩家动作自身处理阶段。非正式调度的内存测试存储仍可在请求内按到期领域推进，以保持确定性测试。

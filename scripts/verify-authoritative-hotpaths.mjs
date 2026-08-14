@@ -183,6 +183,7 @@ for (const text of [
 ]) assert.ok(clientOrderIndex.includes(text), `客户端订单热路径索引缺少: ${text}`);
 
 const design = read('docs/README.md');
+const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 for (const text of [
   '价格档位 + 同价 FIFO',
   '按实际到期领域推进',
@@ -198,5 +199,12 @@ for (const text of [
   '允许页面或共享组件按分区订阅',
   '子修订',
 ]) assert.ok(design.includes(text), `设计索引缺少权威热路径规则: ${text}`);
+
+for (const text of [
+  '玩家 V2 持久化行不得保存仅用于旧客户端展示的',
+  '失败动作、重复操作或其他无业务状态变化的动作',
+  '不得仅因兼容规范化、空数组补全',
+  '合同历史冷启动导入必须优先读取 V2 分段世界',
+]) assert.ok(serverDesign.includes(text), `服务器设计缺少 V2 持久化防回退规则: ${text}`);
 
 console.log('权威热路径验证通过：按领域截止时间推进、分段存储 V2、Copy-on-Write 动作草稿、Dirty Row 持久化、纯只读状态投影、统一订单簿与六分区客户端权威状态均受防回退约束。');

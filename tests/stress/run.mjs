@@ -85,7 +85,7 @@ async function requestJson(metrics, {
       responseBytes: Buffer.byteLength(text),
       expected,
     });
-    if (!expected) throw new Error(`${method} ${route} 返回非预期状态 ${response.status}：${text.slice(0, 500)}`);
+    if (!expected) throw new Error(`${method} ${route} 返回非预期状态 ${response.status}`);
     let payload;
     try {
       payload = text ? JSON.parse(text) : {};
@@ -602,10 +602,6 @@ export async function runStressTest(options = {}) {
     }
   } catch (error) {
     failures.push(String(error?.message || error || '未知压力测试错误'));
-    if (harness) {
-      storageAfter ||= await harness.storageSnapshot();
-      diagnostics ||= harness.diagnostics();
-    }
   }
 
   const measuredDurationMs = Math.max(0, performance.now() - measuredStartedAt);
@@ -623,7 +619,7 @@ export async function runStressTest(options = {}) {
     : profileBudget;
   const budgetResult = evaluateStressBudget(summary, enforcedBudget);
   failures.push(...budgetResult.failures);
-  if (diagnostics?.serverErrorLogCount > 0) failures.push(`隔离服务器记录了 ${diagnostics.serverErrorLogCount} 条错误日志：${diagnostics.serverErrorTail || ''}`);
+  if (diagnostics?.serverErrorLogCount > 0) failures.push(`隔离服务器记录了 ${diagnostics.serverErrorLogCount} 条错误日志`);
   if (options.enforcePerformanceBudget !== false && storageAfter) {
     if (storageAfter.databaseBytes > Number(profileBudget.maxLocalDatabaseBytes)) {
       failures.push(`隔离数据库 ${storageAfter.databaseBytes} 字节超过预算 ${profileBudget.maxLocalDatabaseBytes} 字节`);
