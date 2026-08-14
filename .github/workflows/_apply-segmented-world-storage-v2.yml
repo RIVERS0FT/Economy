@@ -22,20 +22,21 @@ jobs:
         with:
           node-version: '24.4.0'
           cache: npm
-      - name: Fix verifier wording
+      - name: Fix V2 verifiers
         run: |
           node scripts/.verifier-cow-wording-fix.mjs
           git diff --check
-      - name: Commit verifier fix
+      - name: Commit verifier fixes
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add scripts/verify-authoritative-hotpaths.mjs
-          git commit -m 'Align hot path verifier with V2 terminology'
+          git add scripts/verify-authoritative-hotpaths.mjs scripts/verify-state-delivery-capacity.mjs
+          git commit -m 'Align capacity verifiers with segmented storage V2'
           git push origin HEAD:perf/segmented-world-storage-v2
       - run: npm ci
       - name: Verify authority and regressions
         run: |
+          npm run build
           node scripts/verify-runtime-efficiency.mjs
           node scripts/verify-authoritative-hotpaths.mjs
           node --test server/test/world-storage-v2.test.js server/test/state-polling.test.js server/test/runtime-hotpath-architecture.test.js server/test/authoritative-hotpaths.test.js server/test/research.test.js server/test/banking.test.js server/test/asset-auctions.test.js server/test/online-auto-sell-persistence.test.js
