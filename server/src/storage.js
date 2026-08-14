@@ -672,7 +672,7 @@ export class EconomyStore {
     world.lastProcessedAt = now;
     const stateJson = this.serializeWorld(world, now);
     const nextRevision = revision + 1;
-    this.updateWorld.run(nextRevision, stateJson, now);
+    measureRequestPhase('worldUpdateMs', () => this.updateWorld.run(nextRevision, stateJson, now));
     flushAuctionAuditEvents(this, world, revision, nextRevision);
     this.cacheWorld(nextRevision, stateJson, world);
     if (!this.scheduledProcessing) this.nextWorldProcessingAt = now + WORLD_PROCESS_INTERVAL_MS;
@@ -685,16 +685,16 @@ export class EconomyStore {
     const unchanged = cached
       && cached.revision === revision
       && !cached.needsPersistence
-      && isDeepStrictEqual(world, cached.world);
+      && measureRequestPhase('worldEqualityMs', () => isDeepStrictEqual(world, cached.world));
     if (unchanged) {
       flushAuctionAuditEvents(this, world, revision, revision);
       return revision;
     }
 
     world.lastProcessedAt = now;
-    const stateJson = JSON.stringify(world);
+    const stateJson = measureRequestPhase('serializeWorldMs', () => JSON.stringify(world));
     const nextRevision = revision + 1;
-    this.updateWorld.run(nextRevision, stateJson, now);
+    measureRequestPhase('worldUpdateMs', () => this.updateWorld.run(nextRevision, stateJson, now));
     flushAuctionAuditEvents(this, world, revision, nextRevision);
     this.cacheWorld(nextRevision, stateJson, world);
     return nextRevision;

@@ -246,7 +246,7 @@ export class EconomyStore extends PersistentEconomyStore {
     const unchanged = cached
       && cached.revision === revision
       && !cached.needsPersistence
-      && isDeepStrictEqual(world, cached.world);
+      && measureRequestPhase('worldEqualityMs', () => isDeepStrictEqual(world, cached.world));
     if (unchanged) {
       this.flushContractAuditEvents(world, revision, revision);
       flushAuctionAuditEvents(this, world, revision, revision);
@@ -254,9 +254,9 @@ export class EconomyStore extends PersistentEconomyStore {
     }
 
     world.lastProcessedAt = now;
-    const stateJson = JSON.stringify(world);
+    const stateJson = measureRequestPhase('serializeWorldMs', () => JSON.stringify(world));
     const nextRevision = revision + 1;
-    this.updateWorld.run(nextRevision, stateJson, now);
+    measureRequestPhase('worldUpdateMs', () => this.updateWorld.run(nextRevision, stateJson, now));
     this.flushContractAuditEvents(world, revision, nextRevision);
     flushAuctionAuditEvents(this, world, revision, nextRevision);
     this.cacheWorld(nextRevision, stateJson, world);

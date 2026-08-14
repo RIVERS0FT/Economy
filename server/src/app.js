@@ -226,7 +226,7 @@ const server = createServer(async (request, response) => {
     if (path.startsWith('/api/game/admin/')) {
       requireAdmin(user);
       if (method === 'GET' && path === '/api/game/admin/summary') {
-        const summary = await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-summary'), () => getStableAdminSummary(store, user));
+        const summary = getStableAdminSummary(store, user);
         sendJson(response, 200, { summary });
         return;
       }
@@ -241,7 +241,7 @@ const server = createServer(async (request, response) => {
         return;
       }
       if (method === 'GET' && path === '/api/game/admin/population-economy') {
-        const summary = await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-population-summary'), () => getStableAdminSummary(store, user));
+        const summary = getStableAdminSummary(store, user);
         sendJson(response, 200, { summary });
         return;
       }
