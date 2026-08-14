@@ -31,3 +31,11 @@ auctionVerifierSource = auctionVerifierSource.replace(
   "requireText('server/src/runtime-store-core.js', ['flushAuctionAuditEvents(this, world, revision, nextRevision);']);\nrequireText('server/src/world-storage-v2.js', ['AUTHORITATIVE_WORLD_VERSION = 29;']);",
 );
 writeFileSync(auctionVerifierPath, auctionVerifierSource);
+
+const adminPlayerVerifierPath = 'scripts/verify-admin-player-statistics.mjs';
+let adminPlayerVerifierSource = readFileSync(adminPlayerVerifierPath, 'utf8');
+adminPlayerVerifierSource = adminPlayerVerifierSource.replace(
+  "requireText('server/src/runtime-store.js', [\n  \"import { configurePlayerAdminStatistics } from './player-admin-statistics.js'\",\n  'configurePlayerAdminStatistics(this);',\n]);",
+  "const runtimeStoreSource = `${read('server/src/runtime-store-core.js')}\\n${read('server/src/runtime-store.js')}`;\nfor (const fragment of [\"import { configurePlayerAdminStatistics } from './player-admin-statistics.js'\", 'configurePlayerAdminStatistics(this);']) {\n  if (!runtimeStoreSource.includes(fragment)) failures.push(`runtime store 缺少玩家运营统计规则: ${fragment}`);\n}",
+);
+writeFileSync(adminPlayerVerifierPath, adminPlayerVerifierSource);
