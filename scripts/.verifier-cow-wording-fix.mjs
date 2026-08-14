@@ -1,3 +1,4 @@
+// Temporary branch-only verifier migration helper; removed before squash merge.
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const hotpathPath = 'scripts/verify-authoritative-hotpaths.mjs';
