@@ -598,10 +598,15 @@ export class EconomyStore {
     if (mutationScope) {
       if (mutationScope.allPlayers || mutationScope.playerIds === null) {
         stripLegacyFacilityInstances(world);
+        stripPlayerLogs(world);
       } else {
         for (const userId of mutationScope.playerIds || []) {
           const player = world.players?.[String(userId)];
-          if (player) delete player.facilities;
+          if (!player) continue;
+          delete player.facilities;
+          delete player.trades;
+          delete player.ledger;
+          delete player.assetEvents;
         }
       }
       measureRequestPhase('moneyNormalizeMs', () => normalizeWorldMoneyPrecisionScoped(world, mutationScope));

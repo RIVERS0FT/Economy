@@ -3,6 +3,7 @@ import test from 'node:test';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import { EconomyStore } from '../src/storage.js';
+import { readSegmentedWorld } from '../src/world-storage-v2.js';
 
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 
@@ -17,8 +18,7 @@ function request(action, payload, requestKey, path) {
 }
 
 function persistedWorld(store) {
-  const row = store.selectWorld.get();
-  return JSON.parse(String(row.state_json));
+  return readSegmentedWorld(store)?.world;
 }
 
 function assertPlayerLogsAbsent(player) {
