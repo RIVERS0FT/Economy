@@ -1,4 +1,4 @@
-name: Apply current-world hot path fixes
+name: Trace segmented world storage v2 mutation
 
 on:
   push:
@@ -6,57 +6,54 @@ on:
       - perf/segmented-world-storage-v2
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch-and-verify:
-    if: github.event.head_commit.message == 'Apply current-world hot path fixes'
+  trace:
+    if: github.event.head_commit.message == 'Trace unrelated player mutation'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           ref: perf/segmented-world-storage-v2
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '24.4.0'
           cache: npm
-      - name: Apply current-world hot path fixes
+      - run: npm ci
+      - name: Instrument unrelated player
         run: |
-          node --check scripts/.fix-segmented-world-storage-v2.mjs
-          node scripts/.fix-segmented-world-storage-v2.mjs
-          git diff --check
-      - name: Commit implementation checkpoint
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add server/src
-          if ! git diff --cached --quiet; then
-            git commit -m 'Separate cold migrations from runtime hot paths'
-            git push origin HEAD:perf/segmented-world-storage-v2
-          fi
-      - name: Install dependencies
-        run: npm ci
-      - name: Run focused server tests
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const path = 'server/test/world-storage-v2.test.js';
+          const source = readFileSync(path, 'utf8');
+          const before = "    const committedBob = store.worldCache.world.players['2'];\n    assert.equal(Object.hasOwn(committedBob, 'facilities'), false);";
+          const after = `    const committedBob = store.worldCache.world.players['2'];
+    assert.equal(Object.hasOwn(committedBob, 'facilities'), false);
+    Object.defineProperty(committedBob, 'facilities', {
+      configurable: true,
+      enumerable: false,
+      get() { return undefined; },
+      set(value) {
+        const error = new Error('UNRELATED_FACILITIES_MUTATION');
+        error.assignedValue = value;
+        throw error;
+      },
+    });`;
+          if (!source.includes(before)) throw new Error('trace insertion target missing');
+          writeFileSync(path, source.replace(before, after));
+          NODE
+      - name: Trace dirty-set test
         shell: bash
         run: |
           set -o pipefail
-          node --test \
-            server/test/world-storage-v2.test.js \
-            server/test/state-polling.test.js \
-            server/test/runtime-hotpath-architecture.test.js \
-            server/test/authoritative-hotpaths.test.js \
-            server/test/research.test.js \
-            server/test/banking.test.js \
-            server/test/asset-auctions.test.js \
-            server/test/online-auto-sell-persistence.test.js \
-            2>&1 | tee focused-tests.log
-      - name: Upload focused test log
+          node --test --test-name-pattern="dirty player write" server/test/world-storage-v2.test.js 2>&1 | tee trace.log
+      - name: Upload trace
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: focused-segmented-storage-tests
-          path: focused-tests.log
+          name: segmented-storage-mutation-trace
+          path: trace.log
           if-no-files-found: warn
           retention-days: 1
