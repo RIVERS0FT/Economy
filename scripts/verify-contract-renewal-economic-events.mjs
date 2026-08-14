@@ -8,7 +8,7 @@ import {
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const contracts = read('server/src/contracts.js');
-const runtimeStore = read('server/src/runtime-store.js');
+const runtimeStore = `${read('server/src/runtime-store.js')}\n${read('server/src/runtime-store-core.js')}`;
 const routes = read('server/src/game-routes.js');
 const statePartitions = read('server/src/state-partitions.js');
 const overview = read('src/pages/OverviewPage.tsx');
