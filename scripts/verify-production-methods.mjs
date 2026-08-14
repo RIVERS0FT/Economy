@@ -104,6 +104,7 @@ const detailSource = readFileSync('src/pages/production/ProductionFacilityDetail
 const configControlsSource = readFileSync('src/components/facilities/FacilityProductionConfigControls.tsx', 'utf8');
 const richSelectSource = readFileSync('src/components/ui/RichSelectInput.tsx', 'utf8');
 const pageSource = readFileSync('src/pages/ProductionPage.tsx', 'utf8');
+const gameViewModelSource = readFileSync('src/app/gameViewModel.ts', 'utf8');
 const styleSource = readFileSync('src/styles/production-methods.css', 'utf8');
 const formControlStyleSource = readFileSync('src/styles/form-controls.css', 'utf8');
 const browserHarnessSource = readFileSync('tests/browser/runtime-harness.tsx', 'utf8');
@@ -227,6 +228,21 @@ for (const text of [
   'data-variant={variant}',
 ]) assert.ok(richSelectSource.includes(text), `共享富下拉生产配置变体缺少 ${text}`);
 assert.ok(pageSource.includes("import '../styles/production-methods.css'"));
+for (const text of [
+  'const [optimisticRecipeIds, setOptimisticRecipeIds]',
+  'const recipeTargetByFacilityRef = useRef(new Map<string, string>());',
+  'const recipeInFlightFacilitiesRef = useRef(new Set<string>());',
+  'const lastConfirmedRecipeIdsRef = useRef(new Map<string, string>());',
+  '{ ...group, activeRecipeId: optimisticRecipeId }',
+  'const flushFacilityRecipeQueue = (facilityTypeId: string) => {',
+  'recipeTargetByFacilityRef.current.set(facilityTypeId, recipeId);',
+  'setOptimisticRecipeIds((current) => (',
+]) assert.ok(pageSource.includes(text), `生产配置即时反馈缺少 ${text}`);
+for (const text of [
+  'const runAcknowledgedAction = useCallback(async (',
+  'void syncConfirmedAction(response, action).finally(finish);',
+  "setFacilityRecipe: (facilityTypeId, recipeId) => runAcknowledgedAction(",
+]) assert.ok(gameViewModelSource.includes(text), `生产配置确认同步缺少 ${text}`);
 assert.equal(styleSource.includes('.facility-production-method-summary'), false, '生产方式规格摘要必须删除');
 for (const text of [
   '.production-config-detail',
@@ -265,6 +281,8 @@ for (const text of [
   "expect(recipeListboxBox.width).toBeGreaterThan(recipeTriggerBox.width + 80)",
   "not.toContainText('缩短周期并提高成本')",
   "locator('.facility-production-method-summary')).toHaveCount(0)",
+  "toContainText('节约生产')",
+  "toContainText('180s · 成本 4 · 产出 ×1')",
 ]) assert.ok(browserSpecSource.includes(text), `生产方式浏览器回归缺少 ${text}`);
 assert.ok(versionSource.includes('CURRENT_CLIENT_STATE_VERSION = 33'));
 assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 33'));
@@ -282,6 +300,8 @@ for (const [path, required] of [
     '生产方式与配方必须在同一次配置动作中原子切换',
     '不得新增单座工厂生产方式状态',
     '生产设置下方不得再显示“周期 · 产出 · 成本”摘要',
+    '客户端选择生产产物或作业制度后必须先立即投影目标生产配置',
+    '客户端最多保留一个正在提交的配置动作和一个最新待提交目标',
   ]],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
     '作业制度',
@@ -311,4 +331,4 @@ for (const [path, required] of [
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);
 }
 
-console.log('生产方式验证通过：C1/C2 工厂专属整件投入制度、C2 3/6/9/10.5 利润梯度、研发门槛与旧制度迁移，C3～C7 通用固定精度平衡、稳定变体 ID、生产方案菜单与配置原子切换均已锁定。');
+console.log('生产方式验证通过：C1/C2 工厂专属整件投入制度、C2 3/6/9/10.5 利润梯度、研发门槛与旧制度迁移，C3～C7 通用固定精度平衡、稳定变体 ID、生产方案菜单、即时反馈、最新目标合并与配置原子切换均已锁定。');

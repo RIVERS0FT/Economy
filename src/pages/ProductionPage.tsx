@@ -96,8 +96,12 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
   );
   const [procurementPending, setProcurementPending] = useState(false);
   const [cancellingProcurementId, setCancellingProcurementId] = useState('');
+  const [optimisticRecipeIds, setOptimisticRecipeIds] = useState<Record<string, string>>({});
   const procurementPriceContextRef = useRef('');
   const detailTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const recipeTargetByFacilityRef = useRef(new Map<string, string>());
+  const recipeInFlightFacilitiesRef = useRef(new Set<string>());
+  const lastConfirmedRecipeIdsRef = useRef(new Map<string, string>());
   const closeFacilityDetail = useCallback(() => setFacilityDetailOpen(false), []);
 
   const unlockedFacilityTypes = useMemo(
@@ -142,9 +146,14 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
 
     return game.facilityTypes.flatMap((type): FacilityClusterEntry[] => {
       const group = groupsByTypeId.get(type.id);
-      return group && group.count > 0 ? [{ type, group }] : [];
+      if (!group || group.count < 1) return [];
+      const optimisticRecipeId = optimisticRecipeIds[type.id];
+      const displayGroup = optimisticRecipeId && optimisticRecipeId !== group.activeRecipeId
+        ? { ...group, activeRecipeId: optimisticRecipeId }
+        : group;
+      return [{ type, group: displayGroup }];
     });
-  }, [game.facilityGroups, game.facilityTypes]);
+  }, [game.facilityGroups, game.facilityTypes, optimisticRecipeIds]);
   const facilityClusterStatusCounts = useMemo(() => {
     const summary: Record<FacilityGroup['status'], number> = {
       running: 0,
@@ -174,6 +183,32 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
       setFacilityDetailOpen(false);
     }
   }, [effectiveSelectedFacilityGroupId, isFacilityDetailOpen, selectedFacilityGroupId]);
+
+  useEffect(() => {
+    const authoritativeGroups = new Map(
+      game.facilityGroups.map((group) => [group.facilityTypeId, group]),
+    );
+    for (const group of game.facilityGroups) {
+      if (
+        !recipeInFlightFacilitiesRef.current.has(group.facilityTypeId)
+        && !recipeTargetByFacilityRef.current.has(group.facilityTypeId)
+      ) {
+        lastConfirmedRecipeIdsRef.current.set(group.facilityTypeId, group.activeRecipeId);
+      }
+    }
+    setOptimisticRecipeIds((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const [facilityTypeId, recipeId] of Object.entries(current)) {
+        const authoritative = authoritativeGroups.get(facilityTypeId);
+        if (!authoritative || authoritative.activeRecipeId === recipeId) {
+          delete next[facilityTypeId];
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [game.facilityGroups]);
 
   useEffect(() => {
     setProcurementGroups(loadFacilityBuildProcurementGroups(game.userId));
@@ -320,11 +355,53 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
         : stopFacility(selectedFacilityEntry.group.facilityTypeId),
     );
   };
+  const flushFacilityRecipeQueue = (facilityTypeId: string) => {
+    if (recipeInFlightFacilitiesRef.current.has(facilityTypeId)) return;
+    recipeInFlightFacilitiesRef.current.add(facilityTypeId);
+    void (async () => {
+      try {
+        while (true) {
+          const targetRecipeId = recipeTargetByFacilityRef.current.get(facilityTypeId);
+          if (!targetRecipeId) break;
+          recipeTargetByFacilityRef.current.delete(facilityTypeId);
+          const result = await setFacilityRecipe(facilityTypeId, targetRecipeId);
+          const hasNewerTarget = recipeTargetByFacilityRef.current.has(facilityTypeId);
+          if (result.ok) {
+            lastConfirmedRecipeIdsRef.current.set(facilityTypeId, targetRecipeId);
+          } else if (!hasNewerTarget) {
+            const fallbackRecipeId = lastConfirmedRecipeIdsRef.current.get(facilityTypeId);
+            setOptimisticRecipeIds((current) => {
+              if (current[facilityTypeId] !== targetRecipeId) return current;
+              const next = { ...current };
+              if (fallbackRecipeId) next[facilityTypeId] = fallbackRecipeId;
+              else delete next[facilityTypeId];
+              return next;
+            });
+          }
+          if (!hasNewerTarget) void showResult(result);
+        }
+      } finally {
+        recipeInFlightFacilitiesRef.current.delete(facilityTypeId);
+      }
+    })();
+  };
   const changeSelectedFacilityRecipe = (recipeId: string) => {
     if (!selectedFacilityEntry) return;
     const recipeState = resolveFacilityDetailRecipeState(selectedFacilityEntry);
     if (recipeId === recipeState.selectedRecipeId) return;
-    void showResult(setFacilityRecipe(selectedFacilityEntry.group.facilityTypeId, recipeId));
+    const facilityTypeId = selectedFacilityEntry.group.facilityTypeId;
+    if (!lastConfirmedRecipeIdsRef.current.has(facilityTypeId)) {
+      const authoritative = game.facilityGroups.find((group) => group.facilityTypeId === facilityTypeId);
+      lastConfirmedRecipeIdsRef.current.set(
+        facilityTypeId,
+        authoritative?.activeRecipeId ?? recipeState.selectedRecipeId,
+      );
+    }
+    recipeTargetByFacilityRef.current.set(facilityTypeId, recipeId);
+    setOptimisticRecipeIds((current) => (
+      current[facilityTypeId] === recipeId ? current : { ...current, [facilityTypeId]: recipeId }
+    ));
+    flushFacilityRecipeQueue(facilityTypeId);
   };
   const openSelectedFacilityMarket = () => {
     if (!selectedFacilityEntry) return;

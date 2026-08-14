@@ -377,6 +377,26 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     }
   }, [handleUnauthorized, syncConfirmedAction]);
 
+  const runAcknowledgedAction = useCallback(async (
+    action: LocalActivityAction,
+    operation: () => Promise<GameActionResponse>,
+  ): Promise<ActionResult> => {
+    actionsInFlightRef.current += 1;
+    refreshTaskRef.current?.controller.abort();
+    const finish = () => {
+      actionsInFlightRef.current = Math.max(0, actionsInFlightRef.current - 1);
+    };
+    try {
+      const response = await operation();
+      void syncConfirmedAction(response, action).finally(finish);
+      return response.result;
+    } catch (reason) {
+      finish();
+      if (reason instanceof GameApiError && reason.status === 401) handleUnauthorized();
+      return { ok: false, message: messageFromError(reason) };
+    }
+  }, [handleUnauthorized, syncConfirmedAction]);
+
   const placeAssetOrder = useCallback(async (
     assetKind: AssetKind,
     assetId: string,
@@ -479,7 +499,10 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     startFacility: (facilityTypeId) => runAction('startFacility', () => gameActions.startFacility(facilityTypeId)),
     stopFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.stopFacility(facilityTypeId)),
     pauseFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.pauseFacility(facilityTypeId)),
-    setFacilityRecipe: (facilityTypeId, recipeId) => runAction('setFacilityRecipe', () => gameActions.setFacilityRecipe(facilityTypeId, recipeId)),
+    setFacilityRecipe: (facilityTypeId, recipeId) => runAcknowledgedAction(
+      'setFacilityRecipe',
+      () => gameActions.setFacilityRecipe(facilityTypeId, recipeId),
+    ),
     placeAssetOrder,
     onlineAutoBuy: (productId, maxPrice, targetFreeInventory = 0) => runAction(
       'placeOrder',

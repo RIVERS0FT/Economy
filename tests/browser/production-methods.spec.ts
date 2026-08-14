@@ -256,6 +256,9 @@ test.describe('factory production methods', () => {
     await expect(highYield).toContainText('产出 ×2 ↑');
     await expect(highYield.locator('.production-config-metric.is-positive')).toContainText('产出 ×2 ↑');
     await economical.click();
+    await expect(methodSelect).toContainText('节约生产');
+    await expect(methodSelect).toContainText('180s · 成本 4 · 产出 ×1');
+    await expect(formulaMeta).toContainText('3m');
     await expect.poll(async () => page.evaluate(() => (
       window as typeof window & { __productionRecipeRequests?: string[] }
     ).__productionRecipeRequests ?? [])).toEqual([
