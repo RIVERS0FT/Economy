@@ -107,6 +107,18 @@ def _world_info(connection: sqlite3.Connection) -> dict[str, Any]:
     }
 
 
+def _storage_schema_version(connection: sqlite3.Connection) -> int:
+    try:
+        row = connection.execute(
+            'SELECT storage_schema_version FROM economy_world_meta WHERE id = 1'
+        ).fetchone()
+    except sqlite3.OperationalError as error:
+        if 'no such table' not in str(error).lower():
+            raise
+        row = None
+    return 0 if not row else int(row[0] or 0)
+
+
 def _database_metrics(connection: sqlite3.Connection, database_path: Path) -> dict[str, int]:
     page_size = int(_single(connection, 'PRAGMA page_size') or 0)
     page_count = int(_single(connection, 'PRAGMA page_count') or 0)
@@ -209,14 +221,30 @@ def create_world_backup(args: argparse.Namespace) -> dict[str, Any]:
     database_stat = database_path.stat()
     with closing(sqlite3.connect(database_path, isolation_level=None, timeout=60)) as source:
         source_world = _world_info(source)
+        source_storage_schema_version = _storage_schema_version(source)
         source_metrics = _database_metrics(source, database_path)
-        if source_world['version'] >= args.target_world_version:
-            return {
-                'status': 'skipped',
-                'reason': 'world-version-current',
-                'currentWorldVersion': source_world['version'],
-                'retentionBefore': retention_before,
-            }
+        if args.target_storage_schema_version is not None:
+            target_kind = 'storage'
+            target_version = int(args.target_storage_schema_version)
+            backup_family = f'economy-pre-storage-v{target_version}'
+            if source_storage_schema_version >= target_version:
+                return {
+                    'status': 'skipped',
+                    'reason': 'storage-schema-current',
+                    'currentStorageSchemaVersion': source_storage_schema_version,
+                    'retentionBefore': retention_before,
+                }
+        else:
+            target_kind = 'world'
+            target_version = int(args.target_world_version)
+            backup_family = f'economy-pre-world-v{target_version}'
+            if source_world['version'] >= target_version:
+                return {
+                    'status': 'skipped',
+                    'reason': 'world-version-current',
+                    'currentWorldVersion': source_world['version'],
+                    'retentionBefore': retention_before,
+                }
 
         required_bytes = max(
             MIN_BACKUP_HEADROOM_BYTES,
@@ -230,7 +258,7 @@ def create_world_backup(args: argparse.Namespace) -> dict[str, Any]:
             )
 
         timestamp = _utc_timestamp()
-        family = f'economy-pre-world-v{args.target_world_version}'
+        family = backup_family
         compact_path = backup_directory / f'.{family}-{timestamp}.sqlite.tmp'
         compressed_path = backup_directory / f'.{family}-{timestamp}.sqlite.gz.tmp'
         final_path = backup_directory / f'{family}-{timestamp}.sqlite.gz'
@@ -246,6 +274,7 @@ def create_world_backup(args: argparse.Namespace) -> dict[str, Any]:
                 compact.execute('PRAGMA query_only = ON')
                 checks = _check_database(compact)
                 backup_world = _world_info(compact)
+                backup_storage_schema_version = _storage_schema_version(compact)
                 compact_metrics = _database_metrics(compact, compact_path)
             if compact_metrics['autoVacuum'] != source_metrics['autoVacuum']:
                 raise RuntimeError(
@@ -253,7 +282,13 @@ def create_world_backup(args: argparse.Namespace) -> dict[str, Any]:
                     f'source={source_metrics["autoVacuum"]} '
                     f'backup={compact_metrics["autoVacuum"]}'
                 )
-            if backup_world['version'] >= args.target_world_version:
+            if target_kind == 'storage':
+                if backup_storage_schema_version >= target_version:
+                    raise RuntimeError(
+                        'ECONOMY_BACKUP_NOT_PRE_STORAGE_MIGRATION '
+                        f'backup_storage_schema_version={backup_storage_schema_version}'
+                    )
+            elif backup_world['version'] >= target_version:
                 raise RuntimeError(
                     'ECONOMY_BACKUP_NOT_PRE_MIGRATION '
                     f'backup_world_version={backup_world["version"]}'
@@ -280,6 +315,9 @@ def create_world_backup(args: argparse.Namespace) -> dict[str, Any]:
         'compressedBytes': final_path.stat().st_size,
         'compressionRatioPpm': round(final_path.stat().st_size * 1_000_000 / compact_size),
         'world': backup_world,
+        'storageSchemaVersion': backup_storage_schema_version,
+        'targetKind': target_kind,
+        'targetVersion': target_version,
         'checks': checks,
         'availableBytes': available_bytes,
         'requiredBytes': required_bytes,
@@ -294,7 +332,9 @@ def build_parser() -> argparse.ArgumentParser:
     backup = subparsers.add_parser('backup-world')
     backup.add_argument('--database', default=str(DEFAULT_DATABASE))
     backup.add_argument('--backup-directory', default=str(DEFAULT_BACKUP_DIRECTORY))
-    backup.add_argument('--target-world-version', type=int, required=True)
+    target = backup.add_mutually_exclusive_group(required=True)
+    target.add_argument('--target-world-version', type=int)
+    target.add_argument('--target-storage-schema-version', type=int)
     backup.add_argument('--maximum-families', type=int, default=MAX_BACKUP_FAMILIES)
     backup.set_defaults(handler=create_world_backup)
     return parser
