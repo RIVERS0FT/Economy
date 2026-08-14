@@ -1,6 +1,7 @@
 import { measureRequestPhase } from './request-performance.js';
 import { executeRuntimeAction } from './runtime-action-executor.js';
 import { EconomyStore as CoreEconomyStore } from './runtime-store-core.js';
+import { cloneWorldForMutation } from './world-storage-v2.js';
 
 const WORLD_PROCESS_INTERVAL_MS = 1_000;
 
@@ -10,7 +11,7 @@ export class EconomyStore extends CoreEconomyStore {
     this.schedulerBarrierPromise = null;
   }
 
-  cacheWorld(revision, stateJson, world, needsPersistence = false) {
+  cacheWorld(revision, stateJson, world, needsPersistence = false, segmentedSnapshot = null) {
     const nextRevision = Number(revision);
     if (this.worldCache?.revision !== nextRevision) this.clientStateProjectionCache.clear();
     this.worldCache = {
@@ -18,19 +19,18 @@ export class EconomyStore extends CoreEconomyStore {
       stateJson,
       world,
       needsPersistence: Boolean(needsPersistence),
+      segmentedSnapshot: segmentedSnapshot || this.worldCache?.segmentedSnapshot || null,
+      storageSchemaVersion: 2,
     };
   }
 
-  loadWorld(now) {
+  loadWorld(now, mutationScope = null) {
     if (!this.worldCache) return super.loadWorld(now);
-    const canParseCanonicalState = !this.worldCache.needsPersistence
-      && typeof this.worldCache.stateJson === 'string'
-      && this.worldCache.stateJson.length > 0;
     return {
       revision: this.worldCache.revision,
-      stateJson: this.worldCache.stateJson,
-      world: canParseCanonicalState
-        ? measureRequestPhase('worldDraftParseMs', () => JSON.parse(this.worldCache.stateJson))
+      stateJson: null,
+      world: mutationScope
+        ? measureRequestPhase('worldDraftCowMs', () => cloneWorldForMutation(this.worldCache.world, mutationScope))
         : measureRequestPhase('worldDraftCloneMs', () => structuredClone(this.worldCache.world)),
     };
   }

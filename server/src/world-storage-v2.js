@@ -258,6 +258,19 @@ export function readSegmentedWorld(store) {
   });
 }
 
+export function segmentedSnapshotsEqual(left, right) {
+  if (!left || !right) return false;
+  if (left.playerStateJsonById?.size !== right.playerStateJsonById?.size) return false;
+  if (left.segmentStateJsonByKey?.size !== right.segmentStateJsonByKey?.size) return false;
+  for (const [key, value] of left.playerStateJsonById || []) {
+    if (right.playerStateJsonById?.get(key) !== value) return false;
+  }
+  for (const [key, value] of left.segmentStateJsonByKey || []) {
+    if (right.segmentStateJsonByKey?.get(key) !== value) return false;
+  }
+  return true;
+}
+
 export function writeFullSegmentedWorld(store, revision, world, now) {
   const snapshot = snapshotSegmentedWorld(world);
   measureRequestPhase('worldSegmentWriteMs', () => {
@@ -273,6 +286,11 @@ export function writeFullSegmentedWorld(store, revision, world, now) {
       Number(revision),
       Number(world?.version || 0),
       WORLD_STORAGE_SCHEMA_VERSION,
+      now,
+    );
+    store.updateLegacyWorldManifestV2.run(
+      Number(revision),
+      legacyManifest(world),
       now,
     );
   });

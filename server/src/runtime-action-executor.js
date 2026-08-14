@@ -3,7 +3,7 @@ import { applyAssetAuctionAction } from './asset-auctions.js';
 import { applyBankAction, ensureBankWorld, ensurePlayerBankAccount } from './banking.js';
 import { applyProductionContractAction, processProductionContracts } from './contracts.js';
 import { applySettledCommodityOrder, cancelSettledCommodityOrder, ensurePlayer } from './domain.js';
-import { assertEconomicStateInvariants, beginEconomicSavepoint } from './economic-mutation.js';
+import { assertEconomicStateInvariants, assertEconomicStateInvariantsScoped, beginEconomicSavepoint } from './economic-mutation.js';
 import {
   autoProcureFacilityBuildMaterials,
   cancelFacilityBuildProcurementOrders,
@@ -21,6 +21,7 @@ import { isOpenOrder, orderKind } from './order-identity.js';
 import { orderById } from './order-book-runtime.js';
 import { applyResearchAction, validateResearchAccess } from './research.js';
 import { ensureWarehouse } from './warehouse.js';
+import { createRuntimeMutationScope } from './world-storage-v2.js';
 import {
   activateWeeklyCashSettlement,
   collectPlayerWeeklyCashSettlement,
@@ -96,7 +97,7 @@ function cancelRuntimeCommodityOrder(world, user, orderId, now) {
     : { ok: false, message: '未找到可撤销订单' };
 }
 
-function executeActionBody(store, world, user, action, payload, requestKey, now) {
+function executeActionBody(store, world, user, action, payload, requestKey, now, mutationScope) {
   const playerBeforeAction = measureRequestPhase('playerSnapshotMs', () => (
     structuredClone(world.players?.[String(user.id)] ?? null)
   ));
@@ -161,7 +162,7 @@ function executeActionBody(store, world, user, action, payload, requestKey, now)
     }
 
     if (gameResult?.ok) {
-      measureRequestPhase('economicInvariantMs', () => assertEconomicStateInvariants(world));
+      measureRequestPhase('economicInvariantMs', () => assertEconomicStateInvariantsScoped(world, mutationScope));
       savepoint.release();
     } else {
       savepoint.rollback();
@@ -186,6 +187,13 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     path,
   } = requestMeta;
   const payload = normalizePlayerMoneyPayload(action, requestMeta.payload);
+  const mutationScope = createRuntimeMutationScope(
+    store.worldCache?.world,
+    user.id,
+    action,
+    payload,
+    { scheduledProcessing: store.scheduledProcessing },
+  );
 
   return store.transaction(() => {
     const cached = store.selectIdempotency.get(Number(user.id), requestKey);
@@ -199,7 +207,7 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
       return createActionAcknowledgement(cachedResponse.result, cachedResponse.revision);
     }
 
-    const { revision, stateJson, world } = store.loadWorld(now);
+    const { revision, stateJson, world } = store.loadWorld(now, mutationScope);
     const player = ensurePlayer(world, user, now);
     ensureWarehouse(player);
     ensureGemState(player);
@@ -224,6 +232,7 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
       payload,
       requestKey,
       now,
+      mutationScope,
     );
 
     if (!gameResult?.ok) {
@@ -288,7 +297,7 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     ensureGemState(world.players[String(user.id)]);
     ensurePlayerBankAccount(world.players[String(user.id)], now);
     ensurePlayerWeeklyCashSettlement(world.players[String(user.id)], now);
-    const nextRevision = store.saveWorldIfChanged(revision, world, now, stateJson);
+    const nextRevision = store.saveWorldIfChanged(revision, world, now, stateJson, mutationScope);
     const response = createActionAcknowledgement(gameResult, nextRevision);
     store.insertIdempotency.run(
       Number(user.id),

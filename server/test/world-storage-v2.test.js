@@ -112,7 +112,7 @@ test('segmented rows reconstruct the authoritative world after process restart',
     const depositCredits = first.worldCache.world.players['1'].bankAccount.depositCredits;
     first.close();
 
-    const second = new EconomyStore(databasePath, { scheduledProcessing: false });
+    const second = new EconomyStore(databasePath, { scheduledProcessing: true });
     try {
       const state = second.getState(alice, now + 2);
       assert.equal(second.worldCache.revision, revision);
@@ -122,6 +122,7 @@ test('segmented rows reconstruct the authoritative world after process restart',
         'SELECT storage_schema_version FROM economy_world_meta WHERE id = 1',
       ).get().storage_schema_version), WORLD_STORAGE_SCHEMA_VERSION);
     } finally {
+      second.stopScheduler();
       second.close();
     }
   } finally {
