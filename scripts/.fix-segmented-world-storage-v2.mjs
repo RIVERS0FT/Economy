@@ -6,63 +6,110 @@ function replaceOnce(path, before, after, label = before.slice(0, 80)) {
   writeFileSync(path, source.replace(before, after));
 }
 
-function appendOnce(path, marker, block) {
-  const source = readFileSync(path, 'utf8');
-  if (source.includes(marker)) return;
-  writeFileSync(path, `${source.trimEnd()}\n\n${block.trim()}\n`);
-}
-
 replaceOnce(
-  'server/src/world-storage-v2.js',
-  `const CORE_LOCAL_SEGMENTS = Object.freeze([\n  'bank',\n  'weeklyCashSettlement',\n  'populationEconomy',\n  'marketDemand',\n  'demandGroups',\n  'priceTransmission',\n  'markets',\n  'stats',\n  'moneyPrecision',\n  'auctionFeeEscrowCredits',\n  'version',\n]);`,
-  `const CORE_LOCAL_SEGMENTS = Object.freeze([\n  'bank',\n  'weeklyCashSettlement',\n  'populationEconomy',\n  'marketDemand',\n  'stats',\n  'moneyPrecision',\n  'auctionFeeEscrowCredits',\n  'version',\n]);`,
-  'do not clone read-only market domains for local actions',
-);
-
-replaceOnce(
-  'server/src/facility-groups.js',
-  `  const bankAccount = ensurePlayerBankAccount(player);\n  const availableCashValue = Number(player.credits || 0);`,
-  `  const bankDepositValue = Number(player?.bankAccount?.depositCredits || 0);\n  const availableCashValue = Number(player.credits || 0);`,
-  'asset summary must not normalize player bank state during projection',
-);
-replaceOnce(
-  'server/src/facility-groups.js',
-  `  const bankDepositValue = Number(bankAccount.depositCredits || 0);\n  const availableCommodityValue = commodity.available;`,
-  `  const availableCommodityValue = commodity.available;`,
-  'remove mutating bank projection helper result',
+  'server/src/domain-core.js',
+  `export function ensurePlayer(world, user, now = Date.now()) {\n  migrateWorld(world, now);\n  const key = String(user.id);\n  if (!world.players[key]) world.players[key] = createPlayer(user, now);\n  return world.players[key];\n}`,
+  `export function ensurePlayer(world, user, now = Date.now(), { migrate = true } = {}) {\n  if (migrate) migrateWorld(world, now);\n  const key = String(user.id);\n  world.players ||= {};\n  if (!world.players[key]) world.players[key] = createPlayer(user, now);\n  return world.players[key];\n}`,
+  'allow current-world player ensure without a full migration',
 );
 
 replaceOnce(
   'server/src/domain-core.js',
-  `    facilities: clone(player.facilities || []),\n    products: clone(PRODUCT_CATALOG),\n    facilityTypes: clone(FACILITY_TYPE_CATALOG),\n    markets: clone(world.markets),\n    orders: clone(world.orders),\n    facilityListings: clone(world.facilityListings),\n    trades: clone(player.trades || []),\n    ledger: clone(player.ledger || []),`,
-  `    facilities: migrate ? clone(player.facilities || []) : [],\n    products: migrate ? clone(PRODUCT_CATALOG) : PRODUCT_CATALOG,\n    facilityTypes: migrate ? clone(FACILITY_TYPE_CATALOG) : [],\n    markets: clone(world.markets),\n    orders: migrate ? clone(world.orders) : [],\n    facilityListings: migrate ? clone(world.facilityListings) : [],\n    trades: migrate ? clone(player.trades || []) : [],\n    ledger: migrate ? clone(player.ledger || []) : [],`,
-  'avoid cloning legacy fields discarded by the V33 projection',
+  `function processFacilities(player, now) {\n  for (const facility of player.facilities.slice(0, ECONOMY_CONSTANTS.maxFacilitiesProcessedPerTick)) {`,
+  `function processFacilities(player, now) {\n  for (const facility of (player.facilities || []).slice(0, ECONOMY_CONSTANTS.maxFacilitiesProcessedPerTick)) {`,
+  'current worlds no longer carry legacy facilities arrays',
 );
 
 replaceOnce(
-  'server/test/state-polling.test.js',
-  `    const unchanged = store.getStateSnapshot(alice, action.revision, now + 3_000);`,
-  `    const unchanged = store.getStateSnapshot(alice, action.revision, now + 2_500);`,
-  'poll before the next unscheduled world-processing deadline',
+  'server/src/domain-core.js',
+  `export function processWorld(world, now = Date.now()) {\n  migrateWorld(world, now);\n  for (const player of Object.values(world.players)) processFacilities(player, now);\n  pruneWorld(world, now);\n  return world;\n}`,
+  `export function processWorld(world, now = Date.now(), { migrate = true } = {}) {\n  if (migrate) migrateWorld(world, now);\n  for (const player of Object.values(world.players || {})) processFacilities(player, now);\n  pruneWorld(world, now);\n  return world;\n}`,
+  'allow current-world processing without migration',
 );
 
 replaceOnce(
-  'server/test/world-storage-v2.test.js',
-  `const alice = { id: 1, email: 'alice@example.com', name: 'Alice', role: 'user' };`,
-  `const alice = { id: 1, email: 'alice@example.com', name: 'Alice', role: 'user' };\nconst bob = { id: 2, email: 'bob@example.com', name: 'Bob', role: 'user' };`,
-  'second player fixture',
+  'server/src/domain-core.js',
+  `export function applyAction(world, user, action, payload = {}, now = Date.now()) {\n  migrateWorld(world, now);\n  ensurePlayer(world, user, now);\n  processWorld(world, now);\n  const userId = Number(user.id);`,
+  `export function applyAction(\n  world,\n  user,\n  action,\n  payload = {},\n  now = Date.now(),\n  { migrate = true, process = true } = {},\n) {\n  if (migrate) migrateWorld(world, now);\n  ensurePlayer(world, user, now, { migrate: false });\n  if (process) processWorld(world, now, { migrate: false });\n  const userId = Number(user.id);`,
+  'formal actions must not repeat migration and processing',
+);
+
+replaceOnce(
+  'server/src/facility-groups.js',
+  `export function processFacilityGroupWorld(world, now = Date.now()) {\n  removeSystemFacilityOrders(world);\n  migrateFacilityGroupWorld(world, now);\n  withLegacyFacilitiesSuppressed(world, () => processWorld(world, now));\n  migrateFacilityGroupWorld(world, now);\n  removeSystemFacilityOrders(world);\n  for (const player of Object.values(world.players || {})) {\n    ensureWarehouse(player);\n    for (const group of player.facilityGroups || []) processGroup(world, player, group, now);\n  }\n  reconcileAllFacilityGroups(world, now);\n  stripLegacyFacilityInstances(world);\n  return world;\n}`,
+  `export function processFacilityGroupWorld(world, now = Date.now(), { migrate = true } = {}) {\n  removeSystemFacilityOrders(world);\n  if (migrate) migrateFacilityGroupWorld(world, now);\n  if (migrate) withLegacyFacilitiesSuppressed(world, () => processWorld(world, now, { migrate: false }));\n  else processWorld(world, now, { migrate: false });\n  if (migrate) migrateFacilityGroupWorld(world, now);\n  removeSystemFacilityOrders(world);\n  for (const player of Object.values(world.players || {})) {\n    ensureWarehouse(player);\n    for (const group of player.facilityGroups || []) processGroup(world, player, group, now);\n  }\n  reconcileAllFacilityGroups(world, now);\n  if (migrate) stripLegacyFacilityInstances(world);\n  return world;\n}`,
+  'separate cold facility migration from current-world processing',
+);
+
+replaceOnce(
+  'server/src/facility-groups.js',
+  `export function applyFacilityGroupAction(world, user, action, payload = {}, now = Date.now()) {\n  processFacilityGroupWorld(world, now);\n  const userId = Number(user.id);\n  let actionResult;`,
+  `export function applyFacilityGroupAction(\n  world,\n  user,\n  action,\n  payload = {},\n  now = Date.now(),\n  { migrate = true, process = true } = {},\n) {\n  if (process) processFacilityGroupWorld(world, now, { migrate });\n  const userId = Number(user.id);\n  const applyBaseAction = () => applyAction(world, user, action, payload, now, { migrate: false, process: false });\n  let actionResult;`,
+  'formal facility actions can rely on scheduler processing',
+);
+
+replaceOnce(
+  'server/src/facility-groups.js',
+  `      : withLegacyFacilitiesSuppressed(world, () => applyAction(world, user, action, payload, now));`,
+  `      : (migrate ? withLegacyFacilitiesSuppressed(world, applyBaseAction) : applyBaseAction());`,
+  'cancel action base fallback without hot legacy suppression',
 );
 replaceOnce(
-  'server/test/world-storage-v2.test.js',
-  `      assert.equal(state.bank.depositCredits, depositCredits);`,
-  `      assert.equal(state.bankAccount.depositCredits, depositCredits);`,
-  'V33 bank client field',
+  'server/src/facility-groups.js',
+  `  } else {\n    actionResult = withLegacyFacilitiesSuppressed(world, () => applyAction(world, user, action, payload, now));\n  }\n\n  migrateFacilityGroupWorld(world, now);\n  if (action === 'renamePlayer' && actionResult.ok) renameFacilityOrders(world, userId);\n  reconcileAllFacilityGroups(world, now);\n  stripLegacyFacilityInstances(world);\n  return actionResult;\n}`,
+  `  } else {\n    actionResult = migrate ? withLegacyFacilitiesSuppressed(world, applyBaseAction) : applyBaseAction();\n  }\n\n  if (migrate) migrateFacilityGroupWorld(world, now);\n  if (action === 'renamePlayer' && actionResult.ok) renameFacilityOrders(world, userId);\n  reconcileAllFacilityGroups(world, now);\n  if (migrate) stripLegacyFacilityInstances(world);\n  return actionResult;\n}`,
+  'skip post-action migration on current runtime worlds',
 );
 
-appendOnce(
-  'server/test/world-storage-v2.test.js',
-  "test('current V2 cold restarts do not advance revision or rewrite segmented rows'",
-  `test('current V2 cold restarts do not advance revision or rewrite segmented rows', () => {\n  const directory = mkdtempSync(join(tmpdir(), 'economy-storage-v2-cold-'));\n  const databasePath = join(directory, 'economy.sqlite');\n  try {\n    const first = new EconomyStore(databasePath, { scheduledProcessing: true });\n    first.getState(alice, now);\n    const before = first.database.prepare(\n      \"SELECT m.revision, m.updated_at, s.updated_revision AS orders_revision, s.state_json AS orders_json FROM economy_world_meta m JOIN economy_world_segments s ON s.segment_key = 'orders' WHERE m.id = 1\",\n    ).get();\n    first.stopScheduler();\n    first.close();\n\n    const second = new EconomyStore(databasePath, { scheduledProcessing: true });\n    second.getState(alice, now + 1);\n    const afterSecond = second.database.prepare(\n      \"SELECT m.revision, m.updated_at, s.updated_revision AS orders_revision, s.state_json AS orders_json FROM economy_world_meta m JOIN economy_world_segments s ON s.segment_key = 'orders' WHERE m.id = 1\",\n    ).get();\n    assert.deepEqual(afterSecond, before);\n    second.stopScheduler();\n    second.close();\n\n    const third = new EconomyStore(databasePath, { scheduledProcessing: true });\n    third.getState(alice, now + 2);\n    const afterThird = third.database.prepare(\n      \"SELECT m.revision, m.updated_at, s.updated_revision AS orders_revision, s.state_json AS orders_json FROM economy_world_meta m JOIN economy_world_segments s ON s.segment_key = 'orders' WHERE m.id = 1\",\n    ).get();\n    assert.deepEqual(afterThird, before);\n    third.stopScheduler();\n    third.close();\n  } finally {\n    rmSync(directory, { recursive: true, force: true });\n  }\n});\n\ntest('legacy monolithic world migrates to V2 only once', () => {\n  const directory = mkdtempSync(join(tmpdir(), 'economy-storage-v2-legacy-'));\n  const databasePath = join(directory, 'economy.sqlite');\n  try {\n    const seed = new EconomyStore(databasePath, { scheduledProcessing: false });\n    seed.getState(alice, now);\n    const legacyWorldJson = JSON.stringify(seed.worldCache.world);\n    seed.database.prepare('DELETE FROM economy_world_meta').run();\n    seed.database.prepare('DELETE FROM economy_world_players').run();\n    seed.database.prepare('DELETE FROM economy_world_segments').run();\n    seed.database.prepare(\n      'UPDATE economy_world SET revision = ?, state_json = ?, updated_at = ? WHERE id = 1',\n    ).run(7, legacyWorldJson, now);\n    seed.close();\n\n    const migrated = new EconomyStore(databasePath, { scheduledProcessing: true });\n    migrated.getState(alice, now + 1);\n    const firstMeta = migrated.database.prepare(\n      'SELECT revision, world_version, storage_schema_version, updated_at FROM economy_world_meta WHERE id = 1',\n    ).get();\n    assert.equal(Number(firstMeta.storage_schema_version), WORLD_STORAGE_SCHEMA_VERSION);\n    migrated.stopScheduler();\n    migrated.close();\n\n    const reopened = new EconomyStore(databasePath, { scheduledProcessing: true });\n    reopened.getState(alice, now + 2);\n    const secondMeta = reopened.database.prepare(\n      'SELECT revision, world_version, storage_schema_version, updated_at FROM economy_world_meta WHERE id = 1',\n    ).get();\n    assert.deepEqual(secondMeta, firstMeta);\n    reopened.stopScheduler();\n    reopened.close();\n  } finally {\n    rmSync(directory, { recursive: true, force: true });\n  }\n});\n\ntest('dirty player write leaves unrelated player and market rows byte-identical', () => {\n  const store = new EconomyStore(':memory:', { scheduledProcessing: true });\n  try {\n    store.getState(alice, now);\n    store.getState(bob, now + 1);\n    const bobBefore = store.database.prepare(\n      'SELECT updated_revision, state_json FROM economy_world_players WHERE user_id = 2',\n    ).get();\n    const marketsBefore = store.database.prepare(\n      \"SELECT updated_revision, state_json FROM economy_world_segments WHERE segment_key = 'markets'\",\n    ).get();\n\n    const result = store.apply(alice, action('bankDeposit', { amount: 10 }, 'storage-v2-dirty-12345678'), now + 2);\n    assert.equal(result.result.ok, true);\n\n    const bobAfter = store.database.prepare(\n      'SELECT updated_revision, state_json FROM economy_world_players WHERE user_id = 2',\n    ).get();\n    const marketsAfter = store.database.prepare(\n      \"SELECT updated_revision, state_json FROM economy_world_segments WHERE segment_key = 'markets'\",\n    ).get();\n    assert.deepEqual(bobAfter, bobBefore);\n    assert.deepEqual(marketsAfter, marketsBefore);\n  } finally {\n    store.stopScheduler();\n    store.close();\n  }\n});`,
+replaceOnce(
+  'server/src/runtime-action-executor.js',
+  `function cancelRuntimeCommodityOrder(world, user, orderId, now) {`,
+  `function cancelRuntimeCommodityOrder(world, user, orderId, now, { processWorld = true } = {}) {`,
+  'commodity cancel scheduler option',
+);
+replaceOnce(
+  'server/src/runtime-action-executor.js',
+  `  processFacilityGroupWorld(world, now);\n  return cancelSettledCommodityOrder(world, user, orderId)`,
+  `  if (processWorld) processFacilityGroupWorld(world, now, { migrate: false });\n  return cancelSettledCommodityOrder(world, user, orderId)`,
+  'do not reprocess formal runtime world before commodity cancel',
+);
+replaceOnce(
+  'server/src/runtime-action-executor.js',
+  `    const { revision, stateJson, world } = store.loadWorld(now, mutationScope);\n    const player = ensurePlayer(world, user, now);`,
+  `    const { revision, stateJson, world } = store.loadWorld(now, mutationScope);\n    const player = ensurePlayer(world, user, now, { migrate: false });`,
+  'runtime player ensure must not migrate the full world',
+);
+replaceOnce(
+  'server/src/runtime-action-executor.js',
+  `        gameResult = cancelRuntimeCommodityOrder(world, user, payload.orderId, now)\n          ?? applyFacilityGroupAction(world, user, action, payload, now);`,
+  `        gameResult = cancelRuntimeCommodityOrder(world, user, payload.orderId, now, {\n          processWorld: !store.scheduledProcessing,\n        }) ?? applyFacilityGroupAction(world, user, action, payload, now, {\n          migrate: false,\n          process: !store.scheduledProcessing,\n        });`,
+  'formal cancel action uses scheduler barrier instead of world processing',
+);
+replaceOnce(
+  'server/src/runtime-action-executor.js',
+  `          gameResult = applyFacilityGroupAction(world, user, action, payload, now);`,
+  `          gameResult = applyFacilityGroupAction(world, user, action, payload, now, {\n            migrate: false,\n            process: !store.scheduledProcessing,\n          });`,
+  'auto-procure build avoids runtime migration',
+);
+replaceOnce(
+  'server/src/runtime-action-executor.js',
+  `      } else {\n        gameResult = applyFacilityGroupAction(world, user, action, payload, now);\n      }`,
+  `      } else {\n        gameResult = applyFacilityGroupAction(world, user, action, payload, now, {\n          migrate: false,\n          process: !store.scheduledProcessing,\n        });\n      }`,
+  'formal facility/base actions avoid runtime migration',
 );
 
-console.log('Applied segmented world storage V2 regression and projection fixes.');
+replaceOnce(
+  'server/src/storage.js',
+  `      const player = ensurePlayer(world, user, now);\n      ensureWarehouse(player);\n      ensureGemState(player);\n      ensureBankWorld(world, now);`,
+  `      const player = ensurePlayer(world, user, now, { migrate: false });\n      ensureWarehouse(player);\n      ensureGemState(player);\n      ensureBankWorld(world, now, { normalizePlayers: false });`,
+  'state write path assumes cold-migrated current world',
+);
+
+replaceOnce(
+  'server/src/runtime-store-core.js',
+  `      const player = ensurePlayer(world, user, now);\n      ensureWarehouse(player);`,
+  `      const player = ensurePlayer(world, user, now, { migrate: false });\n      ensureWarehouse(player);`,
+  'contract runtime action must not run full migration',
+);
+
+console.log('Applied current-world hot-path migration separation.');
