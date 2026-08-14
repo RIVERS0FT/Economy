@@ -17,6 +17,15 @@ const LOCAL_PLAYER_ACTIONS = new Set([
   'rejectGemShopQuote',
   'setFacilityRecipe',
 ]);
+const LOCAL_ORDER_POLICY_EXECUTIONS = new Set([
+  'online-auto-sell-policy',
+  'online-auto-trade-policy',
+]);
+const ACTIVE_ORDER_EXECUTIONS = new Set([
+  '',
+  'online-auto-buy',
+  'online-auto-sell',
+]);
 
 const AUCTION_ACTIONS = new Set(['createAuction', 'placeAuctionBid', 'cancelAuction']);
 const CORE_LOCAL_SEGMENTS = Object.freeze([
@@ -138,6 +147,9 @@ export function createFullMutationScope() {
     allSegments: true,
     playerIds: null,
     segments: null,
+    orderIndexes: null,
+    marketKeys: null,
+    facilityMarketKeys: null,
     includeAuctionEscrow: true,
     label: 'full-world',
   };
@@ -164,58 +176,122 @@ function isOpenOrder(order) {
   return Number(order?.remaining || 0) > 0 && ['open', 'partial'].includes(String(order?.status || ''));
 }
 
+function orderKind(order) {
+  return order?.assetKind === 'facility' ? 'facility' : 'commodity';
+}
+
+function orderAssetId(order) {
+  return String(
+    order?.assetId
+    || (orderKind(order) === 'facility' ? order?.facilityTypeId : order?.productId)
+    || '',
+  );
+}
+
 function commodityProductId(value) {
   return String(value?.productId || value?.assetId || 'wheat');
 }
 
 function isCommodityOrder(order) {
-  if (!order || order.assetKind === 'facility') return false;
-  return order.assetKind === 'commodity' || Boolean(order.productId);
+  return orderKind(order) === 'commodity';
 }
 
-function isOrdinaryCommodityPlacement(action, payload) {
-  if (action !== 'placeOrder' || payload?.assetKind === 'facility') return false;
-  return ![
-    'facility-build-procurement',
-    'facility-build-procurement-cancel',
-    'online-auto-sell-policy',
-    'online-auto-trade-policy',
-    'online-auto-buy',
-    'online-auto-sell',
-  ].includes(String(payload?.execution || ''));
+function orderIndexesForAssets(world, assets, { ownerId = null } = {}) {
+  const wanted = new Set(assets.map(({ kind, assetId }) => `${kind}:${assetId}`));
+  const indexes = new Set();
+  for (const [index, order] of (world?.orders || []).entries()) {
+    if (!isOpenOrder(order)) continue;
+    if (ownerId !== null && Number(order?.ownerId) !== Number(ownerId)) continue;
+    if (wanted.has(`${orderKind(order)}:${orderAssetId(order)}`)) indexes.add(index);
+  }
+  return indexes;
 }
 
-function commodityOrderParticipantIds(world, payload, userId) {
+function playerIdsForOrderIndexes(world, userId, orderIndexes) {
   const ids = new Set([playerKey(userId)]);
-  const side = payload?.side === 'buy' ? 'buy' : payload?.side === 'sell' ? 'sell' : null;
-  const productId = commodityProductId(payload);
-  const price = Number(payload?.price);
-  if (!side || !Number.isFinite(price)) return ids;
-  const opposite = side === 'buy' ? 'sell' : 'buy';
-  for (const order of world?.orders || []) {
-    if (!isCommodityOrder(order) || !isOpenOrder(order)) continue;
-    if (order.side !== opposite || commodityProductId(order) !== productId) continue;
-    const restingPrice = Number(order.price);
-    if (!Number.isFinite(restingPrice)) continue;
-    const crosses = side === 'buy' ? restingPrice <= price : restingPrice >= price;
-    if (!crosses || order.ownerType !== 'player') continue;
+  for (const index of orderIndexes || []) {
+    const order = world?.orders?.[index];
+    if (order?.ownerType !== 'player') continue;
     const ownerId = Number(order.ownerId);
     if (Number.isSafeInteger(ownerId) && ownerId > 0) ids.add(playerKey(ownerId));
   }
   return ids;
 }
 
-function commodityCancelScope(world, userId, payload) {
+function orderScope(world, userId, assets, {
+  label,
+  mutateMarkets = false,
+  currentPlayerOrdersOnly = false,
+} = {}) {
+  const normalizedAssets = assets
+    .map(({ kind, assetId }) => ({ kind, assetId: String(assetId || '') }))
+    .filter(({ kind, assetId }) => (kind === 'commodity' || kind === 'facility') && assetId);
+  if (normalizedAssets.length === 0) return null;
+  const orderIndexes = orderIndexesForAssets(world, normalizedAssets, {
+    ownerId: currentPlayerOrdersOnly ? userId : null,
+  });
+  const playerIds = currentPlayerOrdersOnly
+    ? new Set([playerKey(userId)])
+    : playerIdsForOrderIndexes(world, userId, orderIndexes);
+  const marketKeys = new Set(normalizedAssets.filter(({ kind }) => kind === 'commodity').map(({ assetId }) => assetId));
+  const facilityMarketKeys = new Set(normalizedAssets.filter(({ kind }) => kind === 'facility').map(({ assetId }) => assetId));
+  const segments = new Set([...CORE_LOCAL_SEGMENTS, 'orders']);
+  if (mutateMarkets && marketKeys.size > 0) segments.add('markets');
+  if (mutateMarkets && facilityMarketKeys.size > 0) segments.add('facilityMarkets');
+  return {
+    allPlayers: false,
+    allSegments: false,
+    playerIds,
+    segments,
+    orderIndexes,
+    marketKeys: mutateMarkets ? marketKeys : new Set(),
+    facilityMarketKeys: mutateMarkets ? facilityMarketKeys : new Set(),
+    includeAuctionEscrow: false,
+    label: String(label || 'orders:local'),
+  };
+}
+
+function ordinaryOrderAsset(payload) {
+  if (payload?.assetKind === 'facility') {
+    return { kind: 'facility', assetId: String(payload?.assetId || payload?.facilityTypeId || '') };
+  }
+  return { kind: 'commodity', assetId: commodityProductId(payload) };
+}
+
+function procurementAssets(payload) {
+  const source = payload?.materialOrderPrices || payload?.materialPriceCaps;
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return [];
+  return Object.keys(source).map((productId) => ({ kind: 'commodity', assetId: productId }));
+}
+
+function procurementCancelAssets(world, payload) {
+  const orderIds = new Set((payload?.orderIds || []).map((value) => String(value || '')).filter(Boolean));
+  const assets = new Map();
+  for (const order of world?.orders || []) {
+    if (!orderIds.has(String(order?.id || ''))) continue;
+    assets.set(`${orderKind(order)}:${orderAssetId(order)}`, {
+      kind: orderKind(order),
+      assetId: orderAssetId(order),
+    });
+  }
+  return [...assets.values()];
+}
+
+function cancelScope(world, userId, payload) {
   const orderId = String(payload?.orderId || '');
-  const order = (world?.orders || []).find((candidate) => String(candidate?.id || '') === orderId);
-  if (!isCommodityOrder(order) || Number(order?.ownerId) !== Number(userId)) return null;
+  const index = (world?.orders || []).findIndex((candidate) => String(candidate?.id || '') === orderId);
+  const order = index >= 0 ? world.orders[index] : null;
+  if (!order || Number(order?.ownerId) !== Number(userId) || !isOpenOrder(order)) return null;
   return {
     allPlayers: false,
     allSegments: false,
     playerIds: new Set([playerKey(userId)]),
     segments: new Set([...CORE_LOCAL_SEGMENTS, 'orders']),
+    orderIndexes: new Set([index]),
+    marketKeys: new Set(),
+    facilityMarketKeys: new Set(),
     includeAuctionEscrow: false,
-    label: 'commodity:cancelOrder',
+    label: `${orderKind(order)}:cancelOrder`,
   };
 }
 
@@ -230,6 +306,9 @@ export function createRuntimeMutationScope(world, userId, action, payload, {
       allSegments: false,
       playerIds: new Set([playerKey(userId)]),
       segments: new Set(CORE_LOCAL_SEGMENTS),
+      orderIndexes: new Set(),
+      marketKeys: new Set(),
+      facilityMarketKeys: new Set(),
       includeAuctionEscrow: false,
       label: `local:${action}`,
     };
@@ -241,28 +320,73 @@ export function createRuntimeMutationScope(world, userId, action, payload, {
       allSegments: false,
       playerIds: auctionParticipantIds(world, payload, userId),
       segments: new Set([...CORE_LOCAL_SEGMENTS, 'assetAuctions']),
+      orderIndexes: new Set(),
+      marketKeys: new Set(),
+      facilityMarketKeys: new Set(),
       includeAuctionEscrow: true,
       label: `auction:${action}`,
     };
   }
 
-  if (isOrdinaryCommodityPlacement(action, payload)) {
-    return {
-      allPlayers: false,
-      allSegments: false,
-      playerIds: commodityOrderParticipantIds(world, payload, userId),
-      segments: new Set([...CORE_LOCAL_SEGMENTS, 'orders', 'markets']),
-      includeAuctionEscrow: false,
-      label: 'commodity:placeOrder',
-    };
+  if (action === 'placeOrder') {
+    const execution = String(payload?.execution || '');
+    if (LOCAL_ORDER_POLICY_EXECUTIONS.has(execution)) {
+      const scope = orderScope(world, userId, [ordinaryOrderAsset(payload)], {
+        label: `commodity:${execution}`,
+        currentPlayerOrdersOnly: true,
+      });
+      if (scope) return scope;
+    }
+    if (execution === 'facility-build-procurement') {
+      const scope = orderScope(world, userId, procurementAssets(payload), {
+        label: 'commodity:facility-build-procurement',
+        mutateMarkets: true,
+      });
+      if (scope) return scope;
+    }
+    if (execution === 'facility-build-procurement-cancel') {
+      const scope = orderScope(world, userId, procurementCancelAssets(world, payload), {
+        label: 'commodity:facility-build-procurement-cancel',
+        currentPlayerOrdersOnly: true,
+      });
+      if (scope) return scope;
+    }
+    if (ACTIVE_ORDER_EXECUTIONS.has(execution)) {
+      const asset = ordinaryOrderAsset(payload);
+      const scope = orderScope(world, userId, [asset], {
+        label: `${asset.kind}:placeOrder${execution ? `:${execution}` : ''}`,
+        mutateMarkets: true,
+      });
+      if (scope) return scope;
+    }
   }
 
   if (action === 'cancelOrder') {
-    const scope = commodityCancelScope(world, userId, payload);
+    const scope = cancelScope(world, userId, payload);
     if (scope) return scope;
   }
 
   return createFullMutationScope();
+}
+
+function cloneScopedObject(source, keys) {
+  if (keys === null) return structuredClone(source || {});
+  const clone = { ...(source || {}) };
+  for (const key of keys || []) {
+    if (Object.hasOwn(source || {}, key)) clone[key] = structuredClone(source[key]);
+  }
+  return clone;
+}
+
+function cloneScopedOrders(orders, orderIndexes) {
+  if (orderIndexes === null) return structuredClone(orders || []);
+  const clone = [...(orders || [])];
+  for (const index of orderIndexes || []) {
+    if (Number.isInteger(index) && index >= 0 && index < clone.length) {
+      clone[index] = structuredClone(clone[index]);
+    }
+  }
+  return clone;
 }
 
 export function cloneWorldForMutation(world, scope = createFullMutationScope()) {
@@ -283,6 +407,18 @@ export function cloneWorldForMutation(world, scope = createFullMutationScope()) 
     : [...(scope.segments || [])];
   for (const key of segments) {
     if (key === 'players' || !Object.hasOwn(world || {}, key)) continue;
+    if (key === 'orders' && !scope.allSegments) {
+      draft.orders = cloneScopedOrders(world.orders, scope.orderIndexes ?? null);
+      continue;
+    }
+    if (key === 'markets' && !scope.allSegments) {
+      draft.markets = cloneScopedObject(world.markets, scope.marketKeys ?? null);
+      continue;
+    }
+    if (key === 'facilityMarkets' && !scope.allSegments) {
+      draft.facilityMarkets = cloneScopedObject(world.facilityMarkets, scope.facilityMarketKeys ?? null);
+      continue;
+    }
     draft[key] = structuredClone(world[key]);
   }
   return draft;
@@ -390,6 +526,9 @@ function normalizedScope(scope, world) {
       ? null
       : new Set([...(scope.playerIds || [])].map(playerKey)),
     segments: scope.segments === null ? null : new Set(scope.segments || []),
+    orderIndexes: scope.orderIndexes === null ? null : new Set(scope.orderIndexes || []),
+    marketKeys: scope.marketKeys === null ? null : new Set(scope.marketKeys || []),
+    facilityMarketKeys: scope.facilityMarketKeys === null ? null : new Set(scope.facilityMarketKeys || []),
     includeAuctionEscrow: scope.includeAuctionEscrow !== false,
     label: String(scope.label || 'mutation'),
   };
