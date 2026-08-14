@@ -143,7 +143,9 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
       } else if (AUCTION_ACTIONS.has(action)) {
         gameResult = applyAssetAuctionAction(world, user, action, payload, now);
       } else if (BANK_ACTIONS.has(action)) {
-        gameResult = applyBankAction(world, user, action, payload, now);
+        gameResult = applyBankAction(world, user, action, payload, now, {
+          processWorld: !store.scheduledProcessing,
+        });
       } else if (action === 'cancelOrder') {
         gameResult = cancelRuntimeCommodityOrder(world, user, payload.orderId, now)
           ?? applyFacilityGroupAction(world, user, action, payload, now);
@@ -211,9 +213,9 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     const player = ensurePlayer(world, user, now);
     ensureWarehouse(player);
     ensureGemState(player);
-    ensureBankWorld(world, now);
+    ensureBankWorld(world, now, { normalizePlayers: !store.scheduledProcessing });
     ensurePlayerBankAccount(player, now);
-    ensureWeeklyCashSettlementWorld(world, now);
+    ensureWeeklyCashSettlementWorld(world, now, { normalizePlayers: !store.scheduledProcessing });
     ensurePlayerWeeklyCashSettlement(player, now);
     if (!store.scheduledProcessing) {
       store.processWorldIfDue(world, now, Number(user.id), {
@@ -222,7 +224,9 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
         auditTrigger: 'action_preprocess',
       });
     }
-    settlePlayerWeeklyCashOnLogin(world, world.players[String(user.id)], now);
+    settlePlayerWeeklyCashOnLogin(world, world.players[String(user.id)], now, {
+      processWorld: !store.scheduledProcessing,
+    });
 
     const { gameResult, playerBeforeAction, contractsBeforeAction } = executeActionBody(
       store,
@@ -264,7 +268,9 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     if ((ECONOMIC_ACTIVITY_ACTIONS.has(action) || CONTRACT_ACTIONS.has(action)) && !isPolicySave) {
       if (activePlayer && (playerChanged || contractChanged)) {
         activePlayer.lastEconomicActivityAt = now;
-        const activated = activateWeeklyCashSettlement(world, activePlayer, now);
+        const activated = activateWeeklyCashSettlement(world, activePlayer, now, {
+          processWorld: !store.scheduledProcessing,
+        });
         if (activated) {
           gameResult.message = String(gameResult.message || '')
             + '；本周已激活，存款从下一个自然日按每日 1% 计息，周末按资金净额生成 10% 结算';

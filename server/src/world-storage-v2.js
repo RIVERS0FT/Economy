@@ -1,6 +1,7 @@
 import { measureRequestPhase, setRequestGauge } from './request-performance.js';
 
 export const WORLD_STORAGE_SCHEMA_VERSION = 2;
+export const AUTHORITATIVE_WORLD_VERSION = 29;
 
 const LOCAL_PLAYER_ACTIONS = new Set([
   'startResearch',
@@ -20,6 +21,12 @@ const AUCTION_ACTIONS = new Set(['createAuction', 'placeAuctionBid', 'cancelAuct
 const CORE_LOCAL_SEGMENTS = Object.freeze([
   'bank',
   'weeklyCashSettlement',
+  'populationEconomy',
+  'marketDemand',
+  'demandGroups',
+  'priceTransmission',
+  'markets',
+  'stats',
   'moneyPrecision',
   'auctionFeeEscrowCredits',
   'version',
@@ -252,6 +259,9 @@ export function readSegmentedWorld(store) {
     publishSnapshotGauges(snapshot);
     return {
       revision: Number(meta.revision),
+      worldVersion: Number(meta.world_version || 0),
+      storageSchemaVersion: Number(meta.storage_schema_version || 0),
+      updatedAt: Number(meta.updated_at || 0),
       world,
       snapshot,
     };

@@ -74,6 +74,7 @@ import {
 } from './auction-audit-store.js';
 import {
   applySegmentedWorldWrite,
+  AUTHORITATIVE_WORLD_VERSION,
   createFullMutationScope,
   installSegmentedWorldStorage,
   prepareSegmentedWorldWrite,
@@ -601,7 +602,7 @@ export class EconomyStore {
       stripPlayerLogs(world);
       measureRequestPhase('moneyNormalizeMs', () => normalizeWorldMoneyPrecision(world));
     }
-    world.version = 29;
+    world.version = AUTHORITATIVE_WORLD_VERSION;
     return world;
   }
 
@@ -666,18 +667,29 @@ export class EconomyStore {
 
     const segmented = readSegmentedWorld(this);
     if (segmented) {
-      const world = this.migrateLoadedWorld(segmented.world, now);
-      const migratedSnapshot = snapshotSegmentedWorld(world);
-      const needsPersistence = !segmentedSnapshotsEqual(segmented.snapshot, migratedSnapshot);
-      this.cacheWorld(
-        segmented.revision,
-        null,
-        world,
-        needsPersistence,
-        needsPersistence ? segmented.snapshot : migratedSnapshot,
+      const currentStorageWorld = segmented.storageSchemaVersion === 2
+        && segmented.worldVersion === AUTHORITATIVE_WORLD_VERSION
+        && Number(segmented.world?.version || 0) === AUTHORITATIVE_WORLD_VERSION;
+      if (currentStorageWorld) {
+        this.cacheWorld(segmented.revision, null, segmented.world, false, segmented.snapshot);
+        return {
+          revision: segmented.revision,
+          stateJson: null,
+          world: measureRequestPhase('worldCloneMs', () => structuredClone(segmented.world)),
+        };
+      }
+
+      const world = this.migrateLoadedWorld(
+        migrateWorld(structuredClone(segmented.world), now),
+        now,
       );
+      const migratedSnapshot = snapshotSegmentedWorld(world);
+      const migrationChanged = !segmentedSnapshotsEqual(segmented.snapshot, migratedSnapshot);
+      const revision = segmented.revision + (migrationChanged ? 1 : 0);
+      const persistedSnapshot = writeFullSegmentedWorld(this, revision, world, now);
+      this.cacheWorld(revision, null, world, false, persistedSnapshot);
       return {
-        revision: segmented.revision,
+        revision,
         stateJson: null,
         world: measureRequestPhase('worldCloneMs', () => structuredClone(world)),
       };

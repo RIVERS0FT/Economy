@@ -340,14 +340,17 @@ function completeResearchIfDue(world, player, now) {
   return true;
 }
 
+export function processPlayerResearch(world, player, now = Date.now()) {
+  const research = ensurePlayerResearch(world, player, now);
+  if (!research?.active) return research;
+  releaseResearchEmployment(world, player, now);
+  completeResearchIfDue(world, player, now);
+  return player.research;
+}
+
 export function processResearchWorld(world, now = Date.now()) {
   migrateResearchWorld(world, now);
-  for (const player of Object.values(world.players || {})) {
-    const research = ensurePlayerResearch(world, player, now);
-    if (!research?.active) continue;
-    releaseResearchEmployment(world, player, now);
-    completeResearchIfDue(world, player, now);
-  }
+  for (const player of Object.values(world.players || {})) processPlayerResearch(world, player, now);
   return world;
 }
 
@@ -462,9 +465,10 @@ function accelerateResearch(world, player, now) {
 
 export function applyResearchAction(world, user, action, payload = {}, now = Date.now()) {
   if (action !== 'startResearch' && action !== 'accelerateResearch') return null;
-  processResearchWorld(world, now);
   const player = world.players?.[String(user?.id)];
   if (!player) return { ok: false, message: '玩家不存在' };
+  if (Number(world.version || 0) < RESEARCH_WORLD_VERSION) processResearchWorld(world, now);
+  else processPlayerResearch(world, player, now);
   return action === 'startResearch'
     ? startResearch(world, player, payload, now)
     : accelerateResearch(world, player, now);
@@ -504,8 +508,9 @@ function productionMethodLockedResult(world, player, facilityTypeId, recipeId, n
 
 export function validateResearchAccess(world, user, action, payload = {}, now = Date.now()) {
   if (!world?.players?.[String(user?.id)]) return null;
-  processResearchWorld(world, now);
   const player = world.players[String(user.id)];
+  if (Number(world.version || 0) < RESEARCH_WORLD_VERSION) processResearchWorld(world, now);
+  else processPlayerResearch(world, player, now);
   let facilityTypeId = null;
   if (['buildFacility', 'startFacility', 'setFacilityRecipe'].includes(action)) {
     facilityTypeId = payload.facilityTypeId;
