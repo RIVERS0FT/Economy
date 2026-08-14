@@ -24,6 +24,7 @@ jobs:
           cache: npm
       - name: Apply guarded patch
         run: |
+          sed -i 's/${label}/\\${label}/g' scripts/.apply-api-latency-observability-v3.mjs
           node --check scripts/.apply-api-latency-observability-v3.mjs
           node scripts/.apply-api-latency-observability-v3.mjs
           git diff --check
