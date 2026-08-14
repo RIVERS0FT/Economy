@@ -602,6 +602,10 @@ export async function runStressTest(options = {}) {
     }
   } catch (error) {
     failures.push(String(error?.message || error || '未知压力测试错误'));
+    if (harness) {
+      storageAfter ||= await harness.storageSnapshot();
+      diagnostics ||= harness.diagnostics();
+    }
   }
 
   const measuredDurationMs = Math.max(0, performance.now() - measuredStartedAt);
