@@ -31,6 +31,7 @@ jobs:
           sed -i '/^\/\/ contractProjectionForState$/d' server/src/runtime-store.js
           sed -i "/  'contractProjectionForState',/d" scripts/verify-runtime-efficiency.mjs
           sed -i 's/正式调度继续按同一修订号计划和实际到期领域推进/正式调度继续复用同一修订号计划并只按实际到期领域推进/' docs/README.md
+          sed -i 's/export function createAssetAuctionClientState(world, userId, _now = Date.now())/export function createAssetAuctionClientState(world, userId, now = Date.now())/' server/src/asset-auctions.js
       - name: Complete read-only domain projection
         run: |
           node <<'NODE'
