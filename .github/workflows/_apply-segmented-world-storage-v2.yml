@@ -24,6 +24,46 @@ jobs:
           cache: npm
       - name: Apply core patch
         run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/.apply-segmented-world-storage-v2.mjs')
+          source = path.read_text()
+          before = """replaceOnce(
+            'server/src/runtime-action-executor.js',
+            `      requestKey,
+                now,
+              );`,
+            `      requestKey,
+                now,
+                mutationScope,
+              );`,
+          );"""
+          after = """replaceOnce(
+            'server/src/runtime-action-executor.js',
+            `    const { gameResult, playerBeforeAction, contractsBeforeAction } = executeActionBody(
+                store,
+                world,
+                user,
+                action,
+                payload,
+                requestKey,
+                now,
+              );`,
+            `    const { gameResult, playerBeforeAction, contractsBeforeAction } = executeActionBody(
+                store,
+                world,
+                user,
+                action,
+                payload,
+                requestKey,
+                now,
+                mutationScope,
+              );`,
+          );"""
+          if before not in source:
+              raise SystemExit('missing generic executeActionBody replacement')
+          path.write_text(source.replace(before, after, 1))
+          PY
           node --check scripts/.apply-segmented-world-storage-v2.mjs
           node scripts/.apply-segmented-world-storage-v2.mjs
           node --check server/src/world-storage-v2.js
