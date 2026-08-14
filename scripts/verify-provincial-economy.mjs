@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import chinaGeoJson from 'china-geojson/src/geojson/china.json' with { type: 'json' };
+import { feature } from 'topojson-client';
+import usStateAtlas from 'us-atlas/states-10m.json' with { type: 'json' };
 import { CURRENT_CLIENT_STATE_VERSION } from '../server/shared/economy-state-version.js';
 import { AUTHORITATIVE_WORLD_VERSION } from '../server/src/world-storage-v2.js';
 import { DEFAULT_PROVINCE_ID, PROVINCE_CATALOG } from '../server/src/provinces.js';
@@ -14,7 +15,7 @@ const requiredFiles = [
   'server/src/contract-asset-locks.js',
   'server/test/provinces.test.js',
   'src/pages/MapPage.tsx',
-  'src/components/provinces/ChinaProvinceMap.tsx',
+  'src/components/provinces/UsMainlandMap.tsx',
   'src/components/provinces/ProvinceSelect.tsx',
   'src/styles/province-map.css',
   'src/utils/provinceScope.ts',
@@ -25,39 +26,53 @@ const requiredFiles = [
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
 ];
-for (const path of requiredFiles) assert.equal(existsSync(path), true, `缺少省级经济文件: ${path}`);
+for (const path of requiredFiles) assert.equal(existsSync(path), true, `缺少州级经济文件: ${path}`);
 
-assert.equal(PROVINCE_CATALOG.length, 34, '省级地区目录必须包含 34 项');
-assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.id)).size, 34, '省级地区 ID 必须唯一');
-assert.equal(DEFAULT_PROVINCE_ID, '110000', '旧数据迁移默认省份必须稳定为北京');
-assert.equal(CURRENT_CLIENT_STATE_VERSION, 34, '省级状态协议必须使用客户端版本 34');
-assert.equal(AUTHORITATIVE_WORLD_VERSION, 30, '省级持久化必须使用世界版本 30');
+assert.equal(PROVINCE_CATALOG.length, 48, '州级地区目录必须包含美国连续 48 州');
+assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.id)).size, 48, '州级地区 ID 必须唯一');
+assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.shortName)).size, 48, '州级地区简称必须唯一');
+assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.mapName)).size, 48, '州级地图名称必须唯一');
+const legacyRegionIds = [
+  '110000', '120000', '130000', '140000', '150000', '210000', '220000', '230000',
+  '310000', '320000', '330000', '340000', '350000', '360000', '370000', '410000',
+  '420000', '430000', '440000', '450000', '460000', '500000', '510000', '520000',
+  '530000', '540000', '610000', '620000', '630000', '640000', '650000', '710000',
+  '810000', '820000',
+];
+assert.equal(legacyRegionIds.every((id) => PROVINCE_CATALOG.some((province) => province.id === id)), true, '中国地图时期的 34 个地区 ID 必须全部原位保留');
+assert.equal(DEFAULT_PROVINCE_ID, '110000', '默认地区 ID 必须保持稳定以保留既有资产');
+assert.equal(PROVINCE_CATALOG.find((province) => province.id === DEFAULT_PROVINCE_ID)?.mapName, 'California', '旧默认地区必须原位映射为加利福尼亚州');
+assert.equal(CURRENT_CLIENT_STATE_VERSION, 34, '州级状态协议必须使用客户端版本 34');
+assert.equal(AUTHORITATIVE_WORLD_VERSION, 30, '州级持久化必须使用世界版本 30');
 
 const packageJson = JSON.parse(read('package.json'));
-const mapPackage = JSON.parse(read('node_modules/china-geojson/package.json'));
-assert.equal(packageJson.dependencies?.['china-geojson'], '1.0.0', '省界数据依赖必须精确锁定 china-geojson 1.0.0');
-assert.match(String(mapPackage.license || mapPackage.licenses || ''), /MIT/i, '省界数据包必须保留 MIT 许可元数据');
-assert.equal(chinaGeoJson.type, 'FeatureCollection', '省界数据必须是 GeoJSON FeatureCollection');
-assert.equal(
-  chinaGeoJson.features.some((feature) => feature?.properties?.name === '南海诸岛'),
-  true,
-  '上游数据结构变化时必须重新审查非经营附图过滤',
-);
-const mapRegionNames = chinaGeoJson.features
-  .map((feature) => String(feature?.properties?.name || ''))
-  .filter((name) => name && name !== '南海诸岛');
-assert.equal(mapRegionNames.length, 34, 'ECharts 地图必须包含 34 个可经营省级地区');
+const atlasPackage = JSON.parse(read('node_modules/us-atlas/package.json'));
+const topoJsonPackage = JSON.parse(read('node_modules/topojson-client/package.json'));
+assert.equal(packageJson.dependencies?.['us-atlas'], '3.0.1', '州界数据依赖必须精确锁定 us-atlas 3.0.1');
+assert.equal(packageJson.dependencies?.['topojson-client'], '3.1.0', 'TopoJSON 转换依赖必须精确锁定 topojson-client 3.1.0');
+assert.equal(packageJson.dependencies?.['china-geojson'], undefined, '不得继续安装中国地图数据依赖');
+assert.match(String(atlasPackage.license || ''), /ISC/i, '州界数据包必须保留 ISC 许可元数据');
+assert.match(String(topoJsonPackage.license || ''), /ISC/i, 'TopoJSON 转换包必须保留 ISC 许可元数据');
+const atlasStateCollection = feature(usStateAtlas, usStateAtlas.objects.states);
+assert.equal(atlasStateCollection.type, 'FeatureCollection', '州界数据必须可转换为 GeoJSON FeatureCollection');
+const atlasRegionNames = atlasStateCollection.features.map((stateFeature) => String(stateFeature?.properties?.name || ''));
+for (const excludedName of ['Alaska', 'Hawaii', 'District of Columbia', 'Puerto Rico']) {
+  assert.equal(atlasRegionNames.includes(excludedName), true, `上游州界数据变化时必须重新审查过滤: ${excludedName}`);
+  assert.equal(PROVINCE_CATALOG.some((province) => province.mapName === excludedName), false, `美国本土经营目录不得包含: ${excludedName}`);
+}
+const mapRegionNames = atlasRegionNames.filter((name) => PROVINCE_CATALOG.some((province) => province.mapName === name));
+assert.equal(mapRegionNames.length, 48, 'ECharts 地图必须只包含美国连续 48 州');
 assert.deepEqual(
   new Set(mapRegionNames),
-  new Set(PROVINCE_CATALOG.map((province) => province.shortName)),
-  'ECharts GeoJSON 地区名称必须与共享省级目录一一对应',
+  new Set(PROVINCE_CATALOG.map((province) => province.mapName)),
+  'ECharts GeoJSON 州名必须与共享经营地区目录一一对应',
 );
 
 const matching = read('server/src/order-matching.js');
 for (const text of [
   'provinceId: orderProvinceId(incoming)',
   'iterateOrderBookSide(world, {',
-]) assert.ok(matching.includes(text), `共享撮合缺少省级隔离: ${text}`);
+]) assert.ok(matching.includes(text), `共享撮合缺少州级隔离: ${text}`);
 
 const facilities = read('server/src/facility-groups.js');
 for (const text of [
@@ -67,21 +82,21 @@ for (const text of [
   'addPurchasedGroup(world, buyer, typeId, quantity, createdAt, incoming.provinceId)',
   'provinceFacilityGroups',
   'provinceFacilityMarkets',
-]) assert.ok(facilities.includes(text), `工厂省级边界缺少: ${text}`);
+]) assert.ok(facilities.includes(text), `工厂州级边界缺少: ${text}`);
 
 const banking = read('server/src/banking.js');
 for (const text of [
   'const provinceId = normalizeProvinceId(item?.provinceId);',
   'transferableFacilityQuantity(world, player, item.facilityTypeId, item.provinceId)',
   'const group = groupFor(player, item.facilityTypeId, item.provinceId);',
-]) assert.ok(banking.includes(text), `银行抵押省级边界缺少: ${text}`);
+]) assert.ok(banking.includes(text), `银行抵押州级边界缺少: ${text}`);
 
 const commercialContracts = read('server/src/commercial-contracts.js');
 for (const text of [
   'const provinceId = normalizeProvinceId(payload.provinceId);',
   'groupFor(lessee, contract.facilityTypeId, contract.provinceId, true, now)',
   'groupFor(lender, contract.facilityTypeId, contract.provinceId, true, now)',
-]) assert.ok(commercialContracts.includes(text), `借贷或租赁省级边界缺少: ${text}`);
+]) assert.ok(commercialContracts.includes(text), `借贷或租赁州级边界缺少: ${text}`);
 
 const clientScope = read('src/utils/provinceScope.ts');
 for (const text of [
@@ -94,29 +109,32 @@ for (const text of [
 
 const mapPage = read('src/pages/MapPage.tsx');
 for (const text of [
-  '<ChinaProvinceMap',
+  '<UsMainlandMap',
   'summaries={game.provinceAssetSummaries}',
   'onSelectProvince={setSelectedProvinceId}',
-  'china-geojson',
+  'us-atlas',
+  '48 个州级地区',
   'province-map-command-panel',
   'province-map-meta',
   '进入本地市场',
   '管理本地生产',
 ]) assert.ok(mapPage.includes(text), `地图交互缺少: ${text}`);
 
-const mapComponent = read('src/components/provinces/ChinaProvinceMap.tsx');
+const mapComponent = read('src/components/provinces/UsMainlandMap.tsx');
 for (const text of [
-  "china-geojson/src/geojson/china.json",
-  "const OMITTED_MAP_FEATURE_NAMES = new Set(['南海诸岛'])",
-  'registerEChartsMap(CHINA_PROVINCE_MAP_NAME, chinaProvinceGeoJson)',
+  "us-atlas/states-10m.json",
+  "import { feature } from 'topojson-client'",
+  'const regionByMapName = new Map',
+  'if (!region) return []',
+  'registerEChartsMap(US_MAINLAND_MAP_NAME, usMainlandGeoJson)',
   "type: 'map'",
   "selectedMode: 'single'",
   'maxAspectRatio: 0.8',
-  "layoutCenter: ['50%', '38%']",
+  "layoutCenter: ['50%', '39%']",
   'onClick={handleMapClick}',
   'data-province-count={provinces.length}',
-  'data-map-feature-count={chinaProvinceGeoJson.features.length}',
-]) assert.ok(mapComponent.includes(text), `ECharts 省级地图缺少: ${text}`);
+  'data-map-feature-count={usMainlandGeoJson.features.length}',
+]) assert.ok(mapComponent.includes(text), `ECharts 美国本土地图缺少: ${text}`);
 
 const echartsCore = read('src/components/charts/echartsCore.ts');
 for (const text of ['MapChart', 'GeoComponent', 'registerEChartsMap']) {
@@ -131,12 +149,12 @@ for (const forbidden of ['.province-map-marker', '.province-map-silhouette']) {
 const mapBrowserTest = read('tests/browser/province-map.spec.ts');
 for (const text of [
   "data-echarts-ready', 'true'",
-  "data-province-count', '34'",
-  "data-map-feature-count', '34'",
-  "getByText('南海诸岛', { exact: true })",
+  "data-province-count', '48'",
+  "data-map-feature-count', '48'",
+  "for (const excludedCode of ['AK', 'HI', 'DC'])",
   "page.locator('.province-map-page').evaluate",
-  "hasText: /^广东$/",
-  "getByRole('option', { name: '澳门特别行政区' })",
+  "hasText: /^TX$/",
+  "getByRole('option', { name: '罗得岛州' })",
   'mobile grand-map layout keeps the country between safe overlay panels',
   'commandBottom',
   'metaTop',
@@ -147,13 +165,14 @@ assert.ok(navigation.includes("{ id: 'map', label: '地图' }"), '正式导航�
 
 const tests = read('server/test/provinces.test.js');
 for (const text of [
-  'cannot match across provinces',
+  'cannot match across states',
+  'world 30 geography replacement keeps legacy scoped assets on their existing region IDs',
   'construction and production consume and output only the selected province inventory',
   'facility order transfer preserves the province',
   'without serialized aliases',
-]) assert.ok(tests.includes(text), `省级经济专项测试缺少: ${text}`);
+]) assert.ok(tests.includes(text), `州级经济专项测试缺少: ${text}`);
 
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('省级经济验证通过：34 个地区、版本 34/30、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、MIT GeoJSON 与 ECharts 地图点击切换均已锁定。');
+console.log('地区经济验证通过：美国连续 48 州、版本 34/30、既有地区 ID 原位保留、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、ISC TopoJSON 与 ECharts 地图点击切换均已锁定。');

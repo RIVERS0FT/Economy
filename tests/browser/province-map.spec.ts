@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
 
-test('province map exposes 34 clickable regions and switches local operating context', async ({ page }) => {
+test('US mainland map exposes 48 clickable states and switches local operating context', async ({ page }) => {
   test.setTimeout(60_000);
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByRole('heading', { name: '中国地图', exact: true })).toBeVisible();
-  const map = page.getByTestId('china-province-map');
+  await expect(page.getByRole('heading', { name: '美国本土地图', exact: true })).toBeVisible();
+  const map = page.getByTestId('us-mainland-map');
   await expect(map).toHaveAttribute('data-echarts-ready', 'true');
-  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-province-count', '34');
-  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-feature-count', '34');
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-province-count', '48');
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-feature-count', '48');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '110000');
   const fullPageGeometry = await page.locator('.province-map-page').evaluate((element) => {
     const stage = element.getBoundingClientRect();
@@ -27,10 +27,12 @@ test('province map exposes 34 clickable regions and switches local operating con
   await expect(page.locator('.province-map-meta')).toBeVisible();
   const svg = map.locator('svg');
   await expect(svg).toBeVisible();
-  expect(await svg.locator('path').count()).toBeGreaterThanOrEqual(34);
-  await expect(svg.getByText('南海诸岛', { exact: true })).toHaveCount(0);
+  expect(await svg.locator('path').count()).toBeGreaterThanOrEqual(48);
+  for (const excludedCode of ['AK', 'HI', 'DC']) {
+    await expect(svg.getByText(excludedCode, { exact: true })).toHaveCount(0);
+  }
   const renderedRegionLabels = await svg.locator('text').allTextContents();
-  for (const name of ['北京', '广东', '新疆', '西藏', '黑龙江']) {
+  for (const name of ['CA', 'TX', 'WA', 'FL', 'NY']) {
     expect(renderedRegionLabels).toContain(name);
   }
   const labelOverlaps = await svg.locator('text').evaluateAll((nodes) => nodes.flatMap((node, index) => {
@@ -48,17 +50,17 @@ test('province map exposes 34 clickable regions and switches local operating con
   }));
   expect(labelOverlaps).toEqual([]);
 
-  await svg.locator('text').filter({ hasText: /^广东$/ }).click();
-  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '440000');
-  await expect(page.getByRole('heading', { name: '广东省' })).toBeVisible();
+  await svg.locator('text').filter({ hasText: /^TX$/ }).click();
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', 'US-TX');
+  await expect(page.getByRole('heading', { name: '得克萨斯州' })).toBeVisible();
   await expect(page.getByText('当地商品只进入本地仓库，订单只与当地盘口撮合。')).toBeVisible();
 
-  await page.getByRole('combobox', { name: '省级地区' }).click();
-  await page.getByRole('listbox', { name: '省级地区' })
-    .getByRole('option', { name: '澳门特别行政区' })
+  await page.getByRole('combobox', { name: '州级地区' }).click();
+  await page.getByRole('listbox', { name: '州级地区' })
+    .getByRole('option', { name: '罗得岛州' })
     .click();
-  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '820000');
-  await expect(page.getByRole('heading', { name: '澳门特别行政区' })).toBeVisible();
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', 'US-RI');
+  await expect(page.getByRole('heading', { name: '罗得岛州' })).toBeVisible();
 
   await page.getByRole('button', { name: '进入本地市场' }).click();
   await expect.poll(() => page.evaluate(() => (window as Window & { __lastSelectedTab?: string }).__lastSelectedTab)).toBe('market');
@@ -69,9 +71,9 @@ test('mobile grand-map layout keeps the country between safe overlay panels with
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
 
   const stage = page.locator('.province-map-page');
-  const map = page.getByTestId('china-province-map');
+  const map = page.getByTestId('us-mainland-map');
   await expect(map).toHaveAttribute('data-echarts-ready', 'true');
-  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-feature-count', '34');
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-feature-count', '48');
   const geometry = await stage.evaluate((element) => {
     const command = element.querySelector('.province-map-command-panel')?.getBoundingClientRect();
     const meta = element.querySelector('.province-map-meta')?.getBoundingClientRect();
@@ -94,5 +96,7 @@ test('mobile grand-map layout keeps the country between safe overlay panels with
   expect(geometry.mapRight).toBeLessThanOrEqual(geometry.viewportWidth + 1);
   expect(geometry.mapTop).toBeGreaterThanOrEqual(geometry.commandBottom - 2);
   expect(geometry.mapBottom).toBeLessThanOrEqual(geometry.metaTop + 2);
-  await expect(map.locator('svg').getByText('南海诸岛', { exact: true })).toHaveCount(0);
+  for (const excludedCode of ['AK', 'HI', 'DC']) {
+    await expect(map.locator('svg').getByText(excludedCode, { exact: true })).toHaveCount(0);
+  }
 });

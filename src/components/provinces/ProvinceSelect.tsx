@@ -5,7 +5,7 @@ export function ProvinceSelect({
   provinces,
   value,
   onChange,
-  label = '省级地区',
+  label = '州级地区',
 }: {
   provinces: ProvinceDefinition[];
   value: string;
@@ -14,10 +14,11 @@ export function ProvinceSelect({
 }) {
   const availableProvinces = provinces?.length ? provinces : [{
     id: value || '110000',
-    name: '北京市',
-    shortName: '北京',
-    longitude: 116.41,
-    latitude: 39.9,
+    name: '加利福尼亚州',
+    shortName: 'CA',
+    mapName: 'California',
+    longitude: -119.42,
+    latitude: 36.78,
   }];
   return (
     <SelectInput

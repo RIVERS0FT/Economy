@@ -440,8 +440,8 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
   return (
     <PageLayout
-      title={`${model.selectedProvince?.name || '北京'}本地市场`}
-      description="商品与工厂只和当前省级地区的订单撮合，继续使用价格优先和时间优先规则。"
+      title={`${model.selectedProvince?.name || '加利福尼亚州'}本地市场`}
+      description="商品与工厂只和当前州级地区的订单撮合，继续使用价格优先和时间优先规则。"
       actions={(
         <ProvinceSelect
           provinces={game.provinces}

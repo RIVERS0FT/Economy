@@ -14,13 +14,13 @@
 
 | 文档 | 唯一职责 |
 |---|---|
-| `PRODUCT_AND_GAMEPLAY_DESIGN.md` | 产品定位、核心循环、34 个省级经营地区、本地经济边界、工作冷却、每日签到、普通货币与宝石、直接货币发行、人口数量、工厂承载、迁入迁出、就业收入、三类人口真实钱包、消费需求与排行榜目标 |
+| `PRODUCT_AND_GAMEPLAY_DESIGN.md` | 产品定位、核心循环、美国本土连续 48 个州级经营地区、本地经济边界、工作冷却、每日签到、普通货币与宝石、直接货币发行、人口数量、工厂承载、迁入迁出、就业收入、三类人口真实钱包、消费需求与排行榜目标 |
 | `GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md` | 工厂施工加速退役、研发宝石加速、每日终端动态报价、接受／拒绝决策、历史汇率、SQLite 审计与禁止宝石兑换工厂产量 |
-| `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 38 种商品、26 种工厂（含 C1 与 C2 工厂专属作业制度、生产科技／作业科技分离、工业燃料／工业化学品，以及配套工具、化肥、饲料、养殖药剂、机械、拖拉机产业支线）、省级工厂集群与本地投入产出、固定精度经济数值、参考利润、周期成本工资、C1–C7 人口承载权重、生产复杂度岗位结构、固定建造业岗位结构、持续生产、集群级生产方式、三态、自动恢复、工厂抵押生产资格，以及商品供货、玩家抵押借贷、工厂使用权租赁与生产／资产守恒审计边界 |
+| `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 38 种商品、26 种工厂（含 C1 与 C2 工厂专属作业制度、生产科技／作业科技分离、工业燃料／工业化学品，以及配套工具、化肥、饲料、养殖药剂、机械、拖拉机产业支线）、州级工厂集群与本地投入产出、固定精度经济数值、参考利润、周期成本工资、C1–C7 人口承载权重、生产复杂度岗位结构、固定建造业岗位结构、持续生产、集群级生产方式、三态、自动恢复、工厂抵押生产资格，以及商品供货、玩家抵押借贷、工厂使用权租赁与生产／资产守恒审计边界 |
 | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 客户端工厂目录展示顺序、已拥有工厂卡片排序和目录顺序防回退 |
-| `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 省级本地商品和工厂统一限价订单、冻结、抵押后的可转让数量、撮合、成交价、估值、资产统计和普通玩家成交匿名化 |
-| `WAREHOUSE_EXPANSION_DESIGN.md` | 省级本地无限仓库、真实商品库存、容量机制退役、客户端在线自动采购／自动出售、商品自动交易卡和商品网格密度 |
-| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 十一个正式页面、中国省级经营地图、C1-C7 产业阶段与按产业链拆分的科技节点研发入口、银行资产总览与存贷款、商品／工厂资产拍卖、排行榜生产数量纯数字显示、统一导航角标语义与已读规则、进行中的合同默认视图、可审计合同历史、登录注册入口、独立商店、分享链接、邀请码、封禁提示、模块唯一归属和页面防回退规则 |
+| `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 州级本地商品和工厂统一限价订单、冻结、抵押后的可转让数量、撮合、成交价、估值、资产统计和普通玩家成交匿名化 |
+| `WAREHOUSE_EXPANSION_DESIGN.md` | 州级本地无限仓库、真实商品库存、容量机制退役、客户端在线自动采购／自动出售、商品自动交易卡和商品网格密度 |
+| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 十一个正式页面、美国本土连续 48 州经营地图、C1-C7 产业阶段与按产业链拆分的科技节点研发入口、银行资产总览与存贷款、商品／工厂资产拍卖、排行榜生产数量纯数字显示、统一导航角标语义与已读规则、进行中的合同默认视图、可审计合同历史、登录注册入口、独立商店、分享链接、邀请码、封禁提示、模块唯一归属和页面防回退规则 |
 | `MARKET_CHART_LAYOUT_DESIGN.md` | 市场近 24h 行情图的整数坐标、成交量绘图区最低可读高度、动态纵横比、底部安全区、图例居中和真实浏览器几何回归 |
 | `REGISTRATION_INVITE_FLOW_DESIGN.md` | 注册邀请码输入、分享链接预填、来源归因、首次绑定、注册完成后禁止补填、登录／注册入口三层视觉、认证卡片几何与旧接口退役 |
 | `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、工作区浮层安全区、统一表单控件、统一 SVG 图标、统一导航角标视觉、商品与工厂场景插画主视觉、覆盖式滚动条、订单成交表、桌面导航行高、中文界面、响应式、移动触摸反馈与可访问性 |
@@ -86,7 +86,7 @@
 49. 共享仓库统一预占必须同时包含未完成商品买单、当前最高出价拍卖和进行中采购合同的下一批商品；订单、拍卖、合同、生产空间检查和客户端仓库摘要必须调用 `warehouse.js` 的同一口径。合同容量检查必须复用 `contract-runtime-index.js` 并排除当前合同自身旧预占，禁止重新遍历全部合同或遗漏订单／拍卖预占；必须同步 `WAREHOUSE_EXPANSION_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、统一仓库预占测试和 `scripts/verify-warehouse-expansion.mjs`。
 50. 银行存取款、唯一进行中工厂抵押贷款、透明额度评估、72 小时期限与 12 小时宽限、抵押继续生产但禁止转让、贷款本金与负债同步、净资产口径、已实现贷款利息 70%／20%／10% 分配、北京时间每日最低余额、七日利息池上限、风险准备金、违约处置和世界 16 数据快照属于基础银行规则；活跃周固定收益与周资金结算另以第 62 条为准。两组规则必须同步更新对应权威文档、服务器与浏览器测试、`scripts/verify-banking.mjs`、`scripts/verify-weekly-cash-settlement.mjs`、版本验证和部署工作流，贷款本金不得计入净资产增长。
 51. 市场行情图的整数坐标、动态横纵轴刻度、成交量绘图区最低 `48px` 实际高度、最低 `22%` 数据区占比、ECharts SVG 零间距双 Grid、统一 AxisPointer／Tooltip、悬浮折线保护、动态实际高度／纵横比、底部安全区与图例居中唯一归属 `MARKET_CHART_LAYOUT_DESIGN.md`；页面职责和通用 UI 文档只保留模块边界与引用。实现必须同步 `PriceSparkline.tsx`、`marketChartScale.ts`、`scripts/verify-market-chart.mjs` 和真实浏览器几何／交互回归，不得恢复固定刻度、上下图独立悬浮、窄屏压缩成交量区或强制固定 `16:9`。
-52. 独立 `assets` 导航、`AssetsPage` 和浏览器本地资产变动已永久删除；资产总览唯一归属银行页，状态栏与概览资产入口统一打开银行。浏览器本地存储 v7 只保留匿名逐笔成交、省级地区和识别新增成交所需的最小自有订单快照，必须同步更新页面、本地日志、概览、银行、浏览器测试及 `scripts/verify-assets-page.mjs`，不得恢复资产事件差异扫描、资产页空壳或兼容路由。
+52. 独立 `assets` 导航、`AssetsPage` 和浏览器本地资产变动已永久删除；资产总览唯一归属银行页，状态栏与概览资产入口统一打开银行。浏览器本地存储 v7 只保留匿名逐笔成交、州级地区和识别新增成交所需的最小自有订单快照，必须同步更新页面、本地日志、概览、银行、浏览器测试及 `scripts/verify-assets-page.mjs`，不得恢复资产事件差异扫描、资产页空壳或兼容路由。
 53. 合同历史必须由 `economy_contract_audit_contracts`、`economy_contract_audit_events` 与 `economy_contract_audit_transfers` 组成的 SQLite 追加式审计账本提供；玩家动作、服务器调度、逐批商品／货款／手续费／保证金流转、宽限和违约必须与世界状态在同一事务提交，并以确定性来源键防止幂等重试或重复截止时间写入重复事件。旧世界合同只能导入 `legacy_partial` 当前快照，不得伪造上线前逐批事件。历史和详情通过独立只读 API 按需分页，只允许参与者读取，不进入世界 JSON、六分区、分区哈希或常规轮询；必须同步页面、产业、服务器设计、迁移备份、服务器／浏览器测试和 `scripts/verify-contract-audit.mjs` 防回退。
 54. 未登录入口的图片背景、深色氛围背景、标语与认证卡片三层结构唯一归属 `REGISTRATION_INVITE_FLOW_DESIGN.md`；通用表单与颜色令牌继续归 `UI_DESIGN_SYSTEM.md`，认证行为继续归页面与服务器文档。实现必须同步 `LoginPage.tsx`、`auth.css`、`card-system.css`、`scripts/verify-auth-three-layer.mjs` 与 `tests/browser/auth-three-layer.spec.ts`，不得恢复移动端整页外层面板、共享卡片层登录几何映射、第四个全局背景层或改变登录／注册业务流程。
 
@@ -114,7 +114,7 @@
 71. 所有正式玩家经济动作（包括合同动作）必须在外层 `BEGIN IMMEDIATE` 权威事务内部再建立 SQLite `SAVEPOINT`，并统一在请求的 Copy-on-Write world draft 上执行：本动作声明为可写的对象必须独占，未声明对象可以与 committed world 共享但必须保持只读；动作业务返回失败或抛异常时回滚保存点并直接丢弃未提交草稿，不得再复制整个世界作为第二份回滚快照。经济活动判定只允许保存当前玩家的动作前快照；合同动作可额外保存合同集合快照用于变更判定与审计，但不得保存第二份完整世界。动作成功必须在释放保存点前执行资金、库存、工厂数量和银行负债等非负／安全整数不变量检查；合同动作允许在成功后执行合同领域专项后处理并在同一事务完成审计。失败动作仍可保存精简幂等确认，但不得写回世界或推进世界修订号。该规则归属 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并由 `economic-mutation.js`、`runtime-action-executor.js`、`server/test/state-polling.test.js`、`server/test/authoritative-hotpaths.test.js`、`server/test/runtime-hotpath-architecture.test.js` 与 `scripts/verify-authoritative-hotpaths.mjs` 防回退。
 72. 浏览器服务器权威状态必须由 `stateDelivery.js` 的六分区缓存统一发布，`gameAuthorityStore.ts` 通过 React `useSyncExternalStore` 提供完整状态、修订号和单分区订阅；`gameViewModel.ts` 不得重新维护第二份 `useState<EconomyState>`，只保留动作编排、通知、导航、表单草稿和其他交互状态。分区 patch 只替换发生变化的分区，未变化分区必须保持引用稳定；服务器刷新不得通过权威状态发布隐式重置价格／数量草稿、选中项、弹层或滚动位置。该规则归属 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` 的状态交付边界，并由 `server/test/authoritative-hotpaths.test.js`、TypeScript 构建和 `scripts/verify-authoritative-hotpaths.mjs` 防回退。
 
-73. 世界 30 的 34 个省级地区、本地无限仓库、本地商品／工厂行情、省级工厂集群与订单隔离属于产品、产业、仓库、订单簿、页面、UI、拍卖和服务器共同规则。旧数据统一迁入北京且必须资产守恒；现金、宝石、研发、银行、排行榜与世界人口不按地区复制；当前版本不得增加免费跨地区物流或让地区切换移动资产。地图使用共享 `EconomyChart` 的 ECharts Geo/Map 并铺满游戏工作区，命令、经营详情与图例作为地图 Overlay；开源底图精确锁定 MIT `china-geojson@1.0.0`，注册前过滤“南海诸岛”，最终只渲染与 `shared/provinces.json` 一一对应的 34 个经营地区并保留来源／非测绘说明。当前数据没有审图号，不得把组件验收等同于正式公开地图合规验收。实现必须同步共享目录、客户端状态版本 34、地图页、写动作 `provinceId`、专项服务器／浏览器测试与 `scripts/verify-provincial-economy.mjs`。
+73. 世界 30 的美国本土连续 48 个州级地区、本地无限仓库、本地商品／工厂行情、州级工厂集群与订单隔离属于产品、产业、仓库、订单簿、页面、UI、拍卖和服务器共同规则。世界 30 已使用的 34 个地区 ID 原位对应 34 个州，新增 14 个州 ID，不移动或合并既有资产；现金、宝石、研发、银行、排行榜与世界人口不按地区复制；当前版本不得增加免费跨地区物流或让地区切换移动资产。内部 API 和复合键继续使用兼容名称 `provinceId`。地图使用共享 `EconomyChart` 的 ECharts Geo/Map 并铺满游戏工作区，命令、经营详情与图例作为地图 Overlay；开源底图精确锁定 ISC `us-atlas@3.0.1` 与 `topojson-client@3.1.0`，只注册连续 48 州，排除阿拉斯加、夏威夷、华盛顿特区和海外领地，并保留来源／非测绘说明。实现必须同步共享目录、客户端状态版本 34、地图页、写动作 `provinceId`、专项服务器／浏览器测试与 `scripts/verify-provincial-economy.mjs`。
 
 - 游戏端与管理员端桌面顶部工作栏必须横跨侧栏列与内容列；侧栏和工作区从其下方开始。所有登录后业务浮层必须限制在工作区安全根内，并由 `scripts/verify-game-shell-layout.mjs` 与 `tests/browser/shell-floating-safe-zone.spec.ts` 防回退。
 

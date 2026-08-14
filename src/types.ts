@@ -14,6 +14,7 @@ export interface ProvinceDefinition {
   id: string;
   name: string;
   shortName: string;
+  mapName: string;
   longitude: number;
   latitude: number;
 }

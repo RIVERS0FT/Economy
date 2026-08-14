@@ -486,8 +486,8 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
 
   return (
     <PageLayout
-      title={`${model.selectedProvince?.name || '北京'}生产`}
-      description="本地工厂只消耗并产出当前省级地区的库存；同省同类工厂共享周期、配方、生产方式与满员率。"
+      title={`${model.selectedProvince?.name || '加利福尼亚州'}生产`}
+      description="本地工厂只消耗并产出当前州级地区的库存；同州同类工厂共享周期、配方、生产方式与满员率。"
       actions={
         <>
           <ProvinceSelect

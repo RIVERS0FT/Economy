@@ -61,7 +61,7 @@ requireText('src/components/charts/EconomyChart.tsx', [
   'onChartReadyRef.current?.(chart)', 'onOptionAppliedRef.current?.(chart)',
   "chart.on('click', handleClick)", "chart.off('click', handleClick)",
 ]);
-requireText('src/components/provinces/ChinaProvinceMap.tsx', [
+requireText('src/components/provinces/UsMainlandMap.tsx', [
   '<EconomyChart', "type: 'map'", 'registerEChartsMap', "selectedMode: 'single'", 'onClick={handleMapClick}',
 ]);
 requireText('src/components/charts/PriceSparkline.tsx', [
@@ -82,7 +82,7 @@ requireText('tests/browser/chart-hover-visibility.spec.ts', [
 ]);
 requireText('docs/UI_DESIGN_SYSTEM.md', [
   '`EconomyChart` 是业务数据图表的唯一 React 入口', '不得引入 `echarts-for-react`', 'ECharts 必须随市场、地图、银行和管理员页面',
-  'ECharts Geo/Map', 'china-geojson',
+  'ECharts Geo/Map', 'us-atlas',
   '`PIE_PAD_ANGLE = 5`', '`padAngle: PIE_PAD_ANGLE`', 'STABLE_TOOLTIP_EMPHASIS',
   '不得把 `var(--color-*)` 原样交给 ZRender', '每次 `setOption` 前读取图表容器的浏览器计算样式',
 ]);
@@ -105,4 +105,4 @@ if (failures.length) {
   console.error(`ECharts 架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('ECharts 架构验证通过：唯一 EconomyChart、精确依赖、SVG 按需模块、Geo/Map 省级地图、生命周期、无障碍、市场动态几何、统一 Pie padAngle 及管理员与资产图表均已锁定。');
+console.log('ECharts 架构验证通过：唯一 EconomyChart、精确依赖、SVG 按需模块、Geo/Map 美国本土州级地图、生命周期、无障碍、市场动态几何、统一 Pie padAngle 及管理员与资产图表均已锁定。');

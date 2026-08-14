@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test('desktop market asset directory supports continuous unsnapped scrolling', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active');
-  await expect(page.getByRole('heading', { name: '北京本地市场', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '加利福尼亚州本地市场', exact: true })).toBeVisible();
 
   const scrollbarTokens = await page.evaluate(() => {
     const style = getComputedStyle(document.documentElement);
@@ -56,7 +56,7 @@ test('desktop market asset directory supports continuous unsnapped scrolling', a
 test('touch input hides horizontal rails while local trade cells keep native two-axis scrolling', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('market-runtime-test.html?scenario=active');
-  await expect(page.getByRole('heading', { name: '北京本地市场', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '加利福尼亚州本地市场', exact: true })).toBeVisible();
 
   await page.evaluate(() => {
     document.dispatchEvent(new PointerEvent('pointerdown', {

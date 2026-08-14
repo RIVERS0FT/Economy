@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
-import chinaGeoJson from 'china-geojson/src/geojson/china.json';
+import { feature } from 'topojson-client';
+import usStateAtlas from 'us-atlas/states-10m.json';
+import regionCatalog from '../../../shared/provinces.json';
 import type { ProvinceAssetSummary, ProvinceDefinition } from '../../types';
 import { formatNumber } from '../../utils/formatters';
 import {
@@ -11,32 +13,47 @@ import {
   type EChartsCoreOption,
 } from '../charts/echartsCore';
 
-const CHINA_PROVINCE_MAP_NAME = 'economy-china-provinces';
-const OMITTED_MAP_FEATURE_NAMES = new Set(['南海诸岛']);
-const HOVER_LABEL_REGION_NAMES = new Set([
-  '北京',
-  '天津',
-  '河北',
-  '上海',
-  '江苏',
-  '浙江',
-  '福建',
-  '重庆',
-  '宁夏',
-  '海南',
-  '台湾',
-  '香港',
-  '澳门',
+const US_MAINLAND_MAP_NAME = 'economy-us-mainland-states';
+const HOVER_LABEL_STATE_CODES = new Set([
+  'CT',
+  'DE',
+  'MD',
+  'MA',
+  'NH',
+  'NJ',
+  'RI',
+  'VT',
 ]);
 
-const chinaProvinceGeoJson = {
-  ...chinaGeoJson,
-  features: chinaGeoJson.features.filter((feature) => (
-    !OMITTED_MAP_FEATURE_NAMES.has(String(feature?.properties?.name || ''))
-  )),
+const regionByMapName = new Map(regionCatalog.map((region) => [region.mapName, region]));
+const atlasTopology = usStateAtlas as unknown as Parameters<typeof feature>[0];
+const atlasStateObject = (usStateAtlas as unknown as {
+  objects: { states: Parameters<typeof feature>[1] };
+}).objects.states;
+const atlasStateCollection = feature(atlasTopology, atlasStateObject);
+
+if (atlasStateCollection.type !== 'FeatureCollection') {
+  throw new Error('US_STATE_ATLAS_FEATURE_COLLECTION_REQUIRED');
+}
+
+const usMainlandGeoJson = {
+  ...atlasStateCollection,
+  features: atlasStateCollection.features.flatMap((stateFeature) => {
+    const mapName = String(stateFeature.properties?.name || '');
+    const region = regionByMapName.get(mapName);
+    if (!region) return [];
+    return [{
+      ...stateFeature,
+      properties: {
+        ...stateFeature.properties,
+        name: region.shortName,
+        mapName,
+      },
+    }];
+  }),
 };
 
-registerEChartsMap(CHINA_PROVINCE_MAP_NAME, chinaProvinceGeoJson);
+registerEChartsMap(US_MAINLAND_MAP_NAME, usMainlandGeoJson);
 
 interface ProvinceMapDatum {
   name: string;
@@ -84,7 +101,7 @@ function datumFor(
       ...(blockedFacilityCount > 0 ? { borderColor: 'var(--color-danger)' } : {}),
     },
     label: {
-      show: !HOVER_LABEL_REGION_NAMES.has(province.shortName),
+      show: !HOVER_LABEL_STATE_CODES.has(province.shortName),
     },
   };
 }
@@ -92,7 +109,7 @@ function datumFor(
 function tooltipContent(params: unknown) {
   const event = params as { name?: string; data?: ProvinceMapDatum };
   const datum = event.data;
-  if (!datum?.provinceId) return String(event.name || '省级地区');
+  if (!datum?.provinceId) return String(event.name || '州级地区');
   return [
     `<strong>${datum.provinceName}</strong>`,
     `本地库存：${formatNumber(datum.storedQuantity)}`,
@@ -102,7 +119,7 @@ function tooltipContent(params: unknown) {
   ].join('<br/>');
 }
 
-export function ChinaProvinceMap({
+export function UsMainlandMap({
   provinces,
   summaries,
   selectedProvinceId,
@@ -132,17 +149,17 @@ export function ChinaProvinceMap({
       formatter: tooltipContent,
     },
     series: [{
-      id: 'china-province-map',
+      id: 'us-mainland-map',
       type: 'map',
-      map: CHINA_PROVINCE_MAP_NAME,
+      map: US_MAINLAND_MAP_NAME,
       nameProperty: 'name',
       selectedMode: 'single',
       selectedMap: selectedProvince ? { [selectedProvince.shortName]: true } : {},
       roam: true,
       scaleLimit: { min: 1, max: 8 },
-      zoom: 1.12,
+      zoom: 1.08,
       layoutCenter: ['50%', '50%'],
-      layoutSize: '98%',
+      layoutSize: '94%',
       labelLayout: {
         hideOverlap: true,
       },
@@ -192,9 +209,9 @@ export function ChinaProvinceMap({
       },
       option: {
         series: [{
-          layoutCenter: ['50%', '38%'],
-          layoutSize: '72%',
-          zoom: 1.04,
+          layoutCenter: ['50%', '39%'],
+          layoutSize: '84%',
+          zoom: 1.02,
           label: {
             show: false,
           },
@@ -213,20 +230,20 @@ export function ChinaProvinceMap({
     if (provinceId) onSelectProvince(provinceId);
   };
 
-  const accessibleSummary = `中国省级经营地图，共 ${provinces.length} 个可经营地区。当前选择${selectedProvince?.name || '北京市'}。可使用页面上的省级地区选择器进行键盘操作。`;
+  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。当前选择${selectedProvince?.name || '加利福尼亚州'}。可使用页面上的州级地区选择器进行键盘操作。`;
   return (
     <div
       className="province-map-chart"
       data-province-count={provinces.length}
-      data-map-feature-count={chinaProvinceGeoJson.features.length}
+      data-map-feature-count={usMainlandGeoJson.features.length}
       data-selected-province-id={selectedProvinceId}
     >
       <EconomyChart
         option={option}
-        ariaLabel="中国省级经营地图"
+        ariaLabel="美国本土州级经营地图"
         accessibleSummary={accessibleSummary}
         className="province-map-echart"
-        testId="china-province-map"
+        testId="us-mainland-map"
         onClick={handleMapClick}
       />
     </div>

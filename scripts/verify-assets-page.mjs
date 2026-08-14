@@ -91,7 +91,7 @@ for (const text of [
 for (const text of [
   '本地文档版本：v7',
   'economy.local-activity.v7.<userId>',
-  '`snapshot.orders[]` 只保存当前玩家自己的公开订单、省级地区 ID 与匿名 fills',
+  '`snapshot.orders[]` 只保存当前玩家自己的公开订单、州级地区 ID 与匿名 fills',
   '永久丢弃全部 `assetEvents[]`',
 ]) requireText(localDesignPath, text);
 for (const text of ['assetEvents', 'AssetEvent']) forbidText(localStorePath, text);
