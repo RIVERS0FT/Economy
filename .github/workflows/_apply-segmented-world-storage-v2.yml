@@ -89,49 +89,12 @@ jobs:
           node scripts/.apply-segmented-world-storage-v2.mjs
           node --check scripts/.apply-segmented-world-storage-v2-followup.mjs
           node scripts/.apply-segmented-world-storage-v2-followup.mjs
+          node --check scripts/.apply-segmented-world-storage-v2-coldread.mjs
+          node scripts/.apply-segmented-world-storage-v2-coldread.mjs
           node --check server/src/world-storage-v2.js
           git diff --check
       - name: Install dependencies
         run: npm ci
-      - name: Diagnose polling revision
-        run: |
-          node --input-type=module <<'JS'
-          import { EconomyStore } from './server/src/storage.js';
-          const user = { id: 1, email: 'alice@example.com', name: 'Alice', role: 'user' };
-          const now = 1_700_000_000_000;
-          const store = new EconomyStore(':memory:');
-          const initial = store.getStateSnapshot(user, undefined, now);
-          const action = store.apply(user, { action: 'work', payload: {}, requestKey: 'diag-base-work-v3-12345678', method: 'POST', path: '/api/game/work' }, now + 2_000);
-          const committed = structuredClone(store.worldCache.world);
-          const originalSave = store.saveWorldIfChanged.bind(store);
-          store.saveWorldIfChanged = (revision, world, at, previous, scope) => {
-            const changedTop = [];
-            for (const key of new Set([...Object.keys(committed), ...Object.keys(world)])) {
-              if (JSON.stringify(committed[key]) !== JSON.stringify(world[key])) changedTop.push(key);
-            }
-            const playerBefore = committed.players?.['1'] || {};
-            const playerAfter = world.players?.['1'] || {};
-            const changedPlayer = [];
-            for (const key of new Set([...Object.keys(playerBefore), ...Object.keys(playerAfter)])) {
-              if (JSON.stringify(playerBefore[key]) !== JSON.stringify(playerAfter[key])) changedPlayer.push(key);
-            }
-            console.log('pre-save changedTop', changedTop);
-            console.log('pre-save changedPlayer', changedPlayer);
-            for (const key of changedTop) {
-              if (['demandGroups', 'marketDemand', 'weeklyCashSettlement', 'stats', 'lastProcessedAt'].includes(key)) {
-                const before = JSON.stringify(committed[key]);
-                const after = JSON.stringify(world[key]);
-                let index = 0;
-                while (index < before.length && index < after.length && before[index] === after[index]) index += 1;
-                console.log('diff', key, { index, before: before.slice(Math.max(0,index-120), index+240), after: after.slice(Math.max(0,index-120), index+240) });
-              }
-            }
-            return originalSave(revision, world, at, previous, scope);
-          };
-          const changed = store.getStateSnapshot(user, initial.revision, now + 2_001);
-          console.log('revisions', { initial: initial.revision, action: action.revision, changed: changed.revision });
-          store.close();
-          JS
       - name: Run focused server tests
         run: |
           node --test \
@@ -145,5 +108,4 @@ jobs:
             server/test/online-auto-sell-persistence.test.js
       - name: Preserve workspace for follow-up
         if: always()
-        run: |
-          git status --short
+        run: git status --short
