@@ -1026,10 +1026,10 @@ export class EconomyStore {
       }
 
       const { revision, stateJson, world } = this.loadWorld(now);
-      const player = ensurePlayer(world, user, now);
+      const player = ensurePlayer(world, user, now, { migrate: false });
       ensureWarehouse(player);
       ensureGemState(player);
-      ensureBankWorld(world, now);
+      ensureBankWorld(world, now, { normalizePlayers: false });
       ensurePlayerBankAccount(player, now);
       ensureWeeklyCashSettlementWorld(world, now);
       ensurePlayerWeeklyCashSettlement(player, now);
