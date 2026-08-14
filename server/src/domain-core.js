@@ -1134,11 +1134,15 @@ function createLeaderboard(world, currentUserId, now) {
     .map((entry, index) => ({ rank: index + 1, ...entry }));
 }
 
-export function createClientState(world, userId, now = Date.now()) {
-  migrateWorld(world, now);
+export function createClientState(world, userId, now = Date.now(), { migrate = true } = {}) {
+  if (migrate) migrateWorld(world, now);
   const player = getPlayer(world, userId);
-  const wheatInventory = inventoryFor(player, 'wheat');
-  const wheatMarket = marketFor(world, 'wheat');
+  const wheatInventory = migrate
+    ? inventoryFor(player, 'wheat')
+    : player.inventories?.wheat || { available: 0, frozen: 0 };
+  const wheatMarket = migrate
+    ? marketFor(world, 'wheat')
+    : world.markets?.wheat || createMarket(productDefinition('wheat'), now);
   return {
     version: 5,
     userId: player.userId,
@@ -1147,18 +1151,18 @@ export function createClientState(world, userId, now = Date.now()) {
     credits: player.credits,
     frozenCredits: player.frozenCredits,
     inventories: clone(player.inventories),
-    inventoryCapacity: player.inventoryCapacity,
-    facilities: clone(player.facilities),
+    ...(migrate && player.inventoryCapacity !== undefined ? { inventoryCapacity: player.inventoryCapacity } : {}),
+    facilities: clone(player.facilities || []),
     products: clone(PRODUCT_CATALOG),
     facilityTypes: clone(FACILITY_TYPE_CATALOG),
     markets: clone(world.markets),
     orders: clone(world.orders),
     facilityListings: clone(world.facilityListings),
-    trades: clone(player.trades),
-    ledger: clone(player.ledger),
+    trades: clone(player.trades || []),
+    ledger: clone(player.ledger || []),
     work: clone(player.work),
     stats: clone(player.stats),
-    leaderboard: createLeaderboard(world, userId, now),
+    leaderboard: migrate ? createLeaderboard(world, userId, now) : [],
     lastProcessedAt: world.lastProcessedAt,
 
     // Temporary compatibility aliases for the existing UI while the multi-product UI migrates.

@@ -463,8 +463,12 @@ export function nextWeeklyCashSettlementDeadlineAt(world, now = Date.now()) {
 }
 
 export function createWeeklyCashSettlementClientState(world, player, now = Date.now()) {
-  const worldState = ensureWeeklyCashSettlementWorld(world, now);
-  const playerState = ensurePlayerWeeklyCashSettlement(player, now);
+  const worldState = world?.weeklyCashSettlement && typeof world.weeklyCashSettlement === 'object'
+    ? world.weeklyCashSettlement
+    : defaultWorldState(now);
+  const playerState = player?.weeklyCashSettlement && typeof player.weeklyCashSettlement === 'object'
+    ? player.weeklyCashSettlement
+    : defaultPlayerState(now);
   const period = weeklyCashPeriodFor(now);
   const base = settlementBaseFor(player);
   return {

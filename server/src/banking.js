@@ -267,7 +267,7 @@ function auctionedFacilityQuantity(world, userId, facilityTypeId) {
 }
 
 export function mortgagedFacilityQuantity(player, facilityTypeId) {
-  const loan = ensurePlayerBankAccount(player).activeLoan;
+  const loan = player?.bankAccount?.activeLoan || null;
   if (!loan) return 0;
   return loan.collateral.reduce((sum, item) => (
     String(item.facilityTypeId) === String(facilityTypeId) ? sum + safeNonNegativeInteger(item.quantity) : sum
@@ -275,7 +275,7 @@ export function mortgagedFacilityQuantity(player, facilityTypeId) {
 }
 
 export function activeLoanLiability(player) {
-  const loan = ensurePlayerBankAccount(player).activeLoan;
+  const loan = player?.bankAccount?.activeLoan || null;
   return loan ? addSafe(loan.principalOutstanding, loan.interestOutstanding) : 0;
 }
 
@@ -768,8 +768,14 @@ export function applyBankAction(world, user, action, payload = {}, now = Date.no
 }
 
 export function createBankClientState(world, player, now = Date.now()) {
-  const bank = ensureBankWorld(world, now);
-  const account = ensurePlayerBankAccount(player, now);
+  const bank = {
+    ...defaultBankWorld(now),
+    ...(world?.bank && typeof world.bank === 'object' ? world.bank : {}),
+  };
+  const account = {
+    ...defaultPlayerBankAccount(player, now),
+    ...(player?.bankAccount && typeof player.bankAccount === 'object' ? player.bankAccount : {}),
+  };
   const eligibleDepositCredits = Math.min(account.dayOpeningDepositCredits, account.dayMinimumDepositCredits);
   const availableCollateral = FACILITY_TYPE_CATALOG.map((facility) => ({
     facilityTypeId: facility.id,

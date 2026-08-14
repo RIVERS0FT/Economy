@@ -6,7 +6,7 @@ import {
   resetPopulationPolicy,
   topUpPopulationByPolicy,
 } from './population-admin-control.js';
-import { EconomyStore as PersistentEconomyStore } from './storage.js';
+import { EconomyStore as PersistentEconomyStore, createVersionedClientState } from './storage.js';
 import { ensurePlayer } from './domain.js';
 import { createOrderHistoryPage } from './facility-groups.js';
 import {
@@ -116,18 +116,6 @@ function createActionAcknowledgement(result, revision) {
     },
     revision: Number(revision),
   });
-}
-
-function contractProjectionForState(world) {
-  const projection = {
-    ...world,
-    players: structuredClone(world.players || {}),
-    productionContracts: structuredClone(world.productionContracts || []),
-  };
-  if (world.populationEconomy !== undefined) {
-    projection.populationEconomy = structuredClone(world.populationEconomy);
-  }
-  return projection;
 }
 
 function contractSnapshot(world) {
@@ -372,6 +360,33 @@ export class EconomyStore extends PersistentEconomyStore {
         setRequestGauge('stateProjectionCacheHit', 1);
         return cachedProjection;
       }
+
+      const world = this.worldCache.world;
+      const player = world.players?.[String(user.id)];
+      if (player) {
+        setRequestGauge('stateProjectionCacheHit', 0);
+        const baseState = measureRequestPhase('stateProjectionMs', () => createVersionedClientState(
+          world,
+          Number(user.id),
+          now,
+          this.dailyCheckInSummaryFor(player, now),
+        ));
+        const contractState = measureRequestPhase('contractStateProjectionMs', () => (
+          createProductionContractClientState(world, Number(user.id), now)
+        ));
+        const state = filterStateForCurrentSave({
+          ...createStablePartitionClientState(baseState),
+          ...contractState,
+          economicCalendar: createEconomicCalendarClientState(now),
+        }, world, Number(user.id));
+        const partitionSnapshot = this.createClientPartitionSnapshot(state);
+        return this.rememberStateProjection(user.id, currentRevision, {
+          revision: currentRevision,
+          unchanged: false,
+          state,
+          ...partitionSnapshot,
+        });
+      }
     }
     setRequestGauge('stateProjectionCacheHit', 0);
 
@@ -380,20 +395,20 @@ export class EconomyStore extends PersistentEconomyStore {
 
     const cached = this.worldCache;
     const contractState = cached && cached.revision === snapshot.revision
-      ? createProductionContractClientState(
-        measureRequestPhase('contractProjectionCloneMs', () => contractProjectionForState(cached.world)),
-        Number(user.id),
-        now,
-      )
+      ? measureRequestPhase('contractStateProjectionMs', () => (
+          createProductionContractClientState(cached.world, Number(user.id), now)
+        ))
       : this.transaction(() => {
         const { world } = this.loadWorld(now);
-        return measureRequestPhase('contractStateProjectionMs', () => createProductionContractClientState(world, Number(user.id), now));
+        return measureRequestPhase('contractStateProjectionMs', () => (
+          createProductionContractClientState(world, Number(user.id), now)
+        ));
       }, { immediate: false });
 
     const state = filterStateForCurrentSave({
       ...createStablePartitionClientState(snapshot.state),
-      ...normalizeJson(contractState),
-      economicCalendar: normalizeJson(createEconomicCalendarClientState(now)),
+      ...contractState,
+      economicCalendar: createEconomicCalendarClientState(now),
     }, this.worldCache?.world, Number(user.id));
     const partitionSnapshot = this.createClientPartitionSnapshot(state);
     return this.rememberStateProjection(user.id, snapshot.revision, {

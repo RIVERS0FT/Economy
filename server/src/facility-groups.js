@@ -1451,8 +1451,7 @@ function clientGroup(world, player, group, now) {
 }
 
 export function createFacilityGroupClientState(world, userId, now = Date.now()) {
-  migrateFacilityGroupWorld(world, now);
-  const base = withLegacyFacilitiesSuppressed(world, () => createClientState(world, userId, now));
+  const base = createClientState(world, userId, now, { migrate: false });
   const player = getPlayer(world, userId);
   const { facilities: _legacyFacilities, ...withoutFacilities } = base;
   const normalizedOrders = clientOrdersForState(world, userId);

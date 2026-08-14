@@ -45,18 +45,26 @@ for (const text of [
   "if (dueDomains.has('research'))",
   "if (dueDomains.has('contract'))",
   'assertEconomicStateInvariants(world)',
+  'worldDraftParseMs',
   'worldDraftCloneMs',
+  'createVersionedClientState',
+  'const world = this.worldCache.world',
   'ensureScheduledProcessingBarrier',
   'schedulerBarrierWaitMs',
 ]) assert.ok(runtimeStore.includes(text), `运行时存储缺少权威热路径规则: ${text}`);
 for (const text of [
   'return executeRuntimeAction(this, user, requestMeta, now)',
-  'committedWorldForCache(world)',
-  'stateProjectionCacheIsolationDepth',
-  'worldCacheIsolationCloneMs',
+  'worldDraftParseMs',
+  'JSON.parse(this.worldCache.stateJson)',
   'settledSynchronously',
   'captureRequestContext: false',
 ]) assert.ok(runtimeWrapper.includes(text), `正式运行时编排层缺少: ${text}`);
+for (const text of [
+  'committedWorldForCache(world)',
+  'stateProjectionCacheIsolationDepth',
+  'worldCacheIsolationCloneMs',
+  'contractProjectionForState',
+]) assert.equal(runtimeStore.includes(text), false, `正式状态读取不得恢复投影克隆: ${text}`);
 
 const mutation = read('server/src/economic-mutation.js');
 for (const text of [

@@ -21,6 +21,10 @@ export function ensureWarehouse(player) {
 
 export function createWarehouseSummary(player) {
   ensureWarehouse(player);
+  return createWarehouseSummaryReadOnly(player);
+}
+
+export function createWarehouseSummaryReadOnly(player) {
   return {
     warehouseStoredQuantity: storedQuantity(player),
     ...createOnlineAutoBuyPolicyClientState(player),

@@ -534,8 +534,20 @@ export function validateResearchAccess(world, user, action, payload = {}, now = 
   return null;
 }
 
-export function createResearchClientState(world, player) {
-  const research = clone(ensurePlayerResearch(world, player));
+export function createResearchClientState(_world, player) {
+  const research = clone(
+    player?.research && typeof player.research === 'object'
+      ? player.research
+      : {
+          unlockedComplexity: 'C1',
+          completedTechnologyIds: RESEARCH_TECHNOLOGY_CATALOG
+            .filter((technology) => technology.initial)
+            .map((technology) => technology.id),
+          completedAtByTechnologyId: {},
+          completedAt: null,
+          active: null,
+        },
+  );
   if (research.active) {
     research.active.gemAccelerationMs = GEM_RESEARCH_ACCELERATION_MS;
     research.active.gemAccelerationCost = GEM_RESEARCH_ACCELERATION_COST;

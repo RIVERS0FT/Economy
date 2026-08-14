@@ -210,7 +210,6 @@ requireText('server/src/runtime-store.js', [
   'cachedStateProjection(user.id, currentRevision)',
   'rememberStateProjection(user.id, snapshot.revision',
   "setRequestGauge('stateProjectionCacheHit', 1)",
-  'contractProjectionForState',
   'cached.revision === snapshot.revision',
   'saveWorld(revision, world, now)',
   'saveWorldIfChanged(revision, world, now',

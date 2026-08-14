@@ -2,7 +2,7 @@ import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './domain.js';
 import { processFacilityGroupWorld } from './facility-groups.js';
 import { processAssetAuctions } from './asset-auctions.js';
 import { ensureGemState } from './invitations.js';
-import { activeLoanLiability, ensurePlayerBankAccount } from './banking.js';
+import { activeLoanLiability } from './banking.js';
 import { weeklySettlementLiability } from './weekly-cash-settlement.js';
 
 export const LEADERBOARD_TIME_ZONE = 'Asia/Shanghai';
@@ -109,7 +109,7 @@ function inventoryQuantity(player, productId) {
 export function operatingAssetsFor(player) {
   const cash = safeNonNegativeInteger(player.credits)
     + safeNonNegativeInteger(player.frozenCredits)
-    + safeNonNegativeInteger(ensurePlayerBankAccount(player).depositCredits);
+    + safeNonNegativeInteger(player?.bankAccount?.depositCredits);
   const commodity = PRODUCT_CATALOG.reduce((sum, product) => (
     sum + inventoryQuantity(player, product.id) * product.basePrice
   ), 0);
@@ -128,7 +128,7 @@ function recentTradePriceFor(world, kind, assetId) {
 export function wealthAssetsFor(world, player) {
   const cash = safeNonNegativeInteger(player.credits)
     + safeNonNegativeInteger(player.frozenCredits)
-    + safeNonNegativeInteger(ensurePlayerBankAccount(player).depositCredits);
+    + safeNonNegativeInteger(player?.bankAccount?.depositCredits);
   const commodity = PRODUCT_CATALOG.reduce((sum, product) => (
     sum + inventoryQuantity(player, product.id) * recentTradePriceFor(world, 'commodity', product.id)
   ), 0);
@@ -389,22 +389,117 @@ function boardDefinition(boardId) {
   return { title: '交易榜', description: '本周订单簿实际卖出成交额', unit: 'currency', rewarded: true };
 }
 
+function readPlayerStats(player) {
+  return player?.stats && typeof player.stats === 'object' ? player.stats : {};
+}
+
+function readSettledPersonalBest(player, boardId) {
+  const best = readPlayerStats(player).leaderboardPersonalBests?.[boardId];
+  const score = Number(best?.score);
+  const periodKey = typeof best?.periodKey === 'string' ? best.periodKey : '';
+  return Number.isFinite(score) && periodKey ? { score, periodKey } : null;
+}
+
+function readExternalCredits(player) {
+  const stats = readPlayerStats(player);
+  return safeNonNegativeInteger(stats.giftIssued)
+    + safeNonNegativeInteger(stats.gemExchangeCredits)
+    + safeNonNegativeInteger(stats.adminCreditsIssued);
+}
+
+function readPolicyAdjustment(player) {
+  const stats = readPlayerStats(player);
+  return Number(stats.bankDepositInterestEarned || 0)
+    - Number(stats.weeklyCashSettlementBurned || 0)
+    - Number(stats.weeklyCashSettlementReserveTransferred || 0);
+}
+
+function readOperatingAssets(player) {
+  const cash = safeNonNegativeInteger(player?.credits)
+    + safeNonNegativeInteger(player?.frozenCredits)
+    + safeNonNegativeInteger(player?.bankAccount?.depositCredits);
+  const commodity = PRODUCT_CATALOG.reduce((sum, product) => (
+    sum + inventoryQuantity(player, product.id) * product.basePrice
+  ), 0);
+  const facilities = (player?.facilityGroups || []).reduce((sum, group) => {
+    const facility = FACILITY_BY_ID.get(String(group.facilityTypeId || ''));
+    return sum + (facility ? safeNonNegativeInteger(group.count) * facility.systemValue : 0);
+  }, 0);
+  return cash + commodity + facilities - activeLoanLiability(player) - weeklySettlementLiability(player);
+}
+
+function snapshotRowsFor(world, state, boardId) {
+  return Object.values(world?.players || {}).map((player) => {
+    const userId = String(player.userId);
+    const common = {
+      userId: player.userId,
+      playerName: player.playerName,
+      activityAt: leaderboardActivityAt(player),
+    };
+    if (boardId === 'wealth') {
+      const score = wealthAssetsFor(world, player);
+      return {
+        ...common,
+        score,
+        secondary: safeNonNegativeInteger(player.credits) + safeNonNegativeInteger(player.frozenCredits),
+        tertiary: 0,
+      };
+    }
+    if (boardId === 'growth') {
+      const currentAssets = readOperatingAssets(player);
+      const currentExternalCredits = readExternalCredits(player);
+      const currentPolicyAdjustment = readPolicyAdjustment(player);
+      const openingAssetsValue = Number(state?.openingAssets?.[userId]);
+      const openingExternalValue = Number(state?.openingExternalCredits?.[userId]);
+      const openingPolicyValue = Number(state?.openingPolicyAdjustments?.[userId]);
+      const openingAssets = Number.isFinite(openingAssetsValue) ? openingAssetsValue : currentAssets;
+      const openingExternalCredits = Number.isFinite(openingExternalValue)
+        ? openingExternalValue
+        : currentExternalCredits;
+      const openingPolicyAdjustment = Number.isFinite(openingPolicyValue)
+        ? openingPolicyValue
+        : currentPolicyAdjustment;
+      const score = currentAssets
+        - openingAssets
+        - (currentExternalCredits - openingExternalCredits)
+        - (currentPolicyAdjustment - openingPolicyAdjustment);
+      return { ...common, score, secondary: currentAssets, tertiary: 0 };
+    }
+    if (boardId === 'production') {
+      const production = state?.production?.[userId] || { score: 0, quantity: 0 };
+      const quantity = safeNonNegativeInteger(production.quantity);
+      return { ...common, score: quantity, secondary: 0, tertiary: 0 };
+    }
+    const trading = state?.trading?.[userId] || { score: 0, tradeCount: 0, buyers: {} };
+    return {
+      ...common,
+      score: safeNonNegativeInteger(trading.score),
+      secondary: safeNonNegativeInteger(trading.tradeCount),
+      tertiary: Object.keys(trading.buyers || {}).length,
+    };
+  }).sort(compareLeaderboardRows).map((entry, index) => ({ ...entry, rank: index + 1 }));
+}
+
+function snapshotRowsByBoard(world, state) {
+  return Object.fromEntries(BOARD_IDS.map((boardId) => [
+    boardId,
+    snapshotRowsFor(world, state, boardId),
+  ]));
+}
+
 export function createLeaderboardSnapshot(world, currentUserId, now = Date.now()) {
-  const state = validLeaderboardState(world.leaderboardState)
+  const state = validLeaderboardState(world?.leaderboardState)
     ? world.leaderboardState
-    : initializeLeaderboardState(world, now, true);
-  migrateProductionRule(world, state);
-  migrateTradingRule(world, state);
-  migrateSortRule(state);
-  ensureAllPlayers(world, state);
+    : createEmptyPeriodState(leaderboardPeriodFor(now), true);
+  const rowsByBoard = snapshotRowsByBoard(world, state);
   const boards = {};
   for (const boardId of BOARD_IDS) {
     const definition = boardDefinition(boardId);
-    const rows = internalRowsFor(world, state, boardId);
+    const rows = rowsByBoard[boardId];
     const rewardEnabled = definition.rewarded && !state.partial;
     const current = rows.find((entry) => Number(entry.userId) === Number(currentUserId));
-    const currentPlayer = world.players?.[String(currentUserId)];
-    const personalBest = currentPlayer ? settledPersonalBestFor(currentPlayer, boardId) : null;
+    const currentPlayer = world?.players?.[String(currentUserId)];
+    const personalBest = currentPlayer ? readSettledPersonalBest(currentPlayer, boardId) : null;
     boards[boardId] = {
       id: boardId,
       ...definition,
