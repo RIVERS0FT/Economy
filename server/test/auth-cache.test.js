@@ -42,7 +42,7 @@ test('authentication cache enforces TTL, LRU order, and request coalescing', asy
   assert.equal(cache.pendingSize, 0);
 });
 
-test('authentication policy separates state, write, administrator reads, and administrator writes', () => {
+test('authentication policy separates state, write, and administrator requests', () => {
   assert.equal(
     authenticationCacheMaxAgeForRequest('GET', '/api/game/state'),
     AUTHENTICATION_CACHE_POLICY.stateMaxAgeMs,
@@ -51,18 +51,13 @@ test('authentication policy separates state, write, administrator reads, and adm
     authenticationCacheMaxAgeForRequest('POST', '/api/game/work'),
     AUTHENTICATION_CACHE_POLICY.writeMaxAgeMs,
   );
-  assert.equal(
-    authenticationCacheMaxAgeForRequest('GET', '/api/game/admin/summary'),
-    AUTHENTICATION_CACHE_POLICY.adminReadMaxAgeMs,
-  );
-  assert.equal(authenticationCacheMaxAgeForRequest('PUT', '/api/game/admin/community-link'), 0);
+  assert.equal(authenticationCacheMaxAgeForRequest('GET', '/api/game/admin/summary'), 0);
   assert.equal(AUTHENTICATION_CACHE_POLICY.stateMaxAgeMs, 10_000);
   assert.equal(AUTHENTICATION_CACHE_POLICY.writeMaxAgeMs, 2_000);
-  assert.equal(AUTHENTICATION_CACHE_POLICY.adminReadMaxAgeMs, 2_000);
   assert.equal(AUTHENTICATION_CACHE_POLICY.maxEntries, 5_000);
 });
 
-test('authentication caches valid reads, coalesces misses, and never caches upstream failures', async () => {
+test('authentication caches valid state reads, coalesces misses, and never caches upstream failures', async () => {
   const hits = new Map();
   const accountServer = createServer((request, response) => {
     const cookie = String(request.headers.cookie || '');
@@ -100,7 +95,7 @@ test('authentication caches valid reads, coalesces misses, and never caches upst
     clearAuthenticationCache();
     const cachedRequest = requestWithCookie('session=ok');
     const first = await authenticateRequest(cachedRequest, { maxCacheAgeMs: 10_000 });
-    const second = await authenticateRequest(cachedRequest, { maxCacheAgeMs: 2_000 });
+    const second = await authenticateRequest(cachedRequest, { maxCacheAgeMs: 10_000 });
     assert.equal(first.id, 7);
     assert.deepEqual(second, first);
     assert.equal(hits.get('session=ok'), 1);
