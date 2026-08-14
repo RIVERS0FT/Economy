@@ -1328,10 +1328,9 @@ function assetSummaryFor(world, player) {
     summary.frozen += frozenCount * price;
     return summary;
   }, { transferable: 0, mortgaged: 0, contractLocked: 0, frozen: 0 });
-  const bankAccount = ensurePlayerBankAccount(player);
+  const bankDepositValue = Number(player?.bankAccount?.depositCredits || 0);
   const availableCashValue = Number(player.credits || 0);
   const frozenCashValue = Number(player.frozenCredits || 0);
-  const bankDepositValue = Number(bankAccount.depositCredits || 0);
   const availableCommodityValue = commodity.available;
   const frozenCommodityValue = commodity.frozen;
   const availableFacilityValue = facility.transferable;

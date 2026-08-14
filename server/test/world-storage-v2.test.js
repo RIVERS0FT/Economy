@@ -11,6 +11,7 @@ import {
 } from '../src/world-storage-v2.js';
 
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice', role: 'user' };
+const bob = { id: 2, email: 'bob@example.com', name: 'Bob', role: 'user' };
 const now = 1_700_000_000_000;
 
 function action(actionName, payload, requestKey) {
@@ -117,7 +118,7 @@ test('segmented rows reconstruct the authoritative world after process restart',
       const state = second.getState(alice, now + 2);
       assert.equal(second.worldCache.revision, revision);
       assert.equal(state.credits, credits);
-      assert.equal(state.bank.depositCredits, depositCredits);
+      assert.equal(state.bankAccount.depositCredits, depositCredits);
       assert.equal(Number(second.database.prepare(
         'SELECT storage_schema_version FROM economy_world_meta WHERE id = 1',
       ).get().storage_schema_version), WORLD_STORAGE_SCHEMA_VERSION);
@@ -127,5 +128,105 @@ test('segmented rows reconstruct the authoritative world after process restart',
     }
   } finally {
     rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('current V2 cold restarts do not advance revision or rewrite segmented rows', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'economy-storage-v2-cold-'));
+  const databasePath = join(directory, 'economy.sqlite');
+  try {
+    const first = new EconomyStore(databasePath, { scheduledProcessing: true });
+    first.getState(alice, now);
+    const before = first.database.prepare(
+      "SELECT m.revision, m.updated_at, s.updated_revision AS orders_revision, s.state_json AS orders_json FROM economy_world_meta m JOIN economy_world_segments s ON s.segment_key = 'orders' WHERE m.id = 1",
+    ).get();
+    first.stopScheduler();
+    first.close();
+
+    const second = new EconomyStore(databasePath, { scheduledProcessing: true });
+    second.getState(alice, now + 1);
+    const afterSecond = second.database.prepare(
+      "SELECT m.revision, m.updated_at, s.updated_revision AS orders_revision, s.state_json AS orders_json FROM economy_world_meta m JOIN economy_world_segments s ON s.segment_key = 'orders' WHERE m.id = 1",
+    ).get();
+    assert.deepEqual(afterSecond, before);
+    second.stopScheduler();
+    second.close();
+
+    const third = new EconomyStore(databasePath, { scheduledProcessing: true });
+    third.getState(alice, now + 2);
+    const afterThird = third.database.prepare(
+      "SELECT m.revision, m.updated_at, s.updated_revision AS orders_revision, s.state_json AS orders_json FROM economy_world_meta m JOIN economy_world_segments s ON s.segment_key = 'orders' WHERE m.id = 1",
+    ).get();
+    assert.deepEqual(afterThird, before);
+    third.stopScheduler();
+    third.close();
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('legacy monolithic world migrates to V2 only once', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'economy-storage-v2-legacy-'));
+  const databasePath = join(directory, 'economy.sqlite');
+  try {
+    const seed = new EconomyStore(databasePath, { scheduledProcessing: false });
+    seed.getState(alice, now);
+    const legacyWorldJson = JSON.stringify(seed.worldCache.world);
+    seed.database.prepare('DELETE FROM economy_world_meta').run();
+    seed.database.prepare('DELETE FROM economy_world_players').run();
+    seed.database.prepare('DELETE FROM economy_world_segments').run();
+    seed.database.prepare(
+      'UPDATE economy_world SET revision = ?, state_json = ?, updated_at = ? WHERE id = 1',
+    ).run(7, legacyWorldJson, now);
+    seed.close();
+
+    const migrated = new EconomyStore(databasePath, { scheduledProcessing: true });
+    migrated.getState(alice, now + 1);
+    const firstMeta = migrated.database.prepare(
+      'SELECT revision, world_version, storage_schema_version, updated_at FROM economy_world_meta WHERE id = 1',
+    ).get();
+    assert.equal(Number(firstMeta.storage_schema_version), WORLD_STORAGE_SCHEMA_VERSION);
+    migrated.stopScheduler();
+    migrated.close();
+
+    const reopened = new EconomyStore(databasePath, { scheduledProcessing: true });
+    reopened.getState(alice, now + 2);
+    const secondMeta = reopened.database.prepare(
+      'SELECT revision, world_version, storage_schema_version, updated_at FROM economy_world_meta WHERE id = 1',
+    ).get();
+    assert.deepEqual(secondMeta, firstMeta);
+    reopened.stopScheduler();
+    reopened.close();
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('dirty player write leaves unrelated player and market rows byte-identical', () => {
+  const store = new EconomyStore(':memory:', { scheduledProcessing: true });
+  try {
+    store.getState(alice, now);
+    store.getState(bob, now + 1);
+    const bobBefore = store.database.prepare(
+      'SELECT updated_revision, state_json FROM economy_world_players WHERE user_id = 2',
+    ).get();
+    const marketsBefore = store.database.prepare(
+      "SELECT updated_revision, state_json FROM economy_world_segments WHERE segment_key = 'markets'",
+    ).get();
+
+    const result = store.apply(alice, action('bankDeposit', { amount: 10 }, 'storage-v2-dirty-12345678'), now + 2);
+    assert.equal(result.result.ok, true);
+
+    const bobAfter = store.database.prepare(
+      'SELECT updated_revision, state_json FROM economy_world_players WHERE user_id = 2',
+    ).get();
+    const marketsAfter = store.database.prepare(
+      "SELECT updated_revision, state_json FROM economy_world_segments WHERE segment_key = 'markets'",
+    ).get();
+    assert.deepEqual(bobAfter, bobBefore);
+    assert.deepEqual(marketsAfter, marketsBefore);
+  } finally {
+    store.stopScheduler();
+    store.close();
   }
 });
