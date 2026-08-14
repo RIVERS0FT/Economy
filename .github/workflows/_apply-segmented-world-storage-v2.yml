@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   patch-and-verify:
-    if: github.event.head_commit.message == 'Run segmented storage patch'
+    if: github.event.head_commit.message == 'Run segmented storage fix'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -22,81 +22,18 @@ jobs:
         with:
           node-version: '24.4.0'
           cache: npm
-      - name: Apply storage implementation
+      - name: Apply storage correctness fixes
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('scripts/.apply-segmented-world-storage-v2.mjs')
-          source = path.read_text()
-          generic_invariant = """replaceOnce(
-            'server/src/runtime-action-executor.js',
-            \"      measureRequestPhase('economicInvariantMs', () => assertEconomicStateInvariants(world));\",
-            \"      measureRequestPhase('economicInvariantMs', () => assertEconomicStateInvariantsScoped(world, mutationScope));\",
-          );"""
-          scoped_invariant = """replaceOnce(
-            'server/src/runtime-action-executor.js',
-            `    if (gameResult?.ok) {
-                measureRequestPhase('economicInvariantMs', () => assertEconomicStateInvariants(world));
-                savepoint.release();
-              } else {`,
-            `    if (gameResult?.ok) {
-                measureRequestPhase('economicInvariantMs', () => assertEconomicStateInvariantsScoped(world, mutationScope));
-                savepoint.release();
-              } else {`,
-          );"""
-          generic_call = """replaceOnce(
-            'server/src/runtime-action-executor.js',
-            `      requestKey,
-                now,
-              );`,
-            `      requestKey,
-                now,
-                mutationScope,
-              );`,
-          );"""
-          scoped_call = """replaceOnce(
-            'server/src/runtime-action-executor.js',
-            `    const { gameResult, playerBeforeAction, contractsBeforeAction } = executeActionBody(
-                store,
-                world,
-                user,
-                action,
-                payload,
-                requestKey,
-                now,
-              );`,
-            `    const { gameResult, playerBeforeAction, contractsBeforeAction } = executeActionBody(
-                store,
-                world,
-                user,
-                action,
-                payload,
-                requestKey,
-                now,
-                mutationScope,
-              );`,
-          );"""
-          for before, after, label in [
-              (generic_invariant, scoped_invariant, 'invariant'),
-              (generic_call, scoped_call, 'executeActionBody'),
-          ]:
-              if before not in source:
-                  raise SystemExit(f'missing generic {label} replacement')
-              source = source.replace(before, after, 1)
-          path.write_text(source)
-          PY
-          node --check scripts/.apply-segmented-world-storage-v2.mjs
-          node scripts/.apply-segmented-world-storage-v2.mjs
-          node scripts/.apply-segmented-world-storage-v2-followup.mjs
-          node scripts/.apply-segmented-world-storage-v2-coldread.mjs
+          node --check scripts/.fix-segmented-world-storage-v2.mjs
+          node scripts/.fix-segmented-world-storage-v2.mjs
           git diff --check
       - name: Commit generated implementation checkpoint
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add server/src server/test
+          git add server/src
           if ! git diff --cached --quiet; then
-            git commit -m 'Checkpoint segmented world storage implementation'
+            git commit -m 'Fix segmented world storage correctness'
             git push origin HEAD:perf/segmented-world-storage-v2
           fi
       - name: Install dependencies
@@ -112,8 +49,8 @@ jobs:
             server/test/banking.test.js \
             server/test/asset-auctions.test.js \
             server/test/online-auto-sell-persistence.test.js
-      - name: Preserve workspace for follow-up
+      - name: Show resulting diff
         if: always()
         run: |
           git status --short
-          git diff --stat
+          git log -3 --oneline
