@@ -28,6 +28,7 @@ jobs:
           node scripts/.fix-api-hotpath-patcher-2.mjs
           node --check scripts/.apply-api-hotpath-v2.mjs
           node scripts/.apply-api-hotpath-v2.mjs
+          sed -i '/^\/\/ contractProjectionForState$/d' server/src/runtime-store.js
       - name: Complete read-only domain projection
         run: |
           node <<'NODE'
