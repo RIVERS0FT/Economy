@@ -107,7 +107,7 @@ jobs:
           import { migrateBankWorld, ensurePlayerBankAccount } from './server/src/banking.js';
           import { ensureWeeklyCashSettlementWorld, ensurePlayerWeeklyCashSettlement } from './server/src/weekly-cash-settlement.js';
           import { ensureWarehouse } from './server/src/warehouse.js';
-          import { ensureGemState } from './server/src/gems.js';
+          import { ensureGemState } from './server/src/invitations.js';
           import { migrateAssetAuctionWorld } from './server/src/asset-auctions.js';
           import { migrateFacilityGroupWorld } from './server/src/facility-groups.js';
           import { migrateResearchWorld } from './server/src/research.js';
