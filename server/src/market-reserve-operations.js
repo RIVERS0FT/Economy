@@ -144,7 +144,7 @@ function publishSurplusAuction(world, group, groupState, product, reserve, now) 
     startingBid,
     reservePrice: Math.max(startingBid, reservePrice),
     durationHours: AUCTION_DURATION_HOURS,
-  }, now);
+  }, now, { migrate: false });
 }
 
 export function processMarketReserveOperations(world, now = Date.now()) {

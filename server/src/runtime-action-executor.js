@@ -141,7 +141,10 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
       } else if (action === 'rejectGemShopQuote') {
         gameResult = store.gemEconomy.rejectQuote(world.players[String(user.id)], requestKey, now);
       } else if (AUCTION_ACTIONS.has(action)) {
-        gameResult = applyAssetAuctionAction(world, user, action, payload, now);
+        gameResult = applyAssetAuctionAction(world, user, action, payload, now, {
+          migrate: false,
+          process: !store.scheduledProcessing,
+        });
       } else if (BANK_ACTIONS.has(action)) {
         gameResult = applyBankAction(world, user, action, payload, now, {
           processWorld: !store.scheduledProcessing,
