@@ -153,10 +153,10 @@ test('player statistics persistence wrappers preserve local mutation scopes', ()
     store.stopScheduler();
     store.getStateSnapshot(player, undefined, now);
     let capturedScope = null;
-    const originalPersistSegmentedWorld = store.persistSegmentedWorld.bind(store);
-    store.persistSegmentedWorld = (revision, world, savedAt, mutationScope) => {
+    const originalPersistWorld = store._persistWorldWithContractAudit.bind(store);
+    store._persistWorldWithContractAudit = (revision, world, savedAt, mutationScope) => {
       capturedScope = mutationScope;
-      return originalPersistSegmentedWorld(revision, world, savedAt, mutationScope);
+      return originalPersistWorld(revision, world, savedAt, mutationScope);
     };
 
     const result = store.apply(player, {
