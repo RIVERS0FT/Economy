@@ -1,4 +1,4 @@
-name: Apply leaderboard migration boundary correction
+name: Apply projection purity fix
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   patch-and-verify:
-    if: github.event.head_commit.message == 'Apply leaderboard migration boundary correction'
+    if: github.event.head_commit.message == 'Apply projection purity fix'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -22,18 +22,18 @@ jobs:
         with:
           node-version: '24.4.0'
           cache: npm
-      - name: Apply leaderboard migration boundary correction
+      - name: Apply projection purity fix
         run: |
-          node --check scripts/.leaderboard-migration-boundary-fix.mjs
-          node scripts/.leaderboard-migration-boundary-fix.mjs
+          node --check scripts/.projection-purity-fix.mjs
+          node scripts/.projection-purity-fix.mjs
           git diff --check
       - name: Commit implementation checkpoint
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add server/src/leaderboards.js server/src/storage.js server/src/runtime-store-core.js
+          git add server/src/facility-groups.js server/src/storage.js
           if ! git diff --cached --quiet; then
-            git commit -m 'Preserve cold leaderboard migration boundary'
+            git commit -m 'Keep state projection read-only'
             git push origin HEAD:perf/segmented-world-storage-v2
           fi
       - run: npm ci
