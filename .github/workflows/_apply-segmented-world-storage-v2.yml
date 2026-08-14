@@ -1,4 +1,4 @@
-name: Trace segmented world storage v2 mutation
+name: Apply domain runtime migration fix
 
 on:
   push:
@@ -6,34 +6,57 @@ on:
       - perf/segmented-world-storage-v2
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  trace:
-    if: github.event.head_commit.message == 'Trace unrelated player mutation'
+  patch-and-verify:
+    if: github.event.head_commit.message == 'Apply domain runtime migration fix'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
           ref: perf/segmented-world-storage-v2
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '24.4.0'
           cache: npm
-      - run: npm ci
-      - name: Instrument unrelated player
-        run: node scripts/.trace-unrelated-player.mjs
-      - name: Trace dirty-set test
+      - name: Apply domain hot path fix
+        run: |
+          node --check scripts/.domain-hotpath-fix.mjs
+          node scripts/.domain-hotpath-fix.mjs
+          git diff --check
+      - name: Commit implementation checkpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add server/src/domain.js
+          if ! git diff --cached --quiet; then
+            git commit -m 'Keep runtime domain facade migration-free'
+            git push origin HEAD:perf/segmented-world-storage-v2
+          fi
+      - name: Install dependencies
+        run: npm ci
+      - name: Run focused server tests
         shell: bash
         run: |
           set -o pipefail
-          node --test --test-name-pattern="dirty player write" server/test/world-storage-v2.test.js 2>&1 | tee trace.log
-      - name: Upload trace
+          node --test \
+            server/test/world-storage-v2.test.js \
+            server/test/state-polling.test.js \
+            server/test/runtime-hotpath-architecture.test.js \
+            server/test/authoritative-hotpaths.test.js \
+            server/test/research.test.js \
+            server/test/banking.test.js \
+            server/test/asset-auctions.test.js \
+            server/test/online-auto-sell-persistence.test.js \
+            2>&1 | tee focused-tests.log
+      - name: Upload focused test log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: segmented-storage-mutation-trace
-          path: trace.log
+          name: focused-segmented-storage-tests
+          path: focused-tests.log
           if-no-files-found: warn
           retention-days: 1
