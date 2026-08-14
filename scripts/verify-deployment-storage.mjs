@@ -208,6 +208,10 @@ if (failures.length === 0) {
       if (storageReport.storageSchemaVersion !== 0) failures.push(`迁移前存储 schema 应为 0，实际为 ${storageReport.storageSchemaVersion}`);
     }
 
+    if (statSync(databasePath).size !== sourceSizeBefore || digest(databasePath) !== sourceDigestBefore) {
+      failures.push('备份过程修改了源数据库主文件');
+    }
+
     const migrated = new DatabaseSync(databasePath);
     migrated.exec(`
       CREATE TABLE IF NOT EXISTS economy_world_meta (
@@ -243,9 +247,7 @@ if (failures.length === 0) {
       }
     }
 
-    if (statSync(databasePath).size !== sourceSizeBefore || digest(databasePath) !== sourceDigestBefore) {
-      failures.push('备份过程修改了源数据库主文件');
-    }
+
   } catch (error) {
     failures.push(`紧凑压缩备份行为验证异常: ${error.stack || error}`);
   } finally {
