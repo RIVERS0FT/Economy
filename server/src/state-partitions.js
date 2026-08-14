@@ -40,11 +40,39 @@ function partitionNameForKey(key) {
   return 'player';
 }
 
-function revisionForPartition(partition) {
-  return measureRequestPhase('partitionHashMs', () => createHash('sha256')
-    .update(JSON.stringify(partition))
-    .digest('base64url')
-    .slice(0, 16));
+function digestJson(value) {
+  return createHash('sha256').update(JSON.stringify(value)).digest('base64url');
+}
+
+function revisionFromKeyDigests(entries) {
+  const hash = createHash('sha256');
+  for (const [key, digest] of [...entries].sort((left, right) => left[0].localeCompare(right[0]))) {
+    hash.update(key);
+    hash.update('\0');
+    hash.update(digest);
+    hash.update('\0');
+  }
+  return hash.digest('base64url').slice(0, 16);
+}
+
+function keyDigestsForPartitions(partitions, { skipCatalog = false } = {}) {
+  return measureRequestPhase('partitionHashMs', () => {
+    const digests = new Map();
+    for (const partitionName of STATE_PARTITION_NAMES) {
+      if (skipCatalog && partitionName === 'catalog') continue;
+      for (const [key, value] of Object.entries(partitions?.[partitionName] || {})) {
+        digests.set(key, digestJson(value));
+      }
+    }
+    return digests;
+  });
+}
+
+function revisionForPartition(partition, keyDigests) {
+  return revisionFromKeyDigests(Object.keys(partition || {}).map((key) => [
+    key,
+    keyDigests.get(key) || digestJson(partition[key]),
+  ]));
 }
 
 function normalizeRevisionRecord(value) {
@@ -81,35 +109,44 @@ function splitStateSlices(partitions) {
   return slices;
 }
 
-export function createSliceRevisions(partitions) {
+export function createSliceRevisions(partitions, { keyDigests } = {}) {
+  const digests = keyDigests || keyDigestsForPartitions(partitions, { skipCatalog: true });
   const slices = splitStateSlices(partitions);
   return Object.fromEntries(STATE_SLICE_NAMES.map((name) => [
     name,
-    revisionForPartition(slices[name] || {}),
+    revisionForPartition(slices[name] || {}, digests),
   ]));
 }
 
-export function createPartitionRevisions(partitions, { catalogSnapshot } = {}) {
+export function createPartitionRevisions(partitions, { catalogSnapshot, keyDigests } = {}) {
+  const reusableCatalog = Boolean(
+    catalogSnapshot?.revision
+    && catalogSnapshot?.partition
+    && Number(catalogSnapshot.version) === Number(partitions.catalog?.version)
+  );
+  const digests = keyDigests || keyDigestsForPartitions(partitions, { skipCatalog: reusableCatalog });
   return Object.fromEntries(STATE_PARTITION_NAMES.map((name) => {
-    if (
-      name === 'catalog'
-      && catalogSnapshot?.revision
-      && catalogSnapshot?.partition
-      && Number(catalogSnapshot.version) === Number(partitions.catalog?.version)
-    ) {
+    if (name === 'catalog' && reusableCatalog) {
       partitions.catalog = catalogSnapshot.partition;
       return [name, catalogSnapshot.revision];
     }
-    return [name, revisionForPartition(partitions[name] || {})];
+    return [name, revisionForPartition(partitions[name] || {}, digests)];
   }));
 }
 
 export function createStatePartitionSnapshot(state, { catalogSnapshot } = {}) {
   const partitions = measureRequestPhase('partitionBuildMs', () => splitClientState(state));
-  const partitionRevisions = createPartitionRevisions(partitions, { catalogSnapshot });
-  const sliceRevisions = createSliceRevisions(partitions);
+  const reusableCatalog = Boolean(
+    catalogSnapshot?.revision
+    && catalogSnapshot?.partition
+    && Number(catalogSnapshot.version) === Number(partitions.catalog?.version)
+  );
+  const keyDigests = keyDigestsForPartitions(partitions, { skipCatalog: reusableCatalog });
+  const partitionRevisions = createPartitionRevisions(partitions, { catalogSnapshot, keyDigests });
+  const sliceRevisions = createSliceRevisions(partitions, { keyDigests });
   setRequestGauge('statePartitionCount', STATE_PARTITION_NAMES.length);
   setRequestGauge('stateSliceCount', STATE_SLICE_NAMES.length);
+  setRequestGauge('stateHashedFieldCount', keyDigests.size);
   return { partitions, partitionRevisions, sliceRevisions };
 }
 
