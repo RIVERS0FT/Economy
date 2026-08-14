@@ -1026,7 +1026,6 @@ function clientAuction(auction, userId) {
 }
 
 export function createAssetAuctionClientState(world, userId, now = Date.now()) {
-  processAssetAuctions(world, now);
   return {
     assetAuctions: world.assetAuctions
       .slice()

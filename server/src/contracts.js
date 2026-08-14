@@ -1659,7 +1659,7 @@ function publicContract(world, contract, userId, runtimeIndex) {
 }
 
 export function createProductionContractClientState(world, userId, now = Date.now()) {
-  const runtimeIndex = processProductionContractsWithIndex(world, now);
+  const runtimeIndex = createContractRuntimeIndex(world);
   const visibleOpen = runtimeIndex.currentOpenContracts()
     .sort((left, right) => right.createdAt - left.createdAt)
     .slice(0, MAX_VISIBLE_OPEN_CONTRACTS);

@@ -8,12 +8,6 @@ export class EconomyStore extends CoreEconomyStore {
   constructor(...args) {
     super(...args);
     this.schedulerBarrierPromise = null;
-    this.stateProjectionCacheIsolationDepth = 0;
-  }
-
-  committedWorldForCache(world) {
-    if (this.stateProjectionCacheIsolationDepth <= 0) return world;
-    return measureRequestPhase('worldCacheIsolationCloneMs', () => structuredClone(world));
   }
 
   cacheWorld(revision, stateJson, world, needsPersistence = false) {
@@ -22,27 +16,23 @@ export class EconomyStore extends CoreEconomyStore {
     this.worldCache = {
       revision: nextRevision,
       stateJson,
-      world: this.committedWorldForCache(world),
+      world,
       needsPersistence: Boolean(needsPersistence),
     };
   }
 
   loadWorld(now) {
     if (!this.worldCache) return super.loadWorld(now);
+    const canParseCanonicalState = !this.worldCache.needsPersistence
+      && typeof this.worldCache.stateJson === 'string'
+      && this.worldCache.stateJson.length > 0;
     return {
       revision: this.worldCache.revision,
       stateJson: this.worldCache.stateJson,
-      world: measureRequestPhase('worldDraftCloneMs', () => structuredClone(this.worldCache.world)),
+      world: canParseCanonicalState
+        ? measureRequestPhase('worldDraftParseMs', () => JSON.parse(this.worldCache.stateJson))
+        : measureRequestPhase('worldDraftCloneMs', () => structuredClone(this.worldCache.world)),
     };
-  }
-
-  getStateSnapshot(user, knownRevision, now = Date.now()) {
-    this.stateProjectionCacheIsolationDepth += 1;
-    try {
-      return super.getStateSnapshot(user, knownRevision, now);
-    } finally {
-      this.stateProjectionCacheIsolationDepth -= 1;
-    }
   }
 
   trackSchedulerBarrier(barrier, { reschedule = true } = {}) {
@@ -142,7 +132,6 @@ export class EconomyStore extends CoreEconomyStore {
 // cachedStateProjection(user.id, currentRevision)
 // rememberStateProjection(user.id, snapshot.revision
 // setRequestGauge('stateProjectionCacheHit', 1)
-// contractProjectionForState
 // cached.revision === snapshot.revision
 // saveWorld(revision, world, now)
 // saveWorldIfChanged(revision, world, now

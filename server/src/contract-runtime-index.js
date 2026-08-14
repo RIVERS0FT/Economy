@@ -218,8 +218,7 @@ function buildContractRuntimeIndex(world) {
 }
 
 export function createContractRuntimeIndex(world) {
-  world.productionContracts ||= [];
-  const contracts = world.productionContracts;
+  const contracts = Array.isArray(world?.productionContracts) ? world.productionContracts : [];
   const cached = runtimeByWorld.get(world);
   const lastContract = contracts.length > 0 ? contracts[contracts.length - 1] : null;
   if (

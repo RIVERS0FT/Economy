@@ -415,9 +415,9 @@ export function applyAction(world, user, action, payload = {}, now = Date.now())
   return result;
 }
 
-export function createClientState(world, userId, now = Date.now()) {
-  migrateWorld(world, now);
-  const state = core.createClientState(world, userId, now);
+export function createClientState(world, userId, now = Date.now(), { migrate = true } = {}) {
+  if (migrate) migrateWorld(world, now);
+  const state = core.createClientState(world, userId, now, { migrate });
   return {
     ...state,
     products: clone(PRODUCT_CATALOG),

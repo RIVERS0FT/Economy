@@ -17,7 +17,7 @@ import {
   migrateFacilityGroupWorld,
   stripLegacyFacilityInstances,
 } from './facility-groups.js';
-import { createWarehouseSummary, ensureWarehouse } from './warehouse.js';
+import { createWarehouseSummaryReadOnly, ensureWarehouse } from './warehouse.js';
 import {
   applyAssetAuctionAction,
   createAssetAuctionClientState,
@@ -150,10 +150,8 @@ function migrateGemLedgerSchema(database) {
   }
 }
 
-function createVersionedClientState(world, userId, now, checkIn) {
+export function createVersionedClientState(world, userId, now, checkIn) {
   const player = world.players[String(userId)];
-  ensureWarehouse(player);
-  ensureGemState(player);
   const state = createFacilityGroupClientState(world, userId, now);
   const {
     trades: _serverTrades,
@@ -169,7 +167,7 @@ function createVersionedClientState(world, userId, now, checkIn) {
     },
     gems: player.gems,
     checkIn,
-    ...createWarehouseSummary(player),
+    ...createWarehouseSummaryReadOnly(player),
     ...createAssetAuctionClientState(world, userId, now),
     ...createBankClientState(world, player, now),
     ...createResearchClientState(world, player, now),
@@ -611,10 +609,12 @@ export class EconomyStore {
   }
 
   canReuseStateProjection(userId, now = Date.now()) {
+    const player = this.worldCache?.world?.players?.[String(userId)];
     return Boolean(
       this.worldCache
+      && player
       && (this.scheduledProcessing || now < this.nextWorldProcessingAt)
-      && !playerNeedsWeeklyLoginSettlement(this.worldCache.world.players?.[String(userId)], now)
+      && !playerNeedsWeeklyLoginSettlement(player, now)
     );
   }
 
