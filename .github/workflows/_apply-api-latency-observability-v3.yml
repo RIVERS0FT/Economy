@@ -36,6 +36,13 @@ jobs:
           node scripts/.apply-api-latency-observability-v3.mjs
           python3 - <<'PY'
           from pathlib import Path
+          app = Path('server/src/app.js')
+          app_source = app.read_text()
+          old = "        const summary = await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-population-summary'), () => getStableAdminSummary(store, user));"
+          if old in app_source:
+              app_source = app_source.replace(old, "        const summary = getStableAdminSummary(store, user);", 1)
+              app.write_text(app_source)
+
           path = Path('scripts/verify-runtime-efficiency.mjs')
           source = path.read_text()
           start = source.index("const appSource = read('server/src/app.js');")
