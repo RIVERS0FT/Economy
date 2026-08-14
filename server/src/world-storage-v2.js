@@ -26,6 +26,9 @@ const ACTIVE_ORDER_EXECUTIONS = new Set([
   'online-auto-buy',
   'online-auto-sell',
 ]);
+const ORDER_SCOPE_LABELS = Object.freeze({
+  manualCommodity: Object.freeze({ label: 'commodity:placeOrder' }),
+});
 
 const AUCTION_ACTIONS = new Set(['createAuction', 'placeAuctionBid', 'cancelAuction']);
 const CORE_LOCAL_SEGMENTS = Object.freeze([
@@ -192,10 +195,6 @@ function commodityProductId(value) {
   return String(value?.productId || value?.assetId || 'wheat');
 }
 
-function isCommodityOrder(order) {
-  return orderKind(order) === 'commodity';
-}
-
 function orderIndexesForAssets(world, assets, { ownerId = null } = {}) {
   const wanted = new Set(assets.map(({ kind, assetId }) => `${kind}:${assetId}`));
   const indexes = new Set();
@@ -353,8 +352,11 @@ export function createRuntimeMutationScope(world, userId, action, payload, {
     }
     if (ACTIVE_ORDER_EXECUTIONS.has(execution)) {
       const asset = ordinaryOrderAsset(payload);
+      const label = !execution && asset.kind === 'commodity'
+        ? ORDER_SCOPE_LABELS.manualCommodity.label
+        : `${asset.kind}:placeOrder${execution ? `:${execution}` : ''}`;
       const scope = orderScope(world, userId, [asset], {
-        label: `${asset.kind}:placeOrder${execution ? `:${execution}` : ''}`,
+        label,
         mutateMarkets: true,
       });
       if (scope) return scope;
