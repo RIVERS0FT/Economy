@@ -26,6 +26,7 @@ jobs:
       - name: Fix V2 verifiers and regressions
         run: |
           node scripts/.verifier-cow-wording-fix.mjs
+          node scripts/.trace-stress-catch.mjs
           git diff --check
       - name: Commit V2 fixes
         run: |
