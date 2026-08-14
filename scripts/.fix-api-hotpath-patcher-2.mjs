@@ -1,3 +1,4 @@
+import './.fix-api-hotpath-patcher-3.mjs';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const path = 'scripts/.apply-api-hotpath-v2.mjs';
