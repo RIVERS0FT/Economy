@@ -119,7 +119,6 @@ requireText('server/src/storage.js', [
   'this.setTimeoutFn(() => this.handleScheduledWorldWake(generation), delay)',
   'processScheduledWorld(now = this.nowProvider())',
   'structuredClone(this.worldCache.world)',
-  'isDeepStrictEqual(world, cached.world)',
   'processWorldIfDue(world, now',
   '(this.scheduledProcessing || now < this.nextWorldProcessingAt)',
   'getStateSnapshot(user, knownRevision',
@@ -127,6 +126,12 @@ requireText('server/src/storage.js', [
   'function createActionAcknowledgement(result, revision)',
   'const response = createActionAcknowledgement(gameResult, nextRevision);',
   'createActionAcknowledgement(cachedResponse.result, cachedResponse.revision)',
+]);
+
+requireText('server/src/world-storage-v2.js', [
+  'prepareSegmentedWorldWrite(',
+  'segmentedSnapshotsEqual(',
+  'applySegmentedWorldWrite(',
 ]);
 
 forbidText('server/src/storage.js', [
