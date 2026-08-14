@@ -39,7 +39,7 @@ const forbidText = (path, text) => {
 if (failures.length === 0) {
   for (const text of [
     'manage-production-backups.py',
-    'backup-world --target-world-version 26',
+    'backup-world --target-storage-schema-version 2',
     'Verify production host before publishing entry',
     'scripts/verify-production-deployment.sh',
     'minimum_free_kb=$((1024 * 1024))',
@@ -86,6 +86,8 @@ if (failures.length === 0) {
     "TIMESTAMP_PATTERN = re.compile(",
     "backup_directory.glob('economy-pre-*')",
     "with closing(sqlite3.connect(",
+    '_storage_schema_version(',
+    'target_storage_schema_version',
     "if hasattr(os, 'chown'):",
     "if os.name == 'nt':",
   ]) requireText(files.backupTool, text);
@@ -106,6 +108,7 @@ if (failures.length === 0) {
     '至少为预计有效数据两倍再加 512 MiB',
     '删除临时 SQLite 前显式关闭全部连接',
     'Windows 本地行为验证与 Linux 正式部署共用同一实现',
+    '分段存储 V2 首次迁移前必须创建 `economy-pre-storage-v2`',
     'API 和便携 Node 运行时继续使用 `rsync --delete-before` 完整替换',
     '旧哈希资源至少保留 400 天',
   ]) requireText(files.design, text);
@@ -185,9 +188,68 @@ if (failures.length === 0) {
       }
     }
 
+    const storageBackupResult = spawnSync(
+      'python3',
+      [
+        resolve(root, files.backupTool),
+        'backup-world',
+        '--database', databasePath,
+        '--backup-directory', backupDirectory,
+        '--target-storage-schema-version', '2',
+      ],
+      { encoding: 'utf8' },
+    );
+    if (storageBackupResult.status !== 0) {
+      failures.push(`存储 V2 迁移备份执行失败: ${storageBackupResult.stderr || storageBackupResult.stdout}`);
+    } else {
+      const storageReport = JSON.parse(storageBackupResult.stdout);
+      if (storageReport.status !== 'created') failures.push(`存储 V2 首次备份状态异常: ${storageReport.status}`);
+      if (!String(storageReport.path || '').includes('economy-pre-storage-v2-')) failures.push('存储 V2 备份族命名异常');
+      if (storageReport.storageSchemaVersion !== 0) failures.push(`迁移前存储 schema 应为 0，实际为 ${storageReport.storageSchemaVersion}`);
+    }
+
+
+
     if (statSync(databasePath).size !== sourceSizeBefore || digest(databasePath) !== sourceDigestBefore) {
       failures.push('备份过程修改了源数据库主文件');
     }
+
+    const migrated = new DatabaseSync(databasePath);
+    migrated.exec(`
+      CREATE TABLE IF NOT EXISTS economy_world_meta (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        revision INTEGER NOT NULL,
+        world_version INTEGER NOT NULL,
+        storage_schema_version INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      ) STRICT;
+      INSERT OR REPLACE INTO economy_world_meta
+        (id, revision, world_version, storage_schema_version, updated_at)
+      VALUES (1, 92, 29, 2, 1234567891);
+    `);
+    migrated.close();
+
+    const storageSkipResult = spawnSync(
+      'python3',
+      [
+        resolve(root, files.backupTool),
+        'backup-world',
+        '--database', databasePath,
+        '--backup-directory', backupDirectory,
+        '--target-storage-schema-version', '2',
+      ],
+      { encoding: 'utf8' },
+    );
+    if (storageSkipResult.status !== 0) {
+      failures.push(`已迁移 V2 的备份检查失败: ${storageSkipResult.stderr || storageSkipResult.stdout}`);
+    } else {
+      const storageSkipReport = JSON.parse(storageSkipResult.stdout);
+      if (storageSkipReport.status !== 'skipped' || storageSkipReport.reason !== 'storage-schema-current') {
+        failures.push(`已迁移 V2 应跳过重复备份，实际为 ${storageSkipReport.status}/${storageSkipReport.reason}`);
+      }
+    }
+
+
   } catch (error) {
     failures.push(`紧凑压缩备份行为验证异常: ${error.stack || error}`);
   } finally {

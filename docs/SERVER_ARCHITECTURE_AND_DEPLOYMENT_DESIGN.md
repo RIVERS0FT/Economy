@@ -85,16 +85,33 @@
 
 ## 3. SQLite 持久化
 
-主表：
+正式世界存储使用分段存储 V2，但仍共享一个全局世界修订号和一个 SQLite 事务边界：
 
 ```sql
-economy_world(
+economy_world_meta(
   id INTEGER PRIMARY KEY CHECK (id = 1),
   revision INTEGER NOT NULL,
+  world_version INTEGER NOT NULL,
+  storage_schema_version INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+)
+
+economy_world_players(
+  user_id INTEGER PRIMARY KEY,
+  updated_revision INTEGER NOT NULL,
+  state_json TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+)
+
+economy_world_segments(
+  segment_key TEXT PRIMARY KEY,
+  updated_revision INTEGER NOT NULL,
   state_json TEXT NOT NULL,
   updated_at INTEGER NOT NULL
 )
 ```
+
+旧 `economy_world` 只保留兼容迁移入口和轻量 manifest；完成 V2 迁移后不得继续把完整世界 JSON 写回该表。玩家行与世界顶层 segment 只是持久化粒度，不形成独立经济权威：资金、库存、订单、银行、拍卖和合同仍由同一全局 `revision`、同一 `BEGIN IMMEDIATE` 事务和同一回滚边界统一提交。
 
 拍卖审计独立于世界 JSON 使用 `economy_asset_auction_events` 追加式事件表，保存稳定来源键、拍卖 ID、事件类型、真实内部参与者 ID、金额微单位、截止时间变化、规则快照摘要和发生时间。普通玩家只能通过独立只读接口获得固定最近 10 条匿名有效出价；审计真实参与者 ID、发布费托管、收费与退款明细不得进入六分区或主状态。拍卖动作和世界调度必须在保存世界后的同一个 `BEGIN IMMEDIATE` 事务内刷新审计；审计写入失败必须回滚世界、修订号、幂等确认、费用与资产变化。 异常结算需要退还发布费但卖方账户缺失时，服务器必须保持拍卖 `listingFeeStatus = held` 和世界级托管余额不变，追加 `listing_fee_refund_deferred` 事件；后续世界迁移必须继续汇总这类终态未释放托管，不得把无法送达的退款转为就业收入或无接收方扣款。
 
@@ -116,24 +133,30 @@ economy_world(
 
 写事务固定：
 
-1. `BEGIN IMMEDIATE`；
-2. 读取当前世界、修订号和幂等缓存；
-3. 迁移并规范化；
-4. 执行动作与世界推进；
-5. 校验资产、仓库、合同托管和状态不变量；
-6. 更新世界并增加修订号；
-7. 写入精简幂等确认；
-8. `COMMIT`。
+1. 普通玩家写入若命中已到期世界截止时间，先通过同一权威写执行器完成调度 barrier；
+2. `BEGIN IMMEDIATE`，并校验幂等缓存；
+3. 从已完成冷迁移的 committed world 计算动作 Mutation Scope，只复制本动作可能写入的玩家和世界 segment；
+4. 执行动作；正式调度启用时动作主体不得再次执行通用全世界推进；
+5. 校验本动作可写范围内的资产、仓库、合同托管和经济状态不变量，并只对 Dirty Scope 做资金精度收口；
+6. 将草稿与 committed snapshot 按声明范围比较，只有实际变化的玩家行和 segment 写入 V2 表，同时只增加一次全局修订号；
+7. 在同一事务内写入合同／拍卖审计与精简幂等确认；
+8. `COMMIT` 后把已提交草稿直接交接为新的 committed world。
 
-任一步失败全部回滚。
+完整世界迁移、旧字段补全和全玩家兼容初始化只允许在首次加载、旧单行世界迁移或世界版本升级时执行，不属于普通写事务步骤。动作失败回滚 SAVEPOINT 并丢弃草稿；数据库、审计或分段写入失败则整个外层事务回滚。
 
-运行时内存状态必须区分**已提交世界（committed world）**与**请求草稿（world draft）**。正式服务命中内存缓存的普通玩家权威写只允许创建一份隔离请求草稿；当缓存已经持有与 committed world 对应的规范 `stateJson` 时，草稿必须优先通过一次 `JSON.parse(stateJson)` 构造，避免对大世界对象执行高成本 `structuredClone`，只有缓存仍标记 `needsPersistence`、规范 JSON 尚不可作为当前权威快照时才允许回退到完整克隆。SQLite 世界写入与对应合同／拍卖审计在同一事务成功后，请求草稿直接交接为新的 committed world。动作业务失败时，附属 SQLite 写入通过 `SAVEPOINT` 回滚，未提交请求草稿直接丢弃；玩家动作不得为了恢复世界再创建第二份完整世界快照。经济活动判定只允许复制当前玩家自身的动作前快照；合同动作可额外复制合同集合用于变更判定和审计，不得复制第二份完整世界。
+运行时内存状态必须区分**已提交世界（committed world）**与**请求草稿（world draft）**。正式服务命中内存缓存的玩家写入必须先通过 `createRuntimeMutationScope` 声明可写玩家与世界 segment，再由 `cloneWorldForMutation` 创建 Copy-on-Write 草稿：可写对象必须隔离复制，未声明对象允许与 committed world 共享引用且必须被视为只读。未知或尚未局部化的动作可以暂时退回完整草稿，但不得为了回滚、投影或持久化再创建第二份完整世界。普通商品下单只复制下单者、当前价格可交叉的玩家对手方、订单／市场及必要核心资金域；商品撤单只复制下单者、订单及必要核心资金域；拍卖动作只复制相关卖方／当前最高出价者／当前操作者、拍卖及必要核心资金域。
+
+V2 热保存不得做完整世界 `isDeepStrictEqual`、完整世界 `JSON.stringify` 或全世界资金精度扫描。保存层只序列化 Mutation Scope 覆盖的玩家与 segment，与 committed segmented snapshot 比较并形成 Dirty Set；没有 Dirty Row 时世界修订号保持不变。写入成功后草稿直接成为新的 committed world，未变玩家和 segment 的 SQLite 行内容及 `updated_revision` 必须保持原值。
+
+玩家 V2 持久化行不得保存仅用于旧客户端展示的 `trades`、`ledger`、`assetEvents` 或旧 `facilities` 实例日志。Copy-on-Write 动作必须把这些字段视为可缺省展示数据：写动作不得因为字段不存在而失败，也不得为了兼容旧展示结构重新把它们写回玩家行；历史审计继续由各自独立追加式 SQLite 表承担。
+
+失败动作、重复操作或其他无业务状态变化的动作可以保存精简幂等确认，但不得仅因兼容规范化、空数组补全、`lastProcessedAt` 更新时间或其他派生容器初始化而产生 Dirty Row、写回世界或推进全局 `revision`。这类结构迁移只允许发生在冷加载、旧单行世界迁移或明确世界版本升级。合同历史冷启动导入必须优先读取 V2 分段世界；只有尚未建立 V2 元数据时才允许回退读取旧 `economy_world.state_json`。
 
 `GET state` 的正式投影路径必须是纯只读操作：已有玩家、无需登录周结算且后台调度启用时，缓存未命中也直接从 committed world 构造当前玩家状态、合同／拍卖／银行／研发／排行榜投影和六分区，不得创建 world draft，不得执行世界迁移、领域结算、全玩家兼容初始化或持久化，也不得再通过 `worldCacheIsolationCloneMs` 复制 committed world 来容忍投影写入。首次建档或登录周结算等确实需要写入的 GET 必须先完成权威事务，再从新 committed world 执行同一只读投影。
 
 正式服务的到期世界推进仍由单一权威调度器负责。若普通玩家写入到达时全局最早截止时间已经到期，`runtime-store.js` 必须先建立一个可复用的系统调度 barrier，在同一权威写执行器中先完成一次到期世界处理，再放行随后到达的玩家写入；同一到期窗口不得由多个玩家请求重复承担全服推进。系统调度任务不继承玩家 HTTP 请求的性能采集上下文，玩家请求只记录等待 barrier 的 `schedulerBarrierWaitMs`，不得把系统 `worldProcessMs` 伪装成该玩家动作自身处理阶段。非正式调度的内存测试存储仍可在请求内按到期领域推进，以保持确定性测试。
 
-普通商品 `placeOrder` 在上述到期 barrier 完成后必须直接复用 `applySettledCommodityOrder` 与统一订单簿撮合，不得再绕经会执行 `processFacilityGroupWorld` 的工厂动作适配层。该优化不改变订单冻结、撮合、成交价、手续费、幂等、修订号、资产守恒或统一订单簿语义。完整资金精度收口、世界变化判定和单行 `state_json` 持久化仍保留现行权威规则，本次不得把尚未实施的分区持久化当作既成事实。
+普通商品 `placeOrder` 在上述到期 barrier 完成后必须直接复用 `applySettledCommodityOrder` 与统一订单簿撮合，不得再绕经会执行 `processFacilityGroupWorld` 的工厂动作适配层。普通商品下单与撤单必须使用动作专用 Copy-on-Write Scope；拍卖动作同样只复制本次交易可能修改的参与者与拍卖域。上述优化不改变订单冻结、撮合、成交价、手续费、幂等、全局修订号、资产守恒或统一订单簿语义。热保存只做 scoped money normalization 和 Dirty Row 比较／写入；完整资金精度收口只保留给冷迁移、完整世界升级和明确的全世界写入。
 
 ## 4. 世界迁移、状态交付与客户端版本
 
@@ -164,7 +187,7 @@ JSON.parse
 
 客户端状态版本不兼容属于当前页面不可恢复错误。客户端必须保留明确的版本不兼容文案，并只提供刷新页面以重新加载入口 HTML；不得在旧 JavaScript 运行时中原地重试状态请求。登录、注册、会话初始化和游戏状态请求捕获浏览器原生 `Failed to fetch`、`Load failed`、`NetworkError` 等网络异常后，必须转换为中文刷新提示，不得直接展示浏览器英文错误。
 
-世界 27 是当前持久化边界。世界 23 在既有世界 22 上增加聚合人口、工厂承载、迁入迁出、就业诊断和动态人口预算；当前客户端状态版本为 33。世界 16 的银行和净资产结构继续保留；`world.bank`、`player.bankAccount`、贷款抵押明细和银行统计都保存在 `economy_world.state_json`，与玩家资金、工厂和订单共享同一事务、修订号和回滚边界，不另建可与世界失配的余额表。银行最近记录只保留每名玩家最近 100 条，普通客户端序列化最近 50 条；利息微单位余数和资金池微单位仍是服务器内部整数，不得暴露为可直接使用的普通货币。
+世界 29 是当前持久化边界，当前客户端状态版本为 33，世界存储 schema 为 V2。`world.bank` 等世界级银行状态写入对应顶层 segment，`player.bankAccount`、贷款抵押明细和玩家统计随对应玩家行保存；它们仍与玩家资金、工厂、订单、拍卖和合同共享同一全局修订号、SQLite 事务和回滚边界，不允许形成可独立提交的第二套余额权威。银行最近记录只保留每名玩家最近 100 条，普通客户端序列化最近 50 条；利息微单位余数和资金池微单位仍是服务器内部整数，不得暴露为可直接使用的普通货币。
 
 世界 15 的资产拍卖迁移由 `asset-auctions.js` 在工厂集群规范化之前执行，并与世界写回处于同一 SQLite 事务。迁移同时读取旧 `collectibleAuctions` 和新 `assetAuctions`，按稳定 ID 去重；纯商品／工厂拍卖保留截止时间、出价、冻结资金、仓库预占和托管状态。任何含已删除艺术资产项目的开放资产包必须整包取消，完整退回最高出价并释放同包商品／工厂，随后删除 `collectibles`、`collectibleOwnershipHistory` 与 `collectibleAuctions`。重复加载不得重复退款、重复解冻或复制拍卖。
 
@@ -208,9 +231,13 @@ JSON.parse
 
 普通玩家权威动作响应固定为 `{ result: { ok, message }, revision }`，不得携带订单 ID、兑换数量、结算金额或其他动作内部字段，也不得携带完整状态、分区补丁、分区修订、`unchanged` 或 `serverNow`。动作事务和 `economy_idempotency.response_json` 只生成并保存这份精简确认。浏览器在动作确认后使用动作发起前已经接受的全局 `revision` 与当前分区哈希立即补拉 `GET state`；不得在补拉前直接写入客户端状态修订号。补拉失败不得把已经提交成功的动作改写为失败。
 
-`EconomyStore` 必须在单进程内缓存已迁移、已清理的已提交世界对象、对应修订号和最近序列化结果；普通玩家写操作只从该缓存创建一次 `structuredClone` 请求草稿，禁止请求直接修改缓存权威对象。正式服务必须启用单一全局到期调度器：`world-deadline-planner.js` 从运行中工厂周期、市场需求和价格传导周期、人口政策到期、开放拍卖、合同到期／宽限期／公开过期、银行每日结息、贷款到期／宽限结束、每日签到跨日、排行榜结算与订单历史裁剪中选出最早绝对时间，只设置一个 `setTimeout`；没有到期事件时不得进入 SQLite 世界事务。调度器最多每秒推进一次到期世界；玩家写入到达已过期截止时间时，`runtime-store.js` 必须先复用同一权威写执行器中的调度 barrier 完成一次推进，再执行玩家动作，动作主体不得重复处理同一轮全服截止时间。调度事务失败必须保持原修订权威并至少延后 1 秒再调度。同修订号请求必须在进入 SQLite 事务前直接返回轻量确认，不得重新读取数据库、`JSON.parse`、遍历全部玩家、`structuredClone` 或 `JSON.stringify` 整份世界。内存测试可以关闭调度器，也必须使用假时钟验证 60 秒空闲窗口产生零次世界事务和到期处理延后不超过 1 秒。基础客户端快照生成后，合同、拍卖、银行、研发和排行榜分区必须复用同一 committed world 及其运行时派生索引，以只读方式生成客户端视图；同一次状态读取不得开启第二次完整世界事务、完整世界克隆、全玩家迁移／规范化或对完整客户端状态执行第二次 JSON 往返规范化。
+`EconomyStore` 必须在单进程内缓存已迁移、已清理的 committed world、对应全局修订号和 segmented snapshot。当前 V2 世界冷启动直接从 `economy_world_meta`、`economy_world_players` 与 `economy_world_segments` 重建；当 storage schema 和世界版本都已经是当前值时，重复重启不得再次执行完整迁移、重写分段行或增加修订号。旧 `economy_world.state_json` 只允许被读取一次完成 V2 迁移，迁移成功后改写为轻量 manifest。
 
-工厂、拍卖、合同、银行和排行榜的时间推进统一由运行时世界处理路径完成，禁止通过原型钩子在 `getStateSnapshot`、`apply` 或商店读取前后重复执行。正式服务的普通玩家动作在进入自身事务前由调度 barrier 保证已到期领域完成一次权威推进，动作事务本身不得再执行通用动作前／动作后全世界处理；只有合同动作等确实需要立即完成本领域状态转换的路径可以执行本领域专项后处理。关闭正式调度的内存测试可以在请求内按实际到期领域推进，以保持确定性。普通轮询不得承担时间推进，正式服务的全局调度器保证到期处理延后不超过 1 秒。排行榜视图在生成当前玩家客户端状态时注入，不得为了不同查看者把同一榜单快照重复写入世界。保存前只进行一次规范化；实际变化使用缓存世界结构比较，变化时只序列化一次并复用该字符串写库和更新缓存。事务回滚必须同时恢复数据库和内存缓存。
+正式服务必须启用单一全局到期调度器：`world-deadline-planner.js` 从运行中工厂周期、市场需求和价格传导周期、人口政策到期、开放拍卖、合同到期／宽限期／公开过期、银行每日结息、贷款到期／宽限结束、每日签到跨日、排行榜结算与订单历史裁剪中选出最早绝对时间，只设置一个 `setTimeout`；没有到期事件时不得进入 SQLite 世界事务。调度器最多每秒推进一次到期世界；玩家写入到达已过期截止时间时，`runtime-store.js` 必须先复用同一权威写执行器中的调度 barrier 完成一次推进，再执行玩家动作。调度器对当前世界调用工厂、拍卖、排行榜等处理器时必须传递 `migrate: false`；完整迁移仅属于冷加载。
+
+同修订号状态请求必须在进入 SQLite 事务前直接返回轻量确认。不同修订号但无需登录周结算的已有玩家状态读取，同样直接从 committed world 纯只读投影；基础客户端快照、合同、拍卖、银行、研发和排行榜必须复用同一 committed world。投影辅助函数不得通过“规范化”修改源世界，例如订单公开序列化必须先复制订单再补兼容字段。分区和子切片哈希只由业务内容驱动，客户端投影缓存不得以复制完整世界来容忍副作用。
+
+工厂、拍卖、合同、银行和排行榜的时间推进统一由运行时世界处理路径完成，禁止通过原型钩子在 `getStateSnapshot`、`apply` 或商店读取前后重复执行。正式服务的普通玩家动作在进入自身事务前由调度 barrier 保证已到期领域完成一次权威推进，动作事务本身不得再执行通用动作前／动作后全世界处理；只有合同动作等确实需要立即完成本领域状态转换的路径可以执行本领域专项后处理。关闭正式调度的内存测试可以在请求内按实际到期领域推进，以保持确定性。普通轮询不得承担时间推进，正式服务的全局调度器保证到期处理延后不超过 1 秒。排行榜视图在生成当前玩家客户端状态时注入，不得为了不同查看者把同一榜单快照重复写入世界。保存前只对 Mutation Scope 做一次资金精度收口；实际变化由分段 snapshot 的 Dirty Set 比较确定，只序列化可能变化的玩家行和 segment，并只写入内容真实变化的行。事务回滚必须同时恢复数据库和内存缓存。
 
 空闲状态读取不得仅因服务器时间推进而修改 `lastProcessedAt`、`lastEconomicActivityAt`、增加修订号或写回相同的 `state_json`。只有成功经济写操作可以刷新玩家活跃时间，失败操作、轮询和后台生产不得刷新。管理员世界概况与玩家运营统计只返回只读诊断；活跃玩家数、库存价值、财富分位数和留存不得用于扩张人口需求预算。旧兼容字段 `lastPlayerScaleBudget` 与 `lastInventoryBoost` 必须保持停用和零值。只有处理生产、拍卖、合同、银行或排行榜时结构结果实际变化才允许保存并增加修订号。普通动作与合同动作即使业务返回失败仍必须保存幂等确认，但只有缓存世界结构实际变化时才能更新 `economy_world` 与递增修订号；失败或无变化动作不得制造全服状态补拉。
 
@@ -429,7 +456,7 @@ QQ群入口与经济世界快照分离，保存在 `economy_settings`，修改�
 - `main` 分支由 `.github/workflows/deploy.yml` 对实际待部署提交重新执行 `npm ci`、`npm run build`、固定 Chromium 安装和 `npm run test:browser`；构建与浏览器回归都成功后才允许上传、安装并执行线上验证。正式部署的 SSH 初始化不得依赖单次 `ssh-keyscan`：新 runner 必须使用部署私钥执行真实只读认证预检，以 `StrictHostKeyChecking=accept-new` 仅接受首次未知主机密钥、继续拒绝同一 runner 内发生变化的主机密钥，并使用 `BatchMode=yes`、15 秒连接超时最多尝试 5 次、失败尝试之间等待 5 秒。全部预检失败时必须在数据库备份、文件上传和服务变更之前终止，保留 `economy-ssh.log` 的实际 SSH 诊断；预检成功后由同一 `known_hosts` 约束本次部署余下所有 SSH/rsync 连接。
 - `game.riversoft.top` 公网链路暂时不可用期间，正式生产公网 IPv4 由 `.github/workflows/deploy.yml` 顶层唯一常量 `ECONOMY_PRODUCTION_PUBLIC_IP=116.204.134.56` 定义；SSH、IP 证书、临时 Nginx 入口和 Deploy 外部验收必须全部读取该值，不得继续使用独立 `SERVER_HOST` Secret，也不得在脚本中维护第二个独立 IP 常量。`scripts/configure-economy-ip-fallback-nginx.py` 只接受该生产公网 IPv4 作为唯一命令行参数，并拒绝域名、私网／回环或非 IPv4 地址；不得通过关闭主页账号服务 `COOKIE_SECURE=true`、降低 Cookie 安全属性、修改 Economy `PUBLIC_ORIGIN` 或放宽服务端来源白名单来支持明文 HTTP。首次安装先只为该 IP 建立 80 端口 ACME challenge 路由，其余请求返回不可用；使用固定 Certbot 5.4.0、`webroot`、`--preferred-profile shortlived` 与动态 `--ip-address` 获取受信任 IP 证书后，80 端口除 challenge 外全部 `308` 到 HTTPS。HTTPS IP 虚拟主机只复用 `/economy/`、`/economy/assets/`、账号登录／会话／退出、`/economy-api/game/` 与 `/economy-api/registration/`；向内部账号和 Economy 服务继续发送正式 `X-Forwarded-Proto=https` 与正式域名 Host，IP 入口只在反向代理边界清除浏览器 `Origin`，保留 `Sec-Fetch-Site` 让现有同源／same-site 防护继续拒绝跨站请求。短期 IP 证书由 `riversoft-economy-ip-cert-renew.timer` 每 6 小时检查续签并在成功续签后 reload Nginx；Deploy 外部验收必须直接使用由该唯一常量构造的受信任 HTTPS IP Origin 且不得加 `-k`，同时确认 80→443 重定向、动态证书文件、续签 timer、网页、账号代理、未登录游戏 401、登录参数 400 与注册参数 400。服务器本机仍必须以 `Host: game.riversoft.top` 验证正式域名 Nginx 路由，禁止因为临时 IP 入口删除、改名或弱化正式域名配置。公网域名恢复后，必须先独立验证 `https://game.riversoft.top/economy/` 及账号／游戏／登录／注册 API，再把 Deploy 外部验收切回正式域名并删除临时 IP 虚拟主机、续签 timer 和专用短期证书。
 - 正式 SQLite 必须保持 `auto_vacuum=INCREMENTAL`。从 `NONE` 迁移只能由受控维护执行停服、WAL 收口、`VACUUM INTO`、逻辑哈希校验、原子替换与失败回滚；普通玩家事务不得执行 `incremental_vacuum`。每周一北京时间 02:30 的维护只在可回收空间不少于 64 MiB 且 freelist 比例不少于 25% 时运行，每批固定 1,024 页、单次最多四批。维护互斥锁在 Linux 正式环境使用 `fcntl.flock`，Windows 本地行为验证使用等价的 `msvcrt.locking`，不得因测试平台差异绕过互斥。
-- 正式 SQLite 迁移备份的目标世界版本必须与待部署代码的当前世界版本一致；当前为 26，禁止继续传入旧版本导致升级前快照被跳过。
+- 分段存储 V2 首次迁移前必须创建 `economy-pre-storage-v2` 紧凑 gzip SQLite 快照；部署备份以 `economy_world_meta.storage_schema_version` 判断是否已经完成 V2，schema 小于 2 或表不存在时必须备份，schema 已为 2 时跳过重复的 V2 迁移备份。该备份覆盖完整 SQLite 文件，回滚到 V1 二进制时必须同时恢复迁移前数据库快照，禁止仅回滚服务代码后读取已经停止更新的旧 `economy_world.state_json`。后续世界版本迁移若需要独立快照，必须再以对应世界版本建立新的迁移族，不得复用 V2 存储迁移族。
 - 正式 SQLite 迁移备份按文件名中的迁移族统一管理：每个迁移族只保留最新一份紧凑 gzip SQLite 快照，最多保留最近 5 个迁移族。备份统一以 `VACUUM INTO` 消除 freelist，完成 `quick_check`、外键和模式校验后使用 gzip 级别 6 流式压缩并校验解压哈希；解压后的 `auto_vacuum` 必须保持 `INCREMENTAL`。部署必须先执行全局备份清理，再判断是否需要创建当前迁移备份；版本已经满足目标时也不得跳过清理。备份工具必须在删除临时 SQLite 前显式关闭全部连接；所有权变更和目录 `fsync` 只在操作系统支持时执行，使 Windows 本地行为验证与 Linux 正式部署共用同一实现。不得删除正式数据库、注册 HMAC 秘密或运行中的权威状态。
 - 创建新迁移备份前，可用空间必须至少为预计有效数据两倍再加 512 MiB 余量；不得按包含 freelist 的历史高水位主文件大小要求第二份同等空间。上传前 `/var/www/game` 所在文件系统可用空间不得低于 1 GiB。空间不足必须在写入发布文件前明确失败。API 和便携 Node 运行时继续使用 `rsync --delete-before` 完整替换；网站发布必须把 `dist/assets/` 以只增加方式先同步，其他非哈希文件使用排除 `assets/` 与 `index.html` 的受控删除同步。服务安装、Nginx 路由和缓存验证全部成功后，才允许上传临时入口并最后原子替换 `index.html`。旧哈希资源至少保留 400 天，再按最后修改时间清理，使其长于浏览器 365 天不可变缓存；部署过程中不得立即删除仍可能被旧标签页引用的 JavaScript、CSS、图片或字体。
 - 浏览器运行时测试使用固定 Playwright 版本与 Chromium，至少覆盖 localStorage 拒绝访问仍能渲染、正式设置控件存在以及无效设置控件不存在；测试 artifact 只在失败时上传并保留 3 天，完整标准输出继续保存在 Actions job log。

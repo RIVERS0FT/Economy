@@ -75,7 +75,7 @@ test('an authoritative action advances the revision and invalidates an older pol
     assert.equal(changed.revision, action.revision);
     assert.equal(changed.state.credits, 501);
 
-    const unchanged = store.getStateSnapshot(alice, action.revision, now + 3_000);
+    const unchanged = store.getStateSnapshot(alice, action.revision, now + 2_500);
     assert.deepEqual(unchanged, { revision: action.revision, unchanged: true });
   } finally {
     store.close();

@@ -140,11 +140,11 @@ requireOrder('server/src/storage.js', ['migrateAssetAuctionWorld(world, now);', 
 requireText('server/src/storage.js', [
   "from './auction-audit-store.js'",
   'configureAuctionAuditStore(this);',
-  'flushAuctionAuditEvents(this, world, revision, nextRevision);',
   'getAuctionBidHistory(user, auctionId, now = Date.now())',
   'listRecentAuctionBidEvents(this, auction.id, 10)',
 ]);
-requireText('server/src/runtime-store.js', ['flushAuctionAuditEvents(this, world, revision, nextRevision);', 'prepared.version = 26;']);
+requireText('server/src/runtime-store-core.js', ['flushAuctionAuditEvents(this, world, revision, nextRevision);']);
+requireText('server/src/world-storage-v2.js', ['AUTHORITATIVE_WORLD_VERSION = 29;']);
 requireText('server/src/app.js', [
   'const auctionBidHistoryMatch = path.match',
   "method === 'GET' && auctionBidHistoryMatch",
@@ -277,8 +277,8 @@ requireText('tests/browser/auction-bid-layout.spec.ts', [
 ]);
 
 requireText('.github/workflows/deploy.yml', [
-  'backup before world 26 migration',
-  'backup-world --target-world-version 26',
+  'backup before storage V2 migration',
+  'backup-world --target-storage-schema-version 2',
   'Verify production host before publishing entry',
   'scripts/verify-production-deployment.sh',
 ]);

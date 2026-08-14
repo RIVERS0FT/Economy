@@ -3,7 +3,7 @@ import { applyAssetAuctionAction } from './asset-auctions.js';
 import { applyBankAction, ensureBankWorld, ensurePlayerBankAccount } from './banking.js';
 import { applyProductionContractAction, processProductionContracts } from './contracts.js';
 import { applySettledCommodityOrder, cancelSettledCommodityOrder, ensurePlayer } from './domain.js';
-import { assertEconomicStateInvariants, beginEconomicSavepoint } from './economic-mutation.js';
+import { assertEconomicStateInvariants, assertEconomicStateInvariantsScoped, beginEconomicSavepoint } from './economic-mutation.js';
 import {
   autoProcureFacilityBuildMaterials,
   cancelFacilityBuildProcurementOrders,
@@ -21,6 +21,7 @@ import { isOpenOrder, orderKind } from './order-identity.js';
 import { orderById } from './order-book-runtime.js';
 import { applyResearchAction, validateResearchAccess } from './research.js';
 import { ensureWarehouse } from './warehouse.js';
+import { createRuntimeMutationScope } from './world-storage-v2.js';
 import {
   activateWeeklyCashSettlement,
   collectPlayerWeeklyCashSettlement,
@@ -81,7 +82,7 @@ function createActionAcknowledgement(result, revision) {
   });
 }
 
-function cancelRuntimeCommodityOrder(world, user, orderId, now) {
+function cancelRuntimeCommodityOrder(world, user, orderId, now, { processWorld = true } = {}) {
   const candidate = orderById(world, orderId);
   if (
     !candidate
@@ -90,13 +91,13 @@ function cancelRuntimeCommodityOrder(world, user, orderId, now) {
     || !isOpenOrder(candidate)
   ) return null;
 
-  processFacilityGroupWorld(world, now);
+  if (processWorld) processFacilityGroupWorld(world, now, { migrate: false });
   return cancelSettledCommodityOrder(world, user, orderId)
     ? { ok: true, message: '订单已撤销，冻结资产已释放' }
     : { ok: false, message: '未找到可撤销订单' };
 }
 
-function executeActionBody(store, world, user, action, payload, requestKey, now) {
+function executeActionBody(store, world, user, action, payload, requestKey, now, mutationScope) {
   const playerBeforeAction = measureRequestPhase('playerSnapshotMs', () => (
     structuredClone(world.players?.[String(user.id)] ?? null)
   ));
@@ -140,28 +141,43 @@ function executeActionBody(store, world, user, action, payload, requestKey, now)
       } else if (action === 'rejectGemShopQuote') {
         gameResult = store.gemEconomy.rejectQuote(world.players[String(user.id)], requestKey, now);
       } else if (AUCTION_ACTIONS.has(action)) {
-        gameResult = applyAssetAuctionAction(world, user, action, payload, now);
+        gameResult = applyAssetAuctionAction(world, user, action, payload, now, {
+          migrate: false,
+          process: !store.scheduledProcessing,
+        });
       } else if (BANK_ACTIONS.has(action)) {
-        gameResult = applyBankAction(world, user, action, payload, now);
+        gameResult = applyBankAction(world, user, action, payload, now, {
+          processWorld: !store.scheduledProcessing,
+        });
       } else if (action === 'cancelOrder') {
-        gameResult = cancelRuntimeCommodityOrder(world, user, payload.orderId, now)
-          ?? applyFacilityGroupAction(world, user, action, payload, now);
+        gameResult = cancelRuntimeCommodityOrder(world, user, payload.orderId, now, {
+          processWorld: !store.scheduledProcessing,
+        }) ?? applyFacilityGroupAction(world, user, action, payload, now, {
+          migrate: false,
+          process: !store.scheduledProcessing,
+        });
       } else if (action === 'buildFacility' && payload.autoProcure === true) {
         const procurement = autoProcureFacilityBuildMaterials(world, user, payload, now);
         if (!procurement.ok) gameResult = procurement;
         else {
-          gameResult = applyFacilityGroupAction(world, user, action, payload, now);
+          gameResult = applyFacilityGroupAction(world, user, action, payload, now, {
+            migrate: false,
+            process: !store.scheduledProcessing,
+          });
           if (gameResult?.ok && procurement.purchasedQuantity > 0) {
             gameResult.message = `${gameResult.message}；已一键购齐 ${procurement.purchasedQuantity} 件建造材料`;
           }
         }
       } else {
-        gameResult = applyFacilityGroupAction(world, user, action, payload, now);
+        gameResult = applyFacilityGroupAction(world, user, action, payload, now, {
+          migrate: false,
+          process: !store.scheduledProcessing,
+        });
       }
     }
 
     if (gameResult?.ok) {
-      measureRequestPhase('economicInvariantMs', () => assertEconomicStateInvariants(world));
+      measureRequestPhase('economicInvariantMs', () => assertEconomicStateInvariantsScoped(world, mutationScope));
       savepoint.release();
     } else {
       savepoint.rollback();
@@ -186,6 +202,13 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     path,
   } = requestMeta;
   const payload = normalizePlayerMoneyPayload(action, requestMeta.payload);
+  const mutationScope = createRuntimeMutationScope(
+    store.worldCache?.world,
+    user.id,
+    action,
+    payload,
+    { scheduledProcessing: store.scheduledProcessing },
+  );
 
   return store.transaction(() => {
     const cached = store.selectIdempotency.get(Number(user.id), requestKey);
@@ -199,13 +222,13 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
       return createActionAcknowledgement(cachedResponse.result, cachedResponse.revision);
     }
 
-    const { revision, stateJson, world } = store.loadWorld(now);
-    const player = ensurePlayer(world, user, now);
+    const { revision, stateJson, world } = store.loadWorld(now, mutationScope);
+    const player = ensurePlayer(world, user, now, { migrate: false });
     ensureWarehouse(player);
     ensureGemState(player);
-    ensureBankWorld(world, now);
+    ensureBankWorld(world, now, { normalizePlayers: !store.scheduledProcessing });
     ensurePlayerBankAccount(player, now);
-    ensureWeeklyCashSettlementWorld(world, now);
+    ensureWeeklyCashSettlementWorld(world, now, { normalizePlayers: !store.scheduledProcessing });
     ensurePlayerWeeklyCashSettlement(player, now);
     if (!store.scheduledProcessing) {
       store.processWorldIfDue(world, now, Number(user.id), {
@@ -214,7 +237,9 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
         auditTrigger: 'action_preprocess',
       });
     }
-    settlePlayerWeeklyCashOnLogin(world, world.players[String(user.id)], now);
+    settlePlayerWeeklyCashOnLogin(world, world.players[String(user.id)], now, {
+      processWorld: !store.scheduledProcessing,
+    });
 
     const { gameResult, playerBeforeAction, contractsBeforeAction } = executeActionBody(
       store,
@@ -224,6 +249,7 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
       payload,
       requestKey,
       now,
+      mutationScope,
     );
 
     if (!gameResult?.ok) {
@@ -255,7 +281,9 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     if ((ECONOMIC_ACTIVITY_ACTIONS.has(action) || CONTRACT_ACTIONS.has(action)) && !isPolicySave) {
       if (activePlayer && (playerChanged || contractChanged)) {
         activePlayer.lastEconomicActivityAt = now;
-        const activated = activateWeeklyCashSettlement(world, activePlayer, now);
+        const activated = activateWeeklyCashSettlement(world, activePlayer, now, {
+          processWorld: !store.scheduledProcessing,
+        });
         if (activated) {
           gameResult.message = String(gameResult.message || '')
             + '；本周已激活，存款从下一个自然日按每日 1% 计息，周末按资金净额生成 10% 结算';
@@ -288,7 +316,7 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     ensureGemState(world.players[String(user.id)]);
     ensurePlayerBankAccount(world.players[String(user.id)], now);
     ensurePlayerWeeklyCashSettlement(world.players[String(user.id)], now);
-    const nextRevision = store.saveWorldIfChanged(revision, world, now, stateJson);
+    const nextRevision = store.saveWorldIfChanged(revision, world, now, stateJson, mutationScope);
     const response = createActionAcknowledgement(gameResult, nextRevision);
     store.insertIdempotency.run(
       Number(user.id),

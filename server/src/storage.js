@@ -66,12 +66,23 @@ import {
   validateResearchAccess,
 } from './research.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
-import { normalizePlayerMoneyPayload, normalizeWorldMoneyPrecision } from './money.js';
+import { normalizePlayerMoneyPayload, normalizeWorldMoneyPrecision, normalizeWorldMoneyPrecisionScoped } from './money.js';
 import {
   configureAuctionAuditStore,
   flushAuctionAuditEvents,
   listRecentAuctionBidEvents,
 } from './auction-audit-store.js';
+import {
+  applySegmentedWorldWrite,
+  AUTHORITATIVE_WORLD_VERSION,
+  createFullMutationScope,
+  installSegmentedWorldStorage,
+  prepareSegmentedWorldWrite,
+  readSegmentedWorld,
+  segmentedSnapshotsEqual,
+  snapshotSegmentedWorld,
+  writeFullSegmentedWorld,
+} from './world-storage-v2.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const IDEMPOTENCY_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
@@ -303,6 +314,7 @@ export class EconomyStore {
     this.updateWorld = this.database.prepare(
       'UPDATE economy_world SET revision = ?, state_json = ?, updated_at = ? WHERE id = 1',
     );
+    installSegmentedWorldStorage(this);
     this.selectIdempotency = this.database.prepare(
       'SELECT request_method, request_path, response_json FROM economy_idempotency WHERE user_id = ? AND request_key = ?',
     );
@@ -582,11 +594,28 @@ export class EconomyStore {
     return this.finalizeWorldForStorage(world, now);
   }
 
-  finalizeWorldForStorage(world, _now) {
-    stripLegacyFacilityInstances(world);
-    stripPlayerLogs(world);
-    measureRequestPhase('moneyNormalizeMs', () => normalizeWorldMoneyPrecision(world));
-    world.version = 29;
+  finalizeWorldForStorage(world, _now, mutationScope = null) {
+    if (mutationScope) {
+      if (mutationScope.allPlayers || mutationScope.playerIds === null) {
+        stripLegacyFacilityInstances(world);
+        stripPlayerLogs(world);
+      } else {
+        for (const userId of mutationScope.playerIds || []) {
+          const player = world.players?.[String(userId)];
+          if (!player) continue;
+          delete player.facilities;
+          delete player.trades;
+          delete player.ledger;
+          delete player.assetEvents;
+        }
+      }
+      measureRequestPhase('moneyNormalizeMs', () => normalizeWorldMoneyPrecisionScoped(world, mutationScope));
+    } else {
+      stripLegacyFacilityInstances(world);
+      stripPlayerLogs(world);
+      measureRequestPhase('moneyNormalizeMs', () => normalizeWorldMoneyPrecision(world));
+    }
+    world.version = AUTHORITATIVE_WORLD_VERSION;
     return world;
   }
 
@@ -597,7 +626,7 @@ export class EconomyStore {
     return true;
   }
 
-  cacheWorld(revision, stateJson, world, needsPersistence = false) {
+  cacheWorld(revision, stateJson, world, needsPersistence = false, segmentedSnapshot = null) {
     const nextRevision = Number(revision);
     if (this.worldCache?.revision !== nextRevision) this.clientStateProjectionCache.clear();
     this.worldCache = {
@@ -605,6 +634,8 @@ export class EconomyStore {
       stateJson,
       world: measureRequestPhase('worldCloneMs', () => structuredClone(world)),
       needsPersistence: Boolean(needsPersistence),
+      segmentedSnapshot: segmentedSnapshot || snapshotSegmentedWorld(world),
+      storageSchemaVersion: 2,
     };
   }
 
@@ -612,6 +643,7 @@ export class EconomyStore {
     const player = this.worldCache?.world?.players?.[String(userId)];
     return Boolean(
       this.worldCache
+      && !this.worldCache.needsPersistence
       && player
       && (this.scheduledProcessing || now < this.nextWorldProcessingAt)
       && !playerNeedsWeeklyLoginSettlement(player, now)
@@ -641,69 +673,98 @@ export class EconomyStore {
     if (this.worldCache) {
       return {
         revision: this.worldCache.revision,
-        stateJson: this.worldCache.stateJson,
+        stateJson: null,
         world: measureRequestPhase('worldCloneMs', () => structuredClone(this.worldCache.world)),
+      };
+    }
+
+    const segmented = readSegmentedWorld(this);
+    if (segmented) {
+      const currentStorageWorld = segmented.storageSchemaVersion === 2
+        && segmented.worldVersion === AUTHORITATIVE_WORLD_VERSION
+        && Number(segmented.world?.version || 0) === AUTHORITATIVE_WORLD_VERSION;
+      if (currentStorageWorld) {
+        this.cacheWorld(segmented.revision, null, segmented.world, false, segmented.snapshot);
+        return {
+          revision: segmented.revision,
+          stateJson: null,
+          world: measureRequestPhase('worldCloneMs', () => structuredClone(segmented.world)),
+        };
+      }
+
+      const world = this.migrateLoadedWorld(
+        migrateWorld(structuredClone(segmented.world), now),
+        now,
+      );
+      const migratedSnapshot = snapshotSegmentedWorld(world);
+      const migrationChanged = !segmentedSnapshotsEqual(segmented.snapshot, migratedSnapshot);
+      const revision = segmented.revision + (migrationChanged ? 1 : 0);
+      const persistedSnapshot = writeFullSegmentedWorld(this, revision, world, now);
+      this.cacheWorld(revision, null, world, false, persistedSnapshot);
+      return {
+        revision,
+        stateJson: null,
+        world: measureRequestPhase('worldCloneMs', () => structuredClone(world)),
       };
     }
 
     const row = this.selectWorld.get();
     if (!row) {
       const world = this.migrateLoadedWorld(stripPlayerLogs(createWorld(now)), now);
-      const stateJson = measureRequestPhase('serializeWorldMs', () => JSON.stringify(world));
-      this.insertWorld.run(1, stateJson, now);
-      this.cacheWorld(1, stateJson, world);
-      setRequestGauge('worldJsonBytes', Buffer.byteLength(stateJson));
-      return { revision: 1, stateJson, world: measureRequestPhase('worldCloneMs', () => structuredClone(world)) };
+      const legacyStateJson = measureRequestPhase('serializeWorldMs', () => JSON.stringify(world));
+      this.insertWorld.run(1, legacyStateJson, now);
+      const snapshot = writeFullSegmentedWorld(this, 1, world, now);
+      this.cacheWorld(1, null, world, false, snapshot);
+      return { revision: 1, stateJson: null, world: measureRequestPhase('worldCloneMs', () => structuredClone(world)) };
     }
 
     const persistedStateJson = String(row.state_json);
-    const world = this.migrateLoadedWorld(migrateWorld(JSON.parse(persistedStateJson), now), now);
-    const stateJson = measureRequestPhase('serializeWorldMs', () => JSON.stringify(world));
-    this.cacheWorld(Number(row.revision), stateJson, world, stateJson !== persistedStateJson);
-    setRequestGauge('worldJsonBytes', Buffer.byteLength(stateJson));
-    return { revision: Number(row.revision), stateJson, world: measureRequestPhase('worldCloneMs', () => structuredClone(world)) };
+    const persistedWorld = JSON.parse(persistedStateJson);
+    const world = this.migrateLoadedWorld(migrateWorld(structuredClone(persistedWorld), now), now);
+    const migratedStateJson = measureRequestPhase('legacyWorldMigrationCompareMs', () => JSON.stringify(world));
+    const revision = Number(row.revision) + (migratedStateJson === persistedStateJson ? 0 : 1);
+    const snapshot = writeFullSegmentedWorld(this, revision, world, now);
+    this.cacheWorld(revision, null, world, false, snapshot);
+    setRequestGauge('legacyWorldJsonBytes', Buffer.byteLength(persistedStateJson));
+    return { revision, stateJson: null, world: measureRequestPhase('worldCloneMs', () => structuredClone(world)) };
   }
 
   serializeWorld(world, now) {
     return measureRequestPhase('serializeWorldMs', () => JSON.stringify(this.finalizeWorldForStorage(world, now)));
   }
 
-  saveWorld(revision, world, now) {
-    world.lastProcessedAt = now;
-    const stateJson = this.serializeWorld(world, now);
-    const nextRevision = revision + 1;
-    measureRequestPhase('worldUpdateMs', () => this.updateWorld.run(nextRevision, stateJson, now));
-    flushAuctionAuditEvents(this, world, revision, nextRevision);
-    this.cacheWorld(nextRevision, stateJson, world);
-    if (!this.scheduledProcessing) this.nextWorldProcessingAt = now + WORLD_PROCESS_INTERVAL_MS;
-    return nextRevision;
+  persistSegmentedWorld(revision, world, now, mutationScope = createFullMutationScope()) {
+    this.finalizeWorldForStorage(world, now, mutationScope);
+    const plan = prepareSegmentedWorldWrite(this, revision, world, now, mutationScope);
+    if (!plan.changed) return { revision, plan };
+    const nextRevision = applySegmentedWorldWrite(this, plan, world, now);
+    return { revision: nextRevision, plan };
   }
 
-  saveWorldIfChanged(revision, world, now, _previousStateJson) {
-    this.finalizeWorldForStorage(world, now);
-    const cached = this.worldCache;
-    const unchanged = cached
-      && cached.revision === revision
-      && !cached.needsPersistence
-      && measureRequestPhase('worldEqualityMs', () => isDeepStrictEqual(world, cached.world));
-    if (unchanged) {
-      flushAuctionAuditEvents(this, world, revision, revision);
-      return revision;
+  saveWorld(revision, world, now, mutationScope = createFullMutationScope()) {
+    const persisted = this.persistSegmentedWorld(revision, world, now, mutationScope);
+    flushAuctionAuditEvents(this, world, revision, persisted.revision);
+    if (persisted.revision !== revision) {
+      this.cacheWorld(persisted.revision, null, world, false, persisted.plan.snapshot);
     }
+    if (!this.scheduledProcessing) this.nextWorldProcessingAt = now + WORLD_PROCESS_INTERVAL_MS;
+    return persisted.revision;
+  }
 
-    world.lastProcessedAt = now;
-    const stateJson = measureRequestPhase('serializeWorldMs', () => JSON.stringify(world));
-    const nextRevision = revision + 1;
-    measureRequestPhase('worldUpdateMs', () => this.updateWorld.run(nextRevision, stateJson, now));
-    flushAuctionAuditEvents(this, world, revision, nextRevision);
-    this.cacheWorld(nextRevision, stateJson, world);
-    return nextRevision;
+  saveWorldIfChanged(revision, world, now, _previousStateJson, mutationScope = createFullMutationScope()) {
+    const persisted = this.persistSegmentedWorld(revision, world, now, mutationScope);
+    flushAuctionAuditEvents(this, world, revision, persisted.revision);
+    if (persisted.revision !== revision) {
+      this.cacheWorld(persisted.revision, null, world, false, persisted.plan.snapshot);
+    }
+    return persisted.revision;
   }
 
   processWorldIfDue(world, now, _currentUserId, { force = false } = {}) {
   if (!force && now < this.nextWorldProcessingAt) return false;
   measureRequestPhase('worldProcessMs', () => {
     processLeaderboardWorld(world, now, {
+      migrate: false,
       onGemReward: (reward) => this.recordGemLedgerEvent(reward),
     });
     processBankWorld(world, now);
@@ -730,24 +791,54 @@ export class EconomyStore {
 
   getStateSnapshot(user, knownRevision, now = Date.now()) {
     const normalizedKnownRevision = Number.isInteger(knownRevision) ? knownRevision : undefined;
-    if (
-      normalizedKnownRevision !== undefined
-      && this.worldCache
-      && normalizedKnownRevision === this.worldCache.revision
-      && (this.scheduledProcessing || now < this.nextWorldProcessingAt)
-      && !playerNeedsWeeklyLoginSettlement(this.worldCache.world.players?.[String(user.id)], now)
-    ) {
-      return { revision: normalizedKnownRevision, unchanged: true };
+    if (this.canReuseStateProjection(user.id, now)) {
+      const currentRevision = Number(this.worldCache.revision);
+      if (normalizedKnownRevision !== undefined && normalizedKnownRevision === currentRevision) {
+        return { revision: currentRevision, unchanged: true };
+      }
+      const playerId = String(user.id);
+      return {
+        revision: currentRevision,
+        unchanged: false,
+        state: measureRequestPhase('stateProjectionMs', () => normalizeJson(createVersionedClientState(
+          this.worldCache.world,
+          Number(user.id),
+          now,
+          this.dailyCheckInSummaryFor(this.worldCache.world.players[playerId], now),
+        ))),
+      };
     }
 
     return this.transaction(() => {
       const { revision, stateJson, world } = this.loadWorld(now);
       const playerId = String(user.id);
       const playerWasPresent = Boolean(world.players?.[playerId]);
-      const player = ensurePlayer(world, user, now);
+      if (
+        playerWasPresent
+        && !this.worldCache?.needsPersistence
+        && (this.scheduledProcessing || now < this.nextWorldProcessingAt)
+        && !playerNeedsWeeklyLoginSettlement(world.players?.[playerId], now)
+      ) {
+        const currentRevision = Number(this.worldCache?.revision ?? revision);
+        if (normalizedKnownRevision !== undefined && normalizedKnownRevision === currentRevision) {
+          return { revision: currentRevision, unchanged: true };
+        }
+        const committedWorld = this.worldCache?.world || world;
+        return {
+          revision: currentRevision,
+          unchanged: false,
+          state: measureRequestPhase('stateProjectionMs', () => normalizeJson(createVersionedClientState(
+            committedWorld,
+            Number(user.id),
+            now,
+            this.dailyCheckInSummaryFor(committedWorld.players[playerId], now),
+          ))),
+        };
+      }
+      const player = ensurePlayer(world, user, now, { migrate: false });
       ensureWarehouse(player);
       ensureGemState(player);
-      ensureBankWorld(world, now);
+      ensureBankWorld(world, now, { normalizePlayers: false });
       ensurePlayerBankAccount(player, now);
       if (!this.scheduledProcessing || !playerWasPresent) {
         this.processWorldIfDue(world, now, Number(user.id), { force: !playerWasPresent });
@@ -895,7 +986,7 @@ export class EconomyStore {
     const changed = this.incrementGiftRedemption.run(Number(row.id));
     if (Number(changed.changes || 0) !== 1) return { ok: false, message: '礼品兑换码使用次数已满' };
     this.insertGiftRedemption.run(Number(row.id), Number(user.id), Number(row.reward_credits), now);
-    const player = ensurePlayer(world, user, now);
+    const player = ensurePlayer(world, user, now, { migrate: false });
     player.credits += Number(row.reward_credits);
     player.stats ||= {};
     player.stats.giftIssued = Number(player.stats.giftIssued || 0) + Number(row.reward_credits);
@@ -907,9 +998,9 @@ export class EconomyStore {
       const { revision, stateJson, world } = this.loadWorld(now);
       const playerId = String(user.id);
       const playerWasPresent = Boolean(world.players?.[playerId]);
-      const player = ensurePlayer(world, user, now);
+      const player = ensurePlayer(world, user, now, { migrate: false });
       ensureGemState(player);
-      ensureBankWorld(world, now);
+      ensureBankWorld(world, now, { normalizePlayers: false });
       ensurePlayerBankAccount(player, now);
       if (!this.scheduledProcessing || !playerWasPresent) {
         this.processWorldIfDue(world, now, Number(user.id), { force: !playerWasPresent });
@@ -935,14 +1026,14 @@ export class EconomyStore {
       }
 
       const { revision, stateJson, world } = this.loadWorld(now);
-      const player = ensurePlayer(world, user, now);
+      const player = ensurePlayer(world, user, now, { migrate: false });
       ensureWarehouse(player);
       ensureGemState(player);
-      ensureBankWorld(world, now);
+      ensureBankWorld(world, now, { normalizePlayers: false });
       ensurePlayerBankAccount(player, now);
       ensureWeeklyCashSettlementWorld(world, now);
       ensurePlayerWeeklyCashSettlement(player, now);
-      this.processWorldIfDue(world, now, Number(user.id), { force: true });
+      this.processWorldIfDue(world, now, Number(user.id));
       settlePlayerWeeklyCashOnLogin(world, player, now);
       const playerBeforeAction = structuredClone(world.players[String(user.id)]);
       let gameResult;

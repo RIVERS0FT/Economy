@@ -182,7 +182,7 @@ function normalizeSettlement(value) {
   };
 }
 
-export function ensureWeeklyCashSettlementWorld(world, now = Date.now()) {
+export function ensureWeeklyCashSettlementWorld(world, now = Date.now(), { normalizePlayers = true } = {}) {
   const fallback = defaultWorldState(now);
   const state = world.weeklyCashSettlement && typeof world.weeklyCashSettlement === 'object'
     ? world.weeklyCashSettlement
@@ -195,7 +195,9 @@ export function ensureWeeklyCashSettlementWorld(world, now = Date.now()) {
   state.totals = { ...fallback.totals, ...(state.totals || {}) };
   for (const key of Object.keys(fallback.totals)) state.totals[key] = safeMoney(state.totals[key]);
   world.weeklyCashSettlement = state;
-  for (const player of Object.values(world.players || {})) ensurePlayerWeeklyCashSettlement(player, now);
+  if (normalizePlayers) {
+    for (const player of Object.values(world.players || {})) ensurePlayerWeeklyCashSettlement(player, now);
+  }
   return state;
 }
 
@@ -269,7 +271,7 @@ function addBankTransaction(player, type, amount, now, description, metadata = {
 }
 
 function createAssessment(world, player, type, weekKey, assessedAt) {
-  const state = ensureWeeklyCashSettlementWorld(world, assessedAt);
+  const state = ensureWeeklyCashSettlementWorld(world, assessedAt, { normalizePlayers: false });
   const playerState = ensurePlayerWeeklyCashSettlement(player, assessedAt);
   if (playerState.pendingSettlement) return playerState.pendingSettlement;
   const base = settlementBaseFor(player);
@@ -336,8 +338,9 @@ export function processWeeklyCashSettlementWorld(world, now = Date.now()) {
   return changed;
 }
 
-export function activateWeeklyCashSettlement(world, player, now = Date.now()) {
-  processWeeklyCashSettlementWorld(world, now);
+export function activateWeeklyCashSettlement(world, player, now = Date.now(), { processWorld = true } = {}) {
+  if (processWorld) processWeeklyCashSettlementWorld(world, now);
+  else ensureWeeklyCashSettlementWorld(world, now, { normalizePlayers: false });
   const state = ensurePlayerWeeklyCashSettlement(player, now);
   if (weeklySettlementLiability(player) > 0) return false;
   const period = weeklyCashPeriodFor(now);
@@ -357,7 +360,7 @@ export function isPlayerWeeklyInterestEligible(player, settlementAt) {
 }
 
 export function collectPlayerWeeklyCashSettlement(world, player, now = Date.now()) {
-  const worldState = ensureWeeklyCashSettlementWorld(world, now);
+  const worldState = ensureWeeklyCashSettlementWorld(world, now, { normalizePlayers: false });
   const playerState = ensurePlayerWeeklyCashSettlement(player, now);
   const pending = playerState.pendingSettlement;
   if (!pending || pending.amountOutstanding <= 0) return { collected: 0, outstanding: 0, completed: true };
@@ -427,8 +430,9 @@ export function collectPlayerWeeklyCashSettlement(world, player, now = Date.now(
   return { collected, outstanding: remaining, completed: false };
 }
 
-export function settlePlayerWeeklyCashOnLogin(world, player, now = Date.now()) {
-  processWeeklyCashSettlementWorld(world, now);
+export function settlePlayerWeeklyCashOnLogin(world, player, now = Date.now(), { processWorld = true } = {}) {
+  if (processWorld) processWeeklyCashSettlementWorld(world, now);
+  else ensureWeeklyCashSettlementWorld(world, now, { normalizePlayers: false });
   const playerState = ensurePlayerWeeklyCashSettlement(player, now);
   const currentPeriod = weeklyCashPeriodFor(now);
   const enteredNewLoginPeriod = playerState.lastLoginWeekKey !== currentPeriod.key

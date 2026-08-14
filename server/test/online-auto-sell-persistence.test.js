@@ -16,9 +16,10 @@ function request(payload, requestKey) {
 }
 
 function persistedPlayer(store) {
-  const row = store.selectWorld.get();
-  const world = JSON.parse(String(row.state_json));
-  return world.players['1'];
+  const row = store.database.prepare(
+    'SELECT state_json FROM economy_world_players WHERE user_id = 1',
+  ).get();
+  return JSON.parse(String(row.state_json));
 }
 
 test('runtime store persists auto-sell policy and returns it in formal client state', () => {

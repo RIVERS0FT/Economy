@@ -169,7 +169,7 @@ function normalizeLoan(loan) {
   };
 }
 
-export function ensureBankWorld(world, now = Date.now()) {
+export function ensureBankWorld(world, now = Date.now(), { normalizePlayers = true } = {}) {
   const fallback = defaultBankWorld(now);
   const bank = world.bank && typeof world.bank === 'object' ? world.bank : fallback;
   bank.version = BANKING_VERSION;
@@ -193,7 +193,9 @@ export function ensureBankWorld(world, now = Date.now()) {
       : safeNonNegativeMoney(bank.totals[key]);
   }
   world.bank = bank;
-  for (const player of Object.values(world.players || {})) ensurePlayerBankAccount(player, now);
+  if (normalizePlayers) {
+    for (const player of Object.values(world.players || {})) ensurePlayerBankAccount(player, now);
+  }
   return bank;
 }
 
@@ -754,9 +756,13 @@ function applyAutoRepaySetting(player, payload, now) {
   return { ok: true, message: account.activeLoan.autoRepay ? '已开启自动还款' : '已关闭自动还款' };
 }
 
-export function applyBankAction(world, user, action, payload = {}, now = Date.now()) {
-  migrateBankWorld(world, now);
-  processBankWorld(world, now);
+export function applyBankAction(world, user, action, payload = {}, now = Date.now(), { processWorld = true } = {}) {
+  if (processWorld) {
+    migrateBankWorld(world, now);
+    processBankWorld(world, now);
+  } else {
+    ensureBankWorld(world, now, { normalizePlayers: false });
+  }
   const player = world.players?.[String(user.id)];
   if (!player) return { ok: false, message: '玩家不存在' };
   if (action === 'bankDeposit') return applyDeposit(world, player, payload, now);

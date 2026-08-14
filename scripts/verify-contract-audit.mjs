@@ -34,11 +34,11 @@ includesAll(auditStore, [
   'contract_default_confirmed', 'contract_default_claimed', 'loan_default_confirmed', 'loan_default_claimed',
 ], 'contract audit store');
 assert.ok(
-  runtimeStore.indexOf('this.updateWorld.run(nextRevision, stateJson, now)')
+  runtimeStore.indexOf('const nextRevision = applySegmentedWorldWrite(this, plan, world, now);')
     < runtimeStore.indexOf('this.flushContractAuditEvents(world, revision, nextRevision)')
     && runtimeStore.indexOf('this.flushContractAuditEvents(world, revision, nextRevision)')
-      < runtimeStore.indexOf('this.cacheWorld(nextRevision, stateJson, world)'),
-  'audit rows must be flushed after the world write and before the cache advances',
+      < runtimeStore.indexOf('this.cacheWorld(nextRevision, null, world, false, plan.snapshot);'),
+  'audit rows must be flushed after the segmented world write and before the cache advances',
 );
 includesAll(runtimeStore, ["import { configureContractAuditStore } from './contract-audit-store.js';", 'configureContractAuditStore(this);', 'captureContractAuditTransition(beforeContracts, world'], 'runtime contract audit integration');
 includesAll(app, ["path === '/api/game/contracts/history'", 'const contractAuditMatch = path.match(', 'store.listContractAuditHistory', 'store.getContractAuditDetail'], 'contract audit routes');

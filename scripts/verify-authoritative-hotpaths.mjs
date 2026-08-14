@@ -8,6 +8,7 @@ const required = [
   'server/src/runtime-action-executor.js',
   'server/src/runtime-store.js',
   'server/src/runtime-store-core.js',
+  'server/src/world-storage-v2.js',
   'server/src/authoritative-write-executor.js',
   'server/src/order-book-runtime.js',
   'server/src/order-matching.js',
@@ -45,7 +46,7 @@ for (const text of [
   "if (dueDomains.has('research'))",
   "if (dueDomains.has('contract'))",
   'assertEconomicStateInvariants(world)',
-  'worldDraftParseMs',
+  'worldDraftCowMs',
   'worldDraftCloneMs',
   'createVersionedClientState',
   'const world = this.worldCache.world',
@@ -54,8 +55,8 @@ for (const text of [
 ]) assert.ok(runtimeStore.includes(text), `运行时存储缺少权威热路径规则: ${text}`);
 for (const text of [
   'return executeRuntimeAction(this, user, requestMeta, now)',
-  'worldDraftParseMs',
-  'JSON.parse(this.worldCache.stateJson)',
+  'cloneWorldForMutation',
+  'worldDraftCowMs',
   'settledSynchronously',
   'captureRequestContext: false',
 ]) assert.ok(runtimeWrapper.includes(text), `正式运行时编排层缺少: ${text}`);
@@ -64,7 +65,22 @@ for (const text of [
   'stateProjectionCacheIsolationDepth',
   'worldCacheIsolationCloneMs',
   'contractProjectionForState',
-]) assert.equal(runtimeStore.includes(text), false, `正式状态读取不得恢复投影克隆: ${text}`);
+  'JSON.parse(this.worldCache.stateJson)',
+  'isDeepStrictEqual(world, cached.world)',
+]) assert.equal(runtimeStore.includes(text), false, `正式状态读取和 V2 热保存不得恢复旧完整世界路径: ${text}`);
+
+const worldStorage = read('server/src/world-storage-v2.js');
+for (const text of [
+  'WORLD_STORAGE_SCHEMA_VERSION = 2',
+  'createRuntimeMutationScope',
+  'cloneWorldForMutation',
+  'prepareSegmentedWorldWrite',
+  'applySegmentedWorldWrite',
+  "label: 'commodity:placeOrder'",
+]) assert.ok(worldStorage.includes(text), `分段世界存储缺少: ${text}`);
+for (const forbidden of ['isDeepStrictEqual(world, cached.world)', 'JSON.parse(this.worldCache.stateJson)']) {
+  assert.equal(runtimeStore.includes(forbidden), false, `V2 运行时不得恢复旧完整世界热路径: ${forbidden}`);
+}
 
 const mutation = read('server/src/economic-mutation.js');
 for (const text of [
@@ -78,7 +94,7 @@ for (const text of [
 const actionExecutor = read('server/src/runtime-action-executor.js');
 for (const text of [
   "beginEconomicSavepoint(store, 'economy_player_action')",
-  'assertEconomicStateInvariants(world)',
+  'assertEconomicStateInvariantsScoped(world, mutationScope)',
   'structuredClone(world.players?.[String(user.id)]',
   'CONTRACT_ACTIONS',
   'applyProductionContractAction',
@@ -167,12 +183,16 @@ for (const text of [
 ]) assert.ok(clientOrderIndex.includes(text), `客户端订单热路径索引缺少: ${text}`);
 
 const design = read('docs/README.md');
+const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 for (const text of [
   '价格档位 + 同价 FIFO',
   '按实际到期领域推进',
   '调度 barrier',
-  '已提交世界',
-  '请求草稿',
+  'committed world',
+  'Mutation Scope',
+  'Copy-on-Write',
+  '分段存储 V2',
+  'Dirty Row',
   'SQLite `SAVEPOINT`',
   '失败动作仍可保存精简幂等确认，但不得写回世界或推进世界修订号',
   '`useSyncExternalStore`',
@@ -180,4 +200,11 @@ for (const text of [
   '子修订',
 ]) assert.ok(design.includes(text), `设计索引缺少权威热路径规则: ${text}`);
 
-console.log('权威热路径验证通过：按领域截止时间推进、统一单草稿经济动作回滚、调度 barrier、状态投影缓存隔离、商品订单快速撮合、价格档位订单簿、六分区稳定根视图与客户端订单索引均受防回退约束。');
+for (const text of [
+  '玩家 V2 持久化行不得保存仅用于旧客户端展示的',
+  '失败动作、重复操作或其他无业务状态变化的动作',
+  '不得仅因兼容规范化、空数组补全',
+  '合同历史冷启动导入必须优先读取 V2 分段世界',
+]) assert.ok(serverDesign.includes(text), `服务器设计缺少 V2 持久化防回退规则: ${text}`);
+
+console.log('权威热路径验证通过：按领域截止时间推进、分段存储 V2、Copy-on-Write 动作草稿、Dirty Row 持久化、纯只读状态投影、统一订单簿与六分区客户端权威状态均受防回退约束。');

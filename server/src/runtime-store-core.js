@@ -37,6 +37,11 @@ import {
   dueWorldDeadlineDomains,
   worldDeadlineRuntimeFor,
 } from './world-deadline-runtime.js';
+import {
+  applySegmentedWorldWrite,
+  createFullMutationScope,
+  prepareSegmentedWorldWrite,
+} from './world-storage-v2.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const WORLD_PROCESS_INTERVAL_MS = 1_000;
@@ -240,35 +245,29 @@ export class EconomyStore extends PersistentEconomyStore {
     return this.finalizeWorldForStorage(prepared, now);
   }
 
-  _persistWorldWithContractAudit(revision, world, now) {
-    this.finalizeWorldForStorage(world, now);
-    const cached = this.worldCache;
-    const unchanged = cached
-      && cached.revision === revision
-      && !cached.needsPersistence
-      && measureRequestPhase('worldEqualityMs', () => isDeepStrictEqual(world, cached.world));
-    if (unchanged) {
+  _persistWorldWithContractAudit(revision, world, now, mutationScope = createFullMutationScope()) {
+    this.finalizeWorldForStorage(world, now, mutationScope);
+    const plan = prepareSegmentedWorldWrite(this, revision, world, now, mutationScope);
+    if (!plan.changed) {
       this.flushContractAuditEvents(world, revision, revision);
       flushAuctionAuditEvents(this, world, revision, revision);
       return revision;
     }
 
-    world.lastProcessedAt = now;
-    const stateJson = measureRequestPhase('serializeWorldMs', () => JSON.stringify(world));
-    const nextRevision = revision + 1;
-    measureRequestPhase('worldUpdateMs', () => this.updateWorld.run(nextRevision, stateJson, now));
+    const nextRevision = applySegmentedWorldWrite(this, plan, world, now);
     this.flushContractAuditEvents(world, revision, nextRevision);
     flushAuctionAuditEvents(this, world, revision, nextRevision);
-    this.cacheWorld(nextRevision, stateJson, world);
+    this.cacheWorld(nextRevision, null, world, false, plan.snapshot);
+    if (!this.scheduledProcessing) this.nextWorldProcessingAt = now + WORLD_PROCESS_INTERVAL_MS;
     return nextRevision;
   }
 
-  saveWorld(revision, world, now) {
-    return this._persistWorldWithContractAudit(revision, world, now);
+  saveWorld(revision, world, now, mutationScope = createFullMutationScope()) {
+    return this._persistWorldWithContractAudit(revision, world, now, mutationScope);
   }
 
-  saveWorldIfChanged(revision, world, now, _previousStateJson) {
-    return this._persistWorldWithContractAudit(revision, world, now);
+  saveWorldIfChanged(revision, world, now, _previousStateJson, mutationScope = createFullMutationScope()) {
+    return this._persistWorldWithContractAudit(revision, world, now, mutationScope);
   }
 
   processWorldIfDue(world, now, currentUserId, options = {}) {
@@ -303,6 +302,7 @@ export class EconomyStore extends PersistentEconomyStore {
     measureRequestPhase('worldProcessMs', () => {
       if (anyDueDomain(dueDomains, ECONOMY_DEADLINE_DOMAINS)) {
         processLeaderboardWorld(world, now, {
+          migrate: false,
           onGemReward: (reward) => this.recordGemLedgerEvent(reward),
         });
         processed = true;
@@ -456,7 +456,7 @@ export class EconomyStore extends PersistentEconomyStore {
       }
 
       const { revision, stateJson, world } = this.loadWorld(now);
-      const player = ensurePlayer(world, user, now);
+      const player = ensurePlayer(world, user, now, { migrate: false });
       ensureWarehouse(player);
       ensureGemState(player);
       this.processWorldIfDue(world, now, Number(user.id), {

@@ -83,6 +83,7 @@ function inventoryFor(player, productId) {
 }
 
 function addLedger(player, category, amount, description, createdAt = Date.now()) {
+  if (!Array.isArray(player.ledger)) return;
   player.ledger.unshift({
     id: createId('ledger'),
     category,
@@ -95,6 +96,7 @@ function addLedger(player, category, amount, description, createdAt = Date.now()
 }
 
 function addTrade(player, trade) {
+  if (!Array.isArray(player.trades)) return;
   player.trades.unshift({ id: createId('trade'), ...trade });
   player.trades = player.trades.slice(0, ECONOMY_CONSTANTS.maxTradesPerPlayer);
 }
@@ -425,9 +427,10 @@ export function migrateWorld(world, now = Date.now()) {
   return world;
 }
 
-export function ensurePlayer(world, user, now = Date.now()) {
-  migrateWorld(world, now);
+export function ensurePlayer(world, user, now = Date.now(), { migrate = true } = {}) {
+  if (migrate) migrateWorld(world, now);
   const key = String(user.id);
+  world.players ||= {};
   if (!world.players[key]) world.players[key] = createPlayer(user, now);
   return world.players[key];
 }
@@ -613,7 +616,7 @@ function stopFacility(facility, status, reason) {
 }
 
 function processFacilities(player, now) {
-  for (const facility of player.facilities.slice(0, ECONOMY_CONSTANTS.maxFacilitiesProcessedPerTick)) {
+  for (const facility of (player.facilities || []).slice(0, ECONOMY_CONSTANTS.maxFacilitiesProcessedPerTick)) {
     if (facility.status === 'constructing' && facility.constructionCompletesAt && now >= facility.constructionCompletesAt) {
       facility.status = 'ready';
       facility.stopReason = 'manual';
@@ -695,9 +698,9 @@ function pruneWorld(world, now) {
   if (world.facilityListings.length > 800) world.facilityListings = world.facilityListings.slice(-800);
 }
 
-export function processWorld(world, now = Date.now()) {
-  migrateWorld(world, now);
-  for (const player of Object.values(world.players)) processFacilities(player, now);
+export function processWorld(world, now = Date.now(), { migrate = true } = {}) {
+  if (migrate) migrateWorld(world, now);
+  for (const player of Object.values(world.players || {})) processFacilities(player, now);
   pruneWorld(world, now);
   return world;
 }
@@ -1097,10 +1100,17 @@ function renamePlayer(world, userId, payload) {
   return result(true, '玩家昵称已更新');
 }
 
-export function applyAction(world, user, action, payload = {}, now = Date.now()) {
-  migrateWorld(world, now);
-  ensurePlayer(world, user, now);
-  processWorld(world, now);
+export function applyAction(
+  world,
+  user,
+  action,
+  payload = {},
+  now = Date.now(),
+  { migrate = true, process = true } = {},
+) {
+  if (migrate) migrateWorld(world, now);
+  ensurePlayer(world, user, now, { migrate: false });
+  if (process) processWorld(world, now, { migrate: false });
   const userId = Number(user.id);
   switch (action) {
     case 'work': return work(world, userId, now);
@@ -1152,14 +1162,14 @@ export function createClientState(world, userId, now = Date.now(), { migrate = t
     frozenCredits: player.frozenCredits,
     inventories: clone(player.inventories),
     ...(migrate && player.inventoryCapacity !== undefined ? { inventoryCapacity: player.inventoryCapacity } : {}),
-    facilities: clone(player.facilities || []),
-    products: clone(PRODUCT_CATALOG),
-    facilityTypes: clone(FACILITY_TYPE_CATALOG),
+    facilities: migrate ? clone(player.facilities || []) : [],
+    products: migrate ? clone(PRODUCT_CATALOG) : PRODUCT_CATALOG,
+    facilityTypes: migrate ? clone(FACILITY_TYPE_CATALOG) : [],
     markets: clone(world.markets),
-    orders: clone(world.orders),
-    facilityListings: clone(world.facilityListings),
-    trades: clone(player.trades || []),
-    ledger: clone(player.ledger || []),
+    orders: migrate ? clone(world.orders) : [],
+    facilityListings: migrate ? clone(world.facilityListings) : [],
+    trades: migrate ? clone(player.trades || []) : [],
+    ledger: migrate ? clone(player.ledger || []) : [],
     work: clone(player.work),
     stats: clone(player.stats),
     leaderboard: migrate ? createLeaderboard(world, userId, now) : [],

@@ -626,9 +626,9 @@ function settleAuction(world, auction, now) {
   });
 }
 
-export function processAssetAuctions(world, now = Date.now()) {
-  migrateAssetAuctionWorld(world, now);
-  for (const auction of world.assetAuctions) {
+export function processAssetAuctions(world, now = Date.now(), { migrate = true } = {}) {
+  if (migrate) migrateAssetAuctionWorld(world, now);
+  for (const auction of world.assetAuctions || []) {
     if (auction.status === 'open' && Number(auction.endsAt) <= now) settleAuction(world, auction, now);
   }
   return world;
@@ -755,8 +755,8 @@ function createAuction(world, userId, payload, now) {
   return result(true, `${label}拍卖已发布，已支付发布费 ¤${listingFee.toFixed(2)}，资产已冻结`);
 }
 
-export function createMarketReserveAuction(world, payload, now = Date.now()) {
-  migrateAssetAuctionWorld(world, now);
+export function createMarketReserveAuction(world, payload, now = Date.now(), { migrate = true } = {}) {
+  if (migrate) migrateAssetAuctionWorld(world, now);
   const groupId = String(payload?.groupId || '');
   const group = marketReserveGroup(world, groupId);
   const productId = String(payload?.productId || '');
@@ -941,8 +941,15 @@ function cancelAuction(world, userId, payload, now) {
   return result(true, '拍卖已取消，资产已解冻；发布费不退还');
 }
 
-export function applyAssetAuctionAction(world, user, action, payload = {}, now = Date.now()) {
-  processAssetAuctions(world, now);
+export function applyAssetAuctionAction(
+  world,
+  user,
+  action,
+  payload = {},
+  now = Date.now(),
+  { migrate = true, process = true } = {},
+) {
+  if (process) processAssetAuctions(world, now, { migrate });
   const userId = Number(user.id);
   if (action === 'createAuction') return createAuction(world, userId, payload, now);
   if (action === 'placeAuctionBid') return placeBid(world, userId, payload, now);

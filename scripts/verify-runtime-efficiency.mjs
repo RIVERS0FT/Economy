@@ -217,40 +217,44 @@ for (const path of ['server/src/contract-runtime-index.js', 'server/src/contract
   assert.equal(source.includes('reservedContractIncomingForBuyer'), false, `${path} 不得恢复合同仓库预留量索引`);
 }
 assert.equal(read('server/src/warehouse.js').includes('createContractRuntimeIndex'), false, '无限仓库不得重新依赖合同运行时索引');
+requireText('server/src/world-storage-v2.js', [
+  'WORLD_STORAGE_SCHEMA_VERSION = 2',
+  'AUTHORITATIVE_WORLD_VERSION = 29',
+  'createRuntimeMutationScope',
+  'cloneWorldForMutation',
+  'prepareSegmentedWorldWrite',
+  'applySegmentedWorldWrite',
+  'economy_world_meta',
+  'economy_world_players',
+  'economy_world_segments',
+  "label: 'commodity:placeOrder'",
+]);
 requireText('server/src/runtime-store-core.js', [
-  "measureRequestPhase('worldEqualityMs'",
-  "measureRequestPhase('serializeWorldMs'",
-  "measureRequestPhase('worldUpdateMs'",
+  'prepareSegmentedWorldWrite',
+  'applySegmentedWorldWrite',
+  'this.cacheWorld(nextRevision, null, world, false, plan.snapshot)',
 ]);
 requireText('server/src/runtime-action-executor.js', [
   "measureRequestPhase('playerSnapshotMs'",
   "measureRequestPhase('economicInvariantMs'",
 ]);
 requireText('server/src/runtime-store.js', [
-  'createClientPartitionSnapshot',
-  'cachedStateProjection(user.id, currentRevision)',
-  'rememberStateProjection(user.id, snapshot.revision',
-  "setRequestGauge('stateProjectionCacheHit', 1)",
-  'cached.revision === snapshot.revision',
-  'saveWorld(revision, world, now)',
-  'saveWorldIfChanged(revision, world, now',
-  'isDeepStrictEqual(world, cached.world)',
-  'this.flushContractAuditEvents(world, revision, revision)',
-  'this.updateWorld.run(nextRevision, stateJson, now)',
-  'this.flushContractAuditEvents(world, revision, nextRevision)',
-  'this.cacheWorld(nextRevision, stateJson, world)',
-  'migrateLoadedWorld(world, now)',
-  "triggerType: 'action_postprocess'",
-  'processProductionContracts(world, now)',
-  'this.cleanupExpiredIdempotency(now)',
+  'cloneWorldForMutation',
+  "measureRequestPhase('worldDraftCowMs'",
+  'ensureScheduledProcessingBarrier',
+  "measureRequestPhase('schedulerBarrierWaitMs'",
+  'return executeRuntimeAction(this, user, requestMeta, now)',
 ]);
 const runtimeStore = read('server/src/runtime-store.js');
+assert.equal(runtimeStore.includes('isDeepStrictEqual(world, cached.world)'), false, 'V2 热保存不得恢复完整世界深比较');
+assert.equal(runtimeStore.includes('this.updateWorld.run(nextRevision, stateJson, now)'), false, 'V2 热保存不得恢复单行完整世界写入');
+const runtimeCore = read('server/src/runtime-store-core.js');
 assert.ok(
-  runtimeStore.indexOf('this.updateWorld.run(nextRevision, stateJson, now)')
-    < runtimeStore.indexOf('this.flushContractAuditEvents(world, revision, nextRevision)')
-    && runtimeStore.indexOf('this.flushContractAuditEvents(world, revision, nextRevision)')
-      < runtimeStore.indexOf('this.cacheWorld(nextRevision, stateJson, world)'),
-  '合同审计必须在世界写入后、运行时缓存推进前完成',
+  runtimeCore.indexOf('applySegmentedWorldWrite(this, plan, world, now)')
+    < runtimeCore.indexOf('this.flushContractAuditEvents(world, revision, nextRevision)')
+    && runtimeCore.indexOf('this.flushContractAuditEvents(world, revision, nextRevision)')
+      < runtimeCore.indexOf('this.cacheWorld(nextRevision, null, world, false, plan.snapshot)'),
+  '合同审计必须在分段世界写入后、运行时缓存推进前完成',
 );
 requireText('server/test/request-metrics.test.js', [
   'request metrics normalize route identifiers',
@@ -307,6 +311,16 @@ requireText('server/test/contract-runtime-index.test.js', [
   'contract runtime transitions update participant and publisher counts without rebuilding',
   'contract runtime deadline reads a live grace deadline without rebuilding',
 ]);
+requireText('server/test/world-storage-v2.test.js', [
+  'current V2 cold restarts do not advance revision or rewrite segmented rows',
+  'legacy monolithic world migrates to V2 only once',
+  'dirty player write leaves unrelated player and market rows byte-identical',
+  'commodity order COW scope clones actor and crossing counterparties only',
+]);
+requireText('server/test/runtime-hotpath-architecture.test.js', [
+  'segmented persistence reconstructs the same committed world without projection mutation',
+]);
+assert.equal(read('server/src/facility-groups.js').includes('clone(normalizeOrder(order))'), false, '公开订单投影不得先修改 committed order 再克隆');
 requireText('server/test/state-polling.test.js', [
   'runtime failed actions keep the world row unchanged',
   'runtime state delivery reuses the current revision cache',

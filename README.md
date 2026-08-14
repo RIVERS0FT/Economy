@@ -73,7 +73,7 @@ flowchart LR
 | 数据可视化 | Apache ECharts 6 |
 | 桌面外壳 | Tauri 2 |
 | 游戏服务 | Node.js 24.4.0、服务器权威 HTTP API |
-| 数据存储 | SQLite |
+| 数据存储 | SQLite（全局修订 + 分段世界存储 V2） |
 | 测试与验证 | Node.js Test Runner、Playwright、项目专项防回退脚本 |
 | 发布与运行 | GitHub Actions、Nginx、systemd |
 

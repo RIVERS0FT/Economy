@@ -286,18 +286,22 @@ export function migrateWorld(world, now = Date.now()) {
   return migrated;
 }
 
-export function ensurePlayer(world, user, now = Date.now()) {
-  const player = core.ensurePlayer(world, user, now);
-  ensurePopulationEconomy(world, now);
-  marketDemand.normalizeWorld(world, now);
+export function ensurePlayer(world, user, now = Date.now(), { migrate = true } = {}) {
+  const player = core.ensurePlayer(world, user, now, { migrate });
+  if (migrate) {
+    ensurePopulationEconomy(world, now);
+    marketDemand.normalizeWorld(world, now);
+  }
   return player;
 }
 
-export function processWorld(world, now = Date.now()) {
+export function processWorld(world, now = Date.now(), { migrate = true } = {}) {
   if (processedWorldAt.get(world) === now) return world;
-  migrateWorld(world, now);
-  ensurePopulationEconomy(world, now);
-  core.processWorld(world, now);
+  if (migrate) {
+    migrateWorld(world, now);
+    ensurePopulationEconomy(world, now);
+  }
+  core.processWorld(world, now, { migrate: false });
   marketDemand.process(world, now);
   processedWorldAt.set(world, now);
   return world;
@@ -345,7 +349,7 @@ function applyCommodityOrder(world, user, payload, now) {
     return { ok: false, message: '未完成订单数量已达上限' };
   }
 
-  const player = core.ensurePlayer(world, user, now);
+  const player = core.ensurePlayer(world, user, now, { migrate: false });
   if (side === 'buy') {
     if (Number(player.credits || 0) < total) return { ok: false, message: '可用资金不足' };
     player.credits -= total;
@@ -405,13 +409,20 @@ export function applyImmediateCommodityBuy(world, user, payload = {}, now = Date
   }, now);
 }
 
-export function applyAction(world, user, action, payload = {}, now = Date.now()) {
-  migrateWorld(world, now);
-  if (processedWorldAt.get(world) !== now) processWorld(world, now);
+export function applyAction(
+  world,
+  user,
+  action,
+  payload = {},
+  now = Date.now(),
+  { migrate = true, process = true } = {},
+) {
+  if (migrate) migrateWorld(world, now);
+  if (process && processedWorldAt.get(world) !== now) processWorld(world, now, { migrate: false });
   const result = action === 'placeOrder' && payload.assetKind !== 'facility'
     ? applyCommodityOrder(world, user, payload, now)
-    : core.applyAction(world, user, action, payload, now);
-  processedWorldAt.delete(world);
+    : core.applyAction(world, user, action, payload, now, { migrate: false, process: false });
+  if (process) processedWorldAt.delete(world);
   return result;
 }
 

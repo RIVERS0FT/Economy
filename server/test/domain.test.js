@@ -14,12 +14,17 @@ import {
   PRODUCT_CATALOG,
 } from '../src/domain.js';
 import { EconomyStore } from '../src/storage.js';
+import { readSegmentedWorld } from '../src/world-storage-v2.js';
 
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 const bob = { id: 2, email: 'bob@example.com', name: 'Bob' };
 const carol = { id: 3, email: 'carol@example.com', name: 'Carol' };
 const now = 1_700_000_000_000;
 const cycleMs = 5 * 60 * 1000;
+
+function persistedWorld(store) {
+  return readSegmentedWorld(store)?.world;
+}
 
 function prepareDemand(world, groupId, at = now) {
   world.demandGroups[groupId].nextDemandAt = at;
@@ -519,25 +524,25 @@ test('state polling and failed actions do not refresh economic activity', () => 
   const store = new EconomyStore(':memory:');
   try {
     const first = store.getStateSnapshot(alice, undefined, now);
-    const firstWorld = JSON.parse(String(store.selectWorld.get().state_json));
+    const firstWorld = persistedWorld(store);
     const initialActivity = firstWorld.players[String(alice.id)].lastEconomicActivityAt;
 
     store.getStateSnapshot(alice, first.revision, now + 1_000);
-    const afterPoll = JSON.parse(String(store.selectWorld.get().state_json));
+    const afterPoll = persistedWorld(store);
     assert.equal(afterPoll.players[String(alice.id)].lastEconomicActivityAt, initialActivity);
 
     const success = store.apply(alice, {
       action: 'work', payload: {}, requestKey: 'activity-success', method: 'POST', path: '/api/game/work',
     }, now + 10_000);
     assert.equal(success.result.ok, true);
-    const afterSuccess = JSON.parse(String(store.selectWorld.get().state_json));
+    const afterSuccess = persistedWorld(store);
     assert.equal(afterSuccess.players[String(alice.id)].lastEconomicActivityAt, now + 10_000);
 
     const failure = store.apply(alice, {
       action: 'work', payload: {}, requestKey: 'activity-failure', method: 'POST', path: '/api/game/work',
     }, now + 10_001);
     assert.equal(failure.result.ok, false);
-    const afterFailure = JSON.parse(String(store.selectWorld.get().state_json));
+    const afterFailure = persistedWorld(store);
     assert.equal(afterFailure.players[String(alice.id)].lastEconomicActivityAt, now + 10_000);
   } finally {
     store.close();
@@ -556,7 +561,7 @@ test('new worlds create private market demand orders during the first authoritat
       && !Object.hasOwn(order, 'demandGroupId')
       && !Object.hasOwn(order, 'demandTier')
     )));
-    const persisted = JSON.parse(String(store.selectWorld.get().state_json));
+    const persisted = persistedWorld(store);
     const marketOrders = persisted.orders.filter((order) => order.ownerType === 'population');
     assert.ok(marketOrders.length > 0);
     assert.deepEqual([...new Set(marketOrders.map((order) => order.ownerName))].sort(), [

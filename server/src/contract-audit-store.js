@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { internalMoneyToMicros, microsToInternalMoney, multiplyMoneyByInteger, roundInternalMoney } from './money.js';
+import { readSegmentedWorld } from './world-storage-v2.js';
 
 const CONTRACT_AUDIT_BUFFER = Symbol('economy.contractAuditBuffer');
 const DEFAULT_HISTORY_LIMIT = 20;
@@ -1452,23 +1453,34 @@ const accepted = before.status === 'open' && after.status === 'active';
   }, { immediate: false });
 
   store.bootstrapLegacyContractAudit = () => {
-    const row = store.database.prepare('SELECT revision, state_json, updated_at FROM economy_world WHERE id = 1').get();
-    if (!row) return;
+    const segmented = readSegmentedWorld(store);
+    let revision;
+    let updatedAt;
     let world;
-    try {
-      world = JSON.parse(String(row.state_json));
-    } catch {
-      return;
+    if (segmented) {
+      revision = Number(segmented.revision);
+      updatedAt = Number(segmented.updatedAt || 0);
+      world = segmented.world;
+    } else {
+      const row = store.database.prepare('SELECT revision, state_json, updated_at FROM economy_world WHERE id = 1').get();
+      if (!row) return;
+      try {
+        world = JSON.parse(String(row.state_json));
+      } catch {
+        return;
+      }
+      revision = Number(row.revision);
+      updatedAt = Number(row.updated_at || 0);
     }
     const contracts = Array.isArray(world.productionContracts) ? world.productionContracts : [];
     for (const contract of contracts) {
       const snapshot = contractSnapshot(contract);
       if (!snapshot?.id || store.selectContractAuditSummary.get(snapshot.id)) continue;
-      queueTransitionEvent(world, { triggerType: 'migration', now: Number(row.updated_at || snapshot.endedAt || snapshot.completedAt || snapshot.createdAt || Date.now()) }, snapshot, 'legacy_snapshot_imported', {
+      queueTransitionEvent(world, { triggerType: 'migration', now: Number(updatedAt || snapshot.endedAt || snapshot.completedAt || snapshot.createdAt || Date.now()) }, snapshot, 'legacy_snapshot_imported', {
         after: snapshot,
         completeness: 'legacy_partial',
         reasonCode: 'history_before_audit_unavailable',
-        metadata: { importedRevision: Number(row.revision) },
+        metadata: { importedRevision: revision },
         sourceKey: `contract-audit:legacy:${snapshot.id}`,
       });
     }
@@ -1488,8 +1500,8 @@ const accepted = before.status === 'open' && after.status === 'active';
         event.batchNumber,
         event.reasonCode,
         event.occurredAt,
-        Number(row.revision),
-        Number(row.revision),
+        revision,
+        revision,
         null,
         JSON.stringify(event.after),
         JSON.stringify(event.metadata || {}),

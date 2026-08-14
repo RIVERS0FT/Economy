@@ -593,9 +593,9 @@ function advancePeriod(world, state) {
   return next;
 }
 
-function processWorldAt(world, now, priorOrderReferences = []) {
-  processFacilityGroupWorld(world, now);
-  processAssetAuctions(world, now);
+function processWorldAt(world, now, priorOrderReferences = [], { migrate = true } = {}) {
+  processFacilityGroupWorld(world, now, { migrate });
+  processAssetAuctions(world, now, { migrate });
   const state = world.leaderboardState;
   if (validLeaderboardState(state)) {
     captureProduction(world, state);
@@ -604,12 +604,13 @@ function processWorldAt(world, now, priorOrderReferences = []) {
 }
 
 export function processLeaderboardWorld(world, now = Date.now(), options = {}) {
+  const migrate = options.migrate !== false;
   world.players ||= {};
   for (const player of Object.values(world.players)) playerStats(player);
 
   if (!validLeaderboardState(world.leaderboardState)) {
-    processFacilityGroupWorld(world, now);
-    processAssetAuctions(world, now);
+    processFacilityGroupWorld(world, now, { migrate });
+    processAssetAuctions(world, now, { migrate });
     const state = initializeLeaderboardState(world, now, true);
     captureTradingFills(world, state, world.orders || []);
     return world;
@@ -621,14 +622,14 @@ export function processLeaderboardWorld(world, now = Date.now(), options = {}) {
   migrateSortRule(state);
   while (now >= state.endsAt) {
     const priorOrders = [...(world.orders || [])];
-    processWorldAt(world, state.endsAt - 1, priorOrders);
+    processWorldAt(world, state.endsAt - 1, priorOrders, { migrate });
     awardPeriod(world, state, state.endsAt, options.onGemReward);
     state = advancePeriod(world, state);
     captureTradingFills(world, state, unionOrders(priorOrders, world.orders || []));
   }
 
   const priorOrders = [...(world.orders || [])];
-  processWorldAt(world, now, priorOrders);
+  processWorldAt(world, now, priorOrders, { migrate });
   ensureAllPlayers(world, state);
   return world;
 }

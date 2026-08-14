@@ -418,6 +418,48 @@ function migrateLegacyInterestCarry(world) {
   world.bank.interestPoolMicros = carry > MAX_SAFE_SCALED ? Number.MAX_SAFE_INTEGER : Number(carry);
 }
 
+export function normalizeWorldMoneyPrecisionScoped(world, scope = {}) {
+  if (!world || typeof world !== 'object') return world;
+  const allPlayers = Boolean(scope.allPlayers || scope.playerIds === null);
+  const allSegments = Boolean(scope.allSegments || scope.segments === null);
+  if (Number(world.moneyPrecision?.version || 0) < MONEY_PRECISION_VERSION) {
+    if (!allPlayers || !allSegments) {
+      throw new Error('分区资金规范化要求世界先完成冷迁移');
+    }
+    return normalizeWorldMoneyPrecision(world);
+  }
+
+  world.moneyPrecision ||= { version: MONEY_PRECISION_VERSION, roundingReserveMicros: 0 };
+  world.moneyPrecision.version = MONEY_PRECISION_VERSION;
+  world.moneyPrecision.roundingReserveMicros = 0;
+
+  if (allPlayers) {
+    for (const player of Object.values(world.players || {})) normalizePlayer(world, player);
+  } else {
+    for (const id of scope.playerIds || []) {
+      const player = world.players?.[String(id)];
+      if (player) normalizePlayer(world, player);
+    }
+  }
+
+  const segments = allSegments ? null : new Set(scope.segments || []);
+  const has = (...keys) => allSegments || keys.some((key) => segments.has(key));
+  if (has('orders')) normalizeOrders(world);
+  if (has('markets', 'facilityMarkets')) normalizeMarkets(world);
+  if (has('assetAuctions')) normalizeAuctions(world);
+  if (has('productionContracts')) normalizeContracts(world);
+  if (has('auctionFeeEscrowCredits')) {
+    world.auctionFeeEscrowCredits = Math.max(0, roundInternalMoney(world.auctionFeeEscrowCredits || 0) || 0);
+  }
+  if (has('populationEconomy')) quantizeInternalTree(world.populationEconomy);
+  if (has('marketDemand')) quantizeInternalTree(world.marketDemand);
+  if (has('bank') && world.bank) {
+    world.bank.interestPoolMicros = Math.max(0, Math.trunc(Number(world.bank.interestPoolMicros || 0)));
+    quantizeInternalTree(world.bank);
+  }
+  return world;
+}
+
 export function normalizeWorldMoneyPrecision(world) {
   if (!world || typeof world !== 'object') return world;
   migrateLegacyInterestCarry(world);
