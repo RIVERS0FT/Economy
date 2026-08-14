@@ -90,7 +90,7 @@
 
 `PagePanel` 是新增玩家端一级卡片的唯一 React 入口，固定复用 `Panel`、`.widget` 与 `.ui-primary-surface`。现有 `Panel className="widget ..."` 由兼容桥自动补充 `.ui-primary-surface`；生产页和排行页尚未迁移的旧一级卡片类只允许在 `primary-surfaces.css` 中作为兼容入口，不得在业务 CSS 中重新定义外层 padding。
 
-`EconomyChart` 是业务数据图表的唯一 React 入口。项目只安装 Apache `echarts`，不得引入 `echarts-for-react` 或第二套图表包装库；`echarts.init`、SVGRenderer、按需模块注册、`ResizeObserver`、`requestAnimationFrame` 合并 resize、Option 更新与卸载 `dispose()` 统一放在 `src/components/charts/`。市场、银行资产配置、管理员玩家与人口图表必须从现有 CSS 设计令牌读取颜色，提供中文 `aria-label` 与可读数据摘要；业务页面只提供数据和 Option，不得直接持有 ECharts 实例或依赖其私有 SVG DOM。ECharts 必须随市场、银行和管理员页面的既有动态 import 按需加载，登录首屏不得静态加载图表包。
+`EconomyChart` 是业务数据图表的唯一 React 入口。项目只安装 Apache `echarts`，不得引入 `echarts-for-react` 或第二套图表包装库；`echarts.init`、SVGRenderer、ECharts Geo/Map 的 `MapChart`／`GeoComponent`／地图注册、按需模块注册、`ResizeObserver`、`requestAnimationFrame` 合并 resize、Option 更新、事件绑定与卸载 `dispose()` 统一放在 `src/components/charts/`。市场、地图、银行资产配置、管理员玩家与人口图表必须从现有 CSS 设计令牌读取颜色，提供中文 `aria-label` 与可读数据摘要；业务页面只提供数据、Option 和语义事件回调，不得直接持有 ECharts 实例或依赖其私有 SVG DOM。ECharts 必须随市场、地图、银行和管理员页面的既有动态 import 按需加载，登录首屏不得静态加载图表包。
 
 ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`EconomyChart` 必须在每次 `setOption` 前读取图表容器的浏览器计算样式，把 Option 中静态颜色、颜色数组、数据项颜色和颜色回调结果统一解析为实体色值；业务图表不得自行复制颜色解析器。以 Tooltip 为唯一悬浮信息反馈的折线、柱状和饼图系列必须复用 `STABLE_TOOLTIP_EMPHASIS`，禁止库默认 emphasis 改写填充、描边或透明度。鼠标、触控点击、状态刷新和尺寸变化均不得让当前或其他数据图形消失、变为透明或丢失原始颜色。
 
@@ -118,12 +118,12 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 ### 3.1 `PageLayout` 与页面一级区块间距
 
-- 玩家十一个正式页面和管理员分区必须使用共享 `PageLayout`；`PageLayout` 必须在标题之后自动生成唯一 `.ui-page-stack`，业务页面不得直接创建 `.page-content`、复制页面外壳或手动插入第二个 `.ui-page-stack`。
+- 除地图页外的十个玩家正式页面和管理员分区必须使用共享 `PageLayout`；地图页是唯一全工作区例外，必须直接使用 `.province-map-page` 承载地图与 Overlay，不得嵌入 `PageLayout` 或 `.ui-page-stack`。`PageLayout` 必须在标题之后自动生成唯一 `.ui-page-stack`，其他业务页面不得直接创建 `.page-content`、复制页面外壳或手动插入第二个 `.ui-page-stack`。
 - `.ui-page-stack` 是页面标题下一级内容的唯一纵向容器，在自身上下文把 `--page-section-gap` 映射为当前 `var(--layout-gutter)`。因此普通桌面、紧凑桌面和移动工作区继续分别跟随外壳沟槽，不维护页面专属固定像素。
 - 页面摘要、一级面板、标签栏、主要列表或主要工作区必须作为 `.ui-page-stack` 的直接子元素；相邻可见一级区块只由 `gap: var(--page-section-gap)` 分隔。共享最终样式必须清除直接子元素的 `margin-block`，业务 CSS 不得用 `margin-top`、`margin-bottom`、相邻选择器或更高优先级规则重新制造一级外部间距。
 - `PagePanel` 的 `--primary-surface-inset` 只负责一级卡片边缘到内部内容的留白；页面一级区块间距、一级卡片内边距和组件内部 `--space-*` 间距是三个独立层级，不得互相替代。
 - 复杂页面允许把若干紧密关联模块放进一个页面专属网格或组合容器，再把该容器作为 `.ui-page-stack` 的一个直接子元素；不得为特殊页面增加 `disableSpacing`、零间距开关或平行页面外壳。
-- `scripts/verify-page-section-spacing.mjs` 必须扫描全部 `src/pages/*Page.tsx`、管理员入口、共享组件、最终 CSS、权威设计和浏览器回归；新增正式页面未使用 `PageLayout`、业务样式重定义 `.ui-page-stack` 或真实一级几何间距不一致时必须阻止构建。
+- `scripts/verify-page-section-spacing.mjs` 必须扫描全部 `src/pages/*Page.tsx`、管理员入口、共享组件、最终 CSS、权威设计和浏览器回归；除唯一地图工作台例外外，新增正式页面未使用 `PageLayout`，或地图页恢复 `PageLayout`／缺少 `.province-map-page`，或业务样式重定义 `.ui-page-stack`、真实一级几何间距不一致时必须阻止构建。
 
 ### 3.1.1 登录后根级 Dialog
 
@@ -389,10 +389,10 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 
 ### 8.1 省级经营地图
 
-- 地图使用单一 `.province-map-canvas` 相对定位画布、低对比度经营位置示意轮廓和 34 个真实 `<button>` 地区名称，不使用不可聚焦的 SVG path 伪按钮；轮廓必须 `aria-hidden`，按钮组提供“中国省级经营地图”可访问名称。
-- 地区按钮默认、悬停／键盘焦点、当前、拥有资产和存在异常五种语义必须同时使用边框、文字、状态点或轮廓表达；颜色不得成为唯一状态。当前地区使用 `aria-pressed=true`，按钮最小触控命中区域遵守移动交互规则。
-- 地图与详情桌面使用主地图加 `17rem–22rem` 详情列，详情允许在页面内 sticky；不大于 `960px` 时单列且取消 sticky，不得制造第二个页面主滚动视口。地区选择器使用统一 `SelectInput`，地图、市场和生产不得各自创建平行表单视觉。
-- 地图轮廓只是经营位置示意，不承载行政区边界真值。省级 ID、名称、经纬度和地区数量只读取共享目录；不得用 CSS 或 SVG 硬编码另一套地区列表，也不得把示意坐标用于现实导航、测绘或合规声明。
+- 地图使用单一 `.province-map-canvas` 和共享 `EconomyChart` 的 ECharts Geo/Map SVG，不得保留手绘 `.province-map-silhouette`、固定百分比 `MAP_LABEL_POSITIONS` 或覆盖式 `.province-map-marker` 按钮。地图按需注册 `MapChart` 与 `GeoComponent`，使用 `china-geojson@1.0.0` 全国 FeatureCollection；注册前必须过滤“南海诸岛”Feature，最终只渲染与共享目录名称一一对应的 34 个经营地区，不显示南海诸岛附图。
+- 地区默认、悬停、当前、拥有资产和存在异常语义使用区域填充、边界、文字、Tooltip、图例和详情共同表达；当前地区由 ECharts 单选状态与外部 `selectedProvinceId` 双向同步。地图表面支持鼠标／触摸点击、拖动和最高 8 倍受限缩放；纵向窄屏必须使用 ECharts `media` 选项按宽度适配全国轮廓，并隐藏普通常驻地区文字，只在选中或悬停时显示标签，避免在小地图上重叠。键盘焦点、文字快速定位和全部地区选择由同页统一 `ProvinceSelect` 承担，ECharts 容器提供“中国省级经营地图”可访问名称和当前地区摘要。
+- 地图页采用类似大战略游戏的全工作区地图工作台：`.province-map-page` 与唯一地图画布铺满游戏 `workspace`，不得覆盖桌面状态栏／侧栏或移动状态栏／底栏；左上命令面板、右侧 `18rem–22rem` 经营详情和底部图例／来源作为半透明 Overlay 位于地图之上，地图不再属于普通 `PageLayout` 内容栈。不大于 `720px` 时仍以地图为整页背景，但 Overlay 改为上方命令、中央地图可视区、下方图例和经营详情的单列安全布局，由唯一页面滚动视口承担纵向空间，不得创建内部主滚动视口。地区选择器使用统一 `SelectInput`，地图、市场和生产不得各自创建平行表单视觉。
+- 页面必须显示 AntV `china-geojson`、MIT 和非测绘／导航用途来源说明。地图数据不得生成新的省级 ID、改变共享目录或用于现实导航、测绘和合规声明；当前开源数据没有审图号，正式公开地图合规验收仍需替换为具备合法来源与审图号的数据，不得把本次组件替换误报为该验收已经完成。
 
 ## 9. 目录型横向导航
 

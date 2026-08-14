@@ -46,7 +46,8 @@ if (directEChartsImports.length !== 1 || directEChartsImports[0] !== 'src/compon
 }
 
 requireText('src/components/charts/echartsCore.ts', [
-  'BarChart', 'LineChart', 'PieChart', 'AxisPointerComponent', 'GridComponent', 'TooltipComponent', 'AriaComponent', 'SVGRenderer',
+  'BarChart', 'LineChart', 'MapChart', 'PieChart', 'AxisPointerComponent', 'GeoComponent', 'GridComponent', 'TooltipComponent', 'AriaComponent', 'SVGRenderer',
+  'registerEChartsMap',
 ]);
 requireText('src/components/charts/chartOptions.ts', ['export const PIE_PAD_ANGLE = 5;', 'STABLE_TOOLTIP_EMPHASIS', 'disabled: true', 'appendToBody: false', 'confine: true']);
 requireText('src/components/charts/resolveEChartsCssColors.ts', [
@@ -58,6 +59,10 @@ requireText('src/components/charts/EconomyChart.tsx', [
   "updateMode = 'replace'", "notMerge: updateMode !== 'merge'",
   'resolveEChartsCssColors', 'dataset.echartsCssColorsResolved', 'applyChartOption',
   'onChartReadyRef.current?.(chart)', 'onOptionAppliedRef.current?.(chart)',
+  "chart.on('click', handleClick)", "chart.off('click', handleClick)",
+]);
+requireText('src/components/provinces/ChinaProvinceMap.tsx', [
+  '<EconomyChart', "type: 'map'", 'registerEChartsMap', "selectedMode: 'single'", 'onClick={handleMapClick}',
 ]);
 requireText('src/components/charts/PriceSparkline.tsx', [
   '<EconomyChart', "type: 'line'", "type: 'bar'", 'buildMarketChartGeometry', 'data-volume-share', 'STABLE_TOOLTIP_EMPHASIS',
@@ -76,7 +81,8 @@ requireText('tests/browser/chart-hover-visibility.spec.ts', [
   'data-echarts-css-colors-resolved', 'assertStableHover', 'economy-chart-tooltip', 'callback-color-chart',
 ]);
 requireText('docs/UI_DESIGN_SYSTEM.md', [
-  '`EconomyChart` 是业务数据图表的唯一 React 入口', '不得引入 `echarts-for-react`', 'ECharts 必须随市场、银行和管理员页面',
+  '`EconomyChart` 是业务数据图表的唯一 React 入口', '不得引入 `echarts-for-react`', 'ECharts 必须随市场、地图、银行和管理员页面',
+  'ECharts Geo/Map', 'china-geojson',
   '`PIE_PAD_ANGLE = 5`', '`padAngle: PIE_PAD_ANGLE`', 'STABLE_TOOLTIP_EMPHASIS',
   '不得把 `var(--color-*)` 原样交给 ZRender', '每次 `setOption` 前读取图表容器的浏览器计算样式',
 ]);
@@ -99,4 +105,4 @@ if (failures.length) {
   console.error(`ECharts 架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('ECharts 架构验证通过：唯一 EconomyChart、精确依赖、SVG 按需模块、生命周期、无障碍、市场动态几何、统一 Pie padAngle 及管理员与资产图表均已锁定。');
+console.log('ECharts 架构验证通过：唯一 EconomyChart、精确依赖、SVG 按需模块、Geo/Map 省级地图、生命周期、无障碍、市场动态几何、统一 Pie padAngle 及管理员与资产图表均已锁定。');

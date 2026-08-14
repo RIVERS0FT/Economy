@@ -12,6 +12,13 @@ let nextChartInstanceId = 1;
 
 export type EconomyChartUpdateMode = 'replace' | 'merge';
 
+export interface EconomyChartClickEvent {
+  componentType?: string;
+  seriesType?: string;
+  name?: string;
+  data?: unknown;
+}
+
 function applyChartOption(
   chart: EChartsType,
   container: HTMLElement,
@@ -36,6 +43,7 @@ export function EconomyChart({
   updateMode = 'replace',
   onChartReady,
   onOptionApplied,
+  onClick,
 }: {
   option: EChartsCoreOption;
   ariaLabel: string;
@@ -46,6 +54,7 @@ export function EconomyChart({
   updateMode?: EconomyChartUpdateMode;
   onChartReady?: (chart: EChartsType) => void;
   onOptionApplied?: (chart: EChartsType) => void;
+  onClick?: (event: EconomyChartClickEvent) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<EChartsType | null>(null);
@@ -54,11 +63,13 @@ export function EconomyChart({
   const updateModeRef = useRef(updateMode);
   const onChartReadyRef = useRef(onChartReady);
   const onOptionAppliedRef = useRef(onOptionApplied);
+  const onClickRef = useRef(onClick);
   const [ready, setReady] = useState(false);
 
   updateModeRef.current = updateMode;
   onChartReadyRef.current = onChartReady;
   onOptionAppliedRef.current = onOptionApplied;
+  onClickRef.current = onClick;
 
   useLayoutEffect(() => {
     optionRef.current = option;
@@ -81,6 +92,10 @@ export function EconomyChart({
     nextChartInstanceId += 1;
     container.dataset.echartsInstanceId = String(instanceId);
     chartRef.current = chart;
+    const handleClick = (event: unknown) => {
+      onClickRef.current?.(event as EconomyChartClickEvent);
+    };
+    chart.on('click', handleClick);
     applyChartOption(chart, container, optionRef.current, updateModeRef.current, false);
     setReady(true);
     onChartReadyRef.current?.(chart);
@@ -105,6 +120,7 @@ export function EconomyChart({
       observer?.disconnect();
       window.removeEventListener('resize', scheduleResize);
       if (resizeFrameRef.current !== null) cancelAnimationFrame(resizeFrameRef.current);
+      chart.off('click', handleClick);
       chart.dispose();
       chartRef.current = null;
     };

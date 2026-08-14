@@ -78,6 +78,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "2.11.1",
+    "china-geojson": "1.0.0",
     "echarts": "6.1.0",
     "liquid-glass-react": "1.1.1",
     "react": "19.2.7",
