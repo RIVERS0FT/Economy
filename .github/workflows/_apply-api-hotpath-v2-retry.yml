@@ -53,13 +53,39 @@ jobs:
           );
           replace('server/src/domain-core.js', '    facilities: clone(player.facilities),\n', '    facilities: clone(player.facilities || []),\n');
           replace('server/src/domain-core.js', '    trades: clone(player.trades),\n    ledger: clone(player.ledger),\n', '    trades: clone(player.trades || []),\n    ledger: clone(player.ledger || []),\n');
+          replace('server/src/domain-core.js', '    inventoryCapacity: player.inventoryCapacity,\n', "    ...(migrate && player.inventoryCapacity !== undefined ? { inventoryCapacity: player.inventoryCapacity } : {}),\n");
           replace('server/src/domain-core.js', '    leaderboard: createLeaderboard(world, userId, now),\n', '    leaderboard: migrate ? createLeaderboard(world, userId, now) : [],\n');
+
+          replace(
+            'server/src/warehouse.js',
+            'export function createWarehouseSummary(player) {\n  return {\n',
+            'export function createWarehouseSummary(player) {\n  ensureWarehouse(player);\n  return createWarehouseSummaryReadOnly(player);\n}\n\nexport function createWarehouseSummaryReadOnly(player) {\n  return {\n',
+          );
+          replace(
+            'server/src/storage.js',
+            "import { createWarehouseSummary, ensureWarehouse } from './warehouse.js';\n",
+            "import { createWarehouseSummaryReadOnly, ensureWarehouse } from './warehouse.js';\n",
+          );
+          replace('server/src/storage.js', '    ...createWarehouseSummary(player),\n', '    ...createWarehouseSummaryReadOnly(player),\n');
+
+          replace(
+            'server/src/banking.js',
+            "  const bank = world?.bank && typeof world.bank === 'object'\n    ? world.bank\n    : defaultBankWorld(now);\n  const account = player?.bankAccount && typeof player.bankAccount === 'object'\n    ? player.bankAccount\n    : defaultPlayerBankAccount(player, now);\n",
+            "  const bank = {\n    ...defaultBankWorld(now),\n    ...(world?.bank && typeof world.bank === 'object' ? world.bank : {}),\n  };\n  const account = {\n    ...defaultPlayerBankAccount(player, now),\n    ...(player?.bankAccount && typeof player.bankAccount === 'object' ? player.bankAccount : {}),\n  };\n",
+          );
+
+          replace('server/src/leaderboards.js', 'const snapshotRowsCache = new WeakMap();\n\n', '');
+          replace(
+            'server/src/leaderboards.js',
+            "function snapshotRowsByBoard(world, state) {\n  const cached = snapshotRowsCache.get(world);\n  if (cached?.state === state) return cached.rowsByBoard;\n  const rowsByBoard = Object.fromEntries(BOARD_IDS.map((boardId) => [\n    boardId,\n    snapshotRowsFor(world, state, boardId),\n  ]));\n  snapshotRowsCache.set(world, { state, rowsByBoard });\n  return rowsByBoard;\n}\n",
+            "function snapshotRowsByBoard(world, state) {\n  return Object.fromEntries(BOARD_IDS.map((boardId) => [\n    boardId,\n    snapshotRowsFor(world, state, boardId),\n  ]));\n}\n",
+          );
           NODE
       - name: Install dependencies
         run: npm ci
       - name: Run focused server regression
         run: |
-          node --test server/test/runtime-hotpath-architecture.test.js server/test/authoritative-hotpaths.test.js server/test/request-metrics.test.js
+          node --test server/test/runtime-hotpath-architecture.test.js server/test/authoritative-hotpaths.test.js server/test/request-metrics.test.js server/test/banking.test.js server/test/warehouse.test.js server/test/leaderboards.test.js server/test/instant-facility-construction.test.js
           npm run verify:authoritative-hotpaths
           npm run verify:runtime-efficiency
       - name: Run full build verification
