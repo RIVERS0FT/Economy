@@ -22,3 +22,12 @@ populationVerifierSource = populationVerifierSource.replace(
   "const runtimeStore = `${read('server/src/runtime-store-core.js')}\\n${read('server/src/runtime-store.js')}`;",
 );
 writeFileSync(populationVerifierPath, populationVerifierSource);
+
+const auctionVerifierPath = 'scripts/verify-asset-auctions.mjs';
+let auctionVerifierSource = readFileSync(auctionVerifierPath, 'utf8');
+auctionVerifierSource = auctionVerifierSource.replace("  'flushAuctionAuditEvents(this, world, revision, nextRevision);',\n  'getAuctionBidHistory(user, auctionId, now = Date.now())',", "  'getAuctionBidHistory(user, auctionId, now = Date.now())',");
+auctionVerifierSource = auctionVerifierSource.replace(
+  "requireText('server/src/runtime-store.js', ['flushAuctionAuditEvents(this, world, revision, nextRevision);', 'prepared.version = 26;']);",
+  "requireText('server/src/runtime-store-core.js', ['flushAuctionAuditEvents(this, world, revision, nextRevision);']);\nrequireText('server/src/world-storage-v2.js', ['AUTHORITATIVE_WORLD_VERSION = 29;']);",
+);
+writeFileSync(auctionVerifierPath, auctionVerifierSource);
