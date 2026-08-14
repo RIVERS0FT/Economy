@@ -217,6 +217,29 @@ function playerIdsForOrderIndexes(world, userId, orderIndexes) {
   return ids;
 }
 
+function crossingOrderParticipantIds(world, payload, userId) {
+  const ids = new Set([playerKey(userId)]);
+  const kind = payload?.assetKind === 'facility' ? 'facility' : 'commodity';
+  const assetId = kind === 'facility'
+    ? String(payload?.assetId || payload?.facilityTypeId || '')
+    : commodityProductId(payload);
+  const side = payload?.side === 'buy' ? 'buy' : payload?.side === 'sell' ? 'sell' : null;
+  const price = Number(payload?.price ?? payload?.unitPrice ?? payload?.maxPrice);
+  if (!assetId || !side || !Number.isFinite(price)) return ids;
+  const opposite = side === 'buy' ? 'sell' : 'buy';
+  for (const order of world?.orders || []) {
+    if (!isOpenOrder(order) || orderKind(order) !== kind || orderAssetId(order) !== assetId) continue;
+    if (order.side !== opposite || order.ownerType !== 'player') continue;
+    const restingPrice = Number(order.price);
+    if (!Number.isFinite(restingPrice)) continue;
+    const crosses = side === 'buy' ? restingPrice <= price : restingPrice >= price;
+    if (!crosses) continue;
+    const ownerId = Number(order.ownerId);
+    if (Number.isSafeInteger(ownerId) && ownerId > 0) ids.add(playerKey(ownerId));
+  }
+  return ids;
+}
+
 function orderScope(world, userId, assets, {
   label,
   mutateMarkets = false,
@@ -359,7 +382,10 @@ export function createRuntimeMutationScope(world, userId, action, payload, {
         label,
         mutateMarkets: true,
       });
-      if (scope) return scope;
+      if (scope) {
+        scope.playerIds = crossingOrderParticipantIds(world, payload, userId);
+        return scope;
+      }
     }
   }
 
