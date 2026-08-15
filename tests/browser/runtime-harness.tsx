@@ -11,6 +11,7 @@ import { ScrollArea } from '../../src/components/ui/ScrollArea';
 import { AuctionPage } from '../../src/pages/AuctionPage';
 import { ContractPage } from '../../src/pages/ContractPage';
 import { GemShopPage } from '../../src/pages/GemShopPage';
+import { LeaderboardPage } from '../../src/pages/LeaderboardPage';
 import { OverviewPage } from '../../src/pages/OverviewPage';
 import { MapPage } from '../../src/pages/MapPage';
 import { ProductionPage } from '../../src/pages/ProductionPage';
@@ -49,6 +50,7 @@ import '../../src/styles/interaction-states.css';
 import '../../src/styles/primary-surfaces.css';
 import '../../src/styles/form-controls.css';
 import '../../src/styles/overview-polish.css';
+import '../../src/styles/leaderboards.css';
 import '../../src/styles/game-guide.css';
 import '../../src/styles/province-map.css';
 import provinces from '../../shared/provinces.json';
@@ -423,6 +425,101 @@ function OverviewHarness() {
   return (
     <GameShell model={model} statusItems={statusItems}>
       <OverviewPage model={model} />
+    </GameShell>
+  );
+}
+
+function LeaderboardHarness() {
+  const [tab, setTab] = useState<TabId>('leaderboard');
+  const model = useMemo(() => {
+    const next = buildOverviewModel(tab, setTab);
+    const entries = (
+      scores: number[],
+      details: string[],
+      rewards: number[] = [],
+    ) => scores.map((score, index) => ({
+      rank: index + 1,
+      playerName: ['Atlas 集团', 'MEVIUS', 'Riversoft 实业'][index],
+      score,
+      secondary: Math.max(0, Math.round(score * 0.38)),
+      detail: details[index],
+      isCurrentPlayer: index === 1,
+      rewardGems: rewards[index],
+    }));
+    const wealth = entries([128_600, 96_786, 82_420], ['24 座工厂', '18 座工厂', '15 座工厂']);
+    const growth = entries([12_800, 9_460, 7_920], ['本周增长', '本周增长', '本周增长'], [50, 30, 20]);
+    const production = entries([4_820, 3_560, 2_940], ['商品产出', '商品产出', '商品产出'], [50, 30, 20]);
+    const trading = entries([18_600, 14_250, 11_980], ['成交额', '成交额', '成交额'], [50, 30, 20]);
+    next.game.leaderboards = {
+      period: {
+        key: '2026-W29',
+        startsAt: fixedNow - 4 * 86_400_000,
+        endsAt: fixedNow + 3 * 86_400_000,
+        partial: false,
+        rewardEnabled: true,
+        rewards: [50, 30, 20],
+        timeZone: 'Asia/Shanghai',
+      },
+      boards: {
+        wealth: {
+          id: 'wealth',
+          title: '财富榜',
+          description: '按实时净资产排名',
+          unit: 'currency',
+          rewarded: false,
+          entries: wealth,
+          currentPlayer: wealth[1],
+          totalPlayers: 128,
+          personalBest: { score: 92_400, periodKey: '2026-W28', currentIsRecord: true },
+        },
+        growth: {
+          id: 'growth',
+          title: '增长榜',
+          description: '本周净资产增长',
+          unit: 'currency',
+          rewarded: true,
+          entries: growth,
+          currentPlayer: growth[1],
+          totalPlayers: 128,
+          personalBest: { score: 8_900, periodKey: '2026-W28', currentIsRecord: true },
+        },
+        production: {
+          id: 'production',
+          title: '生产榜',
+          description: '本周服务器确认的商品产出数量',
+          unit: 'quantity',
+          rewarded: true,
+          entries: production,
+          currentPlayer: production[1],
+          totalPlayers: 128,
+          personalBest: { score: 3_220, periodKey: '2026-W28', currentIsRecord: true },
+        },
+        trading: {
+          id: 'trading',
+          title: '交易榜',
+          description: '本周订单簿成交额',
+          unit: 'currency',
+          rewarded: true,
+          entries: trading,
+          currentPlayer: trading[1],
+          totalPlayers: 128,
+          personalBest: { score: 13_900, periodKey: '2026-W28', currentIsRecord: true },
+        },
+      },
+    };
+    return next;
+  }, [tab]);
+  const statusItems: StatusBarItem[] = [
+    { id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>, detail: <>冻结 <CurrencyAmount>{formatCurrency(model.game.frozenCredits)}</CurrencyAmount></> },
+    { id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('bank') },
+    { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
+    { id: 'rank', icon: <RankIcon />, label: '排行榜', value: '#2', detail: '当前排名' },
+    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库库存', value: formatNumber(model.game.warehouseStoredQuantity), detail: '无限容量 · 实物库存总量' },
+  ];
+
+  return (
+    <GameShell model={model} statusItems={statusItems}>
+      <LeaderboardPage model={model} />
     </GameShell>
   );
 }
@@ -1578,6 +1675,8 @@ createRoot(document.getElementById('root') as HTMLElement).render(
         ? <AuctionHarness />
       : view === 'gem-shop'
         ? <GemShopHarness />
+      : view === 'leaderboard'
+        ? <LeaderboardHarness />
         : view === 'scroll-ownership'
           ? <ScrollOwnershipHarness />
           : <SettingsHarness />,

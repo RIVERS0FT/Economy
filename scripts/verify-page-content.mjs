@@ -20,6 +20,10 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/LeaderboardPage.tsx',
   'src/pages/GemShopPage.tsx',
   'src/pages/SettingsPage.tsx',
+  'all-pages-preview.html',
+  'runtime-test.html',
+  'tests/browser/runtime-harness.tsx',
+  'tests/browser/all-pages-preview.spec.ts',
   'src/contracts/api.ts',
   'src/contracts/types.ts',
   'src/components/InvitationSettings.tsx',
@@ -59,6 +63,36 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
   'docs/LIQUID_GLASS_CHROME_DESIGN.md',
 ].forEach(requireFile);
+
+for (const text of [
+  'Economy 全页面预览',
+  'aria-label="十一个正式页面预览入口"',
+  'data-preview-page="overview"',
+  'data-preview-page="map"',
+  'data-preview-page="market"',
+  'data-preview-page="production"',
+  'data-preview-page="research"',
+  'data-preview-page="auction"',
+  'data-preview-page="contracts"',
+  'data-preview-page="bank"',
+  'data-preview-page="leaderboard"',
+  'data-preview-page="gem-shop"',
+  'data-preview-page="settings"',
+  'runtime-test.html?view=leaderboard&scenario=activity',
+]) requireText('all-pages-preview.html', text);
+const previewPageCount = (read('all-pages-preview.html').match(/data-preview-page=/g) || []).length;
+if (previewPageCount !== 11) failures.push(`本地全页面预览入口必须为 11 个，当前为 ${previewPageCount}`);
+for (const text of [
+  "import { LeaderboardPage } from '../../src/pages/LeaderboardPage'",
+  'function LeaderboardHarness()',
+  "view === 'leaderboard'",
+  '<LeaderboardPage model={model} />',
+]) requireText('tests/browser/runtime-harness.tsx', text);
+for (const text of [
+  "toHaveCount(11)",
+  "runtime-test.html?view=leaderboard&scenario=activity",
+  "toHaveCount(4)",
+]) requireText('tests/browser/all-pages-preview.spec.ts', text);
 
 for (const text of [
   "type AuthMode = 'login' | 'register'",
@@ -521,6 +555,8 @@ for (const text of [
   'Logo 在展开与折叠状态统一为 `40×40px`',
   '两个入口必须复用 `GameIcons.tsx` 的 QQ 与退出 SVG',
   '管理员后台左侧导航复用同一侧栏骨架与动画',
+  '`all-pages-preview.html` 只属于本地开发预览目录',
+  '不得注册为正式 `TabId`、正式路由或第十二个一级页面',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
