@@ -32,7 +32,7 @@
 | `LiquidGlassSurface.tsx` | 第三方库适配、五种平台预设、统一零弹性与静态鼠标输入、固定／内容自适应布局、认证内容首次绘制前同步测高、提交后观察器补充测量、上游滤镜尺寸通知和统一 DOM |
 | `AuthCardSurface.tsx` | 认证卡片语义宿主、`720px` 响应式预设切换和单一认证玻璃实例 |
 | `FinancialBackdrop.tsx` | 根级唯一摄影 `<picture>`、响应式图片、高优先级加载、图片失败隐藏和单一氛围节点；不接收页面变体 props |
-| `ApplicationLoadingState.tsx` | 统一账号服务连接、代码包加载和权威游戏服务器连接的唯一全屏居中加载结构；三个入口只允许替换中文文字，不得恢复深色加载卡片或创建平行加载样式 |
+| `ApplicationLoadingState.tsx` | 统一账号服务连接、正式代码包加载、本地免登录预览代码包加载和权威游戏服务器连接的唯一全屏居中加载结构；四个入口只允许替换中文文字，不得恢复深色加载卡片或创建平行加载样式 |
 | `PhotographicStateShell.tsx` | 封禁、无权限和致命错误的语义状态、安全区内容几何与 critical 状态卡；不得承担普通加载状态或挂载摄影图片 |
 | `SignedInShell.tsx` | 游戏与管理员共享根外壳、侧栏／工作区轨道、唯一页面 `ScrollArea`、页面 Overlay 与 Chrome Overlay DOM 顺序；不得重新提供 `SignedInShell.backdrop` |
 | `GameShell.tsx` | 向共享外壳提供玩家侧栏、单一状态栏、统一通知入口、桌面关闭态 Toast、移动通知灵动岛、通知面板和玩家移动导航；不得挂载背景节点 |

@@ -21,8 +21,11 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/GemShopPage.tsx',
   'src/pages/SettingsPage.tsx',
   'all-pages-preview.html',
-  'runtime-test.html',
-  'tests/browser/runtime-harness.tsx',
+  'src/app/LocalGamePreviewApp.tsx',
+  'src/dev/localGamePreviewFetch.ts',
+  'src/dev/generated/local-game-preview-state.json',
+  'scripts/generate-local-game-preview.mjs',
+  'scripts/verify-local-game-preview.mjs',
   'tests/browser/all-pages-preview.spec.ts',
   'src/contracts/api.ts',
   'src/contracts/types.ts',
@@ -65,32 +68,36 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 ].forEach(requireFile);
 
 for (const text of [
-  'Economy 全页面预览',
-  'aria-label="十一个正式页面预览入口"',
-  'data-preview-page="overview"',
-  'data-preview-page="map"',
-  'data-preview-page="market"',
-  'data-preview-page="production"',
-  'data-preview-page="research"',
-  'data-preview-page="auction"',
-  'data-preview-page="contracts"',
-  'data-preview-page="bank"',
-  'data-preview-page="leaderboard"',
-  'data-preview-page="gem-shop"',
-  'data-preview-page="settings"',
-  'runtime-test.html?view=leaderboard&scenario=activity',
+  'Economy 免登录游戏模式',
+  'url=./?preview=game',
+  "window.location.replace('./?preview=game')",
 ]) requireText('all-pages-preview.html', text);
-const previewPageCount = (read('all-pages-preview.html').match(/data-preview-page=/g) || []).length;
-if (previewPageCount !== 11) failures.push(`本地全页面预览入口必须为 11 个，当前为 ${previewPageCount}`);
 for (const text of [
-  "import { LeaderboardPage } from '../../src/pages/LeaderboardPage'",
-  'function LeaderboardHarness()',
-  "view === 'leaderboard'",
-  '<LeaderboardPage model={model} />',
-]) requireText('tests/browser/runtime-harness.tsx', text);
+  'installLocalGamePreviewFetch()',
+  '<GameShell model={model} offline>',
+  '<PageRouter model={model} />',
+  'scopeEconomyState(authorityGame, selectedProvinceId)',
+  'PREVIEW_ACTION_MESSAGE',
+]) requireText('src/app/LocalGamePreviewApp.tsx', text);
 for (const text of [
+  "url.pathname.startsWith('/economy-api')",
+  "method !== 'GET'",
+  '不会提交真实操作',
+]) requireText('src/dev/localGamePreviewFetch.ts', text);
+for (const text of [
+  'import.meta.env.DEV',
+  "get('preview') === 'game'",
+  "import('./LocalGamePreviewApp')",
+]) requireText('src/app/App.tsx', text);
+for (const text of [
+  'offline = false',
+  'if (offline) return undefined',
+]) requireText('src/components/shell/GameShell.tsx', text);
+for (const text of [
+  "toHaveAttribute('data-local-game-preview', 'true')",
+  "page.locator('.game-shell')",
   "toHaveCount(11)",
-  "runtime-test.html?view=leaderboard&scenario=activity",
+  "expect(apiRequests).toEqual([])",
   "toHaveCount(4)",
 ]) requireText('tests/browser/all-pages-preview.spec.ts', text);
 

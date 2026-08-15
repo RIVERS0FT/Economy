@@ -11,10 +11,16 @@ import { LoginPage } from './LoginPage';
 import '../styles/invitations.css';
 
 const initialAdminPath = window.location.pathname.replace(/\/+$/, '') === '/economy/admin';
+const initialLocalGamePreview = import.meta.env.DEV
+  && new URLSearchParams(window.location.search).get('preview') === 'game';
 const adminAppModule = initialAdminPath ? import('./AdminApp') : null;
 const gameAppModule = initialAdminPath ? null : import('./GameApp');
+const localGamePreviewModule = initialLocalGamePreview ? import('./LocalGamePreviewApp') : null;
 const AdminApp = lazy(() => (adminAppModule ?? import('./AdminApp')).then((module) => ({ default: module.AdminApp })));
 const GameApp = lazy(() => (gameAppModule ?? import('./GameApp')).then((module) => ({ default: module.GameApp })));
+const LocalGamePreviewApp = localGamePreviewModule
+  ? lazy(() => localGamePreviewModule.then((module) => ({ default: module.LocalGamePreviewApp })))
+  : null;
 
 type AppSurface = 'loading' | 'auth' | 'game' | 'admin' | 'banned';
 
@@ -52,7 +58,7 @@ function BannedAccount({ incidentId }: { incidentId?: number }) {
   );
 }
 
-export default function App() {
+function AuthenticatedApp() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<EconomySessionResponse | null>(null);
   const [checking, setChecking] = useState(true);
@@ -157,4 +163,15 @@ export default function App() {
         : <GameApp user={user} onSignedOut={() => { setUser(null); setSession(null); }} />}
     </Suspense>
   );
+}
+
+export default function App() {
+  if (LocalGamePreviewApp) {
+    return (
+      <Suspense fallback={<ApplicationLoadingState>正在加载本地免登录游戏…</ApplicationLoadingState>}>
+        <LocalGamePreviewApp />
+      </Suspense>
+    );
+  }
+  return <AuthenticatedApp />;
 }

@@ -63,8 +63,14 @@ installIdempotentGameWriteFetch();
 configureRuntimePerformance();
 
 const initialPath = window.location.pathname.replace(/\/+$/, '');
+const initialLocalGamePreview = import.meta.env.DEV
+  && new URLSearchParams(window.location.search).get('preview') === 'game';
 document.documentElement.dataset.appSurface = 'loading';
-document.documentElement.dataset.appBackdrop = initialPath === '/economy/admin' ? 'admin' : 'auth';
+document.documentElement.dataset.appBackdrop = initialLocalGamePreview
+  ? 'game'
+  : initialPath === '/economy/admin'
+    ? 'admin'
+    : 'auth';
 document.documentElement.dataset.appTone = 'normal';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(

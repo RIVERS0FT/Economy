@@ -99,7 +99,7 @@ npm run dev
 
 开发地址：<http://localhost:1420/economy/>
 
-只查看界面、不启动账号服务和游戏服务时，打开全页面预览目录：<http://localhost:1420/economy/all-pages-preview.html>。该目录使用固定模拟数据，提供十一个正式玩家页面的独立入口；它不是正式路由，也不会执行真实经济写操作。
+只查看界面、不启动账号服务和游戏服务时，打开免登录游戏模式：<http://localhost:1420/economy/all-pages-preview.html>（也可直接打开 <http://localhost:1420/economy/?preview=game>）。该模式只在 Vite 开发环境启用，使用固定模拟数据加载正式游戏外壳、完整导航和十一个正式玩家页面；页面切换与州级经营位置选择可正常使用，但不会连接账号／游戏服务，不会执行或保存真实经济写操作。
 
 Vite 会将 `/economy-api` 代理到 `127.0.0.1:3001`，并将 `/economy-api/game` 代理到 `127.0.0.1:3002`。只进行界面开发时可以单独启动前端；完整登录、注册和游戏流程还需要对应的本地账号服务与 Economy 游戏服务。
 

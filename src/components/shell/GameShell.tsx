@@ -18,10 +18,11 @@ import { MobileBottomNavigation } from './MobileBottomNavigation';
 import { SignedInShell } from './SignedInShell';
 import { StatusBar, type StatusBarItem } from './StatusBar';
 
-export function GameShell({ model, children }: {
+export function GameShell({ model, children, offline = false }: {
   model: LoadedGameViewModel;
   statusItems?: StatusBarItem[];
   children: ReactNode;
+  offline?: boolean;
 }) {
   const authorityGame = useGameAuthorityDependencies(['player.identity', 'player.assets', 'leaderboard']);
   const game = authorityGame ?? model.game;
@@ -98,12 +99,13 @@ export function GameShell({ model, children }: {
   ]);
 
   useEffect(() => {
+    if (offline) return undefined;
     const controller = new AbortController();
     void getCommunityLink(controller.signal)
       .then((config) => setQqGroupUrl(config.qqGroupUrl))
       .catch(() => { /* Keep the bundled default when configuration cannot be loaded. */ });
     return () => controller.abort();
-  }, []);
+  }, [offline]);
 
   useEffect(() => {
     notificationCenter.closePanel();

@@ -125,10 +125,11 @@ for (const text of [
   '<ApplicationLoadingState>',
   '正在连接统一账号服务',
   '正在加载金融帝国',
+  '正在加载本地免登录游戏',
 ]) requireText('src/app/App.tsx', text);
 const appSource = read('src/app/App.tsx');
-if ((appSource.match(/<ApplicationLoadingState>/g) ?? []).length !== 2) {
-  failures.push('App.tsx 必须且只能为账号检查和代码包加载渲染两个 ApplicationLoadingState');
+if ((appSource.match(/<ApplicationLoadingState>/g) ?? []).length !== 3) {
+  failures.push('App.tsx 必须且只能为账号检查、正式代码包和本地免登录代码包加载渲染三个 ApplicationLoadingState');
 }
 
 for (const text of [
@@ -268,7 +269,7 @@ for (const text of [
   '摄影节点固定在 `main.tsx`',
   '`data-app-backdrop`',
   '`data-app-tone`',
-  '统一账号服务连接、代码包加载与权威游戏服务器连接统一由 `ApplicationLoadingState`',
+  '统一账号服务连接、正式代码包加载、本地免登录预览代码包加载与权威游戏服务器连接统一由 `ApplicationLoadingState`',
   '不得恢复深色加载卡片或创建平行加载样式',
   '不得在 `LoginPage`、`ApplicationLoadingState`、`GameErrorStateShell`、`GameShell`、`AdminApp` 或 `PhotographicStateShell` 中重新挂载',
   '`tests/browser/application-photography.spec.ts`',
@@ -280,7 +281,7 @@ for (const text of [
   '页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`',
   '不得重新提供 `SignedInShell.backdrop`',
   '`ApplicationLoadingState.tsx`',
-  '三个入口只允许替换中文文字',
+  '四个入口只允许替换中文文字',
   '`application-photography.spec.ts`',
   '不得出现纯色过渡页',
   '认证、玩家、管理员与根级状态统一使用图片层 `z-index:-2`、氛围层 `z-index:-1` 和 `.application-content-root` 的 `z-index:auto`',
