@@ -111,6 +111,8 @@ test('desktop sidebar uses the server-configured QQ group link', async ({ page }
   });
 
   await page.goto('runtime-test.html?view=overview&scenario=empty');
+  await page.getByRole('button', { name: '展开侧栏' }).click();
+  await expect(page.locator('.desktop-sidebar')).toHaveAttribute('data-collapsed', 'false');
   const communityLink = page.getByRole('link', { name: '加入 QQ 群（在新窗口打开）' });
   const expandedLogo = page.locator('.sidebar-logo-expand-button img');
   const overviewIcon = page.getByRole('button', { name: '概览', exact: true }).locator('svg');
@@ -375,21 +377,39 @@ test('overview keeps the decision rows visible and adapts to a narrower desktop'
   expect(pageErrors).toEqual([]);
 });
 
-test('desktop sidebar collapse recomputes overview columns from the real content width', async ({ page }) => {
+test('desktop command rail expansion overlays the map without reflowing overview', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('runtime-test.html?view=overview&scenario=empty');
 
-  expect(await gridTrackCount(page.locator('.overview-primary-grid'))).toBe(1);
-  expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(2);
+  const shell = page.locator('.game-shell');
+  const sidebar = page.locator('.desktop-sidebar');
+  const workspace = page.locator('.workspace');
+  const overviewPanel = page.locator('.strategic-page-host--workspace > .page-content');
+  await expect(shell).toHaveClass(/sidebar-collapsed/);
+  await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+  expect(await gridTrackCount(page.locator('.overview-primary-grid'))).toBe(2);
+  expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(3);
 
-  const toggle = page.getByRole('button', { name: '折叠侧栏' });
+  const workspaceBefore = await requireBox(workspace);
+  const overviewBefore = await requireBox(overviewPanel);
+
+  const toggle = page.getByRole('button', { name: '展开侧栏' });
   await toggle.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('button', { name: '展开侧栏' })).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.locator('.game-shell')).toHaveClass(/sidebar-collapsed/);
-  await expect(page.getByRole('button', { name: '市场', exact: true })).toBeVisible();
-  await expect.poll(() => gridTrackCount(page.locator('.overview-primary-grid'))).toBe(2);
-  await expect.poll(() => gridTrackCount(page.locator('.overview-summary-row'))).toBe(3);
+  await expect(page.getByRole('button', { name: '折叠侧栏' })).toHaveAttribute('aria-expanded', 'true');
+  await expect(shell).not.toHaveClass(/sidebar-collapsed/);
+  await expect(sidebar).toHaveAttribute('data-collapsed', 'false');
+  await expect(sidebar.getByRole('button', { name: '市场', exact: true })).toBeVisible();
+  await page.waitForTimeout(240);
+
+  const workspaceAfter = await requireBox(workspace);
+  const overviewAfter = await requireBox(overviewPanel);
+  const sidebarAfter = await requireBox(sidebar);
+  expect(workspaceAfter).toEqual(workspaceBefore);
+  expect(overviewAfter).toEqual(overviewBefore);
+  expect(sidebarAfter.x + sidebarAfter.width).toBeGreaterThan(workspaceAfter.x + 100);
+  expect(await gridTrackCount(page.locator('.overview-primary-grid'))).toBe(2);
+  expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(3);
   expect(pageErrors).toEqual([]);
 });

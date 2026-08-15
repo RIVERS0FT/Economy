@@ -234,9 +234,9 @@ test.describe('notification center geometry', () => {
     expect(geometry.islandCount).toBe(1);
     expect(geometry.glassCount).toBe(1);
     expect(geometry.shellBodyZIndex).toBe('0');
-    expect(geometry.pageLayerZIndex).toBe('0');
+    expect(geometry.pageLayerZIndex).toBe('1');
     expect(geometry.pageLayerOrder).toBe('1');
-    expect(geometry.floatingLayerZIndex).toBe('1');
+    expect(geometry.floatingLayerZIndex).toBe('4');
     expect(geometry.floatingLayerOrder).toBe('2');
     expect(geometry.panelCloseIsTopmost).toBe(true);
   });

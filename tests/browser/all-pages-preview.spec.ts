@@ -44,7 +44,7 @@ test('account-free game shell navigates all eleven formal player pages', async (
   await sidebar.getByRole('button', { name: /^地图/ }).click();
   await page.getByRole('combobox', { name: '州级地区' }).click();
   await page.getByRole('option', { name: '得克萨斯州' }).click();
-  await expect(page.locator('.province-detail-panel')).toContainText('得克萨斯州');
+  await expect(page.locator('.strategic-province-inspector')).toContainText('得克萨斯州');
 });
 
 test('leaderboard and local-only service summaries are populated in the full shell', async ({ page }) => {
@@ -53,7 +53,7 @@ test('leaderboard and local-only service summaries are populated in the full she
 
   await sidebar.getByRole('button', { name: /^排行/ }).click();
   await expect(page.locator('.leaderboard-board-card')).toHaveCount(4);
-  await expect(page.getByText('本地预览玩家', { exact: true }).first()).toBeVisible();
+  await expect(page.locator('.leaderboard-board-card').getByText('本地预览玩家', { exact: true }).first()).toBeVisible();
 
   await sidebar.getByRole('button', { name: /^商店/ }).click();
   await expect(page.getByText('1 宝石 = 1,280 货币', { exact: true })).toBeVisible();

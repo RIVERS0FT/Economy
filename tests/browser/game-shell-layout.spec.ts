@@ -6,11 +6,15 @@ type ShellGeometry = {
   shell: { left: number; top: number; right: number; bottom: number };
   body: { left: number; top: number; right: number; bottom: number };
   chrome: { left: number; top: number; right: number; bottom: number };
+  backgroundLayer: { left: number; top: number; right: number; bottom: number };
+  strategicChrome: { left: number; top: number; right: number; bottom: number };
   floatingLayer: { left: number; top: number; right: number; bottom: number };
   sidebar: { left: number; top: number; right: number; bottom: number };
   workspace: { left: number; top: number; right: number; bottom: number };
   assetBar: { left: number; top: number; right: number; bottom: number };
   pageScroll: { left: number; top: number; right: number; bottom: number };
+  pageHost: { left: number; top: number; right: number; bottom: number };
+  lensBar: { left: number; top: number; right: number; bottom: number };
   pageContent: { left: number; width: number; right: number; contentRight: number };
   contentGrid: { left: number; right: number };
   primaryCardGap: number;
@@ -30,6 +34,8 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
     const shell = document.querySelector<HTMLElement>('.game-shell');
     const body = document.querySelector<HTMLElement>('.signed-in-shell__body');
     const chrome = document.querySelector<HTMLElement>('.signed-in-shell__chrome');
+    const backgroundLayer = document.querySelector<HTMLElement>('.workspace-background-layer');
+    const strategicChrome = document.querySelector<HTMLElement>('.workspace-strategic-chrome');
     const floatingLayer = document.querySelector<HTMLElement>('.workspace-floating-layer');
     const sidebar = document.querySelector<HTMLElement>('.desktop-sidebar');
     const workspace = document.querySelector<HTMLElement>('.workspace');
@@ -37,6 +43,8 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
     const pageScrollArea = document.querySelector<HTMLElement>('.page-scroll-area');
     const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
     const pageContent = document.querySelector<HTMLElement>('.page-content');
+    const pageHost = document.querySelector<HTMLElement>('.strategic-page-host');
+    const lensBar = document.querySelector<HTMLElement>('.strategic-map-lens-bar');
     const contentGrid = document.querySelector<HTMLElement>('.home-grid');
     const primaryGrid = document.querySelector<HTMLElement>('.overview-primary-grid');
     const pageScrollbarRail = pageScrollArea?.querySelector<HTMLElement>(':scope > .ui-scrollbar--vertical');
@@ -48,6 +56,8 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
       !shell
       || !body
       || !chrome
+      || !backgroundLayer
+      || !strategicChrome
       || !floatingLayer
       || !sidebar
       || !workspace
@@ -55,6 +65,8 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
       || !pageScrollArea
       || !pageScroll
       || !pageContent
+      || !pageHost
+      || !lensBar
       || !contentGrid
       || !primaryGrid
       || !pageScrollbarRail
@@ -88,11 +100,15 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
       shell: rect(shell),
       body: rect(body),
       chrome: rect(chrome),
+      backgroundLayer: rect(backgroundLayer),
+      strategicChrome: rect(strategicChrome),
       floatingLayer: rect(floatingLayer),
       sidebar: rect(sidebar),
       workspace: rect(workspace),
       assetBar: rect(assetBar),
       pageScroll: rect(pageScrollArea),
+      pageHost: rect(pageHost),
+      lensBar: rect(lensBar),
       pageContent: {
         left: pageContentRect.left,
         width: pageContentRect.width,
@@ -136,7 +152,8 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
   });
 }
 
-function expectUnifiedDesktopGutter(layout: ShellGeometry, gutter: number) {
+function expectStrategicDesktopLayout(layout: ShellGeometry, panelGap: number) {
+  const gutter = 8;
   expect(layout.shell.left).toBeCloseTo(0, 0);
   expect(layout.shell.top).toBeCloseTo(0, 0);
   expect(layout.shell.right).toBeCloseTo(layout.viewportWidth, 0);
@@ -161,6 +178,7 @@ function expectUnifiedDesktopGutter(layout: ShellGeometry, gutter: number) {
   expect(layout.sidebar.top).toBeCloseTo(layout.body.top, 0);
   expect(layout.viewportHeight - layout.sidebar.bottom).toBeCloseTo(gutter, 0);
   expect(layout.workspace.left - layout.sidebar.right).toBeCloseTo(gutter, 0);
+  expect(layout.sidebar.right - layout.sidebar.left).toBeCloseTo(78, 0);
 
   expect(layout.workspace.top).toBeCloseTo(layout.body.top, 0);
   expect(layout.workspace.right).toBeCloseTo(layout.viewportWidth, 0);
@@ -175,18 +193,25 @@ function expectUnifiedDesktopGutter(layout: ShellGeometry, gutter: number) {
   expect(layout.floatingLayer.top).toBeCloseTo(layout.workspace.top, 0);
   expect(layout.floatingLayer.right).toBeCloseTo(layout.workspace.right, 0);
   expect(layout.floatingLayer.bottom).toBeCloseTo(layout.workspace.bottom, 0);
+  expect(layout.backgroundLayer).toEqual(layout.workspace);
+  expect(layout.strategicChrome).toEqual(layout.workspace);
 
-  expect(layout.pageContent.left).toBeCloseTo(layout.pageScroll.left, 0);
-  expect(layout.pageContent.width).toBeCloseTo(layout.pageScrollClientWidth, 0);
+  expect(layout.pageHost.left).toBeCloseTo(layout.pageScroll.left, 0);
+  expect(layout.pageHost.right).toBeCloseTo(layout.pageScroll.right, 0);
+  expect(layout.pageContent.left).toBeCloseTo(layout.pageScroll.left + panelGap, 0);
+  expect(layout.pageContent.width).toBeLessThan(layout.pageScrollClientWidth);
   expect(layout.pageContent.right).toBeLessThanOrEqual(layout.pageScroll.right + 1);
-  expect(layout.pageContent.contentRight).toBeCloseTo(layout.assetBar.right, 0);
-  expect(layout.contentGrid.left).toBeCloseTo(layout.workspace.left, 0);
-  expect(layout.contentGrid.right).toBeCloseTo(layout.assetBar.right, 0);
-  expect(layout.primaryCardGap).toBeCloseTo(gutter, 0);
+  expect(layout.contentGrid.left).toBeGreaterThanOrEqual(layout.pageContent.left);
+  expect(layout.contentGrid.right).toBeLessThanOrEqual(layout.pageContent.right);
+  expect(layout.primaryCardGap).toBeGreaterThan(0);
+  expect(layout.primaryCardGap).toBeLessThanOrEqual(24);
   expect(layout.pageContentMaxWidth).toBe('none');
   expect(layout.pageContentMargin).toEqual(['0px', '0px']);
-  expect(layout.pageContentPadding).toEqual(['0px', `${gutter}px`, `${gutter}px`]);
+  expect(layout.pageContentPadding).toEqual([`${panelGap}px`, `${panelGap}px`, `${panelGap}px`]);
   expect(layout.pageScrollHasHorizontalOverflow).toBe(false);
+  expect(layout.lensBar.bottom).toBeCloseTo(layout.workspace.bottom - panelGap, 0);
+  expect((layout.lensBar.left + layout.lensBar.right) / 2)
+    .toBeCloseTo((layout.workspace.left + layout.workspace.right) / 2, 0);
 
   expect(layout.pageScrollbar.railTop).toBeCloseTo(layout.body.top, 0);
   expect(layout.pageScrollbar.railRight).toBeCloseTo(layout.viewportWidth, 0);
@@ -194,8 +219,8 @@ function expectUnifiedDesktopGutter(layout: ShellGeometry, gutter: number) {
   expect(layout.pageScrollbar.thumbRight).toBeCloseTo(layout.viewportWidth, 0);
 }
 
-test.describe('full-width signed-in game shell', () => {
-  test('desktop shell uses one 12px gutter for full-width status bar, lower sidebar, cards and page edges', async ({ page }) => {
+test.describe('persistent-map grand-strategy game shell', () => {
+  test('desktop shell keeps an 8px chrome gutter, fixed command rail, map stage, and overlay panel host', async ({ page }) => {
     await page.setViewportSize({ width: 1684, height: 931 });
     await page.goto('runtime-test.html?view=overview&scenario=empty');
     await expect(page.locator('.game-shell')).toBeVisible();
@@ -204,23 +229,23 @@ test.describe('full-width signed-in game shell', () => {
     await expect(page.locator('.page-scroll-area')).toBeVisible();
     await expect(page.locator('.page-content')).toBeVisible();
 
-    expectUnifiedDesktopGutter(await readShellGeometry(page), 12);
+    expectStrategicDesktopLayout(await readShellGeometry(page), 10);
   });
 
-  test('compact desktop width keeps the full-width status bar and lower shell on the same 8px gutter', async ({ page }) => {
+  test('compact desktop keeps the persistent map and overlay panel on the 8px strategic grid', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 900 });
     await page.goto('runtime-test.html?view=overview&scenario=empty');
     await expect(page.locator('.game-shell')).toBeVisible();
 
-    expectUnifiedDesktopGutter(await readShellGeometry(page), 8);
+    expectStrategicDesktopLayout(await readShellGeometry(page), 8);
   });
 
-  test('short desktop height keeps the full-width status bar and lower shell on the same 8px gutter', async ({ page }) => {
+  test('short desktop keeps the persistent map and command chrome inside the viewport', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 700 });
     await page.goto('runtime-test.html?view=overview&scenario=empty');
     await expect(page.locator('.game-shell')).toBeVisible();
 
-    expectUnifiedDesktopGutter(await readShellGeometry(page), 8);
+    expectStrategicDesktopLayout(await readShellGeometry(page), 10);
   });
 
   test('desktop navigation rows keep intrinsic height and stack from the top', async ({ page }) => {
@@ -253,27 +278,27 @@ test.describe('full-width signed-in game shell', () => {
     expect(Math.max(...geometry.gaps)).toBeLessThanOrEqual(12);
   });
 
-  test('sidebar collapse leaves the full-width status bar fixed and only expands the lower workspace', async ({ page }) => {
+  test('command rail expands over the map without moving the workspace or status bar', async ({ page }) => {
     await page.setViewportSize({ width: 1684, height: 931 });
     await page.goto('runtime-test.html?view=overview&scenario=empty');
 
-    const expanded = await readShellGeometry(page);
-    expectUnifiedDesktopGutter(expanded, 12);
+    const collapsed = await readShellGeometry(page);
+    expectStrategicDesktopLayout(collapsed, 10);
 
-    await page.getByRole('button', { name: '折叠侧栏' }).click();
-    await expect(page.locator('.desktop-sidebar')).toHaveAttribute('data-collapsed', 'true');
+    await page.getByRole('button', { name: '展开侧栏' }).click();
+    await expect(page.locator('.desktop-sidebar')).toHaveAttribute('data-collapsed', 'false');
     await page.waitForTimeout(240);
 
-    const collapsed = await readShellGeometry(page);
-    expectUnifiedDesktopGutter(collapsed, 12);
+    const expanded = await readShellGeometry(page);
     expect(expanded.sidebar.left).toBeCloseTo(collapsed.sidebar.left, 0);
     expect(expanded.assetBar.left).toBeCloseTo(collapsed.assetBar.left, 0);
     expect(expanded.assetBar.right).toBeCloseTo(collapsed.assetBar.right, 0);
     expect(expanded.assetBar.top).toBeCloseTo(collapsed.assetBar.top, 0);
-    expect(expanded.workspace.left - collapsed.workspace.left).toBeCloseTo(146, 0);
-    expect(expanded.pageScroll.left - collapsed.pageScroll.left).toBeCloseTo(146, 0);
-    expect(expanded.pageContent.left - collapsed.pageContent.left).toBeCloseTo(146, 0);
-    expect(expanded.contentGrid.left - collapsed.contentGrid.left).toBeCloseTo(146, 0);
+    expect(expanded.sidebar.right - collapsed.sidebar.right).toBeCloseTo(146, 0);
+    expect(expanded.workspace.left).toBeCloseTo(collapsed.workspace.left, 0);
+    expect(expanded.pageScroll.left).toBeCloseTo(collapsed.pageScroll.left, 0);
+    expect(expanded.pageContent.left).toBeCloseTo(collapsed.pageContent.left, 0);
+    expect(expanded.backgroundLayer).toEqual(collapsed.backgroundLayer);
   });
 
   test('page vertical scrollbar reacts only to actual scrolling and hides after idle', async ({ page }) => {

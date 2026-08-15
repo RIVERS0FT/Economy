@@ -28,13 +28,13 @@ test('game ECharts tooltip remains inside the lower workspace and never covers s
   const y = box.y + (plot.top + plot.bottom) / 2;
   await page.mouse.move(x, y);
 
-  const tooltip = page.locator('.economy-chart-tooltip');
+  const tooltip = chart.locator('.economy-chart-tooltip');
   await expect(tooltip).toBeVisible();
   const geometry = await page.evaluate(() => {
     const workspace = document.querySelector<HTMLElement>('.workspace');
     const status = document.querySelector<HTMLElement>('.asset-bar');
     const sidebar = document.querySelector<HTMLElement>('.desktop-sidebar');
-    const tooltip = document.querySelector<HTMLElement>('.economy-chart-tooltip');
+    const tooltip = document.querySelector<HTMLElement>('.market-history-chart.full .economy-chart-tooltip');
     if (!workspace || !status || !sidebar || !tooltip) throw new Error('游戏浮层安全区结构缺失');
     const rect = (element: HTMLElement) => {
       const box = element.getBoundingClientRect();

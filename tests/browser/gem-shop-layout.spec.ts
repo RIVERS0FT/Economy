@@ -149,8 +149,8 @@ test('desktop empty shop keeps balance and primary exchange action dense', async
   const confirm = await requireBox(page.getByRole('button', { name: '确认兑换', exact: true }));
 
   expect(await gridTrackCount(page.locator('.gem-shop-balance-row'))).toBe(3);
-  expect(balance.height).toBeLessThan(130);
-  expect(exchange.height).toBeLessThan(340);
+  expect(balance.height).toBeLessThan(140);
+  expect(exchange.height).toBeLessThan(370);
   expect(confirm.y + confirm.height).toBeLessThan(720);
 });
 

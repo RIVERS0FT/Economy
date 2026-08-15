@@ -59,6 +59,7 @@ requireText('src/components/charts/EconomyChart.tsx', [
   "updateMode = 'replace'", "notMerge: updateMode !== 'merge'",
   'resolveEChartsCssColors', 'dataset.echartsCssColorsResolved', 'applyChartOption',
   'onChartReadyRef.current?.(chart)', 'onOptionAppliedRef.current?.(chart)',
+  'hasRenderableSize', 'if (!hasRenderableSize(container)) return;',
   "chart.on('click', handleClick)", "chart.off('click', handleClick)",
 ]);
 requireText('src/components/provinces/UsMainlandMap.tsx', [
@@ -82,6 +83,7 @@ requireText('tests/browser/chart-hover-visibility.spec.ts', [
 ]);
 requireText('docs/UI_DESIGN_SYSTEM.md', [
   '`EconomyChart` 是业务数据图表的唯一 React 入口', '不得引入 `echarts-for-react`', 'ECharts 必须随市场、地图、银行和管理员页面',
+  '图表容器宽或高为 `0` 时必须延迟 `setOption` 并跳过 `resize`',
   'ECharts Geo/Map', 'us-atlas',
   '`PIE_PAD_ANGLE = 5`', '`padAngle: PIE_PAD_ANGLE`', 'STABLE_TOOLTIP_EMPHASIS',
   '不得把 `var(--color-*)` 原样交给 ZRender', '每次 `setOption` 前读取图表容器的浏览器计算样式',

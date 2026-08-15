@@ -21,6 +21,7 @@ for (const path of [
   'src/components/system/ApplicationLoadingState.tsx',
   'src/components/shell/SignedInShell.tsx',
   'src/components/shell/GameShell.tsx',
+  'src/components/shell/StrategicWorkspace.tsx',
   'src/app/LoginPage.tsx',
   'src/app/GameApp.tsx',
   'src/app/AdminApp.tsx',
@@ -29,6 +30,7 @@ for (const path of [
   'src/styles/financial-backdrop.css',
   'src/styles/liquid-glass-chrome.css',
   'src/styles/viewport.css',
+  'src/styles/strategic-game-shell.css',
   'src/main.tsx',
   'runtime-test.html',
   'market-runtime-test.html',
@@ -41,7 +43,10 @@ for (const path of [
 
 for (const text of [
   '{sidebar}',
+  'className="workspace-background-layer"',
   'className="mobile-page-overlay"',
+  'className="workspace-strategic-chrome"',
+  'className="workspace-floating-layer"',
   "'mobile-chrome-overlay'",
   '{chrome}',
 ]) requireText('src/components/shell/SignedInShell.tsx', text);
@@ -49,10 +54,18 @@ for (const text of ['backdrop?: ReactNode;', '{backdrop}']) forbidText('src/comp
 
 const sharedShell = read('src/components/shell/SignedInShell.tsx');
 const sidebarIndex = sharedShell.indexOf('{sidebar}');
+const workspaceBackgroundIndex = sharedShell.indexOf('className="workspace-background-layer"');
 const pageOverlayIndex = sharedShell.indexOf('className="mobile-page-overlay"');
+const workspaceStrategicChromeIndex = sharedShell.indexOf('className="workspace-strategic-chrome"');
+const workspaceFloatingLayerIndex = sharedShell.indexOf('className="workspace-floating-layer"');
 const chromeOverlayIndex = sharedShell.indexOf("'mobile-chrome-overlay'");
-if (!(sidebarIndex >= 0 && pageOverlayIndex > sidebarIndex && chromeOverlayIndex > pageOverlayIndex)) {
-  failures.push('SignedInShell 必须按侧栏、页面 Overlay、Chrome Overlay 顺序渲染');
+if (!(sidebarIndex >= 0
+  && workspaceBackgroundIndex > sidebarIndex
+  && pageOverlayIndex > workspaceBackgroundIndex
+  && workspaceStrategicChromeIndex > pageOverlayIndex
+  && workspaceFloatingLayerIndex > workspaceStrategicChromeIndex
+  && chromeOverlayIndex > workspaceFloatingLayerIndex)) {
+  failures.push('SignedInShell 必须按侧栏、工作区背景、页面 Overlay、战略 Chrome、工作区浮层、根 Chrome 顺序渲染');
 }
 
 for (const text of [
@@ -85,9 +98,11 @@ forbidText('src/components/system/ApplicationLoadingState.tsx', 'PhotographicSta
 forbidText('src/components/system/ApplicationLoadingState.tsx', 'FinancialBackdrop');
 
 for (const text of [
-  'rootClassName="game-shell"',
+  'rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}`}',
   '<DesktopSidebar',
   '<StatusBar',
+  'workspaceBackground={<StrategicMapStage model={model} lens={mapLens} />}',
+  '<StrategicWorkspaceChrome',
   'action={(',
   'NotificationCenterButton',
 ]) requireText('src/components/shell/GameShell.tsx', text);
@@ -292,6 +307,10 @@ for (const text of [
   "page.locator('.application-image-layer')",
   "page.locator('.application-atmosphere-layer')",
   'one persistent photography node',
+  'workspaceLayerIsolations',
+  'backgroundIndex: workspaceChildren.indexOf(workspaceBackground)',
+  'strategicChromeIndex: workspaceChildren.indexOf(workspaceStrategicChrome)',
+  'floatingLayerIndex: workspaceChildren.indexOf(workspaceFloatingLayer)',
   'falls back to the atmosphere layer when photography fails',
 ]) requireText('tests/browser/game-three-layer.spec.ts', text);
 

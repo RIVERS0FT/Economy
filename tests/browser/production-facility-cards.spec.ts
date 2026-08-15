@@ -118,7 +118,7 @@ test.describe('production facility selector cards', () => {
     expect(optionBox?.height ?? 0).toBeGreaterThanOrEqual(63);
   });
 
-  test('expands selector cards from three to six columns on wide desktops', async ({ page }) => {
+  test('uses the wider strategic workspace while capping selector cards at six columns', async ({ page }) => {
     const columnCounts: number[] = [];
 
     for (const width of [1600, 1920, 2560]) {
@@ -158,7 +158,7 @@ test.describe('production facility selector cards', () => {
       expect(geometry.fitsViewport).toBe(true);
     }
 
-    expect(columnCounts).toEqual([3, 4, 6]);
+    expect(columnCounts).toEqual([3, 5, 6]);
   });
 
 });

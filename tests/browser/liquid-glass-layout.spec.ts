@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test.describe('liquid glass shell geometry', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('desktop status bar uses the shared authentication-card material and shell inset', async ({ page }) => {
+  test('desktop status bar uses the shared authentication-card material and shell inset with an 8px strategic gutter', async ({ page }) => {
     await page.goto('runtime-test.html?view=overview&scenario=activity');
     await expect(page.locator('.asset-bar')).toBeVisible();
     const glassSurface = page.locator('.asset-bar .liquid-glass-surface');
@@ -102,13 +102,13 @@ test.describe('liquid glass shell geometry', () => {
       };
     });
 
-    expect(layout.assetBarAreaWidth).toBeCloseTo(layout.viewportWidth - 24, 0);
+    expect(layout.assetBarAreaWidth).toBeCloseTo(layout.viewportWidth - 16, 0);
     expect(Math.abs(layout.assetBarWidth - layout.assetBarAreaWidth)).toBeLessThanOrEqual(1);
     expect(Math.abs(layout.surfaceWidth - layout.assetBarWidth)).toBeLessThanOrEqual(1);
-    expect(layout.assetBarLeft).toBeCloseTo(12, 0);
-    expect(layout.assetBarTop).toBeCloseTo(12, 0);
-    expect(layout.assetBarRightGap).toBeCloseTo(12, 0);
-    expect(layout.workspaceTop - layout.assetBarBottom).toBeCloseTo(12, 0);
+    expect(layout.assetBarLeft).toBeCloseTo(8, 0);
+    expect(layout.assetBarTop).toBeCloseTo(8, 0);
+    expect(layout.assetBarRightGap).toBeCloseTo(8, 0);
+    expect(layout.workspaceTop - layout.assetBarBottom).toBeCloseTo(8, 0);
     expect(layout.assetBarDisplay).not.toBe('grid');
     expect(layout.surfaceOverflowX).toBe('hidden');
     expect(layout.surfaceContain).toBe('none');
@@ -232,6 +232,7 @@ test.describe('mobile liquid glass host geometry', () => {
       const pageOverlayElement = document.querySelector<HTMLElement>('.mobile-page-overlay');
       const chromeOverlayElement = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
       const pageScrollElement = document.querySelector<HTMLElement>('.page-scroll');
+      const strategicPagePanelElement = document.querySelector<HTMLElement>('.strategic-page-host > .page-content');
       const statusHostElement = document.querySelector<HTMLElement>('.asset-bar');
       const navigationHostElement = document.querySelector<HTMLElement>('.mobile-bottom-navigation');
       const statusSurfaceElement = document.querySelector<HTMLElement>('.asset-bar .liquid-glass-surface');
@@ -250,6 +251,7 @@ test.describe('mobile liquid glass host geometry', () => {
       );
       const primaryPanelElement = document.querySelector<HTMLElement>('.overview-today-panel');
       if (!workspaceElement || !pageOverlayElement || !chromeOverlayElement || !pageScrollElement
+        || !strategicPagePanelElement
         || !statusHostElement || !navigationHostElement || !statusSurfaceElement
         || !navigationSurfaceElement || !statusWarpElement || !navigationWarpElement
         || !statusGlassElement || !navigationGlassElement || !primaryPanelElement) {
@@ -290,7 +292,9 @@ test.describe('mobile liquid glass host geometry', () => {
       return {
         statusSurface: rect(statusSurfaceElement),
         navigationSurface: rect(navigationSurfaceElement),
+        strategicPagePanel: rect(strategicPagePanelElement),
         primaryPanel: rect(primaryPanelElement),
+        strategicPagePanelRadius: getComputedStyle(strategicPagePanelElement).borderTopLeftRadius,
         statusRadius: statusSurfaceStyle.borderTopLeftRadius,
         navigationRadius: navigationSurfaceStyle.borderTopLeftRadius,
         primaryPanelRadius: getComputedStyle(primaryPanelElement).borderTopLeftRadius,
@@ -332,13 +336,14 @@ test.describe('mobile liquid glass host geometry', () => {
       };
     });
 
-    expect(geometry.statusSurface.left).toBeCloseTo(geometry.primaryPanel.left, 0);
-    expect(geometry.statusSurface.right).toBeCloseTo(geometry.primaryPanel.right, 0);
-    expect(geometry.navigationSurface.left).toBeCloseTo(geometry.primaryPanel.left, 0);
-    expect(geometry.navigationSurface.right).toBeCloseTo(geometry.primaryPanel.right, 0);
+    expect(geometry.statusSurface.left).toBeCloseTo(geometry.strategicPagePanel.left, 0);
+    expect(geometry.statusSurface.right).toBeCloseTo(geometry.strategicPagePanel.right, 0);
+    expect(geometry.navigationSurface.left).toBeCloseTo(geometry.strategicPagePanel.left, 0);
+    expect(geometry.navigationSurface.right).toBeCloseTo(geometry.strategicPagePanel.right, 0);
     expect(geometry.statusRadius).toBe('40px');
     expect(geometry.navigationRadius).toBe('40px');
     expect(geometry.primaryPanelRadius).toBe('40px');
+    expect(geometry.strategicPagePanelRadius).toBe('16px');
     expect(geometry.statusMode).toBe('standard');
     expect(geometry.navigationMode).toBe('standard');
     expect(geometry.statusVariant).toBe('mobileStatusBar');
@@ -371,7 +376,7 @@ test.describe('mobile liquid glass host geometry', () => {
     expect(geometry.statusContentOverflow).toBe(false);
     expect(geometry.statusOutlineContent).toBe('none');
     expect(geometry.workspaceIsolation).toBe('auto');
-    expect(geometry.pageOverlayZIndex).toBe('0');
+    expect(geometry.pageOverlayZIndex).toBe('1');
     expect(geometry.chromeOverlayZIndex).toBe('auto');
     expect(geometry.pageScrollZIndex).toBe('auto');
     expect(geometry.statusHostZIndex).toBe('auto');

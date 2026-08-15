@@ -17,6 +17,25 @@ import { DesktopSidebar } from './DesktopSidebar';
 import { MobileBottomNavigation } from './MobileBottomNavigation';
 import { SignedInShell } from './SignedInShell';
 import { StatusBar, type StatusBarItem } from './StatusBar';
+import {
+  StrategicMapStage,
+  StrategicWorkspaceChrome,
+} from './StrategicWorkspace';
+import type { ProvinceMapLens } from '../provinces/UsMainlandMap';
+
+const STRATEGIC_PAGE_PRESENTATION = {
+  home: 'workspace',
+  map: 'map',
+  market: 'workspace',
+  production: 'workspace',
+  research: 'fullscreen',
+  auction: 'fullscreen',
+  contracts: 'fullscreen',
+  bank: 'fullscreen',
+  leaderboard: 'fullscreen',
+  'gem-shop': 'side',
+  settings: 'side',
+} as const;
 
 export function GameShell({ model, children, offline = false }: {
   model: LoadedGameViewModel;
@@ -27,13 +46,15 @@ export function GameShell({ model, children, offline = false }: {
   const authorityGame = useGameAuthorityDependencies(['player.identity', 'player.assets', 'leaderboard']);
   const game = authorityGame ?? model.game;
   const derived = model.derived;
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [mapLens, setMapLens] = useState<ProvinceMapLens>('assets');
   const [qqGroupUrl, setQqGroupUrl] = useState(DEFAULT_QQ_GROUP_URL);
   const { badges, auctionNewIds } = useNavigationBadges(model);
   const notificationCenter = useNotificationCenter(model);
   const notificationButtonRef = useRef<HTMLButtonElement>(null);
   const auctionNewIdSet = useMemo(() => new Set(auctionNewIds), [auctionNewIds]);
   const openBank = useCallback(() => model.setTab('bank'), [model.setTab]);
+  const pagePresentation = STRATEGIC_PAGE_PRESENTATION[model.tab];
 
   const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
   const weeklyMagnitude = Math.abs(weeklyChange);
@@ -114,7 +135,8 @@ export function GameShell({ model, children, offline = false }: {
   return (
     <AuctionNewIdsContext.Provider value={auctionNewIdSet}>
       <SignedInShell
-        rootClassName="game-shell"
+        rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}`}
+        workspaceClassName="strategic-workspace"
         sidebarCollapsed={sidebarCollapsed}
         sidebar={(
           <DesktopSidebar
@@ -166,8 +188,22 @@ export function GameShell({ model, children, offline = false }: {
             />
           </>
         )}
+        workspaceBackground={<StrategicMapStage model={model} lens={mapLens} />}
+        workspaceChrome={(
+          <StrategicWorkspaceChrome
+            model={model}
+            lens={mapLens}
+            onLensChange={setMapLens}
+          />
+        )}
       >
-        {children}
+        <div
+          className={`strategic-page-host strategic-page-host--${pagePresentation}`}
+          data-strategic-page={model.tab}
+          data-strategic-presentation={pagePresentation}
+        >
+          {children}
+        </div>
       </SignedInShell>
     </AuctionNewIdsContext.Provider>
   );

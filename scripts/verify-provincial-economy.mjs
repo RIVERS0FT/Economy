@@ -15,9 +15,11 @@ const requiredFiles = [
   'server/src/contract-asset-locks.js',
   'server/test/provinces.test.js',
   'src/pages/MapPage.tsx',
+  'src/components/shell/StrategicWorkspace.tsx',
   'src/components/provinces/UsMainlandMap.tsx',
   'src/components/provinces/ProvinceSelect.tsx',
   'src/styles/province-map.css',
+  'src/styles/strategic-game-shell.css',
   'src/utils/provinceScope.ts',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
@@ -109,16 +111,46 @@ for (const text of [
 
 const mapPage = read('src/pages/MapPage.tsx');
 for (const text of [
-  '<UsMainlandMap',
-  'summaries={game.provinceAssetSummaries}',
-  'onSelectProvince={setSelectedProvinceId}',
   'us-atlas',
   '48 个州级地区',
   'province-map-command-panel',
   'province-map-meta',
+  '地图在所有玩家页面持续运行',
+]) assert.ok(mapPage.includes(text), `地图页面指挥面板缺少: ${text}`);
+assert.equal(mapPage.includes('<UsMainlandMap'), false, 'MapPage 不得重新创建页面级地图实例');
+
+const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');
+for (const text of [
+  '<UsMainlandMap',
+  'summaries={state.summaries}',
+  'onSelectProvince={setSelectedProvinceId}',
+  'StrategicMapStage',
+  'StrategicWorkspaceChrome',
+  "{ id: 'political', label: '州界'",
+  "{ id: 'assets', label: '资产'",
+  "{ id: 'industry', label: '工业'",
+  "{ id: 'market', label: '市场'",
+  "{ id: 'alerts', label: '异常'",
   '进入本地市场',
   '管理本地生产',
-]) assert.ok(mapPage.includes(text), `地图交互缺少: ${text}`);
+]) assert.ok(strategicWorkspace.includes(text), `常驻战略地图交互缺少: ${text}`);
+
+const gameShell = read('src/components/shell/GameShell.tsx');
+for (const text of [
+  'const STRATEGIC_PAGE_PRESENTATION = {',
+  'workspaceBackground={<StrategicMapStage model={model} lens={mapLens} />}',
+  '<StrategicWorkspaceChrome',
+  'data-strategic-presentation={pagePresentation}',
+]) assert.ok(gameShell.includes(text), `玩家战略外壳缺少: ${text}`);
+
+const strategicStyles = read('src/styles/strategic-game-shell.css');
+for (const text of [
+  '.game-shell .workspace-background-layer',
+  '.game-shell .workspace-strategic-chrome',
+  '.strategic-map-lens-bar',
+  '.strategic-province-inspector',
+  '--strategic-command-rail-width: 78px',
+]) assert.ok(strategicStyles.includes(text), `常驻战略地图样式缺少: ${text}`);
 
 const mapComponent = read('src/components/provinces/UsMainlandMap.tsx');
 for (const text of [
@@ -134,6 +166,7 @@ for (const text of [
   'onClick={handleMapClick}',
   'data-province-count={provinces.length}',
   'data-map-feature-count={usMainlandGeoJson.features.length}',
+  'data-map-lens={lens}',
 ]) assert.ok(mapComponent.includes(text), `ECharts 美国本土地图缺少: ${text}`);
 
 const echartsCore = read('src/components/charts/echartsCore.ts');
@@ -152,12 +185,13 @@ for (const text of [
   "data-province-count', '48'",
   "data-map-feature-count', '48'",
   "for (const excludedCode of ['AK', 'HI', 'DC'])",
-  "page.locator('.province-map-page').evaluate",
+  "page.locator('.workspace-background-layer')",
   "hasText: /^TX$/",
   "getByRole('option', { name: '罗得岛州' })",
-  'mobile grand-map layout keeps the country between safe overlay panels',
-  'commandBottom',
-  'metaTop',
+  'persistent US strategy map exposes 48 states, lenses, and local context',
+  'mobile strategy map stays beneath safe command and province panels without overflow',
+  "toHaveAttribute('data-map-lens', 'market')",
+  'data-echarts-instance-id',
 ]) assert.ok(mapBrowserTest.includes(text), `ECharts 地图浏览器回归缺少: ${text}`);
 
 const navigation = read('src/config/navigation.ts');

@@ -3,7 +3,7 @@
 > 状态：当前视觉、共享组件、响应式与可访问性实现基线
 > 适用项目：`RIVERS0FT/Economy`
 > 当前平台：网页端
-> 更新时间：2026-08-13
+> 更新时间：2026-08-15
 
 产品和页面职责分别以 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；应用外壳几何和玻璃材质以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。
 
@@ -28,6 +28,7 @@
 | `src/styles/primary-surfaces.css` | 玩家端一级卡片外层内边距令牌、最终选择器、移动断点与旧一级卡片类兼容入口 |
 | `src/styles/form-controls.css` | 输入、选择器、文本域、文件控件、自动填充、错误／只读／禁用状态和移动尺寸的最终视觉权威 |
 | `src/styles/globals.css` | 通用业务布局 |
+| `src/styles/strategic-game-shell.css` | 玩家端常驻地图、战略页面面板、州检查器、地图镜头栏、覆盖式指挥栏与移动安全布局；不得修改管理员外壳 |
 | `src/styles/charts.css` | 共享 ECharts 容器、Tooltip、无障碍摘要、市场底部安全区、管理员图表与资产圆环布局 |
 | `src/styles/safe-floating.css` | 工作区安全 Tooltip 的容器内定位、尺寸、滚动与视觉；不得承担外壳几何 |
 | `src/styles/overview.css` | 概览经营提醒、市场空状态、两排核心卡片和响应式布局 |
@@ -90,7 +91,7 @@
 
 `PagePanel` 是新增玩家端一级卡片的唯一 React 入口，固定复用 `Panel`、`.widget` 与 `.ui-primary-surface`。现有 `Panel className="widget ..."` 由兼容桥自动补充 `.ui-primary-surface`；生产页和排行页尚未迁移的旧一级卡片类只允许在 `primary-surfaces.css` 中作为兼容入口，不得在业务 CSS 中重新定义外层 padding。
 
-`EconomyChart` 是业务数据图表的唯一 React 入口。项目只安装 Apache `echarts`，不得引入 `echarts-for-react` 或第二套图表包装库；`echarts.init`、SVGRenderer、ECharts Geo/Map 的 `MapChart`／`GeoComponent`／地图注册、按需模块注册、`ResizeObserver`、`requestAnimationFrame` 合并 resize、Option 更新、事件绑定与卸载 `dispose()` 统一放在 `src/components/charts/`。市场、地图、银行资产配置、管理员玩家与人口图表必须从现有 CSS 设计令牌读取颜色，提供中文 `aria-label` 与可读数据摘要；业务页面只提供数据、Option 和语义事件回调，不得直接持有 ECharts 实例或依赖其私有 SVG DOM。ECharts 必须随市场、地图、银行和管理员页面的既有动态 import 按需加载，登录首屏不得静态加载图表包。
+`EconomyChart` 是业务数据图表的唯一 React 入口。项目只安装 Apache `echarts`，不得引入 `echarts-for-react` 或第二套图表包装库；`echarts.init`、SVGRenderer、ECharts Geo/Map 的 `MapChart`／`GeoComponent`／地图注册、按需模块注册、`ResizeObserver`、`requestAnimationFrame` 合并 resize、Option 更新、事件绑定与卸载 `dispose()` 统一放在 `src/components/charts/`。图表容器宽或高为 `0` 时必须延迟 `setOption` 并跳过 `resize`，在首次获得可渲染尺寸后再应用最新 Option，避免常驻地图与页面图表切换布局时生成不可逆矩阵。市场、地图、银行资产配置、管理员玩家与人口图表必须从现有 CSS 设计令牌读取颜色，提供中文 `aria-label` 与可读数据摘要；业务页面只提供数据、Option 和语义事件回调，不得直接持有 ECharts 实例或依赖其私有 SVG DOM。ECharts 必须随市场、地图、银行和管理员页面的既有动态 import 按需加载，登录首屏不得静态加载图表包。
 
 ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`EconomyChart` 必须在每次 `setOption` 前读取图表容器的浏览器计算样式，把 Option 中静态颜色、颜色数组、数据项颜色和颜色回调结果统一解析为实体色值；业务图表不得自行复制颜色解析器。以 Tooltip 为唯一悬浮信息反馈的折线、柱状和饼图系列必须复用 `STABLE_TOOLTIP_EMPHASIS`，禁止库默认 emphasis 改写填充、描边或透明度。鼠标、触控点击、状态刷新和尺寸变化均不得让当前或其他数据图形消失、变为透明或丢失原始颜色。
 
@@ -118,7 +119,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 ### 3.1 `PageLayout` 与页面一级区块间距
 
-- 除地图页外的十个玩家正式页面和管理员分区必须使用共享 `PageLayout`；地图页是唯一全工作区例外，必须直接使用 `.province-map-page` 承载地图与 Overlay，不得嵌入 `PageLayout` 或 `.ui-page-stack`。`PageLayout` 必须在标题之后自动生成唯一 `.ui-page-stack`，其他业务页面不得直接创建 `.page-content`、复制页面外壳或手动插入第二个 `.ui-page-stack`。
+- 除地图页外的十个玩家正式页面和管理员分区必须使用共享 `PageLayout`；地图页是唯一全工作区例外，必须直接使用 `.province-map-page` 承载地图指挥与来源 Overlay，不得嵌入 `PageLayout` 或 `.ui-page-stack`。唯一地图实例由 `StrategicWorkspace` 挂载在页面层下方，`MapPage` 不得再渲染 `UsMainlandMap`。`PageLayout` 必须在标题之后自动生成唯一 `.ui-page-stack`，其他业务页面不得直接创建 `.page-content`、复制页面外壳或手动插入第二个 `.ui-page-stack`。
 - `.ui-page-stack` 是页面标题下一级内容的唯一纵向容器，在自身上下文把 `--page-section-gap` 映射为当前 `var(--layout-gutter)`。因此普通桌面、紧凑桌面和移动工作区继续分别跟随外壳沟槽，不维护页面专属固定像素。
 - 页面摘要、一级面板、标签栏、主要列表或主要工作区必须作为 `.ui-page-stack` 的直接子元素；相邻可见一级区块只由 `gap: var(--page-section-gap)` 分隔。共享最终样式必须清除直接子元素的 `margin-block`，业务 CSS 不得用 `margin-top`、`margin-bottom`、相邻选择器或更高优先级规则重新制造一级外部间距。
 - `PagePanel` 的 `--primary-surface-inset` 只负责一级卡片边缘到内部内容的留白；页面一级区块间距、一级卡片内边距和组件内部 `--space-*` 间距是三个独立层级，不得互相替代。
@@ -389,9 +390,10 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 
 ### 8.1 美国本土州级经营地图
 
-- 地图使用单一 `.province-map-canvas` 和共享 `EconomyChart` 的 ECharts Geo/Map SVG，不得保留手绘 `.province-map-silhouette`、固定百分比坐标或覆盖式地区按钮。地图按需注册 `MapChart` 与 `GeoComponent`，精确使用 `us-atlas@3.0.1` 和 `topojson-client@3.1.0`；运行时把州 TopoJSON 转为 GeoJSON，只注册与共享目录 `mapName` 一一对应的连续 48 州，不显示阿拉斯加、夏威夷、华盛顿特区或海外领地附图。
-- 地区默认、悬停、当前、拥有资产和存在异常语义使用区域填充、边界、文字、Tooltip、图例和详情共同表达；当前地区由 ECharts 单选状态与外部 `selectedProvinceId` 双向同步。地图表面支持鼠标／触摸点击、拖动和最高 8 倍受限缩放；纵向窄屏必须使用 ECharts `media` 选项按宽度适配美国本土轮廓，并隐藏普通常驻州缩写，只在选中或悬停时显示标签，避免在小地图上重叠。键盘焦点、文字快速定位和全部地区选择由同页统一 `ProvinceSelect` 承担，ECharts 容器提供“美国本土州级经营地图”可访问名称和当前地区摘要。
-- 地图页采用类似大战略游戏的全工作区地图工作台：`.province-map-page` 与唯一地图画布铺满游戏 `workspace`，不得覆盖桌面状态栏／侧栏或移动状态栏／底栏；左上命令面板、右侧 `18rem–22rem` 经营详情和底部图例／来源作为半透明 Overlay 位于地图之上，地图不再属于普通 `PageLayout` 内容栈。不大于 `720px` 时仍以地图为整页背景，但 Overlay 改为上方命令、中央地图可视区、下方图例和经营详情的单列安全布局，由唯一页面滚动视口承担纵向空间，不得创建内部主滚动视口。地区选择器使用统一 `SelectInput`，地图、市场和生产不得各自创建平行表单视觉。
+- 地图使用 `StrategicWorkspace` 内唯一 `UsMainlandMap` 和共享 `EconomyChart` 的 ECharts Geo/Map SVG，不得保留页面级第二个地图实例、手绘 `.province-map-silhouette`、固定百分比坐标或覆盖式地区按钮。地图按需注册 `MapChart` 与 `GeoComponent`，精确使用 `us-atlas@3.0.1` 和 `topojson-client@3.1.0`；运行时把州 TopoJSON 转为 GeoJSON，只注册与共享目录 `mapName` 一一对应的连续 48 州，不显示阿拉斯加、夏威夷、华盛顿特区或海外领地附图。
+- 地区默认、悬停、当前、资产、工业、市场和异常语义使用区域填充、边界、文字、Tooltip、五种镜头和州检查器共同表达；当前地区由 ECharts 单选状态与外部 `selectedProvinceId` 双向同步。镜头状态只属于 `GameShell` 客户端视觉上下文，不得写入服务器或更换地区。地图表面支持鼠标／触摸点击、拖动和最高 8 倍受限缩放；纵向窄屏必须使用 ECharts `media` 选项按宽度适配美国本土轮廓，并隐藏普通常驻州缩写，只在选中或悬停时显示标签，避免在小地图上重叠。键盘焦点、文字快速定位和全部地区选择由统一 `ProvinceSelect` 承担，ECharts 容器提供“美国本土州级经营地图”可访问名称和当前地区摘要。
+- 玩家端采用类似大战略游戏的常驻地图工作台：`.workspace-background-layer` 持有唯一地图，`.mobile-page-overlay` 持有 `map`／`workspace`／`fullscreen`／`side` 四类战略页面面板，`.workspace-strategic-chrome` 持有右侧州检查器和底部镜头栏；这些层不得覆盖桌面状态栏／默认指挥栏或移动状态栏／底栏。地图页 `.province-map-page` 只保留左上命令面板与底部图例／来源，不再拥有地图画布或重复州详情。不大于 `720px` 时地图仍是工作区底层，地图页使用顶部命令、中央地图可视区和底部州检查器安全布局；其他业务面板允许覆盖地图，由唯一页面滚动视口承担纵向空间，不得创建内部主滚动视口。地区选择器使用统一 `SelectInput`，地图、市场和生产不得各自创建平行表单视觉。
+- `.workspace-background-layer` 与 `.workspace-strategic-chrome` 必须保持 `isolation:auto`、`filter:none` 和 `transform:none`，不得成为第二个全应用隔离根；业务面板可使用半透明背景和 `backdrop-filter`，但不得复制根级摄影氛围、创建第二个地图背景或遮盖状态栏玻璃采样链。
 - 页面必须显示 `us-atlas`、ISC 和非测绘／导航用途来源说明。地图数据不得自行生成经营地区 ID、绕过共享目录或用于现实导航、测绘和法律边界声明；既有 34 个地区 ID 必须保持稳定并原位对应州级地区，新增 14 个州 ID 不得移动、复制或合并既有资产。
 
 ## 9. 目录型横向导航

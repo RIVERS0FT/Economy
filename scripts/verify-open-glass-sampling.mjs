@@ -32,6 +32,8 @@ if (failures.length === 0) {
 .signed-in-shell__body,
 .signed-in-shell__chrome,
 .workspace,
+.workspace-background-layer,
+.workspace-strategic-chrome,
 .mobile-page-overlay,
 .mobile-chrome-overlay,
 .workspace-floating-layer,
@@ -90,6 +92,8 @@ if (failures.length === 0) {
     '桌面玩家、桌面管理员、移动玩家和移动管理员四种场景保持开放的背景采样链',
     '不得通过状态栏专属填充、描边或氛围副本掩盖根级采样失败',
     '`workspace-dialog-layer`',
+    '`.workspace-background-layer`',
+    '`.workspace-strategic-chrome`',
     '`verify-open-glass-sampling.mjs`',
     '`open-glass-sampling.spec.ts`',
   ]) requireText(files.liquidDesign, text);
@@ -116,6 +120,8 @@ if (failures.length === 0) {
     "'admin-shell' : 'game-shell'",
     "' admin-workspace'",
     'className="mobile-page-overlay"',
+    'className="workspace-background-layer"',
+    'className="workspace-strategic-chrome"',
     'mobile-chrome-overlay',
     'variant={isMobile ? \'mobileStatusBar\' : \'desktopStatusBar\'}',
     'variant="mobileNavigation"',
@@ -130,6 +136,9 @@ if (failures.length === 0) {
     "expect(chain.openIsolations.every((value) => value === 'auto')).toBe(true)",
     "expect(chain.openFilters.every((value) => value === 'none')).toBe(true)",
     "expect(chain.openTransforms.every((value) => value === 'none')).toBe(true)",
+    "currentSurface === 'game' && (!workspaceBackground || !workspaceStrategicChrome)",
+    'if (workspaceBackground) openNodes.push(workspaceBackground)',
+    'if (workspaceStrategicChrome) openNodes.push(workspaceStrategicChrome)',
     "value.includes('blur(4px)')",
     '/saturate\\((?:140%|1\\.4)\\)/',
     "expect(chain.surfaceVariants).toEqual(['desktopStatusBar'])",
@@ -152,4 +161,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('登录后液态玻璃开放采样链验证通过：唯一根隔离、桌面与移动玩家／管理员祖先、普通浮层与根级 Dialog 层开放和四场景浏览器回归均已锁定。');
+console.log('登录后液态玻璃开放采样链验证通过：唯一根隔离、桌面与移动玩家／管理员祖先、玩家地图背景与战略 Chrome、普通浮层与根级 Dialog 层开放和四场景浏览器回归均已锁定。');

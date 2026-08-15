@@ -72,6 +72,8 @@ html[data-app-surface="admin"] body {
 .signed-in-shell__body,
 .signed-in-shell__chrome,
 .workspace,
+.workspace-background-layer,
+.workspace-strategic-chrome,
 .mobile-page-overlay,
 .mobile-chrome-overlay,
 .workspace-floating-layer,

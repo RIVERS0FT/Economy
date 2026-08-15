@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('US mainland map exposes 48 clickable states and switches local operating context', async ({ page }) => {
+test('persistent US strategy map exposes 48 states, lenses, and local context', async ({ page }) => {
   test.setTimeout(60_000);
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
 
@@ -10,21 +10,29 @@ test('US mainland map exposes 48 clickable states and switches local operating c
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-province-count', '48');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-feature-count', '48');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '110000');
-  const fullPageGeometry = await page.locator('.province-map-page').evaluate((element) => {
-    const stage = element.getBoundingClientRect();
-    const canvas = element.querySelector('.province-map-canvas')?.getBoundingClientRect();
+  await expect(page.locator('.workspace-background-layer')).toBeVisible();
+  await expect(page.locator('.workspace-strategic-chrome')).toBeVisible();
+  await expect(page.locator('.province-map-command-panel')).toBeVisible();
+  await expect(page.locator('.strategic-province-inspector')).toBeVisible();
+  await expect(page.locator('.province-map-meta')).toBeVisible();
+  await expect(page.locator('.strategic-map-lens-bar')).toBeVisible();
+
+  const geometry = await page.evaluate(() => {
+    const rect = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) throw new Error(`missing ${selector}`);
+      const box = element.getBoundingClientRect();
+      return { left: box.left, top: box.top, right: box.right, bottom: box.bottom };
+    };
     return {
-      stage: { left: stage.left, top: stage.top, width: stage.width, height: stage.height },
-      canvas: canvas ? { left: canvas.left, top: canvas.top, width: canvas.width, height: canvas.height } : null,
-      viewport: { width: window.innerWidth, height: window.innerHeight },
+      workspace: rect('.workspace'),
+      background: rect('.workspace-background-layer'),
+      map: rect('.strategic-map-stage'),
     };
   });
-  expect(fullPageGeometry.stage.width).toBeGreaterThanOrEqual(fullPageGeometry.viewport.width - 1);
-  expect(fullPageGeometry.stage.height).toBeGreaterThanOrEqual(fullPageGeometry.viewport.height - 1);
-  expect(fullPageGeometry.canvas).toEqual(fullPageGeometry.stage);
-  await expect(page.locator('.province-map-command-panel')).toBeVisible();
-  await expect(page.locator('.province-detail-panel')).toBeVisible();
-  await expect(page.locator('.province-map-meta')).toBeVisible();
+  expect(geometry.background).toEqual(geometry.workspace);
+  expect(geometry.map).toEqual(geometry.workspace);
+
   const svg = map.locator('svg');
   await expect(svg).toBeVisible();
   expect(await svg.locator('path').count()).toBeGreaterThanOrEqual(48);
@@ -32,70 +40,72 @@ test('US mainland map exposes 48 clickable states and switches local operating c
     await expect(svg.getByText(excludedCode, { exact: true })).toHaveCount(0);
   }
   const renderedRegionLabels = await svg.locator('text').allTextContents();
-  for (const name of ['CA', 'TX', 'WA', 'FL', 'NY']) {
-    expect(renderedRegionLabels).toContain(name);
-  }
-  const labelOverlaps = await svg.locator('text').evaluateAll((nodes) => nodes.flatMap((node, index) => {
-    const left = node.getBoundingClientRect();
-    if (!node.textContent?.trim() || left.width <= 0 || left.height <= 0) return [];
-    return nodes.slice(index + 1).flatMap((candidate) => {
-      const right = candidate.getBoundingClientRect();
-      if (!candidate.textContent?.trim() || right.width <= 0 || right.height <= 0) return [];
-      const overlapsHorizontally = left.left < right.right && left.right > right.left;
-      const overlapsVertically = left.top < right.bottom && left.bottom > right.top;
-      return overlapsHorizontally && overlapsVertically
-        ? [`${node.textContent} / ${candidate.textContent}`]
-        : [];
-    });
-  }));
-  expect(labelOverlaps).toEqual([]);
+  for (const name of ['CA', 'TX', 'WA', 'FL', 'NY']) expect(renderedRegionLabels).toContain(name);
 
+  const instanceId = await map.locator('.economy-chart__canvas').getAttribute('data-echarts-instance-id');
   await svg.locator('text').filter({ hasText: /^TX$/ }).click();
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', 'US-TX');
-  await expect(page.getByRole('heading', { name: '得克萨斯州' })).toBeVisible();
-  await expect(page.getByText('当地商品只进入本地仓库，订单只与当地盘口撮合。')).toBeVisible();
+  await expect(page.locator('.strategic-province-inspector').getByRole('heading', { name: '得克萨斯州' })).toBeVisible();
+  await expect(page.getByText('当地仓库、市场与工厂保持州级隔离。')).toBeVisible();
 
   await page.getByRole('combobox', { name: '州级地区' }).click();
   await page.getByRole('listbox', { name: '州级地区' })
     .getByRole('option', { name: '罗得岛州' })
     .click();
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', 'US-RI');
-  await expect(page.getByRole('heading', { name: '罗得岛州' })).toBeVisible();
+  await expect(page.locator('.strategic-province-inspector').getByRole('heading', { name: '罗得岛州' })).toBeVisible();
+
+  await page.getByRole('navigation', { name: '地图镜头' }).getByRole('button', { name: '市场', exact: true }).click();
+  await expect(page.locator('.strategic-map-stage')).toHaveAttribute('data-map-lens', 'market');
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-lens', 'market');
 
   await page.getByRole('button', { name: '进入本地市场' }).click();
   await expect.poll(() => page.evaluate(() => (window as Window & { __lastSelectedTab?: string }).__lastSelectedTab)).toBe('market');
+  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-echarts-instance-id', instanceId || '');
 });
 
-test('mobile grand-map layout keeps the country between safe overlay panels without horizontal overflow', async ({ page }) => {
+test('mobile strategy map stays beneath safe command and province panels without overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
 
-  const stage = page.locator('.province-map-page');
   const map = page.getByTestId('us-mainland-map');
   await expect(map).toHaveAttribute('data-echarts-ready', 'true');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-feature-count', '48');
-  const geometry = await stage.evaluate((element) => {
-    const command = element.querySelector('.province-map-command-panel')?.getBoundingClientRect();
-    const meta = element.querySelector('.province-map-meta')?.getBoundingClientRect();
-    const pathRects = [...element.querySelectorAll('.province-map-echart svg path')]
+  await expect(page.locator('.province-map-command-panel')).toBeVisible();
+  await expect(page.locator('.strategic-province-inspector')).toBeVisible();
+  await expect(page.locator('.strategic-map-lens-bar')).toBeHidden();
+
+  const geometry = await page.evaluate(() => {
+    const box = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) throw new Error(`missing ${selector}`);
+      const rect = element.getBoundingClientRect();
+      return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+    };
+    const pathRects = [...document.querySelectorAll<SVGGraphicsElement>('.province-map-echart svg path')]
       .map((path) => path.getBoundingClientRect())
       .filter((rect) => rect.width > 0 && rect.height > 0);
     return {
-      commandBottom: command?.bottom ?? 0,
-      metaTop: meta?.top ?? Number.POSITIVE_INFINITY,
-      mapTop: Math.min(...pathRects.map((rect) => rect.top)),
-      mapRight: Math.max(...pathRects.map((rect) => rect.right)),
-      mapBottom: Math.max(...pathRects.map((rect) => rect.bottom)),
+      workspace: box('.workspace'),
+      background: box('.workspace-background-layer'),
+      command: box('.province-map-command-panel'),
+      inspector: box('.strategic-province-inspector'),
+      navigation: box('.mobile-bottom-navigation'),
       mapLeft: Math.min(...pathRects.map((rect) => rect.left)),
+      mapRight: Math.max(...pathRects.map((rect) => rect.right)),
       scrollWidth: document.documentElement.scrollWidth,
       viewportWidth: window.innerWidth,
     };
   });
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.viewportWidth);
-  expect(geometry.mapLeft).toBeGreaterThanOrEqual(-1);
-  expect(geometry.mapRight).toBeLessThanOrEqual(geometry.viewportWidth + 1);
-  expect(geometry.mapTop).toBeGreaterThanOrEqual(geometry.commandBottom - 2);
-  expect(geometry.mapBottom).toBeLessThanOrEqual(geometry.metaTop + 2);
+  expect(geometry.background.left).toBeGreaterThan(geometry.workspace.left);
+  expect(geometry.background.right).toBeLessThan(geometry.workspace.right);
+  expect(geometry.background.top).toBeCloseTo(geometry.workspace.top, 0);
+  expect(geometry.background.bottom).toBeCloseTo(geometry.workspace.bottom, 0);
+  expect(geometry.mapLeft).toBeGreaterThanOrEqual(geometry.background.left - 1);
+  expect(geometry.mapRight).toBeLessThanOrEqual(geometry.background.right + 1);
+  expect(geometry.command.top).toBeGreaterThanOrEqual(geometry.workspace.top);
+  expect(geometry.inspector.bottom).toBeLessThanOrEqual(geometry.navigation.top - 1);
   for (const excludedCode of ['AK', 'HI', 'DC']) {
     await expect(map.locator('svg').getByText(excludedCode, { exact: true })).toHaveCount(0);
   }

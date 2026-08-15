@@ -25,6 +25,8 @@ const HOVER_LABEL_STATE_CODES = new Set([
   'VT',
 ]);
 
+export type ProvinceMapLens = 'political' | 'assets' | 'industry' | 'market' | 'alerts';
+
 const regionByMapName = new Map(regionCatalog.map((region) => [region.mapName, region]));
 const atlasTopology = usStateAtlas as unknown as Parameters<typeof feature>[0];
 const atlasStateObject = (usStateAtlas as unknown as {
@@ -77,28 +79,46 @@ interface ProvinceMapDatum {
 function datumFor(
   province: ProvinceDefinition,
   summary: ProvinceAssetSummary | undefined,
+  lens: ProvinceMapLens,
 ): ProvinceMapDatum {
   const storedQuantity = Number(summary?.storedQuantity || 0);
   const facilityCount = Number(summary?.facilityCount || 0);
   const blockedFacilityCount = Number(summary?.blockedFacilityCount || 0);
+  const openOrderCount = Number(summary?.openOrderCount || 0);
   const hasAssets = storedQuantity > 0 || facilityCount > 0;
+  const value = lens === 'industry'
+    ? facilityCount
+    : lens === 'market'
+      ? openOrderCount
+      : lens === 'alerts'
+        ? blockedFacilityCount
+        : storedQuantity + facilityCount;
+  const areaColor = lens === 'political'
+    ? 'var(--color-surface-soft)'
+    : lens === 'industry'
+      ? facilityCount > 0 ? 'var(--color-success-soft)' : 'var(--color-surface-soft)'
+      : lens === 'market'
+        ? openOrderCount > 0 ? 'var(--color-warning-soft)' : 'var(--color-surface-soft)'
+        : lens === 'alerts'
+          ? blockedFacilityCount > 0 ? 'var(--color-danger-soft)' : 'var(--color-surface-soft)'
+          : blockedFacilityCount > 0
+            ? 'var(--color-danger-soft)'
+            : hasAssets
+              ? 'var(--color-success-soft)'
+              : 'var(--color-surface-soft)';
   return {
     name: province.shortName,
-    value: facilityCount,
+    value,
     provinceId: province.id,
     provinceName: province.name,
     storedQuantity,
     facilityCount,
     runningFacilityCount: Number(summary?.runningFacilityCount || 0),
     blockedFacilityCount,
-    openOrderCount: Number(summary?.openOrderCount || 0),
+    openOrderCount,
     itemStyle: {
-      areaColor: blockedFacilityCount > 0
-        ? 'var(--color-danger-soft)'
-        : hasAssets
-          ? 'var(--color-success-soft)'
-          : 'var(--color-surface-soft)',
-      ...(blockedFacilityCount > 0 ? { borderColor: 'var(--color-danger)' } : {}),
+      areaColor,
+      ...(lens === 'alerts' && blockedFacilityCount > 0 ? { borderColor: 'var(--color-danger)' } : {}),
     },
     label: {
       show: !HOVER_LABEL_STATE_CODES.has(province.shortName),
@@ -124,11 +144,13 @@ export function UsMainlandMap({
   summaries,
   selectedProvinceId,
   onSelectProvince,
+  lens = 'assets',
 }: {
   provinces: ProvinceDefinition[];
   summaries: Record<string, ProvinceAssetSummary>;
   selectedProvinceId: string;
   onSelectProvince: (provinceId: string) => void;
+  lens?: ProvinceMapLens;
 }) {
   const provinceIdByMapName = useMemo(() => new Map(
     provinces.map((province) => [province.shortName, province.id]),
@@ -136,8 +158,8 @@ export function UsMainlandMap({
   const selectedProvince = provinces.find((province) => province.id === selectedProvinceId)
     ?? provinces[0];
   const data = useMemo(() => provinces.map((province) => (
-    datumFor(province, summaries[province.id])
-  )), [provinces, summaries]);
+    datumFor(province, summaries[province.id], lens)
+  )), [lens, provinces, summaries]);
   const option = useMemo<EChartsCoreOption>(() => ({
     animationDuration: 260,
     animationDurationUpdate: 220,
@@ -237,6 +259,7 @@ export function UsMainlandMap({
       data-province-count={provinces.length}
       data-map-feature-count={usMainlandGeoJson.features.length}
       data-selected-province-id={selectedProvinceId}
+      data-map-lens={lens}
     >
       <EconomyChart
         option={option}

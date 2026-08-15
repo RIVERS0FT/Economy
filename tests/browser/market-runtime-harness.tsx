@@ -29,6 +29,8 @@ import '../../src/styles/interaction-states.css';
 import '../../src/styles/market-page-polish.css';
 import '../../src/styles/product-artwork.css';
 import '../../src/styles/facility-artwork.css';
+import '../../src/styles/province-map.css';
+import '../../src/styles/strategic-game-shell.css';
 
 const params = new URLSearchParams(window.location.search);
 const scenario = params.get('scenario') ?? 'active';

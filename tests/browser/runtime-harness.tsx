@@ -53,6 +53,7 @@ import '../../src/styles/overview-polish.css';
 import '../../src/styles/leaderboards.css';
 import '../../src/styles/game-guide.css';
 import '../../src/styles/province-map.css';
+import '../../src/styles/strategic-game-shell.css';
 import provinces from '../../shared/provinces.json';
 
 const localActivityResult = loadLocalActivity(123);
@@ -115,7 +116,7 @@ const completedTutorial: GameTutorialController = {
   recordBankDeposit: () => {},
 };
 
-document.documentElement.dataset.appSurface = ['overview', 'production', 'research', 'contracts', 'auction', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
+document.documentElement.dataset.appSurface = ['overview', 'map', 'production', 'research', 'contracts', 'auction', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
 
 function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const hasActivity = ['activity', 'two-sided', 'many-orders'].includes(scenario);
@@ -372,7 +373,11 @@ function MapHarness() {
       setSelectedProvinceId: setProvinceId,
     };
   }, [provinceId, tab]);
-  return <MapPage model={model} />;
+  return (
+    <GameShell model={model}>
+      <MapPage model={model} />
+    </GameShell>
+  );
 }
 
 function SettingsHarness() {

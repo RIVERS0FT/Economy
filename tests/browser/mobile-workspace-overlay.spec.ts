@@ -23,9 +23,11 @@ test.describe('mobile workspace overlay geometry', () => {
       const navigationSurface = document.querySelector<HTMLElement>(
         '.mobile-bottom-navigation .liquid-glass-surface',
       );
+      const strategicPagePanel = document.querySelector<HTMLElement>('.strategic-page-host > .page-content');
       const primaryPanel = document.querySelector<HTMLElement>('.overview-today-panel');
       if (!workspace || !pageOverlay || !chromeOverlay || !pageScrollArea || !pageScroll
-        || !assetBar || !statusSurface || !navigation || !navigationSurface || !primaryPanel) {
+        || !assetBar || !statusSurface || !navigation || !navigationSurface
+        || !strategicPagePanel || !primaryPanel) {
         throw new Error('mobile overlay geometry fixture is incomplete');
       }
 
@@ -57,6 +59,7 @@ test.describe('mobile workspace overlay geometry', () => {
         statusSurface: rect(statusSurface),
         navigation: rect(navigation),
         navigationSurface: rect(navigationSurface),
+        strategicPagePanel: rect(strategicPagePanel),
         primaryPanel: rect(primaryPanel),
         workspaceDisplay: workspaceStyle.display,
         workspacePaddingLeft: Number.parseFloat(workspaceStyle.paddingLeft),
@@ -90,7 +93,7 @@ test.describe('mobile workspace overlay geometry', () => {
       geometry.statusSurface,
       geometry.navigation,
       geometry.navigationSurface,
-      geometry.primaryPanel,
+      geometry.strategicPagePanel,
     ]) {
       expect(layer.left).toBeCloseTo(contentLeft, 0);
       expect(layer.right).toBeCloseTo(contentRight, 0);

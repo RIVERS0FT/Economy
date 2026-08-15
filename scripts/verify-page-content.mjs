@@ -563,8 +563,22 @@ for (const text of [
   '两个入口必须复用 `GameIcons.tsx` 的 QQ 与退出 SVG',
   '管理员后台左侧导航复用同一侧栏骨架与动画',
   '`all-pages-preview.html` 只属于本地开发预览目录',
+  '所有玩家页面共享的常驻战略地图',
+  '页面内容按四类战略面板展示',
+  '`MapPage` 不再拥有 `UsMainlandMap` 实例',
+  '地图提供州界、资产、工业、市场和异常五种镜头',
   '不得注册为正式 `TabId`、正式路由或第十二个一级页面',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+
+for (const text of [
+  'const STRATEGIC_PAGE_PRESENTATION = {',
+  "home: 'workspace'",
+  "map: 'map'",
+  "research: 'fullscreen'",
+  "'gem-shop': 'side'",
+  'data-strategic-presentation={pagePresentation}',
+]) requireText('src/components/shell/GameShell.tsx', text);
+forbidText('src/pages/MapPage.tsx', '<UsMainlandMap');
 
 for (const text of [
   '“紧凑数字”是全局客户端显示偏好',

@@ -43,8 +43,11 @@ test.describe('signed-in game three-layer background', () => {
       const atmosphere = document.querySelector<HTMLElement>('.application-atmosphere-layer');
       const contentRoot = document.querySelector<HTMLElement>('.application-content-root');
       const shellElement = document.querySelector<HTMLElement>('.game-shell');
+      const workspaceBackground = document.querySelector<HTMLElement>('.workspace-background-layer');
+      const workspaceStrategicChrome = document.querySelector<HTMLElement>('.workspace-strategic-chrome');
       const picture = document.querySelector<HTMLElement>('.application-image-layer img');
-      if (!image || !atmosphere || !contentRoot || !shellElement || !picture) {
+      if (!image || !atmosphere || !contentRoot || !shellElement
+        || !workspaceBackground || !workspaceStrategicChrome || !picture) {
         throw new Error('persistent game background fixture is incomplete');
       }
       return {
@@ -61,6 +64,12 @@ test.describe('signed-in game three-layer background', () => {
         shellIsolation: getComputedStyle(shellElement).isolation,
         shellFilter: getComputedStyle(shellElement).filter,
         shellTransform: getComputedStyle(shellElement).transform,
+        workspaceLayerIsolations: [workspaceBackground, workspaceStrategicChrome]
+          .map((element) => getComputedStyle(element).isolation),
+        workspaceLayerFilters: [workspaceBackground, workspaceStrategicChrome]
+          .map((element) => getComputedStyle(element).filter),
+        workspaceLayerTransforms: [workspaceBackground, workspaceStrategicChrome]
+          .map((element) => getComputedStyle(element).transform),
         imageFit: getComputedStyle(picture).objectFit,
         bodyGridDisplay: getComputedStyle(document.body, '::before').display,
       };
@@ -73,6 +82,9 @@ test.describe('signed-in game three-layer background', () => {
     expect(visual.shellIsolation).toBe('auto');
     expect(visual.shellFilter).toBe('none');
     expect(visual.shellTransform).toBe('none');
+    expect(visual.workspaceLayerIsolations).toEqual(['auto', 'auto']);
+    expect(visual.workspaceLayerFilters).toEqual(['none', 'none']);
+    expect(visual.workspaceLayerTransforms).toEqual(['none', 'none']);
     expect(visual.imageFit).toBe('cover');
     expect(visual.bodyGridDisplay).toBe('none');
   });
@@ -90,21 +102,35 @@ test.describe('signed-in game three-layer background', () => {
       const shell = document.querySelector<HTMLElement>('.game-shell');
       const body = document.querySelector<HTMLElement>('.signed-in-shell__body');
       const workspace = document.querySelector<HTMLElement>('.workspace');
+      const workspaceBackground = document.querySelector<HTMLElement>('.workspace-background-layer');
       const pageOverlay = document.querySelector<HTMLElement>('.mobile-page-overlay');
+      const workspaceStrategicChrome = document.querySelector<HTMLElement>('.workspace-strategic-chrome');
+      const workspaceFloatingLayer = document.querySelector<HTMLElement>('.workspace-floating-layer');
       const chromeOverlay = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
-      if (!shell || !body || !workspace || !pageOverlay || !chromeOverlay) throw new Error('mobile game overlay fixture is incomplete');
+      if (!shell || !body || !workspace || !workspaceBackground || !pageOverlay
+        || !workspaceStrategicChrome || !workspaceFloatingLayer || !chromeOverlay) {
+        throw new Error('mobile game overlay fixture is incomplete');
+      }
       const shellChildren = [...shell.children];
       const workspaceChildren = [...workspace.children];
       return {
         bodyIndex: shellChildren.indexOf(body),
         chromeIndex: shellChildren.indexOf(chromeOverlay),
+        backgroundIndex: workspaceChildren.indexOf(workspaceBackground),
         pageIndex: workspaceChildren.indexOf(pageOverlay),
+        strategicChromeIndex: workspaceChildren.indexOf(workspaceStrategicChrome),
+        floatingLayerIndex: workspaceChildren.indexOf(workspaceFloatingLayer),
         bodyZ: getComputedStyle(body).zIndex,
         workspaceZ: getComputedStyle(workspace).zIndex,
+        backgroundZ: getComputedStyle(workspaceBackground).zIndex,
         pageZ: getComputedStyle(pageOverlay).zIndex,
+        strategicChromeZ: getComputedStyle(workspaceStrategicChrome).zIndex,
+        floatingLayerZ: getComputedStyle(workspaceFloatingLayer).zIndex,
         chromeZ: getComputedStyle(chromeOverlay).zIndex,
         workspaceIsolation: getComputedStyle(workspace).isolation,
+        backgroundIsolation: getComputedStyle(workspaceBackground).isolation,
         pageIsolation: getComputedStyle(pageOverlay).isolation,
+        strategicChromeIsolation: getComputedStyle(workspaceStrategicChrome).isolation,
         chromeIsolation: getComputedStyle(chromeOverlay).isolation,
         documentWidth: document.documentElement.scrollWidth,
         viewportWidth: document.documentElement.clientWidth,
@@ -113,13 +139,21 @@ test.describe('signed-in game three-layer background', () => {
 
     expect(layout.bodyIndex).toBe(0);
     expect(layout.chromeIndex).toBe(1);
-    expect(layout.pageIndex).toBe(0);
+    expect(layout.backgroundIndex).toBe(0);
+    expect(layout.pageIndex).toBe(1);
+    expect(layout.strategicChromeIndex).toBe(2);
+    expect(layout.floatingLayerIndex).toBe(3);
     expect(layout.bodyZ).toBe('0');
     expect(layout.workspaceZ).toBe('auto');
-    expect(layout.pageZ).toBe('0');
+    expect(layout.backgroundZ).toBe('0');
+    expect(layout.pageZ).toBe('1');
+    expect(layout.strategicChromeZ).toBe('2');
+    expect(layout.floatingLayerZ).toBe('4');
     expect(layout.chromeZ).toBe('auto');
     expect(layout.workspaceIsolation).toBe('auto');
+    expect(layout.backgroundIsolation).toBe('auto');
     expect(layout.pageIsolation).toBe('auto');
+    expect(layout.strategicChromeIsolation).toBe('auto');
     expect(layout.chromeIsolation).toBe('auto');
     expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
   });

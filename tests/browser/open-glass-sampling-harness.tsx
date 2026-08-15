@@ -161,6 +161,9 @@ function SamplingApp() {
             aria-hidden="true"
           />
           <section className={`workspace${isAdmin ? ' admin-workspace' : ''}`} style={workspaceStyle}>
+            {!isAdmin ? (
+              <div className="workspace-background-layer" data-workspace-background-layer="true" />
+            ) : null}
             <div className="mobile-page-overlay" style={{ width: '100%', height: '100%' }}>
               <ScrollArea
                 axis="y"
@@ -171,6 +174,9 @@ function SamplingApp() {
                 <SamplingPage />
               </ScrollArea>
             </div>
+            {!isAdmin ? (
+              <div className="workspace-strategic-chrome" data-workspace-strategic-chrome="true" />
+            ) : null}
             <div
               className={`mobile-chrome-overlay${isAdmin ? ' admin-mobile-chrome-layer' : ''}`}
               style={{ width: '100%', height: '100%' }}
