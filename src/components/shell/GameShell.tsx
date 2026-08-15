@@ -23,6 +23,8 @@ import {
   StrategicWorkspaceChrome,
 } from './StrategicWorkspace';
 import type { ProvinceMapLens } from '../provinces/UsMainlandMap';
+import type { TabId } from '../../config/navigation';
+import { PlayerPageNavigationProvider } from '../ui/PageNavigationContext';
 
 const STRATEGIC_PAGE_PRESENTATION = {
   home: 'workspace',
@@ -49,6 +51,10 @@ export function GameShell({ model, children, offline = false }: {
   const derived = model.derived;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [mapLens, setMapLens] = useState<ProvinceMapLens>('assets');
+  const pageHistoryRef = useRef<TabId[]>([]);
+  const observedTabRef = useRef<TabId>(model.tab);
+  const skipNextHistoryRef = useRef(false);
+  const [canGoBack, setCanGoBack] = useState(false);
   const [qqGroupUrl, setQqGroupUrl] = useState(DEFAULT_QQ_GROUP_URL);
   const { badges, auctionNewIds } = useNavigationBadges(model);
   const notificationCenter = useNotificationCenter(model);
@@ -133,6 +139,31 @@ export function GameShell({ model, children, offline = false }: {
     notificationCenter.closePanel();
   }, [model.tab, notificationCenter.closePanel]);
 
+  useEffect(() => {
+    const previousTab = observedTabRef.current;
+    if (previousTab === model.tab) return;
+    if (skipNextHistoryRef.current) {
+      skipNextHistoryRef.current = false;
+    } else if (previousTab !== 'map') {
+      pageHistoryRef.current = [...pageHistoryRef.current, previousTab].slice(-20);
+    }
+    observedTabRef.current = model.tab;
+    setCanGoBack(pageHistoryRef.current.length > 0);
+  }, [model.tab]);
+
+  const returnToPreviousPage = useCallback(() => {
+    let target = pageHistoryRef.current.pop();
+    while (target === model.tab) target = pageHistoryRef.current.pop();
+    setCanGoBack(pageHistoryRef.current.length > 0);
+    if (!target) return;
+    skipNextHistoryRef.current = true;
+    model.setTab(target);
+  }, [model.setTab, model.tab]);
+
+  const closeCurrentPage = useCallback(() => {
+    model.setTab('map');
+  }, [model.setTab]);
+
   return (
     <AuctionNewIdsContext.Provider value={auctionNewIdSet}>
       <ApplicationMapLayerPortal>
@@ -199,13 +230,21 @@ export function GameShell({ model, children, offline = false }: {
           />
         )}
       >
-        <div
-          className={`strategic-page-host strategic-page-host--${pagePresentation}`}
-          data-strategic-page={model.tab}
-          data-strategic-presentation={pagePresentation}
+        <PlayerPageNavigationProvider
+          value={{
+            canGoBack,
+            onBack: returnToPreviousPage,
+            onClose: closeCurrentPage,
+          }}
         >
-          {children}
-        </div>
+          <div
+            className={`strategic-page-host strategic-page-host--${pagePresentation}`}
+            data-strategic-page={model.tab}
+            data-strategic-presentation={pagePresentation}
+          >
+            {children}
+          </div>
+        </PlayerPageNavigationProvider>
       </SignedInShell>
     </AuctionNewIdsContext.Provider>
   );

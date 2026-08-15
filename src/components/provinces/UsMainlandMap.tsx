@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { feature } from 'topojson-client';
 import usStateAtlas from 'us-atlas/states-10m.json';
 import regionCatalog from '../../../shared/provinces.json';
@@ -11,9 +11,12 @@ import {
 import {
   registerEChartsMap,
   type EChartsCoreOption,
+  type EChartsType,
 } from '../charts/echartsCore';
 
 const US_MAINLAND_MAP_NAME = 'economy-us-mainland-states';
+const US_MAINLAND_ASPECT_SCALE = 0.75;
+const MAP_COVER_OVERSCAN = 1.01;
 const HOVER_LABEL_STATE_CODES = new Set([
   'CT',
   'DE',
@@ -54,6 +57,63 @@ const usMainlandGeoJson = {
     }];
   }),
 };
+
+function coordinateBounds(value: unknown, bounds: {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}) {
+  if (!Array.isArray(value)) return;
+  if (
+    value.length >= 2
+    && typeof value[0] === 'number'
+    && Number.isFinite(value[0])
+    && typeof value[1] === 'number'
+    && Number.isFinite(value[1])
+  ) {
+    bounds.minX = Math.min(bounds.minX, value[0]);
+    bounds.minY = Math.min(bounds.minY, value[1]);
+    bounds.maxX = Math.max(bounds.maxX, value[0]);
+    bounds.maxY = Math.max(bounds.maxY, value[1]);
+    return;
+  }
+  for (const nested of value) coordinateBounds(nested, bounds);
+}
+
+function geometryBounds(value: unknown, bounds: Parameters<typeof coordinateBounds>[1]) {
+  if (!value || typeof value !== 'object') return;
+  const geometry = value as { coordinates?: unknown; geometries?: unknown[] };
+  coordinateBounds(geometry.coordinates, bounds);
+  for (const nested of geometry.geometries || []) geometryBounds(nested, bounds);
+}
+
+function mainlandMapAspect() {
+  const bounds = {
+    minX: Number.POSITIVE_INFINITY,
+    minY: Number.POSITIVE_INFINITY,
+    maxX: Number.NEGATIVE_INFINITY,
+    maxY: Number.NEGATIVE_INFINITY,
+  };
+  for (const mapFeature of usMainlandGeoJson.features) {
+    geometryBounds(mapFeature.geometry, bounds);
+  }
+  const width = bounds.maxX - bounds.minX;
+  const height = bounds.maxY - bounds.minY;
+  if (!(width > 0) || !(height > 0)) return 1;
+  return (width / height) * US_MAINLAND_ASPECT_SCALE;
+}
+
+const US_MAINLAND_MAP_ASPECT = mainlandMapAspect();
+
+function coverLayoutSize(width: number, height: number) {
+  if (!(width > 0) || !(height > 0)) return '100%';
+  const requiredSize = US_MAINLAND_MAP_ASPECT >= 1
+    ? Math.max(width, height * US_MAINLAND_MAP_ASPECT)
+    : Math.max(width / US_MAINLAND_MAP_ASPECT, height);
+  const referenceSize = Math.min(width, height);
+  return `${((requiredSize / referenceSize) * MAP_COVER_OVERSCAN * 100).toFixed(4)}%`;
+}
 
 registerEChartsMap(US_MAINLAND_MAP_NAME, usMainlandGeoJson);
 
@@ -160,6 +220,28 @@ export function UsMainlandMap({
   const data = useMemo(() => provinces.map((province) => (
     datumFor(province, summaries[province.id], lens)
   )), [lens, provinces, summaries]);
+  const applyCoverCamera = useCallback((chart: EChartsType) => {
+    const width = chart.getWidth();
+    const height = chart.getHeight();
+    if (!(width > 0) || !(height > 0)) return;
+    const layoutSize = coverLayoutSize(width, height);
+    chart.setOption({
+      series: [{
+        id: 'us-mainland-map',
+        center: null,
+        zoom: 1,
+        layoutCenter: ['50%', '50%'],
+        layoutSize,
+      }],
+    }, {
+      notMerge: false,
+      lazyUpdate: false,
+    });
+    const container = chart.getDom();
+    container.dataset.mapCoverLayoutSize = layoutSize;
+    container.dataset.mapIntrinsicAspect = US_MAINLAND_MAP_ASPECT.toFixed(6);
+    container.dataset.mapCoverViewport = `${width}x${height}`;
+  }, []);
   const option = useMemo<EChartsCoreOption>(() => ({
     animationDuration: 260,
     animationDurationUpdate: 220,
@@ -179,11 +261,10 @@ export function UsMainlandMap({
       selectedMap: selectedProvince ? { [selectedProvince.shortName]: true } : {},
       roam: true,
       scaleLimit: { min: 1, max: 8 },
+      aspectScale: US_MAINLAND_ASPECT_SCALE,
       zoom: 1,
-      left: '5%',
-      right: '5%',
-      top: '7%',
-      bottom: '9%',
+      layoutCenter: ['50%', '50%'],
+      layoutSize: '100%',
       labelLayout: {
         hideOverlap: true,
       },
@@ -233,9 +314,6 @@ export function UsMainlandMap({
       },
       option: {
         series: [{
-          layoutCenter: ['50%', '39%'],
-          layoutSize: '84%',
-          zoom: 1.02,
           label: {
             show: false,
           },
@@ -269,6 +347,8 @@ export function UsMainlandMap({
         accessibleSummary={accessibleSummary}
         className="province-map-echart"
         testId="us-mainland-map"
+        onOptionApplied={applyCoverCamera}
+        onResize={applyCoverCamera}
         onClick={handleMapClick}
       />
     </div>

@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test';
 
 const pages = [
   { navigation: /^概览/, heading: /本地预览玩家/ },
-  { navigation: /^地图/, testId: 'us-mainland-map' },
   { navigation: /^市场/, heading: '加利福尼亚州本地市场' },
   { navigation: /^生产/, heading: '加利福尼亚州生产' },
   { navigation: /^研发/, heading: '研发' },
@@ -25,12 +24,13 @@ test('account-free mode redirects into the complete game shell without API traff
   await expect(page).toHaveURL(/\/economy\/\?preview=game$/);
   await expect(page.locator('html')).toHaveAttribute('data-local-game-preview', 'true');
   await expect(page.locator('.game-shell')).toBeVisible();
-  await expect(page.locator('.desktop-sidebar .sidebar-nav-button')).toHaveCount(11);
+  await expect(page.locator('.desktop-sidebar .sidebar-nav-button')).toHaveCount(10);
+  await expect(page.locator('.desktop-sidebar').getByRole('button', { name: /^地图/ })).toHaveCount(0);
   await expect(page.getByRole('heading', { level: 1, name: pages[0].heading })).toBeVisible();
   expect(apiRequests).toEqual([]);
 });
 
-test('account-free game shell navigates all eleven formal player pages', async ({ page }) => {
+test('account-free game shell navigates all ten visible business pages and closes to the map', async ({ page }) => {
   await page.goto('?preview=game');
   const sidebar = page.locator('.desktop-sidebar');
 
@@ -40,17 +40,36 @@ test('account-free game shell navigates all eleven formal player pages', async (
     await expect(navigation).toHaveAttribute('aria-current', 'page');
     if ('heading' in target) {
       await expect(page.getByRole('heading', { level: 1, name: target.heading })).toBeVisible();
-    } else {
-      await expect(page.getByTestId(target.testId)).toBeVisible();
     }
+    await expect(page.getByRole('button', { name: '返回上一页面' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '关闭当前页面并显示地图' })).toBeVisible();
   }
 
-  await sidebar.getByRole('button', { name: /^地图/ }).click();
+  await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
   const map = page.getByTestId('us-mainland-map');
   await expect(map).toHaveAttribute('data-echarts-ready', 'true');
+  await expect(page.locator('.province-map-page')).toBeVisible();
+  await expect(page.locator('[data-player-page-navigation="true"]')).toHaveCount(0);
   await map.locator('svg text').filter({ hasText: /^TX$/ }).click();
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', 'US-TX');
   await expect(page.getByText('当前经营地区', { exact: true })).toHaveCount(0);
+});
+
+test('player page return skips the map and restores the previous business page', async ({ page }) => {
+  await page.goto('?preview=game');
+  const sidebar = page.locator('.desktop-sidebar');
+
+  await sidebar.getByRole('button', { name: /^市场/ }).click();
+  await sidebar.getByRole('button', { name: /^生产/ }).click();
+  await page.getByRole('button', { name: '返回上一页面' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: '加利福尼亚州本地市场' })).toBeVisible();
+  await expect(sidebar.getByRole('button', { name: /^市场/ })).toHaveAttribute('aria-current', 'page');
+
+  await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
+  await expect(page.locator('.province-map-page')).toBeVisible();
+  await sidebar.getByRole('button', { name: /^银行/ }).click();
+  await page.getByRole('button', { name: '返回上一页面' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: '加利福尼亚州本地市场' })).toBeVisible();
 });
 
 test('leaderboard and local-only service summaries are populated in the full shell', async ({ page }) => {

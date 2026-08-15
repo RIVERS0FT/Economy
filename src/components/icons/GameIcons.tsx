@@ -144,6 +144,14 @@ export function LogoutIcon(props: GameIconProps) {
   );
 }
 
+export function BackIcon(props: GameIconProps) {
+  return <GameIcon {...props}><path d="m10 6-6 6 6 6" /><path d="M4 12h16" /></GameIcon>;
+}
+
+export function CloseIcon(props: GameIconProps) {
+  return <GameIcon {...props}><path d="m6 6 12 12M18 6 6 18" /></GameIcon>;
+}
+
 export function GiftIcon(props: GameIconProps) {
   return (
     <GameIcon {...props}>

@@ -36,7 +36,7 @@
 | `ApplicationLoadingState.tsx` | 统一账号服务连接、正式代码包加载、本地免登录预览代码包加载和权威游戏服务器连接的唯一全屏居中加载结构；四个入口只允许替换中文文字，不得恢复深色加载卡片或创建平行加载样式 |
 | `PhotographicStateShell.tsx` | 封禁、无权限和致命错误的语义状态、安全区内容几何与 critical 状态卡；不得承担普通加载状态或挂载摄影图片 |
 | `SignedInShell.tsx` | 游戏与管理员共享根外壳、侧栏／工作区轨道、唯一页面 `ScrollArea`、战略 Chrome 层、页面 Overlay 与 Chrome Overlay DOM 顺序；不得重新提供工作区地图背景插槽或 `SignedInShell.backdrop` |
-| `GameShell.tsx` | 向共享外壳提供玩家侧栏、单一状态栏、常驻战略地图与页面面板类型、统一通知入口、桌面关闭态 Toast、移动通知灵动岛、通知面板和玩家移动导航；不得挂载根级摄影背景节点 |
+| `GameShell.tsx` | 向共享外壳提供十项玩家导航、单一状态栏、常驻战略地图、页面面板类型与非地图页面返回／关闭历史、统一通知入口、桌面关闭态 Toast、移动通知灵动岛和通知面板；不得恢复地图导航按钮或挂载根级摄影背景节点 |
 | `StrategicWorkspace.tsx` | 玩家唯一 ECharts 地图实例、州面直接选择和五种地图镜头；战略 Chrome 只保留镜头栏，不得恢复“当前经营地区”卡片、复制页面业务内容或建立第二个状态源 |
 | `notificationCenter.ts` | 普通通知二十条历史、稳定待处理键、状态派生、已读与删除纯函数；不得创建通知专用轮询 |
 | `useNotificationCenter.ts` | 按玩家隔离的通知持久化、面板开关、打开态通知抑制、关闭态通知队列和待处理状态转换监听 |

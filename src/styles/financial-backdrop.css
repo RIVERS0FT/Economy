@@ -149,7 +149,7 @@ html[data-app-backdrop="admin"] .application-image-layer img {
   isolation: auto;
   filter: none;
   transform: none;
-  overflow: visible;
+  overflow: hidden;
   border: 0;
   border-radius: 0;
   outline: 0;

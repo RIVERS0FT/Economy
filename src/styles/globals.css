@@ -319,9 +319,30 @@ p {
 .page-heading-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: var(--space-3);
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+}
+
+.page-navigation-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-inline-start: auto;
+}
+
+.page-navigation-button {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.page-navigation-button .game-icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 .widget {

@@ -163,18 +163,25 @@ for (const text of [
   'registerEChartsMap(US_MAINLAND_MAP_NAME, usMainlandGeoJson)',
   "type: 'map'",
   "selectedMode: 'single'",
+  'const US_MAINLAND_ASPECT_SCALE = 0.75',
+  'const MAP_COVER_OVERSCAN = 1.01',
+  'function coverLayoutSize(width: number, height: number)',
+  'aspectScale: US_MAINLAND_ASPECT_SCALE',
   "zoom: 1",
-  "left: '5%'",
-  "right: '5%'",
-  "top: '7%'",
-  "bottom: '9%'",
+  "layoutCenter: ['50%', '50%']",
+  "layoutSize: '100%'",
   'maxAspectRatio: 0.8',
-  "layoutCenter: ['50%', '39%']",
+  'onOptionApplied={applyCoverCamera}',
+  'onResize={applyCoverCamera}',
+  'container.dataset.mapCoverViewport',
   'onClick={handleMapClick}',
   'data-province-count={provinces.length}',
   'data-map-feature-count={usMainlandGeoJson.features.length}',
   'data-map-lens={lens}',
 ]) assert.ok(mapComponent.includes(text), `ECharts 美国本土地图缺少: ${text}`);
+for (const forbidden of ["left: '5%'", "right: '5%'", "top: '7%'", "bottom: '9%'", "layoutCenter: ['50%', '39%']", "layoutSize: '84%'"]) {
+  assert.equal(mapComponent.includes(forbidden), false, `Cover 地图不得恢复完整轮廓安全边距: ${forbidden}`);
+}
 
 const echartsCore = read('src/components/charts/echartsCore.ts');
 for (const text of ['MapChart', 'GeoComponent', 'registerEChartsMap']) {
@@ -191,19 +198,19 @@ for (const forbidden of [
 ]) {
   assert.equal(mapStyles.includes(forbidden), false, `地图样式不得恢复旧地图标记或卡片: ${forbidden}`);
 }
-for (const [path, selector] of [
-  ['src/styles/financial-backdrop.css', '.application-map-layer'],
-  ['src/styles/strategic-game-shell.css', '.strategic-map-stage'],
+for (const [path, selector, expectedOverflow] of [
+  ['src/styles/financial-backdrop.css', '.application-map-layer', 'hidden'],
+  ['src/styles/strategic-game-shell.css', '.strategic-map-stage', 'visible'],
 ]) {
   const source = read(path);
   const start = source.lastIndexOf(`${selector} {`);
   const block = start >= 0 ? source.slice(start, source.indexOf('}', start) + 1) : '';
-  assert.ok(block.includes('overflow: visible;'), `${selector} 必须允许地图外缘完整显示`);
-  assert.equal(block.includes('overflow: hidden;'), false, `${selector} 不得截断地图外缘`);
+  assert.ok(block.includes(`overflow: ${expectedOverflow};`), `${selector} 必须使用 ${expectedOverflow} 作为 Cover 地图裁切边界`);
   for (const text of ['border: 0;', 'border-radius: 0;', 'outline: 0;', 'box-shadow: none;']) {
     assert.ok(block.includes(text), `${selector} 不得产生地图外缘白边，缺少: ${text}`);
   }
 }
+assert.ok(strategicStyles.includes('.strategic-map-stage .province-map-echart {\n  padding: 0;'), 'Cover 地图图表宿主不得保留内部安全边距');
 
 const mapBrowserTest = read('tests/browser/province-map.spec.ts');
 for (const text of [
@@ -220,10 +227,13 @@ for (const text of [
   "page.getByLabel('地图图例')",
   "toHaveAttribute('data-map-lens', 'market')",
   'data-echarts-instance-id',
+  'data-map-cover-viewport',
+  'outlineAspect',
 ]) assert.ok(mapBrowserTest.includes(text), `ECharts 地图浏览器回归缺少: ${text}`);
 
 const navigation = read('src/config/navigation.ts');
-assert.ok(navigation.includes("{ id: 'map', label: '地图' }"), '正式导航必须包含地图页');
+assert.equal(navigation.includes("{ id: 'map', label: '地图' }"), false, '桌面侧栏与移动底栏不得显示地图按钮');
+assert.ok(navigation.includes("export type TabId = NavigationTabId | 'map';"), '纯地图视图必须保留正式 TabId');
 
 const tests = read('server/test/provinces.test.js');
 for (const text of [

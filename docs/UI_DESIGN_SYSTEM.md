@@ -119,7 +119,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 ### 3.1 `PageLayout` 与页面一级区块间距
 
-- 除地图页外的十个玩家正式页面和管理员分区必须使用共享 `PageLayout`；地图页是唯一全工作区例外，必须直接使用透明且无子元素的 `.province-map-page` 路由占位，不得嵌入 `PageLayout`、`.ui-page-stack`、左上指挥卡、左下图例／来源卡或“当前经营地区”卡片。唯一地图实例由 `StrategicWorkspace` 挂载到根级地图层，`MapPage` 不得再渲染 `UsMainlandMap`。`PageLayout` 必须在标题之后自动生成唯一 `.ui-page-stack`，其他业务页面不得直接创建 `.page-content`、复制页面外壳或手动插入第二个 `.ui-page-stack`。
+- 除地图页外的十个玩家正式页面和管理员分区必须使用共享 `PageLayout`；地图页是唯一全工作区例外，必须直接使用透明且无子元素的 `.province-map-page` 路由占位，不得嵌入 `PageLayout`、`.ui-page-stack`、左上指挥卡、左下图例／来源卡或“当前经营地区”卡片。唯一地图实例由 `StrategicWorkspace` 挂载到根级地图层，`MapPage` 不得再渲染 `UsMainlandMap`。玩家 `GameShell` 必须通过轻量页面导航上下文让共享 `PageLayout` 在标题操作区追加统一 SVG“返回／关闭”按钮；返回无历史时禁用，关闭进入纯地图视图。管理员未提供该上下文，不得显示玩家页面控制。`PageLayout` 必须在标题之后自动生成唯一 `.ui-page-stack`，其他业务页面不得直接创建 `.page-content`、复制页面外壳或手动插入第二个 `.ui-page-stack`。
 - `.ui-page-stack` 是页面标题下一级内容的唯一纵向容器，在自身上下文把 `--page-section-gap` 映射为当前 `var(--layout-gutter)`。因此普通桌面、紧凑桌面和移动工作区继续分别跟随外壳沟槽，不维护页面专属固定像素。
 - 页面摘要、一级面板、标签栏、主要列表或主要工作区必须作为 `.ui-page-stack` 的直接子元素；相邻可见一级区块只由 `gap: var(--page-section-gap)` 分隔。共享最终样式必须清除直接子元素的 `margin-block`，业务 CSS 不得用 `margin-top`、`margin-bottom`、相邻选择器或更高优先级规则重新制造一级外部间距。
 - `PagePanel` 的 `--primary-surface-inset` 只负责一级卡片边缘到内部内容的留白；页面一级区块间距、一级卡片内边距和组件内部 `--space-*` 间距是三个独立层级，不得互相替代。
@@ -390,7 +390,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 
 ### 8.1 美国本土州级经营地图
 
-- 地图使用 `StrategicWorkspace` 内唯一 `UsMainlandMap` 和共享 `EconomyChart` 的 ECharts Geo/Map SVG，不得保留页面级第二个地图实例、手绘 `.province-map-silhouette`、固定百分比坐标或覆盖式地区按钮。地图按需注册 `MapChart` 与 `GeoComponent`，精确使用 `us-atlas@3.0.1` 和 `topojson-client@3.1.0`；运行时把州 TopoJSON 转为 GeoJSON，只注册与共享目录 `mapName` 一一对应的连续 48 州，不显示阿拉斯加、夏威夷、华盛顿特区或海外领地附图。桌面初始视图使用四侧安全边距和 `zoom: 1` 完整容纳连续 48 州轮廓；根地图层、地图舞台、图表宿主和画布不得使用 `overflow: hidden`、边框、圆角、轮廓或阴影截断外缘或生成浅色矩形白边。
+- 地图使用 `StrategicWorkspace` 内唯一 `UsMainlandMap` 和共享 `EconomyChart` 的 ECharts Geo/Map SVG，不得保留页面级第二个地图实例、手绘 `.province-map-silhouette`、固定百分比坐标或覆盖式地区按钮。地图按需注册 `MapChart` 与 `GeoComponent`，精确使用 `us-atlas@3.0.1` 和 `topojson-client@3.1.0`；运行时把州 TopoJSON 转为 GeoJSON，只注册与共享目录 `mapName` 一一对应的连续 48 州，不显示阿拉斯加、夏威夷、华盛顿特区或海外领地附图。桌面与移动初始视图统一使用固定投影比例的等比 Cover 相机，窗口变化只重新计算 `layoutSize`，不得拉伸或挤压州界；根 `.application-map-layer` 是唯一 `overflow: hidden` 裁切边界，地图舞台、图表宿主和 SVG 画布保持 `overflow: visible`、零内边距、零边框、零圆角、零轮廓和无阴影，不得由工作区或内部图表层生成黑色矩形裁切。
 - 地区默认、悬停、当前、资产、工业、市场和异常语义使用区域填充、边界、文字、Tooltip、五种镜头和州检查器共同表达；当前地区由 ECharts 单选状态与外部 `selectedProvinceId` 双向同步。镜头状态只属于 `GameShell` 客户端视觉上下文，不得写入服务器或更换地区。地图表面支持鼠标／触摸点击、拖动和最高 8 倍受限缩放；纵向窄屏必须使用 ECharts `media` 选项按宽度适配美国本土轮廓，并隐藏普通常驻州缩写，只在选中或悬停时显示标签，避免在小地图上重叠。键盘焦点、文字快速定位和全部地区选择由统一 `ProvinceSelect` 承担，ECharts 容器提供“美国本土州级经营地图”可访问名称和当前地区摘要。
 - 玩家端采用类似大战略游戏的常驻地图工作台：全应用根节点严格按图片层 `0`、氛围层 `10`、地图层 `20`、UI 层 `30` 堆叠。`.application-map-layer` 通过 Portal 持有唯一 `StrategicMapStage` 并铺满视口；`.mobile-page-overlay` 持有 `map`／`workspace`／`fullscreen`／`side` 四类战略页面面板，`.workspace-strategic-chrome` 只持有底部镜头栏。地图页 `.province-map-page` 是透明且无子元素的路由占位，不再拥有地图画布、重复州详情、左上命令卡、左下图例／来源卡或“当前经营地区”卡片。不大于 `720px` 时地图继续铺满视口，地图页只保留中央可交互地图；其他业务面板允许覆盖地图，由唯一页面滚动视口承担纵向空间，不得创建内部主滚动视口。地图州面点击直接切换地区，市场和生产继续复用统一 `ProvinceSelect`，不得创建平行选择状态。
 - `.application-map-layer`、`.application-ui-layer` 与 `.workspace-strategic-chrome` 必须保持 `isolation:auto`、`filter:none` 和 `transform:none`，不得成为第二个全应用隔离根；UI 内部的页面、Chrome、普通浮层和业务 Dialog 仍全部属于 UI 层，不得创建第五个全局层。业务面板可使用半透明背景和 `backdrop-filter`，但不得复制根级摄影氛围、创建第二个地图背景或遮盖状态栏玻璃采样链。

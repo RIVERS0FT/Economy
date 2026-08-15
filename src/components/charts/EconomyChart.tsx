@@ -19,6 +19,11 @@ export interface EconomyChartClickEvent {
   data?: unknown;
 }
 
+export interface EconomyChartSize {
+  width: number;
+  height: number;
+}
+
 function applyChartOption(
   chart: EChartsType,
   container: HTMLElement,
@@ -47,6 +52,7 @@ export function EconomyChart({
   updateMode = 'replace',
   onChartReady,
   onOptionApplied,
+  onResize,
   onClick,
 }: {
   option: EChartsCoreOption;
@@ -58,6 +64,7 @@ export function EconomyChart({
   updateMode?: EconomyChartUpdateMode;
   onChartReady?: (chart: EChartsType) => void;
   onOptionApplied?: (chart: EChartsType) => void;
+  onResize?: (chart: EChartsType, size: EconomyChartSize) => void;
   onClick?: (event: EconomyChartClickEvent) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -69,12 +76,14 @@ export function EconomyChart({
   const updateModeRef = useRef(updateMode);
   const onChartReadyRef = useRef(onChartReady);
   const onOptionAppliedRef = useRef(onOptionApplied);
+  const onResizeRef = useRef(onResize);
   const onClickRef = useRef(onClick);
   const [ready, setReady] = useState(false);
 
   updateModeRef.current = updateMode;
   onChartReadyRef.current = onChartReady;
   onOptionAppliedRef.current = onOptionApplied;
+  onResizeRef.current = onResize;
   onClickRef.current = onClick;
 
   useLayoutEffect(() => {
@@ -130,6 +139,10 @@ export function EconomyChart({
         resizeFrameRef.current = null;
         if (!hasRenderableSize(container)) return;
         chart.resize();
+        onResizeRef.current?.(chart, {
+          width: container.clientWidth,
+          height: container.clientHeight,
+        });
         if (!optionAppliedRef.current) applyCurrentOption();
       });
     };

@@ -1,7 +1,27 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+async function readOutlineGeometry(page: Page) {
+  return page.evaluate(() => {
+    const pathRects = [...document.querySelectorAll<SVGGraphicsElement>('.province-map-echart svg path')]
+      .map((path) => path.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0);
+    const left = Math.min(...pathRects.map((rect) => rect.left));
+    const top = Math.min(...pathRects.map((rect) => rect.top));
+    const right = Math.max(...pathRects.map((rect) => rect.right));
+    const bottom = Math.max(...pathRects.map((rect) => rect.bottom));
+    return {
+      left,
+      top,
+      right,
+      bottom,
+      outlineAspect: (right - left) / (bottom - top),
+    };
+  });
+}
 
 test('persistent US strategy map exposes 48 states, lenses, and local context', async ({ page }) => {
   test.setTimeout(60_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
 
   const map = page.getByTestId('us-mainland-map');
@@ -18,6 +38,7 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await expect(page.locator('.province-map-page > *')).toHaveCount(0);
   await expect(page.getByText('战略经营地图', { exact: true })).toHaveCount(0);
   await expect(page.getByLabel('地图图例')).toHaveCount(0);
+  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-cover-viewport', '1440x900');
 
   const geometry = await page.evaluate(() => {
     const rect = (selector: string) => {
@@ -51,18 +72,17 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
         const paths = [...document.querySelectorAll<SVGGraphicsElement>('.province-map-echart svg path')]
           .map((path) => path.getBoundingClientRect())
           .filter((bounds) => bounds.width > 0 && bounds.height > 0);
-        return {
-          left: Math.min(...paths.map((bounds) => bounds.left)),
-          top: Math.min(...paths.map((bounds) => bounds.top)),
-          right: Math.max(...paths.map((bounds) => bounds.right)),
-          bottom: Math.max(...paths.map((bounds) => bounds.bottom)),
-        };
+        const left = Math.min(...paths.map((bounds) => bounds.left));
+        const top = Math.min(...paths.map((bounds) => bounds.top));
+        const right = Math.max(...paths.map((bounds) => bounds.right));
+        const bottom = Math.max(...paths.map((bounds) => bounds.bottom));
+        return { left, top, right, bottom, outlineAspect: (right - left) / (bottom - top) };
       })(),
     };
   });
   expect(geometry.mapLayer).toEqual(geometry.viewport);
   expect(geometry.map).toEqual(geometry.mapLayer);
-  expect(geometry.mapLayerOverflow).toBe('visible');
+  expect(geometry.mapLayerOverflow).toBe('hidden');
   expect(geometry.mapStageOverflow).toBe('visible');
   for (const edgeStyle of geometry.edgeStyles) {
     expect(edgeStyle).toEqual({
@@ -72,10 +92,10 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
       boxShadow: 'none',
     });
   }
-  expect(geometry.pathBounds.left).toBeGreaterThanOrEqual(geometry.viewport.left + 8);
-  expect(geometry.pathBounds.top).toBeGreaterThanOrEqual(geometry.viewport.top + 8);
-  expect(geometry.pathBounds.right).toBeLessThanOrEqual(geometry.viewport.right - 8);
-  expect(geometry.pathBounds.bottom).toBeLessThanOrEqual(geometry.viewport.bottom - 8);
+  expect(geometry.pathBounds.left).toBeLessThanOrEqual(geometry.viewport.left + 1);
+  expect(geometry.pathBounds.top).toBeLessThanOrEqual(geometry.viewport.top + 1);
+  expect(geometry.pathBounds.right).toBeGreaterThanOrEqual(geometry.viewport.right - 1);
+  expect(geometry.pathBounds.bottom).toBeGreaterThanOrEqual(geometry.viewport.bottom - 1);
 
   const svg = map.locator('svg');
   await expect(svg).toBeVisible();
@@ -89,8 +109,18 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   const instanceId = await map.locator('.economy-chart__canvas').getAttribute('data-echarts-instance-id');
   await svg.locator('text').filter({ hasText: /^TX$/ }).click();
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', 'US-TX');
-  await svg.locator('text').filter({ hasText: /^CA$/ }).click();
-  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '110000');
+  await svg.locator('text').filter({ hasText: /^CO$/ }).click();
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '150000');
+
+  await page.setViewportSize({ width: 900, height: 900 });
+  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-cover-viewport', '900x900');
+  const resizedOutline = await readOutlineGeometry(page);
+  expect(resizedOutline.left).toBeLessThanOrEqual(1);
+  expect(resizedOutline.top).toBeLessThanOrEqual(1);
+  expect(resizedOutline.right).toBeGreaterThanOrEqual(899);
+  expect(resizedOutline.bottom).toBeGreaterThanOrEqual(899);
+  expect(resizedOutline.outlineAspect).toBeCloseTo(geometry.pathBounds.outlineAspect, 2);
+  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-echarts-instance-id', instanceId || '');
 
   await page.getByRole('navigation', { name: '地图镜头' }).getByRole('button', { name: '市场', exact: true }).click();
   await expect(page.locator('.strategic-map-stage')).toHaveAttribute('data-map-lens', 'market');
@@ -113,6 +143,7 @@ test('mobile strategy map fills the root map layer without obsolete map cards or
   await expect(page.locator('.strategic-province-inspector')).toHaveCount(0);
   await expect(page.locator('.strategic-map-lens-bar')).toBeHidden();
   await expect(page.locator('.province-map-page > *')).toHaveCount(0);
+  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-cover-viewport', '390x844');
 
   const geometry = await page.evaluate(() => {
     const box = (selector: string) => {
@@ -129,15 +160,27 @@ test('mobile strategy map fills the root map layer without obsolete map cards or
       mapLayer: box('.application-map-layer'),
       navigation: box('.mobile-bottom-navigation'),
       mapLeft: Math.min(...pathRects.map((rect) => rect.left)),
+      mapTop: Math.min(...pathRects.map((rect) => rect.top)),
       mapRight: Math.max(...pathRects.map((rect) => rect.right)),
+      mapBottom: Math.max(...pathRects.map((rect) => rect.bottom)),
+      outlineAspect: (
+        Math.max(...pathRects.map((rect) => rect.right))
+        - Math.min(...pathRects.map((rect) => rect.left))
+      ) / (
+        Math.max(...pathRects.map((rect) => rect.bottom))
+        - Math.min(...pathRects.map((rect) => rect.top))
+      ),
       scrollWidth: document.documentElement.scrollWidth,
       viewportWidth: window.innerWidth,
     };
   });
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.viewportWidth);
   expect(geometry.mapLayer).toEqual(geometry.viewport);
-  expect(geometry.mapLeft).toBeGreaterThanOrEqual(geometry.mapLayer.left - 1);
-  expect(geometry.mapRight).toBeLessThanOrEqual(geometry.mapLayer.right + 1);
+  expect(geometry.mapLeft).toBeLessThanOrEqual(geometry.mapLayer.left + 1);
+  expect(geometry.mapTop).toBeLessThanOrEqual(geometry.mapLayer.top + 1);
+  expect(geometry.mapRight).toBeGreaterThanOrEqual(geometry.mapLayer.right - 1);
+  expect(geometry.mapBottom).toBeGreaterThanOrEqual(geometry.mapLayer.bottom - 1);
+  expect(geometry.outlineAspect).toBeGreaterThan(1);
   expect(geometry.navigation.top).toBeLessThan(geometry.mapLayer.bottom);
   for (const excludedCode of ['AK', 'HI', 'DC']) {
     await expect(map.locator('svg').getByText(excludedCode, { exact: true })).toHaveCount(0);
