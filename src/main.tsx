@@ -4,7 +4,7 @@ import App from './App';
 import { AppErrorBoundary } from './app/AppErrorBoundary';
 import './app/interactionBootstrap';
 import { installIdempotentGameWriteFetch } from './api/idempotentGameWriteFetch';
-import { FinancialBackdrop } from './components/visual/FinancialBackdrop';
+import { ApplicationLayerRoot } from './components/visual/ApplicationLayerRoot';
 import { configureRuntimePerformance } from './utils/runtimePerformance';
 import './styles/globals.css';
 import './styles/desktop-sidebar.css';
@@ -75,14 +75,11 @@ document.documentElement.dataset.appBackdrop = initialLocalGamePreview
 document.documentElement.dataset.appTone = 'normal';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <>
-    <FinancialBackdrop />
-    <div className="application-content-root">
-      <React.StrictMode>
-        <AppErrorBoundary>
-          <App />
-        </AppErrorBoundary>
-      </React.StrictMode>
-    </div>
-  </>,
+  <ApplicationLayerRoot>
+    <React.StrictMode>
+      <AppErrorBoundary>
+        <App />
+      </AppErrorBoundary>
+    </React.StrictMode>
+  </ApplicationLayerRoot>,
 );

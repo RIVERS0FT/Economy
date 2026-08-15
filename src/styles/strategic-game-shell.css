@@ -1,20 +1,12 @@
 /* Player-only grand-strategy workspace. The administrator keeps the shared
- * conventional SignedInShell body while the game mounts one persistent map
- * beneath route-owned command panels. */
+ * conventional SignedInShell body while the game portals one persistent map
+ * into the root map layer beneath the application UI layer. */
 
-.workspace-background-layer,
+.application-map-layer,
 .workspace-strategic-chrome {
   isolation: auto;
   filter: none;
   transform: none;
-}
-
-.game-shell .workspace-background-layer {
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: auto;
 }
 
 .game-shell .mobile-page-overlay {
@@ -50,10 +42,14 @@
 }
 
 .strategic-map-stage {
-  overflow: hidden;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  box-shadow: none;
   background:
     radial-gradient(circle at 50% 45%, rgb(48 104 78 / 28%), transparent 52%),
-    linear-gradient(145deg, #07120f, #020706);
+    linear-gradient(145deg, rgb(7 18 15 / 56%), rgb(2 7 6 / 46%));
 }
 
 .strategic-map-stage .province-map-echart {
@@ -112,10 +108,6 @@
   width: 100%;
 }
 
-.strategic-tab-home .strategic-page-host--workspace > .page-content {
-  width: calc(100% - var(--strategic-inspector-width) - var(--strategic-panel-gap) * 4);
-}
-
 .strategic-page-host--fullscreen > .page-content {
   width: 100%;
   margin-inline: 0;
@@ -145,115 +137,6 @@
 
 .strategic-page-host--map .province-map-page::after {
   display: none;
-}
-
-.strategic-page-host--map .province-map-command-panel,
-.strategic-page-host--map .province-map-meta {
-  position: absolute;
-  z-index: 2;
-  left: var(--strategic-panel-gap);
-  width: min(26rem, calc(100% - var(--strategic-inspector-width) - var(--strategic-panel-gap) * 4));
-  border-radius: var(--strategic-panel-radius);
-  pointer-events: auto;
-}
-
-.strategic-page-host--map .province-map-command-panel {
-  top: var(--strategic-panel-gap);
-}
-
-.strategic-page-host--map .province-map-meta {
-  bottom: calc(var(--strategic-lens-height) + var(--strategic-panel-gap) * 3);
-}
-
-.province-map-current {
-  margin: var(--space-2) 0 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-}
-
-.strategic-province-inspector {
-  position: absolute;
-  top: var(--strategic-panel-gap);
-  right: var(--strategic-panel-gap);
-  width: var(--strategic-inspector-width);
-  max-height: calc(100% - var(--strategic-lens-height) - var(--strategic-panel-gap) * 4);
-  padding: var(--space-4);
-  overflow: auto;
-  border-color: color-mix(in srgb, var(--color-border-strong) 78%, transparent);
-  border-radius: var(--strategic-panel-radius);
-  background: linear-gradient(145deg, rgb(8 24 18 / 96%), rgb(3 13 10 / 94%));
-  box-shadow: 0 24px 64px rgb(0 0 0 / 42%);
-}
-
-.strategic-inspector-heading {
-  display: flex;
-  gap: var(--space-3);
-  align-items: start;
-  justify-content: space-between;
-}
-
-.strategic-inspector-heading h2 {
-  margin: 0;
-  font-size: var(--font-size-xl);
-}
-
-.strategic-province-inspector .province-context-select {
-  width: 100%;
-  min-width: 0;
-  margin-top: var(--space-3);
-}
-
-.strategic-inspector-metrics {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
-}
-
-.strategic-inspector-metrics > div {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: .1rem .5rem;
-  align-items: center;
-  padding: var(--space-3);
-  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
-  border-radius: .65rem;
-  background: rgb(2 12 8 / 58%);
-}
-
-.strategic-inspector-metrics svg {
-  grid-row: 1 / 3;
-  width: 1.15rem;
-  height: 1.15rem;
-  color: var(--color-success);
-}
-
-.strategic-inspector-metrics span {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.strategic-inspector-metrics strong {
-  overflow: hidden;
-  font-variant-numeric: tabular-nums;
-  text-overflow: ellipsis;
-}
-
-.strategic-inspector-note,
-.strategic-inspector-alert {
-  margin: var(--space-3) 0 0;
-  font-size: var(--font-size-sm);
-}
-
-.strategic-inspector-note { color: var(--color-text-secondary); }
-.strategic-inspector-alert { color: var(--color-danger); }
-
-.strategic-inspector-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
 }
 
 .strategic-map-lens-bar {
@@ -308,7 +191,6 @@
     --strategic-command-rail-width: 78px;
     --strategic-panel-gap: 10px;
     --strategic-panel-radius: 12px;
-    --strategic-inspector-width: clamp(21rem, 23vw, 25rem);
     --strategic-lens-height: 54px;
   }
 
@@ -350,29 +232,13 @@
     pointer-events: none;
   }
 
-  .game-shell .strategic-page-host--map .province-map-command-panel,
-  .game-shell .strategic-page-host--map .province-map-meta {
-    pointer-events: auto;
-  }
-
   .strategic-tab-map .page-scroll-area > .ui-scrollbar--vertical {
-    display: none;
-  }
-}
-
-@media (max-width: 1499px) and (min-width: 721px) {
-  .strategic-tab-home .strategic-page-host--workspace > .page-content {
-    width: 100%;
-  }
-
-  .strategic-tab-home .strategic-province-inspector {
     display: none;
   }
 }
 
 @media (max-width: 1100px) and (min-width: 721px) {
   .game-shell {
-    --strategic-inspector-width: 19rem;
     --strategic-panel-gap: 8px;
   }
 }
@@ -381,17 +247,11 @@
   .game-shell {
     --strategic-panel-gap: var(--mobile-primary-surface-gap);
     --strategic-panel-radius: 16px;
-    --strategic-inspector-width: auto;
     --strategic-lens-height: 0px;
   }
 
-  .game-shell .workspace-background-layer {
-    right: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));
-    left: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));
-  }
-
   .strategic-map-stage .province-map-echart {
-    padding: 3.75rem .25rem 8rem;
+    padding: .75rem .25rem 8rem;
   }
 
   .strategic-map-stage--background .strategic-map-vignette {
@@ -419,56 +279,8 @@
     padding: 0;
   }
 
-  .strategic-page-host--map .province-map-command-panel {
-    top: var(--strategic-panel-gap);
-    right: 0;
-    left: 0;
-    width: 100%;
-    border-radius: var(--strategic-panel-radius);
-  }
-
-  .strategic-page-host--map .province-map-meta {
-    display: none;
-  }
-
-  .strategic-province-inspector {
-    top: auto;
-    right: 0;
-    bottom: calc(
-      var(--mobile-nav-height)
-      + var(--mobile-nav-gap)
-      + max(var(--mobile-chrome-block-inset), env(safe-area-inset-bottom))
-      + var(--space-2)
-    );
-    left: 0;
-    width: auto;
-    max-height: 18rem;
-    border-radius: var(--strategic-panel-radius) var(--strategic-panel-radius) 0 0;
-    padding: var(--space-3);
-  }
-
-  .strategic-tab-home .strategic-province-inspector,
   .strategic-map-lens-bar {
     display: none;
-  }
-
-  .strategic-inspector-metrics {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .strategic-inspector-metrics > div {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    padding: var(--space-2);
-    text-align: center;
-  }
-
-  .strategic-inspector-metrics svg {
-    grid-row: auto;
-  }
-
-  .strategic-inspector-actions {
-    grid-template-columns: 1fr 1fr;
   }
 }
 

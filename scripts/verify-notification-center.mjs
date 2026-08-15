@@ -208,7 +208,7 @@ assert.match(liquidDesign, /从中心对称展开/);
 assert.match(liquidDesign, /工作区浮层根已经提供唯一水平边界/);
 assert.match(liquidDesign, /面板打开时立即清空 Toast 队列/);
 assert.match(liquidDesign, /移动工作区使用局部层级堆叠边界/);
-assert.match(liquidDesign, /玩家工作区使用背景 `0`、页面 `1`、战略 Chrome `2`、普通浮层 `4`/);
+assert.match(liquidDesign, /玩家 UI 工作区使用页面 `1`、战略 Chrome `2`、普通浮层 `4`，根级地图独立位于全应用地图层 `20`/);
 assert.match(liquidDesign, /页面内部任意正 `z-index`/);
 
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');

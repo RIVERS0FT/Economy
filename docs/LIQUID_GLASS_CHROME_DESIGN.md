@@ -1,10 +1,10 @@
 # Economy liquid-glass-react 应用外壳设计
 
-> 状态：统一认证卡片、游戏与管理员桌面工作栏、玩家常驻战略地图、全应用三层摄影背景、移动状态栏、移动底部导航及登录后共享外壳几何基线
+> 状态：统一认证卡片、游戏与管理员桌面工作栏、玩家常驻战略地图、全应用四层根堆叠、移动状态栏、移动底部导航及登录后共享外壳几何基线
 > 适用项目：`RIVERS0FT/Economy`
 > 更新时间：2026-08-15
 
-本文件定义应用唯一液态玻璃实现、认证卡片、全应用三层摄影背景与背景采样、游戏端和管理员端登录后桌面应用外壳几何、根级摄影状态外壳、移动工作区 Overlay、移动导航结构、浏览器运行时样式入口、性能约束和防回退规则。摄影资源、认证／玩家／管理员语义变体共享唯一氛围基线、根级加载与异常状态以 `REGISTRATION_INVITE_FLOW_DESIGN.md` 为共享摄影专项权威；认证卡片光学与静态输入参数、边缘高光和登录布局仍由该文档约束；通用 UI、覆盖式滚动条和市场表格仍以 `docs/UI_DESIGN_SYSTEM.md` 为准。
+本文件定义应用唯一液态玻璃实现、认证卡片、图片／氛围／地图／UI 四层根堆叠与背景采样、游戏端和管理员端登录后桌面应用外壳几何、根级摄影状态外壳、移动工作区 Overlay、移动导航结构、浏览器运行时样式入口、性能约束和防回退规则。摄影资源、认证／玩家／管理员语义变体共享唯一氛围基线、根级加载与异常状态以 `REGISTRATION_INVITE_FLOW_DESIGN.md` 为共享摄影专项权威；认证卡片光学与静态输入参数、边缘高光和登录布局仍由该文档约束；通用 UI、覆盖式滚动条和市场表格仍以 `docs/UI_DESIGN_SYSTEM.md` 为准。
 
 
 全应用摄影氛围只允许一套正常态视觉参数：登录、玩家与管理员必须使用完全相同的摄影滤镜、渐变遮罩、网格与噪点，并以登录／注册页参数为基线。正常态摄影图片只承担低对比度空间纹理职责，状态栏、导航、业务卡片和正文必须保持第一视觉优先级；不得通过角色级覆盖或降低遮罩重新强化图片细节。`data-app-backdrop` 只保留语义和状态路由职责，不得触发角色级或页面级视觉覆盖；`critical` 只允许在共享氛围之上增加红色内暗角。
@@ -23,7 +23,7 @@
 - `src/styles/liquid-glass-surfaces.css` 只负责尺寸、层级、内容布局、圆角裁切、全部表面的透明宿主与统一回退底色、官方双层高光几何、透明辅助层、无项目结构描边和与各预设完全一致的 WebKit 属性别名；不得用 CSS 创建第二套模糊、折射、色差、染色或外框材质。
 - 桌面状态栏、管理员工作栏、移动状态栏、移动底栏和认证卡片统一使用 `overLight=false`。两个辅助节点必须保留完整宿主几何但保持透明，两个直属边缘高光 `span` 必须全部可见并保持静态方向，第三方 `.glass` 默认外部阴影必须保留。所有表面都不得绘制项目宿主阴影、结构描边、额外 `::after` 白色外框、排除式 mask 或用途专用高光强度。
 - `src/styles/liquid-glass-chrome.css` 是浏览器测试兼容入口，不是第二套材质。它只允许按固定顺序转发 `performance.css`、`scrollbars.css`、`game-shell-layout.css`、`financial-backdrop.css` 和 `liquid-glass-surfaces.css`；生产入口 `src/main.tsx` 继续直接导入正式样式。
-- 浏览器运行时 harness 必须加载真实的滚动条与外壳几何样式，并在独立 `backdrop-root` 中挂载同一根级摄影组件；不得让 `FinancialBackdrop` 失去固定定位后作为桌面 Grid 普通子项参与布局，也不得只加载历史全局样式后用错误计算结果验证布局。
+- 浏览器运行时 harness 必须加载真实的滚动条与外壳几何样式，并像生产入口一样用 `ApplicationLayerRoot` 一次性挂载四层根结构；不得额外创建 `backdrop-root`、重复摄影节点，或让 `FinancialBackdrop` 失去固定定位后作为桌面 Grid 普通子项参与布局。
 
 ## 2. 文件职责与加载顺序
 
@@ -31,26 +31,27 @@
 |---|---|
 | `LiquidGlassSurface.tsx` | 第三方库适配、五种平台预设、统一零弹性与静态鼠标输入、固定／内容自适应布局、认证内容首次绘制前同步测高、提交后观察器补充测量、上游滤镜尺寸通知和统一 DOM |
 | `AuthCardSurface.tsx` | 认证卡片语义宿主、`720px` 响应式预设切换和单一认证玻璃实例 |
+| `ApplicationLayerRoot.tsx` | 根级图片、氛围、地图、UI 四层宿主，地图 Portal 上下文和唯一 `.application-content-root`；不得创建第五个全局层 |
 | `FinancialBackdrop.tsx` | 根级唯一摄影 `<picture>`、响应式图片、高优先级加载、图片失败隐藏和单一氛围节点；不接收页面变体 props |
 | `ApplicationLoadingState.tsx` | 统一账号服务连接、正式代码包加载、本地免登录预览代码包加载和权威游戏服务器连接的唯一全屏居中加载结构；四个入口只允许替换中文文字，不得恢复深色加载卡片或创建平行加载样式 |
 | `PhotographicStateShell.tsx` | 封禁、无权限和致命错误的语义状态、安全区内容几何与 critical 状态卡；不得承担普通加载状态或挂载摄影图片 |
-| `SignedInShell.tsx` | 游戏与管理员共享根外壳、侧栏／工作区轨道、唯一页面 `ScrollArea`、可选工作区背景层／战略 Chrome 层、页面 Overlay 与 Chrome Overlay DOM 顺序；不得重新提供 `SignedInShell.backdrop` |
+| `SignedInShell.tsx` | 游戏与管理员共享根外壳、侧栏／工作区轨道、唯一页面 `ScrollArea`、战略 Chrome 层、页面 Overlay 与 Chrome Overlay DOM 顺序；不得重新提供工作区地图背景插槽或 `SignedInShell.backdrop` |
 | `GameShell.tsx` | 向共享外壳提供玩家侧栏、单一状态栏、常驻战略地图与页面面板类型、统一通知入口、桌面关闭态 Toast、移动通知灵动岛、通知面板和玩家移动导航；不得挂载根级摄影背景节点 |
-| `StrategicWorkspace.tsx` | 玩家工作区唯一 ECharts 地图实例、五种地图镜头、当前州经营检查器和本地市场／生产快捷入口；不得复制页面业务内容或建立第二个状态源 |
+| `StrategicWorkspace.tsx` | 玩家唯一 ECharts 地图实例、州面直接选择和五种地图镜头；战略 Chrome 只保留镜头栏，不得恢复“当前经营地区”卡片、复制页面业务内容或建立第二个状态源 |
 | `notificationCenter.ts` | 普通通知二十条历史、稳定待处理键、状态派生、已读与删除纯函数；不得创建通知专用轮询 |
 | `useNotificationCenter.ts` | 按玩家隔离的通知持久化、面板开关、打开态通知抑制、关闭态通知队列和待处理状态转换监听 |
 | `NotificationCenter.tsx` | 状态栏入口、工作区通知面板、待处理与普通通知列表、清除已读、单条删除、桌面关闭态 Toast 和移动通知灵动岛；不得导入液态玻璃组件 |
 | `AdminDesktopBar.tsx` | 向共享外壳提供管理员桌面标题、说明、账号、世界／API 摘要与刷新操作，并复用 `desktopStatusBar` |
 | `AdminApp.tsx` | 向共享外壳提供管理员侧栏、管理员移动导航和业务页面；不得重建根滚动视口、挂载背景节点或复用玩家／认证氛围变体 |
 | `App.tsx` | 计算 `data-app-surface`、`data-app-backdrop` 与 `data-app-tone`，驱动根级摄影表现；不得重建摄影节点 |
-| `main.tsx` | 在 `StrictMode` 与 `AppErrorBoundary` 外部永久挂载唯一 `FinancialBackdrop`，并承载 `.application-content-root` |
+| `main.tsx` | 在 `StrictMode` 与 `AppErrorBoundary` 外部永久挂载唯一 `ApplicationLayerRoot`，由其承载 `FinancialBackdrop`、地图层、UI 层和 `.application-content-root` |
 | `StatusBar.tsx` | 保持单一玩家状态栏实例，按 `720px` 断点选择预设；`.asset-bar-layout` 左侧直接承载固定五列状态内容，右侧只承载独立通知工具位，并使用单一 `ResizeObserver` 与合并后的 `requestAnimationFrame` 对移动端真实溢出的主数值逐项缩小字号；不得引入 `ScrollArea` |
 | `financial-backdrop.css` | 根级唯一隔离、图片层、认证／玩家／管理员三种滤镜与氛围、网格、噪点、critical 暗角、失败回退、登录后开放采样链和根级状态外壳 |
 | `auth.css` | 认证内容层、品牌区、卡片外层宽度／对齐／圆角、认证内容内边距、输入与自动填充兼容；不得实现摄影层或玻璃材质 |
 | `liquid-glass-surfaces.css` | 所有玻璃宿主、第三方 DOM 尺寸、内容自适应层、开放背景采样链、平台圆角、统一透明宿主与回退、全部表面的官方双层高光及宿主几何绑定、透明辅助层、零尺寸过渡、无项目结构描边和移动底栏唯一垂直留白 |
 | `liquid-glass-chrome.css` | 浏览器 harness 的共享外壳样式兼容聚合入口，必须包含全应用摄影背景样式 |
 | `game-shell-layout.css` | 登录后桌面双列轨道、唯一布局沟槽、工作栏外距、页面避让、内容边缘和桌面页面滚动条贴边几何 |
-| `strategic-game-shell.css` | 仅玩家端使用的 `8px`／`64px`／`78px` 战略外壳覆盖、常驻地图层、四类页面面板、右侧州检查器、底部镜头栏和移动战略地图安全布局；不得改变管理员几何 |
+| `strategic-game-shell.css` | 仅玩家端使用的 `8px`／`64px`／`78px` 战略外壳覆盖、根级常驻地图、四类页面面板、底部镜头栏和移动战略地图安全布局；不得恢复经营地区卡片或改变管理员几何 |
 | `desktop-sidebar.css` | 侧栏展开／折叠、导航固有行高和过渡 |
 | `viewport.css` | 游戏与管理员固定视口、桌面／移动开放背景采样链、登录态根视口纵向 overscroll 终止、移动工作区 gutter、两层 Overlay、局部层级堆叠边界与安全区层级 |
 | `scrollbars.css` | 通用覆盖式滚动条；移动页面纵向轨道固定到视口安全边缘，不负责移动底栏 |
@@ -128,21 +129,21 @@
 - 玩家端 `.strategic-game-shell` 固定使用 `8px` 桌面外距、`64px` 顶部状态栏和 `78px` 指挥栏。玩家侧栏默认折叠；展开到 `224px` 时只覆盖地图和页面面板左侧，不得改变 `.workspace` 的位置、宽度、顶部状态栏几何或地图 ECharts 实例。
 - 玩家状态栏与管理员桌面工作栏都必须从视口左侧沟槽延伸到右侧沟槽，横跨侧栏列和工作区列。侧栏展开、折叠或紧凑化不得改变顶部工作栏的 `left`、`right`、`top` 或宽度。
 - `.signed-in-shell__body` 的顶部固定为“沟槽 + 当前工作栏高度 + 沟槽”；侧栏与 `.workspace` 的顶部必须与主体顶部共线，侧栏不得再从视口顶部开始或与工作栏并排顶头。
-- 玩家 `.workspace-background-layer` 在同一工作区内只挂载一个美国本土地图实例；`.mobile-page-overlay` 承载可滚动业务页面与战略面板；`.workspace-strategic-chrome` 承载右侧州检查器和底部地图镜头。DOM 顺序固定为背景层 → 页面层 → 战略 Chrome → 普通工作区浮层，根级状态栏和移动导航仍在后续 Chrome Overlay 中。
+- `#root` 的直接子层固定按 `.application-image-layer` → `.application-atmosphere-layer` → `.application-map-layer` → `.application-ui-layer` 顺序渲染，对应 `z-index: 0 / 10 / 20 / 30`。玩家唯一美国本土地图通过 `ApplicationMapLayerPortal` 进入地图层并铺满视口；`.mobile-page-overlay` 承载可滚动业务页面与战略面板，`.workspace-strategic-chrome` 只承载底部地图镜头。状态栏、侧栏、页面、普通浮层、业务 Dialog 和移动导航全部属于 UI 层，不得建立第五个全局层。
 - 玩家十一页按 `map`／`workspace`／`fullscreen`／`side` 四种展示类型覆盖在常驻地图上；页面切换只替换面板内容，不得卸载地图、创建第二个 ECharts 地图或把业务面板扩张成不透明全屏根背景。
 - `.page-scroll-area` 与 `.page-scroll` 直接铺满下方工作区，`padding-top` 与 `scroll-padding-top` 必须为 `0`；玩家战略面板自行预留底部镜头栏安全区，管理员页面继续使用共享外壳沟槽。页面 sticky 内容只允许使用工作区内部沟槽作为偏移。
 - `--desktop-page-top-offset` 只表示下方工作区内部沟槽，不包含顶部工作栏高度；生产页桌面 sticky 继续以工作区内部顶部为定位基准。
 - 页面主滚动条只覆盖下方工作区的纵向范围，右边缘继续贴合视口；不得穿过顶部工作栏，也不得因显隐改变页面 `clientWidth`。桌面轨道使用工作区内 `top:0; bottom:0`，不得再次叠加 `--desktop-shell-body-top`。
 - `.signed-in-shell__chrome` 在桌面必须是有真实尺寸的块级网格行，禁止继承 `display:contents`；移动端 Chrome 作为根外壳兄弟层时必须自行承接与工作区相同的左右 gutter。
 - 桌面侧栏导航必须从侧栏内部顶部按固有行高排列，不能把导航按钮平均拉伸到整列高度；管理员保持传统推动式双列，玩家保持覆盖式指挥栏，两者仍复用同一导航骨架和可访问折叠语义。
-- 页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`；不得重建根级摄影节点。认证、玩家、管理员与根级状态统一使用图片层 `z-index:-2`、氛围层 `z-index:-1` 和 `.application-content-root` 的 `z-index:auto`；不得按 `data-app-surface` 恢复状态专属层级。
-- `#root` 是全应用唯一允许同时包围摄影层、氛围层与液态玻璃的 `isolation:isolate` 根；新增的 `.signed-in-shell__body`、`.signed-in-shell__chrome`、`.workspace-background-layer`、`.workspace-strategic-chrome`、`.workspace-floating-layer` 与 `workspace-dialog-layer` 在桌面和移动端都必须保持 `isolation:auto`、`filter:none` 与 `transform:none`，不得在登录后外壳祖先上建立第二个隔离根。
+- 页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`；不得重建根级摄影节点或四层宿主。认证、玩家、管理员与根级状态统一使用图片／氛围／地图／UI 的 `0 / 10 / 20 / 30` 层级；非游戏界面的地图层保持空且不拦截指针，不得按 `data-app-surface` 恢复状态专属层级。
+- `#root` 是全应用唯一允许同时包围图片层、氛围层、地图层与 UI 液态玻璃的 `isolation:isolate` 根；`.application-map-layer`、`.application-ui-layer`、`.application-content-root`、`.signed-in-shell__body`、`.signed-in-shell__chrome`、`.workspace-strategic-chrome`、`.workspace-floating-layer` 与 `.workspace-dialog-layer` 在桌面和移动端都必须保持 `isolation:auto`、`filter:none` 与 `transform:none`，不得在登录后外壳祖先上建立第二个隔离根。
 - 桌面玩家、桌面管理员、移动玩家和移动管理员四种场景保持开放的背景采样链；不得通过状态栏专属填充、描边或氛围副本掩盖根级采样失败。`verify-open-glass-sampling.mjs` 与 `open-glass-sampling.spec.ts` 必须覆盖新增祖先。
 
 ### 5.1 工作区浮层安全区
 
 - `SignedInShell` 必须在 `.workspace` 内提供唯一 `.workspace-floating-layer`，其桌面几何与工作区完全一致；移动端顶部必须位于状态栏下方，底部必须位于移动导航上方。
-- 移动工作区使用局部层级堆叠边界：`.signed-in-shell__body` 固定使用 `position: relative; z-index: 0` 收口全部工作区子层。管理员传统工作区继续使用页面 `0`、普通浮层 `1`；玩家工作区使用背景 `0`、页面 `1`、战略 Chrome `2`、普通浮层 `4`，保证常驻地图、业务面板、州检查器与 Portal 浮层按职责排序。页面内部任意正 `z-index` 只能在页面边界内排序，不得覆盖工作区浮层；所有正层级都被外层主体的 `z-index: 0` 限制，不能越过后绘制的根 Chrome。
+- 移动工作区使用局部层级堆叠边界：`.signed-in-shell__body` 固定使用 `position: relative; z-index: 0` 收口全部 UI 工作区子层。管理员传统工作区继续使用页面 `0`、普通浮层 `1`；玩家 UI 工作区使用页面 `1`、战略 Chrome `2`、普通浮层 `4`，根级地图独立位于全应用地图层 `20`。页面内部任意正 `z-index` 只能在 UI 页面边界内排序，不得覆盖工作区浮层；所有正层级都被外层主体的 `z-index: 0` 限制，不能越过后绘制的根 Chrome。
 - Tooltip、Popover、菜单、确认框和其他不应覆盖应用 Chrome 的登录后业务浮层只能渲染到工作区浮层根，或像 ECharts Tooltip 一样由业务容器内部 `confine`；不得追加到 `document.body`。需要覆盖完整移动视口的业务模态层只能使用 `SignedInShell` 唯一根级业务 Dialog 层 `.workspace-dialog-layer`，不得另建第二个全局 Portal 根。
 - 工作区浮层根必须使用 `overflow: clip`，自身不拦截指针，只有实际浮层恢复指针事件。定位算法必须以浮层根真实 `getBoundingClientRect()` 为边界，并保留至少 `8px` 内部安全间距。
 - 根级业务 Dialog 层固定覆盖视口、位于 `.signed-in-shell__chrome` 之后并高于全部 Chrome；自身不拦截指针，只有实际遮罩、Sheet 和其富内容弹层恢复交互。普通工作区浮层不得借用该层逃逸安全区。
@@ -196,9 +197,9 @@
 
 固定的只有覆盖式轨道；`.page-scroll-area`、`.page-scroll`、`.page-content` 和卡片仍由 `.workspace` 控制。滑块在轨道内右对齐并保留 `2px` 偏移，因此无安全区时距视口右边约 `2px`，有安全区时距安全区内缘约 `2px`。滚动条显隐不得改变页面 `clientWidth` 或卡片宽度。不得恢复 `--mobile-workspace-inline-end`、`--mobile-scrollbar-edge-escape`、`right: 0 + translateX(...)`、负 `right` 或扩大页面宽度的逃逸实现。
 
-## 7. 全应用三层背景、材质采样、圆角和结构边缘
+## 7. 全应用四层根堆叠、材质采样、圆角和结构边缘
 
-- 摄影 `<picture>` 固定挂载在 `main.tsx`，位于 `StrictMode` 和错误边界之外，整个应用生命周期只允许一个 `.application-image-layer` 与一个 `.application-atmosphere-layer`。账号检查、认证、代码包加载、玩家连接、正式游戏、管理员后台、封禁、无权限和致命错误之间切换时，图片 DOM 节点不得被卸载或替换；不得出现纯色过渡页。
+- `ApplicationLayerRoot` 固定挂载在 `main.tsx`，位于 `StrictMode` 和错误边界之外，整个应用生命周期只允许一个 `.application-image-layer`、一个 `.application-atmosphere-layer`、一个 `.application-map-layer` 与一个 `.application-ui-layer`。摄影 `<picture>` 位于图片层；账号检查、认证、代码包加载、玩家连接、正式游戏、管理员后台、封禁、无权限和致命错误之间切换时，四层宿主和图片 DOM 节点不得被卸载或替换，不得出现纯色过渡页。
 - `App.tsx` 只通过 `data-app-backdrop="auth|game|admin"` 切换图片滤镜与氛围，通过 `data-app-tone="normal|critical"` 切换警示暗角；业务组件不得直接修改图片 URL、创建 `<picture>` 或持有独立背景状态。
 - `html[data-app-surface="auth"|"game"|"admin"|"loading"|"banned"|"error"] body::before` 必须关闭；网格只能由根级氛围层绘制，不得在摄影、氛围和内容之间恢复第四个全局网格层。
 - 图片请求失败时隐藏根级图片元素，`.application-image-layer` 的深色底色与 `.application-atmosphere-layer` 必须继续覆盖视口，不得显示破图图标或白底。
@@ -208,9 +209,9 @@
 - 每个可见顶部工作栏只允许一个玻璃实例；整个移动底栏也只允许一个玻璃实例；认证页面只允许一个认证玻璃实例。
 - 支持环境中的桌面状态栏、管理员桌面工作栏、移动状态栏、移动底栏和认证卡片全部使用 `overLight=false`；两个辅助节点保持完整几何但不得产生可见黑色绘制。所有宿主保持透明，第三方 `.glass__warp` 继续采样页面内容和根级氛围背景；认证输入框自身继续保持不透明深色控件以保护表单可读性。
 - 五种表面都不得创建 `.liquid-glass-surface__material-fill`，也不得恢复 `--liquid-glass-contrast`、`--liquid-glass-structure-border`、`--liquid-glass-auth-contrast` 或 `--liquid-glass-auth-mobile-contrast`；只有不支持背景滤镜时可统一使用 `--liquid-glass-auth-fallback`。
-- `#root` 是唯一全应用隔离根；登录后玩家与管理员外壳、工作区、两层移动 Overlay、页面主滚动区和玻璃宿主不得建立第二个 `isolation:isolate`、非 `none` `filter` 或非 `none` `transform`。
+- `#root` 是唯一全应用隔离根；地图层、UI 层、登录后玩家与管理员外壳、工作区、两层移动 Overlay、页面主滚动区和玻璃宿主不得建立第二个 `isolation:isolate`、非 `none` `filter` 或非 `none` `transform`。
 - `.glass__warp` 到根级摄影和氛围之间必须在桌面玩家、桌面管理员、移动玩家和移动管理员四种场景保持开放的背景采样链；`.liquid-glass-surface` 不得使用 `contain: paint`、`isolation: isolate` 或 `overflow: clip`，统一使用 `overflow: hidden` 完成圆角裁切。
-- 桌面 `.page-scroll` 必须使用 `z-index:0` 建立零层级堆叠上下文，把业务卡片内部的正层级封装在页面滚动层内；桌面 `.asset-bar` 必须保持 `z-index:auto` 并依靠页面层先绘制、Chrome 层后绘制的 DOM 顺序完成覆盖。不得把页面滚动层改回 `auto` 让商品图片等业务子层覆盖状态栏，也不得用正 `z-index` 提升桌面状态栏，否则 `.glass__warp` 无法稳定采样滚动页面。移动端 `.signed-in-shell__body` 使用 `z-index:0` 收口工作区；管理员继续使用页面 `0`／浮层 `1`，玩家使用背景 `0`／页面 `1`／战略 Chrome `2`／浮层 `4`，Chrome 仍由根外壳后续顺序覆盖；`.workspace`、`.page-scroll`、`.asset-bar` 和移动底栏保持 `z-index:auto`。
+- 桌面 `.page-scroll` 必须使用 `z-index:0` 建立零层级堆叠上下文，把业务卡片内部的正层级封装在页面滚动层内；桌面 `.asset-bar` 必须保持 `z-index:auto` 并依靠页面层先绘制、Chrome 层后绘制的 DOM 顺序完成覆盖。不得把页面滚动层改回 `auto` 让商品图片等业务子层覆盖状态栏，也不得用正 `z-index` 提升桌面状态栏，否则 `.glass__warp` 无法稳定采样滚动页面。移动端 `.signed-in-shell__body` 使用 `z-index:0` 收口工作区；管理员继续使用页面 `0`／浮层 `1`，玩家 UI 内部使用页面 `1`／战略 Chrome `2`／浮层 `4`，Chrome 仍由根外壳后续顺序覆盖；根级地图不进入这套局部排序，`.workspace`、`.page-scroll`、`.asset-bar` 和移动底栏保持 `z-index:auto`。
 - 只允许不包围状态栏、管理员工作栏或移动底栏的页面局部业务子树建立隔离；不得通过状态栏专属填充、描边或氛围副本掩盖根级采样失败。
 - 桌面、移动和认证预设的 WebKit 兼容别名必须统一匹配共享上游参数；只有圆角和固定／内容高度模型允许因平台与用途不同。
 - 所有五种表面都不得绘制项目结构描边或宿主边框；`desktopStatusBar`、`mobileStatusBar`、`mobileNavigation`、`desktopAuthCard` 与 `mobileAuthCard` 的 `::after` 必须统一使用 `content: none`。
@@ -269,9 +270,9 @@
 7. 桌面导航按钮从顶部按固有高度排列；玩家侧栏默认折叠，展开后覆盖地图且工作区几何不变；桌面工作栏、桌面认证卡和桌面一级卡片均为 `24px`。
 8. 移动状态栏、一级卡片和底栏实际玻璃左右共线；移动状态栏固定 `48px`，底栏固定 `68px`；移动 Chrome 与移动认证卡圆角均为 `40px`。移动 `.asset-bar-content` 的上下计算内边距必须为 `0px`，顶部和底部与 `.asset-bar-layout` 的误差不得超过 `1px`，五个状态项和通知工具轨道必须完整占满状态栏高度。
 9. 状态栏、管理员工作栏、移动底栏和认证卡片统一传入 `70 / 0 / 140 / 2`、弹性 `0` 与 `overLight=false`，浏览器统一计算为 `blur(4px) saturate(140%)`、首个位移 scale 为 `70`；两个辅助黑色层不可见，两个官方直属高光可见，第三方 `.glass` 默认阴影存在。
-10. 根级采样容器计算 `isolation` 为 `isolate`；桌面玩家、桌面管理员、移动玩家和移动管理员的 `.application-content-root`、登录后外壳、`.workspace`、两层 Overlay、`.workspace-background-layer`、`.workspace-strategic-chrome`、`.page-scroll-area` 与 `.page-scroll` 均为 `isolation:auto`、`filter:none`、`transform:none`。玻璃宿主 `contain` 为 `none`、`isolation` 为 `auto`、裁切为 `overflow: hidden`。
-11. 桌面 `.page-scroll` 计算 `z-index` 为 `0`，桌面 `.asset-bar` 为 `auto`，页面内部 `z-index:1/2` 的商品图片和数据层不得覆盖状态栏；移动 `.signed-in-shell__body` 为 `0`，玩家工作区背景／页面／战略 Chrome／普通浮层分别为 `0 / 1 / 2 / 4`，管理员页面／普通浮层仍为 `0 / 1`，`.workspace`、`.page-scroll`、`.asset-bar` 和移动底栏宿主均为 `auto`，状态栏和底栏不得创建正层级合成上下文。
-12. 管理员与玩家移动端的页面主体固定 `order:1; z-index:0`，Chrome 层固定 `order:2; z-index:auto`；玩家工作区内部按常驻地图背景、页面层、战略 Chrome 和普通浮层根排序，整个工作区仍受主体 `z-index:0` 约束。插入页面内部极端正 `z-index` 哨兵后，通知面板操作仍必须由 `elementFromPoint` 命中，状态栏和底栏继续保持可点击。
+10. 根级采样容器计算 `isolation` 为 `isolate`；根直接子层顺序为图片／氛围／地图／UI，计算 `z-index` 分别为 `0 / 10 / 20 / 30`。桌面玩家、桌面管理员、移动玩家和移动管理员的 `.application-map-layer`、`.application-ui-layer`、`.application-content-root`、登录后外壳、`.workspace`、两层 Overlay、`.workspace-strategic-chrome`、`.page-scroll-area` 与 `.page-scroll` 均为 `isolation:auto`、`filter:none`、`transform:none`。玻璃宿主 `contain` 为 `none`、`isolation` 为 `auto`、裁切为 `overflow: hidden`。
+11. 桌面 `.page-scroll` 计算 `z-index` 为 `0`，桌面 `.asset-bar` 为 `auto`，页面内部 `z-index:1/2` 的商品图片和数据层不得覆盖状态栏；移动 `.signed-in-shell__body` 为 `0`，玩家 UI 工作区页面／战略 Chrome／普通浮层分别为 `1 / 2 / 4`，管理员页面／普通浮层仍为 `0 / 1`，`.workspace`、`.page-scroll`、`.asset-bar` 和移动底栏宿主均为 `auto`，状态栏和底栏不得创建正层级合成上下文。
+12. 管理员与玩家移动端的页面主体固定 `order:1; z-index:0`，Chrome 层固定 `order:2; z-index:auto`；玩家 UI 工作区内部按页面层、战略 Chrome 和普通浮层根排序，整个工作区仍受主体 `z-index:0` 约束。插入页面内部极端正 `z-index` 哨兵后，通知面板操作仍必须由 `elementFromPoint` 命中，状态栏和底栏继续保持可点击。
 13. 移动通知灵动岛顶部位于状态栏下方 `8px`，展开前后中心与物理屏幕水平中线误差不超过 `1px`，宽度不超过 `360px` 且不侵入左右安全区；同时只存在一个岛体，队列折叠为 `+N`，点击后岛体消失并打开工作区通知面板。岛体不得新增液态玻璃实例或改变页面滚动高度，`prefers-reduced-motion` 下不得出现位移、缩放或宽高变形动画。
 14. 页面首次加载后全应用始终只有一个摄影 `<picture>` 和一个 `<img>`；账号检查切换到认证时自定义 DOM 标记必须保留，证明节点未被替换。认证、玩家、管理员和状态页只改变 `data-app-backdrop` 与 `data-app-tone`。
 15. 摄影请求失败时图片元素隐藏，氛围背景、状态卡、页面内容、状态栏、管理员工作栏与导航仍然可见并可交互。

@@ -179,11 +179,10 @@ requireAll(paths.sidebarStyle, [
 ]);
 requireAll(paths.shellLayoutStyle, ['.signed-in-shell__body {', 'grid-template-columns:', 'var(--sidebar-column-width)']);
 requireAll(paths.strategicStyle, [
-  '.strategic-tab-home .strategic-page-host--workspace > .page-content {',
-  'width: calc(100% - var(--strategic-inspector-width) - var(--strategic-panel-gap) * 4);',
-  '@media (max-width: 1499px) and (min-width: 721px)',
-  '.strategic-tab-home .strategic-province-inspector {',
+  '.strategic-page-host--workspace > .page-content {',
+  'width: 100%;',
 ]);
+forbidAll(paths.strategicStyle, ['--strategic-inspector-width', '.strategic-province-inspector']);
 forbidAll(paths.sidebarStyle, ['right: -11px;']);
 requireAll(paths.statusBar, ['onClick?: () => void;', "if (item.onClick) classNames.push('asset-bar-item--interactive')", "aria-label={`${item.label}，打开详情`}"]);
 
@@ -241,6 +240,7 @@ requireAll(paths.uiDesign, ['## 10. 概览布局', '经营决策优先', '桌面
 requireAll(paths.integrityDesign, [
   '外层轨道唯一性',
   '实际内容宽度响应式',
+  '概览不再挂载州经营检查器',
   '签到日历',
   '资产与银行',
   '服务器权威的可支配资产、冻结资产和贷款负债',

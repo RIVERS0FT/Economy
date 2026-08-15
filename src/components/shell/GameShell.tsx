@@ -17,6 +17,7 @@ import { DesktopSidebar } from './DesktopSidebar';
 import { MobileBottomNavigation } from './MobileBottomNavigation';
 import { SignedInShell } from './SignedInShell';
 import { StatusBar, type StatusBarItem } from './StatusBar';
+import { ApplicationMapLayerPortal } from '../visual/ApplicationLayerRoot';
 import {
   StrategicMapStage,
   StrategicWorkspaceChrome,
@@ -134,6 +135,9 @@ export function GameShell({ model, children, offline = false }: {
 
   return (
     <AuctionNewIdsContext.Provider value={auctionNewIdSet}>
+      <ApplicationMapLayerPortal>
+        <StrategicMapStage model={model} lens={mapLens} />
+      </ApplicationMapLayerPortal>
       <SignedInShell
         rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}`}
         workspaceClassName="strategic-workspace"
@@ -188,10 +192,8 @@ export function GameShell({ model, children, offline = false }: {
             />
           </>
         )}
-        workspaceBackground={<StrategicMapStage model={model} lens={mapLens} />}
         workspaceChrome={(
           <StrategicWorkspaceChrome
-            model={model}
             lens={mapLens}
             onLensChange={setMapLens}
           />

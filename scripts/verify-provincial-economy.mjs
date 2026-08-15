@@ -111,13 +111,13 @@ for (const text of [
 
 const mapPage = read('src/pages/MapPage.tsx');
 for (const text of [
-  'us-atlas',
-  '48 个州级地区',
-  'province-map-command-panel',
-  'province-map-meta',
-  '地图在所有玩家页面持续运行',
-]) assert.ok(mapPage.includes(text), `地图页面指挥面板缺少: ${text}`);
+  'className="province-map-page"',
+  'aria-label="美国本土州级经营地图页面"',
+]) assert.ok(mapPage.includes(text), `地图页面透明路由占位缺少: ${text}`);
 assert.equal(mapPage.includes('<UsMainlandMap'), false, 'MapPage 不得重新创建页面级地图实例');
+for (const forbidden of ['战略经营地图', '当前经营地区', 'province-map-command-panel', 'province-map-meta', 'province-map-legend']) {
+  assert.equal(mapPage.includes(forbidden), false, `地图页不得恢复已删除的卡片: ${forbidden}`);
+}
 
 const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');
 for (const text of [
@@ -131,26 +131,28 @@ for (const text of [
   "{ id: 'industry', label: '工业'",
   "{ id: 'market', label: '市场'",
   "{ id: 'alerts', label: '异常'",
-  '进入本地市场',
-  '管理本地生产',
 ]) assert.ok(strategicWorkspace.includes(text), `常驻战略地图交互缺少: ${text}`);
+for (const forbidden of ['当前经营地区', 'strategic-province-inspector', '进入本地市场', '管理本地生产']) {
+  assert.equal(strategicWorkspace.includes(forbidden), false, `战略 Chrome 不得恢复已删除的经营地区卡片: ${forbidden}`);
+}
 
 const gameShell = read('src/components/shell/GameShell.tsx');
 for (const text of [
   'const STRATEGIC_PAGE_PRESENTATION = {',
-  'workspaceBackground={<StrategicMapStage model={model} lens={mapLens} />}',
+  '<ApplicationMapLayerPortal>',
+  '<StrategicMapStage model={model} lens={mapLens} />',
   '<StrategicWorkspaceChrome',
   'data-strategic-presentation={pagePresentation}',
 ]) assert.ok(gameShell.includes(text), `玩家战略外壳缺少: ${text}`);
 
 const strategicStyles = read('src/styles/strategic-game-shell.css');
 for (const text of [
-  '.game-shell .workspace-background-layer',
+  '.application-map-layer',
   '.game-shell .workspace-strategic-chrome',
   '.strategic-map-lens-bar',
-  '.strategic-province-inspector',
   '--strategic-command-rail-width: 78px',
 ]) assert.ok(strategicStyles.includes(text), `常驻战略地图样式缺少: ${text}`);
+assert.equal(strategicStyles.includes('.strategic-province-inspector'), false, '战略地图样式不得恢复经营地区检查器');
 
 const mapComponent = read('src/components/provinces/UsMainlandMap.tsx');
 for (const text of [
@@ -161,6 +163,11 @@ for (const text of [
   'registerEChartsMap(US_MAINLAND_MAP_NAME, usMainlandGeoJson)',
   "type: 'map'",
   "selectedMode: 'single'",
+  "zoom: 1",
+  "left: '5%'",
+  "right: '5%'",
+  "top: '7%'",
+  "bottom: '9%'",
   'maxAspectRatio: 0.8',
   "layoutCenter: ['50%', '39%']",
   'onClick={handleMapClick}',
@@ -175,8 +182,27 @@ for (const text of ['MapChart', 'GeoComponent', 'registerEChartsMap']) {
 }
 
 const mapStyles = read('src/styles/province-map.css');
-for (const forbidden of ['.province-map-marker', '.province-map-silhouette']) {
-  assert.equal(mapStyles.includes(forbidden), false, `不得恢复手绘固定坐标地图: ${forbidden}`);
+for (const forbidden of [
+  '.province-map-marker',
+  '.province-map-silhouette',
+  '.province-map-command-panel',
+  '.province-map-meta',
+  '.province-map-legend',
+]) {
+  assert.equal(mapStyles.includes(forbidden), false, `地图样式不得恢复旧地图标记或卡片: ${forbidden}`);
+}
+for (const [path, selector] of [
+  ['src/styles/financial-backdrop.css', '.application-map-layer'],
+  ['src/styles/strategic-game-shell.css', '.strategic-map-stage'],
+]) {
+  const source = read(path);
+  const start = source.lastIndexOf(`${selector} {`);
+  const block = start >= 0 ? source.slice(start, source.indexOf('}', start) + 1) : '';
+  assert.ok(block.includes('overflow: visible;'), `${selector} 必须允许地图外缘完整显示`);
+  assert.equal(block.includes('overflow: hidden;'), false, `${selector} 不得截断地图外缘`);
+  for (const text of ['border: 0;', 'border-radius: 0;', 'outline: 0;', 'box-shadow: none;']) {
+    assert.ok(block.includes(text), `${selector} 不得产生地图外缘白边，缺少: ${text}`);
+  }
 }
 
 const mapBrowserTest = read('tests/browser/province-map.spec.ts');
@@ -185,11 +211,13 @@ for (const text of [
   "data-province-count', '48'",
   "data-map-feature-count', '48'",
   "for (const excludedCode of ['AK', 'HI', 'DC'])",
-  "page.locator('.workspace-background-layer')",
+  "page.locator('.application-map-layer')",
   "hasText: /^TX$/",
-  "getByRole('option', { name: '罗得岛州' })",
   'persistent US strategy map exposes 48 states, lenses, and local context',
-  'mobile strategy map stays beneath safe command and province panels without overflow',
+  'mobile strategy map fills the root map layer without obsolete map cards or inspector',
+  "page.locator('.province-map-page > *')",
+  "page.locator('.strategic-province-inspector')",
+  "page.getByLabel('地图图例')",
   "toHaveAttribute('data-map-lens', 'market')",
   'data-echarts-instance-id',
 ]) assert.ok(mapBrowserTest.includes(text), `ECharts 地图浏览器回归缺少: ${text}`);

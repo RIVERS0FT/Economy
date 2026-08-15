@@ -16,6 +16,7 @@ const forbidText = (path, text) => {
 
 for (const path of [
   'src/config/visualAssets.ts',
+  'src/components/visual/ApplicationLayerRoot.tsx',
   'src/components/visual/FinancialBackdrop.tsx',
   'src/components/visual/PhotographicStateShell.tsx',
   'src/components/system/ApplicationLoadingState.tsx',
@@ -34,7 +35,6 @@ for (const path of [
   'src/main.tsx',
   'runtime-test.html',
   'market-runtime-test.html',
-  'tests/browser/persistent-backdrop-harness.tsx',
   'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
   'docs/LIQUID_GLASS_CHROME_DESIGN.md',
   'tests/browser/game-three-layer.spec.ts',
@@ -43,7 +43,6 @@ for (const path of [
 
 for (const text of [
   '{sidebar}',
-  'className="workspace-background-layer"',
   'className="mobile-page-overlay"',
   'className="workspace-strategic-chrome"',
   'className="workspace-floating-layer"',
@@ -54,18 +53,19 @@ for (const text of ['backdrop?: ReactNode;', '{backdrop}']) forbidText('src/comp
 
 const sharedShell = read('src/components/shell/SignedInShell.tsx');
 const sidebarIndex = sharedShell.indexOf('{sidebar}');
-const workspaceBackgroundIndex = sharedShell.indexOf('className="workspace-background-layer"');
 const pageOverlayIndex = sharedShell.indexOf('className="mobile-page-overlay"');
 const workspaceStrategicChromeIndex = sharedShell.indexOf('className="workspace-strategic-chrome"');
 const workspaceFloatingLayerIndex = sharedShell.indexOf('className="workspace-floating-layer"');
 const chromeOverlayIndex = sharedShell.indexOf("'mobile-chrome-overlay'");
 if (!(sidebarIndex >= 0
-  && workspaceBackgroundIndex > sidebarIndex
-  && pageOverlayIndex > workspaceBackgroundIndex
+  && pageOverlayIndex > sidebarIndex
   && workspaceStrategicChromeIndex > pageOverlayIndex
   && workspaceFloatingLayerIndex > workspaceStrategicChromeIndex
   && chromeOverlayIndex > workspaceFloatingLayerIndex)) {
-  failures.push('SignedInShell 必须按侧栏、工作区背景、页面 Overlay、战略 Chrome、工作区浮层、根 Chrome 顺序渲染');
+  failures.push('SignedInShell 必须按侧栏、页面 Overlay、战略 Chrome、工作区浮层、根 Chrome 顺序渲染');
+}
+for (const text of ['workspaceBackground', 'className="workspace-background-layer"']) {
+  forbidText('src/components/shell/SignedInShell.tsx', text);
 }
 
 for (const text of [
@@ -80,6 +80,25 @@ for (const text of [
   'loading="eager"',
   'fetchPriority="high"',
 ]) requireText('src/components/visual/FinancialBackdrop.tsx', text);
+
+for (const text of [
+  'export function ApplicationLayerRoot',
+  '<FinancialBackdrop />',
+  'className="application-map-layer"',
+  'data-application-layer="map"',
+  'className="application-ui-layer"',
+  'data-application-layer="ui"',
+  '<div className="application-content-root">{children}</div>',
+  'export function ApplicationMapLayerPortal',
+  'createPortal(children, mapLayer)',
+]) requireText('src/components/visual/ApplicationLayerRoot.tsx', text);
+const applicationLayers = read('src/components/visual/ApplicationLayerRoot.tsx');
+const imageHostIndex = applicationLayers.indexOf('<FinancialBackdrop />');
+const mapHostIndex = applicationLayers.indexOf('className="application-map-layer"');
+const uiHostIndex = applicationLayers.indexOf('className="application-ui-layer"');
+if (!(imageHostIndex >= 0 && mapHostIndex > imageHostIndex && uiHostIndex > mapHostIndex)) {
+  failures.push('ApplicationLayerRoot 必须按图片／氛围、地图、UI 顺序渲染根宿主');
+}
 
 for (const text of [
   'export function PhotographicStateShell',
@@ -101,7 +120,8 @@ for (const text of [
   'rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}`}',
   '<DesktopSidebar',
   '<StatusBar',
-  'workspaceBackground={<StrategicMapStage model={model} lens={mapLens} />}',
+  '<ApplicationMapLayerPortal>',
+  '<StrategicMapStage model={model} lens={mapLens} />',
   '<StrategicWorkspaceChrome',
   'action={(',
   'NotificationCenterButton',
@@ -166,36 +186,45 @@ for (const path of [
 
 const mainSource = read('src/main.tsx');
 for (const text of [
-  "import { FinancialBackdrop } from './components/visual/FinancialBackdrop';",
+  "import { ApplicationLayerRoot } from './components/visual/ApplicationLayerRoot';",
   "document.documentElement.dataset.appSurface = 'loading';",
   'document.documentElement.dataset.appBackdrop =',
   "document.documentElement.dataset.appTone = 'normal';",
-  '<FinancialBackdrop />',
-  '<div className="application-content-root">',
+  '<ApplicationLayerRoot>',
+  '</ApplicationLayerRoot>',
 ]) requireText('src/main.tsx', text);
-const backdropNodeIndex = mainSource.indexOf('<FinancialBackdrop />');
+const layerRootIndex = mainSource.indexOf('<ApplicationLayerRoot>');
 const strictModeIndex = mainSource.indexOf('<React.StrictMode>');
 const boundaryIndex = mainSource.indexOf('<AppErrorBoundary>');
-if (!(backdropNodeIndex >= 0 && strictModeIndex > backdropNodeIndex && boundaryIndex > backdropNodeIndex)) {
-  failures.push('摄影节点必须在 StrictMode 与 AppErrorBoundary 之外持久挂载');
+if (!(layerRootIndex >= 0 && strictModeIndex > layerRootIndex && boundaryIndex > layerRootIndex)) {
+  failures.push('四层根宿主必须在 StrictMode 与 AppErrorBoundary 之外持久挂载');
 }
-if ((mainSource.match(/<FinancialBackdrop \/>/g) ?? []).length !== 1) {
-  failures.push('生产根入口必须且只能渲染一个 FinancialBackdrop');
+if ((mainSource.match(/<ApplicationLayerRoot>/g) ?? []).length !== 1) {
+  failures.push('生产根入口必须且只能渲染一个 ApplicationLayerRoot');
 }
 
 for (const text of [
   'html[data-app-surface="error"] body::before',
   '#root {',
   'isolation: isolate;',
+  '--application-layer-image: 0;',
+  '--application-layer-atmosphere: 10;',
+  '--application-layer-map: 20;',
+  '--application-layer-ui: 30;',
   '.application-content-root {',
   'z-index: auto;',
   '.application-image-layer,',
-  '.application-atmosphere-layer {',
+  '.application-atmosphere-layer,',
+  '.application-map-layer {',
   'position: fixed;',
   '.application-image-layer {',
-  'z-index: -2;',
+  'z-index: var(--application-layer-image);',
   '.application-atmosphere-layer {',
-  'z-index: -1;',
+  'z-index: var(--application-layer-atmosphere);',
+  '.application-map-layer {',
+  'z-index: var(--application-layer-map);',
+  '.application-ui-layer {',
+  'z-index: var(--application-layer-ui);',
   'html[data-app-backdrop="auth"] .application-image-layer img',
   'html[data-app-backdrop="game"] .application-image-layer img',
   'html[data-app-backdrop="admin"] .application-image-layer img',
@@ -211,15 +240,15 @@ for (const text of [
 ]) requireText('src/styles/financial-backdrop.css', text);
 
 for (const text of [
-  '.application-image-layer {\n  z-index: -2;',
-  '.application-atmosphere-layer {\n  z-index: -1;',
+  '--application-layer-image: 0;',
+  '--application-layer-atmosphere: 10;',
+  '--application-layer-map: 20;',
+  '--application-layer-ui: 30;',
   '.application-content-root {\n  position: relative;\n  z-index: auto;',
 ]) requireText('src/styles/financial-backdrop.css', text);
 for (const text of [
   'html[data-app-surface="auth"] .application-image-layer',
   'html[data-app-surface="auth"] .application-atmosphere-layer',
-  '.application-image-layer {\n  z-index: 0;',
-  '.application-atmosphere-layer {\n  z-index: 1;',
   '.application-content-root {\n  position: relative;\n  z-index: 2;',
 ]) forbidText('src/styles/financial-backdrop.css', text);
 forbidText('src/styles/financial-backdrop.css', '.photographic-state-card--loading');
@@ -263,25 +292,30 @@ if (!(compatibilityLayoutIndex >= 0 && compatibilityBackdropIndex > compatibilit
 }
 
 for (const text of [
-  'id="backdrop-root"',
-  'class="application-content-root"',
-  '/tests/browser/persistent-backdrop-harness.tsx',
+  'id="root"',
+  '/tests/browser/runtime-harness.tsx',
 ]) requireText('runtime-test.html', text);
 for (const text of [
-  'id="backdrop-root"',
-  'class="application-content-root"',
-  '/tests/browser/persistent-backdrop-harness.tsx',
+  'id="root"',
+  '/tests/browser/market-runtime-harness.tsx',
 ]) requireText('market-runtime-test.html', text);
-for (const text of [
-  "import { FinancialBackdrop } from '../../src/components/visual/FinancialBackdrop';",
-  "document.getElementById('backdrop-root')",
-  '<FinancialBackdrop />',
-]) requireText('tests/browser/persistent-backdrop-harness.tsx', text);
+for (const path of ['runtime-test.html', 'market-runtime-test.html']) {
+  for (const text of ['backdrop-root', 'persistent-backdrop-harness.tsx', 'class="application-content-root"']) {
+    forbidText(path, text);
+  }
+}
+for (const path of ['tests/browser/runtime-harness.tsx', 'tests/browser/market-runtime-harness.tsx']) {
+  for (const text of [
+    "import { ApplicationLayerRoot } from '../../src/components/visual/ApplicationLayerRoot';",
+    '<ApplicationLayerRoot>',
+    '</ApplicationLayerRoot>',
+  ]) requireText(path, text);
+}
 
 for (const text of [
-  '登录、注册、玩家游戏、管理员后台与根级状态共享三层视觉',
+  '登录、注册、玩家游戏、管理员后台与根级状态共享四层根结构',
   '整个应用生命周期只允许一个摄影 `<picture>` 节点',
-  '摄影节点固定在 `main.tsx`',
+  '`main.tsx` 在 `React.StrictMode` 与 `AppErrorBoundary` 外部固定挂载 `ApplicationLayerRoot`',
   '`data-app-backdrop`',
   '`data-app-tone`',
   '统一账号服务连接、正式代码包加载、本地免登录预览代码包加载与权威游戏服务器连接统一由 `ApplicationLoadingState`',
@@ -291,24 +325,27 @@ for (const text of [
 ]) requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', text);
 
 for (const text of [
-  '全应用三层摄影背景',
-  '摄影 `<picture>` 固定挂载在 `main.tsx`',
+  '全应用四层根堆叠',
+  '`ApplicationLayerRoot` 固定挂载在 `main.tsx`',
   '页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`',
-  '不得重新提供 `SignedInShell.backdrop`',
+  '不得重新提供工作区地图背景插槽或 `SignedInShell.backdrop`',
   '`ApplicationLoadingState.tsx`',
   '四个入口只允许替换中文文字',
   '`application-photography.spec.ts`',
   '不得出现纯色过渡页',
-  '认证、玩家、管理员与根级状态统一使用图片层 `z-index:-2`、氛围层 `z-index:-1` 和 `.application-content-root` 的 `z-index:auto`',
+  '对应 `z-index: 0 / 10 / 20 / 30`',
+  '不得建立第五个全局层',
 ]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
 
 for (const text of [
-  "test.describe('signed-in game three-layer background'",
+  "test.describe('signed-in game four-layer scene stack'",
   "page.locator('.application-image-layer')",
   "page.locator('.application-atmosphere-layer')",
-  'one persistent photography node',
-  'workspaceLayerIsolations',
-  'backgroundIndex: workspaceChildren.indexOf(workspaceBackground)',
+  "page.locator('.application-map-layer')",
+  "page.locator('.application-ui-layer')",
+  'one persistent image, atmosphere, map, and UI root order',
+  'openLayerIsolations',
+  'rootLayerOrder',
   'strategicChromeIndex: workspaceChildren.indexOf(workspaceStrategicChrome)',
   'floatingLayerIndex: workspaceChildren.indexOf(workspaceFloatingLayer)',
   'falls back to the atmosphere layer when photography fails',

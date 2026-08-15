@@ -19,7 +19,6 @@ export function SignedInShell({
   sidebarCollapsed,
   sidebar,
   chrome,
-  workspaceBackground,
   workspaceChrome,
   children,
 }: {
@@ -32,7 +31,6 @@ export function SignedInShell({
   sidebarCollapsed: boolean;
   sidebar: ReactNode;
   chrome: ReactNode;
-  workspaceBackground?: ReactNode;
   workspaceChrome?: ReactNode;
   children: ReactNode;
 }) {
@@ -53,11 +51,6 @@ export function SignedInShell({
           <div className="signed-in-shell__body">
             {sidebar}
             <section className={classNames('workspace', workspaceClassName)}>
-              {workspaceBackground ? (
-                <div className="workspace-background-layer" data-workspace-background-layer="true">
-                  {workspaceBackground}
-                </div>
-              ) : null}
               <div className="mobile-page-overlay">
                 <ScrollArea
                   axis="y"

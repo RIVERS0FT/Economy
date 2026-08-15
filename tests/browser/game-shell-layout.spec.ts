@@ -6,7 +6,7 @@ type ShellGeometry = {
   shell: { left: number; top: number; right: number; bottom: number };
   body: { left: number; top: number; right: number; bottom: number };
   chrome: { left: number; top: number; right: number; bottom: number };
-  backgroundLayer: { left: number; top: number; right: number; bottom: number };
+  mapLayer: { left: number; top: number; right: number; bottom: number };
   strategicChrome: { left: number; top: number; right: number; bottom: number };
   floatingLayer: { left: number; top: number; right: number; bottom: number };
   sidebar: { left: number; top: number; right: number; bottom: number };
@@ -34,7 +34,7 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
     const shell = document.querySelector<HTMLElement>('.game-shell');
     const body = document.querySelector<HTMLElement>('.signed-in-shell__body');
     const chrome = document.querySelector<HTMLElement>('.signed-in-shell__chrome');
-    const backgroundLayer = document.querySelector<HTMLElement>('.workspace-background-layer');
+    const mapLayer = document.querySelector<HTMLElement>('.application-map-layer');
     const strategicChrome = document.querySelector<HTMLElement>('.workspace-strategic-chrome');
     const floatingLayer = document.querySelector<HTMLElement>('.workspace-floating-layer');
     const sidebar = document.querySelector<HTMLElement>('.desktop-sidebar');
@@ -56,7 +56,7 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
       !shell
       || !body
       || !chrome
-      || !backgroundLayer
+      || !mapLayer
       || !strategicChrome
       || !floatingLayer
       || !sidebar
@@ -100,7 +100,7 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
       shell: rect(shell),
       body: rect(body),
       chrome: rect(chrome),
-      backgroundLayer: rect(backgroundLayer),
+      mapLayer: rect(mapLayer),
       strategicChrome: rect(strategicChrome),
       floatingLayer: rect(floatingLayer),
       sidebar: rect(sidebar),
@@ -193,7 +193,12 @@ function expectStrategicDesktopLayout(layout: ShellGeometry, panelGap: number) {
   expect(layout.floatingLayer.top).toBeCloseTo(layout.workspace.top, 0);
   expect(layout.floatingLayer.right).toBeCloseTo(layout.workspace.right, 0);
   expect(layout.floatingLayer.bottom).toBeCloseTo(layout.workspace.bottom, 0);
-  expect(layout.backgroundLayer).toEqual(layout.workspace);
+  expect(layout.mapLayer).toEqual({
+    left: 0,
+    top: 0,
+    right: layout.viewportWidth,
+    bottom: layout.viewportHeight,
+  });
   expect(layout.strategicChrome).toEqual(layout.workspace);
 
   expect(layout.pageHost.left).toBeCloseTo(layout.pageScroll.left, 0);
@@ -298,7 +303,7 @@ test.describe('persistent-map grand-strategy game shell', () => {
     expect(expanded.workspace.left).toBeCloseTo(collapsed.workspace.left, 0);
     expect(expanded.pageScroll.left).toBeCloseTo(collapsed.pageScroll.left, 0);
     expect(expanded.pageContent.left).toBeCloseTo(collapsed.pageContent.left, 0);
-    expect(expanded.backgroundLayer).toEqual(collapsed.backgroundLayer);
+    expect(expanded.mapLayer).toEqual(collapsed.mapLayer);
   });
 
   test('page vertical scrollbar reacts only to actual scrolling and hides after idle', async ({ page }) => {

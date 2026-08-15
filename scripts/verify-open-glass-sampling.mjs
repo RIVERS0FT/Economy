@@ -29,10 +29,11 @@ Object.values(files).forEach(requireFile);
 
 if (failures.length === 0) {
   const openChainSelectors = `.signed-in-shell,
+.application-map-layer,
+.application-ui-layer,
 .signed-in-shell__body,
 .signed-in-shell__chrome,
 .workspace,
-.workspace-background-layer,
 .workspace-strategic-chrome,
 .mobile-page-overlay,
 .mobile-chrome-overlay,
@@ -57,8 +58,12 @@ if (failures.length === 0) {
     'transform: none;',
     '.application-content-root {',
     'z-index: auto;',
-    '.application-image-layer {\n  z-index: -2;',
-    '.application-atmosphere-layer {\n  z-index: -1;',
+    '--application-layer-image: 0;',
+    '--application-layer-atmosphere: 10;',
+    '--application-layer-map: 20;',
+    '--application-layer-ui: 30;',
+    '.application-map-layer {',
+    '.application-ui-layer {',
     '.game-shell,\n.admin-shell {',
     '.game-state-shell,\n.photographic-state-shell {',
   ]) requireText(files.backdrop, text);
@@ -86,13 +91,14 @@ if (failures.length === 0) {
   isolation: isolate;`);
 
   for (const text of [
-    '`#root` 是全应用唯一允许同时包围摄影层、氛围层与液态玻璃的 `isolation:isolate` 根',
+    '`#root` 是全应用唯一允许同时包围图片层、氛围层、地图层与 UI 液态玻璃的 `isolation:isolate` 根',
     '桌面和移动端都必须保持 `isolation:auto`、`filter:none` 与 `transform:none`',
     '不得在登录后外壳祖先上建立第二个隔离根',
     '桌面玩家、桌面管理员、移动玩家和移动管理员四种场景保持开放的背景采样链',
     '不得通过状态栏专属填充、描边或氛围副本掩盖根级采样失败',
-    '`workspace-dialog-layer`',
-    '`.workspace-background-layer`',
+    '`.workspace-dialog-layer`',
+    '`.application-map-layer`',
+    '`.application-ui-layer`',
     '`.workspace-strategic-chrome`',
     '`verify-open-glass-sampling.mjs`',
     '`open-glass-sampling.spec.ts`',
@@ -110,17 +116,18 @@ if (failures.length === 0) {
     '/tests/browser/open-glass-sampling-harness.tsx',
   ]) requireText(files.fixture, text);
   for (const text of [
-    "import { FinancialBackdrop } from '../../src/components/visual/FinancialBackdrop'",
+    'ApplicationLayerRoot,',
+    'ApplicationMapLayerPortal,',
     "import { LiquidGlassSurface } from '../../src/components/ui/LiquidGlassSurface'",
     "import { ScrollArea } from '../../src/components/ui/ScrollArea'",
     "surface === 'admin'",
     "mode === 'mobile'",
-    '<FinancialBackdrop />',
-    'className="application-content-root"',
+    '<ApplicationLayerRoot><SamplingApp /></ApplicationLayerRoot>',
+    '<ApplicationMapLayerPortal>',
+    'data-sampling-map-layer="true"',
     "'admin-shell' : 'game-shell'",
     "' admin-workspace'",
     'className="mobile-page-overlay"',
-    'className="workspace-background-layer"',
     'className="workspace-strategic-chrome"',
     'mobile-chrome-overlay',
     'variant={isMobile ? \'mobileStatusBar\' : \'desktopStatusBar\'}',
@@ -136,9 +143,13 @@ if (failures.length === 0) {
     "expect(chain.openIsolations.every((value) => value === 'auto')).toBe(true)",
     "expect(chain.openFilters.every((value) => value === 'none')).toBe(true)",
     "expect(chain.openTransforms.every((value) => value === 'none')).toBe(true)",
-    "currentSurface === 'game' && (!workspaceBackground || !workspaceStrategicChrome)",
-    'if (workspaceBackground) openNodes.push(workspaceBackground)',
+    "currentSurface === 'game' && !workspaceStrategicChrome",
+    'const openNodes = [mapLayer, uiLayer, contentRoot',
     'if (workspaceStrategicChrome) openNodes.push(workspaceStrategicChrome)',
+    "expect(chain.imageLayerZIndex).toBe('0')",
+    "expect(chain.atmosphereLayerZIndex).toBe('10')",
+    "expect(chain.mapLayerZIndex).toBe('20')",
+    "expect(chain.uiLayerZIndex).toBe('30')",
     "value.includes('blur(4px)')",
     '/saturate\\((?:140%|1\\.4)\\)/',
     "expect(chain.surfaceVariants).toEqual(['desktopStatusBar'])",
@@ -161,4 +172,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('登录后液态玻璃开放采样链验证通过：唯一根隔离、桌面与移动玩家／管理员祖先、玩家地图背景与战略 Chrome、普通浮层与根级 Dialog 层开放和四场景浏览器回归均已锁定。');
+console.log('登录后液态玻璃开放采样链验证通过：唯一四层根隔离、桌面与移动玩家／管理员祖先、根级地图与战略 Chrome、普通浮层与根级 Dialog 层开放和四场景浏览器回归均已锁定。');

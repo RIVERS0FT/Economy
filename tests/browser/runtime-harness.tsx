@@ -5,6 +5,7 @@ import type { GameTutorialController, TutorialAwareGameViewModel } from '../../s
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../../src/components/icons/GameIcons';
 import { GemIcon } from '../../src/components/icons/GemIcon';
 import { GameShell } from '../../src/components/shell/GameShell';
+import { ApplicationLayerRoot } from '../../src/components/visual/ApplicationLayerRoot';
 import type { StatusBarItem } from '../../src/components/shell/StatusBar';
 import { CurrencyAmount } from '../../src/components/ui/CurrencyAmount';
 import { ScrollArea } from '../../src/components/ui/ScrollArea';
@@ -52,6 +53,7 @@ import '../../src/styles/form-controls.css';
 import '../../src/styles/overview-polish.css';
 import '../../src/styles/leaderboards.css';
 import '../../src/styles/game-guide.css';
+import '../../src/styles/financial-backdrop.css';
 import '../../src/styles/province-map.css';
 import '../../src/styles/strategic-game-shell.css';
 import provinces from '../../shared/provinces.json';
@@ -1665,8 +1667,7 @@ function ScrollOwnershipHarness() {
   );
 }
 
-createRoot(document.getElementById('root') as HTMLElement).render(
-  view === 'overview'
+const runtimeView = view === 'overview'
     ? <OverviewHarness />
     : view === 'map'
       ? <MapHarness />
@@ -1684,5 +1685,8 @@ createRoot(document.getElementById('root') as HTMLElement).render(
         ? <LeaderboardHarness />
         : view === 'scroll-ownership'
           ? <ScrollOwnershipHarness />
-          : <SettingsHarness />,
+          : <SettingsHarness />;
+
+createRoot(document.getElementById('root') as HTMLElement).render(
+  <ApplicationLayerRoot>{runtimeView}</ApplicationLayerRoot>,
 );

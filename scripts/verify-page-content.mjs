@@ -566,6 +566,9 @@ for (const text of [
   '所有玩家页面共享的常驻战略地图',
   '页面内容按四类战略面板展示',
   '`MapPage` 不再拥有 `UsMainlandMap` 实例',
+  '`MapPage` 只保留透明路由占位',
+  '不得渲染左上“战略经营地图”卡片、左下图例／来源卡或“当前经营地区”卡片',
+  '点击并直接切换当前地区',
   '地图提供州界、资产、工业、市场和异常五种镜头',
   '不得注册为正式 `TabId`、正式路由或第十二个一级页面',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
@@ -579,6 +582,12 @@ for (const text of [
   'data-strategic-presentation={pagePresentation}',
 ]) requireText('src/components/shell/GameShell.tsx', text);
 forbidText('src/pages/MapPage.tsx', '<UsMainlandMap');
+for (const text of ['战略经营地图', '当前经营地区', 'province-map-command-panel', 'province-map-meta', 'province-map-legend']) {
+  forbidText('src/pages/MapPage.tsx', text);
+}
+for (const text of ['当前经营地区', 'strategic-province-inspector']) {
+  forbidText('src/components/shell/StrategicWorkspace.tsx', text);
+}
 
 for (const text of [
   '“紧凑数字”是全局客户端显示偏好',

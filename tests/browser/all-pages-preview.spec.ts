@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 const pages = [
   { navigation: /^概览/, heading: /本地预览玩家/ },
-  { navigation: /^地图/, heading: '美国本土地图' },
+  { navigation: /^地图/, testId: 'us-mainland-map' },
   { navigation: /^市场/, heading: '加利福尼亚州本地市场' },
   { navigation: /^生产/, heading: '加利福尼亚州生产' },
   { navigation: /^研发/, heading: '研发' },
@@ -38,13 +38,19 @@ test('account-free game shell navigates all eleven formal player pages', async (
     const navigation = sidebar.getByRole('button', { name: target.navigation });
     await navigation.click();
     await expect(navigation).toHaveAttribute('aria-current', 'page');
-    await expect(page.getByRole('heading', { level: 1, name: target.heading })).toBeVisible();
+    if ('heading' in target) {
+      await expect(page.getByRole('heading', { level: 1, name: target.heading })).toBeVisible();
+    } else {
+      await expect(page.getByTestId(target.testId)).toBeVisible();
+    }
   }
 
   await sidebar.getByRole('button', { name: /^地图/ }).click();
-  await page.getByRole('combobox', { name: '州级地区' }).click();
-  await page.getByRole('option', { name: '得克萨斯州' }).click();
-  await expect(page.locator('.strategic-province-inspector')).toContainText('得克萨斯州');
+  const map = page.getByTestId('us-mainland-map');
+  await expect(map).toHaveAttribute('data-echarts-ready', 'true');
+  await map.locator('svg text').filter({ hasText: /^TX$/ }).click();
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', 'US-TX');
+  await expect(page.getByText('当前经营地区', { exact: true })).toHaveCount(0);
 });
 
 test('leaderboard and local-only service summaries are populated in the full shell', async ({ page }) => {

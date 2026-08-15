@@ -477,7 +477,7 @@ if (failures.length === 0) {
     "toHaveAttribute('data-liquid-glass-elasticity', '0')",
     "toHaveAttribute('data-liquid-glass-over-light', 'false')",
     'keeps one authentication glass instance and form values while switching breakpoints',
-    'keeps photography, atmosphere and authentication glass in one isolated sampling root',
+    'keeps photography, atmosphere, empty map host, and authentication UI in one isolated root',
     'expect(glass.contentInsideGlass).toBe(true)',
     'expect(glass.materialFillCount).toBe(0)',
     "expect(glass.outlineContent).toBe('none')",

@@ -11,6 +11,7 @@ export function FinancialBackdrop() {
     <>
       <div
         className="application-image-layer financial-backdrop-image"
+        data-application-layer="image"
         data-persistent-financial-photography="true"
         aria-hidden="true"
       >
@@ -29,7 +30,11 @@ export function FinancialBackdrop() {
         </picture>
       </div>
 
-      <div className="application-atmosphere-layer financial-backdrop-atmosphere" aria-hidden="true" />
+      <div
+        className="application-atmosphere-layer financial-backdrop-atmosphere"
+        data-application-layer="atmosphere"
+        aria-hidden="true"
+      />
     </>
   );
 }
