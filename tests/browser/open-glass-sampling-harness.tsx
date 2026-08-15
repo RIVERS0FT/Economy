@@ -1,7 +1,10 @@
 import { createRoot } from 'react-dom/client';
 import type { CSSProperties } from 'react';
 import '../../src/app/interactionBootstrap';
-import { FinancialBackdrop } from '../../src/components/visual/FinancialBackdrop';
+import {
+  ApplicationLayerRoot,
+  ApplicationMapLayerPortal,
+} from '../../src/components/visual/ApplicationLayerRoot';
 import { LiquidGlassSurface } from '../../src/components/ui/LiquidGlassSurface';
 import { ScrollArea } from '../../src/components/ui/ScrollArea';
 import '../../src/styles/globals.css';
@@ -127,9 +130,14 @@ function SamplingApp() {
     inset: 0,
     width: '100vw',
     height: '100vh',
-    display: isMobile ? 'block' : 'grid',
-    gridTemplateColumns: isMobile ? undefined : '224px minmax(0, 1fr)',
   } as CSSProperties;
+  const bodyStyle: CSSProperties = {
+    width: '100%',
+    height: '100%',
+    minWidth: 0,
+    minHeight: 0,
+    gridTemplateColumns: isMobile ? undefined : '224px minmax(0, 1fr)',
+  };
   const sidebarStyle: CSSProperties = {
     width: isMobile ? 0 : '224px',
     height: '100%',
@@ -147,44 +155,60 @@ function SamplingApp() {
 
   return (
     <>
-      <FinancialBackdrop />
-      <div className="application-content-root" style={{ width: '100%', height: '100%' }}>
-        <main
+      {!isAdmin ? (
+        <ApplicationMapLayerPortal>
+          <div
+            data-sampling-map-layer="true"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(135deg, rgba(8, 48, 30, .72), rgba(18, 112, 70, .34))',
+            }}
+          />
+        </ApplicationMapLayerPortal>
+      ) : null}
+      <main
           className={`${isAdmin ? 'admin-shell' : 'game-shell'} signed-in-shell sidebar-layout`}
           style={shellStyle}
           data-sampling-surface={surface}
           data-sampling-mode={mode}
         >
-          <aside
-            className={`desktop-sidebar${isAdmin ? ' admin-sidebar' : ''}`}
-            style={sidebarStyle}
-            aria-hidden="true"
-          />
-          <section className={`workspace${isAdmin ? ' admin-workspace' : ''}`} style={workspaceStyle}>
-            <div className="mobile-page-overlay" style={{ width: '100%', height: '100%' }}>
-              <ScrollArea
-                axis="y"
-                className="page-scroll-area"
-                viewportClassName={`page-scroll${isAdmin ? ' admin-page-scroll' : ''}`}
-                scrollbarVisibility="adaptive"
-              >
-                <SamplingPage />
-              </ScrollArea>
-            </div>
-            <div
-              className={`mobile-chrome-overlay${isAdmin ? ' admin-mobile-chrome-layer' : ''}`}
-              style={{ width: '100%', height: '100%' }}
-            >
-              <StatusChrome />
-              <MobileNavigation />
-            </div>
-          </section>
-        </main>
-      </div>
+          <div className="signed-in-shell__body" style={bodyStyle}>
+            <aside
+              className={`desktop-sidebar${isAdmin ? ' admin-sidebar' : ''}`}
+              style={sidebarStyle}
+              aria-hidden="true"
+            />
+            <section className={`workspace${isAdmin ? ' admin-workspace' : ''}`} style={workspaceStyle}>
+              <div className="mobile-page-overlay" style={{ width: '100%', height: '100%' }}>
+                <ScrollArea
+                  axis="y"
+                  className="page-scroll-area"
+                  viewportClassName={`page-scroll${isAdmin ? ' admin-page-scroll' : ''}`}
+                  scrollbarVisibility="adaptive"
+                >
+                  <SamplingPage />
+                </ScrollArea>
+              </div>
+              {!isAdmin ? (
+                <div className="workspace-strategic-chrome" data-workspace-strategic-chrome="true" />
+              ) : null}
+            </section>
+          </div>
+          <div
+            className={`mobile-chrome-overlay signed-in-shell__chrome${isAdmin ? ' admin-mobile-chrome-layer' : ''}`}
+            style={{ width: '100%', height: '100%' }}
+          >
+            <StatusChrome />
+            <MobileNavigation />
+          </div>
+      </main>
     </>
   );
 }
 
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('open glass sampling root is missing');
-createRoot(rootElement).render(<SamplingApp />);
+createRoot(rootElement).render(
+  <ApplicationLayerRoot><SamplingApp /></ApplicationLayerRoot>,
+);

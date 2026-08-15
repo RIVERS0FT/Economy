@@ -5,13 +5,16 @@ import type { GameTutorialController, TutorialAwareGameViewModel } from '../../s
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../../src/components/icons/GameIcons';
 import { GemIcon } from '../../src/components/icons/GemIcon';
 import { GameShell } from '../../src/components/shell/GameShell';
+import { ApplicationLayerRoot } from '../../src/components/visual/ApplicationLayerRoot';
 import type { StatusBarItem } from '../../src/components/shell/StatusBar';
 import { CurrencyAmount } from '../../src/components/ui/CurrencyAmount';
 import { ScrollArea } from '../../src/components/ui/ScrollArea';
 import { AuctionPage } from '../../src/pages/AuctionPage';
 import { ContractPage } from '../../src/pages/ContractPage';
 import { GemShopPage } from '../../src/pages/GemShopPage';
+import { LeaderboardPage } from '../../src/pages/LeaderboardPage';
 import { OverviewPage } from '../../src/pages/OverviewPage';
+import { MapPage } from '../../src/pages/MapPage';
 import { ProductionPage } from '../../src/pages/ProductionPage';
 import { ResearchPage } from '../../src/pages/ResearchPage';
 import { FacilityRecipeProfitMarketsProvider } from '../../src/components/facilities/FacilityRecipeProfitContext';
@@ -48,7 +51,12 @@ import '../../src/styles/interaction-states.css';
 import '../../src/styles/primary-surfaces.css';
 import '../../src/styles/form-controls.css';
 import '../../src/styles/overview-polish.css';
+import '../../src/styles/leaderboards.css';
 import '../../src/styles/game-guide.css';
+import '../../src/styles/financial-backdrop.css';
+import '../../src/styles/province-map.css';
+import '../../src/styles/strategic-game-shell.css';
+import provinces from '../../shared/provinces.json';
 
 const localActivityResult = loadLocalActivity(123);
 Object.assign(window, { __localActivityResult: localActivityResult });
@@ -110,7 +118,7 @@ const completedTutorial: GameTutorialController = {
   recordBankDeposit: () => {},
 };
 
-document.documentElement.dataset.appSurface = ['overview', 'production', 'research', 'contracts', 'auction', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
+document.documentElement.dataset.appSurface = ['overview', 'map', 'production', 'research', 'contracts', 'auction', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
 
 function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const hasActivity = ['activity', 'two-sided', 'many-orders'].includes(scenario);
@@ -151,7 +159,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const facilityStatusReason = hasAlerts ? 'insufficient_input' : undefined;
 
   const game = {
-    version: 31,
+    version: 34,
     lastProcessedAt: fixedNow,
     userId: 123,
     playerName: 'MEVIUS',
@@ -178,8 +186,20 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
       weeklyBonusGems: 5,
     },
     inventories: { machinery: { available: 580, frozen: 0 } },
+    defaultProvinceId: '110000',
+    provinces,
+    provinceInventories: { '110000': { machinery: { available: 580, frozen: 0 } } },
+    provinceAssetSummaries: Object.fromEntries(provinces.map((province) => [province.id, {
+      provinceId: province.id,
+      storedQuantity: province.id === '110000' ? 580 : 0,
+      facilityCount: province.id === '110000' ? 18 : 0,
+      runningFacilityCount: province.id === '110000' ? 12 : 0,
+      blockedFacilityCount: 0,
+      openOrderCount: province.id === '110000' ? orders.length : 0,
+    }])),
     warehouseStoredQuantity: 580,
     facilityGroups: [{
+      provinceId: '110000',
       facilityTypeId: 'machine-factory',
       count: 18,
       participatingCount: hasAlerts ? 0 : 12,
@@ -237,6 +257,9 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
       },
     },
     facilityMarkets: {},
+    provinceFacilityGroups: {},
+    provinceMarkets: {},
+    provinceFacilityMarkets: {},
     orders,
     leaderboard: [{
       rank: 1,
@@ -298,6 +321,9 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
       setTabState(nextTab);
     },
     notice: '',
+    selectedProvinceId: '110000',
+    selectedProvince: provinces[0],
+    setSelectedProvinceId: () => {},
     selectedFacilityTypeId: 'machine-factory',
     setSelectedFacilityTypeId: () => {},
     marketAssetKind: 'commodity',
@@ -335,6 +361,25 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     exchangeGems: async () => ({ ok: true, message: '兑换成功' }),
     tutorial: completedTutorial,
   } as unknown as TutorialAwareGameViewModel;
+}
+
+function MapHarness() {
+  const [tab, setTab] = useState<TabId>('map');
+  const [provinceId, setProvinceId] = useState('110000');
+  const model = useMemo(() => {
+    const next = buildOverviewModel(tab, setTab);
+    return {
+      ...next,
+      selectedProvinceId: provinceId,
+      selectedProvince: provinces.find((province) => province.id === provinceId) || provinces[0],
+      setSelectedProvinceId: setProvinceId,
+    };
+  }, [provinceId, tab]);
+  return (
+    <GameShell model={model}>
+      <MapPage model={model} />
+    </GameShell>
+  );
 }
 
 function SettingsHarness() {
@@ -387,6 +432,101 @@ function OverviewHarness() {
   return (
     <GameShell model={model} statusItems={statusItems}>
       <OverviewPage model={model} />
+    </GameShell>
+  );
+}
+
+function LeaderboardHarness() {
+  const [tab, setTab] = useState<TabId>('leaderboard');
+  const model = useMemo(() => {
+    const next = buildOverviewModel(tab, setTab);
+    const entries = (
+      scores: number[],
+      details: string[],
+      rewards: number[] = [],
+    ) => scores.map((score, index) => ({
+      rank: index + 1,
+      playerName: ['Atlas 集团', 'MEVIUS', 'Riversoft 实业'][index],
+      score,
+      secondary: Math.max(0, Math.round(score * 0.38)),
+      detail: details[index],
+      isCurrentPlayer: index === 1,
+      rewardGems: rewards[index],
+    }));
+    const wealth = entries([128_600, 96_786, 82_420], ['24 座工厂', '18 座工厂', '15 座工厂']);
+    const growth = entries([12_800, 9_460, 7_920], ['本周增长', '本周增长', '本周增长'], [50, 30, 20]);
+    const production = entries([4_820, 3_560, 2_940], ['商品产出', '商品产出', '商品产出'], [50, 30, 20]);
+    const trading = entries([18_600, 14_250, 11_980], ['成交额', '成交额', '成交额'], [50, 30, 20]);
+    next.game.leaderboards = {
+      period: {
+        key: '2026-W29',
+        startsAt: fixedNow - 4 * 86_400_000,
+        endsAt: fixedNow + 3 * 86_400_000,
+        partial: false,
+        rewardEnabled: true,
+        rewards: [50, 30, 20],
+        timeZone: 'Asia/Shanghai',
+      },
+      boards: {
+        wealth: {
+          id: 'wealth',
+          title: '财富榜',
+          description: '按实时净资产排名',
+          unit: 'currency',
+          rewarded: false,
+          entries: wealth,
+          currentPlayer: wealth[1],
+          totalPlayers: 128,
+          personalBest: { score: 92_400, periodKey: '2026-W28', currentIsRecord: true },
+        },
+        growth: {
+          id: 'growth',
+          title: '增长榜',
+          description: '本周净资产增长',
+          unit: 'currency',
+          rewarded: true,
+          entries: growth,
+          currentPlayer: growth[1],
+          totalPlayers: 128,
+          personalBest: { score: 8_900, periodKey: '2026-W28', currentIsRecord: true },
+        },
+        production: {
+          id: 'production',
+          title: '生产榜',
+          description: '本周服务器确认的商品产出数量',
+          unit: 'quantity',
+          rewarded: true,
+          entries: production,
+          currentPlayer: production[1],
+          totalPlayers: 128,
+          personalBest: { score: 3_220, periodKey: '2026-W28', currentIsRecord: true },
+        },
+        trading: {
+          id: 'trading',
+          title: '交易榜',
+          description: '本周订单簿成交额',
+          unit: 'currency',
+          rewarded: true,
+          entries: trading,
+          currentPlayer: trading[1],
+          totalPlayers: 128,
+          personalBest: { score: 13_900, periodKey: '2026-W28', currentIsRecord: true },
+        },
+      },
+    };
+    return next;
+  }, [tab]);
+  const statusItems: StatusBarItem[] = [
+    { id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>, detail: <>冻结 <CurrencyAmount>{formatCurrency(model.game.frozenCredits)}</CurrencyAmount></> },
+    { id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('bank') },
+    { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
+    { id: 'rank', icon: <RankIcon />, label: '排行榜', value: '#2', detail: '当前排名' },
+    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库库存', value: formatNumber(model.game.warehouseStoredQuantity), detail: '无限容量 · 实物库存总量' },
+  ];
+
+  return (
+    <GameShell model={model} statusItems={statusItems}>
+      <LeaderboardPage model={model} />
     </GameShell>
   );
 }
@@ -1527,9 +1667,10 @@ function ScrollOwnershipHarness() {
   );
 }
 
-createRoot(document.getElementById('root') as HTMLElement).render(
-  view === 'overview'
+const runtimeView = view === 'overview'
     ? <OverviewHarness />
+    : view === 'map'
+      ? <MapHarness />
     : view === 'production'
       ? <ProductionHarness />
       : view === 'research'
@@ -1540,7 +1681,12 @@ createRoot(document.getElementById('root') as HTMLElement).render(
         ? <AuctionHarness />
       : view === 'gem-shop'
         ? <GemShopHarness />
+      : view === 'leaderboard'
+        ? <LeaderboardHarness />
         : view === 'scroll-ownership'
           ? <ScrollOwnershipHarness />
-          : <SettingsHarness />,
+          : <SettingsHarness />;
+
+createRoot(document.getElementById('root') as HTMLElement).render(
+  <ApplicationLayerRoot>{runtimeView}</ApplicationLayerRoot>,
 );

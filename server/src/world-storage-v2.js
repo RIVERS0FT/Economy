@@ -1,7 +1,9 @@
 import { measureRequestPhase, setRequestGauge } from './request-performance.js';
+import { normalizeProvinceId, provinceScopedKey } from './provinces.js';
+import { installProvinceRuntimeAliases } from './provinces.js';
 
 export const WORLD_STORAGE_SCHEMA_VERSION = 2;
-export const AUTHORITATIVE_WORLD_VERSION = 29;
+export const AUTHORITATIVE_WORLD_VERSION = 30;
 
 const LOCAL_PLAYER_ACTIONS = new Set([
   'startResearch',
@@ -196,12 +198,14 @@ function commodityProductId(value) {
 }
 
 function orderIndexesForAssets(world, assets, { ownerId = null } = {}) {
-  const wanted = new Set(assets.map(({ kind, assetId }) => `${kind}:${assetId}`));
+  const wanted = new Set(assets.map(({ provinceId, kind, assetId }) => (
+    `${normalizeProvinceId(provinceId)}:${kind}:${assetId}`
+  )));
   const indexes = new Set();
   for (const [index, order] of (world?.orders || []).entries()) {
     if (!isOpenOrder(order)) continue;
     if (ownerId !== null && Number(order?.ownerId) !== Number(ownerId)) continue;
-    if (wanted.has(`${orderKind(order)}:${orderAssetId(order)}`)) indexes.add(index);
+    if (wanted.has(`${normalizeProvinceId(order.provinceId)}:${orderKind(order)}:${orderAssetId(order)}`)) indexes.add(index);
   }
   return indexes;
 }
@@ -225,10 +229,16 @@ function crossingOrderParticipantIds(world, payload, userId) {
     : commodityProductId(payload);
   const side = payload?.side === 'buy' ? 'buy' : payload?.side === 'sell' ? 'sell' : null;
   const price = Number(payload?.price ?? payload?.unitPrice ?? payload?.maxPrice);
+  const provinceId = normalizeProvinceId(payload?.provinceId);
   if (!assetId || !side || !Number.isFinite(price)) return ids;
   const opposite = side === 'buy' ? 'sell' : 'buy';
   for (const order of world?.orders || []) {
-    if (!isOpenOrder(order) || orderKind(order) !== kind || orderAssetId(order) !== assetId) continue;
+    if (
+      !isOpenOrder(order)
+      || orderKind(order) !== kind
+      || orderAssetId(order) !== assetId
+      || normalizeProvinceId(order.provinceId) !== provinceId
+    ) continue;
     if (order.side !== opposite || order.ownerType !== 'player') continue;
     const restingPrice = Number(order.price);
     if (!Number.isFinite(restingPrice)) continue;
@@ -246,7 +256,11 @@ function orderScope(world, userId, assets, {
   currentPlayerOrdersOnly = false,
 } = {}) {
   const normalizedAssets = assets
-    .map(({ kind, assetId }) => ({ kind, assetId: String(assetId || '') }))
+    .map(({ provinceId, kind, assetId }) => ({
+      provinceId: normalizeProvinceId(provinceId),
+      kind,
+      assetId: String(assetId || ''),
+    }))
     .filter(({ kind, assetId }) => (kind === 'commodity' || kind === 'facility') && assetId);
   if (normalizedAssets.length === 0) return null;
   const orderIndexes = orderIndexesForAssets(world, normalizedAssets, {
@@ -255,8 +269,12 @@ function orderScope(world, userId, assets, {
   const playerIds = currentPlayerOrdersOnly
     ? new Set([playerKey(userId)])
     : playerIdsForOrderIndexes(world, userId, orderIndexes);
-  const marketKeys = new Set(normalizedAssets.filter(({ kind }) => kind === 'commodity').map(({ assetId }) => assetId));
-  const facilityMarketKeys = new Set(normalizedAssets.filter(({ kind }) => kind === 'facility').map(({ assetId }) => assetId));
+  const marketKeys = new Set(normalizedAssets
+    .filter(({ kind }) => kind === 'commodity')
+    .map(({ provinceId, assetId }) => provinceScopedKey(provinceId, assetId)));
+  const facilityMarketKeys = new Set(normalizedAssets
+    .filter(({ kind }) => kind === 'facility')
+    .map(({ provinceId, assetId }) => provinceScopedKey(provinceId, assetId)));
   const segments = new Set([...CORE_LOCAL_SEGMENTS, 'orders']);
   if (mutateMarkets && marketKeys.size > 0) segments.add('markets');
   if (mutateMarkets && facilityMarketKeys.size > 0) segments.add('facilityMarkets');
@@ -275,15 +293,23 @@ function orderScope(world, userId, assets, {
 
 function ordinaryOrderAsset(payload) {
   if (payload?.assetKind === 'facility') {
-    return { kind: 'facility', assetId: String(payload?.assetId || payload?.facilityTypeId || '') };
+    return {
+      provinceId: payload?.provinceId,
+      kind: 'facility',
+      assetId: String(payload?.assetId || payload?.facilityTypeId || ''),
+    };
   }
-  return { kind: 'commodity', assetId: commodityProductId(payload) };
+  return { provinceId: payload?.provinceId, kind: 'commodity', assetId: commodityProductId(payload) };
 }
 
 function procurementAssets(payload) {
   const source = payload?.materialOrderPrices || payload?.materialPriceCaps;
   if (!source || typeof source !== 'object' || Array.isArray(source)) return [];
-  return Object.keys(source).map((productId) => ({ kind: 'commodity', assetId: productId }));
+  return Object.keys(source).map((productId) => ({
+    provinceId: payload?.provinceId,
+    kind: 'commodity',
+    assetId: productId,
+  }));
 }
 
 function procurementCancelAssets(world, payload) {
@@ -291,7 +317,8 @@ function procurementCancelAssets(world, payload) {
   const assets = new Map();
   for (const order of world?.orders || []) {
     if (!orderIds.has(String(order?.id || ''))) continue;
-    assets.set(`${orderKind(order)}:${orderAssetId(order)}`, {
+    assets.set(`${normalizeProvinceId(order.provinceId)}:${orderKind(order)}:${orderAssetId(order)}`, {
+      provinceId: order.provinceId,
       kind: orderKind(order),
       assetId: orderAssetId(order),
     });
@@ -449,7 +476,7 @@ export function cloneWorldForMutation(world, scope = createFullMutationScope()) 
     }
     draft[key] = structuredClone(world[key]);
   }
-  return draft;
+  return installProvinceRuntimeAliases(draft);
 }
 
 export function snapshotSegmentedWorld(world) {

@@ -7,8 +7,8 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
+import { pythonFailureOutput, spawnPythonSync } from './python-runtime.mjs';
 
 const root = process.cwd();
 const maintenancePath = 'scripts/manage-production-database.py';
@@ -92,7 +92,7 @@ if (failures.length === 0) {
 }
 
 function runMaintenance(args, options = {}) {
-  return spawnSync('python3', [resolve(root, maintenancePath), ...args], {
+  return spawnPythonSync([resolve(root, maintenancePath), ...args], {
     encoding: 'utf8',
     ...options,
   });
@@ -141,7 +141,7 @@ if (failures.length === 0) {
       '--lock-path', lockPath,
     ]);
     if (migration.status !== 0) {
-      failures.push(`INCREMENTAL 迁移测试失败: ${migration.stderr || migration.stdout}`);
+      failures.push(`INCREMENTAL 迁移测试失败: ${pythonFailureOutput(migration)}`);
     } else {
       const report = JSON.parse(migration.stdout);
       const migrated = new DatabaseSync(databasePath);
@@ -173,7 +173,7 @@ if (failures.length === 0) {
       '--max-batches', '2',
     ]);
     if (maintenance.status !== 0) {
-      failures.push(`增量回收测试失败: ${maintenance.stderr || maintenance.stdout}`);
+      failures.push(`增量回收测试失败: ${pythonFailureOutput(maintenance)}`);
     } else {
       const report = JSON.parse(maintenance.stdout);
       const checked = new DatabaseSync(databasePath);

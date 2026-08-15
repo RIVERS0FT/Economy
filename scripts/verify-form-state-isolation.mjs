@@ -36,7 +36,7 @@ requireText(
 );
 requireText(
   viewModel,
-  "buildFacility: (facilityTypeId, quantity = 1, procurement) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId, quantity, procurement))",
+  "buildFacility: (facilityTypeId, quantity = 1, procurement) => runAction('buildFacility', () => gameActions.buildFacility(selectedProvinceId, facilityTypeId, quantity, procurement))",
   'explicit buildFacility implementation parameter',
 );
 forbidText(

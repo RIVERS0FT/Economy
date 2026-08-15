@@ -5,6 +5,7 @@ import {
   getOwnerOrderBookSide,
   recordOrderBookVisit,
 } from './order-book-runtime.js';
+import { normalizeProvinceId } from './provinces.js';
 
 export const SELF_CROSS_MESSAGE = '该价格会与自己的反向订单交叉，请先撤销原订单';
 
@@ -19,6 +20,7 @@ export function findSelfCrossingOrder(world, {
   ownerId,
   assetKind,
   assetId,
+  provinceId,
   side,
   price,
 }) {
@@ -29,6 +31,7 @@ export function findSelfCrossingOrder(world, {
 
   const oppositeSide = side === 'buy' ? 'sell' : 'buy';
   const orders = getOwnerOrderBookSide(world, normalizedOwnerId, {
+    provinceId: normalizeProvinceId(provinceId),
     assetKind: normalizedKind,
     assetId: normalizedAssetId,
     side: oppositeSide,
@@ -54,19 +57,20 @@ export function findSelfCrossingOrderForPayload(world, ownerId, payload = {}) {
     ownerId,
     assetKind,
     assetId,
+    provinceId: payload.provinceId,
     side: payload.side,
     price: payload.price ?? payload.unitPrice,
   });
 }
 
-export function bestSystemPrice(world, productId, side) {
-  const order = bestSystemOrder(world, 'commodity', productId, side);
+export function bestSystemPrice(world, productId, side, provinceId) {
+  const order = bestSystemOrder(world, 'commodity', productId, side, provinceId);
   const price = Number(order?.price);
   return Number.isFinite(price) && price > 0 ? price : null;
 }
 
-export function systemBookIsCrossed(world, productId) {
-  const bid = bestSystemPrice(world, productId, 'buy');
-  const ask = bestSystemPrice(world, productId, 'sell');
+export function systemBookIsCrossed(world, productId, provinceId) {
+  const bid = bestSystemPrice(world, productId, 'buy', provinceId);
+  const ask = bestSystemPrice(world, productId, 'sell', provinceId);
   return bid !== null && ask !== null && bid >= ask;
 }

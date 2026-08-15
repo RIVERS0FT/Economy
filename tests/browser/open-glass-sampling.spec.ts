@@ -15,6 +15,8 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
   await expect(page.locator('.application-content-root')).toBeVisible();
   await expect(page.locator('.application-image-layer')).toHaveCount(1);
   await expect(page.locator('.application-atmosphere-layer')).toHaveCount(1);
+  await expect(page.locator('.application-map-layer')).toHaveCount(1);
+  await expect(page.locator('.application-ui-layer')).toHaveCount(1);
 
   const expectedWarpCount = surface === 'game' && mode === 'mobile' ? 2 : 1;
   const warps = page.locator('.glass__warp');
@@ -23,9 +25,12 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
 
   const chain = await page.evaluate(({ surface: currentSurface, mode: currentMode }) => {
     const samplingRoot = document.getElementById('root');
+    const mapLayer = document.querySelector<HTMLElement>('.application-map-layer');
+    const uiLayer = document.querySelector<HTMLElement>('.application-ui-layer');
     const contentRoot = document.querySelector<HTMLElement>('.application-content-root');
     const shell = document.querySelector<HTMLElement>(currentSurface === 'admin' ? '.admin-shell' : '.game-shell');
     const workspace = document.querySelector<HTMLElement>('.workspace');
+    const workspaceStrategicChrome = document.querySelector<HTMLElement>('.workspace-strategic-chrome');
     const pageOverlay = document.querySelector<HTMLElement>('.mobile-page-overlay');
     const chromeOverlay = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
     const pageScrollArea = document.querySelector<HTMLElement>('.page-scroll-area');
@@ -37,15 +42,17 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
     const warpElements = [...document.querySelectorAll<HTMLElement>('.glass__warp')];
     const surfaces = [...document.querySelectorAll<HTMLElement>('.liquid-glass-surface')];
     const glasses = [...document.querySelectorAll<HTMLElement>('.liquid-glass-surface__effect > .glass')];
-    if (!samplingRoot || !contentRoot || !shell || !workspace || !pageOverlay || !chromeOverlay
+    if (!samplingRoot || !mapLayer || !uiLayer || !contentRoot || !shell || !workspace || !pageOverlay || !chromeOverlay
       || !pageScrollArea || !pageScroll || !imageLayer || !atmosphereLayer
+      || (currentSurface === 'game' && !workspaceStrategicChrome)
       || ((currentMode === 'desktop' || currentSurface === 'game') && !assetBar)
       || (currentMode === 'desktop' && !pageLayerProbe)
       || warpElements.length === 0 || surfaces.length === 0 || glasses.length === 0) {
       throw new Error('open glass sampling fixture is incomplete');
     }
 
-    const openNodes = [contentRoot, shell, workspace, pageOverlay, chromeOverlay, pageScrollArea, pageScroll];
+    const openNodes = [mapLayer, uiLayer, contentRoot, shell, workspace, pageOverlay, chromeOverlay, pageScrollArea, pageScroll];
+    if (workspaceStrategicChrome) openNodes.push(workspaceStrategicChrome);
     const backdropFilter = (element: HTMLElement) => {
       const style = getComputedStyle(element) as CSSStyleDeclaration & { webkitBackdropFilter?: string };
       return style.backdropFilter || style.webkitBackdropFilter || '';
@@ -63,7 +70,9 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
         bounds.left + (bounds.width / 2),
         bounds.top + (bounds.height / 2),
       );
-      return stack.indexOf(statusItem) < stack.indexOf(pageLayerProbe);
+      const statusIndex = stack.indexOf(statusItem);
+      const pageLayerIndex = stack.indexOf(pageLayerProbe);
+      return statusIndex >= 0 && (pageLayerIndex < 0 || statusIndex < pageLayerIndex);
     })();
 
     return {
@@ -72,13 +81,19 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
       samplingRootTransform: getComputedStyle(samplingRoot).transform,
       imageLayerZIndex: getComputedStyle(imageLayer).zIndex,
       atmosphereLayerZIndex: getComputedStyle(atmosphereLayer).zIndex,
+      mapLayerZIndex: getComputedStyle(mapLayer).zIndex,
+      uiLayerZIndex: getComputedStyle(uiLayer).zIndex,
       contentRootZIndex: getComputedStyle(contentRoot).zIndex,
       rootContainsAllLayers: samplingRoot.contains(imageLayer)
         && samplingRoot.contains(atmosphereLayer)
+        && samplingRoot.contains(mapLayer)
+        && samplingRoot.contains(uiLayer)
         && samplingRoot.contains(contentRoot),
       layersShareRoot: imageLayer.parentElement === samplingRoot
         && atmosphereLayer.parentElement === samplingRoot
-        && contentRoot.parentElement === samplingRoot,
+        && mapLayer.parentElement === samplingRoot
+        && uiLayer.parentElement === samplingRoot
+        && contentRoot.parentElement === uiLayer,
       openIsolations: openNodes.map((element) => getComputedStyle(element).isolation),
       openFilters: openNodes.map((element) => getComputedStyle(element).filter),
       openTransforms: openNodes.map((element) => getComputedStyle(element).transform),
@@ -100,8 +115,10 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
   expect(chain.samplingRootIsolation).toBe('isolate');
   expect(chain.samplingRootFilter).toBe('none');
   expect(chain.samplingRootTransform).toBe('none');
-  expect(chain.imageLayerZIndex).toBe('-2');
-  expect(chain.atmosphereLayerZIndex).toBe('-1');
+  expect(chain.imageLayerZIndex).toBe('0');
+  expect(chain.atmosphereLayerZIndex).toBe('10');
+  expect(chain.mapLayerZIndex).toBe('20');
+  expect(chain.uiLayerZIndex).toBe('30');
   expect(chain.contentRootZIndex).toBe('auto');
   expect(chain.rootContainsAllLayers).toBe(true);
   expect(chain.layersShareRoot).toBe(true);

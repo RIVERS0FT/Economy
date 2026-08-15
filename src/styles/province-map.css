@@ -1,0 +1,54 @@
+.province-context-select {
+  min-width: 12rem;
+  margin: 0;
+}
+
+.province-context-select .form-field__label {
+  font-size: var(--font-size-xs);
+}
+
+.province-map-page {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 100%;
+  overflow: visible;
+  background: transparent;
+  pointer-events: none;
+}
+
+.province-map-chart,
+.province-map-echart {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  box-shadow: none;
+}
+
+.province-map-echart .economy-chart__canvas {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  box-shadow: none;
+}
+
+.province-map-echart .economy-chart__canvas {
+  cursor: grab;
+}
+
+.province-map-echart .economy-chart__canvas:active {
+  cursor: grabbing;
+}
+
+@media (max-width: 720px) {
+  .province-context-select {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+}

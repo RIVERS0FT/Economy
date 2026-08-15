@@ -3,6 +3,8 @@ import type {
   InputHTMLAttributes,
   ReactNode,
 } from 'react';
+import { BackIcon, CloseIcon } from '../icons/GameIcons';
+import { usePlayerPageNavigation } from './PageNavigationContext';
 import { ScrollArea } from './ScrollArea';
 
 export type StatusTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info';
@@ -23,6 +25,7 @@ export function PageLayout({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  const pageNavigation = usePlayerPageNavigation();
   return (
     <section className="page-content">
       <div className="page-heading">
@@ -30,7 +33,36 @@ export function PageLayout({
           <h1>{title}</h1>
           <p>{description}</p>
         </div>
-        {actions ? <div className="page-heading-actions">{actions}</div> : null}
+        {actions || pageNavigation ? (
+          <div className="page-heading-actions">
+            {actions}
+            {pageNavigation ? (
+              <div className="page-navigation-actions" data-player-page-navigation="true">
+                <Button
+                  variant="secondary"
+                  className="page-navigation-button"
+                  aria-label="返回上一页面"
+                  title="返回上一页面"
+                  disabled={!pageNavigation.canGoBack}
+                  onClick={pageNavigation.onBack}
+                >
+                  <BackIcon />
+                  <span>返回</span>
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="page-navigation-button"
+                  aria-label="关闭当前页面并显示地图"
+                  title="关闭并显示地图"
+                  onClick={pageNavigation.onClose}
+                >
+                  <CloseIcon />
+                  <span>关闭</span>
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       <div className="ui-page-stack">
         {children}

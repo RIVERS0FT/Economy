@@ -13,6 +13,7 @@ import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrit
 import { orderAssetId, orderKind } from './order-identity.js';
 import { closeOrderInOrderBook, countOpenOrdersForOwner } from './order-book-runtime.js';
 import { ensurePopulationEconomy, releasePopulationOrderFunds } from './population-economy.js';
+import { DEFAULT_PROVINCE_ID, inventoryForProvince, normalizeProvinceId, provinceScopedKey } from './provinces.js';
 
 export * from './domain-core.js';
 export {
@@ -145,9 +146,8 @@ function cancelLegacyCommodityOrder(world, order) {
     player.frozenCredits = Math.max(0, Number(player.frozenCredits || 0) - release);
     player.credits = Number(player.credits || 0) + release;
   } else if (player && order.side === 'sell') {
-    player.inventories ||= {};
     const productId = orderAssetId(order);
-    const inventory = player.inventories[productId] ||= { available: 0, frozen: 0 };
+    const inventory = inventoryForProvince(player, productId, order.provinceId);
     const release = Math.min(Math.max(0, Number(inventory.frozen || 0)), remaining);
     inventory.frozen = Math.max(0, Number(inventory.frozen || 0) - release);
     inventory.available = Math.max(0, Number(inventory.available || 0)) + release;
@@ -170,7 +170,7 @@ function migrateC1InputBalance(world) {
   const productMap = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
   for (const productId of C1_INPUT_BALANCE_PRODUCT_IDS) {
     const product = productMap.get(productId);
-    const market = world.markets?.[productId];
+    const market = world.markets?.[provinceScopedKey(DEFAULT_PROVINCE_ID, productId)];
     if (!product || !market) continue;
     market.lastPrice = product.basePrice;
     market.lastTradePrice = null;
@@ -212,6 +212,7 @@ function reconcileCommodityOrderBook(world, now) {
       ownerId: order.ownerId,
       assetKind: 'commodity',
       assetId: orderAssetId(order),
+      provinceId: order.provinceId,
       side: order.side,
       price: order.price,
     })) cancelLegacyCommodityOrder(world, order);
@@ -225,7 +226,7 @@ export function createWorld(now = Date.now()) {
   ensurePopulationEconomy(world, now);
   world.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
   world.auctionFeeEscrowCredits = Math.max(0, Number(world.auctionFeeEscrowCredits || 0));
-  world.version = 26;
+  world.version = 30;
   normalizeWorldMoneyPrecision(world);
   return world;
 }
@@ -281,7 +282,7 @@ export function migrateWorld(world, now = Date.now()) {
   ensurePopulationEconomy(migrated, now);
   migrated.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
   migrated.auctionFeeEscrowCredits = Math.max(0, Number(migrated.auctionFeeEscrowCredits || 0));
-  migrated.version = 26;
+  migrated.version = 30;
   normalizeWorldMoneyPrecision(migrated);
   return migrated;
 }
@@ -314,10 +315,8 @@ function normalizePositiveInteger(value, max = Number.MAX_SAFE_INTEGER) {
   return normalized >= 1 && normalized <= max ? normalized : null;
 }
 
-function playerInventoryFor(player, productId) {
-  player.inventories ||= {};
-  player.inventories[productId] ||= { available: 0, frozen: 0 };
-  return player.inventories[productId];
+function playerInventoryFor(player, productId, provinceId) {
+  return inventoryForProvince(player, productId, provinceId);
 }
 
 
@@ -329,6 +328,7 @@ function applyCommodityOrder(world, user, payload, now) {
     : null;
   const quantity = normalizePositiveInteger(payload.quantity, core.ECONOMY_CONSTANTS.maxOrderQuantity);
   const price = normalizePlayerMoneyInput(payload.price, { min: 0.01 });
+  const provinceId = normalizeProvinceId(payload.provinceId);
   if (!side || !productId || !quantity || !price) return { ok: false, message: '订单参数无效' };
   const total = multiplyMoneyByInteger(price, quantity);
   if (total === null) return { ok: false, message: '订单总额超出系统可表示范围' };
@@ -340,6 +340,7 @@ function applyCommodityOrder(world, user, payload, now) {
     ownerId: userId,
     assetKind: 'commodity',
     assetId: productId,
+    provinceId,
     side,
     price,
   })) return { ok: false, message: SELF_CROSS_MESSAGE };
@@ -355,7 +356,7 @@ function applyCommodityOrder(world, user, payload, now) {
     player.credits -= total;
     player.frozenCredits = Number(player.frozenCredits || 0) + total;
   } else {
-    const inventory = playerInventoryFor(player, productId);
+    const inventory = playerInventoryFor(player, productId, provinceId);
     if (Number(inventory.available || 0) < quantity) return { ok: false, message: '可用商品库存不足' };
     inventory.available -= quantity;
     inventory.frozen = Number(inventory.frozen || 0) + quantity;
@@ -366,6 +367,7 @@ function applyCommodityOrder(world, user, payload, now) {
     assetKind: 'commodity',
     assetId: productId,
     productId,
+    provinceId,
     side,
     ownerType: 'player',
     ownerId: userId,

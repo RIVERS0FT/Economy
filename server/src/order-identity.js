@@ -14,3 +14,8 @@ export function orderAssetId(order) {
     ? String(order?.assetId || order?.facilityTypeId || '')
     : String(order?.assetId || order?.productId || 'wheat');
 }
+
+export function orderProvinceId(order) {
+  return normalizeProvinceId(order?.provinceId);
+}
+import { normalizeProvinceId } from './provinces.js';

@@ -5,6 +5,7 @@ import type { LoadedGameViewModel } from '../../src/app/gameViewModel';
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../../src/components/icons/GameIcons';
 import { GemIcon } from '../../src/components/icons/GemIcon';
 import { GameShell } from '../../src/components/shell/GameShell';
+import { ApplicationLayerRoot } from '../../src/components/visual/ApplicationLayerRoot';
 import type { StatusBarItem } from '../../src/components/shell/StatusBar';
 import { CurrencyAmount } from '../../src/components/ui/CurrencyAmount';
 import { MarketPage } from '../../src/pages/MarketPage';
@@ -29,6 +30,9 @@ import '../../src/styles/interaction-states.css';
 import '../../src/styles/market-page-polish.css';
 import '../../src/styles/product-artwork.css';
 import '../../src/styles/facility-artwork.css';
+import '../../src/styles/financial-backdrop.css';
+import '../../src/styles/province-map.css';
+import '../../src/styles/strategic-game-shell.css';
 
 const params = new URLSearchParams(window.location.search);
 const scenario = params.get('scenario') ?? 'active';
@@ -336,4 +340,6 @@ function MarketHarness() {
   );
 }
 
-createRoot(document.getElementById('root') as HTMLElement).render(<MarketHarness />);
+createRoot(document.getElementById('root') as HTMLElement).render(
+  <ApplicationLayerRoot><MarketHarness /></ApplicationLayerRoot>,
+);

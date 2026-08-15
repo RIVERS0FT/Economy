@@ -17,22 +17,51 @@ import { DesktopSidebar } from './DesktopSidebar';
 import { MobileBottomNavigation } from './MobileBottomNavigation';
 import { SignedInShell } from './SignedInShell';
 import { StatusBar, type StatusBarItem } from './StatusBar';
+import { ApplicationMapLayerPortal } from '../visual/ApplicationLayerRoot';
+import {
+  StrategicMapStage,
+  StrategicWorkspaceChrome,
+} from './StrategicWorkspace';
+import type { ProvinceMapLens } from '../provinces/UsMainlandMap';
+import type { TabId } from '../../config/navigation';
+import { PlayerPageNavigationProvider } from '../ui/PageNavigationContext';
 
-export function GameShell({ model, children }: {
+const STRATEGIC_PAGE_PRESENTATION = {
+  home: 'workspace',
+  map: 'map',
+  market: 'workspace',
+  production: 'workspace',
+  research: 'fullscreen',
+  auction: 'fullscreen',
+  contracts: 'fullscreen',
+  bank: 'fullscreen',
+  leaderboard: 'fullscreen',
+  'gem-shop': 'side',
+  settings: 'side',
+} as const;
+
+export function GameShell({ model, children, offline = false }: {
   model: LoadedGameViewModel;
   statusItems?: StatusBarItem[];
   children: ReactNode;
+  offline?: boolean;
 }) {
   const authorityGame = useGameAuthorityDependencies(['player.identity', 'player.assets', 'leaderboard']);
   const game = authorityGame ?? model.game;
   const derived = model.derived;
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [mapLens, setMapLens] = useState<ProvinceMapLens>('assets');
+  const pageHistoryRef = useRef<TabId[]>([]);
+  const observedTabRef = useRef<TabId>(model.tab);
+  const skipNextHistoryRef = useRef(false);
+  const [canGoBack, setCanGoBack] = useState(false);
   const [qqGroupUrl, setQqGroupUrl] = useState(DEFAULT_QQ_GROUP_URL);
   const { badges, auctionNewIds } = useNavigationBadges(model);
   const notificationCenter = useNotificationCenter(model);
   const notificationButtonRef = useRef<HTMLButtonElement>(null);
   const auctionNewIdSet = useMemo(() => new Set(auctionNewIds), [auctionNewIds]);
   const openBank = useCallback(() => model.setTab('bank'), [model.setTab]);
+  const pagePresentation = STRATEGIC_PAGE_PRESENTATION[model.tab];
 
   const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
   const weeklyMagnitude = Math.abs(weeklyChange);
@@ -98,21 +127,51 @@ export function GameShell({ model, children }: {
   ]);
 
   useEffect(() => {
+    if (offline) return undefined;
     const controller = new AbortController();
     void getCommunityLink(controller.signal)
       .then((config) => setQqGroupUrl(config.qqGroupUrl))
       .catch(() => { /* Keep the bundled default when configuration cannot be loaded. */ });
     return () => controller.abort();
-  }, []);
+  }, [offline]);
 
   useEffect(() => {
     notificationCenter.closePanel();
   }, [model.tab, notificationCenter.closePanel]);
 
+  useEffect(() => {
+    const previousTab = observedTabRef.current;
+    if (previousTab === model.tab) return;
+    if (skipNextHistoryRef.current) {
+      skipNextHistoryRef.current = false;
+    } else if (previousTab !== 'map') {
+      pageHistoryRef.current = [...pageHistoryRef.current, previousTab].slice(-20);
+    }
+    observedTabRef.current = model.tab;
+    setCanGoBack(pageHistoryRef.current.length > 0);
+  }, [model.tab]);
+
+  const returnToPreviousPage = useCallback(() => {
+    let target = pageHistoryRef.current.pop();
+    while (target === model.tab) target = pageHistoryRef.current.pop();
+    setCanGoBack(pageHistoryRef.current.length > 0);
+    if (!target) return;
+    skipNextHistoryRef.current = true;
+    model.setTab(target);
+  }, [model.setTab, model.tab]);
+
+  const closeCurrentPage = useCallback(() => {
+    model.setTab('map');
+  }, [model.setTab]);
+
   return (
     <AuctionNewIdsContext.Provider value={auctionNewIdSet}>
+      <ApplicationMapLayerPortal>
+        <StrategicMapStage model={model} lens={mapLens} />
+      </ApplicationMapLayerPortal>
       <SignedInShell
-        rootClassName="game-shell"
+        rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}`}
+        workspaceClassName="strategic-workspace"
         sidebarCollapsed={sidebarCollapsed}
         sidebar={(
           <DesktopSidebar
@@ -164,8 +223,28 @@ export function GameShell({ model, children }: {
             />
           </>
         )}
+        workspaceChrome={(
+          <StrategicWorkspaceChrome
+            lens={mapLens}
+            onLensChange={setMapLens}
+          />
+        )}
       >
-        {children}
+        <PlayerPageNavigationProvider
+          value={{
+            canGoBack,
+            onBack: returnToPreviousPage,
+            onClose: closeCurrentPage,
+          }}
+        >
+          <div
+            className={`strategic-page-host strategic-page-host--${pagePresentation}`}
+            data-strategic-page={model.tab}
+            data-strategic-presentation={pagePresentation}
+          >
+            {children}
+          </div>
+        </PlayerPageNavigationProvider>
       </SignedInShell>
     </AuctionNewIdsContext.Provider>
   );

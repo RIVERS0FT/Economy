@@ -11,4 +11,5 @@ export const navigationItems = [
   { id: 'settings', label: '设置' },
 ] as const;
 
-export type TabId = (typeof navigationItems)[number]['id'];
+export type NavigationTabId = (typeof navigationItems)[number]['id'];
+export type TabId = NavigationTabId | 'map';

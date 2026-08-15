@@ -22,7 +22,14 @@ check('src/main.tsx', [
   "import './styles/scrollbars.css';",
   "import './styles/game-shell-layout.css';",
   "import './styles/safe-floating.css';",
+  "import './styles/strategic-game-shell.css';",
 ]);
+const mainSource = read('src/main.tsx');
+const provinceMapStyleIndex = mainSource.indexOf("import './styles/province-map.css';");
+const strategicStyleIndex = mainSource.indexOf("import './styles/strategic-game-shell.css';");
+if (!(provinceMapStyleIndex >= 0 && strategicStyleIndex > provinceMapStyleIndex)) {
+  failures.push('玩家战略外壳样式必须在 province-map.css 之后作为最终几何覆盖加载');
+}
 check('src/components/shell/SignedInShell.tsx', [
   "import { ScrollArea } from '../ui/ScrollArea'",
   'WorkspaceFloatingLayerContext.Provider',
@@ -30,6 +37,7 @@ check('src/components/shell/SignedInShell.tsx', [
   'className="signed-in-shell__body"',
   "'signed-in-shell__chrome'",
   'className="mobile-page-overlay"',
+  'className="workspace-strategic-chrome"',
   'className="workspace-floating-layer"',
   'data-workspace-floating-layer="true"',
   'className="workspace-dialog-layer"',
@@ -38,6 +46,12 @@ check('src/components/shell/SignedInShell.tsx', [
   "'page-scroll'",
 ]);
 const sharedShell = read('src/components/shell/SignedInShell.tsx');
+if (!(sharedShell.indexOf('className="mobile-page-overlay"') >= 0
+  && sharedShell.indexOf('className="mobile-page-overlay"') < sharedShell.indexOf('className="workspace-strategic-chrome"')
+  && sharedShell.indexOf('className="workspace-strategic-chrome"') < sharedShell.indexOf('className="workspace-floating-layer"'))) {
+  failures.push('SignedInShell 工作区必须按页面、战略 Chrome、普通浮层顺序渲染');
+}
+forbid('src/components/shell/SignedInShell.tsx', ['workspaceBackground', 'className="workspace-background-layer"']);
 if (sharedShell.indexOf('className="signed-in-shell__body"') >= sharedShell.indexOf("'signed-in-shell__chrome'")) {
   failures.push('SignedInShell 必须先渲染页面主体、再渲染 Chrome，保持移动玻璃采样顺序');
 }
@@ -86,6 +100,43 @@ check('src/styles/game-shell-layout.css', [
   '.workspace-floating-layer {',
   'overflow: clip;',
 ]);
+check('src/components/shell/GameShell.tsx', [
+  'const STRATEGIC_PAGE_PRESENTATION = {',
+  "const [sidebarCollapsed, setSidebarCollapsed] = useState(true)",
+  "const [mapLens, setMapLens] = useState<ProvinceMapLens>('assets')",
+  '<ApplicationMapLayerPortal>',
+  '<StrategicMapStage model={model} lens={mapLens} />',
+  '<StrategicWorkspaceChrome',
+  'data-strategic-presentation={pagePresentation}',
+]);
+check('src/components/shell/StrategicWorkspace.tsx', [
+  'export function StrategicMapStage',
+  '<UsMainlandMap',
+  'export function StrategicWorkspaceChrome',
+  'aria-label="地图镜头"',
+]);
+forbid('src/components/shell/StrategicWorkspace.tsx', [
+  'strategic-province-inspector',
+  '当前经营地区',
+  '进入本地市场',
+  '管理本地生产',
+]);
+forbid('src/pages/MapPage.tsx', ['<UsMainlandMap']);
+check('src/styles/strategic-game-shell.css', [
+  '--desktop-layout-gutter: 8px;',
+  '--desktop-asset-bar-height: 64px;',
+  '--strategic-command-rail-width: 78px;',
+  '.application-map-layer,',
+  '.game-shell .workspace-strategic-chrome {',
+  '.game-shell .workspace-floating-layer {',
+  'z-index: 4;',
+  '.strategic-page-host--workspace > .page-content {',
+  '.strategic-page-host--fullscreen > .page-content {',
+  '.strategic-page-host--side > .page-content {',
+  '.strategic-page-host--map {',
+  '.strategic-map-lens-bar {',
+]);
+forbid('src/styles/strategic-game-shell.css', ['.strategic-province-inspector', '.workspace-background-layer']);
 forbid('src/styles/game-shell-layout.css', [
   `left: 0;
     width: auto;
@@ -136,9 +187,14 @@ check('src/styles/safe-floating.css', ['.safe-tooltip {', 'position: absolute;',
 check('src/components/charts/chartOptions.ts', ['appendToBody: false', 'confine: true']);
 
 check('tests/browser/game-shell-layout.spec.ts', [
-  'desktop shell uses one 12px gutter for full-width status bar, lower sidebar, cards and page edges',
-  'sidebar collapse leaves the full-width status bar fixed and only expands the lower workspace',
+  "test.describe('persistent-map grand-strategy game shell'",
+  'desktop shell keeps an 8px chrome gutter, fixed command rail, map stage, and overlay panel host',
+  'compact desktop keeps the persistent map and overlay panel on the 8px strategic grid',
+  'short desktop keeps the persistent map and command chrome inside the viewport',
+  'command rail expands over the map without moving the workspace or status bar',
   'expect(expanded.assetBar.left).toBeCloseTo(collapsed.assetBar.left, 0)',
+  'expect(expanded.workspace.left).toBeCloseTo(collapsed.workspace.left, 0)',
+  'expect(expanded.mapLayer).toEqual(collapsed.mapLayer)',
   'expect(layout.sidebar.top).toBeCloseTo(layout.body.top, 0)',
   'expect(layout.floatingLayer.top).toBeCloseTo(layout.workspace.top, 0)',
   'expect(layout.pageScrollbar.railTop).toBeCloseTo(layout.body.top, 0)',
@@ -152,7 +208,11 @@ check('tests/browser/game-three-layer.spec.ts', [
   'bodyIndex: shellChildren.indexOf(body)',
   'chromeIndex: shellChildren.indexOf(chromeOverlay)',
   "expect(layout.bodyZ).toBe('0')",
-  "expect(layout.pageZ).toBe('0')",
+  "expect(layout.mapZ).toBe('20')",
+  "expect(layout.uiZ).toBe('30')",
+  "expect(layout.pageZ).toBe('1')",
+  "expect(layout.strategicChromeZ).toBe('2')",
+  "expect(layout.floatingLayerZ).toBe('4')",
 ]);
 check('tests/browser/shell-floating-safe-zone.spec.ts', [
   'market-runtime-test.html?scenario=active',
@@ -168,8 +228,8 @@ check('tests/browser/notification-center.spec.ts', [
   'panelCloseIsTopmost',
   'islandCenter',
   "expect(geometry.shellBodyZIndex).toBe('0')",
-  "expect(geometry.pageLayerZIndex).toBe('0')",
-  "expect(geometry.floatingLayerZIndex).toBe('1')",
+  "expect(geometry.pageLayerZIndex).toBe('1')",
+  "expect(geometry.floatingLayerZIndex).toBe('4')",
   "expect(geometry.floatingLayerOrder).toBe('2')",
 ]);
 check('tests/browser/mobile-detail-sheet.spec.ts', [
@@ -178,28 +238,35 @@ check('tests/browser/mobile-detail-sheet.spec.ts', [
   'expect(navigationCovered).toBe(true)',
 ]);
 check('tests/browser/liquid-glass-layout.spec.ts', [
-  'assetBarAreaWidth).toBeCloseTo(layout.viewportWidth - 24',
+  'assetBarAreaWidth).toBeCloseTo(layout.viewportWidth - 16',
   'workspaceTop - layout.assetBarBottom',
-  "expect(geometry.pageOverlayZIndex).toBe('0')",
+  "expect(geometry.pageOverlayZIndex).toBe('1')",
 ]);
 
 check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '跨越全部桌面列', '侧栏不得再从视口顶部开始',
+  '玩家端 `.strategic-game-shell` 固定使用 `8px` 桌面外距、`64px` 顶部状态栏和 `78px` 指挥栏',
+  '展开到 `224px` 时只覆盖地图和页面面板左侧',
+  '图片／氛围／地图／UI',
+  '不得建立第五个全局层',
   '工作区浮层安全区', '不得追加到 `document.body`',
   '`appendToBody: false`', '`confine: true`',
   '根级业务 Dialog 层',
   '移动工厂详情',
   '移动工作区使用局部层级堆叠边界',
-  '工作区浮层根固定 `order: 2; z-index: 1`',
+  '玩家 UI 工作区使用页面 `1`、战略 Chrome `2`、普通浮层 `4`',
   '页面内部任意正 `z-index`',
 ]);
 check('docs/UI_DESIGN_SYSTEM.md', [
   '登录后浮层安全区', '`SafeTooltip`',
+  '`map`／`workspace`／`fullscreen`／`side` 四类战略页面面板',
+  '`.application-map-layer`、`.application-ui-layer` 与 `.workspace-strategic-chrome` 必须保持 `isolation:auto`',
   '不得与桌面顶部状态栏／管理员工作栏、桌面侧栏',
   '根级 Dialog',
 ]);
 check('docs/README.md', [
   '全宽顶部工作栏', '浮层安全根', 'shell-floating-safe-zone.spec.ts',
+  '玩家固定使用 `8px` 外距、`64px` 状态栏、默认折叠 `78px` 指挥栏',
 ]);
 
 if (failures.length) {
@@ -207,4 +274,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('游戏与管理员共享外壳验证通过：全宽顶部工作栏、下方侧栏与工作区、贴边滚动条、普通浮层安全根、移动局部层级边界和根级业务 Dialog 层均已锁定。');
+console.log('游戏与管理员共享外壳验证通过：管理员传统桌面几何、玩家常驻战略地图与四类面板、覆盖式指挥栏、贴边滚动条、浮层安全根、移动局部层级边界和根级业务 Dialog 层均已锁定。');

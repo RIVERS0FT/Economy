@@ -12,6 +12,18 @@ let nextChartInstanceId = 1;
 
 export type EconomyChartUpdateMode = 'replace' | 'merge';
 
+export interface EconomyChartClickEvent {
+  componentType?: string;
+  seriesType?: string;
+  name?: string;
+  data?: unknown;
+}
+
+export interface EconomyChartSize {
+  width: number;
+  height: number;
+}
+
 function applyChartOption(
   chart: EChartsType,
   container: HTMLElement,
@@ -26,6 +38,10 @@ function applyChartOption(
   container.dataset.echartsCssColorsResolved = 'true';
 }
 
+function hasRenderableSize(container: HTMLElement) {
+  return container.clientWidth > 0 && container.clientHeight > 0;
+}
+
 export function EconomyChart({
   option,
   ariaLabel,
@@ -36,6 +52,8 @@ export function EconomyChart({
   updateMode = 'replace',
   onChartReady,
   onOptionApplied,
+  onResize,
+  onClick,
 }: {
   option: EChartsCoreOption;
   ariaLabel: string;
@@ -46,26 +64,40 @@ export function EconomyChart({
   updateMode?: EconomyChartUpdateMode;
   onChartReady?: (chart: EChartsType) => void;
   onOptionApplied?: (chart: EChartsType) => void;
+  onResize?: (chart: EChartsType, size: EconomyChartSize) => void;
+  onClick?: (event: EconomyChartClickEvent) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<EChartsType | null>(null);
   const optionRef = useRef(option);
   const resizeFrameRef = useRef<number | null>(null);
+  const optionAppliedRef = useRef(false);
+  const chartReadyRef = useRef(false);
   const updateModeRef = useRef(updateMode);
   const onChartReadyRef = useRef(onChartReady);
   const onOptionAppliedRef = useRef(onOptionApplied);
+  const onResizeRef = useRef(onResize);
+  const onClickRef = useRef(onClick);
   const [ready, setReady] = useState(false);
 
   updateModeRef.current = updateMode;
   onChartReadyRef.current = onChartReady;
   onOptionAppliedRef.current = onOptionApplied;
+  onResizeRef.current = onResize;
+  onClickRef.current = onClick;
 
   useLayoutEffect(() => {
     optionRef.current = option;
     const chart = chartRef.current;
     const container = containerRef.current;
-    if (!chart || !container) return;
+    if (!chart || !container || !hasRenderableSize(container)) return;
     applyChartOption(chart, container, option, updateMode, true);
+    optionAppliedRef.current = true;
+    if (!chartReadyRef.current) {
+      chartReadyRef.current = true;
+      setReady(true);
+      onChartReadyRef.current?.(chart);
+    }
     onOptionAppliedRef.current?.(chart);
   }, [option, updateMode]);
 
@@ -81,16 +113,37 @@ export function EconomyChart({
     nextChartInstanceId += 1;
     container.dataset.echartsInstanceId = String(instanceId);
     chartRef.current = chart;
-    applyChartOption(chart, container, optionRef.current, updateModeRef.current, false);
-    setReady(true);
-    onChartReadyRef.current?.(chart);
-    onOptionAppliedRef.current?.(chart);
+    optionAppliedRef.current = false;
+    chartReadyRef.current = false;
+    setReady(false);
+    const handleClick = (event: unknown) => {
+      onClickRef.current?.(event as EconomyChartClickEvent);
+    };
+    chart.on('click', handleClick);
+    const applyCurrentOption = () => {
+      if (!hasRenderableSize(container)) return false;
+      applyChartOption(chart, container, optionRef.current, updateModeRef.current, false);
+      optionAppliedRef.current = true;
+      if (!chartReadyRef.current) {
+        chartReadyRef.current = true;
+        setReady(true);
+        onChartReadyRef.current?.(chart);
+      }
+      onOptionAppliedRef.current?.(chart);
+      return true;
+    };
 
     const scheduleResize = () => {
       if (resizeFrameRef.current !== null) cancelAnimationFrame(resizeFrameRef.current);
       resizeFrameRef.current = requestAnimationFrame(() => {
         resizeFrameRef.current = null;
+        if (!hasRenderableSize(container)) return;
         chart.resize();
+        onResizeRef.current?.(chart, {
+          width: container.clientWidth,
+          height: container.clientHeight,
+        });
+        if (!optionAppliedRef.current) applyCurrentOption();
       });
     };
 
@@ -100,13 +153,17 @@ export function EconomyChart({
     observer?.observe(container);
     window.addEventListener('resize', scheduleResize);
     void document.fonts?.ready.then(scheduleResize);
+    applyCurrentOption();
 
     return () => {
       observer?.disconnect();
       window.removeEventListener('resize', scheduleResize);
       if (resizeFrameRef.current !== null) cancelAnimationFrame(resizeFrameRef.current);
+      chart.off('click', handleClick);
       chart.dispose();
       chartRef.current = null;
+      optionAppliedRef.current = false;
+      chartReadyRef.current = false;
     };
   }, []);
 

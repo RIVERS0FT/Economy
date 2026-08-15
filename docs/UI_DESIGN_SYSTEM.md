@@ -3,7 +3,7 @@
 > 状态：当前视觉、共享组件、响应式与可访问性实现基线
 > 适用项目：`RIVERS0FT/Economy`
 > 当前平台：网页端
-> 更新时间：2026-08-13
+> 更新时间：2026-08-15
 
 产品和页面职责分别以 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；应用外壳几何和玻璃材质以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。
 
@@ -28,6 +28,7 @@
 | `src/styles/primary-surfaces.css` | 玩家端一级卡片外层内边距令牌、最终选择器、移动断点与旧一级卡片类兼容入口 |
 | `src/styles/form-controls.css` | 输入、选择器、文本域、文件控件、自动填充、错误／只读／禁用状态和移动尺寸的最终视觉权威 |
 | `src/styles/globals.css` | 通用业务布局 |
+| `src/styles/strategic-game-shell.css` | 玩家端常驻地图、战略页面面板、州检查器、地图镜头栏、覆盖式指挥栏与移动安全布局；不得修改管理员外壳 |
 | `src/styles/charts.css` | 共享 ECharts 容器、Tooltip、无障碍摘要、市场底部安全区、管理员图表与资产圆环布局 |
 | `src/styles/safe-floating.css` | 工作区安全 Tooltip 的容器内定位、尺寸、滚动与视觉；不得承担外壳几何 |
 | `src/styles/overview.css` | 概览经营提醒、市场空状态、两排核心卡片和响应式布局 |
@@ -90,7 +91,7 @@
 
 `PagePanel` 是新增玩家端一级卡片的唯一 React 入口，固定复用 `Panel`、`.widget` 与 `.ui-primary-surface`。现有 `Panel className="widget ..."` 由兼容桥自动补充 `.ui-primary-surface`；生产页和排行页尚未迁移的旧一级卡片类只允许在 `primary-surfaces.css` 中作为兼容入口，不得在业务 CSS 中重新定义外层 padding。
 
-`EconomyChart` 是业务数据图表的唯一 React 入口。项目只安装 Apache `echarts`，不得引入 `echarts-for-react` 或第二套图表包装库；`echarts.init`、SVGRenderer、按需模块注册、`ResizeObserver`、`requestAnimationFrame` 合并 resize、Option 更新与卸载 `dispose()` 统一放在 `src/components/charts/`。市场、银行资产配置、管理员玩家与人口图表必须从现有 CSS 设计令牌读取颜色，提供中文 `aria-label` 与可读数据摘要；业务页面只提供数据和 Option，不得直接持有 ECharts 实例或依赖其私有 SVG DOM。ECharts 必须随市场、银行和管理员页面的既有动态 import 按需加载，登录首屏不得静态加载图表包。
+`EconomyChart` 是业务数据图表的唯一 React 入口。项目只安装 Apache `echarts`，不得引入 `echarts-for-react` 或第二套图表包装库；`echarts.init`、SVGRenderer、ECharts Geo/Map 的 `MapChart`／`GeoComponent`／地图注册、按需模块注册、`ResizeObserver`、`requestAnimationFrame` 合并 resize、Option 更新、事件绑定与卸载 `dispose()` 统一放在 `src/components/charts/`。图表容器宽或高为 `0` 时必须延迟 `setOption` 并跳过 `resize`，在首次获得可渲染尺寸后再应用最新 Option，避免常驻地图与页面图表切换布局时生成不可逆矩阵。市场、地图、银行资产配置、管理员玩家与人口图表必须从现有 CSS 设计令牌读取颜色，提供中文 `aria-label` 与可读数据摘要；业务页面只提供数据、Option 和语义事件回调，不得直接持有 ECharts 实例或依赖其私有 SVG DOM。ECharts 必须随市场、地图、银行和管理员页面的既有动态 import 按需加载，登录首屏不得静态加载图表包。
 
 ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`EconomyChart` 必须在每次 `setOption` 前读取图表容器的浏览器计算样式，把 Option 中静态颜色、颜色数组、数据项颜色和颜色回调结果统一解析为实体色值；业务图表不得自行复制颜色解析器。以 Tooltip 为唯一悬浮信息反馈的折线、柱状和饼图系列必须复用 `STABLE_TOOLTIP_EMPHASIS`，禁止库默认 emphasis 改写填充、描边或透明度。鼠标、触控点击、状态刷新和尺寸变化均不得让当前或其他数据图形消失、变为透明或丢失原始颜色。
 
@@ -104,7 +105,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 移动工厂详情中的生产产物与作业制度继续同一行横向 Auto 槽；两个字段均按自身 Desired Size 从左侧连续排列，第二项紧跟第一项并只保留统一 `gap`，不得恢复两等分列、百分比轨道或其他 Fill 布局。打开 `production-config` 时，方案菜单可以扩展到根级 Dialog 的可用宽度而不受正方形触发按钮限制，必须保持在视口内且不得制造横向溢出。根级 Dialog 内的 `RichSelectInput` 列表继续复用该 Dialog 根作为安全定位边界并位于详情遮罩之上。`production-methods.css` 只负责投入／产出／指标摘要的业务内部排列，不得定义触发器、弹层、定位、键盘或选中基础视觉。
 
-管理员入口、游戏入口和十个游戏页面必须使用 `React.lazy` 与动态 `import()` 按需加载；登录页不得静态拉入管理员和全部游戏页面。根游戏模型不得维护每秒变化的时间状态，倒计时只在概览、生产、拍卖、合同和银行等实际需要的局部页面通过共享 `useNow` 维护，市场订单簿、导航和银行资产总览等静态区域不得被全局秒级时钟重渲染。
+管理员入口、游戏入口和十一个游戏页面必须使用 `React.lazy` 与动态 `import()` 按需加载；登录页不得静态拉入管理员和全部游戏页面。根游戏模型不得维护每秒变化的时间状态，倒计时只在概览、生产、拍卖、合同和银行等实际需要的局部页面通过共享 `useNow` 维护，市场订单簿、导航、地图和银行资产总览等静态区域不得被全局秒级时钟重渲染。
 
 服务器快照与客户端交互状态必须使用不同原语。实体选择使用 `src/hooks/useStableSelection.ts` 的 `useStableSelection`，有效选择在任意轮询快照和无关分区变化中保持不变；服务器字段编辑使用 `src/hooks/useServerDraft.ts` 的 `useServerDraft`，以 `dirty`、`baseRevision` 和 `conflicted` 区分已确认值与未提交草稿。业务页面不得通过依赖完整 `game` 对象的 Effect 无条件重置本地 setter，也不得用服务器修订号、时间戳或完整状态作为 React `key` 触发重新挂载。
 
@@ -118,12 +119,12 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 ### 3.1 `PageLayout` 与页面一级区块间距
 
-- 玩家十个正式页面和管理员分区必须使用共享 `PageLayout`；`PageLayout` 必须在标题之后自动生成唯一 `.ui-page-stack`，业务页面不得直接创建 `.page-content`、复制页面外壳或手动插入第二个 `.ui-page-stack`。
+- 除地图页外的十个玩家正式页面和管理员分区必须使用共享 `PageLayout`；地图页是唯一全工作区例外，必须直接使用透明且无子元素的 `.province-map-page` 路由占位，不得嵌入 `PageLayout`、`.ui-page-stack`、左上指挥卡、左下图例／来源卡或“当前经营地区”卡片。唯一地图实例由 `StrategicWorkspace` 挂载到根级地图层，`MapPage` 不得再渲染 `UsMainlandMap`。玩家 `GameShell` 必须通过轻量页面导航上下文让共享 `PageLayout` 在标题操作区追加统一 SVG“返回／关闭”按钮；返回无历史时禁用，关闭进入纯地图视图。管理员未提供该上下文，不得显示玩家页面控制。`PageLayout` 必须在标题之后自动生成唯一 `.ui-page-stack`，其他业务页面不得直接创建 `.page-content`、复制页面外壳或手动插入第二个 `.ui-page-stack`。
 - `.ui-page-stack` 是页面标题下一级内容的唯一纵向容器，在自身上下文把 `--page-section-gap` 映射为当前 `var(--layout-gutter)`。因此普通桌面、紧凑桌面和移动工作区继续分别跟随外壳沟槽，不维护页面专属固定像素。
 - 页面摘要、一级面板、标签栏、主要列表或主要工作区必须作为 `.ui-page-stack` 的直接子元素；相邻可见一级区块只由 `gap: var(--page-section-gap)` 分隔。共享最终样式必须清除直接子元素的 `margin-block`，业务 CSS 不得用 `margin-top`、`margin-bottom`、相邻选择器或更高优先级规则重新制造一级外部间距。
 - `PagePanel` 的 `--primary-surface-inset` 只负责一级卡片边缘到内部内容的留白；页面一级区块间距、一级卡片内边距和组件内部 `--space-*` 间距是三个独立层级，不得互相替代。
 - 复杂页面允许把若干紧密关联模块放进一个页面专属网格或组合容器，再把该容器作为 `.ui-page-stack` 的一个直接子元素；不得为特殊页面增加 `disableSpacing`、零间距开关或平行页面外壳。
-- `scripts/verify-page-section-spacing.mjs` 必须扫描全部 `src/pages/*Page.tsx`、管理员入口、共享组件、最终 CSS、权威设计和浏览器回归；新增正式页面未使用 `PageLayout`、业务样式重定义 `.ui-page-stack` 或真实一级几何间距不一致时必须阻止构建。
+- `scripts/verify-page-section-spacing.mjs` 必须扫描全部 `src/pages/*Page.tsx`、管理员入口、共享组件、最终 CSS、权威设计和浏览器回归；除唯一地图工作台例外外，新增正式页面未使用 `PageLayout`，或地图页恢复 `PageLayout`／缺少 `.province-map-page`，或业务样式重定义 `.ui-page-stack`、真实一级几何间距不一致时必须阻止构建。
 
 ### 3.1.1 登录后根级 Dialog
 
@@ -387,6 +388,14 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 买入使用成功色，卖出使用危险色，但方向必须有文字。
 - 商品标签使用商品 SVG，工厂紧凑标签使用独立厂房 SVG。市场商品与工厂目录卡必须使用两个按 DOM 顺序渲染的覆盖层：图标层分别只包含居中的 `ProductIcon` 或 `FacilityIcon`，数据层包含名称、`CurrencyAmount` 最近成交价、库存／持有数量和真实 DOM“当前”胶囊。商品卡的桌面中央插画固定 `72 × 72px`，不大于 `720px` 时固定 `56 × 56px`；工厂卡插画必须等比居中裁切并铺满整张卡，桌面和移动卡片仍分别保持 `138 × 92px` 与 `132 × 88px`，不得拉伸、重复或偏离中央主体。商品卡只允许改变中央插画的 `width`／`height`；工厂卡由 `FacilityIcon` 自身向四边扩展抵消图标层 `inset`，不得改变数据层 `padding` 与 `gap`、四角槽位、名称前 SVG、价格、“当前”胶囊和库存位置，不得通过压缩四角留白容纳插画。工厂满幅插画必须在图标层内部使用上下两层黑色渐变保护顶部名称／价格和底部数量，中央主体保持透明；悬停和当前状态不得给图片着色。名称前固定渲染 `14 × 14px` 对应商品 SVG 或 `FactoryIcon`；商品右下使用 `WarehouseIcon`，工厂右下使用 `FactoryIcon`。目录卡使用 `var(--radius-control)`、`var(--space-3)` 间距、强边框和轻量阴影，悬停不位移。图标层 `z-index` 必须低于数据层，两层均不得截获按钮指针事件。
 
+### 8.1 美国本土州级经营地图
+
+- 地图使用 `StrategicWorkspace` 内唯一 `UsMainlandMap` 和共享 `EconomyChart` 的 ECharts Geo/Map SVG，不得保留页面级第二个地图实例、手绘 `.province-map-silhouette`、固定百分比坐标或覆盖式地区按钮。地图按需注册 `MapChart` 与 `GeoComponent`，精确使用 `us-atlas@3.0.1` 和 `topojson-client@3.1.0`；运行时把州 TopoJSON 转为 GeoJSON，只注册与共享目录 `mapName` 一一对应的连续 48 州，不显示阿拉斯加、夏威夷、华盛顿特区或海外领地附图。桌面与移动初始视图统一使用固定投影比例的等比 Cover 相机，窗口变化只重新计算 `layoutSize`，不得拉伸或挤压州界；根 `.application-map-layer` 是唯一 `overflow: hidden` 裁切边界，地图舞台、图表宿主和 SVG 画布保持 `overflow: visible`、零内边距、零边框、零圆角、零轮廓和无阴影，不得由工作区或内部图表层生成黑色矩形裁切。
+- 地区默认、悬停、当前、资产、工业、市场和异常语义使用区域填充、边界、文字、Tooltip、五种镜头和州检查器共同表达；当前地区由 ECharts 单选状态与外部 `selectedProvinceId` 双向同步。镜头状态只属于 `GameShell` 客户端视觉上下文，不得写入服务器或更换地区。地图表面支持鼠标／触摸点击、拖动和最高 8 倍受限缩放；纵向窄屏必须使用 ECharts `media` 选项按宽度适配美国本土轮廓，并隐藏普通常驻州缩写，只在选中或悬停时显示标签，避免在小地图上重叠。键盘焦点、文字快速定位和全部地区选择由统一 `ProvinceSelect` 承担，ECharts 容器提供“美国本土州级经营地图”可访问名称和当前地区摘要。
+- 玩家端采用类似大战略游戏的常驻地图工作台：全应用根节点严格按图片层 `0`、氛围层 `10`、地图层 `20`、UI 层 `30` 堆叠。`.application-map-layer` 通过 Portal 持有唯一 `StrategicMapStage` 并铺满视口；`.mobile-page-overlay` 持有 `map`／`workspace`／`fullscreen`／`side` 四类战略页面面板，`.workspace-strategic-chrome` 只持有底部镜头栏。地图页 `.province-map-page` 是透明且无子元素的路由占位，不再拥有地图画布、重复州详情、左上命令卡、左下图例／来源卡或“当前经营地区”卡片。不大于 `720px` 时地图继续铺满视口，地图页只保留中央可交互地图；其他业务面板允许覆盖地图，由唯一页面滚动视口承担纵向空间，不得创建内部主滚动视口。地图州面点击直接切换地区，市场和生产继续复用统一 `ProvinceSelect`，不得创建平行选择状态。
+- `.application-map-layer`、`.application-ui-layer` 与 `.workspace-strategic-chrome` 必须保持 `isolation:auto`、`filter:none` 和 `transform:none`，不得成为第二个全应用隔离根；UI 内部的页面、Chrome、普通浮层和业务 Dialog 仍全部属于 UI 层，不得创建第五个全局层。业务面板可使用半透明背景和 `backdrop-filter`，但不得复制根级摄影氛围、创建第二个地图背景或遮盖状态栏玻璃采样链。
+- `us-atlas`、ISC、精确依赖版本和非测绘／导航用途边界由页面权威文档与依赖清单记录，不在地图页恢复左下来源卡。地图数据不得自行生成经营地区 ID、绕过共享目录或用于现实导航、测绘和法律边界声明；既有 34 个地区 ID 必须保持稳定并原位对应州级地区，新增 14 个州 ID 不得移动、复制或合并既有资产。
+
 ## 9. 目录型横向导航
 
 商品和工厂标签必须根据服务器目录动态生成：
@@ -462,7 +471,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 背景、边框和玻璃材质仍可使用透明度；
 - hover、focus、active 不得降低图标或文字透明度。
 - 宽屏桌面侧栏必须提供键盘可操作的显式折叠按钮；游戏与管理员后台复用同一侧栏框架，在 `224px`／`78px` 间以约 `200ms` 过渡。Logo 在折叠前后固定为 `40×40px`，导航与底部操作固定使用 `48px` 图标轨道；文字只允许通过裁切、透明度与可见性分阶段切换，按钮 hover、focus、active 不得发生几何位移。折叠后 Logo 区域通过 hover 与 focus 显示展开箭头并承担展开操作，不得在侧栏边缘另放悬浮按钮。折叠后导航、QQ群和退出按钮仍保留稳定可访问名称，底部两个按钮固定为 `48×48px`；`721px–960px` 继续使用自动紧凑侧栏，减少动态效果时关闭过渡。
-- 桌面侧栏导航网格必须从顶部开始排列，使用固有内容行高；`.sidebar-nav` 固定为 `align-content: start` 与 `grid-auto-rows: max-content`。共享纵向 `ScrollArea` 可以占满剩余高度，但不得把十个导航按钮平均拉伸到整列高度。
+- 桌面侧栏导航网格必须从顶部开始排列，使用固有内容行高；`.sidebar-nav` 固定为 `align-content: start` 与 `grid-auto-rows: max-content`。共享纵向 `ScrollArea` 可以占满剩余高度，但不得把十一个导航按钮平均拉伸到整列高度。
 - 统一导航角标必须使用 `.navigation-badge`，颜色固定沿用当前市场角标的 `var(--color-success)` 背景和 `var(--color-on-primary)` 文字。每个页面最多渲染一个合并后的数字角标，只显示 `1`～`99` 或 `99+`，不得恢复双项、多项、标签或分隔符；完整数量和来源说明必须保留在按钮 `aria-label` 与角标 `title` 中。展开态固定在第三网格列右侧；折叠态、`721px–960px` 自动紧凑侧栏和移动底栏固定在按钮内部右上角，使用非负 `top`／`right` 内边距，不得伸出按钮或依赖侧栏裁剪。市场显示未完成订单，生产显示唯一问题项数量；拍卖按新拍卖与被超价拍卖 ID 并集计数，合同按新合同与需要处理合同 ID 并集计数，排行榜结算显示 `1`。概览、研发、银行、商店和设置暂不显示但必须保留统一映射能力。
 
 ## 14. 设置页布局
@@ -549,7 +558,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 给导航活动态添加位移或缩放；
 - 删除桌面侧栏折叠按钮、折叠状态的导航可访问名称或键盘操作能力；
 - 为单个页面恢复专用角标组件或颜色、恢复双项／多项角标、把上限改回 `999+`、把统一角标恢复为固定 `left` 坐标、让展开态角标离开第三网格列，或让折叠态角标伸出按钮并依赖侧栏裁剪；
-- 让桌面侧栏导航网格拉伸自动行、使用 `align-content: stretch`，或把十个导航按钮平均分散到整个侧栏高度；
+- 让桌面侧栏导航网格拉伸自动行、使用 `align-content: stretch`，或把十一个导航按钮平均分散到整个侧栏高度；
 - 对高增长记录恢复全量 `.map()` DOM 渲染，或用分页、截断替代 `VirtualList`；
 - 恢复会阻断纵向滚动链的 `overscroll-behavior: contain` 或其他双轴越界隔离；
 - 为页面、侧栏或业务表格复制滚动条宽度、颜色、计时器或活动判断；

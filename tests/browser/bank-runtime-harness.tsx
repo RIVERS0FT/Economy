@@ -49,7 +49,7 @@ const model = {
       recentDefaultAt: null,
       activeLoan: null,
       recentTransactions: [{ id: 'bank-1', type: 'deposit_interest', amount: 1, createdAt: fixedNow - 60_000, description: '银行存款每日结息' }],
-      availableCollateral: [{ facilityTypeId: 'farm', totalQuantity: 6, mortgagedQuantity: 0, availableQuantity: 5, prudentUnitValue: 60 }],
+      availableCollateral: [{ provinceId: '110000', facilityTypeId: 'farm', totalQuantity: 6, mortgagedQuantity: 0, availableQuantity: 5, prudentUnitValue: 60 }],
     },
     bankSummary: {
       nextInterestSettlementAt: fixedNow + 12 * 60 * 60 * 1000,

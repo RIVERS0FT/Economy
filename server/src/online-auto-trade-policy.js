@@ -9,6 +9,7 @@ import {
   ensureOnlineAutoSellPolicies,
   normalizeOnlineAutoSellPolicy,
 } from './online-auto-sell-policy.js';
+import { installDefaultProvinceAliases, normalizeProvinceId, provinceScopedKey } from './provinces.js';
 
 const PRODUCT_IDS = new Set(PRODUCT_CATALOG.map((product) => product.id));
 
@@ -37,6 +38,8 @@ export function applyOnlineAutoTradePolicyAction(world, user, payload = {}) {
   if (!player) return { ok: false, message: '玩家不存在' };
 
   const productId = String(payload.productId || payload.assetId || '');
+  const provinceId = normalizeProvinceId(payload.provinceId);
+  const policyKey = provinceScopedKey(provinceId, productId);
   if (!PRODUCT_IDS.has(productId)) return { ok: false, message: '自动交易商品不存在' };
 
   const buyPolicy = normalizeOnlineAutoBuyPolicy(payload.buy);
@@ -54,20 +57,20 @@ export function applyOnlineAutoTradePolicyAction(world, user, payload = {}) {
 
   const buyPolicies = ensureOnlineAutoBuyPolicies(player);
   const sellPolicies = ensureOnlineAutoSellPolicies(player);
-  const previousBuy = buyPolicies[productId] || null;
-  const previousSell = sellPolicies[productId] || null;
+  const previousBuy = buyPolicies[policyKey] || null;
+  const previousSell = sellPolicies[policyKey] || null;
 
   if (!sameAutoBuyPolicy(previousBuy, buyPolicy)) {
-    cancelManagedOnlineAutoBuyOrder(world, user.id, productId);
+    cancelManagedOnlineAutoBuyOrder(world, user.id, productId, provinceId);
   }
   if (!sameAutoSellPolicy(previousSell, sellPolicy)) {
-    cancelManagedOnlineAutoSellOrder(world, user.id, productId);
+    cancelManagedOnlineAutoSellOrder(world, user.id, productId, provinceId);
   }
 
-  buyPolicies[productId] = buyPolicy;
-  sellPolicies[productId] = sellPolicy;
-  player.onlineAutoBuyPolicies = buyPolicies;
-  player.onlineAutoSellPolicies = sellPolicies;
+  buyPolicies[policyKey] = buyPolicy;
+  sellPolicies[policyKey] = sellPolicy;
+  player.onlineAutoBuyPolicies = installDefaultProvinceAliases(buyPolicies);
+  player.onlineAutoSellPolicies = installDefaultProvinceAliases(sellPolicies);
 
   const enabled = [buyPolicy.enabled ? '自动采购' : '', sellPolicy.enabled ? '自动出售' : '']
     .filter(Boolean)

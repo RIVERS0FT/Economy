@@ -202,13 +202,13 @@ test('loan default seizes the minimum collateral once and releases the remaining
   processBankWorld(world, loan.graceEndsAt);
   assert.equal(player.bankAccount.activeLoan, null);
   assert.equal(player.facilityGroups[0].count, 8);
-  assert.equal(world.bank.facilityReserves.farm, 2);
+  assert.equal(world.bank.facilityReserves['110000:farm'], 2);
   assert.equal(player.stats.bankFacilitiesSeized, 2);
   assert.equal(player.stats.bankDefaults, 1);
 
   processBankWorld(world, loan.graceEndsAt + 1);
   assert.equal(player.facilityGroups[0].count, 8);
-  assert.equal(world.bank.facilityReserves.farm, 2);
+  assert.equal(world.bank.facilityReserves['110000:farm'], 2);
   assert.equal(player.stats.bankDefaults, 1);
 });
 
@@ -222,4 +222,33 @@ test('bank accepts two-decimal deposits without truncating account precision', (
   assert.equal(applyBankAction(world, alice, 'bankWithdraw', { amount: 0.23 }, now + 2).ok, true);
   assert.equal(player.credits, 9);
   assert.equal(player.bankAccount.depositCredits, 1);
+});
+
+test('bank collateral locks only the selected province facility group', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 1_000;
+  player.facilityGroups = [
+    farmGroup(2, { provinceId: '110000' }),
+    farmGroup(3, { provinceId: '440000' }),
+  ];
+  migrateFacilityGroupWorld(world, now);
+
+  assert.equal(applyBankAction(world, alice, 'bankBorrow', {
+    amount: 20,
+    collateral: [{ provinceId: '440000', facilityTypeId: 'farm', quantity: 2 }],
+  }, now + 1).ok, true);
+  assert.deepEqual(player.bankAccount.activeLoan.collateral.map(({ provinceId, facilityTypeId, quantity }) => ({
+    provinceId,
+    facilityTypeId,
+    quantity,
+  })), [{ provinceId: '440000', facilityTypeId: 'farm', quantity: 2 }]);
+
+  const client = createBankClientState(world, player, now + 1);
+  const beijing = client.bankAccount.availableCollateral.find((item) => item.provinceId === '110000' && item.facilityTypeId === 'farm');
+  const guangdong = client.bankAccount.availableCollateral.find((item) => item.provinceId === '440000' && item.facilityTypeId === 'farm');
+  assert.equal(beijing.mortgagedQuantity, 0);
+  assert.equal(beijing.availableQuantity, 2);
+  assert.equal(guangdong.mortgagedQuantity, 2);
+  assert.equal(guangdong.availableQuantity, 1);
 });

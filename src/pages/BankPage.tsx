@@ -46,6 +46,7 @@ function transactionTone(type: string) {
 
 export function BankPage({ model }: { model: LoadedGameViewModel }) {
   const { bankAccount, bankSummary } = model.game;
+  const provinces = model.game.provinces || [];
   const weeklyCashSettlement = bankSummary.weeklyCashSettlement;
   const referenceNow = model.game.lastProcessedAt;
   const riskNow = useNow(referenceNow, 60_000);
@@ -59,15 +60,16 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
   const depositAmount = parseMoneyDraft(depositDraft, { min: 0.01, max: Math.max(0.01, model.game.credits) });
   const withdrawAmount = parseMoneyDraft(withdrawDraft, { min: 0.01, max: Math.max(0.01, bankAccount.depositCredits) });
   const collateralDraftState = useMemo(() => bankAccount.availableCollateral.map((item) => {
-    const draft = collateralDrafts[item.facilityTypeId] || '';
+    const key = `${item.provinceId}:${item.facilityTypeId}`;
+    const draft = collateralDrafts[key] || '';
     const parsed = parseIntegerDraft(draft, {
       min: 1,
       max: Math.max(1, item.availableQuantity),
     });
-    return { item, draft, parsed, invalid: draft.trim() !== '' && (parsed === null || parsed > item.availableQuantity) };
+    return { item, key, draft, parsed, invalid: draft.trim() !== '' && (parsed === null || parsed > item.availableQuantity) };
   }), [bankAccount.availableCollateral, collateralDrafts]);
   const selectedCollateral = collateralDraftState.flatMap(({ item, parsed }) => (parsed && parsed <= item.availableQuantity
-    ? [{ facilityTypeId: item.facilityTypeId, quantity: parsed, prudentUnitValue: item.prudentUnitValue }]
+    ? [{ provinceId: item.provinceId, facilityTypeId: item.facilityTypeId, quantity: parsed, prudentUnitValue: item.prudentUnitValue }]
     : []));
   const hasInvalidCollateralDraft = collateralDraftState.some(({ invalid }) => invalid);
   const collateralValue = selectedCollateral.reduce(
@@ -213,7 +215,8 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
               <div className="bank-collateral-chips">
                 {activeLoan.collateral.map((item) => {
                   const type = model.game.facilityTypes.find((facility) => facility.id === item.facilityTypeId);
-                  return <span key={item.facilityTypeId}><FactoryIcon />{type?.name || item.facilityTypeId} × {formatNumber(item.quantity)}</span>;
+                  const province = provinces.find((candidate) => candidate.id === item.provinceId);
+                  return <span key={`${item.provinceId}:${item.facilityTypeId}`}><FactoryIcon />{province?.shortName || province?.name || item.provinceId} · {type?.name || item.facilityTypeId} × {formatNumber(item.quantity)}</span>;
                 })}
               </div>
               <small>抵押工厂继续生产，但在贷款结清前不能出售、拍卖或重复抵押。</small>
@@ -251,13 +254,15 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
             ) : (
               <div className="bank-collateral-table-wrap">
                 <table className="bank-collateral-table">
-                  <thead><tr><th>工厂</th><th>总持有</th><th>交易冻结</th><th>已抵押</th><th>可抵押</th><th>审慎单价</th><th>本次抵押</th><th>额度贡献</th></tr></thead>
+                  <thead><tr><th>地区</th><th>工厂</th><th>总持有</th><th>交易冻结</th><th>已抵押</th><th>可抵押</th><th>审慎单价</th><th>本次抵押</th><th>额度贡献</th></tr></thead>
                   <tbody>
-                    {collateralDraftState.map(({ item, draft, parsed, invalid }) => {
+                    {collateralDraftState.map(({ item, key, draft, parsed, invalid }) => {
                       const type = model.game.facilityTypes.find((facility) => facility.id === item.facilityTypeId);
+                      const province = provinces.find((candidate) => candidate.id === item.provinceId);
                       const transactionFrozen = Math.max(0, item.totalQuantity - item.mortgagedQuantity - item.availableQuantity);
                       return (
-                        <tr key={item.facilityTypeId}>
+                        <tr key={key}>
+                          <td>{province?.shortName || province?.name || item.provinceId}</td>
                           <td><span className="bank-factory-name"><FactoryIcon />{type?.name || item.facilityTypeId}</span></td>
                           <td>{formatNumber(item.totalQuantity)}</td>
                           <td>{formatNumber(transactionFrozen)}</td>
@@ -277,10 +282,10 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
                               value={draft}
                               placeholder="0"
                               disabled={item.availableQuantity < 1}
-                              onChange={(event) => setCollateralDrafts((current) => ({ ...current, [item.facilityTypeId]: event.target.value }))}
+                              onChange={(event) => setCollateralDrafts((current) => ({ ...current, [key]: event.target.value }))}
                               onBlur={() => {
                                 if (!invalid) return;
-                                setCollateralDrafts((current) => ({ ...current, [item.facilityTypeId]: '' }));
+                                setCollateralDrafts((current) => ({ ...current, [key]: '' }));
                               }}
                             />
                           </td>
@@ -325,7 +330,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
                   'borrow',
                   () => model.bankBorrow(
                     requestedLoan || 0,
-                    selectedCollateral.map(({ facilityTypeId, quantity }) => ({ facilityTypeId, quantity })),
+                    selectedCollateral.map(({ provinceId, facilityTypeId, quantity }) => ({ provinceId, facilityTypeId, quantity })),
                     true,
                   ),
                   () => { setLoanDraft(''); setCollateralDrafts({}); },

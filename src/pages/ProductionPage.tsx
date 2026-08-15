@@ -6,6 +6,7 @@ import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { MoneyInput, SelectInput } from '../components/ui/FormControls';
 import { RichSelectInput } from '../components/ui/RichSelectInput';
 import { WarehouseInventoryPanel } from '../components/warehouse/WarehouseInventoryPanel';
+import { ProvinceSelect } from '../components/provinces/ProvinceSelect';
 import {
   Button,
   DataList,
@@ -422,6 +423,7 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
     setProcurementPending(true);
     try {
       const response = await createFacilityBuildProcurement(
+        model.selectedProvinceId,
         selectedType.id,
         buildQuantity,
         materialOrderPrices,
@@ -484,10 +486,15 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
 
   return (
     <PageLayout
-      title="生产"
-      description="同类未冻结工厂共享生产周期、配方、生产方式与满员率；变化即时生效，每个周期按完成时刻的满员率结算。"
+      title={`${model.selectedProvince?.name || '加利福尼亚州'}生产`}
+      description="本地工厂只消耗并产出当前州级地区的库存；同州同类工厂共享周期、配方、生产方式与满员率。"
       actions={
         <>
+          <ProvinceSelect
+            provinces={game.provinces}
+            value={model.selectedProvinceId}
+            onChange={model.setSelectedProvinceId}
+          />
           <StatusTag tone="success">运行 {formatNumber(facilityClusterStatusCounts.running)}</StatusTag>
           <StatusTag tone="neutral">停止 {formatNumber(facilityClusterStatusCounts.stopped)}</StatusTag>
           <StatusTag tone={facilityClusterStatusCounts.error > 0 ? 'danger' : 'neutral'}>

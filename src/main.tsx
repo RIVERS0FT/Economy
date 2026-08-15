@@ -4,7 +4,7 @@ import App from './App';
 import { AppErrorBoundary } from './app/AppErrorBoundary';
 import './app/interactionBootstrap';
 import { installIdempotentGameWriteFetch } from './api/idempotentGameWriteFetch';
-import { FinancialBackdrop } from './components/visual/FinancialBackdrop';
+import { ApplicationLayerRoot } from './components/visual/ApplicationLayerRoot';
 import { configureRuntimePerformance } from './utils/runtimePerformance';
 import './styles/globals.css';
 import './styles/desktop-sidebar.css';
@@ -57,24 +57,29 @@ import './styles/registration-auth.css';
 import './styles/form-controls.css';
 import './styles/market-desktop-cleanup.css';
 import './styles/notification-center.css';
+import './styles/province-map.css';
+import './styles/strategic-game-shell.css';
 
 installIdempotentGameWriteFetch();
 configureRuntimePerformance();
 
 const initialPath = window.location.pathname.replace(/\/+$/, '');
+const initialLocalGamePreview = import.meta.env.DEV
+  && new URLSearchParams(window.location.search).get('preview') === 'game';
 document.documentElement.dataset.appSurface = 'loading';
-document.documentElement.dataset.appBackdrop = initialPath === '/economy/admin' ? 'admin' : 'auth';
+document.documentElement.dataset.appBackdrop = initialLocalGamePreview
+  ? 'game'
+  : initialPath === '/economy/admin'
+    ? 'admin'
+    : 'auth';
 document.documentElement.dataset.appTone = 'normal';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <>
-    <FinancialBackdrop />
-    <div className="application-content-root">
-      <React.StrictMode>
-        <AppErrorBoundary>
-          <App />
-        </AppErrorBoundary>
-      </React.StrictMode>
-    </div>
-  </>,
+  <ApplicationLayerRoot>
+    <React.StrictMode>
+      <AppErrorBoundary>
+        <App />
+      </AppErrorBoundary>
+    </React.StrictMode>
+  </ApplicationLayerRoot>,
 );

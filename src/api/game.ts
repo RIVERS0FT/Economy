@@ -291,8 +291,9 @@ export async function deleteGameSave(confirmation: string): Promise<SaveDeletion
   });
 }
 
-export function saveOnlineAutoSellPolicy(productId: string, policy: OnlineAutoSellPolicyInput) {
+export function saveOnlineAutoSellPolicy(provinceId: string, productId: string, policy: OnlineAutoSellPolicyInput) {
   return postAction('/orders', {
+    provinceId,
     assetKind: 'commodity',
     assetId: productId,
     productId,
@@ -303,8 +304,9 @@ export function saveOnlineAutoSellPolicy(productId: string, policy: OnlineAutoSe
   });
 }
 
-export function saveOnlineAutoTradePolicy(productId: string, policy: OnlineAutoTradePolicyInput) {
+export function saveOnlineAutoTradePolicy(provinceId: string, productId: string, policy: OnlineAutoTradePolicyInput) {
   return postAction('/orders', {
+    provinceId,
     assetKind: 'commodity',
     assetId: productId,
     productId,
@@ -323,6 +325,7 @@ export function importLegacyOnlineAutoSellPolicies(policies: Record<string, Onli
 }
 
 export function createFacilityBuildProcurement(
+  provinceId: string,
   facilityTypeId: string,
   quantity: number,
   materialOrderPrices: Record<string, number>,
@@ -331,6 +334,7 @@ export function createFacilityBuildProcurement(
     method: 'POST',
     body: JSON.stringify({
       execution: 'facility-build-procurement',
+      provinceId,
       facilityTypeId,
       quantity,
       materialOrderPrices,
@@ -350,7 +354,7 @@ export const gameActions = {
   checkIn: () => postAction('/check-in'),
   bankDeposit: (amount: number) => postAction('/bank/deposits', { amount }),
   bankWithdraw: (amount: number) => postAction('/bank/withdrawals', { amount }),
-  bankBorrow: (amount: number, collateral: Array<{ facilityTypeId: string; quantity: number }>, autoRepay = true) => (
+  bankBorrow: (amount: number, collateral: Array<{ provinceId: string; facilityTypeId: string; quantity: number }>, autoRepay = true) => (
     postAction('/bank/loans', { amount, collateral, autoRepay })
   ),
   bankRepay: (loanId: string, amount: number | 'all') => (
@@ -359,19 +363,20 @@ export const gameActions = {
   bankSetAutoRepay: (loanId: string, enabled: boolean) => (
     postAction(`/bank/loans/${encodeURIComponent(loanId)}/auto-repay`, { enabled })
   ),
-  buildFacility: (facilityTypeId: string, quantity = 1, procurement?: FacilityBuildProcurementOptions) => (
-    postAction('/facilities', { facilityTypeId, quantity, ...procurement })
+  buildFacility: (provinceId: string, facilityTypeId: string, quantity = 1, procurement?: FacilityBuildProcurementOptions) => (
+    postAction('/facilities', { provinceId, facilityTypeId, quantity, ...procurement })
   ),
   startResearch: (technologyId: string) => postAction('/research/start', { technologyId }),
   accelerateResearch: () => postAction('/research/accelerate'),
-  startFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/start`),
-  stopFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/stop`),
-  pauseFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/pause`),
-  setFacilityRecipe: (facilityTypeId: string, recipeId: string) => (
-    postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/recipe`, { recipeId })
+  startFacility: (provinceId: string, facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/start`, { provinceId }),
+  stopFacility: (provinceId: string, facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/stop`, { provinceId }),
+  pauseFacility: (provinceId: string, facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/pause`, { provinceId }),
+  setFacilityRecipe: (provinceId: string, facilityTypeId: string, recipeId: string) => (
+    postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/recipe`, { provinceId, recipeId })
   ),
-  placeAssetOrder: (assetKind: AssetKind, assetId: string, side: OrderSide, quantity: number, price: number) => (
+  placeAssetOrder: (provinceId: string, assetKind: AssetKind, assetId: string, side: OrderSide, quantity: number, price: number) => (
     postAction('/orders', {
+      provinceId,
       assetKind,
       assetId,
       productId: assetKind === 'commodity' ? assetId : undefined,
@@ -384,8 +389,9 @@ export const gameActions = {
   placeCommodityOrder: (productId: string, side: OrderSide, quantity: number, price: number) => (
     postAction('/orders', { assetKind: 'commodity', assetId: productId, productId, side, quantity, price })
   ),
-  autoBuyCommodity: (productId: string, maxPrice: number, targetFreeInventory = 0) => (
+  autoBuyCommodity: (provinceId: string, productId: string, maxPrice: number, targetFreeInventory = 0) => (
     postAction('/orders', {
+      provinceId,
       assetKind: 'commodity',
       assetId: productId,
       productId,
@@ -395,8 +401,9 @@ export const gameActions = {
       execution: 'online-auto-buy',
     })
   ),
-  autoSellCommodity: (productId: string, price: number, minimumFreeInventory = 0) => (
+  autoSellCommodity: (provinceId: string, productId: string, price: number, minimumFreeInventory = 0) => (
     postAction('/orders', {
+      provinceId,
       assetKind: 'commodity',
       assetId: productId,
       productId,

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
 import { centsToPlayerMoney, multiplyMoneyByInteger, playerMoneyToCents } from './money.js';
-import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
+import { isOpenOrder, orderAssetId, orderKind, orderProvinceId } from './order-identity.js';
 import { iterateOrderBookSide, recordOrderBookReduction, recordOrderBookVisit } from './order-book-runtime.js';
 
 const MAX_PLAYER_FILLS = 120;
@@ -68,6 +68,7 @@ export function matchIncomingOrder({
   if (!oppositeSide || !incomingAssetId) return { fillCount: 0, filledQuantity: 0 };
 
   const candidates = iterateOrderBookSide(world, {
+    provinceId: orderProvinceId(incoming),
     assetKind: incomingKind,
     assetId: incomingAssetId,
     side: oppositeSide,

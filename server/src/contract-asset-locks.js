@@ -1,3 +1,5 @@
+import { DEFAULT_PROVINCE_ID, normalizeProvinceId } from './provinces.js';
+
 function quantity(value) {
   const normalized = Math.floor(Number(value));
   return Number.isSafeInteger(normalized) && normalized > 0 ? normalized : 0;
@@ -11,54 +13,62 @@ function confirmedDefault(contract) {
   return Number(contract?.breachedAt || 0) > 0 && String(contract?.terminationReason || '').endsWith('_default');
 }
 
-export function playerLoanCollateralQuantity(world, userId, facilityTypeId) {
+export function playerLoanCollateralQuantity(world, userId, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
+  const selectedProvinceId = normalizeProvinceId(provinceId);
   return activeContracts(world).reduce((sum, contract) => (
     contract.kind === 'loan'
     && Number(contract.borrowerId ?? contract.buyerId) === Number(userId)
     && String(contract.facilityTypeId) === String(facilityTypeId)
+    && normalizeProvinceId(contract.provinceId) === selectedProvinceId
       ? sum + quantity(contract.collateralQuantity)
       : sum
   ), 0);
 }
 
-export function leasedOutFacilityQuantity(world, userId, facilityTypeId) {
+export function leasedOutFacilityQuantity(world, userId, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
+  const selectedProvinceId = normalizeProvinceId(provinceId);
   return activeContracts(world).reduce((sum, contract) => (
     contract.kind === 'facility_lease'
     && !contract.graceEndsAt
     && !confirmedDefault(contract)
     && Number(contract.lessorId ?? contract.supplierId) === Number(userId)
     && String(contract.facilityTypeId) === String(facilityTypeId)
+    && normalizeProvinceId(contract.provinceId) === selectedProvinceId
       ? sum + quantity(contract.quantity)
       : sum
   ), 0);
 }
 
-export function leasedOutLockedFacilityQuantity(world, userId, facilityTypeId) {
+export function leasedOutLockedFacilityQuantity(world, userId, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
+  const selectedProvinceId = normalizeProvinceId(provinceId);
   return activeContracts(world).reduce((sum, contract) => (
     contract.kind === 'facility_lease'
     && !confirmedDefault(contract)
     && Number(contract.lessorId ?? contract.supplierId) === Number(userId)
     && String(contract.facilityTypeId) === String(facilityTypeId)
+    && normalizeProvinceId(contract.provinceId) === selectedProvinceId
       ? sum + quantity(contract.quantity)
       : sum
   ), 0);
 }
 
-export function leasedInFacilityQuantity(world, userId, facilityTypeId) {
+export function leasedInFacilityQuantity(world, userId, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
+  const selectedProvinceId = normalizeProvinceId(provinceId);
   return activeContracts(world).reduce((sum, contract) => (
     contract.kind === 'facility_lease'
     && !contract.graceEndsAt
     && !confirmedDefault(contract)
     && Number(contract.lesseeId ?? contract.buyerId) === Number(userId)
     && String(contract.facilityTypeId) === String(facilityTypeId)
+    && normalizeProvinceId(contract.provinceId) === selectedProvinceId
       ? sum + quantity(contract.quantity)
       : sum
   ), 0);
 }
 
-export function contractLockedFacilityQuantity(world, userId, facilityTypeId) {
-  return playerLoanCollateralQuantity(world, userId, facilityTypeId)
-    + leasedOutLockedFacilityQuantity(world, userId, facilityTypeId);
+export function contractLockedFacilityQuantity(world, userId, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
+  return playerLoanCollateralQuantity(world, userId, facilityTypeId, provinceId)
+    + leasedOutLockedFacilityQuantity(world, userId, facilityTypeId, provinceId);
 }
 
 export function playerLoanFinancialPosition(world, userId) {

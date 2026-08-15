@@ -32,6 +32,7 @@ const paths = {
   guideStyle: 'src/styles/game-guide.css',
   sidebarStyle: 'src/styles/desktop-sidebar.css',
   shellLayoutStyle: 'src/styles/game-shell-layout.css',
+  strategicStyle: 'src/styles/strategic-game-shell.css',
   harness: 'tests/browser/runtime-harness.tsx',
   browserSpec: 'tests/browser/runtime.spec.ts',
   main: 'src/main.tsx',
@@ -149,10 +150,10 @@ forbidAll(paths.polishStyle, ['clamp(168px, 20vw, 210px)', '.overview-asset-even
 requireAll(paths.guideStyle, ['.game-guide-strip {', '.game-guide-progress {', '@media (max-width: 720px)']);
 
 requireAll(paths.shell, [
-  'const [sidebarCollapsed, setSidebarCollapsed] = useState(false)',
+  'const [sidebarCollapsed, setSidebarCollapsed] = useState(true)',
   "useGameAuthorityDependencies(['player.identity', 'player.assets', 'leaderboard'])",
   '<SignedInShell',
-  'rootClassName="game-shell"',
+  'rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}`}',
   'sidebarCollapsed={sidebarCollapsed}',
   'onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}',
 ]);
@@ -177,6 +178,11 @@ requireAll(paths.sidebarStyle, [
   '@media (max-width: 960px)',
 ]);
 requireAll(paths.shellLayoutStyle, ['.signed-in-shell__body {', 'grid-template-columns:', 'var(--sidebar-column-width)']);
+requireAll(paths.strategicStyle, [
+  '.strategic-page-host--workspace > .page-content {',
+  'width: 100%;',
+]);
+forbidAll(paths.strategicStyle, ['--strategic-inspector-width', '.strategic-province-inspector']);
 forbidAll(paths.sidebarStyle, ['right: -11px;']);
 requireAll(paths.statusBar, ['onClick?: () => void;', "if (item.onClick) classNames.push('asset-bar-item--interactive')", "aria-label={`${item.label}，打开详情`}"]);
 
@@ -221,7 +227,7 @@ requireAll(paths.browserSpec, [
   'overview shows authoritative asset status and opens the bank page',
   'overview only scrolls the order list after the visible capacity is exceeded',
   'overview keeps the decision rows visible and adapts to a narrower desktop',
-  'desktop sidebar collapse recomputes overview columns from the real content width',
+  'desktop command rail expansion overlays the map without reflowing overview',
   'midpointAnchors',
   'expandButtonAfterHover',
   "page.setViewportSize({ width: 1684, height: 931 })",
@@ -234,6 +240,7 @@ requireAll(paths.uiDesign, ['## 10. 概览布局', '经营决策优先', '桌面
 requireAll(paths.integrityDesign, [
   '外层轨道唯一性',
   '实际内容宽度响应式',
+  '概览不再挂载州经营检查器',
   '签到日历',
   '资产与银行',
   '服务器权威的可支配资产、冻结资产和贷款负债',

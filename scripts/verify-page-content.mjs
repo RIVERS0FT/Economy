@@ -20,6 +20,13 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/LeaderboardPage.tsx',
   'src/pages/GemShopPage.tsx',
   'src/pages/SettingsPage.tsx',
+  'all-pages-preview.html',
+  'src/app/LocalGamePreviewApp.tsx',
+  'src/dev/localGamePreviewFetch.ts',
+  'src/dev/generated/local-game-preview-state.json',
+  'scripts/generate-local-game-preview.mjs',
+  'scripts/verify-local-game-preview.mjs',
+  'tests/browser/all-pages-preview.spec.ts',
   'src/contracts/api.ts',
   'src/contracts/types.ts',
   'src/components/InvitationSettings.tsx',
@@ -59,6 +66,52 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
   'docs/LIQUID_GLASS_CHROME_DESIGN.md',
 ].forEach(requireFile);
+
+for (const text of [
+  'Economy 免登录游戏模式',
+  'url=./?preview=game',
+  "window.location.replace('./?preview=game')",
+]) requireText('all-pages-preview.html', text);
+for (const text of [
+  'installLocalGamePreviewFetch()',
+  '<GameShell model={model} offline>',
+  '<PageRouter model={model} />',
+  'scopeEconomyState(authorityGame, selectedProvinceId)',
+  'PREVIEW_ACTION_MESSAGE',
+]) requireText('src/app/LocalGamePreviewApp.tsx', text);
+for (const text of [
+  "url.pathname.startsWith('/economy-api')",
+  "method !== 'GET'",
+  '不会提交真实操作',
+]) requireText('src/dev/localGamePreviewFetch.ts', text);
+for (const text of [
+  'import.meta.env.DEV',
+  "get('preview') === 'game'",
+  "import('./LocalGamePreviewApp')",
+]) requireText('src/app/App.tsx', text);
+for (const text of [
+  'offline = false',
+  'if (offline) return undefined',
+]) requireText('src/components/shell/GameShell.tsx', text);
+for (const text of [
+  "toHaveAttribute('data-local-game-preview', 'true')",
+  "page.locator('.game-shell')",
+  "toHaveCount(10)",
+  "expect(apiRequests).toEqual([])",
+  "toHaveCount(4)",
+]) requireText('tests/browser/all-pages-preview.spec.ts', text);
+for (const text of [
+  'data-player-page-navigation="true"',
+  'aria-label="返回上一页面"',
+  'aria-label="关闭当前页面并显示地图"',
+  'disabled={!pageNavigation.canGoBack}',
+]) requireText('src/components/ui/layout.tsx', text);
+for (const text of [
+  'pageHistoryRef',
+  "previousTab !== 'map'",
+  "model.setTab('map')",
+  '<PlayerPageNavigationProvider',
+]) requireText('src/components/shell/GameShell.tsx', text);
 
 for (const text of [
   "type AuthMode = 'login' | 'register'",
@@ -351,6 +404,8 @@ for (const text of [
   "{ id: 'contracts', label: '合同' }",
   "{ id: 'gem-shop', label: '商店' }",
 ]) requireText('src/config/navigation.ts', text);
+requireText('src/config/navigation.ts', "export type TabId = NavigationTabId | 'map';");
+forbidText('src/config/navigation.ts', "{ id: 'map', label: '地图' }");
 forbidText('src/config/navigation.ts', "{ id: 'assets', label: '资产' }");
 forbidText('src/config/navigation.ts', "{ id: 'assets', label: '资金' }");
 forbidText('src/config/navigation.ts', "{ id: 'collections'");
@@ -491,12 +546,14 @@ for (const text of ['openOrderCount', "id === 'market'", 'sidebar-nav-count']) {
 
 for (const text of [
   '概览｜市场｜生产｜研发｜拍卖｜合同｜银行｜排行｜商店｜设置',
+  '玩家仍有十一个正式页面状态，但桌面侧栏与移动底栏只显示除 `map` 外的十个业务导航按钮',
+  '返回按最近顺序回到上一个非地图业务页面',
   '| 拍卖 | `auction` | `AuctionPage` | 商品与工厂资产包发布及进行中竞价 |',
   '| 合同 | `contracts` | `ContractPage` | 商品供货、玩家抵押借贷和工厂使用权租赁合同的发布、承接、履约与历史 |',
   '| 银行 | `bank` | `BankPage` | 资产总览、存取款、活跃周固定存款利息、周资金结算、工厂抵押贷款、额度评估与还款 |',
   '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与每日终端动态报价兑换普通货币 |',
   '| 设置 | `settings` | `SettingsPage` | 资料、偏好、经营成长线控制、礼品和退出 |',
-  '页面主标题固定为“生产”',
+  '页面主标题固定为“{州级地区全称}生产”',
   '不显示独立库存总量行',
   '仓库商品网格按自身内容区宽度使用容器查询',
   '独立资产页面已经永久删除，资产总览唯一归属银行页',
@@ -521,7 +578,32 @@ for (const text of [
   'Logo 在展开与折叠状态统一为 `40×40px`',
   '两个入口必须复用 `GameIcons.tsx` 的 QQ 与退出 SVG',
   '管理员后台左侧导航复用同一侧栏骨架与动画',
+  '`all-pages-preview.html` 只属于本地开发预览目录',
+  '所有玩家页面共享的常驻战略地图',
+  '页面内容按四类战略面板展示',
+  '`MapPage` 不再拥有 `UsMainlandMap` 实例',
+  '`MapPage` 只保留透明路由占位',
+  '不得渲染左上“战略经营地图”卡片、左下图例／来源卡或“当前经营地区”卡片',
+  '点击并直接切换当前地区',
+  '地图提供州界、资产、工业、市场和异常五种镜头',
+  '不得注册为正式 `TabId`、正式路由或第十二个一级页面',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+
+for (const text of [
+  'const STRATEGIC_PAGE_PRESENTATION = {',
+  "home: 'workspace'",
+  "map: 'map'",
+  "research: 'fullscreen'",
+  "'gem-shop': 'side'",
+  'data-strategic-presentation={pagePresentation}',
+]) requireText('src/components/shell/GameShell.tsx', text);
+forbidText('src/pages/MapPage.tsx', '<UsMainlandMap');
+for (const text of ['战略经营地图', '当前经营地区', 'province-map-command-panel', 'province-map-meta', 'province-map-legend']) {
+  forbidText('src/pages/MapPage.tsx', text);
+}
+for (const text of ['当前经营地区', 'strategic-province-inspector']) {
+  forbidText('src/components/shell/StrategicWorkspace.tsx', text);
+}
 
 for (const text of [
   '“紧凑数字”是全局客户端显示偏好',
@@ -544,8 +626,8 @@ for (const text of [
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 for (const text of [
-  '本地文档版本：v6',
-  'economy.local-activity.v6.<userId>',
+  '本地文档版本：v7',
+  'economy.local-activity.v7.<userId>',
   '市场页是本地匿名成交的唯一完整展示位置',
   '永久丢弃全部 `assetEvents[]`',
   '对本地成交直接使用全量 `.map()` 创建全部 DOM',
@@ -564,4 +646,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、十页导航与银行资产总览、合同默认进行中视图、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、商品／工厂资产拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');
+console.log('页面内容、十一个正式页面与十项可见导航、美国本土州级地图、统一返回关闭、银行资产总览、合同默认进行中视图、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、商品／工厂资产拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');

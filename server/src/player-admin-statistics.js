@@ -3,6 +3,7 @@ import { wealthAssetsFor } from './leaderboards.js';
 import { CURRENT_TUTORIAL_VERSION } from './tutorial-store.js';
 import { roundInternalMoney } from './money.js';
 import { measureRequestPhase } from './request-performance.js';
+import { DEFAULT_PROVINCE_ID, normalizeProvinceId, provinceScopedKey, splitProvinceScopedKey } from './provinces.js';
 
 export const PLAYER_STATISTICS_TIME_ZONE = 'Asia/Shanghai';
 export const PLAYER_STATISTICS_RANGE_DAYS = Object.freeze({
@@ -94,12 +95,13 @@ function auctionItems(auction) {
     || '',
   );
   return (assetKind === 'commodity' || assetKind === 'facility') && assetId
-    ? [{ assetKind, assetId, quantity: Math.max(1, safeNonNegativeInteger(auction?.quantity || 1)) }]
+    ? [{
+      assetKind,
+      assetId,
+      provinceId: normalizeProvinceId(auction?.provinceId),
+      quantity: Math.max(1, safeNonNegativeInteger(auction?.quantity || 1)),
+    }]
     : [];
-}
-
-function inventoryQuantity(player, productId, field) {
-  return safeNonNegativeInteger(player?.inventories?.[productId]?.[field]);
 }
 
 function totalInventoryQuantity(player) {
@@ -135,23 +137,24 @@ function metricsForPlayer(player) {
   };
 }
 
-function valuationPrice(world, kind, assetId) {
-  const market = kind === 'facility' ? world?.facilityMarkets?.[assetId] : world?.markets?.[assetId];
+function valuationPrice(world, kind, assetId, provinceId = DEFAULT_PROVINCE_ID) {
+  const marketKey = provinceScopedKey(provinceId, assetId);
+  const market = kind === 'facility' ? world?.facilityMarkets?.[marketKey] : world?.markets?.[marketKey];
   return safeNonNegativeMoney(market?.lastTradePrice);
 }
 
-function frozenFacilityIndexKey(userId, facilityTypeId) {
-  return `${Number(userId)}:${String(facilityTypeId || '')}`;
+function frozenFacilityIndexKey(userId, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
+  return `${Number(userId)}:${provinceScopedKey(provinceId, facilityTypeId)}`;
 }
 
 function buildFrozenFacilityQuantityIndex(world) {
   const quantities = new Map();
-  const add = (userId, facilityTypeId, quantity) => {
+  const add = (userId, facilityTypeId, provinceId, quantity) => {
     const normalizedUserId = Number(userId);
     const normalizedTypeId = String(facilityTypeId || '');
     const normalizedQuantity = safeNonNegativeInteger(quantity);
     if (!Number.isSafeInteger(normalizedUserId) || normalizedUserId <= 0 || !normalizedTypeId || normalizedQuantity <= 0) return;
-    const key = frozenFacilityIndexKey(normalizedUserId, normalizedTypeId);
+    const key = frozenFacilityIndexKey(normalizedUserId, normalizedTypeId, provinceId);
     quantities.set(key, (quantities.get(key) || 0) + normalizedQuantity);
   };
 
@@ -162,7 +165,7 @@ function buildFrozenFacilityQuantityIndex(world) {
       || order?.assetKind !== 'facility'
       || !isOpenOrder(order)
     ) continue;
-    add(order.ownerId, order.assetId || order.facilityTypeId, order.remaining);
+    add(order.ownerId, order.assetId || order.facilityTypeId, order.provinceId, order.remaining);
   }
 
   for (const auction of world?.assetAuctions || []) {
@@ -172,24 +175,26 @@ function buildFrozenFacilityQuantityIndex(world) {
       || auction?.escrowStatus === 'transferred'
     ) continue;
     for (const item of auctionItems(auction)) {
-      if (item.assetKind === 'facility') add(auction.sellerId, item.assetId, item.quantity);
+      if (item.assetKind === 'facility') add(auction.sellerId, item.assetId, item.provinceId, item.quantity);
     }
   }
   return quantities;
 }
 
-function frozenFacilityQuantity(index, userId, facilityTypeId) {
-  return index.get(frozenFacilityIndexKey(userId, facilityTypeId)) || 0;
+function frozenFacilityQuantity(index, userId, facilityTypeId, provinceId = DEFAULT_PROVINCE_ID) {
+  return index.get(frozenFacilityIndexKey(userId, facilityTypeId, provinceId)) || 0;
 }
 
 function wealthBreakdown(world, player, frozenFacilityQuantities) {
   const cash = safeNonNegativeMoney(player?.credits) + safeNonNegativeMoney(player?.frozenCredits);
   let commodities = 0;
   let frozenCommodities = 0;
-  for (const product of PRODUCT_CATALOG) {
-    const price = valuationPrice(world, 'commodity', product.id);
-    const availableQuantity = inventoryQuantity(player, product.id, 'available');
-    const frozenQuantity = inventoryQuantity(player, product.id, 'frozen');
+  for (const [key, inventory] of Object.entries(player?.inventories || {})) {
+    const { provinceId, assetId } = splitProvinceScopedKey(key);
+    if (!PRODUCT_CATALOG.some((product) => product.id === assetId)) continue;
+    const price = valuationPrice(world, 'commodity', assetId, provinceId);
+    const availableQuantity = safeNonNegativeInteger(inventory?.available);
+    const frozenQuantity = safeNonNegativeInteger(inventory?.frozen);
     commodities += (availableQuantity + frozenQuantity) * price;
     frozenCommodities += frozenQuantity * price;
   }
@@ -198,9 +203,9 @@ function wealthBreakdown(world, player, frozenFacilityQuantities) {
   let frozenFacilities = 0;
   for (const group of player?.facilityGroups || []) {
     const facilityTypeId = String(group?.facilityTypeId || '');
-    const price = valuationPrice(world, 'facility', facilityTypeId);
+    const price = valuationPrice(world, 'facility', facilityTypeId, group?.provinceId);
     facilities += safeNonNegativeInteger(group?.count) * price;
-    frozenFacilities += frozenFacilityQuantity(frozenFacilityQuantities, player?.userId, facilityTypeId) * price;
+    frozenFacilities += frozenFacilityQuantity(frozenFacilityQuantities, player?.userId, facilityTypeId, group?.provinceId) * price;
   }
 
   const total = wealthAssetsFor(world, player);

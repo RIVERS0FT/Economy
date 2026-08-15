@@ -15,7 +15,7 @@ test('warehouse state is inventory-only and uses current client version', () => 
   try {
     const state = store.getState(alice, now);
     assert.equal(state.version, CURRENT_CLIENT_STATE_VERSION);
-    assert.equal(state.version, 33);
+    assert.equal(state.version, 34);
     assert.equal(state.warehouseStoredQuantity, 0);
     assert.deepEqual(state.onlineAutoBuyPolicies, {});
     assert.deepEqual(state.onlineAutoBuyManagedOrderIds, {});
@@ -59,16 +59,16 @@ test('warehouse summary counts goods and exposes normalized auto-trade settings 
   assert.deepEqual(summary, {
     warehouseStoredQuantity: 40,
     onlineAutoBuyPolicies: {
-      wheat: { enabled: true, maxPrice: 6.75, targetFreeInventory: 12 },
+      '110000:wheat': { enabled: true, maxPrice: 6.75, targetFreeInventory: 12 },
     },
     onlineAutoBuyManagedOrderIds: {
-      wheat: 'order-auto-buy-wheat',
+      '110000:wheat': 'order-auto-buy-wheat',
     },
     onlineAutoSellPolicies: {
-      wheat: { enabled: true, price: 8.25, minimumFreeInventory: 20 },
+      '110000:wheat': { enabled: true, price: 8.25, minimumFreeInventory: 20 },
     },
     onlineAutoSellManagedOrderIds: {
-      wheat: 'order-auto-sell-wheat',
+      '110000:wheat': 'order-auto-sell-wheat',
     },
   });
   assert.equal(Object.hasOwn(player, 'inventoryCapacity'), false);
@@ -101,13 +101,13 @@ test('saved auto-trade policy is included in formal client state', () => {
     });
 
     const state = store.getState(alice, now + 2);
-    assert.deepEqual(state.onlineAutoBuyPolicies.wheat, {
+    assert.deepEqual(state.onlineAutoBuyPolicies['110000:wheat'], {
       enabled: true,
       maxPrice: 6,
       targetFreeInventory: 10,
     });
     assert.deepEqual(state.onlineAutoBuyManagedOrderIds, {});
-    assert.deepEqual(state.onlineAutoSellPolicies.wheat, {
+    assert.deepEqual(state.onlineAutoSellPolicies['110000:wheat'], {
       enabled: true,
       price: 7.5,
       minimumFreeInventory: 12,

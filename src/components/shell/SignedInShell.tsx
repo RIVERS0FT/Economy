@@ -19,6 +19,7 @@ export function SignedInShell({
   sidebarCollapsed,
   sidebar,
   chrome,
+  workspaceChrome,
   children,
 }: {
   rootClassName: string;
@@ -30,6 +31,7 @@ export function SignedInShell({
   sidebarCollapsed: boolean;
   sidebar: ReactNode;
   chrome: ReactNode;
+  workspaceChrome?: ReactNode;
   children: ReactNode;
 }) {
   const [floatingLayer, setFloatingLayer] = useState<HTMLDivElement | null>(null);
@@ -59,6 +61,11 @@ export function SignedInShell({
                   {pageFrameClassName ? <div className={pageFrameClassName}>{children}</div> : children}
                 </ScrollArea>
               </div>
+              {workspaceChrome ? (
+                <div className="workspace-strategic-chrome" data-workspace-strategic-chrome="true">
+                  {workspaceChrome}
+                </div>
+              ) : null}
               <div
                 ref={setFloatingLayer}
                 className="workspace-floating-layer"

@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 async function capturePageErrors(page: Page) {
   const pageErrors: string[] = [];
-  page.on('pageerror', (error) => pageErrors.push(error.message));
+  page.on('pageerror', (error) => pageErrors.push(error.stack || error.message));
   return pageErrors;
 }
 
@@ -80,7 +80,7 @@ test('market desktop layout keeps order entry and order book in one trade card b
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('market-runtime-test.html?scenario=active');
 
-  await expect(page.getByRole('heading', { name: '市场', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '加利福尼亚州本地市场', exact: true })).toBeVisible();
   const tradeCard = page.locator('.market-trade-card');
   const orderEntry = tradeCard.locator('.order-entry');
   const orderBook = tradeCard.locator('.single-order-book');
@@ -158,7 +158,7 @@ test('market chart uses one linked hover state and keeps the price line protecte
     };
   });
   const x = bounds.x + geometry.left + (bounds.width - geometry.left - geometry.right) * 0.44;
-  const tooltip = page.locator('.economy-chart-tooltip');
+  const tooltip = chart.locator('.economy-chart-tooltip');
 
   await page.mouse.move(x, bounds.y + (geometry.priceTop + geometry.priceBottom) / 2);
   await expect(tooltip).toBeVisible();

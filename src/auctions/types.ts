@@ -14,6 +14,7 @@ export type AuctionSettlementReason =
 export interface AuctionItem {
   assetKind: AuctionAssetKind;
   assetId: string;
+  provinceId: string;
   quantity: number;
 }
 

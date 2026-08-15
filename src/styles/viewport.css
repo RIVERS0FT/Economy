@@ -69,9 +69,12 @@ html[data-app-surface="admin"] body {
  * between the root photography and liquid-glass Chrome must keep the backdrop
  * sampling chain open on both desktop and mobile. */
 .signed-in-shell,
+.application-map-layer,
+.application-ui-layer,
 .signed-in-shell__body,
 .signed-in-shell__chrome,
 .workspace,
+.workspace-strategic-chrome,
 .mobile-page-overlay,
 .mobile-chrome-overlay,
 .workspace-floating-layer,

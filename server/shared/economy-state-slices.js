@@ -13,6 +13,8 @@ export const STATE_SLICE_DEFINITIONS = Object.freeze({
       'frozenCredits',
       'gems',
       'inventories',
+      'provinceInventories',
+      'provinceAssetSummaries',
       'warehouseStoredQuantity',
       'assetSummary',
       'onlineAutoBuyPolicies',
@@ -25,7 +27,7 @@ export const STATE_SLICE_DEFINITIONS = Object.freeze({
   }),
   'player.production': Object.freeze({
     partition: 'player',
-    keys: Object.freeze(['facilityGroups', 'facilityConstruction']),
+    keys: Object.freeze(['facilityGroups', 'provinceFacilityGroups', 'facilityConstruction']),
   }),
   'player.progression': Object.freeze({
     partition: 'player',
@@ -48,7 +50,9 @@ export const STATE_SLICE_DEFINITIONS = Object.freeze({
     partition: 'market',
     keys: Object.freeze([
       'markets',
+      'provinceMarkets',
       'facilityMarkets',
+      'provinceFacilityMarkets',
       'valuationPrices',
       'marketPrice',
       'marketPriceHistory',

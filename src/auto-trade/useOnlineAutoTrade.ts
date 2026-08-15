@@ -402,7 +402,7 @@ export function useOnlineAutoTrade(
     }
 
     try {
-      const response = await saveOnlineAutoTradePolicy(productId, normalized);
+      const response = await saveOnlineAutoTradePolicy(model.selectedProvinceId, productId, normalized);
       if (!response.result.ok) return response.result;
       await model.refresh({ mode: 'authoritative' });
       clearAutoSellPolicies(userId);

@@ -126,7 +126,7 @@ for (const structure of [
   /documentCache\s*=\s*new Map/,
   /requestIdleCallback/,
   /(?:window\.)?addEventListener\(['"]pagehide['"],/,
-  /const STORAGE_VERSION = 6/,
+  /const STORAGE_VERSION = 7/,
   /function deriveAssetTrades\(/,
   /orders: state\.orders\.filter\(\(order\) => order\.isOwn\)/,
 ]) {

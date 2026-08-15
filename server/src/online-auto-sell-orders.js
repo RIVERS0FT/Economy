@@ -1,21 +1,36 @@
 import { closeOrderInOrderBook, orderById } from './order-book-runtime.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
+import {
+  installDefaultProvinceAliases,
+  inventoryForProvince,
+  normalizeProvinceId,
+  provinceScopedKey,
+  splitProvinceScopedKey,
+} from './provinces.js';
 
 function linkMap(player, create = false) {
   const source = player?.onlineAutoSellOrderIds;
-  if (source && typeof source === 'object' && !Array.isArray(source)) return source;
+  if (source && typeof source === 'object' && !Array.isArray(source)) {
+    for (const [key, orderId] of Object.entries({ ...source })) {
+      if (key.includes(':')) continue;
+      source[provinceScopedKey(undefined, key)] = orderId;
+      delete source[key];
+    }
+    return installDefaultProvinceAliases(source);
+  }
   if (!create || !player) return {};
   player.onlineAutoSellOrderIds = {};
-  return player.onlineAutoSellOrderIds;
+  return installDefaultProvinceAliases(player.onlineAutoSellOrderIds);
 }
 
-function validManagedOrder(order, userId, productId) {
+function validManagedOrder(order, userId, productId, provinceId) {
   return Boolean(
     order
     && Number(order.ownerId) === Number(userId)
     && order.ownerType === 'player'
     && orderKind(order) === 'commodity'
     && orderAssetId(order) === String(productId || '')
+    && normalizeProvinceId(order.provinceId) === normalizeProvinceId(provinceId)
     && order.side === 'sell'
     && isOpenOrder(order),
   );
@@ -25,55 +40,58 @@ export function linkedOnlineAutoSellOrderIds(player) {
   return [...new Set(Object.values(linkMap(player)).map((value) => String(value || '')).filter(Boolean))];
 }
 
-export function managedOnlineAutoSellOrderFor(world, userId, productId) {
+export function managedOnlineAutoSellOrderFor(world, userId, productId, provinceId) {
   const player = world.players?.[String(userId)];
   if (!player) return null;
   const links = linkMap(player);
-  const orderId = String(links[String(productId || '')] || '');
+  const linkKey = provinceScopedKey(provinceId, productId);
+  const orderId = String(links[linkKey] || '');
   if (!orderId) return null;
   const order = orderById(world, orderId);
-  if (validManagedOrder(order, userId, productId)) return order;
-  delete links[String(productId || '')];
+  if (validManagedOrder(order, userId, productId, provinceId)) return order;
+  delete links[linkKey];
   return null;
 }
 
-export function linkManagedOnlineAutoSellOrder(player, productId, orderId) {
+export function linkManagedOnlineAutoSellOrder(player, productId, orderId, provinceId) {
   if (!player) return;
   const links = linkMap(player, true);
-  links[String(productId || '')] = String(orderId || '');
+  links[provinceScopedKey(provinceId, productId)] = String(orderId || '');
+  installDefaultProvinceAliases(links);
 }
 
-export function cancelManagedOnlineAutoSellOrder(world, userId, productId) {
+export function cancelManagedOnlineAutoSellOrder(world, userId, productId, provinceId) {
   const player = world.players?.[String(userId)];
   if (!player) return 0;
-  const order = managedOnlineAutoSellOrderFor(world, userId, productId);
+  const order = managedOnlineAutoSellOrderFor(world, userId, productId, provinceId);
   if (!order) return 0;
   const remaining = Math.max(0, Math.floor(Number(order.remaining || 0)));
-  player.inventories ||= {};
-  const inventory = player.inventories[String(productId || '')] ||= { available: 0, frozen: 0 };
+  const inventory = inventoryForProvince(player, productId, provinceId);
   const released = Math.min(Math.max(0, Math.floor(Number(inventory.frozen || 0))), remaining);
   inventory.frozen = Math.max(0, Math.floor(Number(inventory.frozen || 0)) - released);
   inventory.available = Math.max(0, Math.floor(Number(inventory.available || 0))) + released;
   order.status = 'cancelled';
   closeOrderInOrderBook(world, order);
-  delete linkMap(player)[String(productId || '')];
+  delete linkMap(player)[provinceScopedKey(provinceId, productId)];
+  installDefaultProvinceAliases(player.onlineAutoSellOrderIds);
   return released;
 }
 
-export function releaseManagedOnlineAutoSellInventory(world, userId, productId, requiredAvailable) {
+export function releaseManagedOnlineAutoSellInventory(world, userId, productId, requiredAvailable, provinceId) {
   const player = world.players?.[String(userId)];
-  const inventory = player?.inventories?.[String(productId || '')];
+  const inventory = player ? inventoryForProvince(player, productId, provinceId) : null;
   const required = Math.max(0, Math.floor(Number(requiredAvailable || 0)));
   if (!player || !inventory || Number(inventory.available || 0) >= required) return 0;
-  return cancelManagedOnlineAutoSellOrder(world, userId, productId);
+  return cancelManagedOnlineAutoSellOrder(world, userId, productId, provinceId);
 }
 
 export function cancelAllManagedOnlineAutoSellOrders(world, userId) {
   const player = world.players?.[String(userId)];
   if (!player) return 0;
   let released = 0;
-  for (const productId of Object.keys(linkMap(player))) {
-    released += cancelManagedOnlineAutoSellOrder(world, userId, productId);
+  for (const key of Object.keys(linkMap(player))) {
+    const { provinceId, assetId: productId } = splitProvinceScopedKey(key);
+    released += cancelManagedOnlineAutoSellOrder(world, userId, productId, provinceId);
   }
   return released;
 }

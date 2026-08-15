@@ -44,6 +44,8 @@ function expectBadgeInside(geometry: BadgeGeometry) {
 test('navigation badge stays inside expanded, collapsed and compact sidebar buttons', async ({ page }) => {
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('runtime-test.html?view=overview&scenario=many-orders');
+  await page.getByRole('button', { name: '展开侧栏' }).click();
+  await expect(page.locator('.desktop-sidebar')).toHaveAttribute('data-collapsed', 'false');
 
   const marketButton = page.locator('.desktop-sidebar .sidebar-nav-button', {
     has: page.locator('.navigation-badge'),

@@ -1,4 +1,5 @@
-import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
+import { isOpenOrder, orderAssetId, orderKind, orderProvinceId } from './order-identity.js';
+import { normalizeProvinceId, provinceScopedKey } from './provinces.js';
 
 const runtimeByWorld = new WeakMap();
 const diagnosticsByWorld = new WeakMap();
@@ -15,9 +16,9 @@ function diagnosticsFor(world) {
   return current;
 }
 
-function assetKey(assetKind, assetId) {
+function assetKey(provinceId, assetKind, assetId) {
   const kind = assetKind === 'facility' ? 'facility' : 'commodity';
-  return `${kind}:${String(assetId || (kind === 'commodity' ? 'wheat' : ''))}`;
+  return `${normalizeProvinceId(provinceId)}:${kind}:${String(assetId || (kind === 'commodity' ? 'wheat' : ''))}`;
 }
 
 function sideRecord() {
@@ -204,7 +205,7 @@ function adjustOwnerQuantityAggregates(state, order, delta) {
   }
   if (orderKind(order) === 'facility' && order.side === 'sell') {
     const quantities = facilityQuantityMapFor(state, ownerId);
-    adjustMapValue(quantities, String(orderAssetId(order) || ''), delta);
+    adjustMapValue(quantities, provinceScopedKey(orderProvinceId(order), orderAssetId(order)), delta);
     if (quantities.size === 0) state.ownerFacilitySellQuantities.delete(ownerId);
   }
 }
@@ -217,7 +218,7 @@ function addOpenOrder(state, order, { sorted }) {
   if (!idValue || !side) return;
 
   state.openOrders.add(order);
-  const key = assetKey(kind, idValue);
+  const key = assetKey(orderProvinceId(order), kind, idValue);
   let book = state.books.get(key);
   if (!book) {
     book = bookRecord();
@@ -344,9 +345,9 @@ function runtimeFor(world) {
   return state;
 }
 
-function recordFor(world, assetKind, assetId, side, ownerId = null) {
+function recordFor(world, provinceId, assetKind, assetId, side, ownerId = null) {
   const state = runtimeFor(world);
-  const key = assetKey(assetKind, assetId);
+  const key = assetKey(provinceId, assetKind, assetId);
   diagnosticsFor(world).sideQueries += 1;
   const book = ownerId === null
     ? state.books.get(key)
@@ -408,22 +409,22 @@ export function closeOrderInOrderBook(world, order) {
   retireOpenOrder(runtimeFor(world), order);
 }
 
-export function iterateOrderBookSide(world, { assetKind = 'commodity', assetId, side }) {
-  const { state, record } = recordFor(world, assetKind, assetId, side);
+export function iterateOrderBookSide(world, { provinceId, assetKind = 'commodity', assetId, side }) {
+  const { state, record } = recordFor(world, provinceId, assetKind, assetId, side);
   return iterateRecord(state, record);
 }
 
-export function getOrderBookSide(world, { assetKind = 'commodity', assetId, side }) {
-  return [...iterateOrderBookSide(world, { assetKind, assetId, side })];
+export function getOrderBookSide(world, { provinceId, assetKind = 'commodity', assetId, side }) {
+  return [...iterateOrderBookSide(world, { provinceId, assetKind, assetId, side })];
 }
 
-export function getOwnerOrderBookSide(world, ownerId, { assetKind = 'commodity', assetId, side }) {
-  const { state, record } = recordFor(world, assetKind, assetId, side, ownerId);
+export function getOwnerOrderBookSide(world, ownerId, { provinceId, assetKind = 'commodity', assetId, side }) {
+  const { state, record } = recordFor(world, provinceId, assetKind, assetId, side, ownerId);
   return record ? [...iterateRecord(state, record)] : EMPTY_ORDERS;
 }
 
-export function getOrderBookDepth(world, { assetKind = 'commodity', assetId, side, limit = 5 }) {
-  const { state, record } = recordFor(world, assetKind, assetId, side);
+export function getOrderBookDepth(world, { provinceId, assetKind = 'commodity', assetId, side, limit = 5 }) {
+  const { state, record } = recordFor(world, provinceId, assetKind, assetId, side);
   if (!record) return EMPTY_ORDERS;
   const levels = [];
   const normalizedLimit = Math.max(1, Math.floor(Number(limit) || 5));
@@ -481,17 +482,18 @@ export function pendingCommodityBuyQuantityForOwner(world, ownerId) {
   return Number(state.ownerPendingCommodityBuyQuantities.get(Number(ownerId)) || 0);
 }
 
-export function facilitySellQuantityForOwner(world, ownerId, facilityTypeId) {
+export function facilitySellQuantityForOwner(world, ownerId, facilityTypeId, provinceId) {
   const state = runtimeFor(world);
   compactOwnerOrders(state, ownerId);
   return Number(
-    state.ownerFacilitySellQuantities.get(Number(ownerId))?.get(String(facilityTypeId || '')) || 0,
+    state.ownerFacilitySellQuantities.get(Number(ownerId))
+      ?.get(provinceScopedKey(provinceId, facilityTypeId)) || 0,
   );
 }
 
-export function bestSystemOrder(world, assetKind, assetId, side) {
+export function bestSystemOrder(world, assetKind, assetId, side, provinceId) {
   let visited = 0;
-  for (const order of iterateOrderBookSide(world, { assetKind, assetId, side })) {
+  for (const order of iterateOrderBookSide(world, { provinceId, assetKind, assetId, side })) {
     visited += 1;
     if (order.ownerType === 'population') {
       recordOrderBookVisit(world, visited);

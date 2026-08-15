@@ -119,6 +119,7 @@ function contractSnapshot(contract) {
     principal: safeMoney(contract.principal, 0), principalOutstanding: safeMoney(contract.principalOutstanding, 0),
     interestRateBps: Math.max(0, safeInteger(contract.interestRateBps, 0)), interestDue: safeMoney(contract.interestDue, 0),
     termMs: Math.max(0, safeInteger(contract.termMs, 0)), dueAt: nullableInteger(contract.dueAt),
+    provinceId: contract.provinceId ? String(contract.provinceId) : null,
     facilityTypeId: contract.facilityTypeId ? String(contract.facilityTypeId) : null,
     collateralQuantity: Math.max(0, safeInteger(contract.collateralQuantity, 0)), collateralTransferredQuantity: Math.max(0, safeInteger(contract.collateralTransferredQuantity, 0)),
     defaultCollateralQuantity: Math.max(0, safeInteger(contract.defaultCollateralQuantity, 0)), defaultCollateralUnitValue: safeMoney(contract.defaultCollateralUnitValue, 0),

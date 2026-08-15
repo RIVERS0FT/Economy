@@ -54,11 +54,20 @@ if (failures.length === 0) {
     .filter((name) => name.endsWith(formalPageSuffix))
     .sort()
     .map((name) => `src/pages/${name}`);
+  const fullWorkspacePageExceptions = new Map([
+    ['src/pages/MapPage.tsx', 'className="province-map-page"'],
+  ]);
 
   if (formalPages.length < 9) failures.push(`正式页面数量异常，当前仅发现 ${formalPages.length} 个 *${formalPageSuffix}`);
 
   for (const path of [...formalPages, paths.admin]) {
-    requireText(path, '<PageLayout');
+    const fullWorkspaceRoot = fullWorkspacePageExceptions.get(path);
+    if (fullWorkspaceRoot) {
+      requireText(path, fullWorkspaceRoot);
+      forbidText(path, '<PageLayout');
+    } else {
+      requireText(path, '<PageLayout');
+    }
     forbidText(path, 'className="page-content"');
     forbidText(path, 'ui-page-stack');
   }
@@ -76,6 +85,7 @@ if (failures.length === 0) {
     '自动生成唯一 `.ui-page-stack`',
     '`--page-section-gap` 映射为当前 `var(--layout-gutter)`',
     '不得为特殊页面增加 `disableSpacing`',
+    '地图页是唯一全工作区例外',
     '`scripts/verify-page-section-spacing.mjs`',
   ]) requireText(paths.uiDesign, text);
 
@@ -103,4 +113,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('页面一级区块统一间距验证通过：PageLayout 自动内容栈、外壳沟槽映射、直接子元素外边距清理、新页面扫描、设计权威与真实几何回归均已锁定。');
+console.log('页面一级区块统一间距验证通过：PageLayout 自动内容栈、地图全工作区例外、外壳沟槽映射、直接子元素外边距清理、新页面扫描、设计权威与真实几何回归均已锁定。');

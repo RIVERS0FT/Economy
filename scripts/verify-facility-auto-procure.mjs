@@ -56,7 +56,7 @@ for (const [file, texts] of Object.entries({
     'export interface FacilityBuildProcurementOptions',
     'maxProcurementTotal: number;',
     'materialPriceCaps: Record<string, number>;',
-    "postAction('/facilities', { facilityTypeId, quantity, ...procurement })",
+    "postAction('/facilities', { provinceId, facilityTypeId, quantity, ...procurement })",
     'FacilityBuildProcurementActionResponse',
     'createFacilityBuildProcurement',
     'cancelFacilityBuildProcurement',

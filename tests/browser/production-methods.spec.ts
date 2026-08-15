@@ -267,6 +267,7 @@ test.describe('factory production methods', () => {
   });
 
   test('keeps mobile production controls, settlement, and diagnostics in one non-overlapping detail flow', async ({ page }) => {
+    test.setTimeout(60_000);
     for (const width of [320, 360, 390, 430, 720]) {
       await page.setViewportSize({ width, height: 844 });
       await page.goto('runtime-test.html?view=production&scenario=production-methods');

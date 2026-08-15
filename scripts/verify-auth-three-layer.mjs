@@ -205,10 +205,12 @@ for (const text of [
   'background: transparent !important;',
   '.application-content-root {',
   'z-index: auto;',
-  '.application-image-layer {',
-  'z-index: -2;',
-  '.application-atmosphere-layer {',
-  'z-index: -1;',
+  '--application-layer-image: 0;',
+  '--application-layer-atmosphere: 10;',
+  '--application-layer-map: 20;',
+  '--application-layer-ui: 30;',
+  '.application-map-layer {',
+  '.application-ui-layer {',
 ]) requireText('src/styles/financial-backdrop.css', text);
 
 for (const text of [
@@ -276,17 +278,17 @@ for (const text of ['AUTH_BACKGROUND_IMAGE_URL', 'AUTH_BACKGROUND_IMAGE_960_URL'
 
 const mainSource = read('src/main.tsx');
 for (const text of [
-  "import { FinancialBackdrop } from './components/visual/FinancialBackdrop';",
+  "import { ApplicationLayerRoot } from './components/visual/ApplicationLayerRoot';",
   "document.documentElement.dataset.appSurface = 'loading';",
   'document.documentElement.dataset.appBackdrop =',
   "document.documentElement.dataset.appTone = 'normal';",
-  '<FinancialBackdrop />',
-  '<div className="application-content-root">',
+  '<ApplicationLayerRoot>',
+  '</ApplicationLayerRoot>',
 ]) requireText('src/main.tsx', text);
-const backdropNodeIndex = mainSource.indexOf('<FinancialBackdrop />');
+const layerRootIndex = mainSource.indexOf('<ApplicationLayerRoot>');
 const strictModeIndex = mainSource.indexOf('<React.StrictMode>');
-if (!(backdropNodeIndex >= 0 && strictModeIndex > backdropNodeIndex)) {
-  failures.push('持久摄影节点必须在 StrictMode 与错误边界之外先渲染');
+if (!(layerRootIndex >= 0 && strictModeIndex > layerRootIndex)) {
+  failures.push('持久四层根宿主必须在 StrictMode 与错误边界之外先渲染');
 }
 const gameLayoutIndex = mainSource.indexOf("import './styles/game-shell-layout.css';");
 const backdropStyleIndex = mainSource.indexOf("import './styles/financial-backdrop.css';");
@@ -316,7 +318,7 @@ for (let index = 0; index < finalStyleOrder.length; index += 1) {
 }
 
 for (const text of [
-  '登录、注册与玩家游戏共享三层视觉',
+  '登录、注册、玩家游戏、管理员后台与根级状态共享四层根结构',
   '`src/components/visual/FinancialBackdrop.tsx`',
   '整个应用生命周期只允许一个摄影 `<picture>` 节点',
   '`AuthCardSurface`',
@@ -365,7 +367,7 @@ for (const text of [
   '可见高光几何直接绑定认证宿主',
   '两个透明辅助 `div`',
   '认证宿主必须透明且无项目阴影',
-  '摄影 `<picture>` 固定挂载在 `main.tsx`',
+  '`ApplicationLayerRoot` 固定挂载在 `main.tsx`',
 ]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
 
 for (const text of [
@@ -386,10 +388,12 @@ for (const text of [
   "toHaveAttribute('data-liquid-glass-layout', 'content')",
   "toHaveAttribute('data-liquid-glass-elasticity', '0')",
   "toHaveAttribute('data-liquid-glass-over-light', 'false')",
-  'keeps photography, atmosphere and authentication glass in one isolated sampling root',
+  'keeps photography, atmosphere, empty map host, and authentication UI in one isolated root',
   'expect(stacking.sharesRoot).toBe(true)',
-  "expect(stacking.image.zIndex).toBe('-2')",
-  "expect(stacking.atmosphere.zIndex).toBe('-1')",
+  "expect(stacking.image.zIndex).toBe('0')",
+  "expect(stacking.atmosphere.zIndex).toBe('10')",
+  "expect(stacking.map.zIndex).toBe('20')",
+  "expect(stacking.ui.zIndex).toBe('30')",
   'keeps one authentication glass instance and form values while switching breakpoints',
   'registration content grows inside the same glass surface without an internal scrollport',
   'keeps the official auth highlights aligned with the card bottom on the first frame of mode changes',
@@ -400,7 +404,7 @@ for (const text of [
   'glassTransitionProperty',
   "expect(glass.glassTransitionProperty).toBe('none')",
   "expect(glass.directDecorationTransitionProperties).toEqual(['none', 'none'])",
-  'keeps photography, atmosphere and authentication glass in one isolated sampling root',
+  'keeps photography, atmosphere, empty map host, and authentication UI in one isolated root',
   'readMobileAtmosphere',
   "expect(atmosphere.gridOpacity).toBe('0.08')",
   "expect(atmosphere.noiseOpacity).toBe('0.03')",

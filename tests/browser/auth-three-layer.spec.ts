@@ -185,7 +185,7 @@ test.describe('auth three-layer layout', () => {
   test.describe('desktop', () => {
     test.use({ viewport: { width: 1440, height: 900 } });
 
-    test('keeps photography, atmosphere and authentication glass in one isolated sampling root', async ({ page }) => {
+    test('keeps photography, atmosphere, empty map host, and authentication UI in one isolated root', async ({ page }) => {
       await openLoginPage(page);
 
       const imageLayer = page.locator('.application-image-layer');
@@ -223,14 +223,18 @@ test.describe('auth three-layer layout', () => {
         const root = document.querySelector<HTMLElement>('#root');
         const image = document.querySelector<HTMLElement>('.application-image-layer');
         const atmosphere = document.querySelector<HTMLElement>('.application-atmosphere-layer');
+        const map = document.querySelector<HTMLElement>('.application-map-layer');
+        const ui = document.querySelector<HTMLElement>('.application-ui-layer');
         const applicationContent = document.querySelector<HTMLElement>('.application-content-root');
-        if (!root || !image || !atmosphere || !applicationContent) {
+        if (!root || !image || !atmosphere || !map || !ui || !applicationContent) {
           throw new Error('authentication sampling root is incomplete');
         }
         return {
           root: read('#root'),
           image: read('.application-image-layer'),
           atmosphere: read('.application-atmosphere-layer'),
+          map: read('.application-map-layer'),
+          ui: read('.application-ui-layer'),
           content: read('.application-content-root'),
           shell: read('.login-shell'),
           loginContent: read('.login-content-layer'),
@@ -238,7 +242,9 @@ test.describe('auth three-layer layout', () => {
           sharesRoot:
             image.parentElement === root
             && atmosphere.parentElement === root
-            && applicationContent.parentElement === root,
+            && map.parentElement === root
+            && ui.parentElement === root
+            && applicationContent.parentElement === ui,
         };
       });
 
@@ -250,12 +256,15 @@ test.describe('auth three-layer layout', () => {
         transform: 'none',
       });
       expect(stacking.image.position).toBe('fixed');
-      expect(stacking.image.zIndex).toBe('-2');
+      expect(stacking.image.zIndex).toBe('0');
       expect(stacking.atmosphere.position).toBe('fixed');
-      expect(stacking.atmosphere.zIndex).toBe('-1');
+      expect(stacking.atmosphere.zIndex).toBe('10');
+      expect(stacking.map.position).toBe('fixed');
+      expect(stacking.map.zIndex).toBe('20');
+      expect(stacking.ui.zIndex).toBe('30');
       expect(stacking.sharesRoot).toBe(true);
-      for (const layer of [stacking.content, stacking.shell, stacking.loginContent, stacking.card]) {
-        expect(layer.zIndex).toBe('auto');
+      for (const layer of [stacking.map, stacking.ui, stacking.content, stacking.shell, stacking.loginContent, stacking.card]) {
+        if (layer !== stacking.map && layer !== stacking.ui) expect(layer.zIndex).toBe('auto');
         expect(layer.isolation).toBe('auto');
         expect(layer.filter).toBe('none');
         expect(layer.transform).toBe('none');

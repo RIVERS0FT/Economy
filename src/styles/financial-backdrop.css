@@ -31,6 +31,13 @@ html[data-app-surface="error"] body::before {
   display: none;
 }
 
+:root {
+  --application-layer-image: 0;
+  --application-layer-atmosphere: 10;
+  --application-layer-map: 20;
+  --application-layer-ui: 30;
+}
+
 #root {
   position: relative;
   isolation: isolate;
@@ -46,6 +53,26 @@ html[data-app-surface="error"] body::before {
   transform: none;
   min-width: 320px;
   min-height: 100%;
+}
+
+.application-ui-layer {
+  position: relative;
+  z-index: var(--application-layer-ui);
+  isolation: auto;
+  filter: none;
+  transform: none;
+  min-width: 320px;
+  min-height: 100%;
+}
+
+html[data-app-surface="game"] .application-ui-layer,
+html[data-app-surface="admin"] .application-ui-layer {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 html[data-app-surface="auth"] .application-content-root {
@@ -66,14 +93,19 @@ html[data-app-surface="admin"] .application-content-root {
 }
 
 .application-image-layer,
-.application-atmosphere-layer {
+.application-atmosphere-layer,
+.application-map-layer {
   position: fixed;
   inset: 0;
+}
+
+.application-image-layer,
+.application-atmosphere-layer {
   pointer-events: none;
 }
 
 .application-image-layer {
-  z-index: -2;
+  z-index: var(--application-layer-image);
   overflow: hidden;
   background: #07100b;
 }
@@ -99,7 +131,7 @@ html[data-app-backdrop="admin"] .application-image-layer img {
 }
 
 .application-atmosphere-layer {
-  z-index: -1;
+  z-index: var(--application-layer-atmosphere);
   overflow: hidden;
   --application-atmosphere-primary-glow: rgba(86, 224, 137, 0.10);
   --application-atmosphere-secondary-glow: rgba(44, 176, 102, 0.06);
@@ -110,6 +142,48 @@ html[data-app-backdrop="admin"] .application-image-layer img {
   --application-atmosphere-grid-opacity: 0.16;
   --application-atmosphere-grid-size: 46px 46px;
   --application-atmosphere-noise-opacity: 0.045;
+}
+
+.application-map-layer {
+  z-index: var(--application-layer-map);
+  isolation: auto;
+  filter: none;
+  transform: none;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.application-map-layer > * {
+  pointer-events: auto;
+}
+
+html[data-app-surface="game"] .application-ui-layer,
+html[data-app-surface="game"] .application-content-root,
+html[data-app-surface="game"] .game-shell {
+  pointer-events: none;
+}
+
+html[data-app-surface="game"] .application-content-root > * {
+  pointer-events: auto;
+}
+
+html[data-app-surface="game"] .application-content-root > .game-shell {
+  pointer-events: none;
+}
+
+html[data-app-surface="game"] .game-shell .desktop-sidebar,
+html[data-app-surface="game"] .game-shell .strategic-page-host:not(.strategic-page-host--map) > *,
+html[data-app-surface="game"] .game-shell .page-scroll-area > .ui-scrollbar,
+html[data-app-surface="game"] .game-shell .workspace-strategic-chrome > *,
+html[data-app-surface="game"] .game-shell .signed-in-shell__chrome > .asset-bar,
+html[data-app-surface="game"] .game-shell .signed-in-shell__chrome > .mobile-bottom-navigation,
+html[data-app-surface="game"] .game-shell .workspace-floating-layer > *,
+html[data-app-surface="game"] .game-shell .workspace-dialog-layer > * {
+  pointer-events: auto;
 }
 
 

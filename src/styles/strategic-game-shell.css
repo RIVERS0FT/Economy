@@ -1,0 +1,289 @@
+/* Player-only grand-strategy workspace. The administrator keeps the shared
+ * conventional SignedInShell body while the game portals one persistent map
+ * into the root map layer beneath the application UI layer. */
+
+.application-map-layer,
+.workspace-strategic-chrome {
+  isolation: auto;
+  filter: none;
+  transform: none;
+}
+
+.game-shell .mobile-page-overlay {
+  position: relative;
+  z-index: 1;
+}
+
+.game-shell .workspace-strategic-chrome {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.game-shell .workspace-floating-layer {
+  z-index: 4;
+}
+
+.game-shell .workspace-strategic-chrome > * {
+  pointer-events: auto;
+}
+
+.strategic-map-stage,
+.strategic-map-stage .province-map-chart,
+.strategic-map-stage .province-map-echart {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.strategic-map-stage {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  box-shadow: none;
+  background:
+    radial-gradient(circle at 50% 45%, rgb(48 104 78 / 28%), transparent 52%),
+    linear-gradient(145deg, rgb(7 18 15 / 56%), rgb(2 7 6 / 46%));
+}
+
+.strategic-map-stage .province-map-echart {
+  padding: 0;
+}
+
+.strategic-map-vignette {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 48%, transparent 42%, rgb(0 0 0 / 14%) 100%);
+  opacity: .42;
+  pointer-events: none;
+  transition: opacity 180ms ease, background-color 180ms ease;
+}
+
+.strategic-map-stage--background .strategic-map-vignette {
+  background-color: rgb(1 7 5 / 44%);
+  opacity: 1;
+}
+
+.strategic-map-stage[data-map-lens="industry"] .province-map-echart,
+.strategic-map-stage[data-map-lens="market"] .province-map-echart,
+.strategic-map-stage[data-map-lens="alerts"] .province-map-echart {
+  background: radial-gradient(circle at 50% 50%, rgb(5 18 13 / 8%), rgb(2 8 6 / 22%));
+}
+
+.strategic-page-host {
+  position: relative;
+  min-width: 0;
+  min-height: 100%;
+  padding: var(--strategic-panel-gap);
+  padding-bottom: calc(var(--strategic-lens-height) + var(--strategic-panel-gap) * 3);
+  pointer-events: none;
+}
+
+.strategic-page-host > * {
+  pointer-events: auto;
+}
+
+.strategic-page-host > .page-content {
+  min-height: calc(100% - var(--strategic-panel-gap));
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 78%, transparent);
+  border-radius: var(--strategic-panel-radius);
+  padding: 0 var(--strategic-panel-gap) var(--strategic-panel-gap);
+  background:
+    linear-gradient(145deg, rgb(8 24 18 / 96%), rgb(3 13 10 / 94%));
+  box-shadow: 0 24px 64px rgb(0 0 0 / 42%);
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+.strategic-page-host--workspace > .page-content {
+  width: 100%;
+}
+
+.strategic-page-host--fullscreen > .page-content {
+  width: 100%;
+  margin-inline: 0;
+}
+
+.strategic-page-host--side > .page-content {
+  width: min(56rem, calc(100% - var(--strategic-panel-gap) * 2));
+}
+
+.strategic-page-host--map {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  padding: 0;
+}
+
+.strategic-page-host--map .province-map-page {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  display: block;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  pointer-events: none;
+}
+
+.strategic-page-host--map .province-map-page::after {
+  display: none;
+}
+
+.strategic-map-lens-bar {
+  position: absolute;
+  right: 50%;
+  bottom: var(--strategic-panel-gap);
+  min-height: var(--strategic-lens-height);
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .35rem;
+  border-color: color-mix(in srgb, var(--color-border-strong) 78%, transparent);
+  border-radius: .8rem;
+  background: rgb(4 17 12 / 94%);
+  box-shadow: 0 18px 42px rgb(0 0 0 / 38%);
+  transform: translateX(50%);
+}
+
+.strategic-map-lens-button {
+  --ui-interactive-hover-border-color: var(--color-border-strong);
+  --ui-interactive-hover-background: var(--color-surface-hover);
+  --ui-interactive-active-transform: none;
+
+  min-width: 4.25rem;
+  min-height: 2.7rem;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: .4rem;
+  place-content: center;
+  border: 1px solid transparent;
+  border-radius: .55rem;
+  padding: .35rem .55rem;
+  color: var(--color-text-muted);
+  background: transparent;
+}
+
+.strategic-map-lens-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.strategic-map-lens-button.is-active {
+  color: var(--color-text-primary);
+  border-color: color-mix(in srgb, var(--color-success) 72%, transparent);
+  background: var(--color-success-soft);
+}
+
+@media (min-width: 721px) {
+  .game-shell {
+    --desktop-layout-gutter: 8px;
+    --desktop-asset-bar-height: 64px;
+    --strategic-command-rail-width: 78px;
+    --strategic-panel-gap: 10px;
+    --strategic-panel-radius: 12px;
+    --strategic-lens-height: 54px;
+  }
+
+  .game-shell .signed-in-shell__body {
+    grid-template-columns:
+      calc(
+        var(--strategic-command-rail-width)
+        + var(--desktop-shell-outer-inset)
+        + var(--desktop-sidebar-workspace-gap)
+      )
+      minmax(0, 1fr);
+    transition: none;
+  }
+
+  .game-shell .desktop-sidebar {
+    z-index: 7;
+    width: var(--sidebar-column-width);
+    border-radius: var(--strategic-panel-radius);
+    background: linear-gradient(180deg, rgb(6 22 16 / 98%), rgb(2 11 8 / 98%));
+    box-shadow: 16px 18px 46px rgb(0 0 0 / 32%);
+  }
+
+  .game-shell.sidebar-collapsed .desktop-sidebar {
+    width: var(--strategic-command-rail-width);
+  }
+
+  .game-shell .page-scroll-area,
+  .game-shell .page-scroll,
+  .game-shell .strategic-page-host {
+    pointer-events: none;
+  }
+
+  .game-shell .strategic-page-host > *,
+  .game-shell .page-scroll-area > .ui-scrollbar {
+    pointer-events: auto;
+  }
+
+  .game-shell .strategic-page-host--map > .province-map-page {
+    pointer-events: none;
+  }
+
+  .strategic-tab-map .page-scroll-area > .ui-scrollbar--vertical {
+    display: none;
+  }
+}
+
+@media (max-width: 1100px) and (min-width: 721px) {
+  .game-shell {
+    --strategic-panel-gap: 8px;
+  }
+}
+
+@media (max-width: 720px) {
+  .game-shell {
+    --strategic-panel-gap: var(--mobile-primary-surface-gap);
+    --strategic-panel-radius: 16px;
+    --strategic-lens-height: 0px;
+  }
+
+  .strategic-map-stage .province-map-echart {
+    padding: 0;
+  }
+
+  .strategic-map-stage--background .strategic-map-vignette {
+    background-color: rgb(1 7 5 / 68%);
+  }
+
+  .strategic-page-host {
+    padding: var(--strategic-panel-gap) 0;
+  }
+
+  .strategic-page-host > .page-content {
+    width: 100%;
+    min-height: calc(100dvh - 5rem);
+    border-radius: var(--strategic-panel-radius) var(--strategic-panel-radius) 0 0;
+    padding-inline: var(--strategic-panel-gap);
+    background: linear-gradient(180deg, rgb(7 23 17 / 97%), rgb(2 10 8 / 98%));
+  }
+
+  .strategic-page-host--side > .page-content {
+    margin-top: 18dvh;
+    min-height: 82dvh;
+  }
+
+  .strategic-page-host--map {
+    padding: 0;
+  }
+
+  .strategic-map-lens-bar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .strategic-map-vignette {
+    transition: none;
+  }
+}

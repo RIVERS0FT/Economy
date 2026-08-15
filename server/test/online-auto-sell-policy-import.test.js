@@ -80,7 +80,7 @@ test('legacy auto-sell import preserves saved entries and fills only missing pro
 
   assert.equal(result.ok, true);
   assert.deepEqual(player.onlineAutoSellPolicies, {
-    wheat: { enabled: true, price: 9, minimumFreeInventory: 5 },
-    rice: policy(1),
+    '110000:wheat': { enabled: true, price: 9, minimumFreeInventory: 5 },
+    '110000:rice': policy(1),
   });
 });

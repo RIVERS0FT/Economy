@@ -111,6 +111,7 @@ export interface ProductionContract {
   lenderName?: string | null;
   borrowerId?: number | null;
   borrowerName?: string | null;
+  provinceId?: string;
   principal?: number;
   principalOutstanding?: number;
   interestRateBps?: number;
