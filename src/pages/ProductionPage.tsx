@@ -6,7 +6,6 @@ import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { MoneyInput, SelectInput } from '../components/ui/FormControls';
 import { RichSelectInput } from '../components/ui/RichSelectInput';
 import { WarehouseInventoryPanel } from '../components/warehouse/WarehouseInventoryPanel';
-import { ProvinceSelect } from '../components/provinces/ProvinceSelect';
 import {
   Button,
   DataList,
@@ -155,17 +154,6 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
       return [{ type, group: displayGroup }];
     });
   }, [game.facilityGroups, game.facilityTypes, optimisticRecipeIds]);
-  const facilityClusterStatusCounts = useMemo(() => {
-    const summary: Record<FacilityGroup['status'], number> = {
-      running: 0,
-      stopped: 0,
-      error: 0,
-    };
-    for (const entry of orderedFacilityGroups) {
-      summary[entry.group.status] += 1;
-    }
-    return summary;
-  }, [orderedFacilityGroups]);
   const selectedFacilityEntry =
     orderedFacilityGroups.find(({ type }) => type.id === selectedFacilityGroupId) ?? orderedFacilityGroups[0];
   const effectiveSelectedFacilityGroupId = selectedFacilityEntry?.type.id ?? '';
@@ -488,20 +476,6 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
     <PageLayout
       title={`${model.selectedProvince?.name || '加利福尼亚州'}生产`}
       description="本地工厂只消耗并产出当前州级地区的库存；同州同类工厂共享周期、配方、生产方式与满员率。"
-      actions={
-        <>
-          <ProvinceSelect
-            provinces={game.provinces}
-            value={model.selectedProvinceId}
-            onChange={model.setSelectedProvinceId}
-          />
-          <StatusTag tone="success">运行 {formatNumber(facilityClusterStatusCounts.running)}</StatusTag>
-          <StatusTag tone="neutral">停止 {formatNumber(facilityClusterStatusCounts.stopped)}</StatusTag>
-          <StatusTag tone={facilityClusterStatusCounts.error > 0 ? 'danger' : 'neutral'}>
-            异常 {formatNumber(facilityClusterStatusCounts.error)}
-          </StatusTag>
-        </>
-      }
     >
       <WarehouseInventoryPanel model={model} className="factory-warehouse-card" />
 

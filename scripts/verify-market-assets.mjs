@@ -16,9 +16,10 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx','src/components/ui/VirtualList.tsx','src/components/ui/VirtualRecordTable.tsx','src/hooks/useVirtualWindow.ts','src/components/icons/GameIcons.tsx'
 ].forEach(requireFile);
 for (const text of [
-  'unified-asset-tabs','placeAssetOrder','single-order-book','items={localTrades}',
+  "if (marketViewMode === 'catalog')",'market-catalog-filters','market-catalog-row','placeAssetOrder','single-order-book','items={selectedLocalTrades}',
   'local-trades-virtual-table','VirtualRecordTable',
   "from '../components/icons/GameIcons'",'FactoryIcon','<FactoryIcon />','selectOrderSide',
+  '<ProductArtwork productId={entry.id} />','<FacilityIcon facilityTypeId={entry.id} />','backAction={{',
   'title={selectedAssetTitle(`${assetName}交易`)}','label="价格"','className="numeric-cell">价格</th>',
   'formatNumber(order.remaining)','formatCurrency(order.price)',
   "import { buildOrderBookLevels } from '../utils/orderBookLevels'",
@@ -32,7 +33,7 @@ for (const text of [
   'key={`sell-${level.price}`}','key={`buy-${level.price}`}',
 ]) requireText('src/pages/MarketPage.tsx', text);
 for (const text of [
-  'localTrades.map(','market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>','限价','order-book-columns','order-book-midpoint',
+  'unified-asset-tabs','asset-directory-shell','localTrades.map(','market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>','限价','order-book-columns','order-book-midpoint',
   '最低价前 5 笔','最高价前 5 笔','order-book-side-label',
   ".filter((order) => order.side === 'sell')\n    .sort(",
   ".filter((order) => order.side === 'buy')\n    .sort(",
@@ -84,8 +85,11 @@ for (const text of [
   "const [tab, setActiveTab] = useState<TabId>('home');",
   "const [orderSide, setOrderSideState] = useState<OrderSide>('buy');",
   'const [orderPrice, setOrderPrice] = useState(1);',
+  "const [marketViewMode, setMarketViewMode] = useState<MarketViewMode>('catalog');",
   'const loadedGame = scopedGame;',
-  "if (nextTab === 'market' && tab !== 'market')",
+  "if (nextTab === 'market') {",
+  "setMarketViewMode('catalog');",
+  "setMarketViewMode('detail');",
   'defaultOrderPrice(loadedGame.orders, marketAssetKind, marketAssetId, orderSide)',
   "if (changed || tab !== 'market')",
   'defaultOrderPrice(loadedGame.orders, kind, assetId, orderSide)',
@@ -116,7 +120,7 @@ for (const text of [
   '>保存计划</Button>','下一周期按 ','<span>冻结 <strong>{group.listedCount}</strong></span>',
   '下一周期加入','下一周期切换为：'
 ]) forbidText('src/pages/ProductionPage.tsx', text);
-for (const text of ['点击工作次数','生产商品总数','买入商品总数','卖出商品总数','礼品兑换','存档管理','删除存档','退出登录']) requireText('src/pages/SettingsPage.tsx', text);
+for (const text of ['持有工厂总数','生产商品总数','买入商品总数','卖出商品总数','礼品兑换','存档管理','删除存档','退出登录']) requireText('src/pages/SettingsPage.tsx', text);
 for (const text of ['登录会话','重置经济状态','重置服务器经济状态']) forbidText('src/pages/SettingsPage.tsx', text);
 for (const text of ["label: '仓库库存'", "id: 'warehouse'"]) requireText('src/app/GameApp.tsx', text);
 for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
@@ -158,7 +162,7 @@ for (const text of ['makerOrderId','takerOrderId','counterparty: string']) forbi
 for (const text of ['fill.counterparty','trade.counterparty']) forbidText('src/utils/localActivityStore.ts', text);
 for (const text of ['after.markets[assetId]?.lastPrice','after.facilityMarkets[assetId]?.lastPrice','executedQuantity * price']) forbidText('src/utils/localActivityStore.ts', text);
 for (const text of [
-  'maker price','反推玩家成交价','逐笔','工厂资产标签使用独立厂房 SVG',
+  'maker price','反推玩家成交价','逐笔','紧凑工厂标签使用独立厂房 SVG',
   '玩家界面统一将订单输入字段称为“价格”',
   '默认价格只从客户端当前已经加载的 `game.orders` 本地快照计算',
   '从其他页面重新进入市场页',
@@ -224,7 +228,7 @@ forbidText('server/src/facility-groups.js', 'MAX_OPEN_ORDERS');
 for (const text of [
   '只表示技术安全边界，不构成固定业务数量上限',
   '(PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length) * 10',
-  '当前权威目录为 36 种商品与 26 种工厂类型，即当前上限 620 笔',
+  '当前权威目录为 38 种商品与 26 种工厂类型，即当前上限 640 笔',
 ]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
 forbidText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '当前上限为 52 笔');
 forbidText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '当前上限 62 笔');

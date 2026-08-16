@@ -4,24 +4,39 @@ test.describe('research technology tree', () => {
   test('renders a downward prerequisite tree on desktop', async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 1000 });
 
-    await page.goto('runtime-test.html?view=production&scenario=facility-order');
-    const productionGeometry = await page.evaluate(() => {
-      const build = document.querySelector<HTMLElement>('.production-build-card')?.getBoundingClientRect();
-      const navigation = document.querySelector<HTMLElement>('.facility-cluster-navigation')?.getBoundingClientRect();
-      const detail = document.querySelector<HTMLElement>('.facility-cluster-detail-card')?.getBoundingClientRect();
+    await page.goto('runtime-test.html?view=research&scenario=research-active');
+    await expect(page.locator('.page-card-scroll-area')).toHaveCount(0);
+    await expect(page.locator('.page-card-static')).toBeVisible();
+    await expect(page.locator('.page-heading-actions')).toHaveCount(0);
+    await expect(page.getByText('完整阶段', { exact: false })).toHaveCount(0);
+    await expect(page.getByText('研发「石油炼化」', { exact: true })).toHaveCount(0);
+    const fixedPageOverflow = await page.locator('.page-card-static').evaluate((element) => {
+      const stack = element.querySelector<HTMLElement>(':scope > .ui-page-stack');
+      if (!stack) throw new Error('fixed page stack is missing');
+      const stackStyle = getComputedStyle(stack);
       return {
-        actionWidth: build?.width ?? 0,
-        contentLeft: navigation?.left ?? 0,
-        contentRight: detail?.right ?? 0,
+        overflowY: getComputedStyle(element).overflowY,
+        scrollTop: element.scrollTop,
+        stackRows: stackStyle.gridTemplateRows,
+        stackAlignContent: stackStyle.alignContent,
       };
     });
-
-    await page.goto('runtime-test.html?view=research&scenario=research-active');
+    expect(fixedPageOverflow.overflowY).toBe('hidden');
+    expect(fixedPageOverflow.scrollTop).toBe(0);
+    expect(fixedPageOverflow.stackRows).not.toBe('none');
+    expect(fixedPageOverflow.stackAlignContent).toBe('stretch');
     await expect(page.locator('.research-stage-node')).toHaveCount(0);
     await expect(page.locator('.research-technology-node')).toHaveCount(32);
+    await expect(page.locator('.research-tree-heading')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: '技术树' })).toHaveCount(0);
+    await expect(page.getByText('32 项科技', { exact: true })).toHaveCount(0);
     const researchGeometry = await page.evaluate(() => {
       const action = document.querySelector<HTMLElement>('.research-action-panel')?.getBoundingClientRect();
+      const workspace = document.querySelector<HTMLElement>('.research-workspace')?.getBoundingClientRect();
       const treePanel = document.querySelector<HTMLElement>('.research-tree-panel')?.getBoundingClientRect();
+      const treeViewport = document.querySelector<HTMLElement>('.research-tree-viewport')?.getBoundingClientRect();
+      const actionElement = document.querySelector<HTMLElement>('.research-action-panel');
+      const treePanelElement = document.querySelector<HTMLElement>('.research-tree-panel');
       const tree = document.querySelector<HTMLElement>('.research-tree');
       const detailArtwork = document.querySelector<HTMLElement>('.research-action-panel .research-detail-level-artwork');
       const detailArtworkBox = detailArtwork?.getBoundingClientRect();
@@ -36,8 +51,13 @@ test.describe('research technology tree', () => {
       });
       return {
         actionWidth: action?.width ?? 0,
-        contentLeft: treePanel?.left ?? 0,
-        contentRight: treePanel?.right ?? 0,
+        actionLeftInset: (action?.left ?? 0) - (treePanel?.left ?? 0),
+        actionTopInset: (action?.top ?? 0) - (treePanel?.top ?? 0),
+        actionInsideTree: actionElement?.parentElement === treePanelElement,
+        workspace: workspace ? { left: workspace.left, top: workspace.top, right: workspace.right, bottom: workspace.bottom } : null,
+        treePanel: treePanel ? { left: treePanel.left, top: treePanel.top, right: treePanel.right, bottom: treePanel.bottom } : null,
+        treeViewport: treeViewport ? { left: treeViewport.left, top: treeViewport.top, right: treeViewport.right, bottom: treeViewport.bottom } : null,
+        layoutGutter: Number.parseFloat(getComputedStyle(treePanelElement!).getPropertyValue('--layout-gutter')),
         detailArtworkWidth: detailArtworkBox?.width ?? 0,
         detailArtworkHeight: detailArtworkBox?.height ?? 0,
         detailArtworkAspectRatio: detailArtworkStyle?.aspectRatio ?? '',
@@ -50,9 +70,14 @@ test.describe('research technology tree', () => {
       };
     });
 
-    expect(Math.abs(researchGeometry.actionWidth - productionGeometry.actionWidth)).toBeLessThanOrEqual(1);
-    expect(Math.abs(researchGeometry.contentLeft - productionGeometry.contentLeft)).toBeLessThanOrEqual(1);
-    expect(Math.abs(researchGeometry.contentRight - productionGeometry.contentRight)).toBeLessThanOrEqual(1);
+    expect(researchGeometry.actionInsideTree).toBe(true);
+    expect(researchGeometry.actionWidth).toBeLessThanOrEqual(321);
+    expect((researchGeometry.workspace?.right ?? 0) - (researchGeometry.workspace?.left ?? 0)).toBeGreaterThan(0);
+    expect((researchGeometry.workspace?.bottom ?? 0) - (researchGeometry.workspace?.top ?? 0)).toBeGreaterThan(0);
+    expect(researchGeometry.actionLeftInset).toBeCloseTo(researchGeometry.layoutGutter, 0);
+    expect(researchGeometry.actionTopInset).toBeCloseTo(researchGeometry.layoutGutter, 0);
+    expect(researchGeometry.treePanel).toEqual(researchGeometry.workspace);
+    expect(researchGeometry.treeViewport).toEqual(researchGeometry.treePanel);
     expect(researchGeometry.detailArtworkWidth).toBeCloseTo(researchGeometry.expectedDetailArtworkSize, 0);
     expect(Math.abs(researchGeometry.detailArtworkWidth - researchGeometry.detailArtworkHeight)).toBeLessThanOrEqual(1);
     expect(researchGeometry.detailArtworkAspectRatio).toBe('1 / 1');
@@ -133,10 +158,11 @@ test.describe('research technology tree', () => {
     await expect(panel).toContainText('工具');
     await expect(panel).not.toContainText('工具作坊');
 
-    const toolManufacturing = page.getByRole('button', { name: /工具制造，尚未开放，C4 生产科技/ });
-    await toolManufacturing.press('Enter');
+    const mechanicalEngineering = page.getByRole('button', { name: /机械工程，尚未开放，C5 生产科技/ });
+    await mechanicalEngineering.press('Enter');
     await expect(panel).toContainText('生产科技');
     await expect(panel).toContainText('解锁工厂');
+    await expect(panel.getByLabel('机械厂可生产产物')).toContainText('机械');
   });
 
   test('preserves an explicit technology selection across refreshed snapshots', async ({ page }) => {
@@ -166,18 +192,26 @@ test.describe('research technology tree', () => {
     expect(afterRefreshPosition).toEqual(beforeRefreshPosition);
   });
 
-  test('shows concrete prerequisite requirements and active acceleration', async ({ page }) => {
+  test('shows only research cost and time while merging active acceleration into the research action', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=research&scenario=research-active');
 
     await page.getByRole('button', { name: /家电工程，尚未开放/ }).press('Enter');
-    await expect(page.locator('.research-action-panel')).toContainText('还需完成');
-    await expect(page.locator('.research-action-panel')).toContainText('电子工程');
-    await expect(page.locator('.research-action-panel')).toContainText('研发费用');
+    const panel = page.locator('.research-action-panel');
+    await expect(panel).toContainText('研发投入');
+    await expect(panel).toContainText('研发费用');
+    await expect(panel).toContainText('研发时间');
+    await expect(panel).not.toContainText('具体要求');
+    await expect(panel).not.toContainText('前置科技');
+    await expect(panel).not.toContainText('研发队列');
+    await expect(panel).not.toContainText('产业经营视角');
+    await expect(panel).not.toContainText('就业资金已释放');
 
     await page.getByRole('button', { name: /冶金技术，研发中/ }).press('Enter');
-    await expect(page.locator('.research-action-panel')).toContainText('宝石加速');
-    await expect(page.getByRole('button', { name: '1 宝石 · 加速 30m' })).toBeVisible();
+    await expect(panel.getByRole('button', { name: '研发中 · 1 宝石加速 30m' })).toBeVisible();
+    await expect(panel.locator('.research-gem-acceleration')).toHaveCount(0);
+    await expect(panel).not.toContainText('使用后剩余');
+    await expect(panel.locator('.research-detail-actions .ui-helper-text')).toHaveCount(0);
   });
 
   test('uses the stored base duration for accelerated node research progress', async ({ page }) => {
@@ -261,8 +295,11 @@ test.describe('research technology tree', () => {
     const dialog = page.getByRole('dialog', { name: '冶金技术研发新技术' });
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveClass(/mobile-detail-sheet/);
-    await expect(dialog).toContainText('具体要求');
-    await expect(dialog).toContainText('宝石加速');
+    await expect(dialog).toContainText('研发投入');
+    await expect(dialog).not.toContainText('具体要求');
+    await expect(dialog).not.toContainText('产业经营视角');
+    await expect(dialog).not.toContainText('就业资金已释放');
+    await expect(dialog.getByRole('button', { name: '研发中 · 1 宝石加速 30m' })).toBeVisible();
     await expect(dialog.locator('.mobile-detail-summary')).toBeVisible();
     await expect(dialog.locator('.mobile-detail-sheet-footer')).toBeVisible();
     await page.keyboard.press('Escape');

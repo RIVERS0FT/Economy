@@ -63,9 +63,9 @@ forbidText('src/components/shell/AdminSidebar.tsx', [
   'style={{ zIndex:',
 ]);
 requireText('src/components/shell/AdminDesktopBar.tsx', [
-  "import { LiquidGlassSurface } from '../ui/LiquidGlassSurface'",
+  "import { FrostedGlassSurface } from '../ui/FrostedGlassSurface'",
   'className="asset-bar admin-command-bar"',
-  'variant="desktopStatusBar"',
+  'variant="statusBar"',
   'className="admin-command-bar-content"',
   '刷新当前分区',
 ]);
@@ -312,7 +312,7 @@ requireText('tests/browser/admin-runtime.spec.ts', [
   '.admin-mobile-bottom-navigation',
   '.admin-mobile-chrome-layer',
   '.admin-command-bar',
-  '.liquid-glass-surface--desktopStatusBar',
+  '.frosted-glass-surface--statusBar',
   'scrollPaddingBottom',
   'chromeLayerInsideWorkspace',
   'chromeLayerOrder',

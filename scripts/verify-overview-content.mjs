@@ -19,6 +19,8 @@ const forbidAll = (path, texts) => texts.forEach((text) => forbidText(path, text
 const paths = {
   router: 'src/pages/PageRouter.tsx',
   overview: 'src/pages/OverviewPage.tsx',
+  eventLog: 'src/components/EconomicEventLogPanel.tsx',
+  strategicWorkspace: 'src/components/shell/StrategicWorkspace.tsx',
   guide: 'src/components/GameGuideStrip.tsx',
   chart: 'src/components/charts/PriceSparkline.tsx',
   gameApp: 'src/app/GameApp.tsx',
@@ -28,6 +30,7 @@ const paths = {
   sidebarFrame: 'src/components/shell/SidebarFrame.tsx',
   statusBar: 'src/components/shell/StatusBar.tsx',
   overviewStyle: 'src/styles/overview.css',
+  eventLogStyle: 'src/styles/economic-event-log.css',
   polishStyle: 'src/styles/overview-polish.css',
   guideStyle: 'src/styles/game-guide.css',
   sidebarStyle: 'src/styles/desktop-sidebar.css',
@@ -59,16 +62,13 @@ requireAll(paths.router, [
 forbidAll(paths.router, ['localStorage', 'sessionStorage', 'marketAssetId']);
 
 requireAll(paths.overview, [
-  'function greetingForHour(hour: number)',
-  'new Date(now).getHours()',
-  'title="今日经营"',
+  'title="概览"',
   '<GameGuideStrip tutorial={model.tutorial} />',
-  '<strong>经营提醒</strong>',
-  'const visibleAlerts = businessAlerts.slice(0, model.tutorial.isVisible ? 2 : 3)',
-  "id: `facility-error-${group.facilityTypeId}`",
-  "id: 'open-orders'",
-  'const primaryAction = ownOpenOrders.length > 0',
+  'className="overview-dashboard-shell"',
+  'className="overview-mobile-tutorial"',
   'title="本周签到"',
+  'action={(',
+  'className="overview-check-in-status"',
   'role="list" aria-label="本周签到日历"',
   'weeklyBonusEligible',
   '签到领取 1 宝石',
@@ -85,10 +85,19 @@ requireAll(paths.overview, [
   'title="当前挂单"',
   'theoreticalDailyOutput',
   'home-grid',
-  'overview-primary-grid',
 ]);
 forbidAll(paths.overview, [
+  '进入市场',
+  'EconomicEventLogPanel',
+  '公开经济事件',
+  'greetingForHour',
+  'new Date(now).getHours()',
+  'title="今日经营"',
   'title="基础工作"',
+  'OverviewWorkButton',
+  'overview-today-panel',
+  'overview-alert-list',
+  'businessAlerts',
   'wealth-total',
   'label="当前总资产"',
   'formatRank',
@@ -100,6 +109,29 @@ forbidAll(paths.overview, [
   'PriceSparkline',
   '资产状态更新',
   '当前浏览器记录',
+  '连续签到 7 天可额外获得 5 宝石',
+  '签到日期由服务器按北京时间判定，不支持补签。',
+  '/ 7 天',
+]);
+requireAll(paths.strategicWorkspace, [
+  'className="strategic-economic-event-rail" aria-label="公开经济事件日志"',
+  "model.tab === 'home' && tutorial ? <GameGuideStrip tutorial={tutorial} /> : null",
+  '<EconomicEventLogPanel',
+]);
+requireAll(paths.eventLog, [
+  'className="economic-event-log-title"',
+  'aria-label="近期与未来七天公开经济事件日志"',
+  '<details',
+  '<summary>',
+  '距离开始还有',
+  'className="economic-event-log-details"',
+  'eventMarketFeedback(markets, event.productIds, event.startsAt, event.endsAt)',
+  '<LiveServerTime referenceNow={referenceNow}>',
+]);
+forbidAll(paths.eventLog, [
+  '<WidgetHeading',
+  '<StatusTag',
+  'className="economic-event-log-note"',
 ]);
 requireAll(paths.guide, [
   'role="progressbar"',
@@ -128,19 +160,33 @@ forbidAll(paths.chart, [
 ]);
 
 requireAll(paths.overviewStyle, [
-  '--overview-primary-card-height: 330px;',
   '--overview-summary-card-height: 320px;',
-  'grid-template-columns: minmax(0, 1fr);',
+  '.overview-dashboard-shell {',
+  '.overview-mobile-tutorial {',
   'container: overview / inline-size;',
-  'grid-template-columns: minmax(320px, 5fr) minmax(0, 7fr);',
   '@container overview (max-width: 1050px)',
   '@container overview (max-width: 580px)',
   'overflow-y: visible;',
+  '.overview-check-in-status {',
 ]);
-forbidAll(paths.overviewStyle, ['384px', 'overscroll-behavior: contain']);
+forbidAll(paths.overviewStyle, [
+  '384px',
+  'overscroll-behavior: contain',
+  '.overview-today-panel',
+  '.overview-alert-list',
+  '.overview-work-button',
+  '.overview-primary-grid',
+]);
+requireAll(paths.eventLogStyle, [
+  '.economic-event-log-panel {',
+  'grid-template-rows: auto minmax(0, 1fr);',
+  '.economic-event-log-list {',
+  'overflow-y: auto;',
+  '.economic-event-log-entry summary {',
+  '.economic-event-log-details {',
+]);
 
 requireAll(paths.polishStyle, [
-  '--overview-primary-card-height: 370px;',
   '--overview-summary-card-height: 330px;',
   '.overview-open-orders-list--scrollable {',
   'overflow-y: auto;',
@@ -161,26 +207,38 @@ requireAll(paths.sharedShell, [
   "sidebarCollapsed && 'sidebar-collapsed'",
   "'signed-in-shell'",
   "'sidebar-layout'",
+  'integratedPrimaryCard = false',
+  '<FrostedGlassSurface variant="workspaceCard" className="signed-in-shell__primary-card">',
 ]);
 requireAll(paths.sidebarFrame, [
-  'className="sidebar-logo-expand-button"',
+  'onMouseEnter={expand}',
+  'onMouseLeave={collapse}',
+  'onFocusCapture={expand}',
+  'onBlurCapture={handleBlur}',
+]);
+forbidAll(paths.sidebarFrame, [
+  'sidebar-logo-expand-button',
+  'sidebar-collapse-button',
   'aria-label="展开侧栏"',
-  'aria-expanded="false"',
   'aria-label="折叠侧栏"',
-  'aria-expanded="true"',
 ]);
 requireAll(paths.sidebarStyle, [
   '.sidebar-layout.sidebar-collapsed {',
   '--desktop-sidebar-collapsed-width: 78px;',
-  '.desktop-sidebar[data-collapsed="true"] .sidebar-logo-expand-button:hover',
-  '.desktop-sidebar[data-collapsed="true"] .sidebar-logo-expand-button:focus-visible',
+  '.desktop-sidebar[data-collapsed="true"] .sidebar-nav-button strong',
+  '.desktop-sidebar[data-collapsed="true"] .sidebar-footer-action strong',
   '.desktop-sidebar button:hover:not(:disabled)',
-  '@media (max-width: 960px)',
 ]);
+forbidAll(paths.sidebarStyle, ['sidebar-logo-expand-button', 'sidebar-collapse-button']);
 requireAll(paths.shellLayoutStyle, ['.signed-in-shell__body {', 'grid-template-columns:', 'var(--sidebar-column-width)']);
 requireAll(paths.strategicStyle, [
-  '.strategic-page-host--workspace > .page-content {',
-  'width: 100%;',
+  '--strategic-compact-page-width: 56rem;',
+  'calc(100vw / 3),',
+  '.game-shell .signed-in-shell__primary-card {',
+  '.strategic-page-host--building > .page-content {',
+  '.game-shell .signed-in-shell__primary-card .desktop-sidebar::after {',
+  '.strategic-economic-event-rail {',
+  'width: var(--strategic-event-rail-width);',
 ]);
 forbidAll(paths.strategicStyle, ['--strategic-inspector-width', '.strategic-province-inspector']);
 forbidAll(paths.sidebarStyle, ['right: -11px;']);
@@ -215,38 +273,46 @@ requireAll(paths.harness, [
   '<SettingsHarness />',
   "['activity', 'two-sided', 'many-orders'].includes(scenario)",
   "scenario === 'alerts'",
+  "scenario === 'tutorial' ? activeTutorial : completedTutorial",
   "import '../../src/styles/overview-polish.css';",
 ]);
 
 requireAll(paths.browserSpec, [
   'overview prioritizes business decisions and shows the weekly check-in calendar',
-  'overview spans the available desktop width without compressing cards into strips',
+  'public economic events stay compact until explicitly expanded',
+  'page title stays fixed while only the page card body scrolls',
+  'shell places the tutorial above the public event log in an independent right rail',
+  'overview uses a building-style panel beside the independent event rail',
   'overview check-in calendar distinguishes claimed, today, missed, and future days',
   'overview shows completed and partial-week attendance states',
   'overview check-in calendar preserves seven columns on mobile',
   'overview shows authoritative asset status and opens the bank page',
   'overview only scrolls the order list after the visible capacity is exceeded',
   'overview keeps the decision rows visible and adapts to a narrower desktop',
-  'desktop command rail expansion overlays the map without reflowing overview',
-  'midpointAnchors',
-  'expandButtonAfterHover',
+  'compact desktop keeps QQ group and settings footer actions visible',
+  'desktop command rail expansion overlays the integrated card without reflowing overview or event rail',
+  "page.locator('.strategic-economic-event-rail')",
+  "page.locator('.page-content .economic-event-log-panel')",
   "page.setViewportSize({ width: 1684, height: 931 })",
   "page.getByRole('list', { name: '本周签到日历' })",
+  "checkInHeading.getByRole('button', { name: '签到领取 1 宝石' })",
+  "page.getByText(/\\d+ \\/ 7 天/)).toHaveCount(0)",
   'scrollWidth > element.clientWidth + 1',
+  "getByRole('heading', { name: '今日经营', exact: true })).toHaveCount(0)",
+  "getByRole('dialog', { name: '通知' })",
 ]);
 
-requireAll(paths.pageDesign, ['概览是经营决策首页', '宽度比例为 `5:7`', '签到日历', '`1920×1080`', '`1440×900`', '经营成长线显示时']);
-requireAll(paths.uiDesign, ['## 10. 概览布局', '经营决策优先', '桌面按 `5:7` 分栏', '签到日历']);
+requireAll(paths.pageDesign, ['概览是经营决策首页', '屏幕右侧独立挂载单列日志', '签到日历', '`1920×1080`', '`1440×900`', '桌面经营成长线显示在外壳独立事件右栏顶部']);
+requireAll(paths.uiDesign, ['## 10. 概览布局', '经营决策优先', '页面外的屏幕右栏纵向滚动', '签到日历']);
 requireAll(paths.integrityDesign, [
-  '外层轨道唯一性',
-  '实际内容宽度响应式',
-  '概览不再挂载州经营检查器',
+  '概览使用参考大战略建筑页面的左侧毛玻璃业务面板',
+  '工作区右侧：StrategicWorkspaceChrome',
+  '`.strategic-economic-event-rail` 不得成为 `.page-content`',
   '签到日历',
   '资产与银行',
-  '服务器权威的可支配资产、冻结资产和贷款负债',
-  '不得同时显示下降箭头和负号',
+  '可支配资产、冻结资产和贷款负债',
   '`1684×931`',
-  'getBoundingClientRect()',
+  '侧栏悬浮展开不改变概览和右栏几何',
 ]);
 for (const path of [paths.pageDesign, paths.uiDesign, paths.integrityDesign]) forbidText(path, '统一为 `384px` 高');
 

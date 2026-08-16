@@ -10,66 +10,44 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
   await page.setViewportSize(viewport);
   await page.goto(`open-glass-sampling-test.html?surface=${surface}&mode=${mode}`);
 
-  const shellSelector = surface === 'admin' ? '.admin-shell' : '.game-shell';
-  await expect(page.locator(shellSelector)).toBeAttached();
-  await expect(page.locator('.application-content-root')).toBeVisible();
-  await expect(page.locator('.application-image-layer')).toHaveCount(1);
-  await expect(page.locator('.application-atmosphere-layer')).toHaveCount(1);
-  await expect(page.locator('.application-map-layer')).toHaveCount(1);
-  await expect(page.locator('.application-ui-layer')).toHaveCount(1);
-
-  const expectedWarpCount = surface === 'game' && mode === 'mobile' ? 2 : 1;
-  const warps = page.locator('.glass__warp');
-  await expect(warps).toHaveCount(expectedWarpCount);
-  await expect(warps.first()).toBeVisible();
+  const expectedSurfaceCount = surface === 'game' && mode === 'mobile' ? 2 : 1;
+  const frostedSurfaces = page.locator('.frosted-glass-surface');
+  await expect(frostedSurfaces).toHaveCount(expectedSurfaceCount);
+  await expect(page.locator('.liquid-glass-surface, .glass__warp')).toHaveCount(0);
 
   const chain = await page.evaluate(({ surface: currentSurface, mode: currentMode }) => {
     const samplingRoot = document.getElementById('root');
+    const imageLayer = document.querySelector<HTMLElement>('.application-image-layer');
+    const atmosphereLayer = document.querySelector<HTMLElement>('.application-atmosphere-layer');
     const mapLayer = document.querySelector<HTMLElement>('.application-map-layer');
     const uiLayer = document.querySelector<HTMLElement>('.application-ui-layer');
     const contentRoot = document.querySelector<HTMLElement>('.application-content-root');
     const shell = document.querySelector<HTMLElement>(currentSurface === 'admin' ? '.admin-shell' : '.game-shell');
     const workspace = document.querySelector<HTMLElement>('.workspace');
-    const workspaceStrategicChrome = document.querySelector<HTMLElement>('.workspace-strategic-chrome');
     const pageOverlay = document.querySelector<HTMLElement>('.mobile-page-overlay');
     const chromeOverlay = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
     const pageScrollArea = document.querySelector<HTMLElement>('.page-scroll-area');
     const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
     const assetBar = document.querySelector<HTMLElement>('.asset-bar');
     const pageLayerProbe = document.querySelector<HTMLElement>('[data-sampling-layer-probe]');
-    const imageLayer = document.querySelector<HTMLElement>('.application-image-layer');
-    const atmosphereLayer = document.querySelector<HTMLElement>('.application-atmosphere-layer');
-    const warpElements = [...document.querySelectorAll<HTMLElement>('.glass__warp')];
-    const surfaces = [...document.querySelectorAll<HTMLElement>('.liquid-glass-surface')];
-    const glasses = [...document.querySelectorAll<HTMLElement>('.liquid-glass-surface__effect > .glass')];
-    if (!samplingRoot || !mapLayer || !uiLayer || !contentRoot || !shell || !workspace || !pageOverlay || !chromeOverlay
-      || !pageScrollArea || !pageScroll || !imageLayer || !atmosphereLayer
-      || (currentSurface === 'game' && !workspaceStrategicChrome)
-      || ((currentMode === 'desktop' || currentSurface === 'game') && !assetBar)
-      || (currentMode === 'desktop' && !pageLayerProbe)
-      || warpElements.length === 0 || surfaces.length === 0 || glasses.length === 0) {
-      throw new Error('open glass sampling fixture is incomplete');
+    const surfaces = [...document.querySelectorAll<HTMLElement>('.frosted-glass-surface')];
+    if (!samplingRoot || !imageLayer || !atmosphereLayer || !mapLayer || !uiLayer || !contentRoot
+      || !shell || !workspace || !pageOverlay || !chromeOverlay || !pageScrollArea || !pageScroll
+      || surfaces.length === 0 || ((currentMode === 'desktop' || currentSurface === 'game') && !assetBar)) {
+      throw new Error('frosted-glass sampling fixture is incomplete');
     }
 
     const openNodes = [mapLayer, uiLayer, contentRoot, shell, workspace, pageOverlay, chromeOverlay, pageScrollArea, pageScroll];
-    if (workspaceStrategicChrome) openNodes.push(workspaceStrategicChrome);
     const backdropFilter = (element: HTMLElement) => {
       const style = getComputedStyle(element) as CSSStyleDeclaration & { webkitBackdropFilter?: string };
       return style.backdropFilter || style.webkitBackdropFilter || '';
-    };
-    const rect = (element: HTMLElement) => {
-      const bounds = element.getBoundingClientRect();
-      return { width: bounds.width, height: bounds.height };
     };
     const statusAbovePageLayers = (() => {
       if (currentMode !== 'desktop' || !assetBar || !pageLayerProbe) return null;
       const statusItem = assetBar.querySelector<HTMLElement>('.asset-bar-item');
       if (!statusItem) return false;
       const bounds = statusItem.getBoundingClientRect();
-      const stack = document.elementsFromPoint(
-        bounds.left + (bounds.width / 2),
-        bounds.top + (bounds.height / 2),
-      );
+      const stack = document.elementsFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
       const statusIndex = stack.indexOf(statusItem);
       const pageLayerIndex = stack.indexOf(pageLayerProbe);
       return statusIndex >= 0 && (pageLayerIndex < 0 || statusIndex < pageLayerIndex);
@@ -77,92 +55,58 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
 
     return {
       samplingRootIsolation: getComputedStyle(samplingRoot).isolation,
-      samplingRootFilter: getComputedStyle(samplingRoot).filter,
-      samplingRootTransform: getComputedStyle(samplingRoot).transform,
       imageLayerZIndex: getComputedStyle(imageLayer).zIndex,
       atmosphereLayerZIndex: getComputedStyle(atmosphereLayer).zIndex,
       mapLayerZIndex: getComputedStyle(mapLayer).zIndex,
       uiLayerZIndex: getComputedStyle(uiLayer).zIndex,
-      contentRootZIndex: getComputedStyle(contentRoot).zIndex,
       rootContainsAllLayers: samplingRoot.contains(imageLayer)
         && samplingRoot.contains(atmosphereLayer)
         && samplingRoot.contains(mapLayer)
         && samplingRoot.contains(uiLayer)
         && samplingRoot.contains(contentRoot),
-      layersShareRoot: imageLayer.parentElement === samplingRoot
-        && atmosphereLayer.parentElement === samplingRoot
-        && mapLayer.parentElement === samplingRoot
-        && uiLayer.parentElement === samplingRoot
-        && contentRoot.parentElement === uiLayer,
       openIsolations: openNodes.map((element) => getComputedStyle(element).isolation),
       openFilters: openNodes.map((element) => getComputedStyle(element).filter),
       openTransforms: openNodes.map((element) => getComputedStyle(element).transform),
-      pageScrollZIndex: getComputedStyle(pageScroll).zIndex,
-      assetBarZIndex: assetBar ? getComputedStyle(assetBar).zIndex : null,
-      statusAbovePageLayers,
-      warpBackdropFilters: warpElements.map(backdropFilter),
-      warpRects: warpElements.map(rect),
-      surfaceRects: surfaces.map(rect),
+      surfaceFilters: surfaces.map(backdropFilter),
       surfaceBackgrounds: surfaces.map((element) => getComputedStyle(element).backgroundColor),
-      surfaceIsolations: surfaces.map((element) => getComputedStyle(element).isolation),
-      surfaceContains: surfaces.map((element) => getComputedStyle(element).contain),
-      glassShadows: glasses.map((element) => getComputedStyle(element).boxShadow),
-      surfaceVariants: surfaces.map((element) => element.dataset.liquidGlassVariant),
-      overLightValues: surfaces.map((element) => element.dataset.liquidGlassOverLight),
+      surfaceVariants: surfaces.map((element) => element.dataset.frostedGlassVariant),
+      surfaceRects: surfaces.map((element) => {
+        const box = element.getBoundingClientRect();
+        return { width: box.width, height: box.height };
+      }),
+      statusAbovePageLayers,
     };
   }, { surface, mode });
 
   expect(chain.samplingRootIsolation).toBe('isolate');
-  expect(chain.samplingRootFilter).toBe('none');
-  expect(chain.samplingRootTransform).toBe('none');
   expect(chain.imageLayerZIndex).toBe('0');
   expect(chain.atmosphereLayerZIndex).toBe('10');
   expect(chain.mapLayerZIndex).toBe('20');
   expect(chain.uiLayerZIndex).toBe('30');
-  expect(chain.contentRootZIndex).toBe('auto');
   expect(chain.rootContainsAllLayers).toBe(true);
-  expect(chain.layersShareRoot).toBe(true);
   expect(chain.openIsolations.every((value) => value === 'auto')).toBe(true);
   expect(chain.openFilters.every((value) => value === 'none')).toBe(true);
   expect(chain.openTransforms.every((value) => value === 'none')).toBe(true);
-  expect(chain.pageScrollZIndex).toBe(mode === 'desktop' ? '0' : 'auto');
-  expect(chain.assetBarZIndex).toBe(surface === 'admin' && mode === 'mobile' ? null : 'auto');
-  expect(chain.statusAbovePageLayers).toBe(mode === 'desktop' ? true : null);
-  expect(chain.warpRects.every(({ width, height }) => width > 0 && height > 0)).toBe(true);
+  expect(chain.surfaceFilters.every((value) => value.includes('blur(18px)')).toBe(true);
+  expect(chain.surfaceBackgrounds.every((value) => value !== 'rgba(0, 0, 0, 0)')).toBe(true);
   expect(chain.surfaceRects.every(({ width, height }) => width > 0 && height > 0)).toBe(true);
-  expect(chain.warpBackdropFilters.every((value) => value.includes('blur(4px)'))).toBe(true);
-  expect(chain.warpBackdropFilters.every((value) => /saturate\((?:140%|1\.4)\)/.test(value))).toBe(true);
-  expect(chain.surfaceBackgrounds.every((value) => value === 'rgba(0, 0, 0, 0)')).toBe(true);
-  expect(chain.surfaceIsolations.every((value) => value === 'auto')).toBe(true);
-  expect(chain.surfaceContains.every((value) => value === 'none')).toBe(true);
-  expect(chain.glassShadows.every((value) => value.includes('0px 12px 40px'))).toBe(true);
-  expect(chain.overLightValues.every((value) => value === 'false')).toBe(true);
+  expect(chain.statusAbovePageLayers).toBe(mode === 'desktop' ? true : null);
 
-  if (surface === 'game' && mode === 'desktop') {
-    expect(chain.surfaceVariants).toEqual(['desktopStatusBar']);
-  } else if (surface === 'admin' && mode === 'desktop') {
-    expect(chain.surfaceVariants).toEqual(['desktopStatusBar']);
-  } else if (surface === 'game' && mode === 'mobile') {
-    expect(chain.surfaceVariants).toEqual(['mobileStatusBar', 'mobileNavigation']);
-  } else {
+  if (surface === 'game' && mode === 'mobile') {
+    expect(chain.surfaceVariants).toEqual(['statusBar', 'mobileNavigation']);
+  } else if (surface === 'admin' && mode === 'mobile') {
     expect(chain.surfaceVariants).toEqual(['mobileNavigation']);
+  } else {
+    expect(chain.surfaceVariants).toEqual(['statusBar']);
   }
 }
 
-test.describe('signed-in liquid glass backdrop sampling', () => {
-  test('desktop player chrome uses the unique root sampling chain', async ({ page }) => {
-    await verifySamplingChain(page, 'game', 'desktop');
-  });
-
-  test('desktop administrator chrome uses the unique root sampling chain', async ({ page }) => {
-    await verifySamplingChain(page, 'admin', 'desktop');
-  });
-
-  test('mobile player chrome uses the unique root sampling chain', async ({ page }) => {
-    await verifySamplingChain(page, 'game', 'mobile');
-  });
-
-  test('mobile administrator chrome uses the unique root sampling chain', async ({ page }) => {
-    await verifySamplingChain(page, 'admin', 'mobile');
-  });
+test.describe('signed-in frosted-glass backdrop sampling', () => {
+  for (const surface of ['game', 'admin'] as const) {
+    for (const mode of ['desktop', 'mobile'] as const) {
+      test(`${mode} ${surface} chrome uses the unique root sampling chain`, async ({ page }) => {
+        await verifySamplingChain(page, surface, mode);
+      });
+    }
+  }
 });

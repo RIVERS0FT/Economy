@@ -66,6 +66,9 @@ for (const text of [
   "classNames('ui-switch', className)",
   '<SwitchControl aria-label={label}',
 ]) requireText('src/components/ui/layout.tsx', text);
+forbidText('src/components/ui/layout.tsx', '<p>{description}</p>');
+requireText('docs/UI_DESIGN_SYSTEM.md', '不得渲染标题下方说明段落');
+requireText(mobileNavigationStylePath, 'justify-content: safe center;');
 
 requireText(productionDetailPath, '<SwitchControl');
 requireText('src/pages/SettingsPage.tsx', '<ToggleField');
@@ -153,7 +156,8 @@ for (const text of [
 for (const text of [
   "import { NavigationIcon } from '../icons/GameIcons'",
   '<NavigationIcon name={id} />',
-  'navigationItems.map(({ id, label })',
+  'navigationItems.filter(({ id }) => !excludedTabs.includes(id)).map(({ id, label })',
+  'excludedTabs?: readonly TabId[];',
 ]) {
   if (!navigationItems.includes(text)) failures.push(`${navigationItemsPath} 缺少: ${text}`);
 }
@@ -212,10 +216,12 @@ for (const legacyOpacity of [
 for (const text of [
   "from '../components/icons/FacilityIcons'",
   "from '../components/icons/GameIcons'",
+  "from '../components/products/ProductArtwork'",
   'FacilityIcon',
   'FactoryIcon',
-  '<FacilityIcon facilityTypeId={facility.id} />',
-  '<FactoryIcon className="market-asset-card__name-icon" />',
+  '<ProductArtwork productId={entry.id} />',
+  '<FacilityIcon facilityTypeId={entry.id} />',
+  '<FacilityIcon facilityTypeId={selectedFacility.id} />',
 ]) requireText(marketPagePath, text);
 for (const forbidden of ['>⚙</span>', '<ProductIcon productId="machinery" />']) {
   if (marketPage.includes(forbidden)) failures.push(`市场工厂标签不得使用机械或字符图标: ${forbidden}`);

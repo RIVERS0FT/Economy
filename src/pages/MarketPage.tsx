@@ -2,7 +2,6 @@ import {
   forwardRef,
   memo,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -13,11 +12,11 @@ import { getClientOrderIndex, openOrdersForAsset } from '../app/clientOrderIndex
 import { orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
-import { FactoryIcon, WarehouseIcon } from '../components/icons/GameIcons';
+import { FactoryIcon } from '../components/icons/GameIcons';
 import { ProductIcon, ProductIconLabel } from '../components/icons/ProductIcons';
-import { ProvinceSelect } from '../components/provinces/ProvinceSelect';
+import { ProductArtwork } from '../components/products/ProductArtwork';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
-import { IntegerInput, MoneyInput } from '../components/ui/FormControls';
+import { IntegerInput, MoneyInput, SelectInput, TextInput } from '../components/ui/FormControls';
 import {
   Button,
   PageLayout,
@@ -27,10 +26,9 @@ import {
   type StatusTone,
   WidgetHeading,
 } from '../components/ui/layout';
-import { ScrollArea } from '../components/ui/ScrollArea';
 import { VirtualRecordTable } from '../components/ui/VirtualRecordTable';
 import { economyConstants, openOrderLimitForCatalog } from '../config/economy';
-import type { AssetKind, AssetOrder, OrderSide } from '../types';
+import type { AssetKind, AssetOrder, OrderSide, ProductCategory } from '../types';
 import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
 import { parseMoneyDraft } from '../utils/moneyDraft';
@@ -50,6 +48,46 @@ function orderTone(status: AssetOrder['status']): StatusTone {
 function localTradeAssetName(trade: { description: string; side: 'buy' | 'sell' }) {
   const historicalPrefix = trade.side === 'buy' ? '买入' : '卖出';
   return trade.description.replace(new RegExp(`^${historicalPrefix}\\s+`), '').trim() || '资产';
+}
+
+type MarketCatalogStatus = 'all' | 'traded' | 'buy' | 'sell' | 'owned' | 'own-order';
+type MarketCatalogSort = 'catalog' | 'name' | 'price' | 'trend' | 'inventory';
+
+const PRODUCT_CATEGORY_LABELS: Record<ProductCategory, string> = {
+  raw: '原材料',
+  intermediate: '中间品',
+  consumer: '消费品',
+  industrial: '工业品',
+};
+
+const FACILITY_CATEGORY_LABELS = {
+  raw: '原料产业',
+  processing: '加工产业',
+  consumer: '消费产业',
+  industrial: '工业产业',
+} as const;
+
+interface MarketCatalogEntry {
+  kind: AssetKind;
+  id: string;
+  name: string;
+  category: string;
+  categoryLabel: string;
+  lastTradePrice?: number;
+  trend: number;
+  bestBid?: number;
+  bestAsk?: number;
+  availableQuantity: number;
+  ownOrderCount: number;
+}
+
+function trendForMarket(
+  history: Parameters<typeof buildMarketHistoryBuckets>[0],
+  fallbackPrice: number,
+  now: number,
+) {
+  const buckets = buildMarketHistoryBuckets(history, fallbackPrice, now);
+  return buckets.length > 1 ? buckets[buckets.length - 1].price - buckets[0].price : 0;
 }
 
 interface MarketOrderEntryHandle {
@@ -314,6 +352,8 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     localTrades,
     marketAssetKind,
     marketAssetId,
+    marketViewMode,
+    showMarketCatalog,
     selectMarketAsset,
     orderSide,
     selectOrderSide,
@@ -325,9 +365,13 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     showResult,
   } = model;
   const now = game.lastProcessedAt;
-  const assetDirectoryRef = useRef<HTMLDivElement>(null);
   const orderEntryRef = useRef<MarketOrderEntryHandle>(null);
   const [mobileAccountView, setMobileAccountView] = useState<'orders' | 'trades'>('orders');
+  const [catalogKind, setCatalogKind] = useState<AssetKind>('commodity');
+  const [catalogQuery, setCatalogQuery] = useState('');
+  const [catalogCategory, setCatalogCategory] = useState('all');
+  const [catalogStatus, setCatalogStatus] = useState<MarketCatalogStatus>('all');
+  const [catalogSort, setCatalogSort] = useState<MarketCatalogSort>('catalog');
 
   const productById = useMemo(
     () => new Map(game.products.map((product) => [product.id, product])),
@@ -369,6 +413,13 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     () => selectedOrders.filter((order) => order.isOwn),
     [selectedOrders],
   );
+  const selectedLocalTrades = useMemo(
+    () => localTrades.filter((trade) => (
+      trade.type === marketAssetKind
+      && (marketAssetKind === 'commodity' ? trade.productId : trade.facilityTypeId) === assetId
+    )),
+    [assetId, localTrades, marketAssetKind],
+  );
   const ownOpenOrders = orderIndex.ownOpenOrders;
   const maxOpenOrders = openOrderLimitForCatalog(game.products.length, game.facilityTypes.length);
   const bestAsks = useMemo(
@@ -401,10 +452,79 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     ? selectedInventory.available
     : selectedGroup?.availableCount ?? 0;
 
-  useEffect(() => {
-    const active = assetDirectoryRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
-    active?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [assetId, marketAssetKind]);
+  const catalogEntries = useMemo(() => {
+    const entries: MarketCatalogEntry[] = catalogKind === 'commodity'
+      ? game.products.map((product) => {
+          const market = game.markets[product.id];
+          const orders = openOrdersForAsset(orderIndex, 'commodity', product.id);
+          const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
+          const fallbackPrice = market?.lastPrice ?? product.basePrice ?? 1;
+          return {
+            kind: 'commodity',
+            id: product.id,
+            name: product.name,
+            category: product.category,
+            categoryLabel: PRODUCT_CATEGORY_LABELS[product.category],
+            lastTradePrice: typeof market?.lastTradePrice === 'number' ? market.lastTradePrice : undefined,
+            trend: trendForMarket(market?.priceHistory ?? [], fallbackPrice, now),
+            bestBid: buildOrderBookLevels(orders, 'buy')[0]?.price,
+            bestAsk: buildOrderBookLevels(orders, 'sell')[0]?.price,
+            availableQuantity: inventory.available,
+            ownOrderCount: orders.filter((order) => order.isOwn).length,
+          };
+        })
+      : game.facilityTypes.map((facility) => {
+          const market = game.facilityMarkets[facility.id];
+          const orders = openOrdersForAsset(orderIndex, 'facility', facility.id);
+          const group = facilityGroupByTypeId.get(facility.id);
+          const fallbackPrice = market?.lastPrice ?? facility.systemValue ?? 1;
+          return {
+            kind: 'facility',
+            id: facility.id,
+            name: facility.name,
+            category: facility.category,
+            categoryLabel: FACILITY_CATEGORY_LABELS[facility.category],
+            lastTradePrice: typeof market?.lastTradePrice === 'number' ? market.lastTradePrice : undefined,
+            trend: trendForMarket(market?.priceHistory ?? [], fallbackPrice, now),
+            bestBid: buildOrderBookLevels(orders, 'buy')[0]?.price,
+            bestAsk: buildOrderBookLevels(orders, 'sell')[0]?.price,
+            availableQuantity: group?.availableCount ?? 0,
+            ownOrderCount: orders.filter((order) => order.isOwn).length,
+          };
+        });
+    const query = catalogQuery.trim().toLocaleLowerCase('zh-CN');
+    const filtered = entries.filter((entry) => {
+      if (query && !entry.name.toLocaleLowerCase('zh-CN').includes(query)) return false;
+      if (catalogCategory !== 'all' && entry.category !== catalogCategory) return false;
+      if (catalogStatus === 'traded' && typeof entry.lastTradePrice !== 'number') return false;
+      if (catalogStatus === 'buy' && typeof entry.bestBid !== 'number') return false;
+      if (catalogStatus === 'sell' && typeof entry.bestAsk !== 'number') return false;
+      if (catalogStatus === 'owned' && entry.availableQuantity <= 0) return false;
+      if (catalogStatus === 'own-order' && entry.ownOrderCount <= 0) return false;
+      return true;
+    });
+    return filtered.sort((left, right) => {
+      if (catalogSort === 'name') return left.name.localeCompare(right.name, 'zh-CN');
+      if (catalogSort === 'price') return (right.lastTradePrice ?? -Infinity) - (left.lastTradePrice ?? -Infinity);
+      if (catalogSort === 'trend') return right.trend - left.trend;
+      if (catalogSort === 'inventory') return right.availableQuantity - left.availableQuantity;
+      return 0;
+    });
+  }, [
+    catalogCategory,
+    catalogKind,
+    catalogQuery,
+    catalogSort,
+    catalogStatus,
+    facilityGroupByTypeId,
+    game.facilityMarkets,
+    game.facilityTypes,
+    game.inventories,
+    game.markets,
+    game.products,
+    now,
+    orderIndex,
+  ]);
 
   function fillOrderPrice(price: number) {
     orderEntryRef.current?.fillPrice(price);
@@ -432,124 +552,180 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     } as CSSProperties;
   }
 
-  function scrollAssetDirectory(direction: -1 | 1) {
-    const directory = assetDirectoryRef.current;
-    if (!directory) return;
-    directory.scrollBy({ left: direction * directory.clientWidth * 0.82, behavior: 'smooth' });
+  function changeCatalogKind(kind: AssetKind) {
+    setCatalogKind(kind);
+    setCatalogCategory('all');
+  }
+
+  function resetCatalogFilters() {
+    setCatalogQuery('');
+    setCatalogCategory('all');
+    setCatalogStatus('all');
+    setCatalogSort('catalog');
+  }
+
+  function returnToCatalog() {
+    if (catalogKind !== marketAssetKind) {
+      setCatalogKind(marketAssetKind);
+      setCatalogCategory('all');
+    }
+    showMarketCatalog();
+  }
+
+  const provinceName = model.selectedProvince?.name || '加利福尼亚州';
+  const catalogCategoryOptions = catalogKind === 'commodity'
+    ? Object.entries(PRODUCT_CATEGORY_LABELS)
+    : Object.entries(FACILITY_CATEGORY_LABELS);
+
+  if (marketViewMode === 'catalog') {
+    return (
+      <PageLayout title={`${provinceName}本地市场`}>
+        <div className="market-page-surface market-catalog-surface">
+          <Panel className="widget market-catalog-panel">
+            <div className="market-catalog-kind ui-segmented" role="group" aria-label="市场资产类型">
+              <Button
+                variant="text"
+                className={catalogKind === 'commodity' ? 'ui-segmented__button active' : 'ui-segmented__button'}
+                aria-pressed={catalogKind === 'commodity'}
+                onClick={() => changeCatalogKind('commodity')}
+              >商品</Button>
+              <Button
+                variant="text"
+                className={catalogKind === 'facility' ? 'ui-segmented__button active' : 'ui-segmented__button'}
+                aria-pressed={catalogKind === 'facility'}
+                onClick={() => changeCatalogKind('facility')}
+              >工厂</Button>
+            </div>
+            <div className="market-catalog-filters" aria-label="市场列表筛选">
+              <TextInput
+                label="搜索"
+                type="search"
+                value={catalogQuery}
+                placeholder={catalogKind === 'commodity' ? '搜索商品' : '搜索工厂'}
+                onChange={(event) => setCatalogQuery(event.currentTarget.value)}
+              />
+              <SelectInput
+                label="分类"
+                value={catalogCategory}
+                onChange={(event) => setCatalogCategory(event.currentTarget.value)}
+              >
+                <option value="all">全部分类</option>
+                {catalogCategoryOptions.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </SelectInput>
+              <SelectInput
+                label="市场状态"
+                value={catalogStatus}
+                onChange={(event) => setCatalogStatus(event.currentTarget.value as MarketCatalogStatus)}
+              >
+                <option value="all">全部状态</option>
+                <option value="traded">有真实成交</option>
+                <option value="buy">有买盘</option>
+                <option value="sell">有卖盘</option>
+                <option value="owned">我有可用资产</option>
+                <option value="own-order">有我的订单</option>
+              </SelectInput>
+              <SelectInput
+                label="排序"
+                value={catalogSort}
+                onChange={(event) => setCatalogSort(event.currentTarget.value as MarketCatalogSort)}
+              >
+                <option value="catalog">目录顺序</option>
+                <option value="name">名称</option>
+                <option value="price">最近成交价</option>
+                <option value="trend">24h 变化</option>
+                <option value="inventory">可用数量</option>
+              </SelectInput>
+            </div>
+            <ul className="market-catalog-list" aria-label={catalogKind === 'commodity' ? '商品列表' : '工厂资产列表'}>
+              {catalogEntries.map((entry) => {
+                const entryTrendTone: StatusTone = entry.trend > 0 ? 'success' : entry.trend < 0 ? 'danger' : 'neutral';
+                return (
+                  <li className="market-catalog-item" key={`${entry.kind}:${entry.id}`}>
+                    <button
+                      type="button"
+                      className="market-catalog-row"
+                      data-ui-interactive="surface"
+                      aria-label={`查看${entry.name}详情`}
+                      onClick={() => selectMarketAsset(entry.kind, entry.id)}
+                    >
+                      <span className="market-catalog-row__identity">
+                        <span className="market-catalog-row__artwork" aria-hidden="true">
+                          {entry.kind === 'commodity'
+                            ? <ProductArtwork productId={entry.id} />
+                            : <FacilityIcon facilityTypeId={entry.id} />}
+                        </span>
+                        <span className="market-catalog-row__name">
+                          <strong>{entry.name}</strong>
+                          {entry.kind === 'facility' ? <small>{entry.categoryLabel}</small> : null}
+                        </span>
+                      </span>
+                      <span className="market-catalog-row__metric">
+                        <small>最近成交</small>
+                        <strong><CurrencyAmount>{typeof entry.lastTradePrice === 'number' ? formatCurrency(entry.lastTradePrice) : '—'}</CurrencyAmount></strong>
+                      </span>
+                      <span className="market-catalog-row__metric">
+                        <small>24h 变化</small>
+                        <StatusTag tone={entryTrendTone}>
+                          <CurrencyAmount sign={entry.trend > 0 ? '+' : undefined}>{formatCurrency(entry.trend)}</CurrencyAmount>
+                        </StatusTag>
+                      </span>
+                      <span className="market-catalog-row__book">
+                        <span><small>买一</small><strong><CurrencyAmount>{typeof entry.bestBid === 'number' ? formatCurrency(entry.bestBid) : '—'}</CurrencyAmount></strong></span>
+                        <span><small>卖一</small><strong><CurrencyAmount>{typeof entry.bestAsk === 'number' ? formatCurrency(entry.bestAsk) : '—'}</CurrencyAmount></strong></span>
+                      </span>
+                      <span className="market-catalog-row__metric market-catalog-row__holding">
+                        <small>{entry.kind === 'commodity' ? '可用库存' : '可出售'}</small>
+                        <strong>{formatNumber(entry.availableQuantity)}</strong>
+                      </span>
+                      <span className="market-catalog-row__orders">
+                        <small>我的订单</small>
+                        <StatusTag tone={entry.ownOrderCount > 0 ? 'info' : 'neutral'}>{formatNumber(entry.ownOrderCount)}</StatusTag>
+                      </span>
+                      <span className="market-catalog-row__chevron" aria-hidden="true">›</span>
+                    </button>
+                  </li>
+                );
+              })}
+              {catalogEntries.length === 0 ? (
+                <li className="market-catalog-empty">
+                  <p>没有符合当前筛选条件的{catalogKind === 'commodity' ? '商品' : '工厂'}。</p>
+                  <Button variant="secondary" onClick={resetCatalogFilters}>清除筛选</Button>
+                </li>
+              ) : null}
+            </ul>
+          </Panel>
+        </div>
+      </PageLayout>
+    );
   }
 
   return (
     <PageLayout
-      title={`${model.selectedProvince?.name || '加利福尼亚州'}本地市场`}
-      description="商品与工厂只和当前州级地区的订单撮合，继续使用价格优先和时间优先规则。"
-      actions={(
-        <ProvinceSelect
-          provinces={game.provinces}
-          value={model.selectedProvinceId}
-          onChange={model.setSelectedProvinceId}
-        />
-      )}
+      title={`${provinceName} · ${assetName}`}
+      backAction={{
+        label: marketAssetKind === 'commodity' ? '返回商品列表' : '返回工厂资产列表',
+        onClick: returnToCatalog,
+      }}
     >
-      <div className="market-page-surface">
-        <div className="asset-directory-shell">
-          <Button
-            variant="compact"
-            className="asset-directory-control asset-directory-control--previous"
-            aria-label="向前浏览资产"
-            onClick={() => scrollAssetDirectory(-1)}
-          >‹</Button>
-          <ScrollArea
-            axis="x"
-            className="asset-directory-scroll-area"
-            viewportRef={assetDirectoryRef}
-            viewportClassName="unified-asset-tabs"
-            viewportRole="tablist"
-            viewportAriaLabel="选择交易资产"
-            scrollbarVisibility="adaptive"
-          >
-            <span className="asset-directory-divider" role="presentation" aria-hidden="true">商品</span>
-            {game.products.map((product) => {
-              const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
-              const active = marketAssetKind === 'commodity' && product.id === assetId;
-              const lastTradePrice = game.markets[product.id]?.lastTradePrice;
-              const hasLastTradePrice = typeof lastTradePrice === 'number';
-              const priceLabel = hasLastTradePrice ? formatCurrency(lastTradePrice) : '暂无成交';
-              return (
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  aria-label={`${product.name}，最近成交价 ${priceLabel}，可用库存 ${formatNumber(inventory.available)}${active ? '，当前选择' : ''}`}
-                  className={active ? 'unified-asset-tab active' : 'unified-asset-tab'}
-                  key={`commodity-${product.id}`}
-                  onClick={() => selectMarketAsset('commodity', product.id)}
-                >
-                  <span className="market-asset-card__icon-layer" aria-hidden="true">
-                    <ProductIcon productId={product.id} />
-                  </span>
-                  <span className="market-asset-card__data-layer" aria-hidden="true">
-                    <strong className="market-asset-card__name">
-                      <ProductIcon productId={product.id} className="market-asset-card__name-icon" />
-                      <span>{product.name}</span>
-                    </strong>
-                    <span className="market-asset-card__price" title={`最近成交价：${priceLabel}`}>
-                      <CurrencyAmount>{hasLastTradePrice ? formatCurrency(lastTradePrice) : '—'}</CurrencyAmount>
-                    </span>
-                    {active ? <span className="market-asset-card__current">当前</span> : null}
-                    <span className="market-asset-card__inventory" title={`可用库存：${formatNumber(inventory.available)}`}>
-                      <WarehouseIcon />
-                      <span>{formatNumber(inventory.available)}</span>
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-            <span className="asset-directory-divider asset-directory-divider--facility" role="presentation" aria-hidden="true">工厂</span>
-            {game.facilityTypes.map((facility) => {
-              const group = facilityGroupByTypeId.get(facility.id);
-              const active = marketAssetKind === 'facility' && facility.id === assetId;
-              const lastTradePrice = game.facilityMarkets[facility.id]?.lastTradePrice;
-              const hasLastTradePrice = typeof lastTradePrice === 'number';
-              const priceLabel = hasLastTradePrice ? formatCurrency(lastTradePrice) : '暂无成交';
-              return (
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  aria-label={`${facility.name}，最近成交价 ${priceLabel}，持有 ${formatNumber(group?.count ?? 0)}${active ? '，当前选择' : ''}`}
-                  className={active ? 'unified-asset-tab facility active' : 'unified-asset-tab facility'}
-                  key={`facility-${facility.id}`}
-                  onClick={() => selectMarketAsset('facility', facility.id)}
-                >
-                  <span className="market-asset-card__icon-layer" aria-hidden="true">
-                    <FacilityIcon facilityTypeId={facility.id} />
-                  </span>
-                  <span className="market-asset-card__data-layer" aria-hidden="true">
-                    <strong className="market-asset-card__name">
-                      <FactoryIcon className="market-asset-card__name-icon" />
-                      <span>{facility.name}</span>
-                    </strong>
-                    <span className="market-asset-card__price" title={`最近成交价：${priceLabel}`}>
-                      <CurrencyAmount>{hasLastTradePrice ? formatCurrency(lastTradePrice) : '—'}</CurrencyAmount>
-                    </span>
-                    {active ? <span className="market-asset-card__current">当前</span> : null}
-                    <span className="market-asset-card__inventory" title={`持有数量：${formatNumber(group?.count ?? 0)}`}>
-                      <FactoryIcon />
-                      <span>{formatNumber(group?.count ?? 0)}</span>
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </ScrollArea>
-          <Button
-            variant="compact"
-            className="asset-directory-control asset-directory-control--next"
-            aria-label="向后浏览资产"
-            onClick={() => scrollAssetDirectory(1)}
-          >›</Button>
-        </div>
-
+      <div className="market-page-surface market-detail-surface">
+        <Panel className="widget market-detail-hero">
+          <span className="market-detail-hero__artwork" aria-hidden="true">
+            {selectedProduct
+              ? <ProductArtwork productId={selectedProduct.id} />
+              : selectedFacility ? <FacilityIcon facilityTypeId={selectedFacility.id} /> : <FactoryIcon />}
+          </span>
+          <span className="market-detail-hero__identity">
+            <strong>{assetName}</strong>
+            <small>{selectedProduct
+              ? PRODUCT_CATEGORY_LABELS[selectedProduct.category]
+              : selectedFacility ? FACILITY_CATEGORY_LABELS[selectedFacility.category] : '市场资产'}</small>
+          </span>
+          <span><small>可用</small><strong>{formatNumber(availableAssetQuantity)}</strong></span>
+          <span><small>冻结</small><strong>{formatNumber(selectedProduct ? selectedInventory.frozen : selectedGroup?.frozenCount ?? 0)}</strong></span>
+          <span><small>已有订单</small><strong>{formatNumber(ownSelectedOrders.length)}</strong></span>
+        </Panel>
         <div className="market-grid unified-market-grid">
           <Panel className="widget market-trade-card">
             <WidgetHeading
@@ -639,21 +815,6 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               </section>
             </div>
 
-            {ownSelectedOrders.length > 0 ? (
-              <div className="inline-order-list market-trade-orders" aria-label={`我的${assetName}未完成订单`}>
-                <h3>当前资产未完成订单</h3>
-                {ownSelectedOrders.map((order) => (
-                  <div key={order.id}>
-                    <span>
-                      <StatusTag tone={order.side === 'buy' ? 'success' : 'danger'}>{order.side === 'buy' ? '买入' : '卖出'}</StatusTag>
-                      <strong><CurrencyAmount>{formatCurrency(order.price)}</CurrencyAmount></strong>
-                      <small>{formatNumber(order.remaining)}/{formatNumber(order.quantity)}</small>
-                    </span>
-                    <Button variant="compact" onClick={() => void showResult(cancelOrder(order.id))}>撤单</Button>
-                  </div>
-                ))}
-              </div>
-            ) : null}
           </Panel>
 
           <Panel className="widget market-chart-card">
@@ -669,7 +830,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
           </Panel>
 
           <Panel className="widget span-3 market-account-panel">
-            <WidgetHeading title="我的订单与成交" action={<StatusTag>{formatNumber(ownOpenOrders.length)}/{formatNumber(maxOpenOrders)} 笔未完成</StatusTag>} />
+            <WidgetHeading title={`我的${assetName}订单与成交`} action={<StatusTag>{formatNumber(ownSelectedOrders.length)} 笔未完成</StatusTag>} />
             <div className="market-account-view-switch ui-segmented" role="group" aria-label="我的订单与成交视图">
               <Button
                 variant="text"
@@ -686,7 +847,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             </div>
             <div className="market-account-grid">
               <section className={mobileAccountView === 'orders' ? 'market-account-pane--active' : ''}>
-                <h3>未完成订单</h3>
+                <h3>已有订单</h3>
                 <ScrollableTable className="own-open-orders-table-wrap">
                   <table className="own-open-orders-table">
                     <thead>
@@ -701,7 +862,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {ownOpenOrders.map((order) => (
+                      {ownSelectedOrders.map((order) => (
                         <tr key={order.id}>
                           <td><strong>{assetLabel(order)}</strong></td>
                           <td className="order-side-cell"><StatusTag tone={order.side === 'buy' ? 'success' : 'danger'}>{order.side === 'buy' ? '买入' : '卖出'}</StatusTag></td>
@@ -712,7 +873,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                           <td className="order-action-cell"><Button variant="compact" onClick={() => void showResult(cancelOrder(order.id))}>撤单</Button></td>
                         </tr>
                       ))}
-                      {ownOpenOrders.length === 0 ? <tr><td colSpan={7} className="empty-cell">暂无未完成订单。</td></tr> : null}
+                      {ownSelectedOrders.length === 0 ? <tr><td colSpan={7} className="empty-cell">当前资产暂无未完成订单。</td></tr> : null}
                     </tbody>
                   </table>
                 </ScrollableTable>
@@ -720,12 +881,12 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
               <section className={`local-trades-section${mobileAccountView === 'trades' ? ' market-account-pane--active' : ''}`}>
                 <div className="local-trades-heading">
-                  <h3>本地成交记录</h3>
-                  <Button variant="compact" onClick={clearLocalTrades} disabled={localTrades.length === 0}>清除本地成交</Button>
+                  <h3>本地成交</h3>
+                  <Button variant="compact" onClick={clearLocalTrades} disabled={localTrades.length === 0}>清除全部本地成交</Button>
                 </div>
-                {localTrades.length === 0 ? <p className="muted">当前浏览器暂无成交记录。</p> : (
+                {selectedLocalTrades.length === 0 ? <p className="muted">当前浏览器暂无该资产成交记录。</p> : (
                   <VirtualRecordTable
-                    items={localTrades}
+                    items={selectedLocalTrades}
                     getKey={localTradeKey}
                     estimateSize={54}
                     viewportHeight={520}
@@ -734,7 +895,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                     gap={0}
                     className="local-trades-scroll-area"
                     tableClassName="local-trades-virtual-table"
-                    ariaLabel="本地成交记录"
+                    ariaLabel={`${assetName}本地成交`}
                     header={(
                       <>
                         <span role="columnheader">资产</span>

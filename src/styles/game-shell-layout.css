@@ -139,7 +139,7 @@
   }
 
   .signed-in-shell .page-heading {
-    padding: var(--space-3) var(--space-4) var(--space-4);
+    padding: var(--layout-gutter);
   }
 
   .workspace-floating-layer {

@@ -19,6 +19,11 @@ export interface EconomyChartClickEvent {
   data?: unknown;
 }
 
+export interface EconomyChartDoubleClickEvent {
+  target?: unknown;
+  topTarget?: unknown;
+}
+
 export interface EconomyChartSize {
   width: number;
   height: number;
@@ -54,6 +59,7 @@ export function EconomyChart({
   onOptionApplied,
   onResize,
   onClick,
+  onDoubleClick,
 }: {
   option: EChartsCoreOption;
   ariaLabel: string;
@@ -66,6 +72,7 @@ export function EconomyChart({
   onOptionApplied?: (chart: EChartsType) => void;
   onResize?: (chart: EChartsType, size: EconomyChartSize) => void;
   onClick?: (event: EconomyChartClickEvent) => void;
+  onDoubleClick?: (event: EconomyChartDoubleClickEvent, chart: EChartsType) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<EChartsType | null>(null);
@@ -78,6 +85,7 @@ export function EconomyChart({
   const onOptionAppliedRef = useRef(onOptionApplied);
   const onResizeRef = useRef(onResize);
   const onClickRef = useRef(onClick);
+  const onDoubleClickRef = useRef(onDoubleClick);
   const [ready, setReady] = useState(false);
 
   updateModeRef.current = updateMode;
@@ -85,6 +93,7 @@ export function EconomyChart({
   onOptionAppliedRef.current = onOptionApplied;
   onResizeRef.current = onResize;
   onClickRef.current = onClick;
+  onDoubleClickRef.current = onDoubleClick;
 
   useLayoutEffect(() => {
     optionRef.current = option;
@@ -119,7 +128,11 @@ export function EconomyChart({
     const handleClick = (event: unknown) => {
       onClickRef.current?.(event as EconomyChartClickEvent);
     };
+    const handleDoubleClick = (event: unknown) => {
+      onDoubleClickRef.current?.(event as EconomyChartDoubleClickEvent, chart);
+    };
     chart.on('click', handleClick);
+    chart.getZr().on('dblclick', handleDoubleClick);
     const applyCurrentOption = () => {
       if (!hasRenderableSize(container)) return false;
       applyChartOption(chart, container, optionRef.current, updateModeRef.current, false);
@@ -160,6 +173,7 @@ export function EconomyChart({
       window.removeEventListener('resize', scheduleResize);
       if (resizeFrameRef.current !== null) cancelAnimationFrame(resizeFrameRef.current);
       chart.off('click', handleClick);
+      chart.getZr().off('dblclick', handleDoubleClick);
       chart.dispose();
       chartRef.current = null;
       optionAppliedRef.current = false;

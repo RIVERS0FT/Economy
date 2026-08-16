@@ -178,7 +178,7 @@ html[data-app-surface="auth"] body::before {
   box-shadow: none;
 }
 
-.login-card .liquid-glass-surface__content {
+.login-card .frosted-glass-surface__content {
   display: block;
   padding: var(--space-8);
 }
@@ -320,7 +320,7 @@ html[data-app-surface="auth"] body::before {
     border-radius: var(--radius-card-mobile);
   }
 
-  .login-card .liquid-glass-surface__content {
+  .login-card .frosted-glass-surface__content {
     padding: var(--space-5);
   }
 

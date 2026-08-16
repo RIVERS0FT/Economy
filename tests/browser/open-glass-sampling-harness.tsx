@@ -5,13 +5,13 @@ import {
   ApplicationLayerRoot,
   ApplicationMapLayerPortal,
 } from '../../src/components/visual/ApplicationLayerRoot';
-import { LiquidGlassSurface } from '../../src/components/ui/LiquidGlassSurface';
+import { FrostedGlassSurface } from '../../src/components/ui/FrostedGlassSurface';
 import { ScrollArea } from '../../src/components/ui/ScrollArea';
 import '../../src/styles/globals.css';
 import '../../src/styles/desktop-sidebar.css';
 import '../../src/styles/viewport.css';
 import '../../src/styles/card-system.css';
-import '../../src/styles/liquid-glass-chrome.css';
+import '../../src/styles/frosted-glass-chrome.css';
 import '../../src/styles/mobile-status-navigation.css';
 import '../../src/styles/mobile-status-layout.css';
 import '../../src/styles/admin-navigation.css';
@@ -52,12 +52,9 @@ function StatusChrome() {
   if (isAdmin && isMobile) return null;
   return (
     <header className={`asset-bar${isAdmin ? ' admin-command-bar' : ''}`}>
-      <LiquidGlassSurface
-        variant={isMobile ? 'mobileStatusBar' : 'desktopStatusBar'}
-        layout="fixed"
-      >
+      <FrostedGlassSurface variant="statusBar" layout="fixed">
         <StatusContent admin={isAdmin} />
-      </LiquidGlassSurface>
+      </FrostedGlassSurface>
     </header>
   );
 }
@@ -69,7 +66,7 @@ function MobileNavigation() {
       className={`mobile-bottom-navigation${isAdmin ? ' admin-mobile-bottom-navigation' : ''}`}
       aria-label={isAdmin ? '管理员移动导航' : '玩家移动导航'}
     >
-      <LiquidGlassSurface variant="mobileNavigation" layout="fixed">
+      <FrostedGlassSurface variant="mobileNavigation" layout="fixed">
         <nav className="mobile-bottom-navigation__viewport" aria-label={isAdmin ? '管理员移动导航' : '玩家移动导航'}>
           {['概览', '市场', '生产', '合同', '设置'].map((label, index) => (
             <button className={`sidebar-nav-button${index === 0 ? ' active' : ''}`} type="button" key={label}>
@@ -78,7 +75,7 @@ function MobileNavigation() {
             </button>
           ))}
         </nav>
-      </LiquidGlassSurface>
+      </FrostedGlassSurface>
     </aside>
   );
 }
@@ -117,7 +114,7 @@ function SamplingPage() {
       ) : null}
       <section className="panel" style={{ minHeight: '280px', padding: '24px' }}>
         <h1>{isAdmin ? '管理员采样界面' : '玩家采样界面'}</h1>
-        <p>高对比页面图案用于确认液态玻璃能够采样根级摄影、氛围与滚动内容。</p>
+        <p>高对比页面图案用于确认毛玻璃能够采样根级摄影、氛围与滚动内容。</p>
       </section>
     </div>
   );

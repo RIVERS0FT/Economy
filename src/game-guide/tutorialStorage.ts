@@ -1,7 +1,6 @@
 export const CURRENT_TUTORIAL_VERSION = 3 as const;
 
 export const TUTORIAL_STEP_IDS = [
-  'work',
   'build-facility',
   'start-facility',
   'complete-production',
@@ -17,7 +16,6 @@ export type TutorialStepId = typeof TUTORIAL_STEP_IDS[number];
 export type TutorialRunStatus = 'active' | 'hidden';
 
 export interface TutorialRunStats {
-  workClicks: number;
   buildSubmits: number;
   facilityStartClicks: number;
   productionCompletions: number;
@@ -64,7 +62,6 @@ function createRunId() {
 
 function emptyStats(): TutorialRunStats {
   return {
-    workClicks: 0,
     buildSubmits: 0,
     facilityStartClicks: 0,
     productionCompletions: 0,
@@ -107,7 +104,9 @@ function isTutorialStep(value: unknown): value is TutorialStepId {
 function normalizeRun(value: unknown): LocalTutorialRun | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Partial<LocalTutorialRun>;
-  if (raw.version !== CURRENT_TUTORIAL_VERSION || !isTutorialStep(raw.currentStep)) return null;
+  const rawStep = (raw as { currentStep?: unknown }).currentStep;
+  const currentStep = rawStep === 'work' ? 'build-facility' : rawStep;
+  if (raw.version !== CURRENT_TUTORIAL_VERSION || !isTutorialStep(currentStep)) return null;
   const completedStepIds = Array.isArray(raw.completedStepIds)
     ? raw.completedStepIds.filter(isTutorialStep)
     : [];
@@ -116,10 +115,9 @@ function normalizeRun(value: unknown): LocalTutorialRun | null {
     version: CURRENT_TUTORIAL_VERSION,
     runId: typeof raw.runId === 'string' && raw.runId ? raw.runId : createRunId(),
     status: raw.status === 'hidden' ? 'hidden' : 'active',
-    currentStep: raw.currentStep,
+    currentStep,
     completedStepIds,
     stats: {
-      workClicks: Math.max(0, Number(stats.workClicks || 0)),
       buildSubmits: Math.max(0, Number(stats.buildSubmits || 0)),
       facilityStartClicks: Math.max(0, Number(stats.facilityStartClicks || 0)),
       productionCompletions: Math.max(0, Number(stats.productionCompletions || 0)),

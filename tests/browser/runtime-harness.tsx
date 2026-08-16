@@ -28,7 +28,7 @@ import '../../src/styles/charts.css';
 import '../../src/styles/desktop-sidebar.css';
 import '../../src/styles/viewport.css';
 import '../../src/styles/card-system.css';
-import '../../src/styles/liquid-glass-chrome.css';
+import '../../src/styles/frosted-glass-chrome.css';
 import '../../src/styles/mobile-status-navigation.css';
 import '../../src/styles/mobile-status-layout.css';
 import '../../src/styles/icon-system.css';
@@ -104,18 +104,33 @@ const completedTutorial: GameTutorialController = {
   isCompleted: true,
   currentStep: null,
   currentStepIndex: 0,
-  totalSteps: 10,
+  totalSteps: 9,
   statusLabel: '已完成当前版本经营成长线',
   restart: () => {},
   hide: () => {},
   show: () => {},
   openCurrentTarget: () => {},
-  recordWorkClick: () => {},
   recordBuildSubmit: () => {},
   recordFacilityStartClick: () => {},
   recordSellOrderSubmit: () => {},
   recordResearchStart: () => {},
   recordBankDeposit: () => {},
+};
+
+const activeTutorial: GameTutorialController = {
+  ...completedTutorial,
+  isActive: true,
+  isVisible: true,
+  isCompleted: false,
+  currentStep: {
+    id: 'build-facility',
+    title: '建设一座工厂',
+    description: '前往生产页选择工厂并成功建设。',
+    actionLabel: '前往建设',
+    targetTab: 'production',
+  },
+  currentStepIndex: 1,
+  statusLabel: '进行中 · 步骤 1/9',
 };
 
 document.documentElement.dataset.appSurface = ['overview', 'map', 'production', 'research', 'contracts', 'auction', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
@@ -359,7 +374,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     work: async () => ({ ok: true, message: '工作完成' }),
     checkIn: async () => ({ ok: true, message: '签到成功，获得 1 宝石' }),
     exchangeGems: async () => ({ ok: true, message: '兑换成功' }),
-    tutorial: completedTutorial,
+    tutorial: scenario === 'tutorial' ? activeTutorial : completedTutorial,
   } as unknown as TutorialAwareGameViewModel;
 }
 

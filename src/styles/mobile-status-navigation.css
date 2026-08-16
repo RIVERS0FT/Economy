@@ -1,5 +1,5 @@
 /* Mobile chrome owns mobile geometry and navigation behavior.
- * Shared liquid-glass geometry lives in liquid-glass-surfaces.css. */
+ * Shared frosted-glass geometry lives in frosted-glass-surfaces.css. */
 :root {
   --mobile-workspace-gutter: var(--space-3);
   --mobile-primary-surface-gap: var(--mobile-workspace-gutter);
@@ -130,6 +130,7 @@
     min-height: 0;
     display: flex;
     align-items: center;
+    justify-content: safe center;
     gap: .16rem;
     padding-inline: var(--mobile-nav-scroll-gutter);
     overflow-x: auto;
@@ -165,7 +166,12 @@
     text-align: center;
   }
 
-  .mobile-bottom-navigation .sidebar-nav-button:hover:not(:disabled) {
+  .mobile-bottom-navigation .sidebar-nav-button:active:not(:disabled) {
+    color: var(--color-text-primary);
+    border-color: rgba(123, 228, 158, .24);
+    background: rgba(50, 159, 88, .12);
+    box-shadow: none;
+    filter: none;
     transform: none;
   }
 

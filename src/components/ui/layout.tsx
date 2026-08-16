@@ -16,57 +16,90 @@ function classNames(...values: Array<string | false | null | undefined>) {
 
 export function PageLayout({
   title,
-  description,
   actions,
+  backAction,
+  scrollable = true,
   children,
 }: {
   title: ReactNode;
-  description: string;
+  description?: string;
   actions?: ReactNode;
+  backAction?: {
+    label: string;
+    onClick: () => void;
+  };
+  scrollable?: boolean;
   children: ReactNode;
 }) {
   const pageNavigation = usePlayerPageNavigation();
+  const pageStack = (
+    <div className="ui-page-stack">
+      {children}
+    </div>
+  );
+
   return (
-    <section className="page-content">
-      <div className="page-heading">
-        <div>
-          <h1>{title}</h1>
-          <p>{description}</p>
+    <section className={classNames(
+      'page-content',
+      pageNavigation && 'page-content--player',
+      pageNavigation && !scrollable && 'page-content--fixed-body',
+    )}>
+      <div className="page-fixed-header">
+        <div
+          className={classNames('page-heading', pageNavigation && 'page-heading--player-navigation')}
+          data-player-page-navigation={pageNavigation ? 'true' : undefined}
+        >
+          {pageNavigation ? (
+            <Button
+              variant="secondary"
+              className="page-navigation-button page-navigation-button--back"
+              aria-label={backAction?.label ?? '返回上一页面'}
+              title={backAction?.label ?? '返回上一页面'}
+              disabled={!backAction && !pageNavigation.canGoBack}
+              onClick={backAction?.onClick ?? pageNavigation.onBack}
+            >
+              <BackIcon />
+            </Button>
+          ) : null}
+          <div className="page-heading-title">
+            <h1>{title}</h1>
+          </div>
+          {pageNavigation ? (
+            <Button
+              variant="secondary"
+              className="page-navigation-button page-navigation-button--close"
+              aria-label="关闭当前页面并显示地图"
+              title="关闭并显示地图"
+              onClick={pageNavigation.onClose}
+            >
+              <CloseIcon />
+            </Button>
+          ) : actions ? (
+            <div className="page-heading-actions">
+              {actions}
+            </div>
+          ) : null}
         </div>
-        {actions || pageNavigation ? (
-          <div className="page-heading-actions">
+        {pageNavigation && actions ? (
+          <div className="page-heading-actions page-heading-actions--player" data-player-page-actions="true">
             {actions}
-            {pageNavigation ? (
-              <div className="page-navigation-actions" data-player-page-navigation="true">
-                <Button
-                  variant="secondary"
-                  className="page-navigation-button"
-                  aria-label="返回上一页面"
-                  title="返回上一页面"
-                  disabled={!pageNavigation.canGoBack}
-                  onClick={pageNavigation.onBack}
-                >
-                  <BackIcon />
-                  <span>返回</span>
-                </Button>
-                <Button
-                  variant="secondary"
-                  className="page-navigation-button"
-                  aria-label="关闭当前页面并显示地图"
-                  title="关闭并显示地图"
-                  onClick={pageNavigation.onClose}
-                >
-                  <CloseIcon />
-                  <span>关闭</span>
-                </Button>
-              </div>
-            ) : null}
           </div>
         ) : null}
       </div>
-      <div className="ui-page-stack">
-        {children}
-      </div>
+      {pageNavigation && scrollable ? (
+        <ScrollArea
+          axis="y"
+          className="page-card-scroll-area"
+          viewportClassName="page-card-scroll"
+          scrollbarVisibility="adaptive"
+        >
+          {pageStack}
+        </ScrollArea>
+      ) : pageNavigation ? (
+        <div className="page-card-static">
+          {pageStack}
+        </div>
+      ) : pageStack}
     </section>
   );
 }

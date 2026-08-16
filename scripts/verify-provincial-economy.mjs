@@ -17,7 +17,6 @@ const requiredFiles = [
   'src/pages/MapPage.tsx',
   'src/components/shell/StrategicWorkspace.tsx',
   'src/components/provinces/UsMainlandMap.tsx',
-  'src/components/provinces/ProvinceSelect.tsx',
   'src/styles/province-map.css',
   'src/styles/strategic-game-shell.css',
   'src/utils/provinceScope.ts',
@@ -29,6 +28,11 @@ const requiredFiles = [
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
 ];
 for (const path of requiredFiles) assert.equal(existsSync(path), true, `缺少州级经济文件: ${path}`);
+assert.equal(
+  existsSync('src/components/provinces/ProvinceSelect.tsx'),
+  false,
+  '地图州面是唯一地区切换入口，不得恢复 ProvinceSelect',
+);
 
 assert.equal(PROVINCE_CATALOG.length, 48, '州级地区目录必须包含美国连续 48 州');
 assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.id)).size, 48, '州级地区 ID 必须唯一');
@@ -119,12 +123,30 @@ for (const forbidden of ['战略经营地图', '当前经营地区', 'province-m
   assert.equal(mapPage.includes(forbidden), false, `地图页不得恢复已删除的卡片: ${forbidden}`);
 }
 
+for (const [path, expectedFragments] of [
+  ['src/pages/MarketPage.tsx', [
+    "const provinceName = model.selectedProvince?.name || '加利福尼亚州';",
+    'title={`${provinceName}本地市场`}',
+    'title={`${provinceName} · ${assetName}`}',
+  ]],
+  ['src/pages/ProductionPage.tsx', ["title={`${model.selectedProvince?.name || '加利福尼亚州'}生产`}"]],
+]) {
+  const page = read(path);
+  for (const expectedFragment of expectedFragments) {
+    assert.ok(page.includes(expectedFragment), `${path} 必须只通过标题显示地图当前地区: ${expectedFragment}`);
+  }
+  for (const forbidden of ['ProvinceSelect', 'province-context-select', 'setSelectedProvinceId']) {
+    assert.equal(page.includes(forbidden), false, `${path} 不得恢复州级地区选择器: ${forbidden}`);
+  }
+}
+
 const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');
 for (const text of [
   '<UsMainlandMap',
   'summaries={state.summaries}',
   'onSelectProvince={setSelectedProvinceId}',
   'StrategicMapStage',
+  'StrategicMapLensBar',
   'StrategicWorkspaceChrome',
   "{ id: 'political', label: '州界'",
   "{ id: 'assets', label: '资产'",
@@ -141,6 +163,7 @@ for (const text of [
   'const STRATEGIC_PAGE_PRESENTATION = {',
   '<ApplicationMapLayerPortal>',
   '<StrategicMapStage model={model} lens={mapLens} />',
+  '<StrategicMapLensBar lens={mapLens} onLensChange={setMapLens} />',
   '<StrategicWorkspaceChrome',
   'data-strategic-presentation={pagePresentation}',
 ]) assert.ok(gameShell.includes(text), `玩家战略外壳缺少: ${text}`);
@@ -149,7 +172,7 @@ const strategicStyles = read('src/styles/strategic-game-shell.css');
 for (const text of [
   '.application-map-layer',
   '.game-shell .workspace-strategic-chrome',
-  '.strategic-map-lens-bar',
+  '.application-map-layer > .strategic-map-lens-bar',
   '--strategic-command-rail-width: 78px',
 ]) assert.ok(strategicStyles.includes(text), `常驻战略地图样式缺少: ${text}`);
 assert.equal(strategicStyles.includes('.strategic-province-inspector'), false, '战略地图样式不得恢复经营地区检查器');
@@ -164,23 +187,39 @@ for (const text of [
   "type: 'map'",
   "selectedMode: 'single'",
   'const US_MAINLAND_ASPECT_SCALE = 0.75',
-  'const MAP_COVER_OVERSCAN = 1.01',
-  'function coverLayoutSize(width: number, height: number)',
+  'const MAP_CONTAIN_INSET = 0.96',
+  'function containLayoutSize(width: number, height: number)',
   'aspectScale: US_MAINLAND_ASPECT_SCALE',
   "zoom: 1",
   "layoutCenter: ['50%', '50%']",
-  "layoutSize: '100%'",
   'maxAspectRatio: 0.8',
-  'onOptionApplied={applyCoverCamera}',
-  'onResize={applyCoverCamera}',
-  'container.dataset.mapCoverViewport',
+  'updateMode="merge"',
+  'onChartReady={applyContainCamera}',
+  'onResize={applyContainCamera}',
+  "container.dataset.mapFitMode = 'contain'",
+  'container.dataset.mapContainViewport',
   'onClick={handleMapClick}',
+  'const handleMapDoubleClick = useCallback',
+  'if (event.target) return;',
+  "chart.getDom().dataset.mapCameraReset = 'blank-double-click'",
+  'onDoubleClick={handleMapDoubleClick}',
   'data-province-count={provinces.length}',
   'data-map-feature-count={usMainlandGeoJson.features.length}',
   'data-map-lens={lens}',
 ]) assert.ok(mapComponent.includes(text), `ECharts 美国本土地图缺少: ${text}`);
-for (const forbidden of ["left: '5%'", "right: '5%'", "top: '7%'", "bottom: '9%'", "layoutCenter: ['50%', '39%']", "layoutSize: '84%'"]) {
-  assert.equal(mapComponent.includes(forbidden), false, `Cover 地图不得恢复完整轮廓安全边距: ${forbidden}`);
+for (const forbidden of [
+  'applyCoverCamera',
+  'coverLayoutSize',
+  'mapCoverViewport',
+  'onOptionApplied={',
+  "left: '5%'",
+  "right: '5%'",
+  "top: '7%'",
+  "bottom: '9%'",
+  "layoutCenter: ['50%', '39%']",
+  "layoutSize: '84%'",
+]) {
+  assert.equal(mapComponent.includes(forbidden), false, `Contain 地图不得恢复裁切或选择后归中实现: ${forbidden}`);
 }
 
 const echartsCore = read('src/components/charts/echartsCore.ts');
@@ -205,12 +244,12 @@ for (const [path, selector, expectedOverflow] of [
   const source = read(path);
   const start = source.lastIndexOf(`${selector} {`);
   const block = start >= 0 ? source.slice(start, source.indexOf('}', start) + 1) : '';
-  assert.ok(block.includes(`overflow: ${expectedOverflow};`), `${selector} 必须使用 ${expectedOverflow} 作为 Cover 地图裁切边界`);
+  assert.ok(block.includes(`overflow: ${expectedOverflow};`), `${selector} 必须使用 ${expectedOverflow} 作为 Contain 地图边界`);
   for (const text of ['border: 0;', 'border-radius: 0;', 'outline: 0;', 'box-shadow: none;']) {
     assert.ok(block.includes(text), `${selector} 不得产生地图外缘白边，缺少: ${text}`);
   }
 }
-assert.ok(strategicStyles.includes('.strategic-map-stage .province-map-echart {\n  padding: 0;'), 'Cover 地图图表宿主不得保留内部安全边距');
+assert.ok(strategicStyles.includes('.strategic-map-stage .province-map-echart {\n  padding: 0;'), 'Contain 地图图表宿主不得保留内部安全边距');
 
 const mapBrowserTest = read('tests/browser/province-map.spec.ts');
 for (const text of [
@@ -219,7 +258,7 @@ for (const text of [
   "data-map-feature-count', '48'",
   "for (const excludedCode of ['AK', 'HI', 'DC'])",
   "page.locator('.application-map-layer')",
-  "hasText: /^TX$/",
+  "hasText: /^CO$/",
   'persistent US strategy map exposes 48 states, lenses, and local context',
   'mobile strategy map fills the root map layer without obsolete map cards or inspector',
   "page.locator('.province-map-page > *')",
@@ -227,8 +266,16 @@ for (const text of [
   "page.getByLabel('地图图例')",
   "toHaveAttribute('data-map-lens', 'market')",
   'data-echarts-instance-id',
-  'data-map-cover-viewport',
+  'data-map-contain-viewport',
+  'cameraBeforeSelection',
+  'cameraAfterSelection',
+  'cameraAfterBlankDoubleClick',
+  "'data-map-camera-reset'",
+  "'blank-double-click'",
   'outlineAspect',
+  "getByLabel('州级地区', { exact: true })",
+  "getByRole('heading', { name: '科罗拉多州本地市场'",
+  "getByRole('heading', { name: '科罗拉多州生产'",
 ]) assert.ok(mapBrowserTest.includes(text), `ECharts 地图浏览器回归缺少: ${text}`);
 
 const navigation = read('src/config/navigation.ts');
@@ -247,4 +294,4 @@ for (const text of [
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、版本 34/30、既有地区 ID 原位保留、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、ISC TopoJSON 与 ECharts 地图点击切换均已锁定。');
+console.log('地区经济验证通过：美国连续 48 州、版本 34/30、既有地区 ID 原位保留、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、ISC TopoJSON、ECharts 地图点击切换与空白双击镜头重置均已锁定。');

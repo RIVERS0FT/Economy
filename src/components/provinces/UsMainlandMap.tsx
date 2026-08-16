@@ -7,6 +7,7 @@ import { formatNumber } from '../../utils/formatters';
 import {
   EconomyChart,
   type EconomyChartClickEvent,
+  type EconomyChartDoubleClickEvent,
 } from '../charts/EconomyChart';
 import {
   registerEChartsMap,
@@ -16,7 +17,7 @@ import {
 
 const US_MAINLAND_MAP_NAME = 'economy-us-mainland-states';
 const US_MAINLAND_ASPECT_SCALE = 0.75;
-const MAP_COVER_OVERSCAN = 1.01;
+const MAP_CONTAIN_INSET = 0.96;
 const HOVER_LABEL_STATE_CODES = new Set([
   'CT',
   'DE',
@@ -106,13 +107,13 @@ function mainlandMapAspect() {
 
 const US_MAINLAND_MAP_ASPECT = mainlandMapAspect();
 
-function coverLayoutSize(width: number, height: number) {
+function containLayoutSize(width: number, height: number) {
   if (!(width > 0) || !(height > 0)) return '100%';
   const requiredSize = US_MAINLAND_MAP_ASPECT >= 1
-    ? Math.max(width, height * US_MAINLAND_MAP_ASPECT)
-    : Math.max(width / US_MAINLAND_MAP_ASPECT, height);
+    ? Math.min(width, height * US_MAINLAND_MAP_ASPECT)
+    : Math.min(width / US_MAINLAND_MAP_ASPECT, height);
   const referenceSize = Math.min(width, height);
-  return `${((requiredSize / referenceSize) * MAP_COVER_OVERSCAN * 100).toFixed(4)}%`;
+  return `${((requiredSize / referenceSize) * MAP_CONTAIN_INSET * 100).toFixed(4)}%`;
 }
 
 registerEChartsMap(US_MAINLAND_MAP_NAME, usMainlandGeoJson);
@@ -220,11 +221,11 @@ export function UsMainlandMap({
   const data = useMemo(() => provinces.map((province) => (
     datumFor(province, summaries[province.id], lens)
   )), [lens, provinces, summaries]);
-  const applyCoverCamera = useCallback((chart: EChartsType) => {
+  const applyContainCamera = useCallback((chart: EChartsType) => {
     const width = chart.getWidth();
     const height = chart.getHeight();
     if (!(width > 0) || !(height > 0)) return;
-    const layoutSize = coverLayoutSize(width, height);
+    const layoutSize = containLayoutSize(width, height);
     chart.setOption({
       series: [{
         id: 'us-mainland-map',
@@ -238,9 +239,10 @@ export function UsMainlandMap({
       lazyUpdate: false,
     });
     const container = chart.getDom();
-    container.dataset.mapCoverLayoutSize = layoutSize;
+    container.dataset.mapFitMode = 'contain';
+    container.dataset.mapContainLayoutSize = layoutSize;
     container.dataset.mapIntrinsicAspect = US_MAINLAND_MAP_ASPECT.toFixed(6);
-    container.dataset.mapCoverViewport = `${width}x${height}`;
+    container.dataset.mapContainViewport = `${width}x${height}`;
   }, []);
   const option = useMemo<EChartsCoreOption>(() => ({
     animationDuration: 260,
@@ -262,9 +264,6 @@ export function UsMainlandMap({
       roam: true,
       scaleLimit: { min: 1, max: 8 },
       aspectScale: US_MAINLAND_ASPECT_SCALE,
-      zoom: 1,
-      layoutCenter: ['50%', '50%'],
-      layoutSize: '100%',
       labelLayout: {
         hideOverlap: true,
       },
@@ -332,7 +331,16 @@ export function UsMainlandMap({
     if (provinceId) onSelectProvince(provinceId);
   };
 
-  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。当前选择${selectedProvince?.name || '加利福尼亚州'}。可使用页面上的州级地区选择器进行键盘操作。`;
+  const handleMapDoubleClick = useCallback((
+    event: EconomyChartDoubleClickEvent,
+    chart: EChartsType,
+  ) => {
+    if (event.target) return;
+    applyContainCamera(chart);
+    chart.getDom().dataset.mapCameraReset = 'blank-double-click';
+  }, [applyContainCamera]);
+
+  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。当前选择${selectedProvince?.name || '加利福尼亚州'}。点击州面可以切换地区，双击地图空白可以重置缩放和平移。`;
   return (
     <div
       className="province-map-chart"
@@ -347,9 +355,11 @@ export function UsMainlandMap({
         accessibleSummary={accessibleSummary}
         className="province-map-echart"
         testId="us-mainland-map"
-        onOptionApplied={applyCoverCamera}
-        onResize={applyCoverCamera}
+        updateMode="merge"
+        onChartReady={applyContainCamera}
+        onResize={applyContainCamera}
         onClick={handleMapClick}
+        onDoubleClick={handleMapDoubleClick}
       />
     </div>
   );

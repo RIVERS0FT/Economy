@@ -66,7 +66,7 @@ html[data-app-surface="admin"] body {
 }
 
 /* #root is the only full-application isolation root. Every signed-in ancestor
- * between the root photography and liquid-glass Chrome must keep the backdrop
+ * between the root photography and frosted-glass Chrome must keep the backdrop
  * sampling chain open on both desktop and mobile. */
 .signed-in-shell,
 .application-map-layer,

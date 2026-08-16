@@ -183,19 +183,29 @@ html[data-input-modality="touch"] .ui-scrollbar--horizontal {
   height: 100%;
 }
 
+.page-card-scroll-area > .ui-scrollbar--vertical {
+  top: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.page-card-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {
+  right: 0;
+  left: auto;
+}
+
 .sidebar-nav-frame {
   width: 100%;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   flex: 1 1 auto;
-  margin-top: var(--space-3);
+  margin-top: 0;
 }
 
 .sidebar-nav-scroll-area,
 .table-scroll-area,
 .virtual-list-scroll-area,
-.asset-directory-scroll-area,
 .local-trades-scroll-area {
   width: 100%;
   min-width: 0;
@@ -247,12 +257,6 @@ html[data-input-modality="touch"] *:not(.ui-scroll-area__viewport)::-webkit-scro
   width: 0;
   height: 0;
   display: none;
-}
-
-@media (max-width: 960px) and (min-width: 721px) {
-  .desktop-sidebar .sidebar-nav-frame {
-    margin-top: var(--space-3);
-  }
 }
 
 @media (max-width: 720px) {

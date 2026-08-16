@@ -30,10 +30,11 @@ test('production and market facility artwork use 256px runtime thumbnails', asyn
     256,
   );
 
-  await page.goto('market-runtime-test.html?scenario=active');
-  const marketFacility = page.getByRole('tab', { name: /^机械工厂/ });
+  await page.goto('market-runtime-test.html?scenario=active&view=catalog');
+  await page.getByRole('button', { name: '工厂', exact: true }).click();
+  const marketFacility = page.getByRole('button', { name: '查看机械工厂详情' });
   await expectBackgroundImageResolution(
-    marketFacility.locator(':scope > .market-asset-card__icon-layer > .facility-icon'),
+    marketFacility.locator('.market-catalog-row__artwork > .facility-icon'),
     256,
   );
 });

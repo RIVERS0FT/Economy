@@ -9,12 +9,11 @@ import {
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
 import { ProductArtwork } from '../components/products/ProductArtwork';
+import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { MobileDetailSummary } from '../components/ui/MobileDetailSummary';
 import { MobileWorkspaceDetailSheet } from '../components/ui/MobileWorkspaceDetailSheet';
 import {
   Button,
-  DataList,
-  DataRow,
   PageLayout,
   PagePanel,
   StatusTag,
@@ -25,12 +24,13 @@ import { useStableSelection } from '../hooks/useStableSelection';
 import { ResearchTreeViewport } from '../research/ResearchTreeViewport';
 import { buildResearchTreeFocus, buildResearchTreeLayout } from '../research/researchTreeLayout';
 import { formatCurrency, formatDuration, formatNumber } from '../utils/formatters';
-import { marketDecisionSignal, marketTrendGlyph } from '../utils/marketDecisionSignals';
 import type {
   FacilityComplexity,
   FacilityTypeDefinition,
   ResearchTechnologyDefinition,
 } from '../types';
+import { recipesForType } from './production/ProductionFacilityDetail';
+import '../styles/facility-build-select.css';
 
 type ResearchNodeStatus = 'mastered' | 'active' | 'available' | 'locked';
 
@@ -94,6 +94,16 @@ function progressForResearchTechnology(
   return Math.max(0, Math.min(1, (duration - remaining) / duration));
 }
 
+function outputProductIdsForFacility(facility: FacilityTypeDefinition) {
+  const seenProductIds = new Set<string>();
+  return recipesForType(facility).flatMap((recipe) => {
+    const productId = recipe.output.productId;
+    if (seenProductIds.has(productId)) return [];
+    seenProductIds.add(productId);
+    return [productId];
+  });
+}
+
 function pseudoTechnologyForActive(
   active: TutorialAwareGameViewModel['game']['research']['active'],
 ): ResearchTechnologyDefinition | null {
@@ -143,9 +153,7 @@ function resolveResearchDetailPresentation({
   const awaitingConfirmation = isSelectedActive && remaining === 0;
   const accelerationMs = active?.gemAccelerationMs ?? RESEARCH_ACCELERATION_FALLBACK_MS;
   const accelerationCost = active?.gemAccelerationCost ?? RESEARCH_ACCELERATION_FALLBACK_COST;
-  const remainingAfterAcceleration = Math.max(0, remaining - accelerationMs);
   const progress = progressForResearchTechnology(technology, active, now, isMastered);
-  const shortfall = Math.max(0, technology.cost - model.game.credits);
   const actionLabel = isMastered
     ? `已掌握「${technology.name}」`
     : isSelectedActive
@@ -173,9 +181,7 @@ function resolveResearchDetailPresentation({
     awaitingConfirmation,
     accelerationMs,
     accelerationCost,
-    remainingAfterAcceleration,
     progress,
-    shortfall,
     actionLabel,
   };
 }
@@ -187,8 +193,6 @@ function ResearchDetailBody({
   technologiesById,
   completed,
   now,
-  isAccelerating,
-  onAccelerate,
 }: ResearchDetailProps) {
   const liveNow = useNow(now);
   const presentation = resolveResearchDetailPresentation({
@@ -209,17 +213,9 @@ function ResearchDetailBody({
     active,
     status,
     isSelectedActive,
-    isMastered,
-    hasOtherResearch,
-    missing,
     remaining,
     awaitingConfirmation,
-    accelerationMs,
-    accelerationCost,
-    remainingAfterAcceleration,
     progress,
-    shortfall,
-    fundsMet,
   } = presentation;
 
   return (
@@ -242,61 +238,30 @@ function ResearchDetailBody({
             <span className="research-detail-summary-status">
               <StatusTag tone={statusTones[status]}>{statusLabels[status]}</StatusTag>
             </span>
-            <span className="research-detail-summary-metric">
-              {technology.durationMs > 0 ? formatDuration(technology.durationMs) : '初始掌握'}
-            </span>
           </>
         }
         description={<p>{technology.description}</p>}
       />
 
       <section
-        className="research-requirements mobile-detail-section"
-        aria-labelledby={`research-requirements-${technology.id}`}
+        className="research-investment mobile-detail-section"
+        aria-labelledby={`research-investment-${technology.id}`}
       >
-        <strong id={`research-requirements-${technology.id}`}>具体要求</strong>
-        <ul>
-          <li data-met={isMastered || missing.length === 0}>
-            <span aria-hidden="true">{isMastered || missing.length === 0 ? '✓' : '×'}</span>
-            <div>
-              <strong>前置科技</strong>
-              <small>
-                {isMastered
-                  ? '前置科技已经完成'
-                  : missing.length > 0
-                    ? `还需完成 ${missing.map((item) => `「${item.name}」`).join('、')}`
-                    : technology.initial ? '新玩家初始掌握' : '全部前置科技已经完成'}
-              </small>
-            </div>
-          </li>
-          <li data-met={isMastered || fundsMet}>
-            <span aria-hidden="true">{isMastered || fundsMet ? '✓' : '×'}</span>
-            <div>
-              <strong>研发费用</strong>
-              <small>
-                {technology.cost === 0
-                  ? '初始掌握，无需费用'
-                  : `需要 ${formatNumber(technology.cost)}，当前 ${formatNumber(model.game.credits)}${
-                    shortfall > 0 ? `，还差 ${formatNumber(shortfall)}` : ''
-                  }`}
-              </small>
-            </div>
-          </li>
-          <li data-met={isMastered || !hasOtherResearch}>
-            <span aria-hidden="true">{isMastered || !hasOtherResearch ? '✓' : '×'}</span>
-            <div>
-              <strong>研发队列</strong>
-              <small>{hasOtherResearch ? `当前由「${active?.technologyName ?? active?.targetComplexity}」占用` : '当前可以安排研发'}</small>
-            </div>
-          </li>
-          <li data-met="true">
-            <span aria-hidden="true">✓</span>
-            <div>
-              <strong>产业阶段</strong>
-              <small>{technology.stage} · 基础时间 {technology.durationMs > 0 ? formatDuration(technology.durationMs) : '立即掌握'}</small>
-            </div>
-          </li>
-        </ul>
+        <strong id={`research-investment-${technology.id}`}>研发投入</strong>
+        <div className="research-investment-list">
+          <div className="research-investment-item">
+            <span>研发费用</span>
+            <strong>
+              {technology.cost === 0
+                ? '无需费用'
+                : <CurrencyAmount>{formatCurrency(technology.cost)}</CurrencyAmount>}
+            </strong>
+          </div>
+          <div className="research-investment-item">
+            <span>研发时间</span>
+            <strong>{technology.durationMs > 0 ? formatDuration(technology.durationMs) : '立即掌握'}</strong>
+          </div>
+        </div>
       </section>
 
       <section
@@ -314,79 +279,39 @@ function ResearchDetailBody({
                   <span className="research-unlock-artwork" aria-hidden="true">
                     <FacilityIcon facilityTypeId={facility.id} />
                   </span>
-                  <span>{facility.name} · {method.name}</span>
+                  <span className="research-unlock-copy">
+                    <strong>{facility.name}</strong>
+                    <small>{method.name}</small>
+                  </span>
                 </div>
               ))}
             </div>
           ) : <p className="ui-helper-text">当前工厂目录尚未返回该作业科技对应的制度。</p>
         ) : facilities.length > 0 ? (
           <div className="research-unlock-list">
-            {facilities.map((facility) => (
-              <div className="research-unlock-item" key={facility.id}>
-                <span className="research-unlock-artwork" aria-hidden="true">
-                  <FacilityIcon facilityTypeId={facility.id} />
-                </span>
-                <span>{facility.name}</span>
-              </div>
-            ))}
+            {facilities.map((facility) => {
+              const outputProductIds = outputProductIdsForFacility(facility);
+              return (
+                <div className="research-unlock-item" key={facility.id}>
+                  <span className="research-unlock-artwork" aria-hidden="true">
+                    <FacilityIcon facilityTypeId={facility.id} />
+                  </span>
+                  <span className="research-unlock-copy">
+                    <strong>{facility.name}</strong>
+                    <span className="facility-build-output-list" aria-label={`${facility.name}可生产产物`}>
+                      {outputProductIds.map((productId) => (
+                        <span className="facility-build-output-item" key={productId}>
+                          <ProductArtwork productId={productId} />
+                          <span>{model.game.products.find((product) => product.id === productId)?.name ?? productId}</span>
+                        </span>
+                      ))}
+                    </span>
+                  </span>
+                </div>
+              );
+            })}
           </div>
         ) : <p className="ui-helper-text">该项目完成后授予阶段剩余科技，不直接对应单座工厂。</p>}
-      </section>
-
-      <section className="research-industry-context mobile-detail-section" aria-label="产业经营视角">
-        <div className="research-industry-context__heading">
-          <strong>产业经营视角</strong>
-          <small>科技只决定准入；以下使用当前持有资产、库存与最近真实成交价辅助判断产业方向。</small>
-        </div>
-        <div className="research-industry-context__list">
-          {technology.kind === 'operation' ? (technology.operationProductIds ?? []).map((productId) => {
-            const product = model.game.products.find((candidate) => candidate.id === productId);
-            const signal = marketDecisionSignal(model.game.markets[productId]);
-            const inventory = model.game.inventories[productId]?.available ?? 0;
-            return (
-              <article className="research-industry-context__item" key={productId}>
-                <header>
-                  <span aria-hidden="true"><ProductArtwork productId={productId} /></span>
-                  <strong>{product?.name ?? productId}</strong>
-                  <StatusTag tone="neutral">生产资料</StatusTag>
-                </header>
-                <DataList className="compact">
-                  <DataRow label="当前库存" value={formatNumber(inventory)} />
-                  <DataRow
-                    label="最近成交"
-                    value={signal.price === null ? '暂无真实成交' : `${formatCurrency(signal.price)} ${marketTrendGlyph(signal.trend)}`}
-                  />
-                </DataList>
-              </article>
-            );
-          }) : facilities.map((facility) => {
-            const recipe = facility.recipes.find((candidate) => candidate.id === facility.defaultRecipeId) ?? facility.recipes[0];
-            const held = model.game.facilityGroups.find((group) => group.facilityTypeId === facility.id)?.count ?? 0;
-            const inputs = recipe?.inputs ?? [];
-            const output = recipe?.output;
-            const signalText = (productId: string) => {
-              const product = model.game.products.find((candidate) => candidate.id === productId);
-              const signal = marketDecisionSignal(model.game.markets[productId]);
-              const inventory = model.game.inventories[productId]?.available ?? 0;
-              return `${product?.name ?? productId} · 库存 ${formatNumber(inventory)} · ${signal.price === null ? '暂无真实成交' : `${formatCurrency(signal.price)} ${marketTrendGlyph(signal.trend)}`}`;
-            };
-            return (
-              <article className="research-industry-context__item" key={facility.id}>
-                <header>
-                  <span aria-hidden="true"><FacilityIcon facilityTypeId={facility.id} /></span>
-                  <strong>{facility.name}</strong>
-                  <StatusTag tone={held > 0 ? 'success' : 'neutral'}>{held > 0 ? `持有 ${formatNumber(held)}` : '未持有'}</StatusTag>
-                </header>
-                <DataList className="compact">
-                  <DataRow label="主要投入" value={inputs.length > 0 ? inputs.map((input) => signalText(input.productId)).join('；') : '无原料生产'} />
-                  <DataRow label="产出市场" value={output ? signalText(output.productId) : '—'} />
-                </DataList>
-              </article>
-            );
-          })}
-          {technology.kind !== 'operation' && facilities.length === 0 ? <p className="ui-helper-text">该科技没有直接解锁工厂，经营影响由后续科技节点体现。</p> : null}
-        </div>
-        <p className="ui-helper-text">不提供“最佳科技”或最高利润自动推荐，玩家仍需结合供需、资金和产业链自行选择。</p>
       </section>
 
       {isSelectedActive && active ? (
@@ -406,37 +331,6 @@ function ResearchDetailBody({
           >
             <span style={{ width: `${progress * 100}%` }} />
           </div>
-          <DataList>
-            <DataRow
-              label="就业资金已释放"
-              value={`${formatNumber(active.employmentReleased)} / ${formatNumber(active.cost)}`}
-              tone="info"
-            />
-          </DataList>
-          <div className="research-gem-acceleration">
-            <div>
-              <strong>宝石加速</strong>
-              <span>{formatNumber(accelerationCost)} 宝石固定减少 {formatDuration(accelerationMs)}</span>
-            </div>
-            <p>
-              {awaitingConfirmation
-                ? '等待服务器确认研发完成'
-                : remainingAfterAcceleration > 0
-                  ? `使用后剩余 ${formatDuration(remainingAfterAcceleration)}`
-                  : '使用后立即完成；不足 30m 的部分不退还宝石'}
-            </p>
-            <Button
-              block
-              disabled={awaitingConfirmation || model.game.gems < accelerationCost || isAccelerating}
-              onClick={onAccelerate}
-            >
-              {isAccelerating
-                ? '加速处理中…'
-                : model.game.gems < accelerationCost
-                  ? '宝石不足'
-                  : `${formatNumber(accelerationCost)} 宝石 · 加速 ${formatDuration(accelerationMs)}`}
-            </Button>
-          </div>
         </section>
       ) : null}
     </div>
@@ -445,7 +339,35 @@ function ResearchDetailBody({
 
 function ResearchDetailActions(props: ResearchDetailProps) {
   const liveNow = useNow(props.now);
-  const { canStart, fundsMet, actionLabel } = resolveResearchDetailPresentation({ ...props, now: liveNow });
+  const {
+    canStart,
+    fundsMet,
+    actionLabel,
+    isSelectedActive,
+    awaitingConfirmation,
+    accelerationCost,
+    accelerationMs,
+  } = resolveResearchDetailPresentation({ ...props, now: liveNow });
+  if (isSelectedActive) {
+    const hasEnoughGems = props.model.game.gems >= accelerationCost;
+    return (
+      <div className="research-detail-actions">
+        <Button
+          block
+          disabled={awaitingConfirmation || !hasEnoughGems || props.isAccelerating}
+          onClick={props.onAccelerate}
+        >
+          {props.isAccelerating
+            ? '研发中 · 加速处理中…'
+            : awaitingConfirmation
+              ? '研发中 · 确认完成中…'
+              : !hasEnoughGems
+                ? '研发中 · 宝石不足'
+                : `研发中 · ${formatNumber(accelerationCost)} 宝石加速 ${formatDuration(accelerationMs)}`}
+        </Button>
+      </div>
+    );
+  }
   return (
     <div className="research-detail-actions">
       <Button block disabled={!canStart || !fundsMet} onClick={props.onStart}>
@@ -481,7 +403,7 @@ function MobileResearchDetailSheet({
     <MobileWorkspaceDetailSheet
       isOpen={isOpen}
       ariaLabel={`${detailProps.technology.name}研发新技术`}
-      viewportAriaLabel={`${detailProps.technology.name}研发要求`}
+      viewportAriaLabel={`${detailProps.technology.name}研发详情`}
       returnFocusRef={returnFocusRef}
       onClose={onClose}
       footer={<ResearchDetailActions {...detailProps} />}
@@ -585,7 +507,7 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
 
   if (!selectedTechnology) {
     return (
-      <PageLayout title="研发" description="服务器尚未返回科技目录。">
+      <PageLayout title="研发" description="服务器尚未返回科技目录。" scrollable={false}>
         <PagePanel className="empty-state">暂无研发科技。</PagePanel>
       </PageLayout>
     );
@@ -607,29 +529,13 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
     <PageLayout
       title="研发"
       description="按产业链选择科技节点；C1–C7 仅表示产业阶段，工厂准入由具体科技决定。"
-      actions={
-        <>
-          <StatusTag tone="success">完整阶段 {research.unlockedComplexity}</StatusTag>
-          <StatusTag tone={active ? 'info' : 'neutral'}>
-            {active ? `研发「${active.technologyName ?? active.targetComplexity}」` : `已掌握 ${formatNumber(completed.size)} 项`}
-          </StatusTag>
-        </>
-      }
+      scrollable={false}
     >
       <div className="research-workspace">
-        <PagePanel className="research-action-panel">
-          <ResearchDetailContent {...detailProps} />
-        </PagePanel>
-
-        <PagePanel className="research-tree-panel">
-          <div className="research-tree-heading">
-            <div>
-              <h2>技术树</h2>
-              <p>拖动浏览 · Ctrl/⌘+滚轮或双指缩放；节点前置关系决定可研发路线。</p>
-            </div>
-            <StatusTag tone="neutral">{formatNumber(technologies.length)} 项科技</StatusTag>
-          </div>
-
+        <div className="research-tree-panel">
+          <PagePanel className="research-action-panel">
+            <ResearchDetailContent {...detailProps} />
+          </PagePanel>
           <ResearchTreeViewport
             width={researchTreeLayout.width}
             height={researchTreeLayout.height}
@@ -711,7 +617,7 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
               })}
             </div>
           </ResearchTreeViewport>
-        </PagePanel>
+        </div>
       </div>
 
       <MobileResearchDetailSheet

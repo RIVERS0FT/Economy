@@ -28,7 +28,7 @@ const paths = {
   production: 'src/pages/ProductionPage.tsx',
   productionDetail: 'src/pages/production/ProductionFacilityDetail.tsx',
   overview: 'src/pages/OverviewPage.tsx',
-  overviewLive: 'src/pages/overview/OverviewLiveSections.tsx',
+  economicEventLog: 'src/components/EconomicEventLogPanel.tsx',
   auction: 'src/pages/AuctionPage.tsx',
   economicEvents: 'server/src/economic-events.js',
   runtimeStore: 'server/src/runtime-store.js',
@@ -133,15 +133,12 @@ if (failures.length === 0) {
   for (const text of ['constructionAwaitingConfirmation', '确认完工中', '施工时间', '宝石加速']) forbidText(paths.production, text);
   for (const text of ['const liveNow = useNow(now);', 'useNow(now, 10_000)']) requireText(paths.productionDetail, text);
 
-  requireText(paths.overview, 'const now = useNow(game.lastProcessedAt, 60_000);');
-  requireText(paths.overview, '<OverviewWorkButton');
-  requireText(paths.overview, '<OverviewEconomicCalendarPanel');
-  forbidText(paths.overview, 'const now = useNow(game.lastProcessedAt);');
+  forbidText(paths.overview, 'useNow(');
+  forbidText(paths.overview, 'EconomicEventLogPanel');
   for (const text of [
     '<LiveServerTime referenceNow={referenceNow}>',
-    'disabled={isWorking || remaining > 0}',
-    'formatDuration(remaining)',
-  ]) requireText(paths.overviewLive, text);
+    'formatDuration(Math.max(0, remaining))',
+  ]) requireText(paths.economicEventLog, text);
 
   for (const text of [
     'function AuctionRemainingTime',

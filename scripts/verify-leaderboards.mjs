@@ -21,6 +21,7 @@ const styles = read('src/styles/leaderboards.css');
 const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
 const navigationDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const docsIndex = read('docs/README.md');
+const previewSpec = read('tests/browser/all-pages-preview.spec.ts');
 const publicEntrySource = server.slice(
   server.indexOf('function publicEntry'),
   server.indexOf('function boardDefinition'),
@@ -70,17 +71,31 @@ check(server.includes('tradingRuleVersion: TRADING_RULE_VERSION'), 'trading rule
 check(server.includes('delete state.pairDayScores'), 'legacy pair caps must be removed during migration');
 check(server.includes('processAssetAuctions'), 'weekly growth must settle auctions at the boundary');
 check(page.includes("const BOARD_ORDER: LeaderboardBoardId[] = ['wealth', 'growth', 'production', 'trading']"), 'four boards must keep the approved order');
+check(page.includes("useState<LeaderboardBoardId>('wealth')"), 'leaderboard page must default to the wealth board');
+check(page.includes('className="leaderboard-board-switch ui-segmented"'), 'leaderboard page must use a shared four-button switch');
+check(page.includes('aria-pressed={selectedBoardId === boardId}'), 'leaderboard board buttons must expose selected state');
+check(page.includes('className="leaderboard-responsive-layout"'), 'leaderboard page must expose a container-responsive layout');
+check(page.includes('className="leaderboard-board-grid"'), 'leaderboard page must render the ordered board grid');
+check(page.includes('<LeaderboardCard board={leaderboards.boards[boardId]} period={period} />'), 'leaderboard page must render all four boards from the approved order');
 check(page.includes("timeZone: 'Asia/Shanghai'"), 'leaderboard page must format periods in Beijing time');
 check(page.includes("board.unit === 'quantity'"), 'leaderboard page must format production as a quantity');
 check(page.includes("if (board.unit === 'quantity') return formatNumber(score);"), 'production quantity must render as a plain formatted number');
 check(!page.includes('`${formatNumber(score)} 个`'), 'production quantity must not append the 个 unit');
-check(page.includes('50 / 30 / 20 宝石'), 'leaderboard page must show the authoritative rewards');
 check(page.includes('最后有效经济活动时间越近者排名越高'), 'leaderboard page must explain the tie-break rule');
+check(!page.includes('首个不完整周不发奖'), 'leaderboard page must not show the partial-week pill');
+check(!page.includes('当前为首次上线测试周期，仅记录排名'), 'leaderboard page must not show the initial test-period explanation');
 check(page.includes('leaderboard-personal-best'), 'leaderboard page must show personal best scores');
 check(page.includes('本周已刷新个人纪录'), 'leaderboard page must identify a current-week record');
 check(leaderboardTypes.includes('LeaderboardPersonalBest'), 'leaderboard client types must expose authoritative personal bests');
-check(styles.includes('grid-template-columns: repeat(4, minmax(280px, 1fr))'), 'desktop leaderboard must remain a four-column grid');
-check(styles.includes('overflow-x: auto'), 'narrow viewports must preserve four columns with horizontal scrolling');
+check(styles.includes('.leaderboard-board-switch'), 'leaderboard styles must define the board switch');
+check(styles.includes('.leaderboard-board-switch > .ui-segmented__button'), 'leaderboard switch must constrain each button within its single row');
+check(styles.includes('container: leaderboard-layout / inline-size'), 'leaderboard mode must follow its content width');
+check(styles.includes('@container leaderboard-layout (min-width: 72rem)'), 'wide leaderboard mode must use the approved content breakpoint');
+check((styles.match(/grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/g) || []).length >= 2, 'switch and wide board grid must both use four columns');
+check(styles.includes('.leaderboard-board-slot:not(.is-selected)'), 'narrow mode must hide unselected boards');
+check(styles.includes('white-space: nowrap;'), 'narrow leaderboard buttons must stay on one line');
+check(!styles.includes('.leaderboard-board-switch {\n    grid-template-columns: repeat(2, minmax(0, 1fr))'), 'leaderboard switch must never wrap into two columns');
+check(!styles.includes('leaderboard-grid-scroll'), 'leaderboard must not use a horizontal scrolling wrapper');
 check(productDesign.includes('50 / 30 / 20'), 'product design must record gem rewards');
 check(productDesign.includes('本周生产数量 += 实际产出数量'), 'product design must record quantity-only production ranking');
 check(productDesign.includes('最后一次有效经济活动时间降序'), 'product design must record the shared tie-break rule');
@@ -88,7 +103,13 @@ check(productDesign.includes('榜单次级统计不得参与排名'), 'product d
 check(productDesign.includes('撤单的未成交剩余数量不计入'), 'product design must exclude cancelled remainder');
 check(productDesign.includes('Asia/Shanghai'), 'product design must record Beijing leaderboard time');
 check(productDesign.includes('实际卖出成交额'), 'product design must record gross sell volume');
-check(navigationDesign.includes('四列'), 'navigation design must record the four-column leaderboard page');
+check(navigationDesign.includes('内容容器宽度不小于 `72rem` 时隐藏切换按钮'), 'navigation design must record the responsive four-board mode');
+check(navigationDesign.includes('按钮必须强制保持同一行'), 'navigation design must keep the narrow switch on one row');
+check(navigationDesign.includes('不显示“首个不完整周不发奖”胶囊'), 'navigation design must record the removed partial-week copy');
+check(previewSpec.includes("page.locator('.leaderboard-board-card:visible')).toHaveCount(4)"), 'browser preview must render four visible boards at wide width');
+check(previewSpec.includes("page.locator('.leaderboard-board-card:visible')).toHaveCount(1)"), 'browser preview must render one visible board at narrow width');
+check(previewSpec.includes("toHaveAttribute('aria-label', '选择排行榜')"), 'browser preview must verify the four-button leaderboard switch');
+check(docsIndex.includes('宽度不小于 `72rem` 时隐藏切换按钮并四列同时展示'), 'design index must record the responsive leaderboard mode');
 check(docsIndex.includes('排行榜生产数量纯数字显示'), 'design index must assign number-only production display to the page design');
 check(docsIndex.includes('只显示经过 `formatNumber` 千分位格式化的纯数字'), 'design index must record number-only production output');
 check(docsIndex.includes('不附加“个”“件”“单位”或恢复“分”'), 'design index must forbid production quantity suffixes');

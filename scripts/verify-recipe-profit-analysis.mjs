@@ -239,14 +239,15 @@ for (const removedText of [
 ]) assert.equal(analysisSource.includes(removedText), false, `详情不得恢复完整利润分析: ${removedText}`);
 
 for (const text of [
-  'const lastTradePrice = game.markets[product.id]?.lastTradePrice;',
-  'const lastTradePrice = game.facilityMarkets[facility.id]?.lastTradePrice;',
-  "const hasLastTradePrice = typeof lastTradePrice === 'number';",
-]) assert.ok(marketPageSource.includes(text), `市场资产目录缺少真实成交价字段: ${text}`);
+  'const market = game.markets[product.id];',
+  'const market = game.facilityMarkets[facility.id];',
+  'lastTradePrice: typeof market?.lastTradePrice === \'number\' ? market.lastTradePrice : undefined',
+  "typeof entry.lastTradePrice === 'number' ? formatCurrency(entry.lastTradePrice) : '—'",
+]) assert.ok(marketPageSource.includes(text), `市场资产列表缺少真实成交价字段: ${text}`);
 for (const removedText of [
   'const lastPrice = game.markets[product.id]?.lastPrice;',
   'const lastPrice = game.facilityMarkets[facility.id]?.lastPrice;',
-]) assert.equal(marketPageSource.includes(removedText), false, `市场资产目录不得把 lastPrice 标为最近成交价: ${removedText}`);
+]) assert.equal(marketPageSource.includes(removedText), false, `市场资产列表不得把 lastPrice 标为最近成交价: ${removedText}`);
 
 assert.ok(contextSource.includes('createContext<Record<string, ProductMarketState>>({})'));
 assert.ok(routerSource.includes('FacilityRecipeProfitMarketsProvider markets={model.game.markets}'));

@@ -40,7 +40,7 @@ export function AdminApp({ user }: { user: AuthUser }) {
   const [activeSection, setActiveSection] = useState<AdminSectionId>('overview');
   const [visitedSections, setVisitedSections] = useState<Set<AdminSectionId>>(() => new Set(['overview']));
   const [refreshTokens, setRefreshTokens] = useState(INITIAL_REFRESH_TOKENS);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [summary, setSummary] = useState<ExtendedAdminSummary | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');

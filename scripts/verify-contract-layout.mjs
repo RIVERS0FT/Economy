@@ -50,6 +50,7 @@ for (const text of [
   "type PersonalContractView = 'active' | 'history'",
   "useState<PersonalContractView>('active')",
   'contractNeedsAttention',
+  'contract-content-actions',
   'contract-workspace',
   'contract-market-pane',
   'contract-market-grid',
@@ -66,6 +67,11 @@ for (const text of [
   '自动准备商品',
   '自动补充货款',
 ]) requireText(pagePath, text);
+forbidText(pagePath, 'actions={<Button onClick');
+const contractPageSource = read(pagePath);
+if (contractPageSource.indexOf('className="contract-content-actions"') > contractPageSource.indexOf('className="contract-summary-grid"')) {
+  failures.push('合同正文发布按钮必须位于摘要卡之前');
+}
 
 for (const text of [
   'Number(event.target.value)',
@@ -80,6 +86,8 @@ for (const text of [
 
 for (const text of [
   '.contract-summary-grid',
+  '.contract-content-actions {',
+  'justify-content: flex-end;',
   'grid-template-columns: repeat(4, minmax(0, 1fr));',
   '.contract-workspace {',
   'gap: var(--layout-gutter);',
@@ -109,6 +117,8 @@ for (const text of [
 for (const text of [
   '合同页的四项摘要在宽布局四列同排',
   '桌面合同主体固定为四列工作区',
+  '标题区不承载发布操作',
+  '按钮固定放在正文第一行并右对齐',
   '左侧两列是常驻“合同广场”',
   '右侧只使用“进行中的合同／历史合同”两个共享分段按钮切换',
   '待处理不再是独立标签',
@@ -142,6 +152,8 @@ for (const text of [
   'toHaveClass(/contract-card--attention/)',
   "page.locator('.contract-type-option')",
   "hasText: '采购合同'",
+  "page.locator('.contract-content-actions').getByRole('button', { name: '发布合同', exact: true })",
+  "page.locator('.page-fixed-header').getByRole('button', { name: '发布合同', exact: true })).toHaveCount(0)",
 ]) requireText(browserTestPath, text);
 
 for (const text of [

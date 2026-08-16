@@ -33,12 +33,13 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await expect(page.locator('.application-ui-layer')).toBeVisible();
   await expect(page.locator('.workspace-strategic-chrome')).toBeVisible();
   await expect(page.locator('.strategic-province-inspector')).toHaveCount(0);
-  await expect(page.locator('.strategic-map-lens-bar')).toBeVisible();
+  await expect(page.locator('.application-map-layer > .strategic-map-lens-bar')).toBeVisible();
   await expect(page.locator('.province-map-page')).toHaveCount(1);
   await expect(page.locator('.province-map-page > *')).toHaveCount(0);
   await expect(page.getByText('战略经营地图', { exact: true })).toHaveCount(0);
   await expect(page.getByLabel('地图图例')).toHaveCount(0);
-  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-cover-viewport', '1440x900');
+  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-fit-mode', 'contain');
+  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-contain-viewport', '1440x900');
 
   const geometry = await page.evaluate(() => {
     const rect = (selector: string) => {
@@ -92,10 +93,11 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
       boxShadow: 'none',
     });
   }
-  expect(geometry.pathBounds.left).toBeLessThanOrEqual(geometry.viewport.left + 1);
-  expect(geometry.pathBounds.top).toBeLessThanOrEqual(geometry.viewport.top + 1);
-  expect(geometry.pathBounds.right).toBeGreaterThanOrEqual(geometry.viewport.right - 1);
-  expect(geometry.pathBounds.bottom).toBeGreaterThanOrEqual(geometry.viewport.bottom - 1);
+  expect(geometry.pathBounds.left).toBeGreaterThanOrEqual(geometry.viewport.left - 1);
+  expect(geometry.pathBounds.top).toBeGreaterThanOrEqual(geometry.viewport.top - 1);
+  expect(geometry.pathBounds.right).toBeLessThanOrEqual(geometry.viewport.right + 1);
+  expect(geometry.pathBounds.bottom).toBeLessThanOrEqual(geometry.viewport.bottom + 1);
+  expect(geometry.pathBounds.right - geometry.pathBounds.left).toBeGreaterThanOrEqual(geometry.viewport.right * 0.94);
 
   const svg = map.locator('svg');
   await expect(svg).toBeVisible();
@@ -107,18 +109,50 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   for (const name of ['CA', 'TX', 'WA', 'FL', 'NY']) expect(renderedRegionLabels).toContain(name);
 
   const instanceId = await map.locator('.economy-chart__canvas').getAttribute('data-echarts-instance-id');
-  await svg.locator('text').filter({ hasText: /^TX$/ }).click();
-  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', 'US-TX');
-  await svg.locator('text').filter({ hasText: /^CO$/ }).click();
+  const coloradoLabel = svg.locator('text').filter({ hasText: /^CO$/ });
+  const coloradoBox = await coloradoLabel.boundingBox();
+  expect(coloradoBox).not.toBeNull();
+  await page.mouse.move(
+    (coloradoBox?.x ?? 0) + (coloradoBox?.width ?? 0) / 2,
+    (coloradoBox?.y ?? 0) + (coloradoBox?.height ?? 0) / 2,
+  );
+  await page.mouse.wheel(0, -480);
+  await expect.poll(async () => {
+    const outline = await readOutlineGeometry(page);
+    return outline.right - outline.left;
+  }).toBeGreaterThan((geometry.pathBounds.right - geometry.pathBounds.left) * 1.05);
+  const cameraBeforeSelection = await readOutlineGeometry(page);
+  await coloradoLabel.click();
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '150000');
+  const cameraAfterSelection = await readOutlineGeometry(page);
+  expect(cameraAfterSelection.left).toBeCloseTo(cameraBeforeSelection.left, 0);
+  expect(cameraAfterSelection.top).toBeCloseTo(cameraBeforeSelection.top, 0);
+  expect(cameraAfterSelection.right).toBeCloseTo(cameraBeforeSelection.right, 0);
+  expect(cameraAfterSelection.bottom).toBeCloseTo(cameraBeforeSelection.bottom, 0);
+
+  await map.locator('.economy-chart__canvas').dblclick({
+    position: { x: 8, y: 160 },
+    force: true,
+  });
+  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute(
+    'data-map-camera-reset',
+    'blank-double-click',
+  );
+  const cameraAfterBlankDoubleClick = await readOutlineGeometry(page);
+  expect(cameraAfterBlankDoubleClick.left).toBeCloseTo(geometry.pathBounds.left, 0);
+  expect(cameraAfterBlankDoubleClick.top).toBeCloseTo(geometry.pathBounds.top, 0);
+  expect(cameraAfterBlankDoubleClick.right).toBeCloseTo(geometry.pathBounds.right, 0);
+  expect(cameraAfterBlankDoubleClick.bottom).toBeCloseTo(geometry.pathBounds.bottom, 0);
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '150000');
 
   await page.setViewportSize({ width: 900, height: 900 });
-  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-cover-viewport', '900x900');
+  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-contain-viewport', '900x900');
   const resizedOutline = await readOutlineGeometry(page);
-  expect(resizedOutline.left).toBeLessThanOrEqual(1);
-  expect(resizedOutline.top).toBeLessThanOrEqual(1);
-  expect(resizedOutline.right).toBeGreaterThanOrEqual(899);
-  expect(resizedOutline.bottom).toBeGreaterThanOrEqual(899);
+  expect(resizedOutline.left).toBeGreaterThanOrEqual(-1);
+  expect(resizedOutline.top).toBeGreaterThanOrEqual(-1);
+  expect(resizedOutline.right).toBeLessThanOrEqual(901);
+  expect(resizedOutline.bottom).toBeLessThanOrEqual(901);
+  expect(resizedOutline.right - resizedOutline.left).toBeGreaterThanOrEqual(846);
   expect(resizedOutline.outlineAspect).toBeCloseTo(geometry.pathBounds.outlineAspect, 2);
   await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-echarts-instance-id', instanceId || '');
 
@@ -130,6 +164,18 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
     .getByRole('button', { name: '市场', exact: true })
     .click();
   await expect.poll(() => page.evaluate(() => (window as Window & { __lastSelectedTab?: string }).__lastSelectedTab)).toBe('market');
+  await expect(page.getByRole('heading', { name: '科罗拉多州本地市场', exact: true })).toBeVisible();
+  await expect(page.getByLabel('州级地区', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.province-context-select')).toHaveCount(0);
+  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-echarts-instance-id', instanceId || '');
+
+  await page.getByRole('navigation', { name: '游戏主导航' })
+    .getByRole('button', { name: '生产', exact: true })
+    .click();
+  await expect.poll(() => page.evaluate(() => (window as Window & { __lastSelectedTab?: string }).__lastSelectedTab)).toBe('production');
+  await expect(page.getByRole('heading', { name: '科罗拉多州生产', exact: true })).toBeVisible();
+  await expect(page.getByLabel('州级地区', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.province-context-select')).toHaveCount(0);
   await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-echarts-instance-id', instanceId || '');
 });
 
@@ -141,9 +187,10 @@ test('mobile strategy map fills the root map layer without obsolete map cards or
   await expect(map).toHaveAttribute('data-echarts-ready', 'true');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-feature-count', '48');
   await expect(page.locator('.strategic-province-inspector')).toHaveCount(0);
-  await expect(page.locator('.strategic-map-lens-bar')).toBeHidden();
+  await expect(page.locator('.application-map-layer > .strategic-map-lens-bar')).toBeHidden();
   await expect(page.locator('.province-map-page > *')).toHaveCount(0);
-  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-cover-viewport', '390x844');
+  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-fit-mode', 'contain');
+  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-contain-viewport', '390x844');
 
   const geometry = await page.evaluate(() => {
     const box = (selector: string) => {
@@ -176,10 +223,11 @@ test('mobile strategy map fills the root map layer without obsolete map cards or
   });
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.viewportWidth);
   expect(geometry.mapLayer).toEqual(geometry.viewport);
-  expect(geometry.mapLeft).toBeLessThanOrEqual(geometry.mapLayer.left + 1);
-  expect(geometry.mapTop).toBeLessThanOrEqual(geometry.mapLayer.top + 1);
-  expect(geometry.mapRight).toBeGreaterThanOrEqual(geometry.mapLayer.right - 1);
-  expect(geometry.mapBottom).toBeGreaterThanOrEqual(geometry.mapLayer.bottom - 1);
+  expect(geometry.mapLeft).toBeGreaterThanOrEqual(geometry.mapLayer.left - 1);
+  expect(geometry.mapTop).toBeGreaterThanOrEqual(geometry.mapLayer.top - 1);
+  expect(geometry.mapRight).toBeLessThanOrEqual(geometry.mapLayer.right + 1);
+  expect(geometry.mapBottom).toBeLessThanOrEqual(geometry.mapLayer.bottom + 1);
+  expect(geometry.mapRight - geometry.mapLeft).toBeGreaterThanOrEqual(geometry.viewportWidth * 0.94);
   expect(geometry.outlineAspect).toBeGreaterThan(1);
   expect(geometry.navigation.top).toBeLessThan(geometry.mapLayer.bottom);
   for (const excludedCode of ['AK', 'HI', 'DC']) {

@@ -1,21 +1,32 @@
-.leaderboard-grid-scroll {
-  width: 100%;
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  padding-bottom: var(--space-2);
-}
-
-.leaderboard-grid-scroll:focus-visible {
-  outline: 2px solid var(--color-success);
-  outline-offset: 4px;
-}
-
-.leaderboard-grid {
-  min-width: calc(1120px + var(--layout-gutter) * 3);
+.leaderboard-responsive-layout {
+  min-width: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(280px, 1fr));
-  align-items: stretch;
-  gap: var(--layout-gutter);
+  gap: var(--page-section-gap, var(--layout-gutter));
+  container: leaderboard-layout / inline-size;
+}
+
+.leaderboard-board-switch {
+  width: min(48rem, 100%);
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+}
+
+.leaderboard-board-switch > .ui-segmented__button {
+  min-width: 0;
+  padding-inline: clamp(.25rem, 1.5vw, var(--space-2));
+  white-space: nowrap;
+}
+
+.leaderboard-board-grid,
+.leaderboard-board-slot {
+  width: 100%;
+  min-width: 0;
+}
+
+.leaderboard-board-slot:not(.is-selected) {
+  display: none;
 }
 
 .leaderboard-board-card {
@@ -167,13 +178,24 @@
 }
 
 @media (max-width: 720px) {
-  .leaderboard-grid {
-    min-width: calc(1120px + var(--space-3) * 3);
-    gap: var(--space-3);
-  }
-
   .leaderboard-board-card {
     min-height: 560px;
+  }
+}
+
+@container leaderboard-layout (min-width: 72rem) {
+  .leaderboard-board-switch {
+    display: none;
+  }
+
+  .leaderboard-board-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--layout-gutter);
+  }
+
+  .leaderboard-board-slot:not(.is-selected) {
+    display: block;
   }
 }
 

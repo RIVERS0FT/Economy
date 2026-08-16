@@ -1,15 +1,10 @@
 import { useMemo } from 'react';
-import { useNow } from '../hooks/useNow';
-import {
-  facilityStatusReasonNames,
-  orderStatusNames,
-} from '../app/gameViewModel';
+import { orderStatusNames } from '../app/gameViewModel';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { FactoryIcon } from '../components/icons/GameIcons';
 import { GemIcon } from '../components/icons/GemIcon';
 import { ProductIconLabel } from '../components/icons/ProductIcons';
 import { GameGuideStrip } from '../components/GameGuideStrip';
-import { OverviewEconomicCalendarPanel, OverviewWorkButton } from './overview/OverviewLiveSections';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import {
   Button,
@@ -21,46 +16,24 @@ import {
   StatusTag,
   WidgetHeading,
 } from '../components/ui/layout';
-import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
+import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
 import { orderAssetId, orderKind } from '../utils/orderIdentity';
 
-function greetingForHour(hour: number) {
-  if (hour < 5) return '凌晨好';
-  if (hour < 12) return '早上好';
-  if (hour < 14) return '中午好';
-  if (hour < 18) return '下午好';
-  return '晚上好';
-}
-
 type OverviewPageProps = { model: TutorialAwareGameViewModel };
-
-type OverviewAlert = {
-  id: string;
-  tone: 'danger' | 'warning' | 'info';
-  title: string;
-  detail: string;
-  actionLabel: string;
-  onAction: () => void;
-};
 
 export function OverviewPage({ model }: OverviewPageProps) {
   const {
     game,
     derived,
-    isWorking,
     isCheckingIn,
-    work,
     checkIn,
     showResult,
     setTab,
   } = model;
-  const now = useNow(game.lastProcessedAt, 60_000);
   const totalFacilities = game.facilityGroups.reduce((sum, group) => sum + group.count, 0);
-  const greeting = greetingForHour(new Date(now).getHours());
   const ownOpenOrders = [...derived.ownOpenOrders].sort((left, right) => right.createdAt - left.createdAt);
   const buyOrderCount = ownOpenOrders.filter((order) => order.side === 'buy').length;
   const sellOrderCount = ownOpenOrders.length - buyOrderCount;
-  const economicEvents = game.economicCalendar?.events ?? [];
 
   const theoreticalDailyOutput = useMemo(() => game.facilityGroups.reduce((sum, group) => {
     if (group.status !== 'running' || group.participatingCount <= 0) return sum;
@@ -70,67 +43,6 @@ export function OverviewPage({ model }: OverviewPageProps) {
     if (!recipe || recipe.cycleMs <= 0) return sum;
     return sum + Math.floor((86_400_000 / recipe.cycleMs) * recipe.output.quantity * group.participatingCount);
   }, 0), [game.facilityGroups, game.facilityTypes]);
-
-
-  const businessAlerts = useMemo(() => {
-    const alerts: OverviewAlert[] = [];
-    const productionAction = () => setTab('production');
-
-    for (const group of game.facilityGroups.filter((item) => item.status === 'error').slice(0, 2)) {
-      const facilityName = game.facilityTypes.find((item) => item.id === group.facilityTypeId)?.name ?? group.facilityTypeId;
-      alerts.push({
-        id: `facility-error-${group.facilityTypeId}`,
-        tone: 'danger',
-        title: `${facilityName}生产受阻`,
-        detail: facilityStatusReasonNames[group.statusReason ?? 'maintenance'],
-        actionLabel: '管理工厂',
-        onAction: productionAction,
-      });
-    }
-
-    if (ownOpenOrders.length > 0) {
-      alerts.push({
-        id: 'open-orders',
-        tone: 'info',
-        title: `有 ${formatNumber(ownOpenOrders.length)} 笔挂单等待处理`,
-        detail: `买单 ${formatNumber(buyOrderCount)} 笔，卖单 ${formatNumber(sellOrderCount)} 笔。`,
-        actionLabel: '管理订单',
-        onAction: () => setTab('market'),
-      });
-    }
-
-    if (derived.stoppedFacilities > 0) {
-      alerts.push({
-        id: 'stopped-facilities',
-        tone: 'warning',
-        title: `${formatNumber(derived.stoppedFacilities)} 座工厂处于停止状态`,
-        detail: '确认是否需要恢复生产，或继续保留为主动停工。',
-        actionLabel: '查看工厂',
-        onAction: productionAction,
-      });
-    }
-
-    if (game.facilityConstruction) {
-      const facilityName = game.facilityTypes.find((item) => item.id === game.facilityConstruction?.facilityTypeId)?.name ?? '工厂';
-      alerts.push({
-        id: 'facility-construction',
-        tone: 'info',
-        title: `${facilityName}正在施工`,
-        detail: `预计 ${formatDuration(Math.max(0, game.facilityConstruction.completesAt - now))} 后完成。`,
-        actionLabel: '查看施工',
-        onAction: productionAction,
-      });
-    }
-
-    return alerts;
-  }, [buyOrderCount, derived.stoppedFacilities, game, now, ownOpenOrders.length, sellOrderCount, setTab]);
-
-  const visibleAlerts = businessAlerts.slice(0, model.tutorial.isVisible ? 2 : 3);
-  const primaryAction = ownOpenOrders.length > 0
-    ? { label: '处理订单', onClick: () => setTab('market') }
-    : businessAlerts.some((alert) => alert.id !== 'open-orders')
-      ? { label: '查看经营提醒', onClick: () => setTab('production') }
-      : { label: '进入市场', onClick: () => setTab('market') };
 
   const claimedCheckInDates = new Set(game.checkIn.claimedDateKeys);
   const claimCompletesWeek = game.checkIn.weeklyBonusEligible
@@ -142,136 +54,74 @@ export function OverviewPage({ model }: OverviewPageProps) {
 
   return (
     <PageLayout
-      title={<>{greeting}，{game.playerName}</>}
-      description="优先处理生产与订单提醒，并领取服务器每日签到奖励。"
-      actions={(
-        <>
-          <StatusTag tone={businessAlerts.length > 0 ? 'warning' : 'success'}>
-            {businessAlerts.length > 0 ? `待处理事项 ${formatNumber(businessAlerts.length)}` : '经营状态正常'}
-          </StatusTag>
-          <Button onClick={primaryAction.onClick}>{primaryAction.label}</Button>
-        </>
-      )}
+      title="概览"
+      description="经营提醒统一进入通知待处理；在此领取每日签到并查看核心经营状态。"
     >
-      <div className="home-grid">
-        <div className="overview-primary-grid">
-          <Panel className="widget overview-today-panel">
+      <div className="overview-dashboard-shell">
+        <div className="overview-mobile-tutorial">
+          <GameGuideStrip tutorial={model.tutorial} />
+        </div>
+        <div className="home-grid">
+          <Panel className="widget overview-check-in-panel">
             <WidgetHeading
-              title="今日经营"
-              action={<StatusTag tone="success">工作收益 <CurrencyAmount>{formatCurrency(1)}</CurrencyAmount></StatusTag>}
+              title="本周签到"
+              action={(
+                <Button
+                  disabled={isCheckingIn || game.checkIn.claimedToday}
+                  onClick={() => void showResult(checkIn())}
+                >
+                  {isCheckingIn
+                    ? '处理中…'
+                    : game.checkIn.claimedToday
+                      ? '今日已签到'
+                      : claimCompletesWeek
+                        ? '签到领取 1 + 5 宝石'
+                        : '签到领取 1 宝石'}
+                </Button>
+              )}
             />
-            <GameGuideStrip tutorial={model.tutorial} />
-            <div className="overview-work-strip">
-              <div className="overview-work-copy">
-                <strong>基础工作</strong>
-                <span>固定 3s 冷却，为产业调整提供兜底资金。</span>
-              </div>
-              <OverviewWorkButton
-                referenceNow={game.lastProcessedAt}
-                cooldownUntil={game.work.cooldownUntil}
-                isWorking={isWorking}
-                onWork={() => void showResult(work())}
-              />
-            </div>
-
-            <div className="overview-alert-heading">
+            <div className="overview-check-in-rewards">
               <div>
-                <strong>经营提醒</strong>
-                <span>按生产、订单和停工优先级排列</span>
+                <span>每日签到</span>
+                <strong><GemIcon /> +{formatNumber(game.checkIn.dailyRewardGems)} 宝石</strong>
               </div>
-              <StatusTag tone={businessAlerts.length > 0 ? 'warning' : 'success'}>{formatNumber(businessAlerts.length)}</StatusTag>
+              <div>
+                <span>本周全勤</span>
+                <strong><GemIcon /> +{formatNumber(game.checkIn.weeklyBonusGems)} 宝石</strong>
+              </div>
             </div>
-            <div className="overview-alert-list">
-              {visibleAlerts.map((alert) => (
-                <div className={`overview-alert overview-alert--${alert.tone}`} key={alert.id}>
-                  <div>
-                    <strong>{alert.title}</strong>
-                    <small>{alert.detail}</small>
+            <div className="overview-check-in-calendar" role="list" aria-label="本周签到日历">
+              {game.checkIn.dateKeys.map((dateKey, index) => {
+                const claimed = claimedCheckInDates.has(dateKey);
+                const isToday = dateKey === game.checkIn.todayKey;
+                const missed = dateKey < game.checkIn.todayKey && !claimed;
+                const future = dateKey > game.checkIn.todayKey;
+                const status = claimed ? '已签' : isToday ? '今日' : missed ? '漏签' : '未到';
+                const weekday = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][index];
+                return (
+                  <div
+                    className={`overview-check-in-day${claimed ? ' is-claimed' : ''}${isToday ? ' is-today' : ''}${missed ? ' is-missed' : ''}${future ? ' is-future' : ''}`}
+                    key={dateKey}
+                    role="listitem"
+                    aria-label={`${weekday} ${dateKey.slice(5)} ${status}`}
+                  >
+                    <span>{weekday}</span>
+                    <strong>{dateKey.slice(5)}</strong>
+                    <small>{status}</small>
                   </div>
-                  <Button variant="text" onClick={alert.onAction}>{alert.actionLabel} →</Button>
-                </div>
-              ))}
-              {visibleAlerts.length === 0 ? (
-                <EmptyState className="overview-alert-empty">当前没有需要立即处理的经营异常。</EmptyState>
-              ) : null}
+                );
+              })}
             </div>
+            {game.checkIn.weeklyBonusEarned || !game.checkIn.weeklyBonusEligible ? (
+              <strong className="overview-check-in-status">
+                {game.checkIn.weeklyBonusEarned
+                  ? '本周全勤奖励已领取'
+                  : '注册所在周可领取每日奖励，下周起参与全勤'}
+              </strong>
+            ) : null}
           </Panel>
 
-          <Panel className="widget overview-check-in-panel">
-  <WidgetHeading
-    title="本周签到"
-    action={(
-      <StatusTag tone={game.checkIn.weeklyBonusEarned ? 'success' : 'info'}>
-        {formatNumber(game.checkIn.weeklyClaimCount)} / 7 天
-      </StatusTag>
-    )}
-  />
-  <div className="overview-check-in-rewards">
-    <div>
-      <span>每日签到</span>
-      <strong><GemIcon /> +{formatNumber(game.checkIn.dailyRewardGems)} 宝石</strong>
-    </div>
-    <div>
-      <span>本周全勤</span>
-      <strong><GemIcon /> +{formatNumber(game.checkIn.weeklyBonusGems)} 宝石</strong>
-    </div>
-  </div>
-  <div className="overview-check-in-calendar" role="list" aria-label="本周签到日历">
-    {game.checkIn.dateKeys.map((dateKey, index) => {
-      const claimed = claimedCheckInDates.has(dateKey);
-      const isToday = dateKey === game.checkIn.todayKey;
-      const missed = dateKey < game.checkIn.todayKey && !claimed;
-      const future = dateKey > game.checkIn.todayKey;
-      const status = claimed ? '已签' : isToday ? '今日' : missed ? '漏签' : '未到';
-      const weekday = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][index];
-      return (
-        <div
-          className={`overview-check-in-day${claimed ? ' is-claimed' : ''}${isToday ? ' is-today' : ''}${missed ? ' is-missed' : ''}${future ? ' is-future' : ''}`}
-          key={dateKey}
-          role="listitem"
-          aria-label={`${weekday} ${dateKey.slice(5)} ${status}`}
-        >
-          <span>{weekday}</span>
-          <strong>{dateKey.slice(5)}</strong>
-          <small>{status}</small>
-        </div>
-      );
-    })}
-  </div>
-  <div className="overview-check-in-footer">
-    <div>
-      <strong>{game.checkIn.weeklyBonusEarned
-        ? '本周全勤奖励已领取'
-        : game.checkIn.weeklyBonusEligible
-          ? '连续签到 7 天可额外获得 5 宝石'
-          : '注册所在周可领取每日奖励，下周起参与全勤'}</strong>
-      <small>签到日期由服务器按北京时间判定，不支持补签。</small>
-    </div>
-    <Button
-      disabled={isCheckingIn || game.checkIn.claimedToday}
-      onClick={() => void showResult(checkIn())}
-    >
-      {isCheckingIn
-        ? '处理中…'
-        : game.checkIn.claimedToday
-          ? '今日已签到'
-          : claimCompletesWeek
-            ? '签到领取 1 + 5 宝石'
-            : '签到领取 1 宝石'}
-    </Button>
-  </div>
-</Panel>
-        </div>
-
-
-<OverviewEconomicCalendarPanel
-  events={economicEvents}
-  products={game.products}
-  markets={game.markets}
-  referenceNow={game.lastProcessedAt}
-/>
-
-<div className="overview-summary-row">
+          <div className="overview-summary-row">
           <Panel className="widget production-summary overview-summary-card">
             <WidgetHeading title="生产摘要" action={<Button variant="text" onClick={() => setTab('production')}>管理工厂</Button>} />
             <DataList className="compact overview-core-data">
@@ -343,6 +193,7 @@ export function OverviewPage({ model }: OverviewPageProps) {
             </div>
           </Panel>
         </div>
+      </div>
       </div>
     </PageLayout>
   );

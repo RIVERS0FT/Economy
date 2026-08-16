@@ -12,6 +12,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/OverviewPage.tsx',
   'src/pages/MarketPage.tsx',
   'src/pages/ProductionPage.tsx',
+  'src/pages/ResearchPage.tsx',
   'tests/browser/production-status-summary.spec.ts',
   'src/components/assets/AssetOverviewPanel.tsx',
   'src/pages/BankPage.tsx',
@@ -56,6 +57,8 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/config/brand.ts',
   'index.html',
   'src/styles/auth.css',
+  'src/styles/globals.css',
+  'src/styles/design-system.css',
   'src/styles/registration-auth.css',
   'src/styles/virtual-list.css',
   'src/styles/contracts.css',
@@ -96,16 +99,47 @@ for (const text of [
 for (const text of [
   "toHaveAttribute('data-local-game-preview', 'true')",
   "page.locator('.game-shell')",
-  "toHaveCount(10)",
+  "sidebar-nav-button')).toHaveCount(9)",
+  "sidebar-footer').getByRole('button', { name: '设置' })).toHaveCount(1)",
   "expect(apiRequests).toEqual([])",
-  "toHaveCount(4)",
+  "page.locator('.leaderboard-board-card:visible')).toHaveCount(4)",
+  "page.locator('.leaderboard-board-card:visible')).toHaveCount(1)",
+  "toHaveAttribute('aria-label', '选择排行榜')",
+  'expect(new Set(layout.padding).size).toBe(1)',
 ]) requireText('tests/browser/all-pages-preview.spec.ts', text);
 for (const text of [
-  'data-player-page-navigation="true"',
-  'aria-label="返回上一页面"',
+  "data-player-page-navigation={pageNavigation ? 'true' : undefined}",
+  "classNames('page-heading', pageNavigation && 'page-heading--player-navigation')",
+  'page-navigation-button--back',
+  'page-heading-title',
+  'page-navigation-button--close',
+  'page-heading-actions--player',
+  'className="page-fixed-header"',
+  'className="page-card-scroll-area"',
+  'viewportClassName="page-card-scroll"',
+  "aria-label={backAction?.label ?? '返回上一页面'}",
   'aria-label="关闭当前页面并显示地图"',
-  'disabled={!pageNavigation.canGoBack}',
+  'disabled={!backAction && !pageNavigation.canGoBack}',
 ]) requireText('src/components/ui/layout.tsx', text);
+forbidText('src/components/ui/layout.tsx', '<p>{description}</p>');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得在标题下方显示 `description` 说明段落');
+requireText('tests/browser/runtime.spec.ts', "page.locator('.page-heading p')).toHaveCount(0)");
+for (const text of [
+  '.page-fixed-header {',
+  '.page-heading {',
+  'padding: var(--layout-gutter);',
+  'border-bottom: 1px solid var(--color-border-strong);',
+  'background: color-mix(in srgb, var(--color-surface-panel) 88%, transparent);',
+  'box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);',
+]) requireText('src/styles/globals.css', text);
+for (const text of [
+  '.page-card-static > .ui-page-stack {',
+  'grid-template-rows: minmax(0, 1fr);',
+  'align-content: stretch;',
+]) requireText('src/styles/design-system.css', text);
+requireText('src/styles/game-shell-layout.css', '.signed-in-shell .page-heading {');
+requireText('src/styles/game-shell-layout.css', 'padding: var(--layout-gutter);');
+requireText('docs/UI_DESIGN_SYSTEM.md', '独立表面背景、底部分隔线和阴影与正文形成清晰分区');
 for (const text of [
   'pageHistoryRef',
   "previousTab !== 'map'",
@@ -171,16 +205,23 @@ for (const text of [
 for (const text of ['.login-shell:focus-within', 'transition: font-size']) forbidText('src/styles/auth.css', text);
 
 for (const text of [
-  'unified-asset-tabs',
+  "if (marketViewMode === 'catalog')",
+  'market-catalog-filters',
+  'market-catalog-row',
+  '<ProductArtwork productId={entry.id} />',
+  '<FacilityIcon facilityTypeId={entry.id} />',
+  'backAction={{',
   'placeAssetOrder',
   'single-order-book',
-  'items={localTrades}',
+  'items={selectedLocalTrades}',
   'local-trades-virtual-table',
   '<FactoryIcon />',
   'formatNumber(order.remaining)',
   'formatCurrency(order.price)',
 ]) requireText('src/pages/MarketPage.tsx', text);
 for (const text of [
+  'unified-asset-tabs',
+  'asset-directory-shell',
   'localTrades.map(',
   'market-stat-strip',
   '工厂数量市场',
@@ -189,18 +230,19 @@ for (const text of [
   'order-book-columns',
   'order-book-midpoint',
 ]) forbidText('src/pages/MarketPage.tsx', text);
+const marketPageSource = read('src/pages/MarketPage.tsx');
+const marketCatalogStart = marketPageSource.indexOf("if (marketViewMode === 'catalog')");
+const marketDetailStart = marketPageSource.indexOf('\n  return (', marketCatalogStart);
+const marketCatalogSource = marketPageSource.slice(marketCatalogStart, marketDetailStart);
+if (marketCatalogSource.includes('<WidgetHeading')) failures.push('市场目录态不应显示商品／工厂列表标题或数量胶囊');
+if (marketCatalogSource.includes('${catalogEntries.length} 项')) failures.push('市场目录态不应显示资产数量胶囊');
+requireText('src/pages/MarketPage.tsx', "{entry.kind === 'facility' ? <small>{entry.categoryLabel}</small> : null}");
 
 for (const text of [
   'title="生产"',
   'SwitchControl',
   'checked={group.enabled}',
-  'const facilityClusterStatusCounts = useMemo(() => {',
-  "const summary: Record<FacilityGroup['status'], number> = {",
   'if (!entry.constructionOnly)',
-  'summary[entry.group.status] += 1;',
-  '运行 {formatNumber(facilityClusterStatusCounts.running)}',
-  '停止 {formatNumber(facilityClusterStatusCounts.stopped)}',
-  '异常 {formatNumber(facilityClusterStatusCounts.error)}',
   'facility-status-header',
   'facility-card-title-row',
   'facility-card-title-block',
@@ -225,11 +267,25 @@ for (const text of [
   '停止 {formatNumber(model.derived.stoppedFacilities)}',
   '异常 {formatNumber(model.derived.blockedFacilities)}',
   '施工 {formatNumber(model.derived.constructingFacilities)}',
+  'const facilityClusterStatusCounts = useMemo(() => {',
+  "const summary: Record<FacilityGroup['status'], number> = {",
+  'summary[entry.group.status] += 1;',
+  '运行 {formatNumber(facilityClusterStatusCounts.running)}',
+  '停止 {formatNumber(facilityClusterStatusCounts.stopped)}',
+  '异常 {formatNumber(facilityClusterStatusCounts.error)}',
 ]) forbidText('src/pages/ProductionPage.tsx', text);
 requireText(
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
-  '标题区状态汇总固定只显示“运行 N／停止 N／异常 N”',
+  '标题区不显示运行／停止／异常汇总',
 );
+for (const text of [
+  'scrollable={false}',
+  'className="research-workspace"',
+]) requireText('src/pages/ResearchPage.tsx', text);
+for (const text of [
+  '完整阶段',
+  'actions={',
+]) forbidText('src/pages/ResearchPage.tsx', text);
 for (const text of [
   'facility-formula-input-group',
   'facility-formula-input-side',
@@ -310,16 +366,23 @@ for (const text of [
   'sidebar-community-link',
   '加入 QQ 群',
   'QqIcon',
-  'LogoutIcon',
+  'SettingsIcon',
+  'sidebar-settings',
+  "excludedTabs={['settings']}",
+  'showIdentity={false}',
   'target="_blank"',
   'rel="noopener noreferrer"',
 ]) requireText('src/components/shell/DesktopSidebar.tsx', text);
 for (const text of [
-  'sidebar-logo-expand-button',
-  'aria-label="展开侧栏"',
-  'aria-label="折叠侧栏"',
   'sidebar-brand-copy',
+  'onMouseEnter={expand}',
+  'onMouseLeave={collapse}',
+  'onFocusCapture={expand}',
+  'onBlurCapture={handleBlur}',
 ]) requireText('src/components/shell/SidebarFrame.tsx', text);
+for (const text of ['sidebar-logo-expand-button', 'sidebar-collapse-button', 'aria-label="展开侧栏"', 'aria-label="折叠侧栏"']) {
+  forbidText('src/components/shell/SidebarFrame.tsx', text);
+}
 for (const text of [
   "export type AdminSectionId = 'overview' | 'players' | 'population' | 'gift-codes' | 'bans'",
   '管理员导航',
@@ -333,22 +396,25 @@ for (const text of [
 ]) requireText('src/components/shell/SignedInShell.tsx', text);
 for (const text of [
   'className="asset-bar admin-command-bar"',
-  'variant="desktopStatusBar"',
+  'variant="statusBar"',
   '刷新当前分区',
 ]) requireText('src/components/shell/AdminDesktopBar.tsx', text);
-for (const text of ['<span aria-hidden="true">QQ</span>', '>退出登录</Button>']) {
+for (const text of ['<span aria-hidden="true">QQ</span>', '>退出登录</Button>', 'LogoutIcon']) {
   forbidText('src/components/shell/DesktopSidebar.tsx', text);
 }
-for (const text of ['export function QqIcon', 'export function LogoutIcon']) {
+for (const text of ['export function QqIcon', 'export function SettingsIcon']) {
   requireText('src/components/icons/GameIcons.tsx', text);
 }
 for (const text of [
-  '.desktop-sidebar[data-collapsed="true"] .sidebar-logo-expand-button:hover img',
-  '.desktop-sidebar[data-collapsed="true"] .sidebar-logo-expand-button:focus-visible img',
   '.desktop-sidebar[data-collapsed="true"] .sidebar-footer-action strong',
+  '.desktop-sidebar .sidebar-footer-action strong {',
+  '.desktop-sidebar .sidebar-footer {',
   '.desktop-sidebar button:hover:not(:disabled)',
   '--desktop-sidebar-motion: 200ms',
 ]) requireText('src/styles/desktop-sidebar.css', text);
+for (const text of ['sidebar-logo-expand-button', 'sidebar-collapse-button']) {
+  forbidText('src/styles/desktop-sidebar.css', text);
+}
 for (const text of ['AdminBanApp', "path === '/economy/admin/bans'"]) forbidText('src/app/App.tsx', text);
 forbidText('src/pages/SettingsPage.tsx', '/economy/admin/bans');
 forbidText('src/pages/SettingsPage.tsx', 'InvitationSettings');
@@ -424,6 +490,7 @@ for (const text of [
   '待处理',
   '历史合同',
   '发布合同',
+  'contract-content-actions',
   'productionContractActions',
   '准备本批商品',
   '补充本批货款',
@@ -437,6 +504,7 @@ for (const text of [
   'contract-active-grid',
   "contract.graceEndsAt ? 'danger' : needsAttention ? 'attention' : 'normal'",
 ]) requireText('src/pages/ContractPage.tsx', text);
+forbidText('src/pages/ContractPage.tsx', 'actions={<Button onClick');
 for (const text of [
   '.contract-workspace {',
   'gap: var(--layout-gutter);',
@@ -491,14 +559,14 @@ for (const text of [
 ]) requireText('src/app/gameViewModel.ts', text);
 
 for (const text of [
-  '点击工作次数',
+  '持有工厂总数',
   '生产商品总数',
   '买入商品总数',
   '卖出商品总数',
   '礼品兑换',
   '退出登录',
   '全局使用 K/M/B/T 缩写大额金额、库存、数量与容量',
-  'formatNumber(game.stats.workClicks)',
+  'game.facilityGroups.reduce((sum, group) => sum + group.count, 0)',
 ]) requireText('src/pages/SettingsPage.tsx', text);
 for (const text of ['邀请好友', '分享链接', '永久邀请码', '注册填写', '注册完成后不能补填或更换', '累计宝石']) {
   requireText('src/components/InvitationSettings.tsx', text);
@@ -546,7 +614,7 @@ for (const text of ['openOrderCount', "id === 'market'", 'sidebar-nav-count']) {
 
 for (const text of [
   '概览｜市场｜生产｜研发｜拍卖｜合同｜银行｜排行｜商店｜设置',
-  '玩家仍有十一个正式页面状态，但桌面侧栏与移动底栏只显示除 `map` 外的十个业务导航按钮',
+  '移动底栏显示除 `map` 外的十个业务导航按钮，桌面侧栏主导航显示其中九项，并把“设置”固定为侧栏底部操作',
   '返回按最近顺序回到上一个非地图业务页面',
   '| 拍卖 | `auction` | `AuctionPage` | 商品与工厂资产包发布及进行中竞价 |',
   '| 合同 | `contracts` | `ContractPage` | 商品供货、玩家抵押借贷和工厂使用权租赁合同的发布、承接、履约与历史 |',
@@ -575,12 +643,12 @@ for (const text of [
   '合同交付不写入统一订单簿最近成交价、价格曲线、商品估值或交易榜',
   '登录模式只调用现有统一账号登录，不得在 401 后自动注册',
   '邀请卡唯一归属商店，只展示玩家自己的专属分享链接、永久邀请码',
-  'Logo 在展开与折叠状态统一为 `40×40px`',
-  '两个入口必须复用 `GameIcons.tsx` 的 QQ 与退出 SVG',
+  '玩家 Logo、游戏标题和玩家名统一位于状态栏左侧身份轨道',
+  '两个入口分别使用 `QqIcon` 与 `SettingsIcon`',
   '管理员后台左侧导航复用同一侧栏骨架与动画',
   '`all-pages-preview.html` 只属于本地开发预览目录',
   '所有玩家页面共享的常驻战略地图',
-  '页面内容按四类战略面板展示',
+  '概览、市场、生产、设置使用参考大战略建筑页面的 `building` 左侧毛玻璃面板',
   '`MapPage` 不再拥有 `UsMainlandMap` 实例',
   '`MapPage` 只保留透明路由占位',
   '不得渲染左上“战略经营地图”卡片、左下图例／来源卡或“当前经营地区”卡片',
@@ -591,11 +659,14 @@ for (const text of [
 
 for (const text of [
   'const STRATEGIC_PAGE_PRESENTATION = {',
-  "home: 'workspace'",
+  "home: 'building'",
   "map: 'map'",
   "research: 'fullscreen'",
-  "'gem-shop': 'side'",
+  "'gem-shop': 'fullscreen'",
   'data-strategic-presentation={pagePresentation}',
+  'identity={{',
+  'logoSrc: BRAND_LOGO_URL',
+  'title: BRAND_NAME',
 ]) requireText('src/components/shell/GameShell.tsx', text);
 forbidText('src/pages/MapPage.tsx', '<UsMainlandMap');
 for (const text of ['战略经营地图', '当前经营地区', 'province-map-command-panel', 'province-map-meta', 'province-map-legend']) {
@@ -618,7 +689,7 @@ for (const text of [
   '账号和密码必须保留原生未受控表单值',
   '提交时通过 `FormData(event.currentTarget)` 读取浏览器自动填充内容',
   '不得把账号或密码重新绑定到初始为空的 React `value` 状态',
-  '`https://riversoft.top/logo.svg` 是 Economy 登录页与桌面侧栏显示品牌 Logo 的唯一权威资源',
+  '`https://riversoft.top/logo.svg` 是 Economy 登录页与玩家状态栏显示品牌 Logo 的唯一权威资源',
   '页面 favicon 使用同一 SVG，并声明 `image/svg+xml`',
   'Apple Touch Icon、Open Graph 和 Twitter 图片继续使用主页同步生成的 `https://riversoft.top/1000002880.png`',
   '兼容 PNG 不得替代页面内可见 Logo',

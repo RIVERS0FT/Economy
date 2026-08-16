@@ -39,11 +39,6 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
   const tutorialModel = useMemo<TutorialAwareGameViewModel>(() => ({
     ...pollingModel,
     tutorial,
-    work: async () => {
-      const result = await model.work();
-      if (result.ok) tutorial.recordWorkClick();
-      return result;
-    },
     bankDeposit: async (amount) => {
       const result = await model.bankDeposit(amount);
       if (result.ok) tutorial.recordBankDeposit();

@@ -61,7 +61,6 @@ if (/setInterval\s*\([^)]*1_?000/.test(viewModel) || /\bsetNow\b/.test(viewModel
 if (/\bworkRemaining\b/.test(viewModel)) fail('workRemaining 必须由局部页面计算');
 
 for (const [path, pattern] of [
-  ['src/pages/OverviewPage.tsx', /useNow\(game\.lastProcessedAt,\s*60_000\)/],
   ['src/pages/ProductionPage.tsx', /const now = game\.lastProcessedAt/],
   ['src/pages/AuctionPage.tsx', /const referenceNow = model\.game\.lastProcessedAt/],
   ['src/pages/BankPage.tsx', /const referenceNow = model\.game\.lastProcessedAt/],
@@ -70,7 +69,7 @@ for (const [path, pattern] of [
   if (!pattern.test(read(path))) fail(`${path} 必须以权威 lastProcessedAt 作为局部时间基准`);
 }
 for (const [path, pattern] of [
-  ['src/pages/overview/OverviewLiveSections.tsx', /LiveServerTime referenceNow=\{referenceNow\}/],
+  ['src/components/EconomicEventLogPanel.tsx', /LiveServerTime referenceNow=\{referenceNow\}/],
   ['src/pages/AuctionPage.tsx', /LiveDurationUntil deadline=\{endsAt\} referenceNow=\{referenceNow\}/],
   ['src/pages/BankPage.tsx', /LiveDurationUntil/],
   ['src/pages/production/ProductionFacilityDetail.tsx', /const liveNow = useNow\(now\)/],

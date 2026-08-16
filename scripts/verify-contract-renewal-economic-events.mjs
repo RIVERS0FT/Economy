@@ -12,7 +12,8 @@ const runtimeStore = `${read('server/src/runtime-store.js')}\n${read('server/src
 const routes = read('server/src/game-routes.js');
 const statePartitions = read('server/src/state-partitions.js');
 const overview = read('src/pages/OverviewPage.tsx');
-const overviewLive = read('src/pages/overview/OverviewLiveSections.tsx');
+const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');
+const economicEventLog = read('src/components/EconomicEventLogPanel.tsx');
 const contractPage = read('src/pages/ContractPage.tsx');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
@@ -38,10 +39,13 @@ assert.ok(runtimeStore.includes('createEconomicCalendarClientState(now)'), 'stat
 assert.ok(runtimeStore.includes('createStablePartitionClientState(snapshot.state)'), 'state snapshot must stabilize partition projections');
 assert.ok(statePartitions.includes("'economicCalendar'"), 'economic calendar must stay in the existing market delivery partition');
 assert.ok(statePartitions.includes("['leaderboard', 'leaderboards']"), 'ranked leaderboards must stay in the leaderboard delivery partition');
-assert.ok(overview.includes('<OverviewEconomicCalendarPanel'), 'overview must own and mount the public economic calendar');
-assert.ok(overviewLive.includes('公开经济事件日历'), 'overview live section must render the public economic calendar');
-assert.ok(overviewLive.includes('未来 7 天'), 'overview live section must limit the visible calendar to seven days');
-assert.ok(!read('src/pages/MarketPage.tsx').includes('公开经济事件日历'), 'market page must not own the economic calendar');
+assert.ok(!overview.includes('EconomicEventLogPanel') && !overview.includes('公开经济事件'), 'overview page content must not own the public economic event log');
+assert.ok(strategicWorkspace.includes('className="strategic-economic-event-rail"'), 'strategic shell must own the independent public economic event rail');
+assert.ok(strategicWorkspace.includes('<EconomicEventLogPanel'), 'strategic shell must mount the public economic event log');
+assert.ok(economicEventLog.includes('className="economic-event-log-title"'), 'economic event panel must render the public event log title without a heading pill');
+assert.ok(economicEventLog.includes('<details') && economicEventLog.includes('<summary>'), 'economic events must stay compact until expanded');
+assert.ok(economicEventLog.includes('近期与未来七天'), 'economic event panel must limit the visible calendar to seven days');
+assert.ok(!read('src/pages/MarketPage.tsx').includes('公开经济事件'), 'market page must not own the economic event log');
 assert.ok(contractPage.includes('提出续签'), 'contract page must expose renewal controls');
 assert.ok(contractPage.includes('同意续签') && contractPage.includes('撤销同意'), 'contract page must expose bilateral renewal approval controls');
 assert.ok(contractPage.includes('采购方确认') && contractPage.includes('供应方确认'), 'contract page must show both renewal approval states');

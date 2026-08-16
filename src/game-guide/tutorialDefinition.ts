@@ -11,13 +11,6 @@ export interface TutorialStepDefinition {
 
 export const TUTORIAL_STEPS: TutorialStepDefinition[] = [
   {
-    id: 'work',
-    title: '完成一次工作',
-    description: '点击“开始工作”，了解经营失败时的基础资金来源。',
-    actionLabel: '查看工作',
-    targetTab: 'home',
-  },
-  {
     id: 'build-facility',
     title: '建设一座工厂',
     description: '前往生产页选择工厂并成功建设。每次重开成长线都需要重新操作。',

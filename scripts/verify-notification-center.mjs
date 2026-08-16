@@ -35,13 +35,19 @@ notifications = appendNotification([], { title: '可删除通知', createdAt: 12
 assert.equal(deleteNotification(notifications, notifications[0].id).length, 0);
 
 const pendingItems = derivePendingNotificationItems({
-  facilityTypes: [{ id: 'farm', name: '农场' }],
+  facilityTypes: [{ id: 'farm', name: '农场' }, { id: 'mill', name: '磨坊' }],
   facilityGroups: [{
     facilityTypeId: 'farm',
     count: 2,
     status: 'error',
     statusReason: 'insufficient_input',
+  }, {
+    facilityTypeId: 'mill',
+    count: 1,
+    status: 'stopped',
+    statusReason: 'manual',
   }],
+  orders: [{ id: 'order-1', isOwn: true, status: 'open', remaining: 3, side: 'buy' }],
   bankAccount: { activeLoan: { status: 'grace' } },
   bankSummary: { weeklyCashSettlement: { outstandingCredits: 8 } },
   assetAuctions: [{ id: 'auction-1', status: 'open', isOutbid: true }],
@@ -56,6 +62,8 @@ assert.deepEqual(
   new Set(pendingItems.map((item) => item.key)),
   new Set([
     'facility:farm',
+    'facility:mill',
+    'market:open-orders',
     'contract:issue:contract-1',
     'auction:outbid:auction-1',
     'bank:loan-grace',
@@ -90,6 +98,7 @@ assert.doesNotMatch(gameShell, /CurrencyText/);
 const statusBar = read('src/components/shell/StatusBar.tsx');
 assert.match(statusBar, /action\?: ReactNode/);
 assert.match(statusBar, /className="asset-bar-layout"/);
+assert.match(statusBar, /className="asset-bar-identity"/);
 assert.match(statusBar, /className="asset-bar-content"/);
 assert.match(statusBar, /className="asset-bar-action"/);
 
@@ -105,11 +114,15 @@ assert.match(hook, /clearReadNotifications/);
 assert.match(hook, /deleteNotification/);
 assert.match(hook, /TOAST_DURATION_MS = 4_500/);
 assert.match(hook, /MAX_TOAST_QUEUE = 3/);
+assert.match(hook, /'market\.orders'/);
 
 const notificationModel = read('src/notifications/notificationCenter.ts');
 assert.match(notificationModel, /Omit<Partial<EconomyState>/);
 assert.match(notificationModel, /Array\.isArray\(game\.facilityTypes\)/);
 assert.match(notificationModel, /Array\.isArray\(game\.facilityGroups\)/);
+assert.match(notificationModel, /function marketPendingItems/);
+assert.match(notificationModel, /key: 'market:open-orders'/);
+assert.match(notificationModel, /group\.status !== 'error' && group\.status !== 'stopped'/);
 assert.doesNotMatch(notificationModel, /warehouseAvailableCapacity|inventoryCapacity/);
 assert.match(notificationModel, /game\.bankAccount\?\.activeLoan\?\.status/);
 assert.match(notificationModel, /game\.bankSummary\?\.weeklyCashSettlement\?\.outstandingCredits/);
@@ -128,6 +141,9 @@ assert.match(component, /hiddenCount = Math\.max\(0, renderedToasts\.length - 1\
 assert.match(component, /className="mobile-notice-region notification-island-region"/);
 assert.match(component, /data-phase=\{phase\}/);
 assert.match(component, /aria-live="polite"/);
+assert.match(component, /onPointerDown=\{onClose\}/);
+assert.match(component, /onPointerDown=\{\(event\) => event\.stopPropagation\(\)\}/);
+assert.doesNotMatch(component, /onMouseDown=/);
 assert.doesNotMatch(component, /LiquidGlassSurface/);
 assert.doesNotMatch(component, /notice-toast/);
 
@@ -135,7 +151,8 @@ const browserTest = read('tests/browser/notification-center.spec.ts');
 assert.match(browserTest, /partial runtime state keeps the signed-in shell/);
 assert.match(browserTest, /mountMobileIsland/);
 assert.match(browserTest, /getByRole\('dialog', \{ name: '通知' \}\)/);
-assert.match(browserTest, /document\.querySelectorAll\('\.asset-bar \.liquid-glass-surface'\)/);
+assert.match(browserTest, /pointer press on the blank overlay closes the panel while panel content stays open/);
+assert.match(browserTest, /document\.querySelectorAll\('\.asset-bar \.frosted-glass-surface'\)/);
 assert.match(browserTest, /geometry\.trigger\.width\)\.toBeCloseTo\(44, 0\)/);
 assert.match(browserTest, /geometry\.trigger\.height\)\.toBeCloseTo\(44, 0\)/);
 assert.match(browserTest, /panel remains above extreme workspace z-index/);
@@ -146,7 +163,8 @@ assert.match(browserTest, /floatingLayerOrder/);
 assert.match(browserTest, /pageLayerZIndex\)\.toBe\('1'\)/);
 assert.match(browserTest, /floatingLayerZIndex\)\.toBe\('4'\)/);
 assert.match(browserTest, /islandCenter\)\.toBeCloseTo\(geometry\.viewportWidth \/ 2, 0\)/);
-assert.match(browserTest, /panel\.left\)\.toBeCloseTo\(geometry\.status\.left, 0\)/);
+assert.match(browserTest, /panel\.left\)\.toBeCloseTo\(geometry\.panelLayer\.left \+ geometry\.panelInsets\.left, 0\)/);
+assert.match(browserTest, /panelInsets\)\.toEqual\(\{ top: 0, right: 8, bottom: 8, left: 8 \}\)/);
 assert.match(browserTest, /reduced motion/);
 assert.match(browserTest, /animationName\)\.toBe\('none'\)/);
 assert.doesNotMatch(browserTest, /layout\.classList/);
@@ -159,12 +177,14 @@ assert.doesNotMatch(currencyVerifier, /src\/components\/shell\/GameShell\.tsx/);
 
 const styles = read('src/styles/notification-center.css');
 assert.match(styles, /\.asset-bar-layout/);
-assert.match(styles, /grid-template-columns:\s*minmax\(0, 1fr\) 56px/);
-assert.match(styles, /@media \(max-width: 720px\)[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) 48px/);
+assert.match(styles, /\.asset-bar-layout\s*\{[\s\S]*?align-items:\s*center;/);
+assert.match(styles, /grid-template-columns:\s*minmax\(164px, 210px\) minmax\(0, 1fr\) 56px/);
+assert.match(styles, /@media \(max-width: 720px\)[\s\S]*?grid-template-columns:\s*40px minmax\(0, 1fr\) 48px/);
 assert.match(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-center-trigger\s*\{[\s\S]*?width:\s*44px;[\s\S]*?min-width:\s*44px;[\s\S]*?height:\s*44px;[\s\S]*?min-height:\s*44px;/);
 assert.doesNotMatch(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-center-trigger\s*\{[\s\S]*?(?:width|height):\s*36px;/);
 assert.match(styles, /\.notification-panel-layer/);
-assert.match(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-panel-layer\s*\{[\s\S]*?padding:\s*0;/);
+assert.match(styles, /\.notification-panel-layer\s*\{[\s\S]*?padding:\s*0 var\(--layout-gutter\) var\(--layout-gutter\);/);
+assert.doesNotMatch(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-panel-layer\s*\{[\s\S]*?padding:\s*0;/);
 assert.doesNotMatch(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-panel-layer\s*\{[\s\S]*?padding-inline-(?:start|end):/);
 assert.match(styles, /\.notification-toast-stack/);
 assert.match(styles, /\.notification-island\s*\{/);
@@ -199,6 +219,7 @@ assert.match(pageDesign, /状态栏最右侧/);
 assert.match(pageDesign, /最近 20 条/);
 assert.match(pageDesign, /面板关闭/);
 assert.match(pageDesign, /待处理事项不能删除/);
+assert.match(pageDesign, /概览不得再维护第二套经营提醒列表/);
 
 const liquidDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
 assert.match(liquidDesign, /\.asset-bar-layout/);
@@ -207,14 +228,16 @@ assert.match(liquidDesign, /物理屏幕水平中线/);
 assert.match(liquidDesign, /从中心对称展开/);
 assert.match(liquidDesign, /工作区浮层根已经提供唯一水平边界/);
 assert.match(liquidDesign, /面板打开时立即清空 Toast 队列/);
+assert.match(liquidDesign, /点击面板外遮罩空白必须关闭/);
 assert.match(liquidDesign, /移动工作区使用局部层级堆叠边界/);
-assert.match(liquidDesign, /玩家 UI 工作区使用页面 `1`、战略 Chrome `2`、普通浮层 `4`，根级地图独立位于全应用地图层 `20`/);
+assert.match(liquidDesign, /地图舞台与镜头栏分别使用根地图层内部 `0`／`1`，并共同受全应用地图层 `20` 收口，始终低于全应用 UI 层 `30`/);
 assert.match(liquidDesign, /页面内部任意正 `z-index`/);
 
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 assert.match(uiDesign, /## 通知面板与关闭态 Toast/);
 assert.match(uiDesign, /移动只显示队列最后一条/);
 assert.match(uiDesign, /关闭后焦点返回通知入口/);
+assert.match(uiDesign, /不得再叠加第二个顶部 `var\(--layout-gutter\)`/);
 assert.match(uiDesign, /缺失领域不得阻断登录后外壳/);
 assert.match(uiDesign, /`48px` 工具轨道和 `44×44px` 触控目标/);
 assert.match(uiDesign, /不得缩回旧测试夹具的 `36px`/);

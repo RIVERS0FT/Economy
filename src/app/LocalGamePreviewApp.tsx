@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { LoadedGameViewModel } from './gameViewModel';
+import type { LoadedGameViewModel, MarketViewMode } from './gameViewModel';
 import { deriveGameDataSnapshot } from './useDerivedGameData';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { GameShell } from '../components/shell/GameShell';
@@ -83,13 +83,12 @@ const completedTutorial: GameTutorialController = {
   isCompleted: true,
   currentStep: null,
   currentStepIndex: 0,
-  totalSteps: 10,
+  totalSteps: 9,
   statusLabel: '本地预览已跳过经营成长线',
   restart: () => {},
   hide: () => {},
   show: () => {},
   openCurrentTarget: () => {},
-  recordWorkClick: () => {},
   recordBuildSubmit: () => {},
   recordFacilityStartClick: () => {},
   recordAutoSellSetting: () => {},
@@ -136,6 +135,7 @@ export function LocalGamePreviewApp() {
   const [selectedFacilityTypeId, setSelectedFacilityTypeId] = useState('farm');
   const [marketAssetKind, setMarketAssetKind] = useState<AssetKind>('commodity');
   const [marketAssetId, setMarketAssetId] = useState('wheat');
+  const [marketViewMode, setMarketViewMode] = useState<MarketViewMode>('catalog');
   const [orderSide, setOrderSide] = useState<OrderSide>('buy');
   const [orderQuantity, setOrderQuantity] = useState(1);
   const [orderPrice, setOrderPrice] = useState(3.4);
@@ -186,7 +186,10 @@ export function LocalGamePreviewApp() {
   const showResult = useCallback(async (result: ReturnType<typeof localOnlyAction>) => {
     notify((await result).message);
   }, [notify]);
-  const setTab = useCallback((nextTab: TabId) => setTabState(nextTab), []);
+  const setTab = useCallback((nextTab: TabId) => {
+    if (nextTab === 'market') setMarketViewMode('catalog');
+    setTabState(nextTab);
+  }, []);
   const setSelectedProvinceId = useCallback((provinceId: string) => {
     if (!authorityGame.provinces.some((province) => province.id === provinceId)) return;
     setSelectedProvinceIdState(provinceId);
@@ -200,8 +203,10 @@ export function LocalGamePreviewApp() {
       ? game.markets[assetId]?.lastPrice
       : game.facilityMarkets[assetId]?.lastPrice;
     setOrderPrice(Math.max(0.01, Number(nextPrice || 1)));
+    setMarketViewMode('detail');
     setTabState('market');
   }, [game.facilityMarkets, game.markets]);
+  const showMarketCatalog = useCallback(() => setMarketViewMode('catalog'), []);
   const renamePlayer = useCallback(async (name: string) => {
     const normalized = name.trim().slice(0, 32);
     if (!normalized) return { ok: false, message: '昵称不能为空' };
@@ -253,6 +258,8 @@ export function LocalGamePreviewApp() {
     setSelectedFacilityTypeId,
     marketAssetKind,
     marketAssetId,
+    marketViewMode,
+    showMarketCatalog,
     selectMarketAsset,
     orderSide,
     selectOrderSide: setOrderSide,

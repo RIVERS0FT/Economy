@@ -29,7 +29,7 @@ for (const path of [
   'src/app/App.tsx',
   'src/app/AppErrorBoundary.tsx',
   'src/styles/financial-backdrop.css',
-  'src/styles/liquid-glass-chrome.css',
+  'src/styles/frosted-glass-chrome.css',
   'src/styles/viewport.css',
   'src/styles/strategic-game-shell.css',
   'src/main.tsx',
@@ -44,6 +44,8 @@ for (const path of [
 for (const text of [
   '{sidebar}',
   'className="mobile-page-overlay"',
+  '<FrostedGlassSurface variant="workspaceCard" className="signed-in-shell__primary-card">',
+  'className="signed-in-shell__primary-page"',
   'className="workspace-strategic-chrome"',
   'className="workspace-floating-layer"',
   "'mobile-chrome-overlay'",
@@ -52,17 +54,19 @@ for (const text of [
 for (const text of ['backdrop?: ReactNode;', '{backdrop}']) forbidText('src/components/shell/SignedInShell.tsx', text);
 
 const sharedShell = read('src/components/shell/SignedInShell.tsx');
-const sidebarIndex = sharedShell.indexOf('{sidebar}');
-const pageOverlayIndex = sharedShell.indexOf('className="mobile-page-overlay"');
-const workspaceStrategicChromeIndex = sharedShell.indexOf('className="workspace-strategic-chrome"');
-const workspaceFloatingLayerIndex = sharedShell.indexOf('className="workspace-floating-layer"');
-const chromeOverlayIndex = sharedShell.indexOf("'mobile-chrome-overlay'");
-if (!(sidebarIndex >= 0
-  && pageOverlayIndex > sidebarIndex
-  && workspaceStrategicChromeIndex > pageOverlayIndex
-  && workspaceFloatingLayerIndex > workspaceStrategicChromeIndex
-  && chromeOverlayIndex > workspaceFloatingLayerIndex)) {
-  failures.push('SignedInShell 必须按侧栏、页面 Overlay、战略 Chrome、工作区浮层、根 Chrome 顺序渲染');
+const primaryCardIndex = sharedShell.indexOf('<FrostedGlassSurface variant="workspaceCard"');
+const sidebarIndex = sharedShell.indexOf('{sidebar}', primaryCardIndex);
+const primaryPageIndex = sharedShell.indexOf('className="signed-in-shell__primary-page"', sidebarIndex);
+const pageLayerIndex = sharedShell.indexOf('{pageLayer}', primaryPageIndex);
+const workspaceLayersIndex = sharedShell.indexOf('{workspaceLayers}', pageLayerIndex);
+const chromeOverlayIndex = sharedShell.indexOf("'mobile-chrome-overlay'", workspaceLayersIndex);
+if (!(primaryCardIndex >= 0
+  && sidebarIndex > primaryCardIndex
+  && primaryPageIndex > sidebarIndex
+  && pageLayerIndex > primaryPageIndex
+  && workspaceLayersIndex > pageLayerIndex
+  && chromeOverlayIndex > workspaceLayersIndex)) {
+  failures.push('SignedInShell 玩家分支必须按主卡片内侧栏与页面、工作区层、根 Chrome 顺序渲染');
 }
 for (const text of ['workspaceBackground', 'className="workspace-background-layer"']) {
   forbidText('src/components/shell/SignedInShell.tsx', text);
@@ -122,6 +126,7 @@ for (const text of [
   '<StatusBar',
   '<ApplicationMapLayerPortal>',
   '<StrategicMapStage model={model} lens={mapLens} />',
+  '<StrategicMapLensBar lens={mapLens} onLensChange={setMapLens} />',
   '<StrategicWorkspaceChrome',
   'action={(',
   'NotificationCenterButton',
@@ -278,17 +283,17 @@ for (const path of [
 
 const gameLayoutIndex = mainSource.indexOf("import './styles/game-shell-layout.css';");
 const backdropStyleIndex = mainSource.indexOf("import './styles/financial-backdrop.css';");
-const glassIndex = mainSource.indexOf("import './styles/liquid-glass-surfaces.css';");
+const glassIndex = mainSource.indexOf("import './styles/frosted-glass-surfaces.css';");
 if (!(gameLayoutIndex >= 0 && backdropStyleIndex > gameLayoutIndex && glassIndex > backdropStyleIndex)) {
-  failures.push('共享背景样式必须在游戏外壳几何之后、液态玻璃材质之前加载');
+  failures.push('共享背景样式必须在游戏外壳几何之后、毛玻璃材质之前加载');
 }
 
-const compatibilitySource = read('src/styles/liquid-glass-chrome.css');
+const compatibilitySource = read('src/styles/frosted-glass-chrome.css');
 const compatibilityLayoutIndex = compatibilitySource.indexOf("@import './game-shell-layout.css';");
 const compatibilityBackdropIndex = compatibilitySource.indexOf("@import './financial-backdrop.css';");
-const compatibilityGlassIndex = compatibilitySource.indexOf("@import './liquid-glass-surfaces.css';");
+const compatibilityGlassIndex = compatibilitySource.indexOf("@import './frosted-glass-surfaces.css';");
 if (!(compatibilityLayoutIndex >= 0 && compatibilityBackdropIndex > compatibilityLayoutIndex && compatibilityGlassIndex > compatibilityBackdropIndex)) {
-  failures.push('浏览器 harness 兼容入口必须按 game-shell-layout.css → financial-backdrop.css → liquid-glass-surfaces.css 转发');
+  failures.push('浏览器 harness 聚合入口必须按 game-shell-layout.css → financial-backdrop.css → frosted-glass-surfaces.css 转发');
 }
 
 for (const text of [
@@ -331,7 +336,7 @@ for (const text of [
   '不得重新提供工作区地图背景插槽或 `SignedInShell.backdrop`',
   '`ApplicationLoadingState.tsx`',
   '四个入口只允许替换中文文字',
-  '`application-photography.spec.ts`',
+  '`tests/browser/application-photography.spec.ts`',
   '不得出现纯色过渡页',
   '对应 `z-index: 0 / 10 / 20 / 30`',
   '不得建立第五个全局层',
@@ -346,6 +351,10 @@ for (const text of [
   'one persistent image, atmosphere, map, and UI root order',
   'openLayerIsolations',
   'rootLayerOrder',
+  'mapContainsLensBar: Boolean(map.querySelector(\'.strategic-map-lens-bar\'))',
+  'expect(visual.mapContainsLensBar).toBe(true)',
+  'primaryCardIndex: workspaceChildren.indexOf(primaryCard)',
+  'pageInsidePrimaryCard: pageOverlay.closest(\'.signed-in-shell__primary-card\') === primaryCard',
   'strategicChromeIndex: workspaceChildren.indexOf(workspaceStrategicChrome)',
   'floatingLayerIndex: workspaceChildren.indexOf(workspaceFloatingLayer)',
   'falls back to the atmosphere layer when photography fails',

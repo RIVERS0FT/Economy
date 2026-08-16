@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { FrostedGlassSurface } from '../ui/FrostedGlassSurface';
 import { ScrollArea } from '../ui/ScrollArea';
 import {
   WorkspaceDialogLayerContext,
@@ -16,6 +17,8 @@ export function SignedInShell({
   pageFrameClassName = '',
   chromeOverlayClassName = '',
   adminChromeLayer = false,
+  integratedPrimaryCard = false,
+  pageTransitionKey,
   sidebarCollapsed,
   sidebar,
   chrome,
@@ -28,6 +31,8 @@ export function SignedInShell({
   pageFrameClassName?: string;
   chromeOverlayClassName?: string;
   adminChromeLayer?: boolean;
+  integratedPrimaryCard?: boolean;
+  pageTransitionKey?: string;
   sidebarCollapsed: boolean;
   sidebar: ReactNode;
   chrome: ReactNode;
@@ -36,6 +41,39 @@ export function SignedInShell({
 }) {
   const [floatingLayer, setFloatingLayer] = useState<HTMLDivElement | null>(null);
   const [dialogLayer, setDialogLayer] = useState<HTMLDivElement | null>(null);
+  const pageContent = pageFrameClassName ? <div className={pageFrameClassName}>{children}</div> : children;
+  const pageLayer = (
+    <div className="mobile-page-overlay">
+      <ScrollArea
+        axis="y"
+        className="page-scroll-area"
+        viewportClassName={classNames('page-scroll', pageViewportClassName)}
+        scrollbarVisibility="adaptive"
+      >
+        {pageTransitionKey ? (
+          <div className="signed-in-shell__page-reveal" key={pageTransitionKey} data-page-transition-key={pageTransitionKey}>
+            <div className="signed-in-shell__page-reveal-inner">
+              {pageContent}
+            </div>
+          </div>
+        ) : pageContent}
+      </ScrollArea>
+    </div>
+  );
+  const workspaceLayers = (
+    <>
+      {workspaceChrome ? (
+        <div className="workspace-strategic-chrome" data-workspace-strategic-chrome="true">
+          {workspaceChrome}
+        </div>
+      ) : null}
+      <div
+        ref={setFloatingLayer}
+        className="workspace-floating-layer"
+        data-workspace-floating-layer="true"
+      />
+    </>
+  );
 
   return (
     <WorkspaceFloatingLayerContext.Provider value={floatingLayer}>
@@ -49,29 +87,25 @@ export function SignedInShell({
           )}
         >
           <div className="signed-in-shell__body">
-            {sidebar}
-            <section className={classNames('workspace', workspaceClassName)}>
-              <div className="mobile-page-overlay">
-                <ScrollArea
-                  axis="y"
-                  className="page-scroll-area"
-                  viewportClassName={classNames('page-scroll', pageViewportClassName)}
-                  scrollbarVisibility="adaptive"
-                >
-                  {pageFrameClassName ? <div className={pageFrameClassName}>{children}</div> : children}
-                </ScrollArea>
-              </div>
-              {workspaceChrome ? (
-                <div className="workspace-strategic-chrome" data-workspace-strategic-chrome="true">
-                  {workspaceChrome}
-                </div>
-              ) : null}
-              <div
-                ref={setFloatingLayer}
-                className="workspace-floating-layer"
-                data-workspace-floating-layer="true"
-              />
-            </section>
+            {integratedPrimaryCard ? (
+              <section className={classNames('workspace', workspaceClassName)}>
+                <FrostedGlassSurface variant="workspaceCard" className="signed-in-shell__primary-card">
+                  {sidebar}
+                  <div className="signed-in-shell__primary-page">
+                    {pageLayer}
+                  </div>
+                </FrostedGlassSurface>
+                {workspaceLayers}
+              </section>
+            ) : (
+              <>
+                {sidebar}
+                <section className={classNames('workspace', workspaceClassName)}>
+                  {pageLayer}
+                  {workspaceLayers}
+                </section>
+              </>
+            )}
           </div>
           <div
             className={classNames('mobile-chrome-overlay', 'signed-in-shell__chrome', chromeOverlayClassName)}

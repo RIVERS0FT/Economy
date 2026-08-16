@@ -23,8 +23,10 @@ for (const path of [
   'src/hooks/useStableSelection.ts',
   'src/research/researchTreeLayout.ts',
   'src/research/ResearchTreeViewport.tsx',
+  'src/components/ui/layout.tsx',
   'src/pages/ResearchPage.tsx',
   'src/styles/research-page.css',
+  'src/styles/design-system.css',
   'src/api/game.ts',
   'src/app/gameViewModel.ts',
   'src/types.ts',
@@ -37,6 +39,7 @@ for (const path of [
   'scripts/verify-research-progression.mjs',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  'docs/UI_DESIGN_SYSTEM.md',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
 ]) requireFile(path);
 
@@ -64,6 +67,8 @@ for (const text of [
 
 for (const text of [
   'className="research-workspace"',
+  'className="research-tree-panel"',
+  '<PagePanel className="research-action-panel">',
   'className="research-tree"',
   'data-layout-direction="downward"',
   'ResearchTreeViewport',
@@ -78,13 +83,17 @@ for (const text of [
   'const technologyId = selectedTechnology.id;',
   'model.startResearch(technologyId)',
   'model.accelerateResearch()',
-  '宝石固定减少',
+  'className="research-investment mobile-detail-section"',
+  '研发中 · ${formatNumber(accelerationCost)} 宝石加速 ${formatDuration(accelerationMs)}',
+  'outputProductIdsForFacility',
+  'className="facility-build-output-list"',
   '按产业链选择科技节点',
   "technology.kind === 'operation' ? '作业科技' : '生产科技'",
   "technology.kind === 'operation' ? '解锁作业制度' : '解锁工厂'",
   'active.durationMs ?? technology.durationMs',
   'buildResearchTreeLayout(technologies)',
   'buildResearchTreeFocus(technologies',
+  'scrollable={false}',
 ]) requireText('src/pages/ResearchPage.tsx', text);
 
 for (const text of [
@@ -98,6 +107,11 @@ for (const text of [
 
 for (const text of [
   '.research-tree-viewport',
+  '.research-action-panel {',
+  'position: absolute;',
+  'top: var(--layout-gutter);',
+  'left: var(--layout-gutter);',
+  'width: min(320px, calc(100% - var(--layout-gutter) * 2));',
   '.research-tree-transform-layer',
   '.research-tree-connections',
   'touch-action: none;',
@@ -112,18 +126,49 @@ for (const text of [
   '@media (max-width: 720px)',
   '.mobile-detail-summary.research-detail-summary {',
   'aspect-ratio: 1 / 1;',
+  '.research-investment-list {',
+  '.research-unlock-copy .facility-build-output-list {',
+  '.page-card-static .research-workspace {',
+  'height: 100%;',
+  'overflow: hidden;',
+  '.page-card-static .research-tree-viewport {',
 ]) requireText('src/styles/research-page.css', text);
+for (const text of [
+  '.page-card-static > .ui-page-stack {',
+  'grid-template-rows: minmax(0, 1fr);',
+  'align-content: stretch;',
+]) requireText('src/styles/design-system.css', text);
+for (const text of [
+  'position: sticky;',
+  'grid-template-areas: "action tree"',
+]) forbidText('src/styles/research-page.css', text);
+for (const text of [
+  'scrollable = true',
+  'className="page-card-static"',
+  "pageNavigation && !scrollable && 'page-content--fixed-body'",
+]) requireText('src/components/ui/layout.tsx', text);
 
 for (const text of [
   'renders a downward prerequisite tree on desktop',
+  'actionInsideTree',
+  'expect(researchGeometry.treeViewport).toEqual(researchGeometry.treePanel)',
+  "expect(fixedPageOverflow.stackAlignContent).toBe('stretch')",
+  'researchGeometry.workspace?.bottom',
   'keeps node geometry stable on hover and selected dependency lines visible',
   'preserves an explicit technology selection across refreshed snapshots',
-  'shows concrete prerequisite requirements',
+  'shows only research cost and time while merging active acceleration into the research action',
   'uses the stored base duration for accelerated node research progress',
   'uses one world geometry on mobile with pan and zoom instead of two-lane reflow',
   'supports desktop drag and ctrl-wheel zoom without changing world coordinates',
   'opens technology details in the shared mobile sheet',
   'distinguishes operation research from production research',
+  "not.toContainText('使用后剩余')",
+  "page.getByRole('heading', { name: '技术树' })).toHaveCount(0)",
+  "getByText('32 项科技', { exact: true })).toHaveCount(0)",
+  "page.locator('.page-card-scroll-area')).toHaveCount(0)",
+  "page.locator('.page-card-static')).toBeVisible()",
+  "getByText('完整阶段', { exact: false })).toHaveCount(0)",
+  "page.locator('.page-heading-actions')).toHaveCount(0)",
 ]) requireText('tests/browser/research-technology-tree.spec.ts', text);
 
 for (const text of [
@@ -161,7 +206,15 @@ for (const text of [
   '双指缩放',
   '旧客户端',
   '周期轮询、动作后同步和权威倒计时确认对客户端交互状态必须透明',
+  '投入信息只显示研发费用和研发时间',
+  '不得在进度区再渲染第二个宝石加速按钮',
+  '可生产产物图标与名称',
+  '页面自身不得纵向滚动',
+  '科技节点画布必须占满标题下方的全部可用页面区域',
+  '操作卡覆盖在科技画布内部左上角',
+  '不显示“完整阶段 Cn”',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+requireText('docs/UI_DESIGN_SYSTEM.md', '固定宿主必须显式使用 `grid-template-rows: minmax(0, 1fr)`');
 for (const text of [
   'completedTechnologyIds',
   'legacy-stage-',
@@ -177,6 +230,13 @@ for (const forbidden of [
   'setSelectedTechnologyId(defaultTechnologyId);',
   'technologies[technologies.length - 1]',
   'research-stage-node',
+  '具体要求',
+  '产业经营视角',
+  '就业资金已释放',
+  'className="research-gem-acceleration"',
+  'remainingAfterAcceleration',
+  '完整阶段',
+  'actions={',
 ]) forbidText('src/pages/ResearchPage.tsx', forbidden);
 for (const forbidden of [
   'grid-template-columns: repeat(7',
@@ -187,6 +247,10 @@ for (const forbidden of [
   '.research-tree-connections--mobile',
   '--research-node-mobile-x',
   '--research-node-desktop-x',
+  '.research-requirements',
+  '.research-industry-context',
+  '.research-gem-acceleration',
+  '.research-tree-heading',
 ]) forbidText('src/styles/research-page.css', forbidden);
 for (const forbidden of [
   'MOBILE_COLUMNS',

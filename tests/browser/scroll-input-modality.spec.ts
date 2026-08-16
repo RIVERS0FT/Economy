@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-test('desktop market asset directory supports continuous unsnapped scrolling', async ({ page }) => {
+test('desktop market catalog stays within the page card without a horizontal rail', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 });
-  await page.goto('market-runtime-test.html?scenario=active');
+  await page.goto('market-runtime-test.html?scenario=active&view=catalog');
   await expect(page.getByRole('heading', { name: '加利福尼亚州本地市场', exact: true })).toBeVisible();
 
   const scrollbarTokens = await page.evaluate(() => {
@@ -21,36 +21,13 @@ test('desktop market asset directory supports continuous unsnapped scrolling', a
     minimumThumbSize: '44px',
   });
 
-  const directory = page.getByRole('tablist', { name: '选择交易资产' });
-  const root = page.locator('.asset-directory-scroll-area');
-  const styles = await directory.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return { snap: style.scrollSnapType, behavior: style.scrollBehavior };
-  });
-  expect(styles.snap).toBe('none');
-  expect(styles.behavior).toBe('auto');
-
-  await directory.evaluate((element) => { element.scrollLeft = 173; });
-  await page.waitForTimeout(180);
-  const unsnapped = await directory.evaluate((element) => element.scrollLeft);
-  expect(Math.abs(unsnapped - 173)).toBeLessThanOrEqual(1);
-
-  await root.hover();
-  const thumb = root.locator('.ui-scrollbar--horizontal .ui-scrollbar__thumb');
-  await expect(thumb).toBeVisible();
-  const box = await thumb.boundingBox();
-  expect(box).not.toBeNull();
-  if (!box) throw new Error('horizontal scrollbar thumb has no box');
-
-  const before = await directory.evaluate((element) => element.scrollLeft);
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 + 37, box.y + box.height / 2, { steps: 5 });
-  await page.mouse.up();
-  const after = await directory.evaluate((element) => element.scrollLeft);
-  expect(after).toBeGreaterThan(before + 5);
-  await page.waitForTimeout(180);
-  expect(Math.abs((await directory.evaluate((element) => element.scrollLeft)) - after)).toBeLessThanOrEqual(1);
+  const layout = await page.locator('.market-catalog-panel').evaluate((panel) => ({
+    clientWidth: panel.clientWidth,
+    scrollWidth: panel.scrollWidth,
+    horizontalRails: panel.querySelectorAll('.ui-scrollbar--horizontal').length,
+  }));
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth + 1);
+  expect(layout.horizontalRails).toBe(0);
 });
 
 test('touch input hides horizontal rails while local trade cells keep native two-axis scrolling', async ({ page }) => {
@@ -72,10 +49,6 @@ test('touch input hides horizontal rails while local trade cells keep native two
   ));
   expect(horizontalDisplays.length).toBeGreaterThan(0);
   expect(horizontalDisplays.every((display) => display === 'none')).toBe(true);
-
-  const directory = page.getByRole('tablist', { name: '选择交易资产' });
-  await directory.evaluate((element) => { element.scrollLeft = 140; });
-  expect(await directory.evaluate((element) => element.scrollLeft)).toBeGreaterThan(100);
 
   await page.getByRole('button', { name: '成交', exact: true }).click();
   const tradeRoot = page.locator('.local-trades-scroll-area');
@@ -149,8 +122,9 @@ test('touch input hides horizontal rails while local trade cells keep native two
 });
 
 test('mixed input switches scrollbar policy at runtime', async ({ page }) => {
-  await page.setViewportSize({ width: 900, height: 800 });
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('market-runtime-test.html?scenario=active');
+  await page.getByRole('button', { name: '成交', exact: true }).click();
 
   await page.evaluate(() => {
     document.dispatchEvent(new PointerEvent('pointerdown', {
@@ -160,13 +134,13 @@ test('mixed input switches scrollbar policy at runtime', async ({ page }) => {
     }));
   });
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.inputModality)).toBe('touch');
-  await expect(page.locator('.asset-directory-scroll-area .ui-scrollbar--horizontal')).toHaveCSS('display', 'none');
+  await expect(page.locator('.local-trades-scroll-area .ui-scrollbar--horizontal')).toHaveCSS('display', 'none');
 
   await page.evaluate(() => {
     window.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: 1 }));
   });
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.inputModality)).toBe('mouse');
-  await expect(page.locator('.asset-directory-scroll-area .ui-scrollbar--horizontal')).not.toHaveCSS('display', 'none');
+  await expect(page.locator('.local-trades-scroll-area .ui-scrollbar--horizontal')).not.toHaveCSS('display', 'none');
 
   await page.evaluate(() => {
     document.dispatchEvent(new PointerEvent('pointerdown', {
@@ -176,5 +150,5 @@ test('mixed input switches scrollbar policy at runtime', async ({ page }) => {
     }));
   });
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.inputModality)).toBe('touch');
-  await expect(page.locator('.asset-directory-scroll-area .ui-scrollbar--horizontal')).toHaveCSS('display', 'none');
+  await expect(page.locator('.local-trades-scroll-area .ui-scrollbar--horizontal')).toHaveCSS('display', 'none');
 });

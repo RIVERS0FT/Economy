@@ -1,39 +1,33 @@
 import { Button } from '../ui/layout';
-import { BRAND_NAME } from '../../config/brand';
 import type { TabId } from '../../config/navigation';
 import type { NavigationBadgeMap } from '../../navigation/navigationBadges';
-import { LogoutIcon, QqIcon } from '../icons/GameIcons';
+import { QqIcon, SettingsIcon } from '../icons/GameIcons';
 import { NavigationItems } from './NavigationItems';
 import { SidebarFrame } from './SidebarFrame';
 
 export function DesktopSidebar({
-  playerName,
   activeTab,
   badges,
   collapsed,
   qqGroupUrl,
   onToggleCollapsed,
   onSelect,
-  onSignOut,
 }: {
-  playerName: string;
   activeTab: TabId;
   badges: NavigationBadgeMap;
   collapsed: boolean;
   qqGroupUrl: string;
   onToggleCollapsed: () => void;
   onSelect: (tab: TabId) => void;
-  onSignOut: () => void;
 }) {
-  const displayName = playerName.trim() || '玩家';
-
   return (
     <SidebarFrame
-      title={BRAND_NAME}
-      subtitle={displayName}
+      title="游戏导航"
+      subtitle=""
       navLabel="游戏主导航"
       collapsed={collapsed}
       onToggleCollapsed={onToggleCollapsed}
+      showIdentity={false}
       footer={(
         <>
           <a
@@ -46,14 +40,26 @@ export function DesktopSidebar({
             <QqIcon className="sidebar-community-icon" />
             <strong>加入 QQ 群</strong>
           </a>
-          <Button variant="secondary" className="sidebar-logout sidebar-footer-action" aria-label="退出登录" onClick={onSignOut}>
-            <LogoutIcon className="sidebar-logout-icon" />
-            <strong>退出登录</strong>
+          <Button
+            variant="secondary"
+            className="sidebar-settings sidebar-footer-action"
+            aria-label="设置"
+            aria-current={activeTab === 'settings' ? 'page' : undefined}
+            onClick={() => onSelect('settings')}
+          >
+            <SettingsIcon className="sidebar-settings-icon" />
+            <strong>设置</strong>
           </Button>
         </>
       )}
     >
-      <NavigationItems activeTab={activeTab} onSelect={onSelect} badges={badges} />
+      <NavigationItems
+        activeTab={activeTab}
+        onSelect={onSelect}
+        badges={badges}
+        excludedTabs={['settings']}
+        showBadges={false}
+      />
     </SidebarFrame>
   );
 }

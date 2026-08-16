@@ -53,7 +53,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
 
   function restartTutorial() {
     const confirmed = window.confirm(
-      '重新开始后，当前成长线进度会被清除。工作、建设、启动、生产、自动出售设置、自动成交、研发、合同浏览、银行存款和排行榜浏览均需重新完成；游戏资产不会重置。',
+      '重新开始后，当前成长线进度会被清除。建设、启动、生产、自动出售设置、自动成交、研发、合同浏览、银行存款和排行榜浏览均需重新完成；游戏资产不会重置。',
     );
     if (confirmed) tutorial.restart();
   }
@@ -134,7 +134,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
             </div>
 
             <div className="player-stat-grid" aria-label="玩家累计统计">
-              <div><span>点击工作次数</span><strong>{formatNumber(game.stats.workClicks)}</strong></div>
+              <div><span>持有工厂总数</span><strong>{formatNumber(game.facilityGroups.reduce((sum, group) => sum + group.count, 0))}</strong></div>
               <div><span>生产商品总数</span><strong>{formatNumber(game.stats.producedGoods)}</strong></div>
               <div><span>买入商品总数</span><strong>{formatNumber(game.stats.boughtGoods)}</strong></div>
               <div><span>卖出商品总数</span><strong>{formatNumber(game.stats.soldGoods)}</strong></div>

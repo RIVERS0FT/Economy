@@ -9,7 +9,7 @@ test.describe('mobile workspace overlay geometry', () => {
     await expect(page.locator('.mobile-chrome-overlay')).toBeVisible();
     await expect(page.locator('.asset-bar')).toBeVisible();
     await expect(page.locator('.mobile-bottom-navigation')).toBeVisible();
-    await expect(page.locator('.overview-today-panel')).toBeVisible();
+    await expect(page.locator('.overview-check-in-panel')).toBeVisible();
 
     const geometry = await page.evaluate(() => {
       const workspace = document.querySelector<HTMLElement>('.workspace');
@@ -18,13 +18,13 @@ test.describe('mobile workspace overlay geometry', () => {
       const pageScrollArea = document.querySelector<HTMLElement>('.page-scroll-area');
       const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
       const assetBar = document.querySelector<HTMLElement>('.asset-bar');
-      const statusSurface = document.querySelector<HTMLElement>('.asset-bar .liquid-glass-surface');
+      const statusSurface = document.querySelector<HTMLElement>('.asset-bar .frosted-glass-surface');
       const navigation = document.querySelector<HTMLElement>('.mobile-bottom-navigation');
       const navigationSurface = document.querySelector<HTMLElement>(
-        '.mobile-bottom-navigation .liquid-glass-surface',
+        '.mobile-bottom-navigation .frosted-glass-surface',
       );
       const strategicPagePanel = document.querySelector<HTMLElement>('.strategic-page-host > .page-content');
-      const primaryPanel = document.querySelector<HTMLElement>('.overview-today-panel');
+      const primaryPanel = document.querySelector<HTMLElement>('.overview-check-in-panel');
       if (!workspace || !pageOverlay || !chromeOverlay || !pageScrollArea || !pageScroll
         || !assetBar || !statusSurface || !navigation || !navigationSurface
         || !strategicPagePanel || !primaryPanel) {
@@ -122,7 +122,7 @@ test.describe('mobile workspace overlay geometry', () => {
 
     const workspace = page.locator('.workspace');
     const status = page.locator('.asset-bar');
-    const statusSurface = page.locator('.asset-bar .liquid-glass-surface');
+    const statusSurface = page.locator('.asset-bar .frosted-glass-surface');
     const navigation = page.locator('.mobile-bottom-navigation');
     const pageScroll = page.locator('.page-scroll');
 
@@ -158,7 +158,7 @@ test.describe('mobile workspace overlay geometry', () => {
       pageScroll.scrollTop = Math.min(180, pageScroll.scrollHeight - pageScroll.clientHeight);
       return {
         scrollTop: pageScroll.scrollTop,
-        glassCount: document.querySelectorAll('.liquid-glass-surface').length,
+        frostedSurfaceCount: document.querySelectorAll('.frosted-glass-surface').length,
       };
     });
     expect(before.scrollTop).toBeGreaterThan(0);
@@ -233,7 +233,7 @@ test.describe('mobile workspace overlay geometry', () => {
         pageHasHorizontalOverflow: pageScroll.scrollWidth > pageScroll.clientWidth + 1,
         chromeOwnsNotice: region.parentElement === chromeOverlay,
         orderedBetweenChrome: statusIndex >= 0 && statusIndex < noticeIndex && noticeIndex < navigationIndex,
-        glassCountAfter: document.querySelectorAll('.liquid-glass-surface').length,
+        frostedSurfaceCountAfter: document.querySelectorAll('.frosted-glass-surface').length,
       };
     });
 
@@ -254,8 +254,8 @@ test.describe('mobile workspace overlay geometry', () => {
     expect(geometry.pageHasHorizontalOverflow).toBe(false);
     expect(geometry.chromeOwnsNotice).toBe(true);
     expect(geometry.orderedBetweenChrome).toBe(true);
-    expect(geometry.glassCountAfter).toBe(before.glassCount);
-    expect(geometry.glassCountAfter).toBe(2);
+    expect(geometry.frostedSurfaceCountAfter).toBe(before.frostedSurfaceCount);
+    expect(geometry.frostedSurfaceCountAfter).toBe(3);
   });
 
   test('mobile page scrollbar reaches the safe right edge without changing content width', async ({ page }) => {
@@ -264,7 +264,7 @@ test.describe('mobile workspace overlay geometry', () => {
 
     const pageScrollArea = page.locator('.page-scroll-area');
     const pageScroll = page.locator('.page-scroll');
-    const primaryPanel = page.locator('.overview-today-panel');
+    const primaryPanel = page.locator('.overview-check-in-panel');
     await expect(pageScrollArea).toBeVisible();
     await expect(primaryPanel).toBeVisible();
 
@@ -286,7 +286,7 @@ test.describe('mobile workspace overlay geometry', () => {
       const thumb = document.querySelector<HTMLElement>(
         '.page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb',
       );
-      const panel = document.querySelector<HTMLElement>('.overview-today-panel');
+      const panel = document.querySelector<HTMLElement>('.overview-check-in-panel');
       if (!scrollArea || !thumb || !panel) throw new Error('mobile scrollbar fixture is incomplete');
       const scrollAreaRect = scrollArea.getBoundingClientRect();
       const thumbRect = thumb.getBoundingClientRect();

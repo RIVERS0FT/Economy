@@ -53,6 +53,7 @@ export function useNotificationCenter(model: LoadedGameViewModel): NotificationC
     'catalog',
     'player.production',
     'player.bank',
+    'market.orders',
     'auction',
     'contract',
   ]);

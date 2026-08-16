@@ -284,9 +284,7 @@ export function NotificationCenterPanel({
   return createPortal(
     <div
       className="notification-panel-layer"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+      onPointerDown={onClose}
     >
       <section
         id="notification-center-panel"
@@ -295,6 +293,7 @@ export function NotificationCenterPanel({
         role="dialog"
         aria-labelledby="notification-center-title"
         tabIndex={-1}
+        onPointerDown={(event) => event.stopPropagation()}
       >
         <header className="notification-panel__header">
           <div>

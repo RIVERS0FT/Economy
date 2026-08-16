@@ -297,23 +297,54 @@ p {
   padding: var(--space-1) var(--space-1) var(--space-4);
 }
 
+.page-content--player {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.page-fixed-header {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  border-bottom: 1px solid var(--color-border-strong);
+  background: color-mix(in srgb, var(--color-surface-panel) 88%, transparent);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+}
+
+.page-card-scroll-area,
+.page-card-scroll {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.page-card-scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.page-card-static {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .page-heading {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--space-6);
-  padding: var(--space-2) var(--space-1) var(--space-4);
+  gap: var(--layout-gutter);
+  padding: var(--layout-gutter);
 }
 
 .page-heading h1 {
   margin: 0;
   letter-spacing: -0.045em;
-}
-
-.page-heading p:last-child {
-  max-width: 750px;
-  margin: var(--space-1) 0 0;
-  color: var(--color-text-muted);
 }
 
 .page-heading-actions {
@@ -326,23 +357,50 @@ p {
   font-size: var(--font-size-sm);
 }
 
-.page-navigation-actions {
-  display: flex;
+.page-heading--player-navigation {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
   align-items: center;
-  gap: var(--space-2);
-  margin-inline-start: auto;
+  gap: var(--space-3);
+}
+
+.page-heading--player-navigation .page-heading-title {
+  min-width: 0;
+  text-align: center;
+}
+
+.page-heading--player-navigation h1 {
+  overflow-wrap: anywhere;
 }
 
 .page-navigation-button {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
   min-height: 36px;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  justify-content: center;
+  padding: 0;
+}
+
+.page-navigation-button--back {
+  justify-self: start;
+}
+
+.page-navigation-button--close {
+  justify-self: end;
 }
 
 .page-navigation-button .game-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.page-heading-actions--player {
+  width: 100%;
+  justify-content: flex-end;
+  padding: 0 var(--layout-gutter) var(--layout-gutter);
 }
 
 .widget {
@@ -971,40 +1029,6 @@ p {
 }
 
 @media (max-width: 960px) and (min-width: 721px) {
-  .game-shell {
-    grid-template-columns: 86px minmax(0, 1fr);
-  }
-
-  .desktop-sidebar {
-    padding: var(--space-2) var(--space-1);
-  }
-
-  .desktop-sidebar .sidebar-brand {
-    justify-content: center;
-    padding-bottom: var(--space-3);
-  }
-
-  .desktop-sidebar .sidebar-brand div,
-  .desktop-sidebar .sidebar-nav-button strong,
-  .desktop-sidebar .sidebar-footer {
-    display: none;
-  }
-
-  .desktop-sidebar .sidebar-nav-button {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    padding: var(--space-2) var(--space-1);
-  }
-
-  .desktop-sidebar .sidebar-nav-button > span {
-    font-size: var(--font-size-lg);
-  }
-
-  .desktop-sidebar .sidebar-nav-button small {
-    position: absolute;
-    transform: translate(17px, -13px);
-  }
-
   .production-grid {
     grid-template-columns: 1fr;
   }
@@ -1038,7 +1062,18 @@ p {
   .page-heading {
     align-items: flex-start;
     flex-direction: column;
-    padding-top: var(--space-3);
+    padding: var(--layout-gutter);
+  }
+
+  .page-heading--player-navigation {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .page-heading-actions--player {
+    justify-content: flex-end;
   }
 
   .page-heading-actions {

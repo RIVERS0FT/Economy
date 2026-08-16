@@ -246,9 +246,8 @@ requireText('src/components/time/LiveServerTime.tsx', [
   'export function LiveServerTime',
   'export function LiveDurationUntil',
 ]);
-requireText('src/pages/overview/OverviewLiveSections.tsx', [
-  'OverviewWorkButton',
-  'OverviewEconomicCalendarPanel',
+requireText('src/components/EconomicEventLogPanel.tsx', [
+  'EconomicEventLogPanel',
   '<LiveServerTime referenceNow={referenceNow}>',
 ]);
 forbidText('src/pages/ProductionPage.tsx', ['useNow(game.lastProcessedAt)']);

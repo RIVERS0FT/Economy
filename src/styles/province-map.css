@@ -1,12 +1,3 @@
-.province-context-select {
-  min-width: 12rem;
-  margin: 0;
-}
-
-.province-context-select .form-field__label {
-  font-size: var(--font-size-xs);
-}
-
 .province-map-page {
   position: relative;
   width: 100%;
@@ -43,12 +34,4 @@
 
 .province-map-echart .economy-chart__canvas:active {
   cursor: grabbing;
-}
-
-@media (max-width: 720px) {
-  .province-context-select {
-    width: 100%;
-    max-width: none;
-    min-width: 0;
-  }
 }
