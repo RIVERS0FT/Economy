@@ -16,6 +16,29 @@
   grid-area: build;
 }
 
+.buildings-summary-panel {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.buildings-summary-metrics {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.buildings-list-filters {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: var(--space-2);
+}
+
 .facility-cluster-navigation {
   grid-area: navigation;
   min-width: 0;
@@ -497,6 +520,10 @@
 }
 
 @media (max-width: 960px) {
+  .buildings-summary-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .production-workspace {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
@@ -523,6 +550,14 @@
 }
 
 @media (max-width: 720px) {
+  .buildings-summary-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .buildings-list-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .production-workspace {
     gap: var(--space-3);
   }

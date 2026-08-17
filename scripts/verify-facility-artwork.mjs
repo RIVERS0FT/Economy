@@ -158,7 +158,6 @@ if (failures.length === 0) {
   for (const required of [
     '.facility-cluster-selector-card',
     '.facility-detail-artwork',
-    '.market-catalog-row__artwork',
     '.market-detail-hero__artwork',
     '.asset-auction-icon',
     '.asset-auction-package-icon',
@@ -259,7 +258,6 @@ if (failures.length === 0) {
   for (const [path, source, required] of [
     [paths.production, production, '<FacilityIcon facilityTypeId={type.id} className="facility-cluster-icon" />'],
     [paths.production, production, '<FacilityIcon facilityTypeId={type.id} className="facility-detail-artwork-icon" />'],
-    [paths.market, market, '<FacilityIcon facilityTypeId={entry.id} />'],
     [paths.auction, auction, '<FacilityIcon facilityTypeId={item.id} />'],
   ]) {
     if (!source.includes(required)) failures.push(`${path} 未接入工厂场景主视觉: ${required}`);
@@ -306,19 +304,19 @@ if (failures.length === 0) {
       '`FacilityIcon`',
       '`prefers-reduced-data`',
       '覆盖完整 `4:5` 竖卡',
-      '市场桌面列表使用 `64px` 槽位承载 `58px` 插画',
-      '市场列表与详情只在独立插画槽内展示图像',
+      '建筑从属资产详情使用桌面 `76px` 槽位承载 `68px` 插画',
+      '建筑从属资产详情只在独立插画槽内展示图像',
       '`background-size: cover` 与居中定位',
       '上下两层黑色渐变',
-      '中央主体区域保持透明',
-      '工厂卡插画必须等比居中裁切并铺满整张卡',
+      '核心主体必须落在中央约 `80%` 安全区域内',
+      '全部图片都必须在实际 `4:5` 居中裁切后保持核心主体完整',
       '当前工厂详情横幅',
     ]],
     [paths.designIndex, designIndex, ['工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`']],
     [paths.catalogDesign, catalogDesign, ['`FacilityIcon` 只按 `facilityTypeId` 选择视觉资源']],
-    [paths.pageDesign, pageDesign, ['商品行使用 `ProductArtwork`，工厂行使用按正式 ID 映射的 `FacilityIcon`']],
+    [paths.pageDesign, pageDesign, ['建筑从属资产详情继续使用桌面 `68px`、移动 `58px` 的 `FacilityIcon`']],
     [paths.marketArtworkBrowser, marketArtworkBrowser, [
-      'market facility artwork fits catalog and detail slots on desktop and mobile',
+      'building subordinate facility trade artwork fits detail slots on desktop and mobile',
       "expect(metrics.backgroundSize).toBe('cover')",
       "expect(metrics.backgroundPosition).toBe('50% 50%')",
       'Math.abs(metrics.artwork.left - metrics.slot.left)',
@@ -337,7 +335,7 @@ if (failures.length === 0) {
     failures.push('工厂场景权威设计不得继续声明 128px 运行时缩略图');
   }
   for (const required of [
-    'production and market facility artwork use 256px runtime thumbnails',
+    'building cards and subordinate asset trade use 256px facility thumbnails',
     'naturalWidth',
     'naturalHeight',
     'expectedSize: number',

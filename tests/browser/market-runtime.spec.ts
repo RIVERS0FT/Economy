@@ -12,6 +12,15 @@ async function requireBox(locator: Locator) {
   return box!;
 }
 
+async function selectRichOption(page: Page, label: string, optionName: string) {
+  const combobox = page.getByRole('combobox', { name: label });
+  await combobox.click();
+  await page.getByRole('listbox', { name: label })
+    .getByRole('option', { name: optionName, exact: true })
+    .click();
+  await expect(combobox).toContainText(optionName);
+}
+
 async function inspectMarketLayoutBounds(locator: Locator) {
   return locator.evaluate((element) => {
     const surface = element as HTMLElement;
@@ -75,12 +84,12 @@ async function inspectChartAxis(chart: Locator) {
   });
 }
 
-test('market desktop layout keeps order entry and order book in one trade card beside the chart', async ({ page }) => {
+test('market desktop layout keeps order entry and order book together above the chart in the compact page', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('market-runtime-test.html?scenario=active');
 
-  await expect(page.getByRole('heading', { name: '加利福尼亚州本地市场', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '加利福尼亚州 · 小麦', exact: true })).toBeVisible();
   await expect(page.locator('.market-catalog-panel > .widget-heading')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '商品列表', exact: true })).toHaveCount(0);
   const tradeCard = page.locator('.market-trade-card');
@@ -97,16 +106,16 @@ test('market desktop layout keeps order entry and order book in one trade card b
   await expect(page.locator('.market-trade-card')).toHaveCount(1);
   await expect(page.locator('.market-grid > .order-entry')).toHaveCount(0);
   await expect(page.locator('.market-grid > .single-order-book')).toHaveCount(0);
-  expect(Math.abs(tradeBox.y - chartCardBox.y)).toBeLessThan(3);
-  expect(tradeBox.width).toBeGreaterThanOrEqual(560);
-  expect(chartCardBox.width).toBeGreaterThanOrEqual(680);
-  expect(Math.abs(tradeBox.height - chartCardBox.height)).toBeLessThan(3);
+  expect(chartCardBox.y).toBeGreaterThan(tradeBox.y + tradeBox.height - 2);
+  expect(Math.abs(chartCardBox.x - tradeBox.x)).toBeLessThan(3);
+  expect(Math.abs(chartCardBox.width - tradeBox.width)).toBeLessThan(3);
   expect(Math.abs(orderBox.y - bookBox.y)).toBeLessThan(3);
   expect(bookBox.x).toBeGreaterThan(orderBox.x + orderBox.width - 3);
   expect(orderBox.x).toBeGreaterThanOrEqual(tradeBox.x - 1);
   expect(bookBox.x + bookBox.width).toBeLessThanOrEqual(tradeBox.x + tradeBox.width + 1);
-  expect(chartBox.width).toBeGreaterThan(chartCardBox.width * 0.94);
-  await expect(chart).toHaveAttribute('data-chart-fill-mode', 'row');
+  expect(chartBox.width).toBeGreaterThanOrEqual(chartCardBox.width - 36);
+  expect(chartBox.width).toBeLessThanOrEqual(chartCardBox.width);
+  await expect(chart).toHaveAttribute('data-chart-fill-mode', 'natural');
   expect(chartBox.y + chartBox.height).toBeGreaterThan(chartCardBox.y + chartCardBox.height - 28);
   await expect(tradeCard.getByRole('heading', { name: /交易$/ })).toBeVisible();
   await expect(tradeCard.getByRole('heading', { name: '下单', exact: true })).toBeVisible();
@@ -146,6 +155,7 @@ test('market chart uses one linked hover state and keeps the price line protecte
   await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
   await expect(chart).toHaveAttribute('data-axis-pointer-linked', 'true');
   await expect(chart).toHaveAttribute('data-hover-emphasis-disabled', 'true');
+  await chart.scrollIntoViewIfNeeded();
   const bounds = await requireBox(chart);
   const geometry = await chart.evaluate((element) => {
     const wrapper = element as HTMLElement;
@@ -235,7 +245,7 @@ test('market medium and narrow layouts keep the trade card responsive without ho
   await expect(page.getByRole('button', { name: '成交', exact: true })).toBeVisible();
   await expect(page.locator('.market-account-grid > section.market-account-pane--active')).toContainText('未完成订单');
   await page.getByRole('button', { name: '成交', exact: true }).click();
-  await expect(page.locator('.market-account-grid > section.market-account-pane--active')).toContainText('本地成交记录');
+  await expect(page.locator('.market-account-grid > section.market-account-pane--active')).toContainText('本地成交');
 
   const mobileAxis = await inspectChartAxis(page.locator('.market-history-chart.full'));
   for (const label of mobileAxis.allLabels) {
@@ -336,63 +346,52 @@ test('market steppers and compact quick quantities preserve price and quantity l
   await page.getByRole('button', { name: '卖出', exact: true }).click();
   await page.getByRole('button', { name: '填写最大可交易数量' }).click();
   await expect(quantityInput).toHaveValue('8');
-
-  await page.getByRole('button', { name: '返回商品列表' }).click();
-  await page.getByRole('button', { name: '工厂', exact: true }).click();
-  await page.getByRole('button', { name: '查看机械工厂详情' }).click();
-  await expect(page.getByRole('heading', { name: '加利福尼亚州 · 机械工厂', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '填写最大可交易数量' }).click();
-  await expect(quantityInput).toHaveValue('18');
   await expect(page.getByRole('status')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 
-test('market catalog filters products and opens a focused asset detail', async ({ page }) => {
+test('market commodity catalog exposes order-book metrics and opens a focused detail', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active&view=catalog');
 
-  await expect(page.getByRole('heading', { name: '加利福尼亚州本地市场', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '加利福尼亚州市场', exact: true })).toBeVisible();
   await page.getByRole('searchbox', { name: '搜索' }).fill('小麦');
-  await page.getByLabel('分类').selectOption('raw');
-  await page.getByLabel('市场状态').selectOption('traded');
+  await selectRichOption(page, '分类', '原材料');
+  await selectRichOption(page, '市场状态', '有真实成交');
   const productRows = page.locator('.market-catalog-row');
   await expect(productRows).toHaveCount(1);
   const wheatRow = page.getByRole('button', { name: '查看小麦详情' });
   await expect(wheatRow.locator('.product-artwork')).toHaveAttribute('data-product-artwork', 'wheat');
   await expect(wheatRow).toContainText('小麦');
-  await expect(wheatRow.locator('.market-catalog-row__name small')).toHaveCount(0);
-  await expect(wheatRow).toContainText('最近成交');
-  await expect(wheatRow).toContainText('2.00');
-  await expect(wheatRow).toContainText('买一');
+  await expect(wheatRow.locator('.market-catalog-row__name small')).toHaveText('原材料');
+  for (const label of ['卖单量', '买单量', '挂单差额', '市场价', '基准偏离', '24h 变化', '挂单状态']) {
+    await expect(wheatRow.getByText(label, { exact: true })).toBeVisible();
+  }
   await wheatRow.click();
 
   await expect(page.getByRole('heading', { name: '加利福尼亚州 · 小麦', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '商品基本面', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '生产者与消费者', exact: true })).toBeVisible();
   await expect(page.locator('.market-trade-card')).toBeVisible();
   await expect(page.locator('.market-history-chart.full')).toBeVisible();
   await expect(page.getByRole('heading', { name: '已有订单', exact: true })).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
 
-test('market catalog switches to factory assets without mixing rows', async ({ page }) => {
+test('market catalog owns auto-trade and never exposes a factory directory', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active&view=catalog');
 
-  await page.getByRole('button', { name: '工厂', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '工厂资产列表', exact: true })).toHaveCount(0);
-  const facilityRows = page.locator('.market-catalog-row');
-  await expect(facilityRows).toHaveCount(15);
-  await expect(page.locator('.market-catalog-list .product-artwork')).toHaveCount(0);
-  await expect(page.locator('.market-catalog-list .facility-icon')).toHaveCount(15);
+  await expect(page.getByRole('button', { name: '工厂', exact: true })).toHaveCount(0);
+  await expect(page.locator('.market-catalog-list .facility-icon')).toHaveCount(0);
+  expect(await page.locator('.market-catalog-list .product-artwork').count()).toBeGreaterThan(0);
 
-  const facilityRow = page.getByRole('button', { name: '查看机械工厂详情' });
-  const artwork = facilityRow.locator('.market-catalog-row__artwork > .facility-icon');
-  await expect(artwork).toHaveAttribute('data-facility-icon', 'machine-factory');
-  await expect.poll(() => artwork.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('machine-factory');
-  await expect(facilityRow).toContainText('机械工厂');
-  await expect(facilityRow).toContainText('可出售');
-  await expect(facilityRow).toContainText('18');
+  await page.getByRole('button', { name: '自动交易', exact: true }).click();
+  await expect(page.locator('.market-auto-trade-workspace')).toBeVisible();
+  await expect(page.getByRole('combobox', { name: '自动交易商品' })).toBeVisible();
+  await expect(page.locator('.market-catalog-panel')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 
@@ -403,16 +402,16 @@ test('market detail back action restores the filtered catalog', async ({ page })
 
   const search = page.getByRole('searchbox', { name: '搜索' });
   await search.fill('小麦');
-  await page.getByLabel('分类').selectOption('raw');
-  await page.getByLabel('市场状态').selectOption('traded');
-  await page.getByLabel('排序').selectOption('price');
+  await selectRichOption(page, '分类', '原材料');
+  await selectRichOption(page, '市场状态', '有真实成交');
+  await selectRichOption(page, '排序', '市场价');
   await page.getByRole('button', { name: '查看小麦详情' }).click();
   await page.getByRole('button', { name: '返回商品列表' }).click();
 
   await expect(search).toHaveValue('小麦');
-  await expect(page.getByLabel('分类')).toHaveValue('raw');
-  await expect(page.getByLabel('市场状态')).toHaveValue('traded');
-  await expect(page.getByLabel('排序')).toHaveValue('price');
+  await expect(page.getByRole('combobox', { name: '分类' })).toContainText('原材料');
+  await expect(page.getByRole('combobox', { name: '市场状态' })).toContainText('有真实成交');
+  await expect(page.getByRole('combobox', { name: '排序' })).toContainText('市场价');
   await expect(page.locator('.market-catalog-row')).toHaveCount(1);
   expect(pageErrors).toEqual([]);
 });
@@ -426,8 +425,8 @@ test('mobile market catalog uses summary rows without horizontal overflow', asyn
   const layout = await page.locator('.market-catalog-panel').evaluate((panel) => {
     const row = panel.querySelector<HTMLElement>('.market-catalog-row');
     const identity = row?.querySelector<HTMLElement>('.market-catalog-row__identity');
-    const holding = row?.querySelector<HTMLElement>('.market-catalog-row__holding');
-    if (!row || !identity || !holding) throw new Error('mobile market catalog fixture is incomplete');
+    const condition = row?.querySelector<HTMLElement>('.market-catalog-row__condition');
+    if (!row || !identity || !condition) throw new Error('mobile market catalog fixture is incomplete');
     return {
       panelClientWidth: panel.clientWidth,
       panelScrollWidth: panel.scrollWidth,
@@ -435,14 +434,17 @@ test('mobile market catalog uses summary rows without horizontal overflow', asyn
       rowScrollWidth: row.scrollWidth,
       rowColumns: getComputedStyle(row).gridTemplateColumns.split(' ').filter(Boolean).length,
       identityColumn: getComputedStyle(identity).gridColumn,
-      holdingDisplay: getComputedStyle(holding).display,
+      conditionDisplay: getComputedStyle(condition).display,
     };
   });
   expect(layout.panelScrollWidth).toBeLessThanOrEqual(layout.panelClientWidth + 1);
   expect(layout.rowScrollWidth).toBeLessThanOrEqual(layout.rowClientWidth + 1);
   expect(layout.rowColumns).toBe(2);
   expect(layout.identityColumn).toBe('1 / -1');
-  expect(layout.holdingDisplay).toBe('grid');
+  expect(layout.conditionDisplay).toBe('grid');
+  for (const label of ['卖单量', '买单量', '挂单差额', '市场价', '基准偏离', '24h 变化', '挂单状态']) {
+    await expect(page.getByRole('button', { name: '查看小麦详情' }).getByText(label, { exact: true })).toBeVisible();
+  }
   expect(pageErrors).toEqual([]);
 });
 

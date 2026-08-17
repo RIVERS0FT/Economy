@@ -34,7 +34,7 @@ for (const facility of FACILITY_TYPE_CATALOG) {
   }
 }
 
-const page = read('src/pages/ProductionPage.tsx');
+const page = read('src/pages/BuildingsPage.tsx');
 const detail = read('src/pages/production/ProductionFacilityDetail.tsx');
 const mobile = read('src/pages/production/MobileFacilityDetailSheet.tsx');
 const sharedSheet = read('src/components/ui/MobileWorkspaceDetailSheet.tsx');
@@ -47,15 +47,15 @@ ${mobile}
 ${sharedSheet}
 ${sharedSummary}`;
 assert.equal(
-  page.includes('按复杂度从 C1 到 C7 选择工厂并查看生产详情。'),
+  page.includes('按产业和运行状态筛选建筑，选择后查看经营与生产详情。'),
   true,
-  '生产页必须说明正式复杂度顺序',
+  '建筑页必须说明正式复杂度顺序',
 );
 for (const forbidden of [
   'game.facilityTypes.sort(',
   'game.facilityTypes.toSorted(',
   'game.facilityTypes.slice().sort(',
-]) assert.equal(page.includes(forbidden), false, `生产页不得对服务器工厂目录二次排序: ${forbidden}`);
+]) assert.equal(page.includes(forbidden), false, `建筑页不得对服务器工厂目录二次排序: ${forbidden}`);
 for (const required of [
   '正式目录必须按 `complexity` 从 `C1` 到 `C7` 升序排列',
   '同一复杂度内保持服务器目录声明的相对顺序',
@@ -87,7 +87,7 @@ for (const text of [
   'game.facilityTypes.flatMap((type): FacilityClusterEntry[] =>',
   'if (!group || group.count < 1) return [];',
   'return [{ type, group: displayGroup }];',
-  '?? orderedFacilityGroups[0]',
+  '?? filteredFacilityGroups[0]',
   'className="facility-cluster-selector-card"',
   'data-ui-interactive="surface"',
   'data-status={group.status}',
@@ -148,7 +148,7 @@ for (const text of [
   'products={game.products}',
   'resolveFacilityProfitPresentation({',
 ])
-  assert.equal(productionSource.includes(text), true, `生产页组合源码缺少: ${text}`);
+  assert.equal(productionSource.includes(text), true, `建筑页组合源码缺少: ${text}`);
 
 assert.equal(
   (mobile.match(/ariaLabelledBy="mobile-facility-detail-title"/g) ?? []).length,
@@ -449,7 +449,7 @@ assert.equal(
 
 const industryDoc = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
 for (const text of [
-  '生产管理区：建设新工厂 + 工厂集群选择 + 当前工厂详情',
+  '建筑管理区：建设新工厂 + 可筛选建筑列表 + 当前建筑详情',
   '默认详情工厂是正式目录顺序中的第一种已拥有工厂',
   '首次进入移动端只建立默认详情目标，不自动弹出详情悬浮框',
   '当前详情工厂必须使用独立本地状态',
@@ -498,6 +498,7 @@ for (const text of [
   assert.equal(industryDoc.includes(text), true, `产业设计缺少: ${text}`);
 for (const forbidden of [
   '右侧工厂集群列表',
+  '生产管理区',
   '大于 1380px 时右侧固定四列',
   '移动端恢复自然高度；不得在单张卡内部增加纵向滚动条',
   '单配方工厂显示唯一选项并禁用',
@@ -509,7 +510,7 @@ for (const forbidden of [
 
 const catalogDoc = read('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md');
 for (const text of [
-  '生产页已拥有工厂集群选择卡',
+  '建筑页已拥有工厂集群选择卡',
   '默认选择过滤结果中的第一项',
   '详情目标状态与建设下拉框状态必须独立',
   '选择卡不绘制持久选中态',
@@ -552,7 +553,7 @@ for (const [path, required] of [
   [
     'docs/PRIMARY_SURFACE_INSET_DESIGN.md',
     [
-      '生产页 `.panel.production-surface` 的独立桌面／移动 padding',
+      '建筑页 `.panel.production-surface` 的独立桌面／移动 padding',
       '`src/styles/primary-surfaces.css` 是玩家端一级卡片外层内边距的唯一 CSS 权威',
     ],
   ],

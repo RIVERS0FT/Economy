@@ -2,7 +2,7 @@
 
 > 状态：当前文档入口
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-16
+> 更新时间：2026-08-17
 > 客户端状态版本：34
 > 世界状态版本：30
 
@@ -19,15 +19,15 @@
 | `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 38 种商品、26 种工厂（含 C1 与 C2 工厂专属作业制度、生产科技／作业科技分离、工业燃料／工业化学品，以及配套工具、化肥、饲料、养殖药剂、机械、拖拉机产业支线）、州级工厂集群与本地投入产出、固定精度经济数值、参考利润、周期成本工资、C1–C7 人口承载权重、生产复杂度岗位结构、固定建造业岗位结构、持续生产、集群级生产方式、三态、自动恢复、工厂抵押生产资格，以及商品供货、玩家抵押借贷、工厂使用权租赁与生产／资产守恒审计边界 |
 | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 客户端工厂目录展示顺序、已拥有工厂卡片排序和目录顺序防回退 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 州级本地商品和工厂统一限价订单、冻结、抵押后的可转让数量、撮合、成交价、估值、资产统计和普通玩家成交匿名化 |
-| `WAREHOUSE_EXPANSION_DESIGN.md` | 州级本地无限仓库、真实商品库存、容量机制退役、客户端在线自动采购／自动出售、商品自动交易卡和商品网格密度 |
-| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 十一个正式页面、所有玩家页面常驻的美国本土连续 48 州战略地图、四类页面战略面板、C1-C7 产业阶段与按产业链拆分的科技节点研发入口、银行资产总览与存贷款、商品／工厂资产拍卖、排行榜生产数量纯数字显示、统一导航角标语义与已读规则、进行中的合同默认视图、可审计合同历史、登录注册入口、独立商店、分享链接、邀请码、封禁提示、模块唯一归属和页面防回退规则 |
+| `WAREHOUSE_EXPANSION_DESIGN.md` | 州级本地无限仓库、真实商品库存、容量机制退役、州页仓库分区、市场在线自动采购／自动出售、商品自动交易卡和商品网格密度 |
+| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 十一个正式页面、隐藏州级上下文页、所有玩家页面常驻的美国本土连续 48 州战略地图、四类页面战略面板、C1-C7 产业阶段与按产业链拆分的科技节点研发入口、银行资产总览与存贷款、商品／工厂资产拍卖、排行榜生产数量纯数字显示、统一导航角标语义与已读规则、进行中的合同默认视图、可审计合同历史、登录注册入口、独立商店、分享链接、邀请码、封禁提示、模块唯一归属和页面防回退规则 |
 | `MARKET_CHART_LAYOUT_DESIGN.md` | 市场近 24h 行情图的整数坐标、成交量绘图区最低可读高度、动态纵横比、底部安全区、图例居中和真实浏览器几何回归 |
 | `REGISTRATION_INVITE_FLOW_DESIGN.md` | 注册邀请码输入、分享链接预填、来源归因、首次绑定、注册完成后禁止补填、登录／注册入口三层视觉、认证卡片几何与旧接口退役 |
 | `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、战略页面面板与地图 Chrome、工作区浮层安全区、统一表单控件、统一 SVG 图标、统一导航角标视觉、商品与工厂场景插画主视觉、覆盖式滚动条、订单成交表、桌面导航行高、中文界面、响应式、移动触摸反馈与可访问性 |
 | `AUTHORITATIVE_COUNTDOWN_DESIGN.md` | 服务器绝对截止时间、状态响应 `serverNow`、共享单调服务器时钟、本地资格倒计时、权威状态转换倒计时、到期立即刷新、每秒确认与统一注册表 |
 | `PRIMARY_SURFACE_INSET_DESIGN.md` | 玩家端一级卡片外层内边距令牌、共享组件语义、加载顺序、页面 CSS 边界和贴边内容例外 |
 | `OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md` | 概览真实内容宽度断点、外层轨道、签到日历、短列表滚动和浏览器几何回归 |
-| `PRODUCTION_PILL_ALIGNMENT_DESIGN.md` | 生产页状态／等级胶囊与工厂开关的统一可见几何和紧凑点击区域例外 |
+| `PRODUCTION_PILL_ALIGNMENT_DESIGN.md` | 建筑页状态／等级胶囊与工厂开关的统一可见几何和紧凑点击区域例外 |
 | `LIQUID_GLASS_CHROME_DESIGN.md` | 认证卡片、游戏与管理员共享根外壳、纯 CSS 毛玻璃材质、玩家常驻战略地图、建筑式／全区域页面、独立公开事件右栏、侧栏输入方式、浮层安全根、移动工作区与底栏 |
 | `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、世界级人口状态与周期迁移、银行事务与结息调度、每日签到、三类合同事务、追加式 SQLite 合同／拍卖审计、匿名最近 10 条出价接口与 `contract` 分区、普通玩家订单公开序列化、邮箱验证码注册、统一账号首次建档、邀请归因、注册 IP 封禁、生产 SQLite 只读诊断、生产 SQLite INCREMENTAL 空间维护、API、容量限制、Nginx、systemd 和部署 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器仅保留匿名逐笔成交所需的最小地区订单快照、v7 迁移、按当前地区展示、清除语义与银行权威流水边界 |
@@ -61,21 +61,21 @@
 24. 拍卖资产包数量输入的字符串草稿、空白编辑、合法性门控、失焦归一化和草稿清理属于页面权威规则；必须同步更新 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`、`AuctionPage.tsx` 与 `scripts/verify-asset-auctions.mjs`，不得恢复空值立即回填为 `1` 的实现。
 25. 统一表单组件、正整数字符串草稿、错误／只读／禁用状态、移动端 `48px`／`16px`、登录未受控自动填充和最终样式加载顺序属于 UI 权威规则；必须同步更新 `UI_DESIGN_SYSTEM.md`、`FormControls.tsx`、`form-controls.css`、`integerDraft.ts` 与 `scripts/verify-form-controls.mjs`，不得在业务页面恢复平行基础输入视觉。
 26. 登录后游戏与管理员桌面外壳几何、侧栏导航固有行高、覆盖式滚动条、移动贴边轨道和纵向滚动链分别归属 `LIQUID_GLASS_CHROME_DESIGN.md` 与 `UI_DESIGN_SYSTEM.md`；不得重新创建 `GAME_SHELL_LAYOUT_DESIGN.md`、`OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md` 或其他职责重叠的平行专题文档。
-27. 工厂目录展示顺序、概览布局完整性、生产页胶囊例外、注册邀请码交互和一级卡片外层内边距虽使用独立文档，但职责必须保持在本索引限定范围内；不得把产品经济、页面模块归属、通用 UI、服务器事务或部署规则复制进这些专题文档。
+27. 工厂目录展示顺序、概览布局完整性、建筑页胶囊例外、注册邀请码交互和一级卡片外层内边距虽使用独立文档，但职责必须保持在本索引限定范围内；不得把产品经济、页面模块归属、通用 UI、服务器事务或部署规则复制进这些专题文档。
 28. 玩家端一级卡片的外层内边距、组件语义、业务 CSS 责任和贴边内容例外唯一归属 `PRIMARY_SURFACE_INSET_DESIGN.md`；页面职责和通用 UI 文档只引用，不得重复维护具体间距表。
 29. 状态交付使用 `server/shared/economy-state-version.js` 作为客户端版本唯一来源；README、权威文档、`src/types.ts` 和服务器序列化必须通过 `scripts/verify-client-state-version.mjs` 保持一致。客户端状态版本 25 是拍卖身份字段删除、主状态移除出价数组与收费／保留价／延时摘要的破坏性边界，只接受当前版本。
 30. `serverNow` 只属于状态交付 envelope，不进入 `EconomyState`、世界 JSON 或状态分区；倒计时必须读取共享单调服务器时钟。普通权威动作只返回精简确认，动作成功后用动作前全局修订号与分区哈希补拉状态。
 31. 六分区协议只在分区之间增量传输；每个返回分区内部都是完整快照，客户端必须整块替换同名缓存分区后再重组 `EconomyState`。服务器省略可选字段即表示删除，空对象也必须清空旧分区内容，不得恢复对旧完整状态的字段级浅合并。
-32. 仓库商品卡结构与网格密度唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md`；移动和窄容器固定每行四张卡，760px 起五列、960px 起六列，并通过 `scripts/verify-warehouse-expansion.mjs` 防回退。页面职责与通用 UI 文档只能引用该规则，不得维护另一套断点。
+32. 仓库与市场自动交易商品卡结构、网格密度唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md`；默认五列，小于 560px 为四列，760px 起六列、960px 起七列，并通过 `scripts/verify-warehouse-expansion.mjs` 防回退。页面职责与通用 UI 文档只能引用该规则，不得维护另一套断点。
 33. 移动操作结果通知归属 `LIQUID_GLASS_CHROME_DESIGN.md` 与 `GameShell` Chrome Overlay；DOM 必须位于 `StatusBar` 后、`MobileBottomNavigation` 前，顶部位置固定为安全区顶部 + `48px` 状态栏 + `8px` 间距。通知采用普通半透明提示样式，不新增毛玻璃宿主、不推动页面内容、不拦截状态栏或底栏交互，并通过 `scripts/verify-game-shell-layout.mjs` 与 `tests/browser/mobile-workspace-overlay.spec.ts` 防回退。
-34. 游戏端与管理员端必须共享 `SignedInShell`、唯一页面 `ScrollArea`、悬浮桌面工作栏骨架和贴边滚动条，但桌面几何按用途分流：管理员保留传统下方双列布局；玩家固定使用 `8px` 屏幕边距、`64px` 状态栏和唯一 `workspaceCard`，状态栏与主卡片之间也只能保留一个 `8px` 间距，主卡片纵向铺满剩余区域且不得为低层地图镜头栏预留高度。主卡片共同承载 `78px／224px` 覆盖式指挥栏与当前页面，侧栏以竖线和阴影隔离，展开不得推动页面；概览、市场、生产、设置共享 `56rem` 内容目标，但包含侧栏的主卡片总宽不得超过 `calc(100vw / 3)`，并与右侧公开事件日志并列；研发、拍卖、合同、银行、排行榜、商店占满主卡片页面区域，排行榜与商店保持相同宽度且隐藏事件栏。正式页面切换使用一次性横向展开动画，不得重新挂载或缩放地图实例；并通过 `scripts/verify-game-shell-layout.mjs`、`tests/browser/game-shell-layout.spec.ts` 与 `tests/browser/all-pages-preview.spec.ts` 防回退。
+34. 游戏端与管理员端必须共享 `SignedInShell`、唯一页面 `ScrollArea`、悬浮桌面工作栏骨架和贴边滚动条，但桌面几何按用途分流：管理员保留传统下方双列布局；玩家固定使用 `8px` 屏幕边距、`64px` 状态栏和唯一 `workspaceCard`，状态栏与主卡片之间也只能保留一个 `8px` 间距，主卡片纵向铺满剩余区域且不得为低层地图镜头栏预留高度。主卡片共同承载 `78px／224px` 覆盖式指挥栏与当前页面，侧栏以竖线和阴影隔离，展开不得推动页面；概览、市场、建筑、设置共享 `56rem` 内容目标，但包含侧栏的主卡片总宽不得超过 `calc(100vw / 3)`，并与右侧公开事件日志并列；研发、拍卖、合同、银行、排行榜、商店占满主卡片页面区域，排行榜与商店保持相同宽度且隐藏事件栏。正式页面切换使用一次性横向展开动画，不得重新挂载或缩放地图实例；并通过 `scripts/verify-game-shell-layout.mjs`、`tests/browser/game-shell-layout.spec.ts` 与 `tests/browser/all-pages-preview.spec.ts` 防回退。
 35. `GET state` 的响应时钟必须使用 envelope 顶层 `serverNow`，即使 `unchanged: true` 也必须返回；`serverNow` 不得进入六分区或世界 JSON。客户端只能用它向前校准共享单调服务器时钟，迟到或较旧响应不得让工作冷却、生产、研发、拍卖、合同或排行榜倒计时回退，也不得把 `lastProcessedAt` 在每次轮询时重新解释为当前服务器时间。工厂即时建设没有施工截止时间，不得重新加入倒计时注册表。
 36. 人口数量、工厂承载、迁入迁出、就业收入、三类人口真实钱包、生产复杂度岗位结构、固定建造业岗位结构、即时建造业就业收入、仓储与市场服务就业、人口消费不得发行、工作与商店兑换直接发行、不设置人口回收或通胀控制属于产品、产业、订单簿、仓库、管理员与服务器共同规则；必须同步更新对应文档、测试和人口经济验证。
 37. 状态刷新设置继续只保存和显示 `3s`／`5s`／`10s`，前台活跃时使用玩家选择的间隔；连续 30 秒无交互后临时使用 15 秒，页面隐藏时临时使用 60 秒，重新可见、网络恢复或从限速状态恢复交互时立即请求一次权威状态，临时间隔不得覆盖玩家偏好。正式服务每 60 秒输出一次按方法与归一化路由聚合的请求指标，包含平均／p50／p95／p99／最大处理时长、应用层 JSON 响应字节数（优先使用 `responseJsonBytes`，`Content-Length` 仅作回退）、固定阶段耗时（至少包含 `playerSnapshotMs`、`economicInvariantMs`、`worldEqualityMs`、`serializeWorldMs`、`worldUpdateMs`）、事件循环延迟和无身份容量指标；单个窗口最多保留 256 个方法／路由键，超出上限统一聚合为 `OTHER /api/other` 并记录溢出请求数；超过 1 秒、超过 200 KB 或返回 5xx 的请求立即输出异常摘要。`DatabaseSync` 的 5 秒超时是 SQLite 锁等待上限。同一 `GET state` 的合同分区必须复用当前修订缓存，只克隆玩家、合同与人口经济投影，不得再完整克隆世界；普通与合同动作只有世界结构实际变化时才能更新 `economy_world` 与修订号，失败或无变化动作仍保存幂等确认但不得触发全服补拉。以上规则通过 `scripts/verify-runtime-efficiency.mjs` 和服务器测试防回退，不得记录 Cookie、请求体、玩家资产或其他敏感内容。
 38. 管理员桌面 `PageLayout` 标题必须隐藏并由 `AdminDesktopBar` 的桌面玻璃工作栏承载标题、说明、身份、世界／API 摘要和刷新操作；管理员移动端不得渲染该顶部工作栏，继续使用页面标题和统一移动底栏。管理员专属 CSS 只能负责业务内容网格、表单、表格和局部 sticky 编排，不得恢复独立根外壳、页面主滚动视口、全局居中限宽框或管理员专属玻璃参数。
 39. 商品物资插画主视觉归属 `UI_DESIGN_SYSTEM.md` 的商品图标体系：`src/assets/product-icons/` 只保存 `1024 × 1024` RGBA PNG 正式源图，开发与构建统一由 `scripts/generate-product-artwork-thumbnails.mjs` 生成 `src/assets/product-icons/generated/128/` 下的 `128 × 128` RGBA PNG 运行时缩略图；`product-artwork.css` 只能通过 `ProductArtwork` 的 `data-product-icon` 映射缩略图，禁止直接加载源图。仓库商品卡、市场商品列表与详情、概览商品行情和拍卖商品主视觉使用缩略图，生产公式、订单表格、资产变动和未知商品继续使用 SVG，并通过 `scripts/verify-product-artwork.mjs` 校验正式源图、缩略图、映射、生成入口、降级和使用边界。
 40. 人口政策参数、当前参数与持续时间展示、无管理备注、无调控记录、无业务上限及安全整数边界统一归属 `GIFT_CODE_AND_ADMIN_DESIGN.md`；就业来源与复杂度工资中的正数比例条必须保留最小可见填充，真实零值保持空轨道，并通过人口经济服务器测试、管理员浏览器测试和 `scripts/verify-staple-crops-demand.mjs` 防回退。
-41. 市场使用“可筛选资产列表 → 资产详情”两级视图：侧栏进入时默认显示当前州商品列表，资产类型筛选可切换到工厂列表；列表不显示独立标题或数量胶囊，名称、正式目录分类、市场状态和排序均只投影当前已加载状态。桌面列表行的 `64px` 身份槽内，商品 `ProductArtwork` 为 `48px`、工厂 `FacilityIcon` 为 `58px`；商品名称下不显示分类说明，工厂可以保留分类。列表还显示最近真实成交、24h 变化、买一／卖一、可用数量和本人订单数，中等宽度只可隐藏后两项，移动端改为两列摘要且不得横向滚动。点击整行进入详情，交易、五档盘口、24h 价格与成交量曲线、当前资产已有订单和本地成交只在详情显示；返回保留筛选。没有真实成交或盘口时显示 `—`，不得回退商品基础价、工厂系统价值或其他地区价格。实现必须同步 `MarketPage.tsx`、`gameViewModel.ts`、`market-page-polish.css`、`scripts/verify-market-page-layout.mjs` 与市场浏览器测试。
+41. 市场只提供商品目录，并以“市场行情／自动交易”切换承载商品挂单总览和在线自动买卖策略。商品行显示卖单量、买单量、挂单差额、市场价、基准偏离、24h 变化和挂单状态；挂单量只来自公开订单簿，不得用库存或理论产量伪造供需。商品详情增加服务器消费需求基本面和正式配方生产者／消费者关系，并保留五档盘口、24h 行情、当前资产订单与本地成交。工厂资产交易只能从建筑详情打开从属视图并返回原建筑，不得恢复市场工厂目录。实现必须同步 `MarketPage.tsx`、`BuildingsPage.tsx`、`market-page-polish.css`、`scripts/verify-market-page-layout.mjs` 与市场浏览器测试。
 42. 长期生产合作合同的页面职责归 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`，工厂集群边界和生产先于合同交付归 `INDUSTRY_AND_PRODUCTION_DESIGN.md`，接口、事务、调度、追加式合同审计和 `contract` 分区归 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`。合同只允许商品与普通货币，不允许其他资产类型、工厂转移、工厂出租、自由文本或对方配方控制；每次合同处理、动作和状态序列化只能建立一次事务内合同索引，采购方下一批仓库预占不得在每份合同检查中再次遍历全部合同；必须通过 `server/test/contracts.test.js`、`server/test/contract-runtime-index.test.js`、`server/test/contract-audit.test.js` 和页面／状态容量验证防回退。
 43. 所有可见倒计时必须先区分本地资格到期与服务器权威状态转换；统一读取 `serverNow` 校准的共享单调服务器时钟，状态转换到期后由权威刷新继续确认。每个返回分区内部都是完整快照，必须整块替换同名分区。工厂即时建设不属于倒计时系统。该规则由 `AUTHORITATIVE_COUNTDOWN_DESIGN.md` 与 `scripts/verify-authoritative-countdowns.mjs` 防回退。
 44. 管理员玩家运营统计、成功经济写操作活跃口径、精确日活动覆盖起点、D1／D7／D30 留存、成长漏斗、经营参与、真实成交估值财富分布、关注群体、独立 SQLite 分析表和聚合隐私边界属于管理员与服务器共同规则；不得把统计结果用于扩张人口需求预算，必须同步更新 `GIFT_CODE_AND_ADMIN_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、服务器测试和 `scripts/verify-admin-player-statistics.mjs`。
@@ -105,7 +105,7 @@
 
 64. 压力测试执行器、环境隔离、安全门禁、24 个固定普通玩家槽位、秘密边界、状态协议断言、幂等重放、场景、性能预算、脱敏报告与 GitHub Actions 属于服务器架构规则。完整写压测只能使用模拟账号服务与临时 SQLite 或受保护的 staging；生产只允许已建档固定账号执行显式确认、至少 3 秒轮询且不超过 5 分钟的 `smoke`／`poll`，不得调用任何游戏写操作。必须通过 `scripts/verify-stress-test-accounts.mjs`、`scripts/verify-stress-test-flow.mjs` 和隔离行为测试防回退。
 
-65. 工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`：`src/assets/facility-icons/` 必须与服务器 26 种正式工厂 ID 一一对应，只保存同名 `1024 × 1024` 8-bit RGBA PNG 源图；开发与构建通过共享缩略图管线生成 `src/assets/facility-icons/generated/128/`。生产选择卡、市场工厂目录和拍卖工厂主视觉统一使用 `FacilityIcon`，紧凑订单／成交／银行／概览及未知 ID 继续使用 `FactoryIcon`，低流量模式回退厂房 SVG。任何目录增删、图片替换或使用边界变化必须同步更新 `FacilityIcons.tsx`、`facility-artwork.css`、本设计和 `scripts/verify-facility-artwork.mjs`。
+65. 工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`：`src/assets/facility-icons/` 必须与服务器 26 种正式工厂 ID 一一对应，只保存同名 `1024 × 1024` 8-bit RGBA PNG 源图；开发与构建通过共享缩略图管线生成 `src/assets/facility-icons/generated/256/`。建筑选择卡、建筑从属资产详情和拍卖工厂主视觉统一使用 `FacilityIcon`，紧凑订单／成交／银行／概览及未知 ID 继续使用 `FactoryIcon`，低流量模式回退厂房 SVG。任何目录增删、图片替换或使用边界变化必须同步更新 `FacilityIcons.tsx`、`facility-artwork.css`、本设计和 `scripts/verify-facility-artwork.mjs`。
 66. 研发页是生产右侧、拍卖左侧的正式一级页面；C1-C7 产业阶段由按产业链拆分的科技节点组成，2 个 C1 科技初始掌握，其余节点按前置关系逐项研发；研发使用普通货币一次性扣款、进度式人口就业释放、单项目不可取消和服务器权威完成。具体科技准入必须覆盖建设、工厂买单、竞拍、启动、配置和租赁运营，旧等级、既有资产及承诺迁移必须授予对应科技及前置闭包；当前唯一研发任务允许 1 宝石减少 30 分钟。必须同步产品、产业、页面、服务器、倒计时、状态版本、测试与 `scripts/verify-research-progression.mjs`，不得恢复只读占位、研发点、并行队列或直接生产数值加成。
 67. 世界冷加载迁移与热保存必须分离：完整世界迁移、旧字段补全和全玩家兼容初始化只允许在首次加载、旧单行世界迁移或版本升级时执行。正式持久化使用 `economy_world_meta + economy_world_players + economy_world_segments` 分段存储 V2，所有行仍共享一个世界修订号和一个 SQLite 事务；当前 V2 世界重复冷启动不得迁移、重写或推进修订号，旧 `economy_world.state_json` 只允许迁移一次并转为 manifest。正式运行时必须区分 committed world 与请求草稿；普通玩家权威写通过 Mutation Scope 创建 Copy-on-Write 草稿，只隔离本动作可能修改的玩家和世界 segment，未声明共享对象必须保持只读，未知动作才允许回退完整草稿。普通商品下单复制操作者、当前可交叉的玩家对手方、订单／市场与必要核心资金域；商品撤单和拍卖动作使用对应局部 Scope。热保存只允许 scoped money normalization、Dirty Row 比较与脏玩家／segment 写入，不得恢复完整世界 `isDeepStrictEqual`、完整 `JSON.stringify` 或全世界资金扫描。正式 `GET state` 对已有玩家的缓存未命中路径必须直接从 committed world 执行纯只读投影，不得创建请求草稿、执行迁移／领域结算／全玩家初始化、写库或通过额外完整世界克隆容忍投影副作用；公开订单等投影规范化必须先复制再修改。管理员 `GET /api/game/admin/summary` 与 `GET /api/game/admin/population-economy` 同样直接读取 committed world 并保持权威写队列外。幂等记录过期清理最多每 5 分钟执行一次。正式调度继续只按实际到期领域推进并对当前世界使用 `migrate: false`；玩家写入遇到已到期截止时间时先复用调度 barrier。以上规则归属 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并由 `server/test/world-storage-v2.test.js`、`server/test/runtime-hot-path.test.js`、`server/test/authoritative-hotpaths.test.js`、`server/test/runtime-hotpath-architecture.test.js`、`scripts/verify-runtime-efficiency.mjs` 与 `scripts/verify-authoritative-hotpaths.mjs` 防回退。
 68. 最终客户端状态必须在运行时存储层直接形成六分区快照，并按世界修订号与玩家 ID 缓存；同修订重复请求不得重新进入事务、重建合同投影或重复分区哈希。目录分区固定为进程内共享静态快照，投影缓存上限为 256 个玩家并在世界修订变化时清空；HTTP 层只比较已生成的分区修订和选择补丁。浏览器接收分区后必须保留未变化分区的对象引用，允许页面或共享组件按分区订阅而不是依赖一份额外 React `EconomyState` 副本。必须同步更新 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、`state-partitions.js`、`stateDelivery.js`、运行时存储、状态轮询测试和 `scripts/verify-authoritative-hotpaths.mjs`／`scripts/verify-runtime-efficiency.mjs`。

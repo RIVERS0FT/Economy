@@ -15,9 +15,11 @@ const requiredFiles = [
   'server/src/contract-asset-locks.js',
   'server/test/provinces.test.js',
   'src/pages/MapPage.tsx',
+  'src/pages/ProvincePage.tsx',
   'src/components/shell/StrategicWorkspace.tsx',
   'src/components/provinces/UsMainlandMap.tsx',
   'src/styles/province-map.css',
+  'src/styles/province-page.css',
   'src/styles/strategic-game-shell.css',
   'src/utils/provinceScope.ts',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
@@ -126,10 +128,10 @@ for (const forbidden of ['战略经营地图', '当前经营地区', 'province-m
 for (const [path, expectedFragments] of [
   ['src/pages/MarketPage.tsx', [
     "const provinceName = model.selectedProvince?.name || '加利福尼亚州';",
-    'title={`${provinceName}本地市场`}',
+    'title={`${provinceName}市场`}',
     'title={`${provinceName} · ${assetName}`}',
   ]],
-  ['src/pages/ProductionPage.tsx', ["title={`${model.selectedProvince?.name || '加利福尼亚州'}生产`}"]],
+  ['src/pages/BuildingsPage.tsx', ["title={`${model.selectedProvince?.name || '加利福尼亚州'}建筑`}"]],
 ]) {
   const page = read(path);
   for (const expectedFragment of expectedFragments) {
@@ -144,7 +146,11 @@ const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');
 for (const text of [
   '<UsMainlandMap',
   'summaries={state.summaries}',
-  'onSelectProvince={setSelectedProvinceId}',
+  'const openProvincePage = (provinceId: string) => {',
+  'setSelectedProvinceId(provinceId);',
+  "model.setTab('province');",
+  "selectedProvinceId={model.tab === 'province' ? state.selectedProvinceId : null}",
+  'onSelectProvince={openProvincePage}',
   'StrategicMapStage',
   'StrategicMapLensBar',
   'StrategicWorkspaceChrome',
@@ -161,12 +167,14 @@ for (const forbidden of ['当前经营地区', 'strategic-province-inspector', '
 const gameShell = read('src/components/shell/GameShell.tsx');
 for (const text of [
   'const STRATEGIC_PAGE_PRESENTATION = {',
+  "province: 'building'",
   '<ApplicationMapLayerPortal>',
   '<StrategicMapStage model={model} lens={mapLens} />',
   '<StrategicMapLensBar lens={mapLens} onLensChange={setMapLens} />',
   '<StrategicWorkspaceChrome',
   'data-strategic-presentation={pagePresentation}',
 ]) assert.ok(gameShell.includes(text), `玩家战略外壳缺少: ${text}`);
+assert.equal(gameShell.includes("previousTab !== 'map' && previousTab !== 'province'"), true, '州级上下文页不得污染普通业务页面返回历史');
 
 const strategicStyles = read('src/styles/strategic-game-shell.css');
 for (const text of [
@@ -176,6 +184,26 @@ for (const text of [
   '--strategic-command-rail-width: 78px',
 ]) assert.ok(strategicStyles.includes(text), `常驻战略地图样式缺少: ${text}`);
 assert.equal(strategicStyles.includes('.strategic-province-inspector'), false, '战略地图样式不得恢复经营地区检查器');
+assert.equal(strategicStyles.includes('.strategic-map-stage--background'), false, '打开业务页面不得通过背景态压暗地图');
+
+const provincePage = read('src/pages/ProvincePage.tsx');
+for (const text of [
+  'export function ProvincePage',
+  'title={provinceName}',
+  'role="tablist"',
+  'role="tab"',
+  'role="tabpanel"',
+  "{ id: 'overview', label: '概览' }",
+  "{ id: 'market', label: '市场' }",
+  "{ id: 'buildings', label: '建筑' }",
+  "{ id: 'warehouse', label: '仓库' }",
+  '<EmbeddedMarketPage model={model} embedded />',
+  '<EmbeddedBuildingsPage model={model} embedded />',
+  '<WarehouseInventoryPanel model={model} className="province-warehouse-section" />',
+]) assert.ok(provincePage.includes(text), `州级上下文页缺少: ${text}`);
+const provinceStyles = read('src/styles/province-page.css');
+assert.ok(provinceStyles.includes('grid-template-columns: repeat(4, minmax(0, 1fr));'), '州级上下文切换必须保持四个等宽按钮');
+assert.ok(provinceStyles.includes('min-height: 44px;'), '州级上下文切换必须保持 44px 触控高度');
 
 const mapComponent = read('src/components/provinces/UsMainlandMap.tsx');
 for (const text of [
@@ -199,6 +227,8 @@ for (const text of [
   "container.dataset.mapFitMode = 'contain'",
   'container.dataset.mapContainViewport',
   'onClick={handleMapClick}',
+  'selectedProvinceId: string | null',
+  "data-selected-province-id={selectedProvinceId ?? ''}",
   'const handleMapDoubleClick = useCallback',
   'if (event.target) return;',
   "chart.getDom().dataset.mapCameraReset = 'blank-double-click'",
@@ -274,13 +304,26 @@ for (const text of [
   "'blank-double-click'",
   'outlineAspect',
   "getByLabel('州级地区', { exact: true })",
-  "getByRole('heading', { name: '科罗拉多州本地市场'",
-  "getByRole('heading', { name: '科罗拉多州生产'",
+  "getByRole('heading', { name: '科罗拉多州'",
+  "getByRole('tab', { name: '概览'",
+  "getByRole('tab', { name: '市场'",
+  "getByRole('tab', { name: '建筑'",
+  "getByRole('tab', { name: '仓库'",
+  "toHaveAttribute('data-strategic-presentation', 'building')",
+  "toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')",
 ]) assert.ok(mapBrowserTest.includes(text), `ECharts 地图浏览器回归缺少: ${text}`);
 
 const navigation = read('src/config/navigation.ts');
 assert.equal(navigation.includes("{ id: 'map', label: '地图' }"), false, '桌面侧栏与移动底栏不得显示地图按钮');
-assert.ok(navigation.includes("export type TabId = NavigationTabId | 'map';"), '纯地图视图必须保留正式 TabId');
+assert.ok(navigation.includes("export type TabId = NavigationTabId | 'map' | 'province';"), '纯地图与隐藏州级上下文视图必须保留 TabId');
+
+const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
+for (const text of [
+  '州级上下文页（无导航按钮）',
+  '概览｜市场｜建筑｜仓库',
+  '离开行为只清除地图视觉选中态，不清除经营州',
+  '全工作区点击捕获层必须保持透明',
+]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
 
 const tests = read('server/test/provinces.test.js');
 for (const text of [
@@ -294,4 +337,4 @@ for (const text of [
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、版本 34/30、既有地区 ID 原位保留、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、ISC TopoJSON、ECharts 地图点击切换与空白双击镜头重置均已锁定。');
+console.log('地区经济验证通过：美国连续 48 州、版本 34/30、既有地区 ID 原位保留、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击和空白双击镜头重置均已锁定。');

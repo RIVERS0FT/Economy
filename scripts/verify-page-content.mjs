@@ -10,8 +10,9 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 
 [
   'src/pages/OverviewPage.tsx',
+  'src/pages/ProvincePage.tsx',
   'src/pages/MarketPage.tsx',
-  'src/pages/ProductionPage.tsx',
+  'src/pages/BuildingsPage.tsx',
   'src/pages/ResearchPage.tsx',
   'tests/browser/production-status-summary.spec.ts',
   'src/components/assets/AssetOverviewPanel.tsx',
@@ -21,6 +22,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/LeaderboardPage.tsx',
   'src/pages/GemShopPage.tsx',
   'src/pages/SettingsPage.tsx',
+  'src/pages/PageRouter.tsx',
   'all-pages-preview.html',
   'src/app/LocalGamePreviewApp.tsx',
   'src/dev/localGamePreviewFetch.ts',
@@ -205,11 +207,17 @@ for (const text of [
 for (const text of ['.login-shell:focus-within', 'transition: font-size']) forbidText('src/styles/auth.css', text);
 
 for (const text of [
-  "if (marketViewMode === 'catalog')",
+  "if (!facilityAssetId && marketViewMode === 'catalog')",
   'market-catalog-filters',
   'market-catalog-row',
   '<ProductArtwork productId={entry.id} />',
-  '<FacilityIcon facilityTypeId={entry.id} />',
+  '<MarketAutoTradePanel model={model} requestedProductId={requestedAutoTradeProductId} />',
+  '<small>卖单量</small>',
+  '<small>买单量</small>',
+  '挂单差额',
+  '基准偏离',
+  '商品基本面',
+  '生产者与消费者',
   'backAction={{',
   'placeAssetOrder',
   'single-order-book',
@@ -231,15 +239,20 @@ for (const text of [
   'order-book-midpoint',
 ]) forbidText('src/pages/MarketPage.tsx', text);
 const marketPageSource = read('src/pages/MarketPage.tsx');
-const marketCatalogStart = marketPageSource.indexOf("if (marketViewMode === 'catalog')");
-const marketDetailStart = marketPageSource.indexOf('\n  return (', marketCatalogStart);
+const marketCatalogStart = marketPageSource.indexOf("if (!facilityAssetId && marketViewMode === 'catalog')");
+const marketDetailStart = marketPageSource.indexOf('\n  const detailContent =', marketCatalogStart);
 const marketCatalogSource = marketPageSource.slice(marketCatalogStart, marketDetailStart);
-if (marketCatalogSource.includes('<WidgetHeading')) failures.push('市场目录态不应显示商品／工厂列表标题或数量胶囊');
+if (marketCatalogSource.includes('<FacilityIcon facilityTypeId={entry.id}')) failures.push('市场商品目录不得恢复工厂资产行');
 if (marketCatalogSource.includes('${catalogEntries.length} 项')) failures.push('市场目录态不应显示资产数量胶囊');
-requireText('src/pages/MarketPage.tsx', "{entry.kind === 'facility' ? <small>{entry.categoryLabel}</small> : null}");
+for (const text of ['market-catalog-kind', "setCatalogKind('facility')", '>工厂</Button>']) forbidText('src/pages/MarketPage.tsx', text);
 
 for (const text of [
-  'title="生产"',
+  "title={`${model.selectedProvince?.name || '加利福尼亚州'}建筑`}",
+  'title="建筑概况"',
+  'className="buildings-summary-metrics"',
+  'className="buildings-list-filters"',
+  'label="产业分类"',
+  'label="运行状态"',
   'SwitchControl',
   'checked={group.enabled}',
   'if (!entry.constructionOnly)',
@@ -259,9 +272,11 @@ for (const text of [
   '<strong>生产产物</strong>',
   '生产进度已清零',
   'setFacilityRecipe',
-  '前往市场交易该工厂 →',
+  '<EmbeddedFacilityAssetMarket',
+  'facilityAssetId={facilityAssetTradeId}',
   'formatNumber(group.count)',
-]) requireText('src/pages/ProductionPage.tsx', text);
+]) requireText('src/pages/BuildingsPage.tsx', text);
+requireText('src/pages/production/ProductionFacilityDetail.tsx', '交易该建筑资产 →');
 for (const text of [
   '运行 {formatNumber(model.derived.runningFacilities)}',
   '停止 {formatNumber(model.derived.stoppedFacilities)}',
@@ -273,11 +288,7 @@ for (const text of [
   '运行 {formatNumber(facilityClusterStatusCounts.running)}',
   '停止 {formatNumber(facilityClusterStatusCounts.stopped)}',
   '异常 {formatNumber(facilityClusterStatusCounts.error)}',
-]) forbidText('src/pages/ProductionPage.tsx', text);
-requireText(
-  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
-  '标题区不显示运行／停止／异常汇总',
-);
+]) forbidText('src/pages/BuildingsPage.tsx', text);
 for (const text of [
   'scrollable={false}',
   'className="research-workspace"',
@@ -318,7 +329,7 @@ for (const text of [
   'facility-detail-sheet-close',
   '下一周期加入',
   '下一周期切换为：',
-]) forbidText('src/pages/ProductionPage.tsx', text);
+]) forbidText('src/pages/BuildingsPage.tsx', text);
 
 for (const text of [
   'export function AssetOverviewPanel',
@@ -470,8 +481,9 @@ for (const text of [
   "{ id: 'contracts', label: '合同' }",
   "{ id: 'gem-shop', label: '商店' }",
 ]) requireText('src/config/navigation.ts', text);
-requireText('src/config/navigation.ts', "export type TabId = NavigationTabId | 'map';");
+requireText('src/config/navigation.ts', "export type TabId = NavigationTabId | 'map' | 'province';");
 forbidText('src/config/navigation.ts', "{ id: 'map', label: '地图' }");
+forbidText('src/config/navigation.ts', "{ id: 'province', label:");
 forbidText('src/config/navigation.ts', "{ id: 'assets', label: '资产' }");
 forbidText('src/config/navigation.ts', "{ id: 'assets', label: '资金' }");
 forbidText('src/config/navigation.ts', "{ id: 'collections'");
@@ -613,7 +625,9 @@ for (const text of ['openOrderCount', "id === 'market'", 'sidebar-nav-count']) {
 }
 
 for (const text of [
-  '概览｜市场｜生产｜研发｜拍卖｜合同｜银行｜排行｜商店｜设置',
+  '概览｜市场｜建筑｜研发｜拍卖｜合同｜银行｜排行｜商店｜设置',
+  '| 州级上下文页（无导航按钮） | `province` | `ProvincePage` |',
+  '`province` 只是由地图州面打开的隐藏上下文页，不计为第十二个一级页面',
   '移动底栏显示除 `map` 外的十个业务导航按钮，桌面侧栏主导航显示其中九项，并把“设置”固定为侧栏底部操作',
   '返回按最近顺序回到上一个非地图业务页面',
   '| 拍卖 | `auction` | `AuctionPage` | 商品与工厂资产包发布及进行中竞价 |',
@@ -621,16 +635,16 @@ for (const text of [
   '| 银行 | `bank` | `BankPage` | 资产总览、存取款、活跃周固定存款利息、周资金结算、工厂抵押贷款、额度评估与还款 |',
   '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与每日终端动态报价兑换普通货币 |',
   '| 设置 | `settings` | `SettingsPage` | 资料、偏好、经营成长线控制、礼品和退出 |',
-  '页面主标题固定为“{州级地区全称}生产”',
-  '不显示独立库存总量行',
-  '仓库商品网格按自身内容区宽度使用容器查询',
+  '| 建筑 | `buildings` | `BuildingsPage` |',
+  '页面主标题固定为“{州级地区全称}建筑”',
+  '建筑页不得渲染仓库库存卡或自动交易设置',
   '独立资产页面已经永久删除，资产总览唯一归属银行页',
   '银行资产总览不得再显示逐商品“商品库存与估值”卡片',
-  '仓库不提供“有库存／全部商品”筛选',
-  '左侧：自动交易',
-  '移动端自动交易使用与工厂详情相同的底部抽屉',
+  '市场目录固定提供“市场行情／自动交易”两个工作区',
+  '卖单量与买单量只来自公开订单簿',
+  '仓库库存唯一显示在隐藏州级上下文页的“仓库”分区',
   '建设新工厂卡独占左侧控制列并在桌面滚动时常驻',
-  '生产页只显示按正式目录排序的紧凑选择卡和单张当前工厂完整详情',
+  '建筑页只显示按正式目录排序并经过当前筛选的紧凑选择卡和单张当前建筑完整详情',
   '集群生产公式',
   '多输入、多输出和逐输入库存兼容展示',
   '以箭头替代生产进度条',
@@ -648,19 +662,36 @@ for (const text of [
   '管理员后台左侧导航复用同一侧栏骨架与动画',
   '`all-pages-preview.html` 只属于本地开发预览目录',
   '所有玩家页面共享的常驻战略地图',
-  '概览、市场、生产、设置使用参考大战略建筑页面的 `building` 左侧毛玻璃面板',
+  '概览、州级上下文、市场、建筑、设置使用 `building`',
   '`MapPage` 不再拥有 `UsMainlandMap` 实例',
   '`MapPage` 只保留透明路由占位',
   '不得渲染左上“战略经营地图”卡片、左下图例／来源卡或“当前经营地区”卡片',
-  '点击并直接切换当前地区',
+  '单击后同时更新经营州并打开 `province` 上下文页',
+  '概览｜市场｜建筑｜仓库',
+  '离开行为只清除地图视觉选中态，不清除经营州',
   '地图提供州界、资产、工业、市场和异常五种镜头',
   '不得注册为正式 `TabId`、正式路由或第十二个一级页面',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
+  "case 'province':",
+  'renderPage = () => <ProvincePage model={model} />;',
+  'province: loadProvincePage',
+]) requireText('src/pages/PageRouter.tsx', text);
+for (const text of [
+  'title={provinceName}',
+  'role="tablist"',
+  'role="tabpanel"',
+  '<EmbeddedMarketPage model={model} embedded />',
+  '<EmbeddedBuildingsPage model={model} embedded />',
+  '<WarehouseInventoryPanel model={model} className="province-warehouse-section" />',
+]) requireText('src/pages/ProvincePage.tsx', text);
+
+for (const text of [
   'const STRATEGIC_PAGE_PRESENTATION = {',
   "home: 'building'",
   "map: 'map'",
+  "province: 'building'",
   "research: 'fullscreen'",
   "'gem-shop': 'fullscreen'",
   'data-strategic-presentation={pagePresentation}',
@@ -717,4 +748,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、十一个正式页面与十项可见导航、美国本土州级地图、统一返回关闭、银行资产总览、合同默认进行中视图、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、商品／工厂资产拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');
+console.log('页面内容、十一个正式页面与十项可见导航、隐藏州级上下文页、美国本土州级地图、统一返回关闭、银行资产总览、合同默认进行中视图、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、商品／工厂资产拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');

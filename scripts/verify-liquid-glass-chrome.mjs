@@ -125,8 +125,9 @@ requireText(files.compatibility, [
 
 requireText(files.shell, [
   "home: 'building'",
+  "province: 'building'",
   "market: 'building'",
-  "production: 'building'",
+  "buildings: 'building'",
   "settings: 'building'",
   "research: 'fullscreen'",
   "auction: 'fullscreen'",
@@ -160,9 +161,9 @@ requireText(files.strategicStyles, [
   '@keyframes strategic-page-unfold',
   '.strategic-page-host--building {',
   'var(--strategic-event-rail-width)',
-  '.strategic-page-host--building > .page-content {',
+  '.strategic-page-host--building > .page-content,',
   '.strategic-page-host--fullscreen > .page-content {',
-  '.strategic-page-host .page-card-scroll-area > .ui-scrollbar--vertical {',
+  '.game-shell .page-scroll-area > .ui-scrollbar--vertical {',
   '.application-map-layer > .strategic-map-lens-bar {',
   'z-index: 1;',
   '.strategic-economic-event-rail {',
@@ -197,7 +198,7 @@ requireText(files.browser, [
 ]);
 requireText(files.sampling, ['signed-in frosted-glass backdrop sampling', "value.includes('blur(18px)')"]);
 requireText(files.pageBrowser, [
-  'overview, market, production, and settings share a one-third card width while leaderboard and shop stay full-area',
+  'overview, market, buildings, and settings share a one-third card width while leaderboard and shop stay full-area',
   "toHaveAttribute('data-strategic-presentation', 'building')",
   "toHaveAttribute('data-strategic-presentation', 'fullscreen')",
   'reduced motion disables card width and page unfold animation',
@@ -210,6 +211,7 @@ requireText(files.design, [
   '桌面侧栏按钮不得渲染数字角标',
   '`research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop`',
   '`--strategic-compact-page-width: 56rem`',
+  '隐藏 `province` 上下文页',
   '`calc(100vw / 3)`',
   '公开经济事件不得进入 `OverviewPage`',
   '工作区外层滚动条隐藏',

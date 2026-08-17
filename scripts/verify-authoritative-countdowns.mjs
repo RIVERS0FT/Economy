@@ -25,7 +25,7 @@ const paths = {
   api: 'src/api/game.ts',
   delivery: 'src/app/stateDelivery.js',
   app: 'src/app/GameApp.tsx',
-  production: 'src/pages/ProductionPage.tsx',
+  production: 'src/pages/BuildingsPage.tsx',
   productionDetail: 'src/pages/production/ProductionFacilityDetail.tsx',
   overview: 'src/pages/OverviewPage.tsx',
   economicEventLog: 'src/components/EconomicEventLogPanel.tsx',

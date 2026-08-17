@@ -125,7 +125,7 @@ if (failures.length === 0) {
     '业务 `ScrollArea` 不得通过 `padding`、`margin` 或宽度计算预留 `--scrollbar-hit-size`',
     '轨道和可见滑块都必须贴紧右边',
     '移动根级 Dialog 内与视口同宽的纵向轨道',
-    '市场商品与工厂资产列表不得建立横向主滚动区',
+    '市场商品列表不得建立横向主滚动区',
     '单一双轴原生视口',
   ]) requireText(paths.design, text);
   for (const text of ['单一双轴原生滚动视口', '任意数据单元格都必须可以作为原生横向滑动起点']) requireText(paths.localDesign, text);

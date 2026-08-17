@@ -52,31 +52,20 @@ function expectContainedArtwork(
   expect(metrics.backgroundRepeat).toBe('no-repeat');
 }
 
-test('market facility artwork fits catalog and detail slots on desktop and mobile', async ({ page }) => {
+test('building subordinate facility trade artwork fits detail slots on desktop and mobile', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
 
   await page.setViewportSize({ width: 1400, height: 900 });
-  await page.goto('market-runtime-test.html?scenario=active&view=catalog');
-  await page.getByRole('button', { name: '工厂', exact: true }).click();
-  const facilityRow = page.getByRole('button', { name: '查看机械工厂详情' });
-  expectContainedArtwork(
-    await inspectFacilityArtwork(facilityRow.locator('.market-catalog-row__artwork')),
-    64,
-    58,
-  );
-
-  await facilityRow.click();
+  await page.goto('runtime-test.html?view=production&scenario=facility-card-profit');
+  await page.getByRole('button', { name: /交易该建筑资产/ }).click();
   expectContainedArtwork(await inspectFacilityArtwork(page.locator('.market-detail-hero__artwork')), 76, 68);
 
-  await page.getByRole('button', { name: '返回工厂资产列表' }).click();
+  await page.getByRole('button', { name: '返回建筑详情' }).click();
   await page.setViewportSize({ width: 390, height: 844 });
-  expectContainedArtwork(
-    await inspectFacilityArtwork(facilityRow.locator('.market-catalog-row__artwork')),
-    64,
-    58,
-  );
-  await facilityRow.click();
+  await page.locator('.facility-cluster-selector-card').first().click();
+  await expect(page.locator('.mobile-detail-sheet')).toBeVisible();
+  await page.getByRole('button', { name: /交易该建筑资产/ }).click();
   expectContainedArtwork(await inspectFacilityArtwork(page.locator('.market-detail-hero__artwork')), 64, 58);
 
   expect(pageErrors).toEqual([]);

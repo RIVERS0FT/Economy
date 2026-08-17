@@ -32,8 +32,9 @@ import type { GameTutorialController } from '../../game-guide/useGameTutorial';
 const STRATEGIC_PAGE_PRESENTATION = {
   home: 'building',
   map: 'map',
+  province: 'building',
   market: 'building',
-  production: 'building',
+  buildings: 'building',
   research: 'fullscreen',
   auction: 'fullscreen',
   contracts: 'fullscreen',
@@ -158,7 +159,7 @@ export function GameShell({ model, children, offline = false }: {
     if (previousTab === model.tab) return;
     if (skipNextHistoryRef.current) {
       skipNextHistoryRef.current = false;
-    } else if (previousTab !== 'map') {
+    } else if (previousTab !== 'map' && previousTab !== 'province') {
       pageHistoryRef.current = [...pageHistoryRef.current, previousTab].slice(-20);
     }
     observedTabRef.current = model.tab;

@@ -123,7 +123,7 @@ export function OverviewPage({ model }: OverviewPageProps) {
 
           <div className="overview-summary-row">
           <Panel className="widget production-summary overview-summary-card">
-            <WidgetHeading title="生产摘要" action={<Button variant="text" onClick={() => setTab('production')}>管理工厂</Button>} />
+            <WidgetHeading title="生产摘要" action={<Button variant="text" onClick={() => setTab('buildings')}>管理建筑</Button>} />
             <DataList className="compact overview-core-data">
               <DataRow label="工厂总数" value={formatNumber(totalFacilities)} tone="info" />
               <DataRow label="正在运行" value={formatNumber(derived.runningFacilities)} tone="success" />

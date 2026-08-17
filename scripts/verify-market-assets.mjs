@@ -8,7 +8,7 @@ const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.p
 const requireText = (path, text) => { if (!read(path).includes(text)) failures.push(path + ' 缺少: ' + text); };
 const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(path + ' 不应包含: ' + text); };
 [
-  'src/pages/MarketPage.tsx','src/pages/ProductionPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx','src/components/AdminGiftCodesSection.tsx',
+  'src/pages/MarketPage.tsx','src/pages/BuildingsPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx','src/components/AdminGiftCodesSection.tsx',
   'src/app/gameViewModel.ts','src/utils/defaultOrderPrice.ts','src/utils/orderIdentity.ts','src/utils/orderBookLevels.ts',
   'src/api/admin.ts','src/styles/unified-market-admin.css','src/styles/virtual-list.css','server/src/domain.js','server/src/domain-core.js','server/src/facility-groups.js','server/src/storage.js',
   'server/src/market-demand.js','server/src/market-liquidity.js','server/src/balanced-market.js','server/src/order-book-integrity.js','server/src/market-demand/price-transmission.js',
@@ -114,12 +114,12 @@ for (const text of [
   '生产进度已清零',
   '前往市场交易该工厂',
   '前往市场交易该工厂 →',
-]) requireText('src/pages/ProductionPage.tsx', text);
+]) requireText('src/pages/BuildingsPage.tsx', text);
 for (const text of [
   'facility-power-button','产成品去向','挂牌数量','单座价格','启动全部未挂牌工厂','停止全部',
   '>保存计划</Button>','下一周期按 ','<span>冻结 <strong>{group.listedCount}</strong></span>',
   '下一周期加入','下一周期切换为：'
-]) forbidText('src/pages/ProductionPage.tsx', text);
+]) forbidText('src/pages/BuildingsPage.tsx', text);
 for (const text of ['持有工厂总数','生产商品总数','买入商品总数','卖出商品总数','礼品兑换','存档管理','删除存档','退出登录']) requireText('src/pages/SettingsPage.tsx', text);
 for (const text of ['登录会话','重置经济状态','重置服务器经济状态']) forbidText('src/pages/SettingsPage.tsx', text);
 for (const text of ["label: '仓库库存'", "id: 'warehouse'"]) requireText('src/app/GameApp.tsx', text);

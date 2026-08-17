@@ -49,7 +49,7 @@ requireText(controller, "subscribeStateAuthoritySlice('player.production', confi
 requireText(definition, "id: 'set-auto-sell'", '成长线第五步必须保持自动出售设置');
 requireText(definition, "title: '设置商品自动出售'", '成长线必须明确教玩家设置自动出售');
 requireText(definition, '最低自由库存可填写 0', '成长线必须说明最低自由库存是可选的额外保留');
-requireText(definition, "targetTab: 'production'", '自动出售教程必须引导到生产页仓库');
+requireText(definition, "targetTab: 'market'", '自动出售教程必须引导到市场自动交易工作区');
 
 for (const text of [
   'const result = await model.buildFacility(facilityTypeId, quantity, procurement);',

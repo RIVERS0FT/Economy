@@ -31,10 +31,11 @@ for (const path of [
   'src/app/gameViewModel.ts',
   'src/app/GameApp.tsx',
   'src/components/ui/MobileWorkspaceDetailSheet.tsx',
+  'src/components/market/MarketAutoTradePanel.tsx',
   'src/components/warehouse/WarehouseInventoryPanel.tsx',
   'src/pages/MarketPage.tsx',
   'src/pages/OverviewPage.tsx',
-  'src/pages/ProductionPage.tsx',
+  'src/pages/BuildingsPage.tsx',
   'src/styles/facility-group-card-grid.css',
   'src/styles/warehouse-expansion.css',
   'tests/browser/warehouse-auto-sell.spec.ts',
@@ -65,7 +66,22 @@ for (const text of [
 for (const text of [
   'WarehouseInventoryPanel',
   '无限容量',
-  'warehouseStoredQuantity',
+  'game.warehouseStoredQuantity',
+  'warehouse-only-panel',
+  'warehouse-product-card--readonly',
+  '仓库中暂无商品',
+  '通过生产或市场交易获得商品后，会在这里按州级库存显示。',
+]) requireText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);
+for (const text of [
+  'autoTrade.buyPolicyFor(product.id)',
+  'autoTrade.sellPolicyFor(product.id)',
+  '自动交易商品',
+  '保存自动交易设置',
+  'MobileWorkspaceDetailSheet',
+  'data-product-id={product.id}',
+]) forbidText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);
+
+for (const text of [
   'autoTrade.buyPolicyFor(product.id).enabled',
   'autoTrade.sellPolicyFor(product.id).enabled',
   '自动交易商品',
@@ -83,8 +99,12 @@ for (const text of [
   "window.matchMedia('(max-width: 720px)')",
   'returnFocusRef={autoTradeTriggerRef}',
   'data-product-id={product.id}',
-]) requireText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);
-forbidText('src/components/warehouse/WarehouseInventoryPanel.tsx', '关闭面板');
+]) requireText('src/components/market/MarketAutoTradePanel.tsx', text);
+forbidText('src/components/market/MarketAutoTradePanel.tsx', '关闭面板');
+requireText('src/pages/MarketPage.tsx', '<MarketAutoTradePanel model={model}');
+requireText('src/pages/ProvincePage.tsx', '<WarehouseInventoryPanel model={model}');
+forbidText('src/pages/BuildingsPage.tsx', 'WarehouseInventoryPanel');
+forbidText('src/pages/BuildingsPage.tsx', 'MarketAutoTradePanel');
 
 for (const text of [
   '仓库容量永久无限',
@@ -101,8 +121,9 @@ for (const text of [
   '目标自由库存',
   '最低自由库存',
   '不占玩家普通开放订单配额',
-  '桌面自动交易控制卡固定位于共享仓库左侧',
-  '与“建设新工厂”使用同一 `minmax(280px, 320px)` 控制列',
+  '市场目录固定提供“市场行情／自动交易”工作区切换',
+  '州级仓库分区在所有宽度都保持只读',
+  '市场自动交易活跃商品条件',
   '`720px` 及以下',
   '`MobileWorkspaceDetailSheet`',
   '全商品选择器',
@@ -110,31 +131,28 @@ for (const text of [
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
 
 for (const text of [
-  '客户端在线自动采购／自动出售',
+  '市场在线自动采购／自动出售',
   '商品自动交易卡和商品网格密度',
 ]) requireText('docs/README.md', text);
 
 for (const text of [
-  '仓库与商品在线自动交易设置',
-  '├─ 左侧：自动交易',
-  '自动交易、共享仓库、建设新工厂和工厂集群',
-  '其他零库存商品通过自动交易卡的全商品选择器配置',
-  '共享仓库标题右侧“自动交易”入口在零库存时打开全商品选择器',
-  '与仓库工作区的自动交易控制卡共用同一宽度基线',
-  '仓库管理、商品库存与客户端在线自动交易设置',
+  '市场目录固定提供“市场行情／自动交易”两个工作区',
+  '仓库库存唯一显示在隐藏州级上下文页的“仓库”分区',
+  '自动采购／自动出售策略唯一显示在市场页“自动交易”工作区',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
-forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '├─ 左侧：自动出售');
-forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '仓库与在线自动出售设置、建设、工厂集群');
+forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '建筑页共享仓库');
+forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '生产页共享仓库');
 
 for (const text of [
-  '桌面自动交易控制列',
+  '市场目录只展示商品',
+  '固定提供“市场行情／自动交易”工作区',
+  '共享仓库只位于州级上下文页仓库分区，自动交易只位于市场',
   '自动采购／自动出售正文布局',
-  '仓库自动交易设置共享的根级 Dialog',
-  '仓库自动交易设置是当前批准用途',
+  '市场自动交易设置共享的根级 Dialog',
+  '市场自动交易设置是当前批准用途',
   '统一商品选择器、采购／出售页签',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
-forbidText('docs/UI_DESIGN_SYSTEM.md', '桌面自动出售控制列');
-forbidText('docs/UI_DESIGN_SYSTEM.md', '仓库自动出售设置共享的根级 Dialog');
+forbidText('docs/UI_DESIGN_SYSTEM.md', '仓库自动交易设置共享的根级 Dialog');
 
 for (const text of [
   '商品级在线自动采购／自动出售策略',
@@ -216,15 +234,15 @@ if (!productionGridCss.includes('grid-template-columns: minmax(280px, 320px) min
 }
 
 for (const text of [
-  'auto-trade panel left of the warehouse at the build-card width',
+  'market auto-trade panel keeps its desktop control column',
   'uses the shared bottom sheet at 720px',
   'keeps the desktop side panel at 721px',
   'opens auto-trade for a zero-stock product',
-  'mobile warehouse header with the full catalog selector',
+  'province warehouse stays read-only on mobile',
 ]) requireText('tests/browser/warehouse-auto-sell.spec.ts', text);
 
 if (failures.length) {
   console.error('无限仓库防回退验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
-console.log('无限仓库防回退验证通过：容量机制保持退役，桌面/移动仓库布局与存档商品自动交易设置保持。');
+console.log('无限仓库防回退验证通过：容量机制保持退役，州级仓库只读，在线自动交易唯一归属市场。');

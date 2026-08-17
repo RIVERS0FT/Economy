@@ -15,7 +15,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/types.ts',
   'src/utils/facilityStaffing.ts',
   'src/main.tsx',
-  'src/pages/ProductionPage.tsx',
+  'src/pages/BuildingsPage.tsx',
   'src/pages/production/ProductionFacilityDetail.tsx',
   'src/components/facilities/FacilityProductionConfigControls.tsx',
   'src/components/ui/layout.tsx',
@@ -106,8 +106,8 @@ for (const text of [
   '生产进度已清零',
   'now={now}',
   'setFacilityRecipe',
-]) requireText('src/pages/ProductionPage.tsx', text);
-forbidText('src/pages/ProductionPage.tsx', '异常：仓库已满');
+]) requireText('src/pages/BuildingsPage.tsx', text);
+forbidText('src/pages/BuildingsPage.tsx', '异常：仓库已满');
 
 for (const text of [
   'facility-production-settings',
@@ -145,7 +145,7 @@ for (const forbidden of [
   'facility-card-status-row',
   'facility-detail-sheet-close',
   'facility-card-spacer',
-]) forbidText('src/pages/ProductionPage.tsx', forbidden);
+]) forbidText('src/pages/BuildingsPage.tsx', forbidden);
 
 for (const text of [
   'MultiRecipeFacilityType',
@@ -321,7 +321,7 @@ for (const forbidden of [
   'music-switch',
   'production-toggle',
 ]) {
-  forbidText('src/pages/ProductionPage.tsx', forbidden);
+  forbidText('src/pages/BuildingsPage.tsx', forbidden);
   forbidText('src/styles/unified-market-admin.css', forbidden);
 }
 

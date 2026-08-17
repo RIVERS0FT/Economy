@@ -195,7 +195,7 @@ export function LocalGamePreviewApp() {
     setSelectedProvinceIdState(provinceId);
     setOrderQuantity(1);
   }, [authorityGame.provinces]);
-  const selectMarketAsset = useCallback((kind: AssetKind, assetId: string) => {
+  const selectMarketAsset = useCallback((kind: AssetKind, assetId: string, navigateToMarket = true) => {
     setMarketAssetKind(kind);
     setMarketAssetId(assetId);
     setOrderQuantity(1);
@@ -204,7 +204,7 @@ export function LocalGamePreviewApp() {
       : game.facilityMarkets[assetId]?.lastPrice;
     setOrderPrice(Math.max(0.01, Number(nextPrice || 1)));
     setMarketViewMode('detail');
-    setTabState('market');
+    if (navigateToMarket) setTabState('market');
   }, [game.facilityMarkets, game.markets]);
   const showMarketCatalog = useCallback(() => setMarketViewMode('catalog'), []);
   const renamePlayer = useCallback(async (name: string) => {

@@ -68,7 +68,7 @@ const requiredFiles = [
   'src/utils/inputModality.ts',
   'src/app/interactionBootstrap.ts',
   'src/styles/interaction-states.css',
-  'src/pages/ProductionPage.tsx',
+  'src/pages/BuildingsPage.tsx',
   productionDetailPath,
   mobileDetailPath,
   'src/styles/facility-group-card-grid.css',
@@ -99,7 +99,7 @@ if (failures.length === 0) {
   ]) requireText('src/styles/interaction-states.css', text);
 
   requireText(productionDetailPath, 'data-ui-interactive="surface"');
-  requireText('src/pages/ProductionPage.tsx', 'detailTriggerRef.current = trigger;');
+  requireText('src/pages/BuildingsPage.tsx', 'detailTriggerRef.current = trigger;');
   requireText(mobileDetailPath, 'returnFocusRef.current?.focus({ preventScroll: true })');
 
   for (const text of [
@@ -123,7 +123,7 @@ if (failures.length === 0) {
     const file = relative(root, absolutePath).replaceAll('\\', '/');
     const content = readFileSync(absolutePath, 'utf8');
     if (!content.includes('interactionBootstrap')) {
-      failures.push(`${file} 是 React 根��口但未安装 interactionBootstrap`);
+      failures.push(`${file} 是 React 根��口但未安装 interactionBootstrap`);
     }
     if (content.includes('styles/design-system.css')) {
       const designIndex = content.indexOf('styles/design-system.css');

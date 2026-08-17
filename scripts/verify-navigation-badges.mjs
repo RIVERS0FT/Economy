@@ -125,7 +125,7 @@ changedGame.stats.leaderboards.period.key = '2026-07-27';
 const badges = buildNavigationBadges(changedGame, baseline);
 assert.equal(badges.market?.count, 120);
 assert.equal(formatNavigationBadgeCount(badges.market?.count || 0), '99+');
-assert.equal(badges.production?.count, 1);
+assert.equal(badges.buildings?.count, 1);
 assert.equal(badges.auction?.count, 2, 'new and outbid auctions must merge by auction id');
 assert.equal(badges.contracts?.count, 2, 'new and actionable contracts must merge by contract id');
 assert.equal(badges.leaderboard?.count, 1);

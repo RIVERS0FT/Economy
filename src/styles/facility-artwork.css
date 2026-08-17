@@ -28,7 +28,6 @@
 :is(
   .facility-cluster-selector-card,
   .facility-detail-artwork,
-  .market-catalog-row__artwork,
   .market-detail-hero__artwork,
   .asset-auction-icon,
   .asset-auction-package-icon,
@@ -46,7 +45,6 @@
 :is(
   .facility-cluster-selector-card,
   .facility-detail-artwork,
-  .market-catalog-row__artwork,
   .market-detail-hero__artwork,
   .asset-auction-icon,
   .asset-auction-package-icon,
@@ -139,7 +137,6 @@
   :is(
     .facility-cluster-selector-card,
     .facility-detail-artwork,
-    .market-catalog-row__artwork,
     .market-detail-hero__artwork,
     .asset-auction-icon,
     .asset-auction-package-icon,

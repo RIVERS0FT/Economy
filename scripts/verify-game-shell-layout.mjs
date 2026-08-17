@@ -108,6 +108,7 @@ check('src/styles/game-shell-layout.css', [
 ]);
 check('src/components/shell/GameShell.tsx', [
   'const STRATEGIC_PAGE_PRESENTATION = {',
+  "province: 'building'",
   'const HIDDEN_EVENT_RAIL_TABS = new Set<TabId>',
   "leaderboard: 'fullscreen'",
   "const [sidebarCollapsed, setSidebarCollapsed] = useState(true)",
@@ -139,6 +140,8 @@ check('src/components/shell/StatusBar.tsx', [
 check('src/components/shell/StrategicWorkspace.tsx', [
   'export function StrategicMapStage',
   '<UsMainlandMap',
+  "model.setTab('province')",
+  "selectedProvinceId={model.tab === 'province' ? state.selectedProvinceId : null}",
   'export function StrategicMapLensBar',
   'export function StrategicWorkspaceChrome',
   'aria-label="地图镜头"',
@@ -170,7 +173,7 @@ check('src/styles/strategic-game-shell.css', [
   'z-index: auto;',
   '.game-shell .workspace-floating-layer {',
   'z-index: 4;',
-  '.strategic-page-host--building > .page-content {',
+  '.strategic-page-host--building > .page-content,',
   '.strategic-page-host--fullscreen > .page-content {',
   '.game-shell .signed-in-shell__primary-card {',
   '.game-shell .signed-in-shell__primary-card .desktop-sidebar::after {',
@@ -185,6 +188,7 @@ check('src/styles/strategic-game-shell.css', [
 ]);
 forbid('src/styles/strategic-game-shell.css', [
   '.strategic-province-inspector',
+  '.strategic-map-stage--background',
   '.workspace-background-layer',
   '.page-card-scroll-area > .ui-scrollbar--vertical',
 ]);
@@ -319,7 +323,7 @@ check('tests/browser/frosted-glass-layout.spec.ts', [
   "toHaveCSS('border-radius', '40px')",
 ]);
 check('tests/browser/all-pages-preview.spec.ts', [
-  'overview, market, production, and settings share a one-third card width while leaderboard and shop stay full-area',
+  'overview, market, buildings, and settings share a one-third card width while leaderboard and shop stay full-area',
   'page navigation unfolds only the active page while the persistent map keeps its instance and geometry',
   'reduced motion disables card width and page unfold animation',
   'expect(Math.max(...compactWidths) - Math.min(...compactWidths)).toBeLessThanOrEqual(1)',

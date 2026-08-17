@@ -451,7 +451,7 @@ export function FacilityMarketAction({ onOpenMarket }: { onOpenMarket: () => voi
   return (
     <div className="facility-market-link-row">
       <Button variant="text" className="facility-market-link" onClick={onOpenMarket}>
-        前往市场交易该工厂 →
+        交易该建筑资产 →
       </Button>
     </div>
   );

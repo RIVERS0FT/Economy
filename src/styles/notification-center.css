@@ -142,7 +142,7 @@
   align-items: start;
   justify-items: end;
   padding: 0 var(--layout-gutter) var(--layout-gutter);
-  background: rgba(1, 7, 4, 0.08);
+  background: transparent;
   pointer-events: auto;
 }
 
@@ -746,7 +746,7 @@
   .notification-panel-layer {
     align-items: start;
     justify-items: stretch;
-    background: rgba(1, 7, 4, 0.12);
+    background: transparent;
   }
 
   .notification-panel {

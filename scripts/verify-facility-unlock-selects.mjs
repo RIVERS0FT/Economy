@@ -68,7 +68,7 @@ assert.deepEqual(
   'pre-research snapshots must keep the complete catalog instead of crashing or guessing a lock state',
 );
 
-const productionPage = read('src/pages/ProductionPage.tsx');
+const productionPage = read('src/pages/BuildingsPage.tsx');
 const richSelect = read('src/components/ui/RichSelectInput.tsx');
 const formControlStyles = read('src/styles/form-controls.css');
 const buildSelectStyles = read('src/styles/facility-build-select.css');

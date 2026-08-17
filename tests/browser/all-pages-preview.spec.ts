@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test';
 
 const pages = [
   { navigation: /^概览/, heading: '概览' },
-  { navigation: /^市场/, heading: '加利福尼亚州本地市场' },
-  { navigation: /^生产/, heading: '加利福尼亚州生产' },
+  { navigation: /^市场/, heading: '加利福尼亚州市场' },
+  { navigation: /^建筑/, heading: '加利福尼亚州建筑' },
   { navigation: /^研发/, heading: '研发' },
   { navigation: /^拍卖/, heading: '拍卖' },
   { navigation: /^合同/, heading: '合同' },
@@ -51,9 +51,15 @@ test('account-free game shell navigates all ten visible business pages and close
   await expect(map).toHaveAttribute('data-echarts-ready', 'true');
   await expect(page.locator('.province-map-page')).toBeVisible();
   await expect(page.locator('[data-player-page-navigation="true"]')).toHaveCount(0);
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
   await map.locator('svg text').filter({ hasText: /^TX$/ }).click();
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', 'US-TX');
+  await expect(page.getByRole('heading', { level: 1, name: '得克萨斯州' })).toBeVisible();
+  await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');
+  await expect(page.getByRole('tablist', { name: '得克萨斯州页面分区' }).getByRole('tab')).toHaveCount(4);
   await expect(page.getByText('当前经营地区', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
 });
 
 test('player page heading keeps SVG back, centered title, and SVG close in that order', async ({ page }) => {
@@ -102,9 +108,9 @@ test('player page heading keeps SVG back, centered title, and SVG close in that 
     });
     expect(layout.order).toEqual(['back', 'title', 'close']);
     expect(layout.back.width).toBeCloseTo(40, 0);
-    expect(layout.back.height).toBeCloseTo(40, 0);
+    expect(layout.back.height).toBeCloseTo(44, 0);
     expect(layout.close.width).toBeCloseTo(40, 0);
-    expect(layout.close.height).toBeCloseTo(40, 0);
+    expect(layout.close.height).toBeCloseTo(44, 0);
     expect(layout.title.left + layout.title.width / 2).toBeCloseTo(
       layout.heading.left + layout.heading.width / 2,
       0,
@@ -114,7 +120,7 @@ test('player page heading keeps SVG back, centered title, and SVG close in that 
   }
 });
 
-test('overview, market, production, and settings share a one-third card width while leaderboard and shop stay full-area', async ({ page }) => {
+test('overview, market, buildings, and settings share a one-third card width while leaderboard and shop stay full-area', async ({ page }) => {
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('?preview=game');
   const sidebar = page.locator('.desktop-sidebar');
@@ -126,7 +132,19 @@ test('overview, market, production, and settings share a one-third card width wh
   await expect(workspaceCard.locator(':scope .desktop-sidebar')).toHaveCount(1);
   await expect(workspaceCard.locator(':scope .strategic-page-host')).toHaveCount(1);
 
-  for (const label of ['概览', '市场', '生产', '设置']) {
+  await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
+  await page.getByTestId('us-mainland-map').locator('svg text').filter({ hasText: /^TX$/ }).click();
+  const provinceHost = page.locator('.strategic-page-host');
+  await expect(provinceHost).toHaveAttribute('data-strategic-presentation', 'building');
+  await page.waitForTimeout(240);
+  const provinceContentBox = await provinceHost.locator(':scope > .page-content').boundingBox();
+  const provinceCardBox = await workspaceCard.boundingBox();
+  expect(provinceContentBox).not.toBeNull();
+  expect(provinceCardBox).not.toBeNull();
+  compactWidths.push(provinceContentBox!.width);
+  compactCardWidths.push(provinceCardBox!.width);
+
+  for (const label of ['概览', '市场', '建筑', '设置']) {
     const button = label === '设置'
       ? sidebar.locator('.sidebar-footer').getByRole('button', { name: '设置', exact: true })
       : sidebar.getByRole('button', { name: new RegExp(`^${label}`) });
@@ -202,7 +220,10 @@ test('reduced motion disables card width and page unfold animation', async ({ pa
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^市场/ }).click();
 
-  await expect(page.locator('.signed-in-shell__primary-card')).toHaveCSS('transition-duration', '0s');
+  const transitionDurationSeconds = await page.locator('.signed-in-shell__primary-card').evaluate(
+    (element) => Number.parseFloat(getComputedStyle(element).transitionDuration),
+  );
+  expect(transitionDurationSeconds).toBeLessThanOrEqual(0.001);
   await expect(page.locator('.signed-in-shell__page-reveal')).toHaveCSS('animation-name', 'none');
   await expect(page.locator('.strategic-map-stage')).toHaveCSS('transform', 'none');
 });
@@ -212,26 +233,34 @@ test('player page return skips the map and restores the previous business page',
   const sidebar = page.locator('.desktop-sidebar');
 
   await sidebar.getByRole('button', { name: /^市场/ }).click();
-  await sidebar.getByRole('button', { name: /^生产/ }).click();
-  await page.getByRole('button', { name: '返回上一页面' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: '加利福尼亚州本地市场' })).toBeVisible();
+  await sidebar.getByRole('button', { name: /^建筑/ }).click();
+  const returnButton = page.getByRole('button', { name: '返回上一页面' });
+  await returnButton.focus();
+  await expect(returnButton).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { level: 1, name: '加利福尼亚州市场' })).toBeVisible();
   await expect(sidebar.getByRole('button', { name: /^市场/ })).toHaveAttribute('aria-current', 'page');
 
   await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
-  await expect(page.locator('.province-map-page')).toBeVisible();
+  await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
+  await expect(page.locator('[data-player-page-navigation="true"]')).toHaveCount(0);
   await sidebar.getByRole('button', { name: /^银行/ }).click();
-  await page.getByRole('button', { name: '返回上一页面' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: '加利福尼亚州本地市场' })).toBeVisible();
+  await returnButton.focus();
+  await expect(returnButton).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { level: 1, name: '加利福尼亚州市场' })).toBeVisible();
 });
 
 test('leaderboard and local-only service summaries are populated in the full shell', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('?preview=game');
   const sidebar = page.locator('.desktop-sidebar');
 
   await sidebar.getByRole('button', { name: /^排行/ }).click();
   const leaderboardSwitch = page.locator('.leaderboard-board-switch');
+  const leaderboardLayout = page.locator('.leaderboard-responsive-layout');
   await expect(leaderboardSwitch.locator('button')).toHaveCount(4);
+  expect(await leaderboardLayout.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThanOrEqual(72 * 16);
   await expect(leaderboardSwitch).toBeHidden();
   await expect(page.locator('.leaderboard-board-card:visible')).toHaveCount(4);
   await expect(page.locator('[data-leaderboard-board="wealth"] .leaderboard-board-card').getByText('本地预览玩家', { exact: true })).toBeVisible();

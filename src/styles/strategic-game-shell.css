@@ -113,11 +113,6 @@
   transition: opacity 180ms ease, background-color 180ms ease;
 }
 
-.strategic-map-stage--background .strategic-map-vignette {
-  background-color: rgb(1 7 5 / 44%);
-  opacity: 1;
-}
-
 .strategic-map-stage[data-map-lens="industry"] .province-map-echart,
 .strategic-map-stage[data-map-lens="market"] .province-map-echart,
 .strategic-map-stage[data-map-lens="alerts"] .province-map-echart {
@@ -281,8 +276,9 @@
   }
 
   .game-shell.strategic-tab-home,
+  .game-shell.strategic-tab-province,
   .game-shell.strategic-tab-market,
-  .game-shell.strategic-tab-production,
+  .game-shell.strategic-tab-buildings,
   .game-shell.strategic-tab-settings {
     --strategic-primary-card-inline-size: min(
       calc(100vw / 3),
@@ -432,10 +428,6 @@
     padding: 0;
   }
 
-  .strategic-map-stage--background .strategic-map-vignette {
-    background-color: rgb(1 7 5 / 68%);
-  }
-
   .strategic-page-host {
     padding: var(--strategic-panel-gap) 0;
   }
@@ -485,11 +477,15 @@
     background: var(--frosted-glass-background-strong);
   }
 
+  .game-shell .page-heading {
+    padding: var(--layout-gutter);
+  }
+
   .strategic-page-host--map {
     padding: 0;
   }
 
-  .strategic-map-lens-bar {
+  .application-map-layer > .strategic-map-lens-bar {
     display: none;
   }
 

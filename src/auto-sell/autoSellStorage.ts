@@ -63,7 +63,7 @@ export function requestAutoSellPanel(userId: number, productId: string) {
   try {
     window.sessionStorage.setItem(panelRequestKey(userId), productId);
   } catch {
-    // The event below still supports an already-mounted production page.
+    // The event below still supports an already-mounted market page.
   }
   window.dispatchEvent(new CustomEvent(AUTO_SELL_PANEL_EVENT, {
     detail: { userId, productId },

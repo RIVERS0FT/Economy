@@ -180,7 +180,7 @@ for (const text of [
   'renders decimal last trade prices in single-factory profit',
   "toContainText('5.38')",
   "not.toContainText('缺少')",
-]) assert.ok(browserSource.includes(text), `生产页小数产值浏览器回归缺少: ${text}`);
+]) assert.ok(browserSource.includes(text), `建筑页小数产值浏览器回归缺少: ${text}`);
 
 for (const text of [
   "toHaveText('5.38')",

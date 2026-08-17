@@ -75,7 +75,7 @@ for (const [file, texts] of Object.entries({
     'facility-build-procurements',
     'market orders remain server-authoritative',
   ],
-  'src/pages/ProductionPage.tsx': [
+  'src/pages/BuildingsPage.tsx': [
     'quoteFacilityBuildProcurement(game.orders, missingBuildMaterials)',
     'openOrderLimitForCatalog(game.products.length, game.facilityTypes.length)',
     'crossingSellOrderIds',
@@ -178,7 +178,7 @@ for (const text of ['/facilities/procurements', '/facilities/procurements/cancel
   forbidText('server/src/game-routes.js', text);
   forbidText('src/api/game.ts', text);
 }
-forbidText('src/pages/ProductionPage.tsx', '买价会与自己的卖单交叉，请先撤单或降低价格。');
+forbidText('src/pages/BuildingsPage.tsx', '买价会与自己的卖单交叉，请先撤单或降低价格。');
 forbidText('server/test/instant-facility-construction.test.js', 'still requires warehouse space for market delivery');
 forbidText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '资金或仓库不足');
 forbidText('docs/README.md', '仓库临时交割');

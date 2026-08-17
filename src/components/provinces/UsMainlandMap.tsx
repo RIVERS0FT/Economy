@@ -209,15 +209,17 @@ export function UsMainlandMap({
 }: {
   provinces: ProvinceDefinition[];
   summaries: Record<string, ProvinceAssetSummary>;
-  selectedProvinceId: string;
+  selectedProvinceId: string | null;
   onSelectProvince: (provinceId: string) => void;
   lens?: ProvinceMapLens;
 }) {
   const provinceIdByMapName = useMemo(() => new Map(
     provinces.map((province) => [province.shortName, province.id]),
   ), [provinces]);
-  const selectedProvince = provinces.find((province) => province.id === selectedProvinceId)
-    ?? provinces[0];
+  const selectedProvince = provinces.find((province) => province.id === selectedProvinceId);
+  const selectedMap = useMemo(() => Object.fromEntries(
+    provinces.map((province) => [province.shortName, province.id === selectedProvinceId]),
+  ), [provinces, selectedProvinceId]);
   const data = useMemo(() => provinces.map((province) => (
     datumFor(province, summaries[province.id], lens)
   )), [lens, provinces, summaries]);
@@ -260,7 +262,7 @@ export function UsMainlandMap({
       map: US_MAINLAND_MAP_NAME,
       nameProperty: 'name',
       selectedMode: 'single',
-      selectedMap: selectedProvince ? { [selectedProvince.shortName]: true } : {},
+      selectedMap,
       roam: true,
       scaleLimit: { min: 1, max: 8 },
       aspectScale: US_MAINLAND_ASPECT_SCALE,
@@ -323,7 +325,7 @@ export function UsMainlandMap({
         }],
       },
     }],
-  }), [data, selectedProvince]);
+  }), [data, selectedMap]);
 
   const handleMapClick = (event: EconomyChartClickEvent) => {
     if (event.seriesType !== 'map') return;
@@ -340,13 +342,13 @@ export function UsMainlandMap({
     chart.getDom().dataset.mapCameraReset = 'blank-double-click';
   }, [applyContainCamera]);
 
-  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。当前选择${selectedProvince?.name || '加利福尼亚州'}。点击州面可以切换地区，双击地图空白可以重置缩放和平移。`;
+  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}点击州面可以打开对应州页面，双击地图空白可以重置缩放和平移。`;
   return (
     <div
       className="province-map-chart"
       data-province-count={provinces.length}
       data-map-feature-count={usMainlandGeoJson.features.length}
-      data-selected-province-id={selectedProvinceId}
+      data-selected-province-id={selectedProvinceId ?? ''}
       data-map-lens={lens}
     >
       <EconomyChart

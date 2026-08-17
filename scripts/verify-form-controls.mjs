@@ -61,7 +61,7 @@ const adminGiftCodesPath = 'src/components/AdminGiftCodesSection.tsx';
   'src/pages/ContractPage.tsx',
   'src/pages/GemShopPage.tsx',
   'src/pages/SettingsPage.tsx',
-  'src/pages/ProductionPage.tsx',
+  'src/pages/BuildingsPage.tsx',
   'src/components/InvitationSettings.tsx',
   'src/components/AdminBanPanel.tsx',
 ].forEach(requireFile);
@@ -211,7 +211,7 @@ for (const path of [
   'src/pages/ContractPage.tsx',
   'src/pages/GemShopPage.tsx',
   'src/pages/SettingsPage.tsx',
-  'src/pages/ProductionPage.tsx',
+  'src/pages/BuildingsPage.tsx',
   'src/components/InvitationSettings.tsx',
   'src/components/AdminBanPanel.tsx',
 ]) requireText(path, 'FormControls');

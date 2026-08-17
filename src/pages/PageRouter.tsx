@@ -21,7 +21,8 @@ const loadLeaderboardPage = cachedLoader(() => import('./LeaderboardPage'));
 const loadMarketPage = cachedLoader(() => import('./MarketPage'));
 const loadMapPage = cachedLoader(() => import('./MapPage'));
 const loadOverviewPage = cachedLoader(() => import('./OverviewPage'));
-const loadProductionPage = cachedLoader(() => import('./ProductionPage'));
+const loadProvincePage = cachedLoader(() => import('./ProvincePage'));
+const loadBuildingsPage = cachedLoader(() => import('./BuildingsPage'));
 const loadResearchPage = cachedLoader(() => import('./ResearchPage'));
 const loadGemShopPage = cachedLoader(() => import('./GemShopPage'));
 const loadSettingsPage = cachedLoader(() => import('./SettingsPage'));
@@ -29,8 +30,9 @@ const loadSettingsPage = cachedLoader(() => import('./SettingsPage'));
 const pagePreloaders: Record<TabId, () => Promise<unknown>> = {
   home: loadOverviewPage,
   map: loadMapPage,
+  province: loadProvincePage,
   market: loadMarketPage,
-  production: loadProductionPage,
+  buildings: loadBuildingsPage,
   research: loadResearchPage,
   auction: loadAuctionPage,
   contracts: loadContractPage,
@@ -52,8 +54,9 @@ const PAGE_AUTHORITY_DEPENDENCIES: Record<TabId, readonly StateAuthorityDependen
     'market.calendar',
   ],
   map: ['catalog', 'player.assets', 'player.production', 'market.orders', 'market.quotes'],
+  province: ['catalog', 'player.assets', 'player.production', 'market.orders', 'market.quotes'],
   market: ['catalog', 'player.assets', 'player.production', 'market.orders', 'market.quotes'],
-  production: [
+  buildings: [
     'catalog',
     'player.assets',
     'player.production',
@@ -82,7 +85,8 @@ const LeaderboardPage = lazy(() => import('./LeaderboardPage').then((module) => 
 const MarketPage = lazy(() => import('./MarketPage').then((module) => ({ default: module.MarketPage })));
 const MapPage = lazy(() => import('./MapPage').then((module) => ({ default: module.MapPage })));
 const OverviewPage = lazy(() => import('./OverviewPage').then((module) => ({ default: module.OverviewPage })));
-const ProductionPage = lazy(() => import('./ProductionPage').then((module) => ({ default: module.ProductionPage })));
+const ProvincePage = lazy(() => import('./ProvincePage').then((module) => ({ default: module.ProvincePage })));
+const BuildingsPage = lazy(() => import('./BuildingsPage').then((module) => ({ default: module.BuildingsPage })));
 const ResearchPage = lazy(() => import('./ResearchPage').then((module) => ({ default: module.ResearchPage })));
 const GemShopPage = lazy(() => import('./GemShopPage').then((module) => ({ default: module.GemShopPage })));
 const SettingsPage = lazy(() => import('./SettingsPage').then((module) => ({ default: module.SettingsPage })));
@@ -111,13 +115,16 @@ export function PageRouter({ model }: { model: OnlineAutoTradeAwareGameViewModel
     case 'map':
       renderPage = () => <MapPage model={model} />;
       break;
+    case 'province':
+      renderPage = () => <ProvincePage model={model} />;
+      break;
     case 'market':
       renderPage = () => <MarketPage model={model} />;
       break;
-    case 'production':
+    case 'buildings':
       renderPage = () => (
         <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
-          <ProductionPage model={model} />
+          <BuildingsPage model={model} />
         </FacilityRecipeProfitMarketsProvider>
       );
       break;

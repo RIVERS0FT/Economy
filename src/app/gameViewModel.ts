@@ -117,7 +117,7 @@ export interface LoadedGameViewModel {
   marketAssetId: string;
   marketViewMode: MarketViewMode;
   showMarketCatalog: () => void;
-  selectMarketAsset: (kind: AssetKind, assetId: string) => void;
+  selectMarketAsset: (kind: AssetKind, assetId: string, navigateToMarket?: boolean) => void;
   orderSide: OrderSide;
   selectOrderSide: (side: OrderSide) => void;
   orderQuantity: number;
@@ -492,7 +492,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     setActiveTab(nextTab);
   }
 
-  function selectMarketAsset(kind: AssetKind, assetId: string) {
+  function selectMarketAsset(kind: AssetKind, assetId: string, navigateToMarket = true) {
     const changed = kind !== marketAssetKind || assetId !== marketAssetId;
     setMarketAssetKind(kind);
     setMarketAssetId(assetId);
@@ -501,7 +501,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
       setOrderQuantity(1);
     }
     setMarketViewMode('detail');
-    setActiveTab('market');
+    if (navigateToMarket) setActiveTab('market');
   }
 
   function showMarketCatalog() {

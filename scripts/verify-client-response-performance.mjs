@@ -250,7 +250,7 @@ requireText('src/components/EconomicEventLogPanel.tsx', [
   'EconomicEventLogPanel',
   '<LiveServerTime referenceNow={referenceNow}>',
 ]);
-forbidText('src/pages/ProductionPage.tsx', ['useNow(game.lastProcessedAt)']);
+forbidText('src/pages/BuildingsPage.tsx', ['useNow(game.lastProcessedAt)']);
 forbidText('src/pages/AuctionPage.tsx', ['useNow(model.game.lastProcessedAt)']);
 forbidText('src/pages/GemShopPage.tsx', ['useNow(model.game.lastProcessedAt)']);
 forbidText('src/pages/ResearchPage.tsx', ['const now = useNow(model.game.lastProcessedAt);']);

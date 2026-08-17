@@ -238,7 +238,7 @@ setRun(persisted);
     if (run.currentStep === 'set-auto-sell') {
       const productId = preferredSellProductId(model, run.context.productId);
       requestAutoSellPanel(userId, productId);
-      model.setTab('production');
+      model.setTab('market');
       return;
     }
     model.setTab(definition.targetTab);

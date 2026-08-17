@@ -184,8 +184,10 @@ assert.match(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-center-t
 assert.doesNotMatch(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-center-trigger\s*\{[\s\S]*?(?:width|height):\s*36px;/);
 assert.match(styles, /\.notification-panel-layer/);
 assert.match(styles, /\.notification-panel-layer\s*\{[\s\S]*?padding:\s*0 var\(--layout-gutter\) var\(--layout-gutter\);/);
+assert.match(styles, /\.notification-panel-layer\s*\{[^}]*background:\s*transparent;/);
 assert.doesNotMatch(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-panel-layer\s*\{[\s\S]*?padding:\s*0;/);
 assert.doesNotMatch(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-panel-layer\s*\{[\s\S]*?padding-inline-(?:start|end):/);
+assert.doesNotMatch(styles, /\.notification-panel-layer\s*\{[^}]*background:\s*rgba\(/);
 assert.match(styles, /\.notification-toast-stack/);
 assert.match(styles, /\.notification-island\s*\{/);
 assert.match(styles, /transform-origin:\s*center center/);

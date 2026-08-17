@@ -57,7 +57,7 @@ type NotificationGameState = Omit<Partial<EconomyState>, 'assetAuctions' | 'prod
 const VALID_TABS = new Set<TabId>([
   'home',
   'market',
-  'production',
+  'buildings',
   'research',
   'auction',
   'contracts',
@@ -230,7 +230,8 @@ export function targetTabFromMessage(message: string): TabId | undefined {
   if (/拍卖|出价|竞拍/.test(message)) return 'auction';
   if (/合同|履约|交付/.test(message)) return 'contracts';
   if (/贷款|还款|存款|取款|银行|利息|周结算/.test(message)) return 'bank';
-  if (/工厂|生产|仓库|原料|施工/.test(message)) return 'production';
+  if (/仓库/.test(message)) return 'province';
+  if (/工厂|建筑|生产|原料|施工/.test(message)) return 'buildings';
   if (/订单|买单|卖单|成交|市场/.test(message)) return 'market';
   if (/研发|技术/.test(message)) return 'research';
   if (/排行|排名|结算/.test(message)) return 'leaderboard';
@@ -255,7 +256,7 @@ function facilityPendingItems(game: NotificationGameState): PendingNotificationI
       severity: copy.severity,
       title: `${facilityName}${copy.title}`,
       message: `${Math.max(1, group.count)} 座${facilityName}${copy.detail}`,
-      targetTab: 'production' as const,
+      targetTab: 'buildings' as const,
     }];
   });
 }

@@ -60,17 +60,21 @@ export function StrategicMapStage({
   const setSelectedProvinceId = typeof model.setSelectedProvinceId === 'function'
     ? model.setSelectedProvinceId
     : () => {};
+  const openProvincePage = (provinceId: string) => {
+    setSelectedProvinceId(provinceId);
+    model.setTab('province');
+  };
   return (
     <div
-      className={`strategic-map-stage strategic-map-stage--${model.tab === 'map' ? 'active' : 'background'}`}
+      className="strategic-map-stage"
       data-strategic-map-stage="true"
       data-map-lens={lens}
     >
       <UsMainlandMap
         provinces={state.provinces}
         summaries={state.summaries}
-        selectedProvinceId={state.selectedProvinceId}
-        onSelectProvince={setSelectedProvinceId}
+        selectedProvinceId={model.tab === 'province' ? state.selectedProvinceId : null}
+        onSelectProvince={openProvincePage}
         lens={lens}
       />
       <div className="strategic-map-vignette" aria-hidden="true" />
