@@ -30,6 +30,11 @@
     border-radius: inherit;
   }
 
+  .asset-bar-layout {
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
   /* Status content is a fixed five-column grid; do not restore scrolling. */
   .asset-bar-content {
     width: 100%;
@@ -43,12 +48,10 @@
     overflow: visible;
   }
 
-  /* Percentage heights on centered grid children can resolve a pixel short
-   * inside the bordered frosted surface. Stretch the status/action tracks to
-   * the actual grid row so their top and bottom edges stay identical. */
+  .asset-bar-layout > .asset-bar-identity,
   .asset-bar-layout > .asset-bar-content,
   .asset-bar-layout > .asset-bar-action {
-    height: auto;
+    height: 100%;
     align-self: stretch;
   }
 
@@ -158,6 +161,33 @@
     left: auto;
     margin: 0;
     pointer-events: auto;
+  }
+}
+
+@media (max-width: 400px) {
+  .asset-bar-layout {
+    grid-template-columns: 32px minmax(0, 1fr) 44px;
+  }
+
+  .asset-bar-layout > .asset-bar-identity {
+    width: 32px;
+    min-width: 32px;
+  }
+
+  .asset-bar-layout > .asset-bar-action {
+    width: 44px;
+    min-width: 44px;
+    padding-inline: 0;
+  }
+
+  .asset-bar-item,
+  .asset-bar-item:last-child {
+    gap: .08rem;
+  }
+
+  .asset-bar-item-icon {
+    width: .9rem;
+    height: .9rem;
   }
 }
 
