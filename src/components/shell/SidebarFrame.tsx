@@ -48,7 +48,7 @@ export function SidebarFrame({
     <aside
       className={classNames('sidebar desktop-sidebar panel', className)}
       data-collapsed={collapsed ? 'true' : 'false'}
-      onMouseMove={expand}
+      onMouseEnter={expand}
       onMouseLeave={collapse}
       onFocusCapture={expand}
       onBlurCapture={handleBlur}
