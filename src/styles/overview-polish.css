@@ -10,7 +10,8 @@
 
 .overview-open-orders-list--scrollable {
   min-height: 0;
-  flex: 1;
+  max-height: 12rem;
+  flex: 0 1 auto;
   overflow-y: auto;
   padding-right: var(--space-1);
 }
