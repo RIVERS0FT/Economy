@@ -51,7 +51,7 @@ export function SignedInShell({
         scrollbarVisibility="adaptive"
       >
         {pageTransitionKey ? (
-          <div className="signed-in-shell__page-reveal" key={pageTransitionKey} data-page-transition-key={pageTransitionKey}>
+          <div className="signed-in-shell__page-reveal" data-page-transition-key={pageTransitionKey}>
             <div className="signed-in-shell__page-reveal-inner">
               {pageContent}
             </div>
