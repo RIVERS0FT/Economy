@@ -81,7 +81,7 @@ test.describe('warehouse and market online auto trade responsibilities', () => {
     await expect(productCard).toBeFocused();
   });
 
-  test('province warehouse stays read-only on mobile', async ({ page }) => {
+  test('province warehouse keeps product cards read-only while transport remains available on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 900 });
     await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
     const map = page.getByTestId('us-mainland-map');
@@ -95,8 +95,11 @@ test.describe('warehouse and market online auto trade responsibilities', () => {
     const warehouse = page.locator('.province-warehouse-section');
     await expect(warehouse).toBeVisible();
     await expect(warehouse.getByText('无限容量', { exact: true })).toBeVisible();
-    expect(await warehouse.locator('.warehouse-product-card--readonly').count()).toBeGreaterThan(0);
-    await expect(warehouse.locator('button')).toHaveCount(0);
+    const productCards = warehouse.locator('.warehouse-product-card--readonly');
+    expect(await productCards.count()).toBeGreaterThan(0);
+    await expect(productCards.locator('button')).toHaveCount(0);
+    await expect(warehouse.getByLabel('跨州运输')).toBeVisible();
+    await expect(warehouse.locator('.transport-submit')).toBeVisible();
     await expect(warehouse.getByText('自动交易', { exact: true })).toHaveCount(0);
     await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
   });
