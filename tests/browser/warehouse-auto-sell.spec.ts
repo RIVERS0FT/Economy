@@ -81,7 +81,7 @@ test.describe('warehouse and market online auto trade responsibilities', () => {
     await expect(productCard).toBeFocused();
   });
 
-  test('province warehouse keeps product cards read-only while transport remains available on mobile', async ({ page }) => {
+  test('province warehouse stays read-only on mobile while transport remains available', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 900 });
     await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
     const map = page.getByTestId('us-mainland-map');
