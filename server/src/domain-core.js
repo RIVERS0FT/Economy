@@ -245,7 +245,7 @@ function seedFacilityListings(now) {
 
 export function createWorld(now = Date.now()) {
   return {
-    version: 30,
+    version: 31,
     auctionFeeEscrowCredits: 0,
     players: {},
     orders: seedOrders(now),
@@ -454,7 +454,7 @@ export function migrateWorld(world, now = Date.now()) {
     world.demandGroups[group.id] = { ...createDemandGroups(now)[group.id], ...world.demandGroups[group.id] };
   }
   world.auctionFeeEscrowCredits = Math.max(0, Number(world.auctionFeeEscrowCredits || 0));
-  world.version = Math.max(30, Number(world.version || 0));
+  world.version = Math.max(31, Number(world.version || 0));
   return world;
 }
 
@@ -1190,7 +1190,7 @@ export function createClientState(world, userId, now = Date.now(), { migrate = t
   const provinceInventories = inventoryStatesByProvince(player);
   const provinceMarkets = marketStatesByProvince(world.markets);
   return {
-    version: 34,
+    version: 35,
     userId: player.userId,
     playerName: player.playerName,
     registeredAt: player.registeredAt,

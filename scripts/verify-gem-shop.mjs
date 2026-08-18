@@ -75,7 +75,7 @@ for (const text of [
 for (const text of ['宝石加速', '施工时间', 'constructionRemainingAfterAcceleration', 'accelerateFacilityConstruction']) {
   forbidText('src/pages/BuildingsPage.tsx', text);
 }
-for (const text of ['instant construction shows credits and materials without gem acceleration', "not.toContainText('宝石加速')", "not.toContainText('施工中')"]) {
+for (const text of ['production title omits status counts while instant construction shows costs without gem acceleration', "not.toContainText('宝石加速')", "not.toContainText('施工中')"]) {
   requireText('tests/browser/production-status-summary.spec.ts', text);
 }
 for (const text of [

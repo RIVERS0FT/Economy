@@ -235,7 +235,7 @@ requireAll(paths.strategicStyle, [
   '--strategic-compact-page-width: 56rem;',
   'calc(100vw / 3),',
   '.game-shell .signed-in-shell__primary-card {',
-  '.strategic-page-host--building > .page-content {',
+  '.strategic-page-host--building > .page-content,',
   '.game-shell .signed-in-shell__primary-card .desktop-sidebar::after {',
   '.strategic-economic-event-rail {',
   'width: var(--strategic-event-rail-width);',
@@ -312,7 +312,7 @@ requireAll(paths.integrityDesign, [
   '资产与银行',
   '可支配资产、冻结资产和贷款负债',
   '`1684×931`',
-  '侧栏悬浮展开不改变概览和右栏几何',
+  '侧栏悬浮展开覆盖概览但不改变页面和右栏几何',
 ]);
 for (const path of [paths.pageDesign, paths.uiDesign, paths.integrityDesign]) forbidText(path, '统一为 `384px` 高');
 

@@ -16,10 +16,10 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx','src/components/ui/VirtualList.tsx','src/components/ui/VirtualRecordTable.tsx','src/hooks/useVirtualWindow.ts','src/components/icons/GameIcons.tsx'
 ].forEach(requireFile);
 for (const text of [
-  "if (marketViewMode === 'catalog')",'market-catalog-filters','market-catalog-row','placeAssetOrder','single-order-book','items={selectedLocalTrades}',
+  "if (!facilityAssetId && marketViewMode === 'catalog')",'market-catalog-filters','market-catalog-row','placeAssetOrder','single-order-book','items={selectedLocalTrades}',
   'local-trades-virtual-table','VirtualRecordTable',
   "from '../components/icons/GameIcons'",'FactoryIcon','<FactoryIcon />','selectOrderSide',
-  '<ProductArtwork productId={entry.id} />','<FacilityIcon facilityTypeId={entry.id} />','backAction={{',
+  '<ProductArtwork productId={entry.id} />','<FacilityIcon facilityTypeId={selectedFacility.id} />','backAction={{',
   'title={selectedAssetTitle(`${assetName}交易`)}','label="价格"','className="numeric-cell">价格</th>',
   'formatNumber(order.remaining)','formatCurrency(order.price)',
   "import { buildOrderBookLevels } from '../utils/orderBookLevels'",
@@ -165,7 +165,7 @@ for (const text of [
   'maker price','反推玩家成交价','逐笔','紧凑工厂标签使用独立厂房 SVG',
   '玩家界面统一将订单输入字段称为“价格”',
   '默认价格只从客户端当前已经加载的 `game.orders` 本地快照计算',
-  '从其他页面重新进入市场页',
+  '从其他页面重新进入当前资产所属详情',
   '自动刷新、下单响应、成交、撤单或其他权威状态同步只更新本地订单快照，不得直接覆盖当前价格输入',
   '商品订单只允许玩家、消费需求或市场储备作为所有者',
   '市场储备可以提交商品买单和卖单',
@@ -187,8 +187,8 @@ for (const text of [
 ]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
 for (const text of [
   '玩家可见输入字段、订单标题和未完成订单表头统一使用“价格”',
-  '从其他页面重新进入市场',
-  '自动刷新和下单后的状态同步不得覆盖当前输入',
+  '侧栏进入市场列表不必初始化隐藏的下单草稿',
+  '自动刷新和下单后的状态同步不得覆盖详情当前输入',
   '订单簿按价格档位聚合展示',
   '我的未完成订单继续逐单展示并可单独撤销',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);

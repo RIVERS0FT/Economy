@@ -218,7 +218,7 @@ requireText('src/app/clientOrderIndex.ts', [
 ]);
 requireText('src/pages/MarketPage.tsx', [
   'getClientOrderIndex(game.orders)',
-  'openOrdersForAsset(orderIndex, marketAssetKind, assetId)',
+  'openOrdersForAsset(orderIndex, activeAssetKind, assetId)',
   'const ownOpenOrders = orderIndex.ownOpenOrders;',
   'const MarketOrderEntry = memo(forwardRef',
 ]);

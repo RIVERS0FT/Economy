@@ -240,9 +240,9 @@ for (const removedText of [
 
 for (const text of [
   'const market = game.markets[product.id];',
-  'const market = game.facilityMarkets[facility.id];',
+  ': selectedFacility ? game.facilityMarkets[selectedFacility.id] : undefined;',
   'lastTradePrice: typeof market?.lastTradePrice === \'number\' ? market.lastTradePrice : undefined',
-  "typeof entry.lastTradePrice === 'number' ? formatCurrency(entry.lastTradePrice) : '—'",
+  "typeof entry.marketPrice === 'number'\n                          ? <CurrencyAmount>{formatCurrency(entry.marketPrice)}</CurrencyAmount>",
 ]) assert.ok(marketPageSource.includes(text), `市场资产列表缺少真实成交价字段: ${text}`);
 for (const removedText of [
   'const lastPrice = game.markets[product.id]?.lastPrice;',
@@ -293,8 +293,8 @@ for (const removedText of [
   '窄屏利润分析保持紧凑而不删减信息',
 ]) assert.equal(designSource.includes(removedText), false, `产业设计不得保留旧利润卡规则: ${removedText}`);
 assert.ok(
-  marketDesignSource.includes('横向资产目录中的商品和工厂价格都必须读取对应市场的 `lastTradePrice`'),
-  '统一订单簿设计必须锁定资产目录真实成交价字段',
+  marketDesignSource.includes('商品列表的市场价、基准偏离和 24h 变化以官方系统价 `officialPrice` 为准'),
+  '统一订单簿设计必须锁定商品市场价使用官方系统价',
 );
 
-console.log('市场目录真实成交价、单厂平均利润固定单座口径、具体缺价提示和完整利润卡移除验证通过。');
+console.log('市场官方系统价、单厂平均利润固定单座口径、具体缺价提示和完整利润卡移除验证通过。');

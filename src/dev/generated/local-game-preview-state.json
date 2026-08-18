@@ -1,7 +1,7 @@
 {
   "generatedAt": 1786766400000,
   "state": {
-    "version": 34,
+    "version": 35,
     "userId": 90001,
     "playerName": "本地预览玩家",
     "registeredAt": 1778472000000,
@@ -7946,6 +7946,13 @@
           "provinceId": "110000",
           "lastPrice": 3.4,
           "lastTradePrice": 3.4,
+          "officialPrice": 1.2,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 3.2,
@@ -8040,6 +8047,13 @@
           "provinceId": "110000",
           "lastPrice": 4.2,
           "lastTradePrice": 4.2,
+          "officialPrice": 1.2,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 3.95,
@@ -8134,6 +8148,13 @@
           "provinceId": "110000",
           "lastPrice": 1.2,
           "lastTradePrice": null,
+          "officialPrice": 1.2,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 1,
@@ -8300,6 +8321,13 @@
           "provinceId": "110000",
           "lastPrice": 1.2,
           "lastTradePrice": null,
+          "officialPrice": 1.2,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 1,
@@ -8466,6 +8494,13 @@
           "provinceId": "110000",
           "lastPrice": 1.3,
           "lastTradePrice": null,
+          "officialPrice": 1.3,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 1,
@@ -8632,6 +8667,13 @@
           "provinceId": "110000",
           "lastPrice": 6,
           "lastTradePrice": null,
+          "officialPrice": 6,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 5,
@@ -8798,6 +8840,13 @@
           "provinceId": "110000",
           "lastPrice": 9.8,
           "lastTradePrice": 9.8,
+          "officialPrice": 7,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 9.21,
@@ -8892,6 +8941,13 @@
           "provinceId": "110000",
           "lastPrice": 7,
           "lastTradePrice": null,
+          "officialPrice": 7,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 6,
@@ -9058,6 +9114,13 @@
           "provinceId": "110000",
           "lastPrice": 9,
           "lastTradePrice": null,
+          "officialPrice": 9,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 8,
@@ -9224,6 +9287,13 @@
           "provinceId": "110000",
           "lastPrice": 2.4,
           "lastTradePrice": null,
+          "officialPrice": 2.4,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 1.4,
@@ -9390,6 +9460,13 @@
           "provinceId": "110000",
           "lastPrice": 2.4,
           "lastTradePrice": null,
+          "officialPrice": 2.4,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 1.4,
@@ -9556,6 +9633,13 @@
           "provinceId": "110000",
           "lastPrice": 2.4,
           "lastTradePrice": null,
+          "officialPrice": 2.4,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 1.4,
@@ -9722,6 +9806,13 @@
           "provinceId": "110000",
           "lastPrice": 2.5,
           "lastTradePrice": null,
+          "officialPrice": 2.5,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 1.5,
@@ -9888,6 +9979,13 @@
           "provinceId": "110000",
           "lastPrice": 2.4,
           "lastTradePrice": null,
+          "officialPrice": 2.4,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 1.4,
@@ -10054,6 +10152,13 @@
           "provinceId": "110000",
           "lastPrice": 13,
           "lastTradePrice": null,
+          "officialPrice": 13,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 12,
@@ -10220,6 +10325,13 @@
           "provinceId": "110000",
           "lastPrice": 13,
           "lastTradePrice": null,
+          "officialPrice": 13,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 12,
@@ -10386,6 +10498,13 @@
           "provinceId": "110000",
           "lastPrice": 17,
           "lastTradePrice": null,
+          "officialPrice": 17,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 16,
@@ -10552,6 +10671,13 @@
           "provinceId": "110000",
           "lastPrice": 22.6,
           "lastTradePrice": 22.6,
+          "officialPrice": 29,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 21.24,
@@ -10646,6 +10772,13 @@
           "provinceId": "110000",
           "lastPrice": 29,
           "lastTradePrice": null,
+          "officialPrice": 29,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 28,
@@ -10812,6 +10945,13 @@
           "provinceId": "110000",
           "lastPrice": 30,
           "lastTradePrice": null,
+          "officialPrice": 30,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 29,
@@ -10978,6 +11118,13 @@
           "provinceId": "110000",
           "lastPrice": 4,
           "lastTradePrice": null,
+          "officialPrice": 4,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 3,
@@ -11144,6 +11291,13 @@
           "provinceId": "110000",
           "lastPrice": 5,
           "lastTradePrice": null,
+          "officialPrice": 5,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 4,
@@ -11310,6 +11464,13 @@
           "provinceId": "110000",
           "lastPrice": 6.76,
           "lastTradePrice": null,
+          "officialPrice": 6.76,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 5.76,
@@ -11476,6 +11637,13 @@
           "provinceId": "110000",
           "lastPrice": 5.8,
           "lastTradePrice": null,
+          "officialPrice": 5.8,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 4.8,
@@ -11642,6 +11810,13 @@
           "provinceId": "110000",
           "lastPrice": 14.1,
           "lastTradePrice": null,
+          "officialPrice": 14.1,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 13.1,
@@ -11808,6 +11983,13 @@
           "provinceId": "110000",
           "lastPrice": 18.4,
           "lastTradePrice": 18.4,
+          "officialPrice": 20,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 17.3,
@@ -11902,6 +12084,13 @@
           "provinceId": "110000",
           "lastPrice": 20,
           "lastTradePrice": null,
+          "officialPrice": 20,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 19,
@@ -12068,6 +12257,13 @@
           "provinceId": "110000",
           "lastPrice": 15,
           "lastTradePrice": null,
+          "officialPrice": 15,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 14,
@@ -12234,6 +12430,13 @@
           "provinceId": "110000",
           "lastPrice": 18,
           "lastTradePrice": null,
+          "officialPrice": 18,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 17,
@@ -12400,6 +12603,13 @@
           "provinceId": "110000",
           "lastPrice": 18,
           "lastTradePrice": null,
+          "officialPrice": 18,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 17,
@@ -12566,6 +12776,13 @@
           "provinceId": "110000",
           "lastPrice": 15,
           "lastTradePrice": null,
+          "officialPrice": 15,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 14,
@@ -12732,6 +12949,13 @@
           "provinceId": "110000",
           "lastPrice": 24,
           "lastTradePrice": null,
+          "officialPrice": 24,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 23,
@@ -12898,6 +13122,13 @@
           "provinceId": "110000",
           "lastPrice": 55,
           "lastTradePrice": null,
+          "officialPrice": 55,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 54,
@@ -13064,6 +13295,13 @@
           "provinceId": "110000",
           "lastPrice": 12,
           "lastTradePrice": null,
+          "officialPrice": 12,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 11,
@@ -13230,6 +13468,13 @@
           "provinceId": "110000",
           "lastPrice": 15.55,
           "lastTradePrice": null,
+          "officialPrice": 15.55,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 14.55,
@@ -13396,6 +13641,13 @@
           "provinceId": "110000",
           "lastPrice": 15.35,
           "lastTradePrice": null,
+          "officialPrice": 15.35,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 14.35,
@@ -13562,6 +13814,13 @@
           "provinceId": "110000",
           "lastPrice": 84,
           "lastTradePrice": null,
+          "officialPrice": 84,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 83,
@@ -13728,6 +13987,13 @@
           "provinceId": "110000",
           "lastPrice": 92,
           "lastTradePrice": null,
+          "officialPrice": 92,
+          "nextPriceAt": 1786766700000,
+          "cycleBuyQuantity": 0,
+          "cycleSellQuantity": 0,
+          "lastImbalance": 0,
+          "lastPriceChangeBps": 0,
+          "lastPriceAt": 1786766400000,
           "priceHistory": [
             {
               "price": 91,
@@ -13897,6 +14163,13 @@
         "provinceId": "110000",
         "lastPrice": 3.4,
         "lastTradePrice": 3.4,
+        "officialPrice": 1.2,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 3.2,
@@ -13991,6 +14264,13 @@
         "provinceId": "110000",
         "lastPrice": 4.2,
         "lastTradePrice": 4.2,
+        "officialPrice": 1.2,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 3.95,
@@ -14085,6 +14365,13 @@
         "provinceId": "110000",
         "lastPrice": 1.2,
         "lastTradePrice": null,
+        "officialPrice": 1.2,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 1,
@@ -14251,6 +14538,13 @@
         "provinceId": "110000",
         "lastPrice": 1.2,
         "lastTradePrice": null,
+        "officialPrice": 1.2,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 1,
@@ -14417,6 +14711,13 @@
         "provinceId": "110000",
         "lastPrice": 1.3,
         "lastTradePrice": null,
+        "officialPrice": 1.3,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 1,
@@ -14583,6 +14884,13 @@
         "provinceId": "110000",
         "lastPrice": 6,
         "lastTradePrice": null,
+        "officialPrice": 6,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 5,
@@ -14749,6 +15057,13 @@
         "provinceId": "110000",
         "lastPrice": 9.8,
         "lastTradePrice": 9.8,
+        "officialPrice": 7,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 9.21,
@@ -14843,6 +15158,13 @@
         "provinceId": "110000",
         "lastPrice": 7,
         "lastTradePrice": null,
+        "officialPrice": 7,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 6,
@@ -15009,6 +15331,13 @@
         "provinceId": "110000",
         "lastPrice": 9,
         "lastTradePrice": null,
+        "officialPrice": 9,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 8,
@@ -15175,6 +15504,13 @@
         "provinceId": "110000",
         "lastPrice": 2.4,
         "lastTradePrice": null,
+        "officialPrice": 2.4,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 1.4,
@@ -15341,6 +15677,13 @@
         "provinceId": "110000",
         "lastPrice": 2.4,
         "lastTradePrice": null,
+        "officialPrice": 2.4,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 1.4,
@@ -15507,6 +15850,13 @@
         "provinceId": "110000",
         "lastPrice": 2.4,
         "lastTradePrice": null,
+        "officialPrice": 2.4,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 1.4,
@@ -15673,6 +16023,13 @@
         "provinceId": "110000",
         "lastPrice": 2.5,
         "lastTradePrice": null,
+        "officialPrice": 2.5,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 1.5,
@@ -15839,6 +16196,13 @@
         "provinceId": "110000",
         "lastPrice": 2.4,
         "lastTradePrice": null,
+        "officialPrice": 2.4,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 1.4,
@@ -16005,6 +16369,13 @@
         "provinceId": "110000",
         "lastPrice": 13,
         "lastTradePrice": null,
+        "officialPrice": 13,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 12,
@@ -16171,6 +16542,13 @@
         "provinceId": "110000",
         "lastPrice": 13,
         "lastTradePrice": null,
+        "officialPrice": 13,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 12,
@@ -16337,6 +16715,13 @@
         "provinceId": "110000",
         "lastPrice": 17,
         "lastTradePrice": null,
+        "officialPrice": 17,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 16,
@@ -16503,6 +16888,13 @@
         "provinceId": "110000",
         "lastPrice": 22.6,
         "lastTradePrice": 22.6,
+        "officialPrice": 29,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 21.24,
@@ -16597,6 +16989,13 @@
         "provinceId": "110000",
         "lastPrice": 29,
         "lastTradePrice": null,
+        "officialPrice": 29,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 28,
@@ -16763,6 +17162,13 @@
         "provinceId": "110000",
         "lastPrice": 30,
         "lastTradePrice": null,
+        "officialPrice": 30,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 29,
@@ -16929,6 +17335,13 @@
         "provinceId": "110000",
         "lastPrice": 4,
         "lastTradePrice": null,
+        "officialPrice": 4,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 3,
@@ -17095,6 +17508,13 @@
         "provinceId": "110000",
         "lastPrice": 5,
         "lastTradePrice": null,
+        "officialPrice": 5,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 4,
@@ -17261,6 +17681,13 @@
         "provinceId": "110000",
         "lastPrice": 6.76,
         "lastTradePrice": null,
+        "officialPrice": 6.76,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 5.76,
@@ -17427,6 +17854,13 @@
         "provinceId": "110000",
         "lastPrice": 5.8,
         "lastTradePrice": null,
+        "officialPrice": 5.8,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 4.8,
@@ -17593,6 +18027,13 @@
         "provinceId": "110000",
         "lastPrice": 14.1,
         "lastTradePrice": null,
+        "officialPrice": 14.1,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 13.1,
@@ -17759,6 +18200,13 @@
         "provinceId": "110000",
         "lastPrice": 18.4,
         "lastTradePrice": 18.4,
+        "officialPrice": 20,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 17.3,
@@ -17853,6 +18301,13 @@
         "provinceId": "110000",
         "lastPrice": 20,
         "lastTradePrice": null,
+        "officialPrice": 20,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 19,
@@ -18019,6 +18474,13 @@
         "provinceId": "110000",
         "lastPrice": 15,
         "lastTradePrice": null,
+        "officialPrice": 15,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 14,
@@ -18185,6 +18647,13 @@
         "provinceId": "110000",
         "lastPrice": 18,
         "lastTradePrice": null,
+        "officialPrice": 18,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 17,
@@ -18351,6 +18820,13 @@
         "provinceId": "110000",
         "lastPrice": 18,
         "lastTradePrice": null,
+        "officialPrice": 18,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 17,
@@ -18517,6 +18993,13 @@
         "provinceId": "110000",
         "lastPrice": 15,
         "lastTradePrice": null,
+        "officialPrice": 15,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 14,
@@ -18683,6 +19166,13 @@
         "provinceId": "110000",
         "lastPrice": 24,
         "lastTradePrice": null,
+        "officialPrice": 24,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 23,
@@ -18849,6 +19339,13 @@
         "provinceId": "110000",
         "lastPrice": 55,
         "lastTradePrice": null,
+        "officialPrice": 55,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 54,
@@ -19015,6 +19512,13 @@
         "provinceId": "110000",
         "lastPrice": 12,
         "lastTradePrice": null,
+        "officialPrice": 12,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 11,
@@ -19181,6 +19685,13 @@
         "provinceId": "110000",
         "lastPrice": 15.55,
         "lastTradePrice": null,
+        "officialPrice": 15.55,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 14.55,
@@ -19347,6 +19858,13 @@
         "provinceId": "110000",
         "lastPrice": 15.35,
         "lastTradePrice": null,
+        "officialPrice": 15.35,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 14.35,
@@ -19513,6 +20031,13 @@
         "provinceId": "110000",
         "lastPrice": 84,
         "lastTradePrice": null,
+        "officialPrice": 84,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 83,
@@ -19679,6 +20204,13 @@
         "provinceId": "110000",
         "lastPrice": 92,
         "lastTradePrice": null,
+        "officialPrice": 92,
+        "nextPriceAt": 1786766700000,
+        "cycleBuyQuantity": 0,
+        "cycleSellQuantity": 0,
+        "lastImbalance": 0,
+        "lastPriceChangeBps": 0,
+        "lastPriceAt": 1786766400000,
         "priceHistory": [
           {
             "price": 91,

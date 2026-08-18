@@ -546,7 +546,7 @@ export function MarketPage({
           const sellVolume = orders
             .filter((order) => order.side === 'sell')
             .reduce((sum, order) => sum + Math.max(0, order.remaining), 0);
-          const marketPrice = typeof market?.lastTradePrice === 'number' ? market.lastTradePrice : undefined;
+          const marketPrice = typeof market?.officialPrice === 'number' ? market.officialPrice : undefined;
           return {
             kind: 'commodity',
             id: product.id,
@@ -586,7 +586,7 @@ export function MarketPage({
     });
     return filtered.sort((left, right) => {
       if (catalogSort === 'name') return left.name.localeCompare(right.name, 'zh-CN');
-      if (catalogSort === 'price') return (right.lastTradePrice ?? -Infinity) - (left.lastTradePrice ?? -Infinity);
+      if (catalogSort === 'price') return (right.marketPrice ?? -Infinity) - (left.marketPrice ?? -Infinity);
       if (catalogSort === 'trend') return (right.trend ?? -Infinity) - (left.trend ?? -Infinity);
       if (catalogSort === 'buy-volume') return right.buyVolume - left.buyVolume;
       if (catalogSort === 'sell-volume') return right.sellVolume - left.sellVolume;
@@ -862,6 +862,17 @@ export function MarketPage({
                   label="需求满足率"
                   value={selectedProductMarket.demand.lastQuantity > 0 ? `${(selectedProductMarket.demand.satisfaction * 100).toFixed(1)}%` : '无直接需求'}
                   tone={selectedProductMarket.demand.lastQuantity > 0 && selectedProductMarket.demand.satisfaction < 1 ? 'warning' : 'neutral'}
+                />
+                <MetricCard
+                  label="官方系统价"
+                  value={<CurrencyAmount>{formatCurrency(selectedProductMarket.officialPrice ?? marketFallbackPrice)}</CurrencyAmount>}
+                  detail={`上期 ${(selectedProductMarket.lastPriceChangeBps ?? 0) > 0 ? '+' : ''}${((selectedProductMarket.lastPriceChangeBps ?? 0) / 100).toFixed(2)}%`}
+                  tone={(selectedProductMarket.lastPriceChangeBps ?? 0) > 0 ? 'warning' : (selectedProductMarket.lastPriceChangeBps ?? 0) < 0 ? 'info' : 'neutral'}
+                />
+                <MetricCard
+                  label="周期系统买卖量"
+                  value={`${formatNumber(selectedProductMarket.cycleSellQuantity ?? 0)} 卖 / ${formatNumber(selectedProductMarket.cycleBuyQuantity ?? 0)} 买`}
+                  detail="本周期玩家与系统实际成交数量"
                 />
               </div>
               <p className="market-authority-note">挂单量来自当前公开订单簿；消费需求来自服务器上一周期结算。库存和理论产量不计作供给或需求。</p>

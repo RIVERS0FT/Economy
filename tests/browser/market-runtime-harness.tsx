@@ -178,6 +178,12 @@ function MarketHarness() {
         productId: product.id,
         lastPrice: product.id === 'wheat' ? 12 : product.basePrice,
         lastTradePrice: product.id === 'wheat' ? 2 : null,
+        officialPrice: product.id === 'wheat' ? 11 : product.basePrice,
+        nextPriceAt: fixedNow + 60_000,
+        cycleBuyQuantity: 0,
+        cycleSellQuantity: 0,
+        lastImbalance: 0,
+        lastPriceChangeBps: 0,
         priceHistory: product.id === 'wheat' ? [...oldPrices, ...currentPrices] : [],
         demand: {
           cycleMs: 300_000,

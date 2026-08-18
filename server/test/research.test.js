@@ -170,7 +170,7 @@ test('migration resets unavailable advanced methods without applying a staffing 
 
   migrateResearchWorld(world, NOW + 1);
 
-  assert.equal(world.version, 30);
+  assert.equal(world.version, 31);
   assert.equal(player.facilityGroups[0].activeRecipeId, 'wheat-crop');
   assert.equal(player.facilityGroups[0].cycleStartedAt, NOW + 1);
   assert.equal(player.facilityGroups[0].staffingRateBps, 8_700);

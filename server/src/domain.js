@@ -226,7 +226,7 @@ export function createWorld(now = Date.now()) {
   ensurePopulationEconomy(world, now);
   world.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
   world.auctionFeeEscrowCredits = Math.max(0, Number(world.auctionFeeEscrowCredits || 0));
-  world.version = 30;
+  world.version = 31;
   normalizeWorldMoneyPrecision(world);
   return world;
 }
@@ -253,6 +253,7 @@ export function migrateWorld(world, now = Date.now()) {
   };
   const migrated = core.migrateWorld(world, now);
   balancedMarket.repairMissingMarkets(migrated, existingMarketIds, now, legacy);
+  balancedMarket.normalizeSystemPrices(migrated, now);
   if (needsC1InputBalanceMigration) migrateC1InputBalance(migrated);
   if (!hadCompatibleDemandSystem) {
     ensurePopulationEconomy(migrated, now);
@@ -282,7 +283,7 @@ export function migrateWorld(world, now = Date.now()) {
   ensurePopulationEconomy(migrated, now);
   migrated.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
   migrated.auctionFeeEscrowCredits = Math.max(0, Number(migrated.auctionFeeEscrowCredits || 0));
-  migrated.version = 30;
+  migrated.version = 31;
   normalizeWorldMoneyPrecision(migrated);
   return migrated;
 }
@@ -304,6 +305,7 @@ export function processWorld(world, now = Date.now(), { migrate = true } = {}) {
   }
   core.processWorld(world, now, { migrate: false });
   marketDemand.process(world, now);
+  balancedMarket.processPriceCycles(world, now);
   processedWorldAt.set(world, now);
   return world;
 }
@@ -381,6 +383,9 @@ function applyCommodityOrder(world, user, payload, now) {
   };
   world.orders.push(incoming);
   balancedMarket.matchOrder(world, incoming, now);
+  if (balancedMarket.isOpenOrder(incoming)) {
+    balancedMarket.settlePlayerOrderWithSystem(world, incoming, now);
+  }
   if (incoming.status === 'filled') return { ok: true, message: '订单已全部成交' };
   if (fillOrKill) return { ok: false, message: '市场卖盘已变化，未能一次购齐' };
   if (incoming.status === 'partial') return { ok: true, message: '订单已部分成交' };

@@ -1,7 +1,7 @@
 .leaderboard-responsive-layout {
   min-width: 0;
   display: grid;
-  gap: var(--page-section-gap, var(--layout-gutter));
+  gap: var(--layout-gutter);
   container: leaderboard-layout / inline-size;
 }
 

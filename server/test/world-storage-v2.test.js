@@ -72,7 +72,7 @@ test('local bank mutation persists one player row without rewriting the orders s
     assert.equal(String(afterOrders.state_json), String(beforeOrders.state_json));
     assert.equal(Number(legacy.revision), Number(afterMeta.revision));
     assert.deepEqual(JSON.parse(String(legacy.state_json)), {
-      version: 30,
+      version: 31,
       storageSchemaVersion: WORLD_STORAGE_SCHEMA_VERSION,
       segmented: true,
     });
@@ -259,7 +259,7 @@ test('commodity order COW scope clones actor and crossing counterparties only', 
     stats: {},
     moneyPrecision: { version: 2 },
     auctionFeeEscrowCredits: 0,
-    version: 30,
+    version: 31,
   };
   const scope = createRuntimeMutationScope(world, 1, 'placeOrder', {
     assetKind: 'commodity',

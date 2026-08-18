@@ -319,6 +319,18 @@ export interface ProductMarketState {
   provinceId?: string;
   lastPrice: number;
   lastTradePrice: number | null;
+  /** Current official system price at which the system clears player orders in real time. */
+  officialPrice?: number;
+  /** Server timestamp of the next official price cycle. */
+  nextPriceAt?: number;
+  /** Quantity the system sold to players during the current price cycle. */
+  cycleBuyQuantity?: number;
+  /** Quantity the system bought from players during the current price cycle. */
+  cycleSellQuantity?: number;
+  /** Last cycle imbalance ((B - S) / (B + S + 2L)). */
+  lastImbalance?: number;
+  /** Last cycle official price change in signed basis points. */
+  lastPriceChangeBps?: number;
   priceHistory: PricePoint[];
   demand: DemandState;
 }
@@ -560,7 +572,7 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState {
-  version: 34;
+  version: 35;
   userId: number;
   playerName: string;
   registeredAt: number;

@@ -116,8 +116,12 @@ requireText(marketPage, '<small>24h 变化</small>', '商品列表必须显示 2
 requireText(marketPage, '<small>挂单状态</small>', '商品列表必须显示挂单状态。');
 requireText(marketPage, '.reduce((sum, order) => sum + Math.max(0, order.remaining), 0)', '商品挂单量必须聚合公开订单当前 remaining。');
 requireText(marketPage, 'balance: sellVolume - buyVolume', '挂单差额必须固定为卖单量减买单量。');
-requireText(marketPage, "const marketPrice = typeof market?.lastTradePrice === 'number' ? market.lastTradePrice : undefined", '商品市场价必须只读取真实最近成交价。');
-requireText(marketPage, "typeof entry.marketPrice === 'number'", '无真实市场价时必须显示空值。');
+requireText(marketPage, "const marketPrice = typeof market?.officialPrice === 'number' ? market.officialPrice : undefined", '商品市场价必须只读取官方系统价。');
+requireText(marketPage, "typeof entry.marketPrice === 'number'", '无官方系统价时必须显示空值。');
+requireText(marketPage, '官方系统价', '商品详情必须展示官方系统价。');
+requireText(marketPage, '周期系统买卖量', '商品详情必须展示本周期系统买卖量。');
+requireText(marketPage, 'cycleSellQuantity', '商品详情必须读取本周期系统买入量。');
+requireText(marketPage, 'cycleBuyQuantity', '商品详情必须读取本周期系统卖出量。');
 requireText(marketPage, 'realTrades.length > 1', '24h 变化必须至少由两笔真实成交生成。');
 forbidText(marketPage, 'market?.lastTradePrice ?? market?.lastPrice ?? product.basePrice', '市场列表不得用内部回退价或基础价伪装真实市场价。');
 requireText(marketStyles, '.market-catalog-row__artwork > .product-artwork {\n  width: 48px;\n  height: 48px;', '市场商品列表插画必须缩小为 48px。');

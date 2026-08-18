@@ -54,7 +54,7 @@ test('world 30 geography replacement keeps legacy scoped assets on their existin
 
   migrateWorld(world, NOW + 1);
 
-  assert.equal(world.version, 30);
+  assert.equal(world.version, 31);
   assert.equal(player.inventories[originalKey].available, 9);
   assert.equal(Object.keys(player.inventories).includes(originalKey), true);
 });
