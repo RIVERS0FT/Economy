@@ -175,6 +175,7 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
 
 function expectStrategicDesktopLayout(layout: ShellGeometry, panelGap: number) {
   const gutter = 8;
+  const primaryCardBorder = 1;
   expect(layout.shell.left).toBeCloseTo(0, 0);
   expect(layout.shell.top).toBeCloseTo(0, 0);
   expect(layout.shell.right).toBeCloseTo(layout.viewportWidth, 0);
@@ -200,9 +201,9 @@ function expectStrategicDesktopLayout(layout: ShellGeometry, panelGap: number) {
   expect(layout.primaryCard.top - layout.assetBar.bottom).toBeCloseTo(gutter, 0);
   expect(layout.viewportHeight - layout.primaryCard.bottom).toBeCloseTo(gutter, 0);
   expect(layout.primaryCard.right - layout.primaryCard.left).toBeLessThanOrEqual(layout.viewportWidth / 3 + 1);
-  expect(layout.sidebar.left).toBeCloseTo(layout.primaryCard.left, 0);
-  expect(layout.sidebar.top).toBeCloseTo(layout.primaryCard.top, 0);
-  expect(layout.sidebar.bottom).toBeCloseTo(layout.primaryCard.bottom, 0);
+  expect(layout.sidebar.left).toBeCloseTo(layout.primaryCard.left + primaryCardBorder, 0);
+  expect(layout.sidebar.top).toBeCloseTo(layout.primaryCard.top + primaryCardBorder, 0);
+  expect(layout.sidebar.bottom).toBeCloseTo(layout.primaryCard.bottom - primaryCardBorder, 0);
   expect(layout.sidebar.right - layout.sidebar.left).toBeCloseTo(78, 0);
   expect(layout.primaryCardContainsSidebarAndPage).toBe(true);
   expect(layout.sidebarDivider.content).not.toBe('none');
@@ -214,10 +215,10 @@ function expectStrategicDesktopLayout(layout: ShellGeometry, panelGap: number) {
   expect(layout.workspace.bottom).toBeCloseTo(layout.viewportHeight, 0);
   expect(layout.workspaceMargin).toEqual(['0px', '0px', '0px', '0px']);
 
-  expect(layout.pageScroll.left).toBeCloseTo(layout.primaryCard.left + 78, 0);
-  expect(layout.pageScroll.top).toBeCloseTo(layout.primaryCard.top, 0);
-  expect(layout.pageScroll.right).toBeCloseTo(layout.primaryCard.right, 0);
-  expect(layout.pageScroll.bottom).toBeCloseTo(layout.primaryCard.bottom, 0);
+  expect(layout.pageScroll.left).toBeCloseTo(layout.primaryCard.left + primaryCardBorder + 78, 0);
+  expect(layout.pageScroll.top).toBeCloseTo(layout.primaryCard.top + primaryCardBorder, 0);
+  expect(layout.pageScroll.right).toBeCloseTo(layout.primaryCard.right - primaryCardBorder, 0);
+  expect(layout.pageScroll.bottom).toBeCloseTo(layout.primaryCard.bottom - primaryCardBorder, 0);
   expect(layout.floatingLayer.left).toBeCloseTo(layout.workspace.left + gutter + 78, 0);
   expect(layout.floatingLayer.top).toBeCloseTo(layout.workspace.top, 0);
   expect(layout.floatingLayer.right).toBeCloseTo(layout.workspace.right, 0);
