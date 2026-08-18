@@ -24,6 +24,7 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
     const contentRoot = document.querySelector<HTMLElement>('.application-content-root');
     const shell = document.querySelector<HTMLElement>(currentSurface === 'admin' ? '.admin-shell' : '.game-shell');
     const workspace = document.querySelector<HTMLElement>('.workspace');
+    const workspaceStrategicChrome = document.querySelector<HTMLElement>('.workspace-strategic-chrome');
     const pageOverlay = document.querySelector<HTMLElement>('.mobile-page-overlay');
     const chromeOverlay = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
     const pageScrollArea = document.querySelector<HTMLElement>('.page-scroll-area');

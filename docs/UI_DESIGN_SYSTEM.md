@@ -398,6 +398,14 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - `.application-map-layer`、`.application-ui-layer` 与 `.workspace-strategic-chrome` 必须保持 `isolation:auto`、`filter:none` 和 `transform:none`，不得成为第二个全应用隔离根；UI 内部的页面、Chrome、普通浮层和业务 Dialog 仍全部属于 UI 层，不得创建第五个全局层。业务面板可使用半透明背景和 `backdrop-filter`，但不得复制根级摄影氛围、创建第二个地图背景或遮盖状态栏玻璃采样链。
 - `us-atlas`、ISC、精确依赖版本和非测绘／导航用途边界由页面权威文档与依赖清单记录，不在地图页恢复左下来源卡。地图数据不得自行生成经营地区 ID、绕过共享目录或用于现实导航、测绘和法律边界声明；既有 34 个地区 ID 必须保持稳定并原位对应州级地区，新增 14 个州 ID 不得移动、复制或合并既有资产。
 
+### 8.1 美国本土州级经营地图
+
+- 地图使用 `StrategicWorkspace` 内唯一 `UsMainlandMap` 和共享 `EconomyChart` 的 ECharts Geo/Map SVG，不得保留页面级第二个地图实例、手绘 `.province-map-silhouette`、固定百分比坐标或覆盖式地区按钮。地图按需注册 `MapChart` 与 `GeoComponent`，精确使用 `us-atlas@3.0.1` 和 `topojson-client@3.1.0`；运行时把州 TopoJSON 转为 GeoJSON，只注册与共享目录 `mapName` 一一对应的连续 48 州，不显示阿拉斯加、夏威夷、华盛顿特区或海外领地附图。桌面与移动初始视图统一使用固定投影比例的等比 Cover 相机，窗口变化只重新计算 `layoutSize`，不得拉伸或挤压州界；根 `.application-map-layer` 是唯一 `overflow: hidden` 裁切边界，地图舞台、图表宿主和 SVG 画布保持 `overflow: visible`、零内边距、零边框、零圆角、零轮廓和无阴影，不得由工作区或内部图表层生成黑色矩形裁切。
+- 地区默认、悬停、当前、资产、工业、市场和异常语义使用区域填充、边界、文字、Tooltip、五种镜头和州检查器共同表达；当前地区由 ECharts 单选状态与外部 `selectedProvinceId` 双向同步。镜头状态只属于 `GameShell` 客户端视觉上下文，不得写入服务器或更换地区。地图表面支持鼠标／触摸点击、拖动和最高 8 倍受限缩放；纵向窄屏必须使用 ECharts `media` 选项按宽度适配美国本土轮廓，并隐藏普通常驻州缩写，只在选中或悬停时显示标签，避免在小地图上重叠。键盘焦点、文字快速定位和全部地区选择由统一 `ProvinceSelect` 承担，ECharts 容器提供“美国本土州级经营地图”可访问名称和当前地区摘要。
+- 玩家端采用类似大战略游戏的常驻地图工作台：全应用根节点严格按图片层 `0`、氛围层 `10`、地图层 `20`、UI 层 `30` 堆叠。`.application-map-layer` 通过 Portal 持有唯一 `StrategicMapStage` 并铺满视口；`.mobile-page-overlay` 持有 `map`／`workspace`／`fullscreen`／`side` 四类战略页面面板，`.workspace-strategic-chrome` 只持有底部镜头栏。地图页 `.province-map-page` 是透明且无子元素的路由占位，不再拥有地图画布、重复州详情、左上命令卡、左下图例／来源卡或“当前经营地区”卡片。不大于 `720px` 时地图继续铺满视口，地图页只保留中央可交互地图；其他业务面板允许覆盖地图，由唯一页面滚动视口承担纵向空间，不得创建内部主滚动视口。地图州面点击直接切换地区，市场和生产继续复用统一 `ProvinceSelect`，不得创建平行选择状态。
+- `.application-map-layer`、`.application-ui-layer` 与 `.workspace-strategic-chrome` 必须保持 `isolation:auto`、`filter:none` 和 `transform:none`，不得成为第二个全应用隔离根；UI 内部的页面、Chrome、普通浮层和业务 Dialog 仍全部属于 UI 层，不得创建第五个全局层。业务面板可使用半透明背景和 `backdrop-filter`，但不得复制根级摄影氛围、创建第二个地图背景或遮盖状态栏玻璃采样链。
+- `us-atlas`、ISC、精确依赖版本和非测绘／导航用途边界由页面权威文档与依赖清单记录，不在地图页恢复左下来源卡。地图数据不得自行生成经营地区 ID、绕过共享目录或用于现实导航、测绘和法律边界声明；既有 34 个地区 ID 必须保持稳定并原位对应州级地区，新增 14 个州 ID 不得移动、复制或合并既有资产。
+
 ## 9. 目录型横向导航
 
 商品和工厂标签必须根据服务器目录动态生成：
