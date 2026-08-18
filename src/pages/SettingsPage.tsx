@@ -42,6 +42,9 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
   const [saveDeletionPreflight, setSaveDeletionPreflight] = useState<SaveDeletionPreflight | null>(null);
   const [deletingSave, setDeletingSave] = useState(false);
   const roleLabel = user.role === 'admin' ? '管理员' : '普通用户';
+  const facilityCount = Array.isArray(game.facilityGroups)
+    ? game.facilityGroups.reduce((sum, group) => sum + group.count, 0)
+    : 0;
 
   async function submitGift() {
     const code = giftCode.trim().toUpperCase();
@@ -134,7 +137,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
             </div>
 
             <div className="player-stat-grid" aria-label="玩家累计统计">
-              <div><span>持有工厂总数</span><strong>{formatNumber((game.facilityGroups ?? []).reduce((sum, group) => sum + group.count, 0))}</strong></div>
+              <div><span>持有工厂总数</span><strong>{formatNumber(facilityCount)}</strong></div>
               <div><span>生产商品总数</span><strong>{formatNumber(game.stats.producedGoods)}</strong></div>
               <div><span>买入商品总数</span><strong>{formatNumber(game.stats.boughtGoods)}</strong></div>
               <div><span>卖出商品总数</span><strong>{formatNumber(game.stats.soldGoods)}</strong></div>
