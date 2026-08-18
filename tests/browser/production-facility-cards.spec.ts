@@ -95,7 +95,7 @@ test.describe('production facility selector cards', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('.facility-cluster-name')).toHaveText(expectedNames);
     await expect(page.locator('#desktop-facility-detail-title')).toContainText('农场');
-    await expect(page.getByText('按复杂度从 C1 到 C7 选择工厂并查看生产详情。')).toBeVisible();
+    await expect(page.getByText('按复杂度从 C1 到 C7 选择工厂并查看生产详情。')).toHaveCount(0);
   });
 
   test('facility build selector shows production outputs in trigger and options', async ({ page }) => {
@@ -118,7 +118,7 @@ test.describe('production facility selector cards', () => {
     expect(optionBox?.height ?? 0).toBeGreaterThanOrEqual(63);
   });
 
-  test('uses the wider strategic workspace while capping selector cards at six columns', async ({ page }) => {
+  test('keeps compact strategic selector cards at three columns across wide desktops', async ({ page }) => {
     const columnCounts: number[] = [];
 
     for (const width of [1600, 1920, 2560]) {
@@ -158,7 +158,7 @@ test.describe('production facility selector cards', () => {
       expect(geometry.fitsViewport).toBe(true);
     }
 
-    expect(columnCounts).toEqual([3, 5, 6]);
+    expect(columnCounts).toEqual([3, 3, 3]);
   });
 
 });
