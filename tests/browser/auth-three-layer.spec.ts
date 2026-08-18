@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 async function openLoginPage(page: Page) {
   await page.goto('auth-three-layer-test.html');
-  await expect(page.locator('.login-page')).toBeVisible();
+  await expect(page.locator('.login-card')).toBeVisible();
 }
 
 async function readFrostedAuth(page: Page) {
