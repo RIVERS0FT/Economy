@@ -246,7 +246,7 @@ test.describe('notification center geometry', () => {
     expect(geometry.trigger.width).toBeCloseTo(44, 0);
     expect(geometry.trigger.height).toBeCloseTo(44, 0);
     expect(geometry.itemColumns).toBe(5);
-    expect(geometry.panelInsets).toEqual({ top: 0, right: 8, bottom: 8, left: 8 });
+    expect(geometry.panelInsets).toEqual({ top: 0, right: 12, bottom: 12, left: 12 });
     expect(geometry.panel.top).toBeCloseTo(geometry.panelLayer.top, 0);
     expect(geometry.panel.top).toBeGreaterThan(geometry.status.bottom);
     expect(geometry.panel.bottom).toBeLessThanOrEqual(geometry.navigation.top);
