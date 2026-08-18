@@ -60,7 +60,8 @@ async function atmosphereSnapshot(page: Page, variant: BackdropVariant): Promise
 
 async function expectUnifiedAtmosphere(page: Page, viewport: { width: number; height: number }) {
   await page.setViewportSize(viewport);
-  await page.goto('runtime-test.html');
+  const mode = viewport.width <= 720 ? 'mobile' : 'desktop';
+  await page.goto(`open-glass-sampling-test.html?surface=game&mode=${mode}`);
   await expect(page.locator('.application-image-layer')).toHaveCount(1);
   await expect(page.locator('.application-atmosphere-layer')).toHaveCount(1);
 
