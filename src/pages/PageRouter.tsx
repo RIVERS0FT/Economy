@@ -155,7 +155,7 @@ export function PageRouter({ model }: { model: OnlineAutoTradeAwareGameViewModel
   }
 
   return (
-    <Suspense fallback={<div className="page-loading" role="status">正在加载页面…</div>}>
+    <Suspense fallback={<div className="page-content page-loading" role="status">正在加载页面…</div>}>
       <AuthorityPageBoundary
         key={tab}
         model={model}
