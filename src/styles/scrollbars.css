@@ -273,8 +273,17 @@ html[data-input-modality="touch"] *:not(.ui-scroll-area__viewport)::-webkit-scro
     transform: none;
   }
 
-  .page-scroll-area > .ui-scrollbar--vertical,
-  .page-card-scroll-area > .ui-scrollbar--vertical,
+  .page-scroll-area > .ui-scrollbar--vertical {
+    right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Mobile page cards carry backdrop filtering, which establishes a fixed
+   * positioning containing block in Chromium. Offset the card-owned rail by
+   * the strategic gutter so its visual thumb still lands on the viewport edge. */
+  .page-card-scroll-area > .ui-scrollbar--vertical {
+    right: calc(-1 * var(--strategic-panel-gap));
+  }
+
   .mobile-detail-sheet-scroll-area > .ui-scrollbar--vertical {
     right: env(safe-area-inset-right, 0px);
   }
