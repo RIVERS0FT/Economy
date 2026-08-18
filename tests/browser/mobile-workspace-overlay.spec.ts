@@ -153,7 +153,7 @@ test.describe('mobile workspace overlay geometry', () => {
     await page.goto('runtime-test.html?view=overview&scenario=activity');
 
     const before = await page.evaluate(() => {
-      const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
+      const pageScroll = document.querySelector<HTMLElement>('.page-card-scroll');
       if (!pageScroll) throw new Error('mobile notice scroll fixture is incomplete');
       pageScroll.scrollTop = Math.min(180, pageScroll.scrollHeight - pageScroll.clientHeight);
       return {
@@ -189,7 +189,7 @@ test.describe('mobile workspace overlay geometry', () => {
     const geometry = await page.evaluate(() => {
       const workspace = document.querySelector<HTMLElement>('.workspace');
       const chromeOverlay = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
-      const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
+      const pageScroll = document.querySelector<HTMLElement>('.page-card-scroll');
       const status = document.querySelector<HTMLElement>('.asset-bar');
       const region = document.querySelector<HTMLElement>('.mobile-notice-region');
       const notice = document.querySelector<HTMLElement>('.mobile-notice-region .notice-toast');
@@ -262,8 +262,8 @@ test.describe('mobile workspace overlay geometry', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
 
-    const pageScrollArea = page.locator('.page-scroll-area');
-    const pageScroll = page.locator('.page-scroll');
+    const pageScrollArea = page.locator('.page-card-scroll-area');
+    const pageScroll = page.locator('.page-card-scroll');
     const primaryPanel = page.locator('.overview-check-in-panel');
     await expect(pageScrollArea).toBeVisible();
     await expect(primaryPanel).toBeVisible();
@@ -282,9 +282,9 @@ test.describe('mobile workspace overlay geometry', () => {
     await expect(pageScrollArea).toHaveAttribute('data-scrollbar-active-y', 'true');
 
     const geometry = await page.evaluate(() => {
-      const scrollArea = document.querySelector<HTMLElement>('.page-scroll-area');
+      const scrollArea = document.querySelector<HTMLElement>('.page-card-scroll-area');
       const thumb = document.querySelector<HTMLElement>(
-        '.page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb',
+        '.page-card-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb',
       );
       const panel = document.querySelector<HTMLElement>('.overview-check-in-panel');
       if (!scrollArea || !thumb || !panel) throw new Error('mobile scrollbar fixture is incomplete');
