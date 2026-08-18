@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 
 test.describe('mobile navigation scrolling', () => {
   test('mobile navigation centers the full button group when it fits', async ({ page }) => {
@@ -107,7 +107,7 @@ test.describe('mobile navigation scrolling', () => {
     const navigation = page.getByRole('navigation', { name: '游戏主导航' });
     const active = navigation.getByRole('button', { name: '概览', exact: true });
     const inactive = navigation.getByRole('button', { name: '市场', exact: true });
-    const readVisual = (selector: string) => page.locator(selector).evaluate((element) => {
+    const readVisual = (locator: Locator) => locator.evaluate((element) => {
       const style = getComputedStyle(element);
       return {
         color: style.color,
@@ -118,14 +118,14 @@ test.describe('mobile navigation scrolling', () => {
       };
     });
 
-    const inactiveBefore = await readVisual('.mobile-bottom-navigation .sidebar-nav-button:not(.active)');
+    const inactiveBefore = await readVisual(inactive);
     await inactive.hover({ force: true });
-    const inactiveAfterHover = await readVisual('.mobile-bottom-navigation .sidebar-nav-button:not(.active)');
+    const inactiveAfterHover = await readVisual(inactive);
     expect(inactiveAfterHover).toEqual(inactiveBefore);
 
-    const activeBefore = await readVisual('.mobile-bottom-navigation .sidebar-nav-button.active');
+    const activeBefore = await readVisual(active);
     await active.hover({ force: true });
-    const activeAfterHover = await readVisual('.mobile-bottom-navigation .sidebar-nav-button.active');
+    const activeAfterHover = await readVisual(active);
     expect(activeAfterHover).toEqual(activeBefore);
 
     await inactive.click();
