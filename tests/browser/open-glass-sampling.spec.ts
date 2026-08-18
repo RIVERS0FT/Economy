@@ -88,7 +88,7 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
   expect(chain.openIsolations.every((value) => value === 'auto')).toBe(true);
   expect(chain.openFilters.every((value) => value === 'none')).toBe(true);
   expect(chain.openTransforms.every((value) => value === 'none')).toBe(true);
-  expect(chain.surfaceFilters.every((value) => value.includes('blur(18px)')).toBe(true);
+  expect(chain.surfaceFilters.every((value) => value.includes('blur(18px)'))).toBe(true);
   expect(chain.surfaceBackgrounds.every((value) => value !== 'rgba(0, 0, 0, 0)')).toBe(true);
   expect(chain.surfaceRects.every(({ width, height }) => width > 0 && height > 0)).toBe(true);
   expect(chain.statusAbovePageLayers).toBe(mode === 'desktop' ? true : null);
