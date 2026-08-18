@@ -94,8 +94,6 @@ function useMobileStatusValueFit(items: StatusBarItem[]) {
 
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleFit);
     resizeObserver?.observe(contentElement);
-    contentElement.querySelectorAll<HTMLElement>(STATUS_VALUE_SELECTOR)
-      .forEach((valueElement) => resizeObserver?.observe(valueElement));
     mediaQuery.addEventListener('change', scheduleFit);
     window.addEventListener('orientationchange', scheduleFit);
     fitValues();
