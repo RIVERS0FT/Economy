@@ -72,6 +72,11 @@ function createPreviewGameState() {
   const now = Date.now();
   rebaseEpochTimestamps(game, now - previewFixture.generatedAt);
   rebaseCheckInDateKeys(game, now);
+  // The account-free preview is a navigation/catalog coverage harness, not an
+  // unlock-progression simulation. Keep every province traversable without
+  // changing the generated authoritative fixture or formal game rules.
+  game.startingProvinceChosen = true;
+  game.unlockedProvinces = game.provinces.map((province) => province.id);
   return game;
 }
 
