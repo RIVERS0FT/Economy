@@ -23,6 +23,7 @@ const MOBILE_STATUS_MIN_FONT_SIZE_REM = 0.56;
 const STATUS_VALUE_WIDTH_SAFETY = 0.98;
 const STATUS_VALUE_SELECTOR = '.asset-bar-item-value';
 const STATUS_VALUE_VARIANT_SELECTOR = '.asset-bar-item-value-full, .asset-bar-item-value-compact';
+
 function visibleStatusValue(valueElement: HTMLElement) {
   return Array.from(valueElement.querySelectorAll<HTMLElement>(STATUS_VALUE_VARIANT_SELECTOR))
     .find((candidate) => getComputedStyle(candidate).display !== 'none');
@@ -94,6 +95,8 @@ function useMobileStatusValueFit(items: StatusBarItem[]) {
 
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleFit);
     resizeObserver?.observe(contentElement);
+    contentElement.querySelectorAll<HTMLElement>(STATUS_VALUE_SELECTOR)
+      .forEach((valueElement) => resizeObserver?.observe(valueElement));
     mediaQuery.addEventListener('change', scheduleFit);
     window.addEventListener('orientationchange', scheduleFit);
     fitValues();
