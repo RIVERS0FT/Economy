@@ -6,21 +6,3 @@
     display: none !important;
   }
 }
-
-/* When an embedding host gives the market page enough real content width,
- * restore the documented trade/chart side-by-side layout. The normal compact
- * strategic card remains below this threshold and therefore stays single-column. */
-@container market-page (min-width: 1300px) {
-  .market-page-surface .unified-market-grid {
-    grid-template-columns: minmax(560px, 0.82fr) minmax(680px, 1.18fr);
-  }
-
-  .market-page-surface .unified-market-grid > .market-trade-card,
-  .market-page-surface .unified-market-grid > .market-chart-card {
-    grid-column: auto;
-  }
-
-  .market-page-surface .unified-market-grid > .market-account-panel {
-    grid-column: 1 / -1;
-  }
-}
