@@ -339,6 +339,7 @@ export function ResearchTreeViewport({ width, height, focusPoint, children }: Re
   }, [centerCurrent, fitTree, updatePan, zoomBy]);
 
   const handleFocusCapture = useCallback((event: ReactFocusEvent<HTMLDivElement>) => {
+    if (pointersRef.current.size > 0) return;
     const target = event.target as HTMLElement;
     const x = Number(target.dataset.researchNodeX);
     const y = Number(target.dataset.researchNodeY);
