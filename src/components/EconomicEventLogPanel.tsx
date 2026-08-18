@@ -32,7 +32,7 @@ export function EconomicEventLogPanel({
       {(now) => (
         <Panel className="widget economic-event-log-panel">
           <h2 className="economic-event-log-title">公开经济事件</h2>
-          <div className="economic-event-log-list" role="list" aria-label="近期与未来七天公开经济事件日志">
+          <div className="economic-event-log-list" role="list" aria-label="近期与未来七天经济事件">
             {events.map((event) => {
               const completed = event.endsAt <= now;
               const active = event.startsAt <= now && now < event.endsAt;
