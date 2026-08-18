@@ -49,7 +49,8 @@ test('account-free game shell navigates all ten visible business pages and close
   await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
   const map = page.getByTestId('us-mainland-map');
   await expect(map).toHaveAttribute('data-echarts-ready', 'true');
-  await expect(page.locator('.province-map-page')).toBeVisible();
+  await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
+  await expect(page.locator('.province-map-page')).toHaveCount(1);
   await expect(page.locator('[data-player-page-navigation="true"]')).toHaveCount(0);
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
   await map.locator('svg text').filter({ hasText: /^TX$/ }).click();
@@ -121,6 +122,7 @@ test('player page heading keeps SVG back, centered title, and SVG close in that 
 });
 
 test('overview, market, buildings, and settings share a one-third card width while leaderboard and shop stay full-area', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('?preview=game');
   const sidebar = page.locator('.desktop-sidebar');
@@ -136,7 +138,6 @@ test('overview, market, buildings, and settings share a one-third card width whi
   await page.getByTestId('us-mainland-map').locator('svg text').filter({ hasText: /^TX$/ }).click();
   const provinceHost = page.locator('.strategic-page-host');
   await expect(provinceHost).toHaveAttribute('data-strategic-presentation', 'building');
-  await page.waitForTimeout(240);
   const provinceContentBox = await provinceHost.locator(':scope > .page-content').boundingBox();
   const provinceCardBox = await workspaceCard.boundingBox();
   expect(provinceContentBox).not.toBeNull();
@@ -155,7 +156,6 @@ test('overview, market, buildings, and settings share a one-third card width whi
     await expect(host).toHaveAttribute('data-strategic-presentation', 'building');
     await expect(eventRail).toBeVisible();
     await expect(content.locator('.strategic-economic-event-rail')).toHaveCount(0);
-    await page.waitForTimeout(240);
     const contentBox = await content.boundingBox();
     const cardBox = await workspaceCard.boundingBox();
     const railBox = await eventRail.boundingBox();
@@ -178,7 +178,6 @@ test('overview, market, buildings, and settings share a one-third card width whi
     const content = host.locator(':scope > .page-content');
     await expect(host).toHaveAttribute('data-strategic-presentation', 'fullscreen');
     await expect(page.locator('.strategic-economic-event-rail')).toHaveCount(0);
-    await page.waitForTimeout(240);
     const hostBox = await host.boundingBox();
     const contentBox = await content.boundingBox();
     expect(hostBox).not.toBeNull();
@@ -252,14 +251,17 @@ test('player page return skips the map and restores the previous business page',
 });
 
 test('leaderboard and local-only service summaries are populated in the full shell', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('?preview=game');
   const sidebar = page.locator('.desktop-sidebar');
 
   await sidebar.getByRole('button', { name: /^排行/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: '排行榜' })).toBeVisible();
   const leaderboardSwitch = page.locator('.leaderboard-board-switch');
   const leaderboardLayout = page.locator('.leaderboard-responsive-layout');
   await expect(leaderboardSwitch.locator('button')).toHaveCount(4);
+  await expect(leaderboardLayout).toBeVisible();
   expect(await leaderboardLayout.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThanOrEqual(72 * 16);
   await expect(leaderboardSwitch).toBeHidden();
   await expect(page.locator('.leaderboard-board-card:visible')).toHaveCount(4);
