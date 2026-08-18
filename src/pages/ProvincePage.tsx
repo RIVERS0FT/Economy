@@ -101,7 +101,10 @@ function ProvinceSectionLoading() {
 export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
   const [activeSection, setActiveSection] = useState<ProvinceSection>('overview');
   const provinceName = model.selectedProvince?.name || '加利福尼亚州';
-  const isUnlocked = (model.game.unlockedProvinces ?? []).includes(model.selectedProvinceId)
+  const hasProvinceUnlockState = Array.isArray(model.game.unlockedProvinces)
+    || typeof model.game.startingProvinceId === 'string';
+  const isUnlocked = !hasProvinceUnlockState
+    || (model.game.unlockedProvinces ?? []).includes(model.selectedProvinceId)
     || model.game.startingProvinceId === model.selectedProvinceId;
   const unlockCost = model.selectedProvince
     ? provinceUnlockCost(model.selectedProvinceId, model.game.startingProvinceId, model.game.provinces)
