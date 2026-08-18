@@ -1,4 +1,4 @@
-import type { FocusEvent, ReactNode } from 'react';
+import { useEffect, useRef, type FocusEvent, type ReactNode } from 'react';
 import { BRAND_LOGO_URL } from '../../config/brand';
 import { ScrollArea } from '../ui/ScrollArea';
 
@@ -27,12 +27,19 @@ export function SidebarFrame({
   footer: ReactNode;
   showIdentity?: boolean;
 }) {
-  const expand = () => {
-    if (collapsed) onToggleCollapsed();
+  const desiredCollapsedRef = useRef(collapsed);
+
+  useEffect(() => {
+    desiredCollapsedRef.current = collapsed;
+  }, [collapsed]);
+
+  const setCollapsed = (nextCollapsed: boolean) => {
+    if (desiredCollapsedRef.current === nextCollapsed) return;
+    desiredCollapsedRef.current = nextCollapsed;
+    onToggleCollapsed();
   };
-  const collapse = () => {
-    if (!collapsed) onToggleCollapsed();
-  };
+  const expand = () => setCollapsed(false);
+  const collapse = () => setCollapsed(true);
   const handleBlur = (event: FocusEvent<HTMLElement>) => {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) collapse();
   };
