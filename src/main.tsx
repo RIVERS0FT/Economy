@@ -19,7 +19,6 @@ import './styles/frosted-glass-surfaces.css';
 import './styles/mobile-status-navigation.css';
 import './styles/mobile-interaction.css';
 import './styles/mobile-pages.css';
-import './styles/mobile-status-layout.css';
 import './styles/icon-system.css';
 import './styles/overview.css';
 import './styles/economic-event-log.css';
@@ -61,6 +60,7 @@ import './styles/market-desktop-cleanup.css';
 import './styles/notification-center.css';
 import './styles/province-map.css';
 import './styles/strategic-game-shell.css';
+import './styles/mobile-status-layout.css';
 
 installIdempotentGameWriteFetch();
 configureRuntimePerformance();
