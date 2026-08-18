@@ -118,6 +118,9 @@
 
 .desktop-sidebar .sidebar-nav-button.active {
   color: var(--color-text-primary);
+}
+
+.desktop-sidebar[data-collapsed="false"] .sidebar-nav-button.active {
   border-color: color-mix(in srgb, var(--color-success) 44%, transparent);
   background: color-mix(in srgb, var(--color-success-soft) 72%, transparent);
   box-shadow: inset 3px 0 0 var(--color-success);
@@ -174,6 +177,8 @@
 
 .desktop-sidebar[data-collapsed="true"] .sidebar-nav-button,
 .desktop-sidebar[data-collapsed="true"] .sidebar-footer-action {
+  width: var(--desktop-sidebar-rail);
+  min-width: var(--desktop-sidebar-rail);
   gap: 0;
 }
 
@@ -184,6 +189,12 @@
 .desktop-sidebar .sidebar-footer-action:focus-visible,
 .desktop-sidebar .sidebar-footer-action:active {
   transform: none;
+}
+
+@media (min-width: 721px) {
+  .game-shell .signed-in-shell__primary-card .desktop-sidebar {
+    transition: background-color var(--desktop-sidebar-motion) !important;
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {
