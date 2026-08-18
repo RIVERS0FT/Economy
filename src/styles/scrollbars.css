@@ -260,11 +260,13 @@ html[data-input-modality="touch"] *:not(.ui-scroll-area__viewport)::-webkit-scro
 }
 
 @media (max-width: 720px) {
-  .page-scroll-area {
+  .page-scroll-area,
+  .page-card-scroll-area {
     overflow: visible;
   }
 
-  .page-scroll-area > .ui-scrollbar--vertical {
+  .page-scroll-area > .ui-scrollbar--vertical,
+  .page-card-scroll-area > .ui-scrollbar--vertical {
     position: fixed;
     top: var(--scrollbar-edge-offset);
     bottom: var(--scrollbar-edge-offset);
@@ -272,11 +274,13 @@ html[data-input-modality="touch"] *:not(.ui-scroll-area__viewport)::-webkit-scro
   }
 
   .page-scroll-area > .ui-scrollbar--vertical,
+  .page-card-scroll-area > .ui-scrollbar--vertical,
   .mobile-detail-sheet-scroll-area > .ui-scrollbar--vertical {
     right: env(safe-area-inset-right, 0px);
   }
 
-  .page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {
+  .page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb,
+  .page-card-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {
     right: var(--scrollbar-edge-offset);
     left: auto;
   }
