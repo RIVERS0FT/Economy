@@ -268,7 +268,7 @@ export function GameShell({ model, children, offline = false }: {
           </div>
         </PlayerPageNavigationProvider>
       </SignedInShell>
-      {!game.startingProvinceChosen ? (
+      {game.startingProvinceChosen === false ? (
         <div className="starting-province-overlay" role="dialog" aria-modal="true" aria-label="选择起始州">
           <section className="starting-province-panel">
             <h2>选择起始州</h2>
