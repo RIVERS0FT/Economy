@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test('desktop market catalog stays within the page card without a horizontal rail', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active&view=catalog');
-  await expect(page.getByRole('heading', { name: '加利福尼亚州 · 小麦', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '加利福尼亚州市场', exact: true })).toBeVisible();
 
   const scrollbarTokens = await page.evaluate(() => {
     const style = getComputedStyle(document.documentElement);
