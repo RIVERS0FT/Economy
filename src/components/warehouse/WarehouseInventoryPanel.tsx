@@ -26,6 +26,8 @@ export function WarehouseInventoryPanel({
 }) {
   const { game } = model;
   const now = useNow(game.lastProcessedAt, 1_000);
+  const unlockedProvinces = game.unlockedProvinces ?? [];
+  const transportShipments = game.transportShipments ?? [];
   const [transportProductId, setTransportProductId] = useState('');
   const [transportQuantity, setTransportQuantity] = useState('');
   const [transportDestination, setTransportDestination] = useState('');
@@ -47,9 +49,9 @@ export function WarehouseInventoryPanel({
   const destinations = useMemo(
     () => game.provinces.filter((province) => (
       province.id !== model.selectedProvinceId
-      && (game.unlockedProvinces.includes(province.id) || game.startingProvinceId === province.id)
+      && (unlockedProvinces.includes(province.id) || game.startingProvinceId === province.id)
     )),
-    [game.provinces, game.startingProvinceId, game.unlockedProvinces, model.selectedProvinceId],
+    [game.provinces, game.startingProvinceId, model.selectedProvinceId, unlockedProvinces],
   );
   const selectedDestination = destinations.find((province) => province.id === transportDestination);
   const selectedSource = game.provinces.find((province) => province.id === model.selectedProvinceId)
@@ -64,8 +66,8 @@ export function WarehouseInventoryPanel({
   const estimatedDurationMs = selectedDestination
     ? transportDurationMs(transportMode, distanceKm)
     : 0;
-  const inTransitCount = game.transportShipments.filter((shipment) => shipment.status === 'in-transit').length;
-  const activeShipments = game.transportShipments
+  const inTransitCount = transportShipments.filter((shipment) => shipment.status === 'in-transit').length;
+  const activeShipments = transportShipments
     .filter((shipment) => shipment.status === 'in-transit')
     .sort((left, right) => left.arrivesAt - right.arrivesAt);
 
