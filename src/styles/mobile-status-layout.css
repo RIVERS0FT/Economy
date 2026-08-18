@@ -43,6 +43,15 @@
     overflow: visible;
   }
 
+  /* Percentage heights on centered grid children can resolve a pixel short
+   * inside the bordered frosted surface. Stretch the status/action tracks to
+   * the actual grid row so their top and bottom edges stay identical. */
+  .asset-bar-layout > .asset-bar-content,
+  .asset-bar-layout > .asset-bar-action {
+    height: auto;
+    align-self: stretch;
+  }
+
   .asset-bar-item,
   .asset-bar-item:last-child {
     width: 100%;
