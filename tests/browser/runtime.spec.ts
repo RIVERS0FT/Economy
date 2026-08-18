@@ -200,7 +200,7 @@ test('overview prioritizes business decisions and shows the weekly check-in cale
   await expect(page.getByRole('button', { name: '开始工作' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '本周签到', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '公开经济事件', exact: true })).toBeVisible();
-  await expect(page.getByLabel('公开经济事件日志')).toBeVisible();
+  await expect(page.getByRole('complementary', { name: '公开经济事件日志', exact: true })).toBeVisible();
   await expect(page.locator('.economic-event-log-note')).toHaveCount(0);
   await expect(page.locator('.economic-event-log-panel .widget-badge')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '生产摘要', exact: true })).toBeVisible();
@@ -221,7 +221,7 @@ test('overview prioritizes business decisions and shows the weekly check-in cale
 
 test('public economic events stay compact until explicitly expanded', async ({ page }) => {
   await page.setViewportSize({ width: 1684, height: 931 });
-  await page.goto('runtime-test.html?view=overview&scenario=activity');
+  await page.goto('economic-event-log-runtime-test.html');
 
   const event = page.locator('.economic-event-log-entry').first();
   const summary = event.locator('summary');
@@ -276,7 +276,7 @@ test('overview uses a building-style panel beside the independent event rail', a
   const summaryCards = page.locator('.overview-summary-card');
 
   expect(await gridTrackCount(page.locator('.home-grid'))).toBe(1);
-  expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(3);
+  expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(1);
   expect(main.x).toBeCloseTo(layout.x + 8, 0);
   expect(Math.abs(summary.x - main.x)).toBeLessThan(2);
   expect(Math.abs(summary.width - main.width)).toBeLessThan(2);
@@ -287,7 +287,9 @@ test('overview uses a building-style panel beside the independent event rail', a
 
   await expect(summaryCards).toHaveCount(3);
   const summaryBoxes = await Promise.all([0, 1, 2].map((index) => requireBox(summaryCards.nth(index))));
-  expect(Math.max(...summaryBoxes.map((box) => box.y)) - Math.min(...summaryBoxes.map((box) => box.y))).toBeLessThan(2);
+  expect(Math.max(...summaryBoxes.map((box) => box.width)) - Math.min(...summaryBoxes.map((box) => box.width))).toBeLessThan(2);
+  expect(summaryBoxes[1].y).toBeGreaterThan(summaryBoxes[0].y);
+  expect(summaryBoxes[2].y).toBeGreaterThan(summaryBoxes[1].y);
   expect(Math.min(...summaryBoxes.map((box) => box.width))).toBeGreaterThan(280);
 
   const overflowingElements = await page.locator([
@@ -406,7 +408,7 @@ test('overview keeps the decision rows visible and adapts to a narrower desktop'
   await page.getByRole('button', { name: /^通知，/ }).click();
   const notificationPanel = page.getByRole('dialog', { name: '通知' });
   await expect(notificationPanel).toContainText('缺少生产原料');
-  await expect(notificationPanel).toContainText('已停止运行');
+  await expect(notificationPanel).toContainText('停止生产');
   await notificationPanel.getByRole('button', { name: '关闭通知面板' }).click();
 
   await page.setViewportSize({ width: 900, height: 1000 });
