@@ -1,7 +1,9 @@
 import { createRoot } from 'react-dom/client';
+import '../../src/app/interactionBootstrap';
 import { EconomicEventLogPanel } from '../../src/components/EconomicEventLogPanel';
 import '../../src/styles/globals.css';
 import '../../src/styles/design-system.css';
+import '../../src/styles/interaction-states.css';
 import '../../src/styles/economic-event-log.css';
 
 const now = Date.UTC(2026, 7, 18, 12, 0, 0);
