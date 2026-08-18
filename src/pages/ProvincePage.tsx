@@ -115,14 +115,6 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
       model.game.provinces.find((province) => province.id === model.game.startingProvinceId) ?? model.selectedProvince,
     ))
     : 0;
-  const warehouseModel = {
-    ...model,
-    game: {
-      ...model.game,
-      unlockedProvinces: model.game.unlockedProvinces ?? [],
-      transportShipments: model.game.transportShipments ?? [],
-    },
-  } as OnlineAutoTradeAwareGameViewModel;
 
   if (!isUnlocked) {
     return (
@@ -227,7 +219,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
           </Suspense>
         ) : null}
         {activeSection === 'warehouse' ? (
-          <WarehouseInventoryPanel model={warehouseModel} className="province-warehouse-section" />
+          <WarehouseInventoryPanel model={model} className="province-warehouse-section" />
         ) : null}
       </section>
     </PageLayout>
