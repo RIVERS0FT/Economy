@@ -1,9 +1,14 @@
 {
   "generatedAt": 1786766400000,
   "state": {
-    "version": 35,
+    "version": 36,
     "userId": 90001,
     "playerName": "本地预览玩家",
+    "startingProvinceId": "110000",
+    "startingProvinceChosen": false,
+    "unlockedProvinces": [
+      "110000"
+    ],
     "registeredAt": 1778472000000,
     "credits": 128600,
     "frozenCredits": 1280,
@@ -398,155 +403,193 @@
       "110000": {
         "wheat": {
           "available": 860,
-          "frozen": 80
+          "frozen": 80,
+          "inTransit": 0
         },
         "rice": {
           "available": 520,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "cotton": {
           "available": 190,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "sugarcane": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "fruit": {
           "available": 310,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "timber": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "ore": {
           "available": 420,
-          "frozen": 25
+          "frozen": 25,
+          "inTransit": 0
         },
         "copper-ore": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "crude-oil": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "meat": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "eggs": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "milk": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "fish": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "wool": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "flour": {
           "available": 280,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "sugar": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "lumber": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "steel": {
           "available": 160,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "copper": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "plastic": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "industrial-fuel": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "industrial-chemicals": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "fertilizer": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "feed": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "veterinary-medicine": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "textile": {
           "available": 96,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "pulp": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "food": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "beverage": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "prepared-meal": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "paper": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "furniture": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "clothing": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "tools": {
           "available": 48,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "machinery": {
           "available": 18,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "tractor": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "electronics": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         },
         "appliance": {
           "available": 0,
-          "frozen": 0
+          "frozen": 0,
+          "inTransit": 0
         }
       },
       "120000": {},
@@ -986,155 +1029,193 @@
     "inventories": {
       "wheat": {
         "available": 860,
-        "frozen": 80
+        "frozen": 80,
+        "inTransit": 0
       },
       "rice": {
         "available": 520,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "cotton": {
         "available": 190,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "sugarcane": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "fruit": {
         "available": 310,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "timber": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "ore": {
         "available": 420,
-        "frozen": 25
+        "frozen": 25,
+        "inTransit": 0
       },
       "copper-ore": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "crude-oil": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "meat": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "eggs": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "milk": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "fish": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "wool": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "flour": {
         "available": 280,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "sugar": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "lumber": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "steel": {
         "available": 160,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "copper": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "plastic": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "industrial-fuel": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "industrial-chemicals": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "fertilizer": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "feed": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "veterinary-medicine": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "textile": {
         "available": 96,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "pulp": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "food": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "beverage": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "prepared-meal": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "paper": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "furniture": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "clothing": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "tools": {
         "available": 48,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "machinery": {
         "available": 18,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "tractor": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "electronics": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       },
       "appliance": {
         "available": 0,
-        "frozen": 0
+        "frozen": 0,
+        "inTransit": 0
       }
     },
     "products": [
@@ -20484,7 +20565,7 @@
               {
                 "rank": 2,
                 "playerName": "本地预览玩家",
-                "score": 172033,
+                "score": 174433.9,
                 "secondary": 129880,
                 "isCurrentPlayer": true
               },
@@ -20499,7 +20580,7 @@
             "currentPlayer": {
               "rank": 2,
               "playerName": "本地预览玩家",
-              "score": 172033,
+              "score": 174433.9,
               "secondary": 129880,
               "isCurrentPlayer": true
             },
@@ -20641,7 +20722,7 @@
       {
         "rank": 2,
         "playerName": "本地预览玩家",
-        "totalAssets": 173003.4,
+        "totalAssets": 174433.9,
         "cashAssets": 157880,
         "facilityCount": 33,
         "weeklyChange": 8400,
@@ -20752,6 +20833,7 @@
       "targetPrice": 1.2,
       "demandPressureAnchor": 1.2
     },
+    "transportShipments": [],
     "provinceFacilityGroups": {
       "110000": [
         {
@@ -24589,44 +24671,44 @@
       }
     },
     "valuationPrices": {
-      "commodity:wheat": 3.4,
-      "commodity:rice": 4.2,
-      "commodity:cotton": 0,
-      "commodity:sugarcane": 0,
-      "commodity:fruit": 0,
-      "commodity:timber": 0,
-      "commodity:ore": 9.8,
-      "commodity:copper-ore": 0,
-      "commodity:crude-oil": 0,
-      "commodity:meat": 0,
-      "commodity:eggs": 0,
-      "commodity:milk": 0,
-      "commodity:fish": 0,
-      "commodity:wool": 0,
-      "commodity:flour": 0,
-      "commodity:sugar": 0,
-      "commodity:lumber": 0,
-      "commodity:steel": 22.6,
-      "commodity:copper": 0,
-      "commodity:plastic": 0,
-      "commodity:industrial-fuel": 0,
-      "commodity:industrial-chemicals": 0,
-      "commodity:fertilizer": 0,
-      "commodity:feed": 0,
-      "commodity:veterinary-medicine": 0,
-      "commodity:textile": 18.4,
-      "commodity:pulp": 0,
-      "commodity:food": 0,
-      "commodity:beverage": 0,
-      "commodity:prepared-meal": 0,
-      "commodity:paper": 0,
-      "commodity:furniture": 0,
-      "commodity:clothing": 0,
-      "commodity:tools": 0,
-      "commodity:machinery": 0,
-      "commodity:tractor": 0,
-      "commodity:electronics": 0,
-      "commodity:appliance": 0,
+      "commodity:wheat": 1.2,
+      "commodity:rice": 1.2,
+      "commodity:cotton": 1.2,
+      "commodity:sugarcane": 1.2,
+      "commodity:fruit": 1.3,
+      "commodity:timber": 6,
+      "commodity:ore": 7,
+      "commodity:copper-ore": 7,
+      "commodity:crude-oil": 9,
+      "commodity:meat": 2.4,
+      "commodity:eggs": 2.4,
+      "commodity:milk": 2.4,
+      "commodity:fish": 2.5,
+      "commodity:wool": 2.4,
+      "commodity:flour": 13,
+      "commodity:sugar": 13,
+      "commodity:lumber": 17,
+      "commodity:steel": 29,
+      "commodity:copper": 29,
+      "commodity:plastic": 30,
+      "commodity:industrial-fuel": 4,
+      "commodity:industrial-chemicals": 5,
+      "commodity:fertilizer": 6.76,
+      "commodity:feed": 5.8,
+      "commodity:veterinary-medicine": 14.1,
+      "commodity:textile": 20,
+      "commodity:pulp": 20,
+      "commodity:food": 15,
+      "commodity:beverage": 18,
+      "commodity:prepared-meal": 18,
+      "commodity:paper": 15,
+      "commodity:furniture": 24,
+      "commodity:clothing": 55,
+      "commodity:tools": 12,
+      "commodity:machinery": 15.55,
+      "commodity:tractor": 15.35,
+      "commodity:electronics": 84,
+      "commodity:appliance": 92,
       "facility:farm": 0,
       "facility:orchard": 0,
       "facility:ranch": 0,
@@ -24656,25 +24738,25 @@
     },
     "assetSummary": {
       "cashValue": 157880,
-      "commodityValue": 15123.4,
+      "commodityValue": 16553.9,
       "facilityValue": 0,
       "bankDepositValue": 28000,
       "contractReceivableValue": 0,
       "contractLiabilityValue": 0,
       "contractLockedFacilityValue": 0,
-      "grossAssetValue": 173003.4,
+      "grossAssetValue": 174433.9,
       "liabilityValue": 0,
-      "netAssetValue": 173003.4,
+      "netAssetValue": 174433.9,
       "availableCashValue": 128600,
       "frozenCashValue": 1280,
-      "availableCommodityValue": 14606.4,
-      "frozenCommodityValue": 517,
+      "availableCommodityValue": 16282.9,
+      "frozenCommodityValue": 271,
       "availableFacilityValue": 0,
       "mortgagedFacilityValue": 0,
       "frozenFacilityValue": 0,
-      "availableAssetValue": 171206.4,
-      "frozenAssetValue": 1797,
-      "totalAssets": 173003.4
+      "availableAssetValue": 172882.9,
+      "frozenAssetValue": 1551,
+      "totalAssets": 174433.9
     },
     "saveEpoch": 1,
     "gems": 36,

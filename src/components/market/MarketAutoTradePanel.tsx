@@ -51,7 +51,7 @@ export function MarketAutoTradePanel({
       minimumFreeInventory: 0,
     }),
     statusFor: (productId: string) => {
-      const inventory = game.inventories[productId] ?? { available: 0, frozen: 0 };
+      const inventory = game.inventories[productId] ?? { available: 0, frozen: 0, inTransit: 0 };
       const availableInventory = Math.max(0, Math.floor(Number(inventory.available || 0)));
       return {
         availableInventory,
@@ -90,7 +90,7 @@ export function MarketAutoTradePanel({
 
   const stockedProducts = useMemo(
     () => game.products.filter((product) => {
-      const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
+      const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0, inTransit: 0 };
       return inventory.available > 0 || inventory.frozen > 0
         || autoTrade.buyPolicyFor(product.id).enabled
         || autoTrade.sellPolicyFor(product.id).enabled;
@@ -447,7 +447,7 @@ export function MarketAutoTradePanel({
             {stockedProducts.length > 0 ? (
               <div className="warehouse-product-grid">
                 {stockedProducts.map((product) => {
-                  const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
+                  const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0, inTransit: 0 };
                   const buyEnabled = autoTrade.buyPolicyFor(product.id).enabled;
                   const sellEnabled = autoTrade.sellPolicyFor(product.id).enabled;
                   const automationLabel = buyEnabled && sellEnabled

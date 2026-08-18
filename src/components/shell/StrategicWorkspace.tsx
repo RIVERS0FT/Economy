@@ -73,6 +73,7 @@ export function StrategicMapStage({
       <UsMainlandMap
         provinces={state.provinces}
         summaries={state.summaries}
+        unlockedProvinceIds={model.game.unlockedProvinces}
         selectedProvinceId={model.tab === 'province' ? state.selectedProvinceId : null}
         onSelectProvince={openProvincePage}
         lens={lens}

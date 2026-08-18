@@ -3,7 +3,7 @@ import { normalizeProvinceId, provinceScopedKey } from './provinces.js';
 import { installProvinceRuntimeAliases } from './provinces.js';
 
 export const WORLD_STORAGE_SCHEMA_VERSION = 2;
-export const AUTHORITATIVE_WORLD_VERSION = 31;
+export const AUTHORITATIVE_WORLD_VERSION = 32;
 
 const LOCAL_PLAYER_ACTIONS = new Set([
   'startResearch',
@@ -42,6 +42,7 @@ const CORE_LOCAL_SEGMENTS = Object.freeze([
   'moneyPrecision',
   'auctionFeeEscrowCredits',
   'systemMarketAudit',
+  'transportShipments',
   'version',
 ]);
 

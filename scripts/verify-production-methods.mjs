@@ -284,8 +284,8 @@ for (const text of [
   "toContainText('节约生产')",
   "toContainText('180s · 成本 4 · 产出 ×1')",
 ]) assert.ok(browserSpecSource.includes(text), `生产方式浏览器回归缺少 ${text}`);
-assert.ok(versionSource.includes('CURRENT_CLIENT_STATE_VERSION = 35'));
-assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 35'));
+assert.ok(versionSource.includes('CURRENT_CLIENT_STATE_VERSION = 36'));
+assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 36'));
 
 for (const [path, required] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [

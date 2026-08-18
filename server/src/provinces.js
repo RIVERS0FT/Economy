@@ -75,11 +75,13 @@ export function installProvinceRuntimeAliases(world) {
 export function migrateProvinceInventories(player) {
   player.inventories ||= {};
   for (const [key, inventory] of Object.entries({ ...player.inventories })) {
+    if (inventory && inventory.inTransit === undefined) inventory.inTransit = 0;
     if (key.includes(SCOPED_KEY_SEPARATOR)) continue;
     const scopedKey = provinceScopedKey(DEFAULT_PROVINCE_ID, key);
-    const target = player.inventories[scopedKey] ||= { available: 0, frozen: 0 };
+    const target = player.inventories[scopedKey] ||= { available: 0, frozen: 0, inTransit: 0 };
     target.available = Number(target.available || 0) + Number(inventory?.available || 0);
     target.frozen = Number(target.frozen || 0) + Number(inventory?.frozen || 0);
+    target.inTransit = Number(target.inTransit || 0) + Number(inventory?.inTransit || 0);
     delete player.inventories[key];
   }
   return installDefaultProvinceAliases(player.inventories);
@@ -88,7 +90,7 @@ export function migrateProvinceInventories(player) {
 export function inventoryForProvince(player, productId, provinceId = DEFAULT_PROVINCE_ID) {
   migrateProvinceInventories(player);
   const key = provinceScopedKey(provinceId, productId);
-  player.inventories[key] ||= { available: 0, frozen: 0 };
+  player.inventories[key] ||= { available: 0, frozen: 0, inTransit: 0 };
   if (normalizeProvinceId(provinceId) === DEFAULT_PROVINCE_ID) {
     defineDefaultProvinceAlias(player.inventories, String(productId || ''));
   }

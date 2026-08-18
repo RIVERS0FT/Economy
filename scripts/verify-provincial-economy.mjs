@@ -50,8 +50,8 @@ const legacyRegionIds = [
 assert.equal(legacyRegionIds.every((id) => PROVINCE_CATALOG.some((province) => province.id === id)), true, '中国地图时期的 34 个地区 ID 必须全部原位保留');
 assert.equal(DEFAULT_PROVINCE_ID, '110000', '默认地区 ID 必须保持稳定以保留既有资产');
 assert.equal(PROVINCE_CATALOG.find((province) => province.id === DEFAULT_PROVINCE_ID)?.mapName, 'California', '旧默认地区必须原位映射为加利福尼亚州');
-assert.equal(CURRENT_CLIENT_STATE_VERSION, 35, '州级状态协议必须使用客户端版本 35');
-assert.equal(AUTHORITATIVE_WORLD_VERSION, 31, '州级持久化必须使用世界版本 31');
+assert.equal(CURRENT_CLIENT_STATE_VERSION, 36, '州级状态协议必须使用客户端版本 36');
+assert.equal(AUTHORITATIVE_WORLD_VERSION, 32, '州级持久化必须使用世界版本 32');
 
 const packageJson = JSON.parse(read('package.json'));
 const atlasPackage = JSON.parse(read('node_modules/us-atlas/package.json'));
@@ -337,4 +337,4 @@ for (const text of [
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、版本 35/31、既有地区 ID 原位保留、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击和空白双击镜头重置均已锁定。');
+console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击和空白双击镜头重置均已锁定。');

@@ -268,6 +268,28 @@ export function GameShell({ model, children, offline = false }: {
           </div>
         </PlayerPageNavigationProvider>
       </SignedInShell>
+      {!game.startingProvinceChosen ? (
+        <div className="starting-province-overlay" role="dialog" aria-modal="true" aria-label="选择起始州">
+          <section className="starting-province-panel">
+            <h2>选择起始州</h2>
+            <p>新玩家需要选择一块起始地块，选定后永久绑定，之后可以解锁其他州并使用市场、工厂与仓库。</p>
+            <div className="starting-province-grid">
+              {game.provinces.map((province) => (
+                <button
+                  type="button"
+                  key={province.id}
+                  className="starting-province-option"
+                  data-ui-interactive="surface"
+                  onClick={() => void model.showResult(model.chooseStartingProvince(province.id))}
+                >
+                  <strong>{province.name}</strong>
+                  <small>{province.shortName}</small>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : null}
     </AuctionNewIdsContext.Provider>
   );
 }

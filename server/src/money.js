@@ -356,7 +356,7 @@ function normalizeOrders(world) {
 
 function normalizeMarkets(world) {
   for (const market of Object.values(world.markets || {})) {
-    for (const key of ['lastPrice', 'lastTradePrice']) {
+    for (const key of ['lastPrice', 'lastTradePrice', 'officialPrice']) {
       if (market?.[key] !== null && market?.[key] !== undefined) quantizePlayerField(world, market, key);
     }
     for (const point of market?.priceHistory || []) quantizePlayerField(world, point, 'price');

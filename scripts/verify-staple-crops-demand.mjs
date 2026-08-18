@@ -169,7 +169,7 @@ for (const text of [
   'balancedMarket.matchOrder(world, incoming, now)',
   'reconcileCommodityOrderBook',
   'ensurePopulationEconomy',
-  'world.version = 31',
+  'world.version = 32',
 ]) assert.ok(domain.includes(text), 'domain.js 缺少: ' + text);
 
 const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));

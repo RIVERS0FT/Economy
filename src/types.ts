@@ -40,6 +40,8 @@ export interface ProductDefinition {
 export interface ProductInventory {
   available: number;
   frozen: number;
+  /** Quantity currently in transit from this state to another unlocked state. */
+  inTransit: number;
 }
 
 export interface FacilityRecipeItem {
@@ -216,6 +218,24 @@ export interface ResearchState {
 export type OrderSide = 'buy' | 'sell';
 export type OrderStatus = 'open' | 'partial' | 'filled' | 'cancelled';
 export type OrderOwnerType = 'player' | 'population';
+
+export type TransportModeId = 'road' | 'rail' | 'air';
+export type TransportShipmentStatus = 'in-transit' | 'arrived';
+
+export interface TransportShipment {
+  id: string;
+  sourceProvinceId: string;
+  destinationProvinceId: string;
+  productId: string;
+  quantity: number;
+  mode: TransportModeId;
+  cost: number;
+  departsAt: number;
+  arrivesAt: number;
+  status: TransportShipmentStatus;
+  createdAt: number;
+  arrivedAt?: number;
+}
 
 /** Public fill returned to ordinary players. Counterparties and order links stay server-internal. */
 export interface OrderFill {
@@ -572,9 +592,12 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState {
-  version: 35;
+  version: 36;
   userId: number;
   playerName: string;
+  startingProvinceId: string;
+  startingProvinceChosen: boolean;
+  unlockedProvinces: string[];
   registeredAt: number;
   saveEpoch: number;
   credits: number;
@@ -602,6 +625,7 @@ export interface EconomyState {
   facilityMarkets: Record<string, FacilityMarketState>;
   provinceFacilityMarkets: Record<string, Record<string, FacilityMarketState>>;
   orders: AssetOrder[];
+  transportShipments: TransportShipment[];
   facilityListings: FacilityListing[];
   valuationPrices: Record<string, number>;
   assetSummary: AssetSummary;

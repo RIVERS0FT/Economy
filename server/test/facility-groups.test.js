@@ -175,7 +175,7 @@ test('asset valuation uses the latest order-book trade and ignores open bid pric
   migrateFacilityGroupWorld(world, now);
 
   const initial = createFacilityGroupClientState(world, alice.id, now);
-  assert.equal(initial.valuationPrices['commodity:wheat'], 0, 'synthetic seed history is not a real trade');
+  assert.equal(initial.valuationPrices['commodity:wheat'], 1.2, 'commodity valuation uses the official system price');
 
   assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', { assetKind: 'commodity', assetId: 'wheat', side: 'sell', quantity: 2, price: 7 }, now + 1).ok, true);
   assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', { assetKind: 'commodity', assetId: 'wheat', side: 'buy', quantity: 2, price: 9 }, now + 2).ok, true);
@@ -184,6 +184,7 @@ test('asset valuation uses the latest order-book trade and ignores open bid pric
 
   world.orders.push({ id: 'open-bid', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat', side: 'buy', ownerType: 'player', ownerId: 3, ownerName: 'Charlie', price: 999, quantity: 1, remaining: 1, status: 'open', createdAt: now + 5 });
   buyer.inventories.wheat.available = 10;
+  world.markets.wheat.officialPrice = 11;
   const state = createFacilityGroupClientState(world, alice.id, now + 5);
   assert.equal(world.markets.wheat.lastTradePrice, 11);
   assert.equal(state.valuationPrices['commodity:wheat'], 11);

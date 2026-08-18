@@ -7,6 +7,7 @@ import {
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { FacilityRecipeProfitMarketsProvider } from '../components/facilities/FacilityRecipeProfitContext';
 import { WarehouseInventoryPanel } from '../components/warehouse/WarehouseInventoryPanel';
+import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import {
   Button,
   DataList,
@@ -18,7 +19,12 @@ import {
   StatusTag,
   WidgetHeading,
 } from '../components/ui/layout';
-import { formatNumber } from '../utils/formatters';
+import { formatCurrency, formatNumber } from '../utils/formatters';
+import {
+  PROVINCE_UNLOCK_BASE_COST,
+  provinceDistanceKm,
+  provinceUnlockCost,
+} from '../utils/provinceLogistics';
 
 const EmbeddedMarketPage = lazy(() => import('./MarketPage').then((module) => ({
   default: module.MarketPage,
@@ -95,6 +101,48 @@ function ProvinceSectionLoading() {
 export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
   const [activeSection, setActiveSection] = useState<ProvinceSection>('overview');
   const provinceName = model.selectedProvince?.name || '加利福尼亚州';
+  const isUnlocked = model.game.unlockedProvinces.includes(model.selectedProvinceId)
+    || model.game.startingProvinceId === model.selectedProvinceId;
+  const unlockCost = model.selectedProvince
+    ? provinceUnlockCost(model.selectedProvinceId, model.game.startingProvinceId, model.game.provinces)
+    : PROVINCE_UNLOCK_BASE_COST;
+  const distanceKm = model.selectedProvince && model.game.provinces.length > 0
+    ? Math.round(provinceDistanceKm(
+      model.selectedProvince,
+      model.game.provinces.find((province) => province.id === model.game.startingProvinceId) ?? model.selectedProvince,
+    ))
+    : 0;
+
+  if (!isUnlocked) {
+    return (
+      <PageLayout
+        title={provinceName}
+        backAction={{ label: '返回地图', onClick: () => model.setTab('map') }}
+      >
+        <PagePanel className="province-lock-panel">
+          <WidgetHeading title="州级地区未解锁" action={<StatusTag tone="warning">锁定</StatusTag>} />
+          <p className="province-lock-description">
+            该州尚未解锁，解锁后可以使用市场、工厂与仓库经营功能。
+          </p>
+          <DataList>
+            <DataRow label="距起始州" value={`约 ${formatNumber(distanceKm)} 公里`} />
+            <DataRow label="解锁费用" value={<CurrencyAmount>{formatCurrency(unlockCost)}</CurrencyAmount>} />
+            <DataRow label="当前资金" value={<CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>} />
+          </DataList>
+          <Button
+            block
+            className="province-unlock-button"
+            disabled={model.game.credits < unlockCost}
+            onClick={() => void model.showResult(model.unlockProvince(model.selectedProvinceId))}
+          >
+            {model.game.credits < unlockCost
+              ? `资金不足，需要 ${formatCurrency(unlockCost)}`
+              : `解锁${provinceName}（${formatCurrency(unlockCost)}）`}
+          </Button>
+        </PagePanel>
+      </PageLayout>
+    );
+  }
 
   const selectSection = (section: ProvinceSection, focus = false) => {
     setActiveSection(section);

@@ -177,8 +177,8 @@ for (const [path, texts] of Object.entries({
     'useOnlineAutoTrade as useOnlineAutoSell',
   ],
   'docs/WAREHOUSE_EXPANSION_DESIGN.md': [
-    '客户端状态版本：35',
-    '世界状态版本：31',
+    '客户端状态版本：36',
+    '世界状态版本：32',
     '### 4.2 在线自动采购',
     '### 4.3 在线自动出售',
     '### 4.4 双向自动交易区间',

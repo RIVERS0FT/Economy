@@ -69,10 +69,10 @@ test('世界版本 25 迁移仍补齐化肥库存与市场且保留既有资产'
   world.version = 24;
 
   const migrated = migrateWorld(world, now + 1_000);
-  assert.equal(migrated.version, 31);
+  assert.equal(migrated.version, 32);
   assert.equal(migrated.players['7'].credits, 12_345);
   assert.equal(migrated.players['7'].inventories.wheat.available, 77);
-  assert.deepEqual(migrated.players['7'].inventories.fertilizer, { available: 0, frozen: 0 });
+  assert.deepEqual(migrated.players['7'].inventories.fertilizer, { available: 0, frozen: 0, inTransit: 0 });
   assert.equal(migrated.markets.fertilizer.productId, 'fertilizer');
   assert.equal(migrated.markets.fertilizer.lastPrice, 6.76);
 });

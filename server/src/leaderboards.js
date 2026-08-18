@@ -127,13 +127,18 @@ export function operatingAssetsFor(player) {
 function recentTradePriceFor(world, kind, assetId, provinceId = DEFAULT_PROVINCE_ID) {
   const marketKey = provinceScopedKey(provinceId, assetId);
   const market = kind === 'facility' ? world.facilityMarkets?.[marketKey] : world.markets?.[marketKey];
+  if (kind === 'commodity' && Number.isFinite(Number(market?.officialPrice)) && Number(market.officialPrice) > 0) {
+    return Math.max(0, Number(market.officialPrice));
+  }
   return Number.isFinite(Number(market?.lastTradePrice)) ? safeNonNegativeInteger(market.lastTradePrice) : 0;
 }
 
 function commodityTradeValueFor(world, player) {
   return Object.entries(player.inventories || {}).reduce((sum, [key, inventory]) => {
     const { provinceId, assetId } = splitProvinceScopedKey(key);
-    const quantity = safeNonNegativeInteger(inventory?.available) + safeNonNegativeInteger(inventory?.frozen);
+    const quantity = safeNonNegativeInteger(inventory?.available)
+      + safeNonNegativeInteger(inventory?.frozen)
+      + safeNonNegativeInteger(inventory?.inTransit);
     return sum + quantity * recentTradePriceFor(world, 'commodity', assetId, provinceId);
   }, 0);
 }

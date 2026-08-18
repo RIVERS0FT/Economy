@@ -128,6 +128,7 @@ interface ProvinceMapDatum {
   runningFacilityCount: number;
   blockedFacilityCount: number;
   openOrderCount: number;
+  locked: boolean;
   itemStyle: {
     areaColor: string;
     borderColor?: string;
@@ -141,6 +142,7 @@ function datumFor(
   province: ProvinceDefinition,
   summary: ProvinceAssetSummary | undefined,
   lens: ProvinceMapLens,
+  locked = false,
 ): ProvinceMapDatum {
   const storedQuantity = Number(summary?.storedQuantity || 0);
   const facilityCount = Number(summary?.facilityCount || 0);
@@ -154,7 +156,9 @@ function datumFor(
       : lens === 'alerts'
         ? blockedFacilityCount
         : storedQuantity + facilityCount;
-  const areaColor = lens === 'political'
+  const areaColor = locked
+    ? 'var(--color-surface-muted)'
+    : lens === 'political'
     ? 'var(--color-surface-soft)'
     : lens === 'industry'
       ? facilityCount > 0 ? 'var(--color-success-soft)' : 'var(--color-surface-soft)'
@@ -177,6 +181,7 @@ function datumFor(
     runningFacilityCount: Number(summary?.runningFacilityCount || 0),
     blockedFacilityCount,
     openOrderCount,
+    locked,
     itemStyle: {
       areaColor,
       ...(lens === 'alerts' && blockedFacilityCount > 0 ? { borderColor: 'var(--color-danger)' } : {}),
@@ -193,6 +198,7 @@ function tooltipContent(params: unknown) {
   if (!datum?.provinceId) return String(event.name || '州级地区');
   return [
     `<strong>${datum.provinceName}</strong>`,
+    ...(datum.locked ? ['<span style="color:var(--color-warning)">未解锁</span>'] : []),
     `本地库存：${formatNumber(datum.storedQuantity)}`,
     `工厂：${formatNumber(datum.facilityCount)}`,
     `运行中：${formatNumber(datum.runningFacilityCount)}`,
@@ -206,13 +212,16 @@ export function UsMainlandMap({
   selectedProvinceId,
   onSelectProvince,
   lens = 'assets',
+  unlockedProvinceIds,
 }: {
   provinces: ProvinceDefinition[];
   summaries: Record<string, ProvinceAssetSummary>;
   selectedProvinceId: string | null;
   onSelectProvince: (provinceId: string) => void;
   lens?: ProvinceMapLens;
+  unlockedProvinceIds?: string[];
 }) {
+  const unlockedSet = useMemo(() => new Set(unlockedProvinceIds || []), [unlockedProvinceIds]);
   const provinceIdByMapName = useMemo(() => new Map(
     provinces.map((province) => [province.shortName, province.id]),
   ), [provinces]);
@@ -221,8 +230,8 @@ export function UsMainlandMap({
     provinces.map((province) => [province.shortName, province.id === selectedProvinceId]),
   ), [provinces, selectedProvinceId]);
   const data = useMemo(() => provinces.map((province) => (
-    datumFor(province, summaries[province.id], lens)
-  )), [lens, provinces, summaries]);
+    datumFor(province, summaries[province.id], lens, !unlockedSet.has(province.id))
+  )), [lens, provinces, summaries, unlockedSet]);
   const applyContainCamera = useCallback((chart: EChartsType) => {
     const width = chart.getWidth();
     const height = chart.getHeight();

@@ -144,6 +144,15 @@ export interface LoadedGameViewModel {
   signOut: () => Promise<void>;
   work: () => Promise<ActionResult>;
   checkIn: () => Promise<ActionResult>;
+  chooseStartingProvince: (provinceId: string) => Promise<ActionResult>;
+  unlockProvince: (provinceId: string) => Promise<ActionResult>;
+  transportShip: (input: {
+    sourceProvinceId: string;
+    destinationProvinceId: string;
+    productId: string;
+    quantity: number;
+    mode: 'road' | 'rail' | 'air';
+  }) => Promise<ActionResult>;
   bankDeposit: (amount: number) => Promise<ActionResult>;
   bankWithdraw: (amount: number) => Promise<ActionResult>;
   bankBorrow: (amount: number, collateral: Array<{ provinceId: string; facilityTypeId: string; quantity: number }>, autoRepay?: boolean) => Promise<ActionResult>;
@@ -533,6 +542,9 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     signOut,
     work: () => runAction('work', gameActions.work),
     checkIn: () => runAction('checkIn', gameActions.checkIn),
+    chooseStartingProvince: (provinceId) => runAction('chooseStartingProvince', () => gameActions.chooseStartingProvince(provinceId)),
+    unlockProvince: (provinceId) => runAction('unlockProvince', () => gameActions.unlockProvince(provinceId)),
+    transportShip: (input) => runAction('transportShip', () => gameActions.transportShip(input)),
     bankDeposit: (amount) => runAction('bankDeposit', () => gameActions.bankDeposit(amount)),
     bankWithdraw: (amount) => runAction('bankWithdraw', () => gameActions.bankWithdraw(amount)),
     bankBorrow: (amount, collateral, autoRepay = true) => runAction('bankBorrow', () => gameActions.bankBorrow(amount, collateral, autoRepay)),

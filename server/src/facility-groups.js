@@ -9,6 +9,7 @@ import {
 import { ensureWarehouse } from './warehouse.js';
 import { matchIncomingOrder } from './order-matching.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
+import { provinceUnlockError } from './province-access.js';
 import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
 import { closeOrderInOrderBook, countOpenOrdersForOwner, facilitySellQuantityForOwner, orderById } from './order-book-runtime.js';
 import { creditPopulationEmployment, ensurePopulationEconomy } from './population-economy.js';
@@ -1304,6 +1305,18 @@ export function applyFacilityGroupAction(
 ) {
   if (process) processFacilityGroupWorld(world, now, { migrate });
   const userId = Number(user.id);
+  if (
+    action !== 'chooseStartingProvince'
+    && action !== 'unlockProvince'
+    && payload?.provinceId !== undefined
+    && payload?.provinceId !== null
+    && payload?.provinceId !== ''
+  ) {
+    const accessError = provinceUnlockError(world.players?.[String(userId)], normalizeProvinceId(payload.provinceId));
+    if (accessError) {
+      return result(false, accessError);
+    }
+  }
   const applyBaseAction = () => applyAction(world, user, action, payload, now, { migrate: false, process: false });
   let actionResult;
 
@@ -1350,9 +1363,14 @@ export function applyFacilityGroupAction(
 }
 
 function recentTradePriceFor(world, kind, assetId, provinceId = DEFAULT_PROVINCE_ID) {
-  const market = kind === 'facility'
-    ? facilityMarketFor(world, assetId, Date.now(), provinceId)
-    : world.markets?.[provinceScopedKey(provinceId, assetId)];
+  if (kind === 'commodity') {
+    const market = world.markets?.[provinceScopedKey(provinceId, assetId)];
+    if (Number.isFinite(Number(market?.officialPrice)) && Number(market.officialPrice) > 0) {
+      return Math.max(0, Number(market.officialPrice));
+    }
+    return Number.isFinite(Number(market?.lastTradePrice)) ? Math.max(0, Number(market.lastTradePrice)) : 0;
+  }
+  const market = facilityMarketFor(world, assetId, Date.now(), provinceId);
   return Number.isFinite(Number(market?.lastTradePrice)) ? Math.max(0, Number(market.lastTradePrice)) : 0;
 }
 
@@ -1360,10 +1378,11 @@ function assetSummaryFor(world, player) {
   const commodity = Object.entries(player.inventories || {}).reduce((summary, [key, inventory]) => {
     const { provinceId, assetId } = splitProvinceScopedKey(key);
     const price = recentTradePriceFor(world, 'commodity', assetId, provinceId);
-    summary.available += inventory.available * price;
-    summary.frozen += inventory.frozen * price;
+    summary.available += Number(inventory.available || 0) * price;
+    summary.frozen += Number(inventory.frozen || 0) * price;
+    summary.inTransit += Number(inventory.inTransit || 0) * price;
     return summary;
-  }, { available: 0, frozen: 0 });
+  }, { available: 0, frozen: 0, inTransit: 0 });
   const facility = (player.facilityGroups || []).reduce((summary, group) => {
     const price = recentTradePriceFor(world, 'facility', group.facilityTypeId, group.provinceId);
     const frozenCount = Math.min(group.count, frozenFacilityQuantity(world, player.userId, group.facilityTypeId, group.provinceId));
@@ -1389,7 +1408,8 @@ function assetSummaryFor(world, player) {
   const contractReceivableValue = playerLoanPosition.receivable;
   const contractLiabilityValue = playerLoanPosition.liability;
   const cashValue = availableCashValue + frozenCashValue + bankDepositValue + contractReceivableValue;
-  const commodityValue = availableCommodityValue + frozenCommodityValue;
+  const inTransitCommodityValue = commodity.inTransit;
+  const commodityValue = availableCommodityValue + frozenCommodityValue + inTransitCommodityValue;
   const facilityValue = availableFacilityValue + mortgagedFacilityValue + frozenFacilityValue;
   const grossAssetValue = cashValue + commodityValue + facilityValue;
   const liabilityValue = activeLoanLiability(player) + weeklySettlementLiability(player) + contractLiabilityValue;

@@ -464,8 +464,8 @@ export function MarketPage({
     ? facilityGroupByTypeId.get(selectedFacility.id)
     : undefined;
   const selectedInventory = selectedProduct
-    ? game.inventories[selectedProduct.id] ?? { available: 0, frozen: 0 }
-    : { available: 0, frozen: 0 };
+    ? game.inventories[selectedProduct.id] ?? { available: 0, frozen: 0, inTransit: 0 }
+    : { available: 0, frozen: 0, inTransit: 0 };
   const selectedMarket = selectedProduct
     ? game.markets[selectedProduct.id]
     : selectedFacility ? game.facilityMarkets[selectedFacility.id] : undefined;
@@ -539,7 +539,7 @@ export function MarketPage({
     const entries: MarketCatalogEntry[] = game.products.map((product) => {
           const market = game.markets[product.id];
           const orders = openOrdersForAsset(orderIndex, 'commodity', product.id);
-          const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
+          const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0, inTransit: 0 };
           const buyVolume = orders
             .filter((order) => order.side === 'buy')
             .reduce((sum, order) => sum + Math.max(0, order.remaining), 0);

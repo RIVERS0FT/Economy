@@ -32,7 +32,7 @@ test('model 18 rebalance remains preserved when migrating through current model 
   assert.equal(world.orders.find((order) => order.id === 'unaffected-buy').status, 'open');
   assert.equal(player.credits, 140);
   assert.equal(player.frozenCredits, 1);
-  assert.deepEqual(player.inventories.tools, { available: 10, frozen: 0 });
+  assert.deepEqual(player.inventories.tools, { available: 10, frozen: 0, inTransit: 0 });
   assert.equal(player.inventories.wheat.available, 9);
   assert.equal(world.markets.tools.lastPrice, 12);
   assert.equal(world.markets.tools.lastTradePrice, null);
