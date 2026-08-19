@@ -214,7 +214,7 @@ jobs:
             --exclude assets/ \
             --exclude index.html \
             dist/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy/"
-          rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
             shared/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/shared/"
           rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
             server/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy-api/"
