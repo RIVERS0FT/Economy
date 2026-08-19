@@ -1,4 +1,4 @@
-import { useEffect, type MutableRefObject, type ReactNode } from 'react';
+import { useEffect, useState, type MutableRefObject, type ReactNode } from 'react';
 import {
   useMobileWorkspaceSheetDrag,
   type MobileWorkspaceSheetRequestClose,
@@ -11,12 +11,17 @@ export interface MobileWorkspacePageSheetProps {
   children: ReactNode;
 }
 
+function matchesMobileWorkspaceViewport() {
+  return typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches;
+}
+
 export function MobileWorkspacePageSheet({
   pageKey,
   onClose,
   requestCloseRef,
   children,
 }: MobileWorkspacePageSheetProps) {
+  const [isMobileViewport, setIsMobileViewport] = useState(matchesMobileWorkspaceViewport);
   const {
     sheetRef,
     requestClose,
@@ -37,15 +42,29 @@ export function MobileWorkspacePageSheet({
   });
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 720px)');
+    const handleChange = (event: MediaQueryListEvent) => setIsMobileViewport(event.matches);
+    setIsMobileViewport(mediaQuery.matches);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileViewport) {
+      if (requestCloseRef.current === requestClose) requestCloseRef.current = null;
+      return undefined;
+    }
     requestCloseRef.current = requestClose;
     return () => {
       if (requestCloseRef.current === requestClose) requestCloseRef.current = null;
     };
-  }, [requestClose, requestCloseRef]);
+  }, [isMobileViewport, requestClose, requestCloseRef]);
 
   useEffect(() => {
     resetDragStyles();
   }, [pageKey, resetDragStyles]);
+
+  if (!isMobileViewport) return <>{children}</>;
 
   return (
     <div
