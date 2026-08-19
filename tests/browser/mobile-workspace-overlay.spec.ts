@@ -291,13 +291,14 @@ test.describe('mobile workspace overlay geometry', () => {
       if (!scrollArea || !thumb || !panel || !workspace) throw new Error('mobile scrollbar fixture is incomplete');
       const scrollAreaRect = scrollArea.getBoundingClientRect();
       const thumbRect = thumb.getBoundingClientRect();
+      const workspaceStyle = getComputedStyle(workspace);
       return {
         viewportRight: document.documentElement.clientWidth,
         scrollAreaRight: scrollAreaRect.right,
         thumbRight: thumbRect.right,
         panelWidth: panel.getBoundingClientRect().width,
         scrollAreaOverflow: getComputedStyle(scrollArea).overflow,
-        workspaceGutter: Number.parseFloat(getComputedStyle(workspace).getPropertyValue('--mobile-workspace-gutter')) || 0,
+        workspaceGutter: Number.parseFloat(workspaceStyle.paddingRight) || 0,
       };
     });
 
