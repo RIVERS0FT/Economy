@@ -1,77 +1,114 @@
-name: Finalize runner Chrome fallback
+name: Economy CI
 
 on:
   pull_request:
+  push:
+    branches-ignore:
+      - main
   workflow_dispatch:
 
+concurrency:
+  group: economy-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  finalize:
+  verify-head-ci-registration:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
     steps:
-      - name: Checkout target branch
-        uses: actions/checkout@v4
-        with:
-          ref: fix/playwright-runner-chrome-fallback
-          fetch-depth: 0
-
-      - name: Finalize design docs and restore CI
-        shell: bash
+      - name: Verify head push CI registration
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          set -euo pipefail
-          git fetch origin main --depth=1
           python3 - <<'PY'
-          from pathlib import Path
-          import subprocess
+          import json
+          import os
+          import time
+          import urllib.request
 
-          def replace_once(path, old, new):
-              file = Path(path)
-              text = file.read_text()
-              if old not in text:
-                  raise SystemExit(f'missing patch anchor in {path}: {old[:120]!r}')
-              file.write_text(text.replace(old, new, 1))
+          token = os.environ['GH_TOKEN']
+          head_sha = os.environ['HEAD_SHA']
+          repository = os.environ['REPOSITORY']
+          headers = {
+              'Accept': 'application/vnd.github+json',
+              'Authorization': f'Bearer {token}',
+              'X-GitHub-Api-Version': '2022-11-28',
+          }
 
-          replace_once(
-              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
-              'CI 和主部署都必须安装固定 Chromium并执行 `npm run test:browser`；',
-              'CI 和主部署都必须使用固定 Playwright 版本执行 `npm run test:browser`；GitHub hosted runner 存在可执行 Chrome 时必须通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 直接复用 runner 本地浏览器，仅在 runner 没有可用 Chrome 时才执行固定 Playwright Chromium 下载兜底。浏览器 CDN 不得成为 CI 或部署的必需单点依赖，也不得以 CDN 不可达为理由跳过浏览器回归；',
-          )
-          replace_once(
-              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
-              '`main` 分支由 `.github/workflows/deploy.yml` 对实际待部署提交重新执行 `npm ci`、`npm run build`、固定 Chromium 安装和 `npm run test:browser`；构建与浏览器回归都成功后才允许上传、安装并执行线上验证。',
-              '`main` 分支由 `.github/workflows/deploy.yml` 对实际待部署提交重新执行 `npm ci`、`npm run build`、浏览器运行时准备和 `npm run test:browser`；构建与浏览器回归都成功后才允许上传、安装并执行线上验证。浏览器运行时准备必须优先探测 GitHub runner 已有的 `google-chrome`／`google-chrome-stable`／`chromium`／`chromium-browser`，命中后通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 交给 Playwright；只有全部本地候选都不存在时才允许调用 Playwright Chromium 下载。',
-          )
+          runs = []
+          for _ in range(12):
+              url = f'https://api.github.com/repos/{repository}/actions/runs?head_sha={head_sha}&event=push&per_page=20'
+              request = urllib.request.Request(url, headers=headers)
+              with urllib.request.urlopen(request) as response:
+                  runs = json.load(response).get('workflow_runs', [])
+              if runs:
+                  break
+              time.sleep(5)
 
-          docs_index = Path('docs/README.md')
-          text = docs_index.read_text()
-          if '78. CI 与主部署的浏览器回归不得把 Playwright 浏览器 CDN 作为必需单点依赖' not in text:
-              rule = '78. CI 与主部署的浏览器回归不得把 Playwright 浏览器 CDN 作为必需单点依赖：必须优先复用 GitHub runner 已安装的 Chrome／Chromium，并通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 交给 Playwright；只有 runner 没有可用浏览器时才执行固定 Chromium 下载兜底。浏览器测试仍是硬门禁，浏览器 CDN 地域不可达、403 或临时故障不得成为跳过 `npm run test:browser` 的理由。该规则归属 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，由 `scripts/prepare-playwright-chromium.sh` 与 `scripts/verify-runtime-reliability.mjs` 防回退。\n\n'
-              anchor = '- 游戏端与管理员端桌面顶部工作栏必须横跨侧栏列与内容列；'
-              if anchor not in text:
-                  raise SystemExit('docs README insertion anchor missing')
-              docs_index.write_text(text.replace(anchor, rule + anchor, 1))
-
-          main_ci = subprocess.check_output(
-              ['git', 'show', 'origin/main:.github/workflows/ci.yml'],
-              text=True,
-          )
-          old = '''      - name: Install Chromium
-                run: npx playwright install --with-deps chromium'''.replace('                ', '        ')
-          new = '''      - name: Prepare Chromium
-                run: bash scripts/prepare-playwright-chromium.sh'''.replace('                ', '        ')
-          if old not in main_ci:
-              raise SystemExit('main CI Chromium anchor missing')
-          Path('.github/workflows/ci.yml').write_text(main_ci.replace(old, new, 1))
-
-          Path('.github/workflows/patch-runner-chrome.yml').unlink(missing_ok=True)
-          Path('scripts/apply-runner-chrome-fallback.py').unlink(missing_ok=True)
+          print(json.dumps({
+              'head_sha': head_sha,
+              'push_runs': [
+                  {
+                      'id': run['id'],
+                      'run_number': run['run_number'],
+                      'status': run['status'],
+                      'conclusion': run['conclusion'],
+                  }
+                  for run in runs
+              ],
+          }, ensure_ascii=False, indent=2))
+          if not runs:
+              raise SystemExit('No push workflow run found for the pull request head SHA')
           PY
 
-          git config user.name 'RIVERSOFT'
-          git config user.email '105160096+RIVERS0FT@users.noreply.github.com'
-          git add -A
-          git diff --cached --check
-          git commit -m 'document runner Chrome browser gate'
-          git push origin HEAD:fix/playwright-runner-chrome-fallback
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and test
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build-test.log
+
+      - name: Prepare Chromium
+        run: bash scripts/prepare-playwright-chromium.sh
+
+      - name: Test browser runtime
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:browser 2>&1 | tee browser-test.log
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-test-artifacts
+          path: |
+            build-test.log
+            browser-test.log
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 3
