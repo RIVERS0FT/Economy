@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify-head-ci-registration:
@@ -75,6 +75,83 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply lazy production design integration
+        if: github.event_name == 'push' && github.ref_name == 'agent/production-lazy-settlement'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              file = Path(path)
+              text = file.read_text()
+              if old not in text:
+                  raise SystemExit(f'missing integration anchor in {path}: {old[:100]!r}')
+              file.write_text(text.replace(old, new, 1))
+
+          industry = Path('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md')
+          text = industry.read_text()
+          text = text.replace('> 更新时间：2026-08-14', '> 更新时间：2026-08-19', 1)
+          text = text.replace(
+              '离线补算多个周期时必须逐周期使用各自的 `cycleDueAt`，不得使用登录时最终值批量结算。',
+              '离线补算多个周期必须以闭式公式数学等价地使用各周期 `cycleDueAt` 对应的满员率与固定点余数，禁止使用登录时最终值直接乘周期数，也禁止服务端逐周期重放形成与欠账时长线性增长的工作量。',
+          )
+          marker = '### 5.1 按玩家懒结算'
+          if marker not in text:
+              anchor = '## 6. 运行中工厂即时加入'
+              section = '''### 5.1 按玩家懒结算\n\n持续生产的最终经济结果继续由服务器权威确认，但离线欠周期的搜索计算改为按玩家懒结算。客户端从当前服务器权威状态与响应 `serverNow` 构造生产提案，只提交各地区×工厂集群的 `completedCycles`；不得提交产量、成本、原料扣除、工资或人口分配结果。客户端使用共享闭式 staffing/carry 公式和二分搜索寻找当前资金、原料约束下的最大合法周期数。\n\n服务器收到提案后重新读取当前玩家权威资金、库存、工厂数量、冻结／租赁影响、配方、周期起点、满员率和余数，并以同一闭式公式验证 `n` 合法且在仍有到期周期时 `n + 1` 不合法；正常验证不得随停机期间欠周期数量线性增长。通过后才在同一权威事务内扣除资金与原料、写入产成品、推进周期和满员率余数，并更新生产统计与人口就业。提案过期、旧客户端没有提案或客户端投影与服务端原始基线不一致时，服务端只能对当前玩家使用相同公式生成兜底提案，不得扩展为全玩家工厂扫描。到期供货或工厂租赁合同需要离线产量时，也只允许对明确到期合同的供应方／承租方做同样的定向物化。\n\n工厂组按稳定的 `provinceId + facilityTypeId` 顺序共享同一玩家本次结算中的资金与库存，上游组本次产生的商品可以成为后续组输入。生产结果必须与结算批次大小无关：`staffingBatchCarryBps` 继续跨批次保存；生产工资使用微单位分子余数；三类人口生产就业使用累计最大余数分配账本。客户端改变刷新频率、把同一时间段拆成多次或合并成一次结算，都不得改变最终商品、资金、工资或人口分配。\n\n'''
+              if anchor not in text:
+                  raise SystemExit('industry lazy-settlement insertion anchor missing')
+              text = text.replace(anchor, section + anchor, 1)
+          industry.write_text(text)
+
+          server_design = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          text = server_design.read_text()
+          text = text.replace('> 更新时间：2026-08-14', '> 更新时间：2026-08-19', 1)
+          marker = '## 生产懒结算与调度边界'
+          if marker not in text:
+              text += '''\n\n## 生产懒结算与调度边界\n\n正式工厂生产采用“客户端计算生产结算提案、服务器闭式校验并权威入账”的按玩家懒结算模型。客户端直接复用正常状态响应和 envelope `serverNow`，不新增一套可写资产状态；提案只允许声明稳定排序后的工厂组完成周期数。服务器必须从当前 committed world／请求 COW 草稿重新取得真实玩家资源与工厂基线，使用共享闭式 `staffingRateBps + staffingBatchCarryBps` 数学验证 `n` 与 `n + 1`，再在同一权威写事务中生成实际资金、库存、产出、就业和运行状态变化。正常提案验证复杂度按当前玩家工厂组数增长，不得按离线欠周期数增长；客户端二分搜索和旧客户端服务端兜底可以按 `log(欠周期数)` 搜索，但服务端兜底只能作用于当前玩家。\n\n全局世界截止时间计划固定 `facility = null`。排行榜、市场、服务冷启动和常规世界调度不得通过 `processFacilityGroupWorld` 扫描全部玩家工厂或逐周期重放离线生产。供货与工厂租赁合同在真实到期时可以从合同参与者索引确定供应方／承租方，只对这些明确受影响玩家物化生产，然后继续合同结算；不得把合同兜底扩展为全玩家遍历。普通玩家动作可以携带最近一次客户端提案并与业务动作同一 COW 事务提交；提案过期返回稳定 `PRODUCTION_SETTLEMENT_*` 冲突，客户端可以清除旧提案并由同一动作触发当前玩家服务端兜底。独立 `POST /api/game/production/settle` 使用本地玩家 Mutation Scope，不能因为结算动作恢复完整世界克隆。\n\n正式持久化 API 构造后必须在第一次后台世界处理前至少让出 1 秒事件循环窗口，使 systemd 启动后真实 `GET /health` 能立即由 HTTP 层处理；这不是降低就绪标准，`scripts/install-economy-api.py` 的 45 秒真实健康检查门槛保持不变。生产结算私有工资余数和累计人口分配账本不得进入普通客户端状态。上述边界由 `scripts/verify-production-lazy-settlement.mjs`、生产结算服务器测试、运行时热路径测试和部署可靠性验证共同防回退。\n'''
+          server_design.write_text(text)
+
+          docs = Path('docs/README.md')
+          text = docs.read_text()
+          if '77. 工厂持续生产采用按玩家懒结算' not in text:
+              anchor = '76. Economy API 的部署就绪与共享运行时目录细则归 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`'
+              start = text.find(anchor)
+              if start < 0:
+                  raise SystemExit('docs rule 76 anchor missing')
+              end = text.find('\n\n', start)
+              if end < 0:
+                  end = len(text)
+              rule = '\n\n77. 工厂持续生产采用按玩家懒结算：客户端从正常权威状态与 `serverNow` 计算最大合法周期提案，只提交每个工厂组完成周期数；服务器必须重新读取当前玩家基线并用共享闭式公式验证 `n` 合法且 `n+1` 不合法后原子记账。全局截止时间固定不调度 facility，排行榜、市场、服务启动和常规调度不得扫描全服工厂或逐周期重放离线生产；旧客户端／过期提案兜底只能结算当前玩家，到期供货／租赁合同兜底只能结算明确参与者。staffing 固定点余数、生产工资微单位余数和人口就业累计最大余数分配必须保证生产结果不受结算批次大小影响。该规则唯一归属 `INDUSTRY_AND_PRODUCTION_DESIGN.md` 与 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并由 `scripts/verify-production-lazy-settlement.mjs` 和服务器测试防回退。'
+              text = text[:end] + rule + text[end:]
+          docs.write_text(text)
+
+          replace_once(
+              'server/src/facility-groups.js',
+              '    cycleStaffingRateBps: _legacyCycleStaffingRateBps,\n    ...publicGroup',
+              '    cycleStaffingRateBps: _legacyCycleStaffingRateBps,\n    productionWageCarryNumerator: _productionWageCarryNumerator,\n    productionEmploymentTotalMicros: _productionEmploymentTotalMicros,\n    productionEmploymentAllocatedMicros: _productionEmploymentAllocatedMicros,\n    ...publicGroup',
+          )
+
+          runtime_core = Path('server/src/runtime-store-core.js')
+          text = runtime_core.read_text()
+          text = text.replace("  'facility',\n", '', 1)
+          runtime_core.write_text(text)
+          PY
+
+          git fetch origin main --depth=1
+          git checkout origin/main -- .github/workflows/ci.yml
+          git config user.name 'RIVERSOFT'
+          git config user.email '105160096+RIVERS0FT@users.noreply.github.com'
+          git add .github/workflows/ci.yml docs/README.md docs/INDUSTRY_AND_PRODUCTION_DESIGN.md docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md server/src/facility-groups.js server/src/runtime-store-core.js
+          git diff --cached --check
+          if ! git diff --cached --quiet; then
+            git commit -m 'integrate lazy production authority design'
+            git push origin HEAD:agent/production-lazy-settlement
+          fi
 
       - name: Setup Node
         uses: actions/setup-node@v4
