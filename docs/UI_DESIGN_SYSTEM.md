@@ -3,7 +3,7 @@
 > 状态：当前视觉、共享组件、响应式与可访问性实现基线
 > 适用项目：`RIVERS0FT/Economy`
 > 当前平台：网页端
-> 更新时间：2026-08-17
+> 更新时间：2026-08-19
 
 产品和页面职责分别以 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；应用外壳几何和玻璃材质以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。
 
@@ -47,7 +47,7 @@
 | `src/styles/auth.css` | 登录布局、动态视口与认证自动填充兼容例外 |
 | `src/styles/card-system.css` | 卡片圆角映射 |
 | `src/styles/desktop-sidebar.css` | 桌面侧栏宽度、折叠、导航固有行高、无角标按钮和可访问状态 |
-| `src/styles/mobile-detail-sheet.css` | 移动工厂、研发详情与市场自动交易设置共享的根级 Dialog 遮罩、圆角、拖动、滚动区、固定底栏、安全区、摘要几何和动效最终权威 |
+| `src/styles/mobile-detail-sheet.css` | 移动一级 Page Sheet 与工厂、研发详情／市场自动交易等二级 Detail Sheet 的共享圆角、拖动、滚动区、安全区和动效最终权威；一级 Sheet 留在 workspace，只有二级 Detail 使用根级 Dialog 遮罩 |
 | `src/styles/scrollbars.css` | 全局覆盖式滚动条宽度、颜色、层级、显隐与移动页面／根级 Dialog 安全边缘轨道 |
 | `src/styles/performance.css` | 渲染性能保护和触控惯性；不得阻断页面或虚拟列表的纵向滚动链 |
 | `src/styles/frosted-glass-surfaces.css` | 状态栏、认证卡片、移动底栏与玩家 `workspaceCard` 的统一纯 CSS 毛玻璃材质和几何 |
@@ -62,6 +62,7 @@
 业务页面优先使用：
 
 - `PageLayout`
+- `MobileWorkspacePageSheet`
 - `MobileWorkspaceDetailSheet`
 - `MobileDetailSummary`
 - `Panel`
@@ -88,6 +89,8 @@
 - `FileInput`
 - `InputGroup`
 - `EconomyChart`
+
+`MobileWorkspacePageSheet` 与 `MobileWorkspaceDetailSheet` 必须共同复用 `useMobileWorkspaceSheetDrag` 作为唯一向下拖动、速度判定、回弹、关闭和 reduced-motion 内核；业务页面与详情组件不得复制第二套 Sheet 手势状态机。
 
 `PagePanel` 是新增玩家端一级卡片的唯一 React 入口，固定复用 `Panel`、`.widget` 与 `.ui-primary-surface`。现有 `Panel className="widget ..."` 由兼容桥自动补充 `.ui-primary-surface`；建筑页和排行页尚未迁移的旧一级卡片类只允许在 `primary-surfaces.css` 中作为兼容入口，不得在业务 CSS 中重新定义外层 padding。
 
@@ -127,9 +130,11 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 - 复杂页面允许把若干紧密关联模块放进一个页面专属网格或组合容器，再把该容器作为 `.ui-page-stack` 的一个直接子元素；不得为特殊页面增加 `disableSpacing`、零间距开关或平行页面外壳。
 - `scripts/verify-page-section-spacing.mjs` 必须扫描全部 `src/pages/*Page.tsx`、管理员入口、共享组件、最终 CSS、权威设计和浏览器回归；除唯一地图工作台例外外，新增正式页面未使用 `PageLayout`，或地图页恢复 `PageLayout`／缺少 `.province-map-page`，或业务样式重定义 `.ui-page-stack`、真实一级几何间距不一致时必须阻止构建。
 
-### 3.1.1 登录后根级 Dialog
+### 3.1.1 登录后根级 Dialog 与移动 Page Sheet
 
-普通 Tooltip、Popover、菜单和不应覆盖应用 Chrome 的业务浮层继续使用 `.workspace-floating-layer`，不得与桌面顶部状态栏／管理员工作栏、桌面侧栏或移动底栏重叠。必须覆盖完整移动视口的模态业务详情统一使用 `SignedInShell` 唯一 `.workspace-dialog-layer` 根级 Dialog 层；该根位于 Chrome 之后、保持开放采样链并只让实际 Dialog 恢复指针事件。移动工厂详情、移动研发详情与市场自动交易设置是当前批准用途，必须共同复用 `MobileWorkspaceDetailSheet`，由 `src/styles/mobile-detail-sheet.css` 唯一控制遮罩、圆角、最大高度、拖动、页面滚动锁、焦点限制、唯一 `ScrollArea`、固定底栏和安全区；工厂与研发详情首区共同复用 `MobileDetailSummary`，市场自动交易设置复用统一商品选择器、采购／出售页签和既有仓库表单信息层级，并把原子保存动作放在共享固定底栏。页面业务 CSS 只能定义正文内容和按钮语义，不得重新定义根级 Sheet 几何、滚动区内边距、sticky 底栏或第二套 Portal；详情内富内容列表继续使用同一根并位于遮罩上方，不得追加到 `document.body`。
+移动工作区只允许两级 Sheet 语义。`MobileWorkspacePageSheet` 是不大于 `720px` 时除纯地图外玩家页面的移动一级 Page Sheet：它必须留在普通 workspace 页面层、位于常驻状态栏与移动底栏之间，继续承载原页面 `PageLayout` 的固定标题和正文 `ScrollArea`，不得进入 `.workspace-dialog-layer`，不得启用模态遮罩、焦点陷阱或全局页面滚动锁，也不得压暗常驻地图。业务页面之间切换只替换一级 Sheet 内的页面内容；关闭、选择纯地图或正文顶部的有效向下拖动共用收起流程。
+
+普通 Tooltip、Popover、菜单和不应覆盖应用 Chrome 的业务浮层继续使用 `.workspace-floating-layer`。必须覆盖完整移动视口的模态业务详情统一作为二级 Detail Sheet 使用 `SignedInShell` 唯一 `.workspace-dialog-layer` 根级 Dialog 层；该根位于 Chrome 与移动一级 Page Sheet 之上、保持开放采样链并只让实际 Dialog 恢复指针事件。移动工厂详情、移动研发详情与市场自动交易设置必须共同复用 `MobileWorkspaceDetailSheet`，由 `src/styles/mobile-detail-sheet.css` 唯一控制遮罩、圆角、最大高度、页面滚动锁、焦点限制、唯一 `ScrollArea`、固定底栏和安全区；工厂与研发详情首区共同复用 `MobileDetailSummary`，市场自动交易设置复用统一商品选择器、采购／出售页签和既有仓库表单信息层级，并把原子保存动作放在共享固定底栏。一级 Page Sheet 与二级 Detail Sheet 的拖动、速度阈值、回弹和 reduced-motion 只能来自 `useMobileWorkspaceSheetDrag`，页面业务 CSS 只能定义正文内容和按钮语义，不得重新定义根级 Sheet 几何、滚动区内边距、sticky 底栏或第二套 Portal；详情内富内容列表继续使用同一根并位于遮罩上方，不得追加到 `document.body`。
 
 ### 3.2 输入方式与共享交互状态
 
@@ -392,7 +397,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 
 ### 8.1 美国本土州级经营地图
 
-- 地图使用 `StrategicWorkspace` 内唯一 `UsMainlandMap` 和共享 `EconomyChart` 的 ECharts Geo/Map SVG，不得保留页面级第二个地图实例、手绘 `.province-map-silhouette`、固定百分比坐标或覆盖式地区按钮。地图按需注册 `MapChart` 与 `GeoComponent`，精确使用 `us-atlas@3.0.1` 和 `topojson-client@3.1.0`；运行时把州 TopoJSON 转为 GeoJSON，只注册与共享目录 `mapName` 一一对应的连续 48 州，不显示阿拉斯加、夏威夷、华盛顿特区或海外领地附图。桌面与移动初始视图统一使用固定投影比例的等比 Contain 相机，完整州界轮廓保留在视口内，根地图舞台背景继续铺满窗口；窗口变化重新计算 `layoutSize`，州点击、地区选择和镜头编码只使用 `merge` 更新且不得重设 `center`／`zoom`，任何情况下都不得拉伸或挤压州界。根 `.application-map-layer` 是唯一安全边界，地图舞台、图表宿主和 SVG 画布保持 `overflow: visible`、零内边距、零边框、零圆角、零轮廓和无阴影，不得由工作区或内部图表层生成黑色矩形裁切。
+- 地图使用 `StrategicWorkspace` 内唯一 `UsMainlandMap` 和共享 `EconomyChart` 的 ECharts Geo/Map SVG，不得保留页面级第二个地图实例、手绘 `.province-map-silhouette`、固定百分比坐标或覆盖式地区按钮。地图按需注册 `MapChart` 与 `GeoComponent`，精确使用 `us-atlas@3.0.1` 和 `topojson-client@3.1.0`；运行时把州 TopoJSON 转为 GeoJSON，只注册与共享目录 `mapName` 一一对应的连续 48 州，不显示阿拉斯加、夏威夷、华盛顿特区或海外领地附图。桌面与移动初始视图统一使用固定投影比例的等比 Contain 相机：按根地图层真实宽高动态计算 `layoutSize`，让美国本土完整轮廓始终位于视口内并保留少量安全边距；根地图舞台背景继续铺满窗口，不得通过 `scaleX`／`scaleY`、非等比 SVG 变换或修改 `aspectScale` 拉伸、挤压州界。`.application-map-layer` 继续作为根级安全边界；地图舞台、图表宿主和 SVG 画布保持 `overflow: visible`、零边框、零圆角、零轮廓、无阴影和零图表内边距，不得由工作区、卡片或内部图表层形成黑色矩形裁切。地图容器尺寸变化时，现有 ECharts 实例必须先 `resize`，再按新宽高重新计算 Contain `layoutSize` 并把基础 `center`／`zoom` 归中为 `null`／`1`；`scaleLimit.min` 固定为 Contain 基线。用户主动平移和放大仍由 ECharts `roam` 与 `scaleLimit` 约束。州面点击、地区选择高亮、地图镜头编码和正式页面切换只能合并更新数据或选中态，绝不能重新应用基础相机、改变用户当前 `center`／`zoom`、卸载或重新创建地图；只有首次图表就绪与容器真实尺寸变化允许应用基础 Contain 相机。`MapPage` 不再拥有 `UsMainlandMap` 实例，只保留透明 `.province-map-page` 路由占位，不得渲染左上“战略经营地图”卡片、左下图例／来源卡或“当前经营地区”卡片。每个州面支持鼠标或触摸点击；单击后同时更新经营州并打开 `province` 上下文页，该页打开期间显示唯一州面高亮。未解锁州在地图上使用灰显视觉并在 Tooltip 标注“未解锁”，点击后同样打开州级上下文页并展示解锁面板。关闭州级页或通过导航进入其他页面后立即清除地图视觉高亮，但保留经营州供市场、生产与后续写操作使用；该分离不得清空资产、表单草稿或服务器权威地区。地图州面是玩家唯一地区切换入口；市场、生产和其他业务页面不得渲染州级地区下拉框、按钮组或第二套选择器，只读取并显示地图当前选择。当地库存、工厂和订单详情继续在各自正式业务页面展示，不在地图页恢复重复经营详情卡。
 - 地区默认、悬停、当前、资产、工业、市场和异常语义使用区域填充、边界、文字、Tooltip 和五种镜头共同表达；当前地区由 ECharts 单选状态与外部 `selectedProvinceId` 双向同步。镜头状态只属于 `GameShell` 客户端视觉上下文，不得写入服务器或更换地区。地图表面支持鼠标／触摸点击、拖动和最高 8 倍受限缩放；纵向窄屏必须使用 ECharts `media` 选项按宽度适配美国本土轮廓，并隐藏普通常驻州缩写，只在选中或悬停时显示标签，避免在小地图上重叠。ECharts 容器提供“美国本土州级经营地图”可访问名称、当前地区摘要和点击州面切换提示；业务页面不得恢复州级地区下拉框。
 - 玩家端采用类似大战略游戏的常驻地图工作台：全应用根节点严格按图片层 `0`、氛围层 `10`、地图层 `20`、UI 层 `30` 堆叠。`.application-map-layer` 通过同一个 Portal 持有唯一 `StrategicMapStage` 和 `StrategicMapLensBar` 两个直接子节点并铺满视口，地图舞台／镜头栏在该层内使用 `0`／`1`，整个地图层仍低于页面 UI 层；侧栏与页面共同位于 UI 层唯一 `workspaceCard`。概览、州级上下文、市场、建筑、设置使用 `building` 左侧毛玻璃面板，共享 `56rem` 内容目标且包含侧栏的主卡片不得超过 `calc(100vw / 3)`，并给屏幕右侧公开事件日志预留空间；研发、拍卖、合同、银行、排行榜、商店使用 `fullscreen` 占满可用区域，排行榜与商店保持相同宽度且不挂载事件栏，`map` 只保留侧栏轨道。桌面状态栏、主卡片和事件右栏统一使用 `8px` 屏幕边距，状态栏与页面之间禁止重复叠加沟槽；底部镜头栏位于页面层下方且不占用页面高度。独立事件右栏高于地图但不与主卡片相交，通知安全浮层始终高于二者。打开页面或通知面板不得在地图之上添加深色遮罩，通知点击捕获层必须透明。不大于 `720px` 时地图继续铺满视口，右栏和镜头栏隐藏，其他业务面板由卡片内部唯一页面滚动视口承担纵向空间。地图州面点击是唯一地区切换入口：点击后打开隐藏 `ProvincePage`，其 `PageLayout` 标题使用州全称，标题下四项分段控件使用 `tablist`／`tab`／`tabpanel` 与至少 `44px` 触控高度，依次嵌入概览、市场、建筑和仓库现有内容；离开该页只清除地图视觉高亮，经营州继续供业务状态使用。其他业务页面不得创建地区下拉框或平行选择状态。
 - `.application-map-layer`、`.application-ui-layer` 与 `.workspace-strategic-chrome` 必须保持 `isolation:auto`、`filter:none` 和 `transform:none`，不得成为第二个全应用隔离根；UI 内部的页面、Chrome、普通浮层和业务 Dialog 仍全部属于 UI 层，不得创建第五个全局层。业务面板可使用半透明背景和 `backdrop-filter`，但不得复制根级摄影氛围、创建第二个地图背景或遮盖状态栏玻璃采样链。
@@ -413,7 +418,8 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 使用可滚动横向区域或自适应自动列；
 - 不得使用固定项目数量的 `repeat(6, ...)`；
 - 不得在 JSX 中硬编码 6 个商品或工厂；
-- 目录为空时显示明确空状态；
+- 新商品和工厂应在不修改页面结构的情况下自动出现；
+- 空目录必须显示明确空状态；
 - 标签文本过长时保持可访问名称，不得让页面整体横向溢出。
 
 ## 10. 概览布局
@@ -448,7 +454,6 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 当前工厂详情顺序固定为“移动把手（桌面无）→ 工厂信息 → 满员率 → 生产设置 → 生产结算 → 经营诊断 → 市场入口”。仅工厂信息内部允许纵向插画与主信息两列；其余区块必须按 DOM 自上而下排列。满员率使用无独立圆角和背景的状态带，只显示百分比、方向和进度条。
 - 玩家可见的“生产产物”与“作业制度”固定使用同一个“生产设置”区和共享 `RichSelectInput` 的 `production-config` 生产方案槽；桌面和移动详情都固定同一行 Auto 槽横排，移动端在 `320px` 及以上不得换行。两个字段均按自身 Desired Size 从左向右连续排列，第二项紧跟第一项并只由统一 `gap` 分隔，不得使用两等分 `1fr`、百分比或 `flex-grow` 制造 Fill 槽。两个收起触发按钮固定为正方形并按内容宽度布局，只显示当前产物／作业制度图片，不显示名称、参数摘要或下拉箭头，图片本身不得带独立黑色底板或图片槽边框；字段和触发按钮命中区域都不得扩展到父容器剩余空间；展开菜单才显示候选名称、结构化投入／产出、周期／成本信息，作业制度候选还必须相对当前方案标示周期、成本与产量变化。不得恢复收起态文字详情、箭头、Fill 轨道、字段／按钮全宽拉伸、剩余空白命中或作业制度说明。
 - 工厂生产公式固定采用双列顶层布局：左侧为输入组合区，右侧为输出区；输入与输出物资槽顶部对齐。时间与成本位于双列物资区下方的同一条操作数据带，中间使用竖向分隔线；多输入或多输出内部允许换行，时间与成本不得回到输入输出之间的独立中列。公式、操作数据带和进度共同组成“生产结算”；生产进度位于数据带下方，并且是生产结算最后一个可见元素；单厂平均利润只属于工厂信息区。
-
 - 输入和输出项目统一使用“商品图片、生产数量、仓库 Icon、当前可用库存”的单行结构；多项物资只通过独立物资槽与间距分隔，不显示 `+` 或其他连接字符。输入与输出均显示当前可用库存，输出库存不得改成预计入库后的预测值。商品位置只能调用 `ProductArtwork` 加载 128px PNG，不得渲染 `ProductIcon` SVG；仓库等功能语义继续使用统一功能 Icon，不得在生产详情中手写 SVG 标记。
 - 生产结算中的每个投入／产出物资槽整体使用原生按钮语义并可直接打开对应商品市场；点击目标覆盖完整物资槽，继续只显示商品图片、生产数量、仓库 Icon 与当前可用库存，不新增“查看市场”、箭头或外链 Icon。按钮必须复用 `data-ui-interactive="surface"` 的统一 hover／active／`:focus-visible` 反馈，并提供包含商品名、生产数量和库存的 `aria-label`；不得把承载可交互物资槽的 `.facility-formula-visual` 整体设为 `aria-hidden`。
 - 从生产结算商品物资槽进入市场必须复用统一市场资产选择语义，以 `commodity + productId` 打开对应商品；不得根据生产配方语义自动推断采购／出售方向，数量和价格继续按统一市场资产切换的订单草稿初始化规则处理，不得自动提交订单，也不得改写建筑页建设工厂类型、数量、配方、作业制度或任何服务器权威生产状态。
@@ -555,6 +560,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 恢复同时铺开全部完整工厂卡、四列完整详情网格或瀑布流，或让市场入口离开详情底部；
 - 把完整状态从工厂名称下方移回独立右侧操作区、把开关移出标题区，或把三项数量摘要改为纵向排列；
 - 恢复移动详情顶部关闭按钮、让对话框没有明确初始焦点，或让点击遮罩和 `Escape` 绕过收起动画直接卸载；
+- 让移动一级 Page Sheet 进入 `.workspace-dialog-layer`、增加模态遮罩／焦点陷阱、遮挡状态栏或移动底栏，或为不同一级页面复制第二套拖动状态机；
 - 恢复工厂周期、产量、成本、原料四格规格区；
 - 在生产公式中恢复独立箭头元素、Emoji 周期或成本图标、可见“周期”标签或可见“运行成本”标签；
 - 删除 `CycleIcon`、`CreditsIcon`、`WarehouseIcon` 或用平行 SVG 文件替代统一图标组件；
