@@ -240,7 +240,7 @@
   }
 
   .mobile-workspace-page-sheet .page-card-scroll {
-    overscroll-behavior-y: contain;
+    overscroll-behavior-y: auto;
     touch-action: pan-y;
   }
 
