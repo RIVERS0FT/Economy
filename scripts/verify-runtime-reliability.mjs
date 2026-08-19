@@ -14,6 +14,7 @@ for (const path of [
   'playwright.config.ts',
   'runtime-test.html',
   'scripts/check-server-syntax.mjs',
+  'scripts/install-economy-api.py',
   'scripts/verify-production-deployment.sh',
   'tests/browser/runtime-harness.tsx',
   'tests/browser/runtime.spec.ts',
@@ -109,6 +110,18 @@ for (const text of [
 ]) requireText('.github/workflows/deploy.yml', text);
 
 for (const text of [
+  'SERVICE_HEALTH_URL = "http://127.0.0.1:3002/health"',
+  'SERVICE_READY_TIMEOUT_SECONDS = 45',
+  'def wait_for_service_ready()',
+  'ECONOMY_API_SERVICE_READY_RETRY',
+  'ECONOMY_API_SERVICE_READY_TIMEOUT',
+  'ECONOMY_API_SERVICE_DIAGNOSTICS_BEGIN',
+  '["systemctl", "status", SERVICE_NAME, "--no-pager", "--full"]',
+  '["journalctl", "-u", SERVICE_NAME, "-n", "80", "--no-pager"]',
+  'wait_for_service_ready()',
+]) requireText('scripts/install-economy-api.py', text);
+
+for (const text of [
   'trap report_unexpected_failure ERR',
   'ECONOMY_DEPLOY_VERIFY_START',
   'ECONOMY_DEPLOY_VERIFY_OK',
@@ -116,6 +129,12 @@ for (const text of [
   'verify_remote',
   'verify_public',
   'database-incremental',
+  'API_HEALTH_MAX_ATTEMPTS=15',
+  'ECONOMY_API_HEALTH_RETRY',
+  'ECONOMY_API_HEALTH_RETRY_EXHAUSTED',
+  'ECONOMY_API_HEALTH_DIAGNOSTICS_BEGIN',
+  'systemctl status riversoft-economy-api.service --no-pager --full',
+  'journalctl -u riversoft-economy-api.service -n 80 --no-pager',
 ]) requireText('scripts/verify-production-deployment.sh', text);
 
 const deployWorkflow = read('.github/workflows/deploy.yml');
@@ -147,6 +166,10 @@ for (const [path, text] of [
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '禁止重新扫描或拼接成功步骤日志'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得再为单次构建失败创建临时诊断工作流'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '服务器语法检查由 Node 枚举'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '服务安装完成条件必须包含真实 `/health` 就绪'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '最长 45 秒'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'systemctl status'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'journalctl'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得显示没有实际运行效果的“界面音效”或“画面性能”控件'],
   ['docs/README.md', '运行时可靠性、依赖锁、浏览器测试'],
   ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '礼品码列表和兑换记录可能持续增长'],
@@ -156,4 +179,4 @@ if (failures.length) {
   console.error(`运行时可靠性验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('依赖锁、CI 去重、失败步骤日志 Artifact、浏览器存储容错、管理员分页、验证码保留、限流清理和浏览器测试均符合当前设计。');
+console.log('依赖锁、CI 去重、失败步骤日志 Artifact、API 就绪、浏览器存储容错、管理员分页、验证码保留、限流清理和浏览器测试均符合当前设计。');
