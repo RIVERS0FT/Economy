@@ -5,6 +5,8 @@ PHASE="${1:-}"
 PUBLIC_IP="${2:-}"
 CURRENT_CHECK="bootstrap"
 FAILURE_REPORTED=0
+API_HEALTH_MAX_ATTEMPTS=15
+API_HEALTH_RETRY_DELAY_SECONDS=2
 
 report_unexpected_failure() {
   local status="$?"
@@ -56,8 +58,39 @@ check_runtime_node() {
   test -x /var/www/game/economy-api/runtime/bin/node
 }
 
+print_api_service_diagnostics() {
+  printf 'ECONOMY_API_HEALTH_DIAGNOSTICS_BEGIN\n' >&2
+  systemctl status riversoft-economy-api.service --no-pager --full >&2 || true
+  journalctl -u riversoft-economy-api.service -n 80 --no-pager >&2 || true
+  printf 'ECONOMY_API_HEALTH_DIAGNOSTICS_END\n' >&2
+}
+
 check_api_health() {
-  curl --fail --silent --show-error http://127.0.0.1:3002/health >/dev/null
+  local attempt=1
+  local status=1
+  while [ "$attempt" -le "$API_HEALTH_MAX_ATTEMPTS" ]; do
+    if curl --fail --silent --show-error \
+      --connect-timeout 2 \
+      --max-time 3 \
+      http://127.0.0.1:3002/health >/dev/null; then
+      if [ "$attempt" -gt 1 ]; then
+        printf 'ECONOMY_API_HEALTH_RECOVERED attempt=%s\n' "$attempt"
+      fi
+      return 0
+    else
+      status=$?
+    fi
+    printf 'ECONOMY_API_HEALTH_RETRY attempt=%s max_attempts=%s exit=%s\n' \
+      "$attempt" "$API_HEALTH_MAX_ATTEMPTS" "$status" >&2
+    if [ "$attempt" -lt "$API_HEALTH_MAX_ATTEMPTS" ]; then
+      sleep "$API_HEALTH_RETRY_DELAY_SECONDS"
+    fi
+    attempt=$((attempt + 1))
+  done
+  printf 'ECONOMY_API_HEALTH_RETRY_EXHAUSTED attempts=%s exit=%s\n' \
+    "$API_HEALTH_MAX_ATTEMPTS" "$status" >&2
+  print_api_service_diagnostics
+  return "$status"
 }
 
 check_formal_domain_nginx() {
