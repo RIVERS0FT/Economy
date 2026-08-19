@@ -62,12 +62,12 @@
 
 @keyframes strategic-page-unfold {
   from {
-    grid-template-columns: minmax(0, 0fr);
+    clip-path: inset(0 100% 0 0);
     opacity: 0;
   }
 
   to {
-    grid-template-columns: minmax(0, 1fr);
+    clip-path: inset(0);
     opacity: 1;
   }
 }
