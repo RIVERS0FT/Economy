@@ -44,6 +44,7 @@ assert.match(runtimeAction, /settleProductionForPlayerServerSide/, '旧客户端
 assert.match(runtimeAction, /action === 'settleProduction' \? 'setFacilityRecipe' : action/, '独立生产结算必须复用本地玩家 COW 范围而不是完整世界草稿');
 assert.match(routes, /\/api\/game\/production\/settle/, '必须保留独立生产结算动作接口');
 assert.match(clientSettlement, /createProductionSettlementClaim/, '浏览器必须从现有权威状态计算生产结算声明');
+assert.match(clientSettlement, /productionSettlementStaffingRateBps/, '客户端必须使用服务器原始 staffing 基线而不是 UI 投影值');
 assert.match(api, /pendingProductionSettlement/, '普通玩家动作必须能够携带最近一次客户端生产提案');
 assert.match(api, /PRODUCTION_SETTLEMENT_/, '过期或近似提案必须退回当前玩家服务器兜底而不是失败动作');
 for (const privateField of [

@@ -65,10 +65,15 @@ function groupBasis(
     productionAvailableCount: nonNegativeInteger(group.productionAvailableCount ?? group.participatingCount),
     participatingCount: nonNegativeInteger(group.participatingCount),
     cycleStartedAt: Number.isFinite(Number(group.cycleStartedAt)) ? Number(group.cycleStartedAt) : null,
-    // Public state contains the server-time staffing projection. It is exact for the common full-staffing case;
-    // a resource-bound approximation mismatch is rejected and retried through the current-player server fallback.
-    staffingRateBps: nonNegativeInteger(group.staffingRateBps ?? 10_000),
-    staffingUpdatedAt: Number.isFinite(Number(group.staffingUpdatedAt)) ? Number(group.staffingUpdatedAt) : serverNow,
+    // Settlement proposal math uses the raw authoritative staffing baseline while UI fields remain projected.
+    staffingRateBps: nonNegativeInteger(
+      group.productionSettlementStaffingRateBps ?? group.staffingRateBps ?? 10_000,
+    ),
+    staffingUpdatedAt: Number.isFinite(Number(group.productionSettlementStaffingUpdatedAt))
+      ? Number(group.productionSettlementStaffingUpdatedAt)
+      : Number.isFinite(Number(group.staffingUpdatedAt))
+        ? Number(group.staffingUpdatedAt)
+        : serverNow,
     staffingBatchCarryBps: nonNegativeInteger(group.staffingBatchCarryBps) % 10_000,
     cycleWageMultiplierBps: 10_000,
     recipe: {
