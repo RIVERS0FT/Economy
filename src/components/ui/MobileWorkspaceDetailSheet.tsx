@@ -42,14 +42,20 @@ export function MobileWorkspaceDetailSheet({
   footer,
 }: MobileWorkspaceDetailSheetProps) {
   const dialogLayer = useWorkspaceDialogLayer();
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const backdropRef = useRef<HTMLDivElement | null>(null);
   const scrollViewportRef = useRef<HTMLDivElement | null>(null);
   const backdropPointerIdRef = useRef<number | undefined>(undefined);
 
+  const closeFromSharedSheet = useCallback(() => {
+    onCloseRef.current();
+  }, []);
+
   const handleSheetProgress = useCallback((progress: number) => {
     const backdrop = backdropRef.current;
     if (!backdrop) return;
-    const backdropProgress = Math.max(0.3, progress);
+    const backdropProgress = progress <= 0 ? 0 : Math.max(0.3, progress);
     backdrop.style.setProperty('--mobile-detail-sheet-backdrop-progress', String(backdropProgress));
   }, []);
 
@@ -65,7 +71,7 @@ export function MobileWorkspaceDetailSheet({
     handleTouchEnd,
     cancelDrag,
   } = useMobileWorkspaceSheetDrag({
-    onClose,
+    onClose: closeFromSharedSheet,
     getScrollTop: () => scrollViewportRef.current?.scrollTop ?? 0,
     headerSelector: '.mobile-detail-sheet-header, .mobile-detail-sheet-drag-handle',
     contentSelector: '.mobile-detail-sheet-scroll',
