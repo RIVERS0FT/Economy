@@ -242,6 +242,7 @@ def main() -> int:
         release_dir / "src" / "registration.js",
         release_dir / "src" / "registration-store.js",
         release_dir / "src" / "email.js",
+        release_dir.parent / "shared" / "provinces.json",
     ]
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
