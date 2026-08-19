@@ -179,6 +179,8 @@ check('src/styles/strategic-game-shell.css', [
   '.game-shell .signed-in-shell__primary-card .desktop-sidebar::after {',
   'transition: width var(--strategic-page-open-motion);',
   '@keyframes strategic-page-unfold',
+  'clip-path: inset(0 100% 0 0);',
+  'clip-path: inset(0);',
   '.strategic-page-host .page-card-static {',
   '.strategic-economic-event-rail {',
   'z-index: 2;',
@@ -191,6 +193,7 @@ forbid('src/styles/strategic-game-shell.css', [
   '.strategic-map-stage--background',
   '.workspace-background-layer',
   '.page-card-scroll-area > .ui-scrollbar--vertical',
+  'grid-template-columns: minmax(0, 0fr);',
 ]);
 forbid('src/styles/game-shell-layout.css', [
   `left: 0;
@@ -339,7 +342,8 @@ check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '`--strategic-compact-page-width: 56rem`',
   '`calc(100vw / 3)`',
   '`FrostedGlassSurface workspaceCard`',
-  'keyed `0fr → 1fr`',
+  'keyed `clip-path: inset(0 100% 0 0) → inset(0)`',
+  '动画不得修改 `grid-template-columns`',
   '工作区安全浮层',
   '根级业务 Dialog',
 ]);
