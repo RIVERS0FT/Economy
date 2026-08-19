@@ -265,23 +265,24 @@ html[data-input-modality="touch"] *:not(.ui-scroll-area__viewport)::-webkit-scro
     overflow: visible;
   }
 
-  .page-scroll-area > .ui-scrollbar--vertical,
-  .page-card-scroll-area > .ui-scrollbar--vertical {
+  .page-scroll-area > .ui-scrollbar--vertical {
     position: fixed;
     top: var(--scrollbar-edge-offset);
+    right: env(safe-area-inset-right, 0px);
     bottom: var(--scrollbar-edge-offset);
     transform: none;
   }
 
-  .page-scroll-area > .ui-scrollbar--vertical {
-    right: env(safe-area-inset-right, 0px);
-  }
-
-  /* Mobile page cards carry backdrop filtering, which establishes a fixed
-   * positioning containing block in Chromium. Offset the card-owned rail by
-   * the strategic gutter so its visual thumb still lands on the viewport edge. */
+  /* Keep the page-card rail anchored to its ScrollArea root. Frosted card
+   * backdrop filtering creates a containing block for fixed descendants in
+   * Chromium, so a fixed rail drifts inward. Cross the workspace gutter and
+   * the card border explicitly while leaving the scroll viewport width intact. */
   .page-card-scroll-area > .ui-scrollbar--vertical {
-    right: calc(-1 * var(--strategic-panel-gap));
+    position: absolute;
+    top: 0;
+    right: calc(-1 * (var(--mobile-workspace-gutter) + 1px));
+    bottom: 0;
+    transform: none;
   }
 
   .mobile-detail-sheet-scroll-area > .ui-scrollbar--vertical {
