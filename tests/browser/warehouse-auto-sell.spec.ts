@@ -88,9 +88,10 @@ test.describe('warehouse and market online auto trade responsibilities', () => {
     await expect(map).toHaveAttribute('data-echarts-ready', 'true');
     await map.locator('svg text').filter({ hasText: /^CA$/ }).click();
 
-    const provinceTabs = page.getByRole('tablist', { name: '加利福尼亚州页面分区' });
-    await provinceTabs.getByRole('tab', { name: '仓库', exact: true }).click();
     await page.setViewportSize({ width: 390, height: 844 });
+    const provinceTabs = page.getByRole('tablist', { name: '加利福尼亚州页面分区' });
+    await expect(provinceTabs).toBeVisible();
+    await provinceTabs.getByRole('tab', { name: '仓库', exact: true }).click();
 
     const warehouse = page.locator('.province-warehouse-section');
     await expect(warehouse).toBeVisible();

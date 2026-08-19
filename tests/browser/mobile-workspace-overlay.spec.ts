@@ -9,6 +9,7 @@ test.describe('mobile workspace overlay geometry', () => {
     await expect(page.locator('.mobile-chrome-overlay')).toBeVisible();
     await expect(page.locator('.asset-bar')).toBeVisible();
     await expect(page.locator('.mobile-bottom-navigation')).toBeVisible();
+    await expect(page.locator('.mobile-workspace-page-sheet')).toBeVisible();
     await expect(page.locator('.overview-check-in-panel')).toBeVisible();
 
     const geometry = await page.evaluate(() => {
@@ -23,11 +24,14 @@ test.describe('mobile workspace overlay geometry', () => {
       const navigationSurface = document.querySelector<HTMLElement>(
         '.mobile-bottom-navigation .frosted-glass-surface',
       );
-      const strategicPagePanel = document.querySelector<HTMLElement>('.strategic-page-host > .page-content');
+      const pageSheet = document.querySelector<HTMLElement>('.mobile-workspace-page-sheet');
+      const strategicPagePanel = document.querySelector<HTMLElement>(
+        '.mobile-workspace-page-sheet-content > .page-content',
+      );
       const primaryPanel = document.querySelector<HTMLElement>('.overview-check-in-panel');
       if (!workspace || !pageOverlay || !chromeOverlay || !pageScrollArea || !pageScroll
         || !assetBar || !statusSurface || !navigation || !navigationSurface
-        || !strategicPagePanel || !primaryPanel) {
+        || !pageSheet || !strategicPagePanel || !primaryPanel) {
         throw new Error('mobile overlay geometry fixture is incomplete');
       }
 
@@ -49,6 +53,7 @@ test.describe('mobile workspace overlay geometry', () => {
       const navigationStyle = getComputedStyle(navigation);
       const navigationSurfaceStyle = getComputedStyle(navigationSurface);
       const primaryPanelStyle = getComputedStyle(primaryPanel);
+      const pageSheetStyle = getComputedStyle(pageSheet);
 
       return {
         workspace: rect(workspace),
@@ -59,6 +64,7 @@ test.describe('mobile workspace overlay geometry', () => {
         statusSurface: rect(statusSurface),
         navigation: rect(navigation),
         navigationSurface: rect(navigationSurface),
+        pageSheet: rect(pageSheet),
         strategicPagePanel: rect(strategicPagePanel),
         primaryPanel: rect(primaryPanel),
         workspaceDisplay: workspaceStyle.display,
@@ -73,6 +79,9 @@ test.describe('mobile workspace overlay geometry', () => {
         navigationPosition: navigationStyle.position,
         navigationRadius: navigationSurfaceStyle.borderTopLeftRadius,
         primaryPanelRadius: primaryPanelStyle.borderTopLeftRadius,
+        pageSheetRadius: pageSheetStyle.borderTopLeftRadius,
+        pageSheetBorderLeft: Number.parseFloat(pageSheetStyle.borderLeftWidth),
+        pageSheetBorderRight: Number.parseFloat(pageSheetStyle.borderRightWidth),
         pageOverlayOwnsScroll: pageScrollArea.parentElement === pageOverlay,
         chromeOwnsStatus: assetBar.parentElement === chromeOverlay,
         chromeOwnsNavigation: navigation.parentElement === chromeOverlay,
@@ -93,11 +102,19 @@ test.describe('mobile workspace overlay geometry', () => {
       geometry.statusSurface,
       geometry.navigation,
       geometry.navigationSurface,
-      geometry.strategicPagePanel,
+      geometry.pageSheet,
     ]) {
       expect(layer.left).toBeCloseTo(contentLeft, 0);
       expect(layer.right).toBeCloseTo(contentRight, 0);
     }
+    expect(geometry.strategicPagePanel.left).toBeCloseTo(
+      geometry.pageSheet.left + geometry.pageSheetBorderLeft,
+      0,
+    );
+    expect(geometry.strategicPagePanel.right).toBeCloseTo(
+      geometry.pageSheet.right - geometry.pageSheetBorderRight,
+      0,
+    );
     expect(geometry.pageScrollPaddingLeft).toBe('0px');
     expect(geometry.pageScrollPaddingRight).toBe('0px');
     expect(geometry.pageScrollHasHorizontalOverflow).toBe(false);
@@ -105,6 +122,9 @@ test.describe('mobile workspace overlay geometry', () => {
     expect(geometry.statusSurface.height).toBeCloseTo(48, 0);
     expect(geometry.navigation.height).toBeCloseTo(68, 0);
     expect(geometry.assetBar.height).toBeLessThan(geometry.workspace.height);
+    expect(geometry.pageSheet.top).toBeGreaterThan(geometry.statusSurface.bottom);
+    expect(geometry.pageSheet.bottom).toBeLessThanOrEqual(geometry.navigation.top + 1);
+    expect(geometry.pageSheetRadius).toBe('20px');
     expect(geometry.navigationPosition).toBe('absolute');
     expect(geometry.navigationRadius).toBe(geometry.primaryPanelRadius);
     expect(geometry.navigationRadius).toBe('40px');
@@ -114,6 +134,31 @@ test.describe('mobile workspace overlay geometry', () => {
     expect(geometry.pageOverlayOwnsScroll).toBe(true);
     expect(geometry.chromeOwnsStatus).toBe(true);
     expect(geometry.chromeOwnsNavigation).toBe(true);
+  });
+
+  test('first-level page sheet closes to the persistent map while mobile chrome stays interactive', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('runtime-test.html?view=overview&scenario=activity');
+
+    const pageSheet = page.locator('.mobile-workspace-page-sheet');
+    const status = page.locator('.asset-bar');
+    const navigation = page.locator('.mobile-bottom-navigation');
+    const map = page.getByTestId('us-mainland-map');
+    await expect(pageSheet).toBeVisible();
+    await expect(status).toBeVisible();
+    await expect(navigation).toBeVisible();
+    await expect(map).toBeVisible();
+
+    await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
+    await expect(pageSheet).toHaveCount(0);
+    await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
+    await expect(map).toBeVisible();
+    await expect(status).toBeVisible();
+    await expect(navigation).toBeVisible();
+
+    await page.getByRole('button', { name: /^概览/ }).click();
+    await expect(page.locator('.mobile-workspace-page-sheet')).toBeVisible();
+    await expect(page.locator('.overview-check-in-panel')).toBeVisible();
   });
 
   test('mobile chrome shares the workspace gutter and fixed glass heights', async ({ page }) => {

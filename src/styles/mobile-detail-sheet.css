@@ -1,7 +1,8 @@
-/* Final authority for signed-in mobile business detail sheets.
- * Factory and research details share this root dialog, drag behavior, summary
- * geometry, ScrollArea viewport, fixed footer, safe areas, and reduced-motion
- * behavior. Page styles may only define business content inside these slots. */
+/* Final authority for signed-in mobile workspace sheets.
+ * Player pages use the non-modal page sheet between persistent Chrome, while
+ * factory, research, and other business details use the root dialog sheet.
+ * Both surfaces share drag geometry, motion, handles, safe scrolling, and
+ * reduced-motion behavior; page styles only define business content inside. */
 
 .page-scroll-area[data-modal-scrollbar-suppressed='true'] > .ui-scrollbar--vertical {
   opacity: 0 !important;
@@ -91,6 +92,10 @@
 }
 
 @media (max-width: 720px) {
+  .game-shell .strategic-page-host:not(.strategic-page-host--map) {
+    padding-block: var(--strategic-panel-gap) 0;
+  }
+
   .mobile-detail-sheet-backdrop {
     --mobile-detail-sheet-backdrop-progress: 1;
 
@@ -111,50 +116,72 @@
     transition: opacity 200ms ease-out;
   }
 
-  .mobile-detail-sheet {
-    --mobile-detail-sheet-drag-offset: 0px;
-
+  .mobile-detail-sheet,
+  .mobile-workspace-page-sheet {
     position: relative;
     z-index: 1;
+    min-width: 0;
+    min-height: 0;
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
     border: 1px solid var(--color-border-strong);
     border-bottom: 0;
     border-radius: 1.25rem 1.25rem 0 0;
     background: color-mix(in srgb, var(--color-surface) 96%, var(--color-bg-deep));
     box-shadow: 0 -1rem 3rem color-mix(in srgb, var(--color-background) 46%, transparent);
     overflow: hidden;
+    will-change: transform;
+  }
+
+  .mobile-detail-sheet {
+    --mobile-detail-sheet-drag-offset: 0px;
+
+    grid-template-rows: auto minmax(0, 1fr) auto;
     transform: translate3d(0, var(--mobile-detail-sheet-drag-offset), 0);
     animation: mobile-detail-sheet-open 200ms cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: transform;
+  }
+
+  .mobile-workspace-page-sheet {
+    --mobile-workspace-page-sheet-drag-offset: 0px;
+
+    width: 100%;
+    height: 100%;
+    grid-template-rows: auto minmax(0, 1fr);
+    transform: translate3d(0, var(--mobile-workspace-page-sheet-drag-offset), 0);
+    animation: mobile-workspace-page-sheet-open 200ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .mobile-detail-sheet:focus {
     outline: none;
   }
 
-  .mobile-detail-sheet.is-dragging {
+  .mobile-detail-sheet.is-dragging,
+  .mobile-workspace-page-sheet.is-dragging {
     animation: none;
     transition: none;
     user-select: none;
   }
 
   .mobile-detail-sheet.is-dragging,
-  .mobile-detail-sheet.is-dragging * {
+  .mobile-detail-sheet.is-dragging *,
+  .mobile-workspace-page-sheet.is-dragging,
+  .mobile-workspace-page-sheet.is-dragging * {
     cursor: grabbing;
   }
 
-  .mobile-detail-sheet.is-settling {
+  .mobile-detail-sheet.is-settling,
+  .mobile-workspace-page-sheet.is-settling {
     animation: none;
     transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  .mobile-detail-sheet.is-closing {
+  .mobile-detail-sheet.is-closing,
+  .mobile-workspace-page-sheet.is-closing {
     pointer-events: none;
   }
 
   .mobile-detail-sheet-header,
-  .mobile-detail-sheet-footer {
+  .mobile-detail-sheet-footer,
+  .mobile-workspace-page-sheet-drag-handle {
     position: relative;
     z-index: 3;
     min-width: 0;
@@ -165,7 +192,8 @@
     border-bottom: 0;
   }
 
-  .mobile-detail-sheet-drag-handle {
+  .mobile-detail-sheet-drag-handle,
+  .mobile-workspace-page-sheet-drag-handle {
     min-height: 32px;
     display: flex;
     align-items: center;
@@ -174,7 +202,8 @@
     cursor: grab;
   }
 
-  .mobile-detail-sheet-handle {
+  .mobile-detail-sheet-handle,
+  .mobile-workspace-page-sheet-handle {
     width: 2.75rem;
     height: 0.25rem;
     display: block;
@@ -182,6 +211,37 @@
     margin: 0;
     border-radius: var(--radius-pill);
     background: var(--color-border-strong);
+  }
+
+  .mobile-workspace-page-sheet-content {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: block;
+    overflow: hidden;
+  }
+
+  .mobile-workspace-page-sheet-content > .page-content {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    max-width: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .mobile-workspace-page-sheet .page-card-scroll {
+    overscroll-behavior-y: auto;
+    touch-action: pan-y;
   }
 
   .mobile-detail-sheet-scroll-area {
@@ -246,7 +306,8 @@
     padding-top: var(--space-2);
   }
 
-  /* The root dialog grid owns the whole signed-in visual viewport. */
+  /* The root dialog grid owns the whole signed-in visual viewport only for
+   * second-level business details. First-level page sheets stay in workspace. */
   .workspace-dialog-layer > .mobile-detail-sheet-backdrop {
     position: absolute;
     z-index: 1;
@@ -283,10 +344,17 @@
   to { transform: translate3d(0, var(--mobile-detail-sheet-drag-offset), 0); }
 }
 
+@keyframes mobile-workspace-page-sheet-open {
+  from { transform: translate3d(0, 100%, 0); }
+  to { transform: translate3d(0, var(--mobile-workspace-page-sheet-drag-offset), 0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mobile-detail-sheet,
+  .mobile-workspace-page-sheet,
   .mobile-detail-sheet-backdrop::before,
-  .mobile-detail-sheet.is-settling {
+  .mobile-detail-sheet.is-settling,
+  .mobile-workspace-page-sheet.is-settling {
     animation: none;
     transition: none;
   }
