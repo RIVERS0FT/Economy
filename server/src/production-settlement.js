@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import {
   applyProductionUsageToResources,
   createProductionSettlementClaim,
@@ -6,6 +5,7 @@ import {
   FACILITY_STAFFING_FULL_BPS,
   maxProductionCyclesForResources,
   productionResourceUsage,
+  productionSettlementFits,
   projectFacilityStaffingRate,
   projectProductionCycles,
   PRODUCTION_SETTLEMENT_VERSION,
@@ -193,17 +193,15 @@ function groupBasis(world, player, group, groupIndex, settleThrough, inventoryKe
   };
 }
 
-function basisDigest(payload) {
-  return createHash('sha256').update(JSON.stringify(payload)).digest('base64url').slice(0, 32);
-}
-
 export function createProductionSettlementBasis(world, userId, settleThrough = Date.now()) {
   const normalizedSettleThrough = Math.max(0, Number(settleThrough) || 0);
   const player = world?.players?.[String(userId)];
   if (!player) {
     return {
       version: PRODUCTION_SETTLEMENT_VERSION,
-      basisId: basisDigest({ version: PRODUCTION_SETTLEMENT_VERSION, userId: Number(userId), settleThrough: normalizedSettleThrough, missing: true }),
+      basisId: '',
+      userId: Number(userId),
+      saveEpoch: 0,
       settleThrough: normalizedSettleThrough,
       resources: { creditsMicros: '0', inventories: {} },
       groups: [],
@@ -212,21 +210,22 @@ export function createProductionSettlementBasis(world, userId, settleThrough = D
   const inventoryKeys = new Set();
   const groups = (player.facilityGroups || [])
     .map((group, groupIndex) => groupBasis(world, player, group, groupIndex, normalizedSettleThrough, inventoryKeys))
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort((left, right) => left.key.localeCompare(right.key));
   const creditsMicros = internalMoneyToMicros(player.credits) || 0n;
   const resources = {
     creditsMicros: creditsMicros.toString(),
     inventories: Object.fromEntries([...inventoryKeys].sort().map((key) => [key, inventoryAvailable(player, key)])),
   };
-  const payload = {
+  return {
     version: PRODUCTION_SETTLEMENT_VERSION,
+    basisId: '',
     userId: Number(userId),
     saveEpoch: nonNegativeInteger(player.saveEpoch),
     settleThrough: normalizedSettleThrough,
     resources,
     groups,
   };
-  return { ...payload, basisId: basisDigest(payload) };
 }
 
 function mutableResourcesFromBasis(basis) {
@@ -435,7 +434,6 @@ function recoverEnabledErrorGroups(world, player, settleThrough, resources) {
 
 function validateClaimShape(basis, claim) {
   if (!claim || Number(claim.version) !== PRODUCTION_SETTLEMENT_VERSION) invalid();
-  if (String(claim.basisId || '') !== basis.basisId) stale();
   if (Number(claim.settleThrough) !== Number(basis.settleThrough)) stale();
   if (!Array.isArray(claim.groups) || claim.groups.length !== basis.groups.length) invalid();
   for (let index = 0; index < basis.groups.length; index += 1) {
@@ -443,6 +441,19 @@ function validateClaimShape(basis, claim) {
     const cycles = Number(claim.groups[index]?.completedCycles);
     if (!Number.isSafeInteger(cycles) || cycles < 0) invalid();
   }
+}
+
+function validateClaimedMaximum(groupBasisEntry, claimedCycles, resources, settleThrough) {
+  const due = dueProductionCycles(groupBasisEntry, settleThrough);
+  if (claimedCycles > due) invalid('客户端生产补算超过服务器时间允许的周期数');
+  const candidate = { ...groupBasisEntry, settleThrough };
+  if (!productionSettlementFits(candidate, claimedCycles, resources)) {
+    invalid('客户端生产补算超出当前权威资金或原料');
+  }
+  if (claimedCycles < due && productionSettlementFits(candidate, claimedCycles + 1, resources)) {
+    invalid('客户端生产补算不是当前权威资源下的最大合法结果');
+  }
+  return due;
 }
 
 export function applyProductionSettlementClaim(world, userId, claim, now = Date.now()) {
@@ -464,8 +475,7 @@ export function applyProductionSettlementClaim(world, userId, claim, now = Date.
       if (claimedCycles !== 0) invalid();
       continue;
     }
-    const maximum = maxProductionCyclesForResources(groupBasisEntry, resources, settleThrough);
-    if (claimedCycles !== maximum) invalid('客户端生产补算不是当前权威资源下的最大合法结果');
+    validateClaimedMaximum(groupBasisEntry, claimedCycles, resources, settleThrough);
     applyCompletedCycles(world, player, group, groupBasisEntry, claimedCycles, resources, settleThrough);
   }
 
@@ -498,10 +508,10 @@ export function settleProductionForDueContractParticipants(world, now = Date.now
     if (contract?.status !== 'active') continue;
     const dueAt = contractDueAt(contract);
     if (dueAt === null || dueAt > Number(now)) continue;
-    if (contract.kind === 'supply' && Number.isSafeInteger(Number(contract.supplierId))) {
+    if (contract.contractType === 'goods_supply' && Number.isSafeInteger(Number(contract.supplierId))) {
       playerIds.add(Number(contract.supplierId));
     }
-    if (contract.kind === 'facility_lease' && Number.isSafeInteger(Number(contract.lesseeId))) {
+    if (contract.contractType === 'facility_lease' && Number.isSafeInteger(Number(contract.lesseeId))) {
       playerIds.add(Number(contract.lesseeId));
     }
   }
