@@ -8,10 +8,13 @@ import {
   type StatePartitionRevisions,
 } from '../app/stateDelivery.js';
 import { acceptServerNow, resetServerClock } from '../utils/serverClock.js';
+import { createClientProductionSettlementClaim } from '../utils/productionSettlement';
+import type { ProductionSettlementClaim } from '../../shared/production-settlement.js';
 
 const GAME_API_BASE = '/economy-api/game';
 const stateDeliveryCache = createStateDeliveryCache();
 let currentSaveEpoch: number | null = null;
+let pendingProductionSettlement: ProductionSettlementClaim | null = null;
 const DEFAULT_READ_TIMEOUT_MS = 8_000;
 const DEFAULT_WRITE_TIMEOUT_MS = 12_000;
 const NETWORK_ERROR_MESSAGE = '无法连接服务器，客户端或服务器可能已经更新，请刷新页面后重试';
@@ -125,10 +128,12 @@ export type { StatePartitionPatches, StatePartitionRevisions };
 
 export class GameApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  code: string;
+  constructor(status: number, message: string, code = '') {
     super(message);
     this.name = 'GameApiError';
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -156,6 +161,7 @@ function knownPartitionRevisions() {
 export function resetGameStateDelivery() {
   stateDeliveryCache.reset();
   currentSaveEpoch = null;
+  pendingProductionSettlement = null;
   resetServerClock();
 }
 
@@ -201,11 +207,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
     if (!response.ok) {
       let message = '游戏服务器请求失败';
+      let code = '';
       try {
-        const payload = (await response.json()) as { message?: string };
+        const payload = (await response.json()) as { message?: string; code?: string };
         if (payload.message) message = payload.message;
+        code = String(payload.code || '');
       } catch { /* preserve generic message */ }
-      throw new GameApiError(response.status, message);
+      throw new GameApiError(response.status, message, code);
     }
     const payload = await response.json() as unknown;
     if (isStateDeliveryPayload(payload)) {
@@ -231,12 +239,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 }
 
-function postAction(path: string, body: Record<string, unknown> = {}) {
-  return request<GameActionResponse>(path, { method: 'POST', body: JSON.stringify(body) });
+async function postAction(path: string, body: Record<string, unknown> = {}) {
+  const claim = pendingProductionSettlement;
+  const payload = claim ? { ...body, productionSettlement: claim } : body;
+  try {
+    const response = await request<GameActionResponse>(path, { method: 'POST', body: JSON.stringify(payload) });
+    pendingProductionSettlement = null;
+    return response;
+  } catch (reason) {
+    if (claim && reason instanceof GameApiError && reason.code.startsWith('PRODUCTION_SETTLEMENT_')) {
+      pendingProductionSettlement = null;
+      return request<GameActionResponse>(path, { method: 'POST', body: JSON.stringify(body) });
+    }
+    throw reason;
+  }
 }
 
-export async function getGameState(revision?: number | null, signal?: AbortSignal): Promise<GameStatePollResponse> {
-  if (!Number.isInteger(revision)) resetGameStateDelivery();
+async function fetchGameStateOnce(revision?: number | null, signal?: AbortSignal) {
   const params = new URLSearchParams();
   if (Number.isInteger(revision)) params.set('revision', String(revision));
   for (const [name, value] of Object.entries(knownPartitionRevisions())) {
@@ -245,6 +264,26 @@ export async function getGameState(revision?: number | null, signal?: AbortSigna
   const query = params.toString();
   const suffix = query ? `?${query}` : '';
   return request<GameStatePollResponse>(`/state${suffix}`, { method: 'GET', signal });
+}
+
+export async function getGameState(revision?: number | null, signal?: AbortSignal): Promise<GameStatePollResponse> {
+  if (!Number.isInteger(revision)) resetGameStateDelivery();
+  let response = await fetchGameStateOnce(revision, signal);
+  pendingProductionSettlement = createClientProductionSettlementClaim(
+    response.state,
+    Number(response.serverNow),
+  );
+  if (!pendingProductionSettlement) return response;
+
+  const settlement = await postAction('/production/settle');
+  if (settlement.revision !== response.revision) {
+    response = await fetchGameStateOnce(response.revision, signal);
+  }
+  pendingProductionSettlement = createClientProductionSettlementClaim(
+    response.state,
+    Number(response.serverNow),
+  );
+  return response;
 }
 
 export async function getTutorialStatus(signal?: AbortSignal): Promise<TutorialStatusResponse> {

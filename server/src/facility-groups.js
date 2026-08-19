@@ -1497,12 +1497,19 @@ function clientGroup(world, player, group, now) {
   const {
     cycleWageMultiplierBps: _cycleWageMultiplierBps,
     cycleStaffingRateBps: _legacyCycleStaffingRateBps,
+    productionWageCarryNumerator: _productionWageCarryNumerator,
+    productionEmploymentTotalMicros: _productionEmploymentTotalMicros,
+    productionEmploymentAllocatedMicros: _productionEmploymentAllocatedMicros,
     ...publicGroup
   } = clone(group);
   return {
     ...publicGroup,
     staffingRateBps,
     staffingUpdatedAt: Math.max(0, Number(now) || 0),
+    productionSettlementStaffingRateBps: normalizeStaffingRate(group.staffingRateBps) ?? FACILITY_STAFFING_FULL_BPS,
+    productionSettlementStaffingUpdatedAt: Number.isFinite(Number(group.staffingUpdatedAt))
+      ? Math.max(0, Number(group.staffingUpdatedAt))
+      : Math.max(0, Number(now) || 0),
     staffingBatchCarryBps: normalizeStaffingCarry(group.staffingBatchCarryBps),
     productionAvailableCount,
     projectedEffectiveCount: projectedResult.effectiveCount,

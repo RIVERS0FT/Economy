@@ -152,6 +152,10 @@ export interface FacilityGroup {
   staffingRateBps?: number;
   /** Server timestamp at which staffingRateBps was projected. */
   staffingUpdatedAt?: number;
+  /** Raw authoritative staffing rate used only to construct a production settlement proposal. */
+  productionSettlementStaffingRateBps?: number;
+  /** Raw authoritative staffing timestamp used only to construct a production settlement proposal. */
+  productionSettlementStaffingUpdatedAt?: number;
   /** Fixed-point equivalent-capacity carry retained between completed cycles. */
   staffingBatchCarryBps?: number;
   cycleStartedAt?: number;

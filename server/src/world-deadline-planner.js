@@ -2,7 +2,6 @@ import { createContractRuntimeIndex } from './contract-runtime-index.js';
 import { nextDailyCheckInResetAt } from './daily-check-in.js';
 import { nextBankDeadlineAt } from './banking.js';
 import { nextWeeklyCashSettlementDeadlineAt } from './weekly-cash-settlement.js';
-import { FACILITY_TYPE_CATALOG } from './domain.js';
 import { isOpenOrder } from './order-identity.js';
 import { POPULATION_POLICY_CYCLE_MS } from './population-policy.js';
 import { nextEconomicEventDeadline } from './economic-events.js';
@@ -10,7 +9,6 @@ import { nextResearchDeadlineAt } from './research.js';
 import { nextTransportDeadline } from './transport.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const FACILITY_TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 
 function finiteTimestamp(value) {
   const timestamp = Number(value);
@@ -23,41 +21,8 @@ function earlier(left, right) {
   return Math.min(left, right);
 }
 
-function recipeForGroup(group) {
-  const type = FACILITY_TYPES.get(String(group?.facilityTypeId || ''));
-  if (!type) return null;
-  const recipes = Array.isArray(type.recipes) && type.recipes.length > 0
-    ? type.recipes
-    : type.output
-      ? [{
-        id: `${type.id}-default`,
-        cycleMs: type.cycleMs,
-        operatingCost: type.operatingCost,
-        inputs: type.inputs || (type.input ? [type.input] : []),
-        output: type.output,
-      }]
-      : [];
-  return recipes.find((recipe) => recipe.id === group?.activeRecipeId)
-    || recipes.find((recipe) => recipe.id === type.defaultRecipeId)
-    || recipes[0]
-    || null;
-}
-
 export function nextConstructionEmploymentAt() {
   return null;
-}
-
-function facilityDeadline(world) {
-  let deadline = null;
-  for (const player of Object.values(world.players || {})) {
-    for (const group of player.facilityGroups || []) {
-      if (group.status !== 'running' || !group.cycleStartedAt) continue;
-      const recipe = recipeForGroup(group);
-      const cycleMs = Math.max(1, Number(recipe?.cycleMs || 0));
-      deadline = earlier(deadline, finiteTimestamp(Number(group.cycleStartedAt) + cycleMs));
-    }
-  }
-  return deadline;
 }
 
 function marketDeadline(world, now) {
@@ -120,7 +85,8 @@ export function createWorldDeadlinePlan(world, now = Date.now()) {
     return { nextDueAt: normalizedNow, deadlines: { initialization: normalizedNow } };
   }
   const deadlines = {
-    facility: facilityDeadline(world),
+    // Player facility production is settled lazily per player and is intentionally absent from the global scheduler.
+    facility: null,
     market: marketDeadline(world, normalizedNow),
     auction: auctionDeadline(world),
     contract: createContractRuntimeIndex(world).nextDeadlineAt(),

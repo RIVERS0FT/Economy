@@ -7,7 +7,7 @@ import {
   topUpPopulationByPolicy,
 } from './population-admin-control.js';
 import { EconomyStore as PersistentEconomyStore, createVersionedClientState } from './storage.js';
-import { ensurePlayer } from './domain.js';
+import { ensurePlayer, processWorld } from './domain.js';
 import { createOrderHistoryPage } from './facility-groups.js';
 import {
   applyProductionContractAction,
@@ -46,7 +46,6 @@ import {
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const WORLD_PROCESS_INTERVAL_MS = 1_000;
 const ECONOMY_DEADLINE_DOMAINS = new Set([
-  'facility',
   'market',
   'auction',
   'leaderboard',
@@ -308,6 +307,7 @@ export class EconomyStore extends PersistentEconomyStore {
         processed = true;
       }
       if (dueDomains.has('market')) {
+        processWorld(world, now, { migrate: false });
         const beforeReserveContracts = contractSnapshot(world);
         processMarketReserveOperations(world, now);
         this.captureContractAuditTransition(beforeReserveContracts, world, {

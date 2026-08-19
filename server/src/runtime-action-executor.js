@@ -23,6 +23,10 @@ import { applyResearchAction, validateResearchAccess } from './research.js';
 import { ensureWarehouse } from './warehouse.js';
 import { createRuntimeMutationScope } from './world-storage-v2.js';
 import {
+  applyProductionSettlementClaim,
+  settleProductionForPlayerServerSide,
+} from './production-settlement.js';
+import {
   activateWeeklyCashSettlement,
   collectPlayerWeeklyCashSettlement,
   ensurePlayerWeeklyCashSettlement,
@@ -113,8 +117,12 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
       const isFacilityBuildProcurement = action === 'placeOrder'
         && payload.execution === 'facility-build-procurement';
       const researchAction = isFacilityBuildProcurement ? 'buildFacility' : action;
-      const researchAccess = validateResearchAccess(world, user, researchAction, payload, now);
-      if (researchAccess) {
+      const researchAccess = action === 'settleProduction'
+        ? null
+        : validateResearchAccess(world, user, researchAction, payload, now);
+      if (action === 'settleProduction') {
+        gameResult = { ok: true, message: '生产结算已由服务器校验并入账' };
+      } else if (researchAccess) {
         gameResult = researchAccess;
       } else if (action === 'startResearch' || action === 'accelerateResearch') {
         gameResult = applyResearchAction(world, user, action, payload, now);
@@ -205,7 +213,7 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
   const mutationScope = createRuntimeMutationScope(
     store.worldCache?.world,
     user.id,
-    action,
+    action === 'settleProduction' ? 'setFacilityRecipe' : action,
     payload,
     { scheduledProcessing: store.scheduledProcessing },
   );
@@ -230,6 +238,12 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     ensurePlayerBankAccount(player, now);
     ensureWeeklyCashSettlementWorld(world, now, { normalizePlayers: !store.scheduledProcessing });
     ensurePlayerWeeklyCashSettlement(player, now);
+    if (payload?.productionSettlement) {
+      applyProductionSettlementClaim(world, Number(user.id), payload.productionSettlement, now);
+    } else {
+      // Compatibility and stale-proposal fallback stays scoped to the current player.
+      settleProductionForPlayerServerSide(world, Number(user.id), now);
+    }
     if (!store.scheduledProcessing) {
       store.processWorldIfDue(world, now, Number(user.id), {
         force: false,
