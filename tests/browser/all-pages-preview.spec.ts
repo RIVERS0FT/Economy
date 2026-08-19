@@ -151,7 +151,8 @@ test('overview, market, buildings, and settings share a one-third card width whi
       : sidebar.getByRole('button', { name: new RegExp(`^${label}`) });
     await button.click();
     const host = page.locator('.strategic-page-host');
-    const content = host.locator(':scope > .page-content');
+    await expect(host.locator(':scope > .page-loading')).toHaveCount(0);
+    const content = host.locator(':scope > .page-content:not(.page-loading)');
     const eventRail = page.locator('.strategic-economic-event-rail');
     await expect(host).toHaveAttribute('data-strategic-presentation', 'building');
     await expect(eventRail).toBeVisible();
@@ -175,7 +176,8 @@ test('overview, market, buildings, and settings share a one-third card width whi
   for (const label of ['研发', '拍卖', '合同', '银行', '排行', '商店']) {
     await sidebar.getByRole('button', { name: new RegExp(`^${label}`) }).click();
     const host = page.locator('.strategic-page-host');
-    const content = host.locator(':scope > .page-content');
+    await expect(host.locator(':scope > .page-loading')).toHaveCount(0);
+    const content = host.locator(':scope > .page-content:not(.page-loading)');
     await expect(host).toHaveAttribute('data-strategic-presentation', 'fullscreen');
     await expect(page.locator('.strategic-economic-event-rail')).toHaveCount(0);
     const hostBox = await host.boundingBox();
