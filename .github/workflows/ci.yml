@@ -12,69 +12,235 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  verify-head-ci-registration:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-    steps:
-      - name: Verify head push CI registration
-        env:
-          GH_TOKEN: ${{ github.token }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          python3 - <<'PY'
-          import json
-          import os
-          import time
-          import urllib.request
-
-          token = os.environ['GH_TOKEN']
-          head_sha = os.environ['HEAD_SHA']
-          repository = os.environ['REPOSITORY']
-          headers = {
-              'Accept': 'application/vnd.github+json',
-              'Authorization': f'Bearer {token}',
-              'X-GitHub-Api-Version': '2022-11-28',
-          }
-
-          runs = []
-          for _ in range(12):
-              url = f'https://api.github.com/repos/{repository}/actions/runs?head_sha={head_sha}&event=push&per_page=20'
-              request = urllib.request.Request(url, headers=headers)
-              with urllib.request.urlopen(request) as response:
-                  runs = json.load(response).get('workflow_runs', [])
-              if runs:
-                  break
-              time.sleep(5)
-
-          print(json.dumps({
-              'head_sha': head_sha,
-              'push_runs': [
-                  {
-                      'id': run['id'],
-                      'run_number': run['run_number'],
-                      'status': run['status'],
-                      'conclusion': run['conclusion'],
-                  }
-                  for run in runs
-              ],
-          }, ensure_ascii=False, indent=2))
-          if not runs:
-              raise SystemExit('No push workflow run found for the pull request head SHA')
-          PY
-
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply runner Chrome fallback architecture
+        if: github.event_name == 'push' && github.ref_name == 'fix/playwright-runner-chrome-fallback'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f'missing patch anchor in {path}: {old[:120]!r}')
+              p.write_text(text.replace(old, new, 1))
+
+          script = Path('scripts/prepare-playwright-chromium.sh')
+          script.write_text(r'''#!/usr/bin/env bash
+          set -euo pipefail
+
+          if [ -z "${GITHUB_ENV:-}" ]; then
+            echo 'ECONOMY_PLAYWRIGHT_BROWSER_ERROR=GITHUB_ENV_MISSING'
+            exit 2
+          fi
+
+          chrome_path=''
+          for candidate in google-chrome google-chrome-stable chromium chromium-browser; do
+            if command -v "$candidate" >/dev/null 2>&1; then
+              chrome_path="$(command -v "$candidate")"
+              break
+            fi
+          done
+
+          if [ -n "$chrome_path" ]; then
+            "$chrome_path" --version
+            printf 'PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=%s\n' "$chrome_path" >> "$GITHUB_ENV"
+            echo "ECONOMY_PLAYWRIGHT_BROWSER_SOURCE=runner executable=$chrome_path"
+            exit 0
+          fi
+
+          echo 'ECONOMY_PLAYWRIGHT_BROWSER_SOURCE=download'
+          npx playwright install --with-deps chromium
+          ''')
+          script.write_text('\n'.join(line[10:] if line.startswith('          ') else line for line in script.read_text().splitlines()) + '\n')
+
+          ci = Path('.github/workflows/ci.yml')
+          ci.write_text('''name: Economy CI
+
+          on:
+            pull_request:
+            push:
+              branches-ignore:
+                - main
+            workflow_dispatch:
+
+          concurrency:
+            group: economy-ci-${{ github.event.pull_request.number || github.ref }}
+            cancel-in-progress: true
+
+          permissions:
+            contents: read
+
+          jobs:
+            verify-head-ci-registration:
+              if: github.event_name == 'pull_request'
+              runs-on: ubuntu-latest
+              permissions:
+                actions: read
+                contents: read
+              steps:
+                - name: Verify head push CI registration
+                  env:
+                    GH_TOKEN: ${{ github.token }}
+                    HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+                    REPOSITORY: ${{ github.repository }}
+                  run: |
+                    python3 - <<'PY2'
+                    import json
+                    import os
+                    import time
+                    import urllib.request
+
+                    token = os.environ['GH_TOKEN']
+                    head_sha = os.environ['HEAD_SHA']
+                    repository = os.environ['REPOSITORY']
+                    headers = {
+                        'Accept': 'application/vnd.github+json',
+                        'Authorization': f'Bearer {token}',
+                        'X-GitHub-Api-Version': '2022-11-28',
+                    }
+
+                    runs = []
+                    for _ in range(12):
+                        url = f'https://api.github.com/repos/{repository}/actions/runs?head_sha={head_sha}&event=push&per_page=20'
+                        request = urllib.request.Request(url, headers=headers)
+                        with urllib.request.urlopen(request) as response:
+                            runs = json.load(response).get('workflow_runs', [])
+                        if runs:
+                            break
+                        time.sleep(5)
+
+                    print(json.dumps({
+                        'head_sha': head_sha,
+                        'push_runs': [
+                            {
+                                'id': run['id'],
+                                'run_number': run['run_number'],
+                                'status': run['status'],
+                                'conclusion': run['conclusion'],
+                            }
+                            for run in runs
+                        ],
+                    }, ensure_ascii=False, indent=2))
+                    if not runs:
+                        raise SystemExit('No push workflow run found for the pull request head SHA')
+                    PY2
+
+            build:
+              runs-on: ubuntu-latest
+              timeout-minutes: 20
+              steps:
+                - name: Checkout code
+                  uses: actions/checkout@v4
+
+                - name: Setup Node
+                  uses: actions/setup-node@v4
+                  with:
+                    node-version: 24.4.0
+                    cache: npm
+
+                - name: Install dependencies
+                  run: npm ci
+
+                - name: Build and test
+                  shell: bash
+                  run: |
+                    set -o pipefail
+                    npm run build 2>&1 | tee build-test.log
+
+                - name: Prepare Chromium
+                  run: bash scripts/prepare-playwright-chromium.sh
+
+                - name: Test browser runtime
+                  shell: bash
+                  run: |
+                    set -o pipefail
+                    npm run test:browser 2>&1 | tee browser-test.log
+
+                - name: Upload test artifacts
+                  if: failure()
+                  uses: actions/upload-artifact@v4
+                  with:
+                    name: economy-test-artifacts
+                    path: |
+                      build-test.log
+                      browser-test.log
+                      playwright-report
+                      test-results
+                    if-no-files-found: warn
+                    retention-days: 3
+          '''.replace('          ', ''))
+
+          replace_once(
+              '.github/workflows/deploy.yml',
+              "      - name: Install Chromium\n        id: install_chromium\n        run: |\n          exec > >(tee /tmp/economy-install-chromium.log) 2>&1\n          set -euo pipefail\n          npx playwright install --with-deps chromium",
+              "      - name: Prepare Chromium\n        id: install_chromium\n        run: |\n          exec > >(tee /tmp/economy-install-chromium.log) 2>&1\n          set -euo pipefail\n          bash scripts/prepare-playwright-chromium.sh",
+          )
+
+          verifier = Path('scripts/verify-runtime-reliability.mjs')
+          text = verifier.read_text()
+          text = text.replace("  'playwright.config.ts',\n", "  'playwright.config.ts',\n  'scripts/prepare-playwright-chromium.sh',\n", 1)
+          text = text.replace("  'npx playwright install --with-deps chromium',\n", "  'bash scripts/prepare-playwright-chromium.sh',\n", 1)
+          deploy_anchor = "  'npm run build',\n  'Ensure rsync is available',"
+          if deploy_anchor not in text:
+              raise SystemExit('deploy verifier anchor missing')
+          text = text.replace(deploy_anchor, "  'npm run build',\n  'bash scripts/prepare-playwright-chromium.sh',\n  'Ensure rsync is available',", 1)
+          insert_anchor = "forbidText('.github/workflows/deploy.yml', 'cat /tmp/economy-install-dependencies.log 2>/dev/null || true');"
+          if insert_anchor not in text:
+              raise SystemExit('verifier forbid anchor missing')
+          text = text.replace(insert_anchor, insert_anchor + "\nforbidText('.github/workflows/ci.yml', 'npx playwright install --with-deps chromium');\nforbidText('.github/workflows/deploy.yml', 'npx playwright install --with-deps chromium');", 1)
+          package_anchor = "if (packageJson.scripts?.['server:check'] !== 'node scripts/check-server-syntax.mjs') failures.push('服务器语法检查必须使用跨平台 Node 枚举脚本');"
+          browser_checks = """\nfor (const text of [\n  'google-chrome',\n  'google-chrome-stable',\n  'PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH',\n  'ECONOMY_PLAYWRIGHT_BROWSER_SOURCE=runner',\n  'ECONOMY_PLAYWRIGHT_BROWSER_SOURCE=download',\n  'npx playwright install --with-deps chromium',\n  'GITHUB_ENV',\n]) requireText('scripts/prepare-playwright-chromium.sh', text);\n"""
+          if package_anchor not in text:
+              raise SystemExit('verifier package anchor missing')
+          text = text.replace(package_anchor, package_anchor + browser_checks, 1)
+          docs_anchor = "  ['docs/README.md', '/var/www/game/shared/provinces.json'],"
+          docs_add = "  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH'],\n  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '浏览器 CDN'],\n  ['docs/README.md', 'PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH'],\n  ['docs/README.md', '浏览器 CDN'],\n"
+          if docs_anchor not in text:
+              raise SystemExit('verifier docs anchor missing')
+          text = text.replace(docs_anchor, docs_anchor + '\n' + docs_add, 1)
+          verifier.write_text(text)
+
+          replace_once(
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+              'CI 和主部署都必须安装固定 Chromium并执行 `npm run test:browser`；',
+              'CI 和主部署都必须使用固定 Playwright 版本执行 `npm run test:browser`；GitHub hosted runner 存在可执行 Chrome 时必须通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 直接复用 runner 本地浏览器，仅在 runner 没有可用 Chrome 时才执行固定 Playwright Chromium 下载兜底。浏览器 CDN 不得成为 CI 或部署的必需单点依赖，也不得以 CDN 不可达为理由跳过浏览器回归；',
+          )
+          replace_once(
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+              '`main` 分支由 `.github/workflows/deploy.yml` 对实际待部署提交重新执行 `npm ci`、`npm run build`、固定 Chromium 安装和 `npm run test:browser`；构建与浏览器回归都成功后才允许上传、安装并执行线上验证。',
+              '`main` 分支由 `.github/workflows/deploy.yml` 对实际待部署提交重新执行 `npm ci`、`npm run build`、浏览器运行时准备和 `npm run test:browser`；构建与浏览器回归都成功后才允许上传、安装并执行线上验证。浏览器运行时准备必须优先探测 GitHub runner 已有的 `google-chrome`／`google-chrome-stable`／`chromium`／`chromium-browser`，命中后通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 交给 Playwright；只有全部本地候选都不存在时才允许调用 Playwright Chromium 下载。',
+          )
+
+          docs_index = Path('docs/README.md')
+          text = docs_index.read_text()
+          rule = "78. CI 与主部署的浏览器回归不得把 Playwright 浏览器 CDN 作为必需单点依赖：必须优先复用 GitHub runner 已安装的 Chrome／Chromium，并通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 交给 Playwright；只有 runner 没有可用浏览器时才执行固定 Chromium 下载兜底。浏览器测试仍是硬门禁，浏览器 CDN 地域不可达、403 或临时故障不得成为跳过 `npm run test:browser` 的理由。该规则归属 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，由 `scripts/prepare-playwright-chromium.sh` 与 `scripts/verify-runtime-reliability.mjs` 防回退。\n\n"
+          anchor = '- 游戏端与管理员端桌面顶部工作栏必须横跨侧栏列与内容列；'
+          if anchor not in text:
+              raise SystemExit('docs README insertion anchor missing')
+          docs_index.write_text(text.replace(anchor, rule + anchor, 1))
+          PY
+
+          chmod +x scripts/prepare-playwright-chromium.sh
+          git config user.name 'RIVERSOFT'
+          git config user.email '105160096+RIVERS0FT@users.noreply.github.com'
+          git add -A .github/workflows/ci.yml .github/workflows/deploy.yml scripts/prepare-playwright-chromium.sh scripts/verify-runtime-reliability.mjs docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md docs/README.md
+          git diff --cached --check
+          git commit -m 'prefer runner Chrome for browser gates'
+          git push origin HEAD:fix/playwright-runner-chrome-fallback
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -85,30 +251,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build and test
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run build 2>&1 | tee build-test.log
-
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Test browser runtime
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run test:browser 2>&1 | tee browser-test.log
-
-      - name: Upload test artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: economy-test-artifacts
-          path: |
-            build-test.log
-            browser-test.log
-            playwright-report
-            test-results
-          if-no-files-found: warn
-          retention-days: 3
+      - name: Verify runtime reliability
+        run: node scripts/verify-runtime-reliability.mjs
