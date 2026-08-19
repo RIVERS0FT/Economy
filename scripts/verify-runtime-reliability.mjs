@@ -12,6 +12,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 for (const path of [
   'package-lock.json',
   'playwright.config.ts',
+  'scripts/prepare-playwright-chromium.sh',
   'runtime-test.html',
   'shared/provinces.json',
   'scripts/check-server-syntax.mjs',
@@ -35,6 +36,8 @@ for (const path of [
 forbidFile('.github/workflows/web-build.yml');
 forbidText('.github/workflows/deploy.yml', 'ssh-keyscan -p \"$SERVER_PORT\" \"$SERVER_HOST\"');
 forbidText('.github/workflows/deploy.yml', 'cat /tmp/economy-install-dependencies.log 2>/dev/null || true');
+forbidText('.github/workflows/ci.yml', 'npx playwright install --with-deps chromium');
+forbidText('.github/workflows/deploy.yml', 'npx playwright install --with-deps chromium');
 
 const packageJson = JSON.parse(read('package.json'));
 for (const [group, dependencies] of Object.entries({
@@ -50,6 +53,15 @@ for (const [group, dependencies] of Object.entries({
 if (packageJson.engines?.node !== '>=24.4.0 <25') failures.push('package.json 必须固定 Node 24.4.0 主版本范围');
 if (packageJson.scripts?.['test:browser'] !== 'playwright test') failures.push('缺少固定的 Playwright 浏览器测试脚本');
 if (packageJson.scripts?.['server:check'] !== 'node scripts/check-server-syntax.mjs') failures.push('服务器语法检查必须使用跨平台 Node 枚举脚本');
+for (const text of [
+  'google-chrome',
+  'google-chrome-stable',
+  'PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH',
+  'ECONOMY_PLAYWRIGHT_BROWSER_SOURCE=runner',
+  'ECONOMY_PLAYWRIGHT_BROWSER_SOURCE=download',
+  'npx playwright install --with-deps chromium',
+  'GITHUB_ENV',
+]) requireText('scripts/prepare-playwright-chromium.sh', text);
 
 for (const text of ['readdirSync', "entry.name.endsWith('.js')", "spawnSync(process.execPath, ['--check', sourceFile]"]) {
   requireText('scripts/check-server-syntax.mjs', text);
@@ -78,7 +90,7 @@ for (const text of [
   'actions: read',
   'No push workflow run found for the pull request head SHA',
   'npm run build',
-  'npx playwright install --with-deps chromium',
+  'bash scripts/prepare-playwright-chromium.sh',
   'npm run test:browser 2>&1 | tee browser-test.log',
   'if: failure()',
   'retention-days: 3',
@@ -88,6 +100,7 @@ for (const text of [
   'cache: npm',
   'economy-install-dependencies.log',
   'npm run build',
+  'bash scripts/prepare-playwright-chromium.sh',
   'Ensure rsync is available',
   'if ! command -v rsync >/dev/null 2>&1; then',
   'StrictHostKeyChecking=accept-new',
@@ -173,6 +186,8 @@ for (const [path, text] of [
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '禁止重新扫描或拼接成功步骤日志'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得再为单次构建失败创建临时诊断工作流'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '服务器语法检查由 Node 枚举'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '浏览器 CDN'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得显示没有实际运行效果的“界面音效”或“画面性能”控件'],
   ['docs/README.md', '运行时可靠性、依赖锁、浏览器测试'],
   ['docs/README.md', '服务安装完成条件必须包含真实 `/health` 就绪'],
@@ -181,6 +196,8 @@ for (const [path, text] of [
   ['docs/README.md', 'journalctl'],
   ['docs/README.md', '/var/www/game/shared/provinces.json'],
   ['docs/README.md', '仓库根 `shared/provinces.json`'],
+  ['docs/README.md', 'PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH'],
+  ['docs/README.md', '浏览器 CDN'],
   ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '礼品码列表和兑换记录可能持续增长'],
 ]) requireText(path, text);
 

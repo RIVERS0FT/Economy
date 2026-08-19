@@ -121,6 +121,8 @@
 
 77. 工厂持续生产采用按玩家懒结算：客户端从正常权威状态与 `serverNow` 计算最大合法周期提案，只提交每个工厂组完成周期数；服务器必须重新读取当前玩家基线并用共享闭式公式验证 `n` 合法且 `n+1` 不合法后原子记账。全局截止时间固定不调度 facility，排行榜、市场、服务启动和常规调度不得扫描全服工厂或逐周期重放离线生产；旧客户端／过期提案兜底只能结算当前玩家，到期供货／租赁合同兜底只能结算明确参与者。staffing 固定点余数、生产工资微单位余数和人口就业累计最大余数分配必须保证生产结果不受结算批次大小影响。该规则唯一归属 `INDUSTRY_AND_PRODUCTION_DESIGN.md` 与 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并由 `scripts/verify-production-lazy-settlement.mjs` 和服务器测试防回退。
 
+78. CI 与主部署的浏览器回归不得把 Playwright 浏览器 CDN 作为必需单点依赖：必须优先复用 GitHub runner 已安装的 Chrome／Chromium，并通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 交给 Playwright；只有 runner 没有可用浏览器时才执行固定 Chromium 下载兜底。浏览器测试仍是硬门禁，浏览器 CDN 地域不可达、403 或临时故障不得成为跳过 `npm run test:browser` 的理由。该规则归属 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，由 `scripts/prepare-playwright-chromium.sh` 与 `scripts/verify-runtime-reliability.mjs` 防回退。
+
 - 游戏端与管理员端桌面顶部工作栏必须横跨侧栏列与内容列；侧栏和工作区从其下方开始。所有登录后业务浮层必须限制在工作区安全根内，并由 `scripts/verify-game-shell-layout.mjs` 与 `tests/browser/shell-floating-safe-zone.spec.ts` 防回退。
 
 23. 商品供货、玩家抵押借贷和工厂使用权租赁采用三类合同领域与六类发布方向；供应／采购、放贷／贷款、出租／租赁只表示发布方角色。规则必须同步更新产业、订单簿、页面、服务器、状态版本、测试与 `scripts/verify-contract-types.mjs`，不得恢复六套重复状态机、工厂实例化或客户端到期结算。

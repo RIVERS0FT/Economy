@@ -91,8 +91,8 @@ jobs:
           set -o pipefail
           npm run build 2>&1 | tee build-test.log
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Prepare Chromium
+        run: bash scripts/prepare-playwright-chromium.sh
 
       - name: Test browser runtime
         shell: bash

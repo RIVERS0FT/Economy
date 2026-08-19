@@ -23,9 +23,37 @@ async function sampleAnimationFrames(chart: Locator): Promise<HeightSample[]> {
   });
 }
 
+async function sampleStabilityFrames(chart: Locator): Promise<HeightSample[]> {
+  return chart.evaluate(async (element) => {
+    const samples: HeightSample[] = [];
+    for (let frame = 0; frame < 16; frame += 1) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const chartCard = element.closest<HTMLElement>('.market-chart-card');
+      if (!chartCard) throw new Error('Market chart card is missing');
+      samples.push({
+        chartHeight: element.getBoundingClientRect().height,
+        cardHeight: chartCard.getBoundingClientRect().height,
+        minimumHeight: Number((element as HTMLElement).dataset.chartMinimumHeight ?? 0),
+      });
+    }
+    return samples;
+  });
+}
+
 function range(samples: HeightSample[], field: keyof HeightSample) {
   const values = samples.map((sample) => sample[field]);
   return Math.max(...values) - Math.min(...values);
+}
+
+async function waitForStableGeometry(chart: Locator) {
+  await expect.poll(async () => {
+    const samples = await sampleStabilityFrames(chart);
+    return Math.max(
+      range(samples, 'chartHeight'),
+      range(samples, 'cardHeight'),
+      range(samples, 'minimumHeight'),
+    );
+  }, { timeout: 5_000 }).toBeLessThanOrEqual(1);
 }
 
 test('market chart row fill height remains stable without resize feedback', async ({ page }) => {
@@ -49,7 +77,7 @@ test('market chart row fill height remains stable without resize feedback', asyn
     `,
   });
   await expect(chart).toHaveAttribute('data-chart-fill-mode', 'row');
-  await page.waitForTimeout(300);
+  await waitForStableGeometry(chart);
 
   const rowSamples = await sampleAnimationFrames(chart);
   expect(range(rowSamples, 'chartHeight')).toBeLessThanOrEqual(1);
@@ -67,7 +95,7 @@ test('market chart row fill height remains stable without resize feedback', asyn
   await wideLayout.evaluate((element) => element.remove());
   await page.setViewportSize({ width: 1280, height: 900 });
   await expect(chart).toHaveAttribute('data-chart-fill-mode', 'natural');
-  await page.waitForTimeout(300);
+  await waitForStableGeometry(chart);
 
   const naturalSamples = await sampleAnimationFrames(chart);
   expect(range(naturalSamples, 'chartHeight')).toBeLessThanOrEqual(1);
