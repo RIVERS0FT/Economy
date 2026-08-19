@@ -12,6 +12,9 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 SERVICE_NAME = "riversoft-economy-api.service"
@@ -24,6 +27,10 @@ SHARED_EMAIL_ENVIRONMENT_FILE = Path("/etc/riversoft-email.env")
 ENVIRONMENT_FILE = Path("/etc/riversoft-economy-api.env")
 MINIMUM_NODE = (22, 16, 0)
 COPY_CHUNK_BYTES = 1024 * 1024
+SERVICE_HEALTH_URL = "http://127.0.0.1:3002/health"
+SERVICE_READY_TIMEOUT_SECONDS = 45
+SERVICE_READY_POLL_SECONDS = 1.0
+SERVICE_HEALTH_REQUEST_TIMEOUT_SECONDS = 2.0
 
 
 def run(command: list[str], *, capture: bool = False) -> str:
@@ -156,6 +163,65 @@ def find_node(release_dir: Path) -> Path:
     )
 
 
+def api_health_ready() -> bool:
+    try:
+        request = urllib.request.Request(SERVICE_HEALTH_URL, method="GET")
+        with urllib.request.urlopen(
+            request,
+            timeout=SERVICE_HEALTH_REQUEST_TIMEOUT_SECONDS,
+        ) as response:
+            return 200 <= int(response.status) < 300
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return False
+
+
+def print_service_diagnostics() -> None:
+    print("ECONOMY_API_SERVICE_DIAGNOSTICS_BEGIN", file=sys.stderr)
+    subprocess.run(
+        ["systemctl", "status", SERVICE_NAME, "--no-pager", "--full"],
+        check=False,
+        text=True,
+    )
+    subprocess.run(
+        ["journalctl", "-u", SERVICE_NAME, "-n", "80", "--no-pager"],
+        check=False,
+        text=True,
+    )
+    print("ECONOMY_API_SERVICE_DIAGNOSTICS_END", file=sys.stderr)
+
+
+def wait_for_service_ready() -> None:
+    deadline = time.monotonic() + SERVICE_READY_TIMEOUT_SECONDS
+    attempt = 0
+    last_active = False
+    while time.monotonic() < deadline:
+        attempt += 1
+        last_active = subprocess.run(
+            ["systemctl", "is-active", "--quiet", SERVICE_NAME],
+            check=False,
+        ).returncode == 0
+        if last_active and api_health_ready():
+            print(f"ECONOMY_API_SERVICE_READY attempts={attempt}")
+            return
+        print(
+            "ECONOMY_API_SERVICE_READY_RETRY "
+            f"attempt={attempt} active={str(last_active).lower()}",
+            file=sys.stderr,
+        )
+        time.sleep(SERVICE_READY_POLL_SECONDS)
+
+    print(
+        "ECONOMY_API_SERVICE_READY_TIMEOUT "
+        f"seconds={SERVICE_READY_TIMEOUT_SECONDS} active={str(last_active).lower()}",
+        file=sys.stderr,
+    )
+    print_service_diagnostics()
+    raise RuntimeError(
+        f"{SERVICE_NAME} did not become healthy at {SERVICE_HEALTH_URL} "
+        f"within {SERVICE_READY_TIMEOUT_SECONDS} seconds"
+    )
+
+
 def main() -> int:
     if os.geteuid() != 0:
         raise RuntimeError("This script must run as root")
@@ -238,7 +304,7 @@ WantedBy=multi-user.target
     run(["systemctl", "daemon-reload"])
     run(["systemctl", "enable", SERVICE_NAME])
     run(["systemctl", "restart", SERVICE_NAME])
-    run(["systemctl", "is-active", "--quiet", SERVICE_NAME])
+    wait_for_service_ready()
     print(f"Installed {SERVICE_NAME} with Node.js {version} at {node_path}")
     return 0
 
