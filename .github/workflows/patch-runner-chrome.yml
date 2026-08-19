@@ -1,0 +1,27 @@
+name: Apply runner Chrome fallback
+
+on:
+  push:
+    branches:
+      - fix/playwright-runner-chrome-fallback
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/playwright-runner-chrome-fallback
+          fetch-depth: 0
+      - run: python3 scripts/apply-runner-chrome-fallback.py
+      - run: |
+          chmod +x scripts/prepare-playwright-chromium.sh
+          git config user.name 'RIVERSOFT'
+          git config user.email '105160096+RIVERS0FT@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'prefer runner Chrome for browser gates'
+          git push origin HEAD:fix/playwright-runner-chrome-fallback
