@@ -36,7 +36,6 @@ export interface GameTutorialController {
   hide: () => void;
   show: () => void;
   openCurrentTarget: () => void;
-  recordWorkClick: () => void;
   recordBuildSubmit: (facilityTypeId: string) => void;
   recordFacilityStartClick: (facilityTypeId: string) => void;
   recordAutoSellSetting: (productId: string) => void;
@@ -239,15 +238,11 @@ setRun(persisted);
     if (run.currentStep === 'set-auto-sell') {
       const productId = preferredSellProductId(model, run.context.productId);
       requestAutoSellPanel(userId, productId);
-      model.setTab('production');
+      model.setTab('market');
       return;
     }
     model.setTab(definition.targetTab);
   }, [model, run, userId]);
-
-  const recordWorkClick = useCallback(() => {
-    updateCurrentRun('work', 'workClicks');
-  }, [updateCurrentRun]);
 
   const recordBuildSubmit = useCallback((facilityTypeId: string) => {
     updateCurrentRun('build-facility', 'buildSubmits', { facilityTypeId });
@@ -314,7 +309,6 @@ setRun(persisted);
     hide,
     show,
     openCurrentTarget,
-    recordWorkClick,
     recordBuildSubmit,
     recordFacilityStartClick,
     recordAutoSellSetting,
@@ -333,7 +327,6 @@ setRun(persisted);
     recordBuildSubmit,
     recordFacilityStartClick,
     recordResearchStart,
-    recordWorkClick,
     restart,
     run,
     serverCompleted,

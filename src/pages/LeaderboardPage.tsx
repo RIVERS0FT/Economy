@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
-import { PageLayout, Panel, StatusTag } from '../components/ui/layout';
+import { Button, PageLayout, Panel, StatusTag } from '../components/ui/layout';
 import {
   leaderboardsFromGame,
   type LeaderboardBoardId,
@@ -162,6 +162,7 @@ function LeaderboardCard({ board, period }: { board: RankedLeaderboardBoard; per
 export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
   const leaderboards = leaderboardsFromGame(model.game) ?? fallbackLeaderboards(model);
   const { period } = leaderboards;
+  const [selectedBoardId, setSelectedBoardId] = useState<LeaderboardBoardId>('wealth');
   const periodLabel = period.key === 'initializing'
     ? '周榜初始化中'
     : `${formatPeriodTime(period.startsAt)} — ${formatPeriodTime(period.endsAt)}`;
@@ -169,21 +170,37 @@ export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="排行榜"
-      description="四榜并列展示；财富榜按净资产实时更新，增长榜、生产榜和交易榜按北京时间每周一 00:00 结算；成绩相同时，最后有效经济活动时间越近者排名越高。"
-      actions={<StatusTag tone={period.partial ? 'neutral' : 'success'}>{period.partial ? '首个不完整周不发奖' : periodLabel}</StatusTag>}
+      actions={period.partial ? undefined : <StatusTag tone="success">{periodLabel}</StatusTag>}
     >
-      <div className="leaderboard-grid-scroll" role="region" aria-label="四个排行榜" tabIndex={0}>
-        <div className="leaderboard-grid">
+      <div className="leaderboard-responsive-layout">
+        <div className="leaderboard-board-switch ui-segmented" role="group" aria-label="选择排行榜">
           {BOARD_ORDER.map((boardId) => (
-            <LeaderboardCard key={boardId} board={leaderboards.boards[boardId]} period={period} />
+            <Button
+              variant="text"
+              className={selectedBoardId === boardId ? 'ui-segmented__button active' : 'ui-segmented__button'}
+              aria-pressed={selectedBoardId === boardId}
+              onClick={() => setSelectedBoardId(boardId)}
+              key={boardId}
+            >{leaderboards.boards[boardId].title}</Button>
           ))}
         </div>
+        <div className="leaderboard-board-grid">
+          {BOARD_ORDER.map((boardId) => (
+            <div
+              className={selectedBoardId === boardId ? 'leaderboard-board-slot is-selected' : 'leaderboard-board-slot'}
+              data-leaderboard-board={boardId}
+              key={boardId}
+            >
+              <LeaderboardCard board={leaderboards.boards[boardId]} period={period} />
+            </div>
+          ))}
+        </div>
+        {!period.partial ? (
+          <p className="leaderboard-period-note">
+            本期 {periodLabel}；同一玩家可以在多个周榜分别获奖。成绩相同时，最后有效经济活动时间越近者排名越高。
+          </p>
+        ) : null}
       </div>
-      <p className="leaderboard-period-note">
-        {period.partial
-          ? '当前为首次上线测试周期，仅记录排名；下一个完整周开始按 50 / 30 / 20 宝石发放前三名奖励。成绩相同时，最后有效经济活动时间越近者排名越高。'
-          : `本期 ${periodLabel}；同一玩家可以在多个周榜分别获奖。成绩相同时，最后有效经济活动时间越近者排名越高。`}
-      </p>
     </PageLayout>
   );
 }

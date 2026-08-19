@@ -48,7 +48,7 @@ for (const target of ['./AdminApp', './GameApp']) {
 const routerImports = importTargets('src/pages/PageRouter.tsx');
 for (const target of [
   './AuctionPage', './BankPage', './ContractPage', './LeaderboardPage', './MarketPage',
-  './OverviewPage', './ProductionPage', './GemShopPage', './SettingsPage',
+  './OverviewPage', './BuildingsPage', './GemShopPage', './SettingsPage',
 ]) {
   if (!routerImports.dynamic.includes(target)) fail(`PageRouter.tsx 必须动态导入 ${target}`);
   if (routerImports.staticImports.includes(target)) fail(`PageRouter.tsx 不得静态导入 ${target}`);
@@ -61,8 +61,7 @@ if (/setInterval\s*\([^)]*1_?000/.test(viewModel) || /\bsetNow\b/.test(viewModel
 if (/\bworkRemaining\b/.test(viewModel)) fail('workRemaining 必须由局部页面计算');
 
 for (const [path, pattern] of [
-  ['src/pages/OverviewPage.tsx', /useNow\(game\.lastProcessedAt,\s*60_000\)/],
-  ['src/pages/ProductionPage.tsx', /const now = game\.lastProcessedAt/],
+  ['src/pages/BuildingsPage.tsx', /const now = game\.lastProcessedAt/],
   ['src/pages/AuctionPage.tsx', /const referenceNow = model\.game\.lastProcessedAt/],
   ['src/pages/BankPage.tsx', /const referenceNow = model\.game\.lastProcessedAt/],
   ['src/pages/MarketPage.tsx', /const now = game\.lastProcessedAt/],
@@ -70,7 +69,7 @@ for (const [path, pattern] of [
   if (!pattern.test(read(path))) fail(`${path} 必须以权威 lastProcessedAt 作为局部时间基准`);
 }
 for (const [path, pattern] of [
-  ['src/pages/overview/OverviewLiveSections.tsx', /LiveServerTime referenceNow=\{referenceNow\}/],
+  ['src/components/EconomicEventLogPanel.tsx', /LiveServerTime referenceNow=\{referenceNow\}/],
   ['src/pages/AuctionPage.tsx', /LiveDurationUntil deadline=\{endsAt\} referenceNow=\{referenceNow\}/],
   ['src/pages/BankPage.tsx', /LiveDurationUntil/],
   ['src/pages/production/ProductionFacilityDetail.tsx', /const liveNow = useNow\(now\)/],
@@ -80,7 +79,7 @@ for (const [path, pattern] of [
 }
 for (const path of [
   'src/pages/OverviewPage.tsx',
-  'src/pages/ProductionPage.tsx',
+  'src/pages/BuildingsPage.tsx',
   'src/pages/AuctionPage.tsx',
   'src/pages/BankPage.tsx',
   'src/pages/GemShopPage.tsx',

@@ -76,6 +76,8 @@ if (failures.length === 0) {
     'html[data-input-modality="touch"] *:not(.ui-scroll-area__viewport)',
     '.mobile-detail-sheet-scroll-area > .ui-scrollbar--vertical',
     'right: env(safe-area-inset-right, 0px);',
+    '.page-card-scroll-area > .ui-scrollbar--vertical',
+    '.page-card-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb',
   ]) requireText(paths.styles, text);
 
   for (const text of [
@@ -90,12 +92,10 @@ if (failures.length === 0) {
 
   for (const text of [
     'VirtualRecordTable',
-    'scrollbarVisibility="adaptive"',
-    'items={localTrades}',
+    'items={selectedLocalTrades}',
     'className="local-trades-scroll-area"',
   ]) requireText(paths.market, text);
 
-  for (const text of ['scroll-snap-type: none;', 'scroll-behavior: auto;']) requireText(paths.marketStyles, text);
   forbidText(paths.marketStyles, 'scroll-snap-type: x proximity');
   forbidText(paths.marketStyles, 'scroll-behavior: smooth;');
   forbidText(paths.sharedMarketStyles, 'scroll-snap-align: start;');
@@ -111,19 +111,26 @@ if (failures.length === 0) {
     "'page-scroll'",
     'scrollbarVisibility="adaptive"',
   ]) requireText(paths.shell, text);
+  for (const text of [
+    'className="page-card-scroll-area"',
+    'viewportClassName="page-card-scroll"',
+    'className="page-card-static"',
+  ]) requireText(paths.layout, text);
+  requireText(paths.design, '研发页是唯一固定正文例外');
   requireText(paths.gameShell, '<SignedInShell');
   for (const text of ['<SignedInShell', 'pageViewportClassName="admin-page-scroll"']) requireText(paths.adminApp, text);
 
   for (const text of [
     '触控模式下横向项目轨道始终 `display: none`',
     '业务 `ScrollArea` 不得通过 `padding`、`margin` 或宽度计算预留 `--scrollbar-hit-size`',
+    '轨道和可见滑块都必须贴紧右边',
     '移动根级 Dialog 内与视口同宽的纵向轨道',
-    '市场商品与工厂资产目录必须支持无级滑动',
+    '市场商品列表不得建立横向主滚动区',
     '单一双轴原生视口',
   ]) requireText(paths.design, text);
   for (const text of ['单一双轴原生滚动视口', '任意数据单元格都必须可以作为原生横向滑动起点']) requireText(paths.localDesign, text);
   for (const text of [
-    'desktop market asset directory supports continuous unsnapped scrolling',
+    'desktop market catalog stays within the page card without a horizontal rail',
     'touch input hides horizontal rails while local trade cells keep native two-axis scrolling',
     'mixed input switches scrollbar policy at runtime',
   ]) requireText(paths.browser, text);
@@ -142,9 +149,9 @@ if (failures.length === 0) {
 }
 
 if (failures.length > 0) {
-  console.error('输入方式滚动条、共享登录后外壳、共享移动详情安全边缘、无级资产目录与单一双轴虚拟成交表验证失败：');
+  console.error('输入方式滚动条、共享登录后外壳、共享移动详情安全边缘、市场列表无横向主滚动与单一双轴虚拟成交表验证失败：');
   failures.forEach((failure) => console.error(`- ${failure}`));
   process.exit(1);
 }
 
-console.log('统一尺寸、共享登录后页面滚动、共享移动详情安全边缘、鼠标与触控策略、隐藏触控横向轨道、无级资产目录和单一双轴虚拟成交表验证通过。');
+console.log('统一尺寸、共享登录后页面滚动、共享移动详情安全边缘、鼠标与触控策略、市场列表无横向主滚动和单一双轴虚拟成交表验证通过。');

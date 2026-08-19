@@ -218,7 +218,7 @@ requireText('src/app/clientOrderIndex.ts', [
 ]);
 requireText('src/pages/MarketPage.tsx', [
   'getClientOrderIndex(game.orders)',
-  'openOrdersForAsset(orderIndex, marketAssetKind, assetId)',
+  'openOrdersForAsset(orderIndex, activeAssetKind, assetId)',
   'const ownOpenOrders = orderIndex.ownOpenOrders;',
   'const MarketOrderEntry = memo(forwardRef',
 ]);
@@ -246,12 +246,11 @@ requireText('src/components/time/LiveServerTime.tsx', [
   'export function LiveServerTime',
   'export function LiveDurationUntil',
 ]);
-requireText('src/pages/overview/OverviewLiveSections.tsx', [
-  'OverviewWorkButton',
-  'OverviewEconomicCalendarPanel',
+requireText('src/components/EconomicEventLogPanel.tsx', [
+  'EconomicEventLogPanel',
   '<LiveServerTime referenceNow={referenceNow}>',
 ]);
-forbidText('src/pages/ProductionPage.tsx', ['useNow(game.lastProcessedAt)']);
+forbidText('src/pages/BuildingsPage.tsx', ['useNow(game.lastProcessedAt)']);
 forbidText('src/pages/AuctionPage.tsx', ['useNow(model.game.lastProcessedAt)']);
 forbidText('src/pages/GemShopPage.tsx', ['useNow(model.game.lastProcessedAt)']);
 forbidText('src/pages/ResearchPage.tsx', ['const now = useNow(model.game.lastProcessedAt);']);

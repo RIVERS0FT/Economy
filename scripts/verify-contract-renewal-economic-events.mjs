@@ -12,7 +12,8 @@ const runtimeStore = `${read('server/src/runtime-store.js')}\n${read('server/src
 const routes = read('server/src/game-routes.js');
 const statePartitions = read('server/src/state-partitions.js');
 const overview = read('src/pages/OverviewPage.tsx');
-const overviewLive = read('src/pages/overview/OverviewLiveSections.tsx');
+const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');
+const economicEventLog = read('src/components/EconomicEventLogPanel.tsx');
 const contractPage = read('src/pages/ContractPage.tsx');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
@@ -38,10 +39,13 @@ assert.ok(runtimeStore.includes('createEconomicCalendarClientState(now)'), 'stat
 assert.ok(runtimeStore.includes('createStablePartitionClientState(snapshot.state)'), 'state snapshot must stabilize partition projections');
 assert.ok(statePartitions.includes("'economicCalendar'"), 'economic calendar must stay in the existing market delivery partition');
 assert.ok(statePartitions.includes("['leaderboard', 'leaderboards']"), 'ranked leaderboards must stay in the leaderboard delivery partition');
-assert.ok(overview.includes('<OverviewEconomicCalendarPanel'), 'overview must own and mount the public economic calendar');
-assert.ok(overviewLive.includes('公开经济事件日历'), 'overview live section must render the public economic calendar');
-assert.ok(overviewLive.includes('未来 7 天'), 'overview live section must limit the visible calendar to seven days');
-assert.ok(!read('src/pages/MarketPage.tsx').includes('公开经济事件日历'), 'market page must not own the economic calendar');
+assert.ok(!overview.includes('EconomicEventLogPanel') && !overview.includes('公开经济事件'), 'overview page content must not own the public economic event log');
+assert.ok(strategicWorkspace.includes('className="strategic-economic-event-rail"'), 'strategic shell must own the independent public economic event rail');
+assert.ok(strategicWorkspace.includes('<EconomicEventLogPanel'), 'strategic shell must mount the public economic event log');
+assert.ok(economicEventLog.includes('className="economic-event-log-title"'), 'economic event panel must render the public event log title without a heading pill');
+assert.ok(economicEventLog.includes('<details') && economicEventLog.includes('<summary>'), 'economic events must stay compact until expanded');
+assert.ok(economicEventLog.includes('近期与未来七天'), 'economic event panel must limit the visible calendar to seven days');
+assert.ok(!read('src/pages/MarketPage.tsx').includes('公开经济事件'), 'market page must not own the economic event log');
 assert.ok(contractPage.includes('提出续签'), 'contract page must expose renewal controls');
 assert.ok(contractPage.includes('同意续签') && contractPage.includes('撤销同意'), 'contract page must expose bilateral renewal approval controls');
 assert.ok(contractPage.includes('采购方确认') && contractPage.includes('供应方确认'), 'contract page must show both renewal approval states');
@@ -60,7 +64,7 @@ assert.ok(contractPage.includes('长期合同 · 已履约'), 'contract page mus
 assert.ok(pageDesign.includes('`totalDeliveries = null`') && pageDesign.includes('长期合同不会因完成批次数自动结束'), 'page design must own long-term supply contract semantics');
 assert.ok(serverDesign.includes('`totalDeliveries` 允许为 2～100 的整数或 `null`') && serverDesign.includes('长期合同不接受续签'), 'server design must own long-term supply lifecycle');
 assert.ok(serverDesign.includes('合同 schema 9 同时'), 'server design must keep the current supply contract schema baseline');
-assert.ok(serverDesign.includes('世界 30 是当前持久化边界') && serverDesign.includes('当前客户端状态版本为 34'), 'server design must keep current world and client baselines');
+assert.ok(serverDesign.includes('世界 32 是当前持久化边界') && serverDesign.includes('当前客户端状态版本为 36'), 'server design must keep current world and client baselines');
 assert.ok(serverDesign.includes('合同历史冷启动导入必须优先读取 V2 分段世界'), 'contract audit cold-start must prefer segmented V2 authority');
 assert.ok(!serverDesign.includes('合同 schema 8 同时') && !serverDesign.includes('世界 26 是当前持久化边界。') && !serverDesign.includes('当前客户端状态版本为 30。'), 'server design must not retain stale contract/world/client baselines');
 assert.ok(rootReadme.includes('可留空总批次形成长期合同'), 'root README must summarize long-term supply contracts');

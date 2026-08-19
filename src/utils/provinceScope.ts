@@ -27,7 +27,7 @@ export function scopeEconomyState(game: EconomyState, requestedProvinceId: strin
   const markets = game.provinceMarkets?.[provinceId] || {};
   const facilityMarkets = game.provinceFacilityMarkets?.[provinceId] || {};
   const orders = (game.orders || []).filter((order) => order.provinceId === provinceId);
-  const wheatInventory = inventories.wheat || { available: 0, frozen: 0 };
+  const wheatInventory = inventories.wheat || { available: 0, frozen: 0, inTransit: 0 };
   const wheatMarket = markets.wheat;
   const warehouseStoredQuantity = Object.values(inventories).reduce((sum, inventory) => (
     sum + Math.max(0, Number(inventory.available || 0)) + Math.max(0, Number(inventory.frozen || 0))

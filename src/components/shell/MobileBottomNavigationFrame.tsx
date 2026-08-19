@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { LiquidGlassSurface } from '../ui/LiquidGlassSurface';
+import { FrostedGlassSurface } from '../ui/FrostedGlassSurface';
 
 function classNames(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(' ');
@@ -26,11 +26,11 @@ export function MobileBottomNavigationFrame({
       aria-label={ariaLabel}
       data-navigation-surface={surfaceId}
     >
-      <LiquidGlassSurface variant="mobileNavigation">
+      <FrostedGlassSurface variant="mobileNavigation">
         <nav className="mobile-bottom-navigation__viewport" aria-label={navLabel}>
           {children}
         </nav>
-      </LiquidGlassSurface>
+      </FrostedGlassSurface>
     </aside>
   );
 }

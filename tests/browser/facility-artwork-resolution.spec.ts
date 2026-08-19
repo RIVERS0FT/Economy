@@ -22,7 +22,7 @@ async function expectBackgroundImageResolution(locator: Locator, expectedSize: n
   expect(imageMetadata).toEqual({ width: expectedSize, height: expectedSize });
 }
 
-test('production and market facility artwork use 256px runtime thumbnails', async ({ page }) => {
+test('building cards and subordinate asset trade use 256px facility thumbnails', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=production&scenario=facility-card-profit');
   await expectBackgroundImageResolution(
@@ -30,10 +30,9 @@ test('production and market facility artwork use 256px runtime thumbnails', asyn
     256,
   );
 
-  await page.goto('market-runtime-test.html?scenario=active');
-  const marketFacility = page.getByRole('tab', { name: /^机械工厂/ });
+  await page.getByRole('button', { name: /交易该建筑资产/ }).click();
   await expectBackgroundImageResolution(
-    marketFacility.locator(':scope > .market-asset-card__icon-layer > .facility-icon'),
+    page.locator('.market-detail-hero__artwork > .facility-icon'),
     256,
   );
 });

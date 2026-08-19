@@ -3,14 +3,15 @@ import { expect, test } from '@playwright/test';
 test.describe('production cluster status summary', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('instant construction shows credits and materials without gem acceleration', async ({ page }) => {
+  test('production title omits status counts while instant construction shows costs without gem acceleration', async ({ page }) => {
     await page.goto('runtime-test.html?view=production&scenario=cluster-summary');
 
-    const summary = page.locator('.page-heading-actions');
-    await expect(summary).toContainText('运行 2');
-    await expect(summary).toContainText('停止 1');
-    await expect(summary).toContainText('异常 1');
-    await expect(summary).not.toContainText('施工');
+    const titleBlock = page.locator('.page-fixed-header');
+    await expect(titleBlock).not.toContainText('运行 2');
+    await expect(titleBlock).not.toContainText('停止 1');
+    await expect(titleBlock).not.toContainText('异常 1');
+    await expect(titleBlock).not.toContainText('施工');
+    await expect(page.locator('.page-heading-actions')).toHaveCount(0);
 
     const buildCard = page.locator('.production-build-card');
     await expect(buildCard).toContainText('建造数量');

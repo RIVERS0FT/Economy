@@ -96,6 +96,7 @@ const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'cancelFacilityListing', 'buyFacility', 'redeemGift',
   'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
   'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay', 'startResearch', 'accelerateResearch',
+  'chooseStartingProvince', 'unlockProvince', 'transportShip',
 ]);
 
 function normalizeJson(value) {

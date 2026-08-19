@@ -1,3 +1,8 @@
+.contract-content-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .contract-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

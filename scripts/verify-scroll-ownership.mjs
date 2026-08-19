@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = process.cwd();
-const read = (path) => readFileSync(resolve(root, path), 'utf8');
+const read = (path) => readFileSync(resolve(root, path), 'utf8').replace(/\r\n?/g, '\n');
 const walk = (path) => readdirSync(resolve(root, path)).flatMap((entry) => {
   const relative = `${path}/${entry}`;
   return statSync(resolve(root, relative)).isDirectory() ? walk(relative) : [relative];
@@ -68,7 +68,7 @@ const design = read('docs/UI_DESIGN_SYSTEM.md');
 for (const text of [
   '最近且仍能沿当前方向滚动的后代视口',
   '当前视口真正发生滚动时必须同时调用 `preventDefault()` 与 `stopPropagation()`',
-  '生产页桌面“建设新工厂”卡',
+  '建筑页桌面“建设新工厂”卡',
   '管理员后台整页滚动区',
 ]) assert.ok(design.includes(text), `UI 设计文档缺少滚轮规则或控件位置: ${text}`);
 

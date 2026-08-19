@@ -54,7 +54,7 @@ test('world 30 geography replacement keeps legacy scoped assets on their existin
 
   migrateWorld(world, NOW + 1);
 
-  assert.equal(world.version, 30);
+  assert.equal(world.version, 32);
   assert.equal(player.inventories[originalKey].available, 9);
   assert.equal(Object.keys(player.inventories).includes(originalKey), true);
 });
@@ -70,8 +70,8 @@ test('world 29 inventory migration conserves legacy assets in default California
 
   migrateWorld(world, NOW + 1);
 
-  assert.deepEqual(player.inventories[provinceScopedKey(CALIFORNIA, 'wheat')], { available: 7, frozen: 3 });
-  assert.deepEqual(player.inventories[provinceScopedKey(CALIFORNIA, 'rice')], { available: 4, frozen: 2 });
+  assert.deepEqual(player.inventories[provinceScopedKey(CALIFORNIA, 'wheat')], { available: 7, frozen: 3, inTransit: 0 });
+  assert.deepEqual(player.inventories[provinceScopedKey(CALIFORNIA, 'rice')], { available: 4, frozen: 2, inTransit: 0 });
   assert.equal(player.inventories.wheat, player.inventories[provinceScopedKey(CALIFORNIA, 'wheat')]);
   assert.equal(Object.keys(player.inventories).includes('wheat'), false);
   assert.equal(Object.values(player.inventories).reduce((sum, item) => sum + item.available + item.frozen, 0), 16);
@@ -185,8 +185,8 @@ test('global wealth ranking values each inventory with its local market price', 
   if (player.bankAccount) player.bankAccount.depositCredits = 0;
   inventoryForProvince(player, 'wheat', CALIFORNIA).available = 2;
   inventoryForProvince(player, 'wheat', GEORGIA).available = 3;
-  world.markets[provinceScopedKey(CALIFORNIA, 'wheat')].lastTradePrice = 4;
-  world.markets[provinceScopedKey(GEORGIA, 'wheat')] = { lastTradePrice: 7 };
+  world.markets[provinceScopedKey(CALIFORNIA, 'wheat')].officialPrice = 4;
+  world.markets[provinceScopedKey(GEORGIA, 'wheat')] = { lastTradePrice: 7, officialPrice: 7 };
 
   assert.equal(wealthAssetsFor(world, player), 29);
 });

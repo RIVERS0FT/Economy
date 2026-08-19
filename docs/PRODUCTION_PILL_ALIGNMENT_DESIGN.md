@@ -1,24 +1,24 @@
-# Economy 生产页胶囊与开关对齐设计
+# Economy 建筑页胶囊与开关对齐设计
 
-> 状态：生产页一级卡片胶囊、开关与桌面固定卡片几何基线  
+> 状态：建筑页一级卡片胶囊、开关与桌面固定卡片几何基线
 > 适用项目：`RIVERS0FT/Economy`  
 > 更新时间：2026-07-23
 
-本设计补充 `UI_DESIGN_SYSTEM.md`、`WAREHOUSE_EXPANSION_DESIGN.md`、`INDUSTRY_AND_PRODUCTION_DESIGN.md` 与 `LIQUID_GLASS_CHROME_DESIGN.md`。生产页工厂集群开关的点击区域规则以本文为准；这是对全局 44 × 44px 开关点击区域规则的明确场景例外。生产页桌面 sticky 顶部定位也以本文为准；当旧文档要求业务 sticky 卡片直接将 `--desktop-page-top-offset` 用作 `top` 时，本文针对已经通过页面滚动容器顶部 padding 完成工作栏避让的生产页作出明确场景例外。
+本设计补充 `UI_DESIGN_SYSTEM.md`、`WAREHOUSE_EXPANSION_DESIGN.md`、`INDUSTRY_AND_PRODUCTION_DESIGN.md` 与 `LIQUID_GLASS_CHROME_DESIGN.md`。建筑页工厂集群开关的点击区域规则以本文为准；这是对全局 44 × 44px 开关点击区域规则的明确场景例外。建筑页桌面 sticky 顶部定位也以本文为准；当旧文档要求业务 sticky 卡片直接将 `--desktop-page-top-offset` 用作 `top` 时，本文针对已经通过页面滚动容器顶部 padding 完成工作栏避让的建筑页作出明确场景例外。
 
 ## 1. 统一对象
 
-生产页统一以下可见胶囊几何：
+建筑页统一以下可见胶囊几何：
 
 - `StatusTag` 状态胶囊；
-- 共享仓库等级胶囊；
+- 工厂集群等级胶囊；
 - 工厂集群 `SwitchControl` 的可见轨道与点击区域。
 
 状态与等级继续使用 `StatusTag`，开关继续使用唯一的 `SwitchControl`。
 
 ## 2. 可见几何
 
-生产页工厂开关与状态、等级胶囊共享：
+建筑页工厂开关与状态、等级胶囊共享：
 
 ```text
 可见高度：1.6rem
@@ -36,7 +36,7 @@
 
 工厂信息标题行最小高度必须使用同一个 `1.6rem` 胶囊高度。这样标题与下一行状态胶囊之间只保留正式网格间距，不会因为历史 44px 点击盒产生额外空白。
 
-该紧凑规则只适用于生产页工厂集群卡右上角开关。其他页面和表单开关继续遵循全局触控目标规则。
+该紧凑规则只适用于建筑页工厂集群卡右上角开关。其他页面和表单开关继续遵循全局触控目标规则。
 
 ## 4. 滑块与焦点
 
@@ -51,7 +51,7 @@ top: calc((可见轨道高度 - 滑块尺寸) / 2);
 ## 5. 样式职责
 
 - `design-system.css` 定义 `StatusTag`、全局开关基础外观和焦点环；
-- `production-surface.css` 是生产页工厂开关点击区域、可见轨道、标题行高度，以及桌面建设卡与详情外壳 sticky 行为的唯一权威样式文件；
+- `production-surface.css` 是建筑页工厂开关点击区域、可见轨道、标题行高度，以及桌面建设卡与详情外壳 sticky 行为的唯一权威样式文件；
 - `facility-group-card-grid.css` 只负责生产主网格、响应式轨道、工厂信息、状态、数量摘要和详情自然高度，不得声明建设卡或详情外壳的 `position`、`top`、桌面最大高度或纵向 overflow；
 - `production-surface.css` 必须在 `facility-group-card-grid.css` 之后加载，使场景专用几何成为最终结果，但正确性不得依赖前置文件保留一套相反的 sticky 声明。
 
@@ -59,14 +59,14 @@ top: calc((可见轨道高度 - 滑块尺寸) / 2);
 
 不得：
 
-- 恢复 `44 × 44px` 的生产页工厂开关透明点击区域；
-- 让生产页工厂开关点击高度与可见高度不同；
+- 恢复 `44 × 44px` 的建筑页工厂开关透明点击区域；
+- 让建筑页工厂开关点击高度与可见高度不同；
 - 让工厂信息标题行继续使用 `var(--control-height)` 作为实际最小高度；
 - 让开关轨道高度不同于 `StatusTag` 的 `1.6rem`；
 - 用额外外边距单独修补某一种工厂卡；
 - 让开关点击区域下压状态胶囊；
 - 删除轨道焦点环或开关无障碍名称；
-- 未同步更新本文档和验证脚本就改变生产页胶囊几何。
+- 未同步更新本文档和验证脚本就改变建筑页胶囊几何。
 
 ## 7. 桌面 sticky 顶部基线
 
@@ -78,7 +78,7 @@ top: 0;
 align-self: start;
 ```
 
-`.page-scroll` 已经通过 `padding-top: var(--desktop-page-top-offset)` 完成桌面工作栏避让，因此生产页 sticky 后代使用 `top: 0`。不得再次把完整 `--desktop-page-top-offset` 叠加到 sticky `top`，否则建设卡会比工厂选择区和详情卡多下移一次状态栏高度。
+`.page-scroll` 已经通过 `padding-top: var(--desktop-page-top-offset)` 完成桌面工作栏避让，因此建筑页 sticky 后代使用 `top: 0`。不得再次把完整 `--desktop-page-top-offset` 叠加到 sticky `top`，否则建设卡会比工厂选择区和详情卡多下移一次状态栏高度。
 
 `top: 0` 是相对于已经完成顶部避让的页面滚动视口，不代表卡片覆盖桌面工作栏。不得使用 `position: fixed`、负外边距、额外页面 padding 或 JavaScript 滚动监听模拟相同效果。
 

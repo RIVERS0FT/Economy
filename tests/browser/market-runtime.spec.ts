@@ -12,6 +12,15 @@ async function requireBox(locator: Locator) {
   return box!;
 }
 
+async function selectRichOption(page: Page, label: string, optionName: string) {
+  const combobox = page.getByRole('combobox', { name: label });
+  await combobox.click();
+  await page.getByRole('listbox', { name: label })
+    .getByRole('option', { name: optionName, exact: true })
+    .click();
+  await expect(combobox).toContainText(optionName);
+}
+
 async function inspectMarketLayoutBounds(locator: Locator) {
   return locator.evaluate((element) => {
     const surface = element as HTMLElement;
@@ -75,12 +84,14 @@ async function inspectChartAxis(chart: Locator) {
   });
 }
 
-test('market desktop layout keeps order entry and order book in one trade card beside the chart', async ({ page }) => {
+test('market desktop layout keeps order entry and order book together above the chart in the compact page', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('market-runtime-test.html?scenario=active');
 
-  await expect(page.getByRole('heading', { name: '加利福尼亚州本地市场', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '加利福尼亚州 · 小麦', exact: true })).toBeVisible();
+  await expect(page.locator('.market-catalog-panel > .widget-heading')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '商品列表', exact: true })).toHaveCount(0);
   const tradeCard = page.locator('.market-trade-card');
   const orderEntry = tradeCard.locator('.order-entry');
   const orderBook = tradeCard.locator('.single-order-book');
@@ -95,16 +106,16 @@ test('market desktop layout keeps order entry and order book in one trade card b
   await expect(page.locator('.market-trade-card')).toHaveCount(1);
   await expect(page.locator('.market-grid > .order-entry')).toHaveCount(0);
   await expect(page.locator('.market-grid > .single-order-book')).toHaveCount(0);
-  expect(Math.abs(tradeBox.y - chartCardBox.y)).toBeLessThan(3);
-  expect(tradeBox.width).toBeGreaterThanOrEqual(560);
-  expect(chartCardBox.width).toBeGreaterThanOrEqual(680);
-  expect(Math.abs(tradeBox.height - chartCardBox.height)).toBeLessThan(3);
+  expect(chartCardBox.y).toBeGreaterThan(tradeBox.y + tradeBox.height - 2);
+  expect(Math.abs(chartCardBox.x - tradeBox.x)).toBeLessThan(3);
+  expect(Math.abs(chartCardBox.width - tradeBox.width)).toBeLessThan(3);
   expect(Math.abs(orderBox.y - bookBox.y)).toBeLessThan(3);
   expect(bookBox.x).toBeGreaterThan(orderBox.x + orderBox.width - 3);
   expect(orderBox.x).toBeGreaterThanOrEqual(tradeBox.x - 1);
   expect(bookBox.x + bookBox.width).toBeLessThanOrEqual(tradeBox.x + tradeBox.width + 1);
-  expect(chartBox.width).toBeGreaterThan(chartCardBox.width * 0.94);
-  await expect(chart).toHaveAttribute('data-chart-fill-mode', 'row');
+  expect(chartBox.width).toBeGreaterThanOrEqual(chartCardBox.width - 36);
+  expect(chartBox.width).toBeLessThanOrEqual(chartCardBox.width);
+  await expect(chart).toHaveAttribute('data-chart-fill-mode', 'natural');
   expect(chartBox.y + chartBox.height).toBeGreaterThan(chartCardBox.y + chartCardBox.height - 28);
   await expect(tradeCard.getByRole('heading', { name: /交易$/ })).toBeVisible();
   await expect(tradeCard.getByRole('heading', { name: '下单', exact: true })).toBeVisible();
@@ -144,6 +155,7 @@ test('market chart uses one linked hover state and keeps the price line protecte
   await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
   await expect(chart).toHaveAttribute('data-axis-pointer-linked', 'true');
   await expect(chart).toHaveAttribute('data-hover-emphasis-disabled', 'true');
+  await chart.scrollIntoViewIfNeeded();
   const bounds = await requireBox(chart);
   const geometry = await chart.evaluate((element) => {
     const wrapper = element as HTMLElement;
@@ -233,7 +245,7 @@ test('market medium and narrow layouts keep the trade card responsive without ho
   await expect(page.getByRole('button', { name: '成交', exact: true })).toBeVisible();
   await expect(page.locator('.market-account-grid > section.market-account-pane--active')).toContainText('未完成订单');
   await page.getByRole('button', { name: '成交', exact: true }).click();
-  await expect(page.locator('.market-account-grid > section.market-account-pane--active')).toContainText('本地成交记录');
+  await expect(page.locator('.market-account-grid > section.market-account-pane--active')).toContainText('本地成交');
 
   const mobileAxis = await inspectChartAxis(page.locator('.market-history-chart.full'));
   for (const label of mobileAxis.allLabels) {
@@ -334,171 +346,105 @@ test('market steppers and compact quick quantities preserve price and quantity l
   await page.getByRole('button', { name: '卖出', exact: true }).click();
   await page.getByRole('button', { name: '填写最大可交易数量' }).click();
   await expect(quantityInput).toHaveValue('8');
-
-  const machineryTab = page.getByRole('tab', { name: /^机械工厂/ });
-  await machineryTab.click();
-  await expect(machineryTab).toHaveAttribute('aria-selected', 'true');
-  await page.getByRole('button', { name: '填写最大可交易数量' }).click();
-  await expect(quantityInput).toHaveValue('18');
   await expect(page.getByRole('status')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 
-test('market product card renders icon layer before the data layer with independent stacking', async ({ page }) => {
+test('market commodity catalog exposes order-book metrics and opens a focused detail', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
-  await page.goto('market-runtime-test.html?scenario=active');
+  await page.goto('market-runtime-test.html?scenario=active&view=catalog');
 
-  const wheatTab = page.getByRole('tab', { name: /^小麦/ });
-  await expect(wheatTab).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('heading', { name: '加利福尼亚州市场', exact: true })).toBeVisible();
+  await page.getByRole('searchbox', { name: '搜索' }).fill('小麦');
+  await selectRichOption(page, '分类', '原材料');
+  await selectRichOption(page, '市场状态', '有真实成交');
+  const productRows = page.locator('.market-catalog-row');
+  await expect(productRows).toHaveCount(1);
+  const wheatRow = page.getByRole('button', { name: '查看小麦详情' });
+  await expect(wheatRow.locator('.product-artwork')).toHaveAttribute('data-product-artwork', 'wheat');
+  await expect(wheatRow).toContainText('小麦');
+  await expect(wheatRow.locator('.market-catalog-row__name small')).toHaveText('原材料');
+  for (const label of ['卖单量', '买单量', '挂单差额', '市场价', '基准偏离', '24h 变化', '挂单状态']) {
+    await expect(wheatRow.getByText(label, { exact: true })).toBeVisible();
+  }
+  await wheatRow.click();
 
-  const directLayers = await wheatTab.locator(':scope > span').evaluateAll((elements) => (
-    elements.map((element) => element.className)
-  ));
-  expect(directLayers).toEqual([
-    'market-asset-card__icon-layer',
-    'market-asset-card__data-layer',
-  ]);
-
-  const iconLayer = wheatTab.locator(':scope > .market-asset-card__icon-layer');
-  const dataLayer = wheatTab.locator(':scope > .market-asset-card__data-layer');
-  await expect(iconLayer.locator(':scope > .product-icon')).toHaveCount(1);
-  await expect(iconLayer.locator(':scope > :not(.product-icon)')).toHaveCount(0);
-  await expect(dataLayer.locator(':scope > .market-asset-card__name')).toHaveText('小麦');
-  await expect(dataLayer.locator(':scope > .market-asset-card__price')).toContainText('2');
-  await expect(dataLayer.locator(':scope > .market-asset-card__current')).toHaveText('当前');
-  await expect(dataLayer.locator(':scope > .market-asset-card__inventory')).toContainText('8');
-
-  const stacking = await wheatTab.evaluate((element) => {
-    const icon = element.querySelector<HTMLElement>(':scope > .market-asset-card__icon-layer');
-    const data = element.querySelector<HTMLElement>(':scope > .market-asset-card__data-layer');
-    if (!icon || !data) return null;
-    const iconStyle = getComputedStyle(icon);
-    const dataStyle = getComputedStyle(data);
-    const tabRect = element.getBoundingClientRect();
-    const iconRect = icon.getBoundingClientRect();
-    return {
-      iconPosition: iconStyle.position,
-      dataPosition: dataStyle.position,
-      iconZIndex: iconStyle.zIndex,
-      dataZIndex: dataStyle.zIndex,
-      iconPointerEvents: iconStyle.pointerEvents,
-      dataPointerEvents: dataStyle.pointerEvents,
-      horizontalCenterDelta: Math.abs((iconRect.left + iconRect.width / 2) - (tabRect.left + tabRect.width / 2)),
-      verticalCenterDelta: Math.abs((iconRect.top + iconRect.height / 2) - (tabRect.top + tabRect.height / 2)),
-    };
-  });
-  expect(stacking).not.toBeNull();
-  expect(stacking).toMatchObject({
-    iconPosition: 'absolute',
-    dataPosition: 'absolute',
-    iconZIndex: '1',
-    dataZIndex: '2',
-    iconPointerEvents: 'none',
-    dataPointerEvents: 'none',
-  });
-  expect(stacking!.horizontalCenterDelta).toBeLessThan(2);
-  expect(stacking!.verticalCenterDelta).toBeLessThan(2);
+  await expect(page.getByRole('heading', { name: '加利福尼亚州 · 小麦', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '商品基本面', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '生产者与消费者', exact: true })).toBeVisible();
+  await expect(page.locator('.market-trade-card')).toBeVisible();
+  await expect(page.locator('.market-history-chart.full')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '已有订单', exact: true })).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
 
-test('market facility card uses the same layers with ID-mapped artwork and SVG fallback semantics', async ({ page }) => {
+test('market catalog owns auto-trade and never exposes a factory directory', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
-  await page.goto('market-runtime-test.html?scenario=active');
+  await page.goto('market-runtime-test.html?scenario=active&view=catalog');
 
-  const facilityTab = page.getByRole('tab', { name: /^机械工厂/ });
-  const directLayers = await facilityTab.locator(':scope > span').evaluateAll((elements) => (
-    elements.map((element) => element.className)
-  ));
-  expect(directLayers).toEqual([
-    'market-asset-card__icon-layer',
-    'market-asset-card__data-layer',
-  ]);
+  await expect(page.getByRole('button', { name: '工厂', exact: true })).toHaveCount(0);
+  await expect(page.locator('.market-catalog-list .facility-icon')).toHaveCount(0);
+  expect(await page.locator('.market-catalog-list .product-artwork').count()).toBeGreaterThan(0);
 
-  const artwork = facilityTab.locator(':scope > .market-asset-card__icon-layer > .facility-icon');
-  await expect(artwork).toHaveAttribute('data-facility-icon', 'machine-factory');
-  await expect.poll(() => artwork.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('machine-factory');
-  await expect(facilityTab.locator('.market-asset-card__name > .market-asset-card__name-icon')).toHaveCount(1);
-  await expect(facilityTab.locator('.market-asset-card__inventory > .game-icon')).toHaveCount(1);
+  await page.getByRole('button', { name: '自动交易', exact: true }).click();
+  await expect(page.locator('.market-auto-trade-workspace')).toBeVisible();
+  await expect(page.getByRole('combobox', { name: '自动交易商品' })).toBeVisible();
+  await expect(page.locator('.market-catalog-panel')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 
-test('market asset directory uses two rows, explicit groups, controls and visible current state', async ({ page }) => {
+test('market detail back action restores the filtered catalog', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
-  await page.goto('market-runtime-test.html?scenario=active');
+  await page.goto('market-runtime-test.html?scenario=active&view=catalog');
 
-  const directory = page.getByRole('tablist', { name: '选择交易资产' });
-  const rowCount = await directory.evaluate((element) => (
-    getComputedStyle(element).gridTemplateRows.split(' ').filter(Boolean).length
-  ));
-  expect(rowCount).toBe(2);
-  await expect(page.locator('.asset-directory-divider')).toHaveCount(2);
-  await expect(page.getByRole('button', { name: '向前浏览资产' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '向后浏览资产' })).toBeVisible();
+  const search = page.getByRole('searchbox', { name: '搜索' });
+  await search.fill('小麦');
+  await selectRichOption(page, '分类', '原材料');
+  await selectRichOption(page, '市场状态', '有真实成交');
+  await selectRichOption(page, '排序', '市场价');
+  await page.getByRole('button', { name: '查看小麦详情' }).click();
+  await page.getByRole('button', { name: '返回商品列表' }).click();
 
-  await page.getByRole('button', { name: '向后浏览资产' }).click();
-  await expect.poll(() => directory.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
-
-  const finalFacility = page.getByRole('tab', { name: /^电子厂/ });
-  await finalFacility.click();
-  await expect(finalFacility).toHaveAttribute('aria-selected', 'true');
-  await expect(finalFacility.locator('.market-asset-card__current')).toHaveText('当前');
-  const directoryBox = await requireBox(directory);
-  const facilityBox = await requireBox(finalFacility);
-  expect(facilityBox.x).toBeGreaterThanOrEqual(directoryBox.x - 2);
-  expect(facilityBox.x + facilityBox.width).toBeLessThanOrEqual(directoryBox.x + directoryBox.width + 2);
+  await expect(search).toHaveValue('小麦');
+  await expect(page.getByRole('combobox', { name: '分类' })).toContainText('原材料');
+  await expect(page.getByRole('combobox', { name: '市场状态' })).toContainText('有真实成交');
+  await expect(page.getByRole('combobox', { name: '排序' })).toContainText('市场价');
+  await expect(page.locator('.market-catalog-row')).toHaveCount(1);
   expect(pageErrors).toEqual([]);
 });
 
-test('mobile market sticky asset divider stays below the status bar chrome', async ({ page }) => {
+test('mobile market catalog uses summary rows without horizontal overflow', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('market-runtime-test.html?scenario=active');
+  await page.goto('market-runtime-test.html?scenario=active&view=catalog');
 
-  const pageScroll = page.locator('.page-scroll');
-  const statusBar = page.locator('.asset-bar');
-  const directoryShell = page.locator('.asset-directory-shell');
-  const divider = page.locator('.asset-directory-divider').first();
-  await expect(statusBar).toBeVisible();
-  await expect(directoryShell).toBeVisible();
-  await expect(divider).toBeVisible();
-
-  const localStacking = await directoryShell.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return { position: style.position, zIndex: style.zIndex };
-  });
-  expect(localStacking.position).toBe('relative');
-  expect(localStacking.zIndex).toBe('0');
-
-  await pageScroll.evaluate((element) => {
-    const status = document.querySelector<HTMLElement>('.asset-bar');
-    const assetDivider = document.querySelector<HTMLElement>('.asset-directory-divider');
-    if (!status || !assetDivider) throw new Error('mobile market stacking fixture is incomplete');
-    const statusRect = status.getBoundingClientRect();
-    const dividerRect = assetDivider.getBoundingClientRect();
-    element.scrollTop += dividerRect.top - statusRect.top;
-  });
-
-  const stacking = await page.evaluate(() => {
-    const status = document.querySelector<HTMLElement>('.asset-bar');
-    const assetDivider = document.querySelector<HTMLElement>('.asset-directory-divider');
-    if (!status || !assetDivider) throw new Error('mobile market stacking fixture is incomplete');
-    const statusRect = status.getBoundingClientRect();
-    const dividerRect = assetDivider.getBoundingClientRect();
-    const x = Math.max(statusRect.left + 2, Math.min(dividerRect.right - 2, dividerRect.left + dividerRect.width / 2));
-    const y = statusRect.top + statusRect.height / 2;
-    const hit = document.elementFromPoint(x, y);
+  await expect(page.getByRole('button', { name: '查看小麦详情' })).toBeVisible();
+  const layout = await page.locator('.market-catalog-panel').evaluate((panel) => {
+    const row = panel.querySelector<HTMLElement>('.market-catalog-row');
+    const identity = row?.querySelector<HTMLElement>('.market-catalog-row__identity');
+    const condition = row?.querySelector<HTMLElement>('.market-catalog-row__condition');
+    if (!row || !identity || !condition) throw new Error('mobile market catalog fixture is incomplete');
     return {
-      overlaps: dividerRect.top < statusRect.bottom && dividerRect.bottom > statusRect.top,
-      hitInsideStatus: hit instanceof Element && status.contains(hit),
-      hitClassName: hit instanceof HTMLElement ? hit.className : hit?.nodeName ?? '',
+      panelClientWidth: panel.clientWidth,
+      panelScrollWidth: panel.scrollWidth,
+      rowClientWidth: row.clientWidth,
+      rowScrollWidth: row.scrollWidth,
+      rowColumns: getComputedStyle(row).gridTemplateColumns.split(' ').filter(Boolean).length,
+      identityColumn: getComputedStyle(identity).gridColumn,
+      conditionDisplay: getComputedStyle(condition).display,
     };
   });
-
-  expect(stacking.overlaps).toBe(true);
-  expect(stacking.hitInsideStatus, `命中元素应属于状态栏，实际为 ${stacking.hitClassName}`).toBe(true);
+  expect(layout.panelScrollWidth).toBeLessThanOrEqual(layout.panelClientWidth + 1);
+  expect(layout.rowScrollWidth).toBeLessThanOrEqual(layout.rowClientWidth + 1);
+  expect(layout.rowColumns).toBe(2);
+  expect(layout.identityColumn).toBe('1 / -1');
+  expect(layout.conditionDisplay).toBe('grid');
+  for (const label of ['卖单量', '买单量', '挂单差额', '市场价', '基准偏离', '24h 变化', '挂单状态']) {
+    await expect(page.getByRole('button', { name: '查看小麦详情' }).getByText(label, { exact: true })).toBeVisible();
+  }
   expect(pageErrors).toEqual([]);
 });
 
@@ -549,104 +495,53 @@ test('market order book aggregates same-price orders into one price level', asyn
   expect(pageErrors).toEqual([]);
 });
 
-test('market product artwork uses 72px desktop and 56px mobile while preserving cards and corner spacing', async ({ page }) => {
+test('market product artwork keeps fixed catalog and detail slots without stretching', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
-  await page.goto('market-runtime-test.html?scenario=active');
+  await page.goto('market-runtime-test.html?scenario=active&view=catalog');
 
-  const wheatTab = page.getByRole('tab', { name: /^小麦/ });
-  const desktopMetrics = await wheatTab.evaluate((element) => {
-    const card = element as HTMLElement;
-    const iconLayer = card.querySelector<HTMLElement>('.market-asset-card__icon-layer');
-    const dataLayer = card.querySelector<HTMLElement>('.market-asset-card__data-layer');
-    const artwork = iconLayer?.querySelector<HTMLElement>(':scope > .product-icon');
-    const nameIcon = card.querySelector<HTMLElement>('.market-asset-card__name-icon');
-    const directory = card.closest<HTMLElement>('.unified-asset-tabs');
-    if (!iconLayer || !dataLayer || !artwork || !nameIcon || !directory) {
-      throw new Error('market product card visual fixture is incomplete');
-    }
-    const cardRect = card.getBoundingClientRect();
+  const wheatRow = page.getByRole('button', { name: '查看小麦详情' });
+  const catalogMetrics = await wheatRow.evaluate((element) => {
+    const slot = element.querySelector<HTMLElement>('.market-catalog-row__artwork');
+    const artwork = slot?.querySelector<HTMLElement>('.product-artwork');
+    if (!slot || !artwork) throw new Error('market product catalog artwork is missing');
+    const slotRect = slot.getBoundingClientRect();
     const artworkRect = artwork.getBoundingClientRect();
-    const nameIconRect = nameIcon.getBoundingClientRect();
-    const cardStyle = getComputedStyle(card);
-    const iconLayerStyle = getComputedStyle(iconLayer);
-    const dataLayerStyle = getComputedStyle(dataLayer);
     return {
-      cardWidth: cardRect.width,
-      cardHeight: cardRect.height,
-      artworkWidth: artworkRect.width,
-      artworkHeight: artworkRect.height,
-      nameIconWidth: nameIconRect.width,
-      nameIconHeight: nameIconRect.height,
-      borderRadius: Number.parseFloat(cardStyle.borderTopLeftRadius),
-      directoryGap: Number.parseFloat(getComputedStyle(directory).columnGap),
-      transform: cardStyle.transform,
-      iconInsetTop: Number.parseFloat(iconLayerStyle.top),
-      iconInsetBottom: Number.parseFloat(iconLayerStyle.bottom),
-      dataPaddingTop: Number.parseFloat(dataLayerStyle.paddingTop),
-      dataPaddingRight: Number.parseFloat(dataLayerStyle.paddingRight),
-      dataPaddingBottom: Number.parseFloat(dataLayerStyle.paddingBottom),
-      dataPaddingLeft: Number.parseFloat(dataLayerStyle.paddingLeft),
-      dataRowGap: Number.parseFloat(dataLayerStyle.rowGap),
-      dataColumnGap: Number.parseFloat(dataLayerStyle.columnGap),
+      slot: [Math.round(slotRect.width), Math.round(slotRect.height)],
+      artwork: [Math.round(artworkRect.width), Math.round(artworkRect.height)],
+      backgroundSize: getComputedStyle(artwork).backgroundSize,
     };
   });
-  expect(desktopMetrics.cardWidth).toBeCloseTo(138, 0);
-  expect(desktopMetrics.cardHeight).toBeCloseTo(92, 0);
-  expect(desktopMetrics.artworkWidth).toBeCloseTo(72, 0);
-  expect(desktopMetrics.artworkHeight).toBeCloseTo(72, 0);
-  expect(desktopMetrics.nameIconWidth).toBeCloseTo(14, 0);
-  expect(desktopMetrics.nameIconHeight).toBeCloseTo(14, 0);
-  expect(desktopMetrics.borderRadius).toBeCloseTo(12, 0);
-  expect(desktopMetrics.directoryGap).toBeCloseTo(12, 0);
-  expect(desktopMetrics.transform).toBe('none');
-  expect(desktopMetrics.iconInsetTop).toBeCloseTo(14, 0);
-  expect(desktopMetrics.iconInsetBottom).toBeCloseTo(14, 0);
-  expect(desktopMetrics.dataPaddingTop).toBeCloseTo(7, 0);
-  expect(desktopMetrics.dataPaddingRight).toBeCloseTo(9, 0);
-  expect(desktopMetrics.dataPaddingBottom).toBeCloseTo(6, 0);
-  expect(desktopMetrics.dataPaddingLeft).toBeCloseTo(9, 0);
-  expect(desktopMetrics.dataRowGap).toBeCloseTo(2, 0);
-  expect(desktopMetrics.dataColumnGap).toBeCloseTo(6, 0);
+  expect(catalogMetrics).toEqual({ slot: [64, 64], artwork: [48, 48], backgroundSize: 'contain' });
 
+  await wheatRow.click();
+  const detailMetrics = await page.locator('.market-detail-hero__artwork').evaluate((slot) => {
+    const artwork = slot.querySelector<HTMLElement>('.product-artwork');
+    if (!artwork) throw new Error('market product detail artwork is missing');
+    const slotRect = slot.getBoundingClientRect();
+    const artworkRect = artwork.getBoundingClientRect();
+    return {
+      slot: [Math.round(slotRect.width), Math.round(slotRect.height)],
+      artwork: [Math.round(artworkRect.width), Math.round(artworkRect.height)],
+    };
+  });
+  expect(detailMetrics).toEqual({ slot: [76, 76], artwork: [58, 58] });
+
+  await page.getByRole('button', { name: '返回商品列表' }).click();
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect.poll(() => wheatTab.evaluate((element) => {
-    const card = element as HTMLElement;
-    const iconLayer = card.querySelector<HTMLElement>('.market-asset-card__icon-layer');
-    const dataLayer = card.querySelector<HTMLElement>('.market-asset-card__data-layer');
-    const artwork = iconLayer?.querySelector<HTMLElement>(':scope > .product-icon');
-    if (!iconLayer || !dataLayer || !artwork) throw new Error('mobile market product artwork is missing');
-    const cardRect = card.getBoundingClientRect();
-    const artworkRect = artwork.getBoundingClientRect();
-    const iconLayerStyle = getComputedStyle(iconLayer);
-    const dataLayerStyle = getComputedStyle(dataLayer);
-    return {
-      cardWidth: Math.round(cardRect.width),
-      cardHeight: Math.round(cardRect.height),
-      artworkWidth: Math.round(artworkRect.width),
-      artworkHeight: Math.round(artworkRect.height),
-      iconInsetTop: Math.round(Number.parseFloat(iconLayerStyle.top)),
-      iconInsetBottom: Math.round(Number.parseFloat(iconLayerStyle.bottom)),
-      dataPaddingTop: Math.round(Number.parseFloat(dataLayerStyle.paddingTop)),
-      dataPaddingRight: Math.round(Number.parseFloat(dataLayerStyle.paddingRight)),
-      dataPaddingBottom: Math.round(Number.parseFloat(dataLayerStyle.paddingBottom)),
-      dataPaddingLeft: Math.round(Number.parseFloat(dataLayerStyle.paddingLeft)),
-      dataRowGap: Math.round(Number.parseFloat(dataLayerStyle.rowGap)),
-      dataColumnGap: Math.round(Number.parseFloat(dataLayerStyle.columnGap)),
-    };
-  })).toEqual({
-    cardWidth: 132,
-    cardHeight: 88,
-    artworkWidth: 56,
-    artworkHeight: 56,
-    iconInsetTop: 18,
-    iconInsetBottom: 18,
-    dataPaddingTop: 6,
-    dataPaddingRight: 8,
-    dataPaddingBottom: 6,
-    dataPaddingLeft: 8,
-    dataRowGap: 2,
-    dataColumnGap: 5,
-  });
+  await expect.poll(() => wheatRow.evaluate((element) => {
+    const slot = element.querySelector<HTMLElement>('.market-catalog-row__artwork');
+    const artwork = slot?.querySelector<HTMLElement>('.product-artwork');
+    if (!slot || !artwork) throw new Error('mobile market product catalog artwork is missing');
+    return [
+      Math.round(slot.getBoundingClientRect().width),
+      Math.round(artwork.getBoundingClientRect().width),
+    ];
+  })).toEqual([64, 48]);
+  await wheatRow.click();
+  await expect.poll(() => page.locator('.market-detail-hero__artwork > .product-artwork').evaluate((element) => (
+    Math.round(element.getBoundingClientRect().width)
+  ))).toBe(50);
   expect(pageErrors).toEqual([]);
 });

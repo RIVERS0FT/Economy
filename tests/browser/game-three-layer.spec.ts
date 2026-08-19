@@ -78,6 +78,7 @@ test.describe('signed-in game four-layer scene stack', () => {
         },
         rootLayerOrder: [image, atmosphere, map, ui].map((element) => rootChildren.indexOf(element)),
         mapContainsStage: Boolean(map.querySelector('.strategic-map-stage')),
+        mapContainsLensBar: Boolean(map.querySelector('.strategic-map-lens-bar')),
         contentZIndex: getComputedStyle(contentRoot).zIndex,
         contentIsolation: getComputedStyle(contentRoot).isolation,
         shellIsolation: getComputedStyle(shellElement).isolation,
@@ -100,6 +101,7 @@ test.describe('signed-in game four-layer scene stack', () => {
     expect(visual.ui).toEqual({ position: 'fixed', zIndex: '30' });
     expect(visual.rootLayerOrder).toEqual([0, 1, 2, 3]);
     expect(visual.mapContainsStage).toBe(true);
+    expect(visual.mapContainsLensBar).toBe(true);
     expect(visual.contentZIndex).toBe('auto');
     expect(visual.contentIsolation).toBe('auto');
     expect(visual.shellIsolation).toBe('auto');
@@ -125,13 +127,14 @@ test.describe('signed-in game four-layer scene stack', () => {
       const shell = document.querySelector<HTMLElement>('.game-shell');
       const body = document.querySelector<HTMLElement>('.signed-in-shell__body');
       const workspace = document.querySelector<HTMLElement>('.workspace');
+      const primaryCard = document.querySelector<HTMLElement>('.signed-in-shell__primary-card');
       const mapLayer = document.querySelector<HTMLElement>('.application-map-layer');
       const uiLayer = document.querySelector<HTMLElement>('.application-ui-layer');
       const pageOverlay = document.querySelector<HTMLElement>('.mobile-page-overlay');
       const workspaceStrategicChrome = document.querySelector<HTMLElement>('.workspace-strategic-chrome');
       const workspaceFloatingLayer = document.querySelector<HTMLElement>('.workspace-floating-layer');
       const chromeOverlay = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
-      if (!shell || !body || !workspace || !mapLayer || !uiLayer || !pageOverlay
+      if (!shell || !body || !workspace || !primaryCard || !mapLayer || !uiLayer || !pageOverlay
         || !workspaceStrategicChrome || !workspaceFloatingLayer || !chromeOverlay) {
         throw new Error('mobile game overlay fixture is incomplete');
       }
@@ -140,11 +143,13 @@ test.describe('signed-in game four-layer scene stack', () => {
       return {
         bodyIndex: shellChildren.indexOf(body),
         chromeIndex: shellChildren.indexOf(chromeOverlay),
-        pageIndex: workspaceChildren.indexOf(pageOverlay),
+        primaryCardIndex: workspaceChildren.indexOf(primaryCard),
+        pageInsidePrimaryCard: pageOverlay.closest('.signed-in-shell__primary-card') === primaryCard,
         strategicChromeIndex: workspaceChildren.indexOf(workspaceStrategicChrome),
         floatingLayerIndex: workspaceChildren.indexOf(workspaceFloatingLayer),
         bodyZ: getComputedStyle(body).zIndex,
         workspaceZ: getComputedStyle(workspace).zIndex,
+        primaryCardZ: getComputedStyle(primaryCard).zIndex,
         mapZ: getComputedStyle(mapLayer).zIndex,
         uiZ: getComputedStyle(uiLayer).zIndex,
         pageZ: getComputedStyle(pageOverlay).zIndex,
@@ -155,6 +160,9 @@ test.describe('signed-in game four-layer scene stack', () => {
         mapIsolation: getComputedStyle(mapLayer).isolation,
         uiIsolation: getComputedStyle(uiLayer).isolation,
         pageIsolation: getComputedStyle(pageOverlay).isolation,
+        primaryCardBorderWidth: getComputedStyle(primaryCard).borderTopWidth,
+        primaryCardBackground: getComputedStyle(primaryCard).backgroundColor,
+        primaryCardBackdropFilter: getComputedStyle(primaryCard).backdropFilter,
         strategicChromeIsolation: getComputedStyle(workspaceStrategicChrome).isolation,
         chromeIsolation: getComputedStyle(chromeOverlay).isolation,
         documentWidth: document.documentElement.scrollWidth,
@@ -164,21 +172,26 @@ test.describe('signed-in game four-layer scene stack', () => {
 
     expect(layout.bodyIndex).toBe(0);
     expect(layout.chromeIndex).toBe(1);
-    expect(layout.pageIndex).toBe(0);
+    expect(layout.primaryCardIndex).toBe(0);
+    expect(layout.pageInsidePrimaryCard).toBe(true);
     expect(layout.strategicChromeIndex).toBe(1);
     expect(layout.floatingLayerIndex).toBe(2);
     expect(layout.bodyZ).toBe('0');
     expect(layout.workspaceZ).toBe('auto');
+    expect(layout.primaryCardZ).toBe('0');
     expect(layout.mapZ).toBe('20');
     expect(layout.uiZ).toBe('30');
     expect(layout.pageZ).toBe('1');
-    expect(layout.strategicChromeZ).toBe('2');
+    expect(layout.strategicChromeZ).toBe('auto');
     expect(layout.floatingLayerZ).toBe('4');
     expect(layout.chromeZ).toBe('auto');
     expect(layout.workspaceIsolation).toBe('auto');
     expect(layout.mapIsolation).toBe('auto');
     expect(layout.uiIsolation).toBe('auto');
     expect(layout.pageIsolation).toBe('auto');
+    expect(layout.primaryCardBorderWidth).toBe('0px');
+    expect(layout.primaryCardBackground).toBe('rgba(0, 0, 0, 0)');
+    expect(layout.primaryCardBackdropFilter).toBe('none');
     expect(layout.strategicChromeIsolation).toBe('auto');
     expect(layout.chromeIsolation).toBe('auto');
     expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);

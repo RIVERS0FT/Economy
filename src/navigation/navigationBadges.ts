@@ -208,7 +208,7 @@ export function buildNavigationBadges(
     .filter((group) => group.status === 'error')
     .map((group) => `facility:${group.facilityTypeId}`);
   const productionCount = new Set(productionIssueIds).size;
-  result.production = badge(productionCount, `${productionCount} 项生产问题需要处理`);
+  result.buildings = badge(productionCount, `${productionCount} 项建筑生产问题需要处理`);
 
   const unreadAuctionIds = getUnreadAuctionIds(game, readState);
   const outbidIds = outbidAuctionIds(game);

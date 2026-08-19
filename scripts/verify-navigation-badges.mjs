@@ -125,7 +125,7 @@ changedGame.stats.leaderboards.period.key = '2026-07-27';
 const badges = buildNavigationBadges(changedGame, baseline);
 assert.equal(badges.market?.count, 120);
 assert.equal(formatNavigationBadgeCount(badges.market?.count || 0), '99+');
-assert.equal(badges.production?.count, 1);
+assert.equal(badges.buildings?.count, 1);
 assert.equal(badges.auction?.count, 2, 'new and outbid auctions must merge by auction id');
 assert.equal(badges.contracts?.count, 2, 'new and actionable contracts must merge by contract id');
 assert.equal(badges.leaderboard?.count, 1);
@@ -151,6 +151,7 @@ const leaderboardRead = markNavigationBadgeTabRead(baseline, 'leaderboard', chan
 assert.equal(buildNavigationBadges(changedGame, leaderboardRead).leaderboard, undefined);
 
 const navigationSource = readFileSync(new URL('../src/components/shell/NavigationItems.tsx', import.meta.url), 'utf8');
+const desktopSidebarSource = readFileSync(new URL('../src/components/shell/DesktopSidebar.tsx', import.meta.url), 'utf8');
 const globalsCss = readFileSync(new URL('../src/styles/globals.css', import.meta.url), 'utf8');
 const desktopCss = readFileSync(new URL('../src/styles/desktop-sidebar.css', import.meta.url), 'utf8');
 const mobileCss = readFileSync(new URL('../src/styles/mobile-status-navigation.css', import.meta.url), 'utf8');
@@ -162,17 +163,22 @@ const uiDesign = readFileSync(new URL('../docs/UI_DESIGN_SYSTEM.md', import.meta
 const pageDesign = readFileSync(new URL('../docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', import.meta.url), 'utf8');
 
 assert.match(navigationSource, /badges: NavigationBadgeMap/);
+assert.match(navigationSource, /showBadges = true/);
+assert.match(navigationSource, /const accessibleBadge = badges\[id\]/);
+assert.match(desktopSidebarSource, /showBadges=\{false\}/);
 assert.doesNotMatch(navigationSource, /id === ['"]market['"]/);
 assert.doesNotMatch(navigationSource, /openOrderCount/);
 assert.doesNotMatch(`${navigationSource}\n${globalsCss}\n${desktopCss}\n${mobileCss}`, /sidebar-nav-count/);
 assert.match(globalsCss, /\.navigation-badge[\s\S]*color: var\(--color-on-primary\)[\s\S]*background: var\(--color-success\)/);
-assert.match(desktopCss, /\.desktop-sidebar \.navigation-badge/);
+assert.doesNotMatch(desktopCss, /navigation-badge/);
 assert.match(mobileCss, /\.mobile-bottom-navigation \.sidebar-nav-button \.navigation-badge/);
-assert.match(uiDesign, /统一导航角标/);
+assert.match(uiDesign, /移动底栏导航角标/);
 assert.match(uiDesign, /99\+/);
 assert.match(pageDesign, /拍卖角标/);
 assert.match(pageDesign, /合同角标/);
 assert.match(pageDesign, /排行榜结算/);
+assert.match(pageDesign, /玩家侧栏不显示.*按钮数字角标/);
+assert.match(uiDesign, /桌面侧栏不渲染角标.*aria-label.*完整数量和来源/);
 assert.match(auctionServerSource, /const isOutbid = Boolean/);
 assert.match(auctionServerSource, /isOutbid,/);
 assert.match(auctionTypesSource, /isOutbid\?: boolean;/);

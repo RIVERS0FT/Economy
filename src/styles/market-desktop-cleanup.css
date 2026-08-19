@@ -6,3 +6,21 @@
     display: none !important;
   }
 }
+
+/* market-page-polish owns the default compact one-column layout. This file is
+ * loaded after it and restores the documented side-by-side row only when the
+ * real market container is wide enough. */
+@container market-page (min-width: 1300px) {
+  .market-page-surface .unified-market-grid {
+    grid-template-columns: minmax(560px, 0.82fr) minmax(680px, 1.18fr);
+  }
+
+  .market-page-surface .unified-market-grid > .market-trade-card,
+  .market-page-surface .unified-market-grid > .market-chart-card {
+    grid-column: auto;
+  }
+
+  .market-page-surface .unified-market-grid > .market-account-panel {
+    grid-column: 1 / -1;
+  }
+}

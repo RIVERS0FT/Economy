@@ -183,6 +183,9 @@ test('desktop contract workspace uses shared controls and dense two-column layou
   await mockContractAudit(page);
   await openContracts(page, 1440, 900);
 
+  const publishAction = page.locator('.contract-content-actions').getByRole('button', { name: '发布合同', exact: true });
+  await expect(publishAction).toBeVisible();
+  await expect(page.locator('.page-fixed-header').getByRole('button', { name: '发布合同', exact: true })).toHaveCount(0);
   expect(await gridTrackCount(page.locator('.contract-summary-grid'))).toBe(4);
   expect(await gridTrackCount(page.locator('.contract-workspace'))).toBe(2);
   expect(await gridTrackCount(page.locator('.contract-market-grid'))).toBe(2);

@@ -27,6 +27,7 @@ const topLayerPath = 'src/components/ui/topLayer.ts';
 const draftPath = 'src/utils/integerDraft.ts';
 const stylePath = 'src/styles/form-controls.css';
 const navigationPath = 'src/components/shell/NavigationItems.tsx';
+const desktopSidebarPath = 'src/components/shell/DesktopSidebar.tsx';
 const sidebarStylePath = 'src/styles/desktop-sidebar.css';
 const mainPath = 'src/main.tsx';
 const designDocPath = 'docs/UI_DESIGN_SYSTEM.md';
@@ -44,6 +45,7 @@ const adminGiftCodesPath = 'src/components/AdminGiftCodesSection.tsx';
   draftPath,
   stylePath,
   navigationPath,
+  desktopSidebarPath,
   sidebarStylePath,
   mainPath,
   designDocPath,
@@ -59,7 +61,7 @@ const adminGiftCodesPath = 'src/components/AdminGiftCodesSection.tsx';
   'src/pages/ContractPage.tsx',
   'src/pages/GemShopPage.tsx',
   'src/pages/SettingsPage.tsx',
-  'src/pages/ProductionPage.tsx',
+  'src/pages/BuildingsPage.tsx',
   'src/components/InvitationSettings.tsx',
   'src/components/AdminBanPanel.tsx',
 ].forEach(requireFile);
@@ -164,25 +166,22 @@ for (const text of [
 
 for (const text of [
   'badges: NavigationBadgeMap',
+  'showBadges = true',
+  'const accessibleBadge = badges[id];',
   'className="navigation-badge"',
   'aria-label={accessibleLabel}',
   'formatNavigationBadgeCount(navigationBadge.count)',
 ]) requireText(navigationPath, text);
+requireText(desktopSidebarPath, 'showBadges={false}');
 
 for (const text of [
   'grid-template-columns: var(--desktop-sidebar-rail) minmax(0, 1fr) auto;',
-  '.desktop-sidebar .navigation-badge {',
-  'position: static;',
-  '.desktop-sidebar[data-collapsed="true"] .sidebar-nav-button .navigation-badge {',
-  '.desktop-sidebar .sidebar-nav-button .navigation-badge {',
-  'top: 2px;',
-  'right: 2px;',
-  'left: auto;',
-  'transform: none;',
-  '@media (max-width: 960px) and (min-width: 721px)',
+  'align-content: start;',
+  'grid-auto-rows: max-content;',
 ]) requireText(sidebarStylePath, text);
 for (const forbidden of [
   '.desktop-sidebar .sidebar-nav-button small {',
+  'navigation-badge',
   'sidebar-nav-count',
   'left: 32px;',
 ]) forbidText(sidebarStylePath, forbidden);
@@ -212,7 +211,7 @@ for (const path of [
   'src/pages/ContractPage.tsx',
   'src/pages/GemShopPage.tsx',
   'src/pages/SettingsPage.tsx',
-  'src/pages/ProductionPage.tsx',
+  'src/pages/BuildingsPage.tsx',
   'src/components/InvitationSettings.tsx',
   'src/components/AdminBanPanel.tsx',
 ]) requireText(path, 'FormControls');
@@ -242,8 +241,9 @@ for (const text of [
   '移动端输入字号不得低于 `16px`',
   '整数输入始终拥有发生在自身命中区域内的滚轮事件',
   '非被动原生 `wheel` 监听器',
-  '展开态固定在第三网格列右侧',
-  '折叠态、`721px–960px` 自动紧凑侧栏和移动底栏固定在按钮内部右上角',
+  '桌面侧栏按钮不渲染数字角标',
+  '移动角标固定在按钮内部右上角',
+  '`aria-label` 中保留完整数量和来源',
   '只显示 `1`～`99` 或 `99+`',
   '根级 Dialog 内的 `RichSelectInput` 列表继续复用该 Dialog 根作为安全定位边界并位于详情遮罩之上',
   '只检查 `z-index` 或 Option 字符串不能证明安全区有效',
@@ -255,10 +255,10 @@ for (const text of [
   "await expect(input).toHaveValue('1')",
 ]) requireText(integerWheelTestPath, text);
 for (const text of [
-  'navigation badge stays inside expanded, collapsed and compact sidebar buttons',
-  'expectBadgeInside(expanded)',
-  'expectBadgeInside(collapsed)',
-  'expectBadgeInside(compact)',
+  'desktop sidebar omits button badges while preserving accessible reminder counts',
+  "toHaveAttribute('data-collapsed', 'false')",
+  "sidebar.locator('.navigation-badge')",
+  'mobile bottom navigation may still show its compact reminder badge',
 ]) requireText(sidebarBadgeTestPath, text);
 for (const text of [
   'mobile production rich selects use the browser top layer above the facility sheet',

@@ -50,14 +50,8 @@ function forbidText(path, fragments) {
 }
 
 requireText('src/components/shell/GameShell.tsx', ['formatRank(', 'aria-label={rankLabel}']);
-requireText('src/pages/OverviewPage.tsx', [
-  '固定 3s 冷却',
-  '<OverviewWorkButton',
-]);
-requireText('src/pages/overview/OverviewLiveSections.tsx', [
-  'formatDuration(remaining)',
-  'disabled={isWorking || remaining > 0}',
-]);
+forbidText('src/pages/OverviewPage.tsx', ['固定 3s 冷却', '<OverviewWorkButton']);
+requireText('src/components/EconomicEventLogPanel.tsx', ['formatDuration(Math.max(0, remaining))']);
 requireText('src/pages/LeaderboardPage.tsx', [
   'formatRank(currentRank)',
   'formatRank(entry.rank)',

@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 const read = (path) => readFileSync(path, 'utf8');
 const main = read('src/main.tsx');
 const shell = read('src/styles/game-shell-layout.css');
-const page = read('src/pages/ProductionPage.tsx');
+const page = read('src/pages/BuildingsPage.tsx');
 const production = read('src/styles/facility-group-card-grid.css');
 const productionSurface = read('src/styles/production-surface.css');
 const legacyIndustryStyles = read('src/styles/industry-system.css');
@@ -117,7 +117,7 @@ for (const text of [
 ]) assert.equal(industry.includes(text), true, `产业设计缺少: ${text}`);
 
 for (const text of [
-  '生产页桌面 sticky 顶部定位也以本文为准',
+  '建筑页桌面 sticky 顶部定位也以本文为准',
   '`top: 0`',
   '`production-surface.css`',
   '唯一权威样式文件',
@@ -132,4 +132,4 @@ assert.equal(industry.includes('大于等于 `1600px` 时使用宽屏三列'), t
 assert.equal(production.includes('minmax(440px, 520px)'), false, '宽屏工厂集群列不得回退为 440px–520px');
 assert.equal(industry.includes('固定三列竖向选择卡'), false, '宽屏工厂集群不得回退为固定三列');
 
-console.log('桌面生产页建设卡与详情卡 sticky 对齐、唯一职责、自然高度详情和统一滚动验证通过。');
+console.log('桌面建筑页建设卡与详情卡 sticky 对齐、唯一职责、自然高度详情和统一滚动验证通过。');

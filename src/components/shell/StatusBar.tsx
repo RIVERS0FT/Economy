@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { LiquidGlassSurface, type LiquidGlassSurfaceVariant } from '../ui/LiquidGlassSurface';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { FrostedGlassSurface } from '../ui/FrostedGlassSurface';
 
 export interface StatusBarItem {
   id: string;
@@ -12,31 +12,17 @@ export interface StatusBarItem {
   onClick?: () => void;
 }
 
+export interface StatusBarIdentity {
+  logoSrc: string;
+  title: string;
+  playerName: string;
+}
+
 const MOBILE_STATUS_MEDIA_QUERY = '(max-width: 720px)';
 const MOBILE_STATUS_MIN_FONT_SIZE_REM = 0.56;
 const STATUS_VALUE_WIDTH_SAFETY = 0.98;
 const STATUS_VALUE_SELECTOR = '.asset-bar-item-value';
 const STATUS_VALUE_VARIANT_SELECTOR = '.asset-bar-item-value-full, .asset-bar-item-value-compact';
-type StatusBarSurfaceVariant = Extract<LiquidGlassSurfaceVariant, 'desktopStatusBar' | 'mobileStatusBar'>;
-
-function resolveStatusBarSurfaceVariant(): StatusBarSurfaceVariant {
-  if (typeof window === 'undefined') return 'desktopStatusBar';
-  return window.matchMedia(MOBILE_STATUS_MEDIA_QUERY).matches ? 'mobileStatusBar' : 'desktopStatusBar';
-}
-
-function useStatusBarSurfaceVariant() {
-  const [variant, setVariant] = useState<StatusBarSurfaceVariant>(resolveStatusBarSurfaceVariant);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(MOBILE_STATUS_MEDIA_QUERY);
-    const updateVariant = () => setVariant(mediaQuery.matches ? 'mobileStatusBar' : 'desktopStatusBar');
-    updateVariant();
-    mediaQuery.addEventListener('change', updateVariant);
-    return () => mediaQuery.removeEventListener('change', updateVariant);
-  }, []);
-
-  return variant;
-}
 
 function visibleStatusValue(valueElement: HTMLElement) {
   return Array.from(valueElement.querySelectorAll<HTMLElement>(STATUS_VALUE_VARIANT_SELECTOR))
@@ -107,11 +93,12 @@ function useMobileStatusValueFit(items: StatusBarItem[]) {
     };
     scheduleFitRef.current = scheduleFit;
 
+    // Observe only the stable five-column container. Observing the values themselves
+    // creates a feedback loop because fitting deliberately changes their font size.
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleFit);
     resizeObserver?.observe(contentElement);
-    contentElement.querySelectorAll<HTMLElement>(STATUS_VALUE_SELECTOR)
-      .forEach((valueElement) => resizeObserver?.observe(valueElement));
     mediaQuery.addEventListener('change', scheduleFit);
+    window.addEventListener('resize', scheduleFit);
     window.addEventListener('orientationchange', scheduleFit);
     fitValues();
 
@@ -122,6 +109,7 @@ function useMobileStatusValueFit(items: StatusBarItem[]) {
       if (animationFrame) cancelAnimationFrame(animationFrame);
       resizeObserver?.disconnect();
       mediaQuery.removeEventListener('change', scheduleFit);
+      window.removeEventListener('resize', scheduleFit);
       window.removeEventListener('orientationchange', scheduleFit);
       scheduleFitRef.current = () => {};
     };
@@ -134,14 +122,32 @@ function useMobileStatusValueFit(items: StatusBarItem[]) {
   return contentRef;
 }
 
-export function StatusBar({ items, action }: { items: StatusBarItem[]; action?: ReactNode }) {
-  const surfaceVariant = useStatusBarSurfaceVariant();
+export function StatusBar({
+  items,
+  identity,
+  action,
+}: {
+  items: StatusBarItem[];
+  identity: StatusBarIdentity;
+  action?: ReactNode;
+}) {
   const contentRef = useMobileStatusValueFit(items);
 
   return (
     <header className="asset-bar" aria-label="玩家状态">
-      <LiquidGlassSurface variant={surfaceVariant}>
+      <FrostedGlassSurface variant="statusBar">
         <div className="asset-bar-layout">
+          <div
+            className="asset-bar-identity"
+            role="group"
+            aria-label={`${identity.title}，玩家 ${identity.playerName}`}
+          >
+            <img src={identity.logoSrc} alt="" aria-hidden="true" />
+            <span className="asset-bar-identity-copy">
+              <strong>{identity.title}</strong>
+              <small title={identity.playerName}>{identity.playerName}</small>
+            </span>
+          </div>
           <div className="asset-bar-content" ref={contentRef}>
             {items.map((item) => {
               const classNames = ['asset-bar-item'];
@@ -184,7 +190,7 @@ export function StatusBar({ items, action }: { items: StatusBarItem[]; action?: 
           </div>
           {action ? <div className="asset-bar-action">{action}</div> : null}
         </div>
-      </LiquidGlassSurface>
+      </FrostedGlassSurface>
     </header>
   );
 }

@@ -28,7 +28,7 @@ export interface NotificationInput {
 export interface PendingNotificationItem {
   key: string;
   signature: string;
-  category: 'production' | 'auction' | 'contracts' | 'bank';
+  category: 'production' | 'market' | 'auction' | 'contracts' | 'bank';
   severity: PendingNotificationSeverity;
   title: string;
   message: string;
@@ -57,7 +57,7 @@ type NotificationGameState = Omit<Partial<EconomyState>, 'assetAuctions' | 'prod
 const VALID_TABS = new Set<TabId>([
   'home',
   'market',
-  'production',
+  'buildings',
   'research',
   'auction',
   'contracts',
@@ -74,27 +74,27 @@ const FACILITY_REASON_COPY: Record<FacilityStatusReason, {
 }> = {
   manual: {
     severity: 'attention',
-    title: '工厂已停止运行',
+    title: '已停止运行',
     detail: '处于手动停止状态',
   },
   insufficient_funds: {
     severity: 'critical',
-    title: '工厂运营资金不足',
+    title: '运营资金不足',
     detail: '因运营资金不足停止生产',
   },
   insufficient_input: {
     severity: 'warning',
-    title: '工厂缺少生产原料',
+    title: '缺少生产原料',
     detail: '因生产原料不足停止生产',
   },
   no_available_facility: {
     severity: 'warning',
-    title: '没有可参与生产的工厂',
+    title: '没有可参与生产的设施',
     detail: '全部工厂当前被冻结或不可参与生产',
   },
   maintenance: {
     severity: 'attention',
-    title: '工厂正在维护',
+    title: '正在维护',
     detail: '因系统维护暂时停止生产',
   },
 };
@@ -107,9 +107,10 @@ const SEVERITY_ORDER: Record<PendingNotificationSeverity, number> = {
 
 const CATEGORY_ORDER: Record<PendingNotificationItem['category'], number> = {
   production: 0,
-  contracts: 1,
-  auction: 2,
-  bank: 3,
+  market: 1,
+  contracts: 2,
+  auction: 3,
+  bank: 4,
 };
 
 let notificationSequence = 0;
@@ -229,7 +230,8 @@ export function targetTabFromMessage(message: string): TabId | undefined {
   if (/拍卖|出价|竞拍/.test(message)) return 'auction';
   if (/合同|履约|交付/.test(message)) return 'contracts';
   if (/贷款|还款|存款|取款|银行|利息|周结算/.test(message)) return 'bank';
-  if (/工厂|生产|仓库|原料|施工/.test(message)) return 'production';
+  if (/仓库/.test(message)) return 'province';
+  if (/工厂|建筑|生产|原料|施工/.test(message)) return 'buildings';
   if (/订单|买单|卖单|成交|市场/.test(message)) return 'market';
   if (/研发|技术/.test(message)) return 'research';
   if (/排行|排名|结算/.test(message)) return 'leaderboard';
@@ -243,7 +245,7 @@ function facilityPendingItems(game: NotificationGameState): PendingNotificationI
   const facilityGroups = Array.isArray(game.facilityGroups) ? game.facilityGroups : [];
   const facilityNames = new Map(facilityTypes.map((facility) => [facility.id, facility.name]));
   return facilityGroups.flatMap((group) => {
-    if (group.status !== 'error') return [];
+    if (group.status !== 'error' && group.status !== 'stopped') return [];
     const reason = group.statusReason ?? 'maintenance';
     const copy = FACILITY_REASON_COPY[reason] ?? FACILITY_REASON_COPY.maintenance;
     const facilityName = facilityNames.get(group.facilityTypeId) ?? group.facilityTypeId;
@@ -254,9 +256,29 @@ function facilityPendingItems(game: NotificationGameState): PendingNotificationI
       severity: copy.severity,
       title: `${facilityName}${copy.title}`,
       message: `${Math.max(1, group.count)} 座${facilityName}${copy.detail}`,
-      targetTab: 'production' as const,
+      targetTab: 'buildings' as const,
     }];
   });
+}
+
+function marketPendingItems(game: NotificationGameState): PendingNotificationItem[] {
+  const openOrders = (Array.isArray(game.orders) ? game.orders : []).filter((order) => (
+    order.isOwn
+    && (order.status === 'open' || order.status === 'partial')
+    && order.remaining > 0
+  ));
+  if (openOrders.length === 0) return [];
+  const buyCount = openOrders.filter((order) => order.side === 'buy').length;
+  const sellCount = openOrders.length - buyCount;
+  return [{
+    key: 'market:open-orders',
+    signature: `market:open-orders:${openOrders.map((order) => `${order.id}:${order.status}:${order.remaining}`).sort().join('|')}`,
+    category: 'market',
+    severity: 'attention',
+    title: `${openOrders.length} 笔挂单等待处理`,
+    message: `买单 ${buyCount} 笔，卖单 ${sellCount} 笔`,
+    targetTab: 'market',
+  }];
 }
 
 
@@ -329,6 +351,7 @@ export function derivePendingNotificationItems(
 ): PendingNotificationItem[] {
   return [
     ...facilityPendingItems(game),
+    ...marketPendingItems(game),
     ...contractPendingItems(game),
     ...auctionPendingItems(game),
     ...bankPendingItems(game),

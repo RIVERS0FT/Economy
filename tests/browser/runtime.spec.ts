@@ -95,7 +95,7 @@ test('local activity v5 migrates only anonymous trades into v7', async ({ page }
   expect(result.legacy).toBeNull();
 });
 
-test('desktop sidebar uses the server-configured QQ group link', async ({ page }) => {
+test('desktop sidebar uses the server-configured QQ group link and settings footer', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.route('**/economy-api/game/community-link', async (route) => {
     await route.fulfill({
@@ -111,92 +111,81 @@ test('desktop sidebar uses the server-configured QQ group link', async ({ page }
   });
 
   await page.goto('runtime-test.html?view=overview&scenario=empty');
-  await page.getByRole('button', { name: '展开侧栏' }).click();
-  await expect(page.locator('.desktop-sidebar')).toHaveAttribute('data-collapsed', 'false');
+  const sidebar = page.locator('.desktop-sidebar');
   const communityLink = page.getByRole('link', { name: '加入 QQ 群（在新窗口打开）' });
-  const expandedLogo = page.locator('.sidebar-logo-expand-button img');
+  const identityLogo = page.locator('.asset-bar-identity > img');
   const overviewIcon = page.getByRole('button', { name: '概览', exact: true }).locator('svg');
-  const logoutButton = page.getByRole('button', { name: '退出登录' });
+  const settingsButton = page.locator('.desktop-sidebar .sidebar-footer').getByRole('button', { name: '设置' });
+  await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+  await expect(page.getByRole('button', { name: '展开侧栏' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '折叠侧栏' })).toHaveCount(0);
   await expect(communityLink).toBeVisible();
   await expect(communityLink).toHaveAttribute('href', 'https://qm.qq.com/q/browser-test');
   await expect(communityLink).toHaveAttribute('target', '_blank');
   await expect(communityLink.locator('svg.sidebar-community-icon')).toHaveCount(1);
-  await expect(page.locator('.sidebar-logout svg.sidebar-logout-icon')).toHaveCount(1);
-  const expandedLogoBox = await requireBox(expandedLogo);
-  expect(expandedLogoBox.width).toBe(40);
-  expect(expandedLogoBox.height).toBe(40);
-  const expandedAnchors = {
-    logo: await centerOf(expandedLogo),
-    overview: await centerOf(overviewIcon),
-    community: await centerOf(communityLink.locator('svg')),
-    logout: await centerOf(logoutButton.locator('svg')),
-  };
-
-  await page.getByRole('button', { name: '折叠侧栏' }).click();
-  await expect(page.locator('.desktop-sidebar')).toHaveAttribute('data-collapsed', 'true');
-  await expect(page.getByRole('button', { name: '折叠侧栏' })).toHaveCount(0);
-  await page.waitForTimeout(100);
-  const midpointAnchors = {
-    logo: await centerOf(expandedLogo),
-    overview: await centerOf(overviewIcon),
-    community: await centerOf(communityLink.locator('svg')),
-    logout: await centerOf(logoutButton.locator('svg')),
-  };
-  for (const key of Object.keys(expandedAnchors) as Array<keyof typeof expandedAnchors>) {
-    expect(Math.abs(expandedAnchors[key].x - midpointAnchors[key].x)).toBeLessThanOrEqual(1);
-    expect(Math.abs(expandedAnchors[key].y - midpointAnchors[key].y)).toBeLessThanOrEqual(1);
-  }
-  await page.waitForTimeout(120);
-
-  const expandButton = page.getByRole('button', { name: '展开侧栏' });
-  const collapsedLogo = expandButton.locator('img');
-  const expandIcon = expandButton.locator('.sidebar-logo-expand-icon');
-  const collapsedLogoBox = await requireBox(collapsedLogo);
-  expect(collapsedLogoBox.width).toBe(40);
-  expect(collapsedLogoBox.height).toBe(40);
-  await expect(expandButton).toHaveAttribute('aria-expanded', 'false');
-  await expect(collapsedLogo).toHaveCSS('opacity', '1');
-  await expect(expandIcon).toHaveCSS('opacity', '0');
-
+  await expect(settingsButton.locator('svg.sidebar-settings-icon')).toHaveCount(1);
+  await expect(page.locator('.desktop-sidebar').getByRole('button', { name: '退出登录' })).toHaveCount(0);
+  await expect(page.locator('.desktop-sidebar .sidebar-brand')).toHaveCount(0);
+  const identityLogoBox = await requireBox(identityLogo);
+  expect(identityLogoBox.width).toBe(40);
+  expect(identityLogoBox.height).toBe(40);
   const collapsedAnchors = {
-    logo: await centerOf(collapsedLogo),
+    identity: await centerOf(identityLogo),
     overview: await centerOf(overviewIcon),
     community: await centerOf(communityLink.locator('svg')),
-    logout: await centerOf(logoutButton.locator('svg')),
+    settings: await centerOf(settingsButton.locator('svg')),
+  };
+
+  await sidebar.hover();
+  await expect(sidebar).toHaveAttribute('data-collapsed', 'false');
+  await page.waitForTimeout(220);
+  await expect(communityLink.locator('strong')).toBeVisible();
+  await expect(settingsButton.locator('strong')).toBeVisible();
+  const expandedAnchors = {
+    identity: await centerOf(identityLogo),
+    overview: await centerOf(overviewIcon),
+    community: await centerOf(communityLink.locator('svg')),
+    settings: await centerOf(settingsButton.locator('svg')),
   };
   for (const key of Object.keys(expandedAnchors) as Array<keyof typeof expandedAnchors>) {
     expect(Math.abs(expandedAnchors[key].x - collapsedAnchors[key].x)).toBeLessThanOrEqual(1);
     expect(Math.abs(expandedAnchors[key].y - collapsedAnchors[key].y)).toBeLessThanOrEqual(1);
   }
 
-  const expandButtonBeforeHover = await requireBox(expandButton);
-  await expandButton.hover();
-  await expect(collapsedLogo).toHaveCSS('opacity', '0');
-  await expect(expandIcon).toHaveCSS('opacity', '1');
-  const expandButtonAfterHover = await requireBox(expandButton);
-  expect(expandButtonAfterHover).toEqual(expandButtonBeforeHover);
-
-  await page.mouse.move(400, 400);
-  await page.keyboard.press('Tab');
-  await page.keyboard.press('Shift+Tab');
-  await expect(expandButton).toBeFocused();
-  await expect(collapsedLogo).toHaveCSS('opacity', '0');
-  await expect(expandIcon).toHaveCSS('opacity', '1');
+  await page.mouse.move(700, 500);
+  await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+  await page.waitForTimeout(220);
 
   const communityBox = await requireBox(communityLink);
-  const logoutBox = await requireBox(logoutButton);
+  const settingsBox = await requireBox(settingsButton);
   expect(communityBox.width).toBe(48);
   expect(communityBox.height).toBe(48);
-  expect(logoutBox.width).toBe(48);
-  expect(logoutBox.height).toBe(48);
+  expect(settingsBox.width).toBe(48);
+  expect(settingsBox.height).toBe(48);
   await expect(communityLink.locator('strong')).toBeHidden();
-  await expect(logoutButton.locator('strong')).toBeHidden();
+  await expect(settingsButton.locator('strong')).toBeHidden();
 
-  await expandButton.click();
-  await expect(page.locator('.desktop-sidebar')).toHaveAttribute('data-collapsed', 'false');
-  await expect(page.getByRole('button', { name: '折叠侧栏' })).toBeVisible();
-  await expect(page.getByText('市场在线', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('服务器权威经济', { exact: true })).toHaveCount(0);
+  await settingsButton.focus();
+  await expect(sidebar).toHaveAttribute('data-collapsed', 'false');
+  await page.getByRole('button', { name: '关闭当前页面并显示地图' }).focus();
+  await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+});
+
+test('compact desktop keeps QQ group and settings footer actions visible', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 768 });
+  await page.goto('runtime-test.html?view=overview&scenario=empty');
+
+  const sidebar = page.locator('.desktop-sidebar');
+  const footer = sidebar.locator('.sidebar-footer');
+  const communityLink = footer.getByRole('link', { name: '加入 QQ 群（在新窗口打开）' });
+  const settingsButton = footer.getByRole('button', { name: '设置' });
+  await expect(footer).toBeVisible();
+  await expect(communityLink).toBeVisible();
+  await expect(settingsButton).toBeVisible();
+  await expect(communityLink.locator('strong')).toBeHidden();
+  await expect(settingsButton.locator('strong')).toBeHidden();
+  expect((await requireBox(communityLink)).width).toBeCloseTo(48, 0);
+  expect((await requireBox(settingsButton)).width).toBeCloseTo(48, 0);
 });
 
 test('overview prioritizes business decisions and shows the weekly check-in calendar', async ({ page }) => {
@@ -204,62 +193,110 @@ test('overview prioritizes business decisions and shows the weekly check-in cale
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=overview&scenario=empty');
 
-  await expect(page.getByRole('heading', { name: '晚上好，MEVIUS', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '今日经营', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '概览', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '进入市场' })).toHaveCount(0);
+  await expect(page.getByText(/早上好|下午好|晚上好/)).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '今日经营', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '开始工作' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '本周签到', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '公开经济事件', exact: true })).toBeVisible();
+  await expect(page.getByRole('complementary', { name: '公开经济事件日志', exact: true })).toBeVisible();
+  await expect(page.locator('.economic-event-log-note')).toHaveCount(0);
+  await expect(page.locator('.economic-event-log-panel .widget-badge')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '生产摘要', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '资产与银行', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '当前挂单', exact: true })).toBeVisible();
   await expect(page.getByRole('list', { name: '本周签到日历' })).toBeVisible();
   await expect(page.getByRole('listitem')).toHaveCount(7);
-  await expect(page.getByRole('button', { name: '签到领取 1 宝石' })).toBeVisible();
+  const checkInHeading = page.locator('.overview-check-in-panel .widget-heading');
+  await expect(checkInHeading.getByRole('button', { name: '签到领取 1 宝石' })).toBeVisible();
+  await expect(checkInHeading.locator('.ui-status-tag')).toHaveCount(0);
   await expect(page.getByText('当前总资产', { exact: true })).toHaveCount(0);
   await expect(page.locator('.overview-assets-card').getByText('#1', { exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '开始工作' })).toBeVisible();
+  await expect(page.locator('.page-heading p')).toHaveCount(0);
   await expect(page.getByLabel('本周净资产下降 116,543')).toBeVisible();
   await expect(page.getByText(/↓ 本周 -/)).toHaveCount(0);
-
-  const workButtonWidth = await page.getByRole('button', { name: '开始工作' }).evaluate((element) => element.getBoundingClientRect().width);
-  const todayPanelWidth = await page.locator('.overview-today-panel').evaluate((element) => element.getBoundingClientRect().width);
-  expect(workButtonWidth).toBeLessThan(todayPanelWidth * 0.55);
   expect(pageErrors).toEqual([]);
 });
 
-test('overview spans the available desktop width without compressing cards into strips', async ({ page }) => {
+test('public economic events stay compact until explicitly expanded', async ({ page }) => {
+  await page.setViewportSize({ width: 1684, height: 931 });
+  await page.goto('economic-event-log-runtime-test.html');
+
+  const event = page.locator('.economic-event-log-entry').first();
+  const summary = event.locator('summary');
+  await expect(summary).toBeVisible();
+  await expect(summary.locator('strong')).not.toBeEmpty();
+  await expect(summary.locator('span')).toContainText(/距离开始还有|正在进行|已经结束/);
+  await expect(event.locator('.economic-event-log-details')).not.toBeVisible();
+  await summary.click();
+  await expect(event).toHaveAttribute('open', '');
+  await expect(event.locator('.economic-event-log-details')).toBeVisible();
+});
+
+test('page title stays fixed while only the page card body scrolls', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('runtime-test.html?view=overview&scenario=many-orders');
+
+  const heading = page.locator('.page-fixed-header');
+  const body = page.locator('.page-card-scroll');
+  const before = await requireBox(heading);
+  await body.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  const after = await requireBox(heading);
+  expect(after).toEqual(before);
+  expect(await body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+});
+
+test('shell places the tutorial above the public event log in an independent right rail', async ({ page }) => {
+  await page.setViewportSize({ width: 1684, height: 931 });
+  await page.goto('runtime-test.html?view=overview&scenario=tutorial');
+
+  const rightColumn = page.locator('.strategic-economic-event-rail');
+  const tutorial = rightColumn.locator('.game-guide-strip');
+  const eventLog = rightColumn.locator('.economic-event-log-panel');
+  await expect(tutorial).toBeVisible();
+  await expect(tutorial).toContainText('建设一座工厂');
+  await expect(eventLog).toBeVisible();
+  await expect(page.locator('.page-content .economic-event-log-panel')).toHaveCount(0);
+  const tutorialBox = await requireBox(tutorial);
+  const eventBox = await requireBox(eventLog);
+  expect(tutorialBox.y + tutorialBox.height).toBeLessThanOrEqual(eventBox.y);
+});
+
+test('overview uses a building-style panel beside the independent event rail', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('runtime-test.html?view=overview&scenario=empty');
 
-  const layout = await requireBox(page.locator('.home-grid'));
-  const primary = await requireBox(page.locator('.overview-primary-grid'));
+  const layout = await requireBox(page.locator('.strategic-page-host--building > .page-content'));
+  const main = await requireBox(page.locator('.home-grid'));
+  const eventLog = await requireBox(page.locator('.strategic-economic-event-rail'));
   const summary = await requireBox(page.locator('.overview-summary-row'));
-  const today = await requireBox(page.locator('.overview-today-panel'));
   const checkIn = await requireBox(page.locator('.overview-check-in-panel'));
   const summaryCards = page.locator('.overview-summary-card');
 
   expect(await gridTrackCount(page.locator('.home-grid'))).toBe(1);
-  expect(await gridTrackCount(page.locator('.overview-primary-grid'))).toBe(2);
-  expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(3);
-  expect(Math.abs(primary.x - layout.x)).toBeLessThan(2);
-  expect(Math.abs(summary.x - layout.x)).toBeLessThan(2);
-  expect(Math.abs(primary.width - layout.width)).toBeLessThan(2);
-  expect(Math.abs(summary.width - layout.width)).toBeLessThan(2);
-  expect(summary.y).toBeGreaterThanOrEqual(primary.y + primary.height);
-  expect(Math.abs(today.y - checkIn.y)).toBeLessThan(2);
-  expect(checkIn.width).toBeGreaterThan(today.width);
-  expect(today.width).toBeGreaterThan(420);
-  expect(checkIn.width).toBeGreaterThan(560);
+  expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(1);
+  expect(main.x).toBeCloseTo(layout.x + 8, 0);
+  expect(Math.abs(summary.x - main.x)).toBeLessThan(2);
+  expect(Math.abs(summary.width - main.width)).toBeLessThan(2);
+  expect(eventLog.x).toBeGreaterThanOrEqual(layout.x + layout.width + 8);
+  expect(eventLog.width).toBeGreaterThanOrEqual(260);
+  expect(eventLog.width).toBeLessThanOrEqual(321);
+  expect(summary.y).toBeGreaterThanOrEqual(checkIn.y + checkIn.height);
 
   await expect(summaryCards).toHaveCount(3);
   const summaryBoxes = await Promise.all([0, 1, 2].map((index) => requireBox(summaryCards.nth(index))));
-  expect(Math.max(...summaryBoxes.map((box) => box.y)) - Math.min(...summaryBoxes.map((box) => box.y))).toBeLessThan(2);
+  expect(Math.max(...summaryBoxes.map((box) => box.width)) - Math.min(...summaryBoxes.map((box) => box.width))).toBeLessThan(2);
+  expect(summaryBoxes[1].y).toBeGreaterThan(summaryBoxes[0].y);
+  expect(summaryBoxes[2].y).toBeGreaterThan(summaryBoxes[1].y);
   expect(Math.min(...summaryBoxes.map((box) => box.width))).toBeGreaterThan(280);
 
   const overflowingElements = await page.locator([
     '.home-grid',
-    '.overview-primary-grid',
+    '.strategic-economic-event-rail',
+    '.economic-event-log-panel',
     '.overview-summary-row',
-    '.overview-today-panel',
     '.overview-check-in-panel',
     '.overview-summary-card',
   ].join(', ')).evaluateAll((elements) => elements
@@ -267,11 +304,11 @@ test('overview spans the available desktop width without compressing cards into 
     .map((element) => (element as HTMLElement).className));
   expect(overflowingElements).toEqual([]);
 
-  const headingHeights = await page.locator('.overview-primary-grid h2, .overview-summary-row h2')
+  const headingHeights = await page.locator('.overview-check-in-panel h2, .overview-summary-row h2, .economic-event-log-panel h2')
     .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height));
   expect(Math.max(...headingHeights)).toBeLessThan(48);
 
-  const emptyListOverflow = await page.locator('.overview-alert-list, .overview-open-orders-list, .overview-asset-events')
+  const emptyListOverflow = await page.locator('.overview-open-orders-list, .overview-asset-events')
     .evaluateAll((elements) => elements
       .filter((element) => element.scrollHeight > element.clientHeight + 1)
       .map((element) => (element as HTMLElement).className));
@@ -291,7 +328,9 @@ test('overview check-in calendar distinguishes claimed, today, missed, and futur
   await expect(days.nth(2)).toHaveAttribute('aria-label', /周三 07-15 漏签/);
   await expect(days.nth(4)).toHaveAttribute('aria-label', /周五 07-17 今日/);
   await expect(days.nth(5)).toHaveAttribute('aria-label', /周六 07-18 未到/);
-  await expect(page.getByText('连续签到 7 天可额外获得 5 宝石', { exact: true })).toBeVisible();
+  await expect(page.getByText('连续签到 7 天可额外获得 5 宝石', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('签到日期由服务器按北京时间判定，不支持补签。', { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/\d+ \/ 7 天/)).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 
@@ -365,19 +404,23 @@ test('overview keeps the decision rows visible and adapts to a narrower desktop'
   const productionBox = await productionHeading.boundingBox();
   expect(productionBox).not.toBeNull();
   expect(productionBox!.y).toBeLessThan(900);
-  await expect(page.getByText('机械工厂生产受阻', { exact: true })).toBeVisible();
+  await expect(page.locator('.overview-alert-list')).toHaveCount(0);
+  await page.getByRole('button', { name: /^通知，/ }).click();
+  const notificationPanel = page.getByRole('dialog', { name: '通知' });
+  await expect(notificationPanel).toContainText('缺少生产原料');
+  await expect(notificationPanel).toContainText('停止生产');
+  await notificationPanel.getByRole('button', { name: '关闭通知面板' }).click();
 
   await page.setViewportSize({ width: 900, height: 1000 });
-  expect(await gridTrackCount(page.locator('.overview-primary-grid'))).toBe(1);
-  expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(2);
+  expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(1);
 
-  const nestedOverflowModes = await page.locator('.overview-alert-list, .overview-open-orders-list')
+  const nestedOverflowModes = await page.locator('.overview-open-orders-list')
     .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).overflowY));
-  expect(nestedOverflowModes).toEqual(['visible', 'visible']);
+  expect(nestedOverflowModes).toEqual(['visible']);
   expect(pageErrors).toEqual([]);
 });
 
-test('desktop command rail expansion overlays the map without reflowing overview', async ({ page }) => {
+test('desktop command rail expansion overlays the integrated card without reflowing overview or event rail', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('runtime-test.html?view=overview&scenario=empty');
@@ -385,31 +428,37 @@ test('desktop command rail expansion overlays the map without reflowing overview
   const shell = page.locator('.game-shell');
   const sidebar = page.locator('.desktop-sidebar');
   const workspace = page.locator('.workspace');
-  const overviewPanel = page.locator('.strategic-page-host--workspace > .page-content');
+  const primaryCard = page.locator('.signed-in-shell__primary-card');
+  const overviewPanel = page.locator('.strategic-page-host--building > .page-content');
+  const eventRail = page.locator('.strategic-economic-event-rail');
   await expect(shell).toHaveClass(/sidebar-collapsed/);
   await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
-  expect(await gridTrackCount(page.locator('.overview-primary-grid'))).toBe(2);
-  expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(3);
+  const summaryTracksBefore = await gridTrackCount(page.locator('.overview-summary-row'));
 
   const workspaceBefore = await requireBox(workspace);
+  const primaryCardBefore = await requireBox(primaryCard);
   const overviewBefore = await requireBox(overviewPanel);
+  const eventRailBefore = await requireBox(eventRail);
 
-  const toggle = page.getByRole('button', { name: '展开侧栏' });
-  await toggle.focus();
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('button', { name: '折叠侧栏' })).toHaveAttribute('aria-expanded', 'true');
+  await sidebar.hover();
   await expect(shell).not.toHaveClass(/sidebar-collapsed/);
   await expect(sidebar).toHaveAttribute('data-collapsed', 'false');
   await expect(sidebar.getByRole('button', { name: '市场', exact: true })).toBeVisible();
   await page.waitForTimeout(240);
 
   const workspaceAfter = await requireBox(workspace);
+  const primaryCardAfter = await requireBox(primaryCard);
   const overviewAfter = await requireBox(overviewPanel);
+  const eventRailAfter = await requireBox(eventRail);
   const sidebarAfter = await requireBox(sidebar);
   expect(workspaceAfter).toEqual(workspaceBefore);
+  expect(primaryCardAfter).toEqual(primaryCardBefore);
   expect(overviewAfter).toEqual(overviewBefore);
-  expect(sidebarAfter.x + sidebarAfter.width).toBeGreaterThan(workspaceAfter.x + 100);
-  expect(await gridTrackCount(page.locator('.overview-primary-grid'))).toBe(2);
-  expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(3);
+  expect(eventRailAfter).toEqual(eventRailBefore);
+  expect(sidebarAfter.x + sidebarAfter.width).toBeGreaterThan(overviewAfter.x + 100);
+  await expect(sidebar).toHaveCSS('box-shadow', 'none');
+  const dividerShadow = await sidebar.evaluate((element) => getComputedStyle(element, '::after').boxShadow);
+  expect(dividerShadow).not.toBe('none');
+  expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(summaryTracksBefore);
   expect(pageErrors).toEqual([]);
 });

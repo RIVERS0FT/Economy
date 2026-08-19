@@ -180,7 +180,7 @@ for (const text of [
   'renders decimal last trade prices in single-factory profit',
   "toContainText('5.38')",
   "not.toContainText('缺少')",
-]) assert.ok(browserSource.includes(text), `生产页小数产值浏览器回归缺少: ${text}`);
+]) assert.ok(browserSource.includes(text), `建筑页小数产值浏览器回归缺少: ${text}`);
 
 for (const text of [
   "toHaveText('5.38')",
@@ -239,14 +239,15 @@ for (const removedText of [
 ]) assert.equal(analysisSource.includes(removedText), false, `详情不得恢复完整利润分析: ${removedText}`);
 
 for (const text of [
-  'const lastTradePrice = game.markets[product.id]?.lastTradePrice;',
-  'const lastTradePrice = game.facilityMarkets[facility.id]?.lastTradePrice;',
-  "const hasLastTradePrice = typeof lastTradePrice === 'number';",
-]) assert.ok(marketPageSource.includes(text), `市场资产目录缺少真实成交价字段: ${text}`);
+  'const market = game.markets[product.id];',
+  ': selectedFacility ? game.facilityMarkets[selectedFacility.id] : undefined;',
+  'lastTradePrice: typeof market?.lastTradePrice === \'number\' ? market.lastTradePrice : undefined',
+  "typeof entry.marketPrice === 'number'\n                          ? <CurrencyAmount>{formatCurrency(entry.marketPrice)}</CurrencyAmount>",
+]) assert.ok(marketPageSource.includes(text), `市场资产列表缺少真实成交价字段: ${text}`);
 for (const removedText of [
   'const lastPrice = game.markets[product.id]?.lastPrice;',
   'const lastPrice = game.facilityMarkets[facility.id]?.lastPrice;',
-]) assert.equal(marketPageSource.includes(removedText), false, `市场资产目录不得把 lastPrice 标为最近成交价: ${removedText}`);
+]) assert.equal(marketPageSource.includes(removedText), false, `市场资产列表不得把 lastPrice 标为最近成交价: ${removedText}`);
 
 assert.ok(contextSource.includes('createContext<Record<string, ProductMarketState>>({})'));
 assert.ok(routerSource.includes('FacilityRecipeProfitMarketsProvider markets={model.game.markets}'));
@@ -292,8 +293,8 @@ for (const removedText of [
   '窄屏利润分析保持紧凑而不删减信息',
 ]) assert.equal(designSource.includes(removedText), false, `产业设计不得保留旧利润卡规则: ${removedText}`);
 assert.ok(
-  marketDesignSource.includes('横向资产目录中的商品和工厂价格都必须读取对应市场的 `lastTradePrice`'),
-  '统一订单簿设计必须锁定资产目录真实成交价字段',
+  marketDesignSource.includes('商品列表的市场价、基准偏离和 24h 变化以官方系统价 `officialPrice` 为准'),
+  '统一订单簿设计必须锁定商品市场价使用官方系统价',
 );
 
-console.log('市场目录真实成交价、单厂平均利润固定单座口径、具体缺价提示和完整利润卡移除验证通过。');
+console.log('市场官方系统价、单厂平均利润固定单座口径、具体缺价提示和完整利润卡移除验证通过。');

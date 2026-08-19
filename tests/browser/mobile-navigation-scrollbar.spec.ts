@@ -1,12 +1,36 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 
 test.describe('mobile navigation scrolling', () => {
+  test('mobile navigation centers the full button group when it fits', async ({ page }) => {
+    await page.setViewportSize({ width: 720, height: 900 });
+    await page.goto('runtime-test.html?view=overview&scenario=empty');
+
+    const viewport = page.locator('.mobile-bottom-navigation__viewport');
+    const centered = await viewport.evaluate((element) => {
+      const buttons = [...element.querySelectorAll<HTMLElement>('.sidebar-nav-button')];
+      const viewportRect = element.getBoundingClientRect();
+      const first = buttons[0]?.getBoundingClientRect();
+      const last = buttons.at(-1)?.getBoundingClientRect();
+      if (!first || !last) throw new Error('mobile navigation buttons are missing');
+      return {
+        contentCenter: (first.left + last.right) / 2,
+        viewportCenter: (viewportRect.left + viewportRect.right) / 2,
+        justifyContent: getComputedStyle(element).justifyContent,
+        overflows: element.scrollWidth > element.clientWidth + 1,
+      };
+    });
+
+    expect(centered.overflows).toBe(false);
+    expect(centered.justifyContent).toContain('center');
+    expect(centered.contentCenter).toBeCloseTo(centered.viewportCenter, 0);
+  });
+
   test('mobile navigation uses one native scroll viewport without clipping its buttons', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 720 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
 
     const navigation = page.locator('.mobile-bottom-navigation');
-    const content = navigation.locator('.liquid-glass-surface__content');
+    const content = navigation.locator('.frosted-glass-surface__content');
     const viewport = navigation.locator('.mobile-bottom-navigation__viewport');
 
     await expect(navigation).toBeVisible();
@@ -74,5 +98,38 @@ test.describe('mobile navigation scrolling', () => {
     expect(state.activeButtonBottom).toBeLessThanOrEqual(state.viewportBottom + 1);
     expect(state.lastButtonLeft).toBeGreaterThanOrEqual(state.viewportLeft - 1);
     expect(state.lastButtonRight).toBeLessThanOrEqual(state.viewportRight + 1);
+  });
+
+  test('mobile navigation has no hover visual and only exposes pressed and selected states', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('runtime-test.html?view=overview&scenario=empty');
+
+    const navigation = page.getByRole('navigation', { name: '游戏主导航' });
+    const active = navigation.getByRole('button', { name: '概览', exact: true });
+    const inactive = navigation.getByRole('button', { name: '市场', exact: true });
+    const readVisual = (locator: Locator) => locator.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        color: style.color,
+        background: style.backgroundColor,
+        border: style.borderTopColor,
+        boxShadow: style.boxShadow,
+        transform: style.transform,
+      };
+    });
+
+    const inactiveBefore = await readVisual(inactive);
+    await inactive.hover({ force: true });
+    const inactiveAfterHover = await readVisual(inactive);
+    expect(inactiveAfterHover).toEqual(inactiveBefore);
+
+    const activeBefore = await readVisual(active);
+    await active.hover({ force: true });
+    const activeAfterHover = await readVisual(active);
+    expect(activeAfterHover).toEqual(activeBefore);
+
+    await inactive.click();
+    await expect(inactive).toHaveAttribute('aria-current', 'page');
+    await expect(active).not.toHaveAttribute('aria-current', 'page');
   });
 });

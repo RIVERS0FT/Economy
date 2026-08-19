@@ -1,7 +1,7 @@
 export const navigationItems = [
   { id: 'home', label: '概览' },
   { id: 'market', label: '市场' },
-  { id: 'production', label: '生产' },
+  { id: 'buildings', label: '建筑' },
   { id: 'research', label: '研发' },
   { id: 'auction', label: '拍卖' },
   { id: 'contracts', label: '合同' },
@@ -12,4 +12,4 @@ export const navigationItems = [
 ] as const;
 
 export type NavigationTabId = (typeof navigationItems)[number]['id'];
-export type TabId = NavigationTabId | 'map';
+export type TabId = NavigationTabId | 'map' | 'province';

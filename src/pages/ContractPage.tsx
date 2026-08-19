@@ -1122,8 +1122,10 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
     <PageLayout
       title="合同"
       description="通过商品供货、玩家抵押借贷和工厂使用权租赁建立长期合作。所有资产冻结、到期结算、宽限与违约均由服务器确认。"
-      actions={<Button onClick={() => { if (showPublish) { setShowPublish(false); setRepublishContract(null); } else { setRepublishContract(null); setShowPublish(true); } }}>{showPublish ? '收起发布表单' : '发布合同'}</Button>}
     >
+      <div className="contract-content-actions">
+        <Button onClick={() => { if (showPublish) { setShowPublish(false); setRepublishContract(null); } else { setRepublishContract(null); setShowPublish(true); } }}>{showPublish ? '收起发布表单' : '发布合同'}</Button>
+      </div>
       <div className="contract-summary-grid">
         <MetricCard label="进行中的合同" value={formatNumber(productionContractSummary.active)} detail="供货、借贷或租赁" tone="info" />
         <MetricCard label="等待我处理" value={formatNumber(productionContractSummary.needsAttention)} detail="商品、货款或仓库异常" tone={productionContractSummary.needsAttention ? 'warning' : 'success'} />

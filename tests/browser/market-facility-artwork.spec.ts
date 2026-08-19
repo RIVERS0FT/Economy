@@ -1,35 +1,26 @@
 import { expect, test, type Locator } from '@playwright/test';
 
-async function inspectFacilityArtwork(facilityTab: Locator) {
-  await expect(facilityTab).toBeVisible();
-  const artwork = facilityTab.locator(':scope > .market-asset-card__icon-layer > .facility-icon');
+async function inspectFacilityArtwork(slot: Locator) {
+  await expect(slot).toBeVisible();
+  const artwork = slot.locator(':scope > .facility-icon');
   await expect(artwork).toHaveAttribute('data-facility-icon', 'machine-factory');
   await expect.poll(() => artwork.evaluate((element) => getComputedStyle(element).backgroundImage))
     .toContain('machine-factory');
 
-  return facilityTab.evaluate((element) => {
-    const card = element as HTMLElement;
-    const iconLayer = card.querySelector<HTMLElement>(':scope > .market-asset-card__icon-layer');
-    const dataLayer = card.querySelector<HTMLElement>(':scope > .market-asset-card__data-layer');
-    const facilityIcon = iconLayer?.querySelector<HTMLElement>(':scope > .facility-icon');
-    if (!iconLayer || !dataLayer || !facilityIcon) {
-      throw new Error('market facility artwork fixture is incomplete');
-    }
+  return slot.evaluate((element) => {
+    const slotElement = element as HTMLElement;
+    const facilityIcon = slotElement.querySelector<HTMLElement>(':scope > .facility-icon');
+    if (!facilityIcon) throw new Error('market facility artwork fixture is incomplete');
 
-    const cardRect = card.getBoundingClientRect();
+    const slotRect = slotElement.getBoundingClientRect();
     const artworkRect = facilityIcon.getBoundingClientRect();
     const artworkStyle = getComputedStyle(facilityIcon);
-    const cardStyle = getComputedStyle(card);
-    const iconLayerStyle = getComputedStyle(iconLayer);
-    const dataLayerStyle = getComputedStyle(dataLayer);
-    const readabilityStyle = getComputedStyle(iconLayer, '::after');
-
     return {
-      card: {
-        width: card.clientWidth,
-        height: card.clientHeight,
-        left: cardRect.left + card.clientLeft,
-        top: cardRect.top + card.clientTop,
+      slot: {
+        width: slotRect.width,
+        height: slotRect.height,
+        left: slotRect.left + (slotRect.width - artworkRect.width) / 2,
+        top: slotRect.top + (slotRect.height - artworkRect.height) / 2,
       },
       artwork: {
         width: artworkRect.width,
@@ -40,45 +31,42 @@ async function inspectFacilityArtwork(facilityTab: Locator) {
       backgroundSize: artworkStyle.backgroundSize,
       backgroundPosition: artworkStyle.backgroundPosition,
       backgroundRepeat: artworkStyle.backgroundRepeat,
-      transform: artworkStyle.transform,
-      cardOverflow: cardStyle.overflow,
-      iconLayerZIndex: iconLayerStyle.zIndex,
-      dataLayerZIndex: dataLayerStyle.zIndex,
-      readabilityBackground: readabilityStyle.backgroundImage,
-      readabilityPointerEvents: readabilityStyle.pointerEvents,
     };
   });
 }
 
-function expectFullBleed(metrics: Awaited<ReturnType<typeof inspectFacilityArtwork>>) {
-  expect(metrics.card.width).toBeGreaterThan(metrics.card.height);
-  expect(Math.abs(metrics.artwork.left - metrics.card.left)).toBeLessThan(1.5);
-  expect(Math.abs(metrics.artwork.top - metrics.card.top)).toBeLessThan(1.5);
-  expect(Math.abs(metrics.artwork.width - metrics.card.width)).toBeLessThan(1.5);
-  expect(Math.abs(metrics.artwork.height - metrics.card.height)).toBeLessThan(1.5);
+function expectContainedArtwork(
+  metrics: Awaited<ReturnType<typeof inspectFacilityArtwork>>,
+  slotSize: number,
+  artworkSize: number,
+) {
+  expect(metrics.slot.width).toBeCloseTo(slotSize, 0);
+  expect(metrics.slot.height).toBeCloseTo(slotSize, 0);
+  expect(metrics.artwork.width).toBeCloseTo(artworkSize, 0);
+  expect(metrics.artwork.height).toBeCloseTo(artworkSize, 0);
+  expect(Math.abs(metrics.artwork.left - metrics.slot.left)).toBeLessThan(1.5);
+  expect(Math.abs(metrics.artwork.top - metrics.slot.top)).toBeLessThan(1.5);
+  expect(metrics.artwork.width).toBeLessThan(metrics.slot.width);
   expect(metrics.backgroundSize).toBe('cover');
   expect(metrics.backgroundPosition).toBe('50% 50%');
   expect(metrics.backgroundRepeat).toBe('no-repeat');
-  expect(metrics.transform).toBe('none');
-  expect(metrics.cardOverflow).toBe('hidden');
-  expect(Number(metrics.dataLayerZIndex)).toBeGreaterThan(Number(metrics.iconLayerZIndex));
-  expect(metrics.readabilityBackground).not.toBe('none');
-  expect((metrics.readabilityBackground.match(/linear-gradient/g) ?? []).length).toBe(2);
-  expect(metrics.readabilityPointerEvents).toBe('none');
 }
 
-test('market facility artwork fills the card with centered cover cropping on desktop and mobile', async ({ page }) => {
+test('building subordinate facility trade artwork fits detail slots on desktop and mobile', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
 
   await page.setViewportSize({ width: 1400, height: 900 });
-  await page.goto('market-runtime-test.html?scenario=active');
-  const desktopFacility = page.getByRole('tab', { name: /^机械工厂/ });
-  expectFullBleed(await inspectFacilityArtwork(desktopFacility));
+  await page.goto('runtime-test.html?view=production&scenario=facility-card-profit');
+  await page.getByRole('button', { name: /交易该建筑资产/ }).click();
+  expectContainedArtwork(await inspectFacilityArtwork(page.locator('.market-detail-hero__artwork')), 76, 68);
 
+  await page.getByRole('button', { name: '返回建筑详情' }).click();
   await page.setViewportSize({ width: 390, height: 844 });
-  const mobileFacility = page.getByRole('tab', { name: /^机械工厂/ });
-  expectFullBleed(await inspectFacilityArtwork(mobileFacility));
+  await page.locator('.facility-cluster-selector-card').first().click();
+  await expect(page.locator('.mobile-detail-sheet')).toBeVisible();
+  await page.getByRole('button', { name: /交易该建筑资产/ }).click();
+  expectContainedArtwork(await inspectFacilityArtwork(page.locator('.market-detail-hero__artwork')), 64, 58);
 
   expect(pageErrors).toEqual([]);
 });

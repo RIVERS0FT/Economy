@@ -91,6 +91,21 @@ test.describe('notification center geometry', () => {
     await expect(trigger).toBeFocused();
   });
 
+  test('pointer press on the blank overlay closes the panel while panel content stays open', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('runtime-test.html?view=overview&scenario=activity');
+    await openNotificationPanel(page);
+
+    const panel = page.getByRole('dialog', { name: '通知' });
+    await panel.locator('.notification-panel__header').click();
+    await expect(panel).toBeVisible();
+
+    const layerBox = await page.locator('.notification-panel-layer').boundingBox();
+    if (!layerBox) throw new Error('notification overlay is missing');
+    await page.mouse.click(layerBox.x + 4, layerBox.y + layerBox.height - 4);
+    await expect(panel).toHaveCount(0);
+  });
+
   test('desktop entry stays on the status right and panel opens at workspace top-right', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
@@ -102,9 +117,10 @@ test.describe('notification center geometry', () => {
       const trigger = document.querySelector<HTMLElement>('.notification-center-trigger');
       const workspace = document.querySelector<HTMLElement>('.workspace');
       const floatingLayer = document.querySelector<HTMLElement>('.workspace-floating-layer');
+      const panelLayer = document.querySelector<HTMLElement>('.notification-panel-layer');
       const panel = document.querySelector<HTMLElement>('.notification-panel');
       const toast = document.querySelector<HTMLElement>('.notification-toast');
-      if (!status || !trigger || !workspace || !floatingLayer || !panel || !toast) {
+      if (!status || !trigger || !workspace || !floatingLayer || !panelLayer || !panel || !toast) {
         throw new Error('desktop notification geometry is incomplete');
       }
       const rect = (element: HTMLElement) => {
@@ -115,21 +131,29 @@ test.describe('notification center geometry', () => {
         status: rect(status),
         trigger: rect(trigger),
         workspace: rect(workspace),
+        panelLayer: rect(panelLayer),
         panel: rect(panel),
+        panelInsets: {
+          top: Number.parseFloat(getComputedStyle(panelLayer).paddingTop),
+          right: Number.parseFloat(getComputedStyle(panelLayer).paddingRight),
+          bottom: Number.parseFloat(getComputedStyle(panelLayer).paddingBottom),
+          left: Number.parseFloat(getComputedStyle(panelLayer).paddingLeft),
+        },
         toast: rect(toast),
-        glassCount: document.querySelectorAll('.asset-bar .liquid-glass-surface').length,
+        frostedSurfaceCount: document.querySelectorAll('.asset-bar .frosted-glass-surface').length,
         panelParentIsFloatingLayer: panel.parentElement?.parentElement === floatingLayer,
       };
     });
 
     expect(geometry.trigger.right).toBeLessThanOrEqual(geometry.status.right);
     expect(geometry.trigger.left).toBeGreaterThan(geometry.status.right - 80);
-    expect(geometry.panel.top).toBeGreaterThanOrEqual(geometry.workspace.top);
-    expect(geometry.panel.right).toBeCloseTo(geometry.workspace.right - 8, 0);
+    expect(geometry.panelInsets).toEqual({ top: 0, right: 8, bottom: 8, left: 8 });
+    expect(geometry.panel.top).toBeCloseTo(geometry.panelLayer.top, 0);
+    expect(geometry.panel.right).toBeCloseTo(geometry.panelLayer.right - geometry.panelInsets.right, 0);
     expect(geometry.panel.width).toBeLessThanOrEqual(420);
     expect(geometry.toast.top).toBeGreaterThan(geometry.status.bottom);
     expect(geometry.panelParentIsFloatingLayer).toBe(true);
-    expect(geometry.glassCount).toBe(1);
+    expect(geometry.frostedSurfaceCount).toBe(1);
   });
 
   test('mobile island stays centered while the panel remains above extreme workspace z-index', async ({ page }) => {
@@ -158,13 +182,14 @@ test.describe('notification center geometry', () => {
       const status = document.querySelector<HTMLElement>('.asset-bar');
       const trigger = document.querySelector<HTMLElement>('.notification-center-trigger');
       const floatingLayer = document.querySelector<HTMLElement>('.workspace-floating-layer');
+      const panelLayer = document.querySelector<HTMLElement>('.notification-panel-layer');
       const panel = document.querySelector<HTMLElement>('.notification-panel');
       const closeButton = document.querySelector<HTMLElement>('.notification-panel__close');
       const navigation = document.querySelector<HTMLElement>('.mobile-bottom-navigation');
       const islandRegion = document.querySelector<HTMLElement>('.notification-island-region');
       const island = document.querySelector<HTMLElement>('.notification-island');
       const sentinel = document.querySelector<HTMLElement>('.notification-layer-regression-sentinel');
-      if (!shellBody || !pageLayer || !status || !trigger || !floatingLayer || !panel || !closeButton || !navigation || !islandRegion || !island || !sentinel) {
+      if (!shellBody || !pageLayer || !status || !trigger || !floatingLayer || !panelLayer || !panel || !closeButton || !navigation || !islandRegion || !island || !sentinel) {
         throw new Error('mobile notification geometry is incomplete');
       }
       const rect = (element: HTMLElement) => {
@@ -188,7 +213,14 @@ test.describe('notification center geometry', () => {
         status: rect(status),
         trigger: rect(trigger),
         floatingLayer: rect(floatingLayer),
+        panelLayer: rect(panelLayer),
         panel: rect(panel),
+        panelInsets: {
+          top: Number.parseFloat(getComputedStyle(panelLayer).paddingTop),
+          right: Number.parseFloat(getComputedStyle(panelLayer).paddingRight),
+          bottom: Number.parseFloat(getComputedStyle(panelLayer).paddingBottom),
+          left: Number.parseFloat(getComputedStyle(panelLayer).paddingLeft),
+        },
         navigation: rect(navigation),
         island: islandRect,
         islandCenter: islandRect.left + islandRect.width / 2,
@@ -200,7 +232,7 @@ test.describe('notification center geometry', () => {
         islandAnimationName,
         queueLabel,
         islandCount: document.querySelectorAll('.notification-island').length + 1,
-        glassCount: document.querySelectorAll('.asset-bar .liquid-glass-surface').length,
+        frostedSurfaceCount: document.querySelectorAll('.asset-bar .frosted-glass-surface').length,
         shellBodyZIndex: getComputedStyle(shellBody).zIndex,
         pageLayerZIndex: getComputedStyle(pageLayer).zIndex,
         pageLayerOrder: getComputedStyle(pageLayer).order,
@@ -214,11 +246,12 @@ test.describe('notification center geometry', () => {
     expect(geometry.trigger.width).toBeCloseTo(44, 0);
     expect(geometry.trigger.height).toBeCloseTo(44, 0);
     expect(geometry.itemColumns).toBe(5);
-    expect(geometry.panel.top).toBeCloseTo(geometry.floatingLayer.top, 0);
+    expect(geometry.panelInsets).toEqual({ top: 0, right: 12, bottom: 12, left: 12 });
+    expect(geometry.panel.top).toBeCloseTo(geometry.panelLayer.top, 0);
     expect(geometry.panel.top).toBeGreaterThan(geometry.status.bottom);
     expect(geometry.panel.bottom).toBeLessThanOrEqual(geometry.navigation.top);
-    expect(geometry.panel.left).toBeCloseTo(geometry.status.left, 0);
-    expect(geometry.panel.right).toBeCloseTo(geometry.status.right, 0);
+    expect(geometry.panel.left).toBeCloseTo(geometry.panelLayer.left + geometry.panelInsets.left, 0);
+    expect(geometry.panel.right).toBeCloseTo(geometry.panelLayer.right - geometry.panelInsets.right, 0);
     expect(geometry.islandCenter).toBeCloseTo(geometry.viewportWidth / 2, 0);
     expect(geometry.island.top).toBeCloseTo(geometry.status.bottom + 8, 0);
     expect(geometry.island.bottom).toBeLessThan(geometry.navigation.top);
@@ -232,7 +265,7 @@ test.describe('notification center geometry', () => {
     expect(geometry.islandAnimationName).toContain('notification-island-enter');
     expect(geometry.queueLabel).toBe('+2');
     expect(geometry.islandCount).toBe(1);
-    expect(geometry.glassCount).toBe(1);
+    expect(geometry.frostedSurfaceCount).toBe(1);
     expect(geometry.shellBodyZIndex).toBe('0');
     expect(geometry.pageLayerZIndex).toBe('1');
     expect(geometry.pageLayerOrder).toBe('1');

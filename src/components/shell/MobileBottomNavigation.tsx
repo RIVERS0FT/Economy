@@ -5,7 +5,7 @@ import { MobileBottomNavigationFrame } from './MobileBottomNavigationFrame';
 
 /* MobileBottomNavigationFrame owns the stable mobile chrome contract:
  * className="sidebar mobile-bottom-navigation"
- * <LiquidGlassSurface variant="mobileNavigation">
+ * <FrostedGlassSurface variant="mobileNavigation">
  * className="mobile-bottom-navigation__viewport"
  */
 export function MobileBottomNavigation({

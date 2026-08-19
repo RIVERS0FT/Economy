@@ -27,10 +27,15 @@ const paths = {
 
 Object.values(paths).forEach(requireFile);
 
-if (failures.length === 0) {
-  for (const text of [
-    '<section className="page-content">',
-    '<div className="ui-page-stack">',
+  if (failures.length === 0) {
+    for (const text of [
+      "'page-content',",
+      "pageNavigation && 'page-content--player'",
+      "pageNavigation && !scrollable && 'page-content--fixed-body'",
+      '<div className="page-fixed-header">',
+      'className="page-card-scroll-area"',
+      'className="page-card-static"',
+      '<div className="ui-page-stack">',
     '{children}',
   ]) requireText(paths.layout, text);
 
@@ -40,11 +45,15 @@ if (failures.length === 0) {
     'display: grid;',
     'align-content: start;',
     'gap: var(--page-section-gap);',
-    '.page-content > .ui-page-stack > * {',
+    '.page-card-static > .ui-page-stack {',
+    'grid-template-rows: minmax(0, 1fr);',
+    'align-content: stretch;',
+    '.page-card-scroll > .ui-page-stack > * {',
+    '.page-card-static > .ui-page-stack > * {',
     'margin-block: 0 !important;',
   ]) requireText(paths.styles, text);
 
-  const stackDefinitionCount = (read(paths.styles).match(/\.ui-page-stack\s*\{/g) || []).length;
+  const stackDefinitionCount = (read(paths.styles).match(/(?:^|\n)\.ui-page-stack\s*\{/g) || []).length;
   if (stackDefinitionCount !== 1) {
     failures.push(`design-system.css 中 .ui-page-stack 基础定义数量应为 1，当前为 ${stackDefinitionCount}`);
   }
@@ -82,7 +91,9 @@ if (failures.length === 0) {
 
   for (const text of [
     '### 3.1 `PageLayout` 与页面一级区块间距',
-    '自动生成唯一 `.ui-page-stack`',
+    '普通页面正文唯一 `.ui-page-stack` 位于页面卡片内部 `ScrollArea`',
+    '研发页是唯一固定正文例外',
+    '`.page-card-static`',
     '`--page-section-gap` 映射为当前 `var(--layout-gutter)`',
     '不得为特殊页面增加 `disableSpacing`',
     '地图页是唯一全工作区例外',
@@ -113,4 +124,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('页面一级区块统一间距验证通过：PageLayout 自动内容栈、地图全工作区例外、外壳沟槽映射、直接子元素外边距清理、新页面扫描、设计权威与真实几何回归均已锁定。');
+console.log('页面一级区块统一间距验证通过：PageLayout 自动内容栈、研发固定正文例外、地图全工作区例外、外壳沟槽映射、直接子元素外边距清理、新页面扫描、设计权威与真实几何回归均已锁定。');

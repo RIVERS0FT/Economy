@@ -91,17 +91,12 @@ if (failures.length === 0) {
   isolation: isolate;`);
 
   for (const text of [
-    '`#root` 是全应用唯一允许同时包围图片层、氛围层、地图层与 UI 液态玻璃的 `isolation:isolate` 根',
-    '桌面和移动端都必须保持 `isolation:auto`、`filter:none` 与 `transform:none`',
-    '不得在登录后外壳祖先上建立第二个隔离根',
-    '桌面玩家、桌面管理员、移动玩家和移动管理员四种场景保持开放的背景采样链',
-    '不得通过状态栏专属填充、描边或氛围副本掩盖根级采样失败',
-    '`.workspace-dialog-layer`',
-    '`.application-map-layer`',
-    '`.application-ui-layer`',
-    '`.workspace-strategic-chrome`',
-    '`verify-open-glass-sampling.mjs`',
-    '`open-glass-sampling.spec.ts`',
+    '根级 `#root` 使用唯一 `isolation:isolate`',
+    '地图层、UI 层、内容根、登录后外壳、工作区、页面滚动区和 Chrome Overlay 必须保持 `isolation:auto`、`filter:none`、`transform:none`',
+    '毛玻璃宿主自身不得创建新的隔离根',
+    '四种玩家／管理员、桌面／移动场景的根级采样链',
+    '`src/components/ui/FrostedGlassSurface.tsx`',
+    '`tests/browser/open-glass-sampling.spec.ts`',
   ]) requireText(files.liquidDesign, text);
   for (const text of [
     '`#root` 是认证、玩家和管理员共同的唯一全应用隔离根',
@@ -118,7 +113,7 @@ if (failures.length === 0) {
   for (const text of [
     'ApplicationLayerRoot,',
     'ApplicationMapLayerPortal,',
-    "import { LiquidGlassSurface } from '../../src/components/ui/LiquidGlassSurface'",
+    "import { FrostedGlassSurface } from '../../src/components/ui/FrostedGlassSurface'",
     "import { ScrollArea } from '../../src/components/ui/ScrollArea'",
     "surface === 'admin'",
     "mode === 'mobile'",
@@ -130,30 +125,27 @@ if (failures.length === 0) {
     'className="mobile-page-overlay"',
     'className="workspace-strategic-chrome"',
     'mobile-chrome-overlay',
-    'variant={isMobile ? \'mobileStatusBar\' : \'desktopStatusBar\'}',
+    'variant="statusBar"',
     'variant="mobileNavigation"',
   ]) requireText(files.harness, text);
 
   for (const text of [
-    'desktop player chrome uses the unique root sampling chain',
-    'desktop administrator chrome uses the unique root sampling chain',
-    'mobile player chrome uses the unique root sampling chain',
-    'mobile administrator chrome uses the unique root sampling chain',
+    'signed-in frosted-glass backdrop sampling',
+    '`${mode} ${surface} chrome uses the unique root sampling chain`',
+    "page.locator('.frosted-glass-surface')",
+    "page.locator('.liquid-glass-surface, .glass__warp')",
     "expect(chain.samplingRootIsolation).toBe('isolate')",
     "expect(chain.openIsolations.every((value) => value === 'auto')).toBe(true)",
     "expect(chain.openFilters.every((value) => value === 'none')).toBe(true)",
     "expect(chain.openTransforms.every((value) => value === 'none')).toBe(true)",
-    "currentSurface === 'game' && !workspaceStrategicChrome",
-    'const openNodes = [mapLayer, uiLayer, contentRoot',
-    'if (workspaceStrategicChrome) openNodes.push(workspaceStrategicChrome)',
+    'const openNodes = [mapLayer, uiLayer, contentRoot, shell, workspace',
     "expect(chain.imageLayerZIndex).toBe('0')",
     "expect(chain.atmosphereLayerZIndex).toBe('10')",
     "expect(chain.mapLayerZIndex).toBe('20')",
     "expect(chain.uiLayerZIndex).toBe('30')",
-    "value.includes('blur(4px)')",
-    '/saturate\\((?:140%|1\\.4)\\)/',
-    "expect(chain.surfaceVariants).toEqual(['desktopStatusBar'])",
-    "expect(chain.surfaceVariants).toEqual(['mobileStatusBar', 'mobileNavigation'])",
+    "value.includes('blur(18px)')",
+    "expect(chain.surfaceVariants).toEqual(['statusBar'])",
+    "expect(chain.surfaceVariants).toEqual(['statusBar', 'mobileNavigation'])",
     "expect(chain.surfaceVariants).toEqual(['mobileNavigation'])",
   ]) requireText(files.browser, text);
 
@@ -167,9 +159,9 @@ if (failures.length === 0) {
 }
 
 if (failures.length > 0) {
-  console.error('登录后液态玻璃开放采样链验证失败：');
+  console.error('登录后毛玻璃开放采样链验证失败：');
   failures.forEach((failure) => console.error(`- ${failure}`));
   process.exit(1);
 }
 
-console.log('登录后液态玻璃开放采样链验证通过：唯一四层根隔离、桌面与移动玩家／管理员祖先、根级地图与战略 Chrome、普通浮层与根级 Dialog 层开放和四场景浏览器回归均已锁定。');
+console.log('登录后毛玻璃开放采样链验证通过：唯一四层根隔离、桌面与移动玩家／管理员祖先和四场景浏览器回归均已锁定。');

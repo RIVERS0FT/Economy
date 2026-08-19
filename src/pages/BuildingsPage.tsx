@@ -1,16 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cancelFacilityBuildProcurement, createFacilityBuildProcurement } from '../api/game';
-import type { OnlineAutoSellAwareGameViewModel } from '../auto-sell/useOnlineAutoSell';
+import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { ProductArtwork } from '../components/products/ProductArtwork';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
-import { MoneyInput, SelectInput } from '../components/ui/FormControls';
+import { MoneyInput, SelectInput, TextInput } from '../components/ui/FormControls';
 import { RichSelectInput } from '../components/ui/RichSelectInput';
-import { WarehouseInventoryPanel } from '../components/warehouse/WarehouseInventoryPanel';
-import { ProvinceSelect } from '../components/provinces/ProvinceSelect';
 import {
   Button,
   DataList,
   DataRow,
+  MetricCard,
   PageLayout,
   PagePanel,
   Panel,
@@ -27,6 +26,7 @@ import {
 } from '../utils/facilityBuildProcurementGroups';
 import { getUnlockedFacilityTypes } from '../utils/facilityResearchAccess';
 import { formatCurrency, formatNumber } from '../utils/formatters';
+import { analyzeRecipeProfit } from '../utils/recipeProfitAnalysis';
 import { openOrderLimitForCatalog } from '../config/economy';
 import { setContractMarketIntent } from '../contracts/navigation';
 import {
@@ -38,8 +38,23 @@ import {
   type FacilityClusterEntry,
 } from './production/ProductionFacilityDetail';
 import { MobileFacilityDetailSheet } from './production/MobileFacilityDetailSheet';
+import { currentFormulaScope } from '../components/facilities/FacilityProductionFormula';
 import '../styles/production-methods.css';
 import '../styles/facility-build-select.css';
+
+const EmbeddedFacilityAssetMarket = lazy(() => import('./MarketPage').then((module) => ({
+  default: module.MarketPage,
+})));
+
+type BuildingCategoryFilter = 'all' | 'raw' | 'processing' | 'consumer' | 'industrial';
+type BuildingStatusFilter = 'all' | 'running' | 'stopped' | 'error';
+
+const BUILDING_CATEGORY_LABELS: Record<Exclude<BuildingCategoryFilter, 'all'>, string> = {
+  raw: '原料产业',
+  processing: '加工产业',
+  consumer: '消费产业',
+  industrial: '工业产业',
+};
 
 /*
  * Split-module ownership manifest for static page-contract verification. Runtime implementations live in
@@ -74,7 +89,13 @@ function openOwnCommoditySell(order: AssetOrder, productId: string, price: numbe
     && order.price <= price;
 }
 
-export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewModel }) {
+export function BuildingsPage({
+  model,
+  embedded = false,
+}: {
+  model: LoadedGameViewModel;
+  embedded?: boolean;
+}) {
   const {
     game,
     selectedFacilityTypeId,
@@ -89,6 +110,10 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
 
   const now = game.lastProcessedAt;
   const [selectedFacilityGroupId, setSelectedFacilityGroupId] = useState('');
+  const [buildingQuery, setBuildingQuery] = useState('');
+  const [buildingCategory, setBuildingCategory] = useState<BuildingCategoryFilter>('all');
+  const [buildingStatus, setBuildingStatus] = useState<BuildingStatusFilter>('all');
+  const [facilityAssetTradeId, setFacilityAssetTradeId] = useState('');
   const [isFacilityDetailOpen, setFacilityDetailOpen] = useState(false);
   const [buildQuantity, setBuildQuantity] = useState(1);
   const [procurementPriceDrafts, setProcurementPriceDrafts] = useState<Record<string, string>>({});
@@ -155,19 +180,60 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
       return [{ type, group: displayGroup }];
     });
   }, [game.facilityGroups, game.facilityTypes, optimisticRecipeIds]);
-  const facilityClusterStatusCounts = useMemo(() => {
-    const summary: Record<FacilityGroup['status'], number> = {
-      running: 0,
-      stopped: 0,
-      error: 0,
-    };
+  const buildingSummary = useMemo(() => {
+    let total = 0;
+    let running = 0;
+    let stopped = 0;
+    let abnormal = 0;
+    let staffingWeightedTotal = 0;
+    let staffingWeight = 0;
+    let estimatedProfitPerMinute = 0;
+    let hasMissingProfitPrice = false;
+
     for (const entry of orderedFacilityGroups) {
-      summary[entry.group.status] += 1;
+      const { group } = entry;
+      total += group.count;
+      if (group.status === 'running') running += group.count;
+      else if (group.status === 'error') abnormal += group.count;
+      else stopped += group.count;
+      const staffingRateBps = Math.max(0, Math.min(10_000, Number(group.staffingRateBps ?? 10_000)));
+      staffingWeightedTotal += staffingRateBps * group.count;
+      staffingWeight += group.count;
+      if (group.status !== 'running') continue;
+      const recipeState = resolveFacilityDetailRecipeState(entry);
+      const scope = currentFormulaScope(group, now);
+      const analysis = analyzeRecipeProfit({
+        recipe: recipeState.formulaType,
+        scopeCount: scope.count,
+        markets: game.markets,
+        buildCost: 0,
+      });
+      if (analysis.profitPerMinute === null) hasMissingProfitPrice = true;
+      else estimatedProfitPerMinute += analysis.profitPerMinute;
     }
-    return summary;
-  }, [orderedFacilityGroups]);
+
+    return {
+      total,
+      running,
+      stopped,
+      abnormal,
+      averageStaffingPercent: staffingWeight > 0
+        ? Math.round(staffingWeightedTotal / staffingWeight / 100)
+        : 0,
+      estimatedProfitPerMinute: hasMissingProfitPrice ? null : estimatedProfitPerMinute,
+    };
+  }, [game.markets, now, orderedFacilityGroups]);
+  const filteredFacilityGroups = useMemo(() => {
+    const query = buildingQuery.trim().toLocaleLowerCase('zh-CN');
+    return orderedFacilityGroups.filter(({ type, group }) => {
+      if (query && !type.name.toLocaleLowerCase('zh-CN').includes(query)) return false;
+      if (buildingCategory !== 'all' && type.category !== buildingCategory) return false;
+      if (buildingStatus !== 'all' && group.status !== buildingStatus) return false;
+      return true;
+    });
+  }, [buildingCategory, buildingQuery, buildingStatus, orderedFacilityGroups]);
   const selectedFacilityEntry =
-    orderedFacilityGroups.find(({ type }) => type.id === selectedFacilityGroupId) ?? orderedFacilityGroups[0];
+    filteredFacilityGroups.find(({ type }) => type.id === selectedFacilityGroupId) ?? filteredFacilityGroups[0];
   const effectiveSelectedFacilityGroupId = selectedFacilityEntry?.type.id ?? '';
 
   useEffect(() => {
@@ -245,14 +311,17 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
 
   if (!selectedType) {
     const hasCatalog = game.facilityTypes.length > 0;
-    return (
+    const emptyContent = (
+      <Panel className="empty-state">
+        {hasCatalog ? '当前没有已解锁工厂。' : '暂无工厂类型。'}
+      </Panel>
+    );
+    return embedded ? emptyContent : (
       <PageLayout
-        title="生产"
+        title="建筑"
         description={hasCatalog ? '当前没有已解锁工厂，请先前往研发页面完成对应科技。' : '服务器尚未返回工厂目录。'}
       >
-        <Panel className="empty-state">
-          {hasCatalog ? '当前没有已解锁工厂。' : '暂无工厂类型。'}
-        </Panel>
+        {emptyContent}
       </PageLayout>
     );
   }
@@ -406,7 +475,9 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
   };
   const openSelectedFacilityMarket = () => {
     if (!selectedFacilityEntry) return;
-    selectMarketAsset('facility', selectedFacilityEntry.group.facilityTypeId);
+    selectMarketAsset('facility', selectedFacilityEntry.group.facilityTypeId, false);
+    setFacilityDetailOpen(false);
+    setFacilityAssetTradeId(selectedFacilityEntry.group.facilityTypeId);
   };
   const openProductMarket = (productId: string) => {
     selectMarketAsset('commodity', productId);
@@ -484,26 +555,37 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
   };
   const orderById = new Map(game.orders.map((order) => [order.id, order]));
 
-  return (
-    <PageLayout
-      title={`${model.selectedProvince?.name || '加利福尼亚州'}生产`}
-      description="本地工厂只消耗并产出当前州级地区的库存；同州同类工厂共享周期、配方、生产方式与满员率。"
-      actions={
-        <>
-          <ProvinceSelect
-            provinces={game.provinces}
-            value={model.selectedProvinceId}
-            onChange={model.setSelectedProvinceId}
+  const buildingsManagementContent = (
+    <>
+      <PagePanel className="production-surface buildings-summary-panel">
+        <WidgetHeading
+          title="建筑概况"
+          action={buildingSummary.abnormal > 0
+            ? <StatusTag tone="danger">存在异常</StatusTag>
+            : <StatusTag tone="success">运行稳定</StatusTag>}
+        />
+        <section className="buildings-summary-metrics" aria-label="州级建筑汇总">
+          <MetricCard label="建筑总数" value={formatNumber(buildingSummary.total)} />
+          <MetricCard label="运行中" value={formatNumber(buildingSummary.running)} tone="success" />
+          <MetricCard label="已停止" value={formatNumber(buildingSummary.stopped)} />
+          <MetricCard label="异常" value={formatNumber(buildingSummary.abnormal)} tone={buildingSummary.abnormal > 0 ? 'danger' : 'neutral'} />
+          <MetricCard label="平均满员率" value={`${formatNumber(buildingSummary.averageStaffingPercent)}%`} tone="info" />
+          <MetricCard
+            label="预计利润／分钟"
+            value={buildingSummary.estimatedProfitPerMinute === null
+              ? '—'
+              : (
+                <CurrencyAmount sign={buildingSummary.estimatedProfitPerMinute > 0 ? '+' : buildingSummary.estimatedProfitPerMinute < 0 ? '−' : undefined}>
+                  {formatCurrency(Math.abs(buildingSummary.estimatedProfitPerMinute))}
+                </CurrencyAmount>
+              )}
+            tone={buildingSummary.estimatedProfitPerMinute === null
+              ? 'neutral'
+              : buildingSummary.estimatedProfitPerMinute > 0 ? 'success' : buildingSummary.estimatedProfitPerMinute < 0 ? 'danger' : 'neutral'}
+            detail="按运行建筑、满员率与最近真实成交价估算"
           />
-          <StatusTag tone="success">运行 {formatNumber(facilityClusterStatusCounts.running)}</StatusTag>
-          <StatusTag tone="neutral">停止 {formatNumber(facilityClusterStatusCounts.stopped)}</StatusTag>
-          <StatusTag tone={facilityClusterStatusCounts.error > 0 ? 'danger' : 'neutral'}>
-            异常 {formatNumber(facilityClusterStatusCounts.error)}
-          </StatusTag>
-        </>
-      }
-    >
-      <WarehouseInventoryPanel model={model} className="factory-warehouse-card" />
+        </section>
+      </PagePanel>
 
       <div className="production-grid production-workspace">
         <PagePanel className="production-surface build-card production-build-card">
@@ -672,14 +754,44 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
         <PagePanel className="production-surface facility-cluster-navigation">
           <div className="facility-cluster-navigation-heading">
             <div>
-              <h2 id="facility-cluster-navigation-title">工厂集群</h2>
-              <p>按复杂度从 C1 到 C7 选择工厂并查看生产详情。</p>
+              <h2 id="facility-cluster-navigation-title">建筑列表</h2>
+              <p>按产业和运行状态筛选建筑，选择后查看经营与生产详情。</p>
             </div>
-            <StatusTag tone="neutral">{formatNumber(orderedFacilityGroups.length)} 类</StatusTag>
+            <StatusTag tone="neutral">{formatNumber(filteredFacilityGroups.length)} / {formatNumber(orderedFacilityGroups.length)} 类</StatusTag>
+          </div>
+
+          <div className="buildings-list-filters" aria-label="建筑列表筛选">
+            <TextInput
+              label="搜索"
+              type="search"
+              value={buildingQuery}
+              placeholder="搜索建筑"
+              onChange={(event) => setBuildingQuery(event.currentTarget.value)}
+            />
+            <SelectInput
+              label="产业分类"
+              value={buildingCategory}
+              onChange={(event) => setBuildingCategory(event.currentTarget.value as BuildingCategoryFilter)}
+            >
+              <option value="all">全部产业</option>
+              {Object.entries(BUILDING_CATEGORY_LABELS).map(([value, label]) => (
+                <option value={value} key={value}>{label}</option>
+              ))}
+            </SelectInput>
+            <SelectInput
+              label="运行状态"
+              value={buildingStatus}
+              onChange={(event) => setBuildingStatus(event.currentTarget.value as BuildingStatusFilter)}
+            >
+              <option value="all">全部状态</option>
+              <option value="running">运行中</option>
+              <option value="stopped">已停止</option>
+              <option value="error">异常</option>
+            </SelectInput>
           </div>
 
           <div className="facility-cluster-selector-list">
-            {orderedFacilityGroups.map((entry) => (
+            {filteredFacilityGroups.map((entry) => (
               <FacilityClusterSelectorCard
                 key={entry.group.facilityTypeId}
                 entry={entry}
@@ -691,7 +803,9 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
           </div>
 
           {orderedFacilityGroups.length === 0 ? (
-            <div className="empty-state tall">尚未拥有工厂集群。先建设第一座工厂。</div>
+            <div className="empty-state tall">尚未拥有建筑。先建设第一座工厂。</div>
+          ) : filteredFacilityGroups.length === 0 ? (
+            <div className="empty-state tall">没有符合当前筛选条件的建筑。</div>
           ) : null}
         </PagePanel>
 
@@ -717,7 +831,9 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
             </PagePanel>
           ) : (
             <PagePanel className="production-surface empty-state tall facility-cluster-detail-card">
-              建设第一座工厂后，可在此查看集群详情。
+              {orderedFacilityGroups.length === 0
+                ? '建设第一座工厂后，可在此查看建筑详情。'
+                : '调整筛选条件后，可在此查看建筑详情。'}
             </PagePanel>
           )}
         </div>
@@ -741,6 +857,25 @@ export function ProductionPage({ model }: { model: OnlineAutoSellAwareGameViewMo
         onOpenProductMarket={openProductMarket}
         onOpenContracts={openProductContracts}
       />
+    </>
+  );
+  const buildingsContent = facilityAssetTradeId ? (
+    <Suspense fallback={<Panel className="empty-state"><span role="status">正在加载建筑资产交易…</span></Panel>}>
+      <EmbeddedFacilityAssetMarket
+        model={model}
+        embedded
+        facilityAssetId={facilityAssetTradeId}
+        onBackFromFacilityAsset={() => setFacilityAssetTradeId('')}
+      />
+    </Suspense>
+  ) : buildingsManagementContent;
+
+  return embedded ? buildingsContent : (
+    <PageLayout
+      title={`${model.selectedProvince?.name || '加利福尼亚州'}建筑`}
+      description="管理本州建筑的建造、运行、满员率、生产方式、投入产出与资产交易；商品库存和自动交易分别归属仓库与市场。"
+    >
+      {buildingsContent}
     </PageLayout>
   );
 }

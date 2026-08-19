@@ -1,6 +1,9 @@
 import regionCatalog from '../../../shared/provinces.json';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
+import type { GameTutorialController } from '../../game-guide/useGameTutorial';
 import type { ProvinceAssetSummary, ProvinceDefinition } from '../../types';
+import { EconomicEventLogPanel } from '../EconomicEventLogPanel';
+import { GameGuideStrip } from '../GameGuideStrip';
 import { UsMainlandMap, type ProvinceMapLens } from '../provinces/UsMainlandMap';
 import {
   AssetsIcon,
@@ -57,17 +60,22 @@ export function StrategicMapStage({
   const setSelectedProvinceId = typeof model.setSelectedProvinceId === 'function'
     ? model.setSelectedProvinceId
     : () => {};
+  const openProvincePage = (provinceId: string) => {
+    setSelectedProvinceId(provinceId);
+    model.setTab('province');
+  };
   return (
     <div
-      className={`strategic-map-stage strategic-map-stage--${model.tab === 'map' ? 'active' : 'background'}`}
+      className="strategic-map-stage"
       data-strategic-map-stage="true"
       data-map-lens={lens}
     >
       <UsMainlandMap
         provinces={state.provinces}
         summaries={state.summaries}
-        selectedProvinceId={state.selectedProvinceId}
-        onSelectProvince={setSelectedProvinceId}
+        unlockedProvinceIds={model.game.unlockedProvinces}
+        selectedProvinceId={model.tab === 'province' ? state.selectedProvinceId : null}
+        onSelectProvince={openProvincePage}
         lens={lens}
       />
       <div className="strategic-map-vignette" aria-hidden="true" />
@@ -75,7 +83,7 @@ export function StrategicMapStage({
   );
 }
 
-export function StrategicWorkspaceChrome({
+export function StrategicMapLensBar({
   lens,
   onLensChange,
 }: {
@@ -102,4 +110,26 @@ export function StrategicWorkspaceChrome({
       })}
     </nav>
   );
+}
+
+export function StrategicWorkspaceChrome({
+  model,
+  tutorial,
+  showEventRail,
+}: {
+  model: LoadedGameViewModel;
+  tutorial?: GameTutorialController;
+  showEventRail: boolean;
+}) {
+  return showEventRail ? (
+    <aside className="strategic-economic-event-rail" aria-label="公开经济事件日志">
+      {model.tab === 'home' && tutorial ? <GameGuideStrip tutorial={tutorial} /> : null}
+      <EconomicEventLogPanel
+        events={model.game.economicCalendar?.events ?? []}
+        products={model.game.products}
+        markets={model.game.markets}
+        referenceNow={model.game.lastProcessedAt}
+      />
+    </aside>
+  ) : null;
 }

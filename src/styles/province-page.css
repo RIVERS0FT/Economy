@@ -1,0 +1,61 @@
+.province-section-switch.ui-segmented {
+  width: 100%;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+}
+
+.province-section-switch > .ui-segmented__button {
+  min-width: 0;
+  min-height: 44px;
+  padding-inline: var(--space-2);
+}
+
+.province-section-panel {
+  min-width: 0;
+  display: grid;
+  gap: var(--layout-gutter);
+}
+
+.province-overview-panel {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.province-overview-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.province-embedded-section-navigation {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: var(--layout-gutter);
+}
+
+.province-section-loading {
+  min-height: 10rem;
+  display: grid;
+  place-items: center;
+}
+
+@media (max-width: 420px) {
+  .province-section-switch > .ui-segmented__button {
+    padding-inline: var(--space-1);
+  }
+}
+
+.province-lock-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.province-lock-description {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.province-unlock-button {
+  margin-top: 8px;
+}

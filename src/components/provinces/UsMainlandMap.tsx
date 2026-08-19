@@ -7,6 +7,7 @@ import { formatNumber } from '../../utils/formatters';
 import {
   EconomyChart,
   type EconomyChartClickEvent,
+  type EconomyChartDoubleClickEvent,
 } from '../charts/EconomyChart';
 import {
   registerEChartsMap,
@@ -16,7 +17,7 @@ import {
 
 const US_MAINLAND_MAP_NAME = 'economy-us-mainland-states';
 const US_MAINLAND_ASPECT_SCALE = 0.75;
-const MAP_COVER_OVERSCAN = 1.01;
+const MAP_CONTAIN_INSET = 0.96;
 const HOVER_LABEL_STATE_CODES = new Set([
   'CT',
   'DE',
@@ -106,13 +107,13 @@ function mainlandMapAspect() {
 
 const US_MAINLAND_MAP_ASPECT = mainlandMapAspect();
 
-function coverLayoutSize(width: number, height: number) {
+function containLayoutSize(width: number, height: number) {
   if (!(width > 0) || !(height > 0)) return '100%';
   const requiredSize = US_MAINLAND_MAP_ASPECT >= 1
-    ? Math.max(width, height * US_MAINLAND_MAP_ASPECT)
-    : Math.max(width / US_MAINLAND_MAP_ASPECT, height);
+    ? Math.min(width, height * US_MAINLAND_MAP_ASPECT)
+    : Math.min(width / US_MAINLAND_MAP_ASPECT, height);
   const referenceSize = Math.min(width, height);
-  return `${((requiredSize / referenceSize) * MAP_COVER_OVERSCAN * 100).toFixed(4)}%`;
+  return `${((requiredSize / referenceSize) * MAP_CONTAIN_INSET * 100).toFixed(4)}%`;
 }
 
 registerEChartsMap(US_MAINLAND_MAP_NAME, usMainlandGeoJson);
@@ -127,6 +128,7 @@ interface ProvinceMapDatum {
   runningFacilityCount: number;
   blockedFacilityCount: number;
   openOrderCount: number;
+  locked: boolean;
   itemStyle: {
     areaColor: string;
     borderColor?: string;
@@ -140,6 +142,7 @@ function datumFor(
   province: ProvinceDefinition,
   summary: ProvinceAssetSummary | undefined,
   lens: ProvinceMapLens,
+  locked = false,
 ): ProvinceMapDatum {
   const storedQuantity = Number(summary?.storedQuantity || 0);
   const facilityCount = Number(summary?.facilityCount || 0);
@@ -153,7 +156,9 @@ function datumFor(
       : lens === 'alerts'
         ? blockedFacilityCount
         : storedQuantity + facilityCount;
-  const areaColor = lens === 'political'
+  const areaColor = locked
+    ? 'var(--color-surface-muted)'
+    : lens === 'political'
     ? 'var(--color-surface-soft)'
     : lens === 'industry'
       ? facilityCount > 0 ? 'var(--color-success-soft)' : 'var(--color-surface-soft)'
@@ -176,6 +181,7 @@ function datumFor(
     runningFacilityCount: Number(summary?.runningFacilityCount || 0),
     blockedFacilityCount,
     openOrderCount,
+    locked,
     itemStyle: {
       areaColor,
       ...(lens === 'alerts' && blockedFacilityCount > 0 ? { borderColor: 'var(--color-danger)' } : {}),
@@ -192,6 +198,7 @@ function tooltipContent(params: unknown) {
   if (!datum?.provinceId) return String(event.name || '州级地区');
   return [
     `<strong>${datum.provinceName}</strong>`,
+    ...(datum.locked ? ['<span style="color:var(--color-warning)">未解锁</span>'] : []),
     `本地库存：${formatNumber(datum.storedQuantity)}`,
     `工厂：${formatNumber(datum.facilityCount)}`,
     `运行中：${formatNumber(datum.runningFacilityCount)}`,
@@ -205,26 +212,31 @@ export function UsMainlandMap({
   selectedProvinceId,
   onSelectProvince,
   lens = 'assets',
+  unlockedProvinceIds,
 }: {
   provinces: ProvinceDefinition[];
   summaries: Record<string, ProvinceAssetSummary>;
-  selectedProvinceId: string;
+  selectedProvinceId: string | null;
   onSelectProvince: (provinceId: string) => void;
   lens?: ProvinceMapLens;
+  unlockedProvinceIds?: string[];
 }) {
+  const unlockedSet = useMemo(() => new Set(unlockedProvinceIds || []), [unlockedProvinceIds]);
   const provinceIdByMapName = useMemo(() => new Map(
     provinces.map((province) => [province.shortName, province.id]),
   ), [provinces]);
-  const selectedProvince = provinces.find((province) => province.id === selectedProvinceId)
-    ?? provinces[0];
+  const selectedProvince = provinces.find((province) => province.id === selectedProvinceId);
+  const selectedMap = useMemo(() => Object.fromEntries(
+    provinces.map((province) => [province.shortName, province.id === selectedProvinceId]),
+  ), [provinces, selectedProvinceId]);
   const data = useMemo(() => provinces.map((province) => (
-    datumFor(province, summaries[province.id], lens)
-  )), [lens, provinces, summaries]);
-  const applyCoverCamera = useCallback((chart: EChartsType) => {
+    datumFor(province, summaries[province.id], lens, !unlockedSet.has(province.id))
+  )), [lens, provinces, summaries, unlockedSet]);
+  const applyContainCamera = useCallback((chart: EChartsType) => {
     const width = chart.getWidth();
     const height = chart.getHeight();
     if (!(width > 0) || !(height > 0)) return;
-    const layoutSize = coverLayoutSize(width, height);
+    const layoutSize = containLayoutSize(width, height);
     chart.setOption({
       series: [{
         id: 'us-mainland-map',
@@ -238,9 +250,10 @@ export function UsMainlandMap({
       lazyUpdate: false,
     });
     const container = chart.getDom();
-    container.dataset.mapCoverLayoutSize = layoutSize;
+    container.dataset.mapFitMode = 'contain';
+    container.dataset.mapContainLayoutSize = layoutSize;
     container.dataset.mapIntrinsicAspect = US_MAINLAND_MAP_ASPECT.toFixed(6);
-    container.dataset.mapCoverViewport = `${width}x${height}`;
+    container.dataset.mapContainViewport = `${width}x${height}`;
   }, []);
   const option = useMemo<EChartsCoreOption>(() => ({
     animationDuration: 260,
@@ -258,13 +271,10 @@ export function UsMainlandMap({
       map: US_MAINLAND_MAP_NAME,
       nameProperty: 'name',
       selectedMode: 'single',
-      selectedMap: selectedProvince ? { [selectedProvince.shortName]: true } : {},
+      selectedMap,
       roam: true,
       scaleLimit: { min: 1, max: 8 },
       aspectScale: US_MAINLAND_ASPECT_SCALE,
-      zoom: 1,
-      layoutCenter: ['50%', '50%'],
-      layoutSize: '100%',
       labelLayout: {
         hideOverlap: true,
       },
@@ -324,7 +334,7 @@ export function UsMainlandMap({
         }],
       },
     }],
-  }), [data, selectedProvince]);
+  }), [data, selectedMap]);
 
   const handleMapClick = (event: EconomyChartClickEvent) => {
     if (event.seriesType !== 'map') return;
@@ -332,13 +342,22 @@ export function UsMainlandMap({
     if (provinceId) onSelectProvince(provinceId);
   };
 
-  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。当前选择${selectedProvince?.name || '加利福尼亚州'}。可使用页面上的州级地区选择器进行键盘操作。`;
+  const handleMapDoubleClick = useCallback((
+    event: EconomyChartDoubleClickEvent,
+    chart: EChartsType,
+  ) => {
+    if (event.target) return;
+    applyContainCamera(chart);
+    chart.getDom().dataset.mapCameraReset = 'blank-double-click';
+  }, [applyContainCamera]);
+
+  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}点击州面可以打开对应州页面，双击地图空白可以重置缩放和平移。`;
   return (
     <div
       className="province-map-chart"
       data-province-count={provinces.length}
       data-map-feature-count={usMainlandGeoJson.features.length}
-      data-selected-province-id={selectedProvinceId}
+      data-selected-province-id={selectedProvinceId ?? ''}
       data-map-lens={lens}
     >
       <EconomyChart
@@ -347,9 +366,11 @@ export function UsMainlandMap({
         accessibleSummary={accessibleSummary}
         className="province-map-echart"
         testId="us-mainland-map"
-        onOptionApplied={applyCoverCamera}
-        onResize={applyCoverCamera}
+        updateMode="merge"
+        onChartReady={applyContainCamera}
+        onResize={applyContainCamera}
         onClick={handleMapClick}
+        onDoubleClick={handleMapDoubleClick}
       />
     </div>
   );

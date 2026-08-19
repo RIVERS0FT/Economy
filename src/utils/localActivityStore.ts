@@ -36,7 +36,10 @@ export type LocalActivityAction =
   | 'bankWithdraw'
   | 'bankBorrow'
   | 'bankRepay'
-  | 'bankSetAutoRepay';
+  | 'bankSetAutoRepay'
+  | 'chooseStartingProvince'
+  | 'unlockProvince'
+  | 'transportShip';
 
 export interface LocalActivityView {
   trades: TradeRecord[];

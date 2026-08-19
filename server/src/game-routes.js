@@ -25,6 +25,9 @@ export function resolveAction(method, path) {
   if (method === 'PATCH' && path === '/api/game/profile') return { action: 'renamePlayer', category: 'general' };
   if (method === 'POST' && path === '/api/game/auctions') return { action: 'createAuction', category: 'orders' };
   if (method === 'POST' && path === '/api/game/contracts') return { action: 'createProductionContract', category: 'orders' };
+  if (method === 'POST' && path === '/api/game/provinces/starting') return { action: 'chooseStartingProvince', category: 'general' };
+  if (method === 'POST' && path === '/api/game/provinces/unlock') return { action: 'unlockProvince', category: 'general' };
+  if (method === 'POST' && path === '/api/game/transport') return { action: 'transportShip', category: 'orders' };
 
   const bankLoanAction = path.match(/^\/api\/game\/bank\/loans\/([^/]+)\/(repay|auto-repay)$/);
   if (method === 'POST' && bankLoanAction) {

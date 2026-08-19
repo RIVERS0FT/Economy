@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 const read = (path) => readFileSync(path, 'utf8');
 const formula = read('src/components/facilities/FacilityProductionFormula.tsx');
 const detail = read('src/pages/production/ProductionFacilityDetail.tsx');
-const productionPage = read('src/pages/ProductionPage.tsx');
+const productionPage = read('src/pages/BuildingsPage.tsx');
 const configControls = read('src/components/facilities/FacilityProductionConfigControls.tsx');
 const richSelect = read('src/components/ui/RichSelectInput.tsx');
 const productArtwork = read('src/components/products/ProductArtwork.tsx');
@@ -191,7 +191,7 @@ for (const text of [
 for (const text of [
   "selectMarketAsset('commodity', productId);",
   'onOpenProductMarket={openProductMarket}',
-]) assert.equal(productionPage.includes(text), true, `生产页商品市场导航缺少: ${text}`);
+]) assert.equal(productionPage.includes(text), true, `建筑页商品市场导航缺少: ${text}`);
 assert.equal(
   (productionPage.match(/onOpenProductMarket=\{openProductMarket\}/g) ?? []).length,
   2,
@@ -265,7 +265,7 @@ for (const text of [
   '不得根据生产配方语义自动推断采购／出售方向',
   '数量和价格继续按统一市场资产切换的订单草稿初始化规则处理',
   '不得自动提交订单',
-  '不得改写生产页建设工厂类型、数量、配方、作业制度或任何服务器权威生产状态',
+  '不得改写建筑页建设工厂类型、数量、配方、作业制度或任何服务器权威生产状态',
 ]) assert.equal(pageDesign.includes(text), true, `生产商品市场导航权威设计缺少: ${text}`);
 
 console.log('生产结算商品 PNG、生产配置方案下拉、投入产出市场跳转、移动详情纵向流、经营诊断响应式与几何防回退验证通过。');

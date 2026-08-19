@@ -7,17 +7,22 @@ export function NavigationItems({
   activeTab,
   onSelect,
   badges,
+  excludedTabs = [],
+  showBadges = true,
 }: {
   activeTab: TabId;
   onSelect: (tab: TabId) => void;
   badges: NavigationBadgeMap;
+  excludedTabs?: readonly TabId[];
+  showBadges?: boolean;
 }) {
   return (
     <>
-      {navigationItems.map(({ id, label }) => {
-        const navigationBadge = badges[id];
-        const accessibleLabel = navigationBadge
-          ? `${label}，${navigationBadge.accessibleLabel}`
+      {navigationItems.filter(({ id }) => !excludedTabs.includes(id)).map(({ id, label }) => {
+        const navigationBadge = showBadges ? badges[id] : undefined;
+        const accessibleBadge = badges[id];
+        const accessibleLabel = accessibleBadge
+          ? `${label}，${accessibleBadge.accessibleLabel}`
           : label;
         const preload = () => { void preloadPage(id); };
 

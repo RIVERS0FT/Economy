@@ -226,7 +226,7 @@ test('admin desktop shares the game shell gutter, command bar and edge scrollbar
 
   await expect(page.getByRole('heading', { name: '世界概览', exact: true })).toBeVisible();
   await expect(page.locator('.admin-command-bar')).toBeVisible();
-  await expect(page.locator('.admin-command-bar .liquid-glass-surface--desktopStatusBar')).toHaveCount(1);
+  await expect(page.locator('.admin-command-bar .frosted-glass-surface--statusBar')).toHaveCount(1);
   await expect(page.locator('.admin-summary-grid .ui-metric-card')).toHaveCount(6);
   await expect(page.getByRole('heading', { name: '玩家社区入口', exact: true })).toBeVisible();
   await expect(page.getByLabel('QQ群跳转链接', { exact: true })).toHaveValue('https://qm.qq.com/q/admin-test');
@@ -411,9 +411,14 @@ test('admin desktop shares the game shell gutter, command bar and edge scrollbar
   await expect(page.getByText('账号已解禁', { exact: true })).toBeVisible();
 
   const adminSidebar = page.locator('.admin-sidebar');
-  await page.getByRole('button', { name: '折叠侧栏' }).click();
+  await page.mouse.move(1000, 500);
   await expect(adminSidebar).toHaveAttribute('data-collapsed', 'true');
-  await expect(page.getByRole('button', { name: '展开侧栏' })).toBeFocused();
+  await adminSidebar.hover();
+  await expect(adminSidebar).toHaveAttribute('data-collapsed', 'false');
+  await page.mouse.move(1000, 500);
+  await expect(adminSidebar).toHaveAttribute('data-collapsed', 'true');
+  await expect(page.getByRole('button', { name: '展开侧栏' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '折叠侧栏' })).toHaveCount(0);
 });
 
 test('admin navigation uses the shared mobile overlay and stays above page cards', async ({ page }) => {
@@ -429,7 +434,7 @@ test('admin navigation uses the shared mobile overlay and stays above page cards
   await expect(mobileBottomNavigation).toBeVisible();
   await expect(page.locator('.admin-mobile-navigation')).toHaveCount(0);
   await expect(page.locator('.admin-mobile-chrome-layer')).toHaveCount(1);
-  await expect(mobileBottomNavigation.locator('.liquid-glass-surface')).toHaveCount(1);
+  await expect(mobileBottomNavigation.locator('.frosted-glass-surface')).toHaveCount(1);
   await expect(mobileBottomNavigation.locator('.mobile-bottom-navigation__viewport')).toHaveCount(1);
 
   const mobileNavigationLabels = await mobileBottomNavigation.locator('.sidebar-nav-button strong').allTextContents();

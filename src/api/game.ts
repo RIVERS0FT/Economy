@@ -1,4 +1,4 @@
-import type { AssetKind, EconomyState, OrderSide } from '../types';
+import type { AssetKind, EconomyState, OrderSide, TransportModeId } from '../types';
 import type { AuctionBidHistory, AuctionItem } from '../auctions/types';
 import type { FacilityBuildProcurementGroup } from '../utils/facilityBuildProcurementGroups';
 import {
@@ -352,6 +352,15 @@ export function cancelFacilityBuildProcurement(orderIds: string[]) {
 export const gameActions = {
   work: () => postAction('/work'),
   checkIn: () => postAction('/check-in'),
+  chooseStartingProvince: (provinceId: string) => postAction('/provinces/starting', { provinceId }),
+  unlockProvince: (provinceId: string) => postAction('/provinces/unlock', { provinceId }),
+  transportShip: (input: {
+    sourceProvinceId: string;
+    destinationProvinceId: string;
+    productId: string;
+    quantity: number;
+    mode: TransportModeId;
+  }) => postAction('/transport', input),
   bankDeposit: (amount: number) => postAction('/bank/deposits', { amount }),
   bankWithdraw: (amount: number) => postAction('/bank/withdrawals', { amount }),
   bankBorrow: (amount: number, collateral: Array<{ provinceId: string; facilityTypeId: string; quantity: number }>, autoRepay = true) => (

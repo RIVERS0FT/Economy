@@ -89,7 +89,7 @@ function facilityTypeDefinition(typeId) {
 function createInventories() {
   return installDefaultProvinceAliases(Object.fromEntries(PRODUCT_CATALOG.map((product) => [
     provinceScopedKey(DEFAULT_PROVINCE_ID, product.id),
-    { available: 0, frozen: 0 },
+    { available: 0, frozen: 0, inTransit: 0 },
   ])));
 }
 
@@ -245,7 +245,7 @@ function seedFacilityListings(now) {
 
 export function createWorld(now = Date.now()) {
   return {
-    version: 30,
+    version: 32,
     auctionFeeEscrowCredits: 0,
     players: {},
     orders: seedOrders(now),
@@ -262,6 +262,9 @@ function createPlayer(user, now) {
   const player = {
     userId: Number(user.id),
     playerName: String(user.name || user.email?.split('@')[0] || '新玩家').trim().slice(0, 32) || '新玩家',
+    startingProvinceId: DEFAULT_PROVINCE_ID,
+    startingProvinceChosen: false,
+    unlockedProvinces: [DEFAULT_PROVINCE_ID],
     registeredAt: now,
     lastEconomicActivityAt: now,
     credits: 500,
@@ -398,6 +401,9 @@ export function migrateWorld(world, now = Date.now()) {
       inventoryFor(player, 'wheat').available = Number(player.inventory || 0);
       inventoryFor(player, 'wheat').frozen = Number(player.frozenInventory || 0);
     }
+    if (!player.startingProvinceId) player.startingProvinceId = DEFAULT_PROVINCE_ID;
+    if (!Array.isArray(player.unlockedProvinces)) player.unlockedProvinces = [DEFAULT_PROVINCE_ID];
+    player.startingProvinceChosen = player.startingProvinceChosen !== false;
     migrateProvinceInventories(player);
     const legacyGrainKey = provinceScopedKey(DEFAULT_PROVINCE_ID, 'grain');
     if (player.inventories[legacyGrainKey]) {
@@ -454,7 +460,7 @@ export function migrateWorld(world, now = Date.now()) {
     world.demandGroups[group.id] = { ...createDemandGroups(now)[group.id], ...world.demandGroups[group.id] };
   }
   world.auctionFeeEscrowCredits = Math.max(0, Number(world.auctionFeeEscrowCredits || 0));
-  world.version = Math.max(30, Number(world.version || 0));
+  world.version = Math.max(32, Number(world.version || 0));
   return world;
 }
 
@@ -1190,9 +1196,12 @@ export function createClientState(world, userId, now = Date.now(), { migrate = t
   const provinceInventories = inventoryStatesByProvince(player);
   const provinceMarkets = marketStatesByProvince(world.markets);
   return {
-    version: 34,
+    version: 36,
     userId: player.userId,
     playerName: player.playerName,
+    startingProvinceId: player.startingProvinceId || DEFAULT_PROVINCE_ID,
+    startingProvinceChosen: player.startingProvinceChosen !== false,
+    unlockedProvinces: clone(Array.isArray(player.unlockedProvinces) ? player.unlockedProvinces : []),
     registeredAt: player.registeredAt,
     credits: player.credits,
     frozenCredits: player.frozenCredits,

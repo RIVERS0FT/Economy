@@ -1,27 +1,29 @@
+.overview-dashboard-shell {
+  min-width: 0;
+  display: grid;
+  gap: var(--layout-gutter);
+}
+
+.overview-mobile-tutorial {
+  display: none;
+}
+
 .home-grid {
-  --overview-primary-card-height: 330px;
   --overview-summary-card-height: 320px;
+  min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--layout-gutter);
   container: overview / inline-size;
 }
 
-.overview-primary-grid {
-  display: grid;
-  grid-template-columns: minmax(320px, 5fr) minmax(0, 7fr);
-  gap: var(--layout-gutter);
-}
-
-.overview-today-panel,
 .overview-check-in-panel {
-  height: var(--overview-primary-card-height);
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
-.overview-primary-grid .widget-heading h2,
+.overview-check-in-panel .widget-heading h2,
 .overview-summary-row .widget-heading h2 {
   min-width: 0;
   overflow: hidden;
@@ -29,44 +31,17 @@
   white-space: nowrap;
 }
 
-.overview-primary-grid .widget-heading > :last-child,
+.overview-check-in-panel .widget-heading > :last-child,
 .overview-summary-row .widget-heading > :last-child {
   flex: 0 0 auto;
 }
 
-.overview-work-strip {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-4);
-  border-top: 1px solid var(--color-divider);
-  border-bottom: 1px solid var(--color-divider);
-  padding: var(--space-3) 0;
-}
-
-.overview-work-copy {
-  min-width: 0;
-  display: grid;
-  gap: 0.2rem;
-}
-
-.overview-work-copy strong {
-  font-size: var(--font-size-md);
-}
-
-.overview-work-copy span,
-.overview-alert-heading span,
 .overview-subsection-heading span {
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   line-height: 1.45;
 }
 
-.overview-work-button {
-  min-width: 8.5rem;
-}
-
-.overview-alert-heading,
 .overview-subsection-heading {
   display: flex;
   align-items: center;
@@ -75,53 +50,6 @@
   margin-top: var(--space-3);
 }
 
-.overview-alert-heading > div {
-  min-width: 0;
-  display: grid;
-  gap: 0.1rem;
-}
-
-.overview-alert-list {
-  min-height: 0;
-  display: grid;
-  align-content: start;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  overflow-y: auto;
-  padding-right: var(--space-1);
-}
-
-.overview-alert {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-3);
-  border-left: 3px solid var(--color-border);
-  border-radius: var(--radius-control);
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-surface-inset);
-}
-
-.overview-alert > div {
-  min-width: 0;
-  display: grid;
-  gap: 0.1rem;
-}
-
-.overview-alert small {
-  overflow: hidden;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.overview-alert--danger { border-left-color: var(--color-danger); }
-.overview-alert--warning { border-left-color: var(--color-warning); }
-.overview-alert--info { border-left-color: var(--color-info); }
-
-.overview-alert-empty,
 .overview-compact-empty {
   min-height: 0;
   padding: var(--space-3);
@@ -251,8 +179,7 @@
   border-right: 1px solid var(--color-divider);
 }
 
-.overview-check-in-rewards span,
-.overview-check-in-footer small {
+.overview-check-in-rewards span {
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
 }
@@ -327,21 +254,12 @@
   opacity: 0.66;
 }
 
-.overview-check-in-footer {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-4);
-  margin-top: auto;
+.overview-check-in-status {
+  display: block;
+  margin-top: var(--space-4);
   border-top: 1px solid var(--color-divider);
   padding-top: var(--space-4);
-}
-
-.overview-check-in-footer > div {
-  min-width: 0;
-  display: grid;
-  gap: var(--space-1);
+  font-size: var(--font-size-sm);
 }
 
 @media (max-width: 760px) {
@@ -350,8 +268,6 @@
   .overview-check-in-day span,
   .overview-check-in-day small { font-size: clamp(0.62rem, 2.6vw, 0.72rem); }
   .overview-check-in-day strong { font-size: clamp(0.72rem, 3vw, 0.85rem); }
-  .overview-check-in-footer { grid-template-columns: 1fr; }
-  .overview-check-in-footer .button { width: 100%; }
 }
 
 .overview-summary-row {
@@ -485,26 +401,14 @@
   white-space: nowrap;
 }
 
-@media (min-width: 1600px) {
-  .overview-primary-grid {
-    grid-template-columns: minmax(350px, 5fr) minmax(0, 7fr);
-  }
-}
-
 /* Viewport fallbacks preserve the documented tablet and mobile layout even
  * where container queries are unavailable. Desktop transitions below are
  * additionally governed by the actual overview content width. */
 @media (max-width: 1199px) {
   .home-grid {
-    --overview-primary-card-height: auto;
     --overview-summary-card-height: auto;
   }
 
-  .overview-primary-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .overview-today-panel,
   .overview-check-in-panel,
   .overview-summary-card {
     height: auto;
@@ -534,12 +438,10 @@
     grid-column: auto;
   }
 
-  .overview-work-strip,
   .overview-market-empty {
     grid-template-columns: 1fr;
   }
 
-  .overview-work-button,
   .overview-market-empty > .ui-button {
     width: 100%;
   }
@@ -557,7 +459,6 @@
   }
 
   .overview-market-footer,
-  .overview-alert-heading,
   .overview-subsection-heading {
     align-items: flex-start;
     flex-direction: column;
@@ -573,24 +474,12 @@
     flex: 1;
   }
 
-  .overview-alert {
-    grid-template-columns: 1fr;
-  }
-
-  .overview-alert .ui-button {
-    justify-self: start;
-  }
 }
 
 /* The desktop shell can remove more than 250px from the viewport. These
  * container rules therefore use the real page width rather than assuming that
  * a nominal desktop viewport always has enough room for five readable cards. */
 @container overview (max-width: 1050px) {
-  .overview-primary-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .overview-today-panel,
   .overview-check-in-panel,
   .overview-summary-card {
     height: auto;
@@ -605,7 +494,6 @@
     min-height: 280px;
   }
 
-  .overview-alert-list,
   .overview-open-orders-list,
   .overview-asset-events {
     max-height: none;
@@ -623,12 +511,10 @@
     grid-column: auto;
   }
 
-  .overview-work-strip,
   .overview-market-empty {
     grid-template-columns: 1fr;
   }
 
-  .overview-work-button,
   .overview-market-empty > .ui-button {
     width: 100%;
   }
@@ -638,9 +524,7 @@
   }
 
   .overview-market-footer,
-  .overview-alert-heading,
-  .overview-subsection-heading,
-  .overview-check-in-panel .widget-heading {
+  .overview-subsection-heading {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -651,82 +535,10 @@
     min-width: 0;
   }
 
-  .overview-alert {
-    grid-template-columns: 1fr;
+}
+
+@media (max-width: 720px) {
+  .overview-mobile-tutorial {
+    display: block;
   }
-
-  .overview-alert .ui-button {
-    justify-self: start;
-  }
-}
-
-.overview-economic-calendar-panel {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.overview-economic-calendar-note {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-body);
-}
-
-.overview-economic-event-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-3);
-}
-
-.overview-economic-event {
-  min-width: 0;
-  display: grid;
-  gap: var(--space-2);
-  border: 1px solid var(--color-divider);
-  border-radius: var(--radius-control);
-  padding: var(--space-3);
-  background: var(--color-surface-inset);
-}
-
-.overview-economic-event.is-active {
-  border-color: color-mix(in srgb, var(--color-success) 55%, var(--color-border));
-  box-shadow: inset 3px 0 0 var(--color-success);
-}
-
-.overview-economic-event header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.overview-economic-event time,
-.overview-economic-event small,
-.overview-economic-event > span {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.overview-economic-event p {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  line-height: 1.5;
-}
-
-@container overview (max-width: 1050px) {
-  .overview-economic-event-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@container overview (max-width: 580px) {
-  .overview-economic-event-list { grid-template-columns: minmax(0, 1fr); }
-}
-
-.overview-economic-event.is-completed {
-  opacity: 0.88;
-}
-
-.overview-economic-event-feedback {
-  color: var(--text-muted);
-  font-size: var(--font-size-sm);
 }

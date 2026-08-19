@@ -34,13 +34,14 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
     hasTouch: true,
   });
 
-  test('backdrop touch closes after every reopen and restores focus and page scrolling', async ({ page }) => {
+  test('backdrop touch closes after every reopen and restores focus and modal scroll suppression', async ({ page }) => {
     await page.goto('runtime-test.html?view=production&scenario=activity');
 
     const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
     const dialog = page.getByRole('dialog', { name: /机械工厂/ });
     const dialogLayer = page.locator('.workspace-dialog-layer');
     const pageScroll = page.locator('.page-scroll');
+    const pageScrollArea = page.locator('.page-scroll-area');
 
     await expect(trigger).toBeVisible();
     const artwork = trigger.locator('[data-facility-icon="machine-factory"]');
@@ -52,6 +53,7 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
       await expect(dialog).toBeVisible();
       await expect(dialogLayer.locator(':scope > .mobile-detail-sheet-backdrop')).toHaveCount(1);
       await expect(pageScroll).toHaveCSS('overflow-y', 'hidden');
+      await expect(pageScrollArea).toHaveAttribute('data-modal-scrollbar-suppressed', 'true');
       await waitForSheetAnimations(dialog);
 
       const detailArtwork = dialog.locator('.facility-detail-artwork-icon');
@@ -60,17 +62,17 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
       await expect(dialog.locator('.facility-staffing-track')).toBeVisible();
       await expect(dialog.locator('.facility-staffing-fill')).toBeVisible();
 
-await expect(dialog.locator('.mobile-detail-sheet-header > :not(.mobile-detail-sheet-drag-handle)')).toHaveCount(0);
-await expect(dialog.locator('.facility-information')).toHaveCount(1);
-await expect(dialog.locator('.facility-information .facility-average-profit')).toHaveCount(1);
-await expect(dialog.locator('.facility-production-formula .facility-average-profit')).toHaveCount(0);
-const visibleOrder = await dialog.locator('.mobile-detail-sheet-scroll').evaluate((element) => (
-  Array.from(element.children).map((child) => child.className)
-));
-expect(String(visibleOrder[0])).toContain('facility-information');
-expect(String(visibleOrder[1])).toContain('facility-staffing-summary');
-expect(String(visibleOrder[2])).toContain('facility-production-settings');
-expect(String(visibleOrder[3])).toContain('facility-production-formula');
+      await expect(dialog.locator('.mobile-detail-sheet-header > :not(.mobile-detail-sheet-drag-handle)')).toHaveCount(0);
+      await expect(dialog.locator('.facility-information')).toHaveCount(1);
+      await expect(dialog.locator('.facility-information .facility-average-profit')).toHaveCount(1);
+      await expect(dialog.locator('.facility-production-formula .facility-average-profit')).toHaveCount(0);
+      const visibleOrder = await dialog.locator('.mobile-detail-sheet-scroll').evaluate((element) => (
+        Array.from(element.children).map((child) => child.className)
+      ));
+      expect(String(visibleOrder[0])).toContain('facility-information');
+      expect(String(visibleOrder[1])).toContain('facility-staffing-summary');
+      expect(String(visibleOrder[2])).toContain('facility-production-settings');
+      expect(String(visibleOrder[3])).toContain('facility-production-formula');
 
       const backdropBox = await dialogLayer.locator(':scope > .mobile-detail-sheet-backdrop').boundingBox();
       expect(backdropBox).not.toBeNull();
@@ -99,7 +101,8 @@ expect(String(visibleOrder[3])).toContain('facility-production-formula');
       await page.touchscreen.tap(sheetBox!.x + sheetBox!.width / 2, Math.max(8, sheetBox!.y / 2));
 
       await expect(dialog).toBeHidden();
-      await expect(pageScroll).toHaveCSS('overflow-y', 'auto');
+      await expect(pageScroll).toHaveCSS('overflow-y', 'hidden');
+      await expect(pageScrollArea).not.toHaveAttribute('data-modal-scrollbar-suppressed', 'true');
       await expect(trigger).toBeFocused();
     }
   });
@@ -204,6 +207,7 @@ expect(String(visibleOrder[3])).toContain('facility-production-formula');
     const dialog = page.getByRole('dialog', { name: /机械工厂/ });
     const handle = page.locator('.mobile-detail-sheet-drag-handle');
     const pageScroll = page.locator('.page-scroll');
+    const pageScrollArea = page.locator('.page-scroll-area');
     await page.mouse.move(1, 1);
 
     const baseVisual = await trigger.evaluate((element) => {
@@ -221,7 +225,8 @@ expect(String(visibleOrder[3])).toContain('facility-production-formula');
       await swipeDown(page, handle);
 
       await expect(dialog).toBeHidden();
-      await expect(pageScroll).toHaveCSS('overflow-y', 'auto');
+      await expect(pageScroll).toHaveCSS('overflow-y', 'hidden');
+      await expect(pageScrollArea).not.toHaveAttribute('data-modal-scrollbar-suppressed', 'true');
       await expect(trigger).toBeFocused();
       await expect(page.locator('html')).toHaveAttribute('data-input-modality', 'touch');
 

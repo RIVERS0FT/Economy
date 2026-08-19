@@ -52,7 +52,7 @@ test('商品拍卖冻结商品并在成交后转移数量，不产生仓库容�
     durationHours: 1,
   });
   assert.equal(created.ok, true);
-  assert.deepEqual(state.players['1'].inventories.wheat, { available: 6, frozen: 4 });
+  assert.deepEqual(state.players['1'].inventories.wheat, { available: 6, frozen: 4, inTransit: 0 });
   const auction = state.assetAuctions.at(-1);
 
   assert.equal(bid(state, bidderA, auction.id, 90, 3_000).ok, true);
@@ -144,8 +144,8 @@ test('商品与工厂资产包整体冻结并原子成交', () => {
   const auction = state.assetAuctions.at(-1);
   assert.equal(auction.items.length, 3, '重复商品项目应合并');
   assert.equal(auction.items.find((item) => item.assetId === 'wheat').quantity, 3);
-  assert.deepEqual(state.players['1'].inventories.wheat, { available: 3, frozen: 3 });
-  assert.deepEqual(state.players['1'].inventories.rice, { available: 1, frozen: 2 });
+  assert.deepEqual(state.players['1'].inventories.wheat, { available: 3, frozen: 3, inTransit: 0 });
+  assert.deepEqual(state.players['1'].inventories.rice, { available: 1, frozen: 2, inTransit: 0 });
   assert.equal(state.players['1'].facilityGroups[0].participatingCount, 1);
 
   assert.equal(bid(state, bidderA, auction.id, 120, 3_000).ok, true);
@@ -231,7 +231,7 @@ test('世界 15 迁移保留纯资产拍卖并整包取消含藏品的开放拍�
   assert.deepEqual(state.assetAuctions.map((auction) => auction.id), ['legacy-pure']);
   assert.equal(bidder.credits, 500);
   assert.equal(bidder.frozenCredits, 0);
-  assert.deepEqual(sellerAccount.inventories.wheat, { available: 10, frozen: 0 });
+  assert.deepEqual(sellerAccount.inventories.wheat, { available: 10, frozen: 0, inTransit: 0 });
   assert.equal(sellerAccount.facilityGroups[0].participatingCount, 2);
   assert.equal(sellerAccount.facilityGroups[0].staffingRateBps, 5_000);
   assert.equal(Object.hasOwn(sellerAccount.facilityGroups[0], 'pendingJoinCount'), false);
@@ -287,7 +287,7 @@ test('发布资金不足时不扣费也不冻结资产', () => {
   assert.match(created.message, /发布/);
   assert.equal(state.assetAuctions.length, 0);
   assert.equal(state.auctionFeeEscrowCredits, 0);
-  assert.deepEqual(state.players['1'].inventories.wheat, { available: 3, frozen: 0 });
+  assert.deepEqual(state.players['1'].inventories.wheat, { available: 3, frozen: 0, inTransit: 0 });
 });
 
 test('未达隐藏保留价时退回最高报价和资产但不退发布费', () => {
@@ -309,7 +309,7 @@ test('未达隐藏保留价时退回最高报价和资产但不退发布费', ()
   assert.equal(auction.settlementReason, 'reserve_not_met');
   assert.equal(state.players['2'].credits, 500);
   assert.equal(state.players['2'].frozenCredits, 0);
-  assert.deepEqual(state.players['1'].inventories.wheat, { available: 3, frozen: 0 });
+  assert.deepEqual(state.players['1'].inventories.wheat, { available: 3, frozen: 0, inTransit: 0 });
   assert.equal(state.auctionFeeEscrowCredits, 0);
   assert.equal(auction.listingFeeStatus, 'distributed');
 });

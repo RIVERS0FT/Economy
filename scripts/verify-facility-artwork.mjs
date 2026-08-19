@@ -158,7 +158,7 @@ if (failures.length === 0) {
   for (const required of [
     '.facility-cluster-selector-card',
     '.facility-detail-artwork',
-    '.market-asset-card__icon-layer',
+    '.market-detail-hero__artwork',
     '.asset-auction-icon',
     '.asset-auction-package-icon',
     '.asset-auction-bundle-tile',
@@ -174,25 +174,18 @@ if (failures.length === 0) {
     if (!styles.includes(required)) failures.push(`${paths.artworkStyles} 缺少: ${required}`);
   }
 
-  for (const required of [
+  for (const forbidden of [
     '.unified-asset-tab.facility',
     '.market-asset-card__icon-layer > .facility-icon',
     '.market-asset-card__icon-layer::after',
     'top: -14px;',
     'height: calc(100% + 28px);',
-    'width: 100%;',
-    'border-radius: 0;',
     'rgb(0 0 0 / 72%) 0%',
     'rgb(0 0 0 / 68%) 0%',
     'top: -18px;',
     'height: calc(100% + 36px);',
-    'position: static;',
-    'width: 72px;',
-    'height: 72px;',
-    'width: 56px;',
-    'height: 56px;',
   ]) {
-    if (!styles.includes(required)) failures.push(`市场工厂目录卡未落实满幅居中插画与低流量回退: ${required}`);
+    if (styles.includes(forbidden)) failures.push(`工厂插画样式不得恢复旧市场目录卡规则: ${forbidden}`);
   }
 
   for (const required of [
@@ -201,7 +194,6 @@ if (failures.length === 0) {
     '.facility-detail-artwork .facility-detail-artwork-icon',
     'background-size: cover;',
     'aspect-ratio: 4 / 5;',
-    '@media (max-width: 720px)',
   ]) {
     if (!styles.includes(required)) failures.push(`工厂详情未落实纵向场景插画: ${required}`);
   }
@@ -266,11 +258,13 @@ if (failures.length === 0) {
   for (const [path, source, required] of [
     [paths.production, production, '<FacilityIcon facilityTypeId={type.id} className="facility-cluster-icon" />'],
     [paths.production, production, '<FacilityIcon facilityTypeId={type.id} className="facility-detail-artwork-icon" />'],
-    [paths.market, market, '<FacilityIcon facilityTypeId={facility.id} />'],
     [paths.auction, auction, '<FacilityIcon facilityTypeId={item.id} />'],
   ]) {
     if (!source.includes(required)) failures.push(`${path} 未接入工厂场景主视觉: ${required}`);
     if (source.includes('assets/facility-icons/')) failures.push(`${path} 不得直接引用工厂场景图片路径`);
+  }
+  if (!market.includes('<FacilityIcon facilityTypeId={selectedFacility.id} />')) {
+    failures.push(`${paths.market} 未接入工厂详情主视觉`);
   }
 
   for (const [path, source] of [
@@ -310,23 +304,23 @@ if (failures.length === 0) {
       '`FacilityIcon`',
       '`prefers-reduced-data`',
       '覆盖完整 `4:5` 竖卡',
-      '市场工厂目录卡中的插画必须覆盖完整目录卡',
+      '建筑从属资产详情使用桌面 `76px` 槽位承载 `68px` 插画',
+      '建筑从属资产详情只在独立插画槽内展示图像',
       '`background-size: cover` 与居中定位',
       '上下两层黑色渐变',
-      '中央主体区域保持透明',
-      '工厂卡插画必须等比居中裁切并铺满整张卡',
+      '核心主体必须落在中央约 `80%` 安全区域内',
+      '全部图片都必须在实际 `4:5` 居中裁切后保持核心主体完整',
       '当前工厂详情横幅',
     ]],
     [paths.designIndex, designIndex, ['工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`']],
     [paths.catalogDesign, catalogDesign, ['`FacilityIcon` 只按 `facilityTypeId` 选择视觉资源']],
-    [paths.pageDesign, pageDesign, ['商品与工厂目录卡统一使用图标层在前、数据层在后的双层结构']],
+    [paths.pageDesign, pageDesign, ['建筑从属资产详情继续使用桌面 `68px`、移动 `58px` 的 `FacilityIcon`']],
     [paths.marketArtworkBrowser, marketArtworkBrowser, [
-      'market facility artwork fills the card with centered cover cropping on desktop and mobile',
+      'building subordinate facility trade artwork fits detail slots on desktop and mobile',
       "expect(metrics.backgroundSize).toBe('cover')",
       "expect(metrics.backgroundPosition).toBe('50% 50%')",
-      'Math.abs(metrics.artwork.width - metrics.card.width)',
-      'Math.abs(metrics.artwork.height - metrics.card.height)',
-      "expect((metrics.readabilityBackground.match(/linear-gradient/g) ?? []).length).toBe(2)",
+      'Math.abs(metrics.artwork.left - metrics.slot.left)',
+      'expect(metrics.artwork.width).toBeLessThan(metrics.slot.width)',
     ]],
   ]) {
     for (const fragment of fragments) {
@@ -341,7 +335,7 @@ if (failures.length === 0) {
     failures.push('工厂场景权威设计不得继续声明 128px 运行时缩略图');
   }
   for (const required of [
-    'production and market facility artwork use 256px runtime thumbnails',
+    'building cards and subordinate asset trade use 256px facility thumbnails',
     'naturalWidth',
     'naturalHeight',
     'expectedSize: number',
@@ -358,5 +352,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `工厂场景插画验证通过：${facilityIds.length} 种正式工厂与 1024×1024 RGBA 源图、256×256 运行时缩略图、ID 映射、市场满幅居中裁切、上下可读性渐变、主视觉使用边界及 C1–C7 从空白新绘 SHA-256 基线一致。`,
+  `工厂场景插画验证通过：${facilityIds.length} 种正式工厂与 1024×1024 RGBA 源图、256×256 运行时缩略图、ID 映射、市场列表与详情独立插画槽、主视觉使用边界及 C1–C7 从空白新绘 SHA-256 基线一致。`,
 );

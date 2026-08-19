@@ -20,6 +20,7 @@ const autoTrade = read('src/auto-trade/useOnlineAutoTrade.ts');
 const autoSellCompat = read('src/auto-sell/useOnlineAutoSell.ts');
 const guide = read('src/components/GameGuideStrip.tsx');
 const overview = read('src/pages/OverviewPage.tsx');
+const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');
 const settings = read('src/pages/SettingsPage.tsx');
 const serverApp = read('server/src/app.js');
 const tutorialStore = read('server/src/tutorial-store.js');
@@ -29,6 +30,9 @@ requireText(storage, 'CURRENT_TUTORIAL_VERSION = 3', '经营成长线客户端�
 requireText(storage, 'economy.game-tutorial.v', '成长线本轮状态必须按玩家保存在浏览器本地');
 requireText(storage, 'autoSellSettings', '成长线必须记录本轮自动出售设置');
 requireText(storage, "'set-auto-sell'", '成长线必须包含自动出售设置步骤');
+forbidText(storage, "  'work',", '成长线不得恢复已删除的基础工作步骤');
+requireText(storage, "rawStep === 'work' ? 'build-facility'", '旧工作步骤必须只读迁移到建设工厂');
+forbidText(storage, 'workClicks:', '成长线本轮统计不得恢复基础工作次数');
 forbidText(storage, 'sellOrderBaselineIds', '成长线不得继续依赖手动卖单基线');
 for (const stepId of ['start-research', 'review-contracts', 'make-bank-deposit', 'review-leaderboard']) {
   requireText(storage, `'${stepId}'`, `经营成长线缺少步骤 ${stepId}`);
@@ -45,11 +49,9 @@ requireText(controller, "subscribeStateAuthoritySlice('player.production', confi
 requireText(definition, "id: 'set-auto-sell'", '成长线第五步必须保持自动出售设置');
 requireText(definition, "title: '设置商品自动出售'", '成长线必须明确教玩家设置自动出售');
 requireText(definition, '最低自由库存可填写 0', '成长线必须说明最低自由库存是可选的额外保留');
-requireText(definition, "targetTab: 'production'", '自动出售教程必须引导到生产页仓库');
+requireText(definition, "targetTab: 'market'", '自动出售教程必须引导到市场自动交易工作区');
 
 for (const text of [
-  'const result = await model.work();',
-  'if (result.ok) tutorial.recordWorkClick();',
   'const result = await model.buildFacility(facilityTypeId, quantity, procurement);',
   'if (result.ok) tutorial.recordBuildSubmit(facilityTypeId);',
   'const result = await model.startFacility(facilityTypeId);',
@@ -61,6 +63,7 @@ for (const text of [
   'onAutoSellPolicyEnabled: tutorial.recordAutoSellSetting',
   'onSale: tutorial.recordAutoSellCompletion',
 ]) requireText(gameApp, text, `经营成长线操作必须使用当前成功语义：${text}`);
+forbidText(gameApp, 'tutorial.recordWorkClick', '基础工作移除后不得继续推进成长线');
 forbidText(gameApp, 'tutorial.recordSellOrderSubmit', '成长线不得继续把手动卖单作为第五步');
 requireText(autoTrade, "if (side === 'sell' && result.ok && result.message.includes('自动出售'))", '第六步必须只由服务器确认发生实际自动出售成交后推进，单纯挂出自动卖单不得推进');
 requireText(autoTrade, 'callbacks.onSale?.(productId);', '统一自动交易控制器必须把实际自动出售成交回传成长线');
@@ -68,8 +71,12 @@ requireText(autoSellCompat, "from '../auto-trade/useOnlineAutoTrade'", '旧自�
 
 requireText(guide, '<span>经营成长线</span>', '概览引导条必须显示经营成长线名称');
 requireText(guide, 'aria-label="经营成长线进度"', '成长线进度必须有正确无障碍名称');
-requireText(overview, '<GameGuideStrip tutorial={model.tutorial} />', '概览今日经营必须显示经营成长线');
-requireText(overview, 'model.tutorial.isVisible ? 2 : 3', '成长线显示时经营提醒必须限制为两条');
+requireText(strategicWorkspace, 'className="strategic-economic-event-rail"', '外壳必须提供独立右侧事件日志列');
+requireText(strategicWorkspace, "model.tab === 'home' && tutorial ? <GameGuideStrip tutorial={tutorial} /> : null", '桌面经营成长线必须位于外壳右侧日志列');
+requireText(overview, 'className="overview-mobile-tutorial"', '概览必须保留移动端成长线入口');
+requireText(overview, '<GameGuideStrip tutorial={model.tutorial} />', '移动端成长线入口必须复用统一组件');
+forbidText(overview, 'overview-today-panel', '概览不得恢复今日经营卡');
+forbidText(overview, 'OverviewWorkButton', '概览不得恢复基础工作入口');
 requireText(settings, '重新开始成长线', '设置页必须提供重新开始成长线按钮');
 requireText(settings, '自动出售设置、自动成交', '设置页重开说明必须反映新版成长线');
 requireText(settings, 'tutorial.restart()', '设置页重开必须只调用客户端成长线状态机');
@@ -82,7 +89,7 @@ forbidText(tutorialStore, 'workClicks', '服务器成长线完成记录不得保
 forbidText(tutorialStore, 'producedGoods', '服务器成长线完成记录不得读取生产累计统计');
 forbidText(tutorialStore, 'soldGoods', '服务器成长线完成记录不得读取出售累计统计');
 requireText(pageDesign, '### 11.1 客户端经营成长线', '页面权威设计必须记录客户端经营成长线规则');
-requireText(pageDesign, '固定为十步', '页面权威设计必须锁定经营成长线十步结构');
+requireText(pageDesign, '固定为九步', '页面权威设计必须锁定经营成长线九步结构');
 requireText(pageDesign, '设置商品自动出售、完成一次自动出售', '页面权威设计必须记录新版生产—自动出售成长线');
 requireText(pageDesign, '合法最低自由库存保留量（允许 `0`）', '页面权威设计必须记录自动出售自由库存设置');
 requireText(pageDesign, 'economy_tutorial_completions', '页面权威设计必须记录成长线完成表和服务器负担边界');

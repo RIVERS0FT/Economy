@@ -3,8 +3,8 @@
 > 状态：礼品码、商品／工厂资产拍卖、宝石邀请封禁与管理员后台的当前权威设计
 > 适用项目：`RIVERS0FT/Economy`
 > 更新时间：2026-08-10
-> 客户端状态版本：34
-> 世界状态版本：30
+> 客户端状态版本：36
+> 世界状态版本：32
 
 ## 1. 礼品兑换
 
@@ -73,9 +73,9 @@
 
 管理员唯一地址固定为 `https://game.riversoft.top/economy/admin`；原 `/economy/admin/bans` 独立页面与路由已移除，不提供重定向。后台固定使用“概览／服务器／玩家／人口／礼品／封禁”六分区导航；社区入口配置并入“概览”，不再提供独立社区分区。封禁复核直接合入统一后台。普通主导航不显示管理员入口，设置页仅对 `role=admin` 显示一个管理员后台入口。所有 `/api/game/admin/` 接口必须由服务器再次校验管理员角色，普通用户返回 403。管理员账号即使因同 IP 规则处于封禁状态，也只能继续访问管理员接口完成复核，不能绕过封禁进入普通游戏接口。
 
-桌面端复用统一 `SignedInShell`、`SidebarFrame`、共享 `ScrollArea` 和 `game-shell-layout.css`：侧栏外距、侧栏与工作区间距、桌面玻璃工作栏外距、页面内容边缘、一级内容网格间距与贴右侧页面滚动条必须和玩家端读取同一个 `--desktop-layout-gutter`。管理员桌面工作栏由 `AdminDesktopBar` 复用 `desktopStatusBar` 液态玻璃预设，承载当前分区标题、说明、管理员账号、世界／API 状态和刷新操作；管理员页面不得创建第二套桌面玻璃材质、根级 padding、居中限宽页面框或原生主滚动容器。
+桌面端复用统一 `SignedInShell`、`SidebarFrame`、共享 `ScrollArea` 和 `game-shell-layout.css`：侧栏外距、侧栏与工作区间距、毛玻璃工作栏外距、页面内容边缘、一级内容网格间距与贴右侧页面滚动条必须和玩家端读取同一个 `--desktop-layout-gutter`。管理员桌面工作栏由 `AdminDesktopBar` 复用 `FrostedGlassSurface` 的 `statusBar` 变体，承载当前分区标题、说明、管理员账号、世界／API 状态和刷新操作；管理员页面不得创建第二套毛玻璃材质、根级 padding、居中限宽页面框或原生主滚动容器。
 
-移动端复用统一 `MobileBottomNavigationFrame`、`mobileNavigation` 液态玻璃预设、`48px × 48px` 导航按钮、唯一原生横向滚动 `<nav>`、`68px` 底栏高度和安全区几何；管理员移动端不渲染顶部状态栏或桌面玻璃工作栏。管理员移动页面层与 `.mobile-chrome-overlay.admin-mobile-chrome-layer` 必须保留在 `SignedInShell` 工作区内的同一单格 Grid Overlay：页面层使用 `order: 1`，Chrome 层使用 `order: 2`。Chrome 层保持 `position: relative` 与 `z-index: auto`，不得传送到 `document.body`。桌面和移动端共享同一个 `activeSection`，切换导航不得重建管理员应用或清空其他分区状态。
+移动端复用统一 `MobileBottomNavigationFrame`、`mobileNavigation` 毛玻璃变体、`48px × 48px` 导航按钮、唯一原生横向滚动 `<nav>`、`68px` 底栏高度和安全区几何；管理员移动端不渲染顶部状态栏或桌面工作栏。管理员移动页面层与 `.mobile-chrome-overlay.admin-mobile-chrome-layer` 必须保留在 `SignedInShell` 工作区内的同一单格 Grid Overlay。桌面和移动端共享同一个 `activeSection`，切换导航不得重建管理员应用或清空其他分区状态。
 
 后台提供：
 

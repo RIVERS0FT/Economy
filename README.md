@@ -76,7 +76,7 @@ flowchart LR
 | 桌面外壳 | Tauri 2 |
 | 游戏服务 | Node.js 24.4.0、服务器权威 HTTP API |
 | 数据存储 | SQLite（全局修订 + 分段世界存储 V2） |
-| 状态协议 | 客户端状态 34、世界状态 30、州级经济复合键（内部兼容字段仍为 `provinceId`） |
+| 状态协议 | 客户端状态 36、世界状态 32、州级经济复合键（内部兼容字段仍为 `provinceId`） |
 | 测试与验证 | Node.js Test Runner、Playwright、项目专项防回退脚本 |
 | 发布与运行 | GitHub Actions、Nginx、systemd |
 

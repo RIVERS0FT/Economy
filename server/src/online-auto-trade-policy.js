@@ -10,6 +10,7 @@ import {
   normalizeOnlineAutoSellPolicy,
 } from './online-auto-sell-policy.js';
 import { installDefaultProvinceAliases, normalizeProvinceId, provinceScopedKey } from './provinces.js';
+import { provinceUnlockError } from './province-access.js';
 
 const PRODUCT_IDS = new Set(PRODUCT_CATALOG.map((product) => product.id));
 
@@ -41,6 +42,8 @@ export function applyOnlineAutoTradePolicyAction(world, user, payload = {}) {
   const provinceId = normalizeProvinceId(payload.provinceId);
   const policyKey = provinceScopedKey(provinceId, productId);
   if (!PRODUCT_IDS.has(productId)) return { ok: false, message: '自动交易商品不存在' };
+  const accessError = provinceUnlockError(player, provinceId);
+  if (accessError) return { ok: false, message: accessError };
 
   const buyPolicy = normalizeOnlineAutoBuyPolicy(payload.buy);
   const sellPolicy = normalizeOnlineAutoSellPolicy(payload.sell);

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../../src/app/interactionBootstrap';
-import type { LoadedGameViewModel } from '../../src/app/gameViewModel';
+import type { LoadedGameViewModel, MarketViewMode } from '../../src/app/gameViewModel';
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../../src/components/icons/GameIcons';
 import { GemIcon } from '../../src/components/icons/GemIcon';
 import { GameShell } from '../../src/components/shell/GameShell';
@@ -17,19 +17,23 @@ import '../../src/styles/desktop-sidebar.css';
 import '../../src/styles/viewport.css';
 import '../../src/styles/scrollbars.css';
 import '../../src/styles/card-system.css';
-import '../../src/styles/liquid-glass-chrome.css';
+import '../../src/styles/frosted-glass-chrome.css';
 import '../../src/styles/mobile-status-navigation.css';
 import '../../src/styles/mobile-status-layout.css';
 import '../../src/styles/icon-system.css';
+import '../../src/styles/mobile-detail-sheet.css';
 import '../../src/styles/market-funds.css';
 import '../../src/styles/market-account-table.css';
+import '../../src/styles/warehouse-expansion.css';
 import '../../src/styles/unified-market-admin.css';
 import '../../src/styles/virtual-list.css';
-import '../../src/styles/design-system.css';
-import '../../src/styles/interaction-states.css';
 import '../../src/styles/market-page-polish.css';
 import '../../src/styles/product-artwork.css';
 import '../../src/styles/facility-artwork.css';
+import '../../src/styles/design-system.css';
+import '../../src/styles/interaction-states.css';
+import '../../src/styles/primary-surfaces.css';
+import '../../src/styles/form-controls.css';
 import '../../src/styles/financial-backdrop.css';
 import '../../src/styles/province-map.css';
 import '../../src/styles/strategic-game-shell.css';
@@ -52,6 +56,7 @@ function MarketHarness() {
   const [tab, setTab] = useState<TabId>('market');
   const [marketAssetKind, setMarketAssetKind] = useState<'commodity' | 'facility'>('commodity');
   const [marketAssetId, setMarketAssetId] = useState('wheat');
+  const [marketViewMode, setMarketViewMode] = useState<MarketViewMode>(params.get('view') === 'catalog' ? 'catalog' : 'detail');
   const [orderSide, setOrderSide] = useState<'buy' | 'sell'>(scenario === 'sell-empty' ? 'sell' : 'buy');
   const [orderQuantity, setOrderQuantity] = useState(1);
   const [orderPrice, setOrderPrice] = useState(2);
@@ -60,13 +65,14 @@ function MarketHarness() {
     const products = productNames.map((name, index) => ({
       id: index === 0 ? 'wheat' : `product-${index + 1}`,
       name,
-      category: 'runtime',
+      category: (['raw', 'intermediate', 'consumer', 'industrial'] as const)[index % 4],
       basePrice: index === 0 ? 12 : index + 2,
     }));
     const facilityTypes = facilityNames.map((name, index) => ({
       id: index === facilityNames.length - 2 ? 'machine-factory' : `facility-${index + 1}`,
       name,
-      category: 'runtime',
+      category: (['raw', 'processing', 'consumer', 'industrial'] as const)[index % 4],
+      complexity: 'C1',
       buildCost: 500 + index,
       buildTimeMs: 60_000,
       cycleMs: 120_000,
@@ -172,6 +178,12 @@ function MarketHarness() {
         productId: product.id,
         lastPrice: product.id === 'wheat' ? 12 : product.basePrice,
         lastTradePrice: product.id === 'wheat' ? 2 : null,
+        officialPrice: product.id === 'wheat' ? 11 : product.basePrice,
+        nextPriceAt: fixedNow + 60_000,
+        cycleBuyQuantity: 0,
+        cycleSellQuantity: 0,
+        lastImbalance: 0,
+        lastPriceChangeBps: 0,
         priceHistory: product.id === 'wheat' ? [...oldPrices, ...currentPrices] : [],
         demand: {
           cycleMs: 300_000,
@@ -283,9 +295,12 @@ function MarketHarness() {
       setSelectedFacilityTypeId: () => {},
       marketAssetKind,
       marketAssetId,
+      marketViewMode,
+      showMarketCatalog: () => setMarketViewMode('catalog'),
       selectMarketAsset: (kind: 'commodity' | 'facility', assetId: string) => {
         setMarketAssetKind(kind);
         setMarketAssetId(assetId);
+        setMarketViewMode('detail');
       },
       orderSide,
       selectOrderSide: setOrderSide,
@@ -317,6 +332,7 @@ function MarketHarness() {
   }, [
     marketAssetId,
     marketAssetKind,
+    marketViewMode,
     orderPrice,
     orderQuantity,
     orderSide,

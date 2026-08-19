@@ -50,12 +50,12 @@
 
 以下旧页面级外层规则已经移除：
 
-- 生产页 `.panel.production-surface` 的独立桌面／移动 padding；
+- 建筑页 `.panel.production-surface` 的独立桌面／移动 padding；
 - 银行页 `.asset-overview-card` 的页面专属移动 padding，以及已删除 `.asset-event-panel` 的旧规则；
 - 商店 `.gem-shop-grid > .widget` 的固定 padding；
 - 排行 `.leaderboard-board-card` 的固定 padding。
 
-生产页开关尺寸、银行资产总览内部摘要块、商店内部兑换块和排行列表行等内部布局规则继续保留，不属于一级卡片外层内边距。
+建筑页开关尺寸、银行资产总览内部摘要块、商店内部兑换块和排行列表行等内部布局规则继续保留，不属于一级卡片外层内边距。
 
 ## 7. 自动验证
 

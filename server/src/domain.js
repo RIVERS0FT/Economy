@@ -13,7 +13,19 @@ import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrit
 import { orderAssetId, orderKind } from './order-identity.js';
 import { closeOrderInOrderBook, countOpenOrdersForOwner } from './order-book-runtime.js';
 import { ensurePopulationEconomy, releasePopulationOrderFunds } from './population-economy.js';
+import {
+  applyChooseStartingProvince,
+  applyUnlockProvince,
+  isProvinceUnlocked,
+  migrateProvinceAccess,
+  provinceUnlockError,
+} from './province-access.js';
 import { DEFAULT_PROVINCE_ID, inventoryForProvince, normalizeProvinceId, provinceScopedKey } from './provinces.js';
+import {
+  applyTransportShip,
+  processTransportWorld,
+  transportShipmentClientState,
+} from './transport.js';
 
 export * from './domain-core.js';
 export {
@@ -226,7 +238,7 @@ export function createWorld(now = Date.now()) {
   ensurePopulationEconomy(world, now);
   world.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
   world.auctionFeeEscrowCredits = Math.max(0, Number(world.auctionFeeEscrowCredits || 0));
-  world.version = 30;
+  world.version = 32;
   normalizeWorldMoneyPrecision(world);
   return world;
 }
@@ -253,6 +265,8 @@ export function migrateWorld(world, now = Date.now()) {
   };
   const migrated = core.migrateWorld(world, now);
   balancedMarket.repairMissingMarkets(migrated, existingMarketIds, now, legacy);
+  balancedMarket.normalizeSystemPrices(migrated, now);
+  migrateProvinceAccess(migrated, now);
   if (needsC1InputBalanceMigration) migrateC1InputBalance(migrated);
   if (!hadCompatibleDemandSystem) {
     ensurePopulationEconomy(migrated, now);
@@ -282,7 +296,7 @@ export function migrateWorld(world, now = Date.now()) {
   ensurePopulationEconomy(migrated, now);
   migrated.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
   migrated.auctionFeeEscrowCredits = Math.max(0, Number(migrated.auctionFeeEscrowCredits || 0));
-  migrated.version = 30;
+  migrated.version = 32;
   normalizeWorldMoneyPrecision(migrated);
   return migrated;
 }
@@ -304,6 +318,8 @@ export function processWorld(world, now = Date.now(), { migrate = true } = {}) {
   }
   core.processWorld(world, now, { migrate: false });
   marketDemand.process(world, now);
+  balancedMarket.processPriceCycles(world, now);
+  processTransportWorld(world, now);
   processedWorldAt.set(world, now);
   return world;
 }
@@ -351,6 +367,8 @@ function applyCommodityOrder(world, user, payload, now) {
   }
 
   const player = core.ensurePlayer(world, user, now, { migrate: false });
+  const provinceError = provinceUnlockError(player, provinceId);
+  if (provinceError) return { ok: false, message: provinceError };
   if (side === 'buy') {
     if (Number(player.credits || 0) < total) return { ok: false, message: '可用资金不足' };
     player.credits -= total;
@@ -381,6 +399,9 @@ function applyCommodityOrder(world, user, payload, now) {
   };
   world.orders.push(incoming);
   balancedMarket.matchOrder(world, incoming, now);
+  if (balancedMarket.isOpenOrder(incoming)) {
+    balancedMarket.settlePlayerOrderWithSystem(world, incoming, now);
+  }
   if (incoming.status === 'filled') return { ok: true, message: '订单已全部成交' };
   if (fillOrKill) return { ok: false, message: '市场卖盘已变化，未能一次购齐' };
   if (incoming.status === 'partial') return { ok: true, message: '订单已部分成交' };
@@ -423,7 +444,13 @@ export function applyAction(
   if (process && processedWorldAt.get(world) !== now) processWorld(world, now, { migrate: false });
   const result = action === 'placeOrder' && payload.assetKind !== 'facility'
     ? applyCommodityOrder(world, user, payload, now)
-    : core.applyAction(world, user, action, payload, now, { migrate: false, process: false });
+    : action === 'chooseStartingProvince'
+      ? applyChooseStartingProvince(world, user, payload)
+      : action === 'unlockProvince'
+        ? applyUnlockProvince(world, user, payload)
+        : action === 'transportShip'
+          ? applyTransportShip(world, user, payload, now)
+          : core.applyAction(world, user, action, payload, now, { migrate: false, process: false });
   if (process) processedWorldAt.delete(world);
   return result;
 }
@@ -433,6 +460,10 @@ export function createClientState(world, userId, now = Date.now(), { migrate = t
   const state = core.createClientState(world, userId, now, { migrate });
   return {
     ...state,
+    startingProvinceId: state.startingProvinceId,
+    startingProvinceChosen: state.startingProvinceChosen,
+    unlockedProvinces: state.unlockedProvinces,
+    transportShipments: transportShipmentClientState(world, userId),
     products: clone(PRODUCT_CATALOG),
     facilityTypes: clone(FACILITY_TYPE_CATALOG),
   };

@@ -86,6 +86,7 @@ export const POPULATION_GROUP_SHARES_BY_STATE = Object.freeze({
 const CONSTRUCTION_PROFILE = Object.freeze({ basic: 0.60, skilled: 0.30, professional: 0.10 });
 const WAREHOUSE_PROFILE = Object.freeze({ basic: 0.50, skilled: 0.40, professional: 0.10 });
 const MARKET_SERVICE_PROFILE = Object.freeze({ basic: 0.20, skilled: 0.60, professional: 0.20 });
+const TRANSPORT_PROFILE = Object.freeze({ basic: 0.35, skilled: 0.50, professional: 0.15 });
 const BANKING_PROFILE = Object.freeze({ basic: 0.10, skilled: 0.60, professional: 0.30 });
 const RESEARCH_PROFILE = Object.freeze({ basic: 0.10, skilled: 0.40, professional: 0.50 });
 const PRODUCTION_PROFILES = Object.freeze(Object.fromEntries(
@@ -353,6 +354,7 @@ function sourceKey(source) {
   if (source === 'construction') return 'construction';
   if (source === 'warehouse') return 'warehouse';
   if (source === 'marketService') return 'marketService';
+  if (source === 'transportService') return 'transportService';
   if (source === 'banking') return 'banking';
   if (source === 'research') return 'research';
   throw new Error(`Unsupported population employment source: ${source}`);
@@ -363,6 +365,7 @@ function profileFor(source, complexity) {
   if (source === 'construction') return CONSTRUCTION_PROFILE;
   if (source === 'warehouse') return WAREHOUSE_PROFILE;
   if (source === 'marketService') return MARKET_SERVICE_PROFILE;
+  if (source === 'transportService') return TRANSPORT_PROFILE;
   if (source === 'banking') return BANKING_PROFILE;
   if (source === 'research') return RESEARCH_PROFILE;
   throw new Error(`Unsupported population employment source: ${source}`);

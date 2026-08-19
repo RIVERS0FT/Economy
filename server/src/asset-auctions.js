@@ -8,6 +8,7 @@ import {
   validateFacilityAuctionTransferQuantity,
 } from './facility-groups.js';
 import { inventoryForProvince, normalizeProvinceId } from './provinces.js';
+import { provinceUnlockError } from './province-access.js';
 import {
   calculateRateMoney,
   ceilPlayerMoney,
@@ -652,6 +653,8 @@ function normalizeRequestedItems(payload) {
 
 function validateAuctionItems(world, seller, userId, items) {
   for (const item of items) {
+    const accessError = provinceUnlockError(seller, item.provinceId);
+    if (accessError) return result(false, accessError);
     if (item.assetKind === 'commodity') {
       if (!PRODUCTS.has(item.assetId)) return result(false, '商品不存在');
       if (inventoryFor(seller, item.assetId, item.provinceId).available < item.quantity) return result(false, '可拍卖商品数量不足');

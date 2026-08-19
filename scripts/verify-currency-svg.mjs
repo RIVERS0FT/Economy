@@ -34,7 +34,7 @@ const usagePaths = [
   'src/components/assets/AssetOverviewPanel.tsx',
   'src/pages/LeaderboardPage.tsx',
   'src/pages/AuctionPage.tsx',
-  'src/pages/ProductionPage.tsx',
+  'src/pages/BuildingsPage.tsx',
   'src/app/AdminApp.tsx',
 ];
 

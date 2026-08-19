@@ -103,7 +103,7 @@ const typesSource = readFileSync('src/types.ts', 'utf8');
 const detailSource = readFileSync('src/pages/production/ProductionFacilityDetail.tsx', 'utf8');
 const configControlsSource = readFileSync('src/components/facilities/FacilityProductionConfigControls.tsx', 'utf8');
 const richSelectSource = readFileSync('src/components/ui/RichSelectInput.tsx', 'utf8');
-const pageSource = readFileSync('src/pages/ProductionPage.tsx', 'utf8');
+const pageSource = readFileSync('src/pages/BuildingsPage.tsx', 'utf8');
 const gameViewModelSource = readFileSync('src/app/gameViewModel.ts', 'utf8');
 const styleSource = readFileSync('src/styles/production-methods.css', 'utf8');
 const formControlStyleSource = readFileSync('src/styles/form-controls.css', 'utf8');
@@ -284,8 +284,8 @@ for (const text of [
   "toContainText('节约生产')",
   "toContainText('180s · 成本 4 · 产出 ×1')",
 ]) assert.ok(browserSpecSource.includes(text), `生产方式浏览器回归缺少 ${text}`);
-assert.ok(versionSource.includes('CURRENT_CLIENT_STATE_VERSION = 34'));
-assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 34'));
+assert.ok(versionSource.includes('CURRENT_CLIENT_STATE_VERSION = 36'));
+assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 36'));
 
 for (const [path, required] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [

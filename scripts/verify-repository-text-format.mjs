@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
@@ -52,13 +52,14 @@ if (listedFiles.error || listedFiles.status !== 0) {
   failures.push(`无法读取 Git 行尾状态: ${listedFiles.error?.message ?? listedFiles.stderr.trim()}`);
 } else {
   for (const record of listedFiles.stdout.split('\0').filter(Boolean)) {
-    const match = record.match(/^i\/(\S+)\s+w\/(\S+)\s+attr\/(.*?)\t(.*)$/u);
+    const match = record.match(/^i\/(\S+)\s+w\/(\S*)\s+attr\/(.*?)\t(.*)$/u);
     if (!match) {
       failures.push(`无法解析 Git 行尾状态: ${record}`);
       continue;
     }
 
     const [, indexEol, worktreeEol, fileAttributes, path] = match;
+    if (!worktreeEol && !existsSync(resolve(root, path))) continue;
     if (fileAttributes.includes('-text')) continue;
 
     if (!fileAttributes.includes('eol=lf')) {

@@ -41,10 +41,15 @@ if (failures.length === 0) {
     'font-size: var(--mobile-status-value-font-size, clamp(.7rem, 3.45vw, .95rem));',
     'text-overflow: clip;',
     'white-space: nowrap;',
+    '@media (max-width: 400px)',
+    'padding-inline: .2rem;',
+    'gap: .06rem;',
     '@media (max-width: 340px)',
-    'gap: .05rem;',
-    'width: .7rem;',
-    'height: .7rem;',
+    'grid-template-columns: 24px minmax(0, 1fr) 44px;',
+    'padding-inline: 0;',
+    'gap: 0;',
+    'width: .625rem;',
+    'height: .625rem;',
   ]);
   forbidText(paths.mobileStyle, 'text-overflow: ellipsis');
   requireAll(paths.design, [
@@ -52,6 +57,9 @@ if (failures.length === 0) {
     '仅真实溢出的状态项缩小字号',
     '不得恢复省略号',
     '`0.56rem`',
+    '`400px`',
+    '`340px`',
+    '`44px`',
   ]);
   requireAll(paths.browserSpec, [
     'mobile status values shrink individually instead of showing ellipses',

@@ -1,5 +1,5 @@
 import { SafeTooltip } from '../ui/SafeTooltip';
-import { LiquidGlassSurface } from '../ui/LiquidGlassSurface';
+import { FrostedGlassSurface } from '../ui/FrostedGlassSurface';
 import { Button } from '../ui/layout';
 
 export function AdminDesktopBar({
@@ -19,7 +19,7 @@ export function AdminDesktopBar({
 }) {
   return (
     <header className="asset-bar admin-command-bar" aria-label="管理员工作栏">
-      <LiquidGlassSurface variant="desktopStatusBar">
+      <FrostedGlassSurface variant="statusBar">
         <div className="admin-command-bar-content">
           <div className="admin-command-bar-copy">
             <h1>{title}</h1>
@@ -33,7 +33,7 @@ export function AdminDesktopBar({
             <Button variant="secondary" onClick={onRefresh}>刷新当前分区</Button>
           </div>
         </div>
-      </LiquidGlassSurface>
+      </FrostedGlassSurface>
     </header>
   );
 }

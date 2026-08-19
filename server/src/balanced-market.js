@@ -1,8 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { isOpenOrder } from './order-identity.js';
 import { matchIncomingOrder } from './order-matching.js';
-import { LIQUIDITY_EMERGENCY_SIGNAL_WEIGHT, LIQUIDITY_SIGNAL_WEIGHT } from './market-demand/catalog.js';
+import {
+  LIQUIDITY_EMERGENCY_SIGNAL_WEIGHT,
+  LIQUIDITY_SIGNAL_WEIGHT,
+} from './market-demand/catalog.js';
 import { multiplyMoneyByInteger, roundInternalMoney } from './money.js';
+import { createSystemMarketRuntime } from './system-market.js';
 import {
   creditPopulationEmployment,
   recordPopulationSellerIncome,
@@ -40,6 +44,13 @@ export function createBalancedMarketRuntime({ products, constants }) {
       provinceId: normalizeProvinceId(provinceId),
       lastPrice: product.basePrice,
       lastTradePrice: null,
+      officialPrice: product.basePrice,
+      nextPriceAt: now + constants.demandCycleMs,
+      cycleBuyQuantity: 0,
+      cycleSellQuantity: 0,
+      lastImbalance: 0,
+      lastPriceChangeBps: 0,
+      lastPriceAt: now,
       priceHistory: offsets.map((offset, index) => ({
         price: Math.max(1, product.basePrice + offset),
         quantity: 3 + (index % 5),
@@ -270,6 +281,18 @@ export function createBalancedMarketRuntime({ products, constants }) {
     return world;
   }
 
+  const systemMarket = createSystemMarketRuntime({
+    products,
+    constants,
+    marketFor,
+    isOpenOrder,
+    recordPrice,
+    addTrade,
+    addLedger,
+    inventoryFor,
+    productFor,
+  });
+
   return {
     createMarket,
     isOpenOrder,
@@ -277,5 +300,6 @@ export function createBalancedMarketRuntime({ products, constants }) {
     matchOrder,
     rebalanceNewWorld,
     repairMissingMarkets,
+    ...systemMarket,
   };
 }

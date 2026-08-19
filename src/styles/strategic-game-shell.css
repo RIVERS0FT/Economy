@@ -1,12 +1,19 @@
 /* Player-only grand-strategy workspace. The administrator keeps the shared
  * conventional SignedInShell body while the game portals one persistent map
  * into the root map layer beneath the application UI layer. */
+:root {
+  --strategic-shell-gutter: 8px;
+}
 
 .application-map-layer,
 .workspace-strategic-chrome {
   isolation: auto;
   filter: none;
   transform: none;
+}
+
+.application-map-layer {
+  --layout-gutter: var(--strategic-shell-gutter);
 }
 
 .game-shell .mobile-page-overlay {
@@ -16,7 +23,7 @@
 
 .game-shell .workspace-strategic-chrome {
   position: absolute;
-  z-index: 2;
+  z-index: auto;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
@@ -24,6 +31,45 @@
 
 .game-shell .workspace-floating-layer {
   z-index: 4;
+}
+
+.game-shell .page-scroll {
+  overflow: hidden;
+}
+
+.game-shell .page-scroll-area > .ui-scrollbar--vertical {
+  display: none;
+}
+
+.game-shell .signed-in-shell__page-reveal,
+.game-shell .signed-in-shell__page-reveal-inner {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.game-shell .signed-in-shell__page-reveal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
+  animation: strategic-page-unfold var(--strategic-page-open-motion, 220ms cubic-bezier(.2, .8, .2, 1)) both;
+}
+
+.game-shell .signed-in-shell__page-reveal-inner {
+  overflow: hidden;
+}
+
+@keyframes strategic-page-unfold {
+  from {
+    grid-template-columns: minmax(0, 0fr);
+    opacity: 0;
+  }
+
+  to {
+    grid-template-columns: minmax(0, 1fr);
+    opacity: 1;
+  }
 }
 
 .game-shell .workspace-strategic-chrome > * {
@@ -42,6 +88,7 @@
 }
 
 .strategic-map-stage {
+  z-index: 0;
   overflow: visible;
   border: 0;
   border-radius: 0;
@@ -66,11 +113,6 @@
   transition: opacity 180ms ease, background-color 180ms ease;
 }
 
-.strategic-map-stage--background .strategic-map-vignette {
-  background-color: rgb(1 7 5 / 44%);
-  opacity: 1;
-}
-
 .strategic-map-stage[data-map-lens="industry"] .province-map-echart,
 .strategic-map-stage[data-map-lens="market"] .province-map-echart,
 .strategic-map-stage[data-map-lens="alerts"] .province-map-echart {
@@ -79,10 +121,12 @@
 
 .strategic-page-host {
   position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
   min-width: 0;
-  min-height: 100%;
+  min-height: 0;
   padding: var(--strategic-panel-gap);
-  padding-bottom: calc(var(--strategic-lens-height) + var(--strategic-panel-gap) * 3);
   pointer-events: none;
 }
 
@@ -91,28 +135,35 @@
 }
 
 .strategic-page-host > .page-content {
-  min-height: calc(100% - var(--strategic-panel-gap));
+  height: 100%;
+  min-height: 0;
   margin: 0;
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 78%, transparent);
-  border-radius: var(--strategic-panel-radius);
-  padding: 0 var(--strategic-panel-gap) var(--strategic-panel-gap);
-  background:
-    linear-gradient(145deg, rgb(8 24 18 / 96%), rgb(3 13 10 / 94%));
-  box-shadow: 0 24px 64px rgb(0 0 0 / 42%);
-  backdrop-filter: blur(18px) saturate(1.08);
+  border: 1px solid var(--frosted-glass-border);
+  border-radius: var(--radius-card);
+  padding: 0;
+  overflow: hidden;
+  background: var(--frosted-glass-background);
+  box-shadow: var(--frosted-glass-shadow);
+  -webkit-backdrop-filter: var(--frosted-glass-filter);
+  backdrop-filter: var(--frosted-glass-filter);
 }
 
-.strategic-page-host--workspace > .page-content {
-  width: 100%;
+.strategic-page-host .page-card-scroll,
+.strategic-page-host .page-card-static {
+  padding: 0 var(--layout-gutter) var(--layout-gutter);
 }
 
+.strategic-page-host--building {
+  padding-inline-end: calc(
+    var(--strategic-event-rail-width)
+    + var(--strategic-panel-gap) * 2
+  );
+}
+
+.strategic-page-host--building > .page-content,
 .strategic-page-host--fullscreen > .page-content {
   width: 100%;
   margin-inline: 0;
-}
-
-.strategic-page-host--side > .page-content {
-  width: min(56rem, calc(100% - var(--strategic-panel-gap) * 2));
 }
 
 .strategic-page-host--map {
@@ -137,19 +188,22 @@
   display: none;
 }
 
-.strategic-map-lens-bar {
+.application-map-layer > .strategic-map-lens-bar {
   position: absolute;
+  z-index: 1;
   right: 50%;
-  bottom: var(--strategic-panel-gap);
-  min-height: var(--strategic-lens-height);
+  bottom: var(--layout-gutter);
+  min-height: var(--strategic-lens-height, 54px);
   display: flex;
   align-items: center;
   gap: .25rem;
   padding: .35rem;
   border-color: color-mix(in srgb, var(--color-border-strong) 78%, transparent);
-  border-radius: .8rem;
-  background: rgb(4 17 12 / 94%);
-  box-shadow: 0 18px 42px rgb(0 0 0 / 38%);
+  border-radius: var(--radius-card);
+  background: var(--frosted-glass-background-strong);
+  box-shadow: var(--frosted-glass-shadow);
+  -webkit-backdrop-filter: var(--frosted-glass-filter);
+  backdrop-filter: var(--frosted-glass-filter);
   transform: translateX(50%);
 }
 
@@ -182,37 +236,155 @@
   background: var(--color-success-soft);
 }
 
+.strategic-economic-event-rail {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: var(--strategic-panel-gap);
+  bottom: var(--strategic-panel-gap);
+  width: var(--strategic-event-rail-width);
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: start;
+  gap: var(--strategic-panel-gap);
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.strategic-economic-event-rail > .economic-event-log-panel:only-child {
+  grid-row: 1 / -1;
+}
+
 @media (min-width: 721px) {
   .game-shell {
-    --desktop-layout-gutter: 8px;
+    --desktop-layout-gutter: var(--strategic-shell-gutter);
     --desktop-asset-bar-height: 64px;
     --strategic-command-rail-width: 78px;
-    --strategic-panel-gap: 10px;
-    --strategic-panel-radius: 12px;
+    --strategic-compact-page-width: 56rem;
+    --strategic-page-open-motion: 220ms cubic-bezier(.2, .8, .2, 1);
+    --strategic-panel-gap: var(--layout-gutter);
+    --strategic-panel-radius: var(--radius-card);
     --strategic-lens-height: 54px;
+    --strategic-event-rail-width: clamp(260px, 21vw, 320px);
+    --strategic-primary-card-inline-size: calc(100% - var(--strategic-panel-gap) * 2);
   }
 
   .game-shell .signed-in-shell__body {
-    grid-template-columns:
-      calc(
-        var(--strategic-command-rail-width)
-        + var(--desktop-shell-outer-inset)
-        + var(--desktop-sidebar-workspace-gap)
-      )
-      minmax(0, 1fr);
+    display: block;
     transition: none;
   }
 
-  .game-shell .desktop-sidebar {
-    z-index: 7;
-    width: var(--sidebar-column-width);
-    border-radius: var(--strategic-panel-radius);
-    background: linear-gradient(180deg, rgb(6 22 16 / 98%), rgb(2 11 8 / 98%));
-    box-shadow: 16px 18px 46px rgb(0 0 0 / 32%);
+  .game-shell.strategic-tab-home,
+  .game-shell.strategic-tab-province,
+  .game-shell.strategic-tab-market,
+  .game-shell.strategic-tab-buildings,
+  .game-shell.strategic-tab-settings {
+    --strategic-primary-card-inline-size: min(
+      calc(100vw / 3),
+      calc(var(--strategic-command-rail-width) + var(--strategic-compact-page-width)),
+      calc(100% - var(--strategic-event-rail-width) - var(--strategic-panel-gap) * 3)
+    );
   }
 
-  .game-shell.sidebar-collapsed .desktop-sidebar {
+  .game-shell.strategic-tab-map {
+    --strategic-primary-card-inline-size: var(--strategic-command-rail-width);
+  }
+
+  .game-shell.strategic-tab-map:not(.sidebar-collapsed) {
+    --strategic-primary-card-inline-size: var(--desktop-sidebar-expanded-width);
+  }
+
+  .game-shell .signed-in-shell__primary-card {
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    bottom: var(--strategic-panel-gap);
+    left: var(--strategic-panel-gap);
+    width: var(--strategic-primary-card-inline-size);
+    height: auto;
+    min-width: var(--strategic-command-rail-width);
+    border-radius: var(--strategic-panel-radius);
+    transition: width var(--strategic-page-open-motion);
+    pointer-events: auto;
+  }
+
+  .game-shell .signed-in-shell__primary-card > .frosted-glass-surface__content {
+    display: grid;
+    grid-template-columns: var(--strategic-command-rail-width) minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .game-shell .signed-in-shell__primary-page,
+  .game-shell .signed-in-shell__primary-page > .mobile-page-overlay {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .game-shell .signed-in-shell__primary-card .desktop-sidebar {
+    position: relative;
+    z-index: 2;
+    width: var(--sidebar-column-width);
+    height: 100%;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: color-mix(in srgb, var(--frosted-glass-background-strong) 44%, transparent);
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    transition:
+      width var(--desktop-sidebar-motion),
+      background-color var(--desktop-sidebar-motion);
+  }
+
+  .game-shell .signed-in-shell__primary-card .desktop-sidebar::after {
+    content: "";
+    position: absolute;
+    z-index: 4;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--frosted-glass-border);
+    box-shadow: 10px 0 24px rgba(0, 0, 0, 0.32);
+    pointer-events: none;
+  }
+
+  .game-shell .signed-in-shell__primary-card .desktop-sidebar[data-collapsed="false"] {
+    background: var(--frosted-glass-background-strong);
+  }
+
+  .game-shell.sidebar-collapsed .signed-in-shell__primary-card .desktop-sidebar {
     width: var(--strategic-command-rail-width);
+  }
+
+  .game-shell .signed-in-shell__primary-card .strategic-page-host {
+    padding: 0;
+  }
+
+  .game-shell .signed-in-shell__primary-card .strategic-page-host--building {
+    padding-inline-end: 0;
+  }
+
+  .game-shell .signed-in-shell__primary-card .strategic-page-host > .page-content {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .game-shell .signed-in-shell__primary-card .strategic-page-host--building > .page-content,
+  .game-shell .signed-in-shell__primary-card .strategic-page-host--fullscreen > .page-content {
+    width: 100%;
+    margin-inline: 0;
   }
 
   .game-shell .page-scroll-area,
@@ -230,6 +402,10 @@
     pointer-events: none;
   }
 
+  .game-shell .workspace-floating-layer {
+    left: calc(var(--strategic-panel-gap) + var(--strategic-command-rail-width));
+  }
+
   .strategic-tab-map .page-scroll-area > .ui-scrollbar--vertical {
     display: none;
   }
@@ -237,14 +413,14 @@
 
 @media (max-width: 1100px) and (min-width: 721px) {
   .game-shell {
-    --strategic-panel-gap: 8px;
+    --strategic-panel-gap: var(--layout-gutter);
   }
 }
 
 @media (max-width: 720px) {
   .game-shell {
-    --strategic-panel-gap: var(--mobile-primary-surface-gap);
-    --strategic-panel-radius: 16px;
+    --strategic-panel-gap: var(--layout-gutter);
+    --strategic-panel-radius: var(--radius-card);
     --strategic-lens-height: 0px;
   }
 
@@ -252,38 +428,80 @@
     padding: 0;
   }
 
-  .strategic-map-stage--background .strategic-map-vignette {
-    background-color: rgb(1 7 5 / 68%);
-  }
-
   .strategic-page-host {
     padding: var(--strategic-panel-gap) 0;
   }
 
-  .strategic-page-host > .page-content {
+  .game-shell .signed-in-shell__primary-card {
+    position: relative;
+    z-index: 0;
     width: 100%;
-    min-height: calc(100dvh - 5rem);
-    border-radius: var(--strategic-panel-radius) var(--strategic-panel-radius) 0 0;
-    padding-inline: var(--strategic-panel-gap);
-    background: linear-gradient(180deg, rgb(7 23 17 / 97%), rgb(2 10 8 / 98%));
+    height: 100%;
+    min-width: 0;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 
-  .strategic-page-host--side > .page-content {
-    margin-top: 18dvh;
-    min-height: 82dvh;
+  .game-shell .signed-in-shell__primary-card::before {
+    display: none;
+  }
+
+  .game-shell .signed-in-shell__primary-card > .frosted-glass-surface__content {
+    height: 100%;
+    display: block;
+  }
+
+  .game-shell .signed-in-shell__primary-page,
+  .game-shell .signed-in-shell__primary-page > .mobile-page-overlay {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .strategic-page-host--building {
+    padding-inline-end: 0;
+  }
+
+  .strategic-page-host > .page-content {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border-radius: var(--radius-card);
+    padding-inline: 0;
+    background: var(--frosted-glass-background-strong);
+  }
+
+  .game-shell .page-heading {
+    padding: var(--layout-gutter);
   }
 
   .strategic-page-host--map {
     padding: 0;
   }
 
-  .strategic-map-lens-bar {
+  .application-map-layer > .strategic-map-lens-bar {
+    display: none;
+  }
+
+  .strategic-economic-event-rail {
     display: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .strategic-map-vignette {
+  .strategic-map-vignette,
+  .game-shell .signed-in-shell__primary-card,
+  .game-shell .signed-in-shell__primary-card .desktop-sidebar {
     transition: none;
+  }
+
+  .game-shell .signed-in-shell__page-reveal {
+    animation: none;
   }
 }

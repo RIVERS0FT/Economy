@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useGameAuthorityDependencies } from '../../app/gameAuthorityStore';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { DEFAULT_QQ_GROUP_URL, getCommunityLink } from '../../api/game';
+import { BRAND_LOGO_URL, BRAND_NAME } from '../../config/brand';
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../icons/GameIcons';
 import { GemIcon } from '../icons/GemIcon';
 import { CurrencyAmount } from '../ui/CurrencyAmount';
@@ -19,26 +20,38 @@ import { SignedInShell } from './SignedInShell';
 import { StatusBar, type StatusBarItem } from './StatusBar';
 import { ApplicationMapLayerPortal } from '../visual/ApplicationLayerRoot';
 import {
+  StrategicMapLensBar,
   StrategicMapStage,
   StrategicWorkspaceChrome,
 } from './StrategicWorkspace';
 import type { ProvinceMapLens } from '../provinces/UsMainlandMap';
 import type { TabId } from '../../config/navigation';
 import { PlayerPageNavigationProvider } from '../ui/PageNavigationContext';
+import type { GameTutorialController } from '../../game-guide/useGameTutorial';
 
 const STRATEGIC_PAGE_PRESENTATION = {
-  home: 'workspace',
+  home: 'building',
   map: 'map',
-  market: 'workspace',
-  production: 'workspace',
+  province: 'building',
+  market: 'building',
+  buildings: 'building',
   research: 'fullscreen',
   auction: 'fullscreen',
   contracts: 'fullscreen',
   bank: 'fullscreen',
   leaderboard: 'fullscreen',
-  'gem-shop': 'side',
-  settings: 'side',
+  'gem-shop': 'fullscreen',
+  settings: 'building',
 } as const;
+
+const HIDDEN_EVENT_RAIL_TABS = new Set<TabId>([
+  'research',
+  'auction',
+  'contracts',
+  'bank',
+  'leaderboard',
+  'gem-shop',
+]);
 
 export function GameShell({ model, children, offline = false }: {
   model: LoadedGameViewModel;
@@ -62,6 +75,8 @@ export function GameShell({ model, children, offline = false }: {
   const auctionNewIdSet = useMemo(() => new Set(auctionNewIds), [auctionNewIds]);
   const openBank = useCallback(() => model.setTab('bank'), [model.setTab]);
   const pagePresentation = STRATEGIC_PAGE_PRESENTATION[model.tab];
+  const tutorial = (model as LoadedGameViewModel & { tutorial?: GameTutorialController }).tutorial;
+  const playerName = game.playerName.trim() || '玩家';
 
   const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
   const weeklyMagnitude = Math.abs(weeklyChange);
@@ -144,7 +159,7 @@ export function GameShell({ model, children, offline = false }: {
     if (previousTab === model.tab) return;
     if (skipNextHistoryRef.current) {
       skipNextHistoryRef.current = false;
-    } else if (previousTab !== 'map') {
+    } else if (previousTab !== 'map' && previousTab !== 'province') {
       pageHistoryRef.current = [...pageHistoryRef.current, previousTab].slice(-20);
     }
     observedTabRef.current = model.tab;
@@ -168,27 +183,33 @@ export function GameShell({ model, children, offline = false }: {
     <AuctionNewIdsContext.Provider value={auctionNewIdSet}>
       <ApplicationMapLayerPortal>
         <StrategicMapStage model={model} lens={mapLens} />
+        <StrategicMapLensBar lens={mapLens} onLensChange={setMapLens} />
       </ApplicationMapLayerPortal>
       <SignedInShell
         rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}`}
         workspaceClassName="strategic-workspace"
+        integratedPrimaryCard
+        pageTransitionKey={model.tab}
         sidebarCollapsed={sidebarCollapsed}
         sidebar={(
           <DesktopSidebar
-            playerName={game.playerName}
             activeTab={model.tab}
             badges={badges}
             collapsed={sidebarCollapsed}
             qqGroupUrl={qqGroupUrl}
             onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
             onSelect={model.setTab}
-            onSignOut={() => void model.signOut()}
           />
         )}
         chrome={(
           <>
             <StatusBar
               items={statusItems}
+              identity={{
+                logoSrc: BRAND_LOGO_URL,
+                title: BRAND_NAME,
+                playerName,
+              }}
               action={(
                 <NotificationCenterButton
                   open={notificationCenter.panelOpen}
@@ -225,8 +246,9 @@ export function GameShell({ model, children, offline = false }: {
         )}
         workspaceChrome={(
           <StrategicWorkspaceChrome
-            lens={mapLens}
-            onLensChange={setMapLens}
+            model={model}
+            tutorial={tutorial}
+            showEventRail={!HIDDEN_EVENT_RAIL_TABS.has(model.tab)}
           />
         )}
       >
@@ -246,6 +268,28 @@ export function GameShell({ model, children, offline = false }: {
           </div>
         </PlayerPageNavigationProvider>
       </SignedInShell>
+      {!offline && game.startingProvinceChosen === false ? (
+        <div className="starting-province-overlay" role="dialog" aria-modal="true" aria-label="选择起始州">
+          <section className="starting-province-panel">
+            <h2>选择起始州</h2>
+            <p>新玩家需要选择一块起始地块，选定后永久绑定，之后可以解锁其他州并使用市场、工厂与仓库。</p>
+            <div className="starting-province-grid">
+              {game.provinces.map((province) => (
+                <button
+                  type="button"
+                  key={province.id}
+                  className="starting-province-option"
+                  data-ui-interactive="surface"
+                  onClick={() => void model.showResult(model.chooseStartingProvince(province.id))}
+                >
+                  <strong>{province.name}</strong>
+                  <small>{province.shortName}</small>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : null}
     </AuctionNewIdsContext.Provider>
   );
 }

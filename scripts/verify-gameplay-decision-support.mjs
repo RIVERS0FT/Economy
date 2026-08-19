@@ -61,7 +61,9 @@ requireText('server/src/tutorial-store.js', "completion_source IN ('legacy', 'mi
 requireText('src/components/facilities/FacilityOperatingDiagnostics.tsx', '不自动推荐最高利润产物');
 requireText('src/pages/production/MobileFacilityDetailSheet.tsx', 'markets={markets}');
 forbidText('src/pages/production/MobileFacilityDetailSheet.tsx', 'warehouseStoredQuantity');
-requireText('src/pages/ResearchPage.tsx', '产业经营视角');
+forbidText('src/pages/ResearchPage.tsx', '产业经营视角');
+requireText('src/pages/ResearchPage.tsx', 'className="research-investment mobile-detail-section"');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '科技详情不显示“产业经营视角”');
 requireText('server/src/contract-audit-store.js', 'store.getContractPerformance');
 requireText('src/contracts/api.ts', "getJson<{ performance: ContractPerformanceSummary }>('/contracts/performance')");
 requireText('src/pages/ContractPage.tsx', '我的履约档案');
@@ -93,9 +95,10 @@ requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '排行榜页面不得
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '四榜个人最好成绩由服务器在完整周结算时写入玩家权威统计');
 requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '排行榜只保留当前真实名次、当前成绩和服务器完整周结算的个人最好成绩');
 forbidText('src/pages/LeaderboardPage.tsx', 'localStorage');
-requireText('src/pages/OverviewPage.tsx', '<OverviewEconomicCalendarPanel');
-requireText('src/pages/overview/OverviewLiveSections.tsx', '事件窗口真实成交');
-requireText('src/pages/overview/OverviewLiveSections.tsx', 'eventMarketFeedback(markets, event.productIds, event.startsAt, event.endsAt)');
+forbidText('src/pages/OverviewPage.tsx', 'EconomicEventLogPanel');
+requireText('src/components/shell/StrategicWorkspace.tsx', '<EconomicEventLogPanel');
+requireText('src/components/EconomicEventLogPanel.tsx', '事件窗口真实成交');
+requireText('src/components/EconomicEventLogPanel.tsx', 'eventMarketFeedback(markets, event.productIds, event.startsAt, event.endsAt)');
 requireText('server/src/economic-events.js', 'EVENT_RESULT_WINDOW_MS');
 requireText('src/utils/marketDecisionSignals.ts', 'const first = points.length > 0 ? points[0] : undefined;');
 forbidText('src/components/facilities/FacilityOperatingDiagnostics.tsx', '最佳配方');

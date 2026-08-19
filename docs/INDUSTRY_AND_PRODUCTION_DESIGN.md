@@ -3,8 +3,8 @@
 > 状态：当前商品目录、固定精度经济数值与生产设计基线
 > 适用项目：`RIVERS0FT/Economy`
 > 更新时间：2026-08-14
-> 客户端状态版本：34
-> 世界状态版本：30
+> 客户端状态版本：36
+> 世界状态版本：32
 > 市场需求模型版本：19
 
 市场交易以 `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` 为准；共享仓库以 `WAREHOUSE_EXPANSION_DESIGN.md` 为准；页面归属以 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准。
@@ -379,24 +379,24 @@ stopped／error：从当前值按 30 分钟线性下降到 0%
 
 客户端开关只绑定 `group.enabled`，配方选择器只提交服务器正式配方 ID。旧 `/plan` 接口返回 `410 Gone`，不得静默接受旧生产计划。
 
-## 9. 生产页面结构
+## 9. 建筑页面结构
 
 页面顺序固定为：
 
 ```text
-页面标题与运行／停止／异常汇总
-→ 共享仓库
-→ 生产管理区：建设新工厂 + 工厂集群选择 + 当前工厂详情
+页面标题“{州级地区全称}建筑”
+→ 建筑概况：总数 + 运行 + 停止 + 异常 + 平均满员率 + 预计利润
+→ 建筑管理区：建设新工厂 + 可筛选建筑列表 + 当前建筑详情
 ```
 
-共享仓库、建设新工厂、工厂集群选择和桌面当前工厂详情属于生产页同一一级平面，统一使用 `.production-surface` 与 `PagePanel`：大于 `720px` 时四边内边距统一为 `16px`，不大于 `720px` 时统一为 `12px`。业务 CSS 只管理轨道、列数、内部密度和 Overlay，不得重新声明一级卡片外层 `padding`。
+建筑概况、建设新工厂、建筑列表和桌面当前建筑详情属于建筑页同一一级平面，统一使用 `.production-surface` 与 `PagePanel`：大于 `720px` 时四边内边距统一为 `16px`，不大于 `720px` 时统一为 `12px`。业务 CSS 只管理轨道、列数、内部密度和 Overlay，不得重新声明一级卡片外层 `padding`。共享仓库只属于隐藏州级上下文页“仓库”分区，自动交易只属于市场页。
 
-生产管理区的主网格、响应式轨道、建设卡 sticky 几何、集群选择器和详情高度统一由 `src/styles/facility-group-card-grid.css` 负责；`src/styles/industry-system.css` 只保留建设表单、施工状态和生产内容的内部密度，不得重新声明 `.production-grid` 主轨道、sticky 顶部偏移、最大高度或页面级溢出规则。
+建筑管理区的主网格、响应式轨道、建设卡 sticky 几何、集群选择器和详情高度统一由 `src/styles/facility-group-card-grid.css` 负责；`src/styles/industry-system.css` 只保留建设表单、施工状态和生产内容的内部密度，不得重新声明 `.production-grid` 主轨道、sticky 顶部偏移、最大高度或页面级溢出规则。
 
 ### 9.1 建设卡
 
-- 桌面独占生产管理区左列，宽度 `280px–320px`。
-- 使用 `position: sticky`，只在生产管理区范围内常驻；固定后的顶部偏移必须读取 `--desktop-page-top-offset`，不得使用独立 `--space-*` 或像素值重复计算状态栏避让。
+- 桌面独占建筑管理区左列，宽度 `280px–320px`。
+- 使用 `position: sticky`，只在建筑管理区范围内常驻；固定后的顶部偏移必须读取 `--desktop-page-top-offset`，不得使用独立 `--space-*` 或像素值重复计算状态栏避让。
 - sticky 最大高度必须扣除 `--desktop-page-top-offset` 与底部 `--desktop-layout-gutter`，使卡片上下均保留同一个桌面间隔。
 - 低于 960px 恢复普通文档流并位于工厂集群选择之前。
 - 显示工厂类型、可选或固定配方名称、建造数量、建造资金、逐项建造材料、玩家当前可用库存、最多可建数量和即时建造按钮。

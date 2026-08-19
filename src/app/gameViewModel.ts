@@ -53,6 +53,8 @@ export const facilityStatusNames: Record<FacilityStatus, string> = {
   error: '异常',
 };
 
+export type MarketViewMode = 'catalog' | 'detail';
+
 export const facilityStatusReasonNames: Record<FacilityStatusReason, string> = {
   manual: '手动停止',
   insufficient_funds: '运营资金不足',
@@ -113,7 +115,9 @@ export interface LoadedGameViewModel {
   setSelectedFacilityTypeId: Dispatch<SetStateAction<string>>;
   marketAssetKind: AssetKind;
   marketAssetId: string;
-  selectMarketAsset: (kind: AssetKind, assetId: string) => void;
+  marketViewMode: MarketViewMode;
+  showMarketCatalog: () => void;
+  selectMarketAsset: (kind: AssetKind, assetId: string, navigateToMarket?: boolean) => void;
   orderSide: OrderSide;
   selectOrderSide: (side: OrderSide) => void;
   orderQuantity: number;
@@ -140,6 +144,15 @@ export interface LoadedGameViewModel {
   signOut: () => Promise<void>;
   work: () => Promise<ActionResult>;
   checkIn: () => Promise<ActionResult>;
+  chooseStartingProvince: (provinceId: string) => Promise<ActionResult>;
+  unlockProvince: (provinceId: string) => Promise<ActionResult>;
+  transportShip: (input: {
+    sourceProvinceId: string;
+    destinationProvinceId: string;
+    productId: string;
+    quantity: number;
+    mode: 'road' | 'rail' | 'air';
+  }) => Promise<ActionResult>;
   bankDeposit: (amount: number) => Promise<ActionResult>;
   bankWithdraw: (amount: number) => Promise<ActionResult>;
   bankBorrow: (amount: number, collateral: Array<{ provinceId: string; facilityTypeId: string; quantity: number }>, autoRepay?: boolean) => Promise<ActionResult>;
@@ -190,6 +203,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const [selectedFacilityTypeId, setSelectedFacilityTypeId] = useState('farm');
   const [marketAssetKind, setMarketAssetKind] = useState<AssetKind>('commodity');
   const [marketAssetId, setMarketAssetId] = useState('wheat');
+  const [marketViewMode, setMarketViewMode] = useState<MarketViewMode>('catalog');
   const [orderSide, setOrderSideState] = useState<OrderSide>('buy');
   const [orderQuantity, setOrderQuantity] = useState(1);
   const [orderPrice, setOrderPrice] = useState(1);
@@ -477,14 +491,17 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     setOrderQuantity(1);
   }
   function setTab(nextTab: TabId) {
-    if (nextTab === 'market' && tab !== 'market') {
-      setOrderPrice(defaultOrderPrice(loadedGame.orders, marketAssetKind, marketAssetId, orderSide));
-      setOrderQuantity(1);
+    if (nextTab === 'market') {
+      setMarketViewMode('catalog');
+      if (tab !== 'market') {
+        setOrderPrice(defaultOrderPrice(loadedGame.orders, marketAssetKind, marketAssetId, orderSide));
+        setOrderQuantity(1);
+      }
     }
     setActiveTab(nextTab);
   }
 
-  function selectMarketAsset(kind: AssetKind, assetId: string) {
+  function selectMarketAsset(kind: AssetKind, assetId: string, navigateToMarket = true) {
     const changed = kind !== marketAssetKind || assetId !== marketAssetId;
     setMarketAssetKind(kind);
     setMarketAssetId(assetId);
@@ -492,7 +509,12 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
       setOrderPrice(defaultOrderPrice(loadedGame.orders, kind, assetId, orderSide));
       setOrderQuantity(1);
     }
-    setActiveTab('market');
+    setMarketViewMode('detail');
+    if (navigateToMarket) setActiveTab('market');
+  }
+
+  function showMarketCatalog() {
+    setMarketViewMode('catalog');
   }
 
   function selectOrderSide(side: OrderSide) {
@@ -509,7 +531,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     tab, setTab, notice,
     selectedProvinceId, selectedProvince, setSelectedProvinceId,
     selectedFacilityTypeId, setSelectedFacilityTypeId,
-    marketAssetKind, marketAssetId, selectMarketAsset,
+    marketAssetKind, marketAssetId, marketViewMode, showMarketCatalog, selectMarketAsset,
     orderSide, selectOrderSide, orderQuantity, setOrderQuantity, orderPrice, setOrderPrice,
     playerName: playerNameDraft.draft, setPlayerName: playerNameDraft.setDraft,
     compactNumbers, setCompactNumbers, refreshRate, setRefreshRate,
@@ -520,6 +542,9 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     signOut,
     work: () => runAction('work', gameActions.work),
     checkIn: () => runAction('checkIn', gameActions.checkIn),
+    chooseStartingProvince: (provinceId) => runAction('chooseStartingProvince', () => gameActions.chooseStartingProvince(provinceId)),
+    unlockProvince: (provinceId) => runAction('unlockProvince', () => gameActions.unlockProvince(provinceId)),
+    transportShip: (input) => runAction('transportShip', () => gameActions.transportShip(input)),
     bankDeposit: (amount) => runAction('bankDeposit', () => gameActions.bankDeposit(amount)),
     bankWithdraw: (amount) => runAction('bankWithdraw', () => gameActions.bankWithdraw(amount)),
     bankBorrow: (amount, collateral, autoRepay = true) => runAction('bankBorrow', () => gameActions.bankBorrow(amount, collateral, autoRepay)),

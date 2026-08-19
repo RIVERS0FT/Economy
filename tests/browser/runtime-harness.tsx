@@ -13,14 +13,16 @@ import { AuctionPage } from '../../src/pages/AuctionPage';
 import { ContractPage } from '../../src/pages/ContractPage';
 import { GemShopPage } from '../../src/pages/GemShopPage';
 import { LeaderboardPage } from '../../src/pages/LeaderboardPage';
+import { MarketPage } from '../../src/pages/MarketPage';
 import { OverviewPage } from '../../src/pages/OverviewPage';
 import { MapPage } from '../../src/pages/MapPage';
-import { ProductionPage } from '../../src/pages/ProductionPage';
+import { ProvincePage } from '../../src/pages/ProvincePage';
+import { BuildingsPage } from '../../src/pages/BuildingsPage';
 import { ResearchPage } from '../../src/pages/ResearchPage';
 import { FacilityRecipeProfitMarketsProvider } from '../../src/components/facilities/FacilityRecipeProfitContext';
 import { SettingsPage } from '../../src/pages/SettingsPage';
 import type { TabId } from '../../src/config/navigation';
-import type { ProductMarketState } from '../../src/types';
+import type { AssetKind, ProductMarketState } from '../../src/types';
 import { formatCurrency, formatNumber, formatRank } from '../../src/utils/formatters';
 import { loadLocalActivity } from '../../src/utils/localActivityStore';
 import '../../src/styles/globals.css';
@@ -28,7 +30,7 @@ import '../../src/styles/charts.css';
 import '../../src/styles/desktop-sidebar.css';
 import '../../src/styles/viewport.css';
 import '../../src/styles/card-system.css';
-import '../../src/styles/liquid-glass-chrome.css';
+import '../../src/styles/frosted-glass-chrome.css';
 import '../../src/styles/mobile-status-navigation.css';
 import '../../src/styles/mobile-status-layout.css';
 import '../../src/styles/icon-system.css';
@@ -46,6 +48,11 @@ import '../../src/styles/auction-card-layers.css';
 import '../../src/styles/facility-artwork.css';
 import '../../src/styles/gem-shop.css';
 import '../../src/styles/overview.css';
+import '../../src/styles/market-funds.css';
+import '../../src/styles/market-account-table.css';
+import '../../src/styles/market-page-polish.css';
+import '../../src/styles/market-desktop-cleanup.css';
+import '../../src/styles/province-page.css';
 import '../../src/styles/design-system.css';
 import '../../src/styles/interaction-states.css';
 import '../../src/styles/primary-surfaces.css';
@@ -104,18 +111,33 @@ const completedTutorial: GameTutorialController = {
   isCompleted: true,
   currentStep: null,
   currentStepIndex: 0,
-  totalSteps: 10,
+  totalSteps: 9,
   statusLabel: '已完成当前版本经营成长线',
   restart: () => {},
   hide: () => {},
   show: () => {},
   openCurrentTarget: () => {},
-  recordWorkClick: () => {},
   recordBuildSubmit: () => {},
   recordFacilityStartClick: () => {},
   recordSellOrderSubmit: () => {},
   recordResearchStart: () => {},
   recordBankDeposit: () => {},
+};
+
+const activeTutorial: GameTutorialController = {
+  ...completedTutorial,
+  isActive: true,
+  isVisible: true,
+  isCompleted: false,
+  currentStep: {
+    id: 'build-facility',
+    title: '建设一座工厂',
+    description: '前往建筑页选择工厂并成功建设。',
+    actionLabel: '前往建设',
+    targetTab: 'buildings',
+  },
+  currentStepIndex: 1,
+  statusLabel: '进行中 · 步骤 1/9',
 };
 
 document.documentElement.dataset.appSurface = ['overview', 'map', 'production', 'research', 'contracts', 'auction', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
@@ -328,9 +350,12 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     setSelectedFacilityTypeId: () => {},
     marketAssetKind: 'commodity',
     marketAssetId: 'machinery',
-    selectMarketAsset: (_kind: string, assetId: string) => {
-      Object.assign(window, { __lastSelectedTab: 'market', __lastSelectedAsset: assetId });
-      setTabState('market');
+    selectMarketAsset: (_kind: string, assetId: string, navigateToMarket = true) => {
+      Object.assign(window, { __lastSelectedAsset: assetId });
+      if (navigateToMarket) {
+        Object.assign(window, { __lastSelectedTab: 'market' });
+        setTabState('market');
+      }
     },
     orderSide: 'buy',
     selectOrderSide: () => {},
@@ -359,13 +384,16 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     work: async () => ({ ok: true, message: '工作完成' }),
     checkIn: async () => ({ ok: true, message: '签到成功，获得 1 宝石' }),
     exchangeGems: async () => ({ ok: true, message: '兑换成功' }),
-    tutorial: completedTutorial,
+    tutorial: scenario === 'tutorial' ? activeTutorial : completedTutorial,
   } as unknown as TutorialAwareGameViewModel;
 }
 
 function MapHarness() {
   const [tab, setTab] = useState<TabId>('map');
   const [provinceId, setProvinceId] = useState('110000');
+  const [marketAssetKind, setMarketAssetKind] = useState<AssetKind>('commodity');
+  const [marketAssetId, setMarketAssetId] = useState('machinery');
+  const [marketViewMode, setMarketViewMode] = useState<'catalog' | 'detail'>('catalog');
   const model = useMemo(() => {
     const next = buildOverviewModel(tab, setTab);
     return {
@@ -373,11 +401,36 @@ function MapHarness() {
       selectedProvinceId: provinceId,
       selectedProvince: provinces.find((province) => province.id === provinceId) || provinces[0],
       setSelectedProvinceId: setProvinceId,
+      marketAssetKind,
+      marketAssetId,
+      marketViewMode,
+      showMarketCatalog: () => setMarketViewMode('catalog'),
+      selectMarketAsset: (kind: AssetKind, assetId: string, navigateToMarket = true) => {
+        setMarketAssetKind(kind);
+        setMarketAssetId(assetId);
+        setMarketViewMode('detail');
+        Object.assign(window, { __lastSelectedAsset: assetId });
+        if (navigateToMarket) {
+          Object.assign(window, { __lastSelectedTab: 'market' });
+          setTab('market');
+        }
+      },
     };
-  }, [provinceId, tab]);
+  }, [marketAssetId, marketAssetKind, marketViewMode, provinceId, tab]);
+  const page = tab === 'province'
+    ? <ProvincePage model={model} />
+    : tab === 'market'
+      ? <MarketPage model={model} />
+      : tab === 'buildings'
+        ? (
+            <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
+              <BuildingsPage model={model} />
+            </FacilityRecipeProfitMarketsProvider>
+          )
+        : <MapPage model={model} />;
   return (
     <GameShell model={model}>
-      <MapPage model={model} />
+      {page}
     </GameShell>
   );
 }
@@ -532,7 +585,7 @@ function LeaderboardHarness() {
 }
 
 function ProductionHarness() {
-  const [tab, setTab] = useState<TabId>('production');
+  const [tab, setTab] = useState<TabId>('buildings');
   const model = useMemo(() => {
     const next = buildOverviewModel(tab, setTab);
     next.game.credits = 10_000;
@@ -784,7 +837,7 @@ function ProductionHarness() {
   return (
     <GameShell model={model} statusItems={statusItems}>
       <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
-        <ProductionPage model={model} />
+        <BuildingsPage model={model} />
       </FacilityRecipeProfitMarketsProvider>
     </GameShell>
   );

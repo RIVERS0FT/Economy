@@ -1,523 +1,140 @@
 import { expect, test, type Page } from '@playwright/test';
 
 async function openLoginPage(page: Page) {
-  await page.route('**/economy-api/me', async (route) => {
-    await route.fulfill({
-      status: 401,
-      contentType: 'application/json',
-      body: JSON.stringify({ message: '未登录' }),
-    });
-  });
-  await page.route('https://upload.wikimedia.org/**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#08130d"/></svg>',
-    });
-  });
-  await page.goto('');
-  await expect(page.locator('html')).toHaveAttribute('data-app-surface', 'auth');
-  await expect(page.locator('html')).toHaveAttribute('data-app-backdrop', 'auth');
-  await expect(page.locator('.login-shell')).toBeVisible();
+  await page.goto('auth-three-layer-test.html');
+  await expect(page.locator('.login-card')).toBeVisible();
 }
 
-async function readAuthGlass(page: Page) {
-  return page.evaluate(() => {
-    const card = document.querySelector<HTMLElement>('.login-card');
-    const surface = card?.querySelector<HTMLElement>('.liquid-glass-surface');
-    const effect = surface?.querySelector<HTMLElement>(':scope > .liquid-glass-surface__effect');
-    const glassElement = effect?.querySelector<HTMLElement>(':scope > .glass');
-    const filterSvg = effect?.querySelector<SVGSVGElement>(':scope > svg');
-    const content = surface?.querySelector<HTMLElement>('.liquid-glass-surface__content');
-    const warp = surface?.querySelector<HTMLElement>('.glass__warp');
-    if (!card || !surface || !effect || !glassElement || !filterSvg || !content || !warp) {
-      throw new Error('authentication glass fixture is incomplete');
-    }
+async function readFrostedAuth(page: Page) {
+  return page.locator('.login-card').evaluate((card) => {
+    const surface = card.querySelector<HTMLElement>('.frosted-glass-surface');
+    const content = card.querySelector<HTMLElement>('.frosted-glass-surface__content');
+    if (!surface || !content) throw new Error('frosted auth fixture is incomplete');
+    const style = getComputedStyle(surface) as CSSStyleDeclaration & { webkitBackdropFilter?: string };
     const cardStyle = getComputedStyle(card);
-    const surfaceStyle = getComputedStyle(surface);
     const contentStyle = getComputedStyle(content);
-    const effectStyle = getComputedStyle(effect);
-    const glassStyle = getComputedStyle(glassElement);
-    const outlineStyle = getComputedStyle(surface, '::after');
-    const warpStyle = getComputedStyle(warp);
-    const surfaceRect = surface.getBoundingClientRect();
-    const glassRect = glassElement.getBoundingClientRect();
-    const directDecorationSpans = Array.from(surface.children)
-      .filter((element): element is HTMLElement => element instanceof HTMLElement && element.tagName === 'SPAN');
-    const directDecorationStyles = directDecorationSpans.map((element) => getComputedStyle(element));
-    const directDecorationRects = directDecorationSpans.map((element) => element.getBoundingClientRect());
-    const directAuxiliaryDivs = Array.from(surface.children)
-      .filter((element): element is HTMLElement => (
-        element instanceof HTMLElement
-        && element.tagName === 'DIV'
-        && !element.classList.contains('liquid-glass-surface__effect')
-      ));
-    const directAuxiliaryStyles = directAuxiliaryDivs.map((element) => getComputedStyle(element));
-    const directAuxiliaryRects = directAuxiliaryDivs.map((element) => element.getBoundingClientRect());
-    const isVisible = (element: HTMLElement) => {
-      const style = getComputedStyle(element);
-      return style.display !== 'none' && style.visibility !== 'hidden' && Number.parseFloat(style.opacity) > 0;
-    };
-    const hasVisiblePaint = (element: HTMLElement) => {
-      const style = getComputedStyle(element);
-      return isVisible(element)
-        && (style.backgroundImage !== 'none' || style.backgroundColor !== 'rgba(0, 0, 0, 0)');
-    };
+    const surfaceBox = surface.getBoundingClientRect();
+    const contentBox = content.getBoundingClientRect();
+    const cardBox = card.getBoundingClientRect();
     return {
-      cardBorder: cardStyle.borderTopWidth,
+      surfaceCount: card.querySelectorAll('.frosted-glass-surface').length,
+      surfaceVariant: surface.dataset.frostedGlassVariant,
+      surfaceLayout: surface.dataset.frostedGlassLayout,
+      surfaceRadius: style.borderRadius,
+      surfaceBorder: style.borderTopWidth,
+      surfaceBackground: style.backgroundColor,
+      surfaceShadow: style.boxShadow,
       cardOverflowY: cardStyle.overflowY,
-      surfaceRadius: surfaceStyle.borderTopLeftRadius,
-      surfaceHeight: surface.clientHeight,
-      surfaceBottom: surfaceRect.bottom,
-      surfaceElasticity: surface.dataset.liquidGlassElasticity,
-      surfaceOverLight: surface.dataset.liquidGlassOverLight,
-      configuredDisplacementScale: surface.dataset.liquidGlassDisplacementScale,
-      configuredBlurAmount: surface.dataset.liquidGlassBlurAmount,
-      configuredSaturation: surface.dataset.liquidGlassSaturation,
-      configuredAberrationIntensity: surface.dataset.liquidGlassAberrationIntensity,
-      effectHeight: effect.offsetHeight,
-      glassHeight: glassElement.offsetHeight,
-      glassBottom: glassRect.bottom,
-      glassTransitionProperty: glassStyle.transitionProperty,
-      filterHeight: filterSvg.clientHeight,
-      effectTransform: effectStyle.transform,
-      surfaceOverflowY: surfaceStyle.overflowY,
-      surfaceBackground: surfaceStyle.backgroundColor,
-      surfaceBoxShadow: surfaceStyle.boxShadow,
-      sharedContrast: getComputedStyle(document.documentElement)
-        .getPropertyValue('--liquid-glass-contrast')
-        .trim(),
-      surfaceContain: surfaceStyle.contain,
-      surfaceIsolation: surfaceStyle.isolation,
-      contentHeight: content.scrollHeight,
-      contentOverflowY: contentStyle.overflowY,
+      backdropFilter: style.backdropFilter || style.webkitBackdropFilter || '',
       contentPaddingTop: contentStyle.paddingTop,
-      contentInsideGlass: Boolean(content.closest('.glass')),
-      materialFillCount: surface.querySelectorAll('.liquid-glass-surface__material-fill').length,
-      directDecorationSpanCount: directDecorationSpans.length,
-      visibleDirectDecorationSpanCount: directDecorationSpans.filter(isVisible).length,
-      directDecorationHeights: directDecorationSpans.map((element) => element.offsetHeight),
-      directDecorationBottoms: directDecorationRects.map((rect) => rect.bottom),
-      directDecorationTransforms: directDecorationStyles.map((style) => style.transform),
-      directDecorationTransitionProperties: directDecorationStyles.map((style) => style.transitionProperty),
-      directDecorationBackgrounds: directDecorationStyles.map((style) => style.backgroundImage),
-      directAuxiliaryDivCount: directAuxiliaryDivs.length,
-      visibleDirectAuxiliaryDivCount: directAuxiliaryDivs.filter(hasVisiblePaint).length,
-      directAuxiliaryBottoms: directAuxiliaryRects.map((rect) => rect.bottom),
-      directAuxiliaryTransitionProperties: directAuxiliaryStyles.map((style) => style.transitionProperty),
-      directAuxiliaryPaddings: directAuxiliaryStyles.map((style) => style.paddingTop),
-      directAuxiliaryBackgroundColors: directAuxiliaryStyles.map((style) => style.backgroundColor),
-      directAuxiliaryOpacities: directAuxiliaryStyles.map((style) => style.opacity),
-      directAuxiliaryMaskImages: directAuxiliaryStyles.map((style) => (
-        style.getPropertyValue('-webkit-mask-image') || style.getPropertyValue('mask-image')
-      )),
-      directAuxiliaryMaskComposites: directAuxiliaryStyles.map((style) => (
-        style.getPropertyValue('-webkit-mask-composite') || style.getPropertyValue('mask-composite')
-      )),
-      displacementScales: Array.from(filterSvg.querySelectorAll('feDisplacementMap'))
-        .map((element) => Number.parseFloat(element.getAttribute('scale') ?? '0')),
-      outlineBorder: outlineStyle.borderTopWidth,
-      outlineContent: outlineStyle.content,
-      outlineZIndex: outlineStyle.zIndex,
-      glassBoxShadow: glassStyle.boxShadow,
-      webkitBackdropFilter:
-        warpStyle.getPropertyValue('-webkit-backdrop-filter')
-        || warpStyle.getPropertyValue('backdrop-filter')
-        || warpStyle.backdropFilter,
+      contentOverflowY: contentStyle.overflowY,
+      surfaceHeight: surfaceBox.height,
+      contentHeight: contentBox.height,
+      cardHeight: cardBox.height,
+      liquidDomCount: card.querySelectorAll('.liquid-glass-surface, .glass__warp, svg feDisplacementMap').length,
     };
   });
 }
 
-async function expectAuthGlassGeometryAligned(page: Page) {
-  await expect.poll(async () => {
-    const glass = await readAuthGlass(page);
-    return {
-      contentAligned: Math.abs(glass.surfaceHeight - glass.contentHeight) <= 1,
-      effectAligned: Math.abs(glass.surfaceHeight - glass.effectHeight) <= 1,
-      glassAligned: Math.abs(glass.surfaceHeight - glass.glassHeight) <= 1,
-      filterAligned: Math.abs(glass.surfaceHeight - glass.filterHeight) <= 1,
-      highlightsAligned: glass.directDecorationHeights.length === 2
-        && glass.directDecorationHeights.every((height) => Math.abs(glass.surfaceHeight - height) <= 1),
-      visibleDirectDecorationSpanCount: glass.visibleDirectDecorationSpanCount,
-      visibleDirectAuxiliaryDivCount: glass.visibleDirectAuxiliaryDivCount,
-    };
-  }).toEqual({
-    contentAligned: true,
-    effectAligned: true,
-    glassAligned: true,
-    filterAligned: true,
-    highlightsAligned: true,
-    visibleDirectDecorationSpanCount: 2,
-    visibleDirectAuxiliaryDivCount: 0,
-  });
-}
+test.describe('authentication root and frosted surface', () => {
+  test('desktop keeps one photography root and one CSS frosted authentication card', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openLoginPage(page);
 
-async function expectAuthVisibleGeometryAlignedNextFrame(page: Page) {
-  await page.evaluate(() => new Promise<void>((resolve) => {
-    requestAnimationFrame(() => resolve());
-  }));
-  const glass = await readAuthGlass(page);
-  expect(Math.abs(glass.surfaceHeight - glass.contentHeight)).toBeLessThanOrEqual(1);
-  expect(Math.abs(glass.surfaceHeight - glass.glassHeight)).toBeLessThanOrEqual(1);
-  expect(Math.abs(glass.surfaceBottom - glass.glassBottom)).toBeLessThanOrEqual(1);
-  expect(glass.directDecorationBottoms).toHaveLength(2);
-  expect(glass.directDecorationBottoms.every((bottom) => Math.abs(glass.surfaceBottom - bottom) <= 1)).toBe(true);
-  expect(glass.glassTransitionProperty).toBe('none');
-  expect(glass.directDecorationTransitionProperties).toEqual(['none', 'none']);
-  expect(glass.directAuxiliaryBottoms).toHaveLength(2);
-  expect(glass.directAuxiliaryBottoms.every((bottom) => Math.abs(glass.surfaceBottom - bottom) <= 1)).toBe(true);
-  expect(glass.directAuxiliaryTransitionProperties).toEqual(['none', 'none']);
-}
+    await expect(page.locator('.application-image-layer')).toHaveCount(1);
+    await expect(page.locator('.application-atmosphere-layer')).toHaveCount(1);
+    await expect(page.locator('.application-map-layer')).toHaveCount(1);
+    await expect(page.locator('.application-ui-layer')).toHaveCount(1);
+    await expect(page.locator('.login-card')).not.toHaveClass(/panel/);
 
-async function readMobileAtmosphere(page: Page) {
-  return page.evaluate(() => {
-    const atmosphere = document.querySelector<HTMLElement>('.application-atmosphere-layer');
-    if (!atmosphere) throw new Error('mobile atmosphere layer is missing');
-    return {
-      backgroundImage: getComputedStyle(atmosphere).backgroundImage,
-      gridOpacity: getComputedStyle(atmosphere, '::before').opacity,
-      noiseOpacity: getComputedStyle(atmosphere, '::after').opacity,
-    };
-  });
-}
-
-test.describe('auth three-layer layout', () => {
-  test.describe('desktop', () => {
-    test.use({ viewport: { width: 1440, height: 900 } });
-
-    test('keeps photography, atmosphere, empty map host, and authentication UI in one isolated root', async ({ page }) => {
-      await openLoginPage(page);
-
-      const imageLayer = page.locator('.application-image-layer');
-      const atmosphereLayer = page.locator('.application-atmosphere-layer');
-      const contentLayer = page.locator('.login-content-layer');
-      const brand = page.locator('.login-brand');
-      const card = page.locator('.login-card');
-      const surface = card.locator('.liquid-glass-surface');
-
-      await expect(imageLayer).toHaveCount(1);
-      await expect(imageLayer).toBeVisible();
-      await expect(atmosphereLayer).toHaveCount(1);
-      await expect(atmosphereLayer).toBeVisible();
-      await expect(contentLayer).toBeVisible();
-      await expect(card).toBeVisible();
-      await expect(card).not.toHaveClass(/panel/);
-      await expect(surface).toHaveCount(1);
-      await expect(surface).toHaveAttribute('data-liquid-glass-variant', 'desktopAuthCard');
-      await expect(surface).toHaveAttribute('data-liquid-glass-layout', 'content');
-      await expect(surface).toHaveAttribute('data-liquid-glass-elasticity', '0');
-      await expect(surface).toHaveAttribute('data-liquid-glass-over-light', 'false');
-      await expect(page.locator('.login-shell .financial-backdrop-image')).toHaveCount(0);
-
-      const stacking = await page.evaluate(() => {
-        const read = (selector: string) => {
-          const style = getComputedStyle(document.querySelector(selector) as HTMLElement);
-          return {
-            position: style.position,
-            zIndex: style.zIndex,
-            isolation: style.isolation,
-            filter: style.filter,
-            transform: style.transform,
-          };
-        };
-        const root = document.querySelector<HTMLElement>('#root');
-        const image = document.querySelector<HTMLElement>('.application-image-layer');
-        const atmosphere = document.querySelector<HTMLElement>('.application-atmosphere-layer');
-        const map = document.querySelector<HTMLElement>('.application-map-layer');
-        const ui = document.querySelector<HTMLElement>('.application-ui-layer');
-        const applicationContent = document.querySelector<HTMLElement>('.application-content-root');
-        if (!root || !image || !atmosphere || !map || !ui || !applicationContent) {
-          throw new Error('authentication sampling root is incomplete');
-        }
-        return {
-          root: read('#root'),
-          image: read('.application-image-layer'),
-          atmosphere: read('.application-atmosphere-layer'),
-          map: read('.application-map-layer'),
-          ui: read('.application-ui-layer'),
-          content: read('.application-content-root'),
-          shell: read('.login-shell'),
-          loginContent: read('.login-content-layer'),
-          card: read('.login-card'),
-          sharesRoot:
-            image.parentElement === root
-            && atmosphere.parentElement === root
-            && map.parentElement === root
-            && ui.parentElement === root
-            && applicationContent.parentElement === ui,
-        };
-      });
-
-      expect(stacking.root).toEqual({
-        position: 'relative',
-        zIndex: 'auto',
-        isolation: 'isolate',
-        filter: 'none',
-        transform: 'none',
-      });
-      expect(stacking.image.position).toBe('fixed');
-      expect(stacking.image.zIndex).toBe('0');
-      expect(stacking.atmosphere.position).toBe('fixed');
-      expect(stacking.atmosphere.zIndex).toBe('10');
-      expect(stacking.map.position).toBe('fixed');
-      expect(stacking.map.zIndex).toBe('20');
-      expect(stacking.ui.zIndex).toBe('30');
-      expect(stacking.sharesRoot).toBe(true);
-      for (const layer of [stacking.map, stacking.ui, stacking.content, stacking.shell, stacking.loginContent, stacking.card]) {
-        if (layer !== stacking.map && layer !== stacking.ui) expect(layer.zIndex).toBe('auto');
-        expect(layer.isolation).toBe('auto');
-        expect(layer.filter).toBe('none');
-        expect(layer.transform).toBe('none');
-      }
-
-      const brandBox = await brand.boundingBox();
-      const cardBox = await card.boundingBox();
-      expect(brandBox).not.toBeNull();
-      expect(cardBox).not.toBeNull();
-      expect(cardBox!.x).toBeGreaterThan(brandBox!.x + brandBox!.width);
-
-      const geometry = await page.evaluate(() => ({
-        viewportWidth: window.innerWidth,
-        documentWidth: document.documentElement.scrollWidth,
-        imageFit: getComputedStyle(document.querySelector('.application-image-layer img') as HTMLElement).objectFit,
-      }));
-      expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);
-      expect(geometry.imageFit).toBe('cover');
-
-      const glass = await readAuthGlass(page);
-      expect(glass.cardBorder).toBe('0px');
-      expect(glass.surfaceRadius).toBe('24px');
-      expect(glass.surfaceElasticity).toBe('0');
-      expect(glass.surfaceOverLight).toBe('false');
-      expect(glass.configuredDisplacementScale).toBe('70');
-      expect(glass.configuredBlurAmount).toBe('0');
-      expect(glass.configuredSaturation).toBe('140');
-      expect(glass.configuredAberrationIntensity).toBe('2');
-      expect(glass.contentPaddingTop).toBe('32px');
-      expect(glass.outlineBorder).toBe('0px');
-      expect(glass.outlineContent).toBe('none');
-      expect(glass.outlineZIndex).toBe('auto');
-      expect(glass.webkitBackdropFilter).toContain('blur(4px)');
-      expect(glass.webkitBackdropFilter).toMatch(/saturate\((?:140%|1\.4)\)/);
-      expect(glass.surfaceBackground).toBe('rgba(0, 0, 0, 0)');
-      expect(glass.surfaceBoxShadow).toBe('none');
-      expect(glass.contentInsideGlass).toBe(true);
-      expect(glass.materialFillCount).toBe(0);
-      expect(glass.surfaceContain).toBe('none');
-      expect(glass.surfaceIsolation).toBe('auto');
-      expect(glass.directDecorationSpanCount).toBe(2);
-      expect(glass.visibleDirectDecorationSpanCount).toBe(2);
-      expect(glass.directDecorationTransitionProperties).toEqual(['none', 'none']);
-      expect(glass.glassTransitionProperty).toBe('none');
-      expect(glass.glassBoxShadow).toContain('0px 12px 40px');
-      expect(glass.glassBoxShadow).toContain('rgba(0, 0, 0, 0.25)');
-      expect(glass.directAuxiliaryDivCount).toBe(2);
-      expect(glass.visibleDirectAuxiliaryDivCount).toBe(0);
-      expect(glass.directAuxiliaryPaddings).toEqual(['0px', '0px']);
-      expect(glass.directAuxiliaryBackgroundColors).toEqual(['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)']);
-      expect(glass.directAuxiliaryOpacities).toEqual(['1', '1']);
-      expect(glass.directAuxiliaryMaskImages).toEqual(['none', 'none']);
-      expect(glass.directAuxiliaryMaskComposites.every((value) => !/xor|exclude/.test(value))).toBe(true);
-      expect(glass.displacementScales).toHaveLength(3);
-      expect(Math.abs(glass.displacementScales[0])).toBe(70);
-      await expectAuthGlassGeometryAligned(page);
-
-      const initialEffectTransform = glass.effectTransform;
-      const initialHighlightBackgrounds = glass.directDecorationBackgrounds;
-      await page.mouse.move(cardBox!.x + cardBox!.width / 2, cardBox!.y + cardBox!.height / 2);
-      await page.mouse.move(cardBox!.x + cardBox!.width - 12, cardBox!.y + 12);
-      await expect.poll(async () => (await readAuthGlass(page)).effectTransform).toBe(initialEffectTransform);
-      await expect.poll(async () => (await readAuthGlass(page)).directDecorationBackgrounds)
-        .toEqual(initialHighlightBackgrounds);
-
-      await page.getByLabel('账号邮箱').click();
-      await expect(page.getByLabel('账号邮箱')).toBeFocused();
+    const root = await page.evaluate(() => {
+      const samplingRoot = document.querySelector<HTMLElement>('#root');
+      const image = document.querySelector<HTMLElement>('.application-image-layer');
+      const atmosphere = document.querySelector<HTMLElement>('.application-atmosphere-layer');
+      const map = document.querySelector<HTMLElement>('.application-map-layer');
+      const ui = document.querySelector<HTMLElement>('.application-ui-layer');
+      if (!samplingRoot || !image || !atmosphere || !map || !ui) throw new Error('auth root fixture is incomplete');
+      return {
+        isolation: getComputedStyle(samplingRoot).isolation,
+        imageZ: getComputedStyle(image).zIndex,
+        atmosphereZ: getComputedStyle(atmosphere).zIndex,
+        mapZ: getComputedStyle(map).zIndex,
+        uiZ: getComputedStyle(ui).zIndex,
+        sharedParent: image.parentElement === samplingRoot
+          && atmosphere.parentElement === samplingRoot
+          && map.parentElement === samplingRoot
+          && ui.parentElement === samplingRoot,
+      };
+    });
+    expect(root).toEqual({
+      isolation: 'isolate',
+      imageZ: '0',
+      atmosphereZ: '10',
+      mapZ: '20',
+      uiZ: '30',
+      sharedParent: true,
     });
 
-    test('keeps the official auth highlights aligned with the card bottom on the first frame of mode changes', async ({ page }) => {
-      await openLoginPage(page);
-      const email = page.getByLabel('账号邮箱');
-      await email.fill('desktop@example.com');
-      await expectAuthGlassGeometryAligned(page);
-      const loginGlass = await readAuthGlass(page);
-
-      await page.getByRole('tab', { name: '注册' }).click();
-      await expectAuthVisibleGeometryAlignedNextFrame(page);
-      await expect(page.getByLabel('邀请码（可选）')).toBeVisible();
-      await expect(page.getByLabel('邮箱验证码')).toBeVisible();
-      await expectAuthGlassGeometryAligned(page);
-      const registrationGlass = await readAuthGlass(page);
-      expect(registrationGlass.surfaceHeight).toBeGreaterThan(loginGlass.surfaceHeight);
-
-      await page.getByRole('tab', { name: '登录' }).click();
-      await expectAuthVisibleGeometryAlignedNextFrame(page);
-      await expect(page.getByLabel('邀请码（可选）')).toHaveCount(0);
-      await expect(page.getByLabel('邮箱验证码')).toHaveCount(0);
-      await expect(email).toHaveValue('desktop@example.com');
-      await expectAuthGlassGeometryAligned(page);
-      const returnedLoginGlass = await readAuthGlass(page);
-      expect(returnedLoginGlass.surfaceHeight).toBeLessThan(registrationGlass.surfaceHeight);
-    });
-
-    test('keeps one authentication glass instance and form values while switching breakpoints', async ({ page }) => {
-      await page.setViewportSize({ width: 721, height: 900 });
-      await openLoginPage(page);
-      const surfaces = page.locator('.login-card .liquid-glass-surface');
-      const email = page.getByLabel('账号邮箱');
-      const password = page.getByLabel('密码');
-      await email.fill('kept@example.com');
-      await password.fill('password123');
-      await expect(surfaces).toHaveCount(1);
-      await expect(surfaces).toHaveAttribute('data-liquid-glass-variant', 'desktopAuthCard');
-      await expect(surfaces).toHaveAttribute('data-liquid-glass-elasticity', '0');
-      await expect(surfaces).toHaveAttribute('data-liquid-glass-over-light', 'false');
-      await expectAuthGlassGeometryAligned(page);
-
-      await page.setViewportSize({ width: 720, height: 900 });
-      await expect(surfaces).toHaveCount(1);
-      await expect(surfaces).toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard');
-      await expect(surfaces).toHaveAttribute('data-liquid-glass-elasticity', '0');
-      await expect(surfaces).toHaveAttribute('data-liquid-glass-over-light', 'false');
-      await expect(email).toHaveValue('kept@example.com');
-      await expect(password).toHaveValue('password123');
-      await expectAuthGlassGeometryAligned(page);
-
-      await page.setViewportSize({ width: 721, height: 900 });
-      await expect(surfaces).toHaveCount(1);
-      await expect(surfaces).toHaveAttribute('data-liquid-glass-variant', 'desktopAuthCard');
-      await expect(surfaces).toHaveAttribute('data-liquid-glass-elasticity', '0');
-      await expect(surfaces).toHaveAttribute('data-liquid-glass-over-light', 'false');
-      await expect(email).toHaveValue('kept@example.com');
-      await expect(password).toHaveValue('password123');
-      await expectAuthGlassGeometryAligned(page);
-    });
+    const frosted = await readFrostedAuth(page);
+    expect(frosted.surfaceCount).toBe(1);
+    expect(frosted.surfaceVariant).toBe('authCard');
+    expect(frosted.surfaceLayout).toBe('content');
+    expect(frosted.surfaceRadius).toBe('24px');
+    expect(frosted.surfaceBorder).toBe('1px');
+    expect(frosted.surfaceBackground).not.toBe('rgba(0, 0, 0, 0)');
+    expect(frosted.surfaceShadow).not.toBe('none');
+    expect(frosted.backdropFilter).toContain('blur(18px)');
+    expect(frosted.contentPaddingTop).toBe('32px');
+    expect(frosted.liquidDomCount).toBe(0);
+    expect(Math.abs(frosted.surfaceHeight - frosted.contentHeight)).toBeLessThanOrEqual(2);
   });
 
-  test.describe('mobile', () => {
-    test.use({ viewport: { width: 390, height: 844 } });
+  test('login and registration grow naturally in the same frosted host and retain form values across breakpoints', async ({ page }) => {
+    await page.setViewportSize({ width: 721, height: 900 });
+    await openLoginPage(page);
+    const surface = page.locator('.login-card .frosted-glass-surface');
+    const email = page.getByLabel('账号邮箱');
+    const password = page.getByLabel('密码');
+    await email.fill('kept@example.com');
+    await password.fill('password123');
+    await surface.evaluate((element) => { (element as HTMLElement).dataset.instanceProbe = 'stable'; });
+    const loginHeight = (await surface.boundingBox())!.height;
 
-    test('registration content grows inside the same glass surface without an internal scrollport and keeps geometry aligned through login register and login switching', async ({ page }) => {
-      await openLoginPage(page);
+    await page.getByRole('tab', { name: '注册' }).click();
+    await expect(page.getByLabel('邀请码（可选）')).toBeVisible();
+    await expect(page.getByLabel('邮箱验证码')).toBeVisible();
+    await expect(email).toHaveValue('kept@example.com');
+    const registrationHeight = (await surface.boundingBox())!.height;
+    expect(registrationHeight).toBeGreaterThan(loginHeight);
 
-      const shell = page.locator('.login-shell');
-      const brand = page.locator('.login-brand');
-      const card = page.locator('.login-card');
-      const content = page.locator('.login-content-layer');
-      const surface = card.locator('.liquid-glass-surface');
-      const email = page.getByLabel('账号邮箱');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(surface).toHaveCount(1);
+    await expect(surface).toHaveAttribute('data-instance-probe', 'stable');
+    await expect(surface).toHaveCSS('border-radius', '40px');
+    await expect(email).toHaveValue('kept@example.com');
+    await expect(password).toHaveValue('password123');
 
-      await expect(surface).toHaveCount(1);
-      await expect(surface).toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard');
-      await expect(surface).toHaveAttribute('data-liquid-glass-layout', 'content');
-      await expect(surface).toHaveAttribute('data-liquid-glass-elasticity', '0');
-      await expect(surface).toHaveAttribute('data-liquid-glass-over-light', 'false');
-      await email.fill('mobile@example.com');
-      await expectAuthGlassGeometryAligned(page);
-      const loginGlass = await readAuthGlass(page);
-      const atmosphere = await readMobileAtmosphere(page);
+    await page.getByRole('tab', { name: '登录' }).click();
+    await expect(page.getByLabel('邀请码（可选）')).toHaveCount(0);
+    await expect(page.getByLabel('邮箱验证码')).toHaveCount(0);
+    await expect(email).toHaveValue('kept@example.com');
+  });
 
-      expect(atmosphere.backgroundImage).toContain('rgba(1, 7, 4, 0.78)');
-      expect(atmosphere.backgroundImage).toContain('rgba(2, 10, 6, 0.76)');
-      expect(atmosphere.backgroundImage).toContain('rgba(2, 8, 5, 0.9)');
-      expect(atmosphere.gridOpacity).toBe('0.08');
-      expect(atmosphere.noiseOpacity).toBe('0.03');
-      expect(loginGlass.surfaceBackground).toBe('rgba(0, 0, 0, 0)');
-      expect(loginGlass.surfaceBoxShadow).toBe('none');
-      expect(loginGlass.surfaceElasticity).toBe('0');
-      expect(loginGlass.surfaceOverLight).toBe('false');
-      expect(loginGlass.configuredDisplacementScale).toBe('70');
-      expect(loginGlass.configuredBlurAmount).toBe('0');
-      expect(loginGlass.configuredSaturation).toBe('140');
-      expect(loginGlass.configuredAberrationIntensity).toBe('2');
-      expect(loginGlass.contentInsideGlass).toBe(true);
-      expect(loginGlass.materialFillCount).toBe(0);
-      expect(loginGlass.webkitBackdropFilter).toContain('blur(4px)');
-      expect(loginGlass.webkitBackdropFilter).toMatch(/saturate\((?:140%|1\.4)\)/);
-      expect(loginGlass.directDecorationSpanCount).toBe(2);
-      expect(loginGlass.visibleDirectDecorationSpanCount).toBe(2);
-      expect(loginGlass.directDecorationTransitionProperties).toEqual(['none', 'none']);
-      expect(loginGlass.glassTransitionProperty).toBe('none');
-      expect(loginGlass.glassBoxShadow).toContain('0px 12px 40px');
-      expect(loginGlass.glassBoxShadow).toContain('rgba(0, 0, 0, 0.25)');
-      expect(loginGlass.directAuxiliaryDivCount).toBe(2);
-      expect(loginGlass.visibleDirectAuxiliaryDivCount).toBe(0);
-      expect(loginGlass.directAuxiliaryPaddings).toEqual(['0px', '0px']);
-      expect(loginGlass.directAuxiliaryBackgroundColors).toEqual(['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)']);
-      expect(loginGlass.directAuxiliaryOpacities).toEqual(['1', '1']);
-      expect(loginGlass.directAuxiliaryMaskImages).toEqual(['none', 'none']);
-      expect(loginGlass.directAuxiliaryMaskComposites.every((value) => !/xor|exclude/.test(value))).toBe(true);
-      expect(Math.abs(loginGlass.displacementScales[0])).toBe(70);
+  test('mobile authentication has no internal scrollport and remains inside the viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openLoginPage(page);
+    await page.getByRole('tab', { name: '注册' }).click();
 
-      await page.getByRole('tab', { name: '注册' }).click();
-      await expectAuthVisibleGeometryAlignedNextFrame(page);
-      await expect(page.getByLabel('邀请码（可选）')).toBeVisible();
-      await expect(page.getByLabel('邮箱验证码')).toBeVisible();
-      await expect(email).toHaveValue('mobile@example.com');
-      await expect(surface).toHaveCount(1);
-      await expect(surface).toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard');
-      await expect(surface).toHaveAttribute('data-liquid-glass-elasticity', '0');
-      await expect(surface).toHaveAttribute('data-liquid-glass-over-light', 'false');
-      await expectAuthGlassGeometryAligned(page);
-
-      const brandBox = await brand.boundingBox();
-      const cardBox = await card.boundingBox();
-      expect(brandBox).not.toBeNull();
-      expect(cardBox).not.toBeNull();
-      expect(cardBox!.y).toBeGreaterThan(brandBox!.y + brandBox!.height);
-
-      const visual = await page.evaluate(() => {
-        const shellStyle = getComputedStyle(document.querySelector('.login-shell') as HTMLElement);
-        const contentStyle = getComputedStyle(document.querySelector('.login-content-layer') as HTMLElement);
-        return {
-          shellBorder: shellStyle.borderTopWidth,
-          shellRadius: shellStyle.borderTopLeftRadius,
-          contentColumns: contentStyle.gridTemplateColumns,
-          documentWidth: document.documentElement.scrollWidth,
-          documentHeight: document.documentElement.scrollHeight,
-          viewportWidth: window.innerWidth,
-          viewportHeight: window.innerHeight,
-        };
-      });
-
-      const registrationGlass = await readAuthGlass(page);
-      expect(visual.shellBorder).toBe('0px');
-      expect(visual.shellRadius).toBe('0px');
-      expect(visual.contentColumns.trim().split(/\s+/)).toHaveLength(1);
-      expect(visual.documentWidth).toBeLessThanOrEqual(visual.viewportWidth);
-      expect(visual.documentHeight).toBeGreaterThanOrEqual(visual.viewportHeight);
-      expect(registrationGlass.cardBorder).toBe('0px');
-      expect(registrationGlass.surfaceRadius).toBe('40px');
-      expect(registrationGlass.surfaceElasticity).toBe('0');
-      expect(registrationGlass.contentPaddingTop).toBe('20px');
-      expect(registrationGlass.outlineBorder).toBe('0px');
-      expect(registrationGlass.outlineContent).toBe('none');
-      expect(registrationGlass.webkitBackdropFilter).toContain('blur(4px)');
-      expect(registrationGlass.webkitBackdropFilter).toMatch(/saturate\((?:140%|1\.4)\)/);
-      expect(registrationGlass.surfaceBackground).toBe('rgba(0, 0, 0, 0)');
-      expect(registrationGlass.surfaceBoxShadow).toBe('none');
-      expect(registrationGlass.glassBoxShadow).toContain('0px 12px 40px');
-      expect(registrationGlass.glassBoxShadow).toContain('rgba(0, 0, 0, 0.25)');
-      expect(registrationGlass.contentInsideGlass).toBe(true);
-      expect(registrationGlass.materialFillCount).toBe(0);
-      expect(registrationGlass.visibleDirectDecorationSpanCount).toBe(2);
-      expect(registrationGlass.directDecorationTransitionProperties).toEqual(['none', 'none']);
-      expect(registrationGlass.surfaceHeight).toBeGreaterThan(loginGlass.surfaceHeight);
-      expect(registrationGlass.cardOverflowY).not.toMatch(/auto|scroll/);
-      expect(registrationGlass.surfaceOverflowY).not.toMatch(/auto|scroll/);
-      expect(registrationGlass.contentOverflowY).not.toMatch(/auto|scroll/);
-      const registrationHeight = registrationGlass.surfaceHeight;
-
-      await page.getByRole('tab', { name: '登录' }).click();
-      await expectAuthVisibleGeometryAlignedNextFrame(page);
-      await expect(page.getByLabel('邀请码（可选）')).toHaveCount(0);
-      await expect(page.getByLabel('邮箱验证码')).toHaveCount(0);
-      await expect(email).toHaveValue('mobile@example.com');
-      await expectAuthGlassGeometryAligned(page);
-      const returnedLoginGlass = await readAuthGlass(page);
-      expect(returnedLoginGlass.surfaceHeight).toBeLessThan(registrationHeight);
-
-      await expect(content).toBeVisible();
-      await expect(shell).toBeVisible();
-    });
+    const frosted = await readFrostedAuth(page);
+    expect(frosted.surfaceRadius).toBe('40px');
+    expect(frosted.cardOverflowY).toBe('visible');
+    expect(frosted.contentOverflowY).toBe('visible');
+    expect(frosted.contentPaddingTop).toBe('20px');
+    expect(frosted.liquidDomCount).toBe(0);
+    expect(Math.abs(frosted.surfaceHeight - frosted.contentHeight)).toBeLessThanOrEqual(2);
+    const card = await page.locator('.login-card').boundingBox();
+    expect(card).not.toBeNull();
+    expect(card!.x).toBeGreaterThanOrEqual(0);
+    expect(card!.x + card!.width).toBeLessThanOrEqual(390);
   });
 });

@@ -17,7 +17,7 @@ const forbidText = (source, text, label) => {
 
 const viewModel = read('src/app/gameViewModel.ts');
 const gameApp = read('src/app/GameApp.tsx');
-const productionPage = read('src/pages/ProductionPage.tsx');
+const productionPage = read('src/pages/BuildingsPage.tsx');
 const auctionPage = read('src/pages/AuctionPage.tsx');
 const researchPage = read('src/pages/ResearchPage.tsx');
 const richSelect = read('src/components/ui/RichSelectInput.tsx');

@@ -10,8 +10,10 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 
 [
   'src/pages/OverviewPage.tsx',
+  'src/pages/ProvincePage.tsx',
   'src/pages/MarketPage.tsx',
-  'src/pages/ProductionPage.tsx',
+  'src/pages/BuildingsPage.tsx',
+  'src/pages/ResearchPage.tsx',
   'tests/browser/production-status-summary.spec.ts',
   'src/components/assets/AssetOverviewPanel.tsx',
   'src/pages/BankPage.tsx',
@@ -20,6 +22,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/LeaderboardPage.tsx',
   'src/pages/GemShopPage.tsx',
   'src/pages/SettingsPage.tsx',
+  'src/pages/PageRouter.tsx',
   'all-pages-preview.html',
   'src/app/LocalGamePreviewApp.tsx',
   'src/dev/localGamePreviewFetch.ts',
@@ -56,6 +59,8 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/config/brand.ts',
   'index.html',
   'src/styles/auth.css',
+  'src/styles/globals.css',
+  'src/styles/design-system.css',
   'src/styles/registration-auth.css',
   'src/styles/virtual-list.css',
   'src/styles/contracts.css',
@@ -96,16 +101,47 @@ for (const text of [
 for (const text of [
   "toHaveAttribute('data-local-game-preview', 'true')",
   "page.locator('.game-shell')",
-  "toHaveCount(10)",
+  "sidebar-nav-button')).toHaveCount(9)",
+  "sidebar-footer').getByRole('button', { name: '设置' })).toHaveCount(1)",
   "expect(apiRequests).toEqual([])",
-  "toHaveCount(4)",
+  "page.locator('.leaderboard-board-card:visible')).toHaveCount(4)",
+  "page.locator('.leaderboard-board-card:visible')).toHaveCount(1)",
+  "toHaveAttribute('aria-label', '选择排行榜')",
+  'expect(new Set(layout.padding).size).toBe(1)',
 ]) requireText('tests/browser/all-pages-preview.spec.ts', text);
 for (const text of [
-  'data-player-page-navigation="true"',
-  'aria-label="返回上一页面"',
+  "data-player-page-navigation={pageNavigation ? 'true' : undefined}",
+  "classNames('page-heading', pageNavigation && 'page-heading--player-navigation')",
+  'page-navigation-button--back',
+  'page-heading-title',
+  'page-navigation-button--close',
+  'page-heading-actions--player',
+  'className="page-fixed-header"',
+  'className="page-card-scroll-area"',
+  'viewportClassName="page-card-scroll"',
+  "aria-label={backAction?.label ?? '返回上一页面'}",
   'aria-label="关闭当前页面并显示地图"',
-  'disabled={!pageNavigation.canGoBack}',
+  'disabled={!backAction && !pageNavigation.canGoBack}',
 ]) requireText('src/components/ui/layout.tsx', text);
+forbidText('src/components/ui/layout.tsx', '<p>{description}</p>');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得在标题下方显示 `description` 说明段落');
+requireText('tests/browser/runtime.spec.ts', "page.locator('.page-heading p')).toHaveCount(0)");
+for (const text of [
+  '.page-fixed-header {',
+  '.page-heading {',
+  'padding: var(--layout-gutter);',
+  'border-bottom: 1px solid var(--color-border-strong);',
+  'background: color-mix(in srgb, var(--color-surface-panel) 88%, transparent);',
+  'box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);',
+]) requireText('src/styles/globals.css', text);
+for (const text of [
+  '.page-card-static > .ui-page-stack {',
+  'grid-template-rows: minmax(0, 1fr);',
+  'align-content: stretch;',
+]) requireText('src/styles/design-system.css', text);
+requireText('src/styles/game-shell-layout.css', '.signed-in-shell .page-heading {');
+requireText('src/styles/game-shell-layout.css', 'padding: var(--layout-gutter);');
+requireText('docs/UI_DESIGN_SYSTEM.md', '独立表面背景、底部分隔线和阴影与正文形成清晰分区');
 for (const text of [
   'pageHistoryRef',
   "previousTab !== 'map'",
@@ -171,16 +207,29 @@ for (const text of [
 for (const text of ['.login-shell:focus-within', 'transition: font-size']) forbidText('src/styles/auth.css', text);
 
 for (const text of [
-  'unified-asset-tabs',
+  "if (!facilityAssetId && marketViewMode === 'catalog')",
+  'market-catalog-filters',
+  'market-catalog-row',
+  '<ProductArtwork productId={entry.id} />',
+  '<MarketAutoTradePanel model={model} requestedProductId={requestedAutoTradeProductId} />',
+  '<small>卖单量</small>',
+  '<small>买单量</small>',
+  '挂单差额',
+  '基准偏离',
+  '商品基本面',
+  '生产者与消费者',
+  'backAction={{',
   'placeAssetOrder',
   'single-order-book',
-  'items={localTrades}',
+  'items={selectedLocalTrades}',
   'local-trades-virtual-table',
   '<FactoryIcon />',
   'formatNumber(order.remaining)',
   'formatCurrency(order.price)',
 ]) requireText('src/pages/MarketPage.tsx', text);
 for (const text of [
+  'unified-asset-tabs',
+  'asset-directory-shell',
   'localTrades.map(',
   'market-stat-strip',
   '工厂数量市场',
@@ -189,18 +238,24 @@ for (const text of [
   'order-book-columns',
   'order-book-midpoint',
 ]) forbidText('src/pages/MarketPage.tsx', text);
+const marketPageSource = read('src/pages/MarketPage.tsx');
+const marketCatalogStart = marketPageSource.indexOf("if (!facilityAssetId && marketViewMode === 'catalog')");
+const marketDetailStart = marketPageSource.indexOf('\n  const detailContent =', marketCatalogStart);
+const marketCatalogSource = marketPageSource.slice(marketCatalogStart, marketDetailStart);
+if (marketCatalogSource.includes('<FacilityIcon facilityTypeId={entry.id}')) failures.push('市场商品目录不得恢复工厂资产行');
+if (marketCatalogSource.includes('${catalogEntries.length} 项')) failures.push('市场目录态不应显示资产数量胶囊');
+for (const text of ['market-catalog-kind', "setCatalogKind('facility')", '>工厂</Button>']) forbidText('src/pages/MarketPage.tsx', text);
 
 for (const text of [
-  'title="生产"',
+  "title={`${model.selectedProvince?.name || '加利福尼亚州'}建筑`}",
+  'title="建筑概况"',
+  'className="buildings-summary-metrics"',
+  'className="buildings-list-filters"',
+  'label="产业分类"',
+  'label="运行状态"',
   'SwitchControl',
   'checked={group.enabled}',
-  'const facilityClusterStatusCounts = useMemo(() => {',
-  "const summary: Record<FacilityGroup['status'], number> = {",
   'if (!entry.constructionOnly)',
-  'summary[entry.group.status] += 1;',
-  '运行 {formatNumber(facilityClusterStatusCounts.running)}',
-  '停止 {formatNumber(facilityClusterStatusCounts.stopped)}',
-  '异常 {formatNumber(facilityClusterStatusCounts.error)}',
   'facility-status-header',
   'facility-card-title-row',
   'facility-card-title-block',
@@ -217,19 +272,31 @@ for (const text of [
   '<strong>生产产物</strong>',
   '生产进度已清零',
   'setFacilityRecipe',
-  '前往市场交易该工厂 →',
+  '<EmbeddedFacilityAssetMarket',
+  'facilityAssetId={facilityAssetTradeId}',
   'formatNumber(group.count)',
-]) requireText('src/pages/ProductionPage.tsx', text);
+]) requireText('src/pages/BuildingsPage.tsx', text);
+requireText('src/pages/production/ProductionFacilityDetail.tsx', '交易该建筑资产 →');
 for (const text of [
   '运行 {formatNumber(model.derived.runningFacilities)}',
   '停止 {formatNumber(model.derived.stoppedFacilities)}',
   '异常 {formatNumber(model.derived.blockedFacilities)}',
   '施工 {formatNumber(model.derived.constructingFacilities)}',
-]) forbidText('src/pages/ProductionPage.tsx', text);
-requireText(
-  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
-  '标题区状态汇总固定只显示“运行 N／停止 N／异常 N”',
-);
+  'const facilityClusterStatusCounts = useMemo(() => {',
+  "const summary: Record<FacilityGroup['status'], number> = {",
+  'summary[entry.group.status] += 1;',
+  '运行 {formatNumber(facilityClusterStatusCounts.running)}',
+  '停止 {formatNumber(facilityClusterStatusCounts.stopped)}',
+  '异常 {formatNumber(facilityClusterStatusCounts.error)}',
+]) forbidText('src/pages/BuildingsPage.tsx', text);
+for (const text of [
+  'scrollable={false}',
+  'className="research-workspace"',
+]) requireText('src/pages/ResearchPage.tsx', text);
+for (const text of [
+  '完整阶段',
+  'actions={',
+]) forbidText('src/pages/ResearchPage.tsx', text);
 for (const text of [
   'facility-formula-input-group',
   'facility-formula-input-side',
@@ -262,7 +329,7 @@ for (const text of [
   'facility-detail-sheet-close',
   '下一周期加入',
   '下一周期切换为：',
-]) forbidText('src/pages/ProductionPage.tsx', text);
+]) forbidText('src/pages/BuildingsPage.tsx', text);
 
 for (const text of [
   'export function AssetOverviewPanel',
@@ -310,16 +377,23 @@ for (const text of [
   'sidebar-community-link',
   '加入 QQ 群',
   'QqIcon',
-  'LogoutIcon',
+  'SettingsIcon',
+  'sidebar-settings',
+  "excludedTabs={['settings']}",
+  'showIdentity={false}',
   'target="_blank"',
   'rel="noopener noreferrer"',
 ]) requireText('src/components/shell/DesktopSidebar.tsx', text);
 for (const text of [
-  'sidebar-logo-expand-button',
-  'aria-label="展开侧栏"',
-  'aria-label="折叠侧栏"',
   'sidebar-brand-copy',
+  'onMouseEnter={expand}',
+  'onMouseLeave={collapse}',
+  'onFocusCapture={expand}',
+  'onBlurCapture={handleBlur}',
 ]) requireText('src/components/shell/SidebarFrame.tsx', text);
+for (const text of ['sidebar-logo-expand-button', 'sidebar-collapse-button', 'aria-label="展开侧栏"', 'aria-label="折叠侧栏"']) {
+  forbidText('src/components/shell/SidebarFrame.tsx', text);
+}
 for (const text of [
   "export type AdminSectionId = 'overview' | 'players' | 'population' | 'gift-codes' | 'bans'",
   '管理员导航',
@@ -333,22 +407,25 @@ for (const text of [
 ]) requireText('src/components/shell/SignedInShell.tsx', text);
 for (const text of [
   'className="asset-bar admin-command-bar"',
-  'variant="desktopStatusBar"',
+  'variant="statusBar"',
   '刷新当前分区',
 ]) requireText('src/components/shell/AdminDesktopBar.tsx', text);
-for (const text of ['<span aria-hidden="true">QQ</span>', '>退出登录</Button>']) {
+for (const text of ['<span aria-hidden="true">QQ</span>', '>退出登录</Button>', 'LogoutIcon']) {
   forbidText('src/components/shell/DesktopSidebar.tsx', text);
 }
-for (const text of ['export function QqIcon', 'export function LogoutIcon']) {
+for (const text of ['export function QqIcon', 'export function SettingsIcon']) {
   requireText('src/components/icons/GameIcons.tsx', text);
 }
 for (const text of [
-  '.desktop-sidebar[data-collapsed="true"] .sidebar-logo-expand-button:hover img',
-  '.desktop-sidebar[data-collapsed="true"] .sidebar-logo-expand-button:focus-visible img',
   '.desktop-sidebar[data-collapsed="true"] .sidebar-footer-action strong',
+  '.desktop-sidebar .sidebar-footer-action strong {',
+  '.desktop-sidebar .sidebar-footer {',
   '.desktop-sidebar button:hover:not(:disabled)',
   '--desktop-sidebar-motion: 200ms',
 ]) requireText('src/styles/desktop-sidebar.css', text);
+for (const text of ['sidebar-logo-expand-button', 'sidebar-collapse-button']) {
+  forbidText('src/styles/desktop-sidebar.css', text);
+}
 for (const text of ['AdminBanApp', "path === '/economy/admin/bans'"]) forbidText('src/app/App.tsx', text);
 forbidText('src/pages/SettingsPage.tsx', '/economy/admin/bans');
 forbidText('src/pages/SettingsPage.tsx', 'InvitationSettings');
@@ -404,8 +481,9 @@ for (const text of [
   "{ id: 'contracts', label: '合同' }",
   "{ id: 'gem-shop', label: '商店' }",
 ]) requireText('src/config/navigation.ts', text);
-requireText('src/config/navigation.ts', "export type TabId = NavigationTabId | 'map';");
+requireText('src/config/navigation.ts', "export type TabId = NavigationTabId | 'map' | 'province';");
 forbidText('src/config/navigation.ts', "{ id: 'map', label: '地图' }");
+forbidText('src/config/navigation.ts', "{ id: 'province', label:");
 forbidText('src/config/navigation.ts', "{ id: 'assets', label: '资产' }");
 forbidText('src/config/navigation.ts', "{ id: 'assets', label: '资金' }");
 forbidText('src/config/navigation.ts', "{ id: 'collections'");
@@ -424,6 +502,7 @@ for (const text of [
   '待处理',
   '历史合同',
   '发布合同',
+  'contract-content-actions',
   'productionContractActions',
   '准备本批商品',
   '补充本批货款',
@@ -437,6 +516,7 @@ for (const text of [
   'contract-active-grid',
   "contract.graceEndsAt ? 'danger' : needsAttention ? 'attention' : 'normal'",
 ]) requireText('src/pages/ContractPage.tsx', text);
+forbidText('src/pages/ContractPage.tsx', 'actions={<Button onClick');
 for (const text of [
   '.contract-workspace {',
   'gap: var(--layout-gutter);',
@@ -491,14 +571,14 @@ for (const text of [
 ]) requireText('src/app/gameViewModel.ts', text);
 
 for (const text of [
-  '点击工作次数',
+  '持有工厂总数',
   '生产商品总数',
   '买入商品总数',
   '卖出商品总数',
   '礼品兑换',
   '退出登录',
   '全局使用 K/M/B/T 缩写大额金额、库存、数量与容量',
-  'formatNumber(game.stats.workClicks)',
+  'game.facilityGroups.reduce((sum, group) => sum + group.count, 0)',
 ]) requireText('src/pages/SettingsPage.tsx', text);
 for (const text of ['邀请好友', '分享链接', '永久邀请码', '注册填写', '注册完成后不能补填或更换', '累计宝石']) {
   requireText('src/components/InvitationSettings.tsx', text);
@@ -545,24 +625,26 @@ for (const text of ['openOrderCount', "id === 'market'", 'sidebar-nav-count']) {
 }
 
 for (const text of [
-  '概览｜市场｜生产｜研发｜拍卖｜合同｜银行｜排行｜商店｜设置',
-  '玩家仍有十一个正式页面状态，但桌面侧栏与移动底栏只显示除 `map` 外的十个业务导航按钮',
+  '概览｜市场｜建筑｜研发｜拍卖｜合同｜银行｜排行｜商店｜设置',
+  '| 州级上下文页（无导航按钮） | `province` | `ProvincePage` |',
+  '`province` 只是由地图州面打开的隐藏上下文页，不计为第十二个一级页面',
+  '移动底栏显示除 `map` 外的十个业务导航按钮，桌面侧栏主导航显示其中九项，并把“设置”固定为侧栏底部操作',
   '返回按最近顺序回到上一个非地图业务页面',
   '| 拍卖 | `auction` | `AuctionPage` | 商品与工厂资产包发布及进行中竞价 |',
   '| 合同 | `contracts` | `ContractPage` | 商品供货、玩家抵押借贷和工厂使用权租赁合同的发布、承接、履约与历史 |',
   '| 银行 | `bank` | `BankPage` | 资产总览、存取款、活跃周固定存款利息、周资金结算、工厂抵押贷款、额度评估与还款 |',
   '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与每日终端动态报价兑换普通货币 |',
   '| 设置 | `settings` | `SettingsPage` | 资料、偏好、经营成长线控制、礼品和退出 |',
-  '页面主标题固定为“{州级地区全称}生产”',
-  '不显示独立库存总量行',
-  '仓库商品网格按自身内容区宽度使用容器查询',
+  '| 建筑 | `buildings` | `BuildingsPage` |',
+  '页面主标题固定为“{州级地区全称}建筑”',
+  '建筑页不得渲染仓库库存卡或自动交易设置',
   '独立资产页面已经永久删除，资产总览唯一归属银行页',
   '银行资产总览不得再显示逐商品“商品库存与估值”卡片',
-  '仓库不提供“有库存／全部商品”筛选',
-  '左侧：自动交易',
-  '移动端自动交易使用与工厂详情相同的底部抽屉',
+  '市场目录固定提供“市场行情／自动交易”两个工作区',
+  '卖单量与买单量只来自公开订单簿',
+  '仓库库存唯一显示在隐藏州级上下文页的“仓库”分区',
   '建设新工厂卡独占左侧控制列并在桌面滚动时常驻',
-  '生产页只显示按正式目录排序的紧凑选择卡和单张当前工厂完整详情',
+  '建筑页只显示按正式目录排序并经过当前筛选的紧凑选择卡和单张当前建筑完整详情',
   '集群生产公式',
   '多输入、多输出和逐输入库存兼容展示',
   '以箭头替代生产进度条',
@@ -575,27 +657,47 @@ for (const text of [
   '合同交付不写入统一订单簿最近成交价、价格曲线、商品估值或交易榜',
   '登录模式只调用现有统一账号登录，不得在 401 后自动注册',
   '邀请卡唯一归属商店，只展示玩家自己的专属分享链接、永久邀请码',
-  'Logo 在展开与折叠状态统一为 `40×40px`',
-  '两个入口必须复用 `GameIcons.tsx` 的 QQ 与退出 SVG',
+  '玩家 Logo、游戏标题和玩家名统一位于状态栏左侧身份轨道',
+  '两个入口分别使用 `QqIcon` 与 `SettingsIcon`',
   '管理员后台左侧导航复用同一侧栏骨架与动画',
   '`all-pages-preview.html` 只属于本地开发预览目录',
   '所有玩家页面共享的常驻战略地图',
-  '页面内容按四类战略面板展示',
+  '概览、州级上下文、市场、建筑、设置使用 `building`',
   '`MapPage` 不再拥有 `UsMainlandMap` 实例',
   '`MapPage` 只保留透明路由占位',
   '不得渲染左上“战略经营地图”卡片、左下图例／来源卡或“当前经营地区”卡片',
-  '点击并直接切换当前地区',
+  '单击后同时更新经营州并打开 `province` 上下文页',
+  '概览｜市场｜建筑｜仓库',
+  '离开行为只清除地图视觉选中态，不清除经营州',
   '地图提供州界、资产、工业、市场和异常五种镜头',
   '不得注册为正式 `TabId`、正式路由或第十二个一级页面',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
+  "case 'province':",
+  'renderPage = () => <ProvincePage model={model} />;',
+  'province: loadProvincePage',
+]) requireText('src/pages/PageRouter.tsx', text);
+for (const text of [
+  'title={provinceName}',
+  'role="tablist"',
+  'role="tabpanel"',
+  '<EmbeddedMarketPage model={model} embedded />',
+  '<EmbeddedBuildingsPage model={model} embedded />',
+  '<WarehouseInventoryPanel model={model} className="province-warehouse-section" />',
+]) requireText('src/pages/ProvincePage.tsx', text);
+
+for (const text of [
   'const STRATEGIC_PAGE_PRESENTATION = {',
-  "home: 'workspace'",
+  "home: 'building'",
   "map: 'map'",
+  "province: 'building'",
   "research: 'fullscreen'",
-  "'gem-shop': 'side'",
+  "'gem-shop': 'fullscreen'",
   'data-strategic-presentation={pagePresentation}',
+  'identity={{',
+  'logoSrc: BRAND_LOGO_URL',
+  'title: BRAND_NAME',
 ]) requireText('src/components/shell/GameShell.tsx', text);
 forbidText('src/pages/MapPage.tsx', '<UsMainlandMap');
 for (const text of ['战略经营地图', '当前经营地区', 'province-map-command-panel', 'province-map-meta', 'province-map-legend']) {
@@ -618,7 +720,7 @@ for (const text of [
   '账号和密码必须保留原生未受控表单值',
   '提交时通过 `FormData(event.currentTarget)` 读取浏览器自动填充内容',
   '不得把账号或密码重新绑定到初始为空的 React `value` 状态',
-  '`https://riversoft.top/logo.svg` 是 Economy 登录页与桌面侧栏显示品牌 Logo 的唯一权威资源',
+  '`https://riversoft.top/logo.svg` 是 Economy 登录页与玩家状态栏显示品牌 Logo 的唯一权威资源',
   '页面 favicon 使用同一 SVG，并声明 `image/svg+xml`',
   'Apple Touch Icon、Open Graph 和 Twitter 图片继续使用主页同步生成的 `https://riversoft.top/1000002880.png`',
   '兼容 PNG 不得替代页面内可见 Logo',
@@ -646,4 +748,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、十一个正式页面与十项可见导航、美国本土州级地图、统一返回关闭、银行资产总览、合同默认进行中视图、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、商品／工厂资产拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');
+console.log('页面内容、十一个正式页面与十项可见导航、隐藏州级上下文页、美国本土州级地图、统一返回关闭、银行资产总览、合同默认进行中视图、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、商品／工厂资产拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');

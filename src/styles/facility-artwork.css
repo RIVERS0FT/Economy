@@ -28,7 +28,7 @@
 :is(
   .facility-cluster-selector-card,
   .facility-detail-artwork,
-  .market-asset-card__icon-layer,
+  .market-detail-hero__artwork,
   .asset-auction-icon,
   .asset-auction-package-icon,
   .asset-auction-bundle-tile,
@@ -45,7 +45,7 @@
 :is(
   .facility-cluster-selector-card,
   .facility-detail-artwork,
-  .market-asset-card__icon-layer,
+  .market-detail-hero__artwork,
   .asset-auction-icon,
   .asset-auction-package-icon,
   .asset-auction-bundle-tile,
@@ -113,40 +113,6 @@
   border-radius: 0;
 }
 
-.market-page-surface
-.unified-asset-tab.facility
-.market-asset-card__icon-layer > .facility-icon {
-  position: absolute;
-  z-index: 0;
-  top: -14px;
-  left: 0;
-  width: 100%;
-  height: calc(100% + 28px);
-  border-radius: 0;
-  transform: none;
-}
-
-.market-page-surface
-.unified-asset-tab.facility
-.market-asset-card__icon-layer::after {
-  content: '';
-  position: absolute;
-  z-index: 1;
-  top: -14px;
-  left: 0;
-  width: 100%;
-  height: calc(100% + 28px);
-  background:
-    linear-gradient(to bottom, rgb(0 0 0 / 72%) 0%, rgb(0 0 0 / 26%) 24%, transparent 48%),
-    linear-gradient(to top, rgb(0 0 0 / 68%) 0%, rgb(0 0 0 / 22%) 24%, transparent 46%);
-  pointer-events: none;
-}
-
-.unified-asset-tab.facility {
-  content-visibility: auto;
-  contain-intrinsic-size: 138px 92px;
-}
-
 .asset-auction-icon .facility-icon {
   width: clamp(7rem, 20vw, 11rem);
   height: clamp(7rem, 20vw, 11rem);
@@ -167,29 +133,11 @@
   height: 44px;
 }
 
-@media (max-width: 720px) {
-
-.facility-detail-artwork {
-  min-height: 0;
-  aspect-ratio: 4 / 5;
-}
-
-  .market-page-surface
-  .unified-asset-tab.facility
-  .market-asset-card__icon-layer > .facility-icon,
-  .market-page-surface
-  .unified-asset-tab.facility
-  .market-asset-card__icon-layer::after {
-    top: -18px;
-    height: calc(100% + 36px);
-  }
-}
-
 @media (prefers-reduced-data: reduce) {
   :is(
     .facility-cluster-selector-card,
     .facility-detail-artwork,
-    .market-asset-card__icon-layer,
+    .market-detail-hero__artwork,
     .asset-auction-icon,
     .asset-auction-package-icon,
     .asset-auction-bundle-tile,
@@ -216,33 +164,9 @@
     color: var(--color-text-secondary);
   }
 
-  .market-page-surface
-  .unified-asset-tab.facility
-  .market-asset-card__icon-layer > .facility-icon {
-    position: static;
-    width: 72px;
-    height: 72px;
-    border-radius: var(--radius-control);
-  }
-
-  .market-page-surface
-  .unified-asset-tab.facility
-  .market-asset-card__icon-layer::after {
-    display: none;
-  }
-
   .facility-cluster-selector-card .facility-cluster-icon {
     inset: 24%;
     width: 52%;
     height: 52%;
-  }
-}
-
-@media (max-width: 720px) and (prefers-reduced-data: reduce) {
-  .market-page-surface
-  .unified-asset-tab.facility
-  .market-asset-card__icon-layer > .facility-icon {
-    width: 56px;
-    height: 56px;
   }
 }

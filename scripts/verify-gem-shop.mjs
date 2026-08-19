@@ -19,7 +19,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'server/test/gem-shop.test.js',
   'server/test/research-gem-acceleration.test.js',
   'src/pages/GemShopPage.tsx',
-  'src/pages/ProductionPage.tsx',
+  'src/pages/BuildingsPage.tsx',
   'src/components/InvitationSettings.tsx',
   'src/api/invitations.ts',
   'src/components/icons/GemIcon.tsx',
@@ -70,12 +70,12 @@ for (const text of [
   'value="无需材料"',
   "'建造资金' : '资金与建造材料'",
 ]) {
-  requireText('src/pages/ProductionPage.tsx', text);
+  requireText('src/pages/BuildingsPage.tsx', text);
 }
 for (const text of ['宝石加速', '施工时间', 'constructionRemainingAfterAcceleration', 'accelerateFacilityConstruction']) {
-  forbidText('src/pages/ProductionPage.tsx', text);
+  forbidText('src/pages/BuildingsPage.tsx', text);
 }
-for (const text of ['instant construction shows credits and materials without gem acceleration', "not.toContainText('宝石加速')", "not.toContainText('施工中')"]) {
+for (const text of ['production title omits status counts while instant construction shows costs without gem acceleration', "not.toContainText('宝石加速')", "not.toContainText('施工中')"]) {
   requireText('tests/browser/production-status-summary.spec.ts', text);
 }
 for (const text of [

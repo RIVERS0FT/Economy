@@ -255,16 +255,8 @@ forbidText('src/hooks/useNow.ts', [
   'referenceNow + Math.max(0, Date.now() - receivedAt)',
 ]);
 
-requireText('src/pages/OverviewPage.tsx', [
-  '<OverviewWorkButton',
-  'referenceNow={game.lastProcessedAt}',
-  'cooldownUntil={game.work.cooldownUntil}',
-]);
-requireText('src/pages/overview/OverviewLiveSections.tsx', [
-  "isWorking ? '处理中…'",
-  'disabled={isWorking || remaining > 0}',
-  '<LiveServerTime referenceNow={referenceNow}>',
-]);
+forbidText('src/pages/OverviewPage.tsx', ['<OverviewWorkButton', 'cooldownUntil={game.work.cooldownUntil}']);
+requireText('src/components/EconomicEventLogPanel.tsx', ['<LiveServerTime referenceNow={referenceNow}>']);
 
 if (!canAcceptRevision(null, 1)
   || !canAcceptRevision(7, 7)

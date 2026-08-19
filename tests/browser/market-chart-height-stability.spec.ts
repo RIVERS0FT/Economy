@@ -34,6 +34,20 @@ test('market chart row fill height remains stable without resize feedback', asyn
 
   const chart = page.locator('.market-history-chart.full');
   await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
+
+  // The production market page is intentionally a one-third strategic card. Temporarily widen only
+  // the test host so this regression still exercises the chart's real side-by-side row-fill path.
+  const wideLayout = await page.addStyleTag({
+    content: `
+      .game-shell .signed-in-shell__primary-card { width: 100vw !important; }
+      .market-page-surface .unified-market-grid {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) !important;
+      }
+      .market-page-surface .unified-market-grid > .market-trade-card { grid-column: 1 !important; }
+      .market-page-surface .unified-market-grid > .market-chart-card { grid-column: 2 !important; }
+      .market-page-surface .unified-market-grid > .market-account-panel { grid-column: 1 / -1 !important; }
+    `,
+  });
   await expect(chart).toHaveAttribute('data-chart-fill-mode', 'row');
   await page.waitForTimeout(300);
 
@@ -50,6 +64,7 @@ test('market chart row fill height remains stable without resize feedback', asyn
   expect(range(postPollSamples, 'minimumHeight')).toBeLessThanOrEqual(1);
   expect(Math.abs((postPollSamples.at(-1)?.chartHeight ?? 0) - stableRowHeight)).toBeLessThanOrEqual(1);
 
+  await wideLayout.evaluate((element) => element.remove());
   await page.setViewportSize({ width: 1280, height: 900 });
   await expect(chart).toHaveAttribute('data-chart-fill-mode', 'natural');
   await page.waitForTimeout(300);

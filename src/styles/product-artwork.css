@@ -48,8 +48,6 @@
 
 :is(
   .warehouse-product-card-icon,
-  .market-asset-card__icon-layer,
-  .market-summary > .widget-heading .product-icon-label,
   .asset-auction-icon,
   .asset-auction-package-icon,
   .asset-auction-bundle-tile,
@@ -63,8 +61,6 @@
 
 :is(
   .warehouse-product-card-icon,
-  .market-asset-card__icon-layer,
-  .market-summary > .widget-heading .product-icon-label,
   .asset-auction-icon,
   .asset-auction-package-icon,
   .asset-auction-bundle-tile,
@@ -112,25 +108,6 @@
   stroke: transparent;
 }
 
-.unified-asset-tab:not(.facility) {
-  content-visibility: auto;
-  contain-intrinsic-size: 138px 92px;
-}
-
-.market-asset-card__icon-layer > .product-icon {
-  width: 72px;
-  height: 72px;
-}
-
-.market-summary > .widget-heading .product-icon-label {
-  gap: .65rem;
-}
-
-.market-summary > .widget-heading .product-icon {
-  width: 42px;
-  height: 42px;
-}
-
 .asset-auction-icon .product-icon {
   width: clamp(7rem, 20vw, 11rem);
   height: clamp(7rem, 20vw, 11rem);
@@ -151,18 +128,6 @@
   height: 44px;
 }
 
-@media (max-width: 720px) {
-  .market-asset-card__icon-layer > .product-icon {
-    width: 56px;
-    height: 56px;
-  }
-
-  .market-summary > .widget-heading .product-icon {
-    width: 34px;
-    height: 34px;
-  }
-}
-
 @media (prefers-reduced-data: reduce) {
   .product-artwork {
     background-image: none;
@@ -172,8 +137,6 @@
 @media (prefers-reduced-data: reduce) {
   :is(
     .warehouse-product-card-icon,
-    .market-asset-card__icon-layer,
-    .market-summary > .widget-heading .product-icon-label,
     .asset-auction-icon,
     .asset-auction-package-icon,
     .asset-auction-bundle-tile,
