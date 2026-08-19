@@ -26,8 +26,13 @@ assert.equal(
 );
 assert.match(
   leaderboard,
-  /processWorld\(world, now, \{ migrate: false \}\);/,
-  '排行榜推进必须显式保留通用市场与运输世界推进，不能依赖工厂扫描副作用',
+  /function processWorldAt[\s\S]*?processWorld\(world, now, \{ migrate: false \}\);/,
+  '排行榜周期推进必须在规则迁移之后显式推进通用市场与运输逻辑',
+);
+assert.match(
+  leaderboard,
+  /if \(!validLeaderboardState\(world\.leaderboardState\)\) \{\s*processWorld\(world, now, \{ migrate: false \}\);/,
+  '首次排行榜初始化仍必须推进通用市场与运输逻辑',
 );
 assert.doesNotMatch(runtimeCore.match(/const ECONOMY_DEADLINE_DOMAINS[\s\S]*?\]\);/)?.[0] || '', /'facility'/, '运行时全局截止领域不得包含 facility');
 assert.match(

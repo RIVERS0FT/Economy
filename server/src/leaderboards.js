@@ -611,6 +611,7 @@ function advancePeriod(world, state) {
 }
 
 function processWorldAt(world, now, priorOrderReferences = [], { migrate = true } = {}) {
+  processWorld(world, now, { migrate: false });
   processAssetAuctions(world, now, { migrate });
   const state = world.leaderboardState;
   if (validLeaderboardState(state)) {
@@ -621,11 +622,11 @@ function processWorldAt(world, now, priorOrderReferences = [], { migrate = true 
 
 export function processLeaderboardWorld(world, now = Date.now(), options = {}) {
   const migrate = options.migrate !== false;
-  processWorld(world, now, { migrate: false });
   world.players ||= {};
   for (const player of Object.values(world.players)) playerStats(player);
 
   if (!validLeaderboardState(world.leaderboardState)) {
+    processWorld(world, now, { migrate: false });
     processAssetAuctions(world, now, { migrate });
     const state = initializeLeaderboardState(world, now, true);
     captureTradingFills(world, state, world.orders || []);
