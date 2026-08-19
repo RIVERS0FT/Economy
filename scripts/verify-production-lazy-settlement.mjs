@@ -20,6 +20,11 @@ const docsIndex = read('docs/README.md');
 assert.match(planner, /facility:\s*null/, '全局截止时间计划不得重新加入工厂周期截止时间');
 assert.doesNotMatch(leaderboard, /processFacilityGroupWorld/, '排行榜处理不得再触发全服工厂补算');
 assert.doesNotMatch(runtimeCore.match(/const ECONOMY_DEADLINE_DOMAINS[\s\S]*?\]\);/)?.[0] || '', /'facility'/, '运行时全局截止领域不得包含 facility');
+assert.match(
+  runtimeCore,
+  /if \(dueDomains\.has\('market'\)\) \{\s*processWorld\(world, now, \{ migrate: false \}\);/,
+  '移除排行榜工厂处理后，market 到期仍必须显式推进通用市场世界逻辑',
+);
 assert.match(runtimeStore, /PRODUCTION_COLD_START_YIELD_MS\s*=\s*1_000/, '正式服务冷启动必须先让出健康检查窗口');
 assert.match(runtimeStore, /settleProductionForDueContractParticipants/, '合同兜底只能从运行时按到期参与者触发');
 assert.match(shared, /function cappedArithmeticSum/, '客户端共享补算必须使用闭式 staffing 求和');
