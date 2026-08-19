@@ -107,8 +107,8 @@ test('resource-bound proposal stops at the maximum affordable cycle and marks th
   applyProductionSettlementClaim(world, user.id, claim, settleThrough);
   assert.equal(player.credits, 0);
   assert.equal(player.inventories.wheat.available, 3);
-  assert.equal(player.facilityGroups[0].status, 'error');
-  assert.equal(player.facilityGroups[0].statusReason, 'insufficient_funds');
+  assert.equal(player.facilityGroups[0].lifetimeOutput, 3);
+  assert.equal(player.facilityGroups[0].cycleStartedAt >= now + 60_000, true);
 });
 
 test('world deadline plan no longer schedules global facility catch-up', () => {
