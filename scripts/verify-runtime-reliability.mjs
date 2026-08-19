@@ -27,6 +27,7 @@ for (const path of [
   'server/src/verification-retention.js',
   'server/test/admin-pagination.test.js',
   'server/test/admin-summary.test.js',
+  'server/test/http.test.js',
   'server/test/rate-limit.test.js',
   'server/test/verification-retention.test.js',
   '.github/workflows/ci.yml',
@@ -79,6 +80,15 @@ requireText('src/app/GameApp.tsx', 'setCompactNumbersEnabled(compactNumbers);');
 requireText('src/main.tsx', '<AppErrorBoundary>');
 requireText('server/src/provinces.js', "import provinceCatalog from '../../shared/provinces.json' with { type: 'json' };");
 for (const text of ['Storage.prototype', '界面音效', '画面性能', '__localActivityResult']) requireText('tests/browser/runtime.spec.ts', text);
+for (const text of [
+  'const HTTP_API_READY_TIMEOUT_MS = 15_000;',
+  'const HTTP_API_PROBE_TIMEOUT_MS = 1_000;',
+  'const HTTP_API_RETRY_INTERVAL_MS = 50;',
+  'AbortSignal.timeout(Math.min(HTTP_API_PROBE_TIMEOUT_MS, remaining))',
+  'child stdout:',
+  'child stderr:',
+]) requireText('server/test/http.test.js', text);
+forbidText('server/test/http.test.js', 'async function waitFor(url, attempts = 50)');
 
 for (const text of [
   'push:',
@@ -198,6 +208,9 @@ for (const [path, text] of [
   ['docs/README.md', '仓库根 `shared/provinces.json`'],
   ['docs/README.md', 'PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH'],
   ['docs/README.md', '浏览器 CDN'],
+  ['docs/README.md', '15 秒总截止时间'],
+  ['docs/README.md', '单次探针最多 1 秒'],
+  ['docs/README.md', '子进程 stdout/stderr'],
   ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '礼品码列表和兑换记录可能持续增长'],
 ]) requireText(path, text);
 

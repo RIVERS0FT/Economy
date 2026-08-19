@@ -123,6 +123,8 @@
 
 78. CI 与主部署的浏览器回归不得把 Playwright 浏览器 CDN 作为必需单点依赖：必须优先复用 GitHub runner 已安装的 Chrome／Chromium，并通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 交给 Playwright；只有 runner 没有可用浏览器时才执行固定 Chromium 下载兜底。浏览器测试仍是硬门禁，浏览器 CDN 地域不可达、403 或临时故障不得成为跳过 `npm run test:browser` 的理由。该规则归属 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，由 `scripts/prepare-playwright-chromium.sh` 与 `scripts/verify-runtime-reliability.mjs` 防回退。
 
+79. 真实 Economy API 子进程集成测试必须通过真实 `GET /health` 2xx 判定启动完成，不得用固定 sleep、仅检查进程存活或跳过健康检查替代。测试等待采用 15 秒总截止时间、单次探针最多 1 秒和 50ms 有界轮询，以容忍 GitHub hosted runner 的短时启动调度抖动；超时错误必须包含最后一次探针失败以及子进程 stdout/stderr。该测试预算只属于测试基础设施，生产安装器继续独立遵守第 76 条最长 45 秒真实就绪门禁。该规则由 `server/test/http.test.js` 与 `scripts/verify-runtime-reliability.mjs` 防回退。
+
 - 游戏端与管理员端桌面顶部工作栏必须横跨侧栏列与内容列；侧栏和工作区从其下方开始。所有登录后业务浮层必须限制在工作区安全根内，并由 `scripts/verify-game-shell-layout.mjs` 与 `tests/browser/shell-floating-safe-zone.spec.ts` 防回退。
 
 23. 商品供货、玩家抵押借贷和工厂使用权租赁采用三类合同领域与六类发布方向；供应／采购、放贷／贷款、出租／租赁只表示发布方角色。规则必须同步更新产业、订单簿、页面、服务器、状态版本、测试与 `scripts/verify-contract-types.mjs`，不得恢复六套重复状态机、工厂实例化或客户端到期结算。

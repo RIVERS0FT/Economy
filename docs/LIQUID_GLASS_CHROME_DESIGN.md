@@ -63,7 +63,7 @@
 - 公开经济事件不得进入 `OverviewPage`、`.page-content` 或页面滚动区。桌面端由 `StrategicWorkspaceChrome` 在工作区右侧挂载唯一 `.strategic-economic-event-rail`；建筑式页面必须给右栏预留空间，纯地图视图允许右栏覆盖地图。事件面板标题不带说明段落或右侧胶囊，事件折叠态只显示名称与距离开始时间，具体状态、时间范围、说明、类别、商品和成交反馈在展开后显示。
 - 经营成长线在桌面概览时位于右栏事件日志上方；移动端右栏隐藏，概览只保留移动专用成长线入口，公开事件不回流概览正文。
 - 研发、拍卖、合同、银行、排行榜和商店隐藏右栏；切换页面不得重建根级地图。
-- 玩家主卡片宽度在页面目标宽度变化时使用与侧栏一致的 `220ms cubic-bezier(.2,.8,.2,1)` 过渡；新页面内容以 keyed `0fr → 1fr` 横向展开并轻微淡入。动画只由正式页面 ID 变化触发，权威状态刷新、倒计时和表单变化不得重播；不得对地图、ECharts 宿主、工作区或毛玻璃采样链设置动画 `transform`。`prefers-reduced-motion: reduce` 时立即完成。
+- 玩家主卡片宽度在页面目标宽度变化时使用与侧栏一致的 `220ms cubic-bezier(.2,.8,.2,1)` 过渡；新页面内容以 keyed `clip-path: inset(0 100% 0 0) → inset(0)` 从左向右裁剪展开并轻微淡入，页面布局轨道从首帧起保持最终 `1fr` 几何，动画不得修改 `grid-template-columns`、页面内容宽度或滚动根宽度。动画只由正式页面 ID 变化触发，权威状态刷新、倒计时和表单变化不得重播；不得对地图、ECharts 宿主、工作区或毛玻璃采样链设置动画 `transform`。`prefers-reduced-motion: reduce` 时立即完成。
 
 ## 6. 移动与浮层
 
@@ -85,7 +85,7 @@
 - `scripts/verify-liquid-glass-chrome.mjs`：历史脚本路径保留，但验证对象已改为 CSS 毛玻璃、依赖删除、共享组件、页面分流和右栏职责。
 - `tests/browser/frosted-glass-layout.spec.ts`：状态栏、通用面板、认证和移动底栏的真实背景滤镜、边界、圆角、单实例与无旧 DOM。
 - `tests/browser/open-glass-sampling.spec.ts`：四种玩家／管理员、桌面／移动场景的根级采样链。
-- `tests/browser/game-shell-layout.spec.ts`：侧栏宽窄屏一致、真实指针意图后的悬浮反馈不位移、建筑式面板与事件右栏几何。
+- `tests/browser/game-shell-layout.spec.ts`：侧栏宽窄屏一致、真实指针意图后的悬浮反馈不位移、页面展开期间布局盒几何不受视觉裁剪动画影响、建筑式面板与事件右栏几何。
 - `tests/browser/mobile-status-value-fit.spec.ts`：移动状态栏在连续视口 resize 后必须重新完成数值拟合；`400px` 与 `340px` 两级超窄布局必须先收紧留白和图标，在 `320px` 仍保留 `44px` 通知触控轨道并让完整整数不低于 `0.56rem`；不得卡在 `data-status-values-fitted="false"` 或裁剪末位数字。
 - `tests/browser/mobile-workspace-overlay.spec.ts`：移动页面卡片滚动条到达安全右边缘且不改变正文宽度，防止 fixed/backdrop-filter 包含块偏移回归。
 - `tests/browser/mobile-navigation-scrollbar.spec.ts`：移动底栏无 hover、按下／选中／未选中状态和横向滚动。

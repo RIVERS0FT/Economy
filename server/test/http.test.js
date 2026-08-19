@@ -10,18 +10,28 @@ import { fileURLToPath } from 'node:url';
 
 const accountPort = 43101;
 const gamePort = 43102;
+const HTTP_API_READY_TIMEOUT_MS = 15_000;
+const HTTP_API_PROBE_TIMEOUT_MS = 1_000;
+const HTTP_API_RETRY_INTERVAL_MS = 50;
 
-async function waitFor(url, attempts = 50) {
-  for (let index = 0; index < attempts; index += 1) {
+async function waitFor(url, timeoutMs = HTTP_API_READY_TIMEOUT_MS) {
+  const deadline = Date.now() + timeoutMs;
+  let lastProbeFailure = 'no response';
+  while (Date.now() < deadline) {
+    const remaining = Math.max(1, deadline - Date.now());
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(Math.min(HTTP_API_PROBE_TIMEOUT_MS, remaining)),
+      });
       if (response.ok) return;
-    } catch {
-      // Retry while the child process starts.
+      lastProbeFailure = `HTTP ${response.status}`;
+    } catch (error) {
+      lastProbeFailure = error instanceof Error ? error.message : String(error);
     }
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    const retryDelay = Math.min(HTTP_API_RETRY_INTERVAL_MS, Math.max(0, deadline - Date.now()));
+    if (retryDelay > 0) await new Promise((resolve) => setTimeout(resolve, retryDelay));
   }
-  throw new Error(`Timed out waiting for ${url}`);
+  throw new Error(`Timed out after ${timeoutMs}ms waiting for ${url}; last probe: ${lastProbeFailure}`);
 }
 
 function mergePatches(current, patches) {
@@ -66,9 +76,23 @@ test('HTTP API authenticates through the shared account service and honors idemp
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+  let childStdout = '';
+  let childStderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => { childStdout += chunk; });
+  child.stderr.on('data', (chunk) => { childStderr += chunk; });
 
   try {
-    await waitFor(`http://127.0.0.1:${gamePort}/health`);
+    try {
+      await waitFor(`http://127.0.0.1:${gamePort}/health`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `${message}\nchild stdout:\n${childStdout || '(empty)'}\nchild stderr:\n${childStderr || '(empty)'}`,
+        { cause: error },
+      );
+    }
 
     const unauthorized = await fetch(`http://127.0.0.1:${gamePort}/api/game/state`);
     assert.equal(unauthorized.status, 401);
