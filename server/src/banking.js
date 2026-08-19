@@ -512,11 +512,7 @@ function autoRepayLoan(world, player, now) {
 function reduceGroupForSeizure(group, quantity) {
   const removed = Math.min(safeNonNegativeInteger(group.count), safeNonNegativeInteger(quantity));
   group.count -= removed;
-  let remaining = removed;
-  const pendingReduction = Math.min(safeNonNegativeInteger(group.pendingJoinCount), remaining);
-  group.pendingJoinCount -= pendingReduction;
-  remaining -= pendingReduction;
-  const participatingReduction = Math.min(safeNonNegativeInteger(group.participatingCount), remaining);
+  const participatingReduction = Math.min(safeNonNegativeInteger(group.participatingCount), removed);
   group.participatingCount -= participatingReduction;
   if (group.count <= 0) return removed;
   if (group.status === 'running' && group.participatingCount < 1) {
