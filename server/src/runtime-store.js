@@ -7,6 +7,30 @@ import { settleProductionForDueContractParticipants } from './production-settlem
 
 const WORLD_PROCESS_INTERVAL_MS = 1_000;
 const PRODUCTION_COLD_START_YIELD_MS = 1_000;
+const RETIRED_FACILITY_GROUP_FIELDS = Object.freeze([
+  'pendingJoinCount',
+  'pendingRecipeId',
+  'stopReason',
+  'cycleStaffingRateBps',
+  'cycleEffectiveCount',
+  'nextCycleStaffingRateBps',
+  'productionWageCarryNumerator',
+  'productionEmploymentTotalMicros',
+  'productionEmploymentAllocatedMicros',
+  'completedQuantity',
+]);
+
+function needsFacilityColdCompatibilityMigration(world) {
+  if (Array.isArray(world?.facilityListings) && world.facilityListings.length > 0) return true;
+  for (const player of Object.values(world?.players || {})) {
+    if (player?.facilityConstruction) return true;
+    if (Array.isArray(player?.facilities) && player.facilities.length > 0) return true;
+    for (const group of player?.facilityGroups || []) {
+      if (RETIRED_FACILITY_GROUP_FIELDS.some((field) => Object.hasOwn(group || {}, field))) return true;
+    }
+  }
+  return false;
+}
 
 export class EconomyStore extends CoreEconomyStore {
   constructor(...args) {
@@ -40,7 +64,17 @@ export class EconomyStore extends CoreEconomyStore {
   }
 
   loadWorld(now, mutationScope = null) {
-    if (!this.worldCache) return super.loadWorld(now);
+    if (!this.worldCache) {
+      const loaded = super.loadWorld(now);
+      if (!needsFacilityColdCompatibilityMigration(loaded.world)) return loaded;
+      const world = this.migrateLoadedWorld(loaded.world, now);
+      const revision = this.saveWorldIfChanged(loaded.revision, world, now, loaded.stateJson);
+      return {
+        revision,
+        stateJson: null,
+        world: measureRequestPhase('worldDraftCloneMs', () => installProvinceRuntimeAliases(structuredClone(world))),
+      };
+    }
     return {
       revision: this.worldCache.revision,
       stateJson: null,
