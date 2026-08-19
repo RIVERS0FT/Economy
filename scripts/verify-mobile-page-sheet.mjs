@@ -97,6 +97,14 @@ requireAll('tests/browser/mobile-workspace-overlay.spec.ts', [
   "await page.getByRole('button', { name: /^概览/ }).click();",
 ]);
 
+requireAll('tests/browser/mobile-page-sheet-all-pages.spec.ts', [
+  "all mobile business pages reuse one first-level workspace sheet",
+  "data.pageSheetInstanceProbe = 'stable'",
+  "await expect(sheet).toHaveAttribute('data-page-key', tab);",
+  "await expect(sheet).toHaveAttribute('data-page-sheet-instance-probe', 'stable');",
+  "await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);",
+]);
+
 requireAll('docs/UI_DESIGN_SYSTEM.md', [
   '`MobileWorkspacePageSheet`',
   '`useMobileWorkspaceSheetDrag`',
@@ -115,4 +123,4 @@ requireAll('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '二级 Detail Sheet',
 ]);
 
-console.log('移动一级 Page Sheet、共享拖拽内核、常驻 Chrome、地图关闭语义与二级 Detail Sheet 层级验证通过。');
+console.log('移动一级 Page Sheet、共享拖拽内核、全业务页复用、常驻 Chrome、地图关闭语义与二级 Detail Sheet 层级验证通过。');
