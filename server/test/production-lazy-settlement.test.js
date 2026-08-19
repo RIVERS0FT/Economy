@@ -84,6 +84,33 @@ test('server rejects an over-reported client production claim', () => {
   );
 });
 
+test('server rejects an under-reported claim when one more cycle still fits authoritative resources', () => {
+  const { world } = productionWorld();
+  const settleThrough = now + 200_000;
+  const basis = createProductionSettlementBasis(world, user.id, settleThrough);
+  const claim = createProductionSettlementClaim(basis);
+  claim.groups[0].completedCycles -= 1;
+  assert.throws(
+    () => applyProductionSettlementClaim(world, user.id, claim, settleThrough),
+    (error) => error?.code === 'PRODUCTION_SETTLEMENT_INVALID' && error?.statusCode === 409,
+  );
+});
+
+test('resource-bound proposal stops at the maximum affordable cycle and marks the group blocked', () => {
+  const { world, player } = productionWorld();
+  player.credits = 3;
+  const settleThrough = now + 200_000;
+  const basis = createProductionSettlementBasis(world, user.id, settleThrough);
+  const claim = createProductionSettlementClaim(basis);
+  assert.equal(claim.groups[0].completedCycles, 3);
+
+  applyProductionSettlementClaim(world, user.id, claim, settleThrough);
+  assert.equal(player.credits, 0);
+  assert.equal(player.inventories.wheat.available, 3);
+  assert.equal(player.facilityGroups[0].status, 'error');
+  assert.equal(player.facilityGroups[0].statusReason, 'insufficient_funds');
+});
+
 test('world deadline plan no longer schedules global facility catch-up', () => {
   const { world } = productionWorld();
   const plan = createWorldDeadlinePlan(world, now + 10 * 60 * 60 * 1000);
