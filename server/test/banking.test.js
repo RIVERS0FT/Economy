@@ -10,6 +10,7 @@ import {
   ensurePlayerBankAccount,
   processBankWorld,
 } from '../src/banking.js';
+import { assertEconomicStateInvariants } from '../src/economic-mutation.js';
 import { activateWeeklyCashSettlement } from '../src/weekly-cash-settlement.js';
 import {
   applyFacilityGroupAction,
@@ -24,7 +25,7 @@ const bob = { id: 2, email: 'bob@example.com', name: 'Bob' };
 
 function farmGroup(count, overrides = {}) {
   return {
-    facilityTypeId: 'farm', count, participatingCount: 0, pendingJoinCount: 0,
+    facilityTypeId: 'farm', count, participatingCount: 0,
     enabled: false, status: 'stopped', statusReason: 'manual', activeRecipeId: 'wheat-crop',
     lifetimeOutput: 0, ...overrides,
   };
@@ -183,6 +184,8 @@ test('large loan default settles interest without micros double scaling', () => 
   assert.equal(borrower.stats.bankDefaults, 1);
   assert.equal(world.bank.interestPoolMicros, 14_000_000_000);
   assert.equal(world.bank.totals.borrowerInterestReceived, 20_000);
+  assert.equal(Object.hasOwn(borrower.facilityGroups[0], 'pendingJoinCount'), false);
+  assert.doesNotThrow(() => assertEconomicStateInvariants(world));
 });
 
 test('loan assessment exposes transparent collateral and rate inputs', () => {
@@ -255,6 +258,8 @@ test('loan default seizes the minimum collateral once and releases the remaining
   assert.equal(world.bank.facilityReserves['110000:farm'], 2);
   assert.equal(player.stats.bankFacilitiesSeized, 2);
   assert.equal(player.stats.bankDefaults, 1);
+  assert.equal(Object.hasOwn(player.facilityGroups[0], 'pendingJoinCount'), false);
+  assert.doesNotThrow(() => assertEconomicStateInvariants(world));
 
   processBankWorld(world, loan.graceEndsAt + 1);
   assert.equal(player.facilityGroups[0].count, 8);
