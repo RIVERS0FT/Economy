@@ -213,7 +213,7 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
   const mutationScope = createRuntimeMutationScope(
     store.worldCache?.world,
     user.id,
-    action,
+    action === 'settleProduction' ? 'setFacilityRecipe' : action,
     payload,
     { scheduledProcessing: store.scheduledProcessing },
   );
