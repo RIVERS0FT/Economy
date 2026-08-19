@@ -27,6 +27,7 @@ for (const path of [
   'server/src/verification-retention.js',
   'server/test/admin-pagination.test.js',
   'server/test/admin-summary.test.js',
+  'server/test/facility-cold-compatibility.test.js',
   'server/test/http.test.js',
   'server/test/rate-limit.test.js',
   'server/test/verification-retention.test.js',
@@ -167,6 +168,19 @@ for (const text of [
   'journalctl -u riversoft-economy-api.service -n 80 --no-pager',
 ]) requireText('scripts/verify-production-deployment.sh', text);
 
+for (const text of [
+  'RETIRED_FACILITY_GROUP_FIELDS',
+  'needsFacilityColdCompatibilityMigration',
+  'this.migrateLoadedWorld(loaded.world, now)',
+  'this.saveWorldIfChanged(loaded.revision, world, now, loaded.stateJson)',
+]) requireText('server/src/runtime-store.js', text);
+for (const text of [
+  'current V2 cold load migrates retired facility transition state exactly once',
+  'pendingJoinCount: Number.MAX_SAFE_INTEGER + 1',
+  'Number(metaAfter.revision), Number(metaBefore.revision) + 1',
+  'assert.deepEqual(metaReopened, metaAfter)',
+]) requireText('server/test/facility-cold-compatibility.test.js', text);
+
 const deployWorkflow = read('.github/workflows/deploy.yml');
 const prePublishVerificationIndex = deployWorkflow.indexOf('Verify production host before publishing entry');
 const publishEntryIndex = deployWorkflow.indexOf('Publish website entry and prune expired assets');
@@ -211,6 +225,9 @@ for (const [path, text] of [
   ['docs/README.md', '15 秒总截止时间'],
   ['docs/README.md', '单次探针最多 1 秒'],
   ['docs/README.md', '子进程 stdout/stderr'],
+  ['docs/README.md', '世界冷加载迁移与热保存必须分离'],
+  ['docs/README.md', '完整世界迁移、旧字段补全和全玩家兼容初始化只允许在首次加载'],
+  ['docs/README.md', '当前 V2 世界重复冷启动不得迁移、重写或推进修订号'],
   ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '礼品码列表和兑换记录可能持续增长'],
 ]) requireText(path, text);
 
@@ -218,4 +235,4 @@ if (failures.length) {
   console.error(`运行时可靠性验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('依赖锁、CI 去重、失败步骤日志 Artifact、API 就绪与共享运行时数据、浏览器存储容错、管理员分页、验证码保留、限流清理和浏览器测试均符合当前设计。');
+console.log('依赖锁、CI 去重、失败步骤日志 Artifact、API 就绪与共享运行时数据、浏览器存储容错、管理员分页、验证码保留、限流清理、冷加载兼容迁移和浏览器测试均符合当前设计。');
