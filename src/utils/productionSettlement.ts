@@ -6,6 +6,7 @@ import type {
 } from '../types';
 import {
   createProductionSettlementClaim,
+  dueProductionCycles,
   PRODUCTION_SETTLEMENT_VERSION,
   type ProductionSettlementBasis,
   type ProductionSettlementClaim,
@@ -64,8 +65,8 @@ function groupBasis(
     productionAvailableCount: nonNegativeInteger(group.productionAvailableCount ?? group.participatingCount),
     participatingCount: nonNegativeInteger(group.participatingCount),
     cycleStartedAt: Number.isFinite(Number(group.cycleStartedAt)) ? Number(group.cycleStartedAt) : null,
-    // Public state exposes a server-time projection. This is sufficient to find the common all-cycles-fit case;
-    // resource-bound edge cases are rejected by the server and retried through the scoped authoritative fallback.
+    // Public state contains the server-time staffing projection. It is exact for the common full-staffing case;
+    // a resource-bound approximation mismatch is rejected and retried through the current-player server fallback.
     staffingRateBps: nonNegativeInteger(group.staffingRateBps ?? 10_000),
     staffingUpdatedAt: Number.isFinite(Number(group.staffingUpdatedAt)) ? Number(group.staffingUpdatedAt) : serverNow,
     staffingBatchCarryBps: nonNegativeInteger(group.staffingBatchCarryBps) % 10_000,
@@ -121,5 +122,9 @@ export function createClientProductionSettlementClaim(
   serverNow: number,
 ): ProductionSettlementClaim | null {
   if (!state) return null;
-  return createProductionSettlementClaim(createClientProductionSettlementBasis(state, serverNow));
+  const basis = createClientProductionSettlementBasis(state, serverNow);
+  const hasOverdueRunningProduction = basis.groups.some((group) => (
+    group.status === 'running' && dueProductionCycles(group, basis.settleThrough) > 0
+  ));
+  return hasOverdueRunningProduction ? createProductionSettlementClaim(basis) : null;
 }
