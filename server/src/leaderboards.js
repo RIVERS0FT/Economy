@@ -1,5 +1,4 @@
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './domain.js';
-import { processFacilityGroupWorld } from './facility-groups.js';
 import { processAssetAuctions } from './asset-auctions.js';
 import { ensureGemState } from './invitations.js';
 import { activeLoanLiability } from './banking.js';
@@ -612,7 +611,6 @@ function advancePeriod(world, state) {
 }
 
 function processWorldAt(world, now, priorOrderReferences = [], { migrate = true } = {}) {
-  processFacilityGroupWorld(world, now, { migrate });
   processAssetAuctions(world, now, { migrate });
   const state = world.leaderboardState;
   if (validLeaderboardState(state)) {
@@ -627,7 +625,6 @@ export function processLeaderboardWorld(world, now = Date.now(), options = {}) {
   for (const player of Object.values(world.players)) playerStats(player);
 
   if (!validLeaderboardState(world.leaderboardState)) {
-    processFacilityGroupWorld(world, now, { migrate });
     processAssetAuctions(world, now, { migrate });
     const state = initializeLeaderboardState(world, now, true);
     captureTradingFills(world, state, world.orders || []);
