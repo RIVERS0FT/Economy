@@ -71,12 +71,13 @@ requireAll('src/styles/mobile-detail-sheet.css', [
   'animation: mobile-workspace-page-sheet-open 200ms cubic-bezier(0.22, 1, 0.36, 1);',
   '.mobile-workspace-page-sheet-content > .page-content {',
   '.mobile-workspace-page-sheet .page-card-scroll {',
-  'overscroll-behavior-y: contain;',
+  'overscroll-behavior-y: auto;',
   '@keyframes mobile-workspace-page-sheet-open',
   '.workspace-dialog-layer > .mobile-detail-sheet-backdrop',
 ]);
 forbidAll('src/styles/mobile-detail-sheet.css', [
   '.workspace-dialog-layer > .mobile-workspace-page-sheet',
+  'overscroll-behavior-y: contain;',
 ]);
 
 const main = read('src/main.tsx');
@@ -106,7 +107,7 @@ requireAll('docs/UI_DESIGN_SYSTEM.md', [
 requireAll('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
   '除纯地图外的玩家页面',
   '移动一级 Page Sheet',
-  '页面之间切换只替换 Sheet 内部内容',
+  '业务页面之间切换只替换 Sheet 内部内容',
 ]);
 requireAll('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '移动一级 Page Sheet',
