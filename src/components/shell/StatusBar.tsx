@@ -93,10 +93,10 @@ function useMobileStatusValueFit(items: StatusBarItem[]) {
     };
     scheduleFitRef.current = scheduleFit;
 
+    // Observe only the stable five-column container. Observing the values themselves
+    // creates a feedback loop because fitting deliberately changes their font size.
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleFit);
     resizeObserver?.observe(contentElement);
-    contentElement.querySelectorAll<HTMLElement>(STATUS_VALUE_SELECTOR)
-      .forEach((valueElement) => resizeObserver?.observe(valueElement));
     mediaQuery.addEventListener('change', scheduleFit);
     window.addEventListener('resize', scheduleFit);
     window.addEventListener('orientationchange', scheduleFit);
