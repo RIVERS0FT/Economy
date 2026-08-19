@@ -111,6 +111,50 @@ test('resource-bound proposal stops at the maximum affordable cycle and marks th
   assert.equal(player.facilityGroups[0].cycleStartedAt >= now + 60_000, true);
 });
 
+test('production wage settlement is batch invariant across an old first-cycle multiplier', () => {
+  const combined = productionWorld();
+  const split = productionWorld();
+  for (const { world, player } of [combined, split]) {
+    world.populationEconomy.policy.productionWageMultiplierBps = 10_000;
+    player.facilityGroups[0].cycleWageMultiplierBps = 6_000;
+  }
+
+  const combinedThrough = now + 40_000;
+  const combinedBasis = createProductionSettlementBasis(combined.world, user.id, combinedThrough);
+  applyProductionSettlementClaim(
+    combined.world,
+    user.id,
+    createProductionSettlementClaim(combinedBasis),
+    combinedThrough,
+  );
+
+  const firstThrough = now + 20_000;
+  const firstBasis = createProductionSettlementBasis(split.world, user.id, firstThrough);
+  applyProductionSettlementClaim(
+    split.world,
+    user.id,
+    createProductionSettlementClaim(firstBasis),
+    firstThrough,
+  );
+  const secondBasis = createProductionSettlementBasis(split.world, user.id, combinedThrough);
+  applyProductionSettlementClaim(
+    split.world,
+    user.id,
+    createProductionSettlementClaim(secondBasis),
+    combinedThrough,
+  );
+
+  assert.equal(combined.player.facilityGroups[0].productionEmploymentTotalMicros, '1600000');
+  assert.equal(
+    combined.player.facilityGroups[0].productionEmploymentTotalMicros,
+    split.player.facilityGroups[0].productionEmploymentTotalMicros,
+  );
+  assert.deepEqual(
+    combined.player.facilityGroups[0].productionEmploymentAllocatedMicros,
+    split.player.facilityGroups[0].productionEmploymentAllocatedMicros,
+  );
+});
+
 test('world deadline plan no longer schedules global facility catch-up', () => {
   const { world } = productionWorld();
   const plan = createWorldDeadlinePlan(world, now + 10 * 60 * 60 * 1000);

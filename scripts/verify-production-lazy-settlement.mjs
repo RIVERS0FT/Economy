@@ -19,6 +19,11 @@ const docsIndex = read('docs/README.md');
 
 assert.match(planner, /facility:\s*null/, '全局截止时间计划不得重新加入工厂周期截止时间');
 assert.doesNotMatch(leaderboard, /processFacilityGroupWorld/, '排行榜处理不得再触发全服工厂补算');
+assert.match(
+  leaderboard,
+  /processWorld\(world, now, \{ migrate: false \}\);/,
+  '排行榜推进必须显式保留通用市场与运输世界推进，不能依赖工厂扫描副作用',
+);
 assert.doesNotMatch(runtimeCore.match(/const ECONOMY_DEADLINE_DOMAINS[\s\S]*?\]\);/)?.[0] || '', /'facility'/, '运行时全局截止领域不得包含 facility');
 assert.match(
   runtimeCore,
@@ -31,6 +36,8 @@ assert.match(shared, /function cappedArithmeticSum/, '客户端共享补算必�
 assert.match(shared, /maxProductionCyclesForResources/, '客户端必须计算最大合法生产周期');
 assert.match(serverSettlement, /productionSettlementFits\(candidate, claimedCycles/, '服务端必须验证客户端声明本身合法');
 assert.match(serverSettlement, /productionSettlementFits\(candidate, claimedCycles \+ 1/, '服务端必须用 n+1 非法证明客户端声明最大化');
+assert.match(serverSettlement, /group\.productionWageCarryNumerator === undefined/, '生产工资余数的合法 0 值不得被重新初始化');
+assert.match(serverSettlement, /firstCycleCostMicros/, '旧周期工资系数只能作用于首个欠结算周期');
 assert.match(serverSettlement, /contract\.contractType === 'goods_supply'/, '到期供货合同兜底必须使用正式合同类型');
 assert.match(runtimeAction, /applyProductionSettlementClaim/, '玩家动作必须能够原子附带生产结算声明');
 assert.match(runtimeAction, /settleProductionForPlayerServerSide/, '旧客户端或过期提案只能对当前玩家兜底');

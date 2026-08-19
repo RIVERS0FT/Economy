@@ -321,9 +321,12 @@ function addPopulationProductionEmployment(world, group, wageMicros, payerMicros
   group.productionEmploymentAllocatedMicros = Object.fromEntries(POPULATION_MODEL_IDS.map((id) => [id, target[id].toString()]));
 }
 
-function settleProductionWage(world, player, group, groupBasis, costMicros) {
-  const multiplier = Math.max(5_000, safeInteger(groupBasis.cycleWageMultiplierBps, 10_000));
-  const carry = bigint(group.productionWageCarryNumerator || WAGE_ROUNDING_HALF);
+function settleProductionWage(world, player, group, groupBasis, costMicros, multiplierBps) {
+  if (costMicros <= 0n) return;
+  const multiplier = Math.max(5_000, safeInteger(multiplierBps, 10_000));
+  const carry = group.productionWageCarryNumerator === undefined
+    ? WAGE_ROUNDING_HALF
+    : bigint(group.productionWageCarryNumerator);
   const numerator = costMicros * BigInt(multiplier) + carry;
   const wageMicros = numerator / WAGE_RATE_DENOMINATOR;
   group.productionWageCarryNumerator = Number(numerator % WAGE_RATE_DENOMINATOR);
@@ -358,7 +361,24 @@ function applyCompletedCycles(world, player, group, groupBasis, completedCycles,
     if (!Number.isSafeInteger(player.stats.producedGoods)) invalid('累计生产数量超出系统可表示范围');
     group.lifetimeOutput = nonNegativeInteger(group.lifetimeOutput) + output;
     if (!Number.isSafeInteger(group.lifetimeOutput)) invalid('工厂累计产量超出系统可表示范围');
-    settleProductionWage(world, player, group, groupBasis, usage.costMicros);
+    const firstCycleCostMicros = productionResourceUsage(groupBasis, 1).costMicros;
+    settleProductionWage(
+      world,
+      player,
+      group,
+      groupBasis,
+      firstCycleCostMicros,
+      groupBasis.cycleWageMultiplierBps,
+    );
+    const remainingCostMicros = usage.costMicros - firstCycleCostMicros;
+    settleProductionWage(
+      world,
+      player,
+      group,
+      groupBasis,
+      remainingCostMicros,
+      currentProductionWageMultiplier(world),
+    );
     group.staffingBatchCarryBps = usage.finalCarryBps;
     group.staffingRateBps = usage.finalStaffingRateBps;
     group.staffingUpdatedAt = usage.finalCycleStartedAt;
