@@ -20,10 +20,12 @@ test('all mobile business pages reuse one first-level workspace sheet', async ({
   const navigation = page.locator('.mobile-bottom-navigation');
   const status = page.locator('.asset-bar');
   const sheet = page.locator('.mobile-workspace-page-sheet');
+  const map = page.getByTestId('us-mainland-map');
 
   await expect(navigation).toBeVisible();
   await expect(status).toBeVisible();
   await expect(sheet).toBeVisible();
+  await expect(map).toBeVisible();
   await sheet.evaluate((element) => {
     element.dataset.pageSheetInstanceProbe = 'stable';
   });
@@ -39,7 +41,8 @@ test('all mobile business pages reuse one first-level workspace sheet', async ({
 
   await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
   await expect(sheet).toHaveCount(0);
-  await expect(page.locator('.province-map-page')).toBeVisible();
+  await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
+  await expect(map).toBeVisible();
   await expect(status).toBeVisible();
   await expect(navigation).toBeVisible();
 });
