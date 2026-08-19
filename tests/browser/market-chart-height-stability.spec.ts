@@ -38,7 +38,15 @@ test('market chart row fill height remains stable without resize feedback', asyn
   // The production market page is intentionally a one-third strategic card. Temporarily widen only
   // the test host so this regression still exercises the chart's real side-by-side row-fill path.
   const wideLayout = await page.addStyleTag({
-    content: '.game-shell .signed-in-shell__primary-card { width: 100vw !important; }',
+    content: `
+      .game-shell .signed-in-shell__primary-card { width: 100vw !important; }
+      .market-page-surface .unified-market-grid {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) !important;
+      }
+      .market-page-surface .unified-market-grid > .market-trade-card { grid-column: 1 !important; }
+      .market-page-surface .unified-market-grid > .market-chart-card { grid-column: 2 !important; }
+      .market-page-surface .unified-market-grid > .market-account-panel { grid-column: 1 / -1 !important; }
+    `,
   });
   await expect(chart).toHaveAttribute('data-chart-fill-mode', 'row');
   await page.waitForTimeout(300);
