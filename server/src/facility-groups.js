@@ -1497,6 +1497,9 @@ function clientGroup(world, player, group, now) {
   const {
     cycleWageMultiplierBps: _cycleWageMultiplierBps,
     cycleStaffingRateBps: _legacyCycleStaffingRateBps,
+    productionWageCarryNumerator: _productionWageCarryNumerator,
+    productionEmploymentTotalMicros: _productionEmploymentTotalMicros,
+    productionEmploymentAllocatedMicros: _productionEmploymentAllocatedMicros,
     ...publicGroup
   } = clone(group);
   return {

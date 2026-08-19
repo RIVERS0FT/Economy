@@ -46,7 +46,6 @@ import {
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const WORLD_PROCESS_INTERVAL_MS = 1_000;
 const ECONOMY_DEADLINE_DOMAINS = new Set([
-  'facility',
   'market',
   'auction',
   'leaderboard',
