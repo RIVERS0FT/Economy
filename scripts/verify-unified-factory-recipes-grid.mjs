@@ -38,6 +38,7 @@ const page = read('src/pages/BuildingsPage.tsx');
 const detail = read('src/pages/production/ProductionFacilityDetail.tsx');
 const mobile = read('src/pages/production/MobileFacilityDetailSheet.tsx');
 const sharedSheet = read('src/components/ui/MobileWorkspaceDetailSheet.tsx');
+const sharedDrag = read('src/components/ui/useMobileWorkspaceSheetDrag.ts');
 const sharedSummary = read('src/components/ui/MobileDetailSummary.tsx');
 const catalogPresentationDesign = read('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md');
 const pageContentDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
@@ -45,6 +46,7 @@ const productionSource = `${page}
 ${detail}
 ${mobile}
 ${sharedSheet}
+${sharedDrag}
 ${sharedSummary}`;
 assert.equal(
   page.includes('按产业和运行状态筛选建筑，选择后查看经营与生产详情。'),
@@ -64,7 +66,7 @@ for (const required of [
 
 for (const text of [
   'interface FacilityClusterEntry',
-  'interface MobileDetailSheetDragSession',
+  'interface MobileWorkspaceSheetDragSession',
   'function FacilityClusterSelectorCard',
   'function FacilityClusterInformation',
   'function FacilityClusterDetailBody',
@@ -120,8 +122,8 @@ for (const text of [
   '!dialogLayer',
   '<strong>生产设置</strong>',
   'productionRecipeVariantId',
-  'MOBILE_DETAIL_SHEET_CLOSE_VELOCITY',
-  'MOBILE_DETAIL_SHEET_AXIS_DOMINANCE',
+  'MOBILE_WORKSPACE_SHEET_CLOSE_VELOCITY',
+  'MOBILE_WORKSPACE_SHEET_AXIS_DOMINANCE',
   'setPointerCapture',
   'const requestClose = useCallback',
   'const backdropPointerIdRef = useRef<number | undefined>(undefined)',
@@ -154,6 +156,11 @@ assert.equal(
   (mobile.match(/ariaLabelledBy="mobile-facility-detail-title"/g) ?? []).length,
   1,
   '移动详情框只能声明一次 aria-labelledby',
+);
+assert.equal(
+  sharedSheet.includes("from './useMobileWorkspaceSheetDrag'"),
+  true,
+  '移动工厂详情必须复用共享工作区 Sheet 拖动内核',
 );
 
 const selectorCardSource = detail.slice(
@@ -327,6 +334,7 @@ const informationProfitIndex = detail.indexOf('<FacilityRecipeProfitAnalysis', i
 assert.equal(formula.includes('<strong>生产结算</strong>'), true, '生产公式缺少生产结算标题');
 assert.equal(profitIndex, -1, '生产结算不得继续包含单厂利润');
 assert.equal(informationProfitIndex > informationStart, true, '单厂利润必须位于工厂信息区');
+void settlementEnd;
 
 const profitCss = read('src/styles/facility-recipe-profit-analysis.css');
 const profitRule = profitCss.slice(
@@ -351,7 +359,7 @@ for (const forbidden of [
 
 const sheetCss = read('src/styles/mobile-detail-sheet.css');
 for (const text of [
-  'Final authority for signed-in mobile business detail sheets',
+  'Final authority for signed-in mobile workspace sheets',
   ".page-scroll-area[data-modal-scrollbar-suppressed='true']",
   '--mobile-detail-sheet-backdrop-progress',
   '--mobile-detail-sheet-drag-offset',
@@ -378,12 +386,14 @@ for (const text of [
   'justify-self: stretch;',
   '.workspace-dialog-layer > .ui-rich-select__listbox',
   '.mobile-detail-summary',
+  '.mobile-workspace-page-sheet',
+  'overscroll-behavior-y: contain;',
 ]) assert.equal(sheetCss.includes(text), true, `共享移动详情样式缺少: ${text}`);
 for (const forbidden of [
-  'overscroll-behavior-y: contain',
   'display: none !important; /* vertical */',
   '.mobile-detail-sheet-close',
   '.workspace-floating-layer > .mobile-detail-sheet-backdrop',
+  '.workspace-dialog-layer > .mobile-workspace-page-sheet',
   '.research-detail-sheet-scroll {',
 ]) assert.equal(sheetCss.includes(forbidden), false, `共享移动详情样式不应包含: ${forbidden}`);
 
@@ -394,18 +404,17 @@ for (const text of [
   '.mobile-detail-sheet-footer .facility-market-link',
 ]) assert.equal(css.includes(text), true, `移动工厂详情业务样式缺少: ${text}`);
 
-
 const main = read('src/main.tsx');
 assert.equal(
   main.includes("import './styles/mobile-detail-sheet.css';"),
   true,
-  '入口必须在旧工厂卡样式后加载移动详情样式',
+  '入口必须加载移动工作区 Sheet 样式',
 );
 assert.equal(
   main.indexOf("import './styles/mobile-detail-sheet.css';") >
-    main.indexOf("import './styles/facility-group-card-grid.css';"),
+    main.indexOf("import './styles/strategic-game-shell.css';"),
   true,
-  '移动详情样式必须晚于基础工厂卡样式加载',
+  '移动工作区 Sheet 样式必须晚于战略页面外壳加载以收束移动几何',
 );
 
 const formulaCss = read('src/styles/facility-production-formula.css');
