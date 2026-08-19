@@ -46,6 +46,9 @@ for (const text of [
   'isPlayerWeeklyInterestEligible',
   'depositInterestSubsidyIssued',
   'interestPoolMicros',
+  'function addSafeMicros',
+  'const poolMicros = internalMoneyToMicros(poolCredits);',
+  'bank.interestPoolMicros = addSafeMicros(',
   "creditPopulationEmployment(world, employmentCredits, 'banking')",
   'prudentFacilityValue',
   'transferableFacilityQuantity',
@@ -113,7 +116,13 @@ for (const text of [
   '净资产',
 ]) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
 for (const text of ['固定日利率', '每日固定 1%', '预计 10% 周扣除']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
-for (const text of ['每日固定 1%', '贷款利息池优先支付', '补贴发行']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
+for (const text of [
+  '每日固定 1%',
+  '贷款利息池优先支付',
+  '补贴发行',
+  '银行利息池使用百万分之一普通货币的整数微单位保存',
+  '业务模块不得自行使用 `value * 100`、`value * 1_000_000`',
+]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 for (const text of ['抵押数量必须继续计入当前或下一周期生产能力', '可转让数量', 'mortgagedCount']) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 for (const text of ['| 银行 | `bank` | `BankPage`', '十个业务导航按钮', '资产总览', '存款账户', '额度评估']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of ['`banking.js`', '世界版本 17', '客户端状态版本 20', '/api/game/bank/deposits', '银行每日结息']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
@@ -124,6 +133,8 @@ for (const text of [
   'mortgaged factories keep producing but cannot be transferred',
   'loan proceeds add matching liability and do not inflate wealth',
   'active-week deposit interest is fixed at one percent, pool-funded first, and new deposits wait a full day',
+  'large realized loan interest remains representable in the micros pool',
+  'large loan default settles interest without micros double scaling',
   'loan assessment exposes transparent collateral and rate inputs',
 ]) requireText('server/test/banking.test.js', text);
 
@@ -141,6 +152,8 @@ for (const path of ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', 'docs/SERVER_A
 }
 forbidText('server/src/banking.js', 'setInterval(');
 forbidText('server/src/banking.js', 'depositCredits += Math.ceil');
+forbidText('server/src/banking.js', 'BANK_INTEREST_MICROS_PER_CREDIT');
+forbidText('server/src/banking.js', 'Math.round(poolCredits *');
 forbidText('src/pages/BankPage.tsx', '领取利息');
 
 if (failures.length) {

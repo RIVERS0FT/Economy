@@ -135,6 +135,56 @@ test('active-week deposit interest is fixed at one percent, pool-funded first, a
   assert.equal(world.bank.totals.depositInterestSubsidyIssued, 1.2);
 });
 
+test('large realized loan interest remains representable in the micros pool', () => {
+  const world = createWorld(now);
+  const borrower = ensurePlayer(world, alice, now);
+  borrower.credits = 50_000;
+  borrower.facilityGroups = [farmGroup(20_000)];
+  migrateFacilityGroupWorld(world, now);
+  ensureBankWorld(world, now);
+
+  const borrowed = applyBankAction(world, alice, 'bankBorrow', {
+    amount: 500_000,
+    collateral: [{ facilityTypeId: 'farm', quantity: 20_000 }],
+    autoRepay: false,
+  }, now + 1);
+  assert.equal(borrowed.ok, true);
+  assert.equal(borrower.bankAccount.activeLoan.interestOutstanding, 20_000);
+
+  const repaid = applyBankAction(world, alice, 'bankRepay', {
+    loanId: borrower.bankAccount.activeLoan.id,
+    amount: 'all',
+  }, now + 2);
+  assert.equal(repaid.ok, true);
+  assert.equal(world.bank.interestPoolMicros, 14_000_000_000);
+  assert.equal(world.bank.totals.borrowerInterestReceived, 20_000);
+  assert.equal(world.populationEconomy.stats.bankingIncome, 4_000);
+});
+
+test('large loan default settles interest without micros double scaling', () => {
+  const world = createWorld(now);
+  const borrower = ensurePlayer(world, alice, now);
+  borrower.credits = 0;
+  borrower.facilityGroups = [farmGroup(20_000)];
+  migrateFacilityGroupWorld(world, now);
+  ensureBankWorld(world, now);
+
+  const borrowed = applyBankAction(world, alice, 'bankBorrow', {
+    amount: 500_000,
+    collateral: [{ facilityTypeId: 'farm', quantity: 20_000 }],
+    autoRepay: false,
+  }, now + 1);
+  assert.equal(borrowed.ok, true);
+  const loan = borrower.bankAccount.activeLoan;
+  borrower.credits = 0;
+
+  processBankWorld(world, loan.graceEndsAt);
+  assert.equal(borrower.bankAccount.activeLoan, null);
+  assert.equal(borrower.stats.bankDefaults, 1);
+  assert.equal(world.bank.interestPoolMicros, 14_000_000_000);
+  assert.equal(world.bank.totals.borrowerInterestReceived, 20_000);
+});
+
 test('loan assessment exposes transparent collateral and rate inputs', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
