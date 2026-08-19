@@ -99,7 +99,7 @@ requireAll('tests/browser/mobile-workspace-overlay.spec.ts', [
 
 requireAll('tests/browser/mobile-page-sheet-all-pages.spec.ts', [
   "all mobile business pages reuse one first-level workspace sheet",
-  "data.pageSheetInstanceProbe = 'stable'",
+  "element.dataset.pageSheetInstanceProbe = 'stable';",
   "await expect(sheet).toHaveAttribute('data-page-key', tab);",
   "await expect(sheet).toHaveAttribute('data-page-sheet-instance-probe', 'stable');",
   "await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);",
