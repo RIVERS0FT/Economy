@@ -3,13 +3,27 @@ import { executeRuntimeAction } from './runtime-action-executor.js';
 import { EconomyStore as CoreEconomyStore } from './runtime-store-core.js';
 import { installProvinceRuntimeAliases } from './provinces.js';
 import { cloneWorldForMutation } from './world-storage-v2.js';
+import { settleProductionForDueContractParticipants } from './production-settlement.js';
 
 const WORLD_PROCESS_INTERVAL_MS = 1_000;
+const PRODUCTION_COLD_START_YIELD_MS = 1_000;
 
 export class EconomyStore extends CoreEconomyStore {
   constructor(...args) {
     super(...args);
     this.schedulerBarrierPromise = null;
+    if (this.scheduledProcessing && args[0] !== ':memory:' && !this.worldCache) {
+      this.clearWorldProcessingTimer();
+      const now = Math.max(0, Number(this.nowProvider()) || 0);
+      this.nextWorldProcessingAt = now + PRODUCTION_COLD_START_YIELD_MS;
+      this.schedulerDiagnostics.nextDueAt = this.nextWorldProcessingAt;
+      const generation = ++this.schedulerGeneration;
+      this.processingTimer = this.setTimeoutFn(
+        () => this.handleScheduledWorldWake(generation),
+        PRODUCTION_COLD_START_YIELD_MS,
+      );
+      this.processingTimer?.unref?.();
+    }
   }
 
   cacheWorld(revision, stateJson, world, needsPersistence = false, segmentedSnapshot = null) {
@@ -96,6 +110,13 @@ export class EconomyStore extends CoreEconomyStore {
       captureRequestContext: false,
     }, () => this.processScheduledWorld(now));
     return this.trackSchedulerBarrier(barrier);
+  }
+
+  processWorldIfDue(world, now, currentUserId, options = {}) {
+    // Contract deadlines are the only global path allowed to materialize offline production,
+    // and only for participants of contracts that are actually due.
+    settleProductionForDueContractParticipants(world, now);
+    return super.processWorldIfDue(world, now, currentUserId, options);
   }
 
   apply(user, requestMeta, now = Date.now()) {
