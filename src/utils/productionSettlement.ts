@@ -45,6 +45,10 @@ function recipeInputs(recipe: FacilityRecipeDefinition | FacilityProductionMetho
   return recipe.input ? [recipe.input] : [];
 }
 
+function recipeIdentifier(recipe: FacilityRecipeDefinition | FacilityProductionMethodPlan) {
+  return 'id' in recipe ? recipe.id : recipe.recipeId;
+}
+
 function groupBasis(
   state: EconomyState,
   group: EconomyState['facilityGroups'][number],
@@ -77,7 +81,7 @@ function groupBasis(
     staffingBatchCarryBps: nonNegativeInteger(group.staffingBatchCarryBps) % 10_000,
     cycleWageMultiplierBps: 10_000,
     recipe: {
-      id: recipe.id,
+      id: recipeIdentifier(recipe),
       cycleMs: Math.max(1, nonNegativeInteger(recipe.cycleMs)),
       operatingCostMicros: moneyMicros(recipe.operatingCost),
       inputs: recipeInputs(recipe).map((item) => ({
