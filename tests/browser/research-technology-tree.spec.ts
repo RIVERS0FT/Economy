@@ -106,7 +106,7 @@ test.describe('research technology tree', () => {
         const edges = Array.from(document.querySelectorAll(selector));
         return { count: edges.length, visible: edges.every((edge) => getComputedStyle(edge).stroke !== 'none') };
       };
-      return { highlighted: check('.research-tree-connections [data-highlighted=\"true\"]'), related: check('.research-tree-connections [data-related=\"true\"]') };
+      return { highlighted: check('.research-tree-connections [data-highlighted="true"]'), related: check('.research-tree-connections [data-related="true"]') };
     });
     expect(state.highlighted.count).toBeGreaterThan(0);
     expect(state.related.count).toBeGreaterThan(0);
@@ -125,19 +125,41 @@ test.describe('research technology tree', () => {
     }));
     const box = await viewport.boundingBox();
     expect(box).not.toBeNull();
-    const panBefore = Number(await viewport.getAttribute('data-pan-y'));
-    await page.mouse.move((box?.x ?? 0) + 360, (box?.y ?? 0) + 260);
-    await page.mouse.down();
-    await page.mouse.move((box?.x ?? 0) + 320, (box?.y ?? 0) + 310, { steps: 4 });
-    await page.mouse.up();
-    expect(Math.abs(Number(await viewport.getAttribute('data-pan-y')) - panBefore)).toBeGreaterThan(10);
 
+    // The fullscreen research host can fit the tree at its default zoom, where pan is
+    // intentionally clamped to center. Zoom first so the regression exercises real panning.
     const zoomBefore = Number(await viewport.getAttribute('data-zoom'));
     await page.keyboard.down('Control');
-    await page.mouse.move((box?.x ?? 0) + 420, (box?.y ?? 0) + 300);
-    await page.mouse.wheel(0, -180);
+    await page.mouse.move((box?.x ?? 0) + (box?.width ?? 0) / 2, (box?.y ?? 0) + (box?.height ?? 0) / 2);
+    await page.mouse.wheel(0, -420);
     await page.keyboard.up('Control');
-    expect(Number(await viewport.getAttribute('data-zoom'))).toBeGreaterThan(zoomBefore);
+    await expect.poll(async () => Number(await viewport.getAttribute('data-zoom'))).toBeGreaterThan(zoomBefore);
+
+    const dragPoint = await viewport.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      for (const [rx, ry] of [[0.15, 0.82], [0.85, 0.82], [0.15, 0.2], [0.85, 0.2], [0.5, 0.86]]) {
+        const x = rect.left + rect.width * rx;
+        const y = rect.top + rect.height * ry;
+        const target = document.elementFromPoint(x, y) as HTMLElement | null;
+        if (target && element.contains(target) && !target.closest('.research-tree-controls, .research-technology-node')) {
+          return { x, y };
+        }
+      }
+      throw new Error('Could not find an empty research-tree drag point');
+    });
+    const panBefore = {
+      x: Number(await viewport.getAttribute('data-pan-x')),
+      y: Number(await viewport.getAttribute('data-pan-y')),
+    };
+    await page.mouse.move(dragPoint.x, dragPoint.y);
+    await page.mouse.down();
+    await page.mouse.move(dragPoint.x - 40, dragPoint.y + 50, { steps: 4 });
+    await page.mouse.up();
+    const panAfter = {
+      x: Number(await viewport.getAttribute('data-pan-x')),
+      y: Number(await viewport.getAttribute('data-pan-y')),
+    };
+    expect(Math.hypot(panAfter.x - panBefore.x, panAfter.y - panBefore.y)).toBeGreaterThan(10);
     const afterWorld = await node.evaluate((element) => ({
       x: (element as HTMLElement).style.getPropertyValue('--research-node-x'),
       y: (element as HTMLElement).style.getPropertyValue('--research-node-y'),
