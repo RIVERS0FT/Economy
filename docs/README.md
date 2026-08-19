@@ -2,7 +2,7 @@
 
 > 状态：当前文档入口
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-17
+> 更新时间：2026-08-19
 > 客户端状态版本：36
 > 世界状态版本：32
 
@@ -117,6 +117,7 @@
 73. 世界 32 的美国本土连续 48 个州级地区、本地无限仓库、本地商品／工厂行情、州级工厂集群与订单隔离属于产品、产业、仓库、订单簿、页面、UI、拍卖和服务器共同规则。世界 30 已使用的 34 个地区 ID 原位对应 34 个州，新增 14 个州 ID，不移动或合并既有资产；现金、宝石、研发、银行、排行榜与世界人口不按地区复制；跨州商品只能通过付费运输流动，客户端切换地图不得移动任何资产。内部 API 和复合键继续使用兼容名称 `provinceId`。地图使用共享 `EconomyChart` 的 ECharts Geo/Map 并位于铺满视口的根级地图层，州面点击直接切换地区；地图页不得恢复命令、经营详情、“当前经营地区”或图例卡片。开源底图精确锁定 ISC `us-atlas@3.0.1` 与 `topojson-client@3.1.0`，只注册连续 48 州，排除阿拉斯加、夏威夷、华盛顿特区和海外领地；来源、许可与非测绘说明由权威文档和依赖清单保留。实现必须同步共享目录、客户端状态版本 36、地图页、写动作 `provinceId`、专项服务器／浏览器测试与 `scripts/verify-provincial-economy.mjs`。
 74. 每个州×商品的官方系统价、恰好等于系统价的玩家买卖单实时全量清算、按周期系统买卖量调价、调价瞬间的精确价格订单簿扫描、系统成交审计与商品／货币生成销毁边界属于产品、订单簿、页面和服务器共同规则；必须同步更新 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`UNIFIED_ASSET_ORDER_BOOK_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、测试和 `scripts/verify-system-market.mjs`，不得恢复仅按订单簿成交生成市场价的旧口径，也不得把玩家间成交计入系统买卖比。
 75. 新玩家起始州永久绑定、其他州按货币费用解锁、锁定州禁用市场／工厂／仓库、公路／铁路／航空三种跨州运输（成本、单次运量、时间、运费计入运输就业、在途商品按起始州官方价估值）属于产品、仓库、页面和服务器共同规则；必须同步更新 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`WAREHOUSE_EXPANSION_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、测试和 `scripts/verify-provincial-unlock-transport.mjs`，不得恢复任意州自由经营、免费跨州物流或取消起始州绑定。
+76. Economy API 的部署就绪细则归 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`：服务安装完成条件必须包含真实 `/health` 就绪，不能只以 `systemctl is-active` 作为完成信号。`scripts/install-economy-api.py` 重启服务后必须在最长 45 秒内轮询 `127.0.0.1:3002/health`，同时要求 systemd 处于 active 且健康检查返回 2xx；发布前远端验收再独立执行有限重试，冷启动期间短暂的 `connection refused` 不得直接判定为发布失败。若就绪超时或重试耗尽，失败日志必须包含 `systemctl status` 与最近 `journalctl`，且 `index.html` 仍不得原子发布，从而区分慢启动与真实服务崩溃并保持旧入口可用。该规则由 `scripts/verify-runtime-reliability.mjs` 防回退。
 
 - 游戏端与管理员端桌面顶部工作栏必须横跨侧栏列与内容列；侧栏和工作区从其下方开始。所有登录后业务浮层必须限制在工作区安全根内，并由 `scripts/verify-game-shell-layout.mjs` 与 `tests/browser/shell-floating-safe-zone.spec.ts` 防回退。
 
