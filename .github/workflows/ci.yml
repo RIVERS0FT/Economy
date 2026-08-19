@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify-head-ci-registration:
@@ -75,31 +75,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Align facility catch-up design wording
-        if: github.event_name == 'push' && github.ref_name == 'agent/production-lazy-settlement'
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md')
-          text = path.read_text()
-          old = '离线补算多个周期必须以闭式公式数学等价地使用各周期 `cycleDueAt` 对应的满员率与固定点余数，禁止使用登录时最终值直接乘周期数，也禁止服务端逐周期重放形成与欠账时长线性增长的工作量。'
-          new = '离线补算多个周期时必须逐周期使用各自的 `cycleDueAt` 对应语义；实现必须以闭式公式数学等价地汇总各周期满员率与固定点余数，禁止使用登录时最终值直接乘周期数，也禁止服务端逐周期重放形成与欠账时长线性增长的工作量。'
-          if old not in text:
-              raise SystemExit('lazy settlement wording anchor missing')
-          path.write_text(text.replace(old, new, 1))
-          PY
-          git fetch origin main --depth=1
-          git checkout origin/main -- .github/workflows/ci.yml
-          git config user.name 'RIVERSOFT'
-          git config user.email '105160096+RIVERS0FT@users.noreply.github.com'
-          git add .github/workflows/ci.yml docs/INDUSTRY_AND_PRODUCTION_DESIGN.md
-          git diff --cached --check
-          git commit -m 'align lazy production catch-up wording'
-          git push origin HEAD:agent/production-lazy-settlement
 
       - name: Setup Node
         uses: actions/setup-node@v4
