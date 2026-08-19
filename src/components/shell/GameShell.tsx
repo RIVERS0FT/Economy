@@ -6,6 +6,7 @@ import { BRAND_LOGO_URL, BRAND_NAME } from '../../config/brand';
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../icons/GameIcons';
 import { GemIcon } from '../icons/GemIcon';
 import { CurrencyAmount } from '../ui/CurrencyAmount';
+import { MobileWorkspacePageSheet, type MobileWorkspaceSheetRequestClose } from '../ui/MobileWorkspacePageSheet';
 import { formatCompactNumber, formatCurrency, formatNumber, formatRank } from '../../utils/formatters';
 import { AuctionNewIdsContext, useNavigationBadges } from '../../hooks/useNavigationBadges';
 import { useNotificationCenter } from '../../hooks/useNotificationCenter';
@@ -67,6 +68,7 @@ export function GameShell({ model, children, offline = false }: {
   const pageHistoryRef = useRef<TabId[]>([]);
   const observedTabRef = useRef<TabId>(model.tab);
   const skipNextHistoryRef = useRef(false);
+  const mobilePageCloseRef = useRef<MobileWorkspaceSheetRequestClose | null>(null);
   const [canGoBack, setCanGoBack] = useState(false);
   const [qqGroupUrl, setQqGroupUrl] = useState(DEFAULT_QQ_GROUP_URL);
   const { badges, auctionNewIds } = useNavigationBadges(model);
@@ -175,9 +177,29 @@ export function GameShell({ model, children, offline = false }: {
     model.setTab(target);
   }, [model.setTab, model.tab]);
 
-  const closeCurrentPage = useCallback(() => {
+  const showMap = useCallback(() => {
     model.setTab('map');
   }, [model.setTab]);
+
+  const closeCurrentPage = useCallback(() => {
+    const requestClose = mobilePageCloseRef.current;
+    if (requestClose && typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches) {
+      requestClose();
+      return;
+    }
+    showMap();
+  }, [showMap]);
+
+  const selectMobileTab = useCallback((tab: TabId) => {
+    if (tab === 'map' && model.tab !== 'map') {
+      const requestClose = mobilePageCloseRef.current;
+      if (requestClose) {
+        requestClose();
+        return;
+      }
+    }
+    model.setTab(tab);
+  }, [model.setTab, model.tab]);
 
   return (
     <AuctionNewIdsContext.Provider value={auctionNewIdSet}>
@@ -234,13 +256,13 @@ export function GameShell({ model, children, offline = false }: {
               returnFocusRef={notificationButtonRef}
               onNavigate={(tab) => {
                 notificationCenter.closePanel();
-                model.setTab(tab);
+                selectMobileTab(tab);
               }}
             />
             <MobileBottomNavigation
               activeTab={model.tab}
               badges={badges}
-              onSelect={model.setTab}
+              onSelect={selectMobileTab}
             />
           </>
         )}
@@ -264,7 +286,15 @@ export function GameShell({ model, children, offline = false }: {
             data-strategic-page={model.tab}
             data-strategic-presentation={pagePresentation}
           >
-            {children}
+            {model.tab === 'map' ? children : (
+              <MobileWorkspacePageSheet
+                pageKey={model.tab}
+                onClose={showMap}
+                requestCloseRef={mobilePageCloseRef}
+              >
+                {children}
+              </MobileWorkspacePageSheet>
+            )}
           </div>
         </PlayerPageNavigationProvider>
       </SignedInShell>
