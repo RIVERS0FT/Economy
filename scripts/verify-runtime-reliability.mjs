@@ -225,7 +225,9 @@ for (const [path, text] of [
   ['docs/README.md', '15 秒总截止时间'],
   ['docs/README.md', '单次探针最多 1 秒'],
   ['docs/README.md', '子进程 stdout/stderr'],
-  ['docs/README.md', '当前版本 V2 冷加载发现已退役工厂过渡字段时'],
+  ['docs/README.md', '世界冷加载迁移与热保存必须分离'],
+  ['docs/README.md', '完整世界迁移、旧字段补全和全玩家兼容初始化只允许在首次加载'],
+  ['docs/README.md', '当前 V2 世界重复冷启动不得迁移、重写或推进修订号'],
   ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '礼品码列表和兑换记录可能持续增长'],
 ]) requireText(path, text);
 
