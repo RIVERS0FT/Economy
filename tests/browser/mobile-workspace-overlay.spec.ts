@@ -80,6 +80,8 @@ test.describe('mobile workspace overlay geometry', () => {
         navigationRadius: navigationSurfaceStyle.borderTopLeftRadius,
         primaryPanelRadius: primaryPanelStyle.borderTopLeftRadius,
         pageSheetRadius: pageSheetStyle.borderTopLeftRadius,
+        pageSheetBorderLeft: Number.parseFloat(pageSheetStyle.borderLeftWidth),
+        pageSheetBorderRight: Number.parseFloat(pageSheetStyle.borderRightWidth),
         pageOverlayOwnsScroll: pageScrollArea.parentElement === pageOverlay,
         chromeOwnsStatus: assetBar.parentElement === chromeOverlay,
         chromeOwnsNavigation: navigation.parentElement === chromeOverlay,
@@ -101,11 +103,18 @@ test.describe('mobile workspace overlay geometry', () => {
       geometry.navigation,
       geometry.navigationSurface,
       geometry.pageSheet,
-      geometry.strategicPagePanel,
     ]) {
       expect(layer.left).toBeCloseTo(contentLeft, 0);
       expect(layer.right).toBeCloseTo(contentRight, 0);
     }
+    expect(geometry.strategicPagePanel.left).toBeCloseTo(
+      geometry.pageSheet.left + geometry.pageSheetBorderLeft,
+      0,
+    );
+    expect(geometry.strategicPagePanel.right).toBeCloseTo(
+      geometry.pageSheet.right - geometry.pageSheetBorderRight,
+      0,
+    );
     expect(geometry.pageScrollPaddingLeft).toBe('0px');
     expect(geometry.pageScrollPaddingRight).toBe('0px');
     expect(geometry.pageScrollHasHorizontalOverflow).toBe(false);
@@ -134,13 +143,16 @@ test.describe('mobile workspace overlay geometry', () => {
     const pageSheet = page.locator('.mobile-workspace-page-sheet');
     const status = page.locator('.asset-bar');
     const navigation = page.locator('.mobile-bottom-navigation');
+    const map = page.getByTestId('us-mainland-map');
     await expect(pageSheet).toBeVisible();
     await expect(status).toBeVisible();
     await expect(navigation).toBeVisible();
+    await expect(map).toBeVisible();
 
     await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
     await expect(pageSheet).toHaveCount(0);
-    await expect(page.locator('.province-map-page')).toBeVisible();
+    await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
+    await expect(map).toBeVisible();
     await expect(status).toBeVisible();
     await expect(navigation).toBeVisible();
 
