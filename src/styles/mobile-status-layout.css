@@ -180,9 +180,13 @@
     padding-inline: 0;
   }
 
+  .asset-bar-content {
+    padding-inline: .2rem;
+  }
+
   .asset-bar-item,
   .asset-bar-item:last-child {
-    gap: .08rem;
+    gap: .06rem;
   }
 
   .asset-bar-item-icon {
@@ -192,13 +196,31 @@
 }
 
 @media (max-width: 340px) {
+  .asset-bar-layout {
+    grid-template-columns: 24px minmax(0, 1fr) 44px;
+  }
+
+  .asset-bar-layout > .asset-bar-identity {
+    width: 24px;
+    min-width: 24px;
+  }
+
+  .asset-bar-layout > .asset-bar-identity > img {
+    width: 24px;
+    height: 24px;
+  }
+
+  .asset-bar-content {
+    padding-inline: 0;
+  }
+
   .asset-bar-item,
   .asset-bar-item:last-child {
-    gap: .05rem;
+    gap: 0;
   }
 
   .asset-bar-item-icon {
-    width: .7rem;
-    height: .7rem;
+    width: .625rem;
+    height: .625rem;
   }
 }
