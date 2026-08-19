@@ -98,6 +98,7 @@ function useMobileStatusValueFit(items: StatusBarItem[]) {
     contentElement.querySelectorAll<HTMLElement>(STATUS_VALUE_SELECTOR)
       .forEach((valueElement) => resizeObserver?.observe(valueElement));
     mediaQuery.addEventListener('change', scheduleFit);
+    window.addEventListener('resize', scheduleFit);
     window.addEventListener('orientationchange', scheduleFit);
     fitValues();
 
@@ -108,6 +109,7 @@ function useMobileStatusValueFit(items: StatusBarItem[]) {
       if (animationFrame) cancelAnimationFrame(animationFrame);
       resizeObserver?.disconnect();
       mediaQuery.removeEventListener('change', scheduleFit);
+      window.removeEventListener('resize', scheduleFit);
       window.removeEventListener('orientationchange', scheduleFit);
       scheduleFitRef.current = () => {};
     };
