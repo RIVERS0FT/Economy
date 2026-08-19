@@ -13,6 +13,7 @@ for (const path of [
   'package-lock.json',
   'playwright.config.ts',
   'runtime-test.html',
+  'shared/provinces.json',
   'scripts/check-server-syntax.mjs',
   'scripts/install-economy-api.py',
   'scripts/verify-production-deployment.sh',
@@ -21,6 +22,7 @@ for (const path of [
   'src/app/AppErrorBoundary.tsx',
   'src/components/AdminGiftCodesSection.tsx',
   'server/src/admin-summary.js',
+  'server/src/provinces.js',
   'server/src/verification-retention.js',
   'server/test/admin-pagination.test.js',
   'server/test/admin-summary.test.js',
@@ -63,6 +65,7 @@ for (const text of ['加载更多礼品码', '加载更多兑换记录', 'giftCo
 for (const text of ['noticeTimerRef', 'window.clearTimeout']) requireText('src/app/gameViewModel.ts', text);
 requireText('src/app/GameApp.tsx', 'setCompactNumbersEnabled(compactNumbers);');
 requireText('src/main.tsx', '<AppErrorBoundary>');
+requireText('server/src/provinces.js', "import provinceCatalog from '../../shared/provinces.json' with { type: 'json' };");
 for (const text of ['Storage.prototype', '界面音效', '画面性能', '__localActivityResult']) requireText('tests/browser/runtime.spec.ts', text);
 
 for (const text of [
@@ -93,6 +96,9 @@ for (const text of [
   'for attempt in 1 2 3 4 5; do',
   'ECONOMY_SSH_PREFLIGHT_RETRY attempt=$attempt',
   'ECONOMY_SSH_PREFLIGHT_FAILED attempts=5',
+  '/var/www/game/shared',
+  'ECONOMY_SHARED_DIRECTORY_NOT_WRITABLE',
+  'shared/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/shared/"',
   'Collect failed step log',
   'collect_failed_log',
   'if [ "$outcome" != "failure" ]; then',
@@ -118,6 +124,7 @@ for (const text of [
   'ECONOMY_API_SERVICE_DIAGNOSTICS_BEGIN',
   '["systemctl", "status", SERVICE_NAME, "--no-pager", "--full"]',
   '["journalctl", "-u", SERVICE_NAME, "-n", "80", "--no-pager"]',
+  'release_dir.parent / "shared" / "provinces.json"',
   'wait_for_service_ready()',
 ]) requireText('scripts/install-economy-api.py', text);
 
@@ -172,6 +179,8 @@ for (const [path, text] of [
   ['docs/README.md', '最长 45 秒'],
   ['docs/README.md', 'systemctl status'],
   ['docs/README.md', 'journalctl'],
+  ['docs/README.md', '/var/www/game/shared/provinces.json'],
+  ['docs/README.md', '仓库根 `shared/provinces.json`'],
   ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '礼品码列表和兑换记录可能持续增长'],
 ]) requireText(path, text);
 
@@ -179,4 +188,4 @@ if (failures.length) {
   console.error(`运行时可靠性验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('依赖锁、CI 去重、失败步骤日志 Artifact、API 就绪、浏览器存储容错、管理员分页、验证码保留、限流清理和浏览器测试均符合当前设计。');
+console.log('依赖锁、CI 去重、失败步骤日志 Artifact、API 就绪与共享运行时数据、浏览器存储容错、管理员分页、验证码保留、限流清理和浏览器测试均符合当前设计。');
