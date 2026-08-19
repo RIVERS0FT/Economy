@@ -52,6 +52,7 @@ for (const text of [
   "creditPopulationEmployment(world, employmentCredits, 'banking')",
   'prudentFacilityValue',
   'transferableFacilityQuantity',
+  'const participatingReduction = Math.min(safeNonNegativeInteger(group.participatingCount), removed);',
   'processBankWorld',
   'nextBankDeadlineAt',
   "action === 'bankDeposit'",
@@ -135,6 +136,8 @@ for (const text of [
   'active-week deposit interest is fixed at one percent, pool-funded first, and new deposits wait a full day',
   'large realized loan interest remains representable in the micros pool',
   'large loan default settles interest without micros double scaling',
+  "assert.equal(Object.hasOwn(borrower.facilityGroups[0], 'pendingJoinCount'), false);",
+  'assert.doesNotThrow(() => assertEconomicStateInvariants(world));',
   'loan assessment exposes transparent collateral and rate inputs',
 ]) requireText('server/test/banking.test.js', text);
 
@@ -154,10 +157,12 @@ forbidText('server/src/banking.js', 'setInterval(');
 forbidText('server/src/banking.js', 'depositCredits += Math.ceil');
 forbidText('server/src/banking.js', 'BANK_INTEREST_MICROS_PER_CREDIT');
 forbidText('server/src/banking.js', 'Math.round(poolCredits *');
+forbidText('server/src/banking.js', 'pendingJoinCount');
+forbidText('server/test/banking.test.js', 'participatingCount: 0, pendingJoinCount: 0');
 forbidText('src/pages/BankPage.tsx', '领取利息');
 
 if (failures.length) {
   console.error(`银行与存款利息验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('银行验证通过：存取款守恒、抵押生产边界、净资产、透明额度、期限利率、活跃周每日固定 1%、贷款利息池优先支付、补贴发行、周结算和统一截止时间均已锁定。');
+console.log('银行验证通过：存取款守恒、抵押生产边界、违约处置不恢复退役工厂过渡字段、净资产、透明额度、期限利率、活跃周每日固定 1%、贷款利息池优先支付、补贴发行、周结算和统一截止时间均已锁定。');
