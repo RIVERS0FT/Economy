@@ -141,6 +141,7 @@ npm run test:browser
 Economy/
 ├── src/          # React 客户端、页面、组件、样式与游戏资源
 ├── server/       # 服务器权威领域逻辑、HTTP API、SQLite 与服务器测试
+├── shared/       # 客户端与服务器共享的运行时静态目录（当前包含州级经营目录）
 ├── docs/         # 当前有效的权威设计文档
 ├── scripts/      # 构建、验证、生成、诊断和部署脚本
 ├── tests/        # 浏览器回归与压力测试
@@ -171,8 +172,7 @@ npm run build
 npm run test:browser
 ```
 
-Pull Request 会触发 [Economy CI](.github/workflows/ci.yml)。修改压缩合并到 `main` 后，[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) 会重新构建、运行浏览器测试、部署正式环境并执行线上验收。
-
+Pull Request 会触发 [Economy CI](.github/workflows/ci.yml)。修改压缩合并到 `main` 后，[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) 会重新构建、运行浏览器测试、部署正式环境并执行线上验收。生产部署的 API 发布包除 `server/` 和便携 Node 运行时外，还必须同步仓库根 `shared/` 到 `/var/www/game/shared/`；`server/src/provinces.js` 以 `../../shared/provinces.json` 读取州级目录，因此安装脚本会在重启 systemd 之前确认该运行时共享文件存在。
 
 ### 工厂即时建设
 
