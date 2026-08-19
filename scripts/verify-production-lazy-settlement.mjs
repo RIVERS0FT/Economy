@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const planner = read('server/src/world-deadline-planner.js');
@@ -19,6 +19,11 @@ const docsIndex = read('docs/README.md');
 
 assert.match(planner, /facility:\s*null/, '全局截止时间计划不得重新加入工厂周期截止时间');
 assert.doesNotMatch(leaderboard, /processFacilityGroupWorld/, '排行榜处理不得再触发全服工厂补算');
+assert.equal(
+  existsSync(new URL('../server/src/leaderboards-core.js', import.meta.url)),
+  false,
+  '排行榜实现必须保持单文件，不得用拆分文件绕开现有架构验证',
+);
 assert.match(
   leaderboard,
   /processWorld\(world, now, \{ migrate: false \}\);/,
