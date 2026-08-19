@@ -287,7 +287,8 @@ test.describe('mobile workspace overlay geometry', () => {
         '.page-card-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb',
       );
       const panel = document.querySelector<HTMLElement>('.overview-check-in-panel');
-      if (!scrollArea || !thumb || !panel) throw new Error('mobile scrollbar fixture is incomplete');
+      const workspace = document.querySelector<HTMLElement>('.workspace');
+      if (!scrollArea || !thumb || !panel || !workspace) throw new Error('mobile scrollbar fixture is incomplete');
       const scrollAreaRect = scrollArea.getBoundingClientRect();
       const thumbRect = thumb.getBoundingClientRect();
       return {
@@ -296,11 +297,12 @@ test.describe('mobile workspace overlay geometry', () => {
         thumbRight: thumbRect.right,
         panelWidth: panel.getBoundingClientRect().width,
         scrollAreaOverflow: getComputedStyle(scrollArea).overflow,
+        workspaceGutter: Number.parseFloat(getComputedStyle(workspace).getPropertyValue('--mobile-workspace-gutter')) || 0,
       };
     });
 
     expect(geometry.viewportRight - geometry.thumbRight).toBeCloseTo(2, 0);
-    expect(geometry.scrollAreaRight).toBeCloseTo(378, 0);
+    expect(geometry.viewportRight - geometry.scrollAreaRight).toBeCloseTo(geometry.workspaceGutter + 1, 0);
     expect(geometry.panelWidth).toBeCloseTo(beforeWidth, 0);
     expect(geometry.scrollAreaOverflow).toBe('visible');
   });
