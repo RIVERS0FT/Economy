@@ -37,6 +37,7 @@
 - 移动状态栏数值自适应只允许仅真实溢出的状态项缩小字号，最低为 `0.56rem`；不得恢复省略号、裁剪数值或让未溢出的项目一起缩小。
 - 移动状态栏数值拟合必须在 `ResizeObserver`、媒体查询变化和 `orientationchange` 之外直接监听 `window.resize`。任何视口宽度变化都必须重新调度拟合，并在完成后恢复 `data-status-values-fitted="true"`；不得因为网格单元像素宽度未触发观察器而永久停留在未拟合状态。
 - 数值拟合的 `ResizeObserver` 只允许观察稳定的五列 `.asset-bar-content` 容器，不得观察会被拟合逻辑主动修改字号的 `.asset-bar-item-value` 节点，否则会形成“改字号 → ResizeObserver → 再拟合”的反馈循环。业务数值变化由 React `items` 更新重新调度拟合，视口变化由上述 resize／媒体查询路径负责。
+- 超窄移动端必须先释放状态值的横向空间，再触碰字号下限：不大于 `400px` 时状态内容水平内边距收紧为 `.2rem`、状态图标与数值间距收紧为 `.06rem`；不大于 `340px` 时身份轨道收紧为 `24px`、状态内容取消水平内边距、状态项间距归零且状态图标收紧为 `.625rem`，通知操作轨道仍保持 `44px` 触控目标。这样在 `320px` 视口仍需让完整整数在不低于 `0.56rem` 的前提下完整可见；不得用继续缩小字号、恢复省略号或裁剪末位数字代替横向打包。
 - 管理员桌面工作栏复用 `statusBar` 变体；移动管理员不显示桌面工作栏。
 - 认证卡片使用 `authCard + content`，依靠普通文档流自然增高，不使用测高状态、`ResizeObserver`、`MutationObserver` 或重建组件；登录／注册切换和桌面／移动断点不得丢失未受控表单值。
 - 桌面状态栏和认证卡片圆角为 `24px`；移动状态栏、认证卡片和底栏圆角为 `40px`。
@@ -85,7 +86,7 @@
 - `tests/browser/frosted-glass-layout.spec.ts`：状态栏、通用面板、认证和移动底栏的真实背景滤镜、边界、圆角、单实例与无旧 DOM。
 - `tests/browser/open-glass-sampling.spec.ts`：四种玩家／管理员、桌面／移动场景的根级采样链。
 - `tests/browser/game-shell-layout.spec.ts`：侧栏宽窄屏一致、真实指针意图后的悬浮反馈不位移、建筑式面板与事件右栏几何。
-- `tests/browser/mobile-status-value-fit.spec.ts`：移动状态栏在连续视口 resize 后必须重新完成数值拟合，不得卡在 `data-status-values-fitted="false"`。
+- `tests/browser/mobile-status-value-fit.spec.ts`：移动状态栏在连续视口 resize 后必须重新完成数值拟合；`400px` 与 `340px` 两级超窄布局必须先收紧留白和图标，在 `320px` 仍保留 `44px` 通知触控轨道并让完整整数不低于 `0.56rem`；不得卡在 `data-status-values-fitted="false"` 或裁剪末位数字。
 - `tests/browser/mobile-workspace-overlay.spec.ts`：移动页面卡片滚动条到达安全右边缘且不改变正文宽度，防止 fixed/backdrop-filter 包含块偏移回归。
 - `tests/browser/mobile-navigation-scrollbar.spec.ts`：移动底栏无 hover、按下／选中／未选中状态和横向滚动。
 - `tests/browser/all-pages-preview.spec.ts`：概览、市场、建筑、设置四个同宽紧凑页面，排行榜与商店等六个全区域页面和独立事件右栏。
