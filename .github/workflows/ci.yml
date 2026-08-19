@@ -49,6 +49,17 @@ jobs:
           )
 
           replace_once(
+              'server/src/leaderboards.js',
+              "import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './domain.js';",
+              "import { FACILITY_TYPE_CATALOG, processWorld, PRODUCT_CATALOG } from './domain.js';",
+          )
+          replace_once(
+              'server/src/leaderboards.js',
+              "export function processLeaderboardWorld(world, now = Date.now(), options = {}) {\n  const migrate = options.migrate !== false;\n  world.players ||= {};",
+              "export function processLeaderboardWorld(world, now = Date.now(), options = {}) {\n  const migrate = options.migrate !== false;\n  processWorld(world, now, { migrate: false });\n  world.players ||= {};",
+          )
+
+          replace_once(
               'server/src/facility-groups.js',
               "  return {\n    ...publicGroup,\n    staffingRateBps,\n    staffingUpdatedAt: Math.max(0, Number(now) || 0),",
               "  return {\n    ...publicGroup,\n    staffingRateBps,\n    staffingUpdatedAt: Math.max(0, Number(now) || 0),\n    productionSettlementStaffingRateBps: normalizeStaffingRate(group.staffingRateBps) ?? FACILITY_STAFFING_FULL_BPS,\n    productionSettlementStaffingUpdatedAt: Number.isFinite(Number(group.staffingUpdatedAt))\n      ? Math.max(0, Number(group.staffingUpdatedAt))\n      : Math.max(0, Number(now) || 0),",
@@ -130,7 +141,7 @@ test('production wage settlement is batch invariant across an old first-cycle mu
           verifier = Path('scripts/verify-production-lazy-settlement.mjs')
           text = verifier.read_text()
           replace = "assert.match(clientSettlement, /createProductionSettlementClaim/, '浏览器必须从现有权威状态计算生产结算声明');"
-          addition = replace + "\nassert.match(clientSettlement, /productionSettlementStaffingRateBps/, '客户端必须使用服务器原始 staffing 基线而不是 UI 投影值');\nassert.match(serverSettlement, /group\.productionWageCarryNumerator === undefined/, '工资余数的合法 0 值不得被重新初始化');\nassert.match(serverSettlement, /firstCycleCostMicros/, '旧周期工资系数只能作用于首个欠结算周期');"
+          addition = replace + "\nassert.match(clientSettlement, /productionSettlementStaffingRateBps/, '客户端必须使用服务器原始 staffing 基线而不是 UI 投影值');\nassert.match(serverSettlement, /group\\.productionWageCarryNumerator === undefined/, '工资余数的合法 0 值不得被重新初始化');\nassert.match(serverSettlement, /firstCycleCostMicros/, '旧周期工资系数只能作用于首个欠结算周期');\nassert.match(leaderboard, /processWorld\\(world, now, \\{ migrate: false \\}\\);/, '排行榜推进必须显式保留通用市场与运输世界推进，不能依赖工厂扫描副作用');"
           if replace not in text:
               raise SystemExit('verifier anchor missing')
           verifier.write_text(text.replace(replace, addition, 1))
@@ -140,7 +151,7 @@ test('production wage settlement is batch invariant across an old first-cycle mu
           git checkout origin/main -- .github/workflows/ci.yml
           git config user.name 'RIVERSOFT'
           git config user.email '105160096+RIVERS0FT@users.noreply.github.com'
-          git add .github/workflows/ci.yml server/src/production-settlement.js server/src/facility-groups.js server/test/production-lazy-settlement.test.js src/types.ts src/utils/productionSettlement.ts scripts/verify-production-lazy-settlement.mjs
+          git add .github/workflows/ci.yml server/src/production-settlement.js server/src/leaderboards.js server/src/facility-groups.js server/test/production-lazy-settlement.test.js src/types.ts src/utils/productionSettlement.ts scripts/verify-production-lazy-settlement.mjs
           git diff --cached --check
           git commit -m 'preserve lazy production settlement precision'
           git push origin HEAD:agent/production-lazy-settlement
