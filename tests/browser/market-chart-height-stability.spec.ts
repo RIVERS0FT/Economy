@@ -6,10 +6,10 @@ type HeightSample = {
   minimumHeight: number;
 };
 
-async function sampleAnimationFrames(chart: Locator, frameCount = 120): Promise<HeightSample[]> {
-  return chart.evaluate(async (element, count) => {
+async function sampleAnimationFrames(chart: Locator): Promise<HeightSample[]> {
+  return chart.evaluate(async (element) => {
     const samples: HeightSample[] = [];
-    for (let frame = 0; frame < count; frame += 1) {
+    for (let frame = 0; frame < 120; frame += 1) {
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const chartCard = element.closest<HTMLElement>('.market-chart-card');
       if (!chartCard) throw new Error('Market chart card is missing');
@@ -20,7 +20,24 @@ async function sampleAnimationFrames(chart: Locator, frameCount = 120): Promise<
       });
     }
     return samples;
-  }, frameCount);
+  });
+}
+
+async function sampleStabilityFrames(chart: Locator): Promise<HeightSample[]> {
+  return chart.evaluate(async (element) => {
+    const samples: HeightSample[] = [];
+    for (let frame = 0; frame < 16; frame += 1) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const chartCard = element.closest<HTMLElement>('.market-chart-card');
+      if (!chartCard) throw new Error('Market chart card is missing');
+      samples.push({
+        chartHeight: element.getBoundingClientRect().height,
+        cardHeight: chartCard.getBoundingClientRect().height,
+        minimumHeight: Number((element as HTMLElement).dataset.chartMinimumHeight ?? 0),
+      });
+    }
+    return samples;
+  });
 }
 
 function range(samples: HeightSample[], field: keyof HeightSample) {
@@ -28,10 +45,9 @@ function range(samples: HeightSample[], field: keyof HeightSample) {
   return Math.max(...values) - Math.min(...values);
 }
 
-async function waitForStableGeometry(chart: Locator, expectedFillMode: 'row' | 'natural') {
-  await expect(chart).toHaveAttribute('data-chart-fill-mode', expectedFillMode);
+async function waitForStableGeometry(chart: Locator) {
   await expect.poll(async () => {
-    const samples = await sampleAnimationFrames(chart, 16);
+    const samples = await sampleStabilityFrames(chart);
     return Math.max(
       range(samples, 'chartHeight'),
       range(samples, 'cardHeight'),
@@ -60,7 +76,8 @@ test('market chart row fill height remains stable without resize feedback', asyn
       .market-page-surface .unified-market-grid > .market-account-panel { grid-column: 1 / -1 !important; }
     `,
   });
-  await waitForStableGeometry(chart, 'row');
+  await expect(chart).toHaveAttribute('data-chart-fill-mode', 'row');
+  await waitForStableGeometry(chart);
 
   const rowSamples = await sampleAnimationFrames(chart);
   expect(range(rowSamples, 'chartHeight')).toBeLessThanOrEqual(1);
@@ -77,7 +94,8 @@ test('market chart row fill height remains stable without resize feedback', asyn
 
   await wideLayout.evaluate((element) => element.remove());
   await page.setViewportSize({ width: 1280, height: 900 });
-  await waitForStableGeometry(chart, 'natural');
+  await expect(chart).toHaveAttribute('data-chart-fill-mode', 'natural');
+  await waitForStableGeometry(chart);
 
   const naturalSamples = await sampleAnimationFrames(chart);
   expect(range(naturalSamples, 'chartHeight')).toBeLessThanOrEqual(1);
