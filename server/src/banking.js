@@ -21,7 +21,6 @@ export const BANK_LOAN_TERM_MS = 72 * 60 * 60 * 1000;
 export const BANK_LOAN_GRACE_MS = 12 * 60 * 60 * 1000;
 export const BANK_DAILY_INTEREST_RATE_BPS = 100; // 1.00%
 export const BANK_INTEREST_POOL_RETENTION_DAYS = 7;
-export const BANK_INTEREST_MICROS_PER_CREDIT = 1_000_000;
 export const BANK_INTEREST_POOL_SHARE_PERCENT = 70;
 export const BANK_EMPLOYMENT_SHARE_PERCENT = 20;
 export const BANK_RISK_RESERVE_SHARE_PERCENT = 10;
@@ -57,6 +56,21 @@ function addSafe(left, right, message = '银行金额超出系统可表示范围
   const total = roundInternalMoney(Number(left || 0) + Number(right || 0));
   if (total === null || internalMoneyToMicros(total) === null) throw new Error(message);
   return total;
+}
+
+function addSafeMicros(left, right, message = '银行微单位超出系统可表示范围') {
+  const leftMicros = Number(left || 0);
+  if (!Number.isSafeInteger(leftMicros) || leftMicros < 0) throw new Error(message);
+  let rightMicros;
+  try {
+    rightMicros = typeof right === 'bigint' ? right : BigInt(right);
+  } catch {
+    throw new Error(message);
+  }
+  if (rightMicros < 0n) throw new Error(message);
+  const totalMicros = BigInt(leftMicros) + rightMicros;
+  if (totalMicros > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error(message);
+  return Number(totalMicros);
 }
 
 function multiplyFloor(left, right, divisor, message = '银行计算结果超出系统可表示范围') {
@@ -424,9 +438,11 @@ function allocatePaidInterest(world, player, amount, now, loanId) {
   const bank = ensureBankWorld(world, now);
   const account = ensurePlayerBankAccount(player, now);
   const { poolCredits, employmentCredits, reserveCredits } = splitRealizedInterest(paid);
-  bank.interestPoolMicros = addSafe(
+  const poolMicros = internalMoneyToMicros(poolCredits);
+  if (poolMicros === null) throw new Error('银行存款利息池超出系统可表示范围');
+  bank.interestPoolMicros = addSafeMicros(
     bank.interestPoolMicros,
-    Math.round(poolCredits * BANK_INTEREST_MICROS_PER_CREDIT),
+    poolMicros,
     '银行存款利息池超出系统可表示范围',
   );
   if (employmentCredits > 0) creditPopulationEmployment(world, employmentCredits, 'banking');
