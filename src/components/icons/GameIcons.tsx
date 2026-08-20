@@ -152,6 +152,15 @@ export function CloseIcon(props: GameIconProps) {
   return <GameIcon {...props}><path d="m6 6 12 12M18 6 6 18" /></GameIcon>;
 }
 
+export function RefreshIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <path d="M20 6v5h-5" />
+      <path d="M18.2 9A7.5 7.5 0 1 0 19 15" />
+    </GameIcon>
+  );
+}
+
 export function GiftIcon(props: GameIconProps) {
   return (
     <GameIcon {...props}>
