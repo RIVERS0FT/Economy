@@ -176,7 +176,6 @@ requireAll('docs/UI_DESIGN_SYSTEM.md', [
   '`MobileWorkspaceSheetHost`',
   '不得创建第二个 Sheet DOM',
   '允许覆盖移动底部导航',
-  '物理根 Sheet 独占 Pointer／Touch 手势监听',
 ]);
 requireAll('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
   '唯一根级 Mobile Workspace Sheet',
@@ -187,6 +186,7 @@ requireAll('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '唯一根级 Mobile Workspace Sheet',
   '工厂详情卡片容器',
   '允许覆盖移动底部导航',
+  '物理根 Sheet 独占 Pointer／Touch 手势监听',
 ]);
 
 console.log('移动端唯一工厂详情 Sheet Host、页面/详情内容复用、导航覆盖、共享拖拽内核与单实例防回退验证通过。');
