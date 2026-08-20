@@ -12,16 +12,25 @@ export function MobileBottomNavigation({
   activeTab,
   badges,
   onSelect,
+  workspaceSheetOpen,
+  returning,
+  onReturnAnimationEnd,
 }: {
   activeTab: TabId;
   badges: NavigationBadgeMap;
   onSelect: (tab: TabId) => void;
+  workspaceSheetOpen: boolean;
+  returning: boolean;
+  onReturnAnimationEnd: () => void;
 }) {
   return (
     <MobileBottomNavigationFrame
       ariaLabel="移动端游戏导航"
       navLabel="游戏主导航"
       surfaceId="game-mobile-navigation"
+      workspaceSheetHidden={workspaceSheetOpen}
+      navigationReturning={returning}
+      onReturnAnimationEnd={onReturnAnimationEnd}
     >
       <NavigationItems activeTab={activeTab} onSelect={onSelect} badges={badges} />
     </MobileBottomNavigationFrame>

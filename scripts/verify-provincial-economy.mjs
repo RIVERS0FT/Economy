@@ -322,7 +322,7 @@ for (const text of [
   '州级上下文页（无导航按钮）',
   '概览｜市场｜建筑｜仓库',
   '离开行为只清除地图视觉选中态，不清除经营州',
-  '全工作区点击捕获层必须保持透明',
+  '通知面板全工作区点击捕获层必须透明',
 ]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
 
 const tests = read('server/test/provinces.test.js');

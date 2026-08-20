@@ -62,7 +62,7 @@ if (sharedShell.indexOf('className="signed-in-shell__body"') >= sharedShell.inde
   failures.push('SignedInShell 必须先渲染页面主体、再渲染 Chrome，保持移动玻璃采样顺序');
 }
 if (sharedShell.indexOf("'signed-in-shell__chrome'") >= sharedShell.indexOf('className="workspace-dialog-layer"')) {
-  failures.push('SignedInShell 根级 Dialog 层必须在 Chrome 之后渲染，保证模态详情位于最上层');
+  failures.push('SignedInShell 根级 Dialog 层必须在 Chrome 之后渲染，由 CSS 层级保持移动状态栏位于业务 Dialog 之上');
 }
 check('src/components/ui/WorkspaceFloatingLayer.tsx', [
   'WorkspaceFloatingLayerContext',
@@ -313,20 +313,23 @@ check('tests/browser/shell-floating-safe-zone.spec.ts', [
   'intersectionArea',
 ]);
 check('tests/browser/notification-center.spec.ts', [
-  'mobile island stays centered while the panel remains above extreme workspace z-index',
-  'notification-layer-regression-sentinel',
+  'mobile notification panel overlays an open workspace sheet without leaving an island mounted',
+  "data-notification-layer', 'dialog'",
   'document.elementFromPoint',
   'panelCloseIsTopmost',
-  'islandCenter',
-  "expect(geometry.shellBodyZIndex).toBe('0')",
-  "expect(geometry.pageLayerZIndex).toBe('1')",
-  "expect(geometry.floatingLayerZIndex).toBe('4')",
-  "expect(geometry.floatingLayerOrder).toBe('2')",
+  'panelAboveSheet',
+  'statusIsTopmost',
+  'panelParentIsDialogLayer',
+  'expect(geometry.panelLayerZIndex).toBeGreaterThan(geometry.sheetBackdropZIndex)',
+  "page.locator('.notification-island')",
+  'await expect(workspaceSheet).toBeVisible()',
 ]);
 check('tests/browser/mobile-detail-sheet.spec.ts', [
   "page.locator('.workspace-dialog-layer')",
   "dialogLayer.locator(':scope > .mobile-detail-sheet-backdrop')",
-  'expect(navigationCovered).toBe(true)',
+  "expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'true')",
+  "expect(hiddenNavigation.visibility).toBe('hidden')",
+  "expect(hiddenNavigation.pointerEvents).toBe('none')",
 ]);
 check('tests/browser/frosted-glass-layout.spec.ts', [
   'shared frosted-glass shell',
@@ -354,6 +357,7 @@ check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '动画不得修改 `grid-template-columns`',
   '工作区安全浮层',
   '根级业务 Dialog',
+  '状态栏始终位于 Sheet 与通知面板之上',
 ]);
 check('docs/UI_DESIGN_SYSTEM.md', [
   '登录后浮层安全区', '`SafeTooltip`',
@@ -362,6 +366,7 @@ check('docs/UI_DESIGN_SYSTEM.md', [
   '`.application-map-layer`、`.application-ui-layer` 与 `.workspace-strategic-chrome` 必须保持 `isolation:auto`',
   '不得与桌面顶部状态栏／管理员工作栏、桌面侧栏',
   '根级 Dialog',
+  'Sheet 自身承担唯一移动毛玻璃模糊',
 ]);
 check('docs/README.md', [
   '`LIQUID_GLASS_CHROME_DESIGN.md`', '毛玻璃材质',
