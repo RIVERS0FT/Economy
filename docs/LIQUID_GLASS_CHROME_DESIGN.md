@@ -42,6 +42,7 @@
 - 认证卡片使用 `authCard + content`，依靠普通文档流自然增高，不使用测高状态、`ResizeObserver`、`MutationObserver` 或重建组件；登录／注册切换和桌面／移动断点不得丢失未受控表单值。
 - 桌面状态栏和认证卡片圆角为 `24px`；移动状态栏、认证卡片和底栏圆角为 `40px`。
 - 移动状态栏固定 `48px`，移动底栏固定 `68px`。底栏内容层提供唯一 `8px 0` 垂直留白，语义化 `nav` 是唯一横向滚动视口。
+- 移动底栏必须始终保留同一 DOM 实例。唯一根级 Mobile Workspace Sheet 存在期间，底栏通过 `aria-hidden`、`inert`、不可见和禁用命中退出交互树；不得只依赖 Sheet 遮挡。只有根 Sheet 完整收起并进入 `map` 后才恢复，并使用约 `280ms cubic-bezier(.2,.8,.2,1)` 的通知灵动岛同系弹性进入动画。详情层切换、通知面板开关、状态刷新和初始挂载不得触发该返回动画；`prefers-reduced-motion: reduce` 时立即恢复且不播放动画。
 - 状态栏、移动底栏、认证卡片和管理员工作栏每处只允许一个 `.frosted-glass-surface`；通知、Toast 和业务弹层不得为装饰增加额外毛玻璃实例。
 
 ## 4. 侧栏几何与输入方式
@@ -67,15 +68,15 @@
 
 ## 6. 移动与浮层
 
-- 不大于 `720px` 时桌面侧栏和右侧事件栏隐藏，`workspaceCard` 退化为无额外材质的结构容器；纯地图页继续只显示常驻战略地图，除纯地图外的玩家页面与工厂／研发／自动交易等业务详情统一进入唯一根级 Mobile Workspace Sheet。该 Host 在 `.workspace-dialog-layer` 中只挂载一份工厂详情卡片容器 `.mobile-detail-sheet-backdrop > .mobile-detail-sheet`，底边贴物理视口底部，允许覆盖移动底部导航；实体 Sheet 顶边保持在状态栏下方，根遮罩可覆盖完整视口并统一压暗／模糊其后的地图和 Chrome。页面本身仍使用共享 `PageLayout` 的固定标题与内部唯一正文滚动区。
-- 唯一根级 Mobile Workspace Sheet 只在首次由纯地图进入业务页面时执行根容器底部打开动效；业务页面之间切换只替换基础内容并保持同一 `.mobile-detail-sheet` DOM。工厂、研发或自动交易详情打开时在根内增加详情内容层并把基础页设为 `inert`，详情层使用同一拖动内核从底部进入；关闭详情只收起详情层并恢复原页面。没有详情层时，右上关闭、遮罩点击、`Escape` 或正文已经位于顶部时的有效向下拖动才收起整个根并切换到 `map`；正文 `scrollTop > 0` 时向下手势继续属于正文滚动。根 Sheet 统一承担工厂详情既有的页面滚动锁、焦点限制和遮罩。物理根 Sheet 独占 Pointer／Touch 手势监听；详情打开时只把同一个 `useMobileWorkspaceSheetDrag` 的视觉拖拽目标切换到详情层，不得把监听下沉到详情子层或同时注册两套监听，保证真机触摸、Pointer Capture 与下拉刷新保护始终经过同一物理事件边界。
+- 不大于 `720px` 时桌面侧栏和右侧事件栏隐藏，`workspaceCard` 退化为无额外材质的结构容器；纯地图页继续只显示常驻战略地图，除纯地图外的玩家页面与工厂／研发／自动交易等业务详情统一进入唯一根级 Mobile Workspace Sheet。该 Host 在 `.workspace-dialog-layer` 中只挂载一份工厂详情卡片容器 `.mobile-detail-sheet-backdrop > .mobile-detail-sheet`。实体 Sheet 底边贴物理视口底部，最大高度同时受 `88%` 视觉视口、`760px` 和状态栏下方可用高度约束，顶边必须始终低于移动状态栏。根 backdrop 可以覆盖完整视口承担点击关闭命中，但必须保持透明并禁用 `backdrop-filter`；唯一实体 `.mobile-detail-sheet` 自身才复用共享 `--frosted-glass-*` 材质和 `blur(18px) saturate(128%)`。Sheet 外部区域不得压暗或模糊，地图、状态栏和通知区域保持原亮度与清晰度。
+- 唯一根级 Mobile Workspace Sheet 只在首次由纯地图进入业务页面时执行根容器底部打开动效；业务页面之间切换只替换基础内容并保持同一 `.mobile-detail-sheet` DOM。工厂、研发或自动交易详情打开时在根内增加详情内容层并把基础页设为 `inert`，详情层使用同一拖动内核从底部进入；关闭详情只收起详情层并恢复原页面。没有详情层时，右上关闭、遮罩点击、`Escape` 或正文已经位于顶部时的有效向下拖动才收起整个根并切换到 `map`；正文 `scrollTop > 0` 时向下手势继续属于正文滚动。根 Sheet 继续承担页面滚动锁，但作为可与顶部 Chrome 并存的非模态 `role="dialog"` 不得建立全局 `Tab` 焦点陷阱；状态栏通知按钮和其覆盖层必须能够取得焦点。物理根 Sheet 独占 Pointer／Touch 手势监听；详情打开时只把同一个 `useMobileWorkspaceSheetDrag` 的视觉拖拽目标切换到详情层，不得把监听下沉到详情子层或同时注册两套监听，保证真机触摸、Pointer Capture 与下拉刷新保护始终经过同一物理事件边界。
 - `SignedInShell` 为玩家与管理员统一提供唯一页面 `ScrollArea`；不得为管理员创建第二个原生主滚动容器，嵌套业务视口到达边界后必须把滚动链交还该共享页面视口。
 - 移动页面卡片自己的竖向滚动条必须继续绝对定位在 `.page-card-scroll-area` 根上，并跨出 `--mobile-workspace-gutter + 1px` 卡片边框，使视觉滑块到达物理安全右边缘，同时不改变内容视口宽度。只有根级 `.page-scroll-area` 的竖向轨道允许使用 viewport-fixed 定位；不得把页面卡片滚动条设为 `fixed` 放在带 `backdrop-filter` 的毛玻璃祖先下，因为 Chromium 会为固定后代建立局部包含块并把轨道错误地向内偏移。
 - 滚动条浏览器回归必须以 `getComputedStyle(workspace).paddingRight` 等已解析为像素的实际几何作为沟槽基准，再加页面卡片 `1px` 边框核对滚动根 inset；不得对可能为 `rem` 的 `--mobile-workspace-gutter` 原始字符串直接 `parseFloat` 后当作像素使用。最终滑块仍需验证距离物理右边缘约 `2px`。
-- 地图镜头栏与唯一地图舞台通过同一个 `ApplicationMapLayerPortal` 挂载为根级 `.application-map-layer` 的直接子节点；镜头栏位于地图舞台之上，但整个地图层 `20` 必须低于承载页面的 UI 层 `30`，不得再把镜头栏挂入 `StrategicWorkspaceChrome`。镜头栏底部外距与通知面板左右／底部外距统一读取 `var(--layout-gutter)`。页面不为镜头栏预留高度；镜头栏位于页面层下方，在页面覆盖范围内由页面自然遮挡，不能挤压正文。通知面板继续位于工作区安全浮层并始终高于页面层、事件右栏和地图镜头栏；其顶部直接复用状态栏到工作区的既有沟槽，不得重复增加顶部内距，面板外点击捕获层必须透明且不得压暗地图，点击面板外遮罩空白必须关闭。移动通知灵动岛位于 Chrome Overlay；两者不得推动页面或新增毛玻璃宿主。
-- 根级业务 Dialog 在移动玩家端由唯一 `MobileWorkspaceSheetHost` 统一占用，承载一级业务页面以及同根内的详情内容层，并继续高于移动底栏和普通工作区浮层。`MobileWorkspacePageSheet` 不再拥有可见根容器，只是 Host 的零 DOM 适配器；`MobileWorkspaceDetailSheet` 不再创建 Dialog，只向 Host 注册详情内容和固定底栏。普通 Tooltip、Popover 与通知面板继续限制在工作区安全浮层内；来自唯一根 Sheet 内的富下拉可以使用根 Dialog 作为安全边界。不得创建第二份 `.mobile-detail-sheet`、第二个 backdrop 或第二个根级 Portal。
-- 移动通知灵动岛以物理屏幕水平中线为中心，并从中心对称展开；左右安全区不能让其偏向页面内容列。工作区浮层根已经提供唯一水平边界，通知样式不得再次叠加侧栏或安全区偏移。
-- 面板打开时立即清空 Toast 队列。移动工作区使用局部层级堆叠边界：页面使用 `1`、事件右栏使用 `2`、普通浮层使用 `4`；地图舞台与镜头栏分别使用根地图层内部 `0`／`1`，并共同受全应用地图层 `20` 收口，始终低于全应用 UI 层 `30`。页面内部任意正 `z-index` 都不得盖过通知面板或 Chrome。
+- 地图镜头栏与唯一地图舞台通过同一个 `ApplicationMapLayerPortal` 挂载为根级 `.application-map-layer` 的直接子节点；镜头栏位于地图舞台之上，但整个地图层 `20` 必须低于承载页面的 UI 层 `30`，不得再把镜头栏挂入 `StrategicWorkspaceChrome`。镜头栏底部外距继续读取 `var(--layout-gutter)`。页面不为镜头栏预留高度；镜头栏位于页面层下方，在页面覆盖范围内由页面自然遮挡，不能挤压正文。桌面通知面板继续位于工作区安全浮层并保持原有右上角几何；移动通知面板复用现有 `.workspace-dialog-layer`，作为 Chrome 级临时覆盖层位于 Sheet 之上、移动状态栏之下，面板外点击捕获层必须透明且不得压暗地图，点击面板外遮罩空白必须关闭。移动通知灵动岛位于 Chrome Overlay；通知面板和灵动岛都不得推动页面或新增第五个全局层。
+- 根级业务 Dialog 在移动玩家端由唯一 `MobileWorkspaceSheetHost` 统一占用，承载一级业务页面以及同根内的详情内容层。`MobileWorkspacePageSheet` 不再拥有可见根容器，只是 Host 的零 DOM 适配器；`MobileWorkspaceDetailSheet` 不再创建 Dialog，只向 Host 注册详情内容和固定底栏。普通 Tooltip、Popover 继续限制在工作区安全浮层内；来自唯一根 Sheet 内的富下拉可以使用根 Dialog 作为安全边界。移动通知面板是明确例外：它复用同一个根 Dialog Layer 的更高内部层级覆盖 Sheet，但不创建第二个 Portal 根。状态栏始终位于 Sheet 与通知面板之上。不得创建第二份 `.mobile-detail-sheet`、第二个 backdrop 或第二个根级 Portal。
+- 移动通知灵动岛以物理屏幕水平中线为中心，并从中心对称展开；左右安全区不能让其偏向页面内容列。Sheet 存在期间灵动岛仍可在状态栏下方显示并位于 Sheet 之上；打开通知面板后必须立即卸载通知岛、Toast 及其 ARIA live region。
+- 面板打开时立即清空 Toast 队列。`useNotificationCenter` 同时必须在面板打开期间拒绝新增 Toast；新操作通知和待处理变化只更新面板内容并按现有已读语义处理，关闭面板后不得把面板期间已经展示的通知延迟补弹。移动内部层级固定为地图／页面 < 根 Sheet < 移动通知面板／通知灵动岛 < 状态栏；底部导航在 Sheet 存在期间退出视觉与交互树，不参与该覆盖竞争。页面内部任意正 `z-index` 都不得盖过通知面板或 Chrome。
 - 页面内部若使用带非 `auto` `z-index` 的 `position: sticky`／定位元素，必须被 `.mobile-page-overlay` 的页面层堆叠边界收口，不得遮挡移动状态栏、通知或底栏。
 - 登录态根视口的下拉刷新边界由 `html[data-app-surface="game"|"admin"]` 的 `overscroll-behavior-y: none` 终止；移动工厂详情通过 `mobileDetailSheetPullRefresh.ts` 的非被动 `touchmove` 仅阻止触发浏览器刷新所需的手势，内部滚动区继续保持 `overscroll-behavior-y: auto`，不得全局阻断页面触摸滚动。
 
@@ -84,11 +85,12 @@
 必须通过以下防回退：
 
 - `scripts/verify-liquid-glass-chrome.mjs`：历史脚本路径保留，但验证对象已改为 CSS 毛玻璃、依赖删除、共享组件、页面分流和右栏职责。
-- `scripts/verify-mobile-page-sheet.mjs`：锁定唯一根级 Mobile Workspace Sheet、工厂详情卡片容器单实例、页面／详情内容复用、共享拖动内核、导航覆盖、地图关闭语义和样式加载顺序，禁止恢复第二个 Sheet DOM。
+- `scripts/verify-mobile-page-sheet.mjs`：锁定唯一根级 Mobile Workspace Sheet、工厂详情卡片容器单实例、Sheet 自身毛玻璃、透明外部 backdrop、状态栏避让、页面／详情内容复用、共享拖动内核、底栏隐藏与返回动画、通知覆盖和地图关闭语义，禁止恢复第二个 Sheet DOM。
 - `tests/browser/frosted-glass-layout.spec.ts`：状态栏、通用面板、认证和移动底栏的真实背景滤镜、边界、圆角、单实例与无旧 DOM。
 - `tests/browser/open-glass-sampling.spec.ts`：四种玩家／管理员、桌面／移动场景的根级采样链。
 - `tests/browser/game-shell-layout.spec.ts`：侧栏宽窄屏一致、真实指针意图后的悬浮反馈不位移、页面展开期间布局盒几何不受视觉裁剪动画影响、建筑式面板与事件右栏几何。
 - `tests/browser/mobile-status-value-fit.spec.ts`：移动状态栏在连续视口 resize 后必须重新完成数值拟合；`400px` 与 `340px` 两级超窄布局必须先收紧留白和图标，在 `320px` 仍保留 `44px` 通知触控轨道并让完整整数不低于 `0.56rem`；不得卡在 `data-status-values-fitted="false"` 或裁剪末位数字。
-- `tests/browser/mobile-workspace-overlay.spec.ts`：唯一根级 Mobile Workspace Sheet 必须复用工厂详情全宽容器、底边贴物理视口并覆盖移动底栏，关闭后回到常驻地图并恢复导航命中；页面卡片滚动条必须留在根 Sheet 安全右边缘且不改变正文宽度。
-- `tests/browser/mobile-navigation-scrollbar.spec.ts`：移动底栏无 hover、按下／选中／未选中状态和横向滚动。
+- `tests/browser/mobile-workspace-overlay.spec.ts`：唯一根级 Mobile Workspace Sheet 必须复用工厂详情全宽容器、底边贴物理视口、顶边避让状态栏且只在自身毛玻璃；Sheet 外保持清晰，状态栏可交互，底栏在 Sheet 存在时隐藏并在根 Sheet 收起后播放返回动画；页面卡片滚动条继续位于根 Sheet 安全右边缘且不改变正文宽度。
+- `tests/browser/notification-center.spec.ts`：桌面通知保持工作区浮层；移动通知面板必须覆盖已打开的根 Sheet、保持状态栏最高且面板打开期间通知岛为零，`Escape` 只关闭通知面板并恢复通知入口焦点。
+- `tests/browser/mobile-navigation-scrollbar.spec.ts`：移动底栏保持同一 DOM、Sheet 存在时不可见且不可交互、根 Sheet 收起到地图后使用通知灵动岛同系返回动画，并继续验证无 hover、按下／选中／未选中状态和横向滚动。
 - `tests/browser/all-pages-preview.spec.ts`：概览、市场、建筑、设置四个同宽紧凑页面，排行榜与商店等六个全区域页面和独立事件右栏。
