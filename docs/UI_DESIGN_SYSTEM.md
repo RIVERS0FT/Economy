@@ -47,7 +47,7 @@
 | `src/styles/auth.css` | 登录布局、动态视口与认证自动填充兼容例外 |
 | `src/styles/card-system.css` | 卡片圆角映射 |
 | `src/styles/desktop-sidebar.css` | 桌面侧栏宽度、折叠、导航固有行高、无角标按钮和可访问状态 |
-| `src/styles/mobile-detail-sheet.css` | 移动一级 Page Sheet 与工厂、研发详情／市场自动交易等二级 Detail Sheet 的共享圆角、拖动、滚动区、安全区和动效最终权威；一级 Sheet 留在 workspace，只有二级 Detail 使用根级 Dialog 遮罩 |
+| `src/styles/mobile-detail-sheet.css` | 唯一根级 Mobile Workspace Sheet 的工厂详情卡片容器、遮罩、圆角、拖动、页面／详情内容层、滚动区、安全区和动效最终权威；所有移动业务页面与业务详情共用同一个根 Sheet，允许覆盖移动底部导航，不得创建第二个 Sheet DOM |
 | `src/styles/scrollbars.css` | 全局覆盖式滚动条宽度、颜色、层级、显隐与移动页面／根级 Dialog 安全边缘轨道 |
 | `src/styles/performance.css` | 渲染性能保护和触控惯性；不得阻断页面或虚拟列表的纵向滚动链 |
 | `src/styles/frosted-glass-surfaces.css` | 状态栏、认证卡片、移动底栏与玩家 `workspaceCard` 的统一纯 CSS 毛玻璃材质和几何 |
@@ -62,6 +62,7 @@
 业务页面优先使用：
 
 - `PageLayout`
+- `MobileWorkspaceSheetHost`
 - `MobileWorkspacePageSheet`
 - `MobileWorkspaceDetailSheet`
 - `MobileDetailSummary`
@@ -90,7 +91,7 @@
 - `InputGroup`
 - `EconomyChart`
 
-`MobileWorkspacePageSheet` 与 `MobileWorkspaceDetailSheet` 必须共同复用 `useMobileWorkspaceSheetDrag` 作为唯一向下拖动、速度判定、回弹、关闭和 reduced-motion 内核；业务页面与详情组件不得复制第二套 Sheet 手势状态机。
+`MobileWorkspaceSheetHost` 是移动端唯一根级 Sheet 宿主，并独占 `useMobileWorkspaceSheetDrag` 的向下拖动、速度判定、回弹、关闭和 reduced-motion 状态机。`MobileWorkspacePageSheet` 只保留为 `GameShell` 的零 DOM 兼容适配器，`MobileWorkspaceDetailSheet` 只向 Host 注册详情内容和固定底栏；两者都不得创建自己的 Sheet 外框、遮罩、Portal 或第二套手势状态机。
 
 `PagePanel` 是新增玩家端一级卡片的唯一 React 入口，固定复用 `Panel`、`.widget` 与 `.ui-primary-surface`。现有 `Panel className="widget ..."` 由兼容桥自动补充 `.ui-primary-surface`；建筑页和排行页尚未迁移的旧一级卡片类只允许在 `primary-surfaces.css` 中作为兼容入口，不得在业务 CSS 中重新定义外层 padding。
 
@@ -130,11 +131,13 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 - 复杂页面允许把若干紧密关联模块放进一个页面专属网格或组合容器，再把该容器作为 `.ui-page-stack` 的一个直接子元素；不得为特殊页面增加 `disableSpacing`、零间距开关或平行页面外壳。
 - `scripts/verify-page-section-spacing.mjs` 必须扫描全部 `src/pages/*Page.tsx`、管理员入口、共享组件、最终 CSS、权威设计和浏览器回归；除唯一地图工作台例外外，新增正式页面未使用 `PageLayout`，或地图页恢复 `PageLayout`／缺少 `.province-map-page`，或业务样式重定义 `.ui-page-stack`、真实一级几何间距不一致时必须阻止构建。
 
-### 3.1.1 登录后根级 Dialog 与移动 Page Sheet
+### 3.1.1 登录后唯一根级 Mobile Workspace Sheet
 
-移动工作区只允许两级 Sheet 语义。`MobileWorkspacePageSheet` 是不大于 `720px` 时除纯地图外玩家页面的移动一级 Page Sheet：它必须留在普通 workspace 页面层、位于常驻状态栏与移动底栏之间，继续承载原页面 `PageLayout` 的固定标题和正文 `ScrollArea`，不得进入 `.workspace-dialog-layer`，不得启用模态遮罩、焦点陷阱或全局页面滚动锁，也不得压暗常驻地图。业务页面之间切换只替换一级 Sheet 内的页面内容；关闭、选择纯地图或正文顶部的有效向下拖动共用收起流程。
+不大于 `720px` 时，除纯地图外的所有玩家业务页面与业务详情共用同一个唯一根级 Mobile Workspace Sheet。`MobileWorkspaceSheetHost` 通过 `SignedInShell` 唯一 `.workspace-dialog-layer` 只挂载一份 `.mobile-detail-sheet-backdrop > .mobile-detail-sheet`，其外框、遮罩、最大高度、顶部拖动把手、页面滚动锁、焦点限制、安全区和动效全部沿用工厂详情卡片容器。该根 Sheet 底边贴物理视口底部，允许覆盖移动底部导航；底部导航可继续保留在 Chrome DOM 中，但 Sheet 打开期间其命中区域由根遮罩／Sheet 接管，只有整个根 Sheet 关闭到纯地图后才恢复交互。实体 Sheet 顶边仍应位于移动状态栏下方，遮罩可以覆盖完整移动视口。
 
-普通 Tooltip、Popover、菜单和不应覆盖应用 Chrome 的业务浮层继续使用 `.workspace-floating-layer`。必须覆盖完整移动视口的模态业务详情统一作为二级 Detail Sheet 使用 `SignedInShell` 唯一 `.workspace-dialog-layer` 根级 Dialog 层；该根位于 Chrome 与移动一级 Page Sheet 之上、保持开放采样链并只让实际 Dialog 恢复指针事件。移动工厂详情、移动研发详情与市场自动交易设置必须共同复用 `MobileWorkspaceDetailSheet`，由 `src/styles/mobile-detail-sheet.css` 唯一控制遮罩、圆角、最大高度、页面滚动锁、焦点限制、唯一 `ScrollArea`、固定底栏和安全区；工厂与研发详情首区共同复用 `MobileDetailSummary`，市场自动交易设置复用统一商品选择器、采购／出售页签和既有仓库表单信息层级，并把原子保存动作放在共享固定底栏。一级 Page Sheet 与二级 Detail Sheet 的拖动、速度阈值、回弹和 reduced-motion 只能来自 `useMobileWorkspaceSheetDrag`，页面业务 CSS 只能定义正文内容和按钮语义，不得重新定义根级 Sheet 几何、滚动区内边距、sticky 底栏或第二套 Portal；详情内富内容列表继续使用同一根并位于遮罩上方，不得追加到 `document.body`。
+一级业务页面作为 Host 的基础内容层继续承载原页面 `PageLayout` 固定标题和页面自己的正文 `ScrollArea`；业务页面之间切换只替换基础内容并保持同一个 `.mobile-detail-sheet` DOM。工厂详情、研发详情与市场自动交易设置继续使用 `MobileWorkspaceDetailSheet` API，但该组件只能把详情正文和可选固定底栏 Portal 到 Host 预留的详情槽位，不得创建第二个 Sheet DOM。打开详情时在同一根 Sheet 内把基础页面设为 `inert` 并显示详情内容层；关闭详情、点击遮罩、按 `Escape` 或有效向下拖动只收起当前详情层并恢复原页面与触发焦点，根 Sheet 不卸载。仅当不存在详情层时，关闭页面、点击遮罩、按 `Escape` 或正文已到顶部的有效向下拖动才收起整个根 Sheet并进入 `map`。
+
+`MobileWorkspaceSheetHost` 是唯一允许调用 `useMobileWorkspaceSheetDrag`、`useWorkspaceDialogLayer`、创建根遮罩和实施页面滚动锁／焦点陷阱的组件；`MobileWorkspacePageSheet` 只是零 DOM 兼容适配器，`MobileWorkspaceDetailSheet` 只是内容注册器。普通 Tooltip、通知 Popover 与不应覆盖应用 Chrome 的业务浮层继续使用 `.workspace-floating-layer`；来自唯一根 Sheet 内的富下拉可以继续以 `.workspace-dialog-layer` 作为安全定位边界并位于 Sheet 之上。任何业务页、工厂详情、研发详情或自动交易设置都不得创建嵌套 `.mobile-detail-sheet`、第二个 backdrop、第二个根级 Portal 或平行拖动状态机。
 
 ### 3.2 输入方式与共享交互状态
 
@@ -399,7 +402,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 
 - 地图使用 `StrategicWorkspace` 内唯一 `UsMainlandMap` 和共享 `EconomyChart` 的 ECharts Geo/Map SVG，不得保留页面级第二个地图实例、手绘 `.province-map-silhouette`、固定百分比坐标或覆盖式地区按钮。地图按需注册 `MapChart` 与 `GeoComponent`，精确使用 `us-atlas@3.0.1` 和 `topojson-client@3.1.0`；运行时把州 TopoJSON 转为 GeoJSON，只注册与共享目录 `mapName` 一一对应的连续 48 州，不显示阿拉斯加、夏威夷、华盛顿特区或海外领地附图。桌面与移动初始视图统一使用固定投影比例的等比 Contain 相机：按根地图层真实宽高动态计算 `layoutSize`，让美国本土完整轮廓始终位于视口内并保留少量安全边距；根地图舞台背景继续铺满窗口，不得通过 `scaleX`／`scaleY`、非等比 SVG 变换或修改 `aspectScale` 拉伸、挤压州界。`.application-map-layer` 继续作为根级安全边界；地图舞台、图表宿主和 SVG 画布保持 `overflow: visible`、零边框、零圆角、零轮廓、无阴影和零图表内边距，不得由工作区、卡片或内部图表层形成黑色矩形裁切。地图容器尺寸变化时，现有 ECharts 实例必须先 `resize`，再按新宽高重新计算 Contain `layoutSize` 并把基础 `center`／`zoom` 归中为 `null`／`1`；`scaleLimit.min` 固定为 Contain 基线。用户主动平移和放大仍由 ECharts `roam` 与 `scaleLimit` 约束。州面点击、地区选择高亮、地图镜头编码和正式页面切换只能合并更新数据或选中态，绝不能重新应用基础相机、改变用户当前 `center`／`zoom`、卸载或重新创建地图；只有首次图表就绪与容器真实尺寸变化允许应用基础 Contain 相机。`MapPage` 不再拥有 `UsMainlandMap` 实例，只保留透明 `.province-map-page` 路由占位，不得渲染左上“战略经营地图”卡片、左下图例／来源卡或“当前经营地区”卡片。每个州面支持鼠标或触摸点击；单击后同时更新经营州并打开 `province` 上下文页，该页打开期间显示唯一州面高亮。未解锁州在地图上使用灰显视觉并在 Tooltip 标注“未解锁”，点击后同样打开州级上下文页并展示解锁面板。关闭州级页或通过导航进入其他页面后立即清除地图视觉高亮，但保留经营州供市场、生产与后续写操作使用；该分离不得清空资产、表单草稿或服务器权威地区。地图州面是玩家唯一地区切换入口；市场、生产和其他业务页面不得渲染州级地区下拉框、按钮组或第二套选择器，只读取并显示地图当前选择。当地库存、工厂和订单详情继续在各自正式业务页面展示，不在地图页恢复重复经营详情卡。
 - 地区默认、悬停、当前、资产、工业、市场和异常语义使用区域填充、边界、文字、Tooltip 和五种镜头共同表达；当前地区由 ECharts 单选状态与外部 `selectedProvinceId` 双向同步。镜头状态只属于 `GameShell` 客户端视觉上下文，不得写入服务器或更换地区。地图表面支持鼠标／触摸点击、拖动和最高 8 倍受限缩放；纵向窄屏必须使用 ECharts `media` 选项按宽度适配美国本土轮廓，并隐藏普通常驻州缩写，只在选中或悬停时显示标签，避免在小地图上重叠。ECharts 容器提供“美国本土州级经营地图”可访问名称、当前地区摘要和点击州面切换提示；业务页面不得恢复州级地区下拉框。
-- 玩家端采用类似大战略游戏的常驻地图工作台：全应用根节点严格按图片层 `0`、氛围层 `10`、地图层 `20`、UI 层 `30` 堆叠。`.application-map-layer` 通过同一个 Portal 持有唯一 `StrategicMapStage` 和 `StrategicMapLensBar` 两个直接子节点并铺满视口，地图舞台／镜头栏在该层内使用 `0`／`1`，整个地图层仍低于页面 UI 层；侧栏与页面共同位于 UI 层唯一 `workspaceCard`。概览、州级上下文、市场、建筑、设置使用 `building` 左侧毛玻璃面板，共享 `56rem` 内容目标且包含侧栏的主卡片不得超过 `calc(100vw / 3)`，并给屏幕右侧公开事件日志预留空间；研发、拍卖、合同、银行、排行榜、商店使用 `fullscreen` 占满可用区域，排行榜与商店保持相同宽度且不挂载事件栏，`map` 只保留侧栏轨道。桌面状态栏、主卡片和事件右栏统一使用 `8px` 屏幕边距，状态栏与页面之间禁止重复叠加沟槽；底部镜头栏位于页面层下方且不占用页面高度。独立事件右栏高于地图但不与主卡片相交，通知安全浮层始终高于二者。打开页面或通知面板不得在地图之上添加深色遮罩，通知点击捕获层必须透明。不大于 `720px` 时地图继续铺满视口，右栏和镜头栏隐藏，其他业务面板由卡片内部唯一页面滚动视口承担纵向空间。地图州面点击是唯一地区切换入口：点击后打开隐藏 `ProvincePage`，其 `PageLayout` 标题使用州全称，标题下四项分段控件使用 `tablist`／`tab`／`tabpanel` 与至少 `44px` 触控高度，依次嵌入概览、市场、建筑和仓库现有内容；离开该页只清除地图视觉高亮，经营州继续供业务状态使用。其他业务页面不得创建地区下拉框或平行选择状态。
+- 玩家端采用类似大战略游戏的常驻地图工作台：全应用根节点严格按图片层 `0`、氛围层 `10`、地图层 `20`、UI 层 `30` 堆叠。`.application-map-layer` 通过同一个 Portal 持有唯一 `StrategicMapStage` 和 `StrategicMapLensBar` 两个直接子节点并铺满视口，地图舞台／镜头栏在该层内使用 `0`／`1`，整个地图层仍低于页面 UI 层；侧栏与页面共同位于 UI 层唯一 `workspaceCard`。概览、州级上下文、市场、建筑、设置使用 `building` 左侧毛玻璃面板，共享 `56rem` 内容目标且包含侧栏的主卡片不得超过 `calc(100vw / 3)`，并给屏幕右侧公开事件日志预留空间；研发、拍卖、合同、银行、排行榜、商店使用 `fullscreen` 占满可用区域，排行榜与商店保持相同宽度且不挂载事件栏，`map` 只保留侧栏轨道。桌面状态栏、主卡片和事件右栏统一使用 `8px` 屏幕边距，状态栏与页面之间禁止重复叠加沟槽；底部镜头栏位于页面层下方且不占用页面高度。独立事件右栏高于地图但不与主卡片相交，通知安全浮层始终高于二者。桌面打开页面或通知面板不得在地图之上添加深色遮罩，通知点击捕获层必须透明；移动端唯一根级 Mobile Workspace Sheet 是明确例外，统一使用工厂详情卡片容器的根遮罩压暗／模糊其后的地图与 Chrome。不大于 `720px` 时地图继续铺满视口，右栏和镜头栏隐藏，其他业务面板由卡片内部唯一页面滚动视口承担纵向空间。地图州面点击是唯一地区切换入口：点击后打开隐藏 `ProvincePage`，其 `PageLayout` 标题使用州全称，标题下四项分段控件使用 `tablist`／`tab`／`tabpanel` 与至少 `44px` 触控高度，依次嵌入概览、市场、建筑和仓库现有内容；离开该页只清除地图视觉高亮，经营州继续供业务状态使用。其他业务页面不得创建地区下拉框或平行选择状态。
 - `.application-map-layer`、`.application-ui-layer` 与 `.workspace-strategic-chrome` 必须保持 `isolation:auto`、`filter:none` 和 `transform:none`，不得成为第二个全应用隔离根；UI 内部的页面、Chrome、普通浮层和业务 Dialog 仍全部属于 UI 层，不得创建第五个全局层。业务面板可使用半透明背景和 `backdrop-filter`，但不得复制根级摄影氛围、创建第二个地图背景或遮盖状态栏玻璃采样链。
 - `us-atlas`、ISC、精确依赖版本和非测绘／导航用途边界由页面权威文档与依赖清单记录，不在地图页恢复左下来源卡。地图数据不得自行生成经营地区 ID、绕过共享目录或用于现实导航、测绘和法律边界声明；既有 34 个地区 ID 必须保持稳定并原位对应州级地区，新增 14 个州 ID 不得移动、复制或合并既有资产。
 
@@ -514,7 +517,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 移动底部导航允许横向滚动，首尾保留完整空白。
 - 移动端首次创建客户端偏好状态时，“紧凑数字”默认开启；桌面端默认关闭。
 - 活动导航按钮和图标不得位移、缩放或改变几何尺寸。
-- 页面底部预留空间必须保证最后一张卡能滚动到导航栏上方。
+- 移动端业务页面进入唯一根级 Mobile Workspace Sheet 后不再为被覆盖的底部导航预留外层空间；最后一张卡必须能在 Sheet 自身正文滚动区内完整滚到可见位置，并尊重根 Sheet 与安全区内边距。
 - 移动登录页面通过 `100dvh` 和矮屏媒体查询适配软键盘。
 - 登录按钮在普通与“正在连接账号服务…”状态下保持至少 48px 高度和单行文案；表单使用 `aria-busy` 表达提交状态。
 - 输入、按钮焦点和提交中的原生 `disabled` 状态不得改变标题字号、区块间距或整体对齐。
@@ -560,7 +563,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 恢复同时铺开全部完整工厂卡、四列完整详情网格或瀑布流，或让市场入口离开详情底部；
 - 把完整状态从工厂名称下方移回独立右侧操作区、把开关移出标题区，或把三项数量摘要改为纵向排列；
 - 恢复移动详情顶部关闭按钮、让对话框没有明确初始焦点，或让点击遮罩和 `Escape` 绕过收起动画直接卸载；
-- 让移动一级 Page Sheet 进入 `.workspace-dialog-layer`、增加模态遮罩／焦点陷阱、遮挡状态栏或移动底栏，或为不同一级页面复制第二套拖动状态机；
+- 绕过唯一根级 Mobile Workspace Sheet 让业务页面或详情创建第二个 Sheet DOM、第二个 backdrop、第二个根级 Portal 或平行拖动状态机；不得让一级页面重新退回 workspace 内独立 Page Sheet，也不得为了露出移动底部导航而把根 Sheet 底边抬到导航栏上方；
 - 恢复工厂周期、产量、成本、原料四格规格区；
 - 在生产公式中恢复独立箭头元素、Emoji 周期或成本图标、可见“周期”标签或可见“运行成本”标签；
 - 删除 `CycleIcon`、`CreditsIcon`、`WarehouseIcon` 或用平行 SVG 文件替代统一图标组件；
@@ -630,10 +633,10 @@ Playwright 必须验证 `1684×931`、`1280×900`、`900×1000`、`390×844` 和
 ## 登录后浮层安全区
 
 - 游戏端与管理员端的 Tooltip、Popover、下拉菜单、上下文菜单、确认框和页面 Dialog 必须使用 `SignedInShell` 提供的 `.workspace-floating-layer`，或由业务容器在自身边界内完成 `confine`。
-- 任一浮层都不得与桌面顶部状态栏／管理员工作栏、桌面侧栏、移动顶部状态栏或移动底栏相交；浮层的四条边必须落在工作区浮层根的真实矩形内。
+- 普通 Tooltip、Popover、菜单、通知面板等工作区安全浮层不得与桌面顶部状态栏／管理员工作栏、桌面侧栏、移动顶部状态栏或移动底栏相交；唯一根级 Mobile Workspace Sheet 是明确例外，其工厂详情卡片容器位于根级 Dialog 层并允许覆盖移动底部导航。
 - `SafeTooltip` 是状态栏、管理员工作栏和侧栏中需要完整提示时的共享入口。其定位必须根据工作区浮层根计算、自动上下翻转、水平收敛并保留 `8px` 安全间距。
 - 登录后界面不得使用原生 `title` 承担被截断文本、操作说明或其他必须可访问的信息；原生 `title` 只允许保留非必要补充说明。
-- 模态浮层的遮罩也只能覆盖工作区；即使视觉上不覆盖状态栏和侧栏，打开期间仍必须通过焦点陷阱、`inert` 或共享交互锁阻止背景误操作。
+- 普通工作区模态浮层的遮罩仍只能覆盖所属工作区；唯一根级 Mobile Workspace Sheet 的遮罩按工厂详情既有语义覆盖完整移动视口，并通过焦点陷阱、基础页 `inert`、页面滚动锁和根级命中接管阻止被覆盖 Chrome 与背景页面误操作。
 - 浏览器回归必须分别验证玩家图表 Tooltip、管理员工作栏 Tooltip、侧栏展开／折叠、移动安全区和 `125%` 根字号；只检查 `z-index` 或 Option 字符串不能证明安全区有效。
 
 ## 生产方式下拉选择

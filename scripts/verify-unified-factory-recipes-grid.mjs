@@ -38,6 +38,7 @@ const page = read('src/pages/BuildingsPage.tsx');
 const detail = read('src/pages/production/ProductionFacilityDetail.tsx');
 const mobile = read('src/pages/production/MobileFacilityDetailSheet.tsx');
 const sharedSheet = read('src/components/ui/MobileWorkspaceDetailSheet.tsx');
+const sharedHost = read('src/components/ui/MobileWorkspaceSheetHost.tsx');
 const sharedDrag = read('src/components/ui/useMobileWorkspaceSheetDrag.ts');
 const sharedSummary = read('src/components/ui/MobileDetailSummary.tsx');
 const catalogPresentationDesign = read('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md');
@@ -46,6 +47,7 @@ const productionSource = `${page}
 ${detail}
 ${mobile}
 ${sharedSheet}
+${sharedHost}
 ${sharedDrag}
 ${sharedSummary}`;
 assert.equal(
@@ -82,7 +84,7 @@ for (const text of [
   'artworkClassName="facility-detail-artwork facility-information-artwork"',
   'className="facility-detail-artwork-icon"',
   '<FacilityStaffingSummary entry={entry} now={liveNow} />',
-  'return createPortal(',
+  'createPortal(children, host.detailContentLayer)',
   "const [selectedFacilityGroupId, setSelectedFacilityGroupId] = useState('')",
   'const [isFacilityDetailOpen, setFacilityDetailOpen] = useState(false)',
   "window.matchMedia('(max-width: 720px)')",
@@ -112,7 +114,7 @@ for (const text of [
   "event.key !== 'Tab'",
   'useLayoutEffect',
   "window.visualViewport?.height ?? window.innerHeight",
-  "sheet?.focus({ preventScroll: true });",
+  "root.focus({ preventScroll: true });",
   "document.querySelector<HTMLElement>('.page-scroll')",
   "pageScroll.style.overflowY = 'hidden'",
   "pageScrollArea.dataset.modalScrollbarSuppressed = 'true'",
@@ -158,9 +160,14 @@ assert.equal(
   '移动详情框只能声明一次 aria-labelledby',
 );
 assert.equal(
-  sharedSheet.includes("from './useMobileWorkspaceSheetDrag'"),
+  sharedHost.includes("from './useMobileWorkspaceSheetDrag'"),
   true,
-  '移动工厂详情必须复用共享工作区 Sheet 拖动内核',
+  '移动工厂详情必须通过唯一 Host 复用共享工作区 Sheet 拖动内核',
+);
+assert.equal(
+  sharedSheet.includes("from './MobileWorkspaceSheetHost'"),
+  true,
+  '移动工厂详情必须只向唯一 Host 注册内容',
 );
 
 const selectorCardSource = detail.slice(
@@ -359,7 +366,7 @@ for (const forbidden of [
 
 const sheetCss = read('src/styles/mobile-detail-sheet.css');
 for (const text of [
-  'Final authority for signed-in mobile workspace sheets',
+  'Final authority for the single signed-in mobile workspace sheet',
   ".page-scroll-area[data-modal-scrollbar-suppressed='true']",
   '--mobile-detail-sheet-backdrop-progress',
   '--mobile-detail-sheet-drag-offset',
@@ -386,14 +393,15 @@ for (const text of [
   'justify-self: stretch;',
   '.workspace-dialog-layer > .ui-rich-select__listbox',
   '.mobile-detail-summary',
-  '.mobile-workspace-page-sheet',
-  '.mobile-workspace-page-sheet .page-card-scroll',
+  '.mobile-workspace-sheet-page-layer',
+  '.mobile-workspace-sheet-detail-view',
+  '.mobile-workspace-sheet-page-content .page-card-scroll',
 ]) assert.equal(sheetCss.includes(text), true, `共享移动详情样式缺少: ${text}`);
 for (const forbidden of [
   'display: none !important; /* vertical */',
   '.mobile-detail-sheet-close',
   '.workspace-floating-layer > .mobile-detail-sheet-backdrop',
-  '.workspace-dialog-layer > .mobile-workspace-page-sheet',
+  '.mobile-workspace-page-sheet',
   '.research-detail-sheet-scroll {',
   'overscroll-behavior-y: contain;',
 ]) assert.equal(sheetCss.includes(forbidden), false, `共享移动详情样式不应包含: ${forbidden}`);
