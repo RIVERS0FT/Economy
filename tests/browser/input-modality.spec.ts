@@ -13,7 +13,11 @@ test.describe('shared input modality interaction protocol', () => {
     await page.mouse.move(1, 1);
     const baseBackground = await trigger.evaluate((element) => getComputedStyle(element).background);
 
-    await page.mouse.click(2, 2);
+    await trigger.dispatchEvent('pointerdown', {
+      bubbles: true,
+      isPrimary: true,
+      pointerType: 'mouse',
+    });
     await trigger.hover();
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.inputModality)).toBe('mouse');
     await expect.poll(() => trigger.evaluate((element) => getComputedStyle(element).background))
