@@ -273,16 +273,19 @@ html[data-input-modality="touch"] *:not(.ui-scroll-area__viewport)::-webkit-scro
     transform: none;
   }
 
-  /* Keep the page-card rail anchored to its ScrollArea root. Frosted card
-   * backdrop filtering creates a containing block for fixed descendants in
-   * Chromium, so a fixed rail drifts inward. Cross the workspace gutter and
-   * the card border explicitly while leaving the scroll viewport width intact. */
+  /* Workspace-owned page cards still cross the outer gutter. The unified
+   * root mobile sheet is already viewport-wide, so its page rail must stay on
+   * the sheet edge rather than escaping another gutter beyond the screen. */
   .page-card-scroll-area > .ui-scrollbar--vertical {
     position: absolute;
     top: 0;
     right: calc(-1 * (var(--mobile-workspace-gutter) + 1px));
     bottom: 0;
     transform: none;
+  }
+
+  .mobile-workspace-sheet-host .page-card-scroll-area > .ui-scrollbar--vertical {
+    right: 0;
   }
 
   .mobile-detail-sheet-scroll-area > .ui-scrollbar--vertical {
