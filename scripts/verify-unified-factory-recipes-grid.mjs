@@ -107,13 +107,12 @@ for (const text of [
   '<MobileDetailSummary',
   'className="facility-information-summary"',
   'role="dialog"',
-  'aria-modal="true"',
   'ariaLabelledBy="mobile-facility-detail-title"',
   'tabIndex={-1}',
-  "event.key === 'Escape'",
-  "event.key !== 'Tab'",
+  "if (event.key !== 'Escape') return;",
   'useLayoutEffect',
-  "window.visualViewport?.height ?? window.innerHeight",
+  'const visualViewport = window.visualViewport;',
+  'Math.min(viewportHeight * 0.88, 760, availableHeight)',
   "root.focus({ preventScroll: true });",
   "document.querySelector<HTMLElement>('.page-scroll')",
   "pageScroll.style.overflowY = 'hidden'",
@@ -153,6 +152,12 @@ for (const text of [
   'resolveFacilityProfitPresentation({',
 ])
   assert.equal(productionSource.includes(text), true, `建筑页组合源码缺少: ${text}`);
+
+for (const forbidden of [
+  'aria-modal="true"',
+  "event.key !== 'Tab'",
+  '--mobile-detail-sheet-backdrop-progress',
+]) assert.equal(sharedHost.includes(forbidden), false, `唯一移动 Sheet Host 不应包含: ${forbidden}`);
 
 assert.equal(
   (mobile.match(/ariaLabelledBy="mobile-facility-detail-title"/g) ?? []).length,
@@ -225,7 +230,8 @@ for (const text of [
   'outlineStyle',
   'await expect(trigger).toBeFocused()',
   "page.locator('.workspace-dialog-layer')",
-  'expect(navigationCovered).toBe(true)',
+  "expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'true')",
+  'expect(hiddenNavigation.visibility).toBe(\'hidden\')',
   'for (const width of [320, 390, 430, 720])',
   'expect(sheetBox.x).toBeCloseTo(0, 1)',
   'expect(sheetBox.width).toBeCloseTo(width, 1)',
@@ -368,8 +374,11 @@ const sheetCss = read('src/styles/mobile-detail-sheet.css');
 for (const text of [
   'Final authority for the single signed-in mobile workspace sheet',
   ".page-scroll-area[data-modal-scrollbar-suppressed='true']",
-  '--mobile-detail-sheet-backdrop-progress',
   '--mobile-detail-sheet-drag-offset',
+  '.mobile-detail-sheet-backdrop {',
+  'backdrop-filter: none;',
+  'background: var(--frosted-glass-background);',
+  'backdrop-filter: var(--frosted-glass-filter);',
   '.mobile-detail-sheet:focus',
   '.mobile-detail-sheet.is-dragging',
   '.mobile-detail-sheet.is-settling',
@@ -394,10 +403,15 @@ for (const text of [
   '.workspace-dialog-layer > .ui-rich-select__listbox',
   '.mobile-detail-summary',
   '.mobile-workspace-sheet-page-layer',
+  ".mobile-workspace-sheet-page-layer[aria-hidden='true']",
+  'visibility: hidden;',
   '.mobile-workspace-sheet-detail-view',
   '.mobile-workspace-sheet-page-content .page-card-scroll',
 ]) assert.equal(sheetCss.includes(text), true, `共享移动详情样式缺少: ${text}`);
 for (const forbidden of [
+  '--mobile-detail-sheet-backdrop-progress',
+  '.mobile-detail-sheet-backdrop::before',
+  'backdrop-filter: blur(8px)',
   'display: none !important; /* vertical */',
   '.mobile-detail-sheet-close',
   '.workspace-floating-layer > .mobile-detail-sheet-backdrop',
