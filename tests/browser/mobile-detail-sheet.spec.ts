@@ -41,7 +41,7 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
     const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
     await expect(host).toBeVisible();
     await expect(host).toHaveAttribute('data-detail-active', 'false');
-    await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet')).toHaveCount(1);
+    await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')).toHaveCount(1);
     await host.evaluate((element) => {
       element.dataset.sheetInstanceProbe = 'factory-stable';
     });
@@ -49,13 +49,13 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
     await trigger.tap();
     await expect(host).toHaveAttribute('data-detail-active', 'true');
     await expect(host).toHaveAttribute('data-sheet-instance-probe', 'factory-stable');
-    await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet')).toHaveCount(1);
+    await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')).toHaveCount(1);
     await expect(host.locator('.mobile-workspace-sheet-detail-view')).toBeVisible();
 
     await page.keyboard.press('Escape');
     await expect(host).toHaveAttribute('data-detail-active', 'false');
     await expect(host).toHaveAttribute('data-sheet-instance-probe', 'factory-stable');
-    await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet')).toHaveCount(1);
+    await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')).toHaveCount(1);
     await expect(host.locator('.mobile-workspace-sheet-detail-view')).toHaveCount(0);
     await expect(trigger).toBeFocused();
   });
@@ -80,7 +80,7 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
       await expect(dialog).toBeVisible();
       await expect(host).toHaveAttribute('data-detail-active', 'true');
       await expect(dialogLayer.locator(':scope > .mobile-detail-sheet-backdrop')).toHaveCount(1);
-      await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet')).toHaveCount(1);
+      await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')).toHaveCount(1);
       await expect(pageScroll).toHaveCSS('overflow-y', 'hidden');
       await expect(pageScrollArea).toHaveAttribute('data-modal-scrollbar-suppressed', 'true');
       const detailView = host.locator('.mobile-workspace-sheet-detail-view');
