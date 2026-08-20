@@ -222,7 +222,7 @@ requireAll('tests/browser/mobile-navigation-scrollbar.spec.ts', [
 requireAll('docs/UI_DESIGN_SYSTEM.md', [
   '唯一根级 Mobile Workspace Sheet',
   'Sheet 自身承担唯一移动毛玻璃模糊',
-  '移动底部导航保持同一 DOM',
+  '移动底部导航必须始终保留同一个 DOM 实例',
 ]);
 requireAll('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
   '通知面板作为 Chrome 级临时覆盖层始终位于 Sheet 之上',
