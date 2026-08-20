@@ -51,11 +51,22 @@ test('stale fingerprinted production proposal falls back server-side in the same
 
     // Simulate an authoritative resource change after the GET state snapshot that created the proposal.
     player.credits -= 1;
-    const response = store.apply(user, settlementRequest(claim, 'stale-production-fallback'), settleThrough);
+    const request = settlementRequest(claim, 'stale-production-fallback');
+    const revisionBefore = store.worldCache.revision;
+    const response = store.apply(user, request, settleThrough);
 
     assert.equal(response.result.ok, true);
-    assert.equal(store.worldCache.world.players['1'].facilityGroups[0].lifetimeOutput > 0, true);
+    assert.equal(response.revision, revisionBefore + 1);
+    const settledOutput = store.worldCache.world.players['1'].facilityGroups[0].lifetimeOutput;
+    assert.equal(settledOutput > 0, true);
     assert.equal(store.selectIdempotency.get(1, 'stale-production-fallback') !== undefined, true);
+
+    // A transport retry with the same logical request must replay the acknowledgement,
+    // not run stale fallback or production settlement a second time.
+    const replay = store.apply(user, request, settleThrough);
+    assert.deepEqual(replay, response);
+    assert.equal(store.worldCache.revision, response.revision);
+    assert.equal(store.worldCache.world.players['1'].facilityGroups[0].lifetimeOutput, settledOutput);
   } finally {
     store.close();
   }
