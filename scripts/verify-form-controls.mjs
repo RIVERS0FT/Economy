@@ -258,7 +258,7 @@ for (const text of [
   'desktop sidebar omits button badges while preserving accessible reminder counts',
   "toHaveAttribute('data-collapsed', 'false')",
   "sidebar.locator('.navigation-badge')",
-  'mobile bottom navigation may still show its compact reminder badge',
+  'mobile bottom navigation keeps its compact reminder badge while a sheet hides the navigation',
 ]) requireText(sidebarBadgeTestPath, text);
 for (const text of [
   'mobile production rich selects use the browser top layer above the facility sheet',
