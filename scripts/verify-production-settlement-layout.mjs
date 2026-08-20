@@ -125,7 +125,7 @@ for (const text of [
   'grid-template-columns: minmax(0, 1fr);',
   'grid-auto-rows: max-content;',
   'align-items: start;',
-  '.mobile-detail-sheet-scroll > * {',
+  '.mobile-workspace-sheet-detail-content-slot > * {',
   '.mobile-detail-sheet .mobile-detail-section {',
 ]) assert.equal(mobileDetailCss.includes(text), true, `移动详情正文纵向流缺少: ${text}`);
 
