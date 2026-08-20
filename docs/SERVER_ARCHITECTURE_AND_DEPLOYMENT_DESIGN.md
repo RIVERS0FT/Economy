@@ -2,7 +2,7 @@
 
 > 状态：当前服务器、API、持久化和部署基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-19
+> 更新时间：2026-08-20
 > 客户端状态版本：36
 > 世界状态版本：32
 > 市场需求模型版本：19
@@ -233,6 +233,10 @@ JSON.parse
 旧财富榜 `leaderboard` 与四榜 `leaderboards` 都属于顶层 `leaderboard` 分区。四榜不得继续嵌入玩家 `stats`；按请求时刻生成的 `generatedAt` 与逐行 `updatedAt` 不得进入任何状态分区。排行榜分区只在周期、成绩、名次、参与者展示内容或奖励状态真实变化时改变。
 
 首次加载必须返回六个完整分区。后续每个返回的 `patches[name]` 都是该分区的完整快照，浏览器必须整块替换同名缓存分区，再按固定顺序重组 `EconomyState`；字段缺失即代表该字段已经被服务器删除，空对象也必须清空旧分区内容。不得恢复对旧完整状态的字段级浅合并。
+
+`catalog` 的必需目录字段必须在完整快照中同时存在：`version`、`products`、`facilityTypes`、`researchLevels`、`provinces` 与 `defaultProvinceId`；数组目录不得缺失，`products`、`facilityTypes`、`researchLevels` 与 `provinces` 必须非空，`defaultProvinceId` 必须指向 `provinces` 中的真实地区。完整快照语义中“字段缺失代表删除”只适用于协议允许缺省的字段，不能把必需目录字段的缺失解释为合法删除。服务器不得复用缺少这些字段的 catalog 快照；若预计算分区无效但仍有完整 `state`，必须重新从完整 `state` 生成 catalog 后再发送。
+
+浏览器必须在把六分区发布到 React 权威状态之前校验 catalog 完整性；任何初始或增量 catalog 缺失必需字段时，该次接受必须保持事务式失败，不得推进已接受 `revision`、不得污染分区或子切片修订缓存，也不得发布部分状态。客户端必须拒绝发布该坏状态并清空本地分区修订缓存，只允许自动执行一次无条件完整状态重拉；重拉仍无效时进入受控中文状态同步错误，不得继续循环重试，也不得让 `undefined.some` 等渲染异常进入错误边界。客户端状态版本不兼容继续属于不可原地恢复错误，不使用这条完整重拉路径。
 
 普通玩家权威动作响应固定为 `{ result: { ok, message }, revision }`，不得携带订单 ID、兑换数量、结算金额或其他动作内部字段，也不得携带完整状态、分区补丁、分区修订、`unchanged` 或 `serverNow`。动作事务和 `economy_idempotency.response_json` 只生成并保存这份精简确认。浏览器在动作确认后使用动作发起前已经接受的全局 `revision` 与当前分区哈希立即补拉 `GET state`；不得在补拉前直接写入客户端状态修订号。补拉失败不得把已经提交成功的动作改写为失败。
 
@@ -525,7 +529,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 修改 Nginx 前保留回滚配置；修改后执行 `nginx -t`，成功才 reload，失败立即恢复。
 
-`npm run build` 必须执行设计与架构验证、Nginx 测试、服务器语法和测试、TypeScript 与 Vite 构建。服务器语法检查由 Node 枚举 `server/src` 顶层 JavaScript 文件并逐个调用当前 Node 的 `--check`，不得依赖 shell 展开通配符，确保 Windows 本地与 Linux CI 检查同一文件集。CI 和主部署都必须使用固定 Playwright 版本执行 `npm run test:browser`；浏览器准备统一调用 `scripts/prepare-playwright-chromium.sh`，优先复用 runner 本地 Chrome／Chromium 并通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 交给 Playwright，只有本地候选都不存在时才下载固定 Chromium。浏览器 CDN 不得成为 CI 或主部署的必需单点依赖，也不得以 CDN 不可达为理由跳过浏览器回归；应用根节点必须由错误边界包裹，意外渲染异常只能显示可恢复页面，不得留下空白屏。主部署后验证 API 健康、静态网页、账号代理、注册代理、未登录 401、systemd 用户／端口／数据库、注册秘密和无重复路由；邀请与封禁专项验收必须覆盖分享链接即时奖励、手动邀请码唯一绑定、同 IP 异常上报不封禁、管理员手动封禁、423 响应、历史自动封禁幂等迁移和管理员解禁。邮件配置工作流另行验证运行进程实际环境和服务健康，并以 `deploy/economy-email` 独立状态防止主部署误报验证码可用。 静态发布验收还必须确认 `/economy/` 与 `/economy/index.html` 返回入口重新验证策略、实际构建哈希资源返回一年 `immutable` 策略、新入口引用的全部资源可读取，并且入口只在服务与 Nginx 验证通过后发布。
+`npm run build` 必须执行设计与架构验证、Nginx 测试、服务器语法和测试、TypeScript 与 Vite 构建。服务器语法检查由 Node 枚举 `server/src` 顶层 JavaScript 文件并逐个调用当前 Node 的 `--check`，不得依赖 shell 展开通配符，确保 Windows 本地与 Linux CI 检查同一文件集。CI 和主部署都必须使用固定 Playwright 版本执行 `npm run test:browser`；浏览器准备统一调用 `scripts/prepare-playwright-chromium.sh`，优先复用 runner 本地 Chrome／Chromium并通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 交给 Playwright，只有本地候选都不存在时才下载固定 Chromium。浏览器 CDN 不得成为 CI 或主部署的必需单点依赖，也不得以 CDN 不可达为理由跳过浏览器回归；应用根节点必须由错误边界包裹，意外渲染异常只能显示可恢复页面，不得留下空白屏。主部署后验证 API 健康、静态网页、账号代理、注册代理、未登录 401、systemd 用户／端口／数据库、注册秘密和无重复路由；邀请与封禁专项验收必须覆盖分享链接即时奖励、手动邀请码唯一绑定、同 IP 异常上报不封禁、管理员手动封禁、423 响应、历史自动封禁幂等迁移和管理员解禁。邮件配置工作流另行验证运行进程实际环境和服务健康，并以 `deploy/economy-email` 独立状态防止主部署误报验证码可用。 静态发布验收还必须确认 `/economy/` 与 `/economy/index.html` 返回入口重新验证策略、实际构建哈希资源返回一年 `immutable` 策略、新入口引用的全部资源可读取，并且入口只在服务与 Nginx 验证通过后发布。
 
 仓库所有文本文件必须通过根目录 `.gitattributes` 在所有平台统一为 LF，Git 索引与工作区均不得保留 CRLF 或混合换行；PNG、字体、压缩包、SQLite 等二进制资源必须标记为 `binary`，禁止参与文本转换。该规则不得依赖开发者的全局 `core.autocrlf` 配置；`npm run normalize:repository-text` 只允许转换 Git 已跟踪文本文件的换行字节，`scripts/verify-repository-text-format.mjs` 必须在其他架构校验前检查属性文件、索引行尾、工作区行尾和二进制属性，避免 Windows 本地源码精确匹配与 Linux CI 产生不同结果。
 
@@ -615,7 +619,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 世界 JSON 内部保留完整撮合信息；普通玩家 API 必须通过单一公开订单序列化函数输出匿名视图。该函数删除所有订单的真实所有者、人口需求字段和 `marketSellFeeVersion / marketSellFeeGross / marketSellFeeCharged`，只为本人订单返回匿名 fills，并删除其他订单 fills。本人 fill 可以返回 `fee` 与 `netTotal`，但不得借此返回对手、maker/taker 订单 ID 或需求来源。管理员审计若需要真实对手信息必须使用独立管理员接口，不得复用普通玩家 DTO。
 
-当前客户端状态版本为 34，本地匿名成交存储为 v7，世界状态版本为 30，市场需求模型版本为 19；人口迁移、手续费迁移、储备迁移、资产拍卖删除迁移、产业目录迁移与州级经济目录替换都不得重置商品／工厂资产、玩家订单或既有订单簿成交，储备种子只允许初始化一次。
+当前客户端状态版本为 36，本地匿名成交存储为 v7，世界状态版本为 32，市场需求模型版本为 19；人口迁移、手续费迁移、储备迁移、资产拍卖删除迁移、产业目录迁移与州级经济目录替换都不得重置商品／工厂资产、玩家订单或既有订单簿成交，储备种子只允许初始化一次。
 
 ## 市场需求模型 17 迁移与运行顺序
 
