@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useGameAuthorityDependencies } from '../../app/gameAuthorityStore';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { DEFAULT_QQ_GROUP_URL, getCommunityLink } from '../../api/game';
@@ -159,7 +159,7 @@ export function GameShell({ model, children, offline = false }: {
     notificationCenter.closePanel();
   }, [model.tab, notificationCenter.closePanel]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const wasOpen = previousMobileSheetOpenRef.current;
     previousMobileSheetOpenRef.current = mobileSheetOpen;
     if (mobileSheetOpen) {
