@@ -1,5 +1,6 @@
 import {
   applyProductionUsageToResources,
+  createProductionSettlementBasisId,
   createProductionSettlementClaim,
   dueProductionCycles,
   FACILITY_STAFFING_FULL_BPS,
@@ -197,7 +198,7 @@ export function createProductionSettlementBasis(world, userId, settleThrough = D
   const normalizedSettleThrough = Math.max(0, Number(settleThrough) || 0);
   const player = world?.players?.[String(userId)];
   if (!player) {
-    return {
+    const basis = {
       version: PRODUCTION_SETTLEMENT_VERSION,
       basisId: '',
       userId: Number(userId),
@@ -206,6 +207,8 @@ export function createProductionSettlementBasis(world, userId, settleThrough = D
       resources: { creditsMicros: '0', inventories: {} },
       groups: [],
     };
+    basis.basisId = createProductionSettlementBasisId(basis);
+    return basis;
   }
   const inventoryKeys = new Set();
   const groups = (player.facilityGroups || [])
@@ -217,7 +220,7 @@ export function createProductionSettlementBasis(world, userId, settleThrough = D
     creditsMicros: creditsMicros.toString(),
     inventories: Object.fromEntries([...inventoryKeys].sort().map((key) => [key, inventoryAvailable(player, key)])),
   };
-  return {
+  const basis = {
     version: PRODUCTION_SETTLEMENT_VERSION,
     basisId: '',
     userId: Number(userId),
@@ -226,6 +229,8 @@ export function createProductionSettlementBasis(world, userId, settleThrough = D
     resources,
     groups,
   };
+  basis.basisId = createProductionSettlementBasisId(basis);
+  return basis;
 }
 
 function mutableResourcesFromBasis(basis) {
@@ -454,6 +459,8 @@ function recoverEnabledErrorGroups(world, player, settleThrough, resources) {
 
 function validateClaimShape(basis, claim) {
   if (!claim || Number(claim.version) !== PRODUCTION_SETTLEMENT_VERSION) invalid();
+  const claimedBasisId = String(claim.basisId || '');
+  if (claimedBasisId && claimedBasisId !== String(basis.basisId || '')) stale();
   if (Number(claim.settleThrough) !== Number(basis.settleThrough)) stale();
   if (!Array.isArray(claim.groups) || claim.groups.length !== basis.groups.length) invalid();
   for (let index = 0; index < basis.groups.length; index += 1) {
@@ -483,13 +490,20 @@ export function applyProductionSettlementClaim(world, userId, claim, now = Date.
   if (!player) stale('玩家生产状态不存在');
   const basis = createProductionSettlementBasis(world, userId, settleThrough);
   validateClaimShape(basis, claim);
-  const resources = mutableResourcesFromBasis(basis);
 
+  // All stale identity checks must finish before any production state is mutated,
+  // so a stale client proposal can safely fall back inside the same outer action transaction.
   for (let index = 0; index < basis.groups.length; index += 1) {
     const groupBasisEntry = basis.groups[index];
     const group = player.facilityGroups?.[groupBasisEntry.groupIndex];
-    const claimedCycles = Number(claim.groups[index].completedCycles);
     if (!group || `${normalizeProvinceId(group.provinceId)}:${group.facilityTypeId}` !== groupBasisEntry.key) stale();
+  }
+
+  const resources = mutableResourcesFromBasis(basis);
+  for (let index = 0; index < basis.groups.length; index += 1) {
+    const groupBasisEntry = basis.groups[index];
+    const group = player.facilityGroups[groupBasisEntry.groupIndex];
+    const claimedCycles = Number(claim.groups[index].completedCycles);
     const due = dueProductionCycles(groupBasisEntry, settleThrough);
     if (groupBasisEntry.status !== 'running' || due <= 0) {
       if (claimedCycles !== 0) invalid();

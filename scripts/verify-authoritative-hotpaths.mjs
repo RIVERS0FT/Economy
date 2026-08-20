@@ -153,16 +153,19 @@ for (const text of [
 const authorityStore = read('src/app/gameAuthorityStore.ts');
 for (const text of [
   'useSyncExternalStore',
-  'AUTHORITY_STATE_VIEW',
-  'getStateAuthoritySnapshot().state !== null',
+  'useAuthorityRenderSnapshot',
+  'readGameAuthorityState',
   'useGameAuthorityState',
   'useGameAuthorityDependencies',
   'useGameAuthorityRevision',
   'useGameAuthorityPartition',
   'getStateAuthoritySliceRevision',
 ]) assert.ok(authorityStore.includes(text), `客户端权威订阅缺少: ${text}`);
+const rootAuthorityHook = authorityStore.match(/export function useGameAuthorityState\(\)[\s\S]*?\n}\n/)?.[0] || '';
+assert.ok(rootAuthorityHook.includes('useAuthorityRenderSnapshot'), '根权威 hook 必须通过 render 快照读取已接受状态');
+assert.equal(rootAuthorityHook.includes('AUTHORITY_STATE_VIEW'), false, '根权威 hook 不得重新返回会被 reset 撕裂的实时 Proxy');
 const viewModel = read('src/app/gameViewModel.ts');
-assert.ok(viewModel.includes('const authorityGame = useGameAuthorityState();'), '根游戏控制器必须读取稳定权威状态视图');
+assert.ok(viewModel.includes('const authorityGame = useGameAuthorityState();'), '根游戏控制器必须读取单次 render 一致的权威状态快照');
 assert.equal(viewModel.includes('const [game, setGame] = useState<EconomyState | null>'), false, '视图模型不得重新持有第二份 EconomyState React 状态');
 const pageRouter = read('src/pages/PageRouter.tsx');
 for (const text of [

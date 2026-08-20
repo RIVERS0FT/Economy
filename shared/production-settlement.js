@@ -174,6 +174,69 @@ export function applyProductionUsageToResources(resources, usage) {
   return resources;
 }
 
+function appendProductionBasisGroup(parts, group, resources) {
+  const recipe = group?.recipe || {};
+  parts.push(
+    'group',
+    String(group?.key || ''),
+    group?.enabled === false ? '0' : '1',
+    String(group?.status || ''),
+    String(nonNegativeInteger(group?.productionAvailableCount)),
+    String(nonNegativeInteger(group?.participatingCount)),
+    Number.isFinite(Number(group?.cycleStartedAt)) ? String(Number(group.cycleStartedAt)) : '',
+    String(clampStaffingRate(group?.staffingRateBps)),
+    String(safeTimestamp(group?.staffingUpdatedAt)),
+    String(nonNegativeInteger(group?.staffingBatchCarryBps) % FACILITY_STAFFING_FULL_BPS),
+    String(recipe.id || ''),
+    String(positiveInteger(recipe.cycleMs, 1)),
+    String(recipe.operatingCostMicros || '0'),
+  );
+  const inventoryKeys = new Set();
+  const inputs = [...(recipe.inputs || [])].sort((left, right) => (
+    String(left?.inventoryKey || '').localeCompare(String(right?.inventoryKey || ''))
+      || String(left?.productId || '').localeCompare(String(right?.productId || ''))
+  ));
+  for (const item of inputs) {
+    const key = String(item?.inventoryKey || '');
+    inventoryKeys.add(key);
+    parts.push('input', key, String(item?.productId || ''), String(nonNegativeInteger(item?.quantity)));
+  }
+  const outputKey = String(recipe.output?.inventoryKey || '');
+  if (outputKey) inventoryKeys.add(outputKey);
+  parts.push(
+    'output',
+    outputKey,
+    String(recipe.output?.productId || ''),
+    String(nonNegativeInteger(recipe.output?.quantity)),
+  );
+  for (const key of [...inventoryKeys].sort()) {
+    parts.push('inventory', key, String(bigint(resources?.inventories?.[key])));
+  }
+}
+
+function hashProductionBasisText(text, seed) {
+  let hash = seed >>> 0;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16_777_619) >>> 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+}
+
+export function createProductionSettlementBasisId(basis) {
+  if (!basis || Number(basis.version) !== PRODUCTION_SETTLEMENT_VERSION) return '';
+  const parts = [
+    'production-settlement-basis-v1',
+    String(Number(basis.userId) || 0),
+    String(nonNegativeInteger(basis.saveEpoch)),
+    String(bigint(basis.resources?.creditsMicros)),
+  ];
+  const groups = [...(basis.groups || [])].sort((left, right) => String(left?.key || '').localeCompare(String(right?.key || '')));
+  for (const group of groups) appendProductionBasisGroup(parts, group, basis.resources);
+  const canonical = parts.join('\u001f');
+  return `${hashProductionBasisText(canonical, 2_166_136_261)}${hashProductionBasisText(canonical, 2_166_136_261 ^ 0x9e3779b9)}`;
+}
+
 export function createProductionSettlementClaim(basis) {
   if (!basis || Number(basis.version) !== PRODUCTION_SETTLEMENT_VERSION || !Array.isArray(basis.groups)) return null;
   const resources = {
@@ -198,7 +261,7 @@ export function createProductionSettlementClaim(basis) {
   if (!hasWork) return null;
   return {
     version: PRODUCTION_SETTLEMENT_VERSION,
-    basisId: String(basis.basisId || ''),
+    basisId: String(basis.basisId || createProductionSettlementBasisId(basis)),
     settleThrough: safeTimestamp(basis.settleThrough),
     groups,
   };

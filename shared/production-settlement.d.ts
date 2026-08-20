@@ -84,4 +84,5 @@ export function applyProductionUsageToResources(
   resources: ProductionSettlementBasis['resources'],
   usage: ReturnType<typeof productionResourceUsage>,
 ): ProductionSettlementBasis['resources'];
+export function createProductionSettlementBasisId(basis: ProductionSettlementBasis | null | undefined): string;
 export function createProductionSettlementClaim(basis: ProductionSettlementBasis | null | undefined): ProductionSettlementClaim | null;

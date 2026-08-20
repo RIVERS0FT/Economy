@@ -61,6 +61,8 @@ test('client proposal settles the maximum legal overdue production and server ve
   const basis = createProductionSettlementBasis(world, user.id, settleThrough);
   const claim = createProductionSettlementClaim(basis);
   assert.ok(claim);
+  assert.ok(basis.basisId);
+  assert.equal(claim.basisId, basis.basisId);
   assert.equal(dueProductionCycles(basis.groups[0], settleThrough), 10);
   assert.equal(claim.groups[0].completedCycles, 10);
 
@@ -70,6 +72,21 @@ test('client proposal settles the maximum legal overdue production and server ve
   assert.equal(player.inventories.wheat.available, 10);
   assert.equal(player.facilityGroups[0].lifetimeOutput, 10);
   assert.equal(player.facilityGroups[0].cycleStartedAt, settleThrough);
+});
+
+test('authoritative resource drift marks a fingerprinted proposal stale before mutating production', () => {
+  const { world, player } = productionWorld();
+  const settleThrough = now + 200_000;
+  const basis = createProductionSettlementBasis(world, user.id, settleThrough);
+  const claim = createProductionSettlementClaim(basis);
+  assert.ok(claim?.basisId);
+  player.credits -= 1;
+  const before = structuredClone(world);
+  assert.throws(
+    () => applyProductionSettlementClaim(world, user.id, claim, settleThrough),
+    (error) => error?.code === 'PRODUCTION_SETTLEMENT_STALE' && error?.statusCode === 409,
+  );
+  assert.deepEqual(world, before);
 });
 
 test('server rejects an over-reported client production claim', () => {

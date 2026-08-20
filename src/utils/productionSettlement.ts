@@ -5,6 +5,7 @@ import type {
   FacilityTypeDefinition,
 } from '../types';
 import {
+  createProductionSettlementBasisId,
   createProductionSettlementClaim,
   dueProductionCycles,
   PRODUCTION_SETTLEMENT_VERSION,
@@ -112,7 +113,7 @@ export function createClientProductionSettlementBasis(
     .map((group) => groupBasis(state, group, serverNow))
     .filter((group): group is ProductionSettlementGroupBasis => Boolean(group))
     .sort((left, right) => left.key.localeCompare(right.key));
-  return {
+  const basis: ProductionSettlementBasis = {
     version: PRODUCTION_SETTLEMENT_VERSION,
     basisId: '',
     userId: state.userId,
@@ -124,6 +125,8 @@ export function createClientProductionSettlementBasis(
     },
     groups,
   };
+  basis.basisId = createProductionSettlementBasisId(basis);
+  return basis;
 }
 
 export function createClientProductionSettlementClaim(
