@@ -5,6 +5,10 @@
     --mobile-notice-inline-inset: var(--space-2);
   }
 
+  .signed-in-shell__chrome {
+    z-index: 3001;
+  }
+
   .asset-bar {
     top: var(--mobile-status-top-inset);
     right: 0;
