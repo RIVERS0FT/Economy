@@ -73,6 +73,7 @@ function validPartitionSnapshot(value) {
 
 function catalogIntegrityIssue(catalog) {
   if (!validPartitionSnapshot(catalog)) return 'catalog 分区缺失';
+  if (!Number.isInteger(catalog.version)) return 'catalog.version 无效';
   for (const key of ['products', 'facilityTypes', 'researchLevels', 'provinces']) {
     if (!Array.isArray(catalog[key])) return `catalog.${key} 不是有效数组`;
   }
