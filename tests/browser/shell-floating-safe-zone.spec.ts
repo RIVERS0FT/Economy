@@ -30,6 +30,25 @@ test('game ECharts tooltip remains inside the lower workspace and never covers s
 
   const tooltip = chart.locator('.economy-chart-tooltip');
   await expect(tooltip).toBeVisible();
+  const tooltipVisual = await tooltip.evaluate((node) => {
+    const style = getComputedStyle(node);
+    const webkitBackdropFilter = (style as CSSStyleDeclaration & { webkitBackdropFilter?: string }).webkitBackdropFilter;
+    return {
+      className: node.className,
+      backdropFilter: style.backdropFilter || webkitBackdropFilter || '',
+      backgroundColor: style.backgroundColor,
+      backgroundImage: style.backgroundImage,
+      borderTopColor: style.borderTopColor,
+      boxShadow: style.boxShadow,
+    };
+  });
+  expect(tooltipVisual.className).toContain('ui-tooltip-surface');
+  expect(tooltipVisual.backdropFilter).toContain('blur(18px)');
+  expect(tooltipVisual.backgroundColor).toBe('rgba(5, 20, 14, 0.76)');
+  expect(tooltipVisual.backgroundImage).toContain('linear-gradient');
+  expect(tooltipVisual.borderTopColor).toBe('rgba(212, 245, 224, 0.18)');
+  expect(tooltipVisual.boxShadow).not.toBe('none');
+
   const geometry = await page.evaluate(() => {
     const workspace = document.querySelector<HTMLElement>('.workspace');
     const status = document.querySelector<HTMLElement>('.asset-bar');
