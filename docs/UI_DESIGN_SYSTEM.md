@@ -3,7 +3,7 @@
 > 状态：当前视觉、共享组件、响应式与可访问性实现基线
 > 适用项目：`RIVERS0FT/Economy`
 > 当前平台：网页端
-> 更新时间：2026-08-20
+> 更新时间：2026-08-21
 
 产品和页面职责分别以 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；应用外壳几何和玻璃材质以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。
 
@@ -29,8 +29,8 @@
 | `src/styles/form-controls.css` | 输入、选择器、文本域、文件控件、自动填充、错误／只读／禁用状态和移动尺寸的最终视觉权威 |
 | `src/styles/globals.css` | 通用业务布局 |
 | `src/styles/strategic-game-shell.css` | 玩家端常驻地图、侧栏与页面单一主卡片、统一紧凑页宽、页面开启动画、地图镜头栏、覆盖式指挥栏与移动安全布局；不得修改管理员外壳 |
-| `src/styles/charts.css` | 共享 ECharts 容器、Tooltip、无障碍摘要、市场底部安全区、管理员图表与资产圆环布局 |
-| `src/styles/safe-floating.css` | 工作区安全 Tooltip 的容器内定位、尺寸、滚动与视觉；不得承担外壳几何 |
+| `src/styles/charts.css` | 共享 ECharts 容器、Tooltip 内容排版、无障碍摘要、市场底部安全区、管理员图表与资产圆环布局；不得定义 Tooltip 毛玻璃材质 |
+| `src/styles/safe-floating.css` | 工作区安全 Tooltip 的容器内定位、尺寸、滚动与交互几何；不得定义 Tooltip 毛玻璃材质或承担外壳几何 |
 | `src/styles/overview.css` | 概览主列核心卡片、右侧公开事件日志和响应式布局 |
 | `src/styles/icon-system.css` | 全局 SVG 图标尺寸、商品图标标签、货币金额、导航图标槽位和移动图标尺寸 |
 | `src/styles/product-artwork.css` | 商品插画 128px 运行时缩略图映射、批准展示上下文、尺寸与低流量 SVG 回退 |
@@ -50,7 +50,7 @@
 | `src/styles/mobile-detail-sheet.css` | 唯一根级 Mobile Workspace Sheet 的工厂详情卡片容器、透明点击 backdrop、圆角、拖动、页面／详情内容层、滚动区、安全区和动效最终权威；所有移动业务页面与业务详情共用同一个根 Sheet，Sheet 自身承担唯一移动毛玻璃模糊，状态栏与移动通知层保持在其上，底部导航保持同一 DOM 但在 Sheet 存在期间隐藏，不得创建第二个 Sheet DOM |
 | `src/styles/scrollbars.css` | 全局覆盖式滚动条宽度、颜色、层级、显隐与移动页面／根级 Dialog 安全边缘轨道 |
 | `src/styles/performance.css` | 渲染性能保护和触控惯性；不得阻断页面或虚拟列表的纵向滚动链 |
-| `src/styles/frosted-glass-surfaces.css` | 状态栏、认证卡片、移动底栏与玩家 `workspaceCard` 的统一纯 CSS 毛玻璃材质和几何 |
+| `src/styles/frosted-glass-surfaces.css` | 状态栏、认证卡片、移动底栏、玩家 `workspaceCard`、根级状态卡与 `.ui-tooltip-surface` 的统一纯 CSS 毛玻璃材质；Tooltip 只允许单节点轻量表面 |
 | `src/styles/frosted-glass-chrome.css` | 仅供浏览器运行时 harness 使用的固定样式聚合入口 |
 | `src/styles/virtual-list.css` | 共享窗口化列表、虚拟表格行、滚动视口和管理员高增长记录布局 |
 | `src/styles/mobile-*.css` | 移动导航、安全区和页面布局 |
@@ -82,6 +82,7 @@
 - `CurrencyAmount`
 - `CurrencyText`
 - `EmptyState`
+- `SafeTooltip`
 - `FormField`
 - `TextInput`
 - `IntegerInput`
@@ -98,6 +99,8 @@
 `EconomyChart` 是业务数据图表的唯一 React 入口。项目只安装 Apache `echarts`，不得引入 `echarts-for-react` 或第二套图表包装库；`echarts.init`、SVGRenderer、ECharts Geo/Map 的 `MapChart`／`GeoComponent`／地图注册、按需模块注册、`ResizeObserver`、`requestAnimationFrame` 合并 resize、Option 更新、事件绑定与卸载 `dispose()` 统一放在 `src/components/charts/`。图表容器宽或高为 `0` 时必须延迟 `setOption` 并跳过 `resize`，在首次获得可渲染尺寸后再应用最新 Option，避免常驻地图与页面图表切换布局时生成不可逆矩阵。市场、地图、银行资产配置、管理员玩家与人口图表必须从现有 CSS 设计令牌读取颜色，提供中文 `aria-label` 与可读数据摘要；业务页面只提供数据、Option 和语义事件回调，不得直接持有 ECharts 实例或依赖其私有 SVG DOM。ECharts 必须随市场、地图、银行和管理员页面的既有动态 import 按需加载，登录首屏不得静态加载图表包。
 
 ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`EconomyChart` 必须在每次 `setOption` 前读取图表容器的浏览器计算样式，把 Option 中静态颜色、颜色数组、数据项颜色和颜色回调结果统一解析为实体色值；业务图表不得自行复制颜色解析器。以 Tooltip 为唯一悬浮信息反馈的折线、柱状和饼图系列必须复用 `STABLE_TOOLTIP_EMPHASIS`，禁止库默认 emphasis 改写填充、描边或透明度。鼠标、触控点击、状态刷新和尺寸变化均不得让当前或其他数据图形消失、变为透明或丢失原始颜色。
+
+应用内 Tooltip 的普通 React 入口统一使用 `SafeTooltip`，图表 Tooltip 统一复用 `src/components/charts/chartOptions.ts` 的 `commonTooltip`。两类实际 Tooltip 浮层节点都必须包含 `.ui-tooltip-surface`，其半透明背景、`backdrop-filter`、柔和边界、高光与阴影唯一来自 `src/styles/frosted-glass-surfaces.css`；`safe-floating.css` 只负责安全定位、尺寸与滚动，`charts.css` 只负责 ECharts Tooltip 的内容排版。Tooltip 必须保持单节点轻量毛玻璃，不得套用 `FrostedGlassSurface`、增加装饰性玻璃 DOM，或在业务 CSS 中复制第二套材质。浏览器原生 `title` 不属于应用内 Tooltip 材质，只能按既有可访问性规则保留非必要补充说明。
 
 所有 `type: 'pie'` 系列（包括实心饼图与圆环图）必须使用 `chartOptions.ts` 的共享 `PIE_PAD_ANGLE = 5`，统一设置 `padAngle: PIE_PAD_ANGLE`；不得在业务图表中改回零间隔、直接写入魔法数字或定义第二套扇区间隔。
 
@@ -536,6 +539,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 不得：
 
 - 在业务页面复制基础控件视觉；
+- 为 `SafeTooltip` 或 ECharts `commonTooltip` 恢复近不透明独立背景、移除 `.ui-tooltip-surface`、给 Tooltip 套 `FrostedGlassSurface`／额外玻璃 DOM，或在 `safe-floating.css`、`charts.css` 与业务 CSS 中复制 Tooltip 毛玻璃材质；
 - 绕过 `FormControls.tsx` 为普通表单新增平行输入组件，或把 `form-controls.css` 移到 `design-system.css` 之前；
 - 在业务页面直接渲染可见原生 `<select>`、恢复浏览器原生选项弹层，或绕过共享 `SelectInput`／`RichSelectInput` 自建第二套下拉框；
 - 把生产产物／作业制度收起态恢复为“图标 + 名称／参数／箭头”、恢复图片黑色底板或图片槽边框、恢复两等分 `1fr`／百分比／`flex-grow` Fill 轨道、恢复字段或按钮全宽拉伸、让父容器剩余空白成为下拉命中区域、改回默认普通下拉、删除 `production-config` 生产方案槽、把方案菜单重新限制为正方形触发按钮宽度，或在业务组件复制第二套 Popover、键盘导航、焦点返回、Portal 或刷新状态；
@@ -639,10 +643,10 @@ Playwright 必须验证 `1684×931`、`1280×900`、`900×1000`、`390×844` 和
 - 游戏端与管理员端的 Tooltip、Popover、下拉菜单、上下文菜单、确认框和普通页面 Dialog 必须使用 `SignedInShell` 提供的 `.workspace-floating-layer`，或由业务容器在自身边界内完成 `confine`。唯一根级 Mobile Workspace Sheet 和移动通知面板使用现有 `.workspace-dialog-layer`，但不得为它们建立第二个 Portal 根。
 - 普通 Tooltip、Popover、菜单以及桌面通知面板等工作区安全浮层不得与桌面顶部状态栏／管理员工作栏、桌面侧栏、移动顶部状态栏或可见移动底栏相交。移动根 Sheet 是结构例外但不是 Chrome 覆盖例外：实体 Sheet 顶边必须低于移动状态栏，外部 backdrop 完全透明且不模糊 Chrome；底部导航在 Sheet 存在时由导航自身隐藏、`aria-hidden`、`inert` 并退出命中，而不是被 Sheet 视觉遮挡。
 - 移动通知面板是 Chrome 级例外：它复用同一个 `.workspace-dialog-layer` 的更高内部层级，覆盖根 Sheet但位于移动状态栏下方。状态栏始终位于 Sheet 与通知面板之上。面板不得新增 Portal 根、第五个全局层或额外毛玻璃宿主；面板外点击捕获层必须透明。
-- `SafeTooltip` 是状态栏、管理员工作栏和侧栏中需要完整提示时的共享入口。其定位必须根据工作区浮层根计算、自动上下翻转、水平收敛并保留 `8px` 安全间距。
+- `SafeTooltip` 是普通 React Tooltip 的共享入口，其定位必须根据工作区浮层根计算、自动上下翻转、水平收敛并保留 `8px` 安全间距；ECharts Tooltip 统一通过 `commonTooltip` 在图表容器边界内 `confine`。两者的实际浮层节点都必须使用 `.ui-tooltip-surface`，材质唯一归属 `src/styles/frosted-glass-surfaces.css`，不得增加第二层玻璃包装。
 - 登录后界面不得使用原生 `title` 承担被截断文本、操作说明或其他必须可访问的信息；原生 `title` 只允许保留非必要补充说明。
 - 唯一根级 Mobile Workspace Sheet 只实施页面滚动锁、当前基础页／详情的 `inert` 切换和自身点击／拖动关闭；不得建立全局 `Tab` 焦点陷阱，不得设置 `aria-modal="true"`，也不得阻止移动状态栏通知按钮取得焦点。移动通知面板打开时由其自身消费 `Escape`，关闭后焦点返回通知入口；不得继续把该按键传递给下层 Sheet。
-- 浏览器回归必须分别验证玩家图表 Tooltip、管理员工作栏 Tooltip、侧栏展开／折叠、移动安全区、Sheet／通知／状态栏层级和 `125%` 根字号；只检查 `z-index` 或 Option 字符串不能证明安全区有效。
+- 浏览器回归必须分别验证玩家图表 Tooltip、管理员工作栏 Tooltip、侧栏展开／折叠、移动安全区、Sheet／通知／状态栏层级和 `125%` 根字号；Tooltip 回归还必须读取真实计算样式验证共享半透明毛玻璃，而不能只检查类名、`z-index` 或 Option 字符串。
 
 ## 生产方式下拉选择
 

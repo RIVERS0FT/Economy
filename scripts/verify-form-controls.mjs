@@ -246,7 +246,8 @@ for (const text of [
   '`aria-label` 中保留完整数量和来源',
   '只显示 `1`～`99` 或 `99+`',
   '根级 Dialog 内的 `RichSelectInput` 列表继续复用该 Dialog 根作为安全定位边界并位于详情 Sheet 表面之上',
-  '只检查 `z-index` 或 Option 字符串不能证明安全区有效',
+  'Tooltip 回归还必须读取真实计算样式验证共享半透明毛玻璃',
+  '不能只检查类名、`z-index` 或 Option 字符串',
 ]) requireText(designDocPath, text);
 
 for (const text of [

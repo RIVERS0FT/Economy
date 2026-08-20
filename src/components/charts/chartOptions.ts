@@ -8,7 +8,6 @@ export const chartColor = {
   warning: 'var(--color-warning)',
   danger: 'var(--color-danger)',
   info: 'var(--color-info)',
-  surface: 'rgba(7, 20, 15, 0.98)',
 } as const;
 
 export const PIE_PAD_ANGLE = 5;
@@ -56,15 +55,11 @@ export function escapeChartHtml(value: unknown) {
 }
 
 export const commonTooltip = {
-  className: 'economy-chart-tooltip',
-  backgroundColor: chartColor.surface,
-  borderColor: chartColor.borderStrong,
-  borderWidth: 1,
+  className: 'economy-chart-tooltip ui-tooltip-surface',
   textStyle: {
     color: chartColor.text,
     fontSize: 12,
   },
-  extraCssText: 'border-radius:10px;box-shadow:0 12px 28px rgba(0,0,0,.32);',
   confine: true,
   appendToBody: false,
 } as const;

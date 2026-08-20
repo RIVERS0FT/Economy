@@ -136,7 +136,7 @@ export function SafeTooltip({
     <div
       ref={tooltipRef}
       id={tooltipId}
-      className="safe-tooltip"
+      className="safe-tooltip ui-tooltip-surface"
       role="tooltip"
       data-top-layer={topLayerSupported ? 'true' : undefined}
       popover={topLayerSupported ? 'manual' : undefined}

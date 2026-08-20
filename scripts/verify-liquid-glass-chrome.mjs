@@ -27,6 +27,10 @@ const files = {
   component: 'src/components/ui/FrostedGlassSurface.tsx',
   styles: 'src/styles/frosted-glass-surfaces.css',
   compatibility: 'src/styles/frosted-glass-chrome.css',
+  tooltip: 'src/components/ui/SafeTooltip.tsx',
+  safeFloatingStyles: 'src/styles/safe-floating.css',
+  chartOptions: 'src/components/charts/chartOptions.ts',
+  chartStyles: 'src/styles/charts.css',
   status: 'src/components/shell/StatusBar.tsx',
   auth: 'src/components/auth/AuthCardSurface.tsx',
   mobile: 'src/components/shell/MobileBottomNavigationFrame.tsx',
@@ -39,7 +43,10 @@ const files = {
   browser: 'tests/browser/frosted-glass-layout.spec.ts',
   sampling: 'tests/browser/open-glass-sampling.spec.ts',
   pageBrowser: 'tests/browser/all-pages-preview.spec.ts',
+  auctionBrowser: 'tests/browser/auction-bid-history.spec.ts',
+  floatingBrowser: 'tests/browser/shell-floating-safe-zone.spec.ts',
   design: 'docs/LIQUID_GLASS_CHROME_DESIGN.md',
+  uiDesign: 'docs/UI_DESIGN_SYSTEM.md',
 };
 Object.values(files).forEach(requireFile);
 
@@ -83,10 +90,17 @@ requireText(files.styles, [
   '--frosted-glass-border:',
   '--frosted-glass-filter: blur(18px) saturate(128%);',
   '--frosted-glass-shadow:',
+  '--frosted-glass-tooltip-shadow:',
   '.frosted-glass-surface {',
   '-webkit-backdrop-filter: var(--frosted-glass-filter);',
   'backdrop-filter: var(--frosted-glass-filter);',
   '.frosted-glass-surface::before {',
+  '.ui-tooltip-surface {',
+  'background-color: var(--frosted-glass-background) !important;',
+  'background-image: linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent 38%) !important;',
+  'box-shadow: var(--frosted-glass-tooltip-shadow) !important;',
+  '-webkit-backdrop-filter: var(--frosted-glass-filter) !important;',
+  'backdrop-filter: var(--frosted-glass-filter) !important;',
   '@supports not ((backdrop-filter: blur(1px))',
   '.frosted-glass-surface--statusBar,',
   '.frosted-glass-surface--mobileNavigation {',
@@ -96,6 +110,39 @@ requireText(files.styles, [
   'padding: 8px 0;',
 ]);
 forbidText(files.styles, ['glass__warp', 'feDisplacementMap', 'data-liquid-glass']);
+
+requireText(files.tooltip, [
+  'className="safe-tooltip ui-tooltip-surface"',
+  'role="tooltip"',
+  'useWorkspaceFloatingLayer',
+]);
+forbidText(files.tooltip, ['FrostedGlassSurface']);
+requireText(files.safeFloatingStyles, [
+  '.safe-tooltip {',
+  'position: absolute;',
+  'overflow: auto;',
+  'pointer-events: none !important;',
+]);
+forbidText(files.safeFloatingStyles, [
+  'rgba(7, 20, 15, 0.98)',
+  'backdrop-filter:',
+  'box-shadow:',
+]);
+requireText(files.chartOptions, [
+  "className: 'economy-chart-tooltip ui-tooltip-surface'",
+  'confine: true',
+  'appendToBody: false',
+]);
+forbidText(files.chartOptions, [
+  "surface: 'rgba(7, 20, 15, 0.98)'",
+  'backgroundColor: chartColor.surface',
+  'borderColor: chartColor.borderStrong',
+  'extraCssText:',
+]);
+requireText(files.chartStyles, [
+  '.economy-chart-tooltip {',
+  'pointer-events: none !important;',
+]);
 
 requireText(files.status, [
   "import { FrostedGlassSurface } from '../ui/FrostedGlassSurface'",
@@ -203,10 +250,22 @@ requireText(files.pageBrowser, [
   "toHaveAttribute('data-strategic-presentation', 'fullscreen')",
   'reduced motion disables card width and page unfold animation',
 ]);
+requireText(files.auctionBrowser, [
+  "toContain('ui-tooltip-surface')",
+  "toContain('blur(18px)')",
+  "toBe('rgba(5, 20, 14, 0.76)')",
+]);
+requireText(files.floatingBrowser, [
+  "toContain('ui-tooltip-surface')",
+  "toContain('blur(18px)')",
+  "toBe('rgba(5, 20, 14, 0.76)')",
+]);
 requireText(files.design, [
   '项目不得安装、导入或运行 `liquid-glass-react`',
   '`src/components/ui/FrostedGlassSurface.tsx`',
   '`blur(18px) saturate(128%)`',
+  '`.ui-tooltip-surface`',
+  '单节点轻量毛玻璃',
   '`721px–960px` 使用与宽屏完全相同',
   '桌面侧栏按钮不得渲染数字角标',
   '`research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop`',
@@ -219,10 +278,17 @@ requireText(files.design, [
   '状态栏始终位于 Sheet 与通知面板之上',
   'Sheet 外部区域不得压暗或模糊',
 ]);
+requireText(files.uiDesign, [
+  '`SafeTooltip`',
+  '`.ui-tooltip-surface`',
+  '`commonTooltip`',
+  '应用内 Tooltip',
+  '`src/styles/frosted-glass-surfaces.css`',
+]);
 
 if (failures.length) {
   console.error('纯 CSS 毛玻璃外壳验证失败：\n- ' + failures.join('\n- '));
   process.exit(1);
 }
 
-console.log('纯 CSS 毛玻璃外壳验证通过：第三方依赖已删除，状态栏、认证、底栏、侧栏、页面分流与独立事件右栏满足当前基线。');
+console.log('纯 CSS 毛玻璃外壳验证通过：共享外壳与 SafeTooltip/ECharts Tooltip 统一使用单节点纯 CSS 毛玻璃材质，且旧 Liquid Glass 实现保持退役。');

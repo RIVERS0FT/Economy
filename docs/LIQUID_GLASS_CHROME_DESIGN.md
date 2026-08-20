@@ -2,7 +2,7 @@
 
 > 状态：当前正式外壳、毛玻璃材质与响应式几何权威
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-20
+> 更新时间：2026-08-21
 
 文件名沿用既有权威文档路径，正文规则已经完全替换旧 Liquid Glass 实现。
 
@@ -10,7 +10,8 @@
 
 - 项目不得安装、导入或运行 `liquid-glass-react`，不得恢复 `LiquidGlassSurface`、`.glass__warp`、SVG 位移滤镜、色差、折射或鼠标跟随形变。
 - `src/components/ui/FrostedGlassSurface.tsx` 是状态栏、管理员工作栏、移动底栏、认证卡片、玩家工作区和根级状态卡的唯一共享表面包装器，只输出宿主和内容两层稳定 DOM；全页异常使用 `stateCard` 变体，不得在状态页面复制另一套毛玻璃材质。
-- `src/styles/frosted-glass-surfaces.css` 是共享毛玻璃材质权威，统一使用半透明深色背景、`blur(18px) saturate(128%)`、一像素柔和边界、静态顶部高光和阴影；不支持 `backdrop-filter` 时使用更高不透明度的同色回退。
+- `src/styles/frosted-glass-surfaces.css` 是共享毛玻璃材质权威，统一使用半透明深色背景、`blur(18px) saturate(128%)`、一像素柔和边界、静态顶部高光和阴影；`FrostedGlassSurface` 负责外壳级表面，应用内 Tooltip 则在自身唯一浮层节点使用 `.ui-tooltip-surface` 复用同一组材质令牌；不支持 `backdrop-filter` 时统一使用更高不透明度的同色回退。
+- `SafeTooltip` 与 ECharts `commonTooltip` 是应用自己渲染 Tooltip 的批准入口，二者都必须给实际 Tooltip 节点附加 `.ui-tooltip-surface`。Tooltip 属于单节点轻量毛玻璃：不得再包 `FrostedGlassSurface`、不得增加内外装饰玻璃节点，也不得在 `safe-floating.css`、`charts.css` 或业务 CSS 中复制第二套背景、滤镜、边框或阴影。浏览器原生 `title` 不属于应用渲染的 Tooltip 材质范围。
 - 通用 `.panel`、玩家页面外层、桌面侧栏和地图镜头栏复用同一组 `--frosted-glass-*` 令牌。业务样式可以定义内部布局，不得创建第二套液态玻璃、折射或用途专属滤镜。
 - `package.json` 与 `package-lock.json` 均不得包含 `liquid-glass-react`；生产和测试源码不得导入该包。
 
@@ -46,7 +47,7 @@
 - 桌面状态栏和认证卡片圆角为 `24px`；移动状态栏、认证卡片和底栏圆角为 `40px`；`stateCard` 桌面使用 `var(--radius-card)`，移动使用 `var(--radius-card-mobile)`。
 - 移动状态栏固定 `48px`，移动底栏固定 `68px`。底栏内容层提供唯一 `8px 0` 垂直留白，语义化 `nav` 是唯一横向滚动视口。
 - 移动底栏必须始终保留同一 DOM 实例。唯一根级 Mobile Workspace Sheet 存在期间，底栏通过 `aria-hidden`、`inert`、不可见和禁用命中退出交互树；不得只依赖 Sheet 遮挡。只有根 Sheet 完整收起并进入 `map` 后才恢复，并使用约 `280ms cubic-bezier(.2,.8,.2,1)` 的通知灵动岛同系弹性进入动画。详情层切换、通知面板开关、状态刷新和初始挂载不得触发该返回动画；`prefers-reduced-motion: reduce` 时立即恢复且不播放动画。
-- 状态栏、移动底栏、认证卡片、根级状态卡和管理员工作栏每处只允许一个 `.frosted-glass-surface`；通知、Toast 和业务弹层不得为装饰增加额外毛玻璃实例。
+- 状态栏、移动底栏、认证卡片、根级状态卡和管理员工作栏每处只允许一个 `.frosted-glass-surface`；通知、Toast、Popover 和业务 Dialog 不得为了装饰再套 `FrostedGlassSurface` 或增加额外玻璃包装层。Tooltip 只允许按第 1 节在自身唯一浮层节点使用 `.ui-tooltip-surface`，该单节点轻量毛玻璃例外不得扩展成嵌套玻璃容器。
 
 ## 4. 侧栏几何与输入方式
 
@@ -77,7 +78,7 @@
 - 移动页面卡片自己的竖向滚动条必须继续绝对定位在 `.page-card-scroll-area` 根上，并跨出 `--mobile-workspace-gutter + 1px` 卡片边框，使视觉滑块到达物理安全右边缘，同时不改变内容视口宽度。只有根级 `.page-scroll-area` 的竖向轨道允许使用 viewport-fixed 定位；不得把页面卡片滚动条设为 `fixed` 放在带 `backdrop-filter` 的毛玻璃祖先下，因为 Chromium 会为固定后代建立局部包含块并把轨道错误地向内偏移。
 - 滚动条浏览器回归必须以 `getComputedStyle(workspace).paddingRight` 等已解析为像素的实际几何作为沟槽基准，再加页面卡片 `1px` 边框核对滚动根 inset；不得对可能为 `rem` 的 `--mobile-workspace-gutter` 原始字符串直接 `parseFloat` 后当作像素使用。最终滑块仍需验证距离物理右边缘约 `2px`。
 - 地图镜头栏与唯一地图舞台通过同一个 `ApplicationMapLayerPortal` 挂载为根级 `.application-map-layer` 的直接子节点；镜头栏位于地图舞台之上，但整个地图层 `20` 必须低于承载页面的 UI 层 `30`，不得再把镜头栏挂入 `StrategicWorkspaceChrome`。镜头栏底部外距继续读取 `var(--layout-gutter)`。页面不为镜头栏预留高度；镜头栏位于页面层下方，在页面覆盖范围内由页面自然遮挡，不能挤压正文。桌面通知面板继续位于工作区安全浮层并保持原有右上角几何；移动通知面板复用现有 `.workspace-dialog-layer`，作为 Chrome 级临时覆盖层位于 Sheet 之上、移动状态栏之下，面板外点击捕获层必须透明且不得压暗地图，点击面板外遮罩空白必须关闭。移动通知灵动岛位于 Chrome Overlay；通知面板和灵动岛都不得推动页面或新增第五个全局层。
-- 根级业务 Dialog 在移动玩家端由唯一 `MobileWorkspaceSheetHost` 统一占用，承载一级业务页面以及同根内的详情内容层。`MobileWorkspacePageSheet` 不再拥有可见根容器，只是 Host 的零 DOM 适配器；`MobileWorkspaceDetailSheet` 不再创建 Dialog，只向 Host 注册详情内容和固定底栏。普通 Tooltip、Popover 继续限制在工作区安全浮层内；来自唯一根 Sheet 内的富下拉可以使用根 Dialog 作为安全边界。移动通知面板是明确例外：它复用同一个根 Dialog Layer 的更高内部层级覆盖 Sheet，但不创建第二个 Portal 根。状态栏始终位于 Sheet 与通知面板之上。不得创建第二份 `.mobile-detail-sheet`、第二个 backdrop 或第二个根级 Portal。
+- 根级业务 Dialog 在移动玩家端由唯一 `MobileWorkspaceSheetHost` 统一占用，承载一级业务页面以及同根内的详情内容层。`MobileWorkspacePageSheet` 不再拥有可见根容器，只是 Host 的零 DOM 适配器；`MobileWorkspaceDetailSheet` 不再创建 Dialog，只向 Host 注册详情内容和固定底栏。普通 Tooltip、Popover 继续限制在工作区安全浮层内；Tooltip 自身仅可在唯一浮层节点使用 `.ui-tooltip-surface` 复用共享毛玻璃，不得再创建玻璃包装器。来自唯一根 Sheet 内的富下拉可以使用根 Dialog 作为安全边界。移动通知面板是明确例外：它复用同一个根 Dialog Layer 的更高内部层级覆盖 Sheet，但不创建第二个 Portal 根。状态栏始终位于 Sheet 与通知面板之上。不得创建第二份 `.mobile-detail-sheet`、第二个 backdrop 或第二个根级 Portal。
 - 移动通知灵动岛以物理屏幕水平中线为中心，并从中心对称展开；左右安全区不能让其偏向页面内容列。Sheet 存在期间灵动岛仍可在状态栏下方显示并位于 Sheet 之上；打开通知面板后必须立即卸载通知岛、Toast 及其 ARIA live region。
 - 面板打开时立即清空 Toast 队列。`useNotificationCenter` 同时必须在面板打开期间拒绝新增 Toast；新操作通知和待处理变化只更新面板内容并按现有已读语义处理，关闭面板后不得把面板期间已经展示的通知延迟补弹。移动内部层级固定为地图／页面 < 根 Sheet < 移动通知面板／通知灵动岛 < 状态栏；底部导航在 Sheet 存在期间退出视觉与交互树，不参与该覆盖竞争。页面内部任意正 `z-index` 都不得盖过通知面板或 Chrome。
 - 页面内部若使用带非 `auto` `z-index` 的 `position: sticky`／定位元素，必须被 `.mobile-page-overlay` 的页面层堆叠边界收口，不得遮挡移动状态栏、通知或底栏。
@@ -87,10 +88,12 @@
 
 必须通过以下防回退：
 
-- `scripts/verify-liquid-glass-chrome.mjs`：历史脚本路径保留，但验证对象已改为 CSS 毛玻璃、依赖删除、共享组件、页面分流和右栏职责。
+- `scripts/verify-liquid-glass-chrome.mjs`：历史脚本路径保留，但验证对象已改为 CSS 毛玻璃、依赖删除、共享组件、单节点 Tooltip 材质、页面分流和右栏职责。
 - `scripts/verify-client-update-recovery.mjs`：锁定 `RefreshPageButton` 的浏览器式 SVG 刷新控件、真实 `window.location.reload()` 恢复语义，并禁止异常入口恢复文字刷新按钮或应用内 retry。
 - `scripts/verify-mobile-page-sheet.mjs`：锁定唯一根级 Mobile Workspace Sheet、工厂详情卡片容器单实例、Sheet 自身毛玻璃、透明外部 backdrop、状态栏避让、页面／详情内容复用、共享拖动内核、底栏隐藏与返回动画、通知覆盖和地图关闭语义，禁止恢复第二个 Sheet DOM。
 - `tests/browser/frosted-glass-layout.spec.ts`：状态栏、通用面板、认证和移动底栏的真实背景滤镜、边界、圆角、单实例与无旧 DOM。
+- `tests/browser/auction-bid-history.spec.ts`：共享 `SafeTooltip` 必须在实际悬浮／焦点路径使用 `.ui-tooltip-surface`，真实计算样式包含共享 `blur(18px)`、半透明背景、高光、边界和阴影。
+- `tests/browser/shell-floating-safe-zone.spec.ts`：ECharts Tooltip 必须使用同一 `.ui-tooltip-surface` 毛玻璃材质并继续限制在工作区安全边界，不能覆盖状态栏、侧栏或可见移动底栏。
 - `tests/browser/application-error-state.spec.ts`：桌面／移动错误状态必须使用唯一 `stateCard`，真实计算样式包含共享 `blur(18px)`、半透明背景和危险色边界；刷新控件必须为圆形图标按钮并触发页面重新加载。
 - `tests/browser/open-glass-sampling.spec.ts`：四种玩家／管理员、桌面／移动场景的根级采样链。
 - `tests/browser/game-shell-layout.spec.ts`：侧栏宽窄屏一致、真实指针意图后的悬浮反馈不位移、页面展开期间布局盒几何不受视觉裁剪动画影响、建筑式面板与事件右栏几何。

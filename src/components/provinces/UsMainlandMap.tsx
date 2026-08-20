@@ -9,6 +9,7 @@ import {
   type EconomyChartClickEvent,
   type EconomyChartDoubleClickEvent,
 } from '../charts/EconomyChart';
+import { commonTooltip } from '../charts/chartOptions';
 import {
   registerEChartsMap,
   type EChartsCoreOption,
@@ -259,10 +260,9 @@ export function UsMainlandMap({
     animationDuration: 260,
     animationDurationUpdate: 220,
     tooltip: {
+      ...commonTooltip,
       trigger: 'item',
-      className: 'economy-chart-tooltip province-map-tooltip',
-      borderColor: 'var(--color-border-strong)',
-      backgroundColor: 'var(--color-surface-raised)',
+      className: `${commonTooltip.className} province-map-tooltip`,
       formatter: tooltipContent,
     },
     series: [{
