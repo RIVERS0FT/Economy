@@ -136,3 +136,14 @@ test('authority slices only commit React consumers that declare the changed depe
     leaderboard: 2,
   });
 });
+
+test('captured root authority state stays coherent when the global delivery cache resets', async ({ page }) => {
+  await page.goto('partition-authority-test.html');
+  await expect(page.getByTestId('root-count')).toHaveText('1');
+  const survived = await page.evaluate(() => (
+    window as typeof window & {
+      __partitionAuthorityHarness: { capturedRootSnapshotSurvivesReset: () => boolean };
+    }
+  ).__partitionAuthorityHarness.capturedRootSnapshotSurvivesReset());
+  expect(survived).toBe(true);
+});
