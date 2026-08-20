@@ -52,6 +52,20 @@ test('client rejects an initial delivery without partition patches', () => {
   assert.equal(cache.getSnapshot().state, null);
 });
 
+test('client treats a missing catalog version as delivery integrity failure', () => {
+  const cache = createStateDeliveryCache();
+  const delivery = fullDelivery();
+  delete delivery.patches.catalog.version;
+
+  assert.throws(
+    () => cache.accept(delivery),
+    StateDeliveryIntegrityError,
+  );
+  assert.equal(cache.getSnapshot().revision, null);
+  assert.equal(cache.getSnapshot().state, null);
+  assert.deepEqual(cache.getPartitionRevisions(), {});
+});
+
 test('client rejects an incomplete initial catalog before publishing authority state', () => {
   const cache = createStateDeliveryCache();
   const delivery = fullDelivery();
