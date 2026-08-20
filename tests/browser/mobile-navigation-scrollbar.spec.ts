@@ -128,6 +128,18 @@ test.describe('mobile navigation scrolling', () => {
     const activeAfterHover = await readVisual(active);
     expect(activeAfterHover).toEqual(activeBefore);
 
+    const sheet = page.locator('.mobile-workspace-sheet-host');
+    const navigationCovered = await inactive.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      return Boolean(document.elementFromPoint(
+        box.left + box.width / 2,
+        box.top + box.height / 2,
+      )?.closest('.mobile-detail-sheet-backdrop'));
+    });
+    expect(navigationCovered).toBe(true);
+
+    await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
+    await expect(sheet).toHaveCount(0);
     await inactive.click();
     await expect(inactive).toHaveAttribute('aria-current', 'page');
     await expect(active).not.toHaveAttribute('aria-current', 'page');
