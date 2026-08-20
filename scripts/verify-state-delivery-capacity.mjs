@@ -67,7 +67,7 @@ requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
 
 requireText('scripts/configure-economy-nginx.py', [
   'STATIC_COMPRESSION_BEGIN',
-  '("gzip_comp_level", "6")',
+  '(\"gzip_comp_level\", \"6\")',
   'text/css text/plain text/javascript application/javascript application/json',
   'application/atom+xml image/svg+xml application/wasm',
   'remove_top_level_directives',
