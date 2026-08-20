@@ -199,7 +199,7 @@ function patch(name: PatchName) {
     patches = { player: { credits: 100 + revision } };
   } else if (name === 'playerBank') {
     bumpSlice('player.bank');
-    patches = { player: { bankAccount: { revision } };
+    patches = { player: { bankAccount: { revision } } };
   } else if (name === 'playerProduction') {
     bumpSlice('player.production');
     patches = { player: { facilityGroups: [{ facilityTypeId: 'farm', count: revision }] } };
