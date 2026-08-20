@@ -45,6 +45,11 @@ export interface StateAuthoritySnapshot {
   changedSlices: readonly StateSliceName[];
 }
 
+export class StateDeliveryIntegrityError extends Error {
+  readonly code: 'STATE_DELIVERY_INTEGRITY';
+  constructor(message: string);
+}
+
 export const STATE_PARTITION_NAMES: readonly StatePartitionName[];
 export function getStateAuthoritySnapshot(): StateAuthoritySnapshot;
 export function getStateAuthorityPartition(name: StatePartitionName): Partial<EconomyState> | null;
