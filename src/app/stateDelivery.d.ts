@@ -1,503 +1,94 @@
-import type { AssetKind, EconomyState, OrderSide, TransportModeId } from '../types';
-import type { AuctionBidHistory, AuctionItem } from '../auctions/types';
-import type { FacilityBuildProcurementGroup } from '../utils/facilityBuildProcurementGroups';
-import {
-  createStateDeliveryCache,
-  StateDeliveryIntegrityError,
-  type StateDeliveryEnvelope,
-  type StatePartitionPatches,
-  type StatePartitionRevisions,
-} from '../app/stateDelivery.js';
-import { acceptServerNow, resetServerClock } from '../utils/serverClock.js';
-import { createClientProductionSettlementClaim } from '../utils/productionSettlement';
-import type { ProductionSettlementClaim } from '../../shared/production-settlement.js';
+import type { EconomyState } from '../types';
 
-const GAME_API_BASE = '/economy-api/game';
-const stateDeliveryCache = createStateDeliveryCache();
-let currentSaveEpoch: number | null = null;
-let pendingProductionSettlement: ProductionSettlementClaim | null = null;
-const DEFAULT_READ_TIMEOUT_MS = 8_000;
-const DEFAULT_WRITE_TIMEOUT_MS = 12_000;
-const NETWORK_ERROR_MESSAGE = '无法连接服务器，客户端或服务器可能已经更新，请刷新页面后重试';
+export type StatePartitionName = 'catalog' | 'player' | 'market' | 'auction' | 'contract' | 'leaderboard';
+export type StateSliceName =
+  | 'player.identity'
+  | 'player.assets'
+  | 'player.production'
+  | 'player.progression'
+  | 'player.bank'
+  | 'player.stats'
+  | 'player.misc'
+  | 'market.orders'
+  | 'market.quotes'
+  | 'market.calendar'
+  | 'market.misc';
+export type StateAuthorityDependency = StatePartitionName | StateSliceName;
+export type StatePartitionRevisions = Partial<Record<StatePartitionName, string>>;
+export type StateSliceRevisions = Partial<Record<StateSliceName, string>>;
+export type StatePartitionSnapshots = Partial<Record<StatePartitionName, Partial<EconomyState>>>;
+export type StatePartitionPatches = StatePartitionSnapshots;
 
-export const DEFAULT_QQ_GROUP_URL = 'https://qm.qq.com/q/eN8hya0Yn0';
-
-export interface GameActionResult { ok: boolean; message: string; }
-export interface GameActionResponse {
-  result: GameActionResult;
+export interface StateDeliveryEnvelope {
   revision: number;
+  unchanged: boolean;
+  serverNow: number;
+  partitionRevisions?: StatePartitionRevisions;
+  sliceRevisions?: StateSliceRevisions;
+  patches?: StatePartitionPatches;
+  stateChanged?: boolean;
+  changedPartitions?: readonly StatePartitionName[];
+  changedSlices?: readonly StateSliceName[];
 }
-export interface FacilityBuildProcurementActionResult extends GameActionResult {
-  procurementGroup?: FacilityBuildProcurementGroup;
+
+export interface StatePatchMerge {
+  partitions: StatePartitionSnapshots;
+  state: EconomyState;
 }
-export interface FacilityBuildProcurementActionResponse {
-  result: FacilityBuildProcurementActionResult;
-  revision: number;
+
+export interface StateAuthoritySnapshot {
+  revision: number | null;
+  state: EconomyState | null;
+  partitions: StatePartitionSnapshots;
+  sliceRevisions: StateSliceRevisions;
+  changedPartitions: readonly StatePartitionName[];
+  changedSlices: readonly StateSliceName[];
 }
-export interface OnlineAutoSellPolicyInput {
-  enabled: boolean;
-  price: number;
-  minimumFreeInventory: number;
+
+export class StateDeliveryIntegrityError extends Error {
+  readonly code: 'STATE_DELIVERY_INTEGRITY';
+  constructor(message: string);
 }
-export interface OnlineAutoBuyPolicyInput {
-  enabled: boolean;
-  maxPrice: number;
-  targetFreeInventory: number;
-}
-export interface OnlineAutoTradePolicyInput {
-  buy: OnlineAutoBuyPolicyInput;
-  sell: OnlineAutoSellPolicyInput;
-}
-export interface FacilityBuildProcurementOptions {
-  autoProcure: true;
-  maxProcurementTotal: number;
-  materialPriceCaps: Record<string, number>;
-}
-export interface SaveDeletionBlocker {
-  type: string;
-  message: string;
-  targetTab?: 'market' | 'auction' | 'contracts' | 'bank' | 'settings';
-}
-export interface SaveDeletionPreflight {
-  allowed: boolean;
-  alreadyUsed: boolean;
-  blockers: SaveDeletionBlocker[];
-  autoClose: {
-    orders: number;
-    facilityListings: number;
-    auctions: number;
-    contracts: number;
+
+export const STATE_PARTITION_NAMES: readonly StatePartitionName[];
+export function getStateAuthoritySnapshot(): StateAuthoritySnapshot;
+export function getStateAuthorityPartition(name: StatePartitionName): Partial<EconomyState> | null;
+export function getStateAuthoritySliceRevision(name: StateSliceName): string | null;
+export function subscribeStateAuthority(listener: () => void): () => void;
+export function subscribeStateAuthorityPartition(
+  name: StatePartitionName,
+  listener: () => void,
+): () => void;
+export function subscribeStateAuthorityPartitions(
+  names: readonly StatePartitionName[],
+  listener: () => void,
+): () => void;
+export function subscribeStateAuthoritySlice(
+  name: StateSliceName,
+  listener: () => void,
+): () => void;
+export function subscribeStateAuthorityDependencies(
+  names: readonly StateAuthorityDependency[],
+  listener: () => void,
+): () => void;
+export function mergeStatePatches(
+  currentPartitions: StatePartitionSnapshots | undefined,
+  patches: StatePartitionPatches | undefined,
+): StatePatchMerge;
+export function createStateDeliveryCache(): {
+  reset(): void;
+  getPartitionRevisions(): StatePartitionRevisions;
+  getSliceRevisions(): StateSliceRevisions;
+  getSnapshot(): {
+    revision: number | null;
+    state: EconomyState | null;
+    partitions: StatePartitionSnapshots;
+    sliceRevisions: StateSliceRevisions;
   };
-  saveEpoch: number;
-  checkedAt: number;
-  revision: number;
-}
-export interface SaveDeletionResponse extends GameActionResponse {
-  saveEpoch: number;
-}
-export interface GameStatePollResponse extends StateDeliveryEnvelope { state?: EconomyState; }
-export interface TutorialCompletionState {
-  completedVersion: number;
-  completedAt?: number;
-}
-export interface TutorialStatusResponse {
-  tutorial: TutorialCompletionState;
-  currentVersion: number;
-}
-export interface TutorialCompletionResponse {
-  result: GameActionResult;
-  tutorial: TutorialCompletionState;
-}
-export interface GemShopExchangeRecord {
-  gemsSpent: number;
-  creditsReceived: number;
-  creditsPerGem?: number;
-  dateKey?: string;
-  createdAt: number;
-}
-export interface GemShopRateRecord {
-  dateKey: string;
-  creditsPerGem: number;
-  demandTone: 'high' | 'neutral' | 'low' | 'returning';
-}
-export interface GemShopSummary {
-  gems: number;
-  credits: number;
-  quoteDateKey?: string;
-  creditsPerGem: number;
-  previousCreditsPerGem?: number;
-  rateDelta?: number;
-  nextRateAt?: number;
-  demandTone?: 'high' | 'neutral' | 'low' | 'returning';
-  demandPressurePpm?: number;
-  quoteDecision?: 'pending' | 'accepted' | 'rejected';
-  quoteDecisionAt?: number | null;
-  minExchangeGems: number;
-  maxExchangeGems: number;
-  maxExchangeableGems: number;
-  totalGemsSpent: number;
-  totalCreditsReceived: number;
-  recentExchanges: GemShopExchangeRecord[];
-  recentRates?: GemShopRateRecord[];
-}
-export interface CommunityLinkConfig {
-  qqGroupUrl: string;
-  updatedAt: number | null;
-}
-
-export type { StatePartitionPatches, StatePartitionRevisions };
-
-export class GameApiError extends Error {
-  status: number;
-  code: string;
-  constructor(status: number, message: string, code = '') {
-    super(message);
-    this.name = 'GameApiError';
-    this.status = status;
-    this.code = code;
-  }
-}
-
-function createRequestKey() {
-  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-  return `request-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function isStateDeliveryPayload(value: unknown): value is StateDeliveryEnvelope {
-  if (!value || typeof value !== 'object') return false;
-  const payload = value as Partial<StateDeliveryEnvelope>;
-  return Number.isInteger(payload.revision) && typeof payload.unchanged === 'boolean';
-}
-
-function isBrowserNetworkError(reason: unknown) {
-  if (reason instanceof TypeError) return true;
-  if (!(reason instanceof Error)) return false;
-  return /failed to fetch|load failed|networkerror|network request failed/i.test(reason.message);
-}
-
-function knownPartitionRevisions() {
-  return stateDeliveryCache.getPartitionRevisions();
-}
-
-export function resetGameStateDelivery() {
-  stateDeliveryCache.reset();
-  currentSaveEpoch = null;
-  pendingProductionSettlement = null;
-  resetServerClock();
-}
-
-function createTimedSignal(source: AbortSignal | null | undefined, timeoutMs: number) {
-  const controller = new AbortController();
-  let timedOut = false;
-  const forwardAbort = () => controller.abort();
-  if (source?.aborted) controller.abort();
-  else source?.addEventListener('abort', forwardAbort, { once: true });
-  const timeoutId = globalThis.setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, timeoutMs);
-  return {
-    signal: controller.signal,
-    didTimeout: () => timedOut,
-    cleanup: () => {
-      globalThis.clearTimeout(timeoutId);
-      source?.removeEventListener('abort', forwardAbort);
-    },
+  accept<T extends StateDeliveryEnvelope>(payload: T): T & {
+    state?: EconomyState;
+    stateChanged: boolean;
+    changedPartitions: readonly StatePartitionName[];
+    changedSlices: readonly StateSliceName[];
   };
-}
-
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = new Headers(init?.headers);
-  if (init?.body) headers.set('Content-Type', 'application/json');
-  if (init?.method && init.method !== 'GET') {
-    headers.set('Idempotency-Key', createRequestKey());
-    if (Number.isInteger(currentSaveEpoch)) {
-      headers.set('X-Economy-Save-Epoch', String(currentSaveEpoch));
-    }
-  }
-  const timeoutMs = init?.method && init.method !== 'GET'
-    ? DEFAULT_WRITE_TIMEOUT_MS
-    : DEFAULT_READ_TIMEOUT_MS;
-  const timedSignal = createTimedSignal(init?.signal, timeoutMs);
-  try {
-    const response = await fetch(`${GAME_API_BASE}${path}`, {
-      ...init,
-      credentials: 'include',
-      headers,
-      signal: timedSignal.signal,
-    });
-    if (!response.ok) {
-      let message = '游戏服务器请求失败';
-      let code = '';
-      try {
-        const payload = (await response.json()) as { message?: string; code?: string };
-        if (payload.message) message = payload.message;
-        code = String(payload.code || '');
-      } catch { /* preserve generic message */ }
-      throw new GameApiError(response.status, message, code);
-    }
-    const payload = await response.json() as unknown;
-    if (isStateDeliveryPayload(payload)) {
-      acceptServerNow(payload.serverNow);
-      const accepted = stateDeliveryCache.accept(payload);
-      const deliveredState = (accepted as StateDeliveryEnvelope & { state?: EconomyState }).state;
-      if (Number.isInteger(deliveredState?.saveEpoch)) {
-        currentSaveEpoch = Number(deliveredState?.saveEpoch);
-      }
-      return accepted as T;
-    }
-    return payload as T;
-  } catch (reason) {
-    if (timedSignal.didTimeout() && reason instanceof Error && reason.name === 'AbortError') {
-      throw new GameApiError(408, '游戏服务器响应超时，请稍后重试');
-    }
-    if (isBrowserNetworkError(reason)) {
-      throw new GameApiError(0, NETWORK_ERROR_MESSAGE);
-    }
-    throw reason;
-  } finally {
-    timedSignal.cleanup();
-  }
-}
-
-async function postAction(path: string, body: Record<string, unknown> = {}) {
-  const claim = pendingProductionSettlement;
-  const payload = claim ? { ...body, productionSettlement: claim } : body;
-  try {
-    const response = await request<GameActionResponse>(path, { method: 'POST', body: JSON.stringify(payload) });
-    pendingProductionSettlement = null;
-    return response;
-  } catch (reason) {
-    if (claim && reason instanceof GameApiError && reason.code.startsWith('PRODUCTION_SETTLEMENT_')) {
-      pendingProductionSettlement = null;
-      return request<GameActionResponse>(path, { method: 'POST', body: JSON.stringify(body) });
-    }
-    throw reason;
-  }
-}
-
-async function fetchGameStateOnce(revision?: number | null, signal?: AbortSignal) {
-  const params = new URLSearchParams();
-  if (Number.isInteger(revision)) params.set('revision', String(revision));
-  for (const [name, value] of Object.entries(knownPartitionRevisions())) {
-    if (value) params.set(name, value);
-  }
-  const query = params.toString();
-  const suffix = query ? `?${query}` : '';
-  return request<GameStatePollResponse>(`/state${suffix}`, { method: 'GET', signal });
-}
-
-async function fetchGameStateWithRecovery(revision?: number | null, signal?: AbortSignal) {
-  try {
-    return await fetchGameStateOnce(revision, signal);
-  } catch (reason) {
-    if (!(reason instanceof StateDeliveryIntegrityError)) throw reason;
-    resetGameStateDelivery();
-    try {
-      return await fetchGameStateOnce(undefined, signal);
-    } catch (retryReason) {
-      if (retryReason instanceof StateDeliveryIntegrityError) {
-        throw new GameApiError(
-          502,
-          `服务器状态同步异常：${retryReason.message}`,
-          retryReason.code,
-        );
-      }
-      throw retryReason;
-    }
-  }
-}
-
-export async function getGameState(revision?: number | null, signal?: AbortSignal): Promise<GameStatePollResponse> {
-  if (!Number.isInteger(revision)) resetGameStateDelivery();
-  let response = await fetchGameStateWithRecovery(revision, signal);
-  pendingProductionSettlement = createClientProductionSettlementClaim(
-    response.state,
-    Number(response.serverNow),
-  );
-  if (!pendingProductionSettlement) return response;
-
-  const settlement = await postAction('/production/settle');
-  if (settlement.revision !== response.revision) {
-    response = await fetchGameStateWithRecovery(response.revision, signal);
-  }
-  pendingProductionSettlement = createClientProductionSettlementClaim(
-    response.state,
-    Number(response.serverNow),
-  );
-  return response;
-}
-
-export async function getTutorialStatus(signal?: AbortSignal): Promise<TutorialStatusResponse> {
-  return request<TutorialStatusResponse>('/tutorial', { method: 'GET', signal });
-}
-
-export async function completeTutorial(version: number): Promise<TutorialCompletionResponse> {
-  return request<TutorialCompletionResponse>('/tutorial/complete', {
-    method: 'POST',
-    body: JSON.stringify({ version }),
-  });
-}
-
-export async function getGemShopSummary(): Promise<GemShopSummary> {
-  const payload = await request<{ gemShop: GemShopSummary }>('/gem-shop', { method: 'GET' });
-  return payload.gemShop;
-}
-
-export async function getCommunityLink(signal?: AbortSignal): Promise<CommunityLinkConfig> {
-  const payload = await request<{ communityLink: CommunityLinkConfig }>('/community-link', { method: 'GET', signal });
-  return payload.communityLink;
-}
-
-export async function getAuctionBidHistory(auctionId: string, signal?: AbortSignal): Promise<AuctionBidHistory> {
-  const payload = await request<{ history: AuctionBidHistory }>(
-    `/auctions/${encodeURIComponent(auctionId)}/bids`,
-    { method: 'GET', signal },
-  );
-  return payload.history;
-}
-
-export async function getSaveDeletionPreflight(signal?: AbortSignal): Promise<SaveDeletionPreflight> {
-  const payload = await request<{ preflight: SaveDeletionPreflight }>(
-    '/save-deletion/preflight',
-    { method: 'GET', signal },
-  );
-  return payload.preflight;
-}
-
-export async function deleteGameSave(confirmation: string): Promise<SaveDeletionResponse> {
-  return request<SaveDeletionResponse>('/save-deletion', {
-    method: 'POST',
-    body: JSON.stringify({ confirmation }),
-  });
-}
-
-export function saveOnlineAutoSellPolicy(provinceId: string, productId: string, policy: OnlineAutoSellPolicyInput) {
-  return postAction('/orders', {
-    provinceId,
-    assetKind: 'commodity',
-    assetId: productId,
-    productId,
-    execution: 'online-auto-sell-policy',
-    enabled: policy.enabled,
-    price: policy.price,
-    minimumFreeInventory: policy.minimumFreeInventory,
-  });
-}
-
-export function saveOnlineAutoTradePolicy(provinceId: string, productId: string, policy: OnlineAutoTradePolicyInput) {
-  return postAction('/orders', {
-    provinceId,
-    assetKind: 'commodity',
-    assetId: productId,
-    productId,
-    execution: 'online-auto-trade-policy',
-    buy: policy.buy,
-    sell: policy.sell,
-  });
-}
-
-export function importLegacyOnlineAutoSellPolicies(policies: Record<string, OnlineAutoSellPolicyInput>) {
-  return postAction('/orders', {
-    execution: 'online-auto-sell-policy',
-    legacyImport: true,
-    policies,
-  });
-}
-
-export function createFacilityBuildProcurement(
-  provinceId: string,
-  facilityTypeId: string,
-  quantity: number,
-  materialOrderPrices: Record<string, number>,
-) {
-  return request<FacilityBuildProcurementActionResponse>('/orders', {
-    method: 'POST',
-    body: JSON.stringify({
-      execution: 'facility-build-procurement',
-      provinceId,
-      facilityTypeId,
-      quantity,
-      materialOrderPrices,
-    }),
-  });
-}
-
-export function cancelFacilityBuildProcurement(orderIds: string[]) {
-  return postAction('/orders', {
-    execution: 'facility-build-procurement-cancel',
-    orderIds,
-  });
-}
-
-export const gameActions = {
-  work: () => postAction('/work'),
-  checkIn: () => postAction('/check-in'),
-  chooseStartingProvince: (provinceId: string) => postAction('/provinces/starting', { provinceId }),
-  unlockProvince: (provinceId: string) => postAction('/provinces/unlock', { provinceId }),
-  transportShip: (input: {
-    sourceProvinceId: string;
-    destinationProvinceId: string;
-    productId: string;
-    quantity: number;
-    mode: TransportModeId;
-  }) => postAction('/transport', input),
-  bankDeposit: (amount: number) => postAction('/bank/deposits', { amount }),
-  bankWithdraw: (amount: number) => postAction('/bank/withdrawals', { amount }),
-  bankBorrow: (amount: number, collateral: Array<{ provinceId: string; facilityTypeId: string; quantity: number }>, autoRepay = true) => (
-    postAction('/bank/loans', { amount, collateral, autoRepay })
-  ),
-  bankRepay: (loanId: string, amount: number | 'all') => (
-    postAction(`/bank/loans/${encodeURIComponent(loanId)}/repay`, { amount })
-  ),
-  bankSetAutoRepay: (loanId: string, enabled: boolean) => (
-    postAction(`/bank/loans/${encodeURIComponent(loanId)}/auto-repay`, { enabled })
-  ),
-  buildFacility: (provinceId: string, facilityTypeId: string, quantity = 1, procurement?: FacilityBuildProcurementOptions) => (
-    postAction('/facilities', { provinceId, facilityTypeId, quantity, ...procurement })
-  ),
-  startResearch: (technologyId: string) => postAction('/research/start', { technologyId }),
-  accelerateResearch: () => postAction('/research/accelerate'),
-  startFacility: (provinceId: string, facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/start`, { provinceId }),
-  stopFacility: (provinceId: string, facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/stop`, { provinceId }),
-  pauseFacility: (provinceId: string, facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/pause`, { provinceId }),
-  setFacilityRecipe: (provinceId: string, facilityTypeId: string, recipeId: string) => (
-    postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/recipe`, { provinceId, recipeId })
-  ),
-  placeAssetOrder: (provinceId: string, assetKind: AssetKind, assetId: string, side: OrderSide, quantity: number, price: number) => (
-    postAction('/orders', {
-      provinceId,
-      assetKind,
-      assetId,
-      productId: assetKind === 'commodity' ? assetId : undefined,
-      facilityTypeId: assetKind === 'facility' ? assetId : undefined,
-      side,
-      quantity,
-      price,
-    })
-  ),
-  placeCommodityOrder: (productId: string, side: OrderSide, quantity: number, price: number) => (
-    postAction('/orders', { assetKind: 'commodity', assetId: productId, productId, side, quantity, price })
-  ),
-  autoBuyCommodity: (provinceId: string, productId: string, maxPrice: number, targetFreeInventory = 0) => (
-    postAction('/orders', {
-      provinceId,
-      assetKind: 'commodity',
-      assetId: productId,
-      productId,
-      side: 'buy',
-      price: maxPrice,
-      targetFreeInventory,
-      execution: 'online-auto-buy',
-    })
-  ),
-  autoSellCommodity: (provinceId: string, productId: string, price: number, minimumFreeInventory = 0) => (
-    postAction('/orders', {
-      provinceId,
-      assetKind: 'commodity',
-      assetId: productId,
-      productId,
-      side: 'sell',
-      price,
-      minimumFreeInventory,
-      execution: 'online-auto-sell',
-    })
-  ),
-  cancelOrder: (orderId: string) => postAction(`/orders/${encodeURIComponent(orderId)}/cancel`),
-  createAuction: (items: AuctionItem[], startingBid: number, reservePrice: number | null, durationHours: number) => (
-    postAction('/auctions', { items, startingBid, reservePrice, durationHours })
-  ),
-  placeAuctionBid: (auctionId: string, amount: number) => (
-    postAction(`/auctions/${encodeURIComponent(auctionId)}/bids`, { amount })
-  ),
-  cancelAuction: (auctionId: string) => (
-    postAction(`/auctions/${encodeURIComponent(auctionId)}/cancel`)
-  ),
-  renamePlayer: (playerName: string) => request<GameActionResponse>('/profile', {
-    method: 'PATCH',
-    body: JSON.stringify({ playerName }),
-  }),
-  redeemGift: (code: string) => postAction('/gifts/redeem', { code }),
-  exchangeGems: (gems: number) => postAction('/gem-shop/exchange', { gems }),
-  rejectGemShopQuote: () => postAction('/gem-shop/quote/reject'),
 };
