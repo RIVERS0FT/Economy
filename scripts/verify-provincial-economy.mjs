@@ -243,7 +243,7 @@ for (const text of [
   'selectedProvinceId: string | null',
   "data-selected-province-id={selectedProvinceId ?? ''}",
   'const handleMapDoubleClick = useCallback',
-  'if (event.target) return;',
+  "if (event.target || event.event?.pointerType === 'touch') return;",
   "chart.getDom().dataset.mapCameraReset = 'blank-double-click'",
   "chart.getDom().dataset.mapCameraReset = 'blank-double-tap'",
   'onDoubleClick={handleMapDoubleClick}',
