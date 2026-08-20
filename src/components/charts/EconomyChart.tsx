@@ -22,6 +22,23 @@ export interface EconomyChartClickEvent {
 export interface EconomyChartDoubleClickEvent {
   target?: unknown;
   topTarget?: unknown;
+  event?: {
+    pointerType?: string;
+    type?: string;
+    timeStamp?: number;
+  };
+}
+
+export interface EconomyChartCanvasClickEvent {
+  target?: unknown;
+  topTarget?: unknown;
+  offsetX?: number;
+  offsetY?: number;
+  event?: {
+    pointerType?: string;
+    type?: string;
+    timeStamp?: number;
+  };
 }
 
 export interface EconomyChartSize {
@@ -59,6 +76,7 @@ export function EconomyChart({
   onOptionApplied,
   onResize,
   onClick,
+  onCanvasClick,
   onDoubleClick,
 }: {
   option: EChartsCoreOption;
@@ -72,6 +90,7 @@ export function EconomyChart({
   onOptionApplied?: (chart: EChartsType) => void;
   onResize?: (chart: EChartsType, size: EconomyChartSize) => void;
   onClick?: (event: EconomyChartClickEvent) => void;
+  onCanvasClick?: (event: EconomyChartCanvasClickEvent, chart: EChartsType) => void;
   onDoubleClick?: (event: EconomyChartDoubleClickEvent, chart: EChartsType) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -85,6 +104,7 @@ export function EconomyChart({
   const onOptionAppliedRef = useRef(onOptionApplied);
   const onResizeRef = useRef(onResize);
   const onClickRef = useRef(onClick);
+  const onCanvasClickRef = useRef(onCanvasClick);
   const onDoubleClickRef = useRef(onDoubleClick);
   const [ready, setReady] = useState(false);
 
@@ -93,6 +113,7 @@ export function EconomyChart({
   onOptionAppliedRef.current = onOptionApplied;
   onResizeRef.current = onResize;
   onClickRef.current = onClick;
+  onCanvasClickRef.current = onCanvasClick;
   onDoubleClickRef.current = onDoubleClick;
 
   useLayoutEffect(() => {
@@ -128,10 +149,14 @@ export function EconomyChart({
     const handleClick = (event: unknown) => {
       onClickRef.current?.(event as EconomyChartClickEvent);
     };
+    const handleCanvasClick = (event: unknown) => {
+      onCanvasClickRef.current?.(event as EconomyChartCanvasClickEvent, chart);
+    };
     const handleDoubleClick = (event: unknown) => {
       onDoubleClickRef.current?.(event as EconomyChartDoubleClickEvent, chart);
     };
     chart.on('click', handleClick);
+    chart.getZr().on('click', handleCanvasClick);
     chart.getZr().on('dblclick', handleDoubleClick);
     const applyCurrentOption = () => {
       if (!hasRenderableSize(container)) return false;
@@ -173,6 +198,7 @@ export function EconomyChart({
       window.removeEventListener('resize', scheduleResize);
       if (resizeFrameRef.current !== null) cancelAnimationFrame(resizeFrameRef.current);
       chart.off('click', handleClick);
+      chart.getZr().off('click', handleCanvasClick);
       chart.getZr().off('dblclick', handleDoubleClick);
       chart.dispose();
       chartRef.current = null;

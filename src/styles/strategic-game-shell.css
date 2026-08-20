@@ -103,6 +103,10 @@
   padding: 0;
 }
 
+.strategic-map-stage .province-map-echart .economy-chart__canvas {
+  touch-action: none;
+}
+
 .strategic-map-vignette {
   position: absolute;
   z-index: 2;
