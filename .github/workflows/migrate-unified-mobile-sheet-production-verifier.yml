@@ -1,0 +1,35 @@
+name: Migrate unified mobile sheet production verifier
+
+on:
+  push:
+    branches:
+      - agent/unified-mobile-sheet-host
+    paths:
+      - scripts/migrate-unified-mobile-sheet-production-verifier.mjs
+      - .github/workflows/migrate-unified-mobile-sheet-production-verifier.yml
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/unified-mobile-sheet-host
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.4.0'
+      - run: node scripts/migrate-unified-mobile-sheet-production-verifier.mjs
+      - name: Commit migration result and remove one-shot files
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/verify-production-settlement-layout.mjs
+          git rm scripts/migrate-unified-mobile-sheet-production-verifier.mjs .github/workflows/migrate-unified-mobile-sheet-production-verifier.yml
+          git diff --cached --check
+          git commit -m "align production verifier with unified mobile sheet"
+          git push origin HEAD:agent/unified-mobile-sheet-host
