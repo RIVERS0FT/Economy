@@ -165,6 +165,7 @@ requireAll('src/styles/mobile-status-navigation.css', [
   ".mobile-bottom-navigation[data-workspace-sheet-hidden='true']",
   'visibility: hidden;',
   'pointer-events: none;',
+  'transform: translate3d(0, 24px, 0);',
   ".mobile-bottom-navigation[data-workspace-sheet-hidden='false'][data-navigation-returning='true']",
   '@keyframes mobile-bottom-navigation-return',
   '280ms cubic-bezier(.2, .8, .2, 1)',
@@ -172,7 +173,8 @@ requireAll('src/styles/mobile-status-navigation.css', [
 ]);
 
 requireAll('src/styles/mobile-status-layout.css', [
-  '.signed-in-shell__chrome {\n    z-index: 3001;',
+  '.game-shell .signed-in-shell__chrome {\n    z-index: 3001;',
+  "html[data-app-surface=\"game\"] .game-shell .signed-in-shell__chrome > .mobile-bottom-navigation[data-workspace-sheet-hidden='true']",
   ".workspace-dialog-layer > .notification-panel-layer[data-notification-layer='dialog']",
   'z-index: 10;',
   'var(--mobile-status-top-inset)',
