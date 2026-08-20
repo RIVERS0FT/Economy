@@ -137,8 +137,12 @@ test('overview, market, buildings, and settings share a one-third card width whi
   await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
   await page.getByTestId('us-mainland-map').locator('svg text').filter({ hasText: /^TX$/ }).click();
   const provinceHost = page.locator('.strategic-page-host');
+  const provinceContent = provinceHost.locator(':scope > .page-content:not(.page-loading)');
   await expect(provinceHost).toHaveAttribute('data-strategic-presentation', 'building');
-  const provinceContentBox = await provinceHost.locator(':scope > .page-content').boundingBox();
+  await expect(provinceHost.locator(':scope > .page-loading')).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 1, name: '得克萨斯州' })).toBeVisible();
+  await expect(provinceContent).toBeVisible();
+  const provinceContentBox = await provinceContent.boundingBox();
   const provinceCardBox = await workspaceCard.boundingBox();
   expect(provinceContentBox).not.toBeNull();
   expect(provinceCardBox).not.toBeNull();
