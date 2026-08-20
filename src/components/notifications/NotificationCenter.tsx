@@ -8,7 +8,10 @@ import type {
 } from '../../notifications/notificationCenter';
 import type { NotificationToast } from '../../hooks/useNotificationCenter';
 import { CurrencyText } from '../ui/CurrencyAmount';
-import { useWorkspaceFloatingLayer } from '../ui/WorkspaceFloatingLayer';
+import {
+  useWorkspaceDialogLayer,
+  useWorkspaceFloatingLayer,
+} from '../ui/WorkspaceFloatingLayer';
 
 const MOBILE_NOTIFICATION_QUERY = '(max-width: 720px)';
 const MOBILE_ISLAND_EXIT_MS = 230;
@@ -257,7 +260,10 @@ export function NotificationCenterPanel({
   onNavigate: (tab: TabId) => void;
   returnFocusRef?: RefObject<HTMLButtonElement | null>;
 }) {
+  const mobile = useMobileNotificationSurface();
   const floatingLayer = useWorkspaceFloatingLayer();
+  const dialogLayer = useWorkspaceDialogLayer();
+  const targetLayer = mobile ? dialogLayer : floatingLayer;
   const panelRef = useRef<HTMLElement>(null);
   const hasReadNotifications = useMemo(
     () => notifications.some((notification) => notification.readAt !== null),
@@ -270,20 +276,22 @@ export function NotificationCenterPanel({
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
+      event.stopPropagation();
       onClose();
     };
-    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', onKeyDown, true);
     return () => {
-      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keydown', onKeyDown, true);
       returnFocusRef?.current?.focus({ preventScroll: true });
     };
   }, [onClose, open, returnFocusRef]);
 
-  if (!open || !floatingLayer) return null;
+  if (!open || !targetLayer) return null;
 
   return createPortal(
     <div
       className="notification-panel-layer"
+      data-notification-layer={mobile ? 'dialog' : 'floating'}
       onPointerDown={onClose}
     >
       <section
@@ -361,7 +369,7 @@ export function NotificationCenterPanel({
         </div>
       </section>
     </div>,
-    floatingLayer,
+    targetLayer,
   );
 }
 
