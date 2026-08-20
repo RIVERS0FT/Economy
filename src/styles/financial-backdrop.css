@@ -250,7 +250,7 @@ html[data-app-tone="critical"] .application-atmosphere-layer {
 
 .game-state-shell,
 .photographic-state-shell {
-  isolation: auto;
+  isolation: isolate;
   filter: none;
   transform: none;
   color: var(--color-text-primary);
