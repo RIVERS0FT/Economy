@@ -81,7 +81,6 @@ export function MobileWorkspaceSheetHost({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const detailViewRef = useRef<HTMLDivElement | null>(null);
   const detailScrollViewportRef = useRef<HTMLDivElement | null>(null);
-  const backdropRef = useRef<HTMLDivElement | null>(null);
   const backdropPointerIdRef = useRef<number | undefined>(undefined);
   const onClosePageRef = useRef(onClosePage);
   const activeDetailRef = useRef<MobileWorkspaceDetailRegistration | null>(null);
@@ -121,15 +120,6 @@ export function MobileWorkspaceSheetHost({
     onClosePageRef.current();
   }, []);
 
-  const handleSheetProgress = useCallback((progress: number) => {
-    const backdrop = backdropRef.current;
-    if (!backdrop) return;
-    const resolvedProgress = activeDetailRef.current
-      ? 1
-      : progress <= 0 ? 0 : Math.max(0.3, progress);
-    backdrop.style.setProperty('--mobile-detail-sheet-backdrop-progress', String(resolvedProgress));
-  }, []);
-
   const {
     sheetRef,
     requestClose,
@@ -149,7 +139,6 @@ export function MobileWorkspaceSheetHost({
     headerSelector: '.mobile-detail-sheet-drag-handle, .page-fixed-header',
     contentSelector: '.mobile-detail-sheet-scroll, .page-card-scroll',
     offsetProperty: '--mobile-detail-sheet-drag-offset',
-    onProgress: handleSheetProgress,
   });
 
   const requestDetailClose = useCallback((id: string, completion?: () => void) => {
@@ -194,9 +183,25 @@ export function MobileWorkspaceSheetHost({
     const activeElement = document.activeElement;
     pageReturnFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
 
-    const viewportHeight = Math.max(1, window.visualViewport?.height ?? window.innerHeight);
-    const sheetHeight = Math.min(viewportHeight * 0.88, 760);
-    root.style.setProperty('--mobile-detail-sheet-max-height', `${Math.round(sheetHeight)}px`);
+    const updateSheetMaxHeight = () => {
+      const visualViewport = window.visualViewport;
+      const viewportHeight = Math.max(1, visualViewport?.height ?? window.innerHeight);
+      const viewportTop = visualViewport?.offsetTop ?? 0;
+      const viewportBottom = viewportTop + viewportHeight;
+      const statusBar = document.querySelector<HTMLElement>('.asset-bar');
+      const statusBottom = statusBar?.getBoundingClientRect().bottom ?? viewportTop;
+      const rootStyles = getComputedStyle(document.documentElement);
+      const configuredGap = Number.parseFloat(rootStyles.getPropertyValue('--mobile-content-gap'));
+      const statusGap = Number.isFinite(configuredGap) ? configuredGap : 12;
+      const availableHeight = Math.max(1, viewportBottom - statusBottom - statusGap);
+      const sheetHeight = Math.min(viewportHeight * 0.88, 760, availableHeight);
+      root.style.setProperty('--mobile-detail-sheet-max-height', `${Math.round(sheetHeight)}px`);
+    };
+
+    updateSheetMaxHeight();
+    window.addEventListener('resize', updateSheetMaxHeight);
+    window.visualViewport?.addEventListener('resize', updateSheetMaxHeight);
+    window.visualViewport?.addEventListener('scroll', updateSheetMaxHeight);
     if (pageScroll) {
       pageScroll.style.overflowY = 'hidden';
       pageScroll.scrollTop = previousPageScrollTop;
@@ -205,42 +210,17 @@ export function MobileWorkspaceSheetHost({
     root.focus({ preventScroll: true });
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        requestClose();
-        return;
-      }
-      if (event.key !== 'Tab') return;
-
-      const scope = activeDetailRef.current ? detailViewRef.current : rootRef.current;
-      const focusable = Array.from(
-        scope?.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
-        ) ?? [],
-      ).filter((element) => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden');
-      if (focusable.length === 0) {
-        event.preventDefault();
-        (scope ?? rootRef.current)?.focus({ preventScroll: true });
-        return;
-      }
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (document.activeElement === scope || document.activeElement === rootRef.current) {
-        event.preventDefault();
-        (event.shiftKey ? last : first).focus();
-      } else if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      requestClose();
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', updateSheetMaxHeight);
+      window.visualViewport?.removeEventListener('resize', updateSheetMaxHeight);
+      window.visualViewport?.removeEventListener('scroll', updateSheetMaxHeight);
       root.style.removeProperty('--mobile-detail-sheet-max-height');
       if (pageScroll) {
         pageScroll.style.overflowY = previousPageOverflow;
@@ -322,7 +302,6 @@ export function MobileWorkspaceSheetHost({
       {createPortal(
         <WorkspaceFloatingLayerContext.Provider value={dialogLayer}>
           <div
-            ref={backdropRef}
             className="mobile-detail-sheet-backdrop"
             data-mobile-workspace-sheet-backdrop="true"
             onPointerDown={handleBackdropPointerDown}
@@ -336,7 +315,6 @@ export function MobileWorkspaceSheetHost({
               data-page-key={pageKey}
               data-detail-active={activeDetail ? 'true' : 'false'}
               role="dialog"
-              aria-modal="true"
               aria-label={activeDetailController?.ariaLabel ?? (activeDetailController?.ariaLabelledBy ? undefined : '游戏页面')}
               aria-labelledby={activeDetailController?.ariaLabelledBy}
               tabIndex={-1}
