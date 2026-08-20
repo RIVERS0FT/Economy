@@ -35,6 +35,14 @@ const sliceAuthorityListeners = new Map(
   STATE_SLICE_NAMES.map((name) => [name, new Set()]),
 );
 
+export class StateDeliveryIntegrityError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'StateDeliveryIntegrityError';
+    this.code = 'STATE_DELIVERY_INTEGRITY';
+  }
+}
+
 function validRevision(value) {
   return Number.isInteger(value) && value >= 0;
 }
@@ -61,6 +69,25 @@ function validSliceRevisions(value) {
 
 function validPartitionSnapshot(value) {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function catalogIntegrityIssue(catalog) {
+  if (!validPartitionSnapshot(catalog)) return 'catalog 分区缺失';
+  for (const key of ['products', 'facilityTypes', 'researchLevels', 'provinces']) {
+    if (!Array.isArray(catalog[key])) return `catalog.${key} 不是有效数组`;
+  }
+  if (catalog.products.length === 0) return 'catalog.products 为空';
+  if (catalog.facilityTypes.length === 0) return 'catalog.facilityTypes 为空';
+  if (catalog.researchLevels.length === 0) return 'catalog.researchLevels 为空';
+  if (catalog.provinces.length === 0) return 'catalog.provinces 为空';
+  if (typeof catalog.defaultProvinceId !== 'string' || !catalog.defaultProvinceId) {
+    return 'catalog.defaultProvinceId 缺失';
+  }
+  const hasDefaultProvince = catalog.provinces.some((province) => (
+    validPartitionSnapshot(province) && province.id === catalog.defaultProvinceId
+  ));
+  if (!hasDefaultProvince) return 'catalog.defaultProvinceId 不存在于 catalog.provinces';
+  return '';
 }
 
 function changedPartitionNames(patches) {
@@ -232,7 +259,12 @@ export function mergeStatePatches(currentPartitions, patches) {
     (name) => !validPartitionSnapshot(partitions[name]),
   );
   if (missingPartitions.length > 0) {
-    throw new Error(`服务器未返回完整的初始分区状态：缺少 ${missingPartitions.join('、')} 分区`);
+    throw new StateDeliveryIntegrityError(`服务器未返回完整的初始分区状态：缺少 ${missingPartitions.join('、')} 分区`);
+  }
+
+  const catalogIssue = catalogIntegrityIssue(partitions.catalog);
+  if (catalogIssue) {
+    throw new StateDeliveryIntegrityError(`服务器返回的目录状态不完整：${catalogIssue}`);
   }
 
   const state = {};
@@ -247,7 +279,7 @@ export function mergeStatePatches(currentPartitions, patches) {
     );
   }
   if (!Number.isInteger(state.userId)) {
-    throw new Error('服务器未返回有效的玩家状态');
+    throw new StateDeliveryIntegrityError('服务器未返回有效的玩家状态');
   }
   return { partitions, state };
 }
@@ -290,10 +322,15 @@ export function createStateDeliveryCache() {
           : { ...payload, stateChanged: false, changedPartitions: [], changedSlices: [] };
       }
       const incomingPartitionRevisions = validPartitionRevisions(payload.partitionRevisions);
-      if (Object.keys(incomingPartitionRevisions).length > 0) partitionRevisions = incomingPartitionRevisions;
+      const nextPartitionRevisions = Object.keys(incomingPartitionRevisions).length > 0
+        ? incomingPartitionRevisions
+        : partitionRevisions;
       const incomingSliceRevisions = validSliceRevisions(payload.sliceRevisions);
       const changedPartitions = changedPartitionNames(payload.patches);
       const changedSlices = changedSliceNames(sliceRevisions, incomingSliceRevisions, changedPartitions);
+      let nextPartitions = partitions;
+      let nextState = state;
+      const nextSliceRevisions = { ...sliceRevisions };
       if (changedPartitions.length > 0) {
         const sharedPatches = reuseUnchangedSliceReferences(
           partitions,
@@ -302,17 +339,21 @@ export function createStateDeliveryCache() {
           incomingSliceRevisions,
         );
         const merged = mergeStatePatches(partitions, sharedPatches);
-        partitions = merged.partitions;
-        state = merged.state;
+        nextPartitions = merged.partitions;
+        nextState = merged.state;
       }
       for (const partitionName of ['player', 'market']) {
         if (!changedPartitions.includes(partitionName)) continue;
         for (const sliceName of STATE_SLICE_NAMES_BY_PARTITION[partitionName] || []) {
           const incomingRevision = incomingSliceRevisions[sliceName];
-          if (validRevisionToken(incomingRevision)) sliceRevisions[sliceName] = incomingRevision;
-          else delete sliceRevisions[sliceName];
+          if (validRevisionToken(incomingRevision)) nextSliceRevisions[sliceName] = incomingRevision;
+          else delete nextSliceRevisions[sliceName];
         }
       }
+      partitionRevisions = nextPartitionRevisions;
+      sliceRevisions = nextSliceRevisions;
+      partitions = nextPartitions;
+      state = nextState;
       revision = payload.revision;
       publishAuthority(revision, state, partitions, sliceRevisions, changedPartitions, changedSlices);
       const acceptance = {
