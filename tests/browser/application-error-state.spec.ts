@@ -123,7 +123,7 @@ test.describe('application error state glass', () => {
       };
     });
     expect(visual.backdropFilter).toContain('blur(18px)');
-    expect(visual.shellIsolation).toBe('auto');
+    expect(visual.shellIsolation).toBe('isolate');
     expect(visual.shellFilter).toBe('none');
     expect(visual.shellTransform).toBe('none');
     expect(alphaFromColor(visual.innerBackground)).toBe(0);
