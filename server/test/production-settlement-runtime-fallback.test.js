@@ -54,7 +54,7 @@ test('stale fingerprinted production proposal falls back server-side in the same
     const response = store.apply(user, settlementRequest(claim, 'stale-production-fallback'), settleThrough);
 
     assert.equal(response.result.ok, true);
-    assert.equal(player.facilityGroups[0].lifetimeOutput > 0, true);
+    assert.equal(store.worldCache.world.players['1'].facilityGroups[0].lifetimeOutput > 0, true);
     assert.equal(store.selectIdempotency.get(1, 'stale-production-fallback') !== undefined, true);
   } finally {
     store.close();
