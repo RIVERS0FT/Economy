@@ -147,7 +147,7 @@ test.describe('mobile navigation scrolling', () => {
     });
     expect(hiddenState).toEqual({ pointerEvents: 'none', opacity: '0', visibility: 'hidden' });
 
-    await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
+    await page.keyboard.press('Escape');
     await expect(sheet).toHaveCount(0);
     await expect(navigationHost).toHaveAttribute('data-navigation-instance-probe', 'stable');
     await expect(navigationHost).toHaveAttribute('data-workspace-sheet-hidden', 'false');
