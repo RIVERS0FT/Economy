@@ -79,15 +79,23 @@ check('src/components/shell/AdminDesktopBar.tsx', [
   'className="admin-command-bar-identity"',
 ]);
 forbid('src/components/shell/AdminDesktopBar.tsx', ['title={email}']);
-check('src/components/ui/MobileWorkspaceDetailSheet.tsx', [
+check('src/components/ui/MobileWorkspaceSheetHost.tsx', [
   'useWorkspaceDialogLayer',
   'WorkspaceFloatingLayerContext.Provider value={dialogLayer}',
-  '!dialogLayer',
-  'dialogLayer,',
+  'className="mobile-detail-sheet-backdrop"',
+  'className="mobile-detail-sheet mobile-workspace-sheet-host"',
+  'data-mobile-workspace-sheet-host="true"',
+]);
+check('src/components/ui/MobileWorkspaceDetailSheet.tsx', [
+  'useMobileWorkspaceSheetHost()',
+  'registerDetail(registration);',
+  'createPortal(children, host.detailContentLayer)',
 ]);
 forbid('src/components/ui/MobileWorkspaceDetailSheet.tsx', [
   'document.body,',
   'useWorkspaceFloatingLayer',
+  'useWorkspaceDialogLayer',
+  'className="mobile-detail-sheet"',
 ]);
 
 check('src/styles/game-shell-layout.css', [

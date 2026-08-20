@@ -49,7 +49,7 @@ test('market order fields keep labels and embedded steppers on one row', async (
   await expect(tradeCard.getByText('交易资产详情', { exact: true })).toHaveCount(0);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.locator('.mobile-workspace-page-sheet')).toBeVisible();
+  await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')).toBeVisible();
   await expect(tradeCard).toBeVisible();
   const mobileDecreaseLocator = page.getByRole('button', { name: '价格减少 0.01' });
   const mobileIncreaseLocator = page.getByRole('button', { name: '价格增加 0.01' });
@@ -150,7 +150,7 @@ test('market order book yields width to the order entry on desktop and mobile', 
   expect(desktopEntry.width / desktopBook.width).toBeLessThan(1.75);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.locator('.mobile-workspace-page-sheet')).toBeVisible();
+  await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')).toBeVisible();
   await expect(entry).toBeVisible();
   await expect(book).toBeVisible();
   const mobileEntry = await requireBox(entry);

@@ -28,6 +28,7 @@ const paths = {
   status: 'src/components/shell/StatusBar.tsx',
   mobile: 'src/components/shell/MobileBottomNavigation.tsx',
   facilitySheet: 'src/components/ui/MobileWorkspaceDetailSheet.tsx',
+  facilitySheetHost: 'src/components/ui/MobileWorkspaceSheetHost.tsx',
   facilitySheetStyles: 'src/styles/mobile-detail-sheet.css',
   design: 'docs/UI_DESIGN_SYSTEM.md',
   localDesign: 'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
@@ -85,7 +86,8 @@ if (failures.length === 0) {
     'className="mobile-detail-sheet-scroll-area"',
     'viewportClassName="mobile-detail-sheet-scroll"',
     'scrollbarVisibility="adaptive"',
-  ]) requireText(paths.facilitySheet, text);
+  ]) requireText(paths.facilitySheetHost, text);
+  requireText(paths.facilitySheet, 'createPortal(children, host.detailContentLayer)');
   requireText(paths.facilitySheetStyles, 'padding: var(--space-2) var(--space-3);');
   forbidText(paths.facilitySheetStyles, 'calc(var(--space-3) + var(--scrollbar-hit-size))');
   forbidText(paths.facilitySheetStyles, '.mobile-detail-sheet-scroll-area > .ui-scrollbar--vertical');

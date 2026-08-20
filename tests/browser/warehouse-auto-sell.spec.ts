@@ -69,15 +69,19 @@ test.describe('warehouse and market online auto trade responsibilities', () => {
     await productCard.click();
 
     const sheet = page.locator('.mobile-detail-sheet');
+    const detailView = sheet.locator('.mobile-workspace-sheet-detail-view');
     await expect(sheet).toBeVisible();
-    await expect(sheet).toContainText('自动交易');
-    await expect(sheet).toContainText('设置保存至存档 · 在线维护买单');
-    await expect(sheet.getByLabel('目标自由库存')).toHaveValue('0');
-    await expect(sheet.getByLabel('最高自动采购价格')).toBeVisible();
-    await expect(page.locator('.mobile-detail-sheet-footer').getByRole('button', { name: '保存自动交易设置' })).toBeVisible();
+    await expect(detailView).toBeVisible();
+    await expect(detailView).toContainText('自动交易');
+    await expect(detailView).toContainText('设置保存至存档 · 在线维护买单');
+    await expect(detailView.getByLabel('目标自由库存')).toHaveValue('0');
+    await expect(detailView.getByLabel('最高自动采购价格')).toBeVisible();
+    await expect(detailView.locator('.mobile-detail-sheet-footer').getByRole('button', { name: '保存自动交易设置' })).toBeVisible();
 
     await page.keyboard.press('Escape');
-    await expect(sheet).toHaveCount(0);
+    await expect(detailView).toHaveCount(0);
+    await expect(sheet).toBeVisible();
+    await expect(sheet).toHaveAttribute('data-detail-active', 'false');
     await expect(productCard).toBeFocused();
   });
 
@@ -102,7 +106,10 @@ test.describe('warehouse and market online auto trade responsibilities', () => {
     await expect(warehouse.getByLabel('跨州运输')).toBeVisible();
     await expect(warehouse.locator('.transport-submit')).toBeVisible();
     await expect(warehouse.getByText('自动交易', { exact: true })).toHaveCount(0);
-    await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
+    const sheet = page.locator('.mobile-workspace-sheet-host');
+    await expect(sheet).toBeVisible();
+    await expect(sheet).toHaveAttribute('data-page-key', 'province');
+    await expect(sheet).toHaveAttribute('data-detail-active', 'false');
   });
 
   test('keeps the desktop side panel at 721px instead of opening a mobile sheet', async ({ page }) => {

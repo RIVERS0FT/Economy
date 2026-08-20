@@ -9,11 +9,17 @@ test.describe('shared input modality interaction protocol', () => {
     await page.goto('runtime-test.html?view=production&scenario=activity');
 
     const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
-    const dialog = page.getByRole('dialog', { name: /机械工厂/ });
+    const host = page.locator('.mobile-workspace-sheet-host');
+    const basePage = host.locator('.mobile-workspace-sheet-page-layer');
+    const detailView = host.locator('.mobile-workspace-sheet-detail-view');
     await page.mouse.move(1, 1);
     const baseBackground = await trigger.evaluate((element) => getComputedStyle(element).background);
 
-    await page.mouse.click(2, 2);
+    await trigger.dispatchEvent('pointerdown', {
+      bubbles: true,
+      isPrimary: true,
+      pointerType: 'mouse',
+    });
     await trigger.hover();
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.inputModality)).toBe('mouse');
     await expect.poll(() => trigger.evaluate((element) => getComputedStyle(element).background))
@@ -32,13 +38,16 @@ test.describe('shared input modality interaction protocol', () => {
       }));
       (element as HTMLButtonElement).click();
     });
-    await expect(dialog).toBeVisible();
+    await expect(host).toHaveAttribute('data-detail-active', 'true');
+    await expect(detailView).toBeVisible();
+    await expect(basePage).toHaveAttribute('aria-hidden', 'true');
+    await expect.poll(() => basePage.evaluate((element) => (element as HTMLElement).inert)).toBe(true);
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.inputModality)).toBe('touch');
-    await expect.poll(() => trigger.evaluate((element) => getComputedStyle(element).background))
-      .toBe(baseBackground);
 
     await page.keyboard.press('Escape');
-    await expect(dialog).toBeHidden();
+    await expect(host).toHaveAttribute('data-detail-active', 'false');
+    await expect(detailView).toHaveCount(0);
+    await expect(basePage).not.toHaveAttribute('aria-hidden', 'true');
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.inputModality)).toBe('keyboard');
     await expect(trigger).toBeFocused();
   });

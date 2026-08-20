@@ -148,8 +148,9 @@ for (const text of [
   '固定提供“市场行情／自动交易”工作区',
   '共享仓库只位于州级上下文页仓库分区，自动交易只位于市场',
   '自动采购／自动出售正文布局',
-  '必须覆盖完整移动视口的模态业务详情统一作为二级 Detail Sheet',
-  '移动工厂详情、移动研发详情与市场自动交易设置必须共同复用 `MobileWorkspaceDetailSheet`',
+  '所有玩家业务页面与业务详情共用同一个唯一根级 Mobile Workspace Sheet',
+  '`MobileWorkspaceDetailSheet` API',
+  '不得创建第二个 Sheet DOM',
   '统一商品选择器、采购／出售页签',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 forbidText('docs/UI_DESIGN_SYSTEM.md', '仓库自动交易设置共享的根级 Dialog');

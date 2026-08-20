@@ -1,8 +1,7 @@
-/* Final authority for signed-in mobile workspace sheets.
- * Player pages use the non-modal page sheet between persistent Chrome, while
- * factory, research, and other business details use the root dialog sheet.
- * Both surfaces share drag geometry, motion, handles, safe scrolling, and
- * reduced-motion behavior; page styles only define business content inside. */
+/* Final authority for the single signed-in mobile workspace sheet.
+ * All first-level player pages and second-level business details reuse the
+ * root factory-detail container in workspace-dialog-layer. Page/detail styles
+ * only define content inside this one host; no second sheet surface is allowed. */
 
 .page-scroll-area[data-modal-scrollbar-suppressed='true'] > .ui-scrollbar--vertical {
   opacity: 0 !important;
@@ -93,7 +92,7 @@
 
 @media (max-width: 720px) {
   .game-shell .strategic-page-host:not(.strategic-page-host--map) {
-    padding-block: var(--strategic-panel-gap) 0;
+    padding: 0;
   }
 
   .mobile-detail-sheet-backdrop {
@@ -116,104 +115,48 @@
     transition: opacity 200ms ease-out;
   }
 
-  .mobile-detail-sheet,
-  .mobile-workspace-page-sheet {
+  .mobile-detail-sheet {
+    --mobile-detail-sheet-drag-offset: 0px;
+
     position: relative;
     z-index: 1;
+    width: 100%;
+    height: var(--mobile-detail-sheet-max-height, min(88svh, 760px));
     min-width: 0;
     min-height: 0;
-    display: grid;
+    max-width: 100%;
+    max-height: var(--mobile-detail-sheet-max-height, min(88svh, 760px));
+    display: block;
     border: 1px solid var(--color-border-strong);
     border-bottom: 0;
     border-radius: 1.25rem 1.25rem 0 0;
     background: color-mix(in srgb, var(--color-surface) 96%, var(--color-bg-deep));
     box-shadow: 0 -1rem 3rem color-mix(in srgb, var(--color-background) 46%, transparent);
     overflow: hidden;
+    transform: translate3d(0, var(--mobile-detail-sheet-drag-offset), 0);
+    animation: mobile-detail-sheet-open 200ms cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform;
   }
 
-  .mobile-detail-sheet {
-    --mobile-detail-sheet-drag-offset: 0px;
-
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    transform: translate3d(0, var(--mobile-detail-sheet-drag-offset), 0);
-    animation: mobile-detail-sheet-open 200ms cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .mobile-workspace-page-sheet {
-    --mobile-workspace-page-sheet-drag-offset: 0px;
-
-    width: 100%;
-    height: 100%;
-    grid-template-rows: auto minmax(0, 1fr);
-    transform: translate3d(0, var(--mobile-workspace-page-sheet-drag-offset), 0);
-    animation: mobile-workspace-page-sheet-open 200ms cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .mobile-detail-sheet:focus {
+  .mobile-detail-sheet:focus,
+  .mobile-workspace-sheet-detail-view:focus {
     outline: none;
   }
 
-  .mobile-detail-sheet.is-dragging,
-  .mobile-workspace-page-sheet.is-dragging {
-    animation: none;
-    transition: none;
-    user-select: none;
+  .mobile-workspace-sheet-page-layer {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
-  .mobile-detail-sheet.is-dragging,
-  .mobile-detail-sheet.is-dragging *,
-  .mobile-workspace-page-sheet.is-dragging,
-  .mobile-workspace-page-sheet.is-dragging * {
-    cursor: grabbing;
-  }
-
-  .mobile-detail-sheet.is-settling,
-  .mobile-workspace-page-sheet.is-settling {
-    animation: none;
-    transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .mobile-detail-sheet.is-closing,
-  .mobile-workspace-page-sheet.is-closing {
+  .mobile-workspace-sheet-page-layer[aria-hidden='true'] {
     pointer-events: none;
   }
 
-  .mobile-detail-sheet-header,
-  .mobile-detail-sheet-footer,
-  .mobile-workspace-page-sheet-drag-handle {
-    position: relative;
-    z-index: 3;
-    min-width: 0;
-    background: color-mix(in srgb, var(--color-surface) 98%, var(--color-bg-deep));
-  }
-
-  .mobile-detail-sheet-header {
-    border-bottom: 0;
-  }
-
-  .mobile-detail-sheet-drag-handle,
-  .mobile-workspace-page-sheet-drag-handle {
-    min-height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    touch-action: none;
-    cursor: grab;
-  }
-
-  .mobile-detail-sheet-handle,
-  .mobile-workspace-page-sheet-handle {
-    width: 2.75rem;
-    height: 0.25rem;
-    display: block;
-    flex: 0 0 auto;
-    margin: 0;
-    border-radius: var(--radius-pill);
-    background: var(--color-border-strong);
-  }
-
-  .mobile-workspace-page-sheet-content {
+  .mobile-workspace-sheet-page-content {
     width: 100%;
     height: 100%;
     min-width: 0;
@@ -222,7 +165,7 @@
     overflow: hidden;
   }
 
-  .mobile-workspace-page-sheet-content > .page-content {
+  .mobile-workspace-sheet-page-content > .page-content {
     width: 100%;
     height: 100%;
     min-width: 0;
@@ -239,9 +182,84 @@
     backdrop-filter: none;
   }
 
-  .mobile-workspace-page-sheet .page-card-scroll {
+  .mobile-workspace-sheet-page-content .page-card-scroll {
     overscroll-behavior-y: auto;
     touch-action: pan-y;
+  }
+
+  .mobile-workspace-sheet-detail-view {
+    --mobile-detail-sheet-drag-offset: 0px;
+
+    position: absolute;
+    z-index: 4;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--color-surface) 96%, var(--color-bg-deep));
+    transform: translate3d(0, var(--mobile-detail-sheet-drag-offset), 0);
+    animation: mobile-workspace-sheet-detail-open 200ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
+
+  .mobile-detail-sheet.is-dragging,
+  .mobile-workspace-sheet-detail-view.is-dragging {
+    animation: none;
+    transition: none;
+    user-select: none;
+  }
+
+  .mobile-detail-sheet.is-dragging,
+  .mobile-detail-sheet.is-dragging *,
+  .mobile-workspace-sheet-detail-view.is-dragging,
+  .mobile-workspace-sheet-detail-view.is-dragging * {
+    cursor: grabbing;
+  }
+
+  .mobile-detail-sheet.is-settling,
+  .mobile-workspace-sheet-detail-view.is-settling {
+    animation: none;
+    transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .mobile-detail-sheet.is-closing,
+  .mobile-workspace-sheet-detail-view.is-closing {
+    pointer-events: none;
+  }
+
+  .mobile-detail-sheet-header,
+  .mobile-detail-sheet-footer {
+    position: relative;
+    z-index: 3;
+    min-width: 0;
+    background: color-mix(in srgb, var(--color-surface) 98%, var(--color-bg-deep));
+  }
+
+  .mobile-detail-sheet-header {
+    border-bottom: 0;
+  }
+
+  .mobile-detail-sheet-drag-handle {
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+    cursor: grab;
+  }
+
+  .mobile-detail-sheet-handle {
+    width: 2.75rem;
+    height: 0.25rem;
+    display: block;
+    flex: 0 0 auto;
+    margin: 0;
+    border-radius: var(--radius-pill);
+    background: var(--color-border-strong);
   }
 
   .mobile-detail-sheet-scroll-area {
@@ -269,9 +287,15 @@
     container-type: inline-size;
   }
 
-  .mobile-detail-sheet-scroll > * {
+  .mobile-detail-sheet-scroll > *,
+  .mobile-workspace-sheet-detail-content-slot > * {
     min-width: 0;
     align-self: start;
+  }
+
+  .mobile-workspace-sheet-detail-content-slot {
+    min-width: 0;
+    display: contents;
   }
 
   .mobile-detail-sheet-footer {
@@ -306,8 +330,6 @@
     padding-top: var(--space-2);
   }
 
-  /* The root dialog grid owns the whole signed-in visual viewport only for
-   * second-level business details. First-level page sheets stay in workspace. */
   .workspace-dialog-layer > .mobile-detail-sheet-backdrop {
     position: absolute;
     z-index: 1;
@@ -329,7 +351,6 @@
     width: 100%;
     min-width: 0;
     max-width: 100%;
-    max-height: var(--mobile-detail-sheet-max-height, min(88svh, 760px));
     justify-self: stretch;
   }
 
@@ -344,17 +365,17 @@
   to { transform: translate3d(0, var(--mobile-detail-sheet-drag-offset), 0); }
 }
 
-@keyframes mobile-workspace-page-sheet-open {
+@keyframes mobile-workspace-sheet-detail-open {
   from { transform: translate3d(0, 100%, 0); }
-  to { transform: translate3d(0, var(--mobile-workspace-page-sheet-drag-offset), 0); }
+  to { transform: translate3d(0, var(--mobile-detail-sheet-drag-offset), 0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .mobile-detail-sheet,
-  .mobile-workspace-page-sheet,
+  .mobile-workspace-sheet-detail-view,
   .mobile-detail-sheet-backdrop::before,
   .mobile-detail-sheet.is-settling,
-  .mobile-workspace-page-sheet.is-settling {
+  .mobile-workspace-sheet-detail-view.is-settling {
     animation: none;
     transition: none;
   }
