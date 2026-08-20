@@ -45,7 +45,7 @@ test.describe('mobile navigation scrolling', () => {
 
     const state = await viewport.evaluate((element) => {
       const viewportElement = element as HTMLElement;
-      const activeButton = viewportElement.querySelector<HTMLElement>('.sidebar-nav-button.active');
+      const activeButton = viewportElement.querySelector<HTMLElement>('.sidebar-nav-button');
       const lastButton = viewportElement.querySelector<HTMLElement>('.sidebar-nav-button:last-of-type');
       const contentElement = viewportElement.parentElement as HTMLElement | null;
       const hostElement = viewportElement.closest<HTMLElement>('.mobile-bottom-navigation');
