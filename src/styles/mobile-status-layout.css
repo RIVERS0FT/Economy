@@ -5,8 +5,12 @@
     --mobile-notice-inline-inset: var(--space-2);
   }
 
-  .signed-in-shell__chrome {
+  .game-shell .signed-in-shell__chrome {
     z-index: 3001;
+  }
+
+  html[data-app-surface="game"] .game-shell .signed-in-shell__chrome > .mobile-bottom-navigation[data-workspace-sheet-hidden='true'] {
+    pointer-events: none;
   }
 
   .workspace-dialog-layer > .notification-panel-layer[data-notification-layer='dialog'] {
