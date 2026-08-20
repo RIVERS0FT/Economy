@@ -33,7 +33,7 @@ test('all mobile business pages reuse the single factory-detail sheet host', asy
   });
 
   for (const { tab, label } of mobileBusinessPages) {
-    await navigation.getByRole('button', { name: new RegExp(`^${label}`) }).evaluate((button) => button.click());
+    await navigation.locator('.sidebar-nav-button').filter({ hasText: label }).first().evaluate((button) => button.click());
     await expect(sheet).toBeVisible();
     await expect(sheet).toHaveAttribute('data-page-key', tab);
     await expect(sheet).toHaveAttribute('data-sheet-instance-probe', 'stable');
