@@ -340,14 +340,14 @@ export function MobileWorkspaceSheetHost({
               aria-label={activeDetailController?.ariaLabel ?? (activeDetailController?.ariaLabelledBy ? undefined : '游戏页面')}
               aria-labelledby={activeDetailController?.ariaLabelledBy}
               tabIndex={-1}
-              onPointerDown={activeDetail ? undefined : handlePointerDown}
-              onPointerMove={activeDetail ? undefined : handlePointerMove}
-              onPointerUp={activeDetail ? undefined : handlePointerEnd}
-              onPointerCancel={activeDetail ? undefined : handlePointerEnd}
-              onTouchStart={activeDetail ? undefined : handleTouchStart}
-              onTouchMove={activeDetail ? undefined : handleTouchMove}
-              onTouchEnd={activeDetail ? undefined : handleTouchEnd}
-              onTouchCancel={activeDetail ? undefined : cancelDrag}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerEnd}
+              onPointerCancel={handlePointerEnd}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={cancelDrag}
             >
               <div
                 className="mobile-workspace-sheet-page-layer"
@@ -370,14 +370,6 @@ export function MobileWorkspaceSheetHost({
                   className="mobile-workspace-sheet-detail-view"
                   data-mobile-workspace-sheet-detail-view="true"
                   tabIndex={-1}
-                  onPointerDown={handlePointerDown}
-                  onPointerMove={handlePointerMove}
-                  onPointerUp={handlePointerEnd}
-                  onPointerCancel={handlePointerEnd}
-                  onTouchStart={handleTouchStart}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={handleTouchEnd}
-                  onTouchCancel={cancelDrag}
                 >
                   <div className="mobile-detail-sheet-header">
                     <div className="mobile-detail-sheet-drag-handle" aria-hidden="true">
