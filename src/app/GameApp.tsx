@@ -1,9 +1,11 @@
 import { useEffect, useMemo, type ReactNode } from 'react';
 import type { AuthUser } from '../types';
 import { ApplicationLoadingState } from '../components/system/ApplicationLoadingState';
+import { RefreshPageButton } from '../components/system/RefreshPageButton';
 import { GameShell } from '../components/shell/GameShell';
 import { AuthoritativeCountdownRefresh } from '../components/system/AuthoritativeCountdownRefresh';
 import { CurrencyText } from '../components/ui/CurrencyAmount';
+import { FrostedGlassSurface } from '../components/ui/FrostedGlassSurface';
 import { PageRouter } from '../pages/PageRouter';
 import { setCompactNumbersEnabled } from '../utils/formatters';
 import { useGameTutorial, type TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
@@ -18,8 +20,12 @@ import '../styles/game-guide.css';
 
 function GameErrorStateShell({ children }: { children: ReactNode }) {
   return (
-    <main className="game-state-shell">
-      <div className="loading-screen" role="alert">{children}</div>
+    <main className="game-state-shell game-error-state-shell">
+      <div className="loading-screen" role="alert">
+        <FrostedGlassSurface variant="stateCard" layout="content">
+          <section className="photographic-state-card">{children}</section>
+        </FrostedGlassSurface>
+      </div>
     </main>
   );
 }
@@ -89,7 +95,9 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
   if (viewModel.status === 'error') {
     return (
       <GameErrorStateShell>
-        <div><strong>无法加载游戏状态</strong><p><CurrencyText>{viewModel.message}</CurrencyText></p><button type="button" onClick={() => window.location.reload()}>刷新页面</button></div>
+        <strong>无法加载游戏状态</strong>
+        <p><CurrencyText>{viewModel.message}</CurrencyText></p>
+        <RefreshPageButton />
       </GameErrorStateShell>
     );
   }

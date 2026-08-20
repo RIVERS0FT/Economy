@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
-export type FrostedGlassSurfaceVariant = 'statusBar' | 'mobileNavigation' | 'authCard' | 'workspaceCard';
+type ChromeFrostedGlassSurfaceVariant = 'statusBar' | 'mobileNavigation' | 'authCard' | 'workspaceCard';
+export type FrostedGlassSurfaceVariant = ChromeFrostedGlassSurfaceVariant | 'stateCard';
 export type FrostedGlassSurfaceLayout = 'fixed' | 'content';
 
 export function FrostedGlassSurface({
