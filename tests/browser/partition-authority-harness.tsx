@@ -35,6 +35,7 @@ const sliceRevisions: Record<string, string> = {
   'market.calendar': 'market-calendar-0001',
   'market.misc': 'market-misc-0001',
 };
+let rootAuthorityState: ReturnType<typeof useGameAuthorityState> = null;
 
 cache.accept({
   revision,
@@ -93,7 +94,7 @@ cache.accept({
 });
 
 function RootAuthorityConsumer() {
-  useGameAuthorityState();
+  rootAuthorityState = useGameAuthorityState();
   counts.root += 1;
   return <output data-testid="root-count">{counts.root}</output>;
 }
@@ -208,7 +209,7 @@ function patch(name: PatchName) {
     patches = { market: { orders: [{ id: `order-${revision}` }] } };
   } else if (name === 'marketQuotes') {
     bumpSlice('market.quotes');
-    patches = { market: { markets: { wheat: { lastPrice: revision } } } };
+    patches = { market: { markets: { wheat: { lastPrice: revision } } };
   } else if (name === 'marketCalendar') {
     bumpSlice('market.calendar');
     patches = { market: { economicCalendar: { version: 2, events: [{ id: `event-${revision}` }] } } };
@@ -228,10 +229,19 @@ function patch(name: PatchName) {
   });
 }
 
+function capturedRootSnapshotSurvivesReset() {
+  const captured = rootAuthorityState;
+  if (!captured) return false;
+  cache.reset();
+  return Array.isArray(captured.provinces)
+    && captured.provinces.some((province) => province.id === '110000');
+}
+
 Object.assign(window, {
   __partitionAuthorityHarness: {
     counts: () => ({ ...counts }),
     patch,
+    capturedRootSnapshotSurvivesReset,
   },
 });
 
