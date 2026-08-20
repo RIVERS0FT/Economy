@@ -7,16 +7,25 @@ const authorityStore = readFileSync(
   'utf8',
 );
 
-test('root authority render hook returns one accepted state snapshot instead of the live proxy', () => {
-  const hook = authorityStore.match(/export function useGameAuthorityState\(\)[\s\S]*?\n}\n/)?.[0] || '';
+test('React authority hooks bind one accepted state snapshot instead of a live proxy', () => {
   assert.match(
-    hook,
-    /return ready \? getStateAuthoritySnapshot\(\)\.state : null;/,
-    '根 ViewModel 必须在一次 render 内读取同一个已接受 EconomyState 对象',
+    authorityStore,
+    /function useAuthorityRenderSnapshot[\s\S]*?return ready \? readGameAuthorityState\(\) : null;/,
+    'React 权威状态 Hook 必须在一次 render 内读取同一个已接受 EconomyState 对象',
+  );
+  assert.match(
+    authorityStore,
+    /export function useGameAuthorityState\(\)[\s\S]*?useAuthorityRenderSnapshot/,
+    '根 ViewModel 必须复用 render 快照读取器',
+  );
+  assert.match(
+    authorityStore,
+    /export function useGameAuthorityView\(userId: number\)[\s\S]*?useAuthorityRenderSnapshot/,
+    '按用户读取的 React Hook 也必须复用 render 快照读取器',
   );
   assert.doesNotMatch(
-    hook,
-    /AUTHORITY_STATE_VIEW/,
-    '根 ViewModel 不得持有会随全局 authority reset 改变字段值的实时 Proxy',
+    authorityStore,
+    /new Proxy|AUTHORITY_STATE_VIEW/,
+    'React 权威状态模块不得保留会随全局 authority reset 改变字段值的实时 Proxy',
   );
 });
