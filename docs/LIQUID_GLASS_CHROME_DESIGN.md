@@ -9,7 +9,7 @@
 ## 1. 材质唯一实现
 
 - 项目不得安装、导入或运行 `liquid-glass-react`，不得恢复 `LiquidGlassSurface`、`.glass__warp`、SVG 位移滤镜、色差、折射或鼠标跟随形变。
-- `src/components/ui/FrostedGlassSurface.tsx` 是状态栏、管理员工作栏、移动底栏和认证卡片唯一共享表面包装器，只输出宿主和内容两层稳定 DOM。
+- `src/components/ui/FrostedGlassSurface.tsx` 是状态栏、管理员工作栏、移动底栏、认证卡片、玩家工作区和根级状态卡的唯一共享表面包装器，只输出宿主和内容两层稳定 DOM；全页异常使用 `stateCard` 变体，不得在状态页面复制另一套毛玻璃材质。
 - `src/styles/frosted-glass-surfaces.css` 是共享毛玻璃材质权威，统一使用半透明深色背景、`blur(18px) saturate(128%)`、一像素柔和边界、静态顶部高光和阴影；不支持 `backdrop-filter` 时使用更高不透明度的同色回退。
 - 通用 `.panel`、玩家页面外层、桌面侧栏和地图镜头栏复用同一组 `--frosted-glass-*` 令牌。业务样式可以定义内部布局，不得创建第二套液态玻璃、折射或用途专属滤镜。
 - `package.json` 与 `package-lock.json` 均不得包含 `liquid-glass-react`；生产和测试源码不得导入该包。
@@ -22,7 +22,7 @@
 图片层 0 → 氛围层 10 → 地图层 20 → UI 层 30
 ```
 
-根级 `#root` 使用唯一 `isolation:isolate`。地图层、UI 层、内容根、登录后外壳、工作区、页面滚动区和 Chrome Overlay 必须保持 `isolation:auto`、`filter:none`、`transform:none`，让各毛玻璃表面能够采样其后的摄影、氛围和地图。毛玻璃宿主自身不得创建新的隔离根。
+根级 `#root` 使用唯一 `isolation:isolate`。地图层、UI 层、内容根、登录后外壳、工作区、页面滚动区、根级状态外壳和 Chrome Overlay 必须保持 `isolation:auto`、`filter:none`、`transform:none`，让各毛玻璃表面能够采样其后的摄影、氛围和地图。毛玻璃宿主自身不得创建新的隔离根。
 
 - 全应用四层根堆叠由 `ApplicationLayerRoot` 固定挂载在 `main.tsx`，并位于 `React.StrictMode` 与错误边界之外；四层对应 `z-index: 0 / 10 / 20 / 30`，不得建立第五个全局层。
 - 页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`；`data-app-backdrop` 只保留语义和状态路由职责，不得重新提供工作区地图背景插槽或 `SignedInShell.backdrop`。
@@ -30,7 +30,7 @@
 - 登录、玩家与管理员必须使用完全相同的摄影滤镜，正常态摄影图片只承担低对比度空间纹理职责；角色和页面不得复制摄影节点或覆盖滤镜。
 - `tests/browser/application-photography.spec.ts` 与 `tests/browser/application-atmosphere-consistency.spec.ts` 验证根节点跨状态保持、失败回退和桌面／移动氛围一致性。
 
-## 3. 状态栏、认证与移动底栏
+## 3. 状态栏、认证、状态卡与移动底栏
 
 - 玩家状态栏 DOM 固定为 `header.asset-bar → FrostedGlassSurface → .frosted-glass-surface__content → .asset-bar-layout`，内部依次为身份轨道、五列状态项和通知工具位；三条轨道与各状态项必须占满状态栏内部高度并在同一垂直中线上居中。桌面状态项不得再叠加上下内容内边距，三行状态内容的自然高度必须完整落在实际卡片内容高度内，不能因渲染区小于内容区而向下溢出。
 - 状态栏实际数字格式遵循全局“紧凑数字”偏好；玩家关闭全局“紧凑数字”后，桌面和移动状态栏都显示带千分位的完整整数。
@@ -40,9 +40,12 @@
 - 超窄移动端必须先释放状态值的横向空间，再触碰字号下限：不大于 `400px` 时状态内容水平内边距收紧为 `.2rem`、状态图标与数值间距收紧为 `.06rem`；不大于 `340px` 时身份轨道收紧为 `24px`、状态内容取消水平内边距、状态项间距归零且状态图标收紧为 `.625rem`，通知操作轨道仍保持 `44px` 触控目标。这样在 `320px` 视口仍需让完整整数在不低于 `0.56rem` 的前提下完整可见；不得用继续缩小字号、恢复省略号或裁剪末位数字代替横向打包。
 - 管理员桌面工作栏复用 `statusBar` 变体；移动管理员不显示桌面工作栏。
 - 认证卡片使用 `authCard + content`，依靠普通文档流自然增高，不使用测高状态、`ResizeObserver`、`MutationObserver` 或重建组件；登录／注册切换和桌面／移动断点不得丢失未受控表单值。
-- 桌面状态栏和认证卡片圆角为 `24px`；移动状态栏、认证卡片和底栏圆角为 `40px`。
+- 封禁、管理员无权限、React 致命渲染异常和权威游戏状态首次加载失败等全页状态卡必须复用 `FrostedGlassSurface stateCard`。`PhotographicStateShell` 统一为其子状态卡提供该宿主；仍保留旧 `GameErrorStateShell` 结构的游戏加载失败也必须在 `loading-screen` 内放置同一 `stateCard`，不得恢复不透明深色／暗红卡片。critical 只允许通过根级红色氛围暗角和柔和危险色边框表达，卡体本身继续使用共享深绿色毛玻璃。
+- `PhotographicStateShell` 与 `GameErrorStateShell` 的祖先链必须保持 `isolation:auto`、`filter:none`、`transform:none`，确保 `stateCard` 的 `backdrop-filter` 真正采样根级摄影和氛围，而不是只存在一个不可见的 blur 声明。
+- 所有“刷新页面”恢复操作统一使用 `src/components/system/RefreshPageButton.tsx`，内部使用 `GameIcons.tsx` 的 `RefreshIcon` 并直接执行 `window.location.reload()`；视觉固定为无文字的 `44px × 44px` 圆形浏览器式刷新控件，默认透明，细指针 hover 只出现中性圆形背景，active 轻微压缩，保留 `aria-label`、`title` 与键盘 `:focus-visible`。不得改回应用内 retry、伪刷新、延时刷新或文字主按钮。
+- 桌面状态栏和认证卡片圆角为 `24px`；移动状态栏、认证卡片和底栏圆角为 `40px`；`stateCard` 桌面使用 `var(--radius-card)`，移动使用 `var(--radius-card-mobile)`。
 - 移动状态栏固定 `48px`，移动底栏固定 `68px`。底栏内容层提供唯一 `8px 0` 垂直留白，语义化 `nav` 是唯一横向滚动视口。
-- 状态栏、移动底栏、认证卡片和管理员工作栏每处只允许一个 `.frosted-glass-surface`；通知、Toast 和业务弹层不得为装饰增加额外毛玻璃实例。
+- 状态栏、移动底栏、认证卡片、根级状态卡和管理员工作栏每处只允许一个 `.frosted-glass-surface`；通知、Toast 和业务弹层不得为装饰增加额外毛玻璃实例。
 
 ## 4. 侧栏几何与输入方式
 
@@ -84,8 +87,10 @@
 必须通过以下防回退：
 
 - `scripts/verify-liquid-glass-chrome.mjs`：历史脚本路径保留，但验证对象已改为 CSS 毛玻璃、依赖删除、共享组件、页面分流和右栏职责。
+- `scripts/verify-client-update-recovery.mjs`：锁定 `RefreshPageButton` 的浏览器式 SVG 刷新控件、真实 `window.location.reload()` 恢复语义，并禁止异常入口恢复文字刷新按钮或应用内 retry。
 - `scripts/verify-mobile-page-sheet.mjs`：锁定唯一根级 Mobile Workspace Sheet、工厂详情卡片容器单实例、页面／详情内容复用、共享拖动内核、导航覆盖、地图关闭语义和样式加载顺序，禁止恢复第二个 Sheet DOM。
 - `tests/browser/frosted-glass-layout.spec.ts`：状态栏、通用面板、认证和移动底栏的真实背景滤镜、边界、圆角、单实例与无旧 DOM。
+- `tests/browser/application-error-state.spec.ts`：桌面／移动错误状态必须使用唯一 `stateCard`，真实计算样式包含共享 `blur(18px)`、半透明背景和危险色边界；刷新控件必须为圆形图标按钮并触发页面重新加载。
 - `tests/browser/open-glass-sampling.spec.ts`：四种玩家／管理员、桌面／移动场景的根级采样链。
 - `tests/browser/game-shell-layout.spec.ts`：侧栏宽窄屏一致、真实指针意图后的悬浮反馈不位移、页面展开期间布局盒几何不受视觉裁剪动画影响、建筑式面板与事件右栏几何。
 - `tests/browser/mobile-status-value-fit.spec.ts`：移动状态栏在连续视口 resize 后必须重新完成数值拟合；`400px` 与 `340px` 两级超窄布局必须先收紧留白和图标，在 `320px` 仍保留 `44px` 通知触控轨道并让完整整数不低于 `0.56rem`；不得卡在 `data-status-values-fitted="false"` 或裁剪末位数字。
