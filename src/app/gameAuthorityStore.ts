@@ -55,36 +55,6 @@ function selectionSnapshot(key: string) {
   return snapshot;
 }
 
-function currentStateProperty(property: PropertyKey) {
-  const state = getStateAuthoritySnapshot().state as Record<PropertyKey, unknown> | null;
-  return state?.[property];
-}
-
-const AUTHORITY_STATE_VIEW = new Proxy<Record<PropertyKey, unknown>>({}, {
-  get: (_target, property) => currentStateProperty(property),
-  has: (_target, property) => {
-    const state = getStateAuthoritySnapshot().state as Record<PropertyKey, unknown> | null;
-    return Boolean(state && property in state);
-  },
-  ownKeys: () => Reflect.ownKeys(getStateAuthoritySnapshot().state ?? {}),
-  getOwnPropertyDescriptor: (_target, property) => {
-    const state = getStateAuthoritySnapshot().state as Record<PropertyKey, unknown> | null;
-    if (!state || !(property in state)) return undefined;
-    return {
-      configurable: true,
-      enumerable: true,
-      writable: false,
-      value: state[property],
-    };
-  },
-  set: () => {
-    throw new TypeError('权威游戏状态视图为只读');
-  },
-  deleteProperty: () => {
-    throw new TypeError('权威游戏状态视图为只读');
-  },
-}) as unknown as EconomyState;
-
 export function getGameAuthoritySnapshot(): StateAuthoritySnapshot {
   return getStateAuthoritySnapshot();
 }
@@ -93,25 +63,24 @@ export function readGameAuthorityState(): EconomyState | null {
   return getStateAuthoritySnapshot().state;
 }
 
-export function useGameAuthorityState(): EconomyState | null {
+function useAuthorityRenderSnapshot(readySelector: () => boolean): EconomyState | null {
   const ready = useSyncExternalStore(
     subscribe,
-    () => getStateAuthoritySnapshot().state !== null,
+    readySelector,
     () => false,
   );
   // Keep the low-frequency readiness subscription, but return one accepted state
   // object for the whole render. A live Proxy can tear if authority is reset while
   // React is rendering and turn a previously valid catalog field into undefined.
-  return ready ? getStateAuthoritySnapshot().state : null;
+  return ready ? readGameAuthorityState() : null;
+}
+
+export function useGameAuthorityState(): EconomyState | null {
+  return useAuthorityRenderSnapshot(() => readGameAuthorityState() !== null);
 }
 
 export function useGameAuthorityView(userId: number): EconomyState | null {
-  const ready = useSyncExternalStore(
-    subscribe,
-    () => getStateAuthoritySnapshot().state?.userId === userId,
-    () => false,
-  );
-  return ready ? AUTHORITY_STATE_VIEW : null;
+  return useAuthorityRenderSnapshot(() => readGameAuthorityState()?.userId === userId);
 }
 
 export function useGameAuthorityDependencies(
@@ -128,7 +97,7 @@ export function useGameAuthorityDependencies(
     getSelectionSnapshot,
     () => EMPTY_SELECTION_SNAPSHOT,
   );
-  return getStateAuthoritySnapshot().state;
+  return readGameAuthorityState();
 }
 
 export function useGameAuthorityPartitions(
