@@ -186,7 +186,6 @@ html[data-app-surface="game"] .game-shell .workspace-dialog-layer > * {
   pointer-events: auto;
 }
 
-
 html[data-app-backdrop="auth"] .application-atmosphere-layer,
 html[data-app-backdrop="game"] .application-atmosphere-layer,
 html[data-app-backdrop="admin"] .application-atmosphere-layer {
@@ -252,6 +251,8 @@ html[data-app-tone="critical"] .application-atmosphere-layer {
 .game-state-shell,
 .photographic-state-shell {
   isolation: isolate;
+  filter: none;
+  transform: none;
   color: var(--color-text-primary);
   background: transparent;
 }
@@ -304,12 +305,12 @@ html[data-app-tone="critical"] .application-atmosphere-layer {
   width: 100%;
   display: grid;
   gap: var(--space-3);
-  border: 1px solid rgba(185, 229, 201, 0.2);
-  border-radius: var(--radius-card);
+  border: 0;
+  border-radius: inherit;
   padding: var(--space-6);
   color: var(--color-text-primary);
-  background: rgba(3, 14, 9, 0.94);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+  background: transparent;
+  box-shadow: none;
   text-align: center;
 }
 
@@ -336,9 +337,38 @@ html[data-app-tone="critical"] .application-atmosphere-layer {
   justify-self: center;
 }
 
-.photographic-state-shell--critical .photographic-state-card {
+.photographic-state-shell--critical .frosted-glass-surface--stateCard,
+.game-error-state-shell .frosted-glass-surface--stateCard {
   border-color: rgba(255, 143, 131, 0.3);
-  background: rgba(26, 7, 6, 0.94);
+}
+
+.browser-refresh-button.browser-refresh-button {
+  --ui-interactive-hover-border-color: transparent;
+  --ui-interactive-hover-background: rgba(255, 255, 255, 0.09);
+  --ui-interactive-hover-transform: none;
+  --ui-interactive-hover-filter: none;
+  --ui-interactive-active-transform: scale(0.94);
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  color: var(--color-text-secondary);
+  background: transparent;
+  box-shadow: none;
+}
+
+.browser-refresh-button.browser-refresh-button .game-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.browser-refresh-button.browser-refresh-button:focus-visible {
+  border-color: var(--color-border-strong);
 }
 
 @media (max-width: 720px) {
