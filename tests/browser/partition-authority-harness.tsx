@@ -42,7 +42,42 @@ cache.accept({
   serverNow: Date.now(),
   sliceRevisions: { ...sliceRevisions },
   patches: {
-    catalog: { version: CURRENT_CLIENT_STATE_VERSION },
+    catalog: {
+      version: CURRENT_CLIENT_STATE_VERSION,
+      products: [{ id: 'wheat', name: '小麦', category: 'raw', basePrice: 1 }],
+      facilityTypes: [{
+        id: 'farm',
+        name: '农场',
+        category: 'raw',
+        complexity: 'C1',
+        buildCost: 100,
+        buildTimeMs: 0,
+        cycleMs: 1_000,
+        operatingCost: 1,
+        inputs: [],
+        output: { productId: 'wheat', quantity: 1 },
+        defaultRecipeId: 'farm-standard',
+        recipes: [{
+          id: 'farm-standard',
+          name: '标准',
+          cycleMs: 1_000,
+          operatingCost: 1,
+          inputs: [],
+          output: { productId: 'wheat', quantity: 1 },
+        }],
+        systemValue: 100,
+      }],
+      researchLevels: [{ id: 'C1', rank: 1, cost: 0, durationMs: 0 }],
+      provinces: [{
+        id: '110000',
+        name: '加利福尼亚州',
+        shortName: 'CA',
+        mapName: 'California',
+        longitude: -119.4179,
+        latitude: 36.7783,
+      }],
+      defaultProvinceId: '110000',
+    },
     player: {
       userId: 1,
       playerName: 'Slice Tester',
@@ -164,7 +199,7 @@ function patch(name: PatchName) {
     patches = { player: { credits: 100 + revision } };
   } else if (name === 'playerBank') {
     bumpSlice('player.bank');
-    patches = { player: { bankAccount: { revision } } };
+    patches = { player: { bankAccount: { revision } };
   } else if (name === 'playerProduction') {
     bumpSlice('player.production');
     patches = { player: { facilityGroups: [{ facilityTypeId: 'farm', count: revision }] } };
