@@ -37,6 +37,21 @@ function fullDelivery(revision = 7) {
   };
 }
 
+test('client rejects an initial delivery without partition patches', () => {
+  const cache = createStateDeliveryCache();
+
+  assert.throws(
+    () => cache.accept({
+      revision: 7,
+      unchanged: true,
+      serverNow: 10_000,
+    }),
+    StateDeliveryIntegrityError,
+  );
+  assert.equal(cache.getSnapshot().revision, null);
+  assert.equal(cache.getSnapshot().state, null);
+});
+
 test('client rejects an incomplete initial catalog before publishing authority state', () => {
   const cache = createStateDeliveryCache();
   const delivery = fullDelivery();
