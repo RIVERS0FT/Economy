@@ -135,9 +135,21 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
       expect(hiddenNavigation.pointerEvents).toBe('none');
 
       const hostBox = await host.boundingBox();
+      const statusBox = await page.locator('.asset-bar').boundingBox();
       expect(hostBox).not.toBeNull();
-      if (!hostBox) throw new Error('唯一移动 Sheet 几何不可用');
-      await page.touchscreen.tap(hostBox.x + hostBox.width / 2, Math.max(8, hostBox.y / 2));
+      expect(statusBox).not.toBeNull();
+      if (!hostBox || !statusBox) throw new Error('唯一移动 Sheet 或状态栏几何不可用');
+      const statusBottom = statusBox.y + statusBox.height;
+      expect(hostBox.y).toBeGreaterThan(statusBottom);
+      const backdropTapPoint = {
+        x: hostBox.x + hostBox.width / 2,
+        y: statusBottom + (hostBox.y - statusBottom) / 2,
+      };
+      const hitsBackdrop = await page.evaluate(({ x, y }) => Boolean(
+        document.elementFromPoint(x, y)?.closest('.mobile-detail-sheet-backdrop'),
+      ), backdropTapPoint);
+      expect(hitsBackdrop).toBe(true);
+      await page.touchscreen.tap(backdropTapPoint.x, backdropTapPoint.y);
 
       await expect(dialog).toBeHidden();
       await expect(host).toHaveAttribute('data-detail-active', 'false');
