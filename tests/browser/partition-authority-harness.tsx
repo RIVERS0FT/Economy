@@ -209,7 +209,7 @@ function patch(name: PatchName) {
     patches = { market: { orders: [{ id: `order-${revision}` }] } };
   } else if (name === 'marketQuotes') {
     bumpSlice('market.quotes');
-    patches = { market: { markets: { wheat: { lastPrice: revision } } };
+    patches = { market: { markets: { wheat: { lastPrice: revision } } } };
   } else if (name === 'marketCalendar') {
     bumpSlice('market.calendar');
     patches = { market: { economicCalendar: { version: 2, events: [{ id: `event-${revision}` }] } } };
