@@ -202,6 +202,16 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
   };
 }
 
+function settleProductionForAction(world, userId, claim, now) {
+  if (!claim) return settleProductionForPlayerServerSide(world, userId, now);
+  try {
+    return applyProductionSettlementClaim(world, userId, claim, now);
+  } catch (error) {
+    if (error?.code !== 'PRODUCTION_SETTLEMENT_STALE') throw error;
+    return settleProductionForPlayerServerSide(world, userId, now);
+  }
+}
+
 export function executeRuntimeAction(store, user, requestMeta, now = Date.now()) {
   const {
     action,
@@ -238,12 +248,12 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     ensurePlayerBankAccount(player, now);
     ensureWeeklyCashSettlementWorld(world, now, { normalizePlayers: !store.scheduledProcessing });
     ensurePlayerWeeklyCashSettlement(player, now);
-    if (payload?.productionSettlement) {
-      applyProductionSettlementClaim(world, Number(user.id), payload.productionSettlement, now);
-    } else {
-      // Compatibility and stale-proposal fallback stays scoped to the current player.
-      settleProductionForPlayerServerSide(world, Number(user.id), now);
-    }
+    settleProductionForAction(
+      world,
+      Number(user.id),
+      payload?.productionSettlement,
+      now,
+    );
     if (!store.scheduledProcessing) {
       store.processWorldIfDue(world, now, Number(user.id), {
         force: false,
