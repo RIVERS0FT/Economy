@@ -232,7 +232,7 @@ requireAll('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
 requireAll('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   'Sheet 外部区域不得压暗或模糊',
   '状态栏始终位于 Sheet 与通知面板之上',
-  '导航恢复使用与通知岛同一运动语言',
+  '通知灵动岛同系弹性进入动画',
   '物理根 Sheet 独占 Pointer／Touch 手势监听',
 ]);
 
