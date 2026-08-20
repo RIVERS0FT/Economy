@@ -3,6 +3,7 @@ import type { AuctionBidHistory, AuctionItem } from '../auctions/types';
 import type { FacilityBuildProcurementGroup } from '../utils/facilityBuildProcurementGroups';
 import {
   createStateDeliveryCache,
+  StateDeliveryIntegrityError,
   type StateDeliveryEnvelope,
   type StatePartitionPatches,
   type StatePartitionRevisions,
@@ -266,9 +267,30 @@ async function fetchGameStateOnce(revision?: number | null, signal?: AbortSignal
   return request<GameStatePollResponse>(`/state${suffix}`, { method: 'GET', signal });
 }
 
+async function fetchGameStateWithRecovery(revision?: number | null, signal?: AbortSignal) {
+  try {
+    return await fetchGameStateOnce(revision, signal);
+  } catch (reason) {
+    if (!(reason instanceof StateDeliveryIntegrityError)) throw reason;
+    resetGameStateDelivery();
+    try {
+      return await fetchGameStateOnce(undefined, signal);
+    } catch (retryReason) {
+      if (retryReason instanceof StateDeliveryIntegrityError) {
+        throw new GameApiError(
+          502,
+          `服务器状态同步异常：${retryReason.message}`,
+          retryReason.code,
+        );
+      }
+      throw retryReason;
+    }
+  }
+}
+
 export async function getGameState(revision?: number | null, signal?: AbortSignal): Promise<GameStatePollResponse> {
   if (!Number.isInteger(revision)) resetGameStateDelivery();
-  let response = await fetchGameStateOnce(revision, signal);
+  let response = await fetchGameStateWithRecovery(revision, signal);
   pendingProductionSettlement = createClientProductionSettlementClaim(
     response.state,
     Number(response.serverNow),
@@ -277,7 +299,7 @@ export async function getGameState(revision?: number | null, signal?: AbortSigna
 
   const settlement = await postAction('/production/settle');
   if (settlement.revision !== response.revision) {
-    response = await fetchGameStateOnce(response.revision, signal);
+    response = await fetchGameStateWithRecovery(response.revision, signal);
   }
   pendingProductionSettlement = createClientProductionSettlementClaim(
     response.state,

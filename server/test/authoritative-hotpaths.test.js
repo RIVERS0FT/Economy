@@ -133,7 +133,14 @@ test('state delivery publishes stable partition references for unchanged partiti
         catalog: 'c1', player: 'p1', market: 'm1', auction: 'a1', contract: 'x1', leaderboard: 'l1',
       },
       patches: {
-        catalog: { version: CURRENT_CLIENT_STATE_VERSION, products: [], facilityTypes: [] },
+        catalog: {
+          version: CURRENT_CLIENT_STATE_VERSION,
+          products: [{ id: 'wheat' }],
+          facilityTypes: [{ id: 'farm' }],
+          researchLevels: [{ id: 'C1' }],
+          provinces: [{ id: '110000' }],
+          defaultProvinceId: '110000',
+        },
         player: { userId: 1, credits: 100 },
         market: { orders: [] },
         auction: { assetAuctions: [] },

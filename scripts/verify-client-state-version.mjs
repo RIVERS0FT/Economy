@@ -107,7 +107,14 @@ requireText('docs/README.md', [
 
 function completePatches(version) {
   return {
-    catalog: { version, products: [], facilityTypes: [] },
+    catalog: {
+      version,
+      products: [{ id: 'wheat' }],
+      facilityTypes: [{ id: 'farm' }],
+      researchLevels: [{ id: 'C1' }],
+      provinces: [{ id: '110000' }],
+      defaultProvinceId: '110000',
+    },
     player: { userId: 1, credits: 100 },
     market: { orders: [] },
     auction: { assetAuctions: [] },
