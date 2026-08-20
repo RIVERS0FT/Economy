@@ -274,8 +274,10 @@ test.describe('factory production methods', () => {
 
       await page.locator('.facility-cluster-selector-card').first().click();
       const dialogLayer = page.locator('.workspace-dialog-layer');
-      const sheet = page.locator('.mobile-detail-sheet');
+      const host = page.locator('.mobile-detail-sheet');
+      const sheet = host.locator('.mobile-workspace-sheet-detail-view');
       const scroll = sheet.locator('.mobile-detail-sheet-scroll');
+      await expect(host).toBeVisible();
       await expect(sheet).toBeVisible();
       await expect(sheet.locator('.facility-detail-artwork-icon')).toHaveCount(1);
       await expect.poll(() => sheet.locator('.facility-detail-artwork-icon').evaluate((element) => (
@@ -297,7 +299,9 @@ test.describe('factory production methods', () => {
       await expect(sheet.locator('.facility-formula-scope')).toHaveCount(0);
       await expect(sheet).not.toContainText('缩短周期并提高成本');
 
-      const mobileSectionOrder = await scroll.evaluate((element) => Array.from(element.children).map((child) => child.className));
+      const mobileSectionOrder = await sheet.locator('.mobile-workspace-sheet-detail-content-slot').evaluate((element) => (
+        Array.from(element.children).map((child) => child.className)
+      ));
       const mobileSettlementIndex = mobileSectionOrder.findIndex((value) => String(value).includes('facility-production-formula'));
       const mobileDiagnosticsIndex = mobileSectionOrder.findIndex((value) => String(value).includes('facility-operating-diagnostics'));
       expect(mobileSettlementIndex).toBeGreaterThanOrEqual(0);
@@ -369,8 +373,8 @@ test.describe('factory production methods', () => {
         const state = window as typeof window & { __lastSelectedTab?: string; __lastSelectedAsset?: string };
         return { tab: state.__lastSelectedTab, asset: state.__lastSelectedAsset };
       })).toEqual({ tab: 'market', asset: 'steel' });
-      await expect(sheet).toBeVisible();
-      await expect(sheet).not.toHaveClass(/is-dragging/);
+      await expect(host).toBeVisible();
+      await expect(host).not.toHaveClass(/is-dragging/);
 
       const settlementOverflow = await settlement.evaluate((element) => ({
         clientWidth: element.clientWidth,
