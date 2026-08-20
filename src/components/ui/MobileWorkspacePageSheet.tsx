@@ -13,7 +13,8 @@ export interface MobileWorkspacePageSheetProps {
 
 /**
  * Compatibility adapter for GameShell. MobileWorkspaceSheetHost owns the only
- * mobile drawer DOM; this component must never create another sheet surface.
+ * root mobile drawer DOM, including the surface that may cover bottom Chrome;
+ * this adapter must never create another sheet surface or pointer layer.
  */
 export function MobileWorkspacePageSheet({
   pageKey,
