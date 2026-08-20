@@ -227,7 +227,7 @@ requireAll('docs/UI_DESIGN_SYSTEM.md', [
 requireAll('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
   '通知面板作为 Chrome 级临时覆盖层始终位于 Sheet 之上',
   '通知面板打开期间不得挂载通知岛',
-  'Sheet 存在期间移动底部导航保持 mounted 但必须隐藏并退出交互树',
+  '移动底栏在根 Sheet 存在时继续保持同一 DOM，但必须隐藏并退出交互树',
 ]);
 requireAll('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   'Sheet 外部区域不得压暗或模糊',
