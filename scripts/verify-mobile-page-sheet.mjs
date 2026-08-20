@@ -214,8 +214,8 @@ requireAll('tests/browser/notification-center.spec.ts', [
 
 requireAll('tests/browser/mobile-navigation-scrollbar.spec.ts', [
   'mobile navigation stays mounted but hidden while a sheet is open and animates back after close',
-  "await expect(navigation).toHaveAttribute('aria-hidden', 'true');",
-  "await expect(navigation).toHaveAttribute('data-navigation-returning', 'true');",
+  "await expect(navigationHost).toHaveAttribute('aria-hidden', 'true');",
+  "await expect(navigationHost).toHaveAttribute('data-navigation-returning', 'true');",
   "expect(returningAnimation).toContain('mobile-bottom-navigation-return');",
 ]);
 
