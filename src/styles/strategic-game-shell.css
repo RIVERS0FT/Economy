@@ -105,7 +105,6 @@
 
 .strategic-map-stage .province-map-echart .economy-chart__canvas {
   touch-action: none;
-  overscroll-behavior: contain;
 }
 
 .strategic-map-vignette {

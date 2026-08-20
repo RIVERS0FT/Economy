@@ -184,7 +184,6 @@ for (const text of [
   '.application-map-layer > .strategic-map-lens-bar',
   '--strategic-command-rail-width: 78px',
   'touch-action: none;',
-  'overscroll-behavior: contain;',
 ]) assert.ok(strategicStyles.includes(text), `常驻战略地图样式缺少: ${text}`);
 for (const text of [
   '--color-map-region-default:',
