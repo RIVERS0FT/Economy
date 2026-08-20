@@ -100,6 +100,24 @@ test('auction asset matrix tiles show name and quantity while the main visual re
   await summaryTile.hover();
   await expect(tooltip).toBeVisible();
   await expect(tooltip).toHaveText('机械 ×5');
+  const tooltipVisual = await tooltip.evaluate((node) => {
+    const style = getComputedStyle(node);
+    const webkitBackdropFilter = (style as CSSStyleDeclaration & { webkitBackdropFilter?: string }).webkitBackdropFilter;
+    return {
+      className: node.className,
+      backdropFilter: style.backdropFilter || webkitBackdropFilter || '',
+      backgroundColor: style.backgroundColor,
+      backgroundImage: style.backgroundImage,
+      borderTopColor: style.borderTopColor,
+      boxShadow: style.boxShadow,
+    };
+  });
+  expect(tooltipVisual.className).toContain('ui-tooltip-surface');
+  expect(tooltipVisual.backdropFilter).toContain('blur(18px)');
+  expect(tooltipVisual.backgroundColor).toBe('rgba(5, 20, 14, 0.76)');
+  expect(tooltipVisual.backgroundImage).toContain('linear-gradient');
+  expect(tooltipVisual.borderTopColor).toBe('rgba(212, 245, 224, 0.18)');
+  expect(tooltipVisual.boxShadow).not.toBe('none');
 
   await page.mouse.move(0, 0);
   await expect(tooltip).toHaveCount(0);
