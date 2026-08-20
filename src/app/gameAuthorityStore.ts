@@ -99,7 +99,10 @@ export function useGameAuthorityState(): EconomyState | null {
     () => getStateAuthoritySnapshot().state !== null,
     () => false,
   );
-  return ready ? AUTHORITY_STATE_VIEW : null;
+  // Keep the low-frequency readiness subscription, but return one accepted state
+  // object for the whole render. A live Proxy can tear if authority is reset while
+  // React is rendering and turn a previously valid catalog field into undefined.
+  return ready ? getStateAuthoritySnapshot().state : null;
 }
 
 export function useGameAuthorityView(userId: number): EconomyState | null {
