@@ -26,7 +26,7 @@ test('all mobile business pages reuse the single factory-detail sheet host', asy
   await expect(status).toBeVisible();
   await expect(sheet).toBeVisible();
   await expect(map).toBeVisible();
-  await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet')).toHaveCount(1);
+  await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')).toHaveCount(1);
   await sheet.evaluate((element) => {
     element.dataset.sheetInstanceProbe = 'stable';
   });
@@ -45,7 +45,7 @@ test('all mobile business pages reuse the single factory-detail sheet host', asy
     await expect(sheet).toBeVisible();
     await expect(sheet).toHaveAttribute('data-page-key', tab);
     await expect(sheet).toHaveAttribute('data-sheet-instance-probe', 'stable');
-    await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet')).toHaveCount(1);
+    await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')).toHaveCount(1);
     await expect(status).toBeVisible();
     await expect(navigation).toBeVisible();
   }
