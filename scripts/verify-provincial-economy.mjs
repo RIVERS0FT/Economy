@@ -177,12 +177,20 @@ for (const text of [
 assert.equal(gameShell.includes("previousTab !== 'map' && previousTab !== 'province'"), true, '州级上下文页不得污染普通业务页面返回历史');
 
 const strategicStyles = read('src/styles/strategic-game-shell.css');
+const designSystemStyles = read('src/styles/design-system.css');
 for (const text of [
   '.application-map-layer',
   '.game-shell .workspace-strategic-chrome',
   '.application-map-layer > .strategic-map-lens-bar',
   '--strategic-command-rail-width: 78px',
+  'touch-action: none;',
 ]) assert.ok(strategicStyles.includes(text), `常驻战略地图样式缺少: ${text}`);
+for (const text of [
+  '--color-map-region-default:',
+  '--color-map-region-locked:',
+  '--color-map-region-border:',
+  '--color-map-label:',
+]) assert.ok(designSystemStyles.includes(text), `地图设计令牌缺少: ${text}`);
 assert.equal(strategicStyles.includes('.strategic-province-inspector'), false, '战略地图样式不得恢复经营地区检查器');
 assert.equal(strategicStyles.includes('.strategic-map-stage--background'), false, '打开业务页面不得通过背景态压暗地图');
 
@@ -214,7 +222,10 @@ for (const text of [
   'registerEChartsMap(US_MAINLAND_MAP_NAME, usMainlandGeoJson)',
   "type: 'map'",
   "selectedMode: 'single'",
+  "roamTrigger: 'global'",
   'const US_MAINLAND_ASPECT_SCALE = 0.75',
+  'const MOBILE_BLANK_DOUBLE_TAP_MS = 360',
+  'const MOBILE_BLANK_DOUBLE_TAP_DISTANCE = 28',
   'const MAP_CONTAIN_INSET = 0.96',
   'function containLayoutSize(width: number, height: number)',
   'aspectScale: US_MAINLAND_ASPECT_SCALE',
@@ -227,16 +238,20 @@ for (const text of [
   "container.dataset.mapFitMode = 'contain'",
   'container.dataset.mapContainViewport',
   'onClick={handleMapClick}',
+  'onCanvasClick={handleMapCanvasClick}',
   'selectedProvinceId: string | null',
   "data-selected-province-id={selectedProvinceId ?? ''}",
   'const handleMapDoubleClick = useCallback',
-  'if (event.target) return;',
+  "if (event.target || event.event?.pointerType === 'touch') return;",
   "chart.getDom().dataset.mapCameraReset = 'blank-double-click'",
+  "chart.getDom().dataset.mapCameraReset = 'blank-double-tap'",
   'onDoubleClick={handleMapDoubleClick}',
   'data-province-count={provinces.length}',
   'data-map-feature-count={usMainlandGeoJson.features.length}',
   'data-map-lens={lens}',
 ]) assert.ok(mapComponent.includes(text), `ECharts 美国本土地图缺少: ${text}`);
+assert.equal(mapComponent.includes("var(--color-surface-muted)"), false, '地图不得引用未定义的 color-surface-muted');
+assert.equal(mapComponent.includes('data: data.map((datum)'), false, '移动地图不得批量覆盖全部州标签为隐藏');
 for (const forbidden of [
   'applyCoverCamera',
   'coverLayoutSize',
@@ -302,6 +317,9 @@ for (const text of [
   'cameraAfterBlankDoubleClick',
   "'data-map-camera-reset'",
   "'blank-double-click'",
+  "'blank-double-tap'",
+  "toHaveCSS('touch-action', 'none')",
+  'mobile strategy map keeps labels and blank-space gestures usable',
   'outlineAspect',
   "getByLabel('州级地区', { exact: true })",
   "getByRole('heading', { name: '科罗拉多州'",
@@ -312,6 +330,16 @@ for (const text of [
   "toHaveAttribute('data-strategic-presentation', 'building')",
   "toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')",
 ]) assert.ok(mapBrowserTest.includes(text), `ECharts 地图浏览器回归缺少: ${text}`);
+
+const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
+assert.equal((uiDesign.match(/### 8\.1 美国本土州级经营地图/g) ?? []).length, 1, 'UI 设计文档只能保留一份美国本土州级经营地图 8.1 规则');
+for (const text of [
+  "roamTrigger: 'global'",
+  '触摸双触地图空白',
+  '--color-map-region-locked',
+  '不得通过 `media` 或数据项覆盖把全部州缩写关闭',
+]) assert.ok(uiDesign.includes(text), `移动地图设计规则缺少: ${text}`);
+assert.equal(uiDesign.includes('等比 Cover 相机'), false, 'UI 设计文档不得保留旧 Cover 相机冲突规则');
 
 const navigation = read('src/config/navigation.ts');
 assert.equal(navigation.includes("{ id: 'map', label: '地图' }"), false, '桌面侧栏与移动底栏不得显示地图按钮');
@@ -337,4 +365,4 @@ for (const text of [
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击和空白双击镜头重置均已锁定。');
+console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击、移动标签、空白全局平移和空白双击／双触镜头重置均已锁定。');
