@@ -92,6 +92,8 @@ assert.match(gameShell, /useNotificationCenter\(model\)/);
 assert.match(gameShell, /NotificationCenterButton/);
 assert.match(gameShell, /NotificationCenterPanel/);
 assert.match(gameShell, /NotificationToasts/);
+assert.match(gameShell, /notificationCenter\.panelOpen \? null : \(/);
+assert.match(gameShell, /workspaceSheetOpen=\{mobileSheetOpen\}/);
 assert.doesNotMatch(gameShell, /model\.notice\s*\?/);
 assert.doesNotMatch(gameShell, /CurrencyText/);
 
@@ -109,6 +111,7 @@ assert.doesNotMatch(gameThreeLayerVerifier, /<StatusBar items=\{statusItems\} \/
 const hook = read('src/hooks/useNotificationCenter.ts');
 assert.match(hook, /panelOpenRef\.current/);
 assert.match(hook, /if \(panelOpenRef\.current \|\| !title\.trim\(\)\) return/);
+assert.match(hook, /clearToasts\(\)/);
 assert.match(hook, /markNotificationsRead/);
 assert.match(hook, /clearReadNotifications/);
 assert.match(hook, /deleteNotification/);
@@ -129,6 +132,11 @@ assert.match(notificationModel, /game\.bankSummary\?\.weeklyCashSettlement\?\.ou
 
 const component = read('src/components/notifications/NotificationCenter.tsx');
 assert.match(component, /useWorkspaceFloatingLayer/);
+assert.match(component, /useWorkspaceDialogLayer/);
+assert.match(component, /const targetLayer = mobile \? dialogLayer : floatingLayer/);
+assert.match(component, /data-notification-layer=\{mobile \? 'dialog' : 'floating'\}/);
+assert.match(component, /window\.addEventListener\('keydown', onKeyDown, true\)/);
+assert.match(component, /event\.stopPropagation\(\)/);
 assert.match(component, /createPortal/);
 assert.match(component, /CurrencyText/);
 assert.match(component, /清除已读/);
@@ -155,18 +163,20 @@ assert.match(browserTest, /pointer press on the blank overlay closes the panel w
 assert.match(browserTest, /document\.querySelectorAll\('\.asset-bar \.frosted-glass-surface'\)/);
 assert.match(browserTest, /geometry\.trigger\.width\)\.toBeCloseTo\(44, 0\)/);
 assert.match(browserTest, /geometry\.trigger\.height\)\.toBeCloseTo\(44, 0\)/);
-assert.match(browserTest, /panel remains above extreme workspace z-index/);
-assert.match(browserTest, /notification-layer-regression-sentinel/);
+assert.match(browserTest, /mobile notification panel overlays an open workspace sheet without leaving an island mounted/);
+assert.match(browserTest, /data-notification-layer', 'dialog'/);
 assert.match(browserTest, /document\.elementFromPoint/);
-assert.match(browserTest, /panelCloseIsTopmost/);
-assert.match(browserTest, /floatingLayerOrder/);
-assert.match(browserTest, /pageLayerZIndex\)\.toBe\('1'\)/);
-assert.match(browserTest, /floatingLayerZIndex\)\.toBe\('4'\)/);
-assert.match(browserTest, /islandCenter\)\.toBeCloseTo\(geometry\.viewportWidth \/ 2, 0\)/);
-assert.match(browserTest, /panel\.left\)\.toBeCloseTo\(geometry\.panelLayer\.left \+ geometry\.panelInsets\.left, 0\)/);
-assert.match(browserTest, /panelInsets\)\.toEqual\(\{ top: 0, right: 8, bottom: 8, left: 8 \}\)/);
+assert.match(browserTest, /panelAboveSheet/);
+assert.match(browserTest, /statusIsTopmost/);
+assert.match(browserTest, /panelParentIsDialogLayer/);
+assert.match(browserTest, /panelLayerZIndex\)\.toBeGreaterThan\(geometry\.sheetBackdropZIndex\)/);
+assert.match(browserTest, /page\.locator\('\.notification-island'\)\)\.toHaveCount\(0\)/);
+assert.match(browserTest, /await expect\(workspaceSheet\)\.toBeVisible\(\)/);
 assert.match(browserTest, /reduced motion/);
 assert.match(browserTest, /animationName\)\.toBe\('none'\)/);
+assert.doesNotMatch(browserTest, /panel remains above extreme workspace z-index/);
+assert.doesNotMatch(browserTest, /notification-layer-regression-sentinel/);
+assert.doesNotMatch(browserTest, /floatingLayerZIndex\)\.toBe\('4'\)/);
 assert.doesNotMatch(browserTest, /layout\.classList/);
 assert.doesNotMatch(browserTest, /notice-toast/);
 assert.doesNotMatch(browserTest, /toBeCloseTo\(36, 0\)/);
@@ -185,8 +195,6 @@ assert.doesNotMatch(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-c
 assert.match(styles, /\.notification-panel-layer/);
 assert.match(styles, /\.notification-panel-layer\s*\{[\s\S]*?padding:\s*0 var\(--layout-gutter\) var\(--layout-gutter\);/);
 assert.match(styles, /\.notification-panel-layer\s*\{[^}]*background:\s*transparent;/);
-assert.doesNotMatch(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-panel-layer\s*\{[\s\S]*?padding:\s*0;/);
-assert.doesNotMatch(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-panel-layer\s*\{[\s\S]*?padding-inline-(?:start|end):/);
 assert.doesNotMatch(styles, /\.notification-panel-layer\s*\{[^}]*background:\s*rgba\(/);
 assert.match(styles, /\.notification-toast-stack/);
 assert.match(styles, /\.notification-island\s*\{/);
@@ -203,11 +211,15 @@ assert.doesNotMatch(styles, /overscroll-behavior:\s*contain/);
 assert.doesNotMatch(styles, /backdrop-filter/);
 
 const viewportStyles = read('src/styles/viewport.css');
+assert.match(viewportStyles, /\.workspace-dialog-layer\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?z-index:\s*3000;/);
 assert.match(viewportStyles, /@media \(max-width: 720px\)[\s\S]*?\.signed-in-shell__body\s*\{[\s\S]*?position:\s*relative;[\s\S]*?z-index:\s*0;[\s\S]*?order:\s*1;/);
-assert.match(viewportStyles, /@media \(max-width: 720px\)[\s\S]*?\.mobile-page-overlay\s*\{[\s\S]*?position:\s*relative;[\s\S]*?z-index:\s*0;[\s\S]*?order:\s*1;/);
 assert.match(viewportStyles, /@media \(max-width: 720px\)[\s\S]*?\.workspace-floating-layer\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?z-index:\s*1;[\s\S]*?order:\s*2;/);
 
 const mobileStatusStyles = read('src/styles/mobile-status-layout.css');
+assert.match(mobileStatusStyles, /\.signed-in-shell__chrome\s*\{\s*z-index:\s*3001;/);
+assert.match(mobileStatusStyles, /\.workspace-dialog-layer > \.notification-panel-layer\[data-notification-layer='dialog'\]/);
+assert.match(mobileStatusStyles, /z-index:\s*10/);
+assert.match(mobileStatusStyles, /var\(--mobile-status-top-inset\)/);
 assert.match(mobileStatusStyles, /\.notification-island-region/);
 assert.match(mobileStatusStyles, /50vw/);
 assert.match(mobileStatusStyles, /transform:\s*translateX\(-50%\)/);
@@ -222,26 +234,26 @@ assert.match(pageDesign, /最近 20 条/);
 assert.match(pageDesign, /面板关闭/);
 assert.match(pageDesign, /待处理事项不能删除/);
 assert.match(pageDesign, /概览不得再维护第二套经营提醒列表/);
+assert.match(pageDesign, /通知面板作为 Chrome 级临时覆盖层始终位于 Sheet 之上/);
+assert.match(pageDesign, /通知面板打开期间不得挂载通知岛/);
 
 const liquidDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
 assert.match(liquidDesign, /\.asset-bar-layout/);
 assert.match(liquidDesign, /通知灵动岛/);
 assert.match(liquidDesign, /物理屏幕水平中线/);
 assert.match(liquidDesign, /从中心对称展开/);
-assert.match(liquidDesign, /工作区浮层根已经提供唯一水平边界/);
 assert.match(liquidDesign, /面板打开时立即清空 Toast 队列/);
 assert.match(liquidDesign, /点击面板外遮罩空白必须关闭/);
-assert.match(liquidDesign, /移动工作区使用局部层级堆叠边界/);
-assert.match(liquidDesign, /地图舞台与镜头栏分别使用根地图层内部 `0`／`1`，并共同受全应用地图层 `20` 收口，始终低于全应用 UI 层 `30`/);
-assert.match(liquidDesign, /页面内部任意正 `z-index`/);
+assert.match(liquidDesign, /状态栏始终位于 Sheet 与通知面板之上/);
+assert.match(liquidDesign, /Sheet 外部区域不得压暗或模糊/);
 
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 assert.match(uiDesign, /## 通知面板与关闭态 Toast/);
 assert.match(uiDesign, /移动只显示队列最后一条/);
 assert.match(uiDesign, /关闭后焦点返回通知入口/);
-assert.match(uiDesign, /不得再叠加第二个顶部 `var\(--layout-gutter\)`/);
 assert.match(uiDesign, /缺失领域不得阻断登录后外壳/);
 assert.match(uiDesign, /`48px` 工具轨道和 `44×44px` 触控目标/);
 assert.match(uiDesign, /不得缩回旧测试夹具的 `36px`/);
+assert.match(uiDesign, /Sheet 自身承担唯一移动毛玻璃模糊/);
 
 console.log('notification center verification passed');
