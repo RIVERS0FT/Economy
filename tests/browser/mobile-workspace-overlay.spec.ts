@@ -106,7 +106,7 @@ test.describe('mobile workspace overlay geometry', () => {
         sheetBorderLeft: Number.parseFloat(sheetStyle.borderLeftWidth),
         sheetBorderRight: Number.parseFloat(sheetStyle.borderRightWidth),
         backdropFilter: backdropStyle.backdropFilter,
-        backdropWebkitFilter: backdropStyle.webkitBackdropFilter,
+        backdropWebkitFilter: backdropStyle.getPropertyValue('-webkit-backdrop-filter').trim() || 'none',
         backdropBackground: backdropStyle.backgroundColor,
         sheetBackdropFilter: sheetStyle.backdropFilter || sheetStyle.webkitBackdropFilter,
         statusIsTopmost: Boolean(statusTopmost?.closest('.asset-bar')),
