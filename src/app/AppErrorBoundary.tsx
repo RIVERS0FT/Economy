@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { RefreshPageButton } from '../components/system/RefreshPageButton';
 import type { FinancialBackdropVariant } from '../components/visual/FinancialBackdrop';
 import { PhotographicStateShell } from '../components/visual/PhotographicStateShell';
 
@@ -44,7 +45,7 @@ export class AppErrorBoundary extends Component<Props, State> {
           <section className="photographic-state-card">
             <strong>页面运行出现异常</strong>
             <p>服务器经济状态不会受影响。请刷新页面重新连接。</p>
-            <button type="button" onClick={() => window.location.reload()}>刷新页面</button>
+            <RefreshPageButton />
           </section>
         </PhotographicStateShell>
       );
