@@ -4,19 +4,25 @@ on:
   push:
     branches:
       - fix/mobile-map-interactions-20260821
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
 
 jobs:
   apply:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && (github.event_name != 'pull_request' || github.head_ref == 'fix/mobile-map-interactions-20260821')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           fetch-depth: 0
 
       - name: Apply deterministic patch
@@ -37,4 +43,4 @@ jobs:
           git add -A
           git status --short
           git commit -m "修复移动端地图标签与空白手势"
-          git push origin HEAD:${GITHUB_REF_NAME}
+          git push origin HEAD:fix/mobile-map-interactions-20260821
