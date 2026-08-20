@@ -72,6 +72,10 @@
   border-radius: var(--radius-card);
 }
 
+.frosted-glass-surface--stateCard {
+  border-radius: var(--radius-card);
+}
+
 .frosted-glass-surface--mobileNavigation {
   border-radius: 40px;
 }
@@ -191,6 +195,10 @@
   .frosted-glass-surface--statusBar,
   .frosted-glass-surface--authCard {
     border-radius: 40px;
+  }
+
+  .frosted-glass-surface--stateCard {
+    border-radius: var(--radius-card-mobile);
   }
 
   .asset-bar > .frosted-glass-surface {

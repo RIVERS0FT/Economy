@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { getCurrentUser, initializeEconomySession, type EconomySessionResponse } from '../api/auth';
 import { ApplicationLoadingState } from '../components/system/ApplicationLoadingState';
+import { RefreshPageButton } from '../components/system/RefreshPageButton';
 import type {
   FinancialBackdropTone,
   FinancialBackdropVariant,
@@ -143,7 +144,7 @@ function AuthenticatedApp() {
         {authError ? (
           <div className="auth-service-warning" role="alert">
             <span>{authError}</span>
-            <button type="button" onClick={() => window.location.reload()}>刷新页面</button>
+            <RefreshPageButton />
           </div>
         ) : null}
       </>

@@ -328,9 +328,6 @@ export function createStateDeliveryCache() {
       const incomingSliceRevisions = validSliceRevisions(payload.sliceRevisions);
       const changedPartitions = changedPartitionNames(payload.patches);
       const changedSlices = changedSliceNames(sliceRevisions, incomingSliceRevisions, changedPartitions);
-      if (state === null && changedPartitions.length === 0) {
-        throw new StateDeliveryIntegrityError('服务器未返回完整的初始分区状态');
-      }
       let nextPartitions = partitions;
       let nextState = state;
       const nextSliceRevisions = { ...sliceRevisions };

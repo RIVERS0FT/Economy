@@ -23,7 +23,8 @@ requireText('src/app/App.tsx', [
   "const gameAppModule = initialAdminPath ? null : import('./GameApp');",
   "(adminAppModule ?? import('./AdminApp')).then",
   "(gameAppModule ?? import('./GameApp')).then",
-  'onClick={() => window.location.reload()}>刷新页面</button>',
+  "import { RefreshPageButton } from '../components/system/RefreshPageButton';",
+  '<RefreshPageButton />',
 ]);
 requireText('src/api/auth.ts', [
   'CLIENT_NETWORK_ERROR',
@@ -36,11 +37,32 @@ requireText('src/api/game.ts', [
   'isBrowserNetworkError',
   'new GameApiError(0, NETWORK_ERROR_MESSAGE)',
 ]);
+requireText('src/components/system/RefreshPageButton.tsx', [
+  "import { RefreshIcon } from '../icons/GameIcons';",
+  'className={classes}',
+  'data-ui-interactive="surface"',
+  'aria-label="刷新页面"',
+  'title="刷新页面"',
+  'onClick={() => window.location.reload()}',
+  '<RefreshIcon />',
+]);
 requireText('src/app/GameApp.tsx', [
-  'onClick={() => window.location.reload()}>刷新页面</button>',
+  "import { RefreshPageButton } from '../components/system/RefreshPageButton';",
+  '<RefreshPageButton />',
+]);
+requireText('src/app/AppErrorBoundary.tsx', [
+  "import { RefreshPageButton } from '../components/system/RefreshPageButton';",
+  '<RefreshPageButton />',
 ]);
 forbidText('src/app/GameApp.tsx', [
   'onClick={viewModel.retry}>重新连接</button>',
+  'onClick={() => window.location.reload()}>刷新页面</button>',
+]);
+forbidText('src/app/App.tsx', [
+  'onClick={() => window.location.reload()}>刷新页面</button>',
+]);
+forbidText('src/app/AppErrorBoundary.tsx', [
+  'onClick={() => window.location.reload()}>刷新页面</button>',
 ]);
 
 requireText('deploy/nginx/game.riversoft.top.economy-location.conf', [
@@ -86,4 +108,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('客户端版本更新、刷新恢复、缓存与原子发布规则验证通过。');
+console.log('客户端版本更新、共享刷新控件、刷新恢复、缓存与原子发布规则验证通过。');

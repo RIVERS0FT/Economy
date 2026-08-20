@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { FrostedGlassSurface } from '../ui/FrostedGlassSurface';
 
 type PhotographicStateVariant = 'auth' | 'game' | 'admin';
 type PhotographicStateTone = 'normal' | 'critical';
@@ -37,7 +38,9 @@ export function PhotographicStateShell({
         role={role}
         aria-live={role === 'status' ? 'polite' : undefined}
       >
-        {children}
+        <FrostedGlassSurface variant="stateCard" layout="content">
+          {children}
+        </FrostedGlassSurface>
       </div>
     </main>
   );
