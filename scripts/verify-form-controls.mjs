@@ -245,7 +245,7 @@ for (const text of [
   '移动角标固定在按钮内部右上角',
   '`aria-label` 中保留完整数量和来源',
   '只显示 `1`～`99` 或 `99+`',
-  '根级 Dialog 内的 `RichSelectInput` 列表继续复用该 Dialog 根作为安全定位边界并位于详情遮罩之上',
+  '根级 Dialog 内的 `RichSelectInput` 列表继续复用该 Dialog 根作为安全定位边界并位于详情 Sheet 表面之上',
   '只检查 `z-index` 或 Option 字符串不能证明安全区有效',
 ]) requireText(designDocPath, text);
 
