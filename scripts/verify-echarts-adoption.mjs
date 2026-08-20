@@ -40,6 +40,15 @@ for (const path of pieSeriesFiles) {
     failures.push(`${path} 的每个 Pie 系列都必须使用共享 PIE_PAD_ANGLE，当前 Pie=${pieSeriesCount}、padAngle=${padAngleCount}`);
   }
 }
+const tooltipOptionFiles = sourceFiles.filter((path) => /\btooltip\s*:/.test(read(path)));
+for (const path of tooltipOptionFiles) {
+  const content = read(path);
+  const tooltipOptionCount = content.match(/\btooltip\s*:/g)?.length ?? 0;
+  const sharedTooltipCount = content.match(/\.\.\.commonTooltip/g)?.length ?? 0;
+  if (tooltipOptionCount !== sharedTooltipCount) {
+    failures.push(`${path} 的每个 ECharts Tooltip 都必须展开共享 commonTooltip，当前 Tooltip=${tooltipOptionCount}、commonTooltip=${sharedTooltipCount}`);
+  }
+}
 const directEChartsImports = sourceFiles.filter((path) => /from ['"]echarts(?:\/|['"])/.test(read(path)));
 if (directEChartsImports.length !== 1 || directEChartsImports[0] !== 'src/components/charts/echartsCore.ts') {
   failures.push(`ECharts 直接导入只能位于 echartsCore.ts，当前为: ${directEChartsImports.join(', ') || '无'}`);
@@ -49,7 +58,10 @@ requireText('src/components/charts/echartsCore.ts', [
   'BarChart', 'LineChart', 'MapChart', 'PieChart', 'AxisPointerComponent', 'GeoComponent', 'GridComponent', 'TooltipComponent', 'AriaComponent', 'SVGRenderer',
   'registerEChartsMap',
 ]);
-requireText('src/components/charts/chartOptions.ts', ['export const PIE_PAD_ANGLE = 5;', 'STABLE_TOOLTIP_EMPHASIS', 'disabled: true', 'appendToBody: false', 'confine: true']);
+requireText('src/components/charts/chartOptions.ts', [
+  'export const PIE_PAD_ANGLE = 5;', 'STABLE_TOOLTIP_EMPHASIS', 'disabled: true',
+  "className: 'economy-chart-tooltip ui-tooltip-surface'", 'appendToBody: false', 'confine: true',
+]);
 requireText('src/components/charts/resolveEChartsCssColors.ts', [
   'resolveEChartsCssColors', 'resolveCssColorVariables', 'getComputedStyle(container)', 'propertyName?.endsWith', 'resolvedColorCallback',
 ]);
@@ -64,6 +76,7 @@ requireText('src/components/charts/EconomyChart.tsx', [
 ]);
 requireText('src/components/provinces/UsMainlandMap.tsx', [
   '<EconomyChart', "type: 'map'", 'registerEChartsMap', "selectedMode: 'single'", 'onClick={handleMapClick}',
+  'commonTooltip', '...commonTooltip', 'className: `${commonTooltip.className} province-map-tooltip`',
 ]);
 requireText('src/components/charts/PriceSparkline.tsx', [
   '<EconomyChart', "type: 'line'", "type: 'bar'", 'buildMarketChartGeometry', 'data-volume-share', 'STABLE_TOOLTIP_EMPHASIS',
@@ -87,6 +100,7 @@ requireText('docs/UI_DESIGN_SYSTEM.md', [
   'ECharts Geo/Map', 'us-atlas',
   '`PIE_PAD_ANGLE = 5`', '`padAngle: PIE_PAD_ANGLE`', 'STABLE_TOOLTIP_EMPHASIS',
   '不得把 `var(--color-*)` 原样交给 ZRender', '每次 `setOption` 前读取图表容器的浏览器计算样式',
+  '`commonTooltip`', '`.ui-tooltip-surface`',
 ]);
 requireText('docs/MARKET_CHART_LAYOUT_DESIGN.md', ['ECharts SVG', '双 Grid', '稳定 `data-*`']);
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', ['玩家运营图统一使用共享 `EconomyChart`', '人口分析图统一使用共享 `EconomyChart`']);
@@ -96,6 +110,10 @@ requireText('docs/README.md', [
 ]);
 
 forbidText('src/components/charts/PriceSparkline.tsx', ['<svg', '<polyline', '<polygon', '<rect']);
+forbidText('src/components/provinces/UsMainlandMap.tsx', [
+  "className: 'economy-chart-tooltip province-map-tooltip'",
+  "backgroundColor: 'var(--color-surface-raised)'",
+]);
 forbidText('src/utils/assetAllocation.ts', ['CSSProperties', 'allocationStyle', 'conic-gradient']);
 forbidText('src/components/AdminPlayerStatistics.tsx', ['function RatioBar', 'admin-player-statistics__trend-bars']);
 forbidText('src/components/AdminPopulationHealth.tsx', ['function Bar(', 'admin-population-budget-split']);
@@ -107,4 +125,4 @@ if (failures.length) {
   console.error(`ECharts 架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('ECharts 架构验证通过：唯一 EconomyChart、精确依赖、SVG 按需模块、Geo/Map 美国本土州级地图、生命周期、无障碍、市场动态几何、统一 Pie padAngle 及管理员与资产图表均已锁定。');
+console.log('ECharts 架构验证通过：唯一 EconomyChart、统一 commonTooltip 毛玻璃材质、精确依赖、SVG 按需模块、Geo/Map 美国本土州级地图、生命周期、无障碍、市场动态几何、统一 Pie padAngle 及管理员与资产图表均已锁定。');
