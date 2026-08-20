@@ -137,7 +137,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 一级业务页面作为 Host 的基础内容层继续承载原页面 `PageLayout` 固定标题和页面自己的正文 `ScrollArea`；业务页面之间切换只替换基础内容并保持同一个 `.mobile-detail-sheet` DOM。工厂详情、研发详情与市场自动交易设置继续使用 `MobileWorkspaceDetailSheet` API，但该组件只能把详情正文和可选固定底栏 Portal 到 Host 预留的详情槽位，不得创建第二个 Sheet DOM。打开详情时在同一根 Sheet 内把基础页面设为 `inert` 并显示详情内容层；关闭详情、点击遮罩、按 `Escape` 或有效向下拖动只收起当前详情层并恢复原页面与触发焦点，根 Sheet 不卸载。仅当不存在详情层时，关闭页面、点击遮罩、按 `Escape` 或正文已到顶部的有效向下拖动才收起整个根 Sheet并进入 `map`。
 
-`MobileWorkspaceSheetHost` 是唯一允许调用 `useMobileWorkspaceSheetDrag`、`useWorkspaceDialogLayer`、创建根遮罩和实施页面滚动锁／焦点陷阱的组件；`MobileWorkspacePageSheet` 只是零 DOM 兼容适配器，`MobileWorkspaceDetailSheet` 只是内容注册器。普通 Tooltip、通知 Popover 与不应覆盖应用 Chrome 的业务浮层继续使用 `.workspace-floating-layer`；来自唯一根 Sheet 内的富下拉可以继续以 `.workspace-dialog-layer` 作为安全定位边界并位于 Sheet 之上。任何业务页、工厂详情、研发详情或自动交易设置都不得创建嵌套 `.mobile-detail-sheet`、第二个 backdrop、第二个根级 Portal 或平行拖动状态机。
+`MobileWorkspaceSheetHost` 是唯一允许调用 `useMobileWorkspaceSheetDrag`、`useWorkspaceDialogLayer`、创建根遮罩和实施页面滚动锁／焦点陷阱的组件；`MobileWorkspacePageSheet` 只是零 DOM 兼容适配器，`MobileWorkspaceDetailSheet` 只是内容注册器。普通 Tooltip、通知 Popover 与不应覆盖应用 Chrome 的业务浮层继续使用 `.workspace-floating-layer`；来自唯一根 Sheet 内的富下拉可以继续以 `.workspace-dialog-layer` 作为安全定位边界并位于 Sheet 之上。任何业务页、工厂详情、研发详情或自动交易设置都不得创建嵌套 `.mobile-detail-sheet`、第二个 backdrop、第二个根级 Portal 或平行拖动状态机。市场自动交易详情继续复用统一商品选择器、采购／出售页签和既有仓库表单信息层级，并把原子保存动作放在唯一 Host 的固定底栏。
 
 ### 3.2 输入方式与共享交互状态
 

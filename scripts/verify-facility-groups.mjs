@@ -28,6 +28,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/styles/facility-group-card-grid.css',
   'src/styles/mobile-detail-sheet.css',
   'src/components/ui/MobileWorkspaceDetailSheet.tsx',
+  'src/components/ui/MobileWorkspaceSheetHost.tsx',
   'src/components/ui/MobileDetailSummary.tsx',
   'src/styles/production-surface.css',
   'src/styles/unified-market-admin.css',
@@ -260,10 +261,13 @@ for (const forbidden of ['.facility-detail-sheet-close', '88dvh', '.research-det
 for (const text of [
   'useLayoutEffect',
   "window.visualViewport?.height ?? window.innerHeight",
-  "sheet?.focus({ preventScroll: true });",
-  "returnFocusRef.current?.focus({ preventScroll: true })",
+  "root.focus({ preventScroll: true });",
+  "previousDetail.controllerRef.current.returnFocusRef.current?.focus({ preventScroll: true })",
+]) requireText('src/components/ui/MobileWorkspaceSheetHost.tsx', text);
+for (const text of [
   'const onCloseRef = useRef(onClose);',
   'onCloseRef.current();',
+  'createPortal(children, host.detailContentLayer)',
 ]) requireText('src/components/ui/MobileWorkspaceDetailSheet.tsx', text);
 requireText('src/components/ui/MobileDetailSummary.tsx', 'export function MobileDetailSummary');
 for (const forbidden of [
