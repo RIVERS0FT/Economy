@@ -2,7 +2,7 @@
 
 > 状态：当前客户端倒计时、到期刷新与服务器确认基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-13
+> 更新时间：2026-08-20
 
 ## 1. 唯一职责
 
@@ -105,7 +105,7 @@
 - 市场下单的价格与数量草稿必须留在 `MarketOrderEntry` 局部状态；根 `GameViewModel` 的 `orderPrice`／`orderQuantity` 只负责首次进入市场、重新进入市场、主动切换资产或主动切换方向时提供初始化种子。正常键入、步进按钮、快捷数量和订单簿点击填价不得更新根模型或触发 `GameApp`、状态栏及市场页其他静态区域的 React 提交。
 - 根级 `derived` 只能按真实数据引用分组重算：自有开放订单依赖 `orders`，排行摘要依赖 `leaderboard`，工厂状态计数依赖 `facilityGroups`，资产摘要依赖 `assetSummary`；完整 `EconomyState` 因无关分区变化而更换对象时不得重新扫描这些未变化集合。
 - 状态栏五项资产数据必须使用稳定 `statusItems` 引用；页面本地交互、通知面板或其他不改变状态栏显示值的更新不得仅因数组或导航回调重新创建而触发移动数值宽度测量。现有单一 `ResizeObserver + requestAnimationFrame` 几何适配继续保留。
-- 根级游戏控制器只允许持有稳定的只读权威状态视图；六分区中任意业务分区替换时不得仅因为完整 `EconomyState` 被重新组合就改变该根视图对象身份或强制 `GameApp` React 提交。状态字段读取必须始终解析到当前最新权威快照，写入或删除该视图必须失败。
+- 根级游戏控制器的就绪订阅可以保持稳定，六分区中任意业务分区替换时不得仅因为完整 `EconomyState` 被重新组合就强制 `GameApp` React 提交；但每次实际 React render 必须绑定一个已经通过状态交付完整性校验的普通 `EconomyState` 快照对象。同一次 render 内对 `userId`、`provinces`、`products`、`facilityTypes` 等字段的读取不得因全局 authority 的 reset 或 replace 突然变成另一份状态或 `undefined`。`useGameAuthorityState()` 不得把会实时转发到全局 store 的 Proxy 作为 render 状态返回值。
 - 页面和外壳必须声明自己消费的状态分区，并通过 `useGameAuthorityPartitions` 或单分区订阅只在这些分区引用变化时重新渲染；未声明分区变化不得通知该消费边界。当前页面分区固定为：概览 `catalog + player + market`，市场 `catalog + player + market`，生产 `catalog + player + market + contract`，研发 `catalog + player`，拍卖 `catalog + player + auction`，合同 `catalog + player + market + contract`，银行 `catalog + player`，排行榜 `catalog + player + leaderboard`，商店与设置均为 `catalog + player`。
 - 外壳数据必须继续分区隔离：状态栏与桌面玩家身份只订阅 `player + leaderboard`；导航角标只订阅 `player + market + auction + contract + leaderboard`；通知待处理项只订阅 `catalog + player + auction + contract`；权威倒计时协调器只订阅当前截止时间来源所需的 `catalog + player + auction + contract + leaderboard`。纯 `market` 变化不得重新计算状态栏，纯 `leaderboard` 变化不得提交建筑页，纯 `auction` 变化不得提交市场页。
 - 在线自动交易属于常驻客户端行为，必须通过非 React 的 `catalog + player + market + contract` 分区事件触发维护判断；仅在确实开始或结束自动交易维护动作时才允许更新其 React busy 状态。经营成长线的生产完成检测必须通过 `player` 分区事件检查当前设施累计产量，不得依赖根应用跟随每次玩家分区更新重渲染。
@@ -165,11 +165,12 @@ HTTP 2xx、3xx 或除 408、429 之外的明确 4xx 响应表示本次网络结�
 - 让根级派生数据重新只依赖完整 `game` 对象并在任意分区变化时重复扫描订单、排行榜和工厂组；
 - 为未变化的状态栏显示值重复创建 `statusItems` 并触发移动端宽度适配测量；
 - 让根游戏控制器重新直接订阅每次重组后的完整 `EconomyState` 对象身份，使任一业务分区变化都提交 `GameApp`；
+- 让 `useGameAuthorityState()` 把实时转发全局 store 的 Proxy 作为一次 React render 的状态对象，使 authority reset／replace 能在同一次 render 中把原本合法的 `provinces`、`products` 或其他字段变成 `undefined`；
 - 让页面、状态栏、导航角标、通知中心或权威倒计时绕过声明的分区边界读取全局变更通知；
 - 让纯 `auction`、`contract` 或 `leaderboard` 更新重新提交与其无关的市场或建筑页面；
 - 让在线自动交易或成长线生产完成检测重新依赖根应用因权威状态变化而重渲染才能运行。
 
-`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`，锁定注册表、共享单调服务器时钟、应用外壳协调、请求超时、权威刷新模式、后台恢复、串行每秒确认、研发确认文案、工作冷却例外、拍卖等待结算文案、完整分区替换、稳定分区时间字段、即时建设无倒计时边界和本文档规则。经济写请求的同键确认重试、待确认 key 保留和应用入口安装同时由 `scripts/verify-market-action-latency.mjs` 防回退；新增的客户端状态接受性能边界由 `scripts/verify-client-response-performance.mjs` 继续锁定。
+`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`，锁定注册表、共享单调服务器时钟、应用外壳协调、请求超时、权威刷新模式、后台恢复、串行每秒确认、研发确认文案、工作冷却例外、拍卖等待结算文案、完整分区替换、稳定分区时间字段、即时建设无倒计时边界和本文档规则。经济写请求的同键确认重试、待确认 key 保留和应用入口安装同时由 `scripts/verify-market-action-latency.mjs` 防回退；新增的客户端状态接受性能边界由 `scripts/verify-client-response-performance.mjs` 与 `server/test/game-authority-render-snapshot.test.js` 继续锁定。
 
 ## 合同领域截止时间
 
@@ -189,8 +190,8 @@ HTTP 2xx、3xx 或除 408、429 之外的明确 4xx 响应表示本次网络结�
 
 `sliceRevisions` 不是 `EconomyState`、不是世界状态，也不改变外层分区完整快照语义。服务器仍在父分区变化时返回完整 `player` 或 `market` 快照；客户端只有在同名子修订与上一份完全相同时，才允许把该子切片对应的顶层字段引用替换回旧引用，以减少 React 与派生索引失效。子修订变化时必须完整接受服务器新字段，包括字段删除；不得用结构共享复活服务器已经删除的字段。旧服务器缺少 `sliceRevisions` 时必须退化为父分区整体变化并清除陈旧子修订 token，不能漏掉 React 更新。
 
-页面与外壳可以通过 `useGameAuthorityDependencies` 同时声明外层分区或子切片。纯银行变化不得提交市场页，纯行情变化不得通知 `market.orders` 消费者，纯订单变化不得通知 `market.quotes` / `market.calendar` 消费者；根 `GameApp` 继续保持稳定只读权威视图。
+页面与外壳可以通过 `useGameAuthorityDependencies` 同时声明外层分区或子切片。纯银行变化不得提交市场页，纯行情变化不得通知 `market.orders` 消费者，纯订单变化不得通知 `market.quotes` / `market.calendar` 消费者；根 `GameApp` 的就绪订阅继续保持低频稳定，但每次实际 render 必须读取一个当前已接受且在该 render 生命周期内不会改变字段来源的 `EconomyState` 快照。
 
 所有默认 1 秒可见时间刷新必须共享同一秒级 ticker；不得为每个 `useNow` 调用分别创建 `setInterval`。页面根组件不得订阅默认 1 秒 ticker：工作冷却、生产进度、研发倒计时、拍卖剩余时间、银行期限、商店报价倒计时和经济事件倒计时应下沉到最小可见叶子或独立动态区块。确实不需要秒级精度的根级判断可以使用至少 10 秒或 60 秒的共享慢速 ticker，但不能因此降低原本需要秒级显示的倒计时精度。
 
-浏览器回归必须同时证明：子切片 patch 只提交声明该依赖的 React 消费者；共享秒级 ticker 连续运行时父组件 render count 保持不变、时间叶子正常更新。
+浏览器回归必须同时证明：子切片 patch 只提交声明该依赖的 React 消费者；共享秒级 ticker 连续运行时父组件 render count 保持不变、时间叶子正常更新；根权威状态在一次 render 中绑定同一个已接受快照，不允许 authority reset／replace 通过实时 Proxy 撕裂字段读取。
