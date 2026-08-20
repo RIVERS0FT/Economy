@@ -250,7 +250,7 @@ for (const text of [
   'data-province-count={provinces.length}',
   'data-map-feature-count={usMainlandGeoJson.features.length}',
   'data-map-lens={lens}',
-}) assert.ok(mapComponent.includes(text), `ECharts 美国本土地图缺少: ${text}`);
+]) assert.ok(mapComponent.includes(text), `ECharts 美国本土地图缺少: ${text}`);
 assert.equal(mapComponent.includes("var(--color-surface-muted)"), false, '地图不得引用未定义的 color-surface-muted');
 assert.equal(mapComponent.includes('data: data.map((datum)'), false, '移动地图不得批量覆盖全部州标签为隐藏');
 for (const forbidden of [
