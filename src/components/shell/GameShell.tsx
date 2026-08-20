@@ -69,6 +69,9 @@ export function GameShell({ model, children, offline = false }: {
   const observedTabRef = useRef<TabId>(model.tab);
   const skipNextHistoryRef = useRef(false);
   const mobilePageCloseRef = useRef<MobileWorkspaceSheetRequestClose | null>(null);
+  const mobileSheetOpen = model.tab !== 'map';
+  const previousMobileSheetOpenRef = useRef(mobileSheetOpen);
+  const [mobileNavigationReturning, setMobileNavigationReturning] = useState(false);
   const [canGoBack, setCanGoBack] = useState(false);
   const [qqGroupUrl, setQqGroupUrl] = useState(DEFAULT_QQ_GROUP_URL);
   const { badges, auctionNewIds } = useNavigationBadges(model);
@@ -157,6 +160,20 @@ export function GameShell({ model, children, offline = false }: {
   }, [model.tab, notificationCenter.closePanel]);
 
   useEffect(() => {
+    const wasOpen = previousMobileSheetOpenRef.current;
+    previousMobileSheetOpenRef.current = mobileSheetOpen;
+    if (mobileSheetOpen) {
+      setMobileNavigationReturning(false);
+      return;
+    }
+    if (!wasOpen) return;
+    const shouldAnimate = typeof window !== 'undefined'
+      && window.matchMedia('(max-width: 720px)').matches
+      && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setMobileNavigationReturning(shouldAnimate);
+  }, [mobileSheetOpen]);
+
+  useEffect(() => {
     const previousTab = observedTabRef.current;
     if (previousTab === model.tab) return;
     if (skipNextHistoryRef.current) {
@@ -242,10 +259,12 @@ export function GameShell({ model, children, offline = false }: {
                 />
               )}
             />
-            <NotificationToasts
-              toasts={notificationCenter.toasts}
-              onOpen={notificationCenter.openPanel}
-            />
+            {notificationCenter.panelOpen ? null : (
+              <NotificationToasts
+                toasts={notificationCenter.toasts}
+                onOpen={notificationCenter.openPanel}
+              />
+            )}
             <NotificationCenterPanel
               open={notificationCenter.panelOpen}
               pendingItems={notificationCenter.pendingItems}
@@ -263,6 +282,9 @@ export function GameShell({ model, children, offline = false }: {
               activeTab={model.tab}
               badges={badges}
               onSelect={selectMobileTab}
+              workspaceSheetOpen={mobileSheetOpen}
+              returning={mobileNavigationReturning}
+              onReturnAnimationEnd={() => setMobileNavigationReturning(false)}
             />
           </>
         )}
