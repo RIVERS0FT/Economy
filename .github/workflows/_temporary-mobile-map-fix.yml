@@ -27,13 +27,14 @@ jobs:
 
       - name: Apply deterministic patch
         run: |
+          python3 scripts/_temporary_fix_mobile_map_patch.py
           python3 -m py_compile scripts/_temporary_apply_mobile_map_fix.py
           python3 scripts/_temporary_apply_mobile_map_fix.py
           git diff --check
 
       - name: Remove temporary patch machinery
         run: |
-          git rm .github/workflows/_temporary-mobile-map-fix.yml scripts/_temporary_apply_mobile_map_fix.py
+          git rm .github/workflows/_temporary-mobile-map-fix.yml scripts/_temporary_apply_mobile_map_fix.py scripts/_temporary_fix_mobile_map_patch.py
           git diff --check
 
       - name: Commit patched sources
