@@ -121,7 +121,10 @@ test.describe('signed-in game four-layer scene stack', () => {
     await expect(page.locator('.application-image-layer')).toBeVisible();
     await expect(page.locator('.application-atmosphere-layer')).toBeVisible();
     await expect(page.locator('.asset-bar')).toBeVisible();
-    await expect(page.locator('.mobile-bottom-navigation')).toBeVisible();
+    const navigation = page.locator('.mobile-bottom-navigation');
+    await expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'true');
+    await expect(navigation).toHaveAttribute('aria-hidden', 'true');
+    await expect(navigation).toBeHidden();
 
     const layout = await page.evaluate(() => {
       const shell = document.querySelector<HTMLElement>('.game-shell');
@@ -184,7 +187,7 @@ test.describe('signed-in game four-layer scene stack', () => {
     expect(layout.pageZ).toBe('1');
     expect(layout.strategicChromeZ).toBe('auto');
     expect(layout.floatingLayerZ).toBe('4');
-    expect(layout.chromeZ).toBe('auto');
+    expect(layout.chromeZ).toBe('3001');
     expect(layout.workspaceIsolation).toBe('auto');
     expect(layout.mapIsolation).toBe('auto');
     expect(layout.uiIsolation).toBe('auto');
