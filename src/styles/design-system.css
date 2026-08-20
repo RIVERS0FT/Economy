@@ -40,6 +40,10 @@
   --color-danger-soft: rgba(196, 66, 55, 0.14);
   --color-info: #75c9ff;
   --color-info-soft: rgba(117, 201, 255, 0.08);
+  --color-map-region-default: rgba(44, 73, 59, 0.82);
+  --color-map-region-locked: rgba(34, 54, 46, 0.76);
+  --color-map-region-border: rgba(212, 245, 224, 0.34);
+  --color-map-label: #d7e2dc;
   --color-accent-violet: #b9a0ff;
   --color-on-primary: #06140c;
   --color-on-danger: #ffe8e4;

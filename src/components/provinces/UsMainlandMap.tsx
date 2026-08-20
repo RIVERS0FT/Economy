@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { feature } from 'topojson-client';
 import usStateAtlas from 'us-atlas/states-10m.json';
 import regionCatalog from '../../../shared/provinces.json';
@@ -6,6 +6,7 @@ import type { ProvinceAssetSummary, ProvinceDefinition } from '../../types';
 import { formatNumber } from '../../utils/formatters';
 import {
   EconomyChart,
+  type EconomyChartCanvasClickEvent,
   type EconomyChartClickEvent,
   type EconomyChartDoubleClickEvent,
 } from '../charts/EconomyChart';
@@ -18,6 +19,8 @@ import {
 const US_MAINLAND_MAP_NAME = 'economy-us-mainland-states';
 const US_MAINLAND_ASPECT_SCALE = 0.75;
 const MAP_CONTAIN_INSET = 0.96;
+const MOBILE_BLANK_DOUBLE_TAP_MS = 360;
+const MOBILE_BLANK_DOUBLE_TAP_DISTANCE = 28;
 const HOVER_LABEL_STATE_CODES = new Set([
   'CT',
   'DE',
@@ -157,20 +160,20 @@ function datumFor(
         ? blockedFacilityCount
         : storedQuantity + facilityCount;
   const areaColor = locked
-    ? 'var(--color-surface-muted)'
+    ? 'var(--color-map-region-locked)'
     : lens === 'political'
-    ? 'var(--color-surface-soft)'
+    ? 'var(--color-map-region-default)'
     : lens === 'industry'
-      ? facilityCount > 0 ? 'var(--color-success-soft)' : 'var(--color-surface-soft)'
+      ? facilityCount > 0 ? 'var(--color-success-soft)' : 'var(--color-map-region-default)'
       : lens === 'market'
-        ? openOrderCount > 0 ? 'var(--color-warning-soft)' : 'var(--color-surface-soft)'
+        ? openOrderCount > 0 ? 'var(--color-warning-soft)' : 'var(--color-map-region-default)'
         : lens === 'alerts'
-          ? blockedFacilityCount > 0 ? 'var(--color-danger-soft)' : 'var(--color-surface-soft)'
+          ? blockedFacilityCount > 0 ? 'var(--color-danger-soft)' : 'var(--color-map-region-default)'
           : blockedFacilityCount > 0
             ? 'var(--color-danger-soft)'
             : hasAssets
               ? 'var(--color-success-soft)'
-              : 'var(--color-surface-soft)';
+              : 'var(--color-map-region-default)';
   return {
     name: province.shortName,
     value,
@@ -232,6 +235,7 @@ export function UsMainlandMap({
   const data = useMemo(() => provinces.map((province) => (
     datumFor(province, summaries[province.id], lens, !unlockedSet.has(province.id))
   )), [lens, provinces, summaries, unlockedSet]);
+  const lastBlankTapRef = useRef<{ at: number; x: number; y: number } | null>(null);
   const applyContainCamera = useCallback((chart: EChartsType) => {
     const width = chart.getWidth();
     const height = chart.getHeight();
@@ -273,6 +277,7 @@ export function UsMainlandMap({
       selectedMode: 'single',
       selectedMap,
       roam: true,
+      roamTrigger: 'global',
       scaleLimit: { min: 1, max: 8 },
       aspectScale: US_MAINLAND_ASPECT_SCALE,
       labelLayout: {
@@ -280,7 +285,7 @@ export function UsMainlandMap({
       },
       label: {
         show: true,
-        color: 'var(--color-text-secondary)',
+        color: 'var(--color-map-label)',
         fontFamily: 'inherit',
         fontSize: 10,
         formatter: (params: unknown) => {
@@ -288,8 +293,8 @@ export function UsMainlandMap({
         },
       },
       itemStyle: {
-        areaColor: 'var(--color-surface-soft)',
-        borderColor: 'var(--color-border-strong)',
+        areaColor: 'var(--color-map-region-default)',
+        borderColor: 'var(--color-map-region-border)',
         borderWidth: 1,
       },
       emphasis: {
@@ -324,13 +329,11 @@ export function UsMainlandMap({
       },
       option: {
         series: [{
+          id: 'us-mainland-map',
           label: {
-            show: false,
+            show: true,
+            fontSize: 8,
           },
-          data: data.map((datum) => ({
-            ...datum,
-            label: { show: false },
-          })),
         }],
       },
     }],
@@ -342,16 +345,43 @@ export function UsMainlandMap({
     if (provinceId) onSelectProvince(provinceId);
   };
 
+  const handleMapCanvasClick = useCallback((
+    event: EconomyChartCanvasClickEvent,
+    chart: EChartsType,
+  ) => {
+    if (event.target) {
+      lastBlankTapRef.current = null;
+      return;
+    }
+    const pointerType = String(event.event?.pointerType || '');
+    const nativeType = String(event.event?.type || '');
+    if (pointerType !== 'touch' && !nativeType.startsWith('touch')) return;
+    const x = Number(event.offsetX);
+    const y = Number(event.offsetY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    const rawTime = Number(event.event?.timeStamp);
+    const at = Number.isFinite(rawTime) && rawTime > 0 ? rawTime : performance.now();
+    const previous = lastBlankTapRef.current;
+    lastBlankTapRef.current = { at, x, y };
+    if (!previous) return;
+    const elapsed = at - previous.at;
+    const distance = Math.hypot(x - previous.x, y - previous.y);
+    if (elapsed < 0 || elapsed > MOBILE_BLANK_DOUBLE_TAP_MS || distance > MOBILE_BLANK_DOUBLE_TAP_DISTANCE) return;
+    lastBlankTapRef.current = null;
+    applyContainCamera(chart);
+    chart.getDom().dataset.mapCameraReset = 'blank-double-tap';
+  }, [applyContainCamera]);
+
   const handleMapDoubleClick = useCallback((
     event: EconomyChartDoubleClickEvent,
     chart: EChartsType,
   ) => {
-    if (event.target) return;
+    if (event.target || event.event?.pointerType === 'touch') return;
     applyContainCamera(chart);
     chart.getDom().dataset.mapCameraReset = 'blank-double-click';
   }, [applyContainCamera]);
 
-  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}点击州面可以打开对应州页面，双击地图空白可以重置缩放和平移。`;
+  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}点击州面可以打开对应州页面，拖动地图空白可以平移，双击或双触地图空白可以重置缩放和平移。`;
   return (
     <div
       className="province-map-chart"
@@ -370,6 +400,7 @@ export function UsMainlandMap({
         onChartReady={applyContainCamera}
         onResize={applyContainCamera}
         onClick={handleMapClick}
+        onCanvasClick={handleMapCanvasClick}
         onDoubleClick={handleMapDoubleClick}
       />
     </div>
