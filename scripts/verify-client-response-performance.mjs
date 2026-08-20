@@ -197,11 +197,15 @@ requireText('src/app/stateDelivery.js', [
   'delete nextSliceRevisions[sliceName]',
 ]);
 requireText('src/app/gameAuthorityStore.ts', [
-  'AUTHORITY_STATE_VIEW',
   'readGameAuthorityState',
+  'useAuthorityRenderSnapshot',
   'useGameAuthorityDependencies',
   'getStateAuthoritySliceRevision',
   'parentPartitionForSlice',
+]);
+forbidText('src/app/gameAuthorityStore.ts', [
+  'new Proxy',
+  'AUTHORITY_STATE_VIEW',
 ]);
 requireText('src/pages/PageRouter.tsx', [
   'PAGE_AUTHORITY_DEPENDENCIES',
@@ -300,4 +304,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('客户端响应性能防回退验证通过：六分区外层协议、player/market 子修订结构共享、子切片 React 隔离、共享秒级叶子时钟和客户端订单索引均已锁定。');
+console.log('客户端响应性能防回退验证通过：六分区外层协议、player/market 子修订结构共享、React render 快照一致性、子切片隔离、共享秒级叶子时钟和客户端订单索引均已锁定。');
