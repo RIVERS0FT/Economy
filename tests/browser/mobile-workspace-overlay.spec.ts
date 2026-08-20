@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('mobile workspace overlay geometry', () => {
-  test('mobile workspace owns the shared gutter and overlay geometry', async ({ page }) => {
+  test('mobile workspace owns the shared gutter while the unified sheet uses factory-detail viewport geometry', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
 
@@ -9,7 +9,7 @@ test.describe('mobile workspace overlay geometry', () => {
     await expect(page.locator('.mobile-chrome-overlay')).toBeVisible();
     await expect(page.locator('.asset-bar')).toBeVisible();
     await expect(page.locator('.mobile-bottom-navigation')).toBeVisible();
-    await expect(page.locator('.mobile-workspace-page-sheet')).toBeVisible();
+    await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')).toBeVisible();
     await expect(page.locator('.overview-check-in-panel')).toBeVisible();
 
     const geometry = await page.evaluate(() => {
@@ -24,14 +24,16 @@ test.describe('mobile workspace overlay geometry', () => {
       const navigationSurface = document.querySelector<HTMLElement>(
         '.mobile-bottom-navigation .frosted-glass-surface',
       );
-      const pageSheet = document.querySelector<HTMLElement>('.mobile-workspace-page-sheet');
+      const sheet = document.querySelector<HTMLElement>(
+        '.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet',
+      );
       const strategicPagePanel = document.querySelector<HTMLElement>(
-        '.mobile-workspace-page-sheet-content > .page-content',
+        '.mobile-workspace-sheet-page-content > .page-content',
       );
       const primaryPanel = document.querySelector<HTMLElement>('.overview-check-in-panel');
       if (!workspace || !pageOverlay || !chromeOverlay || !pageScrollArea || !pageScroll
         || !assetBar || !statusSurface || !navigation || !navigationSurface
-        || !pageSheet || !strategicPagePanel || !primaryPanel) {
+        || !sheet || !strategicPagePanel || !primaryPanel) {
         throw new Error('mobile overlay geometry fixture is incomplete');
       }
 
@@ -53,9 +55,16 @@ test.describe('mobile workspace overlay geometry', () => {
       const navigationStyle = getComputedStyle(navigation);
       const navigationSurfaceStyle = getComputedStyle(navigationSurface);
       const primaryPanelStyle = getComputedStyle(primaryPanel);
-      const pageSheetStyle = getComputedStyle(pageSheet);
+      const sheetStyle = getComputedStyle(sheet);
+      const navigationBox = navigation.getBoundingClientRect();
+      const navigationCovered = Boolean(document.elementFromPoint(
+        navigationBox.left + navigationBox.width / 2,
+        navigationBox.top + navigationBox.height / 2,
+      )?.closest('.mobile-detail-sheet-backdrop'));
 
       return {
+        viewportHeight: document.documentElement.clientHeight,
+        viewportWidth: document.documentElement.clientWidth,
         workspace: rect(workspace),
         pageOverlay: rect(pageOverlay),
         chromeOverlay: rect(chromeOverlay),
@@ -64,7 +73,7 @@ test.describe('mobile workspace overlay geometry', () => {
         statusSurface: rect(statusSurface),
         navigation: rect(navigation),
         navigationSurface: rect(navigationSurface),
-        pageSheet: rect(pageSheet),
+        sheet: rect(sheet),
         strategicPagePanel: rect(strategicPagePanel),
         primaryPanel: rect(primaryPanel),
         workspaceDisplay: workspaceStyle.display,
@@ -72,6 +81,8 @@ test.describe('mobile workspace overlay geometry', () => {
         workspacePaddingRight: Number.parseFloat(workspaceStyle.paddingRight),
         pageScrollPaddingLeft: pageScrollStyle.paddingLeft,
         pageScrollPaddingRight: pageScrollStyle.paddingRight,
+        pageScrollOverflowY: pageScrollStyle.overflowY,
+        modalScrollbarSuppressed: pageScrollArea.dataset.modalScrollbarSuppressed,
         pageScrollHasHorizontalOverflow: pageScroll.scrollWidth > pageScroll.clientWidth + 1,
         chromePointerEvents: chromeStyle.pointerEvents,
         assetPointerEvents: assetStyle.pointerEvents,
@@ -79,9 +90,10 @@ test.describe('mobile workspace overlay geometry', () => {
         navigationPosition: navigationStyle.position,
         navigationRadius: navigationSurfaceStyle.borderTopLeftRadius,
         primaryPanelRadius: primaryPanelStyle.borderTopLeftRadius,
-        pageSheetRadius: pageSheetStyle.borderTopLeftRadius,
-        pageSheetBorderLeft: Number.parseFloat(pageSheetStyle.borderLeftWidth),
-        pageSheetBorderRight: Number.parseFloat(pageSheetStyle.borderRightWidth),
+        sheetRadius: sheetStyle.borderTopLeftRadius,
+        sheetBorderLeft: Number.parseFloat(sheetStyle.borderLeftWidth),
+        sheetBorderRight: Number.parseFloat(sheetStyle.borderRightWidth),
+        navigationCovered,
         pageOverlayOwnsScroll: pageScrollArea.parentElement === pageOverlay,
         chromeOwnsStatus: assetBar.parentElement === chromeOverlay,
         chromeOwnsNavigation: navigation.parentElement === chromeOverlay,
@@ -102,29 +114,34 @@ test.describe('mobile workspace overlay geometry', () => {
       geometry.statusSurface,
       geometry.navigation,
       geometry.navigationSurface,
-      geometry.pageSheet,
     ]) {
       expect(layer.left).toBeCloseTo(contentLeft, 0);
       expect(layer.right).toBeCloseTo(contentRight, 0);
     }
+    expect(geometry.sheet.left).toBeCloseTo(0, 0);
+    expect(geometry.sheet.right).toBeCloseTo(geometry.viewportWidth, 0);
+    expect(geometry.sheet.bottom).toBeCloseTo(geometry.viewportHeight, 0);
+    expect(geometry.sheet.top).toBeGreaterThan(geometry.statusSurface.bottom);
+    expect(geometry.sheet.bottom).toBeGreaterThan(geometry.navigation.top);
+    expect(geometry.navigationCovered).toBe(true);
     expect(geometry.strategicPagePanel.left).toBeCloseTo(
-      geometry.pageSheet.left + geometry.pageSheetBorderLeft,
+      geometry.sheet.left + geometry.sheetBorderLeft,
       0,
     );
     expect(geometry.strategicPagePanel.right).toBeCloseTo(
-      geometry.pageSheet.right - geometry.pageSheetBorderRight,
+      geometry.sheet.right - geometry.sheetBorderRight,
       0,
     );
     expect(geometry.pageScrollPaddingLeft).toBe('0px');
     expect(geometry.pageScrollPaddingRight).toBe('0px');
+    expect(geometry.pageScrollOverflowY).toBe('hidden');
+    expect(geometry.modalScrollbarSuppressed).toBe('true');
     expect(geometry.pageScrollHasHorizontalOverflow).toBe(false);
     expect(geometry.assetBar.height).toBeCloseTo(48, 0);
     expect(geometry.statusSurface.height).toBeCloseTo(48, 0);
     expect(geometry.navigation.height).toBeCloseTo(68, 0);
     expect(geometry.assetBar.height).toBeLessThan(geometry.workspace.height);
-    expect(geometry.pageSheet.top).toBeGreaterThan(geometry.statusSurface.bottom);
-    expect(geometry.pageSheet.bottom).toBeLessThanOrEqual(geometry.navigation.top + 1);
-    expect(geometry.pageSheetRadius).toBe('20px');
+    expect(geometry.sheetRadius).toBe('20px');
     expect(geometry.navigationPosition).toBe('absolute');
     expect(geometry.navigationRadius).toBe(geometry.primaryPanelRadius);
     expect(geometry.navigationRadius).toBe('40px');
@@ -136,28 +153,37 @@ test.describe('mobile workspace overlay geometry', () => {
     expect(geometry.chromeOwnsNavigation).toBe(true);
   });
 
-  test('first-level page sheet closes to the persistent map while mobile chrome stays interactive', async ({ page }) => {
+  test('unified mobile sheet closes to the persistent map and restores navigation access', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
 
-    const pageSheet = page.locator('.mobile-workspace-page-sheet');
+    const sheet = page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet');
     const status = page.locator('.asset-bar');
     const navigation = page.locator('.mobile-bottom-navigation');
     const map = page.getByTestId('us-mainland-map');
-    await expect(pageSheet).toBeVisible();
+    await expect(sheet).toBeVisible();
     await expect(status).toBeVisible();
     await expect(navigation).toBeVisible();
     await expect(map).toBeVisible();
 
     await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
-    await expect(pageSheet).toHaveCount(0);
+    await expect(sheet).toHaveCount(0);
     await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
     await expect(map).toBeVisible();
     await expect(status).toBeVisible();
     await expect(navigation).toBeVisible();
 
+    const navigationIsTopmost = await navigation.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      return Boolean(document.elementFromPoint(
+        box.left + box.width / 2,
+        box.top + box.height / 2,
+      )?.closest('.mobile-bottom-navigation'));
+    });
+    expect(navigationIsTopmost).toBe(true);
+
     await page.getByRole('button', { name: /^概览/ }).click();
-    await expect(page.locator('.mobile-workspace-page-sheet')).toBeVisible();
+    await expect(sheet).toBeVisible();
     await expect(page.locator('.overview-check-in-panel')).toBeVisible();
   });
 
@@ -303,7 +329,7 @@ test.describe('mobile workspace overlay geometry', () => {
     expect(geometry.frostedSurfaceCountAfter).toBe(3);
   });
 
-  test('mobile page scrollbar reaches the safe right edge without changing content width', async ({ page }) => {
+  test('mobile page scrollbar stays on the unified sheet safe right edge without changing content width', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
 
@@ -332,23 +358,31 @@ test.describe('mobile workspace overlay geometry', () => {
         '.page-card-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb',
       );
       const panel = document.querySelector<HTMLElement>('.overview-check-in-panel');
-      const workspace = document.querySelector<HTMLElement>('.workspace');
-      if (!scrollArea || !thumb || !panel || !workspace) throw new Error('mobile scrollbar fixture is incomplete');
+      const sheet = document.querySelector<HTMLElement>('.mobile-workspace-sheet-host');
+      if (!scrollArea || !thumb || !panel || !sheet) throw new Error('mobile scrollbar fixture is incomplete');
       const scrollAreaRect = scrollArea.getBoundingClientRect();
       const thumbRect = thumb.getBoundingClientRect();
-      const workspaceStyle = getComputedStyle(workspace);
+      const sheetRect = sheet.getBoundingClientRect();
+      const sheetStyle = getComputedStyle(sheet);
+      const rootStyle = getComputedStyle(document.documentElement);
       return {
         viewportRight: document.documentElement.clientWidth,
+        sheetRight: sheetRect.right,
+        sheetBorderRight: Number.parseFloat(sheetStyle.borderRightWidth),
         scrollAreaRight: scrollAreaRect.right,
         thumbRight: thumbRect.right,
         panelWidth: panel.getBoundingClientRect().width,
         scrollAreaOverflow: getComputedStyle(scrollArea).overflow,
-        workspaceGutter: Number.parseFloat(workspaceStyle.paddingRight) || 0,
+        edgeOffset: Number.parseFloat(rootStyle.getPropertyValue('--scrollbar-edge-offset')),
       };
     });
 
-    expect(geometry.viewportRight - geometry.thumbRight).toBeCloseTo(2, 0);
-    expect(geometry.viewportRight - geometry.scrollAreaRight).toBeCloseTo(geometry.workspaceGutter + 1, 0);
+    expect(geometry.sheetRight).toBeCloseTo(geometry.viewportRight, 0);
+    expect(geometry.viewportRight - geometry.scrollAreaRight).toBeCloseTo(geometry.sheetBorderRight, 0);
+    expect(geometry.viewportRight - geometry.thumbRight).toBeCloseTo(
+      geometry.sheetBorderRight + geometry.edgeOffset,
+      0,
+    );
     expect(geometry.panelWidth).toBeCloseTo(beforeWidth, 0);
     expect(geometry.scrollAreaOverflow).toBe('visible');
   });
