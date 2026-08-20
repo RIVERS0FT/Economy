@@ -264,7 +264,7 @@ requireText(files.design, [
   '项目不得安装、导入或运行 `liquid-glass-react`',
   '`src/components/ui/FrostedGlassSurface.tsx`',
   '`blur(18px) saturate(128%)`',
-  '`ui-tooltip-surface`',
+  '`.ui-tooltip-surface`',
   '单节点轻量毛玻璃',
   '`721px–960px` 使用与宽屏完全相同',
   '桌面侧栏按钮不得渲染数字角标',
@@ -280,7 +280,7 @@ requireText(files.design, [
 ]);
 requireText(files.uiDesign, [
   '`SafeTooltip`',
-  '`ui-tooltip-surface`',
+  '`.ui-tooltip-surface`',
   '`commonTooltip`',
   '应用内 Tooltip',
   '`src/styles/frosted-glass-surfaces.css`',
