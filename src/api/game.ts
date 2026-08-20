@@ -250,7 +250,6 @@ async function postAction(path: string, body: Record<string, unknown> = {}) {
   } catch (reason) {
     if (claim && reason instanceof GameApiError && reason.code.startsWith('PRODUCTION_SETTLEMENT_')) {
       pendingProductionSettlement = null;
-      return request<GameActionResponse>(path, { method: 'POST', body: JSON.stringify(body) });
     }
     throw reason;
   }
