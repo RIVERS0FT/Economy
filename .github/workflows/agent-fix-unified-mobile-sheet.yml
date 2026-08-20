@@ -6,12 +6,18 @@ on:
       - agent/unified-mobile-sheet-host
     paths:
       - .github/workflows/agent-fix-unified-mobile-sheet.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/agent-fix-unified-mobile-sheet.yml
 
 permissions:
   contents: write
 
 jobs:
   patch:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -84,8 +90,7 @@ jobs:
                   raise SystemExit(f'{path}: missing old direct sheet selector')
               file.write_text(text.replace(old_direct, new_direct), encoding='utf-8', newline='\n')
 
-          nav_path = 'tests/browser/mobile-navigation-scrollbar.spec.ts'
-          replace(nav_path, '''    await inactive.click();
+          replace('tests/browser/mobile-navigation-scrollbar.spec.ts', '''    await inactive.click();
     await expect(inactive).toHaveAttribute('aria-current', 'page');
     await expect(active).not.toHaveAttribute('aria-current', 'page');
 ''', '''    const sheet = page.locator('.mobile-workspace-sheet-host');
@@ -105,8 +110,7 @@ jobs:
     await expect(active).not.toHaveAttribute('aria-current', 'page');
 ''', count=1)
 
-          notification_path = 'tests/browser/notification-center.spec.ts'
-          replace(notification_path, '''    await page.setViewportSize({ width: 390, height: 844 });
+          replace('tests/browser/notification-center.spec.ts', '''    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
     await openNotificationPanel(page);
     await mountMobileIsland(page, 3);
@@ -151,8 +155,7 @@ jobs:
           ]:
               replace(production_path, old, new)
 
-          research_path = 'tests/browser/research-technology-tree.spec.ts'
-          replace(research_path, '''    const dialog = page.getByRole('dialog', { name: '冶金技术研发新技术' });
+          replace('tests/browser/research-technology-tree.spec.ts', '''    const dialog = page.getByRole('dialog', { name: '冶金技术研发新技术' });
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveClass(/mobile-detail-sheet/);
     await expect(dialog).toContainText('研发投入');
@@ -176,8 +179,8 @@ jobs:
     await expect(detailView.locator('.mobile-detail-sheet-footer')).toBeVisible();
 ''', count=1)
 
-          warehouse_path = 'tests/browser/warehouse-auto-sell.spec.ts'
-          replace(warehouse_path, '''    const sheet = page.locator('.mobile-detail-sheet');
+          warehouse = 'tests/browser/warehouse-auto-sell.spec.ts'
+          replace(warehouse, '''    const sheet = page.locator('.mobile-detail-sheet');
     await expect(sheet).toBeVisible();
     await expect(sheet).toContainText('自动交易');
     await expect(sheet).toContainText('设置保存至存档 · 在线维护买单');
@@ -204,7 +207,7 @@ jobs:
     await expect(sheet).toHaveAttribute('data-detail-active', 'false');
     await expect(productCard).toBeFocused();
 ''', count=1)
-          replace(warehouse_path, '''    await expect(warehouse.getByText('自动交易', { exact: true })).toHaveCount(0);
+          replace(warehouse, '''    await expect(warehouse.getByText('自动交易', { exact: true })).toHaveCount(0);
     await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
 ''', '''    await expect(warehouse.getByText('自动交易', { exact: true })).toHaveCount(0);
     const sheet = page.locator('.mobile-workspace-sheet-host');
@@ -216,10 +219,9 @@ jobs:
           verifier = 'scripts/verify-mobile-page-sheet.mjs'
           file = Path(verifier)
           text = file.read_text(encoding='utf-8')
-          text = text.replace(old_direct, new_direct)
-          if text == file.read_text(encoding='utf-8'):
-              raise SystemExit('verify-mobile-page-sheet.mjs: selector replacement did not apply')
-          file.write_text(text, encoding='utf-8', newline='\n')
+          if old_direct not in text:
+              raise SystemExit('verify-mobile-page-sheet.mjs: selector replacement source missing')
+          file.write_text(text.replace(old_direct, new_direct), encoding='utf-8', newline='\n')
           replace(verifier, '''  'className="mobile-detail-sheet mobile-workspace-sheet-host"',
   'data-mobile-workspace-sheet-host="true"',
 ''', '''  'className="mobile-detail-sheet mobile-workspace-sheet-host"',
