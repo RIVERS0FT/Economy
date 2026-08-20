@@ -51,6 +51,39 @@ function partitionNameForKey(key) {
   return 'player';
 }
 
+function validPartitionSnapshot(value) {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function catalogIntegrityIssue(catalog) {
+  if (!validPartitionSnapshot(catalog)) return 'catalog 分区缺失';
+  if (!Number.isInteger(catalog.version)) return 'catalog.version 无效';
+  for (const key of ['products', 'facilityTypes', 'researchLevels', 'provinces']) {
+    if (!Array.isArray(catalog[key])) return `catalog.${key} 不是有效数组`;
+  }
+  if (catalog.products.length === 0) return 'catalog.products 为空';
+  if (catalog.facilityTypes.length === 0) return 'catalog.facilityTypes 为空';
+  if (catalog.researchLevels.length === 0) return 'catalog.researchLevels 为空';
+  if (catalog.provinces.length === 0) return 'catalog.provinces 为空';
+  if (typeof catalog.defaultProvinceId !== 'string' || !catalog.defaultProvinceId) {
+    return 'catalog.defaultProvinceId 缺失';
+  }
+  const hasDefaultProvince = catalog.provinces.some((province) => (
+    validPartitionSnapshot(province) && province.id === catalog.defaultProvinceId
+  ));
+  if (!hasDefaultProvince) return 'catalog.defaultProvinceId 不存在于 catalog.provinces';
+  return '';
+}
+
+export function isValidCatalogPartitionSnapshot(catalog) {
+  return catalogIntegrityIssue(catalog) === '';
+}
+
+function assertValidCatalogPartitionSnapshot(catalog) {
+  const issue = catalogIntegrityIssue(catalog);
+  if (issue) throw new Error(`客户端目录分区不完整：${issue}`);
+}
+
 function digestJson(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('base64url');
 }
@@ -132,7 +165,7 @@ export function createSliceRevisions(partitions, { keyDigests } = {}) {
 export function createPartitionRevisions(partitions, { catalogSnapshot, keyDigests } = {}) {
   const reusableCatalog = Boolean(
     catalogSnapshot?.revision
-    && catalogSnapshot?.partition
+    && isValidCatalogPartitionSnapshot(catalogSnapshot?.partition)
     && Number(catalogSnapshot.version) === Number(partitions.catalog?.version)
   );
   const digests = keyDigests || keyDigestsForPartitions(partitions, { skipCatalog: reusableCatalog });
@@ -147,9 +180,10 @@ export function createPartitionRevisions(partitions, { catalogSnapshot, keyDiges
 
 export function createStatePartitionSnapshot(state, { catalogSnapshot } = {}) {
   const partitions = measureRequestPhase('partitionBuildMs', () => splitClientState(state));
+  assertValidCatalogPartitionSnapshot(partitions.catalog);
   const reusableCatalog = Boolean(
     catalogSnapshot?.revision
-    && catalogSnapshot?.partition
+    && isValidCatalogPartitionSnapshot(catalogSnapshot?.partition)
     && Number(catalogSnapshot.version) === Number(partitions.catalog?.version)
   );
   const keyDigests = keyDigestsForPartitions(partitions, { skipCatalog: reusableCatalog });
@@ -183,7 +217,7 @@ export function readKnownPartitionRevisionsFromHeader(value) {
 export function createPartitionedStateDelivery(snapshot, knownRevisions = {}, serverNow = Date.now()) {
   const responseServerNow = normalizeServerNow(serverNow);
   if (snapshot?.unchanged) return { revision: snapshot.revision, unchanged: true, serverNow: responseServerNow };
-  const prepared = snapshot?.partitions && snapshot?.partitionRevisions
+  let prepared = snapshot?.partitions && snapshot?.partitionRevisions
     ? {
         partitions: snapshot.partitions,
         partitionRevisions: snapshot.partitionRevisions,
@@ -192,7 +226,11 @@ export function createPartitionedStateDelivery(snapshot, knownRevisions = {}, se
     : snapshot?.state
       ? createStatePartitionSnapshot(snapshot.state)
       : null;
+  if (prepared && !isValidCatalogPartitionSnapshot(prepared.partitions?.catalog) && snapshot?.state) {
+    prepared = createStatePartitionSnapshot(snapshot.state);
+  }
   if (!prepared) return { revision: snapshot?.revision, unchanged: true, serverNow: responseServerNow };
+  assertValidCatalogPartitionSnapshot(prepared.partitions?.catalog);
   const { partitions, partitionRevisions, sliceRevisions } = prepared;
   const known = normalizeRevisionRecord(knownRevisions);
   const patches = {};
