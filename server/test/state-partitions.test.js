@@ -21,6 +21,9 @@ function sampleState(overrides = {}) {
     version: CURRENT_CLIENT_STATE_VERSION,
     products: [{ id: 'wheat' }],
     facilityTypes: [{ id: 'farm' }],
+    researchLevels: [{ id: 'C1' }],
+    provinces: [{ id: '110000' }],
+    defaultProvinceId: '110000',
     userId: 1,
     playerName: 'Alice',
     registeredAt: 1,
@@ -68,6 +71,8 @@ test('initial delivery returns all six state partitions without a full state fie
     'auction', 'catalog', 'contract', 'leaderboard', 'market', 'player',
   ]);
   assert.equal(delivery.patches.catalog.products[0].id, 'wheat');
+  assert.equal(delivery.patches.catalog.provinces[0].id, '110000');
+  assert.equal(delivery.patches.catalog.defaultProvinceId, '110000');
   assert.equal(delivery.patches.player.credits, 100);
   assert.equal(delivery.patches.market.markets.wheat.lastPrice, 2);
   assert.equal(delivery.patches.leaderboard.leaderboards.period.key, '2026-07-27');
@@ -78,6 +83,16 @@ test('initial delivery returns all six state partitions without a full state fie
   assert.match(delivery.sliceRevisions['market.quotes'], /^[A-Za-z0-9_-]{8,64}$/);
 });
 
+test('incomplete catalog states are rejected before delivery', () => {
+  assert.throws(
+    () => createStatePartitionSnapshot(sampleState({ provinces: undefined })),
+    /客户端目录分区不完整：catalog\.provinces/,
+  );
+  assert.throws(
+    () => createStatePartitionSnapshot(sampleState({ defaultProvinceId: 'missing' })),
+    /defaultProvinceId 不存在于 catalog\.provinces/,
+  );
+});
 
 test('precomputed partition snapshots bypass state splitting and hashing during delivery', () => {
   const prepared = createStatePartitionSnapshot(sampleState());
@@ -91,6 +106,23 @@ test('precomputed partition snapshots bypass state splitting and hashing during 
   assert.strictEqual(delivery.patches.player, prepared.partitions.player);
   assert.deepEqual(delivery.partitionRevisions, prepared.partitionRevisions);
   assert.deepEqual(delivery.sliceRevisions, prepared.sliceRevisions);
+});
+
+test('invalid precomputed catalog snapshots rebuild from the complete state', () => {
+  const prepared = createStatePartitionSnapshot(sampleState());
+  const invalidCatalog = { ...prepared.partitions.catalog };
+  delete invalidCatalog.provinces;
+  const delivery = createPartitionedStateDelivery({
+    revision: 31,
+    unchanged: false,
+    state: sampleState(),
+    partitions: { ...prepared.partitions, catalog: invalidCatalog },
+    partitionRevisions: prepared.partitionRevisions,
+    sliceRevisions: prepared.sliceRevisions,
+  });
+
+  assert.equal(delivery.patches.catalog.provinces[0].id, '110000');
+  assert.equal(delivery.patches.catalog.defaultProvinceId, '110000');
 });
 
 test('catalog snapshots reuse one static partition and revision across player projections', () => {
@@ -107,6 +139,22 @@ test('catalog snapshots reuse one static partition and revision across player pr
   assert.notEqual(second.partitionRevisions.player, first.partitionRevisions.player);
   assert.notEqual(second.sliceRevisions['player.identity'], first.sliceRevisions['player.identity']);
   assert.equal(second.sliceRevisions['player.assets'], first.sliceRevisions['player.assets']);
+});
+
+test('invalid cached catalog snapshots are never reused', () => {
+  const first = createStatePartitionSnapshot(sampleState());
+  const invalidCatalog = { ...first.partitions.catalog };
+  delete invalidCatalog.provinces;
+  const second = createStatePartitionSnapshot(sampleState({ userId: 2, playerName: 'Bob' }), {
+    catalogSnapshot: {
+      version: first.partitions.catalog.version,
+      partition: invalidCatalog,
+      revision: first.partitionRevisions.catalog,
+    },
+  });
+
+  assert.notStrictEqual(second.partitions.catalog, invalidCatalog);
+  assert.equal(second.partitions.catalog.provinces[0].id, '110000');
 });
 
 test('known partition revisions suppress unchanged partitions and isolate player slices', () => {

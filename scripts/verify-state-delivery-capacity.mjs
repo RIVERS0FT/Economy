@@ -32,6 +32,8 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '每个返回的 `patches[name]` 都是该分区的完整快照',
   '整块替换同名缓存分区',
   '字段缺失即代表该字段已经被服务器删除',
+  '`catalog` 的必需目录字段必须在完整快照中同时存在',
+  '客户端必须拒绝发布该坏状态并清空本地分区修订缓存，只允许自动执行一次无条件完整状态重拉',
   '普通玩家权威动作响应固定为 `{ result: { ok, message }, revision }`',
   '不得携带订单 ID、兑换数量、结算金额或其他动作内部字段',
   '动作事务和 `economy_idempotency.response_json` 只生成并保存这份精简确认',
@@ -154,6 +156,9 @@ requireText('server/src/state-partitions.js', [
   "'contract'",
   "'leaderboard'",
   "createHash('sha256')",
+  'isValidCatalogPartitionSnapshot',
+  'catalog.defaultProvinceId 不存在于 catalog.provinces',
+  'prepared && !isValidCatalogPartitionSnapshot',
   'createPartitionedStateDelivery(snapshot, knownRevisions = {}, serverNow = Date.now())',
   'serverNow: responseServerNow',
   'createPartitionedActionDelivery',
@@ -179,12 +184,17 @@ requireText('server/src/index.js', ["import './app.js'"]);
 requireText('src/app/stateDelivery.d.ts', [
   'serverNow: number;',
   'StateDeliveryEnvelope',
+  'StateDeliveryIntegrityError',
   "'contract'",
 ]);
 
 requireText('src/app/stateDelivery.js', [
   'STATE_PARTITION_NAMES',
   "'contract'",
+  'StateDeliveryIntegrityError',
+  'catalogIntegrityIssue',
+  'catalog.provinces',
+  'nextPartitionRevisions',
   'validPartitionSnapshot',
   'mergeStatePatches',
   'partitions[name] = { ...patch }',
@@ -205,6 +215,9 @@ requireText('src/utils/serverClock.js', [
 
 requireText('src/api/game.ts', [
   'GameStatePollResponse',
+  'StateDeliveryIntegrityError',
+  'fetchGameStateWithRecovery',
+  '服务器状态同步异常',
   'export interface GameActionResponse {',
   'result: GameActionResult;',
   'revision: number;',
@@ -281,7 +294,14 @@ const initialDelivery = deliveryCache.accept({
     leaderboard: 'leader-00001',
   },
   patches: {
-    catalog: { version: CURRENT_CLIENT_STATE_VERSION, products: [], facilityTypes: [] },
+    catalog: {
+      version: CURRENT_CLIENT_STATE_VERSION,
+      products: [{ id: 'wheat' }],
+      facilityTypes: [{ id: 'farm' }],
+      researchLevels: [{ id: 'C1' }],
+      provinces: [{ id: '110000' }],
+      defaultProvinceId: '110000',
+    },
     player: {
       userId: 1,
       credits: 100,
@@ -359,6 +379,8 @@ const staleDelivery = deliveryCache.accept({
   },
 });
 if (initialDelivery.state?.credits !== 100
+  || initialDelivery.state?.provinces?.[0]?.id !== '110000'
+  || initialDelivery.state?.defaultProvinceId !== '110000'
   || initialDelivery.state?.facilityGroups?.[0]?.count !== 11
   || !initialDelivery.state?.facilityConstruction
   || incrementalDelivery.state?.credits !== 101
@@ -376,6 +398,46 @@ if (initialDelivery.state?.credits !== 100
   || deliveryCache.getPartitionRevisions().auction !== 'auction-0002'
   || deliveryCache.getPartitionRevisions().contract !== 'contract-0002') {
   failures.push('客户端必须整块替换变化分区、删除服务器已省略字段、保留未变化分区，并拒绝旧全局修订号覆盖当前状态');
+}
+
+const integrityCache = createStateDeliveryCache();
+let rejectedIncompleteCatalog = false;
+try {
+  integrityCache.accept({
+    revision: 1,
+    unchanged: false,
+    serverNow: 10_000,
+    partitionRevisions: {
+      catalog: 'catalog-bad01',
+      player: 'player-bad01',
+      market: 'market-bad01',
+      auction: 'auction-bad1',
+      contract: 'contract-bad1',
+      leaderboard: 'leader-bad01',
+    },
+    patches: {
+      catalog: {
+        version: CURRENT_CLIENT_STATE_VERSION,
+        products: [{ id: 'wheat' }],
+        facilityTypes: [{ id: 'farm' }],
+        researchLevels: [{ id: 'C1' }],
+        defaultProvinceId: '110000',
+      },
+      player: { userId: 1 },
+      market: {},
+      auction: {},
+      contract: {},
+      leaderboard: {},
+    },
+  });
+} catch (reason) {
+  rejectedIncompleteCatalog = reason?.name === 'StateDeliveryIntegrityError';
+}
+if (!rejectedIncompleteCatalog
+  || integrityCache.getSnapshot().revision !== null
+  || integrityCache.getSnapshot().state !== null
+  || Object.keys(integrityCache.getPartitionRevisions()).length !== 0) {
+  failures.push('客户端必须在发布权威状态前拒绝不完整 catalog，且失败接受不得污染修订号或分区缓存');
 }
 
 let monotonicNow = 1_000;
@@ -421,4 +483,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('状态交付容量验证通过：世界缓存、单一全局调度、六分区增量交付与完整快照替换、独立 serverNow、共享单调服务器时钟、动作精简确认与确认后分区补拉、修订号门禁、可抢占刷新任务、5 秒默认间隔和 JSON gzip 均已锁定。');
+console.log('状态交付容量验证通过：世界缓存、单一全局调度、六分区增量交付与完整快照替换、catalog 完整性门禁与单次全量恢复、独立 serverNow、共享单调服务器时钟、动作精简确认与确认后分区补拉、修订号门禁、可抢占刷新任务、5 秒默认间隔和 JSON gzip 均已锁定。');
