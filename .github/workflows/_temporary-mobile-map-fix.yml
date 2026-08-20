@@ -34,7 +34,8 @@ jobs:
 
       - name: Remove temporary patch machinery
         run: |
-          git rm .github/workflows/_temporary-mobile-map-fix.yml scripts/_temporary_apply_mobile_map_fix.py scripts/_temporary_fix_mobile_map_patch.py
+          rm -rf scripts/__pycache__
+          git rm -f .github/workflows/_temporary-mobile-map-fix.yml scripts/_temporary_apply_mobile_map_fix.py scripts/_temporary_fix_mobile_map_patch.py
           git diff --check
 
       - name: Commit patched sources
