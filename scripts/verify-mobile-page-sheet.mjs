@@ -69,6 +69,10 @@ requireAll('src/components/ui/MobileWorkspaceSheetHost.tsx', [
   'data-page-key={pageKey}',
   'role="dialog"',
   'aria-modal="true"',
+  'onPointerDown={handlePointerDown}',
+  'onTouchStart={handleTouchStart}',
+  'onTouchMove={handleTouchMove}',
+  'onTouchEnd={handleTouchEnd}',
   'className="mobile-workspace-sheet-page-layer"',
   'inert={Boolean(activeDetail)}',
   'className="mobile-workspace-sheet-page-content"',
@@ -81,6 +85,8 @@ requireAll('src/components/ui/MobileWorkspaceSheetHost.tsx', [
 ]);
 forbidAll('src/components/ui/MobileWorkspaceSheetHost.tsx', [
   'mobile-workspace-page-sheet',
+  'onPointerDown={activeDetail ? undefined : handlePointerDown}',
+  'onTouchStart={activeDetail ? undefined : handleTouchStart}',
 ]);
 
 requireAll('src/components/ui/MobileWorkspaceDetailSheet.tsx', [
@@ -154,7 +160,7 @@ requireAll('tests/browser/mobile-page-sheet-all-pages.spec.ts', [
   "element.dataset.sheetInstanceProbe = 'stable';",
   "await expect(sheet).toHaveAttribute('data-page-key', tab);",
   "await expect(sheet).toHaveAttribute('data-sheet-instance-probe', 'stable');",
-  "await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet')).toHaveCount(1);",
+  "await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')).toHaveCount(1);",
 ]);
 
 requireAll('tests/browser/mobile-detail-sheet.spec.ts', [
@@ -162,7 +168,7 @@ requireAll('tests/browser/mobile-detail-sheet.spec.ts', [
   "element.dataset.sheetInstanceProbe = 'factory-stable';",
   "await expect(host).toHaveAttribute('data-detail-active', 'true');",
   "await expect(host).toHaveAttribute('data-detail-active', 'false');",
-  "await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet')).toHaveCount(1);",
+  "await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')).toHaveCount(1);",
 ]);
 
 requireAll('docs/UI_DESIGN_SYSTEM.md', [
@@ -170,6 +176,7 @@ requireAll('docs/UI_DESIGN_SYSTEM.md', [
   '`MobileWorkspaceSheetHost`',
   '不得创建第二个 Sheet DOM',
   '允许覆盖移动底部导航',
+  '物理根 Sheet 独占 Pointer／Touch 手势监听',
 ]);
 requireAll('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
   '唯一根级 Mobile Workspace Sheet',
