@@ -5,6 +5,7 @@
   --frosted-glass-border: rgba(212, 245, 224, 0.18);
   --frosted-glass-filter: blur(18px) saturate(128%);
   --frosted-glass-shadow: 0 18px 46px rgba(0, 0, 0, 0.34);
+  --frosted-glass-tooltip-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
 }
 
 .asset-bar,
@@ -42,6 +43,19 @@
   border-radius: inherit;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent 38%);
   pointer-events: none;
+}
+
+.ui-tooltip-surface {
+  box-sizing: border-box;
+  border: 1px solid var(--frosted-glass-border) !important;
+  border-radius: var(--radius-control) !important;
+  color: var(--color-text-primary);
+  background-color: var(--frosted-glass-background) !important;
+  background-image: linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent 38%) !important;
+  background-repeat: no-repeat !important;
+  box-shadow: var(--frosted-glass-tooltip-shadow) !important;
+  -webkit-backdrop-filter: var(--frosted-glass-filter) !important;
+  backdrop-filter: var(--frosted-glass-filter) !important;
 }
 
 .frosted-glass-surface__content {
@@ -172,6 +186,10 @@
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .frosted-glass-surface {
     background: var(--frosted-glass-background-strong);
+  }
+
+  .ui-tooltip-surface {
+    background-color: var(--frosted-glass-background-strong) !important;
   }
 }
 
