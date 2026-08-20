@@ -22,7 +22,7 @@
 图片层 0 → 氛围层 10 → 地图层 20 → UI 层 30
 ```
 
-根级 `#root` 使用唯一 `isolation:isolate`。地图层、UI 层、内容根、登录后外壳、工作区、页面滚动区、根级状态外壳和 Chrome Overlay 必须保持 `isolation:auto`、`filter:none`、`transform:none`，让各毛玻璃表面能够采样其后的摄影、氛围和地图。毛玻璃宿主自身不得创建新的隔离根。
+根级 `#root` 使用唯一 `isolation:isolate`。地图层、UI 层、内容根、登录后外壳、工作区、页面滚动区和 Chrome Overlay 必须保持 `isolation:auto`、`filter:none`、`transform:none`，让各毛玻璃表面能够采样其后的摄影、氛围和地图。毛玻璃宿主自身不得创建新的隔离根。根级 `game-state-shell` 与 `PhotographicStateShell` 继续保留既有 `isolation:isolate` 状态边界，且 `filter`、`transform` 保持 `none`；该状态边界不得扩展到登录后 Chrome 采样链。
 
 - 全应用四层根堆叠由 `ApplicationLayerRoot` 固定挂载在 `main.tsx`，并位于 `React.StrictMode` 与错误边界之外；四层对应 `z-index: 0 / 10 / 20 / 30`，不得建立第五个全局层。
 - 页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`；`data-app-backdrop` 只保留语义和状态路由职责，不得重新提供工作区地图背景插槽或 `SignedInShell.backdrop`。
@@ -41,7 +41,7 @@
 - 管理员桌面工作栏复用 `statusBar` 变体；移动管理员不显示桌面工作栏。
 - 认证卡片使用 `authCard + content`，依靠普通文档流自然增高，不使用测高状态、`ResizeObserver`、`MutationObserver` 或重建组件；登录／注册切换和桌面／移动断点不得丢失未受控表单值。
 - 封禁、管理员无权限、React 致命渲染异常和权威游戏状态首次加载失败等全页状态卡必须复用 `FrostedGlassSurface stateCard`。`PhotographicStateShell` 统一为其子状态卡提供该宿主；仍保留旧 `GameErrorStateShell` 结构的游戏加载失败也必须在 `loading-screen` 内放置同一 `stateCard`，不得恢复不透明深色／暗红卡片。critical 只允许通过根级红色氛围暗角和柔和危险色边框表达，卡体本身继续使用共享深绿色毛玻璃。
-- `PhotographicStateShell` 与 `GameErrorStateShell` 的祖先链必须保持 `isolation:auto`、`filter:none`、`transform:none`，确保 `stateCard` 的 `backdrop-filter` 真正采样根级摄影和氛围，而不是只存在一个不可见的 blur 声明。
+- `PhotographicStateShell` 与 `GameErrorStateShell` 继续使用既有 `isolation:isolate` 状态边界，`filter` 与 `transform` 保持 `none`；不得为了异常卡毛玻璃去改写登录后工作区的开放采样链。浏览器回归必须同时验证 `stateCard` 的真实 `blur(18px)`、半透明背景和状态外壳隔离值。
 - 所有“刷新页面”恢复操作统一使用 `src/components/system/RefreshPageButton.tsx`，内部使用 `GameIcons.tsx` 的 `RefreshIcon` 并直接执行 `window.location.reload()`；视觉固定为无文字的 `44px × 44px` 圆形浏览器式刷新控件，默认透明，细指针 hover 只出现中性圆形背景，active 轻微压缩，保留 `aria-label`、`title` 与键盘 `:focus-visible`。不得改回应用内 retry、伪刷新、延时刷新或文字主按钮。
 - 桌面状态栏和认证卡片圆角为 `24px`；移动状态栏、认证卡片和底栏圆角为 `40px`；`stateCard` 桌面使用 `var(--radius-card)`，移动使用 `var(--radius-card-mobile)`。
 - 移动状态栏固定 `48px`，移动底栏固定 `68px`。底栏内容层提供唯一 `8px 0` 垂直留白，语义化 `nav` 是唯一横向滚动视口。
