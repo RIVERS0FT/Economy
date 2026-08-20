@@ -260,7 +260,9 @@ for (const text of [
 for (const forbidden of ['.facility-detail-sheet-close', '88dvh', '.research-detail-sheet-scroll {']) forbidText('src/styles/mobile-detail-sheet.css', forbidden);
 for (const text of [
   'useLayoutEffect',
-  "window.visualViewport?.height ?? window.innerHeight",
+  'const visualViewport = window.visualViewport;',
+  "document.querySelector<HTMLElement>('.asset-bar')",
+  'Math.min(viewportHeight * 0.88, 760, availableHeight)',
   "root.focus({ preventScroll: true });",
   "previousDetail.controllerRef.current.returnFocusRef.current?.focus({ preventScroll: true })",
 ]) requireText('src/components/ui/MobileWorkspaceSheetHost.tsx', text);

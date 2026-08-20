@@ -10,12 +10,18 @@ export function MobileBottomNavigationFrame({
   navLabel,
   className,
   surfaceId,
+  workspaceSheetHidden = false,
+  navigationReturning = false,
+  onReturnAnimationEnd,
   children,
 }: {
   ariaLabel: string;
   navLabel: string;
   className?: string;
   surfaceId?: string;
+  workspaceSheetHidden?: boolean;
+  navigationReturning?: boolean;
+  onReturnAnimationEnd?: () => void;
   children: ReactNode;
 }) {
   // The shared base remains equivalent to className="sidebar mobile-bottom-navigation";
@@ -24,7 +30,19 @@ export function MobileBottomNavigationFrame({
     <aside
       className={classNames('sidebar mobile-bottom-navigation', className)}
       aria-label={ariaLabel}
+      aria-hidden={workspaceSheetHidden || undefined}
+      inert={workspaceSheetHidden || undefined}
       data-navigation-surface={surfaceId}
+      data-workspace-sheet-hidden={workspaceSheetHidden ? 'true' : 'false'}
+      data-navigation-returning={navigationReturning ? 'true' : 'false'}
+      onAnimationEnd={(event) => {
+        if (
+          event.target === event.currentTarget
+          && event.animationName === 'mobile-bottom-navigation-return'
+        ) {
+          onReturnAnimationEnd?.();
+        }
+      }}
     >
       <FrostedGlassSurface variant="mobileNavigation">
         <nav className="mobile-bottom-navigation__viewport" aria-label={navLabel}>

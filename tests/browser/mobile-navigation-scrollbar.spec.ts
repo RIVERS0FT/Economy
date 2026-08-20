@@ -3,9 +3,10 @@ import { expect, test, type Locator } from '@playwright/test';
 test.describe('mobile navigation scrolling', () => {
   test('mobile navigation centers the full button group when it fits', async ({ page }) => {
     await page.setViewportSize({ width: 720, height: 900 });
-    await page.goto('runtime-test.html?view=overview&scenario=empty');
+    await page.goto('runtime-test.html?view=map&scenario=empty');
 
     const viewport = page.locator('.mobile-bottom-navigation__viewport');
+    await expect(page.locator('.mobile-bottom-navigation')).toBeVisible();
     const centered = await viewport.evaluate((element) => {
       const buttons = [...element.querySelectorAll<HTMLElement>('.sidebar-nav-button')];
       const viewportRect = element.getBoundingClientRect();
@@ -27,13 +28,14 @@ test.describe('mobile navigation scrolling', () => {
 
   test('mobile navigation uses one native scroll viewport without clipping its buttons', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 720 });
-    await page.goto('runtime-test.html?view=overview&scenario=activity');
+    await page.goto('runtime-test.html?view=map&scenario=activity');
 
     const navigation = page.locator('.mobile-bottom-navigation');
     const content = navigation.locator('.frosted-glass-surface__content');
     const viewport = navigation.locator('.mobile-bottom-navigation__viewport');
 
     await expect(navigation).toBeVisible();
+    await expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'false');
     await expect(content).toBeVisible();
     await expect(viewport).toBeVisible();
     await expect(navigation.locator('.mobile-navigation-frame')).toHaveCount(0);
@@ -43,7 +45,7 @@ test.describe('mobile navigation scrolling', () => {
 
     const state = await viewport.evaluate((element) => {
       const viewportElement = element as HTMLElement;
-      const activeButton = viewportElement.querySelector<HTMLElement>('.sidebar-nav-button.active');
+      const activeButton = viewportElement.querySelector<HTMLElement>('.sidebar-nav-button');
       const lastButton = viewportElement.querySelector<HTMLElement>('.sidebar-nav-button:last-of-type');
       const contentElement = viewportElement.parentElement as HTMLElement | null;
       const hostElement = viewportElement.closest<HTMLElement>('.mobile-bottom-navigation');
@@ -100,10 +102,11 @@ test.describe('mobile navigation scrolling', () => {
     expect(state.lastButtonRight).toBeLessThanOrEqual(state.viewportRight + 1);
   });
 
-  test('mobile navigation has no hover visual and only exposes pressed and selected states', async ({ page }) => {
+  test('mobile navigation stays mounted but hidden while a sheet is open and animates back after close', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('runtime-test.html?view=overview&scenario=empty');
+    await page.goto('runtime-test.html?view=map&scenario=empty');
 
+    const navigationHost = page.locator('.mobile-bottom-navigation');
     const navigation = page.getByRole('navigation', { name: '游戏主导航' });
     const active = navigation.getByRole('button', { name: '概览', exact: true });
     const inactive = navigation.getByRole('button', { name: '市场', exact: true });
@@ -118,6 +121,8 @@ test.describe('mobile navigation scrolling', () => {
       };
     });
 
+    await expect(navigationHost).toBeVisible();
+    await navigationHost.evaluate((element) => { element.dataset.navigationInstanceProbe = 'stable'; });
     const inactiveBefore = await readVisual(inactive);
     await inactive.hover({ force: true });
     const inactiveAfterHover = await readVisual(inactive);
@@ -128,20 +133,34 @@ test.describe('mobile navigation scrolling', () => {
     const activeAfterHover = await readVisual(active);
     expect(activeAfterHover).toEqual(activeBefore);
 
+    await active.click();
     const sheet = page.locator('.mobile-workspace-sheet-host');
-    const navigationCovered = await inactive.evaluate((element) => {
-      const box = element.getBoundingClientRect();
-      return Boolean(document.elementFromPoint(
-        box.left + box.width / 2,
-        box.top + box.height / 2,
-      )?.closest('.mobile-detail-sheet-backdrop'));
+    await expect(sheet).toBeVisible();
+    await expect(navigationHost).toHaveAttribute('data-navigation-instance-probe', 'stable');
+    await expect(navigationHost).toHaveAttribute('data-workspace-sheet-hidden', 'true');
+    await expect(navigationHost).toHaveAttribute('aria-hidden', 'true');
+    await expect(navigationHost).toHaveAttribute('inert', '');
+    await expect(navigationHost).toBeHidden();
+    const hiddenState = await navigationHost.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { pointerEvents: style.pointerEvents, opacity: style.opacity, visibility: style.visibility };
     });
-    expect(navigationCovered).toBe(true);
+    expect(hiddenState).toEqual({ pointerEvents: 'none', opacity: '0', visibility: 'hidden' });
 
-    await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
+    await page.keyboard.press('Escape');
     await expect(sheet).toHaveCount(0);
+    await expect(navigationHost).toHaveAttribute('data-navigation-instance-probe', 'stable');
+    await expect(navigationHost).toHaveAttribute('data-workspace-sheet-hidden', 'false');
+    await expect(navigationHost).not.toHaveAttribute('aria-hidden', 'true');
+    await expect(navigationHost).not.toHaveAttribute('inert', '');
+    await expect(navigationHost).toHaveAttribute('data-navigation-returning', 'true');
+    await expect(navigationHost).toBeVisible();
+    const returningAnimation = await navigationHost.evaluate((element) => getComputedStyle(element).animationName);
+    expect(returningAnimation).toContain('mobile-bottom-navigation-return');
+    await expect(navigationHost).toHaveAttribute('data-navigation-returning', 'false');
+
     await inactive.click();
-    await expect(inactive).toHaveAttribute('aria-current', 'page');
-    await expect(active).not.toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('.mobile-workspace-sheet-host')).toBeVisible();
+    await expect(navigationHost).toHaveAttribute('data-workspace-sheet-hidden', 'true');
   });
 });

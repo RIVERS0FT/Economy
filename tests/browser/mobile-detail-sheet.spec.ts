@@ -60,7 +60,7 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
     await expect(trigger).toBeFocused();
   });
 
-  test('backdrop touch closes after every reopen and restores focus while root modal suppression stays active', async ({ page }) => {
+  test('backdrop touch closes after every reopen and restores focus while root scroll suppression stays active', async ({ page }) => {
     await page.goto('runtime-test.html?view=production&scenario=activity');
 
     const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
@@ -69,8 +69,11 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
     const dialogLayer = page.locator('.workspace-dialog-layer');
     const pageScroll = page.locator('.page-scroll');
     const pageScrollArea = page.locator('.page-scroll-area');
+    const navigation = page.locator('.mobile-bottom-navigation');
 
     await expect(trigger).toBeVisible();
+    await expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'true');
+    await expect(navigation).toBeHidden();
     const artwork = trigger.locator('[data-facility-icon="machine-factory"]');
     await expect(artwork).toHaveCount(1);
     await expect.poll(() => artwork.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('machine-factory');
@@ -83,6 +86,8 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
       await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')).toHaveCount(1);
       await expect(pageScroll).toHaveCSS('overflow-y', 'hidden');
       await expect(pageScrollArea).toHaveAttribute('data-modal-scrollbar-suppressed', 'true');
+      await expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'true');
+      await expect(navigation).toBeHidden();
       const detailView = host.locator('.mobile-workspace-sheet-detail-view');
       await waitForSheetAnimations(detailView);
 
@@ -112,28 +117,46 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
       expect(backdropBox.width).toBe(390);
       expect(backdropBox.height).toBe(844);
 
-      const navigation = page.locator('.mobile-bottom-navigation');
-      const navigationBox = await navigation.boundingBox();
-      expect(navigationBox).not.toBeNull();
-      if (!navigationBox) throw new Error('移动导航几何不可用');
-      const navigationCovered = await page.evaluate(({ x, y }) => Boolean(
-        document.elementFromPoint(x, y)?.closest('.mobile-detail-sheet-backdrop'),
-      ), {
-        x: navigationBox.x + navigationBox.width / 2,
-        y: navigationBox.y + navigationBox.height / 2,
+      const hiddenNavigation = await navigation.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return {
+          width: box.width,
+          height: box.height,
+          visibility: style.visibility,
+          opacity: style.opacity,
+          pointerEvents: style.pointerEvents,
+        };
       });
-      expect(navigationCovered).toBe(true);
+      expect(hiddenNavigation.width).toBeGreaterThan(0);
+      expect(hiddenNavigation.height).toBeCloseTo(68, 0);
+      expect(hiddenNavigation.visibility).toBe('hidden');
+      expect(hiddenNavigation.opacity).toBe('0');
+      expect(hiddenNavigation.pointerEvents).toBe('none');
 
       const hostBox = await host.boundingBox();
+      const statusBox = await page.locator('.asset-bar').boundingBox();
       expect(hostBox).not.toBeNull();
-      if (!hostBox) throw new Error('唯一移动 Sheet 几何不可用');
-      await page.touchscreen.tap(hostBox.x + hostBox.width / 2, Math.max(8, hostBox.y / 2));
+      expect(statusBox).not.toBeNull();
+      if (!hostBox || !statusBox) throw new Error('唯一移动 Sheet 或状态栏几何不可用');
+      const statusBottom = statusBox.y + statusBox.height;
+      expect(hostBox.y).toBeGreaterThan(statusBottom);
+      const backdropTapPoint = {
+        x: hostBox.x + hostBox.width / 2,
+        y: statusBottom + (hostBox.y - statusBottom) / 2,
+      };
+      const hitsBackdrop = await page.evaluate(({ x, y }) => Boolean(
+        document.elementFromPoint(x, y)?.closest('.mobile-detail-sheet-backdrop'),
+      ), backdropTapPoint);
+      expect(hitsBackdrop).toBe(true);
+      await page.touchscreen.tap(backdropTapPoint.x, backdropTapPoint.y);
 
       await expect(dialog).toBeHidden();
       await expect(host).toHaveAttribute('data-detail-active', 'false');
       await expect(host).toBeVisible();
       await expect(pageScroll).toHaveCSS('overflow-y', 'hidden');
       await expect(pageScrollArea).toHaveAttribute('data-modal-scrollbar-suppressed', 'true');
+      await expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'true');
       await expect(trigger).toBeFocused();
     }
   });

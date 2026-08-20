@@ -1,7 +1,7 @@
 /* Final authority for the single signed-in mobile workspace sheet.
  * All first-level player pages and second-level business details reuse the
- * root factory-detail container in workspace-dialog-layer. Page/detail styles
- * only define content inside this one host; no second sheet surface is allowed. */
+ * root factory-detail container in workspace-dialog-layer. The root sheet owns
+ * the only mobile blur surface while the outside backdrop stays visually clear. */
 
 .page-scroll-area[data-modal-scrollbar-suppressed='true'] > .ui-scrollbar--vertical {
   opacity: 0 !important;
@@ -96,23 +96,10 @@
   }
 
   .mobile-detail-sheet-backdrop {
-    --mobile-detail-sheet-backdrop-progress: 1;
-
-    isolation: isolate;
+    isolation: auto;
     background: transparent;
+    -webkit-backdrop-filter: none;
     backdrop-filter: none;
-  }
-
-  .mobile-detail-sheet-backdrop::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    background: color-mix(in srgb, var(--color-background) 54%, transparent);
-    backdrop-filter: blur(8px);
-    opacity: var(--mobile-detail-sheet-backdrop-progress);
-    pointer-events: none;
-    transition: opacity 200ms ease-out;
   }
 
   .mobile-detail-sheet {
@@ -127,11 +114,13 @@
     max-width: 100%;
     max-height: var(--mobile-detail-sheet-max-height, min(88svh, 760px));
     display: block;
-    border: 1px solid var(--color-border-strong);
+    border: 1px solid var(--frosted-glass-border);
     border-bottom: 0;
     border-radius: 1.25rem 1.25rem 0 0;
-    background: color-mix(in srgb, var(--color-surface) 96%, var(--color-bg-deep));
-    box-shadow: 0 -1rem 3rem color-mix(in srgb, var(--color-background) 46%, transparent);
+    background: var(--frosted-glass-background);
+    box-shadow: var(--frosted-glass-shadow);
+    -webkit-backdrop-filter: var(--frosted-glass-filter);
+    backdrop-filter: var(--frosted-glass-filter);
     overflow: hidden;
     transform: translate3d(0, var(--mobile-detail-sheet-drag-offset), 0);
     animation: mobile-detail-sheet-open 200ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -153,6 +142,7 @@
   }
 
   .mobile-workspace-sheet-page-layer[aria-hidden='true'] {
+    visibility: hidden;
     pointer-events: none;
   }
 
@@ -200,7 +190,7 @@
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
     overflow: hidden;
-    background: color-mix(in srgb, var(--color-surface) 96%, var(--color-bg-deep));
+    background: transparent;
     transform: translate3d(0, var(--mobile-detail-sheet-drag-offset), 0);
     animation: mobile-workspace-sheet-detail-open 200ms cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform;
@@ -236,7 +226,9 @@
     position: relative;
     z-index: 3;
     min-width: 0;
-    background: color-mix(in srgb, var(--color-surface) 98%, var(--color-bg-deep));
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 
   .mobile-detail-sheet-header {
@@ -360,6 +352,14 @@
   }
 }
 
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  @media (max-width: 720px) {
+    .mobile-detail-sheet {
+      background: var(--frosted-glass-background-strong);
+    }
+  }
+}
+
 @keyframes mobile-detail-sheet-open {
   from { transform: translate3d(0, 100%, 0); }
   to { transform: translate3d(0, var(--mobile-detail-sheet-drag-offset), 0); }
@@ -373,7 +373,6 @@
 @media (prefers-reduced-motion: reduce) {
   .mobile-detail-sheet,
   .mobile-workspace-sheet-detail-view,
-  .mobile-detail-sheet-backdrop::before,
   .mobile-detail-sheet.is-settling,
   .mobile-workspace-sheet-detail-view.is-settling {
     animation: none;

@@ -142,6 +142,7 @@ test.describe('notification center geometry', () => {
         toast: rect(toast),
         frostedSurfaceCount: document.querySelectorAll('.asset-bar .frosted-glass-surface').length,
         panelParentIsFloatingLayer: panel.parentElement?.parentElement === floatingLayer,
+        notificationLayer: panelLayer.dataset.notificationLayer,
       };
     });
 
@@ -153,96 +154,81 @@ test.describe('notification center geometry', () => {
     expect(geometry.panel.width).toBeLessThanOrEqual(420);
     expect(geometry.toast.top).toBeGreaterThan(geometry.status.bottom);
     expect(geometry.panelParentIsFloatingLayer).toBe(true);
+    expect(geometry.notificationLayer).toBe('floating');
     expect(geometry.frostedSurfaceCount).toBe(1);
   });
 
-  test('mobile island stays centered while the panel remains above extreme workspace z-index', async ({ page }) => {
+  test('mobile notification panel overlays an open workspace sheet without leaving an island mounted', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
-    const workspaceSheet = page.locator('.mobile-workspace-sheet-host');
-    await expect(workspaceSheet).toBeVisible();
-    await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
-    await expect(workspaceSheet).toHaveCount(0);
-    await openNotificationPanel(page);
-    await mountMobileIsland(page, 3);
 
-    await page.evaluate(() => {
-      const pageLayer = document.querySelector<HTMLElement>('.mobile-page-overlay');
-      if (!pageLayer) throw new Error('mobile page overlay is incomplete');
-      const sentinel = document.createElement('div');
-      sentinel.className = 'notification-layer-regression-sentinel';
-      Object.assign(sentinel.style, {
-        position: 'absolute',
-        inset: '0',
-        zIndex: '2147483647',
-        pointerEvents: 'auto',
-      });
-      pageLayer.append(sentinel);
-    });
+    const workspaceSheet = page.locator('.mobile-workspace-sheet-host');
+    const navigation = page.locator('.mobile-bottom-navigation');
+    const trigger = page.getByRole('button', { name: /^通知，/ });
+    await expect(workspaceSheet).toBeVisible();
+    await expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'true');
+    await expect(navigation).toBeHidden();
+    await expect(trigger).toBeVisible();
+
+    await openNotificationPanel(page);
+    const panel = page.getByRole('dialog', { name: '通知' });
+    const panelLayer = page.locator('.notification-panel-layer');
+    await expect(panel).toBeVisible();
+    await expect(panelLayer).toHaveAttribute('data-notification-layer', 'dialog');
+    await expect(page.locator('.notification-island')).toHaveCount(0);
+    await expect(page.locator('.notification-island-region')).toHaveCount(0);
+    await expect(workspaceSheet).toBeVisible();
+    await expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'true');
 
     const geometry = await page.evaluate(() => {
-      const shellBody = document.querySelector<HTMLElement>('.signed-in-shell__body');
-      const pageLayer = document.querySelector<HTMLElement>('.mobile-page-overlay');
+      const dialogLayer = document.querySelector<HTMLElement>('.workspace-dialog-layer');
+      const sheetBackdrop = document.querySelector<HTMLElement>('.mobile-detail-sheet-backdrop');
+      const sheet = document.querySelector<HTMLElement>('.mobile-workspace-sheet-host');
       const status = document.querySelector<HTMLElement>('.asset-bar');
       const trigger = document.querySelector<HTMLElement>('.notification-center-trigger');
-      const floatingLayer = document.querySelector<HTMLElement>('.workspace-floating-layer');
       const panelLayer = document.querySelector<HTMLElement>('.notification-panel-layer');
       const panel = document.querySelector<HTMLElement>('.notification-panel');
       const closeButton = document.querySelector<HTMLElement>('.notification-panel__close');
       const navigation = document.querySelector<HTMLElement>('.mobile-bottom-navigation');
-      const islandRegion = document.querySelector<HTMLElement>('.notification-island-region');
-      const island = document.querySelector<HTMLElement>('.notification-island');
-      const sentinel = document.querySelector<HTMLElement>('.notification-layer-regression-sentinel');
-      if (!shellBody || !pageLayer || !status || !trigger || !floatingLayer || !panelLayer || !panel || !closeButton || !navigation || !islandRegion || !island || !sentinel) {
-        throw new Error('mobile notification geometry is incomplete');
+      if (!dialogLayer || !sheetBackdrop || !sheet || !status || !trigger || !panelLayer || !panel || !closeButton || !navigation) {
+        throw new Error('mobile notification layering fixture is incomplete');
       }
       const rect = (element: HTMLElement) => {
         const box = element.getBoundingClientRect();
         return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height };
       };
-      const islandRect = rect(island);
-      const islandPointerEvents = getComputedStyle(island).pointerEvents;
-      const regionPointerEvents = getComputedStyle(islandRegion).pointerEvents;
-      const islandAnimationName = getComputedStyle(island).animationName;
-      const queueLabel = island.querySelector<HTMLElement>('.notification-island__status')?.textContent;
-      // Opening the panel clears Chrome notices in production; remove the geometry-only fixture before hit testing.
-      islandRegion.remove();
+      const statusRect = status.getBoundingClientRect();
+      const panelRect = panel.getBoundingClientRect();
       const closeRect = closeButton.getBoundingClientRect();
-      const topmostAtClose = document.elementFromPoint(
+      const statusTopmost = document.elementFromPoint(
+        statusRect.left + statusRect.width / 2,
+        statusRect.top + statusRect.height / 2,
+      );
+      const panelTopmost = document.elementFromPoint(
+        panelRect.left + panelRect.width / 2,
+        panelRect.top + Math.min(panelRect.height / 2, 80),
+      );
+      const closeTopmost = document.elementFromPoint(
         closeRect.left + closeRect.width / 2,
         closeRect.top + closeRect.height / 2,
       );
       return {
-        viewportWidth: window.innerWidth,
         status: rect(status),
         trigger: rect(trigger),
-        floatingLayer: rect(floatingLayer),
         panelLayer: rect(panelLayer),
         panel: rect(panel),
-        panelInsets: {
-          top: Number.parseFloat(getComputedStyle(panelLayer).paddingTop),
-          right: Number.parseFloat(getComputedStyle(panelLayer).paddingRight),
-          bottom: Number.parseFloat(getComputedStyle(panelLayer).paddingBottom),
-          left: Number.parseFloat(getComputedStyle(panelLayer).paddingLeft),
-        },
         navigation: rect(navigation),
-        island: islandRect,
-        islandCenter: islandRect.left + islandRect.width / 2,
         itemColumns: getComputedStyle(document.querySelector<HTMLElement>('.asset-bar-content')!).gridTemplateColumns.split(' ').length,
         panelMaxHeight: getComputedStyle(panel).maxHeight,
         panelTransformOrigin: getComputedStyle(panel).transformOrigin,
-        islandPointerEvents,
-        regionPointerEvents,
-        islandAnimationName,
-        queueLabel,
-        islandCount: document.querySelectorAll('.notification-island').length + 1,
-        frostedSurfaceCount: document.querySelectorAll('.asset-bar .frosted-glass-surface').length,
-        shellBodyZIndex: getComputedStyle(shellBody).zIndex,
-        pageLayerZIndex: getComputedStyle(pageLayer).zIndex,
-        pageLayerOrder: getComputedStyle(pageLayer).order,
-        floatingLayerZIndex: getComputedStyle(floatingLayer).zIndex,
-        floatingLayerOrder: getComputedStyle(floatingLayer).order,
-        panelCloseIsTopmost: topmostAtClose === closeButton || closeButton.contains(topmostAtClose),
+        panelParentIsDialogLayer: panelLayer.parentElement === dialogLayer,
+        panelLayerZIndex: Number.parseInt(getComputedStyle(panelLayer).zIndex, 10),
+        sheetBackdropZIndex: Number.parseInt(getComputedStyle(sheetBackdrop).zIndex, 10),
+        panelAboveSheet: Boolean(panelTopmost?.closest('.notification-panel')),
+        statusIsTopmost: Boolean(statusTopmost?.closest('.asset-bar')),
+        panelCloseIsTopmost: closeTopmost === closeButton || closeButton.contains(closeTopmost),
+        islandCount: document.querySelectorAll('.notification-island').length,
+        islandRegionCount: document.querySelectorAll('.notification-island-region').length,
       };
     });
 
@@ -250,38 +236,33 @@ test.describe('notification center geometry', () => {
     expect(geometry.trigger.width).toBeCloseTo(44, 0);
     expect(geometry.trigger.height).toBeCloseTo(44, 0);
     expect(geometry.itemColumns).toBe(5);
-    expect(geometry.panelInsets).toEqual({ top: 0, right: 12, bottom: 12, left: 12 });
     expect(geometry.panel.top).toBeCloseTo(geometry.panelLayer.top, 0);
     expect(geometry.panel.top).toBeGreaterThan(geometry.status.bottom);
-    expect(geometry.panel.bottom).toBeLessThanOrEqual(geometry.navigation.top);
-    expect(geometry.panel.left).toBeCloseTo(geometry.panelLayer.left + geometry.panelInsets.left, 0);
-    expect(geometry.panel.right).toBeCloseTo(geometry.panelLayer.right - geometry.panelInsets.right, 0);
-    expect(geometry.islandCenter).toBeCloseTo(geometry.viewportWidth / 2, 0);
-    expect(geometry.island.top).toBeCloseTo(geometry.status.bottom + 8, 0);
-    expect(geometry.island.bottom).toBeLessThan(geometry.navigation.top);
-    expect(geometry.island.width).toBeLessThanOrEqual(360);
-    expect(geometry.island.left).toBeGreaterThanOrEqual(0);
-    expect(geometry.island.right).toBeLessThanOrEqual(geometry.viewportWidth);
+    expect(geometry.panel.left).toBeCloseTo(geometry.panelLayer.left, 0);
+    expect(geometry.panel.right).toBeCloseTo(geometry.panelLayer.right, 0);
     expect(geometry.panelMaxHeight).not.toBe('none');
     expect(geometry.panelTransformOrigin.endsWith(' 0px')).toBe(true);
-    expect(geometry.islandPointerEvents).toBe('auto');
-    expect(geometry.regionPointerEvents).toBe('none');
-    expect(geometry.islandAnimationName).toContain('notification-island-enter');
-    expect(geometry.queueLabel).toBe('+2');
-    expect(geometry.islandCount).toBe(1);
-    expect(geometry.frostedSurfaceCount).toBe(1);
-    expect(geometry.shellBodyZIndex).toBe('0');
-    expect(geometry.pageLayerZIndex).toBe('1');
-    expect(geometry.pageLayerOrder).toBe('1');
-    expect(geometry.floatingLayerZIndex).toBe('4');
-    expect(geometry.floatingLayerOrder).toBe('2');
+    expect(geometry.panelParentIsDialogLayer).toBe(true);
+    expect(geometry.panelLayerZIndex).toBeGreaterThan(geometry.sheetBackdropZIndex);
+    expect(geometry.panelAboveSheet).toBe(true);
+    expect(geometry.statusIsTopmost).toBe(true);
     expect(geometry.panelCloseIsTopmost).toBe(true);
+    expect(geometry.islandCount).toBe(0);
+    expect(geometry.islandRegionCount).toBe(0);
+
+    await page.keyboard.press('Escape');
+    await expect(panel).toHaveCount(0);
+    await expect(workspaceSheet).toBeVisible();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(trigger).toBeFocused();
+    await expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'true');
+    await expect(page.locator('.notification-island')).toHaveCount(0);
   });
 
   test('mobile island disables shape and movement animation for reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('runtime-test.html?view=overview&scenario=activity');
+    await page.goto('runtime-test.html?view=map&scenario=activity');
     await loadNotificationStyles(page);
     await mountMobileIsland(page, 2);
 

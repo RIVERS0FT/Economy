@@ -5,6 +5,38 @@
     --mobile-notice-inline-inset: var(--space-2);
   }
 
+  .game-shell .signed-in-shell__chrome {
+    z-index: 3001;
+  }
+
+  html[data-app-surface="game"] .game-shell .signed-in-shell__chrome > .mobile-bottom-navigation[data-workspace-sheet-hidden='true'] {
+    pointer-events: none;
+  }
+
+  .workspace-dialog-layer > .notification-panel-layer[data-notification-layer='dialog'] {
+    position: absolute;
+    z-index: 10;
+    top: calc(
+      var(--mobile-status-top-inset)
+      + var(--mobile-asset-bar-height)
+      + var(--mobile-notice-gap)
+    );
+    right: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));
+    bottom: calc(
+      var(--mobile-nav-height)
+      + var(--mobile-nav-gap)
+      + max(var(--mobile-chrome-block-inset), env(safe-area-inset-bottom))
+    );
+    left: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));
+    width: auto;
+    height: auto;
+    padding: 0;
+    align-items: start;
+    justify-items: stretch;
+    background: transparent;
+    pointer-events: auto;
+  }
+
   .asset-bar {
     top: var(--mobile-status-top-inset);
     right: 0;

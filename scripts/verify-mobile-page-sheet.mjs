@@ -16,14 +16,38 @@ assert.equal(existsSync('src/components/ui/MobileWorkspaceSheetHost.tsx'), true,
 requireAll('src/components/shell/GameShell.tsx', [
   "import { MobileWorkspacePageSheet, type MobileWorkspaceSheetRequestClose } from '../ui/MobileWorkspacePageSheet';",
   'const mobilePageCloseRef = useRef<MobileWorkspaceSheetRequestClose | null>(null);',
+  "const mobileSheetOpen = model.tab !== 'map';",
+  'const previousMobileSheetOpenRef = useRef(mobileSheetOpen);',
+  'const [mobileNavigationReturning, setMobileNavigationReturning] = useState(false);',
+  "window.matchMedia('(prefers-reduced-motion: reduce)').matches",
+  'notificationCenter.panelOpen ? null : (',
+  'workspaceSheetOpen={mobileSheetOpen}',
+  'returning={mobileNavigationReturning}',
+  'onReturnAnimationEnd={() => setMobileNavigationReturning(false)}',
   "const showMap = useCallback(() => {\n    model.setTab('map');",
-  "window.matchMedia('(max-width: 720px)').matches",
   "if (tab === 'map' && model.tab !== 'map')",
-  'onSelect={selectMobileTab}',
   "{model.tab === 'map' ? children : (",
   '<MobileWorkspacePageSheet',
   'pageKey={model.tab}',
   'requestCloseRef={mobilePageCloseRef}',
+]);
+
+requireAll('src/components/shell/MobileBottomNavigation.tsx', [
+  'workspaceSheetOpen: boolean;',
+  'returning: boolean;',
+  'workspaceSheetHidden={workspaceSheetOpen}',
+  'navigationReturning={returning}',
+  'onReturnAnimationEnd={onReturnAnimationEnd}',
+]);
+
+requireAll('src/components/shell/MobileBottomNavigationFrame.tsx', [
+  'workspaceSheetHidden = false',
+  'navigationReturning = false',
+  'aria-hidden={workspaceSheetHidden || undefined}',
+  'inert={workspaceSheetHidden || undefined}',
+  "data-workspace-sheet-hidden={workspaceSheetHidden ? 'true' : 'false'}",
+  "data-navigation-returning={navigationReturning ? 'true' : 'false'}",
+  "event.animationName === 'mobile-bottom-navigation-return'",
 ]);
 
 requireAll('src/components/ui/MobileWorkspacePageSheet.tsx', [
@@ -46,29 +70,28 @@ requireAll('src/components/ui/MobileWorkspaceSheetHost.tsx', [
   'useWorkspaceDialogLayer',
   'WorkspaceFloatingLayerContext.Provider value={dialogLayer}',
   "from './useMobileWorkspaceSheetDrag'",
-  'interface MobileWorkspaceDetailController',
-  'export interface MobileWorkspaceDetailRegistration',
   'const [detailStack, setDetailStack]',
   'const activeDetail = detailStack[detailStack.length - 1] ?? null;',
   'registerDetail',
   'unregisterDetail',
   'requestDetailClose',
-  "getScrollTop: (surface) => surface?.querySelector<HTMLElement>(",
   "headerSelector: '.mobile-detail-sheet-drag-handle, .page-fixed-header'",
   "contentSelector: '.mobile-detail-sheet-scroll, .page-card-scroll'",
   "offsetProperty: '--mobile-detail-sheet-drag-offset'",
-  "window.visualViewport?.height ?? window.innerHeight",
+  'const visualViewport = window.visualViewport;',
+  "document.querySelector<HTMLElement>('.asset-bar')",
+  "getPropertyValue('--mobile-content-gap')",
+  'Math.min(viewportHeight * 0.88, 760, availableHeight)',
+  "window.visualViewport?.addEventListener('resize', updateSheetMaxHeight)",
   "document.querySelector<HTMLElement>('.page-scroll')",
   "pageScroll.style.overflowY = 'hidden'",
   "pageScrollArea.dataset.modalScrollbarSuppressed = 'true'",
-  "event.key === 'Escape'",
-  "event.key !== 'Tab'",
+  "if (event.key !== 'Escape') return;",
   'className="mobile-detail-sheet-backdrop"',
   'className="mobile-detail-sheet mobile-workspace-sheet-host"',
   'data-mobile-workspace-sheet-host="true"',
   'data-page-key={pageKey}',
   'role="dialog"',
-  'aria-modal="true"',
   'onPointerDown={handlePointerDown}',
   'onTouchStart={handleTouchStart}',
   'onTouchMove={handleTouchMove}',
@@ -85,6 +108,10 @@ requireAll('src/components/ui/MobileWorkspaceSheetHost.tsx', [
 ]);
 forbidAll('src/components/ui/MobileWorkspaceSheetHost.tsx', [
   'mobile-workspace-page-sheet',
+  'aria-modal="true"',
+  "if (event.key !== 'Tab') return;",
+  'handleSheetProgress',
+  '--mobile-detail-sheet-backdrop-progress',
   'onPointerDown={activeDetail ? undefined : handlePointerDown}',
   'onTouchStart={activeDetail ? undefined : handleTouchStart}',
 ]);
@@ -109,84 +136,106 @@ forbidAll('src/components/ui/MobileWorkspaceDetailSheet.tsx', [
   'useMobileWorkspaceSheetDrag',
 ]);
 
-requireAll('src/components/ui/useMobileWorkspaceSheetDrag.ts', [
-  'interface MobileWorkspaceSheetDragSession',
-  'MOBILE_WORKSPACE_SHEET_AXIS_THRESHOLD = 8',
-  'MOBILE_WORKSPACE_SHEET_AXIS_DOMINANCE = 1.2',
-  'MOBILE_WORKSPACE_SHEET_MIN_FLING_DISTANCE = 40',
-  'MOBILE_WORKSPACE_SHEET_CLOSE_VELOCITY = 0.75',
-  'MOBILE_WORKSPACE_SHEET_SETTLE_DURATION = 200',
-  "source === 'content' && getScrollTopRef.current(sheetRef.current) > 0",
-  "sheet.classList.add('is-dragging')",
-  "sheet.classList.add('is-settling', 'is-closing')",
-]);
-
 requireAll('src/styles/mobile-detail-sheet.css', [
-  'Final authority for the single signed-in mobile workspace sheet.',
+  'root sheet owns\n * the only mobile blur surface while the outside backdrop stays visually clear.',
+  '.mobile-detail-sheet-backdrop {',
+  'isolation: auto;',
+  '-webkit-backdrop-filter: none;',
+  'backdrop-filter: none;',
   '.mobile-detail-sheet {',
-  '.mobile-workspace-sheet-page-layer {',
-  '.mobile-workspace-sheet-page-content > .page-content {',
+  'background: var(--frosted-glass-background);',
+  '-webkit-backdrop-filter: var(--frosted-glass-filter);',
+  'backdrop-filter: var(--frosted-glass-filter);',
+  ".mobile-workspace-sheet-page-layer[aria-hidden='true']",
+  'visibility: hidden;',
   '.mobile-workspace-sheet-detail-view {',
-  'height: var(--mobile-detail-sheet-max-height, min(88svh, 760px));',
+  'background: transparent;',
   '.workspace-dialog-layer > .mobile-detail-sheet-backdrop',
   '@keyframes mobile-workspace-sheet-detail-open',
-  'overscroll-behavior-y: auto;',
 ]);
 forbidAll('src/styles/mobile-detail-sheet.css', [
+  '.mobile-detail-sheet-backdrop::before',
+  '--mobile-detail-sheet-backdrop-progress',
+  'backdrop-filter: blur(8px)',
   '.mobile-workspace-page-sheet',
   '--mobile-workspace-page-sheet-drag-offset',
-  '@keyframes mobile-workspace-page-sheet-open',
-  'overscroll-behavior-y: contain;',
+]);
+
+requireAll('src/styles/mobile-status-navigation.css', [
+  ".mobile-bottom-navigation[data-workspace-sheet-hidden='true']",
+  'visibility: hidden;',
+  'pointer-events: none;',
+  'transform: translate3d(0, 24px, 0);',
+  ".mobile-bottom-navigation[data-workspace-sheet-hidden='false'][data-navigation-returning='true']",
+  '@keyframes mobile-bottom-navigation-return',
+  '280ms cubic-bezier(.2, .8, .2, 1)',
+  '@media (max-width: 720px) and (prefers-reduced-motion: reduce)',
+]);
+
+requireAll('src/styles/mobile-status-layout.css', [
+  '.game-shell .signed-in-shell__chrome {\n    z-index: 3001;',
+  "html[data-app-surface=\"game\"] .game-shell .signed-in-shell__chrome > .mobile-bottom-navigation[data-workspace-sheet-hidden='true']",
+  ".workspace-dialog-layer > .notification-panel-layer[data-notification-layer='dialog']",
+  'z-index: 10;',
+  'var(--mobile-status-top-inset)',
+]);
+
+requireAll('src/components/notifications/NotificationCenter.tsx', [
+  'useWorkspaceDialogLayer',
+  'const mobile = useMobileNotificationSurface();',
+  'const targetLayer = mobile ? dialogLayer : floatingLayer;',
+  "window.addEventListener('keydown', onKeyDown, true);",
+  'event.stopPropagation();',
+  "data-notification-layer={mobile ? 'dialog' : 'floating'}",
+  'targetLayer,',
 ]);
 
 const main = read('src/main.tsx');
 assert.ok(
-  main.indexOf("import './styles/mobile-detail-sheet.css';")
-    > main.indexOf("import './styles/strategic-game-shell.css';"),
-  'mobile-detail-sheet.css 必须在 strategic-game-shell.css 后加载以收束唯一移动 Sheet 几何',
+  main.indexOf("import './styles/mobile-status-layout.css';")
+    > main.indexOf("import './styles/mobile-detail-sheet.css';"),
+  'mobile-status-layout.css 必须在 mobile-detail-sheet.css 后加载以保证状态栏和通知层高于 Sheet',
 );
 
 requireAll('tests/browser/mobile-workspace-overlay.spec.ts', [
-  "page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')",
-  "'.mobile-workspace-sheet-page-content > .page-content'",
-  'expect(geometry.sheet.bottom).toBeCloseTo(geometry.viewportHeight, 0);',
-  'expect(geometry.sheet.bottom).toBeGreaterThan(geometry.navigation.top);',
-  'expect(geometry.navigationCovered).toBe(true);',
-  'unified mobile sheet closes to the persistent map and restores navigation access',
+  'mobile sheet blurs only itself while status chrome stays clear and interactive',
+  'expect(geometry.backdropFilter).toBe(\'none\');',
+  'expect(geometry.sheetBackdropFilter).not.toBe(\'none\');',
+  'expect(geometry.statusIsTopmost).toBe(true);',
+  "expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'true');",
+  "expect(navigation).toHaveAttribute('data-navigation-returning', 'true');",
 ]);
 
-requireAll('tests/browser/mobile-page-sheet-all-pages.spec.ts', [
-  'all mobile business pages reuse the single factory-detail sheet host',
-  "element.dataset.sheetInstanceProbe = 'stable';",
-  "await expect(sheet).toHaveAttribute('data-page-key', tab);",
-  "await expect(sheet).toHaveAttribute('data-sheet-instance-probe', 'stable');",
-  "await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')).toHaveCount(1);",
+requireAll('tests/browser/notification-center.spec.ts', [
+  'mobile notification panel overlays an open workspace sheet without leaving an island mounted',
+  "expect(panelLayer).toHaveAttribute('data-notification-layer', 'dialog');",
+  "await expect(page.locator('.notification-island')).toHaveCount(0);",
+  'expect(geometry.panelAboveSheet).toBe(true);',
+  'expect(geometry.statusIsTopmost).toBe(true);',
 ]);
 
-requireAll('tests/browser/mobile-detail-sheet.spec.ts', [
-  'factory detail reuses the existing mobile sheet host instead of mounting a second sheet',
-  "element.dataset.sheetInstanceProbe = 'factory-stable';",
-  "await expect(host).toHaveAttribute('data-detail-active', 'true');",
-  "await expect(host).toHaveAttribute('data-detail-active', 'false');",
-  "await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')).toHaveCount(1);",
+requireAll('tests/browser/mobile-navigation-scrollbar.spec.ts', [
+  'mobile navigation stays mounted but hidden while a sheet is open and animates back after close',
+  "await expect(navigationHost).toHaveAttribute('aria-hidden', 'true');",
+  "await expect(navigationHost).toHaveAttribute('data-navigation-returning', 'true');",
+  "expect(returningAnimation).toContain('mobile-bottom-navigation-return');",
 ]);
 
 requireAll('docs/UI_DESIGN_SYSTEM.md', [
   '唯一根级 Mobile Workspace Sheet',
-  '`MobileWorkspaceSheetHost`',
-  '不得创建第二个 Sheet DOM',
-  '允许覆盖移动底部导航',
+  'Sheet 自身承担唯一移动毛玻璃模糊',
+  '移动底部导航必须始终保留同一个 DOM 实例',
 ]);
 requireAll('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
-  '唯一根级 Mobile Workspace Sheet',
-  '所有移动业务页面与业务详情共用同一个',
-  '允许覆盖移动底部导航',
+  '通知面板作为 Chrome 级临时覆盖层始终位于 Sheet 之上',
+  '通知面板打开期间不得挂载通知岛',
+  '移动底栏在根 Sheet 存在时继续保持同一 DOM，但必须隐藏并退出交互树',
 ]);
 requireAll('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
-  '唯一根级 Mobile Workspace Sheet',
-  '工厂详情卡片容器',
-  '允许覆盖移动底部导航',
+  'Sheet 外部区域不得压暗或模糊',
+  '状态栏始终位于 Sheet 与通知面板之上',
+  '通知灵动岛同系弹性进入动画',
   '物理根 Sheet 独占 Pointer／Touch 手势监听',
 ]);
 
-console.log('移动端唯一工厂详情 Sheet Host、页面/详情内容复用、导航覆盖、共享拖拽内核与单实例防回退验证通过。');
+console.log('移动唯一 Sheet 自身毛玻璃、透明外部、状态/通知上层与导航隐藏恢复动画验证通过。');

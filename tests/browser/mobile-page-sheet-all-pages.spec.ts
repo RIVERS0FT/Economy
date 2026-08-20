@@ -22,7 +22,8 @@ test('all mobile business pages reuse the single factory-detail sheet host', asy
   const sheet = page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet');
   const map = page.getByTestId('us-mainland-map');
 
-  await expect(navigation).toBeVisible();
+  await expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'true');
+  await expect(navigation).toBeHidden();
   await expect(status).toBeVisible();
   await expect(sheet).toBeVisible();
   await expect(map).toBeVisible();
@@ -31,23 +32,15 @@ test('all mobile business pages reuse the single factory-detail sheet host', asy
     element.dataset.sheetInstanceProbe = 'stable';
   });
 
-  const navigationCovered = await navigation.evaluate((element) => {
-    const box = element.getBoundingClientRect();
-    return Boolean(document.elementFromPoint(
-      box.left + box.width / 2,
-      box.top + box.height / 2,
-    )?.closest('.mobile-detail-sheet-backdrop'));
-  });
-  expect(navigationCovered).toBe(true);
-
   for (const { tab, label } of mobileBusinessPages) {
-    await navigation.getByRole('button', { name: new RegExp(`^${label}`) }).evaluate((button) => button.click());
+    await navigation.locator('.sidebar-nav-button').filter({ hasText: label }).first().evaluate((button) => button.click());
     await expect(sheet).toBeVisible();
     await expect(sheet).toHaveAttribute('data-page-key', tab);
     await expect(sheet).toHaveAttribute('data-sheet-instance-probe', 'stable');
     await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')).toHaveCount(1);
     await expect(status).toBeVisible();
-    await expect(navigation).toBeVisible();
+    await expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'true');
+    await expect(navigation).toBeHidden();
   }
 
   await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
@@ -55,9 +48,11 @@ test('all mobile business pages reuse the single factory-detail sheet host', asy
   await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
   await expect(map).toBeVisible();
   await expect(status).toBeVisible();
+  await expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'false');
   await expect(navigation).toBeVisible();
 
   await page.getByRole('button', { name: /^概览/ }).click();
   await expect(sheet).toBeVisible();
   await expect(sheet).toHaveAttribute('data-page-key', 'home');
+  await expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'true');
 });
