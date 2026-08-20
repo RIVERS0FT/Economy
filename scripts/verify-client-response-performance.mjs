@@ -194,7 +194,7 @@ requireText('src/app/stateDelivery.js', [
   'changedSliceNames',
   'reuseUnchangedSliceReferences',
   'subscribeStateAuthorityDependencies',
-  'delete sliceRevisions[sliceName]',
+  'delete nextSliceRevisions[sliceName]',
 ]);
 requireText('src/app/gameAuthorityStore.ts', [
   'AUTHORITY_STATE_VIEW',
