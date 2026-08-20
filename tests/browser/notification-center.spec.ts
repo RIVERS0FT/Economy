@@ -159,6 +159,10 @@ test.describe('notification center geometry', () => {
   test('mobile island stays centered while the panel remains above extreme workspace z-index', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
+    const workspaceSheet = page.locator('.mobile-workspace-sheet-host');
+    await expect(workspaceSheet).toBeVisible();
+    await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
+    await expect(workspaceSheet).toHaveCount(0);
     await openNotificationPanel(page);
     await mountMobileIsland(page, 3);
 
