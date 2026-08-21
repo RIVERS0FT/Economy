@@ -2,7 +2,7 @@
 
 > 状态：当前客户端倒计时、到期刷新与服务器确认基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-20
+> 更新时间：2026-08-21
 
 ## 1. 唯一职责
 
@@ -14,6 +14,7 @@
 - 服务器结算尚未完成时的确认重试；
 - 到期确认期间的按钮和文案状态；
 - 经济写请求超时或断网后的同键确认重试；
+- 浏览器文档生命周期内的页面存档世代锁与写入门禁；
 - 新倒计时接入统一注册表的规则。
 
 经济结算规则仍以产品、产业、拍卖和排行榜对应文档为准；普通状态轮询、修订号、分区补丁、服务器幂等事务和服务器容量以 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` 为准。
@@ -80,6 +81,16 @@
 未变化分区继续复用缓存快照；低于当前全局修订号的迟到响应不得替换任何分区。空对象同样是合法的完整分区快照，必须能够清除该分区原有的全部字段。
 
 客户端状态缓存每次接受响应时必须同时返回 `stateChanged` 和 `changedPartitions`。只有实际接受至少一个完整分区快照时，`stateChanged` 才能为 `true`；无变化轻量确认、仅更新时间的响应和低于当前修订号的迟到响应必须返回 `stateChanged: false`、空 `changedPartitions`，并复用当前完整 `EconomyState` 对象引用。
+
+### 4.2 页面存档世代锁与状态发布原子性
+
+客户端必须在浏览器文档生命周期内维护唯一的**页面存档世代锁**。第一次取得结构完整、玩家身份有效的权威状态时，必须在任何 authority 发布、分区监听器通知、自动交易维护或生产补算写请求之前锁定该状态的 `userId + saveEpoch`；也就是必须在状态发布前完成世代校验，不能先把新分区通知给后台逻辑，再在请求函数外侧异步补写当前世代。
+
+同一 `userId` 的页面世代一旦锁定，普通轮询、完整状态重拉、catalog 完整性恢复、权威倒计时确认和 `resetGameStateDelivery()` 都只能清理分区／修订／服务器时钟等状态交付缓存，不得把页面 `saveEpoch` 清空或自动改成后续服务器返回的新值。若同一用户后续状态携带不同 `saveEpoch`，该响应必须在推进 revision、替换分区和通知监听器之前整体拒绝，并把当前浏览器文档标记为过期；后续所有游戏写请求必须在客户端直接阻断，直到用户真正刷新页面建立新的文档生命周期。用户身份 `userId` 真正变化时允许为新的账号建立新的页面世代锁。
+
+除首次会话初始化外，客户端游戏写请求只有在页面世代已经锁定且当前文档未过期时才允许发出，并必须携带锁定值生成的 `X-Economy-Save-Epoch`。世代尚未取得时不得发送“缺少请求头”的后台 `/orders`、`/production/settle` 或其他写请求；服务器返回 `SAVE_EPOCH_MISMATCH` 时也不得读取服务器的新世代后自动升级页面或重放原动作。服务端 `SAVE_EPOCH_MISMATCH` 仍是防止删档前旧标签页写入新存档的最终安全边界，本规则只消除当前页面因客户端竞态错误漏带请求头的情况。
+
+生产懒结算属于状态加载后的附加优化，不得反向决定已经通过结构与世代校验的 `GET state` 是否有效。若客户端生产提案因 `PRODUCTION_SETTLEMENT_*` 被服务器明确拒绝，应保留已接受状态，并对同一个生产 basis 暂停重复提交，直到资金、库存、工厂组或配方等基线变化后再生成新提案；不得让同一个坏 basis 在每次 3／5／10 秒轮询中持续制造 409 并把页面降级成“无法加载游戏状态”。`SAVE_EPOCH_MISMATCH` 不属于可抑制的生产错误，仍必须使当前文档过期。
 
 ## 5. 页面表现
 
@@ -160,6 +171,10 @@ HTTP 2xx、3xx 或除 408、429 之外的明确 4xx 响应表示本次网络结�
 - 删除统一注册表、共享单调服务器时钟、应用外壳协调器或每秒确认上限；
 - 恢复无超时 `fetch`、单一布尔刷新锁、固定 `setInterval` 并发确认，或让权威刷新因普通轮询／动作请求而永久跳过；
 - 在经济写请求超时、断网、408、429 或 5xx 后为同一逻辑操作换用新的 `Idempotency-Key`，导致第一次请求仍可能成功时重复执行；
+- 清除普通状态缓存时同时清除已经锁定的页面 `saveEpoch`，重新制造 authority 发布后后台写请求漏带 `X-Economy-Save-Epoch` 的窗口；
+- 对同一 `userId` 接受不同 `saveEpoch` 后自动升级当前页面，或在 `SAVE_EPOCH_MISMATCH` 后读取服务器新世代并重放原业务动作；
+- 在页面世代尚未锁定或当前文档已经过期时继续发送 `/orders`、`/production/settle` 或其他普通游戏写请求；
+- 让同一个已明确拒绝的生产 settlement basis 在每次状态轮询中重复 POST 并把已经成功取得的状态 GET 降级成通用加载失败；
 - 把过期生产提案重新暴露成客户端可预期的 409 再由客户端删除提案重发同一业务动作，或把指纹一致的非法生产提案静默降级为服务器兜底；
 - 把变化分区浅合并进旧完整状态，导致服务器已删除的活动研发、拍卖状态、待切换配方或其他可选字段继续残留；
 - 把无变化或迟到响应当作新状态提交给 React，导致默认轮询持续重渲染状态栏和当前页面；
@@ -173,7 +188,7 @@ HTTP 2xx、3xx 或除 408、429 之外的明确 4xx 响应表示本次网络结�
 - 让纯 `auction`、`contract` 或 `leaderboard` 更新重新提交与其无关的市场或建筑页面；
 - 让在线自动交易或成长线生产完成检测重新依赖根应用因权威状态变化而重渲染才能运行。
 
-`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`，锁定注册表、共享单调服务器时钟、应用外壳协调、请求超时、权威刷新模式、后台恢复、串行每秒确认、研发确认文案、工作冷却例外、拍卖等待结算文案、完整分区替换、稳定分区时间字段、即时建设无倒计时边界和本文档规则。经济写请求的同键确认重试、待确认 key 保留和应用入口安装同时由 `scripts/verify-market-action-latency.mjs` 防回退；生产结算基线指纹、过期提案同事务兜底与非法提案 409 由 `scripts/verify-production-lazy-settlement.mjs` 和服务器测试继续锁定；新增的客户端状态接受性能边界由 `scripts/verify-client-response-performance.mjs` 与 `server/test/game-authority-render-snapshot.test.js` 继续锁定。
+`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`，锁定注册表、共享单调服务器时钟、应用外壳协调、请求超时、权威刷新模式、后台恢复、串行每秒确认、研发确认文案、工作冷却例外、拍卖等待结算文案、完整分区替换、稳定分区时间字段、即时建设无倒计时边界和本文档规则。经济写请求的同键确认重试、待确认 key 保留和应用入口安装同时由 `scripts/verify-market-action-latency.mjs` 防回退；生产结算基线指纹、过期提案同事务兜底与非法提案 409 由 `scripts/verify-production-lazy-settlement.mjs` 和服务器测试继续锁定；页面存档世代锁、状态发布前世代校验、普通 reset 保留锁和过期文档本地写阻断由 `scripts/verify-save-deletion.mjs`、`server/test/client-save-epoch-page-lifecycle.test.js` 与 `tests/browser/save-epoch-lifecycle.spec.ts` 继续锁定；客户端状态接受性能边界由 `scripts/verify-client-response-performance.mjs` 与 `server/test/game-authority-render-snapshot.test.js` 继续锁定。
 
 ## 合同领域截止时间
 

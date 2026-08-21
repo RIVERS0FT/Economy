@@ -13,12 +13,105 @@ import { createClientProductionSettlementClaim } from '../utils/productionSettle
 import type { ProductionSettlementClaim } from '../../shared/production-settlement.js';
 
 const GAME_API_BASE = '/economy-api/game';
-const stateDeliveryCache = createStateDeliveryCache();
-let currentSaveEpoch: number | null = null;
+const PAGE_SAVE_EPOCH_STALE_MESSAGE = '当前存档已变化，请刷新页面后继续操作';
+const SAVE_EPOCH_NOT_READY_MESSAGE = '当前存档世代正在同步，请稍后重试';
+let pageSaveUserId: number | null = null;
+let pageSaveEpoch: number | null = null;
+let pageSaveEpochStaleMessage = '';
 let pendingProductionSettlement: ProductionSettlementClaim | null = null;
+let suppressedProductionSettlementBasisId: string | null = null;
 const DEFAULT_READ_TIMEOUT_MS = 8_000;
 const DEFAULT_WRITE_TIMEOUT_MS = 12_000;
 const NETWORK_ERROR_MESSAGE = '无法连接服务器，客户端或服务器可能已经更新，请刷新页面后重试';
+
+export class SaveEpochPageMismatchError extends Error {
+  readonly code = 'SAVE_EPOCH_PAGE_MISMATCH';
+  constructor(message = PAGE_SAVE_EPOCH_STALE_MESSAGE) {
+    super(message);
+    this.name = 'SaveEpochPageMismatchError';
+  }
+}
+
+function markPageSaveEpochStale(message = PAGE_SAVE_EPOCH_STALE_MESSAGE) {
+  pageSaveEpochStaleMessage = message || PAGE_SAVE_EPOCH_STALE_MESSAGE;
+}
+
+function validatePageSaveEpoch(state: EconomyState) {
+  const userId = Number(state.userId);
+  const saveEpoch = Number(state.saveEpoch);
+  if (!Number.isSafeInteger(userId) || userId < 1) {
+    throw new StateDeliveryIntegrityError('服务器未返回有效的玩家身份');
+  }
+  if (!Number.isSafeInteger(saveEpoch) || saveEpoch < 0) {
+    throw new StateDeliveryIntegrityError('服务器未返回有效的存档世代');
+  }
+
+  if (pageSaveUserId === null || pageSaveUserId !== userId) {
+    pageSaveUserId = userId;
+    pageSaveEpoch = saveEpoch;
+    pageSaveEpochStaleMessage = '';
+    suppressedProductionSettlementBasisId = null;
+    return;
+  }
+  if (pageSaveEpoch === null) {
+    pageSaveEpoch = saveEpoch;
+    return;
+  }
+  if (pageSaveEpochStaleMessage) {
+    throw new SaveEpochPageMismatchError(pageSaveEpochStaleMessage);
+  }
+  if (pageSaveEpoch !== saveEpoch) {
+    const message = `当前存档已变化（页面世代 ${pageSaveEpoch}，服务器世代 ${saveEpoch}），请刷新页面后继续操作`;
+    markPageSaveEpochStale(message);
+    throw new SaveEpochPageMismatchError(message);
+  }
+}
+
+const stateDeliveryCache = createStateDeliveryCache({ validateState: validatePageSaveEpoch });
+
+function requiredPageSaveEpoch() {
+  if (pageSaveEpochStaleMessage) {
+    throw new SaveEpochPageMismatchError(pageSaveEpochStaleMessage);
+  }
+  if (!Number.isSafeInteger(pageSaveEpoch) || Number(pageSaveEpoch) < 0) {
+    throw new GameApiError(409, SAVE_EPOCH_NOT_READY_MESSAGE, 'SAVE_EPOCH_NOT_READY');
+  }
+  return Number(pageSaveEpoch);
+}
+
+function productionSettlementClaimForState(
+  state: EconomyState | undefined,
+  serverNow: number,
+) {
+  const claim = createClientProductionSettlementClaim(state, serverNow);
+  if (!claim) return null;
+  const basisId = String(claim.basisId || '');
+  if (suppressedProductionSettlementBasisId && basisId === suppressedProductionSettlementBasisId) {
+    return null;
+  }
+  if (suppressedProductionSettlementBasisId && basisId !== suppressedProductionSettlementBasisId) {
+    suppressedProductionSettlementBasisId = null;
+  }
+  return claim;
+}
+
+export function getPageSaveEpochErrorMessage() {
+  return pageSaveEpochStaleMessage;
+}
+
+export function resetGameStateDelivery() {
+  stateDeliveryCache.reset();
+  pendingProductionSettlement = null;
+  resetServerClock();
+}
+
+export function resetGameSession() {
+  pageSaveUserId = null;
+  pageSaveEpoch = null;
+  pageSaveEpochStaleMessage = '';
+  suppressedProductionSettlementBasisId = null;
+  resetGameStateDelivery();
+}
 
 export const DEFAULT_QQ_GROUP_URL = 'https://qm.qq.com/q/eN8hya0Yn0';
 
@@ -159,13 +252,6 @@ function knownPartitionRevisions() {
   return stateDeliveryCache.getPartitionRevisions();
 }
 
-export function resetGameStateDelivery() {
-  stateDeliveryCache.reset();
-  currentSaveEpoch = null;
-  pendingProductionSettlement = null;
-  resetServerClock();
-}
-
 function createTimedSignal(source: AbortSignal | null | undefined, timeoutMs: number) {
   const controller = new AbortController();
   let timedOut = false;
@@ -191,8 +277,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (init?.body) headers.set('Content-Type', 'application/json');
   if (init?.method && init.method !== 'GET') {
     headers.set('Idempotency-Key', createRequestKey());
-    if (Number.isInteger(currentSaveEpoch)) {
-      headers.set('X-Economy-Save-Epoch', String(currentSaveEpoch));
+    if (path !== '/session') {
+      headers.set('X-Economy-Save-Epoch', String(requiredPageSaveEpoch()));
     }
   }
   const timeoutMs = init?.method && init.method !== 'GET'
@@ -214,16 +300,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         if (payload.message) message = payload.message;
         code = String(payload.code || '');
       } catch { /* preserve generic message */ }
+      if (code === 'SAVE_EPOCH_MISMATCH') {
+        markPageSaveEpochStale(message);
+        throw new SaveEpochPageMismatchError(message);
+      }
       throw new GameApiError(response.status, message, code);
     }
     const payload = await response.json() as unknown;
     if (isStateDeliveryPayload(payload)) {
       acceptServerNow(payload.serverNow);
       const accepted = stateDeliveryCache.accept(payload);
-      const deliveredState = (accepted as StateDeliveryEnvelope & { state?: EconomyState }).state;
-      if (Number.isInteger(deliveredState?.saveEpoch)) {
-        currentSaveEpoch = Number(deliveredState?.saveEpoch);
-      }
       return accepted as T;
     }
     return payload as T;
@@ -270,11 +356,19 @@ async function fetchGameStateWithRecovery(revision?: number | null, signal?: Abo
   try {
     return await fetchGameStateOnce(revision, signal);
   } catch (reason) {
+    if (reason instanceof SaveEpochPageMismatchError) {
+      resetGameStateDelivery();
+      throw reason;
+    }
     if (!(reason instanceof StateDeliveryIntegrityError)) throw reason;
     resetGameStateDelivery();
     try {
       return await fetchGameStateOnce(undefined, signal);
     } catch (retryReason) {
+      if (retryReason instanceof SaveEpochPageMismatchError) {
+        resetGameStateDelivery();
+        throw retryReason;
+      }
       if (retryReason instanceof StateDeliveryIntegrityError) {
         throw new GameApiError(
           502,
@@ -290,21 +384,34 @@ async function fetchGameStateWithRecovery(revision?: number | null, signal?: Abo
 export async function getGameState(revision?: number | null, signal?: AbortSignal): Promise<GameStatePollResponse> {
   if (!Number.isInteger(revision)) resetGameStateDelivery();
   let response = await fetchGameStateWithRecovery(revision, signal);
-  pendingProductionSettlement = createClientProductionSettlementClaim(
+  pendingProductionSettlement = productionSettlementClaimForState(
     response.state,
     Number(response.serverNow),
   );
   if (!pendingProductionSettlement) return response;
 
-  const settlement = await postAction('/production/settle');
-  if (settlement.revision !== response.revision) {
-    response = await fetchGameStateWithRecovery(response.revision, signal);
+  const attemptedClaim = pendingProductionSettlement;
+  try {
+    const settlement = await postAction('/production/settle');
+    suppressedProductionSettlementBasisId = null;
+    if (settlement.revision !== response.revision) {
+      response = await fetchGameStateWithRecovery(response.revision, signal);
+    }
+    pendingProductionSettlement = productionSettlementClaimForState(
+      response.state,
+      Number(response.serverNow),
+    );
+    return response;
+  } catch (reason) {
+    pendingProductionSettlement = null;
+    if (reason instanceof SaveEpochPageMismatchError) throw reason;
+    if (reason instanceof GameApiError && reason.code.startsWith('PRODUCTION_SETTLEMENT_')) {
+      const basisId = String(attemptedClaim?.basisId || '');
+      if (basisId) suppressedProductionSettlementBasisId = basisId;
+      return response;
+    }
+    throw reason;
   }
-  pendingProductionSettlement = createClientProductionSettlementClaim(
-    response.state,
-    Number(response.serverNow),
-  );
-  return response;
 }
 
 export async function getTutorialStatus(signal?: AbortSignal): Promise<TutorialStatusResponse> {
@@ -324,7 +431,10 @@ export async function getGemShopSummary(): Promise<GemShopSummary> {
 }
 
 export async function getCommunityLink(signal?: AbortSignal): Promise<CommunityLinkConfig> {
-  const payload = await request<{ communityLink: CommunityLinkConfig }>('/community-link', { method: 'GET', signal });
+  const payload = await request<{ communityLink: CommunityLinkConfig }>(
+    '/community-link',
+    { method: 'GET', signal },
+  );
   return payload.communityLink;
 }
 

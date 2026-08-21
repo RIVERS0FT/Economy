@@ -45,6 +45,10 @@ export interface StateAuthoritySnapshot {
   changedSlices: readonly StateSliceName[];
 }
 
+export interface StateDeliveryCacheOptions {
+  validateState?: (state: EconomyState) => void;
+}
+
 export class StateDeliveryIntegrityError extends Error {
   readonly code: 'STATE_DELIVERY_INTEGRITY';
   constructor(message: string);
@@ -75,7 +79,7 @@ export function mergeStatePatches(
   currentPartitions: StatePartitionSnapshots | undefined,
   patches: StatePartitionPatches | undefined,
 ): StatePatchMerge;
-export function createStateDeliveryCache(): {
+export function createStateDeliveryCache(options?: StateDeliveryCacheOptions): {
   reset(): void;
   getPartitionRevisions(): StatePartitionRevisions;
   getSliceRevisions(): StateSliceRevisions;
