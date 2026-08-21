@@ -1,0 +1,40 @@
+name: codex-map-roam-doc-verifier-fix
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'codex/map-roam-performance'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map-roam-performance
+          fetch-depth: 0
+      - name: Match authoritative georoam wording
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-provincial-economy.mjs')
+          source = path.read_text()
+          old = "  'georoam 热路径只允许更新共享 SVG 相机组的统一等比缩放和平移矩阵',"
+          new = "  '`georoam` 热路径只允许更新共享 SVG 相机组的统一等比缩放和平移矩阵',"
+          if source.count(old) != 1:
+              raise SystemExit(f'georoam wording count={source.count(old)}')
+          path.write_text(source.replace(old, new, 1))
+          PY
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/codex-map-roam-doc-verifier-fix.yml
+          git add scripts/verify-provincial-economy.mjs
+          git commit -m "修正地图性能设计校验字面匹配"
+          git push origin HEAD:codex/map-roam-performance
