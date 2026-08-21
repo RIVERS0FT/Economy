@@ -9,10 +9,14 @@ import {
   managedCommodityOrder,
 } from '../app/clientOrderIndex';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
-import { subscribeStateAuthorityDependencies } from '../app/stateDelivery.js';
+import {
+  getStateAuthoritySnapshot,
+  subscribeStateAuthorityDependencies,
+} from '../app/stateDelivery.js';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { productionContractStateFromGame } from '../contracts/types';
 import type { AssetOrder, EconomyState, FacilityGroup, FacilityRecipeItem } from '../types';
+import { scopeEconomyState } from '../utils/provinceScope';
 import {
   clearAutoSellPolicies,
   loadAutoSellPolicies,
@@ -179,6 +183,28 @@ function sameSources(left: readonly unknown[], right: readonly unknown[]) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
+function buyPolicyForGame(game: EconomyState, productId: string): AutoBuyPolicy {
+  const existing = game.onlineAutoBuyPolicies?.[productId];
+  if (existing) return existing;
+  const product = game.products.find((candidate) => candidate.id === productId);
+  return {
+    enabled: false,
+    maxPrice: Math.max(0.01, Number(product?.basePrice || 1)),
+    targetFreeInventory: 0,
+  };
+}
+
+function sellPolicyForGame(game: EconomyState, productId: string): AutoSellPolicy {
+  const existing = game.onlineAutoSellPolicies?.[productId];
+  if (existing) return existing;
+  const product = game.products.find((candidate) => candidate.id === productId);
+  return {
+    enabled: false,
+    price: Math.max(0.01, Number(product?.basePrice || 1)),
+    minimumFreeInventory: 0,
+  };
+}
+
 export function useOnlineAutoTrade(
   model: LoadedGameViewModel,
   callbacks: {
@@ -215,32 +241,19 @@ export function useOnlineAutoTrade(
     })();
   }, [model, userId]);
 
-  const buyPolicyFor = useCallback((productId: string): AutoBuyPolicy => {
-    const game = model.game;
-    const existing = game.onlineAutoBuyPolicies?.[productId];
-    if (existing) return existing;
-    const product = game.products.find((candidate) => candidate.id === productId);
-    return {
-      enabled: false,
-      maxPrice: Math.max(0.01, Number(product?.basePrice || 1)),
-      targetFreeInventory: 0,
-    };
-  }, [model]);
+  const buyPolicyFor = useCallback((productId: string): AutoBuyPolicy => (
+    buyPolicyForGame(model.game, productId)
+  ), [model]);
 
-  const sellPolicyFor = useCallback((productId: string): AutoSellPolicy => {
-    const game = model.game;
-    const existing = game.onlineAutoSellPolicies?.[productId];
-    if (existing) return existing;
-    const product = game.products.find((candidate) => candidate.id === productId);
-    return {
-      enabled: false,
-      price: Math.max(0.01, Number(product?.basePrice || 1)),
-      minimumFreeInventory: 0,
-    };
-  }, [model]);
+  const sellPolicyFor = useCallback((productId: string): AutoSellPolicy => (
+    sellPolicyForGame(model.game, productId)
+  ), [model]);
 
-  const statusFor = useCallback((productId: string): AutoTradeProductStatus => {
-    const game = model.game;
+  const statusFor = useCallback((
+    productId: string,
+    sourceGame?: EconomyState,
+  ): AutoTradeProductStatus => {
+    const game = sourceGame ?? model.game;
     const productionReserved = currentProductionReservations(game);
     const contractReserved = currentContractReservations(game);
     const sources = [
@@ -262,8 +275,8 @@ export function useOnlineAutoTrade(
     if (cached) return cached;
 
     const orderIndex = getClientOrderIndex(game.orders);
-    const buyPolicy = buyPolicyFor(productId);
-    const sellPolicy = sellPolicyFor(productId);
+    const buyPolicy = buyPolicyForGame(game, productId);
+    const sellPolicy = sellPolicyForGame(game, productId);
     const availableInventory = nonNegativeInteger(game.inventories[productId]?.available);
     const production = nonNegativeInteger(productionReserved[productId]);
     const contract = contractReserved[productId] ?? { display: 0, availableHold: 0 };
@@ -368,7 +381,7 @@ export function useOnlineAutoTrade(
     };
     statusCacheRef.current.values.set(productId, status);
     return status;
-  }, [buyPolicyFor, model, sellPolicyFor]);
+  }, [model]);
 
   const setPolicy = useCallback(async (productId: string, policy: AutoTradePolicyInput) => {
     const buyMaxPrice = Math.round(Number(policy.buy.maxPrice) * 100) / 100;
@@ -418,7 +431,13 @@ export function useOnlineAutoTrade(
 
   const maintainAutoTrade = useCallback(() => {
     if (busyRef.current) return;
-    const game = model.game;
+    const authorityGame = getStateAuthoritySnapshot().state;
+    if (
+      !authorityGame
+      || authorityGame.userId !== userId
+      || authorityGame.saveEpoch !== model.game.saveEpoch
+    ) return;
+    const game = scopeEconomyState(authorityGame, model.selectedProvinceId);
     const sellPolicies = game.onlineAutoSellPolicies ?? {};
     const buyPolicies = game.onlineAutoBuyPolicies ?? {};
     const productOrder = new Map(game.products.map((product, index) => [product.id, index]));
@@ -435,12 +454,12 @@ export function useOnlineAutoTrade(
       .sort(byCatalogOrder);
 
     const sellProductId = enabledSellProductIds.find((productId) => {
-      const status = statusFor(productId);
+      const status = statusFor(productId, game);
       return (!status.blockedSellByOwnBuy && status.sellNeedsMaintenance)
         || (status.blockedSellByOwnBuy && status.hasManagedSellOrder);
     });
     const buyProductId = sellProductId ? undefined : enabledBuyProductIds.find((productId) => {
-      const status = statusFor(productId);
+      const status = statusFor(productId, game);
       return (!status.blockedBuyByOwnSell && status.buyNeedsMaintenance)
         || (status.blockedBuyByOwnSell && status.hasManagedBuyOrder);
     });
@@ -467,7 +486,7 @@ export function useOnlineAutoTrade(
         setBusyProductId(null);
         setBusySide(null);
       });
-  }, [callbacks.onSale, model, statusFor]);
+  }, [callbacks.onSale, model, statusFor, userId]);
 
   useEffect(() => {
     maintainAutoTrade();
