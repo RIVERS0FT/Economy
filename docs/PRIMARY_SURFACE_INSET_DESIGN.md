@@ -60,6 +60,7 @@
 - 可滚动 `PageLayout` 的 `.page-card-scroll` 四边统一使用 `--player-page-content-inset`。标题栏底边到第一块正文顶边必须至少保留该间距；不得再使用 `padding-top: 0` 或通过第一块卡片负 margin 抵消。
 - 不可滚动 `.page-card-static` 仍必须遵守宽度链和禁止横向溢出规则，但不强制追加正文 inset，避免破坏研发树等固定工作区的既有内部布局。
 - `GlobalBuildingsPage` 等全局经营页必须以 `minmax(0, 1fr)` 和 `min-width: 0` 保证网格可收缩；移动端顶部四项汇总固定为两列，不能靠抽屉裁剪维持桌面列数。
+- 浏览器真实几何回归若在同一页面实例内跨越 `720px` 桌面／移动断点，必须先等待断点后的目标业务节点恢复为可见且具有非零布局盒，再读取 `boundingBox()` 或其他几何；视口切换会触发玩家外壳与 Mobile Workspace Sheet 的响应式重排，测试不得把切换调用返回的瞬间误判为布局已经稳定。
 
 ## 7. 当前清理结果
 
@@ -84,6 +85,7 @@
 - 样式加载顺序正确；
 - 已清理页面不再声明旧外层 padding；
 - 本设计文档中的唯一权威和禁止回退规则仍存在；
-- `tests/browser/player-page-geometry.spec.ts` 在桌面和移动断点覆盖正式页面，验证页面不超出承载面、可滚动正文首项有统一顶部间距且根级无横向溢出。
+- `tests/browser/player-page-geometry.spec.ts` 在桌面和移动断点覆盖正式页面，验证页面不超出承载面、可滚动正文首项有统一顶部间距且根级无横向溢出；
+- `tests/browser/market-runtime.spec.ts` 的跨桌面／移动响应式几何用例必须在断点切换后等待下单区与订单簿重新可见，再读取真实布局盒，防止把外壳重排中的瞬态无布局状态误报为页面几何回归。
 
 该验证必须加入 `verify:architecture`，防止后续修改重新引入页面专属一级卡片内边距、页面宽度漂移或外壳裁剪。
