@@ -52,28 +52,30 @@
 ## 4. 侧栏几何与输入方式
 
 - 玩家端桌面侧栏与当前页面必须共同位于唯一 `FrostedGlassSurface workspaceCard` 主卡片中；主卡片承担唯一外层毛玻璃、边框、圆角和阴影，侧栏与 `.page-content` 不得继续各自渲染第二层外壳材质。管理员继续使用原共享外壳结构，不接入玩家主卡片。
-- 桌面侧栏默认 `78px`，悬浮或键盘焦点进入后展开为 `224px`，移出或焦点离开后收起；不得恢复显式展开／折叠按钮。主卡片只固定预留 `78px` 指挥轨道，展开侧栏绝对覆盖页面而不推动页面、地图或事件栏。侧栏右边缘必须始终提供 `1px` 竖向分隔线和向页面方向投射的阴影；分隔线与阴影随侧栏右边缘移动。
+- 桌面侧栏默认 `78px`，悬浮或键盘焦点进入后展开为 `224px`，移出或焦点离开后收起；不得恢复显式展开／折叠按钮。主卡片只固定预留 `78px` 指挥轨道，展开侧栏绝对覆盖页面而不推动页面、地图或右侧信息栏。侧栏右边缘必须始终提供 `1px` 竖向分隔线和向页面方向投射的阴影；分隔线与阴影随侧栏右边缘移动。
 - 鼠标展开必须代表本轮真实指针意图：当新文档或新侧栏 DOM 挂载到一个完全静止、此前已停留在侧栏位置的鼠标下方时，不得仅凭挂载产生的 `mouseenter` 自动展开；首次真实 `pointermove`／`mousemove` 后的悬浮立即恢复正常展开。键盘焦点进入不受该门槛影响，仍须立即展开。此规则用于避免页面重新挂载或测试导航把旧指针位置误判为一次新的用户悬浮。
 - `721px–960px` 使用与宽屏完全相同的 `78px／224px`、四边统一 `14px` 内边距、`48px` 图标轨道和 `48px` 导航行；导航区不叠加顶部外边距，不得切换为 `86px`、`18px` 内边距、隐藏文字的另一套紧凑几何。
 - 细指针桌面设备的导航与底部操作在鼠标悬浮时显示边界、背景、左侧绿色提示和轻微亮度变化，但按钮位置、图标中心和高度不得移动或缩放。桌面侧栏按钮不得渲染数字角标，提醒数量只保留在可访问名称和移动底栏。
 - 移动底栏禁止 hover 可见反馈。未选中、按下和已选中三种状态必须稳定区分；触摸产生的粘滞 `:hover` 不得改变未选中或已选中视觉。键盘 `:focus-visible` 继续保留明确焦点环。
 
-## 5. 玩家页面与右侧事件日志
+## 5. 玩家页面与右侧信息栏
 
-- `research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop` 使用 `fullscreen`，页面内容占满主卡片内侧可用页面区域，不挂载公开事件右栏；排行榜与商店必须保持相同页面宽度。
-- `home`、隐藏 `province` 上下文页、`market`、`buildings`、`settings` 使用 `building`，统一使用 `--strategic-compact-page-width: 56rem` 作为内容目标值，但包含 `78px` 侧栏轨道的完整 `workspaceCard` 总宽度不得超过 `calc(100vw / 3)`，也不得超过事件右栏之外的可用空间；不得为其中任一页恢复独立宽度。地图在其余区域继续可见，打开或切换页面不得额外压暗地图。
-- 桌面状态栏、玩家主卡片和公开事件右栏统一使用 `8px` 屏幕边距；共享外壳已经在状态栏下方提供唯一 `8px` 间距，主卡片和事件右栏必须从工作区顶部 `0` 开始，禁止重复增加顶部沟槽。主卡片底部只保留 `8px` 屏幕边距，不得再为地图镜头栏挤压页面高度。标题与正文内距、一级区块间距统一使用 `var(--layout-gutter)`；玩家主卡片、公开事件面板和一级业务卡片统一使用 `var(--radius-card)`，不得保留独立 `12px`／`16px` 页面圆角。桌面 `.page-content` 只负责页面布局并保持透明，不得在主卡片内重复外层边框、圆角、阴影或 `backdrop-filter`。
+- 桌面右侧信息栏由 `StrategicWorkspaceChrome` 唯一持有，教程与公开经济事件是两个独立模块：教程只由 `tutorial.isVisible && tutorial.currentStep` 控制，不能再以 `model.tab === 'home'` 或概览页面是否显示为条件；公开事件日志继续由页面类型控制。教程和公开事件任一需要显示时右栏存在，两者都不需要时右栏不挂载。
+- 教程是桌面应用外壳级常驻模块。只要当前教程处于显示状态，切换概览、州级上下文、市场、建筑、研发、拍卖、合同、银行、排行、商店或设置都不得卸载教程卡；“暂时隐藏”只改变教程自身本地显示状态。“显示教程”恢复当前轮次且不得为了重新显示教程强制跳回概览；“重新开始教程”仍按教程规则从第一步重建并回到概览。
+- 教程卡根节点必须复用通用 `.panel` 的共享毛玻璃材质，使用 `--frosted-glass-background`、`--frosted-glass-border`、`--frosted-glass-shadow` 和 `--frosted-glass-filter`；`game-guide.css` 只负责教程内部布局、进度条和操作区，不得自行定义第二套卡片背景、边框、阴影、滤镜或独立卡片圆角。
+- `research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop` 使用 `fullscreen`；这些页面继续隐藏公开事件日志。教程隐藏或已完成时页面占满主卡片内侧可用区域；教程可见时主卡片必须为右栏预留 `--strategic-event-rail-width + 3 × --strategic-panel-gap`，不得让教程覆盖正文。排行榜与商店在相同教程可见状态下必须保持相同页面宽度。
+- `home`、隐藏 `province` 上下文页、`market`、`buildings`、`settings` 使用 `building`，统一使用 `--strategic-compact-page-width: 56rem` 作为内容目标值，但包含 `78px` 侧栏轨道的完整 `workspaceCard` 总宽度不得超过 `calc(100vw / 3)`，也不得超过右栏之外的可用空间；不得为其中任一页恢复独立宽度。地图在其余区域继续可见，打开或切换页面不得额外压暗地图。
+- 桌面状态栏、玩家主卡片和右侧信息栏统一使用 `8px` 屏幕边距；共享外壳已经在状态栏下方提供唯一 `8px` 间距，主卡片和右栏必须从工作区顶部 `0` 开始，禁止重复增加顶部沟槽。主卡片底部只保留 `8px` 屏幕边距，不得再为地图镜头栏挤压页面高度。标题与正文内距、一级区块间距统一使用 `var(--layout-gutter)`；玩家主卡片、公开事件面板、教程卡和一级业务卡片统一使用 `var(--radius-card)`，不得保留独立 `12px`／`16px` 页面圆角。桌面 `.page-content` 只负责页面布局并保持透明，不得在主卡片内重复外层边框、圆角、阴影或 `backdrop-filter`。
 - 玩家 `PageLayout` 把标题与页面操作固定在 `.page-fixed-header`，正文使用页面卡片内部唯一 `ScrollArea`；工作区外层滚动条隐藏，滚动轨道不得越过卡片边界。
 - `--desktop-page-top-offset` 只表示下方工作区内部沟槽；页面滚动区已经完成状态栏避让，建筑页 sticky 后代不得重复叠加完整状态栏高度。
-- 公开经济事件不得进入 `OverviewPage`、`.page-content` 或页面滚动区。桌面端由 `StrategicWorkspaceChrome` 在工作区右侧挂载唯一 `.strategic-economic-event-rail`；建筑式页面必须给右栏预留空间，纯地图视图允许右栏覆盖地图。事件面板标题不带说明段落或右侧胶囊，事件折叠态只显示名称与距离开始时间，具体状态、时间范围、说明、类别、商品和成交反馈在展开后显示。
-- 桌面关闭态 Toast 必须作为 `.workspace-strategic-chrome` 的直接子项，与 `.strategic-economic-event-rail` 使用相同局部 `z-index: 2`，从工作区右下角按 `var(--strategic-panel-gap)`（当前桌面为 `8px`）定位并向上堆叠；最新通知最靠近右下角。Toast 使用独立最大宽度 `360px`，不得绑定事件右栏的 `clamp(260px, 21vw, 320px)` 宽度，也不得为了避让事件栏推动、缩窄页面或改变右栏几何。Toast DOM 排在事件栏之后，发生局部重叠时临时覆盖事件栏；研发、拍卖、合同、银行、排行榜和商店即使隐藏事件右栏也仍必须保留桌面 Toast。完整通知中心不属于此层，仍按第 6 节使用工作区安全浮层右上角几何。
-- 经营成长线在桌面概览时位于右栏事件日志上方；移动端右栏隐藏，概览只保留移动专用成长线入口，公开事件不回流概览正文。
-- 研发、拍卖、合同、银行、排行榜和商店隐藏右栏；切换页面不得重建根级地图。
-- 玩家主卡片宽度在页面目标宽度变化时使用与侧栏一致的 `220ms cubic-bezier(.2,.8,.2,1)` 过渡；新页面内容以 keyed `clip-path: inset(0 100% 0 0) → inset(0)` 从左向右裁剪展开并轻微淡入，页面布局轨道从首帧起保持最终 `1fr` 几何，动画不得修改 `grid-template-columns`、页面内容宽度或滚动根宽度。动画只由正式页面 ID 变化触发，权威状态刷新、倒计时和表单变化不得重播；不得对地图、ECharts 宿主、工作区或毛玻璃采样链设置动画 `transform`。`prefers-reduced-motion: reduce` 时立即完成。
+- 公开经济事件不得进入 `OverviewPage`、`.page-content` 或页面滚动区。桌面端由 `StrategicWorkspaceChrome` 在工作区右侧同一 `.strategic-economic-event-rail` 内按页面规则挂载；`home`、`province`、`market`、`buildings`、`settings` 和纯地图视图允许事件日志显示，研发、拍卖、合同、银行、排行、商店隐藏事件日志。事件面板标题不带说明段落或右侧胶囊，事件折叠态只显示名称与距离开始时间，具体状态、时间范围、说明、类别、商品和成交反馈在展开后显示。
+- 当教程与公开事件同时显示时，教程位于右栏顶部，事件日志占用剩余高度并在自身列表内滚动；当右栏只有教程时，教程按自然高度停靠右上，不得用空的事件网格行把教程拉伸到整栏高度。现有 `.strategic-economic-event-rail` 技术类名可以继续沿用，但语义职责已经扩展为通用右侧信息栏。
+- 桌面关闭态 Toast 必须作为 `.workspace-strategic-chrome` 的直接子项，与 `.strategic-economic-event-rail` 使用相同局部 `z-index: 2`，从工作区右下角按 `var(--strategic-panel-gap)`（当前桌面为 `8px`）定位并向上堆叠；最新通知最靠近右下角。Toast 使用独立最大宽度 `360px`，不得绑定右栏的 `clamp(260px, 21vw, 320px)` 宽度，也不得为了避让右栏推动、缩窄页面或改变右栏几何。Toast DOM 排在右栏之后，发生局部重叠时临时覆盖右栏；研发、拍卖、合同、银行、排行榜和商店即使隐藏事件日志也仍必须保留桌面 Toast。完整通知中心不属于此层，仍按第 6 节使用工作区安全浮层右上角几何。
+- 玩家主卡片宽度在页面目标宽度或教程右栏显示状态变化时使用与侧栏一致的 `220ms cubic-bezier(.2,.8,.2,1)` 过渡；新页面内容以 keyed `clip-path: inset(0 100% 0 0) → inset(0)` 从左向右裁剪展开并轻微淡入，页面布局轨道从首帧起保持最终 `1fr` 几何，动画不得修改 `grid-template-columns`、页面内容宽度或滚动根宽度。动画只由正式页面 ID 变化触发，教程显示／隐藏只能触发主卡片宽度过渡，不得重播页面展开；权威状态刷新、倒计时和表单变化不得重播；不得对地图、ECharts 宿主、工作区或毛玻璃采样链设置动画 `transform`。`prefers-reduced-motion: reduce` 时立即完成。
 
 ## 6. 移动与浮层
 
-- 不大于 `720px` 时桌面侧栏和右侧事件栏隐藏，`workspaceCard` 退化为无额外材质的结构容器；纯地图页继续只显示常驻战略地图，除纯地图外的玩家页面与工厂／研发／自动交易等业务详情统一进入唯一根级 Mobile Workspace Sheet。该 Host 在 `.workspace-dialog-layer` 中只挂载一份工厂详情卡片容器 `.mobile-detail-sheet-backdrop > .mobile-detail-sheet`。实体 Sheet 底边贴物理视口底部，最大高度同时受 `88%` 视觉视口、`760px` 和状态栏下方可用高度约束，顶边必须始终低于移动状态栏。根 backdrop 可以覆盖完整视口承担点击关闭命中，但必须保持透明并禁用 `backdrop-filter`；唯一实体 `.mobile-detail-sheet` 自身才复用共享 `--frosted-glass-*` 材质和 `blur(18px) saturate(128%)`。Sheet 外部区域不得压暗或模糊，地图、状态栏和通知区域保持原亮度与清晰度。
+- 不大于 `720px` 时桌面侧栏和右侧信息栏隐藏，`workspaceCard` 退化为无额外材质的结构容器；移动端不新增第二套常驻右栏，概览中的 `.overview-mobile-tutorial` 继续作为教程入口。纯地图页继续只显示常驻战略地图，除纯地图外的玩家页面与工厂／研发／自动交易等业务详情统一进入唯一根级 Mobile Workspace Sheet。该 Host 在 `.workspace-dialog-layer` 中只挂载一份工厂详情卡片容器 `.mobile-detail-sheet-backdrop > .mobile-detail-sheet`。实体 Sheet 底边贴物理视口底部，最大高度同时受 `88%` 视觉视口、`760px` 和状态栏下方可用高度约束，顶边必须始终低于移动状态栏。根 backdrop 可以覆盖完整视口承担点击关闭命中，但必须保持透明并禁用 `backdrop-filter`；唯一实体 `.mobile-detail-sheet` 自身才复用共享 `--frosted-glass-*` 材质和 `blur(18px) saturate(128%)`。Sheet 外部区域不得压暗或模糊，地图、状态栏和通知区域保持原亮度与清晰度。
 - 唯一根级 Mobile Workspace Sheet 只在首次由纯地图进入业务页面时执行根容器底部打开动效；业务页面之间切换只替换基础内容并保持同一 `.mobile-detail-sheet` DOM。工厂、研发或自动交易详情打开时在根内增加详情内容层并把基础页设为 `inert`，详情层使用同一拖动内核从底部进入；关闭详情只收起详情层并恢复原页面。没有详情层时，右上关闭、遮罩点击、`Escape` 或正文已经位于顶部时的有效向下拖动才收起整个根并切换到 `map`；正文 `scrollTop > 0` 时向下手势继续属于正文滚动。根 Sheet 继续承担页面滚动锁，但作为可与顶部 Chrome 并存的非模态 `role="dialog"` 不得建立全局 `Tab` 焦点陷阱；状态栏通知按钮和其覆盖层必须能够取得焦点。物理根 Sheet 独占 Pointer／Touch 手势监听；详情打开时只把同一个 `useMobileWorkspaceSheetDrag` 的视觉拖拽目标切换到详情层，不得把监听下沉到详情子层或同时注册两套监听，保证真机触摸、Pointer Capture 与下拉刷新保护始终经过同一物理事件边界。
 - `SignedInShell` 为玩家与管理员统一提供唯一页面 `ScrollArea`；不得为管理员创建第二个原生主滚动容器，嵌套业务视口到达边界后必须把滚动链交还该共享页面视口。
 - 移动页面卡片自己的竖向滚动条必须继续绝对定位在 `.page-card-scroll-area` 根上，并跨出 `--mobile-workspace-gutter + 1px` 卡片边框，使视觉滑块到达物理安全右边缘，同时不改变内容视口宽度。只有根级 `.page-scroll-area` 的竖向轨道允许使用 viewport-fixed 定位；不得把页面卡片滚动条设为 `fixed` 放在带 `backdrop-filter` 的毛玻璃祖先下，因为 Chromium 会为固定后代建立局部包含块并把轨道错误地向内偏移。
@@ -89,7 +91,7 @@
 
 必须通过以下防回退：
 
-- `scripts/verify-liquid-glass-chrome.mjs`：历史脚本路径保留，但验证对象已改为 CSS 毛玻璃、依赖删除、共享组件、单节点 Tooltip 材质、页面分流和右栏职责。
+- `scripts/verify-liquid-glass-chrome.mjs`：历史脚本路径保留，但验证对象已改为 CSS 毛玻璃、依赖删除、共享组件、单节点 Tooltip 材质、页面分流、教程常驻与右栏职责。
 - `scripts/verify-client-update-recovery.mjs`：锁定 `RefreshPageButton` 的浏览器式 SVG 刷新控件、真实 `window.location.reload()` 恢复语义，并禁止异常入口恢复文字刷新按钮或应用内 retry。
 - `scripts/verify-mobile-page-sheet.mjs`：锁定唯一根级 Mobile Workspace Sheet、工厂详情卡片容器单实例、Sheet 自身毛玻璃、透明外部 backdrop、状态栏避让、页面／详情内容复用、共享拖动内核、底栏隐藏与返回动画、通知覆盖和地图关闭语义，禁止恢复第二个 Sheet DOM。
 - `tests/browser/frosted-glass-layout.spec.ts`：状态栏、通用面板、认证和移动底栏的真实背景滤镜、边界、圆角、单实例与无旧 DOM。
@@ -97,9 +99,10 @@
 - `tests/browser/shell-floating-safe-zone.spec.ts`：ECharts Tooltip 必须使用同一 `.ui-tooltip-surface` 毛玻璃材质并继续限制在工作区安全边界，不能覆盖状态栏、侧栏或可见移动底栏。
 - `tests/browser/application-error-state.spec.ts`：桌面／移动错误状态必须使用唯一 `stateCard`，真实计算样式包含共享 `blur(18px)`、半透明背景和危险色边界；刷新控件必须为圆形图标按钮并触发页面重新加载。
 - `tests/browser/open-glass-sampling.spec.ts`：四种玩家／管理员、桌面／移动场景的根级采样链。
-- `tests/browser/game-shell-layout.spec.ts`：侧栏宽窄屏一致、真实指针意图后的悬浮反馈不位移、页面展开期间布局盒几何不受视觉裁剪动画影响、建筑式面板与事件右栏几何。
+- `tests/browser/game-shell-layout.spec.ts`：侧栏宽窄屏一致、真实指针意图后的悬浮反馈不位移、页面展开期间布局盒几何不受视觉裁剪动画影响、建筑式面板与右栏几何。
+- `tests/browser/tutorial-right-rail.spec.ts`：桌面教程跨页面常驻、全屏页避让、`.panel` 毛玻璃计算样式和移动端不出现桌面右栏。
 - `tests/browser/mobile-status-value-fit.spec.ts`：移动状态栏在连续视口 resize 后必须重新完成数值拟合；`400px` 与 `340px` 两级超窄布局必须先收紧留白和图标，在 `320px` 仍保留 `44px` 通知触控轨道并让完整整数不低于 `0.56rem`；不得卡在 `data-status-values-fitted="false"` 或裁剪末位数字。
 - `tests/browser/mobile-workspace-overlay.spec.ts`：唯一根级 Mobile Workspace Sheet 必须复用工厂详情全宽容器、底边贴物理视口、顶边避让状态栏且只在自身毛玻璃；Sheet 外保持清晰，状态栏可交互，底栏在 Sheet 存在时隐藏并在根 Sheet 收起后播放返回动画；页面卡片滚动条继续位于根 Sheet 安全右边缘且不改变正文宽度。
-- `tests/browser/notification-center.spec.ts`：桌面完整通知面板保持工作区安全浮层右上角；桌面关闭态 Toast 与公开事件栏同属战略 Chrome 的 `z-index: 2`、固定工作区右下角且宽度独立，在隐藏事件栏页面仍可出现；移动通知面板必须覆盖已打开的根 Sheet、保持状态栏最高且面板打开期间通知岛为零，`Escape` 只关闭通知面板并恢复通知入口焦点。
+- `tests/browser/notification-center.spec.ts`：桌面完整通知面板保持工作区安全浮层右上角；桌面关闭态 Toast 与右栏同属战略 Chrome 的 `z-index: 2`、固定工作区右下角且宽度独立，在隐藏事件日志页面仍可出现；移动通知面板必须覆盖已打开的根 Sheet、保持状态栏最高且面板打开期间通知岛为零，`Escape` 只关闭通知面板并恢复通知入口焦点。
 - `tests/browser/mobile-navigation-scrollbar.spec.ts`：移动底栏保持同一 DOM、Sheet 存在时不可见且不可交互、根 Sheet 收起到地图后使用通知灵动岛同系返回动画，并继续验证无 hover、按下／选中／未选中状态和横向滚动。
-- `tests/browser/all-pages-preview.spec.ts`：概览、市场、建筑、设置四个同宽紧凑页面，排行榜与商店等六个全区域页面和独立事件右栏。
+- `tests/browser/all-pages-preview.spec.ts`：概览、市场、建筑、设置四个同宽紧凑页面，排行榜与商店等六个全区域页面和独立右栏。

@@ -348,8 +348,10 @@ check('tests/browser/all-pages-preview.spec.ts', [
 check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '图片层 0 → 氛围层 10 → 地图层 20 → UI 层 30',
   '桌面侧栏默认 `78px`',
-  '建筑式页面必须给右栏预留空间',
-  '研发、拍卖、合同、银行、排行榜和商店隐藏右栏',
+  '`home`、隐藏 `province` 上下文页、`market`、`buildings`、`settings` 使用 `building`',
+  '教程可见时主卡片必须为右栏预留',
+  '这些页面继续隐藏公开事件日志',
+  '教程是桌面应用外壳级常驻模块',
   '`--strategic-compact-page-width: 56rem`',
   '`calc(100vw / 3)`',
   '`FrostedGlassSurface workspaceCard`',
@@ -377,4 +379,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('游戏与管理员共享外壳验证通过：管理员桌面几何、玩家常驻地图、建筑式／全区域面板、独立事件右栏、覆盖式指挥栏和安全浮层均已锁定。');
+console.log('游戏与管理员共享外壳验证通过：管理员桌面几何、玩家常驻地图、建筑式／全区域面板、教程常驻右侧信息栏、事件日志独立可见性、覆盖式指挥栏和安全浮层均已锁定。');

@@ -37,12 +37,15 @@ const files = {
   admin: 'src/components/shell/AdminDesktopBar.tsx',
   shell: 'src/components/shell/GameShell.tsx',
   strategic: 'src/components/shell/StrategicWorkspace.tsx',
+  guide: 'src/components/GameGuideStrip.tsx',
+  guideStyles: 'src/styles/game-guide.css',
   strategicStyles: 'src/styles/strategic-game-shell.css',
   sidebarStyles: 'src/styles/desktop-sidebar.css',
   mobileStyles: 'src/styles/mobile-status-navigation.css',
   browser: 'tests/browser/frosted-glass-layout.spec.ts',
   sampling: 'tests/browser/open-glass-sampling.spec.ts',
   pageBrowser: 'tests/browser/all-pages-preview.spec.ts',
+  tutorialBrowser: 'tests/browser/tutorial-right-rail.spec.ts',
   auctionBrowser: 'tests/browser/auction-bid-history.spec.ts',
   floatingBrowser: 'tests/browser/shell-floating-safe-zone.spec.ts',
   design: 'docs/LIQUID_GLASS_CHROME_DESIGN.md',
@@ -190,8 +193,23 @@ requireText(files.shell, [
 requireText(files.strategic, [
   'export function StrategicMapLensBar',
   'className="strategic-economic-event-rail"',
+  'const showTutorial = Boolean(tutorial?.isVisible && tutorial.currentStep);',
+  'if (!showEventRail && !showTutorial) return null;',
+  "data-tutorial-visible={showTutorial ? 'true' : 'false'}",
+  "data-event-log-visible={showEventRail ? 'true' : 'false'}",
+  '{showTutorial && tutorial ? <GameGuideStrip tutorial={tutorial} /> : null}',
+  '{showEventRail ? (',
   '<EconomicEventLogPanel',
-  "model.tab === 'home' && tutorial",
+]);
+forbidText(files.strategic, ["model.tab === 'home' && tutorial"]);
+requireText(files.guide, [
+  'className="game-guide-strip panel"',
+  '<span>教程</span>',
+  'aria-label="教程进度"',
+]);
+forbidText(files.guideStyles, [
+  'border: 1px solid color-mix(in srgb, var(--accent, #4f7cff)',
+  'background: color-mix(in srgb, var(--accent, #4f7cff) 8%',
 ]);
 requireText(files.shell, [
   '<ApplicationMapLayerPortal>',
@@ -214,6 +232,8 @@ requireText(files.strategicStyles, [
   '.application-map-layer > .strategic-map-lens-bar {',
   'z-index: 1;',
   '.strategic-economic-event-rail {',
+  '.game-shell.strategic-tab-research:has(.strategic-economic-event-rail[data-tutorial-visible="true"])',
+  '100% - var(--strategic-event-rail-width) - var(--strategic-panel-gap) * 3',
   'background: var(--frosted-glass-background);',
   'backdrop-filter: var(--frosted-glass-filter);',
 ]);
@@ -250,6 +270,13 @@ requireText(files.pageBrowser, [
   "toHaveAttribute('data-strategic-presentation', 'fullscreen')",
   'reduced motion disables card width and page unfold animation',
 ]);
+requireText(files.tutorialBrowser, [
+  'desktop tutorial stays in the right rail across business pages and keeps frosted glass',
+  "toHaveAttribute('data-tutorial-visible', 'true')",
+  "toHaveAttribute('data-event-log-visible', 'false')",
+  "toContain('blur(18px)')",
+  'mobile keeps the overview tutorial entry while the desktop right rail stays hidden',
+]);
 requireText(files.auctionBrowser, [
   "toContain('ui-tooltip-surface')",
   "toContain('blur(18px)')",
@@ -268,6 +295,9 @@ requireText(files.design, [
   '单节点轻量毛玻璃',
   '`721px–960px` 使用与宽屏完全相同',
   '桌面侧栏按钮不得渲染数字角标',
+  '## 5. 玩家页面与右侧信息栏',
+  '教程是桌面应用外壳级常驻模块',
+  '教程卡根节点必须复用通用 `.panel`',
   '`research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop`',
   '`--strategic-compact-page-width: 56rem`',
   '隐藏 `province` 上下文页',
@@ -291,4 +321,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('纯 CSS 毛玻璃外壳验证通过：共享外壳与 SafeTooltip/ECharts Tooltip 统一使用单节点纯 CSS 毛玻璃材质，且旧 Liquid Glass 实现保持退役。');
+console.log('纯 CSS 毛玻璃外壳验证通过：共享外壳、教程右栏与 SafeTooltip/ECharts Tooltip 统一使用纯 CSS 毛玻璃材质，且旧 Liquid Glass 实现保持退役。');

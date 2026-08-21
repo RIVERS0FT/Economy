@@ -88,7 +88,7 @@ requireText('src/components/AdminPlayerStatistics.tsx', [
   '24 小时经济活跃',
   '新增与经济活跃趋势',
   '经营成长漏斗',
-  '成长线完成时效',
+  '教程完成时效',
   'funnel.completion24h',
   'funnel.completion7d',
   '财富分布',

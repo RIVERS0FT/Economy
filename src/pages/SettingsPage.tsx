@@ -56,7 +56,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
 
   function restartTutorial() {
     const confirmed = window.confirm(
-      '重新开始后，当前成长线进度会被清除。建设、启动、生产、自动出售设置、自动成交、研发、合同浏览、银行存款和排行榜浏览均需重新完成；游戏资产不会重置。',
+      '重新开始后，当前教程进度会被清除。建设、启动、生产、自动出售设置、自动成交、研发、合同浏览、银行存款和排行榜浏览均需重新完成；游戏资产不会重置。',
     );
     if (confirmed) tutorial.restart();
   }
@@ -116,7 +116,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
   }
 
   return (
-    <PageLayout title="设置" description="管理玩家资料、客户端偏好、经营成长线、礼品兑换和当前经济存档。">
+    <PageLayout title="设置" description="管理玩家资料、客户端偏好、教程、礼品兑换和当前经济存档。">
       <div className="settings-layout">
         <div className="settings-primary-column">
           <Panel className="widget profile-settings-card">
@@ -167,17 +167,17 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
             <section
               className="tutorial-settings-section"
               aria-labelledby="tutorial-settings-heading"
-              aria-description="重新开始只清除本轮成长线进度，不会重置游戏资产。"
+              aria-description="重新开始只清除本轮教程进度，不会重置游戏资产。"
             >
               <div className="tutorial-settings-copy">
-                <h3 id="tutorial-settings-heading">经营成长线</h3>
+                <h3 id="tutorial-settings-heading">教程</h3>
                 <p>{tutorial.statusLabel}</p>
               </div>
               <div className="tutorial-settings-actions">
                 {tutorial.isActive && !tutorial.isVisible ? (
-                  <Button variant="secondary" onClick={tutorial.show}>显示经营成长线</Button>
+                  <Button variant="secondary" onClick={tutorial.show}>显示教程</Button>
                 ) : null}
-                <Button onClick={restartTutorial}>重新开始成长线</Button>
+                <Button onClick={restartTutorial}>重新开始教程</Button>
               </div>
             </section>
           </Panel>
