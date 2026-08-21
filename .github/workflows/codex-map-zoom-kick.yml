@@ -1,0 +1,45 @@
+name: codex-map-zoom-kick
+
+on:
+  push:
+    branches:
+      - codex/map-zoom-interpolation
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map-zoom-interpolation
+          fetch-depth: 0
+      - name: Run embedded interpolation patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'RUNNER'
+          from pathlib import Path
+          source = Path('.github/workflows/codex-map-zoom-interpolation.yml').read_text()
+          marker = "          python3 - <<'PY'\n"
+          start = source.index(marker) + len(marker)
+          end = source.index("\n          PY\n", start)
+          embedded = source[start:end]
+          lines = []
+          for line in embedded.splitlines():
+              lines.append(line[10:] if line.startswith('          ') else line)
+          script = '\n'.join(lines) + '\n'
+          exec(compile(script, 'codex-map-zoom-interpolation.py', 'exec'), {})
+          RUNNER
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/codex-map-zoom-interpolation.yml
+          git rm .github/workflows/codex-map-zoom-kick.yml
+          git rm .github/codex-map-zoom-trigger
+          git add -- src/components/provinces/UsMainlandMap.tsx docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/UI_DESIGN_SYSTEM.md tests/browser/province-map.spec.ts scripts/verify-provincial-economy.mjs src/components/provinces/provinceMapZoomInterpolator.ts
+          git commit -m "接入地图插值缩放并更新回归"
+          git push origin HEAD:codex/map-zoom-interpolation
