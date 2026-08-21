@@ -272,7 +272,10 @@ export function UsMainlandMap({
   const applyResponsiveTooltip = useCallback((chart: EChartsType) => {
     const showTooltip = chart.getWidth() > MOBILE_MAP_MAX_WIDTH;
     chart.setOption({
-      tooltip: { show: showTooltip },
+      tooltip: {
+        ...commonTooltip,
+        show: showTooltip,
+      },
     }, {
       notMerge: false,
       lazyUpdate: false,
