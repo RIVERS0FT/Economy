@@ -14,17 +14,25 @@ test.describe('research technology tree', () => {
       const stack = element.querySelector<HTMLElement>(':scope > .ui-page-stack');
       if (!stack) throw new Error('fixed page stack is missing');
       const stackStyle = getComputedStyle(stack);
+      const stackChildren = Array.from(stack.children);
       return {
         overflowY: getComputedStyle(element).overflowY,
         scrollTop: element.scrollTop,
         stackRows: stackStyle.gridTemplateRows,
         stackAlignContent: stackStyle.alignContent,
+        stackChildCount: stackChildren.length,
+        stackOnlyWorkspace: stackChildren[0]?.classList.contains('research-workspace') ?? false,
+        stackScrollHeight: stack.scrollHeight,
+        stackClientHeight: stack.clientHeight,
       };
     });
     expect(fixedPageOverflow.overflowY).toBe('hidden');
     expect(fixedPageOverflow.scrollTop).toBe(0);
     expect(fixedPageOverflow.stackRows).not.toBe('none');
     expect(fixedPageOverflow.stackAlignContent).toBe('stretch');
+    expect(fixedPageOverflow.stackChildCount).toBe(1);
+    expect(fixedPageOverflow.stackOnlyWorkspace).toBe(true);
+    expect(fixedPageOverflow.stackScrollHeight).toBeLessThanOrEqual(fixedPageOverflow.stackClientHeight + 1);
     await expect(page.locator('.research-stage-node')).toHaveCount(0);
     await expect(page.locator('.research-technology-node')).toHaveCount(32);
     await expect(page.locator('.research-tree-heading')).toHaveCount(0);
@@ -317,6 +325,14 @@ test.describe('research technology tree', () => {
     const dialog = page.getByRole('dialog', { name: '冶金技术研发新技术' });
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveClass(/mobile-detail-sheet/);
+    const mobilePageStructure = await page.locator('.page-card-static > .ui-page-stack').evaluate((stack) => ({
+      childCount: stack.children.length,
+      onlyWorkspace: stack.firstElementChild?.classList.contains('research-workspace') ?? false,
+      containsDialog: stack.contains(document.querySelector('.mobile-detail-sheet')),
+    }));
+    expect(mobilePageStructure.childCount).toBe(1);
+    expect(mobilePageStructure.onlyWorkspace).toBe(true);
+    expect(mobilePageStructure.containsDialog).toBe(false);
     const detailView = dialog.locator('.mobile-workspace-sheet-detail-view');
     await expect(detailView).toBeVisible();
     await expect(detailView).toContainText('研发投入');
