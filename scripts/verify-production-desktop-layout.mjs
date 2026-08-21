@@ -84,7 +84,7 @@ for (const text of [
   '基于 `.production-workspace` 自身可用宽度',
   '不得恢复 4:5 大卡作为最终桌面／移动呈现',
   '建设卡与详情外壳不再使用建筑页场景 sticky',
-  '`position: static;`',
+  'position: static;',
   '`production-surface.css` 是地区建筑页最终账本密度',
   '`tests/browser/buildings-ledger-layout.spec.ts`',
 ]) assert.equal(productionAlignmentDesign.includes(text), true, `建筑账本设计缺少: ${text}`);
