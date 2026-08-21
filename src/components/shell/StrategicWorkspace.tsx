@@ -4,23 +4,16 @@ import type { GameTutorialController } from '../../game-guide/useGameTutorial';
 import type { ProvinceAssetSummary, ProvinceDefinition } from '../../types';
 import { EconomicEventLogPanel } from '../EconomicEventLogPanel';
 import { GameGuideStrip } from '../GameGuideStrip';
-import { getEChartsInstanceByDom, type EChartsType } from '../charts/echartsCore';
 import { UsMainlandMap, type ProvinceMapLens } from '../provinces/UsMainlandMap';
 import {
   AssetsIcon,
   FactoryIcon,
   MapIcon,
   MarketIcon,
-  RefreshIcon,
   WarehouseIcon,
 } from '../icons/GameIcons';
-import '../../styles/map-zoom-controls.css';
 
 const fallbackProvinces = regionCatalog as ProvinceDefinition[];
-const MAP_ZOOM_MIN = 0.5;
-const MAP_ZOOM_MAX = 4;
-const MAP_ZOOM_IN_FACTOR = 1.25;
-const MAP_ZOOM_OUT_FACTOR = 0.8;
 
 const MAP_LENSES: Array<{
   id: ProvinceMapLens;
@@ -56,98 +49,6 @@ function strategicMapState(model: LoadedGameViewModel) {
   };
 }
 
-function strategicMapChart() {
-  if (typeof document === 'undefined') return null;
-  const container = document.querySelector<HTMLElement>(
-    '.strategic-map-stage .province-map-echart .economy-chart__canvas',
-  );
-  if (!container) return null;
-  return getEChartsInstanceByDom(container) ?? null;
-}
-
-function strategicMapSeries(chart: EChartsType) {
-  const option = chart.getOption() as {
-    series?: Array<{ id?: string; zoom?: number }>;
-  };
-  return option.series?.find((series) => series.id === 'us-mainland-map') ?? option.series?.[0];
-}
-
-function setStrategicMapZoom(factor: number) {
-  const chart = strategicMapChart();
-  if (!chart) return;
-  const current = Number(strategicMapSeries(chart)?.zoom || 1);
-  const zoom = Math.min(
-    MAP_ZOOM_MAX,
-    Math.max(MAP_ZOOM_MIN, Number((current * factor).toFixed(3))),
-  );
-  chart.setOption({
-    series: [{
-      id: 'us-mainland-map',
-      zoom,
-      scaleLimit: { min: MAP_ZOOM_MIN, max: MAP_ZOOM_MAX },
-    }],
-  }, {
-    notMerge: false,
-    lazyUpdate: false,
-  });
-  chart.getDom().dataset.mapCameraZoom = String(zoom);
-}
-
-function resetStrategicMapCamera() {
-  const chart = strategicMapChart();
-  if (!chart) return;
-  chart.setOption({
-    series: [{
-      id: 'us-mainland-map',
-      center: null,
-      zoom: 1,
-      scaleLimit: { min: MAP_ZOOM_MIN, max: MAP_ZOOM_MAX },
-    }],
-  }, {
-    notMerge: false,
-    lazyUpdate: false,
-  });
-  chart.getDom().dataset.mapCameraZoom = '1';
-  chart.getDom().dataset.mapCameraReset = 'zoom-control';
-}
-
-export function StrategicMapZoomControls() {
-  return (
-    <div className="strategic-map-zoom-controls panel" role="group" aria-label="地图缩放">
-      <button
-        type="button"
-        className="strategic-map-zoom-button"
-        data-ui-interactive="surface"
-        aria-label="放大地图"
-        title="放大地图"
-        onClick={() => setStrategicMapZoom(MAP_ZOOM_IN_FACTOR)}
-      >
-        <span aria-hidden="true">＋</span>
-      </button>
-      <button
-        type="button"
-        className="strategic-map-zoom-button"
-        data-ui-interactive="surface"
-        aria-label="缩小地图"
-        title="缩小地图"
-        onClick={() => setStrategicMapZoom(MAP_ZOOM_OUT_FACTOR)}
-      >
-        <span aria-hidden="true">−</span>
-      </button>
-      <button
-        type="button"
-        className="strategic-map-zoom-button"
-        data-ui-interactive="surface"
-        aria-label="重置地图缩放和平移"
-        title="重置地图缩放和平移"
-        onClick={resetStrategicMapCamera}
-      >
-        <RefreshIcon />
-      </button>
-    </div>
-  );
-}
-
 export function StrategicMapStage({
   model,
   lens,
@@ -178,7 +79,6 @@ export function StrategicMapStage({
         lens={lens}
       />
       <div className="strategic-map-vignette" aria-hidden="true" />
-      <StrategicMapZoomControls />
     </div>
   );
 }
