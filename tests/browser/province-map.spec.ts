@@ -53,16 +53,15 @@ async function clickProvinceLabel(page: Page, provinceId: string) {
   const label = page.locator(`.province-map-label[data-province-id="${provinceId}"]`);
   await expect(label).toBeVisible();
   const point = await label.evaluate((element) => {
-    const textPath = element.querySelector('textPath');
-    const href = textPath?.getAttribute('href');
-    const path = href ? element.ownerSVGElement?.querySelector<SVGPathElement>(href) : null;
-    if (!path) throw new Error('province label path is missing');
-    const local = path.getPointAtLength(path.getTotalLength() / 2);
-    const matrix = path.getScreenCTM();
-    if (!matrix) throw new Error('province label screen transform is missing');
+    const x = Number(element.getAttribute('data-label-center-x'));
+    const y = Number(element.getAttribute('data-label-center-y'));
+    const matrix = element.ownerSVGElement?.getScreenCTM();
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !matrix) {
+      throw new Error('province label center transform is missing');
+    }
     return {
-      x: matrix.a * local.x + matrix.c * local.y + matrix.e,
-      y: matrix.b * local.x + matrix.d * local.y + matrix.f,
+      x: matrix.a * x + matrix.c * y + matrix.e,
+      y: matrix.b * x + matrix.d * y + matrix.f,
     };
   });
   await page.mouse.click(point.x, point.y);
@@ -162,9 +161,38 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await expect(labelOverlay).toBeVisible();
   const labels = labelOverlay.locator('.province-map-label');
   await expect(labels).toHaveCount(48);
-  await expect(labels.locator('textPath')).toHaveCount(48);
+  await expect(canvas).toHaveAttribute('data-map-label-geometry-mode', 'natural-ratio-rigid-glyphs');
+  await expect(labelOverlay.locator('textPath')).toHaveCount(0);
+  expect(await labels.locator('.province-map-label-glyph').count()).toBeGreaterThan(48);
   const fitValues = await labels.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-label-fit')));
   expect(fitValues.every((value) => value === 'inside')).toBe(true);
+  const labelGeometry = await labels.evaluateAll((nodes) => nodes.map((node) => ({
+    glyphMode: node.getAttribute('data-label-glyph-mode'),
+    naturalAspect: Number(node.getAttribute('data-label-natural-aspect')),
+    availableLength: Number(node.getAttribute('data-label-available-length')),
+    availableHeight: Number(node.getAttribute('data-label-available-height')),
+    usedWidth: Number(node.getAttribute('data-label-used-width')),
+    usedHeight: Number(node.getAttribute('data-label-used-height')),
+    axisAngle: Number(node.getAttribute('data-label-axis-angle')),
+    glyphTransforms: [...node.querySelectorAll<SVGTextElement>('.province-map-label-glyph')]
+      .map((glyph) => glyph.getAttribute('transform') || ''),
+  })));
+  expect(labelGeometry).toHaveLength(48);
+  for (const geometry of labelGeometry) {
+    expect(geometry.glyphMode).toBe('rigid');
+    expect(Number.isFinite(geometry.axisAngle)).toBe(true);
+    expect(geometry.availableLength).toBeGreaterThan(0);
+    expect(geometry.availableHeight).toBeGreaterThan(0);
+    expect(geometry.usedWidth).toBeGreaterThan(0);
+    expect(geometry.usedHeight).toBeGreaterThan(0);
+    expect(geometry.usedWidth).toBeLessThanOrEqual(geometry.availableLength + 0.6);
+    expect(geometry.usedHeight).toBeLessThanOrEqual(geometry.availableHeight + 0.6);
+    const usedAspect = geometry.usedWidth / geometry.usedHeight;
+    expect(Math.abs(usedAspect - geometry.naturalAspect) / geometry.naturalAspect).toBeLessThan(0.035);
+    expect(geometry.glyphTransforms.length).toBeGreaterThan(0);
+    expect(geometry.glyphTransforms.every((transform) => /^translate\([^)]*\) rotate\([^)]*\)$/.test(transform))).toBe(true);
+    expect(geometry.glyphTransforms.some((transform) => /scale/i.test(transform))).toBe(false);
+  }
   const renderedRegionLabels = await labels.allTextContents();
   for (const name of ['加利福尼亚州', '得克萨斯州', '华盛顿州', '佛罗里达州', '纽约州']) {
     expect(renderedRegionLabels).toContain(name);
@@ -173,7 +201,7 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
     expect(renderedRegionLabels).not.toContain(code);
   }
   const curvedLabelCount = Number(await canvas.getAttribute('data-map-curved-label-count'));
-  expect(curvedLabelCount).toBeGreaterThanOrEqual(24);
+  expect(curvedLabelCount).toBeGreaterThan(0);
 
   const instanceId = await canvas.getAttribute('data-echarts-instance-id');
   const visualBeforeProvincePage = await readMapVisualState(page);

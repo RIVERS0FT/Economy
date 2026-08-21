@@ -288,19 +288,43 @@ for (const forbidden of [
 const mapLabels = read('src/components/provinces/provinceMapLabels.ts');
 for (const text of [
   'export function pointInPolygon',
-  'export function longestInteriorChord',
-  'export function quadraticPathInsidePolygon',
+  'function principalAngle',
+  'function measureNaturalText',
+  'function corridorProfile',
+  'function findBestLabelCorridor',
+  'function rotatedGlyphBoxInsidePolygon',
+  'function glyphPlacements',
   'export function createProvinceMapLabelRenderer',
   "document.createElementNS(SVG_NAMESPACE, name)",
-  "createSvgElement('textPath')",
-  "text.dataset.labelFit = 'inside'",
+  "createSvgElement('g')",
+  "createSvgElement('text')",
+  "group.dataset.labelFit = 'inside'",
+  "group.dataset.labelGlyphMode = 'rigid'",
+  'group.dataset.labelNaturalAspect',
+  'group.dataset.labelAvailableLength',
+  'group.dataset.labelAvailableHeight',
+  'group.dataset.labelUsedWidth',
+  'group.dataset.labelUsedHeight',
+  'group.dataset.labelAxisAngle',
   "chart.on('georoam', handleGeoRoam)",
   "container.dataset.mapLabelMode = 'curved-chinese-full-name'",
+  "container.dataset.mapLabelGeometryMode = 'natural-ratio-rigid-glyphs'",
   'container.dataset.mapLabelCount',
   'container.dataset.mapCurvedLabelCount',
-]) assert.ok(mapLabels.includes(text), `州内中文曲线标签缺少: ${text}`);
-for (const forbidden of ['shortName', 'mapName', 'foreignObject', 'pointerdown']) {
-  assert.equal(mapLabels.includes(forbidden), false, `地图标签层不得恢复英文简称或独立交互: ${forbidden}`);
+]) assert.ok(mapLabels.includes(text), `州内中文自然比例标签缺少: ${text}`);
+for (const forbidden of [
+  'shortName',
+  'mapName',
+  'foreignObject',
+  'pointerdown',
+  'textPath',
+  'textLength',
+  'lengthAdjust',
+  'spacingAndGlyphs',
+  'scaleX',
+  'scaleY',
+]) {
+  assert.equal(mapLabels.includes(forbidden), false, `地图标签层不得恢复英文简称、字形拉伸或独立交互: ${forbidden}`);
 }
 
 const echartsCore = read('src/components/charts/echartsCore.ts');
@@ -312,6 +336,7 @@ const mapStyles = read('src/styles/province-map.css');
 for (const text of [
   '.province-map-label-overlay',
   '.province-map-label',
+  '.province-map-label-glyph',
   'pointer-events: none;',
   'fill: var(--color-map-label);',
   "[data-selected='true']",
@@ -350,6 +375,11 @@ for (const text of [
   "'加利福尼亚州', '得克萨斯州', '华盛顿州', '佛罗里达州', '纽约州'",
   'provinceLabelFontSize',
   'clickProvinceLabel',
+  'data-map-label-geometry-mode',
+  'data-label-glyph-mode',
+  'data-label-natural-aspect',
+  'data-label-available-length',
+  'data-label-used-width',
   "getAttribute('data-label-fit')",
   "value === 'inside'",
   'persistent US strategy map exposes 48 states, lenses, and local context',
@@ -378,7 +408,13 @@ for (const text of [
   "toHaveAttribute('data-strategic-presentation', 'building')",
   "toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')",
 ]) assert.ok(mapBrowserTest.includes(text), `ECharts 地图浏览器回归缺少: ${text}`);
-for (const forbidden of ["hasText: /^CO$/", "toContain('CA')", "toContain('TX')"]) {
+for (const forbidden of [
+  "hasText: /^CO$/",
+  "toContain('CA')",
+  "toContain('TX')",
+  "locator('textPath')",
+  'spacingAndGlyphs',
+]) {
   assert.equal(mapBrowserTest.includes(forbidden), false, `浏览器地图回归不得继续依赖英文州缩写: ${forbidden}`);
 }
 
@@ -389,9 +425,12 @@ for (const text of [
   '触摸双触地图空白',
   '--color-map-region-locked',
   '中文州全名',
-  'SVG `textPath`',
+  '州内几何主轴和可读方向',
+  '自然宽度、自然高度与自然长宽比',
+  '每个汉字必须作为独立刚性 SVG `text` 字形',
+  '禁止 `textLength`',
   '完整落在州面内部',
-  '随地图缩放和平移同步重算',
+  '随地图缩放和平移同步重新投影',
 ]) assert.ok(uiDesign.includes(text), `移动地图设计规则缺少: ${text}`);
 for (const forbidden of ['等比 Cover 相机', '常驻州缩写', '全部州缩写关闭', '最高 8 倍受限缩放']) {
   assert.equal(uiDesign.includes(forbidden), false, `UI 设计文档不得保留旧地图标签或缩放冲突规则: ${forbidden}`);
@@ -408,8 +447,11 @@ for (const text of [
   '离开行为只清除地图视觉选中态，不清除经营州',
   '通知面板全工作区点击捕获层必须透明',
   '中文州全名作为唯一州面名称',
-  'SVG `textPath` 标签层',
-  '名称与字号随地图缩放和平移同步变化',
+  'SVG 非交互逐字标签层',
+  '自然宽度、自然高度和自然长宽比',
+  '禁止 `textLength`',
+  '单个汉字自身不得弯曲、压扁或拉长',
+  '名称随地图缩放和平移同步变化',
 ]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
 assert.equal(pageDesign.includes('并把州缩写作为地图标签'), false, '页面设计文档不得恢复英文州缩写地图标签');
 

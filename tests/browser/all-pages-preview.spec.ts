@@ -14,16 +14,31 @@ const pages = [
 ] as const;
 
 async function clickMapProvinceLabel(page: import('@playwright/test').Page, provinceName: string) {
-  const label = page.locator('.province-map-label').filter({ hasText: new RegExp(`^${provinceName}$`) });
+  const label = page.locator('.province-map-label').filter({ hasText: new RegExp(`^${provinceName}import { expect, test } from '@playwright/test';
+
+const pages = [
+  { navigation: /^概览/, heading: '概览' },
+  { navigation: /^市场/, heading: '市场' },
+  { navigation: /^建筑/, heading: '建筑' },
+  { navigation: /^研发/, heading: '研发' },
+  { navigation: /^拍卖/, heading: '拍卖' },
+  { navigation: /^合同/, heading: '合同' },
+  { navigation: /^银行/, heading: '银行' },
+  { navigation: /^排行/, heading: '排行榜' },
+  { navigation: /^商店/, heading: '商店' },
+  { navigation: /^设置/, heading: '设置' },
+] as const;
+
+) });
   await expect(label).toBeVisible();
   const point = await label.evaluate((element) => {
-    const href = element.querySelector('textPath')?.getAttribute('href');
-    const path = href ? element.ownerSVGElement?.querySelector<SVGPathElement>(href) : null;
-    if (!path) throw new Error('province label path is missing');
-    const local = path.getPointAtLength(path.getTotalLength() / 2);
-    const matrix = path.getScreenCTM();
-    if (!matrix) throw new Error('province label screen transform is missing');
-    return { x: matrix.a * local.x + matrix.c * local.y + matrix.e, y: matrix.b * local.x + matrix.d * local.y + matrix.f };
+    const x = Number(element.getAttribute('data-label-center-x'));
+    const y = Number(element.getAttribute('data-label-center-y'));
+    const matrix = element.ownerSVGElement?.getScreenCTM();
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !matrix) {
+      throw new Error('province label center transform is missing');
+    }
+    return { x: matrix.a * x + matrix.c * y + matrix.e, y: matrix.b * x + matrix.d * y + matrix.f };
   });
   await page.mouse.click(point.x, point.y);
 }
