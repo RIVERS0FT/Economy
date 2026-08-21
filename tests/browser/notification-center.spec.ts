@@ -176,11 +176,13 @@ test.describe('notification center geometry', () => {
 
   test('desktop toast remains bottom-right when the public event rail is hidden', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('runtime-test.html?view=bank&scenario=activity');
+    await page.goto('runtime-test.html?view=overview&scenario=activity');
+    await page.locator('.desktop-sidebar .sidebar-nav-button').filter({ hasText: '银行' }).first().evaluate((button) => button.click());
+    await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-bank/);
+    await expect(page.locator('.strategic-economic-event-rail')).toHaveCount(0);
     await loadNotificationStyles(page);
     await mountDesktopToast(page);
 
-    await expect(page.locator('.strategic-economic-event-rail')).toHaveCount(0);
     const geometry = await page.evaluate(() => {
       const workspace = document.querySelector<HTMLElement>('.workspace');
       const strategicChrome = document.querySelector<HTMLElement>('.workspace-strategic-chrome');
