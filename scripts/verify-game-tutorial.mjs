@@ -85,6 +85,7 @@ requireText(guide, 'aria-label="教程进度"', '教程进度必须有正确无�
 forbidText(guide, '经营成长线', '教程卡不得恢复旧展示名称');
 forbidText(guideStyle, 'border: 1px solid color-mix(in srgb, var(--accent, #4f7cff)', '教程业务样式不得复制旧强调色卡片边框');
 forbidText(guideStyle, 'background: color-mix(in srgb, var(--accent, #4f7cff) 8%', '教程业务样式不得复制旧强调色卡片背景');
+requireText(strategicWorkspace, 'className="strategic-right-rail strategic-economic-event-rail"', '教程与公开事件必须共用统一右侧信息栏宿主');
 requireText(strategicWorkspace, 'const showTutorial = Boolean(tutorial?.isVisible && tutorial.currentStep);', '桌面外壳必须按教程自身状态决定是否显示');
 requireText(strategicWorkspace, 'if (!showEventRail && !showTutorial) return null;', '教程和公开事件必须独立决定右栏生命周期');
 requireText(strategicWorkspace, "data-tutorial-visible={showTutorial ? 'true' : 'false'}", '右栏必须暴露教程可见状态供几何防回退');
@@ -92,8 +93,10 @@ requireText(strategicWorkspace, "data-event-log-visible={showEventRail ? 'true' 
 requireText(strategicWorkspace, '{showTutorial && tutorial ? <GameGuideStrip tutorial={tutorial} /> : null}', '桌面教程必须由右栏直接持有');
 requireText(strategicWorkspace, '{showEventRail ? (', '公开事件日志必须由独立条件控制');
 forbidText(strategicWorkspace, "model.tab === 'home' && tutorial", '桌面教程不得重新绑定概览页面');
-requireText(strategicStyle, '.game-shell.strategic-tab-research:has(.strategic-economic-event-rail[data-tutorial-visible="true"])', '全屏页面必须在教程可见时为右栏预留空间');
-requireText(strategicStyle, '100% - var(--strategic-event-rail-width) - var(--strategic-panel-gap) * 3', '教程右栏避让必须使用统一右栏宽度和间距');
+requireText(strategicStyle, '.strategic-right-rail {', '右侧信息栏必须拥有统一入场动画宿主');
+requireText(strategicStyle, '@keyframes strategic-right-rail-enter', '右侧信息栏必须提供独立入场动画');
+requireText(strategicStyle, 'clip-path: inset(0 0 0 100%);', '右侧信息栏必须从右侧揭开');
+forbidText(strategicStyle, '.game-shell.strategic-tab-research:has(.strategic-economic-event-rail[data-tutorial-visible="true"])', 'fullscreen 页面不得因教程右栏出现而缩窄');
 requireText(overview, 'className="overview-mobile-tutorial"', '概览必须保留移动端教程入口');
 requireText(overview, '<GameGuideStrip tutorial={model.tutorial} />', '移动端教程入口必须复用统一组件');
 forbidText(overview, 'overview-today-panel', '概览不得恢复今日经营卡');
@@ -119,9 +122,12 @@ requireText(pageDesign, '设置商品自动出售、完成一次自动出售', '
 requireText(pageDesign, '合法最低自由库存保留量（允许 `0`）', '页面权威设计必须记录自动出售自由库存设置');
 requireText(pageDesign, '“显示教程”只原地恢复当前轮次', '页面权威设计必须锁定显示教程不跳转概览');
 requireText(pageDesign, '桌面教程显示在外壳右侧信息栏顶部，只由教程自身显示状态控制', '页面权威设计必须锁定教程跨页面常驻');
+requireText(pageDesign, '把教程与公开经济事件拆成两个右栏容器', '页面权威设计必须防止教程和公开事件拆分宿主');
 requireText(pageDesign, 'economy_tutorial_completions', '页面权威设计必须记录教程完成表和服务器负担边界');
 requireText(chromeDesign, '## 5. 玩家页面与右侧信息栏', '外壳权威设计必须记录通用右侧信息栏');
 requireText(chromeDesign, '教程是桌面应用外壳级常驻模块', '外壳权威设计必须锁定桌面教程常驻');
 requireText(chromeDesign, '教程卡根节点必须复用通用 `.panel`', '外壳权威设计必须锁定教程共享毛玻璃材质');
+requireText(chromeDesign, 'fullscreen 主卡片始终保持完整工作区宽度', '外壳权威设计必须锁定 fullscreen 允许右栏覆盖正文');
+requireText(chromeDesign, '`strategic-right-rail-enter` 入场动画', '外壳权威设计必须锁定右栏首次显示动画');
 
 console.log('Tutorial verification passed.');
