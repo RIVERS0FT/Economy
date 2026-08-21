@@ -55,7 +55,7 @@ async function clickProvinceLabel(page: Page, provinceId: string) {
   const point = await label.evaluate((element) => {
     const x = Number(element.getAttribute('data-label-center-x'));
     const y = Number(element.getAttribute('data-label-center-y'));
-    const matrix = element.ownerSVGElement?.getScreenCTM();
+    const matrix = element.getScreenCTM();
     if (!Number.isFinite(x) || !Number.isFinite(y) || !matrix) {
       throw new Error('province label center transform is missing');
     }
