@@ -127,7 +127,7 @@ export function StrategicWorkspaceChrome({
   return (
     <aside
       className="strategic-economic-event-rail"
-      aria-label="右侧信息栏"
+      aria-label={showEventRail ? '公开经济事件日志' : '教程'}
       data-tutorial-visible={showTutorial ? 'true' : 'false'}
       data-event-log-visible={showEventRail ? 'true' : 'false'}
     >
