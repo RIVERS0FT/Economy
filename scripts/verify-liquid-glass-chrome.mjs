@@ -192,7 +192,7 @@ requireText(files.shell, [
 ]);
 requireText(files.strategic, [
   'export function StrategicMapLensBar',
-  'className="strategic-economic-event-rail"',
+  'className="strategic-right-rail strategic-economic-event-rail"',
   'const showTutorial = Boolean(tutorial?.isVisible && tutorial.currentStep);',
   'if (!showEventRail && !showTutorial) return null;',
   "data-tutorial-visible={showTutorial ? 'true' : 'false'}",
@@ -232,10 +232,14 @@ requireText(files.strategicStyles, [
   '.application-map-layer > .strategic-map-lens-bar {',
   'z-index: 1;',
   '.strategic-economic-event-rail {',
-  '.game-shell.strategic-tab-research:has(.strategic-economic-event-rail[data-tutorial-visible="true"])',
-  '100% - var(--strategic-event-rail-width) - var(--strategic-panel-gap) * 3',
+  '.strategic-right-rail {',
+  '@keyframes strategic-right-rail-enter',
+  'clip-path: inset(0 0 0 100%);',
   'background: var(--frosted-glass-background);',
   'backdrop-filter: var(--frosted-glass-filter);',
+]);
+forbidText(files.strategicStyles, [
+  '.game-shell.strategic-tab-research:has(.strategic-economic-event-rail[data-tutorial-visible="true"])',
 ]);
 
 requireText(files.sidebarStyles, [
@@ -271,10 +275,11 @@ requireText(files.pageBrowser, [
   'reduced motion disables card width and page unfold animation',
 ]);
 requireText(files.tutorialBrowser, [
-  'desktop tutorial stays in the right rail across business pages and keeps frosted glass',
+  'desktop tutorial shares one animated overlay rail with public events and fullscreen content',
   "toHaveAttribute('data-tutorial-visible', 'true')",
   "toHaveAttribute('data-event-log-visible', 'false')",
   "toContain('blur(18px)')",
+  "toBe('strategic-right-rail-enter')",
   'mobile keeps the overview tutorial entry while the desktop right rail stays hidden',
 ]);
 requireText(files.auctionBrowser, [
@@ -298,6 +303,8 @@ requireText(files.design, [
   '## 5. 玩家页面与右侧信息栏',
   '教程是桌面应用外壳级常驻模块',
   '教程卡根节点必须复用通用 `.panel`',
+  'fullscreen 主卡片始终保持完整工作区宽度',
+  '`strategic-right-rail-enter` 入场动画',
   '`research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop`',
   '`--strategic-compact-page-width: 56rem`',
   '隐藏 `province` 上下文页',
@@ -321,4 +328,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('纯 CSS 毛玻璃外壳验证通过：共享外壳、教程右栏与 SafeTooltip/ECharts Tooltip 统一使用纯 CSS 毛玻璃材质，且旧 Liquid Glass 实现保持退役。');
+console.log('纯 CSS 毛玻璃外壳验证通过：共享外壳、统一右侧信息栏、教程卡与 SafeTooltip/ECharts Tooltip 统一使用纯 CSS 毛玻璃材质，fullscreen 允许右栏覆盖并保留受控入场动画。');
