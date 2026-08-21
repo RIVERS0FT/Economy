@@ -173,7 +173,7 @@ test('authority publication locks saveEpoch before synchronous background writes
     await json(route, { result: { ok: true, message: '订单已提交' }, revision: 1 });
   });
 
-  await page.goto('/save-epoch-test.html');
+  await page.goto('save-epoch-test.html');
   const initial = await page.evaluate(() => (
     window as typeof window & { __saveEpochHarness: SaveEpochHarness }
   ).__saveEpochHarness.loadAndWriteOnAuthorityPublish());
@@ -204,7 +204,7 @@ test('same-user epoch change invalidates the document before publication and blo
     await json(route, { result: { ok: true, message: '不应发送' }, revision: 2 });
   });
 
-  await page.goto('/save-epoch-test.html');
+  await page.goto('save-epoch-test.html');
   await page.evaluate(() => (
     window as typeof window & { __saveEpochHarness: SaveEpochHarness }
   ).__saveEpochHarness.resetGameSession());
@@ -249,7 +249,7 @@ test('production settlement 409 keeps the accepted state and the same basis is n
     }, 409);
   });
 
-  await page.goto('/save-epoch-test.html');
+  await page.goto('save-epoch-test.html');
   await page.evaluate(() => (
     window as typeof window & { __saveEpochHarness: SaveEpochHarness }
   ).__saveEpochHarness.resetGameSession());
