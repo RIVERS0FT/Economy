@@ -3,7 +3,7 @@
   z-index: 3;
   left: 50%;
   bottom: calc(var(--layout-gutter) + 62px);
-  display: grid;
+  display: none;
   grid-template-columns: 44px;
   gap: .3rem;
   padding: .35rem;
@@ -46,6 +46,7 @@
     left: auto;
     right: var(--layout-gutter);
     bottom: calc(68px + var(--layout-gutter) * 2);
+    display: grid;
     border-radius: var(--radius-card-mobile);
     transform: none;
   }
