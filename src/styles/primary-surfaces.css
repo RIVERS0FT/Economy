@@ -1,8 +1,13 @@
 /* Final authority for player-page primary surface insets.
  * Business page styles may arrange content inside the surface, but must not
- * override the outer padding of .ui-primary-surface. */
+ * override the outer padding of .ui-primary-surface. The same file also owns
+ * the carrier constraints required to keep those surfaces fully visible. */
 :root {
   --primary-surface-inset: var(--space-4);
+}
+
+.game-shell {
+  --player-page-content-inset: var(--layout-gutter);
 }
 
 .panel.widget,
@@ -15,6 +20,47 @@
 
 .panel.ui-primary-surface > .widget-heading:first-child {
   margin-top: 0;
+}
+
+/* PageLayout uses the same safe content geometry in the desktop workspace card
+ * and in the single mobile workspace sheet. The page root keeps the shell's
+ * established max-width semantic; descendants are constrained to its carrier. */
+.game-shell .page-content--player {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.game-shell .page-content--player .page-fixed-header,
+.game-shell .page-content--player .page-card-scroll-area,
+.game-shell .page-content--player .page-card-scroll,
+.game-shell .page-content--player .page-card-static {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.game-shell .page-content--player .page-card-scroll {
+  padding: var(--player-page-content-inset);
+  overflow-x: hidden;
+}
+
+.game-shell .page-content--player .page-card-static {
+  overflow-x: hidden;
+}
+
+.game-shell .page-content--player .page-card-scroll > *,
+.game-shell .page-content--player .page-card-static > * {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.game-shell .page-content--player .page-card-scroll > * > *,
+.game-shell .page-content--player .page-card-static > * > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 @media (max-width: 720px) {
