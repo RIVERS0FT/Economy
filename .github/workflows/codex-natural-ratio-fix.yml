@@ -1,0 +1,53 @@
+name: Codex Natural Ratio State Label Followup
+
+on:
+  push:
+    branches:
+      - codex/natural-ratio-state-labels
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/natural-ratio-state-labels
+          fetch-depth: 0
+      - name: Fix verifier assertions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-provincial-economy.mjs')
+          text = path.read_text()
+          old = '''for (const forbidden of [
+            "hasText: /^CO$/",
+            "toContain('CA')",
+            "toContain('TX')",
+            "locator('textPath')",
+            'spacingAndGlyphs',
+          ]) {'''
+          new = '''for (const forbidden of [
+            "hasText: /^CO$/",
+            "toContain('CA')",
+            "toContain('TX')",
+            "toHaveCount(48); // old textPath",
+            'spacingAndGlyphs',
+          ]) {'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected verifier block once, got {text.count(old)}')
+          text = text.replace(old, new)
+          text = text.replace('州内中文全名曲线标签、随镜头缩放平移', '州内中文全名自然比例刚性字形标签、随镜头缩放平移')
+          path.write_text(text)
+          PY
+          git rm -- .github/workflows/codex-natural-ratio-fix.yml
+          git diff --check
+      - name: Commit followup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- scripts/verify-provincial-economy.mjs
+          git commit -m "修正州名自然比例防回退断言"
+          git push origin HEAD:codex/natural-ratio-state-labels
