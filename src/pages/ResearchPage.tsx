@@ -526,99 +526,101 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
   };
 
   return (
-    <PageLayout
-      title="研发"
-      description="按产业链选择科技节点；C1–C7 仅表示产业阶段，工厂准入由具体科技决定。"
-      scrollable={false}
-    >
-      <div className="research-workspace">
-        <div className="research-tree-panel">
-          <PagePanel className="research-action-panel">
-            <ResearchDetailContent {...detailProps} />
-          </PagePanel>
-          <ResearchTreeViewport
-            width={researchTreeLayout.width}
-            height={researchTreeLayout.height}
-            focusPoint={selectedTreeNode ? { x: selectedTreeNode.x, y: selectedTreeNode.y } : undefined}
-          >
-            <div
-              className="research-tree"
-              role="tree"
-              aria-label="产业科技树"
-              data-layout-direction="downward"
+    <>
+      <PageLayout
+        title="研发"
+        description="按产业链选择科技节点；C1–C7 仅表示产业阶段，工厂准入由具体科技决定。"
+        scrollable={false}
+      >
+        <div className="research-workspace">
+          <div className="research-tree-panel">
+            <PagePanel className="research-action-panel">
+              <ResearchDetailContent {...detailProps} />
+            </PagePanel>
+            <ResearchTreeViewport
+              width={researchTreeLayout.width}
+              height={researchTreeLayout.height}
+              focusPoint={selectedTreeNode ? { x: selectedTreeNode.x, y: selectedTreeNode.y } : undefined}
             >
-              <svg
-                className="research-tree-connections"
-                viewBox={`0 0 ${researchTreeLayout.width} ${researchTreeLayout.height}`}
-                aria-hidden="true"
+              <div
+                className="research-tree"
+                role="tree"
+                aria-label="产业科技树"
+                data-layout-direction="downward"
               >
-                {researchTreeLayout.edges.map((edge) => (
-                  <path
-                    className="research-tree-edge"
-                    data-highlighted={researchTreeFocus.upstreamEdgeKeys.has(edge.key) || undefined}
-                    data-related={researchTreeFocus.downstreamEdgeKeys.has(edge.key) || undefined}
-                    d={edge.path}
-                    key={edge.key}
-                  />
-                ))}
-              </svg>
-              {researchTreeLayout.nodes.map((layoutNode) => {
-                const technology = technologiesById.get(layoutNode.id);
-                if (!technology) return null;
-                const status = statusFor(technology, completed, technologiesById, active?.technologyId);
-                const isSelected = selectedTechnology.id === technology.id;
-                const progress = progressForResearchTechnology(
-                  technology,
-                  active,
-                  now,
-                  status === 'mastered',
-                );
-                const facility = technology.unlockFacilityTypeIds
-                  .map((facilityTypeId) => facilitiesById.get(facilityTypeId))
-                  .find(Boolean);
-                const operationProductId = technology.kind === 'operation' ? technology.operationProductIds?.[0] : undefined;
-                const isAncestor = researchTreeFocus.ancestorIds.has(technology.id);
-                const isDirectChild = researchTreeFocus.directChildIds.has(technology.id);
-                const nodeStyle = {
-                  '--research-node-progress': `${Math.round(progress * 360)}deg`,
-                  '--research-node-x': `${layoutNode.x}px`,
-                  '--research-node-y': `${layoutNode.y}px`,
-                } as CSSProperties;
-                return (
-                  <button
-                    type="button"
-                    className="research-facility-node research-technology-node"
-                    data-technology-id={technology.id}
-                    data-depth={layoutNode.depth}
-                    data-prerequisites={technology.prerequisiteTechnologyIds.join(',')}
-                    data-research-node-x={layoutNode.x}
-                    data-research-node-y={layoutNode.y}
-                    data-status={status}
-                    data-selected={isSelected || undefined}
-                    data-path={isAncestor ? 'ancestor' : isDirectChild ? 'descendant' : undefined}
-                    style={nodeStyle}
-                    key={technology.id}
-                    aria-pressed={isSelected}
-                    aria-label={`${technology.name}，${statusLabels[status]}，${technology.stage} ${technology.kind === 'operation' ? '作业科技' : '生产科技'}`}
-                    onClick={(event) => selectTechnology(technology.id, event.currentTarget)}
-                  >
-                    <span className="research-facility-artwork" aria-hidden="true">
-                      {operationProductId
-                        ? <ProductArtwork productId={operationProductId} />
-                        : facility ? <FacilityIcon facilityTypeId={facility.id} /> : <span>{technology.stage}</span>}
-                    </span>
-                    <span className="research-technology-node-name">{technology.name}</span>
-                    <small className="research-technology-node-meta">
-                      {technology.stage} · {technology.kind === 'operation' ? '作业科技' : '生产科技'}
-                    </small>
-                    <small className="research-technology-node-status">{statusLabels[status]}</small>
-                  </button>
-                );
-              })}
-            </div>
-          </ResearchTreeViewport>
+                <svg
+                  className="research-tree-connections"
+                  viewBox={`0 0 ${researchTreeLayout.width} ${researchTreeLayout.height}`}
+                  aria-hidden="true"
+                >
+                  {researchTreeLayout.edges.map((edge) => (
+                    <path
+                      className="research-tree-edge"
+                      data-highlighted={researchTreeFocus.upstreamEdgeKeys.has(edge.key) || undefined}
+                      data-related={researchTreeFocus.downstreamEdgeKeys.has(edge.key) || undefined}
+                      d={edge.path}
+                      key={edge.key}
+                    />
+                  ))}
+                </svg>
+                {researchTreeLayout.nodes.map((layoutNode) => {
+                  const technology = technologiesById.get(layoutNode.id);
+                  if (!technology) return null;
+                  const status = statusFor(technology, completed, technologiesById, active?.technologyId);
+                  const isSelected = selectedTechnology.id === technology.id;
+                  const progress = progressForResearchTechnology(
+                    technology,
+                    active,
+                    now,
+                    status === 'mastered',
+                  );
+                  const facility = technology.unlockFacilityTypeIds
+                    .map((facilityTypeId) => facilitiesById.get(facilityTypeId))
+                    .find(Boolean);
+                  const operationProductId = technology.kind === 'operation' ? technology.operationProductIds?.[0] : undefined;
+                  const isAncestor = researchTreeFocus.ancestorIds.has(technology.id);
+                  const isDirectChild = researchTreeFocus.directChildIds.has(technology.id);
+                  const nodeStyle = {
+                    '--research-node-progress': `${Math.round(progress * 360)}deg`,
+                    '--research-node-x': `${layoutNode.x}px`,
+                    '--research-node-y': `${layoutNode.y}px`,
+                  } as CSSProperties;
+                  return (
+                    <button
+                      type="button"
+                      className="research-facility-node research-technology-node"
+                      data-technology-id={technology.id}
+                      data-depth={layoutNode.depth}
+                      data-prerequisites={technology.prerequisiteTechnologyIds.join(',')}
+                      data-research-node-x={layoutNode.x}
+                      data-research-node-y={layoutNode.y}
+                      data-status={status}
+                      data-selected={isSelected || undefined}
+                      data-path={isAncestor ? 'ancestor' : isDirectChild ? 'descendant' : undefined}
+                      style={nodeStyle}
+                      key={technology.id}
+                      aria-pressed={isSelected}
+                      aria-label={`${technology.name}，${statusLabels[status]}，${technology.stage} ${technology.kind === 'operation' ? '作业科技' : '生产科技'}`}
+                      onClick={(event) => selectTechnology(technology.id, event.currentTarget)}
+                    >
+                      <span className="research-facility-artwork" aria-hidden="true">
+                        {operationProductId
+                          ? <ProductArtwork productId={operationProductId} />
+                          : facility ? <FacilityIcon facilityTypeId={facility.id} /> : <span>{technology.stage}</span>}
+                      </span>
+                      <span className="research-technology-node-name">{technology.name}</span>
+                      <small className="research-technology-node-meta">
+                        {technology.stage} · {technology.kind === 'operation' ? '作业科技' : '生产科技'}
+                      </small>
+                      <small className="research-technology-node-status">{statusLabels[status]}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            </ResearchTreeViewport>
+          </div>
         </div>
-      </div>
+      </PageLayout>
 
       <MobileResearchDetailSheet
         {...detailProps}
@@ -626,6 +628,6 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
         returnFocusRef={detailTriggerRef}
         onClose={() => setDetailOpen(false)}
       />
-    </PageLayout>
+    </>
   );
 }
