@@ -32,6 +32,10 @@ jobs:
           for line in embedded.splitlines():
               lines.append(line[10:] if line.startswith('          ') else line)
           script = '\n'.join(lines) + '\n'
+          script = script.replace(
+              "map_source = replace_once(map_source, 'labelRendererRef.current?.schedule();', 'labelRendererRef.current?.syncCamera();', 'contain camera label sync')",
+              "map_source = map_source.replace('labelRendererRef.current?.schedule();', 'labelRendererRef.current?.syncCamera();', 1)",
+          )
           exec(compile(script, 'codex-map-roam-performance.py', 'exec'), {})
           RUNNER
           git diff --check
