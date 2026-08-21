@@ -458,7 +458,7 @@ for (const text of [
   '每个汉字必须作为独立刚性 SVG `text` 字形',
   '不得通过 `textLength`',
   '完整落在州面内部',
-  'georoam 热路径只允许更新共享 SVG 相机组的统一等比缩放和平移矩阵',
+  '`georoam` 热路径只允许更新共享 SVG 相机组的统一等比缩放和平移矩阵',
   '禁止重新执行州界投影、主轴／走廊扫描、字体测量、逐字碰撞或 `replaceChildren()`',
 ]) assert.ok(uiDesign.includes(text), `移动地图设计规则缺少: ${text}`);
 for (const forbidden of ['等比 Cover 相机', '常驻州缩写', '全部州缩写关闭', '最高 8 倍受限缩放']) {
