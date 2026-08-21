@@ -260,6 +260,22 @@
   grid-row: 1 / -1;
 }
 
+.strategic-right-rail {
+  animation: strategic-right-rail-enter 220ms cubic-bezier(.2, .8, .2, 1) both;
+}
+
+@keyframes strategic-right-rail-enter {
+  from {
+    clip-path: inset(0 0 0 100%);
+    opacity: 0;
+  }
+
+  to {
+    clip-path: inset(0);
+    opacity: 1;
+  }
+}
+
 @media (min-width: 721px) {
   .game-shell {
     --desktop-layout-gutter: var(--strategic-shell-gutter);
@@ -288,17 +304,6 @@
       calc(100vw / 3),
       calc(var(--strategic-command-rail-width) + var(--strategic-compact-page-width)),
       calc(100% - var(--strategic-event-rail-width) - var(--strategic-panel-gap) * 3)
-    );
-  }
-
-  .game-shell.strategic-tab-research:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
-  .game-shell.strategic-tab-auction:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
-  .game-shell.strategic-tab-contracts:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
-  .game-shell.strategic-tab-bank:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
-  .game-shell.strategic-tab-leaderboard:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
-  .game-shell.strategic-tab-gem-shop:has(.strategic-economic-event-rail[data-tutorial-visible="true"]) {
-    --strategic-primary-card-inline-size: calc(
-      100% - var(--strategic-event-rail-width) - var(--strategic-panel-gap) * 3
     );
   }
 
@@ -516,7 +521,8 @@
     transition: none;
   }
 
-  .game-shell .signed-in-shell__page-reveal {
+  .game-shell .signed-in-shell__page-reveal,
+  .strategic-right-rail {
     animation: none;
   }
 }
