@@ -1,10 +1,8 @@
 .game-guide-strip {
+  min-width: 0;
   display: grid;
   gap: 10px;
   padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--accent, #4f7cff) 30%, transparent);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--accent, #4f7cff) 8%, transparent);
 }
 
 .game-guide-heading,
@@ -95,6 +93,19 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+}
+
+@media (min-width: 721px) {
+  .game-shell.strategic-tab-research:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
+  .game-shell.strategic-tab-auction:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
+  .game-shell.strategic-tab-contracts:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
+  .game-shell.strategic-tab-bank:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
+  .game-shell.strategic-tab-leaderboard:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
+  .game-shell.strategic-tab-gem-shop:has(.strategic-economic-event-rail[data-tutorial-visible="true"]) {
+    --strategic-primary-card-inline-size: calc(
+      100% - var(--strategic-event-rail-width) - var(--strategic-panel-gap) * 3
+    );
+  }
 }
 
 @media (max-width: 720px) {
