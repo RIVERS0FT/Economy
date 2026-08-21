@@ -35,7 +35,7 @@ jobs:
           script = '\n'.join(lines) + '\n'
 
           def rewrite_replace_block(script_text, label, replacement):
-              end_marker = f"              '{label}')"
+              end_marker = f"'{label}')"
               end_pos = script_text.index(end_marker) + len(end_marker)
               start_pos = script_text.rfind("\ntext = replace_once(text,", 0, end_pos)
               if start_pos < 0:
