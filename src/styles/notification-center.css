@@ -444,6 +444,10 @@
   pointer-events: none;
 }
 
+.game-shell .workspace-strategic-chrome > .notification-toast-stack {
+  pointer-events: none;
+}
+
 .notification-toast {
   width: 100%;
   min-height: 48px;
