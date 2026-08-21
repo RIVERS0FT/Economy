@@ -412,7 +412,7 @@ for (const forbidden of [
   "hasText: /^CO$/",
   "toContain('CA')",
   "toContain('TX')",
-  "locator('textPath')",
+  "toHaveCount(48); // old textPath",
   'spacingAndGlyphs',
 ]) {
   assert.equal(mapBrowserTest.includes(forbidden), false, `浏览器地图回归不得继续依赖英文州缩写: ${forbidden}`);
@@ -467,4 +467,4 @@ for (const text of [
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击、州内中文全名曲线标签、随镜头缩放平移、空白全局平移和空白双击／双触镜头重置均已锁定。');
+console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击、州内中文全名自然比例刚性字形标签、随镜头缩放平移、空白全局平移和空白双击／双触镜头重置均已锁定。');
