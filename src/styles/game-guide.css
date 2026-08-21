@@ -95,19 +95,6 @@
   gap: 8px;
 }
 
-@media (min-width: 721px) {
-  .game-shell.strategic-tab-research:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
-  .game-shell.strategic-tab-auction:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
-  .game-shell.strategic-tab-contracts:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
-  .game-shell.strategic-tab-bank:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
-  .game-shell.strategic-tab-leaderboard:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
-  .game-shell.strategic-tab-gem-shop:has(.strategic-economic-event-rail[data-tutorial-visible="true"]) {
-    --strategic-primary-card-inline-size: calc(
-      100% - var(--strategic-event-rail-width) - var(--strategic-panel-gap) * 3
-    );
-  }
-}
-
 @media (max-width: 720px) {
   .game-guide-strip {
     padding: 12px;
