@@ -278,7 +278,7 @@ export function UsMainlandMap({
       selectedMap,
       roam: true,
       roamTrigger: 'global',
-      scaleLimit: { min: 1, max: 8 },
+      scaleLimit: { min: 0.5, max: 4 },
       aspectScale: US_MAINLAND_ASPECT_SCALE,
       labelLayout: {
         hideOverlap: true,
@@ -381,7 +381,7 @@ export function UsMainlandMap({
     chart.getDom().dataset.mapCameraReset = 'blank-double-click';
   }, [applyContainCamera]);
 
-  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}点击州面可以打开对应州页面，拖动地图空白可以平移，双击或双触地图空白可以重置缩放和平移。`;
+  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}点击州面可以打开对应州页面，滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置缩放和平移。`;
   return (
     <div
       className="province-map-chart"
@@ -389,6 +389,8 @@ export function UsMainlandMap({
       data-map-feature-count={usMainlandGeoJson.features.length}
       data-selected-province-id={selectedProvinceId ?? ''}
       data-map-lens={lens}
+      data-map-zoom-min="0.5"
+      data-map-zoom-max="4"
     >
       <EconomyChart
         option={option}

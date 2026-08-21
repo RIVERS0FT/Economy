@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test';
 
 const pages = [
   { navigation: /^概览/, heading: '概览' },
-  { navigation: /^市场/, heading: '加利福尼亚州市场' },
-  { navigation: /^建筑/, heading: '加利福尼亚州建筑' },
+  { navigation: /^市场/, heading: '市场' },
+  { navigation: /^建筑/, heading: '建筑' },
   { navigation: /^研发/, heading: '研发' },
   { navigation: /^拍卖/, heading: '拍卖' },
   { navigation: /^合同/, heading: '合同' },
@@ -243,7 +243,7 @@ test('player page return skips the map and restores the previous business page',
   await returnButton.focus();
   await expect(returnButton).toBeFocused();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('heading', { level: 1, name: '加利福尼亚州市场' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: '市场' })).toBeVisible();
   await expect(sidebar.getByRole('button', { name: /^市场/ })).toHaveAttribute('aria-current', 'page');
 
   await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
@@ -253,7 +253,7 @@ test('player page return skips the map and restores the previous business page',
   await returnButton.focus();
   await expect(returnButton).toBeFocused();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('heading', { level: 1, name: '加利福尼亚州市场' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: '市场' })).toBeVisible();
 });
 
 test('leaderboard and local-only service summaries are populated in the full shell', async ({ page }) => {
