@@ -481,7 +481,7 @@ for (const text of [
   '禁止 `textLength`',
   '单个汉字自身不得弯曲、压扁或拉长',
   '名称随地图缩放和平移同步变化',
-  'georoam 期间不得重新执行 48 州标签完整布局',
+  '`georoam` 期间不得重新执行 48 州标签完整布局',
   '共享 SVG 相机组',
   '不大于 `720px` 时地图 Tooltip 必须禁用并隐藏',
 ]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
