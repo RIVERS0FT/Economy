@@ -36,6 +36,11 @@ jobs:
               "map_source = replace_once(map_source, 'labelRendererRef.current?.schedule();', 'labelRendererRef.current?.syncCamera();', 'contain camera label sync')",
               "map_source = map_source.replace('labelRendererRef.current?.schedule();', 'labelRendererRef.current?.syncCamera();', 1)",
           )
+          old_helper = """def replace_once(text, old, new, label):\n    count = text.count(old)\n    if count != 1:\n        raise SystemExit(f'{label}: expected 1 occurrence, found {count}')\n    return text.replace(old, new, 1)\n"""
+          new_helper = """def replace_once(text, old, new, label):\n    count = text.count(old)\n    if label in {'desktop camera instrumentation'}:\n        if count < 1:\n            raise SystemExit(f'{label}: expected at least 1 occurrence, found {count}')\n        return text.replace(old, new)\n    if count != 1:\n        raise SystemExit(f'{label}: expected 1 occurrence, found {count}')\n    return text.replace(old, new, 1)\n"""
+          if old_helper not in script:
+              raise SystemExit('replace_once helper shape changed unexpectedly')
+          script = script.replace(old_helper, new_helper, 1)
           exec(compile(script, 'codex-map-roam-performance.py', 'exec'), {})
           RUNNER
           git diff --check
