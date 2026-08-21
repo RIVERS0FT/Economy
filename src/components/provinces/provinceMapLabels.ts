@@ -9,9 +9,11 @@ const LABEL_THICKNESS_RATIO = 0.42;
 const LABEL_CURVE_RATIO = 0.09;
 const LABEL_CURVE_THICKNESS_RATIO = 0.14;
 const LABEL_EDGE_SAMPLE_FACTOR = 0.56;
-const MIN_RENDERABLE_FONT_SIZE = 0.55;
+const MIN_RENDERABLE_FONT_SIZE = 0.08;
 const MAX_RENDERABLE_FONT_SIZE = 28;
 const GEOMETRY_EPSILON = 0.001;
+const BOUNDARY_EPSILON = 0.08;
+const INTERSECTION_MERGE_EPSILON = 0.04;
 
 export interface ProvinceMapLabelSource {
   provinceId: string;
@@ -150,10 +152,10 @@ function normalize(point: ScreenPoint): ScreenPoint {
 function pointOnSegment(point: ScreenPoint, start: ScreenPoint, end: ScreenPoint) {
   const segment = subtract(end, start);
   const relative = subtract(point, start);
-  if (Math.abs(cross(segment, relative)) > 0.35) return false;
+  if (Math.abs(cross(segment, relative)) > BOUNDARY_EPSILON) return false;
   const projection = dot(relative, segment);
-  if (projection < -0.35) return false;
-  return projection <= dot(segment, segment) + 0.35;
+  if (projection < -BOUNDARY_EPSILON) return false;
+  return projection <= dot(segment, segment) + BOUNDARY_EPSILON;
 }
 
 export function pointInPolygon(point: ScreenPoint, polygon: ScreenPoint[]) {
@@ -182,7 +184,8 @@ function polygonCentroid(polygon: ScreenPoint[]) {
     centroidY += (current.y + next.y) * factor;
   }
   if (Math.abs(areaFactor) <= GEOMETRY_EPSILON) {
-    return polygon.reduce((total, point) => add(total, point), { x: 0, y: 0 });
+    const total = polygon.reduce((sum, point) => add(sum, point), { x: 0, y: 0 });
+    return scale(total, 1 / Math.max(1, polygon.length));
   }
   const divisor = areaFactor * 3;
   return { x: centroidX / divisor, y: centroidY / divisor };
@@ -229,7 +232,7 @@ function lineInteriorIntervals(
   }
   intersections.sort((left, right) => left - right);
   const unique = intersections.filter((value, index) => (
-    index === 0 || Math.abs(value - intersections[index - 1]) > 0.45
+    index === 0 || Math.abs(value - intersections[index - 1]) > INTERSECTION_MERGE_EPSILON
   ));
   const intervals: Array<[number, number]> = [];
   for (let index = 0; index + 1 < unique.length; index += 1) {
@@ -353,12 +356,11 @@ function fitLabelLayout(polygon: ScreenPoint[], anchor: ScreenPoint, provinceNam
   const direction = normalize(subtract(chord.end, chord.start));
   const normal = { x: -direction.y, y: direction.x };
   const characterCount = Math.max(1, Array.from(provinceName).length);
-  let fontSize = Math.min(
+  let fontSize = Math.max(MIN_RENDERABLE_FONT_SIZE, Math.min(
     MAX_RENDERABLE_FONT_SIZE,
     chord.length * LABEL_LENGTH_FILL_RATIO / (characterCount * LABEL_WIDTH_FACTOR),
     chord.thickness * LABEL_THICKNESS_RATIO,
-  );
-  if (!(fontSize > 0)) return null;
+  ));
   for (let attempt = 0; attempt < 7; attempt += 1) {
     const inset = Math.min(
       chord.length * 0.18,
@@ -377,13 +379,13 @@ function fitLabelLayout(polygon: ScreenPoint[], anchor: ScreenPoint, provinceNam
       if (!quadraticPathInsidePolygon(polygon, start, control, end, fontSize)) continue;
       return {
         path: pathData(start, control, end),
-        fontSize: Math.max(MIN_RENDERABLE_FONT_SIZE, fontSize),
-        strokeWidth: Math.max(0.14, Math.min(0.9, fontSize * 0.065)),
+        fontSize,
+        strokeWidth: Math.max(0.02, Math.min(0.9, fontSize * 0.065)),
         letterSpacing: Math.max(0, fontSize * 0.025),
         curved: Math.abs(amplitude * curveFactor) >= 0.45,
       };
     }
-    fontSize *= 0.82;
+    fontSize = Math.max(MIN_RENDERABLE_FONT_SIZE, fontSize * 0.82);
   }
   return null;
 }
@@ -437,6 +439,7 @@ function renderLabels(
     text.style.strokeWidth = `${layout.strokeWidth.toFixed(2)}px`;
     text.style.letterSpacing = `${layout.letterSpacing.toFixed(2)}px`;
     text.setAttribute('dominant-baseline', 'central');
+    text.setAttribute('text-anchor', 'middle');
 
     const textPath = createSvgElement('textPath');
     textPath.setAttribute('href', `#${pathId}`);
