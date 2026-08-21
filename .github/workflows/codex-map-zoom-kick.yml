@@ -45,7 +45,7 @@ jobs:
           script = rewrite_replace_block(
               script,
               'verifier ui interpolation docs',
-              """ui_marker = '  \"`georoam` 热路径只允许更新共享 SVG 相机组的统一等比缩放和平移矩阵\",\\n'\nif ui_marker not in text:\n    raise SystemExit('verifier ui interpolation marker missing')\ntext = text.replace(\n    ui_marker,\n    ui_marker\n    + '  \"`roam: \\\'move\\\'`\",\\n'\n    + \"  '每帧最多一次 `geoRoam`',\\n\"\n    + \"  '真实 `pinchScale`',\\n\"\n    + \"  '不得使用逐帧 `setOption`',\\n\",\n    1,\n)""",
+              """ui_marker = \"  '`georoam` 热路径只允许更新共享 SVG 相机组的统一等比缩放和平移矩阵',\\n\"\nif ui_marker not in text:\n    raise SystemExit('verifier ui interpolation marker missing')\ntext = text.replace(\n    ui_marker,\n    ui_marker\n    + '  \"`roam: \\\'move\\\'`\",\\n'\n    + \"  '每帧最多一次 `geoRoam`',\\n\"\n    + \"  '真实 `pinchScale`',\\n\"\n    + \"  '不得使用逐帧 `setOption`',\\n\",\n    1,\n)""",
           )
           script = rewrite_replace_block(
               script,
