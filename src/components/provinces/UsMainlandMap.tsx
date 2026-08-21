@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { feature } from 'topojson-client';
 import usStateAtlas from 'us-atlas/states-10m.json';
 import regionCatalog from '../../../shared/provinces.json';
@@ -16,22 +16,17 @@ import {
   type EChartsCoreOption,
   type EChartsType,
 } from '../charts/echartsCore';
+import {
+  createProvinceMapLabelRenderer,
+  type ProvinceMapLabelRenderer,
+  type ProvinceMapLabelSource,
+} from './provinceMapLabels';
 
 const US_MAINLAND_MAP_NAME = 'economy-us-mainland-states';
 const US_MAINLAND_ASPECT_SCALE = 0.75;
 const MAP_CONTAIN_INSET = 0.96;
 const MOBILE_BLANK_DOUBLE_TAP_MS = 360;
 const MOBILE_BLANK_DOUBLE_TAP_DISTANCE = 28;
-const HOVER_LABEL_STATE_CODES = new Set([
-  'CT',
-  'DE',
-  'MD',
-  'MA',
-  'NH',
-  'NJ',
-  'RI',
-  'VT',
-]);
 
 export type ProvinceMapLens = 'political' | 'assets' | 'industry' | 'market' | 'alerts';
 
@@ -56,12 +51,25 @@ const usMainlandGeoJson = {
       ...stateFeature,
       properties: {
         ...stateFeature.properties,
-        name: region.shortName,
+        name: region.name,
         mapName,
+        provinceId: region.id,
       },
     }];
   }),
 };
+
+const provinceMapLabelSources: ProvinceMapLabelSource[] = atlasStateCollection.features.flatMap((stateFeature) => {
+  const mapName = String(stateFeature.properties?.name || '');
+  const region = regionByMapName.get(mapName);
+  if (!region) return [];
+  return [{
+    provinceId: region.id,
+    provinceName: region.name,
+    anchor: [region.longitude, region.latitude],
+    geometry: stateFeature.geometry,
+  }];
+});
 
 function coordinateBounds(value: unknown, bounds: {
   minX: number;
@@ -137,9 +145,6 @@ interface ProvinceMapDatum {
     areaColor: string;
     borderColor?: string;
   };
-  label: {
-    show: boolean;
-  };
 }
 
 function datumFor(
@@ -176,7 +181,7 @@ function datumFor(
               ? 'var(--color-success-soft)'
               : 'var(--color-map-region-default)';
   return {
-    name: province.shortName,
+    name: province.name,
     value,
     provinceId: province.id,
     provinceName: province.name,
@@ -189,9 +194,6 @@ function datumFor(
     itemStyle: {
       areaColor,
       ...(lens === 'alerts' && blockedFacilityCount > 0 ? { borderColor: 'var(--color-danger)' } : {}),
-    },
-    label: {
-      show: !HOVER_LABEL_STATE_CODES.has(province.shortName),
     },
   };
 }
@@ -226,17 +228,21 @@ export function UsMainlandMap({
   unlockedProvinceIds?: string[];
 }) {
   const unlockedSet = useMemo(() => new Set(unlockedProvinceIds || []), [unlockedProvinceIds]);
-  const provinceIdByMapName = useMemo(() => new Map(
-    provinces.map((province) => [province.shortName, province.id]),
+  const provinceIdByDisplayName = useMemo(() => new Map(
+    provinces.map((province) => [province.name, province.id]),
   ), [provinces]);
   const selectedProvince = provinces.find((province) => province.id === selectedProvinceId);
   const selectedMap = useMemo(() => Object.fromEntries(
-    provinces.map((province) => [province.shortName, province.id === selectedProvinceId]),
+    provinces.map((province) => [province.name, province.id === selectedProvinceId]),
   ), [provinces, selectedProvinceId]);
   const data = useMemo(() => provinces.map((province) => (
     datumFor(province, summaries[province.id], lens, !unlockedSet.has(province.id))
   )), [lens, provinces, summaries, unlockedSet]);
   const lastBlankTapRef = useRef<{ at: number; x: number; y: number } | null>(null);
+  const labelRendererRef = useRef<ProvinceMapLabelRenderer | null>(null);
+  const selectedProvinceIdRef = useRef(selectedProvinceId);
+  selectedProvinceIdRef.current = selectedProvinceId;
+
   const applyContainCamera = useCallback((chart: EChartsType) => {
     const width = chart.getWidth();
     const height = chart.getHeight();
@@ -259,7 +265,23 @@ export function UsMainlandMap({
     container.dataset.mapContainLayoutSize = layoutSize;
     container.dataset.mapIntrinsicAspect = US_MAINLAND_MAP_ASPECT.toFixed(6);
     container.dataset.mapContainViewport = `${width}x${height}`;
+    labelRendererRef.current?.schedule();
   }, []);
+
+  const installProvinceLabels = useCallback((chart: EChartsType) => {
+    labelRendererRef.current?.destroy();
+    labelRendererRef.current = createProvinceMapLabelRenderer(
+      chart,
+      provinceMapLabelSources,
+      () => selectedProvinceIdRef.current,
+    );
+  }, []);
+
+  useEffect(() => () => {
+    labelRendererRef.current?.destroy();
+    labelRendererRef.current = null;
+  }, []);
+
   const option = useMemo<EChartsCoreOption>(() => ({
     animationDuration: 260,
     animationDurationUpdate: 220,
@@ -280,17 +302,8 @@ export function UsMainlandMap({
       roamTrigger: 'global',
       scaleLimit: { min: 0.5, max: 4 },
       aspectScale: US_MAINLAND_ASPECT_SCALE,
-      labelLayout: {
-        hideOverlap: true,
-      },
       label: {
-        show: true,
-        color: 'var(--color-map-label)',
-        fontFamily: 'inherit',
-        fontSize: 10,
-        formatter: (params: unknown) => {
-          return String((params as { name?: string }).name || '');
-        },
+        show: false,
       },
       itemStyle: {
         areaColor: 'var(--color-map-region-default)',
@@ -299,9 +312,7 @@ export function UsMainlandMap({
       },
       emphasis: {
         label: {
-          show: true,
-          color: 'var(--color-text-primary)',
-          fontWeight: 700,
+          show: false,
         },
         itemStyle: {
           areaColor: 'var(--color-surface-hover)',
@@ -311,9 +322,7 @@ export function UsMainlandMap({
       },
       select: {
         label: {
-          show: true,
-          color: 'var(--color-text-primary)',
-          fontWeight: 700,
+          show: false,
         },
         itemStyle: {
           areaColor: 'var(--color-success-strong)',
@@ -323,25 +332,11 @@ export function UsMainlandMap({
       },
       data,
     }],
-    media: [{
-      query: {
-        maxAspectRatio: 0.8,
-      },
-      option: {
-        series: [{
-          id: 'us-mainland-map',
-          label: {
-            show: true,
-            fontSize: 8,
-          },
-        }],
-      },
-    }],
   }), [data, selectedMap]);
 
   const handleMapClick = (event: EconomyChartClickEvent) => {
     if (event.seriesType !== 'map') return;
-    const provinceId = provinceIdByMapName.get(String(event.name || ''));
+    const provinceId = provinceIdByDisplayName.get(String(event.name || ''));
     if (provinceId) onSelectProvince(provinceId);
   };
 
@@ -381,7 +376,20 @@ export function UsMainlandMap({
     chart.getDom().dataset.mapCameraReset = 'blank-double-click';
   }, [applyContainCamera]);
 
-  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}点击州面可以打开对应州页面，滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置缩放和平移。`;
+  const handleChartReady = useCallback((chart: EChartsType) => {
+    applyContainCamera(chart);
+    installProvinceLabels(chart);
+  }, [applyContainCamera, installProvinceLabels]);
+
+  const handleChartResize = useCallback((chart: EChartsType) => {
+    applyContainCamera(chart);
+  }, [applyContainCamera]);
+
+  const handleOptionApplied = useCallback(() => {
+    labelRendererRef.current?.schedule();
+  }, []);
+
+  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}州面内使用中文州全名，名称随地图一起缩放和平移。点击州面可以打开对应州页面，滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置缩放和平移。`;
   return (
     <div
       className="province-map-chart"
@@ -391,6 +399,7 @@ export function UsMainlandMap({
       data-map-lens={lens}
       data-map-zoom-min="0.5"
       data-map-zoom-max="4"
+      data-map-label-mode="curved-chinese-full-name"
     >
       <EconomyChart
         option={option}
@@ -399,8 +408,9 @@ export function UsMainlandMap({
         className="province-map-echart"
         testId="us-mainland-map"
         updateMode="merge"
-        onChartReady={applyContainCamera}
-        onResize={applyContainCamera}
+        onChartReady={handleChartReady}
+        onOptionApplied={handleOptionApplied}
+        onResize={handleChartResize}
         onClick={handleMapClick}
         onCanvasClick={handleMapCanvasClick}
         onDoubleClick={handleMapDoubleClick}
