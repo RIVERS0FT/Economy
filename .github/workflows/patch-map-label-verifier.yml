@@ -1,0 +1,35 @@
+name: Patch map label verifier
+
+on:
+  push:
+    branches:
+      - codex/curved-chinese-state-labels
+    paths:
+      - .github/workflows/patch-map-label-verifier.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch exact verifier fragment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-provincial-economy.mjs')
+          source = path.read_text()
+          old = '  "data-label-fit\', \'inside\'",\n'
+          new = '  "getAttribute(\'data-label-fit\')",\n  "value === \'inside\'",\n'
+          if old not in source:
+              raise SystemExit('verifier marker not found')
+          path.write_text(source.replace(old, new, 1))
+          PY
+          git diff --check
+          git add scripts/verify-provincial-economy.mjs
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m '修正地图标签浏览器验证片段'
+          git push origin HEAD:codex/curved-chinese-state-labels
