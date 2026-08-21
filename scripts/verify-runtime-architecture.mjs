@@ -47,11 +47,21 @@ for (const target of ['./AdminApp', './GameApp']) {
 
 const routerImports = importTargets('src/pages/PageRouter.tsx');
 for (const target of [
-  './AuctionPage', './BankPage', './ContractPage', './LeaderboardPage', './MarketPage',
-  './OverviewPage', './BuildingsPage', './GemShopPage', './SettingsPage',
+  './AuctionPage', './BankPage', './ContractPage', './LeaderboardPage', './GlobalMarketPage',
+  './OverviewPage', './GlobalBuildingsPage', './GemShopPage', './SettingsPage',
 ]) {
   if (!routerImports.dynamic.includes(target)) fail(`PageRouter.tsx 必须动态导入 ${target}`);
   if (routerImports.staticImports.includes(target)) fail(`PageRouter.tsx 不得静态导入 ${target}`);
+}
+for (const legacyTopLevel of ['./MarketPage', './BuildingsPage']) {
+  if (routerImports.dynamic.includes(legacyTopLevel)) {
+    fail(`PageRouter.tsx 一级导航不得重新直接导入地区页面 ${legacyTopLevel}`);
+  }
+}
+const provinceImports = importTargets('src/pages/ProvincePage.tsx');
+for (const target of ['./MarketPage', './BuildingsPage']) {
+  if (!provinceImports.dynamic.includes(target)) fail(`ProvincePage.tsx 必须动态导入地区页面 ${target}`);
+  if (provinceImports.staticImports.includes(target)) fail(`ProvincePage.tsx 不得静态导入地区页面 ${target}`);
 }
 
 const viewModel = read('src/app/gameViewModel.ts');
@@ -140,4 +150,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('运行时架构验证通过：页面动态拆包、权威时间基准与叶子级共享时钟、虚拟列表二分与滚动合并、ECharts 资产圆环、资产比例和本地匿名成交缓存均已锁定。');
+console.log('运行时架构验证通过：全局市场/建筑与州级内嵌页面均按职责动态拆包，权威时间基准与叶子级共享时钟、虚拟列表二分与滚动合并、ECharts 资产圆环、资产比例和本地匿名成交缓存均已锁定。');
