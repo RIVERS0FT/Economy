@@ -11,7 +11,7 @@ async function mapOutlineWidth(page: Page) {
   });
 }
 
-test('map zoom controls persist on the global map and primary market/buildings are global views', async ({ page }) => {
+test('desktop hides explicit map zoom controls while mobile keeps them and primary market/buildings are global views', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('?preview=game', { waitUntil: 'domcontentloaded' });
@@ -21,22 +21,37 @@ test('map zoom controls persist on the global map and primary market/buildings a
 
   const map = page.getByTestId('us-mainland-map');
   const canvas = map.locator('.economy-chart__canvas');
+  const zoomControls = page.getByRole('group', { name: '地图缩放' });
   await expect(map).toHaveAttribute('data-echarts-ready', 'true');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-zoom-min', '0.5');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-zoom-max', '4');
+  await expect(zoomControls).toBeHidden();
 
-  const baselineWidth = await mapOutlineWidth(page);
-  const zoomControls = page.getByRole('group', { name: '地图缩放' });
+  const desktopBaselineWidth = await mapOutlineWidth(page);
+  const desktopMapBox = await map.boundingBox();
+  expect(desktopMapBox).not.toBeNull();
+  await page.mouse.move(
+    desktopMapBox!.x + desktopMapBox!.width / 2,
+    desktopMapBox!.y + desktopMapBox!.height / 2,
+  );
+  await page.mouse.wheel(0, -480);
+  await expect.poll(() => mapOutlineWidth(page)).toBeGreaterThan(desktopBaselineWidth * 1.05);
+
+  await page.setViewportSize({ width: 390, height: 844 });
   await expect(zoomControls).toBeVisible();
+  const mobileBaselineWidth = await mapOutlineWidth(page);
   await zoomControls.getByRole('button', { name: '缩小地图' }).click();
-  await expect.poll(() => mapOutlineWidth(page)).toBeLessThan(baselineWidth * 0.95);
+  await expect.poll(() => mapOutlineWidth(page)).toBeLessThan(mobileBaselineWidth * 0.95);
 
   await zoomControls.getByRole('button', { name: '重置地图缩放和平移' }).click();
   await expect(canvas).toHaveAttribute('data-map-camera-reset', 'zoom-control');
-  await expect.poll(() => mapOutlineWidth(page)).toBeGreaterThan(baselineWidth * 0.98);
+  await expect.poll(() => mapOutlineWidth(page)).toBeGreaterThan(mobileBaselineWidth * 0.98);
 
   await zoomControls.getByRole('button', { name: '放大地图' }).click();
-  await expect.poll(() => mapOutlineWidth(page)).toBeGreaterThan(baselineWidth * 1.05);
+  await expect.poll(() => mapOutlineWidth(page)).toBeGreaterThan(mobileBaselineWidth * 1.05);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(zoomControls).toBeHidden();
 
   const sidebar = page.locator('.desktop-sidebar');
   await sidebar.getByRole('button', { name: /^市场/ }).click();
