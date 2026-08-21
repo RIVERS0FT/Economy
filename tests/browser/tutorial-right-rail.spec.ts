@@ -48,12 +48,79 @@ test('desktop tutorial stays in the right rail across business pages and keeps f
   await expect(tutorial).toBeVisible();
 });
 
-test('mobile keeps the overview tutorial entry while the desktop right rail stays hidden', async ({ page }) => {
+test('mobile tutorial stays shell-owned below the status bar while pages and notifications cover it', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('runtime-test.html?view=overview&scenario=tutorial');
 
   const rail = page.locator('.strategic-economic-event-rail');
-  await expect(rail).toBeHidden();
-  await expect(page.locator('.overview-mobile-tutorial .game-guide-strip')).toBeVisible();
-  await expect(page.locator('.overview-mobile-tutorial').getByText('教程', { exact: true })).toBeVisible();
+  const tutorial = rail.locator('.game-guide-strip');
+  const statusBar = page.locator('.asset-bar');
+  const pageSheet = page.locator('[data-mobile-workspace-sheet-host="true"]');
+
+  await expect(page.locator('.overview-mobile-tutorial')).toHaveCount(0);
+  await expect(page.locator('.overview-dashboard-shell .game-guide-strip')).toHaveCount(0);
+  await expect(rail).toHaveAttribute('data-tutorial-visible', 'true');
+  await expect(rail).toHaveAttribute('data-event-log-visible', 'true');
+  await expect(tutorial).toBeVisible();
+  await expect(rail.locator('.economic-event-log-panel')).toBeHidden();
+  await expect(pageSheet).toBeVisible();
+
+  const statusBox = await requireBox(statusBar);
+  const railBox = await requireBox(rail);
+  expect(railBox.y).toBeGreaterThanOrEqual(statusBox.y + statusBox.height);
+  expect(railBox.y - (statusBox.y + statusBox.height)).toBeLessThanOrEqual(16);
+
+  const tutorialStyle = await tutorial.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      backdropFilter: style.backdropFilter,
+      backgroundColor: style.backgroundColor,
+      borderTopColor: style.borderTopColor,
+    };
+  });
+  expect(tutorialStyle.backdropFilter).toContain('blur(18px)');
+  expect(tutorialStyle.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+  expect(tutorialStyle.borderTopColor).not.toBe('rgba(0, 0, 0, 0)');
+
+  const tutorialBox = await requireBox(tutorial);
+  const sheetBox = await requireBox(pageSheet);
+  const overlapTop = Math.max(tutorialBox.y, sheetBox.y);
+  const overlapBottom = Math.min(tutorialBox.y + tutorialBox.height, sheetBox.y + sheetBox.height);
+  expect(overlapBottom - overlapTop).toBeGreaterThan(8);
+  const sheetOwnsOverlap = await page.evaluate(({ x, y }) => {
+    const element = document.elementFromPoint(x, y);
+    return Boolean(element?.closest('[data-mobile-workspace-sheet-host="true"]'));
+  }, {
+    x: tutorialBox.x + tutorialBox.width / 2,
+    y: overlapTop + 4,
+  });
+  expect(sheetOwnsOverlap).toBe(true);
+
+  await page.locator('.notification-center-trigger').click();
+  const notificationLayer = page.locator('.notification-panel-layer[data-notification-layer="dialog"]');
+  await expect(notificationLayer).toBeVisible();
+  await expect(tutorial).toHaveCount(1);
+
+  const notificationBox = await requireBox(notificationLayer);
+  const notificationOverlapTop = Math.max(tutorialBox.y, notificationBox.y);
+  const notificationOverlapBottom = Math.min(
+    tutorialBox.y + tutorialBox.height,
+    notificationBox.y + notificationBox.height,
+  );
+  expect(notificationOverlapBottom - notificationOverlapTop).toBeGreaterThan(8);
+  const notificationOwnsOverlap = await page.evaluate(({ x, y }) => {
+    const element = document.elementFromPoint(x, y);
+    return Boolean(element?.closest('.notification-panel-layer'));
+  }, {
+    x: tutorialBox.x + tutorialBox.width / 2,
+    y: notificationOverlapTop + 4,
+  });
+  expect(notificationOwnsOverlap).toBe(true);
+
+  const layerOrder = await page.evaluate(() => ({
+    dialog: Number.parseInt(getComputedStyle(document.querySelector('.workspace-dialog-layer') as HTMLElement).zIndex, 10),
+    chrome: Number.parseInt(getComputedStyle(document.querySelector('.signed-in-shell__chrome') as HTMLElement).zIndex, 10),
+  }));
+  expect(layerOrder.dialog).toBe(3000);
+  expect(layerOrder.chrome).toBe(3001);
 });

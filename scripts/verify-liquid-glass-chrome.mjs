@@ -275,7 +275,10 @@ requireText(files.tutorialBrowser, [
   "toHaveAttribute('data-tutorial-visible', 'true')",
   "toHaveAttribute('data-event-log-visible', 'false')",
   "toContain('blur(18px)')",
-  'mobile keeps the overview tutorial entry while the desktop right rail stays hidden',
+  'mobile tutorial stays shell-owned below the status bar while pages and notifications cover it',
+  "page.locator('.overview-mobile-tutorial')).toHaveCount(0)",
+  '[data-mobile-workspace-sheet-host="true"]',
+  '.notification-panel-layer[data-notification-layer="dialog"]',
 ]);
 requireText(files.auctionBrowser, [
   "toContain('ui-tooltip-surface')",
@@ -297,6 +300,7 @@ requireText(files.design, [
   '桌面侧栏按钮不得渲染数字角标',
   '## 5. 玩家页面与右侧信息栏',
   '教程是桌面应用外壳级常驻模块',
+  '移动端同样复用 `StrategicWorkspaceChrome` 持有的同一教程 DOM',
   '教程卡根节点必须复用通用 `.panel`',
   '`research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop`',
   '`--strategic-compact-page-width: 56rem`',
@@ -305,6 +309,7 @@ requireText(files.design, [
   '公开经济事件不得进入 `OverviewPage`',
   '工作区外层滚动条隐藏',
   '镜头栏位于地图舞台之上，但整个地图层 `20` 必须低于承载页面的 UI 层 `30`',
+  '地图／普通页面 < 移动教程 < 根 Sheet < 移动通知面板／通知灵动岛 < 状态栏',
   '状态栏始终位于 Sheet 与通知面板之上',
   'Sheet 外部区域不得压暗或模糊',
 ]);
@@ -321,4 +326,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('纯 CSS 毛玻璃外壳验证通过：共享外壳、教程右栏与 SafeTooltip/ECharts Tooltip 统一使用纯 CSS 毛玻璃材质，且旧 Liquid Glass 实现保持退役。');
+console.log('纯 CSS 毛玻璃外壳验证通过：共享外壳、桌面教程右栏、移动教程外壳锚点与 SafeTooltip/ECharts Tooltip 统一使用纯 CSS 毛玻璃材质，且旧 Liquid Glass 实现保持退役。');
