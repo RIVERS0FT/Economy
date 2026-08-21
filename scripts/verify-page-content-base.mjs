@@ -634,7 +634,7 @@ for (const text of [
   '| 合同 | `contracts` | `ContractPage` | 商品供货、玩家抵押借贷和工厂使用权租赁合同的发布、承接、履约与历史 |',
   '| 银行 | `bank` | `BankPage` | 资产总览、存取款、活跃周固定存款利息、周资金结算、工厂抵押贷款、额度评估与还款 |',
   '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与每日终端动态报价兑换普通货币 |',
-  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、经营成长线控制、礼品和退出 |',
+  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、教程控制、礼品和退出 |',
   '| 建筑 | `buildings` | `BuildingsPage` |',
   '页面主标题固定为“{州级地区全称}建筑”',
   '建筑页不得渲染仓库库存卡或自动交易设置',

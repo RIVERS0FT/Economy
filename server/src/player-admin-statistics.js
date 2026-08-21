@@ -854,7 +854,7 @@ function createStatisticsSummary(store, world, rangeKey, now) {
     { id: 'first-trade', label: '完成首次订单簿成交', count: tradeStage.length, medianHours: stageMedianHours(trackedMilestones.filter((row) => new Set(tradeStage.map((player) => Number(player.userId))).has(Number(row.user_id))), registrationsByUser, 'first_trade_at') },
     { id: 'first-research', label: '开始首次产业研发', count: researchStage.length, medianHours: stageMedianHours(trackedMilestones.filter((row) => new Set(researchStage.map((player) => Number(player.userId))).has(Number(row.user_id))), registrationsByUser, 'first_research_at') },
     { id: 'first-bank-deposit', label: '完成首次银行存款', count: bankStage.length, medianHours: stageMedianHours(trackedMilestones.filter((row) => new Set(bankStage.map((player) => Number(player.userId))).has(Number(row.user_id))), registrationsByUser, 'first_bank_deposit_at') },
-    { id: 'growth-line-complete', label: '完成经营成长线', count: growthLineStage.length, medianHours: stageMedianHours(growthLineRows.filter((row) => new Set(growthLineStage.map((player) => Number(player.userId))).has(Number(row.user_id))), registrationsByUser, 'first_growth_line_at') },
+    { id: 'growth-line-complete', label: '完成教程', count: growthLineStage.length, medianHours: stageMedianHours(growthLineRows.filter((row) => new Set(growthLineStage.map((player) => Number(player.userId))).has(Number(row.user_id))), registrationsByUser, 'first_growth_line_at') },
   ].map((stage, index, stages) => ({
     ...stage,
     conversionBps: index === 0 ? 10_000 : ratioBps(stage.count, stages[index - 1].count),

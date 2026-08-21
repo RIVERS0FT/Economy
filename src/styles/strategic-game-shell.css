@@ -291,6 +291,17 @@
     );
   }
 
+  .game-shell.strategic-tab-research:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
+  .game-shell.strategic-tab-auction:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
+  .game-shell.strategic-tab-contracts:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
+  .game-shell.strategic-tab-bank:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
+  .game-shell.strategic-tab-leaderboard:has(.strategic-economic-event-rail[data-tutorial-visible="true"]),
+  .game-shell.strategic-tab-gem-shop:has(.strategic-economic-event-rail[data-tutorial-visible="true"]) {
+    --strategic-primary-card-inline-size: calc(
+      100% - var(--strategic-event-rail-width) - var(--strategic-panel-gap) * 3
+    );
+  }
+
   .game-shell.strategic-tab-map {
     --strategic-primary-card-inline-size: var(--strategic-command-rail-width);
   }

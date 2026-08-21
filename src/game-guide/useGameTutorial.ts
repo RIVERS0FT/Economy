@@ -168,7 +168,7 @@ setRun(persisted);
     finishingRef.current = true;
     clearTutorialRun(userId);
     setRun(null);
-    model.notify('经营成长线已完成');
+    model.notify('教程已完成');
 
     if ((serverStatus?.completedVersion || 0) >= CURRENT_TUTORIAL_VERSION) {
       finishingRef.current = false;
@@ -182,7 +182,7 @@ setRun(persisted);
         setPendingTutorialCompletion(userId, false);
       })
       .catch(() => {
-        model.notify('成长线已在本机完成，服务器完成记录将在下次进入时重试');
+        model.notify('教程已在本机完成，服务器完成记录将在下次进入时重试');
       })
       .finally(() => {
         finishingRef.current = false;
@@ -218,7 +218,7 @@ setRun(persisted);
     persistRun(fresh);
     finishingRef.current = false;
     model.setTab('home');
-    model.notify('经营成长线已从第一步重新开始');
+    model.notify('教程已从第一步重新开始');
   }, [model, persistRun]);
 
   const hide = useCallback(() => {
@@ -229,8 +229,7 @@ setRun(persisted);
   const show = useCallback(() => {
     if (!run) return;
     persistRun({ ...run, status: 'active', updatedAt: Date.now() });
-    model.setTab('home');
-  }, [model, persistRun, run]);
+  }, [persistRun, run]);
 
   const openCurrentTarget = useCallback(() => {
     if (!run) return;
@@ -301,10 +300,10 @@ setRun(persisted);
     statusLabel: run
       ? `${run.status === 'hidden' ? '已隐藏' : '进行中'} · 步骤 ${currentStepIndex}/${TUTORIAL_STEPS.length}`
       : serverCompleted
-        ? '已完成当前版本经营成长线'
+        ? '已完成当前版本教程'
         : ready
 ? '尚未开始'
-: '正在读取成长线状态',
+: '正在读取教程状态',
     restart,
     hide,
     show,
