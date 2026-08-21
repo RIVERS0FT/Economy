@@ -104,7 +104,7 @@ async function configureAdminRoutes(page: Page) {
             { id: 'first-trade', label: '完成首次订单簿成交', count: 4, medianHours: 8.5, conversionBps: 8_000 },
             { id: 'first-research', label: '开始首次产业研发', count: 3, medianHours: 10.2, conversionBps: 7_500 },
             { id: 'first-bank-deposit', label: '完成首次银行存款', count: 2, medianHours: 12.6, conversionBps: 6_667 },
-            { id: 'growth-line-complete', label: '完成经营成长线', count: 1, medianHours: 15.4, conversionBps: 5_000 },
+            { id: 'growth-line-complete', label: '完成教程', count: 1, medianHours: 15.4, conversionBps: 5_000 },
           ],
           retained7d: { eligible: 3, retained: 2, rateBps: 6_667 },
           completion24h: { eligible: 3, retained: 1, rateBps: 3_333 },

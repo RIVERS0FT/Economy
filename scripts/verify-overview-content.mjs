@@ -114,10 +114,15 @@ forbidAll(paths.overview, [
   '/ 7 天',
 ]);
 requireAll(paths.strategicWorkspace, [
-  'className="strategic-economic-event-rail" aria-label="公开经济事件日志"',
-  "model.tab === 'home' && tutorial ? <GameGuideStrip tutorial={tutorial} /> : null",
+  'const showTutorial = Boolean(tutorial?.isVisible && tutorial.currentStep);',
+  'if (!showEventRail && !showTutorial) return null;',
+  "data-tutorial-visible={showTutorial ? 'true' : 'false'}",
+  "data-event-log-visible={showEventRail ? 'true' : 'false'}",
+  '{showTutorial && tutorial ? <GameGuideStrip tutorial={tutorial} /> : null}',
+  '{showEventRail ? (',
   '<EconomicEventLogPanel',
 ]);
+forbidText(paths.strategicWorkspace, "model.tab === 'home' && tutorial");
 requireAll(paths.eventLog, [
   'className="economic-event-log-title"',
   'aria-label="近期与未来七天公开经济事件日志"',
@@ -134,7 +139,10 @@ forbidAll(paths.eventLog, [
   'className="economic-event-log-note"',
 ]);
 requireAll(paths.guide, [
+  'className="game-guide-strip panel"',
+  '<span>教程</span>',
   'role="progressbar"',
+  'aria-label="教程进度"',
   '步骤 {tutorial.currentStepIndex}/{tutorial.totalSteps}',
   'tutorial.openCurrentTarget',
   'tutorial.hide',
@@ -194,6 +202,10 @@ requireAll(paths.polishStyle, [
 ]);
 forbidAll(paths.polishStyle, ['clamp(168px, 20vw, 210px)', '.overview-asset-events {\n  overflow-y: auto;']);
 requireAll(paths.guideStyle, ['.game-guide-strip {', '.game-guide-progress {', '@media (max-width: 720px)']);
+forbidAll(paths.guideStyle, [
+  'border: 1px solid color-mix(in srgb, var(--accent, #4f7cff)',
+  'background: color-mix(in srgb, var(--accent, #4f7cff) 8%',
+]);
 
 requireAll(paths.shell, [
   'const [sidebarCollapsed, setSidebarCollapsed] = useState(true)',
@@ -239,6 +251,8 @@ requireAll(paths.strategicStyle, [
   '.game-shell .signed-in-shell__primary-card .desktop-sidebar::after {',
   '.strategic-economic-event-rail {',
   'width: var(--strategic-event-rail-width);',
+  '.game-shell.strategic-tab-research:has(.strategic-economic-event-rail[data-tutorial-visible="true"])',
+  '100% - var(--strategic-event-rail-width) - var(--strategic-panel-gap) * 3',
 ]);
 forbidAll(paths.strategicStyle, ['--strategic-inspector-width', '.strategic-province-inspector']);
 forbidAll(paths.sidebarStyle, ['right: -11px;']);
@@ -302,11 +316,20 @@ requireAll(paths.browserSpec, [
   "getByRole('dialog', { name: '通知' })",
 ]);
 
-requireAll(paths.pageDesign, ['概览是经营决策首页', '屏幕右侧独立挂载单列日志', '签到日历', '`1920×1080`', '`1440×900`', '桌面经营成长线显示在外壳独立事件右栏顶部']);
+requireAll(paths.pageDesign, [
+  '概览是经营决策首页',
+  '屏幕右侧独立挂载右侧信息栏',
+  '教程同样由该外壳持有，并在自身处于显示状态时跨页面常驻',
+  '签到日历',
+  '`1920×1080`',
+  '`1440×900`',
+  '桌面教程显示在外壳右侧信息栏顶部，只由教程自身显示状态控制',
+]);
 requireAll(paths.uiDesign, ['## 10. 概览布局', '经营决策优先', '页面外的屏幕右栏纵向滚动', '签到日历']);
 requireAll(paths.integrityDesign, [
   '概览使用参考大战略建筑页面的左侧毛玻璃业务面板',
   '工作区右侧：StrategicWorkspaceChrome',
+  '桌面教程属于 `StrategicWorkspaceChrome`',
   '`.strategic-economic-event-rail` 不得成为 `.page-content`',
   '签到日历',
   '资产与银行',
@@ -325,4 +348,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('概览验证通过：共享外壳折叠、教程提醒容量、签到日历、服务器日期语义、权威资产状态、子切片依赖、状态栏趋势与浏览器碰撞回归满足设计基线。');
+console.log('概览验证通过：共享外壳折叠、教程右栏、签到日历、服务器日期语义、权威资产状态、子切片依赖、状态栏趋势与浏览器碰撞回归满足设计基线。');

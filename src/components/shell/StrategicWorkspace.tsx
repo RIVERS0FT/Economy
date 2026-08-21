@@ -121,15 +121,25 @@ export function StrategicWorkspaceChrome({
   tutorial?: GameTutorialController;
   showEventRail: boolean;
 }) {
-  return showEventRail ? (
-    <aside className="strategic-economic-event-rail" aria-label="公开经济事件日志">
-      {model.tab === 'home' && tutorial ? <GameGuideStrip tutorial={tutorial} /> : null}
-      <EconomicEventLogPanel
-        events={model.game.economicCalendar?.events ?? []}
-        products={model.game.products}
-        markets={model.game.markets}
-        referenceNow={model.game.lastProcessedAt}
-      />
+  const showTutorial = Boolean(tutorial?.isVisible && tutorial.currentStep);
+  if (!showEventRail && !showTutorial) return null;
+
+  return (
+    <aside
+      className="strategic-economic-event-rail"
+      aria-label={showEventRail ? '公开经济事件日志' : '教程'}
+      data-tutorial-visible={showTutorial ? 'true' : 'false'}
+      data-event-log-visible={showEventRail ? 'true' : 'false'}
+    >
+      {showTutorial && tutorial ? <GameGuideStrip tutorial={tutorial} /> : null}
+      {showEventRail ? (
+        <EconomicEventLogPanel
+          events={model.game.economicCalendar?.events ?? []}
+          products={model.game.products}
+          markets={model.game.markets}
+          referenceNow={model.game.lastProcessedAt}
+        />
+      ) : null}
     </aside>
-  ) : null;
+  );
 }

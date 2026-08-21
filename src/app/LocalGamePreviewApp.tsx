@@ -89,7 +89,7 @@ const completedTutorial: GameTutorialController = {
   currentStep: null,
   currentStepIndex: 0,
   totalSteps: 9,
-  statusLabel: '本地预览已跳过经营成长线',
+  statusLabel: '本地预览已跳过教程',
   restart: () => {},
   hide: () => {},
   show: () => {},

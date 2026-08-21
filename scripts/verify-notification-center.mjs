@@ -260,7 +260,7 @@ assert.match(liquidDesign, /桌面关闭态 Toast/);
 assert.match(liquidDesign, /\.workspace-strategic-chrome/);
 assert.match(liquidDesign, /相同局部 `z-index: 2`/);
 assert.match(liquidDesign, /独立最大宽度 `360px`/);
-assert.match(liquidDesign, /隐藏事件右栏也仍必须保留桌面 Toast/);
+assert.match(liquidDesign, /隐藏事件日志也仍必须保留桌面 Toast/);
 assert.match(liquidDesign, /通知灵动岛/);
 assert.match(liquidDesign, /物理屏幕水平中线/);
 assert.match(liquidDesign, /从中心对称展开/);

@@ -6,10 +6,10 @@ export function GameGuideStrip({ tutorial }: { tutorial: GameTutorialController 
 
   const progress = Math.round((tutorial.currentStepIndex / tutorial.totalSteps) * 100);
   return (
-    <section className="game-guide-strip" aria-labelledby="game-guide-title">
+    <section className="game-guide-strip panel" aria-labelledby="game-guide-title">
       <div className="game-guide-heading">
         <div>
-          <span>经营成长线</span>
+          <span>教程</span>
           <strong id="game-guide-title">{tutorial.currentStep.title}</strong>
         </div>
         <StatusTag tone="info">步骤 {tutorial.currentStepIndex}/{tutorial.totalSteps}</StatusTag>
@@ -17,7 +17,7 @@ export function GameGuideStrip({ tutorial }: { tutorial: GameTutorialController 
       <div
         className="game-guide-progress"
         role="progressbar"
-        aria-label="经营成长线进度"
+        aria-label="教程进度"
         aria-valuemin={0}
         aria-valuemax={tutorial.totalSteps}
         aria-valuenow={tutorial.currentStepIndex}
