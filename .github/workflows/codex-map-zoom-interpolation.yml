@@ -1,0 +1,287 @@
+name: codex-map-zoom-interpolation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'codex/map-zoom-interpolation'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map-zoom-interpolation
+          fetch-depth: 0
+      - name: Apply interpolated map zoom integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 occurrence, found {count}')
+              return text.replace(old, new, 1)
+
+          map_path = Path('src/components/provinces/UsMainlandMap.tsx')
+          text = map_path.read_text()
+          text = replace_once(text,
+              "} from './provinceMapLabels';\n",
+              "} from './provinceMapLabels';\nimport {\n  createProvinceMapZoomInterpolator,\n  type ProvinceMapZoomInterpolator,\n} from './provinceMapZoomInterpolator';\n",
+              'zoom interpolator import')
+          text = replace_once(text,
+              "  const labelRendererRef = useRef<ProvinceMapLabelRenderer | null>(null);\n  const selectedProvinceIdRef = useRef(selectedProvinceId);",
+              "  const labelRendererRef = useRef<ProvinceMapLabelRenderer | null>(null);\n  const zoomInterpolatorRef = useRef<ProvinceMapZoomInterpolator | null>(null);\n  const selectedProvinceIdRef = useRef(selectedProvinceId);",
+              'zoom interpolator ref')
+          text = replace_once(text,
+              "    const layoutSize = containLayoutSize(width, height);\n    chart.setOption({",
+              "    zoomInterpolatorRef.current?.reset(1);\n    const layoutSize = containLayoutSize(width, height);\n    chart.setOption({",
+              'contain reset interpolation')
+          text = replace_once(text,
+              "  const installProvinceLabels = useCallback((chart: EChartsType) => {\n    labelRendererRef.current?.destroy();\n    labelRendererRef.current = createProvinceMapLabelRenderer(\n      chart,\n      provinceMapLabelSources,\n      () => selectedProvinceIdRef.current,\n    );\n  }, []);\n\n  useEffect(() => {",
+              "  const installProvinceLabels = useCallback((chart: EChartsType) => {\n    labelRendererRef.current?.destroy();\n    labelRendererRef.current = createProvinceMapLabelRenderer(\n      chart,\n      provinceMapLabelSources,\n      () => selectedProvinceIdRef.current,\n    );\n  }, []);\n\n  const installZoomInterpolator = useCallback((chart: EChartsType) => {\n    zoomInterpolatorRef.current?.destroy();\n    zoomInterpolatorRef.current = createProvinceMapZoomInterpolator(chart);\n  }, []);\n\n  useEffect(() => {",
+              'install interpolator')
+          text = replace_once(text,
+              "  useEffect(() => () => {\n    labelRendererRef.current?.destroy();\n    labelRendererRef.current = null;\n  }, []);",
+              "  useEffect(() => () => {\n    zoomInterpolatorRef.current?.destroy();\n    zoomInterpolatorRef.current = null;\n    labelRendererRef.current?.destroy();\n    labelRendererRef.current = null;\n  }, []);",
+              'interpolator cleanup')
+          text = replace_once(text, "      roam: true,", "      roam: 'move',", 'move only roam')
+          text = replace_once(text,
+              "  const handleChartReady = useCallback((chart: EChartsType) => {\n    applyContainCamera(chart);\n    applyResponsiveTooltip(chart);\n    installProvinceLabels(chart);\n  }, [applyContainCamera, applyResponsiveTooltip, installProvinceLabels]);",
+              "  const handleChartReady = useCallback((chart: EChartsType) => {\n    applyContainCamera(chart);\n    applyResponsiveTooltip(chart);\n    installProvinceLabels(chart);\n    installZoomInterpolator(chart);\n  }, [applyContainCamera, applyResponsiveTooltip, installProvinceLabels, installZoomInterpolator]);",
+              'ready installs interpolator')
+          map_path.write_text(text)
+
+          page_path = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          text = page_path.read_text()
+          text = replace_once(text,
+              "桌面滚轮与移动双指缩放必须通过同一 ECharts 实例更新相机，鼠标或单指拖动负责平移；地图不得提供独立缩放功能面板，地图空白双击／双触恢复 `center = null`、`zoom = 1`。",
+              "鼠标或单指拖动继续由同一 ECharts Map 的 `roam: 'move'` 原生平移负责；桌面滚轮与移动双指缩放改由地图专用瞬时插值控制器驱动：输入只更新目标缩放与最新焦点，单一 `requestAnimationFrame` 在对数空间让当前缩放向目标缩放平滑收敛，每帧最多通过一次 ECharts `geoRoam` `updateTransform` 提交等比增量，禁止用逐帧 `setOption` 驱动缩放。滚轮输入必须归一化 `deltaMode` 并限制单次目标对数步长，双指缩放必须使用 ZRender 相邻触摸帧提供的真实 `pinchScale`，不得退回固定 `1.1`／`1.2`／`1.4` 阶梯倍率；默认单帧实际缩放倍率上限为 `1.11`，缩放范围仍固定 `0.5～4`。该 current／target 只属于瞬时插值运行状态，正式 `center`／`zoom` 始终唯一归属同一 ECharts 相机，不得持久化第二套相机。地图不得提供独立缩放功能面板，地图空白双击／双触必须取消未完成插值并恢复 `center = null`、`zoom = 1`；容器真实 resize 同样先取消插值再重建 Contain 基准。",
+              'page interpolation rule')
+          text = replace_once(text,
+              "地图缩放仅由地图舞台内的 ECharts `roam` 与空白双击／双触重置手势承担，不得增加独立缩放功能面板、额外 Portal、第五个全局层或第二个相机状态。",
+              "地图平移仅由地图舞台内 ECharts `roam: 'move'` 承担；缩放只允许由地图专用插值控制器读取滚轮／双指目标并通过同一 ECharts `geoRoam` 相机逐帧提交，空白双击／双触负责取消插值并重置。插值期间州名继续只同步共享 SVG 相机矩阵，不得触发 48 州完整标签布局；选择州、切换镜头和普通数据更新不得改写插值 target。不得增加独立缩放功能面板、额外 Portal、第五个全局层或第二个持久相机状态。",
+              'page zoom ownership rule')
+          page_path.write_text(text)
+
+          ui_path = Path('docs/UI_DESIGN_SYSTEM.md')
+          text = ui_path.read_text()
+          text = replace_once(text,
+              "用户主动平移和缩放由 ECharts `roam` 与 `scaleLimit` 约束。",
+              "用户主动平移继续由 ECharts `roam: 'move'` 约束，缩放范围继续由 `scaleLimit` 与插值控制器共同锁定为 `0.5～4`；滚轮／双指只更新瞬时 target，实际画面在单一 `requestAnimationFrame` 中以对数空间插值并每帧最多一次通过 ECharts `geoRoam` `updateTransform` 提交，正式相机仍只有 ECharts 一份。",
+              'ui zoom ownership')
+          text = replace_once(text,
+              "Map 系列必须同时使用 `roam: true` 与 `roamTrigger: 'global'`，保证州面与地图空白都可以作为平移起点，移动地图画布必须用局部 `touch-action: none` 把手势交给 ECharts 而不得影响其他图表。",
+              "Map 系列必须使用 `roam: 'move'` 与 `roamTrigger: 'global'`，保证州面与地图空白都可以作为原生平移起点；不得恢复 `roam: true` 让 ECharts 内置缩放与插值缩放同时执行。桌面纵向滚轮必须由非被动监听器阻止页面滚动并归一化 `deltaMode` 后更新 target；移动双指必须使用 ZRender 的真实 `pinchScale` 和 `pinchX`／`pinchY` 焦点更新 target。插值采用时间常数响应、对数空间收敛、默认单帧倍率不超过 `1.11`，每帧最多一次 `geoRoam`，不得使用逐帧 `setOption`；`prefers-reduced-motion: reduce` 时允许在单帧直接收敛。移动地图画布继续用局部 `touch-action: none` 把触摸手势交给地图而不得影响其他图表。",
+              'ui move only roam')
+          ui_path.write_text(text)
+
+          test_path = Path('tests/browser/province-map.spec.ts')
+          text = test_path.read_text()
+          text = replace_once(text,
+              "async function provinceLabelVisualWidth(page: Page, provinceId: string) {\n  const box = await page.locator(`.province-map-label[data-province-id=\"${provinceId}\"]`).boundingBox();\n  if (!box) throw new Error(`province label ${provinceId} has no visual bounds`);\n  return box.width;\n}\n",
+              "async function provinceLabelVisualWidth(page: Page, provinceId: string) {\n  const box = await page.locator(`.province-map-label[data-province-id=\"${provinceId}\"]`).boundingBox();\n  if (!box) throw new Error(`province label ${provinceId} has no visual bounds`);\n  return box.width;\n}\n\nasync function provinceLabelVisualCenter(page: Page, provinceId: string) {\n  return page.locator(`.province-map-label[data-province-id=\"${provinceId}\"]`).evaluate((element) => {\n    const x = Number(element.getAttribute('data-label-center-x'));\n    const y = Number(element.getAttribute('data-label-center-y'));\n    const matrix = element.getScreenCTM();\n    if (!Number.isFinite(x) || !Number.isFinite(y) || !matrix) {\n      throw new Error('province label visual center transform is missing');\n    }\n    return {\n      x: matrix.a * x + matrix.c * y + matrix.e,\n      y: matrix.b * x + matrix.d * y + matrix.f,\n    };\n  });\n}\n",
+              'visual center helper')
+          initial_marker = "  await expect(canvas).toHaveAttribute('data-map-label-camera-sync-count', /^\\d+$/);\n  await expect(canvas).toHaveAttribute('data-map-tooltip-mode', 'desktop');"
+          initial_replacement = "  await expect(canvas).toHaveAttribute('data-map-label-camera-sync-count', /^\\d+$/);\n  await expect(canvas).toHaveAttribute('data-map-zoom-mode', 'interpolated');\n  await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');\n  await expect(canvas).toHaveAttribute('data-map-zoom-target', '1.00000');\n  await expect(canvas).toHaveAttribute('data-map-zoom-active', 'false');\n  await expect(canvas).toHaveAttribute('data-map-zoom-frame-count', /^\\d+$/);\n  await expect(canvas).toHaveAttribute('data-map-zoom-max-step', /^\\d+\\.\\d+$/);\n  await expect(canvas).toHaveAttribute('data-map-tooltip-mode', 'desktop');"
+          count = text.count(initial_marker)
+          if count != 2:
+              raise SystemExit(f'initial zoom instrumentation: expected 2 occurrences, found {count}')
+          text = text.replace(initial_marker, initial_replacement)
+          old_zoom = """  const coloradoWidthBeforeZoom = await provinceLabelVisualWidth(page, '150000');
+  const layoutRevisionBeforeRoam = await canvas.getAttribute('data-map-label-layout-revision');
+  const cameraSyncBeforeRoam = Number(await canvas.getAttribute('data-map-label-camera-sync-count'));
+  await page.mouse.move(
+    (coloradoBox?.x ?? 0) + (coloradoBox?.width ?? 0) / 2,
+    (coloradoBox?.y ?? 0) + (coloradoBox?.height ?? 0) / 2,
+  );
+  await page.mouse.wheel(0, -480);
+  await expect.poll(async () => {
+    const outline = await readOutlineGeometry(page);
+    return outline.right - outline.left;
+  }).toBeGreaterThan((geometry.pathBounds.right - geometry.pathBounds.left) * 1.05);
+  await expect.poll(() => provinceLabelVisualWidth(page, '150000')).toBeGreaterThan(coloradoWidthBeforeZoom * 1.05);
+  const zoomedOutline = await readOutlineGeometry(page);
+  const zoomedColoradoWidth = await provinceLabelVisualWidth(page, '150000');
+  const mapScale = (zoomedOutline.right - zoomedOutline.left) / (geometry.pathBounds.right - geometry.pathBounds.left);
+  const labelScale = zoomedColoradoWidth / coloradoWidthBeforeZoom;
+  expect(Math.abs(labelScale - mapScale) / mapScale).toBeLessThan(0.04);
+  await expect(canvas).toHaveAttribute('data-map-label-layout-revision', layoutRevisionBeforeRoam || '');
+  expect(Number(await canvas.getAttribute('data-map-label-camera-sync-count'))).toBeGreaterThan(cameraSyncBeforeRoam);
+  const cameraBeforeSelection = await readOutlineGeometry(page);
+"""
+          new_zoom = """  const coloradoWidthBeforeZoom = await provinceLabelVisualWidth(page, '150000');
+  const coloradoCenterBeforeZoom = await provinceLabelVisualCenter(page, '150000');
+  const layoutRevisionBeforeRoam = await canvas.getAttribute('data-map-label-layout-revision');
+  const cameraSyncBeforeRoam = Number(await canvas.getAttribute('data-map-label-camera-sync-count'));
+  const zoomFrameCountBeforeRoam = Number(await canvas.getAttribute('data-map-zoom-frame-count'));
+  await page.mouse.move(
+    (coloradoBox?.x ?? 0) + (coloradoBox?.width ?? 0) / 2,
+    (coloradoBox?.y ?? 0) + (coloradoBox?.height ?? 0) / 2,
+  );
+  await page.mouse.wheel(0, -480);
+  expect(Number(await canvas.getAttribute('data-map-zoom-target'))).toBeGreaterThan(1.05);
+  await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.05);
+  await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
+  const settledCurrentZoom = Number(await canvas.getAttribute('data-map-zoom-current'));
+  const settledTargetZoom = Number(await canvas.getAttribute('data-map-zoom-target'));
+  expect(Math.abs(settledCurrentZoom - settledTargetZoom)).toBeLessThan(0.002);
+  expect(Number(await canvas.getAttribute('data-map-zoom-frame-count'))).toBeGreaterThan(zoomFrameCountBeforeRoam + 1);
+  expect(Number(await canvas.getAttribute('data-map-zoom-max-step'))).toBeLessThanOrEqual(1.111);
+  await expect(canvas).toHaveAttribute('data-map-zoom-input-mode', 'wheel');
+  await expect.poll(async () => {
+    const outline = await readOutlineGeometry(page);
+    return outline.right - outline.left;
+  }).toBeGreaterThan((geometry.pathBounds.right - geometry.pathBounds.left) * 1.05);
+  await expect.poll(() => provinceLabelVisualWidth(page, '150000')).toBeGreaterThan(coloradoWidthBeforeZoom * 1.05);
+  const zoomedOutline = await readOutlineGeometry(page);
+  const zoomedColoradoWidth = await provinceLabelVisualWidth(page, '150000');
+  const coloradoCenterAfterZoom = await provinceLabelVisualCenter(page, '150000');
+  const mapScale = (zoomedOutline.right - zoomedOutline.left) / (geometry.pathBounds.right - geometry.pathBounds.left);
+  const labelScale = zoomedColoradoWidth / coloradoWidthBeforeZoom;
+  expect(Math.abs(labelScale - mapScale) / mapScale).toBeLessThan(0.04);
+  expect(Math.hypot(
+    coloradoCenterAfterZoom.x - coloradoCenterBeforeZoom.x,
+    coloradoCenterAfterZoom.y - coloradoCenterBeforeZoom.y,
+  )).toBeLessThan(8);
+  await expect(canvas).toHaveAttribute('data-map-label-layout-revision', layoutRevisionBeforeRoam || '');
+  expect(Number(await canvas.getAttribute('data-map-label-camera-sync-count'))).toBeGreaterThan(cameraSyncBeforeRoam);
+  const targetZoomBeforeSelection = await canvas.getAttribute('data-map-zoom-target');
+  const cameraBeforeSelection = await readOutlineGeometry(page);
+"""
+          text = replace_once(text, old_zoom, new_zoom, 'desktop interpolation assertions')
+          text = replace_once(text,
+              "  await expect(canvas).toHaveAttribute('data-map-label-layout-revision', layoutRevisionBeforeRoam || '');\n  await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');",
+              "  await expect(canvas).toHaveAttribute('data-map-label-layout-revision', layoutRevisionBeforeRoam || '');\n  await expect(canvas).toHaveAttribute('data-map-zoom-target', targetZoomBeforeSelection || '');\n  await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');",
+              'selection preserves zoom target')
+          text = replace_once(text,
+              "  await expect(canvas).toHaveAttribute('data-map-camera-reset', 'blank-double-click');\n  await page.waitForTimeout(320);",
+              "  await expect(canvas).toHaveAttribute('data-map-camera-reset', 'blank-double-click');\n  await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');\n  await expect(canvas).toHaveAttribute('data-map-zoom-target', '1.00000');\n  await expect(canvas).toHaveAttribute('data-map-zoom-active', 'false');\n  await page.waitForTimeout(320);",
+              'desktop reset cancels interpolation')
+          mobile_zoom_old = """    const initialOutline = await readOutlineGeometry(page);
+    const initialColoradoVisualWidth = await provinceLabelVisualWidth(page, '150000');
+    const mobileLayoutRevisionBeforeRoam = await canvas.getAttribute('data-map-label-layout-revision');
+    const mobileCameraSyncBeforeRoam = Number(await canvas.getAttribute('data-map-label-camera-sync-count'));
+    let blankPoint = await findMapBlankPoint(page);
+    await page.mouse.move(blankPoint.x, blankPoint.y);
+    await page.mouse.wheel(0, -480);
+    await expect.poll(async () => {
+      const outline = await readOutlineGeometry(page);
+      return outline.right - outline.left;
+    }).toBeGreaterThan((initialOutline.right - initialOutline.left) * 1.05);
+    await expect.poll(() => provinceLabelVisualWidth(page, '150000')).toBeGreaterThan(initialColoradoVisualWidth * 1.05);
+    await expect(canvas).toHaveAttribute('data-map-label-layout-revision', mobileLayoutRevisionBeforeRoam || '');
+    expect(Number(await canvas.getAttribute('data-map-label-camera-sync-count'))).toBeGreaterThan(mobileCameraSyncBeforeRoam);
+"""
+          mobile_zoom_new = """    const initialOutline = await readOutlineGeometry(page);
+    const initialColoradoVisualWidth = await provinceLabelVisualWidth(page, '150000');
+    const mobileLayoutRevisionBeforeRoam = await canvas.getAttribute('data-map-label-layout-revision');
+    const mobileCameraSyncBeforeRoam = Number(await canvas.getAttribute('data-map-label-camera-sync-count'));
+    const mobileZoomFrameBeforeRoam = Number(await canvas.getAttribute('data-map-zoom-frame-count'));
+    let blankPoint = await findMapBlankPoint(page);
+    await page.mouse.move(blankPoint.x, blankPoint.y);
+    await page.mouse.wheel(0, -480);
+    await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.05);
+    await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
+    expect(Number(await canvas.getAttribute('data-map-zoom-frame-count'))).toBeGreaterThan(mobileZoomFrameBeforeRoam + 1);
+    expect(Number(await canvas.getAttribute('data-map-zoom-max-step'))).toBeLessThanOrEqual(1.111);
+    await expect.poll(async () => {
+      const outline = await readOutlineGeometry(page);
+      return outline.right - outline.left;
+    }).toBeGreaterThan((initialOutline.right - initialOutline.left) * 1.05);
+    await expect.poll(() => provinceLabelVisualWidth(page, '150000')).toBeGreaterThan(initialColoradoVisualWidth * 1.05);
+    await expect(canvas).toHaveAttribute('data-map-label-layout-revision', mobileLayoutRevisionBeforeRoam || '');
+    expect(Number(await canvas.getAttribute('data-map-label-camera-sync-count'))).toBeGreaterThan(mobileCameraSyncBeforeRoam);
+"""
+          text = replace_once(text, mobile_zoom_old, mobile_zoom_new, 'mobile interpolation assertions')
+          text = replace_once(text,
+              "    await expect(canvas).toHaveAttribute('data-map-camera-reset', 'blank-double-tap');\n    await page.waitForTimeout(320);",
+              "    await expect(canvas).toHaveAttribute('data-map-camera-reset', 'blank-double-tap');\n    await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');\n    await expect(canvas).toHaveAttribute('data-map-zoom-target', '1.00000');\n    await expect(canvas).toHaveAttribute('data-map-zoom-active', 'false');\n    await page.waitForTimeout(320);",
+              'mobile reset cancels interpolation')
+          test_path.write_text(text)
+
+          verify_path = Path('scripts/verify-provincial-economy.mjs')
+          text = verify_path.read_text()
+          text = replace_once(text,
+              "  'createProvinceMapLabelRenderer',\n  'provinceMapLabelSources',",
+              "  'createProvinceMapLabelRenderer',\n  'createProvinceMapZoomInterpolator',\n  'provinceMapLabelSources',",
+              'verifier map import')
+          text = replace_once(text,
+              "  \"roamTrigger: 'global'\",\n  'scaleLimit: { min: 0.5, max: 4 }',",
+              "  \"roam: 'move'\",\n  \"roamTrigger: 'global'\",\n  'scaleLimit: { min: 0.5, max: 4 }',",
+              'verifier move roam')
+          text = replace_once(text,
+              "  'labelRendererRef.current?.updateSelection();',\n  'onResize={handleChartResize}',",
+              "  'labelRendererRef.current?.updateSelection();',\n  'zoomInterpolatorRef.current?.reset(1);',\n  'zoomInterpolatorRef.current?.destroy();',\n  'installZoomInterpolator(chart);',\n  'onResize={handleChartResize}',",
+              'verifier interpolator lifecycle')
+          text = replace_once(text,
+              "  'labelRendererRef.current?.schedule();',\n]) {",
+              "  'labelRendererRef.current?.schedule();',\n  'roam: true,',\n]) {",
+              'forbid builtin zoom roam')
+          zoom_verifier = """
+const mapZoomInterpolator = read('src/components/provinces/provinceMapZoomInterpolator.ts');
+for (const text of [
+  "const MAP_SERIES_ID = 'us-mainland-map'",
+  'export const MAP_ZOOM_MIN = 0.5',
+  'export const MAP_ZOOM_MAX = 4',
+  'const WHEEL_ZOOM_SENSITIVITY = 0.0016',
+  'const MAX_WHEEL_LOG_STEP = 0.2',
+  'const MAX_FRAME_LOG_STEP = Math.log(1.11)',
+  'const WHEEL_RESPONSE_MS = 60',
+  'const PINCH_RESPONSE_MS = 50',
+  'function normalizeWheelDelta',
+  "window.matchMedia('(prefers-reduced-motion: reduce)')",
+  "container.addEventListener('wheel', handleWheel, { passive: false })",
+  'event.preventDefault();',
+  'event.stopPropagation();',
+  'targetZoom * Math.exp(inputLogStep)',
+  'const pinchScale = Number(event.pinchScale)',
+  'targetZoom * pinchScale',
+  "type: 'geoRoam'",
+  'seriesId: MAP_SERIES_ID',
+  'requestAnimationFrame(animate)',
+  "container.dataset.mapZoomMode = 'interpolated'",
+  'container.dataset.mapZoomCurrent',
+  'container.dataset.mapZoomTarget',
+  'container.dataset.mapZoomFrameCount',
+  'container.dataset.mapZoomMaxStep',
+]) assert.ok(mapZoomInterpolator.includes(text), `地图插值缩放缺少: ${text}`);
+assert.equal(mapZoomInterpolator.includes('setOption('), false, '地图插值缩放热路径不得通过 setOption 逐帧更新');
+
+"""
+          marker = "const echartsCore = read('src/components/charts/echartsCore.ts');"
+          if marker not in text:
+              raise SystemExit('verifier zoom insertion marker missing')
+          text = text.replace(marker, zoom_verifier + marker, 1)
+          text = replace_once(text,
+              "  'provinceLabelVisualWidth',\n  'data-map-label-camera-mode',",
+              "  'provinceLabelVisualWidth',\n  'provinceLabelVisualCenter',\n  'data-map-label-camera-mode',",
+              'verifier center helper')
+          text = replace_once(text,
+              "  'data-map-label-camera-sync-count',\n  'mapScale',",
+              "  'data-map-label-camera-sync-count',\n  'data-map-zoom-mode',\n  'data-map-zoom-current',\n  'data-map-zoom-target',\n  'data-map-zoom-active',\n  'data-map-zoom-frame-count',\n  'data-map-zoom-max-step',\n  'mapScale',",
+              'verifier zoom browser datasets')
+          text = replace_once(text,
+              "  \"`georoam` 热路径只允许更新共享 SVG 相机组的统一等比缩放和平移矩阵\",\n  '禁止重新执行州界投影、主轴／走廊扫描、字体测量、逐字碰撞或 `replaceChildren()`',",
+              "  \"`georoam` 热路径只允许更新共享 SVG 相机组的统一等比缩放和平移矩阵\",\n  \"`roam: 'move'`\",\n  '每帧最多一次 `geoRoam`',\n  '真实 `pinchScale`',\n  '不得使用逐帧 `setOption`',\n  '禁止重新执行州界投影、主轴／走廊扫描、字体测量、逐字碰撞或 `replaceChildren()`',",
+              'verifier ui interpolation docs')
+          text = replace_once(text,
+              "  '`georoam` 期间不得重新执行 48 州标签完整布局',\n  '共享 SVG 相机组',",
+              "  '`georoam` 期间不得重新执行 48 州标签完整布局',\n  \"`roam: 'move'`\",\n  '目标缩放',\n  '每帧最多通过一次 ECharts `geoRoam`',\n  '真实 `pinchScale`',\n  '共享 SVG 相机组',",
+              'verifier page interpolation docs')
+          verify_path.write_text(text)
+          PY
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/codex-map-zoom-interpolation.yml
+          git add -- src/components/provinces/UsMainlandMap.tsx docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/UI_DESIGN_SYSTEM.md tests/browser/province-map.spec.ts scripts/verify-provincial-economy.mjs src/components/provinces/provinceMapZoomInterpolator.ts
+          git commit -m "接入地图插值缩放并更新回归"
+          git push origin HEAD:codex/map-zoom-interpolation
