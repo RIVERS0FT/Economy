@@ -13,6 +13,21 @@ const pages = [
   { navigation: /^设置/, heading: '设置' },
 ] as const;
 
+async function clickMapProvinceLabel(page: import('@playwright/test').Page, provinceName: string) {
+  const label = page.locator('.province-map-label').filter({ hasText: new RegExp(`^${provinceName}$`) });
+  await expect(label).toBeVisible();
+  const point = await label.evaluate((element) => {
+    const href = element.querySelector('textPath')?.getAttribute('href');
+    const path = href ? element.ownerSVGElement?.querySelector<SVGPathElement>(href) : null;
+    if (!path) throw new Error('province label path is missing');
+    const local = path.getPointAtLength(path.getTotalLength() / 2);
+    const matrix = path.getScreenCTM();
+    if (!matrix) throw new Error('province label screen transform is missing');
+    return { x: matrix.a * local.x + matrix.c * local.y + matrix.e, y: matrix.b * local.x + matrix.d * local.y + matrix.f };
+  });
+  await page.mouse.click(point.x, point.y);
+}
+
 test('account-free mode redirects into the complete game shell without API traffic', async ({ page }) => {
   const apiRequests: string[] = [];
   page.on('request', (request) => {
@@ -53,7 +68,7 @@ test('account-free game shell navigates all ten visible business pages and close
   await expect(page.locator('.province-map-page')).toHaveCount(1);
   await expect(page.locator('[data-player-page-navigation="true"]')).toHaveCount(0);
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
-  await map.locator('svg text').filter({ hasText: /^TX$/ }).click();
+  await clickMapProvinceLabel(page, '得克萨斯州');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', 'US-TX');
   await expect(page.getByRole('heading', { level: 1, name: '得克萨斯州' })).toBeVisible();
   await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');
@@ -135,7 +150,7 @@ test('overview, market, buildings, and settings share a one-third card width whi
   await expect(workspaceCard.locator(':scope .strategic-page-host')).toHaveCount(1);
 
   await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
-  await page.getByTestId('us-mainland-map').locator('svg text').filter({ hasText: /^TX$/ }).click();
+  await clickMapProvinceLabel(page, '得克萨斯州');
   const provinceHost = page.locator('.strategic-page-host');
   const provinceContent = provinceHost.locator(':scope > .page-content:not(.page-loading)');
   await expect(provinceHost).toHaveAttribute('data-strategic-presentation', 'building');

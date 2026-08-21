@@ -49,16 +49,45 @@ async function findMapBlankPoint(page: Page) {
   });
 }
 
+async function clickProvinceLabel(page: Page, provinceId: string) {
+  const label = page.locator(`.province-map-label[data-province-id="${provinceId}"]`);
+  await expect(label).toBeVisible();
+  const point = await label.evaluate((element) => {
+    const textPath = element.querySelector('textPath');
+    const href = textPath?.getAttribute('href');
+    const path = href ? element.ownerSVGElement?.querySelector<SVGPathElement>(href) : null;
+    if (!path) throw new Error('province label path is missing');
+    const local = path.getPointAtLength(path.getTotalLength() / 2);
+    const matrix = path.getScreenCTM();
+    if (!matrix) throw new Error('province label screen transform is missing');
+    return {
+      x: matrix.a * local.x + matrix.c * local.y + matrix.e,
+      y: matrix.b * local.x + matrix.d * local.y + matrix.f,
+    };
+  });
+  await page.mouse.click(point.x, point.y);
+}
+
+async function provinceLabelFontSize(page: Page, provinceId: string) {
+  return page.locator(`.province-map-label[data-province-id="${provinceId}"]`).evaluate((label) => (
+    Number.parseFloat(getComputedStyle(label).fontSize)
+  ));
+}
+
 test('persistent US strategy map exposes 48 states, lenses, and local context', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
 
   const map = page.getByTestId('us-mainland-map');
+  const canvas = map.locator('.economy-chart__canvas');
   await expect(map).toHaveAttribute('data-echarts-ready', 'true');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-province-count', '48');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-feature-count', '48');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-label-mode', 'curved-chinese-full-name');
+  await expect(canvas).toHaveAttribute('data-map-label-mode', 'curved-chinese-full-name');
+  await expect(canvas).toHaveAttribute('data-map-label-count', '48');
   await expect(page.locator('.application-map-layer')).toBeVisible();
   await expect(page.locator('.application-ui-layer')).toBeVisible();
   await expect(page.locator('.workspace-strategic-chrome')).toBeVisible();
@@ -68,8 +97,8 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await expect(page.locator('.province-map-page > *')).toHaveCount(0);
   await expect(page.getByText('战略经营地图', { exact: true })).toHaveCount(0);
   await expect(page.getByLabel('地图图例')).toHaveCount(0);
-  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-fit-mode', 'contain');
-  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-contain-viewport', '1440x900');
+  await expect(canvas).toHaveAttribute('data-map-fit-mode', 'contain');
+  await expect(canvas).toHaveAttribute('data-map-contain-viewport', '1440x900');
 
   const geometry = await page.evaluate(() => {
     const rect = (selector: string) => {
@@ -129,20 +158,30 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   expect(geometry.pathBounds.bottom).toBeLessThanOrEqual(geometry.viewport.bottom + 1);
   expect(geometry.pathBounds.right - geometry.pathBounds.left).toBeGreaterThanOrEqual(geometry.viewport.right * 0.94);
 
-  const svg = map.locator('svg');
-  await expect(svg).toBeVisible();
-  expect(await svg.locator('path').count()).toBeGreaterThanOrEqual(48);
-  for (const excludedCode of ['AK', 'HI', 'DC']) {
-    await expect(svg.getByText(excludedCode, { exact: true })).toHaveCount(0);
+  const labelOverlay = map.locator('.province-map-label-overlay');
+  await expect(labelOverlay).toBeVisible();
+  const labels = labelOverlay.locator('.province-map-label');
+  await expect(labels).toHaveCount(48);
+  await expect(labels.locator('textPath')).toHaveCount(48);
+  const fitValues = await labels.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-label-fit')));
+  expect(fitValues.every((value) => value === 'inside')).toBe(true);
+  const renderedRegionLabels = await labels.allTextContents();
+  for (const name of ['加利福尼亚州', '得克萨斯州', '华盛顿州', '佛罗里达州', '纽约州']) {
+    expect(renderedRegionLabels).toContain(name);
   }
-  const renderedRegionLabels = await svg.locator('text').allTextContents();
-  for (const name of ['CA', 'TX', 'WA', 'FL', 'NY']) expect(renderedRegionLabels).toContain(name);
+  for (const code of ['CA', 'TX', 'WA', 'FL', 'NY', 'CO', 'AK', 'HI', 'DC']) {
+    expect(renderedRegionLabels).not.toContain(code);
+  }
+  const curvedLabelCount = Number(await canvas.getAttribute('data-map-curved-label-count'));
+  expect(curvedLabelCount).toBeGreaterThanOrEqual(24);
 
-  const instanceId = await map.locator('.economy-chart__canvas').getAttribute('data-echarts-instance-id');
+  const instanceId = await canvas.getAttribute('data-echarts-instance-id');
   const visualBeforeProvincePage = await readMapVisualState(page);
-  const coloradoLabel = svg.locator('text').filter({ hasText: /^CO$/ });
+  const coloradoLabel = page.locator('.province-map-label[data-province-id="150000"]');
+  await expect(coloradoLabel).toHaveText('科罗拉多州');
   const coloradoBox = await coloradoLabel.boundingBox();
   expect(coloradoBox).not.toBeNull();
+  const coloradoFontBeforeZoom = await provinceLabelFontSize(page, '150000');
   await page.mouse.move(
     (coloradoBox?.x ?? 0) + (coloradoBox?.width ?? 0) / 2,
     (coloradoBox?.y ?? 0) + (coloradoBox?.height ?? 0) / 2,
@@ -152,8 +191,9 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
     const outline = await readOutlineGeometry(page);
     return outline.right - outline.left;
   }).toBeGreaterThan((geometry.pathBounds.right - geometry.pathBounds.left) * 1.05);
+  await expect.poll(() => provinceLabelFontSize(page, '150000')).toBeGreaterThan(coloradoFontBeforeZoom * 1.05);
   const cameraBeforeSelection = await readOutlineGeometry(page);
-  await coloradoLabel.click();
+  await clickProvinceLabel(page, '150000');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '150000');
   await expect(page.getByRole('heading', { name: '科罗拉多州', exact: true })).toBeVisible();
   await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');
@@ -174,10 +214,7 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
   const blankPoint = await findMapBlankPoint(page);
   await page.mouse.dblclick(blankPoint.x, blankPoint.y);
-  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute(
-    'data-map-camera-reset',
-    'blank-double-click',
-  );
+  await expect(canvas).toHaveAttribute('data-map-camera-reset', 'blank-double-click');
   await page.waitForTimeout(320);
   const cameraAfterBlankDoubleClick = await readOutlineGeometry(page);
   expect(cameraAfterBlankDoubleClick.left).toBeCloseTo(geometry.pathBounds.left, 0);
@@ -186,7 +223,7 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   expect(cameraAfterBlankDoubleClick.bottom).toBeCloseTo(geometry.pathBounds.bottom, 0);
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
 
-  await coloradoLabel.click();
+  await clickProvinceLabel(page, '150000');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '150000');
   await expect(page.getByRole('heading', { name: '科罗拉多州', exact: true })).toBeVisible();
 
@@ -210,7 +247,8 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await expect(provinceTabs.getByRole('tab', { name: '概览', exact: true })).toHaveAttribute('aria-selected', 'true');
 
   await page.setViewportSize({ width: 900, height: 900 });
-  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-contain-viewport', '900x900');
+  await expect(canvas).toHaveAttribute('data-map-contain-viewport', '900x900');
+  await expect(canvas).toHaveAttribute('data-map-label-count', '48');
   const resizedOutline = await readOutlineGeometry(page);
   expect(resizedOutline.left).toBeGreaterThanOrEqual(-1);
   expect(resizedOutline.top).toBeGreaterThanOrEqual(-1);
@@ -218,7 +256,7 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   expect(resizedOutline.bottom).toBeLessThanOrEqual(901);
   expect(resizedOutline.right - resizedOutline.left).toBeGreaterThanOrEqual(846);
   expect(resizedOutline.outlineAspect).toBeCloseTo(geometry.pathBounds.outlineAspect, 2);
-  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-echarts-instance-id', instanceId || '');
+  await expect(canvas).toHaveAttribute('data-echarts-instance-id', instanceId || '');
 
   const visualBeforeNotification = await readMapVisualState(page);
   await page.getByRole('button', { name: /^通知，/ }).click();
@@ -230,7 +268,7 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
   await expect(page.locator('.province-map-page')).toBeVisible();
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
-  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-echarts-instance-id', instanceId || '');
+  await expect(canvas).toHaveAttribute('data-echarts-instance-id', instanceId || '');
 
   await page.getByRole('navigation', { name: '地图镜头' }).getByRole('button', { name: '市场', exact: true }).click();
   await expect(page.locator('.strategic-map-stage')).toHaveAttribute('data-map-lens', 'market');
@@ -244,7 +282,7 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
   await expect(page.getByLabel('州级地区', { exact: true })).toHaveCount(0);
   await expect(page.locator('.province-context-select')).toHaveCount(0);
-  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-echarts-instance-id', instanceId || '');
+  await expect(canvas).toHaveAttribute('data-echarts-instance-id', instanceId || '');
 
   await page.getByRole('navigation', { name: '游戏主导航' })
     .getByRole('button', { name: '建筑', exact: true })
@@ -254,19 +292,22 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
   await expect(page.getByLabel('州级地区', { exact: true })).toHaveCount(0);
   await expect(page.locator('.province-context-select')).toHaveCount(0);
-  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-echarts-instance-id', instanceId || '');
+  await expect(canvas).toHaveAttribute('data-echarts-instance-id', instanceId || '');
 });
 
 test('mobile strategy map fills the root map layer without obsolete map cards or inspector', async ({ page }) => {
+  test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
 
   const map = page.getByTestId('us-mainland-map');
   await expect(map).toHaveAttribute('data-echarts-ready', 'true');
-  await map.locator('svg text').filter({ hasText: /^CO$/ }).click();
+  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-label-count', '48');
+  await clickProvinceLabel(page, '150000');
   await expect(page.getByRole('heading', { name: '科罗拉多州', exact: true })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-contain-viewport', '390x844');
+  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-label-count', '48');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-feature-count', '48');
   await expect(page.locator('.strategic-province-inspector')).toHaveCount(0);
   await expect(page.locator('.application-map-layer > .strategic-map-lens-bar')).toBeHidden();
@@ -312,8 +353,14 @@ test('mobile strategy map fills the root map layer without obsolete map cards or
   expect(geometry.mapRight - geometry.mapLeft).toBeGreaterThanOrEqual(geometry.viewportWidth * 0.94);
   expect(geometry.outlineAspect).toBeGreaterThan(1);
   expect(geometry.navigation.top).toBeLessThan(geometry.mapLayer.bottom);
-  for (const excludedCode of ['AK', 'HI', 'DC']) {
-    await expect(map.locator('svg').getByText(excludedCode, { exact: true })).toHaveCount(0);
+
+  const mobileLabels = await map.locator('.province-map-label').allTextContents();
+  expect(mobileLabels).toHaveLength(48);
+  for (const name of ['加利福尼亚州', '得克萨斯州', '科罗拉多州', '佛罗里达州', '纽约州']) {
+    expect(mobileLabels).toContain(name);
+  }
+  for (const code of ['CA', 'TX', 'CO', 'FL', 'NY', 'AK', 'HI', 'DC']) {
+    expect(mobileLabels).not.toContain(code);
   }
 
   await expect(page.getByRole('tablist', { name: '科罗拉多州页面分区' }).getByRole('tab')).toHaveCount(4);
@@ -343,17 +390,22 @@ test('mobile strategy map keeps labels and blank-space gestures usable', async (
     const canvas = map.locator('.economy-chart__canvas');
     await expect(map).toHaveAttribute('data-echarts-ready', 'true');
     await expect(canvas).toHaveCSS('touch-action', 'none');
+    await expect(canvas).toHaveAttribute('data-map-label-count', '48');
 
-    const renderedLabels = await map.locator('svg text').allTextContents();
-    for (const code of ['CA', 'TX', 'CO', 'FL', 'NY']) expect(renderedLabels).toContain(code);
+    const renderedLabels = await map.locator('.province-map-label').allTextContents();
+    for (const name of ['加利福尼亚州', '得克萨斯州', '科罗拉多州', '佛罗里达州', '纽约州']) {
+      expect(renderedLabels).toContain(name);
+    }
+    for (const code of ['CA', 'TX', 'CO', 'FL', 'NY']) expect(renderedLabels).not.toContain(code);
 
-    const stateFills = await map.locator('svg path').evaluateAll((paths) => paths
+    const stateFills = await map.locator('svg:not(.province-map-label-overlay) path').evaluateAll((paths) => paths
       .map((mapPath) => getComputedStyle(mapPath).fill)
       .filter((fill) => fill.startsWith('rgb')));
     expect(stateFills.length).toBeGreaterThanOrEqual(48);
     expect(stateFills.some((fill) => fill === 'rgb(0, 0, 0)' || fill === 'rgba(0, 0, 0, 1)')).toBe(false);
 
     const initialOutline = await readOutlineGeometry(page);
+    const initialColoradoFontSize = await provinceLabelFontSize(page, '150000');
     let blankPoint = await findMapBlankPoint(page);
     await page.mouse.move(blankPoint.x, blankPoint.y);
     await page.mouse.wheel(0, -480);
@@ -361,6 +413,7 @@ test('mobile strategy map keeps labels and blank-space gestures usable', async (
       const outline = await readOutlineGeometry(page);
       return outline.right - outline.left;
     }).toBeGreaterThan((initialOutline.right - initialOutline.left) * 1.05);
+    await expect.poll(() => provinceLabelFontSize(page, '150000')).toBeGreaterThan(initialColoradoFontSize * 1.05);
 
     blankPoint = await findMapBlankPoint(page);
     const beforeBlankPan = await readOutlineGeometry(page);
@@ -384,6 +437,7 @@ test('mobile strategy map keeps labels and blank-space gestures usable', async (
     expect(resetOutline.top).toBeCloseTo(initialOutline.top, 0);
     expect(resetOutline.right).toBeCloseTo(initialOutline.right, 0);
     expect(resetOutline.bottom).toBeCloseTo(initialOutline.bottom, 0);
+    await expect(canvas).toHaveAttribute('data-map-label-count', '48');
   } finally {
     await context.close();
   }
