@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Route } from '@playwright/test';
 
 async function json(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -121,10 +121,6 @@ type SaveEpochHarness = {
   resetGameSession: () => void;
 };
 
-async function harness<T>(page: Page, callback: (api: SaveEpochHarness) => Promise<T> | T) {
-  return page.evaluate(callback);
-}
-
 test('authority publication locks saveEpoch before synchronous background writes and ordinary reset preserves it', async ({ page }) => {
   const epochs: string[] = [];
   await page.route('**/economy-api/game/state**', (route) => json(route, fullStateDelivery(3)));
@@ -134,13 +130,17 @@ test('authority publication locks saveEpoch before synchronous background writes
   });
 
   await page.goto('/save-epoch-test.html');
-  const initial = await harness(page, (api) => api.loadAndWriteOnAuthorityPublish());
+  const initial = await page.evaluate(() => (
+    window as typeof window & { __saveEpochHarness: SaveEpochHarness }
+  ).__saveEpochHarness.loadAndWriteOnAuthorityPublish());
   expect(initial.state.ok).toBe(true);
   expect(initial.state.saveEpoch).toBe(3);
   expect(initial.write?.ok).toBe(true);
   expect(epochs).toEqual(['3']);
 
-  const afterReset = await harness(page, (api) => api.writeAfterOrdinaryReset());
+  const afterReset = await page.evaluate(() => (
+    window as typeof window & { __saveEpochHarness: SaveEpochHarness }
+  ).__saveEpochHarness.writeAfterOrdinaryReset());
   expect(afterReset.ok).toBe(true);
   expect(epochs).toEqual(['3', '3']);
 });
@@ -161,17 +161,25 @@ test('same-user epoch change invalidates the document before publication and blo
   });
 
   await page.goto('/save-epoch-test.html');
-  await harness(page, (api) => api.resetGameSession());
-  const first = await harness(page, (api) => api.loadState());
+  await page.evaluate(() => (
+    window as typeof window & { __saveEpochHarness: SaveEpochHarness }
+  ).__saveEpochHarness.resetGameSession());
+  const first = await page.evaluate(() => (
+    window as typeof window & { __saveEpochHarness: SaveEpochHarness }
+  ).__saveEpochHarness.loadState());
   expect(first.ok).toBe(true);
   expect(first.saveEpoch).toBe(3);
 
-  const stale = await harness(page, (api) => api.loadState(1));
+  const stale = await page.evaluate(() => (
+    window as typeof window & { __saveEpochHarness: SaveEpochHarness }
+  ).__saveEpochHarness.loadState(1));
   expect(stale.ok).toBe(false);
   expect(stale.error).toContain('当前存档已变化');
   expect(stale.staleMessage).toContain('请刷新页面后继续操作');
 
-  const blocked = await harness(page, (api) => api.writeAfterEpochMismatch());
+  const blocked = await page.evaluate(() => (
+    window as typeof window & { __saveEpochHarness: SaveEpochHarness }
+  ).__saveEpochHarness.writeAfterEpochMismatch());
   expect(blocked.ok).toBe(false);
   expect(blocked.message).toContain('请刷新页面后继续操作');
   expect(orderRequestCount).toBe(0);
