@@ -119,7 +119,7 @@
 - 根级游戏控制器的就绪订阅可以保持稳定，六分区中任意业务分区替换时不得仅因为完整 `EconomyState` 被重新组合就强制 `GameApp` React 提交；但每次实际 React render 必须绑定一个已经通过状态交付完整性校验的普通 `EconomyState` 快照对象。同一次 render 内对 `userId`、`provinces`、`products`、`facilityTypes` 等字段的读取不得因全局 authority 的 reset 或 replace 突然变成另一份状态或 `undefined`。`useGameAuthorityState()` 不得把会实时转发到全局 store 的 Proxy 作为 render 状态返回值。
 - 页面和外壳必须声明自己消费的状态分区，并通过 `useGameAuthorityPartitions` 或单分区订阅只在这些分区引用变化时重新渲染；未声明分区变化不得通知该消费边界。当前页面分区固定为：概览 `catalog + player + market`，市场 `catalog + player + market`，生产 `catalog + player + market + contract`，研发 `catalog + player`，拍卖 `catalog + player + auction`，合同 `catalog + player + market + contract`，银行 `catalog + player`，排行榜 `catalog + player + leaderboard`，商店与设置均为 `catalog + player`。
 - 外壳数据必须继续分区隔离：状态栏与桌面玩家身份只订阅 `player + leaderboard`；导航角标只订阅 `player + market + auction + contract + leaderboard`；通知待处理项只订阅 `catalog + player + auction + contract`；权威倒计时协调器只订阅当前截止时间来源所需的 `catalog + player + auction + contract + leaderboard`。纯 `market` 变化不得重新计算状态栏，纯 `leaderboard` 变化不得提交建筑页，纯 `auction` 变化不得提交市场页。
-- 在线自动交易属于常驻客户端行为，必须通过非 React 的 `catalog + player + market + contract` 分区事件触发维护判断；仅在确实开始或结束自动交易维护动作时才允许更新其 React busy 状态。经营成长线的生产完成检测必须通过 `player` 分区事件检查当前设施累计产量，不得依赖根应用跟随每次玩家分区更新重渲染。
+- 在线自动交易属于常驻客户端行为，必须通过非 React 的 `catalog + player + market + contract` 分区事件触发维护判断；仅在确实开始或结束自动交易维护动作时才允许更新其 React busy 状态。教程的生产完成检测必须通过 `player` 分区事件检查当前设施累计产量，不得依赖根应用跟随每次玩家分区更新重渲染。
 - 六分区 React 消费边界不得改变服务器 envelope、分区字段归属、客户端状态版本、世界状态版本或动作 API；本阶段只改变客户端订阅与渲染传播路径。
 - 全局协调器只为最近一个权威截止时间维护一个 `setTimeout`；到期后最多维护一个串行确认请求和一个下一次重试 `setTimeout`。
 - 默认状态轮询继续存在；统一到期确认只补足截止时点的即时同步，不替代普通轮询。
@@ -186,7 +186,7 @@ HTTP 2xx、3xx 或除 408、429 之外的明确 4xx 响应表示本次网络结�
 - 让 `useGameAuthorityState()` 把实时转发全局 store 的 Proxy 作为一次 React render 的状态对象，使 authority reset／replace 能在同一次 render 中把原本合法的 `provinces`、`products` 或其他字段变成 `undefined`；
 - 让页面、状态栏、导航角标、通知中心或权威倒计时绕过声明的分区边界读取全局变更通知；
 - 让纯 `auction`、`contract` 或 `leaderboard` 更新重新提交与其无关的市场或建筑页面；
-- 让在线自动交易或成长线生产完成检测重新依赖根应用因权威状态变化而重渲染才能运行。
+- 让在线自动交易或教程生产完成检测重新依赖根应用因权威状态变化而重渲染才能运行。
 
 `scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`，锁定注册表、共享单调服务器时钟、应用外壳协调、请求超时、权威刷新模式、后台恢复、串行每秒确认、研发确认文案、工作冷却例外、拍卖等待结算文案、完整分区替换、稳定分区时间字段、即时建设无倒计时边界和本文档规则。经济写请求的同键确认重试、待确认 key 保留和应用入口安装同时由 `scripts/verify-market-action-latency.mjs` 防回退；生产结算基线指纹、过期提案同事务兜底与非法提案 409 由 `scripts/verify-production-lazy-settlement.mjs` 和服务器测试继续锁定；页面存档世代锁、状态发布前世代校验、普通 reset 保留锁和过期文档本地写阻断由 `scripts/verify-save-deletion.mjs`、`server/test/client-save-epoch-page-lifecycle.test.js` 与 `tests/browser/save-epoch-lifecycle.spec.ts` 继续锁定；客户端状态接受性能边界由 `scripts/verify-client-response-performance.mjs` 与 `server/test/game-authority-render-snapshot.test.js` 继续锁定。
 

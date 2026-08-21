@@ -26,18 +26,18 @@ const serverApp = read('server/src/app.js');
 const tutorialStore = read('server/src/tutorial-store.js');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 
-requireText(storage, 'CURRENT_TUTORIAL_VERSION = 3', '经营成长线客户端版本必须升级为 3');
-requireText(storage, 'economy.game-tutorial.v', '成长线本轮状态必须按玩家保存在浏览器本地');
-requireText(storage, 'autoSellSettings', '成长线必须记录本轮自动出售设置');
-requireText(storage, "'set-auto-sell'", '成长线必须包含自动出售设置步骤');
-forbidText(storage, "  'work',", '成长线不得恢复已删除的基础工作步骤');
+requireText(storage, 'CURRENT_TUTORIAL_VERSION = 3', '教程客户端版本必须升级为 3');
+requireText(storage, 'economy.game-tutorial.v', '教程本轮状态必须按玩家保存在浏览器本地');
+requireText(storage, 'autoSellSettings', '教程必须记录本轮自动出售设置');
+requireText(storage, "'set-auto-sell'", '教程必须包含自动出售设置步骤');
+forbidText(storage, "  'work',", '教程不得恢复已删除的基础工作步骤');
 requireText(storage, "rawStep === 'work' ? 'build-facility'", '旧工作步骤必须只读迁移到建设工厂');
-forbidText(storage, 'workClicks:', '成长线本轮统计不得恢复基础工作次数');
-forbidText(storage, 'sellOrderBaselineIds', '成长线不得继续依赖手动卖单基线');
+forbidText(storage, 'workClicks:', '教程本轮统计不得恢复基础工作次数');
+forbidText(storage, 'sellOrderBaselineIds', '教程不得继续依赖手动卖单基线');
 for (const stepId of ['start-research', 'review-contracts', 'make-bank-deposit', 'review-leaderboard']) {
-  requireText(storage, `'${stepId}'`, `经营成长线缺少步骤 ${stepId}`);
+  requireText(storage, `'${stepId}'`, `教程缺少步骤 ${stepId}`);
 }
-forbidText(controller, 'game.stats.', '成长线不得读取玩家全局累计统计');
+forbidText(controller, 'game.stats.', '教程不得读取玩家全局累计统计');
 requireText(controller, "updateCurrentRun('set-auto-sell', 'autoSellSettings'", '自动出售设置成功后必须推进第五步');
 requireText(controller, "current.currentStep !== 'complete-sale'", '自动出售成交必须只推进当前第六步');
 requireText(controller, 'current.context.productId !== productId', '自动出售成交必须绑定本轮商品');
@@ -46,9 +46,9 @@ requireText(controller, "run.currentStep !== 'review-contracts' || model.tab !==
 requireText(controller, "run.currentStep !== 'review-leaderboard' || model.tab !== 'leaderboard'", '排行榜目标必须在玩家实际打开排行榜后完成');
 requireText(controller, 'requestAutoSellPanel(userId, productId)', '教程第五步必须直接打开仓库自动交易卡的自动出售方向');
 requireText(controller, "subscribeStateAuthoritySlice('player.production', confirmProduction)", '生产完成检测必须只监听玩家生产子切片');
-requireText(definition, "id: 'set-auto-sell'", '成长线第五步必须保持自动出售设置');
-requireText(definition, "title: '设置商品自动出售'", '成长线必须明确教玩家设置自动出售');
-requireText(definition, '最低自由库存可填写 0', '成长线必须说明最低自由库存是可选的额外保留');
+requireText(definition, "id: 'set-auto-sell'", '教程第五步必须保持自动出售设置');
+requireText(definition, "title: '设置商品自动出售'", '教程必须明确教玩家设置自动出售');
+requireText(definition, '最低自由库存可填写 0', '教程必须说明最低自由库存是可选的额外保留');
 requireText(definition, "targetTab: 'market'", '自动出售教程必须引导到市场自动交易工作区');
 
 for (const text of [
@@ -62,36 +62,36 @@ for (const text of [
   'if (result.ok) tutorial.recordBankDeposit();',
   'onAutoSellPolicyEnabled: tutorial.recordAutoSellSetting',
   'onSale: tutorial.recordAutoSellCompletion',
-]) requireText(gameApp, text, `经营成长线操作必须使用当前成功语义：${text}`);
-forbidText(gameApp, 'tutorial.recordWorkClick', '基础工作移除后不得继续推进成长线');
-forbidText(gameApp, 'tutorial.recordSellOrderSubmit', '成长线不得继续把手动卖单作为第五步');
+]) requireText(gameApp, text, `教程操作必须使用当前成功语义：${text}`);
+forbidText(gameApp, 'tutorial.recordWorkClick', '基础工作移除后不得继续推进教程');
+forbidText(gameApp, 'tutorial.recordSellOrderSubmit', '教程不得继续把手动卖单作为第五步');
 requireText(autoTrade, "if (side === 'sell' && result.ok && result.message.includes('自动出售'))", '第六步必须只由服务器确认发生实际自动出售成交后推进，单纯挂出自动卖单不得推进');
-requireText(autoTrade, 'callbacks.onSale?.(productId);', '统一自动交易控制器必须把实际自动出售成交回传成长线');
+requireText(autoTrade, 'callbacks.onSale?.(productId);', '统一自动交易控制器必须把实际自动出售成交回传教程');
 requireText(autoSellCompat, "from '../auto-trade/useOnlineAutoTrade'", '旧自动出售 hook 入口必须转发到统一自动交易控制器');
 
-requireText(guide, '<span>经营成长线</span>', '概览引导条必须显示经营成长线名称');
-requireText(guide, 'aria-label="经营成长线进度"', '成长线进度必须有正确无障碍名称');
+requireText(guide, '<span>教程</span>', '概览引导条必须显示教程名称');
+requireText(guide, 'aria-label="教程进度"', '教程进度必须有正确无障碍名称');
 requireText(strategicWorkspace, 'className="strategic-economic-event-rail"', '外壳必须提供独立右侧事件日志列');
-requireText(strategicWorkspace, "model.tab === 'home' && tutorial ? <GameGuideStrip tutorial={tutorial} /> : null", '桌面经营成长线必须位于外壳右侧日志列');
-requireText(overview, 'className="overview-mobile-tutorial"', '概览必须保留移动端成长线入口');
-requireText(overview, '<GameGuideStrip tutorial={model.tutorial} />', '移动端成长线入口必须复用统一组件');
+requireText(strategicWorkspace, "model.tab === 'home' && tutorial ? <GameGuideStrip tutorial={tutorial} /> : null", '桌面教程必须位于外壳右侧日志列');
+requireText(overview, 'className="overview-mobile-tutorial"', '概览必须保留移动端教程入口');
+requireText(overview, '<GameGuideStrip tutorial={model.tutorial} />', '移动端教程入口必须复用统一组件');
 forbidText(overview, 'overview-today-panel', '概览不得恢复今日经营卡');
 forbidText(overview, 'OverviewWorkButton', '概览不得恢复基础工作入口');
-requireText(settings, '重新开始成长线', '设置页必须提供重新开始成长线按钮');
-requireText(settings, '自动出售设置、自动成交', '设置页重开说明必须反映新版成长线');
-requireText(settings, 'tutorial.restart()', '设置页重开必须只调用客户端成长线状态机');
-requireText(serverApp, "path === '/api/game/tutorial'", '服务器必须提供一次性成长线状态读取接口');
+requireText(settings, '重新开始教程', '设置页必须提供重新开始教程按钮');
+requireText(settings, '自动出售设置、自动成交', '设置页重开说明必须反映新版教程');
+requireText(settings, 'tutorial.restart()', '设置页重开必须只调用客户端教程状态机');
+requireText(serverApp, "path === '/api/game/tutorial'", '服务器必须提供一次性教程状态读取接口');
 requireText(serverApp, "path === '/api/game/tutorial/complete'", '服务器必须提供幂等完成记录接口');
-requireText(tutorialStore, 'CURRENT_TUTORIAL_VERSION = 3', '服务器成长线版本必须与客户端一致');
-requireText(tutorialStore, 'economy_tutorial_completions', '服务器必须独立存储成长线完成版本');
+requireText(tutorialStore, 'CURRENT_TUTORIAL_VERSION = 3', '服务器教程版本必须与客户端一致');
+requireText(tutorialStore, 'economy_tutorial_completions', '服务器必须独立存储教程完成版本');
 requireText(tutorialStore, 'game_tutorial_completion_migration_version', '老玩家默认完成必须有一次性迁移标记');
-forbidText(tutorialStore, 'workClicks', '服务器成长线完成记录不得保存步骤统计');
-forbidText(tutorialStore, 'producedGoods', '服务器成长线完成记录不得读取生产累计统计');
-forbidText(tutorialStore, 'soldGoods', '服务器成长线完成记录不得读取出售累计统计');
-requireText(pageDesign, '### 11.1 客户端经营成长线', '页面权威设计必须记录客户端经营成长线规则');
-requireText(pageDesign, '固定为九步', '页面权威设计必须锁定经营成长线九步结构');
-requireText(pageDesign, '设置商品自动出售、完成一次自动出售', '页面权威设计必须记录新版生产—自动出售成长线');
+forbidText(tutorialStore, 'workClicks', '服务器教程完成记录不得保存步骤统计');
+forbidText(tutorialStore, 'producedGoods', '服务器教程完成记录不得读取生产累计统计');
+forbidText(tutorialStore, 'soldGoods', '服务器教程完成记录不得读取出售累计统计');
+requireText(pageDesign, '### 11.1 客户端教程', '页面权威设计必须记录客户端教程规则');
+requireText(pageDesign, '固定为九步', '页面权威设计必须锁定教程九步结构');
+requireText(pageDesign, '设置商品自动出售、完成一次自动出售', '页面权威设计必须记录新版生产—自动出售教程');
 requireText(pageDesign, '合法最低自由库存保留量（允许 `0`）', '页面权威设计必须记录自动出售自由库存设置');
-requireText(pageDesign, 'economy_tutorial_completions', '页面权威设计必须记录成长线完成表和服务器负担边界');
+requireText(pageDesign, 'economy_tutorial_completions', '页面权威设计必须记录教程完成表和服务器负担边界');
 
 console.log('Operating growth line verification passed.');

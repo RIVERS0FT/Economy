@@ -302,7 +302,7 @@ requireAll(paths.browserSpec, [
   "getByRole('dialog', { name: '通知' })",
 ]);
 
-requireAll(paths.pageDesign, ['概览是经营决策首页', '屏幕右侧独立挂载单列日志', '签到日历', '`1920×1080`', '`1440×900`', '桌面经营成长线显示在外壳独立事件右栏顶部']);
+requireAll(paths.pageDesign, ['概览是经营决策首页', '屏幕右侧独立挂载单列日志', '签到日历', '`1920×1080`', '`1440×900`', '桌面教程显示在外壳独立事件右栏顶部']);
 requireAll(paths.uiDesign, ['## 10. 概览布局', '经营决策优先', '页面外的屏幕右栏纵向滚动', '签到日历']);
 requireAll(paths.integrityDesign, [
   '概览使用参考大战略建筑页面的左侧毛玻璃业务面板',

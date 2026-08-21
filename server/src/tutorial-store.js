@@ -20,7 +20,7 @@ function normalizeStatus(row) {
 
 function completionResponse(tutorial) {
   return {
-    result: { ok: true, message: '经营成长线已完成' },
+    result: { ok: true, message: '教程已完成' },
     tutorial,
   };
 }
@@ -124,7 +124,7 @@ export function createTutorialStore(store, now = Date.now()) {
       throw error;
     }
     if (version !== CURRENT_TUTORIAL_VERSION) {
-      const error = new Error('成长线版本无效');
+      const error = new Error('教程版本无效');
       error.statusCode = 400;
       throw error;
     }

@@ -13,14 +13,14 @@ export const TUTORIAL_STEPS: TutorialStepDefinition[] = [
   {
     id: 'build-facility',
     title: '建设一座工厂',
-    description: '前往建筑页选择工厂并成功建设。每次重开成长线都需要重新操作。',
+    description: '前往建筑页选择工厂并成功建设。每次重开教程都需要重新操作。',
     actionLabel: '前往建设',
     targetTab: 'buildings',
   },
   {
     id: 'start-facility',
     title: '启动生产设施',
-    description: '选择一组已有工厂并成功启动，成长线会记录本轮选择的工厂。',
+    description: '选择一组已有工厂并成功启动，教程会记录本轮选择的工厂。',
     actionLabel: '管理工厂',
     targetTab: 'buildings',
   },
