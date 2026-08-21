@@ -74,6 +74,50 @@ function fullStateDelivery(saveEpoch: number, revision = 1) {
   };
 }
 
+function productionStateDelivery(saveEpoch: number) {
+  const delivery = fullStateDelivery(saveEpoch);
+  const serverNow = Number(delivery.serverNow);
+  delivery.patches.player.provinceInventories = {
+    '110000': {
+      wheat: { available: 0, frozen: 0, inTransit: 0 },
+    },
+  };
+  delivery.patches.player.facilityGroups = [{
+    provinceId: '110000',
+    facilityTypeId: 'farm',
+    count: 1,
+    productionAvailableCount: 1,
+    participatingCount: 1,
+    enabled: true,
+    status: 'running',
+    activeRecipeId: 'farm-standard',
+    lifetimeOutput: 0,
+    cycleStartedAt: serverNow - 5_000,
+    staffingRateBps: 10_000,
+    staffingUpdatedAt: serverNow - 5_000,
+    productionSettlementStaffingRateBps: 10_000,
+    productionSettlementStaffingUpdatedAt: serverNow - 5_000,
+    staffingBatchCarryBps: 0,
+  }];
+  return delivery;
+}
+
+function unchangedStateDelivery(revision = 1) {
+  return {
+    revision,
+    unchanged: true,
+    serverNow: 1_850_000_005_000,
+    partitionRevisions: {
+      catalog: 'catalog-0001',
+      player: `player-${String(revision).padStart(5, '0')}`,
+      market: 'market-00001',
+      auction: 'auction-0001',
+      contract: 'contract-0001',
+      leaderboard: 'leader-00001',
+    },
+  };
+}
+
 function epochPatchDelivery(saveEpoch: number, revision = 2) {
   return {
     revision,
@@ -183,4 +227,44 @@ test('same-user epoch change invalidates the document before publication and blo
   expect(blocked.ok).toBe(false);
   expect(blocked.message).toContain('请刷新页面后继续操作');
   expect(orderRequestCount).toBe(0);
+});
+
+test('production settlement 409 keeps the accepted state and the same basis is not posted again', async ({ page }) => {
+  let stateRequestCount = 0;
+  let settlementRequestCount = 0;
+  const settlementEpochs: string[] = [];
+  await page.route('**/economy-api/game/state**', (route) => {
+    stateRequestCount += 1;
+    return json(
+      route,
+      stateRequestCount === 1 ? productionStateDelivery(3) : unchangedStateDelivery(1),
+    );
+  });
+  await page.route('**/economy-api/game/production/settle', async (route) => {
+    settlementRequestCount += 1;
+    settlementEpochs.push(route.request().headers()['x-economy-save-epoch'] || '');
+    await json(route, {
+      message: '客户端生产补算不是当前权威资源下的最大合法结果',
+      code: 'PRODUCTION_SETTLEMENT_INVALID',
+    }, 409);
+  });
+
+  await page.goto('/save-epoch-test.html');
+  await page.evaluate(() => (
+    window as typeof window & { __saveEpochHarness: SaveEpochHarness }
+  ).__saveEpochHarness.resetGameSession());
+  const first = await page.evaluate(() => (
+    window as typeof window & { __saveEpochHarness: SaveEpochHarness }
+  ).__saveEpochHarness.loadState());
+  expect(first.ok).toBe(true);
+  expect(first.saveEpoch).toBe(3);
+  expect(settlementRequestCount).toBe(1);
+  expect(settlementEpochs).toEqual(['3']);
+
+  const second = await page.evaluate(() => (
+    window as typeof window & { __saveEpochHarness: SaveEpochHarness }
+  ).__saveEpochHarness.loadState(1));
+  expect(second.ok).toBe(true);
+  expect(second.saveEpoch).toBe(3);
+  expect(settlementRequestCount).toBe(1);
 });
