@@ -2,23 +2,24 @@
 
 > 状态：当前正式概览布局防回退基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-21
+> 更新时间：2026-08-22
 
 ## 1. 目标
 
-概览使用参考大战略建筑页面的左侧毛玻璃业务面板，保留常驻地图，并与玩家外壳右侧信息栏并列。概览正文只负责签到、生产摘要、资产与银行、当前挂单，不持有桌面教程、公开事件、今日经营、基础工作或第二套经营提醒。
+概览使用参考大战略建筑页面的左侧毛玻璃业务面板，保留常驻地图，并与玩家外壳右侧信息栏并列。概览正文只负责签到、生产摘要、资产与银行、当前挂单，不持有桌面或移动教程、公开事件、今日经营、基础工作或第二套经营提醒。
 
 ## 2. 页面与外壳职责
 
 ```text
 工作区左侧：概览 PageLayout → 本周签到 → 三张经营摘要
-工作区右侧：StrategicWorkspaceChrome → 教程（可见时常驻）→ 公开经济事件日志（页面允许时）
+桌面工作区右侧：StrategicWorkspaceChrome → 教程（可见时常驻）→ 公开经济事件日志（页面允许时）
+移动工作区顶部：StrategicWorkspaceChrome → 教程（可见时固定在状态栏下方）
 ```
 
 - 概览页面区域与市场、生产、设置共用 `--strategic-compact-page-width: 56rem` 内容目标，并与 `78px` 侧栏轨道共同位于唯一玩家主卡片；完整主卡片不得超过 `calc(100vw / 3)`，并为外壳右栏预留空间；
 - `.strategic-economic-event-rail` 不得成为 `.page-content`、`.overview-dashboard-shell` 或页面滚动区的后代；
-- 桌面教程属于 `StrategicWorkspaceChrome`，只由教程自身显示状态控制，不得再以 `home`／概览页面是否显示作为挂载条件；概览只是允许公开事件日志与教程同时出现在右栏的页面之一；
-- 移动端右栏隐藏，`.overview-mobile-tutorial` 作为移动教程入口；公开事件不回流概览正文；
+- 教程属于 `StrategicWorkspaceChrome`，只由教程自身显示状态控制，不得再以 `home`／概览页面是否显示作为挂载条件；桌面端位于右侧信息栏顶部，移动端在同一外壳 DOM 上切换为状态栏正下方的固定教程锚点；
+- 不大于 `720px` 时公开事件日志隐藏，概览不得重新创建 `.overview-mobile-tutorial` 或直接渲染 `GameGuideStrip`。移动教程所在工作区层低于根级 Mobile Workspace Sheet、通知面板／通知灵动岛和状态栏，因此页面与通知可以自然覆盖教程；覆盖期间不得卸载教程或改变教程进度；
 - 公开事件的卡片、倒计时和内部纵向滚动归 `economic-event-log.css`，不得回写 `overview.css`。
 
 ## 3. 概览正文响应式
@@ -52,18 +53,20 @@
 
 1. `1684×931` 下概览建筑面板与外壳右栏不相交；
 2. 事件日志不在 `.page-content` 内，教程位于事件面板上方；从概览切换到桌面其他业务页时，可见教程仍由外壳右栏持有；
-3. `900×1000` 下概览摘要单列且无横向溢出；
-4. 侧栏悬浮展开覆盖概览但不改变页面和右栏几何，且竖线与阴影跟随展开边缘；
-5. 签到七格、短挂单和长挂单滚动语义；
-6. “今日经营”、基础工作和概览独立提醒均不存在。
+3. `390×844` 下概览没有自己的教程 DOM，外壳教程固定在状态栏下方；根级业务 Sheet 与通知覆盖教程时教程仍保持挂载，状态栏继续位于最上层；
+4. `900×1000` 下概览摘要单列且无横向溢出；
+5. 侧栏悬浮展开覆盖概览但不改变页面和右栏几何，且竖线与阴影跟随展开边缘；
+6. 签到七格、短挂单和长挂单滚动语义；
+7. “今日经营”、基础工作和概览独立提醒均不存在。
 
 ## 7. 文件职责
 
-- `src/pages/OverviewPage.tsx`：签到、经营摘要、挂单和移动教程入口；
+- `src/pages/OverviewPage.tsx`：签到、经营摘要和挂单；不得持有教程；
 - `src/components/EconomicEventLogPanel.tsx`：公开事件日志内容；
-- `src/components/shell/StrategicWorkspace.tsx`：桌面教程与公开事件的右栏挂载及独立可见性；
+- `src/components/shell/StrategicWorkspace.tsx`：教程与公开事件的外壳挂载及独立可见性；
+- `src/styles/mobile-status-layout.css`：移动教程状态栏下方锚点以及与通知共享的顶部基准；
 - `src/styles/overview.css`、`overview-polish.css`：概览正文；
 - `src/styles/economic-event-log.css`：事件日志内部布局；
-- `src/styles/strategic-game-shell.css`：建筑面板、全区域页面和外壳右栏几何；
-- `tests/browser/runtime.spec.ts` 与 `tests/browser/tutorial-right-rail.spec.ts`：概览内容、教程常驻与右栏真实几何；
+- `src/styles/strategic-game-shell.css`：建筑面板、全区域页面和桌面外壳右栏几何；
+- `tests/browser/runtime.spec.ts` 与 `tests/browser/tutorial-right-rail.spec.ts`：概览内容、教程常驻、移动覆盖层级与右栏真实几何；
 - `scripts/verify-overview-content.mjs`：静态防回退。

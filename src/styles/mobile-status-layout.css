@@ -3,6 +3,11 @@
     --mobile-status-top-inset: max(var(--mobile-chrome-block-inset), env(safe-area-inset-top));
     --mobile-notice-gap: var(--space-2);
     --mobile-notice-inline-inset: var(--space-2);
+    --mobile-below-status-top: calc(
+      var(--mobile-status-top-inset)
+      + var(--mobile-asset-bar-height)
+      + var(--mobile-notice-gap)
+    );
   }
 
   .game-shell .signed-in-shell__chrome {
@@ -16,11 +21,7 @@
   .workspace-dialog-layer > .notification-panel-layer[data-notification-layer='dialog'] {
     position: absolute;
     z-index: 10;
-    top: calc(
-      var(--mobile-status-top-inset)
-      + var(--mobile-asset-bar-height)
-      + var(--mobile-notice-gap)
-    );
+    top: var(--mobile-below-status-top);
     right: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));
     bottom: calc(
       var(--mobile-nav-height)
@@ -132,13 +133,40 @@
     font-size: inherit;
   }
 
+  /* Mobile tutorial keeps the same shell-owned DOM as desktop. The workspace
+   * layer stays below root Dialog and Chrome so pages and notifications can
+   * cover the tutorial without unmounting or moving it back into Overview. */
+  .game-shell .strategic-economic-event-rail[data-tutorial-visible='true'] {
+    position: absolute;
+    z-index: 2;
+    top: var(--mobile-below-status-top);
+    right: 0;
+    bottom: auto;
+    left: 0;
+    width: auto;
+    min-width: 0;
+    display: grid;
+    grid-template-rows: auto;
+    align-content: start;
+    justify-items: center;
+    gap: 0;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .game-shell .strategic-economic-event-rail[data-tutorial-visible='true'] > .game-guide-strip {
+    width: min(100%, 30rem);
+    max-width: 30rem;
+    pointer-events: auto;
+  }
+
+  .game-shell .strategic-economic-event-rail > .economic-event-log-panel {
+    display: none;
+  }
+
   .mobile-notice-region {
     position: absolute;
-    top: calc(
-      var(--mobile-status-top-inset)
-      + var(--mobile-asset-bar-height)
-      + var(--mobile-notice-gap)
-    );
+    top: var(--mobile-below-status-top);
     right: var(--mobile-notice-inline-inset);
     left: var(--mobile-notice-inline-inset);
     display: grid;

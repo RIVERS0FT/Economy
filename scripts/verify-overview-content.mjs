@@ -36,6 +36,7 @@ const paths = {
   sidebarStyle: 'src/styles/desktop-sidebar.css',
   shellLayoutStyle: 'src/styles/game-shell-layout.css',
   strategicStyle: 'src/styles/strategic-game-shell.css',
+  mobileStatusStyle: 'src/styles/mobile-status-layout.css',
   harness: 'tests/browser/runtime-harness.tsx',
   browserSpec: 'tests/browser/runtime.spec.ts',
   main: 'src/main.tsx',
@@ -63,9 +64,7 @@ forbidAll(paths.router, ['localStorage', 'sessionStorage', 'marketAssetId']);
 
 requireAll(paths.overview, [
   'title="概览"',
-  '<GameGuideStrip tutorial={model.tutorial} />',
   'className="overview-dashboard-shell"',
-  'className="overview-mobile-tutorial"',
   'title="本周签到"',
   'action={(',
   'className="overview-check-in-status"',
@@ -87,6 +86,8 @@ requireAll(paths.overview, [
   'home-grid',
 ]);
 forbidAll(paths.overview, [
+  'GameGuideStrip',
+  'overview-mobile-tutorial',
   '进入市场',
   'EconomicEventLogPanel',
   '公开经济事件',
@@ -170,7 +171,6 @@ forbidAll(paths.chart, [
 requireAll(paths.overviewStyle, [
   '--overview-summary-card-height: 320px;',
   '.overview-dashboard-shell {',
-  '.overview-mobile-tutorial {',
   'container: overview / inline-size;',
   '@container overview (max-width: 1050px)',
   '@container overview (max-width: 580px)',
@@ -255,6 +255,12 @@ requireAll(paths.strategicStyle, [
   '100% - var(--strategic-event-rail-width) - var(--strategic-panel-gap) * 3',
 ]);
 forbidAll(paths.strategicStyle, ['--strategic-inspector-width', '.strategic-province-inspector']);
+requireAll(paths.mobileStatusStyle, [
+  '--mobile-below-status-top: calc(',
+  ".game-shell .strategic-economic-event-rail[data-tutorial-visible='true']",
+  'top: var(--mobile-below-status-top);',
+  '.game-shell .strategic-economic-event-rail > .economic-event-log-panel',
+]);
 forbidAll(paths.sidebarStyle, ['right: -11px;']);
 requireAll(paths.statusBar, ['onClick?: () => void;', "if (item.onClick) classNames.push('asset-bar-item--interactive')", "aria-label={`${item.label}，打开详情`}"]);
 
@@ -328,13 +334,17 @@ requireAll(paths.pageDesign, [
 requireAll(paths.uiDesign, ['## 10. 概览布局', '经营决策优先', '页面外的屏幕右栏纵向滚动', '签到日历']);
 requireAll(paths.integrityDesign, [
   '概览使用参考大战略建筑页面的左侧毛玻璃业务面板',
-  '工作区右侧：StrategicWorkspaceChrome',
-  '桌面教程属于 `StrategicWorkspaceChrome`',
+  '桌面工作区右侧：StrategicWorkspaceChrome',
+  '移动工作区顶部：StrategicWorkspaceChrome',
+  '教程属于 `StrategicWorkspaceChrome`',
+  '概览不得重新创建 `.overview-mobile-tutorial`',
+  '移动教程所在工作区层低于根级 Mobile Workspace Sheet',
   '`.strategic-economic-event-rail` 不得成为 `.page-content`',
   '签到日历',
   '资产与银行',
   '可支配资产、冻结资产和贷款负债',
   '`1684×931`',
+  '`390×844`',
   '侧栏悬浮展开覆盖概览但不改变页面和右栏几何',
 ]);
 for (const path of [paths.pageDesign, paths.uiDesign, paths.integrityDesign]) forbidText(path, '统一为 `384px` 高');
@@ -348,4 +358,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('概览验证通过：共享外壳折叠、教程右栏、签到日历、服务器日期语义、权威资产状态、子切片依赖、状态栏趋势与浏览器碰撞回归满足设计基线。');
+console.log('概览验证通过：共享外壳折叠、桌面教程右栏、移动教程外壳锚点、签到日历、服务器日期语义、权威资产状态、子切片依赖、状态栏趋势与浏览器碰撞回归满足设计基线。');

@@ -4,7 +4,6 @@ import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { FactoryIcon } from '../components/icons/GameIcons';
 import { GemIcon } from '../components/icons/GemIcon';
 import { ProductIconLabel } from '../components/icons/ProductIcons';
-import { GameGuideStrip } from '../components/GameGuideStrip';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import {
   Button,
@@ -58,9 +57,6 @@ export function OverviewPage({ model }: OverviewPageProps) {
       description="经营提醒统一进入通知待处理；在此领取每日签到并查看核心经营状态。"
     >
       <div className="overview-dashboard-shell">
-        <div className="overview-mobile-tutorial">
-          <GameGuideStrip tutorial={model.tutorial} />
-        </div>
         <div className="home-grid">
           <Panel className="widget overview-check-in-panel">
             <WidgetHeading
