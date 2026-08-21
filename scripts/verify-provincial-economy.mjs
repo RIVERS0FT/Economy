@@ -243,7 +243,9 @@ for (const text of [
   'label: {\n        show: false,',
   'updateMode="merge"',
   'onChartReady={handleChartReady}',
-  'onOptionApplied={handleOptionApplied}',
+  'labelRendererRef.current?.syncCamera();',
+  'labelRendererRef.current?.refreshLayout();',
+  'labelRendererRef.current?.updateSelection();',
   'onResize={handleChartResize}',
   "container.dataset.mapFitMode = 'contain'",
   'container.dataset.mapContainViewport',
@@ -275,6 +277,8 @@ for (const forbidden of [
   'maxAspectRatio: 0.8',
   "var(--color-surface-muted)",
   'data: data.map((datum)',
+  'onOptionApplied={handleOptionApplied}',
+  'labelRendererRef.current?.schedule();',
 ]) {
   assert.equal(mapComponent.includes(forbidden), false, `地图不得恢复英文缩写或旧标签实现: ${forbidden}`);
 }
@@ -302,6 +306,14 @@ for (const text of [
   'function rotatedGlyphBoxInsidePolygon',
   'function glyphPlacements',
   'export function createProvinceMapLabelRenderer',
+  'interface PreparedProvinceMapLabelSource',
+  'function chooseCameraReferenceCoordinates',
+  "cameraGroup.classList.add('province-map-label-camera')",
+  "container.dataset.mapLabelCameraMode = 'shared-transform'",
+  'container.dataset.mapLabelLayoutRevision',
+  'container.dataset.mapLabelCameraSyncCount',
+  'const handleGeoRoam = () => {',
+  'syncCamera();',
   "document.createElementNS(SVG_NAMESPACE, name)",
   "createSvgElement('g')",
   "createSvgElement('text')",
@@ -330,6 +342,7 @@ for (const forbidden of [
   'spacingAndGlyphs',
   'scaleX',
   'scaleY',
+  'requestAnimationFrame(schedule)',
 ]) {
   assert.equal(mapLabels.includes(forbidden), false, `地图标签层不得恢复英文简称、字形拉伸或独立交互: ${forbidden}`);
 }
@@ -383,7 +396,12 @@ for (const text of [
   "page.locator('.province-map-tooltip')",
   'data-map-curved-label-count',
   "'加利福尼亚州', '得克萨斯州', '华盛顿州', '佛罗里达州', '纽约州'",
-  'provinceLabelFontSize',
+  'provinceLabelVisualWidth',
+  'data-map-label-camera-mode',
+  'data-map-label-layout-revision',
+  'data-map-label-camera-sync-count',
+  'mapScale',
+  'labelScale',
   'clickProvinceLabel',
   'data-map-label-geometry-mode',
   'data-label-glyph-mode',
@@ -440,7 +458,8 @@ for (const text of [
   '每个汉字必须作为独立刚性 SVG `text` 字形',
   '不得通过 `textLength`',
   '完整落在州面内部',
-  '随地图缩放和平移同步重新投影',
+  '`georoam` 热路径只允许更新共享 SVG 相机组的统一等比缩放和平移矩阵',
+  '禁止重新执行州界投影、主轴／走廊扫描、字体测量、逐字碰撞或 `replaceChildren()`',
 ]) assert.ok(uiDesign.includes(text), `移动地图设计规则缺少: ${text}`);
 for (const forbidden of ['等比 Cover 相机', '常驻州缩写', '全部州缩写关闭', '最高 8 倍受限缩放']) {
   assert.equal(uiDesign.includes(forbidden), false, `UI 设计文档不得保留旧地图标签或缩放冲突规则: ${forbidden}`);
@@ -462,6 +481,8 @@ for (const text of [
   '禁止 `textLength`',
   '单个汉字自身不得弯曲、压扁或拉长',
   '名称随地图缩放和平移同步变化',
+  '`georoam` 期间不得重新执行 48 州标签完整布局',
+  '共享 SVG 相机组',
   '不大于 `720px` 时地图 Tooltip 必须禁用并隐藏',
 ]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
 assert.equal(pageDesign.includes('并把州缩写作为地图标签'), false, '页面设计文档不得恢复英文州缩写地图标签');
@@ -479,4 +500,4 @@ for (const text of [
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击、桌面地图 Tooltip 与移动端隐藏边界、州内中文全名自然比例刚性字形标签、随镜头缩放平移、空白全局平移和空白双击／双触镜头重置均已锁定。');
+console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击、桌面地图 Tooltip 与移动端隐藏边界、州内中文全名自然比例刚性字形标签、georoam 共享 SVG 相机矩阵与零逐帧重排、空白全局平移和空白双击／双触镜头重置均已锁定。');

@@ -45,6 +45,10 @@
   user-select: none;
 }
 
+.province-map-label-camera {
+  pointer-events: none;
+}
+
 .province-map-label {
   fill: var(--color-map-label);
   stroke: color-mix(in srgb, var(--color-map-region-border) 74%, black);

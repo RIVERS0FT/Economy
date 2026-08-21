@@ -55,7 +55,7 @@ async function clickProvinceLabel(page: Page, provinceId: string) {
   const point = await label.evaluate((element) => {
     const x = Number(element.getAttribute('data-label-center-x'));
     const y = Number(element.getAttribute('data-label-center-y'));
-    const matrix = element.ownerSVGElement?.getScreenCTM();
+    const matrix = element.getScreenCTM();
     if (!Number.isFinite(x) || !Number.isFinite(y) || !matrix) {
       throw new Error('province label center transform is missing');
     }
@@ -67,10 +67,10 @@ async function clickProvinceLabel(page: Page, provinceId: string) {
   await page.mouse.click(point.x, point.y);
 }
 
-async function provinceLabelFontSize(page: Page, provinceId: string) {
-  return page.locator(`.province-map-label[data-province-id="${provinceId}"]`).evaluate((label) => (
-    Number.parseFloat(getComputedStyle(label).fontSize)
-  ));
+async function provinceLabelVisualWidth(page: Page, provinceId: string) {
+  const box = await page.locator(`.province-map-label[data-province-id="${provinceId}"]`).boundingBox();
+  if (!box) throw new Error(`province label ${provinceId} has no visual bounds`);
+  return box.width;
 }
 
 test('persistent US strategy map exposes 48 states, lenses, and local context', async ({ page }) => {
@@ -87,6 +87,9 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-label-mode', 'curved-chinese-full-name');
   await expect(canvas).toHaveAttribute('data-map-label-mode', 'curved-chinese-full-name');
   await expect(canvas).toHaveAttribute('data-map-label-count', '48');
+  await expect(canvas).toHaveAttribute('data-map-label-camera-mode', 'shared-transform');
+  await expect(canvas).toHaveAttribute('data-map-label-layout-revision', /^[1-9]\d*$/);
+  await expect(canvas).toHaveAttribute('data-map-label-camera-sync-count', /^\d+$/);
   await expect(canvas).toHaveAttribute('data-map-tooltip-mode', 'desktop');
   await expect(page.locator('.application-map-layer')).toBeVisible();
   await expect(page.locator('.application-ui-layer')).toBeVisible();
@@ -210,7 +213,9 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await expect(coloradoLabel).toHaveText('科罗拉多州');
   const coloradoBox = await coloradoLabel.boundingBox();
   expect(coloradoBox).not.toBeNull();
-  const coloradoFontBeforeZoom = await provinceLabelFontSize(page, '150000');
+  const coloradoWidthBeforeZoom = await provinceLabelVisualWidth(page, '150000');
+  const layoutRevisionBeforeRoam = await canvas.getAttribute('data-map-label-layout-revision');
+  const cameraSyncBeforeRoam = Number(await canvas.getAttribute('data-map-label-camera-sync-count'));
   await page.mouse.move(
     (coloradoBox?.x ?? 0) + (coloradoBox?.width ?? 0) / 2,
     (coloradoBox?.y ?? 0) + (coloradoBox?.height ?? 0) / 2,
@@ -220,11 +225,19 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
     const outline = await readOutlineGeometry(page);
     return outline.right - outline.left;
   }).toBeGreaterThan((geometry.pathBounds.right - geometry.pathBounds.left) * 1.05);
-  await expect.poll(() => provinceLabelFontSize(page, '150000')).toBeGreaterThan(coloradoFontBeforeZoom * 1.05);
+  await expect.poll(() => provinceLabelVisualWidth(page, '150000')).toBeGreaterThan(coloradoWidthBeforeZoom * 1.05);
+  const zoomedOutline = await readOutlineGeometry(page);
+  const zoomedColoradoWidth = await provinceLabelVisualWidth(page, '150000');
+  const mapScale = (zoomedOutline.right - zoomedOutline.left) / (geometry.pathBounds.right - geometry.pathBounds.left);
+  const labelScale = zoomedColoradoWidth / coloradoWidthBeforeZoom;
+  expect(Math.abs(labelScale - mapScale) / mapScale).toBeLessThan(0.04);
+  await expect(canvas).toHaveAttribute('data-map-label-layout-revision', layoutRevisionBeforeRoam || '');
+  expect(Number(await canvas.getAttribute('data-map-label-camera-sync-count'))).toBeGreaterThan(cameraSyncBeforeRoam);
   const cameraBeforeSelection = await readOutlineGeometry(page);
   await clickProvinceLabel(page, '150000');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '150000');
   await expect(page.getByRole('heading', { name: '科罗拉多州', exact: true })).toBeVisible();
+  await expect(canvas).toHaveAttribute('data-map-label-layout-revision', layoutRevisionBeforeRoam || '');
   await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');
   await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-page', 'province');
   const provinceTabs = page.getByRole('tablist', { name: '科罗拉多州页面分区' });
@@ -275,8 +288,11 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await expect(provinceTabs.getByRole('tab', { name: '概览', exact: true })).toBeFocused();
   await expect(provinceTabs.getByRole('tab', { name: '概览', exact: true })).toHaveAttribute('aria-selected', 'true');
 
+  const layoutRevisionBeforeResize = Number(await canvas.getAttribute('data-map-label-layout-revision'));
   await page.setViewportSize({ width: 900, height: 900 });
   await expect(canvas).toHaveAttribute('data-map-contain-viewport', '900x900');
+  await expect.poll(async () => Number(await canvas.getAttribute('data-map-label-layout-revision')))
+    .toBeGreaterThan(layoutRevisionBeforeResize);
   await expect(canvas).toHaveAttribute('data-map-label-count', '48');
   const resizedOutline = await readOutlineGeometry(page);
   expect(resizedOutline.left).toBeGreaterThanOrEqual(-1);
@@ -303,8 +319,10 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
   await expect(canvas).toHaveAttribute('data-echarts-instance-id', instanceId || '');
 
+  const layoutRevisionBeforeLens = await canvas.getAttribute('data-map-label-layout-revision');
   await page.getByRole('navigation', { name: '地图镜头' }).getByRole('button', { name: '市场', exact: true }).click();
   await expect(page.locator('.strategic-map-stage')).toHaveAttribute('data-map-lens', 'market');
+  await expect(canvas).toHaveAttribute('data-map-label-layout-revision', layoutRevisionBeforeLens || '');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-lens', 'market');
 
   await page.getByRole('navigation', { name: '游戏主导航' })
@@ -337,6 +355,9 @@ test('mobile strategy map fills the root map layer without obsolete map cards or
   const canvas = map.locator('.economy-chart__canvas');
   await expect(map).toHaveAttribute('data-echarts-ready', 'true');
   await expect(canvas).toHaveAttribute('data-map-label-count', '48');
+  await expect(canvas).toHaveAttribute('data-map-label-camera-mode', 'shared-transform');
+  await expect(canvas).toHaveAttribute('data-map-label-layout-revision', /^[1-9]\d*$/);
+  await expect(canvas).toHaveAttribute('data-map-label-camera-sync-count', /^\d+$/);
   await expect(canvas).toHaveAttribute('data-map-tooltip-mode', 'desktop');
   await clickProvinceLabel(page, '150000');
   await expect(page.getByRole('heading', { name: '科罗拉多州', exact: true })).toBeVisible();
@@ -444,7 +465,9 @@ test('mobile strategy map keeps labels and blank-space gestures usable', async (
     expect(stateFills.some((fill) => fill === 'rgb(0, 0, 0)' || fill === 'rgba(0, 0, 0, 1)')).toBe(false);
 
     const initialOutline = await readOutlineGeometry(page);
-    const initialColoradoFontSize = await provinceLabelFontSize(page, '150000');
+    const initialColoradoVisualWidth = await provinceLabelVisualWidth(page, '150000');
+    const mobileLayoutRevisionBeforeRoam = await canvas.getAttribute('data-map-label-layout-revision');
+    const mobileCameraSyncBeforeRoam = Number(await canvas.getAttribute('data-map-label-camera-sync-count'));
     let blankPoint = await findMapBlankPoint(page);
     await page.mouse.move(blankPoint.x, blankPoint.y);
     await page.mouse.wheel(0, -480);
@@ -452,7 +475,9 @@ test('mobile strategy map keeps labels and blank-space gestures usable', async (
       const outline = await readOutlineGeometry(page);
       return outline.right - outline.left;
     }).toBeGreaterThan((initialOutline.right - initialOutline.left) * 1.05);
-    await expect.poll(() => provinceLabelFontSize(page, '150000')).toBeGreaterThan(initialColoradoFontSize * 1.05);
+    await expect.poll(() => provinceLabelVisualWidth(page, '150000')).toBeGreaterThan(initialColoradoVisualWidth * 1.05);
+    await expect(canvas).toHaveAttribute('data-map-label-layout-revision', mobileLayoutRevisionBeforeRoam || '');
+    expect(Number(await canvas.getAttribute('data-map-label-camera-sync-count'))).toBeGreaterThan(mobileCameraSyncBeforeRoam);
 
     blankPoint = await findMapBlankPoint(page);
     const beforeBlankPan = await readOutlineGeometry(page);

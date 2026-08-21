@@ -24,8 +24,14 @@ export interface ProvinceMapLabelSource {
   geometry: unknown;
 }
 
+interface PreparedProvinceMapLabelSource extends ProvinceMapLabelSource {
+  labelRing: Array<[number, number]>;
+}
+
 export interface ProvinceMapLabelRenderer {
-  schedule: () => void;
+  refreshLayout: () => void;
+  syncCamera: () => void;
+  updateSelection: () => void;
   destroy: () => void;
 }
 
@@ -306,8 +312,7 @@ function getMeasurementContext() {
   return measurementContext;
 }
 
-function measureNaturalText(container: HTMLElement, text: string): NaturalTextMetrics {
-  const fontFamily = getComputedStyle(container).fontFamily || 'sans-serif';
+function measureNaturalText(fontFamily: string, text: string): NaturalTextMetrics {
   const cacheKey = `${LABEL_FONT_WEIGHT}|${fontFamily}|${text}`;
   const cached = textMetricsCache.get(cacheKey);
   if (cached) return cached;
@@ -686,9 +691,11 @@ function formatGeometryValue(value: number) {
 
 function renderLabels(
   chart: EChartsType,
-  sources: ProvinceMapLabelSource[],
+  sources: PreparedProvinceMapLabelSource[],
   overlay: SVGSVGElement,
+  cameraGroup: SVGGElement,
   selectedProvinceId: string | null,
+  fontFamily: string,
 ) {
   const width = chart.getWidth();
   const height = chart.getHeight();
@@ -698,17 +705,18 @@ function renderLabels(
   overlay.setAttribute('viewBox', `0 0 ${width} ${height}`);
   overlay.setAttribute('width', String(width));
   overlay.setAttribute('height', String(height));
-  overlay.replaceChildren();
+  cameraGroup.replaceChildren();
+  cameraGroup.removeAttribute('transform');
   let renderedCount = 0;
   let curvedCount = 0;
 
   for (const source of sources) {
-    const geoRing = largestOuterRing(source.geometry);
+    const geoRing = source.labelRing;
     if (geoRing.length < 3) continue;
     const polygon = projectRing(chart, geoRing);
     if (polygon.length < 3) continue;
     const projectedAnchor = projectCoordinate(chart, source.anchor) ?? polygonCentroid(polygon);
-    const metrics = measureNaturalText(container, source.provinceName);
+    const metrics = measureNaturalText(fontFamily, source.provinceName);
     const corridor = findBestLabelCorridor(polygon, projectedAnchor, metrics, mapZoom);
     if (!corridor) continue;
     const layout = fitLabelLayout(polygon, corridor, metrics, mapZoom);
@@ -753,7 +761,7 @@ function renderLabels(
       group.append(text);
     });
 
-    overlay.append(group);
+    cameraGroup.append(group);
     renderedCount += 1;
     if (layout.curved) curvedCount += 1;
   }
@@ -763,6 +771,26 @@ function renderLabels(
   container.dataset.mapLabelCount = String(renderedCount);
   container.dataset.mapCurvedLabelCount = String(curvedCount);
   container.dataset.mapLabelZoom = mapZoom.toFixed(3);
+}
+
+function chooseCameraReferenceCoordinates(sources: ProvinceMapLabelSource[]) {
+  if (sources.length === 0) return null;
+  const first = sources[0].anchor;
+  let bestFirst: [number, number] = first;
+  let bestSecond: [number, number] = sources[1]?.anchor ?? [first[0] + 1, first[1]];
+  let bestDistanceSquared = -1;
+  for (let left = 0; left < sources.length; left += 1) {
+    for (let right = left + 1; right < sources.length; right += 1) {
+      const dx = sources[right].anchor[0] - sources[left].anchor[0];
+      const dy = sources[right].anchor[1] - sources[left].anchor[1];
+      const distanceSquared = dx * dx + dy * dy;
+      if (distanceSquared <= bestDistanceSquared) continue;
+      bestDistanceSquared = distanceSquared;
+      bestFirst = sources[left].anchor;
+      bestSecond = sources[right].anchor;
+    }
+  }
+  return [bestFirst, bestSecond] as const;
 }
 
 export function createProvinceMapLabelRenderer(
@@ -777,28 +805,138 @@ export function createProvinceMapLabelRenderer(
   overlay.classList.add('province-map-label-overlay');
   overlay.setAttribute('aria-hidden', 'true');
   overlay.setAttribute('focusable', 'false');
+  const cameraGroup = createSvgElement('g');
+  cameraGroup.classList.add('province-map-label-camera');
+  overlay.append(cameraGroup);
   container.append(overlay);
-  let frame: number | null = null;
-  const render = () => {
-    frame = null;
+
+  const preparedSources: PreparedProvinceMapLabelSource[] = sources.map((source) => ({
+    ...source,
+    labelRing: largestOuterRing(source.geometry),
+  }));
+  const referenceCoordinates = chooseCameraReferenceCoordinates(preparedSources);
+  let baseCameraReference: {
+    firstCoordinate: [number, number];
+    secondCoordinate: [number, number];
+    firstPixel: ScreenPoint;
+    secondPixel: ScreenPoint;
+  } | null = null;
+  let layoutFrame: number | null = null;
+  let cameraFrame: number | null = null;
+  let layoutRevision = 0;
+  let cameraSyncCount = 0;
+
+  container.dataset.mapLabelCameraMode = 'shared-transform';
+  container.dataset.mapLabelLayoutRevision = '0';
+  container.dataset.mapLabelCameraSyncCount = '0';
+  container.dataset.mapLabelCameraScale = '1.00000';
+
+  const updateSelection = () => {
     if (chart.isDisposed()) return;
-    renderLabels(chart, sources, overlay, selectedProvinceId());
+    const selected = selectedProvinceId();
+    for (const group of cameraGroup.querySelectorAll<SVGGElement>('.province-map-label')) {
+      group.dataset.selected = group.dataset.provinceId === selected ? 'true' : 'false';
+    }
   };
-  const schedule = () => {
-    if (frame !== null || chart.isDisposed()) return;
-    frame = requestAnimationFrame(render);
+
+  const captureBaseCameraReference = () => {
+    if (!referenceCoordinates) {
+      baseCameraReference = null;
+      return;
+    }
+    const firstPixel = projectCoordinate(chart, referenceCoordinates[0]);
+    const secondPixel = projectCoordinate(chart, referenceCoordinates[1]);
+    if (!firstPixel || !secondPixel || length(subtract(secondPixel, firstPixel)) <= GEOMETRY_EPSILON) {
+      baseCameraReference = null;
+      return;
+    }
+    baseCameraReference = {
+      firstCoordinate: referenceCoordinates[0],
+      secondCoordinate: referenceCoordinates[1],
+      firstPixel,
+      secondPixel,
+    };
+    cameraGroup.removeAttribute('transform');
+    container.dataset.mapLabelCameraScale = '1.00000';
+    container.dataset.mapLabelZoom = '1.000';
   };
+
+  const renderLayout = () => {
+    layoutFrame = null;
+    if (chart.isDisposed()) return;
+    const fontFamily = getComputedStyle(container).fontFamily || 'sans-serif';
+    renderLabels(
+      chart,
+      preparedSources,
+      overlay,
+      cameraGroup,
+      selectedProvinceId(),
+      fontFamily,
+    );
+    captureBaseCameraReference();
+    layoutRevision += 1;
+    container.dataset.mapLabelLayoutRevision = String(layoutRevision);
+    updateSelection();
+  };
+
+  const refreshLayout = () => {
+    if (chart.isDisposed() || layoutFrame !== null) return;
+    if (cameraFrame !== null) {
+      cancelAnimationFrame(cameraFrame);
+      cameraFrame = null;
+    }
+    layoutFrame = requestAnimationFrame(renderLayout);
+  };
+
+  const syncCameraNow = () => {
+    cameraFrame = null;
+    if (chart.isDisposed() || layoutFrame !== null || !baseCameraReference) return;
+    const currentFirst = projectCoordinate(chart, baseCameraReference.firstCoordinate);
+    const currentSecond = projectCoordinate(chart, baseCameraReference.secondCoordinate);
+    if (!currentFirst || !currentSecond) return;
+    const baseDistance = length(subtract(baseCameraReference.secondPixel, baseCameraReference.firstPixel));
+    const currentDistance = length(subtract(currentSecond, currentFirst));
+    if (!(baseDistance > GEOMETRY_EPSILON) || !(currentDistance > GEOMETRY_EPSILON)) return;
+    const scaleFactor = currentDistance / baseDistance;
+    const firstTranslate = {
+      x: currentFirst.x - baseCameraReference.firstPixel.x * scaleFactor,
+      y: currentFirst.y - baseCameraReference.firstPixel.y * scaleFactor,
+    };
+    const secondTranslate = {
+      x: currentSecond.x - baseCameraReference.secondPixel.x * scaleFactor,
+      y: currentSecond.y - baseCameraReference.secondPixel.y * scaleFactor,
+    };
+    const translateX = (firstTranslate.x + secondTranslate.x) / 2;
+    const translateY = (firstTranslate.y + secondTranslate.y) / 2;
+    cameraGroup.setAttribute(
+      'transform',
+      `matrix(${scaleFactor.toFixed(5)} 0 0 ${scaleFactor.toFixed(5)} ${translateX.toFixed(2)} ${translateY.toFixed(2)})`,
+    );
+    cameraSyncCount += 1;
+    container.dataset.mapLabelCameraSyncCount = String(cameraSyncCount);
+    container.dataset.mapLabelCameraScale = scaleFactor.toFixed(5);
+    container.dataset.mapLabelZoom = scaleFactor.toFixed(3);
+  };
+
+  const syncCamera = () => {
+    if (chart.isDisposed() || cameraFrame !== null || layoutFrame !== null) return;
+    cameraFrame = requestAnimationFrame(syncCameraNow);
+  };
+
   const handleGeoRoam = () => {
-    schedule();
-    requestAnimationFrame(schedule);
+    syncCamera();
   };
   chart.on('georoam', handleGeoRoam);
-  schedule();
+  refreshLayout();
   return {
-    schedule,
+    refreshLayout,
+    syncCamera,
+    updateSelection,
     destroy: () => {
-      if (frame !== null) cancelAnimationFrame(frame);
-      frame = null;
+      if (layoutFrame !== null) cancelAnimationFrame(layoutFrame);
+      if (cameraFrame !== null) cancelAnimationFrame(cameraFrame);
+      layoutFrame = null;
+      cameraFrame = null;
       if (!chart.isDisposed()) chart.off('georoam', handleGeoRoam);
       overlay.remove();
       delete container.dataset.mapLabelMode;
@@ -806,6 +944,10 @@ export function createProvinceMapLabelRenderer(
       delete container.dataset.mapLabelCount;
       delete container.dataset.mapCurvedLabelCount;
       delete container.dataset.mapLabelZoom;
+      delete container.dataset.mapLabelCameraMode;
+      delete container.dataset.mapLabelLayoutRevision;
+      delete container.dataset.mapLabelCameraSyncCount;
+      delete container.dataset.mapLabelCameraScale;
     },
   };
 }
