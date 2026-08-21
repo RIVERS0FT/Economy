@@ -5,7 +5,10 @@ import {
   resetGameSession,
   resetGameStateDelivery,
 } from '../../src/api/game';
-import { subscribeStateAuthority } from '../../src/app/stateDelivery.js';
+import {
+  getStateAuthoritySnapshot,
+  subscribeStateAuthority,
+} from '../../src/app/stateDelivery.js';
 
 async function loadState(revision?: number) {
   try {
@@ -31,10 +34,9 @@ async function loadState(revision?: number) {
 async function loadAndWriteOnAuthorityPublish() {
   resetGameSession();
   let publishWrite: Promise<unknown> | null = null;
-  let started = false;
   const unsubscribe = subscribeStateAuthority(() => {
-    if (started) return;
-    started = true;
+    const state = getStateAuthoritySnapshot().state;
+    if (!state || publishWrite) return;
     publishWrite = gameActions.placeCommodityOrder('wheat', 'buy', 1, 1)
       .then((response) => ({ ok: response.result.ok, message: response.result.message }))
       .catch((error) => ({ ok: false, message: error instanceof Error ? error.message : String(error) }));
