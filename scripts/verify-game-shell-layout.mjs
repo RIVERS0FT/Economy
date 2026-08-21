@@ -152,6 +152,7 @@ check('src/components/shell/StrategicWorkspace.tsx', [
   "selectedProvinceId={model.tab === 'province' ? state.selectedProvinceId : null}",
   'export function StrategicMapLensBar',
   'export function StrategicWorkspaceChrome',
+  'className="strategic-right-rail strategic-economic-event-rail"',
   'aria-label="地图镜头"',
 ]);
 check('src/components/ui/layout.tsx', [
@@ -191,12 +192,16 @@ check('src/styles/strategic-game-shell.css', [
   'clip-path: inset(0);',
   '.strategic-page-host .page-card-static {',
   '.strategic-economic-event-rail {',
+  '.strategic-right-rail {',
+  '@keyframes strategic-right-rail-enter',
+  'clip-path: inset(0 0 0 100%);',
   'z-index: 2;',
   '.strategic-page-host--map {',
   '.application-map-layer > .strategic-map-lens-bar {',
   'z-index: 1;',
 ]);
 forbid('src/styles/strategic-game-shell.css', [
+  '.game-shell.strategic-tab-research:has(.strategic-economic-event-rail[data-tutorial-visible="true"])',
   '.strategic-province-inspector',
   '.strategic-map-stage--background',
   '.workspace-background-layer',
@@ -349,9 +354,10 @@ check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '图片层 0 → 氛围层 10 → 地图层 20 → UI 层 30',
   '桌面侧栏默认 `78px`',
   '`home`、隐藏 `province` 上下文页、`market`、`buildings`、`settings` 使用 `building`',
-  '教程可见时主卡片必须为右栏预留',
+  'fullscreen 主卡片始终保持完整工作区宽度',
   '这些页面继续隐藏公开事件日志',
   '教程是桌面应用外壳级常驻模块',
+  '`strategic-right-rail-enter` 入场动画',
   '`--strategic-compact-page-width: 56rem`',
   '`calc(100vw / 3)`',
   '`FrostedGlassSurface workspaceCard`',
@@ -379,4 +385,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('游戏与管理员共享外壳验证通过：管理员桌面几何、玩家常驻地图、建筑式／全区域面板、教程常驻右侧信息栏、事件日志独立可见性、覆盖式指挥栏和安全浮层均已锁定。');
+console.log('游戏与管理员共享外壳验证通过：管理员桌面几何、玩家常驻地图、building 并排右栏、fullscreen 覆盖式右栏、教程与事件统一宿主、右栏入场动画、覆盖式指挥栏和安全浮层均已锁定。');
