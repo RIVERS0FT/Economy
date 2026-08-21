@@ -1,6 +1,6 @@
 /* Final authority for building-page title/pill geometry and the dense regional
- * building ledger presentation. Primary surface padding remains owned by
- * primary-surfaces.css. */
+ * building ledger presentation.
+ * Primary surface padding is owned by primary-surfaces.css. */
 .panel.production-surface {
   --production-pill-visible-height: 1.6rem;
   --production-switch-thumb-size: 1rem;
