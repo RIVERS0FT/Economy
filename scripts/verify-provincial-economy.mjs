@@ -19,10 +19,12 @@ const requiredFiles = [
   'src/components/shell/StrategicWorkspace.tsx',
   'src/components/provinces/UsMainlandMap.tsx',
   'src/components/provinces/provinceMapLabels.ts',
+  'src/components/provinces/provinceMapZoomInterpolator.ts',
   'src/styles/province-map.css',
   'src/styles/province-page.css',
   'src/styles/strategic-game-shell.css',
   'src/utils/provinceScope.ts',
+  'tests/browser/map-zoom-transient.spec.ts',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
@@ -353,7 +355,6 @@ for (const forbidden of [
   assert.equal(mapLabels.includes(forbidden), false, `地图标签层不得恢复英文简称、字形拉伸或独立交互: ${forbidden}`);
 }
 
-
 const mapZoomInterpolator = read('src/components/provinces/provinceMapZoomInterpolator.ts');
 for (const text of [
   "const MAP_SERIES_ID = 'us-mainland-map'",
@@ -364,24 +365,55 @@ for (const text of [
   'const MAX_FRAME_LOG_STEP = Math.log(1.11)',
   'const WHEEL_RESPONSE_MS = 60',
   'const PINCH_RESPONSE_MS = 50',
+  'const WHEEL_COMMIT_IDLE_MS = 96',
+  'const PINCH_COMMIT_IDLE_MS = 80',
   'function normalizeWheelDelta',
   "window.matchMedia('(prefers-reduced-motion: reduce)')",
+  'function mapRendererSurface',
+  'function labelRendererSurface',
+  'function setTransientSurfaceTransform',
+  'function clearTransientSurfaceTransform',
+  'const publishTransientTransform = () => {',
+  'const applyTransientZoomStep = (nextZoom: number) => {',
+  'transientTranslateX = transientTranslateX * incrementalScale + (1 - incrementalScale) * originX',
+  'transientTranslateY = transientTranslateY * incrementalScale + (1 - incrementalScale) * originY',
+  'const commitTransientZoom = () => {',
+  'const effectiveOriginX = transientTranslateX / denominator',
+  'const effectiveOriginY = transientTranslateY / denominator',
+  "type: 'geoRoam'",
+  'seriesId: MAP_SERIES_ID',
+  'const scheduleSettleCommit = (mode:',
   "container.addEventListener('wheel', handleWheel, { passive: false })",
   'event.preventDefault();',
   'event.stopPropagation();',
   'targetZoom * Math.exp(inputLogStep)',
   'const pinchScale = Number(event.pinchScale)',
   'targetZoom * pinchScale',
-  "type: 'geoRoam'",
-  'seriesId: MAP_SERIES_ID',
   'requestAnimationFrame(animate)',
   "container.dataset.mapZoomMode = 'interpolated'",
+  "container.dataset.mapZoomSurfaceMode = 'shared-css-transform'",
+  "container.dataset.mapZoomHotPath = 'transform-only'",
+  'container.dataset.mapZoomCommitted',
   'container.dataset.mapZoomCurrent',
   'container.dataset.mapZoomTarget',
   'container.dataset.mapZoomFrameCount',
+  'container.dataset.mapZoomCommitCount',
   'container.dataset.mapZoomMaxStep',
-]) assert.ok(mapZoomInterpolator.includes(text), `地图插值缩放缺少: ${text}`);
-assert.equal(mapZoomInterpolator.includes('setOption('), false, '地图插值缩放热路径不得通过 setOption 逐帧更新');
+  'container.dataset.mapZoomTransientScale',
+  'container.dataset.mapZoomTransientTranslate',
+]) assert.ok(mapZoomInterpolator.includes(text), `地图瞬时矩阵缩放缺少: ${text}`);
+assert.equal(mapZoomInterpolator.includes('setOption('), false, '地图缩放热路径不得通过 setOption 更新');
+const zoomAnimateStart = mapZoomInterpolator.indexOf('const animate = (timestamp: number) => {');
+const zoomScheduleStart = mapZoomInterpolator.indexOf('const schedule = () => {', zoomAnimateStart);
+assert.ok(zoomAnimateStart >= 0 && zoomScheduleStart > zoomAnimateStart, '必须能定位地图缩放动画热路径');
+const zoomAnimate = mapZoomInterpolator.slice(zoomAnimateStart, zoomScheduleStart);
+assert.equal(zoomAnimate.includes('dispatchAction'), false, '地图缩放动画帧不得提交 ECharts geoRoam');
+assert.ok(zoomAnimate.includes('applyTransientZoomStep'), '地图缩放动画帧必须只更新共享瞬时矩阵');
+const zoomCommitStart = mapZoomInterpolator.indexOf('const commitTransientZoom = () => {');
+assert.ok(zoomCommitStart >= 0 && zoomAnimateStart > zoomCommitStart, '必须能定位地图缩放正式提交阶段');
+const zoomCommit = mapZoomInterpolator.slice(zoomCommitStart, zoomAnimateStart);
+assert.ok(zoomCommit.includes("type: 'geoRoam'"), '地图缩放只在收敛后的正式提交阶段调用 geoRoam');
+assert.ok(zoomCommit.includes('scheduleCommittedTransformClear();'), '正式相机提交后必须在后续绘制周期清除瞬时矩阵');
 
 const echartsCore = read('src/components/charts/echartsCore.ts');
 for (const text of ['MapChart', 'GeoComponent', 'registerEChartsMap']) {
@@ -489,6 +521,21 @@ for (const forbidden of [
   assert.equal(mapBrowserTest.includes(forbidden), false, `浏览器地图回归不得继续依赖英文州缩写: ${forbidden}`);
 }
 
+const transientZoomBrowserTest = read('tests/browser/map-zoom-transient.spec.ts');
+for (const text of [
+  "data-map-zoom-surface-mode', 'shared-css-transform'",
+  "data-map-zoom-hot-path', 'transform-only'",
+  'data-map-zoom-commit-count',
+  'data-map-zoom-transient-scale',
+  'data-map-zoom-transient-translate',
+  'mapTransform: mapSurface?.style.transform',
+  'labelTransform: labelSurface?.style.transform',
+  'expect(duringAnimation.commits).toBe(commitBefore)',
+  'expect(duringAnimation.labelTransform).toBe(duringAnimation.mapTransform)',
+  'toBe(commitBefore + 1)',
+  "toBe('')",
+]) assert.ok(transientZoomBrowserTest.includes(text), `地图瞬时缩放浏览器回归缺少: ${text}`);
+
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 assert.equal((uiDesign.match(/### 8\.1 美国本土州级经营地图/g) ?? []).length, 1, 'UI 设计文档只能保留一份美国本土州级经营地图 8.1 规则');
 for (const text of [
@@ -501,11 +548,11 @@ for (const text of [
   '每个汉字必须作为独立刚性 SVG `text` 字形',
   '不得通过 `textLength`',
   '完整落在州面内部',
-  '`georoam` 热路径只允许更新共享 SVG 相机组的统一等比缩放和平移矩阵',
+  '缩放动画热路径只允许更新 ECharts SVG 与州名 SVG 的共享瞬时等比变换',
   "`roam: 'move'`",
-  '每帧最多一次 `geoRoam`',
+  '停止输入且插值收敛后只允许一次 `geoRoam`',
   '真实 `pinchScale`',
-  '不得使用逐帧 `setOption`',
+  '不得在缩放动画帧调用 `geoRoam` 或 `setOption`',
   '禁止重新执行州界投影、主轴／走廊扫描、字体测量、逐字碰撞或 `replaceChildren()`',
 ]) assert.ok(uiDesign.includes(text), `移动地图设计规则缺少: ${text}`);
 for (const forbidden of ['等比 Cover 相机', '常驻州缩写', '全部州缩写关闭', '最高 8 倍受限缩放']) {
@@ -528,10 +575,11 @@ for (const text of [
   '禁止 `textLength`',
   '单个汉字自身不得弯曲、压扁或拉长',
   '名称随地图缩放和平移同步变化',
-  '`georoam` 期间不得重新执行 48 州标签完整布局',
+  '任何 `georoam` 都不得重新执行 48 州标签完整布局',
   "`roam: 'move'`",
   '目标缩放',
-  '每帧最多通过一次 ECharts `geoRoam`',
+  '缩放动画帧只更新共享瞬时等比变换',
+  '收敛后一次性提交 ECharts `geoRoam`',
   '真实 `pinchScale`',
   '共享 SVG 相机组',
   '不大于 `720px` 时地图 Tooltip 必须禁用并隐藏',
@@ -551,4 +599,4 @@ for (const text of [
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击、桌面地图 Tooltip 与移动端隐藏边界、州内中文全名自然比例刚性字形标签、georoam 共享 SVG 相机矩阵与零逐帧重排、空白全局平移和空白双击／双触镜头重置均已锁定。');
+console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击、桌面地图 Tooltip 与移动端隐藏边界、州内中文全名自然比例刚性字形标签、缩放合成层共享瞬时矩阵与收敛后单次 ECharts 相机提交、空白全局平移和空白双击／双触镜头重置均已锁定。');
