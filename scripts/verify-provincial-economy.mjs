@@ -18,6 +18,7 @@ const requiredFiles = [
   'src/pages/ProvincePage.tsx',
   'src/components/shell/StrategicWorkspace.tsx',
   'src/components/provinces/UsMainlandMap.tsx',
+  'src/components/provinces/provinceMapLabels.ts',
   'src/styles/province-map.css',
   'src/styles/province-page.css',
   'src/styles/strategic-game-shell.css',
@@ -38,8 +39,10 @@ assert.equal(
 
 assert.equal(PROVINCE_CATALOG.length, 48, '州级地区目录必须包含美国连续 48 州');
 assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.id)).size, 48, '州级地区 ID 必须唯一');
+assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.name)).size, 48, '州级地区中文全名必须唯一');
 assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.shortName)).size, 48, '州级地区简称必须唯一');
 assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.mapName)).size, 48, '州级地图名称必须唯一');
+assert.equal(PROVINCE_CATALOG.every((province) => /州$/.test(province.name)), true, '地图州名必须使用中文州全名');
 const legacyRegionIds = [
   '110000', '120000', '130000', '140000', '150000', '210000', '220000', '230000',
   '310000', '320000', '330000', '340000', '350000', '360000', '370000', '410000',
@@ -219,22 +222,28 @@ for (const text of [
   "import { feature } from 'topojson-client'",
   'const regionByMapName = new Map',
   'if (!region) return []',
+  'name: region.name',
+  'name: province.name',
+  'createProvinceMapLabelRenderer',
+  'provinceMapLabelSources',
   'registerEChartsMap(US_MAINLAND_MAP_NAME, usMainlandGeoJson)',
   "type: 'map'",
   "selectedMode: 'single'",
   "roamTrigger: 'global'",
+  'scaleLimit: { min: 0.5, max: 4 }',
   'const US_MAINLAND_ASPECT_SCALE = 0.75',
   'const MOBILE_BLANK_DOUBLE_TAP_MS = 360',
   'const MOBILE_BLANK_DOUBLE_TAP_DISTANCE = 28',
   'const MAP_CONTAIN_INSET = 0.96',
   'function containLayoutSize(width: number, height: number)',
   'aspectScale: US_MAINLAND_ASPECT_SCALE',
-  "zoom: 1",
+  'zoom: 1',
   "layoutCenter: ['50%', '50%']",
-  'maxAspectRatio: 0.8',
+  'label: {\n        show: false,',
   'updateMode="merge"',
-  'onChartReady={applyContainCamera}',
-  'onResize={applyContainCamera}',
+  'onChartReady={handleChartReady}',
+  'onOptionApplied={handleOptionApplied}',
+  'onResize={handleChartResize}',
   "container.dataset.mapFitMode = 'contain'",
   'container.dataset.mapContainViewport',
   'onClick={handleMapClick}',
@@ -249,14 +258,23 @@ for (const text of [
   'data-province-count={provinces.length}',
   'data-map-feature-count={usMainlandGeoJson.features.length}',
   'data-map-lens={lens}',
+  'data-map-label-mode="curved-chinese-full-name"',
 ]) assert.ok(mapComponent.includes(text), `ECharts 美国本土地图缺少: ${text}`);
-assert.equal(mapComponent.includes("var(--color-surface-muted)"), false, '地图不得引用未定义的 color-surface-muted');
-assert.equal(mapComponent.includes('data: data.map((datum)'), false, '移动地图不得批量覆盖全部州标签为隐藏');
+for (const forbidden of [
+  'HOVER_LABEL_STATE_CODES',
+  'name: region.shortName',
+  'name: province.shortName',
+  'labelLayout:',
+  'maxAspectRatio: 0.8',
+  "var(--color-surface-muted)",
+  'data: data.map((datum)',
+]) {
+  assert.equal(mapComponent.includes(forbidden), false, `地图不得恢复英文缩写或旧标签实现: ${forbidden}`);
+}
 for (const forbidden of [
   'applyCoverCamera',
   'coverLayoutSize',
   'mapCoverViewport',
-  'onOptionApplied={',
   "left: '5%'",
   "right: '5%'",
   "top: '7%'",
@@ -267,12 +285,37 @@ for (const forbidden of [
   assert.equal(mapComponent.includes(forbidden), false, `Contain 地图不得恢复裁切或选择后归中实现: ${forbidden}`);
 }
 
+const mapLabels = read('src/components/provinces/provinceMapLabels.ts');
+for (const text of [
+  'export function pointInPolygon',
+  'export function longestInteriorChord',
+  'export function quadraticPathInsidePolygon',
+  'export function createProvinceMapLabelRenderer',
+  "document.createElementNS(SVG_NAMESPACE, name)",
+  "createSvgElement('textPath')",
+  "text.dataset.labelFit = 'inside'",
+  "chart.on('georoam', handleGeoRoam)",
+  "container.dataset.mapLabelMode = 'curved-chinese-full-name'",
+  'container.dataset.mapLabelCount',
+  'container.dataset.mapCurvedLabelCount',
+]) assert.ok(mapLabels.includes(text), `州内中文曲线标签缺少: ${text}`);
+for (const forbidden of ['shortName', 'mapName', 'foreignObject', 'pointerdown']) {
+  assert.equal(mapLabels.includes(forbidden), false, `地图标签层不得恢复英文简称或独立交互: ${forbidden}`);
+}
+
 const echartsCore = read('src/components/charts/echartsCore.ts');
 for (const text of ['MapChart', 'GeoComponent', 'registerEChartsMap']) {
   assert.ok(echartsCore.includes(text), `ECharts 地图核心缺少: ${text}`);
 }
 
 const mapStyles = read('src/styles/province-map.css');
+for (const text of [
+  '.province-map-label-overlay',
+  '.province-map-label',
+  'pointer-events: none;',
+  'fill: var(--color-map-label);',
+  "[data-selected='true']",
+]) assert.ok(mapStyles.includes(text), `州内中文曲线标签样式缺少: ${text}`);
 for (const forbidden of [
   '.province-map-marker',
   '.province-map-silhouette',
@@ -301,9 +344,13 @@ for (const text of [
   "data-echarts-ready', 'true'",
   "data-province-count', '48'",
   "data-map-feature-count', '48'",
-  "for (const excludedCode of ['AK', 'HI', 'DC'])",
-  "page.locator('.application-map-layer')",
-  "hasText: /^CO$/",
+  "data-map-label-mode', 'curved-chinese-full-name'",
+  "data-map-label-count', '48'",
+  'data-map-curved-label-count',
+  "'加利福尼亚州', '得克萨斯州', '华盛顿州', '佛罗里达州', '纽约州'",
+  'provinceLabelFontSize',
+  'clickProvinceLabel',
+  "data-label-fit', 'inside'",
   'persistent US strategy map exposes 48 states, lenses, and local context',
   'mobile strategy map fills the root map layer without obsolete map cards or inspector',
   "page.locator('.province-map-page > *')",
@@ -330,6 +377,9 @@ for (const text of [
   "toHaveAttribute('data-strategic-presentation', 'building')",
   "toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')",
 ]) assert.ok(mapBrowserTest.includes(text), `ECharts 地图浏览器回归缺少: ${text}`);
+for (const forbidden of ["hasText: /^CO$/", "toContain('CA')", "toContain('TX')"]) {
+  assert.equal(mapBrowserTest.includes(forbidden), false, `浏览器地图回归不得继续依赖英文州缩写: ${forbidden}`);
+}
 
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 assert.equal((uiDesign.match(/### 8\.1 美国本土州级经营地图/g) ?? []).length, 1, 'UI 设计文档只能保留一份美国本土州级经营地图 8.1 规则');
@@ -337,9 +387,14 @@ for (const text of [
   "roamTrigger: 'global'",
   '触摸双触地图空白',
   '--color-map-region-locked',
-  '不得通过 `media` 或数据项覆盖把全部州缩写关闭',
+  '中文州全名',
+  'SVG `textPath`',
+  '完整落在州面内部',
+  '随地图缩放和平移同步重算',
 ]) assert.ok(uiDesign.includes(text), `移动地图设计规则缺少: ${text}`);
-assert.equal(uiDesign.includes('等比 Cover 相机'), false, 'UI 设计文档不得保留旧 Cover 相机冲突规则');
+for (const forbidden of ['等比 Cover 相机', '常驻州缩写', '全部州缩写关闭', '最高 8 倍受限缩放']) {
+  assert.equal(uiDesign.includes(forbidden), false, `UI 设计文档不得保留旧地图标签或缩放冲突规则: ${forbidden}`);
+}
 
 const navigation = read('src/config/navigation.ts');
 assert.equal(navigation.includes("{ id: 'map', label: '地图' }"), false, '桌面侧栏与移动底栏不得显示地图按钮');
@@ -351,7 +406,11 @@ for (const text of [
   '概览｜市场｜建筑｜仓库',
   '离开行为只清除地图视觉选中态，不清除经营州',
   '通知面板全工作区点击捕获层必须透明',
+  '中文州全名作为唯一州面名称',
+  'SVG `textPath` 标签层',
+  '名称与字号随地图缩放和平移同步变化',
 ]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
+assert.equal(pageDesign.includes('并把州缩写作为地图标签'), false, '页面设计文档不得恢复英文州缩写地图标签');
 
 const tests = read('server/test/provinces.test.js');
 for (const text of [
@@ -365,4 +424,4 @@ for (const text of [
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击、移动标签、空白全局平移和空白双击／双触镜头重置均已锁定。');
+console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击、州内中文全名曲线标签、随镜头缩放平移、空白全局平移和空白双击／双触镜头重置均已锁定。');
