@@ -23,23 +23,19 @@ jobs:
 
           map_path = Path('src/components/provinces/UsMainlandMap.tsx')
           map_text = map_path.read_text(encoding='utf-8')
-          old = """    chart.setOption({
-              tooltip: { show: showTooltip },
-            }, {"""
-          new = """    chart.setOption({
-              tooltip: {
-                ...commonTooltip,
-                show: showTooltip,
-              },
-            }, {"""
+          old = 'tooltip: { show: showTooltip },'
+          new = '''tooltip: {
+        ...commonTooltip,
+        show: showTooltip,
+      },'''
           if map_text.count(old) != 1:
               raise SystemExit(f'expected one responsive tooltip block, got {map_text.count(old)}')
           map_path.write_text(map_text.replace(old, new), encoding='utf-8', newline='\n')
 
           verify_path = Path('scripts/verify-provincial-economy.mjs')
           verify_text = verify_path.read_text(encoding='utf-8')
-          old_verify = "  'tooltip: { show: showTooltip },',"
-          new_verify = "  'show: showTooltip,',"
+          old_verify = "'tooltip: { show: showTooltip },'"
+          new_verify = "'show: showTooltip,'"
           if verify_text.count(old_verify) != 1:
               raise SystemExit(f'expected one verifier tooltip fragment, got {verify_text.count(old_verify)}')
           verify_path.write_text(verify_text.replace(old_verify, new_verify), encoding='utf-8', newline='\n')
