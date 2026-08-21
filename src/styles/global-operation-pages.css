@@ -6,7 +6,7 @@
 
 .global-operation-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(8.5rem, 100%), 1fr));
   gap: var(--layout-gutter);
 }
 
@@ -51,7 +51,7 @@
 
 .global-operation-summary-row {
   display: grid;
-  grid-template-columns: minmax(11rem, 1.6fr) repeat(3, minmax(6.5rem, .7fr));
+  grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, .7fr));
   align-items: center;
   gap: .65rem;
   min-width: 0;
@@ -65,6 +65,13 @@
 .global-province-card > span:not(.global-province-card__title) {
   display: grid;
   gap: .15rem;
+  min-width: 0;
+}
+
+.global-operation-summary-row strong,
+.global-province-card strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .global-operation-summary-row small,
@@ -96,7 +103,7 @@
 
 .global-province-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(13.5rem, 100%), 1fr));
   gap: .55rem;
 }
 
@@ -121,6 +128,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: .5rem;
+  min-width: 0;
   padding-bottom: .45rem;
   border-bottom: 1px solid var(--color-border-subtle);
 }
@@ -130,10 +138,6 @@
 }
 
 @media (max-width: 960px) {
-  .global-operation-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .global-operation-summary-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -145,7 +149,6 @@
 
 @media (max-width: 720px) {
   .global-operation-metrics {
-    grid-template-columns: 1fr 1fr;
     gap: .5rem;
   }
 
@@ -164,7 +167,6 @@
 }
 
 @media (max-width: 420px) {
-  .global-operation-metrics,
   .global-operation-summary-row {
     grid-template-columns: 1fr;
   }
