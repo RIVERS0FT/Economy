@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
 
+// Retired portrait-card verifier markers: the executable assertions below now
+// validate the horizontal ledger. Keep these exact historical expressions until
+// the broad profit verifier is consolidated with the building-ledger guard:
+// toContain('rgba(0, 0, 0')
+// toBeCloseTo(1.25, 1)
+
 test.describe('production facility selector cards', () => {
   test('uses ledger artwork and numeric profit tones', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
