@@ -232,6 +232,7 @@ for (const text of [
   "roamTrigger: 'global'",
   'scaleLimit: { min: 0.5, max: 4 }',
   'const US_MAINLAND_ASPECT_SCALE = 0.75',
+  'const MOBILE_MAP_MAX_WIDTH = 720',
   'const MOBILE_BLANK_DOUBLE_TAP_MS = 360',
   'const MOBILE_BLANK_DOUBLE_TAP_DISTANCE = 28',
   'const MAP_CONTAIN_INSET = 0.96',
@@ -246,6 +247,12 @@ for (const text of [
   'onResize={handleChartResize}',
   "container.dataset.mapFitMode = 'contain'",
   'container.dataset.mapContainViewport',
+  'const applyResponsiveTooltip = useCallback((chart: EChartsType) => {',
+  'const showTooltip = chart.getWidth() > MOBILE_MAP_MAX_WIDTH;',
+  'tooltip: { show: showTooltip },',
+  "chart.dispatchAction({ type: 'hideTip' });",
+  "chart.getDom().dataset.mapTooltipMode = showTooltip ? 'desktop' : 'hidden-mobile';",
+  'applyResponsiveTooltip(chart);',
   'onClick={handleMapClick}',
   'onCanvasClick={handleMapCanvasClick}',
   'selectedProvinceId: string | null',
@@ -371,6 +378,9 @@ for (const text of [
   "data-map-feature-count', '48'",
   "data-map-label-mode', 'curved-chinese-full-name'",
   "data-map-label-count', '48'",
+  "data-map-tooltip-mode', 'desktop'",
+  "data-map-tooltip-mode', 'hidden-mobile'",
+  "page.locator('.province-map-tooltip')",
   'data-map-curved-label-count',
   "'加利福尼亚州', '得克萨斯州', '华盛顿州', '佛罗里达州', '纽约州'",
   'provinceLabelFontSize',
@@ -452,8 +462,10 @@ for (const text of [
   '禁止 `textLength`',
   '单个汉字自身不得弯曲、压扁或拉长',
   '名称随地图缩放和平移同步变化',
+  '不大于 `720px` 时地图 Tooltip 必须禁用并隐藏',
 ]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
 assert.equal(pageDesign.includes('并把州缩写作为地图标签'), false, '页面设计文档不得恢复英文州缩写地图标签');
+assert.equal(pageDesign.includes('州面内 SVG `textPath` 曲线路径'), false, '页面设计文档不得恢复已退役的 textPath 州名规则');
 
 const tests = read('server/test/provinces.test.js');
 for (const text of [
@@ -467,4 +479,4 @@ for (const text of [
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击、州内中文全名自然比例刚性字形标签、随镜头缩放平移、空白全局平移和空白双击／双触镜头重置均已锁定。');
+console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击、桌面地图 Tooltip 与移动端隐藏边界、州内中文全名自然比例刚性字形标签、随镜头缩放平移、空白全局平移和空白双击／双触镜头重置均已锁定。');
