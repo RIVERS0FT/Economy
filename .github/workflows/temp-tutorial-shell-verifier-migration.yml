@@ -1,0 +1,55 @@
+name: Temporary Tutorial Shell Verifier Migration
+
+on:
+  push:
+    branches:
+      - codex/tutorial-right-rail
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: ${{ !contains(github.event.head_commit.message, '[tutorial-shell-verifier-migrated]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/tutorial-right-rail
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Update shell verifier semantics
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'scripts/verify-game-shell-layout.mjs';
+          let text = fs.readFileSync(path, 'utf8');
+          const replacements = [
+            [
+              "  '建筑式页面必须给右栏预留空间',\n  '研发、拍卖、合同、银行、排行榜和商店隐藏右栏',",
+              "  '`home`、隐藏 `province` 上下文页、`market`、`buildings`、`settings` 使用 `building`',\n  '教程可见时主卡片必须为右栏预留',\n  '这些页面继续隐藏公开事件日志',\n  '教程是桌面应用外壳级常驻模块',",
+            ],
+            [
+              "console.log('游戏与管理员共享外壳验证通过：管理员桌面几何、玩家常驻地图、建筑式／全区域面板、独立事件右栏、覆盖式指挥栏和安全浮层均已锁定。');",
+              "console.log('游戏与管理员共享外壳验证通过：管理员桌面几何、玩家常驻地图、建筑式／全区域面板、教程常驻右侧信息栏、事件日志独立可见性、覆盖式指挥栏和安全浮层均已锁定。');",
+            ],
+          ];
+          for (const [from, to] of replacements) {
+            if (!text.includes(from)) throw new Error(`missing expected source: ${from}`);
+            text = text.replace(from, to);
+          }
+          fs.writeFileSync(path, text);
+          NODE
+      - name: Commit verifier migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- scripts/verify-game-shell-layout.mjs
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "同步右栏布局防回退语义 [tutorial-shell-verifier-migrated]"
+          git push origin HEAD:codex/tutorial-right-rail
