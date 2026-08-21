@@ -168,10 +168,7 @@ export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
     : `${formatPeriodTime(period.startsAt)} — ${formatPeriodTime(period.endsAt)}`;
 
   return (
-    <PageLayout
-      title="排行榜"
-      actions={period.partial ? undefined : <StatusTag tone="success">{periodLabel}</StatusTag>}
-    >
+    <PageLayout title="排行榜">
       <div className="leaderboard-responsive-layout">
         <div className="leaderboard-board-switch ui-segmented" role="group" aria-label="选择排行榜">
           {BOARD_ORDER.map((boardId) => (
