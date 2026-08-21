@@ -1,0 +1,45 @@
+name: codex-map-roam-verifier-fix
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'codex/map-roam-performance'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map-roam-performance
+          fetch-depth: 0
+      - name: Replace obsolete option-applied guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-provincial-economy.mjs')
+          source = path.read_text()
+          old = "  'onOptionApplied={handleOptionApplied}',\n"
+          new = "  'labelRendererRef.current?.syncCamera();',\n  'labelRendererRef.current?.refreshLayout();',\n  'labelRendererRef.current?.updateSelection();',\n"
+          if source.count(old) != 1:
+              raise SystemExit(f'old option-applied requirement count={source.count(old)}')
+          source = source.replace(old, new, 1)
+          anchor = "  'data: data.map((datum)',\n]) {"
+          replacement = "  'data: data.map((datum)',\n  'onOptionApplied={handleOptionApplied}',\n  'labelRendererRef.current?.schedule();',\n]) {"
+          if source.count(anchor) != 1:
+              raise SystemExit(f'map forbidden anchor count={source.count(anchor)}')
+          path.write_text(source.replace(anchor, replacement, 1))
+          PY
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/codex-map-roam-verifier-fix.yml
+          git add scripts/verify-provincial-economy.mjs
+          git commit -m "更新地图漫游性能防回退"
+          git push origin HEAD:codex/map-roam-performance
