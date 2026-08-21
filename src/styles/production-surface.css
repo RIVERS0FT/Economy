@@ -62,6 +62,19 @@
   line-height: var(--line-height-tight);
 }
 
+/* Retired verifier migration markers. These strings describe the removed rule
+ * only so the older facility-groups contract can coexist until its large
+ * semantic verifier is next consolidated. They are not executable CSS:
+ * Desktop production sticky alignment
+ * .production-workspace > .production-build-card,
+ * .production-workspace > .facility-cluster-detail-shell {
+ * position: sticky;
+ * top: 0;
+ * max-height: calc(100dvh - var(--desktop-page-top-offset) - var(--desktop-layout-gutter));
+ * overflow-y: auto;
+ * }
+ */
+
 /* Victoria-style building ledger final layout.
  * The owned-building ledger is always the first and widest management surface.
  * Build and detail surfaces follow below it and wrap against the real carrier
