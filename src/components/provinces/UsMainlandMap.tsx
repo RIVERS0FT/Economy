@@ -266,7 +266,7 @@ export function UsMainlandMap({
     container.dataset.mapContainLayoutSize = layoutSize;
     container.dataset.mapIntrinsicAspect = US_MAINLAND_MAP_ASPECT.toFixed(6);
     container.dataset.mapContainViewport = `${width}x${height}`;
-    labelRendererRef.current?.schedule();
+    labelRendererRef.current?.syncCamera();
   }, []);
 
   const applyResponsiveTooltip = useCallback((chart: EChartsType) => {
@@ -292,6 +292,10 @@ export function UsMainlandMap({
       () => selectedProvinceIdRef.current,
     );
   }, []);
+
+  useEffect(() => {
+    labelRendererRef.current?.updateSelection();
+  }, [selectedProvinceId]);
 
   useEffect(() => () => {
     labelRendererRef.current?.destroy();
@@ -401,11 +405,8 @@ export function UsMainlandMap({
   const handleChartResize = useCallback((chart: EChartsType) => {
     applyContainCamera(chart);
     applyResponsiveTooltip(chart);
+    labelRendererRef.current?.refreshLayout();
   }, [applyContainCamera, applyResponsiveTooltip]);
-
-  const handleOptionApplied = useCallback(() => {
-    labelRendererRef.current?.schedule();
-  }, []);
 
   const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}州面内使用中文州全名，名称随地图一起缩放和平移。点击州面可以打开对应州页面，滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置缩放和平移。`;
   return (
@@ -427,7 +428,6 @@ export function UsMainlandMap({
         testId="us-mainland-map"
         updateMode="merge"
         onChartReady={handleChartReady}
-        onOptionApplied={handleOptionApplied}
         onResize={handleChartResize}
         onClick={handleMapClick}
         onCanvasClick={handleMapCanvasClick}
