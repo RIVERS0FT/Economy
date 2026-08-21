@@ -243,7 +243,9 @@ for (const text of [
   'label: {\n        show: false,',
   'updateMode="merge"',
   'onChartReady={handleChartReady}',
-  'onOptionApplied={handleOptionApplied}',
+  'labelRendererRef.current?.syncCamera();',
+  'labelRendererRef.current?.refreshLayout();',
+  'labelRendererRef.current?.updateSelection();',
   'onResize={handleChartResize}',
   "container.dataset.mapFitMode = 'contain'",
   'container.dataset.mapContainViewport',
@@ -275,6 +277,8 @@ for (const forbidden of [
   'maxAspectRatio: 0.8',
   "var(--color-surface-muted)",
   'data: data.map((datum)',
+  'onOptionApplied={handleOptionApplied}',
+  'labelRendererRef.current?.schedule();',
 ]) {
   assert.equal(mapComponent.includes(forbidden), false, `地图不得恢复英文缩写或旧标签实现: ${forbidden}`);
 }
