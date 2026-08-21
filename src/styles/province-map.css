@@ -59,8 +59,13 @@
   user-select: none;
 }
 
+.province-map-label-glyph {
+  pointer-events: none;
+  user-select: none;
+}
+
 .province-map-label[data-selected='true'] {
   fill: var(--color-text-primary);
-  font-weight: 700;
+  font-weight: 600;
   opacity: 1;
 }
