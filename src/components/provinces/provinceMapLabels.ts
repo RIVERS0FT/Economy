@@ -43,6 +43,7 @@ interface InteriorChord {
 
 interface LabelLayout {
   path: string;
+  pathLength: number;
   fontSize: number;
   strokeWidth: number;
   letterSpacing: number;
@@ -352,7 +353,7 @@ function pathData(start: ScreenPoint, control: ScreenPoint, end: ScreenPoint) {
 
 function fitLabelLayout(polygon: ScreenPoint[], anchor: ScreenPoint, provinceName: string): LabelLayout | null {
   const chord = longestInteriorChord(polygon, anchor);
-  if (!chord || chord.length <= GEOMETRY_EPSILON || chord.thickness <= GEOMETRY_EPSILON) return null;
+  if (!chord || chord.length <= GEOMETRY_EPSILON) return null;
   const direction = normalize(subtract(chord.end, chord.start));
   const normal = { x: -direction.y, y: direction.x };
   const characterCount = Math.max(1, Array.from(provinceName).length);
@@ -379,6 +380,7 @@ function fitLabelLayout(polygon: ScreenPoint[], anchor: ScreenPoint, provinceNam
       if (!quadraticPathInsidePolygon(polygon, start, control, end, fontSize)) continue;
       return {
         path: pathData(start, control, end),
+        pathLength: Math.max(GEOMETRY_EPSILON, length(subtract(end, start)) * 0.92),
         fontSize,
         strokeWidth: Math.max(0.02, Math.min(0.9, fontSize * 0.065)),
         letterSpacing: Math.max(0, fontSize * 0.025),
@@ -386,6 +388,31 @@ function fitLabelLayout(polygon: ScreenPoint[], anchor: ScreenPoint, provinceNam
       };
     }
     fontSize = Math.max(MIN_RENDERABLE_FONT_SIZE, fontSize * 0.82);
+  }
+
+  // Concave or highly articulated states can reject the wide curved strip even when
+  // their center chord is valid. Fall back to a progressively shorter straight
+  // text path around the same interior midpoint. textLength compresses the full
+  // Chinese name into this verified path instead of dropping the state label.
+  for (const fraction of [0.56, 0.42, 0.3, 0.2, 0.12, 0.07]) {
+    const halfLength = chord.length * fraction / 2;
+    let start = add(chord.midpoint, scale(direction, -halfLength));
+    let end = add(chord.midpoint, scale(direction, halfLength));
+    if (end.x < start.x) [start, end] = [end, start];
+    const midpoint = scale(add(start, end), 0.5);
+    const fallbackFontSize = Math.max(MIN_RENDERABLE_FONT_SIZE, Math.min(
+      Math.max(MIN_RENDERABLE_FONT_SIZE, chord.thickness * 0.16),
+      Math.max(MIN_RENDERABLE_FONT_SIZE, chord.length * fraction / (characterCount * LABEL_WIDTH_FACTOR)),
+    ));
+    if (!quadraticPathInsidePolygon(polygon, start, midpoint, end, fallbackFontSize)) continue;
+    return {
+      path: pathData(start, midpoint, end),
+      pathLength: Math.max(GEOMETRY_EPSILON, length(subtract(end, start)) * 0.9),
+      fontSize: fallbackFontSize,
+      strokeWidth: Math.max(0.02, Math.min(0.9, fallbackFontSize * 0.065)),
+      letterSpacing: 0,
+      curved: false,
+    };
   }
   return null;
 }
@@ -447,6 +474,8 @@ function renderLabels(
     textPath.setAttribute('text-anchor', 'middle');
     textPath.setAttribute('method', 'align');
     textPath.setAttribute('spacing', 'auto');
+    textPath.setAttribute('textLength', layout.pathLength.toFixed(2));
+    textPath.setAttribute('lengthAdjust', 'spacingAndGlyphs');
     textPath.textContent = source.provinceName;
     text.append(textPath);
     overlay.append(text);
@@ -482,7 +511,10 @@ export function createProvinceMapLabelRenderer(
     if (frame !== null || chart.isDisposed()) return;
     frame = requestAnimationFrame(render);
   };
-  const handleGeoRoam = () => schedule();
+  const handleGeoRoam = () => {
+    schedule();
+    requestAnimationFrame(schedule);
+  };
   chart.on('georoam', handleGeoRoam);
   schedule();
   return {

@@ -1,5 +1,20 @@
 import { expect, test } from '@playwright/test';
 
+async function clickMapProvinceLabel(page: import('@playwright/test').Page, provinceName: string) {
+  const label = page.locator('.province-map-label').filter({ hasText: new RegExp(`^${provinceName}$`) });
+  await expect(label).toBeVisible();
+  const point = await label.evaluate((element) => {
+    const href = element.querySelector('textPath')?.getAttribute('href');
+    const path = href ? element.ownerSVGElement?.querySelector<SVGPathElement>(href) : null;
+    if (!path) throw new Error('province label path is missing');
+    const local = path.getPointAtLength(path.getTotalLength() / 2);
+    const matrix = path.getScreenCTM();
+    if (!matrix) throw new Error('province label screen transform is missing');
+    return { x: matrix.a * local.x + matrix.c * local.y + matrix.e, y: matrix.b * local.x + matrix.d * local.y + matrix.f };
+  });
+  await page.mouse.click(point.x, point.y);
+}
+
 test.describe('warehouse and market online auto trade responsibilities', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
@@ -90,7 +105,7 @@ test.describe('warehouse and market online auto trade responsibilities', () => {
     await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
     const map = page.getByTestId('us-mainland-map');
     await expect(map).toHaveAttribute('data-echarts-ready', 'true');
-    await map.locator('svg text').filter({ hasText: /^CA$/ }).click();
+    await clickMapProvinceLabel(page, '加利福尼亚州');
 
     await page.setViewportSize({ width: 390, height: 844 });
     const provinceTabs = page.getByRole('tablist', { name: '加利福尼亚州页面分区' });

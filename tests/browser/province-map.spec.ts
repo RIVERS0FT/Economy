@@ -52,12 +52,20 @@ async function findMapBlankPoint(page: Page) {
 async function clickProvinceLabel(page: Page, provinceId: string) {
   const label = page.locator(`.province-map-label[data-province-id="${provinceId}"]`);
   await expect(label).toBeVisible();
-  const box = await label.boundingBox();
-  expect(box).not.toBeNull();
-  await page.mouse.click(
-    (box?.x ?? 0) + (box?.width ?? 0) / 2,
-    (box?.y ?? 0) + (box?.height ?? 0) / 2,
-  );
+  const point = await label.evaluate((element) => {
+    const textPath = element.querySelector('textPath');
+    const href = textPath?.getAttribute('href');
+    const path = href ? element.ownerSVGElement?.querySelector<SVGPathElement>(href) : null;
+    if (!path) throw new Error('province label path is missing');
+    const local = path.getPointAtLength(path.getTotalLength() / 2);
+    const matrix = path.getScreenCTM();
+    if (!matrix) throw new Error('province label screen transform is missing');
+    return {
+      x: matrix.a * local.x + matrix.c * local.y + matrix.e,
+      y: matrix.b * local.x + matrix.d * local.y + matrix.f,
+    };
+  });
+  await page.mouse.click(point.x, point.y);
 }
 
 async function provinceLabelFontSize(page: Page, provinceId: string) {
@@ -155,7 +163,6 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   const labels = labelOverlay.locator('.province-map-label');
   await expect(labels).toHaveCount(48);
   await expect(labels.locator('textPath')).toHaveCount(48);
-  await expect(labels.filter({ has: page.locator('[data-label-fit="inside"]') })).toHaveCount(0);
   const fitValues = await labels.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-label-fit')));
   expect(fitValues.every((value) => value === 'inside')).toBe(true);
   const renderedRegionLabels = await labels.allTextContents();
