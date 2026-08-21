@@ -24,6 +24,7 @@ const paths = {
   shopStyles: 'src/styles/gem-shop.css',
   leaderboardStyles: 'src/styles/leaderboards.css',
   geometryTest: 'tests/browser/player-page-geometry.spec.ts',
+  marketRuntimeTest: 'tests/browser/market-runtime.spec.ts',
   design: 'docs/PRIMARY_SURFACE_INSET_DESIGN.md',
   uiDesign: 'docs/UI_DESIGN_SYSTEM.md',
 };
@@ -99,8 +100,15 @@ if (failures.length === 0) {
     '`.panel.production-surface` 与 `.panel.leaderboard-board-card`',
     '业务页面 CSS 不得',
     '`tests/browser/player-page-geometry.spec.ts`',
+    '浏览器真实几何回归若在同一页面实例内跨越 `720px` 桌面／移动断点',
+    '`tests/browser/market-runtime.spec.ts` 的跨桌面／移动响应式几何用例',
     '该验证必须加入 `verify:architecture`',
   ]) requireText(paths.design, text);
+
+  requireText(
+    paths.marketRuntimeTest,
+    "await expect(orderEntry).toBeVisible();\n  await expect(orderBook).toBeVisible();\n  const mobileOrder = await requireBox(orderEntry);\n  const mobileBook = await requireBox(orderBook);",
+  );
 
   for (const text of [
     "test.describe('player page safe geometry'",

@@ -237,6 +237,8 @@ test('market medium and narrow layouts keep the trade card responsive without ho
     htmlElement.style.width = '';
     htmlElement.style.maxWidth = '';
   });
+  await expect(orderEntry).toBeVisible();
+  await expect(orderBook).toBeVisible();
   const mobileOrder = await requireBox(orderEntry);
   const mobileBook = await requireBox(orderBook);
   expect(Math.abs(mobileOrder.y - mobileBook.y)).toBeLessThan(3);
