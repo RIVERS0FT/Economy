@@ -87,6 +87,7 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-label-mode', 'curved-chinese-full-name');
   await expect(canvas).toHaveAttribute('data-map-label-mode', 'curved-chinese-full-name');
   await expect(canvas).toHaveAttribute('data-map-label-count', '48');
+  await expect(canvas).toHaveAttribute('data-map-tooltip-mode', 'desktop');
   await expect(page.locator('.application-map-layer')).toBeVisible();
   await expect(page.locator('.application-ui-layer')).toBeVisible();
   await expect(page.locator('.workspace-strategic-chrome')).toBeVisible();
@@ -329,19 +330,23 @@ test('mobile strategy map fills the root map layer without obsolete map cards or
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
 
   const map = page.getByTestId('us-mainland-map');
+  const canvas = map.locator('.economy-chart__canvas');
   await expect(map).toHaveAttribute('data-echarts-ready', 'true');
-  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-label-count', '48');
+  await expect(canvas).toHaveAttribute('data-map-label-count', '48');
+  await expect(canvas).toHaveAttribute('data-map-tooltip-mode', 'desktop');
   await clickProvinceLabel(page, '150000');
   await expect(page.getByRole('heading', { name: '科罗拉多州', exact: true })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-contain-viewport', '390x844');
-  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-label-count', '48');
+  await expect(canvas).toHaveAttribute('data-map-contain-viewport', '390x844');
+  await expect(canvas).toHaveAttribute('data-map-tooltip-mode', 'hidden-mobile');
+  await expect(page.locator('.province-map-tooltip')).toBeHidden();
+  await expect(canvas).toHaveAttribute('data-map-label-count', '48');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-feature-count', '48');
   await expect(page.locator('.strategic-province-inspector')).toHaveCount(0);
   await expect(page.locator('.application-map-layer > .strategic-map-lens-bar')).toBeHidden();
   await expect(page.locator('.province-map-page > *')).toHaveCount(0);
-  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-fit-mode', 'contain');
-  await expect(map.locator('.economy-chart__canvas')).toHaveAttribute('data-map-contain-viewport', '390x844');
+  await expect(canvas).toHaveAttribute('data-map-fit-mode', 'contain');
+  await expect(canvas).toHaveAttribute('data-map-contain-viewport', '390x844');
 
   const geometry = await page.evaluate(() => {
     const box = (selector: string) => {
@@ -419,6 +424,8 @@ test('mobile strategy map keeps labels and blank-space gestures usable', async (
     await expect(map).toHaveAttribute('data-echarts-ready', 'true');
     await expect(canvas).toHaveCSS('touch-action', 'none');
     await expect(canvas).toHaveAttribute('data-map-label-count', '48');
+    await expect(canvas).toHaveAttribute('data-map-tooltip-mode', 'hidden-mobile');
+    await expect(page.locator('.province-map-tooltip')).toBeHidden();
 
     const renderedLabels = await map.locator('.province-map-label').allTextContents();
     for (const name of ['加利福尼亚州', '得克萨斯州', '科罗拉多州', '佛罗里达州', '纽约州']) {
@@ -466,6 +473,8 @@ test('mobile strategy map keeps labels and blank-space gestures usable', async (
     expect(resetOutline.right).toBeCloseTo(initialOutline.right, 0);
     expect(resetOutline.bottom).toBeCloseTo(initialOutline.bottom, 0);
     await expect(canvas).toHaveAttribute('data-map-label-count', '48');
+    await expect(canvas).toHaveAttribute('data-map-tooltip-mode', 'hidden-mobile');
+    await expect(page.locator('.province-map-tooltip')).toBeHidden();
   } finally {
     await context.close();
   }
