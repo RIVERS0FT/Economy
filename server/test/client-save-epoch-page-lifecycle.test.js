@@ -6,6 +6,10 @@ const clientApi = readFileSync(
   new URL('../../src/api/game.ts', import.meta.url),
   'utf8',
 );
+const autoTrade = readFileSync(
+  new URL('../../src/auto-trade/useOnlineAutoTrade.ts', import.meta.url),
+  'utf8',
+);
 
 test('page save epoch is validated before authority publication and survives ordinary state reset', () => {
   assert.match(
@@ -44,6 +48,29 @@ test('writes require a locked page epoch and server epoch mismatch never auto-up
     /SAVE_EPOCH_MISMATCH[\s\S]{0,400}(retry|postAction|request<GameActionResponse>)/.test(clientApi),
     false,
     'SAVE_EPOCH_MISMATCH 后不得自动重放业务写请求',
+  );
+});
+
+test('background auto trade only reacts to the current accepted authority and page epoch', () => {
+  assert.match(
+    autoTrade,
+    /getStateAuthoritySnapshot\(\)\.state/,
+    '自动交易维护必须读取当前 authority，而不是仅使用旧 React model 快照',
+  );
+  assert.match(
+    autoTrade,
+    /!authorityGame[\s\S]*?authorityGame\.userId !== userId[\s\S]*?authorityGame\.saveEpoch !== model\.game\.saveEpoch[\s\S]*?return;/,
+    'authority 清空、用户变化或存档世代变化时不得发起自动交易写请求',
+  );
+  assert.match(
+    autoTrade,
+    /scopeEconomyState\(authorityGame, model\.selectedProvinceId\)/,
+    '自动交易必须将最新全局 authority 按当前州重新 scope 后计算维护动作',
+  );
+  assert.match(
+    autoTrade,
+    /statusFor\(productId, game\)/,
+    '非 React authority 事件必须使用最新 scoped authority 计算自动交易状态',
   );
 });
 
