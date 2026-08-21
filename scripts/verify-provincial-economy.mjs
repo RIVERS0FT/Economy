@@ -249,7 +249,7 @@ for (const text of [
   'container.dataset.mapContainViewport',
   'const applyResponsiveTooltip = useCallback((chart: EChartsType) => {',
   'const showTooltip = chart.getWidth() > MOBILE_MAP_MAX_WIDTH;',
-  'tooltip: { show: showTooltip },',
+  'show: showTooltip,',
   "chart.dispatchAction({ type: 'hideTip' });",
   "chart.getDom().dataset.mapTooltipMode = showTooltip ? 'desktop' : 'hidden-mobile';",
   'applyResponsiveTooltip(chart);',
