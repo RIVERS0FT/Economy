@@ -1,8 +1,8 @@
 .strategic-map-zoom-controls {
   position: absolute;
   z-index: 3;
-  right: var(--layout-gutter);
-  bottom: var(--layout-gutter);
+  left: 50%;
+  bottom: calc(var(--layout-gutter) + 62px);
   display: grid;
   grid-template-columns: 44px;
   gap: .3rem;
@@ -13,6 +13,7 @@
   box-shadow: var(--frosted-glass-shadow);
   -webkit-backdrop-filter: var(--frosted-glass-filter);
   backdrop-filter: var(--frosted-glass-filter);
+  transform: translateX(-50%);
   pointer-events: auto;
 }
 
@@ -42,8 +43,10 @@
 
 @media (max-width: 720px) {
   .strategic-map-zoom-controls {
+    left: auto;
     right: var(--layout-gutter);
     bottom: calc(68px + var(--layout-gutter) * 2);
     border-radius: var(--radius-card-mobile);
+    transform: none;
   }
 }
