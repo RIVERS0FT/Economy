@@ -18,11 +18,11 @@ const loadAuctionPage = cachedLoader(() => import('./AuctionPage'));
 const loadBankPage = cachedLoader(() => import('./BankPage'));
 const loadContractPage = cachedLoader(() => import('./ContractPage'));
 const loadLeaderboardPage = cachedLoader(() => import('./LeaderboardPage'));
-const loadMarketPage = cachedLoader(() => import('./MarketPage'));
+const loadGlobalMarketPage = cachedLoader(() => import('./GlobalMarketPage'));
 const loadMapPage = cachedLoader(() => import('./MapPage'));
 const loadOverviewPage = cachedLoader(() => import('./OverviewPage'));
 const loadProvincePage = cachedLoader(() => import('./ProvincePage'));
-const loadBuildingsPage = cachedLoader(() => import('./BuildingsPage'));
+const loadGlobalBuildingsPage = cachedLoader(() => import('./GlobalBuildingsPage'));
 const loadResearchPage = cachedLoader(() => import('./ResearchPage'));
 const loadGemShopPage = cachedLoader(() => import('./GemShopPage'));
 const loadSettingsPage = cachedLoader(() => import('./SettingsPage'));
@@ -31,8 +31,8 @@ const pagePreloaders: Record<TabId, () => Promise<unknown>> = {
   home: loadOverviewPage,
   map: loadMapPage,
   province: loadProvincePage,
-  market: loadMarketPage,
-  buildings: loadBuildingsPage,
+  market: loadGlobalMarketPage,
+  buildings: loadGlobalBuildingsPage,
   research: loadResearchPage,
   auction: loadAuctionPage,
   contracts: loadContractPage,
@@ -82,11 +82,11 @@ const AuctionPage = lazy(() => import('./AuctionPage').then((module) => ({ defau
 const BankPage = lazy(() => import('./BankPage').then((module) => ({ default: module.BankPage })));
 const ContractPage = lazy(() => import('./ContractPage').then((module) => ({ default: module.ContractPage })));
 const LeaderboardPage = lazy(() => import('./LeaderboardPage').then((module) => ({ default: module.LeaderboardPage })));
-const MarketPage = lazy(() => import('./MarketPage').then((module) => ({ default: module.MarketPage })));
+const GlobalMarketPage = lazy(() => import('./GlobalMarketPage').then((module) => ({ default: module.GlobalMarketPage })));
 const MapPage = lazy(() => import('./MapPage').then((module) => ({ default: module.MapPage })));
 const OverviewPage = lazy(() => import('./OverviewPage').then((module) => ({ default: module.OverviewPage })));
 const ProvincePage = lazy(() => import('./ProvincePage').then((module) => ({ default: module.ProvincePage })));
-const BuildingsPage = lazy(() => import('./BuildingsPage').then((module) => ({ default: module.BuildingsPage })));
+const GlobalBuildingsPage = lazy(() => import('./GlobalBuildingsPage').then((module) => ({ default: module.GlobalBuildingsPage })));
 const ResearchPage = lazy(() => import('./ResearchPage').then((module) => ({ default: module.ResearchPage })));
 const GemShopPage = lazy(() => import('./GemShopPage').then((module) => ({ default: module.GemShopPage })));
 const SettingsPage = lazy(() => import('./SettingsPage').then((module) => ({ default: module.SettingsPage })));
@@ -119,12 +119,12 @@ export function PageRouter({ model }: { model: OnlineAutoTradeAwareGameViewModel
       renderPage = () => <ProvincePage model={model} />;
       break;
     case 'market':
-      renderPage = () => <MarketPage model={model} />;
+      renderPage = () => <GlobalMarketPage model={model} />;
       break;
     case 'buildings':
       renderPage = () => (
         <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
-          <BuildingsPage model={model} />
+          <GlobalBuildingsPage model={model} />
         </FacilityRecipeProfitMarketsProvider>
       );
       break;
