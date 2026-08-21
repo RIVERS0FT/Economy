@@ -1,0 +1,80 @@
+name: Temporary Market Responsive Test Sync
+
+on:
+  push:
+    branches:
+      - codex/fix-market-responsive-deploy
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: ${{ !contains(github.event.head_commit.message, '[market-responsive-test-synced]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/fix-market-responsive-deploy
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Stabilize cross-breakpoint geometry test and document the rule
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          function replace(path, from, to) {
+            const text = fs.readFileSync(path, 'utf8');
+            if (!text.includes(from)) throw new Error(`${path} missing expected source: ${from}`);
+            fs.writeFileSync(path, text.replace(from, to));
+          }
+
+          replace(
+            'tests/browser/market-runtime.spec.ts',
+            `  await surface.evaluate((element) => {\n    const htmlElement = element as HTMLElement;\n    htmlElement.style.width = '';\n    htmlElement.style.maxWidth = '';\n  });\n  const mobileOrder = await requireBox(orderEntry);\n  const mobileBook = await requireBox(orderBook);`,
+            `  await surface.evaluate((element) => {\n    const htmlElement = element as HTMLElement;\n    htmlElement.style.width = '';\n    htmlElement.style.maxWidth = '';\n  });\n  await expect(orderEntry).toBeVisible();\n  await expect(orderBook).toBeVisible();\n  const mobileOrder = await requireBox(orderEntry);\n  const mobileBook = await requireBox(orderBook);`,
+          );
+
+          replace(
+            'docs/PRIMARY_SURFACE_INSET_DESIGN.md',
+            `- \`GlobalBuildingsPage\` 等全局经营页必须以 \`minmax(0, 1fr)\` 和 \`min-width: 0\` 保证网格可收缩；移动端顶部四项汇总固定为两列，不能靠抽屉裁剪维持桌面列数。`,
+            `- \`GlobalBuildingsPage\` 等全局经营页必须以 \`minmax(0, 1fr)\` 和 \`min-width: 0\` 保证网格可收缩；移动端顶部四项汇总固定为两列，不能靠抽屉裁剪维持桌面列数。\n- 浏览器真实几何回归若在同一页面实例内跨越 \`720px\` 桌面／移动断点，必须先等待断点后的目标业务节点恢复为可见且具有非零布局盒，再读取 \`boundingBox()\` 或其他几何；视口切换会触发玩家外壳与 Mobile Workspace Sheet 的响应式重排，测试不得把切换调用返回的瞬间误判为布局已经稳定。`,
+          );
+
+          replace(
+            'docs/PRIMARY_SURFACE_INSET_DESIGN.md',
+            `- \`tests/browser/player-page-geometry.spec.ts\` 在桌面和移动断点覆盖正式页面，验证页面不超出承载面、可滚动正文首项有统一顶部间距且根级无横向溢出。`,
+            `- \`tests/browser/player-page-geometry.spec.ts\` 在桌面和移动断点覆盖正式页面，验证页面不超出承载面、可滚动正文首项有统一顶部间距且根级无横向溢出；\n- \`tests/browser/market-runtime.spec.ts\` 的跨桌面／移动响应式几何用例必须在断点切换后等待下单区与订单簿重新可见，再读取真实布局盒，防止把外壳重排中的瞬态无布局状态误报为页面几何回归。`,
+          );
+
+          replace(
+            'scripts/verify-primary-surface-insets.mjs',
+            `  geometryTest: 'tests/browser/player-page-geometry.spec.ts',\n  design: 'docs/PRIMARY_SURFACE_INSET_DESIGN.md',`,
+            `  geometryTest: 'tests/browser/player-page-geometry.spec.ts',\n  marketRuntimeTest: 'tests/browser/market-runtime.spec.ts',\n  design: 'docs/PRIMARY_SURFACE_INSET_DESIGN.md',`,
+          );
+
+          replace(
+            'scripts/verify-primary-surface-insets.mjs',
+            `    '\`tests/browser/player-page-geometry.spec.ts\`',\n    '该验证必须加入 \`verify:architecture\`',`,
+            `    '\`tests/browser/player-page-geometry.spec.ts\`',\n    '浏览器真实几何回归若在同一页面实例内跨越 \`720px\` 桌面／移动断点',\n    '\`tests/browser/market-runtime.spec.ts\` 的跨桌面／移动响应式几何用例',\n    '该验证必须加入 \`verify:architecture\`',`,
+          );
+
+          replace(
+            'scripts/verify-primary-surface-insets.mjs',
+            `  for (const text of [\n    "test.describe('player page safe geometry'",`,
+            `  requireText(\n    paths.marketRuntimeTest,\n    "await expect(orderEntry).toBeVisible();\\n  await expect(orderBook).toBeVisible();\\n  const mobileOrder = await requireBox(orderEntry);\\n  const mobileBook = await requireBox(orderBook);",\n  );\n\n  for (const text of [\n    "test.describe('player page safe geometry'",`,
+          );
+          NODE
+      - name: Commit synchronized regression rule
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- tests/browser/market-runtime.spec.ts docs/PRIMARY_SURFACE_INSET_DESIGN.md scripts/verify-primary-surface-insets.mjs
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "稳定市场跨断点几何回归 [market-responsive-test-synced]"
+          git push origin HEAD:codex/fix-market-responsive-deploy
