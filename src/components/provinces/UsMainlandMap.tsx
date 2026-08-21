@@ -21,6 +21,10 @@ import {
   type ProvinceMapLabelRenderer,
   type ProvinceMapLabelSource,
 } from './provinceMapLabels';
+import {
+  createProvinceMapZoomInterpolator,
+  type ProvinceMapZoomInterpolator,
+} from './provinceMapZoomInterpolator';
 
 const US_MAINLAND_MAP_NAME = 'economy-us-mainland-states';
 const US_MAINLAND_ASPECT_SCALE = 0.75;
@@ -241,6 +245,7 @@ export function UsMainlandMap({
   )), [lens, provinces, summaries, unlockedSet]);
   const lastBlankTapRef = useRef<{ at: number; x: number; y: number } | null>(null);
   const labelRendererRef = useRef<ProvinceMapLabelRenderer | null>(null);
+  const zoomInterpolatorRef = useRef<ProvinceMapZoomInterpolator | null>(null);
   const selectedProvinceIdRef = useRef(selectedProvinceId);
   selectedProvinceIdRef.current = selectedProvinceId;
 
@@ -248,6 +253,7 @@ export function UsMainlandMap({
     const width = chart.getWidth();
     const height = chart.getHeight();
     if (!(width > 0) || !(height > 0)) return;
+    zoomInterpolatorRef.current?.reset(1);
     const layoutSize = containLayoutSize(width, height);
     chart.setOption({
       series: [{
@@ -293,11 +299,18 @@ export function UsMainlandMap({
     );
   }, []);
 
+  const installZoomInterpolator = useCallback((chart: EChartsType) => {
+    zoomInterpolatorRef.current?.destroy();
+    zoomInterpolatorRef.current = createProvinceMapZoomInterpolator(chart);
+  }, []);
+
   useEffect(() => {
     labelRendererRef.current?.updateSelection();
   }, [selectedProvinceId]);
 
   useEffect(() => () => {
+    zoomInterpolatorRef.current?.destroy();
+    zoomInterpolatorRef.current = null;
     labelRendererRef.current?.destroy();
     labelRendererRef.current = null;
   }, []);
@@ -318,7 +331,7 @@ export function UsMainlandMap({
       nameProperty: 'name',
       selectedMode: 'single',
       selectedMap,
-      roam: true,
+      roam: 'move',
       roamTrigger: 'global',
       scaleLimit: { min: 0.5, max: 4 },
       aspectScale: US_MAINLAND_ASPECT_SCALE,
@@ -400,7 +413,8 @@ export function UsMainlandMap({
     applyContainCamera(chart);
     applyResponsiveTooltip(chart);
     installProvinceLabels(chart);
-  }, [applyContainCamera, applyResponsiveTooltip, installProvinceLabels]);
+    installZoomInterpolator(chart);
+  }, [applyContainCamera, applyResponsiveTooltip, installProvinceLabels, installZoomInterpolator]);
 
   const handleChartResize = useCallback((chart: EChartsType) => {
     applyContainCamera(chart);

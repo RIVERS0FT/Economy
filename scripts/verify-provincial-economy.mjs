@@ -225,10 +225,12 @@ for (const text of [
   'name: region.name',
   'name: province.name',
   'createProvinceMapLabelRenderer',
+  'createProvinceMapZoomInterpolator',
   'provinceMapLabelSources',
   'registerEChartsMap(US_MAINLAND_MAP_NAME, usMainlandGeoJson)',
   "type: 'map'",
   "selectedMode: 'single'",
+  "roam: 'move'",
   "roamTrigger: 'global'",
   'scaleLimit: { min: 0.5, max: 4 }',
   'const US_MAINLAND_ASPECT_SCALE = 0.75',
@@ -246,6 +248,9 @@ for (const text of [
   'labelRendererRef.current?.syncCamera();',
   'labelRendererRef.current?.refreshLayout();',
   'labelRendererRef.current?.updateSelection();',
+  'zoomInterpolatorRef.current?.reset(1);',
+  'zoomInterpolatorRef.current?.destroy();',
+  'installZoomInterpolator(chart);',
   'onResize={handleChartResize}',
   "container.dataset.mapFitMode = 'contain'",
   'container.dataset.mapContainViewport',
@@ -279,6 +284,7 @@ for (const forbidden of [
   'data: data.map((datum)',
   'onOptionApplied={handleOptionApplied}',
   'labelRendererRef.current?.schedule();',
+  'roam: true,',
 ]) {
   assert.equal(mapComponent.includes(forbidden), false, `地图不得恢复英文缩写或旧标签实现: ${forbidden}`);
 }
@@ -347,6 +353,36 @@ for (const forbidden of [
   assert.equal(mapLabels.includes(forbidden), false, `地图标签层不得恢复英文简称、字形拉伸或独立交互: ${forbidden}`);
 }
 
+
+const mapZoomInterpolator = read('src/components/provinces/provinceMapZoomInterpolator.ts');
+for (const text of [
+  "const MAP_SERIES_ID = 'us-mainland-map'",
+  'export const MAP_ZOOM_MIN = 0.5',
+  'export const MAP_ZOOM_MAX = 4',
+  'const WHEEL_ZOOM_SENSITIVITY = 0.0016',
+  'const MAX_WHEEL_LOG_STEP = 0.2',
+  'const MAX_FRAME_LOG_STEP = Math.log(1.11)',
+  'const WHEEL_RESPONSE_MS = 60',
+  'const PINCH_RESPONSE_MS = 50',
+  'function normalizeWheelDelta',
+  "window.matchMedia('(prefers-reduced-motion: reduce)')",
+  "container.addEventListener('wheel', handleWheel, { passive: false })",
+  'event.preventDefault();',
+  'event.stopPropagation();',
+  'targetZoom * Math.exp(inputLogStep)',
+  'const pinchScale = Number(event.pinchScale)',
+  'targetZoom * pinchScale',
+  "type: 'geoRoam'",
+  'seriesId: MAP_SERIES_ID',
+  'requestAnimationFrame(animate)',
+  "container.dataset.mapZoomMode = 'interpolated'",
+  'container.dataset.mapZoomCurrent',
+  'container.dataset.mapZoomTarget',
+  'container.dataset.mapZoomFrameCount',
+  'container.dataset.mapZoomMaxStep',
+]) assert.ok(mapZoomInterpolator.includes(text), `地图插值缩放缺少: ${text}`);
+assert.equal(mapZoomInterpolator.includes('setOption('), false, '地图插值缩放热路径不得通过 setOption 逐帧更新');
+
 const echartsCore = read('src/components/charts/echartsCore.ts');
 for (const text of ['MapChart', 'GeoComponent', 'registerEChartsMap']) {
   assert.ok(echartsCore.includes(text), `ECharts 地图核心缺少: ${text}`);
@@ -397,9 +433,16 @@ for (const text of [
   'data-map-curved-label-count',
   "'加利福尼亚州', '得克萨斯州', '华盛顿州', '佛罗里达州', '纽约州'",
   'provinceLabelVisualWidth',
+  'provinceLabelVisualCenter',
   'data-map-label-camera-mode',
   'data-map-label-layout-revision',
   'data-map-label-camera-sync-count',
+  'data-map-zoom-mode',
+  'data-map-zoom-current',
+  'data-map-zoom-target',
+  'data-map-zoom-active',
+  'data-map-zoom-frame-count',
+  'data-map-zoom-max-step',
   'mapScale',
   'labelScale',
   'clickProvinceLabel',
@@ -459,6 +502,10 @@ for (const text of [
   '不得通过 `textLength`',
   '完整落在州面内部',
   '`georoam` 热路径只允许更新共享 SVG 相机组的统一等比缩放和平移矩阵',
+  "`roam: 'move'`",
+  '每帧最多一次 `geoRoam`',
+  '真实 `pinchScale`',
+  '不得使用逐帧 `setOption`',
   '禁止重新执行州界投影、主轴／走廊扫描、字体测量、逐字碰撞或 `replaceChildren()`',
 ]) assert.ok(uiDesign.includes(text), `移动地图设计规则缺少: ${text}`);
 for (const forbidden of ['等比 Cover 相机', '常驻州缩写', '全部州缩写关闭', '最高 8 倍受限缩放']) {
@@ -482,6 +529,10 @@ for (const text of [
   '单个汉字自身不得弯曲、压扁或拉长',
   '名称随地图缩放和平移同步变化',
   '`georoam` 期间不得重新执行 48 州标签完整布局',
+  "`roam: 'move'`",
+  '目标缩放',
+  '每帧最多通过一次 ECharts `geoRoam`',
+  '真实 `pinchScale`',
   '共享 SVG 相机组',
   '不大于 `720px` 时地图 Tooltip 必须禁用并隐藏',
 ]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);

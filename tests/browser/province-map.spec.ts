@@ -73,6 +73,21 @@ async function provinceLabelVisualWidth(page: Page, provinceId: string) {
   return box.width;
 }
 
+async function provinceLabelVisualCenter(page: Page, provinceId: string) {
+  return page.locator(`.province-map-label[data-province-id="${provinceId}"]`).evaluate((element) => {
+    const x = Number(element.getAttribute('data-label-center-x'));
+    const y = Number(element.getAttribute('data-label-center-y'));
+    const matrix = element.getScreenCTM();
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !matrix) {
+      throw new Error('province label visual center transform is missing');
+    }
+    return {
+      x: matrix.a * x + matrix.c * y + matrix.e,
+      y: matrix.b * x + matrix.d * y + matrix.f,
+    };
+  });
+}
+
 test('persistent US strategy map exposes 48 states, lenses, and local context', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -90,6 +105,12 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await expect(canvas).toHaveAttribute('data-map-label-camera-mode', 'shared-transform');
   await expect(canvas).toHaveAttribute('data-map-label-layout-revision', /^[1-9]\d*$/);
   await expect(canvas).toHaveAttribute('data-map-label-camera-sync-count', /^\d+$/);
+  await expect(canvas).toHaveAttribute('data-map-zoom-mode', 'interpolated');
+  await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');
+  await expect(canvas).toHaveAttribute('data-map-zoom-target', '1.00000');
+  await expect(canvas).toHaveAttribute('data-map-zoom-active', 'false');
+  await expect(canvas).toHaveAttribute('data-map-zoom-frame-count', /^\d+$/);
+  await expect(canvas).toHaveAttribute('data-map-zoom-max-step', /^\d+\.\d+$/);
   await expect(canvas).toHaveAttribute('data-map-tooltip-mode', 'desktop');
   await expect(page.locator('.application-map-layer')).toBeVisible();
   await expect(page.locator('.application-ui-layer')).toBeVisible();
@@ -214,13 +235,24 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   const coloradoBox = await coloradoLabel.boundingBox();
   expect(coloradoBox).not.toBeNull();
   const coloradoWidthBeforeZoom = await provinceLabelVisualWidth(page, '150000');
+  const coloradoCenterBeforeZoom = await provinceLabelVisualCenter(page, '150000');
   const layoutRevisionBeforeRoam = await canvas.getAttribute('data-map-label-layout-revision');
   const cameraSyncBeforeRoam = Number(await canvas.getAttribute('data-map-label-camera-sync-count'));
+  const zoomFrameCountBeforeRoam = Number(await canvas.getAttribute('data-map-zoom-frame-count'));
   await page.mouse.move(
     (coloradoBox?.x ?? 0) + (coloradoBox?.width ?? 0) / 2,
     (coloradoBox?.y ?? 0) + (coloradoBox?.height ?? 0) / 2,
   );
   await page.mouse.wheel(0, -480);
+  expect(Number(await canvas.getAttribute('data-map-zoom-target'))).toBeGreaterThan(1.05);
+  await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.05);
+  await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
+  const settledCurrentZoom = Number(await canvas.getAttribute('data-map-zoom-current'));
+  const settledTargetZoom = Number(await canvas.getAttribute('data-map-zoom-target'));
+  expect(Math.abs(settledCurrentZoom - settledTargetZoom)).toBeLessThan(0.002);
+  expect(Number(await canvas.getAttribute('data-map-zoom-frame-count'))).toBeGreaterThan(zoomFrameCountBeforeRoam + 1);
+  expect(Number(await canvas.getAttribute('data-map-zoom-max-step'))).toBeLessThanOrEqual(1.111);
+  await expect(canvas).toHaveAttribute('data-map-zoom-input-mode', 'wheel');
   await expect.poll(async () => {
     const outline = await readOutlineGeometry(page);
     return outline.right - outline.left;
@@ -228,16 +260,23 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await expect.poll(() => provinceLabelVisualWidth(page, '150000')).toBeGreaterThan(coloradoWidthBeforeZoom * 1.05);
   const zoomedOutline = await readOutlineGeometry(page);
   const zoomedColoradoWidth = await provinceLabelVisualWidth(page, '150000');
+  const coloradoCenterAfterZoom = await provinceLabelVisualCenter(page, '150000');
   const mapScale = (zoomedOutline.right - zoomedOutline.left) / (geometry.pathBounds.right - geometry.pathBounds.left);
   const labelScale = zoomedColoradoWidth / coloradoWidthBeforeZoom;
   expect(Math.abs(labelScale - mapScale) / mapScale).toBeLessThan(0.04);
+  expect(Math.hypot(
+    coloradoCenterAfterZoom.x - coloradoCenterBeforeZoom.x,
+    coloradoCenterAfterZoom.y - coloradoCenterBeforeZoom.y,
+  )).toBeLessThan(8);
   await expect(canvas).toHaveAttribute('data-map-label-layout-revision', layoutRevisionBeforeRoam || '');
   expect(Number(await canvas.getAttribute('data-map-label-camera-sync-count'))).toBeGreaterThan(cameraSyncBeforeRoam);
+  const targetZoomBeforeSelection = await canvas.getAttribute('data-map-zoom-target');
   const cameraBeforeSelection = await readOutlineGeometry(page);
   await clickProvinceLabel(page, '150000');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '150000');
   await expect(page.getByRole('heading', { name: '科罗拉多州', exact: true })).toBeVisible();
   await expect(canvas).toHaveAttribute('data-map-label-layout-revision', layoutRevisionBeforeRoam || '');
+  await expect(canvas).toHaveAttribute('data-map-zoom-target', targetZoomBeforeSelection || '');
   await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');
   await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-page', 'province');
   const provinceTabs = page.getByRole('tablist', { name: '科罗拉多州页面分区' });
@@ -257,6 +296,9 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   const blankPoint = await findMapBlankPoint(page);
   await page.mouse.dblclick(blankPoint.x, blankPoint.y);
   await expect(canvas).toHaveAttribute('data-map-camera-reset', 'blank-double-click');
+  await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');
+  await expect(canvas).toHaveAttribute('data-map-zoom-target', '1.00000');
+  await expect(canvas).toHaveAttribute('data-map-zoom-active', 'false');
   await page.waitForTimeout(320);
   const cameraAfterBlankDoubleClick = await readOutlineGeometry(page);
   expect(cameraAfterBlankDoubleClick.left).toBeCloseTo(geometry.pathBounds.left, 0);
@@ -358,6 +400,12 @@ test('mobile strategy map fills the root map layer without obsolete map cards or
   await expect(canvas).toHaveAttribute('data-map-label-camera-mode', 'shared-transform');
   await expect(canvas).toHaveAttribute('data-map-label-layout-revision', /^[1-9]\d*$/);
   await expect(canvas).toHaveAttribute('data-map-label-camera-sync-count', /^\d+$/);
+  await expect(canvas).toHaveAttribute('data-map-zoom-mode', 'interpolated');
+  await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');
+  await expect(canvas).toHaveAttribute('data-map-zoom-target', '1.00000');
+  await expect(canvas).toHaveAttribute('data-map-zoom-active', 'false');
+  await expect(canvas).toHaveAttribute('data-map-zoom-frame-count', /^\d+$/);
+  await expect(canvas).toHaveAttribute('data-map-zoom-max-step', /^\d+\.\d+$/);
   await expect(canvas).toHaveAttribute('data-map-tooltip-mode', 'desktop');
   await clickProvinceLabel(page, '150000');
   await expect(page.getByRole('heading', { name: '科罗拉多州', exact: true })).toBeVisible();
@@ -468,9 +516,14 @@ test('mobile strategy map keeps labels and blank-space gestures usable', async (
     const initialColoradoVisualWidth = await provinceLabelVisualWidth(page, '150000');
     const mobileLayoutRevisionBeforeRoam = await canvas.getAttribute('data-map-label-layout-revision');
     const mobileCameraSyncBeforeRoam = Number(await canvas.getAttribute('data-map-label-camera-sync-count'));
+    const mobileZoomFrameBeforeRoam = Number(await canvas.getAttribute('data-map-zoom-frame-count'));
     let blankPoint = await findMapBlankPoint(page);
     await page.mouse.move(blankPoint.x, blankPoint.y);
     await page.mouse.wheel(0, -480);
+    await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.05);
+    await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
+    expect(Number(await canvas.getAttribute('data-map-zoom-frame-count'))).toBeGreaterThan(mobileZoomFrameBeforeRoam + 1);
+    expect(Number(await canvas.getAttribute('data-map-zoom-max-step'))).toBeLessThanOrEqual(1.111);
     await expect.poll(async () => {
       const outline = await readOutlineGeometry(page);
       return outline.right - outline.left;
@@ -495,6 +548,9 @@ test('mobile strategy map keeps labels and blank-space gestures usable', async (
     await page.waitForTimeout(80);
     await page.touchscreen.tap(blankPoint.x, blankPoint.y);
     await expect(canvas).toHaveAttribute('data-map-camera-reset', 'blank-double-tap');
+    await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');
+    await expect(canvas).toHaveAttribute('data-map-zoom-target', '1.00000');
+    await expect(canvas).toHaveAttribute('data-map-zoom-active', 'false');
     await page.waitForTimeout(320);
     const resetOutline = await readOutlineGeometry(page);
     expect(resetOutline.left).toBeCloseTo(initialOutline.left, 0);
