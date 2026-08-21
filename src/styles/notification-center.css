@@ -432,10 +432,13 @@
 }
 
 .notification-toast-stack {
+  --notification-toast-inset: var(--strategic-panel-gap, var(--desktop-layout-gutter));
+
   position: absolute;
-  top: calc(var(--desktop-layout-gutter) + var(--desktop-asset-bar-height) + var(--space-2));
-  right: var(--desktop-layout-gutter);
-  width: min(360px, calc(100vw - (var(--desktop-layout-gutter) * 2)));
+  z-index: 2;
+  right: var(--notification-toast-inset);
+  bottom: var(--notification-toast-inset);
+  width: min(360px, calc(100% - (var(--notification-toast-inset) * 2)));
   display: grid;
   gap: var(--space-2);
   pointer-events: none;
@@ -585,7 +588,7 @@
 }
 
 @keyframes notification-toast-enter {
-  from { opacity: 0; transform: translateY(-6px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
