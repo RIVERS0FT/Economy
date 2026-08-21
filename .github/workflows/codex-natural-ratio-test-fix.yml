@@ -1,0 +1,61 @@
+name: Codex Natural Ratio State Label Test Fix
+
+on:
+  push:
+    branches:
+      - codex/natural-ratio-state-labels
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/natural-ratio-state-labels
+          fetch-depth: 0
+      - name: Repair map label test helpers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          helper = '''async function clickMapProvinceLabel(page: import('@playwright/test').Page, provinceName: string) {
+            const label = page.locator('.province-map-label').filter({ hasText: new RegExp(`^${provinceName}$`) });
+            await expect(label).toBeVisible();
+            const point = await label.evaluate((element) => {
+              const x = Number(element.getAttribute('data-label-center-x'));
+              const y = Number(element.getAttribute('data-label-center-y'));
+              const matrix = element.ownerSVGElement?.getScreenCTM();
+              if (!Number.isFinite(x) || !Number.isFinite(y) || !matrix) {
+                throw new Error('province label center transform is missing');
+              }
+              return { x: matrix.a * x + matrix.c * y + matrix.e, y: matrix.b * x + matrix.d * y + matrix.f };
+            });
+            await page.mouse.click(point.x, point.y);
+          }'''
+
+          cases = [
+            ('tests/browser/all-pages-preview.spec.ts', r"async function clickMapProvinceLabel[\s\S]*?\n\}\n\ntest\('account-free", "\n\ntest('account-free"),
+            ('tests/browser/warehouse-auto-sell.spec.ts', r"async function clickMapProvinceLabel[\s\S]*?\n\}\n\ntest\.describe", "\n\ntest.describe"),
+          ]
+          for file_name, pattern, suffix in cases:
+            path = Path(file_name)
+            source = path.read_text()
+            match = re.search(pattern, source)
+            if not match:
+              raise SystemExit(f'missing damaged helper block in {file_name}')
+            source = source[:match.start()] + helper + suffix + source[match.end():]
+            path.write_text(source)
+          PY
+          git rm -- .github/workflows/codex-natural-ratio-test-fix.yml
+          git diff --check
+      - name: Commit repaired tests
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- tests/browser/all-pages-preview.spec.ts tests/browser/warehouse-auto-sell.spec.ts
+          git commit -m "修复州名测试辅助函数"
+          git push origin HEAD:codex/natural-ratio-state-labels
