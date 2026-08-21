@@ -285,7 +285,8 @@ export function mergeStatePatches(currentPartitions, patches) {
   return { partitions, state };
 }
 
-export function createStateDeliveryCache() {
+export function createStateDeliveryCache(options = {}) {
+  const validateState = typeof options.validateState === 'function' ? options.validateState : null;
   let state = null;
   let revision = null;
   let partitionRevisions = {};
@@ -354,6 +355,7 @@ export function createStateDeliveryCache() {
           else delete nextSliceRevisions[sliceName];
         }
       }
+      if (nextState && validateState) validateState(nextState);
       partitionRevisions = nextPartitionRevisions;
       sliceRevisions = nextSliceRevisions;
       partitions = nextPartitions;
