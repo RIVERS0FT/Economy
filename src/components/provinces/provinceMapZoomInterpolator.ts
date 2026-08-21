@@ -113,10 +113,8 @@ export function createProvinceMapZoomInterpolator(chart: EChartsType): ProvinceM
     const targetLog = Math.log(targetZoom);
     const remainingLog = targetLog - currentLog;
     if (Math.abs(remainingLog) <= ZOOM_SETTLE_LOG_EPSILON) {
-      const finalScale = targetZoom / currentZoom;
-      dispatchIncrementalZoom(finalScale);
+      dispatchIncrementalZoom(targetZoom / currentZoom);
       currentZoom = targetZoom;
-      inputMode = inputMode === 'reset' ? 'reset' : inputMode;
       publishState(false);
       lastFrameTime = null;
       return;
@@ -134,15 +132,14 @@ export function createProvinceMapZoomInterpolator(chart: EChartsType): ProvinceM
     const logStep = reducedMotion
       ? remainingLog
       : clamp(rawLogStep, -MAX_FRAME_LOG_STEP, MAX_FRAME_LOG_STEP);
-    const nextZoom = clamp(Math.exp(currentLog + logStep), MAP_ZOOM_MIN, MAP_ZOOM_MAX);
+    let nextZoom = clamp(Math.exp(currentLog + logStep), MAP_ZOOM_MIN, MAP_ZOOM_MAX);
+    if (Math.abs(Math.log(targetZoom / nextZoom)) <= ZOOM_SETTLE_LOG_EPSILON) {
+      nextZoom = targetZoom;
+    }
     dispatchIncrementalZoom(nextZoom / currentZoom);
     currentZoom = nextZoom;
 
-    const afterLog = Math.log(targetZoom / currentZoom);
-    if (Math.abs(afterLog) <= ZOOM_SETTLE_LOG_EPSILON) {
-      const finalScale = targetZoom / currentZoom;
-      dispatchIncrementalZoom(finalScale);
-      currentZoom = targetZoom;
+    if (currentZoom === targetZoom) {
       publishState(false);
       lastFrameTime = null;
       return;
