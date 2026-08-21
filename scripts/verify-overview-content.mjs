@@ -114,6 +114,7 @@ forbidAll(paths.overview, [
   '/ 7 天',
 ]);
 requireAll(paths.strategicWorkspace, [
+  'className="strategic-right-rail strategic-economic-event-rail"',
   'const showTutorial = Boolean(tutorial?.isVisible && tutorial.currentStep);',
   'if (!showEventRail && !showTutorial) return null;',
   "data-tutorial-visible={showTutorial ? 'true' : 'false'}",
@@ -250,11 +251,16 @@ requireAll(paths.strategicStyle, [
   '.strategic-page-host--building > .page-content,',
   '.game-shell .signed-in-shell__primary-card .desktop-sidebar::after {',
   '.strategic-economic-event-rail {',
+  '.strategic-right-rail {',
+  '@keyframes strategic-right-rail-enter',
+  'clip-path: inset(0 0 0 100%);',
   'width: var(--strategic-event-rail-width);',
-  '.game-shell.strategic-tab-research:has(.strategic-economic-event-rail[data-tutorial-visible="true"])',
-  '100% - var(--strategic-event-rail-width) - var(--strategic-panel-gap) * 3',
 ]);
-forbidAll(paths.strategicStyle, ['--strategic-inspector-width', '.strategic-province-inspector']);
+forbidAll(paths.strategicStyle, [
+  '--strategic-inspector-width',
+  '.strategic-province-inspector',
+  '.game-shell.strategic-tab-research:has(.strategic-economic-event-rail[data-tutorial-visible="true"])',
+]);
 forbidAll(paths.sidebarStyle, ['right: -11px;']);
 requireAll(paths.statusBar, ['onClick?: () => void;', "if (item.onClick) classNames.push('asset-bar-item--interactive')", "aria-label={`${item.label}，打开详情`}"]);
 
@@ -320,6 +326,8 @@ requireAll(paths.pageDesign, [
   '概览是经营决策首页',
   '屏幕右侧独立挂载右侧信息栏',
   '教程同样由该外壳持有，并在自身处于显示状态时跨页面常驻',
+  '教程与公开经济事件必须共用 `StrategicWorkspaceChrome` 的唯一右侧信息栏容器',
+  'fullscreen 页面保持完整宽度',
   '签到日历',
   '`1920×1080`',
   '`1440×900`',
@@ -348,4 +356,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('概览验证通过：共享外壳折叠、教程右栏、签到日历、服务器日期语义、权威资产状态、子切片依赖、状态栏趋势与浏览器碰撞回归满足设计基线。');
+console.log('概览验证通过：共享外壳折叠、统一右栏、fullscreen 覆盖语义、签到日历、服务器日期语义、权威资产状态、子切片依赖、状态栏趋势与浏览器碰撞回归满足设计基线。');
