@@ -1,9 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 async function clickMapProvinceLabel(page: import('@playwright/test').Page, provinceName: string) {
-  const label = page.locator('.province-map-label').filter({ hasText: new RegExp(`^${provinceName}import { expect, test } from '@playwright/test';
-
-) });
+  const label = page.locator('.province-map-label').filter({ hasText: new RegExp(`^${provinceName}$`) });
   await expect(label).toBeVisible();
   const point = await label.evaluate((element) => {
     const x = Number(element.getAttribute('data-label-center-x'));
