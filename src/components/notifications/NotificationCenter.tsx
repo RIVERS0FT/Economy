@@ -17,6 +17,7 @@ const MOBILE_NOTIFICATION_QUERY = '(max-width: 720px)';
 const MOBILE_ISLAND_EXIT_MS = 230;
 
 type MobileIslandPhase = 'visible' | 'exiting';
+export type NotificationToastSurface = 'auto' | 'desktop' | 'mobile';
 
 function useMobileNotificationSurface() {
   const [mobile, setMobile] = useState(() => (
@@ -471,13 +472,19 @@ function MobileNotificationIsland({
 export function NotificationToasts({
   toasts,
   onOpen,
+  surface = 'auto',
 }: {
   toasts: NotificationToast[];
   onOpen: () => void;
+  surface?: NotificationToastSurface;
 }) {
   const mobile = useMobileNotificationSurface();
-  if (toasts.length === 0 && !mobile) return null;
-  return mobile
-    ? <MobileNotificationIsland toasts={toasts} onOpen={onOpen} />
-    : <DesktopNotificationToasts toasts={toasts} onOpen={onOpen} />;
+  const enabled = surface === 'auto'
+    || (surface === 'mobile' ? mobile : !mobile);
+  if (!enabled) return null;
+
+  const renderMobile = surface === 'mobile' || (surface === 'auto' && mobile);
+  if (renderMobile) return <MobileNotificationIsland toasts={toasts} onOpen={onOpen} />;
+  if (toasts.length === 0) return null;
+  return <DesktopNotificationToasts toasts={toasts} onOpen={onOpen} />;
 }

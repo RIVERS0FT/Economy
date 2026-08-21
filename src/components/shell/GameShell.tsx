@@ -261,6 +261,7 @@ export function GameShell({ model, children, offline = false }: {
             />
             {notificationCenter.panelOpen ? null : (
               <NotificationToasts
+                surface="mobile"
                 toasts={notificationCenter.toasts}
                 onOpen={notificationCenter.openPanel}
               />
@@ -289,11 +290,20 @@ export function GameShell({ model, children, offline = false }: {
           </>
         )}
         workspaceChrome={(
-          <StrategicWorkspaceChrome
-            model={model}
-            tutorial={tutorial}
-            showEventRail={!HIDDEN_EVENT_RAIL_TABS.has(model.tab)}
-          />
+          <>
+            <StrategicWorkspaceChrome
+              model={model}
+              tutorial={tutorial}
+              showEventRail={!HIDDEN_EVENT_RAIL_TABS.has(model.tab)}
+            />
+            {notificationCenter.panelOpen ? null : (
+              <NotificationToasts
+                surface="desktop"
+                toasts={notificationCenter.toasts}
+                onOpen={notificationCenter.openPanel}
+              />
+            )}
+          </>
         )}
       >
         <PlayerPageNavigationProvider

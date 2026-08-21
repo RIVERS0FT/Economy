@@ -66,6 +66,7 @@
 - 玩家 `PageLayout` 把标题与页面操作固定在 `.page-fixed-header`，正文使用页面卡片内部唯一 `ScrollArea`；工作区外层滚动条隐藏，滚动轨道不得越过卡片边界。
 - `--desktop-page-top-offset` 只表示下方工作区内部沟槽；页面滚动区已经完成状态栏避让，建筑页 sticky 后代不得重复叠加完整状态栏高度。
 - 公开经济事件不得进入 `OverviewPage`、`.page-content` 或页面滚动区。桌面端由 `StrategicWorkspaceChrome` 在工作区右侧挂载唯一 `.strategic-economic-event-rail`；建筑式页面必须给右栏预留空间，纯地图视图允许右栏覆盖地图。事件面板标题不带说明段落或右侧胶囊，事件折叠态只显示名称与距离开始时间，具体状态、时间范围、说明、类别、商品和成交反馈在展开后显示。
+- 桌面关闭态 Toast 必须作为 `.workspace-strategic-chrome` 的直接子项，与 `.strategic-economic-event-rail` 使用相同局部 `z-index: 2`，从工作区右下角按 `var(--strategic-panel-gap)`（当前桌面为 `8px`）定位并向上堆叠；最新通知最靠近右下角。Toast 使用独立最大宽度 `360px`，不得绑定事件右栏的 `clamp(260px, 21vw, 320px)` 宽度，也不得为了避让事件栏推动、缩窄页面或改变右栏几何。Toast DOM 排在事件栏之后，发生局部重叠时临时覆盖事件栏；研发、拍卖、合同、银行、排行榜和商店即使隐藏事件右栏也仍必须保留桌面 Toast。完整通知中心不属于此层，仍按第 6 节使用工作区安全浮层右上角几何。
 - 经营成长线在桌面概览时位于右栏事件日志上方；移动端右栏隐藏，概览只保留移动专用成长线入口，公开事件不回流概览正文。
 - 研发、拍卖、合同、银行、排行榜和商店隐藏右栏；切换页面不得重建根级地图。
 - 玩家主卡片宽度在页面目标宽度变化时使用与侧栏一致的 `220ms cubic-bezier(.2,.8,.2,1)` 过渡；新页面内容以 keyed `clip-path: inset(0 100% 0 0) → inset(0)` 从左向右裁剪展开并轻微淡入，页面布局轨道从首帧起保持最终 `1fr` 几何，动画不得修改 `grid-template-columns`、页面内容宽度或滚动根宽度。动画只由正式页面 ID 变化触发，权威状态刷新、倒计时和表单变化不得重播；不得对地图、ECharts 宿主、工作区或毛玻璃采样链设置动画 `transform`。`prefers-reduced-motion: reduce` 时立即完成。
@@ -99,6 +100,6 @@
 - `tests/browser/game-shell-layout.spec.ts`：侧栏宽窄屏一致、真实指针意图后的悬浮反馈不位移、页面展开期间布局盒几何不受视觉裁剪动画影响、建筑式面板与事件右栏几何。
 - `tests/browser/mobile-status-value-fit.spec.ts`：移动状态栏在连续视口 resize 后必须重新完成数值拟合；`400px` 与 `340px` 两级超窄布局必须先收紧留白和图标，在 `320px` 仍保留 `44px` 通知触控轨道并让完整整数不低于 `0.56rem`；不得卡在 `data-status-values-fitted="false"` 或裁剪末位数字。
 - `tests/browser/mobile-workspace-overlay.spec.ts`：唯一根级 Mobile Workspace Sheet 必须复用工厂详情全宽容器、底边贴物理视口、顶边避让状态栏且只在自身毛玻璃；Sheet 外保持清晰，状态栏可交互，底栏在 Sheet 存在时隐藏并在根 Sheet 收起后播放返回动画；页面卡片滚动条继续位于根 Sheet 安全右边缘且不改变正文宽度。
-- `tests/browser/notification-center.spec.ts`：桌面通知保持工作区浮层；移动通知面板必须覆盖已打开的根 Sheet、保持状态栏最高且面板打开期间通知岛为零，`Escape` 只关闭通知面板并恢复通知入口焦点。
+- `tests/browser/notification-center.spec.ts`：桌面完整通知面板保持工作区安全浮层右上角；桌面关闭态 Toast 与公开事件栏同属战略 Chrome 的 `z-index: 2`、固定工作区右下角且宽度独立，在隐藏事件栏页面仍可出现；移动通知面板必须覆盖已打开的根 Sheet、保持状态栏最高且面板打开期间通知岛为零，`Escape` 只关闭通知面板并恢复通知入口焦点。
 - `tests/browser/mobile-navigation-scrollbar.spec.ts`：移动底栏保持同一 DOM、Sheet 存在时不可见且不可交互、根 Sheet 收起到地图后使用通知灵动岛同系返回动画，并继续验证无 hover、按下／选中／未选中状态和横向滚动。
 - `tests/browser/all-pages-preview.spec.ts`：概览、市场、建筑、设置四个同宽紧凑页面，排行榜与商店等六个全区域页面和独立事件右栏。
