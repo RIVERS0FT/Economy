@@ -428,7 +428,7 @@ for (const text of [
   '州内几何主轴和可读方向',
   '自然宽度、自然高度与自然长宽比',
   '每个汉字必须作为独立刚性 SVG `text` 字形',
-  '禁止 `textLength`',
+  '不得通过 `textLength`',
   '完整落在州面内部',
   '随地图缩放和平移同步重新投影',
 ]) assert.ok(uiDesign.includes(text), `移动地图设计规则缺少: ${text}`);
