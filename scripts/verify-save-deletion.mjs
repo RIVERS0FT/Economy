@@ -7,6 +7,7 @@ const failures = [];
 const required = [
   'src/pages/SettingsPage.tsx',
   'src/api/game.ts',
+  'src/auto-trade/useOnlineAutoTrade.ts',
   'src/types.ts',
   'server/src/app.js',
   'server/src/runtime-store.js',
@@ -31,6 +32,7 @@ for (const path of required) {
 if (failures.length === 0) {
   const settings = read('src/pages/SettingsPage.tsx');
   const clientApi = read('src/api/game.ts');
+  const autoTrade = read('src/auto-trade/useOnlineAutoTrade.ts');
   const types = read('src/types.ts');
   const app = read('server/src/app.js');
   const runtime = `${read('server/src/runtime-store-core.js')}\n${read('server/src/runtime-store.js')}`;
@@ -74,6 +76,16 @@ if (failures.length === 0) {
   }
   if (clientApi.includes('currentSaveEpoch')) failures.push('客户端不得恢复与状态发布分离的 currentSaveEpoch 竞态缓存');
   if (!types.includes('saveEpoch: number;')) failures.push('EconomyState 缺少 saveEpoch');
+
+  for (const text of [
+    'getStateAuthoritySnapshot',
+    'scopeEconomyState(authorityGame, model.selectedProvinceId)',
+    'authorityGame.userId !== userId',
+    'authorityGame.saveEpoch !== model.game.saveEpoch',
+    'statusFor(productId, game)',
+  ]) {
+    if (!autoTrade.includes(text)) failures.push(`自动交易存档世代门禁缺少: ${text}`);
+  }
 
   for (const text of [
     "path === '/api/game/save-deletion/preflight'",
@@ -152,6 +164,7 @@ if (failures.length === 0) {
   for (const text of [
     'page save epoch is validated before authority publication',
     'writes require a locked page epoch',
+    'background auto trade only reacts to the current accepted authority and page epoch',
     'production settlement rejection no longer turns a valid state GET into a load failure loop',
   ]) {
     if (!lifecycleTest.includes(text)) failures.push(`客户端世代生命周期测试缺少: ${text}`);
@@ -162,6 +175,7 @@ if (failures.length === 0) {
   for (const text of [
     'authority publication locks saveEpoch before synchronous background writes',
     'same-user epoch change invalidates the document before publication',
+    'production settlement 409 keeps the accepted state',
     'x-economy-save-epoch',
   ]) {
     if (!lifecycleBrowser.includes(text)) failures.push(`页面世代浏览器回归缺少: ${text}`);
@@ -191,4 +205,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('删除存档的确认、阻断、自动关闭、账号级数据保留、页面存档世代锁、旧标签页写入隔离与旧接口墓碑验证通过。');
+console.log('删除存档的确认、阻断、自动关闭、账号级数据保留、页面存档世代锁、后台自动写 authority 门禁、旧标签页写入隔离与旧接口墓碑验证通过。');
