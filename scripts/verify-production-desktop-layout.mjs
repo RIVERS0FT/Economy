@@ -1,4 +1,4 @@
-// Desktop production workspace geometry regression guard.
+// Regional buildings ledger geometry regression guard.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -9,8 +9,8 @@ const page = read('src/pages/BuildingsPage.tsx');
 const production = read('src/styles/facility-group-card-grid.css');
 const productionSurface = read('src/styles/production-surface.css');
 const legacyIndustryStyles = read('src/styles/industry-system.css');
-const industry = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
 const productionAlignmentDesign = read('docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md');
+const browserTest = read('tests/browser/buildings-ledger-layout.spec.ts');
 const chrome = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
 
 for (const text of [
@@ -19,117 +19,91 @@ for (const text of [
   'scroll-padding-top: 0;',
 ]) assert.equal(shell.includes(text), true, `桌面外壳缺少: ${text}`);
 
-for (const text of [
-  'Desktop production workspace density',
-  'align-self: start;',
-  'grid-template-rows: auto;',
-  'align-content: start;',
-  '@media (min-width: 1600px)',
-  'minmax(480px, 1040px)',
-  'minmax(480px, 680px)',
-  'justify-content: start;',
-  'max-width: 60rem;',
-  'grid-template-columns: repeat(auto-fit, minmax(8.25rem, 1fr));',
-  'grid-template-columns: repeat(2, minmax(0, 1fr));',
-  'grid-template-columns: repeat(3, minmax(0, 1fr));',
-]) assert.equal(production.includes(text), true, `桌面生产布局缺少: ${text}`);
-
 const facilityGridImport = "import './styles/facility-group-card-grid.css';";
 const productionSurfaceImport = "import './styles/production-surface.css';";
-assert.equal(main.includes(facilityGridImport), true, '入口缺少工厂主从布局样式');
-assert.equal(main.includes(productionSurfaceImport), true, '入口缺少生产表面样式');
+assert.equal(main.includes(facilityGridImport), true, '入口缺少工厂基础主从样式');
+assert.equal(main.includes(productionSurfaceImport), true, '入口缺少建筑页最终表面样式');
 assert.equal(
   main.indexOf(productionSurfaceImport) > main.indexOf(facilityGridImport),
   true,
-  '生产表面样式必须在工厂主从布局后加载，才能成为 sticky 对齐最终权威',
+  'production-surface.css 必须在 facility-group-card-grid.css 之后加载，才能成为建筑账本最终权威',
 );
 
 for (const text of [
-  'Desktop production sticky alignment',
-  '.production-workspace > .production-build-card,',
+  'Victoria-style building ledger final layout',
+  'grid-template-columns: repeat(auto-fit, minmax(min(26rem, 100%), 1fr));',
+  'grid-template-areas: none;',
+  '.production-workspace > .facility-cluster-navigation {',
+  'grid-column: 1 / -1;',
+  'order: 1;',
+  '.production-workspace > .production-build-card {',
+  'order: 2;',
   '.production-workspace > .facility-cluster-detail-shell {',
-  'position: sticky;',
-  'top: 0;',
-  'align-self: start;',
-  'max-height: calc(100dvh - var(--desktop-page-top-offset) - var(--desktop-layout-gutter));',
-  'overflow-y: auto;',
-  '.production-workspace > .facility-cluster-detail-shell,',
-  '.production-workspace .facility-cluster-detail-card {',
+  'order: 3;',
+  '.buildings-list-filters {',
+  'repeat(auto-fit, minmax(min(11rem, 100%), 1fr))',
+  '.facility-cluster-selector-list {',
+  'grid-template-columns: minmax(0, 1fr);',
+  '.facility-cluster-selector-card {',
+  'min-height: 4.75rem;',
+  'aspect-ratio: auto;',
+  'max-width: none;',
+  ".facility-cluster-selector-card[data-status='running']::after",
+  "content: '运行中';",
+  ".facility-cluster-selector-card[data-status='error']::after",
+  "content: '异常';",
+  ".facility-cluster-selector-card[data-status='stopped']::after",
+  "content: '已停止';",
+  ".facility-cluster-selector-card[data-status='constructing']::after",
+  "content: '建设中';",
+  ".facility-cluster-count::before",
+  "content: '数量 ';",
+  '@media (min-width: 961px)',
+  'position: static;',
+  'top: auto;',
   'max-height: none;',
   'overflow: visible;',
-]) assert.equal(productionSurface.includes(text), true, `生产 sticky 最终样式缺少: ${text}`);
+]) assert.equal(productionSurface.includes(text), true, `建筑账本最终样式缺少: ${text}`);
 
-const detailNaturalHeightBlock = productionSurface.match(
-  /\.production-workspace > \.facility-cluster-detail-shell,\s*\.production-workspace \.facility-cluster-detail-card\s*\{([^}]*)\}/s,
+for (const text of [
+  '--production-pill-visible-height: 1.6rem;',
+  'width: 2.75rem;',
+  'height: var(--production-pill-visible-height);',
+  '--production-switch-thumb-size: 1rem;',
+]) assert.equal(productionSurface.includes(text), true, `建筑页胶囊／开关规则缺少: ${text}`);
+
+const finalDesktopBlock = productionSurface.match(
+  /@media \(min-width: 961px\)\s*\{([\s\S]*)\}\s*$/,
 )?.[1] ?? '';
-assert.equal(detailNaturalHeightBlock.includes('max-height: none;'), true, '详情固定外壳必须保持自然最大高度');
-assert.equal(detailNaturalHeightBlock.includes('overflow: visible;'), true, '详情固定外壳必须保持可见溢出');
-assert.equal(detailNaturalHeightBlock.includes('overflow-y:'), false, '详情固定外壳不得创建独立纵向滚动');
+assert.equal(finalDesktopBlock.includes('position: sticky;'), false, '建筑账本最终桌面布局不得恢复 sticky');
+assert.equal(finalDesktopBlock.includes('overflow-y: auto;'), false, '建筑账本建设或详情不得恢复独立纵向滚动');
 
-const gridBuildBlocks = [...production.matchAll(/\.production-build-card\s*\{([^}]*)\}/gs)]
-  .map((match) => match[1]);
-for (const block of gridBuildBlocks) {
-  for (const forbidden of [
-    'position: sticky',
-    'top: var(--desktop-page-top-offset)',
-    '100dvh',
-    'overflow-y:',
-    'overscroll-behavior',
-  ]) assert.equal(block.includes(forbidden), false, `工厂主网格不得重新声明建设卡桌面固定职责: ${forbidden}`);
-}
+for (const text of [
+  '建筑页参考大型经营模拟游戏的高密度建筑账本信息组织方式',
+  '已拥有建筑账本（始终第一、始终占满当前管理区宽度）',
+  '基于 `.production-workspace` 自身可用宽度',
+  '不得恢复 4:5 大卡作为最终桌面／移动呈现',
+  '建设卡与详情外壳不再使用建筑页场景 sticky',
+  'position: static;',
+  '`production-surface.css` 是地区建筑页最终账本密度',
+  '`tests/browser/buildings-ledger-layout.spec.ts`',
+]) assert.equal(productionAlignmentDesign.includes(text), true, `建筑账本设计缺少: ${text}`);
 
-const gridDetailShellBlocks = [...production.matchAll(/\.facility-cluster-detail-shell\s*\{([^}]*)\}/gs)]
-  .map((match) => match[1]);
-for (const block of gridDetailShellBlocks) {
-  for (const forbidden of [
-    'position: sticky',
-    'top:',
-    'max-height:',
-    'overflow-y:',
-  ]) assert.equal(block.includes(forbidden), false, `工厂主网格不得重新声明详情外壳固定职责: ${forbidden}`);
-}
+for (const text of [
+  "runtime-test.html?view=production&scenario=activity",
+  "regional buildings uses a dense ledger before build and detail surfaces",
+  "mobile building ledger stays inside the workspace sheet without horizontal clipping",
+  "expect(ledgerBox.y).toBeLessThan(buildBox.y)",
+  "expect(rowBox.width).toBeGreaterThan(rowBox.height * 3)",
+  "expect(geometry.buildPosition).toBe('static')",
+  "expect(geometry.detailPosition).toBe('static')",
+  'workspaceScrollWidth',
+  'workspaceClientWidth',
+]) assert.equal(browserTest.includes(text), true, `建筑账本浏览器回归缺少: ${text}`);
 
 assert.equal(page.includes('facility-card-spacer'), false, '生产详情不得渲染占位 spacer DOM');
-assert.equal(production.includes('.facility-card-spacer'), false, '生产布局不得保留 spacer CSS');
+assert.equal(production.includes('.facility-card-spacer'), false, '生产基础布局不得保留 spacer CSS');
 assert.equal(legacyIndustryStyles.includes('.production-grid {'), false, '旧产业样式不得控制生产主网格');
-const legacyBuildBlocks = [...legacyIndustryStyles.matchAll(/\.production-build-card\s*\{([^}]*)\}/gs)]
-  .map((match) => match[1]);
-for (const block of legacyBuildBlocks) {
-  for (const property of [
-    'position:',
-    'top:',
-    'align-self:',
-    'max-height:',
-    'overflow:',
-    'overflow-y:',
-    'overscroll-behavior',
-  ]) assert.equal(block.includes(property), false, `旧产业建设卡不得声明: ${property}`);
-}
-
-for (const text of [
-  '大于等于 `1600px` 时使用宽屏三列',
-  '自动形成 `3～6` 列竖向选择卡',
-  '剩余宽度优先分配给工厂集群选择',
-  '桌面详情卡高度由内容决定',
-  '`--desktop-page-top-offset`',
-  '`src/styles/facility-group-card-grid.css` 负责',
-  '不得渲染无业务语义的 spacer DOM',
-]) assert.equal(industry.includes(text), true, `产业设计缺少: ${text}`);
-
-for (const text of [
-  '建筑页桌面 sticky 顶部定位也以本文为准',
-  '`top: 0`',
-  '`production-surface.css`',
-  '唯一权威样式文件',
-  '不得声明建设卡或详情外壳的 `position`',
-  '建设卡与当前工厂详情外壳',
-  '页面唯一纵向滚动视口',
-  '`721px–960px` 恢复普通文档流',
-]) assert.equal(productionAlignmentDesign.includes(text), true, `生产对齐设计缺少: ${text}`);
-
 assert.equal(chrome.includes('`--desktop-page-top-offset` 只表示下方工作区内部沟槽'), true, '外壳设计缺少工作区内部顶部偏移规则');
-assert.equal(industry.includes('大于等于 `1600px` 时使用宽屏三列'), true, '产业设计缺少桌面生产布局规则');
-assert.equal(production.includes('minmax(440px, 520px)'), false, '宽屏工厂集群列不得回退为 440px–520px');
-assert.equal(industry.includes('固定三列竖向选择卡'), false, '宽屏工厂集群不得回退为固定三列');
 
-console.log('桌面建筑页建设卡与详情卡 sticky 对齐、唯一职责、自然高度详情和统一滚动验证通过。');
+console.log('建筑页账本验证通过：账本优先、承载宽度自适应、横向工厂行、桌面非 sticky、移动无裁切和紧凑开关规则均已锁定。');
