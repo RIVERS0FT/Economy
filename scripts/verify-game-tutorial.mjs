@@ -82,7 +82,7 @@ requireText(autoSellCompat, "from '../auto-trade/useOnlineAutoTrade'", '旧自�
 requireText(guide, 'className="game-guide-strip panel"', '教程卡必须直接复用统一 panel 毛玻璃表面');
 requireText(guide, '<span>教程</span>', '教程卡必须显示统一名称“教程”');
 requireText(guide, 'aria-label="教程进度"', '教程进度必须有正确无障碍名称');
-forbidText(guide, '经营成长线', '教程卡不得恢复旧展示名称');
+forbidText(guide, '教程', '教程卡不得恢复旧展示名称');
 forbidText(guideStyle, 'border: 1px solid color-mix(in srgb, var(--accent, #4f7cff)', '教程业务样式不得复制旧强调色卡片边框');
 forbidText(guideStyle, 'background: color-mix(in srgb, var(--accent, #4f7cff) 8%', '教程业务样式不得复制旧强调色卡片背景');
 requireText(strategicWorkspace, 'const showTutorial = Boolean(tutorial?.isVisible && tutorial.currentStep);', '桌面外壳必须按教程自身状态决定是否显示');
@@ -102,7 +102,7 @@ requireText(settings, '>显示教程</Button>', '设置页必须提供显示教�
 requireText(settings, '>重新开始教程</Button>', '设置页必须提供重新开始教程按钮');
 requireText(settings, '自动出售设置、自动成交', '设置页重开说明必须反映新版教程');
 requireText(settings, 'tutorial.restart()', '设置页重开必须只调用客户端教程状态机');
-forbidText(settings, '经营成长线', '设置页不得恢复旧展示名称');
+forbidText(settings, '教程', '设置页不得恢复旧展示名称');
 
 requireText(serverApp, "path === '/api/game/tutorial'", '服务器必须提供一次性教程状态读取接口');
 requireText(serverApp, "path === '/api/game/tutorial/complete'", '服务器必须提供幂等完成记录接口');
