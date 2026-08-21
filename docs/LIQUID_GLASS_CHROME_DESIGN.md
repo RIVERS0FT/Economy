@@ -60,18 +60,19 @@
 
 ## 5. 玩家页面与右侧信息栏
 
-- 桌面右侧信息栏由 `StrategicWorkspaceChrome` 唯一持有，教程与公开经济事件是两个独立模块：教程只由 `tutorial.isVisible && tutorial.currentStep` 控制，不能再以 `model.tab === 'home'` 或概览页面是否显示为条件；公开事件日志继续由页面类型控制。教程和公开事件任一需要显示时右栏存在，两者都不需要时右栏不挂载。
+- 桌面右侧信息栏由 `StrategicWorkspaceChrome` 唯一持有，并且只允许一个结构容器；教程与公开经济事件是该容器内两个独立业务模块。教程只由 `tutorial.isVisible && tutorial.currentStep` 控制，不能再以 `model.tab === 'home'` 或概览页面是否显示为条件；公开事件日志继续由页面类型控制。教程和公开事件任一需要显示时右栏存在，两者都不需要时右栏不挂载；不得把教程和公开事件拆成两个并列或重叠的右栏宿主。
 - 教程是桌面应用外壳级常驻模块。只要当前教程处于显示状态，切换概览、州级上下文、市场、建筑、研发、拍卖、合同、银行、排行、商店或设置都不得卸载教程卡；“暂时隐藏”只改变教程自身本地显示状态。“显示教程”恢复当前轮次且不得为了重新显示教程强制跳回概览；“重新开始教程”仍按教程规则从第一步重建并回到概览。
 - 教程卡根节点必须复用通用 `.panel` 的共享毛玻璃材质，使用 `--frosted-glass-background`、`--frosted-glass-border`、`--frosted-glass-shadow` 和 `--frosted-glass-filter`；`game-guide.css` 只负责教程内部布局、进度条和操作区，不得自行定义第二套卡片背景、边框、阴影、滤镜或独立卡片圆角。
-- `research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop` 使用 `fullscreen`；这些页面继续隐藏公开事件日志。教程隐藏或已完成时页面占满主卡片内侧可用区域；教程可见时主卡片必须为右栏预留 `--strategic-event-rail-width + 3 × --strategic-panel-gap`，不得让教程覆盖正文。排行榜与商店在相同教程可见状态下必须保持相同页面宽度。
+- `research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop` 使用 `fullscreen`；这些页面继续隐藏公开事件日志。fullscreen 主卡片始终保持完整工作区宽度，不得因为教程或右侧信息栏出现而缩窄、追加右侧内边距或预留空间；右侧信息栏作为 `z-index: 2` 的 Chrome 覆盖层允许覆盖正文右侧。排行榜与商店在相同页面状态下必须保持相同页面宽度。
 - `home`、隐藏 `province` 上下文页、`market`、`buildings`、`settings` 使用 `building`，统一使用 `--strategic-compact-page-width: 56rem` 作为内容目标值，但包含 `78px` 侧栏轨道的完整 `workspaceCard` 总宽度不得超过 `calc(100vw / 3)`，也不得超过右栏之外的可用空间；不得为其中任一页恢复独立宽度。地图在其余区域继续可见，打开或切换页面不得额外压暗地图。
 - 桌面状态栏、玩家主卡片和右侧信息栏统一使用 `8px` 屏幕边距；共享外壳已经在状态栏下方提供唯一 `8px` 间距，主卡片和右栏必须从工作区顶部 `0` 开始，禁止重复增加顶部沟槽。主卡片底部只保留 `8px` 屏幕边距，不得再为地图镜头栏挤压页面高度。标题与正文内距、一级区块间距统一使用 `var(--layout-gutter)`；玩家主卡片、公开事件面板、教程卡和一级业务卡片统一使用 `var(--radius-card)`，不得保留独立 `12px`／`16px` 页面圆角。桌面 `.page-content` 只负责页面布局并保持透明，不得在主卡片内重复外层边框、圆角、阴影或 `backdrop-filter`。
 - 玩家 `PageLayout` 把标题与页面操作固定在 `.page-fixed-header`，正文使用页面卡片内部唯一 `ScrollArea`；工作区外层滚动条隐藏，滚动轨道不得越过卡片边界。
 - `--desktop-page-top-offset` 只表示下方工作区内部沟槽；页面滚动区已经完成状态栏避让，建筑页 sticky 后代不得重复叠加完整状态栏高度。
 - 公开经济事件不得进入 `OverviewPage`、`.page-content` 或页面滚动区。桌面端由 `StrategicWorkspaceChrome` 在工作区右侧同一 `.strategic-economic-event-rail` 内按页面规则挂载；`home`、`province`、`market`、`buildings`、`settings` 和纯地图视图允许事件日志显示，研发、拍卖、合同、银行、排行、商店隐藏事件日志。事件面板标题不带说明段落或右侧胶囊，事件折叠态只显示名称与距离开始时间，具体状态、时间范围、说明、类别、商品和成交反馈在展开后显示。
-- 当教程与公开事件同时显示时，教程位于右栏顶部，事件日志占用剩余高度并在自身列表内滚动；当右栏只有教程时，教程按自然高度停靠右上，不得用空的事件网格行把教程拉伸到整栏高度。现有 `.strategic-economic-event-rail` 技术类名可以继续沿用，但语义职责已经扩展为通用右侧信息栏。
+- 当教程与公开事件同时显示时，教程位于同一右栏容器顶部，事件日志占用剩余高度并在自身列表内滚动；当右栏只有教程时，教程按自然高度停靠右上，不得用空的事件网格行把教程拉伸到整栏高度。统一宿主使用 `.strategic-right-rail` 作为正式语义类；`.strategic-economic-event-rail` 只作为既有选择器兼容类保留，二者必须落在同一个 `<aside>` 上，绝不能代表两份 DOM 容器。
+- 右侧信息栏从未挂载变为挂载时，统一宿主播放一次 `strategic-right-rail-enter` 入场动画，固定约 `220ms cubic-bezier(.2,.8,.2,1)`，只允许使用 `clip-path` 与 `opacity` 从右向左揭开，不得通过 `transform` 改变毛玻璃采样链或推动正文。页面切换、事件日志增删或教程步骤变化只要右栏宿主持续存在就不得重新播放入场动画；右栏完全卸载后再次出现才允许重新播放。`prefers-reduced-motion: reduce` 下右栏立即显示且 `animation: none`。
 - 桌面关闭态 Toast 必须作为 `.workspace-strategic-chrome` 的直接子项，与 `.strategic-economic-event-rail` 使用相同局部 `z-index: 2`，从工作区右下角按 `var(--strategic-panel-gap)`（当前桌面为 `8px`）定位并向上堆叠；最新通知最靠近右下角。Toast 使用独立最大宽度 `360px`，不得绑定右栏的 `clamp(260px, 21vw, 320px)` 宽度，也不得为了避让右栏推动、缩窄页面或改变右栏几何。Toast DOM 排在右栏之后，发生局部重叠时临时覆盖右栏；研发、拍卖、合同、银行、排行榜和商店即使隐藏事件日志也仍必须保留桌面 Toast。完整通知中心不属于此层，仍按第 6 节使用工作区安全浮层右上角几何。
-- 玩家主卡片宽度在页面目标宽度或教程右栏显示状态变化时使用与侧栏一致的 `220ms cubic-bezier(.2,.8,.2,1)` 过渡；新页面内容以 keyed `clip-path: inset(0 100% 0 0) → inset(0)` 从左向右裁剪展开并轻微淡入，页面布局轨道从首帧起保持最终 `1fr` 几何，动画不得修改 `grid-template-columns`、页面内容宽度或滚动根宽度。动画只由正式页面 ID 变化触发，教程显示／隐藏只能触发主卡片宽度过渡，不得重播页面展开；权威状态刷新、倒计时和表单变化不得重播；不得对地图、ECharts 宿主、工作区或毛玻璃采样链设置动画 `transform`。`prefers-reduced-motion: reduce` 时立即完成。
+- 玩家主卡片宽度只在页面目标宽度变化时使用与侧栏一致的 `220ms cubic-bezier(.2,.8,.2,1)` 过渡；右侧信息栏显示／隐藏不得改变 fullscreen 主卡片宽度。新页面内容以 keyed `clip-path: inset(0 100% 0 0) → inset(0)` 从左向右裁剪展开并轻微淡入，页面布局轨道从首帧起保持最终 `1fr` 几何，动画不得修改 `grid-template-columns`、页面内容宽度或滚动根宽度。动画只由正式页面 ID 变化触发，权威状态刷新、倒计时和表单变化不得重播；不得对地图、ECharts 宿主、工作区或毛玻璃采样链设置动画 `transform`。
 
 ## 6. 移动与浮层
 
@@ -91,7 +92,7 @@
 
 必须通过以下防回退：
 
-- `scripts/verify-liquid-glass-chrome.mjs`：历史脚本路径保留，但验证对象已改为 CSS 毛玻璃、依赖删除、共享组件、单节点 Tooltip 材质、页面分流、教程常驻与右栏职责。
+- `scripts/verify-liquid-glass-chrome.mjs`：历史脚本路径保留，但验证对象已改为 CSS 毛玻璃、依赖删除、共享组件、单节点 Tooltip 材质、页面分流、教程常驻、统一右栏覆盖与右栏动画职责。
 - `scripts/verify-client-update-recovery.mjs`：锁定 `RefreshPageButton` 的浏览器式 SVG 刷新控件、真实 `window.location.reload()` 恢复语义，并禁止异常入口恢复文字刷新按钮或应用内 retry。
 - `scripts/verify-mobile-page-sheet.mjs`：锁定唯一根级 Mobile Workspace Sheet、工厂详情卡片容器单实例、Sheet 自身毛玻璃、透明外部 backdrop、状态栏避让、页面／详情内容复用、共享拖动内核、底栏隐藏与返回动画、通知覆盖和地图关闭语义，禁止恢复第二个 Sheet DOM。
 - `tests/browser/frosted-glass-layout.spec.ts`：状态栏、通用面板、认证和移动底栏的真实背景滤镜、边界、圆角、单实例与无旧 DOM。
@@ -100,9 +101,9 @@
 - `tests/browser/application-error-state.spec.ts`：桌面／移动错误状态必须使用唯一 `stateCard`，真实计算样式包含共享 `blur(18px)`、半透明背景和危险色边界；刷新控件必须为圆形图标按钮并触发页面重新加载。
 - `tests/browser/open-glass-sampling.spec.ts`：四种玩家／管理员、桌面／移动场景的根级采样链。
 - `tests/browser/game-shell-layout.spec.ts`：侧栏宽窄屏一致、真实指针意图后的悬浮反馈不位移、页面展开期间布局盒几何不受视觉裁剪动画影响、建筑式面板与右栏几何。
-- `tests/browser/tutorial-right-rail.spec.ts`：桌面教程跨页面常驻、全屏页避让、`.panel` 毛玻璃计算样式和移动端不出现桌面右栏。
+- `tests/browser/tutorial-right-rail.spec.ts`：桌面教程跨页面常驻、教程与公开事件共用唯一右栏、fullscreen 正文允许被右栏覆盖、右栏入场动画不因页面切换重播、`.panel` 毛玻璃计算样式、reduced motion 和移动端不出现桌面右栏。
 - `tests/browser/mobile-status-value-fit.spec.ts`：移动状态栏在连续视口 resize 后必须重新完成数值拟合；`400px` 与 `340px` 两级超窄布局必须先收紧留白和图标，在 `320px` 仍保留 `44px` 通知触控轨道并让完整整数不低于 `0.56rem`；不得卡在 `data-status-values-fitted="false"` 或裁剪末位数字。
 - `tests/browser/mobile-workspace-overlay.spec.ts`：唯一根级 Mobile Workspace Sheet 必须复用工厂详情全宽容器、底边贴物理视口、顶边避让状态栏且只在自身毛玻璃；Sheet 外保持清晰，状态栏可交互，底栏在 Sheet 存在时隐藏并在根 Sheet 收起后播放返回动画；页面卡片滚动条继续位于根 Sheet 安全右边缘且不改变正文宽度。
 - `tests/browser/notification-center.spec.ts`：桌面完整通知面板保持工作区安全浮层右上角；桌面关闭态 Toast 与右栏同属战略 Chrome 的 `z-index: 2`、固定工作区右下角且宽度独立，在隐藏事件日志页面仍可出现；移动通知面板必须覆盖已打开的根 Sheet、保持状态栏最高且面板打开期间通知岛为零，`Escape` 只关闭通知面板并恢复通知入口焦点。
 - `tests/browser/mobile-navigation-scrollbar.spec.ts`：移动底栏保持同一 DOM、Sheet 存在时不可见且不可交互、根 Sheet 收起到地图后使用通知灵动岛同系返回动画，并继续验证无 hover、按下／选中／未选中状态和横向滚动。
-- `tests/browser/all-pages-preview.spec.ts`：概览、市场、建筑、设置四个同宽紧凑页面，排行榜与商店等六个全区域页面和独立右栏。
+- `tests/browser/all-pages-preview.spec.ts`：概览、市场、建筑、设置四个同宽紧凑页面，排行榜与商店等六个全区域页面和统一右侧信息栏。
