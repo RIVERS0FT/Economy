@@ -96,6 +96,13 @@ for (const text of [
   'scrollable={false}',
 ]) requireText('src/pages/ResearchPage.tsx', text);
 
+const researchPageSource = read('src/pages/ResearchPage.tsx');
+const finalPageLayoutCloseIndex = researchPageSource.lastIndexOf('</PageLayout>');
+const mobileResearchDetailIndex = researchPageSource.lastIndexOf('<MobileResearchDetailSheet');
+if (finalPageLayoutCloseIndex < 0 || mobileResearchDetailIndex <= finalPageLayoutCloseIndex) {
+  failures.push('mobile research detail registration must remain outside PageLayout so the tree is the only fixed-page body child');
+}
+
 for (const text of [
   'technologyDepths',
   'orderedLayers',
@@ -153,6 +160,10 @@ for (const text of [
   'actionInsideTree',
   'expect(researchGeometry.treeViewport).toEqual(researchGeometry.treePanel)',
   "expect(fixedPageOverflow.stackAlignContent).toBe('stretch')",
+  'fixedPageOverflow.stackChildCount',
+  'fixedPageOverflow.stackOnlyWorkspace',
+  'fixedPageOverflow.stackScrollHeight',
+  'mobilePageStructure.containsDialog',
   'researchGeometry.workspace?.bottom',
   'keeps node geometry stable on hover and selected dependency lines visible',
   'preserves an explicit technology selection across refreshed snapshots',
@@ -211,6 +222,9 @@ for (const text of [
   '可生产产物图标与名称',
   '页面自身不得纵向滚动',
   '科技节点画布必须占满标题下方的全部可用页面区域',
+  '页面卡片正文只允许包含科技画布工作区本身',
+  '树状图下方不得再渲染详情、操作、摘要或其他卡片',
+  '移动端详情注册组件必须位于 `PageLayout` 正文之外',
   '操作卡覆盖在科技画布内部左上角',
   '不显示“完整阶段 Cn”',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
@@ -277,4 +291,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('downward prerequisite research DAG, stable hover geometry, visible selected links, deterministic layout, shared pan/zoom viewport, stable selection, detail sheet and design verification passed');
+console.log('downward prerequisite research DAG, stable hover geometry, visible selected links, deterministic layout, shared pan/zoom viewport, stable selection, no below-tree page-flow card, detail sheet and design verification passed');
