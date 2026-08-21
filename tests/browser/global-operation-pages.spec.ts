@@ -14,7 +14,10 @@ async function mapOutlineWidth(page: Page) {
 test('map zoom controls persist on the global map and primary market/buildings are global views', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
+  await page.goto('?preview=game', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('html')).toHaveAttribute('data-local-game-preview', 'true');
+  await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
+  await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
 
   const map = page.getByTestId('us-mainland-map');
   const canvas = map.locator('.economy-chart__canvas');
@@ -35,9 +38,8 @@ test('map zoom controls persist on the global map and primary market/buildings a
   await zoomControls.getByRole('button', { name: '放大地图' }).click();
   await expect.poll(() => mapOutlineWidth(page)).toBeGreaterThan(baselineWidth * 1.05);
 
-  await page.getByRole('navigation', { name: '游戏主导航' })
-    .getByRole('button', { name: '市场', exact: true })
-    .click();
+  const sidebar = page.locator('.desktop-sidebar');
+  await sidebar.getByRole('button', { name: /^市场/ }).click();
   await expect(page.getByRole('heading', { name: '市场', exact: true })).toBeVisible();
   await expect(page.locator('.global-market-page')).toHaveAttribute('data-global-scope', 'market');
   expect(await page.locator('.global-market-page .global-province-card').count()).toBeGreaterThan(1);
@@ -49,9 +51,7 @@ test('map zoom controls persist on the global map and primary market/buildings a
   await page.getByRole('button', { name: '返回全局市场' }).click();
   await expect(page.locator('.global-market-page:not([data-drilldown-province-id])')).toBeVisible();
 
-  await page.getByRole('navigation', { name: '游戏主导航' })
-    .getByRole('button', { name: '建筑', exact: true })
-    .click();
+  await sidebar.getByRole('button', { name: /^建筑/ }).click();
   await expect(page.getByRole('heading', { name: '建筑', exact: true })).toBeVisible();
   await expect(page.locator('.global-buildings-page')).toHaveAttribute('data-global-scope', 'buildings');
   expect(await page.locator('.global-buildings-page .global-province-card').count()).toBeGreaterThan(1);
