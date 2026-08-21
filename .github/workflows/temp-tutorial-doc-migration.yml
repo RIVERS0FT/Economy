@@ -1,0 +1,62 @@
+name: Temporary Tutorial Doc Migration
+
+on:
+  push:
+    branches:
+      - codex/tutorial-right-rail
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: ${{ !contains(github.event.head_commit.message, '[tutorial-doc-migrated]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/tutorial-right-rail
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Update authoritative page design
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md';
+          let text = fs.readFileSync(path, 'utf8');
+          text = text.replaceAll('经营成长线', '教程').replaceAll('成长线', '教程');
+          text = text.replace(
+            '公开经济事件不得进入概览页面内容。桌面端由 `StrategicWorkspaceChrome` 在屏幕右侧独立挂载单列日志，最近 24 小时已结束事件、当前与未来七天事件按时间顺序纵向滚动；概览只在桌面把教程放在该外壳右栏顶部，移动端保留页面内移动专用教程入口。',
+            '公开经济事件不得进入概览页面内容。桌面端由 `StrategicWorkspaceChrome` 在屏幕右侧独立挂载右侧信息栏，最近 24 小时已结束事件、当前与未来七天事件按时间顺序纵向滚动；教程同样由该外壳持有，并在自身处于显示状态时跨页面常驻，不能再以 `home`／概览页面是否显示作为挂载条件。移动端右栏隐藏，概览保留页面内移动专用教程入口。',
+          );
+          text = text.replace(
+            '桌面教程显示在外壳独立事件右栏顶部，移动端使用概览中的移动专用入口；不得替代页面标题区唯一主操作，也不得新增独立教程页面、全屏遮罩或强制聚光灯。',
+            '桌面教程显示在外壳右侧信息栏顶部，只由教程自身显示状态控制；切换概览、州级上下文、市场、建筑、研发、拍卖、合同、银行、排行、商店或设置都不得因页面 ID 卸载可见教程。移动端使用概览中的移动专用入口；不得替代页面标题区唯一主操作，也不得新增独立教程页面、全屏遮罩或强制聚光灯。',
+          );
+          text = text.replace(
+            '设置页显示当前教程状态；隐藏只改变本地显示并保留当前进度，“显示教程”恢复当前轮次；“重新开始教程”只清除并新建客户端轮次、回到概览，不清除服务器完成记录和任何经济状态。',
+            '设置页显示当前教程状态；隐藏只改变本地显示并保留当前进度，“显示教程”只原地恢复当前轮次并立即让桌面右栏重新出现，不强制切换页面；“重新开始教程”只清除并新建客户端轮次、回到概览，不清除服务器完成记录和任何经济状态。',
+          );
+          text = text.replace(
+            '| 教程当前步骤 | 概览右侧公开事件日志列；设置只负责显示、隐藏和重新开始 |',
+            '| 教程当前步骤 | `GameShell`／`StrategicWorkspaceChrome` 桌面右侧信息栏；移动端概览入口；设置只负责显示、隐藏和重新开始 |',
+          );
+          text = text.replace(
+            '- 让教程读取玩家全局统计、为步骤增加服务器确认写入、增加教程专用轮询、保存重开历史或发放经济奖励；',
+            '- 让教程读取玩家全局统计、为步骤增加服务器确认写入、增加教程专用轮询、保存重开历史或发放经济奖励；把桌面教程重新绑定到概览页面显示状态，或在教程可见时让全屏页面正文与右栏重叠；',
+          );
+          fs.writeFileSync(path, text);
+          NODE
+      - name: Commit migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "更新教程页面职责规则 [tutorial-doc-migrated]"
+          git push origin HEAD:codex/tutorial-right-rail
