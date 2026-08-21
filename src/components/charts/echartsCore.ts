@@ -1,4 +1,4 @@
-import { init, registerMap, use, type EChartsCoreOption, type EChartsType } from 'echarts/core';
+import { getInstanceByDom, init, registerMap, use, type EChartsCoreOption, type EChartsType } from 'echarts/core';
 import { BarChart, LineChart, MapChart, PieChart } from 'echarts/charts';
 import {
   AriaComponent,
@@ -22,7 +22,10 @@ use([
   SVGRenderer,
 ]);
 
-export { init as initECharts };
+export {
+  getInstanceByDom as getEChartsInstanceByDom,
+  init as initECharts,
+};
 
 export function registerEChartsMap(mapName: string, source: unknown) {
   registerMap(mapName, source as Parameters<typeof registerMap>[1]);
