@@ -23,6 +23,7 @@ jobs:
           set -euo pipefail
           python3 - <<'RUNNER'
           from pathlib import Path
+
           source = Path('.github/workflows/codex-map-zoom-interpolation.yml').read_text()
           marker = "          python3 - <<'PY'\n"
           start = source.index(marker) + len(marker)
@@ -32,6 +33,25 @@ jobs:
           for line in embedded.splitlines():
               lines.append(line[10:] if line.startswith('          ') else line)
           script = '\n'.join(lines) + '\n'
+
+          def rewrite_replace_block(script_text, label, replacement):
+              end_marker = f"              '{label}')"
+              end_pos = script_text.index(end_marker) + len(end_marker)
+              start_pos = script_text.rfind("\ntext = replace_once(text,", 0, end_pos)
+              if start_pos < 0:
+                  raise SystemExit(f'cannot locate replacement block: {label}')
+              return script_text[:start_pos] + '\n' + replacement + script_text[end_pos:]
+
+          script = rewrite_replace_block(
+              script,
+              'verifier ui interpolation docs',
+              """ui_marker = '  \"`georoam` 热路径只允许更新共享 SVG 相机组的统一等比缩放和平移矩阵\",\\n'\nif ui_marker not in text:\n    raise SystemExit('verifier ui interpolation marker missing')\ntext = text.replace(\n    ui_marker,\n    ui_marker\n    + '  \"`roam: \\\'move\\\'`\",\\n'\n    + \"  '每帧最多一次 `geoRoam`',\\n\"\n    + \"  '真实 `pinchScale`',\\n\"\n    + \"  '不得使用逐帧 `setOption`',\\n\",\n    1,\n)""",
+          )
+          script = rewrite_replace_block(
+              script,
+              'verifier page interpolation docs',
+              """page_marker = \"  '`georoam` 期间不得重新执行 48 州标签完整布局',\\n\"\nif page_marker not in text:\n    raise SystemExit('verifier page interpolation marker missing')\ntext = text.replace(\n    page_marker,\n    page_marker\n    + '  \"`roam: \\\'move\\\'`\",\\n'\n    + \"  '目标缩放',\\n\"\n    + \"  '每帧最多通过一次 ECharts `geoRoam`',\\n\"\n    + \"  '真实 `pinchScale`',\\n\",\n    1,\n)""",
+          )
           exec(compile(script, 'codex-map-zoom-interpolation.py', 'exec'), {})
           RUNNER
           git diff --check
