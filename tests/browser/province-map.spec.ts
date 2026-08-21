@@ -295,7 +295,11 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
   await page.keyboard.press('Escape');
 
   await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
-  await expect(page.locator('.province-map-page')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as Window & { __lastSelectedTab?: string }).__lastSelectedTab)).toBe('map');
+  await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-page', 'map');
+  await expect(page.locator('.province-map-page')).toHaveCount(1);
+  await expect(page.locator('.province-map-page > *')).toHaveCount(0);
+  await expect(page.locator('.strategic-map-stage')).toBeVisible();
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
   await expect(canvas).toHaveAttribute('data-echarts-instance-id', instanceId || '');
 
