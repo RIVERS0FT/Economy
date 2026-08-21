@@ -25,6 +25,7 @@ import {
 const US_MAINLAND_MAP_NAME = 'economy-us-mainland-states';
 const US_MAINLAND_ASPECT_SCALE = 0.75;
 const MAP_CONTAIN_INSET = 0.96;
+const MOBILE_MAP_MAX_WIDTH = 720;
 const MOBILE_BLANK_DOUBLE_TAP_MS = 360;
 const MOBILE_BLANK_DOUBLE_TAP_DISTANCE = 28;
 
@@ -268,6 +269,18 @@ export function UsMainlandMap({
     labelRendererRef.current?.schedule();
   }, []);
 
+  const applyResponsiveTooltip = useCallback((chart: EChartsType) => {
+    const showTooltip = chart.getWidth() > MOBILE_MAP_MAX_WIDTH;
+    chart.setOption({
+      tooltip: { show: showTooltip },
+    }, {
+      notMerge: false,
+      lazyUpdate: false,
+    });
+    if (!showTooltip) chart.dispatchAction({ type: 'hideTip' });
+    chart.getDom().dataset.mapTooltipMode = showTooltip ? 'desktop' : 'hidden-mobile';
+  }, []);
+
   const installProvinceLabels = useCallback((chart: EChartsType) => {
     labelRendererRef.current?.destroy();
     labelRendererRef.current = createProvinceMapLabelRenderer(
@@ -378,12 +391,14 @@ export function UsMainlandMap({
 
   const handleChartReady = useCallback((chart: EChartsType) => {
     applyContainCamera(chart);
+    applyResponsiveTooltip(chart);
     installProvinceLabels(chart);
-  }, [applyContainCamera, installProvinceLabels]);
+  }, [applyContainCamera, applyResponsiveTooltip, installProvinceLabels]);
 
   const handleChartResize = useCallback((chart: EChartsType) => {
     applyContainCamera(chart);
-  }, [applyContainCamera]);
+    applyResponsiveTooltip(chart);
+  }, [applyContainCamera, applyResponsiveTooltip]);
 
   const handleOptionApplied = useCallback(() => {
     labelRendererRef.current?.schedule();
