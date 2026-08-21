@@ -10,7 +10,7 @@ const LABEL_CURVE_RATIO = 0.09;
 const LABEL_CURVE_THICKNESS_RATIO = 0.14;
 const LABEL_EDGE_SAMPLE_FACTOR = 0.56;
 const MIN_RENDERABLE_FONT_SIZE = 0.08;
-const MAX_RENDERABLE_FONT_SIZE = 28;
+const BASE_MAX_RENDERABLE_FONT_SIZE = 28;
 const GEOMETRY_EPSILON = 0.001;
 const BOUNDARY_EPSILON = 0.08;
 const INTERSECTION_MERGE_EPSILON = 0.04;
@@ -351,14 +351,27 @@ function pathData(start: ScreenPoint, control: ScreenPoint, end: ScreenPoint) {
   return `M ${value(start.x)} ${value(start.y)} Q ${value(control.x)} ${value(control.y)} ${value(end.x)} ${value(end.y)}`;
 }
 
-function fitLabelLayout(polygon: ScreenPoint[], anchor: ScreenPoint, provinceName: string): LabelLayout | null {
+function currentMapZoom(chart: EChartsType) {
+  const option = chart.getOption() as { series?: Array<{ id?: string; zoom?: number }> };
+  const series = option.series?.find((candidate) => candidate.id === 'us-mainland-map') ?? option.series?.[0];
+  const zoom = Number(series?.zoom ?? 1);
+  return Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+}
+
+function fitLabelLayout(
+  polygon: ScreenPoint[],
+  anchor: ScreenPoint,
+  provinceName: string,
+  mapZoom: number,
+): LabelLayout | null {
   const chord = longestInteriorChord(polygon, anchor);
   if (!chord || chord.length <= GEOMETRY_EPSILON) return null;
   const direction = normalize(subtract(chord.end, chord.start));
   const normal = { x: -direction.y, y: direction.x };
   const characterCount = Math.max(1, Array.from(provinceName).length);
+  const zoomScaledFontCeiling = BASE_MAX_RENDERABLE_FONT_SIZE * mapZoom;
   let fontSize = Math.max(MIN_RENDERABLE_FONT_SIZE, Math.min(
-    MAX_RENDERABLE_FONT_SIZE,
+    zoomScaledFontCeiling,
     chord.length * LABEL_LENGTH_FILL_RATIO / (characterCount * LABEL_WIDTH_FACTOR),
     chord.thickness * LABEL_THICKNESS_RATIO,
   ));
@@ -382,7 +395,7 @@ function fitLabelLayout(polygon: ScreenPoint[], anchor: ScreenPoint, provinceNam
         path: pathData(start, control, end),
         pathLength: Math.max(GEOMETRY_EPSILON, length(subtract(end, start)) * 0.92),
         fontSize,
-        strokeWidth: Math.max(0.02, Math.min(0.9, fontSize * 0.065)),
+        strokeWidth: Math.max(0.02, Math.min(0.9 * mapZoom, fontSize * 0.065)),
         letterSpacing: Math.max(0, fontSize * 0.025),
         curved: Math.abs(amplitude * curveFactor) >= 0.45,
       };
@@ -401,6 +414,7 @@ function fitLabelLayout(polygon: ScreenPoint[], anchor: ScreenPoint, provinceNam
     if (end.x < start.x) [start, end] = [end, start];
     const midpoint = scale(add(start, end), 0.5);
     const fallbackFontSize = Math.max(MIN_RENDERABLE_FONT_SIZE, Math.min(
+      zoomScaledFontCeiling,
       Math.max(MIN_RENDERABLE_FONT_SIZE, chord.thickness * 0.16),
       Math.max(MIN_RENDERABLE_FONT_SIZE, chord.length * fraction / (characterCount * LABEL_WIDTH_FACTOR)),
     ));
@@ -409,7 +423,7 @@ function fitLabelLayout(polygon: ScreenPoint[], anchor: ScreenPoint, provinceNam
       path: pathData(start, midpoint, end),
       pathLength: Math.max(GEOMETRY_EPSILON, length(subtract(end, start)) * 0.9),
       fontSize: fallbackFontSize,
-      strokeWidth: Math.max(0.02, Math.min(0.9, fallbackFontSize * 0.065)),
+      strokeWidth: Math.max(0.02, Math.min(0.9 * mapZoom, fallbackFontSize * 0.065)),
       letterSpacing: 0,
       curved: false,
     };
@@ -434,6 +448,7 @@ function renderLabels(
   const width = chart.getWidth();
   const height = chart.getHeight();
   if (!(width > 0) || !(height > 0)) return;
+  const mapZoom = currentMapZoom(chart);
   overlay.setAttribute('viewBox', `0 0 ${width} ${height}`);
   overlay.setAttribute('width', String(width));
   overlay.setAttribute('height', String(height));
@@ -448,10 +463,12 @@ function renderLabels(
     const polygon = projectRing(chart, geoRing);
     if (polygon.length < 3) continue;
     const projectedAnchor = projectCoordinate(chart, source.anchor) ?? polygonCentroid(polygon);
-    const layout = fitLabelLayout(polygon, projectedAnchor, source.provinceName);
+    const layout = fitLabelLayout(polygon, projectedAnchor, source.provinceName, mapZoom);
     if (!layout) continue;
     const pathId = `province-map-label-${safeId(source.provinceId)}`;
     const path = createSvgElement('path');
+    path.classList.add('province-map-label-path');
+    path.dataset.provinceId = source.provinceId;
     path.setAttribute('id', pathId);
     path.setAttribute('d', layout.path);
     defs.append(path);
@@ -459,8 +476,10 @@ function renderLabels(
     const text = createSvgElement('text');
     text.classList.add('province-map-label');
     text.dataset.provinceId = source.provinceId;
+    text.dataset.mapStateLabel = source.provinceName;
     text.dataset.labelFit = 'inside';
     text.dataset.labelCurved = layout.curved ? 'true' : 'false';
+    text.dataset.labelZoom = mapZoom.toFixed(3);
     text.dataset.selected = source.provinceId === selectedProvinceId ? 'true' : 'false';
     text.style.fontSize = `${layout.fontSize.toFixed(2)}px`;
     text.style.strokeWidth = `${layout.strokeWidth.toFixed(2)}px`;
@@ -486,6 +505,7 @@ function renderLabels(
   container.dataset.mapLabelMode = 'curved-chinese-full-name';
   container.dataset.mapLabelCount = String(renderedCount);
   container.dataset.mapCurvedLabelCount = String(curvedCount);
+  container.dataset.mapLabelZoom = mapZoom.toFixed(3);
 }
 
 export function createProvinceMapLabelRenderer(
@@ -527,6 +547,7 @@ export function createProvinceMapLabelRenderer(
       delete container.dataset.mapLabelMode;
       delete container.dataset.mapLabelCount;
       delete container.dataset.mapCurvedLabelCount;
+      delete container.dataset.mapLabelZoom;
     },
   };
 }
