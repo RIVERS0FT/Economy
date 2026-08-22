@@ -30,6 +30,8 @@ test('building cards and subordinate asset trade use 256px facility thumbnails',
     256,
   );
 
+  await page.locator('.facility-cluster-selector-card').first().click();
+  await expect(page.locator('.facility-cluster-detail-page')).toBeVisible();
   await page.getByRole('button', { name: /交易该建筑资产/ }).click();
   await expectBackgroundImageResolution(
     page.locator('.market-detail-hero__artwork > .facility-icon'),

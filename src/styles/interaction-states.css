@@ -21,12 +21,14 @@
   transform: var(--ui-interactive-active-transform, scale(0.98));
 }
 
-html:not([data-input-modality='keyboard']) [data-ui-interactive='surface']:focus-visible {
+html:not([data-input-modality='keyboard']) [data-ui-interactive='surface']:focus-visible,
+html:not([data-input-modality='keyboard']) .research-technology-node:focus-visible {
   outline: none;
   box-shadow: none;
 }
 
-html[data-input-modality='keyboard'] [data-ui-interactive='surface']:focus-visible {
+html[data-input-modality='keyboard'] [data-ui-interactive='surface']:focus-visible,
+html[data-input-modality='keyboard'] .research-technology-node:focus-visible {
   outline: 2px solid var(--ui-interactive-focus-color, var(--color-focus-ring, var(--color-success)));
   outline-offset: var(--ui-interactive-focus-offset, 2px);
   box-shadow: var(--ui-interactive-focus-shadow, var(--shadow-focus));

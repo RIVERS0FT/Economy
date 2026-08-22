@@ -21,6 +21,8 @@ test.describe('production cluster status summary', () => {
     await expect(buildCard).not.toContainText('施工中');
     await expect(buildCard).not.toContainText('施工时间');
 
+    await page.locator('.facility-cluster-selector-card').first().click();
+    await expect(page.locator('.facility-cluster-detail-card')).toBeVisible();
     await expect(page.locator('.facility-cluster-detail-card')).not.toContainText('宝石加速');
     await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
     await expect(page.locator('.facility-cluster-selector-card[data-status="constructing"]')).toHaveCount(0);
@@ -28,6 +30,7 @@ test.describe('production cluster status summary', () => {
 
   test('renders decimal last trade prices in single-factory profit', async ({ page }) => {
     await page.goto('runtime-test.html?view=production&scenario=decimal-profit');
+    await page.locator('.facility-cluster-selector-card').first().click();
 
     const profit = page.locator('.facility-average-profit');
     await expect(profit).toHaveCount(1);

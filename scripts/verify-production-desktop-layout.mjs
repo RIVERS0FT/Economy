@@ -1,4 +1,4 @@
-// Regional buildings ledger geometry regression guard.
+// Regional factory-card and second-level detail geometry regression guard.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -6,6 +6,7 @@ const read = (path) => readFileSync(path, 'utf8');
 const main = read('src/main.tsx');
 const shell = read('src/styles/game-shell-layout.css');
 const page = read('src/pages/BuildingsPage.tsx');
+const provincePage = read('src/pages/ProvincePage.tsx');
 const production = read('src/styles/facility-group-card-grid.css');
 const productionSurface = read('src/styles/production-surface.css');
 const legacyIndustryStyles = read('src/styles/industry-system.css');
@@ -21,49 +22,67 @@ for (const text of [
 
 const facilityGridImport = "import './styles/facility-group-card-grid.css';";
 const productionSurfaceImport = "import './styles/production-surface.css';";
-assert.equal(main.includes(facilityGridImport), true, '入口缺少工厂基础主从样式');
+assert.equal(main.includes(facilityGridImport), true, '入口缺少工厂基础卡片样式');
 assert.equal(main.includes(productionSurfaceImport), true, '入口缺少建筑页最终表面样式');
 assert.equal(
   main.indexOf(productionSurfaceImport) > main.indexOf(facilityGridImport),
   true,
-  'production-surface.css 必须在 facility-group-card-grid.css 之后加载，才能成为建筑账本最终权威',
+  'production-surface.css 必须在 facility-group-card-grid.css 之后加载，才能收束地区工厂卡片',
 );
 
+for (const forbidden of [
+  'buildingQuery',
+  'buildingCategory',
+  'buildingStatus',
+  'facility-cluster-navigation',
+  '按产业和运行状态筛选建筑',
+  'MobileFacilityDetailSheet',
+  'isMobileFacilityLayout',
+]) assert.equal(page.includes(forbidden), false, `地区建筑列表不得恢复可执行旧结构: ${forbidden}`);
+
 for (const text of [
-  'Victoria-style building ledger final layout',
-  'grid-template-columns: repeat(auto-fit, minmax(min(26rem, 100%), 1fr));',
-  'grid-template-areas: none;',
-  '.production-workspace > .facility-cluster-navigation {',
-  'grid-column: 1 / -1;',
-  'order: 1;',
-  '.production-workspace > .production-build-card {',
-  'order: 2;',
-  '.production-workspace > .facility-cluster-detail-shell {',
-  'order: 3;',
-  '.buildings-list-filters {',
-  'repeat(auto-fit, minmax(min(11rem, 100%), 1fr))',
+  'detailFacilityTypeId?: string;',
+  'onDetailFacilityChange?: (facilityTypeId: string | null) => void;',
+  'const buildCard = (',
+  'const facilityList = (',
+  'className="regional-buildings-management"',
+  '{buildCard}',
+  '{facilityList}',
+  'className="facility-cluster-selector-region"',
+  'orderedFacilityGroups.map((entry) => (',
+  'onSelect={() => selectFacilityEntry(entry.type.id)}',
+  'className="facility-cluster-detail-shell facility-cluster-detail-page"',
+  '<FacilityClusterDetailContent',
+]) assert.equal(page.includes(text), true, `地区建筑实现缺少: ${text}`);
+assert.equal(page.indexOf('{buildCard}') < page.indexOf('{facilityList}'), true, '建设新工厂必须位于工厂卡片列表之前');
+
+for (const text of [
+  '.regional-buildings-management {',
+  '.facility-cluster-selector-region {',
   '.facility-cluster-selector-list {',
-  'grid-template-columns: minmax(0, 1fr);',
+  'grid-template-columns: repeat(3, minmax(0, 1fr));',
   '.facility-cluster-selector-card {',
-  'min-height: 4.75rem;',
-  'aspect-ratio: auto;',
+  'width: 100%;',
   'max-width: none;',
-  ".facility-cluster-selector-card[data-status='running']::after",
-  "content: '运行中';",
-  ".facility-cluster-selector-card[data-status='error']::after",
-  "content: '异常';",
-  ".facility-cluster-selector-card[data-status='stopped']::after",
-  "content: '已停止';",
-  ".facility-cluster-selector-card[data-status='constructing']::after",
-  "content: '建设中';",
-  ".facility-cluster-count::before",
-  "content: '数量 ';",
-  '@media (min-width: 961px)',
+  'aspect-ratio: 4 / 5;',
+  '.facility-cluster-detail-shell.facility-cluster-detail-page {',
   'position: static;',
   'top: auto;',
   'max-height: none;',
   'overflow: visible;',
-]) assert.equal(productionSurface.includes(text), true, `建筑账本最终样式缺少: ${text}`);
+  '.province-facility-detail-title {',
+  'text-overflow: ellipsis;',
+  'white-space: nowrap;',
+]) assert.equal(productionSurface.includes(text), true, `地区建筑最终样式缺少: ${text}`);
+
+for (const forbidden of [
+  ".facility-cluster-selector-card[data-status='running']::after",
+  "content: '运行中';",
+  "content: '异常';",
+  "content: '已停止';",
+  "content: '建设中';",
+  ".facility-cluster-count::before",
+]) assert.equal(productionSurface.includes(forbidden), false, `工厂卡不得恢复横向账本文字: ${forbidden}`);
 
 for (const text of [
   '--production-pill-visible-height: 1.6rem;',
@@ -72,38 +91,43 @@ for (const text of [
   '--production-switch-thumb-size: 1rem;',
 ]) assert.equal(productionSurface.includes(text), true, `建筑页胶囊／开关规则缺少: ${text}`);
 
-const finalDesktopBlock = productionSurface.match(
-  /@media \(min-width: 961px\)\s*\{([\s\S]*)\}\s*$/,
-)?.[1] ?? '';
-assert.equal(finalDesktopBlock.includes('position: sticky;'), false, '建筑账本最终桌面布局不得恢复 sticky');
-assert.equal(finalDesktopBlock.includes('overflow-y: auto;'), false, '建筑账本建设或详情不得恢复独立纵向滚动');
+for (const text of [
+  "const [facilityDetailTypeId, setFacilityDetailTypeId] = useState<string | null>(null);",
+  "activeSection === 'buildings' && Boolean(facilityDetailType)",
+  'className="province-facility-detail-title"',
+  "{ label: '返回建筑列表', onClick: () => setFacilityDetailTypeId(null) }",
+  '{!isFacilityDetail ? sectionSwitch : null}',
+  'detailFacilityTypeId={facilityDetailTypeId ?? undefined}',
+  'onDetailFacilityChange={setFacilityDetailTypeId}',
+]) assert.equal(provincePage.includes(text), true, `地区工厂二级详情缺少: ${text}`);
+assert.equal(provincePage.includes('actions={sectionSwitch}'), false, '地区四分区按钮不得回到固定标题操作区');
 
 for (const text of [
-  '建筑页参考大型经营模拟游戏的高密度建筑账本信息组织方式',
-  '已拥有建筑账本（始终第一、始终占满当前管理区宽度）',
-  '基于 `.production-workspace` 自身可用宽度',
-  '不得恢复 4:5 大卡作为最终桌面／移动呈现',
-  '建设卡与详情外壳不再使用建筑页场景 sticky',
-  'position: static;',
-  '`production-surface.css` 是地区建筑页最终账本密度',
+  '删除“建筑概况”卡片',
+  '“建设新工厂”是建筑列表态第一张一级卡片',
+  '建筑列表不显示搜索输入框、产业分类下拉框或运行状态下拉框',
+  '正式呈现恢复为原 4:5 插画卡片',
+  '列表正式使用三列',
+  '点击工厂卡片后进入当前地区建筑分区内部的二级详情视图',
+  '地区“概览 / 市场 / 建筑 / 仓库”是正文级子导航',
+  '标题保持单行',
   '`tests/browser/buildings-ledger-layout.spec.ts`',
-]) assert.equal(productionAlignmentDesign.includes(text), true, `建筑账本设计缺少: ${text}`);
+]) assert.equal(productionAlignmentDesign.includes(text), true, `建筑卡片设计缺少: ${text}`);
 
 for (const text of [
   "runtime-test.html?view=production&scenario=activity",
-  "regional buildings uses a dense ledger before build and detail surfaces",
-  "mobile building ledger stays inside the workspace sheet without horizontal clipping",
-  "expect(ledgerBox.y).toBeLessThan(buildBox.y)",
-  "expect(rowBox.width).toBeGreaterThan(rowBox.height * 3)",
-  "expect(geometry.buildPosition).toBe('static')",
-  "expect(geometry.detailPosition).toBe('static')",
-  'workspaceScrollWidth',
-  'workspaceClientWidth',
-]) assert.equal(browserTest.includes(text), true, `建筑账本浏览器回归缺少: ${text}`);
+  'regional buildings shows build first and three factory cards per row',
+  'factory card opens second-level detail without changing header height',
+  'mobile factory cards remain three columns without horizontal clipping',
+  'gridTemplateColumns',
+  'aspectRatio',
+  'headerHeightBefore',
+  'headerHeightAfter',
+]) assert.equal(browserTest.includes(text), true, `建筑卡片浏览器回归缺少: ${text}`);
 
 assert.equal(page.includes('facility-card-spacer'), false, '生产详情不得渲染占位 spacer DOM');
 assert.equal(production.includes('.facility-card-spacer'), false, '生产基础布局不得保留 spacer CSS');
 assert.equal(legacyIndustryStyles.includes('.production-grid {'), false, '旧产业样式不得控制生产主网格');
 assert.equal(chrome.includes('`--desktop-page-top-offset` 只表示下方工作区内部沟槽'), true, '外壳设计缺少工作区内部顶部偏移规则');
 
-console.log('建筑页账本验证通过：账本优先、承载宽度自适应、横向工厂行、桌面非 sticky、移动无裁切和紧凑开关规则均已锁定。');
+console.log('地区建筑验证通过：建设卡优先、三列 4:5 工厂卡、二级详情、正文分区导航、标题高度稳定与紧凑开关均已锁定。');

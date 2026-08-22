@@ -106,7 +106,7 @@ requireText(
 );
 requireText(
   productionPage,
-  '<RichSelectInput\n            label="工厂类型"',
+  '<RichSelectInput\n        label="工厂类型"',
   'production rich construction selector',
 );
 forbidText(
