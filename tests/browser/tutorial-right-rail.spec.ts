@@ -79,7 +79,7 @@ test('desktop strategic outliner persists across business and fullscreen pages',
     await expect(tutorial).toBeVisible();
     await expect(tutorial.getByText('步骤 1/9', { exact: true })).toBeVisible();
     await expect(eventsSection).toHaveAttribute('data-collapsed', 'true');
-    await expect(contextPin).toHaveAttribute('aria-pressed', 'true');
+    await expect(pinnedSection.locator('.strategic-outliner-row')).toHaveCount(1);
 
     const primaryCardBox = await requireBox(page.locator('.signed-in-shell__primary-card'));
     const outlinerBox = await requireBox(outliner);
@@ -89,7 +89,7 @@ test('desktop strategic outliner persists across business and fullscreen pages',
   await page.locator('.desktop-sidebar').getByRole('button', { name: '建筑', exact: true }).click();
   await expect(outliner).toHaveAttribute('data-browser-outliner-sentinel', 'persistent');
   await expect(eventsSection).toHaveAttribute('data-collapsed', 'true');
-  await expect(contextPin).toHaveAttribute('aria-pressed', 'true');
+  await expect(pinnedSection.locator('.strategic-outliner-row')).toHaveCount(1);
 
   page.once('dialog', async (dialog) => {
     expect(dialog.type()).toBe('confirm');
@@ -104,12 +104,13 @@ test('desktop strategic outliner persists across business and fullscreen pages',
 
 test('desktop strategic outliner collapse and pins persist through reload', async ({ page }) => {
   await page.setViewportSize({ width: 1684, height: 931 });
-  await page.addInitScript(() => {
+  await page.goto('runtime-test.html?view=overview&scenario=tutorial');
+  await page.evaluate(() => {
     for (const key of Object.keys(localStorage)) {
       if (key.startsWith('economy:strategic-outliner:')) localStorage.removeItem(key);
     }
   });
-  await page.goto('runtime-test.html?view=overview&scenario=tutorial');
+  await page.reload();
 
   const outliner = page.locator('.strategic-outliner');
   await outliner.locator('.strategic-outliner__context-pin').click();
