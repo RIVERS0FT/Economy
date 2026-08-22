@@ -8,7 +8,8 @@ test.describe('shared input modality interaction protocol', () => {
   test('mixed input switches shared surface hover and focus without reload', async ({ page }) => {
     await page.goto('runtime-test.html?view=research&scenario=research-active');
 
-    const trigger = page.getByRole('button', { name: /冶金技术，研发中/ });
+    const trigger = page.getByRole('button', { name: '放大技术树' });
+    const detailTrigger = page.getByRole('button', { name: /冶金技术，研发中/ });
     const host = page.locator('.mobile-workspace-sheet-host');
     const basePage = host.locator('.mobile-workspace-sheet-page-layer');
     const detailView = host.locator('.mobile-workspace-sheet-detail-view');
@@ -25,7 +26,7 @@ test.describe('shared input modality interaction protocol', () => {
     await expect.poll(() => trigger.evaluate((element) => getComputedStyle(element).transform))
       .not.toBe(baseTransform);
 
-    await trigger.evaluate((element) => {
+    await detailTrigger.evaluate((element) => {
       element.dispatchEvent(new PointerEvent('pointerdown', {
         bubbles: true,
         isPrimary: true,
@@ -49,6 +50,6 @@ test.describe('shared input modality interaction protocol', () => {
     await expect(detailView).toHaveCount(0);
     await expect(basePage).not.toHaveAttribute('aria-hidden', 'true');
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.inputModality)).toBe('keyboard');
-    await expect(trigger).toBeFocused();
+    await expect(detailTrigger).toBeFocused();
   });
 });
