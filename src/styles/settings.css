@@ -1,16 +1,8 @@
 .settings-layout {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--layout-gutter);
   align-items: start;
-}
-
-.settings-primary-column,
-.settings-side-column {
-  min-width: 0;
-  display: grid;
-  gap: var(--layout-gutter);
-  align-content: start;
 }
 
 .profile-settings-card,
@@ -98,22 +90,6 @@
   border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--color-danger) 9%, transparent);
   color: var(--color-text-primary);
-}
-
-@media (max-width: 1180px) {
-  .settings-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .settings-primary-column,
-  .settings-side-column {
-    display: contents;
-  }
-
-  .profile-settings-card { order: 1; }
-  .game-preferences-card { order: 2; }
-  .gift-redemption-card { order: 3; }
-  .account-management-card { order: 4; }
 }
 
 @media (max-width: 760px) {

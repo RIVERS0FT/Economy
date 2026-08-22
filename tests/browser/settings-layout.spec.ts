@@ -21,33 +21,38 @@ async function openSettings(page: Page, width: number, height: number) {
   await expect(page.getByRole('heading', { name: '设置', exact: true })).toBeVisible();
 }
 
-test('desktop settings columns stack independently with save deletion management', async ({ page }) => {
+async function requireSettingsCardOrder(page: Page) {
+  const cards = [
+    page.locator('.profile-settings-card'),
+    page.locator('.game-preferences-card'),
+    page.locator('.gift-redemption-card'),
+    page.locator('.account-management-card'),
+  ];
+  const boxes = await Promise.all(cards.map(requireBox));
+  for (let index = 1; index < boxes.length; index += 1) {
+    expect(boxes[index].y).toBeGreaterThan(boxes[index - 1].y + boxes[index - 1].height);
+    expect(boxes[index].y - (boxes[index - 1].y + boxes[index - 1].height)).toBeLessThan(40);
+  }
+}
+
+test('desktop settings remain single-column with save deletion management', async ({ page }) => {
   await openSettings(page, 1440, 1000);
 
   const layout = page.locator('.settings-layout');
   const profile = page.locator('.profile-settings-card');
-  const preferences = page.locator('.game-preferences-card');
-  const gift = page.locator('.gift-redemption-card');
   const account = page.locator('.account-management-card');
 
   await expect(layout).toBeVisible();
+  await expect(layout.locator(':scope > .widget')).toHaveCount(4);
   await expect(page.getByRole('heading', { name: '邀请好友', exact: true })).toHaveCount(0);
   await expect(account.getByRole('heading', { name: '存档管理', exact: true })).toBeVisible();
   await expect(account.getByRole('button', { name: '删除存档', exact: true })).toBeVisible();
   await expect(account.getByRole('heading', { name: '危险区域', exact: true })).toHaveCount(0);
-  expect(await gridTrackCount(layout)).toBe(2);
+  expect(await gridTrackCount(layout)).toBe(1);
   expect(await gridTrackCount(profile.locator('.player-stat-grid'))).toBe(4);
+  await requireSettingsCardOrder(page);
 
   const profileBox = await requireBox(profile);
-  const preferencesBox = await requireBox(preferences);
-  const giftBox = await requireBox(gift);
-  const accountBox = await requireBox(account);
-
-  expect(Math.abs(profileBox.y - preferencesBox.y)).toBeLessThan(3);
-  expect(giftBox.y).toBeGreaterThan(preferencesBox.y + preferencesBox.height);
-  expect(giftBox.y - (preferencesBox.y + preferencesBox.height)).toBeLessThan(40);
-  expect(accountBox.y).toBeGreaterThan(giftBox.y + giftBox.height);
-
   const saveButton = page.getByRole('button', { name: '保存昵称', exact: true });
   const saveButtonBox = await requireBox(saveButton);
   expect(saveButtonBox.width).toBeLessThan(profileBox.width * 0.35);
@@ -60,20 +65,11 @@ test('mobile settings order, statistics and save deletion action remain compact'
   const layout = page.locator('.settings-layout');
   expect(await gridTrackCount(layout)).toBe(1);
   expect(await gridTrackCount(page.locator('.profile-settings-card .player-stat-grid'))).toBe(2);
+  await expect(layout.locator(':scope > .widget')).toHaveCount(4);
   await expect(page.getByRole('heading', { name: '邀请好友', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '存档管理', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '删除存档', exact: true })).toBeVisible();
-
-  const cards = [
-    page.locator('.profile-settings-card'),
-    page.locator('.game-preferences-card'),
-    page.locator('.gift-redemption-card'),
-    page.locator('.account-management-card'),
-  ];
-  const boxes = await Promise.all(cards.map(requireBox));
-  for (let index = 1; index < boxes.length; index += 1) {
-    expect(boxes[index].y).toBeGreaterThan(boxes[index - 1].y + boxes[index - 1].height);
-  }
+  await requireSettingsCardOrder(page);
 
   const editorBox = await requireBox(page.locator('.nickname-editor'));
   const saveButtonBox = await requireBox(page.getByRole('button', { name: '保存昵称', exact: true }));
