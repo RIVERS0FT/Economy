@@ -8,104 +8,145 @@ async function requireBox(locator: import('@playwright/test').Locator) {
 
 async function openRegionalBuildings(page: import('@playwright/test').Page) {
   await page.goto('runtime-test.html?view=production&scenario=activity');
-  await expect(page.locator('.production-workspace')).toBeVisible();
-  await expect(page.locator('.facility-cluster-navigation')).toBeVisible();
   await expect(page.locator('.production-build-card')).toBeVisible();
+  await expect(page.locator('.facility-cluster-selector-region')).toBeVisible();
   await expect(page.locator('.facility-cluster-selector-card').first()).toBeVisible();
 }
 
-test('regional buildings uses a dense ledger before build and detail surfaces', async ({ page }) => {
+test('regional buildings shows build first and three factory cards per row', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openRegionalBuildings(page);
 
-  const workspace = page.locator('.production-workspace');
-  const ledger = page.locator('.facility-cluster-navigation');
+  const management = page.locator('.regional-buildings-management');
   const build = page.locator('.production-build-card');
-  const detail = page.locator('.facility-cluster-detail-shell');
-  const row = page.locator('.facility-cluster-selector-card').first();
+  const list = page.locator('.facility-cluster-selector-region');
+  const grid = page.locator('.facility-cluster-selector-list');
+  const card = page.locator('.facility-cluster-selector-card').first();
 
-  const workspaceBox = await requireBox(workspace);
-  const ledgerBox = await requireBox(ledger);
   const buildBox = await requireBox(build);
-  const rowBox = await requireBox(row);
+  const listBox = await requireBox(list);
+  const cardBox = await requireBox(card);
+  expect(buildBox.y).toBeLessThan(listBox.y);
+  expect(cardBox.width).toBeGreaterThan(0);
+  expect(cardBox.height / cardBox.width).toBeCloseTo(1.25, 1);
 
-  expect(ledgerBox.y).toBeLessThan(buildBox.y);
-  expect(ledgerBox.x).toBeCloseTo(workspaceBox.x, 1);
-  expect(ledgerBox.width).toBeCloseTo(workspaceBox.width, 1);
-  expect(rowBox.width).toBeGreaterThan(rowBox.height * 3);
-  expect(rowBox.height).toBeLessThanOrEqual(96);
+  await expect(page.getByText('建筑概况', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('搜索')).toHaveCount(0);
+  await expect(page.getByLabel('产业分类')).toHaveCount(0);
+  await expect(page.getByLabel('运行状态')).toHaveCount(0);
+  await expect(page.locator('.facility-cluster-navigation')).toHaveCount(0);
 
   const geometry = await page.evaluate(() => {
-    const workspaceElement = document.querySelector<HTMLElement>('.production-workspace');
-    const ledgerElement = document.querySelector<HTMLElement>('.facility-cluster-navigation');
-    const rowElement = document.querySelector<HTMLElement>('.facility-cluster-selector-card');
-    const buildElement = document.querySelector<HTMLElement>('.production-build-card');
-    const detailElement = document.querySelector<HTMLElement>('.facility-cluster-detail-shell');
-    if (!workspaceElement || !ledgerElement || !rowElement || !buildElement || !detailElement) {
-      throw new Error('building ledger fixture is incomplete');
+    const managementElement = document.querySelector<HTMLElement>('.regional-buildings-management');
+    const gridElement = document.querySelector<HTMLElement>('.facility-cluster-selector-list');
+    const cardElement = document.querySelector<HTMLElement>('.facility-cluster-selector-card');
+    if (!managementElement || !gridElement || !cardElement) {
+      throw new Error('regional factory card fixture is incomplete');
     }
+    const gridStyle = getComputedStyle(gridElement);
+    const cardStyle = getComputedStyle(cardElement);
     return {
-      workspaceScrollWidth: workspaceElement.scrollWidth,
-      workspaceClientWidth: workspaceElement.clientWidth,
-      ledgerScrollWidth: ledgerElement.scrollWidth,
-      ledgerClientWidth: ledgerElement.clientWidth,
-      rowAspectRatio: getComputedStyle(rowElement).aspectRatio,
-      rowMaxWidth: getComputedStyle(rowElement).maxWidth,
-      rowStatusContent: getComputedStyle(rowElement, '::after').content,
-      buildPosition: getComputedStyle(buildElement).position,
-      detailPosition: getComputedStyle(detailElement).position,
-      buildOverflowY: getComputedStyle(buildElement).overflowY,
-      detailOverflowY: getComputedStyle(detailElement).overflowY,
+      managementScrollWidth: managementElement.scrollWidth,
+      managementClientWidth: managementElement.clientWidth,
+      gridScrollWidth: gridElement.scrollWidth,
+      gridClientWidth: gridElement.clientWidth,
+      gridTemplateColumns: gridStyle.gridTemplateColumns,
+      aspectRatio: cardStyle.aspectRatio,
+      maxWidth: cardStyle.maxWidth,
     };
   });
 
-  expect(geometry.workspaceScrollWidth).toBeLessThanOrEqual(geometry.workspaceClientWidth + 1);
-  expect(geometry.ledgerScrollWidth).toBeLessThanOrEqual(geometry.ledgerClientWidth + 1);
-  expect(geometry.rowAspectRatio).toBe('auto');
-  expect(geometry.rowMaxWidth).toBe('none');
-  expect(geometry.rowStatusContent).not.toBe('none');
-  expect(geometry.rowStatusContent).not.toBe('normal');
-  expect(geometry.buildPosition).toBe('static');
-  expect(geometry.detailPosition).toBe('static');
-  expect(geometry.buildOverflowY).not.toBe('auto');
-  expect(geometry.detailOverflowY).not.toBe('auto');
+  expect(geometry.managementScrollWidth).toBeLessThanOrEqual(geometry.managementClientWidth + 1);
+  expect(geometry.gridScrollWidth).toBeLessThanOrEqual(geometry.gridClientWidth + 1);
+  expect(geometry.gridTemplateColumns.trim().split(/\s+/)).toHaveLength(3);
+  expect(geometry.aspectRatio).toBe('4 / 5');
+  expect(geometry.maxWidth).toBe('none');
+
+  await expect(card.locator('.facility-cluster-name')).toBeVisible();
+  await expect(card.locator('.facility-cluster-profit')).toBeVisible();
+  await expect(card.locator('.facility-cluster-count')).toBeVisible();
+  await expect(management).toBeVisible();
 });
 
-test('mobile building ledger stays inside the workspace sheet without horizontal clipping', async ({ page }) => {
+test('factory card opens second-level detail without changing header height', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 900 });
+  await openRegionalBuildings(page);
+
+  const header = page.locator('.page-fixed-header');
+  const title = page.locator('.page-heading-title h1');
+  const firstCard = page.locator('.facility-cluster-selector-card').first();
+  const factoryName = (await firstCard.locator('.facility-cluster-name').textContent())?.trim() ?? '';
+  const headerHeightBefore = (await requireBox(header)).height;
+
+  await firstCard.click();
+  await expect(page.locator('.facility-cluster-detail-page')).toBeVisible();
+  await expect(page.locator('.facility-cluster-selector-region')).toHaveCount(0);
+  await expect(title).toContainText(factoryName);
+
+  const headerHeightAfter = (await requireBox(header)).height;
+  expect(Math.abs(headerHeightAfter - headerHeightBefore)).toBeLessThanOrEqual(1);
+
+  const titleStyle = await page.locator('.province-facility-detail-title').evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      whiteSpace: style.whiteSpace,
+      overflow: style.overflow,
+      textOverflow: style.textOverflow,
+    };
+  });
+  expect(titleStyle.whiteSpace).toBe('nowrap');
+  expect(titleStyle.overflow).toBe('hidden');
+  expect(titleStyle.textOverflow).toBe('ellipsis');
+
+  await page.locator('.page-navigation-button--back').click();
+  await expect(page.locator('.production-build-card')).toBeVisible();
+  await expect(page.locator('.facility-cluster-selector-region')).toBeVisible();
+});
+
+test('mobile factory cards remain three columns without horizontal clipping', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openRegionalBuildings(page);
 
-  const pageContent = page.locator('.page-content--player');
-  const workspace = page.locator('.production-workspace');
-  const ledger = page.locator('.facility-cluster-navigation');
-  const build = page.locator('.production-build-card');
-  const row = page.locator('.facility-cluster-selector-card').first();
-
-  const ledgerBox = await requireBox(ledger);
-  const buildBox = await requireBox(build);
-  const rowBox = await requireBox(row);
-  expect(ledgerBox.y).toBeLessThan(buildBox.y);
-  expect(rowBox.width).toBeGreaterThan(rowBox.height * 2.5);
-
-  const overflow = await page.evaluate(() => {
+  const grid = page.locator('.facility-cluster-selector-list');
+  const firstCard = page.locator('.facility-cluster-selector-card').first();
+  const geometry = await page.evaluate(() => {
     const pageElement = document.querySelector<HTMLElement>('.page-content--player');
-    const workspaceElement = document.querySelector<HTMLElement>('.production-workspace');
-    const ledgerElement = document.querySelector<HTMLElement>('.facility-cluster-navigation');
-    if (!pageElement || !workspaceElement || !ledgerElement) {
-      throw new Error('mobile building ledger fixture is incomplete');
+    const managementElement = document.querySelector<HTMLElement>('.regional-buildings-management');
+    const gridElement = document.querySelector<HTMLElement>('.facility-cluster-selector-list');
+    const cardElement = document.querySelector<HTMLElement>('.facility-cluster-selector-card');
+    if (!pageElement || !managementElement || !gridElement || !cardElement) {
+      throw new Error('mobile factory card fixture is incomplete');
     }
     return {
       page: [pageElement.scrollWidth, pageElement.clientWidth],
-      workspace: [workspaceElement.scrollWidth, workspaceElement.clientWidth],
-      ledger: [ledgerElement.scrollWidth, ledgerElement.clientWidth],
+      management: [managementElement.scrollWidth, managementElement.clientWidth],
+      grid: [gridElement.scrollWidth, gridElement.clientWidth],
+      gridTemplateColumns: getComputedStyle(gridElement).gridTemplateColumns,
+      aspectRatio: getComputedStyle(cardElement).aspectRatio,
     };
   });
 
-  expect(overflow.page[0]).toBeLessThanOrEqual(overflow.page[1] + 1);
-  expect(overflow.workspace[0]).toBeLessThanOrEqual(overflow.workspace[1] + 1);
-  expect(overflow.ledger[0]).toBeLessThanOrEqual(overflow.ledger[1] + 1);
+  expect(geometry.page[0]).toBeLessThanOrEqual(geometry.page[1] + 1);
+  expect(geometry.management[0]).toBeLessThanOrEqual(geometry.management[1] + 1);
+  expect(geometry.grid[0]).toBeLessThanOrEqual(geometry.grid[1] + 1);
+  expect(geometry.gridTemplateColumns.trim().split(/\s+/)).toHaveLength(3);
+  expect(geometry.aspectRatio).toBe('4 / 5');
+  await expect(grid).toBeVisible();
 
-  await expect(pageContent).toBeVisible();
-  await expect(workspace).toBeVisible();
-  await expect(page.locator('.facility-cluster-detail-shell')).toBeHidden();
+  await firstCard.click();
+  await expect(page.locator('.facility-cluster-detail-page')).toBeVisible();
+  await expect(page.locator('.facility-cluster-selector-region')).toHaveCount(0);
+  await expect(page.locator('.province-facility-detail-title')).toBeVisible();
+
+  const detailOverflow = await page.evaluate(() => {
+    const pageElement = document.querySelector<HTMLElement>('.page-content--player');
+    const detailElement = document.querySelector<HTMLElement>('.facility-cluster-detail-page');
+    if (!pageElement || !detailElement) throw new Error('mobile factory detail is incomplete');
+    return {
+      page: [pageElement.scrollWidth, pageElement.clientWidth],
+      detail: [detailElement.scrollWidth, detailElement.clientWidth],
+    };
+  });
+  expect(detailOverflow.page[0]).toBeLessThanOrEqual(detailOverflow.page[1] + 1);
+  expect(detailOverflow.detail[0]).toBeLessThanOrEqual(detailOverflow.detail[1] + 1);
 });
