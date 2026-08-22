@@ -1,0 +1,306 @@
+export const PROVINCE_MAP_ZOOM_MIN = 0.5;
+export const PROVINCE_MAP_ZOOM_MAX = 4;
+
+const WHEEL_ZOOM_SENSITIVITY = 0.0016;
+const MAX_WHEEL_LOG_STEP = 0.2;
+const POINTER_DRAG_THRESHOLD = 4;
+const INPUT_SETTLE_MS = 90;
+const MOBILE_BLANK_DOUBLE_TAP_MS = 360;
+const MOBILE_BLANK_DOUBLE_TAP_DISTANCE = 28;
+
+interface CameraState {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
+interface PointerPosition {
+  x: number;
+  y: number;
+}
+
+interface PinchReference {
+  midpoint: PointerPosition;
+  distance: number;
+}
+
+export interface ProvinceMapCameraController {
+  reset: () => void;
+  destroy: () => void;
+}
+
+type CameraInputMode = 'idle' | 'wheel' | 'move' | 'pinch' | 'reset';
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function normalizeWheelDelta(event: WheelEvent, container: HTMLElement) {
+  const modeScale = event.deltaMode === 1
+    ? 16
+    : event.deltaMode === 2
+      ? Math.max(1, container.clientHeight)
+      : 1;
+  return Number(event.deltaY) * modeScale;
+}
+
+function midpoint(left: PointerPosition, right: PointerPosition): PointerPosition {
+  return {
+    x: (left.x + right.x) / 2,
+    y: (left.y + right.y) / 2,
+  };
+}
+
+function distance(left: PointerPosition, right: PointerPosition) {
+  return Math.hypot(right.x - left.x, right.y - left.y);
+}
+
+function isProvinceTarget(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest('.province-map-region'));
+}
+
+export function createProvinceMapCamera(
+  container: HTMLElement,
+  surface: HTMLElement,
+): ProvinceMapCameraController {
+  let current: CameraState = { x: 0, y: 0, zoom: 1 };
+  let target: CameraState = { ...current };
+  let frame: number | null = null;
+  let settleTimer: ReturnType<typeof setTimeout> | null = null;
+  let frameCount = 0;
+  let writeCount = 0;
+  let inputMode: CameraInputMode = 'idle';
+  let active = false;
+  let destroyed = false;
+  let dragDistance = 0;
+  let suppressNextClick = false;
+  let pinchReference: PinchReference | null = null;
+  let lastBlankTap: { at: number; x: number; y: number } | null = null;
+  const pointers = new Map<number, PointerPosition>();
+
+  container.dataset.mapRenderer = 'static-svg';
+  container.dataset.mapCameraMode = 'html-compositor-transform';
+  container.dataset.mapCameraHotPath = 'single-css-transform';
+  container.dataset.mapCameraGeometryMode = 'immutable-svg-world';
+  container.dataset.mapZoomMode = 'compositor';
+  container.dataset.mapZoomCameraMode = 'static-svg-compositor';
+  container.dataset.mapZoomHotPath = 'css-transform';
+  container.dataset.mapZoomCommitMode = 'none';
+
+  const publishState = () => {
+    container.dataset.mapZoomCurrent = current.zoom.toFixed(5);
+    container.dataset.mapZoomTarget = target.zoom.toFixed(5);
+    container.dataset.mapZoomActive = active ? 'true' : 'false';
+    container.dataset.mapZoomFrameCount = String(frameCount);
+    container.dataset.mapCameraWriteCount = String(writeCount);
+    container.dataset.mapZoomInputMode = inputMode;
+  };
+
+  const setActive = (nextActive: boolean) => {
+    active = nextActive;
+    surface.style.willChange = nextActive ? 'transform' : '';
+    publishState();
+  };
+
+  const writeCamera = () => {
+    frame = null;
+    if (destroyed) return;
+    current = { ...target };
+    surface.style.transform = `translate3d(${current.x.toFixed(3)}px, ${current.y.toFixed(3)}px, 0) scale(${current.zoom.toFixed(6)})`;
+    frameCount += 1;
+    writeCount += 1;
+    publishState();
+  };
+
+  const scheduleWrite = (mode: Exclude<CameraInputMode, 'idle' | 'reset'>) => {
+    inputMode = mode;
+    if (!active) setActive(true);
+    if (frame === null) frame = requestAnimationFrame(writeCamera);
+    if (settleTimer !== null) clearTimeout(settleTimer);
+    settleTimer = setTimeout(() => {
+      settleTimer = null;
+      inputMode = 'idle';
+      setActive(false);
+    }, INPUT_SETTLE_MS);
+  };
+
+  const applyZoomAround = (zoom: number, point: PointerPosition) => {
+    const nextZoom = clamp(zoom, PROVINCE_MAP_ZOOM_MIN, PROVINCE_MAP_ZOOM_MAX);
+    const localX = (point.x - target.x) / Math.max(Number.EPSILON, target.zoom);
+    const localY = (point.y - target.y) / Math.max(Number.EPSILON, target.zoom);
+    target = {
+      zoom: nextZoom,
+      x: point.x - localX * nextZoom,
+      y: point.y - localY * nextZoom,
+    };
+  };
+
+  const reset = () => {
+    if (frame !== null) cancelAnimationFrame(frame);
+    frame = null;
+    if (settleTimer !== null) clearTimeout(settleTimer);
+    settleTimer = null;
+    current = { x: 0, y: 0, zoom: 1 };
+    target = { ...current };
+    inputMode = 'reset';
+    active = false;
+    surface.style.willChange = '';
+    surface.style.transform = 'translate3d(0px, 0px, 0) scale(1)';
+    writeCount += 1;
+    publishState();
+  };
+
+  const handleWheel = (event: WheelEvent) => {
+    if (destroyed) return;
+    const delta = normalizeWheelDelta(event, container);
+    if (!Number.isFinite(delta) || Math.abs(delta) < 0.01) return;
+    if (Math.abs(event.deltaX) > Math.abs(event.deltaY) * 1.2) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const bounds = container.getBoundingClientRect();
+    const point = {
+      x: Number.isFinite(event.clientX) ? event.clientX - bounds.left : bounds.width / 2,
+      y: Number.isFinite(event.clientY) ? event.clientY - bounds.top : bounds.height / 2,
+    };
+    const logStep = clamp(
+      -delta * WHEEL_ZOOM_SENSITIVITY,
+      -MAX_WHEEL_LOG_STEP,
+      MAX_WHEEL_LOG_STEP,
+    );
+    applyZoomAround(target.zoom * Math.exp(logStep), point);
+    scheduleWrite('wheel');
+  };
+
+  const updatePinchReference = () => {
+    if (pointers.size < 2) {
+      pinchReference = null;
+      return;
+    }
+    const [first, second] = [...pointers.values()];
+    pinchReference = {
+      midpoint: midpoint(first, second),
+      distance: Math.max(1, distance(first, second)),
+    };
+  };
+
+  const handlePointerDown = (event: PointerEvent) => {
+    if (destroyed || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    pointers.set(event.pointerId, { x: event.offsetX, y: event.offsetY });
+    container.setPointerCapture?.(event.pointerId);
+    dragDistance = 0;
+    if (pointers.size >= 2) {
+      suppressNextClick = true;
+      updatePinchReference();
+    }
+  };
+
+  const handlePointerMove = (event: PointerEvent) => {
+    const previous = pointers.get(event.pointerId);
+    if (!previous || destroyed) return;
+    const next = { x: event.offsetX, y: event.offsetY };
+    pointers.set(event.pointerId, next);
+
+    if (pointers.size >= 2) {
+      const [first, second] = [...pointers.values()];
+      const nextMidpoint = midpoint(first, second);
+      const nextDistance = Math.max(1, distance(first, second));
+      const reference = pinchReference ?? { midpoint: nextMidpoint, distance: nextDistance };
+      target.x += nextMidpoint.x - reference.midpoint.x;
+      target.y += nextMidpoint.y - reference.midpoint.y;
+      applyZoomAround(target.zoom * (nextDistance / reference.distance), nextMidpoint);
+      pinchReference = { midpoint: nextMidpoint, distance: nextDistance };
+      dragDistance += Math.hypot(next.x - previous.x, next.y - previous.y);
+      suppressNextClick = true;
+      scheduleWrite('pinch');
+      return;
+    }
+
+    const dx = next.x - previous.x;
+    const dy = next.y - previous.y;
+    if (dx === 0 && dy === 0) return;
+    target.x += dx;
+    target.y += dy;
+    dragDistance += Math.hypot(dx, dy);
+    if (dragDistance > POINTER_DRAG_THRESHOLD) suppressNextClick = true;
+    scheduleWrite('move');
+  };
+
+  const handlePointerEnd = (event: PointerEvent) => {
+    const wasTracked = pointers.delete(event.pointerId);
+    if (!wasTracked) return;
+    if (container.hasPointerCapture?.(event.pointerId)) container.releasePointerCapture(event.pointerId);
+    updatePinchReference();
+    if (pointers.size === 0 && active && settleTimer === null) {
+      inputMode = 'idle';
+      setActive(false);
+    }
+
+    if (
+      event.pointerType === 'touch'
+      && dragDistance <= POINTER_DRAG_THRESHOLD
+      && !isProvinceTarget(event.target)
+    ) {
+      const rawTime = Number(event.timeStamp);
+      const at = Number.isFinite(rawTime) && rawTime > 0 ? rawTime : performance.now();
+      const point = { x: event.offsetX, y: event.offsetY };
+      const previousTap = lastBlankTap;
+      lastBlankTap = { at, ...point };
+      if (previousTap) {
+        const elapsed = at - previousTap.at;
+        const tapDistance = Math.hypot(point.x - previousTap.x, point.y - previousTap.y);
+        if (
+          elapsed >= 0
+          && elapsed <= MOBILE_BLANK_DOUBLE_TAP_MS
+          && tapDistance <= MOBILE_BLANK_DOUBLE_TAP_DISTANCE
+        ) {
+          lastBlankTap = null;
+          reset();
+          container.dataset.mapCameraReset = 'blank-double-tap';
+        }
+      }
+    }
+  };
+
+  const handleDoubleClick = (event: MouseEvent) => {
+    if (destroyed || isProvinceTarget(event.target)) return;
+    event.preventDefault();
+    reset();
+    container.dataset.mapCameraReset = 'blank-double-click';
+  };
+
+  const handleClickCapture = (event: MouseEvent) => {
+    if (!suppressNextClick) return;
+    suppressNextClick = false;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  container.addEventListener('wheel', handleWheel, { passive: false });
+  container.addEventListener('pointerdown', handlePointerDown);
+  container.addEventListener('pointermove', handlePointerMove);
+  container.addEventListener('pointerup', handlePointerEnd);
+  container.addEventListener('pointercancel', handlePointerEnd);
+  container.addEventListener('dblclick', handleDoubleClick);
+  container.addEventListener('click', handleClickCapture, true);
+  reset();
+
+  return {
+    reset,
+    destroy: () => {
+      destroyed = true;
+      if (frame !== null) cancelAnimationFrame(frame);
+      if (settleTimer !== null) clearTimeout(settleTimer);
+      frame = null;
+      settleTimer = null;
+      pointers.clear();
+      container.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('pointerdown', handlePointerDown);
+      container.removeEventListener('pointermove', handlePointerMove);
+      container.removeEventListener('pointerup', handlePointerEnd);
+      container.removeEventListener('pointercancel', handlePointerEnd);
+      container.removeEventListener('dblclick', handleDoubleClick);
+      container.removeEventListener('click', handleClickCapture, true);
+      surface.style.willChange = '';
+    },
+  };
+}
