@@ -72,7 +72,7 @@
 - `home`、`province`、`market`、`buildings`、`settings` 仍使用 `building`，统一以 `--strategic-compact-page-width: 56rem` 为内容目标；包含 `78px` 侧栏轨道的完整 `workspaceCard` 仍不得超过 `calc(100vw / 3)`，并不得越入当前为追踪器预留的空间。`research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop` 仍使用 `fullscreen`，但其“全宽”含义改为占用左侧指挥轨道之后、当前战略追踪器预留空间之前的全部工作区，不得覆盖追踪器的实际预留轨道。
 - 桌面状态栏、玩家主卡片和战略追踪器统一使用 `8px` 屏幕边距；共享外壳已经在状态栏下方提供唯一 `8px` 间距，主卡片和追踪器必须从工作区顶部 `0` 开始，禁止重复增加顶部沟槽。主卡片底部只保留 `8px` 屏幕边距，不得再为地图镜头栏挤压页面高度。标题与正文内距、一级区块间距统一使用 `var(--layout-gutter)`；玩家主卡片和一级业务卡片统一使用 `var(--radius-card)`，不得为研发恢复零圆角、透明外壳或独立 `12px`／`16px` 页面圆角。桌面 `.page-content` 只负责页面布局并保持透明，不得在主卡片内重复外层边框、圆角、阴影或 `backdrop-filter`。
 - 玩家 `PageLayout` 把标题与页面操作固定在 `.page-fixed-header`，正文使用页面卡片内部唯一 `ScrollArea`；工作区外层滚动条隐藏，滚动轨道不得越过卡片边界。`--desktop-page-top-offset` 只表示下方工作区内部沟槽；页面滚动区已经完成状态栏避让，建筑页 sticky 后代不得重复叠加完整状态栏高度。
-- 桌面关闭态 Toast 继续作为 `.workspace-strategic-chrome` 的直接子项，从工作区右下角按 `var(--strategic-panel-gap)` 定位并向上堆叠；最新通知最靠近右下角。Toast 使用独立最大宽度 `360px`，不得绑定战略追踪器宽度，也不得为了避让追踪器推动或缩窄页面。Toast 可在局部重叠时临时覆盖追踪器；完整通知中心不属于追踪器，仍按第 6 节使用工作区安全浮层右上角几何。
+- 桌面关闭态 Toast 继续作为 `.workspace-strategic-chrome` 的直接子项，从工作区右下角按 `var(--strategic-panel-gap)` 定位并向上堆叠；最新通知最靠近右下角。Toast 使用独立最大宽度 `360px`，不得绑定战略追踪器宽度，也不得为了避让追踪器推动或缩窄页面。Toast 与战略追踪器使用相同局部 `z-index: 2`，且 Toast DOM 排在追踪器之后，所以局部重叠时临时覆盖追踪器；完整通知中心不属于追踪器，仍按第 6 节使用工作区安全浮层右上角几何。历史防回退断言“整个右栏不挂载也仍必须保留桌面 Toast”只表达 Toast 生命周期必须独立于右侧追踪模块；当前战略追踪器本身跨路由常驻，不再以页面类型卸载。
 - 玩家主卡片宽度只允许因正式页面展示类型、响应式断点或追踪器整体收起／展开导致的预留宽度变化而使用既有 `220ms cubic-bezier(.2,.8,.2,1)` 过渡；教程开始／跳过、事件数量、待处理数量、关注实时值和权威状态刷新不得改变主卡片宽度或重播页面展开。新页面内容继续以 keyed `clip-path: inset(0 100% 0 0) → inset(0)` 从左向右裁剪展开并轻微淡入，动画不得修改 `grid-template-columns`、页面内容宽度或滚动根宽度，不得对地图、ECharts 宿主、工作区或毛玻璃采样链设置动画 `transform`。
 
 ## 6. 移动与浮层
@@ -113,7 +113,7 @@
 - `tests/browser/mobile-workspace-overlay.spec.ts`：唯一根级 Mobile Workspace Sheet 必须复用工厂详情全宽容器、底边贴物理视口、顶边避让状态栏且只在自身毛玻璃；Sheet 外保持清晰，状态栏可交互，底栏在 Sheet 存在时隐藏并在根 Sheet 收起后播放返回动画；页面卡片滚动条继续位于根 Sheet 安全右边缘且不改变正文宽度。
 - `tests/browser/mobile-sheet-release-stability.spec.ts`：模拟最后一次 `touchMove` 与 `touchEnd` 同帧发生，分别验证约半高下拉关闭和短距离回弹都从最后一次已接收的真实 `touchMove` 位置连续进入 settle、过程单调且 Sheet 高度冻结；回弹完成后不得重新触发首次进入 keyframes，禁止 `touchEnd.changedTouches` 覆盖 session 位置或松手瞬间跳回旧 RAF 位置。
 - `tests/browser/notification-center.spec.ts`：桌面完整通知面板保持工作区安全浮层右上角；桌面关闭态 Toast 与战略追踪器同属战略 Chrome、固定工作区右下角且宽度独立，发生局部重叠时允许覆盖追踪器；移动通知面板必须覆盖已打开的根 Sheet、保持状态栏最高且面板打开期间通知岛为零，`Escape` 只关闭通知面板并恢复通知入口焦点。
-- `tests/browser/mobile-navigation-scrollbar.spec.ts`：移动底栏保持同一 DOM、Sheet 存在时不可见且不可交互、根 Sheet 收起到地图后使用通知灵动岛同系返回动画，并继续验证无 hover、按下／选中／未选中状态和横向滚动。
+- `tests/browser/mobile-navigation-scrollbar.spec.ts`：移动底栏保持同一 DOM、Sheet 存在时不可见且不可交互、根 Sheet 收起到地图后使用通知灵动岛同系弹性返回动画，并继续验证无 hover、按下／选中／未选中状态和横向滚动。
 - `tests/browser/all-pages-preview.spec.ts`：概览、市场、建筑、设置四个同宽紧凑页面，排行榜与商店等六个全区域页面，并验证所有桌面页面共享同一战略追踪器而不是恢复页面专属右栏。
 - `tests/browser/province-map-focus.spec.ts`：真实浏览器中验证 hover 不改写州面镜头填充、选中亮边强于普通悬浮并保留辉光、悬浮其他州时选中州继续存在，同时保证 ECharts 实例、地图缩放目标与州名完整布局修订不因交互视觉变化而重置。
 - `tests/browser/map-zoom-out-boundary.spec.ts`：必须先把地图放大到外围州真实离开屏幕，再缩小到 `0.5`，验证加利福尼亚、佛罗里达、缅因和华盛顿重新进入物理视口且州名中心命中可见州面；`tests/browser/map-zoom-transient.spec.ts` 同时逐帧验证根 SVG 无 CSS 缩放、几何尺寸单调变化并且 settle 前后没有尺寸跳变；`tests/browser/map-zoom-render-sync.spec.ts` 必须在缩放活动帧逐帧比较地图 path 与州名比例，并验证外围州在缩放尚未 settle 时已经重新进入物理视口且州名中心仍命中对应州面。
