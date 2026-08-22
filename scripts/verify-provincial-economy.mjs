@@ -291,7 +291,7 @@ for (const forbidden of ['每个动画帧必须把 `nextZoom / currentZoom` 作�
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 for (const text of [
   '州级上下文页（无导航按钮）', '概览｜市场｜建筑｜仓库', '中文州全名作为唯一州面名称',
-  '静态 SVG 世界面', '单一合成相机', '名称随地图缩放和平移同步变化',
+  '静态 SVG 世界面', '唯一相机状态', '名称随地图缩放和平移同步变化',
   '不大于 `720px` 时地图 Tooltip 必须禁用并隐藏',
 ]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
 const chromeDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
