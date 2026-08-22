@@ -252,10 +252,13 @@ requireAll(paths.strategicStyle, [
   '.game-shell .signed-in-shell__primary-card .desktop-sidebar::after {',
   '.strategic-economic-event-rail {',
   'width: var(--strategic-event-rail-width);',
-  '.game-shell.strategic-tab-research:has(.strategic-economic-event-rail[data-tutorial-visible="true"])',
   '100% - var(--strategic-event-rail-width) - var(--strategic-panel-gap) * 3',
 ]);
-forbidAll(paths.strategicStyle, ['--strategic-inspector-width', '.strategic-province-inspector']);
+forbidAll(paths.strategicStyle, [
+  '.game-shell.strategic-tab-research .signed-in-shell__primary-card {',
+  '--strategic-inspector-width',
+  '.strategic-province-inspector',
+]);
 requireAll(paths.mobileStatusStyle, [
   '--mobile-below-status-top: calc(',
   ".game-shell .strategic-economic-event-rail[data-tutorial-visible='true']",

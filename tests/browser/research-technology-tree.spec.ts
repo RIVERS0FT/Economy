@@ -5,6 +5,7 @@ test.describe('research technology tree', () => {
     await page.setViewportSize({ width: 1600, height: 1000 });
 
     await page.goto('runtime-test.html?view=research&scenario=research-active');
+    await expect(page.locator('.signed-in-shell__primary-card')).toHaveAttribute('data-frosted-glass-variant', 'workspaceCard');
     await expect(page.locator('.page-card-scroll-area')).toHaveCount(0);
     await expect(page.locator('.page-card-static')).toBeVisible();
     await expect(page.locator('.page-heading-actions')).toHaveCount(0);
@@ -112,14 +113,12 @@ test.describe('research technology tree', () => {
     expect(researchGeometry.allDependenciesDownward).toBe(true);
     expect(researchGeometry.viewportClipsCanvas).toBe(true);
     expect(researchGeometry.fitsViewport).toBe(true);
-    expect(researchGeometry.outerCard).toEqual({
-      borderTopWidth: '0px',
-      borderRadius: '0px',
-      backgroundColor: 'rgba(0, 0, 0, 0)',
-      boxShadow: 'none',
-      backdropFilter: 'none',
-      beforeDisplay: 'none',
-    });
+    expect(researchGeometry.outerCard?.borderTopWidth).toBe('1px');
+    expect(researchGeometry.outerCard?.borderRadius).not.toBe('0px');
+    expect(researchGeometry.outerCard?.backgroundColor).toBe('rgba(5, 20, 14, 0.76)');
+    expect(researchGeometry.outerCard?.boxShadow).not.toBe('none');
+    expect(researchGeometry.outerCard?.backdropFilter).toContain('blur(18px)');
+    expect(researchGeometry.outerCard?.beforeDisplay).not.toBe('none');
     expect(researchGeometry.treeSurface).toEqual({
       borderTopWidth: '0px',
       borderRadius: '0px',

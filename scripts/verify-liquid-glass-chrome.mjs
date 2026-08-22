@@ -222,6 +222,7 @@ requireText(files.strategicStyles, [
   '--strategic-primary-card-inline-size:',
   'calc(100vw / 3),',
   '.game-shell .signed-in-shell__primary-card {',
+  'border-radius: var(--strategic-panel-radius);',
   'bottom: var(--strategic-panel-gap);',
   'transition: width var(--strategic-page-open-motion);',
   '.game-shell .signed-in-shell__primary-card .desktop-sidebar::after {',
@@ -234,9 +235,10 @@ requireText(files.strategicStyles, [
   '.application-map-layer > .strategic-map-lens-bar {',
   'z-index: 1;',
   '.strategic-economic-event-rail {',
+]);
+forbidText(files.strategicStyles, [
   '.game-shell.strategic-tab-research .signed-in-shell__primary-card {',
-  'background: transparent;',
-  'backdrop-filter: none;',
+  '.game-shell.strategic-tab-research .signed-in-shell__primary-card::before {',
 ]);
 
 requireText(files.sidebarStyles, [
@@ -307,7 +309,7 @@ requireText(files.design, [
   '教程卡根节点必须复用通用 `.panel`',
   '`research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop`',
   '所有 `fullscreen` 页面进入后整个右侧信息栏不挂载',
-  '研发页桌面保留 `workspaceCard` DOM 作为布局宿主，但移除其最外围卡片视觉',
+  '研发页桌面与其他玩家页面统一使用 `workspaceCard` 外层容器',
   '`--strategic-compact-page-width: 56rem`',
   '隐藏 `province` 上下文页',
   '`calc(100vw / 3)`',
@@ -331,4 +333,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('纯 CSS 毛玻璃外壳验证通过：共享外壳、普通页面桌面教程右栏、fullscreen 无右栏、研发透明全画布、移动教程外壳锚点与 SafeTooltip/ECharts Tooltip 统一使用纯 CSS 毛玻璃材质，且旧 Liquid Glass 实现保持退役。');
+console.log('纯 CSS 毛玻璃外壳验证通过：共享外壳、普通页面桌面教程右栏、fullscreen 无右栏、研发统一 workspaceCard 与内部透明科技画布、移动教程外壳锚点与 SafeTooltip/ECharts Tooltip 统一使用纯 CSS 毛玻璃材质，且旧 Liquid Glass 实现保持退役。');
