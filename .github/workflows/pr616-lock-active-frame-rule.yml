@@ -1,0 +1,56 @@
+name: PR 616 lock active frame rule
+
+on:
+  push:
+    branches:
+      - codex/static-svg-map-camera
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/static-svg-map-camera
+          fetch-depth: 0
+      - name: Update static verifier
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('scripts/verify-provincial-economy.mjs')
+          text = p.read_text(encoding='utf-8')
+
+          old = """  'surface.style.transform = `translate3d(', 'requestAnimationFrame(writeCamera)', 'if (frame === null)',\n  \"container.addEventListener('wheel', handleWheel, { passive: false })\", 'event.preventDefault();',\n"""
+          new = """  'surface.style.transform = `translate3d(', 'requestAnimationFrame(writeCamera)', 'if (frame === null)',\n  'const scheduleSettle = () => {', 'if (frame !== null) {', 'scheduleSettle();',\n  \"container.addEventListener('wheel', handleWheel, { passive: false })\", 'event.preventDefault();',\n"""
+          if text.count(old) != 1:
+              raise SystemExit('camera verifier anchor mismatch')
+          text = text.replace(old, new)
+
+          old = """  'states outside the viewport re-enter during zoom-out because all 48 paths remain mounted',\n  'offscreenBeforeZoomOut', \"data-map-zoom-active', 'true'\", 'restoredDuringActiveZoom', 'pathsAfter', 'pathsBefore',\n"""
+          new = """  'states outside the viewport re-enter during zoom-out because all 48 paths remain mounted',\n  'offscreenBeforeZoomOut', 'zoomOutActiveFrame.active', \"toBe('true')\", 'restoredDuringActiveZoom', 'pathsAfter', 'pathsBefore',\n"""
+          if text.count(old) != 1:
+              raise SystemExit('boundary verifier anchor mismatch')
+          text = text.replace(old, new)
+
+          anchor = """const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');\n"""
+          replacement = """const chromeDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');\nfor (const text of [\n  '待提交的 `requestAnimationFrame` 相机写入', '至少提交一帧 active 合成结果', '`INPUT_SETTLE_MS` 收口',\n]) assert.ok(chromeDesign.includes(text), `地图 active 帧设计规则缺少: ${text}`);\n\nconst uiDesign = read('docs/UI_DESIGN_SYSTEM.md');\n"""
+          if text.count(anchor) != 1:
+              raise SystemExit('design verifier anchor mismatch')
+          text = text.replace(anchor, replacement)
+
+          p.write_text(text, encoding='utf-8', newline='\n')
+          PY
+      - name: Remove one-time workflow and commit
+        run: |
+          rm .github/workflows/pr616-lock-active-frame-rule.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m "锁定地图 active 帧防回退规则"
+          git push origin HEAD:codex/static-svg-map-camera
