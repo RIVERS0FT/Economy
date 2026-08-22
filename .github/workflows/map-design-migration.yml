@@ -25,6 +25,7 @@ jobs:
       - name: Replace retired ECharts map rules in authoritative docs
         shell: bash
         run: |
+          python3 scripts/fix-static-map-migration-pattern.py
           python3 scripts/migrate-static-map-design.py
           git diff --check
           if git diff --quiet -- docs/UI_DESIGN_SYSTEM.md docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/LIQUID_GLASS_CHROME_DESIGN.md docs/README.md src/components/provinces/provinceMapCamera.ts; then
