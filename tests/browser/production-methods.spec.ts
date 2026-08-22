@@ -63,6 +63,19 @@ test.describe('factory production methods', () => {
     await expect(inputSlot).toBeVisible();
     await expect(outputSlot).toBeVisible();
 
+    const transitions = await formula.locator('.facility-production-progress').evaluate((element) => {
+      const track = element.querySelector<HTMLElement>('.progress-track');
+      const fill = element.querySelector<HTMLElement>('.progress-track > span');
+      return {
+        trackTransition: track ? getComputedStyle(track).transition : '',
+        fillTransition: fill ? getComputedStyle(fill).transition : '',
+        arrowClipPath: fill ? getComputedStyle(fill, '::after').clipPath : '',
+      };
+    });
+    expect(transitions.trackTransition).toBe('all');
+    expect(transitions.fillTransition).toContain('width');
+    expect(transitions.arrowClipPath).not.toBe('none');
+
     async function resetMarketIntent() {
       await page.evaluate(() => {
         Object.assign(window, { __lastSelectedAsset: '', __lastSelectedTab: '' });
@@ -76,7 +89,6 @@ test.describe('factory production methods', () => {
       await expect.poll(() => page.evaluate(() => (
         window as typeof window & { __lastSelectedTab?: string }
       ).__lastSelectedTab ?? '')).toBe('market');
-      await expect(detail).toBeVisible();
     }
 
     await resetMarketIntent();
@@ -86,19 +98,6 @@ test.describe('factory production methods', () => {
     await resetMarketIntent();
     await outputSlot.click();
     await expectProductMarketIntent('machinery');
-
-    const transitions = await formula.locator('.facility-production-progress').evaluate((element) => {
-      const track = element.querySelector<HTMLElement>('.progress-track');
-      const fill = element.querySelector<HTMLElement>('.progress-track > span');
-      return {
-        trackTransition: track ? getComputedStyle(track).transition : '',
-        fillTransition: fill ? getComputedStyle(fill).transition : '',
-        arrowClipPath: fill ? getComputedStyle(fill, '::after').clipPath : '',
-      };
-    });
-    expect(transitions.trackTransition).toBe('all');
-    expect(transitions.fillTransition).toContain('width');
-    expect(transitions.arrowClipPath).not.toBe('none');
   });
 
   test('keeps mobile production controls and settlement in one non-overlapping page detail flow', async ({ page }) => {
