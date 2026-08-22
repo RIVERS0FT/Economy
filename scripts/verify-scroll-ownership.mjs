@@ -19,20 +19,28 @@ for (const text of [
 ]) assert.ok(hook.includes(text), `覆盖式滚动条缺少滚轮归属规则: ${text}`);
 
 const productionStyles = read('src/styles/production-surface.css');
-const productionBlocks = productionStyles
-  .split('.production-workspace > .production-build-card {')
-  .slice(1)
-  .map((part) => part.slice(0, part.indexOf('}')));
-assert.ok(productionBlocks.length > 0, 'src/styles/production-surface.css 缺少生产建设卡最终布局规则');
-assert.ok(
-  productionStyles.includes('.production-workspace > .production-build-card,\n  .production-workspace > .facility-cluster-detail-shell {\n    position: static;'),
-  '建筑账本建设卡与详情必须回到页面主滚动流',
-);
-const activeDesktopProduction = productionStyles.match(
-  /@media \(min-width: 961px\)\s*\{([\s\S]*?)\n\}\n\n@media \(max-width: 720px\)/,
-)?.[1] ?? '';
-assert.equal(activeDesktopProduction.includes('overflow-y: auto;'), false, '建筑账本不得恢复建设卡独立纵向滚动');
-assert.equal(activeDesktopProduction.includes('overscroll-behavior-y:'), false, '建筑账本不再需要建设卡独立 overscroll 边界');
+const buildStart = productionStyles.indexOf('.regional-buildings-management > .production-build-card {');
+assert.ok(buildStart >= 0, 'src/styles/production-surface.css 缺少地区建设卡最终布局规则');
+const buildBlock = productionStyles.slice(buildStart, productionStyles.indexOf('}', buildStart) + 1);
+for (const text of [
+  'position: static;',
+  'top: auto;',
+  'overflow: visible;',
+]) assert.ok(buildBlock.includes(text), `地区建设卡必须回到页面主滚动流: ${text}`);
+assert.equal(buildBlock.includes('overflow-y: auto;'), false, '地区建设卡不得创建独立纵向滚动');
+assert.equal(buildBlock.includes('overscroll-behavior-y:'), false, '地区建设卡不需要独立 overscroll 边界');
+
+const detailStart = productionStyles.indexOf('.facility-cluster-detail-shell.facility-cluster-detail-page {');
+assert.ok(detailStart >= 0, 'src/styles/production-surface.css 缺少工厂二级详情最终布局规则');
+const detailBlock = productionStyles.slice(detailStart, productionStyles.indexOf('}', detailStart) + 1);
+for (const text of [
+  'position: static;',
+  'top: auto;',
+  'max-height: none;',
+  'overflow: visible;',
+]) assert.ok(detailBlock.includes(text), `工厂二级详情必须回到页面主滚动流: ${text}`);
+assert.equal(detailBlock.includes('overflow-y: auto;'), false, '工厂二级详情不得创建独立纵向滚动');
+assert.equal(detailBlock.includes('overscroll-behavior-y:'), false, '工厂二级详情不需要独立 overscroll 边界');
 
 const performanceStyles = read('src/styles/performance.css');
 assert.ok(
@@ -79,10 +87,10 @@ for (const text of [
 
 const productionDesign = read('docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md');
 for (const text of [
-  '建设卡与详情外壳不再使用建筑页场景 sticky',
-  '页面唯一纵向滚动视口继续由 `PageLayout` 的页面滚动区负责',
-  '不得恢复建设卡自己的纵向滚动条',
-]) assert.ok(productionDesign.includes(text), `建筑账本滚动设计缺少: ${text}`);
+  '建设卡和工厂详情都保持普通文档流，不使用建筑页场景 sticky',
+  '页面唯一纵向滚动视口继续由 `PageLayout` 管理',
+  '建设卡和详情不得创建自己的纵向滚动条',
+]) assert.ok(productionDesign.includes(text), `地区建筑滚动设计缺少: ${text}`);
 
 const shellDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
 for (const text of [
@@ -90,4 +98,4 @@ for (const text of [
   '不得为管理员创建第二个原生主滚动容器',
 ]) assert.ok(shellDesign.includes(text), `共享外壳设计缺少管理员滚动所有权规则: ${text}`);
 
-console.log('Nested custom/native scroll ownership, shared signed-in page scroll, building-ledger page flow and boundary release verification passed.');
+console.log('Nested custom/native scroll ownership, shared signed-in page scroll, regional factory page flow and boundary release verification passed.');
