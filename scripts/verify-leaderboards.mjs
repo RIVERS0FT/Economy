@@ -78,6 +78,9 @@ check(page.includes('className="leaderboard-responsive-layout"'), 'leaderboard p
 check(page.includes('className="leaderboard-board-grid"'), 'leaderboard page must render the ordered board grid');
 check(page.includes('<LeaderboardCard board={leaderboards.boards[boardId]} period={period} />'), 'leaderboard page must render all four boards from the approved order');
 check(page.includes("timeZone: 'Asia/Shanghai'"), 'leaderboard page must format periods in Beijing time');
+check(!page.includes('actions={period.partial'), 'leaderboard title must not render weekly period actions');
+check(!page.includes('<StatusTag tone="success">{periodLabel}</StatusTag>'), 'leaderboard title must not render the weekly period as a pill');
+check(page.includes('本期 {periodLabel}；'), 'leaderboard period must remain in the footer note');
 check(page.includes("board.unit === 'quantity'"), 'leaderboard page must format production as a quantity');
 check(page.includes("if (board.unit === 'quantity') return formatNumber(score);"), 'production quantity must render as a plain formatted number');
 check(!page.includes('`${formatNumber(score)} 个`'), 'production quantity must not append the 个 unit');
@@ -106,6 +109,7 @@ check(productDesign.includes('实际卖出成交额'), 'product design must reco
 check(navigationDesign.includes('内容容器宽度不小于 `72rem` 时隐藏切换按钮'), 'navigation design must record the responsive four-board mode');
 check(navigationDesign.includes('按钮必须强制保持同一行'), 'navigation design must keep the narrow switch on one row');
 check(navigationDesign.includes('不显示“首个不完整周不发奖”胶囊'), 'navigation design must record the removed partial-week copy');
+check(navigationDesign.includes('标题栏不得显示周榜起止时间或持续时间胶囊'), 'navigation design must forbid the leaderboard period pill');
 check(previewSpec.includes("page.locator('.leaderboard-board-card:visible')).toHaveCount(4)"), 'browser preview must render four visible boards at wide width');
 check(previewSpec.includes("page.locator('.leaderboard-board-card:visible')).toHaveCount(1)"), 'browser preview must render one visible board at narrow width');
 check(previewSpec.includes("toHaveAttribute('aria-label', '选择排行榜')"), 'browser preview must verify the four-button leaderboard switch');
