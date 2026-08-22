@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
+import { getAuctionState } from '../../auctions/types';
+import type { ProductionContract } from '../../contracts/types';
 import type { GameTutorialController } from '../../game-guide/useGameTutorial';
 import { useNow } from '../../hooks/useNow';
 import type { PendingNotificationItem } from '../../notifications/notificationCenter';
@@ -22,22 +24,8 @@ import {
 
 type OutlinerTone = 'neutral' | 'info' | 'warning' | 'danger' | 'success';
 
-type OutlinerDynamicGame = LoadedGameViewModel['game'] & {
-  assetAuctions?: Array<{
-    id: string;
-    status?: string;
-    endsAt?: number;
-    currentBid?: number;
-    itemSummaries?: Array<{ name?: string }>;
-    asset?: { name?: string };
-  }>;
-  productionContracts?: Array<{
-    id: string;
-    status?: string;
-    issue?: string | null;
-    productName?: string;
-    nextDeliveryAt?: number | null;
-  }>;
+type ContractGameState = LoadedGameViewModel['game'] & {
+  productionContracts?: ProductionContract[];
 };
 
 interface OutlinerSectionProps {
@@ -190,6 +178,26 @@ function contextPinLabel(model: LoadedGameViewModel, pin: StrategicOutlinerPin) 
   return pin.id;
 }
 
+function contractTitle(model: LoadedGameViewModel, contract: ProductionContract) {
+  if (contract.kind === 'loan') {
+    return `${contract.publisherSide === 'lender' ? '放贷' : '贷款'}合同`;
+  }
+  if (contract.kind === 'facility_lease') {
+    const facilityName = contract.facilityTypeId
+      ? model.game.facilityTypes.find((facility) => facility.id === contract.facilityTypeId)?.name
+      : undefined;
+    return `${contract.publisherSide === 'lessor' ? '出租' : '租赁'}合同 · ${facilityName ?? contract.facilityTypeId ?? contract.id}`;
+  }
+  const productName = model.game.products.find((product) => product.id === contract.productId)?.name
+    ?? contract.productId;
+  return `${productName}${contract.publisherRole === 'supplier' ? '供应' : '采购'}合同`;
+}
+
+function contractDeadline(contract: ProductionContract) {
+  if (contract.kind === 'loan') return contract.dueAt ?? contract.nextDueAt;
+  return contract.nextDueAt;
+}
+
 function eventTiming(event: EconomicCalendarEvent, now: number) {
   if (now < event.startsAt) return `${formatDuration(event.startsAt - now)} 后开始`;
   if (now < event.endsAt) return `进行中 · ${formatDuration(event.endsAt - now)}`;
@@ -242,7 +250,8 @@ export function StrategicOutliner({
 }) {
   const preferences = useStrategicOutliner(model.user.id);
   const now = useNow(model.game.lastProcessedAt);
-  const dynamicGame = model.game as OutlinerDynamicGame;
+  const auctions = getAuctionState(model.game).assetAuctions;
+  const contracts = (model.game as ContractGameState).productionContracts ?? [];
   const showTutorial = Boolean(tutorial?.isVisible && tutorial.currentStep);
   const contextPin = contextPinFor(model);
   const contextLabel = contextPinLabel(model, contextPin);
@@ -347,7 +356,7 @@ export function StrategicOutliner({
       );
     }
     if (pin.kind === 'auction') {
-      const auction = dynamicGame.assetAuctions?.find((candidate) => candidate.id === pin.id);
+      const auction = auctions.find((candidate) => candidate.id === pin.id);
       const name = auction?.itemSummaries?.[0]?.name ?? auction?.asset?.name ?? `拍卖 ${pin.id}`;
       const meta = typeof auction?.endsAt === 'number' && auction.endsAt > now
         ? formatDuration(auction.endsAt - now)
@@ -366,14 +375,15 @@ export function StrategicOutliner({
         />
       );
     }
-    const contract = dynamicGame.productionContracts?.find((candidate) => candidate.id === pin.id);
-    const meta = typeof contract?.nextDeliveryAt === 'number' && contract.nextDeliveryAt > now
-      ? formatDuration(contract.nextDeliveryAt - now)
+    const contract = contracts.find((candidate) => candidate.id === pin.id);
+    const deadline = contract ? contractDeadline(contract) : null;
+    const meta = typeof deadline === 'number' && deadline > now
+      ? formatDuration(deadline - now)
       : undefined;
     return (
       <OutlinerRow
         key={pin.key}
-        title={contract?.productName ? `${contract.productName}合同` : `合同 ${pin.id}`}
+        title={contract ? contractTitle(model, contract) : `合同 ${pin.id}`}
         detail={contract?.issue || (contract?.status === 'active' ? '履约中' : contract ? '合同已结束' : '合同状态暂不可用')}
         meta={meta}
         icon="contracts"
