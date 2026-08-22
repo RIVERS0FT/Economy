@@ -321,7 +321,10 @@ test('persistent US strategy map exposes 48 states, lenses, and local context', 
 
   await provinceTabs.getByRole('tab', { name: '建筑', exact: true }).click();
   await expect(provinceTabs.getByRole('tab', { name: '建筑', exact: true })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.locator('.production-workspace')).toBeVisible();
+  await expect(page.locator('.production-build-card')).toBeVisible();
+  await expect(page.locator('.facility-cluster-selector-list')).toBeVisible();
+  await expect(page.locator('.buildings-summary-panel')).toHaveCount(0);
+  await expect(page.locator('.buildings-list-filters')).toHaveCount(0);
   await expect(page.locator('.factory-warehouse-card')).toHaveCount(0);
 
   await provinceTabs.getByRole('tab', { name: '仓库', exact: true }).click();
