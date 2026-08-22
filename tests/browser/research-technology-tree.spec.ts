@@ -14,10 +14,13 @@ test.describe('research technology tree', () => {
     const fixedPageOverflow = await page.locator('.page-card-static').evaluate((element) => {
       const stack = element.querySelector<HTMLElement>(':scope > .ui-page-stack');
       if (!stack) throw new Error('fixed page stack is missing');
+      const fixedBodyStyle = getComputedStyle(element);
       const stackStyle = getComputedStyle(stack);
       const stackChildren = Array.from(stack.children);
       return {
-        overflowY: getComputedStyle(element).overflowY,
+        overflowY: fixedBodyStyle.overflowY,
+        paddingInlineStart: fixedBodyStyle.paddingInlineStart,
+        paddingInlineEnd: fixedBodyStyle.paddingInlineEnd,
         scrollTop: element.scrollTop,
         stackRows: stackStyle.gridTemplateRows,
         stackAlignContent: stackStyle.alignContent,
@@ -28,6 +31,8 @@ test.describe('research technology tree', () => {
       };
     });
     expect(fixedPageOverflow.overflowY).toBe('hidden');
+    expect(fixedPageOverflow.paddingInlineStart).toBe('0px');
+    expect(fixedPageOverflow.paddingInlineEnd).toBe('0px');
     expect(fixedPageOverflow.scrollTop).toBe(0);
     expect(fixedPageOverflow.stackRows).not.toBe('none');
     expect(fixedPageOverflow.stackAlignContent).toBe('stretch');
@@ -41,6 +46,7 @@ test.describe('research technology tree', () => {
     await expect(page.getByText('32 项科技', { exact: true })).toHaveCount(0);
     const researchGeometry = await page.evaluate(() => {
       const action = document.querySelector<HTMLElement>('.research-action-panel')?.getBoundingClientRect();
+      const fixedBody = document.querySelector<HTMLElement>('.page-card-static')?.getBoundingClientRect();
       const workspace = document.querySelector<HTMLElement>('.research-workspace')?.getBoundingClientRect();
       const treePanel = document.querySelector<HTMLElement>('.research-tree-panel')?.getBoundingClientRect();
       const treeViewportElement = document.querySelector<HTMLElement>('.research-tree-viewport');
@@ -68,6 +74,7 @@ test.describe('research technology tree', () => {
         actionLeftInset: (action?.left ?? 0) - (treePanel?.left ?? 0),
         actionTopInset: (action?.top ?? 0) - (treePanel?.top ?? 0),
         actionInsideTree: actionElement?.parentElement === treePanelElement,
+        fixedBody: fixedBody ? { left: fixedBody.left, right: fixedBody.right } : null,
         workspace: workspace ? { left: workspace.left, top: workspace.top, right: workspace.right, bottom: workspace.bottom } : null,
         treePanel: treePanel ? { left: treePanel.left, top: treePanel.top, right: treePanel.right, bottom: treePanel.bottom } : null,
         treeViewport: treeViewport ? { left: treeViewport.left, top: treeViewport.top, right: treeViewport.right, bottom: treeViewport.bottom } : null,
@@ -103,6 +110,8 @@ test.describe('research technology tree', () => {
     expect((researchGeometry.workspace?.bottom ?? 0) - (researchGeometry.workspace?.top ?? 0)).toBeGreaterThan(0);
     expect(researchGeometry.actionLeftInset).toBeCloseTo(researchGeometry.layoutGutter, 0);
     expect(researchGeometry.actionTopInset).toBeCloseTo(researchGeometry.layoutGutter, 0);
+    expect(researchGeometry.workspace?.left).toBeCloseTo(researchGeometry.fixedBody?.left ?? 0, 0);
+    expect(researchGeometry.workspace?.right).toBeCloseTo(researchGeometry.fixedBody?.right ?? 0, 0);
     expect(researchGeometry.treePanel).toEqual(researchGeometry.workspace);
     expect(researchGeometry.treeViewport).toEqual(researchGeometry.treePanel);
     expect(researchGeometry.detailArtworkWidth).toBeCloseTo(researchGeometry.expectedDetailArtworkSize, 0);
