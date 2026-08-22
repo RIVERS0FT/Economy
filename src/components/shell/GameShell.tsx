@@ -80,6 +80,7 @@ export function GameShell({ model, children, offline = false }: {
   const auctionNewIdSet = useMemo(() => new Set(auctionNewIds), [auctionNewIds]);
   const openBank = useCallback(() => model.setTab('bank'), [model.setTab]);
   const pagePresentation = STRATEGIC_PAGE_PRESENTATION[model.tab];
+  const showRightRail = pagePresentation !== 'fullscreen';
   const tutorial = (model as LoadedGameViewModel & { tutorial?: GameTutorialController }).tutorial;
   const playerName = game.playerName.trim() || '玩家';
 
@@ -293,7 +294,7 @@ export function GameShell({ model, children, offline = false }: {
           <>
             <StrategicWorkspaceChrome
               model={model}
-              tutorial={tutorial}
+              tutorial={showRightRail ? tutorial : undefined}
               showEventRail={!HIDDEN_EVENT_RAIL_TABS.has(model.tab)}
             />
             {notificationCenter.panelOpen ? null : (
