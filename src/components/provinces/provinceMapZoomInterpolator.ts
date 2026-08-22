@@ -1,4 +1,8 @@
 import type { EChartsType } from '../charts/echartsCore';
+import {
+  commitProvinceMapLayoutCamera,
+  type ProvinceMapLayoutCamera,
+} from './provinceMapLayoutCamera';
 
 const MAP_SERIES_ID = 'us-mainland-map';
 export const MAP_ZOOM_MIN = 0.5;
@@ -28,17 +32,61 @@ interface PinchEventLike {
   event?: Event;
 }
 
+interface MapSeriesLayoutState {
+  id?: string;
+  zoom?: unknown;
+  layoutCenter?: unknown;
+  layoutSize?: unknown;
+}
+
 type ZoomInputMode = 'idle' | 'wheel' | 'pinch' | 'reset';
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function currentMapZoom(chart: EChartsType) {
-  const option = chart.getOption() as { series?: Array<{ id?: string; zoom?: number }> };
-  const series = option.series?.find((candidate) => candidate.id === MAP_SERIES_ID) ?? option.series?.[0];
-  const zoom = Number(series?.zoom ?? 1);
+function mapSeriesLayoutState(chart: EChartsType) {
+  const option = chart.getOption() as { series?: MapSeriesLayoutState[] };
+  return option.series?.find((candidate) => candidate.id === MAP_SERIES_ID) ?? option.series?.[0];
+}
+
+function initialLogicalZoom(chart: EChartsType) {
+  const zoom = Number(mapSeriesLayoutState(chart)?.zoom ?? 1);
   return Number.isFinite(zoom) && zoom > 0 ? clamp(zoom, MAP_ZOOM_MIN, MAP_ZOOM_MAX) : 1;
+}
+
+function layoutCoordinateToPixel(value: unknown, extent: number) {
+  if (!(extent > 0)) return 0;
+  if (typeof value === 'string' && value.trim().endsWith('%')) {
+    const percent = Number.parseFloat(value);
+    if (Number.isFinite(percent)) return extent * percent / 100;
+  }
+  const pixels = Number(value);
+  return Number.isFinite(pixels) ? pixels : extent / 2;
+}
+
+function layoutSizeToPercent(value: unknown, referenceSize: number) {
+  if (!(referenceSize > 0)) return 100;
+  if (typeof value === 'string' && value.trim().endsWith('%')) {
+    const percent = Number.parseFloat(value);
+    if (Number.isFinite(percent) && percent > 0) return percent;
+  }
+  const pixels = Number(value);
+  if (Number.isFinite(pixels) && pixels > 0) return pixels / referenceSize * 100;
+  return 100;
+}
+
+function readLayoutCamera(chart: EChartsType): ProvinceMapLayoutCamera {
+  const width = chart.getWidth();
+  const height = chart.getHeight();
+  const referenceSize = Math.min(width, height);
+  const series = mapSeriesLayoutState(chart);
+  const layoutCenter = Array.isArray(series?.layoutCenter) ? series.layoutCenter : ['50%', '50%'];
+  return {
+    centerX: layoutCoordinateToPixel(layoutCenter[0], width),
+    centerY: layoutCoordinateToPixel(layoutCenter[1], height),
+    sizePercent: layoutSizeToPercent(series?.layoutSize, referenceSize),
+  };
 }
 
 function normalizeWheelDelta(event: WheelEvent, container: HTMLElement) {
@@ -86,9 +134,10 @@ function clearTransientSurfaceTransform(surface: SVGSVGElement | null) {
 
 export function createProvinceMapZoomInterpolator(chart: EChartsType): ProvinceMapZoomInterpolator {
   const container = chart.getDom();
-  let committedZoom = currentMapZoom(chart);
+  let committedZoom = initialLogicalZoom(chart);
   let currentZoom = committedZoom;
   let targetZoom = committedZoom;
+  let committedLayoutCamera = readLayoutCamera(chart);
   let originX = chart.getWidth() / 2;
   let originY = chart.getHeight() / 2;
   let transientScale = 1;
@@ -130,6 +179,7 @@ export function createProvinceMapZoomInterpolator(chart: EChartsType): ProvinceM
     container.dataset.mapZoomResponseMs = String(responseMs);
     container.dataset.mapZoomSurfaceMode = 'shared-css-transform';
     container.dataset.mapZoomHotPath = 'transform-only';
+    container.dataset.mapZoomCommitMode = 'layout-camera';
     refreshSurfaces();
   };
 
@@ -201,26 +251,32 @@ export function createProvinceMapZoomInterpolator(chart: EChartsType): ProvinceM
     if (!transientActive || destroyed || chart.isDisposed()) return;
     const hasScale = Math.abs(Math.log(transientScale)) > ZOOM_TRANSFORM_LOG_EPSILON;
     const hasTranslation = Math.hypot(transientTranslateX, transientTranslateY) > TRANSLATION_COMMIT_EPSILON;
-    if (hasScale) {
-      const denominator = 1 - transientScale;
-      const effectiveOriginX = transientTranslateX / denominator;
-      const effectiveOriginY = transientTranslateY / denominator;
+    if (hasScale || hasTranslation) {
+      let nextCenterX = committedLayoutCamera.centerX + transientTranslateX;
+      let nextCenterY = committedLayoutCamera.centerY + transientTranslateY;
+      if (hasScale) {
+        const denominator = 1 - transientScale;
+        const effectiveOriginX = transientTranslateX / denominator;
+        const effectiveOriginY = transientTranslateY / denominator;
+        nextCenterX = effectiveOriginX
+          + (committedLayoutCamera.centerX - effectiveOriginX) * transientScale;
+        nextCenterY = effectiveOriginY
+          + (committedLayoutCamera.centerY - effectiveOriginY) * transientScale;
+      }
+      const nextLayoutCamera: ProvinceMapLayoutCamera = {
+        centerX: nextCenterX,
+        centerY: nextCenterY,
+        sizePercent: committedLayoutCamera.sizePercent * transientScale,
+      };
+      commitProvinceMapLayoutCamera(chart, MAP_SERIES_ID, nextLayoutCamera);
+      committedLayoutCamera = nextLayoutCamera;
+      commitCount += 1;
       chart.dispatchAction({
         type: 'geoRoam',
         seriesId: MAP_SERIES_ID,
-        zoom: transientScale,
-        originX: effectiveOriginX,
-        originY: effectiveOriginY,
+        dx: 0,
+        dy: 0,
       } as Parameters<EChartsType['dispatchAction']>[0]);
-      commitCount += 1;
-    } else if (hasTranslation) {
-      chart.dispatchAction({
-        type: 'geoRoam',
-        seriesId: MAP_SERIES_ID,
-        dx: transientTranslateX,
-        dy: transientTranslateY,
-      } as Parameters<EChartsType['dispatchAction']>[0]);
-      commitCount += 1;
     }
     committedZoom = currentZoom;
     targetZoom = currentZoom;
@@ -302,7 +358,7 @@ export function createProvinceMapZoomInterpolator(chart: EChartsType): ProvinceM
     if (transientActive) return;
     cancelClearFrame();
     clearTransientSurfaces();
-    committedZoom = currentMapZoom(chart);
+    committedLayoutCamera = readLayoutCamera(chart);
     currentZoom = committedZoom;
     targetZoom = committedZoom;
     transientScale = 1;
@@ -442,6 +498,7 @@ export function createProvinceMapZoomInterpolator(chart: EChartsType): ProvinceM
       delete container.dataset.mapZoomSurfaceMode;
       delete container.dataset.mapZoomSurfaceCount;
       delete container.dataset.mapZoomHotPath;
+      delete container.dataset.mapZoomCommitMode;
       delete container.dataset.mapZoomTransientScale;
       delete container.dataset.mapZoomTransientTranslate;
     },
