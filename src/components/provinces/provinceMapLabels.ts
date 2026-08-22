@@ -31,6 +31,7 @@ interface PreparedProvinceMapLabelSource extends ProvinceMapLabelSource {
 export interface ProvinceMapLabelRenderer {
   refreshLayout: () => void;
   syncCamera: () => void;
+  syncCameraImmediately: () => void;
   updateSelection: () => void;
   destroy: () => void;
 }
@@ -923,6 +924,15 @@ export function createProvinceMapLabelRenderer(
     cameraFrame = requestAnimationFrame(syncCameraNow);
   };
 
+  const syncCameraImmediately = () => {
+    if (chart.isDisposed() || layoutFrame !== null) return;
+    if (cameraFrame !== null) {
+      cancelAnimationFrame(cameraFrame);
+      cameraFrame = null;
+    }
+    syncCameraNow();
+  };
+
   const handleGeoRoam = () => {
     syncCamera();
   };
@@ -931,6 +941,7 @@ export function createProvinceMapLabelRenderer(
   return {
     refreshLayout,
     syncCamera,
+    syncCameraImmediately,
     updateSelection,
     destroy: () => {
       if (layoutFrame !== null) cancelAnimationFrame(layoutFrame);
