@@ -1,11 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-async function waitForSheetAnimations(dialog: Locator) {
-  await expect.poll(() => dialog.evaluate((element) => (
-    element.getAnimations().every((animation) => animation.playState === 'finished')
-  ))).toBe(true);
-}
-
 async function swipeDownFromTop(page: Page, surface: Locator, distance = 180) {
   const box = await surface.boundingBox();
   expect(box).not.toBeNull();
@@ -34,30 +28,17 @@ test.describe('mobile facility pull-to-refresh prevention', () => {
     hasTouch: true,
   });
 
-  test('top content swipe closes the sheet and cancels browser overscroll', async ({ page }) => {
+  test('factory detail page keeps the signed-in overscroll boundary without opening a sheet', async ({ page }) => {
     await page.goto('runtime-test.html?view=production&scenario=activity');
 
     const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
-    const dialog = page.getByRole('dialog', { name: /机械工厂/ });
-    const content = page.locator('.mobile-detail-sheet-scroll');
     await trigger.tap();
-    await expect(dialog).toBeVisible();
-    await waitForSheetAnimations(dialog);
+    const detail = page.locator('.facility-cluster-detail-page');
+    const content = page.locator('.page-card-scroll');
+    await expect(detail).toBeVisible();
+    await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
     await expect(page.locator('html')).toHaveCSS('overscroll-behavior-y', 'none');
     await content.evaluate((element) => { element.scrollTop = 0; });
-
-    await page.evaluate(() => {
-      const browserWindow = window as Window & {
-        __facilityTouchMovePrevented?: boolean;
-      };
-      browserWindow.__facilityTouchMovePrevented = false;
-      document.addEventListener('touchmove', (event) => {
-        const target = event.target instanceof Element ? event.target : null;
-        if (target?.closest('.mobile-detail-sheet')) {
-          browserWindow.__facilityTouchMovePrevented ||= event.defaultPrevented;
-        }
-      });
-    });
 
     const originalUrl = page.url();
     let topLevelNavigations = 0;
@@ -67,10 +48,7 @@ test.describe('mobile facility pull-to-refresh prevention', () => {
 
     await swipeDownFromTop(page, content);
 
-    await expect.poll(() => page.evaluate(() => (
-      (window as Window & { __facilityTouchMovePrevented?: boolean }).__facilityTouchMovePrevented
-    ))).toBe(true);
-    await expect(dialog).toBeHidden();
+    await expect(detail).toBeVisible();
     expect(page.url()).toBe(originalUrl);
     expect(topLevelNavigations).toBe(0);
   });
