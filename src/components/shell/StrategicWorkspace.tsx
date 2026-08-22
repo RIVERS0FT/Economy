@@ -1,9 +1,9 @@
 import regionCatalog from '../../../shared/provinces.json';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import type { GameTutorialController } from '../../game-guide/useGameTutorial';
+import type { PendingNotificationItem } from '../../notifications/notificationCenter';
 import type { ProvinceAssetSummary, ProvinceDefinition } from '../../types';
-import { EconomicEventLogPanel } from '../EconomicEventLogPanel';
-import { GameGuideStrip } from '../GameGuideStrip';
+import { StrategicOutliner } from '../outliner/StrategicOutliner';
 import { UsMainlandMap, type ProvinceMapLens } from '../provinces/UsMainlandMap';
 import {
   AssetsIcon,
@@ -115,31 +115,17 @@ export function StrategicMapLensBar({
 export function StrategicWorkspaceChrome({
   model,
   tutorial,
-  showEventRail,
+  pendingItems,
 }: {
   model: LoadedGameViewModel;
   tutorial?: GameTutorialController;
-  showEventRail: boolean;
+  pendingItems: PendingNotificationItem[];
 }) {
-  const showTutorial = Boolean(tutorial?.isVisible && tutorial.currentStep);
-  if (!showEventRail && !showTutorial) return null;
-
   return (
-    <aside
-      className="strategic-economic-event-rail"
-      aria-label={showEventRail ? '公开经济事件日志' : '教程'}
-      data-tutorial-visible={showTutorial ? 'true' : 'false'}
-      data-event-log-visible={showEventRail ? 'true' : 'false'}
-    >
-      {showTutorial && tutorial ? <GameGuideStrip tutorial={tutorial} /> : null}
-      {showEventRail ? (
-        <EconomicEventLogPanel
-          events={model.game.economicCalendar?.events ?? []}
-          products={model.game.products}
-          markets={model.game.markets}
-          referenceNow={model.game.lastProcessedAt}
-        />
-      ) : null}
-    </aside>
+    <StrategicOutliner
+      model={model}
+      tutorial={tutorial}
+      pendingItems={pendingItems}
+    />
   );
 }
