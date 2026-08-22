@@ -301,7 +301,9 @@ export function UsMainlandMap({
 
   const installZoomInterpolator = useCallback((chart: EChartsType) => {
     zoomInterpolatorRef.current?.destroy();
-    zoomInterpolatorRef.current = createProvinceMapZoomInterpolator(chart);
+    zoomInterpolatorRef.current = createProvinceMapZoomInterpolator(chart, () => {
+      labelRendererRef.current?.syncCameraImmediately();
+    });
   }, []);
 
   useEffect(() => {

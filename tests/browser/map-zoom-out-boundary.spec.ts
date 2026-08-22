@@ -25,11 +25,15 @@ async function readEdgeProvinceHits(page: Page) {
         }
         const x = matrix.a * localX + matrix.c * localY + matrix.e;
         const y = matrix.b * localX + matrix.d * localY + matrix.f;
-        const statePathVisibleAtLabel = document.elementsFromPoint(x, y).some((element) => (
-          element instanceof SVGPathElement
-          && element.ownerSVGElement === mapSvg
-          && !element.closest('defs')
-        ));
+        const statePathVisibleAtLabel = x >= canvasBounds.left
+          && x <= canvasBounds.right
+          && y >= canvasBounds.top
+          && y <= canvasBounds.bottom
+          && document.elementsFromPoint(x, y).some((element) => (
+            element instanceof SVGPathElement
+            && element.ownerSVGElement === mapSvg
+            && !element.closest('defs')
+          ));
         return {
           provinceId,
           x,
@@ -47,7 +51,25 @@ async function readEdgeProvinceHits(page: Page) {
   }, EDGE_PROVINCE_IDS);
 }
 
-test('zooming out keeps outer state fills and boundaries visible under their labels', async ({ page }) => {
+async function wheelBurst(page: Page, deltaY: number, count: number) {
+  const canvas = page.getByTestId('us-mainland-map').locator('.economy-chart__canvas');
+  await canvas.evaluate((container, input) => {
+    const bounds = container.getBoundingClientRect();
+    for (let index = 0; index < input.count; index += 1) {
+      container.dispatchEvent(new WheelEvent('wheel', {
+        bubbles: true,
+        cancelable: true,
+        clientX: bounds.left + bounds.width / 2,
+        clientY: bounds.top + bounds.height / 2,
+        deltaY: input.deltaY,
+      }));
+    }
+  }, { deltaY, count });
+  await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+}
+
+test('states that leave the viewport while zoomed in re-enter when the formal map camera zooms out', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
@@ -55,17 +77,24 @@ test('zooming out keeps outer state fills and boundaries visible under their lab
   const map = page.getByTestId('us-mainland-map');
   const canvas = map.locator('.economy-chart__canvas');
   await expect(map).toHaveAttribute('data-echarts-ready', 'true');
-  await expect(canvas).toHaveAttribute('data-map-zoom-commit-mode', 'layout-camera');
+  await expect(canvas).toHaveAttribute('data-map-zoom-camera-mode', 'echarts-geo-roam');
+  await expect(canvas).toHaveAttribute('data-map-zoom-commit-mode', 'settle-marker');
   await expect(canvas).toHaveAttribute('data-map-label-count', '48');
 
   const initialHits = await readEdgeProvinceHits(page);
   expect(initialHits.every((entry) => entry.insideCanvas)).toBe(true);
   expect(initialHits.every((entry) => entry.statePathVisibleAtLabel)).toBe(true);
 
+  await wheelBurst(page, -180, 6);
+  expect(Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(2.5);
+  const zoomedInHits = await readEdgeProvinceHits(page);
+  const offscreenBeforeZoomOut = zoomedInHits.filter((entry) => !entry.insideCanvas).length;
+  expect(offscreenBeforeZoomOut).toBeGreaterThanOrEqual(2);
+
   const commitBefore = Number(await canvas.getAttribute('data-map-zoom-commit-count'));
   await canvas.evaluate((container) => {
     const bounds = container.getBoundingClientRect();
-    for (let index = 0; index < 8; index += 1) {
+    for (let index = 0; index < 12; index += 1) {
       container.dispatchEvent(new WheelEvent('wheel', {
         bubbles: true,
         cancelable: true,
@@ -81,10 +110,9 @@ test('zooming out keeps outer state fills and boundaries visible under their lab
   await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-commit-count'))).toBe(commitBefore + 1);
   await expect(canvas).toHaveAttribute('data-map-zoom-current', /^0\.5000\d$/);
   await expect(canvas).toHaveAttribute('data-map-zoom-committed', /^0\.5000\d$/);
-  await expect(canvas).toHaveAttribute('data-map-zoom-transient-scale', '1.000000');
-  await expect(canvas).toHaveAttribute('data-map-zoom-transient-translate', '0.000,0.000');
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
-  const settledTransforms = await canvas.evaluate((container) => {
+  const transforms = await canvas.evaluate((container) => {
     const surfaces = [...container.querySelectorAll<SVGSVGElement>('svg')];
     const labelSurface = surfaces.find((surface) => surface.classList.contains('province-map-label-overlay'));
     const mapSurface = surfaces.find((surface) => !surface.classList.contains('province-map-label-overlay'));
@@ -93,10 +121,15 @@ test('zooming out keeps outer state fills and boundaries visible under their lab
       labelTransform: labelSurface?.style.transform || '',
     };
   });
-  expect(settledTransforms.mapTransform).toBe('');
-  expect(settledTransforms.labelTransform).toBe('');
+  expect(transforms.mapTransform).toBe('');
+  expect(transforms.labelTransform).toBe('');
 
-  const shrunkenHits = await readEdgeProvinceHits(page);
-  expect(shrunkenHits.every((entry) => entry.insideCanvas)).toBe(true);
-  expect(shrunkenHits.every((entry) => entry.statePathVisibleAtLabel)).toBe(true);
+  const restored = await readEdgeProvinceHits(page);
+  expect(restored.every((entry) => entry.insideCanvas)).toBe(true);
+  expect(restored.every((entry) => entry.statePathVisibleAtLabel)).toBe(true);
+
+  const california = restored.find((entry) => entry.provinceId === '110000');
+  if (!california) throw new Error('California edge probe is missing');
+  await page.mouse.click(california.x, california.y);
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '110000');
 });
