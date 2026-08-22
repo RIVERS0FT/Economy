@@ -34,12 +34,7 @@ ui_map = '''### 8.1 美国本土州级经营地图
 - 桌面 Tooltip 继续使用 `.ui-tooltip-surface` 的统一毛玻璃材质，并显示本地库存、工厂、运行中与本地挂单；未解锁州明确标注“未解锁”。不大于 `720px` 时地图 Tooltip 必须禁用并隐藏，触摸州面直接打开州级上下文页。地图容器继续提供“美国本土州级经营地图”可访问名称与可读摘要。`MapPage` 只保留透明路由占位；市场、建筑和其他业务页面不得恢复地区下拉框、第二张地图或平行选择状态。
 - 性能回归必须验证实际热路径：缩放／平移前后的 48 条 path `d` 与州名基础 glyph transform 保持不变；州面和州名都能追溯到同一个 `.province-map-camera-surface`；同一任务内的多次滚轮输入在下一绘制帧只增加一次 camera write；放大使外围州离开屏幕后，缩小且 `data-map-zoom-active="true"` 时外围州已经重新进入且州名中心仍命中对应 path。不得用最终 settle 后才恢复、隐藏屏外州、永久 `will-change`、第二套相机或 ECharts Map 规避检查。
 - 玩家端仍采用大战略游戏式常驻地图工作台：图片层 `0`、氛围层 `10`、地图层 `20`、UI 层 `30`，`.application-map-layer` 通过同一个 Portal 持有唯一 `StrategicMapStage` 和 `StrategicMapLensBar`。业务页面和通知仍位于更高 UI 层；不大于 `720px` 时镜头栏隐藏。地图数据只用于游戏经营地区视觉，不用于现实测绘、导航或法律边界声明；既有 34 个地区 ID 与新增 14 个州 ID 必须继续稳定对应现有资产。'''
-ui = replace_once(
-    ui,
-    r'### 8\.1 美国本土州级经营地图\n.*?(?=\n## 9\.)',
-    ui_map.rstrip(),
-    'UI map section',
-)
+ui = replace_once(ui, r'### 8\.1 美国本土州级经营地图\n.*?(?=\n## 9\.)', ui_map.rstrip(), 'UI map section')
 ui_path.write_text(ui, encoding='utf-8')
 
 page_path = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
@@ -63,37 +58,12 @@ page_path.write_text(page, encoding='utf-8')
 chrome_path = Path('docs/LIQUID_GLASS_CHROME_DESIGN.md')
 chrome = chrome_path.read_text(encoding='utf-8')
 chrome_zoom = '- 战略地图滚轮与双指逻辑缩放继续允许 `0.5–4`，但地图不再通过 ECharts `geoRoam` 逐帧重绘。完整 48 州与中文州名共用同一个静态 SVG 世界面和单一合成相机；缩放、平移每帧最多一次写入 `.province-map-camera-surface` 的 `translate3d + scale`，州面 path `d`、州名基础坐标和 glyph transform 在手势期间保持不变。根级 `.application-map-layer` 继续承担最终物理视口裁剪，屏幕外的州面不得从世界面卸载，因此缩小时必须在手势 active 阶段直接重新进入视口。滚轮／双指围绕真实焦点更新 `x / y / zoom`，同一帧输入合并；`will-change: transform` 只在 active 期间临时开启并在停止后清除。地图拖动、缩放不得调用 ECharts、ZRender、重新投影、重新布局州名或维护第二套标签相机；空白双击／双触继续恢复默认 Contain 镜头。移动双指从州面、州界附近或地图空白起手必须等价；一旦本轮出现双指，从多点手势开始到最后触点抬起后的 `420ms` 内，必须抑制合成 click、州面选择和空白双触重置，窗口结束后的正常单指点击立即恢复。多点抑制只负责输入仲裁，不得驱动、回滚或复制相机。'
-chrome = replace_line(
-    chrome,
-    r'- 战略地图滚轮与双指逻辑缩放继续允许 `0\.5[–～-]4`',
-    chrome_zoom,
-    'Chrome map zoom bullet',
-)
+chrome = replace_line(chrome, r'- 战略地图滚轮与双指逻辑缩放继续允许 `0\.5[–～-]4`', chrome_zoom, 'Chrome map zoom bullet')
 chrome_focus = '- 战略地图州面交互固定采用“镜头底色 + 中性轮廓”分层，参考大战略地图的悬浮与选中层级但保持 Economy 自身配色。每个州的基础 `areaColor` 继续由当前政治／资产／工业／市场／异常镜头和未解锁状态决定；桌面悬浮、选中以及选中后继续悬浮都必须原样复用该州当前 `areaColor`，不得再用 `--color-surface-hover`、`--color-success-strong` 或其他业务状态色覆盖镜头底色。普通悬浮只使用 `--color-text-secondary` 的 `1.5px` 中性亮边，不增加辉光；选中使用 `--color-text-primary` 的 `2.5px` 亮边与低强度 `5px` 辉光；已选中州再次悬浮时提升为 `3px` 亮边与 `7px` 辉光，视觉强度必须保持“选中悬浮 > 选中 > 普通悬浮 > 默认”。未解锁州在任何交互状态下继续保持灰显底色；鼠标悬浮其他州不得清除当前选中州。上述视觉只能通过同一静态 SVG path 的原生 CSS `:hover`／`:focus-visible` 与外部 `data-selected` 状态实现，不得增加第二张地图、第二套州面 SVG、ECharts `emphasis/select`、pointermove 驱动的 React 高频视觉状态或交互时 `setOption` 重绘；州名选中仍只更新既有 `data-selected`，不得触发完整标签布局，也不得修改合成相机。'
-chrome = replace_line(
-    chrome,
-    r'- 战略地图州面交互固定采用“镜头底色 \+ 中性轮廓”分层',
-    chrome_focus,
-    'Chrome map focus bullet',
-)
-chrome = replace_line(
-    chrome,
-    r'- `tests/browser/province-map-focus\.spec\.ts`：',
-    '- `tests/browser/province-map-focus.spec.ts`：真实浏览器中验证静态 SVG path 的 hover 不改写州面镜头填充、选中亮边强于普通悬浮并保留 `5px / 7px` 低强度辉光、悬浮其他州时选中州继续存在，同时保证 `.province-map-camera-surface` transform、地图缩放目标与州名完整布局修订不因交互视觉变化而重置。',
-    'Chrome focus browser bullet',
-)
-chrome = replace_line(
-    chrome,
-    r'- `tests/browser/map-zoom-out-boundary\.spec\.ts`：',
-    '- `tests/browser/map-zoom-out-boundary.spec.ts`：必须先把地图放大到外围州真实离开屏幕，再缩小到 `0.5`，验证在合成相机仍 active 时加利福尼亚、佛罗里达、缅因和华盛顿已经重新进入物理视口且州名中心命中对应州面；`tests/browser/map-zoom-transient.spec.ts` 锁定手势期间 48 条 path `d` 与 glyph 基础 transform 不变、同帧滚轮只写一次合成相机；`tests/browser/map-zoom-render-sync.spec.ts` 锁定州面和州名共享同一个静态世界与相机；`tests/browser/map-reset-sync.spec.ts` 锁定空白重置首帧同步。',
-    'Chrome zoom browser bullet',
-)
-chrome = replace_line(
-    chrome,
-    r'- `tests/browser/map-mobile-pinch\.spec\.ts`：',
-    '- `tests/browser/map-mobile-pinch.spec.ts`：必须通过 CDP `Input.dispatchTouchEvent` 从同一真实静态州面内部发出两触点 `touchStart → touchMove → touchEnd`，验证双指真实 Pointer 距离／中点能推进唯一合成相机且全程不打开州页；最后触点释放后的 `420ms` 抑制窗口内单指触摸仍不得选中州面，窗口结束后同一州面的正常单指点击必须恢复。',
-    'Chrome mobile pinch browser bullet',
-)
+chrome = replace_line(chrome, r'- 战略地图州面交互固定采用“镜头底色 \+ 中性轮廓”分层', chrome_focus, 'Chrome map focus bullet')
+chrome = replace_line(chrome, r'- `tests/browser/province-map-focus\.spec\.ts`：', '- `tests/browser/province-map-focus.spec.ts`：真实浏览器中验证静态 SVG path 的 hover 不改写州面镜头填充、选中亮边强于普通悬浮并保留 `5px / 7px` 低强度辉光、悬浮其他州时选中州继续存在，同时保证 `.province-map-camera-surface` transform、地图缩放目标与州名完整布局修订不因交互视觉变化而重置。', 'Chrome focus browser bullet')
+chrome = replace_line(chrome, r'- `tests/browser/map-zoom-out-boundary\.spec\.ts`：', '- `tests/browser/map-zoom-out-boundary.spec.ts`：必须先把地图放大到外围州真实离开屏幕，再缩小到 `0.5`，验证在合成相机仍 active 时加利福尼亚、佛罗里达、缅因和华盛顿已经重新进入物理视口且州名中心命中对应州面；`tests/browser/map-zoom-transient.spec.ts` 锁定手势期间 48 条 path `d` 与 glyph 基础 transform 不变、同帧滚轮只写一次合成相机；`tests/browser/map-zoom-render-sync.spec.ts` 锁定州面和州名共享同一个静态世界与相机；`tests/browser/map-reset-sync.spec.ts` 锁定空白重置首帧同步。', 'Chrome zoom browser bullet')
+chrome = replace_line(chrome, r'- `tests/browser/map-mobile-pinch\.spec\.ts`：', '- `tests/browser/map-mobile-pinch.spec.ts`：必须通过 CDP `Input.dispatchTouchEvent` 从同一真实静态州面内部发出两触点 `touchStart → touchMove → touchEnd`，验证双指真实 Pointer 距离／中点能推进唯一合成相机且全程不打开州页；最后触点释放后的 `420ms` 抑制窗口内单指触摸仍不得选中州面，窗口结束后同一州面的正常单指点击必须恢复。', 'Chrome mobile pinch browser bullet')
 chrome_path.write_text(chrome, encoding='utf-8')
 
 readme_path = Path('docs/README.md')
@@ -104,3 +74,12 @@ if readme.count(old_map_rule) != 1:
     raise SystemExit(f'docs README map rule: expected exactly one match, got {readme.count(old_map_rule)}')
 readme = readme.replace(old_map_rule, new_map_rule, 1)
 readme_path.write_text(readme, encoding='utf-8')
+
+camera_path = Path('src/components/provinces/provinceMapCamera.ts')
+camera = camera_path.read_text(encoding='utf-8')
+old_camera_guard = '    if (activeTouchPointerIds.size >= 2) {\n      beginMultiTouchSequence();\n'
+new_camera_guard = '    if (pointers.size >= 2 && activeTouchPointerIds.size >= 2) {\n      beginMultiTouchSequence();\n'
+if camera.count(old_camera_guard) != 1:
+    raise SystemExit(f'camera pinch guard: expected exactly one match, got {camera.count(old_camera_guard)}')
+camera = camera.replace(old_camera_guard, new_camera_guard, 1)
+camera_path.write_text(camera, encoding='utf-8')
