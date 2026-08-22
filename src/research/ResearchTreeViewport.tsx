@@ -6,6 +6,7 @@ import {
   type CSSProperties,
   type FocusEvent as ReactFocusEvent,
   type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type WheelEvent as ReactWheelEvent,
@@ -292,7 +293,7 @@ export function ResearchTreeViewport({ width, height, focusPoint, children }: Re
     }
   }, []);
 
-  const handleClickCapture = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+  const handleClickCapture = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     if (target.closest('.research-tree-controls')) return;
     if (!target.closest('.research-technology-node') || !suppressClickRef.current) return;
@@ -301,11 +302,31 @@ export function ResearchTreeViewport({ width, height, focusPoint, children }: Re
     event.stopPropagation();
   }, []);
 
+  const handleDoubleClick = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('.research-tree-controls')) return;
+    event.preventDefault();
+    const node = target.closest<HTMLElement>('.research-technology-node');
+    const x = Number(node?.dataset.researchNodeX);
+    const y = Number(node?.dataset.researchNodeY);
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      const size = viewportSizeRef.current;
+      setState((current) => centeredState({ x, y }, current.zoom, size, { width, height }));
+      return;
+    }
+    centerCurrent();
+  }, [centerCurrent, height, width]);
+
   const handleWheel = useCallback((event: ReactWheelEvent<HTMLDivElement>) => {
-    if (!event.ctrlKey && !event.metaKey) return;
     event.preventDefault();
     const anchor = localPoint(event.clientX, event.clientY);
-    const factor = Math.exp(-event.deltaY * 0.002);
+    const normalizedDeltaY = event.deltaMode === 1
+      ? event.deltaY * 16
+      : event.deltaMode === 2
+        ? event.deltaY * viewportSizeRef.current.height
+        : event.deltaY;
+    const factor = Math.exp(-normalizedDeltaY * 0.002);
     zoomAt(anchor, state.zoom * factor);
   }, [localPoint, state.zoom, zoomAt]);
 
@@ -374,6 +395,7 @@ export function ResearchTreeViewport({ width, height, focusPoint, children }: Re
       aria-label="可平移和缩放的产业科技树"
       tabIndex={0}
       onClickCapture={handleClickCapture}
+      onDoubleClick={handleDoubleClick}
       onFocusCapture={handleFocusCapture}
       onKeyDown={handleKeyboard}
       onPointerCancel={finishPointer}
