@@ -37,11 +37,14 @@ const files = {
   admin: 'src/components/shell/AdminDesktopBar.tsx',
   shell: 'src/components/shell/GameShell.tsx',
   strategic: 'src/components/shell/StrategicWorkspace.tsx',
+  outliner: 'src/components/outliner/StrategicOutliner.tsx',
+  outlinerStorage: 'src/components/outliner/useStrategicOutliner.ts',
   guide: 'src/components/GameGuideStrip.tsx',
   guideStyles: 'src/styles/game-guide.css',
   strategicStyles: 'src/styles/strategic-game-shell.css',
   sidebarStyles: 'src/styles/desktop-sidebar.css',
   mobileStyles: 'src/styles/mobile-status-navigation.css',
+  mobileStatusStyles: 'src/styles/mobile-status-layout.css',
   browser: 'tests/browser/frosted-glass-layout.spec.ts',
   sampling: 'tests/browser/open-glass-sampling.spec.ts',
   pageBrowser: 'tests/browser/all-pages-preview.spec.ts',
@@ -185,27 +188,53 @@ requireText(files.shell, [
   "bank: 'fullscreen'",
   "leaderboard: 'fullscreen'",
   "'gem-shop': 'fullscreen'",
-  'const HIDDEN_EVENT_RAIL_TABS = new Set<TabId>',
-  "const showRightRail = pagePresentation !== 'fullscreen';",
-  'tutorial={showRightRail ? tutorial : undefined}',
-  'showEventRail={!HIDDEN_EVENT_RAIL_TABS.has(model.tab)}',
+  'tutorial={tutorial}',
+  'pendingItems={notificationCenter.pendingItems}',
   'integratedPrimaryCard',
   'pageTransitionKey={model.tab}',
 ]);
+forbidText(files.shell, [
+  'HIDDEN_EVENT_RAIL_TABS',
+  "pagePresentation !== 'fullscreen'",
+  'tutorial={showRightRail ? tutorial : undefined}',
+  'showEventRail=',
+]);
 requireText(files.strategic, [
   'export function StrategicMapLensBar',
-  'className="strategic-economic-event-rail"',
-  'const showTutorial = Boolean(tutorial?.isVisible && tutorial.currentStep);',
-  'if (!showEventRail && !showTutorial) return null;',
-  "data-tutorial-visible={showTutorial ? 'true' : 'false'}",
-  "data-event-log-visible={showEventRail ? 'true' : 'false'}",
-  '{showTutorial && tutorial ? <GameGuideStrip tutorial={tutorial} /> : null}',
-  '{showEventRail ? (',
-  '<EconomicEventLogPanel',
+  "import { StrategicOutliner } from '../outliner/StrategicOutliner'",
+  '<StrategicOutliner',
+  'pendingItems={pendingItems}',
 ]);
-forbidText(files.strategic, ["model.tab === 'home' && tutorial"]);
+forbidText(files.strategic, [
+  'strategic-economic-event-rail',
+  'EconomicEventLogPanel',
+  'showEventRail',
+  "model.tab === 'home' && tutorial",
+]);
+requireText(files.outliner, [
+  'aria-label="战略追踪器"',
+  'className="strategic-outliner__scroll"',
+  'id="tutorial"',
+  'id="activity"',
+  'id="pinned"',
+  'id="events"',
+  'variant="outliner"',
+  'model.game.research.active',
+  'pendingItems.map',
+  'economicCalendar?.events',
+]);
+requireText(files.outlinerStorage, [
+  'economy:strategic-outliner:v',
+  "'province'",
+  "'commodity'",
+  "'facility'",
+  "'auction'",
+  "'contract'",
+]);
+forbidText(files.outlinerStorage, ['lastTradePrice', 'inventory', 'completesAt']);
 requireText(files.guide, [
-  'className="game-guide-strip panel"',
+  "variant?: 'panel' | 'outliner'",
+  "'game-guide-strip game-guide-strip--outliner'",
   '<strong id="game-guide-title">教程</strong>',
   'aria-label="教程总体进度"',
 ]);
@@ -227,18 +256,28 @@ requireText(files.strategicStyles, [
   'transition: width var(--strategic-page-open-motion);',
   '.game-shell .signed-in-shell__primary-card .desktop-sidebar::after {',
   '@keyframes strategic-page-unfold',
-  '.strategic-page-host--building {',
-  'var(--strategic-event-rail-width)',
   '.strategic-page-host--building > .page-content,',
   '.strategic-page-host--fullscreen > .page-content {',
   '.game-shell .page-scroll-area > .ui-scrollbar--vertical {',
   '.application-map-layer > .strategic-map-lens-bar {',
-  'z-index: 1;',
-  '.strategic-economic-event-rail {',
+  '.strategic-outliner {',
+  '--strategic-outliner-width: clamp(280px, 21vw, 320px);',
+  '--strategic-outliner-collapsed-width: 44px;',
+  '.strategic-outliner__scroll {',
+  'overflow-y: auto;',
+  '@media (min-width: 1440px)',
+  '@media (max-width: 1439px) and (min-width: 721px)',
 ]);
 forbidText(files.strategicStyles, [
+  '.strategic-economic-event-rail {',
+  '--strategic-event-rail-width',
   '.game-shell.strategic-tab-research .signed-in-shell__primary-card {',
   '.game-shell.strategic-tab-research .signed-in-shell__primary-card::before {',
+]);
+requireText(files.mobileStatusStyles, [
+  ".game-shell .strategic-outliner[data-tutorial-visible='true']",
+  ".strategic-outliner-section:not(.strategic-outliner-section--tutorial)",
+  'top: var(--mobile-below-status-top);',
 ]);
 
 requireText(files.sidebarStyles, [
@@ -267,20 +306,18 @@ requireText(files.browser, [
 ]);
 requireText(files.sampling, ['signed-in frosted-glass backdrop sampling', "value.includes('blur(18px)')"]);
 requireText(files.pageBrowser, [
-  'overview, market, buildings, and settings share a one-third card width while leaderboard and shop stay full-area',
   "toHaveAttribute('data-strategic-presentation', 'building')",
   "toHaveAttribute('data-strategic-presentation', 'fullscreen')",
   'reduced motion disables card width and page unfold animation',
 ]);
 requireText(files.tutorialBrowser, [
-  'desktop tutorial stays in the right rail across business pages and keeps frosted glass',
+  'desktop strategic outliner persists across business and fullscreen pages',
   "toHaveAttribute('data-tutorial-visible', 'true')",
   "toHaveAttribute('data-strategic-presentation', 'fullscreen')",
-  "page.locator('.strategic-economic-event-rail')).toHaveCount(0)",
-  "page.locator('.game-guide-strip')).toHaveCount(0)",
-  "page.locator('.economic-event-log-panel')).toHaveCount(0)",
+  "toHaveAttribute('data-browser-outliner-sentinel', 'persistent')",
   "toContain('blur(18px)')",
-  'mobile tutorial stays shell-owned below the status bar while pages and notifications cover it',
+  'desktop strategic outliner collapse and pins persist through reload',
+  'mobile tutorial stays shell-owned inside the shared outliner while pages and notifications cover it',
   "page.locator('.overview-mobile-tutorial')).toHaveCount(0)",
   '[data-mobile-workspace-sheet-host="true"]',
   '.notification-panel-layer[data-notification-layer="dialog"]',
@@ -303,17 +340,18 @@ requireText(files.design, [
   '单节点轻量毛玻璃',
   '`721px–960px` 使用与宽屏完全相同',
   '桌面侧栏按钮不得渲染数字角标',
-  '## 5. 玩家页面与右侧信息栏',
-  '教程是桌面应用外壳级常驻模块',
-  '移动端同样复用 `StrategicWorkspaceChrome` 持有的同一教程 DOM',
-  '教程卡根节点必须复用通用 `.panel`',
-  '`research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop`',
-  '所有 `fullscreen` 页面进入后整个右侧信息栏不挂载',
+  '## 5. 玩家页面与战略追踪器',
+  '战略追踪器与页面路由生命周期解耦',
+  '“教程／进行中／关注／公开经济事件”四个可折叠分区',
+  '整个追踪器只有 `.strategic-outliner__scroll` 一个纵向滚动根',
+  'Outliner 变体不得带独立 `.panel` 外壳',
+  '收起轨道固定为 `44px`',
+  '`721px–1439px` 默认收起',
+  '同一个 `StrategicOutliner` DOM 仅呈现“教程”分区',
   '研发页桌面与其他玩家页面统一使用 `workspaceCard` 外层容器',
   '`--strategic-compact-page-width: 56rem`',
-  '隐藏 `province` 上下文页',
+  '`home`、`province`、`market`、`buildings`、`settings` 仍使用 `building`',
   '`calc(100vw / 3)`',
-  '公开经济事件不得进入 `OverviewPage`',
   '工作区外层滚动条隐藏',
   '镜头栏位于地图舞台之上，但整个地图层 `20` 必须低于承载页面的 UI 层 `30`',
   '地图／普通页面 < 移动教程 < 根 Sheet < 移动通知面板／通知灵动岛 < 状态栏',
@@ -333,4 +371,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('纯 CSS 毛玻璃外壳验证通过：共享外壳、普通页面桌面教程右栏、fullscreen 无右栏、研发统一 workspaceCard 与内部透明科技画布、移动教程外壳锚点与 SafeTooltip/ECharts Tooltip 统一使用纯 CSS 毛玻璃材质，且旧 Liquid Glass 实现保持退役。');
+console.log('纯 CSS 毛玻璃外壳验证通过：共享外壳、跨页面常驻战略追踪器、统一 workspaceCard、移动同一 Outliner 教程锚点与 SafeTooltip/ECharts Tooltip 均复用纯 CSS 毛玻璃材质，且旧 Liquid Glass 实现保持退役。');

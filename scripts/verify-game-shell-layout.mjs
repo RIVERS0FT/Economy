@@ -117,23 +117,27 @@ check('src/styles/game-shell-layout.css', [
 check('src/components/shell/GameShell.tsx', [
   'const STRATEGIC_PAGE_PRESENTATION = {',
   "province: 'building'",
-  'const HIDDEN_EVENT_RAIL_TABS = new Set<TabId>',
   "leaderboard: 'fullscreen'",
   "const [sidebarCollapsed, setSidebarCollapsed] = useState(true)",
   "const [mapLens, setMapLens] = useState<ProvinceMapLens>('assets')",
-  "const showRightRail = pagePresentation !== 'fullscreen';",
   '<ApplicationMapLayerPortal>',
   '<StrategicMapStage model={model} lens={mapLens} />',
   '<StrategicMapLensBar lens={mapLens} onLensChange={setMapLens} />',
   '<StrategicWorkspaceChrome',
-  'tutorial={showRightRail ? tutorial : undefined}',
-  'showEventRail={!HIDDEN_EVENT_RAIL_TABS.has(model.tab)}',
+  'tutorial={tutorial}',
+  'pendingItems={notificationCenter.pendingItems}',
   'data-strategic-presentation={pagePresentation}',
   'integratedPrimaryCard',
   'pageTransitionKey={model.tab}',
   'logoSrc: BRAND_LOGO_URL',
   'title: BRAND_NAME',
   'playerName,',
+]);
+forbid('src/components/shell/GameShell.tsx', [
+  'HIDDEN_EVENT_RAIL_TABS',
+  "const showRightRail = pagePresentation !== 'fullscreen';",
+  'tutorial={showRightRail ? tutorial : undefined}',
+  'showEventRail=',
 ]);
 check('src/components/shell/DesktopSidebar.tsx', [
   'showIdentity={false}',
@@ -155,18 +159,30 @@ check('src/components/shell/StrategicWorkspace.tsx', [
   'export function StrategicMapLensBar',
   'export function StrategicWorkspaceChrome',
   'aria-label="地图镜头"',
-]);
-check('src/components/ui/layout.tsx', [
-  'className="page-fixed-header"',
-  'className="page-card-scroll-area"',
-  'viewportClassName="page-card-scroll"',
-  'className="page-card-static"',
+  '<StrategicOutliner',
+  'pendingItems={pendingItems}',
 ]);
 forbid('src/components/shell/StrategicWorkspace.tsx', [
   'strategic-province-inspector',
   '当前经营地区',
   '进入本地市场',
   '管理本地生产',
+  'strategic-economic-event-rail',
+  'EconomicEventLogPanel',
+]);
+check('src/components/outliner/StrategicOutliner.tsx', [
+  'aria-label="战略追踪器"',
+  'className="strategic-outliner__scroll"',
+  'id="tutorial"',
+  'id="activity"',
+  'id="pinned"',
+  'id="events"',
+]);
+check('src/components/ui/layout.tsx', [
+  'className="page-fixed-header"',
+  'className="page-card-scroll-area"',
+  'viewportClassName="page-card-scroll"',
+  'className="page-card-static"',
 ]);
 forbid('src/pages/MapPage.tsx', ['<UsMainlandMap']);
 check('src/styles/strategic-game-shell.css', [
@@ -178,6 +194,9 @@ check('src/styles/strategic-game-shell.css', [
   '--strategic-page-open-motion: 220ms cubic-bezier(.2, .8, .2, 1);',
   '--strategic-primary-card-inline-size:',
   'calc(100vw / 3),',
+  '--strategic-outliner-width: clamp(280px, 21vw, 320px);',
+  '--strategic-outliner-collapsed-width: 44px;',
+  '--strategic-outliner-reserved-width:',
   '.application-map-layer,',
   '.game-shell .workspace-strategic-chrome {',
   'z-index: auto;',
@@ -193,8 +212,12 @@ check('src/styles/strategic-game-shell.css', [
   'clip-path: inset(0 100% 0 0);',
   'clip-path: inset(0);',
   '.strategic-page-host .page-card-static {',
-  '.strategic-economic-event-rail {',
-  'z-index: 2;',
+  '.strategic-outliner {',
+  '.strategic-outliner__scroll {',
+  'overflow-y: auto;',
+  '.strategic-outliner[data-collapsed="true"]',
+  '@media (min-width: 1440px)',
+  '@media (max-width: 1439px) and (min-width: 721px)',
   '.strategic-page-host--map {',
   '.application-map-layer > .strategic-map-lens-bar {',
   'z-index: 1;',
@@ -207,6 +230,8 @@ forbid('src/styles/strategic-game-shell.css', [
   '.workspace-background-layer',
   '.page-card-scroll-area > .ui-scrollbar--vertical',
   'grid-template-columns: minmax(0, 0fr);',
+  '.strategic-economic-event-rail {',
+  '--strategic-event-rail-width',
 ]);
 forbid('src/styles/game-shell-layout.css', [
   `left: 0;
@@ -260,23 +285,27 @@ check('src/styles/mobile-detail-sheet.css', [
 forbid('src/styles/mobile-detail-sheet.css', [
   '.workspace-floating-layer > .mobile-detail-sheet-backdrop',
 ]);
+check('src/styles/mobile-status-layout.css', [
+  ".game-shell .strategic-outliner[data-tutorial-visible='true']",
+  ".strategic-outliner-section:not(.strategic-outliner-section--tutorial)",
+]);
 check('src/styles/safe-floating.css', ['.safe-tooltip {', 'position: absolute;', 'pointer-events: none !important;']);
 check('src/components/charts/chartOptions.ts', ['appendToBody: false', 'confine: true']);
 check('tests/browser/game-shell-layout.spec.ts', [
   "test.describe('persistent-map grand-strategy game shell'",
   'desktop shell keeps an 8px chrome gutter and one integrated workspace card over the persistent map',
-  'compact desktop keeps the persistent map and overlay panel on the 8px strategic grid',
+  'compact desktop keeps the persistent map, collapsed outliner rail, and overlay panel on the 8px strategic grid',
   'short desktop keeps the persistent map and command chrome inside the viewport',
   'status bar owns game identity while the sidebar footer owns the settings entry',
   "toHaveCount(9)",
   "toContainText('金融帝国')",
   "toContainText('MEVIUS')",
-  'command rail expands over the page without moving the card, page, event rail, map, or status bar',
+  'command rail expands over the page without moving the card, page, outliner, map, or status bar',
   'expect(expanded.assetBar.left).toBeCloseTo(collapsed.assetBar.left, 0)',
   'expect(expanded.workspace.left).toBeCloseTo(collapsed.workspace.left, 0)',
   'expect(expanded.primaryCard).toEqual(collapsed.primaryCard)',
   'expect(expanded.pageContent.width).toBeCloseTo(collapsed.pageContent.width, 0)',
-  'expect(expanded.eventRail).toEqual(collapsed.eventRail)',
+  'expect(expanded.outliner).toEqual(collapsed.outliner)',
   'expect(expanded.mapLayer).toEqual(collapsed.mapLayer)',
   'expect(layout.primaryCard.top).toBeCloseTo(layout.body.top, 0)',
   'expect(layout.primaryCard.top - layout.assetBar.bottom).toBeCloseTo(gutter, 0)',
@@ -292,6 +321,9 @@ check('tests/browser/game-shell-layout.spec.ts', [
   'expect(statusAlignment.itemOverflows).not.toContain(true)',
   'expect(layout.lensBar.top).toBeLessThan(layout.pageContent.bottom)',
   'expect(layout.lensBarParentIsMapLayer).toBe(true)',
+  'expect(layout.outlinerCollapsed).toBe(false)',
+  'expect(layout.outlinerCollapsed).toBe(true)',
+  'toBeCloseTo(44, 0)',
 ]);
 check('tests/browser/admin-runtime.spec.ts', [
   'sidebarTopGap', 'workspaceTopGap', 'admin-command-bar-identity',
@@ -348,14 +380,21 @@ check('tests/browser/all-pages-preview.spec.ts', [
   'expect(compactCardWidths[0]).toBeLessThanOrEqual(1684 / 3)',
   "expect(fullAreaWidths.get('排行')).toBeCloseTo(fullAreaWidths.get('商店')!, 0)",
 ]);
+check('tests/browser/tutorial-right-rail.spec.ts', [
+  'desktop strategic outliner persists across business and fullscreen pages',
+  "toHaveAttribute('data-browser-outliner-sentinel', 'persistent')",
+  'desktop strategic outliner collapse and pins persist through reload',
+]);
 
 check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '图片层 0 → 氛围层 10 → 地图层 20 → UI 层 30',
   '桌面侧栏默认 `78px`',
-  '`home`、隐藏 `province` 上下文页、`market`、`buildings`、`settings` 使用 `building`',
-  '所有 `fullscreen` 页面进入后整个右侧信息栏不挂载',
-  '研发、拍卖、合同、银行、排行、商店则直接不挂载整个右栏',
-  '教程是桌面应用外壳级常驻模块',
+  '`home`、`province`、`market`、`buildings`、`settings` 仍使用 `building`',
+  '战略追踪器与页面路由生命周期解耦',
+  '`fullscreen` 只控制主页面的展示宽度',
+  '“教程／进行中／关注／公开经济事件”四个可折叠分区',
+  '收起轨道固定为 `44px`',
+  '同一个 `StrategicOutliner` DOM 仅呈现“教程”分区',
   '研发页桌面与其他玩家页面统一使用 `workspaceCard` 外层容器',
   '`--strategic-compact-page-width: 56rem`',
   '`calc(100vw / 3)`',
@@ -384,4 +423,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('游戏与管理员共享外壳验证通过：固定状态栏、唯一共享页面滚动、全宽页面右栏隐藏、研发统一 workspaceCard 与内部透明科技画布、根级 Dialog、48px 通知轨道、8px 战略栅格、主卡片侧栏覆盖、建筑式页面、根级地图镜头与安全浮层满足当前基线。');
+console.log('游戏与管理员共享外壳验证通过：固定状态栏、唯一共享页面滚动、跨页面常驻战略追踪器、研发统一 workspaceCard 与内部透明科技画布、根级 Dialog、48px 通知轨道、8px 战略栅格、主卡片侧栏覆盖、建筑式页面、根级地图镜头与安全浮层满足当前基线。');

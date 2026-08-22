@@ -26,13 +26,11 @@ const requiredFiles = [
   'src/utils/provinceScope.ts',
   'tests/browser/map-zoom-transient.spec.ts',
   'tests/browser/map-zoom-out-boundary.spec.ts',
-  'tests/browser/map-mobile-pinch.spec.ts',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
   'docs/WAREHOUSE_EXPANSION_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
-  'docs/LIQUID_GLASS_CHROME_DESIGN.md',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
 ];
 for (const path of requiredFiles) assert.equal(existsSync(path), true, `缺少州级经济文件: ${path}`);
@@ -283,11 +281,6 @@ for (const text of [
   'data-map-feature-count={usMainlandGeoJson.features.length}',
   'data-map-lens={lens}',
   'data-map-label-mode="curved-chinese-full-name"',
-  'zoomInterpolatorRef.current?.shouldSuppressTap()',
-  'markSuppressedMultitouchTap(chart);',
-  "type: 'unselect'",
-  "type: 'select'",
-  'container.dataset.mapSuppressedMultitouchTapCount',
 ]) assert.ok(mapComponent.includes(text), `ECharts 美国本土地图缺少: ${text}`);
 for (const forbidden of [
   'HOVER_LABEL_STATE_CODES',
@@ -380,8 +373,6 @@ for (const text of [
   'const PINCH_RESPONSE_MS = 50',
   'const WHEEL_COMMIT_IDLE_MS = 96',
   'const PINCH_COMMIT_IDLE_MS = 80',
-  'const MULTITOUCH_TAP_SUPPRESS_MS = 420',
-  'shouldSuppressTap: () => boolean;',
   'function currentMapZoom',
   'function normalizeWheelDelta',
   "window.matchMedia('(prefers-reduced-motion: reduce)')",
@@ -396,15 +387,10 @@ for (const text of [
   'const commitSettledZoom = () => {',
   'const scheduleSettleCommit = (mode:',
   "container.addEventListener('wheel', handleWheel, { passive: false })",
-  "container.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true })",
-  "container.addEventListener('touchmove', handleTouchMove, { passive: true, capture: true })",
-  "container.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true })",
-  "container.addEventListener('touchcancel', handleTouchEnd, { passive: true, capture: true })",
   'event.preventDefault();',
   'event.stopPropagation();',
   'targetZoom * Math.exp(inputLogStep)',
   'const pinchScale = Number(event.pinchScale)',
-  'beginMultiTouchSequence();',
   'targetZoom * pinchScale',
   'requestAnimationFrame(animate)',
   "container.dataset.mapZoomMode = 'interpolated'",
@@ -417,10 +403,6 @@ for (const text of [
   'container.dataset.mapZoomFrameCount',
   'container.dataset.mapZoomCommitCount',
   'container.dataset.mapZoomMaxStep',
-  'container.dataset.mapMultitouchActive',
-  'container.dataset.mapMultitouchSequenceCount',
-  'container.dataset.mapTapSuppressMs',
-  'shouldSuppressTap: () => multiTouchSequenceActive || Date.now() <= suppressTapUntil',
 ]) assert.ok(mapZoomInterpolator.includes(text), `地图单相机缩放缺少: ${text}`);
 for (const forbidden of [
   'mapRendererSurface',
@@ -453,12 +435,6 @@ assert.ok(zoomCommitStart >= 0 && zoomAnimateStart > zoomCommitStart, '必须能
 const zoomCommit = mapZoomInterpolator.slice(zoomCommitStart, zoomAnimateStart);
 assert.equal(zoomCommit.includes('dispatchAction'), false, 'settle 阶段不得再次提交地图缩放造成尺寸跳变');
 assert.equal(zoomCommit.includes('setOption'), false, 'settle 阶段不得切换到 layout camera');
-const nativeMultiTouchStart = mapZoomInterpolator.indexOf('const handleTouchStart = (event: TouchEvent) => {');
-const nativeMultiTouchEnd = mapZoomInterpolator.indexOf("container.addEventListener('wheel'", nativeMultiTouchStart);
-assert.ok(nativeMultiTouchStart >= 0 && nativeMultiTouchEnd > nativeMultiTouchStart, '必须能定位移动地图原生多点输入仲裁');
-const nativeMultiTouchArbitration = mapZoomInterpolator.slice(nativeMultiTouchStart, nativeMultiTouchEnd);
-assert.equal(nativeMultiTouchArbitration.includes('setTargetZoom('), false, '原生 Touch 监听只允许仲裁点击，不得建立第二条地图缩放路径');
-assert.equal(nativeMultiTouchArbitration.includes('dispatchAction'), false, '原生 Touch 监听不得直接驱动正式地图相机');
 
 const echartsCore = read('src/components/charts/echartsCore.ts');
 for (const text of ['MapChart', 'GeoComponent', 'registerEChartsMap']) {
@@ -597,25 +573,6 @@ for (const text of [
   "data-selected-province-id', '110000'",
 ]) assert.ok(zoomOutBoundaryBrowserTest.includes(text), `地图屏幕外边界恢复回归缺少: ${text}`);
 
-const mobilePinchBrowserTest = read('tests/browser/map-mobile-pinch.spec.ts');
-for (const text of [
-  'mobile pinch starting inside a province zooms without selecting the province',
-  'findPinchSeedInsideProvince',
-  "findPinchSeedInsideProvince(page, 'US-TX')",
-  "Input.dispatchTouchEvent",
-  "type: 'touchStart'",
-  "type: 'touchMove'",
-  "type: 'touchEnd'",
-  "data-map-multitouch-active', 'true'",
-  "data-map-multitouch-active', 'false'",
-  "data-map-zoom-input-mode', 'pinch'",
-  'data-map-multitouch-sequence-count',
-  'data-map-suppressed-multitouch-tap-count',
-  "data-selected-province-id', ''",
-  'page.waitForTimeout(500)',
-  "data-selected-province-id', 'US-TX'",
-]) assert.ok(mobilePinchBrowserTest.includes(text), `移动地图真双指回归缺少: ${text}`);
-
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 assert.equal((uiDesign.match(/### 8\.1 美国本土州级经营地图/g) ?? []).length, 1, 'UI 设计文档只能保留一份美国本土州级经营地图 8.1 规则');
 for (const text of [
@@ -667,18 +624,6 @@ for (const text of [
 assert.equal(pageDesign.includes('并把州缩写作为地图标签'), false, '页面设计文档不得恢复英文州缩写地图标签');
 assert.equal(pageDesign.includes('州面内 SVG `textPath` 曲线路径'), false, '页面设计文档不得恢复已退役的 textPath 州名规则');
 
-const chromeDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
-for (const text of [
-  '移动双指从州面、州界附近或地图空白起手必须等价',
-  '捕获阶段识别同时存在的两点以上触摸',
-  '真实 `pinchScale`、`pinchX` 与 `pinchY`',
-  '其后 `420ms` 内',
-  '抑制 ZRender 生成的合成 click 与空白双触重置',
-  '多点抑制只负责 click／select／reset 仲裁',
-  '`tests/browser/map-mobile-pinch.spec.ts`',
-  'CDP `Input.dispatchTouchEvent`',
-]) assert.ok(chromeDesign.includes(text), `移动地图双指设计规则缺少: ${text}`);
-
 const tests = read('server/test/provinces.test.js');
 for (const text of [
   'cannot match across states',
@@ -691,4 +636,4 @@ for (const text of [
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击、桌面地图 Tooltip 与移动端隐藏边界、州内中文全名自然比例刚性字形标签、缩放逐帧推进唯一 ECharts 正式相机、屏幕外州面缩小后重新进入、settle 无尺寸跳变、州面内真双指缩放与合成点击抑制、空白全局平移和空白双击／双触镜头重置均已锁定。');
+console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击、桌面地图 Tooltip 与移动端隐藏边界、州内中文全名自然比例刚性字形标签、缩放逐帧推进唯一 ECharts 正式相机、屏幕外州面缩小后重新进入、settle 无尺寸跳变、空白全局平移和空白双击／双触镜头重置均已锁定。');

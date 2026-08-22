@@ -1,7 +1,13 @@
 import type { GameTutorialController } from '../game-guide/useGameTutorial';
 import { Button, StatusTag } from './ui/layout';
 
-export function GameGuideStrip({ tutorial }: { tutorial: GameTutorialController }) {
+export function GameGuideStrip({
+  tutorial,
+  variant = 'panel',
+}: {
+  tutorial: GameTutorialController;
+  variant?: 'panel' | 'outliner';
+}) {
   if (!tutorial.isVisible || !tutorial.currentStep) return null;
 
   const progress = Math.round((tutorial.currentStepIndex / tutorial.totalSteps) * 100);
@@ -18,11 +24,22 @@ export function GameGuideStrip({ tutorial }: { tutorial: GameTutorialController 
   };
 
   return (
-    <section className="game-guide-strip panel" aria-labelledby="game-guide-title">
-      <div className="game-guide-heading">
-        <strong id="game-guide-title">教程</strong>
-        <StatusTag tone="info">步骤 {tutorial.currentStepIndex}/{tutorial.totalSteps}</StatusTag>
-      </div>
+    <section
+      className={variant === 'outliner' ? 'game-guide-strip game-guide-strip--outliner' : 'game-guide-strip panel'}
+      aria-labelledby={variant === 'outliner' ? undefined : 'game-guide-title'}
+      aria-label={variant === 'outliner' ? '当前教程任务' : undefined}
+    >
+      {variant === 'outliner' ? null : (
+        <div className="game-guide-heading">
+          <strong id="game-guide-title">教程</strong>
+          <StatusTag tone="info">步骤 {tutorial.currentStepIndex}/{tutorial.totalSteps}</StatusTag>
+        </div>
+      )}
+      {variant === 'outliner' ? (
+        <div className="game-guide-outliner-step">
+          <StatusTag tone="info">步骤 {tutorial.currentStepIndex}/{tutorial.totalSteps}</StatusTag>
+        </div>
+      ) : null}
       <div
         className="game-guide-progress"
         role="progressbar"
