@@ -152,8 +152,10 @@
   overflow: visible;
 }
 
-/* Regional page titles share one fixed single-line title track. Entering a
- * factory detail may reduce the text size, but must never resize the header. */
+/* Regional factory list/detail transitions share one fixed single-line title
+ * track. Detail text may shrink, but the fixed header never grows or collapses. */
+body:has(.regional-buildings-management) .page-heading--player-navigation .page-heading-title,
+body:has(.facility-cluster-detail-page) .page-heading--player-navigation .page-heading-title,
 .page-heading-title:has(> .province-page-title) {
   height: var(--size-control-md);
   display: flex;
@@ -161,9 +163,12 @@
   justify-content: center;
   overflow: hidden;
   line-height: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.province-page-title {
+.province-page-title,
+.province-facility-detail-title {
   display: block;
   width: 100%;
   min-width: 0;
@@ -200,6 +205,8 @@
     display: flex;
   }
 
+  body:has(.regional-buildings-management) .page-heading--player-navigation .page-heading-title,
+  body:has(.facility-cluster-detail-page) .page-heading--player-navigation .page-heading-title,
   .page-heading-title:has(> .province-page-title) {
     height: var(--size-control-sm);
   }
