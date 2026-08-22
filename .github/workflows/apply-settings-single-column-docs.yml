@@ -1,0 +1,77 @@
+name: Apply settings single-column docs
+
+on:
+  push:
+    branches:
+      - codex/settings-single-column-20260822
+
+permissions:
+  contents: write
+
+jobs:
+  apply-docs:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/settings-single-column-20260822
+          fetch-depth: 0
+      - name: Update authoritative settings layout rules
+        shell: python
+        run: |
+          from pathlib import Path
+
+          replacements = {
+              Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md'): [
+                  (
+                      '桌面设置页固定使用两个互不共享网格行高的纵向内容栈：主列只放置“玩家资料”，侧列依次放置“游戏设置”“礼品兑换”和“账号与管理”。不得恢复三等分共享网格、跨列 `span-2` 或共享网格行高。内容宽度不足时按“玩家资料／游戏设置／礼品兑换／账号与管理”的顺序降为单列。',
+                      '设置页在所有宽度下固定使用单一纵向内容栈，顺序固定为“玩家资料／游戏设置／礼品兑换／账号与管理”。不得恢复桌面双列、三等分共享网格、跨列 `span-2` 或共享网格行高；四张设置卡必须作为同一 `.settings-layout` 的直接业务卡片按自然内容高度连续排列。',
+                  ),
+                  (
+                      '- 把设置页恢复为共享三列网格、跨列卡片或由同一网格行耦合左右卡片高度；',
+                      '- 把设置页恢复为桌面双列、共享三列网格、跨列卡片或由不同列／同一网格行耦合卡片高度；',
+                  ),
+              ],
+              Path('docs/UI_DESIGN_SYSTEM.md'): [
+                  (
+                      '| `src/styles/settings.css` | 设置页独立主列／侧列、统计密度、账号分组和危险区域布局 |',
+                      '| `src/styles/settings.css` | 设置页统一单列、统计密度、账号分组和存档管理布局 |',
+                  ),
+                  (
+                      '- 设置页桌面使用两个互不共享网格行高的纵向栈，外层比例为主列 `2fr`、侧列最小 `18rem`；不得用三等分共享网格或跨列卡片组织页面。\n- 主列只放置“玩家资料”；侧列固定依次放置“游戏设置”“礼品兑换”和“账号与管理”。左右列分别自然堆叠，不得因为另一列高度制造共享行空白。',
+                      '- 设置页在所有宽度下固定使用单一纵向内容栈，顺序固定为“玩家资料／游戏设置／礼品兑换／账号与管理”；四张设置卡直接由 `.settings-layout` 依次排列并按自然内容高度堆叠，不得恢复桌面双列、共享三列网格、跨列卡片或列包装器。\n- 页面外层固定为单个 `minmax(0, 1fr)` 网格轨道，不设置桌面专用双列比例或 `1180px` 降列断点；不同卡片之间只使用 `var(--layout-gutter)`，不得用 `display: contents` 与 `order` 补丁重排。',
+                  ),
+                  (
+                      '- 当视口不超过 `1180px` 时页面降为单列，顺序固定为“玩家资料／游戏设置／礼品兑换／账号与管理”。列包装器可以使用 `display: contents`，但卡片、标题和表单语义不得丢失。\n',
+                      '',
+                  ),
+                  (
+                      '- 把设置页恢复为共享三列网格、`span-2` 跨列卡片、宽卡片两列统计或整卡宽度昵称保存按钮；',
+                      '- 把设置页恢复为桌面双列、共享三列网格、`span-2` 跨列卡片、宽卡片两列统计或整卡宽度昵称保存按钮；',
+                  ),
+              ],
+          }
+
+          for path, rules in replacements.items():
+              text = path.read_text(encoding='utf-8')
+              for old, new in rules:
+                  count = text.count(old)
+                  if count != 1:
+                      raise SystemExit(f'{path}: expected exactly one match, got {count}: {old[:80]!r}')
+                  text = text.replace(old, new, 1)
+              path.write_text(text, encoding='utf-8')
+      - name: Commit authoritative documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          if git diff --quiet -- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/UI_DESIGN_SYSTEM.md; then
+            echo 'No documentation changes required.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/UI_DESIGN_SYSTEM.md
+          git commit -m 'Document settings single-column layout'
+          git push origin HEAD:codex/settings-single-column-20260822
