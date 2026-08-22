@@ -74,11 +74,13 @@ const requiredFiles = [
   mobileDetailPath,
   mobileSheetHostPath,
   'src/styles/facility-group-card-grid.css',
+  'tests/browser/buildings-ledger-layout.spec.ts',
   'tests/browser/mobile-detail-sheet.spec.ts',
   'tests/browser/input-modality.spec.ts',
   'docs/UI_DESIGN_SYSTEM.md',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md',
+  'docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md',
   'docs/README.md',
   'package.json',
 ];
@@ -101,7 +103,9 @@ if (failures.length === 0) {
   ]) requireText('src/styles/interaction-states.css', text);
 
   requireText(productionDetailPath, 'data-ui-interactive="surface"');
-  requireText('src/pages/BuildingsPage.tsx', 'detailTriggerRef.current = trigger;');
+  requireText('src/pages/BuildingsPage.tsx', 'onSelect={() => selectFacilityEntry(entry.type.id)}');
+  requireText('src/pages/BuildingsPage.tsx', 'className="facility-cluster-detail-shell facility-cluster-detail-page"');
+  requireText('tests/browser/buildings-ledger-layout.spec.ts', 'factory card opens second-level detail without changing header height');
   requireText(mobileDetailPath, 'returnFocusRef = returnFocusRef;');
   requireText(mobileSheetHostPath, 'previousDetail.controllerRef.current.returnFocusRef.current?.focus({ preventScroll: true })');
 
@@ -126,7 +130,7 @@ if (failures.length === 0) {
     const file = relative(root, absolutePath).replaceAll('\\', '/');
     const content = readFileSync(absolutePath, 'utf8');
     if (!content.includes('interactionBootstrap')) {
-      failures.push(`${file} 是 React 根��口但未安装 interactionBootstrap`);
+      failures.push(`${file} 是 React 根入口但未安装 interactionBootstrap`);
     }
     if (content.includes('styles/design-system.css')) {
       const designIndex = content.indexOf('styles/design-system.css');
@@ -145,8 +149,8 @@ if (failures.length === 0) {
     '`scripts/verify-interaction-modality.mjs`',
     '`tests/browser/input-modality.spec.ts`',
   ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
-  requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '触摸关闭后必须恢复为仅由工厂运行状态决定的基础视觉');
-  requireText('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md', '触摸关闭悬浮框后不得残留悬停、按压或焦点选中视觉');
+  requireText('docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md', '移动端工厂卡点击行为与桌面一致');
+  requireText('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md', '键盘焦点仍保持可见');
   requireText('docs/README.md', '输入方式、共享交互表面');
 
   for (const text of [
