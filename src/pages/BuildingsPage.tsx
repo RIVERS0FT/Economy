@@ -718,14 +718,23 @@ export function BuildingsPage({
 
   if (embedded) return buildingsContent;
 
-  const provinceName = model.selectedProvince?.name || '加利福尼亚州';
+  if (selectedFacilityEntry) {
+    const provinceName = model.selectedProvince?.name || '加利福尼亚州';
+    return (
+      <PageLayout
+        title={<span className="province-facility-detail-title">{provinceName}{selectedFacilityEntry.type.name}</span>}
+        description="管理本州建筑的建造、运行、满员率、生产方式、投入产出与资产交易；商品库存和自动交易分别归属仓库与市场。"
+        backAction={{ label: '返回建筑列表', onClick: closeFacilityDetail }}
+      >
+        {buildingsContent}
+      </PageLayout>
+    );
+  }
+
   return (
     <PageLayout
-      title={selectedFacilityEntry ? (
-        <span className="province-facility-detail-title">{provinceName}{selectedFacilityEntry.type.name}</span>
-      ) : `${provinceName}建筑`}
+      title={`${model.selectedProvince?.name || '加利福尼亚州'}建筑`}
       description="管理本州建筑的建造、运行、满员率、生产方式、投入产出与资产交易；商品库存和自动交易分别归属仓库与市场。"
-      backAction={selectedFacilityEntry ? { label: '返回建筑列表', onClick: closeFacilityDetail } : undefined}
     >
       {buildingsContent}
     </PageLayout>
