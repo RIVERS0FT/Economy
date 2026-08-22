@@ -31,29 +31,70 @@ export function SidebarFrame({
 }) {
   const desiredCollapsedRef = useRef(collapsed);
   const hoverIntentRef = useRef(false);
+  const foregroundIntentRef = useRef(false);
+  const onToggleCollapsedRef = useRef(onToggleCollapsed);
 
   useLayoutEffect(() => {
     desiredCollapsedRef.current = collapsed;
   }, [collapsed]);
 
   useLayoutEffect(() => {
+    onToggleCollapsedRef.current = onToggleCollapsed;
+  }, [onToggleCollapsed]);
+
+  useLayoutEffect(() => {
     hoverIntentRef.current = false;
-    const markHoverIntent = () => { hoverIntentRef.current = true; };
-    window.addEventListener('pointermove', markHoverIntent, { once: true });
-    return () => window.removeEventListener('pointermove', markHoverIntent);
+    foregroundIntentRef.current = false;
+
+    const markPointerIntent = () => {
+      hoverIntentRef.current = true;
+      foregroundIntentRef.current = true;
+    };
+    const markKeyboardIntent = (event: KeyboardEvent) => {
+      if (event.key === 'Tab') foregroundIntentRef.current = true;
+    };
+    const markPointerDownIntent = () => {
+      foregroundIntentRef.current = true;
+    };
+    const suspendInteraction = () => {
+      hoverIntentRef.current = false;
+      foregroundIntentRef.current = false;
+      if (desiredCollapsedRef.current) return;
+      desiredCollapsedRef.current = true;
+      onToggleCollapsedRef.current();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') suspendInteraction();
+    };
+
+    window.addEventListener('pointermove', markPointerIntent, { capture: true, passive: true });
+    window.addEventListener('keydown', markKeyboardIntent, { capture: true });
+    window.addEventListener('pointerdown', markPointerDownIntent, { capture: true, passive: true });
+    window.addEventListener('blur', suspendInteraction);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('pointermove', markPointerIntent, true);
+      window.removeEventListener('keydown', markKeyboardIntent, true);
+      window.removeEventListener('pointerdown', markPointerDownIntent, true);
+      window.removeEventListener('blur', suspendInteraction);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [interactionResetKey]);
 
   const setCollapsed = (nextCollapsed: boolean) => {
     if (desiredCollapsedRef.current === nextCollapsed) return;
     desiredCollapsedRef.current = nextCollapsed;
-    onToggleCollapsed();
+    onToggleCollapsedRef.current();
   };
   const expand = (event: { type: string }) => {
     if (event.type === 'mouseenter' && !hoverIntentRef.current) return;
+    if (event.type === 'focus' && !foregroundIntentRef.current) return;
     setCollapsed(false);
   };
   const expandFromMove = () => {
     hoverIntentRef.current = true;
+    foregroundIntentRef.current = true;
     setCollapsed(false);
   };
   const collapse = () => setCollapsed(true);
