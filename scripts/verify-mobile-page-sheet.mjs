@@ -128,6 +128,7 @@ requireAll('src/components/ui/useMobileWorkspaceSheetDrag.ts', [
   'window.cancelAnimationFrame(dragFrameRef.current);',
   'settleFrameRef.current = window.requestAnimationFrame(() => {',
   "sheet.addEventListener('transitionend', handleTransitionEnd);",
+  "sheet.dataset.entryAnimationComplete = 'true';",
   'session.offset = Math.max(0, finalY - session.startY);',
   'flushDragOffset(session.offset);',
   'Math.min(session.height * 0.25, 160)',
@@ -163,6 +164,8 @@ requireAll('src/styles/mobile-detail-sheet.css', [
   'background: var(--frosted-glass-background);',
   '-webkit-backdrop-filter: var(--frosted-glass-filter);',
   'backdrop-filter: var(--frosted-glass-filter);',
+  ".mobile-detail-sheet:not([data-entry-animation-complete='true'])",
+  ".mobile-workspace-sheet-detail-view:not([data-entry-animation-complete='true'])",
   ".mobile-workspace-sheet-page-layer[aria-hidden='true']",
   'visibility: hidden;',
   '.mobile-workspace-sheet-detail-view {',
@@ -263,6 +266,7 @@ requireAll('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '物理根 Sheet 独占 Pointer／Touch 手势监听',
   '松手前必须同步提交最后一次真实拖动 offset',
   '一次拖动从开始到回弹或关闭完成必须锁定同一个 Sheet 高度',
+  '首次进入动画只能在每个物理 Sheet／详情实例初次挂载时播放一次',
 ]);
 
 console.log('移动唯一 Sheet 自身毛玻璃、稳定松手、透明外部、状态/通知上层与导航隐藏恢复动画验证通过。');
