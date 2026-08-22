@@ -32,7 +32,8 @@ test.describe('factory production methods', () => {
     const recipeListboxBox = await recipeListbox.boundingBox();
     expect(recipeTriggerBox).not.toBeNull();
     expect(recipeListboxBox).not.toBeNull();
-    expect(recipeListboxBox!.width).toBeGreaterThan(recipeTriggerBox!.width + 80);
+    if (!recipeTriggerBox || !recipeListboxBox) throw new Error('production select geometry is unavailable');
+    expect(recipeListboxBox.width).toBeGreaterThan(recipeTriggerBox.width + 80);
     await expect(recipeListbox.getByRole('option', { name: '机械制造' })).toContainText('周期 60s');
     await page.keyboard.press('Escape');
 
