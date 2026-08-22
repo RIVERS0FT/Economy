@@ -237,7 +237,7 @@ for (const text of [
 ]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 for (const text of [
   'C1–C7 只作为产业阶段',
-  '其余节点按照真实产业链设置前置关系',
+  '技术树固定使用真实 `prerequisiteTechnologyIds` 驱动的自上而下 DAG',
   '自上而下 DAG',
   '结构定位不得复用 `transform`',
   '选中科技只能改变节点和连接线的强调状态',
