@@ -141,6 +141,14 @@ function markSuppressedMultitouchTap(chart: EChartsType) {
 
 registerEChartsMap(US_MAINLAND_MAP_NAME, usMainlandGeoJson);
 
+interface ProvinceMapItemStyle {
+  areaColor: string;
+  borderColor?: string;
+  borderWidth?: number;
+  shadowBlur?: number;
+  shadowColor?: string;
+}
+
 interface ProvinceMapDatum {
   name: string;
   value: number;
@@ -152,9 +160,28 @@ interface ProvinceMapDatum {
   blockedFacilityCount: number;
   openOrderCount: number;
   locked: boolean;
-  itemStyle: {
-    areaColor: string;
-    borderColor?: string;
+  itemStyle: ProvinceMapItemStyle;
+  emphasis: { itemStyle: ProvinceMapItemStyle };
+  select: { itemStyle: ProvinceMapItemStyle };
+}
+
+type ProvinceMapFocusState = 'hover' | 'selected' | 'selected-hover';
+
+function focusItemStyle(areaColor: string, state: ProvinceMapFocusState): ProvinceMapItemStyle {
+  if (state === 'hover') {
+    return {
+      areaColor,
+      borderColor: 'var(--color-text-secondary)',
+      borderWidth: 1.5,
+    };
+  }
+  const isSelectedHover = state === 'selected-hover';
+  return {
+    areaColor,
+    borderColor: 'var(--color-text-primary)',
+    borderWidth: isSelectedHover ? 3 : 2.5,
+    shadowBlur: isSelectedHover ? 7 : 5,
+    shadowColor: 'var(--color-map-region-border)',
   };
 }
 
@@ -163,6 +190,7 @@ function datumFor(
   summary: ProvinceAssetSummary | undefined,
   lens: ProvinceMapLens,
   locked = false,
+  selected = false,
 ): ProvinceMapDatum {
   const storedQuantity = Number(summary?.storedQuantity || 0);
   const facilityCount = Number(summary?.facilityCount || 0);
@@ -205,6 +233,12 @@ function datumFor(
     itemStyle: {
       areaColor,
       ...(lens === 'alerts' && blockedFacilityCount > 0 ? { borderColor: 'var(--color-danger)' } : {}),
+    },
+    emphasis: {
+      itemStyle: focusItemStyle(areaColor, selected ? 'selected-hover' : 'hover'),
+    },
+    select: {
+      itemStyle: focusItemStyle(areaColor, 'selected'),
     },
   };
 }
@@ -250,8 +284,14 @@ export function UsMainlandMap({
     provinces.map((province) => [province.name, province.id === selectedProvinceId]),
   ), [provinces, selectedProvinceId]);
   const data = useMemo(() => provinces.map((province) => (
-    datumFor(province, summaries[province.id], lens, !unlockedSet.has(province.id))
-  )), [lens, provinces, summaries, unlockedSet]);
+    datumFor(
+      province,
+      summaries[province.id],
+      lens,
+      !unlockedSet.has(province.id),
+      province.id === selectedProvinceId,
+    )
+  )), [lens, provinces, selectedProvinceId, summaries, unlockedSet]);
   const lastBlankTapRef = useRef<{ at: number; x: number; y: number } | null>(null);
   const chartRef = useRef<EChartsType | null>(null);
   const labelRendererRef = useRef<ProvinceMapLabelRenderer | null>(null);
@@ -360,20 +400,10 @@ export function UsMainlandMap({
         label: {
           show: false,
         },
-        itemStyle: {
-          areaColor: 'var(--color-surface-hover)',
-          borderColor: 'var(--color-success)',
-          borderWidth: 1.5,
-        },
       },
       select: {
         label: {
           show: false,
-        },
-        itemStyle: {
-          areaColor: 'var(--color-success-strong)',
-          borderColor: 'var(--color-success)',
-          borderWidth: 2,
         },
       },
       data,
