@@ -279,11 +279,6 @@ for (const text of [
   "'blank-double-click'", 'baselinePathRevision', 'baselineLabelCenter', 'firstFrameLabelCenter',
 ]) assert.ok(resetTest.includes(text), `地图重置回归缺少: ${text}`);
 
-const chromeDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
-for (const text of [
-  '待提交的 `requestAnimationFrame` 相机写入', '至少提交一帧 active 合成结果', '`INPUT_SETTLE_MS` 收口',
-]) assert.ok(chromeDesign.includes(text), `地图 active 帧设计规则缺少: ${text}`);
-
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 assert.equal((uiDesign.match(/### 8\.1 美国本土州级经营地图/g) ?? []).length, 1, 'UI 设计文档只能保留一份美国本土州级经营地图 8.1 规则');
 for (const text of [
@@ -301,7 +296,10 @@ for (const text of [
   '不大于 `720px` 时镜头栏和地图 Tooltip 必须隐藏',
 ]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
 const chromeDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
-for (const text of ['静态 SVG 世界面', '单一合成相机', '每帧最多一次', '屏幕外的州面']) {
+for (const text of [
+  '静态 SVG 世界面', '单一合成相机', '每帧最多一次', '屏幕外的州面',
+  '待提交的 `requestAnimationFrame` 相机写入', '至少提交一帧 active 合成结果', '`INPUT_SETTLE_MS` 收口',
+]) {
   assert.ok(chromeDesign.includes(text), `地图外壳权威缺少: ${text}`);
 }
 
