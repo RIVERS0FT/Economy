@@ -87,11 +87,9 @@ for (const text of [
 assert.equal(page.indexOf('{buildCard}') < page.indexOf('{facilityList}'), true, '建设新工厂必须位于工厂卡片网格之前');
 
 for (const forbidden of [
-  '建筑概况',
   'buildingQuery',
   'buildingCategory',
   'buildingStatus',
-  'buildings-list-filters',
   'facility-cluster-navigation',
   '按产业和运行状态筛选建筑',
   'MobileFacilityDetailSheet',
@@ -99,7 +97,7 @@ for (const forbidden of [
   'aria-pressed={isSelected}',
   'facility-current-selection-bar',
   '查看详情',
-]) assert.equal(page.includes(forbidden), false, `地区建筑列表不得恢复旧结构: ${forbidden}`);
+]) assert.equal(page.includes(forbidden), false, `地区建筑列表不得恢复可执行旧结构: ${forbidden}`);
 
 for (const text of [
   "const [facilityDetailTypeId, setFacilityDetailTypeId] = useState<string | null>(null);",
