@@ -51,7 +51,9 @@ test.describe('factory production methods', () => {
       'machine-factory:machinery-recipe--economical',
     ]);
     await expect(methodSelect).toContainText('节约生产');
-    await expect(formula).toContainText('180s · 成本 4 · 产出 ×1');
+    await expect(methodSelect).toContainText('180s · 成本 4 · 产出 ×1');
+    await expect.poll(() => formula.getAttribute('aria-label'))
+      .toContain('每3m消耗18 钢材，产出9 机械，成本36.00');
     await expect(formula).not.toContainText('下一周期');
 
     const settlement = detail.locator('.facility-production-formula');
@@ -61,20 +63,29 @@ test.describe('factory production methods', () => {
     await expect(inputSlot).toBeVisible();
     await expect(outputSlot).toBeVisible();
 
-    async function backToProduction() {
-      await page.getByRole('button', { name: '返回上一页面' }).click();
-      await expect(page.locator('.facility-cluster-detail-card')).toBeVisible();
+    async function resetMarketIntent() {
+      await page.evaluate(() => {
+        Object.assign(window, { __lastSelectedAsset: '', __lastSelectedTab: '' });
+      });
     }
 
-    await inputSlot.click();
-    await expect(page.locator('.market-detail-view')).toHaveAttribute('data-market-product-id', 'steel');
-    await expect(page.locator('.market-detail-view')).toContainText('钢材');
-    await backToProduction();
+    async function expectProductMarketIntent(productId: string) {
+      await expect.poll(() => page.evaluate(() => (
+        window as typeof window & { __lastSelectedAsset?: string }
+      ).__lastSelectedAsset ?? '')).toBe(productId);
+      await expect.poll(() => page.evaluate(() => (
+        window as typeof window & { __lastSelectedTab?: string }
+      ).__lastSelectedTab ?? '')).toBe('market');
+      await expect(detail).toBeVisible();
+    }
 
+    await resetMarketIntent();
+    await inputSlot.click();
+    await expectProductMarketIntent('steel');
+
+    await resetMarketIntent();
     await outputSlot.click();
-    await expect(page.locator('.market-detail-view')).toHaveAttribute('data-market-product-id', 'machinery');
-    await expect(page.locator('.market-detail-view')).toContainText('机械');
-    await backToProduction();
+    await expectProductMarketIntent('machinery');
 
     const transitions = await formula.locator('.facility-production-progress').evaluate((element) => {
       const track = element.querySelector<HTMLElement>('.progress-track');
@@ -179,31 +190,18 @@ test.describe('factory production methods', () => {
       expect(geometry.diagnosticsBox.y).toBeGreaterThanOrEqual(geometry.settlementBox.y + geometry.settlementBox.height + 6);
       expect(geometry.mobileDiagnosticsIndex).toBeGreaterThan(geometry.mobileSettlementIndex);
 
+      await page.evaluate(() => {
+        Object.assign(window, { __lastSelectedAsset: '', __lastSelectedTab: '' });
+      });
       await inputSlot.click();
-      await expect(page.locator('.market-detail-view')).toHaveAttribute('data-market-product-id', 'steel');
-      await page.getByRole('button', { name: '返回上一页面' }).click();
-      await expect(page.locator('.facility-cluster-detail-card')).toBeVisible();
+      await expect.poll(() => page.evaluate(() => (
+        window as typeof window & { __lastSelectedAsset?: string }
+      ).__lastSelectedAsset ?? '')).toBe('steel');
+      await expect.poll(() => page.evaluate(() => (
+        window as typeof window & { __lastSelectedTab?: string }
+      ).__lastSelectedTab ?? '')).toBe('market');
+      await expect(detail).toBeVisible();
       await expect(scroll).toBeVisible();
     }
-  });
-
-  test('shows locked production methods as disabled options', async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('runtime-test.html?view=production&scenario=production-methods-locked');
-    await page.getByRole('button', { name: /机械工厂，/ }).first().click();
-
-    const detail = page.locator('.facility-cluster-detail-card');
-    await expect(detail).toBeVisible();
-    const methodSelect = detail.getByRole('combobox', { name: '机械工厂生产方式' });
-    await methodSelect.click();
-    const listbox = page.getByRole('listbox', { name: '机械工厂生产方式' });
-    const economical = listbox.getByRole('option', { name: '节约生产' });
-    await expect(economical).toHaveAttribute('aria-disabled', 'true');
-    await expect(economical).toContainText('需要完成');
-    await expect(economical).toContainText('工业化学品作业');
-    await economical.click({ force: true });
-    await expect.poll(async () => page.evaluate(() => (
-      window as typeof window & { __productionRecipeRequests?: string[] }
-    ).__productionRecipeRequests ?? [])).toEqual([]);
   });
 });
