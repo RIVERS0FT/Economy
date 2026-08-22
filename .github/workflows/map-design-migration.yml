@@ -1,0 +1,34 @@
+name: Static map design migration
+
+on:
+  push:
+    branches:
+      - codex/static-svg-map-camera
+    paths:
+      - .github/workflows/map-design-migration.yml
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/static-svg-map-camera
+          fetch-depth: 0
+      - name: Replace retired ECharts map rules in authoritative docs
+        shell: bash
+        run: |
+          python3 scripts/migrate-static-map-design.py
+          git diff --check
+          if git diff --quiet -- docs/UI_DESIGN_SYSTEM.md docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/LIQUID_GLASS_CHROME_DESIGN.md docs/README.md; then
+            echo MAP_DESIGN_ALREADY_MIGRATED
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/UI_DESIGN_SYSTEM.md docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/LIQUID_GLASS_CHROME_DESIGN.md docs/README.md
+          git commit -m "更新静态 SVG 地图权威设计规则"
+          git push origin HEAD:codex/static-svg-map-camera
