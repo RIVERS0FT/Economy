@@ -103,3 +103,13 @@
 - `tests/browser/shell-floating-safe-zone.spec.ts`：ECharts Tooltip 必须使用同一 `.ui-tooltip-surface` 毛玻璃材质并继续限制在工作区安全边界，不能覆盖状态栏、侧栏或可见移动底栏。
 - `tests/browser/application-error-state.spec.ts`：桌面／移动错误状态必须使用唯一 `stateCard`，真实计算样式包含共享 `blur(18px)`、半透明背景和危险色边界；刷新控件必须为圆形图标按钮并触发页面重新加载。
 - `tests/browser/open-glass-sampling.spec.ts`：四种玩家／管理员、桌面／移动场景的根级采样链。
+- `tests/browser/game-shell-layout.spec.ts`：侧栏宽窄屏一致、真实指针意图后的悬浮反馈不位移、页面展开期间布局盒几何不受视觉裁剪动画影响、建筑式面板与右栏几何。
+- `tests/browser/sidebar-navigation-collapse.spec.ts`：桌面侧栏悬浮展开后切换正式页面必须继续保持 `224px`，直到真实鼠标移出或焦点离开；浏览器失焦／进入后台后仍必须收起，返回时在没有新前台输入前恢复旧焦点与静止旧指针都不得重新展开；新的 `Tab` 键盘导航焦点进入仍可立即展开。
+- `tests/browser/tutorial-right-rail.spec.ts`：桌面普通页面教程跨页常驻、总进度位于单项任务之前、跳过确认、六个 `fullscreen` 页面右栏／教程／事件 DOM 全部消失且离开后恢复同一步骤；移动端复用同一外壳教程 DOM 固定在状态栏下方并使用统一左右安全沟槽，普通页面根 Sheet 与通知可以覆盖教程而状态栏保持最高。
+- `tests/browser/mobile-status-value-fit.spec.ts`：移动状态栏在连续视口 resize 后必须重新完成数值拟合；`400px` 与 `340px` 两级超窄布局必须先收紧留白和图标，在 `320px` 仍保留 `44px` 通知触控轨道并让完整整数不低于 `0.56rem`；不得卡在 `data-status-values-fitted="false"` 或裁剪末位数字。
+- `tests/browser/mobile-workspace-overlay.spec.ts`：唯一根级 Mobile Workspace Sheet 必须复用工厂详情全宽容器、底边贴物理视口、顶边避让状态栏且只在自身毛玻璃；Sheet 外保持清晰，状态栏可交互，底栏在 Sheet 存在时隐藏并在根 Sheet 收起后播放返回动画；页面卡片滚动条继续位于根 Sheet 安全右边缘且不改变正文宽度。
+- `tests/browser/mobile-sheet-release-stability.spec.ts`：模拟最后一次 `touchMove` 与 `touchEnd` 同帧发生，分别验证约半高下拉关闭和短距离回弹都从最后一次已接收的真实 `touchMove` 位置连续进入 settle、过程单调且 Sheet 高度冻结；回弹完成后不得重新触发首次进入 keyframes，禁止 `touchEnd.changedTouches` 覆盖 session 位置或松手瞬间跳回旧 RAF 位置。
+- `tests/browser/notification-center.spec.ts`：桌面完整通知面板保持工作区安全浮层右上角；桌面关闭态 Toast 与右栏同属战略 Chrome 的 `z-index: 2`、固定工作区右下角且宽度独立，在 `fullscreen` 页面没有右栏时仍可出现；移动通知面板必须覆盖已打开的根 Sheet、保持状态栏最高且面板打开期间通知岛为零，`Escape` 只关闭通知面板并恢复通知入口焦点。
+- `tests/browser/mobile-navigation-scrollbar.spec.ts`：移动底栏保持同一 DOM、Sheet 存在时不可见且不可交互、根 Sheet 收起到地图后使用通知灵动岛同系返回动画，并继续验证无 hover、按下／选中／未选中状态和横向滚动。
+- `tests/browser/all-pages-preview.spec.ts`：概览、市场、建筑、设置四个同宽紧凑页面，排行榜与商店等六个全区域页面和独立右栏。
+- `tests/browser/map-zoom-out-boundary.spec.ts`：必须先把地图放大到外围州真实离开屏幕，再缩小到 `0.5`，验证加利福尼亚、佛罗里达、缅因和华盛顿重新进入物理视口且州名中心命中可见州面；`tests/browser/map-zoom-transient.spec.ts` 同时逐帧验证根 SVG 无 CSS 缩放、几何尺寸单调变化并且 settle 前后没有尺寸跳变。
