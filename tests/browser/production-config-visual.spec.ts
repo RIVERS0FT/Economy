@@ -109,14 +109,11 @@ test.describe('production configuration visual triggers', () => {
     ]) {
       await page.setViewportSize(viewport);
       await page.goto('runtime-test.html?view=production&scenario=production-methods');
+      await page.locator('.facility-cluster-selector-card').first().click();
 
-      if (viewport.width <= 720) {
-        await page.locator('.facility-cluster-selector-card').first().click();
-      }
-
-      const scope = viewport.width <= 720
-        ? page.locator('.mobile-detail-sheet')
-        : page.locator('.facility-cluster-detail-card');
+      const scope = page.locator('.facility-cluster-detail-card');
+      await expect(scope).toBeVisible();
+      await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
       const recipeSelect = scope.getByRole('combobox', { name: '机械工厂生产产物' });
       const methodSelect = scope.getByRole('combobox', { name: '机械工厂生产方式' });
       const expectedSize = viewport.width <= 720 ? 48 : 52;
