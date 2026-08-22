@@ -26,6 +26,7 @@ for (const path of [
   'src/components/ui/layout.tsx',
   'src/pages/ResearchPage.tsx',
   'src/styles/research-page.css',
+  'src/styles/strategic-game-shell.css',
   'src/styles/design-system.css',
   'src/api/game.ts',
   'src/app/gameViewModel.ts',
@@ -122,6 +123,9 @@ for (const text of [
   '.research-tree-transform-layer',
   '.research-tree-connections',
   'touch-action: none;',
+  'border: 0;',
+  'border-radius: 0;',
+  'background: transparent;',
   '--research-focus-color: var(--color-accent-violet);',
   ".research-tree-edge[data-related='true']",
   ".research-tree-edge[data-highlighted='true']",
@@ -140,6 +144,15 @@ for (const text of [
   'overflow: hidden;',
   '.page-card-static .research-tree-viewport {',
 ]) requireText('src/styles/research-page.css', text);
+for (const text of [
+  '.game-shell.strategic-tab-research .signed-in-shell__primary-card {',
+  'border: 0;',
+  'border-radius: 0;',
+  'background: transparent;',
+  'box-shadow: none;',
+  '.game-shell.strategic-tab-research .signed-in-shell__primary-card::before {',
+  'display: none;',
+]) requireText('src/styles/strategic-game-shell.css', text);
 for (const text of [
   '.page-card-static > .ui-page-stack {',
   'grid-template-rows: minmax(0, 1fr);',
@@ -165,12 +178,16 @@ for (const text of [
   'fixedPageOverflow.stackScrollHeight',
   'mobilePageStructure.containsDialog',
   'researchGeometry.workspace?.bottom',
+  'researchGeometry.outerCard',
+  'researchGeometry.treeSurface',
   'keeps node geometry stable on hover and selected dependency lines visible',
   'preserves an explicit technology selection across refreshed snapshots',
   'shows only research cost and time while merging active acceleration into the research action',
   'uses the stored base duration for accelerated node research progress',
   'uses one world geometry on mobile with pan and zoom instead of two-lane reflow',
-  'supports desktop drag and ctrl-wheel zoom without changing world coordinates',
+  'supports desktop drag, wheel zoom, and double-click focus without changing world coordinates',
+  'zoomBeforeDoubleClick',
+  'expectedY: viewportRect.top + viewportRect.height * 0.42',
   'opens technology details in the shared mobile sheet',
   'distinguishes operation research from production research',
   "not.toContainText('使用后剩余')",
@@ -188,9 +205,13 @@ for (const text of [
   'translate3d(',
   'data-pan-x',
   'data-zoom',
+  'normalizedDeltaY',
+  'onDoubleClick={handleDoubleClick}',
+  'centerCurrent();',
   '定位当前科技',
   '查看完整技术树',
 ]) requireText('src/research/ResearchTreeViewport.tsx', text);
+forbidText('src/research/ResearchTreeViewport.tsx', 'if (!event.ctrlKey && !event.metaKey) return;');
 
 requireText('src/api/game.ts', "postAction('/research/start', { technologyId })");
 requireText('src/api/game.ts', "postAction('/research/accelerate')");
@@ -214,7 +235,10 @@ for (const text of [
   '选中科技只能改变节点和连接线的强调状态',
   '同一确定性 DAG 世界坐标',
   '单指平移',
+  '普通鼠标滚轮',
+  '双击定位当前科技',
   '双指缩放',
+  '桌面研发页去掉最外围工作区卡片视觉',
   '旧客户端',
   '周期轮询、动作后同步和权威倒计时确认对客户端交互状态必须透明',
   '投入信息只显示研发费用和研发时间',
@@ -291,4 +315,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('downward prerequisite research DAG, stable hover geometry, visible selected links, deterministic layout, shared pan/zoom viewport, stable selection, no below-tree page-flow card, detail sheet and design verification passed');
+console.log('downward prerequisite research DAG, stable hover geometry, ordinary wheel zoom, drag pan, double-click current focus, transparent research canvas, shared mobile pan/zoom viewport, stable selection, no below-tree page-flow card, detail sheet and design verification passed');
