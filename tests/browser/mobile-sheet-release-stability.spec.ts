@@ -1,23 +1,91 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
+interface SheetGeometry {
+  top: number;
+  height: number;
+}
+
+interface SettleProbeState {
+  handoff: SheetGeometry | null;
+  minHeight: number | null;
+  maxHeight: number | null;
+  endTop: number | null;
+  done: boolean;
+}
+
+type SettleProbeWindow = typeof window & {
+  __economyMobileSheetSettleProbe?: SettleProbeState;
+};
+
 async function waitForSheetAnimations(surface: Locator) {
   await expect.poll(() => surface.evaluate((element) => (
     element.getAnimations().every((animation) => animation.playState === 'finished')
   ))).toBe(true);
 }
 
-async function collectDetailFrames(page: Page, count = 8) {
-  return page.evaluate(async (frameCount) => {
-    const frames: Array<{ top: number; height: number }> = [];
-    for (let index = 0; index < frameCount; index += 1) {
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      const detail = document.querySelector<HTMLElement>('.mobile-workspace-sheet-detail-view');
-      if (!detail) break;
-      const rect = detail.getBoundingClientRect();
-      frames.push({ top: rect.top, height: rect.height });
+async function armSettleProbe(detail: Locator) {
+  await detail.evaluate((element) => {
+    const target = element as HTMLElement;
+    const testWindow = window as SettleProbeWindow;
+    const probe: SettleProbeState = {
+      handoff: null,
+      minHeight: null,
+      maxHeight: null,
+      endTop: null,
+      done: false,
+    };
+    testWindow.__economyMobileSheetSettleProbe = probe;
+
+    const recordHeight = () => {
+      const height = target.getBoundingClientRect().height;
+      probe.minHeight = probe.minHeight === null ? height : Math.min(probe.minHeight, height);
+      probe.maxHeight = probe.maxHeight === null ? height : Math.max(probe.maxHeight, height);
+    };
+
+    const observer = new MutationObserver(() => {
+      if (!target.classList.contains('is-settling') || probe.handoff) return;
+      const rect = target.getBoundingClientRect();
+      probe.handoff = { top: rect.top, height: rect.height };
+      probe.minHeight = rect.height;
+      probe.maxHeight = rect.height;
+      observer.disconnect();
+
+      const resizeObserver = new ResizeObserver(() => recordHeight());
+      resizeObserver.observe(target);
+      const handleTransitionEnd = (event: TransitionEvent) => {
+        if (event.target !== target || event.propertyName !== 'transform') return;
+        const endRect = target.getBoundingClientRect();
+        recordHeight();
+        probe.endTop = endRect.top;
+        probe.done = true;
+        resizeObserver.disconnect();
+        target.removeEventListener('transitionend', handleTransitionEnd);
+      };
+      target.addEventListener('transitionend', handleTransitionEnd);
+    });
+    observer.observe(target, { attributes: true, attributeFilter: ['class'] });
+  });
+}
+
+async function readSettleProbe(page: Page, requireDone = false) {
+  await expect.poll(() => page.evaluate(() => {
+    const probe = (window as SettleProbeWindow).__economyMobileSheetSettleProbe;
+    return requireDone ? probe?.done === true : probe?.handoff !== null && probe?.handoff !== undefined;
+  })).toBe(true);
+
+  return page.evaluate(() => {
+    const probe = (window as SettleProbeWindow).__economyMobileSheetSettleProbe;
+    if (!probe?.handoff || probe.minHeight === null || probe.maxHeight === null) {
+      throw new Error('移动 Sheet settle 探针未捕获完整几何');
     }
-    return frames;
-  }, count);
+    return {
+      handoff: probe.handoff,
+      minHeight: probe.minHeight,
+      maxHeight: probe.maxHeight,
+      endTop: probe.endTop,
+      done: probe.done,
+    };
+  });
 }
 
 async function startTouchDrag(page: Page, handle: Locator) {
@@ -77,8 +145,10 @@ test.describe('mobile sheet release stability', () => {
     await expect.poll(() => detail.evaluate((element) => element.getBoundingClientRect().top))
       .toBeCloseTo(initialBox.y + 72, 0);
 
+    await armSettleProbe(detail);
     // The final move and release intentionally happen without an intervening RAF.
-    // A stale-RAF implementation jumps from the previously committed 72px position.
+    // The in-page settle probe captures the class handoff microtask before the
+    // transition target can advance, so CI scheduling delay cannot masquerade as a jump.
     await client.send('Input.dispatchTouchEvent', {
       type: 'touchMove',
       touchPoints: [{ x: point.x, y: point.y + releaseDistance }],
@@ -88,17 +158,16 @@ test.describe('mobile sheet release stability', () => {
       touchPoints: [],
     });
 
-    const frames = await collectDetailFrames(page);
-    expect(frames.length).toBeGreaterThanOrEqual(4);
-    expect(Math.abs(frames[0].top - expectedReleaseTop)).toBeLessThanOrEqual(12);
-    expect(Math.max(...frames.map((frame) => frame.height)) - Math.min(...frames.map((frame) => frame.height)))
-      .toBeLessThanOrEqual(1);
-    for (let index = 1; index < frames.length; index += 1) {
-      expect(frames[index].top).toBeGreaterThanOrEqual(frames[index - 1].top - 1);
-    }
+    const handoff = await readSettleProbe(page);
+    expect(Math.abs(handoff.handoff.top - expectedReleaseTop)).toBeLessThanOrEqual(2);
+    expect(Math.abs(handoff.handoff.height - initialBox.height)).toBeLessThanOrEqual(1);
 
     await expect(host).toHaveAttribute('data-detail-active', 'false');
     await expect(host.locator('.mobile-workspace-sheet-detail-view')).toHaveCount(0);
+    const settled = await readSettleProbe(page, true);
+    expect(settled.maxHeight - settled.minHeight).toBeLessThanOrEqual(1);
+    expect(settled.endTop).not.toBeNull();
+    expect(settled.endTop ?? handoff.handoff.top).toBeGreaterThanOrEqual(handoff.handoff.top - 1);
     await expect(host).toBeVisible();
   });
 
@@ -121,6 +190,7 @@ test.describe('mobile sheet release stability', () => {
     await expect.poll(() => detail.evaluate((element) => element.getBoundingClientRect().top))
       .toBeCloseTo(initialBox.y + 24, 0);
 
+    await armSettleProbe(detail);
     await client.send('Input.dispatchTouchEvent', {
       type: 'touchMove',
       touchPoints: [{ x: point.x, y: point.y + releaseDistance }],
@@ -130,15 +200,14 @@ test.describe('mobile sheet release stability', () => {
       touchPoints: [],
     });
 
-    const frames = await collectDetailFrames(page);
-    expect(frames.length).toBeGreaterThanOrEqual(4);
-    expect(Math.abs(frames[0].top - expectedReleaseTop)).toBeLessThanOrEqual(12);
-    expect(Math.max(...frames.map((frame) => frame.height)) - Math.min(...frames.map((frame) => frame.height)))
-      .toBeLessThanOrEqual(1);
-    for (let index = 1; index < frames.length; index += 1) {
-      expect(frames[index].top).toBeLessThanOrEqual(frames[index - 1].top + 1);
-    }
+    const handoff = await readSettleProbe(page);
+    expect(Math.abs(handoff.handoff.top - expectedReleaseTop)).toBeLessThanOrEqual(2);
+    expect(Math.abs(handoff.handoff.height - initialBox.height)).toBeLessThanOrEqual(1);
 
+    const settled = await readSettleProbe(page, true);
+    expect(settled.maxHeight - settled.minHeight).toBeLessThanOrEqual(1);
+    expect(settled.endTop).not.toBeNull();
+    expect(settled.endTop ?? handoff.handoff.top).toBeLessThanOrEqual(handoff.handoff.top + 1);
     await expect.poll(() => detail.evaluate((element) => element.getBoundingClientRect().top))
       .toBeCloseTo(initialBox.y, 0);
     await expect(host).toHaveAttribute('data-detail-active', 'true');

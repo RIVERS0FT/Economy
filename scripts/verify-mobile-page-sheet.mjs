@@ -229,9 +229,17 @@ requireAll('tests/browser/mobile-workspace-overlay.spec.ts', [
 requireAll('tests/browser/mobile-sheet-release-stability.spec.ts', [
   'half-distance release starts closing from the exact finger position without a jump',
   'short release rebounds from the exact finger position with frozen sheet geometry',
-  'expect(Math.abs(frames[0].top - expectedReleaseTop)).toBeLessThanOrEqual(12);',
-  'expect(frames[index].top).toBeGreaterThanOrEqual(frames[index - 1].top - 1);',
-  'expect(frames[index].top).toBeLessThanOrEqual(frames[index - 1].top + 1);',
+  'async function armSettleProbe(detail: Locator)',
+  "target.classList.contains('is-settling')",
+  'const resizeObserver = new ResizeObserver(() => recordHeight());',
+  "target.addEventListener('transitionend', handleTransitionEnd);",
+  'const handoff = await readSettleProbe(page);',
+  'expect(Math.abs(handoff.handoff.top - expectedReleaseTop)).toBeLessThanOrEqual(2);',
+  'expect(settled.maxHeight - settled.minHeight).toBeLessThanOrEqual(1);',
+]);
+forbidAll('tests/browser/mobile-sheet-release-stability.spec.ts', [
+  'collectDetailFrames(page)',
+  'frames[0].top',
 ]);
 
 requireAll('tests/browser/notification-center.spec.ts', [
@@ -267,6 +275,7 @@ requireAll('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '松手前必须同步提交最后一次真实拖动 offset',
   '一次拖动从开始到回弹或关闭完成必须锁定同一个 Sheet 高度',
   '首次进入动画只能在每个物理 Sheet／详情实例初次挂载时播放一次',
+  '松手连续性浏览器回归不得在 CDP 命令返回后才启动首个外部 RAF',
 ]);
 
 console.log('移动唯一 Sheet 自身毛玻璃、稳定松手、透明外部、状态/通知上层与导航隐藏恢复动画验证通过。');
