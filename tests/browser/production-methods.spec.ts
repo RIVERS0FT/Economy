@@ -1,8 +1,5 @@
 import { expect, test } from '@playwright/test';
 
-// Retired verifier migration marker only; economical production remains ×1:
-// toContainText('产出 ×2 ↑')
-
 test.describe('factory production methods', () => {
   test('renders compact selectors and switches the active recipe immediately', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
