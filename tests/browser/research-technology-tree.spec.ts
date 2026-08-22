@@ -42,7 +42,12 @@ test.describe('research technology tree', () => {
       const action = document.querySelector<HTMLElement>('.research-action-panel')?.getBoundingClientRect();
       const workspace = document.querySelector<HTMLElement>('.research-workspace')?.getBoundingClientRect();
       const treePanel = document.querySelector<HTMLElement>('.research-tree-panel')?.getBoundingClientRect();
-      const treeViewport = document.querySelector<HTMLElement>('.research-tree-viewport')?.getBoundingClientRect();
+      const treeViewportElement = document.querySelector<HTMLElement>('.research-tree-viewport');
+      const treeViewport = treeViewportElement?.getBoundingClientRect();
+      const primaryCard = document.querySelector<HTMLElement>('.signed-in-shell__primary-card');
+      const primaryCardStyle = primaryCard ? getComputedStyle(primaryCard) : null;
+      const primaryCardBeforeStyle = primaryCard ? getComputedStyle(primaryCard, '::before') : null;
+      const treeViewportStyle = treeViewportElement ? getComputedStyle(treeViewportElement) : null;
       const actionElement = document.querySelector<HTMLElement>('.research-action-panel');
       const treePanelElement = document.querySelector<HTMLElement>('.research-tree-panel');
       const tree = document.querySelector<HTMLElement>('.research-tree');
@@ -73,8 +78,21 @@ test.describe('research technology tree', () => {
         layoutDirection: tree?.dataset.layoutDirection ?? '',
         connectionCount: document.querySelectorAll('.research-tree-connections .research-tree-edge').length,
         allDependenciesDownward,
-        viewportClipsCanvas: getComputedStyle(document.querySelector<HTMLElement>('.research-tree-viewport')!).overflow === 'hidden',
+        viewportClipsCanvas: treeViewportStyle?.overflow === 'hidden',
         fitsViewport: document.documentElement.scrollWidth <= window.innerWidth,
+        outerCard: primaryCardStyle && primaryCardBeforeStyle ? {
+          borderTopWidth: primaryCardStyle.borderTopWidth,
+          borderRadius: primaryCardStyle.borderRadius,
+          backgroundColor: primaryCardStyle.backgroundColor,
+          boxShadow: primaryCardStyle.boxShadow,
+          backdropFilter: primaryCardStyle.backdropFilter,
+          beforeDisplay: primaryCardBeforeStyle.display,
+        } : null,
+        treeSurface: treeViewportStyle ? {
+          borderTopWidth: treeViewportStyle.borderTopWidth,
+          borderRadius: treeViewportStyle.borderRadius,
+          backgroundColor: treeViewportStyle.backgroundColor,
+        } : null,
       };
     });
 
@@ -94,6 +112,19 @@ test.describe('research technology tree', () => {
     expect(researchGeometry.allDependenciesDownward).toBe(true);
     expect(researchGeometry.viewportClipsCanvas).toBe(true);
     expect(researchGeometry.fitsViewport).toBe(true);
+    expect(researchGeometry.outerCard).toEqual({
+      borderTopWidth: '0px',
+      borderRadius: '0px',
+      backgroundColor: 'rgba(0, 0, 0, 0)',
+      boxShadow: 'none',
+      backdropFilter: 'none',
+      beforeDisplay: 'none',
+    });
+    expect(researchGeometry.treeSurface).toEqual({
+      borderTopWidth: '0px',
+      borderRadius: '0px',
+      backgroundColor: 'rgba(0, 0, 0, 0)',
+    });
   });
 
   test('keeps node geometry stable on hover and selected dependency lines visible', async ({ page }) => {
@@ -122,11 +153,12 @@ test.describe('research technology tree', () => {
     expect(state.related.visible).toBe(true);
   });
 
-  test('supports desktop drag and ctrl-wheel zoom without changing world coordinates', async ({ page }) => {
+  test('supports desktop drag, wheel zoom, and double-click focus without changing world coordinates', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=research&scenario=research-active');
     const viewport = page.locator('.research-tree-viewport');
     const node = page.getByRole('button', { name: /工具作业，可研发，C2 作业科技/ });
+    const activeNode = page.getByRole('button', { name: /冶金技术，研发中/ });
     const beforeWorld = await node.evaluate((element) => ({
       x: (element as HTMLElement).style.getPropertyValue('--research-node-x'),
       y: (element as HTMLElement).style.getPropertyValue('--research-node-y'),
@@ -137,13 +169,11 @@ test.describe('research technology tree', () => {
     // The fullscreen research host can fit the tree at its default zoom, where pan is
     // intentionally clamped to center. Zoom first so the regression exercises real panning.
     const zoomBefore = Number(await viewport.getAttribute('data-zoom'));
-    await page.keyboard.down('Control');
     await page.mouse.move((box?.x ?? 0) + (box?.width ?? 0) / 2, (box?.y ?? 0) + (box?.height ?? 0) / 2);
     await page.mouse.wheel(0, -420);
-    await page.keyboard.up('Control');
     await expect.poll(async () => Number(await viewport.getAttribute('data-zoom'))).toBeGreaterThan(zoomBefore);
 
-    const dragPoint = await viewport.evaluate((element) => {
+    const findBlankPoint = () => viewport.evaluate((element) => {
       const rect = element.getBoundingClientRect();
       for (const [rx, ry] of [[0.15, 0.82], [0.85, 0.82], [0.15, 0.2], [0.85, 0.2], [0.5, 0.86]]) {
         const x = rect.left + rect.width * rx;
@@ -153,8 +183,9 @@ test.describe('research technology tree', () => {
           return { x, y };
         }
       }
-      throw new Error('Could not find an empty research-tree drag point');
+      throw new Error('Could not find an empty research-tree interaction point');
     });
+    const dragPoint = await findBlankPoint();
     const panBefore = {
       x: Number(await viewport.getAttribute('data-pan-x')),
       y: Number(await viewport.getAttribute('data-pan-y')),
@@ -168,6 +199,25 @@ test.describe('research technology tree', () => {
       y: Number(await viewport.getAttribute('data-pan-y')),
     };
     expect(Math.hypot(panAfter.x - panBefore.x, panAfter.y - panBefore.y)).toBeGreaterThan(10);
+
+    const zoomBeforeDoubleClick = Number(await viewport.getAttribute('data-zoom'));
+    const doubleClickPoint = await findBlankPoint();
+    await page.mouse.dblclick(doubleClickPoint.x, doubleClickPoint.y);
+    await expect.poll(async () => Number(await viewport.getAttribute('data-zoom'))).toBeCloseTo(zoomBeforeDoubleClick, 3);
+    const focusedGeometry = await page.evaluate(() => {
+      const viewportRect = document.querySelector<HTMLElement>('.research-tree-viewport')!.getBoundingClientRect();
+      const activeRect = document.querySelector<HTMLElement>('.research-technology-node[data-status="active"]')!.getBoundingClientRect();
+      return {
+        expectedX: viewportRect.left + viewportRect.width / 2,
+        expectedY: viewportRect.top + viewportRect.height * 0.42,
+        actualX: activeRect.left + activeRect.width / 2,
+        actualY: activeRect.top + activeRect.height / 2,
+      };
+    });
+    expect(Math.abs(focusedGeometry.actualX - focusedGeometry.expectedX)).toBeLessThanOrEqual(2);
+    expect(Math.abs(focusedGeometry.actualY - focusedGeometry.expectedY)).toBeLessThanOrEqual(2);
+    await expect(activeNode).toHaveAttribute('aria-pressed', 'true');
+
     const afterWorld = await node.evaluate((element) => ({
       x: (element as HTMLElement).style.getPropertyValue('--research-node-x'),
       y: (element as HTMLElement).style.getPropertyValue('--research-node-y'),
