@@ -17,7 +17,8 @@ type ShellGeometry = {
   pageHost: { left: number; top: number; right: number; bottom: number };
   lensBar: { left: number; top: number; right: number; bottom: number };
   lensBarParentIsMapLayer: boolean;
-  eventRail: { left: number; top: number; right: number; bottom: number };
+  outliner: { left: number; top: number; right: number; bottom: number };
+  outlinerCollapsed: boolean;
   pageContent: { left: number; top: number; width: number; right: number; bottom: number; contentRight: number };
   contentGrid: { left: number; right: number };
   primaryCardGap: number;
@@ -52,7 +53,7 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
     const pageCardScrollArea = document.querySelector<HTMLElement>('.page-card-scroll-area');
     const pageHost = document.querySelector<HTMLElement>('.strategic-page-host');
     const lensBar = document.querySelector<HTMLElement>('.strategic-map-lens-bar');
-    const eventRail = document.querySelector<HTMLElement>('.strategic-economic-event-rail');
+    const outliner = document.querySelector<HTMLElement>('.strategic-outliner');
     const contentGrid = document.querySelector<HTMLElement>('.overview-dashboard-shell');
     const pageScrollbarRail = pageCardScrollArea?.querySelector<HTMLElement>(':scope > .ui-scrollbar--vertical');
     const pageScrollbarThumb = pageScrollbarRail?.querySelector<HTMLElement>('.ui-scrollbar__thumb');
@@ -76,7 +77,7 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
       || !pageCardScrollArea
       || !pageHost
       || !lensBar
-      || !eventRail
+      || !outliner
       || !contentGrid
       || !pageScrollbarRail
       || !pageScrollbarThumb
@@ -121,7 +122,8 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
       pageHost: rect(pageHost),
       lensBar: rect(lensBar),
       lensBarParentIsMapLayer: lensBar.parentElement === mapLayer,
-      eventRail: rect(eventRail),
+      outliner: rect(outliner),
+      outlinerCollapsed: outliner.dataset.collapsed === 'true',
       pageContent: {
         left: pageContentRect.left,
         top: pageContentRect.top,
@@ -235,10 +237,17 @@ function expectStrategicDesktopLayout(layout: ShellGeometry, panelGap: number) {
   expect(layout.pageHost.right).toBeCloseTo(layout.pageScroll.right, 0);
   expect(layout.pageContent.left).toBeCloseTo(layout.pageScroll.left, 0);
   expect(layout.pageContent.width).toBeCloseTo(layout.pageScrollClientWidth, 0);
-  expect(layout.pageContent.right).toBeLessThanOrEqual(layout.eventRail.left - panelGap + 1);
-  expect(layout.eventRail.right).toBeCloseTo(layout.workspace.right - panelGap, 0);
-  expect(layout.eventRail.top).toBeCloseTo(layout.primaryCard.top, 0);
-  expect(layout.eventRail.bottom).toBeCloseTo(layout.primaryCard.bottom, 0);
+  expect(layout.pageContent.right).toBeLessThanOrEqual(layout.outliner.left - panelGap + 1);
+  expect(layout.outliner.right).toBeCloseTo(layout.workspace.right - panelGap, 0);
+  expect(layout.outliner.top).toBeCloseTo(layout.primaryCard.top, 0);
+  expect(layout.outliner.bottom).toBeCloseTo(layout.primaryCard.bottom, 0);
+  if (layout.viewportWidth >= 1440) {
+    expect(layout.outlinerCollapsed).toBe(false);
+    expect(layout.outliner.right - layout.outliner.left).toBeGreaterThanOrEqual(280);
+  } else {
+    expect(layout.outlinerCollapsed).toBe(true);
+    expect(layout.outliner.right - layout.outliner.left).toBeCloseTo(44, 0);
+  }
   expect(layout.contentGrid.left).toBeGreaterThanOrEqual(layout.pageContent.left);
   expect(layout.contentGrid.right).toBeLessThanOrEqual(layout.pageContent.right);
   expect(layout.primaryCardGap).toBeGreaterThan(0);
@@ -268,14 +277,16 @@ test.describe('persistent-map grand-strategy game shell', () => {
     await expect(page.locator('.asset-bar')).toBeVisible();
     await expect(page.locator('.page-scroll-area')).toBeVisible();
     await expect(page.locator('.page-content')).toBeVisible();
+    await expect(page.locator('.strategic-outliner')).toBeVisible();
 
     expectStrategicDesktopLayout(await readShellGeometry(page), 8);
   });
 
-  test('compact desktop keeps the persistent map and overlay panel on the 8px strategic grid', async ({ page }) => {
+  test('compact desktop keeps the persistent map, collapsed outliner rail, and overlay panel on the 8px strategic grid', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 900 });
     await page.goto('runtime-test.html?view=overview&scenario=empty');
     await expect(page.locator('.game-shell')).toBeVisible();
+    await expect(page.locator('.strategic-outliner')).toHaveAttribute('data-collapsed', 'true');
 
     expectStrategicDesktopLayout(await readShellGeometry(page), 8);
   });
@@ -369,7 +380,7 @@ test.describe('persistent-map grand-strategy game shell', () => {
     await expect.poll(() => page.evaluate(() => (window as Window & { __lastSelectedTab?: string }).__lastSelectedTab)).toBe('settings');
   });
 
-  test('command rail expands over the page without moving the card, page, event rail, map, or status bar', async ({ page }) => {
+  test('command rail expands over the page without moving the card, page, outliner, map, or status bar', async ({ page }) => {
     await page.setViewportSize({ width: 1684, height: 931 });
     await page.goto('runtime-test.html?view=overview&scenario=empty');
 
@@ -392,7 +403,7 @@ test.describe('persistent-map grand-strategy game shell', () => {
     expect(expanded.pageScroll.left).toBeCloseTo(collapsed.pageScroll.left, 0);
     expect(expanded.pageContent.left).toBeCloseTo(collapsed.pageContent.left, 0);
     expect(expanded.pageContent.width).toBeCloseTo(collapsed.pageContent.width, 0);
-    expect(expanded.eventRail).toEqual(collapsed.eventRail);
+    expect(expanded.outliner).toEqual(collapsed.outliner);
     expect(expanded.mapLayer).toEqual(collapsed.mapLayer);
     expect(expanded.sidebarDivider.boxShadow).not.toBe('none');
   });
