@@ -11,7 +11,6 @@ const productArtwork = read('src/components/products/ProductArtwork.tsx');
 const formulaCss = read('src/styles/facility-production-formula.css');
 const groupCss = read('src/styles/facility-group-card-grid.css');
 const diagnosticsCss = read('src/styles/facility-operating-diagnostics.css');
-const mobileDetailCss = read('src/styles/mobile-detail-sheet.css');
 const controlsCss = read('src/styles/form-controls.css');
 const artworkCss = read('src/styles/product-artwork.css');
 const profitCss = read('src/styles/facility-recipe-profit-analysis.css');
@@ -19,6 +18,7 @@ const browserTest = read('tests/browser/production-methods.spec.ts');
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const industryDesign = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
+const buildingLayoutDesign = read('docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md');
 const main = read('src/main.tsx');
 
 for (const text of [
@@ -110,9 +110,7 @@ for (const forbidden of [
   '.facility-formula-meta-divider',
   'grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);',
   '.facility-formula-separator',
-  '  .facility-formula-meta {\
-    width: 100%;\
-  }',
+  '  .facility-formula-meta {\n    width: 100%;\n  }',
 ]) assert.equal(formulaCss.includes(forbidden), false, `生产结算样式不得包含: ${forbidden}`);
 for (const forbidden of [
   '@container (max-width: 519px)',
@@ -120,14 +118,6 @@ for (const forbidden of [
   'grid-area: output;',
   '.facility-formula-center',
 ]) assert.equal(groupCss.includes(forbidden), false, `工厂主从样式不得控制生产结算内部网格: ${forbidden}`);
-
-for (const text of [
-  'grid-template-columns: minmax(0, 1fr);',
-  'grid-auto-rows: max-content;',
-  'align-items: start;',
-  '.mobile-workspace-sheet-detail-content-slot > * {',
-  '.mobile-detail-sheet .mobile-detail-section {',
-]) assert.equal(mobileDetailCss.includes(text), true, `移动详情正文纵向流缺少: ${text}`);
 
 for (const text of [
   '.facility-operating-diagnostics .product-artwork {',
@@ -194,8 +184,8 @@ for (const text of [
 ]) assert.equal(productionPage.includes(text), true, `建筑页商品市场导航缺少: ${text}`);
 assert.equal(
   (productionPage.match(/onOpenProductMarket=\{openProductMarket\}/g) ?? []).length,
-  2,
-  '桌面与移动工厂详情都必须接入商品市场导航',
+  1,
+  '统一工厂二级详情必须且只需接入一次商品市场导航',
 );
 
 const groupCssImport = main.indexOf("import './styles/facility-group-card-grid.css';");
@@ -223,22 +213,22 @@ for (const text of [
   "settlement.locator('svg.product-icon')",
   "settlement.locator('.product-artwork')",
   "settlement.locator('.facility-formula-separator')",
-  "asset: 'steel'",
-  "asset: 'machinery'",
+  "'steel'",
+  "'machinery'",
   'await inputSlot.click();',
   'not.toHaveClass(/is-dragging/)',
   'expect(box.x + box.width).toBeLessThanOrEqual(width)',
-  'expect(metaBox.width).toBeLessThan(visualBox.width - 8)',
-  'expect(Math.abs(costBox.y - cycleBox.y)).toBeLessThanOrEqual(1)',
-  'expect(Math.abs(inputBox.y - outputBox.y)).toBeLessThanOrEqual(1)',
-  'settlementOverflow.scrollWidth',
-  'diagnosticsOverflow.scrollWidth',
-  'scrollOverflow.scrollWidth',
-  'expect(diagnosticsBox.y).toBeGreaterThanOrEqual(settlementBox.y + settlementBox.height + 6)',
-  'expect(mobileDiagnosticsIndex).toBeGreaterThan(mobileSettlementIndex)',
-  'expect(helperBox.y + helperBox.height).toBeLessThanOrEqual(footerBox.y + 1)',
+  'expect(geometry.metaBox.width).toBeLessThan(geometry.visualBox.width - 8)',
+  'expect(Math.abs(geometry.costBox.y - geometry.cycleBox.y)).toBeLessThanOrEqual(1)',
+  'expect(Math.abs(geometry.inputBox.y - geometry.outputBox.y)).toBeLessThanOrEqual(1)',
+  'settlementOverflow',
+  'diagnosticsOverflow',
+  'scrollOverflow',
+  'expect(geometry.diagnosticsBox.y).toBeGreaterThanOrEqual(geometry.settlementBox.y + geometry.settlementBox.height + 6)',
+  'expect(geometry.mobileDiagnosticsIndex).toBeGreaterThan(geometry.mobileSettlementIndex)',
   'for (const width of [320, 360, 390, 430, 720])',
   'arrowClipPath',
+  "page.locator('.mobile-detail-sheet')).toHaveCount(0)",
 ]) assert.equal(browserTest.includes(text), true, `生产详情浏览器回归缺少: ${text}`);
 
 for (const text of [
@@ -258,7 +248,7 @@ for (const text of [
   '生产结算 → 经营诊断 → 市场入口',
   '经营诊断固定紧跟生产结算',
   '不得与生产结算发生视觉重叠',
-]) assert.equal(industryDesign.includes(text) || uiDesign.includes(text), true, `移动经营诊断权威设计缺少: ${text}`);
+]) assert.equal(industryDesign.includes(text) || uiDesign.includes(text), true, `经营诊断权威设计缺少: ${text}`);
 
 for (const text of [
   '工厂详情“生产结算”的投入／产出物资槽是商品市场的直接导航入口',
@@ -268,4 +258,9 @@ for (const text of [
   '不得改写建筑页建设工厂类型、数量、配方、作业制度或任何服务器权威生产状态',
 ]) assert.equal(pageDesign.includes(text), true, `生产商品市场导航权威设计缺少: ${text}`);
 
-console.log('生产结算商品 PNG、生产配置方案下拉、投入产出市场跳转、移动详情纵向流、经营诊断响应式与几何防回退验证通过。');
+for (const text of [
+  '点击工厂卡片后进入当前地区建筑分区内部的二级详情视图',
+  '移动端工厂卡点击行为与桌面一致',
+]) assert.equal(buildingLayoutDesign.includes(text), true, `地区工厂详情布局设计缺少: ${text}`);
+
+console.log('生产结算商品 PNG、生产配置方案下拉、投入产出市场跳转、统一页面级工厂详情、经营诊断响应式与几何防回退验证通过。');
