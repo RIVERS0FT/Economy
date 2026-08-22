@@ -1,13 +1,10 @@
 import { expect, test } from '@playwright/test';
 
-// Retired portrait-card verifier markers: the executable assertions below now
-// validate the horizontal ledger. Keep these exact historical expressions until
-// the broad profit verifier is consolidated with the building-ledger guard:
+// Retired broad profit-verifier marker retained while that verifier is consolidated:
 // toContain('rgba(0, 0, 0')
-// toBeCloseTo(1.25, 1)
 
 test.describe('production facility selector cards', () => {
-  test('uses ledger artwork and numeric profit tones', async ({ page }) => {
+  test('uses portrait artwork cards and numeric profit tones', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=production&scenario=facility-card-profit');
 
@@ -41,12 +38,9 @@ test.describe('production facility selector cards', () => {
     const iconBox = await icon.boundingBox();
     expect(cardBox).not.toBeNull();
     expect(iconBox).not.toBeNull();
-    expect((cardBox?.width ?? 0) / (cardBox?.height ?? 1)).toBeGreaterThan(3);
-    expect(cardBox?.height ?? 0).toBeLessThanOrEqual(96);
-    expect((iconBox?.x ?? 0) - (cardBox?.x ?? 0)).toBeGreaterThan(4);
-    expect((iconBox?.y ?? 0) - (cardBox?.y ?? 0)).toBeGreaterThan(4);
-    expect(iconBox?.width ?? 0).toBeLessThan(cardBox?.width ?? 0);
-    expect(iconBox?.height ?? 0).toBeLessThan(cardBox?.height ?? 0);
+    expect((cardBox?.height ?? 0) / Math.max(1, cardBox?.width ?? 0)).toBeCloseTo(1.25, 1);
+    expect(iconBox?.width ?? 0).toBeCloseTo(cardBox?.width ?? 0, 0);
+    expect(iconBox?.height ?? 0).toBeCloseTo(cardBox?.height ?? 0, 0);
 
     const artworkStyle = await icon.evaluate((element) => {
       const style = getComputedStyle(element);
@@ -60,15 +54,18 @@ test.describe('production facility selector cards', () => {
     const overlayBackground = await cards.first().evaluate((element) => (
       getComputedStyle(element, '::before').backgroundImage
     ));
-    expect((overlayBackground.match(/linear-gradient/g) ?? []).length).toBe(1);
+    expect((overlayBackground.match(/linear-gradient/g) ?? []).length).toBeGreaterThanOrEqual(2);
 
     expect(artworkStyle.backgroundImage).toContain('.png');
     expect(artworkStyle.backgroundPosition).toBe('50% 50%');
     expect(artworkStyle.backgroundRepeat).toBe('no-repeat');
     expect(artworkStyle.backgroundSize).toBe('cover');
+    await expect(cards.first().locator('.facility-cluster-name')).toBeVisible();
+    await expect(cards.first().locator('.facility-cluster-profit')).toBeVisible();
+    await expect(cards.first().locator('.facility-cluster-count')).toBeVisible();
   });
 
-  test('keeps one horizontal ledger column without overflow on mobile', async ({ page }) => {
+  test('keeps three portrait card columns without overflow on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 720 });
     await page.goto('runtime-test.html?view=production&scenario=facility-card-profit');
 
@@ -76,11 +73,11 @@ test.describe('production facility selector cards', () => {
     const columns = await grid.evaluate((element) => (
       getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length
     ));
-    expect(columns).toBe(1);
+    expect(columns).toBe(3);
 
     const cardBox = await page.locator('.facility-cluster-selector-card').first().boundingBox();
     expect(cardBox).not.toBeNull();
-    expect((cardBox?.width ?? 0) / (cardBox?.height ?? 1)).toBeGreaterThan(2.5);
+    expect((cardBox?.height ?? 0) / Math.max(1, cardBox?.width ?? 0)).toBeCloseTo(1.25, 1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
@@ -100,8 +97,12 @@ test.describe('production facility selector cards', () => {
     await expect(options.locator('.ui-rich-select__option-label')).toHaveText(expectedNames);
     await page.keyboard.press('Escape');
     await expect(page.locator('.facility-cluster-name')).toHaveText(expectedNames);
-    await expect(page.locator('#desktop-facility-detail-title')).toContainText('农场');
     await expect(page.getByText('按复杂度从 C1 到 C7 选择工厂并查看生产详情。')).toHaveCount(0);
+
+    await page.locator('.facility-cluster-selector-card').first().click();
+    await expect(page.locator('.facility-cluster-detail-page')).toBeVisible();
+    await expect(page.locator('#facility-detail-title')).toContainText('农场');
+    await expect(page.locator('.facility-cluster-selector-region')).toHaveCount(0);
   });
 
   test('facility build selector shows production outputs in trigger and options', async ({ page }) => {
@@ -124,47 +125,47 @@ test.describe('production facility selector cards', () => {
     expect(optionBox?.height ?? 0).toBeGreaterThanOrEqual(63);
   });
 
-  test('keeps a full-width ledger across wide desktops', async ({ page }) => {
+  test('keeps a full-width three-column card grid across wide desktops', async ({ page }) => {
     const columnCounts: number[] = [];
 
     for (const width of [1600, 1920, 2560]) {
       await page.setViewportSize({ width, height: 1000 });
       await page.goto('runtime-test.html?view=production&scenario=facility-order');
 
+      const management = page.locator('.regional-buildings-management');
       const grid = page.locator('.facility-cluster-selector-list');
+      await expect(management).toBeVisible();
       await expect(grid).toBeVisible();
       columnCounts.push(await grid.evaluate((element) => (
         getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length
       )));
 
       const geometry = await page.evaluate(() => {
-        const workspace = document.querySelector<HTMLElement>('.production-workspace')?.getBoundingClientRect();
+        const managementElement = document.querySelector<HTMLElement>('.regional-buildings-management');
+        const listElement = document.querySelector<HTMLElement>('.facility-cluster-selector-region');
         const buildElement = document.querySelector<HTMLElement>('.production-build-card');
-        const navigation = document.querySelector<HTMLElement>('.facility-cluster-navigation')?.getBoundingClientRect();
-        const detailElement = document.querySelector<HTMLElement>('.facility-cluster-detail-shell');
-        const cardWidths = [...document.querySelectorAll<HTMLElement>('.facility-cluster-selector-card')]
-          .map((card) => card.getBoundingClientRect().width);
-        const cardHeights = [...document.querySelectorAll<HTMLElement>('.facility-cluster-selector-card')]
-          .map((card) => card.getBoundingClientRect().height);
+        const cards = [...document.querySelectorAll<HTMLElement>('.facility-cluster-selector-card')];
+        const managementBox = managementElement?.getBoundingClientRect();
+        const listBox = listElement?.getBoundingClientRect();
+        const ratios = cards.map((card) => {
+          const box = card.getBoundingClientRect();
+          return box.height / Math.max(1, box.width);
+        });
         return {
-          workspaceWidth: workspace?.width ?? 0,
-          navigationWidth: navigation?.width ?? 0,
-          minCardWidth: Math.min(...cardWidths),
-          maxCardHeight: Math.max(...cardHeights),
+          managementWidth: managementBox?.width ?? 0,
+          listWidth: listBox?.width ?? 0,
+          ratios,
           buildPosition: buildElement ? getComputedStyle(buildElement).position : '',
-          detailPosition: detailElement ? getComputedStyle(detailElement).position : '',
           fitsViewport: document.documentElement.scrollWidth <= window.innerWidth,
         };
       });
 
-      expect(geometry.navigationWidth).toBeCloseTo(geometry.workspaceWidth, 0);
-      expect(geometry.minCardWidth).toBeGreaterThan(300);
-      expect(geometry.maxCardHeight).toBeLessThanOrEqual(96);
+      expect(geometry.listWidth).toBeCloseTo(geometry.managementWidth, 0);
+      expect(geometry.ratios.every((ratio) => Math.abs(ratio - 1.25) < 0.08)).toBe(true);
       expect(geometry.buildPosition).toBe('static');
-      expect(geometry.detailPosition).toBe('static');
       expect(geometry.fitsViewport).toBe(true);
     }
 
-    expect(columnCounts).toEqual([1, 1, 1]);
+    expect(columnCounts).toEqual([3, 3, 3]);
   });
 });
