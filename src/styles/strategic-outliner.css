@@ -1,0 +1,8 @@
+/* Strategic Outliner keeps horizontal overscroll local while releasing the
+ * vertical boundary back to the shared page/document scroll chain. This file
+ * is loaded after strategic-game-shell.css so the axis-specific rule wins over
+ * the legacy shorthand without creating a second scroll root. */
+.strategic-outliner__scroll {
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+}
