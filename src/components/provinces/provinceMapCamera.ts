@@ -197,17 +197,26 @@ export function createProvinceMapCamera(
     publishState();
   };
 
-  const scheduleWrite = (mode: Exclude<CameraInputMode, 'idle' | 'reset'>) => {
-    inputMode = mode;
-    if (!active) setActive(true);
-    if (frame === null) frame = requestAnimationFrame(writeCamera);
+  const scheduleSettle = () => {
     if (settleTimer !== null) clearTimeout(settleTimer);
     settleTimer = setTimeout(() => {
       settleTimer = null;
+      if (destroyed) return;
+      if (frame !== null) {
+        scheduleSettle();
+        return;
+      }
       interactionBounds = null;
       inputMode = 'idle';
       setActive(false);
     }, INPUT_SETTLE_MS);
+  };
+
+  const scheduleWrite = (mode: Exclude<CameraInputMode, 'idle' | 'reset'>) => {
+    inputMode = mode;
+    if (!active) setActive(true);
+    if (frame === null) frame = requestAnimationFrame(writeCamera);
+    scheduleSettle();
   };
 
   const applyZoomAround = (zoom: number, point: PointerPosition) => {

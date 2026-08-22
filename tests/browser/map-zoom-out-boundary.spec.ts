@@ -30,7 +30,7 @@ async function readEdgeProvinceHits(page: Page) {
 
 async function wheelBurst(page: Page, deltaY: number, count: number) {
   const canvas = page.getByTestId('us-mainland-map').locator('.province-map-static-viewport');
-  await canvas.evaluate((container, input) => {
+  return canvas.evaluate((container, input) => new Promise<{ active: string | undefined; current: number }>((resolve) => {
     const bounds = container.getBoundingClientRect();
     for (let index = 0; index < input.count; index += 1) {
       container.dispatchEvent(new WheelEvent('wheel', {
@@ -41,8 +41,11 @@ async function wheelBurst(page: Page, deltaY: number, count: number) {
         deltaY: input.deltaY,
       }));
     }
-  }, { deltaY, count });
-  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+    requestAnimationFrame(() => resolve({
+      active: container.dataset.mapZoomActive,
+      current: Number(container.dataset.mapZoomCurrent),
+    }));
+  }), { deltaY, count });
 }
 
 test('states outside the viewport re-enter during zoom-out because all 48 paths remain mounted', async ({ page }) => {
@@ -64,16 +67,16 @@ test('states outside the viewport re-enter during zoom-out because all 48 paths 
   const pathsBefore = await map.locator('.province-map-region').evaluateAll((paths) => (
     paths.map((path) => path.getAttribute('d'))
   ));
-  await wheelBurst(page, -180, 8);
-  expect(Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(2.5);
+  const zoomedInFrame = await wheelBurst(page, -180, 8);
+  expect(zoomedInFrame.current).toBeGreaterThan(2.5);
   const zoomedInHits = await readEdgeProvinceHits(page);
   const offscreenBeforeZoomOut = zoomedInHits.filter((entry) => !entry.insideCanvas).length;
   expect(offscreenBeforeZoomOut).toBeGreaterThanOrEqual(2);
   await expect(map.locator('.province-map-region')).toHaveCount(48);
 
-  await wheelBurst(page, 180, 16);
-  await expect(canvas).toHaveAttribute('data-map-zoom-active', 'true');
-  expect(Number(await canvas.getAttribute('data-map-zoom-current'))).toBeLessThanOrEqual(0.501);
+  const zoomOutActiveFrame = await wheelBurst(page, 180, 16);
+  expect(zoomOutActiveFrame.active).toBe('true');
+  expect(zoomOutActiveFrame.current).toBeLessThanOrEqual(0.501);
   const restoredDuringActiveZoom = await readEdgeProvinceHits(page);
   expect(restoredDuringActiveZoom.every((entry) => entry.insideCanvas)).toBe(true);
   expect(restoredDuringActiveZoom.every((entry) => entry.statePathVisibleAtLabel)).toBe(true);
