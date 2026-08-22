@@ -1,7 +1,7 @@
 /* Strategic Outliner cascade corrections loaded after strategic-game-shell.css.
  * Keep the tracker on the same strategic Chrome layer as desktop Toasts so the
- * later Toast DOM can cover it, and release vertical overscroll back to the
- * shared page/document scroll chain while keeping horizontal overscroll local. */
+ * later Toast DOM can cover it. Horizontal overscroll stays local, while the
+ * vertical boundary is released to the shared scroll chain per UI ownership rules. */
 .strategic-outliner {
   z-index: 2;
 }
