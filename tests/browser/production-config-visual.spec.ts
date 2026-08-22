@@ -113,7 +113,14 @@ test.describe('production configuration visual triggers', () => {
 
       const scope = page.locator('.facility-cluster-detail-card');
       await expect(scope).toBeVisible();
-      await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
+      const workspaceHost = page.locator('.mobile-workspace-sheet-host');
+      if (viewport.width <= 720) {
+        await expect(workspaceHost).toHaveCount(1);
+        await expect(workspaceHost).toHaveAttribute('data-detail-active', 'false');
+        await expect(workspaceHost.locator('.mobile-workspace-sheet-detail-view')).toHaveCount(0);
+      } else {
+        await expect(workspaceHost).toHaveCount(0);
+      }
       const recipeSelect = scope.getByRole('combobox', { name: '机械工厂生产产物' });
       const methodSelect = scope.getByRole('combobox', { name: '机械工厂生产方式' });
       const expectedSize = viewport.width <= 720 ? 48 : 52;
