@@ -17,63 +17,94 @@ function rejectText(source, rejected, message) {
 }
 
 const mapSource = read('src/components/provinces/UsMainlandMap.tsx');
+const styleSource = read('src/styles/province-map.css');
 const designSource = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
 const browserSource = read('tests/browser/province-map-focus.spec.ts');
 
 requireText(
   mapSource,
-  "type ProvinceMapFocusState = 'hover' | 'selected' | 'selected-hover';",
-  'province map must keep explicit hover, selected, and selected-hover focus states',
+  'className="province-map-region"',
+  'province map focus must be applied to the single static SVG state path',
 );
 requireText(
   mapSource,
-  "borderColor: 'var(--color-text-secondary)'",
+  "'--province-map-area-color': datum.areaColor",
+  'province path must retain the lens-derived area color as a CSS variable',
+);
+requireText(
+  mapSource,
+  "data-selected={selected ? 'true' : 'false'}",
+  'persistent province selection must remain a path data state rather than a second geometry layer',
+);
+requireText(
+  styleSource,
+  '.province-map-region:hover',
+  'desktop province hover must use native SVG/CSS hover instead of React pointer-move state',
+);
+requireText(
+  styleSource,
+  'stroke: var(--color-text-secondary);',
   'province hover must use the neutral secondary text color rather than a business status color',
 );
 requireText(
-  mapSource,
-  "borderColor: 'var(--color-text-primary)'",
+  styleSource,
+  'stroke-width: 1.5;',
+  'province hover must retain the 1.5px neutral outline',
+);
+requireText(
+  styleSource,
+  ".province-map-region[data-selected='true']",
+  'province selection must use the existing static path data-selected state',
+);
+requireText(
+  styleSource,
+  'stroke: var(--color-text-primary);',
   'province selection must use the neutral primary text color rather than a business status color',
 );
 requireText(
-  mapSource,
-  'borderWidth: isSelectedHover ? 3 : 2.5',
-  'selected hover must remain visually stronger than persistent selection',
+  styleSource,
+  'stroke-width: 2.5;',
+  'persistent province selection must retain the 2.5px neutral outline',
 );
 requireText(
-  mapSource,
-  'shadowBlur: isSelectedHover ? 7 : 5',
-  'selected province focus must retain a low-strength outline glow',
+  styleSource,
+  ".province-map-region[data-selected='true']:hover",
+  'selected-hover must remain visually distinct from persistent selection',
 );
 requireText(
-  mapSource,
-  "itemStyle: focusItemStyle(areaColor, selected ? 'selected-hover' : 'hover')",
-  'hover emphasis must preserve each province lens areaColor',
+  styleSource,
+  'stroke-width: 3;',
+  'selected-hover must remain visually stronger than persistent selection',
 );
 requireText(
-  mapSource,
-  "itemStyle: focusItemStyle(areaColor, 'selected')",
-  'selected state must preserve each province lens areaColor',
+  styleSource,
+  'drop-shadow(0 0 5px',
+  'selected province focus must retain a low-strength 5px outline glow',
 );
 requireText(
-  mapSource,
-  'province.id === selectedProvinceId',
-  'selected-hover strength must be derived from the existing selected province state',
+  styleSource,
+  'drop-shadow(0 0 7px',
+  'selected-hover must retain the stronger 7px outline glow',
+);
+requireText(
+  styleSource,
+  'fill: var(--province-map-area-color, var(--color-map-region-default));',
+  'hover and selection must preserve each province lens area color',
 );
 rejectText(
-  mapSource,
-  "areaColor: 'var(--color-surface-hover)'",
+  styleSource,
+  'fill: var(--color-surface-hover)',
   'province hover must not replace lens fill with the generic hover surface color',
 );
 rejectText(
-  mapSource,
-  "areaColor: 'var(--color-success-strong)'",
+  styleSource,
+  'fill: var(--color-success-strong)',
   'province selection must not replace lens fill with the success color',
 );
 rejectText(
   mapSource,
-  'useState',
-  'province map focus must not introduce React pointer-hover state',
+  'onPointerMove={(event) => setHoveredProvinceId',
+  'province visual hover must not be driven by pointer-move React state',
 );
 
 requireText(
@@ -85,6 +116,11 @@ requireText(
   designSource,
   '选中悬浮 > 选中 > 普通悬浮 > 默认',
   'authoritative chrome design must record province focus precedence',
+);
+requireText(
+  designSource,
+  '静态 SVG',
+  'authoritative chrome design must record the static SVG implementation boundary',
 );
 requireText(
   designSource,
@@ -106,6 +142,11 @@ requireText(
   browserSource,
   "const selectedBorder = await resolveCssColor(page, '--color-text-primary');",
   'province focus browser regression must inspect the neutral selected border',
+);
+requireText(
+  browserSource,
+  "data-map-camera-mode', 'html-compositor-transform'",
+  'province focus regression must confirm focus changes do not replace the compositor camera',
 );
 
 console.log('province map focus verification passed');

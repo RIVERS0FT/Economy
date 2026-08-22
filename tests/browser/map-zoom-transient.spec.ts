@@ -1,38 +1,32 @@
 import { expect, test } from '@playwright/test';
 
-async function readOutlineWidth(page: import('@playwright/test').Page) {
-  return page.evaluate(() => {
-    const rects = [...document.querySelectorAll<SVGGraphicsElement>(
-      '.province-map-echart svg:not(.province-map-label-overlay) path',
-    )]
-      .map((path) => path.getBoundingClientRect())
-      .filter((rect) => rect.width > 0 && rect.height > 0);
-    if (rects.length === 0) throw new Error('map outline paths are missing');
-    return Math.max(...rects.map((rect) => rect.right)) - Math.min(...rects.map((rect) => rect.left));
-  });
-}
-
-test('map zoom animates the formal ECharts camera without root SVG transforms', async ({ page }) => {
+test('map zoom only changes the shared compositor camera while SVG geometry stays immutable', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
 
   const map = page.getByTestId('us-mainland-map');
-  const canvas = map.locator('.economy-chart__canvas');
-  await expect(map).toHaveAttribute('data-echarts-ready', 'true');
-  await expect(canvas).toHaveAttribute('data-map-zoom-mode', 'interpolated');
-  await expect(canvas).toHaveAttribute('data-map-zoom-camera-mode', 'echarts-geo-roam');
-  await expect(canvas).toHaveAttribute('data-map-zoom-hot-path', 'geo-roam');
-  await expect(canvas).toHaveAttribute('data-map-zoom-commit-mode', 'settle-marker');
+  const canvas = map.locator('.province-map-static-viewport');
+  const camera = map.locator('.province-map-camera-surface');
+  await expect(map).toHaveAttribute('data-map-ready', 'true');
+  await expect(canvas).toHaveAttribute('data-map-renderer', 'static-svg');
+  await expect(canvas).toHaveAttribute('data-map-camera-mode', 'html-compositor-transform');
+  await expect(canvas).toHaveAttribute('data-map-camera-hot-path', 'single-css-transform');
+  await expect(canvas).toHaveAttribute('data-map-camera-geometry-mode', 'immutable-svg-world');
+  await expect(canvas).toHaveAttribute('data-map-world-path-count', '48');
   await expect(canvas).toHaveAttribute('data-map-label-count', '48');
 
-  const commitBefore = Number(await canvas.getAttribute('data-map-zoom-commit-count'));
-  const layoutRevisionBefore = await canvas.getAttribute('data-map-label-layout-revision');
-  const cameraSyncBefore = Number(await canvas.getAttribute('data-map-label-camera-sync-count'));
+  const baseline = await canvas.evaluate((container) => ({
+    pathRevision: container.dataset.mapPathRevision,
+    pathData: [...container.querySelectorAll<SVGPathElement>('.province-map-region')].map((path) => path.getAttribute('d')),
+    glyphTransforms: [...container.querySelectorAll<SVGTextElement>('.province-map-label-glyph')]
+      .map((glyph) => glyph.getAttribute('transform')),
+    cameraWriteCount: Number(container.dataset.mapCameraWriteCount || 0),
+  }));
 
-  const duringAnimation = await canvas.evaluate(async (container) => {
+  await canvas.evaluate((container) => {
     const bounds = container.getBoundingClientRect();
-    for (let index = 0; index < 6; index += 1) {
+    for (let index = 0; index < 8; index += 1) {
       container.dispatchEvent(new WheelEvent('wheel', {
         bubbles: true,
         cancelable: true,
@@ -41,122 +35,61 @@ test('map zoom animates the formal ECharts camera without root SVG transforms', 
         deltaY: -70,
       }));
     }
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    const surfaces = [...container.querySelectorAll<SVGSVGElement>('svg')];
-    const labelSurface = surfaces.find((surface) => surface.classList.contains('province-map-label-overlay'));
-    const mapSurface = surfaces.find((surface) => !surface.classList.contains('province-map-label-overlay'));
-    return {
-      active: container.dataset.mapZoomActive,
-      committed: container.dataset.mapZoomCommitted,
-      current: container.dataset.mapZoomCurrent,
-      target: container.dataset.mapZoomTarget,
-      commits: Number(container.dataset.mapZoomCommitCount || 0),
-      mapTransform: mapSurface?.style.transform || '',
-      labelTransform: labelSurface?.style.transform || '',
-    };
   });
 
-  expect(duringAnimation.active).toBe('true');
-  expect(duringAnimation.current).not.toBe(duringAnimation.committed);
-  expect(Number(duringAnimation.target)).toBeGreaterThan(Number(duringAnimation.committed));
-  expect(duringAnimation.commits).toBe(commitBefore);
-  expect(duringAnimation.mapTransform).toBe('');
-  expect(duringAnimation.labelTransform).toBe('');
-  await expect(canvas).toHaveAttribute('data-map-label-layout-revision', layoutRevisionBefore || '');
+  await expect(canvas).toHaveAttribute('data-map-zoom-active', 'true');
+  await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.2);
+  await expect.poll(async () => camera.evaluate((surface) => surface.style.transform)).toContain('scale(');
+
+  const during = await canvas.evaluate((container) => ({
+    pathRevision: container.dataset.mapPathRevision,
+    pathData: [...container.querySelectorAll<SVGPathElement>('.province-map-region')].map((path) => path.getAttribute('d')),
+    glyphTransforms: [...container.querySelectorAll<SVGTextElement>('.province-map-label-glyph')]
+      .map((glyph) => glyph.getAttribute('transform')),
+    cameraWriteCount: Number(container.dataset.mapCameraWriteCount || 0),
+  }));
+  expect(during.pathRevision).toBe(baseline.pathRevision);
+  expect(during.pathData).toEqual(baseline.pathData);
+  expect(during.glyphTransforms).toEqual(baseline.glyphTransforms);
+  expect(during.cameraWriteCount).toBeGreaterThan(baseline.cameraWriteCount);
 
   await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
-  await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-commit-count'))).toBe(commitBefore + 1);
-  await expect(canvas).toHaveAttribute('data-map-label-layout-revision', layoutRevisionBefore || '');
-  expect(Number(await canvas.getAttribute('data-map-label-camera-sync-count'))).toBeGreaterThan(cameraSyncBefore);
-  expect(Number(await canvas.getAttribute('data-map-zoom-max-step'))).toBeLessThanOrEqual(1.111);
-
-  const settledTransforms = await canvas.evaluate((container) => {
-    const surfaces = [...container.querySelectorAll<SVGSVGElement>('svg')];
-    const labelSurface = surfaces.find((surface) => surface.classList.contains('province-map-label-overlay'));
-    const mapSurface = surfaces.find((surface) => !surface.classList.contains('province-map-label-overlay'));
-    return {
-      mapTransform: mapSurface?.style.transform || '',
-      labelTransform: labelSurface?.style.transform || '',
-    };
-  });
-  expect(settledTransforms.mapTransform).toBe('');
-  expect(settledTransforms.labelTransform).toBe('');
+  const settled = await canvas.evaluate((container) => ({
+    pathData: [...container.querySelectorAll<SVGPathElement>('.province-map-region')].map((path) => path.getAttribute('d')),
+    glyphTransforms: [...container.querySelectorAll<SVGTextElement>('.province-map-label-glyph')]
+      .map((glyph) => glyph.getAttribute('transform')),
+  }));
+  expect(settled.pathData).toEqual(baseline.pathData);
+  expect(settled.glyphTransforms).toEqual(baseline.glyphTransforms);
+  await expect(camera).toHaveCSS('will-change', 'auto');
 });
 
-test('zoom-out geometry stays monotonic through settle without a size jump', async ({ page }) => {
+test('wheel bursts are coalesced to one compositor write per animation frame', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
+  const canvas = page.getByTestId('us-mainland-map').locator('.province-map-static-viewport');
+  await expect(canvas).toHaveAttribute('data-map-renderer', 'static-svg');
 
-  const map = page.getByTestId('us-mainland-map');
-  const canvas = map.locator('.economy-chart__canvas');
-  await expect(map).toHaveAttribute('data-echarts-ready', 'true');
-  const initialWidth = await readOutlineWidth(page);
-
-  const samples = await canvas.evaluate(async (container) => {
+  const result = await canvas.evaluate(async (container) => {
+    const beforeWrites = Number(container.dataset.mapCameraWriteCount || 0);
+    const beforeFrames = Number(container.dataset.mapZoomFrameCount || 0);
     const bounds = container.getBoundingClientRect();
-    for (let index = 0; index < 8; index += 1) {
+    for (let index = 0; index < 20; index += 1) {
       container.dispatchEvent(new WheelEvent('wheel', {
         bubbles: true,
         cancelable: true,
         clientX: bounds.left + bounds.width / 2,
         clientY: bounds.top + bounds.height / 2,
-        deltaY: 180,
+        deltaY: -16,
       }));
     }
-
-    const readWidth = () => {
-      const rects = [...container.querySelectorAll<SVGGraphicsElement>(
-        'svg:not(.province-map-label-overlay) path',
-      )]
-        .map((path) => path.getBoundingClientRect())
-        .filter((rect) => rect.width > 0 && rect.height > 0);
-      return rects.length === 0
-        ? 0
-        : Math.max(...rects.map((rect) => rect.right)) - Math.min(...rects.map((rect) => rect.left));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    return {
+      writes: Number(container.dataset.mapCameraWriteCount || 0) - beforeWrites,
+      frames: Number(container.dataset.mapZoomFrameCount || 0) - beforeFrames,
     };
-
-    return new Promise<Array<{ width: number; active: string; zoom: number; rootTransform: string }>>((resolve) => {
-      const result: Array<{ width: number; active: string; zoom: number; rootTransform: string }> = [];
-      let settledFrames = 0;
-      const sample = () => {
-        const mapSvg = [...container.querySelectorAll<SVGSVGElement>('svg')]
-          .find((svg) => !svg.classList.contains('province-map-label-overlay'));
-        const active = container.dataset.mapZoomActive || 'false';
-        result.push({
-          width: readWidth(),
-          active,
-          zoom: Number(container.dataset.mapZoomCurrent || 1),
-          rootTransform: mapSvg?.style.transform || '',
-        });
-        if (active === 'false' && result.length > 2) settledFrames += 1;
-        else settledFrames = 0;
-        if (settledFrames >= 2 || result.length >= 90) {
-          resolve(result);
-          return;
-        }
-        requestAnimationFrame(sample);
-      };
-      requestAnimationFrame(sample);
-    });
   });
-
-  expect(samples.length).toBeGreaterThan(3);
-  expect(samples.every((sample) => sample.rootTransform === '')).toBe(true);
-  const positiveWidths = samples.map((sample) => sample.width).filter((width) => width > 0);
-  expect(positiveWidths.length).toBeGreaterThan(3);
-  for (let index = 1; index < positiveWidths.length; index += 1) {
-    expect(positiveWidths[index]).toBeLessThanOrEqual(positiveWidths[index - 1] + 1.5);
-    const ratio = Math.max(
-      positiveWidths[index] / positiveWidths[index - 1],
-      positiveWidths[index - 1] / positiveWidths[index],
-    );
-    expect(ratio).toBeLessThanOrEqual(1.13);
-  }
-  const finalWidth = positiveWidths[positiveWidths.length - 1];
-  const penultimateWidth = positiveWidths[positiveWidths.length - 2];
-  expect(Math.abs(finalWidth - penultimateWidth) / Math.max(1, penultimateWidth)).toBeLessThan(0.02);
-  expect(finalWidth).toBeLessThan(initialWidth * 0.7);
-  await expect(canvas).toHaveAttribute('data-map-zoom-current', /^0\.5000\d$/);
-  await expect(canvas).toHaveAttribute('data-map-zoom-active', 'false');
+  expect(result.writes).toBe(1);
+  expect(result.frames).toBe(1);
 });
