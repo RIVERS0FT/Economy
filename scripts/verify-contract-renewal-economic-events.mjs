@@ -13,7 +13,7 @@ const routes = read('server/src/game-routes.js');
 const statePartitions = read('server/src/state-partitions.js');
 const overview = read('src/pages/OverviewPage.tsx');
 const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');
-const economicEventLog = read('src/components/EconomicEventLogPanel.tsx');
+const strategicOutliner = read('src/components/outliner/StrategicOutliner.tsx');
 const contractPage = read('src/pages/ContractPage.tsx');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
@@ -40,16 +40,17 @@ assert.ok(runtimeStore.includes('createStablePartitionClientState(snapshot.state
 assert.ok(statePartitions.includes("'economicCalendar'"), 'economic calendar must stay in the existing market delivery partition');
 assert.ok(statePartitions.includes("['leaderboard', 'leaderboards']"), 'ranked leaderboards must stay in the leaderboard delivery partition');
 assert.ok(!overview.includes('EconomicEventLogPanel') && !overview.includes('公开经济事件'), 'overview page content must not own the public economic event log');
-assert.ok(strategicWorkspace.includes('className="strategic-economic-event-rail"'), 'strategic shell must own the independent public economic event rail');
-assert.ok(strategicWorkspace.includes('<EconomicEventLogPanel'), 'strategic shell must mount the public economic event log');
-assert.ok(economicEventLog.includes('className="economic-event-log-title"'), 'economic event panel must render the public event log title without a heading pill');
-assert.ok(economicEventLog.includes('<details') && economicEventLog.includes('<summary>'), 'economic events must stay compact until expanded');
-assert.ok(economicEventLog.includes('近期与未来七天'), 'economic event panel must limit the visible calendar to seven days');
+assert.ok(strategicWorkspace.includes('<StrategicOutliner'), 'strategic shell must own the unified strategic outliner');
+assert.ok(!strategicWorkspace.includes('strategic-economic-event-rail'), 'strategic shell must not restore the legacy event-only right rail');
+assert.ok(strategicOutliner.includes('economicCalendar?.events'), 'strategic outliner must project public economic events from authoritative state');
+assert.ok(strategicOutliner.includes('function CompactEventRow') && strategicOutliner.includes('<details') && strategicOutliner.includes('<summary>'), 'economic events must stay compact until expanded inside the outliner');
+assert.ok(strategicOutliner.includes('currentEvents') && strategicOutliner.includes('completedEvents'), 'strategic outliner must separate current/upcoming events from recently completed events');
 assert.ok(!read('src/pages/MarketPage.tsx').includes('公开经济事件'), 'market page must not own the economic event log');
 assert.ok(contractPage.includes('提出续签'), 'contract page must expose renewal controls');
 assert.ok(contractPage.includes('同意续签') && contractPage.includes('撤销同意'), 'contract page must expose bilateral renewal approval controls');
 assert.ok(contractPage.includes('采购方确认') && contractPage.includes('供应方确认'), 'contract page must show both renewal approval states');
-assert.ok(pageDesign.includes('未来七天'), 'page design must define the seven-day overview calendar');
+assert.ok(pageDesign.includes('未来七天'), 'page design must define the seven-day public event calendar');
+assert.ok(pageDesign.includes('战略追踪器'), 'page design must assign public economic events to the strategic outliner');
 assert.ok(productDesign.includes('每类人口的周期总预算'), 'product design must preserve each population model budget');
 assert.ok(productDesign.includes('直接／派生预算'), 'product design must preserve direct and derived budgets');
 assert.ok(pageDesign.includes('提出续签条款不代表同意续签'), 'page design must require explicit bilateral renewal approval');
@@ -83,4 +84,4 @@ const shares = economicEventClassShares('basic', 'food', {
   convenience: 0.15,
 }, now);
 assert.ok(Math.abs(Object.values(shares).reduce((sum, value) => sum + value, 0) - 1) < 1e-9);
-console.log('Contract renewal and economic event verification passed.');
+console.log('Contract renewal and strategic economic event verification passed.');
