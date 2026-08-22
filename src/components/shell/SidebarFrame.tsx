@@ -1,4 +1,4 @@
-import { useEffect, useRef, type FocusEvent, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, type FocusEvent, type ReactNode } from 'react';
 import { BRAND_LOGO_URL } from '../../config/brand';
 import { ScrollArea } from '../ui/ScrollArea';
 
@@ -11,6 +11,7 @@ export function SidebarFrame({
   subtitle,
   navLabel,
   collapsed,
+  interactionResetKey,
   className = '',
   onToggleCollapsed,
   children,
@@ -21,6 +22,7 @@ export function SidebarFrame({
   subtitle: string;
   navLabel: string;
   collapsed: boolean;
+  interactionResetKey?: string | number;
   className?: string;
   onToggleCollapsed: () => void;
   children: ReactNode;
@@ -30,15 +32,16 @@ export function SidebarFrame({
   const desiredCollapsedRef = useRef(collapsed);
   const hoverIntentRef = useRef(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     desiredCollapsedRef.current = collapsed;
   }, [collapsed]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    hoverIntentRef.current = false;
     const markHoverIntent = () => { hoverIntentRef.current = true; };
     window.addEventListener('pointermove', markHoverIntent, { once: true });
     return () => window.removeEventListener('pointermove', markHoverIntent);
-  }, []);
+  }, [interactionResetKey]);
 
   const setCollapsed = (nextCollapsed: boolean) => {
     if (desiredCollapsedRef.current === nextCollapsed) return;
