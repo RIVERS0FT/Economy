@@ -17,6 +17,7 @@ test('desktop tutorial stays in the right rail across business pages and keeps f
   await expect(tutorial).toBeVisible();
   await expect(tutorial).toHaveClass(/\bpanel\b/);
   await expect(tutorial.getByText('教程', { exact: true })).toBeVisible();
+  await expect(tutorial.getByText('步骤 1/9', { exact: true })).toBeVisible();
   await expect(tutorial.locator('[role="progressbar"]')).toHaveAttribute('aria-label', '教程总体进度');
   const progressPrecedesTask = await tutorial.evaluate((element) => {
     const progress = element.querySelector('.game-guide-progress');
@@ -51,22 +52,35 @@ test('desktop tutorial stays in the right rail across business pages and keeps f
   await tutorial.getByRole('button', { name: '跳过', exact: true }).click();
   await expect(tutorial).toBeVisible();
 
-  await page.locator('.desktop-sidebar').getByRole('button', { name: '研发', exact: true }).click();
-  await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-page', 'research');
-  await expect(rail).toHaveAttribute('data-tutorial-visible', 'true');
-  await expect(rail).toHaveAttribute('data-event-log-visible', 'false');
-  await expect(tutorial).toBeVisible();
-  await expect(rail.locator('.economic-event-log-panel')).toHaveCount(0);
+  const fullscreenPages = [
+    ['research', '研发'],
+    ['auction', '拍卖'],
+    ['contracts', '合同'],
+    ['bank', '银行'],
+    ['leaderboard', '排行'],
+    ['gem-shop', '商店'],
+  ] as const;
+  for (const [tab, label] of fullscreenPages) {
+    await page.locator('.desktop-sidebar').getByRole('button', { name: label, exact: true }).click();
+    await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-page', tab);
+    await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'fullscreen');
+    await expect(page.locator('.strategic-economic-event-rail')).toHaveCount(0);
+    await expect(page.locator('.game-guide-strip')).toHaveCount(0);
+    await expect(page.locator('.economic-event-log-panel')).toHaveCount(0);
 
-  const primaryCardBox = await requireBox(page.locator('.signed-in-shell__primary-card'));
-  const railBox = await requireBox(rail);
-  expect(primaryCardBox.x + primaryCardBox.width).toBeLessThanOrEqual(railBox.x - 6);
+    const primaryCardBox = await requireBox(page.locator('.signed-in-shell__primary-card'));
+    const workspaceBox = await requireBox(page.locator('.workspace'));
+    expect(primaryCardBox.x - workspaceBox.x).toBeCloseTo(8, 0);
+    expect(workspaceBox.x + workspaceBox.width - primaryCardBox.x - primaryCardBox.width).toBeCloseTo(8, 0);
+  }
 
-  await page.locator('.desktop-sidebar').getByRole('button', { name: '合同', exact: true }).click();
-  await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-page', 'contracts');
+  await page.locator('.desktop-sidebar').getByRole('button', { name: '建筑', exact: true }).click();
+  await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-page', 'buildings');
   await expect(rail).toHaveAttribute('data-tutorial-visible', 'true');
-  await expect(rail).toHaveAttribute('data-event-log-visible', 'false');
+  await expect(rail).toHaveAttribute('data-event-log-visible', 'true');
   await expect(tutorial).toBeVisible();
+  await expect(tutorial.getByText('步骤 1/9', { exact: true })).toBeVisible();
+  await expect(rail.locator('.economic-event-log-panel')).toBeVisible();
 });
 
 test('mobile tutorial stays shell-owned below the status bar while pages and notifications cover it', async ({ page }) => {
