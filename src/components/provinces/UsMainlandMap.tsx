@@ -317,7 +317,7 @@ export function UsMainlandMap({
 
   const option = useMemo<EChartsCoreOption>(() => ({
     animationDuration: 260,
-    animationDurationUpdate: 220,
+    animationDurationUpdate: 0,
     tooltip: {
       ...commonTooltip,
       trigger: 'item',
