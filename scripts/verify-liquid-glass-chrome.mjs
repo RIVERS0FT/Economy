@@ -186,6 +186,8 @@ requireText(files.shell, [
   "leaderboard: 'fullscreen'",
   "'gem-shop': 'fullscreen'",
   'const HIDDEN_EVENT_RAIL_TABS = new Set<TabId>',
+  "const showRightRail = pagePresentation !== 'fullscreen';",
+  'tutorial={showRightRail ? tutorial : undefined}',
   'showEventRail={!HIDDEN_EVENT_RAIL_TABS.has(model.tab)}',
   'integratedPrimaryCard',
   'pageTransitionKey={model.tab}',
@@ -232,10 +234,9 @@ requireText(files.strategicStyles, [
   '.application-map-layer > .strategic-map-lens-bar {',
   'z-index: 1;',
   '.strategic-economic-event-rail {',
-  '.game-shell.strategic-tab-research:has(.strategic-economic-event-rail[data-tutorial-visible="true"])',
-  '100% - var(--strategic-event-rail-width) - var(--strategic-panel-gap) * 3',
-  'background: var(--frosted-glass-background);',
-  'backdrop-filter: var(--frosted-glass-filter);',
+  '.game-shell.strategic-tab-research .signed-in-shell__primary-card {',
+  'background: transparent;',
+  'backdrop-filter: none;',
 ]);
 
 requireText(files.sidebarStyles, [
@@ -272,7 +273,10 @@ requireText(files.pageBrowser, [
 requireText(files.tutorialBrowser, [
   'desktop tutorial stays in the right rail across business pages and keeps frosted glass',
   "toHaveAttribute('data-tutorial-visible', 'true')",
-  "toHaveAttribute('data-event-log-visible', 'false')",
+  "toHaveAttribute('data-strategic-presentation', 'fullscreen')",
+  "page.locator('.strategic-economic-event-rail')).toHaveCount(0)",
+  "page.locator('.game-guide-strip')).toHaveCount(0)",
+  "page.locator('.economic-event-log-panel')).toHaveCount(0)",
   "toContain('blur(18px)')",
   'mobile tutorial stays shell-owned below the status bar while pages and notifications cover it',
   "page.locator('.overview-mobile-tutorial')).toHaveCount(0)",
@@ -302,6 +306,8 @@ requireText(files.design, [
   '移动端同样复用 `StrategicWorkspaceChrome` 持有的同一教程 DOM',
   '教程卡根节点必须复用通用 `.panel`',
   '`research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop`',
+  '所有 `fullscreen` 页面进入后整个右侧信息栏不挂载',
+  '研发页桌面保留 `workspaceCard` DOM 作为布局宿主，但移除其最外围卡片视觉',
   '`--strategic-compact-page-width: 56rem`',
   '隐藏 `province` 上下文页',
   '`calc(100vw / 3)`',
@@ -325,4 +331,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('纯 CSS 毛玻璃外壳验证通过：共享外壳、桌面教程右栏、移动教程外壳锚点与 SafeTooltip/ECharts Tooltip 统一使用纯 CSS 毛玻璃材质，且旧 Liquid Glass 实现保持退役。');
+console.log('纯 CSS 毛玻璃外壳验证通过：共享外壳、普通页面桌面教程右栏、fullscreen 无右栏、研发透明全画布、移动教程外壳锚点与 SafeTooltip/ECharts Tooltip 统一使用纯 CSS 毛玻璃材质，且旧 Liquid Glass 实现保持退役。');

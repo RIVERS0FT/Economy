@@ -36,9 +36,9 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-inset);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   touch-action: none;
   user-select: none;
   cursor: grab;

@@ -95,6 +95,7 @@ async function readPageGeometry(page: Page) {
       .filter((element): element is HTMLElement => element instanceof HTMLElement)
       .map(rect);
     const mobileSheetStyle = mobileSheet ? getComputedStyle(mobileSheet) : null;
+    const primaryCardStyle = getComputedStyle(primaryCard);
 
     return {
       mobile,
@@ -102,6 +103,7 @@ async function readPageGeometry(page: Page) {
       mobileSheetBorderLeft: mobileSheetStyle ? Number.parseFloat(mobileSheetStyle.borderLeftWidth) || 0 : 0,
       mobileSheetBorderRight: mobileSheetStyle ? Number.parseFloat(mobileSheetStyle.borderRightWidth) || 0 : 0,
       primaryCard: rect(primaryCard),
+      primaryCardBorderRight: Number.parseFloat(primaryCardStyle.borderRightWidth) || 0,
       pageSlot: rect(pageSlot),
       pageContent: rect(pageContent),
       body: rect(body),
@@ -160,7 +162,10 @@ function expectSafePageGeometry(geometry: Awaited<ReturnType<typeof readPageGeom
     );
   } else {
     expect(geometry.pageSlot.left).toBeGreaterThan(geometry.primaryCard.left);
-    expect(geometry.pageSlot.right).toBeCloseTo(geometry.primaryCard.right - 1, 0);
+    expect(geometry.pageSlot.right).toBeCloseTo(
+      geometry.primaryCard.right - geometry.primaryCardBorderRight,
+      0,
+    );
   }
 }
 
