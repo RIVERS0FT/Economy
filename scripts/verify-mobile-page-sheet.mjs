@@ -12,6 +12,7 @@ const forbidAll = (path, values) => {
 };
 
 assert.equal(existsSync('src/components/ui/MobileWorkspaceSheetHost.tsx'), true, '缺少唯一移动 Sheet Host');
+assert.equal(existsSync('tests/browser/mobile-sheet-release-stability.spec.ts'), true, '缺少移动 Sheet 松手连续性回归');
 
 requireAll('src/components/shell/GameShell.tsx', [
   "import { MobileWorkspacePageSheet, type MobileWorkspaceSheetRequestClose } from '../ui/MobileWorkspacePageSheet';",
@@ -78,11 +79,12 @@ requireAll('src/components/ui/MobileWorkspaceSheetHost.tsx', [
   "headerSelector: '.mobile-detail-sheet-drag-handle, .page-fixed-header'",
   "contentSelector: '.mobile-detail-sheet-scroll, .page-card-scroll'",
   "offsetProperty: '--mobile-detail-sheet-drag-offset'",
+  'const snapshotSheetMaxHeight = () => {',
   'const visualViewport = window.visualViewport;',
   "document.querySelector<HTMLElement>('.asset-bar')",
   "getPropertyValue('--mobile-content-gap')",
   'Math.min(viewportHeight * 0.88, 760, availableHeight)',
-  "window.visualViewport?.addEventListener('resize', updateSheetMaxHeight)",
+  'snapshotSheetMaxHeight();',
   "document.querySelector<HTMLElement>('.page-scroll')",
   "pageScroll.style.overflowY = 'hidden'",
   "pageScrollArea.dataset.modalScrollbarSuppressed = 'true'",
@@ -114,6 +116,22 @@ forbidAll('src/components/ui/MobileWorkspaceSheetHost.tsx', [
   '--mobile-detail-sheet-backdrop-progress',
   'onPointerDown={activeDetail ? undefined : handlePointerDown}',
   'onTouchStart={activeDetail ? undefined : handleTouchStart}',
+  "window.addEventListener('resize'",
+  "window.visualViewport?.addEventListener('resize'",
+  "window.visualViewport?.addEventListener('scroll'",
+]);
+
+requireAll('src/components/ui/useMobileWorkspaceSheetDrag.ts', [
+  'height: number;',
+  'const lockedSheetHeightRef = useRef<number | undefined>(undefined);',
+  'const flushDragOffset = useCallback(',
+  'window.cancelAnimationFrame(dragFrameRef.current);',
+  'settleFrameRef.current = window.requestAnimationFrame(() => {',
+  "sheet.addEventListener('transitionend', handleTransitionEnd);",
+  "sheet.dataset.entryAnimationComplete = 'true';",
+  'session.offset = Math.max(0, finalY - session.startY);',
+  'flushDragOffset(session.offset);',
+  'Math.min(session.height * 0.25, 160)',
 ]);
 
 requireAll('src/components/ui/MobileWorkspaceDetailSheet.tsx', [
@@ -146,6 +164,8 @@ requireAll('src/styles/mobile-detail-sheet.css', [
   'background: var(--frosted-glass-background);',
   '-webkit-backdrop-filter: var(--frosted-glass-filter);',
   'backdrop-filter: var(--frosted-glass-filter);',
+  ".mobile-detail-sheet:not([data-entry-animation-complete='true'])",
+  ".mobile-workspace-sheet-detail-view:not([data-entry-animation-complete='true'])",
   ".mobile-workspace-sheet-page-layer[aria-hidden='true']",
   'visibility: hidden;',
   '.mobile-workspace-sheet-detail-view {',
@@ -206,6 +226,14 @@ requireAll('tests/browser/mobile-workspace-overlay.spec.ts', [
   "expect(navigation).toHaveAttribute('data-navigation-returning', 'true');",
 ]);
 
+requireAll('tests/browser/mobile-sheet-release-stability.spec.ts', [
+  'half-distance release starts closing from the exact finger position without a jump',
+  'short release rebounds from the exact finger position with frozen sheet geometry',
+  'expect(Math.abs(frames[0].top - expectedReleaseTop)).toBeLessThanOrEqual(12);',
+  'expect(frames[index].top).toBeGreaterThanOrEqual(frames[index - 1].top - 1);',
+  'expect(frames[index].top).toBeLessThanOrEqual(frames[index - 1].top + 1);',
+]);
+
 requireAll('tests/browser/notification-center.spec.ts', [
   'mobile notification panel overlays an open workspace sheet without leaving an island mounted',
   "expect(panelLayer).toHaveAttribute('data-notification-layer', 'dialog');",
@@ -236,6 +264,9 @@ requireAll('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '状态栏始终位于 Sheet 与通知面板之上',
   '通知灵动岛同系弹性进入动画',
   '物理根 Sheet 独占 Pointer／Touch 手势监听',
+  '松手前必须同步提交最后一次真实拖动 offset',
+  '一次拖动从开始到回弹或关闭完成必须锁定同一个 Sheet 高度',
+  '首次进入动画只能在每个物理 Sheet／详情实例初次挂载时播放一次',
 ]);
 
-console.log('移动唯一 Sheet 自身毛玻璃、透明外部、状态/通知上层与导航隐藏恢复动画验证通过。');
+console.log('移动唯一 Sheet 自身毛玻璃、稳定松手、透明外部、状态/通知上层与导航隐藏恢复动画验证通过。');
