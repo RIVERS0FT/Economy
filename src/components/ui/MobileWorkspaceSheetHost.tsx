@@ -183,7 +183,7 @@ export function MobileWorkspaceSheetHost({
     const activeElement = document.activeElement;
     pageReturnFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
 
-    const updateSheetMaxHeight = () => {
+    const snapshotSheetMaxHeight = () => {
       const visualViewport = window.visualViewport;
       const viewportHeight = Math.max(1, visualViewport?.height ?? window.innerHeight);
       const viewportTop = visualViewport?.offsetTop ?? 0;
@@ -198,10 +198,9 @@ export function MobileWorkspaceSheetHost({
       root.style.setProperty('--mobile-detail-sheet-max-height', `${Math.round(sheetHeight)}px`);
     };
 
-    updateSheetMaxHeight();
-    window.addEventListener('resize', updateSheetMaxHeight);
-    window.visualViewport?.addEventListener('resize', updateSheetMaxHeight);
-    window.visualViewport?.addEventListener('scroll', updateSheetMaxHeight);
+    // Freeze geometry for the lifetime of this open root Sheet. Dynamic visual
+    // viewport changes during a drag must not move its top edge under the finger.
+    snapshotSheetMaxHeight();
     if (pageScroll) {
       pageScroll.style.overflowY = 'hidden';
       pageScroll.scrollTop = previousPageScrollTop;
@@ -218,9 +217,6 @@ export function MobileWorkspaceSheetHost({
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('resize', updateSheetMaxHeight);
-      window.visualViewport?.removeEventListener('resize', updateSheetMaxHeight);
-      window.visualViewport?.removeEventListener('scroll', updateSheetMaxHeight);
       root.style.removeProperty('--mobile-detail-sheet-max-height');
       if (pageScroll) {
         pageScroll.style.overflowY = previousPageOverflow;

@@ -11,6 +11,7 @@ const MOBILE_WORKSPACE_SHEET_AXIS_DOMINANCE = 1.2;
 const MOBILE_WORKSPACE_SHEET_MIN_FLING_DISTANCE = 40;
 const MOBILE_WORKSPACE_SHEET_CLOSE_VELOCITY = 0.75;
 export const MOBILE_WORKSPACE_SHEET_SETTLE_DURATION = 200;
+const MOBILE_WORKSPACE_SHEET_SETTLE_FALLBACK_DELAY = 100;
 
 interface MobileWorkspaceSheetDragSession {
   pointerId?: number;
@@ -20,6 +21,7 @@ interface MobileWorkspaceSheetDragSession {
   lastTime: number;
   velocity: number;
   offset: number;
+  height: number;
   source: 'header' | 'content';
   active: boolean;
 }
@@ -70,23 +72,42 @@ export function useMobileWorkspaceSheetDrag({
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const dragSessionRef = useRef<MobileWorkspaceSheetDragSession | null>(null);
   const dragFrameRef = useRef<number | undefined>(undefined);
+  const settleFrameRef = useRef<number | undefined>(undefined);
   const settleTimerRef = useRef<number | undefined>(undefined);
+  const settleTransitionCleanupRef = useRef<(() => void) | undefined>(undefined);
   const closeCompletionRef = useRef<(() => void) | undefined>(undefined);
   const isClosingRef = useRef(false);
+  const lockedSheetHeightRef = useRef<number | undefined>(undefined);
   const pendingOffsetRef = useRef(0);
 
-  const clearSettleTimer = useCallback(() => {
+  const clearDragFrame = useCallback(() => {
+    if (dragFrameRef.current === undefined) return;
+    window.cancelAnimationFrame(dragFrameRef.current);
+    dragFrameRef.current = undefined;
+  }, []);
+
+  const clearSettleFrame = useCallback(() => {
+    if (settleFrameRef.current === undefined) return;
+    window.cancelAnimationFrame(settleFrameRef.current);
+    settleFrameRef.current = undefined;
+  }, []);
+
+  const clearSettleWait = useCallback(() => {
     if (settleTimerRef.current !== undefined) {
       window.clearTimeout(settleTimerRef.current);
       settleTimerRef.current = undefined;
     }
+    settleTransitionCleanupRef.current?.();
+    settleTransitionCleanupRef.current = undefined;
   }, []);
 
   const commitDragOffset = useCallback(() => {
     dragFrameRef.current = undefined;
     const sheet = sheetRef.current;
     if (!sheet) return;
-    const height = Math.max(1, sheet.getBoundingClientRect().height);
+    const measuredHeight = Math.max(1, sheet.getBoundingClientRect().height);
+    const height = lockedSheetHeightRef.current ?? measuredHeight;
+    lockedSheetHeightRef.current = height;
     const offset = Math.max(0, Math.min(pendingOffsetRef.current, height));
     const progress = Math.max(0, Math.min(1, 1 - offset / height));
     sheet.style.setProperty(offsetProperty, `${offset}px`);
@@ -103,9 +124,21 @@ export function useMobileWorkspaceSheetDrag({
     [commitDragOffset],
   );
 
+  const flushDragOffset = useCallback(
+    (offset: number) => {
+      pendingOffsetRef.current = offset;
+      clearDragFrame();
+      commitDragOffset();
+    },
+    [clearDragFrame, commitDragOffset],
+  );
+
   const resetDragStyles = useCallback(() => {
-    clearSettleTimer();
+    clearSettleWait();
+    clearSettleFrame();
+    clearDragFrame();
     pendingOffsetRef.current = 0;
+    lockedSheetHeightRef.current = undefined;
     isClosingRef.current = false;
     closeCompletionRef.current = undefined;
     dragSessionRef.current = null;
@@ -116,18 +149,87 @@ export function useMobileWorkspaceSheetDrag({
     sheet.style.removeProperty(offsetProperty);
     delete sheet.dataset.dragSource;
     onProgressRef.current?.(1);
-  }, [clearSettleTimer, offsetProperty]);
+  }, [clearDragFrame, clearSettleFrame, clearSettleWait, offsetProperty]);
 
   const completeClose = useCallback(() => {
-    settleTimerRef.current = undefined;
+    clearSettleWait();
+    clearSettleFrame();
+    clearDragFrame();
     const completion = closeCompletionRef.current;
     closeCompletionRef.current = undefined;
     dragSessionRef.current = null;
     pendingOffsetRef.current = 0;
+    lockedSheetHeightRef.current = undefined;
     isClosingRef.current = false;
     onCloseRef.current();
     completion?.();
-  }, []);
+  }, [clearDragFrame, clearSettleFrame, clearSettleWait]);
+
+  const waitForSettle = useCallback(
+    (sheet: HTMLDivElement, completion: () => void) => {
+      clearSettleWait();
+      let finished = false;
+
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        if (settleTimerRef.current !== undefined) {
+          window.clearTimeout(settleTimerRef.current);
+          settleTimerRef.current = undefined;
+        }
+        settleTransitionCleanupRef.current?.();
+        settleTransitionCleanupRef.current = undefined;
+        completion();
+      };
+
+      const handleTransitionEnd = (event: TransitionEvent) => {
+        if (event.target !== sheet || event.propertyName !== 'transform') return;
+        finish();
+      };
+
+      const cleanup = () => sheet.removeEventListener('transitionend', handleTransitionEnd);
+      settleTransitionCleanupRef.current = cleanup;
+      sheet.addEventListener('transitionend', handleTransitionEnd);
+      settleTimerRef.current = window.setTimeout(
+        finish,
+        MOBILE_WORKSPACE_SHEET_SETTLE_DURATION + MOBILE_WORKSPACE_SHEET_SETTLE_FALLBACK_DELAY,
+      );
+    },
+    [clearSettleWait],
+  );
+
+  const startSettle = useCallback(
+    (targetOffset: number, closing: boolean, completion: () => void) => {
+      const sheet = sheetRef.current;
+      if (!sheet) {
+        completion();
+        return;
+      }
+
+      clearSettleWait();
+      clearSettleFrame();
+      clearDragFrame();
+      sheet.classList.remove('is-dragging', 'is-closing');
+      if (closing) sheet.classList.add('is-settling', 'is-closing');
+      else sheet.classList.add('is-settling');
+
+      if (isReducedMotionPreferred()) {
+        flushDragOffset(targetOffset);
+        completion();
+        return;
+      }
+
+      // Commit the release position before enabling the target transform. This
+      // prevents a queued touchmove RAF from being replaced by the settle target.
+      void sheet.getBoundingClientRect().top;
+      settleFrameRef.current = window.requestAnimationFrame(() => {
+        settleFrameRef.current = undefined;
+        flushDragOffset(targetOffset);
+        waitForSettle(sheet, completion);
+      });
+    },
+    [clearDragFrame, clearSettleFrame, clearSettleWait, flushDragOffset, waitForSettle],
+  );
 
   const requestClose = useCallback<MobileWorkspaceSheetRequestClose>(
     (completion) => {
@@ -135,21 +237,18 @@ export function useMobileWorkspaceSheetDrag({
       isClosingRef.current = true;
       closeCompletionRef.current = completion;
       dragSessionRef.current = null;
-      clearSettleTimer();
 
       const sheet = sheetRef.current;
-      if (!sheet || !isMobileWorkspaceViewport() || isReducedMotionPreferred()) {
+      if (!sheet || !isMobileWorkspaceViewport()) {
         completeClose();
         return;
       }
 
-      sheet.classList.remove('is-dragging');
-      sheet.classList.add('is-settling', 'is-closing');
-      applyDragOffset(sheet.getBoundingClientRect().height);
-      onProgressRef.current?.(0);
-      settleTimerRef.current = window.setTimeout(completeClose, MOBILE_WORKSPACE_SHEET_SETTLE_DURATION);
+      const height = lockedSheetHeightRef.current ?? Math.max(1, sheet.getBoundingClientRect().height);
+      lockedSheetHeightRef.current = height;
+      startSettle(height, true, completeClose);
     },
-    [applyDragOffset, clearSettleTimer, completeClose],
+    [completeClose, startSettle],
   );
 
   const settleDrag = useCallback(
@@ -165,23 +264,16 @@ export function useMobileWorkspaceSheetDrag({
         return;
       }
 
-      clearSettleTimer();
-      sheet.classList.remove('is-dragging');
-      sheet.classList.add('is-settling');
-      if (isReducedMotionPreferred()) {
-        resetDragStyles();
-        return;
-      }
-      applyDragOffset(0);
-      onProgressRef.current?.(1);
-      settleTimerRef.current = window.setTimeout(resetDragStyles, MOBILE_WORKSPACE_SHEET_SETTLE_DURATION);
+      startSettle(0, false, resetDragStyles);
     },
-    [applyDragOffset, clearSettleTimer, requestClose, resetDragStyles],
+    [requestClose, resetDragStyles, startSettle],
   );
 
   const beginDrag = useCallback(
     (clientX: number, clientY: number, target: EventTarget | null, pointerId?: number) => {
       if (!isMobileWorkspaceViewport() || isClosingRef.current || isInteractiveTarget(target)) return false;
+      const sheet = sheetRef.current;
+      if (!sheet) return false;
       const targetElement = target instanceof Element ? target : null;
       const source = targetElement?.closest(headerSelector)
         ? 'header'
@@ -189,10 +281,11 @@ export function useMobileWorkspaceSheetDrag({
           ? 'content'
           : null;
       if (!source) return false;
-      if (source === 'content' && getScrollTopRef.current(sheetRef.current) > 0) return false;
+      if (source === 'content' && getScrollTopRef.current(sheet) > 0) return false;
 
-      clearSettleTimer();
       resetDragStyles();
+      const height = Math.max(1, sheet.getBoundingClientRect().height);
+      lockedSheetHeightRef.current = height;
       dragSessionRef.current = {
         pointerId,
         startX: clientX,
@@ -201,12 +294,13 @@ export function useMobileWorkspaceSheetDrag({
         lastTime: performance.now(),
         velocity: 0,
         offset: 0,
+        height,
         source,
         active: false,
       };
       return true;
     },
-    [clearSettleTimer, contentSelector, headerSelector, resetDragStyles],
+    [contentSelector, headerSelector, resetDragStyles],
   );
 
   const updateDrag = useCallback(
@@ -247,8 +341,8 @@ export function useMobileWorkspaceSheetDrag({
   const finishDrag = useCallback(
     (clientY?: number) => {
       const session = dragSessionRef.current;
-      dragSessionRef.current = null;
       if (!session?.active) {
+        dragSessionRef.current = null;
         resetDragStyles();
         return;
       }
@@ -257,15 +351,18 @@ export function useMobileWorkspaceSheetDrag({
       const releaseElapsed = Math.max(1, performance.now() - session.lastTime);
       const releaseVelocity = Math.max(0, (finalY - session.lastY) / releaseElapsed);
       const velocity = Math.max(session.velocity, releaseVelocity);
-      const sheetHeight = Math.max(1, sheetRef.current?.getBoundingClientRect().height ?? 1);
-      const closeDistance = Math.max(96, Math.min(sheetHeight * 0.25, 160));
+      session.offset = Math.max(0, finalY - session.startY);
+      flushDragOffset(session.offset);
+
+      const closeDistance = Math.max(96, Math.min(session.height * 0.25, 160));
       const shouldClose =
         session.offset >= closeDistance ||
         (session.offset >= MOBILE_WORKSPACE_SHEET_MIN_FLING_DISTANCE
           && velocity >= MOBILE_WORKSPACE_SHEET_CLOSE_VELOCITY);
+      dragSessionRef.current = null;
       settleDrag(shouldClose);
     },
-    [resetDragStyles, settleDrag],
+    [flushDragOffset, resetDragStyles, settleDrag],
   );
 
   const handlePointerDown = useCallback(
@@ -324,28 +421,35 @@ export function useMobileWorkspaceSheetDrag({
     [updateDrag],
   );
 
-  const handleTouchEnd = useCallback(
-    (event: ReactTouchEvent<HTMLDivElement>) => {
-      const touch = event.changedTouches[0];
-      finishDrag(touch?.clientY);
-    },
-    [finishDrag],
-  );
+  const handleTouchEnd = useCallback(() => {
+    // The last accepted touchmove is authoritative. Some browser/compositor
+    // paths can expose a changedTouches release coordinate outside the tracked
+    // drag path, which must not teleport or misclassify the Sheet on release.
+    finishDrag();
+  }, [finishDrag]);
 
   const cancelDrag = useCallback(() => {
+    const session = dragSessionRef.current;
+    if (!session?.active) {
+      dragSessionRef.current = null;
+      resetDragStyles();
+      return;
+    }
+    flushDragOffset(session.offset);
     dragSessionRef.current = null;
     settleDrag(false);
-  }, [settleDrag]);
+  }, [flushDragOffset, resetDragStyles, settleDrag]);
 
   useEffect(
     () => () => {
-      clearSettleTimer();
-      if (dragFrameRef.current !== undefined) window.cancelAnimationFrame(dragFrameRef.current);
-      dragFrameRef.current = undefined;
+      clearSettleWait();
+      clearSettleFrame();
+      clearDragFrame();
       dragSessionRef.current = null;
       closeCompletionRef.current = undefined;
+      lockedSheetHeightRef.current = undefined;
     },
-    [clearSettleTimer],
+    [clearDragFrame, clearSettleFrame, clearSettleWait],
   );
 
   return {
