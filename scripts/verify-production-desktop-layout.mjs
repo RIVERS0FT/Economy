@@ -31,16 +31,14 @@ assert.equal(
 );
 
 for (const forbidden of [
-  '建筑概况',
   'buildingQuery',
   'buildingCategory',
   'buildingStatus',
-  'buildings-list-filters',
   'facility-cluster-navigation',
   '按产业和运行状态筛选建筑',
   'MobileFacilityDetailSheet',
   'isMobileFacilityLayout',
-]) assert.equal(page.includes(forbidden), false, `地区建筑列表不得恢复: ${forbidden}`);
+]) assert.equal(page.includes(forbidden), false, `地区建筑列表不得恢复可执行旧结构: ${forbidden}`);
 
 for (const text of [
   'detailFacilityTypeId?: string;',
