@@ -133,6 +133,12 @@ function containLayoutSize(width: number, height: number) {
   return `${((requiredSize / referenceSize) * MAP_CONTAIN_INSET * 100).toFixed(4)}%`;
 }
 
+function markSuppressedMultitouchTap(chart: EChartsType) {
+  const container = chart.getDom();
+  const current = Number(container.dataset.mapSuppressedMultitouchTapCount || 0);
+  container.dataset.mapSuppressedMultitouchTapCount = String(current + 1);
+}
+
 registerEChartsMap(US_MAINLAND_MAP_NAME, usMainlandGeoJson);
 
 interface ProvinceMapDatum {
@@ -236,6 +242,9 @@ export function UsMainlandMap({
   const provinceIdByDisplayName = useMemo(() => new Map(
     provinces.map((province) => [province.name, province.id]),
   ), [provinces]);
+  const displayNameByProvinceId = useMemo(() => new Map(
+    provinces.map((province) => [province.id, province.name]),
+  ), [provinces]);
   const selectedProvince = provinces.find((province) => province.id === selectedProvinceId);
   const selectedMap = useMemo(() => Object.fromEntries(
     provinces.map((province) => [province.name, province.id === selectedProvinceId]),
@@ -244,6 +253,7 @@ export function UsMainlandMap({
     datumFor(province, summaries[province.id], lens, !unlockedSet.has(province.id))
   )), [lens, provinces, summaries, unlockedSet]);
   const lastBlankTapRef = useRef<{ at: number; x: number; y: number } | null>(null);
+  const chartRef = useRef<EChartsType | null>(null);
   const labelRendererRef = useRef<ProvinceMapLabelRenderer | null>(null);
   const zoomInterpolatorRef = useRef<ProvinceMapZoomInterpolator | null>(null);
   const selectedProvinceIdRef = useRef(selectedProvinceId);
@@ -311,6 +321,7 @@ export function UsMainlandMap({
   }, [selectedProvinceId]);
 
   useEffect(() => () => {
+    chartRef.current = null;
     zoomInterpolatorRef.current?.destroy();
     zoomInterpolatorRef.current = null;
     labelRendererRef.current?.destroy();
@@ -371,7 +382,33 @@ export function UsMainlandMap({
 
   const handleMapClick = (event: EconomyChartClickEvent) => {
     if (event.seriesType !== 'map') return;
-    const provinceId = provinceIdByDisplayName.get(String(event.name || ''));
+    const clickedName = String(event.name || '');
+    if (zoomInterpolatorRef.current?.shouldSuppressTap()) {
+      lastBlankTapRef.current = null;
+      const chart = chartRef.current;
+      if (chart && !chart.isDisposed()) {
+        markSuppressedMultitouchTap(chart);
+        if (clickedName) {
+          chart.dispatchAction({
+            type: 'unselect',
+            seriesId: 'us-mainland-map',
+            name: clickedName,
+          } as Parameters<EChartsType['dispatchAction']>[0]);
+        }
+        const selectedName = selectedProvinceIdRef.current
+          ? displayNameByProvinceId.get(selectedProvinceIdRef.current)
+          : null;
+        if (selectedName) {
+          chart.dispatchAction({
+            type: 'select',
+            seriesId: 'us-mainland-map',
+            name: selectedName,
+          } as Parameters<EChartsType['dispatchAction']>[0]);
+        }
+      }
+      return;
+    }
+    const provinceId = provinceIdByDisplayName.get(clickedName);
     if (provinceId) onSelectProvince(provinceId);
   };
 
@@ -379,6 +416,11 @@ export function UsMainlandMap({
     event: EconomyChartCanvasClickEvent,
     chart: EChartsType,
   ) => {
+    if (zoomInterpolatorRef.current?.shouldSuppressTap()) {
+      lastBlankTapRef.current = null;
+      if (!event.target) markSuppressedMultitouchTap(chart);
+      return;
+    }
     if (event.target) {
       lastBlankTapRef.current = null;
       return;
@@ -412,6 +454,7 @@ export function UsMainlandMap({
   }, [applyContainCamera]);
 
   const handleChartReady = useCallback((chart: EChartsType) => {
+    chartRef.current = chart;
     applyContainCamera(chart);
     applyResponsiveTooltip(chart);
     installProvinceLabels(chart);
@@ -424,7 +467,7 @@ export function UsMainlandMap({
     labelRendererRef.current?.refreshLayout();
   }, [applyContainCamera, applyResponsiveTooltip]);
 
-  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}州面内使用中文州全名，名称随地图一起缩放和平移。点击州面可以打开对应州页面，滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置缩放和平移。`;
+  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}州面内使用中文州全名，名称随地图一起缩放和平移。点击州面可以打开对应州页面，滚轮或双指可以从州面或空白开始缩放，拖动地图可以平移，双击或双触地图空白可以重置缩放和平移。`;
   return (
     <div
       className="province-map-chart"
