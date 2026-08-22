@@ -28,15 +28,18 @@ test.describe('mobile facility pull-to-refresh prevention', () => {
     hasTouch: true,
   });
 
-  test('factory detail page keeps the signed-in overscroll boundary without opening a sheet', async ({ page }) => {
+  test('factory detail page keeps the signed-in overscroll boundary without opening a nested detail sheet', async ({ page }) => {
     await page.goto('runtime-test.html?view=production&scenario=activity');
 
+    const host = page.locator('.mobile-workspace-sheet-host');
     const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
     await trigger.tap();
     const detail = page.locator('.facility-cluster-detail-page');
     const content = page.locator('.page-card-scroll');
     await expect(detail).toBeVisible();
-    await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
+    await expect(host).toHaveCount(1);
+    await expect(host).toHaveAttribute('data-detail-active', 'false');
+    await expect(host.locator('.mobile-workspace-sheet-detail-view')).toHaveCount(0);
     await expect(page.locator('html')).toHaveCSS('overscroll-behavior-y', 'none');
     await content.evaluate((element) => { element.scrollTop = 0; });
 
