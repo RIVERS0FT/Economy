@@ -193,6 +193,7 @@ for (const text of [
   "container.dataset.mapRenderer = 'static-svg'", "container.dataset.mapCameraMode = 'html-compositor-transform'",
   "container.dataset.mapCameraHotPath = 'single-css-transform'", "container.dataset.mapCameraGeometryMode = 'immutable-svg-world'",
   'surface.style.transform = `translate3d(', 'requestAnimationFrame(writeCamera)', 'if (frame === null)',
+  'const scheduleSettle = () => {', 'if (frame !== null) {', 'scheduleSettle();',
   "container.addEventListener('wheel', handleWheel, { passive: false })", 'event.preventDefault();',
   'applyZoomAround', 'pointers.size >= 2', "container.dataset.mapCameraReset = 'blank-double-click'",
   "container.dataset.mapCameraReset = 'blank-double-tap'", "surface.style.willChange = nextActive ? 'transform' : ''",
@@ -270,13 +271,18 @@ for (const text of [
 const boundaryTest = read('tests/browser/map-zoom-out-boundary.spec.ts');
 for (const text of [
   'states outside the viewport re-enter during zoom-out because all 48 paths remain mounted',
-  'offscreenBeforeZoomOut', "data-map-zoom-active', 'true'", 'restoredDuringActiveZoom', 'pathsAfter', 'pathsBefore',
+  'offscreenBeforeZoomOut', 'zoomOutActiveFrame.active', "toBe('true')", 'restoredDuringActiveZoom', 'pathsAfter', 'pathsBefore',
 ]) assert.ok(boundaryTest.includes(text), `地图屏外州恢复回归缺少: ${text}`);
 const resetTest = read('tests/browser/map-reset-sync.spec.ts');
 for (const text of [
   'blank double click resets the single compositor camera for paths and labels in the first frame',
   "'blank-double-click'", 'baselinePathRevision', 'baselineLabelCenter', 'firstFrameLabelCenter',
 ]) assert.ok(resetTest.includes(text), `地图重置回归缺少: ${text}`);
+
+const chromeDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
+for (const text of [
+  '待提交的 `requestAnimationFrame` 相机写入', '至少提交一帧 active 合成结果', '`INPUT_SETTLE_MS` 收口',
+]) assert.ok(chromeDesign.includes(text), `地图 active 帧设计规则缺少: ${text}`);
 
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 assert.equal((uiDesign.match(/### 8\.1 美国本土州级经营地图/g) ?? []).length, 1, 'UI 设计文档只能保留一份美国本土州级经营地图 8.1 规则');
