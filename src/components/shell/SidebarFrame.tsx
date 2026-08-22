@@ -11,7 +11,6 @@ export function SidebarFrame({
   subtitle,
   navLabel,
   collapsed,
-  interactionResetKey,
   className = '',
   onToggleCollapsed,
   children,
@@ -22,7 +21,6 @@ export function SidebarFrame({
   subtitle: string;
   navLabel: string;
   collapsed: boolean;
-  interactionResetKey?: string | number;
   className?: string;
   onToggleCollapsed: () => void;
   children: ReactNode;
@@ -80,7 +78,7 @@ export function SidebarFrame({
       window.removeEventListener('blur', suspendInteraction);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [interactionResetKey]);
+  }, []);
 
   const setCollapsed = (nextCollapsed: boolean) => {
     if (desiredCollapsedRef.current === nextCollapsed) return;
