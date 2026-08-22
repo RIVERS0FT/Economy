@@ -377,6 +377,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .mobile-detail-sheet:not([data-entry-animation-complete='true']),
+  .mobile-workspace-sheet-detail-view:not([data-entry-animation-complete='true']),
   .mobile-detail-sheet,
   .mobile-workspace-sheet-detail-view,
   .mobile-detail-sheet.is-settling,
