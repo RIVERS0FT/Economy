@@ -1,0 +1,50 @@
+name: Restore static map page duties once
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.head_ref == 'codex/static-svg-map-camera'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/static-svg-map-camera
+          fetch-depth: 0
+      - name: Restore page duties and align zoom verifier
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          design_path = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          design = design_path.read_text(encoding='utf-8')
+          old = '地图页、概览及其他业务页面都复用这一常驻实例；`MapPage` 仍只保留透明路由占位。'
+          new = ('地图页、概览及其他业务页面都复用这一常驻实例；`MapPage` 仍只保留透明路由占位。'
+                 '`MapPage` 不再拥有 `UsMainlandMap` 实例，不得渲染左上“战略经营地图”卡片、左下图例／来源卡或“当前经营地区”卡片。'
+                 '州面单击后同时更新经营州并打开 `province` 上下文页。')
+          if design.count(old) != 1:
+              raise SystemExit(f'expected one map page duty anchor, got {design.count(old)}')
+          design_path.write_text(design.replace(old, new, 1), encoding='utf-8')
+
+          verifier_path = Path('scripts/verify-page-content.mjs')
+          verifier = verifier_path.read_text(encoding='utf-8')
+          old_check = "  '正式缩放范围固定为 `scaleLimit: { min: 0.5, max: 4 }`',"
+          new_check = "  '用户缩放范围固定为 `0.5～4`',"
+          if verifier.count(old_check) != 1:
+              raise SystemExit(f'expected one obsolete scaleLimit check, got {verifier.count(old_check)}')
+          verifier_path.write_text(verifier.replace(old_check, new_check, 1), encoding='utf-8')
+          PY
+          git rm .github/workflows/restore-static-map-page-duties-once.yml
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md scripts/verify-page-content.mjs
+          git commit -m "恢复静态地图页面职责设计规则"
+          git push origin HEAD:codex/static-svg-map-camera
