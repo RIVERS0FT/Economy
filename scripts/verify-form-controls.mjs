@@ -262,7 +262,7 @@ for (const text of [
   'mobile bottom navigation keeps its compact reminder badge while a sheet hides the navigation',
 ]) requireText(sidebarBadgeTestPath, text);
 for (const text of [
-  'mobile production rich selects use the browser top layer above the facility sheet',
+  'mobile production rich selects use the browser top layer above the factory detail page',
   "element.matches(':popover-open')",
   'document.elementFromPoint(',
   'expectTopLayerHitTarget',
