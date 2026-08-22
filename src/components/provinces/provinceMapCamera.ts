@@ -24,6 +24,11 @@ interface PinchReference {
   distance: number;
 }
 
+interface ContainerBounds {
+  left: number;
+  top: number;
+}
+
 export interface ProvinceMapCameraController {
   reset: () => void;
   destroy: () => void;
@@ -75,6 +80,7 @@ export function createProvinceMapCamera(
   let dragDistance = 0;
   let suppressNextClick = false;
   let pinchReference: PinchReference | null = null;
+  let interactionBounds: ContainerBounds | null = null;
   let lastBlankTap: { at: number; x: number; y: number } | null = null;
   const pointers = new Map<number, PointerPosition>();
 
@@ -86,6 +92,21 @@ export function createProvinceMapCamera(
   container.dataset.mapZoomCameraMode = 'static-svg-compositor';
   container.dataset.mapZoomHotPath = 'css-transform';
   container.dataset.mapZoomCommitMode = 'none';
+
+  const readBounds = () => {
+    if (interactionBounds) return interactionBounds;
+    const bounds = container.getBoundingClientRect();
+    interactionBounds = { left: bounds.left, top: bounds.top };
+    return interactionBounds;
+  };
+
+  const localPoint = (clientX: number, clientY: number): PointerPosition => {
+    const bounds = readBounds();
+    return {
+      x: clientX - bounds.left,
+      y: clientY - bounds.top,
+    };
+  };
 
   const publishState = () => {
     container.dataset.mapZoomCurrent = current.zoom.toFixed(5);
@@ -119,6 +140,7 @@ export function createProvinceMapCamera(
     if (settleTimer !== null) clearTimeout(settleTimer);
     settleTimer = setTimeout(() => {
       settleTimer = null;
+      interactionBounds = null;
       inputMode = 'idle';
       setActive(false);
     }, INPUT_SETTLE_MS);
@@ -140,6 +162,7 @@ export function createProvinceMapCamera(
     frame = null;
     if (settleTimer !== null) clearTimeout(settleTimer);
     settleTimer = null;
+    interactionBounds = null;
     current = { x: 0, y: 0, zoom: 1 };
     target = { ...current };
     inputMode = 'reset';
@@ -157,11 +180,7 @@ export function createProvinceMapCamera(
     if (Math.abs(event.deltaX) > Math.abs(event.deltaY) * 1.2) return;
     event.preventDefault();
     event.stopPropagation();
-    const bounds = container.getBoundingClientRect();
-    const point = {
-      x: Number.isFinite(event.clientX) ? event.clientX - bounds.left : bounds.width / 2,
-      y: Number.isFinite(event.clientY) ? event.clientY - bounds.top : bounds.height / 2,
-    };
+    const point = localPoint(event.clientX, event.clientY);
     const logStep = clamp(
       -delta * WHEEL_ZOOM_SENSITIVITY,
       -MAX_WHEEL_LOG_STEP,
@@ -185,8 +204,10 @@ export function createProvinceMapCamera(
 
   const handlePointerDown = (event: PointerEvent) => {
     if (destroyed || (event.pointerType === 'mouse' && event.button !== 0)) return;
-    pointers.set(event.pointerId, { x: event.offsetX, y: event.offsetY });
-    container.setPointerCapture?.(event.pointerId);
+    if (pointers.size === 0) interactionBounds = null;
+    pointers.set(event.pointerId, localPoint(event.clientX, event.clientY));
+    const captureTarget = event.target as Element & { setPointerCapture?: (pointerId: number) => void };
+    captureTarget.setPointerCapture?.(event.pointerId);
     dragDistance = 0;
     if (pointers.size >= 2) {
       suppressNextClick = true;
@@ -197,7 +218,7 @@ export function createProvinceMapCamera(
   const handlePointerMove = (event: PointerEvent) => {
     const previous = pointers.get(event.pointerId);
     if (!previous || destroyed) return;
-    const next = { x: event.offsetX, y: event.offsetY };
+    const next = localPoint(event.clientX, event.clientY);
     pointers.set(event.pointerId, next);
 
     if (pointers.size >= 2) {
@@ -226,11 +247,12 @@ export function createProvinceMapCamera(
   };
 
   const handlePointerEnd = (event: PointerEvent) => {
+    const endPoint = localPoint(event.clientX, event.clientY);
     const wasTracked = pointers.delete(event.pointerId);
     if (!wasTracked) return;
-    if (container.hasPointerCapture?.(event.pointerId)) container.releasePointerCapture(event.pointerId);
     updatePinchReference();
     if (pointers.size === 0 && active && settleTimer === null) {
+      interactionBounds = null;
       inputMode = 'idle';
       setActive(false);
     }
@@ -242,12 +264,11 @@ export function createProvinceMapCamera(
     ) {
       const rawTime = Number(event.timeStamp);
       const at = Number.isFinite(rawTime) && rawTime > 0 ? rawTime : performance.now();
-      const point = { x: event.offsetX, y: event.offsetY };
       const previousTap = lastBlankTap;
-      lastBlankTap = { at, ...point };
+      lastBlankTap = { at, ...endPoint };
       if (previousTap) {
         const elapsed = at - previousTap.at;
-        const tapDistance = Math.hypot(point.x - previousTap.x, point.y - previousTap.y);
+        const tapDistance = Math.hypot(endPoint.x - previousTap.x, endPoint.y - previousTap.y);
         if (
           elapsed >= 0
           && elapsed <= MOBILE_BLANK_DOUBLE_TAP_MS
@@ -292,6 +313,7 @@ export function createProvinceMapCamera(
       if (settleTimer !== null) clearTimeout(settleTimer);
       frame = null;
       settleTimer = null;
+      interactionBounds = null;
       pointers.clear();
       container.removeEventListener('wheel', handleWheel);
       container.removeEventListener('pointerdown', handlePointerDown);
