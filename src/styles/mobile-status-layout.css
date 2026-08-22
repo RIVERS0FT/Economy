@@ -133,10 +133,10 @@
     font-size: inherit;
   }
 
-  /* Mobile tutorial keeps the same shell-owned DOM as desktop. The workspace
-   * layer stays below root Dialog and Chrome so pages and notifications can
-   * cover the tutorial without unmounting or moving it back into Overview. */
-  .game-shell .strategic-economic-event-rail[data-tutorial-visible='true'] {
+  /* Mobile keeps the shell-owned tutorial in the same StrategicOutliner DOM.
+   * Desktop-only tracker groups are hidden, while page sheets and notification
+   * layers naturally cover this anchor without unmounting the tutorial run. */
+  .game-shell .strategic-outliner[data-tutorial-visible='true'] {
     position: absolute;
     z-index: 2;
     top: var(--mobile-below-status-top);
@@ -144,24 +144,34 @@
     bottom: auto;
     left: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));
     width: auto;
+    max-width: 30rem;
     min-width: 0;
+    max-height: none;
     display: grid;
     grid-template-rows: auto;
-    align-content: start;
-    justify-items: center;
-    gap: 0;
+    margin-inline: auto;
     overflow: visible;
-    pointer-events: none;
-  }
-
-  .game-shell .strategic-economic-event-rail[data-tutorial-visible='true'] > .game-guide-strip {
-    width: min(100%, 30rem);
-    max-width: 30rem;
     pointer-events: auto;
   }
 
-  .game-shell .strategic-economic-event-rail > .economic-event-log-panel {
+  .game-shell .strategic-outliner[data-tutorial-visible='true'] > .strategic-outliner__header,
+  .game-shell .strategic-outliner[data-tutorial-visible='true'] > .strategic-outliner__collapsed-map,
+  .game-shell .strategic-outliner[data-tutorial-visible='true'] .strategic-outliner-section:not(.strategic-outliner-section--tutorial) {
     display: none;
+  }
+
+  .game-shell .strategic-outliner[data-tutorial-visible='true'] > .strategic-outliner__scroll {
+    display: block;
+    overflow: visible;
+    scrollbar-gutter: auto;
+  }
+
+  .game-shell .strategic-outliner[data-tutorial-visible='true'] .strategic-outliner-section--tutorial {
+    border-bottom: 0;
+  }
+
+  .game-shell .strategic-outliner[data-tutorial-visible='true'] .strategic-outliner-section__content {
+    padding-bottom: 8px;
   }
 
   .mobile-notice-region {
