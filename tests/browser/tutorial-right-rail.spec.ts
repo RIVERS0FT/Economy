@@ -68,8 +68,17 @@ test('desktop tutorial stays in the right rail across business pages and keeps f
     await expect(page.locator('.game-guide-strip')).toHaveCount(0);
     await expect(page.locator('.economic-event-log-panel')).toHaveCount(0);
 
-    const primaryCardBox = await requireBox(page.locator('.signed-in-shell__primary-card'));
-    const workspaceBox = await requireBox(page.locator('.workspace'));
+    const primaryCard = page.locator('.signed-in-shell__primary-card');
+    const workspace = page.locator('.workspace');
+    await expect.poll(async () => {
+      const primaryCardBox = await primaryCard.boundingBox();
+      const workspaceBox = await workspace.boundingBox();
+      if (!primaryCardBox || !workspaceBox) return Number.POSITIVE_INFINITY;
+      return workspaceBox.x + workspaceBox.width - primaryCardBox.x - primaryCardBox.width;
+    }).toBeCloseTo(8, 0);
+
+    const primaryCardBox = await requireBox(primaryCard);
+    const workspaceBox = await requireBox(workspace);
     expect(primaryCardBox.x - workspaceBox.x).toBeCloseTo(8, 0);
     expect(workspaceBox.x + workspaceBox.width - primaryCardBox.x - primaryCardBox.width).toBeCloseTo(8, 0);
   }
