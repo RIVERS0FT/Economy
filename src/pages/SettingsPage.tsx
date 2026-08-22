@@ -6,7 +6,11 @@ import {
   resetGameStateDelivery,
   type SaveDeletionPreflight,
 } from '../api/game';
-import { clearTutorialRun, setPendingTutorialCompletion } from '../game-guide/tutorialStorage';
+import {
+  clearTutorialRun,
+  clearTutorialSkip,
+  setPendingTutorialCompletion,
+} from '../game-guide/tutorialStorage';
 import { clearAutoSellPolicies } from '../auto-sell/autoSellStorage';
 import { notificationStorageKey } from '../notifications/notificationCenter';
 import { navigationBadgeStorageKey } from '../navigation/navigationBadges';
@@ -63,6 +67,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
 
   function clearDeletedSaveClientState() {
     clearTutorialRun(user.id);
+    clearTutorialSkip(user.id);
     setPendingTutorialCompletion(user.id, false);
     clearAutoSellPolicies(user.id);
     model.clearLocalTrades();
@@ -174,9 +179,6 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
                 <p>{tutorial.statusLabel}</p>
               </div>
               <div className="tutorial-settings-actions">
-                {tutorial.isActive && !tutorial.isVisible ? (
-                  <Button variant="secondary" onClick={tutorial.show}>显示教程</Button>
-                ) : null}
                 <Button onClick={restartTutorial}>重新开始教程</Button>
               </div>
             </section>

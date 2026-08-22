@@ -140,9 +140,9 @@
     position: absolute;
     z-index: 2;
     top: var(--mobile-below-status-top);
-    right: 0;
+    right: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));
     bottom: auto;
-    left: 0;
+    left: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));
     width: auto;
     min-width: 0;
     display: grid;
