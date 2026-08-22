@@ -1,0 +1,45 @@
+name: PR 616 dedupe verifier
+
+on:
+  push:
+    branches:
+      - codex/static-svg-map-camera
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/static-svg-map-camera
+          fetch-depth: 0
+      - name: Merge chrome design assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/verify-provincial-economy.mjs')
+          text = p.read_text(encoding='utf-8')
+          old = """const chromeDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');\nfor (const text of [\n  '待提交的 `requestAnimationFrame` 相机写入', '至少提交一帧 active 合成结果', '`INPUT_SETTLE_MS` 收口',\n]) assert.ok(chromeDesign.includes(text), `地图 active 帧设计规则缺少: ${text}`);\n\nconst uiDesign = read('docs/UI_DESIGN_SYSTEM.md');\n"""
+          new = """const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');\n"""
+          if text.count(old) != 1:
+              raise SystemExit('duplicate chrome block anchor mismatch')
+          text = text.replace(old, new)
+          old = """for (const text of ['静态 SVG 世界面', '单一合成相机', '每帧最多一次', '屏幕外的州面']) {\n  assert.ok(chromeDesign.includes(text), `地图外壳权威缺少: ${text}`);\n}\n"""
+          new = """for (const text of [\n  '静态 SVG 世界面', '单一合成相机', '每帧最多一次', '屏幕外的州面',\n  '待提交的 `requestAnimationFrame` 相机写入', '至少提交一帧 active 合成结果', '`INPUT_SETTLE_MS` 收口',\n]) {\n  assert.ok(chromeDesign.includes(text), `地图外壳权威缺少: ${text}`);\n}\n"""
+          if text.count(old) != 1:
+              raise SystemExit('existing chrome verifier anchor mismatch')
+          p.write_text(text.replace(old, new), encoding='utf-8', newline='\n')
+          PY
+      - name: Remove one-time workflow and commit
+        run: |
+          rm .github/workflows/pr616-dedupe-verifier.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m "合并地图设计防回退检查"
+          git push origin HEAD:codex/static-svg-map-camera
