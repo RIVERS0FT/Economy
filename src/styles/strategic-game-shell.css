@@ -324,6 +324,19 @@
     pointer-events: auto;
   }
 
+  .game-shell.strategic-tab-research .signed-in-shell__primary-card {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .game-shell.strategic-tab-research .signed-in-shell__primary-card::before {
+    display: none;
+  }
+
   .game-shell .signed-in-shell__primary-card > .frosted-glass-surface__content {
     display: grid;
     grid-template-columns: var(--strategic-command-rail-width) minmax(0, 1fr);
