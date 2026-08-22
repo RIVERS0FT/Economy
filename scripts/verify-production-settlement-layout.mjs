@@ -228,7 +228,9 @@ for (const text of [
   'expect(geometry.mobileDiagnosticsIndex).toBeGreaterThan(geometry.mobileSettlementIndex)',
   'for (const width of [320, 360, 390, 430, 720])',
   'arrowClipPath',
-  "page.locator('.mobile-detail-sheet')).toHaveCount(0)",
+  'await expect(workspaceHost).toHaveCount(1);',
+  "await expect(workspaceHost).toHaveAttribute('data-detail-active', 'false');",
+  "await expect(workspaceHost.locator('.mobile-workspace-sheet-detail-view')).toHaveCount(0);",
 ]) assert.equal(browserTest.includes(text), true, `生产详情浏览器回归缺少: ${text}`);
 
 for (const text of [
