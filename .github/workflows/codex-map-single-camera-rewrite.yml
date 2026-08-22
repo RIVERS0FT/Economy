@@ -1,0 +1,272 @@
+name: Codex Map Single Camera Rewrite
+
+on:
+  push:
+    branches:
+      - codex/fix-map-single-camera-20260822
+
+permissions:
+  contents: write
+
+jobs:
+  rewrite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Rewrite authoritative map rules and guards
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, text):
+              Path(path).write_text(text, encoding='utf-8')
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, got {count}')
+              return text.replace(old, new, 1)
+
+          # Label camera: keep the expensive layout stable, but let the zoom RAF sync
+          # the lightweight derived camera group in the same visual frame.
+          path = 'src/components/provinces/provinceMapLabels.ts'
+          text = read(path)
+          text = replace_once(
+              text,
+              '  syncCamera: () => void;\n  updateSelection: () => void;',
+              '  syncCamera: () => void;\n  syncCameraImmediately: () => void;\n  updateSelection: () => void;',
+              'label renderer interface',
+          )
+          text = replace_once(
+              text,
+              "  const syncCamera = () => {\n    if (chart.isDisposed() || cameraFrame !== null || layoutFrame !== null) return;\n    cameraFrame = requestAnimationFrame(syncCameraNow);\n  };\n\n  const handleGeoRoam = () => {",
+              "  const syncCamera = () => {\n    if (chart.isDisposed() || cameraFrame !== null || layoutFrame !== null) return;\n    cameraFrame = requestAnimationFrame(syncCameraNow);\n  };\n\n  const syncCameraImmediately = () => {\n    if (chart.isDisposed() || layoutFrame !== null) return;\n    if (cameraFrame !== null) {\n      cancelAnimationFrame(cameraFrame);\n      cameraFrame = null;\n    }\n    syncCameraNow();\n  };\n\n  const handleGeoRoam = () => {",
+              'label immediate camera sync',
+          )
+          text = replace_once(
+              text,
+              '    refreshLayout,\n    syncCamera,\n    updateSelection,',
+              '    refreshLayout,\n    syncCamera,\n    syncCameraImmediately,\n    updateSelection,',
+              'label renderer return',
+          )
+          write(path, text)
+
+          path = 'src/components/provinces/UsMainlandMap.tsx'
+          text = read(path)
+          text = replace_once(
+              text,
+              "  const installZoomInterpolator = useCallback((chart: EChartsType) => {\n    zoomInterpolatorRef.current?.destroy();\n    zoomInterpolatorRef.current = createProvinceMapZoomInterpolator(chart);\n  }, []);",
+              "  const installZoomInterpolator = useCallback((chart: EChartsType) => {\n    zoomInterpolatorRef.current?.destroy();\n    zoomInterpolatorRef.current = createProvinceMapZoomInterpolator(chart, () => {\n      labelRendererRef.current?.syncCameraImmediately();\n    });\n  }, []);",
+              'zoom interpolator label sync',
+          )
+          write(path, text)
+
+          # Application shell authority: one formal ECharts camera, physical viewport
+          # clipping remains intact, and no root-SVG animation is allowed.
+          path = 'docs/LIQUID_GLASS_CHROME_DESIGN.md'
+          text = read(path)
+          old = "- 战略地图滚轮与双指逻辑缩放继续允许 `0.5–4`，交互帧只允许地图 SVG 与中文州名 SVG 使用同一临时 CSS 矩阵；缩放 settle 后必须把该矩阵等价提交到地图 `layoutSize + layoutCenter`，同时保持 map series `zoom = 1`，使州填充、州界、坐标系和 ECharts 内部绘制／裁剪边界同步缩放。不得恢复以 `geoRoam.zoom` 作为持久缩放提交，也不得通过放开根级 `.application-map-layer` 的视口裁剪掩盖边界问题；地图拖动继续由 `roam: 'move'` 处理，空白双击／双触继续恢复 contain 镜头。"
+          new = "- 战略地图滚轮与双指逻辑缩放继续允许 `0.5–4`。基础 `layoutCenter + layoutSize` 只负责首次 Contain、地图容器真实 resize 和空白双击／双触重置；用户拖动与交互缩放必须共享同一个 ECharts Map 正式相机。滚轮／双指只更新目标缩放与焦点，单一 `requestAnimationFrame` 在对数空间收敛，并在每个动画帧通过增量 `geoRoam` 推进正式地图相机；不得对 ECharts 根 SVG 或中文州名根 SVG 设置 CSS scale／translate，也不得在 settle 时再用 `layoutSize + layoutCenter` 二次提交缩放。根级 `.application-map-layer` 继续保持物理视口裁剪，原本位于屏幕外的州面必须随正式相机缩小时重新进入视口；地图拖动继续由 `roam: 'move'` 处理，空白双击／双触继续恢复 Contain 镜头。"
+          text = replace_once(text, old, new, 'liquid map camera authority')
+          old = "- `tests/browser/map-zoom-out-boundary.spec.ts`：地图缩小到 `0.5` 后，加利福尼亚、佛罗里达、缅因和华盛顿等外围州的州名中心仍必须命中对应可见州面，持久缩放不得因内部裁剪边界未同步而让外围州填充／州界消失。"
+          new = "- `tests/browser/map-zoom-out-boundary.spec.ts`：必须先把地图放大到外围州真实离开屏幕，再缩小到 `0.5`，验证加利福尼亚、佛罗里达、缅因和华盛顿重新进入物理视口且州名中心命中可见州面；`tests/browser/map-zoom-transient.spec.ts` 同时逐帧验证根 SVG 无 CSS 缩放、几何尺寸单调变化并且 settle 前后没有尺寸跳变。"
+          text = replace_once(text, old, new, 'liquid map browser authority')
+          write(path, text)
+
+          # UI authority: replace the old two-camera/root-SVG animation contract.
+          path = 'docs/UI_DESIGN_SYSTEM.md'
+          text = read(path)
+          old = "用户主动平移继续由 ECharts `roam: 'move'` 约束；滚轮／双指缩放只更新瞬时 target 与最新焦点，单一 `requestAnimationFrame` 在对数空间平滑收敛。缩放动画热路径只允许更新 ECharts SVG 与州名 SVG 的共享瞬时等比变换，正式 ECharts 相机在手势期间保持上一次已提交状态；动画帧不得调用 `geoRoam`、`setOption`、重新生成州面 path 或重排州名。停止输入且插值收敛后只允许一次 `geoRoam` 把最终缩放／平移提交回唯一 ECharts 正式相机，并在下一绘制周期清除瞬时矩阵。瞬时 committed／current／target 与矩阵只属于短生命周期交互状态，不得持久化为第二套相机。"
+          new = "用户主动平移继续由 ECharts `roam: 'move'` 约束；滚轮／双指缩放只更新 target 与最新焦点，单一 `requestAnimationFrame` 在对数空间平滑收敛，但每个动画帧必须把 `nextZoom / currentZoom` 作为增量通过正式 `geoRoam` 更新同一个 ECharts Map 相机。交互缩放不得对 ECharts 根 SVG 或州名根 SVG 设置 CSS scale／translate，也不得在 settle 时把视觉矩阵二次提交成 `layoutSize + layoutCenter`；基础 `layoutCenter/layoutSize` 只用于首次 Contain、真实容器 resize 和空白双击／双触重置。动画帧不得调用 `setOption`、重新生成州面 path 或重新布局州名；由于正式地图投影每帧同步变化，原先位于物理视口外的州面在缩小时必须能够重新进入视口。committed／current／target 只记录短生命周期插值进度，不构成第二套相机；停止输入且插值收敛后只更新 settle 标记，不再执行第二次地图缩放提交。"
+          text = replace_once(text, old, new, 'ui primary zoom contract')
+          old = "插值采用时间常数响应、对数空间收敛、默认单帧视觉倍率不超过 `1.11`；不得在缩放动画帧调用 `geoRoam` 或 `setOption`，也不得触发 ECharts 地图 path 重绘。滚轮或双指输入停止后，先让共享瞬时矩阵收敛，再用一次 `geoRoam` 提交最终相机；`prefers-reduced-motion: reduce` 时允许视觉矩阵在单帧直接收敛，但正式相机仍按同样的单次提交边界处理。"
+          new = "插值采用时间常数响应、对数空间收敛、默认单帧正式相机倍率不超过 `1.11`；每个动画帧最多调用一次增量 `geoRoam`，不得调用 `setOption`、不得给根 SVG 写缩放矩阵，也不得重新执行州名完整布局。滚轮或双指输入停止后只把当前正式相机值记为 settled，不再切换到第二种相机表达；`prefers-reduced-motion: reduce` 时允许在单帧通过同一正式相机直接收敛。"
+          text = replace_once(text, old, new, 'ui zoom interpolation contract')
+          old = "ECharts 原生平移产生的 `georoam` 仍只允许每帧读取两个稳定地理参考点的当前投影并通过单次 `requestAnimationFrame` 更新共享 SVG 相机组；地图专用缩放插值期间不得逐帧 `convertToPixel`，因为 ECharts SVG 与州名 SVG 直接使用同一个共享瞬时等比矩阵。缩放收敛并正式提交一次 `geoRoam` 后，州名共享相机组只同步一次正式相机。"
+          new = "拖动与插值缩放产生的任意 `georoam` 都只允许读取两个稳定地理参考点的当前投影并更新共享 SVG 州名相机组；地图缩放 RAF 在推进正式 ECharts 相机后应同步这一轻量派生相机，普通原生平移仍可通过单次 `requestAnimationFrame` 合并。该同步只修改州名相机组矩阵，不重新执行 48 州州界投影、主轴／走廊扫描、字体测量或逐字碰撞。"
+          text = replace_once(text, old, new, 'ui label camera contract')
+          old = "- 把地图缩放恢复为动画帧逐次 `geoRoam`／`setOption`，或在滚轮／双指缩放期间逐帧重绘州面 path、重新投影／重排州名；缩放必须保持共享瞬时等比矩阵并在停止输入且收敛后单次提交正式 ECharts 相机；"
+          new = "- 把地图缩放恢复为 ECharts 根 SVG／州名根 SVG 的 CSS 矩阵缩放、恢复 settle 后 `layoutSize + layoutCenter` 二次提交或维护第二套持久相机；交互缩放必须在动画帧内通过同一 ECharts Map 的增量 `geoRoam` 推进正式相机，且动画帧不得调用 `setOption`、重新投影／重排 48 州标签；"
+          text = replace_once(text, old, new, 'ui anti regression camera rule')
+          write(path, text)
+
+          # Page/content authority carries the same single-camera behavior.
+          path = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md'
+          text = read(path)
+          old = "鼠标或单指拖动继续由同一 ECharts Map 的 `roam: 'move'` 原生平移负责；桌面滚轮与移动双指缩放改由地图专用瞬时插值控制器驱动：输入只更新目标缩放与最新焦点，单一 `requestAnimationFrame` 在对数空间让当前缩放向目标缩放平滑收敛。缩放动画帧只更新共享瞬时等比变换，同时作用于已经绘制的 ECharts SVG 地图与州名 SVG；正式 ECharts 相机在手势期间保持上一次已提交状态，动画帧不得调用 `geoRoam`、`setOption`、重新生成州面 path 或重新布局州名。滚轮输入必须归一化 `deltaMode` 并限制单次目标对数步长，双指缩放必须使用 ZRender 相邻触摸帧提供的真实 `pinchScale`，不得退回固定 `1.1`／`1.2`／`1.4` 阶梯倍率；默认单帧视觉缩放倍率上限为 `1.11`，缩放范围仍固定 `0.5～4`。停止输入且插值收敛后一次性提交 ECharts `geoRoam`，把最终缩放／平移写回唯一正式相机，并在后续绘制周期清除瞬时矩阵。该 committed／current／target 与共享瞬时矩阵只属于短生命周期交互状态，正式 `center`／`zoom` 始终唯一归属同一 ECharts 相机，不得持久化第二套相机。"
+          new = "鼠标或单指拖动继续由同一 ECharts Map 的 `roam: 'move'` 原生平移负责；桌面滚轮与移动双指缩放由地图专用插值控制器驱动：输入只更新目标缩放与最新焦点，单一 `requestAnimationFrame` 在对数空间让当前缩放向目标缩放平滑收敛，并在每个动画帧把 `nextZoom / currentZoom` 作为增量通过正式 ECharts `geoRoam` 更新同一地图相机。滚轮输入必须归一化 `deltaMode` 并限制单次目标对数步长，双指缩放必须使用 ZRender 相邻触摸帧提供的真实 `pinchScale`，不得退回固定 `1.1`／`1.2`／`1.4` 阶梯倍率；默认单帧正式相机缩放倍率上限为 `1.11`，缩放范围仍固定 `0.5～4`。动画帧不得调用 `setOption`、不得给 ECharts 根 SVG 或州名根 SVG 写 CSS 缩放矩阵，也不得重新执行州名完整布局；停止输入且插值收敛后只记录 settled 状态，不再把同一视觉缩放二次提交为 `layoutSize + layoutCenter`。committed／current／target 只属于短生命周期插值状态，正式 `center`／`zoom` 始终唯一归属同一 ECharts 相机；原本离开物理视口的州面必须在缩小时随正式投影重新进入视口。"
+          text = replace_once(text, old, new, 'page primary zoom contract')
+          old = "地图平移仅由地图舞台内 ECharts `roam: 'move'` 承担；缩放只允许由地图专用插值控制器读取滚轮／双指目标，动画期间只把共享瞬时等比矩阵应用到 ECharts SVG 与州名 SVG，不得逐帧调用 ECharts 相机更新。停止输入且视觉插值收敛后，才允许收敛后一次性提交 ECharts `geoRoam` 正式相机，并清除瞬时矩阵。插值期间不得重新生成州面 path、不得触发 48 州完整标签布局，也不得让州名逐帧读取 ECharts 投影；选择州、切换镜头和普通数据更新不得改写插值 target。不得增加独立缩放功能面板、额外 Portal、第五个全局层或第二个持久相机状态。"
+          new = "地图平移仅由地图舞台内 ECharts `roam: 'move'` 承担；缩放只允许由地图专用插值控制器读取滚轮／双指目标，并在动画期间逐帧通过增量 `geoRoam` 推进同一个正式 ECharts 相机。根地图 SVG 与州名根 SVG 不得承担 CSS 缩放，停止输入后也不得切换到 `layoutSize + layoutCenter` 第二套缩放表达；基础 Contain 布局只在首次创建、真实 resize 与空白重置时应用。插值期间不得 `setOption`、不得重新生成州面 path、不得触发 48 州完整标签布局；州名只同步同一正式相机的轻量派生矩阵。选择州、切换镜头和普通数据更新不得改写插值 target。不得增加独立缩放功能面板、额外 Portal、第五个全局层或第二个持久相机状态。"
+          text = replace_once(text, old, new, 'page lens zoom contract')
+          old = "原生 ECharts 平移产生的 `georoam` 继续只允许从同一 ECharts 实例读取两个稳定地理参考点的当前投影，求出统一等比缩放和平移矩阵，并通过单次 `requestAnimationFrame` 合并更新共享 SVG 相机组；地图专用缩放插值期间则不得逐帧 `convertToPixel`，因为已绘制的 ECharts SVG 与州名 SVG 直接共享同一个瞬时等比矩阵。缩放收敛并正式提交一次 `geoRoam` 后，州名共享相机组只同步一次正式相机。"
+          new = "拖动与地图专用插值缩放产生的任意 `georoam` 都只允许从同一 ECharts 实例读取两个稳定地理参考点的当前投影，求出统一等比缩放和平移矩阵并更新共享 SVG 州名相机组；缩放 RAF 在推进正式 ECharts 相机后同步这一轻量派生相机，普通原生平移仍通过单次 `requestAnimationFrame` 合并。该路径不得重新投影全部州界、扫描主轴／文字走廊、重复字体测量、逐字碰撞检查或 `replaceChildren()`。"
+          text = replace_once(text, old, new, 'page label camera contract')
+          write(path, text)
+
+          # Static guard: replace the old root-SVG/two-camera assertions with the
+          # single formal ECharts camera contract and new regressions.
+          path = 'scripts/verify-provincial-economy.mjs'
+          text = read(path)
+          text = replace_once(
+              text,
+              "  'tests/browser/map-zoom-transient.spec.ts',\n",
+              "  'tests/browser/map-zoom-transient.spec.ts',\n  'tests/browser/map-zoom-out-boundary.spec.ts',\n",
+              'verifier required zoom tests',
+          )
+          marker = "assert.equal(\n  existsSync('src/components/provinces/ProvinceSelect.tsx'),\n  false,\n  '地图州面是唯一地区切换入口，不得恢复 ProvinceSelect',\n);"
+          replacement = marker + "\nassert.equal(\n  existsSync('src/components/provinces/provinceMapLayoutCamera.ts'),\n  false,\n  '地图交互缩放不得恢复独立 layout camera 第二套相机',\n);"
+          text = replace_once(text, marker, replacement, 'layout camera absence guard')
+
+          start = text.index("const mapZoomInterpolator = read('src/components/provinces/provinceMapZoomInterpolator.ts');")
+          end = text.index("const echartsCore = read('src/components/charts/echartsCore.ts');", start)
+          zoom_guard = """const mapZoomInterpolator = read('src/components/provinces/provinceMapZoomInterpolator.ts');
+for (const text of [
+  \"const MAP_SERIES_ID = 'us-mainland-map'\",
+  'export const MAP_ZOOM_MIN = 0.5',
+  'export const MAP_ZOOM_MAX = 4',
+  'const WHEEL_ZOOM_SENSITIVITY = 0.0016',
+  'const MAX_WHEEL_LOG_STEP = 0.2',
+  'const MAX_FRAME_LOG_STEP = Math.log(1.11)',
+  'const WHEEL_RESPONSE_MS = 60',
+  'const PINCH_RESPONSE_MS = 50',
+  'const WHEEL_COMMIT_IDLE_MS = 96',
+  'const PINCH_COMMIT_IDLE_MS = 80',
+  'function currentMapZoom',
+  'function normalizeWheelDelta',
+  \"window.matchMedia('(prefers-reduced-motion: reduce)')\",
+  'const applyCameraZoomStep = (nextZoom: number) => {',
+  'const incrementalScale = nextZoom / Math.max(Number.EPSILON, currentZoom)',
+  \"type: 'geoRoam'\",
+  'seriesId: MAP_SERIES_ID',
+  'zoom: incrementalScale',
+  'originX,',
+  'originY,',
+  'syncCameraImmediately?.();',
+  'const commitSettledZoom = () => {',
+  'const scheduleSettleCommit = (mode:',
+  \"container.addEventListener('wheel', handleWheel, { passive: false })\",
+  'event.preventDefault();',
+  'event.stopPropagation();',
+  'targetZoom * Math.exp(inputLogStep)',
+  'const pinchScale = Number(event.pinchScale)',
+  'targetZoom * pinchScale',
+  'requestAnimationFrame(animate)',
+  \"container.dataset.mapZoomMode = 'interpolated'\",
+  \"container.dataset.mapZoomCameraMode = 'echarts-geo-roam'\",
+  \"container.dataset.mapZoomHotPath = 'geo-roam'\",
+  \"container.dataset.mapZoomCommitMode = 'settle-marker'\",
+  'container.dataset.mapZoomCommitted',
+  'container.dataset.mapZoomCurrent',
+  'container.dataset.mapZoomTarget',
+  'container.dataset.mapZoomFrameCount',
+  'container.dataset.mapZoomCommitCount',
+  'container.dataset.mapZoomMaxStep',
+]) assert.ok(mapZoomInterpolator.includes(text), `地图单相机缩放缺少: ${text}`);
+for (const forbidden of [
+  'mapRendererSurface',
+  'labelRendererSurface',
+  'setTransientSurfaceTransform',
+  'publishTransientTransform',
+  'transientTranslateX',
+  'transientTranslateY',
+  'commitProvinceMapLayoutCamera',
+  'ProvinceMapLayoutCamera',
+  'shared-css-transform',
+  'transform-only',
+  'layoutSize',
+  'layoutCenter',
+]) assert.equal(mapZoomInterpolator.includes(forbidden), false, `地图缩放不得恢复根 SVG 或第二相机路径: ${forbidden}`);
+assert.equal(mapZoomInterpolator.includes('setOption('), false, '地图交互缩放热路径不得通过 setOption 更新');
+const zoomStepStart = mapZoomInterpolator.indexOf('const applyCameraZoomStep = (nextZoom: number) => {');
+const zoomCancelStart = mapZoomInterpolator.indexOf('const cancelFrame = () => {', zoomStepStart);
+assert.ok(zoomStepStart >= 0 && zoomCancelStart > zoomStepStart, '必须能定位正式 ECharts 相机缩放步进');
+const zoomStep = mapZoomInterpolator.slice(zoomStepStart, zoomCancelStart);
+assert.ok(zoomStep.includes(\"type: 'geoRoam'\"), '每个插值步进必须通过 geoRoam 推进正式地图相机');
+assert.ok(zoomStep.includes('zoom: incrementalScale'), '每个插值步进必须提交增量缩放');
+const zoomAnimateStart = mapZoomInterpolator.indexOf('const animate = (timestamp: number) => {');
+const zoomScheduleStart = mapZoomInterpolator.indexOf('const schedule = () => {', zoomAnimateStart);
+assert.ok(zoomAnimateStart >= 0 && zoomScheduleStart > zoomAnimateStart, '必须能定位地图缩放动画热路径');
+const zoomAnimate = mapZoomInterpolator.slice(zoomAnimateStart, zoomScheduleStart);
+assert.ok(zoomAnimate.includes('applyCameraZoomStep'), '地图缩放动画帧必须推进正式 ECharts 相机');
+const zoomCommitStart = mapZoomInterpolator.indexOf('const commitSettledZoom = () => {');
+assert.ok(zoomCommitStart >= 0 && zoomAnimateStart > zoomCommitStart, '必须能定位地图缩放 settle 标记阶段');
+const zoomCommit = mapZoomInterpolator.slice(zoomCommitStart, zoomAnimateStart);
+assert.equal(zoomCommit.includes('dispatchAction'), false, 'settle 阶段不得再次提交地图缩放造成尺寸跳变');
+assert.equal(zoomCommit.includes('setOption'), false, 'settle 阶段不得切换到 layout camera');
+
+"""
+          text = text[:start] + zoom_guard + text[end:]
+
+          start = text.index("const transientZoomBrowserTest = read('tests/browser/map-zoom-transient.spec.ts');")
+          end = text.index("const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');", start)
+          browser_guard = """const transientZoomBrowserTest = read('tests/browser/map-zoom-transient.spec.ts');
+for (const text of [
+  \"data-map-zoom-camera-mode', 'echarts-geo-roam'\",
+  \"data-map-zoom-hot-path', 'geo-roam'\",
+  \"data-map-zoom-commit-mode', 'settle-marker'\",
+  'data-map-zoom-commit-count',
+  'mapTransform: mapSurface?.style.transform',
+  'labelTransform: labelSurface?.style.transform',
+  'expect(duringAnimation.commits).toBe(commitBefore)',
+  'expect(duringAnimation.mapTransform).toBe(\'\')',
+  'expect(duringAnimation.labelTransform).toBe(\'\')',
+  'toBe(commitBefore + 1)',
+  'data-map-zoom-max-step',
+  'zoom-out geometry stays monotonic through settle without a size jump',
+  'expect(ratio).toBeLessThanOrEqual(1.13)',
+  'toBeLessThan(0.02)',
+]) assert.ok(transientZoomBrowserTest.includes(text), `地图单相机缩放浏览器回归缺少: ${text}`);
+
+const zoomOutBoundaryBrowserTest = read('tests/browser/map-zoom-out-boundary.spec.ts');
+for (const text of [
+  'EDGE_PROVINCE_IDS',
+  'states that leave the viewport while zoomed in re-enter when the formal map camera zooms out',
+  'offscreenBeforeZoomOut',
+  'toBeGreaterThanOrEqual(2)',
+  \"data-map-zoom-camera-mode', 'echarts-geo-roam'\",
+  'toBeLessThanOrEqual(0.501)',
+  'restored.every((entry) => entry.insideCanvas)',
+  'restored.every((entry) => entry.statePathVisibleAtLabel)',
+  \"data-selected-province-id', '110000'\",
+]) assert.ok(zoomOutBoundaryBrowserTest.includes(text), `地图屏幕外边界恢复回归缺少: ${text}`);
+
+"""
+          text = text[:start] + browser_guard + text[end:]
+
+          for old, new in [
+              ("  '缩放动画热路径只允许更新 ECharts SVG 与州名 SVG 的共享瞬时等比变换',", "  '每个动画帧必须把 `nextZoom / currentZoom` 作为增量通过正式 `geoRoam`',"),
+              ("  '停止输入且插值收敛后只允许一次 `geoRoam`',", "  '停止输入且插值收敛后只更新 settle 标记',"),
+              ("  '不得在缩放动画帧调用 `geoRoam` 或 `setOption`',", "  '每个动画帧最多调用一次增量 `geoRoam`',"),
+              ("  '缩放动画帧只更新共享瞬时等比变换',", "  '每个动画帧把 `nextZoom / currentZoom` 作为增量通过正式 ECharts `geoRoam`',"),
+              ("  '收敛后一次性提交 ECharts `geoRoam`',", "  '停止输入且插值收敛后只记录 settled 状态',"),
+          ]:
+              text = replace_once(text, old, new, f'verifier design string {old}')
+          text = replace_once(
+              text,
+              "console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击、桌面地图 Tooltip 与移动端隐藏边界、州内中文全名自然比例刚性字形标签、缩放合成层共享瞬时矩阵与收敛后单次 ECharts 相机提交、空白全局平移和空白双击／双触镜头重置均已锁定。');",
+              "console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、起始州与州解锁、三种跨州运输、本地库存与市场、工厂建造生产转让、抵押租赁地区锁定、隐藏州级上下文页、视觉选中清理、透明页面与通知覆盖、ECharts 地图点击、桌面地图 Tooltip 与移动端隐藏边界、州内中文全名自然比例刚性字形标签、缩放逐帧推进唯一 ECharts 正式相机、屏幕外州面缩小后重新进入、settle 无尺寸跳变、空白全局平移和空白双击／双触镜头重置均已锁定。');",
+              'verifier final summary',
+          )
+          write(path, text)
+          PY
+
+      - name: Commit rewritten sources and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/codex-map-single-camera-rewrite.yml
+          git config user.name 'RIVERSOFT'
+          git config user.email '105160096+RIVERS0FT@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m '同步地图单相机设计与防回退'
+          git push origin HEAD:${GITHUB_REF_NAME}
