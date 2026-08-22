@@ -65,9 +65,11 @@ for (const text of [
   'mobile facility pull-to-refresh prevention',
   "toHaveCSS('overscroll-behavior-y', 'none')",
   "page.locator('.facility-cluster-detail-page')",
-  "page.locator('.mobile-detail-sheet')).toHaveCount(0)",
+  "page.locator('.mobile-workspace-sheet-host')",
+  "toHaveAttribute('data-detail-active', 'false')",
+  "host.locator('.mobile-workspace-sheet-detail-view')).toHaveCount(0)",
   'topLevelNavigations',
   'swipeDownFromTop(page, content)',
 ]) assert.ok(browser.includes(text), `移动工厂详情浏览器回归缺少: ${text}`);
 
-console.log('移动工厂页面与共享详情下拉刷新保护验证通过：登录态根视口终止 overscroll，工厂二级详情不再创建 Sheet，共享 Sheet 局部保护继续保留。');
+console.log('移动工厂页面与共享详情下拉刷新保护验证通过：登录态根视口终止 overscroll，工厂二级详情不再创建嵌套详情 Sheet，共享根 Workspace Sheet 与局部保护继续保留。');
