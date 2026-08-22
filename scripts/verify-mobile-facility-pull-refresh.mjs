@@ -47,6 +47,12 @@ for (const text of [
   '内部滚动区继续保持 `overscroll-behavior-y: auto`',
 ]) assert.ok(design.includes(text), `应用外壳设计缺少下拉刷新规则: ${text}`);
 
+const buildingDesign = read('docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md');
+for (const text of [
+  '移动端工厂卡点击行为与桌面一致',
+  '地区工厂详情不再从 `BuildingsPage` 打开专用 `MobileFacilityDetailSheet`',
+]) assert.ok(buildingDesign.includes(text), `地区工厂移动详情设计缺少: ${text}`);
+
 const index = read('docs/README.md');
 for (const text of [
   '登录态根视口的纵向 overscroll 终止',
@@ -58,9 +64,10 @@ const browser = read('tests/browser/mobile-facility-pull-refresh.spec.ts');
 for (const text of [
   'mobile facility pull-to-refresh prevention',
   "toHaveCSS('overscroll-behavior-y', 'none')",
-  '__facilityTouchMovePrevented',
-  'event.defaultPrevented',
+  "page.locator('.facility-cluster-detail-page')",
+  "page.locator('.mobile-detail-sheet')).toHaveCount(0)",
   'topLevelNavigations',
+  'swipeDownFromTop(page, content)',
 ]) assert.ok(browser.includes(text), `移动工厂详情浏览器回归缺少: ${text}`);
 
-console.log('共享移动工厂／研发详情下拉刷新保护验证通过：根视口终止 overscroll、详情局部非被动手势、设计与浏览器回归均已锁定。');
+console.log('移动工厂页面与共享详情下拉刷新保护验证通过：登录态根视口终止 overscroll，工厂二级详情不再创建 Sheet，共享 Sheet 局部保护继续保留。');
