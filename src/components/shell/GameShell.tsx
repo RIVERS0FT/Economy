@@ -155,6 +155,10 @@ export function GameShell({ model, children, offline = false }: {
     return () => controller.abort();
   }, [offline]);
 
+  useLayoutEffect(() => {
+    setSidebarCollapsed(true);
+  }, [model.tab]);
+
   useEffect(() => {
     notificationCenter.closePanel();
   }, [model.tab, notificationCenter.closePanel]);
