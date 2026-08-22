@@ -209,6 +209,10 @@ export function useMobileWorkspaceSheetDrag({
       clearSettleWait();
       clearSettleFrame();
       clearDragFrame();
+      // Entry animation belongs only to initial mount. Once this physical
+      // surface has entered drag/settle, removing settle classes must never
+      // make the CSS entry keyframes start again from the viewport bottom.
+      sheet.dataset.entryAnimationComplete = 'true';
       sheet.classList.remove('is-dragging', 'is-closing');
       if (closing) sheet.classList.add('is-settling', 'is-closing');
       else sheet.classList.add('is-settling');
