@@ -119,6 +119,16 @@
   justify-self: stretch;
 }
 
+/* The portrait artwork reaches the outer border box. The selector itself owns
+ * the 1px border and clips the image to the shared rounded card silhouette. */
+.facility-cluster-selector-card .facility-cluster-icon {
+  inset: -1px;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+}
+
 /* Factory details are a second-level page state, not a side-by-side master-detail
  * column. The existing detail content remains the only production-detail body. */
 .facility-cluster-detail-shell.facility-cluster-detail-page {
@@ -142,16 +152,30 @@
   overflow: visible;
 }
 
-.province-facility-detail-title {
+/* Regional page titles share one fixed single-line title track. Entering a
+ * factory detail may reduce the text size, but must never resize the header. */
+.page-heading-title:has(> .province-page-title) {
+  height: var(--size-control-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  line-height: 1;
+}
+
+.province-page-title {
   display: block;
   width: 100%;
   min-width: 0;
   overflow: hidden;
   color: inherit;
-  font-size: clamp(var(--font-size-md), 2.1vw, var(--font-size-xl));
-  line-height: var(--line-height-tight);
+  line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.province-facility-detail-title {
+  font-size: clamp(var(--font-size-md), 2.1vw, var(--font-size-xl));
 }
 
 @media (max-width: 720px) {
@@ -174,6 +198,10 @@
 
   .facility-cluster-detail-shell.facility-cluster-detail-page {
     display: flex;
+  }
+
+  .page-heading-title:has(> .province-page-title) {
+    height: var(--size-control-sm);
   }
 
   .province-facility-detail-title {
