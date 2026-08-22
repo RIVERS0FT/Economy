@@ -70,6 +70,13 @@ test('building subordinate facility trade artwork fits detail slots on desktop a
   await expect(workspaceHost).toHaveCount(1);
   await expect(workspaceHost).toHaveAttribute('data-detail-active', 'false');
   await expect(workspaceHost.locator('.mobile-workspace-sheet-detail-view')).toHaveCount(0);
+
+  const mobileCard = page.locator('.facility-cluster-selector-card').first();
+  await expect(mobileCard).toBeVisible();
+  await mobileCard.click();
+  await expect(page.locator('.facility-cluster-detail-page')).toBeVisible();
+  await expect(workspaceHost).toHaveAttribute('data-detail-active', 'false');
+  await expect(workspaceHost.locator('.mobile-workspace-sheet-detail-view')).toHaveCount(0);
   await page.getByRole('button', { name: /交易该建筑资产/ }).click();
   expectContainedArtwork(await inspectFacilityArtwork(page.locator('.market-detail-hero__artwork')), 64, 58);
 
