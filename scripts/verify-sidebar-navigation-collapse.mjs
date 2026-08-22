@@ -49,7 +49,7 @@ forbidText('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
 ]);
 requireText('tests/browser/sidebar-navigation-collapse.spec.ts', [
   "test.describe('desktop sidebar navigation collapse'",
-  'hovered navigation survives page changes while browser restore still requires fresh foreground interaction intent',
+  'hovered navigation survives page changes while browser restore still requires fresh foreground intent',
   "window.dispatchEvent(new Event('blur'))",
   "overviewButton.focus()",
   "page.keyboard.press('Tab')",
