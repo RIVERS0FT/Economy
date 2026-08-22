@@ -232,14 +232,19 @@ for (const forbidden of [
 ]) forbidText('src/styles/facility-group-card-grid.css', forbidden);
 
 for (const text of [
+  '.regional-buildings-management > .production-build-card {',
+  'position: static;',
+  'top: auto;',
+  'overflow: visible;',
+  '.facility-cluster-detail-shell.facility-cluster-detail-page {',
+  'max-height: none;',
+]) requireText('src/styles/production-surface.css', text);
+for (const forbidden of [
   'Desktop production sticky alignment',
   '.production-workspace > .production-build-card,',
   '.production-workspace > .facility-cluster-detail-shell {',
   'position: sticky;',
-  'top: 0;',
-  'max-height: calc(100dvh - var(--desktop-page-top-offset) - var(--desktop-layout-gutter));',
-  'overflow-y: auto;',
-]) requireText('src/styles/production-surface.css', text);
+]) forbidText('src/styles/production-surface.css', forbidden);
 
 const facilityGroupBlocks = read('src/styles/facility-group-card-grid.css')
   .split('.facility-group-card {')
