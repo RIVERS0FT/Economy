@@ -1,0 +1,51 @@
+name: Restore map shell design duties once
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.head_ref == 'codex/static-svg-map-camera'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/static-svg-map-camera
+          fetch-depth: 0
+      - name: Restore shell duties removed with old map section
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/UI_DESIGN_SYSTEM.md')
+          text = path.read_text(encoding='utf-8')
+          marker = '\n## 9.'
+          index = text.find(marker)
+          if index < 0:
+              raise SystemExit('UI design section 9 marker missing')
+          addition = ('\n- 外壳页面模式继续保持既有职责：概览、州级上下文、市场、建筑、设置使用 `building` 左侧毛玻璃面板；'
+                      '研发、拍卖、合同、银行、排行榜、商店使用 `fullscreen` 占满可用区域。'
+                      '为保证根层毛玻璃开放采样和静态地图合成相机不被额外 stacking context 截断，'
+                      '`.application-map-layer`、`.application-ui-layer` 与 `.workspace-strategic-chrome` 必须保持 `isolation:auto`；不得恢复隔离层。\n')
+          for required in [
+              '`building` 左侧毛玻璃面板',
+              '`fullscreen` 占满可用区域',
+              '`.application-map-layer`、`.application-ui-layer` 与 `.workspace-strategic-chrome` 必须保持 `isolation:auto`',
+          ]:
+              if required in text:
+                  raise SystemExit(f'UI design shell rule already present: {required}')
+          path.write_text(text[:index] + addition + text[index:], encoding='utf-8')
+          PY
+          git rm .github/workflows/restore-map-shell-design-duties-once.yml
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/UI_DESIGN_SYSTEM.md
+          git commit -m "恢复静态地图外壳设计职责"
+          git push origin HEAD:codex/static-svg-map-camera
