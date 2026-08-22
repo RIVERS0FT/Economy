@@ -33,6 +33,11 @@ const chromeDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
 
 requireText(storage, 'CURRENT_TUTORIAL_VERSION = 3', '教程客户端版本必须保持为 3');
 requireText(storage, 'economy.game-tutorial.v', '教程本轮状态必须按玩家保存在浏览器本地');
+requireText(storage, 'economy.game-tutorial-skipped.v', '教程跳过状态必须按玩家和教程版本独立保存');
+requireText(storage, "(parsed as { status?: unknown }).status === 'hidden'", '旧隐藏状态必须只读迁移为已跳过');
+requireText(storage, "writeItem(skippedKey(userId), '1')", '旧隐藏状态迁移后必须持久化跳过标记');
+forbidText(storage, 'export type TutorialRunStatus', '教程本轮状态不得继续保留 active/hidden 模型');
+forbidText(storage, 'status: TutorialRunStatus', '教程轮次不得继续保存隐藏状态');
 requireText(storage, 'autoSellSettings', '教程必须记录本轮自动出售设置');
 requireText(storage, "'set-auto-sell'", '教程必须包含自动出售设置步骤');
 forbidText(storage, "  'work',", '教程不得恢复已删除的基础工作步骤');
@@ -42,6 +47,7 @@ forbidText(storage, 'sellOrderBaselineIds', '教程不得继续依赖手动卖�
 for (const stepId of ['start-research', 'review-contracts', 'make-bank-deposit', 'review-leaderboard']) {
   requireText(storage, `'${stepId}'`, `教程缺少步骤 ${stepId}`);
 }
+
 forbidText(controller, 'game.stats.', '教程不得读取玩家全局累计统计');
 requireText(controller, "updateCurrentRun('set-auto-sell', 'autoSellSettings'", '自动出售设置成功后必须推进第五步');
 requireText(controller, "current.currentStep !== 'complete-sale'", '自动出售成交必须只推进当前第六步');
@@ -54,10 +60,14 @@ requireText(controller, "subscribeStateAuthoritySlice('player.production', confi
 requireText(controller, "model.notify('教程已完成')", '教程完成提示必须使用当前展示名称');
 requireText(controller, "model.notify('教程已从第一步重新开始')", '教程重开提示必须使用当前展示名称');
 requireText(controller, "model.setTab('home');\n    model.notify('教程已从第一步重新开始')", '重新开始教程仍须回到概览');
-const showStart = controller.indexOf('const show = useCallback');
-const showEnd = controller.indexOf('const openCurrentTarget', showStart);
-if (showStart < 0 || showEnd < 0) throw new Error('缺少教程显示控制器');
-forbidText(controller.slice(showStart, showEnd), "model.setTab('home')", '显示教程不得再强制跳回概览');
+requireText(controller, '&& !isTutorialSkipped(userId)', '跳过当前版本后不得在会话初始化时自动重建教程');
+requireText(controller, 'const skip = useCallback(() => {', '教程控制器必须提供独立跳过动作');
+requireText(controller, 'clearTutorialRun(userId);\n    setTutorialSkipped(userId, true);', '跳过必须清除本轮进度并记录跳过状态');
+requireText(controller, "model.notify('已跳过教程，可在设置中重新开始')", '跳过提示必须明确设置中只能重新开始');
+requireText(controller, "? '已跳过'", '设置页状态必须能够显示已跳过');
+requireText(controller, 'setTutorialSkipped(userId, false);\n    const fresh = createTutorialRun();', '重新开始必须清除跳过标记并从第一步新建教程');
+forbidText(controller, "status: 'hidden'", '教程控制器不得继续写入隐藏轮次');
+
 requireText(definition, "id: 'set-auto-sell'", '教程第五步必须保持自动出售设置');
 requireText(definition, "title: '设置商品自动出售'", '教程必须明确教玩家设置自动出售');
 requireText(definition, '最低自由库存可填写 0', '教程必须说明最低自由库存是可选的额外保留');
@@ -82,9 +92,19 @@ requireText(autoTrade, 'callbacks.onSale?.(productId);', '统一自动交易控�
 requireText(autoSellCompat, "from '../auto-trade/useOnlineAutoTrade'", '旧自动出售 hook 入口必须转发到统一自动交易控制器');
 
 requireText(guide, 'className="game-guide-strip panel"', '教程卡必须直接复用统一 panel 毛玻璃表面');
-requireText(guide, '<span>教程</span>', '教程卡必须显示统一名称“教程”');
-requireText(guide, 'aria-label="教程进度"', '教程进度必须有正确无障碍名称');
+requireText(guide, '<strong id="game-guide-title">教程</strong>', '教程卡必须显示统一名称“教程”');
+requireText(guide, 'aria-label="教程总体进度"', '教程总体进度必须有明确无障碍名称');
+requireText(guide, 'className="game-guide-task"', '当前任务必须与总体进度分成独立内容区');
+requireText(guide, '>跳过</Button>', '教程卡必须提供跳过动作');
+requireText(guide, '确定跳过教程吗？', '跳过教程必须先确认');
+requireText(guide, '设置 → 游戏设置 → 教程', '跳过确认必须说明可在设置中重新开始');
+forbidText(guide, '暂时隐藏', '教程卡不得恢复暂时隐藏动作');
 forbidText(guide, '经营成长线', '教程卡不得恢复旧展示名称');
+const progressIndex = guide.indexOf('className="game-guide-progress"');
+const taskIndex = guide.indexOf('className="game-guide-task"');
+if (progressIndex < 0 || taskIndex < 0 || progressIndex > taskIndex) {
+  throw new Error('教程总体进度必须位于当前单个任务之前');
+}
 forbidText(guideStyle, 'border: 1px solid color-mix(in srgb, var(--accent, #4f7cff)', '教程业务样式不得复制旧强调色卡片边框');
 forbidText(guideStyle, 'background: color-mix(in srgb, var(--accent, #4f7cff) 8%', '教程业务样式不得复制旧强调色卡片背景');
 requireText(strategicWorkspace, 'const showTutorial = Boolean(tutorial?.isVisible && tutorial.currentStep);', '外壳必须按教程自身状态决定是否显示');
@@ -99,19 +119,26 @@ requireText(strategicStyle, '100% - var(--strategic-event-rail-width) - var(--st
 requireText(mobileStatusStyle, '--mobile-below-status-top: calc(', '移动教程与通知必须共享状态栏下方顶部基准');
 requireText(mobileStatusStyle, ".game-shell .strategic-economic-event-rail[data-tutorial-visible='true']", '移动断点必须复用外壳信息栏作为教程锚点');
 requireText(mobileStatusStyle, 'top: var(--mobile-below-status-top);', '移动教程必须固定在状态栏下方');
+requireText(mobileStatusStyle, 'right: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));', '移动教程右侧必须使用统一工作区安全沟槽');
+requireText(mobileStatusStyle, 'left: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));', '移动教程左侧必须使用统一工作区安全沟槽');
 requireText(mobileStatusStyle, '.game-shell .strategic-economic-event-rail > .economic-event-log-panel', '移动断点必须单独隐藏公开事件而不是卸载教程');
 forbidText(overview, 'GameGuideStrip', '概览不得重新持有教程组件');
 forbidText(overview, 'overview-mobile-tutorial', '概览不得恢复移动教程入口');
 forbidText(overview, 'overview-today-panel', '概览不得恢复今日经营卡');
 forbidText(overview, 'OverviewWorkButton', '概览不得恢复基础工作入口');
-requireText(settings, '>显示教程</Button>', '设置页必须提供显示教程按钮');
-requireText(settings, '>重新开始教程</Button>', '设置页必须提供重新开始教程按钮');
+forbidText(settings, '>显示教程</Button>', '设置页不得恢复显示教程按钮');
+forbidText(settings, 'onClick={tutorial.show}', '设置页不得提供继续被跳过教程的入口');
+requireText(settings, '>重新开始教程</Button>', '设置页必须保留重新开始教程按钮');
+requireText(settings, 'clearTutorialSkip(user.id);', '删除存档时必须清除教程跳过标记');
 requireText(settings, '自动出售设置、自动成交', '设置页重开说明必须反映新版教程');
 requireText(settings, 'tutorial.restart()', '设置页重开必须只调用客户端教程状态机');
 forbidText(settings, '经营成长线', '设置页不得恢复旧展示名称');
 
 requireText(tutorialBrowser, 'mobile tutorial stays shell-owned below the status bar while pages and notifications cover it', '浏览器回归必须覆盖移动外壳教程层级');
 requireText(tutorialBrowser, "page.locator('.overview-mobile-tutorial')).toHaveCount(0)", '浏览器回归必须验证概览没有移动教程 DOM');
+requireText(tutorialBrowser, "aria-label', '教程总体进度'", '浏览器回归必须验证教程总体进度语义');
+requireText(tutorialBrowser, 'expect(tutorialBox.x).toBeGreaterThanOrEqual(workspaceGutter - 1);', '浏览器回归必须验证移动教程左侧安全沟槽');
+requireText(tutorialBrowser, 'expect(viewportWidth - tutorialBox.x - tutorialBox.width).toBeGreaterThanOrEqual(workspaceGutter - 1);', '浏览器回归必须验证移动教程右侧安全沟槽');
 requireText(tutorialBrowser, '[data-mobile-workspace-sheet-host="true"]', '浏览器回归必须验证页面 Sheet 覆盖移动教程');
 requireText(tutorialBrowser, '.notification-panel-layer[data-notification-layer="dialog"]', '浏览器回归必须验证通知面板覆盖移动教程');
 requireText(tutorialBrowser, 'expect(layerOrder.dialog).toBe(3000);', '浏览器回归必须锁定根 Dialog 层');
@@ -130,13 +157,16 @@ requireText(pageDesign, '### 11.1 客户端教程', '页面权威设计必须记
 requireText(pageDesign, '教程固定为九步', '页面权威设计必须锁定教程九步结构');
 requireText(pageDesign, '设置商品自动出售、完成一次自动出售', '页面权威设计必须记录生产—自动出售教程');
 requireText(pageDesign, '合法最低自由库存保留量（允许 `0`）', '页面权威设计必须记录自动出售自由库存设置');
-requireText(pageDesign, '“显示教程”只原地恢复当前轮次', '页面权威设计必须锁定显示教程不跳转概览');
-requireText(pageDesign, '桌面教程显示在外壳右侧信息栏顶部，只由教程自身显示状态控制', '页面权威设计必须锁定桌面教程跨页面常驻');
+requireText(pageDesign, '教程只有进行中、已跳过和已完成三种结果', '页面权威设计必须锁定教程结果状态');
+requireText(pageDesign, '设置页不提供“显示教程”或继续教程入口', '页面权威设计必须锁定跳过后只能重新开始');
+requireText(pageDesign, '桌面教程显示在外壳右侧信息栏顶部，只由进行中的本地教程轮次控制', '页面权威设计必须锁定桌面教程跨页面常驻');
 requireText(pageDesign, 'economy_tutorial_completions', '页面权威设计必须记录教程完成表和服务器负担边界');
 requireText(chromeDesign, '## 5. 玩家页面与右侧信息栏', '外壳权威设计必须记录通用右侧信息栏');
 requireText(chromeDesign, '教程是桌面应用外壳级常驻模块', '外壳权威设计必须锁定桌面教程常驻');
 requireText(chromeDesign, '移动端同样复用 `StrategicWorkspaceChrome` 持有的同一教程 DOM', '外壳权威设计必须锁定移动教程单实例和外壳归属');
 requireText(chromeDesign, '--mobile-below-status-top', '外壳权威设计必须锁定移动教程状态栏下方基准');
+requireText(chromeDesign, '左右使用 `--mobile-workspace-gutter` 与安全区较大值', '外壳权威设计必须锁定移动教程统一左右安全沟槽');
+requireText(chromeDesign, '“跳过”会结束并清除当前教程轮次', '外壳权威设计必须锁定跳过不是隐藏');
 requireText(chromeDesign, '地图／普通页面 < 移动教程 < 根 Sheet < 移动通知面板／通知灵动岛 < 状态栏', '外壳权威设计必须锁定移动教程覆盖层级');
 requireText(chromeDesign, '教程卡根节点必须复用通用 `.panel`', '外壳权威设计必须锁定教程共享毛玻璃材质');
 

@@ -13,7 +13,6 @@ export const TUTORIAL_STEP_IDS = [
 ] as const;
 
 export type TutorialStepId = typeof TUTORIAL_STEP_IDS[number];
-export type TutorialRunStatus = 'active' | 'hidden';
 
 export interface TutorialRunStats {
   buildSubmits: number;
@@ -36,7 +35,6 @@ export interface TutorialRunContext {
 export interface LocalTutorialRun {
   version: typeof CURRENT_TUTORIAL_VERSION;
   runId: string;
-  status: TutorialRunStatus;
   currentStep: TutorialStepId;
   completedStepIds: TutorialStepId[];
   stats: TutorialRunStats;
@@ -47,6 +45,10 @@ export interface LocalTutorialRun {
 
 function storageKey(userId: number) {
   return `economy.game-tutorial.v${CURRENT_TUTORIAL_VERSION}.${userId}`;
+}
+
+function skippedKey(userId: number) {
+  return `economy.game-tutorial-skipped.v${CURRENT_TUTORIAL_VERSION}.${userId}`;
 }
 
 function pendingCompletionKey(userId: number) {
@@ -114,7 +116,6 @@ function normalizeRun(value: unknown): LocalTutorialRun | null {
   return {
     version: CURRENT_TUTORIAL_VERSION,
     runId: typeof raw.runId === 'string' && raw.runId ? raw.runId : createRunId(),
-    status: raw.status === 'hidden' ? 'hidden' : 'active',
     currentStep,
     completedStepIds,
     stats: {
@@ -146,7 +147,6 @@ export function createTutorialRun(now = Date.now()): LocalTutorialRun {
   return {
     version: CURRENT_TUTORIAL_VERSION,
     runId: createRunId(),
-    status: 'active',
     currentStep: TUTORIAL_STEP_IDS[0],
     completedStepIds: [],
     stats: emptyStats(),
@@ -161,7 +161,17 @@ export function loadTutorialRun(userId: number): LocalTutorialRun | null {
   const raw = readItem(storageKey(userId));
   if (!raw) return null;
   try {
-    const run = normalizeRun(JSON.parse(raw));
+    const parsed = JSON.parse(raw) as unknown;
+    if (
+      parsed
+      && typeof parsed === 'object'
+      && (parsed as { status?: unknown }).status === 'hidden'
+    ) {
+      removeItem(storageKey(userId));
+      writeItem(skippedKey(userId), '1');
+      return null;
+    }
+    const run = normalizeRun(parsed);
     if (!run) removeItem(storageKey(userId));
     return run;
   } catch {
@@ -178,6 +188,20 @@ export function saveTutorialRun(userId: number, run: LocalTutorialRun) {
 export function clearTutorialRun(userId: number) {
   if (typeof window === 'undefined') return;
   removeItem(storageKey(userId));
+}
+
+export function isTutorialSkipped(userId: number) {
+  return typeof window !== 'undefined' && readItem(skippedKey(userId)) === '1';
+}
+
+export function setTutorialSkipped(userId: number, skipped: boolean) {
+  if (typeof window === 'undefined') return;
+  if (skipped) writeItem(skippedKey(userId), '1');
+  else removeItem(skippedKey(userId));
+}
+
+export function clearTutorialSkip(userId: number) {
+  setTutorialSkipped(userId, false);
 }
 
 export function hasPendingTutorialCompletion(userId: number) {

@@ -13,9 +13,11 @@ import {
   createTutorialRun,
   CURRENT_TUTORIAL_VERSION,
   hasPendingTutorialCompletion,
+  isTutorialSkipped,
   loadTutorialRun,
   saveTutorialRun,
   setPendingTutorialCompletion,
+  setTutorialSkipped,
   TUTORIAL_STEP_IDS,
   type LocalTutorialRun,
   type TutorialRunStats,
@@ -28,12 +30,16 @@ export interface GameTutorialController {
   isActive: boolean;
   isVisible: boolean;
   isCompleted: boolean;
+  isSkipped?: boolean;
   currentStep: ReturnType<typeof tutorialStepDefinition> | null;
   currentStepIndex: number;
   totalSteps: number;
   statusLabel: string;
   restart: () => void;
+  skip?: () => void;
+  /** @deprecated Compatibility alias. Skipping is the only supported hide behavior. */
   hide: () => void;
+  /** @deprecated Compatibility alias. Restarting is the only supported way to show a skipped tutorial. */
   show: () => void;
   openCurrentTarget: () => void;
   recordBuildSubmit: (facilityTypeId: string) => void;
@@ -110,32 +116,36 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
         let response = await getTutorialStatus(controller.signal);
         if (cancelled) return;
         if (
-response.tutorial.completedVersion < CURRENT_TUTORIAL_VERSION
-&& hasPendingTutorialCompletion(userId)
+          response.tutorial.completedVersion < CURRENT_TUTORIAL_VERSION
+          && hasPendingTutorialCompletion(userId)
         ) {
-try {
-  const completion = await completeTutorial(CURRENT_TUTORIAL_VERSION);
-  response = {
-    tutorial: completion.tutorial,
-    currentVersion: CURRENT_TUTORIAL_VERSION,
-  };
-  setPendingTutorialCompletion(userId, false);
-} catch {
-  // Keep the pending marker. Replays do not need to restart after a completed local run.
-}
+          try {
+            const completion = await completeTutorial(CURRENT_TUTORIAL_VERSION);
+            response = {
+              tutorial: completion.tutorial,
+              currentVersion: CURRENT_TUTORIAL_VERSION,
+            };
+            setPendingTutorialCompletion(userId, false);
+          } catch {
+            // Keep the pending marker. Replays do not need to restart after a completed local run.
+          }
         } else if (response.tutorial.completedVersion >= CURRENT_TUTORIAL_VERSION) {
-setPendingTutorialCompletion(userId, false);
+          setPendingTutorialCompletion(userId, false);
         }
         if (cancelled) return;
         setServerStatus(response.tutorial);
         const persisted = loadTutorialRun(userId);
-        if (!persisted && response.tutorial.completedVersion < CURRENT_TUTORIAL_VERSION
-&& !hasPendingTutorialCompletion(userId)) {
-const fresh = createTutorialRun();
-saveTutorialRun(userId, fresh);
-setRun(fresh);
+        if (
+          !persisted
+          && response.tutorial.completedVersion < CURRENT_TUTORIAL_VERSION
+          && !hasPendingTutorialCompletion(userId)
+          && !isTutorialSkipped(userId)
+        ) {
+          const fresh = createTutorialRun();
+          saveTutorialRun(userId, fresh);
+          setRun(fresh);
         } else {
-setRun(persisted);
+          setRun(persisted);
         }
       } catch {
         if (!cancelled) setServerStatus(null);
@@ -167,6 +177,7 @@ setRun(persisted);
     if (finishingRef.current) return;
     finishingRef.current = true;
     clearTutorialRun(userId);
+    setTutorialSkipped(userId, false);
     setRun(null);
     model.notify('教程已完成');
 
@@ -214,22 +225,22 @@ setRun(persisted);
   }, [finishTutorial, model.tab, run]);
 
   const restart = useCallback(() => {
+    setTutorialSkipped(userId, false);
     const fresh = createTutorialRun();
     persistRun(fresh);
     finishingRef.current = false;
     model.setTab('home');
     model.notify('教程已从第一步重新开始');
-  }, [model, persistRun]);
+  }, [model, persistRun, userId]);
 
-  const hide = useCallback(() => {
+  const skip = useCallback(() => {
     if (!run) return;
-    persistRun({ ...run, status: 'hidden', updatedAt: Date.now() });
-  }, [persistRun, run]);
-
-  const show = useCallback(() => {
-    if (!run) return;
-    persistRun({ ...run, status: 'active', updatedAt: Date.now() });
-  }, [persistRun, run]);
+    clearTutorialRun(userId);
+    setTutorialSkipped(userId, true);
+    setRun(null);
+    finishingRef.current = false;
+    model.notify('已跳过教程，可在设置中重新开始');
+  }, [model, run, userId]);
 
   const openCurrentTarget = useCallback(() => {
     if (!run) return;
@@ -287,26 +298,31 @@ setRun(persisted);
   const currentStepIndex = run ? TUTORIAL_STEP_IDS.indexOf(run.currentStep) + 1 : 0;
   const serverCompleted = (serverStatus?.completedVersion || 0) >= CURRENT_TUTORIAL_VERSION
     || hasPendingTutorialCompletion(userId);
+  const skipped = !run && isTutorialSkipped(userId);
 
   return useMemo(() => ({
     ready,
     run,
     isActive: Boolean(run),
-    isVisible: run?.status === 'active',
-    isCompleted: !run && serverCompleted,
+    isVisible: Boolean(run),
+    isCompleted: !run && !skipped && serverCompleted,
+    isSkipped: skipped,
     currentStep,
     currentStepIndex,
     totalSteps: TUTORIAL_STEPS.length,
     statusLabel: run
-      ? `${run.status === 'hidden' ? '已隐藏' : '进行中'} · 步骤 ${currentStepIndex}/${TUTORIAL_STEPS.length}`
-      : serverCompleted
-        ? '已完成当前版本教程'
-        : ready
-? '尚未开始'
-: '正在读取教程状态',
+      ? `进行中 · 步骤 ${currentStepIndex}/${TUTORIAL_STEPS.length}`
+      : skipped
+        ? '已跳过'
+        : serverCompleted
+          ? '已完成当前版本教程'
+          : ready
+            ? '尚未开始'
+            : '正在读取教程状态',
     restart,
-    hide,
-    show,
+    skip,
+    hide: skip,
+    show: restart,
     openCurrentTarget,
     recordBuildSubmit,
     recordFacilityStartClick,
@@ -317,7 +333,6 @@ setRun(persisted);
   }), [
     currentStep,
     currentStepIndex,
-    hide,
     openCurrentTarget,
     ready,
     recordAutoSellCompletion,
@@ -329,6 +344,7 @@ setRun(persisted);
     restart,
     run,
     serverCompleted,
-    show,
+    skip,
+    skipped,
   ]);
 }

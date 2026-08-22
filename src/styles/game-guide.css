@@ -13,23 +13,21 @@
   gap: 12px;
 }
 
-.game-guide-heading > div {
-  display: grid;
-  gap: 2px;
+.game-guide-heading strong,
+.game-guide-task strong {
   min-width: 0;
-}
-
-.game-guide-heading span,
-.game-guide-strip p {
-  color: var(--text-secondary);
-}
-
-.game-guide-heading strong {
   font-size: 1rem;
+}
+
+.game-guide-task {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
 }
 
 .game-guide-strip p {
   margin: 0;
+  color: var(--text-secondary);
   font-size: 0.88rem;
   line-height: 1.55;
 }

@@ -204,8 +204,8 @@ requireText(files.strategic, [
 forbidText(files.strategic, ["model.tab === 'home' && tutorial"]);
 requireText(files.guide, [
   'className="game-guide-strip panel"',
-  '<span>教程</span>',
-  'aria-label="教程进度"',
+  '<strong id="game-guide-title">教程</strong>',
+  'aria-label="教程总体进度"',
 ]);
 forbidText(files.guideStyles, [
   'border: 1px solid color-mix(in srgb, var(--accent, #4f7cff)',
@@ -257,7 +257,6 @@ forbidText(files.mobileStyles, [
   '.mobile-bottom-navigation .sidebar-nav-button:hover:not(:disabled) {',
   '.mobile-bottom-navigation .sidebar-nav-button.active:hover:not(:disabled) {',
 ]);
-
 requireText(files.browser, [
   'CSS frosted glass without Liquid Glass DOM',
   "toHaveAttribute('data-frosted-glass-variant', 'statusBar')",

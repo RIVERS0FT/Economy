@@ -17,7 +17,18 @@ test('desktop tutorial stays in the right rail across business pages and keeps f
   await expect(tutorial).toBeVisible();
   await expect(tutorial).toHaveClass(/\bpanel\b/);
   await expect(tutorial.getByText('教程', { exact: true })).toBeVisible();
-  await expect(tutorial.locator('[role="progressbar"]')).toHaveAttribute('aria-label', '教程进度');
+  await expect(tutorial.locator('[role="progressbar"]')).toHaveAttribute('aria-label', '教程总体进度');
+  const progressPrecedesTask = await tutorial.evaluate((element) => {
+    const progress = element.querySelector('.game-guide-progress');
+    const task = element.querySelector('.game-guide-task');
+    return Boolean(
+      progress
+      && task
+      && (progress.compareDocumentPosition(task) & Node.DOCUMENT_POSITION_FOLLOWING),
+    );
+  });
+  expect(progressPrecedesTask).toBe(true);
+
   const tutorialStyle = await tutorial.evaluate((element) => {
     const style = getComputedStyle(element);
     return {
@@ -29,6 +40,16 @@ test('desktop tutorial stays in the right rail across business pages and keeps f
   expect(tutorialStyle.backdropFilter).toContain('blur(18px)');
   expect(tutorialStyle.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
   expect(tutorialStyle.borderTopColor).not.toBe('rgba(0, 0, 0, 0)');
+
+  page.once('dialog', async (dialog) => {
+    expect(dialog.type()).toBe('confirm');
+    expect(dialog.message()).toContain('确定跳过教程吗？');
+    expect(dialog.message()).toContain('设置 → 游戏设置 → 教程');
+    expect(dialog.message()).toContain('重新开始教程');
+    await dialog.dismiss();
+  });
+  await tutorial.getByRole('button', { name: '跳过', exact: true }).click();
+  await expect(tutorial).toBeVisible();
 
   await page.locator('.desktop-sidebar').getByRole('button', { name: '研发', exact: true }).click();
   await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-page', 'research');
@@ -62,6 +83,7 @@ test('mobile tutorial stays shell-owned below the status bar while pages and not
   await expect(rail).toHaveAttribute('data-tutorial-visible', 'true');
   await expect(rail).toHaveAttribute('data-event-log-visible', 'true');
   await expect(tutorial).toBeVisible();
+  await expect(tutorial.locator('[role="progressbar"]')).toHaveAttribute('aria-label', '教程总体进度');
   await expect(rail.locator('.economic-event-log-panel')).toBeHidden();
   await expect(pageSheet).toBeVisible();
 
@@ -83,6 +105,13 @@ test('mobile tutorial stays shell-owned below the status bar while pages and not
   expect(tutorialStyle.borderTopColor).not.toBe('rgba(0, 0, 0, 0)');
 
   const tutorialBox = await requireBox(tutorial);
+  const workspaceGutter = await page.locator('.workspace').evaluate((element) => (
+    Number.parseFloat(getComputedStyle(element).paddingLeft)
+  ));
+  const viewportWidth = await page.evaluate(() => window.innerWidth);
+  expect(tutorialBox.x).toBeGreaterThanOrEqual(workspaceGutter - 1);
+  expect(viewportWidth - tutorialBox.x - tutorialBox.width).toBeGreaterThanOrEqual(workspaceGutter - 1);
+
   const sheetBox = await requireBox(pageSheet);
   const overlapTop = Math.max(tutorialBox.y, sheetBox.y);
   const overlapBottom = Math.min(tutorialBox.y + tutorialBox.height, sheetBox.y + sheetBox.height);
