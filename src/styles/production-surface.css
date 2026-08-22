@@ -123,8 +123,8 @@
  * the 1px border and clips the image to the shared rounded card silhouette. */
 .facility-cluster-selector-card .facility-cluster-icon {
   inset: -1px;
-  width: auto;
-  height: auto;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
   min-width: 0;
   min-height: 0;
 }
