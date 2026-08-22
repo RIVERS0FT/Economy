@@ -27,6 +27,11 @@ interface PinchEventLike {
   event?: Event;
 }
 
+interface WheelBounds {
+  left: number;
+  top: number;
+}
+
 type ZoomInputMode = 'idle' | 'wheel' | 'pinch' | 'reset';
 
 function clamp(value: number, min: number, max: number) {
@@ -64,6 +69,10 @@ export function createProvinceMapZoomInterpolator(
   syncCameraImmediately?: () => void,
 ): ProvinceMapZoomInterpolator {
   const container = chart.getDom();
+  const reducedMotionQuery = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(prefers-reduced-motion: reduce)')
+    : null;
+  let reducedMotion = reducedMotionQuery?.matches ?? prefersReducedMotion();
   let committedZoom = currentMapZoom(chart);
   let currentZoom = committedZoom;
   let targetZoom = committedZoom;
@@ -80,10 +89,17 @@ export function createProvinceMapZoomInterpolator(
   let inputMode: ZoomInputMode = 'idle';
   let transientActive = false;
   let settleRequested = false;
+  let wheelBounds: WheelBounds | null = null;
   let destroyed = false;
 
-  const publishState = (active: boolean) => {
+  const publishStaticState = () => {
     container.dataset.mapZoomMode = 'interpolated';
+    container.dataset.mapZoomCameraMode = 'echarts-geo-roam';
+    container.dataset.mapZoomHotPath = 'geo-roam';
+    container.dataset.mapZoomCommitMode = 'settle-marker';
+  };
+
+  const publishState = (active: boolean) => {
     container.dataset.mapZoomCurrent = currentZoom.toFixed(5);
     container.dataset.mapZoomCommitted = committedZoom.toFixed(5);
     container.dataset.mapZoomTarget = targetZoom.toFixed(5);
@@ -94,9 +110,6 @@ export function createProvinceMapZoomInterpolator(
     container.dataset.mapZoomMaxStep = maxStepMagnitude.toFixed(5);
     container.dataset.mapZoomInputMode = inputMode;
     container.dataset.mapZoomResponseMs = String(responseMs);
-    container.dataset.mapZoomCameraMode = 'echarts-geo-roam';
-    container.dataset.mapZoomHotPath = 'geo-roam';
-    container.dataset.mapZoomCommitMode = 'settle-marker';
   };
 
   const applyCameraZoomStep = (nextZoom: number) => {
@@ -139,6 +152,7 @@ export function createProvinceMapZoomInterpolator(
     targetZoom = committedZoom;
     transientActive = false;
     settleRequested = false;
+    wheelBounds = null;
     lastFrameTime = null;
     commitCount += 1;
     publishState(false);
@@ -164,7 +178,6 @@ export function createProvinceMapZoomInterpolator(
       ? 1000 / 60
       : clamp(timestamp - lastFrameTime, 1, MAX_FRAME_DELTA_MS);
     lastFrameTime = timestamp;
-    const reducedMotion = prefersReducedMotion();
     const alpha = reducedMotion || responseMs <= 0
       ? 1
       : 1 - Math.exp(-deltaTime / responseMs);
@@ -191,7 +204,6 @@ export function createProvinceMapZoomInterpolator(
 
   const schedule = () => {
     if (destroyed || chart.isDisposed() || frame !== null) return;
-    publishState(true);
     frame = requestAnimationFrame(animate);
   };
 
@@ -235,6 +247,7 @@ export function createProvinceMapZoomInterpolator(
     inputMode = mode;
     responseMs = mode === 'pinch' ? PINCH_RESPONSE_MS : WHEEL_RESPONSE_MS;
     scheduleSettleCommit(mode);
+    publishState(true);
     if (Math.abs(Math.log(targetZoom / currentZoom)) <= ZOOM_TRANSFORM_LOG_EPSILON) {
       currentZoom = targetZoom;
       publishState(true);
@@ -250,9 +263,12 @@ export function createProvinceMapZoomInterpolator(
     if (Math.abs(event.deltaX) > Math.abs(event.deltaY) * 1.2) return;
     event.preventDefault();
     event.stopPropagation();
-    const bounds = container.getBoundingClientRect();
-    const nextOriginX = Number.isFinite(event.clientX) ? event.clientX - bounds.left : chart.getWidth() / 2;
-    const nextOriginY = Number.isFinite(event.clientY) ? event.clientY - bounds.top : chart.getHeight() / 2;
+    if (!wheelBounds) {
+      const bounds = container.getBoundingClientRect();
+      wheelBounds = { left: bounds.left, top: bounds.top };
+    }
+    const nextOriginX = Number.isFinite(event.clientX) ? event.clientX - wheelBounds.left : chart.getWidth() / 2;
+    const nextOriginY = Number.isFinite(event.clientY) ? event.clientY - wheelBounds.top : chart.getHeight() / 2;
     const inputLogStep = clamp(
       -delta * WHEEL_ZOOM_SENSITIVITY,
       -MAX_WHEEL_LOG_STEP,
@@ -273,6 +289,7 @@ export function createProvinceMapZoomInterpolator(
     const pinchX = Number(event.pinchX);
     const pinchY = Number(event.pinchY);
     if (!(pinchScale > 0) || !Number.isFinite(pinchScale)) return;
+    wheelBounds = null;
     event.event?.preventDefault?.();
     setTargetZoom(
       targetZoom * pinchScale,
@@ -282,8 +299,14 @@ export function createProvinceMapZoomInterpolator(
     );
   };
 
+  const handleReducedMotionChange = (event: MediaQueryListEvent) => {
+    reducedMotion = event.matches;
+  };
+
   container.addEventListener('wheel', handleWheel, { passive: false });
   chart.getZr().on('pinch', handlePinch);
+  reducedMotionQuery?.addEventListener('change', handleReducedMotionChange);
+  publishStaticState();
   publishState(false);
 
   return {
@@ -298,6 +321,7 @@ export function createProvinceMapZoomInterpolator(
       responseMs = WHEEL_RESPONSE_MS;
       inputMode = 'reset';
       transientActive = false;
+      wheelBounds = null;
       lastStepMagnitude = 1;
       publishState(false);
     },
@@ -309,6 +333,7 @@ export function createProvinceMapZoomInterpolator(
       targetZoom = committedZoom;
       inputMode = 'idle';
       transientActive = false;
+      wheelBounds = null;
       syncCameraImmediately?.();
       publishState(false);
     },
@@ -316,8 +341,10 @@ export function createProvinceMapZoomInterpolator(
       destroyed = true;
       cancelFrame();
       cancelSettleTimer();
+      wheelBounds = null;
       container.removeEventListener('wheel', handleWheel);
       if (!chart.isDisposed()) chart.getZr().off('pinch', handlePinch);
+      reducedMotionQuery?.removeEventListener('change', handleReducedMotionChange);
       delete container.dataset.mapZoomMode;
       delete container.dataset.mapZoomCurrent;
       delete container.dataset.mapZoomCommitted;
