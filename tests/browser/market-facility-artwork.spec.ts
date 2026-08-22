@@ -58,13 +58,15 @@ test('building subordinate facility trade artwork fits detail slots on desktop a
 
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('runtime-test.html?view=production&scenario=facility-card-profit');
+  await page.locator('.facility-cluster-selector-card').first().click();
+  await expect(page.locator('.facility-cluster-detail-page')).toBeVisible();
   await page.getByRole('button', { name: /交易该建筑资产/ }).click();
   expectContainedArtwork(await inspectFacilityArtwork(page.locator('.market-detail-hero__artwork')), 76, 68);
 
   await page.getByRole('button', { name: '返回建筑详情' }).click();
+  await expect(page.locator('.facility-cluster-detail-page')).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.locator('.facility-cluster-selector-card').first().click();
-  await expect(page.locator('.mobile-detail-sheet')).toBeVisible();
+  await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
   await page.getByRole('button', { name: /交易该建筑资产/ }).click();
   expectContainedArtwork(await inspectFacilityArtwork(page.locator('.market-detail-hero__artwork')), 64, 58);
 
