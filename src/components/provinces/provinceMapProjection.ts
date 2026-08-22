@@ -10,6 +10,8 @@ export interface ProvinceMapPoint {
 export interface ProvinceMapProjection {
   width: number;
   height: number;
+  viewWidth: number;
+  viewHeight: number;
   aspect: number;
   viewBox: string;
   project: (coordinate: [number, number]) => ProvinceMapPoint;
@@ -75,6 +77,8 @@ export function createProvinceMapProjection(geometries: unknown[]): ProvinceMapP
   const paddingRatio = (1 / PROVINCE_MAP_CONTAIN_INSET - 1) / 2;
   const paddingX = width * paddingRatio;
   const paddingY = height * paddingRatio;
+  const viewWidth = width + paddingX * 2;
+  const viewHeight = height + paddingY * 2;
   const project = (coordinate: [number, number]) => {
     const raw = projectedRawCoordinate(coordinate);
     return {
@@ -85,8 +89,10 @@ export function createProvinceMapProjection(geometries: unknown[]): ProvinceMapP
   return {
     width,
     height,
+    viewWidth,
+    viewHeight,
     aspect: width / height,
-    viewBox: `${-paddingX} ${-paddingY} ${width + paddingX * 2} ${height + paddingY * 2}`,
+    viewBox: `${-paddingX} ${-paddingY} ${viewWidth} ${viewHeight}`,
     project,
   };
 }
