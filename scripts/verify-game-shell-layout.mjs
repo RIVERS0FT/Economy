@@ -186,7 +186,7 @@ check('src/styles/strategic-game-shell.css', [
   '.strategic-page-host--building > .page-content,',
   '.strategic-page-host--fullscreen > .page-content {',
   '.game-shell .signed-in-shell__primary-card {',
-  '.game-shell.strategic-tab-research .signed-in-shell__primary-card {',
+  'border-radius: var(--strategic-panel-radius);',
   '.game-shell .signed-in-shell__primary-card .desktop-sidebar::after {',
   'transition: width var(--strategic-page-open-motion);',
   '@keyframes strategic-page-unfold',
@@ -200,6 +200,8 @@ check('src/styles/strategic-game-shell.css', [
   'z-index: 1;',
 ]);
 forbid('src/styles/strategic-game-shell.css', [
+  '.game-shell.strategic-tab-research .signed-in-shell__primary-card {',
+  '.game-shell.strategic-tab-research .signed-in-shell__primary-card::before {',
   '.strategic-province-inspector',
   '.strategic-map-stage--background',
   '.workspace-background-layer',
@@ -354,7 +356,7 @@ check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '所有 `fullscreen` 页面进入后整个右侧信息栏不挂载',
   '研发、拍卖、合同、银行、排行、商店则直接不挂载整个右栏',
   '教程是桌面应用外壳级常驻模块',
-  '研发页桌面保留 `workspaceCard` DOM 作为布局宿主，但移除其最外围卡片视觉',
+  '研发页桌面与其他玩家页面统一使用 `workspaceCard` 外层容器',
   '`--strategic-compact-page-width: 56rem`',
   '`calc(100vw / 3)`',
   '`FrostedGlassSurface workspaceCard`',
@@ -382,4 +384,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('游戏与管理员共享外壳验证通过：固定状态栏、唯一共享页面滚动、全宽页面右栏隐藏、研发透明全画布、根级 Dialog、48px 通知轨道、8px 战略栅格、主卡片侧栏覆盖、建筑式页面、根级地图镜头与安全浮层满足当前基线。');
+console.log('游戏与管理员共享外壳验证通过：固定状态栏、唯一共享页面滚动、全宽页面右栏隐藏、研发统一 workspaceCard 与内部透明科技画布、根级 Dialog、48px 通知轨道、8px 战略栅格、主卡片侧栏覆盖、建筑式页面、根级地图镜头与安全浮层满足当前基线。');
