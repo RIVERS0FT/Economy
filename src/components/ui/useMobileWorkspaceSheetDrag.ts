@@ -223,13 +223,17 @@ export function useMobileWorkspaceSheetDrag({
         return;
       }
 
-      // Commit the release position before enabling the target transform. This
-      // prevents a queued touchmove RAF from being replaced by the settle target.
+      // The release offset has already been synchronously committed. Keep it
+      // paintable for one full frame before changing the transform target so a
+      // busy compositor cannot skip straight from the previous drag RAF to the
+      // settle destination.
       void sheet.getBoundingClientRect().top;
       settleFrameRef.current = window.requestAnimationFrame(() => {
-        settleFrameRef.current = undefined;
-        flushDragOffset(targetOffset);
-        waitForSettle(sheet, completion);
+        settleFrameRef.current = window.requestAnimationFrame(() => {
+          settleFrameRef.current = undefined;
+          flushDragOffset(targetOffset);
+          waitForSettle(sheet, completion);
+        });
       });
     },
     [clearDragFrame, clearSettleFrame, clearSettleWait, flushDragOffset, waitForSettle],
