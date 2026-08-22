@@ -141,12 +141,13 @@ forbidAll(paths.eventLog, [
 ]);
 requireAll(paths.guide, [
   'className="game-guide-strip panel"',
-  '<span>教程</span>',
+  '<strong id="game-guide-title">教程</strong>',
   'role="progressbar"',
-  'aria-label="教程进度"',
+  'aria-label="教程总体进度"',
   '步骤 {tutorial.currentStepIndex}/{tutorial.totalSteps}',
   'tutorial.openCurrentTarget',
-  'tutorial.hide',
+  '>跳过</Button>',
+  'tutorial.skip?.()',
 ]);
 
 requireAll(paths.chart, [
@@ -325,11 +326,11 @@ requireAll(paths.browserSpec, [
 requireAll(paths.pageDesign, [
   '概览是经营决策首页',
   '屏幕右侧独立挂载右侧信息栏',
-  '教程同样由该外壳持有，并在自身处于显示状态时跨页面常驻',
+  '教程同样由该外壳持有，并在存在进行中的本地教程轮次时跨页面常驻',
   '签到日历',
   '`1920×1080`',
   '`1440×900`',
-  '桌面教程显示在外壳右侧信息栏顶部，只由教程自身显示状态控制',
+  '桌面教程显示在外壳右侧信息栏顶部，只由进行中的本地教程轮次控制',
 ]);
 requireAll(paths.uiDesign, ['## 10. 概览布局', '经营决策优先', '页面外的屏幕右栏纵向滚动', '签到日历']);
 requireAll(paths.integrityDesign, [
