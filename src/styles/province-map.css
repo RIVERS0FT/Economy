@@ -78,14 +78,14 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .province-map-region:hover {
+  html[data-input-modality='mouse'] .province-map-region:hover {
     fill: var(--province-map-area-color, var(--color-map-region-default));
     stroke: var(--color-text-secondary);
     stroke-width: 1.5;
     filter: none;
   }
 
-  .province-map-region[data-selected='true']:hover {
+  html[data-input-modality='mouse'] .province-map-region[data-selected='true']:hover {
     fill: var(--province-map-area-color, var(--color-map-region-default));
     stroke: var(--color-text-primary);
     stroke-width: 3;
