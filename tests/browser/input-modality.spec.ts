@@ -6,14 +6,14 @@ test.describe('shared input modality interaction protocol', () => {
   });
 
   test('mixed input switches shared surface hover and focus without reload', async ({ page }) => {
-    await page.goto('runtime-test.html?view=production&scenario=activity');
+    await page.goto('runtime-test.html?view=research&scenario=research-active');
 
-    const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
+    const trigger = page.getByRole('button', { name: /冶金技术，研发中/ });
     const host = page.locator('.mobile-workspace-sheet-host');
     const basePage = host.locator('.mobile-workspace-sheet-page-layer');
     const detailView = host.locator('.mobile-workspace-sheet-detail-view');
     await page.mouse.move(1, 1);
-    const baseBackground = await trigger.evaluate((element) => getComputedStyle(element).background);
+    const baseTransform = await trigger.evaluate((element) => getComputedStyle(element).transform);
 
     await trigger.dispatchEvent('pointerdown', {
       bubbles: true,
@@ -22,8 +22,8 @@ test.describe('shared input modality interaction protocol', () => {
     });
     await trigger.hover();
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.inputModality)).toBe('mouse');
-    await expect.poll(() => trigger.evaluate((element) => getComputedStyle(element).background))
-      .not.toBe(baseBackground);
+    await expect.poll(() => trigger.evaluate((element) => getComputedStyle(element).transform))
+      .not.toBe(baseTransform);
 
     await trigger.evaluate((element) => {
       element.dispatchEvent(new PointerEvent('pointerdown', {
