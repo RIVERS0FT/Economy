@@ -1,11 +1,10 @@
-import type { EChartsType } from '../charts/echartsCore';
+import type { ProvinceMapPoint, ProvinceMapProjection } from './provinceMapProjection';
 
-const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 const MAX_RING_POINTS = 120;
 const TEXT_REFERENCE_FONT_SIZE = 100;
 const LABEL_FONT_WEIGHT = 600;
 const MIN_RENDERABLE_FONT_SIZE = 0.08;
-const BASE_MAX_RENDERABLE_FONT_SIZE = 28;
+const BASE_MAX_RENDERABLE_FONT_SIZE = 24;
 const CORRIDOR_LENGTH_SAFETY = 0.94;
 const CORRIDOR_HEIGHT_SAFETY = 0.82;
 const CORRIDOR_PROFILE_STEPS = 10;
@@ -28,19 +27,6 @@ interface PreparedProvinceMapLabelSource extends ProvinceMapLabelSource {
   labelRing: Array<[number, number]>;
 }
 
-export interface ProvinceMapLabelRenderer {
-  refreshLayout: () => void;
-  syncCamera: () => void;
-  syncCameraImmediately: () => void;
-  updateSelection: () => void;
-  destroy: () => void;
-}
-
-interface ScreenPoint {
-  x: number;
-  y: number;
-}
-
 interface NaturalGlyphMetrics {
   value: string;
   advance: number;
@@ -56,9 +42,9 @@ interface NaturalTextMetrics {
 }
 
 interface CorridorCandidate {
-  center: ScreenPoint;
-  direction: ScreenPoint;
-  normal: ScreenPoint;
+  center: ProvinceMapPoint;
+  direction: ProvinceMapPoint;
+  normal: ProvinceMapPoint;
   angle: number;
   availableLength: number;
   availableHeight: number;
@@ -69,7 +55,7 @@ interface CorridorCandidate {
   score: number;
 }
 
-interface GlyphPlacement {
+export interface ProvinceMapLabelGlyphLayout {
   value: string;
   x: number;
   y: number;
@@ -78,7 +64,9 @@ interface GlyphPlacement {
   boxHeight: number;
 }
 
-interface LabelLayout {
+export interface ProvinceMapLabelLayout {
+  provinceId: string;
+  provinceName: string;
   fontSize: number;
   strokeWidth: number;
   curved: boolean;
@@ -88,8 +76,8 @@ interface LabelLayout {
   availableHeight: number;
   usedWidth: number;
   usedHeight: number;
-  center: ScreenPoint;
-  glyphs: GlyphPlacement[];
+  center: ProvinceMapPoint;
+  glyphs: ProvinceMapLabelGlyphLayout[];
 }
 
 const textMetricsCache = new Map<string, NaturalTextMetrics>();
@@ -150,45 +138,35 @@ function largestOuterRing(geometry: unknown) {
     .sort((left, right) => ringArea(right) - ringArea(left))[0] ?? [];
 }
 
-function projectCoordinate(chart: EChartsType, coordinate: [number, number]): ScreenPoint | null {
-  const result = chart.convertToPixel({ seriesIndex: 0 }, coordinate) as unknown;
-  if (!Array.isArray(result) || result.length < 2) return null;
-  const x = Number(result[0]);
-  const y = Number(result[1]);
-  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+function projectRing(projection: ProvinceMapProjection, ring: Array<[number, number]>) {
+  return ring.map((coordinate) => projection.project(coordinate));
 }
 
-function projectRing(chart: EChartsType, ring: Array<[number, number]>) {
-  return ring
-    .map((coordinate) => projectCoordinate(chart, coordinate))
-    .filter((point): point is ScreenPoint => point !== null);
-}
-
-function subtract(left: ScreenPoint, right: ScreenPoint): ScreenPoint {
+function subtract(left: ProvinceMapPoint, right: ProvinceMapPoint): ProvinceMapPoint {
   return { x: left.x - right.x, y: left.y - right.y };
 }
 
-function add(left: ScreenPoint, right: ScreenPoint): ScreenPoint {
+function add(left: ProvinceMapPoint, right: ProvinceMapPoint): ProvinceMapPoint {
   return { x: left.x + right.x, y: left.y + right.y };
 }
 
-function scale(point: ScreenPoint, factor: number): ScreenPoint {
+function scale(point: ProvinceMapPoint, factor: number): ProvinceMapPoint {
   return { x: point.x * factor, y: point.y * factor };
 }
 
-function dot(left: ScreenPoint, right: ScreenPoint) {
+function dot(left: ProvinceMapPoint, right: ProvinceMapPoint) {
   return left.x * right.x + left.y * right.y;
 }
 
-function cross(left: ScreenPoint, right: ScreenPoint) {
+function cross(left: ProvinceMapPoint, right: ProvinceMapPoint) {
   return left.x * right.y - left.y * right.x;
 }
 
-function length(point: ScreenPoint) {
+function length(point: ProvinceMapPoint) {
   return Math.hypot(point.x, point.y);
 }
 
-function normalize(point: ScreenPoint): ScreenPoint {
+function normalize(point: ProvinceMapPoint): ProvinceMapPoint {
   const magnitude = length(point);
   return magnitude > GEOMETRY_EPSILON
     ? { x: point.x / magnitude, y: point.y / magnitude }
@@ -199,7 +177,7 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function pointOnSegment(point: ScreenPoint, start: ScreenPoint, end: ScreenPoint) {
+function pointOnSegment(point: ProvinceMapPoint, start: ProvinceMapPoint, end: ProvinceMapPoint) {
   const segment = subtract(end, start);
   const relative = subtract(point, start);
   if (Math.abs(cross(segment, relative)) > BOUNDARY_EPSILON) return false;
@@ -208,7 +186,7 @@ function pointOnSegment(point: ScreenPoint, start: ScreenPoint, end: ScreenPoint
   return projection <= dot(segment, segment) + BOUNDARY_EPSILON;
 }
 
-export function pointInPolygon(point: ScreenPoint, polygon: ScreenPoint[]) {
+export function pointInProvincePolygon(point: ProvinceMapPoint, polygon: ProvinceMapPoint[]) {
   let inside = false;
   for (let index = 0, previousIndex = polygon.length - 1; index < polygon.length; previousIndex = index, index += 1) {
     const current = polygon[index];
@@ -221,7 +199,7 @@ export function pointInPolygon(point: ScreenPoint, polygon: ScreenPoint[]) {
   return inside;
 }
 
-function polygonCentroid(polygon: ScreenPoint[]) {
+function polygonCentroid(polygon: ProvinceMapPoint[]) {
   let areaFactor = 0;
   let centroidX = 0;
   let centroidY = 0;
@@ -249,7 +227,7 @@ function readableAngle(angle: number) {
   return clamp(normalized, -limit, limit);
 }
 
-function principalAngle(polygon: ScreenPoint[], center: ScreenPoint) {
+function principalAngle(polygon: ProvinceMapPoint[], center: ProvinceMapPoint) {
   let xx = 0;
   let yy = 0;
   let xy = 0;
@@ -264,9 +242,9 @@ function principalAngle(polygon: ScreenPoint[], center: ScreenPoint) {
 }
 
 function lineInteriorIntervals(
-  polygon: ScreenPoint[],
-  origin: ScreenPoint,
-  direction: ScreenPoint,
+  polygon: ProvinceMapPoint[],
+  origin: ProvinceMapPoint,
+  direction: ProvinceMapPoint,
 ) {
   const intersections: number[] = [];
   for (let index = 0; index < polygon.length; index += 1) {
@@ -289,21 +267,14 @@ function lineInteriorIntervals(
     const start = unique[index];
     const end = unique[index + 1];
     if (end - start <= GEOMETRY_EPSILON) continue;
-    const midpoint = add(origin, scale(direction, (start + end) / 2));
-    if (pointInPolygon(midpoint, polygon)) intervals.push([start, end]);
+    const middle = add(origin, scale(direction, (start + end) / 2));
+    if (pointInProvincePolygon(middle, polygon)) intervals.push([start, end]);
   }
   return intervals;
 }
 
 function intervalContainingZero(intervals: Array<[number, number]>) {
   return intervals.find(([start, end]) => start <= 0 && end >= 0) ?? null;
-}
-
-function currentMapZoom(chart: EChartsType) {
-  const option = chart.getOption() as { series?: Array<{ id?: string; zoom?: number }> };
-  const series = option.series?.find((candidate) => candidate.id === 'us-mainland-map') ?? option.series?.[0];
-  const zoom = Number(series?.zoom ?? 1);
-  return Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
 }
 
 function getMeasurementContext() {
@@ -317,7 +288,6 @@ function measureNaturalText(fontFamily: string, text: string): NaturalTextMetric
   const cacheKey = `${LABEL_FONT_WEIGHT}|${fontFamily}|${text}`;
   const cached = textMetricsCache.get(cacheKey);
   if (cached) return cached;
-
   const context = getMeasurementContext();
   if (!context) {
     const glyphs = Array.from(text).map((value) => ({
@@ -335,7 +305,6 @@ function measureNaturalText(fontFamily: string, text: string): NaturalTextMetric
     textMetricsCache.set(cacheKey, fallback);
     return fallback;
   }
-
   context.font = `${LABEL_FONT_WEIGHT} ${TEXT_REFERENCE_FONT_SIZE}px ${fontFamily}`;
   context.textBaseline = 'alphabetic';
   const fullMetrics = context.measureText(text);
@@ -374,10 +343,10 @@ function measureNaturalText(fontFamily: string, text: string): NaturalTextMetric
 }
 
 function corridorProfile(
-  polygon: ScreenPoint[],
-  start: ScreenPoint,
-  end: ScreenPoint,
-  direction: ScreenPoint,
+  polygon: ProvinceMapPoint[],
+  start: ProvinceMapPoint,
+  end: ProvinceMapPoint,
+  direction: ProvinceMapPoint,
 ) {
   const normal = { x: -direction.y, y: direction.x };
   let minimumClearance = Number.POSITIVE_INFINITY;
@@ -392,9 +361,8 @@ function corridorProfile(
     minimumClearance = Math.min(minimumClearance, clearance);
     centerOffsets.push((interval[0] + interval[1]) / 2);
   }
-  const segmentLength = length(subtract(end, start));
   return {
-    availableLength: segmentLength * CORRIDOR_LENGTH_SAFETY,
+    availableLength: length(subtract(end, start)) * CORRIDOR_LENGTH_SAFETY,
     availableHeight: minimumClearance * 2 * CORRIDOR_HEIGHT_SAFETY,
     centerOffsets,
   };
@@ -404,14 +372,12 @@ function corridorScore(
   availableLength: number,
   availableHeight: number,
   metrics: NaturalTextMetrics,
-  mapZoom: number,
   centerDistance: number,
 ) {
-  const zoomScaledFontCeiling = BASE_MAX_RENDERABLE_FONT_SIZE * mapZoom;
   const fontScale = Math.min(
     availableLength / metrics.width,
     availableHeight / metrics.height,
-    zoomScaledFontCeiling / TEXT_REFERENCE_FONT_SIZE,
+    BASE_MAX_RENDERABLE_FONT_SIZE / TEXT_REFERENCE_FONT_SIZE,
   );
   if (!(fontScale > 0)) return null;
   const usedWidth = metrics.width * fontScale;
@@ -437,12 +403,11 @@ function corridorScore(
 }
 
 function findBestLabelCorridor(
-  polygon: ScreenPoint[],
-  preferredCenter: ScreenPoint,
+  polygon: ProvinceMapPoint[],
+  preferredCenter: ProvinceMapPoint,
   metrics: NaturalTextMetrics,
-  mapZoom: number,
 ): CorridorCandidate | null {
-  const center = pointInPolygon(preferredCenter, polygon)
+  const center = pointInProvincePolygon(preferredCenter, polygon)
     ? preferredCenter
     : polygonCentroid(polygon);
   const angle = principalAngle(polygon, center);
@@ -452,7 +417,6 @@ function findBestLabelCorridor(
   const minOffset = Math.min(...offsets);
   const maxOffset = Math.max(...offsets);
   let best: CorridorCandidate | null = null;
-
   for (const fraction of CORRIDOR_OFFSET_FRACTIONS) {
     const offset = minOffset + (maxOffset - minOffset) * fraction;
     const origin = add(center, scale(normal, offset));
@@ -470,7 +434,6 @@ function findBestLabelCorridor(
           profile.availableLength,
           profile.availableHeight,
           metrics,
-          mapZoom,
           length(subtract(intervalMidpoint, center)),
         );
         if (!scored) continue;
@@ -494,7 +457,7 @@ function findBestLabelCorridor(
   return best;
 }
 
-function quadraticPoint(start: ScreenPoint, control: ScreenPoint, end: ScreenPoint, t: number) {
+function quadraticPoint(start: ProvinceMapPoint, control: ProvinceMapPoint, end: ProvinceMapPoint, t: number) {
   const inverse = 1 - t;
   return {
     x: inverse * inverse * start.x + 2 * inverse * t * control.x + t * t * end.x,
@@ -502,15 +465,15 @@ function quadraticPoint(start: ScreenPoint, control: ScreenPoint, end: ScreenPoi
   };
 }
 
-function quadraticTangent(start: ScreenPoint, control: ScreenPoint, end: ScreenPoint, t: number) {
+function quadraticTangent(start: ProvinceMapPoint, control: ProvinceMapPoint, end: ProvinceMapPoint, t: number) {
   return normalize({
     x: 2 * (1 - t) * (control.x - start.x) + 2 * t * (end.x - control.x),
     y: 2 * (1 - t) * (control.y - start.y) + 2 * t * (end.y - control.y),
   });
 }
 
-function buildArcLookup(start: ScreenPoint, control: ScreenPoint, end: ScreenPoint) {
-  const samples: Array<{ t: number; point: ScreenPoint; distance: number }> = [];
+function buildArcLookup(start: ProvinceMapPoint, control: ProvinceMapPoint, end: ProvinceMapPoint) {
+  const samples: Array<{ t: number; point: ProvinceMapPoint; distance: number }> = [];
   let previous = start;
   let totalDistance = 0;
   for (let index = 0; index <= 32; index += 1) {
@@ -525,9 +488,9 @@ function buildArcLookup(start: ScreenPoint, control: ScreenPoint, end: ScreenPoi
 
 function arcPointAtFraction(
   lookup: ReturnType<typeof buildArcLookup>,
-  start: ScreenPoint,
-  control: ScreenPoint,
-  end: ScreenPoint,
+  start: ProvinceMapPoint,
+  control: ProvinceMapPoint,
+  end: ProvinceMapPoint,
   fraction: number,
 ) {
   const target = lookup.totalDistance * clamp(fraction, 0, 1);
@@ -546,8 +509,8 @@ function arcPointAtFraction(
 }
 
 function rotatedGlyphBoxInsidePolygon(
-  polygon: ScreenPoint[],
-  center: ScreenPoint,
+  polygon: ProvinceMapPoint[],
+  center: ProvinceMapPoint,
   rotation: number,
   width: number,
   height: number,
@@ -558,17 +521,11 @@ function rotatedGlyphBoxInsidePolygon(
   const halfWidth = width * GLYPH_BOX_SAFETY / 2;
   const halfHeight = height * GLYPH_BOX_SAFETY / 2;
   const localSamples: Array<[number, number]> = [
-    [-halfWidth, -halfHeight],
-    [0, -halfHeight],
-    [halfWidth, -halfHeight],
-    [halfWidth, 0],
-    [halfWidth, halfHeight],
-    [0, halfHeight],
-    [-halfWidth, halfHeight],
-    [-halfWidth, 0],
-    [0, 0],
+    [-halfWidth, -halfHeight], [0, -halfHeight], [halfWidth, -halfHeight],
+    [halfWidth, 0], [halfWidth, halfHeight], [0, halfHeight],
+    [-halfWidth, halfHeight], [-halfWidth, 0], [0, 0],
   ];
-  return localSamples.every(([x, y]) => pointInPolygon({
+  return localSamples.every(([x, y]) => pointInProvincePolygon({
     x: center.x + x * cosine - y * sine,
     y: center.y + x * sine + y * cosine,
   }, polygon));
@@ -615,10 +572,7 @@ function glyphPlacements(
     add(candidate.center, scale(candidate.direction, halfWidth)),
     scale(candidate.normal, baselineShift),
   );
-  const control = add(
-    candidate.center,
-    scale(candidate.normal, baselineShift + curveBend),
-  );
+  const control = add(candidate.center, scale(candidate.normal, baselineShift + curveBend));
   const lookup = buildArcLookup(start, control, end);
   let cursor = 0;
   const placements = metrics.glyphs.map((glyph) => {
@@ -644,11 +598,10 @@ function glyphPlacements(
 }
 
 function fitLabelLayout(
-  polygon: ScreenPoint[],
+  polygon: ProvinceMapPoint[],
   candidate: CorridorCandidate,
   metrics: NaturalTextMetrics,
-  mapZoom: number,
-): LabelLayout | null {
+) {
   const minimumScale = MIN_RENDERABLE_FONT_SIZE / TEXT_REFERENCE_FONT_SIZE;
   for (let attempt = 0; attempt < 14; attempt += 1) {
     const fontScale = candidate.fontScale * Math.pow(0.92, attempt);
@@ -666,7 +619,7 @@ function fitLabelLayout(
       const fontSize = TEXT_REFERENCE_FONT_SIZE * fontScale;
       return {
         fontSize,
-        strokeWidth: Math.max(0.02, Math.min(0.9 * mapZoom, fontSize * 0.065)),
+        strokeWidth: Math.max(0.02, Math.min(0.7, fontSize * 0.065)),
         curved: placed.curved,
         axisAngle: candidate.angle * 180 / Math.PI,
         naturalAspect: metrics.aspectRatio,
@@ -682,283 +635,29 @@ function fitLabelLayout(
   return null;
 }
 
-function createSvgElement<K extends keyof SVGElementTagNameMap>(name: K) {
-  return document.createElementNS(SVG_NAMESPACE, name);
-}
-
-function formatGeometryValue(value: number) {
-  return Number(value.toFixed(2));
-}
-
-function renderLabels(
-  chart: EChartsType,
-  sources: PreparedProvinceMapLabelSource[],
-  overlay: SVGSVGElement,
-  cameraGroup: SVGGElement,
-  selectedProvinceId: string | null,
-  fontFamily: string,
-) {
-  const width = chart.getWidth();
-  const height = chart.getHeight();
-  if (!(width > 0) || !(height > 0)) return;
-  const mapZoom = currentMapZoom(chart);
-  const container = chart.getDom();
-  overlay.setAttribute('viewBox', `0 0 ${width} ${height}`);
-  overlay.setAttribute('width', String(width));
-  overlay.setAttribute('height', String(height));
-  cameraGroup.replaceChildren();
-  cameraGroup.removeAttribute('transform');
-  let renderedCount = 0;
-  let curvedCount = 0;
-
-  for (const source of sources) {
-    const geoRing = source.labelRing;
-    if (geoRing.length < 3) continue;
-    const polygon = projectRing(chart, geoRing);
-    if (polygon.length < 3) continue;
-    const projectedAnchor = projectCoordinate(chart, source.anchor) ?? polygonCentroid(polygon);
-    const metrics = measureNaturalText(fontFamily, source.provinceName);
-    const corridor = findBestLabelCorridor(polygon, projectedAnchor, metrics, mapZoom);
-    if (!corridor) continue;
-    const layout = fitLabelLayout(polygon, corridor, metrics, mapZoom);
-    if (!layout) continue;
-
-    const group = createSvgElement('g');
-    group.classList.add('province-map-label');
-    group.dataset.provinceId = source.provinceId;
-    group.dataset.mapStateLabel = source.provinceName;
-    group.dataset.labelFit = 'inside';
-    group.dataset.labelCurved = layout.curved ? 'true' : 'false';
-    group.dataset.labelZoom = mapZoom.toFixed(3);
-    group.dataset.labelGlyphMode = 'rigid';
-    group.dataset.labelNaturalAspect = layout.naturalAspect.toFixed(4);
-    group.dataset.labelAvailableLength = layout.availableLength.toFixed(2);
-    group.dataset.labelAvailableHeight = layout.availableHeight.toFixed(2);
-    group.dataset.labelUsedWidth = layout.usedWidth.toFixed(2);
-    group.dataset.labelUsedHeight = layout.usedHeight.toFixed(2);
-    group.dataset.labelAxisAngle = layout.axisAngle.toFixed(2);
-    group.dataset.labelCenterX = layout.center.x.toFixed(2);
-    group.dataset.labelCenterY = layout.center.y.toFixed(2);
-    group.dataset.selected = source.provinceId === selectedProvinceId ? 'true' : 'false';
-    group.style.fontSize = `${layout.fontSize.toFixed(2)}px`;
-    group.style.strokeWidth = `${layout.strokeWidth.toFixed(2)}px`;
-
-    layout.glyphs.forEach((glyph, index) => {
-      const text = createSvgElement('text');
-      text.classList.add('province-map-label-glyph');
-      text.dataset.glyphIndex = String(index);
-      text.dataset.glyphRotation = glyph.rotation.toFixed(2);
-      text.dataset.glyphBoxWidth = glyph.boxWidth.toFixed(2);
-      text.dataset.glyphBoxHeight = glyph.boxHeight.toFixed(2);
-      text.setAttribute('x', '0');
-      text.setAttribute('y', '0');
-      text.setAttribute('dominant-baseline', 'central');
-      text.setAttribute('text-anchor', 'middle');
-      text.setAttribute(
-        'transform',
-        `translate(${formatGeometryValue(glyph.x)} ${formatGeometryValue(glyph.y)}) rotate(${formatGeometryValue(glyph.rotation)})`,
-      );
-      text.textContent = glyph.value;
-      group.append(text);
-    });
-
-    cameraGroup.append(group);
-    renderedCount += 1;
-    if (layout.curved) curvedCount += 1;
-  }
-
-  container.dataset.mapLabelMode = 'curved-chinese-full-name';
-  container.dataset.mapLabelGeometryMode = 'natural-ratio-rigid-glyphs';
-  container.dataset.mapLabelCount = String(renderedCount);
-  container.dataset.mapCurvedLabelCount = String(curvedCount);
-  container.dataset.mapLabelZoom = mapZoom.toFixed(3);
-}
-
-function chooseCameraReferenceCoordinates(sources: ProvinceMapLabelSource[]) {
-  if (sources.length === 0) return null;
-  const first = sources[0].anchor;
-  let bestFirst: [number, number] = first;
-  let bestSecond: [number, number] = sources[1]?.anchor ?? [first[0] + 1, first[1]];
-  let bestDistanceSquared = -1;
-  for (let left = 0; left < sources.length; left += 1) {
-    for (let right = left + 1; right < sources.length; right += 1) {
-      const dx = sources[right].anchor[0] - sources[left].anchor[0];
-      const dy = sources[right].anchor[1] - sources[left].anchor[1];
-      const distanceSquared = dx * dx + dy * dy;
-      if (distanceSquared <= bestDistanceSquared) continue;
-      bestDistanceSquared = distanceSquared;
-      bestFirst = sources[left].anchor;
-      bestSecond = sources[right].anchor;
-    }
-  }
-  return [bestFirst, bestSecond] as const;
-}
-
-export function createProvinceMapLabelRenderer(
-  chart: EChartsType,
+export function layoutProvinceMapLabels(
   sources: ProvinceMapLabelSource[],
-  selectedProvinceId: () => string | null,
-): ProvinceMapLabelRenderer {
-  const container = chart.getDom();
-  const existing = container.querySelector<SVGSVGElement>(':scope > .province-map-label-overlay');
-  existing?.remove();
-  const overlay = createSvgElement('svg');
-  overlay.classList.add('province-map-label-overlay');
-  overlay.setAttribute('aria-hidden', 'true');
-  overlay.setAttribute('focusable', 'false');
-  const cameraGroup = createSvgElement('g');
-  cameraGroup.classList.add('province-map-label-camera');
-  overlay.append(cameraGroup);
-  container.append(overlay);
-
-  const preparedSources: PreparedProvinceMapLabelSource[] = sources.map((source) => ({
+  projection: ProvinceMapProjection,
+  fontFamily: string,
+): ProvinceMapLabelLayout[] {
+  const prepared: PreparedProvinceMapLabelSource[] = sources.map((source) => ({
     ...source,
     labelRing: largestOuterRing(source.geometry),
   }));
-  const referenceCoordinates = chooseCameraReferenceCoordinates(preparedSources);
-  let baseCameraReference: {
-    firstCoordinate: [number, number];
-    secondCoordinate: [number, number];
-    firstPixel: ScreenPoint;
-    secondPixel: ScreenPoint;
-  } | null = null;
-  let layoutFrame: number | null = null;
-  let cameraFrame: number | null = null;
-  let layoutRevision = 0;
-  let cameraSyncCount = 0;
-
-  container.dataset.mapLabelCameraMode = 'shared-transform';
-  container.dataset.mapLabelLayoutRevision = '0';
-  container.dataset.mapLabelCameraSyncCount = '0';
-  container.dataset.mapLabelCameraScale = '1.00000';
-
-  const updateSelection = () => {
-    if (chart.isDisposed()) return;
-    const selected = selectedProvinceId();
-    for (const group of cameraGroup.querySelectorAll<SVGGElement>('.province-map-label')) {
-      group.dataset.selected = group.dataset.provinceId === selected ? 'true' : 'false';
-    }
-  };
-
-  const captureBaseCameraReference = () => {
-    if (!referenceCoordinates) {
-      baseCameraReference = null;
-      return;
-    }
-    const firstPixel = projectCoordinate(chart, referenceCoordinates[0]);
-    const secondPixel = projectCoordinate(chart, referenceCoordinates[1]);
-    if (!firstPixel || !secondPixel || length(subtract(secondPixel, firstPixel)) <= GEOMETRY_EPSILON) {
-      baseCameraReference = null;
-      return;
-    }
-    baseCameraReference = {
-      firstCoordinate: referenceCoordinates[0],
-      secondCoordinate: referenceCoordinates[1],
-      firstPixel,
-      secondPixel,
-    };
-    cameraGroup.removeAttribute('transform');
-    container.dataset.mapLabelCameraScale = '1.00000';
-    container.dataset.mapLabelZoom = '1.000';
-  };
-
-  const renderLayout = () => {
-    layoutFrame = null;
-    if (chart.isDisposed()) return;
-    const fontFamily = getComputedStyle(container).fontFamily || 'sans-serif';
-    renderLabels(
-      chart,
-      preparedSources,
-      overlay,
-      cameraGroup,
-      selectedProvinceId(),
-      fontFamily,
-    );
-    captureBaseCameraReference();
-    layoutRevision += 1;
-    container.dataset.mapLabelLayoutRevision = String(layoutRevision);
-    updateSelection();
-  };
-
-  const refreshLayout = () => {
-    if (chart.isDisposed() || layoutFrame !== null) return;
-    if (cameraFrame !== null) {
-      cancelAnimationFrame(cameraFrame);
-      cameraFrame = null;
-    }
-    layoutFrame = requestAnimationFrame(renderLayout);
-  };
-
-  const syncCameraNow = () => {
-    cameraFrame = null;
-    if (chart.isDisposed() || layoutFrame !== null || !baseCameraReference) return;
-    const currentFirst = projectCoordinate(chart, baseCameraReference.firstCoordinate);
-    const currentSecond = projectCoordinate(chart, baseCameraReference.secondCoordinate);
-    if (!currentFirst || !currentSecond) return;
-    const baseDistance = length(subtract(baseCameraReference.secondPixel, baseCameraReference.firstPixel));
-    const currentDistance = length(subtract(currentSecond, currentFirst));
-    if (!(baseDistance > GEOMETRY_EPSILON) || !(currentDistance > GEOMETRY_EPSILON)) return;
-    const scaleFactor = currentDistance / baseDistance;
-    const firstTranslate = {
-      x: currentFirst.x - baseCameraReference.firstPixel.x * scaleFactor,
-      y: currentFirst.y - baseCameraReference.firstPixel.y * scaleFactor,
-    };
-    const secondTranslate = {
-      x: currentSecond.x - baseCameraReference.secondPixel.x * scaleFactor,
-      y: currentSecond.y - baseCameraReference.secondPixel.y * scaleFactor,
-    };
-    const translateX = (firstTranslate.x + secondTranslate.x) / 2;
-    const translateY = (firstTranslate.y + secondTranslate.y) / 2;
-    cameraGroup.setAttribute(
-      'transform',
-      `matrix(${scaleFactor.toFixed(5)} 0 0 ${scaleFactor.toFixed(5)} ${translateX.toFixed(2)} ${translateY.toFixed(2)})`,
-    );
-    cameraSyncCount += 1;
-    container.dataset.mapLabelCameraSyncCount = String(cameraSyncCount);
-    container.dataset.mapLabelCameraScale = scaleFactor.toFixed(5);
-    container.dataset.mapLabelZoom = scaleFactor.toFixed(3);
-  };
-
-  const syncCamera = () => {
-    if (chart.isDisposed() || cameraFrame !== null || layoutFrame !== null) return;
-    cameraFrame = requestAnimationFrame(syncCameraNow);
-  };
-
-  const syncCameraImmediately = () => {
-    if (chart.isDisposed() || layoutFrame !== null) return;
-    if (cameraFrame !== null) {
-      cancelAnimationFrame(cameraFrame);
-      cameraFrame = null;
-    }
-    syncCameraNow();
-  };
-
-  const handleGeoRoam = () => {
-    syncCamera();
-  };
-  chart.on('georoam', handleGeoRoam);
-  refreshLayout();
-  return {
-    refreshLayout,
-    syncCamera,
-    syncCameraImmediately,
-    updateSelection,
-    destroy: () => {
-      if (layoutFrame !== null) cancelAnimationFrame(layoutFrame);
-      if (cameraFrame !== null) cancelAnimationFrame(cameraFrame);
-      layoutFrame = null;
-      cameraFrame = null;
-      if (!chart.isDisposed()) chart.off('georoam', handleGeoRoam);
-      overlay.remove();
-      delete container.dataset.mapLabelMode;
-      delete container.dataset.mapLabelGeometryMode;
-      delete container.dataset.mapLabelCount;
-      delete container.dataset.mapCurvedLabelCount;
-      delete container.dataset.mapLabelZoom;
-      delete container.dataset.mapLabelCameraMode;
-      delete container.dataset.mapLabelLayoutRevision;
-      delete container.dataset.mapLabelCameraSyncCount;
-      delete container.dataset.mapLabelCameraScale;
-    },
-  };
+  return prepared.flatMap((source) => {
+    if (source.labelRing.length < 3) return [];
+    const polygon = projectRing(projection, source.labelRing);
+    if (polygon.length < 3) return [];
+    const projectedAnchor = projection.project(source.anchor);
+    const metrics = measureNaturalText(fontFamily, source.provinceName);
+    const corridor = findBestLabelCorridor(polygon, projectedAnchor, metrics);
+    if (!corridor) return [];
+    const layout = fitLabelLayout(polygon, corridor, metrics);
+    if (!layout) return [];
+    return [{
+      provinceId: source.provinceId,
+      provinceName: source.provinceName,
+      ...layout,
+    }];
+  });
 }
