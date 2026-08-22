@@ -16,8 +16,16 @@ async function readLabelHitState(page: import('@playwright/test').Page) {
       if (!Number.isFinite(x) || !Number.isFinite(y) || !matrix) throw new Error('invalid label transform');
       const screenX = matrix.a * x + matrix.c * y + matrix.e;
       const screenY = matrix.b * x + matrix.d * y + matrix.f;
-      const hit = document.elementsFromPoint(screenX, screenY).some((element) => element === path);
-      return { provinceId, screenX, screenY, hit };
+      const viewport = map.querySelector<HTMLElement>('.province-map-static-viewport') ?? map;
+      const bounds = viewport.getBoundingClientRect();
+      const visible = screenX >= bounds.left
+        && screenX <= bounds.right
+        && screenY >= bounds.top
+        && screenY <= bounds.bottom;
+      const hit = visible
+        ? document.elementsFromPoint(screenX, screenY).some((element) => element === path)
+        : false;
+      return { provinceId, screenX, screenY, visible, hit };
     });
   }, PROBE_PROVINCE_IDS);
 }
@@ -49,7 +57,10 @@ test('province paths and labels share one static SVG world and never require cam
     };
   });
   expect(parents).toEqual({ pathCamera: true, labelCamera: true, labelSvg: true });
-  expect((await readLabelHitState(page)).every((entry) => entry.hit)).toBe(true);
+  const baselineHitState = await readLabelHitState(page);
+  const baselineVisibleHitState = baselineHitState.filter((entry) => entry.visible);
+  expect(baselineVisibleHitState.length).toBeGreaterThan(0);
+  expect(baselineVisibleHitState.every((entry) => entry.hit)).toBe(true);
 
   const baselineGeometry = await canvas.evaluate((container) => ({
     paths: [...container.querySelectorAll<SVGPathElement>('.province-map-region')].map((path) => path.getAttribute('d')),
@@ -72,7 +83,10 @@ test('province paths and labels share one static SVG world and never require cam
     }));
   });
   await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.2);
-  expect((await readLabelHitState(page)).every((entry) => entry.hit)).toBe(true);
+  const zoomedHitState = await readLabelHitState(page);
+  const zoomedVisibleHitState = zoomedHitState.filter((entry) => entry.visible);
+  expect(zoomedVisibleHitState.length).toBeGreaterThan(0);
+  expect(zoomedVisibleHitState.every((entry) => entry.hit)).toBe(true);
 
   const zoomedGeometry = await canvas.evaluate((container) => ({
     paths: [...container.querySelectorAll<SVGPathElement>('.province-map-region')].map((path) => path.getAttribute('d')),

@@ -104,7 +104,7 @@ test.describe('warehouse and market online auto trade responsibilities', () => {
     await page.setViewportSize({ width: 900, height: 900 });
     await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
     const map = page.getByTestId('us-mainland-map');
-    await expect(map).toHaveAttribute('data-echarts-ready', 'true');
+    await expect(map).toHaveAttribute('data-map-ready', 'true');
     await clickMapProvinceLabel(page, '加利福尼亚州');
 
     await page.setViewportSize({ width: 390, height: 844 });

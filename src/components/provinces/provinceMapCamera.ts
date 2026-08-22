@@ -169,6 +169,7 @@ export function createProvinceMapCamera(
     if (!multiTouchSequenceActive) return;
     refreshTapSuppression();
     multiTouchSequenceActive = false;
+    suppressNextDragClick = false;
     scheduleMultiTouchInactiveFallback();
     lastBlankTap = null;
     publishMultiTouchState();
@@ -404,6 +405,7 @@ export function createProvinceMapCamera(
   const handleClickCapture = (event: MouseEvent) => {
     if (shouldSuppressTap()) {
       pendingSuppressedTouchTap = false;
+      suppressNextDragClick = false;
       suppressedMultiTouchTapCount += 1;
       lastBlankTap = null;
       publishMultiTouchState();

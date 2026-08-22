@@ -9,7 +9,7 @@ test('map keeps gesture zoom without a control panel and primary market/building
   await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
 
   const map = page.getByTestId('us-mainland-map');
-  await expect(map).toHaveAttribute('data-echarts-ready', 'true');
+  await expect(map).toHaveAttribute('data-map-ready', 'true');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-zoom-min', '0.5');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-zoom-max', '4');
   await expect(page.getByRole('group', { name: '地图缩放' })).toHaveCount(0);
