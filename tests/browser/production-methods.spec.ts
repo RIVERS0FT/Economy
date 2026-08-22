@@ -4,11 +4,11 @@ test.describe('factory production methods', () => {
   test('renders compact selectors and switches the active recipe immediately', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=production&scenario=production-methods');
-    await page.locator('.facility-cluster-selector-card').first().click();
+    await page.getByRole('button', { name: /机械工厂，/ }).first().click();
 
     const detail = page.locator('.facility-cluster-detail-card');
     await expect(detail).toBeVisible();
-    await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
+    await expect(page.locator('.mobile-workspace-sheet-host')).toHaveCount(0);
     const formula = detail.locator('.facility-production-formula');
     const productionSettings = detail.locator('.facility-production-settings');
     const recipeSelect = productionSettings.getByRole('combobox', { name: '机械工厂生产产物' });
@@ -42,7 +42,7 @@ test.describe('factory production methods', () => {
     const economical = methodListbox.getByRole('option', { name: '节约生产' });
     await expect(economical).toContainText('周期 180s ↑');
     await expect(economical).toContainText('成本 4 ↓');
-    await expect(economical).toContainText('产出 ×2 ↑');
+    await expect(economical).toContainText('产出 ×1');
     await economical.click();
 
     await expect.poll(async () => page.evaluate(() => (
@@ -94,12 +94,15 @@ test.describe('factory production methods', () => {
     for (const width of [320, 360, 390, 430, 720]) {
       await page.setViewportSize({ width, height: 844 });
       await page.goto('runtime-test.html?view=production&scenario=production-methods');
-      await page.locator('.facility-cluster-selector-card').first().click();
+      await page.getByRole('button', { name: /机械工厂，/ }).first().click();
 
       const detail = page.locator('.facility-cluster-detail-card');
       const scroll = page.locator('.page-card-scroll');
+      const workspaceHost = page.locator('.mobile-workspace-sheet-host');
       await expect(detail).toBeVisible();
-      await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
+      await expect(workspaceHost).toHaveCount(1);
+      await expect(workspaceHost).toHaveAttribute('data-detail-active', 'false');
+      await expect(workspaceHost.locator('.mobile-workspace-sheet-detail-view')).toHaveCount(0);
       const productionSettings = detail.locator('.facility-production-settings');
       const recipeSelect = productionSettings.getByRole('combobox', { name: '机械工厂生产产物' });
       const methodSelect = productionSettings.getByRole('combobox', { name: '机械工厂生产方式' });
@@ -187,9 +190,10 @@ test.describe('factory production methods', () => {
   test('shows locked production methods as disabled options', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=production&scenario=production-methods-locked');
-    await page.locator('.facility-cluster-selector-card').first().click();
+    await page.getByRole('button', { name: /机械工厂，/ }).first().click();
 
     const detail = page.locator('.facility-cluster-detail-card');
+    await expect(detail).toBeVisible();
     const methodSelect = detail.getByRole('combobox', { name: '机械工厂生产方式' });
     await methodSelect.click();
     const listbox = page.getByRole('listbox', { name: '机械工厂生产方式' });
