@@ -26,6 +26,7 @@ export function DesktopSidebar({
       subtitle=""
       navLabel="游戏主导航"
       collapsed={collapsed}
+      interactionResetKey={activeTab}
       onToggleCollapsed={onToggleCollapsed}
       showIdentity={false}
       footer={(
