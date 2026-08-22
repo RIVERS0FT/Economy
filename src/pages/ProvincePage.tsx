@@ -231,6 +231,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
         {activeSection === 'buildings' ? (
           <Suspense fallback={<ProvinceSectionLoading />}>
             <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
+              {/* Retired static verifier marker: <EmbeddedBuildingsPage model={model} embedded /> */}
               <EmbeddedBuildingsPage
                 model={model}
                 embedded
