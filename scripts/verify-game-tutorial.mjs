@@ -159,7 +159,7 @@ requireText(pageDesign, '设置商品自动出售、完成一次自动出售', '
 requireText(pageDesign, '合法最低自由库存保留量（允许 `0`）', '页面权威设计必须记录自动出售自由库存设置');
 requireText(pageDesign, '教程只有进行中、已跳过和已完成三种结果', '页面权威设计必须锁定教程结果状态');
 requireText(pageDesign, '设置页不提供“显示教程”或继续教程入口', '页面权威设计必须锁定跳过后只能重新开始');
-requireText(pageDesign, '桌面教程显示在外壳右侧信息栏顶部，只由教程自身显示状态控制', '页面权威设计必须锁定桌面教程跨页面常驻');
+requireText(pageDesign, '桌面教程显示在外壳右侧信息栏顶部，只由进行中的本地教程轮次控制', '页面权威设计必须锁定桌面教程跨页面常驻');
 requireText(pageDesign, 'economy_tutorial_completions', '页面权威设计必须记录教程完成表和服务器负担边界');
 requireText(chromeDesign, '## 5. 玩家页面与右侧信息栏', '外壳权威设计必须记录通用右侧信息栏');
 requireText(chromeDesign, '教程是桌面应用外壳级常驻模块', '外壳权威设计必须锁定桌面教程常驻');
