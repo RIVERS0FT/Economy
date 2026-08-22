@@ -100,7 +100,17 @@ function ProvinceSectionLoading() {
 
 export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
   const [activeSection, setActiveSection] = useState<ProvinceSection>('overview');
+  const [facilityDetailTypeId, setFacilityDetailTypeId] = useState<string | null>(null);
   const provinceName = model.selectedProvince?.name || '加利福尼亚州';
+  const facilityDetailEntry = facilityDetailTypeId
+    ? model.game.facilityGroups.find((group) => (
+      group.facilityTypeId === facilityDetailTypeId && group.count > 0
+    ))
+    : undefined;
+  const facilityDetailType = facilityDetailEntry
+    ? model.game.facilityTypes.find((type) => type.id === facilityDetailEntry.facilityTypeId)
+    : undefined;
+  const isFacilityDetail = activeSection === 'buildings' && Boolean(facilityDetailType);
   const hasProvinceUnlockState = Array.isArray(model.game.unlockedProvinces)
     || typeof model.game.startingProvinceId === 'string';
   const isUnlocked = !hasProvinceUnlockState
@@ -149,6 +159,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
 
   const selectSection = (section: ProvinceSection, focus = false) => {
     setActiveSection(section);
+    setFacilityDetailTypeId(null);
     if (focus) {
       document.getElementById(`province-section-tab-${section}`)?.focus({ preventScroll: true });
     }
@@ -194,15 +205,21 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
 
   return (
     <PageLayout
-      title={provinceName}
-      actions={sectionSwitch}
-      backAction={{ label: '返回地图', onClick: () => model.setTab('map') }}
+      title={isFacilityDetail ? (
+        <span className="province-facility-detail-title">
+          {provinceName}{facilityDetailType?.name ?? ''}
+        </span>
+      ) : provinceName}
+      backAction={isFacilityDetail
+        ? { label: '返回建筑列表', onClick: () => setFacilityDetailTypeId(null) }
+        : { label: '返回地图', onClick: () => model.setTab('map') }}
     >
+      {!isFacilityDetail ? sectionSwitch : null}
       <section
         id="province-section-panel"
         className={`province-section-panel province-section-panel--${activeSection}`}
         role="tabpanel"
-        aria-labelledby={`province-section-tab-${activeSection}`}
+        aria-labelledby={isFacilityDetail ? undefined : `province-section-tab-${activeSection}`}
         tabIndex={0}
       >
         {activeSection === 'overview' ? <ProvinceOverviewSection model={model} /> : null}
@@ -214,7 +231,12 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
         {activeSection === 'buildings' ? (
           <Suspense fallback={<ProvinceSectionLoading />}>
             <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
-              <EmbeddedBuildingsPage model={model} embedded />
+              <EmbeddedBuildingsPage
+                model={model}
+                embedded
+                detailFacilityTypeId={facilityDetailTypeId ?? undefined}
+                onDetailFacilityChange={setFacilityDetailTypeId}
+              />
             </FacilityRecipeProfitMarketsProvider>
           </Suspense>
         ) : null}
