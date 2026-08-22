@@ -66,12 +66,13 @@ for (const text of [
   '| 建筑 | `buildings` | `GlobalBuildingsPage` |',
   '一级导航中的“市场”和“建筑”固定进入全局视图',
   '`ProvincePage` 内的市场与建筑分区仍始终是地图所打开当前州的本地视图',
-  '正式缩放范围固定为 `scaleLimit: { min: 0.5, max: 4 }`',
+  '用户缩放范围固定为 `0.5～4`',
   '地图不得提供独立的放大、缩小或重置功能面板',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
   '44px 放大／缩小／重置控制',
   '地图舞台右下角必须提供 44px 触控目标的放大、缩小和重置控制',
+  'scaleLimit: { min: 0.5, max: 4 }',
 ]) forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
@@ -125,4 +126,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('页面内容与职责验证通过：既有页面职责检查保持生效，一级市场/建筑锁定全局视图，州级上下文继续复用本地市场/建筑，地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。');
+console.log('页面内容与职责验证通过：既有页面职责检查保持生效，一级市场/建筑锁定全局视图，州级上下文继续复用本地市场/建筑，地图保留 0.5–4 静态 SVG 合成相机手势并禁止恢复独立缩放功能面板。');
