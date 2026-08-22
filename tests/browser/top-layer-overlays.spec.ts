@@ -18,8 +18,11 @@ test('mobile production rich selects use the browser top layer above the factory
 
   await page.locator('.facility-cluster-selector-card').first().click();
   const detail = page.locator('.facility-cluster-detail-card');
+  const workspaceHost = page.locator('.mobile-workspace-sheet-host');
   await expect(detail).toBeVisible();
-  await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
+  await expect(workspaceHost).toHaveCount(1);
+  await expect(workspaceHost).toHaveAttribute('data-detail-active', 'false');
+  await expect(workspaceHost.locator('.mobile-workspace-sheet-detail-view')).toHaveCount(0);
 
   const recipeSelect = detail.getByRole('combobox', { name: '机械工厂生产产物' });
   await recipeSelect.click();
