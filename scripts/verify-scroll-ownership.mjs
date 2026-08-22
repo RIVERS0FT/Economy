@@ -53,7 +53,29 @@ for (const text of [
   'pageViewportClassName="admin-page-scroll"',
 ]) assert.ok(adminApp.includes(text), `管理员后台未接入共享页面滚动视口: ${text}`);
 
+const strategicShellStyles = read('src/styles/strategic-game-shell.css');
+const outlinerStyles = read('src/styles/strategic-outliner.css');
+const strategicContainMatches = strategicShellStyles.match(/overscroll-behavior\s*:\s*contain\s*;/g) ?? [];
+assert.equal(strategicContainMatches.length, 1, '战略外壳只允许既有 Outliner 滚动区出现一次 contain shorthand');
+assert.ok(
+  strategicShellStyles.includes('.strategic-outliner__scroll {')
+    && strategicShellStyles.includes('overscroll-behavior: contain;'),
+  'contain shorthand 只能属于 Strategic Outliner 内部滚动区',
+);
+for (const text of [
+  '.strategic-outliner__scroll {',
+  'overscroll-behavior-x: contain;',
+  'overscroll-behavior-y: auto;',
+]) assert.ok(outlinerStyles.includes(text), `Strategic Outliner 必须释放纵向滚动边界: ${text}`);
+const main = read('src/main.tsx');
+assert.ok(
+  main.indexOf("import './styles/strategic-game-shell.css';")
+    < main.indexOf("import './styles/strategic-outliner.css';"),
+  'Strategic Outliner 轴向 overscroll 修正规则必须在战略外壳样式之后加载',
+);
+
 for (const path of walk('src/styles').filter((item) => item.endsWith('.css'))) {
+  if (path === 'src/styles/strategic-game-shell.css') continue;
   assert.equal(
     /overscroll-behavior\s*:\s*contain\s*;/.test(read(path)),
     false,
@@ -90,4 +112,4 @@ for (const text of [
   '不得为管理员创建第二个原生主滚动容器',
 ]) assert.ok(shellDesign.includes(text), `共享外壳设计缺少管理员滚动所有权规则: ${text}`);
 
-console.log('Nested custom/native scroll ownership, shared signed-in page scroll, building-ledger page flow and boundary release verification passed.');
+console.log('Nested custom/native scroll ownership, shared signed-in page scroll, Strategic Outliner vertical boundary release, building-ledger page flow and boundary release verification passed.');
