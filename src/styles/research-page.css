@@ -488,6 +488,11 @@
   padding-top: var(--space-2);
 }
 
+@media (min-width: 721px) {
+  .game-shell.strategic-tab-research .page-card-static {
+    padding-inline: 0;
+  }
+}
 
 @media (max-width: 720px) {
   .research-action-panel {
