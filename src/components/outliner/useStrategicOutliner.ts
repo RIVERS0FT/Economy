@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 export type StrategicOutlinerSectionId = 'tutorial' | 'activity' | 'pinned' | 'events';
-export type StrategicOutlinerPinKind = 'province' | 'commodity' | 'facility';
+export type StrategicOutlinerPinKind = 'province' | 'commodity' | 'facility' | 'auction' | 'contract';
 
 export interface StrategicOutlinerPin {
   key: string;
@@ -20,7 +20,13 @@ interface StoredStrategicOutlinerState {
 const STORAGE_VERSION = 1;
 const MAX_PINS = 24;
 const VALID_SECTIONS = new Set<StrategicOutlinerSectionId>(['tutorial', 'activity', 'pinned', 'events']);
-const VALID_PIN_KINDS = new Set<StrategicOutlinerPinKind>(['province', 'commodity', 'facility']);
+const VALID_PIN_KINDS = new Set<StrategicOutlinerPinKind>([
+  'province',
+  'commodity',
+  'facility',
+  'auction',
+  'contract',
+]);
 
 function storageKey(userId: number) {
   return `economy:strategic-outliner:v${STORAGE_VERSION}:${userId}`;
