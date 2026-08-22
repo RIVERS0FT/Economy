@@ -622,13 +622,13 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .strategic-outliner__context-pin:hover,
-  .strategic-outliner__collapse:hover,
-  .strategic-outliner-row__pin:hover,
-  .strategic-outliner-section__toggle:hover,
-  .strategic-outliner-row__main:hover,
-  .strategic-outliner-event summary:hover,
-  .strategic-outliner-recent-events > summary:hover {
+  html[data-input-modality='mouse'] .strategic-outliner__context-pin:hover,
+  html[data-input-modality='mouse'] .strategic-outliner__collapse:hover,
+  html[data-input-modality='mouse'] .strategic-outliner-row__pin:hover,
+  html[data-input-modality='mouse'] .strategic-outliner-section__toggle:hover,
+  html[data-input-modality='mouse'] .strategic-outliner-row__main:hover,
+  html[data-input-modality='mouse'] .strategic-outliner-event summary:hover,
+  html[data-input-modality='mouse'] .strategic-outliner-recent-events > summary:hover {
     color: var(--color-text-primary);
     background: var(--color-surface-hover);
   }
