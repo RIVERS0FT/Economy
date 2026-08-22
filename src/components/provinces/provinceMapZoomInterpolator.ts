@@ -13,10 +13,12 @@ const PINCH_COMMIT_IDLE_MS = 80;
 const ZOOM_SETTLE_LOG_EPSILON = 0.001;
 const ZOOM_TRANSFORM_LOG_EPSILON = 0.000001;
 const MAX_FRAME_DELTA_MS = 50;
+const MULTITOUCH_TAP_SUPPRESS_MS = 420;
 
 export interface ProvinceMapZoomInterpolator {
   reset: (zoom?: number) => void;
   cancel: () => void;
+  shouldSuppressTap: () => boolean;
   destroy: () => void;
 }
 
@@ -72,6 +74,7 @@ export function createProvinceMapZoomInterpolator(
   const reducedMotionQuery = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     ? window.matchMedia('(prefers-reduced-motion: reduce)')
     : null;
+  const activeTouchPointerIds = new Set<number>();
   let reducedMotion = reducedMotionQuery?.matches ?? prefersReducedMotion();
   let committedZoom = currentMapZoom(chart);
   let currentZoom = committedZoom;
@@ -81,6 +84,8 @@ export function createProvinceMapZoomInterpolator(
   let responseMs = WHEEL_RESPONSE_MS;
   let frame: number | null = null;
   let settleTimer: ReturnType<typeof setTimeout> | null = null;
+  let multiTouchIdleTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingTapClearTimer: ReturnType<typeof setTimeout> | null = null;
   let lastFrameTime: number | null = null;
   let frameCount = 0;
   let commitCount = 0;
@@ -89,8 +94,82 @@ export function createProvinceMapZoomInterpolator(
   let inputMode: ZoomInputMode = 'idle';
   let transientActive = false;
   let settleRequested = false;
+  let multiTouchSequenceActive = false;
+  let multiTouchSequenceCount = 0;
+  let pendingSuppressedTouchTap = false;
+  let suppressTapUntil = 0;
   let wheelBounds: WheelBounds | null = null;
   let destroyed = false;
+
+  const publishMultiTouchState = () => {
+    container.dataset.mapMultitouchActive = multiTouchSequenceActive ? 'true' : 'false';
+    container.dataset.mapMultitouchSequenceCount = String(multiTouchSequenceCount);
+    container.dataset.mapMultitouchPointerCount = String(activeTouchPointerIds.size);
+    container.dataset.mapMultitouchTapPending = pendingSuppressedTouchTap ? 'true' : 'false';
+    container.dataset.mapTapSuppressMs = String(MULTITOUCH_TAP_SUPPRESS_MS);
+  };
+
+  const refreshTapSuppression = () => {
+    suppressTapUntil = Date.now() + MULTITOUCH_TAP_SUPPRESS_MS;
+  };
+
+  const cancelPendingTapClearTimer = () => {
+    if (pendingTapClearTimer !== null) clearTimeout(pendingTapClearTimer);
+    pendingTapClearTimer = null;
+  };
+
+  const setPendingSuppressedTouchTap = (pending: boolean) => {
+    cancelPendingTapClearTimer();
+    if (pendingSuppressedTouchTap === pending) return;
+    pendingSuppressedTouchTap = pending;
+    publishMultiTouchState();
+  };
+
+  const shouldSuppressPendingTap = () => {
+    if (!pendingSuppressedTouchTap) return false;
+    if (pendingTapClearTimer === null) {
+      pendingTapClearTimer = setTimeout(() => {
+        pendingTapClearTimer = null;
+        if (destroyed) return;
+        pendingSuppressedTouchTap = false;
+        publishMultiTouchState();
+      }, 0);
+    }
+    return true;
+  };
+
+  const cancelMultiTouchIdleTimer = () => {
+    if (multiTouchIdleTimer !== null) clearTimeout(multiTouchIdleTimer);
+    multiTouchIdleTimer = null;
+  };
+
+  const scheduleMultiTouchInactiveFallback = () => {
+    cancelMultiTouchIdleTimer();
+    if (activeTouchPointerIds.size > 0) return;
+    multiTouchIdleTimer = setTimeout(() => {
+      multiTouchIdleTimer = null;
+      if (destroyed) return;
+      multiTouchSequenceActive = false;
+      publishMultiTouchState();
+    }, MULTITOUCH_TAP_SUPPRESS_MS);
+  };
+
+  const beginMultiTouchSequence = () => {
+    if (!multiTouchSequenceActive) multiTouchSequenceCount += 1;
+    multiTouchSequenceActive = true;
+    setPendingSuppressedTouchTap(true);
+    refreshTapSuppression();
+    scheduleMultiTouchInactiveFallback();
+    publishMultiTouchState();
+  };
+
+  const finishMultiTouchSequence = () => {
+    if (!multiTouchSequenceActive) return;
+    refreshTapSuppression();
+    multiTouchSequenceActive = false;
+    cancelMultiTouchIdleTimer();
+    publishMultiTouchState();
+  };
 
   const publishStaticState = () => {
     container.dataset.mapZoomMode = 'interpolated';
@@ -110,6 +189,7 @@ export function createProvinceMapZoomInterpolator(
     container.dataset.mapZoomMaxStep = maxStepMagnitude.toFixed(5);
     container.dataset.mapZoomInputMode = inputMode;
     container.dataset.mapZoomResponseMs = String(responseMs);
+    publishMultiTouchState();
   };
 
   const applyCameraZoomStep = (nextZoom: number) => {
@@ -290,6 +370,7 @@ export function createProvinceMapZoomInterpolator(
     const pinchY = Number(event.pinchY);
     if (!(pinchScale > 0) || !Number.isFinite(pinchScale)) return;
     wheelBounds = null;
+    beginMultiTouchSequence();
     event.event?.preventDefault?.();
     setTargetZoom(
       targetZoom * pinchScale,
@@ -299,11 +380,66 @@ export function createProvinceMapZoomInterpolator(
     );
   };
 
+  const handlePointerDown = (event: PointerEvent) => {
+    if (event.pointerType === 'touch') {
+      activeTouchPointerIds.add(event.pointerId);
+      if (activeTouchPointerIds.size >= 2) {
+        beginMultiTouchSequence();
+        return;
+      }
+      publishMultiTouchState();
+    }
+    if (multiTouchSequenceActive || Date.now() <= suppressTapUntil) return;
+    setPendingSuppressedTouchTap(false);
+  };
+
+  const handlePointerUp = (event: PointerEvent) => {
+    if (event.pointerType !== 'touch') return;
+    activeTouchPointerIds.delete(event.pointerId);
+    if (multiTouchSequenceActive && activeTouchPointerIds.size === 0) {
+      finishMultiTouchSequence();
+      return;
+    }
+    publishMultiTouchState();
+  };
+
+  const handleTouchStart = (event: TouchEvent) => {
+    if (event.touches.length >= 2) {
+      beginMultiTouchSequence();
+      return;
+    }
+    if (event.touches.length !== 1) return;
+    setPendingSuppressedTouchTap(multiTouchSequenceActive || Date.now() <= suppressTapUntil);
+  };
+
+  const handleTouchMove = (event: TouchEvent) => {
+    if (event.touches.length >= 2) beginMultiTouchSequence();
+  };
+
+  const handleTouchEnd = (event: TouchEvent) => {
+    if (!multiTouchSequenceActive) return;
+    if (event.touches.length === 0) {
+      activeTouchPointerIds.clear();
+      finishMultiTouchSequence();
+      return;
+    }
+    refreshTapSuppression();
+    scheduleMultiTouchInactiveFallback();
+    publishMultiTouchState();
+  };
+
   const handleReducedMotionChange = (event: MediaQueryListEvent) => {
     reducedMotion = event.matches;
   };
 
   container.addEventListener('wheel', handleWheel, { passive: false });
+  container.addEventListener('pointerdown', handlePointerDown, { passive: true, capture: true });
+  container.addEventListener('pointerup', handlePointerUp, { passive: true, capture: true });
+  container.addEventListener('pointercancel', handlePointerUp, { passive: true, capture: true });
+  container.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
+  container.addEventListener('touchmove', handleTouchMove, { passive: true, capture: true });
+  container.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
+  container.addEventListener('touchcancel', handleTouchEnd, { passive: true, capture: true });
   chart.getZr().on('pinch', handlePinch);
   reducedMotionQuery?.addEventListener('change', handleReducedMotionChange);
   publishStaticState();
@@ -337,12 +473,23 @@ export function createProvinceMapZoomInterpolator(
       syncCameraImmediately?.();
       publishState(false);
     },
+    shouldSuppressTap: () => multiTouchSequenceActive || Date.now() <= suppressTapUntil || shouldSuppressPendingTap(),
     destroy: () => {
       destroyed = true;
       cancelFrame();
       cancelSettleTimer();
+      cancelMultiTouchIdleTimer();
+      cancelPendingTapClearTimer();
+      activeTouchPointerIds.clear();
       wheelBounds = null;
       container.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('pointerdown', handlePointerDown, true);
+      container.removeEventListener('pointerup', handlePointerUp, true);
+      container.removeEventListener('pointercancel', handlePointerUp, true);
+      container.removeEventListener('touchstart', handleTouchStart, true);
+      container.removeEventListener('touchmove', handleTouchMove, true);
+      container.removeEventListener('touchend', handleTouchEnd, true);
+      container.removeEventListener('touchcancel', handleTouchEnd, true);
       if (!chart.isDisposed()) chart.getZr().off('pinch', handlePinch);
       reducedMotionQuery?.removeEventListener('change', handleReducedMotionChange);
       delete container.dataset.mapZoomMode;
@@ -359,6 +506,11 @@ export function createProvinceMapZoomInterpolator(
       delete container.dataset.mapZoomCameraMode;
       delete container.dataset.mapZoomHotPath;
       delete container.dataset.mapZoomCommitMode;
+      delete container.dataset.mapMultitouchActive;
+      delete container.dataset.mapMultitouchSequenceCount;
+      delete container.dataset.mapMultitouchPointerCount;
+      delete container.dataset.mapMultitouchTapPending;
+      delete container.dataset.mapTapSuppressMs;
     },
   };
 }
