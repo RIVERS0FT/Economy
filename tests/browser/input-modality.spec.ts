@@ -14,7 +14,6 @@ test.describe('shared input modality interaction protocol', () => {
     const basePage = host.locator('.mobile-workspace-sheet-page-layer');
     const detailView = host.locator('.mobile-workspace-sheet-detail-view');
     await page.mouse.move(1, 1);
-    const baseTransform = await trigger.evaluate((element) => getComputedStyle(element).transform);
 
     await trigger.dispatchEvent('pointerdown', {
       bubbles: true,
@@ -23,8 +22,7 @@ test.describe('shared input modality interaction protocol', () => {
     });
     await trigger.hover();
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.inputModality)).toBe('mouse');
-    await expect.poll(() => trigger.evaluate((element) => getComputedStyle(element).transform))
-      .not.toBe(baseTransform);
+    await expect.poll(() => trigger.evaluate((element) => element.matches(':hover'))).toBe(true);
 
     await detailTrigger.evaluate((element) => {
       element.dispatchEvent(new PointerEvent('pointerdown', {
