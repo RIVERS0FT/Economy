@@ -294,7 +294,7 @@ export function createProvinceMapCamera(
     const next = localPoint(event.clientX, event.clientY);
     pointers.set(event.pointerId, next);
 
-    if (activeTouchPointerIds.size >= 2) {
+    if (pointers.size >= 2 && activeTouchPointerIds.size >= 2) {
       beginMultiTouchSequence();
       const points = firstTwoTouchPositions();
       if (!points) return;
