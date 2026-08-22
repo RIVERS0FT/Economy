@@ -23,6 +23,7 @@ for (const path of [
   'src/hooks/useStableSelection.ts',
   'src/research/researchTreeLayout.ts',
   'src/research/ResearchTreeViewport.tsx',
+  'src/components/shell/SignedInShell.tsx',
   'src/components/ui/layout.tsx',
   'src/pages/ResearchPage.tsx',
   'src/styles/research-page.css',
@@ -144,15 +145,18 @@ for (const text of [
   'overflow: hidden;',
   '.page-card-static .research-tree-viewport {',
 ]) requireText('src/styles/research-page.css', text);
+requireText(
+  'src/components/shell/SignedInShell.tsx',
+  '<FrostedGlassSurface variant="workspaceCard" className="signed-in-shell__primary-card">',
+);
+for (const text of [
+  '.game-shell .signed-in-shell__primary-card {',
+  'border-radius: var(--strategic-panel-radius);',
+]) requireText('src/styles/strategic-game-shell.css', text);
 for (const text of [
   '.game-shell.strategic-tab-research .signed-in-shell__primary-card {',
-  'border: 0;',
-  'border-radius: 0;',
-  'background: transparent;',
-  'box-shadow: none;',
   '.game-shell.strategic-tab-research .signed-in-shell__primary-card::before {',
-  'display: none;',
-]) requireText('src/styles/strategic-game-shell.css', text);
+]) forbidText('src/styles/strategic-game-shell.css', text);
 for (const text of [
   '.page-card-static > .ui-page-stack {',
   'grid-template-rows: minmax(0, 1fr);',
@@ -180,6 +184,10 @@ for (const text of [
   'researchGeometry.workspace?.bottom',
   'researchGeometry.outerCard',
   'researchGeometry.treeSurface',
+  "toHaveAttribute('data-frosted-glass-variant', 'workspaceCard')",
+  "researchGeometry.outerCard?.borderTopWidth).toBe('1px')",
+  "researchGeometry.outerCard?.backgroundColor).toBe('rgba(5, 20, 14, 0.76)')",
+  "researchGeometry.outerCard?.backdropFilter).toContain('blur(18px)')",
   'keeps node geometry stable on hover and selected dependency lines visible',
   'preserves an explicit technology selection across refreshed snapshots',
   'shows only research cost and time while merging active acceleration into the research action',
@@ -238,7 +246,7 @@ for (const text of [
   '普通鼠标滚轮',
   '双击定位当前科技',
   '双指缩放',
-  '桌面研发页去掉最外围工作区卡片视觉',
+  '桌面研发页继续使用与其他玩家页面相同的统一 `workspaceCard` 外层容器',
   '旧客户端',
   '周期轮询、动作后同步和权威倒计时确认对客户端交互状态必须透明',
   '投入信息只显示研发费用和研发时间',
@@ -261,6 +269,7 @@ for (const text of [
 for (const forbidden of [
   'C1-C7 是不可跳级的主干',
   '只能启动当前等级的下一级',
+  '桌面研发页去掉最外围工作区卡片视觉',
 ]) forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', forbidden);
 for (const forbidden of [
   'createPortal',
@@ -315,4 +324,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('downward prerequisite research DAG, stable hover geometry, ordinary wheel zoom, drag pan, double-click current focus, transparent research canvas, shared mobile pan/zoom viewport, stable selection, no below-tree page-flow card, detail sheet and design verification passed');
+console.log('downward prerequisite research DAG, stable hover geometry, ordinary wheel zoom, drag pan, double-click current focus, shared workspace card with transparent research canvas, shared mobile pan/zoom viewport, stable selection, no below-tree page-flow card, detail sheet and design verification passed');
