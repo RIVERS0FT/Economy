@@ -48,9 +48,13 @@ async function expectSharedLoadingState(page: Page, label: string) {
   await expect(loading).toHaveAttribute('aria-live', 'polite');
   await expect(page.locator('.photographic-state-card--loading')).toHaveCount(0);
 
-  const visual = await loading.evaluate((element) => {
+  const visual = await page.evaluate(() => {
+    const element = document.querySelector<HTMLElement>('.game-state-shell > .loading-screen');
+    if (!element || !element.isConnected) throw new Error('connected loading state is missing');
     const shellElement = element.parentElement;
-    if (!(shellElement instanceof HTMLElement)) throw new Error('loading shell is missing');
+    if (!(shellElement instanceof HTMLElement) || !shellElement.isConnected) {
+      throw new Error('connected loading shell is missing');
+    }
     const shellStyle = getComputedStyle(shellElement);
     const loadingStyle = getComputedStyle(element);
     return {
