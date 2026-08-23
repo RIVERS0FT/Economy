@@ -35,6 +35,21 @@ jobs:
           node-version: 24.4.0
           cache: npm
 
+      - name: Align refactor script with current CSS
+        if: steps.guard.outputs.run == 'true'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.codex/apply_regional_market_product_pages.py')
+          text = path.read_text(encoding='utf-8')
+          old = """  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);\n  align-items: start;\n  gap: var(--layout-gutter);"""
+          new = """  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);\n  align-items: start;\n  gap: var(--space-3);"""
+          if old not in text:
+              raise SystemExit('warehouse CSS source block not found in refactor script')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
       - name: Apply and commit implementation
         if: steps.guard.outputs.run == 'true'
         shell: bash
