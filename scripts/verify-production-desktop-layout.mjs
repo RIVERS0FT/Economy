@@ -97,7 +97,7 @@ for (const text of [
   'className="province-facility-detail-title"',
   '<RegionalEntityPageTitle',
   "{ label: '返回建筑列表', onClick: () => setFacilityDetailTypeId(null) }",
-  '{!isFacilityDetail ? sectionSwitch : null}',
+  '{!isEntityDetail ? sectionSwitch : null}',
   'detailFacilityTypeId={facilityDetailTypeId ?? undefined}',
   'onDetailFacilityChange={setFacilityDetailTypeId}',
 ]) assert.equal(provincePage.includes(text), true, `地区工厂二级详情缺少: ${text}`);
