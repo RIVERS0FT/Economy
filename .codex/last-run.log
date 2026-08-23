@@ -32,12 +32,203 @@ Contract renewal and economic event verification passed.
 > economy@0.4.0 verify:provincial-economy
 > node scripts/verify-provincial-economy.mjs
 
+地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、州级经济隔离、隐藏州级上下文页、静态完整 SVG 世界面、州面与中文州名共享同一合成相机、缩放和平移热路径只写单次 transform、几何在手势期间不可变、屏外州缩小 active 阶段即可重新进入、空白双击／双触重置和移动 Tooltip 边界均已锁定。
+
+> economy@0.4.0 verify:architecture
+> npm run verify:repository-text-format && node --experimental-strip-types scripts/verify-money-precision.mjs && node --experimental-strip-types scripts/verify-order-book-decimal-levels.mjs && node scripts/verify-document-authority.mjs && node scripts/verify-client-state-version.mjs && node scripts/verify-order-matching-core.mjs && node scripts/verify-system-market.mjs && node scripts/verify-provincial-unlock-transport.mjs && npm run verify:province-map-focus && node scripts/verify-market-action-latency.mjs && node --experimental-strip-types scripts/verify-runtime-architecture.mjs && node scripts/verify-state-delivery-capacity.mjs && npm run verify:client-update-recovery && npm run verify:client-response && node scripts/verify-authentication-cache.mjs && node scripts/verify-email-registration.mjs && npm run verify:stress && node scripts/verify-scroll-ownership.mjs && node scripts/verify-gems-invitations-and-bans.mjs && node scripts/verify-daily-check-in.mjs && node scripts/verify-banking.mjs && node scripts/verify-weekly-cash-settlement.mjs && node scripts/verify-gem-shop.mjs && npm run verify:local-preview && node scripts/verify-page-content.mjs && node scripts/verify-auth-three-layer.mjs && node scripts/verify-game-three-layer.mjs && node scripts/verify-open-glass-sampling.mjs && npm run verify:navigation-badges && npm run verify:notifications && node scripts/verify-game-tutorial.mjs && node scripts/verify-online-auto-sell.mjs && node scripts/verify-assets-page.mjs && node scripts/verify-settings-layout.mjs && node scripts/verify-save-deletion.mjs && node --experimental-strip-types scripts/verify-display-format.mjs && node scripts/verify-ui-architecture-runner.mjs && npm run verify:echarts && node scripts/verify-page-section-spacing.mjs && npm run verify:product-artwork && npm run verify:facility-artwork && node scripts/verify-form-state-isolation.mjs && npm run verify:facility-unlock-selects && node scripts/verify-form-controls.mjs && npm run verify:production-config-visual && node scripts/verify-market-order-entry-compact.mjs && node scripts/verify-contract-layout.mjs && node scripts/verify-contract-audit.mjs && node scripts/verify-contract-types.mjs && node scripts/verify-currency-svg.mjs && node scripts/verify-mobile-touch-feedback.mjs && node scripts/verify-interaction-modality.mjs && node scripts/verify-virtual-list-scroll-chaining.mjs && node scripts/verify-overlay-scrollbars.mjs && node scripts/verify-overview-content.mjs && node scripts/verify-industry-catalog.mjs && node scripts/verify-production-methods.mjs && node scripts/verify-c1-input-balance.mjs && node scripts/verify-unified-factory-recipes-grid.mjs && npm run verify:production-settlement && npm run verify:production-lazy-settlement && node scripts/verify-production-desktop-layout.mjs && node scripts/verify-staple-crops-demand.mjs && node scripts/verify-market-reserve-operations.mjs && node --experimental-strip-types scripts/verify-market-assets.mjs && node scripts/verify-market-page-layout.mjs && npm run verify:market-desktop-cleanup && node scripts/verify-local-trade-privacy.mjs && node scripts/verify-market-sell-fee.mjs && node scripts/verify-leaderboards.mjs && node --experimental-strip-types scripts/verify-market-chart.mjs && node scripts/verify-liquid-glass-chrome.mjs && node scripts/verify-mobile-status-value-fit.mjs && node scripts/verify-desktop-primary-surfaces.mjs && node scripts/verify-authoritative-countdowns.mjs && node scripts/verify-primary-surface-insets.mjs && node scripts/verify-game-shell-layout.mjs && node scripts/verify-sidebar-navigation-collapse.mjs && node scripts/verify-mobile-page-sheet.mjs && node scripts/verify-warehouse-expansion.mjs && npm run verify:research && npm run verify:facility-auto-procure && node scripts/verify-facility-groups.mjs && node --experimental-strip-types scripts/verify-recipe-profit-analysis.mjs && node scripts/verify-asset-auctions.mjs && node scripts/verify-gift-code-batches.mjs && node scripts/verify-admin-navigation.mjs && npm run verify:population-policy-publishing && node scripts/verify-admin-player-statistics.mjs && npm run verify:gameplay-decision-support && node scripts/verify-runtime-efficiency.mjs && npm run verify:authoritative-hotpaths && node scripts/verify-runtime-reliability.mjs && node scripts/verify-deployment-storage.mjs && node scripts/verify-readonly-database-diagnostics.mjs && node scripts/verify-production-database-maintenance.mjs && node scripts/verify-mobile-facility-pull-refresh.mjs
+
+
+> economy@0.4.0 verify:repository-text-format
+> node scripts/verify-repository-text-format.mjs
+
+仓库文本格式验证通过：所有文本文件均使用 LF，二进制资源不参与转换。
+Money precision verification passed.
+Decimal order-book level verification passed.
+文档权威性验证通过：精简协作入口与项目 README、登记文档清单、版本 36/32、美国本土连续 48 州、起始州与州解锁、三种跨州运输、本地市场与工厂、500 新玩家启动资金、市场需求模型 19、固定银行收益与周资金结算、商品供货、玩家抵押借贷与工厂使用权租赁合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备、官方系统价市场、十一个正式页面与十项可见导航和银行资产总览职责均满足当前基线。
+客户端状态版本契约验证通过：当前 36，最低兼容 36
+共享撮合内核验证通过：商品与工厂复用单一混合盘口、价格档位 FIFO 运行时索引、流式价格时间优先撮合、maker price、部分成交、fill 和手续费状态机。
+官方系统价市场验证通过：实时精确清算、买卖对称供给、五分钟买卖量调价、价格边界、系统成交审计与页面展示均已锁定。
+起始州、州解锁与跨州运输验证通过：永久起始州、货币解锁、三种运输模式参数、运费计入运输就业、在途按起始州官方价估值、锁定州写拒绝与老玩家迁移均已锁定。
+
+> economy@0.4.0 verify:province-map-focus
+> node scripts/verify-province-map-focus.mjs
+
+province map focus verification passed
+市场动作延迟防回退验证通过：商品订单单次共享撮合、全量修复版本化、POST 后异步补拉、重复提交锁、请求超时、限流保留与同键确认重试均已锁定。
+运行时架构验证通过：全局市场/建筑与州级内嵌页面均按职责动态拆包，权威时间基准与叶子级共享时钟、虚拟列表二分与滚动合并、ECharts 资产圆环、资产比例和本地匿名成交缓存均已锁定。
+状态交付容量验证通过：世界缓存、单一全局调度、六分区增量交付与完整快照替换、catalog 完整性门禁与单次全量恢复、独立 serverNow、共享单调服务器时钟、动作精简确认与确认后分区补拉、修订号门禁、可抢占刷新任务、5 秒默认间隔和 JSON gzip 均已锁定。
+
+> economy@0.4.0 verify:client-update-recovery
+> node scripts/verify-client-update-recovery.mjs
+
+客户端版本更新、共享刷新控件、刷新恢复、缓存与原子发布规则验证通过。
+
+> economy@0.4.0 verify:client-response
+> node scripts/verify-client-response-performance.mjs
+
+客户端响应性能防回退验证通过：六分区外层协议、player/market 子修订结构共享、React render 快照一致性、子切片隔离、共享秒级叶子时钟和客户端订单索引均已锁定。
+认证缓存验证通过：状态 10 秒、写操作 2 秒、管理员零缓存、请求合并和 5000 条 LRU 已锁定。
+邮箱验证码注册验证通过：发送前查重、验证码安全、首次建档邀请码归因、注册后禁止补填、统一同 IP 异常上报与管理员封禁、双模式页面与 Nginx 路由均已锁定。
+
+> economy@0.4.0 verify:stress
+> node scripts/verify-stress-test-accounts.mjs && node scripts/verify-stress-test-flow.mjs && npm run test:stress
+
+Fixed reusable stress-test account registry, strict slicing and secret boundary verification passed.
+压力测试执行器、事务混合覆盖、隔离预置、协议断言、性能预算、生产安全门禁、报告和工作流均已锁定。
+
+> economy@0.4.0 test:stress
+> node --test tests/stress/stress-flow.test.mjs
+
+(node:2804) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ stress metrics calculate percentiles and enforce budgets (1.914439ms)
+✔ stress safety prevents production writes and unsafe targets (0.690998ms)
+✔ isolated mixed stress exercises real authentication, state delivery, writes and idempotency (4755.123265ms)
+✔ isolated transaction mix exercises state, work, orders, facilities, recipes, builds and research (9737.337743ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19630.82306
+Nested custom/native scroll ownership, shared signed-in page scroll, regional factory page flow and boundary release verification passed.
+宝石、邀请与封禁验证通过：同 IP 仅上报异常，账号封禁只由管理员执行，邀请防刷与审计边界保持。
+Daily check-in verification passed.
+银行验证通过：存取款守恒、抵押生产边界、违约处置不恢复退役工厂过渡字段、净资产、透明额度、期限利率、活跃周每日固定 1%、贷款利息池优先支付、补贴发行、周结算和统一截止时间均已锁定。
+固定利息与周资金结算验证通过：活跃周每日 1%、周末 10% 账单、登录扣款、实际收取额转入市场储备、长期回归一次性结算、冻结资金守恒和排行榜调整均已锁定。
+商店验证通过：礼品码兑换唯一归属商店，每日终端报价和研发宝石加速保持有效，工厂施工加速仅保留只读历史审计与 410 兼容墓碑。
+
+> economy@0.4.0 verify:local-preview
+> node scripts/verify-local-game-preview.mjs
+
+Local no-login game preview verification passed.
+页面内容与职责验证通过：既有页面职责检查保持生效，一级市场/建筑锁定全局视图，州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。
+认证三层验证通过：唯一摄影根、单一 CSS 毛玻璃认证宿主、自然内容高度和断点表单保持满足当前基线。
+持久全应用摄影背景验证通过：唯一图片节点、根级氛围切换、认证、玩家、管理员、状态页、失败回退、移动 Overlay 和浏览器 harness 均已锁定。
+登录后毛玻璃开放采样链验证通过：唯一四层根隔离、桌面与移动玩家／管理员祖先和四场景浏览器回归均已锁定。
+
+> economy@0.4.0 verify:navigation-badges
+> node --experimental-strip-types scripts/verify-navigation-badges.mjs
+
+navigation badge and auction attention verification passed
+
+> economy@0.4.0 verify:notifications
+> node --experimental-strip-types scripts/verify-notification-center.mjs
+
+notification center verification passed
+Tutorial verification passed.
+Online commodity auto-trade verification passed.
+银行资产总览、十一个正式页面与十项可见导航、本地成交 v7、移动资产构成与独立资产页删除验证通过。
+设置页统一单列、四项统计、账号分组、邀请移出与存档管理验证通过。
+删除存档的确认、阻断、自动关闭、账号级数据保留、页面存档世代锁、后台自动写 authority 门禁、旧标签页写入隔离与旧接口墓碑验证通过。
+时间与排名格式验证通过：持续时间统一使用 s/m/h，排名统一由状态栏和排行榜使用 #N。
+共享 UI、唯一开关、导航完全不透明状态色、独立工厂 SVG 与统一商品图标验证通过。
+downward prerequisite research DAG, edge-to-edge desktop canvas, stable hover geometry, ordinary wheel zoom, drag pan, double-click current focus, shared workspace card with transparent research canvas, shared mobile pan/zoom viewport, stable selection, no below-tree page-flow card, detail sheet and design verification passed
+
+> economy@0.4.0 verify:echarts
+> node scripts/verify-echarts-adoption.mjs
+
+ECharts 架构验证通过：唯一 EconomyChart 继续负责业务数据图表，战略地图使用独立静态 SVG 世界面与合成相机；统一 commonTooltip 毛玻璃材质、精确依赖、SVG 按需模块、生命周期、无障碍、市场动态几何、统一 Pie padAngle 及管理员与资产图表均已锁定。
+页面一级区块统一间距验证通过：PageLayout 自动内容栈、研发固定正文例外、地图全工作区例外、外壳沟槽映射、直接子元素外边距清理、新页面扫描、设计权威与真实几何回归均已锁定。
+
+> economy@0.4.0 verify:product-artwork
+> npm run generate:product-artwork && node scripts/verify-product-artwork.mjs
+
+
+> economy@0.4.0 generate:product-artwork
+> node scripts/generate-product-artwork-thumbnails.mjs
+
+商品运行时缩略图生成完成：38 种 128×128 RGBA PNG，总计 859.0 KiB，更新 38 个文件。
+商品图片视觉验证通过：38 种正式商品的 1024×1024 RGBA PNG 源图已生成 128×128 运行时缩略图，市场列表与详情、生产结算及富内容下拉框使用 ProductArtwork PNG，其余紧凑语义位置继续使用 SVG 或通用回退。
+
+> economy@0.4.0 verify:facility-artwork
+> npm run generate:facility-artwork && node scripts/verify-facility-artwork.mjs
+
+
+> economy@0.4.0 generate:facility-artwork
+> node scripts/generate-facility-artwork-thumbnails.mjs
+
+工厂场景运行时缩略图生成完成：26 种 256×256 RGBA PNG，总计 4695.3 KiB，更新 26 个文件。
+工厂场景插画验证通过：26 种正式工厂与 1024×1024 RGBA 源图、256×256 运行时缩略图、ID 映射、市场列表与详情独立插画槽、主视觉使用边界及 C1–C7 从空白新绘 SHA-256 基线一致。
+form state and polling refresh isolation verification passed
+
+> economy@0.4.0 verify:facility-unlock-selects
+> node --experimental-strip-types scripts/verify-facility-unlock-selects.mjs
+
+facility unlock select verification passed
+统一表单、统一可见下拉、受控生产配置变体、顶层浮层、数字草稿、整数输入滚轮归属、统一导航角标与移动端尺寸验证通过。
+
+> economy@0.4.0 verify:production-config-visual
+> node scripts/verify-production-config-visual.mjs
+
+生产配置视觉验证通过：生产产物与作业制度使用 UMG 风格 Auto 槽连续左排，无 Fill 轨道，右侧剩余空间不触发下拉。
+市场同行标签、内嵌步进按钮稳定定位、聚焦金额滚轮、详情移除、移动端永久双列和极窄盘口验证通过。
+合同页四列工作区、常驻合同广场、待处理置顶与警示背景、双视图切换、历史结果、重新拟定和响应式浏览器回归验证通过。
+Contract audit and compact history verification passed.
+六类合同方向、资产锁定、页面入口与权威设计验证通过
+货币 SVG 验证通过：56 处可见金额统一使用 CreditsIcon，通知边界兼容旧字符串，玩家端源码无字符货币符号。
+移动触摸反馈验证通过：按钮、链接与图表交互区域的原生蓝色 tap highlight 已关闭，键盘 focus-visible 焦点保持不变。
+全局输入方式验证通过；当前遗留未约束 hover 16 条，新增条目为 0。
+Shared virtual windowing, single two-axis record viewport and boundary scroll chaining verification passed.
+统一尺寸、共享登录后页面滚动、共享移动详情安全边缘、鼠标与触控策略、市场列表无横向主滚动和单一双轴虚拟成交表验证通过。
+概览验证通过：共享外壳折叠、桌面教程右栏、移动教程外壳锚点、签到日历、服务器日期语义、权威资产状态、子切片依赖、状态栏趋势与浏览器碰撞回归满足设计基线。
+产业目录验证通过：38 种商品、26 种工厂、C1/C2 工厂专属作业制度、炼油工业耗材和 C2 3/6/9/10.5 利润梯度。
+生产方式验证通过：C1/C2 工厂专属整件投入制度、C2 3/6/9/10.5 利润梯度、研发门槛与旧制度迁移，C3～C7 通用固定精度平衡、稳定变体 ID、生产方案菜单、即时反馈、最新目标合并与配置原子切换均已锁定。
+C1 投入品平衡验证通过：六种价格与上游批量产出、三级利润区间、同级差距、模型 18 历史迁移和当前市场需求模型 19 均已锁定。
+统一工厂配方与地区卡片验证通过：目录顺序、三列 4:5 工厂卡、二级详情、统一生产设置与共享移动基础设施均已锁定。
+
+> economy@0.4.0 verify:production-settlement
+> node scripts/verify-production-settlement-layout.mjs
+
+生产结算商品 PNG、生产配置方案下拉、投入产出市场跳转、统一页面级工厂详情、经营诊断响应式与几何防回退验证通过。
+
+> economy@0.4.0 verify:production-lazy-settlement
+> node scripts/verify-production-lazy-settlement.mjs
+
+production lazy settlement architecture verified
+地区建筑验证通过：建设卡优先、三列 4:5 工厂卡、二级详情、正文分区导航、标题高度稳定与紧凑开关均已锁定。
+市场需求验证通过：模型 19 使用工厂承载驱动的实际人口与真实钱包覆盖全部 38 种商品，并保持双向报价、派生流动性和市场储备约束。
+market reserve operations verification passed
+统一资产市场、非交叉撮合、连续五档价格聚合、玩家／消费需求／市场储备商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。
+市场页布局与运行时验证通过：一级市场保留跨州总览；地区目录直接排列商品并进入地区商品详情；价格/成交量、五档订单簿和固定商品自动交易归属详情；工厂资产交易继续归属建筑详情。
+
+> economy@0.4.0 verify:market-desktop-cleanup
+> node scripts/verify-market-desktop-cleanup.mjs
+
+桌面与移动端订单簿统一为连续五档行，表头和最新价分隔已从 DOM 与样式中移除。
+普通玩家订单 API、本地存储和市场成交展示均已匿名化，客户端订单索引只依据 isOwn 识别当前玩家订单，人口模型及资金池字段不会公开。
+玩家商品与工厂订单簿卖出手续费、累计部分成交、匿名公开字段、紧凑前端展示和独立拍卖手续费隔离验证通过。
+Leaderboard verification passed.
+Market ECharts verification passed: distinct price semantics, minimal-padding integer scales, readable volume labels, mobile axis layout, linked persistent hover and zero-gap grids satisfy the design baseline.
+纯 CSS 毛玻璃外壳验证通过：共享外壳、普通页面桌面教程右栏、fullscreen 无右栏、研发统一 workspaceCard 与内部透明科技画布、移动教程外壳锚点与 SafeTooltip/ECharts Tooltip 统一使用纯 CSS 毛玻璃材质，且旧 Liquid Glass 实现保持退役。
+移动状态栏数值自适应验证通过。
+桌面一级卡片、玩家状态栏与管理员工作栏的共享毛玻璃材质验证通过。
+权威倒计时验证通过：本地资格与状态转换分离、稳定状态分区时间字段、共享单调服务器时钟、到期确认、后台恢复、页面级子切片订阅和无轮询式完整状态刷新均已锁定。
+一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、承载面局部间距、跨端页面安全宽度、正文顶部留白、全局经营页收缩、旧类兼容、样式与设计文档权威均已锁定。
+游戏与管理员共享外壳验证通过：固定状态栏、唯一共享页面滚动、全宽页面右栏隐藏、研发统一 workspaceCard 与内部透明科技画布、根级 Dialog、48px 通知轨道、8px 战略栅格、主卡片侧栏覆盖、建筑式页面、根级地图镜头与安全浮层满足当前基线。
+侧栏导航与前台输入意图验证通过。
+移动唯一 Sheet 自身毛玻璃、稳定松手、透明外部、状态/通知上层与导航隐藏恢复动画验证通过。
+无限仓库防回退验证通过：容量机制保持退役，州级仓库只读，在线自动交易唯一归属市场。
+
+> economy@0.4.0 verify:research
+> node scripts/verify-research-progression.mjs
+
+split research technology catalog, fixed six-hour duration, migration, access control, UI and design verification passed
+
+> economy@0.4.0 verify:facility-auto-procure
+> node scripts/verify-facility-auto-procure.mjs
+
+facility one-click procurement verification passed
+工厂即时加入、配置立即切换、满员率稀释与惩罚、紧凑标题状态、三态自动恢复和生产结算验证通过。
 node:internal/modules/run_main:105
     triggerUncaughtException(
     ^
 
-AssertionError [ERR_ASSERTION]: src/pages/MarketPage.tsx 必须只通过标题显示地图当前地区: title={`${provinceName} · ${assetName}`}
-    at file:///home/runner/work/Economy/Economy/scripts/verify-provincial-economy.mjs:132:52
+AssertionError [ERR_ASSERTION]: 市场资产列表缺少真实成交价字段: typeof entry.marketPrice === 'number'
+                          ? <CurrencyAmount>{formatCurrency(entry.marketPrice)}</CurrencyAmount>
+    at file:///home/runner/work/Economy/Economy/scripts/verify-recipe-profit-analysis.mjs:246:11
     at ModuleJob.run (node:internal/modules/esm/module_job:370:25)
     at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:99:5) {
