@@ -39,6 +39,14 @@ jobs:
               if line.count('"""') % 2 == 1:
                   in_triple = not in_triple
           script = '\n'.join(restored) + '\n'
+          script = script.replace(
+              "for (const text of ['礼品兑换', 'redeemGift', 'gift-redemption-card']) {",
+              "for (const text of ['WidgetHeading title=\"礼品兑换\"', 'label=\"礼品兑换码\"', 'redeemGift', 'gift-redemption-card']) {",
+          )
+          script = script.replace(
+              "assert '礼品兑换' not in settings",
+              "assert 'WidgetHeading title=\"礼品兑换\"' not in settings",
+          )
           Path('/tmp/apply-repeat-save-delete-gift-shop.py').write_text(script, encoding='utf-8')
           PY
           python3 /tmp/apply-repeat-save-delete-gift-shop.py
