@@ -127,7 +127,7 @@ for (const text of [
   '注册完成后不能补填',
   '商店兑换普通货币继续直接发行新货币',
 ]) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
-for (const text of ['专属分享链接', '永久邀请码', '邀请卡唯一归属商店', '注册完成后不允许补填']) {
+for (const text of ['专属分享链接', '永久邀请码', '邀请卡与礼品码兑换唯一归属商店', '注册完成后不允许补填']) {
   requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 }
 for (const text of ['同一注册 IP', '423 Locked', 'ECONOMY_ACCOUNT_BANNED', '固定返回 `410 Gone`']) {
