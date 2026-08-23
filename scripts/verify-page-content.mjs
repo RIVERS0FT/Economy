@@ -8,6 +8,7 @@ const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const obsoleteBaseFailures = new Set([
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: | 建筑 | `buildings` | `BuildingsPage` |',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 页面主标题固定为“{州级地区全称}建筑”',
+  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 邀请卡唯一归属商店，只展示玩家自己的专属分享链接、永久邀请码',
 ]);
 
 const baseResult = spawnSync(
@@ -66,6 +67,7 @@ for (const text of [
   '| 建筑 | `buildings` | `GlobalBuildingsPage` |',
   '一级导航中的“市场”和“建筑”固定进入全局视图',
   '`ProvincePage` 内的市场与建筑分区仍始终是地图所打开当前州的本地视图',
+  '邀请卡与礼品码兑换唯一归属商店',
   '用户缩放范围固定为 `0.5～4`',
   '地图不得提供独立的放大、缩小或重置功能面板',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
@@ -125,4 +127,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('页面内容与职责验证通过：既有页面职责检查保持生效，一级市场/建筑锁定全局视图，州级上下文继续复用本地市场/建筑，地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。');
+console.log('页面内容与职责验证通过：既有页面职责检查保持生效，一级市场/建筑锁定全局视图，州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。');
