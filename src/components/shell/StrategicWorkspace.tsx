@@ -1,9 +1,9 @@
 import regionCatalog from '../../../shared/provinces.json';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import type { GameTutorialController } from '../../game-guide/useGameTutorial';
+import type { PendingNotificationItem } from '../../notifications/notificationCenter';
 import type { ProvinceAssetSummary, ProvinceDefinition } from '../../types';
-import { EconomicEventLogPanel } from '../EconomicEventLogPanel';
-import { GameGuideStrip } from '../GameGuideStrip';
+import { StrategicOutliner } from '../outliner/StrategicOutliner';
 import { UsMainlandMap, type ProvinceMapLens } from '../provinces/UsMainlandMap';
 import {
   AssetsIcon,
@@ -47,6 +47,47 @@ function strategicMapState(model: LoadedGameViewModel) {
     selectedProvinceId,
     selectedProvince,
   };
+}
+
+function strategicOutlinerModel(model: LoadedGameViewModel): LoadedGameViewModel {
+  const game = model.game as Partial<LoadedGameViewModel['game']>;
+  const provinces = Array.isArray(game.provinces) && game.provinces.length > 0
+    ? game.provinces
+    : fallbackProvinces;
+  const products = Array.isArray(game.products) ? game.products : [];
+  const facilityTypes = Array.isArray(game.facilityTypes) ? game.facilityTypes : [];
+  const facilityGroups = Array.isArray(game.facilityGroups) ? game.facilityGroups : [];
+  const selectedProvinceId = typeof model.selectedProvinceId === 'string' && model.selectedProvinceId.trim()
+    ? model.selectedProvinceId
+    : game.defaultProvinceId || provinces[0]?.id || '110000';
+  const selectedFacilityTypeId = typeof model.selectedFacilityTypeId === 'string' && model.selectedFacilityTypeId.trim()
+    ? model.selectedFacilityTypeId
+    : facilityTypes[0]?.id || '';
+  const marketAssetId = typeof model.marketAssetId === 'string' && model.marketAssetId.trim()
+    ? model.marketAssetId
+    : products[0]?.id || selectedFacilityTypeId;
+
+  return {
+    ...model,
+    selectedProvinceId,
+    selectedProvince: model.selectedProvince
+      ?? provinces.find((province) => province.id === selectedProvinceId)
+      ?? provinces[0],
+    selectedFacilityTypeId,
+    marketAssetKind: model.marketAssetKind === 'facility' ? 'facility' : 'commodity',
+    marketAssetId,
+    game: {
+      ...model.game,
+      provinces,
+      products,
+      facilityTypes,
+      facilityGroups,
+      markets: game.markets ?? {},
+      research: game.research ?? { active: null },
+      facilityConstruction: game.facilityConstruction ?? null,
+      economicCalendar: game.economicCalendar ?? { events: [] },
+    },
+  } as LoadedGameViewModel;
 }
 
 export function StrategicMapStage({
@@ -115,31 +156,18 @@ export function StrategicMapLensBar({
 export function StrategicWorkspaceChrome({
   model,
   tutorial,
-  showEventRail,
+  pendingItems,
 }: {
   model: LoadedGameViewModel;
   tutorial?: GameTutorialController;
-  showEventRail: boolean;
+  pendingItems: PendingNotificationItem[];
 }) {
-  const showTutorial = Boolean(tutorial?.isVisible && tutorial.currentStep);
-  if (!showEventRail && !showTutorial) return null;
-
+  const outlinerModel = strategicOutlinerModel(model);
   return (
-    <aside
-      className="strategic-economic-event-rail"
-      aria-label={showEventRail ? '公开经济事件日志' : '教程'}
-      data-tutorial-visible={showTutorial ? 'true' : 'false'}
-      data-event-log-visible={showEventRail ? 'true' : 'false'}
-    >
-      {showTutorial && tutorial ? <GameGuideStrip tutorial={tutorial} /> : null}
-      {showEventRail ? (
-        <EconomicEventLogPanel
-          events={model.game.economicCalendar?.events ?? []}
-          products={model.game.products}
-          markets={model.game.markets}
-          referenceNow={model.game.lastProcessedAt}
-        />
-      ) : null}
-    </aside>
+    <StrategicOutliner
+      model={outlinerModel}
+      tutorial={tutorial}
+      pendingItems={pendingItems}
+    />
   );
 }

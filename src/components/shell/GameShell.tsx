@@ -45,15 +45,6 @@ const STRATEGIC_PAGE_PRESENTATION = {
   settings: 'building',
 } as const;
 
-const HIDDEN_EVENT_RAIL_TABS = new Set<TabId>([
-  'research',
-  'auction',
-  'contracts',
-  'bank',
-  'leaderboard',
-  'gem-shop',
-]);
-
 export function GameShell({ model, children, offline = false }: {
   model: LoadedGameViewModel;
   statusItems?: StatusBarItem[];
@@ -80,7 +71,6 @@ export function GameShell({ model, children, offline = false }: {
   const auctionNewIdSet = useMemo(() => new Set(auctionNewIds), [auctionNewIds]);
   const openBank = useCallback(() => model.setTab('bank'), [model.setTab]);
   const pagePresentation = STRATEGIC_PAGE_PRESENTATION[model.tab];
-  const showRightRail = pagePresentation !== 'fullscreen';
   const tutorial = (model as LoadedGameViewModel & { tutorial?: GameTutorialController }).tutorial;
   const playerName = game.playerName.trim() || '玩家';
 
@@ -294,8 +284,8 @@ export function GameShell({ model, children, offline = false }: {
           <>
             <StrategicWorkspaceChrome
               model={model}
-              tutorial={showRightRail ? tutorial : undefined}
-              showEventRail={!HIDDEN_EVENT_RAIL_TABS.has(model.tab)}
+              tutorial={tutorial}
+              pendingItems={notificationCenter.pendingItems}
             />
             {notificationCenter.panelOpen ? null : (
               <NotificationToasts

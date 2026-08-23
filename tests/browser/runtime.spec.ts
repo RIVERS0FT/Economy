@@ -199,10 +199,11 @@ test('overview prioritizes business decisions and shows the weekly check-in cale
   await expect(page.getByRole('heading', { name: '今日经营', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '开始工作' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '本周签到', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '公开经济事件', exact: true })).toBeVisible();
-  await expect(page.getByRole('complementary', { name: '公开经济事件日志', exact: true })).toBeVisible();
-  await expect(page.locator('.economic-event-log-note')).toHaveCount(0);
-  await expect(page.locator('.economic-event-log-panel .widget-badge')).toHaveCount(0);
+  const outliner = page.locator('.strategic-outliner');
+  await expect(outliner).toBeVisible();
+  await expect(outliner.locator('[data-outliner-section="events"]')).toBeVisible();
+  await expect(outliner.getByRole('button', { name: /公开经济事件/ })).toBeVisible();
+  await expect(page.locator('.page-content .strategic-outliner')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '生产摘要', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '资产与银行', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '当前挂单', exact: true })).toBeVisible();
@@ -247,30 +248,30 @@ test('page title stays fixed while only the page card body scrolls', async ({ pa
   expect(await body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
 });
 
-test('shell places the tutorial above the public event log in an independent right rail', async ({ page }) => {
+test('strategic outliner stays outside overview content and owns tutorial and public events', async ({ page }) => {
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('runtime-test.html?view=overview&scenario=tutorial');
 
-  const rightColumn = page.locator('.strategic-economic-event-rail');
-  const tutorial = rightColumn.locator('.game-guide-strip');
-  const eventLog = rightColumn.locator('.economic-event-log-panel');
-  await expect(tutorial).toBeVisible();
-  await expect(tutorial).toContainText('建设一座工厂');
-  await expect(eventLog).toBeVisible();
-  await expect(page.locator('.page-content .economic-event-log-panel')).toHaveCount(0);
-  const tutorialBox = await requireBox(tutorial);
-  const eventBox = await requireBox(eventLog);
+  const outliner = page.locator('.strategic-outliner');
+  const tutorialSection = outliner.locator('[data-outliner-section="tutorial"]');
+  const eventSection = outliner.locator('[data-outliner-section="events"]');
+  await expect(tutorialSection.locator('.game-guide-strip--outliner')).toBeVisible();
+  await expect(tutorialSection).toContainText('建设一座工厂');
+  await expect(eventSection).toBeVisible();
+  await expect(page.locator('.page-content .strategic-outliner')).toHaveCount(0);
+  const tutorialBox = await requireBox(tutorialSection);
+  const eventBox = await requireBox(eventSection);
   expect(tutorialBox.y + tutorialBox.height).toBeLessThanOrEqual(eventBox.y);
 });
 
-test('overview uses a building-style panel beside the independent event rail', async ({ page }) => {
+test('overview uses a building-style panel beside the strategic outliner', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('runtime-test.html?view=overview&scenario=empty');
 
   const layout = await requireBox(page.locator('.strategic-page-host--building > .page-content'));
   const main = await requireBox(page.locator('.home-grid'));
-  const eventLog = await requireBox(page.locator('.strategic-economic-event-rail'));
+  const outliner = await requireBox(page.locator('.strategic-outliner'));
   const summary = await requireBox(page.locator('.overview-summary-row'));
   const checkIn = await requireBox(page.locator('.overview-check-in-panel'));
   const summaryCards = page.locator('.overview-summary-card');
@@ -280,9 +281,9 @@ test('overview uses a building-style panel beside the independent event rail', a
   expect(main.x).toBeCloseTo(layout.x + 8, 0);
   expect(Math.abs(summary.x - main.x)).toBeLessThan(2);
   expect(Math.abs(summary.width - main.width)).toBeLessThan(2);
-  expect(eventLog.x).toBeGreaterThanOrEqual(layout.x + layout.width + 8);
-  expect(eventLog.width).toBeGreaterThanOrEqual(260);
-  expect(eventLog.width).toBeLessThanOrEqual(321);
+  expect(outliner.x).toBeGreaterThanOrEqual(layout.x + layout.width + 8);
+  expect(outliner.width).toBeGreaterThanOrEqual(280);
+  expect(outliner.width).toBeLessThanOrEqual(321);
   expect(summary.y).toBeGreaterThanOrEqual(checkIn.y + checkIn.height);
 
   await expect(summaryCards).toHaveCount(3);
@@ -294,8 +295,7 @@ test('overview uses a building-style panel beside the independent event rail', a
 
   const overflowingElements = await page.locator([
     '.home-grid',
-    '.strategic-economic-event-rail',
-    '.economic-event-log-panel',
+    '.strategic-outliner',
     '.overview-summary-row',
     '.overview-check-in-panel',
     '.overview-summary-card',
@@ -304,7 +304,7 @@ test('overview uses a building-style panel beside the independent event rail', a
     .map((element) => (element as HTMLElement).className));
   expect(overflowingElements).toEqual([]);
 
-  const headingHeights = await page.locator('.overview-check-in-panel h2, .overview-summary-row h2, .economic-event-log-panel h2')
+  const headingHeights = await page.locator('.overview-check-in-panel h2, .overview-summary-row h2')
     .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height));
   expect(Math.max(...headingHeights)).toBeLessThan(48);
 
@@ -420,7 +420,7 @@ test('overview keeps the decision rows visible and adapts to a narrower desktop'
   expect(pageErrors).toEqual([]);
 });
 
-test('desktop command rail expansion overlays the integrated card without reflowing overview or event rail', async ({ page }) => {
+test('desktop command rail expansion overlays the integrated card without reflowing overview or outliner', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('runtime-test.html?view=overview&scenario=empty');
@@ -430,15 +430,16 @@ test('desktop command rail expansion overlays the integrated card without reflow
   const workspace = page.locator('.workspace');
   const primaryCard = page.locator('.signed-in-shell__primary-card');
   const overviewPanel = page.locator('.strategic-page-host--building > .page-content');
-  const eventRail = page.locator('.strategic-economic-event-rail');
+  const outliner = page.locator('.strategic-outliner');
   await expect(shell).toHaveClass(/sidebar-collapsed/);
   await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+  await expect(outliner).toBeVisible();
   const summaryTracksBefore = await gridTrackCount(page.locator('.overview-summary-row'));
 
   const workspaceBefore = await requireBox(workspace);
   const primaryCardBefore = await requireBox(primaryCard);
   const overviewBefore = await requireBox(overviewPanel);
-  const eventRailBefore = await requireBox(eventRail);
+  const outlinerBefore = await requireBox(outliner);
 
   await sidebar.hover();
   await expect(shell).not.toHaveClass(/sidebar-collapsed/);
@@ -449,12 +450,12 @@ test('desktop command rail expansion overlays the integrated card without reflow
   const workspaceAfter = await requireBox(workspace);
   const primaryCardAfter = await requireBox(primaryCard);
   const overviewAfter = await requireBox(overviewPanel);
-  const eventRailAfter = await requireBox(eventRail);
+  const outlinerAfter = await requireBox(outliner);
   const sidebarAfter = await requireBox(sidebar);
   expect(workspaceAfter).toEqual(workspaceBefore);
   expect(primaryCardAfter).toEqual(primaryCardBefore);
   expect(overviewAfter).toEqual(overviewBefore);
-  expect(eventRailAfter).toEqual(eventRailBefore);
+  expect(outlinerAfter).toEqual(outlinerBefore);
   expect(sidebarAfter.x + sidebarAfter.width).toBeGreaterThan(overviewAfter.x + 100);
   await expect(sidebar).toHaveCSS('box-shadow', 'none');
   const dividerShadow = await sidebar.evaluate((element) => getComputedStyle(element, '::after').boxShadow);

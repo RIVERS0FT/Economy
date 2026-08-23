@@ -52,6 +52,51 @@
   flex-wrap: wrap;
 }
 
+.game-guide-strip--outliner {
+  gap: 7px;
+  padding: 7px 8px 5px;
+}
+
+.game-guide-outliner-step {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.game-guide-strip--outliner .game-guide-progress {
+  height: 4px;
+}
+
+.game-guide-strip--outliner .game-guide-task {
+  gap: 2px;
+}
+
+.game-guide-strip--outliner .game-guide-task strong {
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-guide-strip--outliner .game-guide-task p {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.game-guide-strip--outliner .game-guide-actions {
+  gap: 6px;
+}
+
+.game-guide-strip--outliner .game-guide-actions .ui-button {
+  min-height: 32px;
+  padding-block: 4px;
+  font-size: var(--font-size-xs);
+}
+
 .tutorial-settings-section {
   min-width: 0;
   display: grid;
@@ -98,6 +143,10 @@
     padding: 12px;
   }
 
+  .game-guide-strip--outliner {
+    padding: 7px 8px 5px;
+  }
+
   .tutorial-settings-section {
     grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
@@ -110,5 +159,9 @@
   .game-guide-actions .ui-button,
   .tutorial-settings-actions .ui-button {
     min-height: 48px;
+  }
+
+  .game-guide-strip--outliner .game-guide-actions .ui-button {
+    min-height: 44px;
   }
 }
