@@ -169,7 +169,7 @@ requireText(pageDesign, '教程只有进行中、已跳过和已完成三种结�
 requireText(pageDesign, '设置页不提供“显示教程”或继续教程入口', '页面权威设计必须锁定跳过后只能重新开始');
 requireText(pageDesign, '桌面所有页面（包括六个 `fullscreen` 页面）都复用同一 Outliner DOM', '页面权威设计必须锁定桌面教程与路由生命周期解耦');
 requireText(pageDesign, '移动端继续复用同一 Outliner DOM', '页面权威设计必须锁定移动教程单实例');
-requireText(pageDesign, '页面切换不得重置折叠、关注、滚动或教程步骤', '页面权威设计必须锁定页面切换不修改教程和追踪器交互状态');
+requireText(pageDesign, '页面切换不得重置分区折叠、关注、滚动或教程步骤', '页面权威设计必须锁定页面切换不修改教程和追踪器交互状态');
 requireText(pageDesign, 'economy_tutorial_completions', '页面权威设计必须记录教程完成表和服务器负担边界');
 requireText(chromeDesign, '## 5. 玩家页面与战略追踪器', '外壳权威设计必须记录统一战略追踪器');
 requireText(chromeDesign, '战略追踪器与页面路由生命周期解耦', '外壳权威设计必须锁定桌面追踪器常驻');
