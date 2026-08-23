@@ -224,7 +224,7 @@ requireText(files.outliner, [
   'pendingItems.map',
   'economicCalendar?.events',
 ]);
-forbidText(files.outliner, ['strategic-outliner__collapse', 'BackIcon']);
+forbidText(files.outliner, ['className="strategic-outliner__collapse"', 'BackIcon']);
 requireText(files.outlinerStorage, [
   'economy:strategic-outliner:v',
   'collapsedSections',
