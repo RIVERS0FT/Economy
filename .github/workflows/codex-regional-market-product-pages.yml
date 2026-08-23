@@ -35,53 +35,53 @@ jobs:
           node-version: 24.4.0
           cache: npm
 
-      - name: Apply source and design changes
-        if: steps.guard.outputs.run == 'true'
-        run: python3 .codex/apply_regional_market_product_pages.py
-
-      - name: Install dependencies
-        if: steps.guard.outputs.run == 'true'
-        run: npm ci
-
-      - name: Run targeted static verification
-        if: steps.guard.outputs.run == 'true'
-        run: |
-          node --experimental-strip-types scripts/verify-market-assets.mjs
-          node scripts/verify-market-page-layout.mjs
-          node scripts/verify-warehouse-expansion.mjs
-          node scripts/verify-production-desktop-layout.mjs
-          node scripts/verify-unified-factory-recipes-grid.mjs
-          node scripts/verify-page-content.mjs
-          npm run typecheck
-
-      - name: Run full build verification
-        if: steps.guard.outputs.run == 'true'
-        run: npm run build
-
-      - name: Install Playwright Chromium
-        if: steps.guard.outputs.run == 'true'
-        run: npx playwright install --with-deps chromium
-
-      - name: Run browser regression suite
-        if: steps.guard.outputs.run == 'true'
-        run: npm run test:browser
-
-      - name: Check final diff
-        if: steps.guard.outputs.run == 'true'
-        run: |
-          git diff --check
-          git status --short
-
-      - name: Commit verified implementation
+      - name: Apply and commit implementation
         if: steps.guard.outputs.run == 'true'
         shell: bash
         run: |
+          set +e
+          python3 .codex/apply_regional_market_product_pages.py > .codex/last-run.log 2>&1
+          status=$?
+          cat .codex/last-run.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src docs scripts tests
-          if git diff --cached --quiet; then
-            echo "No implementation changes to commit."
-            exit 0
+          if [[ $status -ne 0 ]]; then
+            git add .codex/last-run.log
+            git commit -m "chore: record regional market apply failure" || true
+            git push origin HEAD:codex/regional-market-product-pages
+            exit $status
           fi
-          git commit -m "重构地区商品页与地区实体标题"
+          git diff --check
+          git add src docs scripts tests
+          if ! git diff --cached --quiet; then
+            git commit -m "重构地区商品页与地区实体标题"
+            git push origin HEAD:codex/regional-market-product-pages
+          fi
+
+      - name: Verify implementation and record result
+        if: steps.guard.outputs.run == 'true'
+        shell: bash
+        run: |
+          set +e
+          set -o pipefail
+          {
+            npm ci &&
+            node --experimental-strip-types scripts/verify-market-assets.mjs &&
+            node scripts/verify-market-page-layout.mjs &&
+            node scripts/verify-warehouse-expansion.mjs &&
+            node scripts/verify-production-desktop-layout.mjs &&
+            node scripts/verify-unified-factory-recipes-grid.mjs &&
+            node scripts/verify-page-content.mjs &&
+            npm run typecheck &&
+            npm run build &&
+            npx playwright install --with-deps chromium &&
+            npm run test:browser &&
+            git diff --check
+          } 2>&1 | tee .codex/last-run.log
+          status=${PIPESTATUS[0]}
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .codex/last-run.log
+          git commit -m "chore: record regional market verification result" || true
           git push origin HEAD:codex/regional-market-product-pages
+          exit $status
