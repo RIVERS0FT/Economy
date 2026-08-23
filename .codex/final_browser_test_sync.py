@@ -17,12 +17,6 @@ replace(
 )
 
 replace(
-    'tests/browser/global-operation-pages.spec.ts',
-    "  await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();\n",
-    '',
-)
-
-replace(
     'tests/browser/scroll-input-modality.spec.ts',
     "  const layout = await page.locator('.market-catalog-panel').evaluate((panel) => ({\n",
     "  const layout = await page.locator('.market-catalog-surface').evaluate((panel) => ({\n",
