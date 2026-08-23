@@ -98,7 +98,7 @@ test.describe('all-interface photography', () => {
 
     const imageLayer = page.locator('.application-image-layer');
     const image = imageLayer.locator('img');
-    await expectSharedLoadingState(page, '正在连接统一账号服务…');
+    await expectSharedLoadingState(page, '正在连接服务器…');
     await expect(page.locator('html')).toHaveAttribute('data-app-backdrop', 'auth');
     await expect(imageLayer).toHaveCount(1);
     await expect(imageLayer).toBeVisible();
@@ -144,7 +144,7 @@ test.describe('all-interface photography', () => {
     });
 
     await page.goto('/economy/', { waitUntil: 'domcontentloaded' });
-    await expectSharedLoadingState(page, '正在加载金融帝国…');
+    await expectSharedLoadingState(page, '正在连接服务器…');
     await expect(page.locator('html')).toHaveAttribute('data-app-backdrop', 'game');
     releaseModule();
   });
@@ -164,7 +164,7 @@ test.describe('all-interface photography', () => {
     });
 
     await page.goto('/economy/', { waitUntil: 'domcontentloaded' });
-    await expectSharedLoadingState(page, '正在连接权威游戏服务器…');
+    await expectSharedLoadingState(page, '正在连接服务器…');
     await expect(page.locator('html')).toHaveAttribute('data-app-backdrop', 'game');
     releaseState();
     await expect(page.getByText('无法加载游戏状态', { exact: true })).toBeVisible();
