@@ -71,7 +71,7 @@ test('ready game view model does not return to loading on parent rerender or sam
     await json(route, fullStateDelivery(stateRequests));
   });
 
-  await page.goto('/game-loading-lifecycle-test.html');
+  await page.goto('/economy/game-loading-lifecycle-test.html');
   const status = page.getByTestId('game-view-model-status');
   await expect(status).toHaveText('ready');
   const requestsAfterReady = stateRequests;
