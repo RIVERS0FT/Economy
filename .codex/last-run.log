@@ -23,5 +23,29 @@ Run `npm audit` for details.
 > economy@0.4.0 typecheck
 > tsc --noEmit
 
-src/components/market/MarketAutoTradePanel.tsx(444,15): error TS2322: Type '{ ref: RefObject<HTMLButtonElement | null>; block: true; onClick: (event: MouseEvent<HTMLButtonElement, MouseEvent>) => void; children: string; }' is not assignable to type 'IntrinsicAttributes & ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant | undefined; block?: boolean | undefined; }'.
-  Property 'ref' does not exist on type 'IntrinsicAttributes & ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant | undefined; block?: boolean | undefined; }'.
+
+> economy@0.4.0 build
+> node scripts/verify-contract-renewal-economic-events.mjs && npm run verify:provincial-economy && npm run verify:architecture && npm run test:nginx-config && npm run server:check && npm run server:test && tsc && vite build
+
+Contract renewal and economic event verification passed.
+
+> economy@0.4.0 verify:provincial-economy
+> node scripts/verify-provincial-economy.mjs
+
+node:internal/modules/run_main:105
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: src/pages/MarketPage.tsx 必须只通过标题显示地图当前地区: title={`${provinceName} · ${assetName}`}
+    at file:///home/runner/work/Economy/Economy/scripts/verify-provincial-economy.mjs:132:52
+    at ModuleJob.run (node:internal/modules/esm/module_job:370:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:99:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '=='
+}
+
+Node.js v24.4.0
