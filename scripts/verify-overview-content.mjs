@@ -119,8 +119,9 @@ forbidAll(paths.overview, [
 ]);
 requireAll(paths.strategicWorkspace, [
   'export function StrategicWorkspaceChrome',
+  'const outlinerModel = strategicOutlinerModel(model);',
   '<StrategicOutliner',
-  'model={model}',
+  'model={outlinerModel}',
   'tutorial={tutorial}',
   'pendingItems={pendingItems}',
 ]);
