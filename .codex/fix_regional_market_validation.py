@@ -63,5 +63,10 @@ replace_if_present(
               设置自动交易
             </button>''',
 )
+replace_if_present(
+    'scripts/verify-provincial-economy.mjs',
+    "'title={`${provinceName} · ${assetName}`}'",
+    "'<RegionalEntityPageTitle entityName={assetName} regionName={provinceName} />'",
+)
 
 print('follow-up regional market validation fixes applied')
