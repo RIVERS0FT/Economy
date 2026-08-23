@@ -106,7 +106,6 @@ export function installLocalGamePreviewFetch() {
       return jsonResponse({
         preflight: {
           allowed: false,
-          alreadyUsed: false,
           blockers: [{ type: 'local_preview', message: '免登录游戏模式不会删除任何存档。', targetTab: 'settings' }],
           autoClose: { orders: 0, facilityListings: 0, auctions: 0, contracts: 0 },
           saveEpoch: 1,

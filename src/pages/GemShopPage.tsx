@@ -5,7 +5,7 @@ import { InvitationSettings } from '../components/InvitationSettings';
 import { CreditsIcon } from '../components/icons/GameIcons';
 import { GemIcon } from '../components/icons/GemIcon';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
-import { IntegerInput } from '../components/ui/FormControls';
+import { IntegerInput, TextInput } from '../components/ui/FormControls';
 import { Button, PageLayout, Panel, StatusTag, WidgetHeading } from '../components/ui/layout';
 import { LiveDurationUntil } from '../components/time/LiveServerTime';
 import { formatCurrency, formatDate, formatNumber } from '../utils/formatters';
@@ -21,6 +21,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
   const [exchanging, setExchanging] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [error, setError] = useState('');
+  const [giftCode, setGiftCode] = useState('');
 
   async function load() {
     try {
@@ -58,6 +59,14 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
     : summary?.demandTone === 'low'
       ? 'success'
       : 'info';
+
+  async function submitGift() {
+    const code = giftCode.trim().toUpperCase();
+    if (!code) return;
+    const result = await model.redeemGift(code);
+    model.notify(result.message);
+    if (result.ok) setGiftCode('');
+  }
 
   function setAmountValue(value: number) {
     setAmount(value);
@@ -106,7 +115,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="商店"
-      description="邀请好友获得宝石，并在每日终端报价中决定是否兑换普通货币。报价接受或放弃后当日不可更改。"
+      description="邀请好友获得宝石、兑换礼品码，并在每日终端报价中决定是否兑换普通货币。报价接受或放弃后当日不可更改。"
     >
       <div className="gem-shop-grid">
         <Panel className="widget gem-shop-balance-card">
@@ -211,6 +220,23 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
                 </p>
               )
             ) : <p>{loading ? '正在加载商店…' : error || '商店暂时不可用'}</p>}
+          </Panel>
+
+          <Panel className="widget gem-shop-gift-card">
+            <WidgetHeading title="礼品码兑换" action={<StatusTag tone="info">礼品</StatusTag>} />
+            <p>输入有效礼品码领取奖励。同一账号对同一礼品只能兑换一次。</p>
+            <TextInput
+              label="礼品兑换码"
+              value={giftCode}
+              maxLength={64}
+              autoComplete="off"
+              placeholder="RIVER-XXXX-XXXX"
+              onChange={(event) => setGiftCode(event.target.value.toUpperCase())}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void submitGift();
+              }}
+            />
+            <Button block disabled={!giftCode.trim()} onClick={() => void submitGift()}>兑换礼品</Button>
           </Panel>
         </div>
       </div>

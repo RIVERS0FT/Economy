@@ -132,6 +132,26 @@ if (failures.length === 0) {
   ]) {
     if (!deletion.includes(text)) failures.push(`删档领域缺少: ${text}`);
   }
+  for (const text of [
+    'economy_save_deletions_repeatable',
+    'idx_economy_save_deletions_user_deleted',
+    'assertExpectedSaveEpoch',
+  ]) {
+    if (!deletion.includes(text)) failures.push(`重复删档迁移或世代保护缺少: ${text}`);
+  }
+  for (const forbidden of [
+    'already_used',
+    '当前账号已经使用过一次自助删除存档',
+    'user_id INTEGER NOT NULL UNIQUE,',
+  ]) {
+    if (deletion.includes(forbidden)) failures.push(`删档领域不得恢复单次限制: ${forbidden}`);
+  }
+  if (clientApi.includes('alreadyUsed: boolean;')) failures.push('客户端预检查不得恢复 alreadyUsed 单次删档字段');
+  if (settings.includes('saveDeletionPreflight?.alreadyUsed')) failures.push('设置页不得按历史删档次数禁用删除按钮');
+  if (!app.includes("expectedSaveEpoch: request.headers['x-economy-save-epoch']")) {
+    failures.push('删档请求必须把页面存档世代传入删档事务校验');
+  }
+
   for (const forbidden of ['resetPlayer', "return { action: 'resetPlayer'"]) {
     if ([deletion, app, runtime].some((source) => source.includes(forbidden))) {
       failures.push(`不得恢复旧重置动作: ${forbidden}`);
@@ -149,6 +169,8 @@ if (failures.length === 0) {
 
   for (const text of [
     'delete save recreates the player baseline',
+    'repeat delete creates a new save epoch and appends audit history',
+    'legacy single-use save deletion audit migrates without blocking another deletion',
     'active liabilities block save deletion',
     'stale tab writes are rejected after save deletion while the new epoch remains writable',
     '旧标签页请求不得推进世界修订号',
@@ -182,12 +204,12 @@ if (failures.length === 0) {
   }
 
   for (const [name, source, requiredText] of [
-    ['产品设计', productDesign, '每个账号只允许使用一次自助删除存档'],
+    ['产品设计', productDesign, '每个账号可以重复使用自助删除存档'],
     ['页面设计', pageDesign, '设置页“存档管理”'],
     ['UI 设计', uiDesign, '存档管理'],
     ['服务器设计', serverDesign, 'economy_save_deletions'],
     ['服务器设计', serverDesign, '409 SAVE_EPOCH_MISMATCH'],
-    ['服务器设计', serverDesign, '旧标签页把操作写入新存档'],
+    ['服务器设计', serverDesign, '旧标签页作用于后续世代'],
     ['权威倒计时设计', countdownDesign, '浏览器文档生命周期内的页面存档世代锁'],
     ['权威倒计时设计', countdownDesign, '状态发布前完成世代校验'],
     ['管理员设计', adminDesign, '删除存档不得删除或重置'],

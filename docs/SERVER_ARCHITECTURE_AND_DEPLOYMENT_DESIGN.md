@@ -2,7 +2,7 @@
 
 > 状态：当前服务器、API、持久化和部署基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-20
+> 更新时间：2026-08-23
 > 客户端状态版本：36
 > 世界状态版本：32
 > 市场需求模型版本：19
@@ -74,7 +74,7 @@
 - `storage.js`：SQLite、事务、修订号、幂等响应、礼品码、商店流水与管理员查询；
 - `runtime-store-core.js`：合同动作、人口政策、存档世代投影隔离、管理员运行时能力与现有持久化扩展的主体实现；
 - `runtime-store.js`：正式运行时热路径编排层，负责已提交世界缓存、请求草稿创建、调度 barrier 与权威写入准入；
-- `save-deletion.js`：一次性玩家存档删除预检、共享关系阻断、自动关闭、重新初始化、审计与旧标签页世代防护；
+- `save-deletion.js`：可重复玩家存档删除预检、共享关系阻断、自动关闭、重新初始化、追加式审计与旧标签页世代防护；
 - `state-partitions.js`：目录、玩家、市场、拍卖、合同和排行榜六个状态分区、分区哈希与精简动作确认；
 - `server/shared/economy-state-version.js`：当前客户端状态版本与最低兼容版本的唯一来源；
 - `game-routes.js`：普通游戏动作路由；
@@ -730,9 +730,9 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 `save-deletion.js` 是玩家自助删除存档的唯一领域入口。`GET /api/game/save-deletion/preflight` 在权威写队列中推进到当前世界状态并返回阻止事项与可自动关闭项目；`POST /api/game/save-deletion` 使用 `Idempotency-Key`、精确确认文字“删除存档”和同一 `BEGIN IMMEDIATE` 事务再次检查。开放订单、旧工厂挂牌、无出价自有拍卖和未承接自有合同按现有取消逻辑正常释放；未偿银行贷款、未完成周资金结算、已有出价的自有拍卖、当前最高出价和履约合同必须返回 `409 SAVE_DELETION_BLOCKED`，任何资产不得改变。
 
-删除事务通过首次建档共用的 `ensurePlayer` 初始化重新创建玩家，保留原 `registeredAt`、宝石余额和宝石发行统计，写入递增 `saveEpoch`、`saveCreatedAt` 与一次性删除审计。`economy_save_deletions` 对 `user_id` 与 `request_key` 分别唯一，保存前后世代、删除时间、资产摘要和自动关闭数量；同一幂等键只返回第一次结果，每个账号只能成功一次。`economy_registrations`、邀请码与邀请关系、宝石账本、商店兑换、每日签到、礼品兑换、封禁、拍卖审计和合同审计不得删除或重置。教程完成行在同一事务删除，使新存档重新进入基础教程。
+删除事务通过首次建档共用的 `ensurePlayer` 初始化重新创建玩家，保留原 `registeredAt`、宝石余额和宝石发行统计，每次重新发放新存档的 500 普通货币，并写入递增 `saveEpoch`、`saveCreatedAt` 与一条追加式删除审计。`economy_save_deletions` 允许同一 `user_id` 保存多条历史记录，`request_key` 继续唯一，并保存前后世代、删除时间、资产摘要和自动关闭数量；旧的 `user_id UNIQUE` 表结构在首次访问删档领域时幂等迁移为追加式历史表，并建立 `(user_id, deleted_at DESC, id DESC)` 查询索引。同一幂等键只返回第一次结果，但历史删除记录不得阻止再次删除当前经济存档。`economy_registrations`、邀请码与邀请关系、宝石账本、商店兑换、每日签到、礼品兑换、封禁、拍卖审计和合同审计不得删除或重置。教程完成行在同一事务删除，使每个新存档重新进入基础教程。
 
-服务器状态固定下发 `saveEpoch`。当前客户端对普通写请求发送 `X-Economy-Save-Epoch`；仅当当前存档仍处于初始 `saveEpoch = 0` 时允许兼容旧客户端缺失该请求头。一旦玩家成功删除存档进入更高世代，缺失或与当前玩家不一致的世代都必须在 `store.apply()` 之前返回 `409 SAVE_EPOCH_MISMATCH`，不得推进世界修订号或改变现金、订单、工厂、研发等新存档状态，从而防止删档前的旧标签页把操作写入新存档；当前世代请求仍必须保持可写。旧 `POST /api/game/reset` 继续固定返回 `410 Gone`，不得映射到删除存档领域能力。
+服务器状态固定下发 `saveEpoch`。当前客户端对普通写请求和删除存档请求都发送 `X-Economy-Save-Epoch`；仅当当前存档仍处于初始 `saveEpoch = 0` 时允许兼容旧客户端缺失该请求头。删档 POST 必须先匹配当前页面世代，再进入当前世代的清理和重建；一旦玩家成功删除存档进入更高世代，缺失或与当前玩家不一致的世代都必须返回 `409 SAVE_EPOCH_MISMATCH`，不得推进世界修订号或改变现金、订单、工厂、研发或再次删除新存档，从而防止删档前的旧标签页作用于后续世代；当前世代请求仍必须保持可写。旧 `POST /api/game/reset` 继续固定返回 `410 Gone`，不得映射到删除存档领域能力。
 
 ### 经营决策支持与精确漏斗
 

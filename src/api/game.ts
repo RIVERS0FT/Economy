@@ -153,7 +153,6 @@ export interface SaveDeletionBlocker {
 }
 export interface SaveDeletionPreflight {
   allowed: boolean;
-  alreadyUsed: boolean;
   blockers: SaveDeletionBlocker[];
   autoClose: {
     orders: number;

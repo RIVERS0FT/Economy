@@ -77,6 +77,7 @@ async function openGemShop(page: Page, width: number, height: number, recentExch
   await expect(page.getByRole('heading', { name: '商店', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '兑换货币', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '兑换记录', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '礼品码兑换', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '邀请好友', exact: true })).toBeVisible();
   await expect(page.getByText('1 宝石 = 100 货币', { exact: true })).toBeVisible();
   await expect(page.getByText('注册完成后不能补填或更换。', { exact: false })).toBeVisible();
@@ -93,6 +94,7 @@ test('desktop shop keeps invitation and exchange in independent top-aligned stac
   const sideColumn = page.locator('.gem-shop-side-column');
   const invitation = page.locator('.invite-card');
   const exchange = page.locator('.gem-shop-exchange-card');
+  const gift = page.locator('.gem-shop-gift-card');
   const history = page.locator('.gem-shop-history-card');
   const icon = page.locator('.gem-shop-balance-row svg').first();
   const confirm = page.getByRole('button', { name: '确认兑换', exact: true });
@@ -105,6 +107,7 @@ test('desktop shop keeps invitation and exchange in independent top-aligned stac
   const sideBox = await requireBox(sideColumn);
   const invitationBox = await requireBox(invitation);
   const exchangeBox = await requireBox(exchange);
+  const giftBox = await requireBox(gift);
   const historyBox = await requireBox(history);
   const iconBox = await requireBox(icon);
   const confirmBox = await requireBox(confirm);
@@ -113,6 +116,7 @@ test('desktop shop keeps invitation and exchange in independent top-aligned stac
   expect(Math.abs(balanceBox.width - gridBox.width)).toBeLessThan(2);
   expect(Math.abs(mainBox.y - sideBox.y)).toBeLessThan(2);
   expect(Math.abs(invitationBox.y - exchangeBox.y)).toBeLessThan(2);
+  expect(giftBox.y).toBeGreaterThan(exchangeBox.y + exchangeBox.height);
   expect(historyBox.y).toBeGreaterThan(invitationBox.y + invitationBox.height);
   expect(sideBox.x).toBeGreaterThan(mainBox.x + mainBox.width);
   expect(iconBox.width).toBeLessThanOrEqual(24);
@@ -162,6 +166,7 @@ test('compact shop orders exchange before invitation without horizontal overflow
   const cards = [
     page.locator('.gem-shop-balance-card'),
     page.locator('.gem-shop-exchange-card'),
+    page.locator('.gem-shop-gift-card'),
     page.locator('.invite-card'),
     page.locator('.gem-shop-history-card'),
   ];
