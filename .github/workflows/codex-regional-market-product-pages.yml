@@ -19,7 +19,7 @@ jobs:
           ref: codex/regional-market-product-pages
           fetch-depth: 0
 
-      - name: Check refactor script
+      - name: Check refactor state
         id: guard
         shell: bash
         run: |
@@ -27,6 +27,11 @@ jobs:
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+          if grep -Fq "const [tab, setActiveTab] = useState<TabId>('home');" src/app/gameViewModel.ts; then
+            echo "apply=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "apply=false" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: actions/setup-node@v4
@@ -36,7 +41,7 @@ jobs:
           cache: npm
 
       - name: Align refactor script with current sources
-        if: steps.guard.outputs.run == 'true'
+        if: steps.guard.outputs.apply == 'true'
         shell: bash
         run: |
           python3 - <<'PY'
@@ -56,12 +61,11 @@ jobs:
           if old_guard not in text:
               raise SystemExit('market-assets guard source block not found in refactor script')
           text = text.replace(old_guard, new_guard, 1)
-
           path.write_text(text, encoding='utf-8')
           PY
 
       - name: Apply and commit implementation
-        if: steps.guard.outputs.run == 'true'
+        if: steps.guard.outputs.apply == 'true'
         shell: bash
         run: |
           set +e
