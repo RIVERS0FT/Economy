@@ -98,6 +98,14 @@ if (failures.length === 0) {
     'refreshTaskRef.current',
     "mode === 'normal' && actionsInFlightRef.current > 0",
     'existing.controller.abort()',
+    'getGameAuthoritySnapshot',
+    'const onSignedOutRef = useRef(onSignedOut);',
+    'onSignedOutRef.current = onSignedOut;',
+    'const canReuseAuthority = reloadVersion === 0',
+    'authoritySnapshot.state?.userId === user.id',
+    'gameRef.current = authoritySnapshot.state;',
+    'revisionRef.current = authoritySnapshot.revision;',
+    'onSignedOutRef.current();',
   ]) requireText(paths.model, text);
 
   for (const text of [
@@ -177,6 +185,11 @@ if (failures.length === 0) {
     '`src/utils/authoritativeCountdowns.ts`',
     '每 `1,000ms` 继续确认',
     '浏览器从后台恢复可见时立即重新判断截止时间',
+    '游戏启动与已就绪 authority 生命周期',
+    '正式玩家入口只允许从启动态单向进入已就绪游戏态',
+    '必须复用该 `state + revision`',
+    '普通父组件重渲染',
+    '同一用户已有 authority 时重新挂载游戏应用不得再次出现启动加载页',
     '到期状态的分区替换语义',
     '完整快照，不是分区对象内部的字段级补丁',
     '整块替换同名分区',
@@ -225,4 +238,4 @@ if (failures.length) {
   console.error(`权威倒计时验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('权威倒计时验证通过：本地资格与状态转换分离、稳定状态分区时间字段、共享单调服务器时钟、到期确认、后台恢复、页面级子切片订阅和无轮询式完整状态刷新均已锁定。');
+console.log('权威倒计时验证通过：本地资格与状态转换分离、稳定状态分区时间字段、共享单调服务器时钟、到期确认、后台恢复、已就绪 authority 复用、页面级子切片订阅和无轮询式完整状态刷新均已锁定。');
