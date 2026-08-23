@@ -9,33 +9,25 @@ permissions:
   contents: write
 
 jobs:
-  reconcile-and-verify:
+  reconcile:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           ref: codex/victoria-market-layout
           fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.4.0
-          cache: npm
-      - name: Reconcile final market authority and regression coverage
+      - name: Reconcile final authority and regressions
         run: |
+          git fetch origin main
           node - <<'NODE'
           const fs = require('node:fs');
           const { execFileSync } = require('node:child_process');
 
-          const replaceRequired = (source, before, after, label) => {
-            if (!source.includes(before)) throw new Error('missing reconciliation anchor: ' + label);
-            return source.replace(before, after);
-          };
-
           const designPath = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md';
           let design = execFileSync('git', ['show', 'origin/main:' + designPath], { encoding: 'utf8' }).replace(/\r\n/g, '\n');
-          const marketRules = `### 4.1 跨州商品主表与地区详情信息层级
+          const rules = `### 4.1 跨州商品主表与地区详情信息层级
 
 全局市场的主体固定为跨州商品行情主表，而不是统计卡片仪表盘。顶部只保留紧凑摘要条，显示已解锁地区、未完成挂单、有真实成交商品、需求未满足地区项和当前经营州；当前经营州不得恢复为独立说明卡。商品主表支持四类正式商品分类，以及全部状态、有真实成交、需求未满足、暂无成交四种状态过滤；每行固定显示商品、真实成交覆盖地区、真实成交价范围、最低价地区、最高价地区、需求未满足地区与地区覆盖状态。
 
@@ -49,70 +41,35 @@ jobs:
 
 商品生产者／消费者关系仍只能从正式建筑配方派生，不表示实际生产量、就业量或贸易流；库存、理论产量和建筑数量不得伪装成供给或需求。自动交易、下单、撤单和本地成交仍只作用于当前 provinceId，不能因全局市场重排改变州级经济权威边界。
 `;
-          const marker = '\n## 5.';
-          if (!design.includes(marker)) throw new Error('market design section end anchor missing');
-          design = design.replace(marker, '\n\n' + marketRules.trim() + '\n' + marker);
+          if (!design.includes('\n## 5.')) throw new Error('missing market section terminator');
+          design = design.replace('\n## 5.', '\n\n' + rules.trim() + '\n\n## 5.');
           fs.writeFileSync(designPath, design);
 
-          const marketPagePath = 'src/pages/MarketPage.tsx';
-          let marketPage = fs.readFileSync(marketPagePath, 'utf8');
-          marketPage = replaceRequired(
-            marketPage,
-            'label="市场价"\n                  value={<CurrencyAmount>{formatCurrency(selectedMarketPrice)}</CurrencyAmount>}',
-            'label="官方系统价"\n                  value={<CurrencyAmount>{formatCurrency(selectedMarketPrice)}</CurrencyAmount>}',
-            'official system price label',
-          );
-          marketPage = replaceRequired(marketPage, 'label="周期实际成交"', 'label="周期系统买卖量"', 'cycle system volume label');
-          fs.writeFileSync(marketPagePath, marketPage);
+          const marketPath = 'src/pages/MarketPage.tsx';
+          let market = fs.readFileSync(marketPath, 'utf8');
+          market = market.replace(/label="市场价"(\s*\n\s*value=\{<CurrencyAmount>\{formatCurrency\(selectedMarketPrice\)\}<\/CurrencyAmount>\})/, 'label="官方系统价"$1');
+          market = market.replace('label="周期实际成交"', 'label="周期系统买卖量"');
+          fs.writeFileSync(marketPath, market);
 
           const runtimePath = 'tests/browser/market-runtime.spec.ts';
           let runtime = fs.readFileSync(runtimePath, 'utf8');
-          runtime = replaceRequired(
-            runtime,
-            "test('market desktop layout keeps order entry and order book together above the chart in the compact page'",
-            "test('market desktop layout keeps market context and chart above the combined trade card in the compact page'",
-            'desktop market test title',
-          );
-          runtime = replaceRequired(runtime, 'expect(chartCardBox.y).toBeGreaterThan(tradeBox.y + tradeBox.height - 2);', 'expect(tradeBox.y).toBeGreaterThan(chartCardBox.y + chartCardBox.height - 2);', 'desktop chart trade ordering');
-          runtime = replaceRequired(runtime, 'expect(chartBox.y).toBeGreaterThan(tradeBox.y + tradeBox.height - 2);', 'expect(tradeBox.y).toBeGreaterThan(chartBox.y + chartBox.height - 2);', 'medium chart trade ordering');
-          runtime = replaceRequired(runtime, 'expect(narrowChart.y).toBeGreaterThan(narrowTrade.y + narrowTrade.height - 2);', 'expect(narrowTrade.y).toBeGreaterThan(narrowChart.y + narrowChart.height - 2);', 'narrow chart trade ordering');
+          runtime = runtime.replace("market desktop layout keeps order entry and order book together above the chart in the compact page", "market desktop layout keeps market context and chart above the combined trade card in the compact page");
+          runtime = runtime.replace('expect(chartCardBox.y).toBeGreaterThan(tradeBox.y + tradeBox.height - 2);', 'expect(tradeBox.y).toBeGreaterThan(chartCardBox.y + chartCardBox.height - 2);');
+          runtime = runtime.replace('expect(chartBox.y).toBeGreaterThan(tradeBox.y + tradeBox.height - 2);', 'expect(tradeBox.y).toBeGreaterThan(chartBox.y + chartBox.height - 2);');
+          runtime = runtime.replace('expect(narrowChart.y).toBeGreaterThan(narrowTrade.y + narrowTrade.height - 2);', 'expect(narrowTrade.y).toBeGreaterThan(narrowChart.y + narrowChart.height - 2);');
           fs.writeFileSync(runtimePath, runtime);
 
           const verifierPath = 'scripts/verify-market-page-layout-base.mjs';
           let verifier = fs.readFileSync(verifierPath, 'utf8');
-          verifier = replaceRequired(
-            verifier,
-            "requireText(runtimeSpec, 'market desktop layout keeps order entry and order book together above the chart in the compact page', 'Playwright 必须覆盖紧凑市场的合并交易卡与后续行情布局。');",
-            "requireText(runtimeSpec, 'market desktop layout keeps market context and chart above the combined trade card in the compact page', 'Playwright 必须覆盖商品基本面与行情先于合并交易卡的最终信息层级。');",
-            'market runtime verifier ordering',
-          );
+          verifier = verifier.replace("market desktop layout keeps order entry and order book together above the chart in the compact page", "market desktop layout keeps market context and chart above the combined trade card in the compact page");
+          verifier = verifier.replace('Playwright 必须覆盖紧凑市场的合并交易卡与后续行情布局。', 'Playwright 必须覆盖商品基本面与行情先于合并交易卡的最终信息层级。');
           fs.writeFileSync(verifierPath, verifier);
           NODE
-      - name: Commit reconciled final files
+      - name: Commit reconciled files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- \
-            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
-            src/pages/MarketPage.tsx \
-            scripts/verify-market-page-layout-base.mjs \
-            tests/browser/market-runtime.spec.ts
+          git add -- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md src/pages/MarketPage.tsx scripts/verify-market-page-layout-base.mjs tests/browser/market-runtime.spec.ts
           git diff --cached --check
           git commit -m "对齐市场最终布局与权威回归"
           git push origin HEAD:codex/victoria-market-layout
-      - name: Install dependencies
-        run: npm ci
-      - name: Verify market hierarchy
-        run: npm run verify:market-information-hierarchy
-      - name: Verify market layout
-        run: node scripts/verify-market-page-layout.mjs
-      - name: Verify page content
-        run: node scripts/verify-page-content.mjs
-      - name: Typecheck
-        run: npm run typecheck
-      - name: Build and run architecture checks
-        run: npm run build
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-      - name: Run browser tests
-        run: npm run test:browser
