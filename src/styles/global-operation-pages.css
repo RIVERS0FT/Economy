@@ -228,41 +228,30 @@
   }
 }
 
-/* Commodity-first global market hierarchy. Cross-state bars visualize coverage only. */
-.global-market-summary-strip {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(9.5rem, 1.35fr);
-  gap: 1px;
-  overflow: hidden;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-control);
-  background: var(--color-border-subtle);
+/* Commodity-first global market hierarchy. Goods filters and rows are direct page content; cross-state bars visualize coverage only. */
+.global-market-page {
+  container-name: global-market-page;
 }
 
-.global-market-summary-strip > span {
+.global-market-page > .widget-heading,
+.global-market-filter-row,
+.global-market-goods-list,
+.global-market-provinces-panel {
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
-  display: grid;
-  gap: .15rem;
-  padding: .55rem .7rem;
-  background: color-mix(in srgb, var(--color-surface-panel) 76%, transparent);
 }
 
-.global-market-summary-strip small,
 .global-market-goods-row small,
 .global-market-province-row small {
   color: var(--color-text-muted);
 }
 
-.global-market-summary-strip strong,
 .global-market-goods-row strong,
 .global-market-province-row strong {
   min-width: 0;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
-}
-
-.global-market-summary-strip__current {
-  text-align: end;
 }
 
 .global-market-filter-row {
@@ -271,7 +260,7 @@
   justify-content: space-between;
   gap: .55rem;
   flex-wrap: wrap;
-  margin-bottom: .65rem;
+  margin: 0;
 }
 
 .global-market-filter-group {
@@ -279,6 +268,8 @@
   align-items: center;
   gap: .25rem;
   flex-wrap: wrap;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .global-market-filter-button {
@@ -301,14 +292,26 @@
 
 .global-market-goods-list,
 .global-market-province-list {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: .32rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.global-market-goods-list > li,
+.global-market-province-list > li {
+  max-width: 100%;
+  min-width: 0;
+}
+
 .global-market-goods-row {
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   display: grid;
   grid-template-columns: minmax(9.5rem, 1.35fr) minmax(4.8rem, .62fr) minmax(7rem, .82fr) repeat(2, minmax(6rem, .72fr)) minmax(5.5rem, .68fr) minmax(8rem, .9fr);
@@ -391,16 +394,7 @@
   text-align: end;
 }
 
-@media (max-width: 960px) {
-  .global-market-summary-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .global-market-summary-strip__current {
-    grid-column: 1 / -1;
-    text-align: start;
-  }
-
+@container global-market-page (max-width: 960px) {
   .global-market-goods-row,
   .global-market-province-row {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -422,14 +416,12 @@
   }
 }
 
-@media (max-width: 620px) {
-  .global-market-summary-strip,
+@container global-market-page (max-width: 620px) {
   .global-market-goods-row,
   .global-market-province-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .global-market-summary-strip__current,
   .global-market-goods-row__identity,
   .global-market-goods-row__status,
   .global-market-province-row__identity,

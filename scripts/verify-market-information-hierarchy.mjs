@@ -21,8 +21,9 @@ const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const chartDesign = read('docs/MARKET_CHART_LAYOUT_DESIGN.md');
 
 for (const token of [
-  'global-market-summary-strip',
+  '<WidgetHeading title="全局商品行情"',
   'global-market-filter-row',
+  'global-market-goods-list',
   'global-market-goods-row',
   '真实成交价范围',
   '最低价地区',
@@ -31,9 +32,21 @@ for (const token of [
   'global-market-province-row',
 ]) requireText(globalMarket, token, 'global market hierarchy');
 
-forbidText(globalMarket, 'MetricCard', 'global market hierarchy');
-forbidText(globalMarket, 'global-current-scope-summary', 'global market hierarchy');
-forbidText(globalMarket, 'global-province-grid', 'global market hierarchy');
+for (const token of [
+  'global-market-summary-strip',
+  'global-market-goods-panel',
+  'MetricCard',
+  'global-current-scope-summary',
+  'global-province-grid',
+]) forbidText(globalMarket, token, 'global market hierarchy');
+
+const goodsHeadingIndex = globalMarket.indexOf('<WidgetHeading title="全局商品行情"');
+const goodsFilterIndex = globalMarket.indexOf('<div className="global-market-filter-row"');
+const goodsListIndex = globalMarket.indexOf('<ul className="global-market-goods-list"');
+const provincePanelIndex = globalMarket.indexOf('<PagePanel className="global-market-provinces-panel">');
+if (goodsHeadingIndex < 0 || goodsFilterIndex <= goodsHeadingIndex || goodsListIndex <= goodsFilterIndex || provincePanelIndex <= goodsListIndex) {
+  throw new Error('global market hierarchy: goods heading, filters, and list must precede the regional market panel in direct page flow');
+}
 
 for (const token of [
   'MarketBalanceBar',
@@ -51,10 +64,15 @@ if (chartIndex < 0 || tradeIndex < 0 || chartIndex >= tradeIndex) {
 }
 
 for (const token of [
-  '.global-market-summary-strip',
+  '.global-market-filter-row',
   '.global-market-goods-row',
   '.global-market-province-row',
+  'container-name: global-market-page',
+  '@container global-market-page (max-width: 960px)',
+  '@container global-market-page (max-width: 620px)',
+  'grid-template-columns: minmax(0, 1fr)',
 ]) requireText(globalCss, token, 'global market css');
+forbidText(globalCss, '.global-market-summary-strip', 'global market css');
 
 for (const token of [
   '.market-balance-bar',
@@ -70,6 +88,8 @@ for (const token of [
 
 for (const token of [
   '跨州覆盖条只能使用',
+  '全局市场默认页不显示顶部统计摘要条',
+  '正文承载宽度',
   'Balance Bar',
   '商品详情必须先给出市场基本面',
   '不得为了把操作按钮抬高而重新把交易卡放到行情图之前',

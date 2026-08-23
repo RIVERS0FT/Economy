@@ -141,10 +141,6 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
     };
   }), [game.products, game.provinceMarkets, provinces, summaries]);
 
-  const totalOpenOrders = provinceRows.reduce((sum, row) => sum + row.openOrderCount, 0);
-  const tradedProductCount = productRows.filter((row) => row.tradedProvinceCount > 0).length;
-  const unmetDemandCount = productRows.reduce((sum, row) => sum + row.unmetDemandProvinces, 0);
-  const currentProvinceName = model.selectedProvince?.name || '加利福尼亚州';
   const detailProduct = model.marketViewMode === 'detail' && model.marketAssetKind === 'commodity'
     ? game.products.find((product) => product.id === model.marketAssetId)
     : undefined;
@@ -191,69 +187,59 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
   return (
     <PageLayout title="市场">
       <div className="global-operation-page global-market-page" data-global-scope="market">
-        <section className="global-market-summary-strip" aria-label="全局市场摘要">
-          <span><small>已解锁地区</small><strong>{formatNumber(provinces.length)}</strong></span>
-          <span><small>未完成挂单</small><strong>{formatNumber(totalOpenOrders)}</strong></span>
-          <span><small>有真实成交商品</small><strong>{formatNumber(tradedProductCount)} / {formatNumber(game.products.length)}</strong></span>
-          <span><small>需求未满足地区项</small><strong>{formatNumber(unmetDemandCount)}</strong></span>
-          <span className="global-market-summary-strip__current"><small>当前经营州</small><strong>{currentProvinceName}</strong></span>
-        </section>
-
-        <PagePanel className="global-market-goods-panel">
-          <WidgetHeading title="全局商品行情" action={<StatusTag>{formatNumber(filteredProductRows.length)} / {formatNumber(productRows.length)} 种商品</StatusTag>} />
-          <div className="global-market-filter-row" aria-label="全局商品筛选">
-            <div className="global-market-filter-group" role="group" aria-label="商品分类">
-              {PRODUCT_CATEGORY_FILTERS.map((option) => (
-                <button
-                  type="button"
-                  className={'global-market-filter-button' + (categoryFilter === option.value ? ' active' : '')}
-                  aria-pressed={categoryFilter === option.value}
-                  key={option.value}
-                  onClick={() => setCategoryFilter(option.value)}
-                >{option.label}</button>
-              ))}
-            </div>
-            <div className="global-market-filter-group" role="group" aria-label="市场状态">
-              {MARKET_STATUS_FILTERS.map((option) => (
-                <button
-                  type="button"
-                  className={'global-market-filter-button' + (statusFilter === option.value ? ' active' : '')}
-                  aria-pressed={statusFilter === option.value}
-                  key={option.value}
-                  onClick={() => setStatusFilter(option.value)}
-                >{option.label}</button>
-              ))}
-            </div>
+        <WidgetHeading title="全局商品行情" action={<StatusTag>{formatNumber(filteredProductRows.length)} / {formatNumber(productRows.length)} 种商品</StatusTag>} />
+        <div className="global-market-filter-row" aria-label="全局商品筛选">
+          <div className="global-market-filter-group" role="group" aria-label="商品分类">
+            {PRODUCT_CATEGORY_FILTERS.map((option) => (
+              <button
+                type="button"
+                className={'global-market-filter-button' + (categoryFilter === option.value ? ' active' : '')}
+                aria-pressed={categoryFilter === option.value}
+                key={option.value}
+                onClick={() => setCategoryFilter(option.value)}
+              >{option.label}</button>
+            ))}
           </div>
-          <ul className="global-market-goods-list" aria-label="跨州商品行情">
-            {filteredProductRows.map((row) => {
-              const status = globalProductStatus(row);
-              return (
-                <li className="global-market-goods-row" key={row.id}>
-                  <span className="global-market-goods-row__identity">
-                    <span className="global-market-goods-row__artwork" aria-hidden="true"><ProductArtwork productId={row.id} /></span>
-                    <strong>{row.name}</strong>
-                  </span>
-                  <span className="global-market-goods-row__metric"><small>成交地区</small><strong>{formatNumber(row.tradedProvinceCount)} / {formatNumber(provinces.length)}</strong></span>
-                  <span className="global-market-goods-row__metric"><small>真实成交价范围</small><strong>{row.range}</strong></span>
-                  <span className="global-market-goods-row__metric"><small>最低价地区</small><strong>{row.lowProvinceName}</strong></span>
-                  <span className="global-market-goods-row__metric"><small>最高价地区</small><strong>{row.highProvinceName}</strong></span>
-                  <span className="global-market-goods-row__metric"><small>需求未满足</small><strong>{formatNumber(row.unmetDemandProvinces)} / {formatNumber(row.directDemandProvinces)}</strong></span>
-                  <span className="global-market-goods-row__status">
-                    <small>地区覆盖</small>
-                    <StatusTag tone={status.tone}>{status.label}</StatusTag>
-                    <MarketCoverageBar
-                      tradedCount={row.tradedProvinceCount}
-                      unmetDemandCount={row.unmetDemandProvinces}
-                      totalCount={provinces.length}
-                    />
-                  </span>
-                </li>
-              );
-            })}
-            {filteredProductRows.length === 0 ? <li className="global-market-empty">没有符合当前筛选条件的商品。</li> : null}
-          </ul>
-        </PagePanel>
+          <div className="global-market-filter-group" role="group" aria-label="市场状态">
+            {MARKET_STATUS_FILTERS.map((option) => (
+              <button
+                type="button"
+                className={'global-market-filter-button' + (statusFilter === option.value ? ' active' : '')}
+                aria-pressed={statusFilter === option.value}
+                key={option.value}
+                onClick={() => setStatusFilter(option.value)}
+              >{option.label}</button>
+            ))}
+          </div>
+        </div>
+        <ul className="global-market-goods-list" aria-label="跨州商品行情">
+          {filteredProductRows.map((row) => {
+            const status = globalProductStatus(row);
+            return (
+              <li className="global-market-goods-row" key={row.id}>
+                <span className="global-market-goods-row__identity">
+                  <span className="global-market-goods-row__artwork" aria-hidden="true"><ProductArtwork productId={row.id} /></span>
+                  <strong>{row.name}</strong>
+                </span>
+                <span className="global-market-goods-row__metric"><small>成交地区</small><strong>{formatNumber(row.tradedProvinceCount)} / {formatNumber(provinces.length)}</strong></span>
+                <span className="global-market-goods-row__metric"><small>真实成交价范围</small><strong>{row.range}</strong></span>
+                <span className="global-market-goods-row__metric"><small>最低价地区</small><strong>{row.lowProvinceName}</strong></span>
+                <span className="global-market-goods-row__metric"><small>最高价地区</small><strong>{row.highProvinceName}</strong></span>
+                <span className="global-market-goods-row__metric"><small>需求未满足</small><strong>{formatNumber(row.unmetDemandProvinces)} / {formatNumber(row.directDemandProvinces)}</strong></span>
+                <span className="global-market-goods-row__status">
+                  <small>地区覆盖</small>
+                  <StatusTag tone={status.tone}>{status.label}</StatusTag>
+                  <MarketCoverageBar
+                    tradedCount={row.tradedProvinceCount}
+                    unmetDemandCount={row.unmetDemandProvinces}
+                    totalCount={provinces.length}
+                  />
+                </span>
+              </li>
+            );
+          })}
+          {filteredProductRows.length === 0 ? <li className="global-market-empty">没有符合当前筛选条件的商品。</li> : null}
+        </ul>
 
         <PagePanel className="global-market-provinces-panel">
           <WidgetHeading title="地区市场" action={<StatusTag>{formatNumber(provinceRows.length)} 个已解锁州</StatusTag>} />
