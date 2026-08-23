@@ -136,9 +136,11 @@ test.describe('notification center geometry', () => {
       const overlapTop = Math.max(toastBox.top, outlinerBox.top);
       const overlapRight = Math.min(toastBox.right, outlinerBox.right);
       const overlapBottom = Math.min(toastBox.bottom, outlinerBox.bottom);
-      const topmost = overlapRight > overlapLeft && overlapBottom > overlapTop
-        ? document.elementFromPoint((overlapLeft + overlapRight) / 2, (overlapTop + overlapBottom) / 2)
-        : null;
+      const overlapStack = overlapRight > overlapLeft && overlapBottom > overlapTop
+        ? document.elementsFromPoint((overlapLeft + overlapRight) / 2, (overlapTop + overlapBottom) / 2)
+        : [];
+      const toastStackIndex = overlapStack.findIndex((element) => Boolean(element.closest('.notification-toast-stack')));
+      const outlinerIndex = overlapStack.findIndex((element) => Boolean(element.closest('.strategic-outliner')));
       return {
         status: rect(status),
         trigger: rect(trigger),
@@ -160,7 +162,7 @@ test.describe('notification center geometry', () => {
         panelParentIsFloatingLayer: panel.parentElement?.parentElement === floatingLayer,
         toastParentIsStrategicChrome: toastStack.parentElement === strategicChrome,
         outlinerParentIsStrategicChrome: outliner.parentElement === strategicChrome,
-        toastOwnsOverlap: Boolean(topmost?.closest('.notification-toast-stack')),
+        toastPrecedesOutlinerAtOverlap: toastStackIndex >= 0 && outlinerIndex >= 0 && toastStackIndex < outlinerIndex,
         notificationLayer: panelLayer.dataset.notificationLayer,
       };
     });
@@ -180,7 +182,7 @@ test.describe('notification center geometry', () => {
     expect(geometry.panelParentIsFloatingLayer).toBe(true);
     expect(geometry.toastParentIsStrategicChrome).toBe(true);
     expect(geometry.outlinerParentIsStrategicChrome).toBe(true);
-    expect(geometry.toastOwnsOverlap).toBe(true);
+    expect(geometry.toastPrecedesOutlinerAtOverlap).toBe(true);
     expect(geometry.notificationLayer).toBe('floating');
     expect(geometry.frostedSurfaceCount).toBe(1);
   });
