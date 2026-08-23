@@ -96,7 +96,7 @@ requireText(marketDesign, '市场下单表单与同资产五档订单簿必须�
 requireText(marketDesign, '不大于 `720px` 的移动端始终同时显示下单区和五档盘口', '权威设计必须记录移动端永久双列规则。');
 requireText(marketDesign, '桌面端和移动端订单簿使用同一信息结构', '权威设计必须记录全端统一盘口结构。');
 requireText(marketDesign, '不渲染“档位／价格／数量”表头或真实最近成交价“最新”分隔行', '权威设计必须记录重复信息永久移除。');
-requireText(runtimeSpec, 'market desktop layout keeps order entry and order book together above the chart in the compact page', 'Playwright 必须覆盖紧凑市场的合并交易卡与后续行情布局。');
+requireText(runtimeSpec, 'market desktop layout keeps market context and chart above the combined trade card in the compact page', 'Playwright 必须覆盖商品基本面与行情先于合并交易卡的最终信息层级。');
 requireText(runtimeSpec, 'market medium and narrow layouts keep the trade card responsive without horizontal overflow', 'Playwright 必须覆盖中窄宽度交易卡响应式布局。');
 requireText(runtimeSpec, 'width: 320', 'Playwright 必须覆盖 320px 永久双列。');
 requireText(runtimeSpec, "name: '盘口', exact: true })).toHaveCount(0)", 'Playwright 必须验证移动端不再存在下单／盘口切换。');
