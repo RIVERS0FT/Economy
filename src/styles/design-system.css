@@ -13,6 +13,7 @@
   --font-size-xl: 1.125rem;
   --font-size-2xl: 1.5rem;
   --font-size-page: clamp(1.9rem, 3vw, 3.1rem);
+  --font-size-player-page-title: 1.25rem;
   --line-height-body: 1.5;
   --line-height-tight: 1.25;
 
@@ -81,6 +82,7 @@
 
   --control-height: 2.75rem;
   --control-height-compact: 2.25rem;
+  --player-page-title-track-height: 40px;
   --layout-gutter: var(--space-3);
   --content-max-width: 1540px;
   --motion-fast: 150ms;
@@ -292,6 +294,26 @@ label {
 
 .page-heading h1 {
   font-size: var(--font-size-page);
+}
+
+.page-heading--player-navigation .page-heading-title {
+  height: var(--player-page-title-track-height);
+  min-height: var(--player-page-title-track-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.page-heading--player-navigation .page-heading-title > h1 {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--font-size-player-page-title);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ui-page-stack {
