@@ -18,86 +18,56 @@ async function clickMapProvinceLabel(page: import('@playwright/test').Page, prov
 test.describe('warehouse and market online auto trade responsibilities', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('market auto-trade panel keeps its desktop control column', async ({ page }) => {
+  test('regional commodity detail keeps a fixed desktop auto-trade control', async ({ page }) => {
     await page.goto('market-runtime-test.html?scenario=active&view=catalog');
-    await page.getByRole('button', { name: '自动交易', exact: true }).click();
+    await expect(page.locator('.market-workspace-switch')).toHaveCount(0);
+    await expect(page.locator('.market-overview-metrics')).toHaveCount(0);
+    await expect(page.locator('.market-catalog-panel')).toHaveCount(0);
+    await page.getByRole('button', { name: '查看小麦详情' }).click();
 
     const autoTradeCard = page.locator('.market-auto-trade-card');
-    const productPanel = page.locator('.market-auto-trade-products');
     await expect(autoTradeCard).toBeVisible();
-    await expect(productPanel).toBeVisible();
-
-    const [autoTradeBox, productPanelBox] = await Promise.all([
-      autoTradeCard.boundingBox(),
-      productPanel.boundingBox(),
-    ]);
-    expect(autoTradeBox).not.toBeNull();
-    expect(productPanelBox).not.toBeNull();
-    expect(autoTradeBox!.x).toBeLessThan(productPanelBox!.x);
-    expect(autoTradeBox!.width).toBeGreaterThanOrEqual(280);
-    expect(autoTradeBox!.width).toBeLessThanOrEqual(320);
-
-    const productCard = page.locator('.market-auto-trade-product-card').first();
-    await productCard.click();
+    await expect(page.locator('.market-auto-trade-products')).toHaveCount(0);
+    await expect(page.getByRole('combobox', { name: '自动交易商品' })).toHaveCount(0);
+    await expect(autoTradeCard).toContainText('小麦 · 自动交易');
     await expect(autoTradeCard.getByRole('button', { name: '自动采购' })).toHaveAttribute('aria-pressed', 'true');
-    await expect(autoTradeCard).toContainText('设置保存至存档 · 在线维护买单');
-    await expect(autoTradeCard.getByLabel('目标自由库存')).toHaveValue('0');
-    await expect(autoTradeCard.getByLabel('最高自动采购价格')).toBeVisible();
-
+    await expect(autoTradeCard.getByLabel('目标自由库存')).toBeVisible();
     await autoTradeCard.getByRole('button', { name: '自动出售' }).click();
-    await expect(autoTradeCard).toContainText('设置保存至存档 · 在线维护卖单');
-    await expect(autoTradeCard.getByLabel('最低自由库存')).toHaveValue('0');
-    await expect(autoTradeCard.getByLabel('最低自动出售价格')).toBeVisible();
+    await expect(autoTradeCard.getByLabel('最低自由库存')).toBeVisible();
     await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
   });
 
-  test('opens auto-trade for a zero-stock product from the full catalog selector', async ({ page }) => {
+  test('regional market catalog removes workspace switches and opens fixed commodity auto-trade', async ({ page }) => {
     await page.goto('market-runtime-test.html?scenario=active&view=catalog');
-    await page.getByRole('button', { name: '自动交易', exact: true }).click();
-
-    const activeProductIds = await page.locator('.market-auto-trade-product-card[data-product-id]').evaluateAll((elements) => (
-      elements.map((element) => (element as HTMLElement).dataset.productId || '').filter(Boolean)
-    ));
-    const selector = page.getByRole('combobox', { name: '自动交易商品' });
-    await selector.click();
-    const optionValues = await page.locator('.ui-rich-select__option[data-value]').evaluateAll((elements) => (
-      elements.map((element) => (element as HTMLElement).dataset.value || '').filter(Boolean)
-    ));
-    const zeroStockProductId = optionValues.find((value) => !activeProductIds.includes(value));
-    expect(zeroStockProductId).toBeTruthy();
-    await page.locator(`.ui-rich-select__option[data-value="${zeroStockProductId}"]`).click();
-
-    const autoTradeCard = page.locator('.market-auto-trade-card');
-    await expect(autoTradeCard).toContainText('目标自由库存');
-    await expect(autoTradeCard).toContainText('预计自动采购');
-    await expect(autoTradeCard.getByRole('button', { name: '保存自动交易设置' })).toBeVisible();
+    const rows = page.locator('.market-catalog-row');
+    expect(await rows.count()).toBeGreaterThan(1);
+    await rows.last().click();
+    await expect(page.locator('.market-auto-trade-workspace--fixed')).toBeVisible();
+    await expect(page.locator('.market-auto-trade-card').getByRole('button', { name: '保存自动交易设置' })).toBeVisible();
   });
 
-  test('uses the shared bottom sheet at 720px and restores focus after closing', async ({ page }) => {
+  test('regional commodity detail uses the shared bottom sheet at 720px', async ({ page }) => {
     await page.setViewportSize({ width: 720, height: 900 });
     await page.goto('market-runtime-test.html?scenario=active&view=catalog');
-    await page.getByRole('button', { name: '自动交易', exact: true }).click();
+    await page.getByRole('button', { name: '查看小麦详情' }).click();
 
     const autoTradeCard = page.locator('.market-auto-trade-card');
-    const productCard = page.locator('.market-auto-trade-product-card').first();
+    const trigger = page.getByRole('button', { name: '设置自动交易' });
     await expect(autoTradeCard).toBeHidden();
-    await productCard.click();
+    await expect(trigger).toBeVisible();
+    await trigger.click();
 
     const sheet = page.locator('.mobile-detail-sheet');
     const detailView = sheet.locator('.mobile-workspace-sheet-detail-view');
     await expect(sheet).toBeVisible();
     await expect(detailView).toBeVisible();
-    await expect(detailView).toContainText('自动交易');
-    await expect(detailView).toContainText('设置保存至存档 · 在线维护买单');
-    await expect(detailView.getByLabel('目标自由库存')).toHaveValue('0');
-    await expect(detailView.getByLabel('最高自动采购价格')).toBeVisible();
+    await expect(detailView).toContainText('小麦 · 自动交易');
+    await expect(detailView.getByLabel('目标自由库存')).toBeVisible();
     await expect(detailView.locator('.mobile-detail-sheet-footer').getByRole('button', { name: '保存自动交易设置' })).toBeVisible();
 
     await page.keyboard.press('Escape');
     await expect(detailView).toHaveCount(0);
-    await expect(sheet).toBeVisible();
-    await expect(sheet).toHaveAttribute('data-detail-active', 'false');
-    await expect(productCard).toBeFocused();
+    await expect(trigger).toBeFocused();
   });
 
   test('province warehouse stays read-only on mobile while transport remains available', async ({ page }) => {
@@ -127,17 +97,14 @@ test.describe('warehouse and market online auto trade responsibilities', () => {
     await expect(sheet).toHaveAttribute('data-detail-active', 'false');
   });
 
-  test('keeps the desktop side panel at 721px instead of opening a mobile sheet', async ({ page }) => {
+  test('regional commodity detail keeps the fixed desktop control at 721px', async ({ page }) => {
     await page.setViewportSize({ width: 721, height: 900 });
     await page.goto('market-runtime-test.html?scenario=active&view=catalog');
-    await page.getByRole('button', { name: '自动交易', exact: true }).click();
+    await page.getByRole('button', { name: '查看小麦详情' }).click();
 
     const autoTradeCard = page.locator('.market-auto-trade-card');
     await expect(autoTradeCard).toBeVisible();
-    const productCard = page.locator('.market-auto-trade-product-card').first();
-    await productCard.focus();
-    await page.keyboard.press('Enter');
-    await expect(autoTradeCard).toContainText('设置保存至存档 · 在线维护买单');
+    await expect(page.getByRole('button', { name: '设置自动交易' })).toBeHidden();
     await expect(autoTradeCard).toContainText('目标自由库存');
     await expect(page.locator('.mobile-detail-sheet')).toHaveCount(0);
   });

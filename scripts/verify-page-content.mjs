@@ -91,7 +91,8 @@ for (const text of [
 
 for (const text of [
   '<EmbeddedMarketPage model={model} embedded />',
-  '<EmbeddedBuildingsPage model={model} embedded />',
+  '<EmbeddedBuildingsPage',
+  'onDetailFacilityChange={setFacilityDetailTypeId}',
 ]) requireText('src/pages/ProvincePage.tsx', text);
 
 for (const [path, expected] of [
@@ -107,7 +108,8 @@ for (const [path, expected] of [
     '<PageLayout title="建筑">',
     'data-global-scope="buildings"',
     'model.setSelectedProvinceId(provinceId);',
-    '<EmbeddedBuildingsPage model={model} embedded />',
+    '<EmbeddedBuildingsPage',
+    'onDetailFacilityChange={setFacilityDetailTypeId}',
   ]],
 ]) {
   for (const text of expected) requireText(path, text);

@@ -95,6 +95,7 @@ for (const text of [
   "const [facilityDetailTypeId, setFacilityDetailTypeId] = useState<string | null>(null);",
   "activeSection === 'buildings' && Boolean(facilityDetailType)",
   'className="province-facility-detail-title"',
+  '<RegionalEntityPageTitle',
   "{ label: '返回建筑列表', onClick: () => setFacilityDetailTypeId(null) }",
   '{!isFacilityDetail ? sectionSwitch : null}',
   'detailFacilityTypeId={facilityDetailTypeId ?? undefined}',
@@ -110,7 +111,9 @@ for (const text of [
   '列表正式使用三列',
   '点击工厂卡片后进入当前地区建筑分区内部的二级详情视图',
   '地区“概览 / 市场 / 建筑 / 仓库”是正文级子导航',
-  '标题保持单行',
+  '第一行是工厂实体名称',
+  '第二行是州级地区全称并使用灰色次级文字',
+  '不得增加 `.page-fixed-header` 高度',
   '`tests/browser/buildings-ledger-layout.spec.ts`',
 ]) assert.equal(productionAlignmentDesign.includes(text), true, `建筑卡片设计缺少: ${text}`);
 

@@ -79,6 +79,8 @@ if (catalogSource.includes('game.facilityTypes.map')) failures.push('地区 Mark
 if (catalogSource.includes('<FacilityIcon')) failures.push('地区 MarketPage 商品目录不得恢复工厂资产插画。');
 requireText('src/pages/BuildingsPage.tsx', '<EmbeddedFacilityAssetMarket', '工厂资产交易必须继续从建筑详情打开从属市场。');
 requireText('src/pages/ProvincePage.tsx', '<EmbeddedMarketPage model={model} embedded />', '州级上下文必须继续复用地区 MarketPage。');
+requireText('src/pages/ProvincePage.tsx', '<RegionalEntityPageTitle entityName={marketDetailProduct.name} regionName={provinceName} />', '州级商品详情必须使用共享两行地区实体标题。');
+requireText('src/pages/MarketPage.tsx', 'fixedProductId={selectedProduct.id}', '地区商品详情必须承载当前商品固定自动交易设置。');
 
 if (failures.length) {
   console.error('市场页布局与运行时验证失败：');

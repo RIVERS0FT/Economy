@@ -86,17 +86,30 @@ test('factory card opens second-level detail without changing header height', as
   const headerHeightAfter = (await requireBox(header)).height;
   expect(Math.abs(headerHeightAfter - headerHeightBefore)).toBeLessThanOrEqual(1);
 
-  const titleStyle = await page.locator('.province-facility-detail-title').evaluate((element) => {
-    const style = getComputedStyle(element);
+  const titleStyle = await page.locator('.regional-entity-title').evaluate((element) => {
+    const name = element.querySelector<HTMLElement>('.regional-entity-title__name');
+    const region = element.querySelector<HTMLElement>('.regional-entity-title__region');
+    if (!name || !region) throw new Error('regional entity title is incomplete');
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--color-text-muted)';
+    document.body.appendChild(probe);
+    const mutedColor = getComputedStyle(probe).color;
+    probe.remove();
     return {
-      whiteSpace: style.whiteSpace,
-      overflow: style.overflow,
-      textOverflow: style.textOverflow,
+      name: name.textContent?.trim(),
+      region: region.textContent?.trim(),
+      nameFontSize: Number.parseFloat(getComputedStyle(name).fontSize),
+      regionFontSize: Number.parseFloat(getComputedStyle(region).fontSize),
+      regionColor: getComputedStyle(region).color,
+      mutedColor,
+      wrapperHeight: element.getBoundingClientRect().height,
     };
   });
-  expect(titleStyle.whiteSpace).toBe('nowrap');
-  expect(titleStyle.overflow).toBe('hidden');
-  expect(titleStyle.textOverflow).toBe('ellipsis');
+  expect(titleStyle.name).toBe(factoryName);
+  expect(titleStyle.region).toBe('加利福尼亚州');
+  expect(titleStyle.nameFontSize).toBeGreaterThan(titleStyle.regionFontSize);
+  expect(titleStyle.regionColor).toBe(titleStyle.mutedColor);
+  expect(titleStyle.wrapperHeight).toBeLessThanOrEqual(40.5);
 
   await page.locator('.page-navigation-button--back').click();
   await expect(page.locator('.production-build-card')).toBeVisible();
@@ -136,7 +149,7 @@ test('mobile factory cards remain three columns without horizontal clipping', as
   await firstCard.click();
   await expect(page.locator('.facility-cluster-detail-page')).toBeVisible();
   await expect(page.locator('.facility-cluster-selector-region')).toHaveCount(0);
-  await expect(page.locator('.province-facility-detail-title')).toBeVisible();
+  await expect(page.locator('.regional-entity-title')).toBeVisible();
 
   const detailOverflow = await page.evaluate(() => {
     const pageElement = document.querySelector<HTMLElement>('.page-content--player');

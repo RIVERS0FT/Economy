@@ -1,8 +1,8 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { ProductArtwork } from '../components/products/ProductArtwork';
+import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import {
-  Button,
   MetricCard,
   PageLayout,
   PagePanel,
@@ -86,9 +86,15 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
   const tradedProductCount = productRows.filter((row) => row.tradedProvinceCount > 0).length;
   const unmetDemandCount = productRows.reduce((sum, row) => sum + row.unmetDemandProvinces, 0);
   const currentProvinceName = model.selectedProvince?.name || '加利福尼亚州';
+  const detailProduct = model.marketViewMode === 'detail' && model.marketAssetKind === 'commodity'
+    ? game.products.find((product) => product.id === model.marketAssetId)
+    : undefined;
+  const detailProvince = detailProduct
+    ? provinces.find((province) => province.id === model.selectedProvinceId)
+    : undefined;
   const activeProvince = activeProvinceId
     ? provinces.find((province) => province.id === activeProvinceId)
-    : undefined;
+    : detailProvince;
 
   const openProvinceMarket = (provinceId: string) => {
     model.setSelectedProvinceId(provinceId);
@@ -98,21 +104,27 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
 
   if (activeProvince) {
     const provinceReady = model.selectedProvinceId === activeProvince.id;
+    const isProductDetail = provinceReady && Boolean(detailProduct);
+    const returnToProvinceMarket = () => {
+      setActiveProvinceId(activeProvince.id);
+      model.showMarketCatalog();
+    };
     return (
       <PageLayout
-        title="市场"
-        actions={(
-          <div className="global-operation-page-actions">
-            <StatusTag>{activeProvince.name}地区市场</StatusTag>
-            <Button variant="secondary" onClick={() => setActiveProvinceId(null)}>返回全局市场</Button>
-          </div>
-        )}
+        title={isProductDetail && detailProduct ? (
+          <RegionalEntityPageTitle entityName={detailProduct.name} regionName={activeProvince.name} />
+        ) : `${activeProvince.name}市场`}
+        backAction={isProductDetail
+          ? { label: '返回商品列表', onClick: returnToProvinceMarket }
+          : { label: '返回全局市场', onClick: () => setActiveProvinceId(null) }}
       >
         <div className="global-operation-page global-market-page" data-global-scope="market" data-drilldown-province-id={activeProvince.id}>
-          <section className="global-operation-drilldown-context" aria-label="当前地区市场">
-            <small>全局市场 · 地区交易视图</small>
-            <h2>{activeProvince.name}市场</h2>
-          </section>
+          {!isProductDetail ? (
+            <section className="global-operation-drilldown-context" aria-label="当前地区市场">
+              <small>全局市场 · 地区交易视图</small>
+              <h2>{activeProvince.name}市场</h2>
+            </section>
+          ) : null}
           {provinceReady ? (
             <Suspense fallback={<Panel className="empty-state"><span role="status">正在加载地区市场…</span></Panel>}>
               <EmbeddedMarketPage model={model} embedded />

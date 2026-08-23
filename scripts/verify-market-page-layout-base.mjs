@@ -51,6 +51,11 @@ const marketCatalogSource = marketPage.slice(marketCatalogStart, marketDetailSta
 forbidText(marketCatalogSource, 'game.facilityTypes.map', '市场目录不得恢复工厂资产行。');
 forbidText(marketCatalogSource, '<FacilityIcon', '市场目录不得恢复工厂资产插画。');
 forbidText(marketCatalogSource, '<WidgetHeading', '市场列表不得显示重复目录标题。');
+forbidText(marketCatalogSource, 'market-workspace-switch', '地区市场目录不得恢复市场行情／自动交易工作区切换。');
+forbidText(marketCatalogSource, 'market-overview-metrics', '地区市场目录不得恢复四张挂单状态统计卡。');
+forbidText(marketCatalogSource, 'market-catalog-panel', '地区市场商品列表不得恢复外层一级卡片。');
+requireText(marketPage, 'fixedProductId={selectedProduct.id}', '地区商品详情必须把自动交易锁定到当前商品。');
+requireText(marketPage, "<small>{selectedProduct ? '24h 成交量' : availableAssetLabel}</small>", '地区商品详情必须显示真实 24h 成交量。');
 forbidText(marketCatalogSource, '${catalogEntries.length} 项', '市场列表不得显示资产数量胶囊。');
 forbidText(marketPage, 'asset-directory-shell', '市场不得恢复横向混排资产目录。');
 forbidText(marketPage, 'unified-asset-tabs', '市场不得恢复横向资产标签。');
@@ -181,7 +186,7 @@ requireText(runtimeSpec, '不得越出图表左侧', 'Playwright 必须验证纵
 requireText(runtimeSpec, 'status-neutral', 'Playwright 必须验证零涨跌中性状态。');
 requireText(runtimeSpec, 'market steppers and compact quick quantities preserve price and quantity limits', 'Playwright 必须覆盖价格数量步进与紧凑快捷数量。');
 requireText(runtimeSpec, 'market commodity catalog exposes order-book metrics and opens a focused detail', 'Playwright 必须覆盖商品筛选、八项市场字段与详情入口。');
-requireText(runtimeSpec, 'market catalog owns auto-trade and never exposes a factory directory', 'Playwright 必须覆盖自动交易归属和商品-only 目录。');
+requireText(runtimeSpec, 'market commodity detail owns fixed auto-trade and catalog has no workspace switch', 'Playwright 必须覆盖商品详情自动交易归属和无工作区切换的商品-only 目录。');
 requireText(runtimeSpec, 'market detail back action restores the filtered catalog', 'Playwright 必须覆盖详情返回和筛选保留。');
 requireText(scrollInputSpec, 'touch input hides horizontal rails while local trade cells keep native two-axis scrolling', 'Playwright 必须验证触控横向轨道隐藏与成交数据横滑。');
 requireText(runtimeSpec, 'market order book keeps sell five to buy five sequence and fills price without submitting', 'Playwright 必须验证连续五档顺序与点击填价。');
@@ -203,7 +208,7 @@ requireText(pageDesign, '### 4.1 市场页桌面布局与反馈', '页面职责�
 requireText(pageDesign, '订单簿按价格档位聚合展示', '页面职责设计必须记录价格档位职责。');
 requireText(pageDesign, '同一价格或数量输入错误只允许在对应字段下显示一次', '页面职责设计必须记录市场字段错误唯一显示规则。');
 requireText(pageDesign, '市场目录只展示商品，不再提供商品／工厂资产类型切换', '页面职责设计必须记录商品-only 市场目录。');
-requireText(pageDesign, '市场目录固定提供“市场行情／自动交易”两个工作区', '页面职责设计必须记录自动交易唯一归属市场。');
+requireText(pageDesign, '地区市场目录只承担商品发现与进入详情', '页面职责设计必须记录目录精简与自动交易下沉商品详情。');
 requireText(pageDesign, '每行固定显示商品、卖单量、买单量、挂单差额、市场价、相对基础价偏离、24h 变化和挂单状态', '页面职责设计必须记录商品行八项市场字段。');
 requireText(pageDesign, '商品生产者／消费者关系只能从正式建筑配方的输出／投入关系派生', '页面职责设计必须记录生产消费关系来源。');
 requireText(pageDesign, '从建筑详情打开从属资产交易', '页面职责设计必须记录建筑从属资产交易。');
@@ -220,7 +225,7 @@ requireText(uiDesign, '`64px` 身份槽内商品插画固定 `48px`', 'UI 设计
 requireText(uiDesign, '当前资产订单／成交隔离及零水平溢出', 'UI 设计系统必须要求详情隔离回归。');
 requireText(chromeDesign, '页面内部若使用带非 `auto` `z-index` 的 `position: sticky`／定位元素，必须被 `.mobile-page-overlay` 的页面层堆叠边界收口', '液态玻璃外壳设计必须记录移动页面 sticky 层级收口规则。');
 requireText(designIndex, '市场只提供商品目录', '设计索引必须记录商品-only 市场职责。');
-requireText(designIndex, '以“市场行情／自动交易”切换', '设计索引必须记录市场工作区。');
+requireText(designIndex, '不得恢复“市场行情／自动交易”切换', '设计索引必须记录地区市场目录不得恢复旧工作区切换。');
 requireText(designIndex, '工厂资产交易只能从建筑详情打开从属视图并返回原建筑', '设计索引必须记录建筑从属交易语义。');
 
 if (failures.length > 0) {

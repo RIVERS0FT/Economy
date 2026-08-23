@@ -89,8 +89,9 @@ test('market desktop layout keeps order entry and order book together above the 
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('market-runtime-test.html?scenario=active');
 
-  await expect(page.getByRole('heading', { name: '加利福尼亚州 · 小麦', exact: true })).toBeVisible();
-  await expect(page.locator('.market-catalog-panel > .widget-heading')).toHaveCount(0);
+  await expect(page.locator('.regional-entity-title__name')).toHaveText('小麦');
+  await expect(page.locator('.regional-entity-title__region')).toHaveText('加利福尼亚州');
+  await expect(page.locator('.market-catalog-panel')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '商品列表', exact: true })).toHaveCount(0);
   const tradeCard = page.locator('.market-trade-card');
   const orderEntry = tradeCard.locator('.order-entry');
@@ -122,7 +123,7 @@ test('market desktop layout keeps order entry and order book together above the 
   await expect(tradeCard.getByRole('heading', { name: '订单簿', exact: true })).toBeVisible();
   await expect(tradeCard.locator('.order-book-columns')).toHaveCount(0);
   await expect(tradeCard.locator('.order-book-midpoint')).toHaveCount(0);
-  await expect(tradeCard.locator('.market-trade-summary')).toContainText(/最近成交.*24h 变化.*可用小麦/);
+  await expect(tradeCard.locator('.market-trade-summary')).toContainText(/最近成交.*24h 变化.*24h 成交量/);
   await expect(chartCard.locator('.market-chart-footer')).toBeVisible();
   await expect(chartCard.locator('.chart-footer')).toHaveCount(0);
   await expect(chartCard.getByText('均衡／方向未知', { exact: true })).toHaveCount(0);
@@ -372,7 +373,8 @@ test('market commodity catalog exposes order-book metrics and opens a focused de
   }
   await wheatRow.click();
 
-  await expect(page.getByRole('heading', { name: '加利福尼亚州 · 小麦', exact: true })).toBeVisible();
+  await expect(page.locator('.regional-entity-title__name')).toHaveText('小麦');
+  await expect(page.locator('.regional-entity-title__region')).toHaveText('加利福尼亚州');
   await expect(page.getByRole('heading', { name: '商品基本面', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '生产者与消费者', exact: true })).toBeVisible();
   await expect(page.locator('.market-trade-card')).toBeVisible();
@@ -381,19 +383,25 @@ test('market commodity catalog exposes order-book metrics and opens a focused de
   expect(pageErrors).toEqual([]);
 });
 
-test('market catalog owns auto-trade and never exposes a factory directory', async ({ page }) => {
+test('market commodity detail owns fixed auto-trade and catalog has no workspace switch', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active&view=catalog');
 
   await expect(page.getByRole('button', { name: '工厂', exact: true })).toHaveCount(0);
   await expect(page.locator('.market-catalog-list .facility-icon')).toHaveCount(0);
+  await expect(page.locator('.market-workspace-switch')).toHaveCount(0);
+  await expect(page.locator('.market-overview-metrics')).toHaveCount(0);
+  await expect(page.locator('.market-catalog-panel')).toHaveCount(0);
   expect(await page.locator('.market-catalog-list .product-artwork').count()).toBeGreaterThan(0);
 
-  await page.getByRole('button', { name: '自动交易', exact: true }).click();
-  await expect(page.locator('.market-auto-trade-workspace')).toBeVisible();
-  await expect(page.getByRole('combobox', { name: '自动交易商品' })).toBeVisible();
-  await expect(page.locator('.market-catalog-panel')).toHaveCount(0);
+  await page.getByRole('button', { name: '查看小麦详情' }).click();
+  await expect(page.locator('.market-auto-trade-workspace--fixed')).toBeVisible();
+  await expect(page.locator('.market-auto-trade-card')).toBeVisible();
+  await expect(page.getByRole('combobox', { name: '自动交易商品' })).toHaveCount(0);
+  await expect(page.locator('.market-auto-trade-products')).toHaveCount(0);
+  await expect(page.locator('.market-auto-trade-card')).toContainText('小麦 · 自动交易');
+  await expect(page.locator('.market-auto-trade-card').getByLabel('目标自由库存')).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
 
@@ -424,7 +432,7 @@ test('mobile market catalog uses summary rows without horizontal overflow', asyn
   await page.goto('market-runtime-test.html?scenario=active&view=catalog');
 
   await expect(page.getByRole('button', { name: '查看小麦详情' })).toBeVisible();
-  const layout = await page.locator('.market-catalog-panel').evaluate((panel) => {
+  const layout = await page.locator('.market-catalog-surface').evaluate((panel) => {
     const row = panel.querySelector<HTMLElement>('.market-catalog-row');
     const identity = row?.querySelector<HTMLElement>('.market-catalog-row__identity');
     const condition = row?.querySelector<HTMLElement>('.market-catalog-row__condition');

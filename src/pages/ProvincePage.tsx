@@ -8,6 +8,7 @@ import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineA
 import { FacilityRecipeProfitMarketsProvider } from '../components/facilities/FacilityRecipeProfitContext';
 import { WarehouseInventoryPanel } from '../components/warehouse/WarehouseInventoryPanel';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
+import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import {
   Button,
   DataList,
@@ -111,6 +112,13 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     ? model.game.facilityTypes.find((type) => type.id === facilityDetailEntry.facilityTypeId)
     : undefined;
   const isFacilityDetail = activeSection === 'buildings' && Boolean(facilityDetailType);
+  const marketDetailProduct = activeSection === 'market'
+    && model.marketViewMode === 'detail'
+    && model.marketAssetKind === 'commodity'
+    ? model.game.products.find((product) => product.id === model.marketAssetId)
+    : undefined;
+  const isMarketDetail = Boolean(marketDetailProduct);
+  const isEntityDetail = isFacilityDetail || isMarketDetail;
   const hasProvinceUnlockState = Array.isArray(model.game.unlockedProvinces)
     || typeof model.game.startingProvinceId === 'string';
   const isUnlocked = !hasProvinceUnlockState
@@ -160,6 +168,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
   const selectSection = (section: ProvinceSection, focus = false) => {
     setActiveSection(section);
     setFacilityDetailTypeId(null);
+    if (section === 'market') model.showMarketCatalog();
     if (focus) {
       document.getElementById(`province-section-tab-${section}`)?.focus({ preventScroll: true });
     }
@@ -205,21 +214,27 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
 
   return (
     <PageLayout
-      title={isFacilityDetail ? (
-        <span className="province-facility-detail-title">
-          {provinceName}{facilityDetailType?.name ?? ''}
-        </span>
+      title={isMarketDetail && marketDetailProduct ? (
+        <RegionalEntityPageTitle entityName={marketDetailProduct.name} regionName={provinceName} />
+      ) : isFacilityDetail && facilityDetailType ? (
+        <RegionalEntityPageTitle
+          entityName={facilityDetailType.name}
+          regionName={provinceName}
+          className="province-facility-detail-title"
+        />
       ) : provinceName}
-      backAction={isFacilityDetail
-        ? { label: '返回建筑列表', onClick: () => setFacilityDetailTypeId(null) }
-        : { label: '返回地图', onClick: () => model.setTab('map') }}
+      backAction={isMarketDetail
+        ? { label: '返回商品列表', onClick: model.showMarketCatalog }
+        : isFacilityDetail
+          ? { label: '返回建筑列表', onClick: () => setFacilityDetailTypeId(null) }
+          : { label: '返回地图', onClick: () => model.setTab('map') }}
     >
-      {!isFacilityDetail ? sectionSwitch : null}
+      {!isEntityDetail ? sectionSwitch : null}
       <section
         id="province-section-panel"
         className={`province-section-panel province-section-panel--${activeSection}`}
         role="tabpanel"
-        aria-labelledby={isFacilityDetail ? undefined : `province-section-tab-${activeSection}`}
+        aria-labelledby={isEntityDetail ? undefined : `province-section-tab-${activeSection}`}
         tabIndex={0}
       >
         {activeSection === 'overview' ? <ProvinceOverviewSection model={model} /> : null}
