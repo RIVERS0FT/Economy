@@ -33,9 +33,10 @@ test('map keeps gesture zoom without a control panel and primary market/building
   await sidebar.getByRole('button', { name: /^建筑/ }).click();
   await expect(page.getByRole('heading', { name: '建筑', exact: true })).toBeVisible();
   await expect(page.locator('.global-buildings-page')).toHaveAttribute('data-global-scope', 'buildings');
-  expect(await page.locator('.global-buildings-page .global-province-card').count()).toBeGreaterThan(1);
+  expect(await page.locator('.global-buildings-page .global-facility-catalog-row').count()).toBeGreaterThan(1);
+  expect(await page.locator('.global-buildings-page .global-province-row').count()).toBeGreaterThan(1);
 
-  await page.locator('.global-buildings-page .global-province-card').first().click();
+  await page.locator('.global-buildings-page .global-province-row').first().click();
   await expect(page.locator('.global-buildings-page[data-drilldown-province-id]')).toBeVisible();
   await expect(page.locator('.production-build-card')).toBeVisible();
   await expect(page.locator('.facility-cluster-selector-list')).toBeVisible();
