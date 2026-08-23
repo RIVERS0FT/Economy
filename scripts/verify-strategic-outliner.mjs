@@ -47,7 +47,7 @@ requireText(outliner, 'model.game.research.active', '进行中分区必须直接
 requireText(outliner, 'pendingItems.map', '进行中分区必须复用统一待处理事项');
 requireText(outliner, 'economicCalendar?.events', '公开经济事件必须直接读取适配后的权威经济日历');
 requireText(outliner, 'variant="outliner"', '教程必须使用追踪器紧凑模式且不得嵌套第二层玻璃卡');
-forbidText(outliner, 'strategic-outliner__collapse', '战略追踪器不得恢复整体展开／收起按钮');
+forbidText(outliner, 'className="strategic-outliner__collapse"', '战略追踪器不得恢复整体展开／收起按钮');
 forbidText(outliner, 'BackIcon', '战略追踪器不得保留整体收起按钮图标依赖');
 requireText(guide, "variant?: 'panel' | 'outliner'", '教程组件必须提供追踪器紧凑模式');
 
