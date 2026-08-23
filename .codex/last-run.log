@@ -1,6 +1,20 @@
-Traceback (most recent call last):
-  File "/home/runner/work/Economy/Economy/.codex/apply_regional_market_product_pages.py", line 997, in <module>
-    replace_exact(
-  File "/home/runner/work/Economy/Economy/.codex/apply_regional_market_product_pages.py", line 23, in replace_exact
-    raise RuntimeError(f'{path}: expected {count} occurrences, found {actual}: {old[:100]!r}')
-RuntimeError: scripts/verify-market-assets.mjs: expected 1 occurrences, found 0: 'assert.equal(viewModel.includes("const [tab, setActiveTab] = useState<TabId>(\'home\');"), true, \'客户端默'
+
+added 138 packages, and audited 145 packages in 2s
+
+29 packages are looking for funding
+  run `npm fund` for details
+
+2 vulnerabilities (1 moderate, 1 high)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues, run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+统一资产市场、非交叉撮合、连续五档价格聚合、玩家／消费需求／市场储备商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。
+市场页布局与运行时验证失败：
+- 市场必须提供行情与自动交易工作区状态。
+- 自动交易工作区必须复用市场自动交易面板。
+- 页面职责设计必须记录商品-only 市场目录。
