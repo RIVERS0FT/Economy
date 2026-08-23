@@ -6,6 +6,7 @@ on:
       - codex/regional-market-product-pages
     paths:
       - .github/workflows/codex-final-browser-sync.yml
+      - .codex/final_browser_test_sync.py
 
 permissions:
   contents: write
@@ -25,7 +26,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add tests/browser/player-page-geometry.spec.ts \
-                  tests/browser/global-operation-pages.spec.ts \
                   tests/browser/scroll-input-modality.spec.ts \
                   tests/browser/market-order-entry-compact.spec.ts \
                   tests/browser/market-runtime.spec.ts
