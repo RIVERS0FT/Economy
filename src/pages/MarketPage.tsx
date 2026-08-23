@@ -13,6 +13,7 @@ import { getClientOrderIndex, openOrdersForAsset } from '../app/clientOrderIndex
 import { orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { MarketAutoTradePanel } from '../components/market/MarketAutoTradePanel';
+import { MarketBalanceBar } from '../components/market/MarketBalanceBar';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
 import { FactoryIcon } from '../components/icons/GameIcons';
 import { ProductIcon, ProductIconLabel } from '../components/icons/ProductIcons';
@@ -499,6 +500,9 @@ export function MarketPage({
     () => buildOrderBookLevels(selectedOrders, 'buy'),
     [selectedOrders],
   );
+  const selectedBuyVolume = bestBids.reduce((sum, level) => sum + Math.max(0, level.remaining), 0);
+  const selectedSellVolume = bestAsks.reduce((sum, level) => sum + Math.max(0, level.remaining), 0);
+  const selectedBalance = selectedSellVolume - selectedBuyVolume;
   const maxBookDepth = Math.max(
     1,
     ...bestAsks.map((level) => level.remaining),
@@ -510,6 +514,10 @@ export function MarketPage({
     ?? selectedProduct?.basePrice
     ?? selectedFacility?.systemValue
     ?? 1;
+  const selectedMarketPrice = selectedProductMarket?.officialPrice ?? marketFallbackPrice;
+  const selectedBaseDeviationPercent = selectedProduct && selectedProduct.basePrice > 0
+    ? ((selectedMarketPrice / selectedProduct.basePrice) - 1) * 100
+    : undefined;
   const marketBuckets = useMemo(
     () => buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now),
     [marketFallbackPrice, marketHistory, now],
@@ -735,6 +743,7 @@ export function MarketPage({
                   <span className="market-catalog-row__metric market-catalog-row__balance">
                     <small>挂单差额</small>
                     <strong>{entry.balance > 0 ? '+' : ''}{formatNumber(entry.balance)}</strong>
+                    <MarketBalanceBar buyVolume={entry.buyVolume} sellVolume={entry.sellVolume} />
                   </span>
                   <span className="market-catalog-row__metric">
                     <small>市场价</small>
@@ -799,38 +808,67 @@ export function MarketPage({
               ? PRODUCT_CATEGORY_LABELS[selectedProduct.category]
               : selectedFacility ? FACILITY_CATEGORY_LABELS[selectedFacility.category] : '市场资产'}</small>
           </span>
-          <span><small>可用</small><strong>{formatNumber(availableAssetQuantity)}</strong></span>
-          <span><small>冻结</small><strong>{formatNumber(selectedProduct ? selectedInventory.frozen : selectedGroup?.frozenCount ?? 0)}</strong></span>
-          <span><small>已有订单</small><strong>{formatNumber(ownSelectedOrders.length)}</strong></span>
+          {selectedProduct ? (
+            <>
+              <span className="market-detail-hero__metric market-detail-hero__market-price">
+                <small>市场价</small>
+                <strong><CurrencyAmount>{formatCurrency(selectedMarketPrice)}</CurrencyAmount></strong>
+              </span>
+              <span className="market-detail-hero__metric">
+                <small>基准偏离</small>
+                <strong className={(selectedBaseDeviationPercent ?? 0) > 0 ? 'market-value-warning' : (selectedBaseDeviationPercent ?? 0) < 0 ? 'market-value-info' : ''}>
+                  {typeof selectedBaseDeviationPercent === 'number' ? (selectedBaseDeviationPercent > 0 ? '+' : '') + selectedBaseDeviationPercent.toFixed(1) + '%' : '—'}
+                </strong>
+              </span>
+              <span className="market-detail-hero__metric">
+                <small>24h 变化</small>
+                <strong className={marketTrend > 0 ? 'market-value-positive' : marketTrend < 0 ? 'market-value-negative' : ''}>
+                  <CurrencyAmount sign={marketTrend > 0 ? '+' : undefined}>{formatCurrency(marketTrend)}</CurrencyAmount>
+                </strong>
+              </span>
+            </>
+          ) : (
+            <>
+              <span><small>可用</small><strong>{formatNumber(availableAssetQuantity)}</strong></span>
+              <span><small>冻结</small><strong>{formatNumber(selectedGroup?.frozenCount ?? 0)}</strong></span>
+              <span><small>已有订单</small><strong>{formatNumber(ownSelectedOrders.length)}</strong></span>
+            </>
+          )}
         </Panel>
         {selectedProduct && selectedProductMarket ? (
           <div className="market-fundamentals-grid">
             <Panel className="widget market-fundamentals-card">
               <WidgetHeading title="商品基本面" action={<StatusTag tone="info">服务器数据</StatusTag>} />
               <div className="market-fundamentals-metrics">
-                <MetricCard label="参考价" value={<CurrencyAmount>{formatCurrency(selectedProductMarket.demand.referencePrice)}</CurrencyAmount>} />
                 <MetricCard
-                  label="基准偏离"
-                  value={`${marketFallbackPrice > selectedProduct.basePrice ? '+' : ''}${(((marketFallbackPrice / selectedProduct.basePrice) - 1) * 100).toFixed(1)}%`}
-                  tone={marketFallbackPrice > selectedProduct.basePrice ? 'warning' : marketFallbackPrice < selectedProduct.basePrice ? 'info' : 'neutral'}
+                  label="市场价"
+                  value={<CurrencyAmount>{formatCurrency(selectedMarketPrice)}</CurrencyAmount>}
+                  detail={typeof selectedBaseDeviationPercent === 'number' ? '相对基础价 ' + (selectedBaseDeviationPercent > 0 ? '+' : '') + selectedBaseDeviationPercent.toFixed(1) + '%' : undefined}
+                  tone={(selectedBaseDeviationPercent ?? 0) > 0 ? 'warning' : (selectedBaseDeviationPercent ?? 0) < 0 ? 'info' : 'neutral'}
                 />
-                <MetricCard label="上轮需求" value={formatNumber(selectedProductMarket.demand.lastQuantity)} detail={`预算 ${formatCurrency(selectedProductMarket.demand.lastBudget)}`} />
+                <MetricCard label="卖单量" value={formatNumber(selectedSellVolume)} />
+                <MetricCard label="买单量" value={formatNumber(selectedBuyVolume)} />
+                <MetricCard
+                  label="挂单差额"
+                  value={(selectedBalance > 0 ? '+' : '') + formatNumber(selectedBalance)}
+                  detail="卖单量 − 买单量"
+                  tone={selectedBalance > 0 ? 'info' : selectedBalance < 0 ? 'warning' : 'neutral'}
+                />
                 <MetricCard
                   label="需求满足率"
-                  value={selectedProductMarket.demand.lastQuantity > 0 ? `${(selectedProductMarket.demand.satisfaction * 100).toFixed(1)}%` : '无直接需求'}
+                  value={selectedProductMarket.demand.lastQuantity > 0 ? (selectedProductMarket.demand.satisfaction * 100).toFixed(1) + '%' : '无直接需求'}
                   tone={selectedProductMarket.demand.lastQuantity > 0 && selectedProductMarket.demand.satisfaction < 1 ? 'warning' : 'neutral'}
                 />
+                <MetricCard label="参考价" value={<CurrencyAmount>{formatCurrency(selectedProductMarket.demand.referencePrice)}</CurrencyAmount>} />
+                <MetricCard label="上轮需求" value={formatNumber(selectedProductMarket.demand.lastQuantity)} detail={'预算 ' + formatCurrency(selectedProductMarket.demand.lastBudget)} />
                 <MetricCard
-                  label="官方系统价"
-                  value={<CurrencyAmount>{formatCurrency(selectedProductMarket.officialPrice ?? marketFallbackPrice)}</CurrencyAmount>}
-                  detail={`上期 ${(selectedProductMarket.lastPriceChangeBps ?? 0) > 0 ? '+' : ''}${((selectedProductMarket.lastPriceChangeBps ?? 0) / 100).toFixed(2)}%`}
-                  tone={(selectedProductMarket.lastPriceChangeBps ?? 0) > 0 ? 'warning' : (selectedProductMarket.lastPriceChangeBps ?? 0) < 0 ? 'info' : 'neutral'}
+                  label="周期实际成交"
+                  value={formatNumber(selectedProductMarket.cycleSellQuantity ?? 0) + ' 卖 / ' + formatNumber(selectedProductMarket.cycleBuyQuantity ?? 0) + ' 买'}
                 />
-                <MetricCard
-                  label="周期系统买卖量"
-                  value={`${formatNumber(selectedProductMarket.cycleSellQuantity ?? 0)} 卖 / ${formatNumber(selectedProductMarket.cycleBuyQuantity ?? 0)} 买`}
-                  detail="本周期玩家与系统实际成交数量"
-                />
+              </div>
+              <div className="market-fundamentals-balance" aria-label="当前订单簿失衡程度">
+                <span><small>订单簿失衡</small><strong>{selectedBalance > 0 ? '卖单较多' : selectedBalance < 0 ? '买单较多' : selectedBuyVolume + selectedSellVolume > 0 ? '数量均衡' : '无挂单'}</strong></span>
+                <MarketBalanceBar buyVolume={selectedBuyVolume} sellVolume={selectedSellVolume} />
               </div>
               <p className="market-authority-note">挂单量来自当前公开订单簿；消费需求来自服务器上一周期结算。库存和理论产量不计作供给或需求。</p>
             </Panel>
@@ -854,6 +892,18 @@ export function MarketPage({
           </div>
         ) : null}
         <div className="market-grid unified-market-grid">
+          <Panel className="widget market-chart-card">
+            <WidgetHeading
+              title={selectedAssetTitle(`${assetName}近 24h 成交趋势`)}
+              action={(
+                <StatusTag tone={trendTone} className="market-trend-tag">
+                  <CurrencyAmount sign={marketTrend > 0 ? '+' : undefined}>{formatCurrency(marketTrend)}</CurrencyAmount>
+                </StatusTag>
+              )}
+            />
+            <PriceSparkline buckets={marketBuckets} variant="full" />
+          </Panel>
+
           <Panel className="widget market-trade-card">
             <WidgetHeading
               title={selectedAssetTitle(`${assetName}交易`)}
@@ -942,18 +992,6 @@ export function MarketPage({
               </section>
             </div>
 
-          </Panel>
-
-          <Panel className="widget market-chart-card">
-            <WidgetHeading
-              title={selectedAssetTitle(`${assetName}近 24h 成交趋势`)}
-              action={(
-                <StatusTag tone={trendTone} className="market-trend-tag">
-                  <CurrencyAmount sign={marketTrend > 0 ? '+' : undefined}>{formatCurrency(marketTrend)}</CurrencyAmount>
-                </StatusTag>
-              )}
-            />
-            <PriceSparkline buckets={marketBuckets} variant="full" />
           </Panel>
 
           {selectedProduct ? (

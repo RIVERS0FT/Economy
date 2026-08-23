@@ -832,3 +832,140 @@
     padding-inline: 52px;
   }
 }
+
+/* Market imbalance and detail hierarchy. */
+.market-balance-bar {
+  --market-balance-fill: 0%;
+  position: relative;
+  width: 100%;
+  min-width: 4.5rem;
+  height: 7px;
+  display: block;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-surface-inset);
+}
+
+.market-balance-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--color-border-strong);
+}
+
+.market-balance-bar__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--market-balance-fill);
+}
+
+.market-balance-bar[data-direction='buy'] .market-balance-bar__fill {
+  right: 50%;
+  background: var(--color-success);
+}
+
+.market-balance-bar[data-direction='sell'] .market-balance-bar__fill {
+  left: 50%;
+  background: var(--color-danger);
+}
+
+.market-balance-bar[data-direction='balanced'] .market-balance-bar__fill,
+.market-balance-bar[data-direction='inactive'] .market-balance-bar__fill {
+  left: 50%;
+  width: 0;
+}
+
+.market-coverage-bar {
+  --market-traded-coverage: 0%;
+  --market-unmet-coverage: 0%;
+  width: min(8rem, 100%);
+  display: grid;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.market-coverage-bar__track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-surface-inset);
+}
+
+.market-coverage-bar__track > span {
+  display: block;
+  height: 100%;
+}
+
+.market-coverage-bar__track--traded > span {
+  width: var(--market-traded-coverage);
+  background: var(--color-info);
+}
+
+.market-coverage-bar__track--unmet > span {
+  width: var(--market-unmet-coverage);
+  background: var(--color-warning);
+}
+
+.market-catalog-row__balance .market-balance-bar {
+  margin-top: 1px;
+}
+
+.market-detail-hero__metric strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.market-detail-hero__market-price strong {
+  color: var(--color-warning);
+  font-size: var(--font-size-lg);
+}
+
+.market-value-positive {
+  color: var(--color-success) !important;
+}
+
+.market-value-negative {
+  color: var(--color-danger) !important;
+}
+
+.market-value-warning {
+  color: var(--color-warning) !important;
+}
+
+.market-value-info {
+  color: var(--color-info) !important;
+}
+
+.market-fundamentals-balance {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(7rem, auto) minmax(8rem, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--space-2);
+}
+
+.market-fundamentals-balance > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.market-fundamentals-balance small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+@container market-page (max-width: 620px) {
+  .market-catalog-row__balance {
+    grid-column: 1 / -1;
+  }
+
+  .market-fundamentals-balance {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
