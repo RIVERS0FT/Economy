@@ -242,7 +242,8 @@ for (const text of [
   'const market = game.markets[product.id];',
   ': selectedFacility ? game.facilityMarkets[selectedFacility.id] : undefined;',
   'lastTradePrice: typeof market?.lastTradePrice === \'number\' ? market.lastTradePrice : undefined',
-  "typeof entry.marketPrice === 'number'\n                          ? <CurrencyAmount>{formatCurrency(entry.marketPrice)}</CurrencyAmount>",
+  "typeof entry.marketPrice === 'number'",
+  '<CurrencyAmount>{formatCurrency(entry.marketPrice)}</CurrencyAmount>',
 ]) assert.ok(marketPageSource.includes(text), `市场资产列表缺少真实成交价字段: ${text}`);
 for (const removedText of [
   'const lastPrice = game.markets[product.id]?.lastPrice;',

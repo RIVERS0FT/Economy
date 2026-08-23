@@ -147,16 +147,29 @@ test.describe('mobile navigation scrolling', () => {
     });
     expect(hiddenState).toEqual({ pointerEvents: 'none', opacity: '0', visibility: 'hidden' });
 
+    await navigationHost.evaluate((element) => {
+      element.dataset.testReturnAnimationStarted = 'false';
+      element.dataset.testReturnAnimationState = 'missing';
+      element.dataset.testReturnAnimationSheetPresent = 'unknown';
+      element.addEventListener('animationstart', (event) => {
+        if (event.animationName !== 'mobile-bottom-navigation-return') return;
+        element.dataset.testReturnAnimationStarted = 'true';
+        element.dataset.testReturnAnimationState = element.dataset.navigationReturning ?? 'missing';
+        element.dataset.testReturnAnimationSheetPresent = document.querySelector('.mobile-workspace-sheet-host')
+          ? 'true'
+          : 'false';
+      });
+    });
     await page.keyboard.press('Escape');
     await expect(sheet).toHaveCount(0);
     await expect(navigationHost).toHaveAttribute('data-navigation-instance-probe', 'stable');
     await expect(navigationHost).toHaveAttribute('data-workspace-sheet-hidden', 'false');
     await expect(navigationHost).not.toHaveAttribute('aria-hidden', 'true');
     await expect(navigationHost).not.toHaveAttribute('inert', '');
-    await expect(navigationHost).toHaveAttribute('data-navigation-returning', 'true');
     await expect(navigationHost).toBeVisible();
-    const returningAnimation = await navigationHost.evaluate((element) => getComputedStyle(element).animationName);
-    expect(returningAnimation).toContain('mobile-bottom-navigation-return');
+    await expect(navigationHost).toHaveAttribute('data-test-return-animation-started', 'true');
+    await expect(navigationHost).toHaveAttribute('data-test-return-animation-state', 'true');
+    await expect(navigationHost).toHaveAttribute('data-test-return-animation-sheet-present', 'false');
     await expect(navigationHost).toHaveAttribute('data-navigation-returning', 'false');
 
     await inactive.click();

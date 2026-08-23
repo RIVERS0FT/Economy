@@ -194,7 +194,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const [localActivity, setLocalActivity] = useState<LocalActivityView>(() => loadLocalActivity(user.id));
   const [loadError, setLoadError] = useState('');
   const [reloadVersion, setReloadVersion] = useState(0);
-  const [tab, setActiveTab] = useState<TabId>('home');
+  const [tab, setActiveTab] = useState<TabId>('map');
   const provincePreferenceKey = `economy.selected-province.v1:${user.id}`;
   const [selectedProvinceId, setSelectedProvinceIdState] = useState(() => {
     try { return localStorage.getItem(provincePreferenceKey) || DEFAULT_PROVINCE_ID; } catch { return DEFAULT_PROVINCE_ID; }

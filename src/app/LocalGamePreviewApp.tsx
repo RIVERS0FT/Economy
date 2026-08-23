@@ -135,7 +135,7 @@ const previewTrades: TradeRecord[] = [
 
 export function LocalGamePreviewApp() {
   const [authorityGame, setAuthorityGame] = useState(createPreviewGameState);
-  const [tab, setTabState] = useState<TabId>('home');
+  const [tab, setTabState] = useState<TabId>('map');
   const [selectedProvinceId, setSelectedProvinceIdState] = useState(authorityGame.defaultProvinceId);
   const [selectedFacilityTypeId, setSelectedFacilityTypeId] = useState('farm');
   const [marketAssetKind, setMarketAssetKind] = useState<AssetKind>('commodity');

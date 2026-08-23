@@ -82,7 +82,7 @@ for (const text of [
   "import { defaultOrderPrice } from '../utils/defaultOrderPrice'",
   'setTab: (tab: TabId) => void;',
   'selectOrderSide: (side: OrderSide) => void;',
-  "const [tab, setActiveTab] = useState<TabId>('home');",
+  "const [tab, setActiveTab] = useState<TabId>('map');",
   "const [orderSide, setOrderSideState] = useState<OrderSide>('buy');",
   'const [orderPrice, setOrderPrice] = useState(1);',
   "const [marketViewMode, setMarketViewMode] = useState<MarketViewMode>('catalog');",

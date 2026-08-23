@@ -42,6 +42,7 @@ import '../../src/styles/research-page.css';
 import '../../src/styles/mobile-detail-sheet.css';
 import '../../src/styles/warehouse-expansion.css';
 import '../../src/styles/production-surface.css';
+import '../../src/styles/regional-entity-page-title.css';
 import '../../src/styles/contracts.css';
 import '../../src/styles/asset-auctions.css';
 import '../../src/styles/auction-card-layers.css';

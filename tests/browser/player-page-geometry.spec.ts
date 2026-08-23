@@ -45,7 +45,8 @@ async function openPreview(page: Page) {
   await page.goto('?preview=game');
   await expect(page.locator('html')).toHaveAttribute('data-local-game-preview', 'true');
   await expect(page.locator('.game-shell')).toBeVisible();
-  await expect(page.getByRole('heading', { level: 1, name: '概览' })).toBeVisible();
+  await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
+  await expect(page.getByTestId('us-mainland-map')).toHaveAttribute('data-map-ready', 'true');
 }
 
 async function readPageGeometry(page: Page) {

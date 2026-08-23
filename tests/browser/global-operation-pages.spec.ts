@@ -5,7 +5,6 @@ test('map keeps gesture zoom without a control panel and primary market/building
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('?preview=game', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('html')).toHaveAttribute('data-local-game-preview', 'true');
-  await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
   await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
 
   const map = page.getByTestId('us-mainland-map');

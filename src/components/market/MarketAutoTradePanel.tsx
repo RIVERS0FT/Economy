@@ -29,10 +29,12 @@ export function MarketAutoTradePanel({
   model,
   className = '',
   requestedProductId = null,
+  fixedProductId = null,
 }: {
   model: AutoTradeCapableGameViewModel;
   className?: string;
   requestedProductId?: string | null;
+  fixedProductId?: string | null;
 }) {
   const { game } = model;
   const autoTrade = useMemo<OnlineAutoTradeController>(() => model.autoTrade ?? ({
@@ -74,7 +76,7 @@ export function MarketAutoTradePanel({
     },
     setPolicy: async () => ({ ok: false, message: '自动交易控制器不可用' }),
   }), [game.inventories, game.products, model.autoTrade]);
-  const [selectedProductId, setSelectedProductId] = useState('');
+  const [selectedProductId, setSelectedProductId] = useState(fixedProductId ?? '');
   const [activeMode, setActiveMode] = useState<AutoTradeMode>('buy');
   const [isMobileAutoTradeOpen, setMobileAutoTradeOpen] = useState(false);
   const [autoBuyEnabledDraft, setAutoBuyEnabledDraft] = useState(false);
@@ -106,6 +108,7 @@ export function MarketAutoTradePanel({
     })),
   ], [game.products]);
   const selectedProduct = game.products.find((product) => product.id === selectedProductId) ?? null;
+  const fixedMode = Boolean(fixedProductId);
   const selectedStatus = selectedProduct ? autoTrade.statusFor(selectedProduct.id) : null;
   const selectedBuyPolicy = selectedProduct ? autoTrade.buyPolicyFor(selectedProduct.id) : null;
   const selectedSellPolicy = selectedProduct ? autoTrade.sellPolicyFor(selectedProduct.id) : null;
@@ -156,6 +159,11 @@ export function MarketAutoTradePanel({
     return true;
   }, [autoTrade, game.products]);
 
+  useEffect(() => {
+    if (!fixedProductId) return;
+    loadProductDrafts(fixedProductId);
+  }, [fixedProductId, loadProductDrafts]);
+
   const openAutoTradePanel = useCallback((
     productId?: string,
     trigger?: HTMLButtonElement | null,
@@ -172,21 +180,25 @@ export function MarketAutoTradePanel({
 
   useEffect(() => {
     const requested = consumeAutoSellPanelRequest(model.user.id);
-    if (requested) openAutoTradePanel(requested, undefined, 'sell');
+    if (requested && (!fixedProductId || requested === fixedProductId)) {
+      openAutoTradePanel(requested, undefined, 'sell');
+    }
     const handlePanelRequest = (event: Event) => {
       const detail = (event as CustomEvent<{ userId?: number; productId?: string }>).detail;
       if (Number(detail?.userId) !== Number(model.user.id) || !detail?.productId) return;
+      if (fixedProductId && detail.productId !== fixedProductId) return;
       openAutoTradePanel(detail.productId, undefined, 'sell');
     };
     window.addEventListener(AUTO_SELL_PANEL_EVENT, handlePanelRequest);
     return () => window.removeEventListener(AUTO_SELL_PANEL_EVENT, handlePanelRequest);
-  }, [model.user.id, openAutoTradePanel]);
+  }, [fixedProductId, model.user.id, openAutoTradePanel]);
 
   useEffect(() => {
     if (!requestedProductId || handledRequestedProductRef.current === requestedProductId) return;
+    if (fixedProductId && requestedProductId !== fixedProductId) return;
     handledRequestedProductRef.current = requestedProductId;
     openAutoTradePanel(requestedProductId, undefined, 'sell');
-  }, [openAutoTradePanel, requestedProductId]);
+  }, [fixedProductId, openAutoTradePanel, requestedProductId]);
 
   const selectProduct = useCallback((productId: string) => {
     if (!productId) {
@@ -409,77 +421,94 @@ export function MarketAutoTradePanel({
 
   return (
     <>
-      <div className={`production-warehouse-workspace market-auto-trade-workspace ${className}`.trim()}>
+      <div className={`production-warehouse-workspace market-auto-trade-workspace ${fixedMode ? 'market-auto-trade-workspace--fixed' : ''} ${className}`.trim()}>
         <PagePanel className="production-surface warehouse-auto-trade-card market-auto-trade-card">
           <WidgetHeading
             title={selectedProduct ? `${selectedProduct.name} · 自动交易` : '自动交易'}
             action={<StatusTag tone="info">在线维护</StatusTag>}
           />
           <section className="warehouse-auto-trade-panel" aria-label="商品自动交易设置">
-            {renderProductSelector()}
+            {fixedMode ? null : renderProductSelector()}
             {renderSelectedTradeFields()}
             {selectedProduct ? renderSaveButton() : null}
           </section>
         </PagePanel>
 
-        <Panel className="production-surface warehouse-inventory-panel market-auto-trade-products">
-          <WidgetHeading
-            title="自动交易商品"
-            action={(
-              <div className="warehouse-heading-actions">
-                <StatusTag tone="neutral">无限容量</StatusTag>
-                <button
-                  ref={mobileAutoTradeTriggerRef}
-                  type="button"
-                  className="ui-button ui-button--compact warehouse-auto-trade-mobile-trigger"
-                  onClick={(event) => openAutoTradePanel(selectedProductId || undefined, event.currentTarget)}
-                >
-                  自动交易
-                </button>
-              </div>
-            )}
-          />
-          <section className="warehouse-content" aria-label="自动交易商品与库存">
-            <header className="warehouse-content-heading">
-              <strong>策略与库存</strong>
-              <span>{formatNumber(stockedProducts.length)} 种活跃商品</span>
-            </header>
-            {stockedProducts.length > 0 ? (
-              <div className="warehouse-product-grid">
-                {stockedProducts.map((product) => {
-                  const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0, inTransit: 0 };
-                  const buyEnabled = autoTrade.buyPolicyFor(product.id).enabled;
-                  const sellEnabled = autoTrade.sellPolicyFor(product.id).enabled;
-                  const automationLabel = buyEnabled && sellEnabled
-                    ? '自动交易'
-                    : buyEnabled ? '自动采购' : sellEnabled ? '自动出售' : '';
-                  return (
-                    <button
-                      type="button"
-                      className={`warehouse-product-card market-auto-trade-product-card ${automationLabel ? 'is-auto-trade-enabled' : ''}`}
-                      data-product-id={product.id}
-                      key={product.id}
-                      aria-label={`${product.name}，可用 ${formatNumber(inventory.available)}，冻结 ${formatNumber(inventory.frozen)}，设置自动交易`}
-                      onClick={(event) => openAutoTradePanel(product.id, event.currentTarget)}
-                    >
-                      <span className="warehouse-product-card-name">{product.name}</span>
-                      <span className="warehouse-product-card-icon"><ProductIcon productId={product.id} /></span>
-                      <strong className="warehouse-product-card-available">可用 {formatNumber(inventory.available)}</strong>
-                      <small className="warehouse-product-card-frozen">
-                        冻结 {formatNumber(inventory.frozen)}{automationLabel ? ` · ${automationLabel}` : ''}
-                      </small>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="empty-state warehouse-content-empty">
-                <strong>暂无活跃自动交易商品</strong>
-                <span>可从左侧商品选择器为任意商品开启自动采购或自动出售。</span>
-              </div>
-            )}
-          </section>
-        </Panel>
+        {fixedMode ? (
+          <Panel className="production-surface market-auto-trade-fixed-mobile">
+            <WidgetHeading
+              title={selectedProduct ? `${selectedProduct.name} · 自动交易` : '自动交易'}
+              action={<StatusTag tone="info">在线维护</StatusTag>}
+            />
+            <button
+              ref={mobileAutoTradeTriggerRef}
+              type="button"
+              className="ui-button ui-button--primary ui-button--block"
+              onClick={(event) => openAutoTradePanel(fixedProductId ?? undefined, event.currentTarget)}
+            >
+              设置自动交易
+            </button>
+          </Panel>
+        ) : (
+          <Panel className="production-surface warehouse-inventory-panel market-auto-trade-products">
+            <WidgetHeading
+              title="自动交易商品"
+              action={(
+                <div className="warehouse-heading-actions">
+                  <StatusTag tone="neutral">无限容量</StatusTag>
+                  <button
+                    ref={mobileAutoTradeTriggerRef}
+                    type="button"
+                    className="ui-button ui-button--compact warehouse-auto-trade-mobile-trigger"
+                    onClick={(event) => openAutoTradePanel(selectedProductId || undefined, event.currentTarget)}
+                  >
+                    自动交易
+                  </button>
+                </div>
+              )}
+            />
+            <section className="warehouse-content" aria-label="自动交易商品与库存">
+              <header className="warehouse-content-heading">
+                <strong>策略与库存</strong>
+                <span>{formatNumber(stockedProducts.length)} 种活跃商品</span>
+              </header>
+              {stockedProducts.length > 0 ? (
+                <div className="warehouse-product-grid">
+                  {stockedProducts.map((product) => {
+                    const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0, inTransit: 0 };
+                    const buyEnabled = autoTrade.buyPolicyFor(product.id).enabled;
+                    const sellEnabled = autoTrade.sellPolicyFor(product.id).enabled;
+                    const automationLabel = buyEnabled && sellEnabled
+                      ? '自动交易'
+                      : buyEnabled ? '自动采购' : sellEnabled ? '自动出售' : '';
+                    return (
+                      <button
+                        type="button"
+                        className={`warehouse-product-card market-auto-trade-product-card ${automationLabel ? 'is-auto-trade-enabled' : ''}`}
+                        data-product-id={product.id}
+                        key={product.id}
+                        aria-label={`${product.name}，可用 ${formatNumber(inventory.available)}，冻结 ${formatNumber(inventory.frozen)}，设置自动交易`}
+                        onClick={(event) => openAutoTradePanel(product.id, event.currentTarget)}
+                      >
+                        <span className="warehouse-product-card-name">{product.name}</span>
+                        <span className="warehouse-product-card-icon"><ProductIcon productId={product.id} /></span>
+                        <strong className="warehouse-product-card-available">可用 {formatNumber(inventory.available)}</strong>
+                        <small className="warehouse-product-card-frozen">
+                          冻结 {formatNumber(inventory.frozen)}{automationLabel ? ` · ${automationLabel}` : ''}
+                        </small>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="empty-state warehouse-content-empty">
+                  <strong>暂无活跃自动交易商品</strong>
+                  <span>可从左侧商品选择器为任意商品开启自动采购或自动出售。</span>
+                </div>
+              )}
+            </section>
+          </Panel>
+        )}
       </div>
 
       <MobileWorkspaceDetailSheet
@@ -495,7 +524,7 @@ export function MarketAutoTradePanel({
             title={selectedProduct ? `${selectedProduct.name} · 自动交易` : '自动交易'}
             action={<StatusTag tone="info">在线维护</StatusTag>}
           />
-          {renderProductSelector()}
+          {fixedMode ? null : renderProductSelector()}
           {renderSelectedTradeFields()}
         </section>
       </MobileWorkspaceDetailSheet>

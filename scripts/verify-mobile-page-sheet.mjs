@@ -245,8 +245,14 @@ requireAll('tests/browser/notification-center.spec.ts', [
 requireAll('tests/browser/mobile-navigation-scrollbar.spec.ts', [
   'mobile navigation stays mounted but hidden while a sheet is open and animates back after close',
   "await expect(navigationHost).toHaveAttribute('aria-hidden', 'true');",
-  "await expect(navigationHost).toHaveAttribute('data-navigation-returning', 'true');",
-  "expect(returningAnimation).toContain('mobile-bottom-navigation-return');",
+  "element.addEventListener('animationstart', (event) => {",
+  "element.dataset.testReturnAnimationStarted = 'true';",
+  "element.dataset.testReturnAnimationState = element.dataset.navigationReturning ?? 'missing';",
+  "document.querySelector('.mobile-workspace-sheet-host')",
+  "await expect(navigationHost).toHaveAttribute('data-test-return-animation-started', 'true');",
+  "await expect(navigationHost).toHaveAttribute('data-test-return-animation-state', 'true');",
+  "await expect(navigationHost).toHaveAttribute('data-test-return-animation-sheet-present', 'false');",
+  "await expect(navigationHost).toHaveAttribute('data-navigation-returning', 'false');",
 ]);
 
 requireAll('docs/UI_DESIGN_SYSTEM.md', [

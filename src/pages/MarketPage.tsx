@@ -18,6 +18,7 @@ import { FactoryIcon } from '../components/icons/GameIcons';
 import { ProductIcon, ProductIconLabel } from '../components/icons/ProductIcons';
 import { ProductArtwork } from '../components/products/ProductArtwork';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
+import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import { IntegerInput, MoneyInput, SelectInput, TextInput } from '../components/ui/FormControls';
 import {
   Button,
@@ -415,7 +416,6 @@ export function MarketPage({
   const now = game.lastProcessedAt;
   const orderEntryRef = useRef<MarketOrderEntryHandle>(null);
   const [mobileAccountView, setMobileAccountView] = useState<'orders' | 'trades'>('orders');
-  const [catalogWorkspace, setCatalogWorkspace] = useState<'overview' | 'auto-trade'>('overview');
   const [requestedAutoTradeProductId, setRequestedAutoTradeProductId] = useState<string | null>(null);
   const [catalogQuery, setCatalogQuery] = useState('');
   const [catalogCategory, setCatalogCategory] = useState('all');
@@ -426,7 +426,7 @@ export function MarketPage({
     const openRequestedAutoTrade = (productId: string) => {
       if (!game.products.some((product) => product.id === productId)) return;
       setRequestedAutoTradeProductId(productId);
-      setCatalogWorkspace('auto-trade');
+      selectMarketAsset('commodity', productId, !embedded);
     };
     const requested = consumeAutoSellPanelRequest(model.user.id);
     if (requested) openRequestedAutoTrade(requested);
@@ -437,7 +437,7 @@ export function MarketPage({
     };
     window.addEventListener(AUTO_SELL_PANEL_EVENT, handlePanelRequest);
     return () => window.removeEventListener(AUTO_SELL_PANEL_EVENT, handlePanelRequest);
-  }, [game.products, model.user.id]);
+  }, [embedded, game.products, model.user.id, selectMarketAsset]);
 
   const productById = useMemo(
     () => new Map(game.products.map((product) => [product.id, product])),
@@ -515,6 +515,12 @@ export function MarketPage({
     [marketFallbackPrice, marketHistory, now],
   );
   const marketTrend = marketBuckets[marketBuckets.length - 1].price - marketBuckets[0].price;
+  const marketVolume24h = useMemo(() => {
+    const windowStart = now - (24 * 60 * 60 * 1_000);
+    return marketHistory
+      .filter((point) => point.createdAt >= windowStart && point.createdAt <= now)
+      .reduce((sum, point) => sum + Math.max(0, Number(point.quantity || 0)), 0);
+  }, [marketHistory, now]);
   const trendTone: StatusTone = marketTrend > 0 ? 'success' : marketTrend < 0 ? 'danger' : 'neutral';
   const availableAssetLabel = activeAssetKind === 'commodity' ? `可用${assetName}` : '可出售';
   const availableAssetQuantity = activeAssetKind === 'commodity'
@@ -649,170 +655,121 @@ export function MarketPage({
 
   const provinceName = model.selectedProvince?.name || '加利福尼亚州';
   const catalogCategoryOptions = Object.entries(PRODUCT_CATEGORY_LABELS);
-  const marketConditionSummary = useMemo(() => {
-    const counts: Record<MarketBookCondition, number> = {
-      'buy-heavy': 0,
-      balanced: 0,
-      'sell-heavy': 0,
-      inactive: 0,
-    };
-    for (const product of game.products) {
-      const orders = openOrdersForAsset(orderIndex, 'commodity', product.id);
-      const buyVolume = orders
-        .filter((order) => order.side === 'buy')
-        .reduce((sum, order) => sum + Math.max(0, order.remaining), 0);
-      const sellVolume = orders
-        .filter((order) => order.side === 'sell')
-        .reduce((sum, order) => sum + Math.max(0, order.remaining), 0);
-      counts[marketBookCondition(buyVolume, sellVolume)] += 1;
-    }
-    return counts;
-  }, [game.products, orderIndex]);
-
   if (!facilityAssetId && marketViewMode === 'catalog') {
     const catalogContent = (
       <div className="market-page-surface market-catalog-surface">
-        <div className="market-workspace-switch ui-segmented" role="group" aria-label="市场工作区">
-          <Button
-            variant="text"
-            className={catalogWorkspace === 'overview' ? 'ui-segmented__button active' : 'ui-segmented__button'}
-            aria-pressed={catalogWorkspace === 'overview'}
-            onClick={() => setCatalogWorkspace('overview')}
-          >市场行情</Button>
-          <Button
-            variant="text"
-            className={catalogWorkspace === 'auto-trade' ? 'ui-segmented__button active' : 'ui-segmented__button'}
-            aria-pressed={catalogWorkspace === 'auto-trade'}
-            onClick={() => setCatalogWorkspace('auto-trade')}
-          >自动交易</Button>
+        <div className="market-catalog-filters" aria-label="市场列表筛选">
+          <TextInput
+            label="搜索"
+            type="search"
+            value={catalogQuery}
+            placeholder="搜索商品"
+            onChange={(event) => setCatalogQuery(event.currentTarget.value)}
+          />
+          <SelectInput
+            label="分类"
+            value={catalogCategory}
+            onChange={(event) => setCatalogCategory(event.currentTarget.value)}
+          >
+            <option value="all">全部分类</option>
+            {catalogCategoryOptions.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </SelectInput>
+          <SelectInput
+            label="市场状态"
+            value={catalogStatus}
+            onChange={(event) => setCatalogStatus(event.currentTarget.value as MarketCatalogStatus)}
+          >
+            <option value="all">全部状态</option>
+            <option value="traded">有真实成交</option>
+            <option value="buy">有买盘</option>
+            <option value="sell">有卖盘</option>
+            <option value="unmet-demand">消费需求未满足</option>
+            <option value="own-order">有我的订单</option>
+          </SelectInput>
+          <SelectInput
+            label="排序"
+            value={catalogSort}
+            onChange={(event) => setCatalogSort(event.currentTarget.value as MarketCatalogSort)}
+          >
+            <option value="catalog">目录顺序</option>
+            <option value="name">名称</option>
+            <option value="price">市场价</option>
+            <option value="trend">24h 变化</option>
+            <option value="buy-volume">买单量</option>
+            <option value="sell-volume">卖单量</option>
+            <option value="balance">挂单差额</option>
+          </SelectInput>
         </div>
-
-        {catalogWorkspace === 'auto-trade' ? (
-          <MarketAutoTradePanel model={model} requestedProductId={requestedAutoTradeProductId} />
-        ) : (
-          <>
-            <section className="market-overview-metrics" aria-label="商品挂单状态汇总">
-              <MetricCard label="买盘偏多" value={formatNumber(marketConditionSummary['buy-heavy'])} tone="warning" detail="未成交买单量高于卖单量" />
-              <MetricCard label="双边均衡" value={formatNumber(marketConditionSummary.balanced)} tone="success" detail="买卖挂单量差异不超过 10%" />
-              <MetricCard label="卖盘偏多" value={formatNumber(marketConditionSummary['sell-heavy'])} tone="info" detail="未成交卖单量高于买单量" />
-              <MetricCard label="无挂单" value={formatNumber(marketConditionSummary.inactive)} detail="当前没有公开未成交订单" />
-            </section>
-          <Panel className="widget market-catalog-panel">
-            <div className="market-catalog-filters" aria-label="市场列表筛选">
-              <TextInput
-                label="搜索"
-                type="search"
-                value={catalogQuery}
-                placeholder="搜索商品"
-                onChange={(event) => setCatalogQuery(event.currentTarget.value)}
-              />
-              <SelectInput
-                label="分类"
-                value={catalogCategory}
-                onChange={(event) => setCatalogCategory(event.currentTarget.value)}
-              >
-                <option value="all">全部分类</option>
-                {catalogCategoryOptions.map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </SelectInput>
-              <SelectInput
-                label="市场状态"
-                value={catalogStatus}
-                onChange={(event) => setCatalogStatus(event.currentTarget.value as MarketCatalogStatus)}
-              >
-                <option value="all">全部状态</option>
-                <option value="traded">有真实成交</option>
-                <option value="buy">有买盘</option>
-                <option value="sell">有卖盘</option>
-                <option value="unmet-demand">消费需求未满足</option>
-                <option value="own-order">有我的订单</option>
-              </SelectInput>
-              <SelectInput
-                label="排序"
-                value={catalogSort}
-                onChange={(event) => setCatalogSort(event.currentTarget.value as MarketCatalogSort)}
-              >
-                <option value="catalog">目录顺序</option>
-                <option value="name">名称</option>
-                <option value="price">市场价</option>
-                <option value="trend">24h 变化</option>
-                <option value="buy-volume">买单量</option>
-                <option value="sell-volume">卖单量</option>
-                <option value="balance">挂单差额</option>
-              </SelectInput>
-            </div>
-            <ul className="market-catalog-list" aria-label="商品市场列表">
-              {catalogEntries.map((entry) => {
-                const entryTrendTone: StatusTone = (entry.trend ?? 0) > 0 ? 'success' : (entry.trend ?? 0) < 0 ? 'danger' : 'neutral';
-                const deviationTone: StatusTone = (entry.baseDeviationPercent ?? 0) > 0 ? 'warning' : (entry.baseDeviationPercent ?? 0) < 0 ? 'info' : 'neutral';
-                return (
-                  <li className="market-catalog-item" key={`${entry.kind}:${entry.id}`}>
-                    <button
-                      type="button"
-                      className="market-catalog-row"
-                      data-ui-interactive="surface"
-                      aria-label={`查看${entry.name}详情`}
-                      onClick={() => selectMarketAsset(entry.kind, entry.id, !embedded)}
-                    >
-                      <span className="market-catalog-row__identity">
-                        <span className="market-catalog-row__artwork" aria-hidden="true">
-                          <ProductArtwork productId={entry.id} />
-                        </span>
-                        <span className="market-catalog-row__name">
-                          <strong>{entry.name}</strong>
-                          <small>{entry.categoryLabel}</small>
-                        </span>
-                      </span>
-                      <span className="market-catalog-row__metric">
-                        <small>卖单量</small>
-                        <strong>{formatNumber(entry.sellVolume)}</strong>
-                      </span>
-                      <span className="market-catalog-row__metric">
-                        <small>买单量</small>
-                        <strong>{formatNumber(entry.buyVolume)}</strong>
-                      </span>
-                      <span className="market-catalog-row__metric market-catalog-row__balance">
-                        <small>挂单差额</small>
-                        <strong>{entry.balance > 0 ? '+' : ''}{formatNumber(entry.balance)}</strong>
-                      </span>
-                      <span className="market-catalog-row__metric">
-                        <small>市场价</small>
-                        <strong>{typeof entry.marketPrice === 'number'
-                          ? <CurrencyAmount>{formatCurrency(entry.marketPrice)}</CurrencyAmount>
-                          : '—'}</strong>
-                      </span>
-                      <span className="market-catalog-row__metric market-catalog-row__deviation">
-                        <small>基准偏离</small>
-                        {typeof entry.baseDeviationPercent === 'number'
-                          ? <StatusTag tone={deviationTone}>{entry.baseDeviationPercent > 0 ? '+' : ''}{entry.baseDeviationPercent.toFixed(1)}%</StatusTag>
-                          : <strong>—</strong>}
-                      </span>
-                      <span className="market-catalog-row__metric market-catalog-row__trend">
-                        <small>24h 变化</small>
-                        {typeof entry.trend === 'number'
-                          ? <StatusTag tone={entryTrendTone}><CurrencyAmount sign={entry.trend > 0 ? '+' : undefined}>{formatCurrency(entry.trend)}</CurrencyAmount></StatusTag>
-                          : <strong>—</strong>}
-                      </span>
-                      <span className="market-catalog-row__condition">
-                        <small>挂单状态</small>
-                        <StatusTag tone={marketConditionTone(entry.condition)}>{MARKET_CONDITION_LABELS[entry.condition]}</StatusTag>
-                      </span>
-                      <span className="market-catalog-row__chevron" aria-hidden="true">›</span>
-                    </button>
-                  </li>
-                );
-              })}
-              {catalogEntries.length === 0 ? (
-                <li className="market-catalog-empty">
-                  <p>没有符合当前筛选条件的商品。</p>
-                  <Button variant="secondary" onClick={resetCatalogFilters}>清除筛选</Button>
-                </li>
-              ) : null}
-            </ul>
-          </Panel>
-          </>
-        )}
+        <ul className="market-catalog-list" aria-label="商品市场列表">
+          {catalogEntries.map((entry) => {
+            const entryTrendTone: StatusTone = (entry.trend ?? 0) > 0 ? 'success' : (entry.trend ?? 0) < 0 ? 'danger' : 'neutral';
+            const deviationTone: StatusTone = (entry.baseDeviationPercent ?? 0) > 0 ? 'warning' : (entry.baseDeviationPercent ?? 0) < 0 ? 'info' : 'neutral';
+            return (
+              <li className="market-catalog-item" key={`${entry.kind}:${entry.id}`}>
+                <button
+                  type="button"
+                  className="market-catalog-row"
+                  data-ui-interactive="surface"
+                  aria-label={`查看${entry.name}详情`}
+                  onClick={() => selectMarketAsset(entry.kind, entry.id, !embedded)}
+                >
+                  <span className="market-catalog-row__identity">
+                    <span className="market-catalog-row__artwork" aria-hidden="true">
+                      <ProductArtwork productId={entry.id} />
+                    </span>
+                    <span className="market-catalog-row__name">
+                      <strong>{entry.name}</strong>
+                      <small>{entry.categoryLabel}</small>
+                    </span>
+                  </span>
+                  <span className="market-catalog-row__metric">
+                    <small>卖单量</small>
+                    <strong>{formatNumber(entry.sellVolume)}</strong>
+                  </span>
+                  <span className="market-catalog-row__metric">
+                    <small>买单量</small>
+                    <strong>{formatNumber(entry.buyVolume)}</strong>
+                  </span>
+                  <span className="market-catalog-row__metric market-catalog-row__balance">
+                    <small>挂单差额</small>
+                    <strong>{entry.balance > 0 ? '+' : ''}{formatNumber(entry.balance)}</strong>
+                  </span>
+                  <span className="market-catalog-row__metric">
+                    <small>市场价</small>
+                    <strong>{typeof entry.marketPrice === 'number'
+                      ? <CurrencyAmount>{formatCurrency(entry.marketPrice)}</CurrencyAmount>
+                      : '—'}</strong>
+                  </span>
+                  <span className="market-catalog-row__metric market-catalog-row__deviation">
+                    <small>基准偏离</small>
+                    {typeof entry.baseDeviationPercent === 'number'
+                      ? <StatusTag tone={deviationTone}>{entry.baseDeviationPercent > 0 ? '+' : ''}{entry.baseDeviationPercent.toFixed(1)}%</StatusTag>
+                      : <strong>—</strong>}
+                  </span>
+                  <span className="market-catalog-row__metric market-catalog-row__trend">
+                    <small>24h 变化</small>
+                    {typeof entry.trend === 'number'
+                      ? <StatusTag tone={entryTrendTone}><CurrencyAmount sign={entry.trend > 0 ? '+' : undefined}>{formatCurrency(entry.trend)}</CurrencyAmount></StatusTag>
+                      : <strong>—</strong>}
+                  </span>
+                  <span className="market-catalog-row__condition">
+                    <small>挂单状态</small>
+                    <StatusTag tone={marketConditionTone(entry.condition)}>{MARKET_CONDITION_LABELS[entry.condition]}</StatusTag>
+                  </span>
+                  <span className="market-catalog-row__chevron" aria-hidden="true">›</span>
+                </button>
+              </li>
+            );
+          })}
+          {catalogEntries.length === 0 ? (
+            <li className="market-catalog-empty">
+              <p>没有符合当前筛选条件的商品。</p>
+              <Button variant="secondary" onClick={resetCatalogFilters}>清除筛选</Button>
+            </li>
+          ) : null}
+        </ul>
       </div>
     );
     return embedded
@@ -822,7 +779,7 @@ export function MarketPage({
 
   const detailContent = (
     <>
-      {embedded ? (
+      {embedded && facilityAssetId ? (
         <div className="province-embedded-section-navigation">
           <Button variant="secondary" onClick={returnToCatalog}>
             {facilityAssetId ? '返回建筑详情' : '返回商品列表'}
@@ -914,8 +871,8 @@ export function MarketPage({
                 </StatusTag>
               </span>
               <span>
-                <small>{availableAssetLabel}</small>
-                <strong>{formatNumber(availableAssetQuantity)}</strong>
+                <small>{selectedProduct ? '24h 成交量' : availableAssetLabel}</small>
+                <strong>{formatNumber(selectedProduct ? marketVolume24h : availableAssetQuantity)}</strong>
               </span>
             </div>
             <div className="market-trade-layout">
@@ -998,6 +955,15 @@ export function MarketPage({
             />
             <PriceSparkline buckets={marketBuckets} variant="full" />
           </Panel>
+
+          {selectedProduct ? (
+            <MarketAutoTradePanel
+              model={model}
+              fixedProductId={selectedProduct.id}
+              requestedProductId={requestedAutoTradeProductId}
+              className="market-detail-auto-trade"
+            />
+          ) : null}
 
           <Panel className="widget span-3 market-account-panel">
             <WidgetHeading title={`我的${assetName}订单与成交`} action={<StatusTag>{formatNumber(ownSelectedOrders.length)} 笔未完成</StatusTag>} />
@@ -1101,7 +1067,7 @@ export function MarketPage({
   );
   return embedded ? detailContent : (
     <PageLayout
-      title={`${provinceName} · ${assetName}`}
+      title={<RegionalEntityPageTitle entityName={assetName} regionName={provinceName} />}
       backAction={{
         label: facilityAssetId ? '返回建筑详情' : '返回商品列表',
         onClick: returnToCatalog,

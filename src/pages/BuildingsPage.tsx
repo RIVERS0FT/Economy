@@ -3,6 +3,7 @@ import { cancelFacilityBuildProcurement, createFacilityBuildProcurement } from '
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { ProductArtwork } from '../components/products/ProductArtwork';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
+import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import { MoneyInput, SelectInput } from '../components/ui/FormControls';
 import { RichSelectInput } from '../components/ui/RichSelectInput';
 import {
@@ -724,7 +725,13 @@ export function BuildingsPage({
     const provinceName = model.selectedProvince?.name || '加利福尼亚州';
     return (
       <PageLayout
-        title={<span className="province-facility-detail-title">{provinceName}{selectedFacilityEntry.type.name}</span>}
+        title={(
+          <RegionalEntityPageTitle
+            entityName={selectedFacilityEntry.type.name}
+            regionName={provinceName}
+            className="province-facility-detail-title"
+          />
+        )}
         description="管理本州建筑的建造、运行、满员率、生产方式、投入产出与资产交易；商品库存和自动交易分别归属仓库与市场。"
         backAction={{ label: '返回建筑列表', onClick: closeFacilityDetail }}
       >

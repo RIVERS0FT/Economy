@@ -2,7 +2,15 @@
   display: grid;
   grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
   align-items: start;
-  gap: var(--space-3);
+  gap: var(--layout-gutter);
+}
+
+.market-auto-trade-workspace--fixed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.market-auto-trade-fixed-mobile {
+  display: none;
 }
 
 .production-warehouse-workspace > * {
@@ -264,6 +272,12 @@
 
   .warehouse-auto-trade-mobile-trigger {
     display: inline-flex;
+  }
+
+  .market-auto-trade-fixed-mobile {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-3);
   }
 
   .warehouse-inventory-panel {

@@ -42,7 +42,10 @@ test('account-free mode redirects into the complete game shell without API traff
   await expect(page.locator('.desktop-sidebar .sidebar-nav-button')).toHaveCount(9);
   await expect(page.locator('.desktop-sidebar .sidebar-footer').getByRole('button', { name: '设置' })).toHaveCount(1);
   await expect(page.locator('.desktop-sidebar').getByRole('button', { name: /^地图/ })).toHaveCount(0);
-  await expect(page.getByRole('heading', { level: 1, name: pages[0].heading })).toBeVisible();
+  const map = page.getByTestId('us-mainland-map');
+  await expect(map).toHaveAttribute('data-map-ready', 'true');
+  await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
+  await expect(page.locator('[data-player-page-navigation="true"]')).toHaveCount(0);
   expect(apiRequests).toEqual([]);
 });
 
@@ -80,6 +83,7 @@ test('account-free game shell navigates all ten visible business pages and close
 
 test('player page heading keeps SVG back, centered title, and SVG close in that order', async ({ page }) => {
   await page.goto('?preview=game');
+  await page.locator('.desktop-sidebar').getByRole('button', { name: /^概览/ }).click();
 
   for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
@@ -152,7 +156,6 @@ test('overview, market, buildings, and settings share a one-third card width whi
   await expect(outliner).toBeVisible();
   await outliner.evaluate((element) => element.setAttribute('data-preview-outliner-sentinel', 'persistent'));
 
-  await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
   await clickMapProvinceLabel(page, '得克萨斯州');
   const provinceHost = page.locator('.strategic-page-host');
   const provinceContent = provinceHost.locator(':scope > .page-content:not(.page-loading)');
