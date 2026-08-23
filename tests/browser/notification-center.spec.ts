@@ -106,7 +106,7 @@ test.describe('notification center geometry', () => {
     await expect(panel).toHaveCount(0);
   });
 
-  test('desktop entry keeps the panel top-right while toast shares the event rail layer at bottom-right', async ({ page }) => {
+  test('desktop entry keeps the panel top-right while toast shares the outliner layer at bottom-right', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
     await openNotificationPanel(page);
@@ -118,23 +118,34 @@ test.describe('notification center geometry', () => {
       const workspace = document.querySelector<HTMLElement>('.workspace');
       const floatingLayer = document.querySelector<HTMLElement>('.workspace-floating-layer');
       const strategicChrome = document.querySelector<HTMLElement>('.workspace-strategic-chrome');
-      const eventRail = document.querySelector<HTMLElement>('.strategic-economic-event-rail');
+      const outliner = document.querySelector<HTMLElement>('.strategic-outliner');
       const panelLayer = document.querySelector<HTMLElement>('.notification-panel-layer');
       const panel = document.querySelector<HTMLElement>('.notification-panel');
       const toastStack = document.querySelector<HTMLElement>('.notification-toast-stack');
       const toast = document.querySelector<HTMLElement>('.notification-toast');
-      if (!status || !trigger || !workspace || !floatingLayer || !strategicChrome || !eventRail || !panelLayer || !panel || !toastStack || !toast) {
+      if (!status || !trigger || !workspace || !floatingLayer || !strategicChrome || !outliner || !panelLayer || !panel || !toastStack || !toast) {
         throw new Error('desktop notification geometry is incomplete');
       }
       const rect = (element: HTMLElement) => {
         const box = element.getBoundingClientRect();
         return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height };
       };
+      const toastBox = toast.getBoundingClientRect();
+      const outlinerBox = outliner.getBoundingClientRect();
+      const overlapLeft = Math.max(toastBox.left, outlinerBox.left);
+      const overlapTop = Math.max(toastBox.top, outlinerBox.top);
+      const overlapRight = Math.min(toastBox.right, outlinerBox.right);
+      const overlapBottom = Math.min(toastBox.bottom, outlinerBox.bottom);
+      const overlapStack = overlapRight > overlapLeft && overlapBottom > overlapTop
+        ? document.elementsFromPoint((overlapLeft + overlapRight) / 2, (overlapTop + overlapBottom) / 2)
+        : [];
+      const toastStackIndex = overlapStack.findIndex((element) => Boolean(element.closest('.notification-toast-stack')));
+      const outlinerIndex = overlapStack.findIndex((element) => Boolean(element.closest('.strategic-outliner')));
       return {
         status: rect(status),
         trigger: rect(trigger),
         workspace: rect(workspace),
-        eventRail: rect(eventRail),
+        outliner: rect(outliner),
         panelLayer: rect(panelLayer),
         panel: rect(panel),
         panelInsets: {
@@ -146,11 +157,12 @@ test.describe('notification center geometry', () => {
         toast: rect(toast),
         toastStack: rect(toastStack),
         toastStackZIndex: getComputedStyle(toastStack).zIndex,
-        eventRailZIndex: getComputedStyle(eventRail).zIndex,
+        outlinerZIndex: getComputedStyle(outliner).zIndex,
         frostedSurfaceCount: document.querySelectorAll('.asset-bar .frosted-glass-surface').length,
         panelParentIsFloatingLayer: panel.parentElement?.parentElement === floatingLayer,
         toastParentIsStrategicChrome: toastStack.parentElement === strategicChrome,
-        eventRailParentIsStrategicChrome: eventRail.parentElement === strategicChrome,
+        outlinerParentIsStrategicChrome: outliner.parentElement === strategicChrome,
+        toastPrecedesOutlinerAtOverlap: toastStackIndex >= 0 && outlinerIndex >= 0 && toastStackIndex < outlinerIndex,
         notificationLayer: panelLayer.dataset.notificationLayer,
       };
     });
@@ -164,22 +176,26 @@ test.describe('notification center geometry', () => {
     expect(geometry.toastStack.right).toBeCloseTo(geometry.workspace.right - 8, 0);
     expect(geometry.toastStack.bottom).toBeCloseTo(geometry.workspace.bottom - 8, 0);
     expect(geometry.toast.width).toBeLessThanOrEqual(360);
-    expect(Math.abs(geometry.toast.width - geometry.eventRail.width)).toBeGreaterThan(20);
-    expect(geometry.toastStackZIndex).toBe(geometry.eventRailZIndex);
+    expect(Math.abs(geometry.toast.width - geometry.outliner.width)).toBeGreaterThan(20);
+    expect(geometry.toastStackZIndex).toBe(geometry.outlinerZIndex);
     expect(geometry.toastStackZIndex).toBe('2');
     expect(geometry.panelParentIsFloatingLayer).toBe(true);
     expect(geometry.toastParentIsStrategicChrome).toBe(true);
-    expect(geometry.eventRailParentIsStrategicChrome).toBe(true);
+    expect(geometry.outlinerParentIsStrategicChrome).toBe(true);
+    expect(geometry.toastPrecedesOutlinerAtOverlap).toBe(true);
     expect(geometry.notificationLayer).toBe('floating');
     expect(geometry.frostedSurfaceCount).toBe(1);
   });
 
-  test('desktop toast remains bottom-right when the public event rail is hidden', async ({ page }) => {
+  test('desktop toast remains bottom-right while the outliner persists on fullscreen pages', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
+    const outliner = page.locator('.strategic-outliner');
+    await outliner.evaluate((element) => element.setAttribute('data-notification-outliner-sentinel', 'persistent'));
     await page.locator('.desktop-sidebar .sidebar-nav-button').filter({ hasText: '银行' }).first().evaluate((button) => button.click());
     await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-bank/);
-    await expect(page.locator('.strategic-economic-event-rail')).toHaveCount(0);
+    await expect(outliner).toHaveAttribute('data-notification-outliner-sentinel', 'persistent');
+    await expect(outliner).toBeVisible();
     await loadNotificationStyles(page);
     await mountDesktopToast(page);
 
@@ -187,7 +203,8 @@ test.describe('notification center geometry', () => {
       const workspace = document.querySelector<HTMLElement>('.workspace');
       const strategicChrome = document.querySelector<HTMLElement>('.workspace-strategic-chrome');
       const toastStack = document.querySelector<HTMLElement>('.notification-toast-stack');
-      if (!workspace || !strategicChrome || !toastStack) throw new Error('hidden-rail notification fixture is incomplete');
+      const outliner = document.querySelector<HTMLElement>('.strategic-outliner');
+      if (!workspace || !strategicChrome || !toastStack || !outliner) throw new Error('fullscreen notification fixture is incomplete');
       const workspaceBox = workspace.getBoundingClientRect();
       const toastBox = toastStack.getBoundingClientRect();
       return {
@@ -196,12 +213,14 @@ test.describe('notification center geometry', () => {
         toastRight: toastBox.right,
         toastBottom: toastBox.bottom,
         parentIsStrategicChrome: toastStack.parentElement === strategicChrome,
+        outlinerParentIsStrategicChrome: outliner.parentElement === strategicChrome,
       };
     });
 
     expect(geometry.toastRight).toBeCloseTo(geometry.workspaceRight - 8, 0);
     expect(geometry.toastBottom).toBeCloseTo(geometry.workspaceBottom - 8, 0);
     expect(geometry.parentIsStrategicChrome).toBe(true);
+    expect(geometry.outlinerParentIsStrategicChrome).toBe(true);
   });
 
   test('mobile notification panel overlays an open workspace sheet without leaving an island mounted', async ({ page }) => {

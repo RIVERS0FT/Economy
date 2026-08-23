@@ -140,18 +140,21 @@ test('player page heading keeps SVG back, centered title, and SVG close in that 
   }
 });
 
-test('overview, market, buildings, and settings share a one-third card width while leaderboard and shop stay full-area', async ({ page }) => {
+test('overview, market, buildings, and settings share a one-third card width while leaderboard and shop stay full-area with one persistent strategic outliner', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('?preview=game');
   const sidebar = page.locator('.desktop-sidebar');
   const workspaceCard = page.locator('.signed-in-shell__primary-card');
+  const outliner = page.locator('.strategic-outliner');
   const compactWidths: number[] = [];
   const compactCardWidths: number[] = [];
 
   await expect(workspaceCard).toHaveCount(1);
   await expect(workspaceCard.locator(':scope .desktop-sidebar')).toHaveCount(1);
   await expect(workspaceCard.locator(':scope .strategic-page-host')).toHaveCount(1);
+  await expect(outliner).toBeVisible();
+  await outliner.evaluate((element) => element.setAttribute('data-preview-outliner-sentinel', 'persistent'));
 
   await clickMapProvinceLabel(page, '得克萨斯州');
   const provinceHost = page.locator('.strategic-page-host');
@@ -160,6 +163,7 @@ test('overview, market, buildings, and settings share a one-third card width whi
   await expect(provinceHost.locator(':scope > .page-loading')).toHaveCount(0);
   await expect(page.getByRole('heading', { level: 1, name: '得克萨斯州' })).toBeVisible();
   await expect(provinceContent).toBeVisible();
+  await expect(outliner).toHaveAttribute('data-preview-outliner-sentinel', 'persistent');
   const provinceContentBox = await provinceContent.boundingBox();
   const provinceCardBox = await workspaceCard.boundingBox();
   expect(provinceContentBox).not.toBeNull();
@@ -175,17 +179,18 @@ test('overview, market, buildings, and settings share a one-third card width whi
     const host = page.locator('.strategic-page-host');
     await expect(host.locator(':scope > .page-loading')).toHaveCount(0);
     const content = host.locator(':scope > .page-content:not(.page-loading)');
-    const eventRail = page.locator('.strategic-economic-event-rail');
     await expect(host).toHaveAttribute('data-strategic-presentation', 'building');
-    await expect(eventRail).toBeVisible();
-    await expect(content.locator('.strategic-economic-event-rail')).toHaveCount(0);
+    await expect(content).toBeVisible();
+    await expect(outliner).toBeVisible();
+    await expect(outliner).toHaveAttribute('data-preview-outliner-sentinel', 'persistent');
+    await expect(content.locator('.strategic-outliner')).toHaveCount(0);
     const contentBox = await content.boundingBox();
     const cardBox = await workspaceCard.boundingBox();
-    const railBox = await eventRail.boundingBox();
+    const outlinerBox = await outliner.boundingBox();
     expect(contentBox).not.toBeNull();
     expect(cardBox).not.toBeNull();
-    expect(railBox).not.toBeNull();
-    expect(contentBox!.x + contentBox!.width).toBeLessThanOrEqual(railBox!.x - 8);
+    expect(outlinerBox).not.toBeNull();
+    expect(cardBox!.x + cardBox!.width).toBeLessThanOrEqual(outlinerBox!.x - 8);
     compactWidths.push(contentBox!.width);
     compactCardWidths.push(cardBox!.width);
   }
@@ -201,13 +206,20 @@ test('overview, market, buildings, and settings share a one-third card width whi
     await expect(host.locator(':scope > .page-loading')).toHaveCount(0);
     const content = host.locator(':scope > .page-content:not(.page-loading)');
     await expect(host).toHaveAttribute('data-strategic-presentation', 'fullscreen');
-    await expect(page.locator('.strategic-economic-event-rail')).toHaveCount(0);
+    await expect(content).toBeVisible();
+    await expect(outliner).toBeVisible();
+    await expect(outliner).toHaveAttribute('data-preview-outliner-sentinel', 'persistent');
     const hostBox = await host.boundingBox();
     const contentBox = await content.boundingBox();
+    const cardBox = await workspaceCard.boundingBox();
+    const outlinerBox = await outliner.boundingBox();
     expect(hostBox).not.toBeNull();
     expect(contentBox).not.toBeNull();
+    expect(cardBox).not.toBeNull();
+    expect(outlinerBox).not.toBeNull();
     expect(contentBox!.width).toBeCloseTo(hostBox!.width, 0);
     expect(contentBox!.width).toBeGreaterThan(compactWidths[0] + 200);
+    expect(cardBox!.x + cardBox!.width).toBeLessThanOrEqual(outlinerBox!.x - 8);
     fullAreaWidths.set(label, contentBox!.width);
   }
   expect(fullAreaWidths.get('排行')).toBeCloseTo(fullAreaWidths.get('商店')!, 0);

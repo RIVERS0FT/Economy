@@ -21,6 +21,7 @@ const paths = {
   overview: 'src/pages/OverviewPage.tsx',
   eventLog: 'src/components/EconomicEventLogPanel.tsx',
   strategicWorkspace: 'src/components/shell/StrategicWorkspace.tsx',
+  outliner: 'src/components/outliner/StrategicOutliner.tsx',
   guide: 'src/components/GameGuideStrip.tsx',
   chart: 'src/components/charts/PriceSparkline.tsx',
   gameApp: 'src/app/GameApp.tsx',
@@ -36,6 +37,7 @@ const paths = {
   sidebarStyle: 'src/styles/desktop-sidebar.css',
   shellLayoutStyle: 'src/styles/game-shell-layout.css',
   strategicStyle: 'src/styles/strategic-game-shell.css',
+  outlinerStyle: 'src/styles/strategic-outliner.css',
   mobileStatusStyle: 'src/styles/mobile-status-layout.css',
   harness: 'tests/browser/runtime-harness.tsx',
   browserSpec: 'tests/browser/runtime.spec.ts',
@@ -87,6 +89,7 @@ requireAll(paths.overview, [
 ]);
 forbidAll(paths.overview, [
   'GameGuideStrip',
+  'StrategicOutliner',
   'overview-mobile-tutorial',
   '进入市场',
   'EconomicEventLogPanel',
@@ -115,15 +118,30 @@ forbidAll(paths.overview, [
   '/ 7 天',
 ]);
 requireAll(paths.strategicWorkspace, [
-  'const showTutorial = Boolean(tutorial?.isVisible && tutorial.currentStep);',
-  'if (!showEventRail && !showTutorial) return null;',
-  "data-tutorial-visible={showTutorial ? 'true' : 'false'}",
-  "data-event-log-visible={showEventRail ? 'true' : 'false'}",
-  '{showTutorial && tutorial ? <GameGuideStrip tutorial={tutorial} /> : null}',
-  '{showEventRail ? (',
-  '<EconomicEventLogPanel',
+  'export function StrategicWorkspaceChrome',
+  'const outlinerModel = strategicOutlinerModel(model);',
+  '<StrategicOutliner',
+  'model={outlinerModel}',
+  'tutorial={tutorial}',
+  'pendingItems={pendingItems}',
 ]);
-forbidText(paths.strategicWorkspace, "model.tab === 'home' && tutorial");
+forbidAll(paths.strategicWorkspace, [
+  'strategic-economic-event-rail',
+  '<EconomicEventLogPanel',
+  "model.tab === 'home' && tutorial",
+]);
+requireAll(paths.outliner, [
+  'className="strategic-outliner"',
+  "data-tutorial-visible={showTutorial ? 'true' : 'false'}",
+  'data-event-log-visible="true"',
+  'id="tutorial"',
+  'id="activity"',
+  'id="pinned"',
+  'id="events"',
+  '<GameGuideStrip tutorial={tutorial} variant="outliner" />',
+  'economicCalendar?.events',
+  'pendingItems.map',
+]);
 requireAll(paths.eventLog, [
   'className="economic-event-log-title"',
   'aria-label="近期与未来七天公开经济事件日志"',
@@ -140,8 +158,9 @@ forbidAll(paths.eventLog, [
   'className="economic-event-log-note"',
 ]);
 requireAll(paths.guide, [
-  'className="game-guide-strip panel"',
-  '<strong id="game-guide-title">教程</strong>',
+  "variant?: 'panel' | 'outliner'",
+  'game-guide-strip--outliner',
+  "'game-guide-strip panel'",
   'role="progressbar"',
   'aria-label="教程总体进度"',
   '步骤 {tutorial.currentStepIndex}/{tutorial.totalSteps}',
@@ -202,7 +221,7 @@ requireAll(paths.polishStyle, [
   '.overview-check-in-day small {',
 ]);
 forbidAll(paths.polishStyle, ['clamp(168px, 20vw, 210px)', '.overview-asset-events {\n  overflow-y: auto;']);
-requireAll(paths.guideStyle, ['.game-guide-strip {', '.game-guide-progress {', '@media (max-width: 720px)']);
+requireAll(paths.guideStyle, ['.game-guide-strip {', '.game-guide-strip--outliner', '.game-guide-progress {', '@media (max-width: 720px)']);
 forbidAll(paths.guideStyle, [
   'border: 1px solid color-mix(in srgb, var(--accent, #4f7cff)',
   'background: color-mix(in srgb, var(--accent, #4f7cff) 8%',
@@ -215,6 +234,8 @@ requireAll(paths.shell, [
   'rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}`}',
   'sidebarCollapsed={sidebarCollapsed}',
   'onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}',
+  '<StrategicWorkspaceChrome',
+  'pendingItems={notificationCenter.pendingItems}',
 ]);
 requireAll(paths.sharedShell, [
   "sidebarCollapsed && 'sidebar-collapsed'",
@@ -250,20 +271,28 @@ requireAll(paths.strategicStyle, [
   '.game-shell .signed-in-shell__primary-card {',
   '.strategic-page-host--building > .page-content,',
   '.game-shell .signed-in-shell__primary-card .desktop-sidebar::after {',
-  '.strategic-economic-event-rail {',
-  'width: var(--strategic-event-rail-width);',
-  '100% - var(--strategic-event-rail-width) - var(--strategic-panel-gap) * 3',
+  '.strategic-outliner {',
+  '--strategic-outliner-width: clamp(280px, 21vw, 320px);',
+  '--strategic-outliner-collapsed-width: 44px;',
+  '100% - var(--strategic-outliner-reserved-width) - var(--strategic-panel-gap) * 3',
+]);
+requireAll(paths.outlinerStyle, [
+  '.strategic-outliner {',
+  'z-index: 2;',
+  '.strategic-outliner__scroll {',
+  'overscroll-behavior-y: auto;',
 ]);
 forbidAll(paths.strategicStyle, [
   '.game-shell.strategic-tab-research .signed-in-shell__primary-card {',
   '--strategic-inspector-width',
   '.strategic-province-inspector',
+  '.strategic-economic-event-rail',
 ]);
 requireAll(paths.mobileStatusStyle, [
   '--mobile-below-status-top: calc(',
-  ".game-shell .strategic-economic-event-rail[data-tutorial-visible='true']",
+  ".game-shell .strategic-outliner[data-tutorial-visible='true']",
   'top: var(--mobile-below-status-top);',
-  '.game-shell .strategic-economic-event-rail > .economic-event-log-panel',
+  '.strategic-outliner-section:not(.strategic-outliner-section--tutorial)',
 ]);
 forbidAll(paths.sidebarStyle, ['right: -11px;']);
 requireAll(paths.statusBar, ['onClick?: () => void;', "if (item.onClick) classNames.push('asset-bar-item--interactive')", "aria-label={`${item.label}，打开详情`}"]);
@@ -305,8 +334,8 @@ requireAll(paths.browserSpec, [
   'overview prioritizes business decisions and shows the weekly check-in calendar',
   'public economic events stay compact until explicitly expanded',
   'page title stays fixed while only the page card body scrolls',
-  'shell places the tutorial above the public event log in an independent right rail',
-  'overview uses a building-style panel beside the independent event rail',
+  'strategic outliner stays outside overview content and owns tutorial and public events',
+  'overview uses a building-style panel beside the strategic outliner',
   'overview check-in calendar distinguishes claimed, today, missed, and future days',
   'overview shows completed and partial-week attendance states',
   'overview check-in calendar preserves seven columns on mobile',
@@ -314,9 +343,9 @@ requireAll(paths.browserSpec, [
   'overview only scrolls the order list after the visible capacity is exceeded',
   'overview keeps the decision rows visible and adapts to a narrower desktop',
   'compact desktop keeps QQ group and settings footer actions visible',
-  'desktop command rail expansion overlays the integrated card without reflowing overview or event rail',
-  "page.locator('.strategic-economic-event-rail')",
-  "page.locator('.page-content .economic-event-log-panel')",
+  'desktop command rail expansion overlays the integrated card without reflowing overview or outliner',
+  "page.locator('.strategic-outliner')",
+  "page.locator('.page-content .strategic-outliner')",
   "page.setViewportSize({ width: 1684, height: 931 })",
   "page.getByRole('list', { name: '本周签到日历' })",
   "checkInHeading.getByRole('button', { name: '签到领取 1 宝石' })",
@@ -328,33 +357,34 @@ requireAll(paths.browserSpec, [
 
 requireAll(paths.pageDesign, [
   '概览是经营决策首页',
-  '屏幕右侧独立挂载右侧信息栏',
-  '教程同样由该外壳持有，并在存在进行中的本地教程轮次时跨页面常驻',
+  '`StrategicWorkspaceChrome` 的统一战略追踪器',
+  '战略追踪器与页面路由生命周期解耦',
   '签到日历',
   '`1920×1080`',
   '`1440×900`',
-  '桌面教程显示在外壳右侧信息栏顶部，只由进行中的本地教程轮次控制',
+  '桌面教程固定显示在战略追踪器顶部',
 ]);
-requireAll(paths.uiDesign, ['## 10. 概览布局', '经营决策优先', '页面外的屏幕右栏纵向滚动', '签到日历']);
+requireAll(paths.uiDesign, ['## 10. 概览布局', '经营决策优先', '签到日历']);
 requireAll(paths.integrityDesign, [
   '概览使用参考大战略建筑页面的左侧毛玻璃业务面板',
-  '桌面工作区右侧：StrategicWorkspaceChrome',
-  '移动工作区顶部：StrategicWorkspaceChrome',
-  '教程属于 `StrategicWorkspaceChrome`',
+  '桌面工作区右侧：StrategicWorkspaceChrome → StrategicOutliner',
+  '移动工作区顶部：同一 StrategicOutliner DOM',
+  '教程属于 `StrategicOutliner`',
   '概览不得重新创建 `.overview-mobile-tutorial`',
   '移动教程所在工作区层低于根级 Mobile Workspace Sheet',
-  '`.strategic-economic-event-rail` 不得成为 `.page-content`',
+  '`.strategic-outliner` 不得成为 `.page-content`',
   '签到日历',
   '资产与银行',
   '可支配资产、冻结资产和贷款负债',
   '`1684×931`',
   '`390×844`',
-  '侧栏悬浮展开覆盖概览但不改变页面和右栏几何',
+  '侧栏悬浮展开覆盖概览但不改变页面和战略追踪器几何',
 ]);
 for (const path of [paths.pageDesign, paths.uiDesign, paths.integrityDesign]) forbidText(path, '统一为 `384px` 高');
 
 requireText(paths.main, "import './styles/overview.css'");
 requireText(paths.main, "import './styles/overview-polish.css'");
+requireText(paths.main, "import './styles/strategic-outliner.css'");
 requireText(paths.package, 'node scripts/verify-overview-content.mjs');
 
 if (failures.length > 0) {
@@ -362,4 +392,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('概览验证通过：共享外壳折叠、桌面教程右栏、移动教程外壳锚点、签到日历、服务器日期语义、权威资产状态、子切片依赖、状态栏趋势与浏览器碰撞回归满足设计基线。');
+console.log('概览验证通过：共享外壳折叠、桌面战略追踪器、移动同一 Outliner 教程、签到日历、服务器日期语义、权威资产状态、子切片依赖、状态栏趋势与浏览器碰撞回归满足设计基线。');
