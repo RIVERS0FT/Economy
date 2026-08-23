@@ -136,7 +136,7 @@ test('player page heading keeps SVG back, centered title, and SVG close in that 
   }
 });
 
-test('compact and fullscreen pages preserve one strategic outliner beside the workspace card', async ({ page }) => {
+test('overview, market, buildings, and settings share a one-third card width while leaderboard and shop stay full-area with one persistent strategic outliner', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('?preview=game');
