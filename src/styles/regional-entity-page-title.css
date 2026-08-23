@@ -34,7 +34,7 @@
 
 .regional-entity-title__region {
   color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+  font-size: 0.72rem;
   font-weight: 650;
   line-height: 13px;
   letter-spacing: 0;
