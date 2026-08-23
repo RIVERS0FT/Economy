@@ -25,6 +25,7 @@ for (const path of [
   'src/components/shell/StrategicWorkspace.tsx',
   'src/app/LoginPage.tsx',
   'src/app/GameApp.tsx',
+  'src/app/gameViewModel.ts',
   'src/app/AdminApp.tsx',
   'src/app/App.tsx',
   'src/app/AppErrorBoundary.tsx',
@@ -35,10 +36,13 @@ for (const path of [
   'src/main.tsx',
   'runtime-test.html',
   'market-runtime-test.html',
+  'game-loading-lifecycle-test.html',
   'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
   'docs/LIQUID_GLASS_CHROME_DESIGN.md',
   'tests/browser/game-three-layer.spec.ts',
   'tests/browser/application-photography.spec.ts',
+  'tests/browser/game-loading-lifecycle-harness.tsx',
+  'tests/browser/game-loading-lifecycle.spec.ts',
 ]) requireFile(path);
 
 for (const text of [
@@ -138,13 +142,25 @@ for (const text of [
   "import { ApplicationLoadingState } from '../components/system/ApplicationLoadingState';",
   'function GameErrorStateShell',
   '<div className="loading-screen" role="alert">',
-  '<ApplicationLoadingState>正在连接权威游戏服务器…</ApplicationLoadingState>',
+  '<ApplicationLoadingState>正在连接服务器…</ApplicationLoadingState>',
   '无法加载游戏状态',
 ]) requireText('src/app/GameApp.tsx', text);
+forbidText('src/app/GameApp.tsx', '正在连接权威游戏服务器');
 forbidText('src/app/GameApp.tsx', 'FinancialBackdrop');
 forbidText('src/app/App.tsx', 'function LoadingState');
 forbidText('src/app/App.tsx', '<LoadingState');
 forbidText('src/app/GameApp.tsx', 'function GameStateShell');
+
+for (const text of [
+  'getGameAuthoritySnapshot',
+  'const onSignedOutRef = useRef(onSignedOut);',
+  'onSignedOutRef.current = onSignedOut;',
+  'const canReuseAuthority = reloadVersion === 0',
+  'authoritySnapshot.state?.userId === user.id',
+  'gameRef.current = authoritySnapshot.state;',
+  'revisionRef.current = authoritySnapshot.revision;',
+  'onSignedOutRef.current();',
+]) requireText('src/app/gameViewModel.ts', text);
 
 for (const text of [
   "import { PhotographicStateShell } from '../components/visual/PhotographicStateShell';",
@@ -162,15 +178,20 @@ for (const text of [
   'document.documentElement.dataset.appSurface = surface;',
   'document.documentElement.dataset.appBackdrop = backdrop;',
   'document.documentElement.dataset.appTone = tone;',
+  'const handleSignedOut = useCallback(() => {',
+  'onSignedOut={handleSignedOut}',
   '<ApplicationLoadingState>',
-  '正在连接统一账号服务',
-  '正在加载金融帝国',
+  '正在连接服务器…',
   '正在加载本地免登录游戏',
 ]) requireText('src/app/App.tsx', text);
 const appSource = read('src/app/App.tsx');
 if ((appSource.match(/<ApplicationLoadingState>/g) ?? []).length !== 3) {
   failures.push('App.tsx 必须且只能为账号检查、正式代码包和本地免登录代码包加载渲染三个 ApplicationLoadingState');
 }
+if ((appSource.match(/正在连接服务器…/g) ?? []).length !== 2) {
+  failures.push('正式玩家账号检查与代码包阶段必须统一显示“正在连接服务器…”');
+}
+for (const text of ['正在连接统一账号服务', '正在加载金融帝国']) forbidText('src/app/App.tsx', text);
 
 for (const text of [
   'function currentFallbackVariant()',
@@ -304,6 +325,10 @@ for (const text of [
   'id="root"',
   '/tests/browser/market-runtime-harness.tsx',
 ]) requireText('market-runtime-test.html', text);
+for (const text of [
+  'id="root"',
+  '/tests/browser/game-loading-lifecycle-harness.tsx',
+]) requireText('game-loading-lifecycle-test.html', text);
 for (const path of ['runtime-test.html', 'market-runtime-test.html']) {
   for (const text of ['backdrop-root', 'persistent-backdrop-harness.tsx', 'class="application-content-root"']) {
     forbidText(path, text);
@@ -368,6 +393,7 @@ for (const text of [
   'expectSharedLoadingState',
   "data.persistenceProbe = 'account-check'",
   "toHaveAttribute('data-persistence-probe', 'account-check')",
+  '正在连接服务器…',
   'uses the game critical atmosphere for banned accounts',
   'uses the admin critical atmosphere for denied access',
   'keeps the administrator interface readable when photography fails',
@@ -375,7 +401,19 @@ for (const text of [
   "page.locator('.photographic-state-shell')",
 ]) requireText('tests/browser/application-photography.spec.ts', text);
 
-
+for (const text of [
+  '<StrictMode>',
+  'useGameViewModel(user, onSignedOut)',
+  'id="rerender-parent"',
+  'id="remount-game"',
+  'data-testid="game-view-model-status"',
+]) requireText('tests/browser/game-loading-lifecycle-harness.tsx', text);
+for (const text of [
+  'ready game view model does not return to loading on parent rerender or same-user remount',
+  '__gameLoadingTransitions',
+  'expect(stateRequests).toBe(requestsAfterReady)',
+  'expect(loadingTransitions).toBe(0)',
+]) requireText('tests/browser/game-loading-lifecycle.spec.ts', text);
 
 const unifiedAtmosphereCss = read('src/styles/financial-backdrop.css');
 for (const text of [
@@ -435,4 +473,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('持久全应用摄影背景验证通过：唯一图片节点、根级氛围切换、认证、玩家、管理员、状态页、失败回退、移动 Overlay 和浏览器 harness 均已锁定。');
+console.log('持久全应用摄影背景验证通过：唯一图片节点、统一启动加载、已就绪 authority 复用、根级氛围切换、认证、玩家、管理员、状态页、失败回退、移动 Overlay 和浏览器 harness 均已锁定。');
