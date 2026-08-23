@@ -66,7 +66,7 @@ for (const text of [
   '| 建筑 | `buildings` | `GlobalBuildingsPage` |',
   '一级导航中的“市场”和“建筑”固定进入全局视图',
   '`ProvincePage` 内的市场与建筑分区仍始终是地图所打开当前州的本地视图',
-  '正式缩放范围固定为 `scaleLimit: { min: 0.5, max: 4 }`',
+  '用户缩放范围固定为 `0.5～4`',
   '地图不得提供独立的放大、缩小或重置功能面板',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [

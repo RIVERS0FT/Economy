@@ -28,10 +28,10 @@ async function findPinchSeedInsideProvince(page: Page, provinceId: string) {
     const pathAt = (pointX: number, pointY: number) => {
       const target = document.elementFromPoint(pointX, pointY);
       if (!(target instanceof SVGPathElement)) return null;
-      return target.closest('.province-map-echart svg:not(.province-map-label-overlay)') ? target : null;
+      return target.matches('.province-map-region') && target.closest('.province-map-world-svg') ? target : null;
     };
     const centerPath = pathAt(centerX, centerY);
-    if (!centerPath) throw new Error('province label center is not over a map path');
+    if (!centerPath) throw new Error('province label center is not over a static map path');
 
     const axes = [
       { x: 1, y: 0 },
@@ -71,7 +71,8 @@ test('mobile pinch starting inside a province zooms without selecting the provin
     await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
     const map = page.getByTestId('us-mainland-map');
     const canvas = map.locator('.economy-chart__canvas');
-    await expect(map).toHaveAttribute('data-echarts-ready', 'true');
+    await expect(map).toHaveAttribute('data-map-ready', 'true');
+    await expect(canvas).toHaveAttribute('data-map-camera-mode', 'html-compositor-transform');
     await expect(canvas).toHaveCSS('touch-action', 'none');
     await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
 
@@ -103,18 +104,20 @@ test('mobile pinch starting inside a province zooms without selecting the provin
         touchPoints: touchPoints(half),
       });
     }
+
+    await expect(canvas).toHaveAttribute('data-map-zoom-input-mode', 'pinch');
+    await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-target'))).toBeGreaterThan(1.05);
+    await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.05);
+
     await cdp.send('Input.dispatchTouchEvent', {
       type: 'touchEnd',
       touchPoints: [],
     });
 
-    // ZRender does not deterministically synthesize the post-touch click for CDP touch input.
-    // Send the equivalent immediate single tap while the pinch-release suppression window is active.
+    // Chromium does not deterministically synthesize a post-pinch click for CDP touch input.
+    // Send the equivalent immediate single tap while the 420ms release suppression is active.
     await page.touchscreen.tap(seed.centerX, seed.centerY);
 
-    await expect(canvas).toHaveAttribute('data-map-zoom-input-mode', 'pinch');
-    await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-target'))).toBeGreaterThan(1.05);
-    await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.05);
     expect(Number(await canvas.getAttribute('data-map-multitouch-sequence-count'))).toBeGreaterThan(sequenceBefore);
     await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
     await expect(page.getByRole('heading', { name: '得克萨斯州', exact: true })).toHaveCount(0);
