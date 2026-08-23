@@ -63,7 +63,7 @@ test.describe('factory production methods', () => {
     await expect(inputSlot).toBeVisible();
     await expect(outputSlot).toBeVisible();
 
-    const transitions = await formula.locator('.facility-production-progress').evaluate((element) => {
+    const transitions = await formula.locator('.facility-formula-progress').evaluate((element) => {
       const track = element.querySelector<HTMLElement>('.progress-track');
       const fill = element.querySelector<HTMLElement>('.progress-track > span');
       return {
