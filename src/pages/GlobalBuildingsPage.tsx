@@ -1,16 +1,21 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
+import { currentFormulaScope } from '../components/facilities/FacilityProductionFormula';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import {
-  MetricCard,
   PageLayout,
   PagePanel,
   Panel,
   StatusTag,
   WidgetHeading,
 } from '../components/ui/layout';
-import { formatNumber } from '../utils/formatters';
+import {
+  resolveFacilityProfitPresentation,
+  type FacilityProfitTone,
+} from '../utils/facilityProfitPresentation';
+import { formatCurrency, formatNumber } from '../utils/formatters';
+import { resolveFacilityDetailRecipeState } from './production/ProductionFacilityDetail';
 import '../styles/global-operation-pages.css';
 
 const EmbeddedBuildingsPage = lazy(() => import('./BuildingsPage').then((module) => ({
@@ -25,6 +30,20 @@ function operationalProvinces(model: OnlineAutoTradeAwareGameViewModel) {
   const unlocked = new Set(game.unlockedProvinces ?? []);
   if (game.startingProvinceId) unlocked.add(game.startingProvinceId);
   return game.provinces.filter((province) => unlocked.has(province.id));
+}
+
+function globalProfitTone(value: number | null): FacilityProfitTone {
+  if (value === null) return 'unavailable';
+  if (value > 0) return 'positive';
+  if (value < 0) return 'negative';
+  return 'neutral';
+}
+
+function accessibleProfit(value: number | null) {
+  if (value === null) return '暂无可计算利润';
+  if (value > 0) return `盈利 ${formatCurrency(value)}`;
+  if (value < 0) return `亏损 ${formatCurrency(Math.abs(value))}`;
+  return '持平 0.00';
 }
 
 export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
@@ -48,47 +67,69 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     };
   }), [provinces, summaries]);
 
-  const facilityRows = useMemo(() => {
-    const aggregates = new Map<string, {
-      facilityTypeId: string;
-      name: string;
-      totalCount: number;
-      runningCount: number;
-      blockedCount: number;
-      provinceIds: Set<string>;
-    }>();
-    for (const type of game.facilityTypes) {
-      aggregates.set(type.id, {
-        facilityTypeId: type.id,
-        name: type.name,
-        totalCount: 0,
-        runningCount: 0,
-        blockedCount: 0,
-        provinceIds: new Set(),
-      });
-    }
-    for (const province of provinces) {
-      for (const group of game.provinceFacilityGroups?.[province.id] ?? []) {
-        const aggregate = aggregates.get(group.facilityTypeId);
-        if (!aggregate) continue;
-        const count = Math.max(0, Number(group.count || 0));
-        if (count <= 0) continue;
-        aggregate.totalCount += count;
-        aggregate.provinceIds.add(province.id);
-        if (group.status === 'running') {
-          aggregate.runningCount += Math.max(0, Number(group.participatingCount ?? count));
-        }
-        if (group.status === 'error') aggregate.blockedCount += count;
-      }
-    }
-    return [...aggregates.values()].filter((row) => row.totalCount > 0);
-  }, [game.facilityTypes, game.provinceFacilityGroups, provinces]);
+  const facilityRows = useMemo(() => game.facilityTypes.flatMap((type) => {
+    let totalCount = 0;
+    let weightedProfitTotal = 0;
+    let weightedProfitCount = 0;
+    const incompleteProfitProvinces: string[] = [];
 
-  const totalFacilities = provinceRows.reduce((sum, row) => sum + row.facilityCount, 0);
-  const totalRunning = provinceRows.reduce((sum, row) => sum + row.runningFacilityCount, 0);
-  const totalBlocked = provinceRows.reduce((sum, row) => sum + row.blockedFacilityCount, 0);
-  const occupiedProvinceCount = provinceRows.filter((row) => row.facilityCount > 0).length;
-  const currentProvinceName = model.selectedProvince?.name || '加利福尼亚州';
+    for (const province of provinces) {
+      const group = (game.provinceFacilityGroups?.[province.id] ?? [])
+        .find((candidate) => candidate.facilityTypeId === type.id);
+      if (!group) continue;
+
+      const count = Math.max(0, Number(group.count || 0));
+      if (count <= 0) continue;
+      totalCount += count;
+
+      const scope = currentFormulaScope(group, game.lastProcessedAt);
+      if (scope.physicalCount <= 0) continue;
+      const recipeState = resolveFacilityDetailRecipeState({ group, type });
+      const presentation = resolveFacilityProfitPresentation({
+        type: recipeState.formulaType,
+        scopeCount: scope.physicalCount,
+        scopeLabel: scope.name,
+        staffingRateBps: scope.staffingRateBps,
+        products: game.products,
+        markets: game.provinceMarkets?.[province.id] ?? {},
+      });
+      if (presentation.profitPerMinute === null) {
+        incompleteProfitProvinces.push(province.name);
+        continue;
+      }
+
+      weightedProfitTotal += presentation.profitPerMinute * scope.physicalCount;
+      weightedProfitCount += scope.physicalCount;
+    }
+
+    if (totalCount <= 0) return [];
+    const averageProfit = incompleteProfitProvinces.length === 0 && weightedProfitCount > 0
+      ? weightedProfitTotal / weightedProfitCount
+      : null;
+    const profitDetail = averageProfit === null
+      ? incompleteProfitProvinces.length > 0
+        ? `跨州单厂平均利润／分钟；${incompleteProfitProvinces.join('、')}缺少当前配方所需商品的最近真实成交价`
+        : '跨州单厂平均利润／分钟；当前没有可用于利润估算的工厂'
+      : '跨州单厂平均利润／分钟；按各州当前、启动后或恢复后可生产工厂数量加权，使用各州当前配方、最近真实成交价和预计满员率';
+
+    return [{
+      facilityTypeId: type.id,
+      name: type.name,
+      totalCount,
+      profitTone: globalProfitTone(averageProfit),
+      profitValue: averageProfit === null ? '—' : formatCurrency(Math.abs(averageProfit)),
+      profitAccessibleValue: accessibleProfit(averageProfit),
+      profitDetail,
+    }];
+  }), [
+    game.facilityTypes,
+    game.lastProcessedAt,
+    game.products,
+    game.provinceFacilityGroups,
+    game.provinceMarkets,
+    provinces,
+  ]);
+
   const activeProvince = activeProvinceId
     ? provinces.find((province) => province.id === activeProvinceId)
     : undefined;
@@ -147,37 +188,36 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
   return (
     <PageLayout title="建筑">
       <div className="global-operation-page global-buildings-page" data-global-scope="buildings">
-        <section className="global-operation-metrics" aria-label="全局建筑汇总">
-          <MetricCard label="工厂总数" value={formatNumber(totalFacilities)} detail="所有已解锁州合计" />
-          <MetricCard label="运行中" value={formatNumber(totalRunning)} tone={totalRunning > 0 ? 'success' : 'neutral'} detail="各州运行工厂合计" />
-          <MetricCard label="异常" value={formatNumber(totalBlocked)} tone={totalBlocked > 0 ? 'danger' : 'neutral'} detail="需要处理的本地工厂" />
-          <MetricCard label="有工厂地区" value={formatNumber(occupiedProvinceCount)} detail={`已解锁 ${formatNumber(provinces.length)} 州`} />
-        </section>
-
-        <PagePanel className="global-current-scope-summary">
-          <WidgetHeading title="当前经营州" action={<StatusTag>地图选择</StatusTag>} />
-          <h2>{currentProvinceName}建筑</h2>
-          <p className="muted">当前经营州只决定后续地区写操作；本页默认汇总全部已解锁州的工厂。点击州卡进入对应地区的建设与生产管理。</p>
-        </PagePanel>
-
-        <PagePanel>
+        <section className="global-facility-catalog" aria-label="全局工厂目录">
           <WidgetHeading title="全局工厂目录" action={<StatusTag>{formatNumber(facilityRows.length)} 类已拥有</StatusTag>} />
           {facilityRows.length > 0 ? (
-            <ul className="global-operation-summary-list" aria-label="跨州工厂汇总">
+            <ul className="global-facility-catalog-grid" aria-label="跨州工厂汇总">
               {facilityRows.map((row) => (
-                <li className="global-operation-summary-row global-facility-type-row" key={row.facilityTypeId}>
-                  <span className="global-operation-summary-identity">
-                    <span className="global-operation-summary-artwork" aria-hidden="true"><FacilityIcon facilityTypeId={row.facilityTypeId} /></span>
-                    <strong>{row.name}</strong>
+                <li
+                  className="global-facility-catalog-card"
+                  key={row.facilityTypeId}
+                  aria-label={`${row.name}，拥有 ${formatNumber(row.totalCount)} 座，跨州单厂平均利润每分钟：${row.profitAccessibleValue}`}
+                  title={row.profitDetail}
+                >
+                  <strong className="global-facility-catalog-card__name">{row.name}</strong>
+                  <FacilityIcon facilityTypeId={row.facilityTypeId} className="global-facility-catalog-card__artwork" />
+                  <span
+                    className={`global-facility-catalog-card__profit is-${row.profitTone}`}
+                    title={row.profitDetail}
+                  >
+                    {row.profitValue}
                   </span>
-                  <span><small>拥有</small><strong>{formatNumber(row.totalCount)}</strong></span>
-                  <span><small>运行中</small><strong>{formatNumber(row.runningCount)}</strong></span>
-                  <span><small>分布州数</small><strong>{formatNumber(row.provinceIds.size)}</strong></span>
+                  <span
+                    className="global-facility-catalog-card__count"
+                    title={`拥有 ${formatNumber(row.totalCount)} 座`}
+                  >
+                    {formatNumber(row.totalCount)}
+                  </span>
                 </li>
               ))}
             </ul>
           ) : <Panel className="empty-state">当前还没有已建成工厂。</Panel>}
-        </PagePanel>
+        </section>
 
         <PagePanel>
           <WidgetHeading title="地区建筑" action={<StatusTag>{formatNumber(provinceRows.length)} 个已解锁州</StatusTag>} />

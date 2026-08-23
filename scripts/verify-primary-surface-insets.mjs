@@ -67,11 +67,17 @@ if (failures.length === 0) {
     '.global-operation-page {',
     'width: 100%;',
     'max-width: 100%;',
-    '.global-operation-metrics > * {\n  min-width: 0;\n  max-width: 100%;',
+    '.global-facility-catalog-grid {',
+    'grid-template-columns: repeat(auto-fill, minmax(7.5rem, 10rem));',
     '@media (max-width: 720px)',
-    '.global-operation-metrics {\n    grid-template-columns: repeat(2, minmax(0, 1fr));',
+    '.global-facility-catalog-grid {\n    grid-template-columns: repeat(3, minmax(0, 1fr));',
     '.global-province-grid {\n    grid-template-columns: minmax(0, 1fr);',
   ]) requireText(paths.globalOperationStyles, text);
+  for (const text of [
+    '.global-operation-metrics',
+    '.global-current-scope-summary',
+    '.global-operation-summary-row',
+  ]) forbidText(paths.globalOperationStyles, text);
 
   for (const text of [
     "const usesLegacyPrimarySurfaceSemantic = className.split(/\\s+/).includes('widget');",
@@ -99,7 +105,11 @@ if (failures.length === 0) {
     '新增一级卡片必须使用 `PagePanel`',
     '`.panel.production-surface` 与 `.panel.leaderboard-board-card`',
     '业务页面 CSS 不得',
+    '建筑页已退役顶部四项汇总',
+    '移动端三列 `4:5` 工厂卡必须全部落在正文内容盒内',
+    '全局建筑页已退役四项统计卡对应的 `.global-operation-metrics` 布局规则',
     '`tests/browser/player-page-geometry.spec.ts`',
+    '并对全局工厂目录卡执行边界与移动三列真实几何回归',
     '浏览器真实几何回归若在同一页面实例内跨越 `720px` 桌面／移动断点',
     '`tests/browser/market-runtime.spec.ts` 的跨桌面／移动响应式几何用例',
     '该验证必须加入 `verify:architecture`',
@@ -119,7 +129,15 @@ if (failures.length === 0) {
     'firstContentTopGap',
     'mobileSheet',
     'primaryCard',
+    "await expect(page.locator('.global-facility-catalog-grid')).toBeVisible();",
+    "querySelector<HTMLElement>('.global-facility-catalog-grid')",
+    "querySelectorAll<HTMLElement>(':scope > .global-facility-catalog-card')",
+    "if (!grid || cards.length < 3) throw new Error('buildings catalog fixture is incomplete');",
+    'expect(catalog.cards[0].top).toBeCloseTo(catalog.cards[1].top, 0);',
+    'expect(catalog.cards[0].top).toBeCloseTo(catalog.cards[2].top, 0);',
   ]) requireText(paths.geometryTest, text);
+  forbidText(paths.geometryTest, '.global-operation-metrics');
+  forbidText(paths.geometryTest, 'buildings metrics fixture is incomplete');
 
   for (const text of [
     '| `src/styles/primary-surfaces.css` | 玩家端一级卡片外层内边距令牌、最终选择器、移动断点与旧一级卡片类兼容入口 |',
@@ -137,4 +155,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、承载面局部间距、跨端页面安全宽度、正文顶部留白、全局经营页收缩、旧类兼容、样式与设计文档权威均已锁定。');
+console.log('一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、承载面局部间距、跨端页面安全宽度、正文顶部留白、全局建筑目录三列移动几何、旧类兼容、样式与设计文档权威均已锁定。');
