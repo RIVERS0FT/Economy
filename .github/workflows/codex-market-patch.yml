@@ -9,67 +9,34 @@ permissions:
   contents: write
 
 jobs:
-  reconcile:
+  patch-labels:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           ref: codex/victoria-market-layout
           fetch-depth: 0
-      - name: Reconcile final authority and regressions
+      - name: Restore authoritative market labels
         run: |
-          git fetch origin main
-          node - <<'NODE'
-          const fs = require('node:fs');
-          const { execFileSync } = require('node:child_process');
-
-          const designPath = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md';
-          let design = execFileSync('git', ['show', 'origin/main:' + designPath], { encoding: 'utf8' }).replace(/\r\n/g, '\n');
-          const rules = `### 4.1 跨州商品主表与地区详情信息层级
-
-全局市场的主体固定为跨州商品行情主表，而不是统计卡片仪表盘。顶部只保留紧凑摘要条，显示已解锁地区、未完成挂单、有真实成交商品、需求未满足地区项和当前经营州；当前经营州不得恢复为独立说明卡。商品主表支持四类正式商品分类，以及全部状态、有真实成交、需求未满足、暂无成交四种状态过滤；每行固定显示商品、真实成交覆盖地区、真实成交价范围、最低价地区、最高价地区、需求未满足地区与地区覆盖状态。
-
-多个州的订单簿、库存、需求和成交价继续保持州级隔离；不得把各州买卖单合并成一个全国订单簿，不得用平均价、基础价、最低／最高价中点或任意聚合值伪造“全局市场价”。跨州覆盖条只能表示已有权威逐州状态支持的真实成交覆盖与需求缺口覆盖；当前客户端只有经营州的公开订单簿投影，因此不得从当前 game.orders 推断其他州的买盘、卖盘或全国供需。未来若要展示跨州买卖盘覆盖或贡献量，必须先由服务器提供对应权威摘要字段。
-
-全局页的地区市场入口固定为紧凑连续行，不再恢复大尺寸州卡；每行显示州名、未完成挂单、有成交商品、需求未满足商品、本地库存和市场状态，当前经营州只作弱提示。点击整行仍按全局市场 → 地区市场 → 商品详情钻取，并复用同一 MarketPage；钻取到地区目录时不得重复渲染第二张“当前地区市场”说明卡。
-
-地区商品目录的挂单差额继续固定为“卖单量 − 买单量”，并在同列附带由当前地区真实公开订单簿计算的 Balance Bar。中线表示数量相等，左侧长度表示买单相对更多，右侧长度表示卖单相对更多；长度只表达失衡程度，颜色只表达方向，不把短缺或过剩自动解释为好坏。移动布局必须继续显示卖单、买单、差额、市场价、基准偏离、24h 变化和挂单状态，不得通过横向滚动隐藏关键字段。
-
-地区商品详情的信息顺序固定为：商品摘要与市场价／基准偏离／24h 变化 → 商品基本面与当前订单簿卖单量、买单量、挂单差额、需求满足率、参考价和上轮需求 → 生产者与消费者关系 → 近 24h 真实成交趋势 → 手动下单与统一五档订单簿 → 固定当前商品的在线自动采购／自动出售 → 本人订单与本地成交。交易功能不得抢在价格、供需和生产消费关系之前成为详情首屏唯一主体；价格图和交易卡仍保持同一紧凑单列宽度。
-
-商品生产者／消费者关系仍只能从正式建筑配方派生，不表示实际生产量、就业量或贸易流；库存、理论产量和建筑数量不得伪装成供给或需求。自动交易、下单、撤单和本地成交仍只作用于当前 provinceId，不能因全局市场重排改变州级经济权威边界。
-`;
-          if (!design.includes('\n## 5.')) throw new Error('missing market section terminator');
-          design = design.replace('\n## 5.', '\n\n' + rules.trim() + '\n\n## 5.');
-          fs.writeFileSync(designPath, design);
-
-          const marketPath = 'src/pages/MarketPage.tsx';
-          let market = fs.readFileSync(marketPath, 'utf8');
-          market = market.replace(/label="市场价"(\s*\n\s*value=\{<CurrencyAmount>\{formatCurrency\(selectedMarketPrice\)\}<\/CurrencyAmount>\})/, 'label="官方系统价"$1');
-          market = market.replace('label="周期实际成交"', 'label="周期系统买卖量"');
-          fs.writeFileSync(marketPath, market);
-
-          const runtimePath = 'tests/browser/market-runtime.spec.ts';
-          let runtime = fs.readFileSync(runtimePath, 'utf8');
-          runtime = runtime.replace("market desktop layout keeps order entry and order book together above the chart in the compact page", "market desktop layout keeps market context and chart above the combined trade card in the compact page");
-          runtime = runtime.replace('expect(chartCardBox.y).toBeGreaterThan(tradeBox.y + tradeBox.height - 2);', 'expect(tradeBox.y).toBeGreaterThan(chartCardBox.y + chartCardBox.height - 2);');
-          runtime = runtime.replace('expect(chartBox.y).toBeGreaterThan(tradeBox.y + tradeBox.height - 2);', 'expect(tradeBox.y).toBeGreaterThan(chartBox.y + chartBox.height - 2);');
-          runtime = runtime.replace('expect(narrowChart.y).toBeGreaterThan(narrowTrade.y + narrowTrade.height - 2);', 'expect(narrowTrade.y).toBeGreaterThan(narrowChart.y + narrowChart.height - 2);');
-          fs.writeFileSync(runtimePath, runtime);
-
-          const verifierPath = 'scripts/verify-market-page-layout-base.mjs';
-          let verifier = fs.readFileSync(verifierPath, 'utf8');
-          verifier = verifier.replace("market desktop layout keeps order entry and order book together above the chart in the compact page", "market desktop layout keeps market context and chart above the combined trade card in the compact page");
-          verifier = verifier.replace('Playwright 必须覆盖紧凑市场的合并交易卡与后续行情布局。', 'Playwright 必须覆盖商品基本面与行情先于合并交易卡的最终信息层级。');
-          fs.writeFileSync(verifierPath, verifier);
-          NODE
-      - name: Commit reconciled files
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('src/pages/MarketPage.tsx')
+          text = path.read_text()
+          old = 'label="市场价"\n                  value={<CurrencyAmount>{formatCurrency(selectedMarketPrice)}</CurrencyAmount>}'
+          new = 'label="官方系统价"\n                  value={<CurrencyAmount>{formatCurrency(selectedMarketPrice)}</CurrencyAmount>}'
+          if old not in text:
+              raise SystemExit('official price label anchor missing')
+          text = text.replace(old, new, 1)
+          text = text.replace('label="周期实际成交"', 'label="周期系统买卖量"', 1)
+          path.write_text(text)
+          PY
+      - name: Commit authoritative labels
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md src/pages/MarketPage.tsx scripts/verify-market-page-layout-base.mjs tests/browser/market-runtime.spec.ts
+          git add src/pages/MarketPage.tsx
           git diff --cached --check
-          git commit -m "对齐市场最终布局与权威回归"
+          git commit -m "保留市场官方系统价标签"
           git push origin HEAD:codex/victoria-market-layout
