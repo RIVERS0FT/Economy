@@ -1,4 +1,4 @@
-name: Codex reconcile market design
+name: Codex reconcile market design rules
 
 on:
   push:
