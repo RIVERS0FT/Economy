@@ -38,7 +38,10 @@ test('map keeps gesture zoom without a control panel and primary market/building
 
   await page.locator('.global-buildings-page .global-province-card').first().click();
   await expect(page.locator('.global-buildings-page[data-drilldown-province-id]')).toBeVisible();
-  await expect(page.locator('.production-workspace')).toBeVisible();
+  await expect(page.locator('.production-build-card')).toBeVisible();
+  await expect(page.locator('.facility-cluster-selector-list')).toBeVisible();
+  await expect(page.locator('.buildings-summary-panel')).toHaveCount(0);
+  await expect(page.locator('.buildings-list-filters')).toHaveCount(0);
   await page.getByRole('button', { name: '返回全局建筑' }).click();
   await expect(page.locator('.global-buildings-page:not([data-drilldown-province-id])')).toBeVisible();
 });

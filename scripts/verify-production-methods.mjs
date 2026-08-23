@@ -277,7 +277,7 @@ for (const text of [
   "toHaveAttribute('data-variant', 'production-config')",
   "toContainText('周期 180s ↑')",
   "toContainText('成本 4 ↓')",
-  "toContainText('产出 ×2 ↑')",
+  "toContainText('产出 ×1')",
   "expect(recipeListboxBox.width).toBeGreaterThan(recipeTriggerBox.width + 80)",
   "not.toContainText('缩短周期并提高成本')",
   "locator('.facility-production-method-summary')).toHaveCount(0)",

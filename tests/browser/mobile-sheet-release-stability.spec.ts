@@ -36,9 +36,9 @@ async function startTouchDrag(page: Page, handle: Locator) {
   return { client, point };
 }
 
-async function openFactoryDetail(page: Page) {
+async function openResearchDetail(page: Page) {
   const host = page.locator('.mobile-workspace-sheet-host');
-  const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
+  const trigger = page.getByRole('button', { name: /冶金技术，研发中/ });
   await expect(trigger).toBeVisible();
   await trigger.tap();
   await expect(host).toHaveAttribute('data-detail-active', 'true');
@@ -55,8 +55,8 @@ test.describe('mobile sheet release stability', () => {
   });
 
   test('half-distance release starts closing from the exact finger position without a jump', async ({ page }) => {
-    await page.goto('runtime-test.html?view=production&scenario=activity');
-    const { host, detail } = await openFactoryDetail(page);
+    await page.goto('runtime-test.html?view=research&scenario=research-active');
+    const { host, detail } = await openResearchDetail(page);
     const handle = detail.locator('.mobile-detail-sheet-drag-handle');
 
     const initialBox = await detail.boundingBox();
@@ -103,8 +103,8 @@ test.describe('mobile sheet release stability', () => {
   });
 
   test('short release rebounds from the exact finger position with frozen sheet geometry', async ({ page }) => {
-    await page.goto('runtime-test.html?view=production&scenario=activity');
-    const { host, detail } = await openFactoryDetail(page);
+    await page.goto('runtime-test.html?view=research&scenario=research-active');
+    const { host, detail } = await openResearchDetail(page);
     const handle = detail.locator('.mobile-detail-sheet-drag-handle');
 
     const initialBox = await detail.boundingBox();

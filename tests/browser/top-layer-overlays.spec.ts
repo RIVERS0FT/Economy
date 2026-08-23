@@ -12,15 +12,19 @@ async function expectTopLayerHitTarget(locator: Locator) {
   expect(hit).toBe(true);
 }
 
-test('mobile production rich selects use the browser top layer above the facility sheet', async ({ page }) => {
+test('mobile production rich selects use the browser top layer above the factory detail page', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('runtime-test.html?view=production&scenario=production-methods');
 
   await page.locator('.facility-cluster-selector-card').first().click();
-  const sheet = page.locator('.mobile-detail-sheet');
-  await expect(sheet).toBeVisible();
+  const detail = page.locator('.facility-cluster-detail-card');
+  const workspaceHost = page.locator('.mobile-workspace-sheet-host');
+  await expect(detail).toBeVisible();
+  await expect(workspaceHost).toHaveCount(1);
+  await expect(workspaceHost).toHaveAttribute('data-detail-active', 'false');
+  await expect(workspaceHost.locator('.mobile-workspace-sheet-detail-view')).toHaveCount(0);
 
-  const recipeSelect = sheet.getByRole('combobox', { name: '机械工厂生产产物' });
+  const recipeSelect = detail.getByRole('combobox', { name: '机械工厂生产产物' });
   await recipeSelect.click();
   const recipeListbox = page.getByRole('listbox', { name: '机械工厂生产产物' });
   await expect(recipeListbox).toBeVisible();
@@ -31,7 +35,7 @@ test('mobile production rich selects use the browser top layer above the facilit
   await page.keyboard.press('Escape');
   await expect(recipeListbox).toHaveCount(0);
 
-  const methodSelect = sheet.getByRole('combobox', { name: '机械工厂生产方式' });
+  const methodSelect = detail.getByRole('combobox', { name: '机械工厂生产方式' });
   await methodSelect.click();
   const methodListbox = page.getByRole('listbox', { name: '机械工厂生产方式' });
   await expect(methodListbox).toBeVisible();

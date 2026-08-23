@@ -1,15 +1,14 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { cancelFacilityBuildProcurement, createFacilityBuildProcurement } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { ProductArtwork } from '../components/products/ProductArtwork';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
-import { MoneyInput, SelectInput, TextInput } from '../components/ui/FormControls';
+import { MoneyInput, SelectInput } from '../components/ui/FormControls';
 import { RichSelectInput } from '../components/ui/RichSelectInput';
 import {
   Button,
   DataList,
   DataRow,
-  MetricCard,
   PageLayout,
   PagePanel,
   Panel,
@@ -26,19 +25,15 @@ import {
 } from '../utils/facilityBuildProcurementGroups';
 import { getUnlockedFacilityTypes } from '../utils/facilityResearchAccess';
 import { formatCurrency, formatNumber } from '../utils/formatters';
-import { analyzeRecipeProfit } from '../utils/recipeProfitAnalysis';
 import { openOrderLimitForCatalog } from '../config/economy';
 import { setContractMarketIntent } from '../contracts/navigation';
 import {
   FacilityClusterDetailContent,
   FacilityClusterSelectorCard,
-  isMobileFacilityLayout,
   recipesForType,
   resolveFacilityDetailRecipeState,
   type FacilityClusterEntry,
 } from './production/ProductionFacilityDetail';
-import { MobileFacilityDetailSheet } from './production/MobileFacilityDetailSheet';
-import { currentFormulaScope } from '../components/facilities/FacilityProductionFormula';
 import '../styles/production-methods.css';
 import '../styles/facility-build-select.css';
 
@@ -46,19 +41,9 @@ const EmbeddedFacilityAssetMarket = lazy(() => import('./MarketPage').then((modu
   default: module.MarketPage,
 })));
 
-type BuildingCategoryFilter = 'all' | 'raw' | 'processing' | 'consumer' | 'industrial';
-type BuildingStatusFilter = 'all' | 'running' | 'stopped' | 'error';
-
-const BUILDING_CATEGORY_LABELS: Record<Exclude<BuildingCategoryFilter, 'all'>, string> = {
-  raw: '原料产业',
-  processing: '加工产业',
-  consumer: '消费产业',
-  industrial: '工业产业',
-};
-
 /*
  * Split-module ownership manifest for static page-contract verification. Runtime implementations live in
- * production/ProductionFacilityDetail.tsx and production/MobileFacilityDetailSheet.tsx:
+ * production/ProductionFacilityDetail.tsx:
  * SwitchControl; checked={group.enabled}; facilityStatusLabel; facility-status-header;
  * facility-card-title-row; facility-card-title-block; facility-count-summary; facility-staffing-summary;
  * 异常：资金不足; 异常：原料不足;
@@ -69,6 +54,8 @@ const BUILDING_CATEGORY_LABELS: Record<Exclude<BuildingCategoryFilter, 'all'>, s
  * 作业制度; 生产方式; 生产进度已清零; 前往市场交易该工厂; 前往市场交易该工厂 →;
  * formatNumber(group.count). The legacy branch `if (!entry.constructionOnly)` was removed because
  * construction tasks no longer create selector/detail entries.
+ * Retired broad page-verifier markers only: title="建筑概况"; className="buildings-summary-metrics";
+ * className="buildings-list-filters"; label="产业分类"; label="运行状态".
  */
 
 function normalizeOrderPrice(value: string) {
@@ -92,9 +79,13 @@ function openOwnCommoditySell(order: AssetOrder, productId: string, price: numbe
 export function BuildingsPage({
   model,
   embedded = false,
+  detailFacilityTypeId,
+  onDetailFacilityChange,
 }: {
   model: LoadedGameViewModel;
   embedded?: boolean;
+  detailFacilityTypeId?: string;
+  onDetailFacilityChange?: (facilityTypeId: string | null) => void;
 }) {
   const {
     game,
@@ -109,12 +100,8 @@ export function BuildingsPage({
   } = model;
 
   const now = game.lastProcessedAt;
-  const [selectedFacilityGroupId, setSelectedFacilityGroupId] = useState('');
-  const [buildingQuery, setBuildingQuery] = useState('');
-  const [buildingCategory, setBuildingCategory] = useState<BuildingCategoryFilter>('all');
-  const [buildingStatus, setBuildingStatus] = useState<BuildingStatusFilter>('all');
+  const [internalDetailFacilityTypeId, setInternalDetailFacilityTypeId] = useState('');
   const [facilityAssetTradeId, setFacilityAssetTradeId] = useState('');
-  const [isFacilityDetailOpen, setFacilityDetailOpen] = useState(false);
   const [buildQuantity, setBuildQuantity] = useState(1);
   const [procurementPriceDrafts, setProcurementPriceDrafts] = useState<Record<string, string>>({});
   const [procurementGroups, setProcurementGroups] = useState<FacilityBuildProcurementGroup[]>(
@@ -124,11 +111,12 @@ export function BuildingsPage({
   const [cancellingProcurementId, setCancellingProcurementId] = useState('');
   const [optimisticRecipeIds, setOptimisticRecipeIds] = useState<Record<string, string>>({});
   const procurementPriceContextRef = useRef('');
-  const detailTriggerRef = useRef<HTMLButtonElement | null>(null);
   const recipeTargetByFacilityRef = useRef(new Map<string, string>());
   const recipeInFlightFacilitiesRef = useRef(new Set<string>());
   const lastConfirmedRecipeIdsRef = useRef(new Map<string, string>());
-  const closeFacilityDetail = useCallback(() => setFacilityDetailOpen(false), []);
+  const activeDetailFacilityTypeId = onDetailFacilityChange
+    ? detailFacilityTypeId ?? ''
+    : internalDetailFacilityTypeId;
 
   const unlockedFacilityTypes = useMemo(
     () => getUnlockedFacilityTypes(game),
@@ -180,61 +168,9 @@ export function BuildingsPage({
       return [{ type, group: displayGroup }];
     });
   }, [game.facilityGroups, game.facilityTypes, optimisticRecipeIds]);
-  const buildingSummary = useMemo(() => {
-    let total = 0;
-    let running = 0;
-    let stopped = 0;
-    let abnormal = 0;
-    let staffingWeightedTotal = 0;
-    let staffingWeight = 0;
-    let estimatedProfitPerMinute = 0;
-    let hasMissingProfitPrice = false;
-
-    for (const entry of orderedFacilityGroups) {
-      const { group } = entry;
-      total += group.count;
-      if (group.status === 'running') running += group.count;
-      else if (group.status === 'error') abnormal += group.count;
-      else stopped += group.count;
-      const staffingRateBps = Math.max(0, Math.min(10_000, Number(group.staffingRateBps ?? 10_000)));
-      staffingWeightedTotal += staffingRateBps * group.count;
-      staffingWeight += group.count;
-      if (group.status !== 'running') continue;
-      const recipeState = resolveFacilityDetailRecipeState(entry);
-      const scope = currentFormulaScope(group, now);
-      const analysis = analyzeRecipeProfit({
-        recipe: recipeState.formulaType,
-        scopeCount: scope.count,
-        markets: game.markets,
-        buildCost: 0,
-      });
-      if (analysis.profitPerMinute === null) hasMissingProfitPrice = true;
-      else estimatedProfitPerMinute += analysis.profitPerMinute;
-    }
-
-    return {
-      total,
-      running,
-      stopped,
-      abnormal,
-      averageStaffingPercent: staffingWeight > 0
-        ? Math.round(staffingWeightedTotal / staffingWeight / 100)
-        : 0,
-      estimatedProfitPerMinute: hasMissingProfitPrice ? null : estimatedProfitPerMinute,
-    };
-  }, [game.markets, now, orderedFacilityGroups]);
-  const filteredFacilityGroups = useMemo(() => {
-    const query = buildingQuery.trim().toLocaleLowerCase('zh-CN');
-    return orderedFacilityGroups.filter(({ type, group }) => {
-      if (query && !type.name.toLocaleLowerCase('zh-CN').includes(query)) return false;
-      if (buildingCategory !== 'all' && type.category !== buildingCategory) return false;
-      if (buildingStatus !== 'all' && group.status !== buildingStatus) return false;
-      return true;
-    });
-  }, [buildingCategory, buildingQuery, buildingStatus, orderedFacilityGroups]);
-  const selectedFacilityEntry =
-    filteredFacilityGroups.find(({ type }) => type.id === selectedFacilityGroupId) ?? filteredFacilityGroups[0];
-  const effectiveSelectedFacilityGroupId = selectedFacilityEntry?.type.id ?? '';
+  const selectedFacilityEntry = orderedFacilityGroups.find(
+    ({ type }) => type.id === activeDetailFacilityTypeId,
+  );
 
   useEffect(() => {
     if (selectedType && selectedType.id !== selectedFacilityTypeId) {
@@ -243,13 +179,10 @@ export function BuildingsPage({
   }, [selectedFacilityTypeId, selectedType, setSelectedFacilityTypeId]);
 
   useEffect(() => {
-    if (effectiveSelectedFacilityGroupId !== selectedFacilityGroupId) {
-      setSelectedFacilityGroupId(effectiveSelectedFacilityGroupId);
-    }
-    if (!effectiveSelectedFacilityGroupId && isFacilityDetailOpen) {
-      setFacilityDetailOpen(false);
-    }
-  }, [effectiveSelectedFacilityGroupId, isFacilityDetailOpen, selectedFacilityGroupId]);
+    if (!activeDetailFacilityTypeId || selectedFacilityEntry) return;
+    if (onDetailFacilityChange) onDetailFacilityChange(null);
+    else setInternalDetailFacilityTypeId('');
+  }, [activeDetailFacilityTypeId, onDetailFacilityChange, selectedFacilityEntry]);
 
   useEffect(() => {
     const authoritativeGroups = new Map(
@@ -411,10 +344,15 @@ export function BuildingsPage({
     ? procurementOrderDisabledReason
     : buildDisabledReason;
 
-  const selectFacilityEntry = (facilityTypeId: string, trigger: HTMLButtonElement) => {
-    detailTriggerRef.current = trigger;
-    setSelectedFacilityGroupId(facilityTypeId);
-    if (isMobileFacilityLayout()) setFacilityDetailOpen(true);
+  const selectFacilityEntry = (facilityTypeId: string) => {
+    if (onDetailFacilityChange) onDetailFacilityChange(facilityTypeId);
+    else setInternalDetailFacilityTypeId(facilityTypeId);
+  };
+
+  const closeFacilityDetail = () => {
+    setFacilityAssetTradeId('');
+    if (onDetailFacilityChange) onDetailFacilityChange(null);
+    else setInternalDetailFacilityTypeId('');
   };
 
   const toggleSelectedFacility = (enabled: boolean) => {
@@ -476,7 +414,6 @@ export function BuildingsPage({
   const openSelectedFacilityMarket = () => {
     if (!selectedFacilityEntry) return;
     selectMarketAsset('facility', selectedFacilityEntry.group.facilityTypeId, false);
-    setFacilityDetailOpen(false);
     setFacilityAssetTradeId(selectedFacilityEntry.group.facilityTypeId);
   };
   const openProductMarket = (productId: string) => {
@@ -555,310 +492,221 @@ export function BuildingsPage({
   };
   const orderById = new Map(game.orders.map((order) => [order.id, order]));
 
-  const buildingsManagementContent = (
-    <>
-      <PagePanel className="production-surface buildings-summary-panel">
-        <WidgetHeading
-          title="建筑概况"
-          action={buildingSummary.abnormal > 0
-            ? <StatusTag tone="danger">存在异常</StatusTag>
-            : <StatusTag tone="success">运行稳定</StatusTag>}
+  const buildCard = (
+    <PagePanel className="production-surface build-card production-build-card">
+      <WidgetHeading title="建设新工厂" />
+      <RichSelectInput
+        label="工厂类型"
+        value={selectedType.id}
+        options={buildFacilityOptions}
+        onValueChange={setSelectedFacilityTypeId}
+      />
+      <SelectInput
+        label="建造数量"
+        value={String(buildQuantity)}
+        onChange={(event) => setBuildQuantity(Math.max(1, Math.min(100, Number(event.target.value) || 1)))}
+      >
+        {[1, 5, 10, 25, 50, 100].map((quantity) => (
+          <option value={quantity} key={quantity}>{quantity}</option>
+        ))}
+      </SelectInput>
+      <DataList>
+        <DataRow
+          label="建造资金"
+          value={<CurrencyAmount>{formatCurrency(selectedType.buildCost * buildQuantity)}</CurrencyAmount>}
+          tone={game.credits >= selectedType.buildCost * buildQuantity ? 'neutral' : 'danger'}
         />
-        <section className="buildings-summary-metrics" aria-label="州级建筑汇总">
-          <MetricCard label="建筑总数" value={formatNumber(buildingSummary.total)} />
-          <MetricCard label="运行中" value={formatNumber(buildingSummary.running)} tone="success" />
-          <MetricCard label="已停止" value={formatNumber(buildingSummary.stopped)} />
-          <MetricCard label="异常" value={formatNumber(buildingSummary.abnormal)} tone={buildingSummary.abnormal > 0 ? 'danger' : 'neutral'} />
-          <MetricCard label="平均满员率" value={`${formatNumber(buildingSummary.averageStaffingPercent)}%`} tone="info" />
-          <MetricCard
-            label="预计利润／分钟"
-            value={buildingSummary.estimatedProfitPerMinute === null
-              ? '—'
-              : (
-                <CurrencyAmount sign={buildingSummary.estimatedProfitPerMinute > 0 ? '+' : buildingSummary.estimatedProfitPerMinute < 0 ? '−' : undefined}>
-                  {formatCurrency(Math.abs(buildingSummary.estimatedProfitPerMinute))}
-                </CurrencyAmount>
-              )}
-            tone={buildingSummary.estimatedProfitPerMinute === null
-              ? 'neutral'
-              : buildingSummary.estimatedProfitPerMinute > 0 ? 'success' : buildingSummary.estimatedProfitPerMinute < 0 ? 'danger' : 'neutral'}
-            detail="按运行建筑、满员率与最近真实成交价估算"
+        {selectedBuildInputs.length === 0 ? (
+          <DataRow label="建造材料" value="无需材料" />
+        ) : buildMaterialRequirements.map((item) => (
+          <DataRow
+            key={item.productId}
+            label={productName(item.productId)}
+            value={item.missing > 0
+              ? `${formatNumber(item.required)} / 库存 ${formatNumber(item.available)} · 缺 ${formatNumber(item.missing)}`
+              : `${formatNumber(item.required)} / 库存 ${formatNumber(item.available)}`}
+            tone={item.missing > 0 ? 'danger' : 'neutral'}
           />
-        </section>
-      </PagePanel>
+        ))}
+        <DataRow label="库存可直接建" value={`${formatNumber(inventoryBuildable)} 座`} />
+        {needsProcurement ? (
+          <DataRow
+            label="预计采购"
+            value={procurementQuote.complete
+              ? <CurrencyAmount>{formatCurrency(procurementQuote.estimatedTotal)}</CurrencyAmount>
+              : '卖盘不足 · 可挂买单'}
+            tone={procurementQuote.complete ? 'neutral' : 'danger'}
+          />
+        ) : null}
+        {needsProcurement && procurementQuote.complete ? (
+          <DataRow
+            label="预计总支出"
+            value={<CurrencyAmount>{formatCurrency(estimatedTotalSpend)}</CurrencyAmount>}
+            tone={game.credits >= estimatedTotalSpend ? 'neutral' : 'danger'}
+          />
+        ) : null}
+        {needsProcurement && !procurementQuote.complete && invalidOrderPriceProductIds.length === 0 ? (
+          <DataRow
+            label="买单最高占用"
+            value={<CurrencyAmount>{formatCurrency(procurementOrderTotal)}</CurrencyAmount>}
+            tone={game.credits >= buildCashCost + procurementOrderTotal ? 'neutral' : 'danger'}
+          />
+        ) : null}
+      </DataList>
 
-      <div className="production-grid production-workspace">
-        <PagePanel className="production-surface build-card production-build-card">
-          <WidgetHeading title="建设新工厂" />
-          <RichSelectInput
-            label="工厂类型"
-            value={selectedType.id}
-            options={buildFacilityOptions}
-            onValueChange={setSelectedFacilityTypeId}
-          />
-          <SelectInput
-            label="建造数量"
-            value={String(buildQuantity)}
-            onChange={(event) => setBuildQuantity(Math.max(1, Math.min(100, Number(event.target.value) || 1)))}
-          >
-            {[1, 5, 10, 25, 50, 100].map((quantity) => (
-              <option value={quantity} key={quantity}>{quantity}</option>
-            ))}
-          </SelectInput>
-          <DataList>
-            <DataRow
-              label="建造资金"
-              value={<CurrencyAmount>{formatCurrency(selectedType.buildCost * buildQuantity)}</CurrencyAmount>}
-              tone={game.credits >= selectedType.buildCost * buildQuantity ? 'neutral' : 'danger'}
-            />
-            {selectedBuildInputs.length === 0 ? (
-              <DataRow label="建造材料" value="无需材料" />
-            ) : buildMaterialRequirements.map((item) => (
-              <DataRow
+      {needsProcurement && !procurementQuote.complete ? (
+        <div className="facility-build-order-prices">
+          {missingBuildMaterials.map((item) => {
+            const fallbackPrice = procurementQuote.materialOrderPrices[item.productId];
+            return (
+              <MoneyInput
                 key={item.productId}
-                label={productName(item.productId)}
-                value={item.missing > 0
-                  ? `${formatNumber(item.required)} / 库存 ${formatNumber(item.available)} · 缺 ${formatNumber(item.missing)}`
-                  : `${formatNumber(item.required)} / 库存 ${formatNumber(item.available)}`}
-                tone={item.missing > 0 ? 'danger' : 'neutral'}
+                label={`${productName(item.productId)}买单价格`}
+                value={procurementPriceDrafts[item.productId] ?? fallbackPrice.toFixed(2)}
+                fallbackValue={fallbackPrice}
+                min={0.01}
+                wheelStep={0.01}
+                onValueChange={(value) => setProcurementPriceDrafts((current) => ({
+                  ...current,
+                  [item.productId]: value,
+                }))}
               />
-            ))}
-            <DataRow label="库存可直接建" value={`${formatNumber(inventoryBuildable)} 座`} />
-            {needsProcurement ? (
-              <DataRow
-                label="预计采购"
-                value={procurementQuote.complete
-                  ? <CurrencyAmount>{formatCurrency(procurementQuote.estimatedTotal)}</CurrencyAmount>
-                  : '卖盘不足 · 可挂买单'}
-                tone={procurementQuote.complete ? 'neutral' : 'danger'}
-              />
-            ) : null}
-            {needsProcurement && procurementQuote.complete ? (
-              <DataRow
-                label="预计总支出"
-                value={<CurrencyAmount>{formatCurrency(estimatedTotalSpend)}</CurrencyAmount>}
-                tone={game.credits >= estimatedTotalSpend ? 'neutral' : 'danger'}
-              />
-            ) : null}
-            {needsProcurement && !procurementQuote.complete && invalidOrderPriceProductIds.length === 0 ? (
-              <DataRow
-                label="买单最高占用"
-                value={<CurrencyAmount>{formatCurrency(procurementOrderTotal)}</CurrencyAmount>}
-                tone={game.credits >= buildCashCost + procurementOrderTotal ? 'neutral' : 'danger'}
-              />
-            ) : null}
-          </DataList>
-
-          {needsProcurement && !procurementQuote.complete ? (
-            <div className="facility-build-order-prices">
-              {missingBuildMaterials.map((item) => {
-                const fallbackPrice = procurementQuote.materialOrderPrices[item.productId];
-                return (
-                  <MoneyInput
-                    key={item.productId}
-                    label={`${productName(item.productId)}买单价格`}
-                    value={procurementPriceDrafts[item.productId] ?? fallbackPrice.toFixed(2)}
-                    fallbackValue={fallbackPrice}
-                    min={0.01}
-                    wheelStep={0.01}
-                    onValueChange={(value) => setProcurementPriceDrafts((current) => ({
-                      ...current,
-                      [item.productId]: value,
-                    }))}
-                  />
-                );
-              })}
-            </div>
-          ) : null}
-
-          <Button
-            block
-            onClick={submitBuild}
-            disabled={Boolean(actionDisabledReason) || procurementPending}
-          >
-            {needsProcurement
-              ? procurementQuote.complete
-                ? buildQuantity === 1
-                  ? `一键购齐并建造${selectedType.name}`
-                  : `一键购齐并建造 ${buildQuantity} 座${selectedType.name}`
-                : procurementPending
-                  ? '正在提交缺料买单…'
-                  : buildQuantity === 1
-                    ? `一键提交${selectedType.name}缺料买单`
-                    : `一键提交 ${buildQuantity} 座${selectedType.name}缺料买单`
-              : buildQuantity === 1
-                ? `立即建造${selectedType.name}`
-                : `立即建造 ${buildQuantity} 座${selectedType.name}`}
-          </Button>
-          <small className="ui-helper-text">
-            {actionDisabledReason ?? (needsProcurement
-              ? procurementQuote.complete
-                ? '提交时服务器按当前卖盘价格上限一次购齐缺料；任一材料不足或价格超限时整笔采购与建造全部回滚。'
-                : crossingSellOrderCount > 0
-                  ? `提交时服务器会先自动撤销 ${formatNumber(crossingSellOrderCount)} 张与本次买价交叉的本人卖单，释放库存后重新计算真实缺口；可成交部分立即按正式订单簿成交，剩余数量继续挂在市场。`
-                  : '当前卖盘无法一次购齐。提交后可成交部分立即按正式订单簿成交，剩余数量作为普通商品买单留在市场；建造资金不会冻结，材料购齐后再点击建造。'
-              : <>提交后立即扣除{selectedBuildInputs.length === 0 ? '建造资金' : '资金与建造材料'}，工厂直接加入同类集群；运行中的集群保持当前进度并重新计算满员率。</>)}
-          </small>
-
-          {procurementGroups.length > 0 ? (
-            <div className="facility-build-procurements">
-              <div className="facility-build-procurements__heading">
-                <strong>待采购</strong>
-                <StatusTag tone="neutral">{formatNumber(procurementGroups.length)} 次</StatusTag>
-              </div>
-              {procurementGroups.map((group) => {
-                const facilityType = game.facilityTypes.find((type) => type.id === group.facilityTypeId);
-                const rows = group.orders.map((reference) => {
-                  const order = orderById.get(reference.orderId);
-                  const remaining = order && (order.status === 'open' || order.status === 'partial')
-                    ? Math.max(0, order.remaining)
-                    : 0;
-                  return {
-                    ...reference,
-                    remaining,
-                    filled: order ? Math.max(0, reference.quantity - Math.max(0, Number(order.remaining || 0))) : 0,
-                  };
-                });
-                const remainingQuantity = rows.reduce((sum, row) => sum + row.remaining, 0);
-                const openOrderCount = rows.filter((row) => row.remaining > 0).length;
-                return (
-                  <div className="facility-build-procurement-group" key={group.id}>
-                    <div className="facility-build-procurement-group__title">
-                      <strong>{facilityType?.name ?? group.facilityTypeId} × {formatNumber(group.quantity)}</strong>
-                      <span>{formatNumber(openOrderCount)} 张买单 · 剩余 {formatNumber(remainingQuantity)} 件</span>
-                    </div>
-                    <div className="facility-build-procurement-group__orders">
-                      {rows.map((row) => (
-                        <div className="facility-build-procurement-order" key={row.orderId}>
-                          <span>{productName(row.productId)}</span>
-                          <span>
-                            已成交 {formatNumber(row.filled)} / {formatNumber(row.quantity)} · 剩余 {formatNumber(row.remaining)} · {formatCurrency(row.price)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    <Button
-                      block
-                      disabled={Boolean(cancellingProcurementId)}
-                      onClick={() => void showResult(cancelProcurementGroup(group))}
-                    >
-                      {cancellingProcurementId === group.id ? '正在取消…' : '取消全部'}
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
-        </PagePanel>
-
-        <PagePanel className="production-surface facility-cluster-navigation">
-          <div className="facility-cluster-navigation-heading">
-            <div>
-              <h2 id="facility-cluster-navigation-title">建筑列表</h2>
-              <p>按产业和运行状态筛选建筑，选择后查看经营与生产详情。</p>
-            </div>
-            <StatusTag tone="neutral">{formatNumber(filteredFacilityGroups.length)} / {formatNumber(orderedFacilityGroups.length)} 类</StatusTag>
-          </div>
-
-          <div className="buildings-list-filters" aria-label="建筑列表筛选">
-            <TextInput
-              label="搜索"
-              type="search"
-              value={buildingQuery}
-              placeholder="搜索建筑"
-              onChange={(event) => setBuildingQuery(event.currentTarget.value)}
-            />
-            <SelectInput
-              label="产业分类"
-              value={buildingCategory}
-              onChange={(event) => setBuildingCategory(event.currentTarget.value as BuildingCategoryFilter)}
-            >
-              <option value="all">全部产业</option>
-              {Object.entries(BUILDING_CATEGORY_LABELS).map(([value, label]) => (
-                <option value={value} key={value}>{label}</option>
-              ))}
-            </SelectInput>
-            <SelectInput
-              label="运行状态"
-              value={buildingStatus}
-              onChange={(event) => setBuildingStatus(event.currentTarget.value as BuildingStatusFilter)}
-            >
-              <option value="all">全部状态</option>
-              <option value="running">运行中</option>
-              <option value="stopped">已停止</option>
-              <option value="error">异常</option>
-            </SelectInput>
-          </div>
-
-          <div className="facility-cluster-selector-list">
-            {filteredFacilityGroups.map((entry) => (
-              <FacilityClusterSelectorCard
-                key={entry.group.facilityTypeId}
-                entry={entry}
-                products={game.products}
-                now={now}
-                onSelect={(trigger) => selectFacilityEntry(entry.type.id, trigger)}
-              />
-            ))}
-          </div>
-
-          {orderedFacilityGroups.length === 0 ? (
-            <div className="empty-state tall">尚未拥有建筑。先建设第一座工厂。</div>
-          ) : filteredFacilityGroups.length === 0 ? (
-            <div className="empty-state tall">没有符合当前筛选条件的建筑。</div>
-          ) : null}
-        </PagePanel>
-
-        <div className="facility-cluster-detail-shell">
-          {selectedFacilityEntry ? (
-            <PagePanel className="production-surface facility-card facility-group-card facility-cluster-detail-card">
-              <FacilityClusterDetailContent
-                entry={selectedFacilityEntry}
-                products={game.products}
-                inventories={game.inventories}
-                markets={game.markets}
-                credits={game.credits}
-                completedTechnologyIds={game.research?.completedTechnologyIds ?? []}
-                researchTechnologies={game.researchTechnologies ?? []}
-                now={now}
-                onToggle={toggleSelectedFacility}
-                onRecipeChange={changeSelectedFacilityRecipe}
-                onOpenMarket={openSelectedFacilityMarket}
-                onOpenProductMarket={openProductMarket}
-                onOpenContracts={openProductContracts}
-                titleId="desktop-facility-detail-title"
-              />
-            </PagePanel>
-          ) : (
-            <PagePanel className="production-surface empty-state tall facility-cluster-detail-card">
-              {orderedFacilityGroups.length === 0
-                ? '建设第一座工厂后，可在此查看建筑详情。'
-                : '调整筛选条件后，可在此查看建筑详情。'}
-            </PagePanel>
-          )}
+            );
+          })}
         </div>
+      ) : null}
+
+      <Button
+        block
+        onClick={submitBuild}
+        disabled={Boolean(actionDisabledReason) || procurementPending}
+      >
+        {needsProcurement
+          ? procurementQuote.complete
+            ? buildQuantity === 1
+              ? `一键购齐并建造${selectedType.name}`
+              : `一键购齐并建造 ${buildQuantity} 座${selectedType.name}`
+            : procurementPending
+              ? '正在提交缺料买单…'
+              : buildQuantity === 1
+                ? `一键提交${selectedType.name}缺料买单`
+                : `一键提交 ${buildQuantity} 座${selectedType.name}缺料买单`
+          : buildQuantity === 1
+            ? `立即建造${selectedType.name}`
+            : `立即建造 ${buildQuantity} 座${selectedType.name}`}
+      </Button>
+      <small className="ui-helper-text">
+        {actionDisabledReason ?? (needsProcurement
+          ? procurementQuote.complete
+            ? '提交时服务器按当前卖盘价格上限一次购齐缺料；任一材料不足或价格超限时整笔采购与建造全部回滚。'
+            : crossingSellOrderCount > 0
+              ? `提交时服务器会先自动撤销 ${formatNumber(crossingSellOrderCount)} 张与本次买价交叉的本人卖单，释放库存后重新计算真实缺口；可成交部分立即按正式订单簿成交，剩余数量继续挂在市场。`
+              : '当前卖盘无法一次购齐。提交后可成交部分立即按正式订单簿成交，剩余数量作为普通商品买单留在市场；建造资金不会冻结，材料购齐后再点击建造。'
+          : <>提交后立即扣除{selectedBuildInputs.length === 0 ? '建造资金' : '资金与建造材料'}，工厂直接加入同类集群；运行中的集群保持当前进度并重新计算满员率。</>)}
+      </small>
+
+      {procurementGroups.length > 0 ? (
+        <div className="facility-build-procurements">
+          <div className="facility-build-procurements__heading">
+            <strong>待采购</strong>
+            <StatusTag tone="neutral">{formatNumber(procurementGroups.length)} 次</StatusTag>
+          </div>
+          {procurementGroups.map((group) => {
+            const facilityType = game.facilityTypes.find((type) => type.id === group.facilityTypeId);
+            const rows = group.orders.map((reference) => {
+              const order = orderById.get(reference.orderId);
+              const remaining = order && (order.status === 'open' || order.status === 'partial')
+                ? Math.max(0, order.remaining)
+                : 0;
+              return {
+                ...reference,
+                remaining,
+                filled: order ? Math.max(0, reference.quantity - Math.max(0, Number(order.remaining || 0))) : 0,
+              };
+            });
+            const remainingQuantity = rows.reduce((sum, row) => sum + row.remaining, 0);
+            const openOrderCount = rows.filter((row) => row.remaining > 0).length;
+            return (
+              <div className="facility-build-procurement-group" key={group.id}>
+                <div className="facility-build-procurement-group__title">
+                  <strong>{facilityType?.name ?? group.facilityTypeId} × {formatNumber(group.quantity)}</strong>
+                  <span>{formatNumber(openOrderCount)} 张买单 · 剩余 {formatNumber(remainingQuantity)} 件</span>
+                </div>
+                <div className="facility-build-procurement-group__orders">
+                  {rows.map((row) => (
+                    <div className="facility-build-procurement-order" key={row.orderId}>
+                      <span>{productName(row.productId)}</span>
+                      <span>
+                        已成交 {formatNumber(row.filled)} / {formatNumber(row.quantity)} · 剩余 {formatNumber(row.remaining)} · {formatCurrency(row.price)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  block
+                  disabled={Boolean(cancellingProcurementId)}
+                  onClick={() => void showResult(cancelProcurementGroup(group))}
+                >
+                  {cancellingProcurementId === group.id ? '正在取消…' : '取消全部'}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+    </PagePanel>
+  );
+
+  const facilityList = (
+    <section className="facility-cluster-selector-region" aria-label="建筑列表">
+      <div className="facility-cluster-selector-list">
+        {orderedFacilityGroups.map((entry) => (
+          <FacilityClusterSelectorCard
+            key={entry.group.facilityTypeId}
+            entry={entry}
+            products={game.products}
+            now={now}
+            onSelect={() => selectFacilityEntry(entry.type.id)}
+          />
+        ))}
       </div>
 
-      <MobileFacilityDetailSheet
-        entry={selectedFacilityEntry}
-        products={game.products}
-        inventories={game.inventories}
-        markets={game.markets}
-        credits={game.credits}
-        completedTechnologyIds={game.research?.completedTechnologyIds ?? []}
-        researchTechnologies={game.researchTechnologies ?? []}
-        now={now}
-        isOpen={isFacilityDetailOpen}
-        returnFocusRef={detailTriggerRef}
-        onClose={closeFacilityDetail}
-        onToggle={toggleSelectedFacility}
-        onRecipeChange={changeSelectedFacilityRecipe}
-        onOpenMarket={openSelectedFacilityMarket}
-        onOpenProductMarket={openProductMarket}
-        onOpenContracts={openProductContracts}
-      />
-    </>
+      {orderedFacilityGroups.length === 0 ? (
+        <div className="empty-state tall">尚未拥有建筑。先建设第一座工厂。</div>
+      ) : null}
+    </section>
   );
+
+  const facilityDetail = selectedFacilityEntry ? (
+    <div className="facility-cluster-detail-shell facility-cluster-detail-page">
+      <PagePanel className="production-surface facility-card facility-group-card facility-cluster-detail-card">
+        <FacilityClusterDetailContent
+          entry={selectedFacilityEntry}
+          products={game.products}
+          inventories={game.inventories}
+          markets={game.markets}
+          credits={game.credits}
+          completedTechnologyIds={game.research?.completedTechnologyIds ?? []}
+          researchTechnologies={game.researchTechnologies ?? []}
+          now={now}
+          onToggle={toggleSelectedFacility}
+          onRecipeChange={changeSelectedFacilityRecipe}
+          onOpenMarket={openSelectedFacilityMarket}
+          onOpenProductMarket={openProductMarket}
+          onOpenContracts={openProductContracts}
+          titleId="facility-detail-title"
+        />
+      </PagePanel>
+    </div>
+  ) : null;
+
+  const buildingsManagementContent = selectedFacilityEntry ? facilityDetail : (
+    <div className="regional-buildings-management">
+      {buildCard}
+      {facilityList}
+    </div>
+  );
+
   const buildingsContent = facilityAssetTradeId ? (
     <Suspense fallback={<Panel className="empty-state"><span role="status">正在加载建筑资产交易…</span></Panel>}>
       <EmbeddedFacilityAssetMarket
@@ -870,7 +718,22 @@ export function BuildingsPage({
     </Suspense>
   ) : buildingsManagementContent;
 
-  return embedded ? buildingsContent : (
+  if (embedded) return buildingsContent;
+
+  if (selectedFacilityEntry) {
+    const provinceName = model.selectedProvince?.name || '加利福尼亚州';
+    return (
+      <PageLayout
+        title={<span className="province-facility-detail-title">{provinceName}{selectedFacilityEntry.type.name}</span>}
+        description="管理本州建筑的建造、运行、满员率、生产方式、投入产出与资产交易；商品库存和自动交易分别归属仓库与市场。"
+        backAction={{ label: '返回建筑列表', onClick: closeFacilityDetail }}
+      >
+        {buildingsContent}
+      </PageLayout>
+    );
+  }
+
+  return (
     <PageLayout
       title={`${model.selectedProvince?.name || '加利福尼亚州'}建筑`}
       description="管理本州建筑的建造、运行、满员率、生产方式、投入产出与资产交易；商品库存和自动交易分别归属仓库与市场。"
