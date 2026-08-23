@@ -191,27 +191,30 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
         <section className="global-facility-catalog" aria-label="全局工厂目录">
           <WidgetHeading title="全局工厂目录" action={<StatusTag>{formatNumber(facilityRows.length)} 类已拥有</StatusTag>} />
           {facilityRows.length > 0 ? (
-            <ul className="global-facility-catalog-grid" aria-label="跨州工厂汇总">
+            <ul className="global-facility-catalog-list" aria-label="跨州工厂汇总">
               {facilityRows.map((row) => (
                 <li
-                  className="global-facility-catalog-card"
+                  className="global-facility-catalog-row"
                   key={row.facilityTypeId}
                   aria-label={`${row.name}，拥有 ${formatNumber(row.totalCount)} 座，跨州单厂平均利润每分钟：${row.profitAccessibleValue}`}
                   title={row.profitDetail}
                 >
-                  <strong className="global-facility-catalog-card__name">{row.name}</strong>
-                  <FacilityIcon facilityTypeId={row.facilityTypeId} className="global-facility-catalog-card__artwork" />
-                  <span
-                    className={`global-facility-catalog-card__profit is-${row.profitTone}`}
-                    title={row.profitDetail}
-                  >
-                    {row.profitValue}
+                  <span className="global-facility-catalog-row__identity">
+                    <FacilityIcon facilityTypeId={row.facilityTypeId} className="global-facility-catalog-row__artwork" />
+                    <strong>{row.name}</strong>
                   </span>
-                  <span
-                    className="global-facility-catalog-card__count"
-                    title={`拥有 ${formatNumber(row.totalCount)} 座`}
-                  >
-                    {formatNumber(row.totalCount)}
+                  <span className="global-facility-catalog-row__metric">
+                    <small>平均利润／分钟</small>
+                    <strong
+                      className={`global-facility-catalog-row__profit is-${row.profitTone}`}
+                      title={row.profitDetail}
+                    >
+                      {row.profitValue}
+                    </strong>
+                  </span>
+                  <span className="global-facility-catalog-row__metric">
+                    <small>拥有</small>
+                    <strong>{formatNumber(row.totalCount)}</strong>
                   </span>
                 </li>
               ))}
@@ -219,27 +222,32 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
           ) : <Panel className="empty-state">当前还没有已建成工厂。</Panel>}
         </section>
 
-        <PagePanel>
+        <PagePanel className="global-province-list-panel">
           <WidgetHeading title="地区建筑" action={<StatusTag>{formatNumber(provinceRows.length)} 个已解锁州</StatusTag>} />
-          <div className="global-province-grid" aria-label="全局地区建筑入口">
+          <ul className="global-province-list" aria-label="全局地区建筑入口">
             {provinceRows.map((row) => (
-              <button
-                type="button"
-                className="global-province-card"
-                data-ui-interactive="surface"
-                data-province-id={row.province.id}
-                key={row.province.id}
-                aria-label={`打开${row.province.name}地区建筑`}
-                onClick={() => openProvinceBuildings(row.province.id)}
-              >
-                <span className="global-province-card__title"><strong>{row.province.name}</strong><small>{row.province.shortName}</small></span>
-                <span><small>工厂总数</small><strong>{formatNumber(row.facilityCount)}</strong></span>
-                <span><small>运行中</small><strong>{formatNumber(row.runningFacilityCount)}</strong></span>
-                <span><small>已停止</small><strong>{formatNumber(row.stoppedFacilityCount)}</strong></span>
-                <span><small>异常</small><strong>{formatNumber(row.blockedFacilityCount)}</strong></span>
-              </button>
+              <li key={row.province.id}>
+                <button
+                  type="button"
+                  className="global-province-row"
+                  data-ui-interactive="surface"
+                  data-province-id={row.province.id}
+                  aria-label={`打开${row.province.name}地区建筑`}
+                  onClick={() => openProvinceBuildings(row.province.id)}
+                >
+                  <span className="global-province-row__identity">
+                    <strong>{row.province.name}</strong>
+                    <small>{row.province.shortName}</small>
+                  </span>
+                  <span className="global-province-row__metric"><small>工厂总数</small><strong>{formatNumber(row.facilityCount)}</strong></span>
+                  <span className="global-province-row__metric"><small>运行中</small><strong>{formatNumber(row.runningFacilityCount)}</strong></span>
+                  <span className="global-province-row__metric"><small>已停止</small><strong>{formatNumber(row.stoppedFacilityCount)}</strong></span>
+                  <span className="global-province-row__metric"><small>异常</small><strong>{formatNumber(row.blockedFacilityCount)}</strong></span>
+                  <span className="global-province-row__chevron" aria-hidden="true">›</span>
+                </button>
+              </li>
             ))}
-          </div>
+          </ul>
         </PagePanel>
       </div>
     </PageLayout>

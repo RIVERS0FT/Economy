@@ -49,6 +49,35 @@ async function openPreview(page: Page) {
   await expect(page.getByTestId('us-mainland-map')).toHaveAttribute('data-map-ready', 'true');
 }
 
+async function readTitleGeometry(page: Page) {
+  return page.evaluate(() => {
+    const titleTrack = document.querySelector<HTMLElement>(
+      '.page-heading--player-navigation .page-heading-title',
+    );
+    const heading = titleTrack?.querySelector<HTMLElement>(':scope > h1') ?? null;
+    if (!titleTrack || !heading) throw new Error('player page title geometry fixture is incomplete');
+    const trackBox = titleTrack.getBoundingClientRect();
+    const headingStyle = getComputedStyle(heading);
+    return {
+      trackHeight: trackBox.height,
+      fontSize: Number.parseFloat(headingStyle.fontSize) || 0,
+      overflow: headingStyle.overflow,
+      textOverflow: headingStyle.textOverflow,
+      whiteSpace: headingStyle.whiteSpace,
+    };
+  });
+}
+
+function expectSharedSingleLineTitleGeometry(
+  geometry: Awaited<ReturnType<typeof readTitleGeometry>>,
+) {
+  expect(geometry.trackHeight).toBeCloseTo(40, 0);
+  expect(geometry.fontSize).toBeCloseTo(20, 0);
+  expect(geometry.overflow).toBe('hidden');
+  expect(geometry.textOverflow).toBe('ellipsis');
+  expect(geometry.whiteSpace).toBe('nowrap');
+}
+
 async function readPageGeometry(page: Page) {
   return page.evaluate(() => {
     const mobile = window.matchMedia('(max-width: 720px)').matches;
@@ -183,11 +212,12 @@ test.describe('player page safe geometry', () => {
         await selectPlayerPage(page, target);
         await expect(page.locator('.page-content--player')).toBeVisible();
         expectSafePageGeometry(await readPageGeometry(page));
+        expectSharedSingleLineTitleGeometry(await readTitleGeometry(page));
       }
     }
   });
 
-  test('edge breakpoints keep the buildings page fully visible', async ({ page }) => {
+  test('edge breakpoints keep the buildings lists fully visible', async ({ page }) => {
     const buildings = playerPages.find((target) => target.tab === 'buildings');
     if (!buildings) throw new Error('buildings page fixture is missing');
 
@@ -201,36 +231,52 @@ test.describe('player page safe geometry', () => {
       await page.setViewportSize(viewport);
       await openPreview(page);
       await selectPlayerPage(page, buildings);
-      await expect(page.locator('.global-facility-catalog-grid')).toBeVisible();
+      await expect(page.locator('.global-facility-catalog-list')).toBeVisible();
+      await expect(page.locator('.global-province-list')).toBeVisible();
 
       const geometry = await readPageGeometry(page);
       expectSafePageGeometry(geometry);
+      expectSharedSingleLineTitleGeometry(await readTitleGeometry(page));
 
-      const catalog = await page.evaluate(() => {
-        const grid = document.querySelector<HTMLElement>('.global-facility-catalog-grid');
-        const cards = grid
-          ? Array.from(grid.querySelectorAll<HTMLElement>(':scope > .global-facility-catalog-card'))
+      const lists = await page.evaluate(() => {
+        const facilityList = document.querySelector<HTMLElement>('.global-facility-catalog-list');
+        const provinceList = document.querySelector<HTMLElement>('.global-province-list');
+        const facilityRows = facilityList
+          ? Array.from(facilityList.querySelectorAll<HTMLElement>(':scope > .global-facility-catalog-row'))
           : [];
-        if (!grid || cards.length < 3) throw new Error('buildings catalog fixture is incomplete');
-        const gridBox = grid.getBoundingClientRect();
-        const boxes = cards.map((card) => card.getBoundingClientRect());
+        const provinceRows = provinceList
+          ? Array.from(provinceList.querySelectorAll<HTMLElement>(':scope > li > .global-province-row'))
+          : [];
+        if (!facilityList || facilityRows.length < 3 || !provinceList || provinceRows.length < 1) {
+          throw new Error('buildings list fixture is incomplete');
+        }
+        const rect = (element: HTMLElement) => {
+          const box = element.getBoundingClientRect();
+          return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width };
+        };
         return {
-          grid: { left: gridBox.left, right: gridBox.right, width: gridBox.width },
-          cards: boxes.map((box) => ({ left: box.left, top: box.top, right: box.right, bottom: box.bottom })),
+          facilityList: rect(facilityList),
+          facilityRows: facilityRows.map(rect),
+          provinceList: rect(provinceList),
+          provinceRows: provinceRows.map(rect),
         };
       });
 
-      expect(catalog.grid.left).toBeGreaterThanOrEqual(geometry.contentLeft - 1);
-      expect(catalog.grid.right).toBeLessThanOrEqual(geometry.contentRight + 1);
-      for (const card of catalog.cards) {
-        expect(card.left).toBeGreaterThanOrEqual(catalog.grid.left - 1);
-        expect(card.right).toBeLessThanOrEqual(catalog.grid.right + 1);
+      expect(lists.facilityList.left).toBeGreaterThanOrEqual(geometry.contentLeft - 1);
+      expect(lists.facilityList.right).toBeLessThanOrEqual(geometry.contentRight + 1);
+      for (const row of lists.facilityRows) {
+        expect(row.left).toBeGreaterThanOrEqual(lists.facilityList.left - 1);
+        expect(row.right).toBeLessThanOrEqual(lists.facilityList.right + 1);
+      }
+      for (let index = 1; index < lists.facilityRows.length; index += 1) {
+        expect(lists.facilityRows[index].top).toBeGreaterThanOrEqual(lists.facilityRows[index - 1].bottom - 1);
       }
 
-      if (viewport.width <= 720) {
-        expect(catalog.cards[0].top).toBeCloseTo(catalog.cards[1].top, 0);
-        expect(catalog.cards[0].top).toBeCloseTo(catalog.cards[2].top, 0);
-        expect(catalog.cards[3]?.top ?? Number.POSITIVE_INFINITY).toBeGreaterThan(catalog.cards[0].bottom);
+      expect(lists.provinceList.left).toBeGreaterThanOrEqual(geometry.contentLeft - 1);
+      expect(lists.provinceList.right).toBeLessThanOrEqual(geometry.contentRight + 1);
+      for (const row of lists.provinceRows) {
+        expect(row.left).toBeGreaterThanOrEqual(lists.provinceList.left - 1);
+        expect(row.right).toBeLessThanOrEqual(lists.provinceList.right + 1);
       }
     }
   });

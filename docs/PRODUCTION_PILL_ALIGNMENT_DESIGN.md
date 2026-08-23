@@ -2,7 +2,7 @@
 
 > 状态：建筑页区域管理几何、工厂卡片、二级详情、胶囊与开关的场景权威基线  
 > 适用项目：`RIVERS0FT/Economy`  
-> 更新时间：2026-08-22
+> 更新时间：2026-08-23
 
 本设计补充 `UI_DESIGN_SYSTEM.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`、`INDUSTRY_AND_PRODUCTION_DESIGN.md`、`FACILITY_CATALOG_PRESENTATION_DESIGN.md` 与 `LIQUID_GLASS_CHROME_DESIGN.md`。地区建筑页的最终可见几何、工厂卡片排列和工厂详情场景规则以本文为准；生产、建造、市场、合同和目录顺序仍由各自权威设计负责。
 
@@ -74,7 +74,7 @@ ProvincePage
 加利福尼亚州
 ```
 
-第一行是工厂实体名称并使用较大主标题字号，第二行是州级地区全称并使用灰色次级文字；商品详情使用完全相同的结构。两行各自保持单行，过长时使用省略策略，总标题容器继续固定在现有 `40px` 轨道内，不得增加 `.page-fixed-header` 高度或移动返回／关闭按钮与正文起点。不得恢复“{地区名称}{工厂名称}”单行拼接标题。详情左上返回按钮返回当前地区建筑列表；关闭按钮继续进入纯地图视图。
+第一行是工厂实体名称并使用较大主标题字号，第二行是州级地区全称并使用灰色次级文字；商品详情使用完全相同的结构。两行各自保持单行，过长时使用省略策略。所有玩家 `PageLayout` 标题统一使用 `design-system.css` 的 `--player-page-title-track-height: 40px`；普通单行标题统一使用 `--font-size-player-page-title`，地区实体两行标题复用同一轨道并由 `regional-entity-page-title.css` 负责内部排版。建筑页不得再通过 `body:has(...)`、未定义控制尺寸令牌或移动断点单独改变标题高度，页面切换与列表／详情切换都不得移动返回／关闭按钮或正文起点。
 
 进入详情后不显示地区“概览 / 市场 / 建筑 / 仓库”分区按钮。返回建筑列表后恢复分区按钮和建设表单状态。
 
@@ -137,9 +137,10 @@ top: calc((可见轨道高度 - 滑块尺寸) / 2);
 
 ## 7. 样式职责
 
-- `design-system.css` 定义 `StatusTag`、全局开关基础外观和焦点环；
+- `design-system.css` 定义所有玩家页面统一的 40px 标题轨道、普通单行标题字号、`StatusTag`、全局开关基础外观和焦点环；
 - `facility-group-card-grid.css` 保留生产详情内部结构和 4:5 工厂选择器基础几何；
-- `production-surface.css` 是地区建筑页最终三列工厂卡、列表无外层卡片、建设卡顺序、二级详情可见性和建筑页紧凑开关的场景最终权威；地区实体标题内部排版由 `regional-entity-page-title.css` 统一负责；
+- `production-surface.css` 是地区建筑页最终三列工厂卡、列表无外层卡片、建设卡顺序、二级详情可见性和建筑页紧凑开关的场景最终权威，不得再承担共享页面标题高度；
+- `regional-entity-page-title.css` 统一负责地区实体标题内部两行排版并复用共享标题轨道；
 - `province-page.css` 负责地区正文级分区切换自身布局；
 - `primary-surfaces.css` 继续独占一级卡片外层 padding；
 - `mobile-detail-sheet.css` 与唯一 Sheet Host 继续负责其他仍使用根级移动详情 Sheet 的业务，不再承担地区工厂详情入口。
@@ -148,7 +149,7 @@ top: calc((可见轨道高度 - 滑块尺寸) / 2);
 
 ## 8. 防回退
 
-`scripts/verify-production-desktop-layout.mjs` 必须验证：
+`scripts/verify-production-desktop-layout.mjs` 与页面几何验证必须验证：
 
 - `production-surface.css` 在 `facility-group-card-grid.css` 之后加载；
 - 建筑列表态不存在“建筑概况”、搜索、产业分类、运行状态和 `facility-cluster-navigation` 外层卡片；
@@ -156,8 +157,9 @@ top: calc((可见轨道高度 - 滑块尺寸) / 2);
 - 工厂列表固定三列，工厂卡使用 `aspect-ratio: 4 / 5`、`width: 100%` 与 `max-width: none`；
 - 工厂卡继续包含名称、利润和数量；
 - 点击卡片进入二级详情，列表态不同时渲染详情；
-- 地区详情标题复用“实体名称第一行／灰色地区全称第二行”的共享结构且不改变标题区高度；
+- 所有玩家页面普通单行标题与地区建筑列表／详情标题共享同一 40px 标题轨道，建筑页不得恢复标题高度场景特例；
+- 地区详情标题复用“实体名称第一行／灰色地区全称第二行”的共享结构；
 - 胶囊与开关继续保持 `2.75rem × 1.6rem`；
-- `tests/browser/buildings-ledger-layout.spec.ts` 使用真实浏览器验证桌面与移动端三列卡片、建设卡顺序、无横向裁切、详情进入／返回和标题高度稳定。
+- `tests/browser/buildings-ledger-layout.spec.ts` 使用真实浏览器验证桌面与移动端三列卡片、建设卡顺序、无横向裁切、详情进入／返回和标题高度稳定；`tests/browser/player-page-geometry.spec.ts` 验证所有正式玩家页面的共享标题轨道和单行标题字号。
 
-不得为了恢复横向建筑账本、同页详情、筛选器、建筑概况或移动专用工厂详情 Sheet 删除上述验证。改变本设计时必须同步更新本文、最终 CSS、页面实现和真实浏览器回归。
+不得为了恢复横向建筑账本、同页详情、筛选器、建筑概况、页面专属标题高度或移动专用工厂详情 Sheet 删除上述验证。改变本设计时必须同步更新本文、最终 CSS、页面实现和真实浏览器回归。

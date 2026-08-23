@@ -1,11 +1,11 @@
 /* Shared two-line title for region-scoped entity detail pages.
- * The wrapper is constrained to the existing 40px PageLayout title track so
- * commodity/factory details never increase fixed-header height. */
+ * The wrapper reuses the fixed PageLayout title track so commodity/factory
+ * details never increase fixed-header height. */
 .regional-entity-title {
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  height: 40px;
+  height: var(--player-page-title-track-height);
   display: grid;
   grid-template-rows: 22px 13px;
   align-content: center;
