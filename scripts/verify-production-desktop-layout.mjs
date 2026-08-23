@@ -12,6 +12,7 @@ const productionSurface = read('src/styles/production-surface.css');
 const legacyIndustryStyles = read('src/styles/industry-system.css');
 const productionAlignmentDesign = read('docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md');
 const browserTest = read('tests/browser/buildings-ledger-layout.spec.ts');
+const runtimeHarness = read('tests/browser/runtime-harness.tsx');
 const chrome = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
 
 for (const text of [
@@ -22,12 +23,28 @@ for (const text of [
 
 const facilityGridImport = "import './styles/facility-group-card-grid.css';";
 const productionSurfaceImport = "import './styles/production-surface.css';";
+const regionalEntityTitleImport = "import './styles/regional-entity-page-title.css';";
+const runtimeProductionSurfaceImport = "import '../../src/styles/production-surface.css';";
+const runtimeRegionalEntityTitleImport = "import '../../src/styles/regional-entity-page-title.css';";
 assert.equal(main.includes(facilityGridImport), true, '入口缺少工厂基础卡片样式');
 assert.equal(main.includes(productionSurfaceImport), true, '入口缺少建筑页最终表面样式');
+assert.equal(main.includes(regionalEntityTitleImport), true, '入口缺少地区实体共享两行标题样式');
 assert.equal(
   main.indexOf(productionSurfaceImport) > main.indexOf(facilityGridImport),
   true,
   'production-surface.css 必须在 facility-group-card-grid.css 之后加载，才能收束地区工厂卡片',
+);
+assert.equal(
+  main.indexOf(regionalEntityTitleImport) > main.indexOf(productionSurfaceImport),
+  true,
+  '地区实体标题样式必须在建筑页表面样式之后加载，以覆盖旧工厂详情标题兼容规则',
+);
+assert.equal(runtimeHarness.includes(runtimeProductionSurfaceImport), true, '浏览器夹具缺少建筑页最终表面样式');
+assert.equal(runtimeHarness.includes(runtimeRegionalEntityTitleImport), true, '浏览器夹具缺少地区实体共享两行标题样式');
+assert.equal(
+  runtimeHarness.indexOf(runtimeRegionalEntityTitleImport) > runtimeHarness.indexOf(runtimeProductionSurfaceImport),
+  true,
+  '浏览器夹具必须按正式入口顺序在 production-surface.css 后加载地区实体标题样式',
 );
 
 for (const forbidden of [
@@ -95,8 +112,9 @@ for (const text of [
   "const [facilityDetailTypeId, setFacilityDetailTypeId] = useState<string | null>(null);",
   "activeSection === 'buildings' && Boolean(facilityDetailType)",
   'className="province-facility-detail-title"',
+  '<RegionalEntityPageTitle',
   "{ label: '返回建筑列表', onClick: () => setFacilityDetailTypeId(null) }",
-  '{!isFacilityDetail ? sectionSwitch : null}',
+  '{!isEntityDetail ? sectionSwitch : null}',
   'detailFacilityTypeId={facilityDetailTypeId ?? undefined}',
   'onDetailFacilityChange={setFacilityDetailTypeId}',
 ]) assert.equal(provincePage.includes(text), true, `地区工厂二级详情缺少: ${text}`);
@@ -110,7 +128,9 @@ for (const text of [
   '列表正式使用三列',
   '点击工厂卡片后进入当前地区建筑分区内部的二级详情视图',
   '地区“概览 / 市场 / 建筑 / 仓库”是正文级子导航',
-  '标题保持单行',
+  '第一行是工厂实体名称',
+  '第二行是州级地区全称并使用灰色次级文字',
+  '不得增加 `.page-fixed-header` 高度',
   '`tests/browser/buildings-ledger-layout.spec.ts`',
 ]) assert.equal(productionAlignmentDesign.includes(text), true, `建筑卡片设计缺少: ${text}`);
 

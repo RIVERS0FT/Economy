@@ -139,8 +139,8 @@
   overflow: visible;
 }
 
-/* Regional factory list/detail transitions share one fixed single-line title
- * track. Detail text may shrink, but the fixed header never grows or collapses. */
+/* Regional list/detail transitions share one fixed title track. Entity detail
+ * titles may use two internal lines, but the fixed header never grows or collapses. */
 body:has(.regional-buildings-management) .page-heading--player-navigation .page-heading-title,
 body:has(.facility-cluster-detail-page) .page-heading--player-navigation .page-heading-title,
 .page-heading-title:has(> .province-page-title) {

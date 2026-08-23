@@ -211,7 +211,7 @@ for (const text of [
   'market-catalog-filters',
   'market-catalog-row',
   '<ProductArtwork productId={entry.id} />',
-  '<MarketAutoTradePanel model={model} requestedProductId={requestedAutoTradeProductId} />',
+  'fixedProductId={selectedProduct.id}',
   '<small>卖单量</small>',
   '<small>买单量</small>',
   '挂单差额',

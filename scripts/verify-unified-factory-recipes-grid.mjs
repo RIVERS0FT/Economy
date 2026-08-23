@@ -102,7 +102,8 @@ for (const forbidden of [
 for (const text of [
   "const [facilityDetailTypeId, setFacilityDetailTypeId] = useState<string | null>(null);",
   "activeSection === 'buildings' && Boolean(facilityDetailType)",
-  '{!isFacilityDetail ? sectionSwitch : null}',
+  '{!isEntityDetail ? sectionSwitch : null}',
+  '<RegionalEntityPageTitle',
   'detailFacilityTypeId={facilityDetailTypeId ?? undefined}',
   'onDetailFacilityChange={setFacilityDetailTypeId}',
   "{ label: '返回建筑列表', onClick: () => setFacilityDetailTypeId(null) }",

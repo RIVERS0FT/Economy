@@ -29,7 +29,7 @@ test('market order fields keep labels and embedded steppers on one row', async (
   await page.goto('market-runtime-test.html?scenario=active');
 
   const tradeCard = page.locator('.market-trade-card');
-  const priceInput = page.getByRole('textbox', { name: '价格' });
+  const priceInput = page.getByRole('textbox', { name: '价格', exact: true });
   const quantityInput = page.getByRole('spinbutton', { name: '数量' });
 
   await expectEmbeddedStepper(
@@ -117,7 +117,7 @@ test('focused market price input owns the wheel in 0.01 steps', async ({ page })
   await page.setViewportSize({ width: 1400, height: 700 });
   await page.goto('market-runtime-test.html?scenario=active');
 
-  const priceInput = page.getByRole('textbox', { name: '价格' });
+  const priceInput = page.getByRole('textbox', { name: '价格', exact: true });
   const pageScroll = page.locator('.page-scroll');
   await expect(priceInput).toHaveValue('2');
   await priceInput.focus();

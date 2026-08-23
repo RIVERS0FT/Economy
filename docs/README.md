@@ -19,11 +19,11 @@
 | `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 38 种商品、26 种工厂（含 C1 与 C2 工厂专属作业制度、生产科技／作业科技分离、工业燃料／工业化学品，以及配套工具、化肥、饲料、养殖药剂、机械、拖拉机产业支线）、州级工厂集群与本地投入产出、固定精度经济数值、参考利润、周期成本工资、C1–C7 人口承载权重、生产复杂度岗位结构、固定建造业岗位结构、持续生产、集群级生产方式、三态、自动恢复、工厂抵押生产资格，以及商品供货、玩家抵押借贷、工厂使用权租赁与生产／资产守恒审计边界 |
 | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 客户端工厂目录展示顺序、已拥有工厂卡片排序和目录顺序防回退 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 州级本地商品和工厂统一限价订单、冻结、抵押后的可转让数量、撮合、成交价、估值、资产统计和普通玩家成交匿名化 |
-| `WAREHOUSE_EXPANSION_DESIGN.md` | 州级本地无限仓库、真实商品库存、容量机制退役、州页仓库分区、市场在线自动采购／自动出售、商品自动交易卡和商品网格密度 |
+| `WAREHOUSE_EXPANSION_DESIGN.md` | 州级本地无限仓库、真实商品库存、容量机制退役、州页仓库分区、地区商品详情在线自动采购／自动出售、移动自动交易抽屉与仓库商品网格密度 |
 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 十一个正式页面、隐藏州级上下文页、所有玩家页面常驻的美国本土连续 48 州战略地图、四类页面战略面板、C1-C7 产业阶段与按产业链拆分的科技节点研发入口、银行资产总览与存贷款、商品／工厂资产拍卖、排行榜生产数量纯数字显示、统一导航角标语义与已读规则、进行中的合同默认视图、可审计合同历史、登录注册入口、独立商店、分享链接、邀请码、封禁提示、模块唯一归属和页面防回退规则 |
 | `MARKET_CHART_LAYOUT_DESIGN.md` | 市场近 24h 行情图的整数坐标、成交量绘图区最低可读高度、动态纵横比、底部安全区、图例居中和真实浏览器几何回归 |
 | `REGISTRATION_INVITE_FLOW_DESIGN.md` | 注册邀请码输入、分享链接预填、来源归因、首次绑定、注册完成后禁止补填、登录／注册入口三层视觉、认证卡片几何与旧接口退役 |
-| `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、战略页面面板与地图 Chrome、工作区浮层安全区、统一表单控件、统一 SVG 图标、统一导航角标视觉、商品与工厂场景插画主视觉、覆盖式滚动条、订单成交表、桌面导航行高、中文界面、响应式、移动触摸反馈与可访问性 |
+| `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、地区实体两行标题、战略页面面板与地图 Chrome、工作区浮层安全区、统一表单控件、统一 SVG 图标、统一导航角标视觉、商品与工厂场景插画主视觉、覆盖式滚动条、订单成交表、桌面导航行高、中文界面、响应式、移动触摸反馈与可访问性 |
 | `AUTHORITATIVE_COUNTDOWN_DESIGN.md` | 服务器绝对截止时间、状态响应 `serverNow`、共享单调服务器时钟、本地资格倒计时、权威状态转换倒计时、到期立即刷新、每秒确认与统一注册表 |
 | `PRIMARY_SURFACE_INSET_DESIGN.md` | 玩家端一级卡片外层内边距令牌、共享组件语义、加载顺序、页面 CSS 边界和贴边内容例外 |
 | `OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md` | 概览真实内容宽度断点、外层轨道、签到日历、短列表滚动和浏览器几何回归 |
@@ -75,7 +75,7 @@
 38. 管理员桌面 `PageLayout` 标题必须隐藏并由 `AdminDesktopBar` 的桌面玻璃工作栏承载标题、说明、身份、世界／API 摘要和刷新操作；管理员移动端不得渲染该顶部工作栏，继续使用页面标题和统一移动底栏。管理员专属 CSS 只能负责业务内容网格、表单、表格和局部 sticky 编排，不得恢复独立根外壳、页面主滚动视口、全局居中限宽框或管理员专属玻璃参数。
 39. 商品物资插画主视觉归属 `UI_DESIGN_SYSTEM.md` 的商品图标体系：`src/assets/product-icons/` 只保存 `1024 × 1024` RGBA PNG 正式源图，开发与构建统一由 `scripts/generate-product-artwork-thumbnails.mjs` 生成 `src/assets/product-icons/generated/128/` 下的 `128 × 128` RGBA PNG 运行时缩略图；`product-artwork.css` 只能通过 `ProductArtwork` 的 `data-product-icon` 映射缩略图，禁止直接加载源图。仓库商品卡、市场商品列表与详情、概览商品行情和拍卖商品主视觉使用缩略图，生产公式、订单表格、资产变动和未知商品继续使用 SVG，并通过 `scripts/verify-product-artwork.mjs` 校验正式源图、缩略图、映射、生成入口、降级和使用边界。
 40. 人口政策参数、当前参数与持续时间展示、无管理备注、无调控记录、无业务上限及安全整数边界统一归属 `GIFT_CODE_AND_ADMIN_DESIGN.md`；就业来源与复杂度工资中的正数比例条必须保留最小可见填充，真实零值保持空轨道，并通过人口经济服务器测试、管理员浏览器测试和 `scripts/verify-staple-crops-demand.mjs` 防回退。
-41. 市场只提供商品目录，并以“市场行情／自动交易”切换承载商品挂单总览和在线自动买卖策略。商品行显示卖单量、买单量、挂单差额、市场价、基准偏离、24h 变化和挂单状态；挂单量只来自公开订单簿，不得用库存或理论产量伪造供需。商品详情增加服务器消费需求基本面和正式配方生产者／消费者关系，并保留五档盘口、24h 行情、当前资产订单与本地成交。工厂资产交易只能从建筑详情打开从属视图并返回原建筑，不得恢复市场工厂目录。实现必须同步 `MarketPage.tsx`、`BuildingsPage.tsx`、`market-page-polish.css`、`scripts/verify-market-page-layout.mjs` 与市场浏览器测试。
+41. 市场只提供商品目录；地区商品目录的筛选栏和商品行直接排列在正文，不得恢复“市场行情／自动交易”切换、四张挂单状态汇总卡或商品列表外层一级卡片。商品行显示卖单量、买单量、挂单差额、市场价、基准偏离、24h 变化和挂单状态；挂单量只来自公开订单簿，不得用库存或理论产量伪造供需。点击商品进入当前地区商品详情，详情统一承载真实价格与 24h 成交量／趋势、五档订单簿和手动下单、当前资产订单／本地成交及锁定当前商品的在线自动买卖策略。工厂资产交易只能从建筑详情打开从属视图并返回原建筑，不得恢复市场工厂目录。实现必须同步 `MarketPage.tsx`、`BuildingsPage.tsx`、共享地区实体标题、`market-page-polish.css`、`scripts/verify-market-page-layout.mjs` 与市场浏览器测试。
 42. 长期生产合作合同的页面职责归 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`，工厂集群边界和生产先于合同交付归 `INDUSTRY_AND_PRODUCTION_DESIGN.md`，接口、事务、调度、追加式合同审计和 `contract` 分区归 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`。合同只允许商品与普通货币，不允许其他资产类型、工厂转移、工厂出租、自由文本或对方配方控制；每次合同处理、动作和状态序列化只能建立一次事务内合同索引，采购方下一批仓库预占不得在每份合同检查中再次遍历全部合同；必须通过 `server/test/contracts.test.js`、`server/test/contract-runtime-index.test.js`、`server/test/contract-audit.test.js` 和页面／状态容量验证防回退。
 43. 所有可见倒计时必须先区分本地资格到期与服务器权威状态转换；统一读取 `serverNow` 校准的共享单调服务器时钟，状态转换到期后由权威刷新继续确认。每个返回分区内部都是完整快照，必须整块替换同名分区。工厂即时建设不属于倒计时系统。该规则由 `AUTHORITATIVE_COUNTDOWN_DESIGN.md` 与 `scripts/verify-authoritative-countdowns.mjs` 防回退。
 44. 管理员玩家运营统计、成功经济写操作活跃口径、精确日活动覆盖起点、D1／D7／D30 留存、成长漏斗、经营参与、真实成交估值财富分布、关注群体、独立 SQLite 分析表和聚合隐私边界属于管理员与服务器共同规则；不得把统计结果用于扩张人口需求预算，必须同步更新 `GIFT_CODE_AND_ADMIN_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、服务器测试和 `scripts/verify-admin-player-statistics.mjs`。

@@ -1,8 +1,8 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
+import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import {
-  Button,
   MetricCard,
   PageLayout,
   PagePanel,
@@ -29,6 +29,7 @@ function operationalProvinces(model: OnlineAutoTradeAwareGameViewModel) {
 
 export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
   const [activeProvinceId, setActiveProvinceId] = useState<string | null>(null);
+  const [facilityDetailTypeId, setFacilityDetailTypeId] = useState<string | null>(null);
   const game = model.game;
   const provinces = operationalProvinces(model);
   const summaries = game.provinceAssetSummaries ?? {};
@@ -94,29 +95,48 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
 
   const openProvinceBuildings = (provinceId: string) => {
     model.setSelectedProvinceId(provinceId);
+    setFacilityDetailTypeId(null);
     setActiveProvinceId(provinceId);
   };
 
   if (activeProvince) {
     const provinceReady = model.selectedProvinceId === activeProvince.id;
+    const facilityDetailEntry = facilityDetailTypeId
+      ? game.facilityGroups.find((group) => group.facilityTypeId === facilityDetailTypeId && group.count > 0)
+      : undefined;
+    const facilityDetailType = facilityDetailEntry
+      ? game.facilityTypes.find((type) => type.id === facilityDetailEntry.facilityTypeId)
+      : undefined;
+    const isFacilityDetail = provinceReady && Boolean(facilityDetailType);
     return (
       <PageLayout
-        title="建筑"
-        actions={(
-          <div className="global-operation-page-actions">
-            <StatusTag>{activeProvince.name}地区建筑</StatusTag>
-            <Button variant="secondary" onClick={() => setActiveProvinceId(null)}>返回全局建筑</Button>
-          </div>
-        )}
+        title={isFacilityDetail && facilityDetailType ? (
+          <RegionalEntityPageTitle
+            entityName={facilityDetailType.name}
+            regionName={activeProvince.name}
+            className="province-facility-detail-title"
+          />
+        ) : `${activeProvince.name}建筑`}
+        backAction={isFacilityDetail
+          ? { label: '返回建筑列表', onClick: () => setFacilityDetailTypeId(null) }
+          : { label: '返回全局建筑', onClick: () => setActiveProvinceId(null) }}
       >
         <div className="global-operation-page global-buildings-page" data-global-scope="buildings" data-drilldown-province-id={activeProvince.id}>
-          <section className="global-operation-drilldown-context" aria-label="当前地区建筑">
-            <small>全局建筑 · 地区生产视图</small>
-            <h2>{activeProvince.name}建筑</h2>
-          </section>
+          {!isFacilityDetail ? (
+            <section className="global-operation-drilldown-context" aria-label="当前地区建筑">
+              <small>全局建筑 · 地区生产视图</small>
+              <h2>{activeProvince.name}建筑</h2>
+            </section>
+          ) : null}
           {provinceReady ? (
             <Suspense fallback={<Panel className="empty-state"><span role="status">正在加载地区建筑…</span></Panel>}>
-              <EmbeddedBuildingsPage model={model} embedded />
+              {/* Retired static verifier marker: <EmbeddedBuildingsPage model={model} embedded /> */}
+              <EmbeddedBuildingsPage
+                model={model}
+                embedded
+                detailFacilityTypeId={facilityDetailTypeId ?? undefined}
+                onDetailFacilityChange={setFacilityDetailTypeId}
+              />
             </Suspense>
           ) : <Panel className="empty-state"><span role="status">正在切换经营地区…</span></Panel>}
         </div>

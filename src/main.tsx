@@ -42,6 +42,7 @@ import './styles/admin-player-statistics.css';
 import './styles/admin-server-status.css';
 import './styles/virtual-list.css';
 import './styles/production-surface.css';
+import './styles/regional-entity-page-title.css';
 import './styles/settings.css';
 import './styles/overview-polish.css';
 import './styles/market-page-polish.css';
