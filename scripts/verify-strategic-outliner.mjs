@@ -17,6 +17,7 @@ const workspace = read('src/components/shell/StrategicWorkspace.tsx');
 const outliner = read('src/components/outliner/StrategicOutliner.tsx');
 const storage = read('src/components/outliner/useStrategicOutliner.ts');
 const shellStyle = read('src/styles/strategic-game-shell.css');
+const outlinerStyle = read('src/styles/strategic-outliner.css');
 const mobileStyle = read('src/styles/mobile-status-layout.css');
 const guide = read('src/components/GameGuideStrip.tsx');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
@@ -61,6 +62,8 @@ requireText(shellStyle, 'overflow-y: auto;', '追踪器必须提供唯一纵向�
 requireText(shellStyle, 'backdrop-filter: var(--frosted-glass-filter);', '追踪器外层必须复用共享毛玻璃滤镜');
 requireText(shellStyle, '@media (min-width: 1440px)', '宽屏必须为展开追踪器预留真实空间');
 requireText(shellStyle, '@media (max-width: 1439px) and (min-width: 721px)', '中窄桌面必须只预留折叠轨道并允许展开覆盖');
+requireText(outlinerStyle, '.game-shell .strategic-outliner {\n  z-index: 2;', '战略追踪器最终层级必须与桌面 Toast 同为局部 z-index 2');
+requireText(outlinerStyle, '.game-shell .strategic-outliner[data-collapsed="true"] {\n  width: var(--strategic-outliner-collapsed-width);', '收起态最终层叠必须把实际宽度锁定为 44px 轨道');
 requireText(mobileStyle, ".strategic-outliner[data-tutorial-visible='true']", '移动教程必须继续由同一战略追踪器 DOM 持有');
 requireText(mobileStyle, ".strategic-outliner-section:not(.strategic-outliner-section--tutorial)", '移动端必须隐藏桌面追踪分区而保留教程');
 
