@@ -1,0 +1,34 @@
+name: Codex final browser sync
+
+on:
+  push:
+    branches:
+      - codex/regional-market-product-pages
+    paths:
+      - .github/workflows/codex-final-browser-sync.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/regional-market-product-pages
+          fetch-depth: 0
+      - name: Apply final browser regression sync
+        run: python3 .codex/final_browser_test_sync.py
+      - name: Commit synchronized tests
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/browser/player-page-geometry.spec.ts \
+                  tests/browser/global-operation-pages.spec.ts \
+                  tests/browser/scroll-input-modality.spec.ts \
+                  tests/browser/market-order-entry-compact.spec.ts \
+                  tests/browser/market-runtime.spec.ts
+          git diff --cached --check
+          git commit -m "同步地区商品页浏览器回归基线"
+          git push origin HEAD:codex/regional-market-product-pages
