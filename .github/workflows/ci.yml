@@ -72,27 +72,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'push' && github.ref_name || github.event.pull_request.head.ref }}
-          fetch-depth: 0
-
-      - name: Apply final market browser locator sync
-        if: github.event_name == 'push' && github.ref_name == 'codex/regional-market-product-pages'
-        run: |
-          python3 .codex/final_browser_test_sync.py
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add tests/browser/market-runtime.spec.ts
-          git diff --cached --check
-          if ! git diff --cached --quiet; then
-            git commit -m "精确定位市场手动价格输入"
-            git push origin HEAD:codex/regional-market-product-pages
-          fi
 
       - name: Setup Node
         uses: actions/setup-node@v4
