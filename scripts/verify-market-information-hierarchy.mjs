@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 
+// This verifier locks the final commodity-first market information hierarchy.
 function read(path) {
   return fs.readFileSync(path, 'utf8');
 }
