@@ -440,13 +440,14 @@ export function MarketAutoTradePanel({
               title={selectedProduct ? `${selectedProduct.name} · 自动交易` : '自动交易'}
               action={<StatusTag tone="info">在线维护</StatusTag>}
             />
-            <Button
+            <button
               ref={mobileAutoTradeTriggerRef}
-              block
+              type="button"
+              className="ui-button ui-button--primary ui-button--block"
               onClick={(event) => openAutoTradePanel(fixedProductId ?? undefined, event.currentTarget)}
             >
               设置自动交易
-            </Button>
+            </button>
           </Panel>
         ) : (
           <Panel className="production-surface warehouse-inventory-panel market-auto-trade-products">
