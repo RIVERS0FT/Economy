@@ -1,5 +1,5 @@
 
-added 138 packages, and audited 145 packages in 2s
+added 138 packages, and audited 145 packages in 3s
 
 29 packages are looking for funding
   run `npm fund` for details
@@ -16,23 +16,10 @@ Run `npm audit` for details.
 统一资产市场、非交叉撮合、连续五档价格聚合、玩家／消费需求／市场储备商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。
 市场页布局与运行时验证通过：一级市场保留跨州总览；地区目录直接排列商品并进入地区商品详情；价格/成交量、五档订单簿和固定商品自动交易归属详情；工厂资产交易继续归属建筑详情。
 无限仓库防回退验证通过：容量机制保持退役，州级仓库只读，在线自动交易唯一归属市场。
-node:internal/modules/run_main:105
-    triggerUncaughtException(
-    ^
-
-AssertionError [ERR_ASSERTION]: 地区工厂二级详情缺少: {!isFacilityDetail ? sectionSwitch : null}
-
-false !== true
-
-    at file:///home/runner/work/Economy/Economy/scripts/verify-production-desktop-layout.mjs:103:11
-    at ModuleJob.run (node:internal/modules/esm/module_job:370:25)
-    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
-    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:99:5) {
-  generatedMessage: false,
-  code: 'ERR_ASSERTION',
-  actual: false,
-  expected: true,
-  operator: 'strictEqual'
-}
-
-Node.js v24.4.0
+地区建筑验证通过：建设卡优先、三列 4:5 工厂卡、二级详情、正文分区导航、标题高度稳定与紧凑开关均已锁定。
+统一工厂配方与地区卡片验证通过：目录顺序、三列 4:5 工厂卡、二级详情、统一生产设置与共享移动基础设施均已锁定。
+页面内容与职责验证失败:
+- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: | 建筑 | `buildings` | `BuildingsPage` |
+- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 页面主标题固定为“{州级地区全称}建筑”
+- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 市场目录固定提供“市场行情／自动交易”两个工作区
+- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 邀请卡唯一归属商店，只展示玩家自己的专属分享链接、永久邀请码
