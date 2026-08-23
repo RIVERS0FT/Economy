@@ -1,0 +1,87 @@
+name: Codex regional market product pages
+
+on:
+  push:
+    branches:
+      - codex/regional-market-product-pages
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/regional-market-product-pages
+          fetch-depth: 0
+
+      - name: Check refactor script
+        id: guard
+        shell: bash
+        run: |
+          if [[ -f .codex/apply_regional_market_product_pages.py ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.guard.outputs.run == 'true'
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply source and design changes
+        if: steps.guard.outputs.run == 'true'
+        run: python3 .codex/apply_regional_market_product_pages.py
+
+      - name: Install dependencies
+        if: steps.guard.outputs.run == 'true'
+        run: npm ci
+
+      - name: Run targeted static verification
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          node --experimental-strip-types scripts/verify-market-assets.mjs
+          node scripts/verify-market-page-layout.mjs
+          node scripts/verify-warehouse-expansion.mjs
+          node scripts/verify-production-desktop-layout.mjs
+          node scripts/verify-unified-factory-recipes-grid.mjs
+          node scripts/verify-page-content.mjs
+          npm run typecheck
+
+      - name: Run full build verification
+        if: steps.guard.outputs.run == 'true'
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        if: steps.guard.outputs.run == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser regression suite
+        if: steps.guard.outputs.run == 'true'
+        run: npm run test:browser
+
+      - name: Check final diff
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          git diff --check
+          git status --short
+
+      - name: Commit verified implementation
+        if: steps.guard.outputs.run == 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src docs scripts tests
+          if git diff --cached --quiet; then
+            echo "No implementation changes to commit."
+            exit 0
+          fi
+          git commit -m "重构地区商品页与地区实体标题"
+          git push origin HEAD:codex/regional-market-product-pages
