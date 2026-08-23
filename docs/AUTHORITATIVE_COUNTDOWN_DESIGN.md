@@ -2,7 +2,7 @@
 
 > 状态：当前客户端倒计时、到期刷新与服务器确认基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-21
+> 更新时间：2026-08-23
 
 ## 1. 唯一职责
 
@@ -15,6 +15,7 @@
 - 到期确认期间的按钮和文案状态；
 - 经济写请求超时或断网后的同键确认重试；
 - 浏览器文档生命周期内的页面存档世代锁与写入门禁；
+- 游戏首次连接与已就绪 authority 的单向可见生命周期；
 - 新倒计时接入统一注册表的规则。
 
 经济结算规则仍以产品、产业、拍卖和排行榜对应文档为准；普通状态轮询、修订号、分区补丁、服务器幂等事务和服务器容量以 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` 为准。
@@ -71,6 +72,14 @@
 8. 浏览器从后台恢复可见时立即重新判断截止时间；页面切换不得中止到期确认，因为协调器位于 `GameApp`，不属于具体页面。
 
 到期确认只发送状态读取，不得提交重复经济动作，不得绕过全局修订号、服务器幂等规则或已确认动作的状态补拉。普通轮询可以复用进行中的刷新 Promise；权威刷新只能复用进行中的权威请求，遇到普通请求必须先中止旧请求再发起确认。
+
+### 4.0 游戏启动与已就绪 authority 生命周期
+
+正式玩家入口只允许从启动态单向进入已就绪游戏态。账号检查、会话初始化、正式代码包加载与首份权威状态读取可以在内部依次执行，但玩家可见启动文案统一为“正在连接服务器…”。一旦当前用户已有结构完整且已接受的 authority，普通父组件重渲染、回调引用变化、页面切换、通知变化、教程变化、普通轮询或权威倒计时刷新都不得把游戏重新覆盖成全屏启动加载页。
+
+`useGameViewModel` 初始化时必须先读取当前 authority 快照。若快照 `state.userId` 与当前用户一致且 revision 有效，必须复用该 `state + revision` 作为当前视图模型和后续增量轮询基线，不得先调用 `resetGameStateDelivery()` 再重新请求完整状态。只有浏览器完整刷新后的冷启动、用户身份实际变化、首次加载失败后的显式重试或存档世代导致当前文档失效等真实生命周期边界，才允许清空状态交付 authority 并重新进入启动流程。
+
+退出回调属于会话边界通知，不得参与普通 `refresh` 与初始化 effect 的引用稳定性。父级应提供稳定回调，视图模型内部仍必须通过 ref 读取最新退出回调，使父组件无关 render 不会改变 `handleUnauthorized`、`refresh` 或重新触发 cold reset。已经显示游戏后，普通状态读取暂时延迟或失败时继续保留上一份已接受 authority；只有当前没有可用 authority 的首次读取失败才显示全页“无法加载游戏状态”。
 
 ### 4.1 到期状态的分区替换语义
 
@@ -184,11 +193,13 @@ HTTP 2xx、3xx 或除 408、429 之外的明确 4xx 响应表示本次网络结�
 - 为未变化的状态栏显示值重复创建 `statusItems` 并触发移动端宽度适配测量；
 - 让根游戏控制器重新直接订阅每次重组后的完整 `EconomyState` 对象身份，使任一业务分区变化都提交 `GameApp`；
 - 让 `useGameAuthorityState()` 把实时转发全局 store 的 Proxy 作为一次 React render 的状态对象，使 authority reset／replace 能在同一次 render 中把原本合法的 `provinces`、`products` 或其他字段变成 `undefined`；
+- 在同一用户已有可用 authority 时因 `GameApp` 重挂载、父组件回调引用变化或普通轮询重新执行 cold reset，使已经显示的游戏回退到全屏“正在连接服务器…”；
+- 让退出回调引用直接参与 `handleUnauthorized`／`refresh`／初始化 effect 依赖链，导致无关父级 render 触发 authority reset；
 - 让页面、状态栏、导航角标、通知中心或权威倒计时绕过声明的分区边界读取全局变更通知；
 - 让纯 `auction`、`contract` 或 `leaderboard` 更新重新提交与其无关的市场或建筑页面；
 - 让在线自动交易或教程生产完成检测重新依赖根应用因权威状态变化而重渲染才能运行。
 
-`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`，锁定注册表、共享单调服务器时钟、应用外壳协调、请求超时、权威刷新模式、后台恢复、串行每秒确认、研发确认文案、工作冷却例外、拍卖等待结算文案、完整分区替换、稳定分区时间字段、即时建设无倒计时边界和本文档规则。经济写请求的同键确认重试、待确认 key 保留和应用入口安装同时由 `scripts/verify-market-action-latency.mjs` 防回退；生产结算基线指纹、过期提案同事务兜底与非法提案 409 由 `scripts/verify-production-lazy-settlement.mjs` 和服务器测试继续锁定；页面存档世代锁、状态发布前世代校验、普通 reset 保留锁和过期文档本地写阻断由 `scripts/verify-save-deletion.mjs`、`server/test/client-save-epoch-page-lifecycle.test.js` 与 `tests/browser/save-epoch-lifecycle.spec.ts` 继续锁定；客户端状态接受性能边界由 `scripts/verify-client-response-performance.mjs` 与 `server/test/game-authority-render-snapshot.test.js` 继续锁定。
+`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`，锁定注册表、共享单调服务器时钟、应用外壳协调、请求超时、权威刷新模式、后台恢复、串行每秒确认、研发确认文案、工作冷却例外、拍卖等待结算文案、完整分区替换、稳定分区时间字段、即时建设无倒计时边界、已就绪 authority 复用和本文档规则。经济写请求的同键确认重试、待确认 key 保留和应用入口安装同时由 `scripts/verify-market-action-latency.mjs` 防回退；生产结算基线指纹、过期提案同事务兜底与非法提案 409 由 `scripts/verify-production-lazy-settlement.mjs` 和服务器测试继续锁定；页面存档世代锁、状态发布前世代校验、普通 reset 保留锁和过期文档本地写阻断由 `scripts/verify-save-deletion.mjs`、`server/test/client-save-epoch-page-lifecycle.test.js` 与 `tests/browser/save-epoch-lifecycle.spec.ts` 继续锁定；客户端状态接受性能边界由 `scripts/verify-client-response-performance.mjs` 与 `server/test/game-authority-render-snapshot.test.js` 继续锁定。
 
 ## 合同领域截止时间
 
@@ -212,4 +223,4 @@ HTTP 2xx、3xx 或除 408、429 之外的明确 4xx 响应表示本次网络结�
 
 所有默认 1 秒可见时间刷新必须共享同一秒级 ticker；不得为每个 `useNow` 调用分别创建 `setInterval`。页面根组件不得订阅默认 1 秒 ticker：工作冷却、生产进度、研发倒计时、拍卖剩余时间、银行期限、商店报价倒计时和经济事件倒计时应下沉到最小可见叶子或独立动态区块。确实不需要秒级精度的根级判断可以使用至少 10 秒或 60 秒的共享慢速 ticker，但不能因此降低原本需要秒级显示的倒计时精度。
 
-浏览器回归必须同时证明：子切片 patch 只提交声明该依赖的 React 消费者；共享秒级 ticker 连续运行时父组件 render count 保持不变、时间叶子正常更新；根权威状态在一次 render 中绑定同一个已接受快照，不允许 authority reset／replace 通过实时 Proxy 撕裂字段读取。
+浏览器回归必须同时证明：子切片 patch 只提交声明该依赖的 React 消费者；共享秒级 ticker 连续运行时父组件 render count 保持不变、时间叶子正常更新；根权威状态在一次 render 中绑定同一个已接受快照，不允许 authority reset／replace 通过实时 Proxy 撕裂字段读取；同一用户已有 authority 时重新挂载游戏应用不得再次出现启动加载页。
