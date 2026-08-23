@@ -84,7 +84,7 @@ jobs:
             git push origin HEAD:codex/regional-market-product-pages
           fi
 
-      - name: Apply follow-up design and guard fixes
+      - name: Apply follow-up design, source and guard fixes
         if: steps.guard.outputs.run == 'true'
         shell: bash
         run: |
@@ -93,9 +93,9 @@ jobs:
             git diff --check
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add docs scripts
+            git add src docs scripts
             if ! git diff --cached --quiet; then
-              git commit -m "同步地区商品自动交易设计与防回退"
+              git commit -m "同步地区商品自动交易实现与防回退"
               git push origin HEAD:codex/regional-market-product-pages
             fi
           fi
