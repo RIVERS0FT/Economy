@@ -35,19 +35,29 @@ jobs:
           node-version: 24.4.0
           cache: npm
 
-      - name: Align refactor script with current CSS
+      - name: Align refactor script with current sources
         if: steps.guard.outputs.run == 'true'
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
+
           path = Path('.codex/apply_regional_market_product_pages.py')
           text = path.read_text(encoding='utf-8')
-          old = """  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);\n  align-items: start;\n  gap: var(--layout-gutter);"""
-          new = """  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);\n  align-items: start;\n  gap: var(--space-3);"""
-          if old not in text:
+
+          old_css = """  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);\n  align-items: start;\n  gap: var(--layout-gutter);"""
+          new_css = """  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);\n  align-items: start;\n  gap: var(--space-3);"""
+          if old_css not in text:
               raise SystemExit('warehouse CSS source block not found in refactor script')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          text = text.replace(old_css, new_css, 1)
+
+          old_guard = '''replace_exact(\n    'scripts/verify-market-assets.mjs',\n    "assert.equal(viewModel.includes(\\\"const [tab, setActiveTab] = useState<TabId>('home');\\\"), true, '客户端默认页面应为概览');",\n    "assert.equal(viewModel.includes(\\\"const [tab, setActiveTab] = useState<TabId>('map');\\\"), true, '客户端首次进入应只显示战略地图');",\n)'''
+          new_guard = '''replace_exact(\n    'scripts/verify-market-assets.mjs',\n    "  \\\"const [tab, setActiveTab] = useState<TabId>('home');\\\",\\n",\n    "  \\\"const [tab, setActiveTab] = useState<TabId>('map');\\\",\\n",\n)'''
+          if old_guard not in text:
+              raise SystemExit('market-assets guard source block not found in refactor script')
+          text = text.replace(old_guard, new_guard, 1)
+
+          path.write_text(text, encoding='utf-8')
           PY
 
       - name: Apply and commit implementation
