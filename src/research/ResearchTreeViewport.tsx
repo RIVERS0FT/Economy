@@ -57,20 +57,8 @@ export function clampResearchTreeViewport(
 ): ViewportState {
   const scaledWidth = world.width * state.zoom;
   const scaledHeight = world.height * state.zoom;
-  let panX = state.panX;
-  let panY = state.panY;
-
-  if (scaledWidth <= viewport.width) {
-    panX = (viewport.width - scaledWidth) / 2;
-  } else {
-    panX = clamp(panX, PAN_VISIBLE_MARGIN - scaledWidth, viewport.width - PAN_VISIBLE_MARGIN);
-  }
-
-  if (scaledHeight <= viewport.height) {
-    panY = (viewport.height - scaledHeight) / 2;
-  } else {
-    panY = clamp(panY, PAN_VISIBLE_MARGIN - scaledHeight, viewport.height - PAN_VISIBLE_MARGIN);
-  }
+  const panX = clamp(state.panX, PAN_VISIBLE_MARGIN - scaledWidth, viewport.width - PAN_VISIBLE_MARGIN);
+  const panY = clamp(state.panY, PAN_VISIBLE_MARGIN - scaledHeight, viewport.height - PAN_VISIBLE_MARGIN);
 
   return { ...state, panX, panY };
 }

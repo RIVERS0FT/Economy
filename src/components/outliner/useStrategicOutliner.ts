@@ -12,7 +12,6 @@ export interface StrategicOutlinerPin {
 
 interface StoredStrategicOutlinerState {
   version: 1;
-  collapsed: boolean;
   collapsedSections: StrategicOutlinerSectionId[];
   pins: StrategicOutlinerPin[];
 }
@@ -32,11 +31,6 @@ function storageKey(userId: number) {
   return `economy:strategic-outliner:v${STORAGE_VERSION}:${userId}`;
 }
 
-function defaultCollapsed() {
-  if (typeof window === 'undefined') return false;
-  return window.matchMedia('(min-width: 721px) and (max-width: 1439px)').matches;
-}
-
 function normalizePin(value: unknown): StrategicOutlinerPin | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const candidate = value as Partial<StrategicOutlinerPin>;
@@ -54,7 +48,6 @@ function normalizePin(value: unknown): StrategicOutlinerPin | null {
 function loadState(userId: number): StoredStrategicOutlinerState {
   const fallback: StoredStrategicOutlinerState = {
     version: STORAGE_VERSION,
-    collapsed: defaultCollapsed(),
     collapsedSections: [],
     pins: [],
   };
@@ -73,7 +66,6 @@ function loadState(userId: number): StoredStrategicOutlinerState {
       : [];
     return {
       version: STORAGE_VERSION,
-      collapsed: typeof parsed.collapsed === 'boolean' ? parsed.collapsed : fallback.collapsed,
       collapsedSections: [...new Set(collapsedSections)],
       pins: [...new Map(pins.map((pin) => [pin.key, pin])).values()],
     };
@@ -113,10 +105,6 @@ export function useStrategicOutliner(userId: number) {
     }
   }, [state, userId]);
 
-  const setCollapsed = useCallback((collapsed: boolean) => {
-    setState((current) => current.collapsed === collapsed ? current : { ...current, collapsed });
-  }, []);
-
   const toggleSection = useCallback((section: StrategicOutlinerSectionId) => {
     setState((current) => {
       const next = new Set(current.collapsedSections);
@@ -150,8 +138,6 @@ export function useStrategicOutliner(userId: number) {
   }, []);
 
   return {
-    collapsed: state.collapsed,
-    setCollapsed,
     collapsedSections: new Set(state.collapsedSections),
     toggleSection,
     pins: state.pins,
