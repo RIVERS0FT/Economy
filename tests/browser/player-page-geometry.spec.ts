@@ -201,17 +201,17 @@ test.describe('player page safe geometry', () => {
       await page.setViewportSize(viewport);
       await openPreview(page);
       await selectPlayerPage(page, buildings);
-      await expect(page.locator('.global-operation-metrics')).toBeVisible();
+      await expect(page.locator('.global-facility-catalog-grid')).toBeVisible();
 
       const geometry = await readPageGeometry(page);
       expectSafePageGeometry(geometry);
 
-      const metrics = await page.evaluate(() => {
-        const grid = document.querySelector<HTMLElement>('.global-operation-metrics');
+      const catalog = await page.evaluate(() => {
+        const grid = document.querySelector<HTMLElement>('.global-facility-catalog-grid');
         const cards = grid
-          ? Array.from(grid.querySelectorAll<HTMLElement>(':scope > .ui-metric-card'))
+          ? Array.from(grid.querySelectorAll<HTMLElement>(':scope > .global-facility-catalog-card'))
           : [];
-        if (!grid || cards.length !== 4) throw new Error('buildings metrics fixture is incomplete');
+        if (!grid || cards.length < 3) throw new Error('buildings catalog fixture is incomplete');
         const gridBox = grid.getBoundingClientRect();
         const boxes = cards.map((card) => card.getBoundingClientRect());
         return {
@@ -220,17 +220,17 @@ test.describe('player page safe geometry', () => {
         };
       });
 
-      expect(metrics.grid.left).toBeGreaterThanOrEqual(geometry.contentLeft - 1);
-      expect(metrics.grid.right).toBeLessThanOrEqual(geometry.contentRight + 1);
-      for (const card of metrics.cards) {
-        expect(card.left).toBeGreaterThanOrEqual(metrics.grid.left - 1);
-        expect(card.right).toBeLessThanOrEqual(metrics.grid.right + 1);
+      expect(catalog.grid.left).toBeGreaterThanOrEqual(geometry.contentLeft - 1);
+      expect(catalog.grid.right).toBeLessThanOrEqual(geometry.contentRight + 1);
+      for (const card of catalog.cards) {
+        expect(card.left).toBeGreaterThanOrEqual(catalog.grid.left - 1);
+        expect(card.right).toBeLessThanOrEqual(catalog.grid.right + 1);
       }
 
       if (viewport.width <= 720) {
-        expect(metrics.cards[0].top).toBeCloseTo(metrics.cards[1].top, 0);
-        expect(metrics.cards[2].top).toBeGreaterThan(metrics.cards[0].bottom);
-        expect(metrics.cards[2].top).toBeCloseTo(metrics.cards[3].top, 0);
+        expect(catalog.cards[0].top).toBeCloseTo(catalog.cards[1].top, 0);
+        expect(catalog.cards[0].top).toBeCloseTo(catalog.cards[2].top, 0);
+        expect(catalog.cards[3]?.top ?? Number.POSITIVE_INFINITY).toBeGreaterThan(catalog.cards[0].bottom);
       }
     }
   });
