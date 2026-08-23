@@ -18,28 +18,15 @@ Run `npm audit` for details.
 无限仓库防回退验证通过：容量机制保持退役，州级仓库只读，在线自动交易唯一归属市场。
 地区建筑验证通过：建设卡优先、三列 4:5 工厂卡、二级详情、正文分区导航、标题高度稳定与紧凑开关均已锁定。
 统一工厂配方与地区卡片验证通过：目录顺序、三列 4:5 工厂卡、二级详情、统一生产设置与共享移动基础设施均已锁定。
-页面内容与职责验证通过：既有页面职责检查保持生效，一级市场/建筑锁定全局视图，州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。
-
-> economy@0.4.0 typecheck
-> tsc --noEmit
-
-
-> economy@0.4.0 build
-> node scripts/verify-contract-renewal-economic-events.mjs && npm run verify:provincial-economy && npm run verify:architecture && npm run test:nginx-config && npm run server:check && npm run server:test && tsc && vite build
-
-Contract renewal and economic event verification passed.
-
-> economy@0.4.0 verify:provincial-economy
-> node scripts/verify-provincial-economy.mjs
-
-地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、州级经济隔离、隐藏州级上下文页、静态完整 SVG 世界面、州面与中文州名共享同一合成相机、缩放和平移热路径只写单次 transform、几何在手势期间不可变、屏外州缩小 active 阶段即可重新进入、空白双击／双触重置和移动 Tooltip 边界均已锁定。
-
-> economy@0.4.0 verify:architecture
-> npm run verify:repository-text-format && node --experimental-strip-types scripts/verify-money-precision.mjs && node --experimental-strip-types scripts/verify-order-book-decimal-levels.mjs && node scripts/verify-document-authority.mjs && node scripts/verify-client-state-version.mjs && node scripts/verify-order-matching-core.mjs && node scripts/verify-system-market.mjs && node scripts/verify-provincial-unlock-transport.mjs && npm run verify:province-map-focus && node scripts/verify-market-action-latency.mjs && node --experimental-strip-types scripts/verify-runtime-architecture.mjs && node scripts/verify-state-delivery-capacity.mjs && npm run verify:client-update-recovery && npm run verify:client-response && node scripts/verify-authentication-cache.mjs && node scripts/verify-email-registration.mjs && npm run verify:stress && node scripts/verify-scroll-ownership.mjs && node scripts/verify-gems-invitations-and-bans.mjs && node scripts/verify-daily-check-in.mjs && node scripts/verify-banking.mjs && node scripts/verify-weekly-cash-settlement.mjs && node scripts/verify-gem-shop.mjs && npm run verify:local-preview && node scripts/verify-page-content.mjs && node scripts/verify-auth-three-layer.mjs && node scripts/verify-game-three-layer.mjs && node scripts/verify-open-glass-sampling.mjs && npm run verify:navigation-badges && npm run verify:notifications && node scripts/verify-game-tutorial.mjs && node scripts/verify-online-auto-sell.mjs && node scripts/verify-assets-page.mjs && node scripts/verify-settings-layout.mjs && node scripts/verify-save-deletion.mjs && node --experimental-strip-types scripts/verify-display-format.mjs && node scripts/verify-ui-architecture-runner.mjs && npm run verify:echarts && node scripts/verify-page-section-spacing.mjs && npm run verify:product-artwork && npm run verify:facility-artwork && node scripts/verify-form-state-isolation.mjs && npm run verify:facility-unlock-selects && node scripts/verify-form-controls.mjs && npm run verify:production-config-visual && node scripts/verify-market-order-entry-compact.mjs && node scripts/verify-contract-layout.mjs && node scripts/verify-contract-audit.mjs && node scripts/verify-contract-types.mjs && node scripts/verify-currency-svg.mjs && node scripts/verify-mobile-touch-feedback.mjs && node scripts/verify-interaction-modality.mjs && node scripts/verify-virtual-list-scroll-chaining.mjs && node scripts/verify-overlay-scrollbars.mjs && node scripts/verify-overview-content.mjs && node scripts/verify-industry-catalog.mjs && node scripts/verify-production-methods.mjs && node scripts/verify-c1-input-balance.mjs && node scripts/verify-unified-factory-recipes-grid.mjs && npm run verify:production-settlement && npm run verify:production-lazy-settlement && node scripts/verify-production-desktop-layout.mjs && node scripts/verify-staple-crops-demand.mjs && node scripts/verify-market-reserve-operations.mjs && node --experimental-strip-types scripts/verify-market-assets.mjs && node scripts/verify-market-page-layout.mjs && npm run verify:market-desktop-cleanup && node scripts/verify-local-trade-privacy.mjs && node scripts/verify-market-sell-fee.mjs && node scripts/verify-leaderboards.mjs && node --experimental-strip-types scripts/verify-market-chart.mjs && node scripts/verify-liquid-glass-chrome.mjs && node scripts/verify-mobile-status-value-fit.mjs && node scripts/verify-desktop-primary-surfaces.mjs && node scripts/verify-authoritative-countdowns.mjs && node scripts/verify-primary-surface-insets.mjs && node scripts/verify-game-shell-layout.mjs && node scripts/verify-sidebar-navigation-collapse.mjs && node scripts/verify-mobile-page-sheet.mjs && node scripts/verify-warehouse-expansion.mjs && npm run verify:research && npm run verify:facility-auto-procure && node scripts/verify-facility-groups.mjs && node --experimental-strip-types scripts/verify-recipe-profit-analysis.mjs && node scripts/verify-asset-auctions.mjs && node scripts/verify-gift-code-batches.mjs && node scripts/verify-admin-navigation.mjs && npm run verify:population-policy-publishing && node scripts/verify-admin-player-statistics.mjs && npm run verify:gameplay-decision-support && node scripts/verify-runtime-efficiency.mjs && npm run verify:authoritative-hotpaths && node scripts/verify-runtime-reliability.mjs && node scripts/verify-deployment-storage.mjs && node scripts/verify-readonly-database-diagnostics.mjs && node scripts/verify-production-database-maintenance.mjs && node scripts/verify-mobile-facility-pull-refresh.mjs
-
-
-> economy@0.4.0 verify:repository-text-format
-> node scripts/verify-repository-text-format.mjs
-
-仓库文本格式验证失败：
-- .codex/last-run.log 的仓库行尾不是 LF: -text
+页面内容与职责验证失败:
+- tests/browser/all-pages-preview.spec.ts 缺少: toHaveAttribute('data-local-game-preview', 'true')
+- tests/browser/all-pages-preview.spec.ts 缺少: sidebar-nav-button')).toHaveCount(9)
+- tests/browser/all-pages-preview.spec.ts 缺少: sidebar-footer').getByRole('button', { name: '设置' })).toHaveCount(1)
+- tests/browser/all-pages-preview.spec.ts 缺少: expect(apiRequests).toEqual([])
+- tests/browser/all-pages-preview.spec.ts 缺少: page.locator('.leaderboard-board-card:visible')).toHaveCount(4)
+- tests/browser/all-pages-preview.spec.ts 缺少: page.locator('.leaderboard-board-card:visible')).toHaveCount(1)
+- tests/browser/all-pages-preview.spec.ts 缺少: toHaveAttribute('aria-label', '选择排行榜')
+- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: | 建筑 | `buildings` | `BuildingsPage` |
+- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 页面主标题固定为“{州级地区全称}建筑”
+- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 市场目录固定提供“市场行情／自动交易”两个工作区
+- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 邀请卡唯一归属商店，只展示玩家自己的专属分享链接、永久邀请码
