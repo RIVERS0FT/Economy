@@ -61,8 +61,12 @@ for (const path of [
   'src/components/shell/StrategicWorkspace.tsx',
   'src/styles/global-operation-pages.css',
   'src/styles/facility-artwork.css',
+  'src/styles/design-system.css',
+  'src/styles/regional-entity-page-title.css',
+  'src/styles/production-surface.css',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md',
+  'docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md',
 ]) requireFile(path);
 forbidFile('src/styles/map-zoom-controls.css');
 
@@ -83,11 +87,40 @@ for (const text of [
 for (const text of [
   '一级“建筑”全局页的默认内容顺序固定为“全局工厂目录 → 地区建筑”',
   '全局工厂目录直接位于页面内容区，不使用 `PagePanel` 外层卡片',
-  '每张全局目录卡统一使用正式 `FacilityIcon` 场景插画作为 `4:5` 主视觉',
+  '全局工厂目录固定使用纵向列表行',
+  '每行使用正式 `FacilityIcon` 场景插画作为紧凑缩略图',
+  '地区建筑入口同样固定使用纵向列表行',
   '跨州单厂平均利润必须逐州复用地区工厂现有利润口径',
   '再按 `scope.physicalCount` 对各州单厂利润加权',
   '任一参与州缺少当前配方所需商品的最近真实成交价时，全局值统一显示 `—`',
 ]) requireText('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md', text);
+
+for (const text of [
+  '所有玩家 `PageLayout` 标题统一使用 `design-system.css` 的 `--player-page-title-track-height: 40px`',
+  '普通单行标题统一使用 `--font-size-player-page-title`',
+  '建筑页不得再通过 `body:has(...)`',
+]) requireText('docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md', text);
+
+for (const text of [
+  '--font-size-player-page-title: 1.25rem;',
+  '--player-page-title-track-height: 40px;',
+  '.page-heading--player-navigation .page-heading-title {',
+  'height: var(--player-page-title-track-height);',
+  '.page-heading--player-navigation .page-heading-title > h1 {',
+  'font-size: var(--font-size-player-page-title);',
+  'text-overflow: ellipsis;',
+  'white-space: nowrap;',
+]) requireText('src/styles/design-system.css', text);
+requireText(
+  'src/styles/regional-entity-page-title.css',
+  'height: var(--player-page-title-track-height);',
+);
+for (const text of [
+  '--size-control-md',
+  '--size-control-sm',
+  'body:has(.regional-buildings-management) .page-heading--player-navigation .page-heading-title',
+  'body:has(.facility-cluster-detail-page) .page-heading--player-navigation .page-heading-title',
+]) forbidText('src/styles/production-surface.css', text);
 
 for (const text of [
   "market: loadGlobalMarketPage",
@@ -124,9 +157,11 @@ for (const [path, expected] of [
     '<EmbeddedBuildingsPage',
     'onDetailFacilityChange={setFacilityDetailTypeId}',
     'className="global-facility-catalog"',
-    'className="global-facility-catalog-grid"',
-    'className="global-facility-catalog-card"',
-    '<FacilityIcon facilityTypeId={row.facilityTypeId} className="global-facility-catalog-card__artwork" />',
+    'className="global-facility-catalog-list"',
+    'className="global-facility-catalog-row"',
+    '<FacilityIcon facilityTypeId={row.facilityTypeId} className="global-facility-catalog-row__artwork" />',
+    'className="global-province-list"',
+    'className="global-province-row"',
     'resolveFacilityProfitPresentation({',
     'resolveFacilityDetailRecipeState({ group, type })',
     'currentFormulaScope(group, game.lastProcessedAt)',
@@ -145,32 +180,39 @@ for (const text of [
   '<WidgetHeading title="当前经营州"',
   '<PagePanel>\n          <WidgetHeading title="全局工厂目录"',
   'global-operation-summary-row',
+  'global-facility-catalog-grid',
+  'global-facility-catalog-card',
+  'global-province-grid',
+  'global-province-card',
   '<small>运行中</small><strong>{formatNumber(row.runningCount)}</strong>',
   '分布州数',
   'provinceIds',
 ]) forbidText('src/pages/GlobalBuildingsPage.tsx', text);
 
 for (const text of [
-  '.global-facility-catalog-grid',
-  '.global-facility-catalog-card {',
-  '.global-facility-catalog-card::before',
-  '.global-facility-catalog-card__artwork',
-  '.global-facility-catalog-card__profit.is-positive',
-  '.global-facility-catalog-card__profit.is-negative',
-  'grid-template-columns: repeat(3, minmax(0, 1fr));',
-  'aspect-ratio: 4 / 5;',
+  '.global-facility-catalog-list,',
+  '.global-facility-catalog-row {',
+  '.global-facility-catalog-row__artwork {',
+  '.global-facility-catalog-row__profit.is-positive',
+  '.global-facility-catalog-row__profit.is-negative',
+  '.global-province-list > li {',
+  '.global-province-row {',
+  'grid-template-columns: repeat(2, minmax(0, 1fr));',
+  'border-bottom: 1px solid var(--color-divider);',
 ]) requireText('src/styles/global-operation-pages.css', text);
 for (const text of [
   'global-operation-metrics',
   'global-current-scope-summary',
   'global-operation-summary-row',
   'global-operation-summary-artwork',
+  '.global-facility-catalog-grid',
+  '.global-facility-catalog-card {',
+  '.global-province-grid',
+  '.global-province-card {',
 ]) forbidText('src/styles/global-operation-pages.css', text);
 
-for (const text of [
-  '.global-facility-catalog-card,',
-  '.global-facility-catalog-card .global-facility-catalog-card__artwork',
-]) requireText('src/styles/facility-artwork.css', text);
+requireText('src/styles/facility-artwork.css', '.global-facility-catalog-row,');
+forbidText('src/styles/facility-artwork.css', '.global-facility-catalog-card,');
 
 for (const text of [
   'StrategicMapZoomControls',
@@ -186,4 +228,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('页面内容与职责验证通过：一级市场/建筑锁定全局视图；全局建筑直接展示插画工厂目录、跨州平均利润与地区入口；州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。');
+console.log('页面内容与职责验证通过：一级市场/建筑锁定全局视图；全局建筑使用工厂与地区纵向列表并保留跨州平均利润；所有玩家 PageLayout 共用 40px 标题轨道与紧凑单行标题；州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。');

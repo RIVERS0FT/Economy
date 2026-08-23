@@ -1,4 +1,4 @@
-/* Final authority for building-page title/pill geometry, regional factory cards,
+/* Final authority for building-page pill geometry, regional factory cards,
  * and the in-page factory detail presentation.
  * Primary surface padding is owned by primary-surfaces.css. */
 .panel.production-surface {
@@ -139,21 +139,6 @@
   overflow: visible;
 }
 
-/* Regional list/detail transitions share one fixed title track. Entity detail
- * titles may use two internal lines, but the fixed header never grows or collapses. */
-body:has(.regional-buildings-management) .page-heading--player-navigation .page-heading-title,
-body:has(.facility-cluster-detail-page) .page-heading--player-navigation .page-heading-title,
-.page-heading-title:has(> .province-page-title) {
-  height: var(--size-control-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  line-height: 1;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
 .province-page-title,
 .province-facility-detail-title {
   display: block;
@@ -190,12 +175,6 @@ body:has(.facility-cluster-detail-page) .page-heading--player-navigation .page-h
 
   .facility-cluster-detail-shell.facility-cluster-detail-page {
     display: flex;
-  }
-
-  body:has(.regional-buildings-management) .page-heading--player-navigation .page-heading-title,
-  body:has(.facility-cluster-detail-page) .page-heading--player-navigation .page-heading-title,
-  .page-heading-title:has(> .province-page-title) {
-    height: var(--size-control-sm);
   }
 
   .province-facility-detail-title {
