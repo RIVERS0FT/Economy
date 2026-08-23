@@ -1,0 +1,60 @@
+name: Codex Sync Page Responsibility Verifiers
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.head_ref == 'codex/repeat-save-delete-gift-shop'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/repeat-save-delete-gift-shop
+          fetch-depth: 0
+
+      - name: Update stale page responsibility checks
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              'scripts/verify-email-registration.mjs': [
+                  ('| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与每日终端动态报价兑换普通货币 |', '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石、礼品码兑换与每日终端动态报价兑换普通货币 |'),
+                  ('| 设置 | `settings` | `SettingsPage` | 资料、偏好、教程控制、礼品和退出 |', '| 设置 | `settings` | `SettingsPage` | 资料、偏好、教程控制、存档管理和退出 |'),
+              ],
+              'scripts/verify-daily-check-in.mjs': [
+                  ('邀请获取宝石与每日终端动态报价兑换普通货币', '邀请获取宝石、礼品码兑换与每日终端动态报价兑换普通货币'),
+              ],
+              'scripts/verify-page-content-base.mjs': [
+                  ('| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与每日终端动态报价兑换普通货币 |', '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石、礼品码兑换与每日终端动态报价兑换普通货币 |'),
+                  ('| 设置 | `settings` | `SettingsPage` | 资料、偏好、教程控制、礼品和退出 |', '| 设置 | `settings` | `SettingsPage` | 资料、偏好、教程控制、存档管理和退出 |'),
+              ],
+          }
+
+          for path, entries in replacements.items():
+              target = Path(path)
+              text = target.read_text(encoding='utf-8')
+              for old, new in entries:
+                  if old not in text:
+                      raise SystemExit(f'{path}: stale verifier anchor missing: {old}')
+                  text = text.replace(old, new)
+              target.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit verifier synchronization and remove temporary workflow
+        shell: bash
+        run: |
+          git rm .github/workflows/codex-sync-page-verifiers.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/verify-email-registration.mjs scripts/verify-daily-check-in.mjs scripts/verify-page-content-base.mjs
+          git diff --cached --check
+          git commit -m "同步页面职责防回退检查"
+          git push origin HEAD:codex/repeat-save-delete-gift-shop
