@@ -68,5 +68,13 @@ replace_if_present(
     "'title={`${provinceName} · ${assetName}`}'",
     "'<RegionalEntityPageTitle entityName={assetName} regionName={provinceName} />'",
 )
+replace_if_present(
+    'scripts/verify-recipe-profit-analysis.mjs',
+    '''  "typeof entry.marketPrice === 'number'\\n                          ? <CurrencyAmount>{formatCurrency(entry.marketPrice)}</CurrencyAmount>",
+''',
+    '''  "typeof entry.marketPrice === 'number'",
+  '<CurrencyAmount>{formatCurrency(entry.marketPrice)}</CurrencyAmount>',
+''',
+)
 
 print('follow-up regional market validation fixes applied')
