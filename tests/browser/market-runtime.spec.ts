@@ -277,7 +277,7 @@ test('market medium and narrow layouts keep the trade card responsive without ho
   expect(priceMatch).not.toBeNull();
   const expectedPrice = Number(priceMatch![1].replaceAll(',', ''));
   await firstAsk.click();
-  await expect.poll(async () => Number(await page.getByRole('textbox', { name: '价格' }).inputValue())).toBe(expectedPrice);
+  await expect.poll(async () => Number(await page.getByRole('textbox', { name: '价格', exact: true }).inputValue())).toBe(expectedPrice);
   expect(await firstAsk.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(43);
   expect(pageErrors).toEqual([]);
 });
@@ -321,7 +321,7 @@ test('market steppers and compact quick quantities preserve price and quantity l
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active');
 
-  const priceInput = page.getByRole('textbox', { name: '价格' });
+  const priceInput = page.getByRole('textbox', { name: '价格', exact: true });
   const quantityInput = page.getByRole('spinbutton', { name: '数量' });
   await expect(priceInput).toHaveValue('2');
   await page.getByRole('button', { name: '价格增加 0.01' }).click();
@@ -473,7 +473,7 @@ test('market order book keeps sell five to buy five sequence and fills price wit
   await expect(askRow.locator('.market-book-level')).toHaveText('卖1');
   await expect(bidRow.locator('.market-book-level')).toHaveText('买1');
 
-  const priceInput = page.getByRole('textbox', { name: '价格' });
+  const priceInput = page.getByRole('textbox', { name: '价格', exact: true });
   await expect(priceInput).toHaveValue('2');
   await askRow.click();
   await expect(priceInput).toHaveValue('13');
