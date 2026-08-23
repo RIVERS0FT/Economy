@@ -67,10 +67,14 @@ if (failures.length === 0) {
     '.global-operation-page {',
     'width: 100%;',
     'max-width: 100%;',
+    'container-type: inline-size;',
     '.global-facility-catalog-list,',
     '.global-facility-catalog-row {',
+    'grid-template-columns: minmax(0, 1.6fr) minmax(0, .8fr) minmax(0, .5fr);',
     '.global-province-list > li {',
     '.global-province-row {',
+    'grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, .6fr)) 1rem;',
+    '@container (max-width: 520px)',
     '@media (max-width: 720px)',
     '.global-facility-catalog-row {\n    grid-template-columns: repeat(2, minmax(0, 1fr));',
     '.global-province-row {\n    grid-template-columns: repeat(2, minmax(0, 1fr));',
@@ -113,6 +117,8 @@ if (failures.length === 0) {
     '业务页面 CSS 不得',
     '建筑页已退役顶部四项汇总',
     '全局工厂目录和地区建筑入口均以纵向列表作为安全几何目标',
+    '全局建筑列表的响应不能只依赖浏览器 viewport',
+    '当真实页面承载宽度不大于 `520px` 时',
     '全局建筑页已退役四项统计卡对应的 `.global-operation-metrics` 布局规则',
     '`tests/browser/player-page-geometry.spec.ts`',
     '并对全局建筑两类纵向列表执行边界与跨断点真实几何回归',
@@ -163,4 +169,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、承载面局部间距、跨端页面安全宽度、正文顶部留白、全局建筑双列表跨断点几何、旧类兼容、样式与设计文档权威均已锁定。');
+console.log('一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、承载面局部间距、跨端页面安全宽度、正文顶部留白、全局建筑双列表按真实承载宽度重排、旧类兼容、样式与设计文档权威均已锁定。');
