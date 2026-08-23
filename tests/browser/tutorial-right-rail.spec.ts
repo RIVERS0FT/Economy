@@ -116,13 +116,11 @@ test('desktop strategic outliner collapse and pins persist through reload', asyn
   await outliner.locator('.strategic-outliner__context-pin').click();
   await outliner.locator('.strategic-outliner__collapse').click();
   await expect(outliner).toHaveAttribute('data-collapsed', 'true');
-  const collapsedBox = await requireBox(outliner);
-  expect(collapsedBox.width).toBeCloseTo(44, 0);
+  await expect.poll(async () => (await requireBox(outliner)).width).toBeCloseTo(44, 0);
 
   await page.reload();
   await expect(outliner).toHaveAttribute('data-collapsed', 'true');
-  const reloadedBox = await requireBox(outliner);
-  expect(reloadedBox.width).toBeCloseTo(44, 0);
+  await expect.poll(async () => (await requireBox(outliner)).width).toBeCloseTo(44, 0);
 
   await outliner.locator('.strategic-outliner__collapse').click();
   await expect(outliner).toHaveAttribute('data-collapsed', 'false');
