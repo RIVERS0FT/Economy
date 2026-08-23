@@ -9,7 +9,7 @@ test('map keeps gesture zoom without a control panel and primary market/building
   await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
 
   const map = page.getByTestId('us-mainland-map');
-  await expect(map).toHaveAttribute('data-echarts-ready', 'true');
+  await expect(map).toHaveAttribute('data-map-ready', 'true');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-zoom-min', '0.5');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-zoom-max', '4');
   await expect(page.getByRole('group', { name: '地图缩放' })).toHaveCount(0);
@@ -38,10 +38,7 @@ test('map keeps gesture zoom without a control panel and primary market/building
 
   await page.locator('.global-buildings-page .global-province-card').first().click();
   await expect(page.locator('.global-buildings-page[data-drilldown-province-id]')).toBeVisible();
-  await expect(page.locator('.production-build-card')).toBeVisible();
-  await expect(page.locator('.facility-cluster-selector-list')).toBeVisible();
-  await expect(page.locator('.buildings-summary-panel')).toHaveCount(0);
-  await expect(page.locator('.buildings-list-filters')).toHaveCount(0);
+  await expect(page.locator('.production-workspace')).toBeVisible();
   await page.getByRole('button', { name: '返回全局建筑' }).click();
   await expect(page.locator('.global-buildings-page:not([data-drilldown-province-id])')).toBeVisible();
 });

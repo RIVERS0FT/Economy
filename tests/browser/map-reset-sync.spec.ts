@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 async function readOutlineGeometry(page: Page) {
   return page.evaluate(() => {
-    const pathRects = [...document.querySelectorAll<SVGGraphicsElement>('.province-map-echart svg:not(.province-map-label-overlay) path')]
+    const pathRects = [...document.querySelectorAll<SVGGraphicsElement>('.province-map-region')]
       .map((path) => path.getBoundingClientRect())
       .filter((rect) => rect.width > 0 && rect.height > 0);
     if (pathRects.length === 0) throw new Error('map outline paths are missing');
@@ -34,10 +34,10 @@ async function findMapBlankPoint(page: Page) {
   return page.evaluate(() => {
     for (let y = 80; y < window.innerHeight - 80; y += 12) {
       for (let x = 80; x < window.innerWidth - 80; x += 12) {
-        const target = document.elementFromPoint(x, y);
-        if (target instanceof SVGSVGElement && target.closest('.economy-chart__canvas')) {
-          return { x, y };
-        }
+        const elements = document.elementsFromPoint(x, y);
+        const insideCanvas = elements.some((element) => element.classList.contains('province-map-static-viewport'));
+        const hitsProvince = elements.some((element) => element.classList.contains('province-map-region'));
+        if (insideCanvas && !hitsProvince) return { x, y };
       }
     }
     throw new Error('no uncovered map blank point found');
@@ -45,25 +45,25 @@ async function findMapBlankPoint(page: Page) {
 }
 
 async function nextAnimationFrame(page: Page) {
-  await page.evaluate(() => new Promise<void>((resolve) => {
-    requestAnimationFrame(() => resolve());
-  }));
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 }
 
-test('blank double click resets map paths and province labels in the first frame', async ({ page }) => {
+test('blank double click resets the single compositor camera for paths and labels in the first frame', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
 
   const map = page.getByTestId('us-mainland-map');
-  const canvas = map.locator('.economy-chart__canvas');
-  await expect(map).toHaveAttribute('data-echarts-ready', 'true');
+  const canvas = map.locator('.province-map-static-viewport');
+  const camera = map.locator('.province-map-camera-surface');
+  await expect(map).toHaveAttribute('data-map-ready', 'true');
   await expect(canvas).toHaveAttribute('data-map-label-count', '48');
   await nextAnimationFrame(page);
 
   const baselineOutline = await readOutlineGeometry(page);
   const baselineLabelCenter = await provinceLabelVisualCenter(page, '150000');
   const layoutRevision = await canvas.getAttribute('data-map-label-layout-revision');
+  const baselinePathRevision = await canvas.getAttribute('data-map-path-revision');
 
   const mapBounds = await canvas.boundingBox();
   if (!mapBounds) throw new Error('map canvas bounds are missing');
@@ -73,7 +73,6 @@ test('blank double click resets map paths and province labels in the first frame
   );
   await page.mouse.wheel(0, -480);
   await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.05);
-  await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
 
   const zoomedOutline = await readOutlineGeometry(page);
   expect(zoomedOutline.right - zoomedOutline.left).toBeGreaterThan(
@@ -100,5 +99,7 @@ test('blank double click resets map paths and province labels in the first frame
   await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');
   await expect(canvas).toHaveAttribute('data-map-zoom-target', '1.00000');
   await expect(canvas).toHaveAttribute('data-map-zoom-active', 'false');
+  await expect(camera).toHaveAttribute('style', /scale\(1\)/);
   await expect(canvas).toHaveAttribute('data-map-label-layout-revision', layoutRevision || '');
+  await expect(canvas).toHaveAttribute('data-map-path-revision', baselinePathRevision || '');
 });

@@ -63,7 +63,7 @@ test('account-free game shell navigates all ten visible business pages and close
 
   await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
   const map = page.getByTestId('us-mainland-map');
-  await expect(map).toHaveAttribute('data-echarts-ready', 'true');
+  await expect(map).toHaveAttribute('data-map-ready', 'true');
   await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
   await expect(page.locator('.province-map-page')).toHaveCount(1);
   await expect(page.locator('[data-player-page-navigation="true"]')).toHaveCount(0);
@@ -214,7 +214,7 @@ test('page navigation unfolds only the active page while the persistent map keep
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('?preview=game');
   const map = page.getByTestId('us-mainland-map');
-  await expect(map).toHaveAttribute('data-echarts-ready', 'true');
+  await expect(map).toHaveAttribute('data-map-ready', 'true');
 
   const before = await map.evaluate((element) => {
     (element as HTMLElement).dataset.transitionProbe = 'stable';
