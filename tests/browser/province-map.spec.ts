@@ -131,6 +131,14 @@ test('state selection opens local context without resetting the static camera', 
   await expect(tabs.getByRole('tab', { name: '市场', exact: true })).toBeVisible();
   await expect(tabs.getByRole('tab', { name: '建筑', exact: true })).toBeVisible();
   await expect(tabs.getByRole('tab', { name: '仓库', exact: true })).toBeVisible();
+
+  await tabs.getByRole('tab', { name: '建筑', exact: true }).click();
+  await expect(tabs.getByRole('tab', { name: '建筑', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.production-build-card')).toBeVisible();
+  await expect(page.locator('.facility-cluster-selector-list')).toBeVisible();
+  await expect(page.locator('.buildings-summary-panel')).toHaveCount(0);
+  await expect(page.locator('.buildings-list-filters')).toHaveCount(0);
+
   await tabs.getByRole('tab', { name: '仓库', exact: true }).click();
   await expect(page.locator('.province-warehouse-section')).toBeVisible();
 
