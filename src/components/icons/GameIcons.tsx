@@ -148,6 +148,10 @@ export function BackIcon(props: GameIconProps) {
   return <GameIcon {...props}><path d="m10 6-6 6 6 6" /><path d="M4 12h16" /></GameIcon>;
 }
 
+export function PinIcon(props: GameIconProps) {
+  return <GameIcon {...props}><path d="M8 3h8l-1 6 3 3H6l3-3-1-6Z" /><path d="M12 12v9" /></GameIcon>;
+}
+
 export function CloseIcon(props: GameIconProps) {
   return <GameIcon {...props}><path d="m6 6 12 12M18 6 6 18" /></GameIcon>;
 }

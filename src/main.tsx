@@ -59,6 +59,7 @@ import './styles/market-desktop-cleanup.css';
 import './styles/notification-center.css';
 import './styles/province-map.css';
 import './styles/strategic-game-shell.css';
+import './styles/strategic-outliner.css';
 import './styles/mobile-detail-sheet.css';
 import './styles/mobile-status-layout.css';
 
