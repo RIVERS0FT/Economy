@@ -294,7 +294,7 @@ check('src/components/charts/chartOptions.ts', ['appendToBody: false', 'confine:
 check('tests/browser/game-shell-layout.spec.ts', [
   "test.describe('persistent-map grand-strategy game shell'",
   'desktop shell keeps an 8px chrome gutter and one integrated workspace card over the persistent map',
-  'compact desktop keeps the persistent map, collapsed outliner rail, and overlay panel on the 8px strategic grid',
+  'compact desktop keeps the persistent map, expanded overlay outliner, and page panel on the 8px strategic grid',
   'short desktop keeps the persistent map and command chrome inside the viewport',
   'status bar owns game identity while the sidebar footer owns the settings entry',
   "toHaveCount(9)",
@@ -322,8 +322,11 @@ check('tests/browser/game-shell-layout.spec.ts', [
   'expect(layout.lensBar.top).toBeLessThan(layout.pageContent.bottom)',
   'expect(layout.lensBarParentIsMapLayer).toBe(true)',
   'expect(layout.outlinerCollapsed).toBe(false)',
+  'expect(layout.outliner.right - layout.outliner.left).toBeGreaterThanOrEqual(280)',
+  "not.toHaveAttribute('data-collapsed', 'true')",
+]);
+forbid('tests/browser/game-shell-layout.spec.ts', [
   'expect(layout.outlinerCollapsed).toBe(true)',
-  'toBeCloseTo(44, 0)',
 ]);
 check('tests/browser/admin-runtime.spec.ts', [
   'sidebarTopGap', 'workspaceTopGap', 'admin-command-bar-identity',
@@ -391,9 +394,9 @@ check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '桌面侧栏默认 `78px`',
   '`home`、`province`、`market`、`buildings`、`settings` 仍使用 `building`',
   '战略追踪器与页面路由生命周期解耦',
-  '`fullscreen` 只控制主页面的展示宽度',
+  '`fullscreen` 紧凑轨道固定为 `44px`',
   '“教程／进行中／关注／公开经济事件”四个可折叠分区',
-  '收起轨道固定为 `44px`',
+  '不得提供追踪器整体展开／收起按钮',
   '同一个 `StrategicOutliner` DOM 仅呈现“教程”分区',
   '研发页桌面与其他玩家页面统一使用 `workspaceCard` 外层容器',
   '`--strategic-compact-page-width: 56rem`',

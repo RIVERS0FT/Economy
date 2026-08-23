@@ -42,6 +42,7 @@ const files = {
   guide: 'src/components/GameGuideStrip.tsx',
   guideStyles: 'src/styles/game-guide.css',
   strategicStyles: 'src/styles/strategic-game-shell.css',
+  outlinerStyles: 'src/styles/strategic-outliner.css',
   sidebarStyles: 'src/styles/desktop-sidebar.css',
   mobileStyles: 'src/styles/mobile-status-navigation.css',
   mobileStatusStyles: 'src/styles/mobile-status-layout.css',
@@ -223,15 +224,17 @@ requireText(files.outliner, [
   'pendingItems.map',
   'economicCalendar?.events',
 ]);
+forbidText(files.outliner, ['className="strategic-outliner__collapse"', 'BackIcon']);
 requireText(files.outlinerStorage, [
   'economy:strategic-outliner:v',
+  'collapsedSections',
   "'province'",
   "'commodity'",
   "'facility'",
   "'auction'",
   "'contract'",
 ]);
-forbidText(files.outlinerStorage, ['lastTradePrice', 'inventory', 'completesAt']);
+forbidText(files.outlinerStorage, ['collapsed: boolean', 'defaultCollapsed', 'setCollapsed', 'lastTradePrice', 'inventory', 'completesAt']);
 requireText(files.guide, [
   "variant?: 'panel' | 'outliner'",
   "'game-guide-strip game-guide-strip--outliner'",
@@ -273,6 +276,12 @@ forbidText(files.strategicStyles, [
   '--strategic-event-rail-width',
   '.game-shell.strategic-tab-research .signed-in-shell__primary-card {',
   '.game-shell.strategic-tab-research .signed-in-shell__primary-card::before {',
+]);
+requireText(files.outlinerStyles, [
+  ':has(.strategic-page-host--fullscreen)',
+  'width: var(--strategic-outliner-collapsed-width);',
+  '--strategic-outliner-reserved-width: var(--strategic-outliner-collapsed-width);',
+  '.game-shell:not(:has(.strategic-page-host--fullscreen)) .strategic-outliner',
 ]);
 requireText(files.mobileStatusStyles, [
   ".game-shell .strategic-outliner[data-tutorial-visible='true']",
@@ -316,6 +325,7 @@ requireText(files.tutorialBrowser, [
   "toHaveAttribute('data-strategic-presentation', 'fullscreen')",
   "toHaveAttribute('data-browser-outliner-sentinel', 'persistent')",
   "toContain('blur(18px)')",
+  'width).toBeCloseTo(44, 0)',
   'desktop strategic outliner collapse and pins persist through reload',
   'mobile tutorial stays shell-owned inside the shared outliner while pages and notifications cover it',
   "page.locator('.overview-mobile-tutorial')).toHaveCount(0)",
@@ -345,8 +355,9 @@ requireText(files.design, [
   '“教程／进行中／关注／公开经济事件”四个可折叠分区',
   '整个追踪器只有 `.strategic-outliner__scroll` 一个纵向滚动根',
   'Outliner 变体不得带独立 `.panel` 外壳',
-  '收起轨道固定为 `44px`',
-  '`721px–1439px` 默认收起',
+  '`fullscreen` 紧凑轨道固定为 `44px`',
+  '不得提供追踪器整体展开／收起按钮',
+  '`721px–1439px` 普通页面继续只预留 `44px`',
   '同一个 `StrategicOutliner` DOM 仅呈现“教程”分区',
   '研发页桌面与其他玩家页面统一使用 `workspaceCard` 外层容器',
   '`--strategic-compact-page-width: 56rem`',
@@ -371,4 +382,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('纯 CSS 毛玻璃外壳验证通过：共享外壳、跨页面常驻战略追踪器、统一 workspaceCard、移动同一 Outliner 教程锚点与 SafeTooltip/ECharts Tooltip 均复用纯 CSS 毛玻璃材质，且旧 Liquid Glass 实现保持退役。');
+console.log('纯 CSS 毛玻璃外壳验证通过：共享外壳、跨页面常驻战略追踪器、fullscreen 自动 44px 紧凑轨道、统一 workspaceCard、移动同一 Outliner 教程锚点与 SafeTooltip/ECharts Tooltip 均复用纯 CSS 毛玻璃材质，且旧 Liquid Glass 实现保持退役。');

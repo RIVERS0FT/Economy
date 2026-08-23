@@ -9,7 +9,6 @@ import type { EconomicCalendarEvent } from '../../types';
 import { formatCurrency, formatDuration, formatNumber } from '../../utils/formatters';
 import { GameGuideStrip } from '../GameGuideStrip';
 import {
-  BackIcon,
   MapIcon,
   NavigationIcon,
   PinIcon,
@@ -400,7 +399,6 @@ export function StrategicOutliner({
     <aside
       className="strategic-outliner"
       aria-label="战略追踪器"
-      data-collapsed={preferences.collapsed ? 'true' : 'false'}
       data-tutorial-visible={showTutorial ? 'true' : 'false'}
       data-event-log-visible="true"
     >
@@ -419,15 +417,6 @@ export function StrategicOutliner({
           onClick={() => preferences.togglePin(contextPin)}
         >
           <PinIcon />
-        </button>
-        <button
-          type="button"
-          className="strategic-outliner__collapse"
-          aria-label={preferences.collapsed ? '展开追踪器' : '收起追踪器'}
-          aria-expanded={!preferences.collapsed}
-          onClick={() => preferences.setCollapsed(!preferences.collapsed)}
-        >
-          <BackIcon />
         </button>
       </header>
 
