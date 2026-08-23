@@ -241,13 +241,8 @@ function expectStrategicDesktopLayout(layout: ShellGeometry, panelGap: number) {
   expect(layout.outliner.right).toBeCloseTo(layout.workspace.right - panelGap, 0);
   expect(layout.outliner.top).toBeCloseTo(layout.primaryCard.top, 0);
   expect(layout.outliner.bottom).toBeCloseTo(layout.primaryCard.bottom, 0);
-  if (layout.viewportWidth >= 1440) {
-    expect(layout.outlinerCollapsed).toBe(false);
-    expect(layout.outliner.right - layout.outliner.left).toBeGreaterThanOrEqual(280);
-  } else {
-    expect(layout.outlinerCollapsed).toBe(true);
-    expect(layout.outliner.right - layout.outliner.left).toBeCloseTo(44, 0);
-  }
+  expect(layout.outlinerCollapsed).toBe(false);
+  expect(layout.outliner.right - layout.outliner.left).toBeGreaterThanOrEqual(280);
   expect(layout.contentGrid.left).toBeGreaterThanOrEqual(layout.pageContent.left);
   expect(layout.contentGrid.right).toBeLessThanOrEqual(layout.pageContent.right);
   expect(layout.primaryCardGap).toBeGreaterThan(0);
@@ -282,11 +277,13 @@ test.describe('persistent-map grand-strategy game shell', () => {
     expectStrategicDesktopLayout(await readShellGeometry(page), 8);
   });
 
-  test('compact desktop keeps the persistent map, collapsed outliner rail, and overlay panel on the 8px strategic grid', async ({ page }) => {
+  test('compact desktop keeps the persistent map, expanded overlay outliner, and page panel on the 8px strategic grid', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 900 });
     await page.goto('runtime-test.html?view=overview&scenario=empty');
     await expect(page.locator('.game-shell')).toBeVisible();
-    await expect(page.locator('.strategic-outliner')).toHaveAttribute('data-collapsed', 'true');
+    const outliner = page.locator('.strategic-outliner');
+    await expect(outliner).toBeVisible();
+    await expect(outliner).not.toHaveAttribute('data-collapsed', 'true');
 
     expectStrategicDesktopLayout(await readShellGeometry(page), 8);
   });
