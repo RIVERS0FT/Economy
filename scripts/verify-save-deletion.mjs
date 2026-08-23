@@ -209,7 +209,7 @@ if (failures.length === 0) {
     ['UI 设计', uiDesign, '存档管理'],
     ['服务器设计', serverDesign, 'economy_save_deletions'],
     ['服务器设计', serverDesign, '409 SAVE_EPOCH_MISMATCH'],
-    ['服务器设计', serverDesign, '旧标签页把操作写入新存档'],
+    ['服务器设计', serverDesign, '旧标签页作用于后续世代'],
     ['权威倒计时设计', countdownDesign, '浏览器文档生命周期内的页面存档世代锁'],
     ['权威倒计时设计', countdownDesign, '状态发布前完成世代校验'],
     ['管理员设计', adminDesign, '删除存档不得删除或重置'],
