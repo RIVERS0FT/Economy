@@ -65,14 +65,22 @@ test('market chart row fill height remains stable without resize feedback', asyn
 
   // The production market page is intentionally a one-third strategic card. Temporarily widen only
   // the test host so this regression still exercises the chart's real side-by-side row-fill path.
+  // The production DOM now puts the chart before trading, so both cards must explicitly share row 1;
+  // otherwise CSS Grid auto-placement can put the later trade card on row 2 despite fixed columns.
   const wideLayout = await page.addStyleTag({
     content: `
       .game-shell .signed-in-shell__primary-card { width: 100vw !important; }
       .market-page-surface .unified-market-grid {
         grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) !important;
       }
-      .market-page-surface .unified-market-grid > .market-trade-card { grid-column: 1 !important; }
-      .market-page-surface .unified-market-grid > .market-chart-card { grid-column: 2 !important; }
+      .market-page-surface .unified-market-grid > .market-trade-card {
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+      }
+      .market-page-surface .unified-market-grid > .market-chart-card {
+        grid-column: 2 !important;
+        grid-row: 1 !important;
+      }
       .market-page-surface .unified-market-grid > .market-account-panel { grid-column: 1 / -1 !important; }
     `,
   });

@@ -84,7 +84,7 @@ async function inspectChartAxis(chart: Locator) {
   });
 }
 
-test('market desktop layout keeps order entry and order book together above the chart in the compact page', async ({ page }) => {
+test('market desktop layout keeps market context and chart above the combined trade card in the compact page', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('market-runtime-test.html?scenario=active');
@@ -107,7 +107,7 @@ test('market desktop layout keeps order entry and order book together above the 
   await expect(page.locator('.market-trade-card')).toHaveCount(1);
   await expect(page.locator('.market-grid > .order-entry')).toHaveCount(0);
   await expect(page.locator('.market-grid > .single-order-book')).toHaveCount(0);
-  expect(chartCardBox.y).toBeGreaterThan(tradeBox.y + tradeBox.height - 2);
+  expect(tradeBox.y).toBeGreaterThan(chartCardBox.y + chartCardBox.height - 2);
   expect(Math.abs(chartCardBox.x - tradeBox.x)).toBeLessThan(3);
   expect(Math.abs(chartCardBox.width - tradeBox.width)).toBeLessThan(3);
   expect(Math.abs(orderBox.y - bookBox.y)).toBeLessThan(3);
@@ -200,7 +200,7 @@ test('market medium and narrow layouts keep the trade card responsive without ho
   const chartBox = await requireBox(page.locator('.market-chart-card'));
   expect(Math.abs(orderBox.y - bookBox.y)).toBeLessThan(3);
   expect(bookBox.x).toBeGreaterThan(orderBox.x + orderBox.width - 3);
-  expect(chartBox.y).toBeGreaterThan(tradeBox.y + tradeBox.height - 2);
+  expect(tradeBox.y).toBeGreaterThan(chartBox.y + chartBox.height - 2);
   expect(Math.abs(chartBox.x - tradeBox.x)).toBeLessThan(3);
   expect(Math.abs(chartBox.width - tradeBox.width)).toBeLessThan(3);
 
@@ -220,7 +220,7 @@ test('market medium and narrow layouts keep the trade card responsive without ho
   expect(narrowBook.x).toBeGreaterThan(narrowOrder.x + narrowOrder.width - 3);
   expect(narrowOrder.width / narrowBook.width).toBeGreaterThan(1.4);
   expect(narrowOrder.width / narrowBook.width).toBeLessThan(1.7);
-  expect(narrowChart.y).toBeGreaterThan(narrowTrade.y + narrowTrade.height - 2);
+  expect(narrowTrade.y).toBeGreaterThan(narrowChart.y + narrowChart.height - 2);
 
   const layout = await inspectMarketLayoutBounds(surface);
   expect(layout.pageScrollScrollWidth).toBeLessThanOrEqual(layout.pageScrollClientWidth + 1);
