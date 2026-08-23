@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { getCurrentUser, initializeEconomySession, type EconomySessionResponse } from '../api/auth';
 import { ApplicationLoadingState } from '../components/system/ApplicationLoadingState';
 import { RefreshPageButton } from '../components/system/RefreshPageButton';
@@ -88,6 +88,10 @@ function AuthenticatedApp() {
     ? 'critical'
     : 'normal';
   const inviteCode = invitationCodeFromLocation();
+  const handleSignedOut = useCallback(() => {
+    setUser(null);
+    setSession(null);
+  }, []);
 
   useLayoutEffect(() => {
     document.documentElement.dataset.appSurface = surface;
@@ -133,7 +137,7 @@ function AuthenticatedApp() {
   if (checking) {
     return (
       <ApplicationLoadingState>
-        正在连接统一账号服务…
+        正在连接服务器…
       </ApplicationLoadingState>
     );
   }
@@ -155,13 +159,13 @@ function AuthenticatedApp() {
     <Suspense
       fallback={(
         <ApplicationLoadingState>
-          正在加载金融帝国…
+          正在连接服务器…
         </ApplicationLoadingState>
       )}
     >
       {adminPath === 'main'
         ? <AdminApp user={user} />
-        : <GameApp user={user} onSignedOut={() => { setUser(null); setSession(null); }} />}
+        : <GameApp user={user} onSignedOut={handleSignedOut} />}
     </Suspense>
   );
 }

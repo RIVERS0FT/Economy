@@ -33,7 +33,7 @@ import type {
 } from '../types';
 import { canAcceptRevision } from './revisionGate.js';
 import type { StatePartitionName } from './stateDelivery.js';
-import { useGameAuthorityState } from './gameAuthorityStore';
+import { getGameAuthoritySnapshot, useGameAuthorityState } from './gameAuthorityStore';
 import { useDerivedGameData } from './useDerivedGameData';
 import { buildAssetAllocation } from '../utils/assetAllocation';
 import { defaultOrderPrice } from '../utils/defaultOrderPrice';
@@ -221,6 +221,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const checkInPendingRef = useRef(false);
   const orderPendingRef = useRef(false);
   const noticeTimerRef = useRef<number | null>(null);
+  const onSignedOutRef = useRef(onSignedOut);
   const playerNameDraft = useServerDraft({
     serverValue: game?.playerName ?? '',
     serverRevision: game?.lastProcessedAt ?? 0,
@@ -231,12 +232,16 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     [game, selectedProvinceId],
   );
 
+  useEffect(() => {
+    onSignedOutRef.current = onSignedOut;
+  }, [onSignedOut]);
+
   const handleUnauthorized = useCallback(() => {
     gameRef.current = null;
     revisionRef.current = null;
     resetGameStateDelivery();
-    onSignedOut();
-  }, [onSignedOut]);
+    onSignedOutRef.current();
+  }, []);
   const acceptState = useCallback((
     state: EconomyState,
     action: LocalActivityAction,
@@ -310,10 +315,21 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   useEffect(() => {
     refreshTaskRef.current?.controller.abort();
     refreshTaskRef.current = null;
+    setLocalActivity(loadLocalActivity(user.id));
+
+    const authoritySnapshot = getGameAuthoritySnapshot();
+    const canReuseAuthority = reloadVersion === 0
+      && authoritySnapshot.state?.userId === user.id
+      && Number.isInteger(authoritySnapshot.revision);
+    if (canReuseAuthority) {
+      gameRef.current = authoritySnapshot.state;
+      revisionRef.current = authoritySnapshot.revision;
+      return;
+    }
+
     gameRef.current = null;
     revisionRef.current = null;
     resetGameStateDelivery();
-    setLocalActivity(loadLocalActivity(user.id));
     void refresh();
   }, [refresh, reloadVersion, user.id]);
   useEffect(() => {
@@ -469,7 +485,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     }, 3_000);
   }
   async function showResult(actionResult: ActionResult | Promise<ActionResult>) { notify((await actionResult).message); }
-  async function signOut() { try { await logout(); } finally { resetGameStateDelivery(); onSignedOut(); } }
+  async function signOut() { try { await logout(); } finally { resetGameStateDelivery(); onSignedOutRef.current(); } }
 
   if (!game || !scopedGame || !derived) {
     if (loadError) return { status: 'error', message: loadError, retry: () => { setLoadError(''); setReloadVersion((current) => current + 1); } };
