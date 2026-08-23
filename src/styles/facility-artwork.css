@@ -27,7 +27,7 @@
 
 :is(
   .facility-cluster-selector-card,
-  .global-facility-catalog-card,
+  .global-facility-catalog-row,
   .facility-detail-artwork,
   .market-detail-hero__artwork,
   .asset-auction-icon,
@@ -45,7 +45,7 @@
 
 :is(
   .facility-cluster-selector-card,
-  .global-facility-catalog-card,
+  .global-facility-catalog-row,
   .facility-detail-artwork,
   .market-detail-hero__artwork,
   .asset-auction-icon,
@@ -137,7 +137,7 @@
 @media (prefers-reduced-data: reduce) {
   :is(
     .facility-cluster-selector-card,
-    .global-facility-catalog-card,
+    .global-facility-catalog-row,
     .facility-detail-artwork,
     .market-detail-hero__artwork,
     .asset-auction-icon,
@@ -166,8 +166,7 @@
     color: var(--color-text-secondary);
   }
 
-  .facility-cluster-selector-card .facility-cluster-icon,
-  .global-facility-catalog-card .global-facility-catalog-card__artwork {
+  .facility-cluster-selector-card .facility-cluster-icon {
     inset: 24%;
     width: 52%;
     height: 52%;
