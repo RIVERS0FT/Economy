@@ -9,9 +9,12 @@ const page = read('src/pages/BuildingsPage.tsx');
 const provincePage = read('src/pages/ProvincePage.tsx');
 const production = read('src/styles/facility-group-card-grid.css');
 const productionSurface = read('src/styles/production-surface.css');
+const designSystem = read('src/styles/design-system.css');
+const regionalEntityTitle = read('src/styles/regional-entity-page-title.css');
 const legacyIndustryStyles = read('src/styles/industry-system.css');
 const productionAlignmentDesign = read('docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md');
 const browserTest = read('tests/browser/buildings-ledger-layout.spec.ts');
+const pageGeometryTest = read('tests/browser/player-page-geometry.spec.ts');
 const runtimeHarness = read('tests/browser/runtime-harness.tsx');
 const chrome = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
 
@@ -93,13 +96,32 @@ for (const text of [
 ]) assert.equal(productionSurface.includes(text), true, `地区建筑最终样式缺少: ${text}`);
 
 for (const forbidden of [
+  '--size-control-md',
+  '--size-control-sm',
+  'body:has(.regional-buildings-management) .page-heading--player-navigation .page-heading-title',
+  'body:has(.facility-cluster-detail-page) .page-heading--player-navigation .page-heading-title',
+  '.page-heading-title:has(> .province-page-title)',
   ".facility-cluster-selector-card[data-status='running']::after",
   "content: '运行中';",
   "content: '异常';",
   "content: '已停止';",
   "content: '建设中';",
   ".facility-cluster-count::before",
-]) assert.equal(productionSurface.includes(forbidden), false, `工厂卡不得恢复横向账本文字: ${forbidden}`);
+]) assert.equal(productionSurface.includes(forbidden), false, `建筑页不得恢复旧场景规则: ${forbidden}`);
+
+for (const text of [
+  '--player-page-title-track-height: 40px;',
+  '--font-size-player-page-title: 1.25rem;',
+  '.page-heading--player-navigation .page-heading-title {',
+  'height: var(--player-page-title-track-height);',
+  '.page-heading--player-navigation .page-heading-title > h1 {',
+  'font-size: var(--font-size-player-page-title);',
+]) assert.equal(designSystem.includes(text), true, `共享玩家标题规则缺少: ${text}`);
+assert.equal(
+  regionalEntityTitle.includes('height: var(--player-page-title-track-height);'),
+  true,
+  '地区实体标题必须复用共享玩家标题轨道',
+);
 
 for (const text of [
   '--production-pill-visible-height: 1.6rem;',
@@ -130,8 +152,11 @@ for (const text of [
   '地区“概览 / 市场 / 建筑 / 仓库”是正文级子导航',
   '第一行是工厂实体名称',
   '第二行是州级地区全称并使用灰色次级文字',
-  '不得增加 `.page-fixed-header` 高度',
+  '`--player-page-title-track-height: 40px`',
+  '`--font-size-player-page-title`',
+  '建筑页不得再通过 `body:has(...)`',
   '`tests/browser/buildings-ledger-layout.spec.ts`',
+  '`tests/browser/player-page-geometry.spec.ts`',
 ]) assert.equal(productionAlignmentDesign.includes(text), true, `建筑卡片设计缺少: ${text}`);
 
 for (const text of [
@@ -145,9 +170,17 @@ for (const text of [
   'headerHeightAfter',
 ]) assert.equal(browserTest.includes(text), true, `建筑卡片浏览器回归缺少: ${text}`);
 
+for (const text of [
+  'expectSharedSingleLineTitleGeometry',
+  'trackHeight',
+  'fontSize',
+  'toBeCloseTo(40, 0)',
+  'toBeCloseTo(20, 0)',
+]) assert.equal(pageGeometryTest.includes(text), true, `共享页面标题浏览器回归缺少: ${text}`);
+
 assert.equal(page.includes('facility-card-spacer'), false, '生产详情不得渲染占位 spacer DOM');
 assert.equal(production.includes('.facility-card-spacer'), false, '生产基础布局不得保留 spacer CSS');
 assert.equal(legacyIndustryStyles.includes('.production-grid {'), false, '旧产业样式不得控制生产主网格');
 assert.equal(chrome.includes('`--desktop-page-top-offset` 只表示下方工作区内部沟槽'), true, '外壳设计缺少工作区内部顶部偏移规则');
 
-console.log('地区建筑验证通过：建设卡优先、三列 4:5 工厂卡、二级详情、正文分区导航、标题高度稳定与紧凑开关均已锁定。');
+console.log('地区建筑验证通过：建设卡优先、三列 4:5 工厂卡、二级详情、正文分区导航、全玩家 40px 标题轨道与紧凑开关均已锁定。');
