@@ -123,7 +123,7 @@ for (const text of [
   '不占玩家普通开放订单配额',
   '在线自动交易唯一显示在地区商品详情',
   '州级仓库分区的库存卡在所有宽度保持只读',
-  '市场自动交易活跃商品条件',
+  '不得通过组件内部选择器切换到其他商品',
   '`720px` 及以下',
   '`MobileWorkspaceDetailSheet`',
   '全商品选择器',
@@ -131,8 +131,8 @@ for (const text of [
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
 
 for (const text of [
-  '市场在线自动采购／自动出售',
-  '商品自动交易卡和商品网格密度',
+  '地区商品详情在线自动采购／自动出售',
+  '移动自动交易抽屉与仓库商品网格密度',
 ]) requireText('docs/README.md', text);
 
 for (const text of [
@@ -147,11 +147,11 @@ for (const text of [
   '市场目录只展示商品',
   '自动交易只在当前地区商品详情显示并锁定当前商品',
   '共享仓库只位于州级上下文页仓库分区，自动交易只位于市场',
-  '自动采购／自动出售正文布局',
+  '地区商品详情自动交易控制',
   '所有玩家业务页面与业务详情共用同一个唯一根级 Mobile Workspace Sheet',
   '`MobileWorkspaceDetailSheet` API',
   '不得创建第二个 Sheet DOM',
-  '统一商品选择器、采购／出售页签',
+  '固定当前商品，继续复用采购／出售页签',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 forbidText('docs/UI_DESIGN_SYSTEM.md', '仓库自动交易设置共享的根级 Dialog');
 

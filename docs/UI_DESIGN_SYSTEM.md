@@ -148,7 +148,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 `MobileWorkspaceSheetHost` 是唯一允许调用 `useMobileWorkspaceSheetDrag`、`useWorkspaceDialogLayer`、创建根 backdrop 和实施页面滚动锁的组件；它以可与顶部 Chrome 并存的非模态 `role="dialog"` 工作，不得设置 `aria-modal="true"`，也不得建立全局 `Tab` 焦点陷阱。状态栏通知按钮必须能够在 Sheet 打开时获得焦点。`MobileWorkspacePageSheet` 只是零 DOM 兼容适配器，`MobileWorkspaceDetailSheet` 只是内容注册器。物理根 Sheet 独占一套 Pointer／Touch 监听，详情打开时只切换同一拖动内核的视觉目标，不得把监听下沉或重复注册。
 
-普通 Tooltip、Popover 与不应覆盖应用 Chrome 的业务浮层继续使用 `.workspace-floating-layer`；来自唯一根 Sheet 内的富下拉可以继续以 `.workspace-dialog-layer` 作为安全定位边界并位于 Sheet 表面之上。移动通知面板是明确例外：它复用同一个 `.workspace-dialog-layer` 的更高内部层级覆盖 Sheet，但位于移动状态栏之下，不创建第二个 Portal 根或第五个全局层。通知面板打开时必须卸载通知岛、Toast 及对应 ARIA live region，`Escape` 由通知面板在捕获阶段消费并只关闭通知，不得穿透去关闭下层详情或根 Sheet。任何业务页、工厂详情、研发详情或自动交易设置都不得创建嵌套 `.mobile-detail-sheet`、第二个 backdrop、第二个根级 Portal 或平行拖动状态机。市场自动交易详情继续复用统一商品选择器、采购／出售页签和既有仓库表单信息层级，并把原子保存动作放在唯一 Host 的固定底栏。
+普通 Tooltip、Popover 与不应覆盖应用 Chrome 的业务浮层继续使用 `.workspace-floating-layer`；来自唯一根 Sheet 内的富下拉可以继续以 `.workspace-dialog-layer` 作为安全定位边界并位于 Sheet 表面之上。移动通知面板是明确例外：它复用同一个 `.workspace-dialog-layer` 的更高内部层级覆盖 Sheet，但位于移动状态栏之下，不创建第二个 Portal 根或第五个全局层。通知面板打开时必须卸载通知岛、Toast 及对应 ARIA live region，`Escape` 由通知面板在捕获阶段消费并只关闭通知，不得穿透去关闭下层详情或根 Sheet。任何业务页、工厂详情、研发详情或自动交易设置都不得创建嵌套 `.mobile-detail-sheet`、第二个 backdrop、第二个根级 Portal 或平行拖动状态机。地区商品自动交易详情固定当前商品，继续复用采购／出售页签和既有仓库表单信息层级，不显示全商品选择器；原子保存动作仍放在唯一 Host 的固定底栏。
 
 ### 3.2 输入方式与共享交互状态
 
