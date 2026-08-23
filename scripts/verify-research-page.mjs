@@ -140,6 +140,9 @@ for (const text of [
   'aspect-ratio: 1 / 1;',
   '.research-investment-list {',
   '.research-unlock-copy .facility-build-output-list {',
+  '@media (min-width: 721px)',
+  '.game-shell.strategic-tab-research .page-card-static {',
+  'padding-inline: 0;',
   '.page-card-static .research-workspace {',
   'height: 100%;',
   'overflow: hidden;',
@@ -176,6 +179,11 @@ for (const text of [
   'renders a downward prerequisite tree on desktop',
   'actionInsideTree',
   'expect(researchGeometry.treeViewport).toEqual(researchGeometry.treePanel)',
+  'fixedPageOverflow.paddingInlineStart',
+  'fixedPageOverflow.paddingInlineEnd',
+  'researchGeometry.fixedBody',
+  'expect(researchGeometry.workspace?.left).toBeCloseTo',
+  'expect(researchGeometry.workspace?.right).toBeCloseTo',
   "expect(fixedPageOverflow.stackAlignContent).toBe('stretch')",
   'fixedPageOverflow.stackChildCount',
   'fixedPageOverflow.stackOnlyWorkspace',
@@ -237,7 +245,7 @@ for (const text of [
 ]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 for (const text of [
   'C1–C7 只作为产业阶段',
-  '技术树固定使用真实 `prerequisiteTechnologyIds` 驱动的自上而下 DAG',
+  '其余节点按照真实产业链设置前置关系',
   '自上而下 DAG',
   '结构定位不得复用 `transform`',
   '选中科技只能改变节点和连接线的强调状态',
@@ -254,6 +262,7 @@ for (const text of [
   '可生产产物图标与名称',
   '页面自身不得纵向滚动',
   '科技节点画布必须占满标题下方的全部可用页面区域',
+  '桌面研发科技树画布横向不得继承固定正文的左右',
   '页面卡片正文只允许包含科技画布工作区本身',
   '树状图下方不得再渲染详情、操作、摘要或其他卡片',
   '移动端详情注册组件必须位于 `PageLayout` 正文之外',
@@ -324,4 +333,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('downward prerequisite research DAG, stable hover geometry, ordinary wheel zoom, drag pan, double-click current focus, shared workspace card with transparent research canvas, shared mobile pan/zoom viewport, stable selection, no below-tree page-flow card, detail sheet and design verification passed');
+console.log('downward prerequisite research DAG, edge-to-edge desktop canvas, stable hover geometry, ordinary wheel zoom, drag pan, double-click current focus, shared workspace card with transparent research canvas, shared mobile pan/zoom viewport, stable selection, no below-tree page-flow card, detail sheet and design verification passed');
