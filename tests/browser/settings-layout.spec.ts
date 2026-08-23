@@ -25,7 +25,6 @@ async function requireSettingsCardOrder(page: Page) {
   const cards = [
     page.locator('.profile-settings-card'),
     page.locator('.game-preferences-card'),
-    page.locator('.gift-redemption-card'),
     page.locator('.account-management-card'),
   ];
   const boxes = await Promise.all(cards.map(requireBox));
@@ -43,8 +42,11 @@ test('desktop settings remain single-column with save deletion management', asyn
   const account = page.locator('.account-management-card');
 
   await expect(layout).toBeVisible();
-  await expect(layout.locator(':scope > .widget')).toHaveCount(4);
+  await expect(layout.locator(':scope > .widget')).toHaveCount(3);
   await expect(page.getByRole('heading', { name: '邀请好友', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '礼品兑换', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '账号资料', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: '前往主页修改账号资料', exact: true })).toHaveCount(0);
   await expect(account.getByRole('heading', { name: '存档管理', exact: true })).toBeVisible();
   await expect(account.getByRole('button', { name: '删除存档', exact: true })).toBeVisible();
   await expect(account.getByRole('heading', { name: '危险区域', exact: true })).toHaveCount(0);
@@ -65,8 +67,11 @@ test('mobile settings order, statistics and save deletion action remain compact'
   const layout = page.locator('.settings-layout');
   expect(await gridTrackCount(layout)).toBe(1);
   expect(await gridTrackCount(page.locator('.profile-settings-card .player-stat-grid'))).toBe(2);
-  await expect(layout.locator(':scope > .widget')).toHaveCount(4);
+  await expect(layout.locator(':scope > .widget')).toHaveCount(3);
   await expect(page.getByRole('heading', { name: '邀请好友', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '礼品兑换', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '账号资料', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: '前往主页修改账号资料', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '存档管理', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '删除存档', exact: true })).toBeVisible();
   await requireSettingsCardOrder(page);

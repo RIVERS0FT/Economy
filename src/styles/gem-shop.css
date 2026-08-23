@@ -23,6 +23,7 @@
 .gem-shop-side-column { grid-column: 2; }
 
 .gem-shop-exchange-card,
+.gem-shop-gift-card,
 .gem-shop-history-card,
 .invite-card {
   min-width: 0;
@@ -56,7 +57,8 @@
 .gem-shop-rate-summary { justify-content: space-between; }
 .gem-shop-rate-summary strong { font-size: var(--font-size-md); text-align: right; }
 
-.gem-shop-exchange-card { display: grid; gap: var(--space-2); align-content: start; }
+.gem-shop-exchange-card,
+.gem-shop-gift-card { display: grid; gap: var(--space-2); align-content: start; }
 .gem-shop-quick-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .gem-shop-quick-row .ui-button { min-width: 2.75rem; }
 .gem-shop-preview { justify-content: space-between; }

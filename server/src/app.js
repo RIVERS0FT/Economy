@@ -463,6 +463,7 @@ const server = createServer(async (request, response) => {
         () => deletePlayerSave(store, user, {
           confirmation: body.confirmation,
           requestKey,
+          expectedSaveEpoch: request.headers['x-economy-save-epoch'],
           method,
           path,
         }),

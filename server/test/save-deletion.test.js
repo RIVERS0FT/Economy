@@ -60,7 +60,6 @@ test('delete save recreates the player baseline and preserves permanent account 
     const registeredAt = before.registeredAt;
     const preflight = getPlayerSaveDeletionPreflight(store, user, now + 3);
     assert.equal(preflight.allowed, true);
-    assert.equal(preflight.alreadyUsed, false);
     assert.equal(preflight.autoClose.orders, 1);
 
     const response = deletePlayerSave(store, user, {
@@ -100,9 +99,8 @@ test('delete save recreates the player baseline and preserves permanent account 
     );
 
     const after = getPlayerSaveDeletionPreflight(store, user, now + 7);
-    assert.equal(after.allowed, false);
-    assert.equal(after.alreadyUsed, true);
-    assert.match(after.blockers[0].message, /已经使用过一次/);
+    assert.equal(after.allowed, true);
+    assert.equal(after.saveEpoch, 1);
 
     assert.doesNotThrow(() => assertPlayerSaveEpoch(store, user, '1', now + 7));
     assert.throws(
@@ -112,6 +110,105 @@ test('delete save recreates the player baseline and preserves permanent account 
     assert.throws(
       () => assertPlayerSaveEpoch(store, user, undefined, now + 7),
       (error) => error.statusCode === 409 && error.code === 'SAVE_EPOCH_MISMATCH',
+    );
+  } finally {
+    store.close();
+  }
+});
+
+test('repeat delete creates a new save epoch and appends audit history', () => {
+  const store = new EconomyStore(':memory:', { scheduledProcessing: false });
+  try {
+    store.getState(user, now);
+    const first = deletePlayerSave(store, user, {
+      confirmation: '删除存档',
+      requestKey: 'save-delete-repeat-0001',
+      expectedSaveEpoch: '0',
+    }, now + 1);
+    assert.equal(first.saveEpoch, 1);
+
+    const preflight = getPlayerSaveDeletionPreflight(store, user, now + 2);
+    assert.equal(preflight.allowed, true);
+    assert.equal(preflight.saveEpoch, 1);
+
+    const second = deletePlayerSave(store, user, {
+      confirmation: '删除存档',
+      requestKey: 'save-delete-repeat-0002',
+      expectedSaveEpoch: '1',
+    }, now + 3);
+    assert.equal(second.saveEpoch, 2);
+
+    const replay = deletePlayerSave(store, user, {
+      confirmation: '删除存档',
+      requestKey: 'save-delete-repeat-0002',
+      expectedSaveEpoch: '1',
+    }, now + 4);
+    assert.deepEqual(replay, second, '幂等重放不得重复删除新存档');
+
+    const world = store.loadWorld(now + 5).world;
+    const player = world.players[String(user.id)];
+    assert.equal(player.credits, 500);
+    assert.equal(player.saveEpoch, 2);
+    assert.equal(player.saveResetCount, 2);
+    const history = store.database.prepare(`
+      SELECT save_epoch_before, save_epoch_after
+      FROM economy_save_deletions
+      WHERE user_id = ?
+      ORDER BY id
+    `).all(Number(user.id));
+    assert.deepEqual(
+      history.map((row) => [Number(row.save_epoch_before), Number(row.save_epoch_after)]),
+      [[0, 1], [1, 2]],
+    );
+
+    assert.doesNotThrow(() => assertPlayerSaveEpoch(store, user, '2', now + 5));
+    assert.throws(
+      () => assertPlayerSaveEpoch(store, user, '1', now + 5),
+      (error) => error.statusCode === 409 && error.code === 'SAVE_EPOCH_MISMATCH',
+    );
+  } finally {
+    store.close();
+  }
+});
+
+test('legacy single-use save deletion audit migrates without blocking another deletion', () => {
+  const store = new EconomyStore(':memory:', { scheduledProcessing: false });
+  try {
+    store.database.exec(`
+      CREATE TABLE economy_save_deletions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL UNIQUE,
+        save_epoch_before INTEGER NOT NULL CHECK (save_epoch_before >= 0),
+        save_epoch_after INTEGER NOT NULL CHECK (save_epoch_after > save_epoch_before),
+        deleted_at INTEGER NOT NULL,
+        request_key TEXT NOT NULL UNIQUE,
+        asset_summary_json TEXT NOT NULL,
+        auto_closed_json TEXT NOT NULL
+      ) STRICT;
+      INSERT INTO economy_save_deletions (
+        user_id, save_epoch_before, save_epoch_after, deleted_at,
+        request_key, asset_summary_json, auto_closed_json
+      ) VALUES (91001, 0, 1, 1, 'legacy-delete-0001', '{}', '{}');
+    `);
+    store.getState(user, now);
+
+    const preflight = getPlayerSaveDeletionPreflight(store, user, now + 1);
+    assert.equal(preflight.allowed, true);
+    const definition = store.database.prepare(`
+      SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'economy_save_deletions'
+    `).get();
+    assert.doesNotMatch(String(definition.sql), /user_id INTEGER NOT NULL UNIQUE/);
+
+    const deletion = deletePlayerSave(store, user, {
+      confirmation: '删除存档',
+      requestKey: 'legacy-delete-0002',
+      expectedSaveEpoch: '0',
+    }, now + 2);
+    assert.equal(deletion.saveEpoch, 1);
+    assert.equal(
+      store.database.prepare('SELECT COUNT(*) AS total FROM economy_save_deletions WHERE user_id = ?')
+        .get(Number(user.id)).total,
+      2,
     );
   } finally {
     store.close();
