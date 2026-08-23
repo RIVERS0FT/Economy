@@ -25,6 +25,18 @@ jobs:
         with:
           node-version: 24.4.0
           cache: npm
+      - name: Fix patch runner root-file writes
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const path = 'scripts/codex-market-patch.mjs';
+          let source = fs.readFileSync(path, 'utf8');
+          const before = "  fs.mkdirSync(path.split('/').slice(0, -1).join('/'), { recursive: true });";
+          const after = "  const directory = path.split('/').slice(0, -1).join('/');\n  if (directory) fs.mkdirSync(directory, { recursive: true });";
+          if (!source.includes(before)) throw new Error('root-file write anchor missing');
+          source = source.replace(before, after);
+          fs.writeFileSync(path, source);
+          NODE
       - name: Apply final market patch
         run: node scripts/codex-market-patch.mjs
       - name: Remove temporary patch machinery
