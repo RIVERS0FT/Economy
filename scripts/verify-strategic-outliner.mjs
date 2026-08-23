@@ -21,6 +21,7 @@ const mobileStyle = read('src/styles/mobile-status-layout.css');
 const guide = read('src/components/GameGuideStrip.tsx');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const chromeDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
+const integrityDesign = read('docs/OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md');
 
 requireText(shell, 'pendingItems={notificationCenter.pendingItems}', '战略追踪器必须复用通知中心待处理派生结果');
 requireText(shell, 'tutorial={tutorial}', '战略追踪器必须始终接收当前教程控制器');
@@ -67,6 +68,7 @@ requireText(pageDesign, '战略追踪器', '页面权威设计必须记录战略
 requireText(pageDesign, '页面路由生命周期解耦', '页面权威设计必须锁定追踪器与页面生命周期解耦');
 requireText(chromeDesign, '战略追踪器', '外壳权威设计必须记录战略追踪器几何');
 requireText(chromeDesign, '44px', '外壳权威设计必须记录中窄桌面折叠轨道宽度');
-requireText(chromeDesign, '展示层缺省归一化', '外壳权威设计必须锁定战略追踪器缺省子投影的安全降级规则');
+requireText(integrityDesign, '展示层缺省归一化', '概览布局权威设计必须锁定战略追踪器缺省子投影的安全降级规则');
+requireText(integrityDesign, '不得写回权威状态、伪造经济值或中断整个 React 外壳挂载', '缺省投影规则必须限制为展示层兼容而非权威状态替代');
 
 console.log('strategic outliner verification passed');
