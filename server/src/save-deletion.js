@@ -45,7 +45,7 @@ function setupStatements(store) {
   store.database.exec(`
     CREATE TABLE IF NOT EXISTS economy_save_deletions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL UNIQUE,
+      user_id INTEGER NOT NULL,
       save_epoch_before INTEGER NOT NULL CHECK (save_epoch_before >= 0),
       save_epoch_after INTEGER NOT NULL CHECK (save_epoch_after > save_epoch_before),
       deleted_at INTEGER NOT NULL,
@@ -53,8 +53,43 @@ function setupStatements(store) {
       asset_summary_json TEXT NOT NULL,
       auto_closed_json TEXT NOT NULL
     ) STRICT;
+  `);
+  const tableDefinition = store.database.prepare(`
+    SELECT sql
+    FROM sqlite_master
+    WHERE type = 'table' AND name = 'economy_save_deletions'
+  `).get();
+  if (String(tableDefinition?.sql || '').includes('user_id INTEGER NOT NULL UNIQUE')) {
+    store.database.exec(`
+      DROP TABLE IF EXISTS economy_save_deletions_repeatable;
+      CREATE TABLE economy_save_deletions_repeatable (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        save_epoch_before INTEGER NOT NULL CHECK (save_epoch_before >= 0),
+        save_epoch_after INTEGER NOT NULL CHECK (save_epoch_after > save_epoch_before),
+        deleted_at INTEGER NOT NULL,
+        request_key TEXT NOT NULL UNIQUE,
+        asset_summary_json TEXT NOT NULL,
+        auto_closed_json TEXT NOT NULL
+      ) STRICT;
+      INSERT INTO economy_save_deletions_repeatable (
+        id, user_id, save_epoch_before, save_epoch_after, deleted_at,
+        request_key, asset_summary_json, auto_closed_json
+      )
+      SELECT
+        id, user_id, save_epoch_before, save_epoch_after, deleted_at,
+        request_key, asset_summary_json, auto_closed_json
+      FROM economy_save_deletions
+      ORDER BY id;
+      DROP TABLE economy_save_deletions;
+      ALTER TABLE economy_save_deletions_repeatable RENAME TO economy_save_deletions;
+    `);
+  }
+  store.database.exec(`
     CREATE INDEX IF NOT EXISTS idx_economy_save_deletions_deleted
       ON economy_save_deletions(deleted_at DESC, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_economy_save_deletions_user_deleted
+      ON economy_save_deletions(user_id, deleted_at DESC, id DESC);
     CREATE TABLE IF NOT EXISTS economy_tutorial_completions (
       user_id INTEGER PRIMARY KEY,
       completed_version INTEGER NOT NULL CHECK (completed_version >= 0),
@@ -62,11 +97,6 @@ function setupStatements(store) {
     ) STRICT;
   `);
   const statements = {
-    selectDeletionByUser: store.database.prepare(`
-      SELECT user_id, save_epoch_before, save_epoch_after, deleted_at
-      FROM economy_save_deletions
-      WHERE user_id = ?
-    `),
     insertDeletion: store.database.prepare(`
       INSERT INTO economy_save_deletions (
         user_id, save_epoch_before, save_epoch_after, deleted_at,
@@ -112,8 +142,8 @@ export function getPlayerSaveCreatedAt(store, userId) {
   return safeNonNegativeInteger(player?.saveCreatedAt);
 }
 
-export function assertPlayerSaveEpoch(store, user, rawExpectedEpoch, now = Date.now()) {
-  const actual = safeNonNegativeInteger(currentPlayer(store, user, now)?.saveEpoch);
+function assertExpectedSaveEpoch(actualValue, rawExpectedEpoch) {
+  const actual = safeNonNegativeInteger(actualValue);
   if (rawExpectedEpoch === undefined || rawExpectedEpoch === null || rawExpectedEpoch === '') {
     if (actual === 0) return;
     throw httpError(
@@ -135,6 +165,10 @@ export function assertPlayerSaveEpoch(store, user, rawExpectedEpoch, now = Date.
   }
 }
 
+export function assertPlayerSaveEpoch(store, user, rawExpectedEpoch, now = Date.now()) {
+  assertExpectedSaveEpoch(currentPlayer(store, user, now)?.saveEpoch, rawExpectedEpoch);
+}
+
 function preparePlayerSystems(world, player, now) {
   ensureWarehouse(player);
   ensureGemState(player);
@@ -145,8 +179,7 @@ function preparePlayerSystems(world, player, now) {
 }
 
 function analyzeDeletion(store, world, player, userId, now) {
-  const statements = setupStatements(store);
-  const existingDeletion = statements.selectDeletionByUser.get(Number(userId));
+  setupStatements(store);
   const blockers = [];
   const autoClose = {
     orders: 0,
@@ -154,14 +187,6 @@ function analyzeDeletion(store, world, player, userId, now) {
     auctions: 0,
     contracts: 0,
   };
-
-  if (existingDeletion) {
-    blockers.push(blocker(
-      'already_used',
-      '当前账号已经使用过一次自助删除存档',
-      'settings',
-    ));
-  }
 
   if (activeLoanLiability(player) > 0) {
     blockers.push(blocker(
@@ -226,7 +251,6 @@ function analyzeDeletion(store, world, player, userId, now) {
 
   return {
     allowed: blockers.length === 0,
-    alreadyUsed: Boolean(existingDeletion),
     blockers,
     autoClose,
     saveEpoch: safeNonNegativeInteger(player.saveEpoch),
@@ -234,9 +258,10 @@ function analyzeDeletion(store, world, player, userId, now) {
   };
 }
 
-function loadPreparedWorld(store, user, now) {
+function loadPreparedWorld(store, user, now, expectedSaveEpoch, validateSaveEpoch = false) {
   const loaded = store.loadWorld(now);
   const player = ensurePlayer(loaded.world, user, now);
+  if (validateSaveEpoch) assertExpectedSaveEpoch(player.saveEpoch, expectedSaveEpoch);
   preparePlayerSystems(loaded.world, player, now);
   store.processWorldIfDue(loaded.world, now, Number(user.id), {
     force: true,
@@ -400,6 +425,7 @@ export function deletePlayerSave(
   {
     confirmation,
     requestKey,
+    expectedSaveEpoch,
     method = 'POST',
     path = '/api/game/save-deletion',
   },
@@ -423,7 +449,7 @@ export function deletePlayerSave(
       return JSON.parse(String(cached.response_json));
     }
 
-    const { revision, world, player } = loadPreparedWorld(store, user, now);
+    const { revision, world, player } = loadPreparedWorld(store, user, now, expectedSaveEpoch, true);
     const preflight = analyzeDeletion(store, world, player, user.id, now);
     if (!preflight.allowed) {
       throw httpError(

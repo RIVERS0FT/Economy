@@ -36,27 +36,17 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
     refreshRate,
     setRefreshRate,
     renamePlayer,
-    redeemGift,
     showResult,
     signOut,
     tutorial,
   } = model;
   const avatarText = (game.playerName || user.email).slice(0, 1).toUpperCase();
-  const [giftCode, setGiftCode] = useState('');
   const [saveDeletionPreflight, setSaveDeletionPreflight] = useState<SaveDeletionPreflight | null>(null);
   const [deletingSave, setDeletingSave] = useState(false);
   const roleLabel = user.role === 'admin' ? '管理员' : '普通用户';
   const facilityCount = Array.isArray(game.facilityGroups)
     ? game.facilityGroups.reduce((sum, group) => sum + group.count, 0)
     : 0;
-
-  async function submitGift() {
-    const code = giftCode.trim().toUpperCase();
-    if (!code) return;
-    const result = await redeemGift(code);
-    model.notify(result.message);
-    if (result.ok) setGiftCode('');
-  }
 
   function restartTutorial() {
     const confirmed = window.confirm(
@@ -98,7 +88,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
           '删除后将恢复为新玩家初始经济状态：普通货币、库存、工厂、研发、银行资产和经营统计会被清空。',
           '统一账号、注册时间、宝石、邀请码、签到、礼品兑换、封禁和服务器审计记录会保留。',
           autoCloseCount > 0 ? `服务器将先自动关闭 ${autoCloseCount} 个可安全取消的订单、挂牌、拍卖或合同。` : '',
-          '该操作每个账号只能自行执行一次，且不可撤销。',
+          '删除后当前经济存档无法恢复，操作完成后将创建新的经济存档。',
         ].filter(Boolean).join('\n\n'),
       );
       if (!confirmed) return;
@@ -121,7 +111,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
   }
 
   return (
-    <PageLayout title="设置" description="管理玩家资料、客户端偏好、教程、礼品兑换和当前经济存档。">
+    <PageLayout title="设置" description="管理玩家资料、客户端偏好、教程和当前经济存档。">
       <div className="settings-layout">
         <Panel className="widget profile-settings-card">
           <WidgetHeading title="玩家资料" action={<StatusTag tone={user.role === 'admin' ? 'info' : 'neutral'}>{roleLabel}</StatusTag>} />
@@ -181,30 +171,8 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
           </section>
         </Panel>
 
-        <Panel className="widget gift-redemption-card">
-          <WidgetHeading title="礼品兑换" action={<StatusTag tone="info">游戏货币</StatusTag>} />
-          <p>输入有效礼品码兑换游戏货币。同一账号对同一礼品只能兑换一次。</p>
-          <TextInput
-            label="礼品兑换码"
-            value={giftCode}
-            maxLength={64}
-            autoComplete="off"
-            placeholder="RIVER-XXXX-XXXX"
-            onChange={(event) => setGiftCode(event.target.value.toUpperCase())}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') void submitGift();
-            }}
-          />
-          <Button block disabled={!giftCode.trim()} onClick={() => void submitGift()}>兑换礼品</Button>
-        </Panel>
-
         <Panel className="widget account-management-card">
           <WidgetHeading title="账号与管理" />
-
-          <section className="account-action-group" aria-labelledby="account-profile-heading">
-            <h3 id="account-profile-heading">账号资料</h3>
-            <a className="ui-link" href="https://riversoft.top/profile">前往主页修改账号资料</a>
-          </section>
 
           {user.role === 'admin' ? (
             <section className="account-action-group" aria-labelledby="administrator-tools-heading">
@@ -234,7 +202,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
             <Button
               block
               variant="danger"
-              disabled={deletingSave || saveDeletionPreflight?.alreadyUsed === true}
+              disabled={deletingSave}
               onClick={() => void requestSaveDeletion()}
             >
               {deletingSave ? '正在检查存档…' : '删除存档'}

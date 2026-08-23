@@ -31,10 +31,8 @@ if (failures.length === 0) {
     'nickname-editor',
     'profile-settings-card',
     'game-preferences-card',
-    'gift-redemption-card',
     'account-management-card',
     '账号与管理',
-    '账号资料',
     '当前会话',
     '存档管理',
     '删除存档',
@@ -49,6 +47,10 @@ if (failures.length === 0) {
     'settings-side-column',
     'profile-settings-card span-2',
     'profile-action-stack',
+    'gift-redemption-card',
+    '前往主页修改账号资料',
+    'riversoft.top/profile',
+    'redeemGift',
     '危险区域',
   ]) {
     if (page.includes(forbidden)) failures.push(`SettingsPage 不应包含: ${forbidden}`);
@@ -97,8 +99,9 @@ if (failures.length === 0) {
 
   for (const text of [
     '所有宽度下固定使用单一纵向内容栈',
-    '玩家资料／游戏设置／礼品兑换／账号与管理',
+    '玩家资料／游戏设置／账号与管理',
     '设置页“存档管理”',
+    '礼品码兑换唯一归属商店',
     '共享三列网格',
   ]) {
     if (!pageDesign.includes(text)) failures.push(`页面职责设计缺少设置页防回退规则: ${text}`);
@@ -111,8 +114,8 @@ if (failures.length === 0) {
     '`src/styles/settings.css`',
     '## 14. 设置页布局',
     '所有宽度下固定使用单一纵向内容栈',
-    '玩家资料／游戏设置／礼品兑换／账号与管理',
-    '邀请卡不得在设置页重复出现',
+    '玩家资料／游戏设置／账号与管理',
+    '邀请卡与礼品码兑换不得在设置页重复出现',
     '概览｜市场｜建筑｜研发｜拍卖｜合同｜银行｜排行｜商店｜设置',
   ]) {
     if (!uiDesign.includes(text)) failures.push(`UI 设计系统缺少设置页规则: ${text}`);

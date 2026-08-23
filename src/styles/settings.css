@@ -7,7 +7,6 @@
 
 .profile-settings-card,
 .game-preferences-card,
-.gift-redemption-card,
 .account-management-card {
   display: grid;
   gap: var(--space-3);

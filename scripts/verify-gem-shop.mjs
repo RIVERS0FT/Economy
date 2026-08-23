@@ -19,6 +19,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'server/test/gem-shop.test.js',
   'server/test/research-gem-acceleration.test.js',
   'src/pages/GemShopPage.tsx',
+  'src/pages/SettingsPage.tsx',
   'src/pages/BuildingsPage.tsx',
   'src/components/InvitationSettings.tsx',
   'src/api/invitations.ts',
@@ -34,6 +35,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
   'docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md',
+  'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
 ].forEach(requireFile);
 
 for (const text of [
@@ -96,6 +98,15 @@ requireText('docs/README.md', '研发宝石加速、工厂施工加速退役');
 forbidText('docs/README.md', '直接货币发行、施工宝石加速、兑换幂等');
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '/api/game/facilities/construction/accelerate');
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '410 Gone');
+for (const text of ['礼品码兑换', 'model.redeemGift', 'giftCode', 'gem-shop-gift-card']) {
+  requireText('src/pages/GemShopPage.tsx', text);
+}
+for (const text of ['WidgetHeading title="礼品兑换"', 'label="礼品兑换码"', 'redeemGift', 'gift-redemption-card']) {
+  forbidText('src/pages/SettingsPage.tsx', text);
+}
+requireText('tests/browser/gem-shop-layout.spec.ts', '礼品码兑换');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '礼品码兑换唯一归属商店');
+requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '商店页提供独立礼品兑换卡');
 
 if (failures.length) {
   console.error(`商店与宝石验证失败:\n- ${failures.join('\n- ')}`);
