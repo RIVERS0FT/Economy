@@ -163,8 +163,6 @@ export function StrategicWorkspaceChrome({
   pendingItems: PendingNotificationItem[];
 }) {
   const outlinerModel = strategicOutlinerModel(model);
-  // The previous direct `model={model}` handoff is intentionally not used here;
-  // StrategicOutliner must receive the normalized display projection above.
   return (
     <StrategicOutliner
       model={outlinerModel}
