@@ -841,7 +841,7 @@ export function MarketPage({
               <WidgetHeading title="商品基本面" action={<StatusTag tone="info">服务器数据</StatusTag>} />
               <div className="market-fundamentals-metrics">
                 <MetricCard
-                  label="市场价"
+                  label="官方系统价"
                   value={<CurrencyAmount>{formatCurrency(selectedMarketPrice)}</CurrencyAmount>}
                   detail={typeof selectedBaseDeviationPercent === 'number' ? '相对基础价 ' + (selectedBaseDeviationPercent > 0 ? '+' : '') + selectedBaseDeviationPercent.toFixed(1) + '%' : undefined}
                   tone={(selectedBaseDeviationPercent ?? 0) > 0 ? 'warning' : (selectedBaseDeviationPercent ?? 0) < 0 ? 'info' : 'neutral'}
@@ -862,7 +862,7 @@ export function MarketPage({
                 <MetricCard label="参考价" value={<CurrencyAmount>{formatCurrency(selectedProductMarket.demand.referencePrice)}</CurrencyAmount>} />
                 <MetricCard label="上轮需求" value={formatNumber(selectedProductMarket.demand.lastQuantity)} detail={'预算 ' + formatCurrency(selectedProductMarket.demand.lastBudget)} />
                 <MetricCard
-                  label="周期实际成交"
+                  label="周期系统买卖量"
                   value={formatNumber(selectedProductMarket.cycleSellQuantity ?? 0) + ' 卖 / ' + formatNumber(selectedProductMarket.cycleBuyQuantity ?? 0) + ' 买'}
                 />
               </div>
