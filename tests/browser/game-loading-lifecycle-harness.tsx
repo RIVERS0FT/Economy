@@ -1,5 +1,6 @@
 import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import '../../src/app/interactionBootstrap';
 import { useGameViewModel } from '../../src/app/gameViewModel';
 import type { AuthUser } from '../../src/types';
 
