@@ -1,5 +1,5 @@
 
-added 138 packages, and audited 145 packages in 3s
+added 138 packages, and audited 145 packages in 2s
 
 29 packages are looking for funding
   run `npm fund` for details
@@ -18,8 +18,10 @@ Run `npm audit` for details.
 无限仓库防回退验证通过：容量机制保持退役，州级仓库只读，在线自动交易唯一归属市场。
 地区建筑验证通过：建设卡优先、三列 4:5 工厂卡、二级详情、正文分区导航、标题高度稳定与紧凑开关均已锁定。
 统一工厂配方与地区卡片验证通过：目录顺序、三列 4:5 工厂卡、二级详情、统一生产设置与共享移动基础设施均已锁定。
-页面内容与职责验证失败:
-- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: | 建筑 | `buildings` | `BuildingsPage` |
-- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 页面主标题固定为“{州级地区全称}建筑”
-- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 市场目录固定提供“市场行情／自动交易”两个工作区
-- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 邀请卡唯一归属商店，只展示玩家自己的专属分享链接、永久邀请码
+页面内容与职责验证通过：既有页面职责检查保持生效，一级市场/建筑锁定全局视图，州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。
+
+> economy@0.4.0 typecheck
+> tsc --noEmit
+
+src/components/market/MarketAutoTradePanel.tsx(444,15): error TS2322: Type '{ ref: RefObject<HTMLButtonElement | null>; block: true; onClick: (event: MouseEvent<HTMLButtonElement, MouseEvent>) => void; children: string; }' is not assignable to type 'IntrinsicAttributes & ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant | undefined; block?: boolean | undefined; }'.
+  Property 'ref' does not exist on type 'IntrinsicAttributes & ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant | undefined; block?: boolean | undefined; }'.
