@@ -27,8 +27,18 @@ jobs:
           marker = "          python3 - <<'PY'\n"
           start = source.index(marker) + len(marker)
           end = source.index("\n          PY\n", start)
-          lines = source[start:end].splitlines()
-          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines) + '\n'
+          raw_lines = source[start:end].splitlines()
+          restored = []
+          in_triple = False
+          for raw in raw_lines:
+              if in_triple:
+                  line = raw
+              else:
+                  line = raw[10:] if raw.startswith('          ') else raw
+              restored.append(line)
+              if line.count('"""') % 2 == 1:
+                  in_triple = not in_triple
+          script = '\n'.join(restored) + '\n'
           Path('/tmp/apply-repeat-save-delete-gift-shop.py').write_text(script, encoding='utf-8')
           PY
           python3 /tmp/apply-repeat-save-delete-gift-shop.py
