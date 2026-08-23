@@ -17,7 +17,8 @@ const globalMarket = read('src/pages/GlobalMarketPage.tsx');
 const regionalMarket = read('src/pages/MarketPage.tsx');
 const globalCss = read('src/styles/global-operation-pages.css');
 const marketCss = read('src/styles/market-page-polish.css');
-const design = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
+const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
+const chartDesign = read('docs/MARKET_CHART_LAYOUT_DESIGN.md');
 
 for (const token of [
   'global-market-summary-strip',
@@ -62,10 +63,16 @@ for (const token of [
 ]) requireText(marketCss, token, 'regional market css');
 
 for (const token of [
-  '全局市场的主体固定为跨州商品行情主表',
-  '不得把各州买卖单合并成一个全国订单簿',
+  '一级路由 `market` 使用 `GlobalMarketPage`',
+  '全局页不得把各州买卖单合并成一个全国订单簿',
+  '卖单量与买单量只来自公开订单簿',
+]) requireText(pageDesign, token, 'market page authority');
+
+for (const token of [
+  '跨州覆盖条只能使用',
   'Balance Bar',
-  '近 24h 真实成交趋势',
-]) requireText(design, token, 'market design authority');
+  '商品详情必须先给出市场基本面',
+  '不得为了把操作按钮抬高而重新把交易卡放到行情图之前',
+]) requireText(chartDesign, token, 'market visualization authority');
 
 console.log('Market information hierarchy verification passed.');
