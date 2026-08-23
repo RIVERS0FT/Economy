@@ -156,10 +156,10 @@ test('repeat delete creates a new save epoch and appends audit history', () => {
       WHERE user_id = ?
       ORDER BY id
     `).all(Number(user.id));
-    assert.deepEqual(history, [
-      { save_epoch_before: 0, save_epoch_after: 1 },
-      { save_epoch_before: 1, save_epoch_after: 2 },
-    ]);
+    assert.deepEqual(
+      history.map((row) => [Number(row.save_epoch_before), Number(row.save_epoch_after)]),
+      [[0, 1], [1, 2]],
+    );
 
     assert.doesNotThrow(() => assertPlayerSaveEpoch(store, user, '2', now + 5));
     assert.throws(
