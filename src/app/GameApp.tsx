@@ -90,7 +90,7 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
   const viewModel = useGameViewModel(user, onSignedOut);
 
   if (viewModel.status === 'loading') {
-    return <ApplicationLoadingState>正在连接权威游戏服务器…</ApplicationLoadingState>;
+    return <ApplicationLoadingState>正在连接服务器…</ApplicationLoadingState>;
   }
   if (viewModel.status === 'error') {
     return (
