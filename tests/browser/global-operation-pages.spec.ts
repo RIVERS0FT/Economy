@@ -21,10 +21,10 @@ test('map keeps gesture zoom without a control panel and primary market/building
   await sidebar.getByRole('button', { name: /^市场/ }).click();
   await expect(page.getByRole('heading', { name: '市场', exact: true })).toBeVisible();
   await expect(page.locator('.global-market-page')).toHaveAttribute('data-global-scope', 'market');
-  expect(await page.locator('.global-market-page .global-province-card').count()).toBeGreaterThan(1);
-  expect(await page.locator('.global-market-product-row').count()).toBeGreaterThan(1);
+  expect(await page.locator('.global-market-page .global-market-province-row').count()).toBeGreaterThan(1);
+  expect(await page.locator('.global-market-goods-row').count()).toBeGreaterThan(1);
 
-  await page.locator('.global-market-page .global-province-card').first().click();
+  await page.locator('.global-market-page .global-market-province-row').first().click();
   await expect(page.locator('.global-market-page[data-drilldown-province-id]')).toBeVisible();
   await expect(page.locator('.market-catalog-surface')).toBeVisible();
   await page.getByRole('button', { name: '返回全局市场' }).click();
