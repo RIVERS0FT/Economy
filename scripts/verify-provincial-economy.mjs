@@ -125,7 +125,7 @@ for (const forbidden of ['战略经营地图', '当前经营地区', 'province-m
   assert.equal(mapPage.includes(forbidden), false, `地图页不得恢复已删除的卡片: ${forbidden}`);
 }
 for (const [path, expectedFragments] of [
-  ['src/pages/MarketPage.tsx', ["const provinceName = model.selectedProvince?.name || '加利福尼亚州';", 'title={`${provinceName}市场`}', 'title={`${provinceName} · ${assetName}`}']],
+  ['src/pages/MarketPage.tsx', ["const provinceName = model.selectedProvince?.name || '加利福尼亚州';", 'title={`${provinceName}市场`}', '<RegionalEntityPageTitle entityName={assetName} regionName={provinceName} />']],
   ['src/pages/BuildingsPage.tsx', ["title={`${model.selectedProvince?.name || '加利福尼亚州'}建筑`}"]],
 ]) {
   const page = read(path);
