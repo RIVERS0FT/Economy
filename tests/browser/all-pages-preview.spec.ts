@@ -1,87 +1,143 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 const pages = [
-  { label: '概览', heading: '概览' },
-  { label: '市场', heading: '市场' },
-  { label: '建筑', heading: '建筑' },
-  { label: '研发', heading: '研发' },
-  { label: '拍卖', heading: '拍卖' },
-  { label: '合同', heading: '合同' },
-  { label: '银行', heading: '银行' },
-  { label: '排行', heading: '排行' },
-  { label: '商店', heading: '商店' },
-  { label: '设置', heading: '设置' },
+  { navigation: /^概览/, heading: '概览' },
+  { navigation: /^市场/, heading: '市场' },
+  { navigation: /^建筑/, heading: '建筑' },
+  { navigation: /^研发/, heading: '研发' },
+  { navigation: /^拍卖/, heading: '拍卖' },
+  { navigation: /^合同/, heading: '合同' },
+  { navigation: /^银行/, heading: '银行' },
+  { navigation: /^排行/, heading: '排行榜' },
+  { navigation: /^商店/, heading: '商店' },
+  { navigation: /^设置/, heading: '设置' },
 ] as const;
 
-async function clickMapProvinceLabel(page: Page, provinceName: string) {
-  const label = page.locator(`.map-label-char[data-province-name="${provinceName}"]`).first();
+async function clickMapProvinceLabel(page: import('@playwright/test').Page, provinceName: string) {
+  const label = page.locator('.province-map-label').filter({ hasText: new RegExp(`^${provinceName}$`) });
   await expect(label).toBeVisible();
-  const box = await label.boundingBox();
-  expect(box).not.toBeNull();
-  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  const point = await label.evaluate((element) => {
+    const x = Number(element.getAttribute('data-label-center-x'));
+    const y = Number(element.getAttribute('data-label-center-y'));
+    const matrix = element.ownerSVGElement?.getScreenCTM();
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !matrix) {
+      throw new Error('province label center transform is missing');
+    }
+    return { x: matrix.a * x + matrix.c * y + matrix.e, y: matrix.b * x + matrix.d * y + matrix.f };
+  });
+  await page.mouse.click(point.x, point.y);
 }
 
-test('local preview opens the persistent strategic map first and keeps all formal pages reachable', async ({ page }) => {
-  await page.goto('?preview=game');
+test('account-free mode redirects into the complete game shell without API traffic', async ({ page }) => {
+  const apiRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/economy-api')) apiRequests.push(request.url());
+  });
 
+  await page.goto('all-pages-preview.html');
+
+  await expect(page).toHaveURL(/\/economy\/\?preview=game$/);
+  await expect(page.locator('html')).toHaveAttribute('data-local-game-preview', 'true');
+  await expect(page.locator('.game-shell')).toBeVisible();
+  await expect(page.locator('.desktop-sidebar .sidebar-nav-button')).toHaveCount(9);
+  await expect(page.locator('.desktop-sidebar .sidebar-footer').getByRole('button', { name: '设置' })).toHaveCount(1);
+  await expect(page.locator('.desktop-sidebar').getByRole('button', { name: /^地图/ })).toHaveCount(0);
   const map = page.getByTestId('us-mainland-map');
   await expect(map).toHaveAttribute('data-map-ready', 'true');
   await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
   await expect(page.locator('[data-player-page-navigation="true"]')).toHaveCount(0);
+  expect(apiRequests).toEqual([]);
+});
 
+test('account-free game shell navigates all ten visible business pages and closes to the map', async ({ page }) => {
+  await page.goto('?preview=game');
   const sidebar = page.locator('.desktop-sidebar');
+
   for (const target of pages) {
-    const button = target.label === '设置'
-      ? sidebar.locator('.sidebar-footer').getByRole('button', { name: '设置', exact: true })
-      : sidebar.getByRole('button', { name: new RegExp(`^${target.label}`) });
-    await button.click();
-    await expect(page.getByRole('heading', { level: 1, name: target.heading })).toBeVisible();
+    const navigation = sidebar.getByRole('button', { name: target.navigation });
+    await navigation.click();
+    await expect(navigation).toHaveAttribute('aria-current', 'page');
+    if ('heading' in target) {
+      await expect(page.getByRole('heading', { level: 1, name: target.heading })).toBeVisible();
+    }
+    await expect(page.getByRole('button', { name: '返回上一页面' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '关闭当前页面并显示地图' })).toBeVisible();
   }
+
+  await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
+  const map = page.getByTestId('us-mainland-map');
+  await expect(map).toHaveAttribute('data-map-ready', 'true');
+  await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
+  await expect(page.locator('.province-map-page')).toHaveCount(1);
+  await expect(page.locator('[data-player-page-navigation="true"]')).toHaveCount(0);
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
+  await clickMapProvinceLabel(page, '得克萨斯州');
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', 'US-TX');
+  await expect(page.getByRole('heading', { level: 1, name: '得克萨斯州' })).toBeVisible();
+  await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');
+  await expect(page.getByRole('tablist', { name: '得克萨斯州页面分区' }).getByRole('tab')).toHaveCount(4);
+  await expect(page.getByText('当前经营地区', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
 });
 
 test('player page heading keeps SVG back, centered title, and SVG close in that order', async ({ page }) => {
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^概览/ }).click();
 
-  const heading = page.locator('.page-heading--player-navigation').first();
-  await expect(heading).toBeVisible();
-  await expect(heading.locator('.page-navigation-button--back .game-icon')).toHaveCount(1);
-  await expect(heading.locator('.page-navigation-button--close .game-icon')).toHaveCount(1);
-  await expect(heading.locator('.page-heading-title h1')).toHaveText('概览');
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    const heading = page.locator('[data-player-page-navigation="true"]');
+    const back = heading.getByRole('button', { name: '返回上一页面' });
+    const close = heading.getByRole('button', { name: '关闭当前页面并显示地图' });
+    await expect(heading).toBeVisible();
+    await expect(back.locator('svg')).toHaveCount(1);
+    await expect(close.locator('svg')).toHaveCount(1);
+    await expect(back).toHaveText('');
+    await expect(close).toHaveText('');
 
-  const layout = await heading.evaluate((element) => {
-    const back = element.querySelector<HTMLElement>('.page-navigation-button--back');
-    const title = element.querySelector<HTMLElement>('.page-heading-title');
-    const close = element.querySelector<HTMLElement>('.page-navigation-button--close');
-    if (!back || !title || !close) throw new Error('page heading navigation nodes missing');
-    const rect = (node: HTMLElement) => {
-      const value = node.getBoundingClientRect();
-      return { left: value.left, top: value.top, width: value.width, height: value.height };
-    };
-    const style = getComputedStyle(element);
-    return {
-      back: rect(back),
-      title: rect(title),
-      close: rect(close),
-      heading: rect(element as HTMLElement),
-      clientWidth: element.clientWidth,
-      scrollWidth: element.scrollWidth,
-      padding: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft],
-    };
-  });
-
-  expect(layout.back.left).toBeLessThan(layout.title.left);
-  expect(layout.title.left).toBeLessThan(layout.close.left);
-  expect(layout.back.width).toBeCloseTo(40, 0);
-  expect(layout.back.height).toBeCloseTo(44, 0);
-  expect(layout.close.width).toBeCloseTo(40, 0);
-  expect(layout.close.height).toBeCloseTo(44, 0);
-  expect(layout.title.left + layout.title.width / 2).toBeCloseTo(
-    layout.heading.left + layout.heading.width / 2,
-    0,
-  );
-  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth);
-  expect(new Set(layout.padding).size).toBe(1);
+    const layout = await heading.evaluate((element) => {
+      const children = [...element.children] as HTMLElement[];
+      const rect = (target: HTMLElement) => {
+        const box = target.getBoundingClientRect();
+        return { left: box.left, top: box.top, width: box.width, height: box.height };
+      };
+      return {
+        order: children.map((child) => (
+          child.classList.contains('page-navigation-button--back')
+            ? 'back'
+            : child.classList.contains('page-heading-title')
+              ? 'title'
+              : child.classList.contains('page-navigation-button--close')
+                ? 'close'
+                : 'unknown'
+        )),
+        heading: rect(element),
+        back: rect(children[0]),
+        title: rect(children[1]),
+        close: rect(children[2]),
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+        padding: [
+          getComputedStyle(element).paddingTop,
+          getComputedStyle(element).paddingRight,
+          getComputedStyle(element).paddingBottom,
+          getComputedStyle(element).paddingLeft,
+        ],
+      };
+    });
+    expect(layout.order).toEqual(['back', 'title', 'close']);
+    expect(layout.back.width).toBeCloseTo(40, 0);
+    expect(layout.back.height).toBeCloseTo(44, 0);
+    expect(layout.close.width).toBeCloseTo(40, 0);
+    expect(layout.close.height).toBeCloseTo(44, 0);
+    expect(layout.title.left + layout.title.width / 2).toBeCloseTo(
+      layout.heading.left + layout.heading.width / 2,
+      0,
+    );
+    expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth);
+    expect(new Set(layout.padding).size).toBe(1);
+  }
 });
 
 test('overview, market, buildings, and settings share a one-third card width while leaderboard and shop stay full-area', async ({ page }) => {
@@ -129,32 +185,135 @@ test('overview, market, buildings, and settings share a one-third card width whi
     expect(contentBox).not.toBeNull();
     expect(cardBox).not.toBeNull();
     expect(railBox).not.toBeNull();
+    expect(contentBox!.x + contentBox!.width).toBeLessThanOrEqual(railBox!.x - 8);
     compactWidths.push(contentBox!.width);
     compactCardWidths.push(cardBox!.width);
   }
+  expect(Math.max(...compactWidths) - Math.min(...compactWidths)).toBeLessThanOrEqual(1);
+  expect(Math.max(...compactCardWidths) - Math.min(...compactCardWidths)).toBeLessThanOrEqual(1);
+  expect(compactCardWidths[0]).toBeLessThanOrEqual(1684 / 3);
+  expect(compactCardWidths[0]).toBeCloseTo(1684 / 3, 0);
 
-  for (const label of ['排行', '商店']) {
-    const button = sidebar.getByRole('button', { name: new RegExp(`^${label}`) });
-    await button.click();
+  const fullAreaWidths = new Map<string, number>();
+  for (const label of ['研发', '拍卖', '合同', '银行', '排行', '商店']) {
+    await sidebar.getByRole('button', { name: new RegExp(`^${label}`) }).click();
     const host = page.locator('.strategic-page-host');
     await expect(host.locator(':scope > .page-loading')).toHaveCount(0);
     const content = host.locator(':scope > .page-content:not(.page-loading)');
+    await expect(host).toHaveAttribute('data-strategic-presentation', 'fullscreen');
+    await expect(page.locator('.strategic-economic-event-rail')).toHaveCount(0);
+    const hostBox = await host.boundingBox();
     const contentBox = await content.boundingBox();
+    expect(hostBox).not.toBeNull();
     expect(contentBox).not.toBeNull();
-    expect(contentBox!.width).toBeGreaterThan(Math.max(...compactWidths) * 1.5);
+    expect(contentBox!.width).toBeCloseTo(hostBox!.width, 0);
+    expect(contentBox!.width).toBeGreaterThan(compactWidths[0] + 200);
+    fullAreaWidths.set(label, contentBox!.width);
   }
-
-  expect(Math.max(...compactWidths) - Math.min(...compactWidths)).toBeLessThanOrEqual(4);
-  expect(Math.max(...compactCardWidths) - Math.min(...compactCardWidths)).toBeLessThanOrEqual(4);
+  expect(fullAreaWidths.get('排行')).toBeCloseTo(fullAreaWidths.get('商店')!, 0);
 });
 
-test('map remains the single close target without a visible map navigation button', async ({ page }) => {
+test('page navigation unfolds only the active page while the persistent map keeps its instance and geometry', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('?preview=game');
+  const map = page.getByTestId('us-mainland-map');
+  await expect(map).toHaveAttribute('data-map-ready', 'true');
+
+  const before = await map.evaluate((element) => {
+    (element as HTMLElement).dataset.transitionProbe = 'stable';
+    const box = element.getBoundingClientRect();
+    return { left: box.left, top: box.top, width: box.width, height: box.height };
+  });
+  await page.locator('.desktop-sidebar').getByRole('button', { name: /^市场/ }).click();
+
+  const reveal = page.locator('.signed-in-shell__page-reveal');
+  await expect(reveal).toHaveAttribute('data-page-transition-key', 'market');
+  await expect(reveal).toHaveCSS('animation-name', 'strategic-page-unfold');
+  await expect(map).toHaveAttribute('data-transition-probe', 'stable');
+  const after = await map.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    return { left: box.left, top: box.top, width: box.width, height: box.height };
+  });
+  expect(after).toEqual(before);
+});
+
+test('reduced motion disables card width and page unfold animation', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('?preview=game');
+  await page.locator('.desktop-sidebar').getByRole('button', { name: /^市场/ }).click();
+
+  const transitionDurationSeconds = await page.locator('.signed-in-shell__primary-card').evaluate(
+    (element) => Number.parseFloat(getComputedStyle(element).transitionDuration),
+  );
+  expect(transitionDurationSeconds).toBeLessThanOrEqual(0.001);
+  await expect(page.locator('.signed-in-shell__page-reveal')).toHaveCSS('animation-name', 'none');
+  await expect(page.locator('.strategic-map-stage')).toHaveCSS('transform', 'none');
+});
+
+test('player page return skips the map and restores the previous business page', async ({ page }) => {
   await page.goto('?preview=game');
   const sidebar = page.locator('.desktop-sidebar');
-  await sidebar.getByRole('button', { name: /^概览/ }).click();
-  await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
 
+  await sidebar.getByRole('button', { name: /^市场/ }).click();
+  await sidebar.getByRole('button', { name: /^建筑/ }).click();
+  const returnButton = page.getByRole('button', { name: '返回上一页面' });
+  await returnButton.focus();
+  await expect(returnButton).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { level: 1, name: '市场' })).toBeVisible();
+  await expect(sidebar.getByRole('button', { name: /^市场/ })).toHaveAttribute('aria-current', 'page');
+
+  await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
   await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
-  await expect(sidebar.getByRole('button', { name: /^地图/ })).toHaveCount(0);
-  await expect(page.locator('.mobile-bottom-nav').getByRole('button', { name: /^地图/ })).toHaveCount(0);
+  await expect(page.locator('[data-player-page-navigation="true"]')).toHaveCount(0);
+  await sidebar.getByRole('button', { name: /^银行/ }).click();
+  await returnButton.focus();
+  await expect(returnButton).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { level: 1, name: '市场' })).toBeVisible();
+});
+
+test('leaderboard and local-only service summaries are populated in the full shell', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('?preview=game');
+  const sidebar = page.locator('.desktop-sidebar');
+
+  await sidebar.getByRole('button', { name: /^排行/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: '排行榜' })).toBeVisible();
+  const leaderboardSwitch = page.locator('.leaderboard-board-switch');
+  const leaderboardLayout = page.locator('.leaderboard-responsive-layout');
+  await expect(leaderboardSwitch.locator('button')).toHaveCount(4);
+  await expect(leaderboardLayout).toBeVisible();
+  expect(await leaderboardLayout.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThanOrEqual(72 * 16);
+  await expect(leaderboardSwitch).toBeHidden();
+  await expect(page.locator('.leaderboard-board-card:visible')).toHaveCount(4);
+  await expect(page.locator('[data-leaderboard-board="wealth"] .leaderboard-board-card').getByText('本地预览玩家', { exact: true })).toBeVisible();
+
+  for (const viewport of [{ width: 900, height: 900 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    await expect(leaderboardSwitch).toBeVisible();
+    await expect(leaderboardSwitch).toHaveAttribute('role', 'group');
+    await expect(leaderboardSwitch).toHaveAttribute('aria-label', '选择排行榜');
+    await expect(page.locator('.leaderboard-board-card:visible')).toHaveCount(1);
+    const switchGeometry = await leaderboardSwitch.evaluate((element) => {
+      const buttons = [...element.querySelectorAll<HTMLElement>('button')].map((button) => button.getBoundingClientRect());
+      return {
+        rowSpread: Math.max(...buttons.map((button) => button.top)) - Math.min(...buttons.map((button) => button.top)),
+        hasHorizontalOverflow: element.scrollWidth > element.clientWidth + 1,
+      };
+    });
+    expect(switchGeometry.rowSpread).toBeLessThanOrEqual(1);
+    expect(switchGeometry.hasHorizontalOverflow).toBe(false);
+  }
+  await page.setViewportSize({ width: 900, height: 900 });
+  await leaderboardSwitch.getByRole('button', { name: '增长榜', exact: true }).click();
+  await expect(leaderboardSwitch.getByRole('button', { name: '增长榜', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.leaderboard-board-card:visible')).toHaveCount(1);
+  await expect(page.locator('[data-leaderboard-board="growth"] .leaderboard-board-card')).toBeVisible();
+
+  await sidebar.getByRole('button', { name: /^商店/ }).click();
+  await expect(page.getByText('1 宝石 = 1,280 货币', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('永久邀请码')).toHaveValue('LOCAL2026');
 });
