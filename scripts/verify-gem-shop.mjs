@@ -98,7 +98,7 @@ requireText('docs/README.md', '研发宝石加速、工厂施工加速退役');
 forbidText('docs/README.md', '直接货币发行、施工宝石加速、兑换幂等');
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '/api/game/facilities/construction/accelerate');
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '410 Gone');
-for (const text of ['礼品码兑换', 'model.redeemGift', 'giftCode', 'gem-shop-gift-card']) {
+for (const text of ['礼品码兑换', 'model.redeemGift', 'giftCode', 'gem-shop-gift-card', 'label="礼品兑换码"']) {
   requireText('src/pages/GemShopPage.tsx', text);
 }
 for (const text of ['WidgetHeading title="礼品兑换"', 'label="礼品兑换码"', 'redeemGift', 'gift-redemption-card']) {
