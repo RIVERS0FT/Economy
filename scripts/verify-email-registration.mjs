@@ -162,8 +162,8 @@ for (const text of [
 forbidText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'RESEND_FROM_EMAIL');
 
 for (const text of [
-  '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与每日终端动态报价兑换普通货币 |',
-  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、教程控制、礼品和退出 |',
+  '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石、礼品码兑换与每日终端动态报价兑换普通货币 |',
+  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、教程控制、存档管理和退出 |',
   '已注册时直接提示登录且不启动倒计时、不创建验证码记录、不发送邮件',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '资料、偏好、邀请、礼品、退出和重置');
