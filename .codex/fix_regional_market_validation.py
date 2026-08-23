@@ -45,5 +45,23 @@ replace_if_present(
     "  '{!isFacilityDetail ? sectionSwitch : null}',\n",
     "  '{!isEntityDetail ? sectionSwitch : null}',\n",
 )
+replace_if_present(
+    'src/components/market/MarketAutoTradePanel.tsx',
+    '''            <Button
+              ref={mobileAutoTradeTriggerRef}
+              block
+              onClick={(event) => openAutoTradePanel(fixedProductId ?? undefined, event.currentTarget)}
+            >
+              设置自动交易
+            </Button>''',
+    '''            <button
+              ref={mobileAutoTradeTriggerRef}
+              type="button"
+              className="ui-button ui-button--primary ui-button--block"
+              onClick={(event) => openAutoTradePanel(fixedProductId ?? undefined, event.currentTarget)}
+            >
+              设置自动交易
+            </button>''',
+)
 
 print('follow-up regional market validation fixes applied')
