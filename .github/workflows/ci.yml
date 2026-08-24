@@ -89,6 +89,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          node scripts/verify-deployment-pipeline.mjs
           npm run build 2>&1 | tee build-test.log
 
       - name: Prepare Chromium
