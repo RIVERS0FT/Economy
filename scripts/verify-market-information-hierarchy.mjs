@@ -43,6 +43,7 @@ for (const token of [
 ]) requireText(globalMarket, token, 'global market hierarchy');
 
 for (const token of [
+  '<WidgetHeading title="商品" action=',
   'global-market-provinces-panel',
   'global-market-province-row',
   'MarketCoverageBar',
@@ -111,6 +112,7 @@ for (const token of [
 for (const token of [
   '商品目录 → 商品全局详情 → 地区商品详情',
   '筛选默认折叠且不提供商品名称搜索框',
+  '商品目录分区标题只显示“商品”，不显示筛选结果／商品总数统计',
   '商品、卖单量、买单量、市场价和 24h 变化',
   '全局页不得把各州买卖单合并成一个全国订单簿',
 ]) requireText(pageDesign, token, 'market page authority');
