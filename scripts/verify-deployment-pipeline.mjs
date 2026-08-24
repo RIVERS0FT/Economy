@@ -3,11 +3,16 @@ import { resolve } from 'node:path';
 
 const root = process.cwd();
 const deployPath = resolve(root, '.github/workflows/deploy.yml');
+const designPath = resolve(root, 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 const workflow = readFileSync(deployPath, 'utf8');
+const design = readFileSync(designPath, 'utf8');
 const failures = [];
 
 const requireText = (text, reason) => {
   if (!workflow.includes(text)) failures.push(reason ?? `deploy.yml 缺少: ${text}`);
+};
+const requireDesignText = (text, reason) => {
+  if (!design.includes(text)) failures.push(reason ?? `部署设计缺少: ${text}`);
 };
 
 requireText('  build:\n', '部署工作流必须保留独立 build 验证 Job');
@@ -27,6 +32,13 @@ requireText('--exclude runtime/', '同步 server 目录时必须排除可复用 
 requireText('  report-validation-failure:\n', '验证失败必须写入 deploy/economy 失败状态');
 requireText('needs: [build, browser-test]', '验证失败状态 Job 必须等待 build 与 browser-test');
 requireText("needs['browser-test'].result", '带连字符的 browser-test Job 必须使用 bracket 语法读取 needs 结果');
+
+requireDesignText('完整 `npm run build` 与完整 Playwright 浏览器回归必须作为并行硬门禁', '权威部署设计必须记录完整构建与浏览器回归并行硬门禁');
+requireDesignText('独立 `browser-test` Job 固定以四个 shard', '权威部署设计必须记录四分片浏览器回归');
+requireDesignText('生产 `deploy` Job 必须同时 `needs` 两者', '权威部署设计必须记录生产写入等待全部验证');
+requireDesignText('同步 `server/` 时必须排除 `runtime/`', '权威部署设计必须记录 API 同步保护可复用 runtime');
+requireDesignText('完全匹配时必须复用且不得重新下载或上传', '权威部署设计必须记录 Node runtime 精确匹配复用');
+requireDesignText('已通过精确校验时复用服务器现有运行时', '权威部署设计必须记录运行时部署包条件');
 
 const browserIndex = workflow.indexOf('  browser-test:\n');
 const deployIndex = workflow.indexOf('  deploy:\n');
