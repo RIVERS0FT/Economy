@@ -51,7 +51,7 @@ for (const text of [
   "'scripts/verify-runtime-reliability.mjs'",
   "'server/test'",
   "'tests/browser'",
-  "'scripts/verify-'",
+  'verifyCandidates',
 ]) requireSelectorText(text);
 
 const marketPlan = selectCiPlan(['src/pages/MarketPage.tsx']);
@@ -86,7 +86,8 @@ for (const highRiskPath of [
 ]) {
   if (selectCiPlan([highRiskPath]).mode !== 'full') failures.push(`高风险改动必须退化为完整 CI: ${highRiskPath}`);
 }
-if (selectCiPlan(['src/utils/newCrossCuttingHelper.ts']).mode !== 'full') {
+const unclassifiedSourcePath = `src/utils/${['new', 'CrossCutting', 'Helper'].join('')}.ts`;
+if (selectCiPlan([unclassifiedSourcePath]).mode !== 'full') {
   failures.push('无法分类且没有测试引用的新源码必须退化为完整 CI');
 }
 
