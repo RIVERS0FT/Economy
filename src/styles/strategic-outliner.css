@@ -1,13 +1,8 @@
 /* Strategic Outliner cascade corrections loaded after strategic-game-shell.css.
- * Keep the tracker on the same strategic Chrome layer as desktop Toasts so the
- * later Toast DOM can cover it. Horizontal overscroll stays local, while the
- * vertical boundary is released to the shared scroll chain per UI ownership rules. */
+ * The tracker keeps one full-width desktop geometry. Fullscreen pages hide the
+ * same DOM instead of compressing it, preserving local section and pin state. */
 .game-shell .strategic-outliner {
   z-index: 2;
-}
-
-.game-shell .strategic-outliner[data-collapsed="true"] {
-  width: var(--strategic-outliner-collapsed-width);
 }
 
 .strategic-outliner__scroll {
@@ -16,67 +11,22 @@
 }
 
 @media (min-width: 721px) {
-  .game-shell .strategic-outliner__collapse {
-    display: none;
-  }
-
-  .game-shell:not(:has(.strategic-page-host--fullscreen)) .strategic-outliner,
-  .game-shell:not(:has(.strategic-page-host--fullscreen)) .strategic-outliner[data-collapsed="true"] {
+  .game-shell:not(:has(.strategic-page-host--fullscreen)) .strategic-outliner {
     width: var(--strategic-outliner-width);
+    visibility: visible;
+    pointer-events: auto;
   }
 
-  .game-shell:not(:has(.strategic-page-host--fullscreen)) .strategic-outliner[data-collapsed="true"] .strategic-outliner__header {
-    grid-template-columns: minmax(0, 1fr) 34px;
-    padding: 6px;
-  }
-
-  .game-shell:not(:has(.strategic-page-host--fullscreen)) .strategic-outliner[data-collapsed="true"] .strategic-outliner__identity,
-  .game-shell:not(:has(.strategic-page-host--fullscreen)) .strategic-outliner[data-collapsed="true"] .strategic-outliner__context-pin {
-    display: grid;
-  }
-
-  .game-shell:not(:has(.strategic-page-host--fullscreen)) .strategic-outliner[data-collapsed="true"] .strategic-outliner__scroll {
-    display: block;
-  }
-
-  .game-shell:not(:has(.strategic-page-host--fullscreen)) .strategic-outliner[data-collapsed="true"] .strategic-outliner__collapsed-map {
-    display: none;
-  }
-
-  .game-shell:not(:has(.strategic-page-host--fullscreen)) .strategic-outliner__header {
-    grid-template-columns: minmax(0, 1fr) 34px;
+  .game-shell:has(.strategic-page-host--fullscreen) {
+    --strategic-outliner-reserved-width: 0px;
+    --strategic-primary-card-inline-size: calc(
+      100% - var(--strategic-panel-gap) * 2
+    );
   }
 
   .game-shell:has(.strategic-page-host--fullscreen) .strategic-outliner {
-    width: var(--strategic-outliner-collapsed-width);
-  }
-
-  .game-shell:has(.strategic-page-host--fullscreen) .strategic-outliner__header {
-    grid-template-columns: 1fr;
-    padding: 4px;
-  }
-
-  .game-shell:has(.strategic-page-host--fullscreen) .strategic-outliner__identity,
-  .game-shell:has(.strategic-page-host--fullscreen) .strategic-outliner__context-pin,
-  .game-shell:has(.strategic-page-host--fullscreen) .strategic-outliner__scroll {
-    display: none;
-  }
-
-  .game-shell:has(.strategic-page-host--fullscreen) .strategic-outliner__collapsed-map {
-    position: absolute;
-    top: 56px;
-    left: 50%;
-    width: 22px;
-    height: 22px;
-    display: grid;
-    place-items: center;
-    color: var(--color-text-muted);
-    transform: translateX(-50%);
-  }
-
-  .game-shell:has(.strategic-page-host--fullscreen) .strategic-outliner__collapsed-map svg {
-    width: 17px;
-    height: 17px;
+    visibility: hidden;
+    pointer-events: none;
   }
 }
 
@@ -84,8 +34,10 @@
   .game-shell:not(:has(.strategic-page-host--fullscreen)) {
     --strategic-outliner-reserved-width: var(--strategic-outliner-width);
   }
+}
 
-  .game-shell:has(.strategic-page-host--fullscreen) {
-    --strategic-outliner-reserved-width: var(--strategic-outliner-collapsed-width);
+@media (max-width: 1439px) and (min-width: 721px) {
+  .game-shell:not(:has(.strategic-page-host--fullscreen)) {
+    --strategic-outliner-reserved-width: 0px;
   }
 }

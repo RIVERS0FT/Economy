@@ -9,7 +9,6 @@ import type { EconomicCalendarEvent } from '../../types';
 import { formatCurrency, formatDuration, formatNumber } from '../../utils/formatters';
 import { GameGuideStrip } from '../GameGuideStrip';
 import {
-  MapIcon,
   NavigationIcon,
   PinIcon,
   type NavigationIconName,
@@ -518,7 +517,6 @@ export function StrategicOutliner({
           ) : null}
         </OutlinerSection>
       </div>
-      <span className="strategic-outliner__collapsed-map" aria-hidden="true"><MapIcon /></span>
     </aside>
   );
 }

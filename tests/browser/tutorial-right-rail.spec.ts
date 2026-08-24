@@ -20,6 +20,7 @@ test('desktop strategic outliner persists across business and fullscreen pages',
   const eventsSection = outliner.locator('[data-outliner-section="events"]');
   const pinnedSection = outliner.locator('[data-outliner-section="pinned"]');
   const collapseButton = outliner.locator('.strategic-outliner__collapse');
+  const workspace = page.locator('.workspace');
 
   await expect(outliner).toHaveAttribute('data-tutorial-visible', 'true');
   await expect(outliner).toHaveAttribute('data-event-log-visible', 'true');
@@ -29,7 +30,7 @@ test('desktop strategic outliner persists across business and fullscreen pages',
   await expect(tutorial.locator('[role="progressbar"]')).toHaveAttribute('aria-label', '教程总体进度');
   await expect(eventsSection).toBeVisible();
   await expect(pinnedSection).toBeVisible();
-  await expect(collapseButton).toBeHidden();
+  await expect(collapseButton).toHaveCount(0);
 
   const progressPrecedesTask = await tutorial.evaluate((element) => {
     const progress = element.querySelector('.game-guide-progress');
@@ -77,15 +78,14 @@ test('desktop strategic outliner persists across business and fullscreen pages',
     await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-page', tab);
     await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'fullscreen');
     await expect(outliner).toHaveAttribute('data-browser-outliner-sentinel', 'persistent');
-    await expect(outliner).toBeVisible();
+    await expect(outliner).toBeHidden();
     await expect(tutorial).toBeHidden();
     await expect(eventsSection).toHaveAttribute('data-collapsed', 'true');
     await expect(pinnedSection.locator('.strategic-outliner-row')).toHaveCount(1);
-    await expect.poll(async () => (await requireBox(outliner)).width).toBeCloseTo(44, 0);
 
     const primaryCardBox = await requireBox(page.locator('.signed-in-shell__primary-card'));
-    const outlinerBox = await requireBox(outliner);
-    expect(primaryCardBox.x + primaryCardBox.width).toBeLessThanOrEqual(outlinerBox.x - 6);
+    const workspaceBox = await requireBox(workspace);
+    expect(workspaceBox.x + workspaceBox.width - (primaryCardBox.x + primaryCardBox.width)).toBeCloseTo(8, 0);
   }
 
   await page.locator('.desktop-sidebar').getByRole('button', { name: '建筑', exact: true }).click();
@@ -94,7 +94,7 @@ test('desktop strategic outliner persists across business and fullscreen pages',
   await expect(tutorial).toBeVisible();
   await expect(eventsSection).toHaveAttribute('data-collapsed', 'true');
   await expect(pinnedSection.locator('.strategic-outliner-row')).toHaveCount(1);
-  await expect(collapseButton).toBeHidden();
+  await expect(collapseButton).toHaveCount(0);
 
   page.once('dialog', async (dialog) => {
     expect(dialog.type()).toBe('confirm');
@@ -107,7 +107,7 @@ test('desktop strategic outliner persists across business and fullscreen pages',
   await expect(tutorial).toBeVisible();
 });
 
-test('desktop strategic outliner collapse and pins persist through reload', async ({ page }) => {
+test('desktop strategic outliner hide and pins persist through reload', async ({ page }) => {
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('runtime-test.html?view=overview&scenario=tutorial');
   await page.evaluate(() => {
@@ -120,20 +120,24 @@ test('desktop strategic outliner collapse and pins persist through reload', asyn
   const outliner = page.locator('.strategic-outliner');
   const collapseButton = outliner.locator('.strategic-outliner__collapse');
   const sidebar = page.locator('.desktop-sidebar');
-  await expect(collapseButton).toBeHidden();
+  await expect(collapseButton).toHaveCount(0);
   await outliner.locator('.strategic-outliner__context-pin').click();
 
   await sidebar.getByRole('button', { name: '研发', exact: true }).click();
   await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'fullscreen');
-  await expect.poll(async () => (await requireBox(outliner)).width).toBeCloseTo(44, 0);
+  await expect(outliner).toBeHidden();
+  const primaryCardBox = await requireBox(page.locator('.signed-in-shell__primary-card'));
+  const workspaceBox = await requireBox(page.locator('.workspace'));
+  expect(workspaceBox.x + workspaceBox.width - (primaryCardBox.x + primaryCardBox.width)).toBeCloseTo(8, 0);
 
   await sidebar.getByRole('button', { name: '建筑', exact: true }).click();
   await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');
+  await expect(outliner).toBeVisible();
   await expect.poll(async () => (await requireBox(outliner)).width).toBeGreaterThan(200);
-  await expect(collapseButton).toBeHidden();
+  await expect(collapseButton).toHaveCount(0);
 
   await page.reload();
-  await expect(collapseButton).toBeHidden();
+  await expect(collapseButton).toHaveCount(0);
   await expect(outliner.locator('[data-outliner-section="pinned"] .strategic-outliner-row')).toHaveCount(1);
 });
 

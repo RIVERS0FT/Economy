@@ -265,7 +265,6 @@ requireText(files.strategicStyles, [
   '.application-map-layer > .strategic-map-lens-bar {',
   '.strategic-outliner {',
   '--strategic-outliner-width: clamp(280px, 21vw, 320px);',
-  '--strategic-outliner-collapsed-width: 44px;',
   '.strategic-outliner__scroll {',
   'overflow-y: auto;',
   '@media (min-width: 1440px)',
@@ -279,10 +278,14 @@ forbidText(files.strategicStyles, [
 ]);
 requireText(files.outlinerStyles, [
   ':has(.strategic-page-host--fullscreen)',
-  'width: var(--strategic-outliner-collapsed-width);',
-  '--strategic-outliner-reserved-width: var(--strategic-outliner-collapsed-width);',
+  'visibility: hidden;',
+  'pointer-events: none;',
+  '--strategic-outliner-reserved-width: 0px;',
+  '100% - var(--strategic-panel-gap) * 2',
   '.game-shell:not(:has(.strategic-page-host--fullscreen)) .strategic-outliner',
 ]);
+forbidText(files.strategicStyles, ['--strategic-outliner-collapsed-width', '.strategic-outliner[data-collapsed=', '.strategic-outliner__collapse', '.strategic-outliner__collapsed-map']);
+forbidText(files.outlinerStyles, ['--strategic-outliner-collapsed-width', '.strategic-outliner[data-collapsed=', '.strategic-outliner__collapse', '.strategic-outliner__collapsed-map']);
 requireText(files.mobileStatusStyles, [
   ".game-shell .strategic-outliner[data-tutorial-visible='true']",
   ".strategic-outliner-section:not(.strategic-outliner-section--tutorial)",
@@ -325,8 +328,9 @@ requireText(files.tutorialBrowser, [
   "toHaveAttribute('data-strategic-presentation', 'fullscreen')",
   "toHaveAttribute('data-browser-outliner-sentinel', 'persistent')",
   "toContain('blur(18px)')",
-  'width).toBeCloseTo(44, 0)',
-  'desktop strategic outliner collapse and pins persist through reload',
+  'await expect(outliner).toBeHidden()',
+  'toBeCloseTo(8, 0)',
+  'desktop strategic outliner hide and pins persist through reload',
   'mobile tutorial stays shell-owned inside the shared outliner while pages and notifications cover it',
   "page.locator('.overview-mobile-tutorial')).toHaveCount(0)",
   '[data-mobile-workspace-sheet-host="true"]',
@@ -355,9 +359,9 @@ requireText(files.design, [
   '“教程／进行中／关注／公开经济事件”四个可折叠分区',
   '整个追踪器只有 `.strategic-outliner__scroll` 一个纵向滚动根',
   'Outliner 变体不得带独立 `.panel` 外壳',
-  '`fullscreen` 紧凑轨道固定为 `44px`',
-  '不得提供追踪器整体展开／收起按钮',
-  '`721px–1439px` 普通页面继续只预留 `44px`',
+  '六个 `fullscreen` 页面在桌面端隐藏同一追踪器',
+  '不得提供追踪器整体横向展开／收起按钮',
+  '`721px–1439px` 普通页面不预留伪收起轨道',
   '同一个 `StrategicOutliner` DOM 仅呈现“教程”分区',
   '研发页桌面与其他玩家页面统一使用 `workspaceCard` 外层容器',
   '`--strategic-compact-page-width: 56rem`',
