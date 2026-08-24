@@ -1,0 +1,69 @@
+name: Fix fullscreen outliner verifier ownership
+
+on:
+  push:
+    branches:
+      - fix/hide-fullscreen-outliner
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Move responsive assertions to final cascade
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              text = Path(path).read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one match, got {count}: {old!r}')
+              Path(path).write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          liquid = 'scripts/verify-liquid-glass-chrome.mjs'
+          replace_once(
+              liquid,
+              "  'overflow-y: auto;',\n  '@media (min-width: 1440px)',\n  '@media (max-width: 1439px) and (min-width: 721px)',",
+              "  'overflow-y: auto;',\n  '@media (max-width: 1439px) and (min-width: 721px)',",
+          )
+          replace_once(
+              liquid,
+              "  '100% - var(--strategic-panel-gap) * 2',\n  '.game-shell:not(:has(.strategic-page-host--fullscreen)) .strategic-outliner',\n]);",
+              "  '100% - var(--strategic-panel-gap) * 2',\n  '.game-shell:not(:has(.strategic-page-host--fullscreen)) .strategic-outliner',\n  '@media (min-width: 1440px)',\n  '--strategic-outliner-reserved-width: var(--strategic-outliner-width);',\n]);",
+          )
+
+          shell = 'scripts/verify-game-shell-layout.mjs'
+          replace_once(
+              shell,
+              "  'overflow-y: auto;',\n  '@media (min-width: 1440px)',\n  '@media (max-width: 1439px) and (min-width: 721px)',",
+              "  'overflow-y: auto;',\n  '@media (max-width: 1439px) and (min-width: 721px)',",
+          )
+          replace_once(
+              shell,
+              "  '--strategic-outliner-reserved-width: 0px;',\n  '100% - var(--strategic-panel-gap) * 2',\n]);",
+              "  '--strategic-outliner-reserved-width: 0px;',\n  '100% - var(--strategic-panel-gap) * 2',\n  '@media (min-width: 1440px)',\n  '--strategic-outliner-reserved-width: var(--strategic-outliner-width);',\n]);",
+          )
+          PY
+          node scripts/verify-strategic-outliner.mjs
+          node scripts/verify-liquid-glass-chrome.mjs
+          node scripts/verify-game-shell-layout.mjs
+          git diff --check
+      - name: Commit verifier correction
+        shell: bash
+        run: |
+          git rm .github/workflows/fix-hide-fullscreen-verifiers.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "同步全屏右栏最终级联验证"
+          git push
