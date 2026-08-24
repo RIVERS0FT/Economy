@@ -214,7 +214,6 @@ check('src/styles/strategic-game-shell.css', [
   '.strategic-outliner {',
   '.strategic-outliner__scroll {',
   'overflow-y: auto;',
-  '@media (min-width: 1440px)',
   '@media (max-width: 1439px) and (min-width: 721px)',
   '.strategic-page-host--map {',
   '.application-map-layer > .strategic-map-lens-bar {',
@@ -335,6 +334,8 @@ check('src/styles/strategic-outliner.css', [
   'pointer-events: none;',
   '--strategic-outliner-reserved-width: 0px;',
   '100% - var(--strategic-panel-gap) * 2',
+  '@media (min-width: 1440px)',
+  '--strategic-outliner-reserved-width: var(--strategic-outliner-width);',
 ]);
 check('tests/browser/admin-runtime.spec.ts', [
   'sidebarTopGap', 'workspaceTopGap', 'admin-command-bar-identity',

@@ -267,7 +267,6 @@ requireText(files.strategicStyles, [
   '--strategic-outliner-width: clamp(280px, 21vw, 320px);',
   '.strategic-outliner__scroll {',
   'overflow-y: auto;',
-  '@media (min-width: 1440px)',
   '@media (max-width: 1439px) and (min-width: 721px)',
 ]);
 forbidText(files.strategicStyles, [
@@ -283,6 +282,8 @@ requireText(files.outlinerStyles, [
   '--strategic-outliner-reserved-width: 0px;',
   '100% - var(--strategic-panel-gap) * 2',
   '.game-shell:not(:has(.strategic-page-host--fullscreen)) .strategic-outliner',
+  '@media (min-width: 1440px)',
+  '--strategic-outliner-reserved-width: var(--strategic-outliner-width);',
 ]);
 forbidText(files.strategicStyles, ['--strategic-outliner-collapsed-width', '.strategic-outliner[data-collapsed=', '.strategic-outliner__collapse', '.strategic-outliner__collapsed-map']);
 forbidText(files.outlinerStyles, ['--strategic-outliner-collapsed-width', '.strategic-outliner[data-collapsed=', '.strategic-outliner__collapse', '.strategic-outliner__collapsed-map']);
