@@ -72,8 +72,9 @@ for (const legacy of ['--strategic-outliner-collapsed-width', '.strategic-outlin
 requireText(shellStyle, '--strategic-outliner-width:', '桌面外壳必须定义追踪器展开宽度');
 requireText(shellStyle, 'overflow-y: auto;', '追踪器必须提供唯一纵向滚动视口');
 requireText(shellStyle, 'backdrop-filter: var(--frosted-glass-filter);', '追踪器外层必须复用共享毛玻璃滤镜');
-requireText(shellStyle, '@media (min-width: 1440px)', '宽屏必须为普通页展开追踪器预留真实空间');
-requireText(shellStyle, '@media (max-width: 1439px) and (min-width: 721px)', '中窄桌面必须允许完整追踪器覆盖展开');
+requireText(outlinerStyle, '@media (min-width: 1440px)', '宽屏必须为普通页展开追踪器预留真实空间');
+requireText(outlinerStyle, '@media (max-width: 1439px) and (min-width: 721px)', '中窄桌面必须允许完整追踪器覆盖展开');
+requireText(outlinerStyle, '--strategic-outliner-reserved-width: var(--strategic-outliner-width);', '宽屏普通页必须预留完整追踪器宽度');
 requireText(outlinerStyle, '.game-shell .strategic-outliner {\n  z-index: 2;', '战略追踪器最终层级必须与桌面 Toast 同为局部 z-index 2');
 requireText(outlinerStyle, ':has(.strategic-page-host--fullscreen)', 'fullscreen 页面必须由页面 presentation 自动驱动追踪器可见性');
 requireText(outlinerStyle, 'visibility: hidden;', 'fullscreen 页面必须隐藏同一战略追踪器 DOM');
@@ -94,7 +95,7 @@ requireText(browserSpec, 'toBeCloseTo(8, 0)', '浏览器回归必须验证 fulls
 
 requireText(pageDesign, '战略追踪器', '页面权威设计必须记录战略追踪器规则');
 requireText(pageDesign, '页面路由生命周期解耦', '页面权威设计必须锁定追踪器与页面生命周期解耦');
-requireText(pageDesign, '不得提供整体展开／收起按钮', '页面权威设计必须锁定无整体收起按钮');
+requireText(pageDesign, '不得提供整体横向展开／收起按钮', '页面权威设计必须锁定无整体横向收起按钮');
 requireText(pageDesign, '六个 `fullscreen` 页面在桌面端隐藏同一追踪器 DOM', '页面权威设计必须锁定 fullscreen 隐藏同一追踪器 DOM');
 requireText(chromeDesign, '战略追踪器', '外壳权威设计必须记录战略追踪器几何');
 requireText(chromeDesign, '不得提供追踪器整体横向展开／收起按钮', '外壳权威设计必须锁定无整体横向收起按钮');
