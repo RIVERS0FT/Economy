@@ -18,9 +18,9 @@ env:
   ECONOMY_PRODUCTION_PUBLIC_IP: 116.204.134.56
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -40,10 +40,44 @@ jobs:
 
       - name: Build website and test authoritative API
         id: build
+        shell: bash
         run: |
           exec > >(tee /tmp/economy-build.log) 2>&1
           set -euo pipefail
+          node scripts/verify-deployment-pipeline.mjs
           npm run build
+
+      - name: Upload failed build validation log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: economy-deploy-build-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            /tmp/economy-install-dependencies.log
+            /tmp/economy-build.log
+          if-no-files-found: warn
+          retention-days: 3
+          compression-level: 9
+
+  browser-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Prepare Chromium
         id: install_chromium
@@ -52,13 +86,59 @@ jobs:
           set -euo pipefail
           bash scripts/prepare-playwright-chromium.sh
 
-      - name: Test browser runtime before deployment
+      - name: Test browser runtime shard ${{ matrix.shard }}/4
         id: browser_test
         shell: bash
         run: |
-          exec > >(tee /tmp/economy-browser-test.log) 2>&1
+          exec > >(tee /tmp/economy-browser-test-${{ matrix.shard }}.log) 2>&1
           set -euo pipefail
-          npm run test:browser
+          npm run test:browser -- --shard=${{ matrix.shard }}/4
+
+      - name: Upload failed browser shard log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: economy-deploy-browser-${{ matrix.shard }}-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            /tmp/economy-install-chromium.log
+            /tmp/economy-browser-test-${{ matrix.shard }}.log
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 3
+          compression-level: 9
+
+  deploy:
+    needs:
+      - build
+      - browser-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Install dependencies
+        id: install_dependencies
+        run: |
+          exec > >(tee /tmp/economy-install-dependencies.log) 2>&1
+          set -euo pipefail
+          npm ci
+
+      - name: Build production artifact from validated source
+        id: build_artifact
+        run: |
+          exec > >(tee /tmp/economy-build-artifact.log) 2>&1
+          set -euo pipefail
+          npm run generate:artwork
+          ./node_modules/.bin/tsc
+          ./node_modules/.bin/vite build
 
       - name: Ensure rsync is available
         id: ensure_rsync
@@ -183,13 +263,20 @@ jobs:
         run: |
           exec > >(tee /tmp/economy-runtime.log) 2>&1
           set -euo pipefail
+          node_version="24.4.0"
+          if ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" \
+            "/var/www/game/economy-api/runtime/bin/node -e 'if (process.versions.node !== \"24.4.0\") process.exit(1); require(\"node:sqlite\")'"; then
+            echo "ECONOMY_NODE_RUNTIME_REUSE version=$node_version"
+            echo "upload=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           remote_machine="$(ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" uname -m)"
           case "$remote_machine" in
             x86_64|amd64) node_arch="x64" ;;
             aarch64|arm64) node_arch="arm64" ;;
             *) echo "ECONOMY_UNSUPPORTED_SERVER_ARCHITECTURE: $remote_machine" >&2; exit 1 ;;
           esac
-          node_version="$(node -p 'process.versions.node')"
           archive="node-v${node_version}-linux-${node_arch}.tar.xz"
           runtime_dir="/tmp/economy-node-runtime"
           rm -rf "$runtime_dir"
@@ -199,12 +286,14 @@ jobs:
             --output "/tmp/${archive}" || { echo ECONOMY_NODE_RUNTIME_DOWNLOAD_FAILED >&2; exit 1; }
           tar -xJf "/tmp/${archive}" --strip-components=1 -C "$runtime_dir"
           "$runtime_dir/bin/node" -e 'require("node:sqlite"); console.log(process.versions.node)'
+          echo "upload=true" >> "$GITHUB_OUTPUT"
 
       - name: Upload website and game API
         id: upload_assets
         env:
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          RUNTIME_UPLOAD: ${{ steps.prepare_runtime.outputs.upload }}
         run: |
           exec > >(tee /tmp/economy-upload.log) 2>&1
           set -euo pipefail
@@ -218,8 +307,12 @@ jobs:
             shared/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/shared/"
           rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
             server/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy-api/"
-          rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
-            /tmp/economy-node-runtime/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy-api/runtime/"
+          if [ "$RUNTIME_UPLOAD" = "true" ]; then
+            rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+              /tmp/economy-node-runtime/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy-api/runtime/"
+          else
+            echo "ECONOMY_NODE_RUNTIME_UPLOAD_SKIPPED"
+          fi
 
       - name: Install authoritative game service
         id: install_service
@@ -304,9 +397,7 @@ jobs:
         shell: bash
         env:
           INSTALL_DEPENDENCIES_OUTCOME: ${{ steps.install_dependencies.outcome }}
-          BUILD_OUTCOME: ${{ steps.build.outcome }}
-          INSTALL_CHROMIUM_OUTCOME: ${{ steps.install_chromium.outcome }}
-          BROWSER_TEST_OUTCOME: ${{ steps.browser_test.outcome }}
+          BUILD_ARTIFACT_OUTCOME: ${{ steps.build_artifact.outcome }}
           ENSURE_RSYNC_OUTCOME: ${{ steps.ensure_rsync.outcome }}
           CONFIGURE_SSH_OUTCOME: ${{ steps.configure_ssh.outcome }}
           BACKUP_DATABASE_OUTCOME: ${{ steps.backup_database.outcome }}
@@ -341,9 +432,7 @@ jobs:
           }
 
           collect_failed_log "$INSTALL_DEPENDENCIES_OUTCOME" /tmp/economy-install-dependencies.log install-dependencies.log
-          collect_failed_log "$BUILD_OUTCOME" /tmp/economy-build.log build.log
-          collect_failed_log "$INSTALL_CHROMIUM_OUTCOME" /tmp/economy-install-chromium.log install-chromium.log
-          collect_failed_log "$BROWSER_TEST_OUTCOME" /tmp/economy-browser-test.log browser-test.log
+          collect_failed_log "$BUILD_ARTIFACT_OUTCOME" /tmp/economy-build-artifact.log build-artifact.log
           collect_failed_log "$ENSURE_RSYNC_OUTCOME" /tmp/economy-rsync.log rsync.log
           collect_failed_log "$CONFIGURE_SSH_OUTCOME" /tmp/economy-ssh.log configure-ssh.log
           collect_failed_log "$BACKUP_DATABASE_OUTCOME" /tmp/economy-database-backup.log database-backup.log
@@ -421,4 +510,33 @@ jobs:
             --header "Accept: application/vnd.github+json" \
             --header "X-GitHub-Api-Version: 2022-11-28" \
             --data-binary @/tmp/deploy-status.json \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" > /dev/null
+
+  report-validation-failure:
+    needs: [build, browser-test]
+    if: always() && (needs.build.result != 'success' || needs.browser-test.result != 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report pre-deployment validation failure
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TARGET_URL="https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          python3 - "$TARGET_URL" <<'PYTHON_SCRIPT' > /tmp/deploy-validation-status.json
+          import json
+          import sys
+          print(json.dumps({
+              "state": "failure",
+              "description": "Economy pre-deployment validation failed",
+              "context": "deploy/economy",
+              "target_url": sys.argv[1],
+          }))
+          PYTHON_SCRIPT
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            --data-binary @/tmp/deploy-validation-status.json \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" > /dev/null
