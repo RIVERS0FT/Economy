@@ -26,7 +26,8 @@ export function scopeEconomyState(game: EconomyState, requestedProvinceId: strin
   const facilityGroups = game.provinceFacilityGroups?.[provinceId] || [];
   const markets = game.provinceMarkets?.[provinceId] || {};
   const facilityMarkets = game.provinceFacilityMarkets?.[provinceId] || {};
-  const orders = (game.orders || []).filter((order) => order.provinceId === provinceId);
+  const allProvinceOrders = game.orders || [];
+  const orders = allProvinceOrders.filter((order) => order.provinceId === provinceId);
   const wheatInventory = inventories.wheat || { available: 0, frozen: 0, inTransit: 0 };
   const wheatMarket = markets.wheat;
   const warehouseStoredQuantity = Object.values(inventories).reduce((sum, inventory) => (
@@ -45,6 +46,7 @@ export function scopeEconomyState(game: EconomyState, requestedProvinceId: strin
   const optional = game as EconomyState & Record<string, unknown>;
   return {
     ...game,
+    allProvinceOrders,
     inventories,
     warehouseStoredQuantity,
     facilityGroups,
