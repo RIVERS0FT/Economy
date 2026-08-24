@@ -192,8 +192,16 @@ export function MobileWorkspaceSheetHost({
       const statusBottom = statusBar?.getBoundingClientRect().bottom ?? viewportTop;
       const rootStyles = getComputedStyle(document.documentElement);
       const configuredGap = Number.parseFloat(rootStyles.getPropertyValue('--mobile-content-gap'));
+      const configuredIslandHeight = Number.parseFloat(
+        rootStyles.getPropertyValue('--mobile-notification-island-height'),
+      );
       const statusGap = Number.isFinite(configuredGap) ? configuredGap : 12;
-      const availableHeight = Math.max(1, viewportBottom - statusBottom - statusGap);
+      const islandHeight = Number.isFinite(configuredIslandHeight) ? configuredIslandHeight : 56;
+      const reservedNotificationHeight = statusGap + islandHeight + statusGap;
+      const availableHeight = Math.max(
+        1,
+        viewportBottom - statusBottom - reservedNotificationHeight,
+      );
       const sheetHeight = Math.min(viewportHeight * 0.88, 760, availableHeight);
       root.style.setProperty('--mobile-detail-sheet-max-height', `${Math.round(sheetHeight)}px`);
     };
