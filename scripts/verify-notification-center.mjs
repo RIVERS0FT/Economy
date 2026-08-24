@@ -326,7 +326,7 @@ assert.match(liquidDesign, /Sheet 外部区域不得压暗或模糊/);
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 assert.match(uiDesign, /## 通知面板与关闭态 Toast/);
 assert.match(uiDesign, /移动只显示队列最后一条/);
-assert.match(uiDesign, /标题下方不得再显示待处理数量说明/);
+assert.match(uiDesign, /标题只保留主标题和必要说明/);
 assert.match(uiDesign, /关闭后焦点返回通知入口/);
 assert.match(uiDesign, /缺失领域不得阻断登录后外壳/);
 assert.match(uiDesign, /`48px` 工具轨道和 `44×44px` 触控目标/);
