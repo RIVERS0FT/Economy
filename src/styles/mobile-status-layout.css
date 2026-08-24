@@ -3,6 +3,7 @@
     --mobile-status-top-inset: max(var(--mobile-chrome-block-inset), env(safe-area-inset-top));
     --mobile-notice-gap: var(--space-2);
     --mobile-notice-inline-inset: var(--space-2);
+    --mobile-notification-island-height: 56px;
     --mobile-below-status-top: calc(
       var(--mobile-status-top-inset)
       + var(--mobile-asset-bar-height)

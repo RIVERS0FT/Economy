@@ -23,6 +23,20 @@ export interface NotificationToast {
 
 const TOAST_DURATION_MS = 4_500;
 const MAX_TOAST_QUEUE = 3;
+const NOTIFICATION_ALERTS_STORAGE_VERSION = 1;
+
+function notificationAlertsStorageKey(userId: number) {
+  return `economy:notification-alerts:v${NOTIFICATION_ALERTS_STORAGE_VERSION}:${userId}`;
+}
+
+function loadNotificationAlertsEnabled(userId: number) {
+  if (typeof window === 'undefined') return true;
+  try {
+    return window.localStorage.getItem(notificationAlertsStorageKey(userId)) !== 'disabled';
+  } catch {
+    return true;
+  }
+}
 
 function loadNotifications(userId: number): NotificationRecord[] {
   if (typeof window === 'undefined') return [];
@@ -36,6 +50,7 @@ function loadNotifications(userId: number): NotificationRecord[] {
 
 export interface NotificationCenterController {
   panelOpen: boolean;
+  alertsEnabled: boolean;
   pendingItems: PendingNotificationItem[];
   notifications: NotificationRecord[];
   toasts: NotificationToast[];
@@ -44,6 +59,7 @@ export interface NotificationCenterController {
   openPanel: () => void;
   closePanel: () => void;
   togglePanel: () => void;
+  setAlertsEnabled: (enabled: boolean) => void;
   clearRead: () => void;
   deleteOne: (notificationId: string) => void;
 }
@@ -59,15 +75,19 @@ export function useNotificationCenter(model: LoadedGameViewModel): NotificationC
   ]);
   const game = authorityGame ?? model.game;
   const [panelOpen, setPanelOpen] = useState(false);
+  const [alertsEnabled, setAlertsEnabledState] = useState(() => (
+    loadNotificationAlertsEnabled(model.user.id)
+  ));
   const [notifications, setNotifications] = useState<NotificationRecord[]>(() => (
     loadNotifications(model.user.id)
   ));
   const [toasts, setToasts] = useState<NotificationToast[]>([]);
   const panelOpenRef = useRef(false);
+  const alertsEnabledRef = useRef(alertsEnabled);
   const toastSequenceRef = useRef(0);
   const toastTimersRef = useRef(new Map<string, number>());
   const lastNoticeRef = useRef('');
-  const pendingSignaturesRef = useRef<Map<string, string> | null>(null);
+  const pendingKeysRef = useRef<Set<string> | null>(null);
   const pendingItems = useMemo(
     () => derivePendingNotificationItems(game),
     [game],
@@ -86,8 +106,22 @@ export function useNotificationCenter(model: LoadedGameViewModel): NotificationC
     setToasts([]);
   }, []);
 
+  const setAlertsEnabled = useCallback((enabled: boolean) => {
+    alertsEnabledRef.current = enabled;
+    setAlertsEnabledState(enabled);
+    if (!enabled) clearToasts();
+    try {
+      window.localStorage.setItem(
+        notificationAlertsStorageKey(model.user.id),
+        enabled ? 'enabled' : 'disabled',
+      );
+    } catch {
+      // Alert preference persistence is optional and must never block gameplay.
+    }
+  }, [clearToasts, model.user.id]);
+
   const enqueueToast = useCallback((title: string, tone: NotificationTone) => {
-    if (panelOpenRef.current || !title.trim()) return;
+    if (panelOpenRef.current || !alertsEnabledRef.current || !title.trim()) return;
     toastSequenceRef.current += 1;
     const toastId = `notification-toast-${Date.now().toString(36)}-${toastSequenceRef.current.toString(36)}`;
     setToasts((current) => [
@@ -126,11 +160,14 @@ export function useNotificationCenter(model: LoadedGameViewModel): NotificationC
   }, [closePanel, openPanel]);
 
   useEffect(() => {
+    const nextAlertsEnabled = loadNotificationAlertsEnabled(model.user.id);
     panelOpenRef.current = false;
+    alertsEnabledRef.current = nextAlertsEnabled;
     setPanelOpen(false);
+    setAlertsEnabledState(nextAlertsEnabled);
     clearToasts();
     lastNoticeRef.current = '';
-    pendingSignaturesRef.current = null;
+    pendingKeysRef.current = null;
     setNotifications(loadNotifications(model.user.id));
   }, [clearToasts, model.user.id]);
 
@@ -157,13 +194,13 @@ export function useNotificationCenter(model: LoadedGameViewModel): NotificationC
   }, [addNotification, model.notice]);
 
   useEffect(() => {
-    const nextSignatures = new Map(pendingItems.map((item) => [item.key, item.signature]));
-    const previousSignatures = pendingSignaturesRef.current;
-    pendingSignaturesRef.current = nextSignatures;
-    if (!previousSignatures) return;
+    const nextKeys = new Set(pendingItems.map((item) => item.key));
+    const previousKeys = pendingKeysRef.current;
+    pendingKeysRef.current = nextKeys;
+    if (!previousKeys) return;
 
     pendingItems.forEach((item) => {
-      if (previousSignatures.get(item.key) === item.signature) return;
+      if (previousKeys.has(item.key)) return;
       enqueueToast(item.title, item.severity === 'critical' ? 'error' : 'warning');
     });
   }, [enqueueToast, pendingItems]);
@@ -180,6 +217,7 @@ export function useNotificationCenter(model: LoadedGameViewModel): NotificationC
 
   return {
     panelOpen,
+    alertsEnabled,
     pendingItems,
     notifications,
     toasts,
@@ -188,6 +226,7 @@ export function useNotificationCenter(model: LoadedGameViewModel): NotificationC
     openPanel,
     closePanel,
     togglePanel,
+    setAlertsEnabled,
     clearRead: () => setNotifications((current) => clearReadNotifications(current)),
     deleteOne: (notificationId) => setNotifications((current) => (
       deleteNotification(current, notificationId)
