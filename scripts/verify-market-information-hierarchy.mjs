@@ -52,10 +52,11 @@ for (const token of [
   'catalogQuery',
 ]) forbidText(globalMarket, token, 'global market hierarchy');
 
-const catalogHeadingIndex = globalMarket.indexOf('<WidgetHeading title="商品"');
-const catalogFilterIndex = globalMarket.indexOf('<details className="global-market-filter-disclosure"');
-const catalogListIndex = globalMarket.indexOf('<ul className="global-market-goods-list"');
-if (catalogHeadingIndex < 0 || catalogFilterIndex <= catalogHeadingIndex || catalogListIndex <= catalogFilterIndex) {
+const catalogSourceStart = globalMarket.indexOf('const activeCatalogFilterCount');
+const catalogHeadingIndex = globalMarket.indexOf('<WidgetHeading title="商品"', catalogSourceStart);
+const catalogFilterIndex = globalMarket.indexOf('<details className="global-market-filter-disclosure"', catalogSourceStart);
+const catalogListIndex = globalMarket.indexOf('<ul className="global-market-goods-list"', catalogSourceStart);
+if (catalogSourceStart < 0 || catalogHeadingIndex < 0 || catalogFilterIndex <= catalogHeadingIndex || catalogListIndex <= catalogFilterIndex) {
   throw new Error('global market hierarchy: commodity heading, folded filters, and commodity list must appear in direct page flow');
 }
 const productPanelIndex = globalMarket.indexOf('<PagePanel className="global-market-product-detail-panel">');
