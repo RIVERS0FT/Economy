@@ -15,6 +15,45 @@ permissions:
   contents: read
 
 jobs:
+  patch-authoritative-design:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/perf/selective-pr-ci'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Replace superseded CI rule
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          text = path.read_text(encoding='utf-8')
+          old = """- `.github/workflows/ci.yml` 是唯一 CI 工作流：非 `main` 分支的 `push` 必须在真实头提交上执行完整 `npm run build` 与 Chromium 浏览器测试，使分支保护所需 `build` 绑定可合并头 SHA；`pull_request` 事件同时在 GitHub 合并快照上执行相同验证，覆盖与最新 `main` 的集成结果。两类事件使用既有独立并发键，各自只保留该事件最新运行；不保留第二个重复的 PR Web Build 工作流，也不得用手工成功状态替代任一真实检查。"""
+          new = """- `.github/workflows/ci.yml` 是唯一 CI 工作流：PR 与非 `main` push 默认使用改动文件选择器。非 `main` push 以分支真实头提交相对最新 `main` 的 merge-base 计算完整分支差异并在真实头提交上执行；`pull_request` 以 base/head 计算改动文件，同时在 GitHub 合并快照上执行所选验证，覆盖与最新 `main` 的集成结果。两类事件使用既有独立并发键，各自只保留该事件最新运行；不保留第二个重复的 PR Web Build 工作流，也不得用手工成功状态替代任一真实检查。
+- 改动文件选择规则唯一维护在 `scripts/select-ci-tests.mjs`：直接修改 verify、server test 或 Playwright spec 时必须执行对应检查；前端源码至少执行 TypeScript 与 Vite 生产构建并选择同领域 verify／浏览器测试，服务端源码至少执行服务器语法检查并选择同领域 verify／server test，纯设计文档执行文档权威性检查。依赖、构建／测试配置、CI 工作流、共享客户端入口、共享状态／存储／领域核心、选择器自身等高影响路径必须直接升级为完整验证；任何无法分类的源码改动必须退化为完整验证，禁止以“没有匹配测试”为成功结果。`main` 是唯一自动无条件执行完整 `npm run build` 与完整 Playwright 的分支；人工 `workflow_dispatch` 可以显式请求完整 CI，高风险 PR／分支也只作为保守兜底升级为完整验证。"""
+          if new in text:
+              raise SystemExit(0)
+          if old not in text:
+              raise SystemExit('authoritative CI rule not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8', newline='\n')
+          PY
+
+          if git diff --quiet -- docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
+          git commit -m "更新增量 CI 权威规则"
+          git push origin HEAD:perf/selective-pr-ci
+
   verify-head-ci-registration:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
