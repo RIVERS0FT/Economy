@@ -1,15 +1,16 @@
 const MOBILE_DETAIL_SHEET_SELECTOR = '.mobile-detail-sheet';
-const MOBILE_DETAIL_SHEET_SCROLL_SELECTOR = '.mobile-detail-sheet-scroll';
+const MOBILE_DETAIL_SHEET_SCROLL_SELECTOR =
+  '.mobile-detail-sheet-scroll, .page-card-scroll';
+const MOBILE_DETAIL_SHEET_HEADER_SELECTOR =
+  '.mobile-detail-sheet-header, .mobile-detail-sheet-drag-handle, .page-fixed-header';
 const MOBILE_DETAIL_SHEET_AXIS_THRESHOLD = 8;
 const MOBILE_DETAIL_SHEET_AXIS_DOMINANCE = 1.2;
-const INTERACTIVE_TARGET_SELECTOR =
-  'button, a, input, select, textarea, [role="scrollbar"], .ui-scrollbar, [data-mobile-detail-sheet-no-drag]';
 
-type MobileDetailSheetGestureSource = 'header' | 'content';
+type MobileDetailSheetGestureSource = 'header' | 'content' | 'surface';
 
 interface MobileDetailSheetBrowserGestureSession {
-  startX: number;
-  startY: number;
+  anchorX: number;
+  anchorY: number;
   source: MobileDetailSheetGestureSource;
   scrollViewport?: HTMLElement;
   active: boolean;
@@ -17,10 +18,6 @@ interface MobileDetailSheetBrowserGestureSession {
 
 const attachedDetailSheets = new WeakSet<HTMLElement>();
 let configured = false;
-
-function isInteractiveTarget(target: EventTarget | null) {
-  return target instanceof Element && Boolean(target.closest(INTERACTIVE_TARGET_SELECTOR));
-}
 
 function attachMobileDetailSheetGuard(sheet: HTMLElement) {
   if (attachedDetailSheets.has(sheet)) return;
@@ -30,45 +27,55 @@ function attachMobileDetailSheetGuard(sheet: HTMLElement) {
 
   const handleTouchStart = (event: TouchEvent) => {
     session = null;
-    if (event.touches.length !== 1 || isInteractiveTarget(event.target)) return;
+    if (event.touches.length !== 1) return;
 
     const target = event.target instanceof Element ? event.target : null;
-    const isHeader = Boolean(
-      target?.closest('.mobile-detail-sheet-header, .mobile-detail-sheet-drag-handle'),
-    );
-    const scrollViewport = target?.closest<HTMLElement>(MOBILE_DETAIL_SHEET_SCROLL_SELECTOR) ?? undefined;
-    if (!isHeader && !scrollViewport) return;
-    if (scrollViewport && scrollViewport.scrollTop > 0) return;
-
+    if (!target) return;
+    const scrollViewport = target.closest<HTMLElement>(MOBILE_DETAIL_SHEET_SCROLL_SELECTOR) ?? undefined;
+    const isHeader = Boolean(target.closest(MOBILE_DETAIL_SHEET_HEADER_SELECTOR));
     const touch = event.touches[0];
     session = {
-      startX: touch.clientX,
-      startY: touch.clientY,
-      source: isHeader ? 'header' : 'content',
+      anchorX: touch.clientX,
+      anchorY: touch.clientY,
+      source: scrollViewport ? 'content' : isHeader ? 'header' : 'surface',
       scrollViewport,
       active: false,
     };
   };
 
   const handleTouchMove = (event: TouchEvent) => {
-    if (!session || event.touches.length !== 1) return;
-    if (session.source === 'content' && (session.scrollViewport?.scrollTop ?? 0) > 0) {
+    if (!session) return;
+    if (event.touches.length !== 1) {
       session = null;
       return;
     }
 
-    const touch = event.touches[0];
-    const deltaX = touch.clientX - session.startX;
-    const deltaY = touch.clientY - session.startY;
-    if (!session.active) {
-      if (Math.hypot(deltaX, deltaY) < MOBILE_DETAIL_SHEET_AXIS_THRESHOLD) return;
-      if (deltaY <= 0 || deltaY < Math.abs(deltaX) * MOBILE_DETAIL_SHEET_AXIS_DOMINANCE) {
-        session = null;
-        return;
-      }
-      session.active = true;
+    if (session.active) {
+      if (event.cancelable) event.preventDefault();
+      return;
     }
 
+    const touch = event.touches[0];
+    if (session.source === 'content' && (session.scrollViewport?.scrollTop ?? 0) > 0) {
+      // Keep native scrolling while content can still move. Updating the anchor
+      // here lets the same gesture hand off cleanly if it later reaches the top.
+      session.anchorX = touch.clientX;
+      session.anchorY = touch.clientY;
+      return;
+    }
+
+    const deltaX = touch.clientX - session.anchorX;
+    const deltaY = touch.clientY - session.anchorY;
+    if (Math.hypot(deltaX, deltaY) < MOBILE_DETAIL_SHEET_AXIS_THRESHOLD) return;
+    if (deltaY <= 0 || deltaY < Math.abs(deltaX) * MOBILE_DETAIL_SHEET_AXIS_DOMINANCE) {
+      // Do not abandon the whole touch sequence. A user can scroll or move
+      // laterally first, then reverse into a downward pull at the top edge.
+      session.anchorX = touch.clientX;
+      session.anchorY = touch.clientY;
+      return;
+    }
+
+    session.active = true;
     if (event.cancelable) event.preventDefault();
   };
 
