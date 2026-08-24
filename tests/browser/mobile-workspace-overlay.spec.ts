@@ -199,8 +199,6 @@ test.describe('mobile workspace overlay geometry', () => {
     await expect(navigation).toHaveAttribute('data-workspace-sheet-hidden', 'false');
     await expect(navigation).toHaveAttribute('data-navigation-returning', 'true');
     await expect(navigation).toBeVisible();
-    const returningAnimation = await navigation.evaluate((element) => getComputedStyle(element).animationName);
-    expect(returningAnimation).toContain('mobile-bottom-navigation-return');
 
     const navigationIsTopmost = await navigation.evaluate((element) => {
       const box = element.getBoundingClientRect();

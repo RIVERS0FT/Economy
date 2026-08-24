@@ -212,15 +212,18 @@ test('market medium and narrow layouts keep the trade card responsive without ho
     htmlElement.style.maxWidth = '100%';
   });
   await expect.poll(() => surface.evaluate((element) => element.getBoundingClientRect().width)).toBeLessThan(820);
-  const narrowTrade = await requireBox(tradeCard);
+  await expect.poll(async () => {
+    const trade = await tradeCard.boundingBox();
+    const chart = await page.locator('.market-chart-card').boundingBox();
+    if (!trade || !chart) return -Infinity;
+    return trade.y - (chart.y + chart.height);
+  }).toBeGreaterThanOrEqual(-1);
   const narrowOrder = await requireBox(orderEntry);
   const narrowBook = await requireBox(orderBook);
-  const narrowChart = await requireBox(page.locator('.market-chart-card'));
   expect(Math.abs(narrowOrder.y - narrowBook.y)).toBeLessThan(3);
   expect(narrowBook.x).toBeGreaterThan(narrowOrder.x + narrowOrder.width - 3);
   expect(narrowOrder.width / narrowBook.width).toBeGreaterThan(1.4);
   expect(narrowOrder.width / narrowBook.width).toBeLessThan(1.7);
-  expect(narrowTrade.y).toBeGreaterThan(narrowChart.y + narrowChart.height - 2);
 
   const layout = await inspectMarketLayoutBounds(surface);
   expect(layout.pageScrollScrollWidth).toBeLessThanOrEqual(layout.pageScrollClientWidth + 1);
@@ -532,13 +535,18 @@ test('market product artwork keeps compact catalog and detail slots without stre
     const slot = element.querySelector<HTMLElement>('.market-commodity-row__artwork');
     const artwork = slot?.querySelector<HTMLElement>('.product-artwork');
     if (!slot || !artwork) throw new Error('market product catalog artwork is missing');
+    const surface = element.closest<HTMLElement>('.market-page-surface');
     return {
+      surfaceWidth: Math.round(surface?.getBoundingClientRect().width ?? 0),
       slot: [Math.round(slot.getBoundingClientRect().width), Math.round(slot.getBoundingClientRect().height)],
       artwork: [Math.round(artwork.getBoundingClientRect().width), Math.round(artwork.getBoundingClientRect().height)],
       backgroundSize: getComputedStyle(artwork).backgroundSize,
     };
   });
-  expect(catalogMetrics).toEqual({ slot: [42, 42], artwork: [34, 34], backgroundSize: 'contain' });
+  const compactCatalog = catalogMetrics.surfaceWidth <= 620;
+  expect(catalogMetrics.slot).toEqual(compactCatalog ? [34, 34] : [42, 42]);
+  expect(catalogMetrics.artwork).toEqual(compactCatalog ? [29, 29] : [34, 34]);
+  expect(catalogMetrics.backgroundSize).toBe('contain');
 
   await wheatRow.click();
   const detailMetrics = await page.locator('.market-detail-hero__artwork').evaluate((slot) => {
