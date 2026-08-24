@@ -147,6 +147,7 @@ const presentationSource = read('src/utils/facilityProfitPresentation.ts');
 const analysisSource = read('src/components/facilities/FacilityRecipeProfitAnalysis.tsx');
 const selectorSource = read('src/pages/production/ProductionFacilityDetail.tsx');
 const marketPageSource = read('src/pages/MarketPage.tsx');
+const marketCommodityRowSource = read('src/components/market/MarketCommodityRow.tsx');
 const contextSource = read('src/components/facilities/FacilityRecipeProfitContext.tsx');
 const routerSource = read('src/pages/PageRouter.tsx');
 const runtimeHarnessSource = read('tests/browser/runtime-harness.tsx');
@@ -242,9 +243,13 @@ for (const text of [
   'const market = game.markets[product.id];',
   ': selectedFacility ? game.facilityMarkets[selectedFacility.id] : undefined;',
   'lastTradePrice: typeof market?.lastTradePrice === \'number\' ? market.lastTradePrice : undefined',
-  "typeof entry.marketPrice === 'number'",
-  '<CurrencyAmount>{formatCurrency(entry.marketPrice)}</CurrencyAmount>',
-]) assert.ok(marketPageSource.includes(text), `市场资产列表缺少真实成交价字段: ${text}`);
+  "const marketPrice = typeof market?.officialPrice === 'number' ? market.officialPrice : undefined;",
+  'marketPrice={entry.marketPrice}',
+]) assert.ok(marketPageSource.includes(text), `地区市场目录缺少官方价／真实成交边界: ${text}`);
+for (const text of [
+  "typeof marketPrice === 'number'",
+  '<CurrencyAmount>{formatCurrency(marketPrice)}</CurrencyAmount>',
+]) assert.ok(marketCommodityRowSource.includes(text), `共享市场商品行缺少官方系统价展示: ${text}`);
 for (const removedText of [
   'const lastPrice = game.markets[product.id]?.lastPrice;',
   'const lastPrice = game.facilityMarkets[facility.id]?.lastPrice;',
@@ -294,8 +299,8 @@ for (const removedText of [
   '窄屏利润分析保持紧凑而不删减信息',
 ]) assert.equal(designSource.includes(removedText), false, `产业设计不得保留旧利润卡规则: ${removedText}`);
 assert.ok(
-  marketDesignSource.includes('商品列表的市场价、基准偏离和 24h 变化以官方系统价 `officialPrice` 为准'),
-  '统一订单簿设计必须锁定商品市场价使用官方系统价',
+  marketDesignSource.includes('地区商品目录和商品全局详情的地区行使用该地区官方系统价 `officialPrice` 与真实 24h 成交变化'),
+  '统一订单簿设计必须锁定地区商品列表使用官方系统价',
 );
 
 console.log('市场官方系统价、单厂平均利润固定单座口径、具体缺价提示和完整利润卡移除验证通过。');
