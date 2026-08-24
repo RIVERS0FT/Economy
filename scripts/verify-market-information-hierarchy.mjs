@@ -21,6 +21,7 @@ const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 const orderBookDesign = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
 const chartDesign = read('docs/MARKET_CHART_LAYOUT_DESIGN.md');
+const hierarchyBrowserSpec = read('tests/browser/market-information-hierarchy.spec.ts');
 
 for (const token of [
   '<WidgetHeading title="商品"',
@@ -96,7 +97,7 @@ for (const token of [
   '@container global-market-page (max-width: 620px)',
 ]) requireText(globalCss, token, 'global market css');
 for (const token of ['.global-market-province-row', '.global-market-summary-strip']) forbidText(globalCss, token, 'global market css');
-for (const token of ['.market-fundamentals-balance']) requireText(marketCss, token, 'regional detail css');
+requireText(marketCss, '.market-fundamentals-balance', 'regional detail css');
 
 for (const token of [
   'const allProvinceOrders = game.orders || [];',
@@ -124,5 +125,18 @@ for (const token of [
   '商品全局详情的地区行情行',
   '商品详情必须先给出市场基本面',
 ]) requireText(chartDesign, token, 'market visualization authority');
+
+for (const token of [
+  "test('market uses product-first global and regional information hierarchy'",
+  "getByRole('button', { name: '打开小麦全局详情' })",
+  "getByRole('button', { name: '打开加利福尼亚州小麦详情' })",
+  "for (const label of ['卖单量', '买单量', '市场价', '24h'])",
+  "for (const label of ['挂单差额', '基准偏离', '挂单状态'])",
+  "page.locator('.market-fundamentals-balance .market-balance-bar')",
+]) requireText(hierarchyBrowserSpec, token, 'market hierarchy browser regression');
+for (const token of [
+  '.global-market-province-row',
+  '.market-catalog-row',
+]) forbidText(hierarchyBrowserSpec, token, 'market hierarchy browser regression');
 
 console.log('Market information hierarchy verification passed.');
