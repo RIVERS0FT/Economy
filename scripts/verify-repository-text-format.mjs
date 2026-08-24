@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 
 const root = process.cwd();
 const attributesPath = resolve(root, '.gitattributes');
+const ignorePath = resolve(root, '.gitignore');
 const failures = [];
 
 const requiredAttributeLines = [
@@ -25,6 +26,14 @@ const requiredAttributeLines = [
   '*.db binary',
 ];
 
+const generatedArtifactPrefixes = [
+  'test-results/',
+  'playwright-report/',
+  'blob-report/',
+  'coverage/',
+  '.nyc_output/',
+];
+
 let attributes = '';
 try {
   attributes = readFileSync(attributesPath, 'utf8');
@@ -43,6 +52,24 @@ for (const line of requiredAttributeLines) {
   if (!attributeLines.has(line)) failures.push(`.gitattributes 缺少规则: ${line}`);
 }
 
+let ignoreRules = '';
+try {
+  ignoreRules = readFileSync(ignorePath, 'utf8');
+} catch {
+  failures.push('仓库根目录缺少 .gitignore');
+}
+
+const ignoreLines = new Set(
+  ignoreRules
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#')),
+);
+
+for (const prefix of generatedArtifactPrefixes) {
+  if (!ignoreLines.has(prefix)) failures.push(`.gitignore 缺少测试产物规则: ${prefix}`);
+}
+
 const listedFiles = spawnSync('git', ['ls-files', '--eol', '-z'], {
   cwd: root,
   encoding: 'utf8',
@@ -59,6 +86,11 @@ if (listedFiles.error || listedFiles.status !== 0) {
     }
 
     const [, indexEol, worktreeEol, fileAttributes, path] = match;
+    const generatedArtifactPrefix = generatedArtifactPrefixes.find((prefix) => path.startsWith(prefix));
+    if (generatedArtifactPrefix) {
+      failures.push(`${path} 是可再生成测试产物，不应被 Git 跟踪（规则: ${generatedArtifactPrefix}）`);
+    }
+
     if (!worktreeEol && !existsSync(resolve(root, path))) continue;
     if (fileAttributes.includes('-text')) continue;
 
@@ -71,9 +103,9 @@ if (listedFiles.error || listedFiles.status !== 0) {
 }
 
 if (failures.length > 0) {
-  console.error('仓库文本格式验证失败：');
+  console.error('仓库格式与清洁度验证失败：');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log('仓库文本格式验证通过：所有文本文件均使用 LF，二进制资源不参与转换。');
+console.log('仓库格式与清洁度验证通过：文本文件使用 LF，二进制资源不参与转换，可再生成测试产物未被跟踪。');
