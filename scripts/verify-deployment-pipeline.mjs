@@ -22,6 +22,7 @@ requireText('./node_modules/.bin/tsc', '部署 Job 必须在上传前执行 Type
 requireText('./node_modules/.bin/vite build', '部署 Job 必须从同一源码 SHA 生成生产 dist');
 requireText('ECONOMY_NODE_RUNTIME_REUSE', '固定 Node runtime 命中时必须跳过重复下载和上传');
 requireText('RUNTIME_UPLOAD: ${{ steps.prepare_runtime.outputs.upload }}', 'Node runtime 上传必须由版本探测结果控制');
+requireText('--exclude runtime/', '同步 server 目录时必须排除可复用 runtime，避免 --delete-before 误删');
 requireText('  report-validation-failure:\n', '验证失败必须写入 deploy/economy 失败状态');
 requireText('needs: [build, browser-test]', '验证失败状态 Job 必须等待 build 与 browser-test');
 
