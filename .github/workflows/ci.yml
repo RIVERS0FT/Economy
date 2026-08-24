@@ -12,67 +12,9 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  document-deploy-pipeline-rule:
-    if: github.event_name == 'push' && github.ref_name == 'codex/document-deploy-parallel-gate'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Record final deployment pipeline rules
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
-          lines = path.read_text(encoding='utf-8').splitlines()
-
-          replacements = {
-              '- `main` 分支由 `.github/workflows/deploy.yml`': '- `main` 分支由 `.github/workflows/deploy.yml` 对实际待部署提交重新执行完整验证，但完整 `npm run build` 与完整 Playwright 浏览器回归必须作为并行硬门禁，不得重新串行塞回生产部署 Job：独立 `build` Job 执行完整 `npm run build`，独立 `browser-test` Job 固定以四个 shard 覆盖同一完整 `npm run test:browser` 集合并使用 `fail-fast: false` 保留其他 shard 的失败诊断；生产 `deploy` Job 必须同时 `needs` 两者，任一验证失败都不得进入数据库备份、文件上传或服务变更，并写入 `deploy/economy` 失败状态。全部验证成功后，`deploy` Job 只允许从同一 `GITHUB_SHA` 重新执行运行时美术生成、TypeScript 检查与 Vite 生产构建来生成待发布 `dist`；这一步只生成同源发布产物，不得替代或重复完整 `npm run build`／Playwright 门禁。浏览器运行时准备必须优先探测 GitHub runner 已有的 `google-chrome`／`google-chrome-stable`／`chromium`／`chromium-browser`，命中后通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 交给 Playwright；只有全部本地候选都不存在时才允许调用固定 Playwright Chromium 下载。浏览器 CDN 不得成为主部署的必需单点依赖，也不得以 CDN 地域不可达、403 或临时故障为理由跳过浏览器测试。正式部署的 SSH 初始化不得依赖单次 `ssh-keyscan`：新 runner 必须使用部署私钥执行真实只读认证预检，以 `StrictHostKeyChecking=accept-new` 仅接受首次未知主机密钥、继续拒绝同一 runner 内发生变化的主机密钥，并使用 `BatchMode=yes`、15 秒连接超时最多尝试 5 次、失败尝试之间等待 5 秒。全部预检失败时必须在数据库备份、文件上传和服务变更之前终止，保留 `economy-ssh.log` 的实际 SSH 诊断；预检成功后由同一 `known_hosts` 约束本次部署余下所有 SSH/rsync 连接。',
-              '- 创建新迁移备份前，可用空间必须至少为预计有效数据两倍再加 512 MiB 余量；': '- 创建新迁移备份前，可用空间必须至少为预计有效数据两倍再加 512 MiB 余量；不得按包含 freelist 的历史高水位主文件大小要求第二份同等空间。上传前 `/var/www/game` 所在文件系统可用空间不得低于 1 GiB。空间不足必须在写入发布文件前明确失败。API 代码继续使用 `rsync --delete-before` 完整替换，但同步 `server/` 时必须排除 `runtime/`；便携 Node 运行时先以当前固定 `setup-node` 的精确版本和 `require("node:sqlite")` 对服务器现有 `/var/www/game/economy-api/runtime/bin/node` 做只读校验，完全匹配时必须复用且不得重新下载或上传，缺失、版本不匹配或能力检查失败时才下载匹配架构的官方运行时并对 `runtime/` 使用 `rsync --delete-before` 完整替换。网站发布必须把 `dist/assets/` 以只增加方式先同步，其他非哈希文件使用排除 `assets/` 与 `index.html` 的受控删除同步。服务安装、Nginx 路由和缓存验证全部成功后，才允许上传临时入口并最后原子替换 `index.html`。旧哈希资源至少保留 400 天，再按最后修改时间清理，使其长于浏览器 365 天不可变缓存；部署过程中不得立即删除仍可能被旧标签页引用的 JavaScript、CSS、图片或字体。',
-              '- 部署包携带匹配架构的官方 Node 运行时。': '- 服务器缺少精确匹配的 Node 运行时或 `node:sqlite` 校验失败时，部署包必须携带匹配架构的官方 Node 运行时；已通过精确校验时复用服务器现有运行时。',
-          }
-
-          changed = False
-          for index, line in enumerate(lines):
-              for prefix, replacement in replacements.items():
-                  if line.startswith(prefix):
-                      if line != replacement:
-                          lines[index] = replacement
-                          changed = True
-                      break
-
-          if not any('四个 shard' in line and '并行硬门禁' in line for line in lines):
-              raise SystemExit('未找到 main 部署门禁设计位置')
-          if not any('同步 `server/` 时必须排除 `runtime/`' in line for line in lines):
-              raise SystemExit('未找到 Node runtime 复用设计位置')
-          if not any('已通过精确校验时复用服务器现有运行时' in line for line in lines):
-              raise SystemExit('未找到 Node runtime 部署包设计位置')
-
-          for index, line in enumerate(lines):
-              if line == '> 更新时间：2026-08-23':
-                  lines[index] = '> 更新时间：2026-08-24'
-                  changed = True
-                  break
-
-          if changed:
-              path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
-          PY
-
-          if git diff --quiet -- docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md; then
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
-          git commit -m '记录并行部署门禁与运行时复用规则'
-          git push origin "HEAD:${GITHUB_REF_NAME}"
-
   verify-head-ci-registration:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
