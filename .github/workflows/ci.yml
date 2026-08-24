@@ -75,6 +75,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -82,24 +84,88 @@ jobs:
           node-version: 24.4.0
           cache: npm
 
+      - name: Select changed-file CI scope
+        id: scope
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          changed_files="$RUNNER_TEMP/economy-changed-files.txt"
+          plan_file="$RUNNER_TEMP/economy-ci-plan.json"
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            : > "$changed_files"
+            node scripts/select-ci-tests.mjs plan \
+              --changed-files-file "$changed_files" \
+              --plan-file "$plan_file" \
+              --github-output "$GITHUB_OUTPUT" \
+              --full
+          elif [ "$EVENT_NAME" = "pull_request" ]; then
+            git diff --check "$PR_BASE_SHA" "$PR_HEAD_SHA"
+            git diff --name-only "$PR_BASE_SHA" "$PR_HEAD_SHA" > "$changed_files"
+            node scripts/select-ci-tests.mjs plan \
+              --changed-files-file "$changed_files" \
+              --plan-file "$plan_file" \
+              --github-output "$GITHUB_OUTPUT"
+          else
+            git fetch --no-tags origin main:refs/remotes/origin/main
+            BASE_SHA="$(git merge-base origin/main "$GITHUB_SHA")"
+            git diff --check "$BASE_SHA" "$GITHUB_SHA"
+            git diff --name-only "$BASE_SHA" "$GITHUB_SHA" > "$changed_files"
+            node scripts/select-ci-tests.mjs plan \
+              --changed-files-file "$changed_files" \
+              --plan-file "$plan_file" \
+              --github-output "$GITHUB_OUTPUT"
+          fi
+
+          echo "ECONOMY_CI_CHANGED_FILES"
+          cat "$changed_files"
+          echo "ECONOMY_CI_PLAN"
+          cat "$plan_file"
+
       - name: Install dependencies
+        if: steps.scope.outputs.dependencies == 'true'
         run: npm ci
 
-      - name: Build and test
+      - name: Build and test full fallback
+        if: steps.scope.outputs.mode == 'full'
         shell: bash
         run: |
           set -o pipefail
           node scripts/verify-deployment-pipeline.mjs
           npm run build 2>&1 | tee build-test.log
 
+      - name: Build and test selected changes
+        if: steps.scope.outputs.mode == 'targeted'
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/select-ci-tests.mjs run \
+            --plan-file "$RUNNER_TEMP/economy-ci-plan.json" \
+            --phase checks 2>&1 | tee build-test.log
+
       - name: Prepare Chromium
+        if: steps.scope.outputs.browser == 'true'
         run: bash scripts/prepare-playwright-chromium.sh
 
-      - name: Test browser runtime
+      - name: Test browser runtime full fallback
+        if: steps.scope.outputs.mode == 'full'
         shell: bash
         run: |
           set -o pipefail
           npm run test:browser 2>&1 | tee browser-test.log
+
+      - name: Test browser runtime selected changes
+        if: steps.scope.outputs.mode == 'targeted' && steps.scope.outputs.browser == 'true'
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/select-ci-tests.mjs run \
+            --plan-file "$RUNNER_TEMP/economy-ci-plan.json" \
+            --phase browser 2>&1 | tee browser-test.log
 
       - name: Upload test artifacts
         if: failure()
