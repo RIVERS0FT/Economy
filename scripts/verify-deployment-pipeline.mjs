@@ -52,6 +52,7 @@ for (const text of [
   "'server/test'",
   "'tests/browser'",
   'verifyCandidates',
+  'INDIRECT_VERIFY_ENTRYPOINTS',
 ]) requireSelectorText(text);
 
 const marketPlan = selectCiPlan(['src/pages/MarketPage.tsx']);
@@ -60,6 +61,12 @@ if (!marketPlan.needsDependencies) failures.push('前端 targeted CI 必须安�
 if (!hasCommand(marketPlan, 'npm', ['run', 'typecheck'])) failures.push('前端 targeted CI 必须执行 TypeScript 检查');
 if (!hasCommand(marketPlan, './node_modules/.bin/vite', ['build'])) failures.push('前端 targeted CI 必须执行 Vite 生产构建');
 if (marketPlan.browser.mode !== 'selected' || marketPlan.browser.tests.length === 0) failures.push('市场页面改动必须选择相关 Playwright 测试');
+if (hasCommand(marketPlan, 'node', ['scripts/verify-page-content-base.mjs'])) failures.push('targeted CI 不得直接执行内部 page-content base verifier');
+if (!hasCommand(marketPlan, 'node', ['scripts/verify-page-content.mjs'])) failures.push('市场页面改动必须通过正式 page-content 包装入口验证');
+
+const directPageContentBasePlan = selectCiPlan(['scripts/verify-page-content-base.mjs']);
+if (hasCommand(directPageContentBasePlan, 'node', ['scripts/verify-page-content-base.mjs'])) failures.push('直接修改内部 page-content base verifier 时不得绕过包装入口执行');
+if (!hasCommand(directPageContentBasePlan, 'node', ['scripts/verify-page-content.mjs'])) failures.push('直接修改内部 page-content base verifier 时必须选择正式包装入口');
 
 const bankingPlan = selectCiPlan(['server/src/banking.js']);
 if (bankingPlan.mode !== 'targeted') failures.push('银行服务端改动必须使用 targeted CI');

@@ -92,6 +92,10 @@ const DOMAIN_RULES = [
   },
 ];
 
+const INDIRECT_VERIFY_ENTRYPOINTS = new Map([
+  ['scripts/verify-page-content-base.mjs', 'scripts/verify-page-content.mjs'],
+]);
+
 const normalizePath = (path) => path.replaceAll('\\', '/').replace(/^\.\//, '');
 
 const uniquePaths = (paths) => [...new Set(paths.map(normalizePath).filter(Boolean))].sort();
@@ -158,6 +162,7 @@ const isBrowserSpec = (path) => /^tests\/browser\/.*\.spec\.ts$/.test(path);
 const isBrowserHarness = (path) => /^tests\/browser\/.*(?:harness|fixture).*\.(?:ts|tsx)$/.test(path);
 
 const findFullTrigger = (changedFiles) => changedFiles.find((path) => FULL_TRIGGER_PATTERNS.some((pattern) => pattern.test(path)));
+const verificationEntrypoint = (path) => INDIRECT_VERIFY_ENTRYPOINTS.get(path) ?? path;
 
 export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}) {
   const changedFiles = uniquePaths(inputFiles);
@@ -221,14 +226,14 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
   }
 
   for (const path of changedFiles.filter(isVerificationScript)) {
-    addCommand(commands, seenCommands, 'node', [path]);
+    addCommand(commands, seenCommands, 'node', [verificationEntrypoint(path)]);
   }
   for (const path of changedFiles.filter(isServerTest)) {
     plan.needsDependencies = true;
     addCommand(commands, seenCommands, 'node', ['--test', path]);
   }
 
-  const verifyCandidates = listFiles(root, 'scripts', (path) => /^scripts\/verify-[^/]+\.mjs$/.test(path));
+  const verifyCandidates = listFiles(root, 'scripts', (path) => /^scripts\/verify-[^/]+\.mjs$/.test(path) && !INDIRECT_VERIFY_ENTRYPOINTS.has(path));
   const serverTestCandidates = listFiles(root, 'server/test', (path) => /^server\/test\/.*\.test\.js$/.test(path));
   const browserCandidates = listFiles(root, 'tests/browser', (path) => /^tests\/browser\/.*\.spec\.ts$/.test(path));
   const domains = inferDomains(changedFiles);
