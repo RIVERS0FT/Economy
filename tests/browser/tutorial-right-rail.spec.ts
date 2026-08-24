@@ -83,9 +83,11 @@ test('desktop strategic outliner persists across business and fullscreen pages',
     await expect(eventsSection).toHaveAttribute('data-collapsed', 'true');
     await expect(pinnedSection.locator('.strategic-outliner-row')).toHaveCount(1);
 
-    const primaryCardBox = await requireBox(page.locator('.signed-in-shell__primary-card'));
-    const workspaceBox = await requireBox(workspace);
-    expect(workspaceBox.x + workspaceBox.width - (primaryCardBox.x + primaryCardBox.width)).toBeCloseTo(8, 0);
+    await expect.poll(async () => {
+      const primaryCardBox = await requireBox(page.locator('.signed-in-shell__primary-card'));
+      const workspaceBox = await requireBox(workspace);
+      return workspaceBox.x + workspaceBox.width - (primaryCardBox.x + primaryCardBox.width);
+    }).toBeCloseTo(8, 0);
   }
 
   await page.locator('.desktop-sidebar').getByRole('button', { name: '建筑', exact: true }).click();
@@ -126,9 +128,11 @@ test('desktop strategic outliner hide and pins persist through reload', async ({
   await sidebar.getByRole('button', { name: '研发', exact: true }).click();
   await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'fullscreen');
   await expect(outliner).toBeHidden();
-  const primaryCardBox = await requireBox(page.locator('.signed-in-shell__primary-card'));
-  const workspaceBox = await requireBox(page.locator('.workspace'));
-  expect(workspaceBox.x + workspaceBox.width - (primaryCardBox.x + primaryCardBox.width)).toBeCloseTo(8, 0);
+  await expect.poll(async () => {
+    const primaryCardBox = await requireBox(page.locator('.signed-in-shell__primary-card'));
+    const workspaceBox = await requireBox(page.locator('.workspace'));
+    return workspaceBox.x + workspaceBox.width - (primaryCardBox.x + primaryCardBox.width);
+  }).toBeCloseTo(8, 0);
 
   await sidebar.getByRole('button', { name: '建筑', exact: true }).click();
   await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');

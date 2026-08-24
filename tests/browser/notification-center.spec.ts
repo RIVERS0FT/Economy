@@ -195,7 +195,7 @@ test.describe('notification center geometry', () => {
     await page.locator('.desktop-sidebar .sidebar-nav-button').filter({ hasText: '银行' }).first().evaluate((button) => button.click());
     await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-bank/);
     await expect(outliner).toHaveAttribute('data-notification-outliner-sentinel', 'persistent');
-    await expect(outliner).toBeVisible();
+    await expect(outliner).toBeHidden();
     await loadNotificationStyles(page);
     await mountDesktopToast(page);
 
