@@ -1,0 +1,33 @@
+name: codex-market-verifier-migrate
+
+on:
+  push:
+    branches:
+      - codex/market-global-product-detail
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/market-global-product-detail
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+      - name: Apply verifier migration
+        run: node scripts/codex-market-verifier-migrate.mjs
+      - name: Remove one-time migration files
+        run: rm scripts/codex-market-verifier-migrate.mjs .github/workflows/codex-market-verifier-migrate.yml
+      - name: Commit final verifier state
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "同步市场重构验证与浏览器回归"
+          git push origin HEAD:codex/market-global-product-detail
