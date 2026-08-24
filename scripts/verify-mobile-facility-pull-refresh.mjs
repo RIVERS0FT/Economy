@@ -23,19 +23,24 @@ for (const text of [
 const guard = read('src/utils/mobileDetailSheetPullRefresh.ts');
 for (const text of [
   "const MOBILE_DETAIL_SHEET_SELECTOR = '.mobile-detail-sheet';",
-  "const MOBILE_DETAIL_SHEET_SCROLL_SELECTOR = '.mobile-detail-sheet-scroll';",
+  "'.mobile-detail-sheet-scroll, .page-card-scroll';",
+  "'.mobile-detail-sheet-header, .mobile-detail-sheet-drag-handle, .page-fixed-header';",
+  "type MobileDetailSheetGestureSource = 'header' | 'content' | 'surface';",
+  "source: scrollViewport ? 'content' : isHeader ? 'header' : 'surface',",
+  "session.source === 'content' && (session.scrollViewport?.scrollTop ?? 0) > 0",
+  'session.anchorY = touch.clientY;',
   "sheet.addEventListener('touchstart', handleTouchStart, { passive: true });",
   "sheet.addEventListener('touchmove', handleTouchMove, { passive: false });",
   'if (event.cancelable) event.preventDefault();',
   'deltaY < Math.abs(deltaX) * MOBILE_DETAIL_SHEET_AXIS_DOMINANCE',
-  "session.source === 'content'",
-  'scrollViewport.scrollTop > 0',
-]) assert.ok(guard.includes(text), `共享移动详情保护缺少: ${text}`);
+]) assert.ok(guard.includes(text), `共享移动 Workspace Sheet 保护缺少: ${text}`);
 for (const forbidden of [
+  'INTERACTIVE_TARGET_SELECTOR',
+  'isInteractiveTarget',
   "document.addEventListener('touchmove'",
   "window.addEventListener('touchmove'",
   "document.body.addEventListener('touchmove'",
-]) assert.equal(guard.includes(forbidden), false, `不得全局拦截触摸滚动: ${forbidden}`);
+]) assert.equal(guard.includes(forbidden), false, `不得缩小或全局化触摸保护范围: ${forbidden}`);
 
 const design = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
 for (const text of [
@@ -62,14 +67,15 @@ for (const text of [
 
 const browser = read('tests/browser/mobile-facility-pull-refresh.spec.ts');
 for (const text of [
-  'mobile facility pull-to-refresh prevention',
+  'mobile workspace sheet pull-to-refresh prevention',
+  'first-level page guard covers interactive targets without opening a detail layer',
+  'content scrolling stays native until scrollTop reaches zero, then browser pull is canceled',
+  'shared detail scroll keeps the same pull-refresh guard',
+  "'.mobile-detail-sheet-scroll, .page-card-scroll'",
   "toHaveCSS('overscroll-behavior-y', 'none')",
-  "page.locator('.facility-cluster-detail-page')",
-  "page.locator('.mobile-workspace-sheet-host')",
-  "toHaveAttribute('data-detail-active', 'false')",
-  "host.locator('.mobile-workspace-sheet-detail-view')).toHaveCount(0)",
-  'topLevelNavigations',
-  'swipeDownFromTop(page, content)',
-]) assert.ok(browser.includes(text), `移动工厂详情浏览器回归缺少: ${text}`);
+  'expect(prevented).toEqual([true, true]);',
+  'expect(prevented).toEqual([false, true, true]);',
+  "toHaveAttribute('data-detail-active', 'true')",
+]) assert.ok(browser.includes(text), `移动 Workspace Sheet 浏览器回归缺少: ${text}`);
 
-console.log('移动工厂页面与共享详情下拉刷新保护验证通过：登录态根视口终止 overscroll，工厂二级详情不再创建嵌套详情 Sheet，共享根 Workspace Sheet 与局部保护继续保留。');
+console.log('移动 Workspace Sheet 下拉刷新保护验证通过：一级页面、共享详情、交互控件和滚动到顶后的同次手势均由物理根 Sheet 局部保护，内部原生滚动与登录态 overscroll 边界保持不变。');
