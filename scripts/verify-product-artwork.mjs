@@ -18,9 +18,11 @@ const productIconsPath = 'src/components/icons/ProductIcons.tsx';
 const productArtworkPath = 'src/components/products/ProductArtwork.tsx';
 const richSelectPath = 'src/components/ui/RichSelectInput.tsx';
 const formulaPath = 'src/components/facilities/FacilityProductionFormula.tsx';
+const marketCommodityRowPath = 'src/components/market/MarketCommodityRow.tsx';
 const denseProductPages = [
   'src/components/assets/AssetOverviewPanel.tsx',
   'src/pages/MarketPage.tsx',
+  marketCommodityRowPath,
   formulaPath,
 ];
 
@@ -61,6 +63,7 @@ for (const path of [
   productArtworkPath,
   richSelectPath,
   formulaPath,
+  marketCommodityRowPath,
 ]) {
   if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`);
 }
@@ -169,13 +172,19 @@ if (failures.length === 0) {
   }
 
   const marketPage = read('src/pages/MarketPage.tsx');
+  const marketCommodityRow = read(marketCommodityRowPath);
   for (const required of [
-    '<ProductArtwork productId={entry.id} />',
     '<ProductArtwork productId={selectedProduct.id} />',
-    'className="market-catalog-row__artwork"',
     'className="market-detail-hero__artwork"',
   ]) {
-    if (!marketPage.includes(required)) failures.push(`src/pages/MarketPage.tsx 缺少商品市场主视觉: ${required}`);
+    if (!marketPage.includes(required)) failures.push(`src/pages/MarketPage.tsx 缺少商品详情主视觉: ${required}`);
+  }
+  for (const required of [
+    "from '../products/ProductArtwork'",
+    '<ProductArtwork productId={productId} />',
+    'className="market-commodity-row__artwork"',
+  ]) {
+    if (!marketCommodityRow.includes(required)) failures.push(`${marketCommodityRowPath} 缺少商品目录主视觉: ${required}`);
   }
 
   const formula = read(formulaPath);
@@ -202,5 +211,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `商品图片视觉验证通过：${productIds.length} 种正式商品的 1024×1024 RGBA PNG 源图已生成 128×128 运行时缩略图，市场列表与详情、生产结算及富内容下拉框使用 ProductArtwork PNG，其余紧凑语义位置继续使用 SVG 或通用回退。`,
+  `商品图片视觉验证通过：${productIds.length} 种正式商品的 1024×1024 RGBA PNG 源图已生成 128×128 运行时缩略图，共享市场商品行与详情、生产结算及富内容下拉框使用 ProductArtwork PNG，其余紧凑语义位置继续使用 SVG 或通用回退。`,
 );

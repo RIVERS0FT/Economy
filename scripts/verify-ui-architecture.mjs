@@ -16,6 +16,7 @@ const navigationConfigPath = 'src/config/navigation.ts';
 const iconStylePath = 'src/styles/icon-system.css';
 const mobileNavigationStylePath = 'src/styles/mobile-status-navigation.css';
 const marketPagePath = 'src/pages/MarketPage.tsx';
+const marketCommodityRowPath = 'src/components/market/MarketCommodityRow.tsx';
 const productionDetailPath = 'src/pages/production/ProductionFacilityDetail.tsx';
 
 [
@@ -24,6 +25,7 @@ const productionDetailPath = 'src/pages/production/ProductionFacilityDetail.tsx'
   productionDetailPath,
   'src/pages/SettingsPage.tsx',
   marketPagePath,
+  marketCommodityRowPath,
   'src/styles/design-system.css',
   'src/styles/globals.css',
   'src/styles/unified-market-admin.css',
@@ -56,6 +58,7 @@ const navigationConfig = read(navigationConfigPath);
 const iconStyles = read(iconStylePath);
 const mobileNavigationStyles = read(mobileNavigationStylePath);
 const marketPage = read(marketPagePath);
+const marketCommodityRow = read(marketCommodityRowPath);
 
 for (const text of [
   'export function PageLayout',
@@ -219,9 +222,15 @@ for (const text of [
   "from '../components/products/ProductArtwork'",
   'FacilityIcon',
   'FactoryIcon',
-  '<ProductArtwork productId={entry.id} />',
+  '<MarketCommodityRow',
   '<FacilityIcon facilityTypeId={selectedFacility.id} />',
 ]) requireText(marketPagePath, text);
+for (const text of [
+  "from '../products/ProductArtwork'",
+  '<ProductArtwork productId={productId} />',
+]) {
+  if (!marketCommodityRow.includes(text)) failures.push(`${marketCommodityRowPath} 缺少: ${text}`);
+}
 for (const forbidden of ['>⚙</span>', '<ProductIcon productId="machinery" />']) {
   if (marketPage.includes(forbidden)) failures.push(`市场工厂标签不得使用机械或字符图标: ${forbidden}`);
 }
