@@ -1,0 +1,191 @@
+/* Shared regional/global quote row. Container width, not viewport width, decides the compact slot sizes. */
+.market-commodity-row {
+  width: 100%;
+  min-width: 0;
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: minmax(8rem, 1.45fr) repeat(4, minmax(4.1rem, .68fr)) .8rem;
+  align-items: center;
+  gap: .55rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  padding: .45rem .6rem;
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-surface-panel) 70%, transparent);
+  text-align: left;
+}
+
+.market-commodity-row__identity {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: .5rem;
+}
+
+.market-commodity-row__artwork {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.market-commodity-row__artwork > .product-artwork {
+  width: 34px;
+  height: 34px;
+}
+
+.market-commodity-row__name,
+.market-commodity-row__metric {
+  min-width: 0;
+  display: grid;
+  gap: .08rem;
+}
+
+.market-commodity-row__name strong,
+.market-commodity-row__name small,
+.market-commodity-row__metric small,
+.market-commodity-row__metric strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.market-commodity-row__name small,
+.market-commodity-row__metric small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.market-commodity-row__metric strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.market-commodity-row__trend.is-positive strong {
+  color: var(--color-success);
+}
+
+.market-commodity-row__trend.is-negative strong {
+  color: var(--color-danger);
+}
+
+.market-commodity-row__chevron {
+  color: var(--color-text-secondary);
+  font-size: 1.25rem;
+  text-align: right;
+}
+
+.market-catalog-filter-disclosure {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-surface-inset) 68%, transparent);
+}
+
+.market-catalog-filter-disclosure > summary {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .45rem .65rem;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+}
+
+.market-catalog-filter-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.market-catalog-filter-disclosure > summary::after {
+  content: '⌄';
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+}
+
+.market-catalog-filter-disclosure[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.market-catalog-filter-disclosure > summary small {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.market-catalog-filter-disclosure > .market-catalog-filters {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-top: 0;
+  border-top: 1px solid var(--color-divider);
+  padding: .55rem .65rem;
+}
+
+@container (max-width: 620px) {
+  .market-commodity-row {
+    min-height: 54px;
+    grid-template-columns: minmax(5rem, 1.25fr) repeat(4, minmax(2.45rem, .62fr)) .65rem;
+    gap: .25rem;
+    padding: .35rem .4rem;
+  }
+
+  .market-commodity-row__identity {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: .35rem;
+  }
+
+  .market-commodity-row__artwork {
+    width: 34px;
+    height: 34px;
+  }
+
+  .market-commodity-row__artwork > .product-artwork {
+    width: 29px;
+    height: 29px;
+  }
+
+  .market-commodity-row__name strong,
+  .market-commodity-row__metric strong {
+    font-size: .75rem;
+  }
+
+  .market-commodity-row__name small,
+  .market-commodity-row__metric small {
+    font-size: .625rem;
+  }
+
+  .market-catalog-filter-disclosure > .market-catalog-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container (max-width: 360px) {
+  .market-commodity-row {
+    grid-template-columns: minmax(4.55rem, 1.2fr) repeat(4, minmax(2.2rem, .6fr)) .55rem;
+    gap: .18rem;
+    padding-inline: .3rem;
+  }
+
+  .market-commodity-row__identity {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: .28rem;
+  }
+
+  .market-commodity-row__artwork {
+    width: 30px;
+    height: 30px;
+  }
+
+  .market-commodity-row__artwork > .product-artwork {
+    width: 26px;
+    height: 26px;
+  }
+}

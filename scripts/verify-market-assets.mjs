@@ -8,7 +8,7 @@ const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.p
 const requireText = (path, text) => { if (!read(path).includes(text)) failures.push(path + ' 缺少: ' + text); };
 const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(path + ' 不应包含: ' + text); };
 [
-  'src/pages/MarketPage.tsx','src/pages/BuildingsPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx','src/components/AdminGiftCodesSection.tsx',
+  'src/pages/MarketPage.tsx','src/components/market/MarketCommodityRow.tsx','src/pages/BuildingsPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx','src/components/AdminGiftCodesSection.tsx',
   'src/app/gameViewModel.ts','src/utils/defaultOrderPrice.ts','src/utils/orderIdentity.ts','src/utils/orderBookLevels.ts',
   'src/api/admin.ts','src/styles/unified-market-admin.css','src/styles/virtual-list.css','server/src/domain.js','server/src/domain-core.js','server/src/facility-groups.js','server/src/storage.js',
   'server/src/market-demand.js','server/src/market-liquidity.js','server/src/balanced-market.js','server/src/order-book-integrity.js','server/src/market-demand/price-transmission.js',
@@ -16,10 +16,10 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx','src/components/ui/VirtualList.tsx','src/components/ui/VirtualRecordTable.tsx','src/hooks/useVirtualWindow.ts','src/components/icons/GameIcons.tsx'
 ].forEach(requireFile);
 for (const text of [
-  "if (!facilityAssetId && marketViewMode === 'catalog')",'market-catalog-filters','market-catalog-row','placeAssetOrder','single-order-book','items={selectedLocalTrades}',
+  "if (!facilityAssetId && marketViewMode === 'catalog')",'market-catalog-filter-disclosure','<MarketCommodityRow','placeAssetOrder','single-order-book','items={selectedLocalTrades}',
   'local-trades-virtual-table','VirtualRecordTable',
   "from '../components/icons/GameIcons'",'FactoryIcon','<FactoryIcon />','selectOrderSide',
-  '<ProductArtwork productId={entry.id} />','<FacilityIcon facilityTypeId={selectedFacility.id} />','backAction={{',
+  '<FacilityIcon facilityTypeId={selectedFacility.id} />','backAction={{',
   'title={selectedAssetTitle(`${assetName}交易`)}','label="价格"','className="numeric-cell">价格</th>',
   'formatNumber(order.remaining)','formatCurrency(order.price)',
   "import { buildOrderBookLevels } from '../utils/orderBookLevels'",
@@ -32,6 +32,8 @@ for (const text of [
   'onClick={() => fillOrderPrice(level.price)}','const maxBookDepth = Math.max',
   'key={`sell-${level.price}`}','key={`buy-${level.price}`}',
 ]) requireText('src/pages/MarketPage.tsx', text);
+requireText('src/components/market/MarketCommodityRow.tsx', '<ProductArtwork productId={productId} />');
+requireText('src/components/market/MarketCommodityRow.tsx', 'className="market-commodity-row"');
 for (const text of [
   'unified-asset-tabs','asset-directory-shell','localTrades.map(','market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>','限价','order-book-columns','order-book-midpoint',
   '最低价前 5 笔','最高价前 5 笔','order-book-side-label',

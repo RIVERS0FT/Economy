@@ -212,15 +212,18 @@ test('market medium and narrow layouts keep the trade card responsive without ho
     htmlElement.style.maxWidth = '100%';
   });
   await expect.poll(() => surface.evaluate((element) => element.getBoundingClientRect().width)).toBeLessThan(820);
-  const narrowTrade = await requireBox(tradeCard);
+  await expect.poll(async () => {
+    const trade = await tradeCard.boundingBox();
+    const chart = await page.locator('.market-chart-card').boundingBox();
+    if (!trade || !chart) return -Infinity;
+    return trade.y - (chart.y + chart.height);
+  }).toBeGreaterThanOrEqual(-1);
   const narrowOrder = await requireBox(orderEntry);
   const narrowBook = await requireBox(orderBook);
-  const narrowChart = await requireBox(page.locator('.market-chart-card'));
   expect(Math.abs(narrowOrder.y - narrowBook.y)).toBeLessThan(3);
   expect(narrowBook.x).toBeGreaterThan(narrowOrder.x + narrowOrder.width - 3);
   expect(narrowOrder.width / narrowBook.width).toBeGreaterThan(1.4);
   expect(narrowOrder.width / narrowBook.width).toBeLessThan(1.7);
-  expect(narrowTrade.y).toBeGreaterThan(narrowChart.y + narrowChart.height - 2);
 
   const layout = await inspectMarketLayoutBounds(surface);
   expect(layout.pageScrollScrollWidth).toBeLessThanOrEqual(layout.pageScrollClientWidth + 1);
@@ -353,33 +356,38 @@ test('market steppers and compact quick quantities preserve price and quantity l
   expect(pageErrors).toEqual([]);
 });
 
-test('market commodity catalog exposes order-book metrics and opens a focused detail', async ({ page }) => {
+test('market commodity catalog keeps compact core metrics and opens a focused detail', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active&view=catalog');
 
   await expect(page.getByRole('heading', { name: '加利福尼亚州市场', exact: true })).toBeVisible();
-  await page.getByRole('searchbox', { name: '搜索' }).fill('小麦');
+  await expect(page.getByRole('searchbox')).toHaveCount(0);
+  const filters = page.locator('.market-catalog-filter-disclosure');
+  expect(await filters.getAttribute('open')).toBeNull();
+  await filters.locator('summary').click();
   await selectRichOption(page, '分类', '原材料');
   await selectRichOption(page, '市场状态', '有真实成交');
-  const productRows = page.locator('.market-catalog-row');
-  await expect(productRows).toHaveCount(1);
+
   const wheatRow = page.getByRole('button', { name: '查看小麦详情' });
+  await expect(wheatRow).toBeVisible();
   await expect(wheatRow.locator('.product-artwork')).toHaveAttribute('data-product-artwork', 'wheat');
-  await expect(wheatRow).toContainText('小麦');
-  await expect(wheatRow.locator('.market-catalog-row__name small')).toHaveText('原材料');
-  for (const label of ['卖单量', '买单量', '挂单差额', '市场价', '基准偏离', '24h 变化', '挂单状态']) {
+  await expect(wheatRow.locator('.market-commodity-row__name strong')).toHaveText('小麦');
+  await expect(wheatRow.locator('.market-commodity-row__name small')).toHaveText('原材料');
+  for (const label of ['卖单量', '买单量', '市场价', '24h']) {
     await expect(wheatRow.getByText(label, { exact: true })).toBeVisible();
+  }
+  for (const label of ['挂单差额', '基准偏离', '挂单状态']) {
+    await expect(wheatRow.getByText(label, { exact: true })).toHaveCount(0);
   }
   await wheatRow.click();
 
   await expect(page.locator('.regional-entity-title__name')).toHaveText('小麦');
   await expect(page.locator('.regional-entity-title__region')).toHaveText('加利福尼亚州');
   await expect(page.getByRole('heading', { name: '商品基本面', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '生产者与消费者', exact: true })).toBeVisible();
+  await expect(page.getByText('基准偏离', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('挂单差额', { exact: true })).toBeVisible();
   await expect(page.locator('.market-trade-card')).toBeVisible();
-  await expect(page.locator('.market-history-chart.full')).toBeVisible();
-  await expect(page.getByRole('heading', { name: '已有订单', exact: true })).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
 
@@ -410,51 +418,63 @@ test('market detail back action restores the filtered catalog', async ({ page })
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active&view=catalog');
 
-  const search = page.getByRole('searchbox', { name: '搜索' });
-  await search.fill('小麦');
+  const filters = page.locator('.market-catalog-filter-disclosure');
+  expect(await filters.getAttribute('open')).toBeNull();
+  await filters.locator('summary').click();
   await selectRichOption(page, '分类', '原材料');
   await selectRichOption(page, '市场状态', '有真实成交');
   await selectRichOption(page, '排序', '市场价');
   await page.getByRole('button', { name: '查看小麦详情' }).click();
   await page.getByRole('button', { name: '返回商品列表' }).click();
 
-  await expect(search).toHaveValue('小麦');
+  await filters.locator('summary').click();
   await expect(page.getByRole('combobox', { name: '分类' })).toContainText('原材料');
   await expect(page.getByRole('combobox', { name: '市场状态' })).toContainText('有真实成交');
   await expect(page.getByRole('combobox', { name: '排序' })).toContainText('市场价');
-  await expect(page.locator('.market-catalog-row')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: '查看小麦详情' })).toBeVisible();
+  await expect(page.getByRole('searchbox')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 
-test('mobile market catalog uses summary rows without horizontal overflow', async ({ page }) => {
+test('mobile market catalog keeps one compact row without horizontal overflow', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('market-runtime-test.html?scenario=active&view=catalog');
 
-  await expect(page.getByRole('button', { name: '查看小麦详情' })).toBeVisible();
-  const layout = await page.locator('.market-catalog-surface').evaluate((panel) => {
-    const row = panel.querySelector<HTMLElement>('.market-catalog-row');
-    const identity = row?.querySelector<HTMLElement>('.market-catalog-row__identity');
-    const condition = row?.querySelector<HTMLElement>('.market-catalog-row__condition');
-    if (!row || !identity || !condition) throw new Error('mobile market catalog fixture is incomplete');
+  const wheatRow = page.getByRole('button', { name: '查看小麦详情' });
+  await expect(wheatRow).toBeVisible();
+  const inspect = () => page.locator('.market-catalog-surface').evaluate((panel) => {
+    const row = panel.querySelector<HTMLElement>('.market-commodity-row');
+    const identity = row?.querySelector<HTMLElement>('.market-commodity-row__identity');
+    const metrics = row ? [...row.querySelectorAll<HTMLElement>('.market-commodity-row__metric')] : [];
+    if (!row || !identity || metrics.length !== 4) throw new Error('mobile market catalog fixture is incomplete');
+    const identityRect = identity.getBoundingClientRect();
     return {
       panelClientWidth: panel.clientWidth,
       panelScrollWidth: panel.scrollWidth,
       rowClientWidth: row.clientWidth,
       rowScrollWidth: row.scrollWidth,
       rowColumns: getComputedStyle(row).gridTemplateColumns.split(' ').filter(Boolean).length,
-      identityColumn: getComputedStyle(identity).gridColumn,
-      conditionDisplay: getComputedStyle(condition).display,
+      identityCenter: identityRect.top + identityRect.height / 2,
+      metricCenters: metrics.map((metric) => {
+        const rect = metric.getBoundingClientRect();
+        return rect.top + rect.height / 2;
+      }),
     };
   });
+  let layout = await inspect();
   expect(layout.panelScrollWidth).toBeLessThanOrEqual(layout.panelClientWidth + 1);
   expect(layout.rowScrollWidth).toBeLessThanOrEqual(layout.rowClientWidth + 1);
-  expect(layout.rowColumns).toBe(2);
-  expect(layout.identityColumn).toBe('1 / -1');
-  expect(layout.conditionDisplay).toBe('grid');
-  for (const label of ['卖单量', '买单量', '挂单差额', '市场价', '基准偏离', '24h 变化', '挂单状态']) {
-    await expect(page.getByRole('button', { name: '查看小麦详情' }).getByText(label, { exact: true })).toBeVisible();
-  }
+  expect(layout.rowColumns).toBe(6);
+  for (const center of layout.metricCenters) expect(Math.abs(center - layout.identityCenter)).toBeLessThan(6);
+  for (const label of ['卖单量', '买单量', '市场价', '24h']) await expect(wheatRow.getByText(label, { exact: true })).toBeVisible();
+  for (const label of ['挂单差额', '基准偏离', '挂单状态']) await expect(wheatRow.getByText(label, { exact: true })).toHaveCount(0);
+
+  await page.setViewportSize({ width: 320, height: 720 });
+  layout = await inspect();
+  expect(layout.panelScrollWidth).toBeLessThanOrEqual(layout.panelClientWidth + 1);
+  expect(layout.rowScrollWidth).toBeLessThanOrEqual(layout.rowClientWidth + 1);
+  expect(layout.rowColumns).toBe(6);
   expect(pageErrors).toEqual([]);
 });
 
@@ -505,35 +525,36 @@ test('market order book aggregates same-price orders into one price level', asyn
   expect(pageErrors).toEqual([]);
 });
 
-test('market product artwork keeps fixed catalog and detail slots without stretching', async ({ page }) => {
+test('market product artwork keeps compact catalog and detail slots without stretching', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active&view=catalog');
 
   const wheatRow = page.getByRole('button', { name: '查看小麦详情' });
   const catalogMetrics = await wheatRow.evaluate((element) => {
-    const slot = element.querySelector<HTMLElement>('.market-catalog-row__artwork');
+    const slot = element.querySelector<HTMLElement>('.market-commodity-row__artwork');
     const artwork = slot?.querySelector<HTMLElement>('.product-artwork');
     if (!slot || !artwork) throw new Error('market product catalog artwork is missing');
-    const slotRect = slot.getBoundingClientRect();
-    const artworkRect = artwork.getBoundingClientRect();
+    const surface = element.closest<HTMLElement>('.market-page-surface');
     return {
-      slot: [Math.round(slotRect.width), Math.round(slotRect.height)],
-      artwork: [Math.round(artworkRect.width), Math.round(artworkRect.height)],
+      surfaceWidth: Math.round(surface?.getBoundingClientRect().width ?? 0),
+      slot: [Math.round(slot.getBoundingClientRect().width), Math.round(slot.getBoundingClientRect().height)],
+      artwork: [Math.round(artwork.getBoundingClientRect().width), Math.round(artwork.getBoundingClientRect().height)],
       backgroundSize: getComputedStyle(artwork).backgroundSize,
     };
   });
-  expect(catalogMetrics).toEqual({ slot: [64, 64], artwork: [48, 48], backgroundSize: 'contain' });
+  const compactCatalog = catalogMetrics.surfaceWidth <= 620;
+  expect(catalogMetrics.slot).toEqual(compactCatalog ? [34, 34] : [42, 42]);
+  expect(catalogMetrics.artwork).toEqual(compactCatalog ? [29, 29] : [34, 34]);
+  expect(catalogMetrics.backgroundSize).toBe('contain');
 
   await wheatRow.click();
   const detailMetrics = await page.locator('.market-detail-hero__artwork').evaluate((slot) => {
     const artwork = slot.querySelector<HTMLElement>('.product-artwork');
     if (!artwork) throw new Error('market product detail artwork is missing');
-    const slotRect = slot.getBoundingClientRect();
-    const artworkRect = artwork.getBoundingClientRect();
     return {
-      slot: [Math.round(slotRect.width), Math.round(slotRect.height)],
-      artwork: [Math.round(artworkRect.width), Math.round(artworkRect.height)],
+      slot: [Math.round(slot.getBoundingClientRect().width), Math.round(slot.getBoundingClientRect().height)],
+      artwork: [Math.round(artwork.getBoundingClientRect().width), Math.round(artwork.getBoundingClientRect().height)],
     };
   });
   expect(detailMetrics).toEqual({ slot: [76, 76], artwork: [58, 58] });
@@ -541,17 +562,13 @@ test('market product artwork keeps fixed catalog and detail slots without stretc
   await page.getByRole('button', { name: '返回商品列表' }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect.poll(() => wheatRow.evaluate((element) => {
-    const slot = element.querySelector<HTMLElement>('.market-catalog-row__artwork');
+    const slot = element.querySelector<HTMLElement>('.market-commodity-row__artwork');
     const artwork = slot?.querySelector<HTMLElement>('.product-artwork');
     if (!slot || !artwork) throw new Error('mobile market product catalog artwork is missing');
-    return [
-      Math.round(slot.getBoundingClientRect().width),
-      Math.round(artwork.getBoundingClientRect().width),
-    ];
-  })).toEqual([64, 48]);
+    return [Math.round(slot.getBoundingClientRect().width), Math.round(artwork.getBoundingClientRect().width)];
+  })).toEqual([34, 29]);
   await wheatRow.click();
-  await expect.poll(() => page.locator('.market-detail-hero__artwork > .product-artwork').evaluate((element) => (
-    Math.round(element.getBoundingClientRect().width)
-  ))).toBe(50);
+  await expect.poll(() => page.locator('.market-detail-hero__artwork > .product-artwork').evaluate((element) => Math.round(element.getBoundingClientRect().width))).toBe(50);
   expect(pageErrors).toEqual([]);
 });
+

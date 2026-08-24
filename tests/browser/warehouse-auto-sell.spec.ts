@@ -39,7 +39,7 @@ test.describe('warehouse and market online auto trade responsibilities', () => {
 
   test('regional market catalog removes workspace switches and opens fixed commodity auto-trade', async ({ page }) => {
     await page.goto('market-runtime-test.html?scenario=active&view=catalog');
-    const rows = page.locator('.market-catalog-row');
+    const rows = page.locator('.market-commodity-row');
     expect(await rows.count()).toBeGreaterThan(1);
     await rows.last().click();
     await expect(page.locator('.market-auto-trade-workspace--fixed')).toBeVisible();

@@ -6,6 +6,10 @@ const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 
 const obsoleteBaseFailures = new Set([
+  'src/pages/MarketPage.tsx 缺少: market-catalog-row',
+  'src/pages/MarketPage.tsx 缺少: <ProductArtwork productId={entry.id} />',
+  'src/pages/MarketPage.tsx 缺少: <small>卖单量</small>',
+  'src/pages/MarketPage.tsx 缺少: <small>买单量</small>',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: | 建筑 | `buildings` | `BuildingsPage` |',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 页面主标题固定为“{州级地区全称}建筑”',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 市场目录固定提供“市场行情／自动交易”两个工作区',
@@ -55,6 +59,8 @@ for (const path of [
   'src/pages/GlobalMarketPage.tsx',
   'src/pages/GlobalBuildingsPage.tsx',
   'src/pages/MarketPage.tsx',
+  'src/components/market/MarketCommodityRow.tsx',
+  'src/styles/market-commodity-row.css',
   'src/pages/BuildingsPage.tsx',
   'src/pages/ProvincePage.tsx',
   'src/pages/PageRouter.tsx',
@@ -146,6 +152,11 @@ for (const [path, expected] of [
     'export function GlobalMarketPage',
     '<PageLayout title="市场">',
     'data-global-scope="market"',
+    '<WidgetHeading title="商品"',
+    'global-market-filter-disclosure',
+    'selectedGlobalProductId',
+    'global-market-product-detail-panel',
+    '<MarketCommodityRow',
     'model.setSelectedProvinceId(provinceId);',
     '<EmbeddedMarketPage model={model} embedded />',
   ]],
@@ -172,6 +183,21 @@ for (const [path, expected] of [
 ]) {
   for (const text of expected) requireText(path, text);
 }
+
+for (const text of [
+  'global-market-provinces-panel',
+  'global-market-province-row',
+  'MarketCoverageBar',
+]) forbidText('src/pages/GlobalMarketPage.tsx', text);
+for (const text of [
+  '卖单量',
+  '买单量',
+  '市场价',
+  '24h',
+]) requireText('src/components/market/MarketCommodityRow.tsx', text);
+for (const text of ['挂单差额', '基准偏离', '挂单状态']) forbidText('src/components/market/MarketCommodityRow.tsx', text);
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品目录 → 商品全局详情 → 地区商品详情');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '筛选默认折叠且不提供商品名称搜索框');
 
 for (const text of [
   '<MetricCard',

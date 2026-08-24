@@ -81,6 +81,33 @@ test('account-free game shell navigates all ten visible business pages and close
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
 });
 
+test('global market drills from commodity to regional quotes and existing trade detail', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('?preview=game');
+  await page.locator('.desktop-sidebar').getByRole('button', { name: /^市场/ }).click();
+
+  const catalogFilters = page.locator('.global-market-filter-disclosure').first();
+  expect(await catalogFilters.getAttribute('open')).toBeNull();
+  await expect(page.getByRole('searchbox')).toHaveCount(0);
+  await page.getByRole('button', { name: '打开小麦全局详情' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: '小麦' })).toBeVisible();
+  await expect(page.locator('.global-market-product-detail-panel')).toBeVisible();
+
+  const regionalRow = page.getByRole('button', { name: '打开加利福尼亚州小麦详情' });
+  await expect(regionalRow).toBeVisible();
+  for (const label of ['卖单量', '买单量', '市场价', '24h']) await expect(regionalRow.getByText(label, { exact: true })).toBeVisible();
+  for (const label of ['挂单差额', '基准偏离', '挂单状态']) await expect(regionalRow.getByText(label, { exact: true })).toHaveCount(0);
+  const geometry = await regionalRow.evaluate((row) => ({ clientWidth: row.clientWidth, scrollWidth: row.scrollWidth }));
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
+
+  await regionalRow.click();
+  await expect(page.locator('.regional-entity-title__name')).toHaveText('小麦');
+  await expect(page.locator('.regional-entity-title__region')).toHaveText('加利福尼亚州');
+  await expect(page.locator('.market-trade-card')).toBeVisible();
+  await page.getByRole('button', { name: '返回商品全局详情' }).click();
+  await expect(page.locator('.global-market-product-detail-panel')).toBeVisible();
+});
+
 test('player page heading keeps SVG back, centered title, and SVG close in that order', async ({ page }) => {
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^概览/ }).click();

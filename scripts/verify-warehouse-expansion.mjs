@@ -144,8 +144,8 @@ forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '建筑页共享仓库'
 forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '生产页共享仓库');
 
 for (const text of [
-  '市场目录只展示商品',
-  '自动交易只在当前地区商品详情显示并锁定当前商品',
+  '一级市场采用“商品目录 → 商品全局详情 → 地区商品详情”',
+  '两条路径最终都复用同一个地区商品详情、订单簿、下单和自动交易实现',
   '共享仓库只位于州级上下文页仓库分区，自动交易只位于市场',
   '地区商品详情自动交易控制',
   '所有玩家业务页面与业务详情共用同一个唯一根级 Mobile Workspace Sheet',

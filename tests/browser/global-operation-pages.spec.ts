@@ -21,14 +21,20 @@ test('map keeps gesture zoom without a control panel and primary market/building
   await sidebar.getByRole('button', { name: /^市场/ }).click();
   await expect(page.getByRole('heading', { name: '市场', exact: true })).toBeVisible();
   await expect(page.locator('.global-market-page')).toHaveAttribute('data-global-scope', 'market');
-  expect(await page.locator('.global-market-page .global-market-province-row').count()).toBeGreaterThan(1);
+  await expect(page.locator('.global-market-provinces-panel')).toHaveCount(0);
   expect(await page.locator('.global-market-goods-row').count()).toBeGreaterThan(1);
 
-  await page.locator('.global-market-page .global-market-province-row').first().click();
+  await page.getByRole('button', { name: '打开小麦全局详情' }).click();
+  await expect(page.locator('.global-market-product-detail-panel')).toBeVisible();
+  const regionalWheat = page.getByRole('button', { name: '打开加利福尼亚州小麦详情' });
+  await expect(regionalWheat).toBeVisible();
+  await regionalWheat.click();
   await expect(page.locator('.global-market-page[data-drilldown-province-id]')).toBeVisible();
-  await expect(page.locator('.market-catalog-surface')).toBeVisible();
-  await page.getByRole('button', { name: '返回全局市场' }).click();
-  await expect(page.locator('.global-market-page:not([data-drilldown-province-id])')).toBeVisible();
+  await expect(page.locator('.market-detail-surface')).toBeVisible();
+  await page.getByRole('button', { name: '返回商品全局详情' }).click();
+  await expect(page.locator('.global-market-product-detail-panel')).toBeVisible();
+  await page.getByRole('button', { name: '返回商品列表' }).click();
+  await expect(page.getByRole('heading', { name: '市场', exact: true })).toBeVisible();
 
   await sidebar.getByRole('button', { name: /^建筑/ }).click();
   await expect(page.getByRole('heading', { name: '建筑', exact: true })).toBeVisible();

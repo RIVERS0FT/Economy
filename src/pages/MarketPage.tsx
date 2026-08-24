@@ -14,13 +14,14 @@ import { orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { MarketAutoTradePanel } from '../components/market/MarketAutoTradePanel';
 import { MarketBalanceBar } from '../components/market/MarketBalanceBar';
+import { MarketCommodityRow } from '../components/market/MarketCommodityRow';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
 import { FactoryIcon } from '../components/icons/GameIcons';
 import { ProductIcon, ProductIconLabel } from '../components/icons/ProductIcons';
 import { ProductArtwork } from '../components/products/ProductArtwork';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
-import { IntegerInput, MoneyInput, SelectInput, TextInput } from '../components/ui/FormControls';
+import { IntegerInput, MoneyInput, SelectInput } from '../components/ui/FormControls';
 import {
   Button,
   MetricCard,
@@ -57,8 +58,7 @@ function localTradeAssetName(trade: { description: string; side: 'buy' | 'sell' 
 }
 
 type MarketCatalogStatus = 'all' | 'traded' | 'buy' | 'sell' | 'unmet-demand' | 'own-order';
-type MarketCatalogSort = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume' | 'balance';
-type MarketBookCondition = 'buy-heavy' | 'balanced' | 'sell-heavy' | 'inactive';
+type MarketCatalogSort = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume';
 
 const PRODUCT_CATEGORY_LABELS: Record<ProductCategory, string> = {
   raw: '原材料',
@@ -82,39 +82,13 @@ interface MarketCatalogEntry {
   categoryLabel: string;
   lastTradePrice?: number;
   marketPrice?: number;
-  baseDeviationPercent?: number;
   trend?: number;
   bestBid?: number;
   bestAsk?: number;
-  availableQuantity: number;
   ownOrderCount: number;
   buyVolume: number;
   sellVolume: number;
-  balance: number;
-  condition: MarketBookCondition;
-  demandQuantity: number;
   demandSatisfaction: number | null;
-}
-
-const MARKET_CONDITION_LABELS: Record<MarketBookCondition, string> = {
-  'buy-heavy': '买盘偏多',
-  balanced: '双边均衡',
-  'sell-heavy': '卖盘偏多',
-  inactive: '无挂单',
-};
-
-function marketConditionTone(condition: MarketBookCondition): StatusTone {
-  if (condition === 'buy-heavy') return 'warning';
-  if (condition === 'sell-heavy') return 'info';
-  if (condition === 'balanced') return 'success';
-  return 'neutral';
-}
-
-function marketBookCondition(buyVolume: number, sellVolume: number): MarketBookCondition {
-  const total = buyVolume + sellVolume;
-  if (total <= 0) return 'inactive';
-  if (Math.abs(buyVolume - sellVolume) / total <= 0.1) return 'balanced';
-  return buyVolume > sellVolume ? 'buy-heavy' : 'sell-heavy';
 }
 
 function trendForMarket(
@@ -418,7 +392,6 @@ export function MarketPage({
   const orderEntryRef = useRef<MarketOrderEntryHandle>(null);
   const [mobileAccountView, setMobileAccountView] = useState<'orders' | 'trades'>('orders');
   const [requestedAutoTradeProductId, setRequestedAutoTradeProductId] = useState<string | null>(null);
-  const [catalogQuery, setCatalogQuery] = useState('');
   const [catalogCategory, setCatalogCategory] = useState('all');
   const [catalogStatus, setCatalogStatus] = useState<MarketCatalogStatus>('all');
   const [catalogSort, setCatalogSort] = useState<MarketCatalogSort>('catalog');
@@ -551,45 +524,35 @@ export function MarketPage({
 
   const catalogEntries = useMemo(() => {
     const entries: MarketCatalogEntry[] = game.products.map((product) => {
-          const market = game.markets[product.id];
-          const orders = openOrdersForAsset(orderIndex, 'commodity', product.id);
-          const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0, inTransit: 0 };
-          const buyVolume = orders
-            .filter((order) => order.side === 'buy')
-            .reduce((sum, order) => sum + Math.max(0, order.remaining), 0);
-          const sellVolume = orders
-            .filter((order) => order.side === 'sell')
-            .reduce((sum, order) => sum + Math.max(0, order.remaining), 0);
-          const marketPrice = typeof market?.officialPrice === 'number' ? market.officialPrice : undefined;
-          return {
-            kind: 'commodity',
-            id: product.id,
-            name: product.name,
-            category: product.category,
-            categoryLabel: PRODUCT_CATEGORY_LABELS[product.category],
-            lastTradePrice: typeof market?.lastTradePrice === 'number' ? market.lastTradePrice : undefined,
-            marketPrice,
-            baseDeviationPercent: typeof marketPrice === 'number' && product.basePrice > 0
-              ? ((marketPrice / product.basePrice) - 1) * 100
-              : undefined,
-            trend: trendForMarket(market?.priceHistory ?? [], now),
-            bestBid: buildOrderBookLevels(orders, 'buy')[0]?.price,
-            bestAsk: buildOrderBookLevels(orders, 'sell')[0]?.price,
-            availableQuantity: inventory.available,
-            ownOrderCount: orders.filter((order) => order.isOwn).length,
-            buyVolume,
-            sellVolume,
-            balance: sellVolume - buyVolume,
-            condition: marketBookCondition(buyVolume, sellVolume),
-            demandQuantity: Math.max(0, market?.demand?.lastQuantity ?? 0),
-            demandSatisfaction: (market?.demand?.lastQuantity ?? 0) > 0
-              ? Math.max(0, Math.min(1, market?.demand?.satisfaction ?? 0))
-              : null,
-          };
-        });
-    const query = catalogQuery.trim().toLocaleLowerCase('zh-CN');
+      const market = game.markets[product.id];
+      const orders = openOrdersForAsset(orderIndex, 'commodity', product.id);
+      const buyVolume = orders
+        .filter((order) => order.side === 'buy')
+        .reduce((sum, order) => sum + Math.max(0, order.remaining), 0);
+      const sellVolume = orders
+        .filter((order) => order.side === 'sell')
+        .reduce((sum, order) => sum + Math.max(0, order.remaining), 0);
+      const marketPrice = typeof market?.officialPrice === 'number' ? market.officialPrice : undefined;
+      return {
+        kind: 'commodity',
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        categoryLabel: PRODUCT_CATEGORY_LABELS[product.category],
+        lastTradePrice: typeof market?.lastTradePrice === 'number' ? market.lastTradePrice : undefined,
+        marketPrice,
+        trend: trendForMarket(market?.priceHistory ?? [], now),
+        bestBid: buildOrderBookLevels(orders, 'buy')[0]?.price,
+        bestAsk: buildOrderBookLevels(orders, 'sell')[0]?.price,
+        ownOrderCount: orders.filter((order) => order.isOwn).length,
+        buyVolume,
+        sellVolume,
+        demandSatisfaction: (market?.demand?.lastQuantity ?? 0) > 0
+          ? Math.max(0, Math.min(1, market?.demand?.satisfaction ?? 0))
+          : null,
+      };
+    });
     const filtered = entries.filter((entry) => {
-      if (query && !entry.name.toLocaleLowerCase('zh-CN').includes(query)) return false;
       if (catalogCategory !== 'all' && entry.category !== catalogCategory) return false;
       if (catalogStatus === 'traded' && typeof entry.lastTradePrice !== 'number') return false;
       if (catalogStatus === 'buy' && typeof entry.bestBid !== 'number') return false;
@@ -604,16 +567,12 @@ export function MarketPage({
       if (catalogSort === 'trend') return (right.trend ?? -Infinity) - (left.trend ?? -Infinity);
       if (catalogSort === 'buy-volume') return right.buyVolume - left.buyVolume;
       if (catalogSort === 'sell-volume') return right.sellVolume - left.sellVolume;
-      if (catalogSort === 'balance') return right.balance - left.balance;
       return 0;
     });
   }, [
     catalogCategory,
-    catalogQuery,
     catalogSort,
     catalogStatus,
-    facilityGroupByTypeId,
-    game.inventories,
     game.markets,
     game.products,
     now,
@@ -647,7 +606,6 @@ export function MarketPage({
   }
 
   function resetCatalogFilters() {
-    setCatalogQuery('');
     setCatalogCategory('all');
     setCatalogStatus('all');
     setCatalogSort('catalog');
@@ -664,114 +622,69 @@ export function MarketPage({
   const provinceName = model.selectedProvince?.name || '加利福尼亚州';
   const catalogCategoryOptions = Object.entries(PRODUCT_CATEGORY_LABELS);
   if (!facilityAssetId && marketViewMode === 'catalog') {
+    const activeCatalogFilterCount = Number(catalogCategory !== 'all')
+      + Number(catalogStatus !== 'all')
+      + Number(catalogSort !== 'catalog');
     const catalogContent = (
       <div className="market-page-surface market-catalog-surface">
-        <div className="market-catalog-filters" aria-label="市场列表筛选">
-          <TextInput
-            label="搜索"
-            type="search"
-            value={catalogQuery}
-            placeholder="搜索商品"
-            onChange={(event) => setCatalogQuery(event.currentTarget.value)}
-          />
-          <SelectInput
-            label="分类"
-            value={catalogCategory}
-            onChange={(event) => setCatalogCategory(event.currentTarget.value)}
-          >
-            <option value="all">全部分类</option>
-            {catalogCategoryOptions.map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </SelectInput>
-          <SelectInput
-            label="市场状态"
-            value={catalogStatus}
-            onChange={(event) => setCatalogStatus(event.currentTarget.value as MarketCatalogStatus)}
-          >
-            <option value="all">全部状态</option>
-            <option value="traded">有真实成交</option>
-            <option value="buy">有买盘</option>
-            <option value="sell">有卖盘</option>
-            <option value="unmet-demand">消费需求未满足</option>
-            <option value="own-order">有我的订单</option>
-          </SelectInput>
-          <SelectInput
-            label="排序"
-            value={catalogSort}
-            onChange={(event) => setCatalogSort(event.currentTarget.value as MarketCatalogSort)}
-          >
-            <option value="catalog">目录顺序</option>
-            <option value="name">名称</option>
-            <option value="price">市场价</option>
-            <option value="trend">24h 变化</option>
-            <option value="buy-volume">买单量</option>
-            <option value="sell-volume">卖单量</option>
-            <option value="balance">挂单差额</option>
-          </SelectInput>
-        </div>
+        <details className="market-catalog-filter-disclosure">
+          <summary>
+            <span>筛选与排序</span>
+            <small>{activeCatalogFilterCount > 0 ? `${activeCatalogFilterCount} 项已启用` : '默认折叠'}</small>
+          </summary>
+          <div className="market-catalog-filters" aria-label="市场列表筛选">
+            <SelectInput
+              label="分类"
+              value={catalogCategory}
+              onChange={(event) => setCatalogCategory(event.currentTarget.value)}
+            >
+              <option value="all">全部分类</option>
+              {catalogCategoryOptions.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </SelectInput>
+            <SelectInput
+              label="市场状态"
+              value={catalogStatus}
+              onChange={(event) => setCatalogStatus(event.currentTarget.value as MarketCatalogStatus)}
+            >
+              <option value="all">全部状态</option>
+              <option value="traded">有真实成交</option>
+              <option value="buy">有买盘</option>
+              <option value="sell">有卖盘</option>
+              <option value="unmet-demand">消费需求未满足</option>
+              <option value="own-order">有我的订单</option>
+            </SelectInput>
+            <SelectInput
+              label="排序"
+              value={catalogSort}
+              onChange={(event) => setCatalogSort(event.currentTarget.value as MarketCatalogSort)}
+            >
+              <option value="catalog">目录顺序</option>
+              <option value="name">名称</option>
+              <option value="price">市场价</option>
+              <option value="trend">24h 变化</option>
+              <option value="buy-volume">买单量</option>
+              <option value="sell-volume">卖单量</option>
+            </SelectInput>
+          </div>
+        </details>
         <ul className="market-catalog-list" aria-label="商品市场列表">
-          {catalogEntries.map((entry) => {
-            const entryTrendTone: StatusTone = (entry.trend ?? 0) > 0 ? 'success' : (entry.trend ?? 0) < 0 ? 'danger' : 'neutral';
-            const deviationTone: StatusTone = (entry.baseDeviationPercent ?? 0) > 0 ? 'warning' : (entry.baseDeviationPercent ?? 0) < 0 ? 'info' : 'neutral';
-            return (
-              <li className="market-catalog-item" key={`${entry.kind}:${entry.id}`}>
-                <button
-                  type="button"
-                  className="market-catalog-row"
-                  data-ui-interactive="surface"
-                  aria-label={`查看${entry.name}详情`}
-                  onClick={() => selectMarketAsset(entry.kind, entry.id, !embedded)}
-                >
-                  <span className="market-catalog-row__identity">
-                    <span className="market-catalog-row__artwork" aria-hidden="true">
-                      <ProductArtwork productId={entry.id} />
-                    </span>
-                    <span className="market-catalog-row__name">
-                      <strong>{entry.name}</strong>
-                      <small>{entry.categoryLabel}</small>
-                    </span>
-                  </span>
-                  <span className="market-catalog-row__metric">
-                    <small>卖单量</small>
-                    <strong>{formatNumber(entry.sellVolume)}</strong>
-                  </span>
-                  <span className="market-catalog-row__metric">
-                    <small>买单量</small>
-                    <strong>{formatNumber(entry.buyVolume)}</strong>
-                  </span>
-                  <span className="market-catalog-row__metric market-catalog-row__balance">
-                    <small>挂单差额</small>
-                    <strong>{entry.balance > 0 ? '+' : ''}{formatNumber(entry.balance)}</strong>
-                    <MarketBalanceBar buyVolume={entry.buyVolume} sellVolume={entry.sellVolume} />
-                  </span>
-                  <span className="market-catalog-row__metric">
-                    <small>市场价</small>
-                    <strong>{typeof entry.marketPrice === 'number'
-                      ? <CurrencyAmount>{formatCurrency(entry.marketPrice)}</CurrencyAmount>
-                      : '—'}</strong>
-                  </span>
-                  <span className="market-catalog-row__metric market-catalog-row__deviation">
-                    <small>基准偏离</small>
-                    {typeof entry.baseDeviationPercent === 'number'
-                      ? <StatusTag tone={deviationTone}>{entry.baseDeviationPercent > 0 ? '+' : ''}{entry.baseDeviationPercent.toFixed(1)}%</StatusTag>
-                      : <strong>—</strong>}
-                  </span>
-                  <span className="market-catalog-row__metric market-catalog-row__trend">
-                    <small>24h 变化</small>
-                    {typeof entry.trend === 'number'
-                      ? <StatusTag tone={entryTrendTone}><CurrencyAmount sign={entry.trend > 0 ? '+' : undefined}>{formatCurrency(entry.trend)}</CurrencyAmount></StatusTag>
-                      : <strong>—</strong>}
-                  </span>
-                  <span className="market-catalog-row__condition">
-                    <small>挂单状态</small>
-                    <StatusTag tone={marketConditionTone(entry.condition)}>{MARKET_CONDITION_LABELS[entry.condition]}</StatusTag>
-                  </span>
-                  <span className="market-catalog-row__chevron" aria-hidden="true">›</span>
-                </button>
-              </li>
-            );
-          })}
+          {catalogEntries.map((entry) => (
+            <li className="market-catalog-item" key={`${entry.kind}:${entry.id}`}>
+              <MarketCommodityRow
+                productId={entry.id}
+                productName={entry.name}
+                categoryLabel={entry.categoryLabel}
+                sellVolume={entry.sellVolume}
+                buyVolume={entry.buyVolume}
+                marketPrice={entry.marketPrice}
+                trend={entry.trend}
+                ariaLabel={`查看${entry.name}详情`}
+                onClick={() => selectMarketAsset(entry.kind, entry.id, !embedded)}
+              />
+            </li>
+          ))}
           {catalogEntries.length === 0 ? (
             <li className="market-catalog-empty">
               <p>没有符合当前筛选条件的商品。</p>
