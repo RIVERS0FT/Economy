@@ -23,6 +23,7 @@ const orderBookDesign = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
 const chartDesign = read('docs/MARKET_CHART_LAYOUT_DESIGN.md');
 const hierarchyBrowserSpec = read('tests/browser/market-information-hierarchy.spec.ts');
 const warehouseVerifier = read('scripts/verify-warehouse-expansion.mjs');
+const recipeProfitVerifier = read('scripts/verify-recipe-profit-analysis.mjs');
 
 for (const token of [
   '<WidgetHeading title="商品"',
@@ -145,5 +146,11 @@ for (const token of [
   '一级市场采用“商品目录 → 商品全局详情 → 地区商品详情”',
   '两条路径最终都复用同一个地区商品详情、订单簿、下单和自动交易实现',
 ]) requireText(warehouseVerifier, token, 'warehouse/market responsibility verifier');
+for (const token of [
+  "const marketCommodityRowSource = read('src/components/market/MarketCommodityRow.tsx');",
+  "const marketPrice = typeof market?.officialPrice === 'number' ? market.officialPrice : undefined;",
+  'marketPrice={entry.marketPrice}',
+  "marketDesignSource.includes('地区商品目录和商品全局详情的地区行使用该地区官方系统价 `officialPrice` 与真实 24h 成交变化')",
+]) requireText(recipeProfitVerifier, token, 'recipe-profit market-price verifier');
 
 console.log('Market information hierarchy verification passed.');
