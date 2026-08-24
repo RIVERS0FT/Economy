@@ -27,7 +27,7 @@ jobs:
           ref: perf/selective-pr-ci
           fetch-depth: 0
 
-      - name: Replace superseded CI rule
+      - name: Replace superseded CI rules
         shell: bash
         run: |
           set -euo pipefail
@@ -36,14 +36,35 @@ jobs:
 
           path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
           text = path.read_text(encoding='utf-8')
-          old = """- `.github/workflows/ci.yml` 是唯一 CI 工作流：非 `main` 分支的 `push` 必须在真实头提交上执行完整 `npm run build` 与 Chromium 浏览器测试，使分支保护所需 `build` 绑定可合并头 SHA；`pull_request` 事件同时在 GitHub 合并快照上执行相同验证，覆盖与最新 `main` 的集成结果。两类事件使用既有独立并发键，各自只保留该事件最新运行；不保留第二个重复的 PR Web Build 工作流，也不得用手工成功状态替代任一真实检查。"""
-          new = """- `.github/workflows/ci.yml` 是唯一 CI 工作流：PR 与非 `main` push 默认使用改动文件选择器。非 `main` push 以分支真实头提交相对最新 `main` 的 merge-base 计算完整分支差异并在真实头提交上执行；`pull_request` 以 base/head 计算改动文件，同时在 GitHub 合并快照上执行所选验证，覆盖与最新 `main` 的集成结果。两类事件使用既有独立并发键，各自只保留该事件最新运行；不保留第二个重复的 PR Web Build 工作流，也不得用手工成功状态替代任一真实检查。
-- 改动文件选择规则唯一维护在 `scripts/select-ci-tests.mjs`：直接修改 verify、server test 或 Playwright spec 时必须执行对应检查；前端源码至少执行 TypeScript 与 Vite 生产构建并选择同领域 verify／浏览器测试，服务端源码至少执行服务器语法检查并选择同领域 verify／server test，纯设计文档执行文档权威性检查。依赖、构建／测试配置、CI 工作流、共享客户端入口、共享状态／存储／领域核心、选择器自身等高影响路径必须直接升级为完整验证；任何无法分类的源码改动必须退化为完整验证，禁止以“没有匹配测试”为成功结果。`main` 是唯一自动无条件执行完整 `npm run build` 与完整 Playwright 的分支；人工 `workflow_dispatch` 可以显式请求完整 CI，高风险 PR／分支也只作为保守兜底升级为完整验证。"""
-          if new in text:
-              raise SystemExit(0)
-          if old not in text:
-              raise SystemExit('authoritative CI rule not found')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8', newline='\n')
+          replacements = [
+              (
+                  "- `.github/workflows/ci.yml` 是唯一 CI 工作流：非 `main` 分支的 `push` 必须在真实头提交上执行完整 `npm run build` 与 Chromium 浏览器测试，使分支保护所需 `build` 绑定可合并头 SHA；`pull_request` 事件同时在 GitHub 合并快照上执行相同验证，覆盖与最新 `main` 的集成结果。两类事件使用既有独立并发键，各自只保留该事件最新运行；不保留第二个重复的 PR Web Build 工作流，也不得用手工成功状态替代任一真实检查。",
+                  "- `.github/workflows/ci.yml` 是唯一 CI 工作流：PR 与非 `main` push 默认使用改动文件选择器。非 `main` push 以分支真实头提交相对最新 `main` 的 merge-base 计算完整分支差异并在真实头提交上执行；`pull_request` 以 base/head 计算改动文件，同时在 GitHub 合并快照上执行所选验证，覆盖与最新 `main` 的集成结果。两类事件使用既有独立并发键，各自只保留该事件最新运行；不保留第二个重复的 PR Web Build 工作流，也不得用手工成功状态替代任一真实检查。\n"
+                  "- 改动文件选择规则唯一维护在 `scripts/select-ci-tests.mjs`：直接修改 verify、server test 或 Playwright spec 时必须执行对应检查；前端源码至少执行 TypeScript 与 Vite 生产构建并选择同领域 verify／浏览器测试，服务端源码至少执行服务器语法检查并选择同领域 verify／server test，纯设计文档执行文档权威性检查。依赖、构建／测试配置、CI 工作流、共享客户端入口、共享状态／存储／领域核心、选择器自身等高影响路径必须直接升级为完整验证；任何无法分类的源码改动必须退化为完整验证，禁止以“没有匹配测试”为成功结果。`main` 是唯一自动无条件执行完整 `npm run build` 与完整 Playwright 的分支；人工 `workflow_dispatch` 可以显式请求完整 CI，高风险 PR／分支也只作为保守兜底升级为完整验证。",
+                  'CI selector rule',
+              ),
+              (
+                  "- 浏览器运行时测试使用固定 Playwright 版本；CI 与主部署必须优先复用 GitHub hosted runner 已安装的 Chrome／Chromium，并通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 交给 Playwright，仅在 runner 没有可用浏览器时下载固定 Playwright Chromium。浏览器 CDN 不得成为 CI 或部署的必需单点依赖；无论使用 runner 浏览器还是下载兜底，`npm run test:browser` 都必须继续作为硬门禁。浏览器回归至少覆盖 localStorage 拒绝访问仍能渲染、正式设置控件存在以及无效设置控件不存在；测试 artifact 只在失败时上传并保留 3 天，完整标准输出继续保存在 Actions job log。",
+                  "- 浏览器运行时测试使用固定 Playwright 版本；需要浏览器验证的增量 CI 与主部署必须优先复用 GitHub hosted runner 已安装的 Chrome／Chromium，并通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 交给 Playwright，仅在 runner 没有可用浏览器时下载固定 Playwright Chromium。浏览器 CDN 不得成为 CI 或部署的必需单点依赖；只要选择器要求浏览器验证，`npm run test:browser` 就必须继续作为硬门禁，`main` 主部署始终执行完整浏览器回归。浏览器回归至少覆盖 localStorage 拒绝访问仍能渲染、正式设置控件存在以及无效设置控件不存在；测试 artifact 只在失败时上传并保留 3 天，完整标准输出继续保存在 Actions job log。",
+                  'browser gate rule',
+              ),
+              (
+                  "CI 和主部署都必须使用固定 Playwright 版本执行 `npm run test:browser`；",
+                  "需要浏览器验证的增量 CI 与主部署都必须使用固定 Playwright 版本执行 `npm run test:browser`；",
+                  'acceptance browser rule',
+              ),
+          ]
+
+          changed = False
+          for old, new, label in replacements:
+              if old in text:
+                  text = text.replace(old, new, 1)
+                  changed = True
+              elif new not in text:
+                  raise SystemExit(f'{label} not found')
+
+          if changed:
+              path.write_text(text, encoding='utf-8', newline='\n')
           PY
 
           if git diff --quiet -- docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md; then
