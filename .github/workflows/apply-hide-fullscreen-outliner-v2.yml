@@ -1,0 +1,60 @@
+name: Apply fullscreen outliner hide v2
+
+on:
+  push:
+    branches:
+      - fix/hide-fullscreen-outliner
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reuse corrected final transformation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source = Path('.github/workflows/apply-hide-fullscreen-outliner.yml').read_text(encoding='utf-8')
+          old = '''          replace_once(test, "  const collapseButton = outliner.locator('.strategic-outliner__collapse');\\n", "  const collapseButton = outliner.locator('.strategic-outliner__collapse');\\n  const workspace = page.locator('.workspace');\\n")'''
+          new = '''          replace_once(test, "  const pinnedSection = outliner.locator('[data-outliner-section=\\\"pinned\\\"]');\\n  const collapseButton = outliner.locator('.strategic-outliner__collapse');\\n", "  const pinnedSection = outliner.locator('[data-outliner-section=\\\"pinned\\\"]');\\n  const collapseButton = outliner.locator('.strategic-outliner__collapse');\\n  const workspace = page.locator('.workspace');\\n")'''
+          if source.count(old) != 1:
+              raise SystemExit(f'expected one transformation line, got {source.count(old)}')
+          source = source.replace(old, new, 1)
+          marker = "      - name: Apply final behavior\n        shell: bash\n        run: |\n"
+          tail_marker = "\n      - name: Commit final tree"
+          if source.count(marker) != 1 or source.count(tail_marker) != 1:
+              raise SystemExit('unable to locate transformation block')
+          block = source.split(marker, 1)[1].split(tail_marker, 1)[0]
+          script_lines = []
+          for line in block.splitlines():
+              if line.startswith('          '):
+                  script_lines.append(line[10:])
+              elif line:
+                  raise SystemExit(f'unexpected indentation in transformation block: {line!r}')
+              else:
+                  script_lines.append('')
+          Path('/tmp/apply-final.sh').write_text('\n'.join(script_lines) + '\n', encoding='utf-8')
+          PY
+          bash /tmp/apply-final.sh
+
+      - name: Commit final tree
+        shell: bash
+        run: |
+          git rm .github/workflows/apply-hide-fullscreen-outliner.yml
+          git rm .github/workflows/apply-hide-fullscreen-outliner-v2.yml
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "隐藏全屏页面战略追踪器并移除横向收起"
+          git push
