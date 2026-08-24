@@ -48,6 +48,9 @@ if (failures.length === 0) {
     'dist/assets/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy/assets/"',
     '--exclude assets/',
     '--exclude index.html',
+    '--exclude runtime/',
+    'ECONOMY_NODE_RUNTIME_REUSE',
+    'ECONOMY_NODE_RUNTIME_UPLOAD_SKIPPED',
     'index.html.next',
   ]) requireText(files.workflow, text);
 
@@ -58,7 +61,7 @@ if (failures.length === 0) {
   const workflow = read(files.workflow);
   const deleteBeforeCount = (workflow.match(/rsync -az --delete-before/g) ?? []).length;
   if (deleteBeforeCount !== 2) {
-    failures.push(`部署工作流必须只为 API 与便携 Node 运行时保留 2 次 rsync --delete-before，当前为 ${deleteBeforeCount}`);
+    failures.push(`部署工作流必须只为 API 代码与按需更新的便携 Node 运行时保留 2 处 rsync --delete-before，当前为 ${deleteBeforeCount}`);
   }
   const legacyWebsiteDeleteBefore = String.raw`rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
             dist/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy/"`;
@@ -109,7 +112,9 @@ if (failures.length === 0) {
     '删除临时 SQLite 前显式关闭全部连接',
     'Windows 本地行为验证与 Linux 正式部署共用同一实现',
     '分段存储 V2 首次迁移前必须创建 `economy-pre-storage-v2`',
-    'API 和便携 Node 运行时继续使用 `rsync --delete-before` 完整替换',
+    'API 代码继续使用 `rsync --delete-before` 完整替换',
+    '同步 `server/` 时必须排除 `runtime/`',
+    '完全匹配时必须复用且不得重新下载或上传',
     '旧哈希资源至少保留 400 天',
   ]) requireText(files.design, text);
 }
@@ -206,8 +211,6 @@ if (failures.length === 0) {
       if (storageReport.storageSchemaVersion !== 0) failures.push(`迁移前存储 schema 应为 0，实际为 ${storageReport.storageSchemaVersion}`);
     }
 
-
-
     if (statSync(databasePath).size !== sourceSizeBefore || digest(databasePath) !== sourceDigestBefore) {
       failures.push('备份过程修改了源数据库主文件');
     }
@@ -245,8 +248,6 @@ if (failures.length === 0) {
         failures.push(`已迁移 V2 应跳过重复备份，实际为 ${storageSkipReport.status}/${storageSkipReport.reason}`);
       }
     }
-
-
   } catch (error) {
     failures.push(`紧凑压缩备份行为验证异常: ${error.stack || error}`);
   } finally {
