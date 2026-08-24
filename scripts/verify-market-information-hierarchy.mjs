@@ -47,6 +47,8 @@ for (const token of [
   '最高价地区',
   'global-market-summary-strip',
   'global-current-scope-summary',
+  'TextInput',
+  'catalogQuery',
 ]) forbidText(globalMarket, token, 'global market hierarchy');
 
 const catalogHeadingIndex = globalMarket.indexOf('<WidgetHeading title="商品"');
