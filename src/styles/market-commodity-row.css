@@ -1,3 +1,4 @@
+/* Shared regional/global quote row. Container width, not viewport width, decides the compact slot sizes. */
 .market-commodity-row {
   width: 100%;
   min-width: 0;
