@@ -1,0 +1,30 @@
+name: codex-warehouse-market-verifier-sync
+
+on:
+  push:
+    branches:
+      - codex/market-global-product-detail
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/market-global-product-detail
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+      - run: node scripts/codex-warehouse-market-verifier-sync.mjs
+      - run: rm scripts/codex-warehouse-market-verifier-sync.mjs .github/workflows/codex-warehouse-market-verifier-sync.yml
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "同步仓库与市场设计验证"
+          git push origin HEAD:codex/market-global-product-detail
