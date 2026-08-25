@@ -244,18 +244,22 @@ function NotificationItem({
 
 export function NotificationCenterPanel({
   open,
+  alertsEnabled,
   pendingItems,
   notifications,
   onClose,
+  onSetAlertsEnabled,
   onClearRead,
   onDelete,
   onNavigate,
   returnFocusRef,
 }: {
   open: boolean;
+  alertsEnabled: boolean;
   pendingItems: PendingNotificationItem[];
   notifications: NotificationRecord[];
   onClose: () => void;
+  onSetAlertsEnabled: (enabled: boolean) => void;
   onClearRead: () => void;
   onDelete: (notificationId: string) => void;
   onNavigate: (tab: TabId) => void;
@@ -305,11 +309,16 @@ export function NotificationCenterPanel({
         onPointerDown={(event) => event.stopPropagation()}
       >
         <header className="notification-panel__header">
-          <div>
-            <h2 id="notification-center-title">通知</h2>
-            <p>{pendingItems.length > 0 ? `${pendingItems.length} 项待处理` : '当前没有待处理事项'}</p>
-          </div>
+          <h2 id="notification-center-title">通知</h2>
           <div className="notification-panel__actions">
+            <button
+              type="button"
+              className="notification-panel__alerts"
+              aria-pressed={!alertsEnabled}
+              onClick={() => onSetAlertsEnabled(!alertsEnabled)}
+            >
+              {alertsEnabled ? '禁用通知' : '启用通知'}
+            </button>
             <button
               type="button"
               className="notification-panel__clear"

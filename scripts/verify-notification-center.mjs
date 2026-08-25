@@ -71,6 +71,21 @@ assert.deepEqual(
   ]),
   'pending items must be stable, deduplicated, state-derived records',
 );
+
+const marketPendingBefore = derivePendingNotificationItems({
+  orders: [{ id: 'order-1', isOwn: true, status: 'open', remaining: 3, side: 'buy' }],
+});
+const marketPendingAfter = derivePendingNotificationItems({
+  orders: [{ id: 'order-1', isOwn: true, status: 'partial', remaining: 2, side: 'buy' }],
+});
+assert.equal(marketPendingBefore[0]?.key, 'market:open-orders');
+assert.equal(marketPendingAfter[0]?.key, marketPendingBefore[0]?.key);
+assert.notEqual(
+  marketPendingAfter[0]?.signature,
+  marketPendingBefore[0]?.signature,
+  'pending content may update while the stable problem key remains the same',
+);
+
 assert.deepEqual(
   derivePendingNotificationItems({}),
   [],
@@ -97,6 +112,8 @@ assert.match(gameShell, /surface="mobile"/);
 assert.match(gameShell, /surface="desktop"/);
 assert.match(gameShell, /workspaceChrome=\{\([\s\S]*?<StrategicWorkspaceChrome[\s\S]*?<NotificationToasts[\s\S]*?surface="desktop"/);
 assert.match(gameShell, /notificationCenter\.panelOpen \? null : \(/);
+assert.match(gameShell, /alertsEnabled=\{notificationCenter\.alertsEnabled\}/);
+assert.match(gameShell, /onSetAlertsEnabled=\{notificationCenter\.setAlertsEnabled\}/);
 assert.match(gameShell, /workspaceSheetOpen=\{mobileSheetOpen\}/);
 assert.doesNotMatch(gameShell, /model\.notice\s*\?/);
 assert.doesNotMatch(gameShell, /CurrencyText/);
@@ -114,7 +131,13 @@ assert.doesNotMatch(gameThreeLayerVerifier, /<StatusBar items=\{statusItems\} \/
 
 const hook = read('src/hooks/useNotificationCenter.ts');
 assert.match(hook, /panelOpenRef\.current/);
-assert.match(hook, /if \(panelOpenRef\.current \|\| !title\.trim\(\)\) return/);
+assert.match(hook, /alertsEnabledRef\.current/);
+assert.match(hook, /notification-alerts:v/);
+assert.match(hook, /setAlertsEnabled/);
+assert.match(hook, /if \(panelOpenRef\.current \|\| !alertsEnabledRef\.current \|\| !title\.trim\(\)\) return/);
+assert.match(hook, /pendingKeysRef/);
+assert.match(hook, /previousKeys\.has\(item\.key\)/);
+assert.doesNotMatch(hook, /pendingSignaturesRef/);
 assert.match(hook, /clearToasts\(\)/);
 assert.match(hook, /markNotificationsRead/);
 assert.match(hook, /clearReadNotifications/);
@@ -143,8 +166,13 @@ assert.match(component, /window\.addEventListener\('keydown', onKeyDown, true\)/
 assert.match(component, /event\.stopPropagation\(\)/);
 assert.match(component, /createPortal/);
 assert.match(component, /CurrencyText/);
+assert.match(component, /禁用通知/);
+assert.match(component, /启用通知/);
+assert.match(component, /onSetAlertsEnabled/);
 assert.match(component, /清除已读/);
 assert.match(component, /删除通知/);
+assert.doesNotMatch(component, /<p>\{pendingItems\.length > 0/);
+assert.match(component, /<small><CurrencyText>\{item\.message\}<\/CurrencyText><\/small>/);
 assert.match(component, /MOBILE_NOTIFICATION_QUERY = '\(max-width: 720px\)'/);
 assert.match(component, /MOBILE_ISLAND_EXIT_MS = 230/);
 assert.match(component, /NotificationToastSurface = 'auto' \| 'desktop' \| 'mobile'/);
@@ -199,6 +227,16 @@ assert.doesNotMatch(browserTest, /layout\.classList/);
 assert.doesNotMatch(browserTest, /notice-toast/);
 assert.doesNotMatch(browserTest, /toBeCloseTo\(36, 0\)/);
 
+const reserveBrowserTest = read('tests/browser/mobile-notification-sheet-reserve.spec.ts');
+assert.match(reserveBrowserTest, /even when no island is mounted/);
+assert.match(reserveBrowserTest, /notification-island-height/);
+assert.match(reserveBrowserTest, /sheetTop/);
+assert.match(reserveBrowserTest, /overlays the sheet without changing its reserved top edge/);
+assert.match(reserveBrowserTest, /禁用通知/);
+assert.match(reserveBrowserTest, /启用通知/);
+assert.match(reserveBrowserTest, /notification-alerts:v1:/);
+assert.match(reserveBrowserTest, /page\.reload\(\)/);
+
 const currencyVerifier = read('scripts/verify-currency-svg.mjs');
 assert.match(currencyVerifier, /src\/components\/notifications\/NotificationCenter\.tsx/);
 assert.doesNotMatch(currencyVerifier, /src\/components\/shell\/GameShell\.tsx/);
@@ -211,6 +249,7 @@ assert.match(styles, /@media \(max-width: 720px\)[\s\S]*?grid-template-columns:\
 assert.match(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-center-trigger\s*\{[\s\S]*?width:\s*44px;[\s\S]*?min-width:\s*44px;[\s\S]*?height:\s*44px;[\s\S]*?min-height:\s*44px;/);
 assert.doesNotMatch(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-center-trigger\s*\{[\s\S]*?(?:width|height):\s*36px;/);
 assert.match(styles, /\.notification-panel-layer/);
+assert.match(styles, /\.notification-panel__alerts/);
 assert.match(styles, /\.notification-panel-layer\s*\{[\s\S]*?padding:\s*0 var\(--layout-gutter\) var\(--layout-gutter\);/);
 assert.match(styles, /\.notification-panel-layer\s*\{[^}]*background:\s*transparent;/);
 assert.doesNotMatch(styles, /\.notification-panel-layer\s*\{[^}]*background:\s*rgba\(/);
@@ -219,6 +258,7 @@ assert.doesNotMatch(styles, /\.notification-toast-stack\s*\{[^}]*top:/);
 assert.match(styles, /\.game-shell \.workspace-strategic-chrome > \.notification-toast-stack\s*\{\s*pointer-events:\s*none;/);
 assert.match(styles, /from \{ opacity: 0; transform: translateY\(8px\); \}/);
 assert.match(styles, /\.notification-island\s*\{/);
+assert.match(styles, /height:\s*var\(--mobile-notification-island-height, 56px\)/);
 assert.match(styles, /transform-origin:\s*center center/);
 assert.match(styles, /@keyframes notification-island-enter/);
 assert.match(styles, /@keyframes notification-island-exit/);
@@ -238,6 +278,7 @@ assert.match(viewportStyles, /@media \(max-width: 720px\)[\s\S]*?\.workspace-flo
 
 const mobileStatusStyles = read('src/styles/mobile-status-layout.css');
 assert.match(mobileStatusStyles, /\.signed-in-shell__chrome\s*\{\s*z-index:\s*3001;/);
+assert.match(mobileStatusStyles, /--mobile-notification-island-height:\s*56px/);
 assert.match(mobileStatusStyles, /\.workspace-dialog-layer > \.notification-panel-layer\[data-notification-layer='dialog'\]/);
 assert.match(mobileStatusStyles, /z-index:\s*10/);
 assert.match(mobileStatusStyles, /var\(--mobile-status-top-inset\)/);
@@ -249,12 +290,20 @@ assert.match(mobileStatusStyles, /safe-area-inset-right/);
 assert.match(mobileStatusStyles, /\.notification-island-region \.notification-island/);
 assert.match(mobileStatusStyles, /pointer-events:\s*auto/);
 
+const mobileSheetHost = read('src/components/ui/MobileWorkspaceSheetHost.tsx');
+assert.match(mobileSheetHost, /--mobile-notification-island-height/);
+assert.match(mobileSheetHost, /reservedNotificationHeight/);
+assert.match(mobileSheetHost, /statusGap \+ islandHeight \+ statusGap/);
+assert.match(mobileSheetHost, /viewportBottom - statusBottom - reservedNotificationHeight/);
+
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 assert.match(pageDesign, /状态栏最右侧/);
 assert.match(pageDesign, /最近 20 条/);
 assert.match(pageDesign, /面板关闭/);
 assert.match(pageDesign, /待处理事项不能删除/);
 assert.match(pageDesign, /概览不得再维护第二套经营提醒列表/);
+assert.match(pageDesign, /同一稳定待处理键持续存在期间/);
+assert.match(pageDesign, /禁用主动通知提醒/);
 assert.match(pageDesign, /通知面板作为 Chrome 级临时覆盖层始终位于 Sheet 之上/);
 assert.match(pageDesign, /通知面板打开期间不得挂载通知岛/);
 
@@ -268,6 +317,7 @@ assert.match(liquidDesign, /整个右栏不挂载也仍必须保留桌面 Toast/
 assert.match(liquidDesign, /通知灵动岛/);
 assert.match(liquidDesign, /物理屏幕水平中线/);
 assert.match(liquidDesign, /从中心对称展开/);
+assert.match(liquidDesign, /即使当前没有通知岛/);
 assert.match(liquidDesign, /面板打开时立即清空 Toast 队列/);
 assert.match(liquidDesign, /点击面板外遮罩空白必须关闭/);
 assert.match(liquidDesign, /状态栏始终位于 Sheet 与通知面板之上/);
@@ -276,6 +326,7 @@ assert.match(liquidDesign, /Sheet 外部区域不得压暗或模糊/);
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 assert.match(uiDesign, /## 通知面板与关闭态 Toast/);
 assert.match(uiDesign, /移动只显示队列最后一条/);
+assert.match(uiDesign, /标题只保留主标题和必要说明/);
 assert.match(uiDesign, /关闭后焦点返回通知入口/);
 assert.match(uiDesign, /缺失领域不得阻断登录后外壳/);
 assert.match(uiDesign, /`48px` 工具轨道和 `44×44px` 触控目标/);

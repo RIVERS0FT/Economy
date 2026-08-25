@@ -1,19 +1,102 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { selectCiPlan } from './select-ci-tests.mjs';
 
 const root = process.cwd();
 const deployPath = resolve(root, '.github/workflows/deploy.yml');
+const ciPath = resolve(root, '.github/workflows/ci.yml');
+const selectorPath = resolve(root, 'scripts/select-ci-tests.mjs');
 const designPath = resolve(root, 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 const workflow = readFileSync(deployPath, 'utf8');
+const ciWorkflow = readFileSync(ciPath, 'utf8');
+const selector = readFileSync(selectorPath, 'utf8');
 const design = readFileSync(designPath, 'utf8');
 const failures = [];
 
 const requireText = (text, reason) => {
   if (!workflow.includes(text)) failures.push(reason ?? `deploy.yml 缺少: ${text}`);
 };
+const requireCiText = (text, reason) => {
+  if (!ciWorkflow.includes(text)) failures.push(reason ?? `ci.yml 缺少: ${text}`);
+};
+const requireSelectorText = (text, reason) => {
+  if (!selector.includes(text)) failures.push(reason ?? `select-ci-tests.mjs 缺少: ${text}`);
+};
 const requireDesignText = (text, reason) => {
   if (!design.includes(text)) failures.push(reason ?? `部署设计缺少: ${text}`);
 };
+const hasCommand = (plan, command, args = []) => plan.checks.some((item) => item.command === command && JSON.stringify(item.args) === JSON.stringify(args));
+
+for (const text of [
+  'fetch-depth: 0',
+  'node scripts/select-ci-tests.mjs plan',
+  'git diff --name-only "$PR_BASE_SHA" "$PR_HEAD_SHA"',
+  'git merge-base origin/main "$GITHUB_SHA"',
+  "if: steps.scope.outputs.dependencies == 'true'",
+  "if: steps.scope.outputs.mode == 'full'",
+  "if: steps.scope.outputs.mode == 'targeted'",
+  "if: steps.scope.outputs.browser == 'true'",
+  'node scripts/select-ci-tests.mjs run',
+  '--phase checks',
+  '--phase browser',
+  'npm run build 2>&1 | tee build-test.log',
+  'npm run test:browser 2>&1 | tee browser-test.log',
+]) requireCiText(text);
+
+for (const text of [
+  'FULL_TRIGGER_PATTERNS',
+  'high-risk:',
+  'unclassified-source:',
+  "'scripts/verify-deployment-pipeline.mjs'",
+  "'scripts/verify-runtime-reliability.mjs'",
+  "'server/test'",
+  "'tests/browser'",
+  'verifyCandidates',
+  'INDIRECT_VERIFY_ENTRYPOINTS',
+]) requireSelectorText(text);
+
+const marketPlan = selectCiPlan(['src/pages/MarketPage.tsx']);
+if (marketPlan.mode !== 'targeted') failures.push('市场页面改动必须使用 targeted CI');
+if (!marketPlan.needsDependencies) failures.push('前端 targeted CI 必须安装依赖');
+if (!hasCommand(marketPlan, 'npm', ['run', 'typecheck'])) failures.push('前端 targeted CI 必须执行 TypeScript 检查');
+if (!hasCommand(marketPlan, './node_modules/.bin/vite', ['build'])) failures.push('前端 targeted CI 必须执行 Vite 生产构建');
+if (marketPlan.browser.mode !== 'selected' || marketPlan.browser.tests.length === 0) failures.push('市场页面改动必须选择相关 Playwright 测试');
+if (hasCommand(marketPlan, 'node', ['scripts/verify-page-content-base.mjs'])) failures.push('targeted CI 不得直接执行内部 page-content base verifier');
+if (!hasCommand(marketPlan, 'node', ['scripts/verify-page-content.mjs'])) failures.push('市场页面改动必须通过正式 page-content 包装入口验证');
+
+const directPageContentBasePlan = selectCiPlan(['scripts/verify-page-content-base.mjs']);
+if (hasCommand(directPageContentBasePlan, 'node', ['scripts/verify-page-content-base.mjs'])) failures.push('直接修改内部 page-content base verifier 时不得绕过包装入口执行');
+if (!hasCommand(directPageContentBasePlan, 'node', ['scripts/verify-page-content.mjs'])) failures.push('直接修改内部 page-content base verifier 时必须选择正式包装入口');
+
+const bankingPlan = selectCiPlan(['server/src/banking.js']);
+if (bankingPlan.mode !== 'targeted') failures.push('银行服务端改动必须使用 targeted CI');
+if (!hasCommand(bankingPlan, 'npm', ['run', 'server:check'])) failures.push('服务端 targeted CI 必须执行服务器语法检查');
+if (!bankingPlan.checks.some((item) => item.command === 'node' && item.args[0] === '--test' && item.args.some((arg) => /bank/i.test(arg)))) {
+  failures.push('银行服务端改动必须选择相关 server test');
+}
+
+const docsPlan = selectCiPlan(['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md']);
+if (docsPlan.mode !== 'targeted') failures.push('纯设计文档改动不应默认触发完整 CI');
+if (!hasCommand(docsPlan, 'node', ['scripts/verify-document-authority.mjs'])) failures.push('设计文档改动必须执行文档权威性检查');
+
+const directBrowserPlan = selectCiPlan(['tests/browser/bank-runtime.spec.ts']);
+if (directBrowserPlan.mode !== 'targeted' || !directBrowserPlan.browser.tests.includes('tests/browser/bank-runtime.spec.ts')) {
+  failures.push('直接修改 Playwright spec 时必须执行该 spec');
+}
+
+for (const highRiskPath of [
+  '.github/workflows/ci.yml',
+  'package-lock.json',
+  'src/app/gameViewModel.ts',
+  'server/src/runtime-store.js',
+  'shared/provinces.json',
+]) {
+  if (selectCiPlan([highRiskPath]).mode !== 'full') failures.push(`高风险改动必须退化为完整 CI: ${highRiskPath}`);
+}
+const unclassifiedSourcePath = `src/utils/${['new', 'CrossCutting', 'Helper'].join('')}.ts`;
+if (selectCiPlan([unclassifiedSourcePath]).mode !== 'full') {
+  failures.push('无法分类且没有测试引用的新源码必须退化为完整 CI');
+}
 
 requireText('  build:\n', '部署工作流必须保留独立 build 验证 Job');
 requireText('  browser-test:\n', '部署工作流必须保留独立 browser-test 验证 Job');
@@ -33,6 +116,9 @@ requireText('  report-validation-failure:\n', '验证失败必须写入 deploy/e
 requireText('needs: [build, browser-test]', '验证失败状态 Job 必须等待 build 与 browser-test');
 requireText("needs['browser-test'].result", '带连字符的 browser-test Job 必须使用 bracket 语法读取 needs 结果');
 
+requireDesignText('PR 与非 `main` push 默认使用改动文件选择器', '权威部署设计必须记录增量 CI');
+requireDesignText('无法分类的源码改动必须退化为完整验证', '权威部署设计必须记录未知影响范围的全量兜底');
+requireDesignText('`main` 是唯一自动无条件执行完整 `npm run build` 与完整 Playwright 的分支', '权威部署设计必须记录 main 全量门禁边界');
 requireDesignText('完整 `npm run build` 与完整 Playwright 浏览器回归必须作为并行硬门禁', '权威部署设计必须记录完整构建与浏览器回归并行硬门禁');
 requireDesignText('独立 `browser-test` Job 固定以四个 shard', '权威部署设计必须记录四分片浏览器回归');
 requireDesignText('生产 `deploy` Job 必须同时 `needs` 两者', '权威部署设计必须记录生产写入等待全部验证');
@@ -58,8 +144,8 @@ if (deploySection.includes('npm run build\n')) {
 }
 
 if (failures.length > 0) {
-  console.error(`部署并行门禁验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`部署与增量 CI 验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('部署并行门禁验证通过：main 构建与四分片浏览器回归并行，生产部署等待全部门禁，并复用匹配的固定 Node runtime。');
+console.log('PR/分支按改动选择验证，未知高风险改动自动全量；main 仍以完整 build 与四分片浏览器回归作为部署硬门禁。');

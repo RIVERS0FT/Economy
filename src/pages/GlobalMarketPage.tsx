@@ -355,7 +355,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
   return (
     <PageLayout title="市场">
       <div className="global-operation-page global-market-page" data-global-scope="market">
-        <WidgetHeading title="商品" action={<StatusTag>{formatNumber(filteredProductRows.length)} / {formatNumber(productRows.length)} 种商品</StatusTag>} />
+        <WidgetHeading title="商品" />
         <details className="global-market-filter-disclosure">
           <summary>
             <span>筛选</span>

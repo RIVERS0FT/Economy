@@ -259,9 +259,11 @@ export function GameShell({ model, children, offline = false }: {
             )}
             <NotificationCenterPanel
               open={notificationCenter.panelOpen}
+              alertsEnabled={notificationCenter.alertsEnabled}
               pendingItems={notificationCenter.pendingItems}
               notifications={notificationCenter.notifications}
               onClose={notificationCenter.closePanel}
+              onSetAlertsEnabled={notificationCenter.setAlertsEnabled}
               onClearRead={notificationCenter.clearRead}
               onDelete={notificationCenter.deleteOne}
               returnFocusRef={notificationButtonRef}
