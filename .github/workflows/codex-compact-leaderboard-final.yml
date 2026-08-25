@@ -31,8 +31,6 @@ jobs:
           set -euo pipefail
           git fetch origin codex/global-compact-leaderboard-row-20260825
           cp scripts/verify-page-content-base.mjs /tmp/verify-page-content-base.mjs
-
-          # Reuse the already exercised product/doc patch script, but apply it on the latest main-based branch.
           git show origin/codex/global-compact-leaderboard-row-20260825:.github/workflows/codex-implement-compact-leaderboard.yml > /tmp/source-workflow.yml
           python3 - <<'PY'
           from pathlib import Path
@@ -46,8 +44,6 @@ jobs:
           Path('/tmp/apply.py').write_text(textwrap.dedent('\n'.join(lines[start + 1:end])) + '\n', encoding='utf-8')
           PY
           python3 /tmp/apply.py
-
-          # Preserve current-main checks except assertions already contradicted by current code or authoritative design.
           cp /tmp/verify-page-content-base.mjs scripts/verify-page-content-base.mjs
           python3 - <<'PY'
           from pathlib import Path
@@ -74,10 +70,8 @@ jobs:
           replace(path, "  '实际数字格式遵循全局“紧凑数字”偏好',\n  '玩家关闭全局“紧凑数字”后，桌面和移动状态栏都显示带千分位的完整整数',", "  '数量类值遵循全局固定紧凑数字规则',\n  '货币值继续遵守两位显示精度',")
 
           stale_requirements = [
-              "  'market-catalog-row',\n",
-              "  '<ProductArtwork productId={entry.id} />',\n",
-              "  '<small>卖单量</small>',\n",
-              "  '<small>买单量</small>',\n",
+              "  'market-catalog-row',\n", "  '<ProductArtwork productId={entry.id} />',\n",
+              "  '<small>卖单量</small>',\n", "  '<small>买单量</small>',\n",
               "  '全局使用 K/M/B/T 缩写大额金额、库存、数量与容量',\n",
               "  '| 建筑 | `buildings` | `BuildingsPage` |',\n",
               "  '页面主标题固定为“{州级地区全称}建筑”',\n",
@@ -92,15 +86,11 @@ jobs:
               text = text.replace(stale, '')
           p.write_text(text, encoding='utf-8')
 
-          # The compact switch was SettingsPage's only ToggleField; do not retain an inert control just for architecture checks.
           replace('scripts/verify-ui-architecture.mjs', "requireText('src/pages/SettingsPage.tsx', '<ToggleField');\n", '')
-
-          # Money exchange rates remain monetary UI and must not be abbreviated by the count formatter.
           replace('src/pages/GemShopPage.tsx', "`1 宝石 = ${formatNumber(summary.creditsPerGem)} 货币`", "`1 宝石 = ${formatCurrency(summary.creditsPerGem)} 货币`")
           replace('src/pages/GemShopPage.tsx', "`当时报价 1 = ${formatNumber(record.creditsPerGem)} · `", "`当时报价 1 = ${formatCurrency(record.creditsPerGem)} · `")
           replace('tests/browser/all-pages-preview.spec.ts', '1 宝石 = 1,280 货币', '1 宝石 = 1,280.00 货币')
 
-          # Fix quoting in the generated static assertion.
           p = Path('scripts/verify-leaderboards.mjs')
           text = p.read_text(encoding='utf-8')
           bad = "check(!page.includes('period.rewardEnabled ? '前三名奖励' : '测试周''), 'leaderboard title status pills must not render');"
@@ -137,8 +127,15 @@ jobs:
           npm run test:browser > /tmp/browser.log 2>&1
           code=$?
           if [ "$code" -ne 0 ]; then
-            echo 'Browser regression failed; concise diagnostics:'
-            grep -nE '(^\s*[0-9]+\)|Error:|Expected:|Received:|Call log:|at .+\.spec\.ts:|failed|Timeout|toHaveText|toContainText|toBeVisible|toHaveCount)' /tmp/browser.log | tail -n 320 || true
+            {
+              echo "exit_code=$code"
+              grep -nE '(^\s*[0-9]+\)|Error:|Expected:|Received:|Call log:|at .+\.spec\.ts:|failed|Timeout|toHaveText|toContainText|toBeVisible|toHaveCount|expect\()' /tmp/browser.log | tail -n 500 || true
+            } > .codex-browser-failure.txt
+            git config user.name 'RIVERSOFT'
+            git config user.email '105160096+RIVERS0FT@users.noreply.github.com'
+            git add .codex-browser-failure.txt
+            git commit -m '记录浏览器回归失败摘要'
+            git push origin HEAD:codex/global-compact-leaderboard-final-20260825
             exit "$code"
           fi
           tail -n 80 /tmp/browser.log
@@ -147,6 +144,7 @@ jobs:
         shell: bash
         run: |
           git rm .github/workflows/codex-compact-leaderboard-final.yml
+          git rm -f .codex-browser-failure.txt || true
           git diff --check
           git config user.name 'RIVERSOFT'
           git config user.email '105160096+RIVERS0FT@users.noreply.github.com'
