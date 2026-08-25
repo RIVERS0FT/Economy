@@ -1,0 +1,44 @@
+name: Codex sync production chevron verifier
+
+on:
+  push:
+    branches:
+      - codex/unify-market-headers-chevrons
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/unify-market-headers-chevrons
+          fetch-depth: 0
+      - name: Replace stale Unicode arrow assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/verify-production-methods.mjs')
+          text = path.read_text()
+          old = '''  "toContainText('周期 180s ↑')",
+            "toContainText('成本 4 ↓')",'''
+          new = '''  "toContainText('周期 180s')",
+            "toContainText('成本 4')",
+            "locator('.production-config-metric-chevron')).toHaveCount(2)",'''
+          if old not in text:
+              raise SystemExit('stale production-method verifier block not found')
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+      - name: Commit verifier sync
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add scripts/verify-production-methods.mjs
+          git diff --cached --check
+          git commit -m "修正生产方式 Chevron 验证"
+          git push origin HEAD:codex/unify-market-headers-chevrons
