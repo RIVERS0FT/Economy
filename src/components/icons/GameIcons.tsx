@@ -3,6 +3,7 @@ import { GemIcon } from './GemIcon';
 
 type GameIconProps = SVGProps<SVGSVGElement>;
 export type NavigationIconName = 'home' | 'map' | 'market' | 'buildings' | 'research' | 'auction' | 'contracts' | 'bank' | 'leaderboard' | 'gem-shop' | 'settings';
+export type ChevronDirection = 'left' | 'right' | 'up' | 'down';
 
 function GameIcon({ children, className, ...props }: PropsWithChildren<GameIconProps>) {
   return (
@@ -144,8 +145,19 @@ export function LogoutIcon(props: GameIconProps) {
   );
 }
 
+export function ChevronIcon({ direction = 'right', ...props }: GameIconProps & { direction?: ChevronDirection }) {
+  const path = direction === 'left'
+    ? 'm15 6-6 6 6 6'
+    : direction === 'up'
+      ? 'm6 15 6-6 6 6'
+      : direction === 'down'
+        ? 'm6 9 6 6 6-6'
+        : 'm9 6 6 6-6 6';
+  return <GameIcon {...props}><path d={path} /></GameIcon>;
+}
+
 export function BackIcon(props: GameIconProps) {
-  return <GameIcon {...props}><path d="m10 6-6 6 6 6" /><path d="M4 12h16" /></GameIcon>;
+  return <ChevronIcon direction="left" {...props} />;
 }
 
 export function PinIcon(props: GameIconProps) {
