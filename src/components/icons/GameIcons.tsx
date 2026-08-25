@@ -4,6 +4,7 @@ import { GemIcon } from './GemIcon';
 type GameIconProps = SVGProps<SVGSVGElement>;
 export type NavigationIconName = 'home' | 'map' | 'market' | 'buildings' | 'research' | 'auction' | 'contracts' | 'bank' | 'leaderboard' | 'gem-shop' | 'settings';
 export type ChevronDirection = 'left' | 'right' | 'up' | 'down';
+type DirectionalGameIconProps = Omit<GameIconProps, 'direction'>;
 
 function GameIcon({ children, className, ...props }: PropsWithChildren<GameIconProps>) {
   return (
@@ -101,7 +102,7 @@ export function SettingsIcon(props: GameIconProps) {
   return (
     <GameIcon {...props}>
       <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.2.35.55.7 1 .9.35.15.75.2 1.1.2h.1v4h-.1a1.7 1.7 0 0 0-1.1.4c-.45.3-.8.65-1 1Z" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06-.06A1.7 1.7 0 0 0 19.4 9c.2.35.55.7 1 .9.35.15.75.2 1.1.2h.1v4h-.1a1.7 1.7 0 0 0-1.1.4c-.45.3-.8.65-1 1Z" />
     </GameIcon>
   );
 }
@@ -145,7 +146,10 @@ export function LogoutIcon(props: GameIconProps) {
   );
 }
 
-export function ChevronIcon({ direction = 'right', ...props }: GameIconProps & { direction?: ChevronDirection }) {
+export function ChevronIcon({
+  direction = 'right',
+  ...props
+}: DirectionalGameIconProps & { direction?: ChevronDirection }) {
   const path = direction === 'left'
     ? 'm15 6-6 6 6 6'
     : direction === 'up'
@@ -156,7 +160,7 @@ export function ChevronIcon({ direction = 'right', ...props }: GameIconProps & {
   return <GameIcon {...props}><path d={path} /></GameIcon>;
 }
 
-export function BackIcon(props: GameIconProps) {
+export function BackIcon(props: DirectionalGameIconProps) {
   return <ChevronIcon direction="left" {...props} />;
 }
 
