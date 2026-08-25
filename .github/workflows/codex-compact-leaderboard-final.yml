@@ -1,0 +1,136 @@
+name: Codex compact leaderboard final
+
+on:
+  push:
+    branches:
+      - codex/global-compact-leaderboard-final-20260825
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply final implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin codex/global-compact-leaderboard-row-20260825
+          cp scripts/verify-page-content-base.mjs /tmp/verify-page-content-base.mjs
+
+          # Reuse the already exercised product/doc patch script, but apply it on the latest main-based branch.
+          git show origin/codex/global-compact-leaderboard-row-20260825:.github/workflows/codex-implement-compact-leaderboard.yml > /tmp/source-workflow.yml
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap
+          for path in [Path('tests/browser/runtime-harness.tsx'), Path('tests/browser/market-runtime-harness.tsx')]:
+              lines = path.read_text(encoding='utf-8').splitlines(keepends=True)
+              path.write_text(''.join(line for line in lines if 'compactNumbers' not in line and 'setCompactNumbers' not in line), encoding='utf-8')
+          lines = Path('/tmp/source-workflow.yml').read_text(encoding='utf-8').splitlines()
+          start = next(i for i, line in enumerate(lines) if line.strip() == "python3 - <<'PY'")
+          end = next(i for i, line in enumerate(lines[start + 1:], start + 1) if line.strip() == 'PY')
+          Path('/tmp/apply.py').write_text(textwrap.dedent('\n'.join(lines[start + 1:end])) + '\n', encoding='utf-8')
+          PY
+          python3 /tmp/apply.py
+
+          # Keep current-main page checks intact; only update assertions directly affected by the compact-number rule.
+          cp /tmp/verify-page-content-base.mjs scripts/verify-page-content-base.mjs
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, expected=1):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f'{path}: expected {expected}, found {count}: {old[:100]!r}')
+              p.write_text(text.replace(old, new), encoding='utf-8')
+
+          path = 'scripts/verify-page-content-base.mjs'
+          replace(path, "for (const text of [\n  \"window.matchMedia('(max-width: 720px)').matches\",\n  'const [compactNumbers, setCompactNumbers] = useState(() =>',\n]) requireText('src/app/gameViewModel.ts', text);", "for (const text of ['compactNumbers', 'setCompactNumbers']) forbidText('src/app/gameViewModel.ts', text);")
+          replace(path, "  'setCompactNumbersEnabled(compactNumbers)',\n", '')
+          replace(path, "  'let compactNumbersEnabled = false',\n  'export function setCompactNumbersEnabled',\n", '')
+          replace(path, "  'return compactNumbersEnabled ? formatAbbreviatedNumber(value) : formatFullNumber(value)',", "  'return formatAbbreviatedNumber(value)',")
+          replace(path, "  '“紧凑数字”是全局客户端显示偏好',", "  '“紧凑数字”是全局固定显示规则',")
+          replace(path, "  '`GameApp` 必须在 React effect 中通过 `setCompactNumbersEnabled` 同步当前偏好',", "  '`formatNumber` 与 `formatCompactNumber` 对绝对值达到 1,000 的数量类显示统一使用 K/M/B/T',")
+          replace(path, "  '`formatCurrency` 和 `formatCompactNumber` 对大额数值统一使用 K/M/B/T',", "  '`formatCurrency` 继续遵守普通货币两位显示精度',")
+          replace(path, "  '切换后当前游戏外壳和所有使用统一格式器的页面立即同步',", "  '不提供关闭入口或按设备分流',")
+          replace(path, "for (const text of ['存档管理', '删除存档']) requireText('src/pages/SettingsPage.tsx', text);", "for (const text of ['存档管理', '删除存档']) requireText('src/pages/SettingsPage.tsx', text);\nforbidText('src/pages/SettingsPage.tsx', '紧凑数字');")
+          replace(path, "for (const text of [\"id: 'inventory'\", \"id: 'market'\"]) forbidText('src/app/GameApp.tsx', text);", "for (const text of [\"id: 'inventory'\", \"id: 'market'\", 'setCompactNumbersEnabled']) forbidText('src/app/GameApp.tsx', text);")
+          replace(path, "  '实际数字格式遵循全局“紧凑数字”偏好',\n  '玩家关闭全局“紧凑数字”后，桌面和移动状态栏都显示带千分位的完整整数',", "  '数量类值遵循全局固定紧凑数字规则',\n  '货币值继续遵守两位显示精度',")
+
+          # The compact switch was SettingsPage's only ToggleField; do not retain an inert control just for architecture checks.
+          replace('scripts/verify-ui-architecture.mjs', "requireText('src/pages/SettingsPage.tsx', '<ToggleField');\n", '')
+
+          # Money exchange rates remain monetary UI and must not be abbreviated by the count formatter.
+          replace('src/pages/GemShopPage.tsx', "`1 宝石 = ${formatNumber(summary.creditsPerGem)} 货币`", "`1 宝石 = ${formatCurrency(summary.creditsPerGem)} 货币`")
+          replace('src/pages/GemShopPage.tsx', "`当时报价 1 = ${formatNumber(record.creditsPerGem)} · `", "`当时报价 1 = ${formatCurrency(record.creditsPerGem)} · `")
+          replace('tests/browser/all-pages-preview.spec.ts', '1 宝石 = 1,280 货币', '1 宝石 = 1,280.00 货币')
+
+          # Fix quoting in the generated static assertion.
+          p = Path('scripts/verify-leaderboards.mjs')
+          text = p.read_text(encoding='utf-8')
+          bad = "check(!page.includes('period.rewardEnabled ? '前三名奖励' : '测试周''), 'leaderboard title status pills must not render');"
+          good = "check(!page.includes(\"period.rewardEnabled ? '前三名奖励' : '测试周'\"), 'leaderboard title status pills must not render');"
+          if bad not in text:
+              raise SystemExit('leaderboard verifier quoting target missing')
+          p.write_text(text.replace(bad, good), encoding='utf-8')
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify and build
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify-display-format.mjs
+          node scripts/verify-leaderboards.mjs
+          node scripts/verify-page-content-base.mjs
+          node scripts/verify-runtime-reliability.mjs
+          npm run build
+          git diff --check
+
+      - name: Prepare Chromium
+        run: bash scripts/prepare-playwright-chromium.sh
+
+      - name: Run directly affected browser tests
+        run: npx playwright test tests/browser/all-pages-preview.spec.ts tests/browser/runtime.spec.ts --reporter=line
+
+      - name: Run full browser regression
+        shell: bash
+        run: |
+          set +e
+          npm run test:browser > /tmp/browser.log 2>&1
+          code=$?
+          if [ "$code" -ne 0 ]; then
+            echo 'Browser regression failed; concise diagnostics:'
+            grep -nE '(^\s*[0-9]+\)|Error:|Expected:|Received:|Call log:|at .+\.spec\.ts:|failed|Timeout|toHaveText|toContainText|toBeVisible|toHaveCount)' /tmp/browser.log | tail -n 320 || true
+            exit "$code"
+          fi
+          tail -n 80 /tmp/browser.log
+
+      - name: Commit verified final change
+        shell: bash
+        run: |
+          git rm .github/workflows/codex-compact-leaderboard-final.yml
+          git diff --check
+          git config user.name 'RIVERSOFT'
+          git config user.email '105160096+RIVERS0FT@users.noreply.github.com'
+          git add -A
+          git commit -m '统一紧凑数字并精简排行榜行'
+          git push origin HEAD:codex/global-compact-leaderboard-final-20260825
