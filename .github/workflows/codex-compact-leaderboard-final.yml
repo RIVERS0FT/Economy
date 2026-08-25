@@ -90,6 +90,7 @@ jobs:
           replace('src/pages/GemShopPage.tsx', "`1 宝石 = ${formatNumber(summary.creditsPerGem)} 货币`", "`1 宝石 = ${formatCurrency(summary.creditsPerGem)} 货币`")
           replace('src/pages/GemShopPage.tsx', "`当时报价 1 = ${formatNumber(record.creditsPerGem)} · `", "`当时报价 1 = ${formatCurrency(record.creditsPerGem)} · `")
           replace('tests/browser/all-pages-preview.spec.ts', '1 宝石 = 1,280 货币', '1 宝石 = 1,280.00 货币')
+          replace('tests/browser/gem-shop-layout.spec.ts', '1 宝石 = 100 货币', '1 宝石 = 100.00 货币')
 
           p = Path('scripts/verify-leaderboards.mjs')
           text = p.read_text(encoding='utf-8')
@@ -118,7 +119,7 @@ jobs:
         run: bash scripts/prepare-playwright-chromium.sh
 
       - name: Run directly affected browser tests
-        run: npx playwright test tests/browser/all-pages-preview.spec.ts tests/browser/runtime.spec.ts --reporter=line
+        run: npx playwright test tests/browser/all-pages-preview.spec.ts tests/browser/runtime.spec.ts tests/browser/gem-shop-layout.spec.ts --reporter=line
 
       - name: Run full browser regression
         shell: bash
