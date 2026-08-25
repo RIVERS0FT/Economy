@@ -1,0 +1,57 @@
+name: Merge main for fullscreen outliner
+
+on:
+  push:
+    branches:
+      - fix/hide-fullscreen-outliner
+
+permissions:
+  contents: write
+
+jobs:
+  merge-main:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Merge latest main and preserve both design updates
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          base="$(git merge-base HEAD origin/main)"
+          git diff "$base" HEAD -- \
+            docs/LIQUID_GLASS_CHROME_DESIGN.md \
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
+            > /tmp/outliner-docs.patch
+
+          set +e
+          git merge --no-commit --no-ff origin/main
+          merge_status=$?
+          set -e
+          if [ "$merge_status" -ne 0 ]; then
+            unmerged="$(git diff --name-only --diff-filter=U)"
+            unexpected="$(printf '%s\n' "$unmerged" | grep -Ev '^(docs/LIQUID_GLASS_CHROME_DESIGN\.md|docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN\.md)$' || true)"
+            if [ -n "$unexpected" ]; then
+              echo "Unexpected merge conflicts:" >&2
+              printf '%s\n' "$unexpected" >&2
+              exit 1
+            fi
+            git checkout --theirs -- \
+              docs/LIQUID_GLASS_CHROME_DESIGN.md \
+              docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
+            git add \
+              docs/LIQUID_GLASS_CHROME_DESIGN.md \
+              docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
+            git apply --3way /tmp/outliner-docs.patch
+          fi
+
+          git rm .github/workflows/merge-main-hide-fullscreen.yml
+          git add -A
+          git diff --cached --check
+          git commit -m "合并最新 main"
+          git push origin HEAD:fix/hide-fullscreen-outliner
