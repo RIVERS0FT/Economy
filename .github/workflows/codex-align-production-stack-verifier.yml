@@ -1,0 +1,24 @@
+name: Align production stack verifier
+on:
+  push:
+    branches: [codex/warehouse-product-stack]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.event.head_commit.message == 'stage production stack verifier alignment'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: python3 scripts/codex-align-production-stack-verifier.py
+      - run: git diff --check
+      - shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/verify-production-desktop-layout.mjs
+          git commit -m "align production verifier with page stack detail"
+          git push origin HEAD:${GITHUB_REF_NAME}
