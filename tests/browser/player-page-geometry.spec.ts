@@ -275,7 +275,7 @@ test.describe('player page safe geometry', () => {
       }
 
       const facilityRows = page.locator('.global-facility-catalog-row');
-      await facilityRows.first().click();
+      await facilityRows.first().evaluate((button: HTMLButtonElement) => button.click());
       await expect(page.locator('.global-facility-region-list')).toBeVisible();
 
       const regionGeometry = await readPageGeometry(page);
