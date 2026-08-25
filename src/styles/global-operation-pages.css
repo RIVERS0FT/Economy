@@ -155,9 +155,14 @@
 }
 
 .global-province-row__chevron {
+  display: grid;
+  place-items: center;
   color: var(--color-text-secondary);
-  font-size: 1.2rem;
-  text-align: end;
+}
+
+.global-province-row__chevron .game-icon {
+  width: .85rem;
+  height: .85rem;
 }
 
 @container (max-width: 520px) {
@@ -235,6 +240,7 @@
 
 .global-market-page > .widget-heading,
 .global-market-filter-disclosure,
+.global-market-goods-header,
 .global-market-goods-list,
 .global-market-product-detail-panel,
 .global-market-product-region-list {
@@ -267,14 +273,19 @@
 }
 
 .global-market-filter-disclosure > summary::after {
-  content: '⌄';
+  content: '';
+  width: .48rem;
+  height: .48rem;
+  flex: 0 0 auto;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
   color: var(--color-text-secondary);
-  font-size: 1rem;
-  transition: transform var(--motion-fast);
+  transform: translateY(-.12rem) rotate(45deg);
+  transition: transform var(--motion-fast) ease;
 }
 
 .global-market-filter-disclosure[open] > summary::after {
-  transform: rotate(180deg);
+  transform: translateY(.12rem) rotate(225deg);
 }
 
 .global-market-filter-disclosure > summary small {
@@ -320,6 +331,25 @@
   border-color: var(--color-border-strong);
   color: var(--color-text-primary);
   background: var(--color-surface-inset);
+}
+
+.global-market-goods-header {
+  display: grid;
+  grid-template-columns: minmax(9.5rem, 1.5fr) minmax(5.4rem, .7fr) minmax(7.8rem, .88fr) minmax(6rem, .72fr) .8rem;
+  align-items: center;
+  gap: .55rem;
+  margin-bottom: -.14rem;
+  padding: 0 .6rem;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.global-market-goods-header > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .global-market-goods-list,
@@ -385,7 +415,6 @@
 
 .global-market-goods-row__name strong,
 .global-market-goods-row__name small,
-.global-market-goods-row__metric small,
 .global-market-goods-row__metric strong {
   min-width: 0;
   overflow: hidden;
@@ -393,7 +422,7 @@
   white-space: nowrap;
 }
 
-.global-market-goods-row small {
+.global-market-goods-row__name small {
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
 }
@@ -403,9 +432,14 @@
 }
 
 .global-market-goods-row__chevron {
+  display: grid;
+  place-items: center;
   color: var(--color-text-secondary);
-  font-size: 1.25rem;
-  text-align: right;
+}
+
+.global-market-goods-row__chevron .game-icon {
+  width: .85rem;
+  height: .85rem;
 }
 
 .global-market-product-detail-panel {
@@ -422,6 +456,7 @@
 }
 
 @container global-market-page (max-width: 760px) {
+  .global-market-goods-header,
   .global-market-goods-row {
     grid-template-columns: minmax(7.5rem, 1.35fr) repeat(3, minmax(4.3rem, .7fr)) .7rem;
     gap: .35rem;
@@ -437,10 +472,19 @@
     width: 100%;
   }
 
+  .global-market-goods-header,
   .global-market-goods-row {
-    min-height: 54px;
     grid-template-columns: minmax(5.5rem, 1.25fr) repeat(3, minmax(3.25rem, .68fr)) .6rem;
     gap: .25rem;
+  }
+
+  .global-market-goods-header {
+    padding-inline: .4rem;
+    font-size: .625rem;
+  }
+
+  .global-market-goods-row {
+    min-height: 54px;
     padding: .35rem .4rem;
   }
 
@@ -464,15 +508,20 @@
     font-size: .75rem;
   }
 
-  .global-market-goods-row small {
+  .global-market-goods-row__name small {
     font-size: .625rem;
   }
 }
 
 @container global-market-page (max-width: 360px) {
+  .global-market-goods-header,
   .global-market-goods-row {
     grid-template-columns: minmax(4.7rem, 1.2fr) repeat(3, minmax(2.85rem, .64fr)) .55rem;
     gap: .18rem;
+  }
+
+  .global-market-goods-header,
+  .global-market-goods-row {
     padding-inline: .3rem;
   }
 }
