@@ -99,7 +99,15 @@
 
 .facility-operating-diagnostics__market-price {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: .18rem;
   white-space: nowrap;
+}
+
+.facility-operating-diagnostics__market-price .game-icon {
+  width: .72em;
+  height: .72em;
 }
 
 .facility-operating-diagnostics__contract-link {
