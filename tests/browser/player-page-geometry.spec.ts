@@ -242,7 +242,7 @@ test.describe('player page safe geometry', () => {
         const facilityList = document.querySelector<HTMLElement>('.global-facility-catalog-list');
         const provinceList = document.querySelector<HTMLElement>('.global-province-list');
         const facilityRows = facilityList
-          ? Array.from(facilityList.querySelectorAll<HTMLElement>(':scope > .global-facility-catalog-row'))
+          ? Array.from(facilityList.querySelectorAll<HTMLElement>(':scope > li > .global-facility-catalog-row'))
           : [];
         const provinceRows = provinceList
           ? Array.from(provinceList.querySelectorAll<HTMLElement>(':scope > li > .global-province-row'))
@@ -252,7 +252,14 @@ test.describe('player page safe geometry', () => {
         }
         const rect = (element: HTMLElement) => {
           const box = element.getBoundingClientRect();
-          return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width };
+          return {
+            left: box.left,
+            top: box.top,
+            right: box.right,
+            bottom: box.bottom,
+            width: box.width,
+            height: box.height,
+          };
         };
         return {
           facilityList: rect(facilityList),
@@ -267,6 +274,7 @@ test.describe('player page safe geometry', () => {
       for (const row of lists.facilityRows) {
         expect(row.left).toBeGreaterThanOrEqual(lists.facilityList.left - 1);
         expect(row.right).toBeLessThanOrEqual(lists.facilityList.right + 1);
+        expect(row.height).toBeLessThanOrEqual(62);
       }
       for (let index = 1; index < lists.facilityRows.length; index += 1) {
         expect(lists.facilityRows[index].top).toBeGreaterThanOrEqual(lists.facilityRows[index - 1].bottom - 1);
