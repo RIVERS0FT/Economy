@@ -56,6 +56,14 @@
   font-weight: 700;
 }
 
+.global-facility-catalog-header > span,
+.global-facility-region-header > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .global-facility-catalog-header {
   grid-template-columns: minmax(0, 1.6fr) minmax(7rem, .8fr) minmax(4rem, .45fr) 1rem;
 }
@@ -259,8 +267,16 @@
 
   .global-facility-region-header,
   .global-facility-region-row {
-    grid-template-columns: minmax(0, 1fr) minmax(4rem, .64fr) minmax(2rem, .32fr) minmax(2.75rem, .44fr) .55rem;
-    gap: .18rem;
+    grid-template-columns: minmax(0, .9fr) minmax(0, 1.15fr) minmax(0, .45fr) minmax(0, .75fr) .4rem;
+    gap: .1rem;
+    padding-inline: .1rem;
+  }
+
+  .global-facility-region-row__identity > strong,
+  .global-facility-region-row__profit,
+  .global-facility-region-row__metric,
+  .global-facility-region-row__status {
+    font-size: .6875rem;
   }
 }
 
