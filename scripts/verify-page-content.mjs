@@ -93,8 +93,12 @@ for (const text of [
 for (const text of [
   '一级“建筑”全局页的默认内容顺序固定为“全局工厂目录 → 地区建筑”',
   '全局工厂目录直接位于页面内容区，不使用 `PagePanel` 外层卡片',
-  '全局工厂目录固定使用纵向列表行',
-  '每行使用正式 `FacilityIcon` 场景插画作为紧凑缩略图',
+  '页面内容区不得再显示“全局工厂目录”标题行或“类已拥有”状态',
+  '统一表头固定为“工厂｜平均利润／分钟｜拥有”',
+  '场景插画固定使用圆角正方形裁剪',
+  '全局工厂行必须整行可点击，先进入该工厂类型的地区列表',
+  '地区行再切换经营州并复用现有 `BuildingsPage` 工厂详情',
+  '返回层级固定为“地区工厂详情 → 该工厂的地区列表 → 全局工厂列表”',
   '地区建筑入口同样固定使用纵向列表行',
   '跨州单厂平均利润必须逐州复用地区工厂现有利润口径',
   '再按 `scope.physicalCount` 对各州单厂利润加权',
@@ -164,13 +168,24 @@ for (const [path, expected] of [
     'export function GlobalBuildingsPage',
     '<PageLayout title="建筑">',
     'data-global-scope="buildings"',
+    'selectedGlobalFacilityTypeId',
+    'openGlobalFacility',
+    'openRegionalFacility',
     'model.setSelectedProvinceId(provinceId);',
+    'setFacilityDetailTypeId(selectedGlobalFacilityTypeId);',
     '<EmbeddedBuildingsPage',
     'onDetailFacilityChange={setFacilityDetailTypeId}',
     'className="global-facility-catalog"',
+    'className="global-facility-catalog-header"',
     'className="global-facility-catalog-list"',
     'className="global-facility-catalog-row"',
+    'onClick={() => openGlobalFacility(row.facilityTypeId)}',
     '<FacilityIcon facilityTypeId={row.facilityTypeId} className="global-facility-catalog-row__artwork" />',
+    'data-global-facility-type-id={selectedGlobalFacilityTypeId}',
+    'className="global-facility-region-header"',
+    'className="global-facility-region-list"',
+    'className="global-facility-region-row"',
+    "label: '返回地区工厂'",
     'className="global-province-list"',
     'className="global-province-row"',
     'resolveFacilityProfitPresentation({',
@@ -204,6 +219,8 @@ for (const text of [
   'global-operation-metrics',
   'global-current-scope-summary',
   '<WidgetHeading title="当前经营州"',
+  '<WidgetHeading title="全局工厂目录"',
+  '类已拥有',
   '<PagePanel>\n          <WidgetHeading title="全局工厂目录"',
   'global-operation-summary-row',
   'global-facility-catalog-grid',
@@ -216,9 +233,15 @@ for (const text of [
 ]) forbidText('src/pages/GlobalBuildingsPage.tsx', text);
 
 for (const text of [
+  '.global-facility-catalog-header,',
+  '.global-facility-region-header {',
   '.global-facility-catalog-list,',
-  '.global-facility-catalog-row {',
+  '.global-facility-catalog-row,',
+  '.global-facility-region-row {',
   '.global-facility-catalog-row__artwork {',
+  'grid-template-columns: minmax(0, 1.6fr) minmax(7rem, .8fr) minmax(4rem, .45fr) 1rem;',
+  'height: 44px;',
+  'aspect-ratio: 1;',
   '.global-facility-catalog-row__profit.is-positive',
   '.global-facility-catalog-row__profit.is-negative',
   '.global-province-list > li {',
@@ -227,6 +250,8 @@ for (const text of [
   'border-bottom: 1px solid var(--color-divider);',
 ]) requireText('src/styles/global-operation-pages.css', text);
 for (const text of [
+  'height: 55px;',
+  'height: 50px;',
   'global-operation-metrics',
   'global-current-scope-summary',
   'global-operation-summary-row',
@@ -254,4 +279,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('页面内容与职责验证通过：一级市场/建筑锁定全局视图；全局建筑使用工厂与地区纵向列表并保留跨州平均利润；所有玩家 PageLayout 共用 40px 标题轨道与紧凑单行标题；州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。');
+console.log('页面内容与职责验证通过：一级市场/建筑锁定全局视图；全局建筑保留正式标题，工厂列表使用统一表头、单行可点击条目和正方形插画，并按工厂类型 → 地区 → 现有地区工厂详情下钻；地区建筑仍使用纵向列表并保留跨州平均利润；所有玩家 PageLayout 共用 40px 标题轨道与紧凑单行标题；州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。');
