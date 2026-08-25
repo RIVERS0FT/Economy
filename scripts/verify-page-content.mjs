@@ -14,6 +14,9 @@ const obsoleteBaseFailures = new Set([
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 页面主标题固定为“{州级地区全称}建筑”',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 市场目录固定提供“市场行情／自动交易”两个工作区',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 邀请卡唯一归属商店，只展示玩家自己的专属分享链接、永久邀请码',
+  'src/components/warehouse/WarehouseInventoryPanel.tsx 缺少: 无限容量',
+  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 返回按最近顺序回到上一个非地图业务页面',
+  'src/pages/ProvincePage.tsx 缺少: <WarehouseInventoryPanel model={model} className="province-warehouse-section" />',
 ]);
 
 const baseResult = spawnSync(
@@ -155,7 +158,7 @@ for (const text of [
 for (const text of [
   '<EmbeddedMarketPage model={model} embedded />',
   '<EmbeddedBuildingsPage',
-  'onDetailFacilityChange={setFacilityDetailTypeId}',
+  'onDetailFacilityChange={handleFacilityDetailChange}',
 ]) requireText('src/pages/ProvincePage.tsx', text);
 
 for (const [path, expected] of [
@@ -181,7 +184,7 @@ for (const [path, expected] of [
     'model.setSelectedProvinceId(provinceId);',
     'setFacilityDetailTypeId(selectedGlobalFacilityTypeId);',
     '<EmbeddedBuildingsPage',
-    'onDetailFacilityChange={setFacilityDetailTypeId}',
+      'onDetailFacilityChange={(nextFacilityTypeId) => {',
     'className="global-facility-catalog"',
     'className="global-facility-catalog-header"',
     'className="global-facility-catalog-list"',
