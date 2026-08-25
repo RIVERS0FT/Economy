@@ -192,7 +192,8 @@ requireText(files.shell, [
   'tutorial={tutorial}',
   'pendingItems={notificationCenter.pendingItems}',
   'integratedPrimaryCard',
-  'pageTransitionKey={model.tab}',
+  'pageTransitionKey={playerPageLocationKey(pageLocation)}',
+  'data-strategic-page-location={playerPageLocationKey(pageLocation)}',
 ]);
 forbidText(files.shell, [
   'HIDDEN_EVENT_RAIL_TABS',
