@@ -36,61 +36,24 @@ jobs:
                   return
               write(path, text.replace(old, new))
 
-          replace(
-              'src/components/shell/GameShell.tsx',
-              "import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../icons/GameIcons';",
-              "import { AssetsIcon, ChevronIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../icons/GameIcons';",
-          )
-          replace(
-              'src/components/shell/GameShell.tsx',
-              "const weeklyTrend = weeklyChange > 0 ? '↑' : weeklyChange < 0 ? '↓' : '→';",
-              "const weeklyTrendDirection = weeklyChange > 0 ? 'up' : weeklyChange < 0 ? 'down' : 'right';",
-          )
-          replace(
-              'src/components/shell/GameShell.tsx',
-              "aria-label={weeklyChangeLabel}>{weeklyTrend} 本周 <CurrencyAmount>",
-              "aria-label={weeklyChangeLabel}><span className=\"status-weekly-trend\"><ChevronIcon direction={weeklyTrendDirection} /> 本周</span> <CurrencyAmount>",
-          )
+          replace('src/components/shell/GameShell.tsx', "import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../icons/GameIcons';", "import { AssetsIcon, ChevronIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../icons/GameIcons';")
+          replace('src/components/shell/GameShell.tsx', "const weeklyTrend = weeklyChange > 0 ? '↑' : weeklyChange < 0 ? '↓' : '→';", "const weeklyTrendDirection = weeklyChange > 0 ? 'up' : weeklyChange < 0 ? 'down' : 'right';")
+          replace('src/components/shell/GameShell.tsx', "aria-label={weeklyChangeLabel}>{weeklyTrend} 本周 <CurrencyAmount>", "aria-label={weeklyChangeLabel}><span className=\"status-weekly-trend\"><ChevronIcon direction={weeklyTrendDirection} /> 本周</span> <CurrencyAmount>")
           replace('src/components/shell/GameShell.tsx', 'weeklyTrend,', 'weeklyTrendDirection,')
 
-          replace(
-              'src/pages/production/ProductionFacilityDetail.tsx',
-              "import { FacilityIcon } from '../../components/icons/FacilityIcons';",
-              "import { FacilityIcon } from '../../components/icons/FacilityIcons';\nimport { ChevronIcon } from '../../components/icons/GameIcons';",
-          )
-          replace(
-              'src/pages/production/ProductionFacilityDetail.tsx',
-              '        交易该建筑资产 →\n',
-              '        交易该建筑资产 <ChevronIcon direction="right" />\n',
-          )
-          replace(
-              'src/pages/BuildingsPage.tsx',
-              ' * 作业制度; 生产方式; 生产进度已清零; 前往市场交易该工厂; 前往市场交易该工厂 →;\n',
-              ' * 作业制度; 生产方式; 生产进度已清零; 交易该建筑资产; ChevronIcon;\n',
-          )
+          replace('src/pages/production/ProductionFacilityDetail.tsx', "import { FacilityIcon } from '../../components/icons/FacilityIcons';", "import { FacilityIcon } from '../../components/icons/FacilityIcons';\nimport { ChevronIcon } from '../../components/icons/GameIcons';")
+          replace('src/pages/production/ProductionFacilityDetail.tsx', '        交易该建筑资产 →\n', '        交易该建筑资产 <ChevronIcon direction="right" />\n')
+          replace('src/pages/BuildingsPage.tsx', ' * 作业制度; 生产方式; 生产进度已清零; 前往市场交易该工厂; 前往市场交易该工厂 →;\n', ' * 作业制度; 生产方式; 生产进度已清零; 交易该建筑资产; ChevronIcon;\n')
 
           replace('src/components/market/MarketCommodityRow.tsx', '<div className="market-commodity-row-header" aria-hidden="true">', '<div className="market-commodity-row-header">')
           replace('src/pages/GlobalMarketPage.tsx', '<div className="global-market-goods-header" aria-hidden="true">', '<div className="global-market-goods-header">')
 
-          replace(
-              'tests/browser/production-methods.spec.ts',
-              "    await expect(economical).toContainText('周期 180s ↑');\n    await expect(economical).toContainText('成本 4 ↓');\n",
-              "    await expect(economical).toContainText('周期 180s');\n    await expect(economical).toContainText('成本 4');\n    await expect(economical.locator('.production-config-metric-chevron')).toHaveCount(2);\n",
-          )
-
+          replace('tests/browser/production-methods.spec.ts', "    await expect(economical).toContainText('周期 180s ↑');\n    await expect(economical).toContainText('成本 4 ↓');\n", "    await expect(economical).toContainText('周期 180s');\n    await expect(economical).toContainText('成本 4');\n    await expect(economical.locator('.production-config-metric-chevron')).toHaveCount(2);\n")
           for path in ['tests/browser/tutorial-right-rail.spec.ts', 'scripts/verify-game-tutorial.mjs']:
               replace(path, '设置 → 游戏设置 → 教程', '设置 / 游戏设置 / 教程')
 
-          replace(
-              'scripts/verify-overview-content.mjs',
-              '"const weeklyTrend = weeklyChange > 0 ? \'↑\' : weeklyChange < 0 ? \'↓\' : \'→\'",',
-              '"const weeklyTrendDirection = weeklyChange > 0 ? \'up\' : weeklyChange < 0 ? \'down\' : \'right\';",\n  \'<ChevronIcon direction={weeklyTrendDirection} />\',',
-          )
-          replace(
-              'scripts/verify-market-assets.mjs',
-              "  '前往市场交易该工厂',\n  '前往市场交易该工厂 →',\n",
-              "  '交易该建筑资产',\n  'ChevronIcon',\n",
-          )
+          replace('scripts/verify-overview-content.mjs', '"const weeklyTrend = weeklyChange > 0 ? \'↑\' : weeklyChange < 0 ? \'↓\' : \'→\'",', '"const weeklyTrendDirection = weeklyChange > 0 ? \'up\' : weeklyChange < 0 ? \'down\' : \'right\';",\n  \'<ChevronIcon direction={weeklyTrendDirection} />\',')
+          replace('scripts/verify-market-assets.mjs', "  '前往市场交易该工厂',\n  '前往市场交易该工厂 →',\n", "  '交易该建筑资产',\n  'ChevronIcon',\n")
           replace('scripts/verify-page-content-base.mjs', '交易该建筑资产 →', '交易该建筑资产')
           replace('scripts/verify-unified-factory-recipes-grid.mjs', '交易该建筑资产 →', '交易该建筑资产')
 
@@ -106,21 +69,9 @@ jobs:
           write('scripts/verify-production-methods.mjs', text)
 
           replace('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '> 更新时间：2026-08-24', '> 更新时间：2026-08-25')
-          replace(
-              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
-              '商品目录分区标题只显示“商品”，不显示筛选结果／商品总数统计。',
-              '市场标题区固定显示“市场”，商品目录正文不重复显示“商品”分区标题。商品列表字段名使用独立表头，固定为“商品｜成交地区｜真实成交价范围｜需求未满足｜箭头”，数据行只保留商品身份、分类与各列值。',
-          )
-          replace(
-              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
-              '目录与商品全局详情统一使用共享 `MarketCommodityRow`，每行只显示商品、卖单量、买单量、市场价和 24h 变化，不显示挂单差额、基准偏离或挂单状态；这些分析信息只在具体地区商品详情中保留。',
-              '目录与商品全局详情统一使用共享 `MarketCommodityRow`；列表字段名使用独立共享表头，固定为“商品｜卖单量｜买单量｜市场价｜24h｜箭头”，数据行只显示商品身份和对应数值，不在每行重复字段名，也不显示挂单差额、基准偏离或挂单状态；这些分析信息只在具体地区商品详情中保留。',
-          )
-          replace(
-              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
-              '市场商品目录和商品全局详情的地区行情都使用页面卡片内部单一纵向列表，并统一复用 `MarketCommodityRow`。桌面与移动端均保持“商品身份｜卖单量｜买单量｜市场价｜24h｜箭头”的单行结构；移动端通过紧凑图片与字号收缩，禁止恢复两列／多行摘要卡或横向主滚动。',
-              '市场商品目录和商品全局详情的地区行情都使用页面卡片内部单一纵向列表，并统一复用 `MarketCommodityRow`。字段名由列表顶部独立共享表头显示，桌面与移动端数据行均保持“商品身份｜卖单量｜买单量｜市场价｜24h｜箭头”的单行结构且不重复字段名；移动端通过紧凑图片与字号收缩，禁止恢复两列／多行摘要卡或横向主滚动。',
-          )
+          replace('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品目录分区标题只显示“商品”，不显示筛选结果／商品总数统计。', '市场标题区固定显示“市场”，商品目录正文不重复显示“商品”分区标题。商品列表字段名使用独立表头，固定为“商品｜成交地区｜真实成交价范围｜需求未满足｜箭头”，数据行只保留商品身份、分类与各列值。')
+          replace('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '目录与商品全局详情统一使用共享 `MarketCommodityRow`，每行只显示商品、卖单量、买单量、市场价和 24h 变化，不显示挂单差额、基准偏离或挂单状态；这些分析信息只在具体地区商品详情中保留。', '目录与商品全局详情统一使用共享 `MarketCommodityRow`；列表字段名使用独立共享表头，固定为“商品｜卖单量｜买单量｜市场价｜24h｜箭头”，数据行只显示商品身份和对应数值，不在每行重复字段名，也不显示挂单差额、基准偏离或挂单状态；这些分析信息只在具体地区商品详情中保留。')
+          replace('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '市场商品目录和商品全局详情的地区行情都使用页面卡片内部单一纵向列表，并统一复用 `MarketCommodityRow`。桌面与移动端均保持“商品身份｜卖单量｜买单量｜市场价｜24h｜箭头”的单行结构；移动端通过紧凑图片与字号收缩，禁止恢复两列／多行摘要卡或横向主滚动。', '市场商品目录和商品全局详情的地区行情都使用页面卡片内部单一纵向列表，并统一复用 `MarketCommodityRow`。字段名由列表顶部独立共享表头显示，桌面与移动端数据行均保持“商品身份｜卖单量｜买单量｜市场价｜24h｜箭头”的单行结构且不重复字段名；移动端通过紧凑图片与字号收缩，禁止恢复两列／多行摘要卡或横向主滚动。')
           replace('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '固定在详情底部的“交易该建筑资产 →”。', '固定在详情底部的“交易该建筑资产”文本与右向无横杆 Chevron。')
           replace('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '设置 → 游戏设置 → 教程', '设置 / 游戏设置 / 教程')
 
@@ -128,25 +79,13 @@ jobs:
           marker = '应用外壳图标来自 `src/components/icons/GameIcons.tsx`，商品语义图标来自 `src/components/icons/ProductIcons.tsx`：\n\n'
           addition = marker + '方向型交互箭头统一使用无横杆 Chevron：进入详情／跳转向右、返回向左、展开向下、收起向上，状态趋势与相对指标按数值方向使用上／下 Chevron，无变化使用右向 Chevron；JSX 统一复用 `GameIcons.tsx` 的 `ChevronIcon`，原生 disclosure 与共享选择器的 CSS 箭头必须保持同一两笔 V 形几何。方向型箭头不得带横杆、尾线或独立箭杆，不得在业务组件中重新使用 `›`、`⌄`、`↑`、`↓`、`→` 等字符箭头；市场、刷新、退出等具有独立业务语义的复合图标不按方向控件处理，普通说明文字中的层级或流程分隔也不作为交互箭头。\n\n'
           replace('docs/UI_DESIGN_SYSTEM.md', marker, addition)
-          replace(
-              'docs/UI_DESIGN_SYSTEM.md',
-              '| `src/styles/market-commodity-row.css` | 全局商品详情与地区市场共享的紧凑商品数据行、默认折叠筛选 disclosure 和移动单行收缩规则 |',
-              '| `src/styles/market-commodity-row.css` | 全局商品详情与地区市场共享的独立列表表头、紧凑商品数据行、默认折叠筛选 disclosure 和移动单行收缩规则 |',
-          )
-          replace(
-              'docs/UI_DESIGN_SYSTEM.md',
-              '`MarketCommodityRow` 是商品全局详情地区行和地区市场目录的唯一共享商品数据行。整行固定为“商品身份｜卖单量｜买单量｜市场价｜24h｜箭头”，不显示挂单差额、基准偏离或挂单状态；这些分析指标只在具体地区商品详情保留。',
-              '`MarketCommodityRow` 是商品全局详情地区行和地区市场目录的唯一共享商品数据行。共享列表固定使用独立表头“商品｜卖单量｜买单量｜市场价｜24h｜箭头”，数据行固定为“商品身份｜卖单量值｜买单量值｜市场价值｜24h 值｜右向 Chevron”且不重复字段名，不显示挂单差额、基准偏离或挂单状态；这些分析指标只在具体地区商品详情保留。',
-          )
+          replace('docs/UI_DESIGN_SYSTEM.md', '| `src/styles/market-commodity-row.css` | 全局商品详情与地区市场共享的紧凑商品数据行、默认折叠筛选 disclosure 和移动单行收缩规则 |', '| `src/styles/market-commodity-row.css` | 全局商品详情与地区市场共享的独立列表表头、紧凑商品数据行、默认折叠筛选 disclosure 和移动单行收缩规则 |')
+          replace('docs/UI_DESIGN_SYSTEM.md', '`MarketCommodityRow` 是商品全局详情地区行和地区市场目录的唯一共享商品数据行。整行固定为“商品身份｜卖单量｜买单量｜市场价｜24h｜箭头”，不显示挂单差额、基准偏离或挂单状态；这些分析指标只在具体地区商品详情保留。', '`MarketCommodityRow` 是商品全局详情地区行和地区市场目录的唯一共享商品数据行。共享列表固定使用独立表头“商品｜卖单量｜买单量｜市场价｜24h｜箭头”，数据行固定为“商品身份｜卖单量值｜买单量值｜市场价值｜24h 值｜右向 Chevron”且不重复字段名，不显示挂单差额、基准偏离或挂单状态；这些分析指标只在具体地区商品详情保留。')
           replace('docs/UI_DESIGN_SYSTEM.md', '文案固定为“交易该建筑资产 →”', '固定使用“交易该建筑资产”文本与右向无横杆 Chevron')
-          replace('docs/UI_DESIGN_SYSTEM.md', '设置 → 游戏设置 → 教程', '设置 / 游戏设置 / 教程')
+          replace('docs/UI_DESIGN_SYSTEM.md', '设置 → 游戏设置 → 教程', '设置 / 游戏设置 / 教程', expected=False)
 
           replace('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '> 更新时间：2026-08-19', '> 更新时间：2026-08-25')
-          replace(
-              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
-              '市场入口固定为“前往市场交易该工厂 →”，桌面位于详情自然内容底部，移动端位于固定 Footer。',
-              '市场入口固定使用“交易该建筑资产”文本与右向无横杆 Chevron，桌面位于详情自然内容底部，移动端位于固定 Footer。',
-          )
+          replace('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '市场入口固定为“前往市场交易该工厂 →”，桌面位于详情自然内容底部，移动端位于固定 Footer。', '市场入口固定使用“交易该建筑资产”文本与右向无横杆 Chevron，桌面位于详情自然内容底部，移动端位于固定 Footer。')
 
           path = 'scripts/verify-market-information-hierarchy.mjs'
           text = read(path)
