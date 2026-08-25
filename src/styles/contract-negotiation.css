@@ -56,6 +56,17 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.contract-negotiation-change {
+  display: inline-flex;
+  align-items: center;
+  gap: .24rem;
+}
+
+.contract-negotiation-change .game-icon {
+  width: .72em;
+  height: .72em;
+}
+
 .contract-negotiation-editor {
   display: grid;
   gap: var(--space-3);
