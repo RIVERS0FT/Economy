@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
+import { ChevronIcon } from '../components/icons/GameIcons';
 import { MarketCommodityRow } from '../components/market/MarketCommodityRow';
 import { ProductArtwork } from '../components/products/ProductArtwork';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
@@ -355,7 +356,6 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
   return (
     <PageLayout title="市场">
       <div className="global-operation-page global-market-page" data-global-scope="market">
-        <WidgetHeading title="商品" />
         <details className="global-market-filter-disclosure">
           <summary>
             <span>筛选</span>
@@ -386,6 +386,13 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
             </div>
           </div>
         </details>
+        <div className="global-market-goods-header" aria-hidden="true">
+          <span>商品</span>
+          <span>成交地区</span>
+          <span>真实成交价范围</span>
+          <span>需求未满足</span>
+          <span />
+        </div>
         <ul className="global-market-goods-list" aria-label="全局商品目录">
           {filteredProductRows.map((row) => (
             <li key={row.id}>
@@ -400,10 +407,12 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
                   <span className="global-market-goods-row__artwork" aria-hidden="true"><ProductArtwork productId={row.id} /></span>
                   <span className="global-market-goods-row__name"><strong>{row.name}</strong><small>{row.categoryLabel}</small></span>
                 </span>
-                <span className="global-market-goods-row__metric"><small>成交地区</small><strong>{formatNumber(row.tradedProvinceCount)} / {formatNumber(provinces.length)}</strong></span>
-                <span className="global-market-goods-row__metric"><small>真实成交价范围</small><strong>{row.range}</strong></span>
-                <span className="global-market-goods-row__metric"><small>需求未满足</small><strong>{formatNumber(row.unmetDemandProvinces)} / {formatNumber(row.directDemandProvinces)}</strong></span>
-                <span className="global-market-goods-row__chevron" aria-hidden="true">›</span>
+                <span className="global-market-goods-row__metric"><strong>{formatNumber(row.tradedProvinceCount)} / {formatNumber(provinces.length)}</strong></span>
+                <span className="global-market-goods-row__metric"><strong>{row.range}</strong></span>
+                <span className="global-market-goods-row__metric"><strong>{formatNumber(row.unmetDemandProvinces)} / {formatNumber(row.directDemandProvinces)}</strong></span>
+                <span className="global-market-goods-row__chevron" aria-hidden="true">
+                  <ChevronIcon direction="right" />
+                </span>
               </button>
             </li>
           ))}
