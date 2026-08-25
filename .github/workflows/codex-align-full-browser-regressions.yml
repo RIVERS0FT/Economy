@@ -1,0 +1,32 @@
+name: Align full browser regressions
+
+on:
+  push:
+    branches:
+      - codex/warehouse-product-stack
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: python3 scripts/codex-align-full-browser-regressions.py
+      - run: git diff --check
+      - name: Commit patch
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'Expected browser regression alignment to change files.' >&2
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tests/browser/all-pages-preview.spec.ts tests/browser/global-operation-pages.spec.ts tests/browser/market-order-entry-compact.spec.ts tests/browser/scroll-input-modality.spec.ts
+          git commit -m 'align full browser regressions with page stack'
+          git push
