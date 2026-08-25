@@ -33,21 +33,14 @@
   min-width: 0;
   min-height: 620px;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
 }
 
 .leaderboard-board-heading {
-  min-height: 96px;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
+  align-items: center;
   border-bottom: 1px solid var(--color-divider);
-  padding-bottom: var(--space-3);
-}
-
-.leaderboard-board-heading > div {
-  min-width: 0;
+  padding-bottom: var(--space-2);
 }
 
 .leaderboard-board-heading h2 {
@@ -55,17 +48,11 @@
   font-size: var(--font-size-xl);
 }
 
-.leaderboard-board-heading p {
-  margin: var(--space-1) 0 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  line-height: 1.45;
-}
 
 .leaderboard-column-labels,
 .leaderboard-row {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-columns: 34px minmax(0, 1fr) auto auto;
   align-items: center;
   column-gap: var(--space-2);
 }
@@ -76,7 +63,8 @@
   font-size: var(--font-size-xs);
 }
 
-.leaderboard-column-labels span:last-child {
+.leaderboard-column-labels span:nth-child(3),
+.leaderboard-column-labels span:nth-child(4) {
   text-align: right;
 }
 
@@ -95,16 +83,24 @@
   padding: var(--space-2) var(--space-1);
 }
 
-.leaderboard-row .rank-number,
-.leaderboard-player {
-  grid-row: 1 / span 2;
-}
-
 .leaderboard-player {
   min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--space-1);
+}
+
+.leaderboard-avatar {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-success-soft);
+  font-size: var(--font-size-xs);
+  font-weight: 900;
 }
 
 .leaderboard-player strong {
@@ -120,14 +116,12 @@
 
 .leaderboard-score {
   grid-column: 3;
-  grid-row: 1;
   text-align: right;
   white-space: nowrap;
 }
 
 .leaderboard-reward {
-  grid-column: 3;
-  grid-row: 2;
+  grid-column: 4;
   color: var(--color-warning);
   font-size: var(--font-size-xs);
   font-weight: 900;

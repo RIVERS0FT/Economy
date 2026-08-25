@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import type { AuthUser } from '../types';
 import { ApplicationLoadingState } from '../components/system/ApplicationLoadingState';
 import { RefreshPageButton } from '../components/system/RefreshPageButton';
@@ -7,7 +7,6 @@ import { AuthoritativeCountdownRefresh } from '../components/system/Authoritativ
 import { CurrencyText } from '../components/ui/CurrencyAmount';
 import { FrostedGlassSurface } from '../components/ui/FrostedGlassSurface';
 import { PageRouter } from '../pages/PageRouter';
-import { setCompactNumbersEnabled } from '../utils/formatters';
 import { useGameTutorial, type TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { useOnlineAutoTrade, type OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { useGameViewModel, type LoadedGameViewModel } from './gameViewModel';
@@ -70,12 +69,6 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
     ...tutorialModel,
     autoTrade,
   }), [autoTrade, tutorialModel]);
-  const compactNumbers = appModel.compactNumbers;
-
-  useEffect(() => {
-    setCompactNumbersEnabled(compactNumbers);
-  }, [compactNumbers]);
-
   return (
     <>
       <AuthoritativeCountdownRefresh game={appModel.game} refresh={model.refresh} />

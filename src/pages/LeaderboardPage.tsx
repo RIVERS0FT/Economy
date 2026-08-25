@@ -93,6 +93,10 @@ function scoreValue(board: RankedLeaderboardBoard, score: number): ReactNode {
   return `${formatNumber(score)} 分`;
 }
 
+function leaderboardAvatarText(playerName: string) {
+  return playerName.trim().slice(0, 1).toUpperCase() || '?';
+}
+
 function LeaderboardRow({ board, entry }: { board: RankedLeaderboardBoard; entry: RankedLeaderboardEntry }) {
   return (
     <li
@@ -101,34 +105,27 @@ function LeaderboardRow({ board, entry }: { board: RankedLeaderboardBoard; entry
     >
       <span className={`rank-number rank-${entry.rank}`} aria-label={`排名第 ${entry.rank} 名`}>{formatRank(entry.rank)}</span>
       <span className="leaderboard-player">
+        <span className="leaderboard-avatar" aria-hidden="true">{leaderboardAvatarText(entry.playerName)}</span>
         <strong>{entry.playerName}</strong>
         {entry.isCurrentPlayer ? <StatusTag tone="success">你</StatusTag> : null}
       </span>
       <strong className="leaderboard-score">{scoreValue(board, entry.score)}</strong>
-      {entry.rewardGems ? <span className="leaderboard-reward">◆ {entry.rewardGems}</span> : null}
+      <span className="leaderboard-reward">{entry.rewardGems ? `◆ ${formatNumber(entry.rewardGems)}` : '—'}</span>
     </li>
   );
 }
 
-function LeaderboardCard({ board, period }: { board: RankedLeaderboardBoard; period: RankedLeaderboardsState['period'] }) {
+function LeaderboardCard({ board }: { board: RankedLeaderboardBoard }) {
   const current = board.currentPlayer;
   const currentRank = current?.rank;
   return (
     <Panel className="leaderboard-board-card">
       <header className="leaderboard-board-heading">
-        <div>
-          <h2>{board.title}</h2>
-          <p>{board.description}</p>
-        </div>
-        {board.rewarded ? (
-          <StatusTag tone={period.rewardEnabled ? 'warning' : 'neutral'}>
-            {period.rewardEnabled ? '前三名奖励' : '测试周'}
-          </StatusTag>
-        ) : <StatusTag>实时</StatusTag>}
+        <h2>{board.title}</h2>
       </header>
 
       <div className="leaderboard-column-labels" aria-hidden="true">
-        <span>排名</span><span>玩家</span><span>成绩</span>
+        <span>排名</span><span>头像名称</span><span>成绩</span><span>奖励</span>
       </div>
       {board.entries.length > 0 ? (
         <ol className="leaderboard-list">
@@ -188,7 +185,7 @@ export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
               data-leaderboard-board={boardId}
               key={boardId}
             >
-              <LeaderboardCard board={leaderboards.boards[boardId]} period={period} />
+              <LeaderboardCard board={leaderboards.boards[boardId]} />
             </div>
           ))}
         </div>

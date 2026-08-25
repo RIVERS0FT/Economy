@@ -209,11 +209,7 @@ for (const text of ['.login-shell:focus-within', 'transition: font-size']) forbi
 for (const text of [
   "if (!facilityAssetId && marketViewMode === 'catalog')",
   'market-catalog-filters',
-  'market-catalog-row',
-  '<ProductArtwork productId={entry.id} />',
   'fixedProductId={selectedProduct.id}',
-  '<small>卖单量</small>',
-  '<small>买单量</small>',
   '挂单差额',
   '基准偏离',
   '商品基本面',
@@ -565,10 +561,7 @@ for (const text of [
   'ProductIconLabel',
 ]) forbidText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);
 
-for (const text of [
-  "window.matchMedia('(max-width: 720px)').matches",
-  'const [compactNumbers, setCompactNumbers] = useState(() =>',
-]) requireText('src/app/gameViewModel.ts', text);
+for (const text of ['compactNumbers', 'setCompactNumbers']) forbidText('src/app/gameViewModel.ts', text);
 
 for (const text of [
   '持有工厂总数',
@@ -577,7 +570,6 @@ for (const text of [
   '卖出商品总数',
   '礼品兑换',
   '退出登录',
-  '全局使用 K/M/B/T 缩写大额金额、库存、数量与容量',
   'game.facilityGroups.reduce((sum, group) => sum + group.count, 0)',
 ]) requireText('src/pages/SettingsPage.tsx', text);
 for (const text of ['邀请好友', '分享链接', '永久邀请码', '注册填写', '注册完成后不能补填或更换', '累计宝石']) {
@@ -594,20 +586,18 @@ for (const text of ['登录会话', '重置经济状态', '重置服务器经济
   forbidText('src/pages/SettingsPage.tsx', text);
 }
 for (const text of ['存档管理', '删除存档']) requireText('src/pages/SettingsPage.tsx', text);
+forbidText('src/pages/SettingsPage.tsx', '紧凑数字');
 
 for (const text of [
   "label: '仓库库存'",
   "id: 'warehouse'",
-  'setCompactNumbersEnabled(compactNumbers)',
   'formatNumber(game.warehouseStoredQuantity)',
 ]) requireText('src/app/GameApp.tsx', text);
-for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
+for (const text of ["id: 'inventory'", "id: 'market'", 'setCompactNumbersEnabled']) forbidText('src/app/GameApp.tsx', text);
 
 for (const text of [
-  'let compactNumbersEnabled = false',
-  'export function setCompactNumbersEnabled',
   'export function formatNumber',
-  'return compactNumbersEnabled ? formatAbbreviatedNumber(value) : formatFullNumber(value)',
+  'return formatAbbreviatedNumber(value)',
   'return formatNumber(value)',
   "suffix: 'K'",
   "suffix: 'M'",
@@ -635,12 +625,9 @@ for (const text of [
   '| 银行 | `bank` | `BankPage` | 资产总览、存取款、活跃周固定存款利息、周资金结算、工厂抵押贷款、额度评估与还款 |',
   '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石、礼品码兑换与每日终端动态报价兑换普通货币 |',
   '| 设置 | `settings` | `SettingsPage` | 资料、偏好、教程控制、存档管理和退出 |',
-  '| 建筑 | `buildings` | `BuildingsPage` |',
-  '页面主标题固定为“{州级地区全称}建筑”',
   '建筑页不得渲染仓库库存卡或自动交易设置',
   '独立资产页面已经永久删除，资产总览唯一归属银行页',
   '银行资产总览不得再显示逐商品“商品库存与估值”卡片',
-  '市场目录固定提供“市场行情／自动交易”两个工作区',
   '卖单量与买单量只来自公开订单簿',
   '仓库库存唯一显示在隐藏州级上下文页的“仓库”分区',
   '建设新工厂卡独占左侧控制列并在桌面滚动时常驻',
@@ -656,7 +643,6 @@ for (const text of [
   '单批货款 20% 的履约保证金',
   '合同交付不写入统一订单簿最近成交价、价格曲线、商品估值或交易榜',
   '登录模式只调用现有统一账号登录，不得在 401 后自动注册',
-  '邀请卡唯一归属商店，只展示玩家自己的专属分享链接、永久邀请码',
   '玩家 Logo、游戏标题和玩家名统一位于状态栏左侧身份轨道',
   '两个入口分别使用 `QqIcon` 与 `SettingsIcon`',
   '管理员后台左侧导航复用同一侧栏骨架与动画',
@@ -708,10 +694,10 @@ for (const text of ['当前经营地区', 'strategic-province-inspector']) {
 }
 
 for (const text of [
-  '“紧凑数字”是全局客户端显示偏好',
-  '`GameApp` 必须在 React effect 中通过 `setCompactNumbersEnabled` 同步当前偏好',
-  '`formatCurrency` 和 `formatCompactNumber` 对大额数值统一使用 K/M/B/T',
-  '切换后当前游戏外壳和所有使用统一格式器的页面立即同步',
+  '“紧凑数字”是全局固定显示规则',
+  '`formatNumber` 与 `formatCompactNumber` 对绝对值达到 1,000 的数量类显示统一使用 K/M/B/T',
+  '`formatCurrency` 继续遵守普通货币两位显示精度',
+  '不提供关闭入口或按设备分流',
   '`VirtualList` 与 `VirtualRecordTable` 共用 `src/hooks/useVirtualWindow.ts` 的唯一窗口化内核',
   '根据滚动位置只挂载可视条目与少量 `overscan` 条目',
   '移动登录页面通过 `100dvh` 和矮屏媒体查询适配软键盘',
@@ -740,8 +726,8 @@ for (const text of [
   '社区入口默认使用 `https://qm.qq.com/q/eN8hya0Yn0`',
 ]) requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', text);
 for (const text of [
-  '实际数字格式遵循全局“紧凑数字”偏好',
-  '玩家关闭全局“紧凑数字”后，桌面和移动状态栏都显示带千分位的完整整数',
+  '数量类值遵循全局固定紧凑数字规则',
+  '货币值继续遵守两位显示精度',
 ]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
 
 if (failures.length) {

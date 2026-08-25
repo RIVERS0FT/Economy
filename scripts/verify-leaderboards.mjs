@@ -76,13 +76,18 @@ check(page.includes('className="leaderboard-board-switch ui-segmented"'), 'leade
 check(page.includes('aria-pressed={selectedBoardId === boardId}'), 'leaderboard board buttons must expose selected state');
 check(page.includes('className="leaderboard-responsive-layout"'), 'leaderboard page must expose a container-responsive layout');
 check(page.includes('className="leaderboard-board-grid"'), 'leaderboard page must render the ordered board grid');
-check(page.includes('<LeaderboardCard board={leaderboards.boards[boardId]} period={period} />'), 'leaderboard page must render all four boards from the approved order');
+check(page.includes('<LeaderboardCard board={leaderboards.boards[boardId]} />'), 'leaderboard page must render all four boards from the approved order');
 check(page.includes("timeZone: 'Asia/Shanghai'"), 'leaderboard page must format periods in Beijing time');
 check(!page.includes('actions={period.partial'), 'leaderboard title must not render weekly period actions');
 check(!page.includes('<StatusTag tone="success">{periodLabel}</StatusTag>'), 'leaderboard title must not render the weekly period as a pill');
 check(page.includes('本期 {periodLabel}；'), 'leaderboard period must remain in the footer note');
 check(page.includes("board.unit === 'quantity'"), 'leaderboard page must format production as a quantity');
 check(page.includes("if (board.unit === 'quantity') return formatNumber(score);"), 'production quantity must render as a plain formatted number');
+check(page.includes('<span>排名</span><span>头像名称</span><span>成绩</span><span>奖励</span>'), 'leaderboard rows must expose the four approved columns');
+check(page.includes('className="leaderboard-avatar"'), 'leaderboard rows must render the avatar-name identity column');
+check(page.includes("entry.rewardGems ? `◆ ${formatNumber(entry.rewardGems)}` : '—'"), 'leaderboard reward column must stay present and show a dash when empty');
+check(!page.includes('<p>{board.description}</p>'), 'leaderboard board descriptions must not render below titles');
+check(!page.includes("period.rewardEnabled ? '前三名奖励' : '测试周'"), 'leaderboard title status pills must not render');
 check(!page.includes('`${formatNumber(score)} 个`'), 'production quantity must not append the 个 unit');
 check(page.includes('最后有效经济活动时间越近者排名越高'), 'leaderboard page must explain the tie-break rule');
 check(!page.includes('首个不完整周不发奖'), 'leaderboard page must not show the partial-week pill');
@@ -96,6 +101,8 @@ check(styles.includes('container: leaderboard-layout / inline-size'), 'leaderboa
 check(styles.includes('@container leaderboard-layout (min-width: 72rem)'), 'wide leaderboard mode must use the approved content breakpoint');
 check((styles.match(/grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/g) || []).length >= 2, 'switch and wide board grid must both use four columns');
 check(styles.includes('.leaderboard-board-slot:not(.is-selected)'), 'narrow mode must hide unselected boards');
+check(styles.includes('.leaderboard-avatar'), 'leaderboard styles must define the avatar cell');
+check(styles.includes('grid-column: 4;'), 'leaderboard reward must occupy the fourth column');
 check(styles.includes('white-space: nowrap;'), 'narrow leaderboard buttons must stay on one line');
 check(!styles.includes('.leaderboard-board-switch {\n    grid-template-columns: repeat(2, minmax(0, 1fr))'), 'leaderboard switch must never wrap into two columns');
 check(!styles.includes('leaderboard-grid-scroll'), 'leaderboard must not use a horizontal scrolling wrapper');
@@ -110,12 +117,17 @@ check(navigationDesign.includes('内容容器宽度不小于 `72rem` 时隐藏�
 check(navigationDesign.includes('按钮必须强制保持同一行'), 'navigation design must keep the narrow switch on one row');
 check(navigationDesign.includes('不显示“首个不完整周不发奖”胶囊'), 'navigation design must record the removed partial-week copy');
 check(navigationDesign.includes('标题栏不得显示周榜起止时间或持续时间胶囊'), 'navigation design must forbid the leaderboard period pill');
+check(navigationDesign.includes('榜单表头和玩家数据行固定为“排名｜头像名称｜成绩｜奖励”四列'), 'navigation design must record the four-column single-row leaderboard');
+check(navigationDesign.includes('不显示标题下描述或标题右侧“实时／前三名奖励／测试周”等状态胶囊'), 'navigation design must record the simplified board heading');
 check(previewSpec.includes("page.locator('.leaderboard-board-card:visible')).toHaveCount(4)"), 'browser preview must render four visible boards at wide width');
 check(previewSpec.includes("page.locator('.leaderboard-board-card:visible')).toHaveCount(1)"), 'browser preview must render one visible board at narrow width');
 check(previewSpec.includes("toHaveAttribute('aria-label', '选择排行榜')"), 'browser preview must verify the four-button leaderboard switch');
+check(previewSpec.includes("leaderboard-board-heading p')).toHaveCount(0)"), 'browser preview must verify descriptions are removed');
+check(previewSpec.includes("leaderboard-column-labels span')).toHaveText(['排名', '头像名称', '成绩', '奖励'])"), 'browser preview must verify the four leaderboard columns');
 check(docsIndex.includes('宽度不小于 `72rem` 时隐藏切换按钮并四列同时展示'), 'design index must record the responsive leaderboard mode');
 check(docsIndex.includes('排行榜生产数量纯数字显示'), 'design index must assign number-only production display to the page design');
-check(docsIndex.includes('只显示经过 `formatNumber` 千分位格式化的纯数字'), 'design index must record number-only production output');
+check(docsIndex.includes('只显示经过 `formatNumber` 全局紧凑格式化的纯数字'), 'design index must record compact number-only production output');
+check(docsIndex.includes('数据行固定为“排名｜头像名称｜成绩｜奖励”四列并保持单行'), 'design index must record the final leaderboard row structure');
 check(docsIndex.includes('不附加“个”“件”“单位”或恢复“分”'), 'design index must forbid production quantity suffixes');
 
 if (failures.length > 0) {

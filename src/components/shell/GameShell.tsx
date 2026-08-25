@@ -128,7 +128,6 @@ export function GameShell({ model, children, offline = false }: {
     game.frozenCredits,
     game.gems,
     game.warehouseStoredQuantity,
-    model.compactNumbers,
     openBank,
     rankLabel,
     weeklyChange,

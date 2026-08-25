@@ -145,7 +145,6 @@ export function LocalGamePreviewApp() {
   const [orderQuantity, setOrderQuantity] = useState(1);
   const [orderPrice, setOrderPrice] = useState(3.4);
   const [playerName, setPlayerName] = useState(authorityGame.playerName);
-  const [compactNumbers, setCompactNumbers] = useState(false);
   const [refreshRate, setRefreshRate] = useState('5');
   const [notice, setNotice] = useState('本地免登录游戏模式：模拟数据不会保存或提交。');
   const [localTrades, setLocalTrades] = useState(previewTrades);
@@ -274,8 +273,6 @@ export function LocalGamePreviewApp() {
     setOrderPrice,
     playerName,
     setPlayerName,
-    compactNumbers,
-    setCompactNumbers,
     refreshRate,
     setRefreshRate,
     isWorking: false,
