@@ -366,8 +366,6 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     setOrderPrice: () => {},
     playerName: 'MEVIUS',
     setPlayerName: () => {},
-    compactNumbers: false,
-    setCompactNumbers: () => {},
     refreshRate: '5',
     setRefreshRate: () => {},
     isWorking: false,
@@ -438,7 +436,6 @@ function MapHarness() {
 
 function SettingsHarness() {
   const [playerName, setPlayerName] = useState('测试玩家');
-  const [compactNumbers, setCompactNumbers] = useState(false);
   const [refreshRate, setRefreshRate] = useState('5');
   const model = {
     user: { id: 123, email: 'runtime@example.com', role: 'user' },
@@ -455,8 +452,6 @@ function SettingsHarness() {
     avatarText: '测',
     playerName,
     setPlayerName,
-    compactNumbers,
-    setCompactNumbers,
     refreshRate,
     setRefreshRate,
     renamePlayer: async () => ({ ok: true, message: '昵称已保存' }),

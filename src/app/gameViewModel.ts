@@ -126,8 +126,6 @@ export interface LoadedGameViewModel {
   setOrderPrice: Dispatch<SetStateAction<number>>;
   playerName: string;
   setPlayerName: Dispatch<SetStateAction<string>>;
-  compactNumbers: boolean;
-  setCompactNumbers: Dispatch<SetStateAction<boolean>>;
   refreshRate: string;
   setRefreshRate: Dispatch<SetStateAction<string>>;
   isWorking: boolean;
@@ -207,9 +205,6 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const [orderSide, setOrderSideState] = useState<OrderSide>('buy');
   const [orderQuantity, setOrderQuantity] = useState(1);
   const [orderPrice, setOrderPrice] = useState(1);
-  const [compactNumbers, setCompactNumbers] = useState(() => (
-    typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches
-  ));
   const [refreshRate, setRefreshRate] = useState('5');
   const [isWorking, setIsWorking] = useState(false);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
@@ -550,7 +545,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     marketAssetKind, marketAssetId, marketViewMode, showMarketCatalog, selectMarketAsset,
     orderSide, selectOrderSide, orderQuantity, setOrderQuantity, orderPrice, setOrderPrice,
     playerName: playerNameDraft.draft, setPlayerName: playerNameDraft.setDraft,
-    compactNumbers, setCompactNumbers, refreshRate, setRefreshRate,
+    refreshRate, setRefreshRate,
     isWorking, isCheckingIn, inventoryUsed: derived.inventoryUsed,
     cashShare, commodityShare, facilityShare, avatarText,
     showResult, notify, refresh,

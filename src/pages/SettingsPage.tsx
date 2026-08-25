@@ -20,7 +20,6 @@ import {
   PageLayout,
   Panel,
   StatusTag,
-  ToggleField,
   WidgetHeading,
 } from '../components/ui/layout';
 import { formatDate, formatNumber } from '../utils/formatters';
@@ -31,8 +30,6 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
     game,
     playerName,
     setPlayerName,
-    compactNumbers,
-    setCompactNumbers,
     refreshRate,
     setRefreshRate,
     renamePlayer,
@@ -140,12 +137,6 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
 
         <Panel className="widget game-preferences-card">
           <WidgetHeading title="游戏设置" />
-          <ToggleField
-            label="紧凑数字"
-            description="全局使用 K/M/B/T 缩写大额金额、库存、数量与容量"
-            checked={compactNumbers}
-            onChange={(event: ChangeEvent<HTMLInputElement>) => setCompactNumbers(event.target.checked)}
-          />
           <SelectInput
             label="状态刷新频率"
             value={refreshRate}

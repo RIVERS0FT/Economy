@@ -1,5 +1,3 @@
-let compactNumbersEnabled = false;
-
 const MONEY_SCALE = 1_000_000;
 const PRICE_TICK_MICROS = 10_000n;
 
@@ -36,12 +34,8 @@ function roundCurrencyForDisplay(value: number) {
   return Number(rounded) / 100;
 }
 
-export function setCompactNumbersEnabled(enabled: boolean) {
-  compactNumbersEnabled = enabled;
-}
-
 export function formatNumber(value: number) {
-  return compactNumbersEnabled ? formatAbbreviatedNumber(value) : formatFullNumber(value);
+  return formatAbbreviatedNumber(value);
 }
 
 export function formatCurrency(value: number) {

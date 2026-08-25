@@ -125,7 +125,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
             <div><CreditsIcon /><span>可用资金</span><strong><CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount></strong></div>
             <div className="gem-shop-rate-summary">
               <span>今日报价</span>
-              <strong>{summary ? `1 宝石 = ${formatNumber(summary.creditsPerGem)} 货币` : loading ? '读取中…' : '暂不可用'}</strong>
+              <strong>{summary ? `1 宝石 = ${formatCurrency(summary.creditsPerGem)} 货币` : loading ? '读取中…' : '暂不可用'}</strong>
               {summary ? (
                 <small>
                   {summary.rateDelta
@@ -153,7 +153,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
                     <span>消耗 {formatNumber(record.gemsSpent)} 宝石</span>
                     <strong><CurrencyAmount sign="+">{formatCurrency(record.creditsReceived)}</CurrencyAmount></strong>
                     <small>
-                      {record.creditsPerGem ? `当时报价 1 = ${formatNumber(record.creditsPerGem)} · ` : ''}
+                      {record.creditsPerGem ? `当时报价 1 = ${formatCurrency(record.creditsPerGem)} · ` : ''}
                       {formatDate(record.createdAt)}
                     </small>
                   </div>

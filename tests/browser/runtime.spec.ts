@@ -47,7 +47,7 @@ test('storage denial does not block the settings runtime', async ({ page }) => {
 
   await page.goto('runtime-test.html');
   await expect(page.getByRole('heading', { name: '设置', exact: true })).toBeVisible();
-  await expect(page.getByRole('checkbox', { name: '紧凑数字' })).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: '紧凑数字' })).toHaveCount(0);
   await expect(page.getByRole('combobox', { name: '状态刷新频率' })).toContainText('每 5s');
   await expect(page.getByText('界面音效', { exact: true })).toHaveCount(0);
   await expect(page.getByText('画面性能', { exact: true })).toHaveCount(0);

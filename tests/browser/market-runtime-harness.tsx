@@ -310,8 +310,6 @@ function MarketHarness() {
       setOrderPrice,
       playerName: 'MEVIUS',
       setPlayerName: () => {},
-      compactNumbers: false,
-      setCompactNumbers: () => {},
       refreshRate: '5',
       setRefreshRate: () => {},
       isWorking: false,

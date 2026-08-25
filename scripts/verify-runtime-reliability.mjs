@@ -70,14 +70,16 @@ for (const text of ['readdirSync', "entry.name.endsWith('.js')", "spawnSync(proc
 }
 
 for (const text of ['界面音效', '画面性能']) forbidText('src/pages/SettingsPage.tsx', text);
-for (const text of ['紧凑数字', '状态刷新频率']) requireText('src/pages/SettingsPage.tsx', text);
+requireText('src/pages/SettingsPage.tsx', '状态刷新频率');
+forbidText('src/pages/SettingsPage.tsx', '紧凑数字');
 for (const text of ['function readStorageItem', 'window.localStorage.getItem', 'catch {', 'return null']) requireText('src/utils/localActivityStore.ts', text);
 for (const text of ['MAX_BUCKETS = 10_000', 'sweepExpiredBuckets', 'rateLimitBucketCount']) requireText('server/src/rateLimit.js', text);
 for (const text of ['getStableAdminSummary', 'cleanupEmailVerificationRecords', 'listGiftCodePage', 'listGiftRedemptionPage']) requireText('server/src/app.js', text);
 for (const text of ['DEFAULT_ADMIN_PAGE_SIZE = 100', 'MAX_ADMIN_PAGE_SIZE = 200', 'nextCursor']) requireText('server/src/gift-code-batch.js', text);
 for (const text of ['加载更多礼品码', '加载更多兑换记录', 'giftCodeTotal', 'redemptionTotal']) requireText('src/components/AdminGiftCodesSection.tsx', text);
 for (const text of ['noticeTimerRef', 'window.clearTimeout']) requireText('src/app/gameViewModel.ts', text);
-requireText('src/app/GameApp.tsx', 'setCompactNumbersEnabled(compactNumbers);');
+forbidText('src/app/GameApp.tsx', 'setCompactNumbersEnabled');
+forbidText('src/app/gameViewModel.ts', 'compactNumbers');
 requireText('src/main.tsx', '<AppErrorBoundary>');
 requireText('server/src/provinces.js', "import provinceCatalog from '../../shared/provinces.json' with { type: 'json' };");
 for (const text of ['Storage.prototype', '界面音效', '画面性能', '__localActivityResult']) requireText('tests/browser/runtime.spec.ts', text);

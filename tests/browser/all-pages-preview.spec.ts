@@ -64,6 +64,9 @@ test('account-free game shell navigates all ten visible business pages and close
     await expect(page.getByRole('button', { name: '关闭当前页面并显示地图' })).toBeVisible();
   }
 
+  await expect(page.getByText('紧凑数字', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('combobox', { name: '状态刷新频率' })).toBeVisible();
+
   await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
   const map = page.getByTestId('us-mainland-map');
   await expect(map).toHaveAttribute('data-map-ready', 'true');
@@ -331,7 +334,22 @@ test('leaderboard and local-only service summaries are populated in the full she
   expect(await leaderboardLayout.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThanOrEqual(72 * 16);
   await expect(leaderboardSwitch).toBeHidden();
   await expect(page.locator('.leaderboard-board-card:visible')).toHaveCount(4);
-  await expect(page.locator('[data-leaderboard-board="wealth"] .leaderboard-board-card').getByText('本地预览玩家', { exact: true })).toBeVisible();
+  const wealthCard = page.locator('[data-leaderboard-board="wealth"] .leaderboard-board-card');
+  await expect(wealthCard.getByText('本地预览玩家', { exact: true })).toBeVisible();
+  await expect(wealthCard.locator('.leaderboard-board-heading p')).toHaveCount(0);
+  await expect(wealthCard.locator('.leaderboard-board-heading .ui-status-tag')).toHaveCount(0);
+  await expect(wealthCard.locator('.leaderboard-column-labels span')).toHaveText(['排名', '头像名称', '成绩', '奖励']);
+  const wealthRow = wealthCard.locator('.leaderboard-row').first();
+  await expect(wealthRow.locator('.leaderboard-avatar')).toHaveCount(1);
+  await expect(wealthRow.locator('.leaderboard-reward')).toHaveText('—');
+  const rowCenterSpread = await wealthRow.evaluate((element) => {
+    const centers = [...element.children].map((child) => {
+      const box = child.getBoundingClientRect();
+      return box.top + box.height / 2;
+    });
+    return Math.max(...centers) - Math.min(...centers);
+  });
+  expect(rowCenterSpread).toBeLessThanOrEqual(2);
 
   for (const viewport of [{ width: 900, height: 900 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
@@ -356,6 +374,6 @@ test('leaderboard and local-only service summaries are populated in the full she
   await expect(page.locator('[data-leaderboard-board="growth"] .leaderboard-board-card')).toBeVisible();
 
   await sidebar.getByRole('button', { name: /^商店/ }).click();
-  await expect(page.getByText('1 宝石 = 1,280 货币', { exact: true })).toBeVisible();
+  await expect(page.getByText('1 宝石 = 1,280.00 货币', { exact: true })).toBeVisible();
   await expect(page.getByLabel('永久邀请码')).toHaveValue('LOCAL2026');
 });

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { formatDuration, formatRank } from '../src/utils/formatters.ts';
+import { formatCurrency, formatDuration, formatNumber, formatRank } from '../src/utils/formatters.ts';
 
 const read = (path) => readFileSync(path, 'utf8');
 const failures = [];
@@ -33,6 +33,20 @@ for (const [value, expected] of [
   } catch {
     failures.push(`formatRank(${String(value)}) 应为 ${expected}，实际为 ${formatRank(value)}`);
   }
+}
+
+for (const [value, expected] of [[999, '999'], [1_000, '1K'], [12_500, '12.5K'], [1_000_000, '1M']]) {
+  try {
+    assert.equal(formatNumber(value), expected);
+  } catch {
+    failures.push(`formatNumber(${value}) 应为 ${expected}，实际为 ${formatNumber(value)}`);
+  }
+}
+
+try {
+  assert.equal(formatCurrency(1_280), '1,280.00');
+} catch {
+  failures.push(`formatCurrency(1280) 应继续保持货币两位精度，实际为 ${formatCurrency(1_280)}`);
 }
 
 function requireText(path, fragments) {
@@ -98,9 +112,14 @@ forbidText('src/pages/AuctionPage.tsx', [
   '时长（小时）',
 ]);
 forbidText('src/pages/SettingsPage.tsx', [
+  '紧凑数字',
   '每 3 秒',
   '每 5 秒',
   '每 10 秒',
+]);
+requireText('docs/UI_DESIGN_SYSTEM.md', [
+  '“紧凑数字”是全局固定显示规则',
+  '`formatCurrency` 继续遵守普通货币两位显示精度',
 ]);
 
 if (failures.length) {
@@ -108,4 +127,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('时间与排名格式验证通过：持续时间统一使用 s/m/h，排名统一由状态栏和排行榜使用 #N。');
+console.log('显示格式验证通过：数量固定使用紧凑格式，货币保持两位精度，持续时间使用 s/m/h，排名使用 #N。');

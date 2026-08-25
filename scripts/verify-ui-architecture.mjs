@@ -74,7 +74,6 @@ requireText('docs/UI_DESIGN_SYSTEM.md', '不得渲染标题下方说明段落');
 requireText(mobileNavigationStylePath, 'justify-content: safe center;');
 
 requireText(productionDetailPath, '<SwitchControl');
-requireText('src/pages/SettingsPage.tsx', '<ToggleField');
 
 for (const forbidden of [
   'facility-power-button',

@@ -79,7 +79,7 @@ async function openGemShop(page: Page, width: number, height: number, recentExch
   await expect(page.getByRole('heading', { name: '兑换记录', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '礼品码兑换', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '邀请好友', exact: true })).toBeVisible();
-  await expect(page.getByText('1 宝石 = 100 货币', { exact: true })).toBeVisible();
+  await expect(page.getByText('1 宝石 = 100.00 货币', { exact: true })).toBeVisible();
   await expect(page.getByText('注册完成后不能补填或更换。', { exact: false })).toBeVisible();
   await expect(page.getByLabel('填写好友邀请码')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '确认填写', exact: true })).toHaveCount(0);
