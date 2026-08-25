@@ -83,22 +83,16 @@
 }
 
 .production-config-flow-arrow {
-  position: relative;
-  flex: 0 0 1.15rem;
-  height: 0.45rem;
-  border-top: 1px solid color-mix(in srgb, var(--color-text-muted) 70%, transparent);
+  width: .72rem;
+  height: .72rem;
+  flex: 0 0 .72rem;
+  color: var(--color-text-muted);
 }
 
-.production-config-flow-arrow::after {
-  content: '';
-  position: absolute;
-  top: -0.25rem;
-  right: 0;
-  width: 0.38rem;
-  height: 0.38rem;
-  border-top: 1px solid var(--color-text-muted);
-  border-right: 1px solid var(--color-text-muted);
-  transform: rotate(45deg);
+.production-config-metric-chevron {
+  width: .68em;
+  height: .68em;
+  margin-left: .04rem;
 }
 
 .production-config-metric.is-positive {
