@@ -1,0 +1,87 @@
+name: Codex sync main and chevrons
+
+on:
+  push:
+    branches:
+      - codex/unify-market-headers-chevrons
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/unify-market-headers-chevrons
+          fetch-depth: 0
+      - name: Merge latest main
+        run: |
+          git fetch --no-tags origin main
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git merge --no-commit --no-ff -X theirs origin/main
+          if [ -n "$(git diff --name-only --diff-filter=U)" ]; then
+            echo 'Unresolved conflicts:'
+            git diff --name-only --diff-filter=U
+            exit 1
+          fi
+      - name: Preserve unified chevrons on new building drilldowns
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          page = Path('src/pages/GlobalBuildingsPage.tsx')
+          text = page.read_text()
+          import_line = "import { ChevronIcon } from '../components/icons/GameIcons';"
+          if import_line not in text:
+              anchor = "import { FacilityIcon } from '../components/icons/FacilityIcons';"
+              if anchor not in text:
+                  raise SystemExit('FacilityIcon import anchor missing')
+              text = text.replace(anchor, anchor + '\n' + import_line, 1)
+
+          pattern = re.compile(r'<span className="(global-(?:facility-catalog|facility-region|province)-row__chevron)" aria-hidden="true">›</span>')
+          text, replaced = pattern.subn(
+              lambda m: '<span className="' + m.group(1) + '" aria-hidden="true">\n                    <ChevronIcon direction="right" />\n                  </span>',
+              text,
+          )
+          if '›' in text:
+              raise SystemExit('GlobalBuildingsPage still contains Unicode chevron')
+          if text.count('<ChevronIcon direction="right" />') < 3:
+              raise SystemExit(f'Expected three building navigation chevrons after main sync; converted={replaced}')
+          page.write_text(text)
+
+          css = Path('src/styles/global-operation-pages.css')
+          source = css.read_text()
+          facility_old = '''.global-facility-catalog-row__chevron,\n.global-facility-region-row__chevron {\n  color: var(--color-text-secondary);\n  font-size: 1.2rem;\n  text-align: end;\n}\n'''
+          facility_new = '''.global-facility-catalog-row__chevron,\n.global-facility-region-row__chevron {\n  display: grid;\n  place-items: center;\n  color: var(--color-text-secondary);\n}\n\n.global-facility-catalog-row__chevron .game-icon,\n.global-facility-region-row__chevron .game-icon {\n  width: .85rem;\n  height: .85rem;\n}\n'''
+          if facility_old in source:
+              source = source.replace(facility_old, facility_new, 1)
+          elif facility_new not in source:
+              raise SystemExit('Unexpected facility chevron CSS after main merge')
+
+          province_old = '''.global-province-row__chevron {\n  color: var(--color-text-secondary);\n  font-size: 1.2rem;\n  text-align: end;\n}\n'''
+          province_new = '''.global-province-row__chevron {\n  display: grid;\n  place-items: center;\n  color: var(--color-text-secondary);\n}\n\n.global-province-row__chevron .game-icon {\n  width: .85rem;\n  height: .85rem;\n}\n'''
+          if province_old in source:
+              source = source.replace(province_old, province_new, 1)
+          elif province_new not in source:
+              raise SystemExit('Unexpected province chevron CSS after main merge')
+          css.write_text(source)
+          PY
+      - name: Verify merged design constraints
+        run: |
+          node scripts/verify-page-content.mjs
+          node scripts/verify-market-information-hierarchy.mjs
+          node scripts/verify-market-page-layout.mjs
+          node scripts/verify-market-page-layout-base.mjs
+          node scripts/verify-production-methods.mjs
+          node scripts/verify-primary-surface-insets.mjs
+          git diff --check
+      - name: Commit main synchronization
+        run: |
+          git add -A
+          git commit -m "同步 main 并保留方向 Chevron"
+          git push origin HEAD:codex/unify-market-headers-chevrons
