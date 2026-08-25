@@ -151,7 +151,20 @@ for (const text of [
   '<StrategicMapStage model={model} lens={mapLens} />', '<StrategicMapLensBar lens={mapLens} onLensChange={setMapLens} />',
   '<StrategicWorkspaceChrome', 'data-strategic-presentation={pagePresentation}',
 ]) assert.ok(gameShell.includes(text), `玩家战略外壳缺少: ${text}`);
-assert.equal(gameShell.includes("previousTab !== 'map' && previousTab !== 'province'"), true, '州级上下文页不得污染普通业务页面返回历史');
+for (const text of [
+  'appendPlayerPageHistory',
+  'pushPlayerPage',
+  'replacePlayerPage',
+  'currentLocation: pageLocation',
+]) assert.ok(gameShell.includes(text), `州级上下文页统一返回栈缺少: ${text}`);
+const pageStack = read('src/navigation/playerPageStack.ts');
+for (const text of [
+  'MAX_PLAYER_PAGE_STACK_DEPTH = 20',
+  "type: 'province'",
+  "type: 'regional-product'",
+  "type: 'regional-facility'",
+  'maximumHistoryDepth = MAX_PLAYER_PAGE_STACK_DEPTH - 1',
+]) assert.ok(pageStack.includes(text), `受限页面栈缺少: ${text}`);
 
 const provincePage = read('src/pages/ProvincePage.tsx');
 for (const text of [
@@ -159,7 +172,7 @@ for (const text of [
   "{ id: 'overview', label: '概览' }", "{ id: 'market', label: '市场' }",
   "{ id: 'buildings', label: '建筑' }", "{ id: 'warehouse', label: '仓库' }",
   '<EmbeddedMarketPage model={model} embedded />', '<EmbeddedBuildingsPage model={model} embedded />',
-  '<WarehouseInventoryPanel model={model} className="province-warehouse-section" />',
+  '<WarehouseInventoryPanel', 'className="province-warehouse-section"', 'onOpenProduct={openWarehouseProduct}',
 ]) assert.ok(provincePage.includes(text), `州级上下文页缺少: ${text}`);
 const provinceStyles = read('src/styles/province-page.css');
 assert.ok(provinceStyles.includes('grid-template-columns: repeat(4, minmax(0, 1fr));'), '州级上下文切换必须保持四个等宽按钮');
