@@ -291,10 +291,6 @@
   }
 }
 
-.warehouse-product-card-in-transit {
-  color: var(--color-warning);
-}
-
 .warehouse-transport-panel {
   min-width: 0;
   display: grid;
