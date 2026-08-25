@@ -106,7 +106,11 @@ for (const text of [
 ]) requireText('src/components/market/MarketAutoTradePanel.tsx', text);
 forbidText('src/components/market/MarketAutoTradePanel.tsx', '关闭面板');
 requireText('src/pages/MarketPage.tsx', 'fixedProductId={selectedProduct.id}');
-requireText('src/pages/ProvincePage.tsx', '<WarehouseInventoryPanel model={model}');
+for (const text of [
+  '<WarehouseInventoryPanel',
+  'model={model}',
+  'onOpenProduct={openWarehouseProduct}',
+]) requireText('src/pages/ProvincePage.tsx', text);
 forbidText('src/pages/BuildingsPage.tsx', 'WarehouseInventoryPanel');
 forbidText('src/pages/BuildingsPage.tsx', 'MarketAutoTradePanel');
 
