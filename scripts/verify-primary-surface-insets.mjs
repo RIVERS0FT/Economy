@@ -70,6 +70,8 @@ if (failures.length === 0) {
     'container-type: inline-size;',
     '.global-facility-catalog-header,',
     '.global-facility-region-header {',
+    '.global-facility-catalog-header > span,',
+    '.global-facility-region-header > span {',
     '.global-facility-catalog-list,',
     '.global-facility-region-list {',
     '.global-facility-catalog-row,',
@@ -84,7 +86,9 @@ if (failures.length === 0) {
     'grid-template-columns: minmax(0, 1.2fr) minmax(4.5rem, .68fr) minmax(2.2rem, .35fr) minmax(3rem, .48fr) .6rem;',
     '@container (max-width: 360px)',
     'grid-template-columns: minmax(0, 1.35fr) minmax(4.25rem, .76fr) minmax(2.1rem, .4fr) .55rem;',
-    'grid-template-columns: minmax(0, 1fr) minmax(4rem, .64fr) minmax(2rem, .32fr) minmax(2.75rem, .44fr) .55rem;',
+    'grid-template-columns: minmax(0, .9fr) minmax(0, 1.15fr) minmax(0, .45fr) minmax(0, .75fr) .4rem;',
+    'padding-inline: .1rem;',
+    'font-size: .6875rem;',
     '@media (max-width: 720px)',
   ]) requireText(paths.globalOperationStyles, text);
   for (const text of [
