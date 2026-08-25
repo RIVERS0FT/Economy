@@ -46,7 +46,14 @@ function accessibleProfit(value: number | null) {
   return '持平 0.00';
 }
 
+function facilityStatusLabel(status: 'running' | 'stopped' | 'error') {
+  if (status === 'running') return '运行中';
+  if (status === 'error') return '异常';
+  return '已停止';
+}
+
 export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
+  const [selectedGlobalFacilityTypeId, setSelectedGlobalFacilityTypeId] = useState<string | null>(null);
   const [activeProvinceId, setActiveProvinceId] = useState<string | null>(null);
   const [facilityDetailTypeId, setFacilityDetailTypeId] = useState<string | null>(null);
   const game = model.game;
@@ -130,40 +137,83 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     provinces,
   ]);
 
+  const selectedGlobalFacility = selectedGlobalFacilityTypeId
+    ? game.facilityTypes.find((type) => type.id === selectedGlobalFacilityTypeId)
+    : undefined;
+
+  const facilityProvinceRows = useMemo(() => {
+    if (!selectedGlobalFacilityTypeId) return [];
+    return provinces.flatMap((province) => {
+      const group = (game.provinceFacilityGroups?.[province.id] ?? [])
+        .find((candidate) => candidate.facilityTypeId === selectedGlobalFacilityTypeId);
+      const count = Math.max(0, Number(group?.count || 0));
+      if (!group || count <= 0) return [];
+      return [{
+        province,
+        count,
+        status: facilityStatusLabel(group.status),
+      }];
+    });
+  }, [game.provinceFacilityGroups, provinces, selectedGlobalFacilityTypeId]);
+
   const activeProvince = activeProvinceId
     ? provinces.find((province) => province.id === activeProvinceId)
     : undefined;
 
+  const openGlobalFacility = (facilityTypeId: string) => {
+    setFacilityDetailTypeId(null);
+    setActiveProvinceId(null);
+    setSelectedGlobalFacilityTypeId(facilityTypeId);
+  };
+
+  const openRegionalFacility = (provinceId: string) => {
+    if (!selectedGlobalFacilityTypeId) return;
+    model.setSelectedProvinceId(provinceId);
+    setFacilityDetailTypeId(selectedGlobalFacilityTypeId);
+    setActiveProvinceId(provinceId);
+  };
+
   const openProvinceBuildings = (provinceId: string) => {
     model.setSelectedProvinceId(provinceId);
+    setSelectedGlobalFacilityTypeId(null);
     setFacilityDetailTypeId(null);
     setActiveProvinceId(provinceId);
   };
 
   if (activeProvince) {
     const provinceReady = model.selectedProvinceId === activeProvince.id;
-    const facilityDetailEntry = facilityDetailTypeId
+    const requestedFacilityType = facilityDetailTypeId
+      ? game.facilityTypes.find((type) => type.id === facilityDetailTypeId)
+      : undefined;
+    const facilityDetailEntry = provinceReady && facilityDetailTypeId
       ? game.facilityGroups.find((group) => group.facilityTypeId === facilityDetailTypeId && group.count > 0)
       : undefined;
-    const facilityDetailType = facilityDetailEntry
-      ? game.facilityTypes.find((type) => type.id === facilityDetailEntry.facilityTypeId)
-      : undefined;
-    const isFacilityDetail = provinceReady && Boolean(facilityDetailType);
+    const facilityDetailType = facilityDetailEntry ? requestedFacilityType : undefined;
+    const isFacilityDetail = Boolean(facilityDetailType);
+    const returningToGlobalFacility = Boolean(facilityDetailTypeId && selectedGlobalFacilityTypeId);
     return (
       <PageLayout
-        title={isFacilityDetail && facilityDetailType ? (
+        title={facilityDetailTypeId && requestedFacilityType ? (
           <RegionalEntityPageTitle
-            entityName={facilityDetailType.name}
+            entityName={requestedFacilityType.name}
             regionName={activeProvince.name}
             className="province-facility-detail-title"
           />
         ) : `${activeProvince.name}建筑`}
-        backAction={isFacilityDetail
-          ? { label: '返回建筑列表', onClick: () => setFacilityDetailTypeId(null) }
-          : { label: '返回全局建筑', onClick: () => setActiveProvinceId(null) }}
+        backAction={returningToGlobalFacility
+          ? {
+              label: '返回地区工厂',
+              onClick: () => {
+                setFacilityDetailTypeId(null);
+                setActiveProvinceId(null);
+              },
+            }
+          : isFacilityDetail
+            ? { label: '返回建筑列表', onClick: () => setFacilityDetailTypeId(null) }
+            : { label: '返回全局建筑', onClick: () => setActiveProvinceId(null) }}
       >
         <div className="global-operation-page global-buildings-page" data-global-scope="buildings" data-drilldown-province-id={activeProvince.id}>
-          {!isFacilityDetail ? (
+          {!facilityDetailTypeId ? (
             <section className="global-operation-drilldown-context" aria-label="当前地区建筑">
               <small>全局建筑 · 地区生产视图</small>
               <h2>{activeProvince.name}建筑</h2>
@@ -185,40 +235,97 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     );
   }
 
+  if (selectedGlobalFacility) {
+    return (
+      <PageLayout
+        title={selectedGlobalFacility.name}
+        backAction={{
+          label: '返回工厂列表',
+          onClick: () => setSelectedGlobalFacilityTypeId(null),
+        }}
+      >
+        <div
+          className="global-operation-page global-buildings-page global-facility-region-page"
+          data-global-scope="buildings"
+          data-global-facility-type-id={selectedGlobalFacilityTypeId}
+        >
+          {facilityProvinceRows.length > 0 ? (
+            <>
+              <div className="global-facility-region-header" aria-hidden="true">
+                <span>地区</span>
+                <span>拥有</span>
+                <span>状态</span>
+                <span />
+              </div>
+              <ul className="global-facility-region-list" aria-label={`${selectedGlobalFacility.name}地区工厂`}>
+                {facilityProvinceRows.map((row) => (
+                  <li key={row.province.id}>
+                    <button
+                      type="button"
+                      className="global-facility-region-row"
+                      data-ui-interactive="surface"
+                      data-province-id={row.province.id}
+                      aria-label={`打开${row.province.name}${selectedGlobalFacility.name}工厂详情`}
+                      onClick={() => openRegionalFacility(row.province.id)}
+                    >
+                      <span className="global-facility-region-row__identity">
+                        <strong>{row.province.name}</strong>
+                        <small>{row.province.shortName}</small>
+                      </span>
+                      <strong className="global-facility-region-row__metric">{formatNumber(row.count)}</strong>
+                      <strong className="global-facility-region-row__status">{row.status}</strong>
+                      <span className="global-facility-region-row__chevron" aria-hidden="true">›</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : <Panel className="empty-state">当前已没有地区持有该工厂。</Panel>}
+        </div>
+      </PageLayout>
+    );
+  }
+
   return (
     <PageLayout title="建筑">
       <div className="global-operation-page global-buildings-page" data-global-scope="buildings">
         <section className="global-facility-catalog" aria-label="全局工厂目录">
-          <WidgetHeading title="全局工厂目录" action={<StatusTag>{formatNumber(facilityRows.length)} 类已拥有</StatusTag>} />
           {facilityRows.length > 0 ? (
-            <ul className="global-facility-catalog-list" aria-label="跨州工厂汇总">
-              {facilityRows.map((row) => (
-                <li
-                  className="global-facility-catalog-row"
-                  key={row.facilityTypeId}
-                  aria-label={`${row.name}，拥有 ${formatNumber(row.totalCount)} 座，跨州单厂平均利润每分钟：${row.profitAccessibleValue}`}
-                  title={row.profitDetail}
-                >
-                  <span className="global-facility-catalog-row__identity">
-                    <FacilityIcon facilityTypeId={row.facilityTypeId} className="global-facility-catalog-row__artwork" />
-                    <strong>{row.name}</strong>
-                  </span>
-                  <span className="global-facility-catalog-row__metric">
-                    <small>平均利润／分钟</small>
-                    <strong
-                      className={`global-facility-catalog-row__profit is-${row.profitTone}`}
+            <>
+              <div className="global-facility-catalog-header" aria-hidden="true">
+                <span>工厂</span>
+                <span>平均利润／分钟</span>
+                <span>拥有</span>
+                <span />
+              </div>
+              <ul className="global-facility-catalog-list" aria-label="跨州工厂汇总">
+                {facilityRows.map((row) => (
+                  <li key={row.facilityTypeId}>
+                    <button
+                      type="button"
+                      className="global-facility-catalog-row"
+                      data-ui-interactive="surface"
+                      aria-label={`打开${row.name}地区工厂，拥有 ${formatNumber(row.totalCount)} 座，跨州单厂平均利润每分钟：${row.profitAccessibleValue}`}
                       title={row.profitDetail}
+                      onClick={() => openGlobalFacility(row.facilityTypeId)}
                     >
-                      {row.profitValue}
-                    </strong>
-                  </span>
-                  <span className="global-facility-catalog-row__metric">
-                    <small>拥有</small>
-                    <strong>{formatNumber(row.totalCount)}</strong>
-                  </span>
-                </li>
-              ))}
-            </ul>
+                      <span className="global-facility-catalog-row__identity">
+                        <FacilityIcon facilityTypeId={row.facilityTypeId} className="global-facility-catalog-row__artwork" />
+                        <strong>{row.name}</strong>
+                      </span>
+                      <strong
+                        className={`global-facility-catalog-row__metric global-facility-catalog-row__profit is-${row.profitTone}`}
+                        title={row.profitDetail}
+                      >
+                        {row.profitValue}
+                      </strong>
+                      <strong className="global-facility-catalog-row__metric">{formatNumber(row.totalCount)}</strong>
+                      <span className="global-facility-catalog-row__chevron" aria-hidden="true">›</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
           ) : <Panel className="empty-state">当前还没有已建成工厂。</Panel>}
         </section>
 
