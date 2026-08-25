@@ -47,6 +47,17 @@
   vertical-align: -.14em;
 }
 
+.status-weekly-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: .18em;
+}
+
+.status-weekly-trend > .game-icon {
+  width: .72em;
+  height: .72em;
+}
+
 .sidebar-nav-button > span {
   width: 1.5rem;
   height: 1.5rem;
