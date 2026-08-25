@@ -232,23 +232,19 @@ test.describe('player page safe geometry', () => {
       await openPreview(page);
       await selectPlayerPage(page, buildings);
       await expect(page.locator('.global-facility-catalog-list')).toBeVisible();
-      await expect(page.locator('.global-province-list')).toBeVisible();
+      await expect(page.locator('.global-province-list')).toHaveCount(0);
 
-      const geometry = await readPageGeometry(page);
-      expectSafePageGeometry(geometry);
+      const catalogGeometry = await readPageGeometry(page);
+      expectSafePageGeometry(catalogGeometry);
       expectSharedSingleLineTitleGeometry(await readTitleGeometry(page));
 
-      const lists = await page.evaluate(() => {
+      const catalog = await page.evaluate(() => {
         const facilityList = document.querySelector<HTMLElement>('.global-facility-catalog-list');
-        const provinceList = document.querySelector<HTMLElement>('.global-province-list');
         const facilityRows = facilityList
           ? Array.from(facilityList.querySelectorAll<HTMLElement>(':scope > li > .global-facility-catalog-row'))
           : [];
-        const provinceRows = provinceList
-          ? Array.from(provinceList.querySelectorAll<HTMLElement>(':scope > li > .global-province-row'))
-          : [];
-        if (!facilityList || facilityRows.length < 3 || !provinceList || provinceRows.length < 1) {
-          throw new Error('buildings list fixture is incomplete');
+        if (!facilityList || facilityRows.length < 3) {
+          throw new Error('buildings catalog fixture is incomplete');
         }
         const rect = (element: HTMLElement) => {
           const box = element.getBoundingClientRect();
@@ -264,27 +260,59 @@ test.describe('player page safe geometry', () => {
         return {
           facilityList: rect(facilityList),
           facilityRows: facilityRows.map(rect),
-          provinceList: rect(provinceList),
-          provinceRows: provinceRows.map(rect),
         };
       });
 
-      expect(lists.facilityList.left).toBeGreaterThanOrEqual(geometry.contentLeft - 1);
-      expect(lists.facilityList.right).toBeLessThanOrEqual(geometry.contentRight + 1);
-      for (const row of lists.facilityRows) {
-        expect(row.left).toBeGreaterThanOrEqual(lists.facilityList.left - 1);
-        expect(row.right).toBeLessThanOrEqual(lists.facilityList.right + 1);
+      expect(catalog.facilityList.left).toBeGreaterThanOrEqual(catalogGeometry.contentLeft - 1);
+      expect(catalog.facilityList.right).toBeLessThanOrEqual(catalogGeometry.contentRight + 1);
+      for (const row of catalog.facilityRows) {
+        expect(row.left).toBeGreaterThanOrEqual(catalog.facilityList.left - 1);
+        expect(row.right).toBeLessThanOrEqual(catalog.facilityList.right + 1);
         expect(row.height).toBeLessThanOrEqual(62);
       }
-      for (let index = 1; index < lists.facilityRows.length; index += 1) {
-        expect(lists.facilityRows[index].top).toBeGreaterThanOrEqual(lists.facilityRows[index - 1].bottom - 1);
+      for (let index = 1; index < catalog.facilityRows.length; index += 1) {
+        expect(catalog.facilityRows[index].top).toBeGreaterThanOrEqual(catalog.facilityRows[index - 1].bottom - 1);
       }
 
-      expect(lists.provinceList.left).toBeGreaterThanOrEqual(geometry.contentLeft - 1);
-      expect(lists.provinceList.right).toBeLessThanOrEqual(geometry.contentRight + 1);
-      for (const row of lists.provinceRows) {
-        expect(row.left).toBeGreaterThanOrEqual(lists.provinceList.left - 1);
-        expect(row.right).toBeLessThanOrEqual(lists.provinceList.right + 1);
+      const facilityRows = page.locator('.global-facility-catalog-row');
+      await facilityRows.first().click();
+      await expect(page.locator('.global-facility-region-list')).toBeVisible();
+
+      const regionGeometry = await readPageGeometry(page);
+      expectSafePageGeometry(regionGeometry);
+      expectSharedSingleLineTitleGeometry(await readTitleGeometry(page));
+
+      const regions = await page.evaluate(() => {
+        const regionList = document.querySelector<HTMLElement>('.global-facility-region-list');
+        const regionRows = regionList
+          ? Array.from(regionList.querySelectorAll<HTMLElement>(':scope > li > .global-facility-region-row'))
+          : [];
+        if (!regionList || regionRows.length < 1) {
+          throw new Error('buildings region list fixture is incomplete');
+        }
+        const rect = (element: HTMLElement) => {
+          const box = element.getBoundingClientRect();
+          return {
+            left: box.left,
+            top: box.top,
+            right: box.right,
+            bottom: box.bottom,
+            width: box.width,
+            height: box.height,
+          };
+        };
+        return {
+          regionList: rect(regionList),
+          regionRows: regionRows.map(rect),
+        };
+      });
+
+      expect(regions.regionList.left).toBeGreaterThanOrEqual(regionGeometry.contentLeft - 1);
+      expect(regions.regionList.right).toBeLessThanOrEqual(regionGeometry.contentRight + 1);
+      for (const row of regions.regionRows) {
+        expect(row.left).toBeGreaterThanOrEqual(regions.regionList.left - 1);
+        expect(row.right).toBeLessThanOrEqual(regions.regionList.right + 1);
+        expect(row.height).toBeLessThanOrEqual(58);
       }
     }
   });
