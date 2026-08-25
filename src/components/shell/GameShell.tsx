@@ -27,6 +27,13 @@ import {
 } from './StrategicWorkspace';
 import type { ProvinceMapLens } from '../provinces/UsMainlandMap';
 import type { TabId } from '../../config/navigation';
+import {
+  appendPlayerPageHistory,
+  playerPageLocationForTab,
+  playerPageLocationKey,
+  tabForPlayerPageLocation,
+  type PlayerPageLocation,
+} from '../../navigation/playerPageStack';
 import { PlayerPageNavigationProvider } from '../ui/PageNavigationContext';
 import type { GameTutorialController } from '../../game-guide/useGameTutorial';
 
@@ -56,9 +63,11 @@ export function GameShell({ model, children, offline = false }: {
   const derived = model.derived;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [mapLens, setMapLens] = useState<ProvinceMapLens>('assets');
-  const pageHistoryRef = useRef<TabId[]>([]);
+  const initialPageLocation = playerPageLocationForTab(model.tab);
+  const pageHistoryRef = useRef<PlayerPageLocation[]>([]);
+  const pageLocationRef = useRef<PlayerPageLocation>(initialPageLocation);
+  const [pageLocation, setPageLocation] = useState<PlayerPageLocation>(initialPageLocation);
   const observedTabRef = useRef<TabId>(model.tab);
-  const skipNextHistoryRef = useRef(false);
   const mobilePageCloseRef = useRef<MobileWorkspaceSheetRequestClose | null>(null);
   const mobileSheetOpen = model.tab !== 'map';
   const previousMobileSheetOpenRef = useRef(mobileSheetOpen);
@@ -116,7 +125,6 @@ export function GameShell({ model, children, offline = false }: {
     {
       id: 'warehouse', icon: <WarehouseIcon />, label: '仓库库存', value: formatNumber(game.warehouseStoredQuantity),
       compactValue: formatCompactNumber(game.warehouseStoredQuantity),
-      detail: <>无限容量 · 实物库存总量</>,
     },
   ], [
     currentRank,
@@ -164,30 +172,85 @@ export function GameShell({ model, children, offline = false }: {
     setMobileNavigationReturning(shouldAnimate);
   }, [mobileSheetOpen]);
 
-  useEffect(() => {
-    const previousTab = observedTabRef.current;
-    if (previousTab === model.tab) return;
-    if (skipNextHistoryRef.current) {
-      skipNextHistoryRef.current = false;
-    } else if (previousTab !== 'map' && previousTab !== 'province') {
-      pageHistoryRef.current = [...pageHistoryRef.current, previousTab].slice(-20);
-    }
-    observedTabRef.current = model.tab;
+  const commitPlayerPageLocation = useCallback((location: PlayerPageLocation) => {
+    pageLocationRef.current = location;
+    setPageLocation(location);
     setCanGoBack(pageHistoryRef.current.length > 0);
-  }, [model.tab]);
+  }, []);
+
+  const applyPlayerPageLocation = useCallback((location: PlayerPageLocation) => {
+    if ('provinceId' in location && model.selectedProvinceId !== location.provinceId) {
+      model.setSelectedProvinceId(location.provinceId);
+    }
+    if (location.type === 'regional-product') {
+      const alreadySelected = model.marketViewMode === 'detail'
+        && model.marketAssetKind === 'commodity'
+        && model.marketAssetId === location.productId;
+      if (!alreadySelected) model.selectMarketAsset('commodity', location.productId, false);
+    } else if (
+      location.type === 'province'
+      && location.section === 'market'
+      && model.marketViewMode !== 'catalog'
+    ) {
+      model.showMarketCatalog();
+    }
+
+    const targetTab = tabForPlayerPageLocation(location);
+    observedTabRef.current = targetTab;
+    if (model.tab !== targetTab) model.setTab(targetTab);
+    commitPlayerPageLocation(location);
+  }, [
+    commitPlayerPageLocation,
+    model.marketAssetId,
+    model.marketAssetKind,
+    model.marketViewMode,
+    model.selectedProvinceId,
+    model.selectMarketAsset,
+    model.setSelectedProvinceId,
+    model.setTab,
+    model.showMarketCatalog,
+    model.tab,
+  ]);
+
+  const pushPlayerPage = useCallback((location: PlayerPageLocation) => {
+    const current = pageLocationRef.current;
+    if (playerPageLocationKey(current) === playerPageLocationKey(location)) return;
+    pageHistoryRef.current = appendPlayerPageHistory(pageHistoryRef.current, current);
+    applyPlayerPageLocation(location);
+  }, [applyPlayerPageLocation]);
+
+  const replacePlayerPage = useCallback((location: PlayerPageLocation) => {
+    applyPlayerPageLocation(location);
+  }, [applyPlayerPageLocation]);
+
+  useEffect(() => {
+    if (observedTabRef.current === model.tab) return;
+    observedTabRef.current = model.tab;
+    const next = playerPageLocationForTab(model.tab);
+    const current = pageLocationRef.current;
+    if (playerPageLocationKey(current) !== playerPageLocationKey(next)) {
+      pageHistoryRef.current = appendPlayerPageHistory(pageHistoryRef.current, current);
+    }
+    commitPlayerPageLocation(next);
+  }, [commitPlayerPageLocation, model.tab]);
 
   const returnToPreviousPage = useCallback(() => {
+    const currentKey = playerPageLocationKey(pageLocationRef.current);
     let target = pageHistoryRef.current.pop();
-    while (target === model.tab) target = pageHistoryRef.current.pop();
-    setCanGoBack(pageHistoryRef.current.length > 0);
-    if (!target) return;
-    skipNextHistoryRef.current = true;
-    model.setTab(target);
-  }, [model.setTab, model.tab]);
+    while (target && playerPageLocationKey(target) === currentKey) {
+      target = pageHistoryRef.current.pop();
+    }
+    if (!target) {
+      setCanGoBack(false);
+      return;
+    }
+    applyPlayerPageLocation(target);
+  }, [applyPlayerPageLocation]);
 
   const showMap = useCallback(() => {
-    model.setTab('map');
-  }, [model.setTab]);
+    pageHistoryRef.current = [];
+    applyPlayerPageLocation({ type: 'map' });
+  }, [applyPlayerPageLocation]);
 
   const closeCurrentPage = useCallback(() => {
     const requestClose = mobilePageCloseRef.current;
@@ -198,16 +261,22 @@ export function GameShell({ model, children, offline = false }: {
     showMap();
   }, [showMap]);
 
-  const selectMobileTab = useCallback((tab: TabId) => {
+  const selectPlayerTab = useCallback((tab: TabId) => {
     if (tab === 'map' && model.tab !== 'map') {
       const requestClose = mobilePageCloseRef.current;
       if (requestClose) {
         requestClose();
         return;
       }
+      showMap();
+      return;
     }
-    model.setTab(tab);
-  }, [model.setTab, model.tab]);
+    if (tab === 'map') {
+      showMap();
+      return;
+    }
+    pushPlayerPage(playerPageLocationForTab(tab));
+  }, [model.tab, pushPlayerPage, showMap]);
 
   return (
     <AuctionNewIdsContext.Provider value={auctionNewIdSet}>
@@ -219,7 +288,7 @@ export function GameShell({ model, children, offline = false }: {
         rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}`}
         workspaceClassName="strategic-workspace"
         integratedPrimaryCard
-        pageTransitionKey={model.tab}
+        pageTransitionKey={playerPageLocationKey(pageLocation)}
         sidebarCollapsed={sidebarCollapsed}
         sidebar={(
           <DesktopSidebar
@@ -228,7 +297,7 @@ export function GameShell({ model, children, offline = false }: {
             collapsed={sidebarCollapsed}
             qqGroupUrl={qqGroupUrl}
             onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
-            onSelect={model.setTab}
+            onSelect={selectPlayerTab}
           />
         )}
         chrome={(
@@ -269,13 +338,13 @@ export function GameShell({ model, children, offline = false }: {
               returnFocusRef={notificationButtonRef}
               onNavigate={(tab) => {
                 notificationCenter.closePanel();
-                selectMobileTab(tab);
+                selectPlayerTab(tab);
               }}
             />
             <MobileBottomNavigation
               activeTab={model.tab}
               badges={badges}
-              onSelect={selectMobileTab}
+              onSelect={selectPlayerTab}
               workspaceSheetOpen={mobileSheetOpen}
               returning={mobileNavigationReturning}
               onReturnAnimationEnd={() => setMobileNavigationReturning(false)}
@@ -302,13 +371,17 @@ export function GameShell({ model, children, offline = false }: {
         <PlayerPageNavigationProvider
           value={{
             canGoBack,
+            currentLocation: pageLocation,
             onBack: returnToPreviousPage,
             onClose: closeCurrentPage,
+            pushPage: pushPlayerPage,
+            replacePage: replacePlayerPage,
           }}
         >
           <div
             className={`strategic-page-host strategic-page-host--${pagePresentation}`}
             data-strategic-page={model.tab}
+            data-strategic-page-location={playerPageLocationKey(pageLocation)}
             data-strategic-presentation={pagePresentation}
           >
             {model.tab === 'map' ? children : (

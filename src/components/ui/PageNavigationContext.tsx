@@ -1,9 +1,13 @@
 import { createContext, useContext, type ReactNode } from 'react';
+import type { PlayerPageLocation } from '../../navigation/playerPageStack';
 
-interface PlayerPageNavigationValue {
+export interface PlayerPageNavigationValue {
   canGoBack: boolean;
+  currentLocation: PlayerPageLocation;
   onBack: () => void;
   onClose: () => void;
+  pushPage: (location: PlayerPageLocation) => void;
+  replacePage: (location: PlayerPageLocation) => void;
 }
 
 const PlayerPageNavigationContext = createContext<PlayerPageNavigationValue | null>(null);

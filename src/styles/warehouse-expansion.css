@@ -27,7 +27,7 @@
 }
 
 .warehouse-inventory-panel {
-  padding: var(--space-4);
+  padding: 0;
 }
 
 .warehouse-heading-actions {
@@ -48,19 +48,6 @@
   container-type: inline-size;
 }
 
-.warehouse-content-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.warehouse-content-heading span {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  font-variant-numeric: tabular-nums;
-}
-
 .warehouse-product-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -70,6 +57,10 @@
 .warehouse-product-card {
   position: relative;
   min-width: 0;
+  width: 100%;
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
   min-height: 104px;
   display: grid;
   grid-template-rows: auto minmax(46px, 1fr) auto auto;
@@ -281,12 +272,8 @@
   }
 
   .warehouse-inventory-panel {
-    gap: var(--space-2);
-    padding: var(--space-3);
-  }
-
-  .warehouse-content-heading {
-    align-items: baseline;
+    gap: var(--layout-gutter);
+    padding: 0;
   }
 
   .warehouse-auto-trade-sheet-content {
@@ -308,11 +295,17 @@
   color: var(--color-warning);
 }
 
+.warehouse-transport-panel {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+}
+
 .warehouse-transport-section {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 16px;
 }
 
 .transport-dispatch-grid {

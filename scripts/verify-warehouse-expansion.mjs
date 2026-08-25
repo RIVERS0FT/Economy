@@ -65,13 +65,17 @@ for (const text of [
 
 for (const text of [
   'WarehouseInventoryPanel',
-  '无限容量',
-  'game.warehouseStoredQuantity',
-  'warehouse-only-panel',
-  'warehouse-product-card--readonly',
+  'WarehouseInventoryGrid',
+  'WarehouseTransportPanel',
+  'data-ui-interactive="surface"',
+  'onOpenProduct?.(product.id)',
+  'warehouse-transport-panel',
   '仓库中暂无商品',
   '通过生产或市场交易获得商品后，会在这里按州级库存显示。',
 ]) requireText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);
+for (const text of ['无限容量', '共享仓库', 'warehouse-product-card--readonly', 'warehouse-content-heading']) {
+  forbidText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);
+}
 for (const text of [
   'autoTrade.buyPolicyFor(product.id)',
   'autoTrade.sellPolicyFor(product.id)',
@@ -122,7 +126,8 @@ for (const text of [
   '最低自由库存',
   '不占玩家普通开放订单配额',
   '在线自动交易唯一显示在地区商品详情',
-  '州级仓库分区的库存卡在所有宽度保持只读',
+  '商品卡整卡是当前州商品详情入口',
+  '不再显示“共享仓库”“无限容量”“仓库内容”或“实物库存”汇总说明',
   '不得通过组件内部选择器切换到其他商品',
   '`720px` 及以下',
   '`MobileWorkspaceDetailSheet`',
@@ -239,11 +244,11 @@ for (const text of [
   'regional commodity detail uses the shared bottom sheet at 720px',
   'regional commodity detail keeps the fixed desktop control at 721px',
   'regional market catalog removes workspace switches and opens fixed commodity auto-trade',
-  'province warehouse stays read-only on mobile',
+  'province warehouse opens regional commodity detail and keeps transport in its own card',
 ]) requireText('tests/browser/warehouse-auto-sell.spec.ts', text);
 
 if (failures.length) {
   console.error('无限仓库防回退验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
-console.log('无限仓库防回退验证通过：容量机制保持退役，州级仓库只读，在线自动交易唯一归属市场。');
+console.log('无限仓库防回退验证通过：容量机制保持退役，仓库商品可钻取，跨州运输独立成卡，在线自动交易唯一归属市场。');
