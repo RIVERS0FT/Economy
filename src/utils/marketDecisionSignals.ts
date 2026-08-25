@@ -60,13 +60,6 @@ export function marketDecisionSignal(
   };
 }
 
-export function marketTrendGlyph(trend: MarketTrend) {
-  if (trend === 'up') return '↑';
-  if (trend === 'down') return '↓';
-  if (trend === 'flat') return '→';
-  return '—';
-}
-
 export function eventMarketFeedback(
   markets: Record<string, ProductMarketState>,
   productIds: readonly string[],
