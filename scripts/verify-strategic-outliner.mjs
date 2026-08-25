@@ -49,6 +49,8 @@ requireText(outliner, 'economicCalendar?.events', '公开经济事件必须直�
 requireText(outliner, 'variant="outliner"', '教程必须使用追踪器紧凑模式且不得嵌套第二层玻璃卡');
 forbidText(outliner, 'className="strategic-outliner__collapse"', '战略追踪器不得恢复整体展开／收起按钮');
 forbidText(outliner, 'BackIcon', '战略追踪器不得保留整体收起按钮图标依赖');
+forbidText(outliner, 'MapIcon', '战略追踪器不得保留整体收起轨道图标依赖');
+forbidText(outliner, 'strategic-outliner__collapsed-map', '战略追踪器不得保留整体收起轨道 DOM');
 requireText(guide, "variant?: 'panel' | 'outliner'", '教程组件必须提供追踪器紧凑模式');
 
 requireText(storage, 'economy:strategic-outliner:v', '关注和分区折叠偏好必须按玩家保存在浏览器本地');
@@ -62,34 +64,42 @@ forbidText(storage, 'setCollapsed', '战略追踪器不得提供整体收起状�
 forbidText(storage, 'lastTradePrice', '战略追踪器本地存储不得保存实时成交价');
 forbidText(storage, 'inventory', '战略追踪器本地存储不得保存库存');
 forbidText(storage, 'completesAt', '战略追踪器本地存储不得保存权威倒计时');
+for (const legacy of ['--strategic-outliner-collapsed-width', '.strategic-outliner[data-collapsed=', '.strategic-outliner__collapse', '.strategic-outliner__collapsed-map']) {
+  forbidText(shellStyle, legacy, `战略追踪器基础样式不得恢复整体横向收起实现: ${legacy}`);
+  forbidText(outlinerStyle, legacy, `战略追踪器最终样式不得恢复整体横向收起实现: ${legacy}`);
+}
 
 requireText(shellStyle, '--strategic-outliner-width:', '桌面外壳必须定义追踪器展开宽度');
-requireText(shellStyle, '--strategic-outliner-collapsed-width: 44px', '桌面追踪器紧凑轨道必须保持 44px');
 requireText(shellStyle, 'overflow-y: auto;', '追踪器必须提供唯一纵向滚动视口');
 requireText(shellStyle, 'backdrop-filter: var(--frosted-glass-filter);', '追踪器外层必须复用共享毛玻璃滤镜');
-requireText(shellStyle, '@media (min-width: 1440px)', '宽屏必须为普通页展开追踪器预留真实空间');
-requireText(shellStyle, '@media (max-width: 1439px) and (min-width: 721px)', '中窄桌面必须只预留 44px 轨道并允许普通页追踪器覆盖展开');
+requireText(outlinerStyle, '@media (min-width: 1440px)', '宽屏必须为普通页展开追踪器预留真实空间');
+requireText(outlinerStyle, '@media (max-width: 1439px) and (min-width: 721px)', '中窄桌面必须允许完整追踪器覆盖展开');
+requireText(outlinerStyle, '--strategic-outliner-reserved-width: var(--strategic-outliner-width);', '宽屏普通页必须预留完整追踪器宽度');
 requireText(outlinerStyle, '.game-shell .strategic-outliner {\n  z-index: 2;', '战略追踪器最终层级必须与桌面 Toast 同为局部 z-index 2');
-requireText(outlinerStyle, ':has(.strategic-page-host--fullscreen)', 'fullscreen 页面必须由页面 presentation 自动驱动追踪器紧凑几何');
-requireText(outlinerStyle, 'width: var(--strategic-outliner-collapsed-width);', 'fullscreen 页面必须把追踪器压缩为 44px 轨道');
-requireText(outlinerStyle, '--strategic-outliner-reserved-width: var(--strategic-outliner-collapsed-width);', '宽屏 fullscreen 必须只为 44px 追踪器轨道预留空间');
-requireText(outlinerStyle, '.game-shell:not(:has(.strategic-page-host--fullscreen)) .strategic-outliner', '离开 fullscreen 后必须自动恢复普通页追踪器展开几何');
+requireText(outlinerStyle, ':has(.strategic-page-host--fullscreen)', 'fullscreen 页面必须由页面 presentation 自动驱动追踪器可见性');
+requireText(outlinerStyle, 'visibility: hidden;', 'fullscreen 页面必须隐藏同一战略追踪器 DOM');
+requireText(outlinerStyle, 'pointer-events: none;', 'fullscreen 隐藏追踪器必须禁止命中');
+requireText(outlinerStyle, '--strategic-outliner-reserved-width: 0px;', 'fullscreen 必须释放全部追踪器横向预留');
+requireText(outlinerStyle, '100% - var(--strategic-panel-gap) * 2', 'fullscreen 主卡片必须只保留左右 8px 战略沟槽');
+requireText(outlinerStyle, '.game-shell:not(:has(.strategic-page-host--fullscreen)) .strategic-outliner', '离开 fullscreen 后必须自动恢复普通页追踪器完整显示');
 requireText(runtimeHtml, '<link rel="stylesheet" href="/src/styles/strategic-outliner.css" />', 'runtime 浏览器夹具必须加载正式入口的战略追踪器最终级联');
 requireText(mobileStyle, ".strategic-outliner[data-tutorial-visible='true']", '移动教程必须继续由同一战略追踪器 DOM 持有');
 requireText(mobileStyle, ".strategic-outliner-section:not(.strategic-outliner-section--tutorial)", '移动端必须隐藏桌面追踪分区而保留教程');
 
 requireText(browserSpec, "toHaveAttribute('data-strategic-presentation', 'fullscreen')", '浏览器回归必须覆盖 fullscreen presentation');
-requireText(browserSpec, 'width).toBeCloseTo(44, 0)', '浏览器回归必须验证 fullscreen 追踪器自动压缩到 44px');
+requireText(browserSpec, 'await expect(outliner).toBeHidden()', '浏览器回归必须验证 fullscreen 追踪器隐藏');
 requireText(browserSpec, "toHaveAttribute('data-strategic-presentation', 'building')", '浏览器回归必须覆盖离开 fullscreen 后恢复普通页');
-requireText(browserSpec, 'collapseButton', '浏览器回归必须验证整体收起按钮不存在或不可见');
+requireText(browserSpec, 'collapseButton', '浏览器回归必须验证整体收起按钮不存在');
+requireText(browserSpec, 'toHaveCount(0)', '浏览器回归必须验证整体收起按钮 DOM 已删除');
+requireText(browserSpec, 'toBeCloseTo(8, 0)', '浏览器回归必须验证 fullscreen 主卡片右侧只保留 8px 屏幕边距');
 
 requireText(pageDesign, '战略追踪器', '页面权威设计必须记录战略追踪器规则');
 requireText(pageDesign, '页面路由生命周期解耦', '页面权威设计必须锁定追踪器与页面生命周期解耦');
-requireText(pageDesign, '不得提供整体展开／收起按钮', '页面权威设计必须锁定无整体收起按钮');
-requireText(pageDesign, '自动把同一追踪器压缩为 `44px`', '页面权威设计必须锁定 fullscreen 自动紧凑几何');
+requireText(pageDesign, '不得提供整体横向展开／收起按钮', '页面权威设计必须锁定无整体横向收起按钮');
+requireText(pageDesign, '六个 `fullscreen` 页面在桌面端隐藏同一追踪器 DOM', '页面权威设计必须锁定 fullscreen 隐藏同一追踪器 DOM');
 requireText(chromeDesign, '战略追踪器', '外壳权威设计必须记录战略追踪器几何');
-requireText(chromeDesign, '不得提供追踪器整体展开／收起按钮', '外壳权威设计必须锁定无整体收起按钮');
-requireText(chromeDesign, '`fullscreen` 紧凑轨道固定为 `44px`', '外壳权威设计必须锁定 fullscreen 44px 轨道');
+requireText(chromeDesign, '不得提供追踪器整体横向展开／收起按钮', '外壳权威设计必须锁定无整体横向收起按钮');
+requireText(chromeDesign, '六个 `fullscreen` 页面在桌面端隐藏同一追踪器', '外壳权威设计必须锁定 fullscreen 隐藏同一追踪器');
 requireText(integrityDesign, '展示层缺省归一化', '概览布局权威设计必须锁定战略追踪器缺省子投影的安全降级规则');
 requireText(integrityDesign, '不得写回权威状态、伪造经济值或中断整个 React 外壳挂载', '缺省投影规则必须限制为展示层兼容而非权威状态替代');
 

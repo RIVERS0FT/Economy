@@ -235,7 +235,7 @@
 
 /* Victoria-style Outliner: one persistent frosted surface with compact,
  * collapsible groups. Live economic values remain derived from EconomyState;
- * only collapse and pin references are browser-local preferences. */
+ * only section collapse and pin references are browser-local preferences. */
 .strategic-outliner {
   position: absolute;
   z-index: 3;
@@ -253,14 +253,13 @@
   box-shadow: var(--frosted-glass-shadow);
   -webkit-backdrop-filter: var(--frosted-glass-filter);
   backdrop-filter: var(--frosted-glass-filter);
-  transition: width 180ms cubic-bezier(.2, .8, .2, 1);
   pointer-events: auto;
 }
 
 .strategic-outliner__header {
   min-height: 50px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 34px 34px;
+  grid-template-columns: minmax(0, 1fr) 34px;
   align-items: center;
   gap: 2px;
   padding: 6px;
@@ -292,7 +291,6 @@
 }
 
 .strategic-outliner__context-pin,
-.strategic-outliner__collapse,
 .strategic-outliner-row__pin {
   min-width: 0;
   border: 1px solid transparent;
@@ -301,8 +299,7 @@
   background: transparent;
 }
 
-.strategic-outliner__context-pin,
-.strategic-outliner__collapse {
+.strategic-outliner__context-pin {
   width: 34px;
   height: 34px;
   display: grid;
@@ -311,7 +308,6 @@
 }
 
 .strategic-outliner__context-pin svg,
-.strategic-outliner__collapse svg,
 .strategic-outliner-row__pin svg {
   width: 16px;
   height: 16px;
@@ -576,54 +572,8 @@
   display: grid;
 }
 
-.strategic-outliner__collapsed-map {
-  display: none;
-}
-
-.strategic-outliner[data-collapsed="true"] {
-  width: var(--strategic-outliner-collapsed-width);
-}
-
-.strategic-outliner[data-collapsed="true"] .strategic-outliner__header {
-  grid-template-columns: 1fr;
-  padding: 4px;
-}
-
-.strategic-outliner[data-collapsed="true"] .strategic-outliner__identity,
-.strategic-outliner[data-collapsed="true"] .strategic-outliner__context-pin,
-.strategic-outliner[data-collapsed="true"] .strategic-outliner__scroll {
-  display: none;
-}
-
-.strategic-outliner[data-collapsed="true"] .strategic-outliner__collapse {
-  width: 34px;
-  justify-self: center;
-}
-
-.strategic-outliner[data-collapsed="true"] .strategic-outliner__collapse svg {
-  transform: rotate(180deg);
-}
-
-.strategic-outliner[data-collapsed="true"] .strategic-outliner__collapsed-map {
-  position: absolute;
-  top: 56px;
-  left: 50%;
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  color: var(--color-text-muted);
-  transform: translateX(-50%);
-}
-
-.strategic-outliner[data-collapsed="true"] .strategic-outliner__collapsed-map svg {
-  width: 17px;
-  height: 17px;
-}
-
 @media (hover: hover) and (pointer: fine) {
   html[data-input-modality='mouse'] .strategic-outliner__context-pin:hover,
-  html[data-input-modality='mouse'] .strategic-outliner__collapse:hover,
   html[data-input-modality='mouse'] .strategic-outliner-row__pin:hover,
   html[data-input-modality='mouse'] .strategic-outliner-section__toggle:hover,
   html[data-input-modality='mouse'] .strategic-outliner-row__main:hover,
@@ -645,7 +595,6 @@
     --strategic-panel-radius: var(--radius-card);
     --strategic-lens-height: 54px;
     --strategic-outliner-width: clamp(280px, 21vw, 320px);
-    --strategic-outliner-collapsed-width: 44px;
     --strategic-outliner-reserved-width: var(--strategic-outliner-width);
     --strategic-primary-card-inline-size: calc(
       100% - var(--strategic-outliner-reserved-width) - var(--strategic-panel-gap) * 3
@@ -793,15 +742,9 @@
   }
 }
 
-@media (min-width: 1440px) {
-  .game-shell:has(.strategic-outliner[data-collapsed="true"]) {
-    --strategic-outliner-reserved-width: var(--strategic-outliner-collapsed-width);
-  }
-}
-
 @media (max-width: 1439px) and (min-width: 721px) {
   .game-shell {
-    --strategic-outliner-reserved-width: var(--strategic-outliner-collapsed-width);
+    --strategic-outliner-reserved-width: 0px;
   }
 }
 

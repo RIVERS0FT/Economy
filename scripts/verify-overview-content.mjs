@@ -273,7 +273,6 @@ requireAll(paths.strategicStyle, [
   '.game-shell .signed-in-shell__primary-card .desktop-sidebar::after {',
   '.strategic-outliner {',
   '--strategic-outliner-width: clamp(280px, 21vw, 320px);',
-  '--strategic-outliner-collapsed-width: 44px;',
   '100% - var(--strategic-outliner-reserved-width) - var(--strategic-panel-gap) * 3',
 ]);
 requireAll(paths.outlinerStyle, [
@@ -281,8 +280,14 @@ requireAll(paths.outlinerStyle, [
   'z-index: 2;',
   '.strategic-outliner__scroll {',
   'overscroll-behavior-y: auto;',
+  'visibility: hidden;',
+  '--strategic-outliner-reserved-width: 0px;',
 ]);
 forbidAll(paths.strategicStyle, [
+  '--strategic-outliner-collapsed-width',
+  '.strategic-outliner[data-collapsed=',
+  '.strategic-outliner__collapse',
+  '.strategic-outliner__collapsed-map',
   '.game-shell.strategic-tab-research .signed-in-shell__primary-card {',
   '--strategic-inspector-width',
   '.strategic-province-inspector',
@@ -378,6 +383,7 @@ requireAll(paths.integrityDesign, [
   '可支配资产、冻结资产和贷款负债',
   '`1684×931`',
   '`390×844`',
+  'Outliner 保持完整宽度且不存在整体 `data-collapsed` 或 `44px` 收起轨道',
   '侧栏悬浮展开覆盖概览但不改变页面和战略追踪器几何',
 ]);
 for (const path of [paths.pageDesign, paths.uiDesign, paths.integrityDesign]) forbidText(path, '统一为 `384px` 高');

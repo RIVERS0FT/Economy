@@ -195,7 +195,6 @@ check('src/styles/strategic-game-shell.css', [
   '--strategic-primary-card-inline-size:',
   'calc(100vw / 3),',
   '--strategic-outliner-width: clamp(280px, 21vw, 320px);',
-  '--strategic-outliner-collapsed-width: 44px;',
   '--strategic-outliner-reserved-width:',
   '.application-map-layer,',
   '.game-shell .workspace-strategic-chrome {',
@@ -215,14 +214,16 @@ check('src/styles/strategic-game-shell.css', [
   '.strategic-outliner {',
   '.strategic-outliner__scroll {',
   'overflow-y: auto;',
-  '.strategic-outliner[data-collapsed="true"]',
-  '@media (min-width: 1440px)',
   '@media (max-width: 1439px) and (min-width: 721px)',
   '.strategic-page-host--map {',
   '.application-map-layer > .strategic-map-lens-bar {',
   'z-index: 1;',
 ]);
 forbid('src/styles/strategic-game-shell.css', [
+  '--strategic-outliner-collapsed-width',
+  '.strategic-outliner[data-collapsed=',
+  '.strategic-outliner__collapse',
+  '.strategic-outliner__collapsed-map',
   '.game-shell.strategic-tab-research .signed-in-shell__primary-card {',
   '.game-shell.strategic-tab-research .signed-in-shell__primary-card::before {',
   '.strategic-province-inspector',
@@ -328,6 +329,14 @@ check('tests/browser/game-shell-layout.spec.ts', [
 forbid('tests/browser/game-shell-layout.spec.ts', [
   'expect(layout.outlinerCollapsed).toBe(true)',
 ]);
+check('src/styles/strategic-outliner.css', [
+  'visibility: hidden;',
+  'pointer-events: none;',
+  '--strategic-outliner-reserved-width: 0px;',
+  '100% - var(--strategic-panel-gap) * 2',
+  '@media (min-width: 1440px)',
+  '--strategic-outliner-reserved-width: var(--strategic-outliner-width);',
+]);
 check('tests/browser/admin-runtime.spec.ts', [
   'sidebarTopGap', 'workspaceTopGap', 'admin-command-bar-identity',
   '管理员安全悬浮层缺失', 'tooltipInsideWorkspace',
@@ -386,7 +395,7 @@ check('tests/browser/all-pages-preview.spec.ts', [
 check('tests/browser/tutorial-right-rail.spec.ts', [
   'desktop strategic outliner persists across business and fullscreen pages',
   "toHaveAttribute('data-browser-outliner-sentinel', 'persistent')",
-  'desktop strategic outliner collapse and pins persist through reload',
+  'desktop strategic outliner hide and pins persist through reload',
 ]);
 
 check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
@@ -394,9 +403,9 @@ check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '桌面侧栏默认 `78px`',
   '`home`、`province`、`market`、`buildings`、`settings` 仍使用 `building`',
   '战略追踪器与页面路由生命周期解耦',
-  '`fullscreen` 紧凑轨道固定为 `44px`',
+  '六个 `fullscreen` 页面在桌面端隐藏同一追踪器',
   '“教程／进行中／关注／公开经济事件”四个可折叠分区',
-  '不得提供追踪器整体展开／收起按钮',
+  '不得提供追踪器整体横向展开／收起按钮',
   '同一个 `StrategicOutliner` DOM 仅呈现“教程”分区',
   '研发页桌面与其他玩家页面统一使用 `workspaceCard` 外层容器',
   '`--strategic-compact-page-width: 56rem`',
