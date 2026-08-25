@@ -159,7 +159,7 @@ if (failures.length === 0) {
     "querySelector<HTMLElement>('.global-facility-catalog-list')",
     "querySelectorAll<HTMLElement>(':scope > li > .global-facility-catalog-row')",
     "throw new Error('buildings catalog fixture is incomplete');",
-    "await facilityRows.first().click();",
+    "await facilityRows.first().evaluate((button: HTMLButtonElement) => button.click());",
     "await expect(page.locator('.global-facility-region-list')).toBeVisible();",
     "querySelector<HTMLElement>('.global-facility-region-list')",
     "querySelectorAll<HTMLElement>(':scope > li > .global-facility-region-row')",
