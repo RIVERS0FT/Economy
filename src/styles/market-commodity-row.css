@@ -1,4 +1,30 @@
 /* Shared regional/global quote row. Container width, not viewport width, decides the compact slot sizes. */
+.market-commodity-row-header {
+  width: 100%;
+  min-width: 0;
+  display: none;
+  grid-template-columns: minmax(8rem, 1.45fr) repeat(4, minmax(4.1rem, .68fr)) .8rem;
+  align-items: center;
+  gap: .55rem;
+  margin-bottom: .18rem;
+  padding: 0 .6rem;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.market-catalog-list > li:first-child > .market-commodity-row-header,
+.global-market-product-region-list > li:first-child > .market-commodity-row-header {
+  display: grid;
+}
+
+.market-commodity-row-header > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .market-commodity-row {
   width: 100%;
   min-width: 0;
@@ -47,7 +73,6 @@
 
 .market-commodity-row__name strong,
 .market-commodity-row__name small,
-.market-commodity-row__metric small,
 .market-commodity-row__metric strong {
   min-width: 0;
   overflow: hidden;
@@ -55,8 +80,7 @@
   white-space: nowrap;
 }
 
-.market-commodity-row__name small,
-.market-commodity-row__metric small {
+.market-commodity-row__name small {
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
 }
@@ -74,9 +98,14 @@
 }
 
 .market-commodity-row__chevron {
+  display: grid;
+  place-items: center;
   color: var(--color-text-secondary);
-  font-size: 1.25rem;
-  text-align: right;
+}
+
+.market-commodity-row__chevron .game-icon {
+  width: .85rem;
+  height: .85rem;
 }
 
 .market-catalog-filter-disclosure {
@@ -105,13 +134,19 @@
 }
 
 .market-catalog-filter-disclosure > summary::after {
-  content: '⌄';
+  content: '';
+  width: .48rem;
+  height: .48rem;
+  flex: 0 0 auto;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
   color: var(--color-text-secondary);
-  font-size: 1rem;
+  transform: translateY(-.12rem) rotate(45deg);
+  transition: transform var(--motion-fast) ease;
 }
 
 .market-catalog-filter-disclosure[open] > summary::after {
-  transform: rotate(180deg);
+  transform: translateY(.12rem) rotate(225deg);
 }
 
 .market-catalog-filter-disclosure > summary small {
@@ -130,10 +165,19 @@
 }
 
 @container (max-width: 620px) {
+  .market-commodity-row-header,
   .market-commodity-row {
-    min-height: 54px;
     grid-template-columns: minmax(5rem, 1.25fr) repeat(4, minmax(2.45rem, .62fr)) .65rem;
     gap: .25rem;
+  }
+
+  .market-commodity-row-header {
+    padding-inline: .4rem;
+    font-size: .625rem;
+  }
+
+  .market-commodity-row {
+    min-height: 54px;
     padding: .35rem .4rem;
   }
 
@@ -157,8 +201,7 @@
     font-size: .75rem;
   }
 
-  .market-commodity-row__name small,
-  .market-commodity-row__metric small {
+  .market-commodity-row__name small {
     font-size: .625rem;
   }
 
@@ -168,9 +211,17 @@
 }
 
 @container (max-width: 360px) {
+  .market-commodity-row-header,
   .market-commodity-row {
     grid-template-columns: minmax(4.55rem, 1.2fr) repeat(4, minmax(2.2rem, .6fr)) .55rem;
     gap: .18rem;
+  }
+
+  .market-commodity-row-header {
+    padding-inline: .3rem;
+  }
+
+  .market-commodity-row {
     padding-inline: .3rem;
   }
 
