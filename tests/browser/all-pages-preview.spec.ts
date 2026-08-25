@@ -95,8 +95,10 @@ test('global market drills from commodity to regional quotes and existing trade 
 
   const regionalRow = page.getByRole('button', { name: '打开加利福尼亚州小麦详情' });
   await expect(regionalRow).toBeVisible();
-  for (const label of ['卖单量', '买单量', '市场价', '24h']) await expect(regionalRow.getByText(label, { exact: true })).toBeVisible();
-  for (const label of ['挂单差额', '基准偏离', '挂单状态']) await expect(regionalRow.getByText(label, { exact: true })).toHaveCount(0);
+  const regionalHeader = page.locator('.market-commodity-row-header');
+  await expect(regionalHeader).toHaveCount(1);
+  for (const label of ['商品', '卖单量', '买单量', '市场价', '24h']) await expect(regionalHeader.getByText(label, { exact: true })).toBeVisible();
+  for (const label of ['卖单量', '买单量', '市场价', '24h', '挂单差额', '基准偏离', '挂单状态']) await expect(regionalRow.getByText(label, { exact: true })).toHaveCount(0);
   const geometry = await regionalRow.evaluate((row) => ({ clientWidth: row.clientWidth, scrollWidth: row.scrollWidth }));
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
 
