@@ -6,7 +6,8 @@ import type {
 } from '../../types';
 import { formatCurrency, formatNumber } from '../../utils/formatters';
 import { buildFacilityOperatingDiagnosis } from '../../utils/facilityOperatingDiagnostics';
-import { marketDecisionSignal, marketTrendGlyph } from '../../utils/marketDecisionSignals';
+import { marketDecisionSignal } from '../../utils/marketDecisionSignals';
+import { ChevronIcon } from '../icons/GameIcons';
 import { ProductArtwork } from '../products/ProductArtwork';
 import { Button } from '../ui/layout';
 import '../../styles/facility-operating-diagnostics.css';
@@ -74,12 +75,26 @@ export function FacilityOperatingDiagnostics({
         {marketProductIds.map((productId) => {
           const signal = marketDecisionSignal(markets[productId]);
           const role = productId === recipe.output.productId ? '产出' : '投入';
+          const trendDirection = signal.trend === 'up'
+            ? 'up'
+            : signal.trend === 'down'
+              ? 'down'
+              : signal.trend === 'flat'
+                ? 'right'
+                : null;
           return (
             <div key={productId}>
               <span>{role}</span>
               <ProductArtwork productId={productId} />
               <strong>{productNames.get(productId) ?? productId}</strong>
-              <span className="facility-operating-diagnostics__market-price">{signal.price === null ? '暂无真实成交' : `${formatCurrency(signal.price)} ${marketTrendGlyph(signal.trend)}`}</span>
+              <span className="facility-operating-diagnostics__market-price">
+                {signal.price === null ? '暂无真实成交' : (
+                  <>
+                    <span>{formatCurrency(signal.price)}</span>
+                    {trendDirection ? <ChevronIcon direction={trendDirection} /> : null}
+                  </>
+                )}
+              </span>
               <Button variant="text" className="facility-operating-diagnostics__contract-link" onClick={() => onOpenContracts(productId)}>查看相关合同</Button>
             </div>
           );
