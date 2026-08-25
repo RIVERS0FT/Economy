@@ -1,4 +1,5 @@
 import { FacilityIcon } from '../../components/icons/FacilityIcons';
+import { ChevronIcon } from '../../components/icons/GameIcons';
 import { useFacilityRecipeProfitMarkets } from '../../components/facilities/FacilityRecipeProfitContext';
 import { FacilityRecipeProfitAnalysis } from '../../components/facilities/FacilityRecipeProfitAnalysis';
 import { FacilityOperatingDiagnostics } from '../../components/facilities/FacilityOperatingDiagnostics';
@@ -451,7 +452,7 @@ export function FacilityMarketAction({ onOpenMarket }: { onOpenMarket: () => voi
   return (
     <div className="facility-market-link-row">
       <Button variant="text" className="facility-market-link" onClick={onOpenMarket}>
-        交易该建筑资产 →
+        交易该建筑资产 <ChevronIcon direction="right" />
       </Button>
     </div>
   );

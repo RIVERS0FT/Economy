@@ -18,6 +18,13 @@ const globalCss = read('src/styles/global-operation-pages.css');
 const commodityRow = read('src/components/market/MarketCommodityRow.tsx');
 const commodityCss = read('src/styles/market-commodity-row.css');
 const formControlsCss = read('src/styles/form-controls.css');
+const gameShell = read('src/components/shell/GameShell.tsx');
+const productionConfig = read('src/components/facilities/FacilityProductionConfigControls.tsx');
+const productionDetail = read('src/pages/production/ProductionFacilityDetail.tsx');
+const diagnostics = read('src/components/facilities/FacilityOperatingDiagnostics.tsx');
+const contractNegotiation = read('src/contracts/ContractNegotiationSection.tsx');
+const warehouseInventory = read('src/components/warehouse/WarehouseInventoryPanel.tsx');
+const gameGuide = read('src/components/GameGuideStrip.tsx');
 const marketCss = read('src/styles/market-page-polish.css');
 const provinceScope = read('src/utils/provinceScope.ts');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
@@ -201,5 +208,27 @@ for (const token of [
   'marketPrice={entry.marketPrice}',
   "marketDesignSource.includes('地区商品目录和商品全局详情的地区行使用该地区官方系统价 `officialPrice` 与真实 24h 成交变化')",
 ]) requireText(recipeProfitVerifier, token, 'recipe-profit market-price verifier');
+
+
+for (const [source, label] of [
+  [gameShell, 'status bar'],
+  [productionConfig, 'production config'],
+  [productionDetail, 'production detail'],
+  [diagnostics, 'operating diagnostics'],
+  [contractNegotiation, 'contract negotiation'],
+  [warehouseInventory, 'warehouse transport'],
+]) {
+  for (const glyph of ['›', '⌄', '↑', '↓', '→']) forbidText(source, glyph, label + ' directional chevrons');
+}
+for (const [source, token, label] of [
+  [gameShell, '<ChevronIcon direction={weeklyTrendDirection} />', 'status bar'],
+  [productionConfig, '<ChevronIcon direction="right" className="production-config-flow-arrow" />', 'production config'],
+  [productionDetail, '<ChevronIcon direction="right" />', 'production detail'],
+  [diagnostics, '<ChevronIcon direction={trendDirection} />', 'operating diagnostics'],
+  [contractNegotiation, '<ChevronIcon direction="right" />', 'contract negotiation'],
+  [warehouseInventory, '<ChevronIcon direction="right" />', 'warehouse transport'],
+]) requireText(source, token, label + ' directional chevrons');
+forbidText(gameGuide, '设置 → 游戏设置 → 教程', 'tutorial breadcrumb');
+requireText(gameGuide, '设置 / 游戏设置 / 教程', 'tutorial breadcrumb');
 
 console.log('Market information hierarchy verification passed.');

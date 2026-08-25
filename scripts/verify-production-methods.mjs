@@ -200,6 +200,8 @@ for (const text of [
   'metricTone(',
   'ProductionMethodIcon',
   'ProductArtwork',
+  '<ChevronIcon direction="right" className="production-config-flow-arrow" />',
+  'className="production-config-metric-chevron"',
   'completedTechnologyIds',
   'researchTechnologies',
   'missingTechnologyNames',
@@ -228,6 +230,7 @@ for (const text of [
   'data-variant={variant}',
 ]) assert.ok(richSelectSource.includes(text), `共享富下拉生产配置变体缺少 ${text}`);
 assert.ok(pageSource.includes("import '../styles/production-methods.css'"));
+for (const glyph of ['↑', '↓', '→']) assert.equal(configControlsSource.includes(glyph), false, `生产配置不得恢复字符箭头: ${glyph}`);
 for (const text of [
   'const [optimisticRecipeIds, setOptimisticRecipeIds]',
   'const recipeTargetByFacilityRef = useRef(new Map<string, string>());',

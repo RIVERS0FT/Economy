@@ -304,7 +304,8 @@ requireAll(paths.statusBar, ['onClick?: () => void;', "if (item.onClick) classNa
 
 requireAll(paths.shell, [
   "id: 'credits'", "id: 'assets'", "id: 'gems'", "id: 'rank'", "id: 'warehouse'",
-  "const weeklyTrend = weeklyChange > 0 ? '↑' : weeklyChange < 0 ? '↓' : '→'",
+  "const weeklyTrendDirection = weeklyChange > 0 ? 'up' : weeklyChange < 0 ? 'down' : 'right';",
+  '<ChevronIcon direction={weeklyTrendDirection} />',
   'const weeklyMagnitude = Math.abs(weeklyChange);',
   '本周净资产下降',
   'aria-label={weeklyChangeLabel}',

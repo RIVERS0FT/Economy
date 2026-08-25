@@ -141,7 +141,7 @@ for (const text of [
   '<strong>生产设置</strong>',
   '<FacilityProductionConfigControls',
   'productionRecipeVariantId',
-  '交易该建筑资产 →',
+  '交易该建筑资产',
 ]) assert.equal(detail.includes(text), true, `工厂详情缺少: ${text}`);
 
 for (const forbidden of [

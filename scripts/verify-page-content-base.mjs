@@ -276,7 +276,7 @@ for (const text of [
   'facilityAssetId={facilityAssetTradeId}',
   'formatNumber(group.count)',
 ]) requireText('src/pages/BuildingsPage.tsx', text);
-requireText('src/pages/production/ProductionFacilityDetail.tsx', '交易该建筑资产 →');
+requireText('src/pages/production/ProductionFacilityDetail.tsx', '交易该建筑资产');
 for (const text of [
   '运行 {formatNumber(model.derived.runningFacilities)}',
   '停止 {formatNumber(model.derived.stoppedFacilities)}',

@@ -386,7 +386,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
             </div>
           </div>
         </details>
-        <div className="global-market-goods-header" aria-hidden="true">
+        <div className="global-market-goods-header">
           <span>商品</span>
           <span>成交地区</span>
           <span>真实成交价范围</span>

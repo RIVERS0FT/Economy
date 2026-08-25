@@ -46,7 +46,7 @@ export function MarketCommodityRow({
 
   return (
     <>
-      <div className="market-commodity-row-header" aria-hidden="true">
+      <div className="market-commodity-row-header">
         <span>商品</span>
         <span>卖单量</span>
         <span>买单量</span>

@@ -3,7 +3,7 @@ import { useGameAuthorityDependencies } from '../../app/gameAuthorityStore';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { DEFAULT_QQ_GROUP_URL, getCommunityLink } from '../../api/game';
 import { BRAND_LOGO_URL, BRAND_NAME } from '../../config/brand';
-import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../icons/GameIcons';
+import { AssetsIcon, ChevronIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../icons/GameIcons';
 import { GemIcon } from '../icons/GemIcon';
 import { CurrencyAmount } from '../ui/CurrencyAmount';
 import { MobileWorkspacePageSheet, type MobileWorkspaceSheetRequestClose } from '../ui/MobileWorkspacePageSheet';
@@ -79,7 +79,7 @@ export function GameShell({ model, children, offline = false }: {
   const currentRank = derived.currentRank?.rank ?? '--';
   const formattedRank = formatRank(derived.currentRank?.rank);
   const rankLabel = derived.currentRank ? `排名第 ${derived.currentRank.rank} 名` : '暂无排名';
-  const weeklyTrend = weeklyChange > 0 ? '↑' : weeklyChange < 0 ? '↓' : '→';
+  const weeklyTrendDirection = weeklyChange > 0 ? 'up' : weeklyChange < 0 ? 'down' : 'right';
   const weeklyChangeLabel = weeklyChange > 0
     ? `本周净资产上升 ${formatCurrency(weeklyMagnitude)}`
     : weeklyChange < 0
@@ -93,7 +93,7 @@ export function GameShell({ model, children, offline = false }: {
     {
       id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>,
       compactValue: formatCompactNumber(derived.totalAssets),
-      detail: <span className={weeklyChange > 0 ? 'positive' : weeklyChange < 0 ? 'negative' : 'neutral'} aria-label={weeklyChangeLabel}>{weeklyTrend} 本周 <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>,
+      detail: <span className={weeklyChange > 0 ? 'positive' : weeklyChange < 0 ? 'negative' : 'neutral'} aria-label={weeklyChangeLabel}><span className="status-weekly-trend"><ChevronIcon direction={weeklyTrendDirection} /> 本周</span> <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>,
       emphasis: 'primary',
       onClick: openBank,
     },
@@ -134,7 +134,7 @@ export function GameShell({ model, children, offline = false }: {
     weeklyChange,
     weeklyChangeLabel,
     weeklyMagnitude,
-    weeklyTrend,
+    weeklyTrendDirection,
   ]);
 
   useEffect(() => {
