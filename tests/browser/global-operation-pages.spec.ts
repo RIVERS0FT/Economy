@@ -39,8 +39,37 @@ test('map keeps gesture zoom without a control panel and primary market/building
   await sidebar.getByRole('button', { name: /^建筑/ }).click();
   await expect(page.getByRole('heading', { name: '建筑', exact: true })).toBeVisible();
   await expect(page.locator('.global-buildings-page')).toHaveAttribute('data-global-scope', 'buildings');
-  expect(await page.locator('.global-buildings-page .global-facility-catalog-row').count()).toBeGreaterThan(1);
+  await expect(page.getByText('全局工厂目录', { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/类已拥有/)).toHaveCount(0);
+  await expect(page.locator('.global-facility-catalog-header')).toBeVisible();
+
+  const globalFacilityRows = page.locator('.global-buildings-page .global-facility-catalog-row');
+  expect(await globalFacilityRows.count()).toBeGreaterThan(1);
   expect(await page.locator('.global-buildings-page .global-province-row').count()).toBeGreaterThan(1);
+
+  const firstGlobalFacilityRow = globalFacilityRows.first();
+  const firstFacilityName = (await firstGlobalFacilityRow.locator('.global-facility-catalog-row__identity strong').textContent())?.trim();
+  expect(firstFacilityName).toBeTruthy();
+  const artworkBox = await firstGlobalFacilityRow.locator('.global-facility-catalog-row__artwork').boundingBox();
+  expect(artworkBox).not.toBeNull();
+  if (!artworkBox) throw new Error('全局工厂插画未渲染');
+  expect(Math.abs(artworkBox.width - artworkBox.height)).toBeLessThan(1);
+
+  await firstGlobalFacilityRow.click();
+  await expect(page.getByRole('heading', { name: firstFacilityName!, exact: true })).toBeVisible();
+  await expect(page.locator('.global-buildings-page[data-global-facility-type-id]')).toBeVisible();
+  await expect(page.locator('.global-facility-region-header')).toBeVisible();
+  const regionalFacilityRow = page.locator('.global-facility-region-row').first();
+  await expect(regionalFacilityRow).toBeVisible();
+  const regionalProvinceId = await regionalFacilityRow.getAttribute('data-province-id');
+  expect(regionalProvinceId).toBeTruthy();
+  await regionalFacilityRow.click();
+  await expect(page.locator(`.global-buildings-page[data-drilldown-province-id="${regionalProvinceId}"]`)).toBeVisible();
+  await expect(page.locator('.facility-cluster-detail-page')).toBeVisible();
+  await page.getByRole('button', { name: '返回地区工厂' }).click();
+  await expect(page.locator('.global-buildings-page[data-global-facility-type-id]')).toBeVisible();
+  await page.getByRole('button', { name: '返回工厂列表' }).click();
+  await expect(page.getByRole('heading', { name: '建筑', exact: true })).toBeVisible();
 
   await page.locator('.global-buildings-page .global-province-row').first().click();
   await expect(page.locator('.global-buildings-page[data-drilldown-province-id]')).toBeVisible();
