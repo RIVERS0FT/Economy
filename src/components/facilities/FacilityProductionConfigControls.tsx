@@ -1,4 +1,4 @@
-import { AssetsIcon, CreditsIcon, CycleIcon, ProductionIcon } from '../icons/GameIcons';
+import { AssetsIcon, ChevronIcon, CreditsIcon, CycleIcon, ProductionIcon } from '../icons/GameIcons';
 import { ProductArtwork } from '../products/ProductArtwork';
 import { RichSelectInput } from '../ui/RichSelectInput';
 import type {
@@ -33,8 +33,13 @@ function metricTone(next: number, current: number, preference: MetricPreference)
 }
 
 function metricDirection(next: number, current: number) {
-  if (next === current) return '';
-  return next > current ? ' ↑' : ' ↓';
+  if (next === current) return null;
+  return (
+    <ChevronIcon
+      direction={next > current ? 'up' : 'down'}
+      className="production-config-metric-chevron"
+    />
+  );
 }
 
 function ProductionMethodIcon({ methodId }: { methodId: FacilityProductionMethodId }) {
@@ -88,7 +93,7 @@ function ProductPlanDetail({
     <span className="production-config-detail production-config-detail--product">
       <span className="production-config-flow-row">
         <MaterialList label="投入" items={plan.inputs ?? []} productsById={productsById} />
-        <span className="production-config-flow-arrow" aria-hidden="true" />
+        <ChevronIcon direction="right" className="production-config-flow-arrow" />
         <MaterialList label="产出" items={[plan.output]} productsById={productsById} />
       </span>
       <span className="production-config-metric-row">
