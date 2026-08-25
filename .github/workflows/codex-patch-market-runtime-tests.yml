@@ -1,0 +1,84 @@
+name: Codex patch market runtime header tests
+
+on:
+  push:
+    branches:
+      - codex/unify-market-headers-chevrons
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/unify-market-headers-chevrons
+          fetch-depth: 0
+      - name: Update market runtime expectations
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/browser/market-runtime.spec.ts')
+          text = path.read_text()
+
+          old_desktop = """  for (const label of ['卖单量', '买单量', '市场价', '24h']) {
+    await expect(wheatRow.getByText(label, { exact: true })).toBeVisible();
+  }
+  for (const label of ['挂单差额', '基准偏离', '挂单状态']) {
+    await expect(wheatRow.getByText(label, { exact: true })).toHaveCount(0);
+  }
+"""
+          new_desktop = """  const catalogHeader = page.locator('.market-commodity-row-header');
+  await expect(catalogHeader).toHaveCount(1);
+  for (const label of ['商品', '卖单量', '买单量', '市场价', '24h']) {
+    await expect(catalogHeader.getByText(label, { exact: true })).toBeVisible();
+  }
+  for (const label of ['卖单量', '买单量', '市场价', '24h', '挂单差额', '基准偏离', '挂单状态']) {
+    await expect(wheatRow.getByText(label, { exact: true })).toHaveCount(0);
+  }
+"""
+          if text.count(old_desktop) != 1:
+              raise SystemExit(f'Expected one desktop metric-label block, found {text.count(old_desktop)}')
+          text = text.replace(old_desktop, new_desktop, 1)
+
+          old_mobile = """  for (const center of layout.metricCenters) expect(Math.abs(center - layout.identityCenter)).toBeLessThan(6);
+  for (const label of ['卖单量', '买单量', '市场价', '24h']) await expect(wheatRow.getByText(label, { exact: true })).toBeVisible();
+  for (const label of ['挂单差额', '基准偏离', '挂单状态']) await expect(wheatRow.getByText(label, { exact: true })).toHaveCount(0);
+
+  await page.setViewportSize({ width: 320, height: 720 });
+"""
+          new_mobile = """  for (const center of layout.metricCenters) expect(Math.abs(center - layout.identityCenter)).toBeLessThan(6);
+  const catalogHeader = page.locator('.market-commodity-row-header');
+  await expect(catalogHeader).toHaveCount(1);
+  for (const label of ['商品', '卖单量', '买单量', '市场价', '24h']) await expect(catalogHeader.getByText(label, { exact: true })).toBeVisible();
+  for (const label of ['卖单量', '买单量', '市场价', '24h', '挂单差额', '基准偏离', '挂单状态']) await expect(wheatRow.getByText(label, { exact: true })).toHaveCount(0);
+
+  await page.setViewportSize({ width: 320, height: 720 });
+"""
+          if text.count(old_mobile) != 1:
+              raise SystemExit(f'Expected one mobile metric-label block, found {text.count(old_mobile)}')
+          text = text.replace(old_mobile, new_mobile, 1)
+
+          if text.count("page.locator('.market-commodity-row-header')") < 2:
+              raise SystemExit('Independent market commodity header assertions were not installed')
+          path.write_text(text)
+          PY
+      - name: Verify patch
+        run: |
+          git diff --check
+          grep -F "const catalogHeader = page.locator('.market-commodity-row-header');" tests/browser/market-runtime.spec.ts
+          if grep -F "wheatRow.getByText(label, { exact: true })).toBeVisible()" tests/browser/market-runtime.spec.ts; then
+            echo 'Per-row label visibility assertion still exists.'
+            exit 1
+          fi
+      - name: Commit test correction
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tests/browser/market-runtime.spec.ts
+          git commit -m "更新市场独立表头浏览器回归"
+          git push origin HEAD:codex/unify-market-headers-chevrons
