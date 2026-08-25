@@ -173,7 +173,14 @@ for (const text of [
   "{ id: 'buildings', label: '建筑' }", "{ id: 'warehouse', label: '仓库' }",
   '<EmbeddedMarketPage model={model} embedded />', '<EmbeddedBuildingsPage model={model} embedded />',
   '<WarehouseInventoryPanel', 'className="province-warehouse-section"', 'onOpenProduct={openWarehouseProduct}',
+  "if (current.type === 'map') {", 'pageNavigation.pushPage(provinceLocation);',
+  'pageNavigation.replacePage(provinceLocation);',
 ]) assert.ok(provincePage.includes(text), `州级上下文页缺少: ${text}`);
+assert.equal(
+  provincePage.includes("model.tab !== 'province' || !isUnlocked"),
+  false,
+  '锁定州也必须先建立 map → province 返回层，不能因未解锁跳过位置规范化',
+);
 const provinceStyles = read('src/styles/province-page.css');
 assert.ok(provinceStyles.includes('grid-template-columns: repeat(4, minmax(0, 1fr));'), '州级上下文切换必须保持四个等宽按钮');
 assert.ok(provinceStyles.includes('min-height: 44px;'), '州级上下文切换必须保持 44px 触控高度');

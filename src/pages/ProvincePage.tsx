@@ -167,7 +167,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     : 0;
 
   useEffect(() => {
-    if (!pageNavigation || model.tab !== 'province' || !isUnlocked) return;
+    if (!pageNavigation || model.tab !== 'province') return;
     const current = pageNavigation.currentLocation;
     const validCurrentLocation = 'provinceId' in current
       && current.provinceId === model.selectedProvinceId
@@ -177,13 +177,18 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
         || (current.type === 'regional-facility' && current.host === 'province')
       );
     if (!validCurrentLocation) {
-      pageNavigation.replacePage({
-        type: 'province',
+      const provinceLocation = {
+        type: 'province' as const,
         provinceId: model.selectedProvinceId,
-        section: 'overview',
-      });
+        section: 'overview' as const,
+      };
+      if (current.type === 'map') {
+        pageNavigation.pushPage(provinceLocation);
+      } else {
+        pageNavigation.replacePage(provinceLocation);
+      }
     }
-  }, [isUnlocked, model.selectedProvinceId, model.tab, pageNavigation]);
+  }, [model.selectedProvinceId, model.tab, pageNavigation]);
 
   useEffect(() => {
     if (!pageNavigation || activeSection !== 'market') return;
