@@ -374,10 +374,12 @@ test('market commodity catalog keeps compact core metrics and opens a focused de
   await expect(wheatRow.locator('.product-artwork')).toHaveAttribute('data-product-artwork', 'wheat');
   await expect(wheatRow.locator('.market-commodity-row__name strong')).toHaveText('小麦');
   await expect(wheatRow.locator('.market-commodity-row__name small')).toHaveText('原材料');
-  for (const label of ['卖单量', '买单量', '市场价', '24h']) {
-    await expect(wheatRow.getByText(label, { exact: true })).toBeVisible();
+  const catalogHeader = page.locator('.market-commodity-row-header');
+  await expect(catalogHeader).toHaveCount(1);
+  for (const label of ['商品', '卖单量', '买单量', '市场价', '24h']) {
+    await expect(catalogHeader.getByText(label, { exact: true })).toBeVisible();
   }
-  for (const label of ['挂单差额', '基准偏离', '挂单状态']) {
+  for (const label of ['卖单量', '买单量', '市场价', '24h', '挂单差额', '基准偏离', '挂单状态']) {
     await expect(wheatRow.getByText(label, { exact: true })).toHaveCount(0);
   }
   await wheatRow.click();
@@ -467,8 +469,10 @@ test('mobile market catalog keeps one compact row without horizontal overflow', 
   expect(layout.rowScrollWidth).toBeLessThanOrEqual(layout.rowClientWidth + 1);
   expect(layout.rowColumns).toBe(6);
   for (const center of layout.metricCenters) expect(Math.abs(center - layout.identityCenter)).toBeLessThan(6);
-  for (const label of ['卖单量', '买单量', '市场价', '24h']) await expect(wheatRow.getByText(label, { exact: true })).toBeVisible();
-  for (const label of ['挂单差额', '基准偏离', '挂单状态']) await expect(wheatRow.getByText(label, { exact: true })).toHaveCount(0);
+  const catalogHeader = page.locator('.market-commodity-row-header');
+  await expect(catalogHeader).toHaveCount(1);
+  for (const label of ['商品', '卖单量', '买单量', '市场价', '24h']) await expect(catalogHeader.getByText(label, { exact: true })).toBeVisible();
+  for (const label of ['卖单量', '买单量', '市场价', '24h', '挂单差额', '基准偏离', '挂单状态']) await expect(wheatRow.getByText(label, { exact: true })).toHaveCount(0);
 
   await page.setViewportSize({ width: 320, height: 720 });
   layout = await inspect();
