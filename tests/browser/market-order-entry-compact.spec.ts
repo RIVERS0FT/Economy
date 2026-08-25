@@ -150,7 +150,9 @@ test('market order book yields width to the order entry on desktop and mobile', 
   expect(desktopEntry.width / desktopBook.width).toBeLessThan(1.75);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet')).toBeVisible();
+  const mobileSheet = page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop > .mobile-detail-sheet');
+  await expect(mobileSheet).toBeVisible();
+  await expect(mobileSheet).toHaveAttribute('data-entry-animation-complete', 'true');
   await expect(entry).toBeVisible();
   await expect(book).toBeVisible();
   const mobileEntry = await requireBox(entry);

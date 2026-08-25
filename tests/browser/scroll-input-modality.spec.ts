@@ -51,7 +51,6 @@ test('touch input hides horizontal rails while local trade cells keep native two
   expect(horizontalDisplays.length).toBeGreaterThan(0);
   expect(horizontalDisplays.every((display) => display === 'none')).toBe(true);
 
-  await page.getByRole('button', { name: '成交', exact: true }).click();
   const tradeRoot = page.locator('.local-trades-scroll-area');
   const tradeViewport = tradeRoot.locator(':scope > .ui-scroll-area__viewport');
   await expect(tradeViewport.locator('.virtual-record-row').first()).toBeVisible();
@@ -125,7 +124,6 @@ test('touch input hides horizontal rails while local trade cells keep native two
 test('mixed input switches scrollbar policy at runtime', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('market-runtime-test.html?scenario=active');
-  await page.getByRole('button', { name: '成交', exact: true }).click();
 
   await page.evaluate(() => {
     document.dispatchEvent(new PointerEvent('pointerdown', {

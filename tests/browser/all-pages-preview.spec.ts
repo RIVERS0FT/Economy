@@ -106,7 +106,7 @@ test('global market drills from commodity to regional quotes and existing trade 
   await expect(page.locator('.regional-entity-title__name')).toHaveText('小麦');
   await expect(page.locator('.regional-entity-title__region')).toHaveText('加利福尼亚州');
   await expect(page.locator('.market-trade-card')).toBeVisible();
-  await page.getByRole('button', { name: '返回商品全局详情' }).click();
+  await page.getByRole('button', { name: '返回上一页面' }).click();
   await expect(page.locator('.global-market-product-detail-panel')).toBeVisible();
 });
 
@@ -269,7 +269,7 @@ test('page navigation unfolds only the active page while the persistent map keep
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^市场/ }).click();
 
   const reveal = page.locator('.signed-in-shell__page-reveal');
-  await expect(reveal).toHaveAttribute('data-page-transition-key', 'market');
+  await expect(reveal).toHaveAttribute('data-page-transition-key', 'tab:market');
   await expect(reveal).toHaveCSS('animation-name', 'strategic-page-unfold');
   await expect(map).toHaveAttribute('data-transition-probe', 'stable');
   const after = await map.evaluate((element) => {
@@ -293,7 +293,7 @@ test('reduced motion disables card width and page unfold animation', async ({ pa
   await expect(page.locator('.strategic-map-stage')).toHaveCSS('transform', 'none');
 });
 
-test('player page return skips the map and restores the previous business page', async ({ page }) => {
+test('player page return follows history while close clears the stack to map', async ({ page }) => {
   await page.goto('?preview=game');
   const sidebar = page.locator('.desktop-sidebar');
 
@@ -313,7 +313,8 @@ test('player page return skips the map and restores the previous business page',
   await returnButton.focus();
   await expect(returnButton).toBeFocused();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('heading', { level: 1, name: '市场' })).toBeVisible();
+  await expect(page.locator('.game-shell')).toHaveClass(/strategic-tab-map/);
+  await expect(page.locator('[data-player-page-navigation="true"]')).toHaveCount(0);
 });
 
 test('leaderboard and local-only service summaries are populated in the full shell', async ({ page }) => {
