@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ChevronIcon } from '../components/icons/GameIcons';
 import { IntegerInput, MoneyInput, SelectInput } from '../components/ui/FormControls';
 import { Button, DataList, DataRow, StatusTag } from '../components/ui/layout';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
@@ -52,6 +53,16 @@ function firstDelayLabel(value: number) {
     ?? (value === 0 ? '签订后立即进入首批交付' : `签订后 ${Math.round(value / 60_000)} 分钟`);
 }
 
+function TermChange({ from, to }: { from: string; to: string }) {
+  return (
+    <span className="contract-negotiation-change">
+      <span>{from}</span>
+      <ChevronIcon direction="right" />
+      <span>{to}</span>
+    </span>
+  );
+}
+
 function TermsSummary({
   terms,
   baseTerms,
@@ -61,19 +72,19 @@ function TermsSummary({
 }) {
   const quantityLabel = terms.quantityPerDelivery === baseTerms.quantityPerDelivery
     ? formatNumber(terms.quantityPerDelivery)
-    : `${formatNumber(baseTerms.quantityPerDelivery)} → ${formatNumber(terms.quantityPerDelivery)}`;
+    : <TermChange from={formatNumber(baseTerms.quantityPerDelivery)} to={formatNumber(terms.quantityPerDelivery)} />;
   const priceLabel = terms.unitPrice === baseTerms.unitPrice
     ? formatCurrency(terms.unitPrice)
-    : `${formatCurrency(baseTerms.unitPrice)} → ${formatCurrency(terms.unitPrice)}`;
+    : <TermChange from={formatCurrency(baseTerms.unitPrice)} to={formatCurrency(terms.unitPrice)} />;
   const intervalLabel = terms.deliveryIntervalMs === baseTerms.deliveryIntervalMs
     ? durationLabel(terms.deliveryIntervalMs)
-    : `${durationLabel(baseTerms.deliveryIntervalMs)} → ${durationLabel(terms.deliveryIntervalMs)}`;
+    : <TermChange from={durationLabel(baseTerms.deliveryIntervalMs)} to={durationLabel(terms.deliveryIntervalMs)} />;
   const deliveriesLabel = terms.totalDeliveries === baseTerms.totalDeliveries
     ? deliveryCountLabel(terms.totalDeliveries)
-    : `${deliveryCountLabel(baseTerms.totalDeliveries)} → ${deliveryCountLabel(terms.totalDeliveries)}`;
+    : <TermChange from={deliveryCountLabel(baseTerms.totalDeliveries)} to={deliveryCountLabel(terms.totalDeliveries)} />;
   const firstDelay = terms.firstDeliveryDelayMs === baseTerms.firstDeliveryDelayMs
     ? firstDelayLabel(terms.firstDeliveryDelayMs)
-    : `${firstDelayLabel(baseTerms.firstDeliveryDelayMs)} → ${firstDelayLabel(terms.firstDeliveryDelayMs)}`;
+    : <TermChange from={firstDelayLabel(baseTerms.firstDeliveryDelayMs)} to={firstDelayLabel(terms.firstDeliveryDelayMs)} />;
 
   return (
     <DataList className="compact contract-negotiation-summary">
