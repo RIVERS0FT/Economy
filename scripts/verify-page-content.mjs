@@ -152,7 +152,7 @@ for (const [path, expected] of [
     'export function GlobalMarketPage',
     '<PageLayout title="市场">',
     'data-global-scope="market"',
-    '<WidgetHeading title="商品"',
+    'global-market-goods-header',
     'global-market-filter-disclosure',
     'selectedGlobalProductId',
     'global-market-product-detail-panel',
@@ -185,11 +185,13 @@ for (const [path, expected] of [
 }
 
 for (const text of [
+  '<WidgetHeading title="商品"',
   'global-market-provinces-panel',
   'global-market-province-row',
   'MarketCoverageBar',
 ]) forbidText('src/pages/GlobalMarketPage.tsx', text);
 for (const text of [
+  'market-commodity-row-header',
   '卖单量',
   '买单量',
   '市场价',
@@ -198,6 +200,8 @@ for (const text of [
 for (const text of ['挂单差额', '基准偏离', '挂单状态']) forbidText('src/components/market/MarketCommodityRow.tsx', text);
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品目录 → 商品全局详情 → 地区商品详情');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '筛选默认折叠且不提供商品名称搜索框');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '市场标题区固定显示“市场”，商品目录正文不重复显示“商品”分区标题');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品列表字段名使用独立表头');
 
 for (const text of [
   '<MetricCard',
@@ -254,4 +258,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('页面内容与职责验证通过：一级市场/建筑锁定全局视图；全局建筑使用工厂与地区纵向列表并保留跨州平均利润；所有玩家 PageLayout 共用 40px 标题轨道与紧凑单行标题；州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。');
+console.log('页面内容与职责验证通过：一级市场/建筑锁定全局视图；市场标题区保留且商品目录正文不重复标题，商品与地区行情使用独立表头；全局建筑使用工厂与地区纵向列表并保留跨州平均利润；所有玩家 PageLayout 共用 40px 标题轨道与紧凑单行标题；州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。');
