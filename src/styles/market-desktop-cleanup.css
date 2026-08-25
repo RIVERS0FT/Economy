@@ -1,7 +1,6 @@
 /* Desktop-only market card cleanup.
  * Order-book rows now use the same structure on desktop and mobile. */
 @media (min-width: 721px) {
-  .market-page-surface .market-account-view-switch,
   .market-page-surface .market-trade-section-heading small {
     display: none !important;
   }
