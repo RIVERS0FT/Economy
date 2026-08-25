@@ -12,6 +12,7 @@ import {
   transportCost,
   transportDurationMs,
 } from '../../utils/provinceLogistics';
+import { ChevronIcon } from '../icons/GameIcons';
 import { ProductIcon } from '../icons/ProductIcons';
 import { CurrencyAmount } from '../ui/CurrencyAmount';
 import { IntegerInput, SelectInput } from '../ui/FormControls';
@@ -201,7 +202,10 @@ export function WarehouseInventoryPanel({
                   <span className="transport-shipment-product">{product?.name ?? shipment.productId}</span>
                   <span>×{formatNumber(shipment.quantity)}</span>
                   <span>{TRANSPORT_MODES[shipment.mode]?.name ?? shipment.mode}</span>
-                  <span>→ {destination?.name ?? shipment.destinationProvinceId}</span>
+                  <span className="transport-shipment-destination">
+                    <ChevronIcon direction="right" />
+                    {destination?.name ?? shipment.destinationProvinceId}
+                  </span>
                   <span className="transport-shipment-eta">{formatTransportDuration(remainingMs)}</span>
                 </li>
               );
