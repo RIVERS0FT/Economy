@@ -18,13 +18,60 @@ import { CurrencyAmount } from '../ui/CurrencyAmount';
 import { IntegerInput, SelectInput } from '../ui/FormControls';
 import { Button, Panel, StatusTag, WidgetHeading } from '../ui/layout';
 
-export function WarehouseInventoryPanel({
+export function WarehouseInventoryGrid({
   model,
-  className = '',
+  onOpenProduct,
 }: {
   model: OnlineAutoTradeAwareGameViewModel;
-  className?: string;
+  onOpenProduct?: (productId: string) => void;
 }) {
+  const { game } = model;
+  const stockedProducts = useMemo(
+    () => game.products.filter((product) => {
+      const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0, inTransit: 0 };
+      return inventory.available > 0 || inventory.frozen > 0;
+    }),
+    [game.inventories, game.products],
+  );
+
+  return (
+    <section className="warehouse-content" aria-label="仓库商品">
+      <WidgetHeading
+        title="仓库内容"
+        action={<span>实物库存 {formatNumber(game.warehouseStoredQuantity)}</span>}
+      />
+      {stockedProducts.length > 0 ? (
+        <div className="warehouse-product-grid">
+          {stockedProducts.map((product) => {
+            const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0, inTransit: 0 };
+            return (
+              <button
+                type="button"
+                className="warehouse-product-card"
+                data-ui-interactive="surface"
+                key={product.id}
+                aria-label={`打开${product.name}详情，可用 ${formatNumber(inventory.available)}，冻结 ${formatNumber(inventory.frozen)}`}
+                onClick={() => onOpenProduct?.(product.id)}
+              >
+                <span className="warehouse-product-card-name">{product.name}</span>
+                <span className="warehouse-product-card-icon" aria-hidden="true"><ProductIcon productId={product.id} /></span>
+                <strong className="warehouse-product-card-available">可用 {formatNumber(inventory.available)}</strong>
+                <small className="warehouse-product-card-frozen">冻结 {formatNumber(inventory.frozen)}</small>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="empty-state warehouse-content-empty">
+          <strong>仓库中暂无商品</strong>
+          <span>通过生产或市场交易获得商品后，会在这里按州级库存显示。</span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+export function WarehouseTransportPanel({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
   const { game } = model;
   const now = useNow(game.lastProcessedAt, 1_000);
   const unlockedProvinces = game.unlockedProvinces ?? [];
@@ -33,19 +80,9 @@ export function WarehouseInventoryPanel({
   const [transportQuantity, setTransportQuantity] = useState('');
   const [transportDestination, setTransportDestination] = useState('');
   const [transportMode, setTransportMode] = useState<TransportModeId>('road');
-  const stockedProducts = useMemo(
-    () => game.products.filter((product) => {
-      const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0, inTransit: 0 };
-      return inventory.available > 0 || inventory.frozen > 0 || inventory.inTransit > 0;
-    }),
-    [game.inventories, game.products],
-  );
   const transportableProducts = useMemo(
-    () => stockedProducts.filter((product) => {
-      const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0, inTransit: 0 };
-      return inventory.available > 0;
-    }),
-    [game.inventories, stockedProducts],
+    () => game.products.filter((product) => (game.inventories[product.id]?.available ?? 0) > 0),
+    [game.inventories, game.products],
   );
   const destinations = useMemo(
     () => game.provinces.filter((province) => (
@@ -87,49 +124,12 @@ export function WarehouseInventoryPanel({
   }
 
   return (
-    <Panel className={`production-surface warehouse-inventory-panel warehouse-only-panel ${className}`.trim()}>
+    <Panel className="widget warehouse-transport-panel">
       <WidgetHeading
-        title="共享仓库"
-        action={<StatusTag tone="neutral">无限容量</StatusTag>}
+        title="跨州运输"
+        action={<StatusTag tone="neutral">在途 {formatNumber(inTransitCount)} / {TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER}</StatusTag>}
       />
-      <section className="warehouse-content" aria-label="仓库内容">
-        <header className="warehouse-content-heading">
-          <strong>仓库内容</strong>
-          <span>实物库存 {formatNumber(game.warehouseStoredQuantity)}</span>
-        </header>
-        {stockedProducts.length > 0 ? (
-          <div className="warehouse-product-grid">
-            {stockedProducts.map((product) => {
-              const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0, inTransit: 0 };
-              return (
-                <article
-                  className="warehouse-product-card warehouse-product-card--readonly"
-                  key={product.id}
-                  aria-label={`${product.name}，可用 ${formatNumber(inventory.available)}，冻结 ${formatNumber(inventory.frozen)}，在途 ${formatNumber(inventory.inTransit)}`}
-                >
-                  <span className="warehouse-product-card-name">{product.name}</span>
-                  <span className="warehouse-product-card-icon" aria-hidden="true"><ProductIcon productId={product.id} /></span>
-                  <strong className="warehouse-product-card-available">可用 {formatNumber(inventory.available)}</strong>
-                  <small className="warehouse-product-card-frozen">冻结 {formatNumber(inventory.frozen)}</small>
-                  {inventory.inTransit > 0 ? (
-                    <small className="warehouse-product-card-in-transit">在途 {formatNumber(inventory.inTransit)}</small>
-                  ) : null}
-                </article>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="empty-state warehouse-content-empty">
-            <strong>仓库中暂无商品</strong>
-            <span>通过生产或市场交易获得商品后，会在这里按州级库存显示。</span>
-          </div>
-        )}
-      </section>
       <section className="warehouse-transport-section" aria-label="跨州运输">
-        <header className="warehouse-content-heading">
-          <strong>跨州运输</strong>
-          <span>在途 {formatNumber(inTransitCount)} / {TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER}</span>
-        </header>
         <div className="transport-dispatch-grid">
           <SelectInput
             label="商品"
@@ -158,7 +158,7 @@ export function WarehouseInventoryPanel({
             {destinations.map((province) => <option key={province.id} value={province.id}>{province.name}</option>)}
           </SelectInput>
           <div className="transport-mode-switch" role="group" aria-label="运输方式">
-            {(Object.values(TRANSPORT_MODES)).map((mode) => (
+            {Object.values(TRANSPORT_MODES).map((mode) => (
               <Button
                 key={mode.id}
                 variant="text"
@@ -216,5 +216,25 @@ export function WarehouseInventoryPanel({
         )}
       </section>
     </Panel>
+  );
+}
+
+export function WarehouseInventoryPanel({
+  model,
+  className = '',
+  onOpenProduct,
+}: {
+  model: OnlineAutoTradeAwareGameViewModel;
+  className?: string;
+  onOpenProduct?: (productId: string) => void;
+}) {
+  return (
+    <div className={`warehouse-inventory-panel ${className}`.trim()}>
+      <div className="warehouse-heading-actions">
+        <StatusTag tone="neutral">无限容量</StatusTag>
+      </div>
+      <WarehouseInventoryGrid model={model} onOpenProduct={onOpenProduct} />
+      <WarehouseTransportPanel model={model} />
+    </div>
   );
 }

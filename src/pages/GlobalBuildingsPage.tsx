@@ -1,8 +1,9 @@
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { currentFormulaScope } from '../components/facilities/FacilityProductionFormula';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
 import { ChevronIcon } from '../components/icons/GameIcons';
+import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import { PageLayout, Panel } from '../components/ui/layout';
 import {
@@ -51,8 +52,31 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
   const [selectedGlobalFacilityTypeId, setSelectedGlobalFacilityTypeId] = useState<string | null>(null);
   const [activeProvinceId, setActiveProvinceId] = useState<string | null>(null);
   const [facilityDetailTypeId, setFacilityDetailTypeId] = useState<string | null>(null);
+  const pageNavigation = usePlayerPageNavigation();
+  const stackedLocation = pageNavigation?.currentLocation;
   const game = model.game;
   const provinces = operationalProvinces(model);
+
+  useEffect(() => {
+    if (!stackedLocation) return;
+    if (stackedLocation.type === 'global-building') {
+      setSelectedGlobalFacilityTypeId(stackedLocation.facilityTypeId);
+      setActiveProvinceId(null);
+      setFacilityDetailTypeId(null);
+      return;
+    }
+    if (stackedLocation.type === 'regional-facility' && stackedLocation.host === 'buildings') {
+      setSelectedGlobalFacilityTypeId(stackedLocation.facilityTypeId);
+      setActiveProvinceId(stackedLocation.provinceId);
+      setFacilityDetailTypeId(stackedLocation.facilityTypeId);
+      return;
+    }
+    if (stackedLocation.type === 'tab' && stackedLocation.tab === 'buildings') {
+      setSelectedGlobalFacilityTypeId(null);
+      setActiveProvinceId(null);
+      setFacilityDetailTypeId(null);
+    }
+  }, [stackedLocation]);
 
   const facilityRows = useMemo(() => game.facilityTypes.flatMap((type) => {
     let totalCount = 0;
@@ -168,6 +192,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     setFacilityDetailTypeId(null);
     setActiveProvinceId(null);
     setSelectedGlobalFacilityTypeId(facilityTypeId);
+    pageNavigation?.pushPage({ type: 'global-building', facilityTypeId });
   };
 
   const openRegionalFacility = (provinceId: string) => {
@@ -175,6 +200,12 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     model.setSelectedProvinceId(provinceId);
     setFacilityDetailTypeId(selectedGlobalFacilityTypeId);
     setActiveProvinceId(provinceId);
+    pageNavigation?.pushPage({
+      type: 'regional-facility',
+      host: 'buildings',
+      provinceId,
+      facilityTypeId: selectedGlobalFacilityTypeId,
+    });
   };
 
   if (activeProvince) {
@@ -197,7 +228,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
             className="province-facility-detail-title"
           />
         ) : `${activeProvince.name}建筑`}
-        backAction={returningToGlobalFacility
+        backAction={pageNavigation ? undefined : returningToGlobalFacility
           ? {
               label: '返回地区工厂',
               onClick: () => {
@@ -223,7 +254,20 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                 model={model}
                 embedded
                 detailFacilityTypeId={facilityDetailTypeId ?? undefined}
-                onDetailFacilityChange={setFacilityDetailTypeId}
+                onDetailFacilityChange={(nextFacilityTypeId) => {
+                  setFacilityDetailTypeId(nextFacilityTypeId);
+                  if (!pageNavigation) return;
+                  if (nextFacilityTypeId && activeProvince) {
+                    pageNavigation.replacePage({
+                      type: 'regional-facility',
+                      host: 'buildings',
+                      provinceId: activeProvince.id,
+                      facilityTypeId: nextFacilityTypeId,
+                    });
+                  } else if (!nextFacilityTypeId) {
+                    pageNavigation.onBack();
+                  }
+                }}
               />
             </Suspense>
           ) : <Panel className="empty-state"><span role="status">正在切换经营地区…</span></Panel>}
@@ -236,7 +280,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     return (
       <PageLayout
         title={selectedGlobalFacility.name}
-        backAction={{
+        backAction={pageNavigation ? undefined : {
           label: '返回工厂列表',
           onClick: () => setSelectedGlobalFacilityTypeId(null),
         }}

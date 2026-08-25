@@ -12,6 +12,7 @@ import {
 import { getClientOrderIndex, openOrdersForAsset } from '../app/clientOrderIndex';
 import { orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
+import { currentFormulaScope } from '../components/facilities/FacilityProductionFormula';
 import { MarketAutoTradePanel } from '../components/market/MarketAutoTradePanel';
 import { MarketBalanceBar } from '../components/market/MarketBalanceBar';
 import { MarketCommodityHeader, MarketCommodityRow } from '../components/market/MarketCommodityRow';
@@ -390,7 +391,6 @@ export function MarketPage({
   } = model;
   const now = game.lastProcessedAt;
   const orderEntryRef = useRef<MarketOrderEntryHandle>(null);
-  const [mobileAccountView, setMobileAccountView] = useState<'orders' | 'trades'>('orders');
   const [requestedAutoTradeProductId, setRequestedAutoTradeProductId] = useState<string | null>(null);
   const [catalogCategory, setCatalogCategory] = useState('all');
   const [catalogStatus, setCatalogStatus] = useState<MarketCatalogStatus>('all');
@@ -507,20 +507,28 @@ export function MarketPage({
   const availableAssetQuantity = activeAssetKind === 'commodity'
     ? selectedInventory.available
     : selectedGroup?.availableCount ?? 0;
-  const producerFacilities = useMemo(() => {
-    if (!selectedProduct) return [];
-    return game.facilityTypes.filter((facility) => {
+  const productionSummary = useMemo(() => {
+    if (!selectedProduct) return { effectiveCount: 0, unitsPerMinute: 0 };
+    let effectiveCount = 0;
+    let unitsPerMinute = 0;
+    for (const group of game.facilityGroups) {
+      if (!group.enabled || group.status !== 'running') continue;
+      const facility = facilityTypeById.get(group.facilityTypeId);
+      if (!facility) continue;
       const recipes = facility.recipes.length > 0 ? facility.recipes : [facility];
-      return recipes.some((recipe) => recipe.output.productId === selectedProduct.id);
-    });
-  }, [game.facilityTypes, selectedProduct]);
-  const consumerFacilities = useMemo(() => {
-    if (!selectedProduct) return [];
-    return game.facilityTypes.filter((facility) => {
-      const recipes = facility.recipes.length > 0 ? facility.recipes : [facility];
-      return recipes.some((recipe) => recipe.inputs.some((input) => input.productId === selectedProduct.id));
-    });
-  }, [game.facilityTypes, selectedProduct]);
+      const recipe = recipes.find((candidate) => candidate.id === group.activeRecipeId) ?? recipes[0];
+      if (!recipe || recipe.output.productId !== selectedProduct.id) continue;
+      const scope = currentFormulaScope(group, now);
+      const count = Math.max(0, scope.count);
+      if (count <= 0) continue;
+      effectiveCount += count;
+      unitsPerMinute += count * recipe.output.quantity * (60_000 / Math.max(1, recipe.cycleMs));
+    }
+    return {
+      effectiveCount,
+      unitsPerMinute: Math.round(unitsPerMinute * 100) / 100,
+    };
+  }, [facilityTypeById, game.facilityGroups, now, selectedProduct]);
 
   const catalogEntries = useMemo(() => {
     const entries: MarketCatalogEntry[] = game.products.map((product) => {
@@ -786,22 +794,24 @@ export function MarketPage({
               </div>
               <p className="market-authority-note">挂单量来自当前公开订单簿；消费需求来自服务器上一周期结算。库存和理论产量不计作供给或需求。</p>
             </Panel>
-            <Panel className="widget market-flow-card">
-              <WidgetHeading title="生产者与消费者" />
-              <div className="market-flow-groups">
-                <section>
-                  <h3>生产建筑</h3>
-                  <div>{producerFacilities.length > 0
-                    ? producerFacilities.map((facility) => <StatusTag key={facility.id} tone="success">{facility.name}</StatusTag>)
-                    : <span className="muted">没有生产该商品的建筑</span>}</div>
-                </section>
-                <section>
-                  <h3>消费建筑</h3>
-                  <div>{consumerFacilities.length > 0
-                    ? consumerFacilities.map((facility) => <StatusTag key={facility.id} tone="warning">{facility.name}</StatusTag>)
-                    : <span className="muted">没有以该商品为投入的建筑</span>}</div>
-                </section>
+            <Panel className="widget market-inventory-production-card">
+              <WidgetHeading title="库存与生产" />
+              <div className="market-inventory-production-metrics">
+                <MetricCard label="可用库存" value={formatNumber(selectedInventory.available)} />
+                <MetricCard label="冻结库存" value={formatNumber(selectedInventory.frozen)} />
+                <MetricCard label="发运在途" value={formatNumber(selectedInventory.inTransit)} />
+                <MetricCard
+                  label="预计生产速度"
+                  value={`${formatNumber(productionSummary.unitsPerMinute)} / 分钟`}
+                  tone={productionSummary.unitsPerMinute > 0 ? 'success' : 'neutral'}
+                />
+                <MetricCard
+                  label="预计等效产能"
+                  value={formatNumber(productionSummary.effectiveCount)}
+                  tone={productionSummary.effectiveCount > 0 ? 'success' : 'neutral'}
+                />
               </div>
+              <p className="market-authority-note">预计生产速度只统计当前地区运行中、当前配方实际产出该商品的工厂，并按当前预计整数等效产能换算。</p>
             </Panel>
           </div>
         ) : null}
@@ -919,22 +929,8 @@ export function MarketPage({
 
           <Panel className="widget span-3 market-account-panel">
             <WidgetHeading title={`我的${assetName}订单与成交`} action={<StatusTag>{formatNumber(ownSelectedOrders.length)} 笔未完成</StatusTag>} />
-            <div className="market-account-view-switch ui-segmented" role="group" aria-label="我的订单与成交视图">
-              <Button
-                variant="text"
-                className={mobileAccountView === 'orders' ? 'ui-segmented__button active' : 'ui-segmented__button'}
-                aria-pressed={mobileAccountView === 'orders'}
-                onClick={() => setMobileAccountView('orders')}
-              >挂单</Button>
-              <Button
-                variant="text"
-                className={mobileAccountView === 'trades' ? 'ui-segmented__button active' : 'ui-segmented__button'}
-                aria-pressed={mobileAccountView === 'trades'}
-                onClick={() => setMobileAccountView('trades')}
-              >成交</Button>
-            </div>
             <div className="market-account-grid">
-              <section className={mobileAccountView === 'orders' ? 'market-account-pane--active' : ''}>
+              <section>
                 <h3>已有订单</h3>
                 <ScrollableTable className="own-open-orders-table-wrap">
                   <table className="own-open-orders-table">
@@ -967,7 +963,7 @@ export function MarketPage({
                 </ScrollableTable>
               </section>
 
-              <section className={`local-trades-section${mobileAccountView === 'trades' ? ' market-account-pane--active' : ''}`}>
+              <section className="local-trades-section">
                 <div className="local-trades-heading">
                   <h3>本地成交</h3>
                   <Button variant="compact" onClick={clearLocalTrades} disabled={localTrades.length === 0}>清除全部本地成交</Button>

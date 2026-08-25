@@ -3,6 +3,7 @@ import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineA
 import { ChevronIcon } from '../components/icons/GameIcons';
 import { MarketCommodityHeader, MarketCommodityRow } from '../components/market/MarketCommodityRow';
 import { ProductArtwork } from '../components/products/ProductArtwork';
+import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import {
   PageLayout,
@@ -109,9 +110,29 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
   const [statusFilter, setStatusFilter] = useState<GlobalMarketStatus>('all');
   const [regionalStatusFilter, setRegionalStatusFilter] = useState<RegionalProductStatus>('all');
   const [regionalSort, setRegionalSort] = useState<RegionalProductSort>('catalog');
+  const pageNavigation = usePlayerPageNavigation();
+  const stackedLocation = pageNavigation?.currentLocation;
   const game = model.game;
   const provinces = operationalProvinces(model);
   const allProvinceOrders = ((game as EconomyState & { allProvinceOrders?: AssetOrder[] }).allProvinceOrders ?? game.orders);
+
+  useEffect(() => {
+    if (!stackedLocation) return;
+    if (stackedLocation.type === 'global-market-product') {
+      setSelectedGlobalProductId(stackedLocation.productId);
+      setActiveProvinceId(null);
+      return;
+    }
+    if (stackedLocation.type === 'regional-product' && stackedLocation.host === 'market') {
+      setSelectedGlobalProductId(stackedLocation.productId);
+      setActiveProvinceId(stackedLocation.provinceId);
+      return;
+    }
+    if (stackedLocation.type === 'tab' && stackedLocation.tab === 'market') {
+      setSelectedGlobalProductId(null);
+      setActiveProvinceId(null);
+    }
+  }, [stackedLocation]);
 
   const productRows = useMemo(() => game.products.map((product) => {
     const prices: number[] = [];
@@ -232,12 +253,19 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
     setActiveProvinceId(null);
     setRegionalStatusFilter('all');
     setRegionalSort('catalog');
+    pageNavigation?.pushPage({ type: 'global-market-product', productId });
   };
 
   const openRegionalProduct = (provinceId: string) => {
     if (!selectedGlobalProduct) return;
     setActiveProvinceId(provinceId);
     model.setSelectedProvinceId(provinceId);
+    pageNavigation?.pushPage({
+      type: 'regional-product',
+      host: 'market',
+      provinceId,
+      productId: selectedGlobalProduct.id,
+    });
   };
 
   if (selectedGlobalProduct && activeProvinceId) {
@@ -251,7 +279,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
       return (
         <PageLayout
           title={<RegionalEntityPageTitle entityName={selectedGlobalProduct.name} regionName={activeProvince.name} />}
-          backAction={{
+          backAction={pageNavigation ? undefined : {
             label: '返回商品全局详情',
             onClick: () => {
               model.showMarketCatalog();
@@ -281,7 +309,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
     return (
       <PageLayout
         title={selectedGlobalProduct.name}
-        backAction={{ label: '返回商品列表', onClick: () => setSelectedGlobalProductId(null) }}
+        backAction={pageNavigation ? undefined : { label: '返回商品列表', onClick: () => setSelectedGlobalProductId(null) }}
       >
         <div
           className="global-operation-page global-market-page global-market-product-detail"

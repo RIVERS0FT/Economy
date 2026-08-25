@@ -255,7 +255,7 @@
 }
 
 .market-fundamentals-card,
-.market-flow-card {
+.market-inventory-production-card {
   min-width: 0;
   display: grid;
   align-content: start;
@@ -275,26 +275,11 @@
   line-height: var(--line-height-relaxed);
 }
 
-.market-flow-groups {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.market-flow-groups section,
-.market-flow-groups section > div {
+.market-inventory-production-metrics {
   min-width: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.market-flow-groups section {
   display: grid;
-}
-
-.market-flow-groups h3 {
-  margin: 0;
-  font-size: var(--font-size-sm);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
 }
 
 @container market-page (max-width: 720px) {
@@ -361,10 +346,6 @@
 
 .market-trade-summary__price {
   color: var(--color-warning) !important;
-}
-
-.market-account-view-switch {
-  display: none;
 }
 
 .market-trade-layout {
@@ -795,20 +776,6 @@
 
   .market-trade-summary > span {
     padding: var(--space-2);
-  }
-
-  .market-account-view-switch {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    margin-top: var(--space-3);
-  }
-
-  .market-account-grid > section {
-    display: none;
-  }
-
-  .market-account-grid > section.market-account-pane--active {
-    display: grid;
   }
 }
 

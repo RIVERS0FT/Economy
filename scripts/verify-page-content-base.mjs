@@ -46,6 +46,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/components/ui/VirtualRecordTable.tsx',
   'src/hooks/useVirtualWindow.ts',
   'src/app/gameViewModel.ts',
+  'src/navigation/playerPageStack.ts',
   'src/config/navigation.ts',
   'src/app/GameApp.tsx',
   'src/app/AdminApp.tsx',
@@ -125,6 +126,7 @@ for (const text of [
 ]) requireText('src/components/ui/layout.tsx', text);
 forbidText('src/components/ui/layout.tsx', '<p>{description}</p>');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得在标题下方显示 `description` 说明段落');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '当前页面加历史总深度固定最多 20 层');
 requireText('tests/browser/runtime.spec.ts', "page.locator('.page-heading p')).toHaveCount(0)");
 for (const text of [
   '.page-fixed-header {',
@@ -144,10 +146,17 @@ requireText('src/styles/game-shell-layout.css', 'padding: var(--layout-gutter);'
 requireText('docs/UI_DESIGN_SYSTEM.md', '独立表面背景、底部分隔线和阴影与正文形成清晰分区');
 for (const text of [
   'pageHistoryRef',
-  "previousTab !== 'map'",
-  "model.setTab('map')",
+  'appendPlayerPageHistory',
+  'playerPageLocationKey',
+  'pushPlayerPage',
+  'replacePlayerPage',
   '<PlayerPageNavigationProvider',
 ]) requireText('src/components/shell/GameShell.tsx', text);
+for (const text of [
+  'MAX_PLAYER_PAGE_STACK_DEPTH = 20',
+  'maximumHistoryDepth = MAX_PLAYER_PAGE_STACK_DEPTH - 1',
+  "next[0]?.type === 'map'",
+]) requireText('src/navigation/playerPageStack.ts', text);
 
 for (const text of [
   "type AuthMode = 'login' | 'register'",
@@ -213,7 +222,8 @@ for (const text of [
   '挂单差额',
   '基准偏离',
   '商品基本面',
-  '生产者与消费者',
+  '库存与生产',
+  '预计生产速度',
   'backAction={{',
   'placeAssetOrder',
   'single-order-book',

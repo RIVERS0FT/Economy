@@ -10,7 +10,7 @@ test('desktop market uses compact order-book rows without duplicate headers', as
   await expect(tradeCard.locator('.market-trade-section-heading small')).toBeHidden();
   await expect(tradeCard.locator('.order-book-columns')).toHaveCount(0);
   await expect(tradeCard.locator('.order-book-midpoint')).toHaveCount(0);
-  await expect(page.locator('.market-account-view-switch')).toBeHidden();
+  await expect(page.locator('.market-account-view-switch')).toHaveCount(0);
 
   await expect(tradeCard.locator('.market-trade-entry')).toBeVisible();
   await expect(tradeCard.locator('.market-trade-book')).toBeVisible();
@@ -27,8 +27,16 @@ test('mobile market matches desktop order-book structure and keeps side-by-side 
   await expect(tradeCard.locator('.order-book-midpoint')).toHaveCount(0);
   await expect(tradeCard.locator('.book-order-row.ask').first()).toBeVisible();
   await expect(tradeCard.locator('.book-order-row.bid').first()).toBeVisible();
-  await expect(page.getByRole('button', { name: '挂单', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '成交', exact: true })).toBeVisible();
+  await expect(page.locator('.market-account-view-switch')).toHaveCount(0);
+  const accountSections = page.locator('.market-account-grid > section');
+  await expect(accountSections).toHaveCount(2);
+  await expect(accountSections.nth(0)).toContainText('已有订单');
+  await expect(accountSections.nth(1)).toContainText('本地成交');
+  const ordersBox = await accountSections.nth(0).boundingBox();
+  const tradesBox = await accountSections.nth(1).boundingBox();
+  expect(ordersBox).not.toBeNull();
+  expect(tradesBox).not.toBeNull();
+  expect(tradesBox!.y).toBeGreaterThan(ordersBox!.y + ordersBox!.height - 2);
 
   await page.setViewportSize({ width: 320, height: 720 });
   await expect(page.getByRole('button', { name: '下单', exact: true })).toHaveCount(0);
