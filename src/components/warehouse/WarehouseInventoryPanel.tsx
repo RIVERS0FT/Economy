@@ -36,10 +36,10 @@ export function WarehouseInventoryGrid({
 
   return (
     <section className="warehouse-content" aria-label="仓库商品">
-      <div className="warehouse-content-heading">
-        <strong>仓库内容</strong>
-        <span>实物库存 {formatNumber(game.warehouseStoredQuantity)}</span>
-      </div>
+      <WidgetHeading
+        title="仓库内容"
+        action={<span>实物库存 {formatNumber(game.warehouseStoredQuantity)}</span>}
+      />
       {stockedProducts.length > 0 ? (
         <div className="warehouse-product-grid">
           {stockedProducts.map((product) => {
@@ -230,7 +230,7 @@ export function WarehouseInventoryPanel({
 }) {
   return (
     <div className={`warehouse-inventory-panel ${className}`.trim()}>
-      <div className="warehouse-capacity-status">
+      <div className="warehouse-heading-actions">
         <StatusTag tone="neutral">无限容量</StatusTag>
       </div>
       <WarehouseInventoryGrid model={model} onOpenProduct={onOpenProduct} />
