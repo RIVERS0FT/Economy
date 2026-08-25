@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo, useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { currentFormulaScope } from '../components/facilities/FacilityProductionFormula';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
+import { ChevronIcon } from '../components/icons/GameIcons';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import {
   PageLayout,
@@ -243,7 +244,9 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                   <span className="global-province-row__metric"><small>运行中</small><strong>{formatNumber(row.runningFacilityCount)}</strong></span>
                   <span className="global-province-row__metric"><small>已停止</small><strong>{formatNumber(row.stoppedFacilityCount)}</strong></span>
                   <span className="global-province-row__metric"><small>异常</small><strong>{formatNumber(row.blockedFacilityCount)}</strong></span>
-                  <span className="global-province-row__chevron" aria-hidden="true">›</span>
+                  <span className="global-province-row__chevron" aria-hidden="true">
+                    <ChevronIcon direction="right" />
+                  </span>
                 </button>
               </li>
             ))}
