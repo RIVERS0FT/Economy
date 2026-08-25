@@ -4,13 +4,7 @@ import { currentFormulaScope } from '../components/facilities/FacilityProduction
 import { FacilityIcon } from '../components/icons/FacilityIcons';
 import { ChevronIcon } from '../components/icons/GameIcons';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
-import {
-  PageLayout,
-  PagePanel,
-  Panel,
-  StatusTag,
-  WidgetHeading,
-} from '../components/ui/layout';
+import { PageLayout, Panel } from '../components/ui/layout';
 import {
   resolveFacilityProfitPresentation,
   type FacilityProfitTone,
@@ -59,21 +53,6 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
   const [facilityDetailTypeId, setFacilityDetailTypeId] = useState<string | null>(null);
   const game = model.game;
   const provinces = operationalProvinces(model);
-  const summaries = game.provinceAssetSummaries ?? {};
-
-  const provinceRows = useMemo(() => provinces.map((province) => {
-    const summary = summaries[province.id];
-    const facilityCount = Number(summary?.facilityCount || 0);
-    const runningFacilityCount = Number(summary?.runningFacilityCount || 0);
-    const blockedFacilityCount = Number(summary?.blockedFacilityCount || 0);
-    return {
-      province,
-      facilityCount,
-      runningFacilityCount,
-      blockedFacilityCount,
-      stoppedFacilityCount: Math.max(0, facilityCount - runningFacilityCount - blockedFacilityCount),
-    };
-  }), [provinces, summaries]);
 
   const facilityRows = useMemo(() => game.facilityTypes.flatMap((type) => {
     let totalCount = 0;
@@ -143,19 +122,43 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     : undefined;
 
   const facilityProvinceRows = useMemo(() => {
-    if (!selectedGlobalFacilityTypeId) return [];
+    if (!selectedGlobalFacilityTypeId || !selectedGlobalFacility) return [];
     return provinces.flatMap((province) => {
       const group = (game.provinceFacilityGroups?.[province.id] ?? [])
         .find((candidate) => candidate.facilityTypeId === selectedGlobalFacilityTypeId);
       const count = Math.max(0, Number(group?.count || 0));
       if (!group || count <= 0) return [];
+
+      const scope = currentFormulaScope(group, game.lastProcessedAt);
+      const recipeState = resolveFacilityDetailRecipeState({ group, type: selectedGlobalFacility });
+      const presentation = resolveFacilityProfitPresentation({
+        type: recipeState.formulaType,
+        scopeCount: scope.physicalCount,
+        scopeLabel: scope.name,
+        staffingRateBps: scope.staffingRateBps,
+        products: game.products,
+        markets: game.provinceMarkets?.[province.id] ?? {},
+      });
+
       return [{
         province,
         count,
         status: facilityStatusLabel(group.status),
+        profitTone: presentation.tone,
+        profitValue: presentation.visibleValue,
+        profitAccessibleValue: presentation.accessibleValue,
+        profitDetail: presentation.detail,
       }];
     });
-  }, [game.provinceFacilityGroups, provinces, selectedGlobalFacilityTypeId]);
+  }, [
+    game.lastProcessedAt,
+    game.products,
+    game.provinceFacilityGroups,
+    game.provinceMarkets,
+    provinces,
+    selectedGlobalFacility,
+    selectedGlobalFacilityTypeId,
+  ]);
 
   const activeProvince = activeProvinceId
     ? provinces.find((province) => province.id === activeProvinceId)
@@ -171,13 +174,6 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     if (!selectedGlobalFacilityTypeId) return;
     model.setSelectedProvinceId(provinceId);
     setFacilityDetailTypeId(selectedGlobalFacilityTypeId);
-    setActiveProvinceId(provinceId);
-  };
-
-  const openProvinceBuildings = (provinceId: string) => {
-    model.setSelectedProvinceId(provinceId);
-    setSelectedGlobalFacilityTypeId(null);
-    setFacilityDetailTypeId(null);
     setActiveProvinceId(provinceId);
   };
 
@@ -254,6 +250,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
             <>
               <div className="global-facility-region-header" aria-hidden="true">
                 <span>地区</span>
+                <span>利润／分钟</span>
                 <span>拥有</span>
                 <span>状态</span>
                 <span />
@@ -266,18 +263,25 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                       className="global-facility-region-row"
                       data-ui-interactive="surface"
                       data-province-id={row.province.id}
-                      aria-label={`打开${row.province.name}${selectedGlobalFacility.name}工厂详情`}
+                      aria-label={`打开${row.province.name}${selectedGlobalFacility.name}工厂详情，单厂利润每分钟：${row.profitAccessibleValue}，拥有 ${formatNumber(row.count)} 座，${row.status}`}
+                      title={row.profitDetail}
                       onClick={() => openRegionalFacility(row.province.id)}
                     >
                       <span className="global-facility-region-row__identity">
                         <strong>{row.province.name}</strong>
                         <small>{row.province.shortName}</small>
                       </span>
+                      <strong
+                        className={`global-facility-region-row__profit is-${row.profitTone}`}
+                        title={row.profitDetail}
+                      >
+                        {row.profitValue}
+                      </strong>
                       <strong className="global-facility-region-row__metric">{formatNumber(row.count)}</strong>
                       <strong className="global-facility-region-row__status">{row.status}</strong>
                       <span className="global-facility-region-row__chevron" aria-hidden="true">
-                    <ChevronIcon direction="right" />
-                  </span>
+                        <ChevronIcon direction="right" />
+                      </span>
                     </button>
                   </li>
                 ))}
@@ -324,8 +328,8 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                       </strong>
                       <strong className="global-facility-catalog-row__metric">{formatNumber(row.totalCount)}</strong>
                       <span className="global-facility-catalog-row__chevron" aria-hidden="true">
-                    <ChevronIcon direction="right" />
-                  </span>
+                        <ChevronIcon direction="right" />
+                      </span>
                     </button>
                   </li>
                 ))}
@@ -333,36 +337,6 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
             </>
           ) : <Panel className="empty-state">当前还没有已建成工厂。</Panel>}
         </section>
-
-        <PagePanel className="global-province-list-panel">
-          <WidgetHeading title="地区建筑" action={<StatusTag>{formatNumber(provinceRows.length)} 个已解锁州</StatusTag>} />
-          <ul className="global-province-list" aria-label="全局地区建筑入口">
-            {provinceRows.map((row) => (
-              <li key={row.province.id}>
-                <button
-                  type="button"
-                  className="global-province-row"
-                  data-ui-interactive="surface"
-                  data-province-id={row.province.id}
-                  aria-label={`打开${row.province.name}地区建筑`}
-                  onClick={() => openProvinceBuildings(row.province.id)}
-                >
-                  <span className="global-province-row__identity">
-                    <strong>{row.province.name}</strong>
-                    <small>{row.province.shortName}</small>
-                  </span>
-                  <span className="global-province-row__metric"><small>工厂总数</small><strong>{formatNumber(row.facilityCount)}</strong></span>
-                  <span className="global-province-row__metric"><small>运行中</small><strong>{formatNumber(row.runningFacilityCount)}</strong></span>
-                  <span className="global-province-row__metric"><small>已停止</small><strong>{formatNumber(row.stoppedFacilityCount)}</strong></span>
-                  <span className="global-province-row__metric"><small>异常</small><strong>{formatNumber(row.blockedFacilityCount)}</strong></span>
-                  <span className="global-province-row__chevron" aria-hidden="true">
-                    <ChevronIcon direction="right" />
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </PagePanel>
       </div>
     </PageLayout>
   );

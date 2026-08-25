@@ -42,10 +42,12 @@ test('map keeps gesture zoom without a control panel and primary market/building
   await expect(page.getByText('全局工厂目录', { exact: true })).toHaveCount(0);
   await expect(page.getByText(/类已拥有/)).toHaveCount(0);
   await expect(page.locator('.global-facility-catalog-header')).toBeVisible();
+  await expect(page.locator('.global-province-list-panel')).toHaveCount(0);
+  await expect(page.locator('.global-province-list')).toHaveCount(0);
+  await expect(page.locator('.global-province-row')).toHaveCount(0);
 
   const globalFacilityRows = page.locator('.global-buildings-page .global-facility-catalog-row');
   expect(await globalFacilityRows.count()).toBeGreaterThan(1);
-  expect(await page.locator('.global-buildings-page .global-province-row').count()).toBeGreaterThan(1);
 
   const firstGlobalFacilityRow = globalFacilityRows.first();
   const firstFacilityName = (await firstGlobalFacilityRow.locator('.global-facility-catalog-row__identity strong').textContent())?.trim();
@@ -58,9 +60,13 @@ test('map keeps gesture zoom without a control panel and primary market/building
   await firstGlobalFacilityRow.click();
   await expect(page.getByRole('heading', { name: firstFacilityName!, exact: true })).toBeVisible();
   await expect(page.locator('.global-buildings-page[data-global-facility-type-id]')).toBeVisible();
-  await expect(page.locator('.global-facility-region-header')).toBeVisible();
+  const regionHeader = page.locator('.global-facility-region-header');
+  await expect(regionHeader).toBeVisible();
+  await expect(regionHeader).toContainText('利润／分钟');
   const regionalFacilityRow = page.locator('.global-facility-region-row').first();
   await expect(regionalFacilityRow).toBeVisible();
+  await expect(regionalFacilityRow.locator('.global-facility-region-row__profit')).toBeVisible();
+  await expect(regionalFacilityRow).toHaveAttribute('aria-label', /单厂利润每分钟/);
   const regionalProvinceId = await regionalFacilityRow.getAttribute('data-province-id');
   expect(regionalProvinceId).toBeTruthy();
   await regionalFacilityRow.click();
@@ -70,13 +76,5 @@ test('map keeps gesture zoom without a control panel and primary market/building
   await expect(page.locator('.global-buildings-page[data-global-facility-type-id]')).toBeVisible();
   await page.getByRole('button', { name: '返回工厂列表' }).click();
   await expect(page.getByRole('heading', { name: '建筑', exact: true })).toBeVisible();
-
-  await page.locator('.global-buildings-page .global-province-row').first().click();
-  await expect(page.locator('.global-buildings-page[data-drilldown-province-id]')).toBeVisible();
-  await expect(page.locator('.production-build-card')).toBeVisible();
-  await expect(page.locator('.facility-cluster-selector-list')).toBeVisible();
-  await expect(page.locator('.buildings-summary-panel')).toHaveCount(0);
-  await expect(page.locator('.buildings-list-filters')).toHaveCount(0);
-  await page.getByRole('button', { name: '返回全局建筑' }).click();
-  await expect(page.locator('.global-buildings-page:not([data-drilldown-province-id])')).toBeVisible();
+  await expect(page.locator('.global-province-list')).toHaveCount(0);
 });

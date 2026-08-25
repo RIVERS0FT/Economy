@@ -70,26 +70,31 @@ if (failures.length === 0) {
     'container-type: inline-size;',
     '.global-facility-catalog-header,',
     '.global-facility-region-header {',
+    '.global-facility-catalog-header > span,',
+    '.global-facility-region-header > span {',
     '.global-facility-catalog-list,',
-    '.global-facility-region-list,',
+    '.global-facility-region-list {',
     '.global-facility-catalog-row,',
     '.global-facility-region-row {',
     'grid-template-columns: minmax(0, 1.6fr) minmax(7rem, .8fr) minmax(4rem, .45fr) 1rem;',
+    'grid-template-columns: minmax(0, 1.45fr) minmax(6rem, .7fr) minmax(3.5rem, .42fr) minmax(4.5rem, .55fr) 1rem;',
     '.global-facility-catalog-row__artwork {',
     'aspect-ratio: 1;',
-    '.global-province-list > li {',
-    '.global-province-row {',
-    'grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, .6fr)) 1rem;',
+    '.global-facility-region-row__profit,',
     '@container (max-width: 620px)',
     'grid-template-columns: minmax(0, 1.45fr) minmax(4.65rem, .8fr) minmax(2.4rem, .42fr) .6rem;',
-    '@container (max-width: 520px)',
+    'grid-template-columns: minmax(0, 1.2fr) minmax(4.5rem, .68fr) minmax(2.2rem, .35fr) minmax(3rem, .48fr) .6rem;',
     '@container (max-width: 360px)',
     'grid-template-columns: minmax(0, 1.35fr) minmax(4.25rem, .76fr) minmax(2.1rem, .4fr) .55rem;',
+    'grid-template-columns: minmax(0, .9fr) minmax(0, 1.15fr) minmax(0, .45fr) minmax(0, .75fr) .4rem;',
+    'padding-inline: .1rem;',
+    'font-size: .6875rem;',
     '@media (max-width: 720px)',
-    '.global-province-row {\n    grid-template-columns: repeat(2, minmax(0, 1fr));',
   ]) requireText(paths.globalOperationStyles, text);
   for (const text of [
     '.global-facility-catalog-row {\n    grid-template-columns: repeat(2, minmax(0, 1fr));',
+    '.global-province-list',
+    '.global-province-row',
     '.global-operation-metrics',
     '.global-current-scope-summary',
     '.global-operation-summary-row',
@@ -125,15 +130,15 @@ if (failures.length === 0) {
     '新增一级卡片必须使用 `PagePanel`',
     '`.panel.production-surface` 与 `.panel.leaderboard-board-card`',
     '业务页面 CSS 不得',
-    '建筑页已退役顶部四项汇总',
-    '全局工厂目录在移动端仍保持“工厂｜平均利润／分钟｜拥有”的单行表格结构',
+    '一级建筑页只保留全局工厂目录，不再存在独立地区建筑卡片',
+    '地区工厂列表同样保持“地区｜利润／分钟｜拥有｜状态”的单行结构',
     '全局建筑列表的响应不能只依赖浏览器 viewport',
     '真实页面承载宽度不大于 `620px` 时',
-    '真实承载宽度不大于 `520px` 时',
-    '全局建筑页已退役四项统计卡对应的 `.global-operation-metrics` 布局规则',
+    '极窄 `360px` 及以下',
+    '一级建筑页已退役独立“地区建筑”卡片及其 `.global-province-list` / `.global-province-row` 布局规则',
     '`tests/browser/player-page-geometry.spec.ts`',
-    '并对全局建筑两类纵向列表执行边界与跨断点真实几何回归',
-    '其中全局工厂条目必须在所有覆盖断点保持单行高度',
+    '分别对一级全局工厂目录和点击工厂后的地区工厂列表执行边界与跨断点真实几何回归',
+    '两级工厂条目必须在所有覆盖断点保持单行高度',
     '浏览器真实几何回归若在同一页面实例内跨越 `720px` 桌面／移动断点',
     '`tests/browser/market-runtime.spec.ts` 的跨桌面／移动响应式几何用例',
     '该验证必须加入 `verify:architecture`',
@@ -154,14 +159,21 @@ if (failures.length === 0) {
     'mobileSheet',
     'primaryCard',
     "await expect(page.locator('.global-facility-catalog-list')).toBeVisible();",
-    "await expect(page.locator('.global-province-list')).toBeVisible();",
+    "await expect(page.locator('.global-province-list')).toHaveCount(0);",
     "querySelector<HTMLElement>('.global-facility-catalog-list')",
     "querySelectorAll<HTMLElement>(':scope > li > .global-facility-catalog-row')",
-    "querySelectorAll<HTMLElement>(':scope > li > .global-province-row')",
-    "throw new Error('buildings list fixture is incomplete');",
+    "throw new Error('buildings catalog fixture is incomplete');",
+    "await facilityRows.first().evaluate((button: HTMLButtonElement) => button.click());",
+    "await expect(page.locator('.global-facility-region-list')).toBeVisible();",
+    "querySelector<HTMLElement>('.global-facility-region-list')",
+    "querySelectorAll<HTMLElement>(':scope > li > .global-facility-region-row')",
+    "throw new Error('buildings region list fixture is incomplete');",
     'expect(row.height).toBeLessThanOrEqual(62);',
+    'expect(row.height).toBeLessThanOrEqual(58);',
   ]) requireText(paths.geometryTest, text);
   forbidText(paths.geometryTest, "querySelectorAll<HTMLElement>(':scope > .global-facility-catalog-row')");
+  forbidText(paths.geometryTest, "querySelector<HTMLElement>('.global-province-list')");
+  forbidText(paths.geometryTest, "querySelectorAll<HTMLElement>(':scope > li > .global-province-row')");
   forbidText(paths.geometryTest, '.global-operation-metrics');
   forbidText(paths.geometryTest, '.global-facility-catalog-grid');
   forbidText(paths.geometryTest, '.global-facility-catalog-card');
@@ -183,4 +195,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、承载面局部间距、跨端页面安全宽度、正文顶部留白、全局建筑工厂单行与地区列表按真实承载宽度响应、旧类兼容、样式与设计文档权威均已锁定。');
+console.log('一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、承载面局部间距、跨端页面安全宽度、正文顶部留白、全局建筑目录与地区工厂五列单行按真实承载宽度响应、旧类兼容、样式与设计文档权威均已锁定。');
