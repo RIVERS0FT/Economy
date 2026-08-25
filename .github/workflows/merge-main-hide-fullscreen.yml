@@ -23,11 +23,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main
-          base="$(git merge-base HEAD origin/main)"
-          git diff "$base" HEAD -- \
-            docs/LIQUID_GLASS_CHROME_DESIGN.md \
-            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
-            > /tmp/outliner-docs.patch
 
           set +e
           git merge --no-commit --no-ff origin/main
@@ -35,19 +30,50 @@ jobs:
           set -e
           if [ "$merge_status" -ne 0 ]; then
             unmerged="$(git diff --name-only --diff-filter=U)"
-            unexpected="$(printf '%s\n' "$unmerged" | grep -Ev '^(docs/LIQUID_GLASS_CHROME_DESIGN\.md|docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN\.md)$' || true)"
-            if [ -n "$unexpected" ]; then
+            if [ "$unmerged" != "docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md" ]; then
               echo "Unexpected merge conflicts:" >&2
-              printf '%s\n' "$unexpected" >&2
+              printf '%s\n' "$unmerged" >&2
               exit 1
             fi
-            git checkout --theirs -- \
-              docs/LIQUID_GLASS_CHROME_DESIGN.md \
-              docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
-            git add \
-              docs/LIQUID_GLASS_CHROME_DESIGN.md \
-              docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
-            git apply --3way /tmp/outliner-docs.patch
+            git checkout --theirs -- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
+            python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old, new):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected one match, got {count}: {old[:120]!r}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              '视口不小于 `1440px` 时普通页面的展开追踪器真实占用 `clamp(280px, 21vw, 320px)`，主卡片必须预留追踪器宽度与 `8px` 沟槽；六个 `fullscreen` 页面自动把同一追踪器压缩为 `44px` 非交互轨道并只预留该轨道，离开 `fullscreen` 后自动恢复展开。`721px–1439px` 普通页面始终只预留 `44px` 轨道空间，但追踪器本身保持展开并向左覆盖而不推动主卡片或地图；进入 `fullscreen` 后追踪器本身同步压缩为 `44px`。战略追踪器不得提供整体展开／收起按钮，页面类型只允许控制上述几何，不得成为追踪器生命周期条件。',
+              '视口不小于 `1440px` 时普通页面的完整追踪器真实占用 `clamp(280px, 21vw, 320px)`，主卡片必须预留追踪器宽度与 `8px` 沟槽；`721px–1439px` 普通页面不预留伪收起轨道，完整追踪器向左覆盖剩余地图区域而不推动主卡片或地图。六个 `fullscreen` 页面在桌面端隐藏同一追踪器 DOM、禁用命中并把横向预留释放为 `0`，主卡片右边缘只保留统一 `8px` 屏幕边距；离开 `fullscreen` 后同一追踪器恢复完整显示。战略追踪器不得提供整体横向展开／收起按钮，不存在 `44px` 整体紧凑轨道或整体收起偏好。',
+          )
+          replace_once('并跨全部桌面页面常驻；', '并跨全部桌面页面保持同一 DOM；')
+          replace_once(
+              '`fullscreen` 页面不再卸载教程或事件；桌面 `fullscreen` 仅把同一 Outliner 自动压缩成 `44px` 轨道，离开后恢复展开，过程不得改写教程状态。',
+              '`fullscreen` 页面不卸载教程或事件；桌面 `fullscreen` 只隐藏同一 Outliner 并释放其横向预留，离开后恢复完整显示，过程不得改写教程状态。',
+          )
+          replace_once(
+              '`fullscreen` 的 `44px` 自动紧凑只改变可见几何，不得改写教程轮次、步骤或完成状态。',
+              '桌面 `fullscreen` 隐藏同一 Outliner 只改变可见性，不得改写教程轮次、步骤或完成状态。',
+          )
+          replace_once(
+              '四个分区折叠与关注引用是浏览器偏好，整体紧凑状态仅由桌面 `fullscreen` presentation 自动控制，实时经济值始终来自当前权威状态',
+              '四个分区折叠与关注引用是浏览器偏好，不存在追踪器整体横向收起状态，桌面 `fullscreen` presentation 仅隐藏同一 DOM 并释放横向预留，实时经济值始终来自当前权威状态',
+          )
+          replace_once(
+              '桌面 `fullscreen` 只允许自动把同一 DOM 压缩为 `44px` 轨道，离开后必须自动恢复，且不得恢复追踪器整体手动展开／收起按钮或把整体收起状态写入 localStorage。',
+              '桌面 `fullscreen` 只允许隐藏同一 DOM 并把横向预留释放为 `0`，离开后必须恢复完整显示；不得恢复 `44px` 整体紧凑轨道、追踪器整体横向展开／收起按钮、整体 `data-collapsed` 状态或把整体收起状态写入 localStorage。',
+          )
+          replace_once('`fullscreen` 自动紧凑展示', '`fullscreen` 桌面隐藏展示')
+          path.write_text(text, encoding='utf-8')
+          PY
+            git add docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
           fi
 
           git rm .github/workflows/merge-main-hide-fullscreen.yml
