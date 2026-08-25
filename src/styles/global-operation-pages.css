@@ -36,13 +36,36 @@
   color: var(--color-text-muted);
 }
 
-.global-facility-catalog {
+.global-facility-catalog,
+.global-facility-region-page {
+  min-width: 0;
+}
+
+.global-facility-catalog-header,
+.global-facility-region-header {
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   display: grid;
-  gap: .65rem;
+  align-items: center;
+  gap: .75rem;
+  border-bottom: 1px solid var(--color-divider);
+  padding: .3rem .25rem .4rem;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.global-facility-catalog-header {
+  grid-template-columns: minmax(0, 1.6fr) minmax(7rem, .8fr) minmax(4rem, .45fr) 1rem;
+}
+
+.global-facility-region-header {
+  grid-template-columns: minmax(0, 1.5fr) minmax(4rem, .5fr) minmax(5rem, .6fr) 1rem;
 }
 
 .global-facility-catalog-list,
+.global-facility-region-list,
 .global-province-list {
   width: 100%;
   max-width: 100%;
@@ -50,19 +73,46 @@
   display: grid;
   gap: 0;
   margin: 0;
-  border-top: 1px solid var(--color-divider);
   padding: 0;
   list-style: none;
 }
 
-.global-facility-catalog-row {
+.global-province-list {
+  border-top: 1px solid var(--color-divider);
+}
+
+.global-facility-catalog-list > li,
+.global-facility-region-list > li,
+.global-province-list > li {
+  min-width: 0;
+}
+
+.global-facility-catalog-row,
+.global-facility-region-row {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, .8fr) minmax(0, .5fr);
   align-items: center;
   gap: .75rem;
+  border: 0;
   border-bottom: 1px solid var(--color-divider);
-  padding: .55rem .25rem;
+  border-radius: 0;
+  padding: .5rem .25rem;
+  color: var(--color-text-primary);
+  background: transparent;
+  text-align: left;
+}
+
+.global-facility-catalog-row {
+  min-height: 60px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(7rem, .8fr) minmax(4rem, .45fr) 1rem;
+}
+
+.global-facility-region-row {
+  min-height: 54px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(4rem, .5fr) minmax(5rem, .6fr) 1rem;
 }
 
 .global-facility-catalog-row__identity {
@@ -73,7 +123,10 @@
   gap: .65rem;
 }
 
-.global-facility-catalog-row__identity > strong {
+.global-facility-catalog-row__identity > strong,
+.global-facility-catalog-row__metric,
+.global-facility-region-row__metric,
+.global-facility-region-row__status {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -82,26 +135,15 @@
 
 .global-facility-catalog-row__artwork {
   width: 44px;
-  height: 55px;
+  height: 44px;
   min-width: 44px;
+  aspect-ratio: 1;
+  overflow: hidden;
   border-radius: var(--radius-control);
 }
 
 .global-facility-catalog-row__metric,
-.global-province-row__metric {
-  min-width: 0;
-  display: grid;
-  gap: .12rem;
-}
-
-.global-facility-catalog-row__metric small,
-.global-province-row small {
-  color: var(--color-text-muted);
-}
-
-.global-facility-catalog-row__metric strong,
-.global-province-row__metric strong {
-  min-width: 0;
+.global-facility-region-row__metric {
   font-variant-numeric: tabular-nums;
 }
 
@@ -118,8 +160,35 @@
   color: var(--color-text-primary);
 }
 
-.global-province-list > li {
+.global-facility-catalog-row__chevron,
+.global-facility-region-row__chevron {
+  display: grid;
+  place-items: center;
+  color: var(--color-text-secondary);
+}
+
+.global-facility-catalog-row__chevron .game-icon,
+.global-facility-region-row__chevron .game-icon {
+  width: .85rem;
+  height: .85rem;
+}
+
+.global-facility-region-row__identity {
   min-width: 0;
+  display: grid;
+  gap: .1rem;
+}
+
+.global-facility-region-row__identity strong,
+.global-facility-region-row__identity small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.global-facility-region-row__identity small {
+  color: var(--color-text-muted);
 }
 
 .global-province-row {
@@ -154,6 +223,21 @@
   white-space: nowrap;
 }
 
+.global-province-row__metric {
+  min-width: 0;
+  display: grid;
+  gap: .12rem;
+}
+
+.global-province-row small {
+  color: var(--color-text-muted);
+}
+
+.global-province-row__metric strong {
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
 .global-province-row__chevron {
   display: grid;
   place-items: center;
@@ -165,17 +249,54 @@
   height: .85rem;
 }
 
-@container (max-width: 520px) {
+@container (max-width: 620px) {
+  .global-facility-catalog-header,
   .global-facility-catalog-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: .45rem .65rem;
-    padding-block: .5rem;
+    grid-template-columns: minmax(0, 1.45fr) minmax(4.65rem, .8fr) minmax(2.4rem, .42fr) .6rem;
+    gap: .3rem;
+  }
+
+  .global-facility-catalog-row {
+    min-height: 54px;
+    padding-block: .4rem;
   }
 
   .global-facility-catalog-row__identity {
-    grid-column: 1 / -1;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: .4rem;
   }
 
+  .global-facility-catalog-row__artwork {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+  }
+
+  .global-facility-catalog-row__identity > strong,
+  .global-facility-catalog-row__metric,
+  .global-facility-region-row__identity > strong,
+  .global-facility-region-row__metric,
+  .global-facility-region-row__status {
+    font-size: .75rem;
+  }
+
+  .global-facility-catalog-header,
+  .global-facility-region-header {
+    font-size: .625rem;
+  }
+
+  .global-facility-region-header,
+  .global-facility-region-row {
+    grid-template-columns: minmax(0, 1.35fr) minmax(2.5rem, .45fr) minmax(3.25rem, .55fr) .6rem;
+    gap: .3rem;
+  }
+
+  .global-facility-region-row__identity small {
+    display: none;
+  }
+}
+
+@container (max-width: 520px) {
   .global-province-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: .45rem .65rem;
@@ -193,24 +314,26 @@
   }
 }
 
-@media (max-width: 720px) {
+@container (max-width: 360px) {
+  .global-facility-catalog-header,
   .global-facility-catalog-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: .45rem .65rem;
-    padding-block: .5rem;
+    grid-template-columns: minmax(0, 1.35fr) minmax(4.25rem, .76fr) minmax(2.1rem, .4fr) .55rem;
+    gap: .2rem;
   }
 
   .global-facility-catalog-row__identity {
-    grid-column: 1 / -1;
-    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: .3rem;
   }
 
   .global-facility-catalog-row__artwork {
-    width: 40px;
-    height: 50px;
-    min-width: 40px;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
   }
+}
 
+@media (max-width: 720px) {
   .global-province-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: .45rem .65rem;
