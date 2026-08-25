@@ -34,6 +34,7 @@ requireText(marketPage, "type MarketCatalogStatus = 'all' | 'traded' | 'buy' | '
 requireText(marketPage, "type MarketCatalogSort = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume';", '地区市场排序只保留可见核心指标。');
 requireText(marketPage, "if (!facilityAssetId && marketViewMode === 'catalog')", '市场必须区分地区目录与详情。');
 requireText(marketPage, 'className="market-catalog-filter-disclosure"', '地区市场筛选必须使用默认折叠 disclosure。');
+requireText(marketPage, '<MarketCommodityHeader />', '地区商品目录必须在列表顶部复用共享独立表头。');
 requireText(marketPage, '<MarketCommodityRow', '地区商品目录必须复用共享商品数据行。');
 requireText(marketPage, "onClick={() => selectMarketAsset(entry.kind, entry.id, !embedded)}", '地区商品行必须打开当前地区商品详情。');
 requireText(marketPage, 'embedded?: boolean;', '市场页必须支持州级上下文嵌入。');
@@ -60,7 +61,12 @@ for (const token of [
   'market-overview-metrics',
   'market-catalog-panel',
 ]) forbidText(marketCatalogSource, token, `地区商品目录不得恢复 ${token}。`);
-for (const token of ['卖单量', '买单量', '市场价', '24h']) requireText(commodityRow, token, `共享商品数据行必须显示 ${token}。`);
+requireText(commodityRow, 'export function MarketCommodityHeader', '共享商品列表必须导出独立表头。');
+const commodityDataRowSource = commodityRow.slice(commodityRow.indexOf('export function MarketCommodityRow'));
+forbidText(commodityDataRowSource, 'market-commodity-row-header', '共享商品数据行不得重复渲染列标题。');
+for (const token of ['卖单量', '买单量', '市场价', '24h']) requireText(commodityRow, token, `共享商品表头必须显示 ${token}。`);
+requireText(commodityRowStyles, 'display: grid;', '共享商品独立表头必须直接显示，不得依赖首行内隐藏副本。');
+forbidText(commodityRowStyles, '.market-catalog-list > li:first-child > .market-commodity-row-header', '共享商品表头不得重新塞回首条数据行。');
 requireText(commodityRowStyles, 'grid-template-columns: minmax(8rem, 1.45fr) repeat(4, minmax(4.1rem, .68fr)) .8rem;', '共享商品数据行必须保持身份、四项指标和箭头的单行布局。');
 requireText(commodityRowStyles, '@container (max-width: 620px)', '共享商品数据行必须提供移动紧凑断点。');
 requireText(commodityRowStyles, '@container (max-width: 360px)', '共享商品数据行必须覆盖极窄屏。');

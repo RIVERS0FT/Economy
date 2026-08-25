@@ -200,6 +200,8 @@ for (const text of [
   'metricTone(',
   'ProductionMethodIcon',
   'ProductArtwork',
+  '<ChevronIcon direction="right" className="production-config-flow-arrow" />',
+  'className="production-config-metric-chevron"',
   'completedTechnologyIds',
   'researchTechnologies',
   'missingTechnologyNames',
@@ -228,6 +230,7 @@ for (const text of [
   'data-variant={variant}',
 ]) assert.ok(richSelectSource.includes(text), `共享富下拉生产配置变体缺少 ${text}`);
 assert.ok(pageSource.includes("import '../styles/production-methods.css'"));
+for (const glyph of ['↑', '↓', '→']) assert.equal(configControlsSource.includes(glyph), false, `生产配置不得恢复字符箭头: ${glyph}`);
 for (const text of [
   'const [optimisticRecipeIds, setOptimisticRecipeIds]',
   'const recipeTargetByFacilityRef = useRef(new Map<string, string>());',
@@ -275,8 +278,9 @@ for (const text of [
   "getByRole('combobox', { name: '机械工厂生产方式' })",
   "getByRole('option', { name: '节约生产' })",
   "toHaveAttribute('data-variant', 'production-config')",
-  "toContainText('周期 180s ↑')",
-  "toContainText('成本 4 ↓')",
+  "toContainText('周期 180s')",
+  "toContainText('成本 4')",
+  "locator('.production-config-metric-chevron')).toHaveCount(2)",
   "toContainText('产出 ×1')",
   "expect(recipeListboxBox.width).toBeGreaterThan(recipeTriggerBox.width + 80)",
   "not.toContainText('缩短周期并提高成本')",

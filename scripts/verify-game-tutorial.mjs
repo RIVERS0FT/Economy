@@ -99,7 +99,7 @@ requireText(guide, 'aria-label="教程总体进度"', '教程总体进度必须�
 requireText(guide, 'className="game-guide-task"', '当前任务必须与总体进度分成独立内容区');
 requireText(guide, '>跳过</Button>', '教程卡必须提供跳过动作');
 requireText(guide, '确定跳过教程吗？', '跳过教程必须先确认');
-requireText(guide, '设置 → 游戏设置 → 教程', '跳过确认必须说明可在设置中重新开始');
+requireText(guide, '设置 / 游戏设置 / 教程', '跳过确认必须说明可在设置中重新开始');
 forbidText(guide, '暂时隐藏', '教程卡不得恢复暂时隐藏动作');
 forbidText(guide, '经营成长线', '教程卡不得恢复旧展示名称');
 const progressIndex = guide.indexOf('className="game-guide-progress"');

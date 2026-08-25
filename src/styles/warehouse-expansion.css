@@ -396,6 +396,17 @@
   font-weight: 600;
 }
 
+.transport-shipment-destination {
+  display: inline-flex;
+  align-items: center;
+  gap: .2rem;
+}
+
+.transport-shipment-destination .game-icon {
+  width: .72em;
+  height: .72em;
+}
+
 .transport-shipment-eta {
   margin-left: auto;
   color: var(--color-warning);

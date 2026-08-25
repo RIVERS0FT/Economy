@@ -53,7 +53,8 @@ for (const text of [
   'export function GlobalMarketPage',
   '<PageLayout title="市场">',
   'data-global-scope="market"',
-  '<WidgetHeading title="商品"',
+  'global-market-goods-header',
+  '<MarketCommodityHeader />',
   'global-market-filter-disclosure',
   'selectedGlobalProductId',
   'global-market-product-detail-panel',
@@ -66,6 +67,7 @@ for (const text of [
 ]) requireText('src/pages/GlobalMarketPage.tsx', text);
 for (const text of [
   'global-market-provinces-panel',
+  '<WidgetHeading title="商品"',
   'global-market-province-row',
   'MarketCoverageBar',
   'game.facilityTypes.map',
@@ -92,6 +94,7 @@ for (const text of [
   if (catalogSource.includes(text)) failures.push(`地区 MarketPage 商品目录不得包含: ${text}`);
 }
 if (!catalogSource.includes('market-catalog-filter-disclosure')) failures.push('地区 MarketPage 筛选必须默认折叠。');
+if (!catalogSource.includes('<MarketCommodityHeader />')) failures.push('地区 MarketPage 商品目录必须在列表顶部复用共享独立表头。');
 if (!catalogSource.includes('<MarketCommodityRow')) failures.push('地区 MarketPage 必须复用共享商品数据行。');
 
 requireText('src/pages/BuildingsPage.tsx', '<EmbeddedFacilityAssetMarket', '工厂资产交易必须继续从建筑详情打开从属市场。');

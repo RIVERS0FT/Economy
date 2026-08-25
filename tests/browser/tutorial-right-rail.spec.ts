@@ -101,7 +101,7 @@ test('desktop strategic outliner persists across business and fullscreen pages',
   page.once('dialog', async (dialog) => {
     expect(dialog.type()).toBe('confirm');
     expect(dialog.message()).toContain('确定跳过教程吗？');
-    expect(dialog.message()).toContain('设置 → 游戏设置 → 教程');
+    expect(dialog.message()).toContain('设置 / 游戏设置 / 教程');
     expect(dialog.message()).toContain('重新开始教程');
     await dialog.dismiss();
   });

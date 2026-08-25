@@ -40,8 +40,9 @@ test.describe('factory production methods', () => {
     await methodSelect.click();
     const methodListbox = page.getByRole('listbox', { name: '机械工厂生产方式' });
     const economical = methodListbox.getByRole('option', { name: '节约生产' });
-    await expect(economical).toContainText('周期 180s ↑');
-    await expect(economical).toContainText('成本 4 ↓');
+    await expect(economical).toContainText('周期 180s');
+    await expect(economical).toContainText('成本 4');
+    await expect(economical.locator('.production-config-metric-chevron')).toHaveCount(2);
     await expect(economical).toContainText('产出 ×1');
     await economical.click();
 

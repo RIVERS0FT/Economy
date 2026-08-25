@@ -156,7 +156,7 @@ for (const [path, expected] of [
     'export function GlobalMarketPage',
     '<PageLayout title="市场">',
     'data-global-scope="market"',
-    '<WidgetHeading title="商品"',
+    'global-market-goods-header',
     'global-market-filter-disclosure',
     'selectedGlobalProductId',
     'global-market-product-detail-panel',
@@ -200,11 +200,13 @@ for (const [path, expected] of [
 }
 
 for (const text of [
+  '<WidgetHeading title="商品"',
   'global-market-provinces-panel',
   'global-market-province-row',
   'MarketCoverageBar',
 ]) forbidText('src/pages/GlobalMarketPage.tsx', text);
 for (const text of [
+  'market-commodity-row-header',
   '卖单量',
   '买单量',
   '市场价',
@@ -213,6 +215,8 @@ for (const text of [
 for (const text of ['挂单差额', '基准偏离', '挂单状态']) forbidText('src/components/market/MarketCommodityRow.tsx', text);
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品目录 → 商品全局详情 → 地区商品详情');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '筛选默认折叠且不提供商品名称搜索框');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '市场标题区固定显示“市场”，商品目录正文不重复显示“商品”分区标题');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品列表字段名使用独立表头');
 
 for (const text of [
   '<MetricCard',

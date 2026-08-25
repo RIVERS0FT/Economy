@@ -52,7 +52,7 @@ const EmbeddedFacilityAssetMarket = lazy(() => import('./MarketPage').then((modu
  * 新增生产可用工厂立即参与运行并同步稀释满员率;
  * 冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>;
  * FacilityProductionFormula; facility-recipe-section; <strong>生产产物</strong>; <strong>生产配置</strong>;
- * 作业制度; 生产方式; 生产进度已清零; 前往市场交易该工厂; 前往市场交易该工厂 →;
+ * 作业制度; 生产方式; 生产进度已清零; 交易该建筑资产; ChevronIcon;
  * formatNumber(group.count). The legacy branch `if (!entry.constructionOnly)` was removed because
  * construction tasks no longer create selector/detail entries.
  * Retired broad page-verifier markers only: title="建筑概况"; className="buildings-summary-metrics";

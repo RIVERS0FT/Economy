@@ -114,8 +114,8 @@ for (const text of [
   'facility-recipe-section',
   '生产产物',
   '生产进度已清零',
-  '前往市场交易该工厂',
-  '前往市场交易该工厂 →',
+  '交易该建筑资产',
+  'ChevronIcon',
 ]) requireText('src/pages/BuildingsPage.tsx', text);
 for (const text of [
   'facility-power-button','产成品去向','挂牌数量','单座价格','启动全部未挂牌工厂','停止全部',
