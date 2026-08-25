@@ -1,0 +1,57 @@
+name: Codex patch full market header regression
+
+on:
+  push:
+    branches:
+      - fix/market-independent-header-full-regression
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/market-independent-header-full-regression
+          fetch-depth: 0
+      - name: Update full preview expectation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/browser/all-pages-preview.spec.ts')
+          text = path.read_text()
+          old = "\n".join([
+              "  for (const label of ['卖单量', '买单量', '市场价', '24h']) await expect(regionalRow.getByText(label, { exact: true })).toBeVisible();",
+              "  for (const label of ['挂单差额', '基准偏离', '挂单状态']) await expect(regionalRow.getByText(label, { exact: true })).toHaveCount(0);",
+          ])
+          new = "\n".join([
+              "  const regionalHeader = page.locator('.market-commodity-row-header');",
+              "  await expect(regionalHeader).toHaveCount(1);",
+              "  for (const label of ['商品', '卖单量', '买单量', '市场价', '24h']) await expect(regionalHeader.getByText(label, { exact: true })).toBeVisible();",
+              "  for (const label of ['卖单量', '买单量', '市场价', '24h', '挂单差额', '基准偏离', '挂单状态']) await expect(regionalRow.getByText(label, { exact: true })).toHaveCount(0);",
+          ])
+          if text.count(old) != 1:
+              raise SystemExit(f'Expected one outdated regional-row label assertion block, found {text.count(old)}')
+          text = text.replace(old, new, 1)
+          if text.count("const regionalHeader = page.locator('.market-commodity-row-header');") != 1:
+              raise SystemExit('Independent regional header assertion missing')
+          path.write_text(text)
+          PY
+      - name: Verify patch
+        run: |
+          git diff --check
+          grep -F "const regionalHeader = page.locator('.market-commodity-row-header');" tests/browser/all-pages-preview.spec.ts
+          if grep -F "regionalRow.getByText(label, { exact: true })).toBeVisible()" tests/browser/all-pages-preview.spec.ts; then
+            echo 'Per-row label visibility assertion still exists.'
+            exit 1
+          fi
+      - name: Commit regression correction
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tests/browser/all-pages-preview.spec.ts
+          git commit -m "更新全量市场独立表头回归"
+          git push origin HEAD:fix/market-independent-header-full-regression
