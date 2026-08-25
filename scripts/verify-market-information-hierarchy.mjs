@@ -44,6 +44,7 @@ for (const token of [
   'selectedGlobalProductId',
   'global-market-product-detail-panel',
   'global-market-product-region-list',
+  '<MarketCommodityHeader />',
   '<MarketCommodityRow',
   '<ChevronIcon direction="right" />',
   '地区行情',
@@ -80,12 +81,18 @@ if (
   throw new Error('global market hierarchy: folded filters, column header, and commodity list must appear in direct page flow');
 }
 const productPanelIndex = globalMarket.indexOf('<PagePanel className="global-market-product-detail-panel">');
+const productRegionHeaderIndex = globalMarket.indexOf('<MarketCommodityHeader />', productPanelIndex);
 const productRegionListIndex = globalMarket.indexOf('<ul className="global-market-product-region-list"');
-if (productPanelIndex < 0 || productRegionListIndex <= productPanelIndex) {
-  throw new Error('global market hierarchy: product global detail must own the regional quote list');
+if (
+  productPanelIndex < 0
+  || productRegionHeaderIndex <= productPanelIndex
+  || productRegionListIndex <= productRegionHeaderIndex
+) {
+  throw new Error('global market hierarchy: product global detail must render one shared header before the regional quote list');
 }
 
 for (const token of [
+  'export function MarketCommodityHeader',
   'market-commodity-row-header',
   '<span>商品</span>',
   '<span>卖单量</span>',
@@ -95,8 +102,11 @@ for (const token of [
   '<ChevronIcon direction="right" />',
 ]) requireText(commodityRow, token, 'shared commodity row');
 for (const token of ['挂单差额', '基准偏离', '挂单状态', '>›<']) forbidText(commodityRow, token, 'shared commodity row');
+const commodityDataRowSource = commodityRow.slice(commodityRow.indexOf('export function MarketCommodityRow'));
+forbidText(commodityDataRowSource, 'market-commodity-row-header', 'shared commodity data row');
 for (const token of [
   '.market-commodity-row-header',
+  'display: grid;',
   'repeat(4, minmax(4.1rem, .68fr))',
   '@container (max-width: 620px)',
   '@container (max-width: 360px)',
@@ -104,6 +114,7 @@ for (const token of [
   'border-right: 2px solid currentColor;',
   'border-bottom: 2px solid currentColor;',
 ]) requireText(commodityCss, token, 'shared commodity row css');
+forbidText(commodityCss, '.market-catalog-list > li:first-child > .market-commodity-row-header', 'shared commodity header css');
 forbidText(commodityCss, "content: '⌄';", 'shared commodity row css');
 
 for (const token of [
@@ -122,7 +133,7 @@ for (const token of [
 const regionalCatalogStart = regionalMarket.indexOf("if (!facilityAssetId && marketViewMode === 'catalog')");
 const regionalDetailStart = regionalMarket.indexOf('\n  const detailContent =', regionalCatalogStart);
 const regionalCatalog = regionalMarket.slice(regionalCatalogStart, regionalDetailStart);
-for (const token of ['market-catalog-filter-disclosure', '<MarketCommodityRow']) requireText(regionalCatalog, token, 'regional market catalog');
+for (const token of ['market-catalog-filter-disclosure', '<MarketCommodityHeader />', '<MarketCommodityRow']) requireText(regionalCatalog, token, 'regional market catalog');
 for (const token of ['TextInput', 'catalogQuery', '挂单差额', '基准偏离', '挂单状态']) forbidText(regionalCatalog, token, 'regional market catalog');
 for (const token of [
   'MarketBalanceBar',
@@ -190,7 +201,8 @@ for (const token of [
   "page.locator('.global-market-goods-header')",
   "getByRole('button', { name: '打开小麦全局详情' })",
   "getByRole('button', { name: '打开加利福尼亚州小麦详情' })",
-  "page.locator('.global-market-product-region-list .market-commodity-row-header').first()",
+  "page.locator('.global-market-product-detail-panel > .market-commodity-row-header')",
+  "page.locator('.global-market-product-region-list .market-commodity-row-header')",
   "page.locator('.market-fundamentals-balance .market-balance-bar')",
 ]) requireText(hierarchyBrowserSpec, token, 'market hierarchy browser regression');
 for (const token of [

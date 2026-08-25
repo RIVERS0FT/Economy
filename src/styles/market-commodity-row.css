@@ -2,7 +2,7 @@
 .market-commodity-row-header {
   width: 100%;
   min-width: 0;
-  display: none;
+  display: grid;
   grid-template-columns: minmax(8rem, 1.45fr) repeat(4, minmax(4.1rem, .68fr)) .8rem;
   align-items: center;
   gap: .55rem;
@@ -13,10 +13,6 @@
   font-weight: 700;
 }
 
-.market-catalog-list > li:first-child > .market-commodity-row-header,
-.global-market-product-region-list > li:first-child > .market-commodity-row-header {
-  display: grid;
-}
 
 .market-commodity-row-header > span {
   min-width: 0;

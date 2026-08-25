@@ -14,7 +14,7 @@ import { orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { MarketAutoTradePanel } from '../components/market/MarketAutoTradePanel';
 import { MarketBalanceBar } from '../components/market/MarketBalanceBar';
-import { MarketCommodityRow } from '../components/market/MarketCommodityRow';
+import { MarketCommodityHeader, MarketCommodityRow } from '../components/market/MarketCommodityRow';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
 import { FactoryIcon } from '../components/icons/GameIcons';
 import { ProductIcon, ProductIconLabel } from '../components/icons/ProductIcons';
@@ -669,6 +669,7 @@ export function MarketPage({
             </SelectInput>
           </div>
         </details>
+        <MarketCommodityHeader />
         <ul className="market-catalog-list" aria-label="商品市场列表">
           {catalogEntries.map((entry) => (
             <li className="market-catalog-item" key={`${entry.kind}:${entry.id}`}>

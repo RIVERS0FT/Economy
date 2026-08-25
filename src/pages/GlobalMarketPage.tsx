@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { ChevronIcon } from '../components/icons/GameIcons';
-import { MarketCommodityRow } from '../components/market/MarketCommodityRow';
+import { MarketCommodityHeader, MarketCommodityRow } from '../components/market/MarketCommodityRow';
 import { ProductArtwork } from '../components/products/ProductArtwork';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import {
@@ -323,6 +323,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
                 </div>
               </div>
             </details>
+            <MarketCommodityHeader />
             <ul className="global-market-product-region-list" aria-label={`${selectedGlobalProduct.name}各地区行情`}>
               {regionalRows.map((row) => (
                 <li key={row.province.id}>

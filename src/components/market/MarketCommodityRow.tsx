@@ -19,6 +19,19 @@ export interface MarketCommodityRowProps {
   onClick: () => void;
 }
 
+export function MarketCommodityHeader() {
+  return (
+    <div className="market-commodity-row-header">
+      <span>商品</span>
+      <span>卖单量</span>
+      <span>买单量</span>
+      <span>市场价</span>
+      <span>24h</span>
+      <span />
+    </div>
+  );
+}
+
 export function MarketCommodityRow({
   productId,
   productName,
@@ -45,16 +58,7 @@ export function MarketCommodityRow({
         : '';
 
   return (
-    <>
-      <div className="market-commodity-row-header">
-        <span>商品</span>
-        <span>卖单量</span>
-        <span>买单量</span>
-        <span>市场价</span>
-        <span>24h</span>
-        <span />
-      </div>
-      <button
+    <button
         type="button"
         className="market-commodity-row"
         data-ui-interactive="surface"
@@ -90,7 +94,6 @@ export function MarketCommodityRow({
         <span className="market-commodity-row__chevron" aria-hidden="true">
           <ChevronIcon direction="right" />
         </span>
-      </button>
-    </>
+    </button>
   );
 }
