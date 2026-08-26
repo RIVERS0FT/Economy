@@ -62,7 +62,7 @@ requireText('scripts/install-economy-api.py', [
   'ReadWritePaths={STATE_DIRECTORY} {AVATAR_DIRECTORY}',
 ]);
 requireText('deploy/nginx/game.riversoft.top.economy-location.conf', [
-  'location ~ ^/economy-avatars/',
+  'location ~ "^/economy-avatars/(?<avatar_id>[1-9][0-9]{0,15})\\.webp$" {',
   'alias /var/lib/riversoft-economy-avatars/$avatar_id.webp;',
   'image/webp',
 ]);
