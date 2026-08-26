@@ -23,6 +23,11 @@ replaceRequired(
   "insertBefore('deploy/nginx/game.riversoft.top.economy-location.conf', 'location ^~ /economy/ {', avatarLocation);",
   'nginx economy location marker',
 );
+replaceRequired(
+  "replaceAll('scripts/verify-leaderboards.mjs', '头像名称列', '玩家列');\n",
+  '',
+  'obsolete leaderboard verifier wording',
+);
 
 const migrationStart = content.indexOf('function migrateNumericJsx() {');
 const migrationEndMarker = 'migrateNumericJsx();';
