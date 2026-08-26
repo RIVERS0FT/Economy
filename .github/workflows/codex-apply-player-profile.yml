@@ -24,6 +24,7 @@ jobs:
       - run: npm ci
       - name: Apply final implementation
         run: |
+          node scripts/codex-pre-fix-template-scanner.mjs
           node scripts/codex-fix-player-profile-apply.mjs
           node --check scripts/codex-apply-player-profile.mjs
           node scripts/codex-apply-player-profile.mjs
