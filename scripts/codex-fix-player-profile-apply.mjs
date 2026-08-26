@@ -159,4 +159,12 @@ for (const [before, after] of [
 }
 writeFileSync(displayVerifierPath, displayVerifier, 'utf8');
 
+const leaderboardVerifierPath = 'scripts/verify-leaderboards.mjs';
+let leaderboardVerifier = readFileSync(leaderboardVerifierPath, 'utf8');
+const rewardBefore = "entry.rewardGems ? `◆ ${formatNumber(entry.rewardGems)}` : '—'";
+const rewardAfter = "entry.rewardGems ? <>◆ <CompactNumber value={entry.rewardGems} /></> : '—'";
+if (!leaderboardVerifier.includes(rewardBefore)) throw new Error('leaderboard reward verifier source not found');
+leaderboardVerifier = leaderboardVerifier.replace(rewardBefore, rewardAfter);
+writeFileSync(leaderboardVerifierPath, leaderboardVerifier, 'utf8');
+
 console.log('Prepared one-time implementation script.');
