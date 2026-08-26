@@ -55,24 +55,25 @@ jobs:
           )
 
           test_marker = '    def test_account_snippet_adds_only_game_api_route(self) -> None:\n'
-          test_method = r'''    def test_avatar_regex_quantifier_is_quoted_for_nginx_parser(self) -> None:
-              expected = r'location ~ "^/economy-avatars/(?<avatar_id>[1-9][0-9]{0,15})\.webp$" {'
-              original = server(
-                  f"include {nginx.ACCOUNT_SNIPPET};",
-                  f"include {nginx.GAME_API_SNIPPET};",
-              )
-              updated = nginx.replace_or_insert(original)
-              template = (
-                  REPOSITORY_ROOT / "deploy/nginx/game.riversoft.top.economy-location.conf"
-              ).read_text(encoding="utf-8")
-
-              self.assertIn(expected, nginx.AVATAR_BLOCK)
-              self.assertIn(expected, updated)
-              self.assertIn(expected, template)
-              self.assertNotIn(r"location ~ ^/economy-avatars/", updated)
-              self.assertEqual(nginx.replace_or_insert(updated), updated)
-
-          '''
+          test_method = (
+              "    def test_avatar_regex_quantifier_is_quoted_for_nginx_parser(self) -> None:\n"
+              "        expected = r'location ~ \\\"^/economy-avatars/(?<avatar_id>[1-9][0-9]{0,15})\\.webp$\\\" {'\n"
+              "        original = server(\n"
+              "            f\"include {nginx.ACCOUNT_SNIPPET};\",\n"
+              "            f\"include {nginx.GAME_API_SNIPPET};\",\n"
+              "        )\n"
+              "        updated = nginx.replace_or_insert(original)\n"
+              "        template = (\n"
+              "            REPOSITORY_ROOT / \"deploy/nginx/game.riversoft.top.economy-location.conf\"\n"
+              "        ).read_text(encoding=\"utf-8\")\n"
+              "\n"
+              "        self.assertIn(expected, nginx.AVATAR_BLOCK)\n"
+              "        self.assertIn(expected, updated)\n"
+              "        self.assertIn(expected, template)\n"
+              "        self.assertNotIn(r\"location ~ ^/economy-avatars/\", updated)\n"
+              "        self.assertEqual(nginx.replace_or_insert(updated), updated)\n"
+              "\n"
+          )
           replace_once(
               "scripts/test_configure_economy_nginx.py",
               test_marker,
