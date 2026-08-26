@@ -147,4 +147,16 @@ migrateNumericJsx();`;
 content = content.slice(0, migrationStart) + migrationReplacement + content.slice(migrationEnd);
 
 writeFileSync(path, content, 'utf8');
+
+const displayVerifierPath = 'scripts/verify-display-format.mjs';
+let displayVerifier = readFileSync(displayVerifierPath, 'utf8');
+for (const [before, after] of [
+  ["'formatRank(currentRank)'", "'<CompactRank value={currentRank}'"],
+  ["'formatRank(entry.rank)'", "'<CompactRank value={entry.rank}'"],
+]) {
+  if (!displayVerifier.includes(before)) throw new Error(`display verifier source not found: ${before}`);
+  displayVerifier = displayVerifier.replace(before, after);
+}
+writeFileSync(displayVerifierPath, displayVerifier, 'utf8');
+
 console.log('Prepared one-time implementation script.');
