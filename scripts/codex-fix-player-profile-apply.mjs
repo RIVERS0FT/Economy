@@ -9,9 +9,9 @@ function replaceRequired(before, after, label) {
 }
 
 replaceRequired(
-  "import ts from 'typescript';",
-  "import * as ts from 'typescript';",
-  'TypeScript ESM import',
+  "import ts from 'typescript';\n",
+  '',
+  'TypeScript compiler API import',
 );
 replaceRequired(
   "  \"import { validateResearchAccess } from './research.js';\"," ,
@@ -23,6 +23,108 @@ replaceRequired(
   "insertBefore('deploy/nginx/game.riversoft.top.economy-location.conf', 'location ^~ /economy/ {', avatarLocation);",
   'nginx economy location marker',
 );
+
+const migrationStart = content.indexOf('function migrateNumericJsx() {');
+const migrationEndMarker = 'migrateNumericJsx();';
+const migrationEndStart = content.indexOf(migrationEndMarker, migrationStart);
+if (migrationStart < 0 || migrationEndStart < 0) throw new Error('numeric JSX migration block not found');
+const migrationEnd = migrationEndStart + migrationEndMarker.length;
+const migrationReplacement = String.raw`function matchingParen(source, opening) {
+  let depth = 0;
+  let quote = '';
+  let escaped = false;
+  for (let index = opening; index < source.length; index += 1) {
+    const character = source[index];
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (character === '\\') {
+        escaped = true;
+        continue;
+      }
+      if (character === quote) quote = '';
+      continue;
+    }
+    if (character === "'" || character === '"' || character === '`') {
+      quote = character;
+      continue;
+    }
+    if (character === '(') depth += 1;
+    else if (character === ')') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+}
+
+function insideCurrencyAmount(source, expressionStart) {
+  const prefix = source.slice(Math.max(0, expressionStart - 500), expressionStart);
+  return prefix.lastIndexOf('<CurrencyAmount') > prefix.lastIndexOf('</CurrencyAmount>');
+}
+
+function migrateNumericJsx() {
+  const targetRoot = resolve(root, 'src');
+  const formatterComponents = new Map([
+    ['formatNumber', 'CompactNumber'],
+    ['formatCurrency', 'CompactCurrency'],
+    ['formatRank', 'CompactRank'],
+  ]);
+  for (const absolute of walkFiles(targetRoot)) {
+    if (!absolute.endsWith('.tsx')) continue;
+    const relativePath = relative(root, absolute).replaceAll('\\', '/');
+    if (relativePath === 'src/components/ui/CompactNumber.tsx') continue;
+    let source = readFileSync(absolute, 'utf8');
+    if (source.includes("components/ui/CompactNumber'") || source.includes("../ui/CompactNumber'")) continue;
+    const edits = [];
+    const needed = new Set();
+
+    for (const [formatter, component] of formatterComponents) {
+      const needle = '{' + formatter + '(';
+      let from = 0;
+      while (from < source.length) {
+        const expressionStart = source.indexOf(needle, from);
+        if (expressionStart < 0) break;
+        const callStart = expressionStart + 1;
+        const opening = callStart + formatter.length;
+        const closing = matchingParen(source, opening);
+        if (closing < 0) throw new Error(relativePath + ': unbalanced ' + formatter + ' call');
+        let after = closing + 1;
+        while (/\s/.test(source[after] || '')) after += 1;
+        from = closing + 1;
+        if (source[after] !== '}') continue;
+        if (formatter === 'formatCurrency' && insideCurrencyAmount(source, expressionStart)) continue;
+        const argument = source.slice(opening + 1, closing).trim();
+        if (!argument) continue;
+        edits.push({
+          start: callStart,
+          end: closing + 1,
+          text: '<' + component + ' value={' + argument + '} />',
+        });
+        needed.add(component);
+      }
+    }
+
+    if (!edits.length) continue;
+    edits.sort((left, right) => right.start - left.start);
+    let lastStart = source.length + 1;
+    for (const edit of edits) {
+      if (edit.end > lastStart) continue;
+      source = source.slice(0, edit.start) + edit.text + source.slice(edit.end);
+      lastStart = edit.start;
+    }
+
+    const compactModule = resolve(root, 'src/components/ui/CompactNumber');
+    let importPath = relative(dirname(absolute), compactModule).replaceAll('\\', '/');
+    if (!importPath.startsWith('.')) importPath = './' + importPath;
+    source = "import { " + [...needed].sort().join(', ') + " } from '" + importPath + "';\n" + source;
+    writeFileSync(absolute, source, 'utf8');
+  }
+}
+migrateNumericJsx();`;
+content = content.slice(0, migrationStart) + migrationReplacement + content.slice(migrationEnd);
 
 writeFileSync(path, content, 'utf8');
 console.log('Prepared one-time implementation script.');
