@@ -48,4 +48,11 @@ replaceRequired('scripts/verify-warehouse-expansion.mjs', [
   ],
 ]);
 
-console.log('Updated anti-regression rules for compact values without changing page, market, warehouse, or production layout.');
+replaceRequired('tests/browser/all-pages-preview.spec.ts', [
+  [
+    "toHaveText(['排名', '头像名称', '成绩', '奖励'])",
+    "toHaveText(['排名', '玩家', '成绩', '奖励'])",
+  ],
+]);
+
+console.log('Updated anti-regression rules for compact values and the final leaderboard player column without changing layout.');
