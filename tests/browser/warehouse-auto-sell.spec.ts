@@ -70,7 +70,7 @@ test.describe('warehouse and market online auto trade responsibilities', () => {
     await expect(trigger).toBeFocused();
   });
 
-  test('province warehouse stays read-only on mobile while transport remains available', async ({ page }) => {
+  test('province warehouse opens regional commodity detail and keeps transport in its own card', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 900 });
     await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
     const map = page.getByTestId('us-mainland-map');
@@ -85,16 +85,26 @@ test.describe('warehouse and market online auto trade responsibilities', () => {
     const warehouse = page.locator('.province-warehouse-section');
     await expect(warehouse).toBeVisible();
     await expect(warehouse.getByText('无限容量', { exact: true })).toBeVisible();
-    const productCards = warehouse.locator('.warehouse-product-card--readonly');
+    await expect(warehouse.getByText('仓库内容', { exact: true })).toBeVisible();
+    await expect(warehouse.getByText(/实物库存\s+\S+/)).toBeVisible();
+    const productCards = warehouse.locator('button.warehouse-product-card');
     expect(await productCards.count()).toBeGreaterThan(0);
-    await expect(productCards.locator('button')).toHaveCount(0);
-    await expect(warehouse.getByLabel('跨州运输')).toBeVisible();
-    await expect(warehouse.locator('.transport-submit')).toBeVisible();
+    const transportCard = warehouse.locator('.warehouse-transport-panel');
+    await expect(transportCard).toBeVisible();
+    await expect(transportCard.getByRole('heading', { name: '跨州运输', exact: true })).toBeVisible();
+    await expect(transportCard.locator('.transport-submit')).toBeVisible();
     await expect(warehouse.getByText('自动交易', { exact: true })).toHaveCount(0);
-    const sheet = page.locator('.mobile-workspace-sheet-host');
-    await expect(sheet).toBeVisible();
-    await expect(sheet).toHaveAttribute('data-page-key', 'province');
-    await expect(sheet).toHaveAttribute('data-detail-active', 'false');
+
+    await productCards.first().click();
+    await expect(page.locator('.market-inventory-production-card')).toBeVisible();
+    await expect(page.getByText('生产者与消费者', { exact: true })).toHaveCount(0);
+    await expect(page.locator('.market-inventory-production-card')).toContainText('预计生产速度');
+
+    const back = page.locator('.page-navigation-button--back');
+    await back.click();
+    await expect(page.locator('.province-warehouse-section')).toBeVisible();
+    await back.click();
+    await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-page', 'map');
   });
 
   test('regional commodity detail keeps the fixed desktop control at 721px', async ({ page }) => {

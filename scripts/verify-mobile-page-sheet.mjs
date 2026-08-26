@@ -25,7 +25,7 @@ requireAll('src/components/shell/GameShell.tsx', [
   'workspaceSheetOpen={mobileSheetOpen}',
   'returning={mobileNavigationReturning}',
   'onReturnAnimationEnd={() => setMobileNavigationReturning(false)}',
-  "const showMap = useCallback(() => {\n    model.setTab('map');",
+  "const showMap = useCallback(() => {\n    pageHistoryRef.current = [];\n    applyPlayerPageLocation({ type: 'map' });",
   "if (tab === 'map' && model.tab !== 'map')",
   "{model.tab === 'map' ? children : (",
   '<MobileWorkspacePageSheet',

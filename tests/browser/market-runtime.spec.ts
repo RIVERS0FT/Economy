@@ -247,11 +247,15 @@ test('market medium and narrow layouts keep the trade card responsive without ho
   const mobileBook = await requireBox(orderBook);
   expect(Math.abs(mobileOrder.y - mobileBook.y)).toBeLessThan(3);
   expect(mobileBook.x).toBeGreaterThan(mobileOrder.x + mobileOrder.width - 3);
-  await expect(page.getByRole('button', { name: '挂单', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '成交', exact: true })).toBeVisible();
-  await expect(page.locator('.market-account-grid > section.market-account-pane--active')).toContainText('未完成订单');
-  await page.getByRole('button', { name: '成交', exact: true }).click();
-  await expect(page.locator('.market-account-grid > section.market-account-pane--active')).toContainText('本地成交');
+  await expect(page.getByRole('button', { name: '挂单', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '成交', exact: true })).toHaveCount(0);
+  const accountSections = page.locator('.market-account-grid > section');
+  await expect(accountSections).toHaveCount(2);
+  await expect(accountSections.nth(0)).toContainText('已有订单');
+  await expect(accountSections.nth(1)).toContainText('本地成交');
+  const ordersBox = await requireBox(accountSections.nth(0));
+  const tradesBox = await requireBox(accountSections.nth(1));
+  expect(tradesBox.y).toBeGreaterThan(ordersBox.y + ordersBox.height - 2);
 
   const mobileAxis = await inspectChartAxis(page.locator('.market-history-chart.full'));
   for (const label of mobileAxis.allLabels) {

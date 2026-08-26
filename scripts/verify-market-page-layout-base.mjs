@@ -79,7 +79,11 @@ requireText(marketPage, '官方系统价', '地区商品详情必须展示官方
 requireText(marketPage, '基准偏离', '基准偏离必须保留在地区商品详情。');
 requireText(marketPage, '挂单差额', '订单簿失衡指标必须保留在地区商品详情。');
 requireText(marketPage, 'market-fundamentals-balance', '地区商品详情必须保留订单簿失衡可视化。');
-requireText(marketPage, '<WidgetHeading title="生产者与消费者" />', '地区商品详情必须展示生产者与消费者。');
+requireText(marketPage, '<WidgetHeading title="库存与生产" />', '地区商品详情必须展示库存与生产。');
+requireText(marketPage, 'market-inventory-production-card', '地区商品详情库存与生产必须使用独立信息卡。');
+requireText(marketPage, 'productionSummary.unitsPerMinute', '地区商品详情必须展示预计生产速度。');
+requireText(marketPage, 'currentFormulaScope(group, now)', '预计生产速度必须复用共享等效产能投影。');
+forbidText(marketPage, '生产者与消费者', '地区商品详情不得恢复生产者与消费者关系卡。');
 requireText(marketPage, 'market?.demand?.lastQuantity', '商品需求基本面必须读取服务器字段。');
 
 requireText(marketPage, '<Panel className="widget market-trade-card">', '下单与订单簿必须继续共用交易卡。');
@@ -131,4 +135,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('市场页验证通过：地区目录默认折叠且无搜索，商品行仅保留卖单量、买单量、市场价和 24h 变化；详情继续承载基本面、订单簿、下单和自动交易。');
+console.log('市场页验证通过：地区目录默认折叠且无搜索，商品行保留核心行情；详情承载基本面、库存与生产、订单簿、下单和自动交易。');

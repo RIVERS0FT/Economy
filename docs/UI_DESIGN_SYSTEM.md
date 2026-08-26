@@ -43,7 +43,7 @@
 | `src/styles/industry-system.css` | 工厂、建设列、自适应同行等高卡片与生产密度 |
 | `src/styles/facility-group-card-grid.css` | 生产主从布局、工厂集群详情内部排列和“生产产物／作业制度”横向 Auto 槽位布局 |
 | `src/styles/facility-production-formula.css` | 工厂集群生产结算的输入侧周期成本、物资槽、流向进度、范围标识和响应式布局 |
-| `src/styles/warehouse-expansion.css` | 州级只读仓库、地区商品详情自动交易控制、容器查询、紧凑商品卡和移动自动交易入口布局 |
+| `src/styles/warehouse-expansion.css` | 州级可钻取仓库商品网格、独立跨州运输卡、地区商品详情自动交易控制、容器查询、紧凑商品卡和移动自动交易入口布局 |
 | `src/styles/production-surface.css` | 建筑页建设卡和工厂详情的标题轨道、名称下状态与紧凑开关；不得定义一级卡片外层内边距 |
 | `src/styles/regional-entity-page-title.css` | 地区商品／工厂详情共享两行标题：实体主标题、灰色地区副标题，以及不改变固定标题区高度的溢出规则 |
 | `src/styles/auth.css` | 登录布局、动态视口与认证自动填充兼容例外 |
@@ -99,6 +99,8 @@
 `MobileWorkspaceSheetHost` 是移动端唯一根级 Sheet 宿主，并独占 `useMobileWorkspaceSheetDrag` 的向下拖动、速度判定、回弹、关闭和 reduced-motion 状态机。`MobileWorkspacePageSheet` 只保留为 `GameShell` 的零 DOM 兼容适配器，`MobileWorkspaceDetailSheet` 只向 Host 注册详情内容和固定底栏；两者都不得创建自己的 Sheet 外框、遮罩、Portal 或第二套手势状态机。
 
 `PagePanel` 是新增玩家端一级卡片的唯一 React 入口，固定复用 `Panel`、`.widget` 与 `.ui-primary-surface`。现有 `Panel className="widget ..."` 由兼容桥自动补充 `.ui-primary-surface`；建筑页和排行页尚未迁移的旧一级卡片类只允许在 `primary-surfaces.css` 中作为兼容入口，不得在业务 CSS 中重新定义外层 padding。
+
+玩家页面返回统一由 `PlayerPageNavigationContext` 的受限位置栈驱动。栈项必须是轻量可比较描述符，当前页加历史最多 20 层；同级分区使用 replace，实体下钻使用 push，返回 pop，关闭 reset 到 `map`。页面组件不得保存来源回调、DOM 或完整业务状态来实现返回，也不得让轮询更新改变栈深度。仓库商品卡、全局商品／工厂下钻和地区实体详情必须复用这套语义。
 
 `RegionalEntityPageTitle` 是地区商品与地区工厂详情的唯一共享标题结构。第一行固定显示实体名称并使用大于地区行的主标题字号；第二行固定显示州级地区全称，使用 `var(--color-text-muted)` 灰色次级文字。两行各自保持单行与省略号溢出，总容器固定占用现有 `40px` 标题轨道，不得修改 `PageLayout` 的标题 padding、返回／关闭按钮位置、`.page-fixed-header` 高度或正文起点。目录页继续使用普通单行页面标题；只有具体地区实体详情使用该两行结构。
 

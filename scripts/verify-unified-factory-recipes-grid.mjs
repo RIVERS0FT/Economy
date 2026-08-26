@@ -100,13 +100,17 @@ for (const forbidden of [
 ]) assert.equal(page.includes(forbidden), false, `地区建筑列表不得恢复可执行旧结构: ${forbidden}`);
 
 for (const text of [
-  "const [facilityDetailTypeId, setFacilityDetailTypeId] = useState<string | null>(null);",
+  "const [fallbackFacilityDetailTypeId, setFallbackFacilityDetailTypeId] = useState<string | null>(null);",
+  "location?.type === 'regional-facility'",
+  "location.host === 'province'",
   "activeSection === 'buildings' && Boolean(facilityDetailType)",
   '{!isEntityDetail ? sectionSwitch : null}',
   '<RegionalEntityPageTitle',
+  "type: 'regional-facility'",
+  "host: 'province'",
+  'pageNavigation.pushPage({',
   'detailFacilityTypeId={facilityDetailTypeId ?? undefined}',
-  'onDetailFacilityChange={setFacilityDetailTypeId}',
-  "{ label: '返回建筑列表', onClick: () => setFacilityDetailTypeId(null) }",
+  'onDetailFacilityChange={handleFacilityDetailChange}',
 ]) assert.equal(provincePage.includes(text), true, `地区工厂二级详情缺少: ${text}`);
 assert.equal(provincePage.includes('actions={sectionSwitch}'), false, '地区四分区切换不得恢复到固定标题操作区');
 

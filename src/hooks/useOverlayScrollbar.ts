@@ -136,9 +136,18 @@ export function useOverlayScrollbar({
 
   const revealAxis = useCallback((targetAxis: TargetAxis) => {
     const root = rootRef.current;
-    if (!root || scrollbarVisibility === 'hidden') return;
+    const viewport = viewportRef.current;
+    if (!root || !viewport || scrollbarVisibility === 'hidden') return;
     const suffix = axisSuffix(targetAxis);
-    if (root.dataset[`scrollable${suffix}`] !== 'true') return;
+    const scrollable = root.dataset[`scrollable${suffix}`] === 'true'
+      || (
+        supportsAxis(axis, targetAxis)
+        && (targetAxis === 'x'
+          ? viewport.scrollWidth > viewport.clientWidth + 1
+          : viewport.scrollHeight > viewport.clientHeight + 1)
+      );
+    if (!scrollable) return;
+    setBooleanData(root, `scrollable${suffix}`, true);
     if (targetAxis === 'x' && getInputModality() === 'touch') {
       delete root.dataset.scrollbarActiveX;
       clearAxisHideTimer('x');
@@ -147,7 +156,7 @@ export function useOverlayScrollbar({
     root.dataset[`scrollbarActive${suffix}`] = 'true';
     clearAxisHideTimer(targetAxis);
     if (scrollbarVisibility === 'adaptive') scheduleHideAxis(targetAxis);
-  }, [clearAxisHideTimer, rootRef, scheduleHideAxis, scrollbarVisibility]);
+  }, [axis, clearAxisHideTimer, rootRef, scheduleHideAxis, scrollbarVisibility, viewportRef]);
 
   const clearAxisState = useCallback((targetAxis: TargetAxis) => {
     const root = rootRef.current;

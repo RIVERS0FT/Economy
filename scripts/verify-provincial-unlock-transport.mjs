@@ -89,7 +89,10 @@ requireText(provincePage, 'province-lock-panel', '州页必须提供解锁面板
 requireText(provincePage, 'unlockProvince(model.selectedProvinceId)', '州页解锁按钮必须调用解锁动作。');
 requireText(warehousePanel, 'warehouse-transport-section', '仓库必须提供运输区。');
 requireText(warehousePanel, 'transportShip', '仓库运输表单必须调用运输动作。');
-requireText(warehousePanel, 'warehouse-product-card-in-transit', '仓库商品卡必须显示在途数量。');
+requireText(warehousePanel, 'warehouse-transport-panel', '跨州运输必须使用独立一级卡片。');
+requireText(warehousePanel, 'transport-shipment-list', '独立跨州运输卡必须显示进行中的运输记录。');
+requireText(warehousePanel, "shipment.status === 'in-transit'", '跨州运输卡必须读取真实在途状态。');
+if (warehousePanel.includes('warehouse-product-card-in-transit')) failures.push('仓库商品卡不得显示在途数量；在途信息唯一归属跨州运输卡。');
 requireText(gameShell, 'starting-province-overlay', '游戏外壳必须提供起始州选择浮层。');
 requireText(provinceLogistics, 'PROVINCE_UNLOCK_BASE_COST = 1500', '客户端物流工具必须与服务器同步基础费用。');
 requireText(provinceLogistics, 'PROVINCE_UNLOCK_COST_PER_500_KM = 300', '客户端物流工具必须与服务器同步距离费用。');

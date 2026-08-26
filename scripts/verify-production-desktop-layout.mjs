@@ -131,14 +131,18 @@ for (const text of [
 ]) assert.equal(productionSurface.includes(text), true, `建筑页胶囊／开关规则缺少: ${text}`);
 
 for (const text of [
-  "const [facilityDetailTypeId, setFacilityDetailTypeId] = useState<string | null>(null);",
+  "const [fallbackFacilityDetailTypeId, setFallbackFacilityDetailTypeId] = useState<string | null>(null);",
+  "location?.type === 'regional-facility'",
+  "location.host === 'province'",
   "activeSection === 'buildings' && Boolean(facilityDetailType)",
   'className="province-facility-detail-title"',
   '<RegionalEntityPageTitle',
-  "{ label: '返回建筑列表', onClick: () => setFacilityDetailTypeId(null) }",
+  "type: 'regional-facility'",
+  "host: 'province'",
+  'pageNavigation.pushPage({',
   '{!isEntityDetail ? sectionSwitch : null}',
   'detailFacilityTypeId={facilityDetailTypeId ?? undefined}',
-  'onDetailFacilityChange={setFacilityDetailTypeId}',
+  'onDetailFacilityChange={handleFacilityDetailChange}',
 ]) assert.equal(provincePage.includes(text), true, `地区工厂二级详情缺少: ${text}`);
 assert.equal(provincePage.includes('actions={sectionSwitch}'), false, '地区四分区按钮不得回到固定标题操作区');
 

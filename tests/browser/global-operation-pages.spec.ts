@@ -31,9 +31,9 @@ test('map keeps gesture zoom without a control panel and primary market/building
   await regionalWheat.click();
   await expect(page.locator('.global-market-page[data-drilldown-province-id]')).toBeVisible();
   await expect(page.locator('.market-detail-surface')).toBeVisible();
-  await page.getByRole('button', { name: '返回商品全局详情' }).click();
+  await page.getByRole('button', { name: '返回上一页面' }).click();
   await expect(page.locator('.global-market-product-detail-panel')).toBeVisible();
-  await page.getByRole('button', { name: '返回商品列表' }).click();
+  await page.getByRole('button', { name: '返回上一页面' }).click();
   await expect(page.getByRole('heading', { name: '市场', exact: true })).toBeVisible();
 
   await sidebar.getByRole('button', { name: /^建筑/ }).click();
@@ -72,9 +72,9 @@ test('map keeps gesture zoom without a control panel and primary market/building
   await regionalFacilityRow.click();
   await expect(page.locator(`.global-buildings-page[data-drilldown-province-id="${regionalProvinceId}"]`)).toBeVisible();
   await expect(page.locator('.facility-cluster-detail-page')).toBeVisible();
-  await page.getByRole('button', { name: '返回地区工厂' }).click();
+  await page.getByRole('button', { name: '返回上一页面' }).click();
   await expect(page.locator('.global-buildings-page[data-global-facility-type-id]')).toBeVisible();
-  await page.getByRole('button', { name: '返回工厂列表' }).click();
+  await page.getByRole('button', { name: '返回上一页面' }).click();
   await expect(page.getByRole('heading', { name: '建筑', exact: true })).toBeVisible();
   await expect(page.locator('.global-province-list')).toHaveCount(0);
 });
