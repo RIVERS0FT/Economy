@@ -10,12 +10,16 @@ const pageContentPath = resolve(root, 'scripts/verify-page-content.mjs');
 const pageContentLegacyPath = resolve(root, 'scripts/verify-page-content-base.mjs');
 const uiArchitectureRunnerPath = resolve(root, 'scripts/verify-ui-architecture-runner.mjs');
 const designPath = resolve(root, 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
+const nginxConfiguratorPath = resolve(root, 'scripts/configure-economy-nginx.py');
+const nginxLocationTemplatePath = resolve(root, 'deploy/nginx/game.riversoft.top.economy-location.conf');
 const workflow = readFileSync(deployPath, 'utf8');
 const ciWorkflow = readFileSync(ciPath, 'utf8');
 const selector = readFileSync(selectorPath, 'utf8');
 const pageContent = readFileSync(pageContentPath, 'utf8');
 const uiArchitectureRunner = readFileSync(uiArchitectureRunnerPath, 'utf8');
 const design = readFileSync(designPath, 'utf8');
+const nginxConfigurator = readFileSync(nginxConfiguratorPath, 'utf8');
+const nginxLocationTemplate = readFileSync(nginxLocationTemplatePath, 'utf8');
 const failures = [];
 
 const requireText = (text, reason) => {
@@ -65,6 +69,15 @@ if (existsSync(pageContentLegacyPath)) failures.push('旧 page-content base veri
 for (const forbidden of ['obsoleteBaseFailures', "['scripts/verify-page-content-base.mjs']", 'spawnSync(']) {
   if (pageContent.includes(forbidden)) failures.push(`page-content 正式 verifier 不得保留旧兼容层: ${forbidden}`);
 }
+const quotedAvatarLocation = 'location ~ "^/economy-avatars/(?<avatar_id>[1-9][0-9]{0,15})\\.webp$" {';
+for (const [source, label] of [
+  [nginxConfigurator, 'configure-economy-nginx.py'],
+  [nginxLocationTemplate, 'Economy Nginx location 模板'],
+]) {
+  if (!source.includes(quotedAvatarLocation)) failures.push(`${label} 必须引用含量词的头像正则`);
+  if (source.includes('location ~ ^/economy-avatars/')) failures.push(`${label} 不得保留未引用头像正则`);
+}
+
 for (const forbidden of ['readFileSync', '.replace(', 'data:text/javascript', 'Buffer.from(']) {
   if (uiArchitectureRunner.includes(forbidden)) failures.push(`UI 架构 runner 不得改写 verifier 源码: ${forbidden}`);
 }
@@ -143,6 +156,7 @@ requireDesignText('生产 `deploy` Job 必须同时 `needs` 两者', '权威部�
 requireDesignText('同步 `server/` 时必须排除 `runtime/`', '权威部署设计必须记录 API 同步保护可复用 runtime');
 requireDesignText('完全匹配时必须复用且不得重新下载或上传', '权威部署设计必须记录 Node runtime 精确匹配复用');
 requireDesignText('已通过精确校验时复用服务器现有运行时', '权威部署设计必须记录运行时部署包条件');
+requireDesignText('Nginx 头像 `location ~` 正则包含 `{m,n}` 量词，必须整体使用引号包裹', '权威部署设计必须记录头像正则的 Nginx 引用规则');
 
 const browserIndex = workflow.indexOf('  browser-test:\n');
 const deployIndex = workflow.indexOf('  deploy:\n');

@@ -2,7 +2,7 @@
 
 > 状态：当前服务器、API、持久化和部署基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-24
+> 更新时间：2026-08-26
 > 客户端状态版本：36
 > 世界状态版本：32
 > 市场需求模型版本：19
@@ -771,3 +771,5 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 玩家头像是展示资源，不进入 EconomyState、状态分区或五秒轮询。设置页继续复用 `PATCH /api/game/profile` 写入口；浏览器必须先把原图居中裁切、缩放并编码为 64×64 WebP，最终请求体中的头像数据不得超过 8 KiB，服务器再次校验 WebP 容器、64×64 实际尺寸和体积后才允许原子替换文件。
 
 生产头像目录固定为 `/var/lib/riversoft-economy-avatars`，由 Economy API 服务用户写入，Nginx 只读并通过 `/economy-avatars/<userId>.webp` 提供 `image/webp`。资源使用重新验证缓存而不是把图片字节写入游戏 JSON；头像更新后客户端只给 64px URL 增加本地版本查询参数触发重取。这样状态轮询大小不随头像增长，玩家选择的原始大图也不会产生服务器上传流量。
+
+Nginx 头像 `location ~` 正则包含 `{m,n}` 量词，必须整体使用引号包裹；未引用时 Nginx 会把 `{` 识别为配置块边界并把截断表达式交给 PCRE，因此部署验证必须同时锁定生成脚本和静态 location 模板的引用形式。
