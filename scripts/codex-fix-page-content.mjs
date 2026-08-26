@@ -20,6 +20,12 @@ function replaceIfPresent(path, replacements) {
   if (changed) writeFileSync(path, content, 'utf8');
 }
 
+function replaceAllIfPresent(path, before, after) {
+  const content = readFileSync(path, 'utf8');
+  if (!content.includes(before)) return;
+  writeFileSync(path, content.split(before).join(after), 'utf8');
+}
+
 replaceRequired('scripts/verify-page-content-base.mjs', [
   ["'formatNumber(order.remaining)'", "'<CompactNumber value={order.remaining} />'"],
   ["'可用 {formatNumber(inventory.available)}'", "'可用 {<CompactNumber value={inventory.available} />}'"],
@@ -66,4 +72,26 @@ replaceIfPresent('tests/browser/all-pages-preview.spec.ts', [
   ],
 ]);
 
-console.log('Updated anti-regression rules for compact values and kept the leaderboard player-column migration idempotent.');
+replaceIfPresent('tests/browser/runtime.spec.ts', [
+  [
+    "const identityLogo = page.locator('.asset-bar-identity > img');",
+    "const identityAvatar = page.locator('.asset-bar-identity > .player-avatar');",
+  ],
+]);
+replaceAllIfPresent('tests/browser/runtime.spec.ts', 'identityLogo', 'identityAvatar');
+
+replaceIfPresent('tests/browser/game-shell-layout.spec.ts', [
+  [
+    "    await expect(identity.locator('img')).toHaveAttribute('src', 'https://riversoft.top/logo.svg');",
+    "    await expect(identity.locator('.player-avatar')).toHaveCount(1);\n    await expect(identity).toHaveAttribute('aria-label', '玩家 MEVIUS，打开设置');",
+  ],
+]);
+
+replaceIfPresent('tests/browser/contract-layout.spec.ts', [
+  [
+    "  await expect(page.getByText(/21,600/).first()).toBeVisible();",
+    "  const completedTotal = page.getByText('21.6K', { exact: true }).first();\n  await expect(completedTotal).toBeVisible();\n  await completedTotal.hover();\n  await expect(page.getByRole('tooltip')).toContainText('21,600.00');",
+  ],
+]);
+
+console.log('Updated anti-regression rules and browser expectations for player avatars and compact numeric display.');
