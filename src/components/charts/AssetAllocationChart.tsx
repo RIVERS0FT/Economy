@@ -1,3 +1,4 @@
+import { CompactCurrency } from '../ui/CompactNumber';
 import { useMemo } from 'react';
 import { EconomyChart } from './EconomyChart';
 import type { EChartsCoreOption } from './echartsCore';

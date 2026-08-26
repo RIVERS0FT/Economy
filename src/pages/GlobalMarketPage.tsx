@@ -1,3 +1,4 @@
+import { CompactNumber } from '../components/ui/CompactNumber';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { ChevronIcon } from '../components/icons/GameIcons';
@@ -319,7 +320,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
           <PagePanel className="global-market-product-detail-panel">
             <WidgetHeading
               title="地区行情"
-              action={<StatusTag>{formatNumber(regionalRows.length)} / {formatNumber(provinces.length)} 个地区</StatusTag>}
+              action={<StatusTag>{<CompactNumber value={regionalRows.length} />} / {<CompactNumber value={provinces.length} />} 个地区</StatusTag>}
             />
             <details className="global-market-filter-disclosure">
               <summary>
@@ -436,9 +437,9 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
                   <span className="global-market-goods-row__artwork" aria-hidden="true"><ProductArtwork productId={row.id} /></span>
                   <span className="global-market-goods-row__name"><strong>{row.name}</strong><small>{row.categoryLabel}</small></span>
                 </span>
-                <span className="global-market-goods-row__metric"><strong>{formatNumber(row.tradedProvinceCount)} / {formatNumber(provinces.length)}</strong></span>
+                <span className="global-market-goods-row__metric"><strong>{<CompactNumber value={row.tradedProvinceCount} />} / {<CompactNumber value={provinces.length} />}</strong></span>
                 <span className="global-market-goods-row__metric"><strong>{row.range}</strong></span>
-                <span className="global-market-goods-row__metric"><strong>{formatNumber(row.unmetDemandProvinces)} / {formatNumber(row.directDemandProvinces)}</strong></span>
+                <span className="global-market-goods-row__metric"><strong>{<CompactNumber value={row.unmetDemandProvinces} />} / {<CompactNumber value={row.directDemandProvinces} />}</strong></span>
                 <span className="global-market-goods-row__chevron" aria-hidden="true">
                   <ChevronIcon direction="right" />
                 </span>

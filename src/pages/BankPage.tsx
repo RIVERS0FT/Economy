@@ -1,3 +1,4 @@
+import { CompactNumber } from '../components/ui/CompactNumber';
 import { useMemo, useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { AssetOverviewPanel } from '../components/assets/AssetOverviewPanel';
@@ -216,7 +217,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
                 {activeLoan.collateral.map((item) => {
                   const type = model.game.facilityTypes.find((facility) => facility.id === item.facilityTypeId);
                   const province = provinces.find((candidate) => candidate.id === item.provinceId);
-                  return <span key={`${item.provinceId}:${item.facilityTypeId}`}><FactoryIcon />{province?.shortName || province?.name || item.provinceId} · {type?.name || item.facilityTypeId} × {formatNumber(item.quantity)}</span>;
+                  return <span key={`${item.provinceId}:${item.facilityTypeId}`}><FactoryIcon />{province?.shortName || province?.name || item.provinceId} · {type?.name || item.facilityTypeId} × {<CompactNumber value={item.quantity} />}</span>;
                 })}
               </div>
               <small>抵押工厂继续生产，但在贷款结清前不能出售、拍卖或重复抵押。</small>
@@ -264,10 +265,10 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
                         <tr key={key}>
                           <td>{province?.shortName || province?.name || item.provinceId}</td>
                           <td><span className="bank-factory-name"><FactoryIcon />{type?.name || item.facilityTypeId}</span></td>
-                          <td>{formatNumber(item.totalQuantity)}</td>
-                          <td>{formatNumber(transactionFrozen)}</td>
-                          <td>{formatNumber(item.mortgagedQuantity)}</td>
-                          <td>{formatNumber(item.availableQuantity)}</td>
+                          <td>{<CompactNumber value={item.totalQuantity} />}</td>
+                          <td>{<CompactNumber value={transactionFrozen} />}</td>
+                          <td>{<CompactNumber value={item.mortgagedQuantity} />}</td>
+                          <td>{<CompactNumber value={item.availableQuantity} />}</td>
                           <td><CurrencyAmount>{formatCurrency(item.prudentUnitValue)}</CurrencyAmount></td>
                           <td>
                             <input

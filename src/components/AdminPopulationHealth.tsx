@@ -1,3 +1,4 @@
+import { CompactCurrency, CompactNumber } from './ui/CompactNumber';
 import type { PopulationEconomyAdminSummary, PopulationModelAdminSummary, PopulationModelId } from '../api/admin';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { HorizontalPercentChart, NumberBarChart, PopulationBudgetChart } from './charts/AdminCharts';
@@ -119,12 +120,12 @@ export function AdminPopulationHealth({ economy }: { economy: PopulationEconomyA
   return (
     <section className="admin-population-health" aria-label="人口经济健康概况">
       <section className="admin-population-health-grid" aria-label="人口规模与就业状态">
-        <article><span>实际／目标人口</span><strong>{formatNumber(demographics.currentPopulation)}／{formatNumber(demographics.targetPopulation)}</strong></article>
-        <article><span>结构人口承载</span><strong>{formatNumber(demographics.structuralCapacity)}</strong></article>
-        <article><span>活跃承载 EMA</span><strong>{formatNumber(demographics.activeCapacityEma)}</strong></article>
+        <article><span>实际／目标人口</span><strong>{<CompactNumber value={demographics.currentPopulation} />}／{<CompactNumber value={demographics.targetPopulation} />}</strong></article>
+        <article><span>结构人口承载</span><strong>{<CompactNumber value={demographics.structuralCapacity} />}</strong></article>
+        <article><span>活跃承载 EMA</span><strong>{<CompactNumber value={demographics.activeCapacityEma} />}</strong></article>
         <article><span>人口占用率</span><strong>{formatBps(demographics.occupancyRateBps)}</strong></article>
         <article><span>本周期迁移</span><strong>{migrationLabel}</strong></article>
-        <article className={totalUnemployed > 0 ? 'is-warning' : 'is-success'}><span>就业／失业／岗位缺口</span><strong>{formatNumber(totalEmployed)}／{formatNumber(totalUnemployed)}／{formatNumber(totalVacancies)}</strong></article>
+        <article className={totalUnemployed > 0 ? 'is-warning' : 'is-success'}><span>就业／失业／岗位缺口</span><strong>{<CompactNumber value={totalEmployed} />}／{<CompactNumber value={totalUnemployed} />}／{<CompactNumber value={totalVacancies} />}</strong></article>
       </section>
 
       <section className="admin-population-health-grid" aria-label="人口经济当前状态">
@@ -141,8 +142,8 @@ export function AdminPopulationHealth({ economy }: { economy: PopulationEconomyA
           <span role="columnheader">指标</span>
           {models.map((model) => <strong role="columnheader" key={model.id}>{model.name}</strong>)}
         </div>
-        <div className="admin-population-matrix__row" role="row"><span role="rowheader">人口／目标</span>{models.map((model) => <span role="cell" key={model.id}>{formatNumber(model.population)}／{formatNumber(model.targetPopulation)}</span>)}</div>
-        <div className="admin-population-matrix__row" role="row"><span role="rowheader">就业／失业／岗位</span>{models.map((model) => <span role="cell" key={model.id}>{formatNumber(model.employed)}／{formatNumber(model.unemployed)}／{formatNumber(model.vacancies)}</span>)}</div>
+        <div className="admin-population-matrix__row" role="row"><span role="rowheader">人口／目标</span>{models.map((model) => <span role="cell" key={model.id}>{<CompactNumber value={model.population} />}／{<CompactNumber value={model.targetPopulation} />}</span>)}</div>
+        <div className="admin-population-matrix__row" role="row"><span role="rowheader">就业／失业／岗位</span>{models.map((model) => <span role="cell" key={model.id}>{<CompactNumber value={model.employed} />}／{<CompactNumber value={model.unemployed} />}／{<CompactNumber value={model.vacancies} />}</span>)}</div>
         <div className="admin-population-matrix__row" role="row"><span role="rowheader">人均收入 EMA</span>{models.map((model) => <span role="cell" key={model.id}><Amount value={model.perCapitaIncomeEma} /></span>)}</div>
         <div className="admin-population-matrix__row" role="row">
           <span role="rowheader">状态</span>
@@ -177,7 +178,7 @@ export function AdminPopulationHealth({ economy }: { economy: PopulationEconomyA
         {healthRows.map(({ model, health }) => {
           const total = Math.max(0, model.foodBudget + model.householdBudget);
           const food = total > 0 ? Math.round(model.foodBudget / total * 100) : 0;
-          return <article className="admin-population-model-card" key={model.id}><header><h3>{model.name}</h3><PopulationState model={model} /></header><div className="admin-population-mobile-coverage"><span><strong>钱包覆盖 {health.coverage}%</strong><small>{health.gap > 0 ? <>缺口 <Amount value={health.gap} /></> : '钱包充足'}</small></span></div><dl><div><dt>人口／目标</dt><dd>{formatNumber(model.population)}／{formatNumber(model.targetPopulation)}</dd></div><div><dt>就业／失业／岗位</dt><dd>{formatNumber(model.employed)}／{formatNumber(model.unemployed)}／{formatNumber(model.vacancies)}</dd></div><div><dt>人均收入 EMA</dt><dd><Amount value={model.perCapitaIncomeEma} /></dd></div><div><dt>可用／冻结</dt><dd><Amount value={model.credits} />／<Amount value={model.frozenCredits} /></dd></div><div><dt>当前预算</dt><dd><Amount value={model.lastBudget} /></dd></div><div><dt>食品／家庭</dt><dd>{food}%／{100 - food}%</dd></div><div><dt>收入／EMA</dt><dd><Amount value={model.lastIncome} />／<Amount value={model.incomeEma} /></dd></div><div><dt>状态判定</dt><dd><StateMetrics model={model} /></dd></div><div><dt>稳定／补充</dt><dd><Amount value={model.stabilizationBudget} />／<Amount value={model.lastStabilizationIssued} /></dd></div></dl></article>;
+          return <article className="admin-population-model-card" key={model.id}><header><h3>{model.name}</h3><PopulationState model={model} /></header><div className="admin-population-mobile-coverage"><span><strong>钱包覆盖 {health.coverage}%</strong><small>{health.gap > 0 ? <>缺口 <Amount value={health.gap} /></> : '钱包充足'}</small></span></div><dl><div><dt>人口／目标</dt><dd>{<CompactNumber value={model.population} />}／{<CompactNumber value={model.targetPopulation} />}</dd></div><div><dt>就业／失业／岗位</dt><dd>{<CompactNumber value={model.employed} />}／{<CompactNumber value={model.unemployed} />}／{<CompactNumber value={model.vacancies} />}</dd></div><div><dt>人均收入 EMA</dt><dd><Amount value={model.perCapitaIncomeEma} /></dd></div><div><dt>可用／冻结</dt><dd><Amount value={model.credits} />／<Amount value={model.frozenCredits} /></dd></div><div><dt>当前预算</dt><dd><Amount value={model.lastBudget} /></dd></div><div><dt>食品／家庭</dt><dd>{food}%／{100 - food}%</dd></div><div><dt>收入／EMA</dt><dd><Amount value={model.lastIncome} />／<Amount value={model.incomeEma} /></dd></div><div><dt>状态判定</dt><dd><StateMetrics model={model} /></dd></div><div><dt>稳定／补充</dt><dd><Amount value={model.stabilizationBudget} />／<Amount value={model.lastStabilizationIssued} /></dd></div></dl></article>;
         })}
       </section>
 
@@ -188,7 +189,7 @@ export function AdminPopulationHealth({ economy }: { economy: PopulationEconomyA
         <section className="admin-population-analysis-card"><header><h3>C1—C7 生产工资</h3><small>复杂度分布</small></header><NumberBarChart rows={complexityRows} ariaLabel="C1 到 C7 生产复杂度工资金额" money /></section>
       </div>
 
-      <section className="admin-population-ledger" aria-label="产业人口承载贡献"><header><h3>产业人口承载</h3><small>C1 基数 11；结构承载包含全部已建成工厂，活跃承载只读取运行等效产能</small></header><div className="admin-population-complexity-grid">{capacityRows.map(([complexity, row]) => <div key={complexity}><span>{complexity}</span><strong>{formatNumber(row.structuralCapacity)}</strong><small>{formatNumber(row.count)} 座 · 活跃 {formatNumber(row.activeCapacity)}</small></div>)}</div><small>产业运行率 {formatBps(demographics.industryOperatingRateBps)} · 收入健康 {formatBps(demographics.incomeHealthBps)} · 需求满足 {formatBps(demographics.demandSatisfactionBps)} · 就业率 {formatBps(employmentRateBps)} · 类别转换 {formatNumber(demographics.lastClassConversions)}</small></section>
+      <section className="admin-population-ledger" aria-label="产业人口承载贡献"><header><h3>产业人口承载</h3><small>C1 基数 11；结构承载包含全部已建成工厂，活跃承载只读取运行等效产能</small></header><div className="admin-population-complexity-grid">{capacityRows.map(([complexity, row]) => <div key={complexity}><span>{complexity}</span><strong>{<CompactNumber value={row.structuralCapacity} />}</strong><small>{<CompactNumber value={row.count} />} 座 · 活跃 {<CompactNumber value={row.activeCapacity} />}</small></div>)}</div><small>产业运行率 {formatBps(demographics.industryOperatingRateBps)} · 收入健康 {formatBps(demographics.incomeHealthBps)} · 需求满足 {formatBps(demographics.demandSatisfactionBps)} · 就业率 {formatBps(employmentRateBps)} · 类别转换 {<CompactNumber value={demographics.lastClassConversions} />}</small></section>
 
       <section className="admin-population-ledger" aria-label="人口经济累计统计"><header><h3>累计资金流</h3><small>历史统计与发行构成</small></header><dl><div><dt>累计就业收入</dt><dd><Amount value={economy.totalEmploymentIncome} /></dd></div><div><dt>累计人口消费</dt><dd><Amount value={economy.totalConsumption} /></dd></div><div><dt>累计货币发行</dt><dd><Amount value={economy.issuance.total} /></dd></div><div><dt>累计稳定需求补充</dt><dd><Amount value={economy.issuance.stabilization} /></dd></div><div><dt>累计管理员人口补充</dt><dd><Amount value={economy.issuance.adminPopulation} /></dd></div><div><dt>累计生产工资补贴／扣留</dt><dd><Amount value={economy.productionWageAdjustment.subsidyIssued} />／<Amount value={economy.productionWageAdjustment.withheld} /></dd></div></dl></section>
     </section>

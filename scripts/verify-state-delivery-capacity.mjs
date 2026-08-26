@@ -105,13 +105,17 @@ requireText('deploy/nginx/game.riversoft.top.economy-location.conf', [
   'add_header Cache-Control "public, max-age=31536000, immutable" always;',
   'add_header Cache-Control "no-cache, max-age=0, must-revalidate" always;',
 ]);
-forbidText('scripts/configure-economy-nginx.py', [
-  'image/png',
-  'image/jpeg',
-  'image/webp',
-  'image/avif',
-  'font/woff2',
-]);
+const nginxConfigurator = read('scripts/configure-economy-nginx.py');
+const staticCompressionStart = nginxConfigurator.indexOf('STATIC_COMPRESSION = (');
+const staticCompressionEnd = nginxConfigurator.indexOf('STATIC_COMPRESSION_NAMES', staticCompressionStart);
+const staticCompressionSource = staticCompressionStart >= 0 && staticCompressionEnd > staticCompressionStart
+  ? nginxConfigurator.slice(staticCompressionStart, staticCompressionEnd)
+  : '';
+for (const fragment of ['image/png', 'image/jpeg', 'image/webp', 'image/avif', 'font/woff2']) {
+  if (staticCompressionSource.includes(fragment)) {
+    failures.push(`scripts/configure-economy-nginx.py 恢复了禁止的静态压缩类型: ${fragment}`);
+  }
+}
 requireText('server/src/storage.js', [
   "immediate ? 'BEGIN IMMEDIATE' : 'BEGIN'",
   'this.worldCache = null',

@@ -33,6 +33,7 @@
 | `src/styles/safe-floating.css` | 工作区安全 Tooltip 的容器内定位、尺寸、滚动与交互几何；不得定义 Tooltip 毛玻璃材质或承担外壳几何 |
 | `src/styles/overview.css` | 概览主列核心卡片、右侧公开事件日志和响应式布局 |
 | `src/styles/icon-system.css` | 全局 SVG 图标尺寸、商品图标标签、货币金额、导航图标槽位和移动图标尺寸 |
+| `src/styles/player-avatar.css` | 玩家 64px 头像、缺省首字符回退与圆形裁切的共享视觉 |
 | `src/styles/product-artwork.css` | 商品插画 128px 运行时缩略图映射、批准展示上下文、尺寸与低流量 SVG 回退 |
 | `src/styles/facility-artwork.css` | 工厂场景插画 256px 运行时缩略图映射、批准展示上下文、尺寸与低流量 SVG 回退 |
 | `src/styles/unified-market-admin.css` | 统一市场与管理员页面布局 |
@@ -82,6 +83,10 @@
 - `ScrollableTable`
 - `VirtualList`
 - `VirtualRecordTable`
+- `CompactNumber`
+- `CompactCurrency`
+- `CompactRank`
+- `PlayerAvatar`
 - `CurrencyAmount`
 - `MarketCommodityRow`
 - `CurrencyText`
@@ -346,8 +351,8 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 窗口化不等于分页或截断：筛选、统计和数据保留仍针对完整数组执行。
 - 可变高度卡片必须通过实际测量修正估算高度；不能因为高度估算误差造成条目重叠。
 - 订单簿档位每行只显示方向、价格和合计剩余数量，不显示所有者；无障碍名称可以补充该档位包含的独立订单笔数。
-- “紧凑数字”是全局固定显示规则，不再是客户端偏好；`formatNumber` 与 `formatCompactNumber` 对绝对值达到 1,000 的数量类显示统一使用 K/M/B/T，不提供关闭入口或按设备分流。
-- `formatCurrency` 继续遵守普通货币两位显示精度，不因全局紧凑数量规则改写金额格式；排名、百分比、时间、时长和可编辑数字输入保持精确原值。资产配置圆环使用未舍入的精确比例绘制，三个可见整数百分比使用统一余数分配并严格合计为 100%；不得分别四舍五入后显示 99% 或 101%。
+- “紧凑数字”是全局固定显示规则，不再是客户端偏好；数量、普通货币与排名等只读业务数值对绝对值达到 1,000 的内容统一使用 K/M/B/T，不提供关闭入口或按设备分流。日期、时间、时长和百分比继续使用各自语义格式，可编辑数字输入始终显示并提交完整原值。
+- 所有紧凑只读数值必须复用 `CompactNumber`／`CompactCurrency`／`CompactRank` 或 `CurrencyAmount`；鼠标悬停和键盘聚焦统一通过 `SafeTooltip` 的毛玻璃浮层显示完整分组数字。`formatCurrency` 继续保留普通货币两位精确格式，供输入、完整数字 Tooltip 和精度边界使用，紧凑化只改变只读呈现。资产配置圆环使用未舍入的精确比例绘制，三个可见整数百分比使用统一余数分配并严格合计为 100%；不得分别四舍五入后显示 99% 或 101%。
 
 ### 7.1 统一覆盖式滚动条
 
@@ -707,3 +712,7 @@ Playwright 必须验证 `1684×931`、`1280×900`、`900×1000`、`390×844` 和
 ### 建筑页缺失研发状态兼容
 
 正式服务器快照继续返回 `research` 与 `researchTechnologies`；但浏览器历史回归快照、逐步发布兼容数据或旧客户端缓存可能暂时缺少 `research`。建筑页不得因此在首屏读取 `completedTechnologyIds` 时崩溃：工厂目录准入继续复用 `getUnlockedFacilityTypes` 的既有兼容语义，作业制度研发状态在缺少 `research` 时仅按空 `completedTechnologyIds` 渲染锁定提示。该客户端兜底不得绕过服务器 `setFacilityRecipe` 的正式科技校验，也不得把缺失研发状态写回服务器或永久视为已完成科技。
+
+### 玩家头像
+
+玩家头像统一由 `PlayerAvatar` 渲染。服务器实际资源固定为 64×64 WebP；加载失败或旧玩家尚未设置头像时使用玩家名称首字符作为本地回退，不请求大图。设置页选择原图后必须先在浏览器本地居中裁成正方形、缩放至 64×64 并压缩，再上传最终缩略图；原图不得发送到服务器。状态栏和设置页不得各自实现第二套头像加载逻辑。

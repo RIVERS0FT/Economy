@@ -57,7 +57,7 @@ for (const forbidden of [
 
 const itemStart = formula.indexOf('className={itemClassName}');
 const artworkStart = formula.indexOf('<ProductArtwork', itemStart);
-const quantityStart = formula.indexOf('<strong>{formatNumber(quantity)}</strong>', itemStart);
+const quantityStart = formula.indexOf('<strong>{<CompactNumber value={quantity} />}</strong>', itemStart);
 const inventoryStart = formula.indexOf('className="facility-formula-inventory"', itemStart);
 assert.ok(itemStart >= 0 && artworkStart > itemStart, '商品图片必须位于物资行内');
 assert.ok(quantityStart > artworkStart && inventoryStart > quantityStart, '物资行必须依次为商品图片、生产数量、仓库数量');

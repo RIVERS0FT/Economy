@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
+import { CompactNumber, CompactRank } from '../components/ui/CompactNumber';
 import { Button, PageLayout, Panel, StatusTag } from '../components/ui/layout';
 import {
   leaderboardsFromGame,
@@ -9,7 +10,7 @@ import {
   type RankedLeaderboardEntry,
   type RankedLeaderboardsState,
 } from '../leaderboardTypes';
-import { formatCurrency, formatNumber, formatRank } from '../utils/formatters';
+import { formatCurrency, formatNumber } from '../utils/formatters';
 
 const BOARD_ORDER: LeaderboardBoardId[] = ['wealth', 'growth', 'production', 'trading'];
 const FALLBACK_TITLES: Record<LeaderboardBoardId, string> = {
@@ -89,8 +90,8 @@ function scoreValue(board: RankedLeaderboardBoard, score: number): ReactNode {
   if (board.unit === 'currency') {
     return <CurrencyAmount sign={board.id === 'growth' && score > 0 ? '+' : undefined}>{formatCurrency(score)}</CurrencyAmount>;
   }
-  if (board.unit === 'quantity') return formatNumber(score);
-  return `${formatNumber(score)} 分`;
+  if (board.unit === 'quantity') return <CompactNumber value={score} />;
+  return <><CompactNumber value={score} /> 分</>;
 }
 
 function leaderboardAvatarText(playerName: string) {
@@ -103,14 +104,14 @@ function LeaderboardRow({ board, entry }: { board: RankedLeaderboardBoard; entry
       className={entry.isCurrentPlayer ? 'leaderboard-row current-player-row' : 'leaderboard-row'}
       aria-label={entry.detail ? `${entry.playerName}，${entry.detail}` : undefined}
     >
-      <span className={`rank-number rank-${entry.rank}`} aria-label={`排名第 ${entry.rank} 名`}>{formatRank(entry.rank)}</span>
+      <span className={`rank-number rank-${entry.rank}`} aria-label={`排名第 ${entry.rank} 名`}><CompactRank value={entry.rank} /></span>
       <span className="leaderboard-player">
         <span className="leaderboard-avatar" aria-hidden="true">{leaderboardAvatarText(entry.playerName)}</span>
         <strong>{entry.playerName}</strong>
         {entry.isCurrentPlayer ? <StatusTag tone="success">你</StatusTag> : null}
       </span>
       <strong className="leaderboard-score">{scoreValue(board, entry.score)}</strong>
-      <span className="leaderboard-reward">{entry.rewardGems ? `◆ ${formatNumber(entry.rewardGems)}` : '—'}</span>
+      <span className="leaderboard-reward">{entry.rewardGems ? <>◆ <CompactNumber value={entry.rewardGems} /></> : '—'}</span>
     </li>
   );
 }
@@ -125,7 +126,7 @@ function LeaderboardCard({ board }: { board: RankedLeaderboardBoard }) {
       </header>
 
       <div className="leaderboard-column-labels" aria-hidden="true">
-        <span>排名</span><span>头像名称</span><span>成绩</span><span>奖励</span>
+        <span>排名</span><span>玩家</span><span>成绩</span><span>奖励</span>
       </div>
       {board.entries.length > 0 ? (
         <ol className="leaderboard-list">
@@ -136,7 +137,7 @@ function LeaderboardCard({ board }: { board: RankedLeaderboardBoard }) {
       <footer className="leaderboard-current-player">
         <div>
           <span>我的排名</span>
-          <strong>{formatRank(currentRank)}</strong>
+          <strong><CompactRank value={currentRank} /></strong>
         </div>
         <div>
           <span>我的成绩</span>

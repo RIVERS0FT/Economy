@@ -230,7 +230,7 @@ for (const text of [
   'items={selectedLocalTrades}',
   'local-trades-virtual-table',
   '<FactoryIcon />',
-  'formatNumber(order.remaining)',
+  '<CompactNumber value={order.remaining} />',
   'formatCurrency(order.price)',
 ]) requireText('src/pages/MarketPage.tsx', text);
 for (const text of [
@@ -555,8 +555,8 @@ for (const text of [
   'warehouse-product-card-available',
   'warehouse-product-card-frozen',
   '<ProductIcon productId={product.id} />',
-  '可用 {formatNumber(inventory.available)}',
-  '冻结 {formatNumber(inventory.frozen)}',
+  '可用 {<CompactNumber value={inventory.available} />}',
+  '冻结 {<CompactNumber value={inventory.frozen} />}',
   '无限容量',
 ]) requireText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);
 for (const text of [
@@ -615,7 +615,7 @@ for (const text of [
   "suffix: 'T'",
 ]) requireText('src/utils/formatters.ts', text);
 for (const [path, text] of [
-  ['src/pages/OverviewPage.tsx', 'formatNumber(derived.runningFacilities)'],
+  ['src/pages/OverviewPage.tsx', '<CompactNumber value={derived.runningFacilities} />'],
   ['src/pages/LeaderboardPage.tsx', 'formatNumber(entry.facilityCount)'],
   ['src/components/shell/NavigationItems.tsx', 'badges: NavigationBadgeMap'],
   ['src/components/shell/NavigationItems.tsx', 'formatNavigationBadgeCount(navigationBadge.count)'],
@@ -653,7 +653,7 @@ for (const text of [
   '单批货款 20% 的履约保证金',
   '合同交付不写入统一订单簿最近成交价、价格曲线、商品估值或交易榜',
   '登录模式只调用现有统一账号登录，不得在 401 后自动注册',
-  '玩家 Logo、游戏标题和玩家名统一位于状态栏左侧身份轨道',
+  '状态栏左侧玩家头像、游戏标题和玩家名统一位于身份轨道',
   '两个入口分别使用 `QqIcon` 与 `SettingsIcon`',
   '管理员后台左侧导航复用同一侧栏骨架与动画',
   '`all-pages-preview.html` 只属于本地开发预览目录',
@@ -692,7 +692,7 @@ for (const text of [
   "'gem-shop': 'fullscreen'",
   'data-strategic-presentation={pagePresentation}',
   'identity={{',
-  'logoSrc: BRAND_LOGO_URL',
+  'playerId: model.user.id',
   'title: BRAND_NAME',
 ]) requireText('src/components/shell/GameShell.tsx', text);
 forbidText('src/pages/MapPage.tsx', '<UsMainlandMap');
@@ -705,8 +705,8 @@ for (const text of ['当前经营地区', 'strategic-province-inspector']) {
 
 for (const text of [
   '“紧凑数字”是全局固定显示规则',
-  '`formatNumber` 与 `formatCompactNumber` 对绝对值达到 1,000 的数量类显示统一使用 K/M/B/T',
-  '`formatCurrency` 继续遵守普通货币两位显示精度',
+  '数量、普通货币与排名等只读业务数值对绝对值达到 1,000 的内容统一使用 K/M/B/T',
+  '`formatCurrency` 继续保留普通货币两位精确格式',
   '不提供关闭入口或按设备分流',
   '`VirtualList` 与 `VirtualRecordTable` 共用 `src/hooks/useVirtualWindow.ts` 的唯一窗口化内核',
   '根据滚动位置只挂载可视条目与少量 `overscan` 条目',
@@ -736,8 +736,8 @@ for (const text of [
   '社区入口默认使用 `https://qm.qq.com/q/eN8hya0Yn0`',
 ]) requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', text);
 for (const text of [
-  '数量类值遵循全局固定紧凑数字规则',
-  '货币值继续遵守两位显示精度',
+  '数量、普通货币与排名等只读业务数值遵循全局固定紧凑规则',
+  '悬停或键盘聚焦时通过共享 Tooltip 显示完整数字',
 ]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
 
 if (failures.length) {

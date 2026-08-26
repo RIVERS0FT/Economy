@@ -1,3 +1,4 @@
+import { CompactNumber } from '../../components/ui/CompactNumber';
 import { FacilityIcon } from '../../components/icons/FacilityIcons';
 import { ChevronIcon } from '../../components/icons/GameIcons';
 import { useFacilityRecipeProfitMarkets } from '../../components/facilities/FacilityRecipeProfitContext';
@@ -116,7 +117,7 @@ export function FacilityStaffingSummary({
   return (
     <section className="facility-staffing-summary mobile-detail-section" aria-label={description}>
       <div className="facility-staffing-heading">
-        <strong>满员率 {formatNumber(currentPercent)}%</strong>
+        <strong>满员率 {<CompactNumber value={currentPercent} />}%</strong>
         <span>{directionLabel}</span>
       </div>
       <div
@@ -295,7 +296,7 @@ export function FacilityClusterSelectorCard({
       >
         {profit.visibleValue}
       </span>
-      <span className="facility-cluster-count">{formatNumber(group.count)}</span>
+      <span className="facility-cluster-count">{<CompactNumber value={group.count} />}</span>
     </button>
   );
 }
@@ -333,7 +334,7 @@ export function FacilityClusterInformation({
           <>
             <span className="facility-information-total">
               <small>总数量</small>
-              <strong>{formatNumber(group.count)}</strong>
+              <strong>{<CompactNumber value={group.count} />}</strong>
             </span>
             <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
           </>
@@ -351,13 +352,13 @@ export function FacilityClusterInformation({
 
       <div className="facility-count-summary" aria-label={`${type.name}运行数量`}>
         <span>
-          运行中 <strong>{formatNumber(group.participatingCount)}</strong>
+          运行中 <strong>{<CompactNumber value={group.participatingCount} />}</strong>
         </span>
         <span>
-          冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>
+          冻结中 <strong>{<CompactNumber value={group.frozenCount ?? group.listedCount} />}</strong>
         </span>
         <span>
-          抵押中 <strong>{formatNumber(group.mortgagedCount)}</strong>
+          抵押中 <strong>{<CompactNumber value={group.mortgagedCount} />}</strong>
         </span>
       </div>
 

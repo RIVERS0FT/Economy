@@ -240,7 +240,10 @@ test('desktop contract workspace uses shared controls and dense two-column layou
   await expect(page.getByText('结束时间', { exact: true })).toBeVisible();
   await expect(page.getByText('结束统计', { exact: true })).toBeVisible();
   await expect(page.getByText('正常完成', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText(/21,600/).first()).toBeVisible();
+  const completedTotal = page.getByText('21.6K', { exact: true }).first();
+  await expect(completedTotal).toBeVisible();
+  await completedTotal.hover();
+  await expect(page.getByRole('tooltip')).toContainText('21,600.00');
   await expect(page.locator('.contract-audit-timeline')).toHaveCount(0);
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: '重新拟定', exact: true }).click();

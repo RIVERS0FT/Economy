@@ -1,3 +1,4 @@
+import { CompactCurrency } from '../ui/CompactNumber';
 import { useMemo } from 'react';
 import type { AdminPlayerStatisticsSeriesPoint } from '../../api/admin';
 import { formatCurrency } from '../../utils/formatters';

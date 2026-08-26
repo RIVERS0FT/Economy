@@ -1,3 +1,4 @@
+import { CompactNumber } from './ui/CompactNumber';
 import { useMemo } from 'react';
 import { LiveServerTime } from './time/LiveServerTime';
 import { EmptyState, Panel } from './ui/layout';
@@ -79,7 +80,7 @@ export function EconomicEventLogPanel({
                     <small>事件只调整既有人口直接需求的选择权重，人口总预算与货币发行保持不变。</small>
                     {completed && feedback ? (
                       <span className="economic-event-log-feedback">
-                        事件窗口真实成交 {formatNumber(feedback.volume)} 件 · 平均价格变化 {signedPercentBps(feedback.averageChangeBps)}
+                        事件窗口真实成交 {<CompactNumber value={feedback.volume} />} 件 · 平均价格变化 {signedPercentBps(feedback.averageChangeBps)}
                       </span>
                     ) : null}
                   </div>

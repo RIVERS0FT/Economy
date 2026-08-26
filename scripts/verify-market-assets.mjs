@@ -21,7 +21,7 @@ for (const text of [
   "from '../components/icons/GameIcons'",'FactoryIcon','<FactoryIcon />','selectOrderSide',
   '<FacilityIcon facilityTypeId={selectedFacility.id} />','backAction={{',
   'title={selectedAssetTitle(`${assetName}交易`)}','label="价格"','className="numeric-cell">价格</th>',
-  'formatNumber(order.remaining)','formatCurrency(order.price)',
+  '<CompactNumber value={order.remaining} />','formatCurrency(order.price)',
   "import { buildOrderBookLevels } from '../utils/orderBookLevels'",
   "buildOrderBookLevels(selectedOrders, 'sell').reverse()",
   "buildOrderBookLevels(selectedOrders, 'buy')",
@@ -108,9 +108,9 @@ requireText('src/components/icons/GameIcons.tsx', 'export function FactoryIcon')
 requireText('src/components/icons/GameIcons.tsx', 'M17 6V3h3v17');
 for (const text of [
   'SwitchControl',
-  '运行中 <strong>{formatNumber(group.participatingCount)}</strong>',
+  '运行中 <strong>{<CompactNumber value={group.participatingCount} />}</strong>',
   '新增生产可用工厂立即参与运行并同步稀释满员率',
-  '冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>',
+  '冻结中 <strong>{<CompactNumber value={group.frozenCount ?? group.listedCount} />}</strong>',
   'facility-recipe-section',
   '生产产物',
   '生产进度已清零',

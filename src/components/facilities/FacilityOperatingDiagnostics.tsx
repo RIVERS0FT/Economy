@@ -1,3 +1,4 @@
+import { CompactCurrency, CompactNumber } from '../ui/CompactNumber';
 import type {
   FacilityRecipeDefinition,
   ProductDefinition,
@@ -56,8 +57,8 @@ export function FacilityOperatingDiagnostics({
       </div>
       <div className="facility-operating-diagnostics__metrics">
         <div><span>原料续航</span><strong>{cyclesLabel(diagnosis.inputCycles)}</strong></div>
-        <div><span>现金续航</span><strong>{cyclesLabel(diagnosis.cashCycles)}</strong><small>每周期 {formatCurrency(diagnosis.cashPerCycle)}</small></div>
-        <div><span>周期产出</span><strong>{formatNumber(diagnosis.outputPerCycle)}</strong><small>无限仓库直接入库</small></div>
+        <div><span>现金续航</span><strong>{cyclesLabel(diagnosis.cashCycles)}</strong><small>每周期 {<CompactCurrency value={diagnosis.cashPerCycle} />}</small></div>
+        <div><span>周期产出</span><strong>{<CompactNumber value={diagnosis.outputPerCycle} />}</strong><small>无限仓库直接入库</small></div>
         <div><span>第一瓶颈</span><strong>{diagnosis.bottleneck.label}</strong><small>{cyclesLabel(diagnosis.bottleneck.cycles)}</small></div>
       </div>
       {diagnosis.inputRows.length > 0 ? (
@@ -65,7 +66,7 @@ export function FacilityOperatingDiagnostics({
           {diagnosis.inputRows.map((item) => (
             <div key={item.productId}>
               <ProductArtwork productId={item.productId} />
-              <span><strong>{productNames.get(item.productId) ?? item.productId}</strong><small>每周期需 {formatNumber(item.requiredPerCycle)} · 可用 {formatNumber(item.available)}</small></span>
+              <span><strong>{productNames.get(item.productId) ?? item.productId}</strong><small>每周期需 {<CompactNumber value={item.requiredPerCycle} />} · 可用 {<CompactNumber value={item.available} />}</small></span>
               <span>{cyclesLabel(item.supportedCycles)}{item.shortfallThisCycle > 0 ? ` · 缺 ${formatNumber(item.shortfallThisCycle)}` : ''}</span>
             </div>
           ))}
@@ -90,7 +91,7 @@ export function FacilityOperatingDiagnostics({
               <span className="facility-operating-diagnostics__market-price">
                 {signal.price === null ? '暂无真实成交' : (
                   <>
-                    <span>{formatCurrency(signal.price)}</span>
+                    <span>{<CompactCurrency value={signal.price} />}</span>
                     {trendDirection ? <ChevronIcon direction={trendDirection} /> : null}
                   </>
                 )}

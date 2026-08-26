@@ -1,3 +1,4 @@
+import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
 import { useEffect, useMemo, useState } from 'react';
 import { gameActions, getAuctionBidHistory } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
@@ -128,7 +129,7 @@ function AuctionAssetVisual({ auction, compact = false }: { auction: AssetAuctio
           <AuctionItemIcon item={item} compact />
         </span>
       ))}
-      {items.length > 4 ? <strong className="asset-auction-more-count">+{formatNumber(items.length - 4)}</strong> : null}
+      {items.length > 4 ? <strong className="asset-auction-more-count">+{<CompactNumber value={items.length - 4} />}</strong> : null}
     </div>
   );
 }
@@ -154,7 +155,7 @@ function AuctionAssetSummary({ auction }: { auction: AssetAuction }) {
               data-ui-interactive="surface"
             >
               <AuctionItemIcon item={item} compact />
-              <span className="asset-auction-summary-quantity" aria-hidden="true">×{formatNumber(item.quantity)}</span>
+              <span className="asset-auction-summary-quantity" aria-hidden="true">×{<CompactNumber value={item.quantity} />}</span>
             </span>
           </SafeTooltip>
         );
@@ -192,7 +193,7 @@ function BidHistoryPanel({
         aria-expanded={expanded}
         onClick={onToggle}
       >
-        <span>出价记录 · 共 {formatNumber(auction.bidCount)} 次</span>
+        <span>出价记录 · 共 {<CompactNumber value={auction.bidCount} />} 次</span>
         <small>{auction.latestBidAt ? `最近出价 ${formatTime(auction.latestBidAt)}` : ''}</small>
         <strong>{expanded ? '收起' : '查看最近 10 条'}</strong>
       </button>
@@ -212,7 +213,7 @@ function BidHistoryPanel({
                 ))}
               </ol>
               {history.bidCount > history.bids.length ? (
-                <p>仅显示最近 10 条，共 {formatNumber(history.bidCount)} 次出价</p>
+                <p>仅显示最近 10 条，共 {<CompactNumber value={history.bidCount} />} 次出价</p>
               ) : null}
             </>
           ) : null}
@@ -483,7 +484,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
       <div className="asset-auction-workspace">
         <div className="asset-auction-create-column">
           <Panel className="widget asset-auction-create">
-            <WidgetHeading title="发起拍卖" action={<StatusTag>{formatNumber(bundleItems.length)}/{MAX_AUCTION_ITEMS} 项 · 最长 168h</StatusTag>} />
+            <WidgetHeading title="发起拍卖" action={<StatusTag>{<CompactNumber value={bundleItems.length} />}/{MAX_AUCTION_ITEMS} 项 · 最长 168h</StatusTag>} />
         <div className="asset-auction-builder">
           <section className="asset-auction-add" aria-labelledby="auction-add-heading">
             <h3 id="auction-add-heading">添加资产</h3>
@@ -526,7 +527,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
           </section>
 
           <section className="asset-auction-package" aria-labelledby="auction-package-heading">
-            <div className="section-heading"><h3 id="auction-package-heading">拍卖资产包</h3><span>{formatNumber(bundleItems.length)} 项</span></div>
+            <div className="section-heading"><h3 id="auction-package-heading">拍卖资产包</h3><span>{<CompactNumber value={bundleItems.length} />} 项</span></div>
             {bundleItems.length === 0 ? <EmptyState>尚未加入资产。单项拍卖也是只包含一项资产的资产包。</EmptyState> : (
               <div className="asset-auction-package-list">
                 {bundleItems.map((item) => {
@@ -669,7 +670,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                       <div><dt>下一口最低</dt><dd><CurrencyAmount>{formatCurrency(auction.minimumBid)}</CurrencyAmount></dd></div>
                       <div><dt>保留价状态</dt><dd>{auction.hasHiddenReserve ? (auction.reserveMet ? '已达到' : '尚未达到') : '无隐藏保留价'}</dd></div>
                     </dl>
-                    {auction.extensionCount > 0 ? <p className="asset-auction-extension-note">已自动延时 {formatNumber(auction.extensionCount)} 次</p> : <p className="asset-auction-extension-note">结束前 2min 内有效出价会自动延时</p>}
+                    {auction.extensionCount > 0 ? <p className="asset-auction-extension-note">已自动延时 {<CompactNumber value={auction.extensionCount} />} 次</p> : <p className="asset-auction-extension-note">结束前 2min 内有效出价会自动延时</p>}
                     {auction.isSeller ? (
                       <>
                         <dl className="asset-auction-seller-settlement">

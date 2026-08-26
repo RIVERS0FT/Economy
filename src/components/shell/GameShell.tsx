@@ -2,10 +2,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { useGameAuthorityDependencies } from '../../app/gameAuthorityStore';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { DEFAULT_QQ_GROUP_URL, getCommunityLink } from '../../api/game';
-import { BRAND_LOGO_URL, BRAND_NAME } from '../../config/brand';
+import { BRAND_NAME } from '../../config/brand';
 import { AssetsIcon, ChevronIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../icons/GameIcons';
 import { GemIcon } from '../icons/GemIcon';
 import { CurrencyAmount } from '../ui/CurrencyAmount';
+import { CompactNumber, CompactRank } from '../ui/CompactNumber';
 import { MobileWorkspacePageSheet, type MobileWorkspaceSheetRequestClose } from '../ui/MobileWorkspacePageSheet';
 import { formatCompactNumber, formatCurrency, formatNumber, formatRank } from '../../utils/formatters';
 import { AuctionNewIdsContext, useNavigationBadges } from '../../hooks/useNavigationBadges';
@@ -107,12 +108,12 @@ export function GameShell({ model, children, offline = false }: {
       onClick: openBank,
     },
     {
-      id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(game.gems),
+      id: 'gems', icon: <GemIcon />, label: '宝石', value: <CompactNumber value={game.gems} /> ,
       compactValue: formatCompactNumber(game.gems), detail: <>邀请好友可获得宝石</>,
     },
     {
       id: 'rank', icon: <RankIcon />, label: '排行榜',
-      value: <span aria-label={rankLabel}>{formattedRank}</span>,
+      value: <CompactRank value={derived.currentRank?.rank} ariaLabel={rankLabel} />,
       compactValue: <>#{currentRank}</>,
       detail: !derived.currentRank
         ? <>暂无排名数据</>
@@ -123,7 +124,7 @@ export function GameShell({ model, children, offline = false }: {
             : <>暂无上一名数据</>,
     },
     {
-      id: 'warehouse', icon: <WarehouseIcon />, label: '仓库库存', value: formatNumber(game.warehouseStoredQuantity),
+      id: 'warehouse', icon: <WarehouseIcon />, label: '仓库库存', value: <CompactNumber value={game.warehouseStoredQuantity} /> ,
       compactValue: formatCompactNumber(game.warehouseStoredQuantity),
     },
   ], [
@@ -304,9 +305,10 @@ export function GameShell({ model, children, offline = false }: {
             <StatusBar
               items={statusItems}
               identity={{
-                logoSrc: BRAND_LOGO_URL,
+                playerId: model.user.id,
                 title: BRAND_NAME,
                 playerName,
+                onClick: () => selectPlayerTab('settings'),
               }}
               action={(
                 <NotificationCenterButton

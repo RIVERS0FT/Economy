@@ -1,3 +1,4 @@
+import { CompactCurrency, CompactNumber } from '../ui/CompactNumber';
 import { CreditsIcon, CycleIcon, WarehouseIcon } from '../icons/GameIcons';
 import { ProductArtwork } from '../products/ProductArtwork';
 import type {
@@ -119,10 +120,10 @@ function RecipeItems({
           >
             <span className={itemClassName}>
               <ProductArtwork productId={item.productId} className="facility-formula-product-artwork" />
-              <strong>{formatNumber(quantity)}</strong>
+              <strong>{<CompactNumber value={quantity} />}</strong>
               <span className="facility-formula-inventory" title={`${productName}仓库可用数量`}>
                 <WarehouseIcon className="facility-formula-meta-icon" />
-                <span>{formatNumber(warehouseQuantity)}</span>
+                <span>{<CompactNumber value={warehouseQuantity} />}</span>
               </span>
             </span>
           </button>
@@ -231,7 +232,7 @@ export function FacilityProductionFormula({
           </span>
           <span className="facility-formula-meta-unit is-cost">
             <CreditsIcon className="facility-formula-meta-icon" />
-            <span>{formatCurrency(type.operatingCost * scope.count)}</span>
+            <span>{<CompactCurrency value={type.operatingCost * scope.count} />}</span>
           </span>
         </div>
 

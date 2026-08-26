@@ -1,3 +1,4 @@
+import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
 import {
   lazy,
   Suspense,
@@ -67,26 +68,26 @@ function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameVie
           : <StatusTag tone="success">经营正常</StatusTag>}
       />
       <div className="province-overview-metrics">
-        <MetricCard label="本地库存" value={formatNumber(summary.storedQuantity)} />
-        <MetricCard label="工厂总数" value={formatNumber(summary.facilityCount)} />
+        <MetricCard label="本地库存" value={<CompactNumber value={summary.storedQuantity} />} />
+        <MetricCard label="工厂总数" value={<CompactNumber value={summary.facilityCount} />} />
         <MetricCard
           label="运行中"
-          value={formatNumber(summary.runningFacilityCount)}
+          value={<CompactNumber value={summary.runningFacilityCount} />}
           tone={summary.runningFacilityCount > 0 ? 'success' : 'neutral'}
         />
         <MetricCard
           label="本地挂单"
-          value={formatNumber(summary.openOrderCount)}
+          value={<CompactNumber value={summary.openOrderCount} />}
           tone={summary.openOrderCount > 0 ? 'info' : 'neutral'}
         />
       </div>
       <DataList>
         <DataRow
           label="异常工厂"
-          value={formatNumber(summary.blockedFacilityCount)}
+          value={<CompactNumber value={summary.blockedFacilityCount} />}
           tone={summary.blockedFacilityCount > 0 ? 'danger' : 'neutral'}
         />
-        <DataRow label="已停止工厂" value={formatNumber(stoppedFacilityCount)} />
+        <DataRow label="已停止工厂" value={<CompactNumber value={stoppedFacilityCount} />} />
       </DataList>
     </PagePanel>
   );

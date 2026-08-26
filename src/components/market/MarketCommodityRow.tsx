@@ -1,3 +1,4 @@
+import { CompactNumber } from '../ui/CompactNumber';
 import { ChevronIcon } from '../icons/GameIcons';
 import { ProductArtwork } from '../products/ProductArtwork';
 import { CurrencyAmount } from '../ui/CurrencyAmount';
@@ -76,10 +77,10 @@ export function MarketCommodityRow({
           </span>
         </span>
         <span className="market-commodity-row__metric">
-          <strong>{formatNumber(sellVolume)}</strong>
+          <strong>{<CompactNumber value={sellVolume} />}</strong>
         </span>
         <span className="market-commodity-row__metric">
-          <strong>{formatNumber(buyVolume)}</strong>
+          <strong>{<CompactNumber value={buyVolume} />}</strong>
         </span>
         <span className="market-commodity-row__metric">
           <strong>{typeof marketPrice === 'number'

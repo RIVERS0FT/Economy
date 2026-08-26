@@ -185,3 +185,7 @@ Pull Request 会触发 [Economy CI](.github/workflows/ci.yml)。修改压缩合�
 ### 删除存档
 
 设置页提供一次性自助“删除存档”：服务器先检查贷款、周结算、拍卖出价和履约合同，安全取消开放订单、无出价拍卖及未承接合同，再原子恢复新玩家经济初始状态。账号、原注册时间、宝石、邀请码、签到、礼品兑换、封禁与服务器审计保留；旧 `/api/game/reset` 继续返回 `410 Gone`。
+
+### 玩家头像资源
+
+设置页头像原图只在浏览器本地处理，上传前固定转换为 64×64 WebP（最终不超过 8 KiB）；生产文件位于 `/var/lib/riversoft-economy-avatars`，由 `/economy-avatars/<userId>.webp` 只读提供，不进入 EconomyState 或状态轮询。

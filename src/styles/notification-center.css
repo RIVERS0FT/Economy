@@ -1,4 +1,4 @@
-/* Brand identity, five economic status values and notification tooling stay in
+/* Player identity, five economic status values and notification tooling stay in
  * separate tracks inside the same glass surface. */
 .asset-bar-layout {
   width: 100%;
@@ -17,8 +17,22 @@
   grid-template-columns: 42px minmax(0, 1fr);
   align-items: center;
   gap: var(--space-2);
+  border: 0;
   border-right: 1px solid var(--color-border);
   padding: var(--space-1) var(--space-3);
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+
+.asset-bar-identity--interactive {
+  cursor: pointer;
+}
+
+.asset-bar-identity--interactive:focus-visible {
+  outline: 2px solid var(--color-success);
+  outline-offset: -2px;
 }
 
 .asset-bar-identity,
@@ -28,7 +42,7 @@
   align-self: center;
 }
 
-.asset-bar-identity > img {
+.asset-bar-identity > .player-avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -677,7 +691,7 @@
     padding: 0;
   }
 
-  .asset-bar-identity > img {
+  .asset-bar-identity > .player-avatar {
     width: 32px;
     height: 32px;
   }
@@ -709,7 +723,7 @@
     padding: 0;
   }
 
-  .asset-bar-identity > img {
+  .asset-bar-identity > .player-avatar {
     width: 28px;
     height: 28px;
   }

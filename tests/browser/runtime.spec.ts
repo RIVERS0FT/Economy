@@ -113,7 +113,7 @@ test('desktop sidebar uses the server-configured QQ group link and settings foot
   await page.goto('runtime-test.html?view=overview&scenario=empty');
   const sidebar = page.locator('.desktop-sidebar');
   const communityLink = page.getByRole('link', { name: '加入 QQ 群（在新窗口打开）' });
-  const identityLogo = page.locator('.asset-bar-identity > img');
+  const identityAvatar = page.locator('.asset-bar-identity > .player-avatar');
   const overviewIcon = page.getByRole('button', { name: '概览', exact: true }).locator('svg');
   const settingsButton = page.locator('.desktop-sidebar .sidebar-footer').getByRole('button', { name: '设置' });
   await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
@@ -126,11 +126,11 @@ test('desktop sidebar uses the server-configured QQ group link and settings foot
   await expect(settingsButton.locator('svg.sidebar-settings-icon')).toHaveCount(1);
   await expect(page.locator('.desktop-sidebar').getByRole('button', { name: '退出登录' })).toHaveCount(0);
   await expect(page.locator('.desktop-sidebar .sidebar-brand')).toHaveCount(0);
-  const identityLogoBox = await requireBox(identityLogo);
-  expect(identityLogoBox.width).toBe(40);
-  expect(identityLogoBox.height).toBe(40);
+  const identityAvatarBox = await requireBox(identityAvatar);
+  expect(identityAvatarBox.width).toBe(40);
+  expect(identityAvatarBox.height).toBe(40);
   const collapsedAnchors = {
-    identity: await centerOf(identityLogo),
+    identity: await centerOf(identityAvatar),
     overview: await centerOf(overviewIcon),
     community: await centerOf(communityLink.locator('svg')),
     settings: await centerOf(settingsButton.locator('svg')),
@@ -142,7 +142,7 @@ test('desktop sidebar uses the server-configured QQ group link and settings foot
   await expect(communityLink.locator('strong')).toBeVisible();
   await expect(settingsButton.locator('strong')).toBeVisible();
   const expandedAnchors = {
-    identity: await centerOf(identityLogo),
+    identity: await centerOf(identityAvatar),
     overview: await centerOf(overviewIcon),
     community: await centerOf(communityLink.locator('svg')),
     settings: await centerOf(settingsButton.locator('svg')),

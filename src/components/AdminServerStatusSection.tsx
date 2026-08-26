@@ -1,3 +1,4 @@
+import { CompactNumber } from './ui/CompactNumber';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   adminApi,
@@ -297,8 +298,8 @@ export function AdminServerStatusSection({
                   {status.requests.routes.map((route) => (
                     <tr key={`${route.method}-${route.route}`}>
                       <td><strong>{route.method}</strong><code>{route.route}</code></td>
-                      <td>{formatNumber(route.count)}</td>
-                      <td>{formatNumber(route.serverErrorCount)}</td>
+                      <td>{<CompactNumber value={route.count} />}</td>
+                      <td>{<CompactNumber value={route.serverErrorCount} />}</td>
                       <td>{formatMilliseconds(route.averageDurationMs)}</td>
                       <td>{formatMilliseconds(route.p95DurationMs)}</td>
                       <td>{formatMilliseconds(route.maxDurationMs)}</td>
@@ -314,8 +315,8 @@ export function AdminServerStatusSection({
                 <article key={`${route.method}-${route.route}`}>
                   <header><strong>{route.method}</strong><code>{route.route}</code></header>
                   <dl>
-                    <div><dt>请求</dt><dd>{formatNumber(route.count)}</dd></div>
-                    <div><dt>5xx</dt><dd>{formatNumber(route.serverErrorCount)}</dd></div>
+                    <div><dt>请求</dt><dd>{<CompactNumber value={route.count} />}</dd></div>
+                    <div><dt>5xx</dt><dd>{<CompactNumber value={route.serverErrorCount} />}</dd></div>
                     <div><dt>P95</dt><dd>{formatMilliseconds(route.p95DurationMs)}</dd></div>
                     <div><dt>响应</dt><dd>{formatBytes(route.averageResponseBytes)}</dd></div>
                   </dl>

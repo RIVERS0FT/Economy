@@ -120,6 +120,16 @@ GAME_API_BLOCK = """
 """.strip("\n")
 
 
+AVATAR_BLOCK = r"""
+    location ~ ^/economy-avatars/(?<avatar_id>[1-9][0-9]{0,15})\.webp$ {
+        alias /var/lib/riversoft-economy-avatars/$avatar_id.webp;
+        default_type image/webp;
+        add_header Cache-Control "no-cache, max-age=0, must-revalidate" always;
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+""".strip("\n")
+
+
 def managed_block(*, account: bool, game_api: bool) -> str:
     sections = []
     if account:
@@ -365,6 +375,20 @@ def has_game_api_proxy(block: str) -> bool:
     )
 
 
+def has_avatar_location(block: str) -> bool:
+    return bool(re.search(r"\blocation\s+~\s+\^/economy-avatars/", masked(block), re.IGNORECASE))
+
+
+def ensure_avatar_location(block: str) -> tuple[str, bool]:
+    if has_avatar_location(block):
+        return block, False
+    closing = block.rfind("}")
+    if closing < 0:
+        raise RuntimeError("Target server block has no closing brace")
+    normalized = block[:closing].rstrip()
+    return normalized + "\n\n" + AVATAR_BLOCK + "\n" + block[closing:], True
+
+
 def ensure_game_api_compression(text: str) -> tuple[str, bool]:
     view = masked(text)
     location = re.search(
@@ -434,6 +458,7 @@ def replace_or_insert(block: str) -> str:
     cleaned = pattern.sub("", block, count=1)
     cleaned, removed_legacy = remove_legacy_economy_api_location(cleaned)
     cleaned, added_compression = ensure_game_api_compression(cleaned)
+    cleaned, added_avatar = ensure_avatar_location(cleaned)
     cleaned, added_static_compression = ensure_static_compression(cleaned)
     cleaned, added_static_vary = ensure_static_vary_headers(cleaned)
 
@@ -442,7 +467,7 @@ def replace_or_insert(block: str) -> str:
     desired = managed_block(account=include_account, game_api=include_game_api)
 
     if not desired:
-        if not had_managed and not removed_legacy and not added_compression and not added_static_compression and not added_static_vary:
+        if not had_managed and not removed_legacy and not added_compression and not added_avatar and not added_static_compression and not added_static_vary:
             return block
         return re.sub(r"\n{3,}", "\n\n", cleaned)
 

@@ -1,3 +1,4 @@
+import { CompactCurrency, CompactNumber } from '../ui/CompactNumber';
 import type { ReactNode } from 'react';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { getAuctionState } from '../../auctions/types';
@@ -59,7 +60,7 @@ function OutlinerSection({
         onClick={onToggle}
       >
         <span>{title}</span>
-        {typeof count === 'number' ? <small>{formatNumber(count)}</small> : null}
+        {typeof count === 'number' ? <small>{<CompactNumber value={count} />}</small> : null}
         <span className="strategic-outliner-section__chevron" aria-hidden="true" />
       </button>
       {collapsed ? null : (
@@ -507,7 +508,7 @@ export function StrategicOutliner({
           {currentEvents.length === 0 ? <p className="strategic-outliner-empty">近期没有正在进行或即将开始的公开经济事件。</p> : null}
           {completedEvents.length > 0 ? (
             <details className="strategic-outliner-recent-events">
-              <summary>最近结束 {formatNumber(completedEvents.length)}</summary>
+              <summary>最近结束 {<CompactNumber value={completedEvents.length} />}</summary>
               <div>
                 {completedEvents.map((event) => (
                   <CompactEventRow key={event.id} event={event} now={now} productNames={productNames} />
