@@ -167,4 +167,28 @@ if (!leaderboardVerifier.includes(rewardBefore)) throw new Error('leaderboard re
 leaderboardVerifier = leaderboardVerifier.replace(rewardBefore, rewardAfter);
 writeFileSync(leaderboardVerifierPath, leaderboardVerifier, 'utf8');
 
+const capacityVerifierPath = 'scripts/verify-state-delivery-capacity.mjs';
+let capacityVerifier = readFileSync(capacityVerifierPath, 'utf8');
+const imageForbidBefore = `forbidText('scripts/configure-economy-nginx.py', [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/avif',
+  'font/woff2',
+]);`;
+const imageForbidAfter = `const nginxConfigurator = read('scripts/configure-economy-nginx.py');
+const staticCompressionStart = nginxConfigurator.indexOf('STATIC_COMPRESSION = (');
+const staticCompressionEnd = nginxConfigurator.indexOf('STATIC_COMPRESSION_NAMES', staticCompressionStart);
+const staticCompressionSource = staticCompressionStart >= 0 && staticCompressionEnd > staticCompressionStart
+  ? nginxConfigurator.slice(staticCompressionStart, staticCompressionEnd)
+  : '';
+for (const fragment of ['image/png', 'image/jpeg', 'image/webp', 'image/avif', 'font/woff2']) {
+  if (staticCompressionSource.includes(fragment)) {
+    failures.push(\`scripts/configure-economy-nginx.py 恢复了禁止的静态压缩类型: \${fragment}\`);
+  }
+}`;
+if (!capacityVerifier.includes(imageForbidBefore)) throw new Error('state capacity image compression verifier source not found');
+capacityVerifier = capacityVerifier.replace(imageForbidBefore, imageForbidAfter);
+writeFileSync(capacityVerifierPath, capacityVerifier, 'utf8');
+
 console.log('Prepared one-time implementation script.');
