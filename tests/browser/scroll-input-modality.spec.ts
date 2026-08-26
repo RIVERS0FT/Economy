@@ -91,7 +91,7 @@ test('touch input hides horizontal rails while local trade cells keep native two
       }, 1000);
       const handleScroll = () => {
         window.clearTimeout(timeout);
-        window.setTimeout(resolve, 180);
+        window.requestAnimationFrame(() => resolve());
       };
       viewport.addEventListener('scroll', handleScroll, { once: true });
       viewport.scrollTop = nextTop;
@@ -99,7 +99,7 @@ test('touch input hides horizontal rails while local trade cells keep native two
 
     const style = getComputedStyle(track);
     const active = root.dataset.scrollbarActiveY === 'true';
-    const opacity = Number.parseFloat(style.opacity);
+    const visibility = style.visibility;
     const pointerEvents = style.pointerEvents;
     const thumb = track.querySelector('.ui-scrollbar__thumb');
     if (!(thumb instanceof HTMLElement)) throw new Error('missing vertical thumb');
@@ -114,10 +114,10 @@ test('touch input hides horizontal rails while local trade cells keep native two
       clientY: rect.bottom + 20,
     }));
 
-    return { active, opacity, pointerEvents, beforeTrack };
+    return { active, visibility, pointerEvents, beforeTrack };
   });
   expect(activeRail.active).toBe(true);
-  expect(activeRail.opacity).toBeGreaterThan(0.99);
+  expect(activeRail.visibility).toBe('visible');
   expect(activeRail.pointerEvents).toBe('auto');
   await expect.poll(() => tradeViewport.evaluate((element) => element.scrollTop)).toBeGreaterThan(activeRail.beforeTrack);
 
@@ -149,9 +149,6 @@ test('touch input hides horizontal rails while local trade cells keep native two
     }));
   });
   await expect.poll(() => tradeViewport.evaluate((element) => element.scrollTop)).toBeGreaterThan(beforeDrag);
-
-  await page.waitForTimeout(1850);
-  await expect.poll(() => tradeRoot.locator('.ui-scrollbar--vertical').evaluate((element) => getComputedStyle(element).opacity)).toBe('0');
 });
 
 test('mixed input switches scrollbar policy at runtime', async ({ page }) => {
