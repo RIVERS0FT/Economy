@@ -14,6 +14,11 @@ replaceRequired(
   'TypeScript compiler API import',
 );
 replaceRequired(
+  "function replaceAll(path, before, after) {\n  const content = read(path);\n  if (!content.includes(before)) throw new Error(`${path}: replacement source not found: ${before}`);\n  write(path, content.split(before).join(after));\n}\n",
+  "function replaceAll(path, before, after) {\n  const content = read(path);\n  if (!content.includes(before)) return;\n  write(path, content.split(before).join(after));\n}\n",
+  'optional replaceAll helper',
+);
+replaceRequired(
   "  \"import { validateResearchAccess } from './research.js';\"," ,
   "  \"import { applyResearchAction, validateResearchAccess } from './research.js';\"," ,
   'runtime action import marker',
