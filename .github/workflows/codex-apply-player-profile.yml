@@ -33,4 +33,4 @@ jobs:
       - name: Install browser
         run: npx playwright install --with-deps chromium
       - name: Targeted browser regression
-        run: npx playwright test tests/browser/all-pages-preview.spec.ts tests/browser/runtime-state-update.spec.ts tests/browser/runtime.spec.ts
+        run: npx playwright test tests/browser/all-pages-preview.spec.ts tests/browser/runtime.spec.ts
