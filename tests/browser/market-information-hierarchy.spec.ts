@@ -31,8 +31,8 @@ test('market uses product-first global and regional information hierarchy', asyn
   expect(globalGeometry.scrollWidth).toBeLessThanOrEqual(globalGeometry.clientWidth + 1);
 
   await globalRow.click();
-  await expect(page.locator('.global-market-product-detail-panel')).toBeVisible();
-  const regionalHeader = page.locator('.global-market-product-detail-panel > .market-commodity-row-header');
+  await expect(page.locator('.global-market-product-region-list')).toBeVisible();
+  const regionalHeader = page.locator('.global-market-product-detail > .market-commodity-row-header');
   await expect(regionalHeader).toBeVisible();
   await expect(page.locator('.global-market-product-region-list .market-commodity-row-header')).toHaveCount(0);
   for (const label of ['商品', '卖单量', '买单量', '市场价', '24h']) {

@@ -42,7 +42,7 @@ for (const token of [
   'global-market-goods-row',
   '真实成交价范围',
   'selectedGlobalProductId',
-  'global-market-product-detail-panel',
+  'global-market-product-detail',
   'global-market-product-region-list',
   '<MarketCommodityHeader />',
   '<MarketCommodityRow',
@@ -67,6 +67,9 @@ for (const token of [
   'catalogQuery',
   '>›<',
 ]) forbidText(globalMarket, token, 'global market hierarchy');
+for (const token of ['<PagePanel', '<WidgetHeading', '<StatusTag', '个地区']) {
+  forbidText(globalMarket, token, 'global market product detail direct page flow');
+}
 
 const catalogSourceStart = globalMarket.indexOf('const activeCatalogFilterCount');
 const catalogFilterIndex = globalMarket.indexOf('<details className="global-market-filter-disclosure"', catalogSourceStart);
@@ -80,15 +83,17 @@ if (
 ) {
   throw new Error('global market hierarchy: folded filters, column header, and commodity list must appear in direct page flow');
 }
-const productPanelIndex = globalMarket.indexOf('<PagePanel className="global-market-product-detail-panel">');
-const productRegionHeaderIndex = globalMarket.indexOf('<MarketCommodityHeader />', productPanelIndex);
-const productRegionListIndex = globalMarket.indexOf('<ul className="global-market-product-region-list"');
+const productDetailIndex = globalMarket.indexOf('global-market-product-detail"');
+const productFilterIndex = globalMarket.indexOf('<details className="global-market-filter-disclosure"', productDetailIndex);
+const productRegionHeaderIndex = globalMarket.indexOf('<MarketCommodityHeader />', productFilterIndex);
+const productRegionListIndex = globalMarket.indexOf('<ul className="global-market-product-region-list"', productRegionHeaderIndex);
 if (
-  productPanelIndex < 0
-  || productRegionHeaderIndex <= productPanelIndex
+  productDetailIndex < 0
+  || productFilterIndex < 0
+  || productRegionHeaderIndex <= productFilterIndex
   || productRegionListIndex <= productRegionHeaderIndex
 ) {
-  throw new Error('global market hierarchy: product global detail must render one shared header before the regional quote list');
+  throw new Error('global market hierarchy: product global detail must render folded filters, one shared header, then the regional list directly in page flow');
 }
 
 for (const token of [
@@ -153,14 +158,14 @@ for (const token of [
   '.global-market-filter-disclosure',
   '.global-market-goods-header',
   '.global-market-goods-row',
-  '.global-market-product-detail-panel',
+  '.global-market-product-detail > .market-commodity-row-header',
   'container-name: global-market-page',
   '@container global-market-page (max-width: 620px)',
   "content: '';",
   'border-right: 2px solid currentColor;',
   'border-bottom: 2px solid currentColor;',
 ]) requireText(globalCss, token, 'global market css');
-for (const token of ['.global-market-province-row', '.global-market-summary-strip', "content: '⌄';"]) forbidText(globalCss, token, 'global market css');
+for (const token of ['.global-market-province-row', '.global-market-summary-strip', '.global-market-product-detail-panel', "content: '⌄';"]) forbidText(globalCss, token, 'global market css');
 requireText(marketCss, '.market-fundamentals-balance', 'regional detail css');
 
 for (const token of [
@@ -176,6 +181,7 @@ for (const token of [
   '商品列表字段名使用独立表头',
   '商品、卖单量、买单量、市场价和 24h 变化',
   '全局页不得把各州买卖单合并成一个全国订单簿',
+  '不显示“地区行情”标题、地区计数或外层一级卡片',
 ]) requireText(pageDesign, token, 'market page authority');
 for (const token of [
   '`MarketCommodityRow`',
@@ -201,7 +207,7 @@ for (const token of [
   "page.locator('.global-market-goods-header')",
   "getByRole('button', { name: '打开小麦全局详情' })",
   "getByRole('button', { name: '打开加利福尼亚州小麦详情' })",
-  "page.locator('.global-market-product-detail-panel > .market-commodity-row-header')",
+  "page.locator('.global-market-product-detail > .market-commodity-row-header')",
   "page.locator('.global-market-product-region-list .market-commodity-row-header')",
   "page.locator('.market-fundamentals-balance .market-balance-bar')",
 ]) requireText(hierarchyBrowserSpec, token, 'market hierarchy browser regression');

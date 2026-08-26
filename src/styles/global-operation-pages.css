@@ -292,11 +292,10 @@
   container-name: global-market-page;
 }
 
-.global-market-page > .widget-heading,
 .global-market-filter-disclosure,
 .global-market-goods-header,
 .global-market-goods-list,
-.global-market-product-detail-panel,
+.global-market-product-detail > .market-commodity-row-header,
 .global-market-product-region-list {
   width: 100%;
   max-width: 100%;
@@ -494,11 +493,6 @@
 .global-market-goods-row__chevron .game-icon {
   width: .85rem;
   height: .85rem;
-}
-
-.global-market-product-detail-panel {
-  display: grid;
-  gap: var(--space-3);
 }
 
 .global-market-empty {

@@ -129,7 +129,7 @@ for (const [path, expected] of [
     'global-market-goods-header',
     'global-market-filter-disclosure',
     'selectedGlobalProductId',
-    'global-market-product-detail-panel',
+    'global-market-product-detail',
     '<MarketCommodityRow',
     'model.setSelectedProvinceId(provinceId);',
     '<EmbeddedMarketPage model={model} embedded />',

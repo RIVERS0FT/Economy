@@ -50,7 +50,7 @@ for (const text of [
   '<MarketCommodityHeader />',
   'global-market-filter-disclosure',
   'selectedGlobalProductId',
-  'global-market-product-detail-panel',
+  'global-market-product-detail',
   'global-market-product-region-list',
   '<MarketCommodityRow',
   'allProvinceOrders',

@@ -25,14 +25,14 @@ test('map keeps gesture zoom without a control panel and primary market/building
   expect(await page.locator('.global-market-goods-row').count()).toBeGreaterThan(1);
 
   await page.getByRole('button', { name: '打开小麦全局详情' }).click();
-  await expect(page.locator('.global-market-product-detail-panel')).toBeVisible();
+  await expect(page.locator('.global-market-product-region-list')).toBeVisible();
   const regionalWheat = page.getByRole('button', { name: '打开加利福尼亚州小麦详情' });
   await expect(regionalWheat).toBeVisible();
   await regionalWheat.click();
   await expect(page.locator('.global-market-page[data-drilldown-province-id]')).toBeVisible();
   await expect(page.locator('.market-detail-surface')).toBeVisible();
   await page.getByRole('button', { name: '返回上一页面' }).click();
-  await expect(page.locator('.global-market-product-detail-panel')).toBeVisible();
+  await expect(page.locator('.global-market-product-region-list')).toBeVisible();
   await page.getByRole('button', { name: '返回上一页面' }).click();
   await expect(page.getByRole('heading', { name: '市场', exact: true })).toBeVisible();
 

@@ -8,10 +8,7 @@ import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext'
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import {
   PageLayout,
-  PagePanel,
   Panel,
-  StatusTag,
-  WidgetHeading,
 } from '../components/ui/layout';
 import type { AssetOrder, EconomyState, ProductCategory } from '../types';
 import { formatCurrency, formatNumber } from '../utils/formatters';
@@ -317,66 +314,60 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
           data-global-scope="market"
           data-global-product-id={selectedGlobalProduct.id}
         >
-          <PagePanel className="global-market-product-detail-panel">
-            <WidgetHeading
-              title="地区行情"
-              action={<StatusTag>{<CompactNumber value={regionalRows.length} />} / {<CompactNumber value={provinces.length} />} 个地区</StatusTag>}
-            />
-            <details className="global-market-filter-disclosure">
-              <summary>
-                <span>筛选与排序</span>
-                <small>{activeRegionalFilterCount > 0 ? `${activeRegionalFilterCount} 项已启用` : '默认折叠'}</small>
-              </summary>
-              <div className="global-market-filter-row" aria-label={`${selectedGlobalProduct.name}地区行情筛选`}>
-                <div className="global-market-filter-group" role="group" aria-label="地区市场状态">
-                  {REGIONAL_STATUS_FILTERS.map((option) => (
-                    <button
-                      type="button"
-                      className={'global-market-filter-button' + (regionalStatusFilter === option.value ? ' active' : '')}
-                      aria-pressed={regionalStatusFilter === option.value}
-                      key={option.value}
-                      onClick={() => setRegionalStatusFilter(option.value)}
-                    >{option.label}</button>
-                  ))}
-                </div>
-                <div className="global-market-filter-group" role="group" aria-label="地区行情排序">
-                  {REGIONAL_SORT_OPTIONS.map((option) => (
-                    <button
-                      type="button"
-                      className={'global-market-filter-button' + (regionalSort === option.value ? ' active' : '')}
-                      aria-pressed={regionalSort === option.value}
-                      key={option.value}
-                      onClick={() => setRegionalSort(option.value)}
-                    >{option.label}</button>
-                  ))}
-                </div>
+          <details className="global-market-filter-disclosure">
+            <summary>
+              <span>筛选与排序</span>
+              <small>{activeRegionalFilterCount > 0 ? `${activeRegionalFilterCount} 项已启用` : '默认折叠'}</small>
+            </summary>
+            <div className="global-market-filter-row" aria-label={`${selectedGlobalProduct.name}地区行情筛选`}>
+              <div className="global-market-filter-group" role="group" aria-label="地区市场状态">
+                {REGIONAL_STATUS_FILTERS.map((option) => (
+                  <button
+                    type="button"
+                    className={'global-market-filter-button' + (regionalStatusFilter === option.value ? ' active' : '')}
+                    aria-pressed={regionalStatusFilter === option.value}
+                    key={option.value}
+                    onClick={() => setRegionalStatusFilter(option.value)}
+                  >{option.label}</button>
+                ))}
               </div>
-            </details>
-            <MarketCommodityHeader />
-            <ul className="global-market-product-region-list" aria-label={`${selectedGlobalProduct.name}各地区行情`}>
-              {regionalRows.map((row) => (
-                <li key={row.province.id}>
-                  <MarketCommodityRow
-                    productId={selectedGlobalProduct.id}
-                    productName={selectedGlobalProduct.name}
-                    categoryLabel={PRODUCT_CATEGORY_LABELS[selectedGlobalProduct.category]}
-                    regionName={row.province.name}
-                    currentRegion={row.province.id === model.selectedProvinceId}
-                    provinceId={row.province.id}
-                    sellVolume={row.sellVolume}
-                    buyVolume={row.buyVolume}
-                    marketPrice={row.marketPrice}
-                    trend={row.trend}
-                    ariaLabel={`打开${row.province.name}${selectedGlobalProduct.name}详情`}
-                    onClick={() => openRegionalProduct(row.province.id)}
-                  />
-                </li>
-              ))}
-              {regionalRows.length === 0
-                ? <li className="global-market-empty">没有符合当前筛选条件的地区。</li>
-                : null}
-            </ul>
-          </PagePanel>
+              <div className="global-market-filter-group" role="group" aria-label="地区行情排序">
+                {REGIONAL_SORT_OPTIONS.map((option) => (
+                  <button
+                    type="button"
+                    className={'global-market-filter-button' + (regionalSort === option.value ? ' active' : '')}
+                    aria-pressed={regionalSort === option.value}
+                    key={option.value}
+                    onClick={() => setRegionalSort(option.value)}
+                  >{option.label}</button>
+                ))}
+              </div>
+            </div>
+          </details>
+          <MarketCommodityHeader />
+          <ul className="global-market-product-region-list" aria-label={`${selectedGlobalProduct.name}各地区行情`}>
+            {regionalRows.map((row) => (
+              <li key={row.province.id}>
+                <MarketCommodityRow
+                  productId={selectedGlobalProduct.id}
+                  productName={selectedGlobalProduct.name}
+                  categoryLabel={PRODUCT_CATEGORY_LABELS[selectedGlobalProduct.category]}
+                  regionName={row.province.name}
+                  currentRegion={row.province.id === model.selectedProvinceId}
+                  provinceId={row.province.id}
+                  sellVolume={row.sellVolume}
+                  buyVolume={row.buyVolume}
+                  marketPrice={row.marketPrice}
+                  trend={row.trend}
+                  ariaLabel={`打开${row.province.name}${selectedGlobalProduct.name}详情`}
+                  onClick={() => openRegionalProduct(row.province.id)}
+                />
+              </li>
+            ))}
+            {regionalRows.length === 0
+              ? <li className="global-market-empty">没有符合当前筛选条件的地区。</li>
+              : null}
+          </ul>
         </div>
       </PageLayout>
     );

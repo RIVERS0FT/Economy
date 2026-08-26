@@ -94,7 +94,7 @@ test('global market drills from commodity to regional quotes and existing trade 
   await expect(page.getByRole('searchbox')).toHaveCount(0);
   await page.getByRole('button', { name: '打开小麦全局详情' }).click();
   await expect(page.getByRole('heading', { level: 1, name: '小麦' })).toBeVisible();
-  await expect(page.locator('.global-market-product-detail-panel')).toBeVisible();
+  await expect(page.locator('.global-market-product-region-list')).toBeVisible();
 
   const regionalRow = page.getByRole('button', { name: '打开加利福尼亚州小麦详情' });
   await expect(regionalRow).toBeVisible();
@@ -110,7 +110,7 @@ test('global market drills from commodity to regional quotes and existing trade 
   await expect(page.locator('.regional-entity-title__region')).toHaveText('加利福尼亚州');
   await expect(page.locator('.market-trade-card')).toBeVisible();
   await page.getByRole('button', { name: '返回上一页面' }).click();
-  await expect(page.locator('.global-market-product-detail-panel')).toBeVisible();
+  await expect(page.locator('.global-market-product-region-list')).toBeVisible();
 });
 
 test('player page heading keeps SVG back, centered title, and SVG close in that order', async ({ page }) => {
