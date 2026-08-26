@@ -1,0 +1,41 @@
+name: Fix avatar design rule
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-design-rule:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'codex/player-avatar-compact-numbers'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/player-avatar-compact-numbers
+          fetch-depth: 0
+      - name: Align final avatar design rule
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('docs/UI_DESIGN_SYSTEM.md')
+          text = path.read_text(encoding='utf-8')
+          before = '- 玩家状态栏身份轨道第一行固定为“金融帝国”，第二行显示玩家用户名；宽屏显示完整文字，紧凑桌面和移动端保留同一 Logo 身份槽但可隐藏文字以保证五项状态数据可读。'
+          after = '- 玩家状态栏身份轨道第一行固定为“金融帝国”，第二行显示玩家用户名；身份槽固定使用共享 `PlayerAvatar` 玩家头像，点击或键盘激活身份控件进入设置页；宽屏显示完整文字，紧凑桌面和移动端可隐藏文字，但必须保持头像与五项状态数据可读。'
+          if before not in text:
+              raise SystemExit('obsolete avatar identity rule not found')
+          path.write_text(text.replace(before, after, 1), encoding='utf-8')
+          PY
+          rm .github/workflows/codex-fix-avatar-design-rule.yml
+          git diff --check
+          ! grep -F 'Logo 身份槽' docs/UI_DESIGN_SYSTEM.md
+      - name: Commit final design rule
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "统一状态栏头像设计规则"
+          git push origin HEAD:codex/player-avatar-compact-numbers
