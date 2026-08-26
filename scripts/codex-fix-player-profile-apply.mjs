@@ -33,6 +33,16 @@ replaceRequired(
   '',
   'obsolete leaderboard verifier wording',
 );
+replaceRequired(
+  "  '    \"verify:mobile-status-value-fit\": \"node scripts/verify-mobile-status-value-fit.mjs\",\\n    \"verify:player-avatar\": \"node scripts/verify-player-avatar.mjs\",',",
+  "  '    \"verify:mobile-status-value-fit\": \"node scripts/verify-mobile-status-value-fit.mjs\",\\n    \"verify:display-format\": \"node scripts/verify-display-format.mjs\",\\n    \"verify:player-avatar\": \"node scripts/verify-player-avatar.mjs\",',",
+  'display-format package script',
+);
+replaceRequired(
+  'AVATAR_BLOCK = """',
+  'AVATAR_BLOCK = r"""',
+  'raw nginx avatar block',
+);
 
 const migrationStart = content.indexOf('function migrateNumericJsx() {');
 const migrationEndMarker = 'migrateNumericJsx();';
