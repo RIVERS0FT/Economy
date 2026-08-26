@@ -130,9 +130,9 @@ requireText(uiDesign, '`MarketCommodityRow`', 'UI 设计系统必须记录共享
 requireText(uiDesign, '移动端仍保持单行', 'UI 设计系统必须记录移动单行规则。');
 
 if (failures.length > 0) {
-  console.error('市场页布局与运行时验证失败：');
+  console.error('地区市场布局与运行时验证失败：');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log('市场页验证通过：地区目录默认折叠且无搜索，商品行保留核心行情；详情承载基本面、库存与生产、订单簿、下单和自动交易。');
+console.log('地区市场核心验证通过：目录、详情、交易卡、订单簿、自动交易与浏览器专项覆盖保持单一地区职责。');

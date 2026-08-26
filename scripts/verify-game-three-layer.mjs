@@ -462,10 +462,8 @@ for (const text of [
 ]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
 requireFile('tests/browser/application-atmosphere-consistency.spec.ts');
 for (const text of [
-  'auth, game and admin share the desktop atmosphere baseline',
-  'auth, game and admin share the mobile atmosphere baseline',
-  'locks the desktop atmosphere intensity',
-  'locks the mobile atmosphere intensity',
+  'desktop shares one atmosphere baseline and locks its intensity',
+  'mobile shares one atmosphere baseline and locks its intensity',
 ]) requireText('tests/browser/application-atmosphere-consistency.spec.ts', text);
 
 if (failures.length) {
