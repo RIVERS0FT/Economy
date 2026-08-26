@@ -1,0 +1,52 @@
+name: Apply player profile and compact numbers
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'codex/player-avatar-compact-numbers'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/player-avatar-compact-numbers
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.1
+          cache: npm
+      - run: npm ci
+      - name: Apply final implementation
+        run: |
+          node scripts/codex-fix-player-profile-apply.mjs
+          node --check scripts/codex-apply-player-profile.mjs
+          node scripts/codex-apply-player-profile.mjs
+          git diff --check
+      - name: Validate targeted server and Nginx behavior
+        run: |
+          node --test server/test/player-profile.test.js
+          python3 scripts/test_configure_economy_nginx.py
+          npm run verify:display-format
+          npm run verify:player-avatar
+          node scripts/verify-leaderboards.mjs
+          node scripts/verify-settings-layout.mjs
+          node scripts/verify-game-shell-layout.mjs
+      - name: Build
+        run: npm run build
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+      - name: Browser regression
+        run: npm run test:browser
+      - name: Commit implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "统一玩家头像与紧凑数字"
+          git push origin HEAD:codex/player-avatar-compact-numbers
