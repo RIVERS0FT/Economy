@@ -27,6 +27,7 @@ jobs:
           node scripts/codex-fix-player-profile-apply.mjs
           node --check scripts/codex-apply-player-profile.mjs
           node scripts/codex-apply-player-profile.mjs
+          node scripts/codex-fix-page-content.mjs
           git diff --check
       - name: Validate targeted server and Nginx behavior
         run: |
