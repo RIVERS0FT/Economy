@@ -29,4 +29,16 @@ replaceRequired('scripts/verify-production-settlement-layout.mjs', [
   ],
 ]);
 
-console.log('Updated anti-regression rules for compact values without changing page or production layout.');
+replaceRequired('scripts/verify-market-assets.mjs', [
+  ["'formatNumber(order.remaining)'", "'<CompactNumber value={order.remaining} />'"],
+  [
+    "'运行中 <strong>{formatNumber(group.participatingCount)}</strong>'",
+    "'运行中 <strong>{<CompactNumber value={group.participatingCount} />}</strong>'",
+  ],
+  [
+    "'冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>'",
+    "'冻结中 <strong>{<CompactNumber value={group.frozenCount ?? group.listedCount} />}</strong>'",
+  ],
+]);
+
+console.log('Updated anti-regression rules for compact values without changing page, market, or production layout.');
