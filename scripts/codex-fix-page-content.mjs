@@ -1,0 +1,23 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+
+const path = 'scripts/verify-page-content-base.mjs';
+let content = readFileSync(path, 'utf8');
+
+for (const [before, after] of [
+  ["'formatNumber(order.remaining)'", "'<CompactNumber value={order.remaining} />'"],
+  ["'可用 {formatNumber(inventory.available)}'", "'可用 {<CompactNumber value={inventory.available} />}'"],
+  ["'冻结 {formatNumber(inventory.frozen)}'", "'冻结 {<CompactNumber value={inventory.frozen} />}'"],
+  ["'formatNumber(derived.runningFacilities)'", "'<CompactNumber value={derived.runningFacilities} />'"],
+  ["'玩家 Logo、游戏标题和玩家名统一位于状态栏左侧身份轨道'", "'状态栏左侧玩家头像、游戏标题和玩家名统一位于身份轨道'"],
+  ["'logoSrc: BRAND_LOGO_URL'", "'playerId: model.user.id'"],
+  ["'`formatNumber` 与 `formatCompactNumber` 对绝对值达到 1,000 的数量类显示统一使用 K/M/B/T'", "'数量、普通货币与排名等只读业务数值对绝对值达到 1,000 的内容统一使用 K/M/B/T'"],
+  ["'`formatCurrency` 继续遵守普通货币两位显示精度'", "'`formatCurrency` 继续保留普通货币两位精确格式'"],
+  ["'数量类值遵循全局固定紧凑数字规则'", "'数量、普通货币与排名等只读业务数值遵循全局固定紧凑规则'"],
+  ["'货币值继续遵守两位显示精度'", "'悬停或键盘聚焦时通过共享 Tooltip 显示完整数字'"],
+]) {
+  if (!content.includes(before)) throw new Error(`page-content verifier source not found: ${before}`);
+  content = content.replace(before, after);
+}
+
+writeFileSync(path, content, 'utf8');
+console.log('Updated page-content anti-regression rules for compact values and player identity.');
