@@ -43,25 +43,8 @@
 
 .global-facility-catalog-header,
 .global-facility-region-header {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  display: grid;
-  align-items: center;
   gap: .75rem;
-  border-bottom: 1px solid var(--color-divider);
-  padding: .3rem .25rem .4rem;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-}
-
-.global-facility-catalog-header > span,
-.global-facility-region-header > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding-inline: .25rem;
 }
 
 .global-facility-catalog-header {
@@ -387,22 +370,9 @@
 }
 
 .global-market-goods-header {
-  display: grid;
   grid-template-columns: minmax(9.5rem, 1.5fr) minmax(5.4rem, .7fr) minmax(7.8rem, .88fr) minmax(6rem, .72fr) .8rem;
-  align-items: center;
   gap: .55rem;
-  margin-bottom: -.14rem;
-  padding: 0 .6rem;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-}
-
-.global-market-goods-header > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  margin-bottom: .32rem;
 }
 
 .global-market-goods-list,

@@ -5,6 +5,7 @@ import { AssetAllocationChart } from '../charts/AssetAllocationChart';
 import { PagePanel, WidgetHeading } from '../ui/layout';
 import { buildAssetAllocation } from '../../utils/assetAllocation';
 import { formatCurrency, formatNumber } from '../../utils/formatters';
+import '../../styles/entity-list-header.css';
 
 export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
   const { game, derived } = model;
@@ -77,7 +78,7 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
         <section className="asset-composition-section" aria-labelledby="asset-composition-title">
           <h3 id="asset-composition-title">资产构成</h3>
           <div className="asset-composition-table" role="table" aria-label="资产构成明细">
-            <div className="asset-composition-header" role="row">
+            <div className="entity-list-header asset-composition-header" role="row">
               <span role="columnheader">类型</span>
               <span role="columnheader">总计</span>
               <span role="columnheader">可用</span>

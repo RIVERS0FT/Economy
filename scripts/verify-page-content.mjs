@@ -24,6 +24,7 @@ for (const path of [
   'src/pages/MarketPage.tsx',
   'src/components/market/MarketCommodityRow.tsx',
   'src/styles/market-commodity-row.css',
+  'src/styles/entity-list-header.css',
   'src/pages/BuildingsPage.tsx',
   'src/pages/ProvincePage.tsx',
   'src/pages/PageRouter.tsx',
@@ -146,14 +147,14 @@ for (const [path, expected] of [
     '<EmbeddedBuildingsPage',
     'onDetailFacilityChange={(nextFacilityTypeId) => {',
     'className="global-facility-catalog"',
-    'className="global-facility-catalog-header"',
+    'className="entity-list-header global-facility-catalog-header"',
     'className="global-facility-catalog-list"',
     'className="global-facility-catalog-row"',
     'onClick={() => openGlobalFacility(row.facilityTypeId)}',
     '<FacilityIcon facilityTypeId={row.facilityTypeId} className="global-facility-catalog-row__artwork" />',
     '<ChevronIcon direction="right" />',
     'data-global-facility-type-id={selectedGlobalFacilityTypeId}',
-    'className="global-facility-region-header"',
+    'className="entity-list-header global-facility-region-header"',
     'className="global-facility-region-list"',
     'className="global-facility-region-row"',
     'className={`global-facility-region-row__profit is-${row.profitTone}`}',
@@ -188,6 +189,14 @@ for (const text of [
   '24h',
 ]) requireText('src/components/market/MarketCommodityRow.tsx', text);
 for (const text of ['挂单差额', '基准偏离', '挂单状态']) forbidText('src/components/market/MarketCommodityRow.tsx', text);
+for (const text of ['.entity-list-header', 'border-bottom: 1px solid var(--color-divider);']) {
+  requireText('src/styles/entity-list-header.css', text);
+}
+requireText('src/pages/GlobalMarketPage.tsx', 'className="entity-list-header global-market-goods-header"');
+requireText('src/pages/GlobalBuildingsPage.tsx', 'className="entity-list-header global-facility-catalog-header"');
+requireText('src/pages/GlobalBuildingsPage.tsx', 'className="entity-list-header global-facility-region-header"');
+forbidText('src/pages/GlobalMarketPage.tsx', '筛选与排序');
+forbidText('src/pages/MarketPage.tsx', '筛选与排序');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品目录 → 商品全局详情 → 地区商品详情');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '筛选默认折叠且不提供商品名称搜索框');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '市场标题区固定显示“市场”，商品目录正文不重复显示“商品”分区标题');

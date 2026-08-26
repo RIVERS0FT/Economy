@@ -19,6 +19,7 @@ const paths = {
   layout: 'src/components/ui/layout.tsx',
   primaryStyles: 'src/styles/primary-surfaces.css',
   globalOperationStyles: 'src/styles/global-operation-pages.css',
+  entityHeaderStyles: 'src/styles/entity-list-header.css',
   productionStyles: 'src/styles/production-surface.css',
   assetStyles: 'src/styles/asset-overview.css',
   shopStyles: 'src/styles/gem-shop.css',
@@ -70,8 +71,6 @@ if (failures.length === 0) {
     'container-type: inline-size;',
     '.global-facility-catalog-header,',
     '.global-facility-region-header {',
-    '.global-facility-catalog-header > span,',
-    '.global-facility-region-header > span {',
     '.global-facility-catalog-list,',
     '.global-facility-region-list {',
     '.global-facility-catalog-row,',
@@ -91,6 +90,12 @@ if (failures.length === 0) {
     'font-size: .6875rem;',
     '@media (max-width: 720px)',
   ]) requireText(paths.globalOperationStyles, text);
+  for (const text of [
+    '.entity-list-header {',
+    'border-bottom: 1px solid var(--color-divider);',
+    '.entity-list-header > span {',
+    'text-overflow: ellipsis;',
+  ]) requireText(paths.entityHeaderStyles, text);
   for (const text of [
     '.global-facility-catalog-row {\n    grid-template-columns: repeat(2, minmax(0, 1fr));',
     '.global-province-list',

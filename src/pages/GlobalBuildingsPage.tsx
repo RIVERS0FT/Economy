@@ -14,6 +14,7 @@ import {
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { resolveFacilityDetailRecipeState } from './production/ProductionFacilityDetail';
 import '../styles/global-operation-pages.css';
+import '../styles/entity-list-header.css';
 
 const EmbeddedBuildingsPage = lazy(() => import('./BuildingsPage').then((module) => ({
   default: module.BuildingsPage,
@@ -293,7 +294,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
         >
           {facilityProvinceRows.length > 0 ? (
             <>
-              <div className="global-facility-region-header" aria-hidden="true">
+              <div className="entity-list-header global-facility-region-header" aria-hidden="true">
                 <span>地区</span>
                 <span>利润／分钟</span>
                 <span>拥有</span>
@@ -344,7 +345,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
         <section className="global-facility-catalog" aria-label="全局工厂目录">
           {facilityRows.length > 0 ? (
             <>
-              <div className="global-facility-catalog-header" aria-hidden="true">
+              <div className="entity-list-header global-facility-catalog-header" aria-hidden="true">
                 <span>工厂</span>
                 <span>平均利润／分钟</span>
                 <span>拥有</span>

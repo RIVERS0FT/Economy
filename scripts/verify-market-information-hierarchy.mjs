@@ -17,6 +17,8 @@ const gameIcons = read('src/components/icons/GameIcons.tsx');
 const globalCss = read('src/styles/global-operation-pages.css');
 const commodityRow = read('src/components/market/MarketCommodityRow.tsx');
 const commodityCss = read('src/styles/market-commodity-row.css');
+const entityHeaderCss = read('src/styles/entity-list-header.css');
+const assetOverviewPanel = read('src/components/assets/AssetOverviewPanel.tsx');
 const formControlsCss = read('src/styles/form-controls.css');
 const gameShell = read('src/components/shell/GameShell.tsx');
 const productionConfig = read('src/components/facilities/FacilityProductionConfigControls.tsx');
@@ -44,7 +46,10 @@ for (const token of [
   'selectedGlobalProductId',
   'global-market-product-detail',
   'global-market-product-region-list',
-  '<MarketCommodityHeader />',
+  '<MarketCommodityHeader',
+  'entityLabel="地区"',
+  'regionPrimary',
+  'className="entity-list-header global-market-goods-header"',
   '<MarketCommodityRow',
   '<ChevronIcon direction="right" />',
   '地区行情',
@@ -53,6 +58,8 @@ for (const token of [
   '返回商品全局详情',
   '<EmbeddedMarketPage model={model} embedded />',
 ]) requireText(globalMarket, token, 'global market hierarchy');
+forbidText(globalMarket, '筛选与排序', 'global market sort must live in the header');
+requireText(globalMarket, '<span>筛选</span>', 'global market filter disclosure must be named 筛选');
 
 for (const token of [
   '<WidgetHeading title="商品"',
@@ -73,7 +80,7 @@ for (const token of ['<PagePanel', '<WidgetHeading', '<StatusTag', '个地区'])
 
 const catalogSourceStart = globalMarket.indexOf('const activeCatalogFilterCount');
 const catalogFilterIndex = globalMarket.indexOf('<details className="global-market-filter-disclosure"', catalogSourceStart);
-const catalogHeaderIndex = globalMarket.indexOf('<div className="global-market-goods-header"', catalogSourceStart);
+const catalogHeaderIndex = globalMarket.indexOf('<div className="entity-list-header global-market-goods-header"', catalogSourceStart);
 const catalogListIndex = globalMarket.indexOf('<ul className="global-market-goods-list"', catalogSourceStart);
 if (
   catalogSourceStart < 0
@@ -85,7 +92,7 @@ if (
 }
 const productDetailIndex = globalMarket.indexOf('global-market-product-detail"');
 const productFilterIndex = globalMarket.indexOf('<details className="global-market-filter-disclosure"', productDetailIndex);
-const productRegionHeaderIndex = globalMarket.indexOf('<MarketCommodityHeader />', productFilterIndex);
+const productRegionHeaderIndex = globalMarket.indexOf('<MarketCommodityHeader', productFilterIndex);
 const productRegionListIndex = globalMarket.indexOf('<ul className="global-market-product-region-list"', productRegionHeaderIndex);
 if (
   productDetailIndex < 0
@@ -99,11 +106,14 @@ if (
 for (const token of [
   'export function MarketCommodityHeader',
   'market-commodity-row-header',
-  '<span>商品</span>',
-  '<span>卖单量</span>',
-  '<span>买单量</span>',
-  '<span>市场价</span>',
-  '<span>24h</span>',
+  "entityLabel = '商品'",
+  "label: '卖单量'",
+  "label: '买单量'",
+  "label: '市场价'",
+  "label: '24h'",
+  'role="columnheader"',
+  'aria-sort=',
+  'market-commodity-row-header__sort',
   '<ChevronIcon direction="right" />',
 ]) requireText(commodityRow, token, 'shared commodity row');
 for (const token of ['挂单差额', '基准偏离', '挂单状态', '>›<']) forbidText(commodityRow, token, 'shared commodity row');
@@ -123,6 +133,18 @@ forbidText(commodityCss, '.market-catalog-list > li:first-child > .market-commod
 forbidText(commodityCss, "content: '⌄';", 'shared commodity row css');
 
 for (const token of [
+  '.entity-list-header',
+  'border-bottom: 1px solid var(--color-divider);',
+  'font-size: var(--font-size-xs);',
+  'font-weight: 700;',
+]) requireText(entityHeaderCss, token, 'shared entity list header baseline');
+for (const token of [
+  'className="entity-list-header global-facility-catalog-header"',
+  'className="entity-list-header global-facility-region-header"',
+]) requireText(globalBuildings, token, 'global buildings headers must use the shared entity list baseline');
+requireText(assetOverviewPanel, 'className="entity-list-header asset-composition-header"', 'bank asset composition header must use the shared entity list baseline');
+
+for (const token of [
   "export type ChevronDirection = 'left' | 'right' | 'up' | 'down';",
   'export function ChevronIcon',
   'return <ChevronIcon direction="left" {...props} />;',
@@ -138,7 +160,9 @@ for (const token of [
 const regionalCatalogStart = regionalMarket.indexOf("if (!facilityAssetId && marketViewMode === 'catalog')");
 const regionalDetailStart = regionalMarket.indexOf('\n  const detailContent =', regionalCatalogStart);
 const regionalCatalog = regionalMarket.slice(regionalCatalogStart, regionalDetailStart);
-for (const token of ['market-catalog-filter-disclosure', '<MarketCommodityHeader />', '<MarketCommodityRow']) requireText(regionalCatalog, token, 'regional market catalog');
+for (const token of ['market-catalog-filter-disclosure', '<MarketCommodityHeader', '<MarketCommodityRow']) requireText(regionalCatalog, token, 'regional market catalog');
+forbidText(regionalCatalog, '筛选与排序', 'regional market sort must live in the header');
+requireText(regionalCatalog, '<span>筛选</span>', 'regional market filter disclosure must be named 筛选');
 for (const token of ['TextInput', 'catalogQuery', '挂单差额', '基准偏离', '挂单状态']) forbidText(regionalCatalog, token, 'regional market catalog');
 for (const token of [
   'MarketBalanceBar',
@@ -179,7 +203,8 @@ for (const token of [
   '筛选默认折叠且不提供商品名称搜索框',
   '市场标题区固定显示“市场”，商品目录正文不重复显示“商品”分区标题',
   '商品列表字段名使用独立表头',
-  '商品、卖单量、买单量、市场价和 24h 变化',
+  '地区、卖单量、买单量、市场价和 24h 变化',
+  '排序不占用筛选面板',
   '全局页不得把各州买卖单合并成一个全国订单簿',
   '不显示“地区行情”标题、地区计数或外层一级卡片',
 ]) requireText(pageDesign, token, 'market page authority');

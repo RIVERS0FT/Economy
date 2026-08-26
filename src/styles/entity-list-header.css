@@ -1,0 +1,19 @@
+/* Single authority for the shared column-header baseline used by every entity list. */
+.entity-list-header {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  align-items: center;
+  border-bottom: 1px solid var(--color-divider);
+  padding-block: .3rem .4rem;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.entity-list-header > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

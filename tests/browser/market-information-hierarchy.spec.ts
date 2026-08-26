@@ -35,11 +35,18 @@ test('market uses product-first global and regional information hierarchy', asyn
   const regionalHeader = page.locator('.global-market-product-detail > .market-commodity-row-header');
   await expect(regionalHeader).toBeVisible();
   await expect(page.locator('.global-market-product-region-list .market-commodity-row-header')).toHaveCount(0);
-  for (const label of ['商品', '卖单量', '买单量', '市场价', '24h']) {
+  for (const label of ['地区', '卖单量', '买单量', '市场价', '24h']) {
     await expect(regionalHeader.getByText(label, { exact: true })).toBeVisible();
   }
   const regionalRow = page.getByRole('button', { name: '打开加利福尼亚州小麦详情' });
   await expect(regionalRow).toBeVisible();
+  await expect(regionalRow.locator('.market-commodity-row__name strong')).toHaveText('加利福尼亚州');
+  await expect(regionalRow.locator('.market-commodity-row__name small')).toContainText('小麦');
+  const regionalPriceSort = regionalHeader.getByRole('button', { name: '市场价' });
+  await regionalPriceSort.click();
+  await expect(regionalHeader.locator('[aria-sort="descending"]')).toHaveText('市场价');
+  await regionalPriceSort.click();
+  await expect(regionalHeader.locator('[aria-sort="ascending"]')).toHaveText('市场价');
   for (const label of ['卖单量', '买单量', '市场价', '24h', '挂单差额', '基准偏离', '挂单状态']) {
     await expect(regionalRow.getByText(label, { exact: true })).toHaveCount(0);
   }

@@ -47,7 +47,9 @@ for (const text of [
   '<PageLayout title="市场">',
   'data-global-scope="market"',
   'global-market-goods-header',
-  '<MarketCommodityHeader />',
+  '<MarketCommodityHeader',
+  'entityLabel="地区"',
+  'regionPrimary',
   'global-market-filter-disclosure',
   'selectedGlobalProductId',
   'global-market-product-detail',
@@ -58,6 +60,7 @@ for (const text of [
   '返回商品全局详情',
   '<EmbeddedMarketPage model={model} embedded />',
 ]) requireText('src/pages/GlobalMarketPage.tsx', text);
+forbidText('src/pages/GlobalMarketPage.tsx', '筛选与排序', '全局市场不得把排序放回筛选面板。');
 for (const text of [
   'global-market-provinces-panel',
   '<WidgetHeading title="商品"',
