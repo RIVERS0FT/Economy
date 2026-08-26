@@ -1,3 +1,4 @@
+import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { currentFormulaScope } from '../components/facilities/FacilityProductionFormula';
@@ -321,7 +322,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                       >
                         {row.profitValue}
                       </strong>
-                      <strong className="global-facility-region-row__metric">{formatNumber(row.count)}</strong>
+                      <strong className="global-facility-region-row__metric">{<CompactNumber value={row.count} />}</strong>
                       <strong className="global-facility-region-row__status">{row.status}</strong>
                       <span className="global-facility-region-row__chevron" aria-hidden="true">
                         <ChevronIcon direction="right" />
@@ -370,7 +371,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                       >
                         {row.profitValue}
                       </strong>
-                      <strong className="global-facility-catalog-row__metric">{formatNumber(row.totalCount)}</strong>
+                      <strong className="global-facility-catalog-row__metric">{<CompactNumber value={row.totalCount} />}</strong>
                       <span className="global-facility-catalog-row__chevron" aria-hidden="true">
                         <ChevronIcon direction="right" />
                       </span>

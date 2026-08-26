@@ -1,3 +1,4 @@
+import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
 import { useEffect, useMemo, useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { gameActions, getGemShopSummary, type GemShopSummary } from '../api/game';
@@ -121,7 +122,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
         <Panel className="widget gem-shop-balance-card">
           <WidgetHeading title="当前余额" action={<StatusTag tone={quoteTone}>今日终端报价</StatusTag>} />
           <div className="gem-shop-balance-row">
-            <div><GemIcon /><span>宝石</span><strong>{formatNumber(model.game.gems)}</strong></div>
+            <div><GemIcon /><span>宝石</span><strong>{<CompactNumber value={model.game.gems} />}</strong></div>
             <div><CreditsIcon /><span>可用资金</span><strong><CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount></strong></div>
             <div className="gem-shop-rate-summary">
               <span>今日报价</span>
@@ -150,7 +151,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
               <div className="gem-shop-history-list">
                 {summary.recentExchanges.map((record) => (
                   <div key={`${record.createdAt}-${record.gemsSpent}`}>
-                    <span>消耗 {formatNumber(record.gemsSpent)} 宝石</span>
+                    <span>消耗 {<CompactNumber value={record.gemsSpent} />} 宝石</span>
                     <strong><CurrencyAmount sign="+">{formatCurrency(record.creditsReceived)}</CurrencyAmount></strong>
                     <small>
                       {record.creditsPerGem ? `当时报价 1 = ${formatCurrency(record.creditsPerGem)} · ` : ''}
@@ -162,7 +163,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
             ) : <p className="gem-shop-empty-copy">{loading ? '正在读取兑换记录…' : '尚无兑换记录'}</p>}
             {summary ? (
               <div className="gem-shop-total-row">
-                <span>累计消耗 {formatNumber(summary.totalGemsSpent)} 宝石</span>
+                <span>累计消耗 {<CompactNumber value={summary.totalGemsSpent} />} 宝石</span>
                 <strong>累计获得 <CurrencyAmount>{formatCurrency(summary.totalCreditsReceived)}</CurrencyAmount></strong>
               </div>
             ) : null}
@@ -211,7 +212,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
                     </Button>
                   </div>
                   <small>
-                    每日只能接受或放弃一次报价；接受后单次兑换 {formatNumber(summary.minExchangeGems)}～{formatNumber(summary.maxExchangeGems)} 宝石，且不可撤销。宝石不能用货币买回。
+                    每日只能接受或放弃一次报价；接受后单次兑换 {<CompactNumber value={summary.minExchangeGems} />}～{<CompactNumber value={summary.maxExchangeGems} />} 宝石，且不可撤销。宝石不能用货币买回。
                   </small>
                 </>
               ) : (

@@ -1,3 +1,4 @@
+import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
 import { useEffect, useMemo, useState } from 'react';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { ProductIconLabel } from '../components/icons/ProductIcons';
@@ -184,7 +185,7 @@ function ContractProgress({ contract }: { contract: ProductionContract }) {
   if (contract.totalDeliveries === null) {
     return (
       <div className="contract-progress" aria-label={`长期合同，已履约 ${contract.completedDeliveries} 批`}>
-        <strong>长期合同 · 已履约 {formatNumber(contract.completedDeliveries)} 批</strong>
+        <strong>长期合同 · 已履约 {<CompactNumber value={contract.completedDeliveries} />} 批</strong>
       </div>
     );
   }
@@ -195,7 +196,7 @@ function ContractProgress({ contract }: { contract: ProductionContract }) {
   return (
     <div className="contract-progress" aria-label={`已完成 ${contract.completedDeliveries} / ${contract.totalDeliveries} 批`}>
       <div className="contract-progress-track"><span style={{ width: `${percentage}%` }} /></div>
-      <strong>{formatNumber(contract.completedDeliveries)} / {formatNumber(contract.totalDeliveries)} 批</strong>
+      <strong>{<CompactNumber value={contract.completedDeliveries} />} / {<CompactNumber value={contract.totalDeliveries} />} 批</strong>
     </div>
   );
 }
@@ -272,7 +273,7 @@ function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
           </StatusTag>
         </div>
         <DataList className="compact contract-renewal-summary">
-          <DataRow label="每批数量" value={formatNumber(terms.quantityPerDelivery)} />
+          <DataRow label="每批数量" value={<CompactNumber value={terms.quantityPerDelivery} />} />
           <DataRow label="单位价格" value={<CurrencyAmount>{formatCurrency(terms.unitPrice)}</CurrencyAmount>} />
           <DataRow label="交付周期" value={durationLabel(terms.deliveryIntervalMs)} />
           <DataRow label="总批次" value={deliveryCountLabel(terms.totalDeliveries)} />
@@ -303,7 +304,7 @@ function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
       <section className="contract-renewal-panel contract-renewal-panel--available" aria-label="合同续签">
         <div>
           <strong>继续长期合作</strong>
-          <span>合同剩余 {formatNumber(remaining)} 批，可提前协商下一期条款。</span>
+          <span>合同剩余 {<CompactNumber value={remaining} />} 批，可提前协商下一期条款。</span>
         </div>
         <Button variant="secondary" disabled={busy} onClick={() => setEditing(true)}>提出续签</Button>
       </section>
@@ -600,7 +601,7 @@ function OpenContractCard({ contract, productName, busy, run }: ContractCardProp
       </header>
       <div className="contract-offer-terms">
         <DataList className="compact">
-          <DataRow label="每批数量" value={formatNumber(contract.quantityPerDelivery)} />
+          <DataRow label="每批数量" value={<CompactNumber value={contract.quantityPerDelivery} />} />
           <DataRow label="每批货款" value={<CurrencyAmount>{formatCurrency(contract.batchGross)}</CurrencyAmount>} />
         </DataList>
         <DataList className="compact">
@@ -696,7 +697,7 @@ function HistoryContractRow({
           <DataList className="compact">
             {contract.kind === 'supply' ? <>
               <DataRow label="合作商品" value={productName} />
-              <DataRow label="每批数量" value={formatNumber(contract.quantityPerDelivery)} />
+              <DataRow label="每批数量" value={<CompactNumber value={contract.quantityPerDelivery} />} />
               <DataRow label="单位价格" value={<CurrencyAmount>{formatCurrency(contract.unitPrice)}</CurrencyAmount>} />
               <DataRow label="每批货款" value={<CurrencyAmount>{formatCurrency(contract.batchGross)}</CurrencyAmount>} />
               <DataRow label="交付周期" value={durationLabel(contract.deliveryIntervalMs)} />
@@ -709,11 +710,11 @@ function HistoryContractRow({
               <DataRow label="到期应还" value={<CurrencyAmount>{formatCurrency(Number(contract.principal || 0) + loanInterest)}</CurrencyAmount>} />
               <DataRow label="贷款期限" value={plainDurationLabel(contract.termMs || 0)} />
               <DataRow label="抵押工厂" value={facilityName} />
-              <DataRow label="抵押数量" value={formatNumber(contract.collateralQuantity || 0)} />
+              <DataRow label="抵押数量" value={<CompactNumber value={contract.collateralQuantity || 0} />} />
             </> : null}
             {contract.kind === 'facility_lease' ? <>
               <DataRow label="租赁工厂" value={facilityName} />
-              <DataRow label="工厂数量" value={formatNumber(contract.quantity || 0)} />
+              <DataRow label="工厂数量" value={<CompactNumber value={contract.quantity || 0} />} />
               <DataRow label="每期租金" value={<CurrencyAmount>{formatCurrency(contract.rentPerPeriod || 0)}</CurrencyAmount>} />
               <DataRow label="租金周期" value={durationLabel(contract.periodMs || 0)} />
               <DataRow label="总租期" value={formatNumber(contract.totalPeriods || 0) + ' 期'} />
@@ -727,12 +728,12 @@ function HistoryContractRow({
           <h3>完成情况</h3>
           {completion.total === null ? (
             <div className="contract-progress" aria-label={'长期合同，已履约 ' + completion.completed + ' ' + unit}>
-              <strong>长期合同 · 已履约 {formatNumber(completion.completed)} {unit}</strong>
+              <strong>长期合同 · 已履约 {<CompactNumber value={completion.completed} />} {unit}</strong>
             </div>
           ) : (
             <div className="contract-progress" aria-label={'已完成 ' + completion.completed + ' / ' + completion.total + ' ' + unit}>
               <div className="contract-progress-track"><span style={{ width: String(percentage ?? 0) + '%' }} /></div>
-              <strong>{formatNumber(completion.completed)} / {formatNumber(completion.total)} {unit}</strong>
+              <strong>{<CompactNumber value={completion.completed} />} / {<CompactNumber value={completion.total} />} {unit}</strong>
             </div>
           )}
           <DataList className="compact">
@@ -1127,10 +1128,10 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
         <Button onClick={() => { if (showPublish) { setShowPublish(false); setRepublishContract(null); } else { setRepublishContract(null); setShowPublish(true); } }}>{showPublish ? '收起发布表单' : '发布合同'}</Button>
       </div>
       <div className="contract-summary-grid">
-        <MetricCard label="进行中的合同" value={formatNumber(productionContractSummary.active)} detail="供货、借贷或租赁" tone="info" />
-        <MetricCard label="等待我处理" value={formatNumber(productionContractSummary.needsAttention)} detail="商品、货款或仓库异常" tone={productionContractSummary.needsAttention ? 'warning' : 'success'} />
-        <MetricCard label="24 小时内交付" value={formatNumber(productionContractSummary.upcomingWithin24Hours)} detail="即将到期批次" />
-        <MetricCard label="我的公开合同" value={formatNumber(productionContractSummary.open)} detail="尚未被其他玩家承接" />
+        <MetricCard label="进行中的合同" value={<CompactNumber value={productionContractSummary.active} />} detail="供货、借贷或租赁" tone="info" />
+        <MetricCard label="等待我处理" value={<CompactNumber value={productionContractSummary.needsAttention} />} detail="商品、货款或仓库异常" tone={productionContractSummary.needsAttention ? 'warning' : 'success'} />
+        <MetricCard label="24 小时内交付" value={<CompactNumber value={productionContractSummary.upcomingWithin24Hours} />} detail="即将到期批次" />
+        <MetricCard label="我的公开合同" value={<CompactNumber value={productionContractSummary.open} />} detail="尚未被其他玩家承接" />
       </div>
 
       <PagePanel className="contract-performance-panel">
@@ -1138,10 +1139,10 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
         {contractPerformance ? (
           <>
             <div className="contract-performance-grid">
-              <MetricCard label="已结束合同" value={formatNumber(contractPerformance.totalEnded)} />
-              <MetricCard label="正常完成" value={formatNumber(contractPerformance.completed)} detail={`完成率 ${(contractPerformance.completionRateBps / 100).toFixed(1)}%`} tone="success" />
-              <MetricCard label="异常结束" value={formatNumber(contractPerformance.abnormalEnded)} tone={contractPerformance.abnormalEnded > 0 ? 'warning' : 'neutral'} />
-              <MetricCard label="违约／主动违约" value={formatNumber(contractPerformance.defaulted)} tone={contractPerformance.defaulted > 0 ? 'danger' : 'neutral'} />
+              <MetricCard label="已结束合同" value={<CompactNumber value={contractPerformance.totalEnded} />} />
+              <MetricCard label="正常完成" value={<CompactNumber value={contractPerformance.completed} />} detail={`完成率 ${(contractPerformance.completionRateBps / 100).toFixed(1)}%`} tone="success" />
+              <MetricCard label="异常结束" value={<CompactNumber value={contractPerformance.abnormalEnded} />} tone={contractPerformance.abnormalEnded > 0 ? 'warning' : 'neutral'} />
+              <MetricCard label="违约／主动违约" value={<CompactNumber value={contractPerformance.defaulted} />} tone={contractPerformance.defaulted > 0 ? 'danger' : 'neutral'} />
               <MetricCard label="累计赔付" value={<CurrencyAmount>{formatCurrency(contractPerformance.compensationPaid)}</CurrencyAmount>} detail={`累计获得 ${formatCurrency(contractPerformance.compensationReceived)}`} />
             </div>
             {contractPerformance.recent.length > 0 ? (
@@ -1169,7 +1170,7 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
               <h2 id="contract-market-heading">合同广场</h2>
               <p>公开合同常驻显示，可按领域和商品筛选；商品合作支持直接承接或结构化议价。</p>
             </div>
-            <StatusTag>{formatNumber(openContracts.length)} / {formatNumber(allOpenContracts.length)} 个公开合同</StatusTag>
+            <StatusTag>{<CompactNumber value={openContracts.length} />} / {<CompactNumber value={allOpenContracts.length} />} 个公开合同</StatusTag>
           </header>
           <div className="contract-market-filters" aria-label="合同广场筛选">
             <SelectInput label="合同领域" value={marketKind} onChange={(event) => {

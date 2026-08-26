@@ -276,7 +276,7 @@
     min-width: 24px;
   }
 
-  .asset-bar-layout > .asset-bar-identity > img {
+  .asset-bar-layout > .asset-bar-identity > .player-avatar {
     width: 24px;
     height: 24px;
   }

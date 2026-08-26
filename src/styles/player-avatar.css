@@ -1,0 +1,35 @@
+.player-avatar {
+  --player-avatar-size: 40px;
+  width: var(--player-avatar-size);
+  height: var(--player-avatar-size);
+  min-width: var(--player-avatar-size);
+  display: inline-grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 72%, transparent);
+  border-radius: 50%;
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-surface-panel) 82%, var(--color-success) 18%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  vertical-align: middle;
+}
+
+.player-avatar > img,
+.player-avatar__fallback {
+  width: 100%;
+  height: 100%;
+}
+
+.player-avatar > img {
+  display: block;
+  object-fit: cover;
+}
+
+.player-avatar__fallback {
+  display: grid;
+  place-items: center;
+  font-size: max(.65rem, calc(var(--player-avatar-size) * .38));
+  font-weight: 900;
+  line-height: 1;
+  user-select: none;
+}

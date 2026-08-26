@@ -20,6 +20,7 @@ import './styles/mobile-status-navigation.css';
 import './styles/mobile-interaction.css';
 import './styles/mobile-pages.css';
 import './styles/icon-system.css';
+import './styles/player-avatar.css';
 import './styles/overview.css';
 import './styles/economic-event-log.css';
 import './styles/industry-system.css';

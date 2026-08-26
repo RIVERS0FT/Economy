@@ -1,3 +1,4 @@
+import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
 import {
   forwardRef,
   memo,
@@ -751,9 +752,9 @@ export function MarketPage({
             </>
           ) : (
             <>
-              <span><small>可用</small><strong>{formatNumber(availableAssetQuantity)}</strong></span>
-              <span><small>冻结</small><strong>{formatNumber(selectedGroup?.frozenCount ?? 0)}</strong></span>
-              <span><small>已有订单</small><strong>{formatNumber(ownSelectedOrders.length)}</strong></span>
+              <span><small>可用</small><strong>{<CompactNumber value={availableAssetQuantity} />}</strong></span>
+              <span><small>冻结</small><strong>{<CompactNumber value={selectedGroup?.frozenCount ?? 0} />}</strong></span>
+              <span><small>已有订单</small><strong>{<CompactNumber value={ownSelectedOrders.length} />}</strong></span>
             </>
           )}
         </Panel>
@@ -768,8 +769,8 @@ export function MarketPage({
                   detail={typeof selectedBaseDeviationPercent === 'number' ? '相对基础价 ' + (selectedBaseDeviationPercent > 0 ? '+' : '') + selectedBaseDeviationPercent.toFixed(1) + '%' : undefined}
                   tone={(selectedBaseDeviationPercent ?? 0) > 0 ? 'warning' : (selectedBaseDeviationPercent ?? 0) < 0 ? 'info' : 'neutral'}
                 />
-                <MetricCard label="卖单量" value={formatNumber(selectedSellVolume)} />
-                <MetricCard label="买单量" value={formatNumber(selectedBuyVolume)} />
+                <MetricCard label="卖单量" value={<CompactNumber value={selectedSellVolume} />} />
+                <MetricCard label="买单量" value={<CompactNumber value={selectedBuyVolume} />} />
                 <MetricCard
                   label="挂单差额"
                   value={(selectedBalance > 0 ? '+' : '') + formatNumber(selectedBalance)}
@@ -782,7 +783,7 @@ export function MarketPage({
                   tone={selectedProductMarket.demand.lastQuantity > 0 && selectedProductMarket.demand.satisfaction < 1 ? 'warning' : 'neutral'}
                 />
                 <MetricCard label="参考价" value={<CurrencyAmount>{formatCurrency(selectedProductMarket.demand.referencePrice)}</CurrencyAmount>} />
-                <MetricCard label="上轮需求" value={formatNumber(selectedProductMarket.demand.lastQuantity)} detail={'预算 ' + formatCurrency(selectedProductMarket.demand.lastBudget)} />
+                <MetricCard label="上轮需求" value={<CompactNumber value={selectedProductMarket.demand.lastQuantity} />} detail={'预算 ' + formatCurrency(selectedProductMarket.demand.lastBudget)} />
                 <MetricCard
                   label="周期系统买卖量"
                   value={formatNumber(selectedProductMarket.cycleSellQuantity ?? 0) + ' 卖 / ' + formatNumber(selectedProductMarket.cycleBuyQuantity ?? 0) + ' 买'}
@@ -797,9 +798,9 @@ export function MarketPage({
             <Panel className="widget market-inventory-production-card">
               <WidgetHeading title="库存与生产" />
               <div className="market-inventory-production-metrics">
-                <MetricCard label="可用库存" value={formatNumber(selectedInventory.available)} />
-                <MetricCard label="冻结库存" value={formatNumber(selectedInventory.frozen)} />
-                <MetricCard label="发运在途" value={formatNumber(selectedInventory.inTransit)} />
+                <MetricCard label="可用库存" value={<CompactNumber value={selectedInventory.available} />} />
+                <MetricCard label="冻结库存" value={<CompactNumber value={selectedInventory.frozen} />} />
+                <MetricCard label="发运在途" value={<CompactNumber value={selectedInventory.inTransit} />} />
                 <MetricCard
                   label="预计生产速度"
                   value={`${formatNumber(productionSummary.unitsPerMinute)} / 分钟`}
@@ -807,7 +808,7 @@ export function MarketPage({
                 />
                 <MetricCard
                   label="预计等效产能"
-                  value={formatNumber(productionSummary.effectiveCount)}
+                  value={<CompactNumber value={productionSummary.effectiveCount} />}
                   tone={productionSummary.effectiveCount > 0 ? 'success' : 'neutral'}
                 />
               </div>
@@ -831,7 +832,7 @@ export function MarketPage({
           <Panel className="widget market-trade-card">
             <WidgetHeading
               title={selectedAssetTitle(`${assetName}交易`)}
-              action={<StatusTag>{formatNumber(ownSelectedOrders.length)} 笔未完成</StatusTag>}
+              action={<StatusTag>{<CompactNumber value={ownSelectedOrders.length} />} 笔未完成</StatusTag>}
             />
             <div className="market-trade-summary" aria-label={`${assetName}交易摘要`}>
               <span>
@@ -846,7 +847,7 @@ export function MarketPage({
               </span>
               <span>
                 <small>{selectedProduct ? '24h 成交量' : availableAssetLabel}</small>
-                <strong>{formatNumber(selectedProduct ? marketVolume24h : availableAssetQuantity)}</strong>
+                <strong>{<CompactNumber value={selectedProduct ? marketVolume24h : availableAssetQuantity} />}</strong>
               </span>
             </div>
             <div className="market-trade-layout">
@@ -888,7 +889,7 @@ export function MarketPage({
                       >
                         <span className="market-book-level">{levelName}</span>
                         <strong><CurrencyAmount>{formatCurrency(level.price)}</CurrencyAmount></strong>
-                        <span>{formatNumber(level.remaining)}</span>
+                        <span>{<CompactNumber value={level.remaining} />}</span>
                       </button>
                     );
                   })}
@@ -907,7 +908,7 @@ export function MarketPage({
                       >
                         <span className="market-book-level">{levelName}</span>
                         <strong><CurrencyAmount>{formatCurrency(level.price)}</CurrencyAmount></strong>
-                        <span>{formatNumber(level.remaining)}</span>
+                        <span>{<CompactNumber value={level.remaining} />}</span>
                       </button>
                     );
                   })}
@@ -928,7 +929,7 @@ export function MarketPage({
           ) : null}
 
           <Panel className="widget span-3 market-account-panel">
-            <WidgetHeading title={`我的${assetName}订单与成交`} action={<StatusTag>{formatNumber(ownSelectedOrders.length)} 笔未完成</StatusTag>} />
+            <WidgetHeading title={`我的${assetName}订单与成交`} action={<StatusTag>{<CompactNumber value={ownSelectedOrders.length} />} 笔未完成</StatusTag>} />
             <div className="market-account-grid">
               <section>
                 <h3>已有订单</h3>
@@ -951,7 +952,7 @@ export function MarketPage({
                           <td><strong>{assetLabel(order)}</strong></td>
                           <td className="order-side-cell"><StatusTag tone={order.side === 'buy' ? 'success' : 'danger'}>{order.side === 'buy' ? '买入' : '卖出'}</StatusTag></td>
                           <td className="numeric-cell"><CurrencyAmount>{formatCurrency(order.price)}</CurrencyAmount></td>
-                          <td className="numeric-cell">{formatNumber(order.remaining)}/{formatNumber(order.quantity)}</td>
+                          <td className="numeric-cell">{<CompactNumber value={order.remaining} />}/{<CompactNumber value={order.quantity} />}</td>
                           <td><StatusTag tone={orderTone(order.status)}>{orderStatusNames[order.status]}</StatusTag></td>
                           <td>{formatTime(order.createdAt)}</td>
                           <td className="order-action-cell"><Button variant="compact" onClick={() => void showResult(cancelOrder(order.id))}>撤单</Button></td>
@@ -997,7 +998,7 @@ export function MarketPage({
                           ? <ProductIconLabel productId={trade.productId}>{localTradeAssetName(trade)}</ProductIconLabel>
                           : <span className="product-icon-label facility-icon-label"><FactoryIcon />{localTradeAssetName(trade)}</span>}</span>
                         <span role="cell" className="trade-side-cell"><StatusTag tone={trade.side === 'buy' ? 'success' : 'danger'}>{trade.side === 'buy' ? '买入' : '卖出'}</StatusTag></span>
-                        <span role="cell" className="numeric-cell">{formatNumber(trade.quantity)}</span>
+                        <span role="cell" className="numeric-cell">{<CompactNumber value={trade.quantity} />}</span>
                         <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.price)}</CurrencyAmount></span>
                         <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.total)}</CurrencyAmount></span>
                         <span role="cell" className="numeric-cell">{trade.side === 'sell' ? <><CurrencyAmount>{formatCurrency(trade.fee ?? 0)}</CurrencyAmount> / <CurrencyAmount>{formatCurrency(trade.netTotal ?? trade.total)}</CurrencyAmount></> : '—'}</span>

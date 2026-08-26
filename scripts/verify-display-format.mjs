@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { formatCurrency, formatDuration, formatNumber, formatRank } from '../src/utils/formatters.ts';
+import { formatCompactCurrency, formatCurrency, formatDuration, formatFullNumber, formatNumber, formatRank } from '../src/utils/formatters.ts';
 
 const read = (path) => readFileSync(path, 'utf8');
 const failures = [];
@@ -44,6 +44,13 @@ for (const [value, expected] of [[999, '999'], [1_000, '1K'], [12_500, '12.5K'],
 }
 
 try {
+  assert.equal(formatFullNumber(12_500), '12,500');
+  assert.equal(formatCompactCurrency(1_280), '1.3K');
+} catch {
+  failures.push('完整数字或紧凑货币格式异常');
+}
+
+try {
   assert.equal(formatCurrency(1_280), '1,280.00');
 } catch {
   failures.push(`formatCurrency(1280) 应继续保持货币两位精度，实际为 ${formatCurrency(1_280)}`);
@@ -63,12 +70,14 @@ function forbidText(path, fragments) {
   }
 }
 
-requireText('src/components/shell/GameShell.tsx', ['formatRank(', 'aria-label={rankLabel}']);
+requireText('src/components/shell/GameShell.tsx', ['<CompactRank', 'ariaLabel={rankLabel}']);
+requireText('src/components/ui/CompactNumber.tsx', ['SafeTooltip', 'formatFullNumber(value)', 'formatCompactCurrency(value)']);
+requireText('src/components/ui/CurrencyAmount.tsx', ['SafeTooltip', 'formatCompactCurrency(primitive.value)']);
 forbidText('src/pages/OverviewPage.tsx', ['固定 3s 冷却', '<OverviewWorkButton']);
 requireText('src/components/EconomicEventLogPanel.tsx', ['formatDuration(Math.max(0, remaining))']);
 requireText('src/pages/LeaderboardPage.tsx', [
-  'formatRank(currentRank)',
-  'formatRank(entry.rank)',
+  '<CompactRank value={currentRank}',
+  '<CompactRank value={entry.rank}',
   'aria-label={`排名第 ${entry.rank} 名`}',
 ]);
 requireText('src/pages/AuctionPage.tsx', [
@@ -119,7 +128,7 @@ forbidText('src/pages/SettingsPage.tsx', [
 ]);
 requireText('docs/UI_DESIGN_SYSTEM.md', [
   '“紧凑数字”是全局固定显示规则',
-  '`formatCurrency` 继续遵守普通货币两位显示精度',
+  '完整数字 Tooltip',
 ]);
 
 if (failures.length) {
@@ -127,4 +136,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('显示格式验证通过：数量固定使用紧凑格式，货币保持两位精度，持续时间使用 s/m/h，排名使用 #N。');
+console.log('显示格式验证通过：只读数量、货币与排名统一紧凑显示并提供完整数字 Tooltip，输入继续使用精确值。');

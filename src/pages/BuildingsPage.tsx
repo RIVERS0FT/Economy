@@ -1,3 +1,4 @@
+import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { cancelFacilityBuildProcurement, createFacilityBuildProcurement } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
@@ -48,9 +49,9 @@ const EmbeddedFacilityAssetMarket = lazy(() => import('./MarketPage').then((modu
  * SwitchControl; checked={group.enabled}; facilityStatusLabel; facility-status-header;
  * facility-card-title-row; facility-card-title-block; facility-count-summary; facility-staffing-summary;
  * 异常：资金不足; 异常：原料不足;
- * 运行中 <strong>{formatNumber(group.participatingCount)}</strong>;
+ * 运行中 <strong>{<CompactNumber value={group.participatingCount} />}</strong>;
  * 新增生产可用工厂立即参与运行并同步稀释满员率;
- * 冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>;
+ * 冻结中 <strong>{<CompactNumber value={group.frozenCount ?? group.listedCount} />}</strong>;
  * FacilityProductionFormula; facility-recipe-section; <strong>生产产物</strong>; <strong>生产配置</strong>;
  * 作业制度; 生产方式; 生产进度已清零; 交易该建筑资产; ChevronIcon;
  * formatNumber(group.count). The legacy branch `if (!entry.constructionOnly)` was removed because
@@ -610,7 +611,7 @@ export function BuildingsPage({
         <div className="facility-build-procurements">
           <div className="facility-build-procurements__heading">
             <strong>待采购</strong>
-            <StatusTag tone="neutral">{formatNumber(procurementGroups.length)} 次</StatusTag>
+            <StatusTag tone="neutral">{<CompactNumber value={procurementGroups.length} />} 次</StatusTag>
           </div>
           {procurementGroups.map((group) => {
             const facilityType = game.facilityTypes.find((type) => type.id === group.facilityTypeId);
@@ -630,15 +631,15 @@ export function BuildingsPage({
             return (
               <div className="facility-build-procurement-group" key={group.id}>
                 <div className="facility-build-procurement-group__title">
-                  <strong>{facilityType?.name ?? group.facilityTypeId} × {formatNumber(group.quantity)}</strong>
-                  <span>{formatNumber(openOrderCount)} 张买单 · 剩余 {formatNumber(remainingQuantity)} 件</span>
+                  <strong>{facilityType?.name ?? group.facilityTypeId} × {<CompactNumber value={group.quantity} />}</strong>
+                  <span>{<CompactNumber value={openOrderCount} />} 张买单 · 剩余 {<CompactNumber value={remainingQuantity} />} 件</span>
                 </div>
                 <div className="facility-build-procurement-group__orders">
                   {rows.map((row) => (
                     <div className="facility-build-procurement-order" key={row.orderId}>
                       <span>{productName(row.productId)}</span>
                       <span>
-                        已成交 {formatNumber(row.filled)} / {formatNumber(row.quantity)} · 剩余 {formatNumber(row.remaining)} · {formatCurrency(row.price)}
+                        已成交 {<CompactNumber value={row.filled} />} / {<CompactNumber value={row.quantity} />} · 剩余 {<CompactNumber value={row.remaining} />} · {<CompactCurrency value={row.price} />}
                       </span>
                     </div>
                   ))}

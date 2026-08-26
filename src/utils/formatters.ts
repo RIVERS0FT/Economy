@@ -1,8 +1,12 @@
 const MONEY_SCALE = 1_000_000;
 const PRICE_TICK_MICROS = 10_000n;
 
-function formatFullNumber(value: number) {
-  return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(Math.round(value));
+export function formatFullNumber(value: number) {
+  const normalized = Number.isFinite(value) ? value : 0;
+  return new Intl.NumberFormat('zh-CN', {
+    maximumFractionDigits: 6,
+    useGrouping: true,
+  }).format(normalized);
 }
 
 function formatAbbreviatedNumber(value: number) {
@@ -49,6 +53,15 @@ export function formatCurrency(value: number) {
   }).format(roundCurrencyForDisplay(value));
 }
 
+export function formatCompactCurrency(value: number) {
+  if (Number.isFinite(value) && value !== 0 && Math.abs(value) < 0.01) {
+    return value < 0 ? '-<0.01' : '<0.01';
+  }
+  const rounded = roundCurrencyForDisplay(value);
+  if (Math.abs(rounded) < 1_000) return formatCurrency(rounded);
+  return formatAbbreviatedNumber(rounded);
+}
+
 export function formatExactCurrency(value: number) {
   const normalized = Number.isFinite(value) ? value : 0;
   return new Intl.NumberFormat('zh-CN', {
@@ -63,7 +76,7 @@ export function formatCompactNumber(value: number) {
 }
 
 export function formatRank(value: number | null | undefined) {
-  return Number.isInteger(value) && Number(value) > 0 ? `#${value}` : '#--';
+  return Number.isInteger(value) && Number(value) > 0 ? `#${formatNumber(Number(value))}` : '#--';
 }
 
 export function formatTime(value: number) {

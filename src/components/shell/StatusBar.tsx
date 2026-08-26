@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { FrostedGlassSurface } from '../ui/FrostedGlassSurface';
+import { PlayerAvatar } from '../ui/PlayerAvatar';
 
 export interface StatusBarItem {
   id: string;
@@ -13,9 +14,10 @@ export interface StatusBarItem {
 }
 
 export interface StatusBarIdentity {
-  logoSrc: string;
+  playerId: number;
   title: string;
   playerName: string;
+  onClick?: () => void;
 }
 
 const MOBILE_STATUS_MEDIA_QUERY = '(max-width: 720px)';
@@ -122,6 +124,35 @@ function useMobileStatusValueFit(items: StatusBarItem[]) {
   return contentRef;
 }
 
+function StatusBarIdentityControl({ identity }: { identity: StatusBarIdentity }) {
+  const content = (
+    <>
+      <PlayerAvatar userId={identity.playerId} playerName={identity.playerName} size={40} />
+      <span className="asset-bar-identity-copy">
+        <strong>{identity.title}</strong>
+        <small title={identity.playerName}>{identity.playerName}</small>
+      </span>
+    </>
+  );
+  if (identity.onClick) {
+    return (
+      <button
+        type="button"
+        className="asset-bar-identity asset-bar-identity--interactive"
+        aria-label={`玩家 ${identity.playerName}，打开设置`}
+        onClick={identity.onClick}
+      >
+        {content}
+      </button>
+    );
+  }
+  return (
+    <div className="asset-bar-identity" role="group" aria-label={`${identity.title}，玩家 ${identity.playerName}`}>
+      {content}
+    </div>
+  );
+}
+
 export function StatusBar({
   items,
   identity,
@@ -137,17 +168,7 @@ export function StatusBar({
     <header className="asset-bar" aria-label="玩家状态">
       <FrostedGlassSurface variant="statusBar">
         <div className="asset-bar-layout">
-          <div
-            className="asset-bar-identity"
-            role="group"
-            aria-label={`${identity.title}，玩家 ${identity.playerName}`}
-          >
-            <img src={identity.logoSrc} alt="" aria-hidden="true" />
-            <span className="asset-bar-identity-copy">
-              <strong>{identity.title}</strong>
-              <small title={identity.playerName}>{identity.playerName}</small>
-            </span>
-          </div>
+          <StatusBarIdentityControl identity={identity} />
           <div className="asset-bar-content" ref={contentRef}>
             {items.map((item) => {
               const classNames = ['asset-bar-item'];

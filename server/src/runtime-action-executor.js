@@ -19,6 +19,7 @@ import { applyOnlineAutoSellPolicyAction } from './online-auto-sell-policy.js';
 import { applyOnlineAutoTradePolicyAction } from './online-auto-trade-policy.js';
 import { isOpenOrder, orderKind } from './order-identity.js';
 import { orderById } from './order-book-runtime.js';
+import { applyPlayerProfileAction } from './player-profile.js';
 import { applyResearchAction, validateResearchAccess } from './research.js';
 import { ensureWarehouse } from './warehouse.js';
 import { createRuntimeMutationScope } from './world-storage-v2.js';
@@ -140,6 +141,8 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
         gameResult = applyOnlineAutoSell(world, user, payload, now);
       } else if (action === 'placeOrder' && payload.assetKind !== 'facility') {
         gameResult = applySettledCommodityOrder(world, user, payload, now);
+      } else if (action === 'renamePlayer') {
+        gameResult = applyPlayerProfileAction(world, user, payload);
       } else if (action === 'checkIn') {
         gameResult = store.checkInInTransaction(world.players[String(user.id)], requestKey, now);
       } else if (action === 'redeemGift') {

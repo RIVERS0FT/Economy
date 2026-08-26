@@ -1,3 +1,4 @@
+import { CompactNumber } from './ui/CompactNumber';
 import { useEffect, useState } from 'react';
 import { getInvitationSummary, type InvitationSummary } from '../api/invitations';
 import { formatDate, formatNumber } from '../utils/formatters';
@@ -91,10 +92,10 @@ export function InvitationSettings() {
           </div>
 
           <div className="player-stat-grid invitation-stat-grid" aria-label="邀请统计">
-            <div><span>成功邀请</span><strong>{formatNumber(summary.successfulInvitations)}</strong></div>
-            <div><span>分享链接</span><strong>{formatNumber(summary.shareLinkInvitations)}</strong></div>
-            <div><span>注册填写</span><strong>{formatNumber(summary.manualCodeInvitations)}</strong></div>
-            <div><span>累计宝石</span><strong>{formatNumber(summary.invitationGemsEarned)}</strong></div>
+            <div><span>成功邀请</span><strong>{<CompactNumber value={summary.successfulInvitations} />}</strong></div>
+            <div><span>分享链接</span><strong>{<CompactNumber value={summary.shareLinkInvitations} />}</strong></div>
+            <div><span>注册填写</span><strong>{<CompactNumber value={summary.manualCodeInvitations} />}</strong></div>
+            <div><span>累计宝石</span><strong>{<CompactNumber value={summary.invitationGemsEarned} />}</strong></div>
           </div>
 
           {summary.recentInvitations.length > 0 ? (

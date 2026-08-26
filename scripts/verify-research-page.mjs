@@ -86,7 +86,7 @@ for (const text of [
   'model.startResearch(technologyId)',
   'model.accelerateResearch()',
   'className="research-investment mobile-detail-section"',
-  '研发中 · ${formatNumber(accelerationCost)} 宝石加速 ${formatDuration(accelerationMs)}',
+  '研发中 · <CompactNumber value={accelerationCost} /> 宝石加速 {formatDuration(accelerationMs)}',
   'outputProductIdsForFacility',
   'className="facility-build-output-list"',
   '按产业链选择科技节点',

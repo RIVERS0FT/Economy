@@ -1,3 +1,4 @@
+import { CompactNumber } from '../components/ui/CompactNumber';
 import { useMemo } from 'react';
 import { orderStatusNames } from '../app/gameViewModel';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
@@ -79,11 +80,11 @@ export function OverviewPage({ model }: OverviewPageProps) {
             <div className="overview-check-in-rewards">
               <div>
                 <span>每日签到</span>
-                <strong><GemIcon /> +{formatNumber(game.checkIn.dailyRewardGems)} 宝石</strong>
+                <strong><GemIcon /> +{<CompactNumber value={game.checkIn.dailyRewardGems} />} 宝石</strong>
               </div>
               <div>
                 <span>本周全勤</span>
-                <strong><GemIcon /> +{formatNumber(game.checkIn.weeklyBonusGems)} 宝石</strong>
+                <strong><GemIcon /> +{<CompactNumber value={game.checkIn.weeklyBonusGems} />} 宝石</strong>
               </div>
             </div>
             <div className="overview-check-in-calendar" role="list" aria-label="本周签到日历">
@@ -121,14 +122,14 @@ export function OverviewPage({ model }: OverviewPageProps) {
           <Panel className="widget production-summary overview-summary-card">
             <WidgetHeading title="生产摘要" action={<Button variant="text" onClick={() => setTab('buildings')}>管理建筑</Button>} />
             <DataList className="compact overview-core-data">
-              <DataRow label="工厂总数" value={formatNumber(totalFacilities)} tone="info" />
-              <DataRow label="正在运行" value={formatNumber(derived.runningFacilities)} tone="success" />
-              <DataRow label="生产受阻" value={formatNumber(derived.blockedFacilities)} tone={derived.blockedFacilities ? 'danger' : 'neutral'} />
-              <DataRow label="主动停工" value={formatNumber(derived.stoppedFacilities)} tone={derived.stoppedFacilities ? 'warning' : 'neutral'} />
-              <DataRow label="理论日产量" value={formatNumber(theoreticalDailyOutput)} tone="info" />
+              <DataRow label="工厂总数" value={<CompactNumber value={totalFacilities} />} tone="info" />
+              <DataRow label="正在运行" value={<CompactNumber value={derived.runningFacilities} />} tone="success" />
+              <DataRow label="生产受阻" value={<CompactNumber value={derived.blockedFacilities} />} tone={derived.blockedFacilities ? 'danger' : 'neutral'} />
+              <DataRow label="主动停工" value={<CompactNumber value={derived.stoppedFacilities} />} tone={derived.stoppedFacilities ? 'warning' : 'neutral'} />
+              <DataRow label="理论日产量" value={<CompactNumber value={theoreticalDailyOutput} />} tone="info" />
             </DataList>
             <div className="overview-production-footnote">
-              <span>施工 {formatNumber(derived.constructingFacilities)}</span>
+              <span>施工 {<CompactNumber value={derived.constructingFacilities} />}</span>
               <span>新增工厂直接加入运行</span>
               <span>生产配置立即生效</span>
             </div>
@@ -180,7 +181,7 @@ export function OverviewPage({ model }: OverviewPageProps) {
                     <div className="overview-open-order-values">
                       <StatusTag tone={order.side === 'buy' ? 'success' : 'danger'}>{order.side === 'buy' ? '买入' : '卖出'}</StatusTag>
                       <strong><CurrencyAmount>{formatCurrency(order.price)}</CurrencyAmount></strong>
-                      <small>{formatNumber(order.remaining)}/{formatNumber(order.quantity)} · {orderStatusNames[order.status]}</small>
+                      <small>{<CompactNumber value={order.remaining} />}/{<CompactNumber value={order.quantity} />} · {orderStatusNames[order.status]}</small>
                     </div>
                   </div>
                 );

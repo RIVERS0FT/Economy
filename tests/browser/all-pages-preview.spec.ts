@@ -339,7 +339,7 @@ test('leaderboard and local-only service summaries are populated in the full she
   await expect(wealthCard.getByText('本地预览玩家', { exact: true })).toBeVisible();
   await expect(wealthCard.locator('.leaderboard-board-heading p')).toHaveCount(0);
   await expect(wealthCard.locator('.leaderboard-board-heading .ui-status-tag')).toHaveCount(0);
-  await expect(wealthCard.locator('.leaderboard-column-labels span')).toHaveText(['排名', '头像名称', '成绩', '奖励']);
+  await expect(wealthCard.locator('.leaderboard-column-labels span')).toHaveText(['排名', '玩家', '成绩', '奖励']);
   const wealthRow = wealthCard.locator('.leaderboard-row').first();
   await expect(wealthRow.locator('.leaderboard-avatar')).toHaveCount(1);
   await expect(wealthRow.locator('.leaderboard-reward')).toHaveText('—');

@@ -1,3 +1,4 @@
+import { CompactCurrency, CompactNumber } from '../ui/CompactNumber';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { CurrencyAmount } from '../ui/CurrencyAmount';
 import { AssetAllocationChart } from '../charts/AssetAllocationChart';
@@ -87,7 +88,7 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
               role="row"
               aria-label={`现金，总计 ${formatCurrency(derived.cashValue)}，可用与存款 ${formatCurrency(game.credits + bankDepositValue)}，冻结 ${formatCurrency(game.frozenCredits)}，其中银行存款 ${formatCurrency(bankDepositValue)}`}
             >
-              <span className="asset-composition-name" role="cell"><i className="cash-dot" /><span>现金<small>银行存款 {formatCurrency(bankDepositValue)}</small></span></span>
+              <span className="asset-composition-name" role="cell"><i className="cash-dot" /><span>现金<small>银行存款 {<CompactCurrency value={bankDepositValue} />}</small></span></span>
               <strong role="cell" data-label="总计"><CurrencyAmount>{formatCurrency(derived.cashValue)}</CurrencyAmount></strong>
               <span role="cell" data-label="可用"><CurrencyAmount>{formatCurrency(game.credits + bankDepositValue)}</CurrencyAmount></span>
               <span role="cell" data-label="冻结"><CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount></span>
@@ -99,7 +100,7 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
             >
               <span className="asset-composition-name" role="cell">
                 <i className="commodity-dot" />
-                <span>商品<small>冻结数量 {formatNumber(frozenInventory)}</small></span>
+                <span>商品<small>冻结数量 {<CompactNumber value={frozenInventory} />}</small></span>
               </span>
               <strong role="cell" data-label="总计"><CurrencyAmount>{formatCurrency(derived.commodityValue)}</CurrencyAmount></strong>
               <span role="cell" data-label="可用"><CurrencyAmount>{formatCurrency(availableCommodityValue)}</CurrencyAmount></span>
@@ -112,7 +113,7 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
             >
               <span className="asset-composition-name" role="cell">
                 <i className="facility-dot" />
-                <span>工厂<small>交易冻结 {formatNumber(frozenFacilities)} · 抵押 {formatNumber(mortgagedFacilities)} · 共 {formatNumber(totalFacilities)}</small></span>
+                <span>工厂<small>交易冻结 {<CompactNumber value={frozenFacilities} />} · 抵押 {<CompactNumber value={mortgagedFacilities} />} · 共 {<CompactNumber value={totalFacilities} />}</small></span>
               </span>
               <strong role="cell" data-label="总计"><CurrencyAmount>{formatCurrency(derived.facilityValue)}</CurrencyAmount></strong>
               <span role="cell" data-label="可用"><CurrencyAmount>{formatCurrency(availableFacilityValue)}</CurrencyAmount></span>

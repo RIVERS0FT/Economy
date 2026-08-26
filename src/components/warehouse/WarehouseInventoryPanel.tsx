@@ -1,3 +1,4 @@
+import { CompactNumber } from '../ui/CompactNumber';
 import { useMemo, useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../../auto-trade/useOnlineAutoTrade';
 import type { TransportModeId } from '../../types';
@@ -38,7 +39,7 @@ export function WarehouseInventoryGrid({
     <section className="warehouse-content" aria-label="仓库商品">
       <WidgetHeading
         title="仓库内容"
-        action={<span>实物库存 {formatNumber(game.warehouseStoredQuantity)}</span>}
+        action={<span>实物库存 {<CompactNumber value={game.warehouseStoredQuantity} />}</span>}
       />
       {stockedProducts.length > 0 ? (
         <div className="warehouse-product-grid">
@@ -55,8 +56,8 @@ export function WarehouseInventoryGrid({
               >
                 <span className="warehouse-product-card-name">{product.name}</span>
                 <span className="warehouse-product-card-icon" aria-hidden="true"><ProductIcon productId={product.id} /></span>
-                <strong className="warehouse-product-card-available">可用 {formatNumber(inventory.available)}</strong>
-                <small className="warehouse-product-card-frozen">冻结 {formatNumber(inventory.frozen)}</small>
+                <strong className="warehouse-product-card-available">可用 {<CompactNumber value={inventory.available} />}</strong>
+                <small className="warehouse-product-card-frozen">冻结 {<CompactNumber value={inventory.frozen} />}</small>
               </button>
             );
           })}
@@ -127,7 +128,7 @@ export function WarehouseTransportPanel({ model }: { model: OnlineAutoTradeAware
     <Panel className="widget warehouse-transport-panel">
       <WidgetHeading
         title="跨州运输"
-        action={<StatusTag tone="neutral">在途 {formatNumber(inTransitCount)} / {TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER}</StatusTag>}
+        action={<StatusTag tone="neutral">在途 {<CompactNumber value={inTransitCount} />} / {TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER}</StatusTag>}
       />
       <section className="warehouse-transport-section" aria-label="跨州运输">
         <div className="transport-dispatch-grid">
@@ -167,7 +168,7 @@ export function WarehouseTransportPanel({ model }: { model: OnlineAutoTradeAware
                 onClick={() => setTransportMode(mode.id)}
               >
                 {mode.name}
-                <small>单次 ≤ {formatNumber(mode.capacity)}</small>
+                <small>单次 ≤ {<CompactNumber value={mode.capacity} />}</small>
               </Button>
             ))}
           </div>
@@ -175,7 +176,7 @@ export function WarehouseTransportPanel({ model }: { model: OnlineAutoTradeAware
         <div className="transport-estimate">
           <span><small>预计费用</small><strong><CurrencyAmount>{formatCurrency(estimatedCost)}</CurrencyAmount></strong></span>
           <span><small>预计耗时</small><strong>{formatTransportDuration(estimatedDurationMs)}</strong></span>
-          <span><small>距离</small><strong>约 {formatNumber(Math.round(distanceKm))} 公里</strong></span>
+          <span><small>距离</small><strong>约 {<CompactNumber value={Math.round(distanceKm)} />} 公里</strong></span>
         </div>
         <Button
           block
@@ -200,7 +201,7 @@ export function WarehouseTransportPanel({ model }: { model: OnlineAutoTradeAware
               return (
                 <li key={shipment.id} className="transport-shipment-row">
                   <span className="transport-shipment-product">{product?.name ?? shipment.productId}</span>
-                  <span>×{formatNumber(shipment.quantity)}</span>
+                  <span>×{<CompactNumber value={shipment.quantity} />}</span>
                   <span>{TRANSPORT_MODES[shipment.mode]?.name ?? shipment.mode}</span>
                   <span className="transport-shipment-destination">
                     <ChevronIcon direction="right" />

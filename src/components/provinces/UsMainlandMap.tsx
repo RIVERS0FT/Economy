@@ -1,3 +1,4 @@
+import { CompactNumber } from '../ui/CompactNumber';
 import {
   useCallback,
   useEffect,

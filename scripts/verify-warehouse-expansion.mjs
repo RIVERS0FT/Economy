@@ -73,7 +73,7 @@ for (const text of [
   'warehouse-heading-actions',
   '<StatusTag tone="neutral">无限容量</StatusTag>',
   'title="仓库内容"',
-  '实物库存 {formatNumber(game.warehouseStoredQuantity)}',
+  '实物库存 {<CompactNumber value={game.warehouseStoredQuantity} />}',
   '仓库中暂无商品',
   '通过生产或市场交易获得商品后，会在这里按州级库存显示。',
 ]) requireText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);

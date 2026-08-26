@@ -334,7 +334,8 @@ test.describe('persistent-map grand-strategy game shell', () => {
     await expect(identity).toBeVisible();
     await expect(identity).toContainText('金融帝国');
     await expect(identity).toContainText('MEVIUS');
-    await expect(identity.locator('img')).toHaveAttribute('src', 'https://riversoft.top/logo.svg');
+    await expect(identity.locator('.player-avatar')).toHaveCount(1);
+    await expect(identity).toHaveAttribute('aria-label', '玩家 MEVIUS，打开设置');
     await expect(page.locator('.desktop-sidebar .sidebar-brand-copy')).toHaveCount(0);
     await expect(page.locator('.desktop-sidebar .sidebar-brand')).toHaveCount(0);
 

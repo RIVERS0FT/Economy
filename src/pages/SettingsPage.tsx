@@ -4,6 +4,7 @@ import {
   deleteGameSave,
   getSaveDeletionPreflight,
   resetGameStateDelivery,
+  updatePlayerAvatar,
   type SaveDeletionPreflight,
 } from '../api/game';
 import {
@@ -14,7 +15,9 @@ import {
 import { clearAutoSellPolicies } from '../auto-sell/autoSellStorage';
 import { notificationStorageKey } from '../notifications/notificationCenter';
 import { navigationBadgeStorageKey } from '../navigation/navigationBadges';
-import { SelectInput, TextInput } from '../components/ui/FormControls';
+import { FileInput, SelectInput, TextInput } from '../components/ui/FormControls';
+import { CompactNumber } from '../components/ui/CompactNumber';
+import { PlayerAvatar } from '../components/ui/PlayerAvatar';
 import {
   Button,
   PageLayout,
@@ -22,7 +25,8 @@ import {
   StatusTag,
   WidgetHeading,
 } from '../components/ui/layout';
-import { formatDate, formatNumber } from '../utils/formatters';
+import { formatDate } from '../utils/formatters';
+import { announcePlayerAvatarUpdated, preparePlayerAvatar } from '../utils/playerAvatar';
 
 export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
   const {
@@ -37,13 +41,36 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
     signOut,
     tutorial,
   } = model;
-  const avatarText = (game.playerName || user.email).slice(0, 1).toUpperCase();
   const [saveDeletionPreflight, setSaveDeletionPreflight] = useState<SaveDeletionPreflight | null>(null);
   const [deletingSave, setDeletingSave] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
   const roleLabel = user.role === 'admin' ? '管理员' : '普通用户';
   const facilityCount = Array.isArray(game.facilityGroups)
     ? game.facilityGroups.reduce((sum, group) => sum + group.count, 0)
     : 0;
+
+  async function changePlayerAvatar(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file || avatarUploading) return;
+    setAvatarUploading(true);
+    setAvatarError('');
+    try {
+      const avatarData = await preparePlayerAvatar(file);
+      const response = await updatePlayerAvatar(avatarData);
+      if (!response.result.ok) throw new Error(response.result.message);
+      announcePlayerAvatarUpdated(user.id);
+      model.notify(response.result.message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '头像更新失败';
+      setAvatarError(message);
+      model.notify(message);
+    } finally {
+      input.value = '';
+      setAvatarUploading(false);
+    }
+  }
 
   function restartTutorial() {
     const confirmed = window.confirm(
@@ -113,8 +140,21 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
         <Panel className="widget profile-settings-card">
           <WidgetHeading title="玩家资料" action={<StatusTag tone={user.role === 'admin' ? 'info' : 'neutral'}>{roleLabel}</StatusTag>} />
           <div className="profile-card">
-            <div className="profile-avatar">{avatarText}</div>
+            <PlayerAvatar userId={user.id} playerName={game.playerName || user.email} size={64} className="profile-avatar" />
             <div><strong>{game.playerName}</strong><span>{user.email}</span><small>注册于 {formatDate(game.registeredAt)}</small></div>
+          </div>
+
+          <div className="avatar-editor">
+            <FileInput
+              label="玩家头像"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={avatarUploading}
+              error={avatarError || undefined}
+              description={avatarUploading
+                ? '正在本地裁剪并压缩头像…'
+                : '原图只在浏览器本地处理；服务器只接收并加载 64×64 WebP 缩略图。'}
+              onChange={(event) => void changePlayerAvatar(event)}
+            />
           </div>
 
           <div className="nickname-editor">
@@ -128,10 +168,10 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
           </div>
 
           <div className="player-stat-grid" aria-label="玩家累计统计">
-            <div><span>持有工厂总数</span><strong>{formatNumber(facilityCount)}</strong></div>
-            <div><span>生产商品总数</span><strong>{formatNumber(game.stats.producedGoods)}</strong></div>
-            <div><span>买入商品总数</span><strong>{formatNumber(game.stats.boughtGoods)}</strong></div>
-            <div><span>卖出商品总数</span><strong>{formatNumber(game.stats.soldGoods)}</strong></div>
+            <div><span>持有工厂总数</span><strong><CompactNumber value={facilityCount} /></strong></div>
+            <div><span>生产商品总数</span><strong><CompactNumber value={game.stats.producedGoods} /></strong></div>
+            <div><span>买入商品总数</span><strong><CompactNumber value={game.stats.boughtGoods} /></strong></div>
+            <div><span>卖出商品总数</span><strong><CompactNumber value={game.stats.soldGoods} /></strong></div>
           </div>
         </Panel>
 

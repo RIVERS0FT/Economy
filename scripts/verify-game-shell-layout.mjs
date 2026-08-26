@@ -130,9 +130,10 @@ check('src/components/shell/GameShell.tsx', [
   'integratedPrimaryCard',
   'pageTransitionKey={playerPageLocationKey(pageLocation)}',
   'data-strategic-page-location={playerPageLocationKey(pageLocation)}',
-  'logoSrc: BRAND_LOGO_URL',
+  'playerId: model.user.id',
   'title: BRAND_NAME',
   'playerName,',
+  "onClick: () => selectPlayerTab('settings')",
 ]);
 forbid('src/components/shell/GameShell.tsx', [
   'HIDDEN_EVENT_RAIL_TABS',
@@ -151,6 +152,8 @@ check('src/components/shell/StatusBar.tsx', [
   'export interface StatusBarIdentity',
   'className="asset-bar-identity"',
   'className="asset-bar-identity-copy"',
+  '<PlayerAvatar',
+  'identity.onClick',
 ]);
 check('src/components/shell/StrategicWorkspace.tsx', [
   'export function StrategicMapStage',

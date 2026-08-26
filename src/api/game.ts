@@ -518,6 +518,13 @@ export function cancelFacilityBuildProcurement(orderIds: string[]) {
   });
 }
 
+export function updatePlayerAvatar(avatarData: string) {
+  return request<GameActionResponse>('/profile', {
+    method: 'PATCH',
+    body: JSON.stringify({ avatarData }),
+  });
+}
+
 export const gameActions = {
   work: () => postAction('/work'),
   checkIn: () => postAction('/check-in'),

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
+import { useState, type ReactNode } from 'react';
 import { ChevronIcon } from '../components/icons/GameIcons';
 import { IntegerInput, MoneyInput, SelectInput } from '../components/ui/FormControls';
 import { Button, DataList, DataRow, StatusTag } from '../components/ui/layout';
@@ -53,7 +54,7 @@ function firstDelayLabel(value: number) {
     ?? (value === 0 ? '签订后立即进入首批交付' : `签订后 ${Math.round(value / 60_000)} 分钟`);
 }
 
-function TermChange({ from, to }: { from: string; to: string }) {
+function TermChange({ from, to }: { from: ReactNode; to: ReactNode }) {
   return (
     <span className="contract-negotiation-change">
       <span>{from}</span>
@@ -71,11 +72,11 @@ function TermsSummary({
   baseTerms: ProductionContractNegotiationTerms;
 }) {
   const quantityLabel = terms.quantityPerDelivery === baseTerms.quantityPerDelivery
-    ? formatNumber(terms.quantityPerDelivery)
-    : <TermChange from={formatNumber(baseTerms.quantityPerDelivery)} to={formatNumber(terms.quantityPerDelivery)} />;
+    ? <CompactNumber value={terms.quantityPerDelivery} />
+    : <TermChange from={<CompactNumber value={baseTerms.quantityPerDelivery} />} to={<CompactNumber value={terms.quantityPerDelivery} />} />;
   const priceLabel = terms.unitPrice === baseTerms.unitPrice
-    ? formatCurrency(terms.unitPrice)
-    : <TermChange from={formatCurrency(baseTerms.unitPrice)} to={formatCurrency(terms.unitPrice)} />;
+    ? <CompactCurrency value={terms.unitPrice} />
+    : <TermChange from={<CompactCurrency value={baseTerms.unitPrice} />} to={<CompactCurrency value={terms.unitPrice} />} />;
   const intervalLabel = terms.deliveryIntervalMs === baseTerms.deliveryIntervalMs
     ? durationLabel(terms.deliveryIntervalMs)
     : <TermChange from={durationLabel(baseTerms.deliveryIntervalMs)} to={durationLabel(terms.deliveryIntervalMs)} />;

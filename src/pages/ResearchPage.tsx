@@ -1,3 +1,4 @@
+import { CompactNumber } from '../components/ui/CompactNumber';
 import {
   useCallback,
   useMemo,
@@ -363,7 +364,7 @@ function ResearchDetailActions(props: ResearchDetailProps) {
               ? '研发中 · 确认完成中…'
               : !hasEnoughGems
                 ? '研发中 · 宝石不足'
-                : `研发中 · ${formatNumber(accelerationCost)} 宝石加速 ${formatDuration(accelerationMs)}`}
+                : <>研发中 · <CompactNumber value={accelerationCost} /> 宝石加速 {formatDuration(accelerationMs)}</>}
         </Button>
       </div>
     );

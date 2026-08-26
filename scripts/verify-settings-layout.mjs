@@ -36,6 +36,9 @@ if (failures.length === 0) {
     '当前会话',
     '存档管理',
     '删除存档',
+    '<PlayerAvatar',
+    '<FileInput',
+    '64×64 WebP',
   ]) {
     if (!page.includes(text)) failures.push(`SettingsPage 缺少设置页结构或文案: ${text}`);
   }

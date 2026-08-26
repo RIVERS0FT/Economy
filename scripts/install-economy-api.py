@@ -20,6 +20,7 @@ from pathlib import Path
 SERVICE_NAME = "riversoft-economy-api.service"
 SERVICE_PATH = Path("/etc/systemd/system") / SERVICE_NAME
 STATE_DIRECTORY = Path("/var/lib/riversoft-economy")
+AVATAR_DIRECTORY = Path("/var/lib/riversoft-economy-avatars")
 REGISTRATION_SECRET_PATH = STATE_DIRECTORY / "registration-secret"
 DATABASE_PATH = STATE_DIRECTORY / "economy.sqlite"
 BACKUP_DIRECTORY = STATE_DIRECTORY / "backups"
@@ -259,6 +260,9 @@ def main() -> int:
     STATE_DIRECTORY.mkdir(parents=True, exist_ok=True)
     os.chown(STATE_DIRECTORY, account.pw_uid, account.pw_gid)
     os.chmod(STATE_DIRECTORY, 0o750)
+    AVATAR_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    os.chown(AVATAR_DIRECTORY, account.pw_uid, account.pw_gid)
+    os.chmod(AVATAR_DIRECTORY, 0o755)
     backup_before_contract_audit(account.pw_uid, account.pw_gid)
     if not REGISTRATION_SECRET_PATH.exists():
         REGISTRATION_SECRET_PATH.write_text(secrets.token_urlsafe(48), encoding="utf-8")
@@ -279,6 +283,7 @@ EnvironmentFile=-{ENVIRONMENT_FILE}
 Environment=NODE_ENV=production
 Environment=PORT=3002
 Environment=ECONOMY_DB_PATH={STATE_DIRECTORY / 'economy.sqlite'}
+Environment=ECONOMY_AVATAR_DIR={AVATAR_DIRECTORY}
 Environment=ECONOMY_REGISTRATION_SECRET_FILE={REGISTRATION_SECRET_PATH}
 Environment=ACCOUNT_SERVICE_URL=http://127.0.0.1:3001
 Environment=ACCOUNT_SERVICE_HOST=riversoft.top
@@ -294,7 +299,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths={STATE_DIRECTORY}
+ReadWritePaths={STATE_DIRECTORY} {AVATAR_DIRECTORY}
 
 [Install]
 WantedBy=multi-user.target

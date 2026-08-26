@@ -765,3 +765,9 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 全局世界截止时间计划固定 `facility = null`。排行榜、市场、服务冷启动和常规世界调度不得通过 `processFacilityGroupWorld` 扫描全部玩家工厂或逐周期重放离线生产。供货与工厂租赁合同在真实到期时可以从合同参与者索引确定供应方／承租方，只对这些明确受影响玩家物化生产，然后继续合同结算；不得把合同兜底扩展为全玩家遍历。普通玩家动作可以携带最近一次客户端提案并与业务动作同一 COW 事务提交；提案过期返回稳定 `PRODUCTION_SETTLEMENT_*` 冲突，客户端可以清除旧提案并由同一动作触发当前玩家服务端兜底。独立 `POST /api/game/production/settle` 使用本地玩家 Mutation Scope，不能因为结算动作恢复完整世界克隆。
 
 正式持久化 API 构造后必须在第一次后台世界处理前至少让出 1 秒事件循环窗口，使 systemd 启动后真实 `GET /health` 能立即由 HTTP 层处理；这不是降低就绪标准，`scripts/install-economy-api.py` 的 45 秒真实健康检查门槛保持不变。生产结算私有工资余数和累计人口分配账本不得进入普通客户端状态。上述边界由 `scripts/verify-production-lazy-settlement.mjs`、生产结算服务器测试、运行时热路径测试和部署可靠性验证共同防回退。
+
+## 玩家头像静态资源
+
+玩家头像是展示资源，不进入 EconomyState、状态分区或五秒轮询。设置页继续复用 `PATCH /api/game/profile` 写入口；浏览器必须先把原图居中裁切、缩放并编码为 64×64 WebP，最终请求体中的头像数据不得超过 8 KiB，服务器再次校验 WebP 容器、64×64 实际尺寸和体积后才允许原子替换文件。
+
+生产头像目录固定为 `/var/lib/riversoft-economy-avatars`，由 Economy API 服务用户写入，Nginx 只读并通过 `/economy-avatars/<userId>.webp` 提供 `image/webp`。资源使用重新验证缓存而不是把图片字节写入游戏 JSON；头像更新后客户端只给 64px URL 增加本地版本查询参数触发重取。这样状态轮询大小不随头像增长，玩家选择的原始大图也不会产生服务器上传流量。

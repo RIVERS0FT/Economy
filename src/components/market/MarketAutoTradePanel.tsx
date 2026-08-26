@@ -1,3 +1,4 @@
+import { CompactNumber } from '../ui/CompactNumber';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   OnlineAutoTradeController,
@@ -291,11 +292,11 @@ export function MarketAutoTradePanel({
           ) : null}
         </div>
         <div className="warehouse-auto-trade-summary">
-          <div><span>当前可用</span><strong>{formatNumber(selectedStatus.availableInventory)}</strong></div>
-          <div className="is-primary is-buy"><span>预计自动采购</span><strong>{formatNumber(selectedStatus.buyEligibleQuantity)}</strong></div>
-          <div><span>当前自由库存</span><strong>{formatNumber(selectedStatus.currentFreeInventory)}</strong></div>
-          <div><span>生产预定</span><strong>{formatNumber(selectedStatus.productionReserved)}</strong></div>
-          <div><span>合同预定</span><strong>{formatNumber(selectedStatus.contractReserved)}</strong></div>
+          <div><span>当前可用</span><strong>{<CompactNumber value={selectedStatus.availableInventory} />}</strong></div>
+          <div className="is-primary is-buy"><span>预计自动采购</span><strong>{<CompactNumber value={selectedStatus.buyEligibleQuantity} />}</strong></div>
+          <div><span>当前自由库存</span><strong>{<CompactNumber value={selectedStatus.currentFreeInventory} />}</strong></div>
+          <div><span>生产预定</span><strong>{<CompactNumber value={selectedStatus.productionReserved} />}</strong></div>
+          <div><span>合同预定</span><strong>{<CompactNumber value={selectedStatus.contractReserved} />}</strong></div>
         </div>
         <ToggleField
           label="启用自动采购"
@@ -349,11 +350,11 @@ export function MarketAutoTradePanel({
           ) : null}
         </div>
         <div className="warehouse-auto-trade-summary">
-          <div><span>当前可用</span><strong>{formatNumber(selectedStatus.availableInventory)}</strong></div>
-          <div className="is-primary is-sell"><span>预计自动出售</span><strong>{formatNumber(selectedStatus.sellEligibleQuantity)}</strong></div>
-          <div><span>当前自由库存</span><strong>{formatNumber(selectedStatus.currentFreeInventory)}</strong></div>
-          <div><span>生产预定</span><strong>{formatNumber(selectedStatus.productionReserved)}</strong></div>
-          <div><span>合同预定</span><strong>{formatNumber(selectedStatus.contractReserved)}</strong></div>
+          <div><span>当前可用</span><strong>{<CompactNumber value={selectedStatus.availableInventory} />}</strong></div>
+          <div className="is-primary is-sell"><span>预计自动出售</span><strong>{<CompactNumber value={selectedStatus.sellEligibleQuantity} />}</strong></div>
+          <div><span>当前自由库存</span><strong>{<CompactNumber value={selectedStatus.currentFreeInventory} />}</strong></div>
+          <div><span>生产预定</span><strong>{<CompactNumber value={selectedStatus.productionReserved} />}</strong></div>
+          <div><span>合同预定</span><strong>{<CompactNumber value={selectedStatus.contractReserved} />}</strong></div>
         </div>
         <ToggleField
           label="启用自动出售"
@@ -470,7 +471,7 @@ export function MarketAutoTradePanel({
             <section className="warehouse-content" aria-label="自动交易商品与库存">
               <header className="warehouse-content-heading">
                 <strong>策略与库存</strong>
-                <span>{formatNumber(stockedProducts.length)} 种活跃商品</span>
+                <span>{<CompactNumber value={stockedProducts.length} />} 种活跃商品</span>
               </header>
               {stockedProducts.length > 0 ? (
                 <div className="warehouse-product-grid">
@@ -492,9 +493,9 @@ export function MarketAutoTradePanel({
                       >
                         <span className="warehouse-product-card-name">{product.name}</span>
                         <span className="warehouse-product-card-icon"><ProductIcon productId={product.id} /></span>
-                        <strong className="warehouse-product-card-available">可用 {formatNumber(inventory.available)}</strong>
+                        <strong className="warehouse-product-card-available">可用 {<CompactNumber value={inventory.available} />}</strong>
                         <small className="warehouse-product-card-frozen">
-                          冻结 {formatNumber(inventory.frozen)}{automationLabel ? ` · ${automationLabel}` : ''}
+                          冻结 {<CompactNumber value={inventory.frozen} />}{automationLabel ? ` · ${automationLabel}` : ''}
                         </small>
                       </button>
                     );

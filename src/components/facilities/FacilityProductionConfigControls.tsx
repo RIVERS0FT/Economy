@@ -1,3 +1,4 @@
+import { CompactNumber } from '../ui/CompactNumber';
 import { AssetsIcon, ChevronIcon, CreditsIcon, CycleIcon, ProductionIcon } from '../icons/GameIcons';
 import { ProductArtwork } from '../products/ProductArtwork';
 import { RichSelectInput } from '../ui/RichSelectInput';
@@ -75,7 +76,7 @@ function MaterialList({
         <span className="production-config-material" key={`${label}-${item.productId}`}>
           <ProductArtwork productId={item.productId} />
           <span>{productName(productsById, item.productId)}</span>
-          <strong>×{formatNumber(item.quantity)}</strong>
+          <strong>×{<CompactNumber value={item.quantity} />}</strong>
         </span>
       ))}
     </span>
@@ -98,7 +99,7 @@ function ProductPlanDetail({
       </span>
       <span className="production-config-metric-row">
         <span className="production-config-metric is-neutral">周期 {seconds(plan.cycleMs)}</span>
-        <span className="production-config-metric is-neutral">成本 {formatNumber(plan.operatingCost)}</span>
+        <span className="production-config-metric is-neutral">成本 {<CompactNumber value={plan.operatingCost} />}</span>
       </span>
     </span>
   );
@@ -123,10 +124,10 @@ function MethodPlanDetail({
           周期 {seconds(plan.cycleMs)}{metricDirection(plan.cycleMs, currentPlan.cycleMs)}
         </span>
         <span className={`production-config-metric is-${costTone}`}>
-          成本 {formatNumber(plan.operatingCost)}{metricDirection(plan.operatingCost, currentPlan.operatingCost)}
+          成本 {<CompactNumber value={plan.operatingCost} />}{metricDirection(plan.operatingCost, currentPlan.operatingCost)}
         </span>
         <span className={`production-config-metric is-${outputTone}`}>
-          产出 ×{formatNumber(plan.output.quantity)}{metricDirection(plan.output.quantity, currentPlan.output.quantity)}
+          产出 ×{<CompactNumber value={plan.output.quantity} />}{metricDirection(plan.output.quantity, currentPlan.output.quantity)}
         </span>
       </span>
       <MaterialList label="投入" items={plan.inputs ?? []} productsById={productsById} />

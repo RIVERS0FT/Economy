@@ -1,3 +1,4 @@
+import { CompactCurrency } from './ui/CompactNumber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   adminApi,
