@@ -41,4 +41,11 @@ replaceRequired('scripts/verify-market-assets.mjs', [
   ],
 ]);
 
-console.log('Updated anti-regression rules for compact values without changing page, market, or production layout.');
+replaceRequired('scripts/verify-warehouse-expansion.mjs', [
+  [
+    "'实物库存 {formatNumber(game.warehouseStoredQuantity)}'",
+    "'实物库存 {<CompactNumber value={game.warehouseStoredQuantity} />}'",
+  ],
+]);
+
+console.log('Updated anti-regression rules for compact values without changing page, market, warehouse, or production layout.');
