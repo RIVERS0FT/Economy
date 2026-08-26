@@ -1,0 +1,158 @@
+name: Apply avatar Nginx hotfix
+
+on:
+  push:
+    branches:
+      - codex/quote-avatar-nginx-regex
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Apply exact hotfix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str, label: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly one match, got {count}")
+              target.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          unquoted = r'location ~ ^/economy-avatars/(?<avatar_id>[1-9][0-9]{0,15})\.webp$ {'
+          quoted = r'location ~ "^/economy-avatars/(?<avatar_id>[1-9][0-9]{0,15})\.webp$" {'
+          replace_once(
+              "scripts/configure-economy-nginx.py",
+              unquoted,
+              quoted,
+              "quote generated avatar location",
+          )
+          replace_once(
+              "deploy/nginx/game.riversoft.top.economy-location.conf",
+              unquoted,
+              quoted,
+              "quote static avatar location",
+          )
+
+          replace_once(
+              "scripts/configure-economy-nginx.py",
+              'def has_avatar_location(block: str) -> bool:\n    return bool(re.search(r"\\blocation\\s+~\\s+\\^/economy-avatars/", masked(block), re.IGNORECASE))',
+              '''def has_avatar_location(block: str) -> bool:\n    return bool(\n        re.search(\n            r"(?m)^[ \\t]*location\\s+~\\s+[\\\"']?\\^/economy-avatars/",\n            block,\n            re.IGNORECASE,\n        )\n    )''',
+              "make quoted avatar location detection idempotent",
+          )
+
+          test_marker = '    def test_account_snippet_adds_only_game_api_route(self) -> None:\n'
+          test_method = r'''    def test_avatar_regex_quantifier_is_quoted_for_nginx_parser(self) -> None:
+              expected = r'location ~ "^/economy-avatars/(?<avatar_id>[1-9][0-9]{0,15})\.webp$" {'
+              original = server(
+                  f"include {nginx.ACCOUNT_SNIPPET};",
+                  f"include {nginx.GAME_API_SNIPPET};",
+              )
+              updated = nginx.replace_or_insert(original)
+              template = (
+                  REPOSITORY_ROOT / "deploy/nginx/game.riversoft.top.economy-location.conf"
+              ).read_text(encoding="utf-8")
+
+              self.assertIn(expected, nginx.AVATAR_BLOCK)
+              self.assertIn(expected, updated)
+              self.assertIn(expected, template)
+              self.assertNotIn(r"location ~ ^/economy-avatars/", updated)
+              self.assertEqual(nginx.replace_or_insert(updated), updated)
+
+          '''
+          replace_once(
+              "scripts/test_configure_economy_nginx.py",
+              test_marker,
+              test_method + test_marker,
+              "add avatar Nginx quoting regression test",
+          )
+
+          verifier_path = Path("scripts/verify-deployment-pipeline.mjs")
+          verifier = verifier_path.read_text(encoding="utf-8")
+          path_marker = "const designPath = resolve(root, 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');\n"
+          path_insert = (
+              "const nginxConfiguratorPath = resolve(root, 'scripts/configure-economy-nginx.py');\n"
+              "const nginxLocationTemplatePath = resolve(root, 'deploy/nginx/game.riversoft.top.economy-location.conf');\n"
+          )
+          if verifier.count(path_marker) != 1:
+              raise SystemExit("deployment verifier path insertion marker mismatch")
+          verifier = verifier.replace(path_marker, path_marker + path_insert, 1)
+
+          read_marker = "const design = readFileSync(designPath, 'utf8');\n"
+          read_insert = (
+              "const nginxConfigurator = readFileSync(nginxConfiguratorPath, 'utf8');\n"
+              "const nginxLocationTemplate = readFileSync(nginxLocationTemplatePath, 'utf8');\n"
+          )
+          if verifier.count(read_marker) != 1:
+              raise SystemExit("deployment verifier read insertion marker mismatch")
+          verifier = verifier.replace(read_marker, read_marker + read_insert, 1)
+
+          check_marker = "for (const forbidden of ['readFileSync', '.replace(', 'data:text/javascript', 'Buffer.from(']) {\n"
+          check_block = r'''const quotedAvatarLocation = 'location ~ "^/economy-avatars/(?<avatar_id>[1-9][0-9]{0,15})\\.webp$" {';
+          for (const [source, label] of [
+            [nginxConfigurator, 'configure-economy-nginx.py'],
+            [nginxLocationTemplate, 'Economy Nginx location 模板'],
+          ]) {
+            if (!source.includes(quotedAvatarLocation)) failures.push(`${label} 必须引用含量词的头像正则`);
+            if (source.includes('location ~ ^/economy-avatars/')) failures.push(`${label} 不得保留未引用头像正则`);
+          }
+
+          '''
+          if verifier.count(check_marker) != 1:
+              raise SystemExit("deployment verifier avatar check marker mismatch")
+          verifier = verifier.replace(check_marker, check_block + check_marker, 1)
+
+          design_marker = "requireDesignText('已通过精确校验时复用服务器现有运行时', '权威部署设计必须记录运行时部署包条件');\n"
+          design_check = "requireDesignText('Nginx 头像 `location ~` 正则包含 `{m,n}` 量词，必须整体使用引号包裹', '权威部署设计必须记录头像正则的 Nginx 引用规则');\n"
+          if verifier.count(design_marker) != 1:
+              raise SystemExit("deployment verifier design marker mismatch")
+          verifier = verifier.replace(design_marker, design_marker + design_check, 1)
+          verifier_path.write_text(verifier, encoding="utf-8")
+
+          design_path = Path("docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md")
+          design = design_path.read_text(encoding="utf-8")
+          old_reason = "这样状态轮询大小不随头像增长，玩家选择的原始大图也不会产生服务器上传流量。"
+          new_reason = old_reason + "\n\nNginx 头像 `location ~` 正则包含 `{m,n}` 量词，必须整体使用引号包裹；未引用时 Nginx 会把 `{` 识别为配置块边界并把截断表达式交给 PCRE，因此部署验证必须同时锁定生成脚本和静态 location 模板的引用形式。"
+          if design.count(old_reason) != 1:
+              raise SystemExit("deployment design avatar reason marker mismatch")
+          design = design.replace(old_reason, new_reason, 1)
+          if design.count("> 更新时间：2026-08-24") == 1:
+              design = design.replace("> 更新时间：2026-08-24", "> 更新时间：2026-08-26", 1)
+          design_path.write_text(design, encoding="utf-8")
+          PY
+
+      - name: Run targeted regression checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest scripts/test_configure_economy_nginx.py
+          node scripts/verify-deployment-pipeline.mjs
+          git diff --check
+
+      - name: Commit final hotfix and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "RIVERSOFT"
+          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
+          git rm .github/workflows/apply-avatar-nginx-hotfix.yml
+          git add deploy/nginx/game.riversoft.top.economy-location.conf \
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
+            scripts/configure-economy-nginx.py \
+            scripts/test_configure_economy_nginx.py \
+            scripts/verify-deployment-pipeline.mjs
+          git commit -m "修复头像 Nginx 正则部署语法"
+          git push origin HEAD:codex/quote-avatar-nginx-regex
