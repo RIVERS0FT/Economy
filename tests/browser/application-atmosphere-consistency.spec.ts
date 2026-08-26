@@ -74,15 +74,7 @@ async function expectUnifiedAtmosphere(page: Page, viewport: { width: number; he
   return auth;
 }
 
-test('auth, game and admin share the desktop atmosphere baseline', async ({ page }) => {
-  await expectUnifiedAtmosphere(page, { width: 1440, height: 900 });
-});
-
-test('auth, game and admin share the mobile atmosphere baseline', async ({ page }) => {
-  await expectUnifiedAtmosphere(page, { width: 390, height: 844 });
-});
-
-test('locks the desktop atmosphere intensity', async ({ page }) => {
+test('desktop shares one atmosphere baseline and locks its intensity', async ({ page }) => {
   const atmosphere = await expectUnifiedAtmosphere(page, { width: 1440, height: 900 });
 
   expect(atmosphere.imageFilter).toBe('saturate(0.72) contrast(1.08) brightness(0.72)');
@@ -99,7 +91,7 @@ test('locks the desktop atmosphere intensity', async ({ page }) => {
   expect(atmosphere.noiseOpacityToken).toBe('0.045');
 });
 
-test('locks the mobile atmosphere intensity', async ({ page }) => {
+test('mobile shares one atmosphere baseline and locks its intensity', async ({ page }) => {
   const atmosphere = await expectUnifiedAtmosphere(page, { width: 390, height: 844 });
 
   expect(atmosphere.imageFilter).toBe('saturate(0.68) contrast(1.08) brightness(0.62)');
