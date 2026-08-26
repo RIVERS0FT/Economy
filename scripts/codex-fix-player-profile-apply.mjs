@@ -47,7 +47,7 @@ const migrationReplacement = String.raw`function matchingParen(source, opening) 
       if (character === quote) quote = '';
       continue;
     }
-    if (character === "'" || character === '"' || character === '`') {
+    if (character === "'" || character === '"' || character.charCodeAt(0) === 96) {
       quote = character;
       continue;
     }
