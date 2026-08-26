@@ -121,7 +121,7 @@ GAME_API_BLOCK = """
 
 
 AVATAR_BLOCK = r"""
-    location ~ ^/economy-avatars/(?<avatar_id>[1-9][0-9]{0,15})\.webp$ {
+    location ~ "^/economy-avatars/(?<avatar_id>[1-9][0-9]{0,15})\.webp$" {
         alias /var/lib/riversoft-economy-avatars/$avatar_id.webp;
         default_type image/webp;
         add_header Cache-Control "no-cache, max-age=0, must-revalidate" always;
@@ -376,7 +376,13 @@ def has_game_api_proxy(block: str) -> bool:
 
 
 def has_avatar_location(block: str) -> bool:
-    return bool(re.search(r"\blocation\s+~\s+\^/economy-avatars/", masked(block), re.IGNORECASE))
+    return bool(
+        re.search(
+            r"(?m)^[ \t]*location\s+~\s+[\"']?\^/economy-avatars/",
+            block,
+            re.IGNORECASE,
+        )
+    )
 
 
 def ensure_avatar_location(block: str) -> tuple[str, bool]:

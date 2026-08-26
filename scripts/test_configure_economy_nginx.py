@@ -43,6 +43,25 @@ class ReplaceOrInsertTests(unittest.TestCase):
         self.assertIn("text/css text/plain text/javascript application/javascript application/json", updated)
         self.assertEqual(nginx.replace_or_insert(updated), updated)
 
+    def test_avatar_regex_quantifier_is_quoted_for_nginx_parser(self) -> None:
+        original = server(
+            f"include {nginx.ACCOUNT_SNIPPET};",
+            f"include {nginx.GAME_API_SNIPPET};",
+        )
+        updated = nginx.replace_or_insert(original)
+        avatar_line = nginx.AVATAR_BLOCK.strip().splitlines()[0].strip()
+        template = (
+            REPOSITORY_ROOT / "deploy/nginx/game.riversoft.top.economy-location.conf"
+        ).read_text(encoding="utf-8")
+
+        self.assertTrue(avatar_line.startswith("location ~ "))
+        self.assertEqual(avatar_line.count(chr(34)), 2)
+        self.assertIn(r"{0,15})\.webp$", avatar_line)
+        self.assertIn(avatar_line, updated)
+        self.assertIn(avatar_line, template)
+        self.assertNotIn(r"location ~ ^/economy-avatars/", updated)
+        self.assertEqual(nginx.replace_or_insert(updated), updated)
+
     def test_account_snippet_adds_only_game_api_route(self) -> None:
         original = server(f"include {nginx.ACCOUNT_SNIPPET};")
         updated = nginx.replace_or_insert(original)
