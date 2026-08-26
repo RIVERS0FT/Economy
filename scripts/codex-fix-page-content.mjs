@@ -9,6 +9,17 @@ function replaceRequired(path, replacements) {
   writeFileSync(path, content, 'utf8');
 }
 
+function replaceIfPresent(path, replacements) {
+  let content = readFileSync(path, 'utf8');
+  let changed = false;
+  for (const [before, after] of replacements) {
+    if (!content.includes(before)) continue;
+    content = content.replace(before, after);
+    changed = true;
+  }
+  if (changed) writeFileSync(path, content, 'utf8');
+}
+
 replaceRequired('scripts/verify-page-content-base.mjs', [
   ["'formatNumber(order.remaining)'", "'<CompactNumber value={order.remaining} />'"],
   ["'可用 {formatNumber(inventory.available)}'", "'可用 {<CompactNumber value={inventory.available} />}'"],
@@ -48,11 +59,11 @@ replaceRequired('scripts/verify-warehouse-expansion.mjs', [
   ],
 ]);
 
-replaceRequired('tests/browser/all-pages-preview.spec.ts', [
+replaceIfPresent('tests/browser/all-pages-preview.spec.ts', [
   [
     "toHaveText(['排名', '头像名称', '成绩', '奖励'])",
     "toHaveText(['排名', '玩家', '成绩', '奖励'])",
   ],
 ]);
 
-console.log('Updated anti-regression rules for compact values and the final leaderboard player column without changing layout.');
+console.log('Updated anti-regression rules for compact values and kept the leaderboard player-column migration idempotent.');
