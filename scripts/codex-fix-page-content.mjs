@@ -1,9 +1,15 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 
-const path = 'scripts/verify-page-content-base.mjs';
-let content = readFileSync(path, 'utf8');
+function replaceRequired(path, replacements) {
+  let content = readFileSync(path, 'utf8');
+  for (const [before, after] of replacements) {
+    if (!content.includes(before)) throw new Error(`${path} verifier source not found: ${before}`);
+    content = content.replace(before, after);
+  }
+  writeFileSync(path, content, 'utf8');
+}
 
-for (const [before, after] of [
+replaceRequired('scripts/verify-page-content-base.mjs', [
   ["'formatNumber(order.remaining)'", "'<CompactNumber value={order.remaining} />'"],
   ["'可用 {formatNumber(inventory.available)}'", "'可用 {<CompactNumber value={inventory.available} />}'"],
   ["'冻结 {formatNumber(inventory.frozen)}'", "'冻结 {<CompactNumber value={inventory.frozen} />}'"],
@@ -14,10 +20,13 @@ for (const [before, after] of [
   ["'`formatCurrency` 继续遵守普通货币两位显示精度'", "'`formatCurrency` 继续保留普通货币两位精确格式'"],
   ["'数量类值遵循全局固定紧凑数字规则'", "'数量、普通货币与排名等只读业务数值遵循全局固定紧凑规则'"],
   ["'货币值继续遵守两位显示精度'", "'悬停或键盘聚焦时通过共享 Tooltip 显示完整数字'"],
-]) {
-  if (!content.includes(before)) throw new Error(`page-content verifier source not found: ${before}`);
-  content = content.replace(before, after);
-}
+]);
 
-writeFileSync(path, content, 'utf8');
-console.log('Updated page-content anti-regression rules for compact values and player identity.');
+replaceRequired('scripts/verify-production-settlement-layout.mjs', [
+  [
+    "const quantityStart = formula.indexOf('<strong>{formatNumber(quantity)}</strong>', itemStart);",
+    "const quantityStart = formula.indexOf('<strong>{<CompactNumber value={quantity} />}</strong>', itemStart);",
+  ],
+]);
+
+console.log('Updated anti-regression rules for compact values without changing page or production layout.');
