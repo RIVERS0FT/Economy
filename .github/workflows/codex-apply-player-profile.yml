@@ -32,7 +32,7 @@ jobs:
         run: |
           node --test server/test/player-profile.test.js
           python3 scripts/test_configure_economy_nginx.py
-          npm run verify:display-format
+          node scripts/verify-display-format.mjs
           npm run verify:player-avatar
           node scripts/verify-leaderboards.mjs
           node scripts/verify-settings-layout.mjs
