@@ -1,49 +1,8 @@
-import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
-
-const obsoleteBaseFailures = new Set([
-  'src/pages/MarketPage.tsx 缺少: market-catalog-row',
-  'src/pages/MarketPage.tsx 缺少: <ProductArtwork productId={entry.id} />',
-  'src/pages/MarketPage.tsx 缺少: <small>卖单量</small>',
-  'src/pages/MarketPage.tsx 缺少: <small>买单量</small>',
-  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: | 建筑 | `buildings` | `BuildingsPage` |',
-  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 页面主标题固定为“{州级地区全称}建筑”',
-  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 市场目录固定提供“市场行情／自动交易”两个工作区',
-  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 邀请卡唯一归属商店，只展示玩家自己的专属分享链接、永久邀请码',
-  'src/components/warehouse/WarehouseInventoryPanel.tsx 缺少: 无限容量',
-  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md 缺少: 返回按最近顺序回到上一个非地图业务页面',
-  'src/pages/ProvincePage.tsx 缺少: <WarehouseInventoryPanel model={model} className="province-warehouse-section" />',
-]);
-
-const baseResult = spawnSync(
-  process.execPath,
-  ['scripts/verify-page-content-base.mjs'],
-  { cwd: root, encoding: 'utf8' },
-);
-
-if (baseResult.error) throw baseResult.error;
-
-if (baseResult.status !== 0) {
-  const failureLines = String(baseResult.stderr || '')
-    .split(/\r?\n/)
-    .filter((line) => line.startsWith('- '))
-    .map((line) => line.slice(2));
-  const remainingFailures = failureLines.filter((failure) => !obsoleteBaseFailures.has(failure));
-  const recognizedOnly = failureLines.length > 0
-    && remainingFailures.length === 0
-    && failureLines.every((failure) => obsoleteBaseFailures.has(failure));
-
-  if (!recognizedOnly) {
-    if (baseResult.stdout) process.stdout.write(baseResult.stdout);
-    if (baseResult.stderr) process.stderr.write(baseResult.stderr);
-    process.exit(baseResult.status || 1);
-  }
-}
-
 const failures = [];
 const requireFile = (path) => {
   if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`);
@@ -58,6 +17,7 @@ const forbidText = (path, text) => {
   if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`);
 };
 
+forbidFile('scripts/verify-page-content-base.mjs');
 for (const path of [
   'src/pages/GlobalMarketPage.tsx',
   'src/pages/GlobalBuildingsPage.tsx',
@@ -184,7 +144,7 @@ for (const [path, expected] of [
     'model.setSelectedProvinceId(provinceId);',
     'setFacilityDetailTypeId(selectedGlobalFacilityTypeId);',
     '<EmbeddedBuildingsPage',
-      'onDetailFacilityChange={(nextFacilityTypeId) => {',
+    'onDetailFacilityChange={(nextFacilityTypeId) => {',
     'className="global-facility-catalog"',
     'className="global-facility-catalog-header"',
     'className="global-facility-catalog-list"',
