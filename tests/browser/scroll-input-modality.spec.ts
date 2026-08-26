@@ -69,15 +69,38 @@ test('touch input hides horizontal rails while local trade cells keep native two
     element.scrollTop = 120;
   });
   expect(await tradeViewport.evaluate((element) => element.scrollLeft)).toBeGreaterThan(100);
-  await expect.poll(() => tradeRoot.locator('.ui-scrollbar--vertical').evaluate((element) => {
-    const style = getComputedStyle(element);
-    return { opacity: style.opacity, pointerEvents: style.pointerEvents };
-  })).toEqual({ opacity: '1', pointerEvents: 'auto' });
 
-  const beforeTrack = await tradeViewport.evaluate((element) => element.scrollTop);
-  await tradeRoot.locator('.ui-scrollbar--vertical').evaluate((track) => {
+  const activeRail = await tradeRoot.evaluate(async (root) => {
+    if (!(root instanceof HTMLElement)) throw new Error('missing trade scroll root');
+    const viewport = root.querySelector(':scope > .ui-scroll-area__viewport');
+    const track = root.querySelector(':scope > .ui-scrollbar--vertical');
+    if (!(viewport instanceof HTMLElement) || !(track instanceof HTMLElement)) {
+      throw new Error('missing trade scroll viewport or vertical track');
+    }
+
+    const maximum = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+    const nextTop = viewport.scrollTop < maximum
+      ? Math.min(maximum, viewport.scrollTop + 1)
+      : Math.max(0, viewport.scrollTop - 1);
+    if (nextTop === viewport.scrollTop) throw new Error('trade viewport is not vertically scrollable');
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = window.setTimeout(() => {
+        viewport.removeEventListener('scroll', handleScroll);
+        reject(new Error('trade viewport did not emit a scroll event'));
+      }, 1000);
+      const handleScroll = () => {
+        window.clearTimeout(timeout);
+        window.setTimeout(resolve, 180);
+      };
+      viewport.addEventListener('scroll', handleScroll, { once: true });
+      viewport.scrollTop = nextTop;
+    });
+
+    const style = getComputedStyle(track);
     const thumb = track.querySelector('.ui-scrollbar__thumb');
     if (!(thumb instanceof HTMLElement)) throw new Error('missing vertical thumb');
+    const beforeTrack = viewport.scrollTop;
     const rect = thumb.getBoundingClientRect();
     track.dispatchEvent(new PointerEvent('pointerdown', {
       bubbles: true,
@@ -87,8 +110,18 @@ test('touch input hides horizontal rails while local trade cells keep native two
       clientX: rect.left + rect.width / 2,
       clientY: rect.bottom + 20,
     }));
+
+    return {
+      active: root.dataset.scrollbarActiveY === 'true',
+      opacity: Number.parseFloat(style.opacity),
+      pointerEvents: style.pointerEvents,
+      beforeTrack,
+    };
   });
-  await expect.poll(() => tradeViewport.evaluate((element) => element.scrollTop)).toBeGreaterThan(beforeTrack);
+  expect(activeRail.active).toBe(true);
+  expect(activeRail.opacity).toBeGreaterThan(0.99);
+  expect(activeRail.pointerEvents).toBe('auto');
+  await expect.poll(() => tradeViewport.evaluate((element) => element.scrollTop)).toBeGreaterThan(activeRail.beforeTrack);
 
   const beforeDrag = await tradeViewport.evaluate((element) => element.scrollTop);
   await tradeRoot.locator('.ui-scrollbar--vertical .ui-scrollbar__thumb').evaluate((thumb) => {
