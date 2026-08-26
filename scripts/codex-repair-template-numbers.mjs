@@ -48,6 +48,40 @@ for (const absolute of walkFiles(resolve(root, 'src'))) {
   if (changed) writeFileSync(absolute, source, 'utf8');
 }
 
+// Keep CurrencyAmount compatible with the repository's ES2020 TypeScript lib.
+const currencyAmountPath = resolve(root, 'src/components/ui/CurrencyAmount.tsx');
+let currencyAmount = readFileSync(currencyAmountPath, 'utf8');
+const replaceAllSource = "normalized.replaceAll(',', '')";
+if (!currencyAmount.includes(replaceAllSource)) {
+  throw new Error('CurrencyAmount ES2020 compatibility source not found');
+}
+currencyAmount = currencyAmount.replace(replaceAllSource, "normalized.replace(/,/g, '')");
+writeFileSync(currencyAmountPath, currencyAmount, 'utf8');
+
+// Contract term diffs intentionally render compact tooltip elements. Their wrapper accepts React nodes,
+// while unchanged quantity/price terms use the same compact components instead of exact formatter strings.
+const negotiationPath = resolve(root, 'src/contracts/ContractNegotiationSection.tsx');
+let negotiation = readFileSync(negotiationPath, 'utf8');
+for (const [before, after] of [
+  ["import { useState } from 'react';", "import { useState, type ReactNode } from 'react';"],
+  [
+    'function TermChange({ from, to }: { from: string; to: string }) {',
+    'function TermChange({ from, to }: { from: ReactNode; to: ReactNode }) {',
+  ],
+  [
+    '? formatNumber(terms.quantityPerDelivery)',
+    '? <CompactNumber value={terms.quantityPerDelivery} />',
+  ],
+  [
+    '? formatCurrency(terms.unitPrice)',
+    '? <CompactCurrency value={terms.unitPrice} />',
+  ],
+]) {
+  if (!negotiation.includes(before)) throw new Error(`ContractNegotiationSection repair source not found: ${before}`);
+  negotiation = negotiation.replace(before, after);
+}
+writeFileSync(negotiationPath, negotiation, 'utf8');
+
 const researchPath = resolve(root, 'src/pages/ResearchPage.tsx');
 let research = readFileSync(researchPath, 'utf8');
 const researchBefore = ': `研发中 · ${formatNumber(accelerationCost)} 宝石加速 ${formatDuration(accelerationMs)}`}';
@@ -69,4 +103,4 @@ if (!verifier.includes(verifyBefore)) throw new Error('research verifier acceler
 verifier = verifier.replace(verifyBefore, verifyAfter);
 writeFileSync(verifyPath, verifier, 'utf8');
 
-console.log(`Repaired ${repaired} compact-number template interpolations; research acceleration keeps a real tooltip value.`);
+console.log(`Repaired ${repaired} compact-number template interpolations, ES2020 currency parsing, and React-node term diffs.`);
