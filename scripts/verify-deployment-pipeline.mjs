@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { selectCiPlan } from './select-ci-tests.mjs';
 
@@ -6,10 +6,15 @@ const root = process.cwd();
 const deployPath = resolve(root, '.github/workflows/deploy.yml');
 const ciPath = resolve(root, '.github/workflows/ci.yml');
 const selectorPath = resolve(root, 'scripts/select-ci-tests.mjs');
+const pageContentPath = resolve(root, 'scripts/verify-page-content.mjs');
+const pageContentLegacyPath = resolve(root, 'scripts/verify-page-content-base.mjs');
+const uiArchitectureRunnerPath = resolve(root, 'scripts/verify-ui-architecture-runner.mjs');
 const designPath = resolve(root, 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 const workflow = readFileSync(deployPath, 'utf8');
 const ciWorkflow = readFileSync(ciPath, 'utf8');
 const selector = readFileSync(selectorPath, 'utf8');
+const pageContent = readFileSync(pageContentPath, 'utf8');
+const uiArchitectureRunner = readFileSync(uiArchitectureRunnerPath, 'utf8');
 const design = readFileSync(designPath, 'utf8');
 const failures = [];
 
@@ -26,6 +31,7 @@ const requireDesignText = (text, reason) => {
   if (!design.includes(text)) failures.push(reason ?? `部署设计缺少: ${text}`);
 };
 const hasCommand = (plan, command, args = []) => plan.checks.some((item) => item.command === command && JSON.stringify(item.args) === JSON.stringify(args));
+const commandCount = (plan, command, args = []) => plan.checks.filter((item) => item.command === command && JSON.stringify(item.args) === JSON.stringify(args)).length;
 
 for (const text of [
   'fetch-depth: 0',
@@ -52,8 +58,16 @@ for (const text of [
   "'server/test'",
   "'tests/browser'",
   'verifyCandidates',
-  'INDIRECT_VERIFY_ENTRYPOINTS',
+  'COMPOSED_VERIFY_ENTRYPOINTS',
 ]) requireSelectorText(text);
+
+if (existsSync(pageContentLegacyPath)) failures.push('旧 page-content base verifier 不得继续存在');
+for (const forbidden of ['obsoleteBaseFailures', "['scripts/verify-page-content-base.mjs']", 'spawnSync(']) {
+  if (pageContent.includes(forbidden)) failures.push(`page-content 正式 verifier 不得保留旧兼容层: ${forbidden}`);
+}
+for (const forbidden of ['readFileSync', '.replace(', 'data:text/javascript', 'Buffer.from(']) {
+  if (uiArchitectureRunner.includes(forbidden)) failures.push(`UI 架构 runner 不得改写 verifier 源码: ${forbidden}`);
+}
 
 const marketPlan = selectCiPlan(['src/pages/MarketPage.tsx']);
 if (marketPlan.mode !== 'targeted') failures.push('市场页面改动必须使用 targeted CI');
@@ -61,12 +75,15 @@ if (!marketPlan.needsDependencies) failures.push('前端 targeted CI 必须安�
 if (!hasCommand(marketPlan, 'npm', ['run', 'typecheck'])) failures.push('前端 targeted CI 必须执行 TypeScript 检查');
 if (!hasCommand(marketPlan, './node_modules/.bin/vite', ['build'])) failures.push('前端 targeted CI 必须执行 Vite 生产构建');
 if (marketPlan.browser.mode !== 'selected' || marketPlan.browser.tests.length === 0) failures.push('市场页面改动必须选择相关 Playwright 测试');
-if (hasCommand(marketPlan, 'node', ['scripts/verify-page-content-base.mjs'])) failures.push('targeted CI 不得直接执行内部 page-content base verifier');
-if (!hasCommand(marketPlan, 'node', ['scripts/verify-page-content.mjs'])) failures.push('市场页面改动必须通过正式 page-content 包装入口验证');
+if (hasCommand(marketPlan, 'node', ['scripts/verify-market-page-layout-regional.mjs'])) failures.push('targeted CI 不得绕过市场正式组合 verifier 执行内部地区检查');
+if (!hasCommand(marketPlan, 'node', ['scripts/verify-market-page-layout.mjs'])) failures.push('市场页面改动必须通过正式 market-page-layout 入口验证');
 
-const directPageContentBasePlan = selectCiPlan(['scripts/verify-page-content-base.mjs']);
-if (hasCommand(directPageContentBasePlan, 'node', ['scripts/verify-page-content-base.mjs'])) failures.push('直接修改内部 page-content base verifier 时不得绕过包装入口执行');
-if (!hasCommand(directPageContentBasePlan, 'node', ['scripts/verify-page-content.mjs'])) failures.push('直接修改内部 page-content base verifier 时必须选择正式包装入口');
+const directRegionalMarketPlan = selectCiPlan(['scripts/verify-market-page-layout-regional.mjs']);
+if (hasCommand(directRegionalMarketPlan, 'node', ['scripts/verify-market-page-layout-regional.mjs'])) failures.push('直接修改地区市场内部 verifier 时不得绕过正式组合入口');
+if (commandCount(directRegionalMarketPlan, 'node', ['scripts/verify-market-page-layout.mjs']) !== 1) failures.push('直接修改地区市场内部 verifier 时正式组合入口必须且只能执行一次');
+
+const directPageContentPlan = selectCiPlan(['scripts/verify-page-content.mjs']);
+if (commandCount(directPageContentPlan, 'node', ['scripts/verify-page-content.mjs']) !== 1) failures.push('直接修改 page-content verifier 时必须且只能执行正式入口一次');
 
 const bankingPlan = selectCiPlan(['server/src/banking.js']);
 if (bankingPlan.mode !== 'targeted') failures.push('银行服务端改动必须使用 targeted CI');
@@ -118,6 +135,8 @@ requireText("needs['browser-test'].result", '带连字符的 browser-test Job �
 
 requireDesignText('PR 与非 `main` push 默认使用改动文件选择器', '权威部署设计必须记录增量 CI');
 requireDesignText('无法分类的源码改动必须退化为完整验证', '权威部署设计必须记录未知影响范围的全量兜底');
+requireDesignText('组合 verifier 只允许一个正式入口', '权威部署设计必须记录组合 verifier 单入口规则');
+requireDesignText('不得通过忽略已知失败维持旧 verifier', '权威部署设计必须禁止旧规则兼容白名单');
 requireDesignText('`main` 是唯一自动无条件执行完整 `npm run build` 与完整 Playwright 的分支', '权威部署设计必须记录 main 全量门禁边界');
 requireDesignText('完整 `npm run build` 与完整 Playwright 浏览器回归必须作为并行硬门禁', '权威部署设计必须记录完整构建与浏览器回归并行硬门禁');
 requireDesignText('独立 `browser-test` Job 固定以四个 shard', '权威部署设计必须记录四分片浏览器回归');
@@ -148,4 +167,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('PR/分支按改动选择验证，未知高风险改动自动全量；main 仍以完整 build 与四分片浏览器回归作为部署硬门禁。');
+console.log('PR/分支按改动选择验证；组合 verifier 保持单一正式入口且不保留旧失败兼容层；main 仍以完整 build 与四分片浏览器回归作为部署硬门禁。');
