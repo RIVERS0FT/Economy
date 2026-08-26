@@ -98,6 +98,9 @@ test('touch input hides horizontal rails while local trade cells keep native two
     });
 
     const style = getComputedStyle(track);
+    const active = root.dataset.scrollbarActiveY === 'true';
+    const opacity = Number.parseFloat(style.opacity);
+    const pointerEvents = style.pointerEvents;
     const thumb = track.querySelector('.ui-scrollbar__thumb');
     if (!(thumb instanceof HTMLElement)) throw new Error('missing vertical thumb');
     const beforeTrack = viewport.scrollTop;
@@ -111,12 +114,7 @@ test('touch input hides horizontal rails while local trade cells keep native two
       clientY: rect.bottom + 20,
     }));
 
-    return {
-      active: root.dataset.scrollbarActiveY === 'true',
-      opacity: Number.parseFloat(style.opacity),
-      pointerEvents: style.pointerEvents,
-      beforeTrack,
-    };
+    return { active, opacity, pointerEvents, beforeTrack };
   });
   expect(activeRail.active).toBe(true);
   expect(activeRail.opacity).toBeGreaterThan(0.99);
