@@ -69,8 +69,10 @@ test('touch input hides horizontal rails while local trade cells keep native two
     element.scrollTop = 120;
   });
   expect(await tradeViewport.evaluate((element) => element.scrollLeft)).toBeGreaterThan(100);
-  await expect.poll(() => tradeRoot.locator('.ui-scrollbar--vertical').evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
-  await expect.poll(() => tradeRoot.locator('.ui-scrollbar--vertical').evaluate((element) => getComputedStyle(element).pointerEvents)).toBe('auto');
+  await expect.poll(() => tradeRoot.locator('.ui-scrollbar--vertical').evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { opacity: style.opacity, pointerEvents: style.pointerEvents };
+  })).toEqual({ opacity: '1', pointerEvents: 'auto' });
 
   const beforeTrack = await tradeViewport.evaluate((element) => element.scrollTop);
   await tradeRoot.locator('.ui-scrollbar--vertical').evaluate((track) => {
