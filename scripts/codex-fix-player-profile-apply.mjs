@@ -9,6 +9,11 @@ function replaceRequired(before, after, label) {
 }
 
 replaceRequired(
+  "import ts from 'typescript';",
+  "import * as ts from 'typescript';",
+  'TypeScript ESM import',
+);
+replaceRequired(
   "  \"import { validateResearchAccess } from './research.js';\"," ,
   "  \"import { applyResearchAction, validateResearchAccess } from './research.js';\"," ,
   'runtime action import marker',
