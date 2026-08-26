@@ -1,96 +1,11 @@
 /* Shared regional/global quote row. Container width, not viewport width, decides the compact slot sizes. */
 .market-commodity-row-header {
-  grid-template-columns: minmax(8rem, 1.45fr) repeat(4, minmax(4.1rem, .68fr)) .8rem;
-  gap: .55rem;
+  --entity-list-columns: minmax(8rem, 1.45fr) repeat(4, minmax(4.1rem, .68fr)) .8rem;
   margin-bottom: .18rem;
-  padding-inline: .6rem;
-}
-
-.market-commodity-row-header__cell[aria-sort='ascending'],
-.market-commodity-row-header__cell[aria-sort='descending'] {
-  color: var(--color-text-secondary);
-}
-
-.market-commodity-row-header__sort {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: .22rem;
-  max-width: 100%;
-  min-height: 30px;
-  border: 0;
-  padding: 0;
-  color: inherit;
-  background: none;
-  font: inherit;
-  font-weight: inherit;
-  text-align: inherit;
-  cursor: pointer;
-}
-
-.market-commodity-row-header__sort > span:first-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.market-commodity-row-header__sort:focus-visible {
-  outline: 2px solid var(--color-focus-ring, var(--accent));
-  outline-offset: 2px;
-  border-radius: var(--radius-control);
-}
-
-.market-commodity-row-header__cell[aria-sort='ascending'] .market-commodity-row-header__sort > span:first-child,
-.market-commodity-row-header__cell[aria-sort='descending'] .market-commodity-row-header__sort > span:first-child {
-  text-decoration: underline;
-  text-underline-offset: .18rem;
-}
-
-.market-commodity-row-header__indicator {
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  color: var(--color-text-muted);
-  opacity: .45;
-  transition: opacity var(--motion-fast) ease;
-}
-
-.market-commodity-row-header__indicator .game-icon {
-  width: .6rem;
-  height: .6rem;
-}
-
-.market-commodity-row-header__cell[aria-sort='ascending'] .market-commodity-row-header__indicator,
-.market-commodity-row-header__cell[aria-sort='descending'] .market-commodity-row-header__indicator {
-  color: var(--color-text-secondary);
-  opacity: 1;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  html[data-input-modality='mouse'] .market-commodity-row-header__sort:hover {
-    color: var(--color-text-secondary);
-  }
-
-  html[data-input-modality='mouse'] .market-commodity-row-header__sort:hover .market-commodity-row-header__indicator {
-    opacity: .8;
-  }
 }
 
 .market-commodity-row {
-  width: 100%;
-  min-width: 0;
-  min-height: 58px;
-  display: grid;
-  grid-template-columns: minmax(8rem, 1.45fr) repeat(4, minmax(4.1rem, .68fr)) .8rem;
-  align-items: center;
-  gap: .55rem;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-control);
-  padding: .45rem .6rem;
-  color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-surface-panel) 70%, transparent);
-  text-align: left;
+  --entity-list-columns: minmax(8rem, 1.45fr) repeat(4, minmax(4.1rem, .68fr)) .8rem;
 }
 
 .market-commodity-row__identity {
@@ -99,6 +14,10 @@
   grid-template-columns: 42px minmax(0, 1fr);
   align-items: center;
   gap: .5rem;
+}
+
+.market-commodity-row__identity--region {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .market-commodity-row__artwork {
@@ -219,23 +138,22 @@
 @container (max-width: 620px) {
   .market-commodity-row-header,
   .market-commodity-row {
-    grid-template-columns: minmax(5rem, 1.25fr) repeat(4, minmax(2.45rem, .62fr)) .65rem;
-    gap: .25rem;
+    --entity-list-columns: minmax(5rem, 1.25fr) repeat(4, minmax(2.45rem, .62fr)) .65rem;
+    --entity-list-gap: .25rem;
+    --entity-list-inline-padding: .4rem;
   }
 
   .market-commodity-row-header {
-    padding-inline: .4rem;
     font-size: .625rem;
   }
 
-  .market-commodity-row-header__indicator .game-icon {
+  .entity-list-header__indicator .game-icon {
     width: .5rem;
     height: .5rem;
   }
 
   .market-commodity-row {
-    min-height: 54px;
-    padding: .35rem .4rem;
+    padding-block: .35rem;
   }
 
   .market-commodity-row__identity {
@@ -270,20 +188,13 @@
 @container (max-width: 360px) {
   .market-commodity-row-header,
   .market-commodity-row {
-    grid-template-columns: minmax(4.55rem, 1.2fr) repeat(4, minmax(2.2rem, .6fr)) .55rem;
-    gap: .18rem;
+    --entity-list-columns: minmax(4.55rem, 1.2fr) repeat(4, minmax(2.2rem, .6fr)) .55rem;
+    --entity-list-gap: .18rem;
+    --entity-list-inline-padding: .3rem;
   }
 
-  .market-commodity-row-header {
-    padding-inline: .3rem;
-  }
-
-  .market-commodity-row-header__indicator {
+  .entity-list-header__indicator {
     display: none;
-  }
-
-  .market-commodity-row {
-    padding-inline: .3rem;
   }
 
   .market-commodity-row__identity {

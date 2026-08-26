@@ -139,11 +139,39 @@ test.describe('research technology tree', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=research&scenario=research-active');
     const node = page.getByRole('button', { name: /工具作业，可研发，C2 作业科技/ });
+    const viewport = page.locator('.research-tree-viewport');
+    const transformLayer = page.locator('.research-tree-transform-layer');
     await node.scrollIntoViewIfNeeded();
+    const initialBox = await node.boundingBox();
+    expect(initialBox).not.toBeNull();
+    await page.mouse.move((initialBox?.x ?? 0) + (initialBox?.width ?? 0) / 2, (initialBox?.y ?? 0) + (initialBox?.height ?? 0) / 2);
+    await page.mouse.wheel(0, -2_000);
+    await expect.poll(async () => Number(await viewport.getAttribute('data-zoom'))).toBeCloseTo(1.6, 2);
+    await expect(viewport).not.toHaveAttribute('data-transforming', 'true', { timeout: 1_000 });
+    await expect(transformLayer).toHaveCSS('will-change', 'auto');
+    await node.hover();
+    await page.mouse.down();
+    await expect(viewport).toHaveAttribute('data-transforming', 'true');
+    await expect(transformLayer).toHaveCSS('will-change', 'transform');
+    await page.mouse.up();
+    await expect(transformLayer).toHaveCSS('will-change', 'auto');
     await page.mouse.move(0, 0);
     const before = await node.boundingBox();
+    const stableViewport = {
+      panX: await viewport.getAttribute('data-pan-x'),
+      panY: await viewport.getAttribute('data-pan-y'),
+      zoom: await viewport.getAttribute('data-zoom'),
+    };
     await node.hover();
     const after = await node.boundingBox();
+    await expect(node).toHaveCSS('filter', 'none');
+    await page.mouse.move(0, 0);
+    await expect(node).toHaveCSS('filter', 'none');
+    expect({
+      panX: await viewport.getAttribute('data-pan-x'),
+      panY: await viewport.getAttribute('data-pan-y'),
+      zoom: await viewport.getAttribute('data-zoom'),
+    }).toEqual(stableViewport);
     expect(Math.abs((after?.x ?? 0) - (before?.x ?? 0))).toBeLessThanOrEqual(1);
     expect(Math.abs((after?.y ?? 0) - (before?.y ?? 0))).toBeLessThanOrEqual(2);
     await expect(node).toHaveCSS('translate', '-50% -50%');

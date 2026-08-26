@@ -590,6 +590,7 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
                     <button
                       type="button"
                       className="research-facility-node research-technology-node"
+                      data-ui-interactive="surface"
                       data-technology-id={technology.id}
                       data-depth={layoutNode.depth}
                       data-prerequisites={technology.prerequisiteTechnologyIds.join(',')}

@@ -2,12 +2,17 @@ import { CompactNumber } from '../ui/CompactNumber';
 import { ChevronIcon } from '../icons/GameIcons';
 import { ProductArtwork } from '../products/ProductArtwork';
 import { CurrencyAmount } from '../ui/CurrencyAmount';
+import {
+  EntityListHeader,
+  nextEntityListSort,
+  type EntityListSortDirection,
+  type EntityListSortState,
+} from '../ui/EntityListHeader';
 import { formatCurrency, formatNumber } from '../../utils/formatters';
-import '../../styles/entity-list-header.css';
 import '../../styles/market-commodity-row.css';
 
 export type MarketCommoditySortKey = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume';
-export type MarketSortDirection = 'asc' | 'desc';
+export type MarketSortDirection = EntityListSortDirection;
 
 const MARKET_SORT_DEFAULT_DIRECTION: Record<MarketCommoditySortKey, MarketSortDirection> = {
   catalog: 'asc',
@@ -18,25 +23,13 @@ const MARKET_SORT_DEFAULT_DIRECTION: Record<MarketCommoditySortKey, MarketSortDi
   'sell-volume': 'desc',
 };
 
-export interface MarketCommoditySortState {
-  key: MarketCommoditySortKey;
-  direction: MarketSortDirection;
-}
+export type MarketCommoditySortState = EntityListSortState<Exclude<MarketCommoditySortKey, 'catalog'>>;
 
 export function nextMarketCommoditySort(
   clickedKey: Exclude<MarketCommoditySortKey, 'catalog'>,
   current: MarketCommoditySortState,
 ): MarketCommoditySortState {
-  if (current.key !== clickedKey) {
-    return { key: clickedKey, direction: MARKET_SORT_DEFAULT_DIRECTION[clickedKey] };
-  }
-  if (current.direction === MARKET_SORT_DEFAULT_DIRECTION[clickedKey]) {
-    return {
-      key: clickedKey,
-      direction: MARKET_SORT_DEFAULT_DIRECTION[clickedKey] === 'asc' ? 'desc' : 'asc',
-    };
-  }
-  return { key: 'catalog', direction: MARKET_SORT_DEFAULT_DIRECTION.catalog };
+  return nextEntityListSort(clickedKey, current, MARKET_SORT_DEFAULT_DIRECTION[clickedKey]);
 }
 
 export function compareMarketOptionalValue(
@@ -74,42 +67,15 @@ export function MarketCommodityHeader({
     { label: '' },
   ];
   return (
-    <div className="entity-list-header market-commodity-row-header" role="row">
-      {columns.map((column) => {
-        const columnSortKey = column.sortKey;
-        const isActive = columnSortKey !== undefined && sortKey === columnSortKey;
-        const ariaSort = isActive
-          ? sortDirection === 'asc' ? 'ascending' as const : 'descending' as const
-          : 'none' as const;
-        const content = columnSortKey === undefined || !onSortChange
-          ? column.label
-          : (
-            <button
-              type="button"
-              className="market-commodity-row-header__sort"
-              onClick={() => onSortChange(nextMarketCommoditySort(
-                columnSortKey,
-                { key: sortKey, direction: sortDirection },
-              ))}
-            >
-              <span>{column.label}</span>
-              <span className="market-commodity-row-header__indicator" aria-hidden="true">
-                <ChevronIcon direction={isActive && sortDirection === 'asc' ? 'up' : 'down'} />
-              </span>
-            </button>
-          );
-        return (
-          <span
-            className="market-commodity-row-header__cell"
-            key={column.label || 'chevron'}
-            role="columnheader"
-            aria-sort={columnSortKey === undefined ? undefined : ariaSort}
-          >
-            {content}
-          </span>
-        );
-      })}
-    </div>
+    <EntityListHeader
+      className="market-commodity-row-header"
+      columns={columns.map((column) => ({
+        ...column,
+        defaultDirection: column.sortKey ? MARKET_SORT_DEFAULT_DIRECTION[column.sortKey] : undefined,
+      }))}
+      sortState={{ key: sortKey, direction: sortDirection }}
+      onSortChange={onSortChange}
+    />
   );
 }
 
@@ -145,9 +111,7 @@ export function MarketCommodityRow({
   onClick,
 }: MarketCommodityRowProps) {
   const secondary = regionName
-    ? regionPrimary
-      ? `${productName} · ${categoryLabel}${currentRegion ? ' · 当前经营州' : ''}`
-      : `${categoryLabel} · ${regionName}${currentRegion ? ' · 当前经营州' : ''}`
+    ? `${categoryLabel} · ${regionName}${currentRegion ? ' · 当前经营州' : ''}`
     : categoryLabel;
   const trendClassName = trend === undefined
     ? ''
@@ -160,19 +124,22 @@ export function MarketCommodityRow({
   return (
     <button
         type="button"
-        className="market-commodity-row"
+        className="entity-list-row market-commodity-row"
         data-ui-interactive="surface"
         data-province-id={provinceId}
+        data-current-region={currentRegion || undefined}
         aria-label={ariaLabel}
         onClick={onClick}
       >
-        <span className="market-commodity-row__identity">
-          <span className="market-commodity-row__artwork" aria-hidden="true">
-            <ProductArtwork productId={productId} />
-          </span>
+        <span className={`market-commodity-row__identity${regionPrimary ? ' market-commodity-row__identity--region' : ''}`}>
+          {regionPrimary ? null : (
+            <span className="market-commodity-row__artwork" aria-hidden="true">
+              <ProductArtwork productId={productId} />
+            </span>
+          )}
           <span className="market-commodity-row__name">
             <strong>{regionPrimary && regionName ? regionName : productName}</strong>
-            <small title={secondary}>{secondary}</small>
+            {regionPrimary ? null : <small title={secondary}>{secondary}</small>}
           </span>
         </span>
         <span className="market-commodity-row__metric">

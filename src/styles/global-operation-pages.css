@@ -43,16 +43,16 @@
 
 .global-facility-catalog-header,
 .global-facility-region-header {
-  gap: .75rem;
-  padding-inline: .25rem;
+  --entity-list-gap: .55rem;
+  --entity-list-inline-padding: .6rem;
 }
 
 .global-facility-catalog-header {
-  grid-template-columns: minmax(0, 1.6fr) minmax(7rem, .8fr) minmax(4rem, .45fr) 1rem;
+  --entity-list-columns: minmax(0, 1.6fr) minmax(7rem, .8fr) minmax(4rem, .45fr) 1rem;
 }
 
 .global-facility-region-header {
-  grid-template-columns: minmax(0, 1.45fr) minmax(6rem, .7fr) minmax(3.5rem, .42fr) minmax(4.5rem, .55fr) 1rem;
+  --entity-list-columns: minmax(0, 1.45fr) minmax(6rem, .7fr) minmax(3.5rem, .42fr) minmax(4.5rem, .55fr) 1rem;
 }
 
 .global-facility-catalog-list,
@@ -61,7 +61,7 @@
   max-width: 100%;
   min-width: 0;
   display: grid;
-  gap: 0;
+  gap: .32rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -75,35 +75,22 @@
 .global-facility-catalog-row,
 .global-facility-region-row {
   position: relative;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  display: grid;
-  align-items: center;
-  gap: .75rem;
-  border: 0;
-  border-bottom: 1px solid var(--color-divider);
-  border-radius: 0;
-  padding: .5rem .25rem;
-  color: var(--color-text-primary);
-  background: transparent;
-  text-align: left;
+  --entity-list-gap: .55rem;
+  --entity-list-inline-padding: .6rem;
 }
 
 .global-facility-catalog-row {
-  min-height: 60px;
-  grid-template-columns: minmax(0, 1.6fr) minmax(7rem, .8fr) minmax(4rem, .45fr) 1rem;
+  --entity-list-columns: minmax(0, 1.6fr) minmax(7rem, .8fr) minmax(4rem, .45fr) 1rem;
 }
 
 .global-facility-region-row {
-  min-height: 54px;
-  grid-template-columns: minmax(0, 1.45fr) minmax(6rem, .7fr) minmax(3.5rem, .42fr) minmax(4.5rem, .55fr) 1rem;
+  --entity-list-columns: minmax(0, 1.45fr) minmax(6rem, .7fr) minmax(3.5rem, .42fr) minmax(4.5rem, .55fr) 1rem;
 }
 
 .global-facility-catalog-row__identity {
   min-width: 0;
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-columns: 42px minmax(0, 1fr);
   align-items: center;
   gap: .65rem;
 }
@@ -120,9 +107,9 @@
 }
 
 .global-facility-catalog-row__artwork {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
   aspect-ratio: 1;
   overflow: hidden;
   border-radius: var(--radius-control);
@@ -185,13 +172,9 @@
 @container (max-width: 620px) {
   .global-facility-catalog-header,
   .global-facility-catalog-row {
-    grid-template-columns: minmax(0, 1.45fr) minmax(4.65rem, .8fr) minmax(2.4rem, .42fr) .6rem;
-    gap: .3rem;
-  }
-
-  .global-facility-catalog-row {
-    min-height: 54px;
-    padding-block: .4rem;
+    --entity-list-columns: minmax(0, 1.45fr) minmax(4.65rem, .8fr) minmax(2.4rem, .42fr) .6rem;
+    --entity-list-gap: .3rem;
+    --entity-list-inline-padding: .4rem;
   }
 
   .global-facility-catalog-row__identity {
@@ -221,8 +204,9 @@
 
   .global-facility-region-header,
   .global-facility-region-row {
-    grid-template-columns: minmax(0, 1.2fr) minmax(4.5rem, .68fr) minmax(2.2rem, .35fr) minmax(3rem, .48fr) .6rem;
-    gap: .25rem;
+    --entity-list-columns: minmax(0, 1.2fr) minmax(4.5rem, .68fr) minmax(2.2rem, .35fr) minmax(3rem, .48fr) .6rem;
+    --entity-list-gap: .25rem;
+    --entity-list-inline-padding: .4rem;
   }
 
   .global-facility-region-row__identity small {
@@ -233,8 +217,9 @@
 @container (max-width: 360px) {
   .global-facility-catalog-header,
   .global-facility-catalog-row {
-    grid-template-columns: minmax(0, 1.35fr) minmax(4.25rem, .76fr) minmax(2.1rem, .4fr) .55rem;
-    gap: .2rem;
+    --entity-list-columns: minmax(0, 1.35fr) minmax(4.25rem, .76fr) minmax(2.1rem, .4fr) .55rem;
+    --entity-list-gap: .2rem;
+    --entity-list-inline-padding: .3rem;
   }
 
   .global-facility-catalog-row__identity {
@@ -250,9 +235,9 @@
 
   .global-facility-region-header,
   .global-facility-region-row {
-    grid-template-columns: minmax(0, .9fr) minmax(0, 1.15fr) minmax(0, .45fr) minmax(0, .75fr) .4rem;
-    gap: .1rem;
-    padding-inline: .1rem;
+    --entity-list-columns: minmax(0, .9fr) minmax(0, 1.15fr) minmax(0, .45fr) minmax(0, .75fr) .4rem;
+    --entity-list-gap: .1rem;
+    --entity-list-inline-padding: .3rem;
   }
 
   .global-facility-region-row__identity > strong,
@@ -370,8 +355,7 @@
 }
 
 .global-market-goods-header {
-  grid-template-columns: minmax(9.5rem, 1.5fr) minmax(5.4rem, .7fr) minmax(7.8rem, .88fr) minmax(6rem, .72fr) .8rem;
-  gap: .55rem;
+  --entity-list-columns: minmax(9.5rem, 1.5fr) minmax(5.4rem, .7fr) minmax(7.8rem, .88fr) minmax(6rem, .72fr) .8rem;
   margin-bottom: .32rem;
 }
 
@@ -392,20 +376,7 @@
 }
 
 .global-market-goods-row {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  min-height: 58px;
-  display: grid;
-  grid-template-columns: minmax(9.5rem, 1.5fr) minmax(5.4rem, .7fr) minmax(7.8rem, .88fr) minmax(6rem, .72fr) .8rem;
-  align-items: center;
-  gap: .55rem;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-control);
-  padding: .45rem .6rem;
-  color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-surface-panel) 70%, transparent);
-  text-align: left;
+  --entity-list-columns: minmax(9.5rem, 1.5fr) minmax(5.4rem, .7fr) minmax(7.8rem, .88fr) minmax(6rem, .72fr) .8rem;
 }
 
 .global-market-goods-row__identity {
@@ -476,8 +447,8 @@
 @container global-market-page (max-width: 760px) {
   .global-market-goods-header,
   .global-market-goods-row {
-    grid-template-columns: minmax(7.5rem, 1.35fr) repeat(3, minmax(4.3rem, .7fr)) .7rem;
-    gap: .35rem;
+    --entity-list-columns: minmax(7.5rem, 1.35fr) repeat(3, minmax(4.3rem, .7fr)) .7rem;
+    --entity-list-gap: .35rem;
   }
 }
 
@@ -492,18 +463,17 @@
 
   .global-market-goods-header,
   .global-market-goods-row {
-    grid-template-columns: minmax(5.5rem, 1.25fr) repeat(3, minmax(3.25rem, .68fr)) .6rem;
-    gap: .25rem;
+    --entity-list-columns: minmax(5.5rem, 1.25fr) repeat(3, minmax(3.25rem, .68fr)) .6rem;
+    --entity-list-gap: .25rem;
+    --entity-list-inline-padding: .4rem;
   }
 
   .global-market-goods-header {
-    padding-inline: .4rem;
     font-size: .625rem;
   }
 
   .global-market-goods-row {
-    min-height: 54px;
-    padding: .35rem .4rem;
+    padding-block: .35rem;
   }
 
   .global-market-goods-row__identity {
@@ -534,12 +504,8 @@
 @container global-market-page (max-width: 360px) {
   .global-market-goods-header,
   .global-market-goods-row {
-    grid-template-columns: minmax(4.7rem, 1.2fr) repeat(3, minmax(2.85rem, .64fr)) .55rem;
-    gap: .18rem;
-  }
-
-  .global-market-goods-header,
-  .global-market-goods-row {
-    padding-inline: .3rem;
+    --entity-list-columns: minmax(4.7rem, 1.2fr) repeat(3, minmax(2.85rem, .64fr)) .55rem;
+    --entity-list-gap: .18rem;
+    --entity-list-inline-padding: .3rem;
   }
 }

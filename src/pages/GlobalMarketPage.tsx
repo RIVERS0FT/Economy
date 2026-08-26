@@ -10,6 +10,7 @@ import {
   type MarketSortDirection,
 } from '../components/market/MarketCommodityRow';
 import { ProductArtwork } from '../components/products/ProductArtwork';
+import { EntityListHeader } from '../components/ui/EntityListHeader';
 import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import {
@@ -106,7 +107,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
   const [statusFilter, setStatusFilter] = useState<GlobalMarketStatus>('all');
   const [regionalStatusFilter, setRegionalStatusFilter] = useState<RegionalProductStatus>('all');
   const [regionalSort, setRegionalSort] = useState<MarketCommoditySortKey>('catalog');
-  const [regionalSortDirection, setRegionalSortDirection] = useState<MarketSortDirection>('desc');
+  const [regionalSortDirection, setRegionalSortDirection] = useState<MarketSortDirection>('asc');
   const pageNavigation = usePlayerPageNavigation();
   const stackedLocation = pageNavigation?.currentLocation;
   const game = model.game;
@@ -210,6 +211,9 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
       return true;
     });
     return filtered.sort((left, right) => {
+      if (regionalSort === 'name') return regionalSortDirection === 'asc'
+        ? left.province.name.localeCompare(right.province.name, 'zh-CN')
+        : right.province.name.localeCompare(left.province.name, 'zh-CN');
       if (regionalSort === 'price') return compareMarketOptionalValue(left.marketPrice, right.marketPrice, regionalSortDirection);
       if (regionalSort === 'trend') return compareMarketOptionalValue(left.trend, right.trend, regionalSortDirection);
       if (regionalSort === 'buy-volume') return compareMarketOptionalValue(left.buyVolume, right.buyVolume, regionalSortDirection);
@@ -251,7 +255,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
     setActiveProvinceId(null);
     setRegionalStatusFilter('all');
     setRegionalSort('catalog');
-    setRegionalSortDirection('desc');
+    setRegionalSortDirection('asc');
     pageNavigation?.pushPage({ type: 'global-market-product', productId });
   };
 
@@ -336,6 +340,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
           </details>
           <MarketCommodityHeader
             entityLabel="地区"
+            entitySortKey="name"
             sortKey={regionalSort}
             sortDirection={regionalSortDirection}
             onSortChange={({ key, direction }) => {
@@ -406,19 +411,22 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
             </div>
           </div>
         </details>
-        <div className="entity-list-header global-market-goods-header">
-          <span>商品</span>
-          <span>成交地区</span>
-          <span>真实成交价范围</span>
-          <span>需求未满足</span>
-          <span />
-        </div>
+        <EntityListHeader
+          className="global-market-goods-header"
+          columns={[
+            { label: '商品' },
+            { label: '成交地区' },
+            { label: '真实成交价范围' },
+            { label: '需求未满足' },
+            { key: 'chevron', label: '' },
+          ]}
+        />
         <ul className="global-market-goods-list" aria-label="全局商品目录">
           {filteredProductRows.map((row) => (
             <li key={row.id}>
               <button
                 type="button"
-                className="global-market-goods-row"
+                className="entity-list-row global-market-goods-row"
                 data-ui-interactive="surface"
                 aria-label={`打开${row.name}全局详情`}
                 onClick={() => openGlobalProduct(row.id)}

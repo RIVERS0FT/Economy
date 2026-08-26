@@ -58,6 +58,10 @@
   top: 0;
   left: 0;
   transform-origin: 0 0;
+  will-change: auto;
+}
+
+.research-tree-viewport[data-transforming='true'] .research-tree-transform-layer {
   will-change: transform;
 }
 
@@ -155,6 +159,11 @@
 .research-technology-node {
   --research-node-color: var(--color-text-muted);
   --research-node-soft: color-mix(in srgb, var(--color-text-muted) 10%, var(--color-surface-inset));
+  --ui-interactive-hover-border-color: transparent;
+  --ui-interactive-hover-background: transparent;
+  --ui-interactive-hover-transform: none;
+  --ui-interactive-hover-filter: none;
+  --ui-interactive-active-transform: none;
   position: absolute;
   z-index: 1;
   left: calc(var(--research-node-x) - 3.75rem);
