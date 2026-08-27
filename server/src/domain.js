@@ -139,7 +139,7 @@ const marketDemand = createMarketDemandRuntime({
   products: PRODUCT_CATALOG,
   facilities: FACILITY_TYPE_CATALOG,
   constants: core.ECONOMY_CONSTANTS,
-  marketFor: (world, productId, now) => balancedMarket.marketFor(world, productId, now),
+  marketFor: (world, productId, now, provinceId) => balancedMarket.marketFor(world, productId, now, provinceId),
   matchOrder: (world, order, now) => balancedMarket.matchOrder(world, order, now),
   isOpenOrder: (order) => balancedMarket.isOpenOrder(order),
 });
