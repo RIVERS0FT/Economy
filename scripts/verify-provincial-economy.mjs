@@ -168,10 +168,10 @@ for (const text of [
 
 const provincePage = read('src/pages/ProvincePage.tsx');
 for (const text of [
-  'export function ProvincePage', 'title={provinceName}', 'role="tablist"', 'role="tab"', 'role="tabpanel"',
+  'export function ProvincePage', 'title={isMarketDetail && marketDetailProduct ? (', 'role="tablist"', 'role="tab"', 'role="tabpanel"',
   "{ id: 'overview', label: '概览' }", "{ id: 'market', label: '市场' }",
   "{ id: 'buildings', label: '建筑' }", "{ id: 'warehouse', label: '仓库' }",
-  '<EmbeddedMarketPage model={model} embedded />', '<EmbeddedBuildingsPage model={model} embedded />',
+  '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />', '<EmbeddedBuildingsPage model={model} embedded />',
   '<WarehouseInventoryPanel', 'className="province-warehouse-section"', 'onOpenProduct={openWarehouseProduct}',
   "if (current.type === 'map') {", 'pageNavigation.pushPage(provinceLocation);',
   'pageNavigation.replacePage(provinceLocation);',

@@ -29,7 +29,7 @@ for (const text of [
   'const levelName = `买${index + 1}`;',
   'className="market-book-level"','data-order-count={level.orderCount}',
   '合计剩余 ${formatNumber(level.remaining)}','点击填入价格',
-  'onClick={() => fillOrderPrice(level.price)}','const maxBookDepth = Math.max',
+  'onClick={readOnly ? undefined : () => fillOrderPrice(level.price)}','const maxBookDepth = Math.max',
   'key={`sell-${level.price}`}','key={`buy-${level.price}`}',
 ]) requireText('src/pages/MarketPage.tsx', text);
 requireText('src/components/market/MarketCommodityRow.tsx', '<ProductArtwork productId={productId} />');
