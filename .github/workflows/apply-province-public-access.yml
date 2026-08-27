@@ -81,6 +81,11 @@ jobs:
               "  '<EmbeddedMarketPage model={model} embedded />', '<EmbeddedBuildingsPage model={model} embedded />',",
               "  '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />', '<EmbeddedBuildingsPage model={model} embedded />',",
           )
+          replace_once(
+              'tests/browser/province-locked-access.spec.ts',
+              "  await expect(page.getByText('实时五档 · 只读', { exact: true })).toBeVisible();",
+              "  await expect(page.getByText('实时五档 · 只读', { exact: true })).toHaveCount(1);",
+          )
           PY
           git diff --check
 
