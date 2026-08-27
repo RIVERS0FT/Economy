@@ -19,6 +19,7 @@ import {
   installDefaultProvinceAliases,
   inventoryForProvince,
   provinceScopedKey,
+  syncDefaultProvinceAlias,
 } from '../src/provinces.js';
 
 const NOW = 1_781_000_000_000;
@@ -79,6 +80,27 @@ test('default province alias installation scans each record only once', () => {
   }
   assert.equal(observed.scans(), firstPassScans + 1);
   assert.equal(observed.record[georgiaKey].price, 7);
+});
+
+test('default province alias sync updates one dynamic asset without rescanning the record', () => {
+  const wheatKey = provinceScopedKey(CALIFORNIA, 'wheat');
+  const riceKey = provinceScopedKey(CALIFORNIA, 'rice');
+  const observed = countOwnKeyScans({
+    [wheatKey]: { price: 4 },
+  });
+
+  installDefaultProvinceAliases(observed.record);
+  const installedScans = observed.scans();
+  observed.record[riceKey] = { price: 6 };
+  syncDefaultProvinceAlias(observed.record, 'rice');
+
+  assert.equal(observed.record.rice, observed.record[riceKey]);
+  assert.equal(observed.scans(), installedScans);
+
+  delete observed.record[riceKey];
+  syncDefaultProvinceAlias(observed.record, 'rice');
+  assert.equal(Object.hasOwn(observed.record, 'rice'), false);
+  assert.equal(observed.scans(), installedScans);
 });
 
 test('inventory lookup performs legacy inventory migration once per inventory record', () => {
