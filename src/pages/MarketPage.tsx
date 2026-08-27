@@ -370,11 +370,13 @@ const MarketOrderEntry = memo(forwardRef<MarketOrderEntryHandle, MarketOrderEntr
 export function MarketPage({
   model,
   embedded = false,
+  readOnly = false,
   facilityAssetId,
   onBackFromFacilityAsset,
 }: {
   model: LoadedGameViewModel;
   embedded?: boolean;
+  readOnly?: boolean;
   facilityAssetId?: string;
   onBackFromFacilityAsset?: () => void;
 }) {
@@ -404,6 +406,10 @@ export function MarketPage({
   const [catalogSortDirection, setCatalogSortDirection] = useState<MarketSortDirection>('desc');
 
   useEffect(() => {
+    if (readOnly) {
+      setRequestedAutoTradeProductId(null);
+      return;
+    }
     const openRequestedAutoTrade = (productId: string) => {
       if (!game.products.some((product) => product.id === productId)) return;
       setRequestedAutoTradeProductId(productId);
@@ -418,7 +424,7 @@ export function MarketPage({
     };
     window.addEventListener(AUTO_SELL_PANEL_EVENT, handlePanelRequest);
     return () => window.removeEventListener(AUTO_SELL_PANEL_EVENT, handlePanelRequest);
-  }, [embedded, game.products, model.user.id, selectMarketAsset]);
+  }, [embedded, game.products, model.user.id, readOnly, selectMarketAsset]);
 
   const productById = useMemo(
     () => new Map(game.products.map((product) => [product.id, product])),
@@ -854,28 +860,36 @@ export function MarketPage({
               </span>
             </div>
             <div className="market-trade-layout">
-              <MarketOrderEntry
-                key={`${activeAssetKind}:${assetId}:${orderSide}`}
-                ref={orderEntryRef}
-                assetKind={activeAssetKind}
-                assetId={assetId}
-                assetName={assetName}
-                orderSide={orderSide}
-                selectOrderSide={selectOrderSide}
-                orderPrice={orderPrice}
-                orderQuantity={orderQuantity}
-                credits={game.credits}
-                availableQuantity={availableAssetQuantity}
-                ownOpenOrderCount={ownOpenOrders.length}
-                maxOpenOrders={maxOpenOrders}
-                placeAssetOrder={placeAssetOrder}
-                showResult={showResult}
-              />
+              {readOnly ? (
+                <section className="order-entry market-trade-entry market-trade-readonly" aria-labelledby="market-order-entry-title">
+                  <h3 id="market-order-entry-title" className="market-trade-section-title">下单</h3>
+                  <StatusTag tone="warning">只读</StatusTag>
+                  <p className="muted">该地区尚未解锁，市场仅供查看。</p>
+                </section>
+              ) : (
+                <MarketOrderEntry
+                  key={`${activeAssetKind}:${assetId}:${orderSide}`}
+                  ref={orderEntryRef}
+                  assetKind={activeAssetKind}
+                  assetId={assetId}
+                  assetName={assetName}
+                  orderSide={orderSide}
+                  selectOrderSide={selectOrderSide}
+                  orderPrice={orderPrice}
+                  orderQuantity={orderQuantity}
+                  credits={game.credits}
+                  availableQuantity={availableAssetQuantity}
+                  ownOpenOrderCount={ownOpenOrders.length}
+                  maxOpenOrders={maxOpenOrders}
+                  placeAssetOrder={placeAssetOrder}
+                  showResult={showResult}
+                />
+              )}
 
               <section className="order-book single-order-book market-trade-book" aria-labelledby="market-order-book-title">
                 <div className="market-trade-section-heading">
                   <h3 id="market-order-book-title">订单簿</h3>
-                  <small>实时五档 · 点击填价</small>
+                  <small>{readOnly ? '实时五档 · 只读' : '实时五档 · 点击填价'}</small>
                 </div>
                 <div className="order-book-stack" aria-label={`${assetName}买卖盘`}>
                   {bestAsks.map((level, index) => {
@@ -888,7 +902,7 @@ export function MarketPage({
                         aria-label={`${levelName}，价格 ${formatCurrency(level.price)}，合计剩余 ${formatNumber(level.remaining)}，点击填入价格`}
                         data-order-count={level.orderCount}
                         style={bookDepthStyle(level.remaining)}
-                        onClick={() => fillOrderPrice(level.price)}
+                        onClick={readOnly ? undefined : () => fillOrderPrice(level.price)}
                       >
                         <span className="market-book-level">{levelName}</span>
                         <strong><CurrencyAmount>{formatCurrency(level.price)}</CurrencyAmount></strong>
@@ -907,7 +921,7 @@ export function MarketPage({
                         aria-label={`${levelName}，价格 ${formatCurrency(level.price)}，合计剩余 ${formatNumber(level.remaining)}，点击填入价格`}
                         data-order-count={level.orderCount}
                         style={bookDepthStyle(level.remaining)}
-                        onClick={() => fillOrderPrice(level.price)}
+                        onClick={readOnly ? undefined : () => fillOrderPrice(level.price)}
                       >
                         <span className="market-book-level">{levelName}</span>
                         <strong><CurrencyAmount>{formatCurrency(level.price)}</CurrencyAmount></strong>
@@ -922,7 +936,7 @@ export function MarketPage({
 
           </Panel>
 
-          {selectedProduct ? (
+          {selectedProduct && !readOnly ? (
             <MarketAutoTradePanel
               model={model}
               fixedProductId={selectedProduct.id}
@@ -958,7 +972,7 @@ export function MarketPage({
                           <td className="numeric-cell">{<CompactNumber value={order.remaining} />}/{<CompactNumber value={order.quantity} />}</td>
                           <td><StatusTag tone={orderTone(order.status)}>{orderStatusNames[order.status]}</StatusTag></td>
                           <td>{formatTime(order.createdAt)}</td>
-                          <td className="order-action-cell"><Button variant="compact" onClick={() => void showResult(cancelOrder(order.id))}>撤单</Button></td>
+                          <td className="order-action-cell"><Button variant="compact" disabled={readOnly} onClick={() => void showResult(cancelOrder(order.id))}>撤单</Button></td>
                         </tr>
                       ))}
                       {ownSelectedOrders.length === 0 ? <tr><td colSpan={7} className="empty-cell">当前资产暂无未完成订单。</td></tr> : null}

@@ -117,7 +117,7 @@ requireText(marketPage, '>最大</Button>', '快捷数量必须保留最大。')
 requireText(marketPage, '<VirtualRecordTable', '本地成交必须继续使用虚拟表格。');
 requireText(marketPage, "buildOrderBookLevels(selectedOrders, 'sell').reverse()", '卖盘必须先聚合后反向显示。');
 requireText(marketPage, "buildOrderBookLevels(selectedOrders, 'buy')", '买盘必须使用共享档位聚合。');
-requireText(marketPage, 'onClick={() => fillOrderPrice(level.price)}', '盘口点击只能填价。');
+requireText(marketPage, 'onClick={readOnly ? undefined : () => fillOrderPrice(level.price)}', '盘口点击只能填价。');
 requireText(marketStyles, 'grid-template-columns: minmax(320px, 3fr) minmax(240px, 2fr);', '交易卡桌面必须保持 60/40 双列。');
 requireText(marketStyles, '@container market-page (max-width: 819px)', '交易卡必须覆盖中窄宽度。');
 requireText(marketStyles, '@container market-page (max-width: 359px)', '交易卡必须覆盖极窄宽度。');

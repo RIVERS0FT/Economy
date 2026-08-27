@@ -70,7 +70,7 @@ for (const text of [
   '<FacilityIcon facilityTypeId={entry.id}',
 ]) forbidText('src/pages/GlobalMarketPage.tsx', text, `全局市场不得恢复旧地区入口或工厂目录: ${text}`);
 
-requireText('src/pages/ProvincePage.tsx', '<EmbeddedMarketPage model={model} embedded />', '州级上下文必须继续复用地区 MarketPage。');
+requireText('src/pages/ProvincePage.tsx', '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />', '州级上下文必须继续复用地区 MarketPage，并允许锁定州只读查看。');
 requireText('src/pages/ProvincePage.tsx', '<RegionalEntityPageTitle entityName={marketDetailProduct.name} regionName={provinceName} />', '州级商品详情必须使用共享两行地区实体标题。');
 requireText('src/utils/provinceScope.ts', 'allProvinceOrders,', '全局市场必须复用已加载的完整公开订单快照。');
 requireText('src/utils/provinceScope.ts', 'const orders = allProvinceOrders.filter((order) => order.provinceId === provinceId);', '地区 MarketPage 仍必须只看到当前州订单。');

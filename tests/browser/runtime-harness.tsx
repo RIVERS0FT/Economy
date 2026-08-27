@@ -388,15 +388,24 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
 }
 
 function MapHarness() {
-  const [tab, setTab] = useState<TabId>('map');
-  const [provinceId, setProvinceId] = useState('110000');
+  const [tab, setTab] = useState<TabId>(scenario === 'locked-province' ? 'province' : 'map');
+  const [provinceId, setProvinceId] = useState(scenario === 'locked-province' ? 'US-TX' : '110000');
   const [marketAssetKind, setMarketAssetKind] = useState<AssetKind>('commodity');
   const [marketAssetId, setMarketAssetId] = useState('machinery');
   const [marketViewMode, setMarketViewMode] = useState<'catalog' | 'detail'>('catalog');
   const model = useMemo(() => {
     const next = buildOverviewModel(tab, setTab);
+    const game = scenario === 'locked-province'
+      ? {
+          ...next.game,
+          startingProvinceId: '110000',
+          startingProvinceChosen: true,
+          unlockedProvinces: ['110000'],
+        }
+      : next.game;
     return {
       ...next,
+      game,
       selectedProvinceId: provinceId,
       selectedProvince: provinces.find((province) => province.id === provinceId) || provinces[0],
       setSelectedProvinceId: setProvinceId,
