@@ -7,6 +7,7 @@ import {
   installDefaultProvinceAliases,
   provinceScopedKey,
   splitProvinceScopedKey,
+  syncDefaultProvinceAlias,
 } from './provinces.js';
 
 const PRODUCT_IDS = new Set(PRODUCT_CATALOG.map((product) => product.id));
@@ -129,7 +130,7 @@ export function applyOnlineAutoSellPolicyAction(world, user, payload = {}) {
   const previous = policies[policyKey] || null;
   if (!samePolicy(previous, policy)) cancelManagedOnlineAutoSellOrder(world, user.id, productId, payload.provinceId);
   policies[policyKey] = policy;
-  player.onlineAutoSellPolicies = installDefaultProvinceAliases(policies);
+  player.onlineAutoSellPolicies = syncDefaultProvinceAlias(policies, productId);
   return {
     ok: true,
     message: policy.enabled
