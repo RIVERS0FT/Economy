@@ -1,0 +1,40 @@
+name: Apply deployment verifier patch
+
+on:
+  push:
+    branches:
+      - fix/market-cycle-stall-deploy-timeout
+    paths:
+      - .github/workflows/branch-patch-deployment-verifier.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/market-cycle-stall-deploy-timeout
+          fetch-depth: 0
+
+      - name: Update verifier
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-deployment-storage.mjs')
+          text = path.read_text(encoding='utf-8')
+          old = "const deleteBeforeCount = (workflow.match(/rsync -az --delete-before/g) ?? []).length;"
+          new = "const deleteBeforeCount = (workflow.match(/run_rsync --delete-before/g) ?? []).length;"
+          if text.count(old) != 1:
+              raise SystemExit('expected exactly one legacy delete-before counter')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8', newline='\n')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/verify-deployment-storage.mjs
+          git commit -m "同步部署存储验证的 rsync 包装器"
+          git push origin HEAD:fix/market-cycle-stall-deploy-timeout
