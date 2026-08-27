@@ -1,0 +1,163 @@
+/* Regional commodity detail keeps information in direct page flow.
+ * Interactive trading surfaces stay carded; contextual/read-only sections do not. */
+
+.market-detail-surface > .market-detail-hero.ui-primary-surface,
+.market-detail-surface .market-fundamentals-card.ui-primary-surface,
+.market-detail-surface .market-inventory-production-card.ui-primary-surface,
+.market-detail-surface .market-chart-card.ui-primary-surface,
+.market-detail-surface .market-account-panel.ui-primary-surface {
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding-inline: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.market-detail-surface > .market-detail-hero.ui-primary-surface::before,
+.market-detail-surface > .market-detail-hero.ui-primary-surface::after,
+.market-detail-surface .market-fundamentals-card.ui-primary-surface::before,
+.market-detail-surface .market-fundamentals-card.ui-primary-surface::after,
+.market-detail-surface .market-inventory-production-card.ui-primary-surface::before,
+.market-detail-surface .market-inventory-production-card.ui-primary-surface::after,
+.market-detail-surface .market-chart-card.ui-primary-surface::before,
+.market-detail-surface .market-chart-card.ui-primary-surface::after,
+.market-detail-surface .market-account-panel.ui-primary-surface::before,
+.market-detail-surface .market-account-panel.ui-primary-surface::after {
+  display: none !important;
+}
+
+.market-detail-surface > .market-detail-hero {
+  margin-bottom: 0;
+  padding-block: 0 var(--layout-gutter) !important;
+}
+
+.market-detail-surface .market-fundamentals-grid {
+  grid-template-columns: minmax(0, 3fr) minmax(9rem, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--layout-gutter);
+  border-block: 1px solid var(--color-divider);
+  padding-block: var(--space-3);
+}
+
+.market-detail-surface .market-fundamentals-card,
+.market-detail-surface .market-inventory-production-card {
+  gap: 0;
+  padding-block: 0 !important;
+}
+
+.market-detail-surface .market-fundamentals-card > .widget-heading,
+.market-detail-surface .market-inventory-production-card > .widget-heading,
+.market-detail-surface .market-fundamentals-balance,
+.market-detail-surface .market-authority-note,
+.market-detail-surface .market-fundamentals-metrics > .ui-metric-card:nth-child(-n + 4),
+.market-detail-surface .market-fundamentals-metrics > .ui-metric-card:nth-child(8),
+.market-detail-surface .market-inventory-production-metrics > .ui-metric-card:not(:first-child) {
+  display: none !important;
+}
+
+.market-detail-surface .market-fundamentals-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+}
+
+.market-detail-surface .market-inventory-production-metrics {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.market-detail-surface .market-fundamentals-metrics > .ui-metric-card,
+.market-detail-surface .market-inventory-production-metrics > .ui-metric-card {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0 var(--space-4);
+  background: transparent;
+  box-shadow: none;
+}
+
+.market-detail-surface .market-fundamentals-metrics > .ui-metric-card:nth-child(5),
+.market-detail-surface .market-inventory-production-metrics > .ui-metric-card:first-of-type {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.market-detail-surface .market-fundamentals-metrics > .ui-metric-card + .ui-metric-card,
+.market-detail-surface .market-inventory-production-card {
+  border-left: 1px solid var(--color-divider);
+}
+
+.market-detail-surface .market-fundamentals-metrics > .ui-metric-card:nth-child(5) {
+  border-left: 0;
+}
+
+.market-detail-surface .market-chart-card,
+.market-detail-surface .market-account-panel {
+  padding-block: 0 !important;
+}
+
+.market-detail-surface .market-chart-card {
+  margin-block: var(--space-2) var(--layout-gutter);
+}
+
+.market-detail-surface .market-chart-card > .widget-heading,
+.market-detail-surface .market-account-panel > .widget-heading {
+  margin-inline: 0;
+}
+
+.market-detail-surface .market-trade-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.market-detail-surface .market-trade-summary > span:nth-child(2) {
+  display: none;
+}
+
+.market-detail-surface .market-account-panel {
+  margin-top: var(--space-2);
+}
+
+@container market-page (max-width: 720px) {
+  .market-detail-surface .market-fundamentals-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .market-detail-surface .market-fundamentals-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3) 0;
+  }
+
+  .market-detail-surface .market-fundamentals-metrics > .ui-metric-card:nth-child(7) {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  .market-detail-surface .market-inventory-production-card {
+    border-left: 0;
+    border-top: 1px solid var(--color-divider);
+    padding-top: var(--space-3) !important;
+  }
+
+  .market-detail-surface .market-inventory-production-metrics > .ui-metric-card:first-of-type {
+    padding-left: 0;
+  }
+}
+
+@container market-page (max-width: 420px) {
+  .market-detail-surface .market-fundamentals-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .market-detail-surface .market-fundamentals-metrics > .ui-metric-card {
+    border-left: 0;
+    border-top: 1px solid var(--color-divider);
+    padding: var(--space-2) 0 0;
+  }
+
+  .market-detail-surface .market-fundamentals-metrics > .ui-metric-card:nth-child(5) {
+    border-top: 0;
+    padding-top: 0;
+  }
+}
