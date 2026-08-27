@@ -86,6 +86,12 @@ jobs:
               "  await expect(page.getByText('实时五档 · 只读', { exact: true })).toBeVisible();",
               "  await expect(page.getByText('实时五档 · 只读', { exact: true })).toHaveCount(1);",
           )
+          for verifier in ['scripts/verify-market-assets.mjs', 'scripts/verify-market-page-layout-regional.mjs']:
+              replace_once(
+                  verifier,
+                  "onClick={() => fillOrderPrice(level.price)}",
+                  "onClick={readOnly ? undefined : () => fillOrderPrice(level.price)}",
+              )
           PY
           git diff --check
 
@@ -96,6 +102,8 @@ jobs:
         run: |
           node scripts/verify-page-content.mjs
           npm run verify:provincial-economy
+          node --experimental-strip-types scripts/verify-market-assets.mjs
+          node scripts/verify-market-page-layout.mjs
 
       - name: Prepare Chromium
         run: bash scripts/prepare-playwright-chromium.sh
