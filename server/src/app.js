@@ -158,7 +158,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (isRegistrationPath) {
-      const registrationActor = `registration:${registrationIpFingerprint(request).slice(0, 16)}`;
+      const registrationActor = `system:registration-retention:${registrationIpFingerprint(request).slice(0, 16)}`;
       await enqueueAuthoritativeWrite({ actor: registrationActor, operation: 'verification-retention' }, () => {
         cleanupEmailVerificationRecords(registrationStore.database);
       });

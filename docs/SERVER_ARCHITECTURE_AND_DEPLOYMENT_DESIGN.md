@@ -158,6 +158,8 @@ V2 热保存不得做完整世界 `isDeepStrictEqual`、完整世界 `JSON.strin
 
 正式服务的到期世界推进仍由单一权威调度器负责。若普通玩家写入到达时全局最早截止时间已经到期，`runtime-store.js` 必须先建立一个可复用的系统调度 barrier，在同一权威写执行器中先完成一次到期世界处理，再放行随后到达的玩家写入；同一到期窗口不得由多个玩家请求重复承担全服推进。系统调度任务不继承玩家 HTTP 请求的性能采集上下文，玩家请求只记录等待 barrier 的 `schedulerBarrierWaitMs`，不得把系统 `worldProcessMs` 伪装成该玩家动作自身处理阶段。非正式调度的内存测试存储仍可在请求内按到期领域推进，以保持确定性测试。
 
+验证码记录清理、验证码创建／状态更新和完成前校验只写注册专用 SQLite 表（包括 `economy_email_verifications`），必须继续经过同一个权威写执行器串行化，但 actor 固定使用 `system:registration:*`，不得触发世界到期调度 barrier、世界草稿复制、资金规范化或世界分段比较。最终创建 Economy 玩家档案继续属于普通用户世界写入：验证码验证完成后真正创建玩家档案／发放邀请奖励的 `registration-profile-creation` 继续使用 `user:<id>`。
+
 普通商品 `placeOrder` 在上述到期 barrier 完成后必须直接复用 `applySettledCommodityOrder` 与统一订单簿撮合，不得再绕经会执行 `processFacilityGroupWorld` 的工厂动作适配层。普通商品下单与撤单必须使用动作专用 Copy-on-Write Scope；拍卖动作同样只复制本次交易可能修改的参与者与拍卖域。上述优化不改变订单冻结、撮合、成交价、手续费、幂等、全局修订号、资产守恒或统一订单簿语义。热保存只做 scoped money normalization 和 Dirty Row 比较／写入；完整资金精度收口只保留给冷迁移、完整世界升级和明确的全世界写入。
 
 ## 4. 世界迁移、状态交付与客户端版本
