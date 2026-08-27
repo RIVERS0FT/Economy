@@ -64,6 +64,7 @@ import './styles/strategic-game-shell.css';
 import './styles/strategic-outliner.css';
 import './styles/mobile-detail-sheet.css';
 import './styles/mobile-status-layout.css';
+import './styles/market-detail-direct-flow.css';
 
 installIdempotentGameWriteFetch();
 configureRuntimePerformance();
