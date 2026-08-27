@@ -5,6 +5,7 @@ export type LeaderboardUnit = 'currency' | 'points' | 'quantity';
 
 export interface RankedLeaderboardEntry {
   rank: number;
+  userId?: number;
   playerName: string;
   score: number;
   secondary: number;
