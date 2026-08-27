@@ -1,0 +1,143 @@
+name: Apply registration scheduler fix
+
+on:
+  push:
+    branches:
+      - fix/registration-deploy-health
+    paths:
+      - .github/workflows/apply-registration-scheduler-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout fix branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/registration-deploy-health
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply registration scheduler isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              target = Path(path)
+              text = target.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'replacement mismatch {path}: expected 1, found {count}: {old[:120]!r}')
+              target.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          def replace_expected(path, old, new, expected):
+              target = Path(path)
+              text = target.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f'replacement mismatch {path}: expected {expected}, found {count}: {old[:120]!r}')
+              target.write_text(text.replace(old, new), encoding='utf-8')
+
+          replace_once(
+              'server/src/app.js',
+              "const registrationActor = `registration:${registrationIpFingerprint(request).slice(0, 16)}`;",
+              "const registrationActor = `system:registration-retention:${registrationIpFingerprint(request).slice(0, 16)}`;",
+          )
+          replace_expected(
+              'server/src/registration.js',
+              "actor: `registration:${String(ipFingerprint).slice(0, 16)}`",
+              "actor: `system:registration:${String(ipFingerprint).slice(0, 16)}`",
+              2,
+          )
+
+          replace_once(
+              'server/test/registration.test.js',
+              "  const writeOperations = [];\n  const executeWrite = async (options, callback) => {\n    writeOperations.push(options.operation);",
+              "  const writeOperations = [];\n  const writeActors = [];\n  const executeWrite = async (options, callback) => {\n    writeOperations.push(options.operation);\n    writeActors.push(options.actor);",
+          )
+          replace_once(
+              'server/test/registration.test.js',
+              "    assert.deepEqual(writeOperations, [\n      'registration-email-verification',\n      'registration-email-verification',\n      'registration-completion',\n      'registration-profile-creation',\n    ]);",
+              "    assert.deepEqual(writeOperations, [\n      'registration-email-verification',\n      'registration-email-verification',\n      'registration-completion',\n      'registration-profile-creation',\n    ]);\n    assert.deepEqual(writeActors, [\n      'system:registration:ip-a',\n      'system:registration:ip-a',\n      'system:registration:ip-a',\n      'user:7',\n    ]);",
+          )
+
+          replace_once(
+              'scripts/verify-email-registration.mjs',
+              "  'registrationStore.ensureLoggedInPlayer',\n  'registrationStore.assertPlayerActive',",
+              "  'registrationStore.ensureLoggedInPlayer',\n  'registrationStore.assertPlayerActive',\n  'const registrationActor = `system:registration-retention:',",
+          )
+          replace_once(
+              'scripts/verify-email-registration.mjs',
+              "  'accountAvailabilityChecker',\n  'await accountAvailabilityChecker({ email: normalizedEmail })',\n  'inviteCode',",
+              "  'accountAvailabilityChecker',\n  'await accountAvailabilityChecker({ email: normalizedEmail })',\n  'actor: `system:registration:',\n  'actor: `user:${Number(account.user.id)}`',\n  'inviteCode',",
+          )
+          replace_once(
+              'scripts/verify-email-registration.mjs',
+              "  '注册事务提交后',\n  '`410 Gone`',",
+              "  '注册事务提交后',\n  '验证码记录清理、验证码创建／状态更新和完成前校验只写注册专用 SQLite 表',\n  '不得触发世界到期调度 barrier',\n  '最终创建 Economy 玩家档案继续属于普通用户世界写入',\n  '`410 Gone`',",
+          )
+
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "  \"operation: 'registration-profile-creation'\",\n]);",
+              "  \"operation: 'registration-profile-creation'\",\n  'actor: `system:registration:',\n  'actor: `user:${Number(account.user.id)}`',\n]);",
+          )
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "  \"errorCode.startsWith('WRITE_QUEUE_')\",\n  \"response.setHeader('Retry-After'\",",
+              "  \"errorCode.startsWith('WRITE_QUEUE_')\",\n  'const registrationActor = `system:registration-retention:',\n  \"response.setHeader('Retry-After'\",",
+          )
+
+          doc = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          text = doc.read_text(encoding='utf-8')
+          anchor = '正式服务的到期世界推进仍由单一权威调度器负责。若普通玩家写入到达时全局最早截止时间已经到期，`runtime-store.js` 必须先建立一个可复用的系统调度 barrier，在同一权威写执行器中先完成一次到期世界处理，再放行随后到达的玩家写入；同一到期窗口不得由多个玩家请求重复承担全服推进。系统调度任务不继承玩家 HTTP 请求的性能采集上下文，玩家请求只记录等待 barrier 的 `schedulerBarrierWaitMs`，不得把系统 `worldProcessMs` 伪装成该玩家动作自身处理阶段。非正式调度的内存测试存储仍可在请求内按到期领域推进，以保持确定性测试。'
+          addition = '邮箱注册的验证码记录清理、验证码创建／状态更新和完成前校验只写 `economy_email_verifications` 等注册专用 SQLite 表，必须继续经过同一个权威写执行器串行化，但 actor 固定使用 `system:registration:*`，不得触发世界到期调度 barrier、世界草稿复制、资金规范化或世界分段比较；只有验证码验证完成后真正创建 Economy 玩家档案／发放邀请奖励的 `registration-profile-creation` 继续使用 `user:<id>` 普通用户世界写入语义。'
+          if text.count(anchor) != 1:
+              raise SystemExit('server architecture registration scheduler anchor mismatch')
+          if addition not in text:
+              text = text.replace(anchor, anchor + '\n\n' + addition, 1)
+          doc.write_text(text, encoding='utf-8')
+
+          print('registration scheduler isolation patch applied')
+          PY
+          rm .github/workflows/diagnose-registration-timeout.yml
+          git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify registration isolation
+        run: |
+          node --test server/test/registration.test.js server/test/verification-retention.test.js
+          node scripts/verify-email-registration.mjs
+          node scripts/verify-runtime-efficiency.mjs
+          node scripts/verify-deployment-pipeline.mjs
+
+      - name: Run full build
+        run: npm run build
+
+      - name: Commit final fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/apply-registration-scheduler-fix.yml
+          git diff --check
+          git status --short
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: isolate registration metadata writes from world scheduling'
+          git push origin HEAD:fix/registration-deploy-health
