@@ -21,7 +21,7 @@ function profit(recipe) {
   return (prices.get(recipe.output.productId) * recipe.output.quantity - input - recipe.operatingCost) * 60_000 / recipe.cycleMs;
 }
 
-assert.equal(MARKET_DEMAND_MODEL_VERSION, 19);
+assert.equal(MARKET_DEMAND_MODEL_VERSION, 20);
 for (const [productId, expected] of Object.entries(expectedPrices)) assert.equal(prices.get(productId), expected);
 for (const [facilityId, expected] of Object.entries(expectedUpstream)) {
   const recipe = facilities.get(facilityId).recipes.find((item) => item.productionMethodId === 'standard');
@@ -57,4 +57,4 @@ const domain = readFileSync('server/src/domain.js', 'utf8');
 const design = readFileSync('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', 'utf8');
 for (const text of ['C1_INPUT_BALANCE_MODEL_VERSION = 18', 'C1_INPUT_BALANCE_PRODUCT_IDS', 'migrateC1InputBalance', 'multiplyMoneyByInteger(Number(order.price || 0), remaining)']) assert.ok(domain.includes(text), text);
 for (const text of ['市场需求模型 18 重平衡工具、化肥、拖拉机、配合饲料、养殖药剂和机械', '不得按旧／新参考价换算或倍增', '工具／饲料制度为每分钟 3～5', '化肥／药剂制度为每分钟 6～8', '拖拉机／机械化制度为每分钟 8～10']) assert.ok(design.includes(text), text);
-console.log('C1 投入品平衡验证通过：六种价格与上游批量产出、三级利润区间、同级差距、模型 18 历史迁移和当前市场需求模型 19 均已锁定。');
+console.log('C1 投入品平衡验证通过：六种价格与上游批量产出、三级利润区间、同级差距、模型 18 历史迁移和当前市场需求模型 20 均已锁定。');

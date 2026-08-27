@@ -55,7 +55,7 @@ test('化肥与化肥厂进入正式目录并保持 C4 参考利润', () => {
   ) * 60_000 / recipe.cycleMs;
   assert.ok(Math.abs(profitPerMinute - 6) < 1e-9);
   assert.equal(facility.recipes.length, 4);
-  assert.equal(MARKET_DEMAND_MODEL_VERSION, 19);
+  assert.equal(MARKET_DEMAND_MODEL_VERSION, 20);
 });
 
 test('世界版本 25 迁移仍补齐化肥库存与市场且保留既有资产', () => {

@@ -1,4 +1,5 @@
 import { allocateMoneyBudget, clamp, floorMoney, normalizeShares, round4, roundMoney, smoothShares } from './math.js';
+import { DEFAULT_PROVINCE_ID } from '../provinces.js';
 
 export function createDemandAllocationRuntime({
   productFor,
@@ -84,7 +85,7 @@ export function createDemandAllocationRuntime({
     return budgets;
   }
 
-  function directDemandChoices(world, group, state, directBudget, now, { classShares } = {}) {
+  function directDemandChoices(world, group, state, directBudget, now, { classShares, provinceId } = {}) {
     const productBudgets = new Map();
     const classAllocation = {};
     const productDetails = new Map();
@@ -99,7 +100,7 @@ export function createDemandAllocationRuntime({
       for (const option of demandClass.products) {
         const product = productFor(option.productId);
         const priceState = world.marketDemand.priceTransmission.products[product.id];
-        const price = effectivePrice(world, product, group.quoteUtilityDepth / Math.max(1, option.utilityPerUnit), priceState, now);
+        const price = effectivePrice(world, product, group.quoteUtilityDepth / Math.max(1, option.utilityPerUnit), priceState, now, provinceId);
         const priceIndex = price.effective / Math.max(0.01, price.referencePrice);
         const availabilityFactor = clamp(0.35, 1.15, 0.35 + 0.80 * price.coverage);
         scores[product.id] = option.baseWeight
@@ -147,7 +148,7 @@ export function createDemandAllocationRuntime({
     return (cost + recipe.operatingCost) / recipe.output.quantity;
   }
 
-  function recipeAvailability(world, recipe) {
+  function recipeAvailability(world, recipe, provinceId) {
     if (recipe.inputs.length === 0) return 1;
     return Math.min(...recipe.inputs.map((input) => {
       const product = productFor(input.productId);
@@ -157,29 +158,34 @@ export function createDemandAllocationRuntime({
         product,
         Math.max(1, input.quantity),
         Number(priceState.referencePrice || product.basePrice),
+        provinceId,
       ).coverage;
     }));
   }
 
-  function recipeSharesFor(world, outputProductId, state) {
+  function recipeSharesFor(world, outputProductId, state, provinceId) {
     const candidates = baseProductionRecipes(outputProductId);
     if (candidates.length <= 1) return candidates.length === 1 ? { [candidates[0].recipeId]: 1 } : {};
     const costs = Object.fromEntries(candidates.map((recipe) => [recipe.recipeId, recipeUnitCost(world, recipe)]));
     const minimum = Math.min(...Object.values(costs));
     const raw = Object.fromEntries(candidates.map((recipe) => {
       const costScore = Math.exp(-4 * (costs[recipe.recipeId] / Math.max(0.01, minimum) - 1));
-      const availabilityScore = 0.35 + 0.65 * recipeAvailability(world, recipe);
+      const availabilityScore = 0.35 + 0.65 * recipeAvailability(world, recipe, provinceId);
       return [recipe.recipeId, costScore * availabilityScore];
     }));
     const minima = Object.fromEntries(candidates.map((recipe) => [recipe.recipeId, 0.05]));
     const target = normalizeShares(raw, minima);
-    const previous = state.recipeShares[outputProductId] || target;
+    const recipeStateKey = `${provinceId || 'global'}:${outputProductId}`;
+    const previous = state.recipeShares[recipeStateKey] || target;
     const smoothed = smoothShares(target, previous, minima);
-    state.recipeShares[outputProductId] = smoothed;
+    state.recipeShares[recipeStateKey] = smoothed;
+    if (!state.recipeShares[outputProductId] || provinceId === DEFAULT_PROVINCE_ID) {
+      state.recipeShares[outputProductId] = smoothed;
+    }
     return smoothed;
   }
 
-  function derivedRequirements(world, state) {
+  function derivedRequirements(world, state, provinceId) {
     const requirements = new Map();
     const relationDetails = [];
     for (const [outputProductId, demandedQuantityRaw] of Object.entries(state.previousDemandQuantities || {})) {
@@ -187,7 +193,7 @@ export function createDemandAllocationRuntime({
       if (demandedQuantity <= 0) continue;
       const candidateRecipes = baseProductionRecipes(outputProductId);
       if (candidateRecipes.length === 0) continue;
-      const shares = recipeSharesFor(world, outputProductId, state);
+      const shares = recipeSharesFor(world, outputProductId, state, provinceId);
       for (const recipe of candidateRecipes) {
         const recipeShare = Number(shares[recipe.recipeId] || 0);
         if (recipeShare <= 0) continue;
@@ -196,7 +202,7 @@ export function createDemandAllocationRuntime({
           const product = productFor(input.productId);
           const priceState = world.marketDemand.priceTransmission.products[product.id];
           const required = Math.max(1, outputCycles * input.quantity);
-          const quote = orderBookQuote(world, product, required, Number(priceState.referencePrice || product.basePrice));
+          const quote = orderBookQuote(world, product, required, Number(priceState.referencePrice || product.basePrice), provinceId);
           return [input.productId, quote.coverage];
         }));
         for (const input of recipe.inputs) {
@@ -220,14 +226,14 @@ export function createDemandAllocationRuntime({
     return { requirements, relationDetails };
   }
 
-  function derivedDemandChoices(world, state, derivedBudget, now) {
-    const { requirements, relationDetails } = derivedRequirements(world, state);
+  function derivedDemandChoices(world, state, derivedBudget, now, { provinceId } = {}) {
+    const { requirements, relationDetails } = derivedRequirements(world, state, provinceId);
     const entries = [];
     const details = new Map();
     for (const [productId, requiredQuantity] of requirements) {
       const product = productFor(productId);
       const priceState = world.marketDemand.priceTransmission.products[product.id];
-      const price = effectivePrice(world, product, Math.max(1, requiredQuantity), priceState, now);
+      const price = effectivePrice(world, product, Math.max(1, requiredQuantity), priceState, now, provinceId);
       entries.push({ id: productId, weight: requiredQuantity * price.referencePrice, maxBudget: derivedBudget });
       details.set(productId, { product, price, requiredQuantity });
     }

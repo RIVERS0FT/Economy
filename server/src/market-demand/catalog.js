@@ -4,8 +4,8 @@ const freezeClasses = (classes) => Object.freeze(classes.map((demandClass) => Ob
   products: freezeOptions(demandClass.products),
 })));
 
-export const MARKET_DEMAND_MODEL_VERSION = 19;
-export const MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION = 19;
+export const MARKET_DEMAND_MODEL_VERSION = 20;
+export const MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION = 20;
 export const PRICE_WINDOW_MS = 30 * 60 * 1000;
 export const ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const ACTIVE_PLAYER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;

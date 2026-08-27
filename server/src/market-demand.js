@@ -48,6 +48,8 @@ import {
   reservePopulationOrderFunding,
 } from './population-economy.js';
 import { economicEventClassShares, economicEventProductWeight } from './economic-events.js';
+import { populationDemandProvinceWeights } from './state-economic-baselines.js';
+import { DEFAULT_PROVINCE_ID } from './provinces.js';
 
 export {
   MARKET_DEMAND_GROUP_CATALOG,
@@ -441,7 +443,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
   return trimOrdersToValue(world, groupOrders, cap);
 }
 
-  function createOrder(world, group, role, product, price, quantity, cycleId, now, requestedSlices) {
+  function createOrder(world, group, role, product, price, quantity, cycleId, now, requestedSlices, provinceId) {
     if (quantity < 1) return { filled: 0, order: null, committed: 0 };
     const committed = multiplyMoneyByInteger(price, quantity);
     if (committed === null || committed <= 0) return { filled: 0, order: null, committed: 0 };
@@ -452,6 +454,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       assetKind: 'commodity',
       assetId: product.id,
       productId: product.id,
+      provinceId,
       side: 'buy',
       ownerType: 'population',
       ownerName: group.ownerName,
@@ -492,15 +495,16 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     });
   }
 
-  function collectChoices(plans, role, budgets, details, populationModelId) {
+  function collectChoices(plans, role, budgets, details, populationModelId, provinceId) {
     for (const [productId, budgetRaw] of budgets) {
       const detail = details.get(productId);
       const budget = roundMoney(budgetRaw);
       if (!detail || budget <= 0) continue;
-      const key = `${role}:${productId}`;
+      const key = `${role}:${provinceId}:${productId}`;
       const plan = plans.get(key) || {
         role,
         productId,
+        provinceId,
         product: detail.product,
         detail,
         targetBudget: 0,
@@ -573,17 +577,26 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
   function materializeChoices(world, group, state, cycleId, now, plans, totals, allocations) {
     state.productBudgetDeficits ||= { direct: {}, 'derived-liquidity': {} };
     for (const role of ['direct', 'derived-liquidity']) {
-      const rolePlans = [...plans.values()].filter((plan) => plan.role === role);
-      if (rolePlans.length === 0) continue;
-      const fundingByModel = new Map(POPULATION_MODEL_IDS.map((modelId) => [modelId, 0]));
+      const allRolePlans = [...plans.values()].filter((plan) => plan.role === role);
+      if (allRolePlans.length === 0) continue;
+      const plansByProvince = new Map();
+      for (const plan of allRolePlans) {
+        const provincePlans = plansByProvince.get(plan.provinceId) || [];
+        provincePlans.push(plan);
+        plansByProvince.set(plan.provinceId, provincePlans);
+      }
+      for (const rolePlans of plansByProvince.values()) {
+        const fundingByModel = new Map(POPULATION_MODEL_IDS.map((modelId) => [modelId, 0]));
       let roleBudget = 0;
       for (const plan of rolePlans) {
         for (const [modelId, amount] of plan.contributions) {
           fundingByModel.set(modelId, roundMoney((fundingByModel.get(modelId) || 0) + amount));
           roleBudget = roundMoney(roleBudget + amount);
         }
-        const previousDeficit = Number(state.productBudgetDeficits[role]?.[plan.productId] || 0);
-        state.productBudgetDeficits[role][plan.productId] = roundMoney(previousDeficit + plan.targetBudget);
+        const deficitKey = `${plan.provinceId}:${plan.productId}`;
+        plan.deficitKey = deficitKey;
+        const previousDeficit = Number(state.productBudgetDeficits[role]?.[deficitKey] || 0);
+        state.productBudgetDeficits[role][deficitKey] = roundMoney(previousDeficit + plan.targetBudget);
         const referencePrice = Math.max(DIRECT_DEMAND_MIN_PRICE, Number(plan.detail.price.referencePrice || plan.product.basePrice));
         const pressure = Number(world.marketDemand.productPressure[plan.productId] || 1);
         const directQuoteAnchor = role === 'direct'
@@ -595,18 +608,18 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       const assigned = new Map(rolePlans.map((plan) => [plan.productId, 0]));
       let remainingBudget = roleBudget;
       const eligible = [...rolePlans].sort((left, right) => {
-        const leftDeficit = Number(state.productBudgetDeficits[role][left.productId] || 0);
-        const rightDeficit = Number(state.productBudgetDeficits[role][right.productId] || 0);
+        const leftDeficit = Number(state.productBudgetDeficits[role][left.deficitKey] || 0);
+        const rightDeficit = Number(state.productBudgetDeficits[role][right.deficitKey] || 0);
         return rightDeficit / right.topPrice - leftDeficit / left.topPrice || left.productId.localeCompare(right.productId);
       });
       for (const plan of eligible) {
-        const deficit = Number(state.productBudgetDeficits[role][plan.productId] || 0);
+        const deficit = Number(state.productBudgetDeficits[role][plan.deficitKey] || 0);
         if (deficit + 0.0000001 < plan.topPrice || remainingBudget + 0.0000001 < plan.topPrice) continue;
         assigned.set(plan.productId, plan.topPrice);
         remainingBudget = roundMoney(remainingBudget - plan.topPrice);
       }
       const extras = allocateMoneyBudget(rolePlans.map((plan) => {
-        const deficit = Number(state.productBudgetDeficits[role][plan.productId] || 0);
+        const deficit = Number(state.productBudgetDeficits[role][plan.deficitKey] || 0);
         const provisional = assigned.get(plan.productId) || 0;
         const remainingDeficit = roundMoney(deficit - provisional);
         return { id: plan.productId, weight: remainingDeficit, maxBudget: remainingDeficit };
@@ -627,7 +640,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
           const orderCommitted = multiplyMoneyByInteger(price, quantity) || 0;
           const slices = takeFundingSlices(fundingByModel, orderCommitted);
           if (!slices) continue;
-          const result = createOrder(world, group, role, plan.product, price, quantity, cycleId, now, slices);
+          const result = createOrder(world, group, role, plan.product, price, quantity, cycleId, now, slices, plan.provinceId);
           if (!result.order) {
             returnFundingSlices(fundingByModel, slices);
             continue;
@@ -637,8 +650,8 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
           filled += result.filled;
           topPrice = Math.max(topPrice, price);
         }
-        state.productBudgetDeficits[role][plan.productId] = roundMoney(
-          Number(state.productBudgetDeficits[role][plan.productId] || 0) - committed,
+        state.productBudgetDeficits[role][plan.deficitKey] = roundMoney(
+          Number(state.productBudgetDeficits[role][plan.deficitKey] || 0) - committed,
         );
         totals.currentDemandQuantities[plan.productId] = (totals.currentDemandQuantities[plan.productId] || 0) + totalQuantity;
         if (role === 'direct') totals.directCommitted = roundMoney(totals.directCommitted + committed);
@@ -652,7 +665,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
         existing[role === 'direct' ? 'directQuantity' : 'derivedQuantity'] += totalQuantity;
         existing.filled += filled;
         existing.targetBudget = roundMoney((existing.targetBudget || 0) + plan.targetBudget);
-        existing.budgetDeficit = state.productBudgetDeficits[role][plan.productId];
+        existing.budgetDeficit = state.productBudgetDeficits[role][plan.deficitKey];
         existing.referencePrice = round4(plan.detail.price.referencePrice);
         existing.orderPrice = topPrice || Math.max(DIRECT_DEMAND_MIN_PRICE, floorPlayerMoney(plan.detail.price.referencePrice) || DIRECT_DEMAND_MIN_PRICE);
         existing.effectivePrice = round4(plan.detail.price.effective);
@@ -660,11 +673,12 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
         existing.coverage = round4(plan.detail.price.coverage);
         if (plan.detail.requiredQuantity !== undefined) existing.requiredQuantity = round4(plan.detail.requiredQuantity);
         allocations[plan.productId] = existing;
-        const market = marketFor(world, plan.productId, now);
+        const market = marketFor(world, plan.productId, now, plan.provinceId);
         market.demand.lastPrice = existing.orderPrice;
         market.demand.lastQuantity = totalQuantity;
         market.demand.lastBudget = committed;
         market.demand.nextDemandAt = (cycleId + 1) * group.cycleMs;
+      }
       }
     }
   }
@@ -708,22 +722,24 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     }
   }
 
-  function allocationStateForModel(state, modelId) {
+  function allocationStateForModel(state, modelId, provinceId) {
     state.populationAllocationState ||= {};
-    state.populationAllocationState[modelId] ||= {
+    const key = `${provinceId}:${modelId}`;
+    state.populationAllocationState[key] ||= {
       lastClassShares: {},
       lastProductShares: {},
     };
     return {
       ...state,
-      lastClassShares: state.populationAllocationState[modelId].lastClassShares,
-      lastProductShares: state.populationAllocationState[modelId].lastProductShares,
+      lastClassShares: state.populationAllocationState[key].lastClassShares,
+      lastProductShares: state.populationAllocationState[key].lastProductShares,
     };
   }
 
-  function persistAllocationState(state, modelId, modelState) {
+  function persistAllocationState(state, modelId, provinceId, modelState) {
     state.populationAllocationState ||= {};
-    state.populationAllocationState[modelId] = {
+    const key = `${provinceId}:${modelId}`;
+    state.populationAllocationState[key] = {
       lastClassShares: modelState.lastClassShares || {},
       lastProductShares: modelState.lastProductShares || {},
     };
@@ -761,35 +777,71 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       derivedCommitted: 0,
     };
     const classAllocationByModel = {};
+    const classAllocationByProvince = {};
     const derivedRelations = [];
+    const provinceWeights = populationDemandProvinceWeights(world);
+    const lastProvinceBudgets = Object.fromEntries(provinceWeights.map((row) => [row.provinceId, 0]));
     let cycleBudget = 0;
 
     for (const modelId of POPULATION_MODEL_IDS) {
       const modelBudget = roundMoney(Number(populationCycle.groups?.[group.id]?.[modelId] || 0));
       if (modelBudget <= 0) continue;
-      cycleBudget = roundMoney(cycleBudget + modelBudget);
-      const stabilizationBudget = roundMoney(Number(populationCycle.baseGroups?.[group.id]?.[modelId] || 0));
-      const employmentBudget = roundMoney(modelBudget - stabilizationBudget);
-      const directBudget = Math.min(modelBudget, roundMoney(
-        stabilizationBudget * POPULATION_STABILIZATION_DIRECT_SHARE
-          + employmentBudget * group.directBudgetShare,
-      ));
-      const derivedBudget = roundMoney(modelBudget - directBudget);
-      const modelState = allocationStateForModel(state, modelId);
-      const direct = allocationRuntime.directDemandChoices(world, group, modelState, directBudget, now, {
-        classShares: economicEventClassShares(
+      const stabilizationTotal = roundMoney(Number(populationCycle.baseGroups?.[group.id]?.[modelId] || 0));
+      const employmentTotal = roundMoney(Number(populationCycle.earnedGroups?.[group.id]?.[modelId] || 0));
+      const weightEntries = provinceWeights.map((row) => ({
+        id: row.provinceId,
+        weight: row.weight,
+        maxBudget: modelBudget,
+      }));
+      const stabilizationByProvince = allocateMoneyBudget(weightEntries, stabilizationTotal);
+      const employmentByProvince = allocateMoneyBudget(weightEntries, employmentTotal);
+      for (const province of provinceWeights) {
+        const provinceId = province.provinceId;
+        const stabilizationBudget = roundMoney(stabilizationByProvince.get(provinceId) || 0);
+        const employmentBudget = roundMoney(employmentByProvince.get(provinceId) || 0);
+        const provinceBudget = roundMoney(stabilizationBudget + employmentBudget);
+        if (provinceBudget <= 0) continue;
+        cycleBudget = roundMoney(cycleBudget + provinceBudget);
+        lastProvinceBudgets[provinceId] = roundMoney(
+          Number(lastProvinceBudgets[provinceId] || 0) + provinceBudget,
+        );
+        const directBudget = Math.min(provinceBudget, roundMoney(
+          stabilizationBudget * POPULATION_STABILIZATION_DIRECT_SHARE
+            + employmentBudget * group.directBudgetShare,
+        ));
+        const derivedBudget = roundMoney(provinceBudget - directBudget);
+        const modelState = allocationStateForModel(state, modelId, provinceId);
+        const direct = allocationRuntime.directDemandChoices(world, group, modelState, directBudget, now, {
+          classShares: economicEventClassShares(
+            modelId,
+            group.id,
+            populationClassShares(world, modelId, group.id),
+            now,
+          ),
+          provinceId,
+        });
+        persistAllocationState(state, modelId, provinceId, modelState);
+        const derived = allocationRuntime.derivedDemandChoices(world, state, derivedBudget, now, { provinceId });
+        classAllocationByProvince[provinceId] ||= {};
+        classAllocationByProvince[provinceId][modelId] = direct.classAllocation;
+        if (!classAllocationByModel[modelId] || provinceId === DEFAULT_PROVINCE_ID) {
+          classAllocationByModel[modelId] = direct.classAllocation;
+        }
+        derivedRelations.push(...derived.relationDetails.map((relation) => ({
+          ...relation,
+          populationModelId: modelId,
+          provinceId,
+        })));
+        collectChoices(demandPlans, 'direct', direct.productBudgets, direct.productDetails, modelId, provinceId);
+        collectChoices(
+          demandPlans,
+          'derived-liquidity',
+          derived.productBudgets,
+          derived.productDetails,
           modelId,
-          group.id,
-          populationClassShares(world, modelId, group.id),
-          now,
-        ),
-      });
-      persistAllocationState(state, modelId, modelState);
-      const derived = allocationRuntime.derivedDemandChoices(world, state, derivedBudget, now);
-      classAllocationByModel[modelId] = direct.classAllocation;
-      derivedRelations.push(...derived.relationDetails.map((relation) => ({ ...relation, populationModelId: modelId })));
-      collectChoices(demandPlans, 'direct', direct.productBudgets, direct.productDetails, modelId);
-      collectChoices(demandPlans, 'derived-liquidity', derived.productBudgets, derived.productDetails, modelId);
+          provinceId,
+        );
+      }
     }
 
     materializeChoices(world, group, state, cycleId, now, demandPlans, totals, allocations);
@@ -815,6 +867,8 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     state.lastOpenOrderValue = openOrderValue;
     state.lastCycleStartedAt = now;
     state.lastClassAllocation = classAllocationByModel;
+    state.lastClassAllocationByProvince = classAllocationByProvince;
+    state.lastProvinceBudgets = lastProvinceBudgets;
     state.lastAllocation = allocations;
     state.lastDerivedRelations = derivedRelations;
     state.lastInventoryBoost = 0;
