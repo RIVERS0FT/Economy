@@ -87,12 +87,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run targeted verification
+      - name: Run targeted static verification
         run: |
           node scripts/verify-page-content.mjs
           npm run verify:provincial-economy
-          bash scripts/prepare-playwright-chromium.sh
-          npx playwright test tests/browser/province-locked-access.spec.ts
+
+      - name: Prepare Chromium
+        run: bash scripts/prepare-playwright-chromium.sh
+
+      - name: Run targeted browser verification
+        run: npx playwright test tests/browser/province-locked-access.spec.ts
 
       - name: Run full build
         run: npm run build
