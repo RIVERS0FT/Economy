@@ -1,0 +1,212 @@
+name: Apply market cycle stability patch
+
+on:
+  push:
+    branches:
+      - fix/market-cycle-stall-deploy-timeout
+    paths:
+      - .github/workflows/branch-patch-market-cycle.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/market-cycle-stall-deploy-timeout
+          fetch-depth: 0
+
+      - name: Apply final patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/market-cycle.patch <<'PATCH'
+          diff --git a/.github/workflows/deploy.yml b/.github/workflows/deploy.yml
+          index a3961b0..0000000 100644
+          --- a/.github/workflows/deploy.yml
+          +++ b/.github/workflows/deploy.yml
+          @@ -113,6 +113,7 @@ jobs:
+                 - build
+                 - browser-test
+               runs-on: ubuntu-latest
+          +    timeout-minutes: 20
+           
+               steps:
+                 - name: Checkout code
+          @@ -296,20 +297,25 @@ jobs:
+               run: |
+                 exec > >(tee /tmp/economy-upload.log) 2>&1
+                 set -euo pipefail
+          -      rsync -az -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          +      RSYNC_RSH="ssh -i ~/.ssh/deploy_key -p $SERVER_PORT -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=3"
+          +      run_rsync() {
+          +        timeout 300s rsync --timeout=60 -az -e "$RSYNC_RSH" "$@"
+          +      }
+          +      run_rsync \
+                   dist/assets/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy/assets/"
+          -      rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          +      run_rsync --delete \
+                   --exclude assets/ \
+                   --exclude index.html \
+                   dist/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy/"
+          -      rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          +      run_rsync --delete \
+                   shared/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/shared/"
+          -      rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          +      run_rsync --delete-before \
+                   --exclude runtime/ \
+                   server/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy-api/"
+                 if [ "$RUNTIME_UPLOAD" = "true" ]; then
+          -        rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          +        run_rsync --delete-before \
+                     /tmp/economy-node-runtime/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy-api/runtime/"
+                 else
+                   echo "ECONOMY_NODE_RUNTIME_UPLOAD_SKIPPED"
+          @@ -371,8 +377,10 @@ jobs:
+               run: |
+                 exec > >(tee /tmp/economy-publish-entry.log) 2>&1
+                 set -euo pipefail
+          -      rsync -az -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          +      RSYNC_RSH="ssh -i ~/.ssh/deploy_key -p $SERVER_PORT -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=3"
+          +      timeout 120s rsync --timeout=60 -az -e "$RSYNC_RSH" \
+                   dist/index.html "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy/index.html.next"
+          -      ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" 'bash -s' <<'REMOTE'
+          +      ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=3 \
+          +        "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" 'bash -s' <<'REMOTE'
+                 set -euo pipefail
+                 test -s /var/www/game/economy/index.html.next
+                 mv -f /var/www/game/economy/index.html.next /var/www/game/economy/index.html
+          diff --git a/scripts/verify-deployment-pipeline.mjs b/scripts/verify-deployment-pipeline.mjs
+          --- a/scripts/verify-deployment-pipeline.mjs
+          +++ b/scripts/verify-deployment-pipeline.mjs
+          @@ -154,7 +154,11 @@ requireText('      fail-fast: false\n', '浏览器分片必须允许其他 shard 完成以保留完整诊断');
+           requireText('        shard: [1, 2, 3, 4]\n', '浏览器回归必须固定为四个 shard');
+           requireText('npm run test:browser -- --shard=${{ matrix.shard }}/4', '浏览器验证必须按四分片执行完整 Playwright 集合');
+          -requireText('  deploy:\n    needs:\n      - build\n      - browser-test\n', '生产部署必须等待 build 与全部 browser shard 成功');
+          +requireText('  deploy:\n    needs:\n      - build\n      - browser-test\n    runs-on: ubuntu-latest\n    timeout-minutes: 20\n', '生产部署必须等待 build 与全部 browser shard 成功并保留整体超时边界');
+          +requireText('timeout 300s rsync --timeout=60 -az -e "$RSYNC_RSH"', '生产主体文件同步必须同时具备 rsync I/O 超时与外层命令超时');
+          +requireText('ServerAliveInterval=10', '生产文件同步 SSH 必须定期发送 keepalive');
+          +requireText('ServerAliveCountMax=3', '生产文件同步 SSH 必须在 keepalive 失联后有限失败');
+          +requireText('timeout 120s rsync --timeout=60 -az -e "$RSYNC_RSH"', '入口 HTML 发布同步必须具备独立有限超时');
+           requireText('npm run build', 'build 验证 Job 必须执行完整 npm run build');
+           requireText('npm run generate:artwork', '部署 Job 必须从同一源码 SHA 重新生成运行时美术资产');
+           requireText('./node_modules/.bin/tsc', '部署 Job 必须在上传前执行 TypeScript 生产构建检查');
+          @@ -179,6 +183,7 @@ requireDesignText('同步 `server/` 时必须排除 `runtime/`', '权威部署设计必须记录 API 同步保护可复用 runtime');
+           requireDesignText('完全匹配时必须复用且不得重新下载或上传', '权威部署设计必须记录 Node runtime 精确匹配复用');
+           requireDesignText('已通过精确校验时复用服务器现有运行时', '权威部署设计必须记录运行时部署包条件');
+           requireDesignText('Nginx 头像 `location ~` 正则包含 `{m,n}` 量词，必须整体使用引号包裹', '权威部署设计必须记录头像正则的 Nginx 引用规则');
+          +requireDesignText('生产文件同步必须同时受 deploy Job 20 分钟整体上限、单次 rsync 300 秒外层上限、60 秒 I/O 无进展上限与 SSH keepalive 约束', '权威部署设计必须记录文件同步的有限失败边界');
+           
+           const browserIndex = workflow.indexOf('  browser-test:\n');
+           const deployIndex = workflow.indexOf('  deploy:\n');
+          diff --git a/docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md b/docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
+          --- a/docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
+          +++ b/docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
+          @@ -8,6 +8,10 @@
+           
+           > 模型 20 在世界加载事务内释放模型 19 及更早人口消费订单的真实冻结资金并重建州级系统需求；市场储备通过既有重建流程归还冻结资金与库存，玩家订单、真实历史成交和所有存量资产数量保持不变。州级官方经济基准是随代码发布的只读快照，不在世界加载或需求热路径访问外部 API。
+           
+          +> 州级运行时兼容别名的全量安装只允许在世界冷加载／迁移或同一 record 首次访问时执行一次；同一 `markets`／`facilityMarkets`／玩家 `inventories` record 的后续热查询必须复用已安装别名与迁移结果。48 州需求周期会高频查询州级市场与库存，重复 O(州数 × 商品数) 属性扫描会阻塞 Node 事件循环并让正常 API 穿透 Nginx 30 秒超时。
+          +
+          +> 生产文件同步必须同时受 deploy Job 20 分钟整体上限、单次 rsync 300 秒外层上限、60 秒 I/O 无进展上限与 SSH keepalive 约束；任一边界触发必须失败并保留步骤日志，不得让生产部署无限挂起。
+          +
+           ## 1. 权威边界
+          @@ -625,7 +629,7 @@
+           
+           ## 普通玩家订单序列化边界
+           
+          -当前客户端状态版本为 36，本地匿名成交存储为 v7，世界状态版本为 32，市场需求模型版本为 19；人口迁移、手续费迁移、储备迁移、资产拍卖删除迁移、产业目录迁移与州级经济目录替换都不得重置商品／工厂资产、玩家订单或既有订单簿成交，储备种子只允许初始化一次。
+          +当前客户端状态版本为 36，本地匿名成交存储为 v7，世界状态版本为 32，市场需求模型版本为 20；人口迁移、手续费迁移、储备迁移、资产拍卖删除迁移、产业目录迁移与州级经济目录替换都不得重置商品／工厂资产、玩家订单或既有订单簿成交，储备种子只允许初始化一次。
+           
+           ## 市场需求模型 17 迁移与运行顺序
+           
+          @@ -633,7 +637,7 @@
+          - 权威状态使用 `marketDemand.modelVersion = 19`、`populationEconomy.modelVersion = 7`。早于市场需求模型 16 或早于人口经济模型 7 的旧状态升级时，先原额释放并取消旧消费需求与市场储备订单，保留玩家订单、人口钱包、储备真实资产、价格传导关系和玩家资产，不重复补发储备资产或人口启动资金；市场需求模型 16 升级至 17 仅降低后续报价增长速率，必须保留报价锚点、过剩周期、未完成系统订单、真实冻结资金和储备资产。
+          + 权威状态使用 `marketDemand.modelVersion = 20`、`populationEconomy.modelVersion = 7`。早于市场需求模型 16 或早于人口经济模型 7 的旧状态升级时，先原额释放并取消旧消费需求与市场储备订单，保留玩家订单、人口钱包、储备真实资产、价格传导关系和玩家资产，不重复补发储备资产或人口启动资金；模型 20 只把现有守恒人口预算按已激活州的 PCE 权重分配到州级订单，不复制钱包预算、不访问外部统计 API。
+          diff --git a/server/test/provinces.test.js b/server/test/provinces.test.js
+          --- a/server/test/provinces.test.js
+          +++ b/server/test/provinces.test.js
+          @@ -15,6 +15,7 @@ import {
+             DEFAULT_PROVINCE_ID,
+             PROVINCE_CATALOG,
+          +  installDefaultProvinceAliases,
+             inventoryForProvince,
+             provinceScopedKey,
+           } from '../src/provinces.js';
+          @@ -31,6 +32,20 @@ const carol = { id: 503, name: '州级玩家丙' };
+          +function countOwnKeyScans(target) {
+          +  let scans = 0;
+          +  return {
+          +    record: new Proxy(target, {
+          +      ownKeys(value) {
+          +        scans += 1;
+          +        return Reflect.ownKeys(value);
+          +      },
+          +    }),
+          +    scans: () => scans,
+          +  };
+          +}
+          +
+           test('region catalog exposes 48 stable unique contiguous-state identifiers', () => {
+          @@ -47,6 +62,52 @@ test('region catalog exposes 48 stable unique contiguous-state identifiers', () => {
+             assert.equal(PROVINCE_CATALOG.some((province) => province.mapName === 'District of Columbia'), false);
+           });
+           
+          +test('default province alias installation scans each record only once', () => {
+          +  const defaultKey = provinceScopedKey(CALIFORNIA, 'wheat');
+          +  const georgiaKey = provinceScopedKey(GEORGIA, 'wheat');
+          +  const observed = countOwnKeyScans({
+          +    [defaultKey]: { price: 4 },
+          +    [georgiaKey]: { price: 7 },
+          +  });
+          +
+          +  installDefaultProvinceAliases(observed.record);
+          +  const firstPassScans = observed.scans();
+          +  assert.ok(firstPassScans > 0);
+          +  assert.equal(observed.record.wheat, observed.record[defaultKey]);
+          +  assert.equal(Object.keys(observed.record).includes('wheat'), false);
+          +
+          +  for (let index = 0; index < 1_000; index += 1) {
+          +    installDefaultProvinceAliases(observed.record);
+          +  }
+          +  assert.equal(observed.scans(), firstPassScans + 1);
+          +  assert.equal(observed.record[georgiaKey].price, 7);
+          +});
+          +
+          +test('inventory lookup performs legacy inventory migration once per inventory record', () => {
+          +  const observed = countOwnKeyScans({
+          +    wheat: { available: 3, frozen: 2 },
+          +  });
+          +  const player = { inventories: observed.record };
+          +
+          +  const defaultInventory = inventoryForProvince(player, 'wheat', CALIFORNIA);
+          +  const firstPassScans = observed.scans();
+          +  assert.ok(firstPassScans > 0);
+          +  assert.deepEqual(defaultInventory, { available: 3, frozen: 2, inTransit: 0 });
+          +
+          +  for (let index = 0; index < 1_000; index += 1) {
+          +    inventoryForProvince(player, 'wheat', GEORGIA);
+          +  }
+          +  assert.equal(observed.scans(), firstPassScans);
+          +  assert.deepEqual(inventoryForProvince(player, 'wheat', GEORGIA), {
+          +    available: 0,
+          +    frozen: 0,
+          +    inTransit: 0,
+          +  });
+          +});
+          +
+           test('world 30 geography replacement keeps legacy scoped assets on their existing region IDs', () => {
+          PATCH
+
+          git apply --check /tmp/market-cycle.patch
+          git apply /tmp/market-cycle.patch
+          git rm server/test/province-runtime-alias-efficiency.test.js
+          git rm .github/workflows/branch-patch-market-cycle.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "完善市场周期热路径与部署超时边界"
+          git push origin HEAD:fix/market-cycle-stall-deploy-timeout
