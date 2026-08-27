@@ -71,6 +71,16 @@ jobs:
               "    'model.setSelectedProvinceId(provinceId);',\n    '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />',",
               "    'model.setSelectedProvinceId(provinceId);',\n    '<EmbeddedMarketPage model={model} embedded />',",
           )
+          replace_once(
+              'scripts/verify-provincial-economy.mjs',
+              "  'export function ProvincePage', 'title={provinceName}', 'role=\"tablist\"', 'role=\"tab\"', 'role=\"tabpanel\"',",
+              "  'export function ProvincePage', 'title={isMarketDetail && marketDetailProduct ? (', 'role=\"tablist\"', 'role=\"tab\"', 'role=\"tabpanel\"',",
+          )
+          replace_once(
+              'scripts/verify-provincial-economy.mjs',
+              "  '<EmbeddedMarketPage model={model} embedded />', '<EmbeddedBuildingsPage model={model} embedded />',",
+              "  '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />', '<EmbeddedBuildingsPage model={model} embedded />',",
+          )
           PY
           git diff --check
 
