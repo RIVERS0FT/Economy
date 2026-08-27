@@ -77,6 +77,10 @@ for (const text of [
   "path === '/api/game/invitations/claim'",
   'registrationStore.ensureLoggedInPlayer',
   'registrationStore.assertPlayerActive',
+  'registrationStore.sessionBootstrapMode',
+  'registrationStore.readExistingSession',
+  'sessionMetadataWriteOptions(user)',
+  "userWriteOptions(user, 'session-profile-creation')",
   'const registrationActor = `system:registration-retention:',
   "'Set-Cookie': account.setCookie",
   'inviteCode: body.inviteCode',
@@ -163,6 +167,9 @@ for (const text of [
   '验证码记录清理、验证码创建／状态更新和完成前校验只写注册专用 SQLite 表',
   '不得触发世界到期调度 barrier',
   '最终创建 Economy 玩家档案继续属于普通用户世界写入',
+  '已有 `economy_registrations` 且永久邀请码元数据完整的 `/api/game/session`',
+  '`system:session-metadata:*`',
+  '`session-profile-creation`',
   '`410 Gone`',
 ]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 forbidText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'RESEND_FROM_EMAIL');
@@ -214,6 +221,8 @@ for (const text of [
 for (const text of [
   'registration form invite code rewards inviter once inside first-profile transaction',
   'existing Economy profile ignores invite parameters and can never be backfilled',
+  "sessionBootstrapMode(2), 'existing'",
+  'assert.equal(context.store.loadWorldCalls, 0)',
 ]) requireText('server/test/invitations.test.js', text);
 
 if (failures.length) {

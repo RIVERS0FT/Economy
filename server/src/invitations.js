@@ -379,6 +379,10 @@ export class EconomyInvitationStore {
     return this.store.transaction(() => this.ensureInviteCodeInTransaction(userId, now));
   }
 
+  hasInviteCode(userId) {
+    return Boolean(this.selectInviteCodeByUser.get(Number(userId)));
+  }
+
   activeBan(userId) {
     return this.selectActiveBan.get(Number(userId));
   }

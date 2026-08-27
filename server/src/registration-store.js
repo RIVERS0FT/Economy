@@ -255,23 +255,41 @@ export class EconomyRegistrationStore {
     });
   }
 
+  sessionBootstrapMode(userId) {
+    const normalizedUserId = Number(userId);
+    if (!this.selectRegistrationByUser.get(normalizedUserId)) return 'profile-create';
+    return this.invitations.hasInviteCode(normalizedUserId) ? 'existing' : 'metadata-repair';
+  }
+
+  readExistingSession({ user, inviteCode }) {
+    if (!this.selectRegistrationByUser.get(Number(user.id))) {
+      throw httpError('Economy 玩家档案尚未创建', 409);
+    }
+    const ban = this.invitations.activeBan(user.id);
+    return {
+      playerCreated: false,
+      banned: Boolean(ban),
+      incidentId: ban ? Number(ban.incident_id) : undefined,
+      invitationBound: false,
+      invalidInvite: Boolean(inviteCode),
+    };
+  }
+
   initializeSession({ user, ipFingerprint, inviteCode, requestKey, now = Date.now() }) {
     const existing = this.selectRegistrationByUser.get(Number(user.id));
-    let result;
     if (existing) {
       this.invitations.ensureInviteCode(user.id, now);
-      result = { playerCreated: false, repeated: true, invalidInvite: Boolean(inviteCode) };
-    } else {
-      result = this.store.transaction(() => this.ensurePlayerRegistrationInTransaction({
-        user,
-        ipFingerprint,
-        source: 'homepage_session',
-        inviteCode,
-        invitationSource: 'share_link',
-        invitationRequestKey: requestKey,
-        now,
-      }));
+      return this.readExistingSession({ user, inviteCode });
     }
+    const result = this.store.transaction(() => this.ensurePlayerRegistrationInTransaction({
+      user,
+      ipFingerprint,
+      source: 'homepage_session',
+      inviteCode,
+      invitationSource: 'share_link',
+      invitationRequestKey: requestKey,
+      now,
+    }));
     const ban = this.invitations.activeBan(user.id);
     return {
       playerCreated: Boolean(result.playerCreated),

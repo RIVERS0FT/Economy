@@ -23,7 +23,7 @@ export interface EconomySessionResponse {
   invalidInvite: boolean;
 }
 
-class ApiRequestError extends Error {
+export class ApiRequestError extends Error {
   status: number;
   code?: string;
   incidentId?: number;
@@ -35,6 +35,10 @@ class ApiRequestError extends Error {
     this.code = details.code;
     this.incidentId = details.incidentId;
   }
+}
+
+export function isUnauthorizedApiError(reason: unknown) {
+  return reason instanceof ApiRequestError && reason.status === 401;
 }
 
 function createIdempotencyKey(prefix: string) {

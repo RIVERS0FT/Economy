@@ -164,6 +164,10 @@ V2 热保存不得做完整世界 `isDeepStrictEqual`、完整世界 `JSON.strin
 
 验证码记录清理、验证码创建／状态更新和完成前校验只写注册专用 SQLite 表（包括 `economy_email_verifications`），必须继续经过同一个权威写执行器串行化，但 actor 固定使用 `system:registration:*`，不得触发世界到期调度 barrier、世界草稿复制、资金规范化或世界分段比较。最终创建 Economy 玩家档案继续属于普通用户世界写入：验证码验证完成后真正创建玩家档案／发放邀请奖励的 `registration-profile-creation` 继续使用 `user:<id>`。
 
+已有 `economy_registrations` 且永久邀请码元数据完整的 `/api/game/session` 必须直接读取注册、邀请和封禁 SQLite 状态并返回，不得进入权威写执行器、加载世界或等待 scheduler barrier；已有注册但缺失永久邀请码时只允许以 `system:session-metadata:*` 补齐该元数据。只有没有 Economy 注册记录、需要真正创建玩家档案的 session 才使用 `user:<id>` 的 `session-profile-creation` 世界写语义。慢 session 只记录模式、总耗时和写队列深度等非敏感诊断，不得记录 Cookie、密码、邀请码、邮箱或 IP。
+
+市场需求模型 20 的州级规划阶段必须在同一个需求组内复用未发生订单写入前的行情统计和卖盘报价缓存，并在真正创建／撮合人口订单前清空该规划缓存；一次 `processMarketDemand` 中多个到期需求组必须复用同一份活跃州 PCE 权重。原因是三类人口 × 最多 48 州会重复读取相同商品行情和盘口，规划阶段数据静态时重复扫描只增加事件循环占用，不应改变统一订单簿撮合、资金守恒或后续订单可见性。连续 48 州完整需求周期必须有生产规模回归测试，并保持低于服务器请求超时预算。
+
 普通商品 `placeOrder` 在上述到期 barrier 完成后必须直接复用 `applySettledCommodityOrder` 与统一订单簿撮合，不得再绕经会执行 `processFacilityGroupWorld` 的工厂动作适配层。普通商品下单与撤单必须使用动作专用 Copy-on-Write Scope；拍卖动作同样只复制本次交易可能修改的参与者与拍卖域。上述优化不改变订单冻结、撮合、成交价、手续费、幂等、全局修订号、资产守恒或统一订单簿语义。热保存只做 scoped money normalization 和 Dirty Row 比较／写入；完整资金精度收口只保留给冷迁移、完整世界升级和明确的全世界写入。
 
 ## 4. 世界迁移、状态交付与客户端版本

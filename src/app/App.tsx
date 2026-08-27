@@ -1,7 +1,14 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useState } from 'react';
-import { getCurrentUser, initializeEconomySession, type EconomySessionResponse } from '../api/auth';
+import {
+  ApiRequestError,
+  getCurrentUser,
+  initializeEconomySession,
+  isUnauthorizedApiError,
+  type EconomySessionResponse,
+} from '../api/auth';
 import { ApplicationLoadingState } from '../components/system/ApplicationLoadingState';
 import { RefreshPageButton } from '../components/system/RefreshPageButton';
+import { Button } from '../components/ui/layout';
 import type {
   FinancialBackdropTone,
   FinancialBackdropVariant,
@@ -23,7 +30,7 @@ const LocalGamePreviewApp = localGamePreviewModule
   ? lazy(() => localGamePreviewModule.then((module) => ({ default: module.LocalGamePreviewApp })))
   : null;
 
-type AppSurface = 'loading' | 'auth' | 'game' | 'admin' | 'banned';
+type AppSurface = 'loading' | 'auth' | 'game' | 'admin' | 'banned' | 'error';
 
 function adminSurface() {
   const path = window.location.pathname.replace(/\/+$/, '');
@@ -46,6 +53,13 @@ function clearInvitationCodeFromLocation() {
   window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
+function sessionConnectionMessage(reason: unknown) {
+  if (reason instanceof ApiRequestError && reason.status >= 500 && reason.message === '请求失败') {
+    return '游戏服务器暂时无法响应，请重新连接';
+  }
+  return reason instanceof Error ? reason.message : '无法初始化 Economy 玩家状态';
+}
+
 function BannedAccount({ incidentId }: { incidentId?: number }) {
   return (
     <PhotographicStateShell variant="game" tone="critical" className="banned-account-shell" role="alert">
@@ -59,38 +73,64 @@ function BannedAccount({ incidentId }: { incidentId?: number }) {
   );
 }
 
+function SessionConnectionError({
+  variant,
+  message,
+  onRetry,
+}: {
+  variant: 'game' | 'admin';
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <PhotographicStateShell variant={variant} tone="critical" className="session-connection-error-shell" role="alert">
+      <section className="photographic-state-card session-connection-error-card">
+        <h1>无法连接游戏服务器</h1>
+        <p>{message}</p>
+        <Button type="button" onClick={onRetry}>重新连接</Button>
+      </section>
+    </PhotographicStateShell>
+  );
+}
+
 function AuthenticatedApp() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<EconomySessionResponse | null>(null);
   const [checking, setChecking] = useState(true);
   const [authError, setAuthError] = useState('');
+  const [sessionError, setSessionError] = useState('');
   const adminPath = adminSurface();
+  const sessionFailed = Boolean(user && sessionError);
   const banned = Boolean(session?.banned && !(adminPath && user?.role === 'admin'));
   const surface: AppSurface = checking
     ? 'loading'
-    : user
-      ? banned
-        ? 'banned'
-        : adminPath
-          ? 'admin'
-          : 'game'
-      : 'auth';
+    : !user
+      ? 'auth'
+      : sessionFailed
+        ? 'error'
+        : banned
+          ? 'banned'
+          : adminPath
+            ? 'admin'
+            : 'game';
   const backdrop: FinancialBackdropVariant = checking
     ? stateVariantForPath(adminPath)
     : !user
       ? 'auth'
-      : banned
-        ? 'game'
-        : adminPath
-          ? 'admin'
-          : 'game';
-  const tone: FinancialBackdropTone = banned || Boolean(user && adminPath && user.role !== 'admin')
+      : adminPath
+        ? 'admin'
+        : 'game';
+  const tone: FinancialBackdropTone = sessionFailed
+    || banned
+    || Boolean(user && adminPath && user.role !== 'admin')
     ? 'critical'
     : 'normal';
   const inviteCode = invitationCodeFromLocation();
   const handleSignedOut = useCallback(() => {
     setUser(null);
     setSession(null);
+    setSessionError('');
+    setAuthError('');
   }, []);
 
   useLayoutEffect(() => {
@@ -101,37 +141,61 @@ function AuthenticatedApp() {
 
   useEffect(() => {
     let cancelled = false;
-    getCurrentUser()
-      .then(async (currentUser) => {
+    void (async () => {
+      try {
+        const currentUser = await getCurrentUser();
         if (!currentUser || cancelled) return;
-        const nextSession = await initializeEconomySession(inviteCode);
-        if (cancelled) return;
         setUser(currentUser);
-        setSession(nextSession);
-        clearInvitationCodeFromLocation();
-      })
-      .catch((reason) => {
+        try {
+          const nextSession = await initializeEconomySession(inviteCode);
+          if (cancelled) return;
+          setSession(nextSession);
+          setSessionError('');
+          clearInvitationCodeFromLocation();
+        } catch (reason) {
+          if (cancelled) return;
+          if (isUnauthorizedApiError(reason)) {
+            setUser(null);
+            setSession(null);
+            setAuthError('登录状态已失效，请重新登录');
+          } else {
+            setSessionError(sessionConnectionMessage(reason));
+          }
+        }
+      } catch (reason) {
         if (!cancelled) setAuthError(reason instanceof Error ? reason.message : '账号服务不可用');
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setChecking(false);
-      });
+      }
+    })();
     return () => { cancelled = true; };
   }, []);
 
-  async function authenticated(nextUser: AuthUser) {
+  async function connectAuthenticatedUser(nextUser: AuthUser) {
+    setUser(nextUser);
+    setSession(null);
     setChecking(true);
     setAuthError('');
+    setSessionError('');
     try {
       const nextSession = await initializeEconomySession(inviteCode);
-      setUser(nextUser);
       setSession(nextSession);
       clearInvitationCodeFromLocation();
     } catch (reason) {
-      setAuthError(reason instanceof Error ? reason.message : '无法初始化 Economy 玩家状态');
+      if (isUnauthorizedApiError(reason)) {
+        setUser(null);
+        setSession(null);
+        setAuthError('登录状态已失效，请重新登录');
+      } else {
+        setSessionError(sessionConnectionMessage(reason));
+      }
     } finally {
       setChecking(false);
     }
+  }
+
+  async function authenticated(nextUser: AuthUser) {
+    await connectAuthenticatedUser(nextUser);
   }
 
   if (checking) {
@@ -154,7 +218,16 @@ function AuthenticatedApp() {
       </>
     );
   }
-  if (banned) return <BannedAccount incidentId={session?.incidentId} />;
+  if (sessionError || !session) {
+    return (
+      <SessionConnectionError
+        variant={adminPath ? 'admin' : 'game'}
+        message={sessionError || 'Economy 会话尚未建立'}
+        onRetry={() => { void connectAuthenticatedUser(user); }}
+      />
+    );
+  }
+  if (banned) return <BannedAccount incidentId={session.incidentId} />;
   return (
     <Suspense
       fallback={(
