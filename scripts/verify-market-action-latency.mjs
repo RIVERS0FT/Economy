@@ -48,9 +48,13 @@ for (const text of [
 
 for (const text of [
   "const GAME_API_PATH_PREFIX = '/economy-api/game';",
+  'const SESSION_BOOTSTRAP_PATH = `${GAME_API_PATH_PREFIX}/session`;',
   'const WRITE_ATTEMPT_TIMEOUT_MS = 12_000;',
   "const STORAGE_KEY = 'economy.pending-write-idempotency.v1';",
   "headers.set('Idempotency-Key', reservation.key);",
+  'function isSessionBootstrapWrite(input',
+  'const timeout = isSessionBootstrapWrite(input)',
+  'if (timeout !== null) globalThis.clearTimeout(timeout);',
   'for (let attemptIndex = 0; attemptIndex < 2; attemptIndex += 1)',
   'attemptIndex === 0 ? init.signal : undefined',
   'return response.status === 408 || response.status === 429 || response.status >= 500;',
@@ -74,7 +78,9 @@ for (const text of [
 ]) requireText(serverDesign, text);
 for (const text of [
   '权威刷新必须中止正在等待的普通轮询',
-  '普通状态读取超时为 8 秒，经济写请求单次尝试超时为 12 秒',
+  '普通状态读取超时为 8 秒，普通经济写请求单次尝试超时为 12 秒',
+  '`/economy-api/game/session`',
+  '`proxy_read_timeout 30s`',
   '同一逻辑写操作在超时、断网和结果未确认期间必须持续复用同一个 `Idempotency-Key`',
   'HTTP 408、429 与任意 5xx',
 ]) requireText(countdownDesign, text);
@@ -85,4 +91,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('市场动作延迟防回退验证通过：商品订单单次共享撮合、全量修复版本化、POST 后异步补拉、重复提交锁、请求超时、限流保留与同键确认重试均已锁定。');
+console.log('市场动作延迟防回退验证通过：商品订单单次共享撮合、全量修复版本化、POST 后异步补拉、重复提交锁、普通写请求超时、会话启动例外、限流保留与同键确认重试均已锁定。');
