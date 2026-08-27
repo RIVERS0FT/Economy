@@ -302,7 +302,7 @@ check('tests/browser/game-shell-layout.spec.ts', [
   'compact desktop keeps the persistent map, expanded overlay outliner, and page panel on the 8px strategic grid',
   'short desktop keeps the persistent map and command chrome inside the viewport',
   'status bar owns game identity while the sidebar footer owns the settings entry',
-  "toHaveCount(9)",
+  "toHaveCount(10)",
   "toContainText('金融帝国')",
   "toContainText('MEVIUS')",
   'command rail expands over the page without moving the card, page, outliner, map, or status bar',
@@ -389,7 +389,7 @@ check('tests/browser/frosted-glass-layout.spec.ts', [
   "toHaveCSS('border-radius', '40px')",
 ]);
 check('tests/browser/all-pages-preview.spec.ts', [
-  'overview, market, buildings, and settings share a one-third card width while leaderboard and shop stay full-area',
+  'overview, market, buildings, and settings share a one-third card width while transport, leaderboard, and shop stay full-area',
   'page navigation unfolds only the active page while the persistent map keeps its instance and geometry',
   'reduced motion disables card width and page unfold animation',
   'expect(Math.max(...compactWidths) - Math.min(...compactWidths)).toBeLessThanOrEqual(1)',
@@ -407,7 +407,7 @@ check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '桌面侧栏默认 `78px`',
   '`home`、`province`、`market`、`buildings`、`settings` 仍使用 `building`',
   '战略追踪器与页面路由生命周期解耦',
-  '六个 `fullscreen` 页面在桌面端隐藏同一追踪器',
+  '七个 `fullscreen` 页面在桌面端隐藏同一追踪器',
   '“教程／进行中／关注／公开经济事件”四个可折叠分区',
   '不得提供追踪器整体横向展开／收起按钮',
   '同一个 `StrategicOutliner` DOM 仅呈现“教程”分区',

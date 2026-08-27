@@ -24,6 +24,7 @@ import { DEFAULT_PROVINCE_ID, inventoryForProvince, normalizeProvinceId, provinc
 import {
   applyTransportShip,
   processTransportWorld,
+  transportRouteClientState,
   transportShipmentClientState,
 } from './transport.js';
 
@@ -463,6 +464,7 @@ export function createClientState(world, userId, now = Date.now(), { migrate = t
     startingProvinceId: state.startingProvinceId,
     startingProvinceChosen: state.startingProvinceChosen,
     unlockedProvinces: state.unlockedProvinces,
+    transportRoutes: transportRouteClientState(world, userId),
     transportShipments: transportShipmentClientState(world, userId),
     products: clone(PRODUCT_CATALOG),
     facilityTypes: clone(FACILITY_TYPE_CATALOG),

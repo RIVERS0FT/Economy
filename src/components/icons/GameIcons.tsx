@@ -2,7 +2,7 @@ import type { PropsWithChildren, SVGProps } from 'react';
 import { GemIcon } from './GemIcon';
 
 type GameIconProps = SVGProps<SVGSVGElement>;
-export type NavigationIconName = 'home' | 'map' | 'market' | 'buildings' | 'research' | 'auction' | 'contracts' | 'bank' | 'leaderboard' | 'gem-shop' | 'settings';
+export type NavigationIconName = 'home' | 'map' | 'market' | 'buildings' | 'transport' | 'research' | 'auction' | 'contracts' | 'bank' | 'leaderboard' | 'gem-shop' | 'settings';
 export type ChevronDirection = 'left' | 'right' | 'up' | 'down';
 type DirectionalGameIconProps = Omit<GameIconProps, 'direction'>;
 
@@ -61,6 +61,17 @@ export function MapIcon(props: GameIconProps) {
 
 export function ProductionIcon(props: GameIconProps) {
   return <GameIcon {...props}><path d="M3 20V9l6 3V9l6 3V5h4v15H3Z" /><path d="M7 16h.01M11 16h.01M15 16h.01" /></GameIcon>;
+}
+
+export function TransportIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <path d="M3 6h11v10H3V6Z" />
+      <path d="M14 9h4l3 3v4h-7V9Z" />
+      <circle cx="7" cy="18" r="2" />
+      <circle cx="17" cy="18" r="2" />
+    </GameIcon>
+  );
 }
 
 export function ResearchIcon(props: GameIconProps) {
@@ -206,6 +217,7 @@ export function NavigationIcon({ name, ...props }: { name: NavigationIconName } 
     case 'map': return <MapIcon {...props} />;
     case 'market': return <MarketIcon {...props} />;
     case 'buildings': return <ProductionIcon {...props} />;
+    case 'transport': return <TransportIcon {...props} />;
     case 'research': return <ResearchIcon {...props} />;
     case 'auction': return <AuctionIcon {...props} />;
     case 'contracts': return <ContractIcon {...props} />;

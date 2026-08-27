@@ -44,6 +44,7 @@ const STRATEGIC_PAGE_PRESENTATION = {
   province: 'building',
   market: 'building',
   buildings: 'building',
+  transport: 'fullscreen',
   research: 'fullscreen',
   auction: 'fullscreen',
   contracts: 'fullscreen',

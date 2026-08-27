@@ -141,6 +141,13 @@ export interface OnlineAutoTradePolicyInput {
   buy: OnlineAutoBuyPolicyInput;
   sell: OnlineAutoSellPolicyInput;
 }
+export interface TransportRouteInput {
+  sourceProvinceId: string;
+  destinationProvinceId: string;
+  productId: string;
+  quantity: number;
+  mode: TransportModeId;
+}
 export interface FacilityBuildProcurementOptions {
   autoProcure: true;
   maxProcurementTotal: number;
@@ -530,13 +537,24 @@ export const gameActions = {
   checkIn: () => postAction('/check-in'),
   chooseStartingProvince: (provinceId: string) => postAction('/provinces/starting', { provinceId }),
   unlockProvince: (provinceId: string) => postAction('/provinces/unlock', { provinceId }),
-  transportShip: (input: {
-    sourceProvinceId: string;
-    destinationProvinceId: string;
-    productId: string;
-    quantity: number;
-    mode: TransportModeId;
-  }) => postAction('/transport', input),
+  transportShip: (input: TransportRouteInput) => postAction('/transport', input),
+  createTransportRoute: (input: TransportRouteInput) => postAction('/transport', {
+    operation: 'route-create',
+    ...input,
+  }),
+  updateTransportRoute: (routeId: string, input: TransportRouteInput) => postAction('/transport', {
+    operation: 'route-update',
+    routeId,
+    ...input,
+  }),
+  deleteTransportRoute: (routeId: string) => postAction('/transport', {
+    operation: 'route-delete',
+    routeId,
+  }),
+  dispatchTransportRoute: (routeId: string) => postAction('/transport', {
+    operation: 'route-dispatch',
+    routeId,
+  }),
   bankDeposit: (amount: number) => postAction('/bank/deposits', { amount }),
   bankWithdraw: (amount: number) => postAction('/bank/withdrawals', { amount }),
   bankBorrow: (amount: number, collateral: Array<{ provinceId: string; facilityTypeId: string; quantity: number }>, autoRepay = true) => (

@@ -66,6 +66,7 @@ test('desktop strategic outliner persists across business and fullscreen pages',
   await expect(pinnedSection.locator('.strategic-outliner-row')).toHaveCount(1);
 
   const fullscreenPages = [
+    ['transport', '运输'],
     ['research', '研发'],
     ['auction', '拍卖'],
     ['contracts', '合同'],

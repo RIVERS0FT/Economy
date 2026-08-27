@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applyAction, createWorld, ensurePlayer, processWorld } from '../src/domain.js';
+import { applyAction, createClientState, createWorld, ensurePlayer, processWorld } from '../src/domain.js';
 import {
   nextTransportDeadline,
   processTransportWorld,
   TRANSPORT_BASE_SECONDS_PER_KM,
   TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER,
+  TRANSPORT_MAX_ROUTES_PER_PLAYER,
   TRANSPORT_MODES,
   transportCost,
   transportDurationMs,
@@ -178,4 +179,121 @@ test('world processing settles due shipments through the normal domain cycle', (
   assert.equal(shipment.status, 'arrived');
   assert.equal(inventoryForProvince(player, 'wheat', '130000').available, 3);
   assert.equal(inventoryForProvince(player, 'wheat', '110000').inTransit, 0);
+});
+
+
+test('transport routes persist without requiring current inventory or funds', () => {
+  const world = createWorld(now);
+  deferDemand(world);
+  const player = unlockedPlayer(world, alice, 0);
+  inventoryForProvince(player, 'wheat', '110000').available = 0;
+
+  const invalid = applyAction(world, alice, 'transportShip', {
+    operation: 'route-create',
+    sourceProvinceId: '110000',
+    destinationProvinceId: '110000',
+    productId: 'wheat',
+    quantity: 10,
+    mode: 'road',
+  }, now + 1);
+  assert.equal(invalid.ok, false);
+  assert.equal(Object.hasOwn(player, 'transportRoutes'), false);
+
+  const created = applyAction(world, alice, 'transportShip', {
+    operation: 'route-create',
+    sourceProvinceId: '110000',
+    destinationProvinceId: '130000',
+    productId: 'wheat',
+    quantity: 10,
+    mode: 'road',
+  }, now + 2);
+  assert.equal(created.ok, true);
+  assert.equal(player.transportRoutes.length, 1);
+  const routeId = player.transportRoutes[0].id;
+
+  const updated = applyAction(world, alice, 'transportShip', {
+    operation: 'route-update',
+    routeId,
+    sourceProvinceId: '110000',
+    destinationProvinceId: '120000',
+    productId: 'ore',
+    quantity: 500,
+    mode: 'rail',
+  }, now + 3);
+  assert.equal(updated.ok, true);
+  assert.equal(player.transportRoutes[0].destinationProvinceId, '120000');
+  assert.equal(player.transportRoutes[0].productId, 'ore');
+  assert.equal(player.transportRoutes[0].quantity, 500);
+  assert.equal(player.transportRoutes[0].mode, 'rail');
+
+  const client = createClientState(world, alice.id, now + 4);
+  assert.equal(client.transportRoutes.length, 1);
+  assert.equal(client.transportRoutes[0].id, routeId);
+});
+
+test('dispatching and deleting a route leaves the shipment in transit', () => {
+  const world = createWorld(now);
+  deferDemand(world);
+  const player = unlockedPlayer(world, bob, 50_000);
+  inventoryForProvince(player, 'wheat', '110000').available = 20;
+
+  assert.equal(applyAction(world, bob, 'transportShip', {
+    operation: 'route-create',
+    sourceProvinceId: '110000',
+    destinationProvinceId: '130000',
+    productId: 'wheat',
+    quantity: 5,
+    mode: 'road',
+  }, now + 1).ok, true);
+  const routeId = player.transportRoutes[0].id;
+
+  const dispatched = applyAction(world, bob, 'transportShip', {
+    operation: 'route-dispatch',
+    routeId,
+  }, now + 2);
+  assert.equal(dispatched.ok, true);
+  assert.equal(world.transportShipments.length, 1);
+  assert.equal(world.transportShipments[0].routeId, routeId);
+  assert.equal(world.transportShipments[0].status, 'in-transit');
+
+  const deleted = applyAction(world, bob, 'transportShip', {
+    operation: 'route-delete',
+    routeId,
+  }, now + 3);
+  assert.equal(deleted.ok, true);
+  assert.deepEqual(player.transportRoutes, []);
+  assert.equal(world.transportShipments.length, 1);
+  assert.equal(world.transportShipments[0].routeId, routeId);
+  assert.equal(world.transportShipments[0].status, 'in-transit');
+});
+
+test('transport route limit is enforced', () => {
+  const world = createWorld(now);
+  deferDemand(world);
+  const player = unlockedPlayer(world, alice, 0);
+
+  for (let index = 0; index < TRANSPORT_MAX_ROUTES_PER_PLAYER; index += 1) {
+    const created = applyAction(world, alice, 'transportShip', {
+      operation: 'route-create',
+      sourceProvinceId: '110000',
+      destinationProvinceId: '130000',
+      productId: 'wheat',
+      quantity: 1,
+      mode: 'road',
+    }, now + index + 1);
+    assert.equal(created.ok, true);
+  }
+  assert.equal(player.transportRoutes.length, TRANSPORT_MAX_ROUTES_PER_PLAYER);
+
+  const overLimit = applyAction(world, alice, 'transportShip', {
+    operation: 'route-create',
+    sourceProvinceId: '110000',
+    destinationProvinceId: '120000',
+    productId: 'wheat',
+    quantity: 1,
+    mode: 'road',
+  }, now + TRANSPORT_MAX_ROUTES_PER_PLAYER + 2);
+  assert.equal(overLimit.ok, false);
+  assert.match(overLimit.message, /路线不能超过/);
+  assert.equal(player.transportRoutes.length, TRANSPORT_MAX_ROUTES_PER_PLAYER);
 });

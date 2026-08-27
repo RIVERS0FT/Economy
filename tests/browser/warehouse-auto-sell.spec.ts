@@ -70,7 +70,7 @@ test.describe('warehouse and market online auto trade responsibilities', () => {
     await expect(trigger).toBeFocused();
   });
 
-  test('province warehouse opens regional commodity detail and keeps transport in its own card', async ({ page }) => {
+  test('province warehouse opens regional commodity detail without transport controls', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 900 });
     await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
     const map = page.getByTestId('us-mainland-map');
@@ -89,10 +89,8 @@ test.describe('warehouse and market online auto trade responsibilities', () => {
     await expect(warehouse.getByText(/实物库存\s+\S+/)).toBeVisible();
     const productCards = warehouse.locator('button.warehouse-product-card');
     expect(await productCards.count()).toBeGreaterThan(0);
-    const transportCard = warehouse.locator('.warehouse-transport-panel');
-    await expect(transportCard).toBeVisible();
-    await expect(transportCard.getByRole('heading', { name: '跨州运输', exact: true })).toBeVisible();
-    await expect(transportCard.locator('.transport-submit')).toBeVisible();
+    await expect(warehouse.locator('.warehouse-transport-panel')).toHaveCount(0);
+    await expect(warehouse.getByRole('heading', { name: '跨州运输', exact: true })).toHaveCount(0);
     await expect(warehouse.getByText('自动交易', { exact: true })).toHaveCount(0);
 
     await productCards.first().click();

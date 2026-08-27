@@ -20849,6 +20849,7 @@
       "targetPrice": 1.2,
       "demandPressureAnchor": 1.2
     },
+    "transportRoutes": [],
     "transportShipments": [],
     "provinceFacilityGroups": {
       "110000": [

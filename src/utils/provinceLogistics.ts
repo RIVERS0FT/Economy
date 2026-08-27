@@ -20,6 +20,7 @@ export const TRANSPORT_MODES: Record<TransportModeId, {
 
 export const TRANSPORT_BASE_SECONDS_PER_KM = 60 / 1000;
 export const TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER = 20;
+export const TRANSPORT_MAX_ROUTES_PER_PLAYER = 50;
 
 function toRadians(value: number) {
   return value * Math.PI / 180;

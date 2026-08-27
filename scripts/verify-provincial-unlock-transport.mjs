@@ -16,6 +16,7 @@ const provinceAccess = read('server/src/province-access.js');
 const transport = read('server/src/transport.js');
 const domain = read('server/src/domain.js');
 const storageV2 = read('server/src/world-storage-v2.js');
+const stateSlices = read('server/shared/economy-state-slices.js');
 const gameRoutes = read('server/src/game-routes.js');
 const populationEconomy = read('server/src/population-economy.js');
 const leaderboards = read('server/src/leaderboards.js');
@@ -24,6 +25,9 @@ const viewModel = read('src/app/gameViewModel.ts');
 const gameApi = read('src/api/game.ts');
 const provincePage = read('src/pages/ProvincePage.tsx');
 const warehousePanel = read('src/components/warehouse/WarehouseInventoryPanel.tsx');
+const transportPage = read('src/pages/TransportPage.tsx');
+const navigation = read('src/config/navigation.ts');
+const pageRouter = read('src/pages/PageRouter.tsx');
 const gameShell = read('src/components/shell/GameShell.tsx');
 const provinceLogistics = read('src/utils/provinceLogistics.ts');
 const provinceAccessTest = existsSync('server/test/province-access.test.js') ? read('server/test/province-access.test.js') : '';
@@ -40,9 +44,12 @@ requireText(warehouseDesign, '固定 100 + 0.0006/单位/公里', '仓库设计�
 requireText(warehouseDesign, '60 秒 / 1,000 公里', '仓库设计必须锁定运输基准时间。');
 requireText(warehouseDesign, '计入运输就业人口收入', '仓库设计必须记录运费计入运输就业。');
 requireText(warehouseDesign, '在途商品按起始州官方系统价计入玩家财富', '仓库设计必须记录在途估值口径。');
+requireText(warehouseDesign, '每名玩家最多保存 50 条运输路线', '仓库设计必须记录路线数量上限。');
+requireText(warehouseDesign, '路线只允许手动发运', '仓库设计必须记录路线不自动循环。');
 requireText(pageDesign, '新玩家首次进入游戏必须先选择起始州', '页面设计必须记录起始州选择流程。');
 requireText(pageDesign, '未解锁州点击后只显示解锁面板', '页面设计必须记录解锁面板。');
-requireText(pageDesign, '跨州运输发货与在途记录唯一显示在仓库分区', '页面设计必须记录运输入口归属。');
+requireText(pageDesign, '跨州运输路线、发运与运输记录唯一显示在独立 `TransportPage`', '页面设计必须记录独立运输入口归属。');
+requireText(pageDesign, '路线只允许玩家手动发运', '页面设计必须锁定路线手动发运边界。');
 requireText(serverDesign, 'transportShipments', '服务器设计必须记录运输记录存储。');
 requireText(orderBookDesign, '运输中的商品按起始州官方系统价计入玩家财富', '订单簿设计必须记录在途估值口径。');
 
@@ -63,12 +70,22 @@ requireText(transport, 'timeFactor: 2.0', '运输模块必须锁定铁路时间�
 requireText(transport, 'timeFactor: 0.25', '运输模块必须锁定航空时间系数。');
 requireText(transport, "creditPopulationEmployment(world, cost, 'transportService')", '运输模块必须把运费计入运输就业。');
 requireText(transport, 'TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER = 20', '运输模块必须锁定在途并发上限。');
+requireText(transport, 'TRANSPORT_MAX_ROUTES_PER_PLAYER = 50', '运输模块必须锁定路线数量上限。');
+requireText(transport, 'applyCreateTransportRoute', '运输模块必须提供路线创建。');
+requireText(transport, 'applyUpdateTransportRoute', '运输模块必须提供路线编辑。');
+requireText(transport, 'applyDeleteTransportRoute', '运输模块必须提供路线删除。');
+requireText(transport, 'applyDispatchTransportRoute', '运输模块必须提供按路线发运。');
+requireText(transport, "payload.operation === 'route-dispatch'", '运输动作必须分发路线发运操作。');
 requireText(domain, "action === 'chooseStartingProvince'", '领域动作必须分发起始州选择。');
 requireText(domain, "action === 'unlockProvince'", '领域动作必须分发州解锁。');
 requireText(domain, "action === 'transportShip'", '领域动作必须分发运输。');
 requireText(domain, 'processTransportWorld(world, now)', '世界推进必须结算到达到期。');
+requireText(domain, 'transportRoutes: transportRouteClientState(world, userId)', '客户端状态必须返回当前玩家路线。');
 requireText(domain, 'provinceUnlockError(player, provinceId)', '商品下单必须校验州解锁。');
 requireText(storageV2, "'transportShipments'", '运输记录必须进入世界顶层 segment。');
+requireText(storageV2, "'transportShip'", '运输动作必须使用局部玩家 Mutation Scope。');
+requireText(stateSlices, "keys: Object.freeze(['transportRoutes'])", '运输路线必须显式归入 player.misc slice。');
+requireText(stateSlices, "keys: Object.freeze(['transportShipments'])", '运输记录必须显式归入 market.misc slice。');
 requireText(gameRoutes, "/api/game/provinces/starting", '游戏路由必须提供起始州选择。');
 requireText(gameRoutes, "/api/game/provinces/unlock", '游戏路由必须提供州解锁。');
 requireText(gameRoutes, "/api/game/transport", '游戏路由必须提供运输。');
@@ -77,26 +94,39 @@ requireText(leaderboards, 'safeNonNegativeInteger(inventory?.inTransit)', '财�
 
 requireText(types, 'startingProvinceId: string;', '客户端类型必须声明起始州。');
 requireText(types, 'unlockedProvinces: string[];', '客户端类型必须声明已解锁州。');
+requireText(types, 'export interface TransportRoute', '客户端类型必须声明运输路线。');
+requireText(types, 'transportRoutes?: TransportRoute[];', '客户端状态必须声明运输路线。');
+requireText(types, 'routeId?: string;', '运输记录必须允许关联路线。');
 requireText(types, 'transportShipments: TransportShipment[];', '客户端类型必须声明运输记录。');
 requireText(types, 'inTransit: number;', '客户端类型必须声明在途库存。');
 requireText(viewModel, 'chooseStartingProvince', '视图模型必须提供起始州选择动作。');
 requireText(viewModel, 'unlockProvince', '视图模型必须提供州解锁动作。');
 requireText(viewModel, 'transportShip', '视图模型必须提供运输动作。');
+for (const action of ['createTransportRoute', 'updateTransportRoute', 'deleteTransportRoute', 'dispatchTransportRoute']) {
+  requireText(viewModel, action, `视图模型必须提供 ${action}。`);
+  requireText(gameApi, action, `游戏 API 必须提供 ${action}。`);
+}
 requireText(gameApi, "/provinces/starting", '游戏 API 必须提供起始州选择端点。');
 requireText(gameApi, "/provinces/unlock", '游戏 API 必须提供州解锁端点。');
 requireText(gameApi, "/transport", '游戏 API 必须提供运输端点。');
 requireText(provincePage, 'province-lock-panel', '州页必须提供解锁面板。');
 requireText(provincePage, 'unlockProvince(model.selectedProvinceId)', '州页解锁按钮必须调用解锁动作。');
-requireText(warehousePanel, 'warehouse-transport-section', '仓库必须提供运输区。');
-requireText(warehousePanel, 'transportShip', '仓库运输表单必须调用运输动作。');
-requireText(warehousePanel, 'warehouse-transport-panel', '跨州运输必须使用独立一级卡片。');
-requireText(warehousePanel, 'transport-shipment-list', '独立跨州运输卡必须显示进行中的运输记录。');
-requireText(warehousePanel, "shipment.status === 'in-transit'", '跨州运输卡必须读取真实在途状态。');
-if (warehousePanel.includes('warehouse-product-card-in-transit')) failures.push('仓库商品卡不得显示在途数量；在途信息唯一归属跨州运输卡。');
+for (const text of ['WarehouseTransportPanel', 'warehouse-transport-panel', 'warehouse-transport-section', 'transportShip', 'transport-shipment-list']) {
+  if (warehousePanel.includes(text)) failures.push(`仓库不得继续承载跨州运输：${text}`);
+}
+if (warehousePanel.includes('warehouse-product-card-in-transit')) failures.push('仓库商品卡不得显示在途数量；在途信息唯一归属运输页。');
+for (const text of ['title="运输"', 'title="运输路线"', 'title="运输记录"', '增加路线', 'createTransportRoute', 'updateTransportRoute', 'deleteTransportRoute', 'dispatchTransportRoute']) {
+  requireText(transportPage, text, `运输页缺少：${text}`);
+}
+requireText(navigation, "{ id: 'transport', label: '运输' }", '一级导航必须包含运输。');
+requireText(pageRouter, "transport: loadTransportPage", '页面路由必须预加载运输页。');
+requireText(pageRouter, "case 'transport':", '页面路由必须渲染运输页。');
+requireText(pageRouter, "transport: ['catalog', 'player.assets', 'player.misc', 'market.misc']", '运输页必须只订阅既有运输相关状态切片。');
 requireText(gameShell, 'starting-province-overlay', '游戏外壳必须提供起始州选择浮层。');
 requireText(provinceLogistics, 'PROVINCE_UNLOCK_BASE_COST = 1500', '客户端物流工具必须与服务器同步基础费用。');
 requireText(provinceLogistics, 'PROVINCE_UNLOCK_COST_PER_500_KM = 300', '客户端物流工具必须与服务器同步距离费用。');
 requireText(provinceLogistics, 'TRANSPORT_BASE_SECONDS_PER_KM = 60 / 1000', '客户端物流工具必须与服务器同步基准时间。');
+requireText(provinceLogistics, 'TRANSPORT_MAX_ROUTES_PER_PLAYER = 50', '客户端物流工具必须同步路线数量上限。');
 
 if (!provinceAccessTest.includes('new player chooses a permanent starting province before economic writes')) {
   failures.push('州访问测试必须覆盖起始州选择。');
@@ -113,6 +143,15 @@ if (!transportTest.includes('arrival processing moves goods into the destination
 if (!transportTest.includes('locked destination rejects transport')) {
   failures.push('运输测试必须覆盖锁定州拒绝。');
 }
+if (!transportTest.includes('transport routes persist without requiring current inventory or funds')) {
+  failures.push('运输测试必须覆盖路线配置与当前库存资金解耦。');
+}
+if (!transportTest.includes('dispatching and deleting a route leaves the shipment in transit')) {
+  failures.push('运输测试必须覆盖删除路线不影响在途运输。');
+}
+if (!transportTest.includes('transport route limit is enforced')) {
+  failures.push('运输测试必须覆盖路线数量上限。');
+}
 
 if (failures.length > 0) {
   console.error('起始州、州解锁与跨州运输验证失败：');
@@ -120,4 +159,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('起始州、州解锁与跨州运输验证通过：永久起始州、货币解锁、三种运输模式参数、运费计入运输就业、在途按起始州官方价估值、锁定州写拒绝与老玩家迁移均已锁定。');
+console.log('起始州、州解锁与跨州运输验证通过：永久起始州、货币解锁、三种运输模式参数、运费计入运输就业、在途按起始州官方价估值、锁定州写拒绝、持久化手动路线、独立运输页与老玩家迁移均已锁定。');
