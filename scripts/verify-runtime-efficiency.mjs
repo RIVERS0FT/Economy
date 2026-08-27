@@ -146,6 +146,10 @@ requireText('server/src/app.js', [
   "userWriteOptions(user, 'state-read-settlement')",
   "errorCode.startsWith('WRITE_QUEUE_')",
   'const registrationActor = `system:registration-retention:',
+  'registrationStore.sessionBootstrapMode(user.id)',
+  "sessionMode === 'existing'",
+  'sessionMetadataWriteOptions(user)',
+  "userWriteOptions(user, 'session-profile-creation')",
   "response.setHeader('Retry-After'",
   'void store.shutdown().then(',
 ]);
@@ -197,6 +201,18 @@ requireText('server/src/facility-groups.js', [
   'const hasSystemFacilityOrder = orders.some',
   'if (!hasSystemFacilityOrder) return world;',
   'orderById(world, payload.orderId)',
+]);
+requireText('server/src/market-demand/signals.js', [
+  'beginPlanningCache',
+  'endPlanningCache',
+  'planningCache = {',
+  'tradeStats: new Map()',
+  'quotes: new Map()',
+]);
+requireText('server/src/market-demand.js', [
+  'signals.beginPlanningCache(world, now);',
+  'signals.endPlanningCache(world);',
+  'provinceWeights ||= populationDemandProvinceWeights(world);',
 ]);
 requireText('server/src/market-demand/state.js', [
   'const missingPlayers = Object.entries(world.players).filter',

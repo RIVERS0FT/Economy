@@ -50,6 +50,10 @@ const userWriteOptions = (user, operation) => ({
   actor: `user:${Number(user.id)}`,
   operation,
 });
+const sessionMetadataWriteOptions = (user) => ({
+  actor: `system:session-metadata:${Number(user.id)}`,
+  operation: 'session-metadata-repair',
+});
 const registrationService = createRegistrationService({
   registrationStore,
   executeWrite: enqueueAuthoritativeWrite,
@@ -206,15 +210,35 @@ const server = createServer(async (request, response) => {
     if (method === 'POST' && path === '/api/game/session') {
       const requestKey = requireIdempotencyKey(request);
       const body = await readJson(request);
-      const session = await enqueueAuthoritativeWrite(userWriteOptions(user, 'session-initialization'), () => (
-        registrationStore.initializeSession({
-          user,
-          ipFingerprint: registrationIpFingerprint(request),
-          inviteCode: body.inviteCode,
-          requestKey,
-        })
-      ));
-      sendJson(response, 200, session);
+      const sessionMode = registrationStore.sessionBootstrapMode(user.id);
+      const startedAt = Date.now();
+      const queueAtStart = store.getAuthoritativeWriteDiagnostics();
+      try {
+        const session = sessionMode === 'existing'
+          ? registrationStore.readExistingSession({ user, inviteCode: body.inviteCode })
+          : await enqueueAuthoritativeWrite(
+            sessionMode === 'metadata-repair'
+              ? sessionMetadataWriteOptions(user)
+              : userWriteOptions(user, 'session-profile-creation'),
+            () => registrationStore.initializeSession({
+              user,
+              ipFingerprint: registrationIpFingerprint(request),
+              inviteCode: body.inviteCode,
+              requestKey,
+            }),
+          );
+        sendJson(response, 200, session);
+      } finally {
+        const totalMs = Math.max(0, Date.now() - startedAt);
+        if (totalMs >= 1_000) {
+          console.warn('ECONOMY_SESSION_SLOW', JSON.stringify({
+            sessionMode,
+            totalMs,
+            queueDepth: Number(queueAtStart.queueDepth || 0),
+            queueRunning: Boolean(queueAtStart.running),
+          }));
+        }
+      }
       return;
     }
 

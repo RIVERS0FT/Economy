@@ -6,6 +6,7 @@ import { INVITATION_REWARD_GEMS } from '../src/invitations.js';
 
 class FakeEconomyStore {
   constructor() {
+    this.loadWorldCalls = 0;
     this.database = new DatabaseSync(':memory:');
     this.database.exec(`
       PRAGMA foreign_keys = ON;
@@ -31,6 +32,7 @@ class FakeEconomyStore {
   }
 
   loadWorld(now) {
+    this.loadWorldCalls += 1;
     const row = this.database.prepare('SELECT revision, state_json FROM economy_world WHERE id = 1').get();
     if (row) {
       const stateJson = String(row.state_json);
@@ -160,15 +162,15 @@ test('existing Economy profile ignores invite parameters and can never be backfi
     context.registrationStore.ensureLoggedInPlayer({ user: user(2), ipFingerprint: 'ip-two', now: now + 1 });
     const inviteCode = context.registrationStore.invitations.ensureInviteCode(1, now).code;
     const before = context.store.loadWorld(now + 2);
+    context.store.loadWorldCalls = 0;
+    assert.equal(context.registrationStore.sessionBootstrapMode(2), 'existing');
 
-    const result = context.registrationStore.initializeSession({
+    const result = context.registrationStore.readExistingSession({
       user: user(2),
-      ipFingerprint: 'ip-two',
       inviteCode,
-      requestKey: 'existing-session-invite-0001',
-      now: now + 3,
     });
 
+    assert.equal(context.store.loadWorldCalls, 0);
     assert.equal(result.playerCreated, false);
     assert.equal(result.invitationBound, false);
     assert.equal(result.invalidInvite, true);

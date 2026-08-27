@@ -120,3 +120,36 @@ test('population demand uses PCE weights to create state-local orders without du
     }
   }
 });
+
+
+test('full 48-state population demand cycle stays below the server timeout budget', () => {
+  const world = createWorld(NOW + 60_000);
+  let userId = 2_000;
+  for (const province of PROVINCE_CATALOG) {
+    const player = ensurePlayer(
+      world,
+      { id: userId, name: province.shortName },
+      NOW + 60_000,
+      { migrate: false },
+    );
+    Object.assign(player, {
+      startingProvinceId: province.id,
+      startingProvinceChosen: true,
+      unlockedProvinces: [province.id],
+    });
+    userId += 1;
+  }
+
+  assert.equal(activePopulationDemandProvinceIds(world).length, 48);
+  const startedAt = performance.now();
+  processMarketDemand(world, NOW + 60_000);
+  const elapsedMs = performance.now() - startedAt;
+  assert.ok(elapsedMs < 8_000, `48-state demand cycle took ${elapsedMs.toFixed(1)}ms`);
+
+  for (const group of Object.values(world.marketDemand.groups)) {
+    assert.equal(Object.keys(group.lastProvinceBudgets || {}).length, 48);
+    const provinceBudget = Object.values(group.lastProvinceBudgets || {})
+      .reduce((sum, amount) => sum + Number(amount || 0), 0);
+    assert.ok(Math.abs(provinceBudget - Number(group.lastBudget || 0)) < 0.00001);
+  }
+});

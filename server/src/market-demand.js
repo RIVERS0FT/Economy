@@ -745,7 +745,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     };
   }
 
-  function processGroup(world, groupId, now) {
+  function processGroup(world, groupId, now, suppliedProvinceWeights = null) {
     const group = groupMap.get(groupId);
     if (!group) return false;
     normalizeWorld(world, now);
@@ -779,69 +779,74 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     const classAllocationByModel = {};
     const classAllocationByProvince = {};
     const derivedRelations = [];
-    const provinceWeights = populationDemandProvinceWeights(world);
+    const provinceWeights = suppliedProvinceWeights || populationDemandProvinceWeights(world);
     const lastProvinceBudgets = Object.fromEntries(provinceWeights.map((row) => [row.provinceId, 0]));
     let cycleBudget = 0;
 
-    for (const modelId of POPULATION_MODEL_IDS) {
-      const modelBudget = roundMoney(Number(populationCycle.groups?.[group.id]?.[modelId] || 0));
-      if (modelBudget <= 0) continue;
-      const stabilizationTotal = roundMoney(Number(populationCycle.baseGroups?.[group.id]?.[modelId] || 0));
-      const employmentTotal = roundMoney(Number(populationCycle.earnedGroups?.[group.id]?.[modelId] || 0));
-      const weightEntries = provinceWeights.map((row) => ({
-        id: row.provinceId,
-        weight: row.weight,
-        maxBudget: modelBudget,
-      }));
-      const stabilizationByProvince = allocateMoneyBudget(weightEntries, stabilizationTotal);
-      const employmentByProvince = allocateMoneyBudget(weightEntries, employmentTotal);
-      for (const province of provinceWeights) {
-        const provinceId = province.provinceId;
-        const stabilizationBudget = roundMoney(stabilizationByProvince.get(provinceId) || 0);
-        const employmentBudget = roundMoney(employmentByProvince.get(provinceId) || 0);
-        const provinceBudget = roundMoney(stabilizationBudget + employmentBudget);
-        if (provinceBudget <= 0) continue;
-        cycleBudget = roundMoney(cycleBudget + provinceBudget);
-        lastProvinceBudgets[provinceId] = roundMoney(
-          Number(lastProvinceBudgets[provinceId] || 0) + provinceBudget,
-        );
-        const directBudget = Math.min(provinceBudget, roundMoney(
-          stabilizationBudget * POPULATION_STABILIZATION_DIRECT_SHARE
-            + employmentBudget * group.directBudgetShare,
-        ));
-        const derivedBudget = roundMoney(provinceBudget - directBudget);
-        const modelState = allocationStateForModel(state, modelId, provinceId);
-        const direct = allocationRuntime.directDemandChoices(world, group, modelState, directBudget, now, {
-          classShares: economicEventClassShares(
+    signals.beginPlanningCache(world, now);
+    try {
+      for (const modelId of POPULATION_MODEL_IDS) {
+        const modelBudget = roundMoney(Number(populationCycle.groups?.[group.id]?.[modelId] || 0));
+        if (modelBudget <= 0) continue;
+        const stabilizationTotal = roundMoney(Number(populationCycle.baseGroups?.[group.id]?.[modelId] || 0));
+        const employmentTotal = roundMoney(Number(populationCycle.earnedGroups?.[group.id]?.[modelId] || 0));
+        const weightEntries = provinceWeights.map((row) => ({
+          id: row.provinceId,
+          weight: row.weight,
+          maxBudget: modelBudget,
+        }));
+        const stabilizationByProvince = allocateMoneyBudget(weightEntries, stabilizationTotal);
+        const employmentByProvince = allocateMoneyBudget(weightEntries, employmentTotal);
+        for (const province of provinceWeights) {
+          const provinceId = province.provinceId;
+          const stabilizationBudget = roundMoney(stabilizationByProvince.get(provinceId) || 0);
+          const employmentBudget = roundMoney(employmentByProvince.get(provinceId) || 0);
+          const provinceBudget = roundMoney(stabilizationBudget + employmentBudget);
+          if (provinceBudget <= 0) continue;
+          cycleBudget = roundMoney(cycleBudget + provinceBudget);
+          lastProvinceBudgets[provinceId] = roundMoney(
+            Number(lastProvinceBudgets[provinceId] || 0) + provinceBudget,
+          );
+          const directBudget = Math.min(provinceBudget, roundMoney(
+            stabilizationBudget * POPULATION_STABILIZATION_DIRECT_SHARE
+              + employmentBudget * group.directBudgetShare,
+          ));
+          const derivedBudget = roundMoney(provinceBudget - directBudget);
+          const modelState = allocationStateForModel(state, modelId, provinceId);
+          const direct = allocationRuntime.directDemandChoices(world, group, modelState, directBudget, now, {
+            classShares: economicEventClassShares(
+              modelId,
+              group.id,
+              populationClassShares(world, modelId, group.id),
+              now,
+            ),
+            provinceId,
+          });
+          persistAllocationState(state, modelId, provinceId, modelState);
+          const derived = allocationRuntime.derivedDemandChoices(world, state, derivedBudget, now, { provinceId });
+          classAllocationByProvince[provinceId] ||= {};
+          classAllocationByProvince[provinceId][modelId] = direct.classAllocation;
+          if (!classAllocationByModel[modelId] || provinceId === DEFAULT_PROVINCE_ID) {
+            classAllocationByModel[modelId] = direct.classAllocation;
+          }
+          derivedRelations.push(...derived.relationDetails.map((relation) => ({
+            ...relation,
+            populationModelId: modelId,
+            provinceId,
+          })));
+          collectChoices(demandPlans, 'direct', direct.productBudgets, direct.productDetails, modelId, provinceId);
+          collectChoices(
+            demandPlans,
+            'derived-liquidity',
+            derived.productBudgets,
+            derived.productDetails,
             modelId,
-            group.id,
-            populationClassShares(world, modelId, group.id),
-            now,
-          ),
-          provinceId,
-        });
-        persistAllocationState(state, modelId, provinceId, modelState);
-        const derived = allocationRuntime.derivedDemandChoices(world, state, derivedBudget, now, { provinceId });
-        classAllocationByProvince[provinceId] ||= {};
-        classAllocationByProvince[provinceId][modelId] = direct.classAllocation;
-        if (!classAllocationByModel[modelId] || provinceId === DEFAULT_PROVINCE_ID) {
-          classAllocationByModel[modelId] = direct.classAllocation;
+            provinceId,
+          );
         }
-        derivedRelations.push(...derived.relationDetails.map((relation) => ({
-          ...relation,
-          populationModelId: modelId,
-          provinceId,
-        })));
-        collectChoices(demandPlans, 'direct', direct.productBudgets, direct.productDetails, modelId, provinceId);
-        collectChoices(
-          demandPlans,
-          'derived-liquidity',
-          derived.productBudgets,
-          derived.productDetails,
-          modelId,
-          provinceId,
-        );
       }
+    } finally {
+      signals.endPlanningCache(world);
     }
 
     materializeChoices(world, group, state, cycleId, now, demandPlans, totals, allocations);
@@ -881,8 +886,11 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
   function process(world, now = Date.now()) {
     normalizeWorld(world, now);
     priceRuntime.processPriceTransmission(world, now);
+    let provinceWeights = null;
     for (const group of MARKET_DEMAND_GROUP_CATALOG) {
-      if (now >= Number(world.marketDemand.groups[group.id].nextDemandAt)) processGroup(world, group.id, now);
+      if (now < Number(world.marketDemand.groups[group.id].nextDemandAt)) continue;
+      provinceWeights ||= populationDemandProvinceWeights(world);
+      processGroup(world, group.id, now, provinceWeights);
     }
     return world;
   }

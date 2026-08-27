@@ -89,6 +89,9 @@ requireText('src/app/App.tsx', [
   '<div className="auth-service-warning" role="alert">',
   '<span>{authError}</span>',
   '<RefreshPageButton />',
+  '<SessionConnectionError',
+  '重新连接',
+  'isUnauthorizedApiError',
 ]);
 requireText('src/api/auth.ts', [
   "const REQUEST_ABORTED_MESSAGE = '连接已中断，请刷新页面后重试';",
@@ -133,6 +136,9 @@ requireText('tests/browser/application-error-state.spec.ts', [
   "not.toContainText('signal is aborted without reason')",
   "expect(geometry.display).toBe('grid')",
   'expect(geometry.refreshWidth).toBe(44)',
+  'session gateway failure keeps the authenticated account and retries only Economy session',
+  "name: '无法连接游戏服务器'",
+  "name: '重新连接'",
 ]);
 requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', [
   '唯一 `FrostedGlassSurface` 的 `authCard` 变体',
@@ -141,6 +147,9 @@ requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', [
   '`src/styles/frosted-glass-surfaces.css`',
   '`44px minmax(0, 1fr) 44px`',
   '`signal is aborted without reason`',
+  '只读快速路径',
+  '无法连接游戏服务器',
+  '只有 session 明确返回 401',
 ]);
 
 if (failures.length) {
