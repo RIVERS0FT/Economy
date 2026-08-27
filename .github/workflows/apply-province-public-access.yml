@@ -30,6 +30,25 @@ jobs:
 
       - name: Apply implementation
         run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply-province-public-access.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''replace_once(
+              'scripts/verify-page-content.mjs',
+              "  '<EmbeddedMarketPage model={model} embedded />',",
+              "  '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />',",
+          )'''.replace('              ', '    ')
+          new = '''replace_expected(
+              'scripts/verify-page-content.mjs',
+              "  '<EmbeddedMarketPage model={model} embedded />',",
+              "  '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />',",
+              2,
+          )'''.replace('              ', '    ')
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one verifier patch block, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
           python3 scripts/apply-province-public-access.py
           git diff --check
 
