@@ -66,7 +66,7 @@ export function createRegistrationService({
       const normalizedEmail = validateRegistrationInput(email);
       await accountAvailabilityChecker({ email: normalizedEmail });
       const writeOptions = {
-        actor: `registration:${String(ipFingerprint).slice(0, 16)}`,
+        actor: `system:registration:${String(ipFingerprint).slice(0, 16)}`,
         operation: 'registration-email-verification',
       };
       const verification = await executeWrite(writeOptions, () => registrationStore.beginEmailVerification({
@@ -98,7 +98,7 @@ export function createRegistrationService({
       const normalizedEmail = validateRegistrationInput(email, password);
       if (!/^\d{6}$/.test(String(code || ''))) throw httpError('请输入 6 位邮箱验证码', 400);
       const writeOptions = {
-        actor: `registration:${String(ipFingerprint).slice(0, 16)}`,
+        actor: `system:registration:${String(ipFingerprint).slice(0, 16)}`,
         operation: 'registration-completion',
       };
       const prepared = await executeWrite(writeOptions, () => registrationStore.prepareEmailCompletion({
