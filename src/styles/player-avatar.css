@@ -2,7 +2,8 @@
   --player-avatar-size: 40px;
   width: var(--player-avatar-size);
   height: var(--player-avatar-size);
-  min-width: var(--player-avatar-size);
+  flex: 0 0 auto;
+  aspect-ratio: 1 / 1;
   display: inline-grid;
   place-items: center;
   overflow: hidden;
