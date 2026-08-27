@@ -49,6 +49,7 @@ check(server.includes('function updatePersonalBest(player, boardId, score, perio
 check(server.includes('currentIsRecord: !state.partial'), 'current-week record status must ignore partial weeks');
 check(server.includes('if (!state.partial)'), 'personal bests must only settle from complete weeks');
 check(!publicEntrySource.includes('activityAt'), 'public leaderboard entries must not expose activity timestamps');
+check(publicEntrySource.includes('userId: Number(entry.userId)'), 'public leaderboard entries must expose stable player ids for avatar lookup');
 check(domain.includes('lastEconomicActivityAt: now'), 'new players must receive an activity baseline');
 check(domain.includes(': player.registeredAt;'), 'legacy players must fall back to registration time');
 check(storage.includes('!isDeepStrictEqual(activePlayer, playerBeforeAction)'), 'no-op ordinary actions must not refresh activity');
@@ -59,6 +60,7 @@ check(runtimeStore.includes('delete stats.leaderboards'), 'ranked leaderboards m
 check(runtimeStore.includes('stableState.leaderboards = leaderboards'), 'ranked leaderboards must be exposed at the top level');
 check(statePartitions.includes("const LEADERBOARD_KEYS = new Set(['leaderboard', 'leaderboards'])"), 'both leaderboard projections must share the leaderboard partition');
 check(!leaderboardTypes.includes('generatedAt?: number'), 'ranked leaderboard types must not expose request-generation time');
+check(leaderboardTypes.includes('userId?: number;'), 'ranked leaderboard client entries must accept player ids for avatars');
 check(leaderboardTypes.includes('game.leaderboards ??'), 'client must read the independent leaderboard partition first');
 check(server.includes("REWARDED_BOARD_IDS = Object.freeze(['growth', 'production', 'trading'])"), 'wealth board must not grant gems');
 check(server.includes("order?.ownerType !== 'player' || order?.side !== 'sell'"), 'trading board must count seller fills only');
@@ -84,6 +86,8 @@ check(page.includes('本期 {periodLabel}；'), 'leaderboard period must remain 
 check(page.includes("board.unit === 'quantity'"), 'leaderboard page must format production as a quantity');
 check(page.includes("if (board.unit === 'quantity') return <CompactNumber value={score} />;"), 'production quantity must render as a plain formatted number');
 check(page.includes('<span>排名</span><span>玩家</span><span>成绩</span><span>奖励</span>'), 'leaderboard rows must expose the four approved columns');
+check(page.includes("import { PlayerAvatar } from '../components/ui/PlayerAvatar';"), 'leaderboard rows must reuse PlayerAvatar');
+check(page.includes('<PlayerAvatar userId={userId} playerName={entry.playerName} size={28} className="leaderboard-avatar" />'), 'leaderboard player column must load real player avatars');
 check(page.includes('className="leaderboard-avatar"'), 'leaderboard rows must render the avatar-name identity column');
 check(page.includes("entry.rewardGems ? <>◆ <CompactNumber value={entry.rewardGems} /></> : '—'"), 'leaderboard reward column must stay present and show a dash when empty');
 check(!page.includes('<p>{board.description}</p>'), 'leaderboard board descriptions must not render below titles');
@@ -102,6 +106,7 @@ check(styles.includes('@container leaderboard-layout (min-width: 72rem)'), 'wide
 check((styles.match(/grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/g) || []).length >= 2, 'switch and wide board grid must both use four columns');
 check(styles.includes('.leaderboard-board-slot:not(.is-selected)'), 'narrow mode must hide unselected boards');
 check(styles.includes('.leaderboard-avatar'), 'leaderboard styles must define the avatar cell');
+check(styles.includes('.leaderboard-avatar:not(.player-avatar)'), 'leaderboard fallback avatar must not override shared PlayerAvatar visuals');
 check(styles.includes('grid-column: 4;'), 'leaderboard reward must occupy the fourth column');
 check(styles.includes('white-space: nowrap;'), 'narrow leaderboard buttons must stay on one line');
 check(!styles.includes('.leaderboard-board-switch {\n    grid-template-columns: repeat(2, minmax(0, 1fr))'), 'leaderboard switch must never wrap into two columns');
@@ -118,6 +123,7 @@ check(navigationDesign.includes('按钮必须强制保持同一行'), 'navigatio
 check(navigationDesign.includes('不显示“首个不完整周不发奖”胶囊'), 'navigation design must record the removed partial-week copy');
 check(navigationDesign.includes('标题栏不得显示周榜起止时间或持续时间胶囊'), 'navigation design must forbid the leaderboard period pill');
 check(navigationDesign.includes('榜单表头和玩家数据行固定为“排名｜玩家｜成绩｜奖励”四列'), 'navigation design must record the four-column single-row leaderboard');
+check(navigationDesign.includes('排行榜玩家列固定复用 `PlayerAvatar`'), 'navigation design must require real player avatars');
 check(navigationDesign.includes('不显示标题下描述或标题右侧“实时／前三名奖励／测试周”等状态胶囊'), 'navigation design must record the simplified board heading');
 check(previewSpec.includes("page.locator('.leaderboard-board-card:visible')).toHaveCount(4)"), 'browser preview must render four visible boards at wide width');
 check(previewSpec.includes("page.locator('.leaderboard-board-card:visible')).toHaveCount(1)"), 'browser preview must render one visible board at narrow width');
