@@ -65,6 +65,9 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
       lastActivePlayerCount: 0,
       lastTradeActivityFactor: 1,
       lastNeedPressure: 1,
+      lastProvinceBudgets: {},
+      populationAllocationState: {},
+      lastClassAllocationByProvince: {},
       lastCommitted: 0,
       directCommitted: 0,
       derivedCommitted: 0,
@@ -158,6 +161,9 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
       state.lastActivePlayerCount = Math.max(0, Math.floor(Number(state.lastActivePlayerCount || 0)));
       state.lastTradeActivityFactor = Number.isFinite(Number(state.lastTradeActivityFactor)) ? Number(state.lastTradeActivityFactor) : 1;
       state.lastNeedPressure = Number.isFinite(Number(state.lastNeedPressure)) ? Number(state.lastNeedPressure) : 1;
+      state.lastProvinceBudgets = state.lastProvinceBudgets && typeof state.lastProvinceBudgets === 'object' ? state.lastProvinceBudgets : {};
+      state.populationAllocationState = state.populationAllocationState && typeof state.populationAllocationState === 'object' ? state.populationAllocationState : {};
+      state.lastClassAllocationByProvince = state.lastClassAllocationByProvince && typeof state.lastClassAllocationByProvince === 'object' ? state.lastClassAllocationByProvince : {};
       state.lastRetainedOrderValue = roundMoney(Math.max(0, Number(state.lastRetainedOrderValue || 0)));
       state.lastOpenOrderValue = roundMoney(Math.max(0, Number(state.lastOpenOrderValue || 0)));
       state.satisfaction = clamp(0, 1, Number(state.satisfaction ?? group.targetSatisfaction));
@@ -213,6 +219,9 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
         state.lastAllocation = {};
         state.lastClassAllocation = {};
         state.lastProductShares = {};
+        state.lastProvinceBudgets = {};
+        state.populationAllocationState = {};
+        state.lastClassAllocationByProvince = {};
         state.directQuoteAnchors = defaultDirectQuoteAnchors(group);
         state.directOversupplyCycles = defaultDirectOversupplyCycles(group);
         state.productBudgetDeficits = { direct: {}, 'derived-liquidity': {} };

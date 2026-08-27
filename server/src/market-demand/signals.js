@@ -3,8 +3,8 @@ import { PRICE_WINDOW_MS } from './catalog.js';
 import { clamp } from './math.js';
 
 export function createMarketSignalRuntime({ marketFor, isOpenOrder }) {
-  function realTradeStats(world, productId, now, windowMs = PRICE_WINDOW_MS) {
-    const points = (marketFor(world, productId, now).priceHistory || []).filter((point) => (
+  function realTradeStats(world, productId, now, windowMs = PRICE_WINDOW_MS, provinceId) {
+    const points = (marketFor(world, productId, now, provinceId).priceHistory || []).filter((point) => (
       Number(point.createdAt || 0) >= now - windowMs
       && (point.takerSide === 'buy' || point.takerSide === 'sell')
       && Number(point.quantity || 0) > 0
@@ -35,8 +35,9 @@ export function createMarketSignalRuntime({ marketFor, isOpenOrder }) {
     };
   }
 
-  function orderBookQuote(world, product, depth, referencePrice) {
+  function orderBookQuote(world, product, depth, referencePrice, provinceId) {
     const asks = iterateOrderBookSide(world, {
+      provinceId,
       assetKind: 'commodity',
       assetId: product.id,
       side: 'sell',
@@ -68,10 +69,10 @@ export function createMarketSignalRuntime({ marketFor, isOpenOrder }) {
     };
   }
 
-  function effectivePrice(world, product, depth, priceState, now) {
+  function effectivePrice(world, product, depth, priceState, now, provinceId) {
     const referencePrice = Math.max(0.01, Number(priceState?.referencePrice || product.basePrice));
-    const quote = orderBookQuote(world, product, depth, referencePrice);
-    const trades = realTradeStats(world, product.id, now);
+    const quote = orderBookQuote(world, product, depth, referencePrice, provinceId);
+    const trades = realTradeStats(world, product.id, now, PRICE_WINDOW_MS, provinceId);
     const vwap = trades.vwap === null ? referencePrice : trades.vwap;
     return {
       ...quote,

@@ -172,7 +172,8 @@ test('facility order transfer preserves the province and client projections stay
   assert.equal(state.provinceFacilityGroups[GEORGIA].some((group) => group.facilityTypeId === 'farm'), true);
   assert.deepEqual(state.provinceFacilityGroups[CALIFORNIA] || [], []);
   assert.equal(Object.hasOwn(state.markets, 'wheat'), true);
-  assert.equal(Object.hasOwn(state.provinceMarkets[GEORGIA] || {}, 'wheat'), false);
+  assert.equal(Object.hasOwn(state.provinceMarkets[GEORGIA] || {}, 'wheat'), true);
+  assert.equal(state.provinceMarkets[GEORGIA].wheat.provinceId, GEORGIA);
   assert.equal(state.orders.filter((order) => order.assetKind === 'facility').every((order) => order.provinceId === GEORGIA), true);
 });
 
