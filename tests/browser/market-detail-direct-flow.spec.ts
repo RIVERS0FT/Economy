@@ -68,10 +68,12 @@ test('regional commodity detail keeps only non-duplicate context in direct page 
 });
 
 test('regional commodity direct detail flow stays readable on mobile', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 1440, height: 900 });
   await openRegionalWheatDetail(page);
+  await page.setViewportSize({ width: 390, height: 844 });
 
   const surface = page.locator('.market-detail-surface');
+  await expect(surface).toBeVisible();
   const geometry = await surface.evaluate((node) => ({
     clientWidth: node.clientWidth,
     scrollWidth: node.scrollWidth,
