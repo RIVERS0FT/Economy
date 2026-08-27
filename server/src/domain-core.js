@@ -17,6 +17,7 @@ import {
   provinceAssetSummaries,
   provinceScopedKey,
   splitProvinceScopedKey,
+  syncDefaultProvinceAlias,
 } from './provinces.js';
 
 export { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
@@ -172,6 +173,7 @@ function marketFor(world, productId, provinceId = DEFAULT_PROVINCE_ID) {
   const key = provinceScopedKey(selectedProvinceId, product.id);
   world.markets[key] ||= createMarket(product, Date.now(), selectedProvinceId);
   installDefaultProvinceAliases(world.markets);
+  if (selectedProvinceId === DEFAULT_PROVINCE_ID) syncDefaultProvinceAlias(world.markets, product.id);
   return world.markets[key];
 }
 

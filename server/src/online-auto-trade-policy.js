@@ -9,7 +9,7 @@ import {
   ensureOnlineAutoSellPolicies,
   normalizeOnlineAutoSellPolicy,
 } from './online-auto-sell-policy.js';
-import { installDefaultProvinceAliases, normalizeProvinceId, provinceScopedKey } from './provinces.js';
+import { normalizeProvinceId, provinceScopedKey, syncDefaultProvinceAlias } from './provinces.js';
 import { provinceUnlockError } from './province-access.js';
 
 const PRODUCT_IDS = new Set(PRODUCT_CATALOG.map((product) => product.id));
@@ -72,8 +72,8 @@ export function applyOnlineAutoTradePolicyAction(world, user, payload = {}) {
 
   buyPolicies[policyKey] = buyPolicy;
   sellPolicies[policyKey] = sellPolicy;
-  player.onlineAutoBuyPolicies = installDefaultProvinceAliases(buyPolicies);
-  player.onlineAutoSellPolicies = installDefaultProvinceAliases(sellPolicies);
+  player.onlineAutoBuyPolicies = syncDefaultProvinceAlias(buyPolicies, productId);
+  player.onlineAutoSellPolicies = syncDefaultProvinceAlias(sellPolicies, productId);
 
   const enabled = [buyPolicy.enabled ? '自动采购' : '', sellPolicy.enabled ? '自动出售' : '']
     .filter(Boolean)

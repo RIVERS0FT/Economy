@@ -113,6 +113,7 @@ jobs:
       - build
       - browser-test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -297,19 +298,23 @@ jobs:
         run: |
           exec > >(tee /tmp/economy-upload.log) 2>&1
           set -euo pipefail
-          rsync -az -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          RSYNC_RSH="ssh -i ~/.ssh/deploy_key -p $SERVER_PORT -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=3"
+          run_rsync() {
+            timeout 300s rsync --timeout=60 -az -e "$RSYNC_RSH" "$@"
+          }
+          run_rsync \
             dist/assets/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy/assets/"
-          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          run_rsync --delete \
             --exclude assets/ \
             --exclude index.html \
             dist/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy/"
-          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          run_rsync --delete \
             shared/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/shared/"
-          rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          run_rsync --delete-before \
             --exclude runtime/ \
             server/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy-api/"
           if [ "$RUNTIME_UPLOAD" = "true" ]; then
-            rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+            run_rsync --delete-before \
               /tmp/economy-node-runtime/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy-api/runtime/"
           else
             echo "ECONOMY_NODE_RUNTIME_UPLOAD_SKIPPED"
@@ -371,9 +376,11 @@ jobs:
         run: |
           exec > >(tee /tmp/economy-publish-entry.log) 2>&1
           set -euo pipefail
-          rsync -az -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          RSYNC_RSH="ssh -i ~/.ssh/deploy_key -p $SERVER_PORT -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=3"
+          timeout 120s rsync --timeout=60 -az -e "$RSYNC_RSH" \
             dist/index.html "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy/index.html.next"
-          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" 'bash -s' <<'REMOTE'
+          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=3 \
+            "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP" 'bash -s' <<'REMOTE'
           set -euo pipefail
           test -s /var/www/game/economy/index.html.next
           mv -f /var/www/game/economy/index.html.next /var/www/game/economy/index.html

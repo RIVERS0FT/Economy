@@ -83,7 +83,8 @@ requireText('scripts/configure-economy-static-cache.py', [
 ]);
 requireText('.github/workflows/deploy.yml', [
   'scripts/configure-economy-static-cache.py',
-  'rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT"',
+  'timeout 300s rsync --timeout=60 -az -e "$RSYNC_RSH" "$@"',
+  'run_rsync --delete \\\n            --exclude assets/',
   'dist/assets/ "$SERVER_USER@$ECONOMY_PRODUCTION_PUBLIC_IP:/var/www/game/economy/assets/"',
   '--exclude assets/',
   '--exclude index.html',

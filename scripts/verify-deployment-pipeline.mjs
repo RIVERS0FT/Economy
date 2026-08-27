@@ -133,7 +133,11 @@ requireText('  browser-test:\n', '部署工作流必须保留独立 browser-test
 requireText('      fail-fast: false\n', '浏览器分片必须允许其他 shard 完成以保留完整诊断');
 requireText('        shard: [1, 2, 3, 4]\n', '浏览器回归必须固定为四个 shard');
 requireText('npm run test:browser -- --shard=${{ matrix.shard }}/4', '浏览器验证必须按四分片执行完整 Playwright 集合');
-requireText('  deploy:\n    needs:\n      - build\n      - browser-test\n', '生产部署必须等待 build 与全部 browser shard 成功');
+requireText('  deploy:\n    needs:\n      - build\n      - browser-test\n    runs-on: ubuntu-latest\n    timeout-minutes: 20\n', '生产部署必须等待 build 与全部 browser shard 成功并保留整体超时边界');
+requireText('timeout 300s rsync --timeout=60 -az -e "$RSYNC_RSH"', '生产主体文件同步必须同时具备 rsync I/O 超时与外层命令超时');
+requireText('ServerAliveInterval=10', '生产文件同步 SSH 必须定期发送 keepalive');
+requireText('ServerAliveCountMax=3', '生产文件同步 SSH 必须在 keepalive 失联后有限失败');
+requireText('timeout 120s rsync --timeout=60 -az -e "$RSYNC_RSH"', '入口 HTML 发布同步必须具备独立有限超时');
 requireText('npm run build', 'build 验证 Job 必须执行完整 npm run build');
 requireText('npm run generate:artwork', '部署 Job 必须从同一源码 SHA 重新生成运行时美术资产');
 requireText('./node_modules/.bin/tsc', '部署 Job 必须在上传前执行 TypeScript 生产构建检查');
@@ -157,6 +161,7 @@ requireDesignText('同步 `server/` 时必须排除 `runtime/`', '权威部署�
 requireDesignText('完全匹配时必须复用且不得重新下载或上传', '权威部署设计必须记录 Node runtime 精确匹配复用');
 requireDesignText('已通过精确校验时复用服务器现有运行时', '权威部署设计必须记录运行时部署包条件');
 requireDesignText('Nginx 头像 `location ~` 正则包含 `{m,n}` 量词，必须整体使用引号包裹', '权威部署设计必须记录头像正则的 Nginx 引用规则');
+requireDesignText('生产文件同步必须同时受 deploy Job 20 分钟整体上限、单次 rsync 300 秒外层上限、60 秒 I/O 无进展上限与 SSH keepalive 约束', '权威部署设计必须记录文件同步的有限失败边界');
 
 const browserIndex = workflow.indexOf('  browser-test:\n');
 const deployIndex = workflow.indexOf('  deploy:\n');

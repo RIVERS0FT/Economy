@@ -59,7 +59,7 @@ if (failures.length === 0) {
   }
 
   const workflow = read(files.workflow);
-  const deleteBeforeCount = (workflow.match(/rsync -az --delete-before/g) ?? []).length;
+  const deleteBeforeCount = (workflow.match(/run_rsync --delete-before/g) ?? []).length;
   if (deleteBeforeCount !== 2) {
     failures.push(`部署工作流必须只为 API 代码与按需更新的便携 Node 运行时保留 2 处 rsync --delete-before，当前为 ${deleteBeforeCount}`);
   }
