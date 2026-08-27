@@ -361,7 +361,7 @@ requireText(files.design, [
   '“教程／进行中／关注／公开经济事件”四个可折叠分区',
   '整个追踪器只有 `.strategic-outliner__scroll` 一个纵向滚动根',
   'Outliner 变体不得带独立 `.panel` 外壳',
-  '六个 `fullscreen` 页面在桌面端隐藏同一追踪器',
+  '七个 `fullscreen` 页面在桌面端隐藏同一追踪器',
   '不得提供追踪器整体横向展开／收起按钮',
   '`721px–1439px` 普通页面不预留伪收起轨道',
   '同一个 `StrategicOutliner` DOM 仅呈现“教程”分区',

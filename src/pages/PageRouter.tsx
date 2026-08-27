@@ -23,6 +23,7 @@ const loadMapPage = cachedLoader(() => import('./MapPage'));
 const loadOverviewPage = cachedLoader(() => import('./OverviewPage'));
 const loadProvincePage = cachedLoader(() => import('./ProvincePage'));
 const loadGlobalBuildingsPage = cachedLoader(() => import('./GlobalBuildingsPage'));
+const loadTransportPage = cachedLoader(() => import('./TransportPage'));
 const loadResearchPage = cachedLoader(() => import('./ResearchPage'));
 const loadGemShopPage = cachedLoader(() => import('./GemShopPage'));
 const loadSettingsPage = cachedLoader(() => import('./SettingsPage'));
@@ -33,6 +34,7 @@ const pagePreloaders: Record<TabId, () => Promise<unknown>> = {
   province: loadProvincePage,
   market: loadGlobalMarketPage,
   buildings: loadGlobalBuildingsPage,
+  transport: loadTransportPage,
   research: loadResearchPage,
   auction: loadAuctionPage,
   contracts: loadContractPage,
@@ -65,6 +67,7 @@ const PAGE_AUTHORITY_DEPENDENCIES: Record<TabId, readonly StateAuthorityDependen
     'market.quotes',
     'contract',
   ],
+  transport: ['catalog', 'player.assets', 'player.misc', 'market.misc'],
   research: ['catalog', 'player.assets', 'player.production', 'player.progression', 'market.quotes'],
   auction: ['catalog', 'player.assets', 'player.production', 'auction'],
   contracts: ['catalog', 'player.assets', 'player.production', 'market.quotes', 'contract'],
@@ -87,6 +90,7 @@ const MapPage = lazy(() => import('./MapPage').then((module) => ({ default: modu
 const OverviewPage = lazy(() => import('./OverviewPage').then((module) => ({ default: module.OverviewPage })));
 const ProvincePage = lazy(() => import('./ProvincePage').then((module) => ({ default: module.ProvincePage })));
 const GlobalBuildingsPage = lazy(() => import('./GlobalBuildingsPage').then((module) => ({ default: module.GlobalBuildingsPage })));
+const TransportPage = lazy(() => import('./TransportPage').then((module) => ({ default: module.TransportPage })));
 const ResearchPage = lazy(() => import('./ResearchPage').then((module) => ({ default: module.ResearchPage })));
 const GemShopPage = lazy(() => import('./GemShopPage').then((module) => ({ default: module.GemShopPage })));
 const SettingsPage = lazy(() => import('./SettingsPage').then((module) => ({ default: module.SettingsPage })));
@@ -127,6 +131,9 @@ export function PageRouter({ model }: { model: OnlineAutoTradeAwareGameViewModel
           <GlobalBuildingsPage model={model} />
         </FacilityRecipeProfitMarketsProvider>
       );
+      break;
+    case 'transport':
+      renderPage = () => <TransportPage model={model} />;
       break;
     case 'research':
       renderPage = () => <ResearchPage model={model} />;

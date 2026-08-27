@@ -30,6 +30,7 @@ import type {
   OrderStatus,
   TradeRecord,
   ProvinceDefinition,
+  TransportModeId,
 } from '../types';
 import { canAcceptRevision } from './revisionGate.js';
 import type { StatePartitionName } from './stateDelivery.js';
@@ -149,8 +150,24 @@ export interface LoadedGameViewModel {
     destinationProvinceId: string;
     productId: string;
     quantity: number;
-    mode: 'road' | 'rail' | 'air';
+    mode: TransportModeId;
   }) => Promise<ActionResult>;
+  createTransportRoute: (input: {
+    sourceProvinceId: string;
+    destinationProvinceId: string;
+    productId: string;
+    quantity: number;
+    mode: TransportModeId;
+  }) => Promise<ActionResult>;
+  updateTransportRoute: (routeId: string, input: {
+    sourceProvinceId: string;
+    destinationProvinceId: string;
+    productId: string;
+    quantity: number;
+    mode: TransportModeId;
+  }) => Promise<ActionResult>;
+  deleteTransportRoute: (routeId: string) => Promise<ActionResult>;
+  dispatchTransportRoute: (routeId: string) => Promise<ActionResult>;
   bankDeposit: (amount: number) => Promise<ActionResult>;
   bankWithdraw: (amount: number) => Promise<ActionResult>;
   bankBorrow: (amount: number, collateral: Array<{ provinceId: string; facilityTypeId: string; quantity: number }>, autoRepay?: boolean) => Promise<ActionResult>;
@@ -556,6 +573,10 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     chooseStartingProvince: (provinceId) => runAction('chooseStartingProvince', () => gameActions.chooseStartingProvince(provinceId)),
     unlockProvince: (provinceId) => runAction('unlockProvince', () => gameActions.unlockProvince(provinceId)),
     transportShip: (input) => runAction('transportShip', () => gameActions.transportShip(input)),
+    createTransportRoute: (input) => runAction('transportShip', () => gameActions.createTransportRoute(input)),
+    updateTransportRoute: (routeId, input) => runAction('transportShip', () => gameActions.updateTransportRoute(routeId, input)),
+    deleteTransportRoute: (routeId) => runAction('transportShip', () => gameActions.deleteTransportRoute(routeId)),
+    dispatchTransportRoute: (routeId) => runAction('transportShip', () => gameActions.dispatchTransportRoute(routeId)),
     bankDeposit: (amount) => runAction('bankDeposit', () => gameActions.bankDeposit(amount)),
     bankWithdraw: (amount) => runAction('bankWithdraw', () => gameActions.bankWithdraw(amount)),
     bankBorrow: (amount, collateral, autoRepay = true) => runAction('bankBorrow', () => gameActions.bankBorrow(amount, collateral, autoRepay)),

@@ -33,6 +33,7 @@ export const TRANSPORT_MODES = Object.freeze({
 });
 export const TRANSPORT_BASE_SECONDS_PER_KM = 60 / 1000;
 export const TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER = 20;
+export const TRANSPORT_MAX_ROUTES_PER_PLAYER = 50;
 export const TRANSPORT_HISTORY_PER_PLAYER = 30;
 
 const PRODUCT_IDS = new Set(PRODUCT_CATALOG.map((product) => product.id));
@@ -58,7 +59,84 @@ function inTransitCountFor(world, playerId) {
   )).length;
 }
 
-export function applyTransportShip(world, user, payload = {}, now = Date.now()) {
+function normalizedRouteInput(player, payload = {}) {
+  const sourceProvinceId = normalizeProvinceId(payload.sourceProvinceId);
+  const destinationProvinceId = normalizeProvinceId(payload.destinationProvinceId);
+  const productId = PRODUCT_IDS.has(String(payload.productId || '')) ? String(payload.productId) : null;
+  const mode = TRANSPORT_MODES[payload.mode] ? String(payload.mode) : null;
+  const quantity = Math.floor(Number(payload.quantity));
+  if (!productId || !mode) return { ok: false, message: '运输路线参数无效' };
+  if (sourceProvinceId === destinationProvinceId) return { ok: false, message: '起止州不能相同' };
+  if (!isProvinceUnlocked(player, sourceProvinceId)) return { ok: false, message: '起始州尚未解锁' };
+  if (!isProvinceUnlocked(player, destinationProvinceId)) return { ok: false, message: '目的州尚未解锁' };
+  if (!Number.isSafeInteger(quantity) || quantity <= 0) {
+    return { ok: false, message: '运输数量必须是不低于 1 的整数' };
+  }
+  if (quantity > TRANSPORT_MODES[mode].capacity) {
+    return { ok: false, message: `${TRANSPORT_MODES[mode].name}单次最多运输 ${TRANSPORT_MODES[mode].capacity} 个` };
+  }
+  return {
+    ok: true,
+    route: {
+      sourceProvinceId,
+      destinationProvinceId,
+      productId,
+      quantity,
+      mode,
+    },
+  };
+}
+
+function playerTransportRoutes(player) {
+  return Array.isArray(player?.transportRoutes) ? player.transportRoutes : [];
+}
+
+function findPlayerRoute(player, routeId) {
+  const id = String(routeId || '');
+  return playerTransportRoutes(player).find((route) => String(route?.id || '') === id) || null;
+}
+
+export function applyCreateTransportRoute(world, user, payload = {}, now = Date.now()) {
+  const player = world.players?.[String(user.id)];
+  if (!player) return { ok: false, message: '玩家状态无效' };
+  const routes = playerTransportRoutes(player);
+  if (routes.length >= TRANSPORT_MAX_ROUTES_PER_PLAYER) {
+    return { ok: false, message: `运输路线不能超过 ${TRANSPORT_MAX_ROUTES_PER_PLAYER} 条` };
+  }
+  const normalized = normalizedRouteInput(player, payload);
+  if (!normalized.ok) return normalized;
+  player.transportRoutes = [...routes, {
+    id: `transport-route-${randomUUID()}`,
+    ...normalized.route,
+    createdAt: now,
+    updatedAt: now,
+  }];
+  return { ok: true, message: '运输路线已创建' };
+}
+
+export function applyUpdateTransportRoute(world, user, payload = {}, now = Date.now()) {
+  const player = world.players?.[String(user.id)];
+  if (!player) return { ok: false, message: '玩家状态无效' };
+  const route = findPlayerRoute(player, payload.routeId);
+  if (!route) return { ok: false, message: '运输路线不存在' };
+  const normalized = normalizedRouteInput(player, payload);
+  if (!normalized.ok) return normalized;
+  Object.assign(route, normalized.route, { updatedAt: now });
+  return { ok: true, message: '运输路线已更新' };
+}
+
+export function applyDeleteTransportRoute(world, user, payload = {}) {
+  const player = world.players?.[String(user.id)];
+  if (!player) return { ok: false, message: '玩家状态无效' };
+  const routes = playerTransportRoutes(player);
+  const routeId = String(payload.routeId || '');
+  const index = routes.findIndex((route) => String(route?.id || '') === routeId);
+  if (index < 0) return { ok: false, message: '运输路线不存在' };
+  player.transportRoutes = routes.filter((_, routeIndex) => routeIndex !== index);
+  return { ok: true, message: '运输路线已删除' };
+}
+
+function applyTransportShipment(world, user, payload = {}, now = Date.now(), { routeId = null } = {}) {
   const player = world.players?.[String(user.id)];
   if (!player) return { ok: false, message: '玩家状态无效' };
   const sourceProvinceId = normalizeProvinceId(payload.sourceProvinceId);
@@ -94,6 +172,7 @@ export function applyTransportShip(world, user, payload = {}, now = Date.now()) 
   world.transportShipments.push({
     id: `transport-${randomUUID()}`,
     ownerId: Number(user.id),
+    ...(routeId ? { routeId } : {}),
     sourceProvinceId,
     destinationProvinceId,
     productId,
@@ -109,6 +188,22 @@ export function applyTransportShip(world, user, payload = {}, now = Date.now()) 
     ok: true,
     message: `已通过${TRANSPORT_MODES[mode].name}发运 ${quantity} 个${product?.name || productId}，预计 ${Math.ceil((arrivesAt - now) / 1000)} 秒后到达${destinationProvinceId}`,
   };
+}
+
+export function applyDispatchTransportRoute(world, user, payload = {}, now = Date.now()) {
+  const player = world.players?.[String(user.id)];
+  if (!player) return { ok: false, message: '玩家状态无效' };
+  const route = findPlayerRoute(player, payload.routeId);
+  if (!route) return { ok: false, message: '运输路线不存在' };
+  return applyTransportShipment(world, user, route, now, { routeId: route.id });
+}
+
+export function applyTransportShip(world, user, payload = {}, now = Date.now()) {
+  if (payload.operation === 'route-create') return applyCreateTransportRoute(world, user, payload, now);
+  if (payload.operation === 'route-update') return applyUpdateTransportRoute(world, user, payload, now);
+  if (payload.operation === 'route-delete') return applyDeleteTransportRoute(world, user, payload);
+  if (payload.operation === 'route-dispatch') return applyDispatchTransportRoute(world, user, payload, now);
+  return applyTransportShipment(world, user, payload, now);
 }
 
 export function processTransportWorld(world, now = Date.now()) {
@@ -157,12 +252,36 @@ export function nextTransportDeadline(world) {
   return deadline;
 }
 
+export function transportRouteClientState(world, userId) {
+  const player = world.players?.[String(userId)];
+  const routes = Array.isArray(player?.transportRoutes) ? player.transportRoutes : [];
+  return routes.map((route) => ({
+    id: String(route.id || ''),
+    sourceProvinceId: normalizeProvinceId(route.sourceProvinceId),
+    destinationProvinceId: normalizeProvinceId(route.destinationProvinceId),
+    productId: String(route.productId || ''),
+    quantity: Math.max(0, Math.floor(Number(route.quantity) || 0)),
+    mode: String(route.mode || ''),
+    createdAt: Number(route.createdAt || 0),
+    updatedAt: Number(route.updatedAt || route.createdAt || 0),
+  })).filter((route) => (
+    route.id
+    && route.sourceProvinceId !== route.destinationProvinceId
+    && PRODUCT_IDS.has(route.productId)
+    && Boolean(TRANSPORT_MODES[route.mode])
+    && Number.isSafeInteger(route.quantity)
+    && route.quantity >= 1
+    && route.quantity <= TRANSPORT_MODES[route.mode].capacity
+  ));
+}
+
 export function transportShipmentClientState(world, userId) {
   const own = (world.transportShipments || []).filter((shipment) => (
     Number(shipment.ownerId) === Number(userId)
   ));
   return own.map((shipment) => ({
     id: shipment.id,
+    ...(shipment.routeId ? { routeId: shipment.routeId } : {}),
     sourceProvinceId: shipment.sourceProvinceId,
     destinationProvinceId: shipment.destinationProvinceId,
     productId: shipment.productId,

@@ -45,7 +45,8 @@
 | `src/styles/industry-system.css` | 工厂、建设列、自适应同行等高卡片与生产密度 |
 | `src/styles/facility-group-card-grid.css` | 生产主从布局、工厂集群详情内部排列和“生产产物／作业制度”横向 Auto 槽位布局 |
 | `src/styles/facility-production-formula.css` | 工厂集群生产结算的输入侧周期成本、物资槽、流向进度、范围标识和响应式布局 |
-| `src/styles/warehouse-expansion.css` | 州级可钻取仓库商品网格、独立跨州运输卡、地区商品详情自动交易控制、容器查询、紧凑商品卡和移动自动交易入口布局 |
+| `src/styles/warehouse-expansion.css` | 州级可钻取仓库商品网格、地区商品详情自动交易控制、容器查询、紧凑商品卡和移动自动交易入口布局 |
+| `src/styles/transport-page.css` | 独立运输页的路线编辑、路线卡、在途／最近完成记录与响应式布局 |
 | `src/styles/production-surface.css` | 建筑页建设卡和工厂详情的标题轨道、名称下状态与紧凑开关；不得定义一级卡片外层内边距 |
 | `src/styles/regional-entity-page-title.css` | 地区商品／工厂详情共享两行标题：实体主标题、灰色地区副标题，以及不改变固定标题区高度的溢出规则 |
 | `src/styles/auth.css` | 登录布局、动态视口与认证自动填充兼容例外 |
@@ -433,7 +434,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 桌面 Tooltip 继续使用 `.ui-tooltip-surface` 的统一毛玻璃材质，并显示本地库存、工厂、运行中与本地挂单；未解锁州明确标注“未解锁”。不大于 `720px` 时地图 Tooltip 必须禁用并隐藏，触摸州面直接打开州级上下文页。地图容器继续提供“美国本土州级经营地图”可访问名称与可读摘要。`MapPage` 只保留透明路由占位；市场、建筑和其他业务页面不得恢复地区下拉框、第二张地图或平行选择状态。
 - 性能回归必须验证实际热路径：缩放／平移前后的 48 条 path `d` 与州名基础 glyph transform 保持不变；州面和州名都能追溯到同一个 `.province-map-camera-surface`；同一任务内的多次滚轮输入在下一绘制帧只增加一次 camera write；放大使外围州离开屏幕后，缩小且 `data-map-zoom-active="true"` 时外围州已经重新进入且州名中心仍命中对应 path。不得用最终 settle 后才恢复、隐藏屏外州、永久 `will-change`、第二套相机或 ECharts Map 规避检查。
 - 玩家端仍采用大战略游戏式常驻地图工作台：图片层 `0`、氛围层 `10`、地图层 `20`、UI 层 `30`，`.application-map-layer` 通过同一个 Portal 持有唯一 `StrategicMapStage` 和 `StrategicMapLensBar`。业务页面和通知仍位于更高 UI 层；不大于 `720px` 时镜头栏隐藏。地图数据只用于游戏经营地区视觉，不用于现实测绘、导航或法律边界声明；既有 34 个地区 ID 与新增 14 个州 ID 必须继续稳定对应现有资产。
-- 外壳页面模式继续保持既有职责：概览、州级上下文、市场、建筑、设置使用 `building` 左侧毛玻璃面板；研发、拍卖、合同、银行、排行榜、商店使用 `fullscreen` 占满可用区域。为保证根层毛玻璃开放采样和静态地图合成相机不被额外 stacking context 截断，`.application-map-layer`、`.application-ui-layer` 与 `.workspace-strategic-chrome` 必须保持 `isolation:auto`；不得恢复隔离层。
+- 外壳页面模式继续保持既有职责：概览、州级上下文、市场、建筑、设置使用 `building` 左侧毛玻璃面板；运输、研发、拍卖、合同、银行、排行榜、商店使用 `fullscreen` 占满可用区域。为保证根层毛玻璃开放采样和静态地图合成相机不被额外 stacking context 截断，`.application-map-layer`、`.application-ui-layer` 与 `.workspace-strategic-chrome` 必须保持 `isolation:auto`；不得恢复隔离层。
 
 ## 9. 目录型横向导航
 
@@ -530,7 +531,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 技术枚举必须转换为中文。
 - 时间使用秒、分钟、小时。
 - 玩家状态栏身份轨道第一行固定为“金融帝国”，第二行显示玩家用户名；身份槽固定使用共享 `PlayerAvatar` 玩家头像，点击或键盘激活身份控件进入设置页；宽屏显示完整文字，紧凑桌面和移动端可隐藏文字，但必须保持头像与五项状态数据可读。
-- 正式导航名称固定为“概览｜市场｜建筑｜研发｜拍卖｜合同｜银行｜排行｜商店｜设置”。资产总览唯一归属银行，不得恢复独立资产导航。
+- 正式导航名称固定为“概览｜市场｜建筑｜运输｜研发｜拍卖｜合同｜银行｜排行｜商店｜设置”。资产总览唯一归属银行，不得恢复独立资产导航。
 - 建筑页 `PageLayout` 主标题固定为“{州级地区全称}建筑”，路由 ID 固定为 `buildings`；建设卡和工厂类型业务名称继续使用“工厂”。
 - 普通玩家页面的 `.page-card-scroll` 是页面主体纵向滚动容器；外层 `.page-scroll` 不滚动玩家正文。研发页使用 `.page-card-static` 固定工作区且页面自身不滚动；窗口化记录视口只负责对应高增长列表。
 - 移动状态栏和底栏必须使用 `safe-area-inset-*`。

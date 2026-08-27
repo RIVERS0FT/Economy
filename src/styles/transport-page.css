@@ -1,0 +1,177 @@
+.transport-route-editor,
+.transport-routes-panel,
+.transport-records-panel {
+  min-width: 0;
+}
+
+.transport-route-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.transport-route-estimate,
+.transport-route-meta {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.transport-route-estimate {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: var(--space-4);
+}
+
+.transport-route-estimate > span,
+.transport-route-meta > span {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.transport-route-estimate small,
+.transport-route-meta small {
+  color: var(--color-text-muted);
+}
+
+.transport-route-editor-actions,
+.transport-route-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.transport-route-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: var(--space-3);
+}
+
+.transport-route-card {
+  min-width: 0;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  padding: var(--space-4);
+  background: var(--color-surface-subtle);
+}
+
+.transport-route-card-heading,
+.transport-route-product,
+.transport-route-path,
+.transport-record-route {
+  display: flex;
+  align-items: center;
+}
+
+.transport-route-card-heading,
+.transport-route-product {
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.transport-route-path,
+.transport-record-route {
+  min-width: 0;
+  gap: var(--space-2);
+}
+
+.transport-route-path strong,
+.transport-record-route strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transport-route-path svg,
+.transport-record-route svg {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+}
+
+.transport-route-product {
+  margin-top: var(--space-3);
+}
+
+.transport-route-product > span {
+  color: var(--color-text-muted);
+}
+
+.transport-route-meta {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: var(--space-3);
+}
+
+.transport-empty-state {
+  min-height: 150px;
+}
+
+.transport-record-section + .transport-record-section {
+  margin-top: var(--space-5);
+}
+
+.transport-record-section > h3 {
+  margin: 0 0 var(--space-2);
+  font-size: .9rem;
+}
+
+.transport-record-list {
+  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+}
+
+.transport-record-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(120px, .8fr) minmax(110px, .6fr) minmax(110px, .6fr);
+  align-items: center;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--color-divider);
+  padding: var(--space-2) 0;
+}
+
+.transport-record-row:last-child {
+  border-bottom: 0;
+}
+
+.transport-record-time {
+  justify-self: end;
+  color: var(--color-text-muted);
+}
+
+.transport-empty {
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .transport-route-editor-grid,
+  .transport-route-estimate,
+  .transport-route-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .transport-route-editor-actions,
+  .transport-route-card-actions {
+    flex-wrap: wrap;
+  }
+
+  .transport-route-card-actions > .ui-button {
+    flex: 1 1 auto;
+  }
+
+  .transport-record-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2);
+  }
+
+  .transport-record-route {
+    grid-column: 1 / -1;
+  }
+
+  .transport-record-time {
+    justify-self: end;
+  }
+}

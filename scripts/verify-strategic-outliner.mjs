@@ -96,10 +96,10 @@ requireText(browserSpec, 'toBeCloseTo(8, 0)', '浏览器回归必须验证 fulls
 requireText(pageDesign, '战略追踪器', '页面权威设计必须记录战略追踪器规则');
 requireText(pageDesign, '页面路由生命周期解耦', '页面权威设计必须锁定追踪器与页面生命周期解耦');
 requireText(pageDesign, '不得提供整体横向展开／收起按钮', '页面权威设计必须锁定无整体横向收起按钮');
-requireText(pageDesign, '六个 `fullscreen` 页面在桌面端隐藏同一追踪器 DOM', '页面权威设计必须锁定 fullscreen 隐藏同一追踪器 DOM');
+requireText(pageDesign, '七个 `fullscreen` 页面在桌面端隐藏同一追踪器 DOM', '页面权威设计必须锁定 fullscreen 隐藏同一追踪器 DOM');
 requireText(chromeDesign, '战略追踪器', '外壳权威设计必须记录战略追踪器几何');
 requireText(chromeDesign, '不得提供追踪器整体横向展开／收起按钮', '外壳权威设计必须锁定无整体横向收起按钮');
-requireText(chromeDesign, '六个 `fullscreen` 页面在桌面端隐藏同一追踪器', '外壳权威设计必须锁定 fullscreen 隐藏同一追踪器');
+requireText(chromeDesign, '七个 `fullscreen` 页面在桌面端隐藏同一追踪器', '外壳权威设计必须锁定 fullscreen 隐藏同一追踪器');
 requireText(integrityDesign, '展示层缺省归一化', '概览布局权威设计必须锁定战略追踪器缺省子投影的安全降级规则');
 requireText(integrityDesign, '不得写回权威状态、伪造经济值或中断整个 React 外壳挂载', '缺省投影规则必须限制为展示层兼容而非权威状态替代');
 

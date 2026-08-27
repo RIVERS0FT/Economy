@@ -16,7 +16,7 @@ try {
   const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
   for (const text of [
     'all-pages-preview.html',
-    '必须复用正式 `GameShell`、`PageRouter`、十项可见导航和上述十一个正式 React 页面',
+    '必须复用正式 `GameShell`、`PageRouter`、十一项可见导航和上述十二个正式 React 页面',
     '所有 `/economy-api` 写请求必须在浏览器本地拦截且不得到达服务器',
   ]) {
     assert.ok(pageDesign.includes(text), `免登录完整游戏预览权威设计缺少: ${text}`);

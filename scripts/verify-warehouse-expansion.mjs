@@ -33,6 +33,7 @@ for (const path of [
   'src/components/ui/MobileWorkspaceDetailSheet.tsx',
   'src/components/market/MarketAutoTradePanel.tsx',
   'src/components/warehouse/WarehouseInventoryPanel.tsx',
+  'src/pages/TransportPage.tsx',
   'src/pages/MarketPage.tsx',
   'src/pages/OverviewPage.tsx',
   'src/pages/BuildingsPage.tsx',
@@ -66,10 +67,8 @@ for (const text of [
 for (const text of [
   'WarehouseInventoryPanel',
   'WarehouseInventoryGrid',
-  'WarehouseTransportPanel',
   'data-ui-interactive="surface"',
   'onOpenProduct?.(product.id)',
-  'warehouse-transport-panel',
   'warehouse-heading-actions',
   '<StatusTag tone="neutral">无限容量</StatusTag>',
   'title="仓库内容"',
@@ -77,8 +76,28 @@ for (const text of [
   '仓库中暂无商品',
   '通过生产或市场交易获得商品后，会在这里按州级库存显示。',
 ]) requireText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);
-for (const text of ['共享仓库', 'warehouse-product-card--readonly']) {
+for (const text of [
+  '共享仓库',
+  'warehouse-product-card--readonly',
+  'WarehouseTransportPanel',
+  'warehouse-transport-panel',
+  'warehouse-transport-section',
+  'transportShip',
+  'transport-shipment-list',
+]) {
   forbidText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);
+}
+for (const text of [
+  '.warehouse-transport-panel',
+  '.warehouse-transport-section',
+  '.transport-dispatch-grid',
+  '.transport-estimate',
+  '.transport-shipment-row',
+]) {
+  forbidText('src/styles/warehouse-expansion.css', text);
+}
+for (const text of ['title="运输"', 'title="运输路线"', 'title="运输记录"', '增加路线']) {
+  requireText('src/pages/TransportPage.tsx', text);
 }
 for (const text of [
   'autoTrade.buyPolicyFor(product.id)',
@@ -138,6 +157,8 @@ for (const text of [
   '以“仓库内容”为正文标题',
   '“实物库存 {warehouseStoredQuantity}”',
   '不再显示“共享仓库”标题',
+  '仓库商品网格之后不得追加跨州运输卡片',
+  '独立 `TransportPage`',
   '商品卡整卡是当前州商品详情入口',
   '不得通过组件内部选择器切换到其他商品',
   '客户端状态版本保持当前全局基线 36',
@@ -265,11 +286,11 @@ for (const text of [
   'regional commodity detail uses the shared bottom sheet at 720px',
   'regional commodity detail keeps the fixed desktop control at 721px',
   'regional market catalog removes workspace switches and opens fixed commodity auto-trade',
-  'province warehouse opens regional commodity detail and keeps transport in its own card',
+  'province warehouse opens regional commodity detail without transport controls',
 ]) requireText('tests/browser/warehouse-auto-sell.spec.ts', text);
 
 if (failures.length) {
   console.error('无限仓库防回退验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
-console.log('无限仓库防回退验证通过：容量机制保持退役，仓库摘要保持可见，商品可钻取，跨州运输独立成卡，在线自动交易唯一归属市场。');
+console.log('无限仓库防回退验证通过：容量机制保持退役，仓库摘要保持可见，商品可钻取，跨州运输唯一归属独立运输页，在线自动交易唯一归属市场。');
