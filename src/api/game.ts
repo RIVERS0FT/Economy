@@ -537,7 +537,7 @@ export const gameActions = {
   checkIn: () => postAction('/check-in'),
   chooseStartingProvince: (provinceId: string) => postAction('/provinces/starting', { provinceId }),
   unlockProvince: (provinceId: string) => postAction('/provinces/unlock', { provinceId }),
-  transportShip: (input: TransportRouteInput) => postAction('/transport', input),
+  transportShip: (input: TransportRouteInput) => postAction('/transport', { ...input }),
   createTransportRoute: (input: TransportRouteInput) => postAction('/transport', {
     operation: 'route-create',
     ...input,

@@ -45,7 +45,8 @@
 | `src/styles/industry-system.css` | 工厂、建设列、自适应同行等高卡片与生产密度 |
 | `src/styles/facility-group-card-grid.css` | 生产主从布局、工厂集群详情内部排列和“生产产物／作业制度”横向 Auto 槽位布局 |
 | `src/styles/facility-production-formula.css` | 工厂集群生产结算的输入侧周期成本、物资槽、流向进度、范围标识和响应式布局 |
-| `src/styles/warehouse-expansion.css` | 州级可钻取仓库商品网格、独立跨州运输卡、地区商品详情自动交易控制、容器查询、紧凑商品卡和移动自动交易入口布局 |
+| `src/styles/warehouse-expansion.css` | 州级可钻取仓库商品网格、地区商品详情自动交易控制、容器查询、紧凑商品卡和移动自动交易入口布局 |
+| `src/styles/transport-page.css` | 独立运输页的路线编辑、路线卡、在途／最近完成记录与响应式布局 |
 | `src/styles/production-surface.css` | 建筑页建设卡和工厂详情的标题轨道、名称下状态与紧凑开关；不得定义一级卡片外层内边距 |
 | `src/styles/regional-entity-page-title.css` | 地区商品／工厂详情共享两行标题：实体主标题、灰色地区副标题，以及不改变固定标题区高度的溢出规则 |
 | `src/styles/auth.css` | 登录布局、动态视口与认证自动填充兼容例外 |
