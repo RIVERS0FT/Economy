@@ -92,6 +92,11 @@ jobs:
                   "onClick={() => fillOrderPrice(level.price)}",
                   "onClick={readOnly ? undefined : () => fillOrderPrice(level.price)}",
               )
+          replace_once(
+              'scripts/verify-market-page-layout.mjs',
+              "requireText('src/pages/ProvincePage.tsx', '<EmbeddedMarketPage model={model} embedded />', '州级上下文必须继续复用地区 MarketPage。');",
+              "requireText('src/pages/ProvincePage.tsx', '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />', '州级上下文必须继续复用地区 MarketPage，并允许锁定州只读查看。');",
+          )
           PY
           git diff --check
 
