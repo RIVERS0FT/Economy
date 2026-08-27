@@ -18,6 +18,7 @@ import {
   inventoryForProvince,
   normalizeProvinceId,
   provinceScopedKey,
+  syncDefaultProvinceAlias,
 } from './provinces.js';
 
 const LIQUIDITY_BUY = 'liquidity-buy';
@@ -80,6 +81,7 @@ export function createBalancedMarketRuntime({ products, constants }) {
     world.markets ||= {};
     world.markets[key] ||= createMarket(product, now, selectedProvinceId);
     installDefaultProvinceAliases(world.markets);
+    if (selectedProvinceId === DEFAULT_PROVINCE_ID) syncDefaultProvinceAlias(world.markets, product.id);
     return world.markets[key];
   }
 

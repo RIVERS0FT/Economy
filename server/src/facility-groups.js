@@ -33,6 +33,7 @@ import {
   normalizeProvinceId,
   provinceScopedKey,
   splitProvinceScopedKey,
+  syncDefaultProvinceAlias,
 } from './provinces.js';
 
 const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
@@ -488,6 +489,7 @@ function facilityMarketFor(world, typeId, now = Date.now(), provinceId = DEFAULT
   world.facilityMarkets ||= {};
   world.facilityMarkets[key] ||= createFacilityMarket(type, now, selectedProvinceId);
   installDefaultProvinceAliases(world.facilityMarkets);
+  if (selectedProvinceId === DEFAULT_PROVINCE_ID) syncDefaultProvinceAlias(world.facilityMarkets, type.id);
   return world.facilityMarkets[key];
 }
 
