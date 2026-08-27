@@ -6,6 +6,7 @@ import {
   normalizeProvinceId,
   provinceScopedKey,
   splitProvinceScopedKey,
+  syncDefaultProvinceAlias,
 } from './provinces.js';
 
 function linkMap(player, create = false) {
@@ -15,6 +16,7 @@ function linkMap(player, create = false) {
       if (key.includes(':')) continue;
       source[provinceScopedKey(undefined, key)] = orderId;
       delete source[key];
+      syncDefaultProvinceAlias(source, key);
     }
     return installDefaultProvinceAliases(source);
   }
@@ -50,6 +52,7 @@ export function managedOnlineAutoSellOrderFor(world, userId, productId, province
   const order = orderById(world, orderId);
   if (validManagedOrder(order, userId, productId, provinceId)) return order;
   delete links[linkKey];
+  syncDefaultProvinceAlias(links, productId);
   return null;
 }
 
@@ -57,7 +60,7 @@ export function linkManagedOnlineAutoSellOrder(player, productId, orderId, provi
   if (!player) return;
   const links = linkMap(player, true);
   links[provinceScopedKey(provinceId, productId)] = String(orderId || '');
-  installDefaultProvinceAliases(links);
+  syncDefaultProvinceAlias(links, productId);
 }
 
 export function cancelManagedOnlineAutoSellOrder(world, userId, productId, provinceId) {
@@ -72,8 +75,9 @@ export function cancelManagedOnlineAutoSellOrder(world, userId, productId, provi
   inventory.available = Math.max(0, Math.floor(Number(inventory.available || 0))) + released;
   order.status = 'cancelled';
   closeOrderInOrderBook(world, order);
-  delete linkMap(player)[provinceScopedKey(provinceId, productId)];
-  installDefaultProvinceAliases(player.onlineAutoSellOrderIds);
+  const links = linkMap(player);
+  delete links[provinceScopedKey(provinceId, productId)];
+  syncDefaultProvinceAlias(links, productId);
   return released;
 }
 
