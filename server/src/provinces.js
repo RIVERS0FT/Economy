@@ -104,7 +104,6 @@ export function migrateProvinceInventories(player) {
     delete player.inventories[key];
   }
   installedDefaultProvinceAliasRecords.delete(player.inventories);
-  installDefaultProvinceAliases(player.inventories);
   migratedInventoryRecords.add(player.inventories);
   return player.inventories;
 }
@@ -166,7 +165,7 @@ export function provinceAssetSummaries(player, orders = []) {
   }
   for (const group of player?.facilityGroups || []) {
     const provinceId = normalizeProvinceId(group?.provinceId);
-    const count = Math.max(0, Number(group?.count || 0));
+    const count = Math.max(0, Math.floor(Number(group?.count || 0)));
     summaries[provinceId].facilityCount += count;
     if (group?.status === 'running') summaries[provinceId].runningFacilityCount += Math.max(0, Number(group?.participatingCount || 0));
     if (group?.status === 'error') summaries[provinceId].blockedFacilityCount += count;
