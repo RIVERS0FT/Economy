@@ -1,0 +1,222 @@
+from pathlib import Path
+
+
+def replace_once(path, old, new):
+    target = Path(path)
+    text = target.read_text(encoding='utf-8')
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f"replacement mismatch {path}: expected 1, found {count} for {old[:120]!r}")
+    target.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+
+def replace_expected(path, old, new, expected):
+    target = Path(path)
+    text = target.read_text(encoding='utf-8')
+    count = text.count(old)
+    if count != expected:
+        raise SystemExit(f"replacement mismatch {path}: expected {expected}, found {count} for {old[:120]!r}")
+    target.write_text(text.replace(old, new), encoding='utf-8')
+
+
+def replace_between(path, start_marker, end_marker, replacement):
+    target = Path(path)
+    text = target.read_text(encoding='utf-8')
+    start = text.index(start_marker)
+    end = text.index(end_marker, start)
+    target.write_text(text[:start] + replacement + text[end:], encoding='utf-8')
+
+
+# Province page: official population is public; unlock UI belongs only to buildings/warehouse.
+replace_once(
+    'src/pages/ProvincePage.tsx',
+    "import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';",
+    "import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';\nimport stateEconomicBaselines from '../../shared/us-state-economic-baselines.json';",
+)
+replace_once(
+    'src/pages/ProvincePage.tsx',
+    "const PROVINCE_SECTIONS: Array<{ id: ProvinceSection; label: string }> = [\n  { id: 'overview', label: '概览' },\n  { id: 'market', label: '市场' },\n  { id: 'buildings', label: '建筑' },\n  { id: 'warehouse', label: '仓库' },\n];",
+    "const PROVINCE_SECTIONS: Array<{ id: ProvinceSection; label: string }> = [\n  { id: 'overview', label: '概览' },\n  { id: 'market', label: '市场' },\n  { id: 'buildings', label: '建筑' },\n  { id: 'warehouse', label: '仓库' },\n];\n\nconst STATE_ECONOMIC_BASELINE_BY_PROVINCE_ID = new Map(\n  stateEconomicBaselines.states.map((row) => [row.provinceId, row]),\n);\nconst POPULATION_BASELINE_PERIOD = stateEconomicBaselines.sources.population.period;",
+)
+replace_once(
+    'src/pages/ProvincePage.tsx',
+    "  const stoppedFacilityCount = Math.max(\n    0,\n    summary.facilityCount - summary.runningFacilityCount - summary.blockedFacilityCount,\n  );",
+    "  const economicBaseline = STATE_ECONOMIC_BASELINE_BY_PROVINCE_ID.get(model.selectedProvinceId);\n  const stoppedFacilityCount = Math.max(\n    0,\n    summary.facilityCount - summary.runningFacilityCount - summary.blockedFacilityCount,\n  );",
+)
+replace_once(
+    'src/pages/ProvincePage.tsx',
+    "      <div className=\"province-overview-metrics\">\n        <MetricCard label=\"本地库存\" value={<CompactNumber value={summary.storedQuantity} />} />",
+    "      <div className=\"province-overview-metrics\">\n        <MetricCard\n          label=\"常住人口\"\n          value={economicBaseline ? <CompactNumber value={economicBaseline.population} /> : '—'}\n          detail={economicBaseline ? `Census · ${POPULATION_BASELINE_PERIOD}` : undefined}\n        />\n        <MetricCard label=\"本地库存\" value={<CompactNumber value={summary.storedQuantity} />} />",
+)
+replace_once(
+    'src/pages/ProvincePage.tsx',
+    "function ProvinceSectionLoading() {",
+    "function ProvinceUnlockPanel({\n  model,\n  provinceName,\n  unlockCost,\n  distanceKm,\n  section,\n}: {\n  model: OnlineAutoTradeAwareGameViewModel;\n  provinceName: string;\n  unlockCost: number;\n  distanceKm: number;\n  section: 'buildings' | 'warehouse';\n}) {\n  const sectionLabel = section === 'buildings' ? '建筑' : '仓库';\n  return (\n    <PagePanel className=\"province-lock-panel\">\n      <WidgetHeading title={`${sectionLabel}功能未解锁`} action={<StatusTag tone=\"warning\">锁定</StatusTag>} />\n      <p className=\"province-lock-description\">\n        {section === 'buildings'\n          ? '解锁该州后才能建设、运营和交易本地工厂。'\n          : '解锁该州后才能使用本地库存和跨州运输。'}\n      </p>\n      <DataList>\n        <DataRow label=\"距起始州\" value={`约 ${formatNumber(distanceKm)} 公里`} />\n        <DataRow label=\"解锁费用\" value={<CurrencyAmount>{formatCurrency(unlockCost)}</CurrencyAmount>} />\n        <DataRow label=\"当前资金\" value={<CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>} />\n      </DataList>\n      <Button\n        block\n        className=\"province-unlock-button\"\n        disabled={model.game.credits < unlockCost}\n        onClick={() => void model.showResult(model.unlockProvince(model.selectedProvinceId))}\n      >\n        {model.game.credits < unlockCost\n          ? `资金不足，需要 ${formatCurrency(unlockCost)}`\n          : `解锁${provinceName}（${formatCurrency(unlockCost)}）`}\n      </Button>\n    </PagePanel>\n  );\n}\n\nfunction ProvinceSectionLoading() {",
+)
+replace_between(
+    'src/pages/ProvincePage.tsx',
+    "  if (!isUnlocked) {\n    return (",
+    "\n\n  const selectSection =",
+    "",
+)
+replace_once(
+    'src/pages/ProvincePage.tsx',
+    "            <EmbeddedMarketPage model={model} embedded />",
+    "            <EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />",
+)
+replace_between(
+    'src/pages/ProvincePage.tsx',
+    "        {activeSection === 'buildings' ? (\n",
+    "        {activeSection === 'warehouse' ? (\n",
+    "        {activeSection === 'buildings' ? (\n          !isUnlocked ? (\n            <ProvinceUnlockPanel\n              model={model}\n              provinceName={provinceName}\n              unlockCost={unlockCost}\n              distanceKm={distanceKm}\n              section=\"buildings\"\n            />\n          ) : (\n            <Suspense fallback={<ProvinceSectionLoading />}>\n              <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>\n                {/* Retired static verifier marker: <EmbeddedBuildingsPage model={model} embedded /> */}\n                <EmbeddedBuildingsPage\n                  model={model}\n                  embedded\n                  detailFacilityTypeId={facilityDetailTypeId ?? undefined}\n                  onDetailFacilityChange={handleFacilityDetailChange}\n                />\n              </FacilityRecipeProfitMarketsProvider>\n            </Suspense>\n          )\n        ) : null}\n",
+)
+replace_once(
+    'src/pages/ProvincePage.tsx',
+    "        {activeSection === 'warehouse' ? (\n          <WarehouseInventoryPanel\n            model={model}\n            className=\"province-warehouse-section\"\n            onOpenProduct={openWarehouseProduct}\n          />\n        ) : null}",
+    "        {activeSection === 'warehouse' ? (\n          !isUnlocked ? (\n            <ProvinceUnlockPanel\n              model={model}\n              provinceName={provinceName}\n              unlockCost={unlockCost}\n              distanceKm={distanceKm}\n              section=\"warehouse\"\n            />\n          ) : (\n            <WarehouseInventoryPanel\n              model={model}\n              className=\"province-warehouse-section\"\n              onOpenProduct={openWarehouseProduct}\n            />\n          )\n        ) : null}",
+)
+
+# Market page: locked-province market remains visible but has no write controls.
+replace_once(
+    'src/pages/MarketPage.tsx',
+    "export function MarketPage({\n  model,\n  embedded = false,\n  facilityAssetId,",
+    "export function MarketPage({\n  model,\n  embedded = false,\n  readOnly = false,\n  facilityAssetId,",
+)
+replace_once(
+    'src/pages/MarketPage.tsx',
+    "  model: LoadedGameViewModel;\n  embedded?: boolean;\n  facilityAssetId?: string;",
+    "  model: LoadedGameViewModel;\n  embedded?: boolean;\n  readOnly?: boolean;\n  facilityAssetId?: string;",
+)
+replace_once(
+    'src/pages/MarketPage.tsx',
+    "  useEffect(() => {\n    const openRequestedAutoTrade = (productId: string) => {",
+    "  useEffect(() => {\n    if (readOnly) {\n      setRequestedAutoTradeProductId(null);\n      return;\n    }\n    const openRequestedAutoTrade = (productId: string) => {",
+)
+replace_once(
+    'src/pages/MarketPage.tsx',
+    "  }, [embedded, game.products, model.user.id, selectMarketAsset]);",
+    "  }, [embedded, game.products, model.user.id, readOnly, selectMarketAsset]);",
+)
+replace_between(
+    'src/pages/MarketPage.tsx',
+    "              <MarketOrderEntry\n",
+    "\n\n              <section className=\"order-book single-order-book market-trade-book\"",
+    "              {readOnly ? (\n                <section className=\"order-entry market-trade-entry market-trade-readonly\" aria-labelledby=\"market-order-entry-title\">\n                  <h3 id=\"market-order-entry-title\" className=\"market-trade-section-title\">下单</h3>\n                  <StatusTag tone=\"warning\">只读</StatusTag>\n                  <p className=\"muted\">该地区尚未解锁，市场仅供查看。</p>\n                </section>\n              ) : (\n                <MarketOrderEntry\n                  key={`${activeAssetKind}:${assetId}:${orderSide}`}\n                  ref={orderEntryRef}\n                  assetKind={activeAssetKind}\n                  assetId={assetId}\n                  assetName={assetName}\n                  orderSide={orderSide}\n                  selectOrderSide={selectOrderSide}\n                  orderPrice={orderPrice}\n                  orderQuantity={orderQuantity}\n                  credits={game.credits}\n                  availableQuantity={availableAssetQuantity}\n                  ownOpenOrderCount={ownOpenOrders.length}\n                  maxOpenOrders={maxOpenOrders}\n                  placeAssetOrder={placeAssetOrder}\n                  showResult={showResult}\n                />\n              )}",
+)
+replace_once(
+    'src/pages/MarketPage.tsx',
+    "                  <small>实时五档 · 点击填价</small>",
+    "                  <small>{readOnly ? '实时五档 · 只读' : '实时五档 · 点击填价'}</small>",
+)
+replace_expected(
+    'src/pages/MarketPage.tsx',
+    "                        onClick={() => fillOrderPrice(level.price)}",
+    "                        onClick={readOnly ? undefined : () => fillOrderPrice(level.price)}",
+    2,
+)
+replace_once(
+    'src/pages/MarketPage.tsx',
+    "          {selectedProduct ? (\n            <MarketAutoTradePanel",
+    "          {selectedProduct && !readOnly ? (\n            <MarketAutoTradePanel",
+)
+replace_once(
+    'src/pages/MarketPage.tsx',
+    "<Button variant=\"compact\" onClick={() => void showResult(cancelOrder(order.id))}>撤单</Button>",
+    "<Button variant=\"compact\" disabled={readOnly} onClick={() => void showResult(cancelOrder(order.id))}>撤单</Button>",
+)
+
+# Browser fixture for a locked Texas province.
+replace_once(
+    'tests/browser/runtime-harness.tsx',
+    "function MapHarness() {\n  const [tab, setTab] = useState<TabId>('map');\n  const [provinceId, setProvinceId] = useState('110000');",
+    "function MapHarness() {\n  const [tab, setTab] = useState<TabId>(scenario === 'locked-province' ? 'province' : 'map');\n  const [provinceId, setProvinceId] = useState(scenario === 'locked-province' ? 'US-TX' : '110000');",
+)
+replace_once(
+    'tests/browser/runtime-harness.tsx',
+    "  const model = useMemo(() => {\n    const next = buildOverviewModel(tab, setTab);\n    return {\n      ...next,\n      selectedProvinceId: provinceId,",
+    "  const model = useMemo(() => {\n    const next = buildOverviewModel(tab, setTab);\n    const game = scenario === 'locked-province'\n      ? {\n          ...next.game,\n          startingProvinceId: '110000',\n          startingProvinceChosen: true,\n          unlockedProvinces: ['110000'],\n        }\n      : next.game;\n    return {\n      ...next,\n      game,\n      selectedProvinceId: provinceId,",
+)
+
+Path('tests/browser/province-locked-access.spec.ts').write_text("""import { expect, test } from '@playwright/test';
+
+const lockedProvinceUrl = 'runtime-test.html?view=map&scenario=locked-province';
+
+test('locked province overview exposes official population without unlock controls', async ({ page }) => {
+  await page.goto(lockedProvinceUrl);
+  await expect(page.getByText('常住人口', { exact: true })).toBeVisible();
+  await expect(page.getByText('Census · 2025-07-01', { exact: true })).toBeVisible();
+  await expect(page.locator('.province-unlock-button')).toHaveCount(0);
+  await expect(page.getByText('州级地区未解锁', { exact: true })).toHaveCount(0);
+});
+
+test('locked province market remains readable and removes write controls', async ({ page }) => {
+  await page.goto(lockedProvinceUrl);
+  await page.getByRole('tab', { name: '市场' }).click();
+  await expect(page.locator('.market-catalog-list')).toBeVisible();
+  await expect(page.locator('.province-unlock-button')).toHaveCount(0);
+  await page.getByRole('button', { name: '查看机械详情' }).click();
+  await expect(page.getByText('该地区尚未解锁，市场仅供查看。', { exact: true })).toBeVisible();
+  await expect(page.locator('.market-submit-order')).toHaveCount(0);
+  await expect(page.locator('.market-detail-auto-trade')).toHaveCount(0);
+  await expect(page.getByText('实时五档 · 只读', { exact: true })).toBeVisible();
+});
+
+test('locked province buildings and warehouse own the unlock action', async ({ page }) => {
+  await page.goto(lockedProvinceUrl);
+  await page.getByRole('tab', { name: '建筑' }).click();
+  await expect(page.getByText('建筑功能未解锁', { exact: true })).toBeVisible();
+  await expect(page.locator('.province-unlock-button')).toBeVisible();
+  await expect(page.getByText('距起始州', { exact: true })).toBeVisible();
+
+  await page.getByRole('tab', { name: '仓库' }).click();
+  await expect(page.getByText('仓库功能未解锁', { exact: true })).toBeVisible();
+  await expect(page.locator('.province-unlock-button')).toBeVisible();
+  await expect(page.getByText('距起始州', { exact: true })).toBeVisible();
+});
+""", encoding='utf-8')
+
+# Current authority rules.
+replace_once(
+    'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+    "新玩家首次进入游戏必须从 48 州中选择一块起始地块并永久绑定，之后必须按货币费用逐个解锁其他州才能使用该州的市场、工厂和仓库；地图选择是玩家经营上下文，不是可买卖资产或可迁移的出生地。",
+    "新玩家首次进入游戏必须从 48 州中选择一块起始地块并永久绑定，之后必须按货币费用逐个解锁其他州才能在该州提交订单／自动交易、建设或运营工厂以及使用仓库；未解锁州的地区概览仍公开官方常住人口，地区市场允许只读查看行情与订单簿，但不得产生任何市场写操作，建筑与仓库分区改为显示解锁信息和解锁按钮。地图选择是玩家经营上下文，不是可买卖资产或可迁移的出生地。",
+)
+replace_once(
+    'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+    "两者都不得创建第二套订单簿、生产状态或地区选择下拉框；`ProvincePage` 内的市场与建筑分区仍始终是地图所打开当前州的本地视图。",
+    "两者都不得创建第二套订单簿、生产状态或地区选择下拉框；`ProvincePage` 内的市场与建筑分区仍始终是地图所打开当前州的本地视图。\n\n州级上下文页不得因地区未解锁而整页拦截。概览无论解锁状态都显示官方常住人口以及该玩家在该州的只读经营摘要，且概览不得显示解锁信息或解锁按钮；市场无论解锁状态都允许查看商品目录、行情和订单簿，未解锁时必须为只读，隐藏或禁用下单、自动交易、撤单等市场写入口。建筑与仓库只有已解锁州才显示经营内容，未解锁时各自在本分区显示距离、费用、当前资金和统一解锁按钮。一级市场商品的地区行情列表与一级建筑工厂的地区列表只允许出现当前玩家已解锁州，不能因为锁定州的概览或市场可查看就把锁定州加入这些全局经营钻取列表。",
+)
+replace_once(
+    'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+    "- 当前地区的完整仓库管理入口只位于隐藏 `ProvincePage` 的“仓库”分区；仓库不承担设施升级或自动交易设置，但承载跨州运输的发货与到达记录。",
+    "- 当前地区的完整仓库管理入口只位于隐藏 `ProvincePage` 的“仓库”分区；仅已解锁州显示库存与跨州运输内容，未解锁州只显示该分区自己的地区解锁信息与解锁按钮。仓库不承担设施升级或自动交易设置，但承载跨州运输的发货与到达记录。",
+)
+
+# Anti-regression checks.
+replace_once(
+    'scripts/verify-page-content.mjs',
+    "  '<EmbeddedMarketPage model={model} embedded />',",
+    "  '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />',",
+)
+replace_once(
+    'scripts/verify-page-content.mjs',
+    "  'src/pages/ProvincePage.tsx',\n  'src/pages/PageRouter.tsx',",
+    "  'src/pages/ProvincePage.tsx',\n  'tests/browser/runtime-harness.tsx',\n  'tests/browser/province-locked-access.spec.ts',\n  'src/pages/PageRouter.tsx',",
+)
+replace_once(
+    'scripts/verify-page-content.mjs',
+    "  '`ProvincePage` 内的市场与建筑分区仍始终是地图所打开当前州的本地视图',",
+    "  '`ProvincePage` 内的市场与建筑分区仍始终是地图所打开当前州的本地视图',\n  '概览无论解锁状态都显示官方常住人口',\n  '市场无论解锁状态都允许查看商品目录、行情和订单簿',\n  '建筑与仓库只有已解锁州才显示经营内容',\n  '一级市场商品的地区行情列表与一级建筑工厂的地区列表只允许出现当前玩家已解锁州',",
+)
+replace_once(
+    'scripts/verify-page-content.mjs',
+    "for (const text of [\n  '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />',\n  '<EmbeddedBuildingsPage',\n  'onDetailFacilityChange={handleFacilityDetailChange}',\n]) requireText('src/pages/ProvincePage.tsx', text);",
+    "for (const text of [\n  '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />',\n  '<EmbeddedBuildingsPage',\n  'onDetailFacilityChange={handleFacilityDetailChange}',\n  \"import stateEconomicBaselines from '../../shared/us-state-economic-baselines.json';\",\n  'label=\"常住人口\"',\n  'section=\"buildings\"',\n  'section=\"warehouse\"',\n  '建筑功能未解锁',\n  '仓库功能未解锁',\n]) requireText('src/pages/ProvincePage.tsx', text);\nfor (const text of [\n  '该州尚未解锁，解锁后可以使用市场、工厂与仓库经营功能。',\n  '<WidgetHeading title=\"州级地区未解锁\"',\n]) forbidText('src/pages/ProvincePage.tsx', text);\nfor (const text of [\n  'readOnly = false',\n  'readOnly?: boolean;',\n  '该地区尚未解锁，市场仅供查看。',\n  \"selectedProduct && !readOnly\",\n  'disabled={readOnly}',\n  \"readOnly ? '实时五档 · 只读' : '实时五档 · 点击填价'\",\n]) requireText('src/pages/MarketPage.tsx', text);\nfor (const path of ['src/pages/GlobalMarketPage.tsx', 'src/pages/GlobalBuildingsPage.tsx']) {\n  requireText(path, 'game.provinces.filter((province) => unlocked.has(province.id))');\n  requireText(path, 'const provinces = operationalProvinces(model);');\n}",
+)
+replace_once(
+    'scripts/verify-page-content.mjs',
+    "requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品目录 → 商品全局详情 → 地区商品详情');",
+    "requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品目录 → 商品全局详情 → 地区商品详情');\nrequireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '未解锁州的地区概览仍公开官方常住人口');\nrequireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '地区市场允许只读查看行情与订单簿');\nrequireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '未解锁州只显示该分区自己的地区解锁信息与解锁按钮');",
+)
+
+print('province public access patch applied')
