@@ -1,7 +1,13 @@
 import { cancelSettledCommodityOrder } from './domain.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
 import { orderById } from './order-book-runtime.js';
-import { installDefaultProvinceAliases, normalizeProvinceId, provinceScopedKey, splitProvinceScopedKey } from './provinces.js';
+import {
+  installDefaultProvinceAliases,
+  normalizeProvinceId,
+  provinceScopedKey,
+  splitProvinceScopedKey,
+  syncDefaultProvinceAlias,
+} from './provinces.js';
 
 function linkMap(player, create = false) {
   const source = player?.onlineAutoBuyOrderIds;
@@ -10,6 +16,7 @@ function linkMap(player, create = false) {
       if (key.includes(':')) continue;
       source[provinceScopedKey(undefined, key)] = orderId;
       delete source[key];
+      syncDefaultProvinceAlias(source, key);
     }
     return installDefaultProvinceAliases(source);
   }
@@ -45,6 +52,7 @@ export function managedOnlineAutoBuyOrderFor(world, userId, productId, provinceI
   const order = orderById(world, orderId);
   if (validManagedOrder(order, userId, productId, provinceId)) return order;
   delete links[linkKey];
+  syncDefaultProvinceAlias(links, productId);
   return null;
 }
 
@@ -52,7 +60,7 @@ export function linkManagedOnlineAutoBuyOrder(player, productId, orderId, provin
   if (!player) return;
   const links = linkMap(player, true);
   links[provinceScopedKey(provinceId, productId)] = String(orderId || '');
-  installDefaultProvinceAliases(links);
+  syncDefaultProvinceAlias(links, productId);
 }
 
 export function cancelManagedOnlineAutoBuyOrder(world, userId, productId, provinceId) {
@@ -62,8 +70,9 @@ export function cancelManagedOnlineAutoBuyOrder(world, userId, productId, provin
   if (!order) return 0;
   const beforeFrozen = Math.max(0, Number(player.frozenCredits || 0));
   const cancelled = cancelSettledCommodityOrder(world, { id: Number(userId) }, order.id);
-  delete linkMap(player)[provinceScopedKey(provinceId, productId)];
-  installDefaultProvinceAliases(player.onlineAutoBuyOrderIds);
+  const links = linkMap(player);
+  delete links[provinceScopedKey(provinceId, productId)];
+  syncDefaultProvinceAlias(links, productId);
   if (!cancelled) return 0;
   return Math.max(0, beforeFrozen - Math.max(0, Number(player.frozenCredits || 0)));
 }
