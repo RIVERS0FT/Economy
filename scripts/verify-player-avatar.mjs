@@ -101,17 +101,16 @@ requireText('deploy/nginx/game.riversoft.top.economy-location.conf', [
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
   '状态栏左侧玩家头像',
   '排行榜玩家列固定复用 `PlayerAvatar`',
+  '必须始终保持 `1:1` 正方形',
   '64×64 WebP',
 ]);
 requireText('docs/UI_DESIGN_SYSTEM.md', [
   '`PlayerAvatar`',
-  '始终保持 `1:1` 正方形',
   '`CompactNumber`',
   '完整数字 Tooltip',
 ]);
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '/var/lib/riversoft-economy-avatars',
-  '四榜公开条目固定返回 `userId` 与 `playerName`',
   '64×64 WebP',
   '8 KiB',
 ]);
