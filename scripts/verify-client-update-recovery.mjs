@@ -38,7 +38,7 @@ requireText('src/api/game.ts', [
   'new GameApiError(0, NETWORK_ERROR_MESSAGE)',
 ]);
 requireText('src/components/system/RefreshPageButton.tsx', [
-  "import { RefreshIcon } from '../components/icons/GameIcons';".replace('../components/', '../'),
+  "import { RefreshIcon } from '../icons/GameIcons';",
   'className={classes}',
   'data-ui-interactive="surface"',
   'aria-label="刷新页面"',
