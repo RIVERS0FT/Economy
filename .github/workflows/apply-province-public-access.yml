@@ -97,6 +97,11 @@ jobs:
               "requireText('src/pages/ProvincePage.tsx', '<EmbeddedMarketPage model={model} embedded />', '州级上下文必须继续复用地区 MarketPage。');",
               "requireText('src/pages/ProvincePage.tsx', '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />', '州级上下文必须继续复用地区 MarketPage，并允许锁定州只读查看。');",
           )
+          replace_once(
+              'scripts/verify-market-desktop-cleanup.mjs',
+              "requireText(marketPage, '<small>实时五档 · 点击填价</small>', '订单簿辅助文案 DOM 必须继续存在以供桌面精简规则处理。');",
+              "requireText(marketPage, \"<small>{readOnly ? '实时五档 · 只读' : '实时五档 · 点击填价'}</small>\", '订单簿辅助文案 DOM 必须继续存在并按只读状态切换。');",
+          )
           PY
           git diff --check
 
@@ -109,6 +114,7 @@ jobs:
           npm run verify:provincial-economy
           node --experimental-strip-types scripts/verify-market-assets.mjs
           node scripts/verify-market-page-layout.mjs
+          npm run verify:market-desktop-cleanup
 
       - name: Prepare Chromium
         run: bash scripts/prepare-playwright-chromium.sh
