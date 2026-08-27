@@ -27,6 +27,7 @@ const productionDetail = read('src/pages/production/ProductionFacilityDetail.tsx
 const diagnostics = read('src/components/facilities/FacilityOperatingDiagnostics.tsx');
 const contractNegotiation = read('src/contracts/ContractNegotiationSection.tsx');
 const warehouseInventory = read('src/components/warehouse/WarehouseInventoryPanel.tsx');
+const transportPage = read('src/pages/TransportPage.tsx');
 const gameGuide = read('src/components/GameGuideStrip.tsx');
 const marketCss = read('src/styles/market-page-polish.css');
 const provinceScope = read('src/utils/provinceScope.ts');
@@ -293,7 +294,7 @@ for (const [source, label] of [
   [productionDetail, 'production detail'],
   [diagnostics, 'operating diagnostics'],
   [contractNegotiation, 'contract negotiation'],
-  [warehouseInventory, 'warehouse transport'],
+  [transportPage, 'transport page'],
 ]) {
   for (const glyph of ['›', '⌄', '↑', '↓', '→']) forbidText(source, glyph, label + ' directional chevrons');
 }
@@ -303,7 +304,7 @@ for (const [source, token, label] of [
   [productionDetail, '<ChevronIcon direction="right" />', 'production detail'],
   [diagnostics, '<ChevronIcon direction={trendDirection} />', 'operating diagnostics'],
   [contractNegotiation, '<ChevronIcon direction="right" />', 'contract negotiation'],
-  [warehouseInventory, '<ChevronIcon direction="right" />', 'warehouse transport'],
+  [transportPage, '<ChevronIcon direction="right" />', 'transport page'],
 ]) requireText(source, token, label + ' directional chevrons');
 forbidText(gameGuide, '设置 → 游戏设置 → 教程', 'tutorial breadcrumb');
 requireText(gameGuide, '设置 / 游戏设置 / 教程', 'tutorial breadcrumb');

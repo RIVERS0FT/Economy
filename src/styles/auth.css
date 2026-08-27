@@ -243,13 +243,33 @@ html[data-app-surface="auth"] body::before {
   bottom: max(var(--space-4), env(safe-area-inset-bottom));
   z-index: 10;
   width: min(680px, calc(100vw - var(--space-8)));
+  min-height: 60px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: var(--space-2);
   transform: translateX(-50%);
   border: 1px solid rgba(255, 143, 131, 0.3);
   border-radius: var(--radius-control);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2);
   color: #ffd7d2;
   background: rgba(72, 19, 16, 0.95);
   text-align: center;
+}
+
+.auth-service-warning > span {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.auth-service-warning > .browser-refresh-button {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  color: inherit;
 }
 
 @media (max-width: 720px) {
@@ -355,7 +375,6 @@ html[data-app-surface="auth"] body::before {
     bottom: max(0.45rem, env(safe-area-inset-bottom));
     width: calc(100% - var(--space-3));
     border-radius: var(--radius-card);
-    padding: var(--space-3);
     font-size: var(--font-size-sm);
   }
 }

@@ -130,4 +130,76 @@ test.describe('application error state glass', () => {
     expect(visual.innerBoxShadow).toBe('none');
     expect(visual.documentOverflow).toBeLessThanOrEqual(1);
   });
+
+  test('mobile authentication abort warning centers recoverable text beside a fixed refresh target', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await routePhotography(page);
+    await page.addInitScript(() => {
+      const nativeFetch = window.fetch.bind(window);
+      window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const rawUrl = typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+        const url = new URL(rawUrl, window.location.origin);
+        if (url.pathname === '/economy-api/me') {
+          return new Response(JSON.stringify({ message: '未登录' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        if (url.pathname === '/economy-api/login') {
+          return new Response(JSON.stringify({
+            user: { id: 1, email: 'player@example.com', name: '玩家', role: 'user' },
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        if (url.pathname === '/economy-api/game/session') {
+          throw new DOMException('signal is aborted without reason', 'AbortError');
+        }
+        return nativeFetch(input, init);
+      }) as typeof window.fetch;
+    });
+
+    await page.goto('/economy/');
+    await page.locator('.login-form input[name="email"]').fill('player@example.com');
+    await page.locator('.login-form input[name="password"]').fill('password123');
+    await page.locator('.login-form button[type="submit"]').click();
+
+    const warning = page.locator('.auth-service-warning');
+    await expect(warning).toBeVisible();
+    await expect(warning).toContainText('连接已中断，请刷新页面后重试');
+    await expect(warning).not.toContainText('signal is aborted without reason');
+
+    const geometry = await warning.evaluate((element) => {
+      const message = element.querySelector<HTMLElement>('span');
+      const refresh = element.querySelector<HTMLElement>('.browser-refresh-button');
+      if (!message || !refresh) throw new Error('authentication warning fixture is incomplete');
+      const warningRect = element.getBoundingClientRect();
+      const messageRect = message.getBoundingClientRect();
+      const refreshRect = refresh.getBoundingClientRect();
+      return {
+        display: getComputedStyle(element).display,
+        warningCenterX: warningRect.left + warningRect.width / 2,
+        warningCenterY: warningRect.top + warningRect.height / 2,
+        messageCenterX: messageRect.left + messageRect.width / 2,
+        refreshCenterY: refreshRect.top + refreshRect.height / 2,
+        refreshWidth: refreshRect.width,
+        refreshHeight: refreshRect.height,
+        overlap: messageRect.right - refreshRect.left,
+        documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      };
+    });
+
+    expect(geometry.display).toBe('grid');
+    expect(Math.abs(geometry.messageCenterX - geometry.warningCenterX)).toBeLessThanOrEqual(1);
+    expect(Math.abs(geometry.refreshCenterY - geometry.warningCenterY)).toBeLessThanOrEqual(1);
+    expect(geometry.refreshWidth).toBe(44);
+    expect(geometry.refreshHeight).toBe(44);
+    expect(geometry.overlap).toBeLessThanOrEqual(0);
+    expect(geometry.documentOverflow).toBeLessThanOrEqual(1);
+  });
 });

@@ -1,7 +1,7 @@
 # Economy 注册邀请码与共享金融背景设计
 
 > 状态：当前权威设计  
-> 更新时间：2026-08-06
+> 更新时间：2026-08-27
 
 
 全应用氛围基线：认证、注册、九个玩家页面、管理员后台以及根级加载／异常状态继续保留 `auth`、`game`、`admin` 语义变体，但三者必须共享登录／注册页当前的摄影滤镜、渐变遮罩、网格和噪点参数；页面或角色不得再覆盖这些参数。正常态摄影图片只作为低对比度空间纹理，第一视觉层必须是状态栏、导航、业务卡片和正文；不得通过降低共享遮罩、增强绿光、网格或噪点，使人物、窗框或建筑轮廓与业务内容争夺注意力。仅 `data-app-tone="critical"` 允许叠加红色内暗角，且不得改变共享基线。
@@ -44,6 +44,10 @@
 
 认证卡片外层宽度、桌面／移动对齐和内容留白继续由 `src/styles/auth.css` 负责；统一材质与回退只归 `src/styles/frosted-glass-surfaces.css`。`auth.css` 不得复制另一套 `backdrop-filter` 或把 `.login-card` 恢复为 `.panel`。输入框继续使用不透明深色控件与自动填充覆盖，确保密码、验证码、错误和提示文字稳定可读。
 
+认证服务错误条 `.auth-service-warning` 固定使用三列内部网格 `44px minmax(0, 1fr) 44px`：中间列承载可换行错误文案，右列承载唯一 `RefreshPageButton`，左列保留等宽空轨以保证文案相对整条警示真正居中。文案与刷新控件必须垂直居中，移动端不得退化为基线对齐的行内排列，也不得让长错误文本挤压或覆盖 `44px × 44px` 刷新触控目标。浏览器或客户端取消错误不得原样向玩家暴露 `AbortError`、`signal is aborted without reason` 等实现细节，统一转换为可操作的中文恢复提示。
+
+登录成功后的 `POST /economy-api/game/session` 是认证启动初始化，不是玩家主动经济动作。它继续经过统一幂等协调并保留同一逻辑操作的 `Idempotency-Key`，但不得叠加普通经济写动作的 12 秒客户端 Abort 定时器；启动初始化继续受部署层现有 `proxy_read_timeout 30s` 有限上限约束。原因是会话初始化会进入服务器权威写执行器并可能排队，客户端在 12 秒先行中止会在统一账号已经登录成功后制造假的“登录终止”，并把浏览器 Abort 文案泄漏到认证界面。普通经济写动作的 12 秒单次尝试规则保持不变。
+
 认证卡片、玩家状态栏、管理员工作栏和移动底栏只允许共享毛玻璃宿主的一像素柔和边界与 `::before` 静态高光，不得追加大圆角白框、SVG 位移滤镜、辅助黑层或尺寸通知。登录→注册→登录时宿主随普通内容流同步增减高度。输入框、按钮、模式切换器和键盘 `:focus-visible` 继续保留各自控件边界。
 
 移动端只有认证卡片保留圆角玻璃背景；不得把整个移动登录页恢复为单张外层面板，也不得为注册表单创建内部滚动区。注册内容较高时由文档视口纵向滚动，两层背景保持固定，页面不得产生横向溢出。
@@ -56,6 +60,6 @@
 
 ## 3. 防回退
 
-不得移除注册邀请码输入框，不得让分享链接只在后台隐式归因而不预填输入框，不得在设置页、商店或其他已登录页面恢复邀请码输入、补填、更换或重新绑定入口，也不得根据玩家档案创建时间重新开放 24 小时或其他临时补填窗口。
+不得移除注册邀请码输入框，不得让分享链接只在后台隐式归因而不预填输入框，不得在设置页、商店或其他已登录页面恢复邀请码输入、补填、更换或重新绑定入口，也不得根据玩家档案创建时间重新开放 24 小时或其他临时补填窗口。不得把认证服务错误条恢复为文本与刷新图标的行内基线排列，不得移除对称三列以让刷新控件挤偏错误文案，不得向玩家重新显示 `AbortError` 或 `signal is aborted without reason`。不得把 `/economy-api/game/session` 重新纳入普通经济写动作的 12 秒客户端 Abort 定时器；该例外只作用于认证启动初始化，不得扩大到其他玩家、合同或管理员经济写动作。
 
-`scripts/verify-auth-three-layer.mjs` 必须校验认证三层 DOM、根级唯一摄影组件、`AuthCardSurface`、唯一 `FrostedGlassSurface`、自然内容高度、移动圆角、表单值跨模式与断点保持、无旧 Liquid Glass DOM 和最终 CSS 加载顺序。`scripts/verify-liquid-glass-chrome.mjs` 的历史路径继续验证第三方依赖删除、纯 CSS 毛玻璃令牌、共享宿主和回退材质。`scripts/verify-open-glass-sampling.mjs` 与 `tests/browser/open-glass-sampling.spec.ts` 必须覆盖桌面玩家、桌面管理员、移动玩家和移动管理员四种根级采样链及真实 `blur(18px) saturate(128%)`；`tests/browser/application-photography.spec.ts` 验证唯一摄影节点跨加载、认证、玩家、管理员和异常状态保持。`tests/browser/auth-three-layer.spec.ts` 必须覆盖 `1440×900` 桌面、`390×844` 移动注册、单一宿主、自然增高、无内部滚动和表单值保持。不得改变登录、注册或游戏业务流程来适配视觉布局。
+`scripts/verify-auth-three-layer.mjs` 必须校验认证三层 DOM、根级唯一摄影组件、`AuthCardSurface`、唯一 `FrostedGlassSurface`、自然内容高度、移动圆角、表单值跨模式与断点保持、认证服务错误条三列内部布局、Abort 文案归一化、无旧 Liquid Glass DOM 和最终 CSS 加载顺序。`scripts/verify-liquid-glass-chrome.mjs` 的历史路径继续验证第三方依赖删除、纯 CSS 毛玻璃令牌、共享宿主和回退材质。`scripts/verify-open-glass-sampling.mjs` 与 `tests/browser/open-glass-sampling.spec.ts` 必须覆盖桌面玩家、桌面管理员、移动玩家和移动管理员四种根级采样链及真实 `blur(18px) saturate(128%)`；`tests/browser/application-photography.spec.ts` 验证唯一摄影节点跨加载、认证、玩家、管理员和异常状态保持。`tests/browser/auth-three-layer.spec.ts` 必须覆盖 `1440×900` 桌面、`390×844` 移动注册、单一宿主、自然增高、无内部滚动和表单值保持；`tests/browser/application-error-state.spec.ts` 必须覆盖认证会话 Abort 被转换为中文恢复提示以及移动错误条文案真正居中、刷新控件保持 `44px × 44px` 且不重叠。不得改变登录、注册或游戏业务流程来适配视觉布局。

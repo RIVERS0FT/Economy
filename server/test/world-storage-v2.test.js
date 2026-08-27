@@ -101,6 +101,35 @@ test('local mutation draft clones only the current player and declared segments'
   }
 });
 
+test('transport route mutation uses the current-player local scope', () => {
+  const store = new EconomyStore(':memory:', { scheduledProcessing: true });
+  try {
+    store.getState(alice, now);
+    store.getState(bob, now + 1);
+    const committed = store.worldCache.world;
+    const scope = createRuntimeMutationScope(committed, alice.id, 'transportShip', {
+      operation: 'route-create',
+      sourceProvinceId: '110000',
+      destinationProvinceId: '130000',
+      productId: 'wheat',
+      quantity: 1,
+      mode: 'road',
+    }, { scheduledProcessing: true });
+    const draft = cloneWorldForMutation(committed, scope);
+
+    assert.equal(scope.allPlayers, false);
+    assert.deepEqual([...scope.playerIds], ['1']);
+    assert.equal(scope.segments.has('transportShipments'), true);
+    assert.equal(scope.segments.has('populationEconomy'), true);
+    assert.notEqual(draft.players['1'], committed.players['1']);
+    assert.equal(draft.players['2'], committed.players['2']);
+    assert.equal(draft.orders, committed.orders);
+  } finally {
+    store.stopScheduler();
+    store.close();
+  }
+});
+
 test('segmented rows reconstruct the authoritative world after process restart', () => {
   const directory = mkdtempSync(join(tmpdir(), 'economy-storage-v2-'));
   const databasePath = join(directory, 'economy.sqlite');

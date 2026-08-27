@@ -2,7 +2,7 @@
 
 > 状态：当前客户端倒计时、到期刷新与服务器确认基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-23
+> 更新时间：2026-08-27
 
 ## 1. 唯一职责
 
@@ -133,7 +133,7 @@
 - 全局协调器只为最近一个权威截止时间维护一个 `setTimeout`；到期后最多维护一个串行确认请求和一个下一次重试 `setTimeout`。
 - 默认状态轮询继续存在；统一到期确认只补足截止时点的即时同步，不替代普通轮询。
 - 浏览器后台节流导致定时器延迟时，`visibilitychange` 恢复可见后必须立即确认当前已过期的最近截止时间。
-- 普通状态读取超时为 8 秒，经济写请求单次尝试超时为 12 秒；不得依赖浏览器或反向代理的无限默认等待。
+- 普通状态读取超时为 8 秒，普通经济写请求单次尝试超时为 12 秒；登录成功后的 `/economy-api/game/session` 启动初始化继续经过统一幂等协调，但不叠加这 12 秒客户端 Abort 定时器，仍由部署层现有 `proxy_read_timeout 30s` 提供有限请求上限；不得依赖浏览器或反向代理的无限默认等待。
 
 ### 6.1 经济写请求超时与幂等确认
 
@@ -141,9 +141,11 @@
 
 客户端生产懒结算提案必须携带由客户端与服务器共享算法计算的**生产结算基线指纹**。指纹只描述本次补算结果依赖的当前玩家资金、相关库存、工厂组状态、生产参与数量、staffing 基线与配方，不把 `serverNow` 的自然前进本身视为资源漂移。服务器在任何生产状态写入前先用同一 `settleThrough` 重建当前权威基线：指纹不一致表示提案只是基于较旧权威快照，必须判定为 `PRODUCTION_SETTLEMENT_STALE`，并在当前玩家同一个外层写事务内丢弃旧提案、按服务器当前权威状态完成生产兜底后继续原业务动作，正常返回一次 HTTP 成功响应；客户端不得先接收 409、移除提案后自动再次发送同一业务动作。只有指纹一致后才校验客户端声明的最大周期数；超报、少报、范围错误或其他非法生产提案仍返回 409，并整体回滚，不得通过服务器兜底绕过校验。旧客户端发送空 `basisId` 时继续按旧声明校验兼容，不得把空指纹天然视为可信的新协议提案。
 
-同一逻辑写操作在超时、断网和结果未确认期间必须持续复用同一个 `Idempotency-Key`。客户端以 HTTP 方法、路径与查询串、`X-Economy-Save-Epoch` 和 JSON 请求体组成逻辑操作指纹；第一次请求保留调用方生成的 key，后续相同指纹即使上层重新生成了新 key，也必须在网络层替换回仍待确认的原 key。普通游戏动作、合同动作、会话初始化和管理员游戏写接口只要位于该路径范围内都遵循同一语义，不得各自维护会产生不同 key 的超时重试。
+同一逻辑写操作在超时、断网和结果未确认期间必须持续复用同一个 `Idempotency-Key`。客户端以 HTTP 方法、路径与查询串、`X-Economy-Save-Epoch` 和 JSON 请求体组成逻辑操作指纹；第一次请求保留调用方生成的 key，后续相同指纹即使上层重新生成了新 key，也必须在网络层替换回仍待确认的原 key。普通游戏动作、合同动作、会话初始化和管理员游戏写接口只要位于该路径范围内都遵循同一幂等 key 语义，不得各自维护会产生不同 key 的确认重试；会话初始化只在客户端请求时限上使用下述启动例外。
 
-每个 HTTP 写尝试最多等待 12 秒。第一次尝试因 Abort 或浏览器网络错误而没有得到 HTTP 终态时，协调层立即使用同一 key 自动发起一次确认尝试；确认尝试拥有独立的 12 秒超时，不继承已经触发的第一次 AbortSignal。确认成功后把真实响应交回原调用链，继续使用现有动作后状态同步。若确认仍然超时或断网，则把该操作保持为“结果未确认”，不得因为向页面返回超时而释放幂等键。
+除 `/economy-api/game/session` 会话启动初始化外，每个普通经济写 HTTP 尝试最多等待 12 秒。第一次尝试因 Abort 或浏览器网络错误而没有得到 HTTP 终态时，协调层立即使用同一 key 自动发起一次确认尝试；确认尝试拥有独立的 12 秒超时，不继承已经触发的第一次 AbortSignal。确认成功后把真实响应交回原调用链，继续使用现有动作后状态同步。若确认仍然超时或断网，则把该操作保持为“结果未确认”，不得因为向页面返回超时而释放幂等键。
+
+`/economy-api/game/session` 只在统一账号已经登录成功后执行首次 Economy 会话初始化，并可能等待同一服务器权威写执行器。它仍保留待确认表、逻辑操作指纹、同一 `Idempotency-Key` 和运输失败后的同键确认重试，但客户端不再主动创建 12 秒 Abort 定时器；每次 HTTP 尝试由生产 Nginx 的 `proxy_read_timeout 30s` 有限截止时间结束。这样避免浏览器在服务器仍合法排队时先行中止并把会话启动误报成登录失败，同时不会放宽任何玩家主动经济动作的 12 秒边界。
 
 HTTP 2xx、3xx 或除 408、429 之外的明确 4xx 响应表示本次网络结果已经确定，可以释放待确认 key；HTTP 408、429 与任意 5xx 必须继续保留原 key。408 与 5xx 可能对应服务端已经开始或提交的写操作；429 可能由应用或前置限流在幂等结果回放之前返回，因此也不能证明第一次写操作未提交。玩家随后再次提交完全相同的逻辑操作时先复用该 key 获取第一次结果；只有该操作得到明确终态后，再次主动执行相同参数的操作才允许生成并使用新的 key。
 
@@ -178,7 +180,8 @@ HTTP 2xx、3xx 或除 408、429 之外的明确 4xx 响应表示本次网络结�
 - 把四榜重新嵌入玩家 `stats`，导致其他玩家排名变化污染当前玩家分区；
 - 到期确认失败后停止所有后续确认，只能等待下一次普通轮询；
 - 删除统一注册表、共享单调服务器时钟、应用外壳协调器或每秒确认上限；
-- 恢复无超时 `fetch`、单一布尔刷新锁、固定 `setInterval` 并发确认，或让权威刷新因普通轮询／动作请求而永久跳过；
+- 除明确的 `/economy-api/game/session` 启动例外外恢复无超时 `fetch`，或恢复单一布尔刷新锁、固定 `setInterval` 并发确认，或让权威刷新因普通轮询／动作请求而永久跳过；
+- 把 `/economy-api/game/session` 重新纳入普通经济写动作的 12 秒客户端 Abort 定时器，导致统一账号已经登录后因权威写队列等待而出现假的登录终止；
 - 在经济写请求超时、断网、408、429 或 5xx 后为同一逻辑操作换用新的 `Idempotency-Key`，导致第一次请求仍可能成功时重复执行；
 - 清除普通状态缓存时同时清除已经锁定的页面 `saveEpoch`，重新制造 authority 发布后后台写请求漏带 `X-Economy-Save-Epoch` 的窗口；
 - 对同一 `userId` 接受不同 `saveEpoch` 后自动升级当前页面，或在 `SAVE_EPOCH_MISMATCH` 后读取服务器新世代并重放原业务动作；
@@ -199,7 +202,7 @@ HTTP 2xx、3xx 或除 408、429 之外的明确 4xx 响应表示本次网络结�
 - 让纯 `auction`、`contract` 或 `leaderboard` 更新重新提交与其无关的市场或建筑页面；
 - 让在线自动交易或教程生产完成检测重新依赖根应用因权威状态变化而重渲染才能运行。
 
-`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`，锁定注册表、共享单调服务器时钟、应用外壳协调、请求超时、权威刷新模式、后台恢复、串行每秒确认、研发确认文案、工作冷却例外、拍卖等待结算文案、完整分区替换、稳定分区时间字段、即时建设无倒计时边界、已就绪 authority 复用和本文档规则。经济写请求的同键确认重试、待确认 key 保留和应用入口安装同时由 `scripts/verify-market-action-latency.mjs` 防回退；生产结算基线指纹、过期提案同事务兜底与非法提案 409 由 `scripts/verify-production-lazy-settlement.mjs` 和服务器测试继续锁定；页面存档世代锁、状态发布前世代校验、普通 reset 保留锁和过期文档本地写阻断由 `scripts/verify-save-deletion.mjs`、`server/test/client-save-epoch-page-lifecycle.test.js` 与 `tests/browser/save-epoch-lifecycle.spec.ts` 继续锁定；客户端状态接受性能边界由 `scripts/verify-client-response-performance.mjs` 与 `server/test/game-authority-render-snapshot.test.js` 继续锁定。
+`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`，锁定注册表、共享单调服务器时钟、应用外壳协调、请求超时、权威刷新模式、后台恢复、串行每秒确认、研发确认文案、工作冷却例外、拍卖等待结算文案、完整分区替换、稳定分区时间字段、即时建设无倒计时边界、已就绪 authority 复用和本文档规则。经济写请求的同键确认重试、待确认 key 保留、普通经济写 12 秒边界、会话启动超时例外和应用入口安装同时由 `scripts/verify-market-action-latency.mjs` 防回退；生产结算基线指纹、过期提案同事务兜底与非法提案 409 由 `scripts/verify-production-lazy-settlement.mjs` 和服务器测试继续锁定；页面存档世代锁、状态发布前世代校验、普通 reset 保留锁和过期文档本地写阻断由 `scripts/verify-save-deletion.mjs`、`server/test/client-save-epoch-page-lifecycle.test.js` 与 `tests/browser/save-epoch-lifecycle.spec.ts` 继续锁定；客户端状态接受性能边界由 `scripts/verify-client-response-performance.mjs` 与 `server/test/game-authority-render-snapshot.test.js` 继续锁定。
 
 ## 合同领域截止时间
 

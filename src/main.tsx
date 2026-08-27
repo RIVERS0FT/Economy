@@ -32,6 +32,7 @@ import './styles/market-account-table.css';
 import './styles/asset-overview.css';
 import './styles/charts.css';
 import './styles/warehouse-expansion.css';
+import './styles/transport-page.css';
 import './styles/asset-auctions.css';
 import './styles/contracts.css';
 import './styles/bank.css';

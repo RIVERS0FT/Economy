@@ -2,6 +2,7 @@ export const navigationItems = [
   { id: 'home', label: '概览' },
   { id: 'market', label: '市场' },
   { id: 'buildings', label: '建筑' },
+  { id: 'transport', label: '运输' },
   { id: 'research', label: '研发' },
   { id: 'auction', label: '拍卖' },
   { id: 'contracts', label: '合同' },

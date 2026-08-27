@@ -226,8 +226,20 @@ export type OrderOwnerType = 'player' | 'population';
 export type TransportModeId = 'road' | 'rail' | 'air';
 export type TransportShipmentStatus = 'in-transit' | 'arrived';
 
+export interface TransportRoute {
+  id: string;
+  sourceProvinceId: string;
+  destinationProvinceId: string;
+  productId: string;
+  quantity: number;
+  mode: TransportModeId;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface TransportShipment {
   id: string;
+  routeId?: string;
   sourceProvinceId: string;
   destinationProvinceId: string;
   productId: string;
@@ -629,6 +641,7 @@ export interface EconomyState {
   facilityMarkets: Record<string, FacilityMarketState>;
   provinceFacilityMarkets: Record<string, Record<string, FacilityMarketState>>;
   orders: AssetOrder[];
+  transportRoutes?: TransportRoute[];
   transportShipments: TransportShipment[];
   facilityListings: FacilityListing[];
   valuationPrices: Record<string, number>;

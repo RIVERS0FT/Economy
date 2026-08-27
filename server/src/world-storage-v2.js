@@ -13,6 +13,7 @@ const LOCAL_PLAYER_ACTIONS = new Set([
   'bankBorrow',
   'bankRepay',
   'bankSetAutoRepay',
+  'transportShip',
   'checkIn',
   'redeemGift',
   'exchangeGems',

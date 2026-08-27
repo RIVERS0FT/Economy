@@ -1,4 +1,5 @@
 const GAME_API_PATH_PREFIX = '/economy-api/game';
+const SESSION_BOOTSTRAP_PATH = `${GAME_API_PATH_PREFIX}/session`;
 const WRITE_ATTEMPT_TIMEOUT_MS = 12_000;
 const PENDING_WRITE_TTL_MS = 24 * 60 * 60 * 1_000;
 const MAX_PENDING_WRITES = 128;
@@ -139,6 +140,10 @@ function canonicalRequestPath(input: RequestInfo | URL) {
   return `${url.pathname}${url.search}`;
 }
 
+function isSessionBootstrapWrite(input: RequestInfo | URL) {
+  return canonicalRequestPath(input) === SESSION_BOOTSTRAP_PATH;
+}
+
 function shouldKeepReservation(response: Response) {
   return response.status === 408 || response.status === 429 || response.status >= 500;
 }
@@ -163,7 +168,9 @@ async function fetchWriteAttempt(
   const forwardAbort = () => controller.abort();
   if (callerSignal?.aborted) controller.abort();
   else callerSignal?.addEventListener('abort', forwardAbort, { once: true });
-  const timeout = globalThis.setTimeout(() => controller.abort(), WRITE_ATTEMPT_TIMEOUT_MS);
+  const timeout = isSessionBootstrapWrite(input)
+    ? null
+    : globalThis.setTimeout(() => controller.abort(), WRITE_ATTEMPT_TIMEOUT_MS);
   try {
     return await nativeFetch(input, {
       ...init,
@@ -171,7 +178,7 @@ async function fetchWriteAttempt(
       signal: controller.signal,
     });
   } finally {
-    globalThis.clearTimeout(timeout);
+    if (timeout !== null) globalThis.clearTimeout(timeout);
     callerSignal?.removeEventListener('abort', forwardAbort);
   }
 }

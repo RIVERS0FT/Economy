@@ -4,6 +4,7 @@ const pages = [
   { navigation: /^概览/, heading: '概览' },
   { navigation: /^市场/, heading: '市场' },
   { navigation: /^建筑/, heading: '建筑' },
+  { navigation: /^运输/, heading: '运输' },
   { navigation: /^研发/, heading: '研发' },
   { navigation: /^拍卖/, heading: '拍卖' },
   { navigation: /^合同/, heading: '合同' },
@@ -39,7 +40,7 @@ test('account-free mode redirects into the complete game shell without API traff
   await expect(page).toHaveURL(/\/economy\/\?preview=game$/);
   await expect(page.locator('html')).toHaveAttribute('data-local-game-preview', 'true');
   await expect(page.locator('.game-shell')).toBeVisible();
-  await expect(page.locator('.desktop-sidebar .sidebar-nav-button')).toHaveCount(9);
+  await expect(page.locator('.desktop-sidebar .sidebar-nav-button')).toHaveCount(10);
   await expect(page.locator('.desktop-sidebar .sidebar-footer').getByRole('button', { name: '设置' })).toHaveCount(1);
   await expect(page.locator('.desktop-sidebar').getByRole('button', { name: /^地图/ })).toHaveCount(0);
   const map = page.getByTestId('us-mainland-map');
@@ -49,7 +50,7 @@ test('account-free mode redirects into the complete game shell without API traff
   expect(apiRequests).toEqual([]);
 });
 
-test('account-free game shell navigates all ten visible business pages and closes to the map', async ({ page }) => {
+test('account-free game shell navigates all eleven visible business pages and closes to the map', async ({ page }) => {
   await page.goto('?preview=game');
   const sidebar = page.locator('.desktop-sidebar');
 
@@ -172,7 +173,7 @@ test('player page heading keeps SVG back, centered title, and SVG close in that 
   }
 });
 
-test('overview, market, buildings, and settings share a one-third card width while leaderboard and shop stay full-area with one persistent strategic outliner', async ({ page }) => {
+test('overview, market, buildings, and settings share a one-third card width while transport, leaderboard, and shop stay full-area with one persistent strategic outliner', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('?preview=game');
@@ -233,7 +234,7 @@ test('overview, market, buildings, and settings share a one-third card width whi
   expect(compactCardWidths[0]).toBeCloseTo(1684 / 3, 0);
 
   const fullAreaWidths = new Map<string, number>();
-  for (const label of ['研发', '拍卖', '合同', '银行', '排行', '商店']) {
+  for (const label of ['运输', '研发', '拍卖', '合同', '银行', '排行', '商店']) {
     await sidebar.getByRole('button', { name: new RegExp(`^${label}`) }).click();
     const host = page.locator('.strategic-page-host');
     await expect(host.locator(':scope > .page-loading')).toHaveCount(0);

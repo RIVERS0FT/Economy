@@ -21,13 +21,16 @@ const files = [
   'src/components/visual/FinancialBackdrop.tsx',
   'src/components/auth/AuthCardSurface.tsx',
   'src/components/ui/FrostedGlassSurface.tsx',
+  'src/app/App.tsx',
   'src/app/LoginPage.tsx',
+  'src/api/auth.ts',
   'src/styles/financial-backdrop.css',
   'src/styles/frosted-glass-surfaces.css',
   'src/styles/auth.css',
   'src/styles/registration-auth.css',
   'src/main.tsx',
   'tests/browser/auth-three-layer.spec.ts',
+  'tests/browser/application-error-state.spec.ts',
   'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
 ];
 files.forEach(requireFile);
@@ -76,8 +79,22 @@ requireText('src/styles/auth.css', [
   '.login-card .frosted-glass-surface__content {',
   'padding: var(--space-8);',
   'padding: var(--space-5);',
+  '.auth-service-warning {',
+  'grid-template-columns: 44px minmax(0, 1fr) 44px;',
+  '.auth-service-warning > span {',
+  '.auth-service-warning > .browser-refresh-button {',
 ]);
 forbidText('src/styles/auth.css', ['backdrop-filter: blur(', 'backdrop-filter: var(', '.login-card.panel']);
+requireText('src/app/App.tsx', [
+  '<div className="auth-service-warning" role="alert">',
+  '<span>{authError}</span>',
+  '<RefreshPageButton />',
+]);
+requireText('src/api/auth.ts', [
+  "const REQUEST_ABORTED_MESSAGE = '连接已中断，请刷新页面后重试';",
+  "String((reason as { name?: unknown }).name || '') === 'AbortError'",
+  "code: 'CLIENT_REQUEST_ABORTED'",
+]);
 
 const packageJson = JSON.parse(read('package.json'));
 if (packageJson.dependencies?.['liquid-glass-react'] || read('package-lock.json').includes('node_modules/liquid-glass-react')) {
@@ -110,11 +127,20 @@ requireText('tests/browser/auth-three-layer.spec.ts', [
   "backdropFilter).toContain('blur(18px)')",
   'liquidDomCount).toBe(0)',
 ]);
+requireText('tests/browser/application-error-state.spec.ts', [
+  'mobile authentication abort warning centers recoverable text beside a fixed refresh target',
+  "toContainText('连接已中断，请刷新页面后重试')",
+  "not.toContainText('signal is aborted without reason')",
+  "expect(geometry.display).toBe('grid')",
+  'expect(geometry.refreshWidth).toBe(44)',
+]);
 requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', [
   '唯一 `FrostedGlassSurface` 的 `authCard` 变体',
   '`blur(18px) saturate(128%)`',
   '不得恢复组件测高状态',
   '`src/styles/frosted-glass-surfaces.css`',
+  '`44px minmax(0, 1fr) 44px`',
+  '`signal is aborted without reason`',
 ]);
 
 if (failures.length) {
@@ -122,4 +148,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('认证三层验证通过：唯一摄影根、单一 CSS 毛玻璃认证宿主、自然内容高度和断点表单保持满足当前基线。');
+console.log('认证三层验证通过：唯一摄影根、单一 CSS 毛玻璃认证宿主、自然内容高度、断点表单保持和认证错误恢复布局满足当前基线。');
