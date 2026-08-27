@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { CompactNumber, CompactRank } from '../components/ui/CompactNumber';
+import { PlayerAvatar } from '../components/ui/PlayerAvatar';
 import { Button, PageLayout, Panel, StatusTag } from '../components/ui/layout';
 import {
   leaderboardsFromGame,
@@ -98,7 +99,13 @@ function leaderboardAvatarText(playerName: string) {
   return playerName.trim().slice(0, 1).toUpperCase() || '?';
 }
 
+function leaderboardUserId(userId: number | undefined) {
+  const normalized = Number(userId);
+  return Number.isSafeInteger(normalized) && normalized > 0 ? normalized : null;
+}
+
 function LeaderboardRow({ board, entry }: { board: RankedLeaderboardBoard; entry: RankedLeaderboardEntry }) {
+  const userId = leaderboardUserId(entry.userId);
   return (
     <li
       className={entry.isCurrentPlayer ? 'leaderboard-row current-player-row' : 'leaderboard-row'}
@@ -106,7 +113,11 @@ function LeaderboardRow({ board, entry }: { board: RankedLeaderboardBoard; entry
     >
       <span className={`rank-number rank-${entry.rank}`} aria-label={`排名第 ${entry.rank} 名`}><CompactRank value={entry.rank} /></span>
       <span className="leaderboard-player">
-        <span className="leaderboard-avatar" aria-hidden="true">{leaderboardAvatarText(entry.playerName)}</span>
+        {userId ? (
+          <PlayerAvatar userId={userId} playerName={entry.playerName} size={28} className="leaderboard-avatar" />
+        ) : (
+          <span className="leaderboard-avatar" aria-hidden="true">{leaderboardAvatarText(entry.playerName)}</span>
+        )}
         <strong>{entry.playerName}</strong>
         {entry.isCurrentPlayer ? <StatusTag tone="success">你</StatusTag> : null}
       </span>
