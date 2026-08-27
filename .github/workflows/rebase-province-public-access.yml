@@ -1,0 +1,72 @@
+name: Rebase province public access
+
+on:
+  push:
+    branches:
+      - feat/province-public-overview-market
+    paths:
+      - .github/workflows/rebase-province-public-access.yml
+
+permissions:
+  contents: write
+
+jobs:
+  rebase-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/province-public-overview-market
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Merge latest main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if ! git merge --no-commit --no-ff origin/main; then
+            echo 'Merge conflicts:'
+            git diff --name-only --diff-filter=U
+            exit 1
+          fi
+          git commit -m 'chore: align province access with latest main'
+          git diff --check origin/main...HEAD
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify merged implementation
+        run: |
+          node scripts/verify-page-content.mjs
+          npm run verify:provincial-economy
+          node --experimental-strip-types scripts/verify-market-assets.mjs
+          node scripts/verify-market-page-layout.mjs
+          npm run build
+
+      - name: Prepare Chromium
+        run: bash scripts/prepare-playwright-chromium.sh
+
+      - name: Verify browser behavior
+        run: |
+          npx playwright test tests/browser/province-locked-access.spec.ts
+          npm run test:browser
+
+      - name: Clean temporary workflow and push
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/rebase-province-public-access.yml
+          git add -A
+          git commit -m 'chore: remove temporary merge workflow'
+          git push origin HEAD:feat/province-public-overview-market
