@@ -20557,6 +20557,7 @@
             "entries": [
               {
                 "rank": 1,
+                "userId": 90002,
                 "playerName": "Atlas 集团",
                 "score": 186000,
                 "secondary": 186000,
@@ -20564,6 +20565,7 @@
               },
               {
                 "rank": 2,
+                "userId": 90001,
                 "playerName": "本地预览玩家",
                 "score": 174433.9,
                 "secondary": 129880,
@@ -20571,6 +20573,7 @@
               },
               {
                 "rank": 3,
+                "userId": 90003,
                 "playerName": "Riversoft 实业",
                 "score": 82400,
                 "secondary": 82400,
@@ -20579,6 +20582,7 @@
             ],
             "currentPlayer": {
               "rank": 2,
+              "userId": 90001,
               "playerName": "本地预览玩家",
               "score": 174433.9,
               "secondary": 129880,
@@ -20596,6 +20600,7 @@
             "entries": [
               {
                 "rank": 1,
+                "userId": 90001,
                 "playerName": "本地预览玩家",
                 "score": 0,
                 "secondary": 179303.9,
@@ -20603,6 +20608,7 @@
               },
               {
                 "rank": 2,
+                "userId": 90002,
                 "playerName": "Atlas 集团",
                 "score": 0,
                 "secondary": 187560,
@@ -20610,6 +20616,7 @@
               },
               {
                 "rank": 3,
+                "userId": 90003,
                 "playerName": "Riversoft 实业",
                 "score": 0,
                 "secondary": 83160,
@@ -20618,6 +20625,7 @@
             ],
             "currentPlayer": {
               "rank": 1,
+              "userId": 90001,
               "playerName": "本地预览玩家",
               "score": 0,
               "secondary": 179303.9,
@@ -20635,6 +20643,7 @@
             "entries": [
               {
                 "rank": 1,
+                "userId": 90001,
                 "playerName": "本地预览玩家",
                 "score": 0,
                 "secondary": 0,
@@ -20642,6 +20651,7 @@
               },
               {
                 "rank": 2,
+                "userId": 90002,
                 "playerName": "Atlas 集团",
                 "score": 0,
                 "secondary": 0,
@@ -20649,6 +20659,7 @@
               },
               {
                 "rank": 3,
+                "userId": 90003,
                 "playerName": "Riversoft 实业",
                 "score": 0,
                 "secondary": 0,
@@ -20657,6 +20668,7 @@
             ],
             "currentPlayer": {
               "rank": 1,
+              "userId": 90001,
               "playerName": "本地预览玩家",
               "score": 0,
               "secondary": 0,
@@ -20674,6 +20686,7 @@
             "entries": [
               {
                 "rank": 1,
+                "userId": 90001,
                 "playerName": "本地预览玩家",
                 "score": 0,
                 "secondary": 0,
@@ -20681,6 +20694,7 @@
               },
               {
                 "rank": 2,
+                "userId": 90002,
                 "playerName": "Atlas 集团",
                 "score": 0,
                 "secondary": 0,
@@ -20688,6 +20702,7 @@
               },
               {
                 "rank": 3,
+                "userId": 90003,
                 "playerName": "Riversoft 实业",
                 "score": 0,
                 "secondary": 0,
@@ -20696,6 +20711,7 @@
             ],
             "currentPlayer": {
               "rank": 1,
+              "userId": 90001,
               "playerName": "本地预览玩家",
               "score": 0,
               "secondary": 0,
