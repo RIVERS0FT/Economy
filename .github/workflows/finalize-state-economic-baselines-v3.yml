@@ -1,0 +1,88 @@
+name: Finalize state economic baselines v3
+
+on:
+  push:
+    branches:
+      - feat/state-economic-baselines
+    paths:
+      - .github/workflows/finalize-state-economic-baselines-v3.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/state-economic-baselines
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply implementation and fixes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          source = Path('.github/workflows/finalize-state-economic-baselines-v2.yml').read_text(encoding='utf-8')
+          old = '''          replace_once(
+              'scripts/verify-staple-crops-demand.mjs',
+              "'市场需求模型版本：19'",
+              "'市场需求模型版本：20'",
+          )'''
+          new = '''          verifier = Path('scripts/verify-staple-crops-demand.mjs')
+          verifier_text = verifier.read_text(encoding='utf-8')
+          old_version = "'市场需求模型版本：19'"
+          if verifier_text.count(old_version) != 2:
+              raise SystemExit(f"expected two old design-version guards, found {verifier_text.count(old_version)}")
+          verifier.write_text(verifier_text.replace(old_version, "'市场需求模型版本：20'"), encoding='utf-8')'''
+          if source.count(old) != 1:
+              raise SystemExit('unable to patch v2 verifier replacement')
+          source = source.replace(old, new, 1)
+          start_marker = "      - name: Apply implementation and fixes\n        shell: bash\n        run: |\n"
+          end_marker = "\n      - name: Install dependencies\n"
+          start = source.index(start_marker) + len(start_marker)
+          end = source.index(end_marker, start)
+          Path('/tmp/finalize-state-economic-baselines.sh').write_text(textwrap.dedent(source[start:end]), encoding='utf-8')
+          PY
+          bash /tmp/finalize-state-economic-baselines.sh
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run targeted server tests
+        run: node --test server/test/state-economic-baselines.test.js server/test/market-demand-v6.test.js server/test/provinces.test.js server/test/population-economy.test.js
+
+      - name: Verify population and provincial economy
+        run: |
+          node scripts/verify-staple-crops-demand.mjs
+          npm run verify:provincial-economy
+
+      - name: Run full build verification
+        run: npm run build
+
+      - name: Commit final implementation
+        shell: bash
+        run: |
+          git rm .github/workflows/apply-state-economic-baselines.yml
+          git rm .github/workflows/finalize-state-economic-baselines.yml
+          git rm .github/workflows/finalize-state-economic-baselines-v2.yml
+          git rm .github/workflows/finalize-state-economic-baselines-v3.yml
+          git add -A
+          git diff --cached --check
+          git status --short
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "feat: add state economic baselines"
+          git push origin HEAD:feat/state-economic-baselines
