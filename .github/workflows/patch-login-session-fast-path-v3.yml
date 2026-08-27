@@ -1,0 +1,39 @@
+name: Patch login session fast path v3
+
+on:
+  push:
+    branches:
+      - fix/login-session-fast-path
+    paths:
+      - .github/workflows/patch-login-session-fast-path-v3.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/login-session-fast-path
+          fetch-depth: 0
+      - name: Run corrected implementation patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          workflow = Path('.github/workflows/patch-login-session-fast-path-v2.yml').read_text()
+          start_marker = "          python3 - <<'PY'\n"
+          end_marker = "\n          PY\n"
+          start = workflow.index(start_marker) + len(start_marker)
+          end = workflow.index(end_marker, start)
+          script = textwrap.dedent(workflow[start:end])
+          needle = "if market.count(old_process) != 1:\n"
+          replacement = "old_process = textwrap.indent(old_process, '  ')\nnew_process = textwrap.indent(new_process, '  ')\nif market.count(old_process) != 1:\n"
+          if script.count(needle) != 1:
+              raise SystemExit('v2 market process guard not found exactly once')
+          script = script.replace(needle, replacement, 1)
+          exec(compile(script, 'patch-login-session-fast-path-v3', 'exec'), {'__name__': '__main__'})
+          PY
