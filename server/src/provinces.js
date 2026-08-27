@@ -44,6 +44,20 @@ export function splitProvinceScopedKey(value) {
   };
 }
 
+export function syncDefaultProvinceAlias(record, assetId) {
+  if (!record || typeof record !== 'object') return record;
+  const id = String(assetId || '');
+  if (!id) return record;
+  const scopedKey = provinceScopedKey(DEFAULT_PROVINCE_ID, id);
+  if (Object.hasOwn(record, scopedKey)) {
+    defineDefaultProvinceAlias(record, id);
+    return record;
+  }
+  const descriptor = Object.getOwnPropertyDescriptor(record, id);
+  if (descriptor && !descriptor.enumerable) delete record[id];
+  return record;
+}
+
 export function installDefaultProvinceAliases(record) {
   if (!record || typeof record !== 'object') return record;
   if (installedDefaultProvinceAliasRecords.has(record)) return record;
@@ -56,7 +70,7 @@ export function installDefaultProvinceAliases(record) {
   for (const key of Object.keys(record)) {
     const { provinceId, assetId } = splitProvinceScopedKey(key);
     if (provinceId === DEFAULT_PROVINCE_ID && key.includes(SCOPED_KEY_SEPARATOR)) {
-      defineDefaultProvinceAlias(record, assetId);
+      syncDefaultProvinceAlias(record, assetId);
     }
   }
   installedDefaultProvinceAliasRecords.add(record);
@@ -101,7 +115,7 @@ export function inventoryForProvince(player, productId, provinceId = DEFAULT_PRO
   const key = provinceScopedKey(provinceId, productId);
   player.inventories[key] ||= { available: 0, frozen: 0, inTransit: 0 };
   if (normalizeProvinceId(provinceId) === DEFAULT_PROVINCE_ID) {
-    defineDefaultProvinceAlias(player.inventories, String(productId || ''));
+    syncDefaultProvinceAlias(player.inventories, productId);
   }
   return player.inventories[key];
 }
