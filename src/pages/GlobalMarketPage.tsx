@@ -2,20 +2,25 @@ import { CompactNumber } from '../components/ui/CompactNumber';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { ChevronIcon } from '../components/icons/GameIcons';
-import { MarketCommodityHeader, MarketCommodityRow } from '../components/market/MarketCommodityRow';
+import {
+  compareMarketOptionalValue,
+  MarketCommodityHeader,
+  MarketCommodityRow,
+  type MarketCommoditySortKey,
+  type MarketSortDirection,
+} from '../components/market/MarketCommodityRow';
 import { ProductArtwork } from '../components/products/ProductArtwork';
+import { EntityListHeader } from '../components/ui/EntityListHeader';
 import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import {
   PageLayout,
-  PagePanel,
   Panel,
-  StatusTag,
-  WidgetHeading,
 } from '../components/ui/layout';
 import type { AssetOrder, EconomyState, ProductCategory } from '../types';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import '../styles/global-operation-pages.css';
+import '../styles/entity-list-header.css';
 
 const EmbeddedMarketPage = lazy(() => import('./MarketPage').then((module) => ({
   default: module.MarketPage,
@@ -23,7 +28,6 @@ const EmbeddedMarketPage = lazy(() => import('./MarketPage').then((module) => ({
 
 type GlobalMarketStatus = 'all' | 'traded' | 'unmet-demand' | 'no-trade';
 type RegionalProductStatus = 'all' | 'traded' | 'buy' | 'sell' | 'own-order';
-type RegionalProductSort = 'catalog' | 'price' | 'trend' | 'buy-volume' | 'sell-volume';
 
 const PRODUCT_CATEGORY_LABELS: Record<ProductCategory, string> = {
   raw: '原材料',
@@ -53,14 +57,6 @@ const REGIONAL_STATUS_FILTERS: Array<{ value: RegionalProductStatus; label: stri
   { value: 'buy', label: '有买盘' },
   { value: 'sell', label: '有卖盘' },
   { value: 'own-order', label: '有我的订单' },
-];
-
-const REGIONAL_SORT_OPTIONS: Array<{ value: RegionalProductSort; label: string }> = [
-  { value: 'catalog', label: '地区顺序' },
-  { value: 'price', label: '市场价' },
-  { value: 'trend', label: '24h 变化' },
-  { value: 'buy-volume', label: '买单量' },
-  { value: 'sell-volume', label: '卖单量' },
 ];
 
 function operationalProvinces(model: OnlineAutoTradeAwareGameViewModel) {
@@ -110,7 +106,8 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
   const [categoryFilter, setCategoryFilter] = useState<'all' | ProductCategory>('all');
   const [statusFilter, setStatusFilter] = useState<GlobalMarketStatus>('all');
   const [regionalStatusFilter, setRegionalStatusFilter] = useState<RegionalProductStatus>('all');
-  const [regionalSort, setRegionalSort] = useState<RegionalProductSort>('catalog');
+  const [regionalSort, setRegionalSort] = useState<MarketCommoditySortKey>('catalog');
+  const [regionalSortDirection, setRegionalSortDirection] = useState<MarketSortDirection>('asc');
   const pageNavigation = usePlayerPageNavigation();
   const stackedLocation = pageNavigation?.currentLocation;
   const game = model.game;
@@ -214,10 +211,13 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
       return true;
     });
     return filtered.sort((left, right) => {
-      if (regionalSort === 'price') return (right.marketPrice ?? -Infinity) - (left.marketPrice ?? -Infinity);
-      if (regionalSort === 'trend') return (right.trend ?? -Infinity) - (left.trend ?? -Infinity);
-      if (regionalSort === 'buy-volume') return right.buyVolume - left.buyVolume;
-      if (regionalSort === 'sell-volume') return right.sellVolume - left.sellVolume;
+      if (regionalSort === 'name') return regionalSortDirection === 'asc'
+        ? left.province.name.localeCompare(right.province.name, 'zh-CN')
+        : right.province.name.localeCompare(left.province.name, 'zh-CN');
+      if (regionalSort === 'price') return compareMarketOptionalValue(left.marketPrice, right.marketPrice, regionalSortDirection);
+      if (regionalSort === 'trend') return compareMarketOptionalValue(left.trend, right.trend, regionalSortDirection);
+      if (regionalSort === 'buy-volume') return compareMarketOptionalValue(left.buyVolume, right.buyVolume, regionalSortDirection);
+      if (regionalSort === 'sell-volume') return compareMarketOptionalValue(left.sellVolume, right.sellVolume, regionalSortDirection);
       return left.catalogIndex - right.catalogIndex;
     });
   }, [
@@ -225,6 +225,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
     game.provinceMarkets,
     orderVolumes,
     provinces,
+    regionalSortDirection,
     regionalSort,
     regionalStatusFilter,
     selectedGlobalProduct,
@@ -254,6 +255,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
     setActiveProvinceId(null);
     setRegionalStatusFilter('all');
     setRegionalSort('catalog');
+    setRegionalSortDirection('asc');
     pageNavigation?.pushPage({ type: 'global-market-product', productId });
   };
 
@@ -306,7 +308,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
   }
 
   if (selectedGlobalProduct) {
-    const activeRegionalFilterCount = Number(regionalStatusFilter !== 'all') + Number(regionalSort !== 'catalog');
+    const activeRegionalFilterCount = Number(regionalStatusFilter !== 'all');
     return (
       <PageLayout
         title={selectedGlobalProduct.name}
@@ -317,66 +319,59 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
           data-global-scope="market"
           data-global-product-id={selectedGlobalProduct.id}
         >
-          <PagePanel className="global-market-product-detail-panel">
-            <WidgetHeading
-              title="地区行情"
-              action={<StatusTag>{<CompactNumber value={regionalRows.length} />} / {<CompactNumber value={provinces.length} />} 个地区</StatusTag>}
-            />
-            <details className="global-market-filter-disclosure">
-              <summary>
-                <span>筛选与排序</span>
-                <small>{activeRegionalFilterCount > 0 ? `${activeRegionalFilterCount} 项已启用` : '默认折叠'}</small>
-              </summary>
-              <div className="global-market-filter-row" aria-label={`${selectedGlobalProduct.name}地区行情筛选`}>
-                <div className="global-market-filter-group" role="group" aria-label="地区市场状态">
-                  {REGIONAL_STATUS_FILTERS.map((option) => (
-                    <button
-                      type="button"
-                      className={'global-market-filter-button' + (regionalStatusFilter === option.value ? ' active' : '')}
-                      aria-pressed={regionalStatusFilter === option.value}
-                      key={option.value}
-                      onClick={() => setRegionalStatusFilter(option.value)}
-                    >{option.label}</button>
-                  ))}
-                </div>
-                <div className="global-market-filter-group" role="group" aria-label="地区行情排序">
-                  {REGIONAL_SORT_OPTIONS.map((option) => (
-                    <button
-                      type="button"
-                      className={'global-market-filter-button' + (regionalSort === option.value ? ' active' : '')}
-                      aria-pressed={regionalSort === option.value}
-                      key={option.value}
-                      onClick={() => setRegionalSort(option.value)}
-                    >{option.label}</button>
-                  ))}
-                </div>
+          <details className="global-market-filter-disclosure">
+            <summary>
+              <span>筛选</span>
+              <small>{activeRegionalFilterCount > 0 ? `${activeRegionalFilterCount} 项已启用` : '默认折叠'}</small>
+            </summary>
+            <div className="global-market-filter-row" aria-label={`${selectedGlobalProduct.name}地区行情筛选`}>
+              <div className="global-market-filter-group" role="group" aria-label="地区市场状态">
+                {REGIONAL_STATUS_FILTERS.map((option) => (
+                  <button
+                    type="button"
+                    className={'global-market-filter-button' + (regionalStatusFilter === option.value ? ' active' : '')}
+                    aria-pressed={regionalStatusFilter === option.value}
+                    key={option.value}
+                    onClick={() => setRegionalStatusFilter(option.value)}
+                  >{option.label}</button>
+                ))}
               </div>
-            </details>
-            <MarketCommodityHeader />
-            <ul className="global-market-product-region-list" aria-label={`${selectedGlobalProduct.name}各地区行情`}>
-              {regionalRows.map((row) => (
-                <li key={row.province.id}>
+            </div>
+          </details>
+          <MarketCommodityHeader
+            entityLabel="地区"
+            entitySortKey="name"
+            sortKey={regionalSort}
+            sortDirection={regionalSortDirection}
+            onSortChange={({ key, direction }) => {
+              setRegionalSort(key);
+              setRegionalSortDirection(direction);
+            }}
+          />
+          <ul className="global-market-product-region-list" aria-label={`${selectedGlobalProduct.name}各地区行情`}>
+            {regionalRows.map((row) => (
+              <li key={row.province.id}>
                   <MarketCommodityRow
                     productId={selectedGlobalProduct.id}
                     productName={selectedGlobalProduct.name}
                     categoryLabel={PRODUCT_CATEGORY_LABELS[selectedGlobalProduct.category]}
                     regionName={row.province.name}
+                    regionPrimary
                     currentRegion={row.province.id === model.selectedProvinceId}
-                    provinceId={row.province.id}
-                    sellVolume={row.sellVolume}
-                    buyVolume={row.buyVolume}
-                    marketPrice={row.marketPrice}
-                    trend={row.trend}
-                    ariaLabel={`打开${row.province.name}${selectedGlobalProduct.name}详情`}
-                    onClick={() => openRegionalProduct(row.province.id)}
-                  />
-                </li>
-              ))}
-              {regionalRows.length === 0
-                ? <li className="global-market-empty">没有符合当前筛选条件的地区。</li>
-                : null}
-            </ul>
-          </PagePanel>
+                  provinceId={row.province.id}
+                  sellVolume={row.sellVolume}
+                  buyVolume={row.buyVolume}
+                  marketPrice={row.marketPrice}
+                  trend={row.trend}
+                  ariaLabel={`打开${row.province.name}${selectedGlobalProduct.name}详情`}
+                  onClick={() => openRegionalProduct(row.province.id)}
+                />
+              </li>
+            ))}
+            {regionalRows.length === 0
+              ? <li className="global-market-empty">没有符合当前筛选条件的地区。</li>
+              : null}
+          </ul>
         </div>
       </PageLayout>
     );
@@ -416,19 +411,22 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
             </div>
           </div>
         </details>
-        <div className="global-market-goods-header">
-          <span>商品</span>
-          <span>成交地区</span>
-          <span>真实成交价范围</span>
-          <span>需求未满足</span>
-          <span />
-        </div>
+        <EntityListHeader
+          className="global-market-goods-header"
+          columns={[
+            { label: '商品' },
+            { label: '成交地区' },
+            { label: '真实成交价范围' },
+            { label: '需求未满足' },
+            { key: 'chevron', label: '' },
+          ]}
+        />
         <ul className="global-market-goods-list" aria-label="全局商品目录">
           {filteredProductRows.map((row) => (
             <li key={row.id}>
               <button
                 type="button"
-                className="global-market-goods-row"
+                className="entity-list-row global-market-goods-row"
                 data-ui-interactive="surface"
                 aria-label={`打开${row.name}全局详情`}
                 onClick={() => openGlobalProduct(row.id)}

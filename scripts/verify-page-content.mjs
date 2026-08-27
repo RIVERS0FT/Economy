@@ -24,6 +24,7 @@ for (const path of [
   'src/pages/MarketPage.tsx',
   'src/components/market/MarketCommodityRow.tsx',
   'src/styles/market-commodity-row.css',
+  'src/styles/entity-list-header.css',
   'src/pages/BuildingsPage.tsx',
   'src/pages/ProvincePage.tsx',
   'src/pages/PageRouter.tsx',
@@ -45,7 +46,8 @@ for (const text of [
   '一级导航中的“市场”和“建筑”固定进入全局视图',
   '建筑固定采用“工厂目录 → 工厂地区列表 → 地区工厂详情”的工厂优先钻取',
   '一级建筑页不再提供独立“地区建筑”卡片或直接地区入口',
-  '一级建筑页只显示按正式工厂目录顺序过滤得到的跨州已拥有工厂类型汇总',
+  '默认态保持正式工厂目录顺序',
+  '表头允许按工厂名称、平均利润和拥有数量',
   '一级建筑只提供工厂类型全局总览与工厂优先地区钻取',
   '`ProvincePage` 内的市场与建筑分区仍始终是地图所打开当前州的本地视图',
   '邀请卡与礼品码兑换唯一归属商店',
@@ -129,7 +131,7 @@ for (const [path, expected] of [
     'global-market-goods-header',
     'global-market-filter-disclosure',
     'selectedGlobalProductId',
-    'global-market-product-detail-panel',
+    'global-market-product-detail',
     '<MarketCommodityRow',
     'model.setSelectedProvinceId(provinceId);',
     '<EmbeddedMarketPage model={model} embedded />',
@@ -148,14 +150,14 @@ for (const [path, expected] of [
     'className="global-facility-catalog"',
     'className="global-facility-catalog-header"',
     'className="global-facility-catalog-list"',
-    'className="global-facility-catalog-row"',
+    'className="entity-list-row global-facility-catalog-row"',
     'onClick={() => openGlobalFacility(row.facilityTypeId)}',
     '<FacilityIcon facilityTypeId={row.facilityTypeId} className="global-facility-catalog-row__artwork" />',
     '<ChevronIcon direction="right" />',
     'data-global-facility-type-id={selectedGlobalFacilityTypeId}',
     'className="global-facility-region-header"',
     'className="global-facility-region-list"',
-    'className="global-facility-region-row"',
+    'className="entity-list-row global-facility-region-row"',
     'className={`global-facility-region-row__profit is-${row.profitTone}`}',
     'profitTone: presentation.tone',
     'profitValue: presentation.visibleValue',
@@ -188,6 +190,14 @@ for (const text of [
   '24h',
 ]) requireText('src/components/market/MarketCommodityRow.tsx', text);
 for (const text of ['挂单差额', '基准偏离', '挂单状态']) forbidText('src/components/market/MarketCommodityRow.tsx', text);
+for (const text of ['.entity-list-header', 'border-bottom: 1px solid var(--color-divider);']) {
+  requireText('src/styles/entity-list-header.css', text);
+}
+requireText('src/pages/GlobalMarketPage.tsx', 'className="global-market-goods-header"');
+requireText('src/pages/GlobalBuildingsPage.tsx', 'className="global-facility-catalog-header"');
+requireText('src/pages/GlobalBuildingsPage.tsx', 'className="global-facility-region-header"');
+forbidText('src/pages/GlobalMarketPage.tsx', '筛选与排序');
+forbidText('src/pages/MarketPage.tsx', '筛选与排序');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品目录 → 商品全局详情 → 地区商品详情');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '筛选默认折叠且不提供商品名称搜索框');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '市场标题区固定显示“市场”，商品目录正文不重复显示“商品”分区标题');
@@ -226,17 +236,21 @@ for (const text of [
   '.global-facility-catalog-row,',
   '.global-facility-region-row {',
   '.global-facility-catalog-row__artwork {',
-  'grid-template-columns: minmax(0, 1.6fr) minmax(7rem, .8fr) minmax(4rem, .45fr) 1rem;',
-  'grid-template-columns: minmax(0, 1.45fr) minmax(6rem, .7fr) minmax(3.5rem, .42fr) minmax(4.5rem, .55fr) 1rem;',
-  'height: 44px;',
+  '--entity-list-columns: minmax(0, 1.6fr) minmax(7rem, .8fr) minmax(4rem, .45fr) 1rem;',
+  '--entity-list-columns: minmax(0, 1.45fr) minmax(6rem, .7fr) minmax(3.5rem, .42fr) minmax(4.5rem, .55fr) 1rem;',
   'aspect-ratio: 1;',
   '.global-facility-catalog-row__profit.is-positive,',
   '.global-facility-region-row__profit.is-positive {',
   '.global-facility-region-row__profit.is-negative {',
   '@container (max-width: 620px)',
   '@container (max-width: 360px)',
-  'border-bottom: 1px solid var(--color-divider);',
 ]) requireText('src/styles/global-operation-pages.css', text);
+for (const text of [
+  'height: 42px;',
+  'min-height: var(--entity-list-row-height, 58px);',
+  'border: 1px solid var(--color-border-subtle);',
+  'border-radius: var(--radius-control);',
+]) requireText('src/styles/entity-list-header.css', text);
 for (const text of [
   'height: 55px;',
   'height: 50px;',

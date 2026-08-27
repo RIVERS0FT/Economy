@@ -59,7 +59,9 @@ for (const forbidden of [
 for (const required of [
   '正式目录必须按 `complexity` 从 `C1` 到 `C7` 升序排列',
   '同一复杂度内保持服务器目录声明的相对顺序',
-  '不得对 `game.facilityTypes` 再次执行 `sort()` 或 `toSorted()`',
+  '不得对 `game.facilityTypes` 本身执行 `sort()` 或 `toSorted()`',
+  '默认态和第三态必须恢复正式目录顺序',
+  '地区 `BuildingsPage` 的工厂选择卡仍禁止客户端重排',
 ]) assert.equal(catalogPresentationDesign.includes(required), true, `工厂目录权威设计缺少: ${required}`);
 
 for (const text of [

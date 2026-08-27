@@ -33,7 +33,7 @@ for (const text of [
   'key={`sell-${level.price}`}','key={`buy-${level.price}`}',
 ]) requireText('src/pages/MarketPage.tsx', text);
 requireText('src/components/market/MarketCommodityRow.tsx', '<ProductArtwork productId={productId} />');
-requireText('src/components/market/MarketCommodityRow.tsx', 'className="market-commodity-row"');
+requireText('src/components/market/MarketCommodityRow.tsx', 'className="entity-list-row market-commodity-row"');
 for (const text of [
   'unified-asset-tabs','asset-directory-shell','localTrades.map(','market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>','限价','order-book-columns','order-book-midpoint',
   '最低价前 5 笔','最高价前 5 笔','order-book-side-label',

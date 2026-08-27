@@ -119,8 +119,9 @@
 }
 
 .admin-population-matrix__row--header > * {
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
   text-align: left;
 }
 

@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -41,6 +42,7 @@ const PAN_VISIBLE_MARGIN = 64;
 const FOCUS_VISIBLE_MARGIN = 88;
 const DRAG_THRESHOLD = 6;
 const KEYBOARD_PAN_STEP = 56;
+const WHEEL_SETTLE_DELAY_MS = 140;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -115,6 +117,11 @@ function distance(points: ViewportPoint[]) {
   return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
 }
 
+function snapToDevicePixel(value: number) {
+  const ratio = typeof window === 'undefined' ? 1 : Math.max(1, window.devicePixelRatio || 1);
+  return Math.round(value * ratio) / ratio;
+}
+
 export function ResearchTreeViewport({ width, height, focusPoint, children }: ResearchTreeViewportProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const viewportSizeRef = useRef<ViewportSize>({ width: 1, height: 1 });
@@ -126,13 +133,28 @@ export function ResearchTreeViewport({ width, height, focusPoint, children }: Re
   const gestureMovedRef = useRef(false);
   const gestureStartedOnNodeRef = useRef(false);
   const suppressClickRef = useRef(false);
+  const wheelSettleTimerRef = useRef<number | null>(null);
   const [isDragging, setDragging] = useState(false);
+  const [isTransforming, setTransforming] = useState(false);
   const [state, setState] = useState<ViewportState>({ panX: 0, panY: 0, zoom: 1 });
   const world = { width, height };
 
   const clampState = useCallback((next: ViewportState) => (
     clampResearchTreeViewport(next, viewportSizeRef.current, { width, height })
   ), [height, width]);
+
+  const settleTransform = useCallback(() => {
+    setTransforming(false);
+    setState((current) => clampState({
+      ...current,
+      panX: snapToDevicePixel(current.panX),
+      panY: snapToDevicePixel(current.panY),
+    }));
+  }, [clampState]);
+
+  useEffect(() => () => {
+    if (wheelSettleTimerRef.current !== null) window.clearTimeout(wheelSettleTimerRef.current);
+  }, []);
 
   const measureAndClamp = useCallback(() => {
     const viewport = viewportRef.current;
@@ -197,6 +219,7 @@ export function ResearchTreeViewport({ width, height, focusPoint, children }: Re
     const startedOnNode = Boolean(target.closest('.research-technology-node'));
     pointersRef.current.set(event.pointerId, point);
     setDragging(true);
+    setTransforming(true);
 
     if (pointersRef.current.size === 1) {
       gestureMovedRef.current = false;
@@ -278,8 +301,9 @@ export function ResearchTreeViewport({ width, height, focusPoint, children }: Re
       pinchRef.current = null;
       gestureStartedOnNodeRef.current = false;
       setDragging(false);
+      settleTransform();
     }
-  }, []);
+  }, [settleTransform]);
 
   const handleClickCapture = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
@@ -308,6 +332,8 @@ export function ResearchTreeViewport({ width, height, focusPoint, children }: Re
 
   const handleWheel = useCallback((event: ReactWheelEvent<HTMLDivElement>) => {
     event.preventDefault();
+    setTransforming(true);
+    if (wheelSettleTimerRef.current !== null) window.clearTimeout(wheelSettleTimerRef.current);
     const anchor = localPoint(event.clientX, event.clientY);
     const normalizedDeltaY = event.deltaMode === 1
       ? event.deltaY * 16
@@ -316,7 +342,11 @@ export function ResearchTreeViewport({ width, height, focusPoint, children }: Re
         : event.deltaY;
     const factor = Math.exp(-normalizedDeltaY * 0.002);
     zoomAt(anchor, state.zoom * factor);
-  }, [localPoint, state.zoom, zoomAt]);
+    wheelSettleTimerRef.current = window.setTimeout(() => {
+      wheelSettleTimerRef.current = null;
+      settleTransform();
+    }, WHEEL_SETTLE_DELAY_MS);
+  }, [localPoint, settleTransform, state.zoom, zoomAt]);
 
   const handleKeyboard = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) return;
@@ -375,6 +405,7 @@ export function ResearchTreeViewport({ width, height, focusPoint, children }: Re
       ref={viewportRef}
       className="research-tree-viewport"
       data-dragging={isDragging || undefined}
+      data-transforming={isTransforming || undefined}
       data-pan-x={Math.round(state.panX * 100) / 100}
       data-pan-y={Math.round(state.panY * 100) / 100}
       data-zoom={Math.round(state.zoom * 1000) / 1000}

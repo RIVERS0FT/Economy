@@ -69,7 +69,9 @@ const requiredFiles = [
   'src/utils/inputModality.ts',
   'src/app/interactionBootstrap.ts',
   'src/styles/interaction-states.css',
-  'src/pages/BuildingsPage.tsx',
+    'src/pages/BuildingsPage.tsx',
+    'src/pages/ResearchPage.tsx',
+    'src/styles/research-page.css',
   productionDetailPath,
   mobileDetailPath,
   mobileSheetHostPath,
@@ -103,6 +105,12 @@ if (failures.length === 0) {
   ]) requireText('src/styles/interaction-states.css', text);
 
   requireText(productionDetailPath, 'data-ui-interactive="surface"');
+  requireText('src/pages/ResearchPage.tsx', 'data-ui-interactive="surface"');
+  for (const text of [
+    '--ui-interactive-hover-filter: none;',
+    '--ui-interactive-hover-transform: none;',
+    '--ui-interactive-active-transform: none;',
+  ]) requireText('src/styles/research-page.css', text);
   requireText('src/pages/BuildingsPage.tsx', 'onSelect={() => selectFacilityEntry(entry.type.id)}');
   requireText('src/pages/BuildingsPage.tsx', 'className="facility-cluster-detail-shell facility-cluster-detail-page"');
   requireText('tests/browser/buildings-ledger-layout.spec.ts', 'factory card opens second-level detail without changing header height');

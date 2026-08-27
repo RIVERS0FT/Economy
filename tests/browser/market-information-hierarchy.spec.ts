@@ -31,15 +31,35 @@ test('market uses product-first global and regional information hierarchy', asyn
   expect(globalGeometry.scrollWidth).toBeLessThanOrEqual(globalGeometry.clientWidth + 1);
 
   await globalRow.click();
-  await expect(page.locator('.global-market-product-detail-panel')).toBeVisible();
-  const regionalHeader = page.locator('.global-market-product-detail-panel > .market-commodity-row-header');
+  await expect(page.locator('.global-market-product-region-list')).toBeVisible();
+  const regionalHeader = page.locator('.global-market-product-detail > .market-commodity-row-header');
   await expect(regionalHeader).toBeVisible();
   await expect(page.locator('.global-market-product-region-list .market-commodity-row-header')).toHaveCount(0);
-  for (const label of ['商品', '卖单量', '买单量', '市场价', '24h']) {
+  for (const label of ['地区', '卖单量', '买单量', '市场价', '24h']) {
     await expect(regionalHeader.getByText(label, { exact: true })).toBeVisible();
   }
   const regionalRow = page.getByRole('button', { name: '打开加利福尼亚州小麦详情' });
   await expect(regionalRow).toBeVisible();
+  await expect(regionalRow.locator('.market-commodity-row__name strong')).toHaveText('加利福尼亚州');
+  await expect(regionalRow.locator('.market-commodity-row__name small')).toHaveCount(0);
+  await expect(regionalRow.locator('.market-commodity-row__artwork')).toHaveCount(0);
+  const regionalNames = page.locator('.global-market-product-region-list .market-commodity-row__name strong');
+  const initialRegionOrder = await regionalNames.allTextContents();
+  const regionNameSort = regionalHeader.getByRole('button', { name: '地区', exact: true });
+  await regionNameSort.click();
+  await expect(regionalHeader.getByRole('columnheader', { name: '地区' })).toHaveAttribute('aria-sort', 'ascending');
+  expect(await regionalNames.allTextContents()).toEqual([...initialRegionOrder].sort((left, right) => left.localeCompare(right, 'zh-CN')));
+  await regionNameSort.click();
+  await expect(regionalHeader.getByRole('columnheader', { name: '地区' })).toHaveAttribute('aria-sort', 'descending');
+  expect(await regionalNames.allTextContents()).toEqual([...initialRegionOrder].sort((left, right) => right.localeCompare(left, 'zh-CN')));
+  await regionNameSort.click();
+  await expect(regionalHeader.getByRole('columnheader', { name: '地区' })).toHaveAttribute('aria-sort', 'none');
+  expect(await regionalNames.allTextContents()).toEqual(initialRegionOrder);
+  const regionalPriceSort = regionalHeader.getByRole('button', { name: '市场价' });
+  await regionalPriceSort.click();
+  await expect(regionalHeader.locator('[aria-sort="descending"]')).toHaveText('市场价');
+  await regionalPriceSort.click();
+  await expect(regionalHeader.locator('[aria-sort="ascending"]')).toHaveText('市场价');
   for (const label of ['卖单量', '买单量', '市场价', '24h', '挂单差额', '基准偏离', '挂单状态']) {
     await expect(regionalRow.getByText(label, { exact: true })).toHaveCount(0);
   }

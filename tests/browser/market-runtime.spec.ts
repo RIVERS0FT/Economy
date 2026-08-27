@@ -383,6 +383,13 @@ test('market commodity catalog keeps compact core metrics and opens a focused de
   for (const label of ['商品', '卖单量', '买单量', '市场价', '24h']) {
     await expect(catalogHeader.getByText(label, { exact: true })).toBeVisible();
   }
+  const priceSortButton = catalogHeader.getByRole('button', { name: '市场价' });
+  await priceSortButton.click();
+  await expect(catalogHeader.locator('[aria-sort="descending"]')).toHaveText('市场价');
+  await priceSortButton.click();
+  await expect(catalogHeader.locator('[aria-sort="ascending"]')).toHaveText('市场价');
+  await priceSortButton.click();
+  await expect(catalogHeader.locator('[aria-sort="ascending"], [aria-sort="descending"]')).toHaveCount(0);
   for (const label of ['卖单量', '买单量', '市场价', '24h', '挂单差额', '基准偏离', '挂单状态']) {
     await expect(wheatRow.getByText(label, { exact: true })).toHaveCount(0);
   }
@@ -429,14 +436,15 @@ test('market detail back action restores the filtered catalog', async ({ page })
   await filters.locator('summary').click();
   await selectRichOption(page, '分类', '原材料');
   await selectRichOption(page, '市场状态', '有真实成交');
-  await selectRichOption(page, '排序', '市场价');
+  const catalogHeader = page.locator('.market-commodity-row-header');
+  await catalogHeader.getByRole('button', { name: '市场价' }).click();
   await page.getByRole('button', { name: '查看小麦详情' }).click();
   await page.getByRole('button', { name: '返回商品列表' }).click();
 
   await filters.locator('summary').click();
   await expect(page.getByRole('combobox', { name: '分类' })).toContainText('原材料');
   await expect(page.getByRole('combobox', { name: '市场状态' })).toContainText('有真实成交');
-  await expect(page.getByRole('combobox', { name: '排序' })).toContainText('市场价');
+  await expect(page.locator('.market-commodity-row-header [aria-sort="descending"]')).toHaveText('市场价');
   await expect(page.getByRole('button', { name: '查看小麦详情' })).toBeVisible();
   await expect(page.getByRole('searchbox')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
@@ -579,4 +587,3 @@ test('market product artwork keeps compact catalog and detail slots without stre
   await expect.poll(() => page.locator('.market-detail-hero__artwork > .product-artwork').evaluate((element) => Math.round(element.getBoundingClientRect().width))).toBe(50);
   expect(pageErrors).toEqual([]);
 });
-

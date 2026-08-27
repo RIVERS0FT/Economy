@@ -4,6 +4,11 @@ import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineA
 import { currentFormulaScope } from '../components/facilities/FacilityProductionFormula';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
 import { ChevronIcon } from '../components/icons/GameIcons';
+import {
+  EntityListHeader,
+  type EntityListSortDirection,
+  type EntityListSortState,
+} from '../components/ui/EntityListHeader';
 import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import { PageLayout, Panel } from '../components/ui/layout';
@@ -14,6 +19,25 @@ import {
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { resolveFacilityDetailRecipeState } from './production/ProductionFacilityDetail';
 import '../styles/global-operation-pages.css';
+import '../styles/entity-list-header.css';
+
+type FacilityCatalogSortKey = 'name' | 'profit' | 'count';
+type FacilityRegionSortKey = 'name' | 'profit' | 'count' | 'status';
+
+function compareOptionalNumber(
+  left: number | null,
+  right: number | null,
+  direction: EntityListSortDirection,
+) {
+  if (left === null && right === null) return 0;
+  if (left === null) return 1;
+  if (right === null) return -1;
+  return direction === 'asc' ? left - right : right - left;
+}
+
+function directedComparison(value: number, direction: EntityListSortDirection) {
+  return direction === 'asc' ? value : -value;
+}
 
 const EmbeddedBuildingsPage = lazy(() => import('./BuildingsPage').then((module) => ({
   default: module.BuildingsPage,
@@ -53,6 +77,14 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
   const [selectedGlobalFacilityTypeId, setSelectedGlobalFacilityTypeId] = useState<string | null>(null);
   const [activeProvinceId, setActiveProvinceId] = useState<string | null>(null);
   const [facilityDetailTypeId, setFacilityDetailTypeId] = useState<string | null>(null);
+  const [catalogSort, setCatalogSort] = useState<EntityListSortState<FacilityCatalogSortKey>>({
+    key: 'catalog',
+    direction: 'asc',
+  });
+  const [regionSort, setRegionSort] = useState<EntityListSortState<FacilityRegionSortKey>>({
+    key: 'catalog',
+    direction: 'asc',
+  });
   const pageNavigation = usePlayerPageNavigation();
   const stackedLocation = pageNavigation?.currentLocation;
   const game = model.game;
@@ -79,7 +111,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     }
   }, [stackedLocation]);
 
-  const facilityRows = useMemo(() => game.facilityTypes.flatMap((type) => {
+  const facilityRows = useMemo(() => game.facilityTypes.flatMap((type, catalogIndex) => {
     let totalCount = 0;
     let weightedProfitTotal = 0;
     let weightedProfitCount = 0;
@@ -126,8 +158,10 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
 
     return [{
       facilityTypeId: type.id,
+      catalogIndex,
       name: type.name,
       totalCount,
+      averageProfit,
       profitTone: globalProfitTone(averageProfit),
       profitValue: averageProfit === null ? '—' : formatCurrency(Math.abs(averageProfit)),
       profitAccessibleValue: accessibleProfit(averageProfit),
@@ -142,13 +176,25 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     provinces,
   ]);
 
+  const sortedFacilityRows = useMemo(() => [...facilityRows].sort((left, right) => {
+    let comparison = 0;
+    if (catalogSort.key === 'name') {
+      comparison = directedComparison(left.name.localeCompare(right.name, 'zh-CN'), catalogSort.direction);
+    } else if (catalogSort.key === 'profit') {
+      comparison = compareOptionalNumber(left.averageProfit, right.averageProfit, catalogSort.direction);
+    } else if (catalogSort.key === 'count') {
+      comparison = directedComparison(left.totalCount - right.totalCount, catalogSort.direction);
+    }
+    return comparison || left.catalogIndex - right.catalogIndex;
+  }), [catalogSort, facilityRows]);
+
   const selectedGlobalFacility = selectedGlobalFacilityTypeId
     ? game.facilityTypes.find((type) => type.id === selectedGlobalFacilityTypeId)
     : undefined;
 
   const facilityProvinceRows = useMemo(() => {
     if (!selectedGlobalFacilityTypeId || !selectedGlobalFacility) return [];
-    return provinces.flatMap((province) => {
+    return provinces.flatMap((province, catalogIndex) => {
       const group = (game.provinceFacilityGroups?.[province.id] ?? [])
         .find((candidate) => candidate.facilityTypeId === selectedGlobalFacilityTypeId);
       const count = Math.max(0, Number(group?.count || 0));
@@ -167,8 +213,11 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
 
       return [{
         province,
+        catalogIndex,
         count,
+        statusCode: group.status,
         status: facilityStatusLabel(group.status),
+        profitPerMinute: presentation.profitPerMinute,
         profitTone: presentation.tone,
         profitValue: presentation.visibleValue,
         profitAccessibleValue: presentation.accessibleValue,
@@ -184,6 +233,21 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     selectedGlobalFacility,
     selectedGlobalFacilityTypeId,
   ]);
+
+  const sortedFacilityProvinceRows = useMemo(() => [...facilityProvinceRows].sort((left, right) => {
+    let comparison = 0;
+    if (regionSort.key === 'name') {
+      comparison = directedComparison(left.province.name.localeCompare(right.province.name, 'zh-CN'), regionSort.direction);
+    } else if (regionSort.key === 'profit') {
+      comparison = compareOptionalNumber(left.profitPerMinute, right.profitPerMinute, regionSort.direction);
+    } else if (regionSort.key === 'count') {
+      comparison = directedComparison(left.count - right.count, regionSort.direction);
+    } else if (regionSort.key === 'status') {
+      const rank = { error: 0, stopped: 1, running: 2 } as const;
+      comparison = directedComparison(rank[left.statusCode] - rank[right.statusCode], regionSort.direction);
+    }
+    return comparison || left.catalogIndex - right.catalogIndex;
+  }), [facilityProvinceRows, regionSort]);
 
   const activeProvince = activeProvinceId
     ? provinces.find((province) => province.id === activeProvinceId)
@@ -293,19 +357,24 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
         >
           {facilityProvinceRows.length > 0 ? (
             <>
-              <div className="global-facility-region-header" aria-hidden="true">
-                <span>地区</span>
-                <span>利润／分钟</span>
-                <span>拥有</span>
-                <span>状态</span>
-                <span />
-              </div>
+              <EntityListHeader
+                className="global-facility-region-header"
+                columns={[
+                  { label: '地区', sortKey: 'name', defaultDirection: 'asc' },
+                  { label: '利润／分钟', sortKey: 'profit', defaultDirection: 'desc' },
+                  { label: '拥有', sortKey: 'count', defaultDirection: 'desc' },
+                  { label: '状态', sortKey: 'status', defaultDirection: 'asc' },
+                  { key: 'chevron', label: '' },
+                ]}
+                sortState={regionSort}
+                onSortChange={setRegionSort}
+              />
               <ul className="global-facility-region-list" aria-label={`${selectedGlobalFacility.name}地区工厂`}>
-                {facilityProvinceRows.map((row) => (
+                {sortedFacilityProvinceRows.map((row) => (
                   <li key={row.province.id}>
                     <button
                       type="button"
-                      className="global-facility-region-row"
+                      className="entity-list-row global-facility-region-row"
                       data-ui-interactive="surface"
                       data-province-id={row.province.id}
                       aria-label={`打开${row.province.name}${selectedGlobalFacility.name}工厂详情，单厂利润每分钟：${row.profitAccessibleValue}，拥有 ${formatNumber(row.count)} 座，${row.status}`}
@@ -344,18 +413,23 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
         <section className="global-facility-catalog" aria-label="全局工厂目录">
           {facilityRows.length > 0 ? (
             <>
-              <div className="global-facility-catalog-header" aria-hidden="true">
-                <span>工厂</span>
-                <span>平均利润／分钟</span>
-                <span>拥有</span>
-                <span />
-              </div>
+              <EntityListHeader
+                className="global-facility-catalog-header"
+                columns={[
+                  { label: '工厂', sortKey: 'name', defaultDirection: 'asc' },
+                  { label: '平均利润／分钟', sortKey: 'profit', defaultDirection: 'desc' },
+                  { label: '拥有', sortKey: 'count', defaultDirection: 'desc' },
+                  { key: 'chevron', label: '' },
+                ]}
+                sortState={catalogSort}
+                onSortChange={setCatalogSort}
+              />
               <ul className="global-facility-catalog-list" aria-label="跨州工厂汇总">
-                {facilityRows.map((row) => (
+                {sortedFacilityRows.map((row) => (
                   <li key={row.facilityTypeId}>
                     <button
                       type="button"
-                      className="global-facility-catalog-row"
+                      className="entity-list-row global-facility-catalog-row"
                       data-ui-interactive="surface"
                       aria-label={`打开${row.name}地区工厂，拥有 ${formatNumber(row.totalCount)} 座，跨州单厂平均利润每分钟：${row.profitAccessibleValue}`}
                       title={row.profitDetail}

@@ -4,6 +4,7 @@ dist/
 test-results/
 playwright-report/
 blob-report/
+debug.log
 # Coverage output is reproducible test data, not repository source.
 coverage/
 .nyc_output/

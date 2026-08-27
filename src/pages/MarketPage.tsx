@@ -16,7 +16,12 @@ import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { currentFormulaScope } from '../components/facilities/FacilityProductionFormula';
 import { MarketAutoTradePanel } from '../components/market/MarketAutoTradePanel';
 import { MarketBalanceBar } from '../components/market/MarketBalanceBar';
-import { MarketCommodityHeader, MarketCommodityRow } from '../components/market/MarketCommodityRow';
+import {
+  compareMarketOptionalValue,
+  MarketCommodityHeader,
+  MarketCommodityRow,
+  type MarketSortDirection,
+} from '../components/market/MarketCommodityRow';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
 import { FactoryIcon } from '../components/icons/GameIcons';
 import { ProductIcon, ProductIconLabel } from '../components/icons/ProductIcons';
@@ -396,6 +401,7 @@ export function MarketPage({
   const [catalogCategory, setCatalogCategory] = useState('all');
   const [catalogStatus, setCatalogStatus] = useState<MarketCatalogStatus>('all');
   const [catalogSort, setCatalogSort] = useState<MarketCatalogSort>('catalog');
+  const [catalogSortDirection, setCatalogSortDirection] = useState<MarketSortDirection>('desc');
 
   useEffect(() => {
     const openRequestedAutoTrade = (productId: string) => {
@@ -571,16 +577,19 @@ export function MarketPage({
       return true;
     });
     return filtered.sort((left, right) => {
-      if (catalogSort === 'name') return left.name.localeCompare(right.name, 'zh-CN');
-      if (catalogSort === 'price') return (right.marketPrice ?? -Infinity) - (left.marketPrice ?? -Infinity);
-      if (catalogSort === 'trend') return (right.trend ?? -Infinity) - (left.trend ?? -Infinity);
-      if (catalogSort === 'buy-volume') return right.buyVolume - left.buyVolume;
-      if (catalogSort === 'sell-volume') return right.sellVolume - left.sellVolume;
+      if (catalogSort === 'name') return catalogSortDirection === 'asc'
+        ? left.name.localeCompare(right.name, 'zh-CN')
+        : right.name.localeCompare(left.name, 'zh-CN');
+      if (catalogSort === 'price') return compareMarketOptionalValue(left.marketPrice, right.marketPrice, catalogSortDirection);
+      if (catalogSort === 'trend') return compareMarketOptionalValue(left.trend, right.trend, catalogSortDirection);
+      if (catalogSort === 'buy-volume') return compareMarketOptionalValue(left.buyVolume, right.buyVolume, catalogSortDirection);
+      if (catalogSort === 'sell-volume') return compareMarketOptionalValue(left.sellVolume, right.sellVolume, catalogSortDirection);
       return 0;
     });
   }, [
     catalogCategory,
     catalogSort,
+    catalogSortDirection,
     catalogStatus,
     game.markets,
     game.products,
@@ -617,7 +626,6 @@ export function MarketPage({
   function resetCatalogFilters() {
     setCatalogCategory('all');
     setCatalogStatus('all');
-    setCatalogSort('catalog');
   }
 
   function returnToCatalog() {
@@ -632,13 +640,12 @@ export function MarketPage({
   const catalogCategoryOptions = Object.entries(PRODUCT_CATEGORY_LABELS);
   if (!facilityAssetId && marketViewMode === 'catalog') {
     const activeCatalogFilterCount = Number(catalogCategory !== 'all')
-      + Number(catalogStatus !== 'all')
-      + Number(catalogSort !== 'catalog');
+      + Number(catalogStatus !== 'all');
     const catalogContent = (
       <div className="market-page-surface market-catalog-surface">
         <details className="market-catalog-filter-disclosure">
           <summary>
-            <span>筛选与排序</span>
+            <span>筛选</span>
             <small>{activeCatalogFilterCount > 0 ? `${activeCatalogFilterCount} 项已启用` : '默认折叠'}</small>
           </summary>
           <div className="market-catalog-filters" aria-label="市场列表筛选">
@@ -664,21 +671,17 @@ export function MarketPage({
               <option value="unmet-demand">消费需求未满足</option>
               <option value="own-order">有我的订单</option>
             </SelectInput>
-            <SelectInput
-              label="排序"
-              value={catalogSort}
-              onChange={(event) => setCatalogSort(event.currentTarget.value as MarketCatalogSort)}
-            >
-              <option value="catalog">目录顺序</option>
-              <option value="name">名称</option>
-              <option value="price">市场价</option>
-              <option value="trend">24h 变化</option>
-              <option value="buy-volume">买单量</option>
-              <option value="sell-volume">卖单量</option>
-            </SelectInput>
           </div>
         </details>
-        <MarketCommodityHeader />
+        <MarketCommodityHeader
+          entitySortKey="name"
+          sortKey={catalogSort}
+          sortDirection={catalogSortDirection}
+          onSortChange={({ key, direction }) => {
+            setCatalogSort(key);
+            setCatalogSortDirection(direction);
+          }}
+        />
         <ul className="market-catalog-list" aria-label="商品市场列表">
           {catalogEntries.map((entry) => (
             <li className="market-catalog-item" key={`${entry.kind}:${entry.id}`}>

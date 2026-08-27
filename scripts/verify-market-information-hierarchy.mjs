@@ -17,6 +17,9 @@ const gameIcons = read('src/components/icons/GameIcons.tsx');
 const globalCss = read('src/styles/global-operation-pages.css');
 const commodityRow = read('src/components/market/MarketCommodityRow.tsx');
 const commodityCss = read('src/styles/market-commodity-row.css');
+const entityHeaderCss = read('src/styles/entity-list-header.css');
+const entityHeader = read('src/components/ui/EntityListHeader.tsx');
+const assetOverviewPanel = read('src/components/assets/AssetOverviewPanel.tsx');
 const formControlsCss = read('src/styles/form-controls.css');
 const gameShell = read('src/components/shell/GameShell.tsx');
 const productionConfig = read('src/components/facilities/FacilityProductionConfigControls.tsx');
@@ -42,9 +45,15 @@ for (const token of [
   'global-market-goods-row',
   '真实成交价范围',
   'selectedGlobalProductId',
-  'global-market-product-detail-panel',
+  'global-market-product-detail',
   'global-market-product-region-list',
-  '<MarketCommodityHeader />',
+  '<MarketCommodityHeader',
+  'entityLabel="地区"',
+  'regionPrimary',
+  'className="global-market-goods-header"',
+  'entitySortKey="name"',
+  "regionalSort === 'name'",
+  "localeCompare(right.province.name, 'zh-CN')",
   '<MarketCommodityRow',
   '<ChevronIcon direction="right" />',
   '地区行情',
@@ -53,6 +62,13 @@ for (const token of [
   '返回商品全局详情',
   '<EmbeddedMarketPage model={model} embedded />',
 ]) requireText(globalMarket, token, 'global market hierarchy');
+for (const token of [
+  "regionPrimary ? null : (",
+  "market-commodity-row__identity--region",
+  'data-current-region={currentRegion || undefined}',
+]) requireText(commodityRow, token, 'regional commodity identity');
+forbidText(globalMarket, '筛选与排序', 'global market sort must live in the header');
+requireText(globalMarket, '<span>筛选</span>', 'global market filter disclosure must be named 筛选');
 
 for (const token of [
   '<WidgetHeading title="商品"',
@@ -67,10 +83,13 @@ for (const token of [
   'catalogQuery',
   '>›<',
 ]) forbidText(globalMarket, token, 'global market hierarchy');
+for (const token of ['<PagePanel', '<WidgetHeading', '<StatusTag', '个地区']) {
+  forbidText(globalMarket, token, 'global market product detail direct page flow');
+}
 
 const catalogSourceStart = globalMarket.indexOf('const activeCatalogFilterCount');
 const catalogFilterIndex = globalMarket.indexOf('<details className="global-market-filter-disclosure"', catalogSourceStart);
-const catalogHeaderIndex = globalMarket.indexOf('<div className="global-market-goods-header"', catalogSourceStart);
+const catalogHeaderIndex = globalMarket.indexOf('<EntityListHeader', catalogSourceStart);
 const catalogListIndex = globalMarket.indexOf('<ul className="global-market-goods-list"', catalogSourceStart);
 if (
   catalogSourceStart < 0
@@ -80,34 +99,44 @@ if (
 ) {
   throw new Error('global market hierarchy: folded filters, column header, and commodity list must appear in direct page flow');
 }
-const productPanelIndex = globalMarket.indexOf('<PagePanel className="global-market-product-detail-panel">');
-const productRegionHeaderIndex = globalMarket.indexOf('<MarketCommodityHeader />', productPanelIndex);
-const productRegionListIndex = globalMarket.indexOf('<ul className="global-market-product-region-list"');
+const productDetailIndex = globalMarket.indexOf('global-market-product-detail"');
+const productFilterIndex = globalMarket.indexOf('<details className="global-market-filter-disclosure"', productDetailIndex);
+const productRegionHeaderIndex = globalMarket.indexOf('<MarketCommodityHeader', productFilterIndex);
+const productRegionListIndex = globalMarket.indexOf('<ul className="global-market-product-region-list"', productRegionHeaderIndex);
 if (
-  productPanelIndex < 0
-  || productRegionHeaderIndex <= productPanelIndex
+  productDetailIndex < 0
+  || productFilterIndex < 0
+  || productRegionHeaderIndex <= productFilterIndex
   || productRegionListIndex <= productRegionHeaderIndex
 ) {
-  throw new Error('global market hierarchy: product global detail must render one shared header before the regional quote list');
+  throw new Error('global market hierarchy: product global detail must render folded filters, one shared header, then the regional list directly in page flow');
 }
 
 for (const token of [
   'export function MarketCommodityHeader',
   'market-commodity-row-header',
-  '<span>商品</span>',
-  '<span>卖单量</span>',
-  '<span>买单量</span>',
-  '<span>市场价</span>',
-  '<span>24h</span>',
+  '<EntityListHeader',
+  "entityLabel = '商品'",
+  "label: '卖单量'",
+  "label: '买单量'",
+  "label: '市场价'",
+  "label: '24h'",
   '<ChevronIcon direction="right" />',
 ]) requireText(commodityRow, token, 'shared commodity row');
+for (const token of [
+  'export function EntityListHeader',
+  'role="columnheader"',
+  'aria-sort={ariaSort}',
+  'className="entity-list-header__sort"',
+  'nextEntityListSort',
+]) requireText(entityHeader, token, 'shared entity list header');
 for (const token of ['挂单差额', '基准偏离', '挂单状态', '>›<']) forbidText(commodityRow, token, 'shared commodity row');
 const commodityDataRowSource = commodityRow.slice(commodityRow.indexOf('export function MarketCommodityRow'));
 forbidText(commodityDataRowSource, 'market-commodity-row-header', 'shared commodity data row');
 for (const token of [
   '.market-commodity-row-header',
   'display: grid;',
-  'repeat(4, minmax(4.1rem, .68fr))',
+  '--entity-list-columns: minmax(8rem, 1.45fr) repeat(4, minmax(4.1rem, .68fr)) .8rem;',
   '@container (max-width: 620px)',
   '@container (max-width: 360px)',
   "content: '';",
@@ -116,6 +145,33 @@ for (const token of [
 ]) requireText(commodityCss, token, 'shared commodity row css');
 forbidText(commodityCss, '.market-catalog-list > li:first-child > .market-commodity-row-header', 'shared commodity header css');
 forbidText(commodityCss, "content: '⌄';", 'shared commodity row css');
+
+for (const token of [
+  '.entity-list-header',
+  'height: 42px;',
+  '.entity-list-row',
+  '--entity-list-row-height, 58px',
+  'border-bottom: 1px solid var(--color-divider);',
+  'font-size: var(--font-size-xs);',
+  'font-weight: 700;',
+]) requireText(entityHeaderCss, token, 'shared entity list header baseline');
+for (const token of [
+  'className="global-facility-catalog-header"',
+  'className="global-facility-region-header"',
+]) requireText(globalBuildings, token, 'global buildings headers must use the shared entity list baseline');
+for (const token of [
+  "type FacilityCatalogSortKey = 'name' | 'profit' | 'count';",
+  "type FacilityRegionSortKey = 'name' | 'profit' | 'count' | 'status';",
+  "key: 'catalog'",
+  'sortedFacilityRows',
+  'sortedFacilityProvinceRows',
+  'compareOptionalNumber',
+  "{ label: '工厂', sortKey: 'name', defaultDirection: 'asc' }",
+  "{ label: '平均利润／分钟', sortKey: 'profit', defaultDirection: 'desc' }",
+  "{ label: '状态', sortKey: 'status', defaultDirection: 'asc' }",
+  'rank[left.statusCode] - rank[right.statusCode]',
+]) requireText(globalBuildings, token, 'global buildings sortable headers');
+requireText(assetOverviewPanel, 'className="entity-list-header asset-composition-header"', 'bank asset composition header must use the shared entity list baseline');
 
 for (const token of [
   "export type ChevronDirection = 'left' | 'right' | 'up' | 'down';",
@@ -133,7 +189,9 @@ for (const token of [
 const regionalCatalogStart = regionalMarket.indexOf("if (!facilityAssetId && marketViewMode === 'catalog')");
 const regionalDetailStart = regionalMarket.indexOf('\n  const detailContent =', regionalCatalogStart);
 const regionalCatalog = regionalMarket.slice(regionalCatalogStart, regionalDetailStart);
-for (const token of ['market-catalog-filter-disclosure', '<MarketCommodityHeader />', '<MarketCommodityRow']) requireText(regionalCatalog, token, 'regional market catalog');
+for (const token of ['market-catalog-filter-disclosure', '<MarketCommodityHeader', '<MarketCommodityRow']) requireText(regionalCatalog, token, 'regional market catalog');
+forbidText(regionalCatalog, '筛选与排序', 'regional market sort must live in the header');
+requireText(regionalCatalog, '<span>筛选</span>', 'regional market filter disclosure must be named 筛选');
 for (const token of ['TextInput', 'catalogQuery', '挂单差额', '基准偏离', '挂单状态']) forbidText(regionalCatalog, token, 'regional market catalog');
 for (const token of [
   'MarketBalanceBar',
@@ -153,14 +211,14 @@ for (const token of [
   '.global-market-filter-disclosure',
   '.global-market-goods-header',
   '.global-market-goods-row',
-  '.global-market-product-detail-panel',
+  '.global-market-product-detail > .market-commodity-row-header',
   'container-name: global-market-page',
   '@container global-market-page (max-width: 620px)',
   "content: '';",
   'border-right: 2px solid currentColor;',
   'border-bottom: 2px solid currentColor;',
 ]) requireText(globalCss, token, 'global market css');
-for (const token of ['.global-market-province-row', '.global-market-summary-strip', "content: '⌄';"]) forbidText(globalCss, token, 'global market css');
+for (const token of ['.global-market-province-row', '.global-market-summary-strip', '.global-market-product-detail-panel', "content: '⌄';"]) forbidText(globalCss, token, 'global market css');
 requireText(marketCss, '.market-fundamentals-balance', 'regional detail css');
 
 for (const token of [
@@ -174,11 +232,16 @@ for (const token of [
   '筛选默认折叠且不提供商品名称搜索框',
   '市场标题区固定显示“市场”，商品目录正文不重复显示“商品”分区标题',
   '商品列表字段名使用独立表头',
-  '商品、卖单量、买单量、市场价和 24h 变化',
+  '地区、卖单量、买单量、市场价和 24h 变化',
+  '地区行的可见身份只保留地区全名',
+  '表头允许按工厂名称、平均利润和拥有数量',
+  '排序不占用筛选面板',
   '全局页不得把各州买卖单合并成一个全国订单簿',
+  '不显示“地区行情”标题、地区计数或外层一级卡片',
 ]) requireText(pageDesign, token, 'market page authority');
 for (const token of [
   '`MarketCommodityRow`',
+  '`EntityListHeader`',
   '移动端仍保持单行',
   '默认折叠',
   '方向型交互箭头统一使用无横杆 Chevron',
@@ -201,9 +264,11 @@ for (const token of [
   "page.locator('.global-market-goods-header')",
   "getByRole('button', { name: '打开小麦全局详情' })",
   "getByRole('button', { name: '打开加利福尼亚州小麦详情' })",
-  "page.locator('.global-market-product-detail-panel > .market-commodity-row-header')",
+  "page.locator('.global-market-product-detail > .market-commodity-row-header')",
   "page.locator('.global-market-product-region-list .market-commodity-row-header')",
   "page.locator('.market-fundamentals-balance .market-balance-bar')",
+  "regionalRow.locator('.market-commodity-row__artwork')).toHaveCount(0)",
+  "toHaveAttribute('aria-sort', 'ascending')",
 ]) requireText(hierarchyBrowserSpec, token, 'market hierarchy browser regression');
 for (const token of [
   '.global-market-province-row',

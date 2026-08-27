@@ -102,9 +102,7 @@
 }
 
 .asset-composition-header {
-  padding: 0 var(--space-2) var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+  padding-inline: var(--space-2);
   text-align: right;
 }
 
