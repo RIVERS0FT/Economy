@@ -1,8 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const TEST_PATH = '/economy-api/game/idempotency-runtime-test';
+const SESSION_PATH = '/economy-api/game/session';
 const HISTORY_KEY = 'economy-write-idempotency-test-history';
 const MODE_KEY = 'economy-write-idempotency-test-mode';
+const TIMEOUT_HISTORY_KEY = 'economy-write-timeout-test-history';
 
 type MockMode = 'abort-first' | 'network-error' | 'rate-limited' | 'success';
 
@@ -71,6 +73,48 @@ async function installNativeWriteMock(page: Page, initialMode: MockMode) {
     modeKey: MODE_KEY,
     initialModeValue: initialMode,
     testPath: TEST_PATH,
+  });
+  await page.goto('./');
+}
+
+async function installWriteTimeoutObservationMock(page: Page) {
+  await page.addInitScript(({ historyKey, testPath, sessionPath }) => {
+    const nativeFetch = window.fetch.bind(window);
+    const nativeSetTimeout = window.setTimeout.bind(window);
+    window.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
+      if (timeout === 12_000) {
+        const history = JSON.parse(window.sessionStorage.getItem(historyKey) || '[]') as number[];
+        history.push(timeout);
+        window.sessionStorage.setItem(historyKey, JSON.stringify(history));
+      }
+      return nativeSetTimeout(handler, timeout, ...args);
+    }) as typeof window.setTimeout;
+
+    window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const rawUrl = typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+      const url = new URL(rawUrl, window.location.origin);
+      if (url.pathname === '/economy-api/me') {
+        return new Response(JSON.stringify({ message: '未登录' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.pathname === testPath || url.pathname === sessionPath) {
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return nativeFetch(input, init);
+    }) as typeof window.fetch;
+  }, {
+    historyKey: TIMEOUT_HISTORY_KEY,
+    testPath: TEST_PATH,
+    sessionPath: SESSION_PATH,
   });
   await page.goto('./');
 }
@@ -162,4 +206,40 @@ test('unconfirmed write survives reload and rate limiting until a definitive res
     'original-action-key',
     'fresh-key-after-confirmation',
   ]);
+});
+
+test('session bootstrap keeps idempotency coordination without the ordinary 12 second client abort', async ({ page }) => {
+  await installWriteTimeoutObservationMock(page);
+
+  const result = await page.evaluate(async ({ sessionPath, testPath, historyKey }) => {
+    async function attempt(path: string, key: string) {
+      window.sessionStorage.setItem(historyKey, '[]');
+      const response = await window.fetch(path, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': key,
+        },
+        body: '{}',
+      });
+      return {
+        status: response.status,
+        timeouts: JSON.parse(window.sessionStorage.getItem(historyKey) || '[]') as number[],
+      };
+    }
+
+    return {
+      session: await attempt(sessionPath, 'session-bootstrap-key'),
+      ordinary: await attempt(testPath, 'ordinary-write-key'),
+    };
+  }, {
+    sessionPath: SESSION_PATH,
+    testPath: TEST_PATH,
+    historyKey: TIMEOUT_HISTORY_KEY,
+  });
+
+  expect(result.session.status).toBe(200);
+  expect(result.session.timeouts).toEqual([]);
+  expect(result.ordinary.status).toBe(200);
+  expect(result.ordinary.timeouts).toEqual([12_000]);
 });
