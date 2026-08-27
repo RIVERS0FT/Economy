@@ -7,6 +7,7 @@ import {
   type KeyboardEvent,
 } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
+import stateEconomicBaselines from '../../shared/us-state-economic-baselines.json';
 import { FacilityRecipeProfitMarketsProvider } from '../components/facilities/FacilityRecipeProfitContext';
 import { WarehouseInventoryPanel } from '../components/warehouse/WarehouseInventoryPanel';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
@@ -45,6 +46,11 @@ const PROVINCE_SECTIONS: Array<{ id: ProvinceSection; label: string }> = [
   { id: 'warehouse', label: '仓库' },
 ];
 
+const STATE_ECONOMIC_BASELINE_BY_PROVINCE_ID = new Map(
+  stateEconomicBaselines.states.map((row) => [row.provinceId, row]),
+);
+const POPULATION_BASELINE_PERIOD = stateEconomicBaselines.sources.population.period;
+
 function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
   const summary = model.game.provinceAssetSummaries[model.selectedProvinceId] ?? {
     provinceId: model.selectedProvinceId,
@@ -54,6 +60,7 @@ function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameVie
     blockedFacilityCount: 0,
     openOrderCount: 0,
   };
+  const economicBaseline = STATE_ECONOMIC_BASELINE_BY_PROVINCE_ID.get(model.selectedProvinceId);
   const stoppedFacilityCount = Math.max(
     0,
     summary.facilityCount - summary.runningFacilityCount - summary.blockedFacilityCount,
@@ -68,6 +75,11 @@ function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameVie
           : <StatusTag tone="success">经营正常</StatusTag>}
       />
       <div className="province-overview-metrics">
+        <MetricCard
+          label="常住人口"
+          value={economicBaseline ? <CompactNumber value={economicBaseline.population} /> : '—'}
+          detail={economicBaseline ? `Census · ${POPULATION_BASELINE_PERIOD}` : undefined}
+        />
         <MetricCard label="本地库存" value={<CompactNumber value={summary.storedQuantity} />} />
         <MetricCard label="工厂总数" value={<CompactNumber value={summary.facilityCount} />} />
         <MetricCard
@@ -89,6 +101,48 @@ function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameVie
         />
         <DataRow label="已停止工厂" value={<CompactNumber value={stoppedFacilityCount} />} />
       </DataList>
+    </PagePanel>
+  );
+}
+
+function ProvinceUnlockPanel({
+  model,
+  provinceName,
+  unlockCost,
+  distanceKm,
+  section,
+}: {
+  model: OnlineAutoTradeAwareGameViewModel;
+  provinceName: string;
+  unlockCost: number;
+  distanceKm: number;
+  section: 'buildings' | 'warehouse';
+}) {
+  const sectionLabel = section === 'buildings' ? '建筑' : '仓库';
+  const sectionTitle = section === 'buildings' ? '建筑功能未解锁' : '仓库功能未解锁';
+  return (
+    <PagePanel className="province-lock-panel">
+      <WidgetHeading title={sectionTitle} action={<StatusTag tone="warning">锁定</StatusTag>} />
+      <p className="province-lock-description">
+        {section === 'buildings'
+          ? '解锁该州后才能建设、运营和交易本地工厂。'
+          : '解锁该州后才能使用本地库存和跨州运输。'}
+      </p>
+      <DataList>
+        <DataRow label="距起始州" value={`约 ${formatNumber(distanceKm)} 公里`} />
+        <DataRow label="解锁费用" value={<CurrencyAmount>{formatCurrency(unlockCost)}</CurrencyAmount>} />
+        <DataRow label="当前资金" value={<CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>} />
+      </DataList>
+      <Button
+        block
+        className="province-unlock-button"
+        disabled={model.game.credits < unlockCost}
+        onClick={() => void model.showResult(model.unlockProvince(model.selectedProvinceId))}
+      >
+        {model.game.credits < unlockCost
+          ? `资金不足，需要 ${formatCurrency(unlockCost)}`
+          : `解锁${provinceName}（${formatCurrency(unlockCost)}）`}
+      </Button>
     </PagePanel>
   );
 }
@@ -217,36 +271,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     pageNavigation,
   ]);
 
-  if (!isUnlocked) {
-    return (
-      <PageLayout
-        title={provinceName}
-        backAction={pageNavigation ? undefined : { label: '返回地图', onClick: () => model.setTab('map') }}
-      >
-        <PagePanel className="province-lock-panel">
-          <WidgetHeading title="州级地区未解锁" action={<StatusTag tone="warning">锁定</StatusTag>} />
-          <p className="province-lock-description">
-            该州尚未解锁，解锁后可以使用市场、工厂与仓库经营功能。
-          </p>
-          <DataList>
-            <DataRow label="距起始州" value={`约 ${formatNumber(distanceKm)} 公里`} />
-            <DataRow label="解锁费用" value={<CurrencyAmount>{formatCurrency(unlockCost)}</CurrencyAmount>} />
-            <DataRow label="当前资金" value={<CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>} />
-          </DataList>
-          <Button
-            block
-            className="province-unlock-button"
-            disabled={model.game.credits < unlockCost}
-            onClick={() => void model.showResult(model.unlockProvince(model.selectedProvinceId))}
-          >
-            {model.game.credits < unlockCost
-              ? `资金不足，需要 ${formatCurrency(unlockCost)}`
-              : `解锁${provinceName}（${formatCurrency(unlockCost)}）`}
-          </Button>
-        </PagePanel>
-      </PageLayout>
-    );
-  }
+
 
   const selectSection = (section: ProvinceSection, focus = false) => {
     if (section === 'market') model.showMarketCatalog();
@@ -362,28 +387,48 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
         {activeSection === 'overview' ? <ProvinceOverviewSection model={model} /> : null}
         {activeSection === 'market' ? (
           <Suspense fallback={<ProvinceSectionLoading />}>
-            <EmbeddedMarketPage model={model} embedded />
+            <EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />
           </Suspense>
         ) : null}
         {activeSection === 'buildings' ? (
-          <Suspense fallback={<ProvinceSectionLoading />}>
-            <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
-              {/* Retired static verifier marker: <EmbeddedBuildingsPage model={model} embedded /> */}
-              <EmbeddedBuildingsPage
-                model={model}
-                embedded
-                detailFacilityTypeId={facilityDetailTypeId ?? undefined}
-                onDetailFacilityChange={handleFacilityDetailChange}
-              />
-            </FacilityRecipeProfitMarketsProvider>
-          </Suspense>
+          !isUnlocked ? (
+            <ProvinceUnlockPanel
+              model={model}
+              provinceName={provinceName}
+              unlockCost={unlockCost}
+              distanceKm={distanceKm}
+              section="buildings"
+            />
+          ) : (
+            <Suspense fallback={<ProvinceSectionLoading />}>
+              <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
+                {/* Retired static verifier marker: <EmbeddedBuildingsPage model={model} embedded /> */}
+                <EmbeddedBuildingsPage
+                  model={model}
+                  embedded
+                  detailFacilityTypeId={facilityDetailTypeId ?? undefined}
+                  onDetailFacilityChange={handleFacilityDetailChange}
+                />
+              </FacilityRecipeProfitMarketsProvider>
+            </Suspense>
+          )
         ) : null}
         {activeSection === 'warehouse' ? (
-          <WarehouseInventoryPanel
-            model={model}
-            className="province-warehouse-section"
-            onOpenProduct={openWarehouseProduct}
-          />
+          !isUnlocked ? (
+            <ProvinceUnlockPanel
+              model={model}
+              provinceName={provinceName}
+              unlockCost={unlockCost}
+              distanceKm={distanceKm}
+              section="warehouse"
+            />
+          ) : (
+            <WarehouseInventoryPanel
+              model={model}
+              className="province-warehouse-section"
+              onOpenProduct={openWarehouseProduct}
+            />
+          )
         ) : null}
       </section>
     </PageLayout>

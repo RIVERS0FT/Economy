@@ -137,12 +137,15 @@ requireText('server/src/registration.js', [
   "operation: 'registration-email-verification'",
   "operation: 'registration-completion'",
   "operation: 'registration-profile-creation'",
+  'actor: `system:registration:',
+  'actor: `user:${Number(account.user.id)}`',
 ]);
 requireText('server/src/app.js', [
   'store.enqueueAuthoritativeWrite(options, callback)',
   'store.stateReadRequiresWrite(user)',
   "userWriteOptions(user, 'state-read-settlement')",
   "errorCode.startsWith('WRITE_QUEUE_')",
+  'const registrationActor = `system:registration-retention:',
   "response.setHeader('Retry-After'",
   'void store.shutdown().then(',
 ]);

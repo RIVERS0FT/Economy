@@ -67,7 +67,7 @@ for (const token of [
 forbidText(detailStyles, '.market-detail-surface .market-trade-card.ui-primary-surface', '手动交易卡不得被直接内容流样式去除操作底座。');
 forbidText(detailStyles, '.market-detail-surface .market-detail-auto-trade.ui-primary-surface', '自动交易卡不得被直接内容流样式去除操作底座。');
 
-requireText(marketPage, '<small>实时五档 · 点击填价</small>', '订单簿辅助文案 DOM 必须继续存在以供桌面精简规则处理。');
+requireText(marketPage, "<small>{readOnly ? '实时五档 · 只读' : '实时五档 · 点击填价'}</small>", '订单簿辅助文案 DOM 必须继续存在并按只读状态切换。');
 forbidText(marketPage, 'market-account-view-switch', '订单与成交必须同时纵向显示，不得恢复账户视图切换 DOM。');
 requireText(marketPage, '<section>', '本人订单区必须保留普通 section。');
 requireText(marketPage, '<section className="local-trades-section">', '本地成交区必须与订单区同时存在。');

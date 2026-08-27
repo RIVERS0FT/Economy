@@ -77,8 +77,10 @@ test('registration external account and email calls run outside the authoritativ
   const registrationStore = new EconomyRegistrationStore(store, { secret: 'x'.repeat(64), ensurePlayer });
   let writeDepth = 0;
   const writeOperations = [];
+  const writeActors = [];
   const executeWrite = async (options, callback) => {
     writeOperations.push(options.operation);
+    writeActors.push(options.actor);
     writeDepth += 1;
     try { return callback(); } finally { writeDepth -= 1; }
   };
@@ -111,6 +113,12 @@ test('registration external account and email calls run outside the authoritativ
       'registration-email-verification',
       'registration-completion',
       'registration-profile-creation',
+    ]);
+    assert.deepEqual(writeActors, [
+      'system:registration:ip-a',
+      'system:registration:ip-a',
+      'system:registration:ip-a',
+      'user:7',
     ]);
   } finally { store.close(); }
 });

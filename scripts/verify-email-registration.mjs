@@ -77,6 +77,7 @@ for (const text of [
   "path === '/api/game/invitations/claim'",
   'registrationStore.ensureLoggedInPlayer',
   'registrationStore.assertPlayerActive',
+  'const registrationActor = `system:registration-retention:',
   "'Set-Cookie': account.setCookie",
   'inviteCode: body.inviteCode',
   "sendError(response, 410, '邀请码只能在首次创建 Economy 玩家档案时填写，注册完成后不能补填')",
@@ -94,6 +95,8 @@ for (const text of [
 for (const text of [
   'accountAvailabilityChecker',
   'await accountAvailabilityChecker({ email: normalizedEmail })',
+  'actor: `system:registration:',
+  'actor: `user:${Number(account.user.id)}`',
   'inviteCode',
   "request.headers['x-real-ip']",
   '.at(-1)',
@@ -157,6 +160,9 @@ for (const text of [
   '不得创建 `economy_email_verifications` 记录',
   '不得发送邮件',
   '注册事务提交后',
+  '验证码记录清理、验证码创建／状态更新和完成前校验只写注册专用 SQLite 表',
+  '不得触发世界到期调度 barrier',
+  '最终创建 Economy 玩家档案继续属于普通用户世界写入',
   '`410 Gone`',
 ]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 forbidText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'RESEND_FROM_EMAIL');
