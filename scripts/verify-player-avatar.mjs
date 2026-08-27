@@ -16,6 +16,17 @@ function requireText(path, fragments) {
   }
 }
 
+function forbidText(path, fragments) {
+  if (!existsSync(resolve(root, path))) {
+    failures.push(`缺少文件: ${path}`);
+    return;
+  }
+  const content = read(path);
+  for (const fragment of fragments) {
+    if (content.includes(fragment)) failures.push(`${path} 不应包含头像规则: ${fragment}`);
+  }
+}
+
 requireText('src/utils/playerAvatar.ts', [
   'PLAYER_AVATAR_SIZE = 64',
   'PLAYER_AVATAR_MAX_UPLOAD_BYTES = 8 * 1024',
@@ -27,6 +38,16 @@ requireText('src/components/ui/PlayerAvatar.tsx', [
   'playerAvatarUrl(userId)',
   'PLAYER_AVATAR_UPDATED_EVENT',
   'onError={() => setFailed(true)}',
+]);
+requireText('src/styles/player-avatar.css', [
+  'width: var(--player-avatar-size);',
+  'height: var(--player-avatar-size);',
+  'flex: 0 0 auto;',
+  'aspect-ratio: 1 / 1;',
+  'border-radius: 50%;',
+]);
+forbidText('src/styles/player-avatar.css', [
+  'min-width: var(--player-avatar-size);',
 ]);
 requireText('src/pages/SettingsPage.tsx', [
   '<PlayerAvatar',
@@ -43,6 +64,17 @@ requireText('src/components/shell/StatusBar.tsx', [
 requireText('src/components/shell/GameShell.tsx', [
   'playerId: model.user.id',
   "onClick: () => selectPlayerTab('settings')",
+]);
+requireText('src/pages/LeaderboardPage.tsx', [
+  "import { PlayerAvatar } from '../components/ui/PlayerAvatar';",
+  '<PlayerAvatar userId={userId} playerName={entry.playerName} size={28} className="leaderboard-avatar" />',
+  'leaderboardUserId(entry.userId)',
+]);
+requireText('src/leaderboardTypes.ts', [
+  'userId?: number;',
+]);
+requireText('server/src/leaderboards.js', [
+  'userId: Number(entry.userId),',
 ]);
 requireText('server/src/player-profile.js', [
   'PLAYER_AVATAR_SIZE = 64',
@@ -68,6 +100,8 @@ requireText('deploy/nginx/game.riversoft.top.economy-location.conf', [
 ]);
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
   '状态栏左侧玩家头像',
+  '排行榜玩家列固定复用 `PlayerAvatar`',
+  '必须始终保持 `1:1` 正方形',
   '64×64 WebP',
 ]);
 requireText('docs/UI_DESIGN_SYSTEM.md', [
@@ -85,4 +119,4 @@ if (failures.length) {
   console.error(`玩家头像验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('玩家头像验证通过：浏览器仅上传 64×64 WebP 缩略图，服务器独立存储并由状态栏与设置页复用。');
+console.log('玩家头像验证通过：浏览器仅上传 64×64 WebP 缩略图，服务器独立存储并由状态栏、设置页与排行榜复用，头像盒保持正圆。');

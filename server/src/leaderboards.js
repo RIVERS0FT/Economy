@@ -391,6 +391,7 @@ function internalRowsFor(world, state, boardId) {
 function publicEntry(entry, currentUserId, rewardEnabled) {
   return {
     rank: entry.rank,
+    userId: Number(entry.userId),
     playerName: entry.playerName,
     score: entry.score,
     secondary: entry.secondary,

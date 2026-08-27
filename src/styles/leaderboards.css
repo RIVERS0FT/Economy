@@ -94,6 +94,9 @@
   width: 28px;
   height: 28px;
   flex: 0 0 28px;
+}
+
+.leaderboard-avatar:not(.player-avatar) {
   display: grid;
   place-items: center;
   border: 1px solid var(--color-border);
