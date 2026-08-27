@@ -1,4 +1,3 @@
-\
 import { iterateOrderBookSide, recordOrderBookVisit } from '../order-book-runtime.js';
 import { PRICE_WINDOW_MS } from './catalog.js';
 import { clamp } from './math.js';
