@@ -5,6 +5,8 @@ export const DEFAULT_PROVINCE_ID = '110000';
 
 const PROVINCE_IDS = new Set(PROVINCE_CATALOG.map((province) => province.id));
 const SCOPED_KEY_SEPARATOR = ':';
+const installedDefaultProvinceAliasRecords = new WeakSet();
+const migratedInventoryRecords = new WeakSet();
 
 function defineDefaultProvinceAlias(record, assetId) {
   if (!record || !assetId) return;
@@ -43,18 +45,21 @@ export function splitProvinceScopedKey(value) {
 }
 
 export function installDefaultProvinceAliases(record) {
-  for (const key of Object.getOwnPropertyNames(record || {})) {
+  if (!record || typeof record !== 'object') return record;
+  if (installedDefaultProvinceAliasRecords.has(record)) return record;
+  for (const key of Object.getOwnPropertyNames(record)) {
     if (key.includes(SCOPED_KEY_SEPARATOR)) continue;
     const descriptor = Object.getOwnPropertyDescriptor(record, key);
     if (descriptor?.enumerable || Object.hasOwn(record, provinceScopedKey(DEFAULT_PROVINCE_ID, key))) continue;
     delete record[key];
   }
-  for (const key of Object.keys(record || {})) {
+  for (const key of Object.keys(record)) {
     const { provinceId, assetId } = splitProvinceScopedKey(key);
     if (provinceId === DEFAULT_PROVINCE_ID && key.includes(SCOPED_KEY_SEPARATOR)) {
       defineDefaultProvinceAlias(record, assetId);
     }
   }
+  installedDefaultProvinceAliasRecords.add(record);
   return record;
 }
 
@@ -84,11 +89,15 @@ export function migrateProvinceInventories(player) {
     target.inTransit = Number(target.inTransit || 0) + Number(inventory?.inTransit || 0);
     delete player.inventories[key];
   }
-  return installDefaultProvinceAliases(player.inventories);
+  installedDefaultProvinceAliasRecords.delete(player.inventories);
+  installDefaultProvinceAliases(player.inventories);
+  migratedInventoryRecords.add(player.inventories);
+  return player.inventories;
 }
 
 export function inventoryForProvince(player, productId, provinceId = DEFAULT_PROVINCE_ID) {
-  migrateProvinceInventories(player);
+  player.inventories ||= {};
+  if (!migratedInventoryRecords.has(player.inventories)) migrateProvinceInventories(player);
   const key = provinceScopedKey(provinceId, productId);
   player.inventories[key] ||= { available: 0, frozen: 0, inTransit: 0 };
   if (normalizeProvinceId(provinceId) === DEFAULT_PROVINCE_ID) {
