@@ -281,7 +281,7 @@ test('shortage pressure approaches the reference premium by at most a quarter pe
 });
 
 
-test('market model 19 rebuilds model 18 population demand escrow but preserves player orders', () => {
+test('market model 20 rebuilds model 19 population demand escrow but preserves player orders', () => {
   const now = 1_700_000_000_000;
   const runtime = createRuntime();
   const world = createTestWorld(now);
@@ -312,10 +312,10 @@ test('market model 19 rebuilds model 18 population demand escrow but preserves p
     .reduce((sum, model) => sum + Number(model.frozenCredits || 0), 0);
   assert.ok(frozenBefore > 0);
 
-  world.marketDemand.modelVersion = 18;
+  world.marketDemand.modelVersion = 19;
   runtime.normalizeWorld(world, now + 1_000);
 
-  assert.equal(world.marketDemand.modelVersion, 19);
+  assert.equal(world.marketDemand.modelVersion, 20);
   assert.equal(populationOrder.status, 'cancelled');
   assert.equal(world.orders.find((order) => order.id === 'player-order'), playerOrder);
   assert.equal(world.marketDemand.groups.food.directQuoteAnchors[productId], products.find((product) => product.id === productId).basePrice);

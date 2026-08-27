@@ -1,0 +1,413 @@
+{
+  "version": 1,
+  "sources": {
+    "population": {
+      "agency": "U.S. Census Bureau",
+      "series": "Vintage 2025 Population Estimates / QuickFacts",
+      "period": "2025-07-01",
+      "measure": "resident population",
+      "unit": "persons"
+    },
+    "wage": {
+      "agency": "U.S. Bureau of Labor Statistics",
+      "series": "Quarterly Census of Employment and Wages (QCEW)",
+      "period": "2025-Q4",
+      "measure": "average weekly wage",
+      "unit": "USD per week",
+      "status": "preliminary"
+    },
+    "consumption": {
+      "agency": "U.S. Bureau of Economic Analysis",
+      "series": "Personal Consumption Expenditures by State",
+      "period": "2023",
+      "measure": "total current-dollar PCE",
+      "unit": "million USD"
+    }
+  },
+  "states": [
+    {
+      "provinceId": "110000",
+      "state": "California",
+      "shortName": "CA",
+      "population": 39355309,
+      "averageWeeklyWage": 1954,
+      "pceMillions": 2526290
+    },
+    {
+      "provinceId": "120000",
+      "state": "Alabama",
+      "shortName": "AL",
+      "population": 5193088,
+      "averageWeeklyWage": 1301,
+      "pceMillions": 227475
+    },
+    {
+      "provinceId": "130000",
+      "state": "Arizona",
+      "shortName": "AZ",
+      "population": 7623818,
+      "averageWeeklyWage": 1446,
+      "pceMillions": 400704
+    },
+    {
+      "provinceId": "140000",
+      "state": "Arkansas",
+      "shortName": "AR",
+      "population": 3114791,
+      "averageWeeklyWage": 1213,
+      "pceMillions": 135761
+    },
+    {
+      "provinceId": "150000",
+      "state": "Colorado",
+      "shortName": "CO",
+      "population": 6012561,
+      "averageWeeklyWage": 1683,
+      "pceMillions": 374880
+    },
+    {
+      "provinceId": "210000",
+      "state": "Connecticut",
+      "shortName": "CT",
+      "population": 3688496,
+      "averageWeeklyWage": 1801,
+      "pceMillions": 235580
+    },
+    {
+      "provinceId": "220000",
+      "state": "Delaware",
+      "shortName": "DE",
+      "population": 1059952,
+      "averageWeeklyWage": 1502,
+      "pceMillions": 59512
+    },
+    {
+      "provinceId": "230000",
+      "state": "Florida",
+      "shortName": "FL",
+      "population": 23462518,
+      "averageWeeklyWage": 1471,
+      "pceMillions": 1361251
+    },
+    {
+      "provinceId": "310000",
+      "state": "Georgia",
+      "shortName": "GA",
+      "population": 11302748,
+      "averageWeeklyWage": 1440,
+      "pceMillions": 554573
+    },
+    {
+      "provinceId": "320000",
+      "state": "Idaho",
+      "shortName": "ID",
+      "population": 2029733,
+      "averageWeeklyWage": 1303,
+      "pceMillions": 90908
+    },
+    {
+      "provinceId": "330000",
+      "state": "Illinois",
+      "shortName": "IL",
+      "population": 12719141,
+      "averageWeeklyWage": 1588,
+      "pceMillions": 732059
+    },
+    {
+      "provinceId": "340000",
+      "state": "Indiana",
+      "shortName": "IN",
+      "population": 6973333,
+      "averageWeeklyWage": 1276,
+      "pceMillions": 339863
+    },
+    {
+      "provinceId": "350000",
+      "state": "Iowa",
+      "shortName": "IA",
+      "population": 3238387,
+      "averageWeeklyWage": 1282,
+      "pceMillions": 153400
+    },
+    {
+      "provinceId": "360000",
+      "state": "Kansas",
+      "shortName": "KS",
+      "population": 2977220,
+      "averageWeeklyWage": 1268,
+      "pceMillions": 145110
+    },
+    {
+      "provinceId": "370000",
+      "state": "Kentucky",
+      "shortName": "KY",
+      "population": 4606864,
+      "averageWeeklyWage": 1235,
+      "pceMillions": 213960
+    },
+    {
+      "provinceId": "410000",
+      "state": "Louisiana",
+      "shortName": "LA",
+      "population": 4618189,
+      "averageWeeklyWage": 1267,
+      "pceMillions": 221485
+    },
+    {
+      "provinceId": "420000",
+      "state": "Maine",
+      "shortName": "ME",
+      "population": 1414874,
+      "averageWeeklyWage": 1332,
+      "pceMillions": 84093
+    },
+    {
+      "provinceId": "430000",
+      "state": "Maryland",
+      "shortName": "MD",
+      "population": 6265347,
+      "averageWeeklyWage": 1616,
+      "pceMillions": 346417
+    },
+    {
+      "provinceId": "440000",
+      "state": "Massachusetts",
+      "shortName": "MA",
+      "population": 7154084,
+      "averageWeeklyWage": 1980,
+      "pceMillions": 483803
+    },
+    {
+      "provinceId": "450000",
+      "state": "Michigan",
+      "shortName": "MI",
+      "population": 10127884,
+      "averageWeeklyWage": 1427,
+      "pceMillions": 524045
+    },
+    {
+      "provinceId": "460000",
+      "state": "Minnesota",
+      "shortName": "MN",
+      "population": 5830405,
+      "averageWeeklyWage": 1505,
+      "pceMillions": 324128
+    },
+    {
+      "provinceId": "500000",
+      "state": "Mississippi",
+      "shortName": "MS",
+      "population": 2954160,
+      "averageWeeklyWage": 1075,
+      "pceMillions": 123851
+    },
+    {
+      "provinceId": "510000",
+      "state": "Missouri",
+      "shortName": "MO",
+      "population": 6270541,
+      "averageWeeklyWage": 1324,
+      "pceMillions": 322804
+    },
+    {
+      "provinceId": "520000",
+      "state": "Montana",
+      "shortName": "MT",
+      "population": 1144694,
+      "averageWeeklyWage": 1296,
+      "pceMillions": 62603
+    },
+    {
+      "provinceId": "530000",
+      "state": "Nebraska",
+      "shortName": "NE",
+      "population": 2018006,
+      "averageWeeklyWage": 1275,
+      "pceMillions": 103226
+    },
+    {
+      "provinceId": "540000",
+      "state": "Nevada",
+      "shortName": "NV",
+      "population": 3282188,
+      "averageWeeklyWage": 1395,
+      "pceMillions": 172658
+    },
+    {
+      "provinceId": "610000",
+      "state": "New Hampshire",
+      "shortName": "NH",
+      "population": 1415342,
+      "averageWeeklyWage": 1652,
+      "pceMillions": 92406
+    },
+    {
+      "provinceId": "620000",
+      "state": "New Jersey",
+      "shortName": "NJ",
+      "population": 9548215,
+      "averageWeeklyWage": 1691,
+      "pceMillions": 592882
+    },
+    {
+      "provinceId": "630000",
+      "state": "New Mexico",
+      "shortName": "NM",
+      "population": 2125498,
+      "averageWeeklyWage": 1275,
+      "pceMillions": 97421
+    },
+    {
+      "provinceId": "640000",
+      "state": "New York",
+      "shortName": "NY",
+      "population": 20002427,
+      "averageWeeklyWage": 1975,
+      "pceMillions": 1248145
+    },
+    {
+      "provinceId": "650000",
+      "state": "North Carolina",
+      "shortName": "NC",
+      "population": 11197968,
+      "averageWeeklyWage": 1409,
+      "pceMillions": 553487
+    },
+    {
+      "provinceId": "710000",
+      "state": "North Dakota",
+      "shortName": "ND",
+      "population": 799358,
+      "averageWeeklyWage": 1350,
+      "pceMillions": 43728
+    },
+    {
+      "provinceId": "810000",
+      "state": "Ohio",
+      "shortName": "OH",
+      "population": 11900510,
+      "averageWeeklyWage": 1358,
+      "pceMillions": 596163
+    },
+    {
+      "provinceId": "820000",
+      "state": "Oklahoma",
+      "shortName": "OK",
+      "population": 4123288,
+      "averageWeeklyWage": 1217,
+      "pceMillions": 179981
+    },
+    {
+      "provinceId": "US-OR",
+      "state": "Oregon",
+      "shortName": "OR",
+      "population": 4273586,
+      "averageWeeklyWage": 1468,
+      "pceMillions": 234578
+    },
+    {
+      "provinceId": "US-PA",
+      "state": "Pennsylvania",
+      "shortName": "PA",
+      "population": 13059432,
+      "averageWeeklyWage": 1470,
+      "pceMillions": 738930
+    },
+    {
+      "provinceId": "US-RI",
+      "state": "Rhode Island",
+      "shortName": "RI",
+      "population": 1114521,
+      "averageWeeklyWage": 1429,
+      "pceMillions": 61338
+    },
+    {
+      "provinceId": "US-SC",
+      "state": "South Carolina",
+      "shortName": "SC",
+      "population": 5570274,
+      "averageWeeklyWage": 1276,
+      "pceMillions": 264656
+    },
+    {
+      "provinceId": "US-SD",
+      "state": "South Dakota",
+      "shortName": "SD",
+      "population": 935094,
+      "averageWeeklyWage": 1230,
+      "pceMillions": 47927
+    },
+    {
+      "provinceId": "US-TN",
+      "state": "Tennessee",
+      "shortName": "TN",
+      "population": 7315076,
+      "averageWeeklyWage": 1424,
+      "pceMillions": 351525
+    },
+    {
+      "provinceId": "US-TX",
+      "state": "Texas",
+      "shortName": "TX",
+      "population": 31709821,
+      "averageWeeklyWage": 1549,
+      "pceMillions": 1595278
+    },
+    {
+      "provinceId": "US-UT",
+      "state": "Utah",
+      "shortName": "UT",
+      "population": 3538904,
+      "averageWeeklyWage": 1389,
+      "pceMillions": 174396
+    },
+    {
+      "provinceId": "US-VT",
+      "state": "Vermont",
+      "shortName": "VT",
+      "population": 644663,
+      "averageWeeklyWage": 1378,
+      "pceMillions": 38173
+    },
+    {
+      "provinceId": "US-VA",
+      "state": "Virginia",
+      "shortName": "VA",
+      "population": 8880107,
+      "averageWeeklyWage": 1585,
+      "pceMillions": 486123
+    },
+    {
+      "provinceId": "US-WA",
+      "state": "Washington",
+      "shortName": "WA",
+      "population": 8001020,
+      "averageWeeklyWage": 1948,
+      "pceMillions": 472900
+    },
+    {
+      "provinceId": "US-WV",
+      "state": "West Virginia",
+      "shortName": "WV",
+      "population": 1766147,
+      "averageWeeklyWage": 1203,
+      "pceMillions": 84235
+    },
+    {
+      "provinceId": "US-WI",
+      "state": "Wisconsin",
+      "shortName": "WI",
+      "population": 5972787,
+      "averageWeeklyWage": 1346,
+      "pceMillions": 310876
+    },
+    {
+      "provinceId": "US-WY",
+      "state": "Wyoming",
+      "shortName": "WY",
+      "population": 588753,
+      "averageWeeklyWage": 1297,
+      "pceMillions": 33257
+    }
+  ]
+}

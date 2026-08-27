@@ -18,9 +18,20 @@ import {
 } from '../server/src/population-demographics.js';
 
 const read = (path) => readFileSync(path, 'utf8');
+const stateEconomicBaselines = JSON.parse(read('shared/us-state-economic-baselines.json'));
+assert.equal(stateEconomicBaselines.version, 1);
+assert.equal(stateEconomicBaselines.states.length, 48);
+assert.equal(new Set(stateEconomicBaselines.states.map((row) => row.provinceId)).size, 48);
+assert.equal(stateEconomicBaselines.sources.population.period, '2025-07-01');
+assert.equal(stateEconomicBaselines.sources.wage.period, '2025-Q4');
+assert.equal(stateEconomicBaselines.sources.consumption.period, '2023');
+assert.deepEqual(
+  stateEconomicBaselines.states.find((row) => row.provinceId === '110000'),
+  { provinceId: '110000', state: 'California', shortName: 'CA', population: 39_355_309, averageWeeklyWage: 1_954, pceMillions: 2_526_290 },
+);
 const products = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 assert.equal(PRODUCT_CATALOG.length, 38);
-assert.equal(MARKET_DEMAND_MODEL_VERSION, 19);
+assert.equal(MARKET_DEMAND_MODEL_VERSION, 20);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.id), ['food', 'household']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.ownerName), ['食品市场需求', '家庭消费市场需求']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.name), ['食品市场', '社会消费市场']);
@@ -58,6 +69,7 @@ assert.deepEqual(POPULATION_COMPLEXITY_WEIGHTS_BPS, { C1: 10_000, C2: 15_000, C3
 const runtime = [
   'server/src/population-economy.js',
   'server/src/population-demographics.js',
+  'server/src/state-economic-baselines.js',
   'server/src/market-demand.js',
   'server/src/market-liquidity.js',
   'server/src/market-demand/catalog.js',
@@ -71,8 +83,8 @@ const runtime = [
   'server/src/order-book-integrity.js',
 ].map(read).join('\n');
 for (const text of [
-  'MARKET_DEMAND_MODEL_VERSION = 19',
-  'MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION = 19',
+  'MARKET_DEMAND_MODEL_VERSION = 20',
+  'MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION = 20',
   'DIRECT_BUDGET_SHARE = 0.70',
   "POPULATION_MODEL_IDS = Object.freeze(['basic', 'skilled', 'professional'])",
   "POPULATION_CONSUMPTION_STATES = Object.freeze(['lavish', 'prosperous', 'normal', 'strained', 'subsistence'])",
@@ -94,6 +106,8 @@ for (const text of [
   "setConsumptionState(model, 'subsistence'",
   "const CONSTRUCTION_PROFILE = Object.freeze({ basic: 0.60, skilled: 0.30, professional: 0.10 })",
   'preparePopulationDemandCycle',
+  'populationDemandProvinceWeights',
+  'lastProvinceBudgets',
   'populationClassShares',
   'reservePopulationOrder',
   'settlePopulationPurchase',
@@ -184,6 +198,12 @@ assert.deepEqual(standardRecipes(facilities.get('appliance-factory'))[0].inputs,
   { productId: 'machinery', quantity: 1 }, { productId: 'electronics', quantity: 1 },
 ]);
 
+const stateBaselineTests = read('server/test/state-economic-baselines.test.js');
+for (const text of [
+  'official state economic baseline covers every contiguous state with explicit source periods',
+  'population demand uses PCE weights to create state-local orders without duplicating wallet budget',
+]) assert.ok(stateBaselineTests.includes(text), '州级人口经济测试缺少: ' + text);
+
 const marketDemandTests = read('server/test/market-demand-v6.test.js');
 for (const text of [
   'direct demand quote anchor accumulates fractional no-fill increases and recovers after service',
@@ -192,7 +212,7 @@ for (const text of [
   'zero fill below reference recovers slowly while partial service recovers more gently',
   'no direct demand converges toward reference and derived liquidity ignores a low direct anchor',
   'shortage pressure approaches the reference premium by at most a quarter percent per cycle',
-  'market model 19 rebuilds model 18 population demand escrow but preserves player orders',
+  'market model 20 rebuilds model 19 population demand escrow but preserves player orders',
 ]) assert.ok(marketDemandTests.includes(text), '市场需求测试缺少模型 19 回归: ' + text);
 
 const populationTests = read('server/test/population-economy.test.js')
@@ -227,8 +247,8 @@ for (const text of [
 ]) assert.ok(liquidityTests.includes(text), '储备测试缺少: ' + text);
 
 for (const [path, texts] of [
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：19', '38 种正式商品', '单座 C1 工厂人口承载基数固定为 **11**', '每五分钟迁入剩余缺口的 **2%**', '实际人口 × 0.57', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点', '上一锚点的 0.25%', '参考价缺口的 2%', '最多为参考价的 0.75%', '只恢复 1% 缺口', '当前报价锚点上追涨 0.25%']],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：19', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '双向报价锚点']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：20', '38 种正式商品', '单座 C1 工厂人口承载基数固定为 **11**', '每五分钟迁入剩余缺口的 **2%**', '实际人口 × 0.57', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点', '上一锚点的 0.25%', '参考价缺口的 2%', '最多为参考价的 0.75%', '只恢复 1% 缺口', '当前报价锚点上追涨 0.25%']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：20', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '双向报价锚点']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', 'population-demographics.js', '人口经济内部版本固定为 7', '五档状态只重新分配食品／家庭与类别份额', '市场需求模型 19', '人口消费不得发行普通货币']],
   ['src/api/admin.ts', ["'lavish' | 'prosperous' | 'normal' | 'strained' | 'subsistence'", 'PopulationDemographicsAdminSummary', 'currentPopulation', 'targetPopulation', 'structuralCapacityByComplexity', 'laborForce', 'employed', 'unemployed', 'vacancies', 'perCapitaIncomeEma', 'stateCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps', 'stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
   ['src/components/AdminPopulationHealth.tsx', ['实际／目标人口', '结构人口承载', '活跃承载 EMA', '就业／失业／岗位缺口', '人均收入 EMA', '产业人口承载', '累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充']],
@@ -239,7 +259,7 @@ for (const [path, texts] of [
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
 
-console.log('市场需求验证通过：模型 19 使用工厂承载驱动的实际人口与真实钱包覆盖全部 38 种商品，并保持双向报价、派生流动性和市场储备约束。');
+console.log('市场需求验证通过：模型 20 使用工厂承载驱动的实际人口与真实钱包覆盖全部 38 种商品，并按州级 PCE 权重生成本地需求，同时保持双向报价、派生流动性和市场储备约束。');
 
 const populationPolicy = read('server/src/population-policy.js');
 const populationControl = read('server/src/population-admin-control.js');

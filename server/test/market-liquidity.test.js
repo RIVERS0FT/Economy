@@ -72,7 +72,7 @@ test('market model 19 creates inventory-backed buy and sell orders without syste
   prepareAllDemand(world);
   processWorld(world, now + 1);
 
-  assert.equal(MARKET_DEMAND_MODEL_VERSION, 19);
+  assert.equal(MARKET_DEMAND_MODEL_VERSION, 20);
   const systemOrders = world.orders.filter((order) => order.ownerType === 'population');
   assert.ok(systemOrders.some((order) => order.demandTier === 'direct'));
   assert.ok(systemOrders.some((order) => order.demandTier === 'derived-liquidity'));
@@ -234,7 +234,7 @@ test('model 3 migrates directly to current model with one-time reserve seeding',
 
   migrateWorld(world, now + 1);
 
-  assert.equal(world.marketDemand.modelVersion, 19);
+  assert.equal(world.marketDemand.modelVersion, 20);
   assert.equal(world.players[String(alice.id)].credits, 777);
   assert.equal(world.players[String(alice.id)].inventories.wheat.available, 9);
   assert.equal(world.orders.some((order) => order.id === 'model-3-market-order'), false);
@@ -257,7 +257,7 @@ test('model 5 migrates to current model and releases obsolete liquidity reservat
 
   migrateWorld(world, now + 2);
 
-  assert.equal(world.marketDemand.modelVersion, 19);
+  assert.equal(world.marketDemand.modelVersion, 20);
   assert.equal(world.players[String(alice.id)].credits, 777);
   assert.equal(world.players[String(alice.id)].inventories.wheat.available, 9);
   assert.equal(world.orders.some((order) => oldSystemOrderIds.has(order.id)), false);
