@@ -2,6 +2,7 @@ import type { AuthUser } from '../types';
 
 const API_BASE = '/economy-api';
 const NETWORK_ERROR_MESSAGE = '无法连接服务器，客户端或服务器可能已经更新，请刷新页面后重试';
+const REQUEST_ABORTED_MESSAGE = '连接已中断，请刷新页面后重试';
 
 interface AuthResponse {
   user: AuthUser;
@@ -42,6 +43,11 @@ function createIdempotencyKey(prefix: string) {
   return `${prefix}:${token}`;
 }
 
+function isBrowserAbortError(reason: unknown) {
+  if (!reason || typeof reason !== 'object' || !('name' in reason)) return false;
+  return String((reason as { name?: unknown }).name || '') === 'AbortError';
+}
+
 function isBrowserNetworkError(reason: unknown) {
   if (reason instanceof TypeError) return true;
   if (!(reason instanceof Error)) return false;
@@ -52,6 +58,9 @@ async function fetchApi(input: RequestInfo | URL, init?: RequestInit) {
   try {
     return await fetch(input, init);
   } catch (reason) {
+    if (isBrowserAbortError(reason)) {
+      throw new ApiRequestError(408, REQUEST_ABORTED_MESSAGE, { code: 'CLIENT_REQUEST_ABORTED' });
+    }
     if (isBrowserNetworkError(reason)) {
       throw new ApiRequestError(0, NETWORK_ERROR_MESSAGE, { code: 'CLIENT_NETWORK_ERROR' });
     }
