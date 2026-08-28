@@ -10,6 +10,7 @@ export function defaultOrderPrice(
   assetKind: AssetKind,
   assetId: string,
   side: OrderSide,
+  summary?: { bestBid?: number | null; bestAsk?: number | null },
 ): number {
   let bestBid: number | undefined;
   let bestAsk: number | undefined;
@@ -26,7 +27,13 @@ export function defaultOrderPrice(
     }
   }
 
+  const summaryBestBid = isValidOrderPrice(Number(summary?.bestBid))
+    ? Number(summary?.bestBid)
+    : undefined;
+  const summaryBestAsk = isValidOrderPrice(Number(summary?.bestAsk))
+    ? Number(summary?.bestAsk)
+    : undefined;
   return side === 'buy'
-    ? bestAsk ?? bestBid ?? 1
-    : bestBid ?? bestAsk ?? 1;
+    ? summaryBestAsk ?? summaryBestBid ?? bestAsk ?? bestBid ?? 1
+    : summaryBestBid ?? summaryBestAsk ?? bestBid ?? bestAsk ?? 1;
 }

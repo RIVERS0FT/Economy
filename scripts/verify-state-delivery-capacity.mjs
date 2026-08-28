@@ -169,10 +169,54 @@ requireText('server/src/state-partitions.js', [
   "message: String(actionResponse?.result?.message || '')",
   'readKnownPartitionRevisionsFromSearch',
   'readKnownPartitionRevisionsFromHeader',
+  'serializeAndDigestJson',
+  'stateOrdersJsonBytes',
+  'stateProvinceMarketsJsonBytes',
+  'stateProvinceFacilityMarketsJsonBytes',
 ]);
 forbidText('server/src/state-partitions.js', [
   "const CATALOG_KEYS = new Set(['version', 'products', 'facilityTypes', 'serverNow'])",
   "const MARKET_KEYS = new Set(['serverNow'",
+]);
+
+requireText('server/src/market-state-delivery.js', [
+  'createMarketSummaryStatesByProvince',
+  'createMarketDetail',
+  'eventTradeWindows',
+  'getOrderBookDepth',
+  'function publicPricePoint(point)',
+]);
+requireText('server/src/runtime-store-core.js', [
+  'getMarketDetail(user, options = {}',
+  'marketDetailProjectionMs',
+  'getFacilityBuildQuote(user, options = {}',
+  'facilityBuildQuoteProjectionMs',
+]);
+requireText('server/src/app.js', [
+  "path === '/api/game/market-detail'",
+  "path === '/api/game/facility-build-quote'",
+]);
+requireText('src/api/game.ts', [
+  'const marketDetailCache = new Map<string, MarketDetail>()',
+  'function rememberMarketDetail(key: string, detail: MarketDetail)',
+  "(path === '/state' || path.startsWith('/state?')) && isStateDeliveryPayload(payload)",
+  'if (payload.unchanged && cached) return rememberMarketDetail(key, cached)',
+  'while (marketDetailCache.size > 32)',
+  'getFacilityBuildProcurementQuote',
+]);
+requireText('server/test/state-delivery-size.test.js', [
+  '48-province initial state remains below two MiB without embedded market histories',
+  'TWO_MIB',
+]);
+requireText('server/test/market-state-delivery.test.js', [
+  'initial player state keeps market summaries and only the current player orders',
+  'market detail returns public history, aggregated five-level depth, and a conditional revision',
+]);
+requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
+  '首次未压缩 JSON 响应必须不超过 2 MiB',
+  '状态读取 p95 不超过 800 ms',
+  '市场详情 p95 不超过 300 ms',
+  '事件循环 p99 不超过 200 ms',
 ]);
 
 requireText('server/src/app.js', [

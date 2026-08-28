@@ -14,6 +14,7 @@ import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrit
 import { closeOrderInOrderBook, countOpenOrdersForOwner, facilitySellQuantityForOwner, orderById } from './order-book-runtime.js';
 import { creditPopulationEmployment, ensurePopulationEconomy } from './population-economy.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
+import { createMarketSummaryStatesByProvince } from './market-state-delivery.js';
 import { activeLoanLiability, ensurePlayerBankAccount, mortgagedFacilityQuantity } from './banking.js';
 import {
   contractLockedFacilityQuantity,
@@ -319,7 +320,10 @@ function clientOrdersForState(world, userId) {
       .map((order) => String(order.id)),
   );
   return (world.orders || [])
-    .filter((order) => isOpenOrder(order) || recentClosedIds.has(String(order.id)))
+    .filter((order) => (
+      Number(order?.ownerId) === Number(userId)
+      && (isOpenOrder(order) || recentClosedIds.has(String(order.id)))
+    ))
     .map((order) => publicOrderView(order, userId));
 }
 
@@ -1537,7 +1541,12 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
     provinceFacilityGroups[provinceId] ||= [];
     provinceFacilityGroups[provinceId].push(clientGroup(world, player, group, now));
   }
-  const provinceFacilityMarkets = marketStatesByProvince(world.facilityMarkets);
+  const provinceFacilityMarkets = createMarketSummaryStatesByProvince(
+    world.facilityMarkets,
+    world,
+    'facility',
+    now,
+  );
   return {
     ...withoutFacilities,
     version: CURRENT_CLIENT_STATE_VERSION,

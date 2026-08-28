@@ -1,7 +1,7 @@
 import type { ProductMarketState } from '../types';
 
 export type MarketTrend = 'up' | 'down' | 'flat' | 'unknown';
-export type RealTradePoint = ProductMarketState['priceHistory'][number];
+export type RealTradePoint = NonNullable<ProductMarketState['priceHistory']>[number];
 
 export interface MarketDecisionSignal {
   price: number | null;
@@ -39,7 +39,9 @@ export function marketDecisionSignal(
   const previous = points.length >= 2 ? points[points.length - 2] : undefined;
   const fallbackPrice = Number(market?.lastTradePrice);
   const price = latest?.price ?? (Number.isFinite(fallbackPrice) && fallbackPrice > 0 ? fallbackPrice : null);
-  const previousPrice = previous?.price ?? null;
+  const summaryPreviousPrice = Number(market?.previousTradePrice);
+  const previousPrice = previous?.price
+    ?? (Number.isFinite(summaryPreviousPrice) && summaryPreviousPrice > 0 ? summaryPreviousPrice : null);
   const changeBps = price !== null && previousPrice !== null && previousPrice > 0
     ? Math.round((price - previousPrice) / previousPrice * 10_000)
     : null;
@@ -55,8 +57,10 @@ export function marketDecisionSignal(
     previousPrice,
     changeBps,
     trend,
-    tradeCount: points.length,
-    volume: points.reduce((sum, point) => sum + Math.max(0, Number(point.quantity) || 0), 0),
+    tradeCount: points.length || Math.max(0, Number(market?.tradeCount24h || 0)),
+    volume: points.length > 0
+      ? points.reduce((sum, point) => sum + Math.max(0, Number(point.quantity) || 0), 0)
+      : Math.max(0, Number(market?.tradeVolume24h || 0)),
   };
 }
 
@@ -65,18 +69,24 @@ export function eventMarketFeedback(
   productIds: readonly string[],
   startsAt: number,
   endsAt: number,
+  eventId?: string,
 ) {
   const productFeedback = productIds.map((productId) => {
     const points = realTradePoints(markets[productId], startsAt, endsAt);
-    const first = points.length > 0 ? points[0] : undefined;
-    const last = points.length > 0 ? points[points.length - 1] : undefined;
-    const changeBps = points.length >= 2 && first && last && first.price > 0
-      ? Math.round((last.price - first.price) / first.price * 10_000)
+    const summary = eventId ? markets[productId]?.eventTradeWindows?.[eventId] : undefined;
+    const tradeCount = points.length > 0 ? points.length : Math.max(0, Number(summary?.tradeCount || 0));
+    const volume = points.length > 0
+      ? points.reduce((sum, point) => sum + Math.max(0, Number(point.quantity) || 0), 0)
+      : Math.max(0, Number(summary?.volume || 0));
+    const firstPrice = points.length > 0 ? points[0].price : Number(summary?.firstPrice);
+    const lastPrice = points.length > 0 ? points[points.length - 1].price : Number(summary?.lastPrice);
+    const changeBps = tradeCount >= 2 && firstPrice > 0 && lastPrice > 0
+      ? Math.round((lastPrice - firstPrice) / firstPrice * 10_000)
       : null;
     return {
       productId,
-      tradeCount: points.length,
-      volume: points.reduce((sum, point) => sum + Math.max(0, Number(point.quantity) || 0), 0),
+      tradeCount,
+      volume,
       changeBps,
     };
   });

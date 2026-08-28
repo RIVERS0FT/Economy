@@ -19,6 +19,14 @@ async function gridTrackCount(locator: Locator) {
     .length);
 }
 
+async function waitForLayoutAnimations(page: Page) {
+  for (const selector of ['.signed-in-shell__primary-card', '.signed-in-shell__page-reveal']) {
+    await page.locator(selector).evaluate(async (element) => {
+      await Promise.all(element.getAnimations().map((animation) => animation.finished.catch(() => undefined)));
+    });
+  }
+}
+
 const populatedExchanges = [
   { gemsSpent: 10, creditsReceived: 1_000, creditsPerGem: 100, createdAt: Date.UTC(2026, 6, 17, 12, 0, 0) },
   { gemsSpent: 5, creditsReceived: 500, creditsPerGem: 100, createdAt: Date.UTC(2026, 6, 16, 12, 0, 0) },
@@ -83,6 +91,7 @@ async function openGemShop(page: Page, width: number, height: number, recentExch
   await expect(page.getByText('注册完成后不能补填或更换。', { exact: false })).toBeVisible();
   await expect(page.getByLabel('填写好友邀请码')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '确认填写', exact: true })).toHaveCount(0);
+  await waitForLayoutAnimations(page);
 }
 
 test('desktop shop keeps invitation and exchange in independent top-aligned stacks', async ({ page }) => {

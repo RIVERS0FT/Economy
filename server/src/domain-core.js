@@ -19,6 +19,7 @@ import {
   splitProvinceScopedKey,
   syncDefaultProvinceAlias,
 } from './provinces.js';
+import { createMarketSummaryStatesByProvince } from './market-state-delivery.js';
 
 export { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
 
@@ -1196,9 +1197,11 @@ export function createClientState(world, userId, now = Date.now(), { migrate = t
     ? marketFor(world, 'wheat')
     : world.markets?.[provinceScopedKey(DEFAULT_PROVINCE_ID, 'wheat')] || createMarket(productDefinition('wheat'), now);
   const provinceInventories = inventoryStatesByProvince(player);
-  const provinceMarkets = marketStatesByProvince(world.markets);
+  const provinceMarkets = migrate
+    ? marketStatesByProvince(world.markets)
+    : createMarketSummaryStatesByProvince(world.markets, world, 'commodity', now);
   return {
-    version: 36,
+    version: 37,
     userId: player.userId,
     playerName: player.playerName,
     startingProvinceId: player.startingProvinceId || DEFAULT_PROVINCE_ID,
@@ -1232,7 +1235,7 @@ export function createClientState(world, userId, now = Date.now(), { migrate = t
     frozenInventory: wheatInventory.frozen,
     commodityName: productDefinition('wheat').name,
     marketPrice: wheatMarket.lastPrice,
-    marketPriceHistory: clone(wheatMarket.priceHistory),
+    marketPriceHistory: migrate ? clone(wheatMarket.priceHistory) : [],
     demand: clone(wheatMarket.demand),
   };
 }

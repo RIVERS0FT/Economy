@@ -9,6 +9,8 @@ import {
 import { EconomyStore as PersistentEconomyStore, createVersionedClientState } from './storage.js';
 import { ensurePlayer, processWorld } from './domain.js';
 import { createOrderHistoryPage } from './facility-groups.js';
+import { createMarketDetail } from './market-state-delivery.js';
+import { createFacilityBuildProcurementQuote } from './facility-auto-procure.js';
 import {
   applyProductionContractAction,
   createProductionContractClientState,
@@ -429,6 +431,56 @@ export class EconomyStore extends PersistentEconomyStore {
       return measureRequestPhase('orderHistoryProjectionMs', () => (
         createOrderHistoryPage(currentSaveWorld(world, Number(user.id)), Number(user.id), options)
       ));
+    }, { immediate: false });
+  }
+
+  getMarketDetail(user, options = {}, now = Date.now()) {
+    const project = (world, revision) => {
+      const marketDetail = measureRequestPhase('marketDetailProjectionMs', () => (
+        createMarketDetail(world, { ...options, now })
+      ));
+      setRequestGauge('marketDetailPriceHistoryPoints', marketDetail.market.priceHistory.length);
+      setRequestGauge(
+        'marketDetailOrderBookLevelCount',
+        marketDetail.orderBook.bids.length + marketDetail.orderBook.asks.length,
+      );
+      const unchanged = String(options.knownRevision || '') === marketDetail.revision;
+      return {
+        revision: Number(revision),
+        serverNow: now,
+        marketDetailRevision: marketDetail.revision,
+        unchanged,
+        ...(unchanged ? {} : { marketDetail }),
+      };
+    };
+    if (this.worldCache?.world) {
+      return project(this.worldCache.world, this.worldCache.revision);
+    }
+    return this.transaction(() => {
+      const { revision, world } = this.loadWorld(now);
+      return project(world, revision);
+    }, { immediate: false });
+  }
+
+  getFacilityBuildQuote(user, options = {}, now = Date.now()) {
+    const project = (world, revision) => ({
+      revision: Number(revision),
+      serverNow: now,
+      quote: measureRequestPhase('facilityBuildQuoteProjectionMs', () => (
+        createFacilityBuildProcurementQuote(
+          world,
+          user,
+          options,
+          now,
+        )
+      )),
+    });
+    if (this.worldCache?.world) {
+      return project(this.worldCache.world, this.worldCache.revision);
+    }
+    return this.transaction(() => {
+      const { revision, world } = this.loadWorld(now);
+      return project(world, revision);
     }, { immediate: false });
   }
 

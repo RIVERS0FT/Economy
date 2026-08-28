@@ -84,8 +84,16 @@ function assertValidCatalogPartitionSnapshot(catalog) {
   if (issue) throw new Error(`客户端目录分区不完整：${issue}`);
 }
 
+function serializeAndDigestJson(value) {
+  const json = JSON.stringify(value);
+  return {
+    digest: createHash('sha256').update(json).digest('base64url'),
+    bytes: Buffer.byteLength(json),
+  };
+}
+
 function digestJson(value) {
-  return createHash('sha256').update(JSON.stringify(value)).digest('base64url');
+  return serializeAndDigestJson(value).digest;
 }
 
 function revisionFromKeyDigests(entries) {
@@ -102,11 +110,34 @@ function revisionFromKeyDigests(entries) {
 function keyDigestsForPartitions(partitions, { skipCatalog = false } = {}) {
   return measureRequestPhase('partitionHashMs', () => {
     const digests = new Map();
+    const fieldBytes = new Map();
     for (const partitionName of STATE_PARTITION_NAMES) {
       if (skipCatalog && partitionName === 'catalog') continue;
       for (const [key, value] of Object.entries(partitions?.[partitionName] || {})) {
-        digests.set(key, digestJson(value));
+        const serialized = serializeAndDigestJson(value);
+        digests.set(key, serialized.digest);
+        fieldBytes.set(key, serialized.bytes);
       }
+    }
+    for (const [partitionName, partition] of Object.entries(partitions || {})) {
+      if (skipCatalog && partitionName === 'catalog') continue;
+      const entries = Object.keys(partition || {});
+      const bytes = 2 + entries.reduce((sum, key, index) => (
+        sum
+        + Buffer.byteLength(JSON.stringify(key))
+        + 1
+        + Number(fieldBytes.get(key) || 0)
+        + (index > 0 ? 1 : 0)
+      ), 0);
+      setRequestGauge(`state${partitionName[0].toUpperCase()}${partitionName.slice(1)}PartitionJsonBytes`, bytes);
+    }
+    const trackedFields = {
+      orders: 'stateOrdersJsonBytes',
+      provinceMarkets: 'stateProvinceMarketsJsonBytes',
+      provinceFacilityMarkets: 'stateProvinceFacilityMarketsJsonBytes',
+    };
+    for (const [key, gauge] of Object.entries(trackedFields)) {
+      if (fieldBytes.has(key)) setRequestGauge(gauge, fieldBytes.get(key));
     }
     return digests;
   });

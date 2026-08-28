@@ -10,6 +10,7 @@ import type { StatusBarItem } from '../../src/components/shell/StatusBar';
 import { CurrencyAmount } from '../../src/components/ui/CurrencyAmount';
 import { MarketPage } from '../../src/pages/MarketPage';
 import type { TabId } from '../../src/config/navigation';
+import type { MarketDetail } from '../../src/types';
 import { formatCurrency, formatNumber, formatRank } from '../../src/utils/formatters';
 import '../../src/styles/globals.css';
 import '../../src/styles/charts.css';
@@ -42,6 +43,116 @@ const params = new URLSearchParams(window.location.search);
 const scenario = params.get('scenario') ?? 'active';
 const fixedNow = new Date(2026, 6, 18, 0, 30, 0).getTime();
 document.documentElement.dataset.appSurface = 'game';
+
+function marketDetailFixture(url: URL): MarketDetail | null {
+  if (url.pathname !== '/economy-api/game/market-detail') return null;
+  const provinceId = url.searchParams.get('provinceId') || '110000';
+  const assetKind = url.searchParams.get('assetKind') === 'facility' ? 'facility' : 'commodity';
+  const assetId = url.searchParams.get('assetId') || 'wheat';
+  const zeroTrend = scenario === 'zero-trend';
+  const priceHistory = assetId === 'wheat'
+    ? [
+        ...Array.from({ length: 5 }, (_, index) => ({
+          price: zeroTrend ? 12 : 10,
+          quantity: 1,
+          createdAt: fixedNow - (30 + index) * 60 * 60_000,
+          takerSide: index % 2 === 0 ? 'buy' as const : 'sell' as const,
+        })),
+        { price: zeroTrend ? 12 : 10, quantity: 2, createdAt: fixedNow - 3 * 60 * 60_000, takerSide: 'buy' as const },
+        { price: zeroTrend ? 12 : 11, quantity: 3, createdAt: fixedNow - 2 * 60 * 60_000, takerSide: 'sell' as const },
+        { price: 12, quantity: 4, createdAt: fixedNow - 30 * 60_000, takerSide: 'buy' as const },
+      ]
+    : [];
+  const market = assetKind === 'commodity'
+    ? {
+        productId: assetId,
+        provinceId,
+        lastPrice: assetId === 'wheat' ? 12 : 10,
+        lastTradePrice: assetId === 'wheat' ? 2 : null,
+        officialPrice: assetId === 'wheat' ? 11 : 10,
+        nextPriceAt: fixedNow + 60_000,
+        cycleBuyQuantity: 0,
+        cycleSellQuantity: 0,
+        lastImbalance: 0,
+        lastPriceChangeBps: 0,
+        priceHistory,
+        priceChange24h: zeroTrend ? 0 : 2,
+        tradeVolume24h: assetId === 'wheat' ? 9 : 0,
+        tradeCount24h: assetId === 'wheat' ? 3 : 0,
+        previousTradePrice: assetId === 'wheat' ? 11 : null,
+        buyVolume: assetId === 'wheat' ? 5 : 0,
+        sellVolume: assetId === 'wheat' ? 4 : 0,
+        buyOrderCount: assetId === 'wheat' ? 5 : 0,
+        sellOrderCount: assetId === 'wheat' ? 2 : 0,
+        bestBid: assetId === 'wheat' ? 2 : null,
+        bestAsk: assetId === 'wheat' ? 13 : null,
+        demand: {
+          cycleMs: 300_000,
+          nextDemandAt: fixedNow + 60_000,
+          lastBudget: 0,
+          lastQuantity: 0,
+          lastPrice: assetId === 'wheat' ? 12 : 10,
+          satisfaction: 1,
+          referencePrice: assetId === 'wheat' ? 12 : 10,
+          observedPrice: assetId === 'wheat' ? 12 : 10,
+          costAnchor: null,
+          downstreamValueAnchor: null,
+          targetPrice: assetId === 'wheat' ? 12 : 10,
+        },
+      }
+    : {
+        facilityTypeId: assetId,
+        provinceId,
+        lastPrice: 500,
+        lastTradePrice: null,
+        priceHistory,
+        priceChange24h: null,
+        tradeVolume24h: 0,
+        tradeCount24h: 0,
+        previousTradePrice: null,
+        buyVolume: 0,
+        sellVolume: 0,
+        buyOrderCount: 0,
+        sellOrderCount: 0,
+        bestBid: null,
+        bestAsk: null,
+      };
+  return {
+    provinceId,
+    assetKind,
+    assetId,
+    revision: `market-runtime:${provinceId}:${assetKind}:${assetId}`,
+    market,
+    orderBook: {
+      asks: assetId === 'wheat'
+        ? [{ side: 'sell', price: 13, remaining: 4, orderCount: 2 }]
+        : [],
+      bids: assetId === 'wheat'
+        ? [{ side: 'buy', price: 2, remaining: 5, orderCount: 5 }]
+        : [],
+    },
+  };
+}
+
+const nativeFetch = window.fetch.bind(window);
+window.fetch = async (input, init) => {
+  const requestUrl = new URL(
+    typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+    window.location.href,
+  );
+  const marketDetail = marketDetailFixture(requestUrl);
+  if (!marketDetail) return nativeFetch(input, init);
+  return new Response(JSON.stringify({
+    revision: 1,
+    serverNow: fixedNow,
+    marketDetailRevision: marketDetail.revision,
+    unchanged: false,
+    marketDetail,
+  }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+};
 
 const productNames = [
   '小麦', '水稻', '棉花', '木材', '铁矿石', '铜矿石', '原油', '肉', '蛋', '奶', '毛',
@@ -91,66 +202,9 @@ function MarketHarness() {
       systemValue: 500 + index,
     }));
     const isZeroTrend = scenario === 'zero-trend';
-    const oldPrices = Array.from({ length: 5 }, (_, index) => ({
-      price: isZeroTrend ? 12 : 10,
-      quantity: 1,
-      createdAt: fixedNow - (30 + index) * 60 * 60_000,
-      takerSide: index % 2 === 0 ? 'buy' : 'sell',
-    }));
-    const currentPrices = [
-      { price: isZeroTrend ? 12 : 10, quantity: 2, createdAt: fixedNow - 3 * 60 * 60_000, takerSide: 'buy' },
-      { price: isZeroTrend ? 12 : 11, quantity: 3, createdAt: fixedNow - 2 * 60 * 60_000, takerSide: 'sell' },
-      { price: 12, quantity: 4, createdAt: fixedNow - 30 * 60_000, takerSide: 'buy' },
-    ];
     const inventoryAvailable = scenario === 'sell-empty' ? 0 : 8;
     const credits = scenario === 'funds-empty' ? 0 : 1000;
-    const orders = [
-      {
-        id: 'ask-1',
-        assetKind: 'commodity',
-        assetId: 'wheat',
-        productId: 'wheat',
-        side: 'sell',
-        ownerType: 'population',
-        ownerName: '人口',
-        isOwn: false,
-        price: 13,
-        quantity: 8,
-        remaining: 1,
-        status: 'open',
-        createdAt: fixedNow - 15 * 60_000,
-      },
-      {
-        id: 'ask-2',
-        assetKind: 'commodity',
-        assetId: 'wheat',
-        productId: 'wheat',
-        side: 'sell',
-        ownerType: 'player',
-        ownerName: '匿名玩家',
-        isOwn: false,
-        price: 13,
-        quantity: 9,
-        remaining: 3,
-        status: 'partial',
-        createdAt: fixedNow - 14 * 60_000,
-      },
-      ...Array.from({ length: 5 }, (_, index) => ({
-        id: `bid-${index + 1}`,
-        assetKind: 'commodity',
-        assetId: 'wheat',
-        productId: 'wheat',
-        side: 'buy',
-        ownerType: index % 2 === 0 ? 'population' : 'player',
-        ownerName: index % 2 === 0 ? '人口' : '匿名玩家',
-        isOwn: false,
-        price: 2,
-        quantity: 10 + index,
-        remaining: 1,
-        status: index === 1 ? 'partial' : 'open',
-        createdAt: fixedNow - (10 - index) * 60_000,
-      })),
-    ];
+    const orders = [];
     const inventories = Object.fromEntries(products.map((product) => [
       product.id,
       { available: product.id === 'wheat' ? inventoryAvailable : 0, frozen: 0 },
@@ -184,7 +238,16 @@ function MarketHarness() {
         cycleSellQuantity: 0,
         lastImbalance: 0,
         lastPriceChangeBps: 0,
-        priceHistory: product.id === 'wheat' ? [...oldPrices, ...currentPrices] : [],
+        priceChange24h: product.id === 'wheat' ? (isZeroTrend ? 0 : 2) : null,
+        tradeVolume24h: product.id === 'wheat' ? 9 : 0,
+        tradeCount24h: product.id === 'wheat' ? 3 : 0,
+        previousTradePrice: product.id === 'wheat' ? 11 : null,
+        buyVolume: product.id === 'wheat' ? 5 : 0,
+        sellVolume: product.id === 'wheat' ? 4 : 0,
+        buyOrderCount: product.id === 'wheat' ? 5 : 0,
+        sellOrderCount: product.id === 'wheat' ? 2 : 0,
+        bestBid: product.id === 'wheat' ? 2 : null,
+        bestAsk: product.id === 'wheat' ? 13 : null,
         demand: {
           cycleMs: 300_000,
           nextDemandAt: fixedNow + 60_000,
@@ -201,7 +264,7 @@ function MarketHarness() {
       },
     ]));
     const game = {
-      version: 31,
+      version: 37,
       lastProcessedAt: fixedNow,
       userId: 123,
       playerName: 'MEVIUS',
@@ -291,6 +354,9 @@ function MarketHarness() {
       tab,
       setTab,
       notice: '',
+      selectedProvinceId: '110000',
+      selectedProvince: { id: '110000', name: '加利福尼亚州' },
+      setSelectedProvinceId: () => {},
       selectedFacilityTypeId: 'machine-factory',
       setSelectedFacilityTypeId: () => {},
       marketAssetKind,

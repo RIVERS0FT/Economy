@@ -258,6 +258,7 @@ export function useOnlineAutoTrade(
     const contractReserved = currentContractReservations(game);
     const sources = [
       game.orders,
+      game.markets,
       game.inventories,
       game.credits,
       game.onlineAutoBuyPolicies,
@@ -277,6 +278,9 @@ export function useOnlineAutoTrade(
     const orderIndex = getClientOrderIndex(game.orders);
     const buyPolicy = buyPolicyForGame(game, productId);
     const sellPolicy = sellPolicyForGame(game, productId);
+    const market = game.markets[productId];
+    const bestAsk = typeof market?.bestAsk === 'number' ? market.bestAsk : null;
+    const bestBid = typeof market?.bestBid === 'number' ? market.bestBid : null;
     const availableInventory = nonNegativeInteger(game.inventories[productId]?.available);
     const production = nonNegativeInteger(productionReserved[productId]);
     const contract = contractReserved[productId] ?? { display: 0, availableHold: 0 };
@@ -352,13 +356,7 @@ export function useOnlineAutoTrade(
         true,
         buyPolicy.maxPrice,
       ),
-      hasCrossingSeller: hasCrossingCommodityOrder(
-        orderIndex,
-        productId,
-        'sell',
-        false,
-        buyPolicy.maxPrice,
-      ),
+      hasCrossingSeller: bestAsk !== null && bestAsk <= buyPolicy.maxPrice,
       hasManagedBuyOrder: Boolean(buyManaged),
       buyNeedsMaintenance,
       sellEligibleQuantity,
@@ -369,13 +367,7 @@ export function useOnlineAutoTrade(
         true,
         sellPolicy.price,
       ),
-      hasCrossingBuyer: hasCrossingCommodityOrder(
-        orderIndex,
-        productId,
-        'buy',
-        false,
-        sellPolicy.price,
-      ),
+      hasCrossingBuyer: bestBid !== null && bestBid >= sellPolicy.price,
       hasManagedSellOrder: Boolean(sellManaged),
       sellNeedsMaintenance,
     };
@@ -491,7 +483,7 @@ export function useOnlineAutoTrade(
   useEffect(() => {
     maintainAutoTrade();
     return subscribeStateAuthorityDependencies(
-      ['catalog', 'player.assets', 'player.production', 'market.orders', 'contract'],
+      ['catalog', 'player.assets', 'player.production', 'market.orders', 'market.quotes', 'contract'],
       maintainAutoTrade,
     );
   }, [busyProductId, busySide, maintainAutoTrade]);

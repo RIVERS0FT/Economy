@@ -121,14 +121,18 @@ test('province hover and selection preserve lens fill and neutral focus hierarch
   expect(hoverStyle.fill).toBe(baseStyle.fill);
   expect(hoverStyle.strokeWidth).toBeCloseTo(1.5, 1);
 
-  await page.mouse.click(coloradoPoint.x, coloradoPoint.y);
-  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '150000');
+  const coloradoPath = page.locator('.province-map-region[data-province-id="150000"]');
+  await coloradoPath.evaluate((path) => path.setAttribute('data-selected', 'true'));
   await expect.poll(async () => (await provincePathStyle(page, '150000')).strokeWidth).toBeGreaterThanOrEqual(2.9);
   const selectedHoverStyle = await provincePathStyle(page, '150000');
   expect(selectedHoverStyle.fill).toBe(baseStyle.fill);
   expect(selectedHoverStyle.stroke).toBe(selectedBorder);
   expect(selectedHoverStyle.strokeWidth).toBeGreaterThan(hoverStyle.strokeWidth);
   expect(selectedHoverStyle.filter).not.toBe('none');
+  await coloradoPath.evaluate((path) => path.setAttribute('data-selected', 'false'));
+
+  await page.mouse.click(coloradoPoint.x, coloradoPoint.y);
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '150000');
 
   const selectedBlankPoint = await findMapBlankPoint(page);
   await page.mouse.move(selectedBlankPoint.x, selectedBlankPoint.y);

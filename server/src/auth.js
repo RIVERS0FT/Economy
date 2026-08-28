@@ -28,7 +28,11 @@ function authenticationCacheKey(cookie) {
 
 export function authenticationCacheMaxAgeForRequest(method, path) {
   if (String(path).startsWith('/api/game/admin/')) return 0;
-  if (method === 'GET' && path === '/api/game/state') {
+  if (method === 'GET' && (
+    path === '/api/game/state'
+    || path === '/api/game/market-detail'
+    || path === '/api/game/facility-build-quote'
+  )) {
     return AUTHENTICATION_CACHE_POLICY.stateMaxAgeMs;
   }
   return AUTHENTICATION_CACHE_POLICY.writeMaxAgeMs;

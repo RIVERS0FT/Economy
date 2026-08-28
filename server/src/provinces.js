@@ -119,6 +119,21 @@ export function inventoryForProvince(player, productId, provinceId = DEFAULT_PRO
   return player.inventories[key];
 }
 
+const EMPTY_INVENTORY = Object.freeze({ available: 0, frozen: 0, inTransit: 0 });
+
+export function readInventoryForProvince(player, productId, provinceId = DEFAULT_PROVINCE_ID) {
+  const inventories = player?.inventories;
+  if (!inventories || typeof inventories !== 'object') return EMPTY_INVENTORY;
+  const normalizedProvinceId = normalizeProvinceId(provinceId);
+  const scopedInventory = inventories[provinceScopedKey(normalizedProvinceId, productId)];
+  if (scopedInventory && typeof scopedInventory === 'object') return scopedInventory;
+  if (normalizedProvinceId !== DEFAULT_PROVINCE_ID) return EMPTY_INVENTORY;
+  const legacyDescriptor = Object.getOwnPropertyDescriptor(inventories, String(productId || ''));
+  return legacyDescriptor?.enumerable && legacyDescriptor.value && typeof legacyDescriptor.value === 'object'
+    ? legacyDescriptor.value
+    : EMPTY_INVENTORY;
+}
+
 export function inventoriesForProvince(player, provinceId = DEFAULT_PROVINCE_ID) {
   const selectedProvinceId = normalizeProvinceId(provinceId);
   const inventories = {};

@@ -65,7 +65,7 @@ assert.ok(contractPage.includes('长期合同 · 已履约'), 'contract page mus
 assert.ok(pageDesign.includes('`totalDeliveries = null`') && pageDesign.includes('长期合同不会因完成批次数自动结束'), 'page design must own long-term supply contract semantics');
 assert.ok(serverDesign.includes('`totalDeliveries` 允许为 2～100 的整数或 `null`') && serverDesign.includes('长期合同不接受续签'), 'server design must own long-term supply lifecycle');
 assert.ok(serverDesign.includes('合同 schema 9 同时'), 'server design must keep the current supply contract schema baseline');
-assert.ok(serverDesign.includes('世界 32 是当前持久化边界') && serverDesign.includes('当前客户端状态版本为 36'), 'server design must keep current world and client baselines');
+assert.ok(serverDesign.includes('世界 32 是当前持久化边界') && serverDesign.includes('当前客户端状态版本为 37'), 'server design must keep current world and client baselines');
 assert.ok(serverDesign.includes('合同历史冷启动导入必须优先读取 V2 分段世界'), 'contract audit cold-start must prefer segmented V2 authority');
 assert.ok(!serverDesign.includes('合同 schema 8 同时') && !serverDesign.includes('世界 26 是当前持久化边界。') && !serverDesign.includes('当前客户端状态版本为 30。'), 'server design must not retain stale contract/world/client baselines');
 assert.ok(rootReadme.includes('可留空总批次形成长期合同'), 'root README must summarize long-term supply contracts');

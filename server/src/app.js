@@ -573,6 +573,25 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (method === 'GET' && path === '/api/game/market-detail') {
+      sendJson(response, 200, store.getMarketDetail(user, {
+        provinceId: url.searchParams.get('provinceId'),
+        assetKind: url.searchParams.get('assetKind'),
+        assetId: url.searchParams.get('assetId'),
+        knownRevision: url.searchParams.get('revision'),
+      }));
+      return;
+    }
+
+    if (method === 'GET' && path === '/api/game/facility-build-quote') {
+      sendJson(response, 200, store.getFacilityBuildQuote(user, {
+        provinceId: url.searchParams.get('provinceId'),
+        facilityTypeId: url.searchParams.get('facilityTypeId'),
+        quantity: url.searchParams.get('quantity'),
+      }));
+      return;
+    }
+
     const auctionBidHistoryMatch = path.match(/^\/api\/game\/auctions\/([^/]+)\/bids$/);
     if (method === 'GET' && auctionBidHistoryMatch) {
       sendJson(response, 200, {

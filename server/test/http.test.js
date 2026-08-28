@@ -96,6 +96,10 @@ test('HTTP API authenticates through the shared account service and honors idemp
 
     const unauthorized = await fetch(`http://127.0.0.1:${gamePort}/api/game/state`);
     assert.equal(unauthorized.status, 401);
+    const unauthorizedMarketDetail = await fetch(
+      `http://127.0.0.1:${gamePort}/api/game/market-detail?provinceId=110000&assetKind=commodity&assetId=wheat`,
+    );
+    assert.equal(unauthorizedMarketDetail.status, 401);
 
     const stateResponse = await fetch(`http://127.0.0.1:${gamePort}/api/game/state`, {
       headers: { Cookie: 'session=ok' },
@@ -112,6 +116,50 @@ test('HTTP API authenticates through the shared account service and honors idemp
       'auction', 'catalog', 'contract', 'leaderboard', 'market', 'player',
     ]);
     assert.equal(Number.isInteger(statePayload.revision), true);
+
+    const marketDetailResponse = await fetch(
+      `http://127.0.0.1:${gamePort}/api/game/market-detail?provinceId=110000&assetKind=commodity&assetId=wheat`,
+      { headers: { Cookie: 'session=ok' } },
+    );
+    assert.equal(marketDetailResponse.status, 200);
+    const marketDetailPayload = await marketDetailResponse.json();
+    assert.equal(marketDetailPayload.unchanged, false);
+    assert.equal(marketDetailPayload.marketDetail.assetId, 'wheat');
+    assert.equal(Array.isArray(marketDetailPayload.marketDetail.orderBook.bids), true);
+    assert.equal(Array.isArray(marketDetailPayload.marketDetail.orderBook.asks), true);
+    const unchangedMarketDetailResponse = await fetch(
+      `http://127.0.0.1:${gamePort}/api/game/market-detail?provinceId=110000&assetKind=commodity&assetId=wheat&revision=${marketDetailPayload.marketDetailRevision}`,
+      { headers: { Cookie: 'session=ok' } },
+    );
+    assert.equal(unchangedMarketDetailResponse.status, 200);
+    const unchangedMarketDetailPayload = await unchangedMarketDetailResponse.json();
+    assert.equal(unchangedMarketDetailPayload.unchanged, true);
+    assert.equal('marketDetail' in unchangedMarketDetailPayload, false);
+
+    const invalidMarketDetail = await fetch(
+      `http://127.0.0.1:${gamePort}/api/game/market-detail?provinceId=110000&assetKind=commodity&assetId=missing`,
+      { headers: { Cookie: 'session=ok' } },
+    );
+    assert.equal(invalidMarketDetail.status, 404);
+
+    const facilityBuildQuoteResponse = await fetch(
+      `http://127.0.0.1:${gamePort}/api/game/facility-build-quote?provinceId=110000&facilityTypeId=ranch&quantity=1`,
+      { headers: { Cookie: 'session=ok' } },
+    );
+    assert.equal(facilityBuildQuoteResponse.status, 200);
+    const facilityBuildQuotePayload = await facilityBuildQuoteResponse.json();
+    assert.equal(facilityBuildQuotePayload.quote.missingQuantity, 5);
+    assert.equal(typeof facilityBuildQuotePayload.quote.complete, 'boolean');
+    const invalidFacilityBuildQuote = await fetch(
+      `http://127.0.0.1:${gamePort}/api/game/facility-build-quote?provinceId=110000&facilityTypeId=ranch&quantity=0`,
+      { headers: { Cookie: 'session=ok' } },
+    );
+    assert.equal(invalidFacilityBuildQuote.status, 400);
+    const missingProvinceBuildQuote = await fetch(
+      `http://127.0.0.1:${gamePort}/api/game/facility-build-quote?provinceId=missing&facilityTypeId=ranch&quantity=1`,
+      { headers: { Cookie: 'session=ok' } },
+    );
+    assert.equal(missingProvinceBuildQuote.status, 404);
 
     const unchangedResponse = await fetch(
       `http://127.0.0.1:${gamePort}/api/game/state?${revisionQuery(statePayload.revision, statePayload.partitionRevisions)}`,

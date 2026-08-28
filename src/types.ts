@@ -367,8 +367,26 @@ export interface ProductMarketState {
   lastImbalance?: number;
   /** Last cycle official price change in signed basis points. */
   lastPriceChangeBps?: number;
-  priceHistory: PricePoint[];
+  /** Full history is loaded only for the actively viewed market in client state version 37. */
+  priceHistory?: PricePoint[];
   demand: DemandState;
+  priceChange24h?: number | null;
+  tradeVolume24h?: number;
+  tradeCount24h?: number;
+  previousTradePrice?: number | null;
+  lastTradeAt?: number | null;
+  buyVolume?: number;
+  sellVolume?: number;
+  buyOrderCount?: number;
+  sellOrderCount?: number;
+  bestBid?: number | null;
+  bestAsk?: number | null;
+  eventTradeWindows?: Record<string, {
+    tradeCount: number;
+    volume: number;
+    firstPrice: number | null;
+    lastPrice: number | null;
+  }>;
 }
 
 export interface FacilityMarketState {
@@ -376,7 +394,38 @@ export interface FacilityMarketState {
   provinceId?: string;
   lastPrice: number;
   lastTradePrice: number | null;
-  priceHistory: PricePoint[];
+  /** Full history is loaded only for the actively viewed market in client state version 37. */
+  priceHistory?: PricePoint[];
+  priceChange24h?: number | null;
+  tradeVolume24h?: number;
+  tradeCount24h?: number;
+  previousTradePrice?: number | null;
+  lastTradeAt?: number | null;
+  buyVolume?: number;
+  sellVolume?: number;
+  buyOrderCount?: number;
+  sellOrderCount?: number;
+  bestBid?: number | null;
+  bestAsk?: number | null;
+}
+
+export interface MarketOrderBookLevel {
+  side: OrderSide;
+  price: number;
+  remaining: number;
+  orderCount: number;
+}
+
+export interface MarketDetail {
+  provinceId: string;
+  assetKind: AssetKind;
+  assetId: string;
+  revision: string;
+  market: ProductMarketState | FacilityMarketState;
+  orderBook: {
+    bids: MarketOrderBookLevel[];
+    asks: MarketOrderBookLevel[];
+  };
 }
 
 export interface EconomyStats {
@@ -608,7 +657,7 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState {
-  version: 36;
+  version: 37;
   userId: number;
   playerName: string;
   startingProvinceId: string;

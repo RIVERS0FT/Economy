@@ -33,14 +33,12 @@ test('ordinary player order state removes counterparties, demand sources, and li
   const state = createFacilityGroupClientState(world, alice.id, now);
   assert.equal(state.version, CURRENT_CLIENT_STATE_VERSION);
   const own = state.orders.find((order) => order.id === 'alice-sell');
-  const external = state.orders.find((order) => order.id === 'population-secret');
 
   assert.equal(own.isOwn, true);
   assert.deepEqual(own.fills, [{
     id: 'fill-secret', quantity: 5, price: 4, total: 20, fee: 0, netTotal: 20, createdAt: now,
   }]);
-  assert.equal(external.isOwn, false);
-  assert.equal('fills' in external, false);
+  assert.equal(state.orders.some((order) => order.id === 'population-secret'), false);
 
   for (const order of state.orders) {
     for (const field of ['ownerType', 'ownerId', 'ownerName', 'demandGroupId', 'demandTier', 'demandCycleId', 'populationModelId', 'fundingPool']) {
