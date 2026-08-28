@@ -72,6 +72,7 @@ function leaderboardDeadline(world, now) {
 function orderPruneDeadline(world, now) {
   let deadline = null;
   let closedOrderCount = 0;
+  // Capacity pressure must count only removable history; legitimate open orders can exceed the history cap.
   for (const order of world.orders || []) {
     if (isOpenOrder(order)) continue;
     closedOrderCount += 1;
