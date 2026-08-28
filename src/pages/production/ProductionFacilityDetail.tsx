@@ -405,7 +405,7 @@ export function FacilityClusterDetailBody({
   };
   const openProductDetail = (productId: string) => {
     const currentLocation = pageNavigation?.currentLocation;
-    if (currentLocation?.type === 'regional-facility') {
+    if (currentLocation?.type === 'regional-facility' && pageNavigation) {
       pageNavigation.pushPage({
         type: 'regional-product',
         host: currentLocation.host === 'province' ? 'province' : 'market',
