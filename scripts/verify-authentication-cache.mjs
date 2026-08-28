@@ -11,7 +11,7 @@ function requireText(path, fragments) {
 }
 
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
-  '`GET /api/game/state` 最多复用 10 秒认证结果',
+  '`GET /api/game/state`、`GET /api/game/market-detail` 与 `GET /api/game/facility-build-quote` 最多复用 10 秒认证结果',
   '普通写操作最多复用 2 秒',
   '`/api/game/admin/` 每次重新验证且不读取缓存',
   '最多 5,000 条的 LRU',
@@ -19,7 +19,7 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
 ]);
 
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
-  '`GET /api/game/state` 最多复用 10 秒',
+  '`GET /api/game/state`、`GET /api/game/market-detail` 与 `GET /api/game/facility-build-quote` 最多复用 10 秒',
   '普通写操作最多复用 2 秒',
   '`/api/game/admin/` 每次重新验证且不读取缓存',
   '401 只缓存 1 秒',

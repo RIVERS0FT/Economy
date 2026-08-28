@@ -46,7 +46,7 @@ export function EconomicEventLogPanel({
                   : '已经结束';
               const productLabels = event.productIds.map((id) => productNames.get(id) || id).join('、');
               const feedback = completed
-                ? eventMarketFeedback(markets, event.productIds, event.startsAt, event.endsAt)
+                ? eventMarketFeedback(markets, event.productIds, event.startsAt, event.endsAt, event.id)
                 : null;
 
               return (

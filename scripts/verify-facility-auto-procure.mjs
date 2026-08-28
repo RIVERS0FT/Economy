@@ -14,6 +14,12 @@ const forbidText = (relativePath, text) => {
 
 for (const [file, texts] of Object.entries({
   'server/src/facility-auto-procure.js': [
+    'createFacilityBuildProcurementQuote',
+    'readInventoryForProvince',
+    'PROVINCE_CATALOG',
+    'facilityBuildContext(world, user, payload, { readOnly: true })',
+    'matchingCommodityOrders',
+    'defaultFacilityBuildOrderPrice',
     'autoProcureFacilityBuildMaterials',
     'materialPriceCaps',
     'maxProcurementTotal',
@@ -60,15 +66,16 @@ for (const [file, texts] of Object.entries({
     'FacilityBuildProcurementActionResponse',
     'createFacilityBuildProcurement',
     'cancelFacilityBuildProcurement',
+    'getFacilityBuildProcurementQuote',
+    "`/facility-build-quote?${search.toString()}`",
     "execution: 'facility-build-procurement'",
     "execution: 'facility-build-procurement-cancel'",
   ],
   'src/utils/facilityBuildProcurement.ts': [
-    'quoteFacilityBuildProcurement',
+    'FacilityBuildProcurementQuote',
     'selfCrossingProductIds',
     'materialPriceCaps',
     'materialOrderPrices',
-    'defaultFacilityBuildOrderPrice',
   ],
   'src/utils/facilityBuildProcurementGroups.ts': [
     'activeFacilityBuildProcurementGroups',
@@ -76,7 +83,9 @@ for (const [file, texts] of Object.entries({
     'market orders remain server-authoritative',
   ],
   'src/pages/BuildingsPage.tsx': [
-    'quoteFacilityBuildProcurement(game.orders, missingBuildMaterials)',
+    'getFacilityBuildProcurementQuote',
+    'procurementQuoteLoading',
+    'controller.abort()',
     'openOrderLimitForCatalog(game.products.length, game.facilityTypes.length)',
     'crossingSellOrderIds',
     'effectiveProcurementMaterials',
@@ -118,6 +127,16 @@ for (const [file, texts] of Object.entries({
     'leaves non-crossing own sells untouched',
     'rolls back auto-cancelled sells and released inventory',
   ],
+  'server/test/facility-build-quote.test.js': [
+    'facility build quote reads real depth without changing the authoritative world',
+    'read-only quote must not write the database',
+    'read-only quote must not mutate the committed in-memory world',
+  ],
+  'server/test/http.test.js': [
+    '/api/game/market-detail?provinceId=110000&assetKind=commodity&assetId=wheat',
+    '/api/game/facility-build-quote?provinceId=110000&facilityTypeId=ranch&quantity=1',
+    'assert.equal(invalidFacilityBuildQuote.status, 400)',
+  ],
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md': [
     '一键购齐并建造',
     '全部采购与建设一起回滚',
@@ -134,6 +153,7 @@ for (const [file, texts] of Object.entries({
     '自动撤销',
     '建造采购组',
     '(PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length) * 10',
+    '`GET /api/game/facility-build-quote?provinceId=&facilityTypeId=&quantity=`',
   ],
   'docs/WAREHOUSE_EXPANSION_DESIGN.md': ['“一键购齐并建造”', '同样不检查仓库空间'],
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md': [
@@ -153,6 +173,7 @@ for (const [file, texts] of Object.entries({
     '自动撤销',
     '重新计算真实缺口',
     'facility-build-procurement-cancel',
+    '`GET /api/game/facility-build-quote`',
   ],
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md': ['“一键购齐并建造”仍属于即时建设'],
   'docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md': ['一键购齐并建造不会产生施工任务'],
@@ -178,6 +199,7 @@ for (const text of ['/facilities/procurements', '/facilities/procurements/cancel
   forbidText('server/src/game-routes.js', text);
   forbidText('src/api/game.ts', text);
 }
+forbidText('src/utils/facilityBuildProcurement.ts', 'quoteFacilityBuildProcurement');
 forbidText('src/pages/BuildingsPage.tsx', '买价会与自己的卖单交叉，请先撤单或降低价格。');
 forbidText('server/test/instant-facility-construction.test.js', 'still requires warehouse space for market delivery');
 forbidText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '资金或仓库不足');

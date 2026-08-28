@@ -170,6 +170,8 @@ for (const [path, texts] of Object.entries({
     'sellEligibleQuantity',
     'model.onlineAutoBuy',
     'model.onlineAutoSell',
+    'game.markets',
+    "'market.quotes'",
     'busyRef.current',
   ],
   'src/auto-sell/useOnlineAutoSell.ts': [
@@ -177,7 +179,7 @@ for (const [path, texts] of Object.entries({
     'useOnlineAutoTrade as useOnlineAutoSell',
   ],
   'docs/WAREHOUSE_EXPANSION_DESIGN.md': [
-    '客户端状态版本：36',
+    '客户端状态版本：37',
     '世界状态版本：32',
     '### 4.2 在线自动采购',
     '### 4.3 在线自动出售',

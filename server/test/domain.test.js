@@ -549,18 +549,11 @@ test('state polling and failed actions do not refresh economic activity', () => 
   }
 });
 
-test('new worlds create private market demand orders during the first authoritative state read', () => {
+test('new worlds create private market demand orders without publishing them in main state', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    const externalBuyOrders = state.orders.filter((order) => order.isOwn === false && order.side === 'buy');
-    assert.ok(externalBuyOrders.length > 0);
-    assert.ok(externalBuyOrders.every((order) => (
-      !Object.hasOwn(order, 'ownerType')
-      && !Object.hasOwn(order, 'ownerName')
-      && !Object.hasOwn(order, 'demandGroupId')
-      && !Object.hasOwn(order, 'demandTier')
-    )));
+    assert.equal(state.orders.some((order) => order.isOwn === false), false);
     const persisted = persistedWorld(store);
     const marketOrders = persisted.orders.filter((order) => order.ownerType === 'population');
     assert.ok(marketOrders.length > 0);

@@ -48,6 +48,18 @@ const feedback = eventMarketFeedback({ wheat: market }, ['wheat'], 2, 4);
 assert.equal(feedback.volume, 9);
 assert.equal(feedback.tradeCount, 3);
 assert.equal(feedback.averageChangeBps, 2000);
+const summarizedFeedback = eventMarketFeedback({
+  wheat: {
+    ...market,
+    priceHistory: undefined,
+    eventTradeWindows: {
+      'event-wheat': { tradeCount: 2, volume: 7, firstPrice: 10, lastPrice: 12 },
+    },
+  },
+}, ['wheat'], 2, 4, 'event-wheat');
+assert.equal(summarizedFeedback.volume, 7);
+assert.equal(summarizedFeedback.tradeCount, 2);
+assert.equal(summarizedFeedback.averageChangeBps, 2000);
 
 for (const text of [
   'first_research_at',
@@ -100,9 +112,9 @@ requireText('src/components/shell/StrategicWorkspace.tsx', '<StrategicOutliner')
 requireText('src/components/outliner/StrategicOutliner.tsx', 'economicCalendar?.events');
 requireText('src/components/outliner/StrategicOutliner.tsx', 'id="events"');
 requireText('src/components/EconomicEventLogPanel.tsx', '事件窗口真实成交');
-requireText('src/components/EconomicEventLogPanel.tsx', 'eventMarketFeedback(markets, event.productIds, event.startsAt, event.endsAt)');
+requireText('src/components/EconomicEventLogPanel.tsx', 'eventMarketFeedback(markets, event.productIds, event.startsAt, event.endsAt, event.id)');
 requireText('server/src/economic-events.js', 'EVENT_RESULT_WINDOW_MS');
-requireText('src/utils/marketDecisionSignals.ts', 'const first = points.length > 0 ? points[0] : undefined;');
+requireText('src/utils/marketDecisionSignals.ts', 'markets[productId]?.eventTradeWindows?.[eventId]');
 forbidText('src/components/facilities/FacilityOperatingDiagnostics.tsx', '最佳配方');
 forbidText('src/pages/ResearchPage.tsx', '最佳科技推荐');
 forbidText('src/pages/ContractPage.tsx', 'creditScore');

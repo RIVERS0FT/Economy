@@ -58,7 +58,7 @@ for (const text of [
   'createOrderHistoryPage(this.worldCache.world',
 ]) if (!runtimeStore.includes(text)) failures.push('运行时存储缺少: ' + text);
 for (const text of [
-  'main state keeps all open orders and only bounded recent closed orders for the current player',
+  'main state keeps only current player open orders and bounded recent closed orders',
   'order history provides opaque cursor pagination with only the current player anonymous fills',
   'order history rejects malformed cursors',
 ]) requireText('server/test/order-history.test.js', text);
@@ -90,7 +90,7 @@ for (const [path, text] of [
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', '只保存当前玩家订单新增的匿名逐笔成交'],
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', '隐藏页面列但继续在 API 或 localStorage 中保留来源信息'],
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', '`GET /api/game/orders/history`'],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '主状态不得发送全部 800 笔关闭历史'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '六分区主状态不得发送公共逐笔订单或全部 800 笔关闭历史'],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '集中式公开订单序列化'],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '`populationModelId`'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得设置“来源”列'],

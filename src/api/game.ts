@@ -1,6 +1,7 @@
-import type { AssetKind, EconomyState, OrderSide, TransportModeId } from '../types';
+import type { AssetKind, EconomyState, MarketDetail, OrderSide, TransportModeId } from '../types';
 import type { AuctionBidHistory, AuctionItem } from '../auctions/types';
 import type { FacilityBuildProcurementGroup } from '../utils/facilityBuildProcurementGroups';
+import type { FacilityBuildProcurementQuote } from '../utils/facilityBuildProcurement';
 import {
   createStateDeliveryCache,
   StateDeliveryIntegrityError,
@@ -23,6 +24,18 @@ let suppressedProductionSettlementBasisId: string | null = null;
 const DEFAULT_READ_TIMEOUT_MS = 8_000;
 const DEFAULT_WRITE_TIMEOUT_MS = 12_000;
 const NETWORK_ERROR_MESSAGE = '无法连接服务器，客户端或服务器可能已经更新，请刷新页面后重试';
+const marketDetailCache = new Map<string, MarketDetail>();
+
+function rememberMarketDetail(key: string, detail: MarketDetail) {
+  marketDetailCache.delete(key);
+  marketDetailCache.set(key, detail);
+  while (marketDetailCache.size > 32) {
+    const oldestKey = marketDetailCache.keys().next().value;
+    if (typeof oldestKey !== 'string') break;
+    marketDetailCache.delete(oldestKey);
+  }
+  return detail;
+}
 
 export class SaveEpochPageMismatchError extends Error {
   readonly code = 'SAVE_EPOCH_PAGE_MISMATCH';
@@ -101,6 +114,7 @@ export function getPageSaveEpochErrorMessage() {
 
 export function resetGameStateDelivery() {
   stateDeliveryCache.reset();
+  marketDetailCache.clear();
   pendingProductionSettlement = null;
   resetServerClock();
 }
@@ -313,7 +327,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       throw new GameApiError(response.status, message, code);
     }
     const payload = await response.json() as unknown;
-    if (isStateDeliveryPayload(payload)) {
+    if ((path === '/state' || path.startsWith('/state?')) && isStateDeliveryPayload(payload)) {
       acceptServerNow(payload.serverNow);
       const accepted = stateDeliveryCache.accept(payload);
       return accepted as T;
@@ -418,6 +432,51 @@ export async function getGameState(revision?: number | null, signal?: AbortSigna
     }
     throw reason;
   }
+}
+
+export async function getMarketDetail(
+  provinceId: string,
+  assetKind: AssetKind,
+  assetId: string,
+  signal?: AbortSignal,
+): Promise<MarketDetail> {
+  const key = `${provinceId}:${assetKind}:${assetId}`;
+  const cached = marketDetailCache.get(key);
+  const search = new URLSearchParams({ provinceId, assetKind, assetId });
+  if (cached?.revision) search.set('revision', cached.revision);
+  const payload = await request<{
+    revision: number;
+    serverNow: number;
+    marketDetailRevision: string;
+    unchanged: boolean;
+    marketDetail?: MarketDetail;
+  }>(`/market-detail?${search.toString()}`, { method: 'GET', signal });
+  acceptServerNow(Number(payload.serverNow));
+  if (payload.unchanged && cached) return rememberMarketDetail(key, cached);
+  if (!payload.marketDetail) {
+    throw new GameApiError(502, '服务器未返回市场详情', 'MARKET_DETAIL_MISSING');
+  }
+  return rememberMarketDetail(key, payload.marketDetail);
+}
+
+export async function getFacilityBuildProcurementQuote(
+  provinceId: string,
+  facilityTypeId: string,
+  quantity: number,
+  signal?: AbortSignal,
+): Promise<FacilityBuildProcurementQuote> {
+  const search = new URLSearchParams({
+    provinceId,
+    facilityTypeId,
+    quantity: String(quantity),
+  });
+  const payload = await request<{
+    revision: number;
+    serverNow: number;
+    quote: FacilityBuildProcurementQuote;
+  }>(`/facility-build-quote?${search.toString()}`, { method: 'GET', signal });
+  acceptServerNow(Number(payload.serverNow));
+  return payload.quote;
 }
 
 export async function getTutorialStatus(signal?: AbortSignal): Promise<TutorialStatusResponse> {

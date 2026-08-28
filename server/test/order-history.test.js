@@ -55,12 +55,13 @@ function populatedWorld(now = 1_700_000_000_000) {
   return world;
 }
 
-test('main state keeps all open orders and only bounded recent closed orders for the current player', () => {
+test('main state keeps only current player open orders and bounded recent closed orders', () => {
   const world = populatedWorld();
   const state = createFacilityGroupClientState(world, 1, 1_700_000_020_000);
   const closed = state.orders.filter((entry) => !['open', 'partial'].includes(entry.status));
 
-  assert.equal(state.orders.filter((entry) => ['open', 'partial'].includes(entry.status)).length, 2);
+  assert.equal(state.orders.filter((entry) => ['open', 'partial'].includes(entry.status)).length, 1);
+  assert.equal(state.orders.some((entry) => entry.id === 'bob-open'), false);
   assert.equal(closed.length, CLIENT_RECENT_CLOSED_ORDER_LIMIT);
   assert.ok(closed.every((entry) => entry.isOwn));
   assert.equal(state.orders.some((entry) => entry.id === 'bob-closed-0'), false);

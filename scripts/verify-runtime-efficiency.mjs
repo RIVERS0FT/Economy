@@ -102,6 +102,10 @@ requireText('server/src/state-partitions.js', [
   'catalogSnapshot?.partition',
   'combineStatePartitions',
   'snapshot?.partitions && snapshot?.partitionRevisions',
+  'serializeAndDigestJson',
+  'stateOrdersJsonBytes',
+  'stateProvinceMarketsJsonBytes',
+  'stateProvinceFacilityMarketsJsonBytes',
 ]);
 requireText('server/src/storage.js', [
   'clientStateProjectionCache = new Map()',
@@ -284,6 +288,19 @@ assert.equal(runtimeStore.includes('isDeepStrictEqual(world, cached.world)'), fa
 assert.equal(runtimeStore.includes('this.updateWorld.run(nextRevision, stateJson, now)'), false, 'V2 热保存不得恢复单行完整世界写入');
 const runtimeCore = read('server/src/runtime-store-core.js');
 assert.ok(
+  runtimeCore.includes('createMarketDetail(world, { ...options, now })'),
+  '市场详情必须直接读取 committed world，以复用订单簿运行时索引',
+);
+assert.equal(
+  runtimeCore.includes('createMarketDetail(currentSaveWorld(world'),
+  false,
+  '市场详情不得为只读聚合构造浅复制 world',
+);
+assert.ok(
+  runtimeCore.includes('createFacilityBuildProcurementQuote(\n          world,'),
+  '建造报价必须直接读取 committed world',
+);
+assert.ok(
   runtimeCore.indexOf('applySegmentedWorldWrite(this, plan, world, now)')
     < runtimeCore.indexOf('this.flushContractAuditEvents(world, revision, nextRevision)')
     && runtimeCore.indexOf('this.flushContractAuditEvents(world, revision, nextRevision)')
@@ -300,8 +317,11 @@ requireText('server/test/request-metrics.test.js', [
   'worldJsonBytes',
 ]);
 requireText('server/test/order-history.test.js', [
-  'main state keeps all open orders and only bounded recent closed orders for the current player',
+  'main state keeps only current player open orders and bounded recent closed orders',
   'order history provides opaque cursor pagination with only the current player anonymous fills',
+]);
+requireText('server/test/market-state-delivery.test.js', [
+  'repeated market detail must reuse the committed-world order-book runtime',
 ]);
 requireText('server/test/state-projection-cache.test.js', [
   'runtime state projection cache reuses final state and partition snapshots for one revision',
@@ -310,6 +330,9 @@ requireText('server/test/state-projection-cache.test.js', [
 requireText('server/test/request-performance.test.js', [
   'aggregates nested phases and gauges',
   'does nothing outside a request context',
+]);
+requireText('server/test/state-partitions.test.js', [
+  'partition hashing reports exact partition and high-volume field byte gauges',
 ]);
 requireText('server/test/authoritative-write-executor.test.js', [
   'preserves FIFO order and single concurrency',
@@ -415,7 +438,7 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '幂等确认仍保留 24 小时，但过期删除使用服务内 5 分钟门控',
   '按 `世界修订号 + 玩家 ID` 缓存最终投影',
   'HTTP 交付层优先消费已经构造的 `partitions` 与 `partitionRevisions`',
-  '六分区主状态不得发送全部 800 笔关闭历史',
+  '六分区主状态不得发送公共逐笔订单或全部 800 笔关闭历史',
   '`GET /api/game/orders/history?cursor=&limit=`',
   '`server/src/authoritative-write-executor.js` 的单一进程内执行器',
   '默认总深度上限固定为 128',

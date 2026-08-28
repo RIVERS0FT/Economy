@@ -1,6 +1,10 @@
 import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { cancelFacilityBuildProcurement, createFacilityBuildProcurement } from '../api/game';
+import {
+  cancelFacilityBuildProcurement,
+  createFacilityBuildProcurement,
+  getFacilityBuildProcurementQuote,
+} from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { ProductArtwork } from '../components/products/ProductArtwork';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
@@ -18,7 +22,7 @@ import {
   WidgetHeading,
 } from '../components/ui/layout';
 import type { AssetOrder, FacilityGroup } from '../types';
-import { quoteFacilityBuildProcurement } from '../utils/facilityBuildProcurement';
+import type { FacilityBuildProcurementQuote } from '../utils/facilityBuildProcurement';
 import {
   activeFacilityBuildProcurementGroups,
   loadFacilityBuildProcurementGroups,
@@ -110,6 +114,12 @@ export function BuildingsPage({
     () => loadFacilityBuildProcurementGroups(game.userId),
   );
   const [procurementPending, setProcurementPending] = useState(false);
+  const [procurementQuoteState, setProcurementQuoteState] = useState<{
+    key: string;
+    quote: FacilityBuildProcurementQuote;
+  } | null>(null);
+  const [procurementQuoteLoading, setProcurementQuoteLoading] = useState(false);
+  const [procurementQuoteError, setProcurementQuoteError] = useState('');
   const [cancellingProcurementId, setCancellingProcurementId] = useState('');
   const [optimisticRecipeIds, setOptimisticRecipeIds] = useState<Record<string, string>>({});
   const procurementPriceContextRef = useRef('');
@@ -228,21 +238,36 @@ export function BuildingsPage({
   }, [game.orders, game.userId]);
 
   useEffect(() => {
-    if (!selectedType) return;
-    const contextKey = `${selectedType.id}:${buildQuantity}`;
-    if (procurementPriceContextRef.current === contextKey) return;
-    procurementPriceContextRef.current = contextKey;
-    const missing = (selectedType.buildInputs ?? []).flatMap((item) => {
-      const required = item.quantity * buildQuantity;
-      const available = game.inventories[item.productId]?.available ?? 0;
-      const quantity = Math.max(0, required - available);
-      return quantity > 0 ? [{ productId: item.productId, quantity }] : [];
+    if (!selectedType) return undefined;
+    const contextKey = `${model.selectedProvinceId}:${selectedType.id}:${buildQuantity}`;
+    const controller = new AbortController();
+    setProcurementQuoteLoading(true);
+    setProcurementQuoteError('');
+    void getFacilityBuildProcurementQuote(
+      model.selectedProvinceId,
+      selectedType.id,
+      buildQuantity,
+      controller.signal,
+    ).then((quote) => {
+      if (controller.signal.aborted) return;
+      setProcurementQuoteState({ key: contextKey, quote });
+      if (procurementPriceContextRef.current !== contextKey) {
+        procurementPriceContextRef.current = contextKey;
+        setProcurementPriceDrafts(Object.fromEntries(
+          Object.entries(quote.materialOrderPrices).map(([productId, price]) => [
+            productId,
+            price.toFixed(2),
+          ]),
+        ));
+      }
+    }).catch((reason) => {
+      if (controller.signal.aborted) return;
+      setProcurementQuoteError(reason instanceof Error ? reason.message : '建造采购报价加载失败');
+    }).finally(() => {
+      if (!controller.signal.aborted) setProcurementQuoteLoading(false);
     });
-    const quote = quoteFacilityBuildProcurement(game.orders, missing);
-    setProcurementPriceDrafts(Object.fromEntries(
-      missing.map((item) => [item.productId, quote.materialOrderPrices[item.productId].toFixed(2)]),
-    ));
-  }, [buildQuantity, game.inventories, game.orders, selectedType]);
+    return () => controller.abort();
+  }, [buildQuantity, game.inventories, game.markets, model.selectedProvinceId, selectedType]);
 
   if (!selectedType) {
     const hasCatalog = game.facilityTypes.length > 0;
@@ -276,9 +301,12 @@ export function BuildingsPage({
   const missingBuildMaterials = buildMaterialRequirements
     .filter((item) => item.missing > 0)
     .map((item) => ({ productId: item.productId, quantity: item.missing }));
-  const procurementQuote = quoteFacilityBuildProcurement(game.orders, missingBuildMaterials);
-  const needsProcurement = procurementQuote.missingQuantity > 0;
-  const estimatedTotalSpend = buildCashCost + procurementQuote.estimatedTotal;
+  const procurementQuoteKey = `${model.selectedProvinceId}:${selectedType.id}:${buildQuantity}`;
+  const procurementQuote = procurementQuoteState?.key === procurementQuoteKey
+    ? procurementQuoteState.quote
+    : null;
+  const needsProcurement = missingBuildMaterials.length > 0;
+  const estimatedTotalSpend = buildCashCost + Number(procurementQuote?.estimatedTotal || 0);
   const inventoryBuildable = Math.max(0, Math.min(
     100,
     Math.floor(game.credits / Math.max(1, selectedType.buildCost)),
@@ -291,7 +319,11 @@ export function BuildingsPage({
   );
 
   const materialOrderPrices = Object.fromEntries(missingBuildMaterials.flatMap((item) => {
-    const fallback = procurementQuote.materialOrderPrices[item.productId];
+    const market = game.markets[item.productId];
+    const fallback = procurementQuote?.materialOrderPrices[item.productId]
+      ?? market?.bestAsk
+      ?? market?.bestBid
+      ?? 1;
     const normalized = normalizeOrderPrice(procurementPriceDrafts[item.productId] ?? fallback.toFixed(2));
     return normalized === null ? [] : [[item.productId, normalized]];
   }));
@@ -330,9 +362,15 @@ export function BuildingsPage({
 
   const buildDisabledReason = game.credits < buildCashCost
     ? `建造资金不足，还需要 ${formatCurrency(buildCashCost - game.credits)}。`
-    : needsProcurement && procurementQuote.complete && procurementQuote.selfCrossingProductIds.length > 0
+    : needsProcurement && procurementQuoteLoading
+      ? '正在获取当前市场采购报价。'
+      : needsProcurement && procurementQuoteError
+        ? `采购报价加载失败：${procurementQuoteError}`
+        : needsProcurement && !procurementQuote
+          ? '当前市场采购报价尚未就绪。'
+    : needsProcurement && procurementQuote?.complete && procurementQuote.selfCrossingProductIds.length > 0
       ? `${procurementQuote.selfCrossingProductIds.map(productName).join('、')}存在自己的交叉卖单，请先撤单。`
-      : needsProcurement && procurementQuote.complete && game.credits < estimatedTotalSpend
+      : needsProcurement && procurementQuote?.complete && game.credits < estimatedTotalSpend
         ? `建造与采购总资金不足，预计需要 ${formatCurrency(estimatedTotalSpend)}。`
         : undefined;
   const procurementOrderDisabledReason = invalidOrderPriceProductIds.length > 0
@@ -342,7 +380,7 @@ export function BuildingsPage({
       : game.credits < buildCashCost + procurementOrderTotal
         ? `建造与缺料买单总资金不足，最多需要 ${formatCurrency(buildCashCost + procurementOrderTotal)}。`
         : undefined;
-  const actionDisabledReason = needsProcurement && !procurementQuote.complete
+  const actionDisabledReason = needsProcurement && procurementQuote && !procurementQuote.complete
     ? procurementOrderDisabledReason
     : buildDisabledReason;
 
@@ -482,7 +520,7 @@ export function BuildingsPage({
       void showResult(buildFacility(selectedType.id, buildQuantity));
       return;
     }
-    if (!procurementQuote.complete) {
+    if (!procurementQuote?.complete) {
       void showResult(submitBuildProcurementOrders());
       return;
     }
@@ -534,20 +572,24 @@ export function BuildingsPage({
         {needsProcurement ? (
           <DataRow
             label="预计采购"
-            value={procurementQuote.complete
+            value={procurementQuoteLoading
+              ? '正在获取当前卖盘…'
+              : procurementQuoteError
+                ? '报价加载失败'
+                : procurementQuote?.complete
               ? <CurrencyAmount>{formatCurrency(procurementQuote.estimatedTotal)}</CurrencyAmount>
               : '卖盘不足 · 可挂买单'}
-            tone={procurementQuote.complete ? 'neutral' : 'danger'}
+            tone={procurementQuote?.complete ? 'neutral' : 'danger'}
           />
         ) : null}
-        {needsProcurement && procurementQuote.complete ? (
+        {needsProcurement && procurementQuote?.complete ? (
           <DataRow
             label="预计总支出"
             value={<CurrencyAmount>{formatCurrency(estimatedTotalSpend)}</CurrencyAmount>}
             tone={game.credits >= estimatedTotalSpend ? 'neutral' : 'danger'}
           />
         ) : null}
-        {needsProcurement && !procurementQuote.complete && invalidOrderPriceProductIds.length === 0 ? (
+        {needsProcurement && procurementQuote && !procurementQuote.complete && invalidOrderPriceProductIds.length === 0 ? (
           <DataRow
             label="买单最高占用"
             value={<CurrencyAmount>{formatCurrency(procurementOrderTotal)}</CurrencyAmount>}
@@ -556,10 +598,13 @@ export function BuildingsPage({
         ) : null}
       </DataList>
 
-      {needsProcurement && !procurementQuote.complete ? (
+      {needsProcurement && procurementQuote && !procurementQuote.complete ? (
         <div className="facility-build-order-prices">
           {missingBuildMaterials.map((item) => {
-            const fallbackPrice = procurementQuote.materialOrderPrices[item.productId];
+            const fallbackPrice = procurementQuote.materialOrderPrices[item.productId]
+              ?? game.markets[item.productId]?.bestAsk
+              ?? game.markets[item.productId]?.bestBid
+              ?? 1;
             return (
               <MoneyInput
                 key={item.productId}
@@ -581,10 +626,10 @@ export function BuildingsPage({
       <Button
         block
         onClick={submitBuild}
-        disabled={Boolean(actionDisabledReason) || procurementPending}
+        disabled={Boolean(actionDisabledReason) || procurementPending || procurementQuoteLoading}
       >
         {needsProcurement
-          ? procurementQuote.complete
+          ? procurementQuote?.complete
             ? buildQuantity === 1
               ? `一键购齐并建造${selectedType.name}`
               : `一键购齐并建造 ${buildQuantity} 座${selectedType.name}`
@@ -599,7 +644,7 @@ export function BuildingsPage({
       </Button>
       <small className="ui-helper-text">
         {actionDisabledReason ?? (needsProcurement
-          ? procurementQuote.complete
+          ? procurementQuote?.complete
             ? '提交时服务器按当前卖盘价格上限一次购齐缺料；任一材料不足或价格超限时整笔采购与建造全部回滚。'
             : crossingSellOrderCount > 0
               ? `提交时服务器会先自动撤销 ${formatNumber(crossingSellOrderCount)} 张与本次买价交叉的本人卖单，释放库存后重新计算真实缺口；可成交部分立即按正式订单簿成交，剩余数量继续挂在市场。`

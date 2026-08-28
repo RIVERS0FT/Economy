@@ -149,7 +149,7 @@ requireAll(paths.eventLog, [
   '<summary>',
   '距离开始还有',
   'className="economic-event-log-details"',
-  'eventMarketFeedback(markets, event.productIds, event.startsAt, event.endsAt)',
+  'eventMarketFeedback(markets, event.productIds, event.startsAt, event.endsAt, event.id)',
   '<LiveServerTime referenceNow={referenceNow}>',
 ]);
 forbidAll(paths.eventLog, [

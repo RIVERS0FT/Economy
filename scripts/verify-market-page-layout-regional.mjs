@@ -86,7 +86,8 @@ requireText(commodityRowStyles, '@container (max-width: 360px)', '共享商品�
 requireText(commodityRowStyles, '.market-catalog-filter-disclosure > .market-catalog-filters', '地区筛选展开区必须保持折叠 disclosure 布局。');
 requireText(commodityRowStyles, 'grid-template-columns: repeat(2, minmax(0, 1fr));', '地区筛选展开区必须只保留两项筛选。');
 
-requireText(marketPage, '.reduce((sum, order) => sum + Math.max(0, order.remaining), 0)', '地区商品挂单量必须聚合公开订单 remaining。');
+requireText(marketPage, 'const buyVolume = Math.max(0, Number(market?.buyVolume || 0));', '地区商品买单量必须读取服务端市场摘要。');
+requireText(marketPage, 'const sellVolume = Math.max(0, Number(market?.sellVolume || 0));', '地区商品卖单量必须读取服务端市场摘要。');
 requireText(marketPage, "const marketPrice = typeof market?.officialPrice === 'number' ? market.officialPrice : undefined", '地区商品市场价必须读取官方系统价。');
 requireText(marketPage, 'realTrades.length > 1', '24h 变化必须至少由两笔真实成交生成。');
 requireText(marketPage, '官方系统价', '地区商品详情必须展示官方系统价。');
@@ -115,8 +116,8 @@ requireText(marketPage, '>25%</Button>', '快捷数量必须保留 25%。');
 requireText(marketPage, '>50%</Button>', '快捷数量必须保留 50%。');
 requireText(marketPage, '>最大</Button>', '快捷数量必须保留最大。');
 requireText(marketPage, '<VirtualRecordTable', '本地成交必须继续使用虚拟表格。');
-requireText(marketPage, "buildOrderBookLevels(selectedOrders, 'sell').reverse()", '卖盘必须先聚合后反向显示。');
-requireText(marketPage, "buildOrderBookLevels(selectedOrders, 'buy')", '买盘必须使用共享档位聚合。');
+requireText(marketPage, '[...selectedMarketDetail.orderBook.asks].reverse()', '卖盘必须使用服务端匿名五档并反向显示。');
+requireText(marketPage, 'selectedMarketDetail.orderBook.bids', '买盘必须使用服务端匿名五档。');
 requireText(marketPage, 'onClick={readOnly ? undefined : () => fillOrderPrice(level.price)}', '盘口点击只能填价。');
 requireText(marketStyles, 'grid-template-columns: minmax(320px, 3fr) minmax(240px, 2fr);', '交易卡桌面必须保持 60/40 双列。');
 requireText(marketStyles, '@container market-page (max-width: 819px)', '交易卡必须覆盖中窄宽度。');

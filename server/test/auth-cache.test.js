@@ -48,6 +48,14 @@ test('authentication policy separates state, write, and administrator requests',
     AUTHENTICATION_CACHE_POLICY.stateMaxAgeMs,
   );
   assert.equal(
+    authenticationCacheMaxAgeForRequest('GET', '/api/game/market-detail'),
+    AUTHENTICATION_CACHE_POLICY.stateMaxAgeMs,
+  );
+  assert.equal(
+    authenticationCacheMaxAgeForRequest('GET', '/api/game/facility-build-quote'),
+    AUTHENTICATION_CACHE_POLICY.stateMaxAgeMs,
+  );
+  assert.equal(
     authenticationCacheMaxAgeForRequest('POST', '/api/game/work'),
     AUTHENTICATION_CACHE_POLICY.writeMaxAgeMs,
   );

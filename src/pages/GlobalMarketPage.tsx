@@ -165,18 +165,13 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
   }), [categoryFilter, productRows, statusFilter]);
 
   const orderVolumes = useMemo(() => {
-    const byProvinceAndProduct = new Map<string, { buy: number; sell: number; own: number }>();
+    const byProvinceAndProduct = new Map<string, number>();
     for (const order of allProvinceOrders) {
       if (!openOrder(order)) continue;
       const productId = commodityOrderProductId(order);
       if (!productId || !order.provinceId) continue;
       const key = `${order.provinceId}:${productId}`;
-      const current = byProvinceAndProduct.get(key) ?? { buy: 0, sell: 0, own: 0 };
-      const remaining = Math.max(0, Number(order.remaining || 0));
-      if (order.side === 'buy') current.buy += remaining;
-      else current.sell += remaining;
-      if (order.isOwn) current.own += 1;
-      byProvinceAndProduct.set(key, current);
+      if (order.isOwn) byProvinceAndProduct.set(key, (byProvinceAndProduct.get(key) ?? 0) + 1);
     }
     return byProvinceAndProduct;
   }, [allProvinceOrders]);
@@ -189,15 +184,17 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
     if (!selectedGlobalProduct) return [];
     const rows = provinces.map((province, catalogIndex) => {
       const market = game.provinceMarkets?.[province.id]?.[selectedGlobalProduct.id];
-      const volume = orderVolumes.get(`${province.id}:${selectedGlobalProduct.id}`) ?? { buy: 0, sell: 0, own: 0 };
+      const ownOrderCount = orderVolumes.get(`${province.id}:${selectedGlobalProduct.id}`) ?? 0;
       const marketPrice = typeof market?.officialPrice === 'number' ? market.officialPrice : undefined;
-      const trend = trendForHistory(market?.priceHistory ?? [], game.lastProcessedAt);
+      const trend = typeof market?.priceChange24h === 'number'
+        ? market.priceChange24h
+        : trendForHistory(market?.priceHistory ?? [], game.lastProcessedAt);
       return {
         province,
         catalogIndex,
-        buyVolume: volume.buy,
-        sellVolume: volume.sell,
-        ownOrderCount: volume.own,
+        buyVolume: Math.max(0, Number(market?.buyVolume || 0)),
+        sellVolume: Math.max(0, Number(market?.sellVolume || 0)),
+        ownOrderCount,
         marketPrice,
         trend,
         traded: typeof market?.lastTradePrice === 'number',

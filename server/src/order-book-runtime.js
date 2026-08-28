@@ -450,6 +450,33 @@ export function getOrderBookDepth(world, { provinceId, assetKind = 'commodity', 
   return levels;
 }
 
+export function getOrderBookSummary(world, { provinceId, assetKind = 'commodity', assetId, side }) {
+  const { state, record } = recordFor(world, provinceId, assetKind, assetId, side);
+  if (!record) return { bestPrice: null, totalQuantity: 0, orderCount: 0 };
+  let totalQuantity = 0;
+  let orderCount = 0;
+  let bestPrice = null;
+  for (const price of [...record.sortedPrices]) {
+    const level = record.levels.get(price);
+    if (!level) continue;
+    let node = level.head;
+    let levelHasOrders = false;
+    while (node) {
+      const current = node;
+      node = node.next;
+      if (!isOpenOrder(current.order)) {
+        retireOpenOrder(state, current.order);
+        continue;
+      }
+      totalQuantity += Math.max(0, Number(current.order.remaining || 0));
+      orderCount += 1;
+      levelHasOrders = true;
+    }
+    if (bestPrice === null && levelHasOrders) bestPrice = Number(price);
+  }
+  return { bestPrice, totalQuantity, orderCount };
+}
+
 export function orderById(world, orderId) {
   return runtimeFor(world).byId.get(String(orderId || '')) || null;
 }

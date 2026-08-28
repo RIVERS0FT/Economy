@@ -11,6 +11,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { getClientOrderIndex, openOrdersForAsset } from '../app/clientOrderIndex';
+import { getMarketDetail } from '../api/game';
 import { orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { currentFormulaScope } from '../components/facilities/FacilityProductionFormula';
@@ -42,12 +43,11 @@ import {
 import { VirtualRecordTable } from '../components/ui/VirtualRecordTable';
 import { economyConstants, openOrderLimitForCatalog } from '../config/economy';
 import { AUTO_SELL_PANEL_EVENT, consumeAutoSellPanelRequest } from '../auto-sell/autoSellStorage';
-import type { AssetKind, AssetOrder, OrderSide, ProductCategory } from '../types';
+import type { AssetKind, AssetOrder, MarketDetail, OrderSide, ProductCategory } from '../types';
 import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
 import { parseMoneyDraft } from '../utils/moneyDraft';
 import { buildMarketHistoryBuckets } from '../utils/marketHistory';
-import { buildOrderBookLevels } from '../utils/orderBookLevels';
 import { orderAssetId, orderKind } from '../utils/orderIdentity';
 
 function localTradeKey(trade: { id: string }) { return trade.id; }
@@ -404,6 +404,9 @@ export function MarketPage({
   const [catalogStatus, setCatalogStatus] = useState<MarketCatalogStatus>('all');
   const [catalogSort, setCatalogSort] = useState<MarketCatalogSort>('catalog');
   const [catalogSortDirection, setCatalogSortDirection] = useState<MarketSortDirection>('desc');
+  const [marketDetail, setMarketDetail] = useState<MarketDetail | null>(null);
+  const [marketDetailLoading, setMarketDetailLoading] = useState(false);
+  const [marketDetailError, setMarketDetailError] = useState('');
 
   useEffect(() => {
     if (readOnly) {
@@ -459,6 +462,43 @@ export function MarketPage({
   const selectedProductMarket = selectedProduct ? game.markets[selectedProduct.id] : undefined;
   const assetName = selectedProduct?.name ?? selectedFacility?.name ?? '资产';
   const assetId = selectedProduct?.id ?? selectedFacility?.id ?? activeAssetId;
+  const selectedMarketDetail = marketDetail
+    && marketDetail.provinceId === model.selectedProvinceId
+    && marketDetail.assetKind === activeAssetKind
+    && marketDetail.assetId === assetId
+    ? marketDetail
+    : null;
+
+  useEffect(() => {
+    const shouldLoad = Boolean(facilityAssetId) || marketViewMode === 'detail';
+    if (!shouldLoad || !assetId) return undefined;
+    const controller = new AbortController();
+    setMarketDetailLoading(true);
+    setMarketDetailError('');
+    void getMarketDetail(
+      model.selectedProvinceId,
+      activeAssetKind,
+      assetId,
+      controller.signal,
+    ).then((detail) => {
+      if (controller.signal.aborted) return;
+      setMarketDetail(detail);
+    }).catch((reason) => {
+      if (controller.signal.aborted) return;
+      setMarketDetailError(reason instanceof Error ? reason.message : '市场详情加载失败');
+    }).finally(() => {
+      if (!controller.signal.aborted) setMarketDetailLoading(false);
+    });
+    return () => controller.abort();
+  }, [
+    activeAssetKind,
+    assetId,
+    facilityAssetId,
+    game.orders,
+    marketViewMode,
+    model.selectedProvinceId,
+    selectedMarket,
+  ]);
 
   const orderIndex = useMemo(() => getClientOrderIndex(game.orders), [game.orders]);
   const selectedOrders = useMemo(
@@ -479,24 +519,29 @@ export function MarketPage({
   const ownOpenOrders = orderIndex.ownOpenOrders;
   const maxOpenOrders = openOrderLimitForCatalog(game.products.length, game.facilityTypes.length);
   const bestAsks = useMemo(
-    () => buildOrderBookLevels(selectedOrders, 'sell').reverse(),
-    [selectedOrders],
+    () => selectedMarketDetail
+      ? [...selectedMarketDetail.orderBook.asks].reverse()
+      : [],
+    [selectedMarketDetail],
   );
   const bestBids = useMemo(
-    () => buildOrderBookLevels(selectedOrders, 'buy'),
-    [selectedOrders],
+    () => selectedMarketDetail
+      ? selectedMarketDetail.orderBook.bids
+      : [],
+    [selectedMarketDetail],
   );
-  const selectedBuyVolume = bestBids.reduce((sum, level) => sum + Math.max(0, level.remaining), 0);
-  const selectedSellVolume = bestAsks.reduce((sum, level) => sum + Math.max(0, level.remaining), 0);
+  const selectedBuyVolume = Math.max(0, Number(selectedMarket?.buyVolume || 0));
+  const selectedSellVolume = Math.max(0, Number(selectedMarket?.sellVolume || 0));
   const selectedBalance = selectedSellVolume - selectedBuyVolume;
   const maxBookDepth = Math.max(
     1,
     ...bestAsks.map((level) => level.remaining),
     ...bestBids.map((level) => level.remaining),
   );
-  const selectedLastTradePrice = selectedMarket?.lastTradePrice;
-  const marketHistory = selectedMarket?.priceHistory ?? [];
-  const marketFallbackPrice = selectedMarket?.lastPrice
+  const detailedMarket = selectedMarketDetail?.market;
+  const selectedLastTradePrice = detailedMarket?.lastTradePrice ?? selectedMarket?.lastTradePrice;
+  const marketHistory = detailedMarket?.priceHistory ?? selectedMarket?.priceHistory ?? [];
+  const marketFallbackPrice = detailedMarket?.lastPrice ?? selectedMarket?.lastPrice
     ?? selectedProduct?.basePrice
     ?? selectedFacility?.systemValue
     ?? 1;
@@ -508,13 +553,21 @@ export function MarketPage({
     () => buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now),
     [marketFallbackPrice, marketHistory, now],
   );
-  const marketTrend = marketBuckets[marketBuckets.length - 1].price - marketBuckets[0].price;
+  const bucketMarketTrend = marketBuckets[marketBuckets.length - 1].price - marketBuckets[0].price;
+  const summaryMarketTrend = detailedMarket?.priceChange24h ?? selectedMarket?.priceChange24h;
+  const marketTrend = typeof summaryMarketTrend === 'number' ? summaryMarketTrend : bucketMarketTrend;
   const marketVolume24h = useMemo(() => {
+    const summaryVolume = detailedMarket?.tradeVolume24h ?? selectedMarket?.tradeVolume24h;
+    if (typeof summaryVolume === 'number') return Math.max(0, summaryVolume);
     const windowStart = now - (24 * 60 * 60 * 1_000);
     return marketHistory
-      .filter((point) => point.createdAt >= windowStart && point.createdAt <= now)
+      .filter((point) => (
+        point.createdAt >= windowStart
+        && point.createdAt <= now
+        && (point.takerSide === 'buy' || point.takerSide === 'sell')
+      ))
       .reduce((sum, point) => sum + Math.max(0, Number(point.quantity || 0)), 0);
-  }, [marketHistory, now]);
+  }, [detailedMarket?.tradeVolume24h, marketHistory, now, selectedMarket?.tradeVolume24h]);
   const trendTone: StatusTone = marketTrend > 0 ? 'success' : marketTrend < 0 ? 'danger' : 'neutral';
   const availableAssetLabel = activeAssetKind === 'commodity' ? `可用${assetName}` : '可出售';
   const availableAssetQuantity = activeAssetKind === 'commodity'
@@ -547,12 +600,8 @@ export function MarketPage({
     const entries: MarketCatalogEntry[] = game.products.map((product) => {
       const market = game.markets[product.id];
       const orders = openOrdersForAsset(orderIndex, 'commodity', product.id);
-      const buyVolume = orders
-        .filter((order) => order.side === 'buy')
-        .reduce((sum, order) => sum + Math.max(0, order.remaining), 0);
-      const sellVolume = orders
-        .filter((order) => order.side === 'sell')
-        .reduce((sum, order) => sum + Math.max(0, order.remaining), 0);
+      const buyVolume = Math.max(0, Number(market?.buyVolume || 0));
+      const sellVolume = Math.max(0, Number(market?.sellVolume || 0));
       const marketPrice = typeof market?.officialPrice === 'number' ? market.officialPrice : undefined;
       return {
         kind: 'commodity',
@@ -562,9 +611,11 @@ export function MarketPage({
         categoryLabel: PRODUCT_CATEGORY_LABELS[product.category],
         lastTradePrice: typeof market?.lastTradePrice === 'number' ? market.lastTradePrice : undefined,
         marketPrice,
-        trend: trendForMarket(market?.priceHistory ?? [], now),
-        bestBid: buildOrderBookLevels(orders, 'buy')[0]?.price,
-        bestAsk: buildOrderBookLevels(orders, 'sell')[0]?.price,
+        trend: typeof market?.priceChange24h === 'number'
+          ? market.priceChange24h
+          : trendForMarket(market?.priceHistory ?? [], now),
+        bestBid: typeof market?.bestBid === 'number' ? market.bestBid : undefined,
+        bestAsk: typeof market?.bestAsk === 'number' ? market.bestAsk : undefined,
         ownOrderCount: orders.filter((order) => order.isOwn).length,
         buyVolume,
         sellVolume,
@@ -835,6 +886,8 @@ export function MarketPage({
                 </StatusTag>
               )}
             />
+            {marketDetailLoading && !selectedMarketDetail ? <small className="muted" role="status">正在加载当前市场行情…</small> : null}
+            {marketDetailError ? <small className="ui-form-field__error" role="alert">{marketDetailError}</small> : null}
             <PriceSparkline buckets={marketBuckets} variant="full" />
           </Panel>
 

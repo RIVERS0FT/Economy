@@ -240,7 +240,7 @@ requireText('src/auto-trade/useOnlineAutoTrade.ts', [
   'statusCacheRef',
   'enabledSellProductIds',
   'subscribeStateAuthorityDependencies(',
-  "['catalog', 'player.assets', 'player.production', 'market.orders', 'contract']",
+  "['catalog', 'player.assets', 'player.production', 'market.orders', 'market.quotes', 'contract']",
 ]);
 forbidText('src/auto-trade/useOnlineAutoTrade.ts', [
   'game.orders.some((order)',

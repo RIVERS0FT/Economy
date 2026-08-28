@@ -63,7 +63,7 @@ const legacyRegionIds = [
 assert.equal(legacyRegionIds.every((id) => PROVINCE_CATALOG.some((province) => province.id === id)), true, '中国地图时期的 34 个地区 ID 必须全部原位保留');
 assert.equal(DEFAULT_PROVINCE_ID, '110000', '默认地区 ID 必须保持稳定以保留既有资产');
 assert.equal(PROVINCE_CATALOG.find((province) => province.id === DEFAULT_PROVINCE_ID)?.mapName, 'California', '旧默认地区必须原位映射为加利福尼亚州');
-assert.equal(CURRENT_CLIENT_STATE_VERSION, 36, '州级状态协议必须使用客户端版本 36');
+assert.equal(CURRENT_CLIENT_STATE_VERSION, 37, '州级状态协议必须使用客户端版本 37');
 assert.equal(AUTHORITATIVE_WORLD_VERSION, 32, '州级持久化必须使用世界版本 32');
 
 const packageJson = JSON.parse(read('package.json'));
@@ -335,4 +335,4 @@ for (const text of [
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、版本 36/32、既有地区 ID 原位保留、州级经济隔离、隐藏州级上下文页、静态完整 SVG 世界面、州面与中文州名共享同一合成相机、缩放和平移热路径只写单次 transform、几何在手势期间不可变、屏外州缩小 active 阶段即可重新进入、空白双击／双触重置和移动 Tooltip 边界均已锁定。');
+console.log('地区经济验证通过：美国连续 48 州、版本 37/32、既有地区 ID 原位保留、州级经济隔离、隐藏州级上下文页、静态完整 SVG 世界面、州面与中文州名共享同一合成相机、缩放和平移热路径只写单次 transform、几何在手势期间不可变、屏外州缩小 active 阶段即可重新进入、空白双击／双触重置和移动 Tooltip 边界均已锁定。');

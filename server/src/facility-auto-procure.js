@@ -16,7 +16,13 @@ import {
   multiplyMoneyByInteger,
   normalizePlayerMoneyInput,
 } from './money.js';
-import { inventoryForProvince, normalizeProvinceId } from './provinces.js';
+import {
+  inventoryForProvince,
+  normalizeProvinceId,
+  PROVINCE_CATALOG,
+  readInventoryForProvince,
+} from './provinces.js';
+import { provinceUnlockError } from './province-access.js';
 
 const FACILITY_TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 const PRODUCTS = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
@@ -36,7 +42,7 @@ function inventoryFor(player, productId, provinceId) {
   return inventoryForProvince(player, productId, provinceId);
 }
 
-function facilityBuildContext(world, user, payload = {}) {
+function facilityBuildContext(world, user, payload = {}, { readOnly = false } = {}) {
   const userId = Number(user.id);
   const player = world.players?.[String(userId)];
   const type = FACILITY_TYPES.get(String(payload.facilityTypeId || ''));
@@ -55,7 +61,10 @@ function facilityBuildContext(world, user, payload = {}) {
       return { error: result(false, '建造材料数量超出系统可表示范围') };
     }
     const productId = String(item.productId || '');
-    const deficit = Math.max(0, required - Number(inventoryFor(player, productId, provinceId).available || 0));
+    const inventory = readOnly
+      ? readInventoryForProvince(player, productId, provinceId)
+      : inventoryFor(player, productId, provinceId);
+    const deficit = Math.max(0, required - Number(inventory.available || 0));
     if (deficit <= 0) continue;
     if (!Number.isSafeInteger(deficit) || !Number.isSafeInteger(missingQuantity + deficit)) {
       return { error: result(false, '建造材料数量超出系统可表示范围') };
@@ -83,6 +92,36 @@ function externalSellOrders(world, userId, productId, provinceId) {
       || Number(left.order.createdAt || 0) - Number(right.order.createdAt || 0)
       || left.index - right.index
     ));
+}
+
+function matchingCommodityOrders(world, productId, provinceId, side) {
+  return (world.orders || [])
+    .map((order, index) => ({ order, index }))
+    .filter(({ order }) => (
+      isOpenOrder(order)
+      && orderKind(order) === 'commodity'
+      && orderAssetId(order) === productId
+      && normalizeProvinceId(order.provinceId) === normalizeProvinceId(provinceId)
+      && order.side === side
+      && Math.max(0, Math.floor(Number(order.remaining || 0))) > 0
+      && typeof normalizePlayerMoneyInput(order.price, { min: 0.01 }) === 'number'
+    ))
+    .sort((left, right) => (
+      (side === 'sell'
+        ? Number(left.order.price || 0) - Number(right.order.price || 0)
+        : Number(right.order.price || 0) - Number(left.order.price || 0))
+      || Number(left.order.createdAt || 0) - Number(right.order.createdAt || 0)
+      || left.index - right.index
+    ));
+}
+
+function defaultFacilityBuildOrderPrice(world, productId, provinceId) {
+  const bestAsk = matchingCommodityOrders(world, productId, provinceId, 'sell')[0]?.order?.price;
+  const normalizedAsk = normalizePlayerMoneyInput(bestAsk, { min: 0.01 });
+  if (typeof normalizedAsk === 'number') return normalizedAsk;
+  const bestBid = matchingCommodityOrders(world, productId, provinceId, 'buy')[0]?.order?.price;
+  const normalizedBid = normalizePlayerMoneyInput(bestBid, { min: 0.01 });
+  return typeof normalizedBid === 'number' ? normalizedBid : 1;
 }
 
 function quoteMaterial(world, userId, productId, quantity, priceCap, provinceId) {
@@ -117,6 +156,74 @@ function quoteMaterial(world, userId, productId, quantity, priceCap, provinceId)
   }
   if (remaining > 0) return { ok: false, invalid: true };
   return { ok: true, totalMicros, levels };
+}
+
+function invalidQuoteRequest(message, statusCode = 400) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+}
+
+export function createFacilityBuildProcurementQuote(world, user, payload = {}, now = Date.now()) {
+  void now;
+  const requestedProvinceId = String(payload.provinceId || '');
+  if (!PROVINCE_CATALOG.some((province) => province.id === requestedProvinceId)) {
+    throw invalidQuoteRequest('建造地区不存在', 404);
+  }
+  const context = facilityBuildContext(world, user, payload, { readOnly: true });
+  if (context.error) {
+    const missingPlayer = context.error.message === '玩家状态不存在';
+    throw invalidQuoteRequest(context.error.message, missingPlayer ? 404 : 400);
+  }
+  const {
+    userId, player, provinceId, missing, missingQuantity,
+  } = context;
+  const accessError = provinceUnlockError(player, provinceId);
+  if (accessError) throw invalidQuoteRequest(accessError, 403);
+  let estimatedTotalMicros = 0n;
+  const materialPriceCaps = {};
+  const materialOrderPrices = {};
+  const unavailableProductIds = [];
+  const selfCrossingProductIds = [];
+
+  for (const item of missing) {
+    materialOrderPrices[item.productId] = defaultFacilityBuildOrderPrice(world, item.productId, provinceId);
+    const quote = quoteMaterial(
+      world,
+      userId,
+      item.productId,
+      item.quantity,
+      Number.MAX_SAFE_INTEGER,
+      provinceId,
+    );
+    if (!quote.ok || quote.levels.length === 0) {
+      unavailableProductIds.push(item.productId);
+      continue;
+    }
+    const priceCap = quote.levels[quote.levels.length - 1].price;
+    materialPriceCaps[item.productId] = priceCap;
+    estimatedTotalMicros += quote.totalMicros;
+    if (findSelfCrossingOrder(world, {
+      ownerId: userId,
+      assetKind: 'commodity',
+      assetId: item.productId,
+      provinceId,
+      side: 'buy',
+      price: priceCap,
+    })) selfCrossingProductIds.push(item.productId);
+  }
+
+  const estimatedTotal = microsToInternalMoney(estimatedTotalMicros);
+  const complete = unavailableProductIds.length === 0 && estimatedTotal !== null;
+  return {
+    complete,
+    estimatedTotal: complete ? estimatedTotal : 0,
+    missingQuantity,
+    materialPriceCaps,
+    materialOrderPrices,
+    unavailableProductIds,
+    selfCrossingProductIds,
+  };
 }
 
 export function autoProcureFacilityBuildMaterials(world, user, payload = {}, now = Date.now()) {

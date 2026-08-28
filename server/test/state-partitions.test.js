@@ -8,6 +8,11 @@ import {
   readKnownPartitionRevisionsFromSearch,
 } from '../src/state-partitions.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
+import {
+  createRequestPerformanceContext,
+  runWithRequestPerformance,
+  snapshotRequestPerformance,
+} from '../src/request-performance.js';
 
 function rankedLeaderboards(score = 100) {
   return {
@@ -81,6 +86,30 @@ test('initial delivery returns all six state partitions without a full state fie
   assert.match(delivery.sliceRevisions['player.production'], /^[A-Za-z0-9_-]{8,64}$/);
   assert.match(delivery.sliceRevisions['market.orders'], /^[A-Za-z0-9_-]{8,64}$/);
   assert.match(delivery.sliceRevisions['market.quotes'], /^[A-Za-z0-9_-]{8,64}$/);
+});
+
+test('partition hashing reports exact partition and high-volume field byte gauges', () => {
+  const state = sampleState({
+    provinceMarkets: { '110000': { wheat: { lastPrice: 2 } } },
+    provinceFacilityMarkets: { '110000': { farm: { lastPrice: 10 } } },
+    orders: [{ id: 'own-order', isOwn: true }],
+  });
+  const context = createRequestPerformanceContext();
+  const snapshot = runWithRequestPerformance(context, () => createStatePartitionSnapshot(state));
+  const metrics = snapshotRequestPerformance(context);
+  assert.equal(metrics.gauges.stateOrdersJsonBytes, Buffer.byteLength(JSON.stringify(state.orders)));
+  assert.equal(
+    metrics.gauges.stateProvinceMarketsJsonBytes,
+    Buffer.byteLength(JSON.stringify(state.provinceMarkets)),
+  );
+  assert.equal(
+    metrics.gauges.stateProvinceFacilityMarketsJsonBytes,
+    Buffer.byteLength(JSON.stringify(state.provinceFacilityMarkets)),
+  );
+  for (const partitionName of ['catalog', 'player', 'market', 'auction', 'contract', 'leaderboard']) {
+    const gauge = `state${partitionName[0].toUpperCase()}${partitionName.slice(1)}PartitionJsonBytes`;
+    assert.equal(metrics.gauges[gauge], Buffer.byteLength(JSON.stringify(snapshot.partitions[partitionName])));
+  }
 });
 
 test('incomplete catalog states are rejected before delivery', () => {

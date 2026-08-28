@@ -513,6 +513,9 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const avatarText = (loadedGame.playerName || user.email).slice(0, 1).toUpperCase();
   const selectedProvince = loadedGame.provinces.find((province) => province.id === selectedProvinceId)
     ?? loadedGame.provinces[0];
+  const marketSummaryFor = (kind: AssetKind, assetId: string) => (
+    kind === 'facility' ? loadedGame.facilityMarkets[assetId] : loadedGame.markets[assetId]
+  );
   function setSelectedProvinceId(provinceId: string) {
     if (!loadedGame.provinces.some((province) => province.id === provinceId) || provinceId === selectedProvinceId) return;
     setSelectedProvinceIdState(provinceId);
@@ -522,7 +525,13 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     if (nextTab === 'market') {
       setMarketViewMode('catalog');
       if (tab !== 'market') {
-        setOrderPrice(defaultOrderPrice(loadedGame.orders, marketAssetKind, marketAssetId, orderSide));
+        setOrderPrice(defaultOrderPrice(
+          loadedGame.orders,
+          marketAssetKind,
+          marketAssetId,
+          orderSide,
+          marketSummaryFor(marketAssetKind, marketAssetId),
+        ));
         setOrderQuantity(1);
       }
     }
@@ -534,7 +543,13 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     setMarketAssetKind(kind);
     setMarketAssetId(assetId);
     if (changed || tab !== 'market') {
-      setOrderPrice(defaultOrderPrice(loadedGame.orders, kind, assetId, orderSide));
+      setOrderPrice(defaultOrderPrice(
+        loadedGame.orders,
+        kind,
+        assetId,
+        orderSide,
+        marketSummaryFor(kind, assetId),
+      ));
       setOrderQuantity(1);
     }
     setMarketViewMode('detail');
@@ -548,7 +563,13 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   function selectOrderSide(side: OrderSide) {
     if (side === orderSide) return;
     setOrderSideState(side);
-    setOrderPrice(defaultOrderPrice(loadedGame.orders, marketAssetKind, marketAssetId, side));
+    setOrderPrice(defaultOrderPrice(
+      loadedGame.orders,
+      marketAssetKind,
+      marketAssetId,
+      side,
+      marketSummaryFor(marketAssetKind, marketAssetId),
+    ));
   }
 
   const model: LoadedGameViewModel = {
