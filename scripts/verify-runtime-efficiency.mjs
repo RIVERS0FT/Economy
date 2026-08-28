@@ -43,7 +43,15 @@ requireText('server/src/world-deadline-planner.js', [
   'nextConstructionEmploymentAt',
   'createContractRuntimeIndex(world).nextDeadlineAt()',
   'createdAt + DAY_MS + 1',
+  'MAX_RECENT_CLOSED_ORDERS = 800',
+  'closedOrderCount += 1',
+  'if (closedOrderCount > MAX_RECENT_CLOSED_ORDERS) return now;',
 ]);
+assert.equal(
+  read('server/src/world-deadline-planner.js').includes('(world.orders || []).length > 4_000'),
+  false,
+  '开放订单数量不得触发历史订单清理截止时间',
+);
 requireText('server/src/storage.js', [
   'new DatabaseSync(databasePath, { timeout: 5_000 })',
   'PRAGMA journal_mode = WAL;',
@@ -193,6 +201,13 @@ requireText('server/src/domain-core.js', [
 assert.equal(read('server/src/domain-core.js').includes('.slice(-4_000)'), false, '历史上限不得删除未完成订单');
 requireText('server/src/domain.js', [
   'if (retainedOrders.length !== migratedOrders.length) migrated.orders = retainedOrders;',
+]);
+requireText('server/test/world-deadline-planner.test.js', [
+  'order pruning deadline ignores production-scale open order volume',
+  'order pruning deadline runs immediately only when retained closed history exceeds its cap',
+  'deadline scheduler does not spin when non-pruneable open orders exceed the historical cap',
+  'assert.ok(before.nextDueAt - clock.now > 60_000)',
+  'assert.equal(world.orders.length, 13_812)',
 ]);
 requireText('server/src/facility-groups.js', [
   'CLIENT_RECENT_CLOSED_ORDER_LIMIT',
