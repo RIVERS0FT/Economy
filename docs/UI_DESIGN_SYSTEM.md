@@ -3,7 +3,7 @@
 > 状态：当前视觉、共享组件、响应式与可访问性实现基线
 > 适用项目：`RIVERS0FT/Economy`
 > 当前平台：网页端
-> 更新时间：2026-08-25
+> 更新时间：2026-08-28
 
 产品和页面职责分别以 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；应用外壳几何和玻璃材质以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。
 
@@ -106,6 +106,8 @@
 `MobileWorkspaceSheetHost` 是移动端唯一根级 Sheet 宿主，并独占 `useMobileWorkspaceSheetDrag` 的向下拖动、速度判定、回弹、关闭和 reduced-motion 状态机。`MobileWorkspacePageSheet` 只保留为 `GameShell` 的零 DOM 兼容适配器，`MobileWorkspaceDetailSheet` 只向 Host 注册详情内容和固定底栏；两者都不得创建自己的 Sheet 外框、遮罩、Portal 或第二套手势状态机。
 
 `PagePanel` 是新增玩家端一级卡片的唯一 React 入口，固定复用 `Panel`、`.widget` 与 `.ui-primary-surface`。现有 `Panel className="widget ..."` 由兼容桥自动补充 `.ui-primary-surface`；建筑页和排行页尚未迁移的旧一级卡片类只允许在 `primary-surfaces.css` 中作为兼容入口，不得在业务 CSS 中重新定义外层 padding。
+
+`PagePanel` 只用于实际存在视觉分组意义的一级业务模块。若页面正文在正常状态下只有一个一级业务模块，内容必须直接排列在 `PageLayout` 正文而不是再套唯一大圆角卡；`workspaceCard`／Mobile Workspace Sheet 已经是页面承载面，禁止用第二层整页卡片重复边框、圆角和外层内边距。
 
 玩家页面返回统一由 `PlayerPageNavigationContext` 的受限位置栈驱动。栈项必须是轻量可比较描述符，当前页加历史最多 20 层；同级分区使用 replace，实体下钻使用 push，返回 pop，关闭 reset 到 `map`。页面组件不得保存来源回调、DOM 或完整业务状态来实现返回，也不得让轮询更新改变栈深度。仓库商品卡、全局商品／工厂下钻和地区实体详情必须复用这套语义。
 

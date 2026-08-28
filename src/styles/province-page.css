@@ -16,7 +16,7 @@
   gap: var(--layout-gutter);
 }
 
-.province-overview-panel {
+.province-overview-content {
   display: grid;
   gap: var(--space-4);
 }
@@ -45,7 +45,7 @@
   }
 }
 
-.province-lock-panel {
+.province-lock-content {
   display: flex;
   flex-direction: column;
   gap: 16px;

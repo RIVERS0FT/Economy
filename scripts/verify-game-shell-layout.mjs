@@ -117,6 +117,7 @@ check('src/styles/game-shell-layout.css', [
 check('src/components/shell/GameShell.tsx', [
   'const STRATEGIC_PAGE_PRESENTATION = {',
   "province: 'building'",
+  "transport: 'building'",
   "leaderboard: 'fullscreen'",
   "const [sidebarCollapsed, setSidebarCollapsed] = useState(true)",
   "const [mapLens, setMapLens] = useState<ProvinceMapLens>('assets')",
@@ -136,6 +137,7 @@ check('src/components/shell/GameShell.tsx', [
   "onClick: () => selectPlayerTab('settings')",
 ]);
 forbid('src/components/shell/GameShell.tsx', [
+  "transport: 'fullscreen'",
   'HIDDEN_EVENT_RAIL_TABS',
   "const showRightRail = pagePresentation !== 'fullscreen';",
   'tutorial={showRightRail ? tutorial : undefined}',
@@ -189,6 +191,14 @@ check('src/components/ui/layout.tsx', [
   'className="page-card-static"',
 ]);
 forbid('src/pages/MapPage.tsx', ['<UsMainlandMap']);
+check('src/pages/TransportPage.tsx', [
+  'className="transport-page-content"',
+]);
+check('src/styles/transport-page.css', [
+  'container: transport-page / inline-size;',
+  '@container transport-page (max-width: 640px)',
+]);
+forbid('src/styles/transport-page.css', ['@media (max-width: 720px)']);
 check('src/styles/strategic-game-shell.css', [
   '--strategic-shell-gutter: 8px;',
   '--desktop-layout-gutter: var(--strategic-shell-gutter);',
@@ -197,6 +207,7 @@ check('src/styles/strategic-game-shell.css', [
   '--strategic-compact-page-width: 56rem;',
   '--strategic-page-open-motion: 220ms cubic-bezier(.2, .8, .2, 1);',
   '--strategic-primary-card-inline-size:',
+  '.game-shell.strategic-tab-transport,',
   'calc(100vw / 3),',
   '--strategic-outliner-width: clamp(280px, 21vw, 320px);',
   '--strategic-outliner-reserved-width:',
@@ -389,7 +400,7 @@ check('tests/browser/frosted-glass-layout.spec.ts', [
   "toHaveCSS('border-radius', '40px')",
 ]);
 check('tests/browser/all-pages-preview.spec.ts', [
-  'overview, market, buildings, and settings share a one-third card width while transport, leaderboard, and shop stay full-area',
+  'overview, market, buildings, transport, and settings share a one-third card width while research, auction, contracts, bank, leaderboard, and shop stay full-area',
   'page navigation unfolds only the active page while the persistent map keeps its instance and geometry',
   'reduced motion disables card width and page unfold animation',
   'expect(Math.max(...compactWidths) - Math.min(...compactWidths)).toBeLessThanOrEqual(1)',
@@ -405,9 +416,9 @@ check('tests/browser/tutorial-right-rail.spec.ts', [
 check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '图片层 0 → 氛围层 10 → 地图层 20 → UI 层 30',
   '桌面侧栏默认 `78px`',
-  '`home`、`province`、`market`、`buildings`、`settings` 仍使用 `building`',
+  '`home`、`province`、`market`、`buildings`、`transport`、`settings` 仍使用 `building`',
   '战略追踪器与页面路由生命周期解耦',
-  '七个 `fullscreen` 页面在桌面端隐藏同一追踪器',
+  '六个 `fullscreen` 页面在桌面端隐藏同一追踪器',
   '“教程／进行中／关注／公开经济事件”四个可折叠分区',
   '不得提供追踪器整体横向展开／收起按钮',
   '同一个 `StrategicOutliner` DOM 仅呈现“教程”分区',

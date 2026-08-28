@@ -24,6 +24,8 @@ const paths = {
   assetStyles: 'src/styles/asset-overview.css',
   shopStyles: 'src/styles/gem-shop.css',
   leaderboardStyles: 'src/styles/leaderboards.css',
+  provincePage: 'src/pages/ProvincePage.tsx',
+  provinceStyles: 'src/styles/province-page.css',
   geometryTest: 'tests/browser/player-page-geometry.spec.ts',
   marketRuntimeTest: 'tests/browser/market-runtime.spec.ts',
   design: 'docs/PRIMARY_SURFACE_INSET_DESIGN.md',
@@ -116,6 +118,19 @@ if (failures.length === 0) {
     "classNames('widget', className)",
   ]) requireText(paths.layout, text);
 
+  for (const text of [
+    'className="province-overview-content"',
+    'className="province-lock-content"',
+  ]) requireText(paths.provincePage, text);
+  for (const text of [
+    '.province-overview-content {',
+    '.province-lock-content {',
+  ]) requireText(paths.provinceStyles, text);
+  for (const text of ['province-overview-panel', 'province-lock-panel']) {
+    forbidText(paths.provincePage, text);
+    forbidText(paths.provinceStyles, text);
+  }
+
   for (const [path, forbidden] of [
     [paths.productionStyles, '--production-surface-inset'],
     [paths.productionStyles, 'padding: var(--production-surface-inset);'],
@@ -133,6 +148,8 @@ if (failures.length === 0) {
     '移动端页面实际宽度必须等于唯一根级 Mobile Workspace Sheet 的内容盒宽度',
     '不得再使用 `padding-top: 0`',
     '新增一级卡片必须使用 `PagePanel`',
+    '正常状态下若整个正文只有一个一级业务模块',
+    '州级概览与未解锁建筑／仓库不再使用包裹整个分区的唯一一级卡片',
     '`.panel.production-surface` 与 `.panel.leaderboard-board-card`',
     '业务页面 CSS 不得',
     '一级建筑页只保留全局工厂目录，不再存在独立地区建筑卡片',
@@ -188,6 +205,7 @@ if (failures.length === 0) {
     '| `src/styles/primary-surfaces.css` | 玩家端一级卡片外层内边距令牌、最终选择器、移动断点与旧一级卡片类兼容入口 |',
     '- `PagePanel`',
     '`PagePanel` 是新增玩家端一级卡片的唯一 React 入口',
+    '若页面正文在正常状态下只有一个一级业务模块',
     '`--primary-surface-inset` 唯一控制',
     '不得定义一级卡片外层内边距',
     '在业务页面 CSS 中重新声明一级卡片外层 padding',

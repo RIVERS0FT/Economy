@@ -188,7 +188,8 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
         </Button>
       )}
     >
-      {routeDraft ? (
+      <div className="transport-page-content">
+        {routeDraft ? (
         <PagePanel className="transport-route-editor">
           <WidgetHeading
             title={routeDraft.routeId ? '编辑运输路线' : '增加运输路线'}
@@ -350,6 +351,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
           ) : <p className="muted transport-empty">暂无已完成运输。</p>}
         </section>
       </PagePanel>
+      </div>
     </PageLayout>
   );
 }

@@ -65,8 +65,14 @@ test('desktop strategic outliner persists across business and fullscreen pages',
   await expect(contextPin).toHaveAttribute('aria-pressed', 'true');
   await expect(pinnedSection.locator('.strategic-outliner-row')).toHaveCount(1);
 
+  await page.locator('.desktop-sidebar').getByRole('button', { name: '运输', exact: true }).click();
+  await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');
+  await expect(outliner).toBeVisible();
+  await expect(outliner).toHaveAttribute('data-browser-outliner-sentinel', 'persistent');
+  await expect(eventsSection).toHaveAttribute('data-collapsed', 'true');
+  await expect(pinnedSection.locator('.strategic-outliner-row')).toHaveCount(1);
+
   const fullscreenPages = [
-    ['transport', '运输'],
     ['research', '研发'],
     ['auction', '拍卖'],
     ['contracts', '合同'],

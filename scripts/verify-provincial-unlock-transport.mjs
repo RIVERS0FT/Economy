@@ -109,7 +109,7 @@ for (const action of ['createTransportRoute', 'updateTransportRoute', 'deleteTra
 requireText(gameApi, "/provinces/starting", '游戏 API 必须提供起始州选择端点。');
 requireText(gameApi, "/provinces/unlock", '游戏 API 必须提供州解锁端点。');
 requireText(gameApi, "/transport", '游戏 API 必须提供运输端点。');
-requireText(provincePage, 'province-lock-panel', '州页必须提供解锁面板。');
+requireText(provincePage, 'province-lock-content', '州页必须提供直接排列在正文的解锁内容。');
 requireText(provincePage, 'unlockProvince(model.selectedProvinceId)', '州页解锁按钮必须调用解锁动作。');
 for (const text of ['WarehouseTransportPanel', 'warehouse-transport-panel', 'warehouse-transport-section', 'transportShip', 'transport-shipment-list']) {
   if (warehousePanel.includes(text)) failures.push(`仓库不得继续承载跨州运输：${text}`);
