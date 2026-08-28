@@ -1,0 +1,55 @@
+name: Fix transport compact width
+
+on:
+  push:
+    branches:
+      - codex/page-surface-layout
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/page-surface-layout
+          fetch-depth: 0
+      - name: Fix strategic compact-width selector
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              source = p.read_text(encoding='utf-8')
+              if source.count(old) != 1:
+                  raise SystemExit(f'{path}: expected one occurrence of {old!r}, got {source.count(old)}')
+              p.write_text(source.replace(old, new, 1), encoding='utf-8', newline='\n')
+
+          replace_once(
+              'src/styles/strategic-game-shell.css',
+              '  .game-shell.strategic-tab-buildings,\n  .game-shell.strategic-tab-settings {',
+              '  .game-shell.strategic-tab-buildings,\n  .game-shell.strategic-tab-transport,\n  .game-shell.strategic-tab-settings {',
+          )
+          replace_once(
+              'scripts/verify-game-shell-layout.mjs',
+              "  '--strategic-primary-card-inline-size:',\n",
+              "  '--strategic-primary-card-inline-size:',\n  '.game-shell.strategic-tab-transport,',\n",
+          )
+          Path('.github/workflows/codex-fix-transport-compact-width.yml').unlink()
+          PY
+          git diff --check
+      - name: Commit fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m '修正运输紧凑页宽度'
+          git push origin HEAD:codex/page-surface-layout
