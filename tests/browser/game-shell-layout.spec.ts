@@ -296,6 +296,53 @@ test.describe('persistent-map grand-strategy game shell', () => {
     expectStrategicDesktopLayout(await readShellGeometry(page), 8);
   });
 
+  test('map lens buttons keep icons and labels centered on one shared vertical axis', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
+    const lensBar = page.getByRole('navigation', { name: '地图镜头' });
+    const buttons = lensBar.getByRole('button');
+    await expect(buttons).toHaveCount(5);
+
+    const readLensButtonGeometry = () => lensBar.evaluate((bar) =>
+      [...bar.querySelectorAll<HTMLElement>('.strategic-map-lens-button')].map((button) => {
+        const icon = button.querySelector<HTMLElement>('svg');
+        const label = button.querySelector<HTMLElement>('span');
+        if (!icon || !label) throw new Error('lens button icon or label is missing');
+        const buttonBox = button.getBoundingClientRect();
+        const iconBox = icon.getBoundingClientRect();
+        const labelBox = label.getBoundingClientRect();
+        const style = getComputedStyle(button);
+        return {
+          display: style.display,
+          alignItems: style.alignItems,
+          justifyContent: style.justifyContent,
+          iconCenterY: (iconBox.top + iconBox.bottom) / 2,
+          labelCenterY: (labelBox.top + labelBox.bottom) / 2,
+          contentLeft: iconBox.left,
+          contentRight: labelBox.right,
+          buttonCenterX: (buttonBox.left + buttonBox.right) / 2,
+          buttonCenterY: (buttonBox.top + buttonBox.bottom) / 2,
+        };
+      }),
+    );
+
+    const inactive = await readLensButtonGeometry();
+    await buttons.nth(2).click();
+    await expect(page.locator('.strategic-map-stage')).toHaveAttribute('data-map-lens', 'industry');
+    const active = await readLensButtonGeometry();
+
+    for (const geometry of [...inactive, ...active]) {
+      expect(geometry.display).toBe('flex');
+      expect(geometry.alignItems).toBe('center');
+      expect(geometry.justifyContent).toBe('center');
+      expect(Math.abs(geometry.iconCenterY - geometry.labelCenterY)).toBeLessThanOrEqual(0.75);
+      expect(Math.abs(geometry.iconCenterY - geometry.buttonCenterY)).toBeLessThanOrEqual(1);
+      expect(Math.abs(geometry.labelCenterY - geometry.buttonCenterY)).toBeLessThanOrEqual(1);
+      expect(Math.abs((geometry.contentLeft + geometry.contentRight) / 2 - geometry.buttonCenterX))
+        .toBeLessThanOrEqual(1);
+    }
+  });
+
   test('desktop navigation rows keep intrinsic height and stack from the top', async ({ page }) => {
     await page.setViewportSize({ width: 1684, height: 931 });
     await page.goto('runtime-test.html?view=overview&scenario=empty');

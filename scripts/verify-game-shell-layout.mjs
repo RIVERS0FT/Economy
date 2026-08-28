@@ -249,6 +249,18 @@ forbid('src/styles/strategic-game-shell.css', [
   '.strategic-economic-event-rail {',
   '--strategic-event-rail-width',
 ]);
+const lensButtonStyle = read('src/styles/strategic-game-shell.css');
+const lensButtonBlock = lensButtonStyle.slice(
+  lensButtonStyle.indexOf('.strategic-map-lens-button {'),
+  lensButtonStyle.indexOf('.strategic-map-lens-button svg'),
+);
+if (!(lensButtonBlock.includes('display: inline-flex;')
+  && lensButtonBlock.includes('align-items: center;')
+  && lensButtonBlock.includes('justify-content: center;')
+  && !lensButtonBlock.includes('place-content: center;')
+  && !lensButtonBlock.includes('grid-template-columns'))) {
+  failures.push('地图镜头栏按钮必须使用单行 flex 居中布局统一图标与文字垂直中线');
+}
 forbid('src/styles/game-shell-layout.css', [
   `left: 0;
     width: auto;
@@ -440,6 +452,7 @@ check('docs/UI_DESIGN_SYSTEM.md', [
   '不得与桌面顶部状态栏／管理员工作栏、桌面侧栏',
   '根级 Dialog',
   'Sheet 自身承担唯一移动毛玻璃模糊',
+  '地图镜头栏切换按钮内部统一为单行居中内容',
 ]);
 check('docs/README.md', [
   '`LIQUID_GLASS_CHROME_DESIGN.md`', '毛玻璃材质',
@@ -450,4 +463,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('游戏与管理员共享外壳验证通过：固定状态栏、唯一共享页面滚动、跨页面常驻战略追踪器、研发统一 workspaceCard 与内部透明科技画布、根级 Dialog、48px 通知轨道、8px 战略栅格、主卡片侧栏覆盖、建筑式页面、根级地图镜头与安全浮层满足当前基线。');
+console.log('游戏与管理员共享外壳验证通过：固定状态栏、唯一共享页面滚动、跨页面常驻战略追踪器、研发统一 workspaceCard 与内部透明科技画布、根级 Dialog、48px 通知轨道、8px 战略栅格、主卡片侧栏覆盖、建筑式页面、根级地图镜头、镜头按钮图标文字同轴居中与安全浮层满足当前基线。');

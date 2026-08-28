@@ -19,12 +19,20 @@ async function readMobileSheetGeometry(page: import('@playwright/test').Page) {
   });
 }
 
+async function waitForSheetEntryAnimation(page: import('@playwright/test').Page) {
+  const sheet = page.locator('.mobile-workspace-sheet-host');
+  await expect(sheet).toBeVisible();
+  await expect.poll(() => sheet.evaluate((element) => (
+    element.getAnimations().every((animation) => animation.playState === 'finished')
+  ))).toBe(true);
+}
+
 test.describe('mobile notification island sheet reserve', () => {
   test('workspace sheet stays below the notification-island lane even when no island is mounted', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
 
-    await expect(page.locator('.mobile-workspace-sheet-host')).toBeVisible();
+    await waitForSheetEntryAnimation(page);
     await expect(page.locator('.notification-island')).toHaveCount(0);
 
     const geometry = await readMobileSheetGeometry(page);
@@ -39,6 +47,7 @@ test.describe('mobile notification island sheet reserve', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
 
+    await waitForSheetEntryAnimation(page);
     const before = await readMobileSheetGeometry(page);
     await page.getByRole('button', { name: /^通知，/ }).click();
     const panel = page.getByRole('dialog', { name: '通知' });
