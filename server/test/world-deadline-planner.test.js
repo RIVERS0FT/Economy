@@ -6,6 +6,9 @@ import {
   createWorldDeadlinePlan,
   nextConstructionEmploymentAt,
 } from '../src/world-deadline-planner.js';
+import { worldDeadlineRuntimeFor } from '../src/world-deadline-runtime.js';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 class FakeClock {
   constructor(now) {
@@ -55,6 +58,26 @@ function createScheduledStore(clock, options = {}) {
   });
 }
 
+function schedulerOrder({ id, status = 'open', createdAt }) {
+  const open = status === 'open' || status === 'partial';
+  return {
+    id,
+    assetKind: 'commodity',
+    assetId: 'wheat',
+    productId: 'wheat',
+    provinceId: 'california',
+    side: 'buy',
+    ownerType: 'player',
+    ownerId: 1,
+    ownerName: '玩家 1',
+    price: 10,
+    quantity: 1,
+    remaining: open ? 1 : 0,
+    status,
+    createdAt,
+  };
+}
+
 test('instant construction registers no employment deadline', () => {
   assert.equal(nextConstructionEmploymentAt(), null);
 });
@@ -85,6 +108,72 @@ test('world deadline planner selects the earliest authoritative event', () => {
   const plan = createWorldDeadlinePlan(world, now);
   assert.equal(plan.nextDueAt, now + 5_000);
   assert.equal(plan.deadlines.contract, now + 5_000);
+});
+
+test('order pruning deadline ignores production-scale open order volume', () => {
+  const now = 1_800_000_000_000;
+  const world = createWorld(now);
+  const closedCreatedAt = now - 1_000;
+  world.orders = [
+    ...Array.from({ length: 13_012 }, (_, index) => schedulerOrder({
+      id: `open-${index}`,
+      createdAt: now - index,
+    })),
+    ...Array.from({ length: 800 }, (_, index) => schedulerOrder({
+      id: `closed-${index}`,
+      status: 'cancelled',
+      createdAt: closedCreatedAt,
+    })),
+  ];
+
+  const plan = createWorldDeadlinePlan(world, now);
+  assert.equal(plan.deadlines.orderPrune, closedCreatedAt + DAY_MS + 1);
+  assert.ok(plan.deadlines.orderPrune > now);
+});
+
+test('order pruning deadline runs immediately only when retained closed history exceeds its cap', () => {
+  const now = 1_800_000_000_000;
+  const world = createWorld(now);
+  world.orders = Array.from({ length: 801 }, (_, index) => schedulerOrder({
+    id: `closed-${index}`,
+    status: 'cancelled',
+    createdAt: now - index,
+  }));
+
+  assert.equal(createWorldDeadlinePlan(world, now).deadlines.orderPrune, now);
+});
+
+test('deadline scheduler does not spin when non-pruneable open orders exceed the historical cap', () => {
+  const clock = new FakeClock(1_800_000_000_000);
+  const store = createScheduledStore(clock);
+  try {
+    clock.advance(0);
+    const world = store.worldCache.world;
+    world.orders = [
+      ...Array.from({ length: 13_012 }, (_, index) => schedulerOrder({
+        id: `open-${index}`,
+        createdAt: clock.now - index,
+      })),
+      ...Array.from({ length: 800 }, (_, index) => schedulerOrder({
+        id: `closed-${index}`,
+        status: 'cancelled',
+        createdAt: clock.now - 1_000,
+      })),
+    ];
+    worldDeadlineRuntimeFor(store).invalidate();
+    store.scheduleWorldProcessing();
+    store.resetSchedulerDiagnostics();
+
+    const before = store.getSchedulerDiagnostics();
+    assert.ok(before.nextDueAt > clock.now);
+    clock.advance(Math.min(60_000, Math.max(0, before.nextDueAt - clock.now - 1)));
+    const after = store.getSchedulerDiagnostics();
+    assert.equal(after.transactions, 0);
+    assert.equal(after.processedWakeups, 0);
+    assert.equal(world.orders.length, 13_812);
+  } finally {
+    store.close();
+  }
 });
 
 test('deadline scheduler performs zero world transactions during a 60 second idle window', () => {
