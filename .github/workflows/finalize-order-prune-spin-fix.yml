@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   finalize:
-    if: github.event.head_commit.message == '完成订单清理调度防自旋修复'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
