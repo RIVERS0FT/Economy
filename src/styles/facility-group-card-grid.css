@@ -276,18 +276,10 @@
 
 .facility-information {
   min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas:
-    "summary"
-    "counts"
-    "profit";
-  align-items: start;
-  gap: var(--space-2);
 }
 
 .facility-information-summary {
-  grid-area: summary;
+  min-width: 0;
 }
 
 .facility-information-total {
@@ -309,8 +301,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+.facility-information-details {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
 .facility-count-summary {
-  grid-area: counts;
   width: 100%;
   min-width: 0;
   display: grid;
@@ -343,8 +340,7 @@
   font-size: var(--font-size-sm);
 }
 
-.facility-information > .facility-average-profit {
-  grid-area: profit;
+.facility-information-details > .facility-average-profit {
   margin: 0;
   border-top: 1px solid var(--color-divider);
   padding-top: var(--space-2);
@@ -405,21 +401,6 @@
   gap: var(--facility-card-inner-gap);
   border-top: 1px solid var(--color-divider);
   padding-top: var(--space-2);
-}
-
-.facility-production-settings-heading {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.facility-production-settings-heading strong {
-  flex: 0 0 auto;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  white-space: nowrap;
 }
 
 .facility-production-settings-grid {
@@ -495,12 +476,18 @@
 .facility-market-link-row .facility-market-link {
   width: fit-content;
   min-height: var(--control-height-compact);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   margin: 0;
   padding-inline: 0;
-  white-space: normal;
+  white-space: nowrap;
   text-align: left;
 }
 
+.facility-market-link-row .facility-market-link .game-icon {
+  flex: 0 0 auto;
+}
 
 @media (min-width: 961px) and (max-width: 1380px) {
   .production-workspace {

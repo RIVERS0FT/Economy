@@ -267,6 +267,7 @@
   height: 0.55rem;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--color-info) 16%, var(--color-border));
+  border-radius: var(--radius-pill);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--color-text-primary) 5%, transparent), transparent),
     color-mix(in srgb, var(--color-bg-deep) 78%, var(--color-gridline));
@@ -278,6 +279,7 @@
 .facility-formula-progress .progress-track span {
   position: relative;
   min-width: 0;
+  overflow: hidden;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--color-success-strong), var(--color-success));
   box-shadow: 0 0 0.7rem color-mix(in srgb, var(--color-success) 30%, transparent);
@@ -297,7 +299,7 @@
   content: '';
   position: absolute;
   top: 50%;
-  right: -0.18rem;
+  right: 0;
   width: 0.55rem;
   height: 0.55rem;
   transform: translateY(-50%);

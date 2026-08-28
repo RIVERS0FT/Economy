@@ -6,6 +6,7 @@ import { FacilityRecipeProfitAnalysis } from '../../components/facilities/Facili
 import { FacilityOperatingDiagnostics } from '../../components/facilities/FacilityOperatingDiagnostics';
 import { FacilityProductionConfigControls } from '../../components/facilities/FacilityProductionConfigControls';
 import { MobileDetailSummary } from '../../components/ui/MobileDetailSummary';
+import { usePlayerPageNavigation } from '../../components/ui/PageNavigationContext';
 import {
   Button,
   StatusTag,
@@ -115,7 +116,7 @@ export function FacilityStaffingSummary({
   const description = `${type.name}当前满员率 ${currentPercent}%，${directionLabel}，当前 ${physicalCount} 座工厂形成 ${effectiveCount} 座整数等效产能；周期完成时按届时满员率结算。`;
 
   return (
-    <section className="facility-staffing-summary mobile-detail-section" aria-label={description}>
+    <section className="facility-staffing-summary" aria-label={description}>
       <div className="facility-staffing-heading">
         <strong>满员率 {<CompactNumber value={currentPercent} />}%</strong>
         <span>{directionLabel}</span>
@@ -348,27 +349,30 @@ export function FacilityClusterInformation({
             onChange={(event) => onToggle(event.target.checked)}
           />
         }
-      />
-
-      <div className="facility-count-summary" aria-label={`${type.name}运行数量`}>
-        <span>
-          运行中 <strong>{<CompactNumber value={group.participatingCount} />}</strong>
-        </span>
-        <span>
-          冻结中 <strong>{<CompactNumber value={group.frozenCount ?? group.listedCount} />}</strong>
-        </span>
-        <span>
-          抵押中 <strong>{<CompactNumber value={group.mortgagedCount} />}</strong>
-        </span>
-      </div>
-
-      <FacilityRecipeProfitAnalysis
-        type={recipeState.formulaType}
-        scopeCount={profitScope.physicalCount}
-        scopeLabel={profitScope.name}
-        staffingRateBps={profitScope.staffingRateBps}
-        products={products}
-        inventories={inventories}
+        description={
+          <div className="facility-information-details">
+            <div className="facility-count-summary" aria-label={`${type.name}运行数量`}>
+              <span>
+                运行中 <strong>{<CompactNumber value={group.participatingCount} />}</strong>
+              </span>
+              <span>
+                冻结中 <strong>{<CompactNumber value={group.frozenCount ?? group.listedCount} />}</strong>
+              </span>
+              <span>
+                抵押中 <strong>{<CompactNumber value={group.mortgagedCount} />}</strong>
+              </span>
+            </div>
+            <FacilityRecipeProfitAnalysis
+              type={recipeState.formulaType}
+              scopeCount={profitScope.physicalCount}
+              scopeLabel={profitScope.name}
+              staffingRateBps={profitScope.staffingRateBps}
+              products={products}
+              inventories={inventories}
+            />
+            <FacilityStaffingSummary entry={entry} now={liveNow} />
+          </div>
+        }
       />
     </section>
   );
@@ -389,6 +393,7 @@ export function FacilityClusterDetailBody({
 }: Omit<FacilityClusterDetailSharedProps, 'onToggle' | 'onOpenMarket'>) {
   const { group, type } = entry;
   const liveNow = useNow(now);
+  const pageNavigation = usePlayerPageNavigation();
   const recipeState = resolveFacilityDetailRecipeState(entry);
   const operatingScope = currentFormulaScope(group, liveNow);
   const selectConfiguration = (
@@ -398,16 +403,23 @@ export function FacilityClusterDetailBody({
     const recipeId = productionRecipeVariantId(type, selectedBaseRecipeId, selectedProductionMethodId);
     if (recipeId && recipeId !== recipeState.selectedRecipeId) onRecipeChange(recipeId);
   };
+  const openProductDetail = (productId: string) => {
+    const currentLocation = pageNavigation?.currentLocation;
+    if (currentLocation?.type === 'regional-facility' && pageNavigation) {
+      pageNavigation.pushPage({
+        type: 'regional-product',
+        host: currentLocation.host === 'province' ? 'province' : 'market',
+        provinceId: currentLocation.provinceId,
+        productId,
+      });
+      return;
+    }
+    onOpenProductMarket(productId);
+  };
 
   return (
     <>
-      <FacilityStaffingSummary entry={entry} now={liveNow} />
-
-      <section className="facility-production-settings mobile-detail-section">
-        <div className="facility-production-settings-heading">
-          <strong>生产设置</strong>
-        </div>
-
+      <section className="facility-production-settings mobile-detail-section" aria-label="生产配置">
         <FacilityProductionConfigControls
           className="facility-production-settings-grid"
           typeName={type.name}
@@ -434,7 +446,7 @@ export function FacilityClusterDetailBody({
         products={products}
         inventories={inventories}
         now={liveNow}
-        onOpenProductMarket={onOpenProductMarket}
+        onOpenProductMarket={openProductDetail}
       />
       <FacilityOperatingDiagnostics
         recipe={recipeState.activeRecipe}

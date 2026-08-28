@@ -11,12 +11,21 @@ test.describe('factory production methods', () => {
     await expect(page.locator('.mobile-workspace-sheet-host')).toHaveCount(0);
     const formula = detail.locator('.facility-production-formula');
     const productionSettings = detail.locator('.facility-production-settings');
+    const informationMain = detail.locator('.facility-information-summary .mobile-detail-summary__main');
     const recipeSelect = productionSettings.getByRole('combobox', { name: '机械工厂生产产物' });
     const methodSelect = productionSettings.getByRole('combobox', { name: '机械工厂生产方式' });
-    const inputSlot = formula.getByRole('button', { name: /^查看钢材市场/ });
-    const outputSlot = formula.getByRole('button', { name: /^查看机械市场/ });
+    const inputSlot = formula.getByRole('button', { name: /^查看钢材本地商品详情/ });
+    const outputSlot = formula.getByRole('button', { name: /^查看机械本地商品详情/ });
 
-    await expect(productionSettings).toContainText('生产设置');
+    await expect(productionSettings).not.toContainText('生产设置');
+    await expect(informationMain.locator('.facility-count-summary')).toBeVisible();
+    await expect(informationMain.locator('.facility-average-profit')).toBeVisible();
+    await expect(informationMain.locator('.facility-staffing-summary')).toBeVisible();
+    await expect(informationMain).toContainText('运行中');
+    await expect(informationMain).toContainText('冻结中');
+    await expect(informationMain).toContainText('抵押中');
+    await expect(informationMain).toContainText('单厂平均利润／分钟');
+    await expect(informationMain).toContainText('满员率');
     await expect(productionSettings.locator('.facility-production-method-summary')).toHaveCount(0);
     await expect(recipeSelect).toHaveAttribute('data-variant', 'production-config');
     await expect(methodSelect).toHaveAttribute('data-variant', 'production-config');
@@ -69,13 +78,36 @@ test.describe('factory production methods', () => {
       const fill = element.querySelector<HTMLElement>('.progress-track > span');
       return {
         trackTransition: track ? getComputedStyle(track).transition : '',
+        trackBorderRadius: track ? getComputedStyle(track).borderRadius : '',
         fillTransition: fill ? getComputedStyle(fill).transition : '',
+        fillOverflow: fill ? getComputedStyle(fill).overflow : '',
         arrowClipPath: fill ? getComputedStyle(fill, '::after').clipPath : '',
       };
     });
     expect(transitions.trackTransition).toBe('all');
+    expect(transitions.trackBorderRadius).not.toBe('0px');
     expect(transitions.fillTransition).toContain('width');
+    expect(transitions.fillOverflow).toBe('hidden');
     expect(transitions.arrowClipPath).not.toBe('none');
+
+    const marketLinkGeometry = await detail.getByRole('button', { name: /交易该建筑资产/ }).evaluate((element) => {
+      const icon = element.querySelector<SVGElement>('.game-icon');
+      const style = getComputedStyle(element);
+      const buttonBox = element.getBoundingClientRect();
+      const iconBox = icon?.getBoundingClientRect();
+      return {
+        display: style.display,
+        whiteSpace: style.whiteSpace,
+        buttonTop: buttonBox.top,
+        buttonBottom: buttonBox.bottom,
+        iconTop: iconBox?.top ?? -1,
+        iconBottom: iconBox?.bottom ?? -1,
+      };
+    });
+    expect(marketLinkGeometry.display).toBe('flex');
+    expect(marketLinkGeometry.whiteSpace).toBe('nowrap');
+    expect(marketLinkGeometry.iconTop).toBeGreaterThanOrEqual(marketLinkGeometry.buttonTop);
+    expect(marketLinkGeometry.iconBottom).toBeLessThanOrEqual(marketLinkGeometry.buttonBottom);
 
     async function resetMarketIntent() {
       await page.evaluate(() => {
@@ -115,13 +147,18 @@ test.describe('factory production methods', () => {
       await expect(workspaceHost).toHaveAttribute('data-detail-active', 'false');
       await expect(workspaceHost.locator('.mobile-workspace-sheet-detail-view')).toHaveCount(0);
       const productionSettings = detail.locator('.facility-production-settings');
+      const informationMain = detail.locator('.facility-information-summary .mobile-detail-summary__main');
       const recipeSelect = productionSettings.getByRole('combobox', { name: '机械工厂生产产物' });
       const methodSelect = productionSettings.getByRole('combobox', { name: '机械工厂生产方式' });
       const settlement = detail.locator('.facility-production-formula');
       const diagnostics = detail.locator('.facility-operating-diagnostics');
-      const inputSlot = settlement.getByRole('button', { name: /^查看钢材市场/ });
-      const outputSlot = settlement.getByRole('button', { name: /^查看机械市场/ });
+      const inputSlot = settlement.getByRole('button', { name: /^查看钢材本地商品详情/ });
+      const outputSlot = settlement.getByRole('button', { name: /^查看机械本地商品详情/ });
 
+      await expect(productionSettings).not.toContainText('生产设置');
+      await expect(informationMain.locator('.facility-count-summary')).toBeVisible();
+      await expect(informationMain.locator('.facility-average-profit')).toBeVisible();
+      await expect(informationMain.locator('.facility-staffing-summary')).toBeVisible();
       await expect(recipeSelect).toBeVisible();
       await expect(methodSelect).toBeVisible();
       await expect(settlement).toBeVisible();
