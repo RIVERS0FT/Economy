@@ -21,11 +21,14 @@ jobs:
           from pathlib import Path
           path = Path('scripts/verify-unified-factory-recipes-grid.mjs')
           text = path.read_text()
-          old = "  '<strong>生产设置</strong>',\n"
-          new = "  'aria-label=\"生产配置\"',\n"
-          if text.count(old) != 1:
-              raise SystemExit(f'expected one visible-heading assertion, got {text.count(old)}')
-          text = text.replace(old, new, 1)
+          replacements = [
+              ("  '<strong>生产设置</strong>',\n", "  'aria-label=\"生产配置\"',\n"),
+              ("  '.facility-information > .facility-average-profit',\n", "  '.facility-information-details > .facility-average-profit',\n"),
+          ]
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected one match for {old!r}, got {text.count(old)}')
+              text = text.replace(old, new, 1)
           marker = "]) assert.equal(detail.includes(text), true, `工厂详情缺少: ${text}`);\n\nfor (const forbidden of ["
           replacement = "]) assert.equal(detail.includes(text), true, `工厂详情缺少: ${text}`);\nassert.equal(detail.includes('<strong>生产设置</strong>'), false, '工厂详情不得恢复可见生产设置标题');\n\nfor (const forbidden of ["
           if text.count(marker) != 1:
