@@ -10,7 +10,11 @@ import {
   type MarketSortDirection,
 } from '../components/market/MarketCommodityRow';
 import { ProductArtwork } from '../components/products/ProductArtwork';
-import { EntityListHeader } from '../components/ui/EntityListHeader';
+import { CurrencyAmount } from '../components/ui/CurrencyAmount';
+import {
+  EntityListHeader,
+  type EntityListSortState,
+} from '../components/ui/EntityListHeader';
 import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import {
@@ -18,7 +22,6 @@ import {
   Panel,
 } from '../components/ui/layout';
 import type { AssetOrder, EconomyState, ProductCategory } from '../types';
-import { formatCurrency, formatNumber } from '../utils/formatters';
 import '../styles/global-operation-pages.css';
 import '../styles/entity-list-header.css';
 
@@ -27,6 +30,7 @@ const EmbeddedMarketPage = lazy(() => import('./MarketPage').then((module) => ({
 })));
 
 type GlobalMarketStatus = 'all' | 'traded' | 'unmet-demand' | 'no-trade';
+type GlobalMarketSortKey = 'name' | 'volume24h' | 'price-change24h' | 'average-price';
 type RegionalProductStatus = 'all' | 'traded' | 'buy' | 'sell' | 'own-order';
 
 const PRODUCT_CATEGORY_LABELS: Record<ProductCategory, string> = {
@@ -69,13 +73,9 @@ function operationalProvinces(model: OnlineAutoTradeAwareGameViewModel) {
   return game.provinces.filter((province) => unlocked.has(province.id));
 }
 
-function priceRange(prices: number[]) {
-  if (prices.length === 0) return '—';
-  const minimum = Math.min(...prices);
-  const maximum = Math.max(...prices);
-  return minimum === maximum
-    ? formatCurrency(minimum)
-    : formatCurrency(minimum) + ' – ' + formatCurrency(maximum);
+function average(values: number[]) {
+  if (values.length === 0) return undefined;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 function trendForHistory(
@@ -105,6 +105,10 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
   const [activeProvinceId, setActiveProvinceId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<'all' | ProductCategory>('all');
   const [statusFilter, setStatusFilter] = useState<GlobalMarketStatus>('all');
+  const [catalogSort, setCatalogSort] = useState<EntityListSortState<GlobalMarketSortKey>>({
+    key: 'catalog',
+    direction: 'asc',
+  });
   const [regionalStatusFilter, setRegionalStatusFilter] = useState<RegionalProductStatus>('all');
   const [regionalSort, setRegionalSort] = useState<MarketCommoditySortKey>('catalog');
   const [regionalSortDirection, setRegionalSortDirection] = useState<MarketSortDirection>('asc');
@@ -132,13 +136,19 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
     }
   }, [stackedLocation]);
 
-  const productRows = useMemo(() => game.products.map((product) => {
-    const prices: number[] = [];
+  const productRows = useMemo(() => game.products.map((product, catalogIndex) => {
+    const officialPrices: number[] = [];
+    const priceChanges24h: number[] = [];
+    let tradedProvinceCount = 0;
+    let tradeVolume24h = 0;
     let directDemandProvinces = 0;
     let unmetDemandProvinces = 0;
     for (const province of provinces) {
       const market = game.provinceMarkets?.[province.id]?.[product.id];
-      if (typeof market?.lastTradePrice === 'number') prices.push(market.lastTradePrice);
+      if (typeof market?.lastTradePrice === 'number') tradedProvinceCount += 1;
+      if (typeof market?.officialPrice === 'number') officialPrices.push(market.officialPrice);
+      if (typeof market?.priceChange24h === 'number') priceChanges24h.push(market.priceChange24h);
+      tradeVolume24h += Math.max(0, Number(market?.tradeVolume24h || 0));
       if ((market?.demand?.lastQuantity ?? 0) > 0) {
         directDemandProvinces += 1;
         if ((market?.demand?.satisfaction ?? 1) < 1) unmetDemandProvinces += 1;
@@ -149,20 +159,42 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
       name: product.name,
       category: product.category,
       categoryLabel: PRODUCT_CATEGORY_LABELS[product.category],
-      tradedProvinceCount: prices.length,
+      catalogIndex,
+      tradedProvinceCount,
       directDemandProvinces,
       unmetDemandProvinces,
-      range: priceRange(prices),
+      tradeVolume24h,
+      priceChange24h: average(priceChanges24h),
+      averagePrice: average(officialPrices),
     };
   }), [game.products, game.provinceMarkets, provinces]);
 
-  const filteredProductRows = useMemo(() => productRows.filter((row) => {
-    if (categoryFilter !== 'all' && row.category !== categoryFilter) return false;
-    if (statusFilter === 'traded' && row.tradedProvinceCount <= 0) return false;
-    if (statusFilter === 'unmet-demand' && row.unmetDemandProvinces <= 0) return false;
-    if (statusFilter === 'no-trade' && row.tradedProvinceCount > 0) return false;
-    return true;
-  }), [categoryFilter, productRows, statusFilter]);
+  const filteredProductRows = useMemo(() => {
+    const filtered = productRows.filter((row) => {
+      if (categoryFilter !== 'all' && row.category !== categoryFilter) return false;
+      if (statusFilter === 'traded' && row.tradedProvinceCount <= 0) return false;
+      if (statusFilter === 'unmet-demand' && row.unmetDemandProvinces <= 0) return false;
+      if (statusFilter === 'no-trade' && row.tradedProvinceCount > 0) return false;
+      return true;
+    });
+    return filtered.sort((left, right) => {
+      let comparison = 0;
+      if (catalogSort.key === 'name') {
+        comparison = catalogSort.direction === 'asc'
+          ? left.name.localeCompare(right.name, 'zh-CN')
+          : right.name.localeCompare(left.name, 'zh-CN');
+      } else if (catalogSort.key === 'volume24h') {
+        comparison = catalogSort.direction === 'asc'
+          ? left.tradeVolume24h - right.tradeVolume24h
+          : right.tradeVolume24h - left.tradeVolume24h;
+      } else if (catalogSort.key === 'price-change24h') {
+        comparison = compareMarketOptionalValue(left.priceChange24h, right.priceChange24h, catalogSort.direction);
+      } else if (catalogSort.key === 'average-price') {
+        comparison = compareMarketOptionalValue(left.averagePrice, right.averagePrice, catalogSort.direction);
+      }
+      return comparison || left.catalogIndex - right.catalogIndex;
+    });
+  }, [catalogSort, categoryFilter, productRows, statusFilter]);
 
   const orderVolumes = useMemo(() => {
     const byProvinceAndProduct = new Map<string, number>();
@@ -411,12 +443,14 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
         <EntityListHeader
           className="global-market-goods-header"
           columns={[
-            { label: '商品' },
-            { label: '成交地区' },
-            { label: '真实成交价范围' },
-            { label: '需求未满足' },
+            { label: '商品', sortKey: 'name', defaultDirection: 'asc' },
+            { label: '24h成交量', sortKey: 'volume24h', defaultDirection: 'desc' },
+            { label: '24h价格变化', sortKey: 'price-change24h', defaultDirection: 'desc' },
+            { label: '平均价格', sortKey: 'average-price', defaultDirection: 'desc' },
             { key: 'chevron', label: '' },
           ]}
+          sortState={catalogSort}
+          onSortChange={setCatalogSort}
         />
         <ul className="global-market-goods-list" aria-label="全局商品目录">
           {filteredProductRows.map((row) => (
@@ -432,9 +466,13 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
                   <span className="global-market-goods-row__artwork" aria-hidden="true"><ProductArtwork productId={row.id} /></span>
                   <span className="global-market-goods-row__name"><strong>{row.name}</strong><small>{row.categoryLabel}</small></span>
                 </span>
-                <span className="global-market-goods-row__metric"><strong>{<CompactNumber value={row.tradedProvinceCount} />} / {<CompactNumber value={provinces.length} />}</strong></span>
-                <span className="global-market-goods-row__metric"><strong>{row.range}</strong></span>
-                <span className="global-market-goods-row__metric"><strong>{<CompactNumber value={row.unmetDemandProvinces} />} / {<CompactNumber value={row.directDemandProvinces} />}</strong></span>
+                <span className="global-market-goods-row__metric"><strong><CompactNumber value={row.tradeVolume24h} /></strong></span>
+                <span className="global-market-goods-row__metric"><strong>{typeof row.priceChange24h === 'number'
+                  ? <CurrencyAmount sign={row.priceChange24h > 0 ? '+' : undefined}>{row.priceChange24h}</CurrencyAmount>
+                  : '—'}</strong></span>
+                <span className="global-market-goods-row__metric"><strong>{typeof row.averagePrice === 'number'
+                  ? <CurrencyAmount>{row.averagePrice}</CurrencyAmount>
+                  : '—'}</strong></span>
                 <span className="global-market-goods-row__chevron" aria-hidden="true">
                   <ChevronIcon direction="right" />
                 </span>
