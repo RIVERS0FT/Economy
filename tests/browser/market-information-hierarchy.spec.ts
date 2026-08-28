@@ -3,9 +3,15 @@ import { expect, test } from '@playwright/test';
 test('market uses product-first global and regional information hierarchy', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('?preview=game');
-  await page.locator('.desktop-sidebar').getByRole('button', { name: /^市场/ }).click();
+  const sidebar = page.locator('.desktop-sidebar');
+  await sidebar.getByRole('button', { name: /^市场/ }).click();
 
   await expect(page.getByRole('heading', { level: 1, name: '市场' })).toBeVisible();
+  const expandedSidebarBox = await sidebar.boundingBox();
+  if (!expandedSidebarBox) throw new Error('desktop sidebar is missing after opening market');
+  await page.mouse.move(expandedSidebarBox.x + expandedSidebarBox.width + 80, expandedSidebarBox.y + 30);
+  await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+
   await expect(page.locator('.global-market-page > .widget-heading')).toHaveCount(0);
   await expect(page.locator('.global-market-summary-strip')).toHaveCount(0);
   await expect(page.locator('.global-market-provinces-panel')).toHaveCount(0);
