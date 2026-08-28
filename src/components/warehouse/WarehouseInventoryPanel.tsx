@@ -3,7 +3,6 @@ import { useMemo } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../../auto-trade/useOnlineAutoTrade';
 import { formatNumber } from '../../utils/formatters';
 import { ProductIcon } from '../icons/ProductIcons';
-import { StatusTag, WidgetHeading } from '../ui/layout';
 
 export function WarehouseInventoryGrid({
   model,
@@ -23,10 +22,6 @@ export function WarehouseInventoryGrid({
 
   return (
     <section className="warehouse-content" aria-label="仓库商品">
-      <WidgetHeading
-        title="仓库内容"
-        action={<span>实物库存 {<CompactNumber value={game.warehouseStoredQuantity} />}</span>}
-      />
       {stockedProducts.length > 0 ? (
         <div className="warehouse-product-grid">
           {stockedProducts.map((product) => {
@@ -69,9 +64,6 @@ export function WarehouseInventoryPanel({
 }) {
   return (
     <div className={`warehouse-inventory-panel ${className}`.trim()}>
-      <div className="warehouse-heading-actions">
-        <StatusTag tone="neutral">无限容量</StatusTag>
-      </div>
       <WarehouseInventoryGrid model={model} onOpenProduct={onOpenProduct} />
     </div>
   );
