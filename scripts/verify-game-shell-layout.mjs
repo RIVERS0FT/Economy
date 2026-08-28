@@ -207,6 +207,7 @@ check('src/styles/strategic-game-shell.css', [
   '--strategic-compact-page-width: 56rem;',
   '--strategic-page-open-motion: 220ms cubic-bezier(.2, .8, .2, 1);',
   '--strategic-primary-card-inline-size:',
+  '.game-shell.strategic-tab-transport,',
   'calc(100vw / 3),',
   '--strategic-outliner-width: clamp(280px, 21vw, 320px);',
   '--strategic-outliner-reserved-width:',

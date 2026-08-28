@@ -610,6 +610,7 @@
   .game-shell.strategic-tab-province,
   .game-shell.strategic-tab-market,
   .game-shell.strategic-tab-buildings,
+  .game-shell.strategic-tab-transport,
   .game-shell.strategic-tab-settings {
     --strategic-primary-card-inline-size: min(
       calc(100vw / 3),
