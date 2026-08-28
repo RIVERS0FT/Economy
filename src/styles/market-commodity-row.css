@@ -156,7 +156,7 @@
     padding-block: .35rem;
   }
 
-  .market-commodity-row__identity {
+  .market-commodity-row__identity:not(.market-commodity-row__identity--region) {
     grid-template-columns: 34px minmax(0, 1fr);
     gap: .35rem;
   }
@@ -197,7 +197,7 @@
     display: none;
   }
 
-  .market-commodity-row__identity {
+  .market-commodity-row__identity:not(.market-commodity-row__identity--region) {
     grid-template-columns: 30px minmax(0, 1fr);
     gap: .28rem;
   }
