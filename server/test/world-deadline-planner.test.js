@@ -165,8 +165,8 @@ test('deadline scheduler does not spin when non-pruneable open orders exceed the
     store.resetSchedulerDiagnostics();
 
     const before = store.getSchedulerDiagnostics();
-    assert.ok(before.nextDueAt > clock.now);
-    clock.advance(Math.min(60_000, Math.max(0, before.nextDueAt - clock.now - 1)));
+    assert.ok(before.nextDueAt - clock.now > 60_000);
+    clock.advance(60_000);
     const after = store.getSchedulerDiagnostics();
     assert.equal(after.transactions, 0);
     assert.equal(after.processedWakeups, 0);
