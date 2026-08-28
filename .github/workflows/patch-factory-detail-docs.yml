@@ -1,0 +1,152 @@
+name: Patch factory detail docs
+
+on:
+  push:
+    branches:
+      - fix/facility-detail-summary-local-product
+
+permissions:
+  contents: write
+
+jobs:
+  patch-docs:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch authoritative design rules
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 match, got {count}')
+              return text.replace(old, new, 1)
+
+          page_path = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          page = page_path.read_text()
+
+          page = replace_once(
+              page,
+              '- 工厂详情“生产结算”的投入／产出物资槽是商品市场的直接导航入口；点击或键盘激活时必须调用统一商品市场选择语义，以 `commodity + productId` 打开对应商品。不得根据生产配方语义自动推断采购／出售方向，数量和价格继续按统一市场资产切换的订单草稿初始化规则处理（当前数量重置为 `1`，并按当前方向与目标资产初始化默认价格），不得自动提交订单；不得改写建筑页建设工厂类型、数量、配方、作业制度或任何服务器权威生产状态。',
+              '- 工厂详情“生产结算”的投入／产出物资槽是当前州本地商品详情的直接导航入口；点击或键盘激活时必须通过受限页面栈从当前 `regional-facility` push 同 `provinceId + productId` 的 `regional-product`：来源宿主为 `province` 时继续使用 `province`，来源为建筑一级页时使用 `market` 宿主；返回必须回到原工厂详情。应用外壳继续以 `commodity + productId` 选择对应地区商品，不得先进入商品全局详情或商品目录。不得根据生产配方语义自动推断采购／出售方向，数量和价格继续按统一市场资产切换的订单草稿初始化规则处理（当前数量重置为 `1`，并按当前方向与目标资产初始化默认价格），不得自动提交订单；不得改写建筑页建设工厂类型、数量、配方、作业制度或任何服务器权威生产状态。',
+              'page local product navigation',
+          )
+          page = replace_once(
+              page,
+              '- “运行中／冻结中／抵押中”三项数量摘要；\n- 场景插画和只显示当前百分比、恢复／下降状态与进度条的满员率状态带；\n- 双列“生产产物／作业制度”生产设置，不显示周期、产出、成本摘要；\n- “投入／产出 → 时间与成本数据带 → 生产进度 → 单厂平均利润”的生产结算；',
+              '- 场景插画右侧主信息区固定包含“运行中／冻结中／抵押中”三项数量摘要、单厂平均利润／分钟与满员率；满员率只显示当前百分比、恢复／下降状态与进度条；\n- 双列“生产产物／作业制度”生产配置，不显示独立“生产设置”标题，也不显示周期、产出、成本摘要；\n- “投入／产出 → 时间与成本数据带 → 生产进度”的生产结算；生产进度轨道使用胶囊圆角，流光只允许在已完成填充内部并由填充裁剪；',
+              'page facility detail list',
+          )
+          page = replace_once(
+              page,
+              '- 固定在详情底部的“交易该建筑资产”文本与右向无横杆 Chevron。',
+              '- 固定在详情底部且保持同一行的“交易该建筑资产”文本与右向无横杆 Chevron。',
+              'page market action row',
+          )
+          page = replace_once(
+              page,
+              '- 建筑页工厂详情把基础配方与作业制度放在同一个“生产设置”区。基础配方与作业制度都使用统一富内容下拉选择控件，不得把作业制度恢复为选择卡、按钮组或独立弹窗。',
+              '- 建筑页工厂详情把基础配方与作业制度放在同一个无标题生产配置区；生产配置区不显示独立“生产设置”标题。基础配方与作业制度都使用统一富内容下拉选择控件，不得把作业制度恢复为选择卡、按钮组或独立弹窗。',
+              'page production config heading',
+          )
+          page = replace_once(
+              page,
+              '- 工厂详情正文固定在生产设置之前显示当前工厂场景插画和满员率状态带；桌面详情与移动底部详情共用同一正文组件，移动端不得遗漏满员率百分比、方向、进度条或周期等效产能说明。',
+              '- 工厂详情首个正文区固定使用场景插画与右侧主信息两列；运行中／冻结中／抵押中数量明细、单厂平均利润和满员率都位于插画右侧，桌面详情与移动底部详情共用同一正文组件，移动端不得遗漏满员率百分比、方向、进度条或周期等效产能说明。',
+              'page right-side information',
+          )
+          page = replace_once(
+              page,
+              '生产设置的富内容列表继续 Portal 到同一 Dialog 根并位于 Sheet 表面之上',
+              '生产配置的富内容列表继续 Portal 到同一 Dialog 根并位于 Sheet 表面之上',
+              'page production config portal',
+          )
+          page = replace_once(
+              page,
+              '桌面详情和移动底部详情必须共用同一生产设置组件、相同下拉选中状态与相同下一周期语义。',
+              '桌面详情和移动底部详情必须共用同一生产配置组件、相同下拉选中状态与相同下一周期语义。',
+              'page shared production config component',
+          )
+          page = replace_once(
+              page,
+              '- 把工厂经营诊断改成自动最高利润推荐、自动采购、自动出售或未来行情预测；',
+              '- 把工厂经营诊断改成自动最高利润推荐、自动采购、自动出售或未来行情预测；\n- 把运行中／冻结中／抵押中、单厂平均利润或满员率移回插画下方，恢复可见“生产设置”标题，让“交易该建筑资产”文字与 Chevron 换行，或让生产进度流光越出已完成填充；\n- 让地区工厂投入／产出物资槽先进入商品全局详情／目录、切换到其他州或丢失返回工厂详情的受限页面栈；必须直接进入同州地区商品详情。',
+              'page factory detail anti-regression',
+          )
+          page_path.write_text(page)
+
+          ui_path = Path('docs/UI_DESIGN_SYSTEM.md')
+          ui = ui_path.read_text()
+          ui = replace_once(
+              ui,
+              '当前工厂详情使用唯一 `FacilityClusterInformation` 合并名称、`4:5` 纵向场景插画、总数量、唯一状态胶囊、`SwitchControl`、运行中／冻结中／抵押中数量明细与单厂平均利润；移动固定头部不得继续承载名称、状态或开关。',
+              '当前工厂详情使用唯一 `FacilityClusterInformation` 合并名称、`4:5` 纵向场景插画、总数量、唯一状态胶囊与 `SwitchControl`；运行中／冻结中／抵押中数量明细、单厂平均利润与满员率全部位于插画右侧主信息区，移动固定头部不得继续承载名称、状态或开关。',
+              'ui facility information',
+          )
+          ui = replace_once(
+              ui,
+              '数量摘要位于工厂信息区内部，固定为“运行中／冻结中／抵押中”三列；总数量只在主信息中显示一次，不得重新拼入标题。',
+              '数量摘要位于工厂信息区内部，固定为“运行中／冻结中／抵押中”三列；单厂平均利润与满员率紧随数量摘要并同样位于插画右侧；总数量只在主信息中显示一次，不得重新拼入标题。',
+              'ui information metrics',
+          )
+          ui = replace_once(
+              ui,
+              '当前工厂详情顺序固定为“移动把手（桌面无）→ 工厂信息 → 满员率 → 生产设置 → 生产结算 → 经营诊断 → 市场入口”。仅工厂信息内部允许纵向插画与主信息两列；其余区块必须按 DOM 自上而下排列。满员率使用无独立圆角和背景的状态带，只显示百分比、方向和进度条。',
+              '当前工厂详情顺序固定为“移动把手（桌面无）→ 工厂信息（插画右侧含运行／冻结／抵押、单厂平均利润与满员率）→ 生产配置 → 生产结算 → 经营诊断 → 市场入口”。工厂信息内部使用纵向插画与主信息两列；其余区块必须按 DOM 自上而下排列。满员率使用无独立圆角和背景的状态带，只显示百分比、方向和进度条。',
+              'ui detail order',
+          )
+          ui = replace_once(
+              ui,
+              '玩家可见的“生产产物”与“作业制度”固定使用同一个“生产设置”区和共享 `RichSelectInput` 的 `production-config` 生产方案槽；',
+              '玩家可见的“生产产物”与“作业制度”固定使用同一个无标题生产配置区和共享 `RichSelectInput` 的 `production-config` 生产方案槽；生产配置区不显示独立“生产设置”标题；',
+              'ui production config heading',
+          )
+          ui = replace_once(
+              ui,
+              '公式、操作数据带和进度共同组成“生产结算”；生产进度位于数据带下方，并且是生产结算最后一个可见元素；单厂平均利润只属于工厂信息区。',
+              '公式、操作数据带和进度共同组成“生产结算”；生产进度位于数据带下方，并且是生产结算最后一个可见元素；生产进度轨道使用胶囊圆角，流光伪元素必须被已完成填充自身裁剪，未完成轨道不得出现流光；单厂平均利润只属于工厂信息区。',
+              'ui formula progress shimmer',
+          )
+          ui = replace_once(
+              ui,
+              '生产结算中的每个投入／产出物资槽整体使用原生按钮语义并可直接打开对应商品市场；',
+              '生产结算中的每个投入／产出物资槽整体使用原生按钮语义并可直接打开当前州对应本地商品详情；',
+              'ui local product slot',
+          )
+          ui = replace_once(
+              ui,
+              '从生产结算商品物资槽进入市场必须复用统一市场资产选择语义，以 `commodity + productId` 打开对应商品；',
+              '从生产结算商品物资槽进入本地商品详情必须复用受限页面栈，从当前 `regional-facility` push 同 `provinceId + productId` 的 `regional-product` 并允许返回原工厂详情；应用外壳继续以 `commodity + productId` 打开当前州对应商品，不得先进入商品全局详情或商品目录；',
+              'ui local product navigation',
+          )
+          ui = replace_once(
+              ui,
+              '生产进度条横向铺满公式容器并作为输入到输出的唯一连接视觉；运行、停止和异常状态都保留同一进度轨道。进度填充允许使用内置方向端帽和低强度高光，但不得新增独立箭头元素或第二条连接线。',
+              '生产进度条横向铺满公式容器并作为输入到输出的唯一连接视觉；运行、停止和异常状态都保留同一胶囊圆角进度轨道。进度填充允许使用内置方向端帽和低强度高光，但流光只允许在已完成填充内部并由填充裁剪，未完成轨道不得出现流光；不得新增独立箭头元素或第二条连接线。',
+              'ui progress track',
+          )
+          ui = replace_once(
+              ui,
+              '卡片内部只允许一个弹性空白区，位于生产内容与资产交易入口之间；入口固定在卡片底部，固定使用“交易该建筑资产”文本与右向无横杆 Chevron。',
+              '卡片内部只允许一个弹性空白区，位于生产内容与资产交易入口之间；入口固定在卡片底部，“交易该建筑资产”文字与右向 Chevron 固定同一行，不得换行或把图标挤到下一行；Chevron 继续使用无横杆样式。',
+              'ui market action row',
+          )
+          ui_path.write_text(ui)
+          PY
+          node scripts/verify-production-settlement-layout.mjs
+          git diff --check
+      - name: Commit design updates
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/UI_DESIGN_SYSTEM.md
+          git diff --cached --quiet && exit 0
+          git commit -m "更新工厂详情设计基线 [docs-synced]"
+          git push origin HEAD:fix/facility-detail-summary-local-product
