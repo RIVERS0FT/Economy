@@ -51,9 +51,20 @@ jobs:
 
           echo '=== database ==='
           stat -c 'bytes=%s modified=%y' /var/lib/riversoft-economy/economy.sqlite || true
+          python3 - <<'PY'
+          import sqlite3
+          path = 'file:/var/lib/riversoft-economy/economy.sqlite?mode=ro'
+          db = sqlite3.connect(path, uri=True, timeout=2)
+          print('meta=', db.execute('SELECT revision, world_version, storage_schema_version, updated_at FROM economy_world_meta WHERE id=1').fetchone())
+          print('players=', db.execute('SELECT COUNT(*), COALESCE(SUM(length(state_json)),0), COALESCE(MAX(length(state_json)),0) FROM economy_world_players').fetchone())
+          print('segments:')
+          for row in db.execute('SELECT segment_key, length(state_json), updated_revision FROM economy_world_segments ORDER BY length(state_json) DESC'):
+              print(row)
+          db.close()
+          PY
 
           echo '=== health samples ==='
-          for i in 1 2 3 4 5; do
+          for i in 1 2 3; do
             curl -sS --max-time 5 -w '\nstatus=%{http_code} total=%{time_total}\n' http://127.0.0.1:3002/health || true
             sleep 1
           done
@@ -62,4 +73,16 @@ jobs:
           journalctl -u riversoft-economy-api.service --since '2 hours ago' --no-pager \
             | grep 'ECONOMY_SESSION_SLOW' \
             | tail -n 100 || true
+
+          echo '=== perf availability ==='
+          if command -v perf >/dev/null 2>&1 && [ -n "$pid" ] && [ "$pid" != "0" ]; then
+            echo perf-present
+            if sudo -n true 2>/dev/null; then
+              sudo -n timeout 8s perf record -F 49 -g -p "$pid" -o /tmp/economy-state-timeout.perf -- sleep 5 >/dev/null 2>&1 || true
+              sudo -n perf report -i /tmp/economy-state-timeout.perf --stdio --no-children 2>/dev/null | head -n 80 || true
+              sudo -n rm -f /tmp/economy-state-timeout.perf || true
+            fi
+          else
+            echo perf-unavailable
+          fi
           REMOTE
