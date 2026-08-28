@@ -1,0 +1,77 @@
+name: Sync market detail branch
+
+on:
+  push:
+    branches:
+      - fix/market-detail-layout-clipping-20260828
+
+permissions:
+  contents: write
+
+jobs:
+  sync-main:
+    if: github.actor != 'github-actions[bot]' || !contains(github.event.head_commit.message, '同步 main 并解决市场详情设计冲突')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Merge latest main and resolve authoritative page design
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "Branch already contains current main."
+            exit 0
+          fi
+          if ! git merge --no-commit --no-ff origin/main; then
+            conflicts="$(git diff --name-only --diff-filter=U)"
+            if [ "$conflicts" != "docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md" ]; then
+              echo "Unexpected merge conflicts:"
+              printf '%s\n' "$conflicts"
+              exit 1
+            fi
+            git checkout --theirs docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
+          fi
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          text = path.read_text()
+
+          old_detail = '点击商品进入当前地区商品详情；详情固定承载当前地区真实价格与近 24 小时真实成交量／趋势、当前仓库可用／冻结／发运在途库存、按运行中当前配方和预计整数等效产能换算的预计生产速度、统一五档订单簿与手动下单、本人订单／本地成交，以及锁定当前 `provinceId + productId` 的在线自动采购／自动出售设置。'
+          new_detail = '点击商品进入当前地区商品详情；详情固定承载当前地区真实价格与近 24 小时真实成交量／趋势、当前仓库可用库存、统一五档订单簿与手动下单、本人订单／本地成交，以及锁定当前 `provinceId + productId` 的在线自动采购／自动出售设置。'
+          if old_detail not in text:
+              raise SystemExit('未找到地区商品详情旧库存／生产职责规则')
+          text = text.replace(old_detail, new_detail, 1)
+
+          old_context = '地区商品详情不再显示“生产者与消费者”关系卡。库存与生产卡只读取当前地区真实库存、发运在途数量以及当前运行工厂的当前配方和共享预计整数等效产能，预计生产速度统一换算为件／分钟并明确属于客户端只读投影，不进入订单簿供需、生产结算、就业、价格或排行榜。'
+          new_context = '地区商品详情不再显示“生产者与消费者”关系卡。地区商品详情基本面条固定只显示需求满足率、参考价、上轮需求（含预算）和当前可用库存；冻结库存、发运在途、预计生产速度和预计等效产能分别归仓库或建筑页面，不在市场详情重复。'
+          if old_context not in text:
+              raise SystemExit('未找到地区商品详情旧库存与生产说明')
+          text = text.replace(old_context, new_context, 1)
+
+          old_layout = '详情交易区继续按实际内容宽度使用响应式布局：交易卡内部同时显示下单与五档盘口，商品基本面、库存与生产、行情卡以及纵向排列的当前资产订单／成交按单一页面滚动区排列。'
+          new_layout = '详情交易区继续按实际内容宽度使用响应式布局：交易卡内部同时显示下单与五档盘口，直接基本面条、行情卡以及纵向排列的当前资产订单／成交按单一页面滚动区排列。'
+          if old_layout not in text:
+              raise SystemExit('未找到地区商品详情旧页面滚动区规则')
+          text = text.replace(old_layout, new_layout, 1)
+
+          anchor = '完整行情图由组件按自身宽度、根字号、成交量最低可读高度与底部安全区计算动态高度；桌面仅以接近 `16:9` 为基础，业务 CSS 不得强制固定比例，也不能使用基于浏览器 `vw` 的固定高度。\n'
+          addition = '\n地区商品详情顶部身份与核心价格事实、直接基本面条的响应式断点必须读取 `.market-page-surface` 的真实内容容器宽度，不得只用浏览器 viewport。容器不大于 `720px` 时身份与三项核心价格事实分成上下两行，三项价格指标第二行等分且不得越出内容边界；直接基本面条固定为“需求满足率／参考价、上轮需求／可用库存”两列两行，第二行必须占满两列并按自然高度紧跟行情图，不保留空白占位列或固定填充高度。\n'
+          if addition.strip() not in text:
+              if anchor not in text:
+                  raise SystemExit('未找到地区商品详情布局插入锚点')
+              text = text.replace(anchor, anchor + addition, 1)
+
+          path.write_text(text)
+          PY
+          git add docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
+          if git diff --cached --quiet && git merge-base --is-ancestor origin/main HEAD; then
+            exit 0
+          fi
+          git commit -m "同步 main 并解决市场详情设计冲突"
+          git push origin HEAD:fix/market-detail-layout-clipping-20260828
