@@ -27,6 +27,10 @@ for (const path of [
   'src/styles/entity-list-header.css',
   'src/pages/BuildingsPage.tsx',
   'src/pages/ProvincePage.tsx',
+  'src/pages/TransportPage.tsx',
+  'src/components/ui/layout.tsx',
+  'src/styles/transport-page.css',
+  'docs/UI_DESIGN_SYSTEM.md',
   'tests/browser/runtime-harness.tsx',
   'tests/browser/province-locked-access.spec.ts',
   'src/pages/PageRouter.tsx',
@@ -60,6 +64,29 @@ for (const text of [
   '用户缩放范围固定为 `0.5～4`',
   '地图不得提供独立的放大、缩小或重置功能面板',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+for (const text of [
+  '运输页的“增加路线”固定放在正文顶部操作区',
+]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+for (const text of [
+  '玩家端 `PageLayout` 的标题区固定只包含返回、主标题和关闭三个槽位',
+  '`PageLayout.actions` 只允许非玩家页面继续使用',
+]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
+for (const text of [
+  'className="transport-page-actions"',
+  '<PageLayout title="运输">',
+]) requireText('src/pages/TransportPage.tsx', text);
+for (const text of [
+  'actions={(',
+]) forbidText('src/pages/TransportPage.tsx', text);
+requireText('src/styles/transport-page.css', '.transport-page-actions {');
+for (const text of [
+  'page-heading-actions--player',
+  'data-player-page-actions',
+]) {
+  forbidText('src/components/ui/layout.tsx', text);
+  forbidText('src/styles/globals.css', text);
+}
+
 for (const text of [
   '建筑仍按工厂与地区入口钻取',
   '默认页汇总全部已解锁州的工厂总数、运行中、异常、有工厂州数',

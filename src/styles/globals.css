@@ -397,12 +397,6 @@ p {
   height: 1.25rem;
 }
 
-.page-heading-actions--player {
-  width: 100%;
-  justify-content: flex-end;
-  padding: 0 var(--layout-gutter) var(--layout-gutter);
-}
-
 .widget {
   min-width: 0;
   padding: var(--space-4);

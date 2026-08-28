@@ -5,6 +5,12 @@
   container: transport-page / inline-size;
 }
 
+.transport-page-actions {
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .transport-route-editor,
 .transport-routes-panel,
 .transport-records-panel {
