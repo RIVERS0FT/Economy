@@ -9,6 +9,8 @@ import { nextResearchDeadlineAt } from './research.js';
 import { nextTransportDeadline } from './transport.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_RECENT_CLOSED_ORDERS = 800;
+const MAX_FACILITY_LISTINGS = 800;
 
 function finiteTimestamp(value) {
   const timestamp = Number(value);
@@ -68,14 +70,17 @@ function leaderboardDeadline(world, now) {
 }
 
 function orderPruneDeadline(world, now) {
-  if ((world.orders || []).length > 4_000 || (world.facilityListings || []).length > 800) return now;
   let deadline = null;
+  let closedOrderCount = 0;
   for (const order of world.orders || []) {
     if (isOpenOrder(order)) continue;
+    closedOrderCount += 1;
     const createdAt = finiteTimestamp(order.createdAt);
     if (createdAt === null) continue;
     deadline = earlier(deadline, createdAt + DAY_MS + 1);
   }
+  if (closedOrderCount > MAX_RECENT_CLOSED_ORDERS) return now;
+  if ((world.facilityListings || []).length > MAX_FACILITY_LISTINGS) return now;
   return deadline;
 }
 
