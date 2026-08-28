@@ -84,9 +84,9 @@ test.describe('warehouse and market online auto trade responsibilities', () => {
 
     const warehouse = page.locator('.province-warehouse-section');
     await expect(warehouse).toBeVisible();
-    await expect(warehouse.getByText('无限容量', { exact: true })).toBeVisible();
-    await expect(warehouse.getByText('仓库内容', { exact: true })).toBeVisible();
-    await expect(warehouse.getByText(/实物库存\s+\S+/)).toBeVisible();
+    await expect(warehouse.getByText('无限容量', { exact: true })).toHaveCount(0);
+    await expect(warehouse.getByText('仓库内容', { exact: true })).toHaveCount(0);
+    await expect(warehouse.getByText(/实物库存\s+\S+/)).toHaveCount(0);
     const productCards = warehouse.locator('button.warehouse-product-card');
     expect(await productCards.count()).toBeGreaterThan(0);
     await expect(warehouse.locator('.warehouse-transport-panel')).toHaveCount(0);
