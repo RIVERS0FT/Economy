@@ -1066,10 +1066,6 @@ p {
     gap: var(--space-2);
   }
 
-  .page-heading-actions--player {
-    justify-content: flex-end;
-  }
-
   .page-heading-actions {
     width: 100%;
     flex-wrap: wrap;
