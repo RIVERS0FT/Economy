@@ -65,6 +65,21 @@ test('market uses product-first global and regional information hierarchy', asyn
   }
   await expect(regionalRow.locator('.market-commodity-row__chevron .game-icon')).toHaveCount(1);
 
+  await page.setViewportSize({ width: 500, height: 900 });
+  await expect(regionalRow).toBeVisible();
+  const compactRegionIdentityGeometry = await regionalRow.locator('.market-commodity-row__identity--region').evaluate((identity) => ({
+    columnCount: getComputedStyle(identity).gridTemplateColumns.split(/\s+/).filter(Boolean).length,
+    width: identity.getBoundingClientRect().width,
+  }));
+  const compactRegionNameGeometry = await regionalRow.locator('.market-commodity-row__name strong').evaluate((name) => ({
+    clientWidth: name.clientWidth,
+    scrollWidth: name.scrollWidth,
+  }));
+  expect(compactRegionIdentityGeometry.columnCount).toBe(1);
+  expect(compactRegionIdentityGeometry.width).toBeGreaterThan(60);
+  expect(compactRegionNameGeometry.scrollWidth).toBeLessThanOrEqual(compactRegionNameGeometry.clientWidth + 1);
+  await page.setViewportSize({ width: 1440, height: 900 });
+
   await regionalRow.click();
   await expect(page.locator('.market-detail-hero__market-price')).toBeVisible();
   await expect(page.locator('.market-fundamentals-balance .market-balance-bar')).toHaveCount(1);
