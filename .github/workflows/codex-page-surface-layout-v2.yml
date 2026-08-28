@@ -1,0 +1,203 @@
+name: Apply page surface layout v2
+
+on:
+  push:
+    branches:
+      - codex/page-surface-layout
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/page-surface-layout
+          fetch-depth: 0
+
+      - name: Apply requested layout changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, content):
+              Path(path).write_text(content, encoding='utf-8', newline='\n')
+
+          def replace_once(path, old, new):
+              content = read(path)
+              count = content.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one occurrence, found {count}: {old[:140]!r}')
+              write(path, content.replace(old, new, 1))
+
+          def replace_at_least_once(path, old, new):
+              content = read(path)
+              count = content.count(old)
+              if count < 1:
+                  raise SystemExit(f'{path}: expected at least one occurrence: {old[:140]!r}')
+              write(path, content.replace(old, new))
+
+          def regex_once(path, pattern, repl):
+              content = read(path)
+              updated, count = re.subn(pattern, repl, content, count=1, flags=re.S)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one regex occurrence, found {count}: {pattern!r}')
+              write(path, updated)
+
+          replace_once('src/components/shell/GameShell.tsx', "  transport: 'fullscreen',", "  transport: 'building',")
+
+          replace_once(
+              'src/pages/TransportPage.tsx',
+              '    >\n      {routeDraft ? (',
+              '    >\n      <div className="transport-page-content">\n        {routeDraft ? (',
+          )
+          replace_once(
+              'src/pages/TransportPage.tsx',
+              '      </PagePanel>\n    </PageLayout>\n  );\n}',
+              '      </PagePanel>\n      </div>\n    </PageLayout>\n  );\n}',
+          )
+          replace_once(
+              'src/styles/transport-page.css',
+              '.transport-route-editor,\n.transport-routes-panel,\n.transport-records-panel {',
+              '.transport-page-content {\n  min-width: 0;\n  display: grid;\n  gap: var(--layout-gutter);\n  container: transport-page / inline-size;\n}\n\n.transport-route-editor,\n.transport-routes-panel,\n.transport-records-panel {',
+          )
+          replace_once('src/styles/transport-page.css', '@media (max-width: 720px) {', '@container transport-page (max-width: 640px) {')
+
+          province_path = 'src/pages/ProvincePage.tsx'
+          replace_once(province_path, '  PagePanel,\n', '')
+          regex_once(province_path, r'<PagePanel className="province-overview-panel">(.*?)</PagePanel>', r'<section className="province-overview-content">\1</section>')
+          regex_once(province_path, r'<PagePanel className="province-lock-panel">(.*?)</PagePanel>', r'<section className="province-lock-content">\1</section>')
+          replace_once('src/styles/province-page.css', '.province-overview-panel {', '.province-overview-content {')
+          replace_once('src/styles/province-page.css', '.province-lock-panel {', '.province-lock-content {')
+
+          page_design = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md'
+          replace_once(page_design, '> 更新时间：2026-08-27', '> 更新时间：2026-08-28')
+          replace_once(page_design, '概览、州级上下文、市场、建筑、设置使用 `building`', '概览、州级上下文、市场、建筑、运输、设置使用 `building`')
+          replace_once(page_design, '运输、研发、拍卖、合同、银行、排行榜、商店使用 `fullscreen`', '研发、拍卖、合同、银行、排行榜、商店使用 `fullscreen`')
+          replace_at_least_once(page_design, '七个 `fullscreen`', '六个 `fullscreen`')
+          page_unlock_anchor = '一级市场商品的地区行情列表与一级建筑工厂的地区列表只允许出现当前玩家已解锁州，不能因为锁定州的概览或市场可查看就把锁定州加入这些全局经营钻取列表。\n'
+          replace_once(
+              page_design,
+              page_unlock_anchor,
+              page_unlock_anchor + '\n州级概览以及未解锁建筑／仓库分区在正常状态下都只有一个一级业务模块，因此不得再为整个分区套 `PagePanel`／`.panel` 圆角卡片；标题、指标、数据行和解锁操作直接排列在 `PageLayout` 正文内容区。只有同一内容区存在两个及以上需要视觉分组的同级业务模块时才创建一级圆角卡片，避免 `workspaceCard` 与唯一业务卡形成无信息增益的双层圆角外壳。\n',
+          )
+          replace_once(
+              page_design,
+              '；研发、拍卖、合同、银行、排行榜、商店使用 `fullscreen`。桌面战略追踪器',
+              '；研发、拍卖、合同、银行、排行榜、商店使用 `fullscreen`。运输页固定使用与市场相同的 `building` 外壳；其路线编辑、路线列表和运输记录仍是多个独立业务分组，可以继续使用一级卡片，但内部响应式必须依据真实页面内容容器宽度而不是只依赖 `720px` 浏览器视口断点。桌面战略追踪器',
+          )
+
+          chrome_design = 'docs/LIQUID_GLASS_CHROME_DESIGN.md'
+          replace_once(chrome_design, '> 更新时间：2026-08-24', '> 更新时间：2026-08-28')
+          replace_once(
+              chrome_design,
+              '`home`、`map`、`province`、`market`、`buildings`、`settings` 以及 `transport`、`research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop` 七个 `fullscreen` 页面',
+              '`home`、`map`、`province`、`market`、`buildings`、`transport`、`settings` 以及 `research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop` 六个 `fullscreen` 页面',
+          )
+          replace_once(chrome_design, '`home`、`province`、`market`、`buildings`、`settings` 仍使用 `building`', '`home`、`province`、`market`、`buildings`、`transport`、`settings` 仍使用 `building`')
+          replace_once(chrome_design, '`transport`、`research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop` 使用 `fullscreen`', '`research`、`auction`、`contracts`、`bank`、`leaderboard`、`gem-shop` 使用 `fullscreen`')
+          replace_at_least_once(chrome_design, '七个 `fullscreen`', '六个 `fullscreen`')
+          replace_once(chrome_design, '概览、市场、建筑、设置四个同宽紧凑页面，运输、排行榜与商店等七个全区域页面', '概览、市场、建筑、运输、设置五个同宽紧凑页面，研发、拍卖、合同、银行、排行榜与商店六个全区域页面')
+
+          primary_design = 'docs/PRIMARY_SURFACE_INSET_DESIGN.md'
+          replace_once(primary_design, '> 更新时间：2026-08-25', '> 更新时间：2026-08-28')
+          primary_anchor = '- 新增一级卡片必须使用 `PagePanel`。\n'
+          replace_once(
+              primary_design,
+              primary_anchor,
+              primary_anchor + '- 只有页面正文确实存在需要独立视觉分组的一级业务模块时才创建一级卡片；正常状态下若整个正文只有一个一级业务模块，不得仅为包裹整页再增加 `PagePanel`、`Panel className="widget ..."` 或其他圆角卡片。该单一模块的标题、指标、列表和操作直接排列在 `PageLayout` 正文中。原因是桌面 `workspaceCard` 与移动根级 Mobile Workspace Sheet 已经承担页面一级承载面，再包一层唯一大卡只会形成没有信息层级增益的双层边框、圆角和内边距。\n',
+          )
+          replace_once(primary_design, '以下旧页面级外层规则已经移除：\n\n', '以下旧页面级外层规则已经移除：\n\n- 州级概览与未解锁建筑／仓库不再使用包裹整个分区的唯一一级卡片，分区内容直接进入正文；\n')
+          validation_anchor = '- `PagePanel`、旧 `Panel + widget` 兼容桥以及生产／排行旧类兼容入口存在；\n'
+          replace_once(primary_design, validation_anchor, validation_anchor + '- 正常正文只有一个一级业务模块时必须直接进入正文，不得恢复整页唯一圆角包裹卡；\n')
+
+          ui_design = 'docs/UI_DESIGN_SYSTEM.md'
+          replace_once(ui_design, '> 更新时间：2026-08-25', '> 更新时间：2026-08-28')
+          ui_anchor = '`PagePanel` 是新增玩家端一级卡片的唯一 React 入口，固定复用 `Panel`、`.widget` 与 `.ui-primary-surface`。现有 `Panel className="widget ..."` 由兼容桥自动补充 `.ui-primary-surface`；建筑页和排行页尚未迁移的旧一级卡片类只允许在 `primary-surfaces.css` 中作为兼容入口，不得在业务 CSS 中重新定义外层 padding。\n'
+          replace_once(ui_design, ui_anchor, ui_anchor + '\n`PagePanel` 只用于实际存在视觉分组意义的一级业务模块。若页面正文在正常状态下只有一个一级业务模块，内容必须直接排列在 `PageLayout` 正文而不是再套唯一大圆角卡；`workspaceCard`／Mobile Workspace Sheet 已经是页面承载面，禁止用第二层整页卡片重复边框、圆角和外层内边距。\n')
+
+          shell_verify = 'scripts/verify-game-shell-layout.mjs'
+          replace_once(shell_verify, '  "province: \'building\'",\n  "leaderboard: \'fullscreen\'",', '  "province: \'building\'",\n  "transport: \'building\'",\n  "leaderboard: \'fullscreen\'",')
+          replace_once(shell_verify, "  'HIDDEN_EVENT_RAIL_TABS',\n", "  \"transport: 'fullscreen'\",\n  'HIDDEN_EVENT_RAIL_TABS',\n")
+          replace_once(
+              shell_verify,
+              "check('src/styles/strategic-game-shell.css', [",
+              "check('src/pages/TransportPage.tsx', [\n  'className=\"transport-page-content\"',\n]);\ncheck('src/styles/transport-page.css', [\n  'container: transport-page / inline-size;',\n  '@container transport-page (max-width: 640px)',\n]);\nforbid('src/styles/transport-page.css', ['@media (max-width: 720px)']);\ncheck('src/styles/strategic-game-shell.css', [",
+          )
+          replace_once(shell_verify, 'overview, market, buildings, and settings share a one-third card width while transport, leaderboard, and shop stay full-area', 'overview, market, buildings, transport, and settings share a one-third card width while research, auction, contracts, bank, leaderboard, and shop stay full-area')
+          replace_once(shell_verify, '`home`、`province`、`market`、`buildings`、`settings` 仍使用 `building`', '`home`、`province`、`market`、`buildings`、`transport`、`settings` 仍使用 `building`')
+          replace_at_least_once(shell_verify, '七个 `fullscreen`', '六个 `fullscreen`')
+
+          liquid_verify = 'scripts/verify-liquid-glass-chrome.mjs'
+          replace_once(liquid_verify, '  "buildings: \'building\'",\n  "settings: \'building\'",', '  "buildings: \'building\'",\n  "transport: \'building\'",\n  "settings: \'building\'",')
+          replace_once(liquid_verify, '`home`、`province`、`market`、`buildings`、`settings` 仍使用 `building`', '`home`、`province`、`market`、`buildings`、`transport`、`settings` 仍使用 `building`')
+          replace_at_least_once(liquid_verify, '七个 `fullscreen`', '六个 `fullscreen`')
+
+          outliner_verify = 'scripts/verify-strategic-outliner.mjs'
+          replace_once(outliner_verify, "requireText(shell, 'pendingItems={notificationCenter.pendingItems}', '战略追踪器必须复用通知中心待处理派生结果');", "requireText(shell, 'pendingItems={notificationCenter.pendingItems}', '战略追踪器必须复用通知中心待处理派生结果');\nrequireText(shell, \"transport: 'building'\", '运输页必须使用与市场相同的 building presentation');")
+          replace_at_least_once(outliner_verify, '七个 `fullscreen`', '六个 `fullscreen`')
+
+          tutorial_verify = 'scripts/verify-game-tutorial.mjs'
+          replace_at_least_once(tutorial_verify, '七个 `fullscreen`', '六个 `fullscreen`')
+
+          primary_verify = 'scripts/verify-primary-surface-insets.mjs'
+          replace_once(primary_verify, "  leaderboardStyles: 'src/styles/leaderboards.css',\n", "  leaderboardStyles: 'src/styles/leaderboards.css',\n  provincePage: 'src/pages/ProvincePage.tsx',\n  provinceStyles: 'src/styles/province-page.css',\n")
+          replace_once(
+              primary_verify,
+              "  for (const [path, forbidden] of [",
+              "  for (const text of [\n    'className=\"province-overview-content\"',\n    'className=\"province-lock-content\"',\n  ]) requireText(paths.provincePage, text);\n  for (const text of [\n    '.province-overview-content {',\n    '.province-lock-content {',\n  ]) requireText(paths.provinceStyles, text);\n  for (const text of ['province-overview-panel', 'province-lock-panel']) {\n    forbidText(paths.provincePage, text);\n    forbidText(paths.provinceStyles, text);\n  }\n\n  for (const [path, forbidden] of [",
+          )
+          replace_once(primary_verify, "    '新增一级卡片必须使用 `PagePanel`',\n", "    '新增一级卡片必须使用 `PagePanel`',\n    '正常状态下若整个正文只有一个一级业务模块',\n    '州级概览与未解锁建筑／仓库不再使用包裹整个分区的唯一一级卡片',\n")
+          replace_once(primary_verify, "    '`PagePanel` 是新增玩家端一级卡片的唯一 React 入口',\n", "    '`PagePanel` 是新增玩家端一级卡片的唯一 React 入口',\n    '若页面正文在正常状态下只有一个一级业务模块',\n")
+
+          preview_test = 'tests/browser/all-pages-preview.spec.ts'
+          replace_once(preview_test, "test('overview, market, buildings, and settings share a one-third card width while transport, leaderboard, and shop stay full-area with one persistent strategic outliner'", "test('overview, market, buildings, transport, and settings share a one-third card width while research, auction, contracts, bank, leaderboard, and shop stay full-area with one persistent strategic outliner'")
+          replace_once(preview_test, "  for (const label of ['概览', '市场', '建筑', '设置']) {", "  for (const label of ['概览', '市场', '建筑', '运输', '设置']) {")
+          replace_once(preview_test, "  for (const label of ['运输', '研发', '拍卖', '合同', '银行', '排行', '商店']) {", "  for (const label of ['研发', '拍卖', '合同', '银行', '排行', '商店']) {")
+          replace_once(
+              preview_test,
+              "  await expect(page.getByRole('heading', { level: 1, name: '得克萨斯州' })).toBeVisible();\n  await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');",
+              "  await expect(page.getByRole('heading', { level: 1, name: '得克萨斯州' })).toBeVisible();\n  await expect(page.locator('.province-overview-content')).toBeVisible();\n  await expect(page.locator('.province-overview-panel')).toHaveCount(0);\n  await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');",
+          )
+          replace_once(
+              preview_test,
+              "  expect(compactCardWidths[0]).toBeCloseTo(1684 / 3, 0);\n\n  const fullAreaWidths = new Map<string, number>();",
+              "  expect(compactCardWidths[0]).toBeCloseTo(1684 / 3, 0);\n\n  await sidebar.getByRole('button', { name: /^运输/ }).click();\n  const transportContent = page.locator('.transport-page-content');\n  await expect(transportContent).toBeVisible();\n  const transportOverflow = await transportContent.evaluate((element) => ({ clientWidth: element.clientWidth, scrollWidth: element.scrollWidth }));\n  expect(transportOverflow.scrollWidth).toBeLessThanOrEqual(transportOverflow.clientWidth + 1);\n  await page.getByRole('button', { name: '增加路线', exact: true }).click();\n  const transportEditorGrid = page.locator('.transport-route-editor-grid');\n  await expect(transportEditorGrid).toBeVisible();\n  const transportEditorColumns = await transportEditorGrid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(/\\s+/).filter(Boolean).length);\n  expect(transportEditorColumns).toBe(1);\n  await page.getByRole('button', { name: '取消', exact: true }).click();\n\n  const fullAreaWidths = new Map<string, number>();",
+          )
+
+          tutorial_test = 'tests/browser/tutorial-right-rail.spec.ts'
+          replace_once(
+              tutorial_test,
+              "  const fullscreenPages = [\n    ['transport', '运输'],\n    ['research', '研发'],",
+              "  await page.locator('.desktop-sidebar').getByRole('button', { name: '运输', exact: true }).click();\n  await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');\n  await expect(outliner).toBeVisible();\n  await expect(outliner).toHaveAttribute('data-browser-outliner-sentinel', 'persistent');\n  await expect(eventsSection).toHaveAttribute('data-collapsed', 'true');\n  await expect(pinnedSection.locator('.strategic-outliner-row')).toHaveCount(1);\n\n  const fullscreenPages = [\n    ['research', '研发'],",
+          )
+
+          for temp_workflow in [
+              '.github/workflows/codex-page-surface-layout.yml',
+              '.github/workflows/codex-page-surface-layout-v2.yml',
+          ]:
+              Path(temp_workflow).unlink(missing_ok=True)
+          PY
+
+          git diff --check
+          git status --short
+
+      - name: Commit branch changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m '统一运输页面与单模块内容层级'
+          git push origin HEAD:codex/page-surface-layout
