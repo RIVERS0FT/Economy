@@ -69,15 +69,15 @@ for (const text of [
   'WarehouseInventoryGrid',
   'data-ui-interactive="surface"',
   'onOpenProduct?.(product.id)',
-  'warehouse-heading-actions',
-  '<StatusTag tone="neutral">无限容量</StatusTag>',
-  'title="仓库内容"',
-  '实物库存 {<CompactNumber value={game.warehouseStoredQuantity} />}',
   '仓库中暂无商品',
   '通过生产或市场交易获得商品后，会在这里按州级库存显示。',
 ]) requireText('src/components/warehouse/WarehouseInventoryPanel.tsx', text);
 for (const text of [
   '共享仓库',
+  'warehouse-heading-actions',
+  '<StatusTag tone="neutral">无限容量</StatusTag>',
+  'title="仓库内容"',
+  '实物库存 {<CompactNumber value={game.warehouseStoredQuantity} />}',
   'warehouse-product-card--readonly',
   'WarehouseTransportPanel',
   'warehouse-transport-panel',
@@ -153,10 +153,8 @@ for (const text of [
   '最低自由库存',
   '不占玩家普通开放订单配额',
   '在线自动交易唯一显示在地区商品详情',
-  '页面直接显示“无限容量”状态',
-  '以“仓库内容”为正文标题',
-  '“实物库存 {warehouseStoredQuantity}”',
-  '不再显示“共享仓库”标题',
+  '不再显示“共享仓库”“无限容量”“仓库内容”或“实物库存”汇总说明',
+  '无限容量仍是服务器业务规则，但不作为仓库页面的可见状态标签',
   '仓库商品网格之后不得追加跨州运输卡片',
   '独立 `TransportPage`',
   '商品卡整卡是当前州商品详情入口',
@@ -169,8 +167,9 @@ for (const text of [
   '零库存',
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
 for (const text of [
-  '不再显示“共享仓库”“无限容量”“仓库内容”或“实物库存”汇总说明',
-  '无限容量仍是服务器业务规则，但不作为仓库页面的可见状态标签',
+  '页面直接显示“无限容量”状态',
+  '以“仓库内容”为正文标题',
+  '“实物库存 {warehouseStoredQuantity}”',
   '州级仓库在所有宽度都保持只读',
   '自动交易卡必须提供全商品选择器',
   '客户端状态版本继续使用当前全局基线 33',
@@ -293,4 +292,4 @@ if (failures.length) {
   console.error('无限仓库防回退验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
-console.log('无限仓库防回退验证通过：容量机制保持退役，仓库摘要保持可见，商品可钻取，跨州运输唯一归属独立运输页，在线自动交易唯一归属市场。');
+console.log('无限仓库防回退验证通过：容量机制保持退役，仓库冗余摘要保持移除，商品可钻取，跨州运输唯一归属独立运输页，在线自动交易唯一归属市场。');
