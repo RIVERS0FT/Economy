@@ -7,6 +7,7 @@ const styles = fs.readFileSync('src/styles/market-desktop-cleanup.css', 'utf8');
 const marketStyles = fs.readFileSync('src/styles/market-page-polish.css', 'utf8');
 const detailStyles = fs.readFileSync('src/styles/market-detail-direct-flow.css', 'utf8');
 const design = fs.readFileSync('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', 'utf8');
+const pageDesign = fs.readFileSync('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', 'utf8');
 const chartDesign = fs.readFileSync('docs/MARKET_CHART_LAYOUT_DESIGN.md', 'utf8');
 const browserSpec = fs.readFileSync('tests/browser/market-desktop-cleanup.spec.ts', 'utf8');
 const detailBrowserSpec = fs.readFileSync('tests/browser/market-detail-direct-flow.spec.ts', 'utf8');
@@ -59,6 +60,11 @@ for (const token of [
   '.market-detail-surface .market-inventory-production-metrics > .ui-metric-card:not(:first-child)',
   '.market-detail-surface .market-fundamentals-balance',
   '.market-detail-surface .market-trade-summary > span:nth-child(2)',
+  'grid-template-columns: repeat(4, minmax(0, 1fr));',
+  'display: contents;',
+  '.market-detail-surface .market-detail-hero__identity',
+  'grid-template-columns: repeat(3, minmax(0, 1fr));',
+  'grid-template-columns: repeat(2, minmax(0, 1fr));',
   '@container market-page (max-width: 720px)',
   '@container market-page (max-width: 420px)',
 ]) {
@@ -88,9 +94,25 @@ for (const token of [
   '身份区、基本面条、行情图和本人订单／成交直接排列在页面内容区，不使用一级卡片底座',
   '手动交易与自动交易因包含可提交操作继续保留明确主表面',
   '交易卡摘要只显示最近成交和真实 24h 成交量',
+  '顶部身份与三项核心价格事实必须按市场正文真实容器宽度响应',
+  '基本面条在宽容器四项同排，中窄与移动容器固定为两列两行',
+  '不得保留空白占位列或用固定高度填充基本面到行情图之间的空白',
 ]) {
   requireText(chartDesign, token, `市场详情权威设计缺少规则：${token}`);
 }
+
+for (const token of [
+  '地区商品详情基本面条固定只显示需求满足率、参考价、上轮需求（含预算）和当前可用库存',
+  '冻结库存、发运在途、预计生产速度和预计等效产能分别归仓库或建筑页面，不在市场详情重复',
+  '直接基本面条、行情卡以及纵向排列的当前资产订单／成交按单一页面滚动区排列',
+]) {
+  requireText(pageDesign, token, `页面权威设计仍未与地区商品详情精简规则对齐：${token}`);
+}
+forbidText(
+  pageDesign,
+  '当前仓库可用／冻结／发运在途库存、按运行中当前配方和预计整数等效产能换算的预计生产速度',
+  '页面权威设计不得继续要求地区市场重复冻结、在途与预计生产信息。',
+);
 
 requireText(browserSpec, 'desktop market uses compact order-book rows without duplicate headers', '浏览器测试必须覆盖桌面统一盘口结构。');
 requireText(browserSpec, 'mobile market matches desktop order-book structure and keeps side-by-side trade panels', '浏览器测试必须覆盖移动端统一盘口结构与永久双列。');
@@ -108,7 +130,11 @@ for (const token of [
   "'.market-chart-card'",
   "'.market-account-panel'",
   'regional commodity direct detail flow stays readable on mobile',
-  'geometry.scrollWidth',
+  'widthGeometry.scrollWidth',
+  'readDetailGeometry',
+  'geometry.heroMetrics',
+  'geometry.visibleMetricCards',
+  'geometry.chart!.top - summary.bottom',
 ]) {
   requireText(detailBrowserSpec, token, `商品详情直接内容流浏览器回归缺少断言：${token}`);
 }
@@ -119,4 +145,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('市场订单簿保持统一结构；商品详情只保留必要信息并将只读内容直接排列在页面内容区。');
+console.log('市场订单簿保持统一结构；商品详情只保留必要信息，并按真实内容容器紧凑响应且不裁剪核心数据。');
