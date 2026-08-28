@@ -211,10 +211,10 @@
 
   min-width: 4.25rem;
   min-height: 2.7rem;
-  display: grid;
-  grid-template-columns: auto auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: .4rem;
-  place-content: center;
   border: 1px solid transparent;
   border-radius: .55rem;
   padding: .35rem .55rem;
