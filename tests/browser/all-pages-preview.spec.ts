@@ -238,9 +238,14 @@ test('overview, market, buildings, transport, and settings share a one-third car
   await sidebar.getByRole('button', { name: /^运输/ }).click();
   const transportContent = page.locator('.transport-page-content');
   await expect(transportContent).toBeVisible();
+  const transportHeader = page.locator('.page-fixed-header');
+  const addRouteButton = transportContent.locator('.transport-page-actions').getByRole('button', { name: '增加路线', exact: true });
+  await expect(transportHeader.getByRole('button')).toHaveCount(2);
+  await expect(transportHeader.getByRole('button', { name: '增加路线', exact: true })).toHaveCount(0);
+  await expect(addRouteButton).toBeVisible();
   const transportOverflow = await transportContent.evaluate((element) => ({ clientWidth: element.clientWidth, scrollWidth: element.scrollWidth }));
   expect(transportOverflow.scrollWidth).toBeLessThanOrEqual(transportOverflow.clientWidth + 1);
-  await page.getByRole('button', { name: '增加路线', exact: true }).click();
+  await addRouteButton.click();
   const transportEditorGrid = page.locator('.transport-route-editor-grid');
   await expect(transportEditorGrid).toBeVisible();
   const transportEditorColumns = await transportEditorGrid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(/\s+/).filter(Boolean).length);

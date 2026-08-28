@@ -176,19 +176,17 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
   }
 
   return (
-    <PageLayout
-      title="运输"
-      actions={(
-        <Button
-          variant="secondary"
-          disabled={!canAddRoute || Boolean(pendingAction)}
-          onClick={() => setRouteDraft(emptyRouteDraft())}
-        >
-          增加路线
-        </Button>
-      )}
-    >
+    <PageLayout title="运输">
       <div className="transport-page-content">
+        <div className="transport-page-actions">
+          <Button
+            variant="secondary"
+            disabled={!canAddRoute || Boolean(pendingAction)}
+            onClick={() => setRouteDraft(emptyRouteDraft())}
+          >
+            增加路线
+          </Button>
+        </div>
         {routeDraft ? (
         <PagePanel className="transport-route-editor">
           <WidgetHeading

@@ -397,12 +397,6 @@ p {
   height: 1.25rem;
 }
 
-.page-heading-actions--player {
-  width: 100%;
-  justify-content: flex-end;
-  padding: 0 var(--layout-gutter) var(--layout-gutter);
-}
-
 .widget {
   min-width: 0;
   padding: var(--space-4);
@@ -1070,10 +1064,6 @@ p {
     grid-template-columns: 40px minmax(0, 1fr) 40px;
     align-items: center;
     gap: var(--space-2);
-  }
-
-  .page-heading-actions--player {
-    justify-content: flex-end;
   }
 
   .page-heading-actions {

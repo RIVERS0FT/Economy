@@ -80,11 +80,6 @@ export function PageLayout({
             </div>
           ) : null}
         </div>
-        {pageNavigation && actions ? (
-          <div className="page-heading-actions page-heading-actions--player" data-player-page-actions="true">
-            {actions}
-          </div>
-        ) : null}
       </div>
       {pageNavigation && scrollable ? (
         <ScrollArea
