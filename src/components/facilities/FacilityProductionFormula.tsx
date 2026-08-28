@@ -114,8 +114,8 @@ function RecipeItems({
             className="facility-formula-item-group"
             data-ui-interactive="surface"
             key={`${item.productId}-${index}`}
-            aria-label={`查看${productName}市场，生产数量 ${formatNumber(quantity)}，仓库可用 ${formatNumber(warehouseQuantity)}`}
-            title={`查看${productName}市场 · 生产 ${formatNumber(quantity)} · 仓库可用 ${formatNumber(warehouseQuantity)}`}
+            aria-label={`查看${productName}本地商品详情，生产数量 ${formatNumber(quantity)}，仓库可用 ${formatNumber(warehouseQuantity)}`}
+            title={`查看${productName}本地商品详情 · 生产 ${formatNumber(quantity)} · 仓库可用 ${formatNumber(warehouseQuantity)}`}
             onClick={() => onOpenProductMarket(item.productId)}
           >
             <span className={itemClassName}>

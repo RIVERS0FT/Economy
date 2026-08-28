@@ -144,11 +144,12 @@ for (const text of [
   '<FacilityStaffingSummary entry={entry} now={liveNow} />',
   'className="facility-production-settings mobile-detail-section"',
   'className="facility-production-settings-grid"',
-  '<strong>生产设置</strong>',
+  'aria-label="生产配置"',
   '<FacilityProductionConfigControls',
   'productionRecipeVariantId',
   '交易该建筑资产',
 ]) assert.equal(detail.includes(text), true, `工厂详情缺少: ${text}`);
+assert.equal(detail.includes('<strong>生产设置</strong>'), false, '工厂详情不得恢复可见生产设置标题');
 
 for (const forbidden of [
   'facility-recipe-section',
@@ -202,7 +203,7 @@ for (const text of [
   '.facility-cluster-detail-shell',
   '.facility-cluster-detail-card',
   '.facility-information',
-  '.facility-information > .facility-average-profit',
+  '.facility-information-details > .facility-average-profit',
 ]) assert.equal(baseCss.includes(text), true, `工厂卡与详情基础样式缺少: ${text}`);
 
 for (const text of [
@@ -275,4 +276,4 @@ for (const text of [
   '移动端工厂卡点击行为与桌面一致',
 ]) assert.equal(buildingLayoutDesign.includes(text), true, `地区建筑权威设计缺少: ${text}`);
 
-console.log('统一工厂配方与地区卡片验证通过：目录顺序、三列 4:5 工厂卡、二级详情、统一生产设置与共享移动基础设施均已锁定。');
+console.log('统一工厂配方与地区卡片验证通过：目录顺序、三列 4:5 工厂卡、二级详情、无标题生产配置与共享移动基础设施均已锁定。');

@@ -113,9 +113,10 @@ forbidText('src/pages/BuildingsPage.tsx', '异常：仓库已满');
 for (const text of [
   'facility-production-settings',
   'facility-production-settings-grid',
-  '<strong>生产设置</strong>',
+  'aria-label="生产配置"',
   '<FacilityProductionConfigControls',
 ]) requireText('src/pages/production/ProductionFacilityDetail.tsx', text);
+forbidText('src/pages/production/ProductionFacilityDetail.tsx', '<strong>生产设置</strong>');
 for (const text of [
   'label="生产产物"',
   'aria-label={`${typeName}生产产物`}',
@@ -371,7 +372,7 @@ for (const text of [
   '桌面详情卡高度由自然内容流决定',
   '移动 Bottom Sheet 打开期间只允许单向上移',
   '移动触控下工厂选择卡不得使用缩放按压反馈',
-  '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',
+  '玩家可见“生产产物”与“作业制度”必须合并为同一个无标题生产配置区',
   '生产进度位于数据带下方，并且是生产结算最后一个可见元素',
   '工厂满员率与等效产能',
   '周期完成时刻的满员率',
@@ -395,7 +396,7 @@ for (const text of [
   '生产进度条',
   '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字',
   '完整文本无障碍描述',
-  '玩家可见的“生产产物”与“作业制度”固定使用同一个“生产设置”区',
+  '玩家可见的“生产产物”与“作业制度”固定使用同一个无标题生产配置区',
   '首次可见绘制前通过 `useLayoutEffect` 完成页面滚动锁定',
   '`focus({ preventScroll: true })`',
   '生产进度位于数据带下方，并且是生产结算最后一个可见元素',

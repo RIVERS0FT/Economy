@@ -38,13 +38,13 @@ for (const text of [
   'type="button"',
   'className="facility-formula-item-group"',
   'data-ui-interactive="surface"',
-  'aria-label={`查看${productName}市场，生产数量 ${formatNumber(quantity)}，仓库可用 ${formatNumber(warehouseQuantity)}`}',
+  'aria-label={`查看${productName}本地商品详情，生产数量 ${formatNumber(quantity)}，仓库可用 ${formatNumber(warehouseQuantity)}`}',
   'onClick={() => onOpenProductMarket(item.productId)}',
   'onOpenProductMarket={onOpenProductMarket}',
 ]) assert.equal(formula.includes(text), true, `生产结算结构缺少: ${text}`);
 
 assert.equal((formula.match(/<RecipeItems/g) ?? []).length, 2, '生产结算必须保留输入和输出调用');
-assert.equal((formula.match(/onOpenProductMarket=\{onOpenProductMarket\}/g) ?? []).length, 2, '投入和产出都必须传递商品市场入口');
+assert.equal((formula.match(/onOpenProductMarket=\{onOpenProductMarket\}/g) ?? []).length, 2, '投入和产出都必须传递本地商品详情入口');
 for (const forbidden of [
   '<ProductIcon',
   'showInventory',
@@ -97,6 +97,10 @@ for (const text of [
   'border-left: 1px solid var(--color-divider);',
   '.facility-formula-progress .progress-track span::after',
   'clip-path: polygon(0 0, 100% 50%, 0 100%);',
+  'border-radius: var(--radius-pill);',
+  '.facility-formula-progress .progress-track span {',
+  'overflow: hidden;',
+  'right: 0;',
   '@container (max-width: 420px)',
   '@media (prefers-reduced-motion: reduce)',
   'appearance: none;',
@@ -111,6 +115,7 @@ for (const forbidden of [
   'grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);',
   '.facility-formula-separator',
   '  .facility-formula-meta {\n    width: 100%;\n  }',
+  'right: -0.18rem;',
 ]) assert.equal(formulaCss.includes(forbidden), false, `生产结算样式不得包含: ${forbidden}`);
 for (const forbidden of [
   '@container (max-width: 519px)',
@@ -166,26 +171,54 @@ for (const text of [
   'variant="production-config"',
   '<ProductPlanDetail',
   '<MethodPlanDetail',
-]) assert.equal(productionSettingsSource.includes(text), true, `生产设置富内容选项缺少: ${text}`);
-for (const forbidden of ['<SelectInput', '<option']) {
-  const settingsStart = detail.indexOf('<section className="facility-production-settings mobile-detail-section">');
-  const settingsEnd = detail.indexOf('<FacilityProductionFormula', settingsStart);
-  const settingsSource = `${detail.slice(settingsStart, settingsEnd)}\n${configControls}`;
-  assert.equal(settingsSource.includes(forbidden), false, `生产设置不得恢复: ${forbidden}`);
+]) assert.equal(productionSettingsSource.includes(text), true, `生产配置富内容选项缺少: ${text}`);
+const settingsStart = detail.indexOf('<section className="facility-production-settings mobile-detail-section" aria-label="生产配置">');
+const settingsEnd = detail.indexOf('<FacilityProductionFormula', settingsStart);
+const settingsSource = `${detail.slice(settingsStart, settingsEnd)}\n${configControls}`;
+for (const forbidden of ['<SelectInput', '<option', '<strong>生产设置</strong>', 'facility-production-settings-heading']) {
+  assert.equal(settingsSource.includes(forbidden), false, `生产配置不得恢复: ${forbidden}`);
 }
 
 for (const text of [
-  'onOpenProductMarket: (productId: string) => void;',
-  'onOpenProductMarket={onOpenProductMarket}',
-]) assert.equal(detail.includes(text), true, `工厂详情商品市场回调缺少: ${text}`);
+  'description={',
+  'className="facility-information-details"',
+  'className="facility-count-summary"',
+  '<FacilityRecipeProfitAnalysis',
+  '<FacilityStaffingSummary entry={entry} now={liveNow} />',
+]) assert.equal(detail.includes(text), true, `插画右侧工厂信息缺少: ${text}`);
+const summaryDescriptionStart = detail.indexOf('description={');
+const summaryDescriptionEnd = detail.indexOf('/>', summaryDescriptionStart);
+assert.ok(summaryDescriptionStart >= 0, '工厂主信息必须提供插画右侧详情区');
+assert.ok(detail.indexOf('className="facility-count-summary"', summaryDescriptionStart) > summaryDescriptionStart, '数量摘要必须位于插画右侧详情区');
+assert.ok(detail.indexOf('<FacilityRecipeProfitAnalysis', summaryDescriptionStart) > summaryDescriptionStart, '平均利润必须位于插画右侧详情区');
+assert.ok(detail.indexOf('<FacilityStaffingSummary entry={entry} now={liveNow} />', summaryDescriptionStart) > summaryDescriptionStart, '满员率必须位于插画右侧详情区');
+assert.equal(detail.includes('<strong>生产设置</strong>'), false, '生产配置不得恢复可见“生产设置”标题');
 for (const text of [
-  "selectMarketAsset('commodity', productId);",
-  'onOpenProductMarket={openProductMarket}',
-]) assert.equal(productionPage.includes(text), true, `建筑页商品市场导航缺少: ${text}`);
+  '.facility-information-details > .facility-average-profit',
+  '.facility-market-link-row .facility-market-link {',
+  'display: inline-flex;',
+  'white-space: nowrap;',
+  '.facility-market-link-row .facility-market-link .game-icon',
+]) assert.equal(groupCss.includes(text), true, `工厂详情布局样式缺少: ${text}`);
+assert.equal(groupCss.includes('.facility-information > .facility-average-profit'), false, '平均利润不得移回插画下方');
+assert.equal(groupCss.includes('.facility-production-settings-heading'), false, '不得保留已删除生产设置标题样式');
+
+for (const text of [
+  'onOpenProductMarket: (productId: string) => void;',
+  'usePlayerPageNavigation()',
+  "currentLocation?.type === 'regional-facility'",
+  "type: 'regional-product'",
+  "host: currentLocation.host === 'province' ? 'province' : 'market'",
+  'provinceId: currentLocation.provinceId,',
+  'pageNavigation.pushPage({',
+  'onOpenProductMarket={openProductDetail}',
+  'onOpenProductMarket(productId);',
+]) assert.equal(detail.includes(text), true, `工厂详情本地商品导航缺少: ${text}`);
+assert.equal(productionPage.includes('onOpenProductMarket={openProductMarket}'), true, '建筑页必须保留无页面栈环境的商品导航回调');
 assert.equal(
   (productionPage.match(/onOpenProductMarket=\{openProductMarket\}/g) ?? []).length,
   1,
-  '统一工厂二级详情必须且只需接入一次商品市场导航',
+  '统一工厂二级详情必须且只需接入一次商品导航回调',
 );
 
 const groupCssImport = main.indexOf("import './styles/facility-group-card-grid.css';");
@@ -198,7 +231,7 @@ const profitRule = profitCss.slice(
 );
 assert.equal(formula.includes('<FacilityRecipeProfitAnalysis'), false, '生产结算不得继续包含单厂利润');
 assert.equal(detail.includes('<FacilityRecipeProfitAnalysis'), true, '工厂信息必须渲染单厂利润');
-assert.equal(groupCss.includes('.facility-information > .facility-average-profit'), true, '工厂信息布局必须承担利润分隔线');
+assert.equal(groupCss.includes('.facility-information-details > .facility-average-profit'), true, '插画右侧信息布局必须承担利润分隔线');
 assert.equal(profitRule.includes('border-top:'), false, '利润组件基础样式不得绑定生产结算分隔线');
 for (const forbidden of ['border-radius:', 'background:']) {
   assert.equal(profitRule.includes(forbidden), false, `利润结果栏不得恢复独立卡片视觉: ${forbidden}`);
@@ -208,8 +241,8 @@ for (const text of [
   "getByRole('combobox', { name: '机械工厂生产产物' })",
   "getByRole('listbox', { name: '机械工厂生产产物' })",
   "getByRole('option', { name: '节约生产' })",
-  "getByRole('button', { name: /^查看钢材市场/ })",
-  "getByRole('button', { name: /^查看机械市场/ })",
+  "getByRole('button', { name: /^查看钢材本地商品详情/ })",
+  "getByRole('button', { name: /^查看机械本地商品详情/ })",
   "settlement.locator('svg.product-icon')",
   "settlement.locator('.product-artwork')",
   "settlement.locator('.facility-formula-separator')",
@@ -217,6 +250,13 @@ for (const text of [
   "'machinery'",
   'await inputSlot.click();',
   'not.toHaveClass(/is-dragging/)',
+  "not.toContainText('生产设置')",
+  "informationMain.locator('.facility-count-summary')",
+  "informationMain.locator('.facility-average-profit')",
+  "informationMain.locator('.facility-staffing-summary')",
+  'trackBorderRadius',
+  'fillOverflow',
+  'marketLinkGeometry',
   'expect(box.x + box.width).toBeLessThanOrEqual(width)',
   'expect(geometry.metaBox.width).toBeLessThan(geometry.visualBox.width - 8)',
   'expect(Math.abs(geometry.costBox.y - geometry.cycleBox.y)).toBeLessThanOrEqual(1)',
@@ -242,7 +282,11 @@ for (const text of [
   '输入与输出均显示当前可用库存',
   '不显示 `+` 或其他连接字符',
   '移动端不得拉伸为全宽',
-  '每个投入／产出物资槽整体使用原生按钮语义并可直接打开对应商品市场',
+  '运行中／冻结中／抵押中数量明细、单厂平均利润与满员率全部位于插画右侧主信息区',
+  '生产配置区不显示独立“生产设置”标题',
+  '每个投入／产出物资槽整体使用原生按钮语义并可直接打开当前州对应本地商品详情',
+  '流光伪元素必须被已完成填充自身裁剪',
+  '“交易该建筑资产”文字与右向 Chevron 固定同一行',
   '不得把承载可交互物资槽的 `.facility-formula-visual` 整体设为 `aria-hidden`',
 ]) assert.equal(uiDesign.includes(text) || industryDesign.includes(text), true, `权威设计缺少: ${text}`);
 
@@ -253,16 +297,19 @@ for (const text of [
 ]) assert.equal(industryDesign.includes(text) || uiDesign.includes(text), true, `经营诊断权威设计缺少: ${text}`);
 
 for (const text of [
-  '工厂详情“生产结算”的投入／产出物资槽是商品市场的直接导航入口',
+  '工厂详情“生产结算”的投入／产出物资槽是当前州本地商品详情的直接导航入口',
+  "`regional-facility`",
+  "`regional-product`",
+  '不得先进入商品全局详情或商品目录',
   '不得根据生产配方语义自动推断采购／出售方向',
   '数量和价格继续按统一市场资产切换的订单草稿初始化规则处理',
   '不得自动提交订单',
   '不得改写建筑页建设工厂类型、数量、配方、作业制度或任何服务器权威生产状态',
-]) assert.equal(pageDesign.includes(text), true, `生产商品市场导航权威设计缺少: ${text}`);
+]) assert.equal(pageDesign.includes(text), true, `生产本地商品导航权威设计缺少: ${text}`);
 
 for (const text of [
   '点击工厂卡片后进入当前地区建筑分区内部的二级详情视图',
   '移动端工厂卡点击行为与桌面一致',
 ]) assert.equal(buildingLayoutDesign.includes(text), true, `地区工厂详情布局设计缺少: ${text}`);
 
-console.log('生产结算商品 PNG、生产配置方案下拉、投入产出市场跳转、统一页面级工厂详情、经营诊断响应式与几何防回退验证通过。');
+console.log('生产结算商品 PNG、无标题生产配置、插画右侧经营指标、本地商品详情导航、进度流光裁剪、资产入口同行与几何防回退验证通过。');
