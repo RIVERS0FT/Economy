@@ -44,7 +44,21 @@ for (const token of [
   'global-market-goods-header',
   'global-market-goods-list',
   'global-market-goods-row',
-  '真实成交价范围',
+  '24h成交量',
+  '24h价格变化',
+  '平均价格',
+  "type GlobalMarketSortKey = 'name' | 'volume24h' | 'price-change24h' | 'average-price';",
+  'sortState={catalogSort}',
+  'onSortChange={setCatalogSort}',
+  "{ label: '商品', sortKey: 'name', defaultDirection: 'asc' }",
+  "{ label: '24h成交量', sortKey: 'volume24h', defaultDirection: 'desc' }",
+  "{ label: '24h价格变化', sortKey: 'price-change24h', defaultDirection: 'desc' }",
+  "{ label: '平均价格', sortKey: 'average-price', defaultDirection: 'desc' }",
+  "if (typeof market?.officialPrice === 'number') officialPrices.push(market.officialPrice);",
+  "if (typeof market?.priceChange24h === 'number') priceChanges24h.push(market.priceChange24h);",
+  "tradeVolume24h += Math.max(0, Number(market?.tradeVolume24h || 0));",
+  'priceChange24h: average(priceChanges24h)',
+  'averagePrice: average(officialPrices)',
   'selectedGlobalProductId',
   'global-market-product-detail',
   'global-market-product-region-list',
@@ -63,6 +77,11 @@ for (const token of [
   '返回商品全局详情',
   '<EmbeddedMarketPage model={model} embedded />',
 ]) requireText(globalMarket, token, 'global market hierarchy');
+for (const token of [
+  "{ label: '成交地区' }",
+  "{ label: '真实成交价范围' }",
+  "{ label: '需求未满足' }",
+]) forbidText(globalMarket, token, 'global market catalog retired summary columns');
 for (const token of [
   "regionPrimary ? null : (",
   "market-commodity-row__identity--region",
@@ -98,7 +117,7 @@ if (
   || catalogHeaderIndex <= catalogFilterIndex
   || catalogListIndex <= catalogHeaderIndex
 ) {
-  throw new Error('global market hierarchy: folded filters, column header, and commodity list must appear in direct page flow');
+  throw new Error('global market hierarchy: folded filters, sortable summary header, and commodity list must appear in direct page flow');
 }
 const productDetailIndex = globalMarket.indexOf('global-market-product-detail"');
 const productFilterIndex = globalMarket.indexOf('<details className="global-market-filter-disclosure"', productDetailIndex);
@@ -233,6 +252,9 @@ for (const token of [
   '筛选默认折叠且不提供商品名称搜索框',
   '市场标题区固定显示“市场”，商品目录正文不重复显示“商品”分区标题',
   '商品列表字段名使用独立表头',
+  '24h 成交量、24h 价格变化和平均价格',
+  '一级商品目录表头允许按商品名称、24h 成交量、24h 价格变化和平均价格进行',
+  '平均价格只作为已解锁地区官方系统价的跨地区摘要，不是可交易的“全局市场价”',
   '地区、卖单量、买单量、市场价和 24h 变化',
   '地区行的可见身份只保留地区全名',
   '表头允许按工厂名称、平均利润和拥有数量',
@@ -263,6 +285,10 @@ for (const token of [
   "getByRole('heading', { level: 1, name: '市场' })",
   "page.locator('.global-market-page > .widget-heading')",
   "page.locator('.global-market-goods-header')",
+  "['商品', '24h成交量', '24h价格变化', '平均价格']",
+  "['成交地区', '真实成交价范围', '需求未满足']",
+  "getByRole('button', { name: '商品', exact: true })",
+  "for (const label of ['24h成交量', '24h价格变化', '平均价格'])",
   "getByRole('button', { name: '打开小麦全局详情' })",
   "getByRole('button', { name: '打开加利福尼亚州小麦详情' })",
   "page.locator('.global-market-product-detail > .market-commodity-row-header')",

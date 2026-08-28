@@ -15,20 +15,53 @@ test('market uses product-first global and regional information hierarchy', asyn
 
   const goodsHeader = page.locator('.global-market-goods-header');
   await expect(goodsHeader).toBeVisible();
-  for (const label of ['商品', '成交地区', '真实成交价范围', '需求未满足']) {
+  for (const label of ['商品', '24h成交量', '24h价格变化', '平均价格']) {
     await expect(goodsHeader.getByText(label, { exact: true })).toBeVisible();
+  }
+  for (const label of ['成交地区', '真实成交价范围', '需求未满足']) {
+    await expect(goodsHeader.getByText(label, { exact: true })).toHaveCount(0);
   }
 
   const goods = page.locator('.global-market-goods-list');
   await expect(goods).toBeVisible();
+  const globalNames = goods.locator('.global-market-goods-row__name strong');
+  const initialGlobalOrder = await globalNames.allTextContents();
+  const productNameSort = goodsHeader.getByRole('button', { name: '商品', exact: true });
+  await productNameSort.click();
+  await expect(goodsHeader.getByRole('columnheader', { name: '商品' })).toHaveAttribute('aria-sort', 'ascending');
+  expect(await globalNames.allTextContents()).toEqual([...initialGlobalOrder].sort((left, right) => left.localeCompare(right, 'zh-CN')));
+  await productNameSort.click();
+  await expect(goodsHeader.getByRole('columnheader', { name: '商品' })).toHaveAttribute('aria-sort', 'descending');
+  expect(await globalNames.allTextContents()).toEqual([...initialGlobalOrder].sort((left, right) => right.localeCompare(left, 'zh-CN')));
+  await productNameSort.click();
+  await expect(goodsHeader.getByRole('columnheader', { name: '商品' })).toHaveAttribute('aria-sort', 'none');
+  expect(await globalNames.allTextContents()).toEqual(initialGlobalOrder);
+
+  for (const label of ['24h成交量', '24h价格变化', '平均价格']) {
+    const sortButton = goodsHeader.getByRole('button', { name: label, exact: true });
+    await sortButton.click();
+    await expect(goodsHeader.getByRole('columnheader', { name: label })).toHaveAttribute('aria-sort', 'descending');
+    await sortButton.click();
+    await expect(goodsHeader.getByRole('columnheader', { name: label })).toHaveAttribute('aria-sort', 'ascending');
+    await sortButton.click();
+    await expect(goodsHeader.getByRole('columnheader', { name: label })).toHaveAttribute('aria-sort', 'none');
+  }
+
   const globalRow = page.getByRole('button', { name: '打开小麦全局详情' });
   await expect(globalRow).toBeVisible();
-  for (const label of ['成交地区', '真实成交价范围', '需求未满足']) {
+  for (const label of ['24h成交量', '24h价格变化', '平均价格', '成交地区', '真实成交价范围', '需求未满足']) {
     await expect(globalRow.getByText(label, { exact: true })).toHaveCount(0);
   }
   await expect(globalRow.locator('.global-market-goods-row__chevron .game-icon')).toHaveCount(1);
   const globalGeometry = await globalRow.evaluate((row) => ({ clientWidth: row.clientWidth, scrollWidth: row.scrollWidth }));
   expect(globalGeometry.scrollWidth).toBeLessThanOrEqual(globalGeometry.clientWidth + 1);
+
+  await page.setViewportSize({ width: 500, height: 900 });
+  const compactGlobalHeaderGeometry = await goodsHeader.evaluate((header) => ({ clientWidth: header.clientWidth, scrollWidth: header.scrollWidth }));
+  const compactGlobalRowGeometry = await globalRow.evaluate((row) => ({ clientWidth: row.clientWidth, scrollWidth: row.scrollWidth }));
+  expect(compactGlobalHeaderGeometry.scrollWidth).toBeLessThanOrEqual(compactGlobalHeaderGeometry.clientWidth + 1);
+  expect(compactGlobalRowGeometry.scrollWidth).toBeLessThanOrEqual(compactGlobalRowGeometry.clientWidth + 1);
+  await page.setViewportSize({ width: 1440, height: 900 });
 
   await globalRow.click();
   await expect(page.locator('.global-market-product-region-list')).toBeVisible();
