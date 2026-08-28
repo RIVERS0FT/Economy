@@ -78,6 +78,8 @@ test('account-free game shell navigates all eleven visible business pages and cl
   await clickMapProvinceLabel(page, '得克萨斯州');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', 'US-TX');
   await expect(page.getByRole('heading', { level: 1, name: '得克萨斯州' })).toBeVisible();
+  await expect(page.locator('.province-overview-content')).toBeVisible();
+  await expect(page.locator('.province-overview-panel')).toHaveCount(0);
   await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');
   await expect(page.getByRole('tablist', { name: '得克萨斯州页面分区' }).getByRole('tab')).toHaveCount(4);
   await expect(page.getByText('当前经营地区', { exact: true })).toHaveCount(0);
@@ -173,7 +175,7 @@ test('player page heading keeps SVG back, centered title, and SVG close in that 
   }
 });
 
-test('overview, market, buildings, and settings share a one-third card width while transport, leaderboard, and shop stay full-area with one persistent strategic outliner', async ({ page }) => {
+test('overview, market, buildings, transport, and settings share a one-third card width while research, auction, contracts, bank, leaderboard, and shop stay full-area with one persistent strategic outliner', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('?preview=game');
@@ -205,7 +207,7 @@ test('overview, market, buildings, and settings share a one-third card width whi
   compactWidths.push(provinceContentBox!.width);
   compactCardWidths.push(provinceCardBox!.width);
 
-  for (const label of ['概览', '市场', '建筑', '设置']) {
+  for (const label of ['概览', '市场', '建筑', '运输', '设置']) {
     const button = label === '设置'
       ? sidebar.locator('.sidebar-footer').getByRole('button', { name: '设置', exact: true })
       : sidebar.getByRole('button', { name: new RegExp(`^${label}`) });
@@ -233,8 +235,20 @@ test('overview, market, buildings, and settings share a one-third card width whi
   expect(compactCardWidths[0]).toBeLessThanOrEqual(1684 / 3);
   expect(compactCardWidths[0]).toBeCloseTo(1684 / 3, 0);
 
+  await sidebar.getByRole('button', { name: /^运输/ }).click();
+  const transportContent = page.locator('.transport-page-content');
+  await expect(transportContent).toBeVisible();
+  const transportOverflow = await transportContent.evaluate((element) => ({ clientWidth: element.clientWidth, scrollWidth: element.scrollWidth }));
+  expect(transportOverflow.scrollWidth).toBeLessThanOrEqual(transportOverflow.clientWidth + 1);
+  await page.getByRole('button', { name: '增加路线', exact: true }).click();
+  const transportEditorGrid = page.locator('.transport-route-editor-grid');
+  await expect(transportEditorGrid).toBeVisible();
+  const transportEditorColumns = await transportEditorGrid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(/\s+/).filter(Boolean).length);
+  expect(transportEditorColumns).toBe(1);
+  await page.getByRole('button', { name: '取消', exact: true }).click();
+
   const fullAreaWidths = new Map<string, number>();
-  for (const label of ['运输', '研发', '拍卖', '合同', '银行', '排行', '商店']) {
+  for (const label of ['研发', '拍卖', '合同', '银行', '排行', '商店']) {
     await sidebar.getByRole('button', { name: new RegExp(`^${label}`) }).click();
     const host = page.locator('.strategic-page-host');
     await expect(host.locator(':scope > .page-loading')).toHaveCount(0);

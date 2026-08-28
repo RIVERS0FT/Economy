@@ -1,3 +1,10 @@
+.transport-page-content {
+  min-width: 0;
+  display: grid;
+  gap: var(--layout-gutter);
+  container: transport-page / inline-size;
+}
+
 .transport-route-editor,
 .transport-routes-panel,
 .transport-records-panel {
@@ -146,7 +153,7 @@
   margin: 0;
 }
 
-@media (max-width: 720px) {
+@container transport-page (max-width: 640px) {
   .transport-route-editor-grid,
   .transport-route-estimate,
   .transport-route-meta {

@@ -167,7 +167,7 @@ requireText(pageDesign, '设置商品自动出售、完成一次自动出售', '
 requireText(pageDesign, '合法最低自由库存保留量（允许 `0`）', '页面权威设计必须记录自动出售自由库存设置');
 requireText(pageDesign, '教程只有进行中、已跳过和已完成三种结果', '页面权威设计必须锁定教程结果状态');
 requireText(pageDesign, '设置页不提供“显示教程”或继续教程入口', '页面权威设计必须锁定跳过后只能重新开始');
-requireText(pageDesign, '桌面所有页面（包括七个 `fullscreen` 页面）都复用同一 Outliner DOM', '页面权威设计必须锁定桌面教程与路由生命周期解耦');
+requireText(pageDesign, '桌面所有页面（包括六个 `fullscreen` 页面）都复用同一 Outliner DOM', '页面权威设计必须锁定桌面教程与路由生命周期解耦');
 requireText(pageDesign, '移动端继续复用同一 Outliner DOM', '页面权威设计必须锁定移动教程单实例');
 requireText(pageDesign, '页面切换不得重置分区折叠、关注、滚动或教程步骤', '页面权威设计必须锁定页面切换不修改教程和追踪器交互状态');
 requireText(pageDesign, 'economy_tutorial_completions', '页面权威设计必须记录教程完成表和服务器负担边界');

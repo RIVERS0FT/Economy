@@ -19,7 +19,6 @@ import {
   DataRow,
   MetricCard,
   PageLayout,
-  PagePanel,
   Panel,
   StatusTag,
   WidgetHeading,
@@ -67,7 +66,7 @@ function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameVie
   );
 
   return (
-    <PagePanel className="province-overview-panel">
+    <section className="province-overview-content">
       <WidgetHeading
         title="州级经营概览"
         action={summary.blockedFacilityCount > 0
@@ -101,7 +100,7 @@ function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameVie
         />
         <DataRow label="已停止工厂" value={<CompactNumber value={stoppedFacilityCount} />} />
       </DataList>
-    </PagePanel>
+    </section>
   );
 }
 
@@ -121,7 +120,7 @@ function ProvinceUnlockPanel({
   const sectionLabel = section === 'buildings' ? '建筑' : '仓库';
   const sectionTitle = section === 'buildings' ? '建筑功能未解锁' : '仓库功能未解锁';
   return (
-    <PagePanel className="province-lock-panel">
+    <section className="province-lock-content">
       <WidgetHeading title={sectionTitle} action={<StatusTag tone="warning">锁定</StatusTag>} />
       <p className="province-lock-description">
         {section === 'buildings'
@@ -143,7 +142,7 @@ function ProvinceUnlockPanel({
           ? `资金不足，需要 ${formatCurrency(unlockCost)}`
           : `解锁${provinceName}（${formatCurrency(unlockCost)}）`}
       </Button>
-    </PagePanel>
+    </section>
   );
 }
 

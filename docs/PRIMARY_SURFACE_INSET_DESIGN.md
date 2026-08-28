@@ -2,7 +2,7 @@
 
 > 状态：玩家端一级卡片外层几何的唯一规则
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-25
+> 更新时间：2026-08-28
 
 ## 1. 目标
 
@@ -23,6 +23,7 @@
 ## 3. React 组件规则
 
 - 新增一级卡片必须使用 `PagePanel`。
+- 只有页面正文确实存在需要独立视觉分组的一级业务模块时才创建一级卡片；正常状态下若整个正文只有一个一级业务模块，不得仅为包裹整页再增加 `PagePanel`、`Panel className="widget ..."` 或其他圆角卡片。该单一模块的标题、指标、列表和操作直接排列在 `PageLayout` 正文中。原因是桌面 `workspaceCard` 与移动根级 Mobile Workspace Sheet 已经承担页面一级承载面，再包一层唯一大卡只会形成没有信息层级增益的双层边框、圆角和内边距。
 - `PagePanel` 固定输出 `panel widget ui-primary-surface` 三个语义类。
 - 现有 `Panel className="widget ..."` 由 `Panel` 兼容桥自动补充 `ui-primary-surface`，用于避免一次性重写全部页面造成无关风险。
 - 现有 `.panel.production-surface` 与 `.panel.leaderboard-board-card` 由 `primary-surfaces.css` 作为旧类兼容入口统一接管，直到对应组件迁移为 `PagePanel`；这两个类不得在业务 CSS 中重新声明外层 padding。
@@ -67,6 +68,7 @@
 
 以下旧页面级外层规则已经移除：
 
+- 州级概览与未解锁建筑／仓库不再使用包裹整个分区的唯一一级卡片，分区内容直接进入正文；
 - 建筑页 `.panel.production-surface` 的独立桌面／移动 padding；
 - 银行页 `.asset-overview-card` 的页面专属移动 padding，以及已删除 `.asset-event-panel` 的旧规则；
 - 商店 `.gem-shop-grid > .widget` 的固定 padding；
@@ -82,6 +84,7 @@
 
 - 唯一令牌、桌面 `16px` 和移动 `12px` 规则存在；
 - `PagePanel`、旧 `Panel + widget` 兼容桥以及生产／排行旧类兼容入口存在；
+- 正常正文只有一个一级业务模块时必须直接进入正文，不得恢复整页唯一圆角包裹卡；
 - 玩家页面宽度链、`.game-shell` 局部解析的正文四边 inset、禁止根级横向溢出和一级直接子项宽度约束存在；
 - 页面内容栈本身的命名样式仍唯一保留在 `design-system.css`，不得在 `primary-surfaces.css` 重复声明；
 - 全局建筑页只保留全局工厂目录入口；全局工厂目录和工厂类型下的地区工厂列表在 `620px`、`360px` 实际承载断点继续保持单行并收紧列宽，一级页面不得恢复 `.global-province-list` / `.global-province-row`，两级列表都不得产生页面级横向溢出，也不得恢复已退役的 `.global-operation-metrics`；
