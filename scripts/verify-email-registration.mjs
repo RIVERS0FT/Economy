@@ -109,24 +109,39 @@ for (const text of [
 for (const text of [
   'sendRegistrationEmailCode',
   'completeRegistration',
+  'sendPasswordResetEmailCode',
+  'resetPassword',
   'initializeEconomySession',
   "'/registration/email-code'",
   "'/registration/complete'",
+  "'/password-reset/email-code'",
+  "'/password-reset/complete'",
   "'/game/session'",
 ]) requireText('src/api/auth.ts', text);
 for (const text of ['HOMEPAGE_ACCOUNT_API_BASE', 'registerAtHomepage', "'/register'"]) forbidText('src/api/auth.ts', text);
 
 for (const text of [
-  "type AuthMode = 'login' | 'register'",
+  "type AuthMode = 'login' | 'register' | 'forgot-password'",
+  '忘记密码',
+  '注册账号',
+  'auth-entry-links',
+  'auth-panel-back',
+  '返回',
   '发送验证码',
   'resendSeconds',
   'autoComplete="one-time-code"',
-  "mode === 'login'",
+  'sendPasswordResetEmailCode',
+  'resetPassword',
+  'await logout()',
+  '注册完成，请使用新账号登录',
+  '密码已重置，请使用新密码登录',
   '完成注册',
+  '重置密码',
   '已识别好友分享链接',
   '邀请码（可选）',
 ]) requireText('src/app/LoginPage.tsx', text);
-forbidText('src/app/LoginPage.tsx', '登录或注册');
+for (const text of ['登录或注册', 'auth-mode-switch', 'role="tablist"']) forbidText('src/app/LoginPage.tsx', text);
+requireText('src/app/App.tsx', 'onRegistrationCompleted={clearInvitationCodeFromLocation}');
 
 for (const text of ['邀请好友', '分享链接', '永久邀请码', '注册完成后不能补填或更换']) {
   requireText('src/components/InvitationSettings.tsx', text);
@@ -138,6 +153,9 @@ forbidText('src/pages/SettingsPage.tsx', 'InvitationSettings');
 for (const text of [
   'location ^~ /economy-api/registration/',
   'proxy_pass http://127.0.0.1:3002/api/registration/;',
+  'location ^~ /economy-api/password-reset/',
+  'proxy_pass http://127.0.0.1:3001/api/password-reset/;',
+  'proxy_set_header Origin "";',
   'client_max_body_size 16k;',
 ]) requireText('scripts/configure-economy-registration-nginx.py', text);
 
@@ -153,6 +171,10 @@ for (const text of [
   '发送 IP 和提交 IP',
   '`/economy-api/registration/email-code`',
   '`/economy-api/registration/complete`',
+  '`/economy-api/password-reset/email-code`',
+  '`/economy-api/password-reset/complete`',
+  '密码重置',
+  '主页统一账号服务',
   '`RESEND_API_KEY` 与 `EMAIL_FROM`',
   '`/etc/riversoft-email.env`',
   '`/etc/riversoft-economy-api.env`',
@@ -177,9 +199,22 @@ forbidText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'RESEND_FROM_EMA
 for (const text of [
   '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石、礼品码兑换与每日终端动态报价兑换普通货币 |',
   '| 设置 | `settings` | `SettingsPage` | 资料、偏好、教程控制、存档管理和退出 |',
+  '登录主面板',
+  '忘记密码',
+  '注册账号',
+  '密码重置成功后返回登录面板',
+  '注册完成后返回登录面板',
   '已注册时直接提示登录且不启动倒计时、不创建验证码记录、不发送邮件',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '资料、偏好、邀请、礼品、退出和重置');
+forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '登录和注册两个模式');
+
+for (const text of [
+  '登录主面板',
+  '注册子面板',
+  '密码重置子面板',
+  '左上角返回',
+]) requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', text);
 
 for (const text of [
   'ECONOMY_REGISTRATION_SECRET_FILE',
@@ -192,9 +227,14 @@ for (const text of [
 for (const text of ['configure-economy-registration-nginx.py', 'scripts/verify-production-deployment.sh']) {
   requireText('.github/workflows/deploy.yml', text);
 }
-for (const text of ['registration-api', '/economy-api/registration/email-code', 'ECONOMY_REGISTRATION_PROXY_UNAVAILABLE']) {
-  requireText('scripts/verify-production-deployment.sh', text);
-}
+for (const text of [
+  'registration-api',
+  '/economy-api/registration/email-code',
+  'ECONOMY_REGISTRATION_PROXY_UNAVAILABLE',
+  'password-reset-api',
+  '/economy-api/password-reset/email-code',
+  'ECONOMY_PASSWORD_RESET_PROXY_UNAVAILABLE',
+]) requireText('scripts/verify-production-deployment.sh', text);
 for (const text of [
   'Validate running Resend configuration',
   "['systemctl', 'show', service_name, '--property=MainPID', '--value']",
@@ -229,4 +269,4 @@ if (failures.length) {
   console.error(`邮箱验证码注册验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('邮箱验证码注册验证通过：发送前查重、验证码安全、首次建档邀请码归因、注册后禁止补填、统一同 IP 异常上报与管理员封禁、双模式页面与 Nginx 路由均已锁定。');
+console.log('邮箱认证验证通过：注册发送前查重、验证码安全、首次建档邀请码归因、注册后禁止补填、统一同 IP 异常上报、管理员封禁、登录主面板与独立注册／密码重置子面板、密码重置代理和 Nginx 路由均已锁定。');
