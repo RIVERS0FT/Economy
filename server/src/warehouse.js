@@ -29,11 +29,15 @@ export function createWarehouseSummary(player) {
 }
 
 export function createWarehouseSummaryReadOnly(player) {
+  const buyState = createOnlineAutoBuyPolicyClientState(player);
+  const sellState = createOnlineAutoSellPolicyClientState(player);
+  const executionState = createFactoryAutoTradeExecutionClientState(player);
   return {
     warehouseStoredQuantity: storedQuantity(player),
-    ...createOnlineAutoBuyPolicyClientState(player),
-    ...createOnlineAutoSellPolicyClientState(player),
-    ...createFactoryAutoTradeExecutionClientState(player),
+    onlineAutoBuyPolicies: executionState.onlineAutoBuyPolicies,
+    onlineAutoSellPolicies: executionState.onlineAutoSellPolicies,
+    onlineAutoBuyManagedOrderIds: buyState.onlineAutoBuyManagedOrderIds,
+    onlineAutoSellManagedOrderIds: sellState.onlineAutoSellManagedOrderIds,
     ...createFactoryAutoOperationClientState(player),
   };
 }
