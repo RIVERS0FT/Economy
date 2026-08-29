@@ -37,6 +37,11 @@ import {
 } from '../../navigation/playerPageStack';
 import { PlayerPageNavigationProvider } from '../ui/PageNavigationContext';
 import type { GameTutorialController } from '../../game-guide/useGameTutorial';
+import {
+  TransportRouteDraftContext,
+  type TransportRouteDraft,
+  type TransportRouteDraftContextValue,
+} from './TransportRouteDraftContext';
 
 const STRATEGIC_PAGE_PRESENTATION = {
   home: 'building',
@@ -65,6 +70,9 @@ export function GameShell({ model, children, offline = false }: {
   const derived = model.derived;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [mapLens, setMapLens] = useState<ProvinceMapLens>('assets');
+  const [transportRouteDraft, setTransportRouteDraft] = useState<TransportRouteDraft | null>(null);
+  const [transportRoutePicking, setTransportRoutePicking] = useState(false);
+  const [highlightedRouteStops, setHighlightedRouteStops] = useState<string[] | null>(null);
   const initialPageLocation = playerPageLocationForTab(model.tab);
   const pageHistoryRef = useRef<PlayerPageLocation[]>([]);
   const pageLocationRef = useRef<PlayerPageLocation>(initialPageLocation);
@@ -279,7 +287,155 @@ export function GameShell({ model, children, offline = false }: {
     pushPlayerPage(playerPageLocationForTab(tab));
   }, [model.tab, pushPlayerPage, showMap]);
 
+  const isMobileViewport = useCallback(() => (
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches
+  ), []);
+
+  const updateTransportRouteDraft = useCallback((patch: Partial<TransportRouteDraft>) => {
+    setTransportRouteDraft((current) => (current ? { ...current, ...patch } : current));
+  }, []);
+
+  const closeTransportRouteDraft = useCallback(() => {
+    setTransportRouteDraft(null);
+    setTransportRoutePicking(false);
+    setHighlightedRouteStops(null);
+  }, []);
+
+  const beginTransportRoutePicking = useCallback(() => {
+    setTransportRoutePicking(true);
+    if (isMobileViewport()) mobilePageCloseRef.current?.();
+  }, [isMobileViewport]);
+
+  const returnFromTransportRoutePicking = useCallback(() => {
+    setTransportRoutePicking(false);
+    if (model.tab === 'map') selectPlayerTab('transport');
+  }, [model.tab, selectPlayerTab]);
+
+  const finishTransportRoutePicking = returnFromTransportRoutePicking;
+  const cancelTransportRoutePicking = returnFromTransportRoutePicking;
+
+  const closeTransportRouteLoop = useCallback(() => {
+    setTransportRouteDraft((current) => {
+      if (!current) return current;
+      const stopIds = [
+        current.sourceProvinceId,
+        ...current.viaProvinceIds,
+        current.destinationProvinceId,
+      ].filter(Boolean);
+      if (stopIds.length < 2 || stopIds[0] === stopIds[stopIds.length - 1]) return current;
+      const previousDestination = current.destinationProvinceId;
+      const firstStopId = stopIds[0];
+      const nextViaProvinceIds = previousDestination && previousDestination !== firstStopId
+        ? [...current.viaProvinceIds, previousDestination]
+        : current.viaProvinceIds;
+      return {
+        ...current,
+        viaProvinceIds: nextViaProvinceIds,
+        destinationProvinceId: firstStopId,
+      };
+    });
+  }, []);
+
+  const resetTransportRouteStops = useCallback(() => {
+    setTransportRouteDraft((current) => (
+      current
+        ? { ...current, sourceProvinceId: '', destinationProvinceId: '', viaProvinceIds: [] }
+        : current
+    ));
+  }, []);
+
+  const pickTransportRouteProvince = useCallback((provinceId: string) => {
+    const current = transportRouteDraft;
+    if (!current) return;
+    const unlocked = new Set([
+      ...(Array.isArray(game.unlockedProvinces) ? game.unlockedProvinces : []),
+      game.startingProvinceId,
+    ].filter(Boolean));
+    if (!unlocked.has(provinceId)) {
+      void model.showResult({ ok: false, message: '该州尚未解锁，不能加入运输路线' });
+      return;
+    }
+    const stopIds = [
+      current.sourceProvinceId,
+      ...current.viaProvinceIds,
+      current.destinationProvinceId,
+    ].filter(Boolean);
+    if (stopIds.length === 0) {
+      setTransportRouteDraft({ ...current, sourceProvinceId: provinceId });
+      return;
+    }
+    const firstStopId = stopIds[0];
+      if (provinceId === firstStopId) {
+        if (stopIds.length >= 2 && stopIds[stopIds.length - 1] !== firstStopId) {
+          const previousDestination = current.destinationProvinceId;
+          const nextViaProvinceIds = previousDestination && previousDestination !== firstStopId
+            ? [...current.viaProvinceIds, previousDestination]
+            : current.viaProvinceIds;
+          setTransportRouteDraft({
+            ...current,
+            viaProvinceIds: nextViaProvinceIds,
+            destinationProvinceId: firstStopId,
+          });
+          return;
+        }
+      void model.showResult({ ok: false, message: '起点州已在线路中，请先选择其他站点后再闭环' });
+      return;
+    }
+    if (stopIds.includes(provinceId)) {
+      void model.showResult({ ok: false, message: '该州已在线路中' });
+      return;
+    }
+    const closed = stopIds.length >= 3 && stopIds[stopIds.length - 1] === firstStopId;
+    const nextStopIds = closed ? [...stopIds.slice(0, -1), provinceId] : [...stopIds, provinceId];
+    const [sourceProvinceId, ...remainingStopIds] = nextStopIds;
+    setTransportRouteDraft({
+      ...current,
+      sourceProvinceId,
+      viaProvinceIds: remainingStopIds.slice(0, -1),
+      destinationProvinceId: remainingStopIds[remainingStopIds.length - 1],
+    });
+  }, [game.startingProvinceId, game.unlockedProvinces, model, transportRouteDraft]);
+
+  useEffect(() => {
+    if (transportRoutePicking && model.tab !== 'transport' && model.tab !== 'map') {
+      setTransportRoutePicking(false);
+    }
+  }, [model.tab, transportRoutePicking]);
+
+  useEffect(() => {
+    if (model.tab !== 'transport') setHighlightedRouteStops(null);
+  }, [model.tab]);
+
+  const transportRouteDraftValue = useMemo<TransportRouteDraftContextValue>(() => ({
+    draft: transportRouteDraft,
+    setDraft: setTransportRouteDraft,
+    updateDraft: updateTransportRouteDraft,
+    closeDraft: closeTransportRouteDraft,
+    picking: transportRoutePicking,
+    beginPicking: beginTransportRoutePicking,
+    finishPicking: finishTransportRoutePicking,
+    cancelPicking: cancelTransportRoutePicking,
+    pickProvince: pickTransportRouteProvince,
+    closeLoop: closeTransportRouteLoop,
+    resetStops: resetTransportRouteStops,
+    highlightedRouteStops,
+    setHighlightedRouteStops,
+  }), [
+    beginTransportRoutePicking,
+    cancelTransportRoutePicking,
+    closeTransportRouteDraft,
+    closeTransportRouteLoop,
+    finishTransportRoutePicking,
+    highlightedRouteStops,
+    pickTransportRouteProvince,
+    resetTransportRouteStops,
+    transportRouteDraft,
+    transportRoutePicking,
+    updateTransportRouteDraft,
+  ]);
+
   return (
+    <TransportRouteDraftContext.Provider value={transportRouteDraftValue}>
     <AuctionNewIdsContext.Provider value={auctionNewIdSet}>
       <ApplicationMapLayerPortal>
         <StrategicMapStage model={model} lens={mapLens} />
@@ -385,6 +541,7 @@ export function GameShell({ model, children, offline = false }: {
             data-strategic-page={model.tab}
             data-strategic-page-location={playerPageLocationKey(pageLocation)}
             data-strategic-presentation={pagePresentation}
+            data-map-route-picking={transportRoutePicking ? 'true' : 'false'}
           >
             {model.tab === 'map' ? children : (
               <MobileWorkspacePageSheet
@@ -421,5 +578,6 @@ export function GameShell({ model, children, offline = false }: {
         </div>
       ) : null}
     </AuctionNewIdsContext.Provider>
+    </TransportRouteDraftContext.Provider>
   );
 }

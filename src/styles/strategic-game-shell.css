@@ -117,6 +117,93 @@
   transition: opacity 180ms ease, background-color 180ms ease;
 }
 
+.transport-map-picking-bar {
+  position: absolute;
+  z-index: 3;
+  top: calc(var(--layout-gutter, 16px) + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  gap: var(--space-2);
+  width: min(520px, calc(100% - 32px));
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-subtle);
+  box-shadow: var(--shadow-panel, 0 12px 32px rgb(0 0 0 / 18%));
+  backdrop-filter: blur(14px);
+}
+
+.transport-map-picking-sequence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.transport-map-picking-stop,
+.transport-map-picking-empty {
+  min-width: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-info) 12%, transparent);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.transport-map-picking-stop[data-stop-role='start'] {
+  background: color-mix(in srgb, var(--color-info) 26%, transparent);
+  font-weight: 600;
+}
+
+.transport-map-picking-hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.transport-map-picking-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.transport-map-picking-actions button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.transport-map-picking-actions button.is-primary {
+  border-color: transparent;
+  background: var(--color-info);
+  color: #04141d;
+  font-weight: 600;
+}
+
+.transport-map-picking-actions button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+@media (min-width: 721px) {
+  .signed-in-shell__primary-card:has(.strategic-page-host[data-map-route-picking='true']) {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
 .strategic-map-stage[data-map-lens="industry"] .province-map-echart,
 .strategic-map-stage[data-map-lens="market"] .province-map-echart,
 .strategic-map-stage[data-map-lens="alerts"] .province-map-echart {

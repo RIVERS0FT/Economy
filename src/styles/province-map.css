@@ -107,6 +107,71 @@
   filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-text-primary) 32%, transparent));
 }
 
+.province-map-routes {
+  pointer-events: none;
+}
+
+.province-map-route-path {
+  fill: none;
+  stroke: var(--color-map-label);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: .5;
+}
+
+.province-map-route-return-path {
+  fill: none;
+  stroke: var(--color-map-label);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: .38;
+}
+
+.province-map-route-stop {
+  fill: var(--color-map-region-border);
+  stroke: var(--color-map-label);
+  stroke-width: 1.5;
+  opacity: .72;
+}
+
+.province-map-route[data-route-kind='draft'] .province-map-route-path {
+  stroke: var(--color-info);
+  stroke-width: 2.5;
+  opacity: .92;
+}
+
+.province-map-route[data-route-kind='draft'] .province-map-route-return-path {
+  stroke: var(--color-info);
+  opacity: .55;
+}
+
+.province-map-route[data-route-kind='draft'] .province-map-route-stop {
+  fill: var(--color-info);
+  opacity: .95;
+}
+
+.province-map-route[data-route-kind='highlight'] .province-map-route-path {
+  stroke: var(--color-warning);
+  stroke-width: 3;
+  opacity: .95;
+}
+
+.province-map-route[data-route-kind='highlight'] .province-map-route-stop {
+  fill: var(--color-warning);
+  opacity: .95;
+}
+
+.province-map-chart[data-route-picking='true'] .province-map-region[data-route-pickable='false'] {
+  filter: saturate(.35) brightness(.72);
+}
+
+.province-map-chart[data-route-picking='true'] .province-map-region[data-route-pickable='true'] {
+  stroke: color-mix(in srgb, var(--color-info) 62%, var(--color-map-region-border));
+}
+
 .province-map-label-camera {
   pointer-events: none;
 }
