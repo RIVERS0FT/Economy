@@ -205,6 +205,29 @@ test('a keep producer disables automatic selling for the shared product', () => 
   assert.equal(seller.inventories[fixture.productId].available, 10);
 });
 
+test('switching a producer to keep cancels a stale managed sell so the runtime transaction can commit cleanup', () => {
+  const world = createWorld(now);
+  world.orders = [];
+  const seller = ensurePlayer(world, alice, now);
+  const fixture = configureProducer(world, seller);
+  seller.inventories[fixture.productId] ||= { available: 0, frozen: 0 };
+  seller.inventories[fixture.productId].available = 10;
+  const first = applyOnlineAutoSell(world, alice, { productId: fixture.productId }, now + 1);
+  assert.equal(first.ok, true, first.message);
+  const managed = ownSellOrders(world, fixture.productId).at(-1);
+  assert.ok(managed && isOpenOrder(managed));
+  assert.equal(seller.inventories[fixture.productId].frozen, 10);
+
+  seller.factoryAutoOperationPolicies[provinceScopedKey(DEFAULT_PROVINCE_ID, linked.producer.id)].outputMode = 'keep';
+  const cleanup = applyOnlineAutoSell(world, alice, { productId: fixture.productId }, now + 2);
+
+  assert.equal(cleanup.ok, true, cleanup.message);
+  assert.match(cleanup.message, /撤销旧托管卖单/);
+  assert.equal(managed.status, 'cancelled');
+  assert.equal(seller.inventories[fixture.productId].available, 10);
+  assert.equal(seller.inventories[fixture.productId].frozen, 0);
+});
+
 test('own crossing buy blocks factory automatic selling', () => {
   const world = createWorld(now);
   world.orders = [];
