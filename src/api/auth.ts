@@ -14,6 +14,11 @@ interface EmailCodeResponse {
   resendAfterSeconds: number;
 }
 
+interface PasswordResetResponse {
+  message: string;
+  repeated?: boolean;
+}
+
 export interface EconomySessionResponse {
   playerCreated: boolean;
   banned: boolean;
@@ -140,6 +145,22 @@ export async function completeRegistration(
     body: JSON.stringify({ email, password, code, inviteCode, invitationSource }),
   });
   return payload.user;
+}
+
+export async function sendPasswordResetEmailCode(email: string): Promise<EmailCodeResponse> {
+  return requestGameApi<EmailCodeResponse>('/password-reset/email-code', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': createIdempotencyKey('password-reset-email') },
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function resetPassword(email: string, password: string, code: string): Promise<PasswordResetResponse> {
+  return requestGameApi<PasswordResetResponse>('/password-reset/complete', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': createIdempotencyKey('password-reset-complete') },
+    body: JSON.stringify({ email, password, code }),
+  });
 }
 
 export async function initializeEconomySession(inviteCode?: string): Promise<EconomySessionResponse> {
