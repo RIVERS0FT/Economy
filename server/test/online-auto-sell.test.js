@@ -117,7 +117,7 @@ test('factory automatic selling leaves real standing supply outside the manual q
   const world = createWorld(now);
   world.orders = [];
   const seller = ensurePlayer(world, alice, now);
-  const fixture = configureProducer(world, seller);
+  const fixture = configureProducer(world, seller, { mode: 'profit' });
   seller.inventories[fixture.productId] ||= { available: 0, frozen: 0 };
   seller.inventories[fixture.productId].available = 10;
 
@@ -138,7 +138,7 @@ test('factory automatic selling fills qualifying demand through the unified orde
   world.orders = [];
   const seller = ensurePlayer(world, alice, now);
   const buyer = ensurePlayer(world, bob, now);
-  const fixture = configureProducer(world, seller);
+  const fixture = configureProducer(world, seller, { mode: 'profit' });
   seller.inventories[fixture.productId] ||= { available: 0, frozen: 0 };
   seller.inventories[fixture.productId].available = 8;
   buyer.credits = 100_000;
@@ -209,7 +209,7 @@ test('switching a producer to keep cancels a stale managed sell so the runtime t
   const world = createWorld(now);
   world.orders = [];
   const seller = ensurePlayer(world, alice, now);
-  const fixture = configureProducer(world, seller);
+  const fixture = configureProducer(world, seller, { mode: 'profit' });
   seller.inventories[fixture.productId] ||= { available: 0, frozen: 0 };
   seller.inventories[fixture.productId].available = 10;
   const first = applyOnlineAutoSell(world, alice, { productId: fixture.productId }, now + 1);
@@ -272,7 +272,7 @@ test('manual market orders still match against a standing factory auto sell orde
   world.orders = [];
   const seller = ensurePlayer(world, alice, now);
   const buyer = ensurePlayer(world, bob, now);
-  const fixture = configureProducer(world, seller);
+  const fixture = configureProducer(world, seller, { mode: 'profit' });
   seller.inventories[fixture.productId] ||= { available: 0, frozen: 0 };
   seller.inventories[fixture.productId].available = 6;
   buyer.credits = 100_000;
