@@ -313,8 +313,8 @@ for (const token of [
 ]) forbidText(hierarchyBrowserSpec, token, 'market hierarchy browser regression');
 
 for (const token of [
-  '一级市场采用“商品目录 → 商品全局详情 → 地区商品详情”',
-  '两条路径最终都复用同一个地区商品详情、订单簿、下单和自动交易实现',
+  '自动经营配置唯一归属工厂详情',
+  '地区商品详情只读展示',
 ]) requireText(warehouseVerifier, token, 'warehouse/market responsibility verifier');
 for (const token of [
   "const marketCommodityRowSource = read('src/components/market/MarketCommodityRow.tsx');",
