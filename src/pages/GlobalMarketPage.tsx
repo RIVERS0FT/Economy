@@ -383,8 +383,9 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
               </div>
             </div>
           </details>
-          <MarketCommodityHeader
-            entityLabel="地区"
+          <section className="entity-list-surface global-market-product-region-surface">
+            <MarketCommodityHeader
+              entityLabel="地区"
             entitySortKey="name"
             sortKey={regionalSort}
             sortDirection={regionalSortDirection}
@@ -393,7 +394,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
               setRegionalSortDirection(direction);
             }}
           />
-          <ul className="global-market-product-region-list" aria-label={`${selectedGlobalProduct.name}各地区行情`}>
+            <ul className="entity-list-rows global-market-product-region-list" aria-label={`${selectedGlobalProduct.name}各地区行情`}>
             {regionalRows.map((row) => (
               <li key={row.province.id}>
                   <MarketCommodityRow
@@ -417,7 +418,8 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
             {regionalRows.length === 0
               ? <li className="global-market-empty">没有符合当前筛选条件的地区。</li>
               : null}
-          </ul>
+            </ul>
+          </section>
         </div>
       </PageLayout>
     );
@@ -457,8 +459,9 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
             </div>
           </div>
         </details>
-        <EntityListHeader
-          className="global-market-goods-header"
+        <section className="entity-list-surface global-market-goods-surface">
+          <EntityListHeader
+            className="global-market-goods-header"
           columns={[
             { label: '商品', sortKey: 'name', defaultDirection: 'asc' },
             { label: '卖单量', sortKey: 'sell-volume', defaultDirection: 'desc' },
@@ -471,7 +474,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
           sortState={catalogSort}
           onSortChange={setCatalogSort}
         />
-        <ul className="global-market-goods-list" aria-label="全局商品目录">
+          <ul className="entity-list-rows global-market-goods-list" aria-label="全局商品目录">
           {filteredProductRows.map((row) => (
             <li key={row.id}>
               <button
@@ -491,7 +494,7 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
                 <span className="global-market-goods-row__metric"><strong>{typeof row.marketPrice === 'number'
                   ? <CurrencyAmount>{row.marketPrice}</CurrencyAmount>
                   : '—'}</strong></span>
-                <span className="global-market-goods-row__metric"><strong>{typeof row.priceChange24h === 'number'
+                <span className={`global-market-goods-row__metric entity-list-value ${typeof row.priceChange24h !== 'number' ? 'is-unavailable' : row.priceChange24h > 0 ? 'is-positive' : row.priceChange24h < 0 ? 'is-negative' : 'is-neutral'}`}><strong>{typeof row.priceChange24h === 'number'
                   ? <CurrencyAmount sign={row.priceChange24h > 0 ? '+' : undefined}>{row.priceChange24h}</CurrencyAmount>
                   : '—'}</strong></span>
                 <span className="global-market-goods-row__chevron" aria-hidden="true">
@@ -501,7 +504,8 @@ export function GlobalMarketPage({ model }: { model: OnlineAutoTradeAwareGameVie
             </li>
           ))}
           {filteredProductRows.length === 0 ? <li className="global-market-empty">没有符合当前筛选条件的商品。</li> : null}
-        </ul>
+          </ul>
+        </section>
       </div>
     </PageLayout>
   );

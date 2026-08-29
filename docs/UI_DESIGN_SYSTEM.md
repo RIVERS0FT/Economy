@@ -37,7 +37,7 @@
 | `src/styles/product-artwork.css` | 商品插画 128px 运行时缩略图映射、批准展示上下文、尺寸与低流量 SVG 回退 |
 | `src/styles/facility-artwork.css` | 工厂场景插画 256px 运行时缩略图映射、批准展示上下文、尺寸与低流量 SVG 回退 |
 | `src/styles/unified-market-admin.css` | 统一市场与管理员页面布局 |
-| `src/styles/entity-list-header.css` | 所有带表头实体列表共享的表头基线令牌：统一弱化文字、加粗字重、下边框分隔、单元格省略和网格行布局；业务列表只补充各自列模板与横向内边距 |
+| `src/styles/entity-list-header.css` | 所有带表头页面实体列表的统一视觉权威：列表表面、表头、数据行、表头到首行间距、行间距、响应式列间距／横向内边距、箭头列、目录插画槽和正负数值色；业务列表只补充列模板与业务单元格内容 |
 | `src/styles/market-commodity-row.css` | 全局商品详情与地区市场共享的紧凑商品数据行、可排序表头交互、默认折叠筛选 disclosure 和移动单行收缩规则 |
 | `src/styles/settings.css` | 设置页统一单列、统计密度、账号分组和存档管理布局 |
 | `src/styles/asset-overview.css` | 银行页资产总览的净资产摘要、资产配置圆环、资产构成表和移动两行两列重排 |
@@ -108,6 +108,8 @@
 `PagePanel` 是新增玩家端一级卡片的唯一 React 入口，固定复用 `Panel`、`.widget` 与 `.ui-primary-surface`。现有 `Panel className="widget ..."` 由兼容桥自动补充 `.ui-primary-surface`；建筑页和排行页尚未迁移的旧一级卡片类只允许在 `primary-surfaces.css` 中作为兼容入口，不得在业务 CSS 中重新定义外层 padding。
 
 `PagePanel` 只用于实际存在视觉分组意义的一级业务模块。若页面正文在正常状态下只有一个一级业务模块，内容必须直接排列在 `PageLayout` 正文而不是再套唯一大圆角卡；`workspaceCard`／Mobile Workspace Sheet 已经是页面承载面，禁止用第二层整页卡片重复边框、圆角和外层内边距。
+
+所有带表头的页面实体目录固定使用 `.entity-list-surface` 包裹 `EntityListHeader + .entity-list-rows`。表头与首行、相邻数据行统一使用同一 `.32rem` 间距；列 gap、横向 padding、Chevron 轨道和目录插画槽只能由 `entity-list-header.css` 的共享变量随真实内容容器收缩，业务 CSS 只允许定义字段列模板和业务单元格内部排版，不得为市场、地区商品、建筑或地区建筑各自维护另一套列表密度。正负行情与利润统一通过 `.entity-list-value.is-positive / .is-negative` 表达，避免同一语义跨页面变色。
 
 玩家端 `PageLayout` 的标题区固定只包含返回、主标题和关闭三个槽位，不得渲染刷新、创建、筛选、保存或其他业务按钮；业务操作必须进入正文中的对应业务模块或正文顶部操作区。`PageLayout.actions` 只允许非玩家页面继续使用，玩家导航上下文存在时不得生成第二行标题操作区。原因是标题轨道承担跨页面稳定导航几何，业务操作进入标题区会改变标题高度、正文起点和跨页面按钮位置。
 

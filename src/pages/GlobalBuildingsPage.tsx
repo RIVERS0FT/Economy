@@ -356,7 +356,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
           data-global-facility-type-id={selectedGlobalFacilityTypeId}
         >
           {facilityProvinceRows.length > 0 ? (
-            <>
+            <section className="entity-list-surface global-facility-region-surface">
               <EntityListHeader
                 className="global-facility-region-header"
                 columns={[
@@ -369,7 +369,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                 sortState={regionSort}
                 onSortChange={setRegionSort}
               />
-              <ul className="global-facility-region-list" aria-label={`${selectedGlobalFacility.name}地区工厂`}>
+              <ul className="entity-list-rows global-facility-region-list" aria-label={`${selectedGlobalFacility.name}地区工厂`}>
                 {sortedFacilityProvinceRows.map((row) => (
                   <li key={row.province.id}>
                     <button
@@ -385,7 +385,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                         <strong>{row.province.name}</strong>
                       </span>
                       <strong
-                        className={`global-facility-region-row__profit is-${row.profitTone}`}
+                        className={`entity-list-value global-facility-region-row__profit is-${row.profitTone}`}
                         title={row.profitDetail}
                       >
                         {row.profitValue}
@@ -399,7 +399,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                   </li>
                 ))}
               </ul>
-            </>
+            </section>
           ) : <Panel className="empty-state">当前已没有地区持有该工厂。</Panel>}
         </div>
       </PageLayout>
@@ -409,7 +409,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
   return (
     <PageLayout title="建筑">
       <div className="global-operation-page global-buildings-page" data-global-scope="buildings">
-        <section className="global-facility-catalog" aria-label="全局工厂目录">
+        <section className="entity-list-surface global-facility-catalog" aria-label="全局工厂目录">
           {facilityRows.length > 0 ? (
             <>
               <EntityListHeader
@@ -423,7 +423,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                 sortState={catalogSort}
                 onSortChange={setCatalogSort}
               />
-              <ul className="global-facility-catalog-list" aria-label="跨州工厂汇总">
+              <ul className="entity-list-rows global-facility-catalog-list" aria-label="跨州工厂汇总">
                 {sortedFacilityRows.map((row) => (
                   <li key={row.facilityTypeId}>
                     <button
@@ -439,7 +439,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                         <strong>{row.name}</strong>
                       </span>
                       <strong
-                        className={`global-facility-catalog-row__metric global-facility-catalog-row__profit is-${row.profitTone}`}
+                        className={`entity-list-value global-facility-catalog-row__metric global-facility-catalog-row__profit is-${row.profitTone}`}
                         title={row.profitDetail}
                       >
                         {row.profitValue}

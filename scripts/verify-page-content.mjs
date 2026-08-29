@@ -70,6 +70,9 @@ for (const text of [
 for (const text of [
   '玩家端 `PageLayout` 的标题区固定只包含返回、主标题和关闭三个槽位',
   '`PageLayout.actions` 只允许非玩家页面继续使用',
+  '所有带表头的页面实体目录固定使用 `.entity-list-surface` 包裹 `EntityListHeader + .entity-list-rows`',
+  '表头与首行、相邻数据行统一使用同一 `.32rem` 间距',
+  '正负行情与利润统一通过 `.entity-list-value.is-positive / .is-negative` 表达',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 for (const text of [
   'className="transport-page-actions"',
@@ -246,9 +249,36 @@ for (const text of [
   '24h',
 ]) requireText('src/components/market/MarketCommodityRow.tsx', text);
 for (const text of ['挂单差额', '基准偏离', '挂单状态']) forbidText('src/components/market/MarketCommodityRow.tsx', text);
-for (const text of ['.entity-list-header', 'border-bottom: 1px solid var(--color-divider);']) {
-  requireText('src/styles/entity-list-header.css', text);
-}
+for (const text of [
+  '.entity-list-surface {',
+  '.entity-list-rows {',
+  '--entity-list-chevron-column: .8rem;',
+  '--entity-list-artwork-slot: 42px;',
+  '--entity-list-artwork-size: 34px;',
+  'gap: .32rem;',
+  '.entity-list-value.is-positive {',
+  '.entity-list-value.is-negative {',
+  'border-bottom: 1px solid var(--color-divider);',
+]) requireText('src/styles/entity-list-header.css', text);
+for (const text of [
+  'className="entity-list-surface global-market-goods-surface"',
+  'className="entity-list-rows global-market-goods-list"',
+  'className="entity-list-surface global-market-product-region-surface"',
+  'className="entity-list-rows global-market-product-region-list"',
+  'entity-list-value',
+]) requireText('src/pages/GlobalMarketPage.tsx', text);
+for (const text of [
+  'className="entity-list-surface global-facility-catalog"',
+  'className="entity-list-rows global-facility-catalog-list"',
+  'className="entity-list-surface global-facility-region-surface"',
+  'className="entity-list-rows global-facility-region-list"',
+  'entity-list-value',
+]) requireText('src/pages/GlobalBuildingsPage.tsx', text);
+forbidText('src/styles/global-operation-pages.css', '--entity-list-gap:');
+forbidText('src/styles/global-operation-pages.css', '--entity-list-inline-padding:');
+forbidText('src/styles/global-operation-pages.css', '@container global-market-page (max-width: 760px)');
+forbidText('src/styles/global-operation-pages.css', '.global-facility-catalog-row__profit.is-positive');
+forbidText('src/styles/market-commodity-row.css', '.market-commodity-row__trend.is-positive strong');
 requireText('src/pages/GlobalMarketPage.tsx', 'className="global-market-goods-header"');
 requireText('src/pages/GlobalBuildingsPage.tsx', 'className="global-facility-catalog-header"');
 requireText('src/pages/GlobalBuildingsPage.tsx', 'className="global-facility-region-header"');

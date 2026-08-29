@@ -116,6 +116,68 @@ test('global market drills from commodity to regional quotes and existing trade 
   await expect(page.locator('.global-market-product-region-list')).toBeVisible();
 });
 
+test('market and building entity lists share one page-list geometry', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('?preview=game');
+  const sidebar = page.locator('.desktop-sidebar');
+
+  const inspect = async (selector: string) => {
+    const surface = page.locator(selector);
+    await expect(surface).toBeVisible();
+    await expect(surface.locator(':scope > .entity-list-header')).toBeVisible();
+    await expect(surface.locator(':scope > .entity-list-rows .entity-list-row').first()).toBeVisible();
+    return surface.evaluate((element) => {
+      const header = element.querySelector<HTMLElement>(':scope > .entity-list-header');
+      const rows = element.querySelector<HTMLElement>(':scope > .entity-list-rows');
+      const row = rows?.querySelector<HTMLElement>('.entity-list-row');
+      const primary = row?.querySelector<HTMLElement>('strong');
+      const chevron = row?.lastElementChild as HTMLElement | null;
+      if (!header || !rows || !row || !primary || !chevron) throw new Error('entity list fixture is incomplete');
+      const surfaceStyle = getComputedStyle(element);
+      const rowsStyle = getComputedStyle(rows);
+      const rowStyle = getComputedStyle(row);
+      const headerBox = header.getBoundingClientRect();
+      const rowsBox = rows.getBoundingClientRect();
+      return {
+        surfaceGap: surfaceStyle.rowGap,
+        rowsGap: rowsStyle.rowGap,
+        headerToRows: Math.round((rowsBox.top - headerBox.bottom) * 100) / 100,
+        columnGap: rowStyle.columnGap,
+        paddingLeft: rowStyle.paddingLeft,
+        paddingRight: rowStyle.paddingRight,
+        paddingTop: rowStyle.paddingTop,
+        paddingBottom: rowStyle.paddingBottom,
+        borderRadius: rowStyle.borderRadius,
+        minHeight: rowStyle.minHeight,
+        fontSize: getComputedStyle(primary).fontSize,
+        chevronColumn: rowStyle.getPropertyValue('--entity-list-chevron-column').trim(),
+        chevronWidth: Math.round(chevron.getBoundingClientRect().width * 100) / 100,
+      };
+    });
+  };
+
+  await sidebar.getByRole('button', { name: /^市场/ }).click();
+  const samples = [await inspect('.global-market-goods-surface')];
+  const marketArtworkSize = await page.locator('.global-market-goods-row__artwork > .product-artwork').first().evaluate(
+    (element) => getComputedStyle(element).width,
+  );
+  await page.locator('.global-market-goods-row').first().click();
+  samples.push(await inspect('.global-market-product-region-surface'));
+
+  await sidebar.getByRole('button', { name: /^建筑/ }).click();
+  samples.push(await inspect('.global-facility-catalog'));
+  const facilityArtworkSize = await page.locator('.global-facility-catalog-row__artwork').first().evaluate(
+    (element) => getComputedStyle(element).width,
+  );
+  expect(facilityArtworkSize).toBe(marketArtworkSize);
+  await page.locator('.global-facility-catalog-row').first().click();
+  samples.push(await inspect('.global-facility-region-surface'));
+
+  for (const key of Object.keys(samples[0]) as Array<keyof typeof samples[number]>) {
+    expect(new Set(samples.map((sample) => String(sample[key]))).size, `${key} should be shared`).toBe(1);
+  }
+});
+
 test('player page heading keeps SVG back, centered title, and SVG close in that order', async ({ page }) => {
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^概览/ }).click();
