@@ -27,7 +27,7 @@ import {
 import { EconomyStore } from './runtime-store.js';
 import { createTutorialStore, CURRENT_TUTORIAL_VERSION } from './tutorial-store.js';
 import { cleanupEmailVerificationRecords } from './verification-retention.js';
-import { measureRequestPhase, setRequestGauge } from './request-performance.js';
+import { measureRequestPhase, requestElapsedMs, setRequestGauge } from './request-performance.js';
 import {
   assertPlayerSaveEpoch,
   deletePlayerSave,
@@ -68,6 +68,7 @@ function sendJson(response, statusCode, payload, extraHeaders = {}) {
     'Content-Length': Buffer.byteLength(body),
     'Cache-Control': 'no-store',
     'X-Content-Type-Options': 'nosniff',
+    'Server-Timing': `app;dur=${requestElapsedMs().toFixed(3)}`,
     ...extraHeaders,
   });
   response.end(body);

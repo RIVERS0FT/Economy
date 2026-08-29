@@ -54,6 +54,8 @@ for (const text of [
   "'/api/game/research/start'",
   "'/api/game/research/accelerate'",
   'X-Economy-Save-Epoch',
+  'serverTimingDurationMs',
+  "timingSource: 'server-local'",
   "seedTransactionAssets: profile === 'transaction-mix'",
 ]) assert.equal(runner.includes(text), true, `压力测试执行器缺少 ${text}`);
 assert.equal(
@@ -79,6 +81,22 @@ for (const text of [
 for (const text of ['p50Ms', 'p90Ms', 'p95Ms', 'p99Ms', 'serverErrorCount', 'timeoutCount', 'statusCodes']) {
   assert.equal(read('tests/stress/metrics.mjs').includes(text), true, `压力测试指标缺少 ${text}`);
 }
+const stressMetrics = read('tests/stress/metrics.mjs');
+assert.equal(
+  stressMetrics.includes('performance.now() - startedAt'),
+  false,
+  '压力测试不得记录客户端端到端耗时',
+);
+assert.equal(
+  stressMetrics.includes("timingSource === 'server-local'"),
+  true,
+  '压力测试延迟预算必须只采用服务端本地耗时',
+);
+assert.equal(
+  runner.includes('performance.now() - startedAt'),
+  false,
+  '压力测试请求封装不得记录客户端端到端耗时',
+);
 
 const workflow = read('.github/workflows/stress.yml');
 for (const text of [

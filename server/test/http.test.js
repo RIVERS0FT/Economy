@@ -105,6 +105,7 @@ test('HTTP API authenticates through the shared account service and honors idemp
       headers: { Cookie: 'session=ok' },
     });
     assert.equal(stateResponse.status, 200);
+    assert.match(String(stateResponse.headers.get('server-timing') || ''), /^app;dur=[0-9]+(?:\.[0-9]+)?$/);
     const statePayload = await stateResponse.json();
     const initialState = mergePatches(null, statePayload.patches);
     assert.equal(initialState.credits, 500);

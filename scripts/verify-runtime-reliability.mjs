@@ -166,6 +166,8 @@ for (const text of [
   'ECONOMY_API_HEALTH_RETRY',
   'ECONOMY_API_HEALTH_RETRY_EXHAUSTED',
   'ECONOMY_API_HEALTH_DIAGNOSTICS_BEGIN',
+  'ECONOMY_HEALTH_PROXY_UNAVAILABLE',
+  'https://${PUBLIC_IP}/economy-api/health',
   'systemctl status riversoft-economy-api.service --no-pager --full',
   'journalctl -u riversoft-economy-api.service -n 80 --no-pager',
 ]) requireText('scripts/verify-production-deployment.sh', text);
