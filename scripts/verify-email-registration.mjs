@@ -171,10 +171,6 @@ for (const text of [
   '发送 IP 和提交 IP',
   '`/economy-api/registration/email-code`',
   '`/economy-api/registration/complete`',
-  '`/economy-api/password-reset/email-code`',
-  '`/economy-api/password-reset/complete`',
-  '密码重置',
-  '主页统一账号服务',
   '`RESEND_API_KEY` 与 `EMAIL_FROM`',
   '`/etc/riversoft-email.env`',
   '`/etc/riversoft-economy-api.env`',
@@ -199,21 +195,17 @@ forbidText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'RESEND_FROM_EMA
 for (const text of [
   '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石、礼品码兑换与每日终端动态报价兑换普通货币 |',
   '| 设置 | `settings` | `SettingsPage` | 资料、偏好、教程控制、存档管理和退出 |',
-  '登录主面板',
-  '忘记密码',
-  '注册账号',
-  '密码重置成功后返回登录面板',
-  '注册完成后返回登录面板',
   '已注册时直接提示登录且不启动倒计时、不创建验证码记录、不发送邮件',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '资料、偏好、邀请、礼品、退出和重置');
-forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '登录和注册两个模式');
 
 for (const text of [
   '登录主面板',
   '注册子面板',
   '密码重置子面板',
   '左上角返回',
+  '不得恢复登录／注册模式切换器',
+  '“忘记密码”和“注册账号”必须位于密码输入框下方',
 ]) requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', text);
 
 for (const text of [
