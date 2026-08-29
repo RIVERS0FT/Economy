@@ -199,9 +199,10 @@ for (const text of [
 
 for (const text of [
   '单厂平均利润／分钟',
-  '最近真实成交价',
   'resolveFacilityProfitPresentation({',
 ]) assert.ok(analysisSource.includes(text), `单厂平均利润界面缺少: ${text}`);
+assert.equal(analysisSource.includes('最近真实成交价'), false, '单厂平均利润行不得恢复最近真实成交价副说明');
+assert.equal(analysisSource.includes('<small>'), false, '单厂平均利润行不得恢复可见副说明');
 for (const text of [
   'scopeCount: scopeCount > 0 ? 1 : 0',
   'buildCost: 0',
