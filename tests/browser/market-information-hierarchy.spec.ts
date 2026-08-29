@@ -21,7 +21,7 @@ test('market uses product-first global and regional information hierarchy', asyn
 
   const goodsHeader = page.locator('.global-market-goods-header');
   await expect(goodsHeader).toBeVisible();
-  for (const label of ['商品', '24h成交量', '24h价格变化', '平均价格']) {
+  for (const label of ['商品', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']) {
     await expect(goodsHeader.getByText(label, { exact: true })).toBeVisible();
   }
   for (const label of ['成交地区', '真实成交价范围', '需求未满足']) {
@@ -43,7 +43,7 @@ test('market uses product-first global and regional information hierarchy', asyn
   await expect(goodsHeader.getByRole('columnheader', { name: '商品' })).toHaveAttribute('aria-sort', 'none');
   expect(await globalNames.allTextContents()).toEqual(initialGlobalOrder);
 
-  for (const label of ['24h成交量', '24h价格变化', '平均价格']) {
+  for (const label of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']) {
     const sortButton = goodsHeader.getByRole('button', { name: label, exact: true });
     await sortButton.click();
     await expect(goodsHeader.getByRole('columnheader', { name: label })).toHaveAttribute('aria-sort', 'descending');
@@ -55,7 +55,7 @@ test('market uses product-first global and regional information hierarchy', asyn
 
   const globalRow = page.getByRole('button', { name: '打开小麦全局详情' });
   await expect(globalRow).toBeVisible();
-  for (const label of ['24h成交量', '24h价格变化', '平均价格', '成交地区', '真实成交价范围', '需求未满足']) {
+  for (const label of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化', '成交地区', '真实成交价范围', '需求未满足']) {
     await expect(globalRow.getByText(label, { exact: true })).toHaveCount(0);
   }
   await expect(globalRow.locator('.global-market-goods-row__chevron .game-icon')).toHaveCount(1);
@@ -74,7 +74,7 @@ test('market uses product-first global and regional information hierarchy', asyn
   const regionalHeader = page.locator('.global-market-product-detail > .market-commodity-row-header');
   await expect(regionalHeader).toBeVisible();
   await expect(page.locator('.global-market-product-region-list .market-commodity-row-header')).toHaveCount(0);
-  for (const label of ['地区', '卖单量', '买单量', '市场价', '24h']) {
+  for (const label of ['地区', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']) {
     await expect(regionalHeader.getByText(label, { exact: true })).toBeVisible();
   }
   const regionalRow = page.getByRole('button', { name: '打开加利福尼亚州小麦详情' });
@@ -99,7 +99,7 @@ test('market uses product-first global and regional information hierarchy', asyn
   await expect(regionalHeader.locator('[aria-sort="descending"]')).toHaveText('市场价');
   await regionalPriceSort.click();
   await expect(regionalHeader.locator('[aria-sort="ascending"]')).toHaveText('市场价');
-  for (const label of ['卖单量', '买单量', '市场价', '24h', '挂单差额', '基准偏离', '挂单状态']) {
+  for (const label of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化', '挂单差额', '基准偏离', '挂单状态']) {
     await expect(regionalRow.getByText(label, { exact: true })).toHaveCount(0);
   }
   await expect(regionalRow.locator('.market-commodity-row__chevron .game-icon')).toHaveCount(1);

@@ -65,7 +65,7 @@ function localTradeAssetName(trade: { description: string; side: 'buy' | 'sell' 
 }
 
 type MarketCatalogStatus = 'all' | 'traded' | 'buy' | 'sell' | 'unmet-demand' | 'own-order';
-type MarketCatalogSort = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume';
+type MarketCatalogSort = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume' | 'volume24h';
 
 const PRODUCT_CATEGORY_LABELS: Record<ProductCategory, string> = {
   raw: '原材料',
@@ -95,6 +95,7 @@ interface MarketCatalogEntry {
   ownOrderCount: number;
   buyVolume: number;
   sellVolume: number;
+  tradeVolume24h: number;
   demandSatisfaction: number | null;
 }
 
@@ -619,6 +620,7 @@ export function MarketPage({
         ownOrderCount: orders.filter((order) => order.isOwn).length,
         buyVolume,
         sellVolume,
+        tradeVolume24h: Math.max(0, Number(market?.tradeVolume24h || 0)),
         demandSatisfaction: (market?.demand?.lastQuantity ?? 0) > 0
           ? Math.max(0, Math.min(1, market?.demand?.satisfaction ?? 0))
           : null,
@@ -641,6 +643,7 @@ export function MarketPage({
       if (catalogSort === 'trend') return compareMarketOptionalValue(left.trend, right.trend, catalogSortDirection);
       if (catalogSort === 'buy-volume') return compareMarketOptionalValue(left.buyVolume, right.buyVolume, catalogSortDirection);
       if (catalogSort === 'sell-volume') return compareMarketOptionalValue(left.sellVolume, right.sellVolume, catalogSortDirection);
+      if (catalogSort === 'volume24h') return compareMarketOptionalValue(left.tradeVolume24h, right.tradeVolume24h, catalogSortDirection);
       return 0;
     });
   }, [
@@ -748,6 +751,7 @@ export function MarketPage({
                 categoryLabel={entry.categoryLabel}
                 sellVolume={entry.sellVolume}
                 buyVolume={entry.buyVolume}
+                tradeVolume24h={entry.tradeVolume24h}
                 marketPrice={entry.marketPrice}
                 trend={entry.trend}
                 ariaLabel={`查看${entry.name}详情`}
