@@ -10,7 +10,6 @@ function finiteNonNegative(value) {
 
 export function createRequestPerformanceContext() {
   return {
-    startedAt: performance.now(),
     phases: Object.create(null),
     gauges: Object.create(null),
   };
@@ -22,11 +21,6 @@ export function runWithRequestPerformance(context, callback) {
 
 export function requestPerformanceContext() {
   return storage.getStore() || null;
-}
-
-export function requestElapsedMs(context = requestPerformanceContext()) {
-  if (!context?.startedAt) return 0;
-  return Math.max(0, performance.now() - context.startedAt);
 }
 
 export function addRequestPhase(name, durationMs) {
@@ -65,4 +59,9 @@ export function snapshotRequestPerformance(context = requestPerformanceContext()
     phases: Object.fromEntries(Object.entries(context.phases).map(([key, value]) => [key, finiteNonNegative(value)])),
     gauges: { ...context.gauges },
   };
+}
+
+export function requestProcessingMs(context = requestPerformanceContext()) {
+  const { phases } = snapshotRequestPerformance(context);
+  return Object.values(phases).reduce((sum, value) => sum + value, 0);
 }

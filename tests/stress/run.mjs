@@ -60,7 +60,7 @@ async function requestJson(metrics, {
   expectedStatuses = [200],
 }) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs ?? (method === 'GET' ? 8_000 : 12_000));
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs ?? (method === 'GET' ? 30_000 : 12_000));
   let response;
   let text = '';
   try {

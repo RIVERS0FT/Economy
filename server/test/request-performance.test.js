@@ -4,6 +4,7 @@ import {
   addRequestPhase,
   createRequestPerformanceContext,
   measureRequestPhase,
+  requestProcessingMs,
   runWithRequestPerformance,
   setRequestGauge,
   snapshotRequestPerformance,
@@ -21,6 +22,7 @@ test('request performance aggregates nested phases and gauges inside one request
   assert.equal(snapshot.phases.worldCloneMs, 10);
   assert.ok(snapshot.phases.asyncPhaseMs >= 0);
   assert.equal(snapshot.gauges.worldJsonBytes, 8_192);
+  assert.equal(requestProcessingMs(context), 10 + snapshot.phases.asyncPhaseMs);
 });
 
 test('request performance does nothing outside a request context', () => {
