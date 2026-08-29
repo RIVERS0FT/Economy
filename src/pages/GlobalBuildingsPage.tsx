@@ -383,7 +383,6 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                     >
                       <span className="global-facility-region-row__identity">
                         <strong>{row.province.name}</strong>
-                        <small>{row.province.shortName}</small>
                       </span>
                       <strong
                         className={`global-facility-region-row__profit is-${row.profitTone}`}

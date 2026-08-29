@@ -102,6 +102,7 @@ for (const text of [
   '场景插画固定使用圆角正方形裁剪',
   '全局工厂行必须整行可点击，先进入该工厂类型的地区列表',
   '固定使用“地区｜利润／分钟｜拥有｜状态”统一表头',
+  '地区列只显示州级地区全称，不在地区名下方重复显示字母简写',
   '利润列固定显示该州当前同类工厂的单厂利润／分钟',
   '地区行再切换经营州并复用现有 `BuildingsPage` 工厂详情',
   '返回层级固定为“地区工厂详情 → 该工厂的地区列表 → 全局工厂列表”',
@@ -251,6 +252,8 @@ for (const text of ['.entity-list-header', 'border-bottom: 1px solid var(--color
 requireText('src/pages/GlobalMarketPage.tsx', 'className="global-market-goods-header"');
 requireText('src/pages/GlobalBuildingsPage.tsx', 'className="global-facility-catalog-header"');
 requireText('src/pages/GlobalBuildingsPage.tsx', 'className="global-facility-region-header"');
+forbidText('src/pages/GlobalBuildingsPage.tsx', '<small>{row.province.shortName}</small>');
+forbidText('src/styles/global-operation-pages.css', '.global-facility-region-row__identity small');
 forbidText('src/pages/GlobalMarketPage.tsx', '筛选与排序');
 forbidText('src/pages/MarketPage.tsx', '筛选与排序');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品目录 → 商品全局详情 → 地区商品详情');

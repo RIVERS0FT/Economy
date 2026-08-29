@@ -154,19 +154,13 @@
 .global-facility-region-row__identity {
   min-width: 0;
   display: grid;
-  gap: .1rem;
 }
 
-.global-facility-region-row__identity strong,
-.global-facility-region-row__identity small {
+.global-facility-region-row__identity strong {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.global-facility-region-row__identity small {
-  color: var(--color-text-muted);
 }
 
 @container (max-width: 620px) {
@@ -209,9 +203,6 @@
     --entity-list-inline-padding: .4rem;
   }
 
-  .global-facility-region-row__identity small {
-    display: none;
-  }
 }
 
 @container (max-width: 360px) {
