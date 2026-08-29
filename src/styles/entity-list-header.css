@@ -170,6 +170,11 @@
     font-size: .625rem;
   }
 
+  .entity-list-header__indicator .game-icon {
+    width: .5rem;
+    height: .5rem;
+  }
+
   .entity-list-row {
     --entity-list-row-height: 54px;
     padding-block: .35rem;

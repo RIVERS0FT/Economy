@@ -140,11 +140,6 @@
     font-size: .625rem;
   }
 
-  .entity-list-header__indicator .game-icon {
-    width: .5rem;
-    height: .5rem;
-  }
-
   .market-commodity-row {
     padding-block: .35rem;
   }
@@ -184,10 +179,6 @@
     --entity-list-columns: minmax(4.55rem, 1.2fr) repeat(5, minmax(2.05rem, .56fr)) var(--entity-list-chevron-column, .55rem);
     --entity-list-gap: .18rem;
     --entity-list-inline-padding: .3rem;
-  }
-
-  .entity-list-header__indicator {
-    display: none;
   }
 
   .market-commodity-row__identity:not(.market-commodity-row__identity--region) {

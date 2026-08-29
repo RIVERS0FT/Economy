@@ -256,6 +256,8 @@ for (const text of [
   '--entity-list-artwork-slot: 42px;',
   '--entity-list-artwork-size: 34px;',
   'gap: .32rem;',
+  '.entity-list-header__indicator .game-icon {',
+  'width: .5rem;',
   '.entity-list-value.is-positive {',
   '.entity-list-value.is-negative {',
   'border-bottom: 1px solid var(--color-divider);',
@@ -279,6 +281,8 @@ forbidText('src/styles/global-operation-pages.css', '--entity-list-inline-paddin
 forbidText('src/styles/global-operation-pages.css', '@container global-market-page (max-width: 760px)');
 forbidText('src/styles/global-operation-pages.css', '.global-facility-catalog-row__profit.is-positive');
 forbidText('src/styles/market-commodity-row.css', '.market-commodity-row__trend.is-positive strong');
+forbidText('src/styles/market-commodity-row.css', '.entity-list-header__indicator .game-icon');
+forbidText('src/styles/market-commodity-row.css', '.entity-list-header__indicator {');
 requireText('src/pages/GlobalMarketPage.tsx', 'className="global-market-goods-header"');
 requireText('src/pages/GlobalBuildingsPage.tsx', 'className="global-facility-catalog-header"');
 requireText('src/pages/GlobalBuildingsPage.tsx', 'className="global-facility-region-header"');
