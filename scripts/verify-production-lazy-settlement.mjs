@@ -57,7 +57,16 @@ assert.match(serverSettlement, /contract\.contractType === 'goods_supply'/, '到
 assert.match(runtimeAction, /function settleProductionForAction/, '玩家动作必须统一处理客户端生产提案');
 assert.match(runtimeAction, /error\?\.code !== 'PRODUCTION_SETTLEMENT_STALE'/, '只有明确过期的生产提案允许服务器同事务兜底');
 assert.match(runtimeAction, /settleProductionForPlayerServerSide\(world, userId, now\)/, '过期提案只能对当前玩家执行服务器权威兜底');
-assert.match(runtimeAction, /action === 'settleProduction' \? 'setFacilityRecipe' : action/, '独立生产结算必须复用本地玩家 COW 范围而不是完整世界草稿');
+assert.match(
+  runtimeAction,
+  /const mutationScopeAction = action === 'settleProduction'[\s\S]*?\? 'setFacilityRecipe'/,
+  '独立生产结算必须继续映射到 setFacilityRecipe 的本地玩家 COW 范围',
+);
+assert.match(
+  runtimeAction,
+  /createRuntimeMutationScope\([\s\S]*?mutationScopeAction,/,
+  '生产结算与其他玩家动作必须通过解析后的 mutationScopeAction 创建 COW 范围',
+);
 assert.match(routes, /\/api\/game\/production\/settle/, '必须保留独立生产结算动作接口');
 assert.match(clientSettlement, /createProductionSettlementBasisId/, '浏览器生产提案必须携带与服务器同算法的基线指纹');
 assert.match(clientSettlement, /createProductionSettlementClaim/, '浏览器必须从现有权威状态计算生产结算声明');
