@@ -404,7 +404,7 @@ test('market commodity catalog keeps compact core metrics and opens a focused de
   expect(pageErrors).toEqual([]);
 });
 
-test('market commodity detail owns fixed auto-trade and catalog has no workspace switch', async ({ page }) => {
+test('market commodity detail keeps read-only factory-derived auto-operation execution and catalog has no workspace switch', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active&view=catalog');
@@ -417,12 +417,20 @@ test('market commodity detail owns fixed auto-trade and catalog has no workspace
   expect(await page.locator('.market-catalog-list .product-artwork').count()).toBeGreaterThan(0);
 
   await page.getByRole('button', { name: '查看小麦详情' }).click();
-  await expect(page.locator('.market-auto-trade-workspace--fixed')).toBeVisible();
-  await expect(page.locator('.market-auto-trade-card')).toBeVisible();
+  const executionCard = page.locator('.market-auto-trade-execution');
+  await expect(executionCard).toBeVisible();
+  await expect(executionCard.getByRole('heading', { name: '自动经营执行', exact: true })).toBeVisible();
+  await expect(executionCard.getByText('由工厂策略汇总', { exact: true })).toBeVisible();
+  for (const label of ['当前可用', '生产预定', '合同预定', '当前自由库存', '预计自动采购', '预计自动出售', '采购价格上限', '出售价格下限']) {
+    await expect(executionCard.getByText(label, { exact: true })).toBeVisible();
+  }
+  await expect(executionCard.locator('input, select, textarea')).toHaveCount(0);
   await expect(page.getByRole('combobox', { name: '自动交易商品' })).toHaveCount(0);
   await expect(page.locator('.market-auto-trade-products')).toHaveCount(0);
-  await expect(page.locator('.market-auto-trade-card')).toContainText('小麦 · 自动交易');
-  await expect(page.locator('.market-auto-trade-card').getByLabel('目标自由库存')).toBeVisible();
+  await expect(page.locator('.market-auto-trade-workspace--fixed')).toHaveCount(0);
+  await expect(page.locator('.market-auto-trade-card')).toHaveCount(0);
+  await expect(executionCard.getByLabel('目标自由库存')).toHaveCount(0);
+  await expect(executionCard.getByLabel('最低自由库存')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 
