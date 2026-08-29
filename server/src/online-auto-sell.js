@@ -2,6 +2,7 @@ import {
   PRODUCT_CATALOG,
   applySettledCommodityOrder,
 } from './domain.js';
+import { factoryAutoTradeExecutionPolicyFor } from './factory-auto-operation.js';
 import {
   productionReservedQuantitiesForPlayer,
 } from './facility-groups.js';
@@ -11,7 +12,6 @@ import {
   linkManagedOnlineAutoSellOrder,
   managedOnlineAutoSellOrderFor,
 } from './online-auto-sell-orders.js';
-import { onlineAutoSellPolicyFor } from './online-auto-sell-policy.js';
 import { contractAvailableHoldForOnlineTrade } from './online-auto-trade-reservations.js';
 import { inventoryForProvince, normalizeProvinceId } from './provinces.js';
 
@@ -73,10 +73,10 @@ export function applyOnlineAutoSell(world, user, payload = {}, now = Date.now())
 
   const player = world.players?.[String(userId)];
   if (!player) return { ok: false, message: '玩家不存在' };
-  const policy = onlineAutoSellPolicyFor(player, productId, provinceId);
+  const policy = factoryAutoTradeExecutionPolicyFor(player, productId, provinceId)?.sell;
   if (!policy?.enabled) {
     cancelManagedOnlineAutoSellOrder(world, userId, productId, provinceId);
-    return { ok: false, message: '该商品未启用自动出售' };
+    return { ok: false, message: '当前工厂策略无需自动出售该商品' };
   }
   const minimumPrice = policy.price;
 
