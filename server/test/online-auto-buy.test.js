@@ -187,6 +187,27 @@ test('available funds cap the same factory-derived target without refreshing tim
   assert.equal(order.createdAt, createdAt);
 });
 
+test('disabled factory strategy cancels a stale managed buy so the runtime transaction can commit cleanup', () => {
+  const world = createWorld(now);
+  clearOrders(world);
+  const buyer = ensurePlayer(world, alice, now);
+  buyer.credits = 100_000;
+  const fixture = configureConsumer(world, buyer);
+  const first = applyOnlineAutoBuy(world, alice, { productId: fixture.productId }, now + 1);
+  assert.equal(first.ok, true, first.message);
+  const managed = ownBuyOrders(world, fixture.productId).at(-1);
+  assert.ok(managed && isOpenOrder(managed));
+  assert.ok(buyer.frozenCredits > 0);
+
+  buyer.factoryAutoOperationPolicies[provinceScopedKey(DEFAULT_PROVINCE_ID, fixtureType.id)].enabled = false;
+  const cleanup = applyOnlineAutoBuy(world, alice, { productId: fixture.productId }, now + 2);
+
+  assert.equal(cleanup.ok, true, cleanup.message);
+  assert.match(cleanup.message, /撤销旧托管买单/);
+  assert.equal(managed.status, 'cancelled');
+  assert.equal(buyer.frozenCredits, 0);
+});
+
 test('own crossing sell cancels the managed factory auto buy and releases frozen credits', () => {
   const world = createWorld(now);
   clearOrders(world);
@@ -203,7 +224,7 @@ test('own crossing sell cancels the managed factory auto buy and releases frozen
   addSellOrder(world, buyer, fixture.productId, 1, fixture.price, 'own-crossing-sell');
   const result = applyOnlineAutoBuy(world, alice, { productId: fixture.productId }, now + 2);
 
-  assert.equal(result.ok, false);
+  assert.equal(result.ok, true, result.message);
   assert.match(result.message, /自己的卖单/);
   assert.equal(managed.status, 'cancelled');
   assert.equal(buyer.frozenCredits, 0);
