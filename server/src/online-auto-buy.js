@@ -2,6 +2,7 @@ import {
   PRODUCT_CATALOG,
   applySettledCommodityOrder,
 } from './domain.js';
+import { factoryAutoTradeExecutionPolicyFor } from './factory-auto-operation.js';
 import { productionReservedQuantitiesForPlayer } from './facility-groups.js';
 import { internalMoneyToMicros, multiplyMoneyByInteger } from './money.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
@@ -10,7 +11,6 @@ import {
   linkManagedOnlineAutoBuyOrder,
   managedOnlineAutoBuyOrderFor,
 } from './online-auto-buy-orders.js';
-import { onlineAutoBuyPolicyFor } from './online-auto-buy-policy.js';
 import { contractAvailableHoldForOnlineTrade } from './online-auto-trade-reservations.js';
 import { inventoryForProvince, normalizeProvinceId } from './provinces.js';
 
@@ -89,10 +89,10 @@ export function applyOnlineAutoBuy(world, user, payload = {}, now = Date.now()) 
 
   const player = world.players?.[String(userId)];
   if (!player) return { ok: false, message: '玩家不存在' };
-  const policy = onlineAutoBuyPolicyFor(player, productId, provinceId);
+  const policy = factoryAutoTradeExecutionPolicyFor(player, productId, provinceId)?.buy;
   if (!policy?.enabled) {
     cancelManagedOnlineAutoBuyOrder(world, userId, productId, provinceId);
-    return { ok: false, message: '该商品未启用自动采购' };
+    return { ok: false, message: '当前工厂策略无需自动采购该商品' };
   }
   const maximumPrice = policy.maxPrice;
 
