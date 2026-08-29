@@ -72,14 +72,16 @@ class EconomyIpFallbackNginxTests(unittest.TestCase):
             "/economy-api/login",
             "/economy-api/me",
             "/economy-api/logout",
+            "/economy-api/health",
             "/economy-api/game/",
             "/economy-api/registration/",
         ):
             self.assertIn(path, config)
         self.assertIn("proxy_pass http://127.0.0.1:3001/api/login;", config)
+        self.assertIn("proxy_pass http://127.0.0.1:3002/health;", config)
         self.assertIn("proxy_pass http://127.0.0.1:3002/api/game/;", config)
         self.assertIn("proxy_pass http://127.0.0.1:3002/api/registration/;", config)
-        self.assertGreaterEqual(config.count('proxy_set_header Origin "";'), 5)
+        self.assertGreaterEqual(config.count('proxy_set_header Origin "";'), 6)
         self.assertIn("proxy_set_header X-Forwarded-Proto https;", config)
 
     def test_certbot_uses_pinned_ip_capable_release_and_shortlived_profile(self):

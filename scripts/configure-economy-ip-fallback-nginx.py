@@ -111,6 +111,23 @@ def game_api_location() -> str:
 """.strip("\n")
 
 
+def health_location() -> str:
+    return f"""
+    location = /economy-api/health {{
+        proxy_pass http://127.0.0.1:3002/health;
+        proxy_http_version 1.1;
+        proxy_set_header Host {FORMAL_DOMAIN};
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host {FORMAL_DOMAIN};
+        proxy_set_header Origin "";
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 3s;
+    }}
+""".strip("\n")
+
+
 def registration_location() -> str:
     return f"""
     location ^~ /economy-api/registration/ {{
@@ -228,6 +245,8 @@ server {{
     }}
 
 {account_locations()}
+
+{health_location()}
 
 {game_api_location()}
 
