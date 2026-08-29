@@ -1,0 +1,50 @@
+name: Patch market browser regressions
+on:
+  push:
+    branches: [fix/market-six-column-headers]
+    paths: [.github/workflows/patch-market-browser-regressions.yml]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/market-six-column-headers
+      - shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replacements(path, items):
+              p = Path(path)
+              text = p.read_text()
+              for old, new in items:
+                  count = text.count(old)
+                  if count != 1:
+                      raise SystemExit(f'{path}: expected one match, got {count}: {old}')
+                  text = text.replace(old, new, 1)
+              p.write_text(text)
+
+          replacements('tests/browser/all-pages-preview.spec.ts', [
+              ("['地区', '卖单量', '买单量', '市场价', '24h']", "['地区', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']"),
+              ("['卖单量', '买单量', '市场价', '24h', '挂单差额', '基准偏离', '挂单状态']", "['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化', '挂单差额', '基准偏离', '挂单状态']"),
+          ])
+
+          replacements('tests/browser/market-runtime.spec.ts', [
+              ("for (const label of ['商品', '卖单量', '买单量', '市场价', '24h']) {", "for (const label of ['商品', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']) {"),
+              ("for (const label of ['卖单量', '买单量', '市场价', '24h', '挂单差额', '基准偏离', '挂单状态']) {", "for (const label of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化', '挂单差额', '基准偏离', '挂单状态']) {"),
+              ("if (!row || !identity || metrics.length !== 4) throw new Error('mobile market catalog fixture is incomplete');", "if (!row || !identity || metrics.length !== 5) throw new Error('mobile market catalog fixture is incomplete');"),
+              ("expect(layout.rowColumns).toBe(6);", "expect(layout.rowColumns).toBe(7);"),
+              ("for (const label of ['商品', '卖单量', '买单量', '市场价', '24h']) await expect(catalogHeader.getByText(label, { exact: true })).toBeVisible();", "for (const label of ['商品', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']) await expect(catalogHeader.getByText(label, { exact: true })).toBeVisible();"),
+              ("for (const label of ['卖单量', '买单量', '市场价', '24h', '挂单差额', '基准偏离', '挂单状态']) await expect(wheatRow.getByText(label, { exact: true })).toHaveCount(0);", "for (const label of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化', '挂单差额', '基准偏离', '挂单状态']) await expect(wheatRow.getByText(label, { exact: true })).toHaveCount(0);"),
+              ("expect(layout.rowColumns).toBe(6);", "expect(layout.rowColumns).toBe(7);"),
+          ])
+          PY
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/browser/all-pages-preview.spec.ts tests/browser/market-runtime.spec.ts
+          git commit -m "同步市场六列浏览器回归"
+          git push
