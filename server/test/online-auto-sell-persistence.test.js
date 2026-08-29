@@ -1,9 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { ensurePlayer } from '../src/domain.js';
+import { FACILITY_TYPE_CATALOG } from '../src/industry-catalog.js';
+import { DEFAULT_PROVINCE_ID, provinceScopedKey } from '../src/provinces.js';
 import { EconomyStore } from '../src/runtime-store.js';
 
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 const now = 1_700_000_000_000;
+const fixtureType = FACILITY_TYPE_CATALOG.find((type) => type.recipes?.length);
+const fixtureRecipe = fixtureType?.recipes?.[0];
+if (!fixtureType || !fixtureRecipe) throw new Error('catalog needs a factory recipe');
+const policyKey = provinceScopedKey(DEFAULT_PROVINCE_ID, fixtureType.id);
 
 function request(payload, requestKey) {
   return {
@@ -22,78 +29,112 @@ function persistedPlayer(store) {
   return JSON.parse(String(row.state_json));
 }
 
-test('runtime store persists auto-sell policy and returns it in formal client state', () => {
+function installFactory(store) {
+  store.transaction(() => {
+    const loaded = store.loadWorld(now);
+    const player = ensurePlayer(loaded.world, alice, now);
+    player.facilityGroups = [{
+      facilityTypeId: fixtureType.id,
+      provinceId: DEFAULT_PROVINCE_ID,
+      count: 2,
+      participatingCount: 2,
+      productionAvailableCount: 2,
+      enabled: true,
+      status: 'running',
+      statusReason: '',
+      activeRecipeId: fixtureRecipe.id,
+      cycleStartedAt: now,
+      lifetimeOutput: 0,
+    }];
+    store.saveWorld(loaded.revision, loaded.world, now);
+  });
+}
+
+test('runtime store persists factory automatic operation and returns it in formal client state', () => {
   const store = new EconomyStore(':memory:');
   try {
-    const initial = store.getState(alice, now);
-    assert.deepEqual(initial.onlineAutoSellPolicies, {});
+    store.getState(alice, now);
+    installFactory(store);
     const activityBefore = persistedPlayer(store).lastEconomicActivityAt;
 
     const saved = store.apply(alice, request({
-      assetKind: 'commodity',
-      assetId: 'wheat',
-      productId: 'wheat',
-      execution: 'online-auto-sell-policy',
+      provinceId: DEFAULT_PROVINCE_ID,
+      facilityTypeId: fixtureType.id,
+      execution: 'factory-auto-operation-policy',
       enabled: true,
-      price: 6.25,
-      minimumFreeInventory: 4,
-    }, 'auto-sell-policy-12345678'), now + 1);
-    assert.equal(saved.result.ok, true);
+      inputCoverageCycles: 3,
+      mode: 'profit',
+      outputMode: 'surplus',
+    }, 'factory-auto-operation-12345678'), now + 1);
+    assert.equal(saved.result.ok, true, saved.result.message);
 
-    const persisted = persistedPlayer(store);
-    assert.deepEqual(persisted.onlineAutoSellPolicies['110000:wheat'], {
+    const expected = {
       enabled: true,
-      price: 6.25,
-      minimumFreeInventory: 4,
-    });
+      inputCoverageCycles: 3,
+      mode: 'profit',
+      outputMode: 'surplus',
+    };
+    const persisted = persistedPlayer(store);
+    assert.deepEqual(persisted.factoryAutoOperationPolicies[policyKey], expected);
     assert.equal(persisted.lastEconomicActivityAt, activityBefore);
 
     const reloaded = store.getState(alice, now + 2);
-    assert.deepEqual(reloaded.onlineAutoSellPolicies['110000:wheat'], {
-      enabled: true,
-      price: 6.25,
-      minimumFreeInventory: 4,
-    });
+    assert.deepEqual(reloaded.factoryAutoOperationPolicies[policyKey], expected);
   } finally {
     store.close();
   }
 });
 
-test('runtime store keeps last legal thresholds when auto-sell is disabled', () => {
+test('runtime store keeps a disabled factory policy while removing its effective commodity execution', () => {
   const store = new EconomyStore(':memory:');
   try {
     store.getState(alice, now);
+    installFactory(store);
     const saved = store.apply(alice, request({
-      productId: 'wheat',
-      execution: 'online-auto-sell-policy',
+      provinceId: DEFAULT_PROVINCE_ID,
+      facilityTypeId: fixtureType.id,
+      execution: 'factory-auto-operation-policy',
       enabled: false,
-      price: 9.5,
-      minimumFreeInventory: 7,
-    }, 'auto-sell-policy-off-12345678'), now + 1);
-    assert.equal(saved.result.ok, true);
-    assert.deepEqual(store.getState(alice, now + 2).onlineAutoSellPolicies['110000:wheat'], {
+      inputCoverageCycles: 5,
+      mode: 'supply',
+      outputMode: 'keep',
+    }, 'factory-auto-operation-off-12345678'), now + 1);
+    assert.equal(saved.result.ok, true, saved.result.message);
+
+    const expected = {
       enabled: false,
-      price: 9.5,
-      minimumFreeInventory: 7,
-    });
+      inputCoverageCycles: 5,
+      mode: 'supply',
+      outputMode: 'keep',
+    };
+    const persisted = persistedPlayer(store);
+    assert.deepEqual(persisted.factoryAutoOperationPolicies[policyKey], expected);
+
+    const reloaded = store.getState(alice, now + 2);
+    assert.deepEqual(reloaded.factoryAutoOperationPolicies[policyKey], expected);
+    assert.deepEqual(reloaded.onlineAutoBuyPolicies, {});
+    assert.deepEqual(reloaded.onlineAutoSellPolicies, {});
   } finally {
     store.close();
   }
 });
 
-test('runtime store rejects invalid auto-sell policies without persisting them', () => {
+test('runtime store rejects invalid factory automatic operation without persisting it', () => {
   const store = new EconomyStore(':memory:');
   try {
     store.getState(alice, now);
+    installFactory(store);
     const rejected = store.apply(alice, request({
-      productId: 'wheat',
-      execution: 'online-auto-sell-policy',
+      provinceId: DEFAULT_PROVINCE_ID,
+      facilityTypeId: fixtureType.id,
+      execution: 'factory-auto-operation-policy',
       enabled: true,
-      price: 5,
-      minimumFreeInventory: -1,
-    }, 'auto-sell-policy-invalid-12345678'), now + 1);
+      inputCoverageCycles: 4,
+      mode: 'balanced',
+      outputMode: 'surplus',
+    }, 'factory-auto-operation-invalid-12345678'), now + 1);
     assert.equal(rejected.result.ok, false);
-    assert.deepEqual(store.getState(alice, now + 2).onlineAutoSellPolicies, {});
+    assert.equal(Object.hasOwn(persistedPlayer(store).factoryAutoOperationPolicies || {}, policyKey), false);
   } finally {
     store.close();
   }
