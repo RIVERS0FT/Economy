@@ -80,7 +80,7 @@ requireText(commodityRow, 'export function nextMarketCommoditySort', '共享商�
 requireText(commodityRow, 'export function compareMarketOptionalValue', '共享排序必须统一缺失值排末尾规则。');
 requireText(commodityRowStyles, 'display: grid;', '共享商品独立表头必须直接显示，不得依赖首行内隐藏副本。');
 forbidText(commodityRowStyles, '.market-catalog-list > li:first-child > .market-commodity-row-header', '共享商品表头不得重新塞回首条数据行。');
-requireText(commodityRowStyles, '--entity-list-columns: minmax(8rem, 1.45fr) repeat(5, minmax(3.8rem, .64fr)) .8rem;', '共享商品数据行必须保持身份、五项指标和箭头的单行布局。');
+requireText(commodityRowStyles, '--entity-list-columns: minmax(8rem, 1.45fr) repeat(5, minmax(3.8rem, .64fr)) var(--entity-list-chevron-column, .8rem);', '共享商品数据行必须保持身份、五项指标和共享箭头轨道的单行布局。');
 requireText(commodityRowStyles, '@container (max-width: 620px)', '共享商品数据行必须提供移动紧凑断点。');
 requireText(commodityRowStyles, '@container (max-width: 360px)', '共享商品数据行必须覆盖极窄屏。');
 requireText(commodityRowStyles, '.market-catalog-filter-disclosure > .market-catalog-filters', '地区筛选展开区必须保持折叠 disclosure 布局。');

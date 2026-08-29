@@ -160,7 +160,7 @@ export function MarketCommodityRow({
             ? <CurrencyAmount>{formatCurrency(marketPrice)}</CurrencyAmount>
             : '—'}</strong>
         </span>
-        <span className={`market-commodity-row__metric market-commodity-row__trend${trendClassName}`}>
+        <span className={`entity-list-value market-commodity-row__metric market-commodity-row__trend${trendClassName}${trend === undefined ? ' is-unavailable' : trend === 0 ? ' is-neutral' : ''}`}>
           <strong>{typeof trend === 'number'
             ? <CurrencyAmount sign={trend > 0 ? '+' : undefined}>{formatCurrency(trend)}</CurrencyAmount>
             : '—'}</strong>

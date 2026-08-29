@@ -70,6 +70,9 @@ for (const text of [
 for (const text of [
   '玩家端 `PageLayout` 的标题区固定只包含返回、主标题和关闭三个槽位',
   '`PageLayout.actions` 只允许非玩家页面继续使用',
+  '所有带表头的页面实体目录固定使用 `.entity-list-surface` 包裹 `EntityListHeader + .entity-list-rows`',
+  '表头与首行、相邻数据行统一使用同一 `.32rem` 间距',
+  '正负行情与利润统一通过 `.entity-list-value.is-positive / .is-negative` 表达',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 for (const text of [
   'className="transport-page-actions"',
@@ -203,18 +206,18 @@ for (const [path, expected] of [
     'setFacilityDetailTypeId(selectedGlobalFacilityTypeId);',
     '<EmbeddedBuildingsPage',
     'onDetailFacilityChange={(nextFacilityTypeId) => {',
-    'className="global-facility-catalog"',
+    'className="entity-list-surface global-facility-catalog"',
     'className="global-facility-catalog-header"',
-    'className="global-facility-catalog-list"',
+    'className="entity-list-rows global-facility-catalog-list"',
     'className="entity-list-row global-facility-catalog-row"',
     'onClick={() => openGlobalFacility(row.facilityTypeId)}',
     '<FacilityIcon facilityTypeId={row.facilityTypeId} className="global-facility-catalog-row__artwork" />',
     '<ChevronIcon direction="right" />',
     'data-global-facility-type-id={selectedGlobalFacilityTypeId}',
     'className="global-facility-region-header"',
-    'className="global-facility-region-list"',
+    'className="entity-list-rows global-facility-region-list"',
     'className="entity-list-row global-facility-region-row"',
-    'className={`global-facility-region-row__profit is-${row.profitTone}`}',
+    'className={`entity-list-value global-facility-region-row__profit is-${row.profitTone}`}',
     'profitTone: presentation.tone',
     'profitValue: presentation.visibleValue',
     'profitAccessibleValue: presentation.accessibleValue',
@@ -246,9 +249,40 @@ for (const text of [
   '24h',
 ]) requireText('src/components/market/MarketCommodityRow.tsx', text);
 for (const text of ['挂单差额', '基准偏离', '挂单状态']) forbidText('src/components/market/MarketCommodityRow.tsx', text);
-for (const text of ['.entity-list-header', 'border-bottom: 1px solid var(--color-divider);']) {
-  requireText('src/styles/entity-list-header.css', text);
-}
+for (const text of [
+  '.entity-list-surface {',
+  '.entity-list-rows {',
+  '--entity-list-chevron-column: .8rem;',
+  '--entity-list-artwork-slot: 42px;',
+  '--entity-list-artwork-size: 34px;',
+  'gap: .32rem;',
+  '.entity-list-header__indicator .game-icon {',
+  'width: .5rem;',
+  '.entity-list-value.is-positive {',
+  '.entity-list-value.is-negative {',
+  'border-bottom: 1px solid var(--color-divider);',
+]) requireText('src/styles/entity-list-header.css', text);
+for (const text of [
+  'className="entity-list-surface global-market-goods-surface"',
+  'className="entity-list-rows global-market-goods-list"',
+  'className="entity-list-surface global-market-product-region-surface"',
+  'className="entity-list-rows global-market-product-region-list"',
+  'entity-list-value',
+]) requireText('src/pages/GlobalMarketPage.tsx', text);
+for (const text of [
+  'className="entity-list-surface global-facility-catalog"',
+  'className="entity-list-rows global-facility-catalog-list"',
+  'className="entity-list-surface global-facility-region-surface"',
+  'className="entity-list-rows global-facility-region-list"',
+  'entity-list-value',
+]) requireText('src/pages/GlobalBuildingsPage.tsx', text);
+forbidText('src/styles/global-operation-pages.css', '--entity-list-gap:');
+forbidText('src/styles/global-operation-pages.css', '--entity-list-inline-padding:');
+forbidText('src/styles/global-operation-pages.css', '@container global-market-page (max-width: 760px)');
+forbidText('src/styles/global-operation-pages.css', '.global-facility-catalog-row__profit.is-positive');
+forbidText('src/styles/market-commodity-row.css', '.market-commodity-row__trend.is-positive strong');
+forbidText('src/styles/market-commodity-row.css', '.entity-list-header__indicator .game-icon');
+forbidText('src/styles/market-commodity-row.css', '.entity-list-header__indicator {');
 requireText('src/pages/GlobalMarketPage.tsx', 'className="global-market-goods-header"');
 requireText('src/pages/GlobalBuildingsPage.tsx', 'className="global-facility-catalog-header"');
 requireText('src/pages/GlobalBuildingsPage.tsx', 'className="global-facility-region-header"');
@@ -290,19 +324,16 @@ for (const text of [
 ]) forbidText('src/pages/GlobalBuildingsPage.tsx', text);
 
 for (const text of [
-  '.global-facility-catalog-header,',
+  '.global-facility-catalog-header {',
   '.global-facility-region-header {',
-  '.global-facility-catalog-list,',
-  '.global-facility-region-list {',
   '.global-facility-catalog-row,',
   '.global-facility-region-row {',
   '.global-facility-catalog-row__artwork {',
-  '--entity-list-columns: minmax(0, 1.6fr) minmax(7rem, .8fr) minmax(4rem, .45fr) 1rem;',
-  '--entity-list-columns: minmax(0, 1.45fr) minmax(6rem, .7fr) minmax(3.5rem, .42fr) minmax(4.5rem, .55fr) 1rem;',
+  '--entity-list-columns: minmax(0, 1.6fr) minmax(7rem, .8fr) minmax(4rem, .45fr) var(--entity-list-chevron-column);',
+  '--entity-list-columns: minmax(0, 1.45fr) minmax(6rem, .7fr) minmax(3.5rem, .42fr) minmax(4.5rem, .55fr) var(--entity-list-chevron-column);',
+  'grid-template-columns: var(--entity-list-artwork-slot) minmax(0, 1fr);',
+  'width: var(--entity-list-artwork-size);',
   'aspect-ratio: 1;',
-  '.global-facility-catalog-row__profit.is-positive,',
-  '.global-facility-region-row__profit.is-positive {',
-  '.global-facility-region-row__profit.is-negative {',
   '@container (max-width: 620px)',
   '@container (max-width: 360px)',
 ]) requireText('src/styles/global-operation-pages.css', text);
@@ -344,4 +375,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('页面内容与职责验证通过：一级市场/建筑锁定全局视图；一级建筑只保留工厂目录，工厂列表使用统一表头、单行可点击条目和正方形插画，地区工厂列表增加州级单厂利润并按工厂类型 → 地区 → 现有地区工厂详情下钻；市场列表保留独立表头与共享方向 Chevron；所有玩家 PageLayout 共用 40px 标题轨道与紧凑单行标题；州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。');
+console.log('页面内容与职责验证通过：一级市场/建筑锁定全局视图；市场、地区商品、建筑和地区建筑目录共用统一页面实体列表表面、间距、Chevron、目录插画槽和正负数值色；一级建筑按工厂类型 → 地区 → 现有地区工厂详情下钻；所有玩家 PageLayout 共用 40px 标题轨道与紧凑单行标题；州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。');

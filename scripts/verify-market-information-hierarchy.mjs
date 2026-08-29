@@ -118,7 +118,7 @@ for (const token of ['<PagePanel', '<WidgetHeading', '<StatusTag', '个地区'])
 const catalogSourceStart = globalMarket.indexOf('const activeCatalogFilterCount');
 const catalogFilterIndex = globalMarket.indexOf('<details className="global-market-filter-disclosure"', catalogSourceStart);
 const catalogHeaderIndex = globalMarket.indexOf('<EntityListHeader', catalogSourceStart);
-const catalogListIndex = globalMarket.indexOf('<ul className="global-market-goods-list"', catalogSourceStart);
+const catalogListIndex = globalMarket.indexOf('<ul className="entity-list-rows global-market-goods-list"', catalogSourceStart);
 if (
   catalogSourceStart < 0
   || catalogFilterIndex < 0
@@ -130,7 +130,7 @@ if (
 const productDetailIndex = globalMarket.indexOf('global-market-product-detail"');
 const productFilterIndex = globalMarket.indexOf('<details className="global-market-filter-disclosure"', productDetailIndex);
 const productRegionHeaderIndex = globalMarket.indexOf('<MarketCommodityHeader', productFilterIndex);
-const productRegionListIndex = globalMarket.indexOf('<ul className="global-market-product-region-list"', productRegionHeaderIndex);
+const productRegionListIndex = globalMarket.indexOf('<ul className="entity-list-rows global-market-product-region-list"', productRegionHeaderIndex);
 if (
   productDetailIndex < 0
   || productFilterIndex < 0
@@ -165,7 +165,7 @@ forbidText(commodityDataRowSource, 'market-commodity-row-header', 'shared commod
 for (const token of [
   '.market-commodity-row-header',
   'display: grid;',
-  '--entity-list-columns: minmax(8rem, 1.45fr) repeat(5, minmax(3.8rem, .64fr)) .8rem;',
+  '--entity-list-columns: minmax(8rem, 1.45fr) repeat(5, minmax(3.8rem, .64fr)) var(--entity-list-chevron-column, .8rem);',
   '@container (max-width: 620px)',
   '@container (max-width: 360px)',
   "content: '';",
@@ -300,7 +300,7 @@ for (const token of [
   "for (const label of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化'])",
   "getByRole('button', { name: '打开小麦全局详情' })",
   "getByRole('button', { name: '打开加利福尼亚州小麦详情' })",
-  "page.locator('.global-market-product-detail > .market-commodity-row-header')",
+  "page.locator('.global-market-product-region-surface > .market-commodity-row-header')",
   "page.locator('.global-market-product-region-list .market-commodity-row-header')",
   "['地区', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']",
   "page.locator('.market-fundamentals-balance .market-balance-bar')",
