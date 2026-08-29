@@ -11,20 +11,24 @@ export function percentile(values, ratio) {
 }
 
 function summarizeRecords(records) {
-  const durations = records.map((record) => record.durationMs);
+  const timedRecords = records.filter((record) => record.timingSource === 'server-local');
+  const durations = timedRecords.map((record) => record.durationMs);
   const totalBytes = records.reduce((sum, record) => sum + record.responseBytes, 0);
   const unexpectedStatusCount = records.filter((record) => !record.expected).length;
   const timeoutCount = records.filter((record) => record.timeout).length;
   const serverErrorCount = records.filter((record) => record.statusCode >= 500).length;
   return {
     requests: records.length,
+    timedRequests: timedRecords.length,
+    untimedRequests: records.length - timedRecords.length,
+    timingSource: 'server-local',
     successfulRequests: records.filter((record) => record.expected).length,
     unexpectedStatusCount,
     timeoutCount,
     serverErrorCount,
-    averageMs: records.length === 0
+    averageMs: timedRecords.length === 0
       ? 0
-      : Math.round(durations.reduce((sum, value) => sum + value, 0) / records.length * 100) / 100,
+      : Math.round(durations.reduce((sum, value) => sum + value, 0) / timedRecords.length * 100) / 100,
     p50Ms: percentile(durations, 0.5),
     p90Ms: percentile(durations, 0.9),
     p95Ms: percentile(durations, 0.95),
@@ -44,11 +48,14 @@ export class StressMetrics {
   }
 
   record(entry) {
+    const serverDuration = Number(entry.serverDurationMs);
+    const hasServerDuration = Number.isFinite(serverDuration) && serverDuration >= 0;
     this.records.push({
       method: String(entry.method || 'GET').toUpperCase(),
       route: String(entry.route || '/'),
       statusCode: Number(entry.statusCode) || 0,
-      durationMs: finiteNonNegative(entry.durationMs),
+      durationMs: hasServerDuration ? serverDuration : null,
+      timingSource: hasServerDuration ? 'server-local' : 'none',
       responseBytes: Math.floor(finiteNonNegative(entry.responseBytes)),
       expected: entry.expected === true,
       timeout: entry.timeout === true,
@@ -86,11 +93,14 @@ export function evaluateStressBudget(summary, budget) {
   if (summary.unexpectedStatusCount > Number(budget.maxUnexpectedStatuses ?? 0)) {
     failures.push(`非预期响应 ${summary.unexpectedStatusCount} 次，允许 ${budget.maxUnexpectedStatuses ?? 0} 次`);
   }
+  if (summary.timedRequests === 0) {
+    failures.push('缺少任何服务端本地耗时，不能执行性能预算');
+  }
   if (summary.p95Ms > Number(budget.maxP95Ms)) {
-    failures.push(`总 p95 ${summary.p95Ms}ms 超过 ${budget.maxP95Ms}ms`);
+    failures.push(`总服务端本地 p95 ${summary.p95Ms}ms 超过 ${budget.maxP95Ms}ms`);
   }
   if (summary.p99Ms > Number(budget.maxP99Ms)) {
-    failures.push(`总 p99 ${summary.p99Ms}ms 超过 ${budget.maxP99Ms}ms`);
+    failures.push(`总服务端本地 p99 ${summary.p99Ms}ms 超过 ${budget.maxP99Ms}ms`);
   }
   for (const [route, routeBudget] of Object.entries(budget.routes || {})) {
     const routeSummary = summary.routes[route];
@@ -98,11 +108,14 @@ export function evaluateStressBudget(summary, budget) {
       failures.push(`缺少预算要求的路由指标 ${route}`);
       continue;
     }
+    if (routeSummary.timedRequests !== routeSummary.requests) {
+      failures.push(`${route} 有 ${routeSummary.untimedRequests} 个响应缺少服务端本地耗时`);
+    }
     if (routeSummary.p95Ms > Number(routeBudget.maxP95Ms)) {
-      failures.push(`${route} p95 ${routeSummary.p95Ms}ms 超过 ${routeBudget.maxP95Ms}ms`);
+      failures.push(`${route} 服务端本地 p95 ${routeSummary.p95Ms}ms 超过 ${routeBudget.maxP95Ms}ms`);
     }
     if (routeSummary.p99Ms > Number(routeBudget.maxP99Ms)) {
-      failures.push(`${route} p99 ${routeSummary.p99Ms}ms 超过 ${routeBudget.maxP99Ms}ms`);
+      failures.push(`${route} 服务端本地 p99 ${routeSummary.p99Ms}ms 超过 ${routeBudget.maxP99Ms}ms`);
     }
   }
   return { passed: failures.length === 0, failures };

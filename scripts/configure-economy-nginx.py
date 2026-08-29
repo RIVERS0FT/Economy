@@ -119,6 +119,19 @@ GAME_API_BLOCK = """
     }
 """.strip("\n")
 
+HEALTH_API_BLOCK = """
+    location = /economy-api/health {
+        proxy_pass http://127.0.0.1:3002/health;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 3s;
+    }
+""".strip("\n")
+
 
 AVATAR_BLOCK = r"""
     location ~ "^/economy-avatars/(?<avatar_id>[1-9][0-9]{0,15})\.webp$" {
@@ -375,6 +388,10 @@ def has_game_api_proxy(block: str) -> bool:
     )
 
 
+def has_health_proxy(block: str) -> bool:
+    return has_location(block, "/economy-api/health")
+
+
 def has_avatar_location(block: str) -> bool:
     return bool(
         re.search(
@@ -393,6 +410,16 @@ def ensure_avatar_location(block: str) -> tuple[str, bool]:
         raise RuntimeError("Target server block has no closing brace")
     normalized = block[:closing].rstrip()
     return normalized + "\n\n" + AVATAR_BLOCK + "\n" + block[closing:], True
+
+
+def ensure_health_location(block: str) -> tuple[str, bool]:
+    if has_health_proxy(block):
+        return block, False
+    closing = block.rfind("}")
+    if closing < 0:
+        raise RuntimeError("Target server block has no closing brace")
+    normalized = block[:closing].rstrip()
+    return normalized + "\n\n" + HEALTH_API_BLOCK + "\n" + block[closing:], True
 
 
 def ensure_game_api_compression(text: str) -> tuple[str, bool]:
@@ -465,6 +492,7 @@ def replace_or_insert(block: str) -> str:
     cleaned, removed_legacy = remove_legacy_economy_api_location(cleaned)
     cleaned, added_compression = ensure_game_api_compression(cleaned)
     cleaned, added_avatar = ensure_avatar_location(cleaned)
+    cleaned, added_health = ensure_health_location(cleaned)
     cleaned, added_static_compression = ensure_static_compression(cleaned)
     cleaned, added_static_vary = ensure_static_vary_headers(cleaned)
 
@@ -473,7 +501,7 @@ def replace_or_insert(block: str) -> str:
     desired = managed_block(account=include_account, game_api=include_game_api)
 
     if not desired:
-        if not had_managed and not removed_legacy and not added_compression and not added_avatar and not added_static_compression and not added_static_vary:
+        if not had_managed and not removed_legacy and not added_compression and not added_avatar and not added_health and not added_static_compression and not added_static_vary:
             return block
         return re.sub(r"\n{3,}", "\n\n", cleaned)
 

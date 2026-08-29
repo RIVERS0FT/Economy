@@ -193,6 +193,7 @@ verify_public() {
   run_check http-redirect check_http_redirect
   run_check https-page check_https_page
   check_status account-proxy /tmp/economy-auth-response.json '200,401' AUTH_PROXY_UNAVAILABLE "https://${PUBLIC_IP}/economy-api/me"
+  check_status health-api /tmp/economy-health-response.json '200' ECONOMY_HEALTH_PROXY_UNAVAILABLE "https://${PUBLIC_IP}/economy-api/health"
   check_status game-api /tmp/economy-game-response.json '401' ECONOMY_GAME_API_PROXY_UNAVAILABLE "https://${PUBLIC_IP}/economy-api/game/state"
   check_status login-api /tmp/economy-login-response.json '400' ECONOMY_LOGIN_PROXY_UNAVAILABLE --request POST --header 'Content-Type: application/json' --data '{}' "https://${PUBLIC_IP}/economy-api/login"
   check_status registration-api /tmp/economy-registration-response.json '400' ECONOMY_REGISTRATION_PROXY_UNAVAILABLE --request POST --header 'Content-Type: application/json' --header 'Idempotency-Key: deploy-registration-route-check' --data '{}' "https://${PUBLIC_IP}/economy-api/registration/email-code"

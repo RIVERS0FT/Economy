@@ -70,12 +70,15 @@ for (const forbidden of ['obsoleteBaseFailures', "['scripts/verify-page-content-
   if (pageContent.includes(forbidden)) failures.push(`page-content 正式 verifier 不得保留旧兼容层: ${forbidden}`);
 }
 const quotedAvatarLocation = 'location ~ "^/economy-avatars/(?<avatar_id>[1-9][0-9]{0,15})\\.webp$" {';
+const healthLocation = 'location = /economy-api/health {';
 for (const [source, label] of [
   [nginxConfigurator, 'configure-economy-nginx.py'],
   [nginxLocationTemplate, 'Economy Nginx location 模板'],
 ]) {
   if (!source.includes(quotedAvatarLocation)) failures.push(`${label} 必须引用含量词的头像正则`);
   if (source.includes('location ~ ^/economy-avatars/')) failures.push(`${label} 不得保留未引用头像正则`);
+  if (!source.includes(healthLocation)) failures.push(`${label} 必须公开 Economy exact health 路由`);
+  if (!source.includes('proxy_pass http://127.0.0.1:3002/health;')) failures.push(`${label} health 路由必须指向本机 Economy /health`);
 }
 
 for (const forbidden of ['readFileSync', '.replace(', 'data:text/javascript', 'Buffer.from(']) {

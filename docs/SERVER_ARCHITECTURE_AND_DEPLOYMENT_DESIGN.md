@@ -539,6 +539,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 - 不得在账号 snippet 已存在时再次生成同名账号 `location`。
 - 不得在游戏 API snippet 或手动游戏路由已存在时再次生成 `/economy-api/game/`。
+- 生产 Nginx 必须额外保留 exact `location = /economy-api/health`，并把该路径代理到 `http://127.0.0.1:3002/health`；主部署公开验收必须得到 2xx。该路由只用于无认证健康检查，不得开放其他 `/economy-api/*` 根前缀。
 - 不得在手动注册路由已存在时再次生成 `/economy-api/registration/`。
 - 连续执行两次，第二次不得产生配置变化。
 - 游戏 API `client_max_body_size` 固定为 `256k`；注册 API 固定为 `16k`。
@@ -565,7 +566,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 - `tests/stress/loadAccounts.mjs` 是 Node 压力测试脚本读取账号池的统一入口，支持按稳定顺序、`offset` 和 `limit` 选择槽位；非法或越过 24 个槽位的范围必须直接失败，不得静默裁剪为空或换用其他账号。账号池只提供登录身份，不改变经济资产、封禁、邀请或排行榜规则。
 - 固定账号必须保持普通玩家角色，不得借压力测试账号绕过主页账号认证、同 IP 规则、写操作幂等或 Economy 服务器资产校验。
 
-压力测试执行器固定为 `tests/stress/run.mjs`，使用 Node 24 原生 HTTP 能力、每账号独立 Cookie、全局修订号和六分区哈希模拟真实客户端。每名虚拟玩家的状态请求必须串行，写操作不得自动重试；动作确认后立即补拉状态，并断言全局修订号和 `serverNow` 不倒退、初次状态包含六个完整分区、相同幂等键返回相同确认。测试必须分别统计每个归一化路由的请求数、RPS、响应字节、状态码、超时、5xx 和 p50／p90／p95／p99／最大延迟，使用版本化 `budgets.json` 决定退出状态。
+压力测试执行器固定为 `tests/stress/run.mjs`，使用 Node 24 原生 HTTP 能力、每账号独立 Cookie、全局修订号和六分区哈希模拟真实客户端。每名虚拟玩家的状态请求必须串行，写操作不得自动重试；动作确认后立即补拉状态，并断言全局修订号和 `serverNow` 不倒退、初次状态包含六个完整分区、相同幂等键返回相同确认。测试必须分别统计每个归一化路由的请求数、RPS、响应字节、状态码、超时、5xx 和 p50／p90／p95／p99／最大耗时。所有耗时预算只允许读取 Economy 响应的 `Server-Timing: app;dur` 服务端本地处理值，不得使用客户端端到端耗时或公网传输耗时；登录等没有 Economy `Server-Timing` 的请求仍参与正确性与吞吐统计，但不得进入延迟预算。
 
 `transaction-mix` 的操作构成固定为 60% 状态读取、10% 工作、10% 商品订单、8% 工厂启停、5% 配方切换、4% 即时建设、3% 研发；执行器必须以确定性序列覆盖全部类别，写动作确认后立即补拉状态并继续校验全局修订号、分区修订和 `serverNow` 不倒退。该场景不得用于 staging 或生产，生产继续只允许只读 `smoke`／`poll`。
 
@@ -603,7 +604,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 - 永久保留失效验证码、让操作限流 Map 无边界增长、恢复浮动依赖或删除依赖锁；
 - 删除 CI 或主部署中的 Chromium 浏览器运行时测试、localStorage 拒绝访问覆盖或顶层错误边界；
 - 压力测试重新随机注册账号、把测试账号密码或会话写入仓库、让账号池包含管理员身份，或绕过 `tests/stress/accounts.json` 与 `loadAccounts.mjs` 的固定槽位；
-- 对生产环境执行经济写入、初始化未建档压力账号、使用低于 3 秒的生产轮询、允许任意远程目标、自动重试写操作、并行使用同一玩家状态请求、忽略修订号／`serverNow` 倒退、把 GitHub 共享 Runner 延迟直接写成正式容量基线，或让压力测试失败仍以零退出码结束；
+- 对生产环境执行经济写入、初始化未建档压力账号、使用低于 3 秒的生产轮询、允许任意远程目标、自动重试写操作、并行使用同一玩家状态请求、忽略修订号／`serverNow` 倒退、把 GitHub 共享 Runner 延迟或公网传输写成 Economy 服务端耗时、删除公开 `/economy-api/health` exact 路由，或让压力测试失败仍以零退出码结束；
 - 恢复与 CI 或 Deploy 重复执行完整构建的独立 `web-build.yml`、关闭同一 PR 旧运行自动取消，或在成功时长期上传浏览器测试 artifact；
 - 删除游戏 JSON gzip；
 - 让任何模块绕过 `domain.js` 直接导入 `domain-core.js`；

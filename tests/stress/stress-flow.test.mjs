@@ -7,11 +7,14 @@ import { validateStressSafety } from './safety.mjs';
 test('stress metrics calculate percentiles and enforce budgets', () => {
   assert.equal(percentile([10, 20, 30, 40], 0.95), 40);
   const metrics = new StressMetrics();
-  metrics.record({ method: 'GET', route: '/api/game/state', statusCode: 200, durationMs: 10, responseBytes: 100, expected: true });
-  metrics.record({ method: 'GET', route: '/api/game/state', statusCode: 200, durationMs: 20, responseBytes: 200, expected: true });
+  metrics.record({ method: 'POST', route: '/api/login', statusCode: 200, responseBytes: 100, expected: true });
+  metrics.record({ method: 'GET', route: '/api/game/state', statusCode: 200, serverDurationMs: 10, responseBytes: 100, expected: true });
+  metrics.record({ method: 'GET', route: '/api/game/state', statusCode: 200, serverDurationMs: 20, responseBytes: 200, expected: true });
   const summary = metrics.summarize(1_000);
-  assert.equal(summary.requests, 2);
-  assert.equal(summary.requestsPerSecond, 2);
+  assert.equal(summary.requests, 3);
+  assert.equal(summary.timedRequests, 2);
+  assert.equal(summary.untimedRequests, 1);
+  assert.equal(summary.requestsPerSecond, 3);
   assert.equal(summary.routes['GET /api/game/state'].p95Ms, 20);
   assert.deepEqual(evaluateStressBudget(summary, {
     maxTimeouts: 0,
@@ -20,6 +23,25 @@ test('stress metrics calculate percentiles and enforce budgets', () => {
     maxP95Ms: 100,
     maxP99Ms: 100,
   }), { passed: true, failures: [] });
+});
+
+test('budgeted routes must provide server-local timing instead of client end-to-end timing', () => {
+  const metrics = new StressMetrics();
+  metrics.record({ method: 'GET', route: '/api/game/state', statusCode: 200, responseBytes: 100, expected: true });
+  const summary = metrics.summarize(1_000);
+  const result = evaluateStressBudget(summary, {
+    maxTimeouts: 0,
+    maxServerErrors: 0,
+    maxUnexpectedStatuses: 0,
+    maxP95Ms: 100,
+    maxP99Ms: 100,
+    routes: {
+      'GET /api/game/state': { maxP95Ms: 100, maxP99Ms: 100 },
+    },
+  });
+  assert.equal(result.passed, false);
+  assert.ok(result.failures.includes('缺少任何服务端本地耗时，不能执行性能预算'));
+  assert.ok(result.failures.includes('GET /api/game/state 有 1 个响应缺少服务端本地耗时'));
 });
 
 test('stress safety prevents production writes and unsafe targets', () => {

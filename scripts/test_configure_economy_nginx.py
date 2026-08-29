@@ -37,10 +37,21 @@ class ReplaceOrInsertTests(unittest.TestCase):
         self.assertIn("location = /economy-api/login", updated)
         self.assertIn("location = /economy-api/me", updated)
         self.assertIn("location = /economy-api/logout", updated)
+        self.assertIn("location = /economy-api/health", updated)
         self.assertIn("location ^~ /economy-api/game/", updated)
         self.assertIn("gzip_types application/json;", updated)
         self.assertIn(nginx.STATIC_COMPRESSION_BEGIN, updated)
         self.assertIn("text/css text/plain text/javascript application/javascript application/json", updated)
+        self.assertEqual(nginx.replace_or_insert(updated), updated)
+
+    def test_existing_game_snippet_still_gains_exact_health_route(self) -> None:
+        original = server(f"include {nginx.GAME_API_SNIPPET};")
+        updated = nginx.replace_or_insert(original)
+
+        self.assertIn(f"include {nginx.GAME_API_SNIPPET};", updated)
+        self.assertIn("location = /economy-api/health", updated)
+        self.assertIn("proxy_pass http://127.0.0.1:3002/health;", updated)
+        self.assertEqual(updated.count("location = /economy-api/health"), 1)
         self.assertEqual(nginx.replace_or_insert(updated), updated)
 
     def test_avatar_regex_quantifier_is_quoted_for_nginx_parser(self) -> None:

@@ -59,7 +59,6 @@ async function requestJson(metrics, {
   timeoutMs,
   expectedStatuses = [200],
 }) {
-  const startedAt = performance.now();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs ?? (method === 'GET' ? 8_000 : 12_000));
   let response;
@@ -77,11 +76,12 @@ async function requestJson(metrics, {
     });
     text = await response.text();
     const expected = expectedStatuses.includes(response.status);
+    const serverDurationMs = serverTimingDurationMs(response.headers.get('server-timing'));
     metrics.record({
       method,
       route,
       statusCode: response.status,
-      durationMs: performance.now() - startedAt,
+      serverDurationMs,
       responseBytes: Buffer.byteLength(text),
       expected,
     });
@@ -99,7 +99,6 @@ async function requestJson(metrics, {
         method,
         route,
         statusCode: 0,
-        durationMs: performance.now() - startedAt,
         responseBytes: 0,
         expected: false,
         timeout: error?.name === 'AbortError',
@@ -109,6 +108,14 @@ async function requestJson(metrics, {
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+function serverTimingDurationMs(header) {
+  const match = /(?:^|,)\s*app\s*;\s*dur=([0-9]+(?:\.[0-9]+)?)\s*(?:,|$)/i
+    .exec(String(header || ''));
+  if (!match) return undefined;
+  const value = Number(match[1]);
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
 }
 
 function remoteEndpoints(targetMode, env) {
@@ -494,8 +501,11 @@ function parseCli(argumentsList) {
 }
 
 function reportMarkdown(report) {
+  const latencyCell = (value, key) => (
+    value.timedRequests === value.requests ? String(value[key]) : '未计时'
+  );
   const routeRows = Object.entries(report.metrics.routes).map(([route, value]) => (
-    `| ${route} | ${value.requests} | ${value.p95Ms} | ${value.p99Ms} | ${value.maxMs} | ${value.unexpectedStatusCount} |`
+    `| ${route} | ${value.requests} | ${latencyCell(value, 'p95Ms')} | ${latencyCell(value, 'p99Ms')} | ${latencyCell(value, 'maxMs')} | ${value.unexpectedStatusCount} |`
   ));
   return [
     '# Economy 压力测试报告',
@@ -506,9 +516,10 @@ function reportMarkdown(report) {
     `- 用户：${report.users}`,
     `- 持续时间：${Math.round(report.metrics.durationMs)}ms`,
     `- 请求：${report.metrics.requests}，平均 ${report.metrics.requestsPerSecond} RPS`,
-    `- 总体 p95／p99：${report.metrics.p95Ms}ms／${report.metrics.p99Ms}ms`,
+    `- 耗时来源：服务端本地处理`,
+    `- 总体服务端本地 p95／p99：${report.metrics.p95Ms}ms／${report.metrics.p99Ms}ms`,
     '',
-    '| 路由 | 请求数 | p95(ms) | p99(ms) | 最大(ms) | 非预期 |',
+    '| 路由 | 请求数 | 服务端本地 p95(ms) | 服务端本地 p99(ms) | 服务端本地最大(ms) | 非预期 |',
     '|---|---:|---:|---:|---:|---:|',
     ...routeRows,
     '',
@@ -642,6 +653,7 @@ export async function runStressTest(options = {}) {
       durationSeconds,
       pollIntervalMs,
       writes: definition.writes,
+      timingSource: 'server-local',
       ...(profile === 'transaction-mix' ? { transactionMixWeights: TRANSACTION_MIX_WEIGHTS } : {}),
     },
     runtime: {
