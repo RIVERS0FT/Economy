@@ -74,7 +74,7 @@ for (const [path, texts] of [
   ]],
   ['server/src/warehouse.js', [
     'createFactoryAutoTradeExecutionClientState(player)',
-    'factoryAutoOperationPolicies',
+    'createFactoryAutoOperationClientState(player)',
   ]],
   ['src/api/game.ts', [
     'FactoryAutoOperationPolicyInput',
