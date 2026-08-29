@@ -155,6 +155,14 @@ export interface OnlineAutoTradePolicyInput {
   buy: OnlineAutoBuyPolicyInput;
   sell: OnlineAutoSellPolicyInput;
 }
+export type FactoryAutoOperationMode = 'profit' | 'balanced' | 'supply';
+export type FactoryAutoOperationOutputMode = 'surplus' | 'keep';
+export interface FactoryAutoOperationPolicyInput {
+  enabled: boolean;
+  inputCoverageCycles: 1 | 2 | 3 | 5;
+  mode: FactoryAutoOperationMode;
+  outputMode: FactoryAutoOperationOutputMode;
+}
 export interface TransportRouteInput {
   sourceProvinceId: string;
   destinationProvinceId: string;
@@ -550,6 +558,21 @@ export function saveOnlineAutoTradePolicy(provinceId: string, productId: string,
     execution: 'online-auto-trade-policy',
     buy: policy.buy,
     sell: policy.sell,
+  });
+}
+
+export function saveFactoryAutoOperationPolicy(
+  provinceId: string,
+  facilityTypeId: string,
+  policy: FactoryAutoOperationPolicyInput,
+) {
+  return postAction('/orders', {
+    provinceId,
+    assetKind: 'facility',
+    assetId: facilityTypeId,
+    facilityTypeId,
+    execution: 'factory-auto-operation-policy',
+    policy,
   });
 }
 
