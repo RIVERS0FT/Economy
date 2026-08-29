@@ -45,7 +45,7 @@ requireText(marketPage, '<MarketCommodityRow', '地区商品目录必须复用�
 requireText(marketPage, "onClick={() => selectMarketAsset(entry.kind, entry.id, !embedded)}", '地区商品行必须打开当前地区商品详情。');
 requireText(marketPage, 'embedded?: boolean;', '市场页必须支持州级上下文嵌入。');
 requireText(marketPage, 'return embedded', '嵌入市场不得重复 PageLayout。');
-requireText(marketPage, 'fixedProductId={selectedProduct.id}', '地区商品详情必须把自动交易锁定到当前商品。');
+requireText(marketPage, 'fixedProductId={selectedProduct.id}', '地区商品详情必须把自动经营执行状态锁定到当前商品。');
 requireText(marketPage, "<small>{selectedProduct ? '24h 成交量' : availableAssetLabel}</small>", '地区商品详情必须显示真实 24h 成交量。');
 
 const marketCatalogStart = marketPage.indexOf("if (!facilityAssetId && marketViewMode === 'catalog')");
@@ -125,7 +125,12 @@ requireText(marketStyles, '@container market-page (max-width: 819px)', '交易�
 requireText(marketStyles, '@container market-page (max-width: 359px)', '交易卡必须覆盖极窄宽度。');
 requireText(marketStyles, 'min-height: 44px;', '极窄盘口档位必须保持触控高度。');
 
-requireText(autoTradePanel, '保存自动交易设置', '市场自动交易面板必须保留双向保存动作。');
+for (const token of ['自动经营执行', '由工厂策略汇总', '预计自动采购', '预计自动出售', '采购价格上限', '出售价格下限']) {
+  requireText(autoTradePanel, token, `地区商品详情必须保留只读自动经营执行字段：${token}。`);
+}
+for (const token of ['保存自动交易设置', '目标自由库存', '最低自由库存', 'MoneyInput', 'IntegerInput', 'MobileWorkspaceDetailSheet']) {
+  forbidText(autoTradePanel, token, `地区商品详情不得恢复商品级自动交易编辑：${token}。`);
+}
 requireText(buildingsPage, 'facilityAssetId={facilityAssetTradeId}', '建筑详情必须继续打开从属资产交易。');
 requireText(buildingsPage, "onBackFromFacilityAsset={() => setFacilityAssetTradeId('')}", '建筑从属资产交易必须返回原建筑详情。');
 requireText(marketHistory, 'export function getMarketWindowBounds', '市场窗口边界必须由共享函数生成。');
@@ -153,4 +158,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('地区市场核心验证通过：目录、详情、交易卡、订单簿、自动交易与浏览器专项覆盖保持单一地区职责。');
+console.log('地区市场核心验证通过：目录、详情、交易卡、订单簿、只读自动经营执行与浏览器专项覆盖保持单一地区职责。');
