@@ -240,10 +240,15 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     path,
   } = requestMeta;
   const payload = normalizePlayerMoneyPayload(action, requestMeta.payload);
+  const mutationScopeAction = action === 'settleProduction'
+    ? 'setFacilityRecipe'
+    : FACTORY_AUTO_OPERATION_REBUILD_ACTIONS.has(action)
+      ? 'factoryAutoOperationRebuild'
+      : action;
   const mutationScope = createRuntimeMutationScope(
     store.worldCache?.world,
     user.id,
-    action === 'settleProduction' ? 'setFacilityRecipe' : action,
+    mutationScopeAction,
     payload,
     { scheduledProcessing: store.scheduledProcessing },
   );
