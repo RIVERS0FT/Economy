@@ -5,6 +5,7 @@ on:
     branches:
       - codex/factory-auto-operation-v2
     paths:
+      - scripts/prepare-factory-auto-operation-authority-sync.mjs
       - scripts/sync-factory-auto-operation-authority.mjs
       - scripts/sync-factory-auto-operation-authority-v2.mjs
       - .github/workflows/factory-auto-operation-authority-sync.yml
@@ -25,13 +26,17 @@ jobs:
         with:
           node-version: 24.4.0
       - name: Synchronize authority docs
-        run: node scripts/sync-factory-auto-operation-authority-v2.mjs
-      - name: Commit synchronized docs and remove one-time tooling
         run: |
-          git rm scripts/sync-factory-auto-operation-authority.mjs scripts/sync-factory-auto-operation-authority-v2.mjs .github/workflows/factory-auto-operation-authority-sync.yml
+          node scripts/prepare-factory-auto-operation-authority-sync.mjs
+          node scripts/sync-factory-auto-operation-authority-v2.mjs
+      - name: Refresh local preview fixture
+        run: npm run generate:local-preview
+      - name: Commit synchronized authority and remove one-time tooling
+        run: |
+          git rm scripts/prepare-factory-auto-operation-authority-sync.mjs scripts/sync-factory-auto-operation-authority.mjs scripts/sync-factory-auto-operation-authority-v2.mjs .github/workflows/factory-auto-operation-authority-sync.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add docs
+          git add docs src/dev/generated/local-game-preview-state.json
           git diff --cached --check
-          git commit -m 'Align factory automatic operation authority docs'
+          git commit -m 'Align factory automatic operation authority'
           git push origin HEAD:codex/factory-auto-operation-v2
