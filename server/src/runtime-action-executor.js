@@ -9,7 +9,10 @@ import {
   cancelFacilityBuildProcurementOrders,
   createFacilityBuildProcurementOrders,
 } from './facility-auto-procure.js';
-import { applyFactoryAutoOperationPolicyAction } from './factory-auto-operation.js';
+import {
+  applyFactoryAutoOperationPolicyAction,
+  rebuildFactoryAutoTradePoliciesForProvince,
+} from './factory-auto-operation.js';
 import { applyFacilityGroupAction, processFacilityGroupWorld } from './facility-groups.js';
 import { ensureGemState } from './invitations.js';
 import { normalizePlayerMoneyPayload } from './money.js';
@@ -38,6 +41,12 @@ import {
 
 const AUCTION_ACTIONS = new Set(['createAuction', 'placeAuctionBid', 'cancelAuction']);
 const BANK_ACTIONS = new Set(['bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay']);
+const FACTORY_AUTO_OPERATION_REBUILD_ACTIONS = new Set([
+  'buildFacility',
+  'startFacility',
+  'pauseFacility',
+  'setFacilityRecipe',
+]);
 const CONTRACT_ACTIONS = new Set([
   'createProductionContract',
   'acceptProductionContract',
@@ -188,6 +197,11 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
           process: !store.scheduledProcessing,
         });
       }
+    }
+
+    if (gameResult?.ok && FACTORY_AUTO_OPERATION_REBUILD_ACTIONS.has(action)) {
+      const rebuilt = rebuildFactoryAutoTradePoliciesForProvince(world, user.id, payload.provinceId);
+      if (!rebuilt.ok) gameResult = rebuilt;
     }
 
     if (gameResult?.ok) {
