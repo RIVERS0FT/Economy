@@ -2,7 +2,9 @@ name: Run unified page-list patch
 on:
   push:
     branches: [fix/unify-page-entity-lists]
-    paths: [scripts/patch-unified-page-lists.py]
+    paths:
+      - scripts/patch-unified-page-lists.py
+      - .github/workflows/run-unified-page-list-patch.yml
 permissions:
   contents: write
 jobs:
