@@ -19,7 +19,11 @@
         "shortName": "CA",
         "mapName": "California",
         "longitude": -119.42,
-        "latitude": 36.78
+        "latitude": 36.78,
+        "capitalName": "萨克拉门托",
+        "capitalMapName": "Sacramento",
+        "capitalLongitude": -121.4935591,
+        "capitalLatitude": 38.5765854
       },
       {
         "id": "120000",
@@ -27,7 +31,11 @@
         "shortName": "AL",
         "mapName": "Alabama",
         "longitude": -86.9,
-        "latitude": 32.81
+        "latitude": 32.81,
+        "capitalName": "蒙哥马利",
+        "capitalMapName": "Montgomery",
+        "capitalLongitude": -86.3005639,
+        "capitalLatitude": 32.3777298
       },
       {
         "id": "130000",
@@ -35,7 +43,11 @@
         "shortName": "AZ",
         "mapName": "Arizona",
         "longitude": -111.09,
-        "latitude": 34.05
+        "latitude": 34.05,
+        "capitalName": "凤凰城",
+        "capitalMapName": "Phoenix",
+        "capitalLongitude": -112.097065,
+        "capitalLatitude": 33.4482497
       },
       {
         "id": "140000",
@@ -43,7 +55,11 @@
         "shortName": "AR",
         "mapName": "Arkansas",
         "longitude": -92.37,
-        "latitude": 34.97
+        "latitude": 34.97,
+        "capitalName": "小石城",
+        "capitalMapName": "Little Rock",
+        "capitalLongitude": -92.2892284,
+        "capitalLatitude": 34.746745
       },
       {
         "id": "150000",
@@ -51,7 +67,11 @@
         "shortName": "CO",
         "mapName": "Colorado",
         "longitude": -105.78,
-        "latitude": 39.55
+        "latitude": 39.55,
+        "capitalName": "丹佛",
+        "capitalMapName": "Denver",
+        "capitalLongitude": -104.9849779,
+        "capitalLatitude": 39.7392198
       },
       {
         "id": "210000",
@@ -59,7 +79,11 @@
         "shortName": "CT",
         "mapName": "Connecticut",
         "longitude": -72.76,
-        "latitude": 41.6
+        "latitude": 41.6,
+        "capitalName": "哈特福德",
+        "capitalMapName": "Hartford",
+        "capitalLongitude": -72.6823164,
+        "capitalLatitude": 41.7642752
       },
       {
         "id": "220000",
@@ -67,7 +91,11 @@
         "shortName": "DE",
         "mapName": "Delaware",
         "longitude": -75.53,
-        "latitude": 38.91
+        "latitude": 38.91,
+        "capitalName": "多佛",
+        "capitalMapName": "Dover",
+        "capitalLongitude": -75.5195811,
+        "capitalLatitude": 39.1572815
       },
       {
         "id": "230000",
@@ -75,7 +103,11 @@
         "shortName": "FL",
         "mapName": "Florida",
         "longitude": -81.52,
-        "latitude": 27.66
+        "latitude": 27.66,
+        "capitalName": "塔拉哈西",
+        "capitalMapName": "Tallahassee",
+        "capitalLongitude": -84.2821265,
+        "capitalLatitude": 30.4381047
       },
       {
         "id": "310000",
@@ -83,7 +115,11 @@
         "shortName": "GA",
         "mapName": "Georgia",
         "longitude": -82.9,
-        "latitude": 32.17
+        "latitude": 32.17,
+        "capitalName": "亚特兰大",
+        "capitalMapName": "Atlanta",
+        "capitalLongitude": -84.3879614,
+        "capitalLatitude": 33.7490287
       },
       {
         "id": "320000",
@@ -91,7 +127,11 @@
         "shortName": "ID",
         "mapName": "Idaho",
         "longitude": -114.74,
-        "latitude": 44.07
+        "latitude": 44.07,
+        "capitalName": "博伊西",
+        "capitalMapName": "Boise",
+        "capitalLongitude": -116.1998483,
+        "capitalLatitude": 43.6177948
       },
       {
         "id": "330000",
@@ -99,7 +139,11 @@
         "shortName": "IL",
         "mapName": "Illinois",
         "longitude": -89.4,
-        "latitude": 40.63
+        "latitude": 40.63,
+        "capitalName": "斯普林菲尔德",
+        "capitalMapName": "Springfield",
+        "capitalLongitude": -89.6547203,
+        "capitalLatitude": 39.7983912
       },
       {
         "id": "340000",
@@ -107,7 +151,11 @@
         "shortName": "IN",
         "mapName": "Indiana",
         "longitude": -86.13,
-        "latitude": 40.27
+        "latitude": 40.27,
+        "capitalName": "印第安纳波利斯",
+        "capitalMapName": "Indianapolis",
+        "capitalLongitude": -86.1627697,
+        "capitalLatitude": 39.7683841
       },
       {
         "id": "350000",
@@ -115,7 +163,11 @@
         "shortName": "IA",
         "mapName": "Iowa",
         "longitude": -93.1,
-        "latitude": 41.88
+        "latitude": 41.88,
+        "capitalName": "得梅因",
+        "capitalMapName": "Des Moines",
+        "capitalLongitude": -93.6038358,
+        "capitalLatitude": 41.5911079
       },
       {
         "id": "360000",
@@ -123,7 +175,11 @@
         "shortName": "KS",
         "mapName": "Kansas",
         "longitude": -98.48,
-        "latitude": 39.01
+        "latitude": 39.01,
+        "capitalName": "托皮卡",
+        "capitalMapName": "Topeka",
+        "capitalLongitude": -95.6780057,
+        "capitalLatitude": 39.0482389
       },
       {
         "id": "370000",
@@ -131,7 +187,11 @@
         "shortName": "KY",
         "mapName": "Kentucky",
         "longitude": -84.27,
-        "latitude": 37.84
+        "latitude": 37.84,
+        "capitalName": "法兰克福",
+        "capitalMapName": "Frankfort",
+        "capitalLongitude": -84.8753598,
+        "capitalLatitude": 38.1866989
       },
       {
         "id": "410000",
@@ -139,7 +199,11 @@
         "shortName": "LA",
         "mapName": "Louisiana",
         "longitude": -91.96,
-        "latitude": 30.98
+        "latitude": 30.98,
+        "capitalName": "巴吞鲁日",
+        "capitalMapName": "Baton Rouge",
+        "capitalLongitude": -91.1873935,
+        "capitalLatitude": 30.457024
       },
       {
         "id": "420000",
@@ -147,7 +211,11 @@
         "shortName": "ME",
         "mapName": "Maine",
         "longitude": -69.45,
-        "latitude": 45.25
+        "latitude": 45.25,
+        "capitalName": "奥古斯塔",
+        "capitalMapName": "Augusta",
+        "capitalLongitude": -69.7816228,
+        "capitalLatitude": 44.307213
       },
       {
         "id": "430000",
@@ -155,7 +223,11 @@
         "shortName": "MD",
         "mapName": "Maryland",
         "longitude": -76.64,
-        "latitude": 39.05
+        "latitude": 39.05,
+        "capitalName": "安纳波利斯",
+        "capitalMapName": "Annapolis",
+        "capitalLongitude": -76.491037,
+        "capitalLatitude": 38.9788927
       },
       {
         "id": "440000",
@@ -163,7 +235,11 @@
         "shortName": "MA",
         "mapName": "Massachusetts",
         "longitude": -71.38,
-        "latitude": 42.41
+        "latitude": 42.41,
+        "capitalName": "波士顿",
+        "capitalMapName": "Boston",
+        "capitalLongitude": -71.0640129,
+        "capitalLatitude": 42.3587532
       },
       {
         "id": "450000",
@@ -171,7 +247,11 @@
         "shortName": "MI",
         "mapName": "Michigan",
         "longitude": -85.6,
-        "latitude": 44.31
+        "latitude": 44.31,
+        "capitalName": "兰辛",
+        "capitalMapName": "Lansing",
+        "capitalLongitude": -84.5555605,
+        "capitalLatitude": 42.7336193
       },
       {
         "id": "460000",
@@ -179,7 +259,11 @@
         "shortName": "MN",
         "mapName": "Minnesota",
         "longitude": -94.69,
-        "latitude": 46.73
+        "latitude": 46.73,
+        "capitalName": "圣保罗",
+        "capitalMapName": "Saint Paul",
+        "capitalLongitude": -93.1021034,
+        "capitalLatitude": 44.9551063
       },
       {
         "id": "500000",
@@ -187,7 +271,11 @@
         "shortName": "MS",
         "mapName": "Mississippi",
         "longitude": -89.4,
-        "latitude": 32.35
+        "latitude": 32.35,
+        "capitalName": "杰克逊",
+        "capitalMapName": "Jackson",
+        "capitalLongitude": -90.1820382,
+        "capitalLatitude": 32.303763
       },
       {
         "id": "510000",
@@ -195,7 +283,11 @@
         "shortName": "MO",
         "mapName": "Missouri",
         "longitude": -91.83,
-        "latitude": 37.96
+        "latitude": 37.96,
+        "capitalName": "杰斐逊城",
+        "capitalMapName": "Jefferson City",
+        "capitalLongitude": -92.1728432,
+        "capitalLatitude": 38.5791852
       },
       {
         "id": "520000",
@@ -203,7 +295,11 @@
         "shortName": "MT",
         "mapName": "Montana",
         "longitude": -110.36,
-        "latitude": 46.88
+        "latitude": 46.88,
+        "capitalName": "海伦娜",
+        "capitalMapName": "Helena",
+        "capitalLongitude": -112.0183427,
+        "capitalLatitude": 46.5857742
       },
       {
         "id": "530000",
@@ -211,7 +307,11 @@
         "shortName": "NE",
         "mapName": "Nebraska",
         "longitude": -99.9,
-        "latitude": 41.49
+        "latitude": 41.49,
+        "capitalName": "林肯",
+        "capitalMapName": "Lincoln",
+        "capitalLongitude": -96.6997467,
+        "capitalLatitude": 40.8080641
       },
       {
         "id": "540000",
@@ -219,7 +319,11 @@
         "shortName": "NV",
         "mapName": "Nevada",
         "longitude": -116.42,
-        "latitude": 38.8
+        "latitude": 38.8,
+        "capitalName": "卡森城",
+        "capitalMapName": "Carson City",
+        "capitalLongitude": -119.7663053,
+        "capitalLatitude": 39.1640815
       },
       {
         "id": "610000",
@@ -227,7 +331,11 @@
         "shortName": "NH",
         "mapName": "New Hampshire",
         "longitude": -71.57,
-        "latitude": 43.19
+        "latitude": 43.19,
+        "capitalName": "康科德",
+        "capitalMapName": "Concord",
+        "capitalLongitude": -71.5382718,
+        "capitalLatitude": 43.2069054
       },
       {
         "id": "620000",
@@ -235,7 +343,11 @@
         "shortName": "NJ",
         "mapName": "New Jersey",
         "longitude": -74.41,
-        "latitude": 40.06
+        "latitude": 40.06,
+        "capitalName": "特伦顿",
+        "capitalMapName": "Trenton",
+        "capitalLongitude": -74.7699552,
+        "capitalLatitude": 40.2203572
       },
       {
         "id": "630000",
@@ -243,7 +355,11 @@
         "shortName": "NM",
         "mapName": "New Mexico",
         "longitude": -105.87,
-        "latitude": 34.52
+        "latitude": 34.52,
+        "capitalName": "圣菲",
+        "capitalMapName": "Santa Fe",
+        "capitalLongitude": -105.9396043,
+        "capitalLatitude": 35.6823747
       },
       {
         "id": "640000",
@@ -251,7 +367,11 @@
         "shortName": "NY",
         "mapName": "New York",
         "longitude": -75.5,
-        "latitude": 43.3
+        "latitude": 43.3,
+        "capitalName": "奥尔巴尼",
+        "capitalMapName": "Albany",
+        "capitalLongitude": -73.7575015,
+        "capitalLatitude": 42.6525086
       },
       {
         "id": "650000",
@@ -259,7 +379,11 @@
         "shortName": "NC",
         "mapName": "North Carolina",
         "longitude": -79.02,
-        "latitude": 35.76
+        "latitude": 35.76,
+        "capitalName": "罗利",
+        "capitalMapName": "Raleigh",
+        "capitalLongitude": -78.6391225,
+        "capitalLatitude": 35.7803724
       },
       {
         "id": "710000",
@@ -267,7 +391,11 @@
         "shortName": "ND",
         "mapName": "North Dakota",
         "longitude": -101,
-        "latitude": 47.55
+        "latitude": 47.55,
+        "capitalName": "俾斯麦",
+        "capitalMapName": "Bismarck",
+        "capitalLongitude": -100.7827194,
+        "capitalLatitude": 46.8207637
       },
       {
         "id": "810000",
@@ -275,7 +403,11 @@
         "shortName": "OH",
         "mapName": "Ohio",
         "longitude": -82.91,
-        "latitude": 40.42
+        "latitude": 40.42,
+        "capitalName": "哥伦布",
+        "capitalMapName": "Columbus",
+        "capitalLongitude": -82.9987984,
+        "capitalLatitude": 39.961461
       },
       {
         "id": "820000",
@@ -283,7 +415,11 @@
         "shortName": "OK",
         "mapName": "Oklahoma",
         "longitude": -97.09,
-        "latitude": 35.01
+        "latitude": 35.01,
+        "capitalName": "俄克拉何马城",
+        "capitalMapName": "Oklahoma City",
+        "capitalLongitude": -97.5033801,
+        "capitalLatitude": 35.4922882
       },
       {
         "id": "US-OR",
@@ -291,7 +427,11 @@
         "shortName": "OR",
         "mapName": "Oregon",
         "longitude": -120.55,
-        "latitude": 43.8
+        "latitude": 43.8,
+        "capitalName": "塞勒姆",
+        "capitalMapName": "Salem",
+        "capitalLongitude": -123.0301147,
+        "capitalLatitude": 44.938743
       },
       {
         "id": "US-PA",
@@ -299,7 +439,11 @@
         "shortName": "PA",
         "mapName": "Pennsylvania",
         "longitude": -77.19,
-        "latitude": 41.2
+        "latitude": 41.2,
+        "capitalName": "哈里斯堡",
+        "capitalMapName": "Harrisburg",
+        "capitalLongitude": -76.8837835,
+        "capitalLatitude": 40.2644747
       },
       {
         "id": "US-RI",
@@ -307,7 +451,11 @@
         "shortName": "RI",
         "mapName": "Rhode Island",
         "longitude": -71.48,
-        "latitude": 41.58
+        "latitude": 41.58,
+        "capitalName": "普罗维登斯",
+        "capitalMapName": "Providence",
+        "capitalLongitude": -71.414855,
+        "capitalLatitude": 41.8308218
       },
       {
         "id": "US-SC",
@@ -315,7 +463,11 @@
         "shortName": "SC",
         "mapName": "South Carolina",
         "longitude": -80.9,
-        "latitude": 33.84
+        "latitude": 33.84,
+        "capitalName": "哥伦比亚",
+        "capitalMapName": "Columbia",
+        "capitalLongitude": -81.0331509,
+        "capitalLatitude": 34.0004393
       },
       {
         "id": "US-SD",
@@ -323,7 +475,11 @@
         "shortName": "SD",
         "mapName": "South Dakota",
         "longitude": -99.9,
-        "latitude": 43.97
+        "latitude": 43.97,
+        "capitalName": "皮埃尔",
+        "capitalMapName": "Pierre",
+        "capitalLongitude": -100.3462286,
+        "capitalLatitude": 44.3671094
       },
       {
         "id": "US-TN",
@@ -331,7 +487,11 @@
         "shortName": "TN",
         "mapName": "Tennessee",
         "longitude": -86.58,
-        "latitude": 35.52
+        "latitude": 35.52,
+        "capitalName": "纳什维尔",
+        "capitalMapName": "Nashville",
+        "capitalLongitude": -86.7841708,
+        "capitalLatitude": 36.1658985
       },
       {
         "id": "US-TX",
@@ -339,7 +499,11 @@
         "shortName": "TX",
         "mapName": "Texas",
         "longitude": -99.9,
-        "latitude": 31.97
+        "latitude": 31.97,
+        "capitalName": "奥斯汀",
+        "capitalMapName": "Austin",
+        "capitalLongitude": -97.7403271,
+        "capitalLatitude": 30.2746658
       },
       {
         "id": "US-UT",
@@ -347,7 +511,11 @@
         "shortName": "UT",
         "mapName": "Utah",
         "longitude": -111.09,
-        "latitude": 39.32
+        "latitude": 39.32,
+        "capitalName": "盐湖城",
+        "capitalMapName": "Salt Lake City",
+        "capitalLongitude": -111.888132,
+        "capitalLatitude": 40.7773586
       },
       {
         "id": "US-VT",
@@ -355,7 +523,11 @@
         "shortName": "VT",
         "mapName": "Vermont",
         "longitude": -72.58,
-        "latitude": 44.56
+        "latitude": 44.56,
+        "capitalName": "蒙彼利埃",
+        "capitalMapName": "Montpelier",
+        "capitalLongitude": -72.5804725,
+        "capitalLatitude": 44.2624522
       },
       {
         "id": "US-VA",
@@ -363,7 +535,11 @@
         "shortName": "VA",
         "mapName": "Virginia",
         "longitude": -78.66,
-        "latitude": 37.43
+        "latitude": 37.43,
+        "capitalName": "里士满",
+        "capitalMapName": "Richmond",
+        "capitalLongitude": -77.4335963,
+        "capitalLatitude": 37.5387651
       },
       {
         "id": "US-WA",
@@ -371,7 +547,11 @@
         "shortName": "WA",
         "mapName": "Washington",
         "longitude": -120.74,
-        "latitude": 47.75
+        "latitude": 47.75,
+        "capitalName": "奥林匹亚",
+        "capitalMapName": "Olympia",
+        "capitalLongitude": -122.9049162,
+        "capitalLatitude": 47.0357595
       },
       {
         "id": "US-WV",
@@ -379,7 +559,11 @@
         "shortName": "WV",
         "mapName": "West Virginia",
         "longitude": -80.45,
-        "latitude": 38.6
+        "latitude": 38.6,
+        "capitalName": "查尔斯顿",
+        "capitalMapName": "Charleston",
+        "capitalLongitude": -81.6120072,
+        "capitalLatitude": 38.3364019
       },
       {
         "id": "US-WI",
@@ -387,7 +571,11 @@
         "shortName": "WI",
         "mapName": "Wisconsin",
         "longitude": -89.62,
-        "latitude": 43.78
+        "latitude": 43.78,
+        "capitalName": "麦迪逊",
+        "capitalMapName": "Madison",
+        "capitalLongitude": -89.3841797,
+        "capitalLatitude": 43.0746533
       },
       {
         "id": "US-WY",
@@ -395,7 +583,11 @@
         "shortName": "WY",
         "mapName": "Wyoming",
         "longitude": -107.29,
-        "latitude": 43.08
+        "latitude": 43.08,
+        "capitalName": "夏延",
+        "capitalMapName": "Cheyenne",
+        "capitalLongitude": -104.8203092,
+        "capitalLatitude": 41.140301
       }
     ],
     "defaultProvinceId": "110000",

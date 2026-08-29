@@ -17,6 +17,10 @@ export interface ProvinceDefinition {
   mapName: string;
   longitude: number;
   latitude: number;
+  capitalName: string;
+  capitalMapName: string;
+  capitalLongitude: number;
+  capitalLatitude: number;
 }
 
 export interface ProvinceAssetSummary {
