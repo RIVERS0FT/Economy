@@ -38,7 +38,6 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
   }), [model, pollingPreference.refreshRate, pollingPreference.setRefreshRate]);
   const tutorial = useGameTutorial(pollingModel);
   const autoTrade = useOnlineAutoTrade(pollingModel, {
-    onAutoSellPolicyEnabled: tutorial.recordAutoSellSetting,
     onSale: tutorial.recordAutoSellCompletion,
   });
   const tutorialModel = useMemo<TutorialAwareGameViewModel>(() => ({
