@@ -9,6 +9,10 @@ import {
   cancelFacilityBuildProcurementOrders,
   createFacilityBuildProcurementOrders,
 } from './facility-auto-procure.js';
+import {
+  applyFactoryAutoOperationPolicyAction,
+  rebuildFactoryAutoTradePoliciesForProvince,
+} from './factory-auto-operation.js';
 import { applyFacilityGroupAction, processFacilityGroupWorld } from './facility-groups.js';
 import { ensureGemState } from './invitations.js';
 import { normalizePlayerMoneyPayload } from './money.js';
@@ -37,6 +41,12 @@ import {
 
 const AUCTION_ACTIONS = new Set(['createAuction', 'placeAuctionBid', 'cancelAuction']);
 const BANK_ACTIONS = new Set(['bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay']);
+const FACTORY_AUTO_OPERATION_REBUILD_ACTIONS = new Set([
+  'buildFacility',
+  'startFacility',
+  'pauseFacility',
+  'setFacilityRecipe',
+]);
 const CONTRACT_ACTIONS = new Set([
   'createProductionContract',
   'acceptProductionContract',
@@ -135,6 +145,8 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
         gameResult = applyOnlineAutoSellPolicyAction(world, user, payload);
       } else if (action === 'placeOrder' && payload.execution === 'online-auto-trade-policy') {
         gameResult = applyOnlineAutoTradePolicyAction(world, user, payload);
+      } else if (action === 'placeOrder' && payload.execution === 'factory-auto-operation-policy') {
+        gameResult = applyFactoryAutoOperationPolicyAction(world, user, payload);
       } else if (action === 'placeOrder' && payload.execution === 'online-auto-buy') {
         gameResult = applyOnlineAutoBuy(world, user, payload, now);
       } else if (action === 'placeOrder' && payload.execution === 'online-auto-sell') {
@@ -187,6 +199,11 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
       }
     }
 
+    if (gameResult?.ok && FACTORY_AUTO_OPERATION_REBUILD_ACTIONS.has(action)) {
+      const rebuilt = rebuildFactoryAutoTradePoliciesForProvince(world, user.id, payload.provinceId);
+      if (!rebuilt.ok) gameResult = rebuilt;
+    }
+
     if (gameResult?.ok) {
       measureRequestPhase('economicInvariantMs', () => assertEconomicStateInvariantsScoped(world, mutationScope));
       savepoint.release();
@@ -223,10 +240,15 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     path,
   } = requestMeta;
   const payload = normalizePlayerMoneyPayload(action, requestMeta.payload);
+  const mutationScopeAction = action === 'settleProduction'
+    ? 'setFacilityRecipe'
+    : FACTORY_AUTO_OPERATION_REBUILD_ACTIONS.has(action)
+      ? 'factoryAutoOperationRebuild'
+      : action;
   const mutationScope = createRuntimeMutationScope(
     store.worldCache?.world,
     user.id,
-    action === 'settleProduction' ? 'setFacilityRecipe' : action,
+    mutationScopeAction,
     payload,
     { scheduledProcessing: store.scheduledProcessing },
   );
@@ -304,7 +326,11 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
       && !isDeepStrictEqual(world.productionContracts || [], contractsBeforeAction),
     );
     const isPolicySave = action === 'placeOrder'
-      && (payload.execution === 'online-auto-sell-policy' || payload.execution === 'online-auto-trade-policy');
+      && (
+        payload.execution === 'online-auto-sell-policy'
+        || payload.execution === 'online-auto-trade-policy'
+        || payload.execution === 'factory-auto-operation-policy'
+      );
     if ((ECONOMIC_ACTIVITY_ACTIONS.has(action) || CONTRACT_ACTIONS.has(action)) && !isPolicySave) {
       if (activePlayer && (playerChanged || contractChanged)) {
         activePlayer.lastEconomicActivityAt = now;
