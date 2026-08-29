@@ -89,16 +89,22 @@ export function applyOnlineAutoBuy(world, user, payload = {}, now = Date.now()) 
 
   const player = world.players?.[String(userId)];
   if (!player) return { ok: false, message: '玩家不存在' };
+  let managedOrder = managedOnlineAutoBuyOrderFor(world, userId, productId, provinceId);
   const policy = factoryAutoTradeExecutionPolicyFor(player, productId, provinceId)?.buy;
   if (!policy?.enabled) {
-    cancelManagedOnlineAutoBuyOrder(world, userId, productId, provinceId);
+    if (managedOrder) {
+      cancelManagedOnlineAutoBuyOrder(world, userId, productId, provinceId);
+      return { ok: true, message: '当前工厂策略无需采购，已撤销旧托管买单' };
+    }
     return { ok: false, message: '当前工厂策略无需自动采购该商品' };
   }
   const maximumPrice = policy.maxPrice;
 
-  let managedOrder = managedOnlineAutoBuyOrderFor(world, userId, productId, provinceId);
   if (hasOwnCrossingSell(world, userId, productId, maximumPrice, provinceId)) {
-    if (managedOrder) cancelManagedOnlineAutoBuyOrder(world, userId, productId, provinceId);
+    if (managedOrder) {
+      cancelManagedOnlineAutoBuyOrder(world, userId, productId, provinceId);
+      return { ok: true, message: '自己的卖单达到采购价格，已撤销托管买单' };
+    }
     return { ok: false, message: '自己的卖单达到自动采购价格，请先撤销反向订单' };
   }
 
