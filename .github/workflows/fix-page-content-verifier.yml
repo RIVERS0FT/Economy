@@ -1,0 +1,35 @@
+name: Fix page-content verifier wording
+
+on:
+  push:
+    branches:
+      - codex/factory-auto-operation-v2
+    paths:
+      - scripts/fix-page-content-verifier.mjs
+      - .github/workflows/fix-page-content-verifier.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/factory-auto-operation-v2
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+      - name: Update verifier semantics
+        run: node scripts/fix-page-content-verifier.mjs
+      - name: Commit verifier update
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/verify-page-content.mjs
+          git diff --cached --check
+          git commit -m 'Check warehouse unlock semantics'
+          git push origin HEAD:codex/factory-auto-operation-v2
