@@ -71,7 +71,7 @@ test('market uses product-first global and regional information hierarchy', asyn
 
   await globalRow.click();
   await expect(page.locator('.global-market-product-region-list')).toBeVisible();
-  const regionalHeader = page.locator('.global-market-product-detail > .market-commodity-row-header');
+  const regionalHeader = page.locator('.global-market-product-region-surface > .market-commodity-row-header');
   await expect(regionalHeader).toBeVisible();
   await expect(page.locator('.global-market-product-region-list .market-commodity-row-header')).toHaveCount(0);
   for (const label of ['地区', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']) {
