@@ -58,7 +58,7 @@ for (const [path, texts] of [
     'factoryAutoTradeExecutionPolicyFor(player, productId, provinceId)?.buy',
     '当前工厂策略无需自动采购该商品',
     'managedOnlineAutoBuyOrderFor',
-    'countOpenOrdersForOwner',
+    'applySettledCommodityOrder',
   ]],
   ['server/src/online-auto-sell.js', [
     'factoryAutoTradeExecutionPolicyFor(player, productId, provinceId)?.sell',
