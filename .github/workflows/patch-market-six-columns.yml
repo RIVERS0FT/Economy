@@ -1,0 +1,161 @@
+name: Patch market six columns
+on:
+  push:
+    branches: [fix/market-six-column-headers]
+    paths: [.github/workflows/patch-market-six-columns.yml]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/market-six-column-headers
+      - name: Apply final patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one match, got {count}: {old[:120]!r}')
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once('src/components/market/MarketCommodityRow.tsx',
+              "export type MarketCommoditySortKey = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume';",
+              "export type MarketCommoditySortKey = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume' | 'volume24h';")
+          replace_once('src/components/market/MarketCommodityRow.tsx',
+              "  'sell-volume': 'desc',\n};",
+              "  'sell-volume': 'desc',\n  volume24h: 'desc',\n};")
+          replace_once('src/components/market/MarketCommodityRow.tsx',
+              "    { label: '买单量', sortKey: 'buy-volume' },\n    { label: '市场价', sortKey: 'price' },\n    { label: '24h', sortKey: 'trend' },",
+              "    { label: '买单量', sortKey: 'buy-volume' },\n    { label: '24h成交量', sortKey: 'volume24h' },\n    { label: '市场价', sortKey: 'price' },\n    { label: '24h价格变化', sortKey: 'trend' },")
+          replace_once('src/components/market/MarketCommodityRow.tsx',
+              "  buyVolume: number;\n  marketPrice?: number;",
+              "  buyVolume: number;\n  tradeVolume24h: number;\n  marketPrice?: number;")
+          replace_once('src/components/market/MarketCommodityRow.tsx',
+              "  buyVolume,\n  marketPrice,",
+              "  buyVolume,\n  tradeVolume24h,\n  marketPrice,")
+          replace_once('src/components/market/MarketCommodityRow.tsx',
+              "        <span className=\"market-commodity-row__metric\">\n          <strong>{<CompactNumber value={buyVolume} />}</strong>\n        </span>\n        <span className=\"market-commodity-row__metric\">\n          <strong>{typeof marketPrice === 'number'",
+              "        <span className=\"market-commodity-row__metric\">\n          <strong>{<CompactNumber value={buyVolume} />}</strong>\n        </span>\n        <span className=\"market-commodity-row__metric\">\n          <strong>{<CompactNumber value={tradeVolume24h} />}</strong>\n        </span>\n        <span className=\"market-commodity-row__metric\">\n          <strong>{typeof marketPrice === 'number'")
+
+          replace_once('src/pages/MarketPage.tsx',
+              "type MarketCatalogSort = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume';",
+              "type MarketCatalogSort = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume' | 'volume24h';")
+          replace_once('src/pages/MarketPage.tsx',
+              "  buyVolume: number;\n  sellVolume: number;\n  demandSatisfaction:",
+              "  buyVolume: number;\n  sellVolume: number;\n  tradeVolume24h: number;\n  demandSatisfaction:")
+          replace_once('src/pages/MarketPage.tsx',
+              "        buyVolume,\n        sellVolume,\n        demandSatisfaction:",
+              "        buyVolume,\n        sellVolume,\n        tradeVolume24h: Math.max(0, Number(market?.tradeVolume24h || 0)),\n        demandSatisfaction:")
+          replace_once('src/pages/MarketPage.tsx',
+              "      if (catalogSort === 'sell-volume') return compareMarketOptionalValue(left.sellVolume, right.sellVolume, catalogSortDirection);\n      return 0;",
+              "      if (catalogSort === 'sell-volume') return compareMarketOptionalValue(left.sellVolume, right.sellVolume, catalogSortDirection);\n      if (catalogSort === 'volume24h') return compareMarketOptionalValue(left.tradeVolume24h, right.tradeVolume24h, catalogSortDirection);\n      return 0;")
+          replace_once('src/pages/MarketPage.tsx',
+              "                buyVolume={entry.buyVolume}\n                marketPrice={entry.marketPrice}",
+              "                buyVolume={entry.buyVolume}\n                tradeVolume24h={entry.tradeVolume24h}\n                marketPrice={entry.marketPrice}")
+
+          replace_once('src/pages/GlobalMarketPage.tsx',
+              "type GlobalMarketSortKey = 'name' | 'volume24h' | 'price-change24h' | 'average-price';",
+              "type GlobalMarketSortKey = 'name' | 'sell-volume' | 'buy-volume' | 'volume24h' | 'market-price' | 'price-change24h';")
+          replace_once('src/pages/GlobalMarketPage.tsx',
+              "    let tradedProvinceCount = 0;\n    let tradeVolume24h = 0;",
+              "    let tradedProvinceCount = 0;\n    let sellVolume = 0;\n    let buyVolume = 0;\n    let tradeVolume24h = 0;")
+          replace_once('src/pages/GlobalMarketPage.tsx',
+              "      if (typeof market?.priceChange24h === 'number') priceChanges24h.push(market.priceChange24h);\n      tradeVolume24h += Math.max(0, Number(market?.tradeVolume24h || 0));",
+              "      if (typeof market?.priceChange24h === 'number') priceChanges24h.push(market.priceChange24h);\n      sellVolume += Math.max(0, Number(market?.sellVolume || 0));\n      buyVolume += Math.max(0, Number(market?.buyVolume || 0));\n      tradeVolume24h += Math.max(0, Number(market?.tradeVolume24h || 0));")
+          replace_once('src/pages/GlobalMarketPage.tsx',
+              "      tradeVolume24h,\n      priceChange24h: average(priceChanges24h),\n      averagePrice: average(officialPrices),",
+              "      sellVolume,\n      buyVolume,\n      tradeVolume24h,\n      marketPrice: average(officialPrices),\n      priceChange24h: average(priceChanges24h),")
+          replace_once('src/pages/GlobalMarketPage.tsx',
+              "      } else if (catalogSort.key === 'volume24h') {\n        comparison = catalogSort.direction === 'asc'\n          ? left.tradeVolume24h - right.tradeVolume24h\n          : right.tradeVolume24h - left.tradeVolume24h;\n      } else if (catalogSort.key === 'price-change24h') {\n        comparison = compareMarketOptionalValue(left.priceChange24h, right.priceChange24h, catalogSort.direction);\n      } else if (catalogSort.key === 'average-price') {\n        comparison = compareMarketOptionalValue(left.averagePrice, right.averagePrice, catalogSort.direction);\n      }",
+              "      } else if (catalogSort.key === 'sell-volume') {\n        comparison = catalogSort.direction === 'asc'\n          ? left.sellVolume - right.sellVolume\n          : right.sellVolume - left.sellVolume;\n      } else if (catalogSort.key === 'buy-volume') {\n        comparison = catalogSort.direction === 'asc'\n          ? left.buyVolume - right.buyVolume\n          : right.buyVolume - left.buyVolume;\n      } else if (catalogSort.key === 'volume24h') {\n        comparison = catalogSort.direction === 'asc'\n          ? left.tradeVolume24h - right.tradeVolume24h\n          : right.tradeVolume24h - left.tradeVolume24h;\n      } else if (catalogSort.key === 'market-price') {\n        comparison = compareMarketOptionalValue(left.marketPrice, right.marketPrice, catalogSort.direction);\n      } else if (catalogSort.key === 'price-change24h') {\n        comparison = compareMarketOptionalValue(left.priceChange24h, right.priceChange24h, catalogSort.direction);\n      }")
+          replace_once('src/pages/GlobalMarketPage.tsx',
+              "        ownOrderCount,\n        marketPrice,\n        trend,",
+              "        ownOrderCount,\n        tradeVolume24h: Math.max(0, Number(market?.tradeVolume24h || 0)),\n        marketPrice,\n        trend,")
+          replace_once('src/pages/GlobalMarketPage.tsx',
+              "      if (regionalSort === 'sell-volume') return compareMarketOptionalValue(left.sellVolume, right.sellVolume, regionalSortDirection);\n      return left.catalogIndex - right.catalogIndex;",
+              "      if (regionalSort === 'sell-volume') return compareMarketOptionalValue(left.sellVolume, right.sellVolume, regionalSortDirection);\n      if (regionalSort === 'volume24h') return compareMarketOptionalValue(left.tradeVolume24h, right.tradeVolume24h, regionalSortDirection);\n      return left.catalogIndex - right.catalogIndex;")
+          replace_once('src/pages/GlobalMarketPage.tsx',
+              "                  buyVolume={row.buyVolume}\n                  marketPrice={row.marketPrice}",
+              "                  buyVolume={row.buyVolume}\n                  tradeVolume24h={row.tradeVolume24h}\n                  marketPrice={row.marketPrice}")
+          replace_once('src/pages/GlobalMarketPage.tsx',
+              "            { label: '商品', sortKey: 'name', defaultDirection: 'asc' },\n            { label: '24h成交量', sortKey: 'volume24h', defaultDirection: 'desc' },\n            { label: '24h价格变化', sortKey: 'price-change24h', defaultDirection: 'desc' },\n            { label: '平均价格', sortKey: 'average-price', defaultDirection: 'desc' },",
+              "            { label: '商品', sortKey: 'name', defaultDirection: 'asc' },\n            { label: '卖单量', sortKey: 'sell-volume', defaultDirection: 'desc' },\n            { label: '买单量', sortKey: 'buy-volume', defaultDirection: 'desc' },\n            { label: '24h成交量', sortKey: 'volume24h', defaultDirection: 'desc' },\n            { label: '市场价', sortKey: 'market-price', defaultDirection: 'desc' },\n            { label: '24h价格变化', sortKey: 'price-change24h', defaultDirection: 'desc' },")
+          replace_once('src/pages/GlobalMarketPage.tsx',
+              "                <span className=\"global-market-goods-row__metric\"><strong><CompactNumber value={row.tradeVolume24h} /></strong></span>\n                <span className=\"global-market-goods-row__metric\"><strong>{typeof row.priceChange24h === 'number'\n                  ? <CurrencyAmount sign={row.priceChange24h > 0 ? '+' : undefined}>{row.priceChange24h}</CurrencyAmount>\n                  : '—'}</strong></span>\n                <span className=\"global-market-goods-row__metric\"><strong>{typeof row.averagePrice === 'number'\n                  ? <CurrencyAmount>{row.averagePrice}</CurrencyAmount>\n                  : '—'}</strong></span>",
+              "                <span className=\"global-market-goods-row__metric\"><strong><CompactNumber value={row.sellVolume} /></strong></span>\n                <span className=\"global-market-goods-row__metric\"><strong><CompactNumber value={row.buyVolume} /></strong></span>\n                <span className=\"global-market-goods-row__metric\"><strong><CompactNumber value={row.tradeVolume24h} /></strong></span>\n                <span className=\"global-market-goods-row__metric\"><strong>{typeof row.marketPrice === 'number'\n                  ? <CurrencyAmount>{row.marketPrice}</CurrencyAmount>\n                  : '—'}</strong></span>\n                <span className=\"global-market-goods-row__metric\"><strong>{typeof row.priceChange24h === 'number'\n                  ? <CurrencyAmount sign={row.priceChange24h > 0 ? '+' : undefined}>{row.priceChange24h}</CurrencyAmount>\n                  : '—'}</strong></span>")
+
+          p = Path('src/styles/market-commodity-row.css'); text = p.read_text(); original = text
+          text = text.replace('repeat(4, minmax(4.1rem, .68fr))', 'repeat(5, minmax(3.8rem, .64fr))')
+          text = text.replace('repeat(4, minmax(2.45rem, .62fr))', 'repeat(5, minmax(2.35rem, .58fr))')
+          text = text.replace('repeat(4, minmax(2.2rem, .6fr))', 'repeat(5, minmax(2.05rem, .56fr))')
+          if text == original: raise SystemExit('market-commodity-row.css: grid replacements missing')
+          p.write_text(text)
+
+          p = Path('src/styles/global-operation-pages.css'); text = p.read_text(); original = text
+          text = text.replace('minmax(9.5rem, 1.5fr) minmax(5.4rem, .7fr) minmax(7.8rem, .88fr) minmax(6rem, .72fr) .8rem', 'minmax(8.5rem, 1.4fr) repeat(5, minmax(4.6rem, .64fr)) .8rem')
+          text = text.replace('minmax(7.5rem, 1.35fr) repeat(3, minmax(4.3rem, .7fr)) .7rem', 'minmax(6.5rem, 1.28fr) repeat(5, minmax(3.55rem, .6fr)) .7rem')
+          text = text.replace('minmax(5.5rem, 1.25fr) repeat(3, minmax(3.25rem, .68fr)) .6rem', 'minmax(5rem, 1.2fr) repeat(5, minmax(2.7rem, .56fr)) .6rem')
+          text = text.replace('minmax(4.7rem, 1.2fr) repeat(3, minmax(2.85rem, .64fr)) .55rem', 'minmax(4.35rem, 1.15fr) repeat(5, minmax(2.15rem, .52fr)) .5rem')
+          if text == original: raise SystemExit('global-operation-pages.css: grid replacements missing')
+          p.write_text(text)
+
+          replace_once('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '一级商品目录使用“商品｜24h成交量｜24h价格变化｜平均价格｜箭头”的独立表头与对应数据行；商品全局详情的地区商品列表继续统一复用 `MarketCommodityRow`，使用“地区｜卖单量｜买单量｜市场价｜24h｜箭头”的共享表头。',
+              '一级商品目录使用“商品｜卖单量｜买单量｜24h成交量｜市场价｜24h价格变化｜箭头”的独立表头与对应数据行；商品全局详情的地区商品列表继续统一复用 `MarketCommodityRow`，使用“地区｜卖单量｜买单量｜24h成交量｜市场价｜24h价格变化｜箭头”的共享表头。一级商品目录的卖单量、买单量和 24h 成交量分别汇总全部已解锁地区的当前挂单量与近 24h 成交量；其中“市场价”仍只取这些地区官方系统价的算术平均作为只读跨地区摘要，不创建可交易的全国市场价或全国订单簿。')
+          p = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md'); text = p.read_text()
+          for old, new in [
+              ('24h 成交量、24h 价格变化和平均价格', '卖单量、买单量、24h 成交量、市场价和 24h 价格变化'),
+              ('一级商品目录表头允许按商品名称、24h 成交量、24h 价格变化和平均价格进行', '一级商品目录表头允许按商品名称、卖单量、买单量、24h 成交量、市场价和 24h 价格变化进行'),
+              ('平均价格只作为已解锁地区官方系统价的跨地区摘要，不是可交易的“全局市场价”', '一级商品目录的“市场价”只作为已解锁地区官方系统价的算术平均摘要，不是可交易的“全局市场价”'),
+              ('地区、卖单量、买单量、市场价和 24h 变化', '地区、卖单量、买单量、24h 成交量、市场价和 24h 价格变化'),
+              ('保持所有四项核心指标可见', '保持所有五项核心指标可见'),
+          ]:
+              if old not in text: raise SystemExit(f'design missing: {old}')
+              text = text.replace(old, new)
+          p.write_text(text)
+
+          p = Path('scripts/verify-market-information-hierarchy.mjs'); text = p.read_text()
+          replacements = [
+              ("  '平均价格',", "  '卖单量',\n  '买单量',\n  '市场价',"),
+              ("  \"type GlobalMarketSortKey = 'name' | 'volume24h' | 'price-change24h' | 'average-price';\",", "  \"type GlobalMarketSortKey = 'name' | 'sell-volume' | 'buy-volume' | 'volume24h' | 'market-price' | 'price-change24h';\","),
+              ("  \"{ label: '24h成交量', sortKey: 'volume24h', defaultDirection: 'desc' }\",\n  \"{ label: '24h价格变化', sortKey: 'price-change24h', defaultDirection: 'desc' }\",\n  \"{ label: '平均价格', sortKey: 'average-price', defaultDirection: 'desc' }\",", "  \"{ label: '卖单量', sortKey: 'sell-volume', defaultDirection: 'desc' }\",\n  \"{ label: '买单量', sortKey: 'buy-volume', defaultDirection: 'desc' }\",\n  \"{ label: '24h成交量', sortKey: 'volume24h', defaultDirection: 'desc' }\",\n  \"{ label: '市场价', sortKey: 'market-price', defaultDirection: 'desc' }\",\n  \"{ label: '24h价格变化', sortKey: 'price-change24h', defaultDirection: 'desc' }\","),
+              ("  'averagePrice: average(officialPrices)',", "  'sellVolume += Math.max(0, Number(market?.sellVolume || 0));',\n  'buyVolume += Math.max(0, Number(market?.buyVolume || 0));',\n  'marketPrice: average(officialPrices)',"),
+              ("  \"label: '24h'\",", "  \"label: '24h成交量'\",\n  \"label: '24h价格变化'\","),
+              ("  '--entity-list-columns: minmax(8rem, 1.45fr) repeat(4, minmax(4.1rem, .68fr)) .8rem;',", "  '--entity-list-columns: minmax(8rem, 1.45fr) repeat(5, minmax(3.8rem, .64fr)) .8rem;',"),
+              ("  '24h 成交量、24h 价格变化和平均价格',", "  '卖单量、买单量、24h 成交量、市场价和 24h 价格变化',"),
+              ("  '一级商品目录表头允许按商品名称、24h 成交量、24h 价格变化和平均价格进行',", "  '一级商品目录表头允许按商品名称、卖单量、买单量、24h 成交量、市场价和 24h 价格变化进行',"),
+              ("  '平均价格只作为已解锁地区官方系统价的跨地区摘要，不是可交易的“全局市场价”',", "  '一级商品目录的“市场价”只作为已解锁地区官方系统价的算术平均摘要，不是可交易的“全局市场价”',"),
+              ("  '地区、卖单量、买单量、市场价和 24h 变化',", "  '地区、卖单量、买单量、24h 成交量、市场价和 24h 价格变化',"),
+          ]
+          for old, new in replacements:
+              if old not in text: raise SystemExit(f'verifier missing: {old}')
+              text = text.replace(old, new, 1)
+          anchor = "  'data-current-region={currentRegion || undefined}',\n]) requireText(commodityRow, token, 'regional commodity identity');"
+          if anchor not in text: raise SystemExit('verifier identity anchor missing')
+          text = text.replace(anchor, "  'data-current-region={currentRegion || undefined}',\n  'tradeVolume24h: number;',\n  '<CompactNumber value={tradeVolume24h} />',\n]) requireText(commodityRow, token, 'regional commodity identity');", 1)
+          p.write_text(text)
+
+          p = Path('tests/browser/market-information-hierarchy.spec.ts'); text = p.read_text()
+          text = text.replace("for (const label of ['商品', '24h成交量', '24h价格变化', '平均价格'])", "for (const label of ['商品', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化'])")
+          text = text.replace("for (const label of ['24h成交量', '24h价格变化', '平均价格']) {", "for (const label of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']) {")
+          text = text.replace("for (const label of ['24h成交量', '24h价格变化', '平均价格', '成交地区', '真实成交价范围', '需求未满足'])", "for (const label of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化', '成交地区', '真实成交价范围', '需求未满足'])")
+          text = text.replace("for (const label of ['地区', '卖单量', '买单量', '市场价', '24h'])", "for (const label of ['地区', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化'])")
+          text = text.replace("for (const label of ['卖单量', '买单量', '市场价', '24h', '挂单差额', '基准偏离', '挂单状态'])", "for (const label of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化', '挂单差额', '基准偏离', '挂单状态'])")
+          if '平均价格' in text: raise SystemExit('browser spec still contains retired 平均价格 header')
+          p.write_text(text)
+          PY
+          node scripts/verify-market-information-hierarchy.mjs
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md scripts/verify-market-information-hierarchy.mjs src/components/market/MarketCommodityRow.tsx src/pages/GlobalMarketPage.tsx src/pages/MarketPage.tsx src/styles/market-commodity-row.css src/styles/global-operation-pages.css tests/browser/market-information-hierarchy.spec.ts
+          git commit -m "统一市场与地区商品六列表头"
+          git push
