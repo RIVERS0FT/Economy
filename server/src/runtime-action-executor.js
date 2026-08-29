@@ -9,6 +9,7 @@ import {
   cancelFacilityBuildProcurementOrders,
   createFacilityBuildProcurementOrders,
 } from './facility-auto-procure.js';
+import { applyFactoryAutoOperationPolicyAction } from './factory-auto-operation.js';
 import { applyFacilityGroupAction, processFacilityGroupWorld } from './facility-groups.js';
 import { ensureGemState } from './invitations.js';
 import { normalizePlayerMoneyPayload } from './money.js';
@@ -135,6 +136,8 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
         gameResult = applyOnlineAutoSellPolicyAction(world, user, payload);
       } else if (action === 'placeOrder' && payload.execution === 'online-auto-trade-policy') {
         gameResult = applyOnlineAutoTradePolicyAction(world, user, payload);
+      } else if (action === 'placeOrder' && payload.execution === 'factory-auto-operation-policy') {
+        gameResult = applyFactoryAutoOperationPolicyAction(world, user, payload);
       } else if (action === 'placeOrder' && payload.execution === 'online-auto-buy') {
         gameResult = applyOnlineAutoBuy(world, user, payload, now);
       } else if (action === 'placeOrder' && payload.execution === 'online-auto-sell') {
@@ -304,7 +307,11 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
       && !isDeepStrictEqual(world.productionContracts || [], contractsBeforeAction),
     );
     const isPolicySave = action === 'placeOrder'
-      && (payload.execution === 'online-auto-sell-policy' || payload.execution === 'online-auto-trade-policy');
+      && (
+        payload.execution === 'online-auto-sell-policy'
+        || payload.execution === 'online-auto-trade-policy'
+        || payload.execution === 'factory-auto-operation-policy'
+      );
     if ((ECONOMIC_ACTIVITY_ACTIONS.has(action) || CONTRACT_ACTIONS.has(action)) && !isPolicySave) {
       if (activePlayer && (playerChanged || contractChanged)) {
         activePlayer.lastEconomicActivityAt = now;
