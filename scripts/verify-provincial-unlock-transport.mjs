@@ -37,7 +37,7 @@ requireText(index, '新玩家起始州永久绑定、其他州按货币费用解
 requireText(index, 'scripts/verify-provincial-unlock-transport.mjs', '设计索引必须登记州解锁运输验证脚本。');
 requireText(productDesign, '新玩家首次进入游戏必须从 48 州中选择一块起始地块并永久绑定', '产品设计必须记录起始州选择。');
 requireText(productDesign, '跨州商品只能通过付费运输在已解锁州之间流动', '产品设计必须记录付费运输边界。');
-requireText(warehouseDesign, '## 3. 跨州运输', '仓库设计必须记录跨州运输章节。');
+requireText(warehouseDesign, '跨州运输', '仓库设计必须记录跨州运输章节。');
 requireText(warehouseDesign, '固定 10 + 0.0002/单位/公里', '仓库设计必须锁定公路成本。');
 requireText(warehouseDesign, '固定 50 + 0.0001/单位/公里', '仓库设计必须锁定铁路成本。');
 requireText(warehouseDesign, '固定 100 + 0.0006/单位/公里', '仓库设计必须锁定航空成本。');
