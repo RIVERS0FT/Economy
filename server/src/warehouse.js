@@ -1,3 +1,7 @@
+import {
+  createFactoryAutoOperationClientState,
+  createFactoryAutoTradeExecutionClientState,
+} from './factory-auto-operation.js';
 import { createOnlineAutoBuyPolicyClientState } from './online-auto-buy-policy.js';
 import { createOnlineAutoSellPolicyClientState } from './online-auto-sell-policy.js';
 
@@ -25,9 +29,15 @@ export function createWarehouseSummary(player) {
 }
 
 export function createWarehouseSummaryReadOnly(player) {
+  const buyState = createOnlineAutoBuyPolicyClientState(player);
+  const sellState = createOnlineAutoSellPolicyClientState(player);
+  const executionState = createFactoryAutoTradeExecutionClientState(player);
   return {
     warehouseStoredQuantity: storedQuantity(player),
-    ...createOnlineAutoBuyPolicyClientState(player),
-    ...createOnlineAutoSellPolicyClientState(player),
+    onlineAutoBuyPolicies: executionState.onlineAutoBuyPolicies,
+    onlineAutoSellPolicies: executionState.onlineAutoSellPolicies,
+    onlineAutoBuyManagedOrderIds: buyState.onlineAutoBuyManagedOrderIds,
+    onlineAutoSellManagedOrderIds: sellState.onlineAutoSellManagedOrderIds,
+    ...createFactoryAutoOperationClientState(player),
   };
 }

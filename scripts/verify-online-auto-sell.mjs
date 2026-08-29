@@ -1,231 +1,150 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const read = (path) => readFileSync(resolve(process.cwd(), path), 'utf8');
+const root = process.cwd();
+const read = (path) => readFileSync(resolve(root, path), 'utf8').replace(/\r\n?/g, '\n');
+const failures = [];
+const requireFile = (path) => {
+  if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`);
+};
 const requireText = (path, text) => {
-  if (!read(path).includes(text)) throw new Error(`${path} 缺少: ${text}`);
+  if (!existsSync(resolve(root, path)) || !read(path).includes(text)) failures.push(`${path} 缺少: ${text}`);
 };
 const forbidText = (path, text) => {
-  if (read(path).includes(text)) throw new Error(`${path} 不应包含: ${text}`);
+  if (existsSync(resolve(root, path)) && read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`);
 };
 
 for (const path of [
+  'server/src/factory-auto-operation.js',
   'server/src/online-auto-buy.js',
-  'server/src/online-auto-buy-policy.js',
-  'server/src/online-auto-buy-orders.js',
+  'server/src/online-auto-sell.js',
   'server/src/online-auto-trade-policy.js',
-  'server/src/online-auto-trade-reservations.js',
-  'src/auto-trade/types.ts',
-  'src/auto-trade/useOnlineAutoTrade.ts',
+  'server/src/online-auto-buy-orders.js',
+  'server/src/online-auto-sell-orders.js',
+  'server/src/runtime-action-executor.js',
+  'server/src/warehouse.js',
+  'server/test/factory-auto-operation.test.js',
   'server/test/online-auto-buy.test.js',
-]) {
-  if (!existsSync(resolve(process.cwd(), path))) throw new Error(`缺少商品自动交易文件: ${path}`);
-}
+  'server/test/online-auto-sell.test.js',
+  'src/components/facilities/FacilityAutoOperationControls.tsx',
+  'src/components/facilities/FacilityProductionFormula.tsx',
+  'src/components/market/MarketAutoTradePanel.tsx',
+  'src/auto-trade/useOnlineAutoTrade.ts',
+  'src/api/game.ts',
+  'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+]) requireFile(path);
 
-for (const [path, texts] of Object.entries({
-  'server/src/online-auto-buy-policy.js': [
-    'onlineAutoBuyPolicies',
-    'normalizeOnlineAutoBuyPolicy',
-    'onlineAutoBuyPolicyFor',
-    'targetFreeInventory',
-    'maxPrice',
-    'onlineAutoBuyManagedOrderIds',
-  ],
-  'server/src/online-auto-buy-orders.js': [
-    'onlineAutoBuyOrderIds',
+for (const text of [
+  "inputCoverageCycles: 2",
+  "mode: 'balanced'",
+  "outputMode: 'surplus'",
+  "const COVERAGE_CYCLES = new Set([1, 2, 3, 5])",
+  "profit: Object.freeze({ buy: 0.95, sell: 1.1 })",
+  "balanced: Object.freeze({ buy: 1.05, sell: 1 })",
+  "supply: Object.freeze({ buy: 1.15, sell: 0.95 })",
+  'perCycle * Math.max(0, policy.inputCoverageCycles - 1)',
+  'intent.buyPrice = Math.max(intent.buyPrice',
+  'intent.sellPrice = Math.max(intent.sellPrice',
+  "if (policy.outputMode === 'keep') intent.keepOutput = true",
+  'const sellEnabled = intent.sellEnabled && !intent.keepOutput',
+  'if (intent.buyEnabled && sellEnabled && sellPrice <= buyPrice)',
+  'factoryAutoTradeExecutionPolicyFor',
+  'createFactoryAutoTradeExecutionClientState',
+  'applyFactoryAutoOperationPolicyAction',
+]) requireText('server/src/factory-auto-operation.js', text);
+
+for (const [path, texts] of [
+  ['server/src/online-auto-buy.js', [
+    'factoryAutoTradeExecutionPolicyFor(player, productId, provinceId)?.buy',
+    '当前工厂策略无需自动采购该商品',
+    '已撤销旧托管买单',
     'managedOnlineAutoBuyOrderFor',
-    'linkManagedOnlineAutoBuyOrder',
-    'cancelManagedOnlineAutoBuyOrder',
-    "order.side === 'buy'",
-  ],
-  'server/src/online-auto-trade-policy.js': [
-    'applyOnlineAutoTradePolicyAction',
-    'normalizeOnlineAutoBuyPolicy',
-    'normalizeOnlineAutoSellPolicy',
-    'buyPolicy.targetFreeInventory > sellPolicy.minimumFreeInventory',
-    'buyPolicy.maxPrice >= sellPolicy.price',
-    'cancelManagedOnlineAutoBuyOrder',
-    'cancelManagedOnlineAutoSellOrder',
-  ],
-  'server/src/online-auto-trade-reservations.js': [
-    'contractAvailableHoldForOnlineTrade',
-    'contract?.totalDeliveries === null',
-    "proposal?.status === 'accepted'",
-  ],
-  'server/src/online-auto-buy.js': [
+    'applySettledCommodityOrder',
+  ]],
+  ['server/src/online-auto-sell.js', [
+    'factoryAutoTradeExecutionPolicyFor(player, productId, provinceId)?.sell',
+    '当前工厂策略无需自动出售该商品',
+    '已撤销旧托管卖单',
     'productionReservedQuantitiesForPlayer',
     'contractAvailableHoldForOnlineTrade',
-    'onlineAutoBuyPolicyFor',
-    'desiredQuantity',
-    'affordableQuantity',
-    'managedOnlineAutoBuyOrderFor',
-    'linkManagedOnlineAutoBuyOrder',
-    'cancelManagedOnlineAutoBuyOrder',
-    "execution: 'online-auto-buy'",
-    'applySettledCommodityOrder',
-    '继续挂单',
-    '已挂出',
-  ],
-  'server/src/online-auto-sell-policy.js': [
-    'onlineAutoSellPolicies',
-    'applyOnlineAutoSellPolicyAction',
-    'normalizeOnlineAutoSellPolicy',
-    'onlineAutoSellPolicyFor',
-    'importLegacyOnlineAutoSellPolicies',
-    'ensureOnlineAutoBuyPolicies',
-    'conflictsWithAutoBuy',
-    'cancelManagedOnlineAutoSellOrder',
-    'onlineAutoSellManagedOrderIds',
-  ],
-  'server/src/online-auto-sell-orders.js': [
-    'onlineAutoSellOrderIds',
     'managedOnlineAutoSellOrderFor',
-    'linkManagedOnlineAutoSellOrder',
-    'cancelManagedOnlineAutoSellOrder',
-    "order.side === 'sell'",
-  ],
-  'server/src/warehouse.js': [
-    'createOnlineAutoBuyPolicyClientState',
-    'createOnlineAutoSellPolicyClientState',
-    'createOnlineAutoBuyPolicyClientState(player)',
-    'createOnlineAutoSellPolicyClientState(player)',
-  ],
-  'server/src/online-auto-sell.js': [
-    'productionReservedQuantitiesForPlayer',
-    'minimumFreeInventory',
-    'contractAvailableHoldForOnlineTrade',
-    'onlineAutoSellPolicyFor',
-    "execution: 'online-auto-sell'",
-    'applySettledCommodityOrder',
-    'standingTarget',
-    'managedOnlineAutoSellOrderFor',
-    'linkManagedOnlineAutoSellOrder',
-    'cancelManagedOnlineAutoSellOrder',
-    '继续挂单供应',
-    '已挂出',
-  ],
-  'server/src/order-book-runtime.js': [
-    'onlineAutoBuyOrderIds',
-    'onlineAutoSellOrderIds',
-    'managedOpen',
-    'return Math.max(0, total - managedOpen);',
-  ],
-  'server/src/domain.js': [
-    "payload.execution === 'online-auto-buy'",
-    'fillOrKill || onlineAutoSell || onlineAutoBuy',
-  ],
-  'server/src/runtime-action-executor.js': [
-    "payload.execution === 'online-auto-trade-policy'",
-    'applyOnlineAutoTradePolicyAction(world, user, payload)',
-    "payload.execution === 'online-auto-buy'",
-    'applyOnlineAutoBuy(world, user, payload, now)',
-    "payload.execution === 'online-auto-sell'",
-    'applyOnlineAutoSell(world, user, payload, now)',
-    'online-auto-sell-policy',
-    '!isPolicySave',
-  ],
-  'server/test/online-auto-buy.test.js': [
-    'leaves a real standing buy order',
-    'countOpenOrdersForOwner(world, alice.id), 0',
-    'fills qualifying sell orders',
-    'production and contract holds before target free inventory',
-    'funds still cap the same target',
-    'own crossing sell cancels the managed auto buy',
-    'ignores client thresholds and uses the saved policy',
-    'rejects overlapping inventory or price bands',
-  ],
-  'server/test/online-auto-sell.test.js': [
-    'leaves standing supply when no qualifying buyer exists',
-    'countOpenOrdersForOwner(world, alice.id), 0',
-    "order.status, 'open'",
-    'changing an auto sell policy cancels the old standing order',
-  ],
-  'src/auto-sell/economy-state.d.ts': [
-    'onlineAutoBuyPolicies?: AutoBuyPolicyMap;',
-    'onlineAutoBuyManagedOrderIds?: Record<string, string>;',
-    'onlineAutoSellPolicies?: AutoSellPolicyMap;',
-    'onlineAutoSellManagedOrderIds?: Record<string, string>;',
-  ],
-  'src/api/game.ts': [
-    'OnlineAutoBuyPolicyInput',
-    'OnlineAutoTradePolicyInput',
-    'saveOnlineAutoTradePolicy',
-    "execution: 'online-auto-trade-policy'",
-    'autoBuyCommodity',
-    "execution: 'online-auto-buy'",
-    'autoSellCommodity',
-    "execution: 'online-auto-sell'",
-    'importLegacyOnlineAutoSellPolicies',
-  ],
-  'src/auto-trade/useOnlineAutoTrade.ts': [
-    'useOnlineAutoTrade',
-    'model.game.onlineAutoBuyPolicies ?? {}',
-    'model.game.onlineAutoSellPolicies ?? {}',
-    'saveOnlineAutoTradePolicy',
-    'importLegacyOnlineAutoSellPolicies',
-    'productionReservations',
-    'contractReservations',
-    'buyDesiredQuantity',
-    'buyEligibleQuantity',
-    'sellEligibleQuantity',
-    'model.onlineAutoBuy',
-    'model.onlineAutoSell',
-    'game.markets',
-    "'market.quotes'",
-    'busyRef.current',
-  ],
-  'src/auto-sell/useOnlineAutoSell.ts': [
-    "from '../auto-trade/useOnlineAutoTrade'",
-    'useOnlineAutoTrade as useOnlineAutoSell',
-  ],
-  'docs/WAREHOUSE_EXPANSION_DESIGN.md': [
-    '客户端状态版本：37',
-    '世界状态版本：32',
-    '### 4.2 在线自动采购',
-    '### 4.3 在线自动出售',
-    '### 4.4 双向自动交易区间',
-    'onlineAutoBuyPolicies',
-    'onlineAutoSellPolicies',
-    '目标自由库存',
-    '最高自动采购价格',
-    '自动采购目标自由库存 <= 自动出售最低自由库存',
-    '最高自动采购价格 < 最低自动出售价格',
-    '一次保存必须原子写入同商品的采购与出售策略',
-    '不占玩家普通开放订单配额',
-    '零库存',
-    '后台常驻任务',
-  ],
-  'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md': [
-    '在线自动采购买单和在线自动出售卖单',
-    'execution: online-auto-buy',
-    'execution: online-auto-sell',
-    '两类关联订单均不占普通开放订单配额',
-    '共享仓库永久无限',
-  ],
-})) {
+  ]],
+  ['server/src/runtime-action-executor.js', [
+    "payload.execution === 'factory-auto-operation-policy'",
+    'rebuildFactoryAutoTradePoliciesForProvince',
+    "'factoryAutoOperationRebuild'",
+  ]],
+  ['server/src/warehouse.js', [
+    'createFactoryAutoTradeExecutionClientState(player)',
+    'createFactoryAutoOperationClientState(player)',
+  ]],
+  ['src/auto-trade/useOnlineAutoTrade.ts', [
+    'Object.keys(game.onlineAutoSellManagedOrderIds ?? {})',
+    'Object.keys(game.onlineAutoBuyManagedOrderIds ?? {})',
+    'if (!policy?.enabled) return status.hasManagedSellOrder',
+    'if (!policy?.enabled) return status.hasManagedBuyOrder',
+  ]],
+  ['src/api/game.ts', [
+    'FactoryAutoOperationPolicyInput',
+    'saveFactoryAutoOperationPolicy',
+    "execution: 'factory-auto-operation-policy'",
+  ]],
+  ['src/components/facilities/FacilityAutoOperationControls.tsx', [
+    '自动经营',
+    '原料保障',
+    '经营模式',
+    '产成品处理',
+    '保存自动经营策略',
+  ]],
+  ['src/components/market/MarketAutoTradePanel.tsx', [
+    '自动经营执行',
+    '由工厂策略汇总',
+    '预计自动采购',
+    '预计自动出售',
+    '采购价格上限',
+    '出售价格下限',
+  ]],
+]) {
   for (const text of texts) requireText(path, text);
 }
 
-if (existsSync(resolve(process.cwd(), 'src/auto-sell/autoSellApi.ts'))) {
-  throw new Error('自动交易策略写入不得恢复独立网络封装 src/auto-sell/autoSellApi.ts');
-}
-forbidText('src/components/warehouse/WarehouseInventoryPanel.tsx', "selectMarketAsset('commodity', product.id)");
-forbidText('src/auto-sell/autoSellStorage.ts', 'export function saveAutoSellPolicies');
-forbidText('src/auto-trade/useOnlineAutoTrade.ts', 'setInterval(');
-forbidText('src/auto-trade/useOnlineAutoTrade.ts', 'setTimeout(');
-forbidText('server/src/runtime-action-executor.js', 'ensureOnlineAutoSellPolicies');
-forbidText('server/src/runtime-action-executor.js', 'ensureOnlineAutoBuyPolicies');
-forbidText('server/src/online-auto-buy.js', 'payload.maxPrice');
-forbidText('server/src/online-auto-buy.js', 'payload.targetFreeInventory');
-forbidText('server/src/online-auto-buy.js', 'setInterval(');
-forbidText('server/src/online-auto-buy.js', 'setTimeout(');
-forbidText('server/src/online-auto-sell.js', 'payload.price');
-forbidText('server/src/online-auto-sell.js', 'payload.minimumFreeInventory');
-forbidText('server/src/online-auto-sell.js', 'setInterval(');
-forbidText('server/src/online-auto-sell.js', 'setTimeout(');
-forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '可成交部分完成后立即撤销剩余开放数量');
-forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '不得留下客户端离线后仍可继续成交的开放卖单');
-forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '在线自动出售控制器属于浏览器本地增强');
-forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '客户端状态版本继续为 31');
+for (const text of [
+  'MoneyInput',
+  'IntegerInput',
+  '保存自动交易设置',
+  '目标自由库存',
+  '最低自由库存',
+  '设置自动交易',
+]) forbidText('src/components/market/MarketAutoTradePanel.tsx', text);
 
-console.log('Online commodity auto-trade verification passed.');
+for (const text of [
+  '自动经营配置唯一归属工厂详情',
+  '地区商品详情只读展示',
+  'inputCoverageCycles: 1 | 2 | 3 | 5',
+  '自动经营 = 开启',
+  '原料保障 = 2 个生产周期',
+  '`profit` 利润优先',
+  '`balanced` 均衡',
+  '`supply` 保供优先',
+  '同一商品被多个工厂消费时采用最高采购上限',
+  '任一自动经营生产者对某商品选择 `keep` 全部保留',
+  '出售价格下限必须严格高于采购价格上限',
+  '每个“玩家 + 地区 + 商品”最多维护一张关联自动买单和一张关联自动卖单',
+  '不改成服务器后台常驻扫描任务',
+  '旧 `onlineAutoBuyPolicies`、`onlineAutoSellPolicies`',
+]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
+
+for (const text of [
+  'applyOnlineAutoSellPolicyAction(world, alice',
+  'applyOnlineAutoTradePolicyAction(world, alice',
+  'setAutoSellPolicy(',
+]) forbidText('server/test/online-auto-sell.test.js', text);
+forbidText('server/test/online-auto-buy.test.js', 'applyOnlineAutoTradePolicyAction(world, alice');
+
+if (failures.length) {
+  console.error('工厂自动经营防回退检查失败：');
+  failures.forEach((failure) => console.error(`- ${failure}`));
+  process.exit(1);
+}
+
+console.log('工厂自动经营防回退检查通过');

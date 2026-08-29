@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWorld, ensurePlayer } from '../src/domain.js';
+import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../src/industry-catalog.js';
 import {
   migrateFacilityGroupWorld,
   productionReservedQuantitiesForPlayer,
@@ -8,33 +9,59 @@ import {
 import { applyOnlineAutoBuy } from '../src/online-auto-buy.js';
 import { isOpenOrder } from '../src/order-identity.js';
 import { countOpenOrdersForOwner } from '../src/order-book-runtime.js';
-import { applyOnlineAutoTradePolicyAction } from '../src/online-auto-trade-policy.js';
 import { contractAvailableHoldForOnlineTrade } from '../src/online-auto-trade-reservations.js';
+import { DEFAULT_PROVINCE_ID, provinceScopedKey } from '../src/provinces.js';
 
 const now = 1_700_000_000_000;
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 const bob = { id: 2, email: 'bob@example.com', name: 'Bob' };
+const fixtureType = FACILITY_TYPE_CATALOG.find((type) => type.recipes?.some((recipe) => recipe.inputs?.length));
+const fixtureRecipe = fixtureType?.recipes?.find((recipe) => recipe.inputs?.length);
+const fixtureInput = fixtureRecipe?.inputs?.[0];
+if (!fixtureType || !fixtureRecipe || !fixtureInput) throw new Error('catalog needs an input-consuming facility');
+const fixtureProduct = PRODUCT_CATALOG.find((product) => product.id === fixtureInput.productId);
+if (!fixtureProduct) throw new Error('catalog input product missing');
 
 function clearOrders(world) {
   world.orders = [];
 }
 
-function setAutoTradePolicy(world, user, productId, overrides = {}) {
-  const buy = {
+function roundedPrice(value) {
+  return Math.max(0.01, Math.round(value * 100) / 100);
+}
+
+function configureConsumer(world, buyer, {
+  count = 2,
+  coverage = 2,
+  mode = 'balanced',
+} = {}) {
+  buyer.facilityGroups = [{
+    facilityTypeId: fixtureType.id,
+    provinceId: DEFAULT_PROVINCE_ID,
+    count,
+    participatingCount: count,
+    productionAvailableCount: count,
     enabled: true,
-    maxPrice: 5,
-    targetFreeInventory: 10,
-    ...(overrides.buy || {}),
+    status: 'running',
+    statusReason: '',
+    activeRecipeId: fixtureRecipe.id,
+    cycleStartedAt: now,
+    lifetimeOutput: 0,
+  }];
+  buyer.factoryAutoOperationPolicies = {
+    [provinceScopedKey(DEFAULT_PROVINCE_ID, fixtureType.id)]: {
+      enabled: true,
+      inputCoverageCycles: coverage,
+      mode,
+      outputMode: 'surplus',
+    },
   };
-  const sell = {
-    enabled: false,
-    price: 10,
-    minimumFreeInventory: 20,
-    ...(overrides.sell || {}),
+  migrateFacilityGroupWorld(world, now);
+  return {
+    productId: fixtureInput.productId,
+    price: roundedPrice(fixtureProduct.basePrice * (mode === 'profit' ? 0.95 : mode === 'supply' ? 1.15 : 1.05)),
+    perCycle: fixtureInput.quantity * count,
   };
-  const result = applyOnlineAutoTradePolicyAction(world, user, { productId, buy, sell });
-  assert.equal(result.ok, true, result.message);
-  return result;
 }
 
 function addSellOrder(world, seller, productId, quantity, price, id = `sell-${productId}`) {
@@ -44,6 +71,7 @@ function addSellOrder(world, seller, productId, quantity, price, id = `sell-${pr
   inventory.frozen += quantity;
   world.orders.push({
     id,
+    provinceId: DEFAULT_PROVINCE_ID,
     assetKind: 'commodity',
     assetId: productId,
     productId,
@@ -66,216 +94,158 @@ function ownBuyOrders(world, productId) {
   ));
 }
 
-function group(typeId, count, overrides = {}) {
-  return {
-    facilityTypeId: typeId,
-    count,
-    participatingCount: 0,
-    enabled: false,
-    status: 'stopped',
-    statusReason: 'manual',
-    activeRecipeId: `${typeId}-default`,
-    lifetimeOutput: 0,
-    ...overrides,
-  };
-}
-
-test('online auto buy leaves a real standing buy order and does not consume the manual order quota', () => {
+test('factory automatic purchasing leaves a real standing buy order outside the manual quota', () => {
   const world = createWorld(now);
   clearOrders(world);
   const buyer = ensurePlayer(world, alice, now);
-  buyer.credits = 100;
-  setAutoTradePolicy(world, alice, 'wheat');
+  buyer.credits = 100_000;
+  const fixture = configureConsumer(world, buyer);
 
-  const result = applyOnlineAutoBuy(world, alice, { productId: 'wheat' }, now + 1);
+  const result = applyOnlineAutoBuy(world, alice, { productId: fixture.productId }, now + 1);
 
-  assert.equal(result.ok, true);
-  assert.match(result.message, /已挂出 10 个小麦的自动买单/);
-  const order = ownBuyOrders(world, 'wheat').at(-1);
+  assert.equal(result.ok, true, result.message);
+  const order = ownBuyOrders(world, fixture.productId).at(-1);
   assert.ok(order && isOpenOrder(order));
-  assert.equal(order.price, 5);
-  assert.equal(order.remaining, 10);
-  assert.equal(buyer.credits, 50);
-  assert.equal(buyer.frozenCredits, 50);
-  assert.equal(buyer.onlineAutoBuyOrderIds.wheat, order.id);
+  assert.equal(order.price, fixture.price);
+  assert.equal(order.remaining, fixture.perCycle * 2);
   assert.equal(countOpenOrdersForOwner(world, alice.id), 0);
 });
 
-test('online auto buy fills qualifying sell orders and leaves the remaining demand standing', () => {
+test('factory automatic purchasing fills qualifying supply and keeps the rest standing', () => {
   const world = createWorld(now);
   clearOrders(world);
   const buyer = ensurePlayer(world, alice, now);
   const seller = ensurePlayer(world, bob, now);
-  buyer.credits = 100;
-  seller.inventories.wheat.available = 4;
-  addSellOrder(world, seller, 'wheat', 4, 4);
-  setAutoTradePolicy(world, alice, 'wheat');
+  buyer.credits = 100_000;
+  const fixture = configureConsumer(world, buyer);
+  const fillQuantity = Math.max(1, Math.min(fixture.perCycle, fixture.perCycle * 2 - 1));
+  seller.inventories[fixture.productId] ||= { available: 0, frozen: 0 };
+  seller.inventories[fixture.productId].available = fillQuantity;
+  addSellOrder(world, seller, fixture.productId, fillQuantity, Math.max(0.01, fixture.price - 0.01));
 
-  const result = applyOnlineAutoBuy(world, alice, { productId: 'wheat' }, now + 2);
+  const result = applyOnlineAutoBuy(world, alice, { productId: fixture.productId }, now + 2);
 
-  assert.equal(result.ok, true);
-  assert.match(result.message, /自动采购 4 个小麦/);
-  const order = ownBuyOrders(world, 'wheat').at(-1);
+  assert.equal(result.ok, true, result.message);
+  const order = ownBuyOrders(world, fixture.productId).at(-1);
   assert.ok(order);
   assert.equal(order.status, 'partial');
-  assert.equal(order.remaining, 6);
-  assert.equal(buyer.inventories.wheat.available, 4);
-  assert.equal(buyer.onlineAutoBuyOrderIds.wheat, order.id);
+  assert.equal(order.remaining, fixture.perCycle * 2 - fillQuantity);
+  assert.equal(buyer.inventories[fixture.productId].available, fillQuantity);
 });
 
-test('online auto buy replenishes production and contract holds before target free inventory', () => {
+test('factory automatic purchasing includes contract holds after production and extra cycle protection', () => {
   const world = createWorld(now);
   clearOrders(world);
   const buyer = ensurePlayer(world, alice, now);
-  buyer.credits = 1_000;
-  buyer.inventories.plastic.available = 4;
-  buyer.facilityGroups = [group('electronics-factory', 2, {
-    enabled: true,
-    status: 'running',
-    participatingCount: 2,
-    cycleStartedAt: now,
-  })];
+  buyer.credits = 100_000;
+  const fixture = configureConsumer(world, buyer, { count: 1, coverage: 3 });
+  buyer.inventories[fixture.productId].available = 1;
   world.productionContracts = [{
-    id: 'supply-plastic',
+    id: 'factory-auto-operation-supply',
     kind: 'supply',
     status: 'active',
     supplierId: alice.id,
-    productId: 'plastic',
+    provinceId: DEFAULT_PROVINCE_ID,
+    productId: fixture.productId,
     quantityPerDelivery: 4,
     supplierReservedQuantity: 1,
     supplierAutoReserve: true,
     completedDeliveries: 0,
     totalDeliveries: 10,
   }];
-  migrateFacilityGroupWorld(world, now);
-  setAutoTradePolicy(world, alice, 'plastic', {
-    buy: { targetFreeInventory: 5 },
-  });
 
-  assert.equal(productionReservedQuantitiesForPlayer(world, alice.id).plastic, 2);
-  assert.equal(contractAvailableHoldForOnlineTrade(world, alice.id, 'plastic'), 3);
-  const result = applyOnlineAutoBuy(world, alice, { productId: 'plastic' }, now + 2);
+  const production = productionReservedQuantitiesForPlayer(world, alice.id, DEFAULT_PROVINCE_ID)[fixture.productId];
+  const contract = contractAvailableHoldForOnlineTrade(world, alice.id, fixture.productId, DEFAULT_PROVINCE_ID);
+  assert.equal(production, fixture.perCycle);
+  assert.equal(contract, 3);
 
-  assert.equal(result.ok, true);
-  const order = ownBuyOrders(world, 'plastic').at(-1);
+  const result = applyOnlineAutoBuy(world, alice, { productId: fixture.productId }, now + 2);
+  assert.equal(result.ok, true, result.message);
+  const order = ownBuyOrders(world, fixture.productId).at(-1);
   assert.ok(order && isOpenOrder(order));
-  assert.equal(order.remaining, 6);
+  assert.equal(order.remaining, fixture.perCycle * 3 + contract - 1);
 });
 
-test('online auto buy keeps the same order when available funds still cap the same target', () => {
+test('available funds cap the same factory-derived target without refreshing time priority', () => {
   const world = createWorld(now);
   clearOrders(world);
   const buyer = ensurePlayer(world, alice, now);
-  buyer.credits = 100;
-  setAutoTradePolicy(world, alice, 'wheat', {
-    buy: { targetFreeInventory: 100 },
-  });
+  const fixture = configureConsumer(world, buyer, { count: 10, coverage: 5 });
+  buyer.credits = fixture.price * 3;
 
-  const first = applyOnlineAutoBuy(world, alice, { productId: 'wheat' }, now + 1);
-  assert.equal(first.ok, true);
-  const order = ownBuyOrders(world, 'wheat').at(-1);
+  const first = applyOnlineAutoBuy(world, alice, { productId: fixture.productId }, now + 1);
+  assert.equal(first.ok, true, first.message);
+  const order = ownBuyOrders(world, fixture.productId).at(-1);
   assert.ok(order && isOpenOrder(order));
-  assert.equal(order.remaining, 20);
-  assert.equal(buyer.credits, 0);
+  assert.equal(order.remaining, 3);
   const createdAt = order.createdAt;
 
-  const second = applyOnlineAutoBuy(world, alice, { productId: 'wheat' }, now + 2);
-  assert.equal(second.ok, true);
+  const second = applyOnlineAutoBuy(world, alice, { productId: fixture.productId }, now + 2);
+  assert.equal(second.ok, true, second.message);
   assert.match(second.message, /可用资金限制/);
-  assert.equal(ownBuyOrders(world, 'wheat').filter(isOpenOrder).length, 1);
+  assert.equal(ownBuyOrders(world, fixture.productId).filter(isOpenOrder).length, 1);
   assert.equal(order.createdAt, createdAt);
-  assert.equal(order.status, 'open');
 });
 
-test('own crossing sell cancels the managed auto buy and releases its frozen credits', () => {
+test('disabled factory strategy cancels a stale managed buy so the runtime transaction can commit cleanup', () => {
   const world = createWorld(now);
   clearOrders(world);
   const buyer = ensurePlayer(world, alice, now);
-  buyer.credits = 100;
-  buyer.inventories.wheat.available = 1;
-  setAutoTradePolicy(world, alice, 'wheat');
-  const first = applyOnlineAutoBuy(world, alice, { productId: 'wheat' }, now + 1);
-  assert.equal(first.ok, true);
-  const managed = ownBuyOrders(world, 'wheat').at(-1);
+  buyer.credits = 100_000;
+  const fixture = configureConsumer(world, buyer);
+  const first = applyOnlineAutoBuy(world, alice, { productId: fixture.productId }, now + 1);
+  assert.equal(first.ok, true, first.message);
+  const managed = ownBuyOrders(world, fixture.productId).at(-1);
   assert.ok(managed && isOpenOrder(managed));
-  assert.equal(buyer.frozenCredits, 45);
+  assert.ok(buyer.frozenCredits > 0);
 
-  addSellOrder(world, buyer, 'wheat', 1, 4, 'own-crossing-sell');
-  const result = applyOnlineAutoBuy(world, alice, { productId: 'wheat' }, now + 2);
+  buyer.factoryAutoOperationPolicies[provinceScopedKey(DEFAULT_PROVINCE_ID, fixtureType.id)].enabled = false;
+  const cleanup = applyOnlineAutoBuy(world, alice, { productId: fixture.productId }, now + 2);
 
-  assert.equal(result.ok, false);
+  assert.equal(cleanup.ok, true, cleanup.message);
+  assert.match(cleanup.message, /撤销旧托管买单/);
+  assert.equal(managed.status, 'cancelled');
+  assert.equal(buyer.frozenCredits, 0);
+});
+
+test('own crossing sell cancels the managed factory auto buy and releases frozen credits', () => {
+  const world = createWorld(now);
+  clearOrders(world);
+  const buyer = ensurePlayer(world, alice, now);
+  buyer.credits = 100_000;
+  const fixture = configureConsumer(world, buyer);
+  buyer.inventories[fixture.productId].available = 1;
+  const first = applyOnlineAutoBuy(world, alice, { productId: fixture.productId }, now + 1);
+  assert.equal(first.ok, true, first.message);
+  const managed = ownBuyOrders(world, fixture.productId).at(-1);
+  assert.ok(managed && isOpenOrder(managed));
+  assert.ok(buyer.frozenCredits > 0);
+
+  addSellOrder(world, buyer, fixture.productId, 1, fixture.price, 'own-crossing-sell');
+  const result = applyOnlineAutoBuy(world, alice, { productId: fixture.productId }, now + 2);
+
+  assert.equal(result.ok, true, result.message);
   assert.match(result.message, /自己的卖单/);
   assert.equal(managed.status, 'cancelled');
   assert.equal(buyer.frozenCredits, 0);
-  assert.equal(buyer.onlineAutoBuyOrderIds?.wheat, undefined);
 });
 
-test('online auto buy execution ignores client thresholds and uses the saved policy', () => {
+test('server ignores client product thresholds and executes the factory operating mode', () => {
   const world = createWorld(now);
   clearOrders(world);
   const buyer = ensurePlayer(world, alice, now);
-  buyer.credits = 100;
-  setAutoTradePolicy(world, alice, 'wheat', {
-    buy: { maxPrice: 5, targetFreeInventory: 10 },
-  });
+  buyer.credits = 100_000;
+  const fixture = configureConsumer(world, buyer, { count: 1, coverage: 2, mode: 'supply' });
 
   const result = applyOnlineAutoBuy(world, alice, {
-    productId: 'wheat',
-    maxPrice: 1,
+    productId: fixture.productId,
+    maxPrice: 0.01,
     targetFreeInventory: 1,
   }, now + 1);
 
-  assert.equal(result.ok, true);
-  const order = ownBuyOrders(world, 'wheat').at(-1);
+  assert.equal(result.ok, true, result.message);
+  const order = ownBuyOrders(world, fixture.productId).at(-1);
   assert.ok(order);
-  assert.equal(order.price, 5);
-  assert.equal(order.remaining, 10);
-});
-
-test('atomic auto trade policy rejects overlapping inventory or price bands', () => {
-  const world = createWorld(now);
-  ensurePlayer(world, alice, now);
-
-  const inventoryConflict = applyOnlineAutoTradePolicyAction(world, alice, {
-    productId: 'wheat',
-    buy: { enabled: true, maxPrice: 5, targetFreeInventory: 20 },
-    sell: { enabled: true, price: 10, minimumFreeInventory: 10 },
-  });
-  assert.equal(inventoryConflict.ok, false);
-  assert.match(inventoryConflict.message, /目标自由库存/);
-
-  const priceConflict = applyOnlineAutoTradePolicyAction(world, alice, {
-    productId: 'wheat',
-    buy: { enabled: true, maxPrice: 10, targetFreeInventory: 10 },
-    sell: { enabled: true, price: 10, minimumFreeInventory: 20 },
-  });
-  assert.equal(priceConflict.ok, false);
-  assert.match(priceConflict.message, /最高自动采购价格/);
-});
-
-test('changing the auto buy side atomically cancels its old standing order without disturbing sell settings', () => {
-  const world = createWorld(now);
-  clearOrders(world);
-  const buyer = ensurePlayer(world, alice, now);
-  buyer.credits = 100;
-  setAutoTradePolicy(world, alice, 'wheat', {
-    sell: { enabled: true, price: 10, minimumFreeInventory: 20 },
-  });
-  const first = applyOnlineAutoBuy(world, alice, { productId: 'wheat' }, now + 1);
-  assert.equal(first.ok, true);
-  const oldOrder = ownBuyOrders(world, 'wheat').at(-1);
-  assert.ok(oldOrder && isOpenOrder(oldOrder));
-
-  const changed = applyOnlineAutoTradePolicyAction(world, alice, {
-    productId: 'wheat',
-    buy: { enabled: true, maxPrice: 4, targetFreeInventory: 10 },
-    sell: { enabled: true, price: 10, minimumFreeInventory: 20 },
-  });
-
-  assert.equal(changed.ok, true);
-  assert.equal(oldOrder.status, 'cancelled');
-  assert.equal(buyer.frozenCredits, 0);
-  assert.equal(buyer.onlineAutoBuyOrderIds?.wheat, undefined);
-  assert.equal(buyer.onlineAutoSellPolicies.wheat.enabled, true);
-  assert.equal(buyer.onlineAutoSellPolicies.wheat.price, 10);
+  assert.equal(order.price, fixture.price);
+  assert.equal(order.remaining, fixture.perCycle * 2);
 });

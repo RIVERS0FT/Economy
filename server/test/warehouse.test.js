@@ -21,6 +21,7 @@ test('warehouse state is inventory-only and uses current client version', () => 
     assert.deepEqual(state.onlineAutoBuyManagedOrderIds, {});
     assert.deepEqual(state.onlineAutoSellPolicies, {});
     assert.deepEqual(state.onlineAutoSellManagedOrderIds, {});
+    assert.deepEqual(state.factoryAutoOperationPolicies, {});
     for (const field of [
       'inventoryCapacity', 'warehouseLevel', 'warehouseUpgradeCost', 'warehouseNextCapacity',
       'warehouseNextCapacityIncrease', 'warehouseOrderReservedQuantity', 'warehouseContractReservedQuantity',
@@ -29,7 +30,7 @@ test('warehouse state is inventory-only and uses current client version', () => 
   } finally { store.close(); }
 });
 
-test('warehouse summary counts goods and exposes normalized auto-trade settings without capacity state', () => {
+test('warehouse summary counts goods, keeps managed links, and derives no execution without factory intent', () => {
   const player = {
     userId: 1,
     inventoryCapacity: 999,
@@ -58,24 +59,21 @@ test('warehouse summary counts goods and exposes normalized auto-trade settings 
   const summary = createWarehouseSummary(player);
   assert.deepEqual(summary, {
     warehouseStoredQuantity: 40,
-    onlineAutoBuyPolicies: {
-      '110000:wheat': { enabled: true, maxPrice: 6.75, targetFreeInventory: 12 },
-    },
+    onlineAutoBuyPolicies: {},
     onlineAutoBuyManagedOrderIds: {
       '110000:wheat': 'order-auto-buy-wheat',
     },
-    onlineAutoSellPolicies: {
-      '110000:wheat': { enabled: true, price: 8.25, minimumFreeInventory: 20 },
-    },
+    onlineAutoSellPolicies: {},
     onlineAutoSellManagedOrderIds: {
       '110000:wheat': 'order-auto-sell-wheat',
     },
+    factoryAutoOperationPolicies: {},
   });
   assert.equal(Object.hasOwn(player, 'inventoryCapacity'), false);
   assert.equal(Object.hasOwn(player, 'warehouseLevel'), false);
 });
 
-test('saved auto-trade policy is included in formal client state', () => {
+test('legacy product auto-trade settings remain internal compatibility data rather than formal client authority', () => {
   const store = new EconomyStore(':memory:');
   try {
     store.transaction(() => {
@@ -101,18 +99,11 @@ test('saved auto-trade policy is included in formal client state', () => {
     });
 
     const state = store.getState(alice, now + 2);
-    assert.deepEqual(state.onlineAutoBuyPolicies['110000:wheat'], {
-      enabled: true,
-      maxPrice: 6,
-      targetFreeInventory: 10,
-    });
+    assert.deepEqual(state.onlineAutoBuyPolicies, {});
     assert.deepEqual(state.onlineAutoBuyManagedOrderIds, {});
-    assert.deepEqual(state.onlineAutoSellPolicies['110000:wheat'], {
-      enabled: true,
-      price: 7.5,
-      minimumFreeInventory: 12,
-    });
+    assert.deepEqual(state.onlineAutoSellPolicies, {});
     assert.deepEqual(state.onlineAutoSellManagedOrderIds, {});
+    assert.deepEqual(state.factoryAutoOperationPolicies, {});
   } finally { store.close(); }
 });
 

@@ -2,6 +2,7 @@ import {
   PRODUCT_CATALOG,
   applySettledCommodityOrder,
 } from './domain.js';
+import { factoryAutoTradeExecutionPolicyFor } from './factory-auto-operation.js';
 import {
   productionReservedQuantitiesForPlayer,
 } from './facility-groups.js';
@@ -11,7 +12,6 @@ import {
   linkManagedOnlineAutoSellOrder,
   managedOnlineAutoSellOrderFor,
 } from './online-auto-sell-orders.js';
-import { onlineAutoSellPolicyFor } from './online-auto-sell-policy.js';
 import { contractAvailableHoldForOnlineTrade } from './online-auto-trade-reservations.js';
 import { inventoryForProvince, normalizeProvinceId } from './provinces.js';
 
@@ -73,16 +73,22 @@ export function applyOnlineAutoSell(world, user, payload = {}, now = Date.now())
 
   const player = world.players?.[String(userId)];
   if (!player) return { ok: false, message: '玩家不存在' };
-  const policy = onlineAutoSellPolicyFor(player, productId, provinceId);
+  let managedOrder = managedOnlineAutoSellOrderFor(world, userId, productId, provinceId);
+  const policy = factoryAutoTradeExecutionPolicyFor(player, productId, provinceId)?.sell;
   if (!policy?.enabled) {
-    cancelManagedOnlineAutoSellOrder(world, userId, productId, provinceId);
-    return { ok: false, message: '该商品未启用自动出售' };
+    if (managedOrder) {
+      cancelManagedOnlineAutoSellOrder(world, userId, productId, provinceId);
+      return { ok: true, message: '当前工厂策略无需出售，已撤销旧托管卖单' };
+    }
+    return { ok: false, message: '当前工厂策略无需自动出售该商品' };
   }
   const minimumPrice = policy.price;
 
-  let managedOrder = managedOnlineAutoSellOrderFor(world, userId, productId, provinceId);
   if (hasOwnCrossingBuy(world, userId, productId, minimumPrice, provinceId)) {
-    if (managedOrder) cancelManagedOnlineAutoSellOrder(world, userId, productId, provinceId);
+    if (managedOrder) {
+      cancelManagedOnlineAutoSellOrder(world, userId, productId, provinceId);
+      return { ok: true, message: '自己的买单达到出售价格，已撤销托管卖单' };
+    }
     return { ok: false, message: '自己的买单达到自动出售价格，请先撤销反向订单' };
   }
 

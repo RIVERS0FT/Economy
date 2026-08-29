@@ -2,7 +2,7 @@
 
 > 状态：当前文档入口
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-27
+> 更新时间：2026-08-29
 > 客户端状态版本：37
 > 世界状态版本：32
 
@@ -19,7 +19,7 @@
 | `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 38 种商品、26 种工厂（含 C1 与 C2 工厂专属作业制度、生产科技／作业科技分离、工业燃料／工业化学品，以及配套工具、化肥、饲料、养殖药剂、机械、拖拉机产业支线）、州级工厂集群与本地投入产出、固定精度经济数值、参考利润、周期成本工资、C1–C7 人口承载权重、生产复杂度岗位结构、固定建造业岗位结构、持续生产、集群级生产方式、三态、自动恢复、工厂抵押生产资格，以及商品供货、玩家抵押借贷、工厂使用权租赁与生产／资产守恒审计边界 |
 | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 客户端工厂目录展示顺序、已拥有工厂卡片排序和目录顺序防回退 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 州级本地商品和工厂统一限价订单、冻结、抵押后的可转让数量、撮合、成交价、估值、资产统计和普通玩家成交匿名化 |
-| `WAREHOUSE_EXPANSION_DESIGN.md` | 州级本地无限仓库、真实商品库存、容量机制退役、州页仓库分区、地区商品详情在线自动采购／自动出售、移动自动交易抽屉与仓库商品网格密度，以及跨州运输模式、费用、在途资产与持久化运输路线 |
+| `WAREHOUSE_EXPANSION_DESIGN.md` | 州级本地无限仓库、真实商品库存、容量机制退役、州页仓库分区、地区工厂自动经营策略、地区商品详情只读自动经营执行、统一商品订单维护、仓库商品网格密度，以及跨州运输模式、费用、在途资产与持久化运输路线 |
 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 十二个正式页面、隐藏州级上下文页、独立运输页、所有玩家页面常驻的美国本土连续 48 州战略地图、四类页面战略面板、C1-C7 产业阶段与按产业链拆分的科技节点研发入口、银行资产总览与存贷款、商品／工厂资产拍卖、排行榜生产数量纯数字显示、统一导航角标语义与已读规则、进行中的合同默认视图、可审计合同历史、登录注册入口、独立商店、分享链接、邀请码、封禁提示、模块唯一归属和页面防回退规则 |
 | `MARKET_CHART_LAYOUT_DESIGN.md` | 市场近 24h 行情图的整数坐标、成交量绘图区最低可读高度、动态纵横比、底部安全区、图例居中和真实浏览器几何回归 |
 | `REGISTRATION_INVITE_FLOW_DESIGN.md` | 注册邀请码输入、分享链接预填、来源归因、首次绑定、注册完成后禁止补填、登录／注册入口三层视觉、认证卡片几何与旧接口退役 |
@@ -66,7 +66,7 @@
 29. 状态交付使用 `server/shared/economy-state-version.js` 作为客户端版本唯一来源；README、权威文档、`src/types.ts` 和服务器序列化必须通过 `scripts/verify-client-state-version.mjs` 保持一致。客户端状态版本 25 是拍卖身份字段删除、主状态移除出价数组与收费／保留价／延时摘要的破坏性边界，只接受当前版本。
 30. `serverNow` 只属于状态交付 envelope，不进入 `EconomyState`、世界 JSON 或状态分区；倒计时必须读取共享单调服务器时钟。普通权威动作只返回精简确认，动作成功后用动作前全局修订号与分区哈希补拉状态。
 31. 六分区协议只在分区之间增量传输；每个返回分区内部都是完整快照，客户端必须整块替换同名缓存分区后再重组 `EconomyState`。服务器省略可选字段即表示删除，空对象也必须清空旧分区内容，不得恢复对旧完整状态的字段级浅合并。
-32. 仓库与市场自动交易商品卡结构、网格密度唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md`；默认五列，小于 560px 为四列，760px 起六列、960px 起七列，并通过 `scripts/verify-warehouse-expansion.mjs` 防回退。页面职责与通用 UI 文档只能引用该规则，不得维护另一套断点。
+32. 仓库商品卡结构、网格密度、地区工厂自动经营控件和地区商品只读执行卡唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md`；仓库默认五列，小于 560px 为四列，760px 起六列、960px 起七列，并通过 `scripts/verify-warehouse-expansion.mjs` 与 `scripts/verify-online-auto-sell.mjs` 防回退。页面职责与通用 UI 文档只能引用该规则，不得恢复商品级自动交易编辑或维护另一套断点。
 33. 移动操作结果通知归属 `LIQUID_GLASS_CHROME_DESIGN.md` 与 `GameShell` Chrome Overlay；DOM 必须位于 `StatusBar` 后、`MobileBottomNavigation` 前，顶部位置固定为安全区顶部 + `48px` 状态栏 + `8px` 间距。通知采用普通半透明提示样式，不新增毛玻璃宿主、不推动页面内容、不拦截状态栏或底栏交互，并通过 `scripts/verify-game-shell-layout.mjs` 与 `tests/browser/mobile-workspace-overlay.spec.ts` 防回退。
 34. 游戏端与管理员端必须共享 `SignedInShell`、唯一页面 `ScrollArea`、悬浮桌面工作栏骨架和贴边滚动条，但桌面几何按用途分流：管理员保留传统下方双列布局；玩家固定使用 `8px` 屏幕边距、`64px` 状态栏和唯一 `workspaceCard`，状态栏与主卡片之间也只能保留一个 `8px` 间距，主卡片纵向铺满剩余区域且不得为低层地图镜头栏预留高度。主卡片共同承载 `78px／224px` 覆盖式指挥栏与当前页面，侧栏以竖线和阴影隔离，展开不得推动页面；概览、市场、建筑、设置共享 `56rem` 内容目标，但包含侧栏的主卡片总宽不得超过 `calc(100vw / 3)`，并与右侧公开事件日志并列；运输、研发、拍卖、合同、银行、排行榜、商店占满主卡片页面区域并隐藏事件栏。正式页面切换使用一次性横向展开动画，不得重新挂载或缩放地图实例；并通过 `scripts/verify-game-shell-layout.mjs`、`tests/browser/game-shell-layout.spec.ts` 与 `tests/browser/all-pages-preview.spec.ts` 防回退。
 35. `GET state` 的响应时钟必须使用 envelope 顶层 `serverNow`，即使 `unchanged: true` 也必须返回；`serverNow` 不得进入六分区或世界 JSON。客户端只能用它向前校准共享单调服务器时钟，迟到或较旧响应不得让工作冷却、生产、研发、拍卖、合同或排行榜倒计时回退，也不得把 `lastProcessedAt` 在每次轮询时重新解释为当前服务器时间。工厂即时建设没有施工截止时间，不得重新加入倒计时注册表。
@@ -83,7 +83,7 @@
 46. 登录态根视口的纵向 overscroll 终止、浏览器下拉刷新阻止与共享移动工厂／研发详情局部触摸保护唯一归属 `LIQUID_GLASS_CHROME_DESIGN.md`；内部滚动区继续按 `UI_DESIGN_SYSTEM.md` 在边界释放滚动链。实现必须同步 `viewport.css`、`interactionBootstrap.ts`、`mobileDetailSheetPullRefresh.ts`、`scripts/verify-mobile-facility-pull-refresh.mjs` 与 `tests/browser/mobile-facility-pull-refresh.spec.ts`，不得改成内部 `contain` 或文档级全局 `touchmove` 拦截。
 47. 统一订单簿运行时索引只属于服务器事务内派生状态；`world.orders` 仍是唯一持久化权威来源。每个资产方向必须使用“价格档位 + 同价 FIFO”组织未完成订单，价格档位按买高卖低排序，同价按创建时间再按原数组顺序稳定排队；撮合与盘口报价必须通过 `iterateOrderBookSide` 按需遍历，成交缩量和撤单必须即时更新或摘除节点，不得为一次撮合重新物化、过滤、排序或压缩完整盘口侧数组。撮合、自交叉、系统最优价、商品买单仓库预占、工厂卖单冻结、人口卖盘深度和需求组订单继续复用 `order-book-runtime.js`；必须通过 `server/test/order-book-runtime.test.js`、`server/test/order-book-price-level.test.js`、`server/test/order-matching.test.js` 与 `scripts/verify-order-matching-core.mjs` 防回退。
 48. 正式世界调度只能使用 `world-deadline-planner.js` 计算的单一最早到期 `setTimeout`，不得恢复固定一秒 `setInterval` 或在空闲窗口反复克隆、迁移、深比较和写入世界；`world-deadline-runtime.js` 必须按世界对象与修订号缓存同一截止时间计划，`null` 截止时间不得被解释为 0。正式调度唤醒必须从计划中计算实际 `dueDomains` 并按实际到期领域推进，银行、研发、合同等未到期领域不得仅因其他领域到期而被重复处理；管理员或首次建档等显式完整处理路径可以保持完整推进。工厂即时建设不得注册施工完成或施工就业截止时间；正式服务的玩家写入若到达已过期截止时间，必须先等待同一权威写执行器中的调度 barrier，动作主体不得再次执行同一轮全服推进；关闭正式调度的内存测试才允许在请求内按实际到期领域推进。该规则通过 `server/test/world-deadline-planner.test.js`、`server/test/authoritative-hotpaths.test.js`、`server/test/runtime-hotpath-architecture.test.js`、`scripts/verify-runtime-efficiency.mjs` 与 `scripts/verify-authoritative-hotpaths.mjs` 防回退。
-49. 州级仓库容量永久无限，商品买单、拍卖、采购合同与生产不得恢复仓库容量预占或空间拒绝；仓库分区只显示本州真实可用／冻结库存与无限容量状态。跨州运输路线、发运和运输记录唯一归属独立运输页，不得重新塞回仓库卡片。上述边界必须同步 `WAREHOUSE_EXPANSION_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` 和 `scripts/verify-warehouse-expansion.mjs`。
+49. 州级仓库容量永久无限，商品买单、拍卖、采购合同与生产不得恢复仓库容量预占或空间拒绝；仓库分区只显示本州真实可用／冻结库存，不把“无限容量”作为玩家可见状态。玩家可编辑自动经营策略唯一归属地区工厂详情，地区商品详情只读显示汇总后的自动采购／出售执行；商品执行继续复用统一订单簿和真实冻结资产。跨州运输路线、发运和运输记录唯一归属独立运输页，不得重新塞回仓库卡片。上述边界必须同步 `WAREHOUSE_EXPANSION_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、`scripts/verify-warehouse-expansion.mjs` 和 `scripts/verify-online-auto-sell.mjs`。
 50. 银行存取款、唯一进行中工厂抵押贷款、透明额度评估、72 小时期限与 12 小时宽限、抵押继续生产但禁止转让、贷款本金与负债同步、净资产口径、已实现贷款利息 70%／20%／10% 分配、北京时间每日最低余额、七日利息池上限、风险准备金、违约处置和世界 16 数据快照属于基础银行规则；活跃周固定收益与周资金结算另以第 62 条为准。两组规则必须同步更新对应权威文档、服务器与浏览器测试、`scripts/verify-banking.mjs`、`scripts/verify-weekly-cash-settlement.mjs`、版本验证和部署工作流，贷款本金不得计入净资产增长。
 51. 市场行情图的整数坐标、动态横纵轴刻度、成交量绘图区最低 `48px` 实际高度、最低 `22%` 数据区占比、ECharts SVG 零间距双 Grid、统一 AxisPointer／Tooltip、悬浮折线保护、动态实际高度／纵横比、底部安全区与图例居中唯一归属 `MARKET_CHART_LAYOUT_DESIGN.md`；页面职责和通用 UI 文档只保留模块边界与引用。实现必须同步 `PriceSparkline.tsx`、`marketChartScale.ts`、`scripts/verify-market-chart.mjs` 和真实浏览器几何／交互回归，不得恢复固定刻度、上下图独立悬浮、窄屏压缩成交量区或强制固定 `16:9`。
 52. 独立 `assets` 导航、`AssetsPage` 和浏览器本地资产变动已永久删除；资产总览唯一归属银行页，状态栏与概览资产入口统一打开银行。浏览器本地存储 v7 只保留匿名逐笔成交、州级地区和识别新增成交所需的最小自有订单快照，必须同步更新页面、本地日志、概览、银行、浏览器测试及 `scripts/verify-assets-page.mjs`，不得恢复资产事件差异扫描、资产页空壳或兼容路由。
