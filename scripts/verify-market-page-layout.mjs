@@ -38,7 +38,7 @@ for (const path of [
 for (const text of [
   '| 市场 | `market` | `GlobalMarketPage` |',
   '商品目录 → 商品全局详情 → 地区商品详情',
-  '实际盘口、下单和自动交易继续由地区 `MarketPage` 执行',
+  '实际盘口、下单和自动经营只读执行状态继续由地区 `MarketPage` 执行，可编辑自动经营策略归地区 `BuildingsPage` 工厂详情',
   '`ProvincePage` 的市场分区继续直接嵌入当前地图州的同一个 `MarketPage`',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text, `页面职责设计缺少商品优先市场边界: ${text}`);
 
