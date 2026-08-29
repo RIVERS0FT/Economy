@@ -45,6 +45,8 @@ factoryAutoOperationPolicies: Record<string, {
 }>;
 ```
 
+玩家可编辑的经营意图只按 `provinceId + facilityTypeId` 保存；商品维度策略只承担统一市场执行兼容，不是第二份经营意图。
+
 持久化键固定为 `provinceId:facilityTypeId`。缺少显式策略的既有或新工厂只读采用默认策略：
 
 ```text
@@ -85,6 +87,8 @@ warehouseAvailableCapacity
 自动经营留下的开放买单和卖单与同地区普通商品订单进入同一盘口和撮合流程，不建立第二套市场。普通手动买卖唯一归属市场页；自动经营配置唯一归属工厂详情。
 
 地区商品详情只读展示由工厂策略汇总后的自动采购／出售状态、生产预定、合同预定、预计数量和最终价格边界，不提供逐商品启停、目标库存或价格编辑表单。
+
+商品详情中的自动经营执行区只读；玩家不得在这里覆盖工厂经营意图。
 
 ### 3.2 拍卖
 
@@ -214,7 +218,7 @@ warehouseAvailableCapacity
 
 ## 9. 防回退
 
-`scripts/verify-warehouse-expansion.mjs`、`scripts/verify-online-auto-sell.mjs` 与 `scripts/verify-factory-auto-operation.mjs` 必须共同保证：
+`scripts/verify-warehouse-expansion.mjs` 与 `scripts/verify-online-auto-sell.mjs` 必须共同保证：
 
 - 容量、升级、入库预占和 `warehouse_full` 机制不得恢复；仓库升级 API 不得恢复。
 - 市场、拍卖、合同与生产不得用仓库空间拒绝合法商品流入。

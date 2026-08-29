@@ -12778,10 +12778,95 @@
       "weeklyBonusGems": 5
     },
     "warehouseStoredQuantity": 3007,
-    "onlineAutoBuyPolicies": {},
+    "onlineAutoBuyPolicies": {
+      "110000:wheat": {
+        "enabled": true,
+        "maxPrice": 1.26,
+        "targetFreeInventory": 8
+      },
+      "110000:cotton": {
+        "enabled": true,
+        "maxPrice": 1.26,
+        "targetFreeInventory": 18
+      },
+      "110000:ore": {
+        "enabled": true,
+        "maxPrice": 7.35,
+        "targetFreeInventory": 9
+      }
+    },
+    "onlineAutoSellPolicies": {
+      "110000:wheat": {
+        "enabled": true,
+        "price": 1.27,
+        "minimumFreeInventory": 8
+      },
+      "110000:fruit": {
+        "enabled": true,
+        "price": 1.3,
+        "minimumFreeInventory": 0
+      },
+      "110000:ore": {
+        "enabled": true,
+        "price": 7.36,
+        "minimumFreeInventory": 9
+      },
+      "110000:flour": {
+        "enabled": true,
+        "price": 13,
+        "minimumFreeInventory": 0
+      },
+      "110000:steel": {
+        "enabled": true,
+        "price": 29,
+        "minimumFreeInventory": 0
+      },
+      "110000:textile": {
+        "enabled": true,
+        "price": 20,
+        "minimumFreeInventory": 0
+      }
+    },
     "onlineAutoBuyManagedOrderIds": {},
-    "onlineAutoSellPolicies": {},
     "onlineAutoSellManagedOrderIds": {},
+    "factoryAutoOperationPolicies": {
+      "110000:farm": {
+        "enabled": true,
+        "inputCoverageCycles": 2,
+        "mode": "balanced",
+        "outputMode": "surplus"
+      },
+      "110000:orchard": {
+        "enabled": true,
+        "inputCoverageCycles": 2,
+        "mode": "balanced",
+        "outputMode": "surplus"
+      },
+      "110000:mine": {
+        "enabled": true,
+        "inputCoverageCycles": 2,
+        "mode": "balanced",
+        "outputMode": "surplus"
+      },
+      "110000:mill": {
+        "enabled": true,
+        "inputCoverageCycles": 2,
+        "mode": "balanced",
+        "outputMode": "surplus"
+      },
+      "110000:steelworks": {
+        "enabled": true,
+        "inputCoverageCycles": 2,
+        "mode": "balanced",
+        "outputMode": "surplus"
+      },
+      "110000:textile-mill": {
+        "enabled": true,
+        "inputCoverageCycles": 2,
+        "mode": "balanced",
+        "outputMode": "surplus"
+      }
+    },
     "assetAuctions": [],
     "bankAccount": {
       "depositCredits": 28000,
