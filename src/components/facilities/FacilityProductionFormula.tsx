@@ -10,6 +10,7 @@ import type {
 } from '../../types';
 import { formatCurrency, formatDuration, formatNumber } from '../../utils/formatters';
 import { facilityEffectiveCount, projectFacilityStaffingRate } from '../../utils/facilityStaffing';
+import { FacilityAutoOperationControls } from './FacilityAutoOperationControls';
 import { FacilityGroupProgress } from './FacilityProgress';
 
 type MultiRecipeFacilityType = FacilityTypeDefinition & {
@@ -182,64 +183,67 @@ export function FacilityProductionFormula({
     .join('。');
 
   return (
-    <section className="facility-production-formula"
-      data-status={group.status}
-      role="group"
-      aria-label={description}
-    >
-      <div className="facility-production-formula-heading">
-        <strong>生产结算</strong>
-      </div>
-      <div className="facility-formula-visual">
-        <div className="facility-formula-top">
-          <div className="facility-formula-input-side">
-            <span className="facility-formula-side-label">投入</span>
-            <div className="facility-formula-input">
-              {inputs.length > 0 ? (
+    <>
+      <FacilityAutoOperationControls group={group} />
+      <section className="facility-production-formula"
+        data-status={group.status}
+        role="group"
+        aria-label={description}
+      >
+        <div className="facility-production-formula-heading">
+          <strong>生产结算</strong>
+        </div>
+        <div className="facility-formula-visual">
+          <div className="facility-formula-top">
+            <div className="facility-formula-input-side">
+              <span className="facility-formula-side-label">投入</span>
+              <div className="facility-formula-input">
+                {inputs.length > 0 ? (
+                  <RecipeItems
+                    items={inputs}
+                    productNames={productNames}
+                    inventories={inventories}
+                    multiplier={scope.count}
+                    groupClassName="facility-formula-input-group"
+                    itemClassName="facility-formula-input-item"
+                    onOpenProductMarket={onOpenProductMarket}
+                  />
+                ) : <span className="facility-formula-empty">无</span>}
+              </div>
+            </div>
+
+            <div className="facility-formula-output-side">
+              <span className="facility-formula-side-label">产出</span>
+              <div className="facility-formula-output">
                 <RecipeItems
-                  items={inputs}
+                  items={outputs}
                   productNames={productNames}
                   inventories={inventories}
                   multiplier={scope.count}
-                  groupClassName="facility-formula-input-group"
-                  itemClassName="facility-formula-input-item"
+                  groupClassName="facility-formula-output-group"
+                  itemClassName="facility-formula-output-item"
                   onOpenProductMarket={onOpenProductMarket}
                 />
-              ) : <span className="facility-formula-empty">无</span>}
+              </div>
             </div>
           </div>
 
-          <div className="facility-formula-output-side">
-            <span className="facility-formula-side-label">产出</span>
-            <div className="facility-formula-output">
-              <RecipeItems
-                items={outputs}
-                productNames={productNames}
-                inventories={inventories}
-                multiplier={scope.count}
-                groupClassName="facility-formula-output-group"
-                itemClassName="facility-formula-output-item"
-                onOpenProductMarket={onOpenProductMarket}
-              />
-            </div>
+          <div className="facility-formula-meta" aria-hidden="true">
+            <span className="facility-formula-meta-unit is-cycle">
+              <CycleIcon className="facility-formula-meta-icon" />
+              <span>{formatDuration(type.cycleMs)}</span>
+            </span>
+            <span className="facility-formula-meta-unit is-cost">
+              <CreditsIcon className="facility-formula-meta-icon" />
+              <span>{<CompactCurrency value={type.operatingCost * scope.count} />}</span>
+            </span>
+          </div>
+
+          <div className="facility-formula-progress" aria-hidden="true">
+            <FacilityGroupProgress group={group} type={type} now={now} />
           </div>
         </div>
-
-        <div className="facility-formula-meta" aria-hidden="true">
-          <span className="facility-formula-meta-unit is-cycle">
-            <CycleIcon className="facility-formula-meta-icon" />
-            <span>{formatDuration(type.cycleMs)}</span>
-          </span>
-          <span className="facility-formula-meta-unit is-cost">
-            <CreditsIcon className="facility-formula-meta-icon" />
-            <span>{<CompactCurrency value={type.operatingCost * scope.count} />}</span>
-          </span>
-        </div>
-
-        <div className="facility-formula-progress" aria-hidden="true">
-          <FacilityGroupProgress group={group} type={type} now={now} />
-        </div>
-      </div>
-    </section>
+      </section>
+    </>
   );
 }
