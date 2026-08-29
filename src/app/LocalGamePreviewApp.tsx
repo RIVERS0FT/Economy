@@ -96,7 +96,6 @@ const completedTutorial: GameTutorialController = {
   openCurrentTarget: () => {},
   recordBuildSubmit: () => {},
   recordFacilityStartClick: () => {},
-  recordAutoSellSetting: () => {},
   recordAutoSellCompletion: () => {},
   recordResearchStart: () => {},
   recordBankDeposit: () => {},
