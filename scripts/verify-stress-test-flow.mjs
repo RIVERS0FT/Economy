@@ -30,6 +30,8 @@ for (const text of [
 ]) assert.equal(read('tests/stress/safety.mjs').includes(text), true, `压力测试安全门禁缺少 ${text}`);
 
 const runner = read('tests/stress/run.mjs');
+const serverApp = read('server/src/app.js');
+const requestPerformance = read('server/src/request-performance.js');
 for (const text of [
   'STATE_PARTITIONS',
   '状态修订号发生倒退',
@@ -96,6 +98,21 @@ assert.equal(
   runner.includes('performance.now() - startedAt'),
   false,
   '压力测试请求封装不得记录客户端端到端耗时',
+);
+assert.equal(
+  runner.includes("method === 'GET' ? 30_000"),
+  true,
+  '远程只读 GET 不得因公网传输超过 8 秒被误判 abort',
+);
+assert.equal(
+  serverApp.includes('requestProcessingMs().toFixed(3)'),
+  true,
+  'Server-Timing 必须输出服务端处理 phase 总和',
+);
+assert.equal(
+  requestPerformance.includes('export function requestProcessingMs'),
+  true,
+  '服务器必须提供处理 phase 求和口径',
 );
 
 const workflow = read('.github/workflows/stress.yml');
