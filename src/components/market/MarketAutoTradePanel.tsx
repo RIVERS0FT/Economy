@@ -10,6 +10,70 @@ type AutoTradeCapableGameViewModel = LoadedGameViewModel & {
   autoTrade?: OnlineAutoTradeController;
 };
 
+type OptionalAutoTradeState = LoadedGameViewModel['game'] & {
+  onlineAutoBuyPolicies?: OnlineAutoTradeController['buyPolicies'];
+  onlineAutoSellPolicies?: OnlineAutoTradeController['sellPolicies'];
+};
+
+function fallbackController(model: AutoTradeCapableGameViewModel): OnlineAutoTradeController {
+  const game = model.game as OptionalAutoTradeState;
+  const productById = new Map(game.products.map((product) => [product.id, product]));
+  const buyPolicies = game.onlineAutoBuyPolicies ?? {};
+  const sellPolicies = game.onlineAutoSellPolicies ?? {};
+  const buyPolicyFor = (productId: string) => buyPolicies[productId] ?? {
+    enabled: false,
+    maxPrice: Math.max(0.01, Number(productById.get(productId)?.basePrice || 1)),
+    targetFreeInventory: 0,
+  };
+  const sellPolicyFor = (productId: string) => sellPolicies[productId] ?? {
+    enabled: false,
+    price: Math.max(0.01, Number(productById.get(productId)?.basePrice || 1)),
+    minimumFreeInventory: 0,
+  };
+  return {
+    buyPolicies,
+    sellPolicies,
+    busyProductId: null,
+    busySide: null,
+    buyPolicyFor,
+    sellPolicyFor,
+    statusFor: (productId: string) => {
+      const inventory = game.inventories[productId] ?? { available: 0, frozen: 0, inTransit: 0 };
+      const availableInventory = Math.max(0, Math.floor(Number(inventory.available || 0)));
+      const buyPolicy = buyPolicyFor(productId);
+      const sellPolicy = sellPolicyFor(productId);
+      const buyDesiredQuantity = buyPolicy.enabled
+        ? Math.max(0, Math.floor(Number(buyPolicy.targetFreeInventory || 0)) - availableInventory)
+        : 0;
+      const buyEligibleQuantity = buyPolicy.maxPrice > 0
+        ? Math.min(buyDesiredQuantity, Math.floor(Math.max(0, Number(game.credits || 0)) / buyPolicy.maxPrice))
+        : 0;
+      const sellEligibleQuantity = sellPolicy.enabled
+        ? Math.max(0, availableInventory - Math.max(0, Math.floor(Number(sellPolicy.minimumFreeInventory || 0))))
+        : 0;
+      return {
+        availableInventory,
+        productionReserved: 0,
+        contractReserved: 0,
+        currentFreeInventory: availableInventory,
+        buyDesiredQuantity,
+        buyEligibleQuantity,
+        buyFundingLimited: buyEligibleQuantity < buyDesiredQuantity,
+        blockedBuyByOwnSell: false,
+        hasCrossingSeller: false,
+        hasManagedBuyOrder: false,
+        buyNeedsMaintenance: false,
+        sellEligibleQuantity,
+        blockedSellByOwnBuy: false,
+        hasCrossingBuyer: false,
+        hasManagedSellOrder: false,
+        sellNeedsMaintenance: false,
+      };
+    },
+    setPolicy: async () => ({ ok: false, message: '自动经营策略请在工厂详情中设置' }),
+  };
+}
+
 export function MarketAutoTradePanel({
   model,
   className = '',
@@ -23,13 +87,13 @@ export function MarketAutoTradePanel({
 }) {
   const productId = fixedProductId ?? requestedProductId ?? '';
   const product = model.game.products.find((candidate) => candidate.id === productId) ?? null;
-  const autoTrade = model.autoTrade;
-  const status = useMemo(
-    () => product && autoTrade ? autoTrade.statusFor(product.id) : null,
-    [autoTrade, product],
+  const autoTrade = useMemo(
+    () => model.autoTrade ?? fallbackController(model),
+    [model],
   );
-  const buyPolicy = product && autoTrade ? autoTrade.buyPolicyFor(product.id) : null;
-  const sellPolicy = product && autoTrade ? autoTrade.sellPolicyFor(product.id) : null;
+  const status = product ? autoTrade.statusFor(product.id) : null;
+  const buyPolicy = product ? autoTrade.buyPolicyFor(product.id) : null;
+  const sellPolicy = product ? autoTrade.sellPolicyFor(product.id) : null;
 
   if (!product || !status || !buyPolicy || !sellPolicy) return null;
 
