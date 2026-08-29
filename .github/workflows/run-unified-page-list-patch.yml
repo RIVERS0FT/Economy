@@ -1,0 +1,22 @@
+name: Run unified page-list patch
+on:
+  push:
+    branches: [fix/unify-page-entity-lists]
+    paths: [scripts/patch-unified-page-lists.py]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/unify-page-entity-lists
+      - run: python scripts/patch-unified-page-lists.py
+      - run: git diff --check
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/GlobalMarketPage.tsx src/pages/GlobalBuildingsPage.tsx src/components/market/MarketCommodityRow.tsx src/styles/global-operation-pages.css src/styles/market-commodity-row.css docs/UI_DESIGN_SYSTEM.md scripts/verify-page-content.mjs tests/browser/all-pages-preview.spec.ts
+          git commit -m "统一市场与建筑页面列表样式"
+          git push
