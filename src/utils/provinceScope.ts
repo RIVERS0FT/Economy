@@ -63,5 +63,6 @@ export function scopeEconomyState(game: EconomyState, requestedProvinceId: strin
     onlineAutoSellPolicies: scopedRecord(optional.onlineAutoSellPolicies as Record<string, unknown> | undefined, provinceId),
     onlineAutoBuyManagedOrderIds: scopedRecord(optional.onlineAutoBuyManagedOrderIds as Record<string, unknown> | undefined, provinceId),
     onlineAutoSellManagedOrderIds: scopedRecord(optional.onlineAutoSellManagedOrderIds as Record<string, unknown> | undefined, provinceId),
+    factoryAutoOperationPolicies: scopedRecord(optional.factoryAutoOperationPolicies as Record<string, unknown> | undefined, provinceId),
   } as EconomyState;
 }
