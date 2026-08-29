@@ -1,4 +1,51 @@
-/* Single authority for shared entity-list headers, sortable cells and row surfaces. */
+/* Single authority for shared page entity-list surfaces, headers, rows and value tones. */
+.entity-list-surface {
+  --entity-list-gap: .55rem;
+  --entity-list-inline-padding: .6rem;
+  --entity-list-chevron-column: .8rem;
+  --entity-list-artwork-slot: 42px;
+  --entity-list-artwork-size: 34px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  display: grid;
+  gap: .32rem;
+}
+
+.entity-list-surface > .entity-list-header {
+  margin: 0;
+}
+
+.entity-list-rows {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: .32rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entity-list-rows > li {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.entity-list-value.is-positive {
+  color: var(--color-success);
+}
+
+.entity-list-value.is-negative {
+  color: var(--color-danger);
+}
+
+.entity-list-value.is-neutral,
+.entity-list-value.is-unavailable {
+  color: var(--color-text-primary);
+}
+
 .entity-list-header {
   width: 100%;
   height: 42px;
@@ -111,8 +158,34 @@
 }
 
 @container (max-width: 620px) {
+  .entity-list-surface {
+    --entity-list-gap: .25rem;
+    --entity-list-inline-padding: .4rem;
+    --entity-list-chevron-column: .65rem;
+    --entity-list-artwork-slot: 34px;
+    --entity-list-artwork-size: 29px;
+  }
+
+  .entity-list-surface > .entity-list-header {
+    font-size: .625rem;
+  }
+
   .entity-list-row {
     --entity-list-row-height: 54px;
     padding-block: .35rem;
+  }
+}
+
+@container (max-width: 360px) {
+  .entity-list-surface {
+    --entity-list-gap: .18rem;
+    --entity-list-inline-padding: .3rem;
+    --entity-list-chevron-column: .55rem;
+    --entity-list-artwork-slot: 30px;
+    --entity-list-artwork-size: 26px;
+  }
+
+  .entity-list-surface .entity-list-header__indicator {
+    display: none;
   }
 }
