@@ -12,6 +12,7 @@ const uiArchitectureRunnerPath = resolve(root, 'scripts/verify-ui-architecture-r
 const designPath = resolve(root, 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 const nginxConfiguratorPath = resolve(root, 'scripts/configure-economy-nginx.py');
 const nginxLocationTemplatePath = resolve(root, 'deploy/nginx/game.riversoft.top.economy-location.conf');
+const nginxIpFallbackConfiguratorPath = resolve(root, 'scripts/configure-economy-ip-fallback-nginx.py');
 const workflow = readFileSync(deployPath, 'utf8');
 const ciWorkflow = readFileSync(ciPath, 'utf8');
 const selector = readFileSync(selectorPath, 'utf8');
@@ -20,6 +21,7 @@ const uiArchitectureRunner = readFileSync(uiArchitectureRunnerPath, 'utf8');
 const design = readFileSync(designPath, 'utf8');
 const nginxConfigurator = readFileSync(nginxConfiguratorPath, 'utf8');
 const nginxLocationTemplate = readFileSync(nginxLocationTemplatePath, 'utf8');
+const nginxIpFallbackConfigurator = readFileSync(nginxIpFallbackConfiguratorPath, 'utf8');
 const failures = [];
 
 const requireText = (text, reason) => {
@@ -80,6 +82,8 @@ for (const [source, label] of [
   if (!source.includes(healthLocation)) failures.push(`${label} 必须公开 Economy exact health 路由`);
   if (!source.includes('proxy_pass http://127.0.0.1:3002/health;')) failures.push(`${label} health 路由必须指向本机 Economy /health`);
 }
+if (!nginxIpFallbackConfigurator.includes(healthLocation)) failures.push('configure-economy-ip-fallback-nginx.py 必须公开 Economy exact health 路由');
+if (!nginxIpFallbackConfigurator.includes('proxy_pass http://127.0.0.1:3002/health;')) failures.push('configure-economy-ip-fallback-nginx.py health 路由必须指向本机 Economy /health');
 
 for (const forbidden of ['readFileSync', '.replace(', 'data:text/javascript', 'Buffer.from(']) {
   if (uiArchitectureRunner.includes(forbidden)) failures.push(`UI 架构 runner 不得改写 verifier 源码: ${forbidden}`);

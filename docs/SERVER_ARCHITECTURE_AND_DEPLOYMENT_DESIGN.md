@@ -539,7 +539,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 - 不得在账号 snippet 已存在时再次生成同名账号 `location`。
 - 不得在游戏 API snippet 或手动游戏路由已存在时再次生成 `/economy-api/game/`。
-- 生产 Nginx 必须额外保留 exact `location = /economy-api/health`，并把该路径代理到 `http://127.0.0.1:3002/health`；主部署公开验收必须得到 2xx。该路由只用于无认证健康检查，不得开放其他 `/economy-api/*` 根前缀。
+- 生产正式域名与临时公网 IP fallback Nginx 都必须保留 exact `location = /economy-api/health`，并把该路径代理到 `http://127.0.0.1:3002/health`；主部署通过生产公网 IP 验收时必须得到 2xx。该路由只用于无认证健康检查，不得开放其他 `/economy-api/*` 根前缀。
 - 不得在手动注册路由已存在时再次生成 `/economy-api/registration/`。
 - 连续执行两次，第二次不得产生配置变化。
 - 游戏 API `client_max_body_size` 固定为 `256k`；注册 API 固定为 `16k`。
