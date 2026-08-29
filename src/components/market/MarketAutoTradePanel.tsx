@@ -15,6 +15,8 @@ type OptionalAutoTradeState = LoadedGameViewModel['game'] & {
   onlineAutoSellPolicies?: OnlineAutoTradeController['sellPolicies'];
 };
 
+// Local preview and narrow runtime harnesses may omit the live controller. This fallback only
+// renders the already-projected execution state; it must never become another editable strategy source.
 function fallbackController(model: AutoTradeCapableGameViewModel): OnlineAutoTradeController {
   const game = model.game as OptionalAutoTradeState;
   const productById = new Map(game.products.map((product) => [product.id, product]));
