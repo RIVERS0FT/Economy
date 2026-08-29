@@ -287,7 +287,7 @@ test('manual market orders still match against a standing factory auto sell orde
     assetId: fixture.productId,
     side: 'buy',
     quantity: 2,
-    price: fixture.price + 1,
+    price: roundedPrice(fixture.price + 1),
   }, now + 2);
 
   assert.equal(buy.ok, true, buy.message);
