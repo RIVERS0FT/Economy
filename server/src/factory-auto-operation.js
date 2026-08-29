@@ -1,6 +1,12 @@
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
 import { applyOnlineAutoTradePolicyAction } from './online-auto-trade-policy.js';
-import { normalizeProvinceId, provinceScopedKey } from './provinces.js';
+import {
+  installDefaultProvinceAliases,
+  normalizeProvinceId,
+  provinceScopedKey,
+  splitProvinceScopedKey,
+  syncDefaultProvinceAlias,
+} from './provinces.js';
 import { provinceUnlockError } from './province-access.js';
 
 const FACILITY_TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
@@ -37,7 +43,7 @@ function nonNegativeInteger(value) {
 }
 
 export function normalizeFactoryAutoOperationPolicy(value) {
-  if (!value || typeof value !== 'object') return { ...DEFAULT_FACTORY_AUTO_OPERATION_POLICY };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const inputCoverageCycles = Math.floor(Number(value.inputCoverageCycles));
   const mode = String(value.mode || '');
   const outputMode = String(value.outputMode || '');
@@ -52,9 +58,38 @@ export function normalizeFactoryAutoOperationPolicy(value) {
   };
 }
 
-export function factoryAutoOperationPolicyForGroup(group) {
-  return normalizeFactoryAutoOperationPolicy(group?.autoOperationPolicy)
+export function ensureFactoryAutoOperationPolicies(player) {
+  if (!player || typeof player !== 'object') return {};
+  const source = player.factoryAutoOperationPolicies;
+  const normalized = {};
+  if (source && typeof source === 'object' && !Array.isArray(source)) {
+    for (const [sourceKey, value] of Object.entries(source)) {
+      const { provinceId, assetId: facilityTypeId } = splitProvinceScopedKey(sourceKey);
+      if (!FACILITY_TYPES.has(facilityTypeId)) continue;
+      const policy = normalizeFactoryAutoOperationPolicy(value);
+      if (policy) normalized[provinceScopedKey(provinceId, facilityTypeId)] = policy;
+    }
+  }
+  return installDefaultProvinceAliases(normalized);
+}
+
+export function factoryAutoOperationPolicyFor(player, provinceId, facilityTypeId) {
+  const policies = ensureFactoryAutoOperationPolicies(player);
+  return policies[provinceScopedKey(provinceId, facilityTypeId)]
     || { ...DEFAULT_FACTORY_AUTO_OPERATION_POLICY };
+}
+
+export function createFactoryAutoOperationClientState(player) {
+  const effective = ensureFactoryAutoOperationPolicies(player);
+  for (const group of player?.facilityGroups || []) {
+    const facilityTypeId = String(group?.facilityTypeId || '');
+    if (!FACILITY_TYPES.has(facilityTypeId)) continue;
+    const key = provinceScopedKey(group?.provinceId, facilityTypeId);
+    if (!Object.hasOwn(effective, key)) effective[key] = { ...DEFAULT_FACTORY_AUTO_OPERATION_POLICY };
+  }
+  return {
+    factoryAutoOperationPolicies: structuredClone(installDefaultProvinceAliases(effective)),
+  };
 }
 
 function activeRecipe(type, group) {
@@ -95,8 +130,8 @@ export function deriveFactoryAutoTradePolicies(player, provinceId) {
 
   for (const group of player?.facilityGroups || []) {
     if (normalizeProvinceId(group?.provinceId) !== selectedProvinceId) continue;
-    const policy = factoryAutoOperationPolicyForGroup(group);
     const type = FACILITY_TYPES.get(String(group?.facilityTypeId || ''));
+    const policy = factoryAutoOperationPolicyFor(player, selectedProvinceId, group?.facilityTypeId);
     const recipe = activeRecipe(type, group);
     const count = productionCount(group);
     if (!policy.enabled || !type || !recipe || count < 1) continue;
@@ -104,10 +139,11 @@ export function deriveFactoryAutoTradePolicies(player, provinceId) {
     for (const input of recipe.inputs || []) {
       const perCycle = nonNegativeInteger(input?.quantity) * count;
       if (perCycle < 1) continue;
-      const intent = ensureProductIntent(intents, String(input.productId || ''));
+      const productId = String(input.productId || '');
+      const intent = ensureProductIntent(intents, productId);
       intent.extraProtected += perCycle * Math.max(0, policy.inputCoverageCycles - 1);
       intent.buyEnabled = true;
-      intent.buyPrice = Math.max(intent.buyPrice, priceFor(input.productId, policy.mode, 'buy'));
+      intent.buyPrice = Math.max(intent.buyPrice, priceFor(productId, policy.mode, 'buy'));
     }
 
     const outputProductId = String(recipe.output?.productId || '');
@@ -175,28 +211,20 @@ export function applyFactoryAutoOperationPolicyAction(world, user, payload = {})
   if (accessError) return result(false, accessError);
   const facilityTypeId = String(payload.facilityTypeId || payload.assetId || '');
   if (!FACILITY_TYPES.has(facilityTypeId)) return result(false, '工厂类型不存在');
-  const group = (player.facilityGroups || []).find((candidate) => (
+  const groupExists = (player.facilityGroups || []).some((candidate) => (
     normalizeProvinceId(candidate?.provinceId) === provinceId
     && candidate?.facilityTypeId === facilityTypeId
   ));
-  if (!group) return result(false, '工厂集群不存在');
+  if (!groupExists) return result(false, '工厂集群不存在');
   const policy = normalizeFactoryAutoOperationPolicy(payload.policy || payload);
   if (!policy) return result(false, '自动经营策略无效');
 
-  group.autoOperationPolicy = policy;
+  const policies = ensureFactoryAutoOperationPolicies(player);
+  policies[provinceScopedKey(provinceId, facilityTypeId)] = policy;
+  player.factoryAutoOperationPolicies = syncDefaultProvinceAlias(policies, facilityTypeId);
   const rebuilt = rebuildFactoryAutoTradePoliciesForProvince(world, user.id, provinceId);
   if (!rebuilt.ok) return rebuilt;
   return result(true, policy.enabled ? '自动经营策略已保存' : '自动经营已关闭');
-}
-
-export function ensureFactoryAutoOperationDefaultsForProvince(player, provinceId) {
-  const selectedProvinceId = normalizeProvinceId(provinceId);
-  for (const group of player?.facilityGroups || []) {
-    if (normalizeProvinceId(group?.provinceId) !== selectedProvinceId) continue;
-    if (!normalizeFactoryAutoOperationPolicy(group.autoOperationPolicy)) {
-      group.autoOperationPolicy = { ...DEFAULT_FACTORY_AUTO_OPERATION_POLICY };
-    }
-  }
 }
 
 export function factoryAutoOperationPolicyKey(provinceId, facilityTypeId) {
