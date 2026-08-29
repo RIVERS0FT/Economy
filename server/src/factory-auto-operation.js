@@ -186,6 +186,28 @@ export function deriveFactoryAutoTradePolicies(player, provinceId) {
   }));
 }
 
+export function factoryAutoTradeExecutionPolicyFor(player, productId, provinceId) {
+  return deriveFactoryAutoTradePolicies(player, provinceId)[String(productId || '')] || null;
+}
+
+export function createFactoryAutoTradeExecutionClientState(player) {
+  const buyPolicies = {};
+  const sellPolicies = {};
+  const provinceIds = new Set((player?.facilityGroups || []).map((group) => normalizeProvinceId(group?.provinceId)));
+  for (const provinceId of provinceIds) {
+    const policies = deriveFactoryAutoTradePolicies(player, provinceId);
+    for (const [productId, policy] of Object.entries(policies)) {
+      const key = provinceScopedKey(provinceId, productId);
+      if (policy.buy.enabled) buyPolicies[key] = policy.buy;
+      if (policy.sell.enabled) sellPolicies[key] = policy.sell;
+    }
+  }
+  return {
+    onlineAutoBuyPolicies: structuredClone(installDefaultProvinceAliases(buyPolicies)),
+    onlineAutoSellPolicies: structuredClone(installDefaultProvinceAliases(sellPolicies)),
+  };
+}
+
 export function rebuildFactoryAutoTradePoliciesForProvince(world, userId, provinceId) {
   const player = world.players?.[String(userId)];
   if (!player) return result(false, '玩家不存在');
