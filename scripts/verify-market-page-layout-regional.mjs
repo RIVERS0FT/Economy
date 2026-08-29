@@ -32,7 +32,7 @@ requireText(chartSource, '(0.22 / 0.78)', '完整行情图成交量绘图区必�
 forbidText(marketStyles, 'aspect-ratio: 16 / 9', '市场 CSS 不得固定行情图 16:9。');
 
 requireText(marketPage, "type MarketCatalogStatus = 'all' | 'traded' | 'buy' | 'sell' | 'unmet-demand' | 'own-order';", '地区市场必须保留市场状态筛选。');
-requireText(marketPage, "type MarketCatalogSort = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume';", '地区市场排序只保留可见核心指标。');
+requireText(marketPage, "type MarketCatalogSort = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume' | 'volume24h';", '地区市场排序只保留可见核心指标。');
 requireText(marketPage, "if (!facilityAssetId && marketViewMode === 'catalog')", '市场必须区分地区目录与详情。');
 requireText(marketPage, 'className="market-catalog-filter-disclosure"', '地区市场筛选必须使用默认折叠 disclosure。');
 requireText(marketPage, '<MarketCommodityHeader', '地区商品目录必须在列表顶部复用共享独立表头。');
@@ -70,7 +70,7 @@ for (const token of [
 requireText(commodityRow, 'export function MarketCommodityHeader', '共享商品列表必须导出独立表头。');
 const commodityDataRowSource = commodityRow.slice(commodityRow.indexOf('export function MarketCommodityRow'));
 forbidText(commodityDataRowSource, 'market-commodity-row-header', '共享商品数据行不得重复渲染列标题。');
-for (const token of ['卖单量', '买单量', '市场价', '24h']) requireText(commodityRow, token, `共享商品表头必须显示 ${token}。`);
+for (const token of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']) requireText(commodityRow, token, `共享商品表头必须显示 ${token}。`);
 requireText(commodityRow, "entityLabel = '商品'", '共享商品表头默认首列必须为商品。');
 requireText(commodityRow, '<EntityListHeader', '共享商品表头必须复用统一实体列表表头。');
 requireText(entityListHeader, 'role="columnheader"', '共享实体列表表头必须使用列标题语义。');
@@ -80,7 +80,7 @@ requireText(commodityRow, 'export function nextMarketCommoditySort', '共享商�
 requireText(commodityRow, 'export function compareMarketOptionalValue', '共享排序必须统一缺失值排末尾规则。');
 requireText(commodityRowStyles, 'display: grid;', '共享商品独立表头必须直接显示，不得依赖首行内隐藏副本。');
 forbidText(commodityRowStyles, '.market-catalog-list > li:first-child > .market-commodity-row-header', '共享商品表头不得重新塞回首条数据行。');
-requireText(commodityRowStyles, '--entity-list-columns: minmax(8rem, 1.45fr) repeat(4, minmax(4.1rem, .68fr)) .8rem;', '共享商品数据行必须保持身份、四项指标和箭头的单行布局。');
+requireText(commodityRowStyles, '--entity-list-columns: minmax(8rem, 1.45fr) repeat(5, minmax(3.8rem, .64fr)) .8rem;', '共享商品数据行必须保持身份、五项指标和箭头的单行布局。');
 requireText(commodityRowStyles, '@container (max-width: 620px)', '共享商品数据行必须提供移动紧凑断点。');
 requireText(commodityRowStyles, '@container (max-width: 360px)', '共享商品数据行必须覆盖极窄屏。');
 requireText(commodityRowStyles, '.market-catalog-filter-disclosure > .market-catalog-filters', '地区筛选展开区必须保持折叠 disclosure 布局。');
@@ -88,6 +88,7 @@ requireText(commodityRowStyles, 'grid-template-columns: repeat(2, minmax(0, 1fr)
 
 requireText(marketPage, 'const buyVolume = Math.max(0, Number(market?.buyVolume || 0));', '地区商品买单量必须读取服务端市场摘要。');
 requireText(marketPage, 'const sellVolume = Math.max(0, Number(market?.sellVolume || 0));', '地区商品卖单量必须读取服务端市场摘要。');
+requireText(marketPage, 'tradeVolume24h: Math.max(0, Number(market?.tradeVolume24h || 0))', '地区商品 24h 成交量必须读取服务端市场摘要。');
 requireText(marketPage, "const marketPrice = typeof market?.officialPrice === 'number' ? market.officialPrice : undefined", '地区商品市场价必须读取官方系统价。');
 requireText(marketPage, 'realTrades.length > 1', '24h 变化必须至少由两笔真实成交生成。');
 requireText(marketPage, '官方系统价', '地区商品详情必须展示官方系统价。');
@@ -140,7 +141,7 @@ requireText(runtimeSpec, 'market product artwork keeps compact catalog and detai
 requireText(marketDesign, '商品目录 → 商品全局详情 → 地区商品详情', '订单簿设计必须记录商品优先三级钻取。');
 requireText(marketDesign, 'provinceId + assetKind + assetId', '订单簿设计必须保持地区隔离键。');
 requireText(pageDesign, '筛选默认折叠且不提供商品名称搜索框', '页面职责设计必须记录市场筛选折叠与无搜索规则。');
-requireText(pageDesign, '地区、卖单量、买单量、市场价和 24h 变化', '页面职责设计必须记录地区行核心字段。');
+requireText(pageDesign, '地区、卖单量、买单量、24h 成交量、市场价和 24h 价格变化', '页面职责设计必须记录地区行核心字段。');
 requireText(pageDesign, '排序不占用筛选面板', '页面职责设计必须记录表头排序规则。');
 requireText(uiDesign, '`MarketCommodityRow`', 'UI 设计系统必须记录共享市场商品行。');
 requireText(uiDesign, '移动端仍保持单行', 'UI 设计系统必须记录移动单行规则。');

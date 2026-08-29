@@ -11,7 +11,7 @@ import {
 import { formatCurrency, formatNumber } from '../../utils/formatters';
 import '../../styles/market-commodity-row.css';
 
-export type MarketCommoditySortKey = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume';
+export type MarketCommoditySortKey = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume' | 'volume24h';
 export type MarketSortDirection = EntityListSortDirection;
 
 const MARKET_SORT_DEFAULT_DIRECTION: Record<MarketCommoditySortKey, MarketSortDirection> = {
@@ -21,6 +21,7 @@ const MARKET_SORT_DEFAULT_DIRECTION: Record<MarketCommoditySortKey, MarketSortDi
   trend: 'desc',
   'buy-volume': 'desc',
   'sell-volume': 'desc',
+  volume24h: 'desc',
 };
 
 export type MarketCommoditySortState = EntityListSortState<Exclude<MarketCommoditySortKey, 'catalog'>>;
@@ -62,8 +63,9 @@ export function MarketCommodityHeader({
     { label: entityLabel, sortKey: entitySortKey },
     { label: '卖单量', sortKey: 'sell-volume' },
     { label: '买单量', sortKey: 'buy-volume' },
+    { label: '24h成交量', sortKey: 'volume24h' },
     { label: '市场价', sortKey: 'price' },
-    { label: '24h', sortKey: 'trend' },
+    { label: '24h价格变化', sortKey: 'trend' },
     { label: '' },
   ];
   return (
@@ -87,6 +89,7 @@ export interface MarketCommodityRowProps {
   regionPrimary?: boolean;
   sellVolume: number;
   buyVolume: number;
+  tradeVolume24h: number;
   marketPrice?: number;
   trend?: number;
   currentRegion?: boolean;
@@ -103,6 +106,7 @@ export function MarketCommodityRow({
   regionPrimary = false,
   sellVolume,
   buyVolume,
+  tradeVolume24h,
   marketPrice,
   trend,
   currentRegion = false,
@@ -147,6 +151,9 @@ export function MarketCommodityRow({
         </span>
         <span className="market-commodity-row__metric">
           <strong>{<CompactNumber value={buyVolume} />}</strong>
+        </span>
+        <span className="market-commodity-row__metric">
+          <strong>{<CompactNumber value={tradeVolume24h} />}</strong>
         </span>
         <span className="market-commodity-row__metric">
           <strong>{typeof marketPrice === 'number'

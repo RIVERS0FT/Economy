@@ -380,7 +380,7 @@ test('market commodity catalog keeps compact core metrics and opens a focused de
   await expect(wheatRow.locator('.market-commodity-row__name small')).toHaveText('原材料');
   const catalogHeader = page.locator('.market-commodity-row-header');
   await expect(catalogHeader).toHaveCount(1);
-  for (const label of ['商品', '卖单量', '买单量', '市场价', '24h']) {
+  for (const label of ['商品', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']) {
     await expect(catalogHeader.getByText(label, { exact: true })).toBeVisible();
   }
   const priceSortButton = catalogHeader.getByRole('button', { name: '市场价' });
@@ -390,7 +390,7 @@ test('market commodity catalog keeps compact core metrics and opens a focused de
   await expect(catalogHeader.locator('[aria-sort="ascending"]')).toHaveText('市场价');
   await priceSortButton.click();
   await expect(catalogHeader.locator('[aria-sort="ascending"], [aria-sort="descending"]')).toHaveCount(0);
-  for (const label of ['卖单量', '买单量', '市场价', '24h', '挂单差额', '基准偏离', '挂单状态']) {
+  for (const label of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化', '挂单差额', '基准偏离', '挂单状态']) {
     await expect(wheatRow.getByText(label, { exact: true })).toHaveCount(0);
   }
   await wheatRow.click();
@@ -461,7 +461,7 @@ test('mobile market catalog keeps one compact row without horizontal overflow', 
     const row = panel.querySelector<HTMLElement>('.market-commodity-row');
     const identity = row?.querySelector<HTMLElement>('.market-commodity-row__identity');
     const metrics = row ? [...row.querySelectorAll<HTMLElement>('.market-commodity-row__metric')] : [];
-    if (!row || !identity || metrics.length !== 4) throw new Error('mobile market catalog fixture is incomplete');
+    if (!row || !identity || metrics.length !== 5) throw new Error('mobile market catalog fixture is incomplete');
     const identityRect = identity.getBoundingClientRect();
     return {
       panelClientWidth: panel.clientWidth,
@@ -479,18 +479,18 @@ test('mobile market catalog keeps one compact row without horizontal overflow', 
   let layout = await inspect();
   expect(layout.panelScrollWidth).toBeLessThanOrEqual(layout.panelClientWidth + 1);
   expect(layout.rowScrollWidth).toBeLessThanOrEqual(layout.rowClientWidth + 1);
-  expect(layout.rowColumns).toBe(6);
+  expect(layout.rowColumns).toBe(7);
   for (const center of layout.metricCenters) expect(Math.abs(center - layout.identityCenter)).toBeLessThan(6);
   const catalogHeader = page.locator('.market-commodity-row-header');
   await expect(catalogHeader).toHaveCount(1);
-  for (const label of ['商品', '卖单量', '买单量', '市场价', '24h']) await expect(catalogHeader.getByText(label, { exact: true })).toBeVisible();
-  for (const label of ['卖单量', '买单量', '市场价', '24h', '挂单差额', '基准偏离', '挂单状态']) await expect(wheatRow.getByText(label, { exact: true })).toHaveCount(0);
+  for (const label of ['商品', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']) await expect(catalogHeader.getByText(label, { exact: true })).toBeVisible();
+  for (const label of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化', '挂单差额', '基准偏离', '挂单状态']) await expect(wheatRow.getByText(label, { exact: true })).toHaveCount(0);
 
   await page.setViewportSize({ width: 320, height: 720 });
   layout = await inspect();
   expect(layout.panelScrollWidth).toBeLessThanOrEqual(layout.panelClientWidth + 1);
   expect(layout.rowScrollWidth).toBeLessThanOrEqual(layout.rowClientWidth + 1);
-  expect(layout.rowColumns).toBe(6);
+  expect(layout.rowColumns).toBe(7);
   expect(pageErrors).toEqual([]);
 });
 
