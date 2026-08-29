@@ -27,7 +27,12 @@ export const STATE_SLICE_DEFINITIONS = Object.freeze({
   }),
   'player.production': Object.freeze({
     partition: 'player',
-    keys: Object.freeze(['facilityGroups', 'provinceFacilityGroups', 'facilityConstruction']),
+    keys: Object.freeze([
+      'facilityGroups',
+      'provinceFacilityGroups',
+      'facilityConstruction',
+      'factoryAutoOperationPolicies',
+    ]),
   }),
   'player.progression': Object.freeze({
     partition: 'player',
