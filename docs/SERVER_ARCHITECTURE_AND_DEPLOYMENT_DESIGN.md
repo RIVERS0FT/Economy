@@ -44,7 +44,7 @@
 ## 2. 领域模块
 
 - `domain-core.js`：商品目录、工厂目录、世界和玩家基础结构、商品订单与市场核心；
-- `provinces.js`：美国本土连续 48 个州级地区共享目录、地区规范化、`provinceId:assetId` 权威键、世界 30 迁移与默认地区运行时兼容别名；
+- `provinces.js`：美国本土连续 48 个州级地区共享目录（含州中心与首府中英文名称及经纬度）、地区规范化、`provinceId:assetId` 权威键、世界 30 迁移与默认地区运行时兼容别名；
 - `state-economic-baselines.js`：校验 `shared/us-state-economic-baselines.json` 与 48 州目录一一对应，提供 Census 2025-07-01 人口、BLS QCEW 2025-Q4 平均周薪和 BEA 2023 PCE 只读基准，并只对已有玩家经营入口的州生成 PCE 消费分配权重；运行时不得访问外部统计 API；
 - `domain.js`：唯一公共领域门面，其他服务器模块只从此导入公共能力；
 - `facility-groups.js`：工厂集群、统一周期、配方切换和工厂订单适配；

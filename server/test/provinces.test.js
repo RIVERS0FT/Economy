@@ -53,9 +53,24 @@ test('region catalog exposes 48 stable unique contiguous-state identifiers', () 
   assert.equal(PROVINCE_CATALOG.length, 48);
   assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.id)).size, 48);
   assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.mapName)).size, 48);
+  assert.equal(PROVINCE_CATALOG.every((province) => province.capitalName.length > 0), true);
+  assert.equal(PROVINCE_CATALOG.every((province) => province.capitalMapName.length > 0), true);
+  assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.capitalName)).size, 48);
+  assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.capitalMapName)).size, 48);
+  assert.equal(
+    PROVINCE_CATALOG.every((province) => Number.isFinite(province.capitalLongitude)
+      && province.capitalLongitude >= -125
+      && province.capitalLongitude <= -66
+      && Number.isFinite(province.capitalLatitude)
+      && province.capitalLatitude >= 24
+      && province.capitalLatitude <= 50),
+    true,
+  );
   assert.equal(LEGACY_REGION_IDS.every((id) => PROVINCE_CATALOG.some((province) => province.id === id)), true);
   assert.equal(PROVINCE_CATALOG.find((province) => province.id === CALIFORNIA)?.mapName, 'California');
+  assert.equal(PROVINCE_CATALOG.find((province) => province.id === CALIFORNIA)?.capitalName, '萨克拉门托');
   assert.equal(PROVINCE_CATALOG.find((province) => province.id === GEORGIA)?.mapName, 'Georgia');
+  assert.equal(PROVINCE_CATALOG.find((province) => province.id === GEORGIA)?.capitalMapName, 'Atlanta');
   assert.equal(PROVINCE_CATALOG.some((province) => province.mapName === 'Alaska'), false);
   assert.equal(PROVINCE_CATALOG.some((province) => province.mapName === 'Hawaii'), false);
   assert.equal(PROVINCE_CATALOG.some((province) => province.mapName === 'District of Columbia'), false);
