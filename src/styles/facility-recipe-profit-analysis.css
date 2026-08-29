@@ -9,8 +9,6 @@
 
 .facility-average-profit__copy {
   min-width: 0;
-  display: grid;
-  gap: 0.12rem;
 }
 
 .facility-average-profit__copy strong {
@@ -23,14 +21,6 @@
   white-space: nowrap;
 }
 
-.facility-average-profit__copy small {
-  overflow: hidden;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-tight);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .facility-average-profit__value {
   flex: 0 0 auto;
@@ -66,9 +56,6 @@
     gap: var(--space-2);
   }
 
-  .facility-average-profit__copy small {
-    font-size: 0.66rem;
-  }
 
   .facility-average-profit__value {
     font-size: var(--font-size-md);

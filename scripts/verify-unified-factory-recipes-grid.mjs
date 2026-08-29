@@ -204,6 +204,8 @@ for (const text of [
   '.facility-cluster-detail-card',
   '.facility-information',
   '.facility-information-details > .facility-average-profit',
+  '.facility-information-details > .facility-staffing-summary',
+  'grid-template-rows: auto auto auto;',
 ]) assert.equal(baseCss.includes(text), true, `工厂卡与详情基础样式缺少: ${text}`);
 
 for (const text of [

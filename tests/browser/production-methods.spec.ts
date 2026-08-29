@@ -26,6 +26,23 @@ test.describe('factory production methods', () => {
     await expect(informationMain).toContainText('抵押中');
     await expect(informationMain).toContainText('单厂平均利润／分钟');
     await expect(informationMain).toContainText('满员率');
+    await expect(informationMain.locator('.facility-average-profit__copy small')).toHaveCount(0);
+    const summaryRows = await informationMain.locator('.facility-information-details').evaluate((element) => {
+      const count = element.querySelector<HTMLElement>('.facility-count-summary');
+      const profit = element.querySelector<HTMLElement>('.facility-average-profit');
+      const staffing = element.querySelector<HTMLElement>('.facility-staffing-summary');
+      if (!count || !profit || !staffing) throw new Error('facility summary rows are incomplete');
+      const countBox = count.getBoundingClientRect();
+      const profitBox = profit.getBoundingClientRect();
+      const staffingBox = staffing.getBoundingClientRect();
+      return {
+        count: { top: countBox.top, bottom: countBox.bottom },
+        profit: { top: profitBox.top, bottom: profitBox.bottom },
+        staffing: { top: staffingBox.top, bottom: staffingBox.bottom },
+      };
+    });
+    expect(summaryRows.profit.top).toBeGreaterThanOrEqual(summaryRows.count.bottom);
+    expect(summaryRows.staffing.top).toBeGreaterThanOrEqual(summaryRows.profit.bottom);
     await expect(productionSettings.locator('.facility-production-method-summary')).toHaveCount(0);
     await expect(recipeSelect).toHaveAttribute('data-variant', 'production-config');
     await expect(methodSelect).toHaveAttribute('data-variant', 'production-config');
@@ -159,6 +176,19 @@ test.describe('factory production methods', () => {
       await expect(informationMain.locator('.facility-count-summary')).toBeVisible();
       await expect(informationMain.locator('.facility-average-profit')).toBeVisible();
       await expect(informationMain.locator('.facility-staffing-summary')).toBeVisible();
+      await expect(informationMain.locator('.facility-average-profit__copy small')).toHaveCount(0);
+      const mobileSummaryRows = await informationMain.locator('.facility-information-details').evaluate((element) => {
+        const count = element.querySelector<HTMLElement>('.facility-count-summary');
+        const profit = element.querySelector<HTMLElement>('.facility-average-profit');
+        const staffing = element.querySelector<HTMLElement>('.facility-staffing-summary');
+        if (!count || !profit || !staffing) throw new Error('mobile facility summary rows are incomplete');
+        const countBox = count.getBoundingClientRect();
+        const profitBox = profit.getBoundingClientRect();
+        const staffingBox = staffing.getBoundingClientRect();
+        return { countBottom: countBox.bottom, profitTop: profitBox.top, profitBottom: profitBox.bottom, staffingTop: staffingBox.top };
+      });
+      expect(mobileSummaryRows.profitTop).toBeGreaterThanOrEqual(mobileSummaryRows.countBottom);
+      expect(mobileSummaryRows.staffingTop).toBeGreaterThanOrEqual(mobileSummaryRows.profitBottom);
       await expect(recipeSelect).toBeVisible();
       await expect(methodSelect).toBeVisible();
       await expect(settlement).toBeVisible();
