@@ -39,7 +39,7 @@ export function FacilityRecipeProfitAnalysis({
     products,
     markets,
   });
-  const { profitPerMinute, staffingPercent, description, fallback, detail } = presentation;
+  const { profitPerMinute, fallback, detail } = presentation;
   const sign = profitPerMinute === null
     ? undefined
     : profitPerMinute > 0
@@ -56,7 +56,6 @@ export function FacilityRecipeProfitAnalysis({
     >
       <div className="facility-average-profit__copy">
         <strong>单厂平均利润／分钟</strong>
-        <small>{description} · 最近真实成交价 · 满员率 {staffingPercent}%</small>
       </div>
       <div className="facility-average-profit__value">
         {profitPerMinute === null ? (

@@ -14,6 +14,7 @@ const diagnosticsCss = read('src/styles/facility-operating-diagnostics.css');
 const controlsCss = read('src/styles/form-controls.css');
 const artworkCss = read('src/styles/product-artwork.css');
 const profitCss = read('src/styles/facility-recipe-profit-analysis.css');
+const profitAnalysis = read('src/components/facilities/FacilityRecipeProfitAnalysis.tsx');
 const browserTest = read('tests/browser/production-methods.spec.ts');
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
@@ -195,6 +196,11 @@ assert.ok(detail.indexOf('<FacilityStaffingSummary entry={entry} now={liveNow} /
 assert.equal(detail.includes('<strong>生产设置</strong>'), false, '生产配置不得恢复可见“生产设置”标题');
 for (const text of [
   '.facility-information-details > .facility-average-profit',
+  '.facility-information-details > .facility-staffing-summary',
+  'grid-template-rows: auto auto auto;',
+  'grid-row: 1;',
+  'grid-row: 2;',
+  'grid-row: 3;',
   '.facility-market-link-row .facility-market-link {',
   'display: inline-flex;',
   'white-space: nowrap;',
@@ -231,6 +237,8 @@ const profitRule = profitCss.slice(
 );
 assert.equal(formula.includes('<FacilityRecipeProfitAnalysis'), false, '生产结算不得继续包含单厂利润');
 assert.equal(detail.includes('<FacilityRecipeProfitAnalysis'), true, '工厂信息必须渲染单厂利润');
+assert.equal(profitAnalysis.includes('<small>'), false, '单厂平均利润行不得显示副说明');
+assert.equal(profitAnalysis.includes('最近真实成交价 · 满员率'), false, '单厂平均利润行不得恢复成交价与满员率副说明');
 assert.equal(groupCss.includes('.facility-information-details > .facility-average-profit'), true, '插画右侧信息布局必须承担利润分隔线');
 assert.equal(profitRule.includes('border-top:'), false, '利润组件基础样式不得绑定生产结算分隔线');
 for (const forbidden of ['border-radius:', 'background:']) {
@@ -243,6 +251,11 @@ for (const text of [
   "getByRole('option', { name: '节约生产' })",
   "getByRole('button', { name: /^查看钢材本地商品详情/ })",
   "getByRole('button', { name: /^查看机械本地商品详情/ })",
+  "locator('.facility-average-profit__copy small')).toHaveCount(0)",
+  'summaryRows.profit.top',
+  'summaryRows.staffing.top',
+  'mobileSummaryRows.profitTop',
+  'mobileSummaryRows.staffingTop',
   "settlement.locator('svg.product-icon')",
   "settlement.locator('.product-artwork')",
   "settlement.locator('.facility-formula-separator')",
@@ -282,7 +295,8 @@ for (const text of [
   '输入与输出均显示当前可用库存',
   '不显示 `+` 或其他连接字符',
   '移动端不得拉伸为全宽',
-  '运行中／冻结中／抵押中数量明细、单厂平均利润与满员率全部位于插画右侧主信息区',
+  '插画右侧主信息固定为三行',
+  '单厂平均利润固定第二行且只显示标题和值',
   '生产配置区不显示独立“生产设置”标题',
   '每个投入／产出物资槽整体使用原生按钮语义并可直接打开当前州对应本地商品详情',
   '流光伪元素必须被已完成填充自身裁剪',
