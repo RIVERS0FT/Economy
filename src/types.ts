@@ -229,11 +229,20 @@ export type OrderOwnerType = 'player' | 'population';
 
 export type TransportModeId = 'road' | 'rail' | 'air';
 export type TransportShipmentStatus = 'in-transit' | 'arrived';
+export type TransportTripType = 'round' | 'one-way';
+
+export interface TransportStopPlanEntry {
+  provinceId: string;
+  arrivesAt: number;
+  deliveredAt?: number | null;
+}
 
 export interface TransportRoute {
   id: string;
   sourceProvinceId: string;
   destinationProvinceId: string;
+  viaProvinceIds?: string[];
+  tripType?: TransportTripType;
   productId: string;
   quantity: number;
   mode: TransportModeId;
@@ -246,6 +255,9 @@ export interface TransportShipment {
   routeId?: string;
   sourceProvinceId: string;
   destinationProvinceId: string;
+  viaProvinceIds?: string[];
+  tripType?: TransportTripType;
+  stopPlan?: TransportStopPlanEntry[];
   productId: string;
   quantity: number;
   mode: TransportModeId;

@@ -13,7 +13,7 @@ import {
 import { feature } from 'topojson-client';
 import usStateAtlas from 'us-atlas/states-10m.json';
 import regionCatalog from '../../../shared/provinces.json';
-import type { ProvinceAssetSummary, ProvinceDefinition } from '../../types';
+import type { ProvinceAssetSummary, ProvinceDefinition, TransportTripType } from '../../types';
 import { formatNumber } from '../../utils/formatters';
 import { createProvinceMapCamera, type ProvinceMapCameraController } from './provinceMapCamera';
 import {
@@ -29,6 +29,20 @@ import {
 const MOBILE_MAP_MAX_WIDTH = 720;
 
 export type ProvinceMapLens = 'political' | 'assets' | 'industry' | 'market' | 'alerts';
+
+export interface ProvinceMapRouteOverlay {
+  id: string;
+  stops: string[];
+  closed: boolean;
+  tripType: TransportTripType;
+  kind: 'draft' | 'saved' | 'highlight';
+}
+
+export interface ProvinceMapRoutePicking {
+  active: boolean;
+  stops: string[];
+  onPickProvince: (provinceId: string) => void;
+}
 
 const regionByMapName = new Map(regionCatalog.map((region) => [region.mapName, region]));
 const atlasTopology = usStateAtlas as unknown as Parameters<typeof feature>[0];
@@ -55,6 +69,15 @@ const mainlandFeatures = atlasStateCollection.features.flatMap((stateFeature) =>
 });
 
 const provinceMapProjection = createProvinceMapProjection(mainlandFeatures.map((entry) => entry.geometry));
+const capitalPointByProvinceId = new Map(
+  regionCatalog.map((region) => {
+    const capital = region as ProvinceDefinition;
+    return [
+      region.id,
+      provinceMapProjection.project([capital.capitalLongitude, capital.capitalLatitude]),
+    ] as const;
+  }),
+);
 const provinceMapWorld = mainlandFeatures.map((entry) => ({
   ...entry,
   path: provinceGeometryPath(entry.geometry, provinceMapProjection),
@@ -143,6 +166,8 @@ export function UsMainlandMap({
   onSelectProvince,
   lens = 'assets',
   unlockedProvinceIds,
+  routePicking = null,
+  routeOverlays = [],
 }: {
   provinces: ProvinceDefinition[];
   summaries: Record<string, ProvinceAssetSummary>;
@@ -150,6 +175,8 @@ export function UsMainlandMap({
   onSelectProvince: (provinceId: string) => void;
   lens?: ProvinceMapLens;
   unlockedProvinceIds?: string[];
+  routePicking?: ProvinceMapRoutePicking | null;
+  routeOverlays?: ProvinceMapRouteOverlay[];
 }) {
   const unlockedSet = useMemo(() => new Set(unlockedProvinceIds || []), [unlockedProvinceIds]);
   const data = useMemo(() => provinces.map((province) => (
@@ -165,6 +192,50 @@ export function UsMainlandMap({
   const [labels, setLabels] = useState<ProvinceMapLabelLayout[]>([]);
   const [hoveredProvinceId, setHoveredProvinceId] = useState<string | null>(null);
   const hoveredDatum = hoveredProvinceId ? datumByProvinceId.get(hoveredProvinceId) ?? null : null;
+  const routePickingActive = Boolean(routePicking?.active);
+  const routeOverlaysMarkup = useMemo(() => routeOverlays.map((overlay) => {
+    const points = overlay.stops
+      .map((provinceId) => capitalPointByProvinceId.get(provinceId))
+      .filter((point): point is { x: number; y: number } => Boolean(point));
+    if (points.length < 2) return null;
+    const forwardPath = points
+      .map((point, index) => `${index === 0 ? 'M' : 'L'}${formatGeometryValue(point.x)} ${formatGeometryValue(point.y)}`)
+      .join(' ');
+    const returnPoints = overlay.closed || overlay.tripType !== 'round'
+      ? []
+      : [points[points.length - 1], ...points.slice(1, -1).reverse(), points[0]];
+    const returnPath = returnPoints.length < 2 ? '' : returnPoints
+      .map((point, index) => `${index === 0 ? 'M' : 'L'}${formatGeometryValue(point.x)} ${formatGeometryValue(point.y)}`)
+      .join(' ');
+    return (
+      <g
+        key={overlay.id}
+        className="province-map-route"
+        data-route-id={overlay.id}
+        data-route-kind={overlay.kind}
+        data-route-stop-count={overlay.stops.length}
+        data-route-closed={overlay.closed ? 'true' : 'false'}
+        data-route-trip-type={overlay.tripType}
+      >
+        <path className="province-map-route-path" d={forwardPath} vectorEffect="non-scaling-stroke" />
+        {returnPath ? (
+          <path className="province-map-route-return-path" d={returnPath} vectorEffect="non-scaling-stroke" />
+        ) : null}
+        {points.map((point, index) => (
+          <circle
+            key={`${overlay.id}-stop-${index}`}
+            className="province-map-route-stop"
+            data-stop-index={index}
+            data-stop-first={index === 0 ? 'true' : 'false'}
+            data-stop-last={index === points.length - 1 ? 'true' : 'false'}
+            cx={formatGeometryValue(point.x)}
+            cy={formatGeometryValue(point.y)}
+            r={index === 0 || index === points.length - 1 ? 5 : 4}
+          />
+        ))}
+      </g>
+    );
+  }), [routeOverlays]);
 
   const updateViewportMetadata = useCallback((container: HTMLElement) => {
     const width = container.clientWidth;
@@ -232,8 +303,12 @@ export function UsMainlandMap({
   }, [selectedProvinceId]);
 
   const selectProvince = useCallback((provinceId: string) => {
+    if (routePicking?.active) {
+      routePicking.onPickProvince(provinceId);
+      return;
+    }
     onSelectProvince(provinceId);
-  }, [onSelectProvince]);
+  }, [onSelectProvince, routePicking]);
 
   const handleRegionKeyDown = useCallback((event: KeyboardEvent<SVGPathElement>, provinceId: string) => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -248,7 +323,7 @@ export function UsMainlandMap({
     tooltipRef.current.style.transform = `translate3d(${left}px, ${top}px, 0)`;
   }, [hoveredProvinceId]);
 
-  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}州面和中文州全名位于同一个静态 SVG 世界面，通过同一个合成相机同步缩放和平移。点击州面可以打开对应州页面，滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置缩放和平移。`;
+  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}州面和中文州全名位于同一个静态 SVG 世界面，通过同一个合成相机同步缩放和平移。${routePickingActive ? '当前处于运输路线选州模式，按顺序点击州面即可追加站点，再次点击起点州可以闭环。' : '点击州面可以打开对应州页面，'}滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置缩放和平移。`;
 
   return (
     <div
@@ -260,6 +335,8 @@ export function UsMainlandMap({
       data-map-zoom-min="0.5"
       data-map-zoom-max="4"
       data-map-label-mode="curved-chinese-full-name"
+      data-route-picking={routePickingActive ? 'true' : 'false'}
+      data-route-overlay-count={routeOverlays.length}
     >
       <div
         className="province-map-echart province-map-static-map"
@@ -267,6 +344,8 @@ export function UsMainlandMap({
         aria-label="美国本土州级经营地图"
         data-map-ready="true"
         data-testid="us-mainland-map"
+        data-route-picking={routePickingActive ? 'true' : 'false'}
+        data-route-overlay-count={routeOverlays.length}
       >
         <div
           ref={viewportRef}
@@ -291,6 +370,7 @@ export function UsMainlandMap({
                     const datum = datumByProvinceId.get(entry.provinceId);
                     if (!datum) return null;
                     const selected = entry.provinceId === selectedProvinceId;
+                    const routePickable = routePickingActive && !datum.locked;
                     const style = {
                       '--province-map-area-color': datum.areaColor,
                       '--province-map-border-color': datum.borderColor,
@@ -303,6 +383,7 @@ export function UsMainlandMap({
                         data-province-name={entry.provinceName}
                         data-selected={selected ? 'true' : 'false'}
                         data-locked={datum.locked ? 'true' : 'false'}
+                        data-route-pickable={routePickable ? 'true' : 'false'}
                         d={entry.path}
                         fillRule="evenodd"
                         vectorEffect="non-scaling-stroke"
@@ -319,6 +400,9 @@ export function UsMainlandMap({
                       />
                     );
                   })}
+                </g>
+                <g className="province-map-routes" pointerEvents="none" aria-hidden="true">
+                  {routeOverlaysMarkup}
                 </g>
                 <g className="province-map-label-camera" pointerEvents="none" aria-hidden="true">
                   {labels.map((label) => (

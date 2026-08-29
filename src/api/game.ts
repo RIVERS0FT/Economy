@@ -1,4 +1,4 @@
-import type { AssetKind, EconomyState, MarketDetail, OrderSide, TransportModeId } from '../types';
+import type { AssetKind, EconomyState, MarketDetail, OrderSide, TransportModeId, TransportTripType } from '../types';
 import type { AuctionBidHistory, AuctionItem } from '../auctions/types';
 import type { FacilityBuildProcurementGroup } from '../utils/facilityBuildProcurementGroups';
 import type { FacilityBuildProcurementQuote } from '../utils/facilityBuildProcurement';
@@ -158,6 +158,8 @@ export interface OnlineAutoTradePolicyInput {
 export interface TransportRouteInput {
   sourceProvinceId: string;
   destinationProvinceId: string;
+  viaProvinceIds?: string[];
+  tripType?: TransportTripType;
   productId: string;
   quantity: number;
   mode: TransportModeId;

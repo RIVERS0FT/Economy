@@ -218,6 +218,8 @@ for (const text of [
   'province-map-label-camera', 'data-map-world-path-count={provinceMapWorld.length}', 'data-map-path-revision="1"',
   'data-selected-province-id={selectedProvinceId ?? \'\'}', 'data-map-lens={lens}', 'data-map-label-mode="curved-chinese-full-name"',
   'data-map-ready="true"', 'data-testid="us-mainland-map"',
+  'capitalPointByProvinceId', 'province-map-routes', 'province-map-route-path', 'province-map-route-return-path',
+  'routePicking', 'data-route-picking={routePickingActive ? \'true\' : \'false\'}', 'data-route-pickable',
 ]) assert.ok(mapComponent.includes(text), `静态 SVG 美国本土地图缺少: ${text}`);
 for (const forbidden of [
   '<EconomyChart', 'EChartsType', 'registerEChartsMap', "type: 'map'", "type: 'geoRoam'", 'dispatchAction',
@@ -267,6 +269,8 @@ for (const text of [
   '.province-map-camera-surface', 'transform-origin: 0 0;', '.province-map-world-svg', '.province-map-region',
   '.province-map-label', '.province-map-label-glyph', 'fill: var(--color-map-label);', "[data-selected='true']",
   'touch-action: none;', '.province-map-static-tooltip',
+  '.province-map-routes', '.province-map-route-path', '.province-map-route-return-path', '.province-map-route-stop',
+  "[data-route-picking='true']", "[data-route-kind='draft']", "[data-route-kind='highlight']",
 ]) assert.ok(mapStyles.includes(text), `静态地图样式缺少: ${text}`);
 assert.equal(mapStyles.includes('will-change: transform;'), false, '地图相机不得永久占用 will-change 合成资源');
 for (const forbidden of ['.province-map-marker', '.province-map-silhouette', '.province-map-command-panel', '.province-map-meta', '.province-map-legend']) {

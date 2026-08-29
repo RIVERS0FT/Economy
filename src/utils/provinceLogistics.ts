@@ -1,4 +1,4 @@
-import type { ProvinceDefinition, TransportModeId } from '../types';
+import type { ProvinceDefinition, TransportModeId, TransportTripType } from '../types';
 
 export const PROVINCE_UNLOCK_BASE_COST = 1500;
 export const PROVINCE_UNLOCK_COST_PER_500_KM = 300;
@@ -21,6 +21,7 @@ export const TRANSPORT_MODES: Record<TransportModeId, {
 export const TRANSPORT_BASE_SECONDS_PER_KM = 60 / 1000;
 export const TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER = 20;
 export const TRANSPORT_MAX_ROUTES_PER_PLAYER = 50;
+export const TRANSPORT_DEFAULT_TRIP_TYPE: TransportTripType = 'round';
 
 function toRadians(value: number) {
   return value * Math.PI / 180;
@@ -45,6 +46,105 @@ export function provinceUnlockCost(provinceId: string, startingProvinceId: strin
   const distanceKm = provinceDistanceKm(left, right);
   const cost = PROVINCE_UNLOCK_BASE_COST + PROVINCE_UNLOCK_COST_PER_500_KM * Math.floor(distanceKm / 500);
   return Math.min(PROVINCE_UNLOCK_MAX_COST, cost);
+}
+
+export interface TransportRouteStopsInput {
+  sourceProvinceId: string;
+  destinationProvinceId: string;
+  viaProvinceIds?: string[];
+  tripType?: TransportTripType;
+}
+
+export interface TransportRouteLeg {
+  fromProvinceId: string;
+  toProvinceId: string;
+  distanceKm: number;
+  durationMs: number;
+  cost: number;
+  delivers: boolean;
+}
+
+export interface TransportRoutePlanMetrics {
+  distanceKm: number;
+  durationMs: number;
+  cost: number;
+  deliveryStops: string[];
+  legs: TransportRouteLeg[];
+}
+
+export function transportRouteViaIds(route: Pick<TransportRouteStopsInput, 'viaProvinceIds'>) {
+  return Array.isArray(route.viaProvinceIds) ? route.viaProvinceIds.filter(Boolean) : [];
+}
+
+export function transportRouteStopIds(route: TransportRouteStopsInput) {
+  return [
+    route.sourceProvinceId,
+    ...transportRouteViaIds(route),
+    route.destinationProvinceId,
+  ].filter(Boolean);
+}
+
+export function isTransportRouteClosed(route: TransportRouteStopsInput) {
+  return Boolean(route.sourceProvinceId)
+    && route.sourceProvinceId === route.destinationProvinceId;
+}
+
+export function transportTraversalStopIds(route: TransportRouteStopsInput) {
+  const stops = transportRouteStopIds(route);
+  if (isTransportRouteClosed(route)) return stops;
+  if (route.tripType === 'round') return [...stops, ...stops.slice(0, -1).reverse()];
+  return stops;
+}
+
+export function transportDeliveryStopIds(route: TransportRouteStopsInput) {
+  const viaProvinceIds = transportRouteViaIds(route);
+  if (isTransportRouteClosed(route)) return [...viaProvinceIds];
+  return route.destinationProvinceId ? [...viaProvinceIds, route.destinationProvinceId] : [...viaProvinceIds];
+}
+
+export function transportRoutePlanMetrics(
+  route: TransportRouteStopsInput & { mode: TransportModeId; quantity: number },
+  provinceById: Map<string, ProvinceDefinition>,
+): TransportRoutePlanMetrics | null {
+  const traversalStopIds = transportTraversalStopIds(route);
+  if (traversalStopIds.length < 2) return null;
+  const deliveryStopSet = new Set(transportDeliveryStopIds(route));
+  const deliveredStops = new Set<string>();
+  const legs: TransportRouteLeg[] = [];
+  let distanceKm = 0;
+  let durationMs = 0;
+  let cost = 0;
+  for (let index = 0; index < traversalStopIds.length - 1; index += 1) {
+    const fromProvinceId = traversalStopIds[index];
+    const toProvinceId = traversalStopIds[index + 1];
+    const from = provinceById.get(fromProvinceId);
+    const to = provinceById.get(toProvinceId);
+    if (!from || !to) return null;
+    const legDistanceKm = from.id === to.id ? 0 : provinceDistanceKm(from, to);
+    const legDurationMs = transportDurationMs(route.mode, legDistanceKm);
+    const delivers = deliveryStopSet.has(to.id) && !deliveredStops.has(to.id);
+    const legCost = transportCost(route.mode, delivers ? route.quantity : 0, legDistanceKm);
+    if (delivers) deliveredStops.add(to.id);
+    distanceKm += legDistanceKm;
+    durationMs += legDurationMs;
+    cost += legCost;
+    legs.push({
+      fromProvinceId,
+      toProvinceId,
+      distanceKm: legDistanceKm,
+      durationMs: legDurationMs,
+      cost: legCost,
+      delivers,
+    });
+  }
+  if (deliveredStops.size < 1) return null;
+  return {
+    distanceKm,
+    durationMs,
+    cost: Math.round(cost * 1_000_000) / 1_000_000,
+    deliveryStops: [...deliveredStops],
+    legs,
+  };
 }
 
 export function transportCost(mode: TransportModeId, quantity: number, distanceKm: number) {

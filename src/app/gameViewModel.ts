@@ -31,6 +31,7 @@ import type {
   TradeRecord,
   ProvinceDefinition,
   TransportModeId,
+  TransportTripType,
 } from '../types';
 import { canAcceptRevision } from './revisionGate.js';
 import type { StatePartitionName } from './stateDelivery.js';
@@ -148,6 +149,8 @@ export interface LoadedGameViewModel {
   transportShip: (input: {
     sourceProvinceId: string;
     destinationProvinceId: string;
+    viaProvinceIds?: string[];
+    tripType?: TransportTripType;
     productId: string;
     quantity: number;
     mode: TransportModeId;
@@ -155,6 +158,8 @@ export interface LoadedGameViewModel {
   createTransportRoute: (input: {
     sourceProvinceId: string;
     destinationProvinceId: string;
+    viaProvinceIds?: string[];
+    tripType?: TransportTripType;
     productId: string;
     quantity: number;
     mode: TransportModeId;
@@ -162,6 +167,8 @@ export interface LoadedGameViewModel {
   updateTransportRoute: (routeId: string, input: {
     sourceProvinceId: string;
     destinationProvinceId: string;
+    viaProvinceIds?: string[];
+    tripType?: TransportTripType;
     productId: string;
     quantity: number;
     mode: TransportModeId;

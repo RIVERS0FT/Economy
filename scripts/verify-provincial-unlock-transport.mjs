@@ -45,12 +45,21 @@ requireText(warehouseDesign, '60 秒 / 1,000 公里', '仓库设计必须锁定�
 requireText(warehouseDesign, '计入运输就业人口收入', '仓库设计必须记录运费计入运输就业。');
 requireText(warehouseDesign, '在途商品按起始州官方系统价计入玩家财富', '仓库设计必须记录在途估值口径。');
 requireText(warehouseDesign, '每名玩家最多保存 50 条运输路线', '仓库设计必须记录路线数量上限。');
+requireText(warehouseDesign, '站点数量不设上限', '仓库设计必须记录站点数量无上限。');
+requireText(warehouseDesign, '非闭环默认 `round` 往返运输', '仓库设计必须记录非闭环默认往返。');
+requireText(warehouseDesign, '整链一次发运、逐站交付', '仓库设计必须记录整链一次发运逐站交付。');
+requireText(warehouseDesign, '空驶段只按该段固定成本计费', '仓库设计必须记录空驶段计费口径。');
+requireText(warehouseDesign, '旧路线（无 `viaProvinceIds`、无 `tripType`）与历史在途记录（无 `stopPlan`）按原单段语义', '仓库设计必须记录旧数据兼容边界。');
 requireText(warehouseDesign, '路线只允许手动发运', '仓库设计必须记录路线不自动循环。');
 requireText(pageDesign, '新玩家首次进入游戏必须先选择起始州', '页面设计必须记录起始州选择流程。');
 requireText(pageDesign, '未解锁州点击后只显示解锁面板', '页面设计必须记录解锁面板。');
 requireText(pageDesign, '跨州运输路线、发运与运输记录唯一显示在独立 `TransportPage`', '页面设计必须记录独立运输入口归属。');
 requireText(pageDesign, '路线只允许玩家手动发运', '页面设计必须锁定路线手动发运边界。');
+requireText(pageDesign, '在地图上选择', '页面设计必须记录地图选州入口。');
+requireText(pageDesign, '按顺序点击已解锁州面追加站点', '页面设计必须记录按顺序选州规则。');
+requireText(pageDesign, '按首府坐标顺序连接的路线连线', '页面设计必须记录首府顺序连线可视化。');
 requireText(serverDesign, 'transportShipments', '服务器设计必须记录运输记录存储。');
+requireText(serverDesign, '`stopPlan` 注册“下一未交付站”', '服务器设计必须记录逐站到达调度。');
 requireText(orderBookDesign, '运输中的商品按起始州官方系统价计入玩家财富', '订单簿设计必须记录在途估值口径。');
 
 requireText(provinceAccess, 'PROVINCE_UNLOCK_BASE_COST = 1500', '州访问模块必须锁定基础解锁费用。');
@@ -118,6 +127,9 @@ if (warehousePanel.includes('warehouse-product-card-in-transit')) failures.push(
 for (const text of ['title="运输"', 'title="运输路线"', 'title="运输记录"', '增加路线', 'createTransportRoute', 'updateTransportRoute', 'deleteTransportRoute', 'dispatchTransportRoute']) {
   requireText(transportPage, text, `运输页缺少：${text}`);
 }
+for (const text of ['在地图上选择', '每站数量', '交付站数', '追加中间站', '往返运输（默认）', 'useTransportRouteDraft']) {
+  requireText(transportPage, text, `运输页多站点编辑缺少：${text}`);
+}
 requireText(navigation, "{ id: 'transport', label: '运输' }", '一级导航必须包含运输。');
 requireText(pageRouter, "transport: loadTransportPage", '页面路由必须预加载运输页。');
 requireText(pageRouter, "case 'transport':", '页面路由必须渲染运输页。');
@@ -151,6 +163,14 @@ if (!transportTest.includes('dispatching and deleting a route leaves the shipmen
 }
 if (!transportTest.includes('transport route limit is enforced')) {
   failures.push('运输测试必须覆盖路线数量上限。');
+}
+for (const name of [
+  'multi-stop routes validate ordered stations without a station cap',
+  'round-trip dispatch delivers every stop and charges empty return legs once',
+  'closed loop dispatch returns to the starting state as one in-transit shipment',
+  'staged arrivals settle each stop at its own deadline',
+]) {
+  if (!transportTest.includes(name)) failures.push(`运输测试必须覆盖多站点规则：${name}`);
 }
 
 if (failures.length > 0) {
