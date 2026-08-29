@@ -6,6 +6,7 @@ on:
       - codex/factory-auto-operation-v2
     paths:
       - scripts/sync-factory-auto-operation-authority.mjs
+      - scripts/sync-factory-auto-operation-authority-v2.mjs
       - .github/workflows/factory-auto-operation-authority-sync.yml
 
 permissions:
@@ -24,10 +25,10 @@ jobs:
         with:
           node-version: 24.4.0
       - name: Synchronize authority docs
-        run: node scripts/sync-factory-auto-operation-authority.mjs
+        run: node scripts/sync-factory-auto-operation-authority-v2.mjs
       - name: Commit synchronized docs and remove one-time tooling
         run: |
-          git rm scripts/sync-factory-auto-operation-authority.mjs .github/workflows/factory-auto-operation-authority-sync.yml
+          git rm scripts/sync-factory-auto-operation-authority.mjs scripts/sync-factory-auto-operation-authority-v2.mjs .github/workflows/factory-auto-operation-authority-sync.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add docs
