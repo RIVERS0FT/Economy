@@ -208,7 +208,11 @@ function AuthenticatedApp() {
   if (!user) {
     return (
       <>
-        <LoginPage inviteCode={inviteCode} onAuthenticated={authenticated} />
+        <LoginPage
+          inviteCode={inviteCode}
+          onAuthenticated={authenticated}
+          onRegistrationCompleted={clearInvitationCodeFromLocation}
+        />
         {authError ? (
           <div className="auth-service-warning" role="alert">
             <span>{authError}</span>
