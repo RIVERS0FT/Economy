@@ -6,8 +6,11 @@ import {
 } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { subscribeStateAuthoritySlice } from '../app/stateDelivery.js';
-import { requestAutoSellPanel } from '../auto-sell/autoSellStorage';
 import { tutorialStepDefinition, TUTORIAL_STEPS } from './tutorialDefinition';
+import {
+  FACTORY_AUTO_OPERATION_SAVED_EVENT,
+  type FactoryAutoOperationSavedDetail,
+} from './tutorialEvents';
 import {
   clearTutorialRun,
   createTutorialRun,
@@ -44,7 +47,6 @@ export interface GameTutorialController {
   openCurrentTarget: () => void;
   recordBuildSubmit: (facilityTypeId: string) => void;
   recordFacilityStartClick: (facilityTypeId: string) => void;
-  recordAutoSellSetting: (productId: string) => void;
   recordAutoSellCompletion: (productId: string) => void;
   recordResearchStart: () => void;
   recordBankDeposit: () => void;
@@ -82,12 +84,20 @@ function advanceRun(
   };
 }
 
-function preferredSellProductId(model: LoadedGameViewModel, requested?: string) {
-  if (requested && model.game.products.some((product) => product.id === requested)) return requested;
-  const stocked = model.game.products.find((product) => (
-    Number(model.game.inventories[product.id]?.available || 0) > 0
-  ));
-  return stocked?.id ?? model.game.products[0]?.id ?? 'wheat';
+function facilityOutputProductId(model: LoadedGameViewModel, facilityTypeId: string) {
+  const group = model.game.facilityGroups.find((candidate) => candidate.facilityTypeId === facilityTypeId);
+  const type = model.game.facilityTypes.find((candidate) => candidate.id === facilityTypeId);
+  if (!group || !type) return null;
+  const directRecipe = type.recipes.find((recipe) => recipe.id === group.activeRecipeId);
+  if (directRecipe) return directRecipe.output.productId;
+  for (const methodGroup of type.productionMethodGroups ?? []) {
+    for (const method of methodGroup.methods) {
+      for (const plan of Object.values(method.plansByRecipeId)) {
+        if (plan.recipeId === group.activeRecipeId) return plan.output.productId;
+      }
+    }
+  }
+  return type.output.productId;
 }
 
 export function useGameTutorial(model: LoadedGameViewModel): GameTutorialController {
@@ -244,15 +254,8 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
 
   const openCurrentTarget = useCallback(() => {
     if (!run) return;
-    const definition = tutorialStepDefinition(run.currentStep);
-    if (run.currentStep === 'set-auto-sell') {
-      const productId = preferredSellProductId(model, run.context.productId);
-      requestAutoSellPanel(userId, productId);
-      model.setTab('market');
-      return;
-    }
-    model.setTab(definition.targetTab);
-  }, [model, run, userId]);
+    model.setTab(tutorialStepDefinition(run.currentStep).targetTab);
+  }, [model, run]);
 
   const recordBuildSubmit = useCallback((facilityTypeId: string) => {
     updateCurrentRun('build-facility', 'buildSubmits', { facilityTypeId });
@@ -266,12 +269,22 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     });
   }, [model, updateCurrentRun]);
 
-  const recordAutoSellSetting = useCallback((productId: string) => {
-    updateCurrentRun('set-auto-sell', 'autoSellSettings', {
-      productId,
-      autoSellStartedAt: Date.now(),
-    });
-  }, [updateCurrentRun]);
+  useEffect(() => {
+    if (!run || run.currentStep !== 'set-auto-sell') return undefined;
+    const handleSaved = (event: Event) => {
+      const detail = (event as CustomEvent<FactoryAutoOperationSavedDetail>).detail;
+      if (Number(detail?.userId) !== Number(userId) || !detail?.facilityTypeId) return;
+      const productId = facilityOutputProductId(model, detail.facilityTypeId);
+      if (!productId) return;
+      updateCurrentRun('set-auto-sell', 'autoSellSettings', {
+        facilityTypeId: detail.facilityTypeId,
+        productId,
+        autoSellStartedAt: Date.now(),
+      });
+    };
+    window.addEventListener(FACTORY_AUTO_OPERATION_SAVED_EVENT, handleSaved);
+    return () => window.removeEventListener(FACTORY_AUTO_OPERATION_SAVED_EVENT, handleSaved);
+  }, [model, run, updateCurrentRun, userId]);
 
   const recordAutoSellCompletion = useCallback((productId: string) => {
     setRun((current) => {
@@ -326,7 +339,6 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     openCurrentTarget,
     recordBuildSubmit,
     recordFacilityStartClick,
-    recordAutoSellSetting,
     recordAutoSellCompletion,
     recordResearchStart,
     recordBankDeposit,
@@ -336,7 +348,6 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     openCurrentTarget,
     ready,
     recordAutoSellCompletion,
-    recordAutoSellSetting,
     recordBankDeposit,
     recordBuildSubmit,
     recordFacilityStartClick,
