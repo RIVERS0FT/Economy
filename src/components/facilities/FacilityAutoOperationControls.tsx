@@ -9,6 +9,7 @@ import {
   getStateAuthoritySnapshot,
   subscribeStateAuthorityDependencies,
 } from '../../app/stateDelivery.js';
+import { announceFactoryAutoOperationSaved } from '../../game-guide/tutorialEvents';
 import type { FacilityGroup } from '../../types';
 import { SelectInput } from '../ui/FormControls';
 import { Button, SwitchControl } from '../ui/layout';
@@ -63,6 +64,14 @@ export function FacilityAutoOperationControls({ group }: { group: FacilityGroup 
     try {
       const response = await saveFactoryAutoOperationPolicy(group.provinceId, group.facilityTypeId, draft);
       setMessage(response.result.message || (response.result.ok ? '自动经营策略已保存' : '自动经营策略保存失败'));
+      if (response.result.ok) {
+        const state = getStateAuthoritySnapshot().state;
+        announceFactoryAutoOperationSaved({
+          userId: Number(state?.userId || 0),
+          provinceId: group.provinceId,
+          facilityTypeId: group.facilityTypeId,
+        });
+      }
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : '自动经营策略保存失败');
     } finally {
