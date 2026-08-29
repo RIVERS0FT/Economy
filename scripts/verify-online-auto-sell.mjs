@@ -57,12 +57,14 @@ for (const [path, texts] of [
   ['server/src/online-auto-buy.js', [
     'factoryAutoTradeExecutionPolicyFor(player, productId, provinceId)?.buy',
     '当前工厂策略无需自动采购该商品',
+    '已撤销旧托管买单',
     'managedOnlineAutoBuyOrderFor',
     'applySettledCommodityOrder',
   ]],
   ['server/src/online-auto-sell.js', [
     'factoryAutoTradeExecutionPolicyFor(player, productId, provinceId)?.sell',
     '当前工厂策略无需自动出售该商品',
+    '已撤销旧托管卖单',
     'productionReservedQuantitiesForPlayer',
     'contractAvailableHoldForOnlineTrade',
     'managedOnlineAutoSellOrderFor',
@@ -75,6 +77,12 @@ for (const [path, texts] of [
   ['server/src/warehouse.js', [
     'createFactoryAutoTradeExecutionClientState(player)',
     'createFactoryAutoOperationClientState(player)',
+  ]],
+  ['src/auto-trade/useOnlineAutoTrade.ts', [
+    'Object.keys(game.onlineAutoSellManagedOrderIds ?? {})',
+    'Object.keys(game.onlineAutoBuyManagedOrderIds ?? {})',
+    'if (!policy?.enabled) return status.hasManagedSellOrder',
+    'if (!policy?.enabled) return status.hasManagedBuyOrder',
   ]],
   ['src/api/game.ts', [
     'FactoryAutoOperationPolicyInput',

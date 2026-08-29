@@ -438,20 +438,32 @@ export function useOnlineAutoTrade(
     );
     const enabledSellProductIds = Object.entries(sellPolicies)
       .filter(([, policy]) => policy?.enabled)
-      .map(([productId]) => productId)
-      .sort(byCatalogOrder);
+      .map(([productId]) => productId);
     const enabledBuyProductIds = Object.entries(buyPolicies)
       .filter(([, policy]) => policy?.enabled)
-      .map(([productId]) => productId)
-      .sort(byCatalogOrder);
+      .map(([productId]) => productId);
+    // Legacy managed links remain maintenance candidates even when factory-derived policy is now disabled.
+    // The server re-derives authority and commits cancellation before these links can influence the new strategy.
+    const sellProductIds = [...new Set([
+      ...enabledSellProductIds,
+      ...Object.keys(game.onlineAutoSellManagedOrderIds ?? {}),
+    ])].sort(byCatalogOrder);
+    const buyProductIds = [...new Set([
+      ...enabledBuyProductIds,
+      ...Object.keys(game.onlineAutoBuyManagedOrderIds ?? {}),
+    ])].sort(byCatalogOrder);
 
-    const sellProductId = enabledSellProductIds.find((productId) => {
+    const sellProductId = sellProductIds.find((productId) => {
       const status = statusFor(productId, game);
+      const policy = sellPolicies[productId];
+      if (!policy?.enabled) return status.hasManagedSellOrder;
       return (!status.blockedSellByOwnBuy && status.sellNeedsMaintenance)
         || (status.blockedSellByOwnBuy && status.hasManagedSellOrder);
     });
-    const buyProductId = sellProductId ? undefined : enabledBuyProductIds.find((productId) => {
+    const buyProductId = sellProductId ? undefined : buyProductIds.find((productId) => {
       const status = statusFor(productId, game);
+      const policy = buyPolicies[productId];
+      if (!policy?.enabled) return status.hasManagedBuyOrder;
       return (!status.blockedBuyByOwnSell && status.buyNeedsMaintenance)
         || (status.blockedBuyByOwnSell && status.hasManagedBuyOrder);
     });
