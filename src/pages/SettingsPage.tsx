@@ -74,7 +74,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
 
   function restartTutorial() {
     const confirmed = window.confirm(
-      '重新开始后，当前教程进度会被清除。建设、启动、生产、自动出售设置、自动成交、研发、合同浏览、银行存款和排行榜浏览均需重新完成；游戏资产不会重置。',
+      '重新开始后，当前教程进度会被清除。建设、启动、生产、工厂自动经营设置、自动成交、研发、合同浏览、银行存款和排行榜浏览均需重新完成；游戏资产不会重置。',
     );
     if (confirmed) tutorial.restart();
   }
