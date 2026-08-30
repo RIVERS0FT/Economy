@@ -56,7 +56,7 @@ test('persistent strategy map uses one static SVG world for 48 states and Chines
   await expect(page.getByLabel('地图图例')).toHaveCount(0);
 
   const labels = await map.locator('.province-map-label').allTextContents();
-  for (const name of ['加利福尼亚州', '得克萨斯州', '华盛顿州', '佛罗里达州', '纽约州']) {
+  for (const name of ['加利福尼亚', '得克萨斯', '华盛顿', '佛罗里达', '纽约']) {
     expect(labels).toContain(name);
   }
   for (const code of ['CA', 'TX', 'WA', 'FL', 'NY', 'AK', 'HI', 'DC']) {
@@ -89,7 +89,7 @@ test('persistent strategy map uses one static SVG world for 48 states and Chines
   const california = map.locator('.province-map-region[data-province-id="110000"]');
   await california.hover();
   await expect(page.locator('.province-map-static-tooltip')).toBeVisible();
-  await expect(page.locator('.province-map-static-tooltip')).toContainText('加利福尼亚州');
+  await expect(page.locator('.province-map-static-tooltip')).toContainText('加利福尼亚');
 
   const pathRevision = await canvas.getAttribute('data-map-path-revision');
   const labelRevision = await canvas.getAttribute('data-map-label-layout-revision');
@@ -120,13 +120,13 @@ test('state selection opens local context without resetting the static camera', 
 
   await map.locator('.province-map-region[data-province-id="150000"]').click();
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '150000');
-  await expect(page.getByRole('heading', { name: '科罗拉多州', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '科罗拉多', exact: true })).toBeVisible();
   await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');
   expect(await camera.evaluate((node) => node.style.transform)).toBe(transformBeforeSelection);
   const labelAfter = await labelCenter(page, '150000');
   expect(Math.hypot(labelAfter.x - labelBefore.x, labelAfter.y - labelBefore.y)).toBeLessThan(1.5);
 
-  const tabs = page.getByRole('tablist', { name: '科罗拉多州页面分区' });
+  const tabs = page.getByRole('tablist', { name: '科罗拉多页面分区' });
   await expect(tabs.getByRole('tab', { name: '概览', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(tabs.getByRole('tab', { name: '市场', exact: true })).toBeVisible();
   await expect(tabs.getByRole('tab', { name: '建筑', exact: true })).toBeVisible();
@@ -171,5 +171,5 @@ test('mobile static map keeps labels, touch gestures and hidden tooltip behavior
   await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');
 
   await map.locator('.province-map-region[data-province-id="150000"]').click();
-  await expect(page.getByRole('heading', { name: '科罗拉多州', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '科罗拉多', exact: true })).toBeVisible();
 });

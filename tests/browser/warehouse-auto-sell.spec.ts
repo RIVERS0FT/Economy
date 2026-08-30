@@ -80,10 +80,10 @@ test.describe('warehouse and factory automatic operation responsibilities', () =
     await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
     const map = page.getByTestId('us-mainland-map');
     await expect(map).toHaveAttribute('data-map-ready', 'true');
-    await clickMapProvinceLabel(page, '加利福尼亚州');
+    await clickMapProvinceLabel(page, '加利福尼亚');
 
     await page.setViewportSize({ width: 390, height: 844 });
-    const provinceTabs = page.getByRole('tablist', { name: '加利福尼亚州页面分区' });
+    const provinceTabs = page.getByRole('tablist', { name: '加利福尼亚页面分区' });
     await expect(provinceTabs).toBeVisible();
     await provinceTabs.getByRole('tab', { name: '仓库', exact: true }).click();
 

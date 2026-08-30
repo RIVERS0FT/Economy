@@ -120,7 +120,7 @@ test('mobile pinch starting inside a province zooms without selecting the provin
 
     expect(Number(await canvas.getAttribute('data-map-multitouch-sequence-count'))).toBeGreaterThan(sequenceBefore);
     await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
-    await expect(page.getByRole('heading', { name: '得克萨斯州', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: '得克萨斯', exact: true })).toHaveCount(0);
     expect(Number(await canvas.getAttribute('data-map-suppressed-multitouch-tap-count') || 0))
       .toBeGreaterThan(suppressedBefore);
 
@@ -130,7 +130,7 @@ test('mobile pinch starting inside a province zooms without selecting the provin
     const centerAfterPinch = await provinceLabelCenter(page, 'US-TX');
     await page.touchscreen.tap(centerAfterPinch.x, centerAfterPinch.y);
     await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', 'US-TX');
-    await expect(page.getByRole('heading', { name: '得克萨斯州', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '得克萨斯', exact: true })).toBeVisible();
   } finally {
     await context.close();
   }

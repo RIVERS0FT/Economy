@@ -28,7 +28,7 @@ test('map keeps gesture zoom without a control panel and primary market/building
 
   await page.getByRole('button', { name: '打开小麦全局详情' }).click();
   await expect(page.locator('.global-market-product-region-list')).toBeVisible();
-  const regionalWheat = page.getByRole('button', { name: '打开加利福尼亚州小麦详情' });
+  const regionalWheat = page.getByRole('button', { name: '打开加利福尼亚小麦详情' });
   await expect(regionalWheat).toBeVisible();
   const regionalMarketHeaderHeight = (await page.locator('.global-market-product-region-surface > .market-commodity-row-header').boundingBox())?.height ?? 0;
   const regionalMarketRowHeight = (await regionalWheat.boundingBox())?.height ?? 0;

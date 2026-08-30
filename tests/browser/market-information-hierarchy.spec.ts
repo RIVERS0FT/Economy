@@ -77,9 +77,9 @@ test('market uses product-first global and regional information hierarchy', asyn
   for (const label of ['地区', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']) {
     await expect(regionalHeader.getByText(label, { exact: true })).toBeVisible();
   }
-  const regionalRow = page.getByRole('button', { name: '打开加利福尼亚州小麦详情' });
+  const regionalRow = page.getByRole('button', { name: '打开加利福尼亚小麦详情' });
   await expect(regionalRow).toBeVisible();
-  await expect(regionalRow.locator('.market-commodity-row__name strong')).toHaveText('加利福尼亚州');
+  await expect(regionalRow.locator('.market-commodity-row__name strong')).toHaveText('加利福尼亚');
   await expect(regionalRow.locator('.market-commodity-row__name small')).toHaveCount(0);
   await expect(regionalRow.locator('.market-commodity-row__artwork')).toHaveCount(0);
   const regionalNames = page.locator('.global-market-product-region-list .market-commodity-row__name strong');

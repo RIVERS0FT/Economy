@@ -75,13 +75,13 @@ test('account-free game shell navigates all eleven visible business pages and cl
   await expect(page.locator('.province-map-page')).toHaveCount(1);
   await expect(page.locator('[data-player-page-navigation="true"]')).toHaveCount(0);
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
-  await clickMapProvinceLabel(page, '得克萨斯州');
+  await clickMapProvinceLabel(page, '得克萨斯');
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', 'US-TX');
-  await expect(page.getByRole('heading', { level: 1, name: '得克萨斯州' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: '得克萨斯' })).toBeVisible();
   await expect(page.locator('.province-overview-content')).toBeVisible();
   await expect(page.locator('.province-overview-panel')).toHaveCount(0);
   await expect(page.locator('.strategic-page-host')).toHaveAttribute('data-strategic-presentation', 'building');
-  await expect(page.getByRole('tablist', { name: '得克萨斯州页面分区' }).getByRole('tab')).toHaveCount(4);
+  await expect(page.getByRole('tablist', { name: '得克萨斯页面分区' }).getByRole('tab')).toHaveCount(4);
   await expect(page.getByText('当前经营地区', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '关闭当前页面并显示地图' }).click();
   await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
@@ -99,7 +99,7 @@ test('global market drills from commodity to regional quotes and existing trade 
   await expect(page.getByRole('heading', { level: 1, name: '小麦' })).toBeVisible();
   await expect(page.locator('.global-market-product-region-list')).toBeVisible();
 
-  const regionalRow = page.getByRole('button', { name: '打开加利福尼亚州小麦详情' });
+  const regionalRow = page.getByRole('button', { name: '打开加利福尼亚小麦详情' });
   await expect(regionalRow).toBeVisible();
   const regionalHeader = page.locator('.market-commodity-row-header');
   await expect(regionalHeader).toHaveCount(1);
@@ -110,7 +110,7 @@ test('global market drills from commodity to regional quotes and existing trade 
 
   await regionalRow.click();
   await expect(page.locator('.regional-entity-title__name')).toHaveText('小麦');
-  await expect(page.locator('.regional-entity-title__region')).toHaveText('加利福尼亚州');
+  await expect(page.locator('.regional-entity-title__region')).toHaveText('加利福尼亚');
   await expect(page.locator('.market-trade-card')).toBeVisible();
   await page.getByRole('button', { name: '返回上一页面' }).click();
   await expect(page.locator('.global-market-product-region-list')).toBeVisible();
@@ -305,12 +305,12 @@ test('overview, market, buildings, transport, and settings share a one-third car
   await expect(outliner).toBeVisible();
   await outliner.evaluate((element) => element.setAttribute('data-preview-outliner-sentinel', 'persistent'));
 
-  await clickMapProvinceLabel(page, '得克萨斯州');
+  await clickMapProvinceLabel(page, '得克萨斯');
   const provinceHost = page.locator('.strategic-page-host');
   const provinceContent = provinceHost.locator(':scope > .page-content:not(.page-loading)');
   await expect(provinceHost).toHaveAttribute('data-strategic-presentation', 'building');
   await expect(provinceHost.locator(':scope > .page-loading')).toHaveCount(0);
-  await expect(page.getByRole('heading', { level: 1, name: '得克萨斯州' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: '得克萨斯' })).toBeVisible();
   await expect(provinceContent).toBeVisible();
   await expect(outliner).toHaveAttribute('data-preview-outliner-sentinel', 'persistent');
   const provinceContentBox = await provinceContent.boundingBox();
