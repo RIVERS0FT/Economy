@@ -13,7 +13,8 @@ const GLYPH_BOX_SAFETY = 1.04;
 const GEOMETRY_EPSILON = 0.001;
 const BOUNDARY_EPSILON = 0.08;
 const INTERSECTION_MERGE_EPSILON = 0.04;
-const CORRIDOR_OFFSET_FRACTIONS = [0.06, 0.14, 0.22, 0.3, 0.38, 0.46, 0.5, 0.54, 0.62, 0.7, 0.78, 0.86, 0.94];
+const CENTERED_FONT_SCALE_FLOOR = 0.96;
+const CORRIDOR_OFFSET_RATIOS = [0, 0.16, 0.32, 0.48, 0.64, 0.8, 0.96];
 const CORRIDOR_LENGTH_FRACTIONS = [0.94, 0.84, 0.74, 0.64, 0.54, 0.44, 0.34, 0.26];
 
 export interface ProvinceMapLabelSource {
@@ -52,7 +53,7 @@ interface CorridorCandidate {
   fontScale: number;
   usedWidth: number;
   usedHeight: number;
-  score: number;
+  centerDistance: number;
 }
 
 export interface ProvinceMapLabelGlyphLayout {
@@ -368,11 +369,10 @@ function corridorProfile(
   };
 }
 
-function corridorScore(
+function corridorSizing(
   availableLength: number,
   availableHeight: number,
   metrics: NaturalTextMetrics,
-  centerDistance: number,
 ) {
   const fontScale = Math.min(
     availableLength / metrics.width,
@@ -380,46 +380,39 @@ function corridorScore(
     BASE_MAX_RENDERABLE_FONT_SIZE / TEXT_REFERENCE_FONT_SIZE,
   );
   if (!(fontScale > 0)) return null;
-  const usedWidth = metrics.width * fontScale;
-  const usedHeight = metrics.height * fontScale;
-  const corridorAspect = availableLength / Math.max(GEOMETRY_EPSILON, availableHeight);
-  const aspectError = Math.abs(Math.log(corridorAspect / metrics.aspectRatio));
-  const aspectSimilarity = Math.exp(-aspectError);
-  const widthUtilization = usedWidth / availableLength;
-  const heightUtilization = usedHeight / availableHeight;
-  const utilizationBalance = Math.min(widthUtilization, heightUtilization)
-    / Math.max(GEOMETRY_EPSILON, Math.max(widthUtilization, heightUtilization));
-  const centerPenalty = 1 / (1 + centerDistance / Math.max(24, availableLength) * 0.08);
-  const fontSize = TEXT_REFERENCE_FONT_SIZE * fontScale;
   return {
     fontScale,
-    usedWidth,
-    usedHeight,
-    score: fontSize
-      * (0.42 + aspectSimilarity * 0.58)
-      * (0.9 + utilizationBalance * 0.1)
-      * centerPenalty,
+    usedWidth: metrics.width * fontScale,
+    usedHeight: metrics.height * fontScale,
   };
+}
+
+function centeredCorridorOffsets(minOffset: number, maxOffset: number) {
+  const negativeExtent = Math.max(0, -minOffset);
+  const positiveExtent = Math.max(0, maxOffset);
+  const offsets = [0];
+  for (const ratio of CORRIDOR_OFFSET_RATIOS.slice(1)) {
+    if (negativeExtent > GEOMETRY_EPSILON) offsets.push(-negativeExtent * ratio);
+    if (positiveExtent > GEOMETRY_EPSILON) offsets.push(positiveExtent * ratio);
+  }
+  return offsets;
 }
 
 function findBestLabelCorridor(
   polygon: ProvinceMapPoint[],
-  preferredCenter: ProvinceMapPoint,
   metrics: NaturalTextMetrics,
 ): CorridorCandidate | null {
-  const center = pointInProvincePolygon(preferredCenter, polygon)
-    ? preferredCenter
-    : polygonCentroid(polygon);
-  const angle = principalAngle(polygon, center);
+  const geometryCenter = polygonCentroid(polygon);
+  const angle = principalAngle(polygon, geometryCenter);
   const direction = normalize({ x: Math.cos(angle), y: Math.sin(angle) });
   const normal = { x: -direction.y, y: direction.x };
-  const offsets = polygon.map((point) => dot(subtract(point, center), normal));
-  const minOffset = Math.min(...offsets);
-  const maxOffset = Math.max(...offsets);
-  let best: CorridorCandidate | null = null;
-  for (const fraction of CORRIDOR_OFFSET_FRACTIONS) {
-    const offset = minOffset + (maxOffset - minOffset) * fraction;
-    const origin = add(center, scale(normal, offset));
+  const normalOffsets = polygon.map((point) => dot(subtract(point, geometryCenter), normal));
+  const minOffset = Math.min(...normalOffsets);
+  const maxOffset = Math.max(...normalOffsets);
+  const candidates: CorridorCandidate[] = [];
+
+  for (const offset of centeredCorridorOffsets(minOffset, maxOffset)) {
+    const origin = add(geometryCenter, scale(normal, offset));
     for (const [startDistance, endDistance] of lineInteriorIntervals(polygon, origin, direction)) {
       const rawLength = endDistance - startDistance;
       if (!(rawLength > GEOMETRY_EPSILON)) continue;
@@ -430,14 +423,9 @@ function findBestLabelCorridor(
         const end = add(intervalMidpoint, scale(direction, halfLength));
         const profile = corridorProfile(polygon, start, end, direction);
         if (!profile || !(profile.availableLength > 0) || !(profile.availableHeight > 0)) continue;
-        const scored = corridorScore(
-          profile.availableLength,
-          profile.availableHeight,
-          metrics,
-          length(subtract(intervalMidpoint, center)),
-        );
-        if (!scored) continue;
-        const candidate: CorridorCandidate = {
+        const sized = corridorSizing(profile.availableLength, profile.availableHeight, metrics);
+        if (!sized) continue;
+        candidates.push({
           center: intervalMidpoint,
           direction,
           normal,
@@ -445,16 +433,25 @@ function findBestLabelCorridor(
           availableLength: profile.availableLength,
           availableHeight: profile.availableHeight,
           centerOffsets: profile.centerOffsets,
-          fontScale: scored.fontScale,
-          usedWidth: scored.usedWidth,
-          usedHeight: scored.usedHeight,
-          score: scored.score,
-        };
-        if (!best || candidate.score > best.score) best = candidate;
+          fontScale: sized.fontScale,
+          usedWidth: sized.usedWidth,
+          usedHeight: sized.usedHeight,
+          centerDistance: length(subtract(intervalMidpoint, geometryCenter)),
+        });
       }
     }
   }
-  return best;
+
+  if (candidates.length === 0) return null;
+  const maxFontScale = Math.max(...candidates.map((candidate) => candidate.fontScale));
+  const preferredFloor = maxFontScale * CENTERED_FONT_SCALE_FLOOR;
+  const preferred = candidates.filter((candidate) => candidate.fontScale + GEOMETRY_EPSILON >= preferredFloor);
+  preferred.sort((left, right) => (
+    left.centerDistance - right.centerDistance
+    || right.fontScale - left.fontScale
+    || right.availableLength - left.availableLength
+  ));
+  return preferred[0] ?? null;
 }
 
 function quadraticPoint(start: ProvinceMapPoint, control: ProvinceMapPoint, end: ProvinceMapPoint, t: number) {
@@ -648,9 +645,8 @@ export function layoutProvinceMapLabels(
     if (source.labelRing.length < 3) return [];
     const polygon = projectRing(projection, source.labelRing);
     if (polygon.length < 3) return [];
-    const projectedAnchor = projection.project(source.anchor);
     const metrics = measureNaturalText(fontFamily, source.provinceName);
-    const corridor = findBestLabelCorridor(polygon, projectedAnchor, metrics);
+    const corridor = findBestLabelCorridor(polygon, metrics);
     if (!corridor) return [];
     const layout = fitLabelLayout(polygon, corridor, metrics);
     if (!layout) return [];
