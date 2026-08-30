@@ -1,0 +1,42 @@
+name: Regenerate retired work preview
+
+on:
+  push:
+    branches:
+      - remove-retired-work-gameplay
+    paths:
+      - .github/workflows/regenerate-local-preview-work-retirement.yml
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm ci
+      - name: Remove retired preview fixture state
+        run: |
+          python -c "from pathlib import Path; p=Path('scripts/generate-local-game-preview.mjs'); s=p.read_text(encoding='utf-8'); old='  previewPlayer.work = {\n    cooldownUntil: 0,\n    lastWorkedAt: now - 45_000,\n    streak: 7,\n    totalClicks: 128,\n  };\n'; assert s.count(old)==1; p.write_text(s.replace(old, ''), encoding='utf-8', newline='\n')"
+          python -c "from pathlib import Path; p=Path('scripts/verify-local-game-preview.mjs'); s=p.read_text(encoding='utf-8'); old=\"  verifyLocalGamePreviewFixture();\n\"; new=old+\"  assert.equal(read('scripts/generate-local-game-preview.mjs').includes('previewPlayer.work'), false, '免登录预览不得恢复已退役工作状态');\n\"; assert s.count(old)==1; p.write_text(s.replace(old,new), encoding='utf-8', newline='\n')"
+          npm run generate:local-preview
+      - name: Verify preview
+        run: |
+          git diff --check
+          npm run verify:local-preview
+          node --experimental-strip-types scripts/verify-market-assets.mjs
+          npm run typecheck
+      - name: Commit preview synchronization
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add scripts/generate-local-game-preview.mjs scripts/verify-local-game-preview.mjs src/dev/generated/local-game-preview-state.json
+          git commit -m "同步工作玩法退役预览快照"
+          git push
