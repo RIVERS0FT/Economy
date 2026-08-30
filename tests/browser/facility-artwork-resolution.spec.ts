@@ -22,7 +22,7 @@ async function expectBackgroundImageResolution(locator: Locator, expectedSize: n
   expect(imageMetadata).toEqual({ width: expectedSize, height: expectedSize });
 }
 
-test('building cards and subordinate asset trade use 256px facility thumbnails', async ({ page }) => {
+test('building cards and facility details use 256px facility thumbnails without market trade entry', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=production&scenario=facility-card-profit');
   await expectBackgroundImageResolution(
@@ -32,9 +32,9 @@ test('building cards and subordinate asset trade use 256px facility thumbnails',
 
   await page.locator('.facility-cluster-selector-card').first().click();
   await expect(page.locator('.facility-cluster-detail-page')).toBeVisible();
-  await page.getByRole('button', { name: /交易该建筑资产/ }).click();
+  await expect(page.getByRole('button', { name: /交易该建筑资产/ })).toHaveCount(0);
   await expectBackgroundImageResolution(
-    page.locator('.market-detail-hero__artwork > .facility-icon'),
+    page.locator('.facility-detail-artwork .facility-detail-artwork-icon'),
     256,
   );
 });

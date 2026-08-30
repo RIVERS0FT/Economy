@@ -304,8 +304,8 @@ if (failures.length === 0) {
       '`FacilityIcon`',
       '`prefers-reduced-data`',
       '覆盖完整 `4:5` 竖卡',
-      '建筑从属资产详情使用桌面 `76px` 槽位承载 `68px` 插画',
-      '建筑从属资产详情只在独立插画槽内展示图像',
+      '当前工厂详情横幅保持 `4:5` 独立插画槽并满幅承载插画',
+      '当前工厂详情横幅只在独立插画槽内展示图像',
       '`background-size: cover` 与居中定位',
       '上下两层黑色渐变',
       '核心主体必须落在中央约 `80%` 安全区域内',
@@ -314,13 +314,13 @@ if (failures.length === 0) {
     ]],
     [paths.designIndex, designIndex, ['工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`']],
     [paths.catalogDesign, catalogDesign, ['`FacilityIcon` 只按 `facilityTypeId` 选择视觉资源']],
-    [paths.pageDesign, pageDesign, ['建筑从属资产详情继续使用桌面 `68px`、移动 `58px` 的 `FacilityIcon`']],
+    [paths.pageDesign, pageDesign, ['建筑详情只承担工厂经营与生产配置，不提供工厂买卖入口、订单簿草稿或从属交易页']],
     [paths.marketArtworkBrowser, marketArtworkBrowser, [
-      'building subordinate facility trade artwork fits detail slots on desktop and mobile',
-      "expect(metrics.backgroundSize).toBe('cover')",
-      "expect(metrics.backgroundPosition).toBe('50% 50%')",
-      'Math.abs(metrics.artwork.left - metrics.slot.left)',
-      'expect(metrics.artwork.width).toBeLessThan(metrics.slot.width)',
+      'facility detail artwork fills banner slots on desktop and mobile without market trade entry',
+      "expect(desktopMetrics.backgroundSize).toBe('cover')",
+      "expect(desktopMetrics.backgroundPosition).toBe('50% 50%')",
+      'Math.abs(desktopMetrics.artwork.width - desktopMetrics.slot.width)',
+      'Math.abs(mobileMetrics.artwork.height - mobileMetrics.slot.height)',
     ]],
   ]) {
     for (const fragment of fragments) {
@@ -335,7 +335,7 @@ if (failures.length === 0) {
     failures.push('工厂场景权威设计不得继续声明 128px 运行时缩略图');
   }
   for (const required of [
-    'building cards and subordinate asset trade use 256px facility thumbnails',
+    'building cards and facility details use 256px facility thumbnails without market trade entry',
     'naturalWidth',
     'naturalHeight',
     'expectedSize: number',

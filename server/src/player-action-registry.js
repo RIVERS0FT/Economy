@@ -109,9 +109,10 @@ export const PLAYER_ACTION_REGISTRY = Object.freeze({
   startFacility: defineAction({ mutationScope: 'factory', domain: 'facility', latencyClass: 'market', economicActivity: true, rebuildFactoryPolicies: true }),
   pauseFacility: defineAction({ mutationScope: 'factory', domain: 'facility', latencyClass: 'market', economicActivity: true, rebuildFactoryPolicies: true }),
   setFacilityRecipe: defineAction({ mutationScope: 'factory', domain: 'facility', latencyClass: 'market', economicActivity: true, rebuildFactoryPolicies: true }),
-  listFacility: defineAction({ mutationScope: 'facility-listing', domain: 'facility-listing', latencyClass: 'market', economicActivity: true }),
+  listFacility: defineAction({ mutationScope: 'none', domain: 'retired', lifecycle: 'retired', acknowledgement: 'retired', publicRoute: false }),
   cancelFacilityListing: defineAction({ mutationScope: 'facility-listing', domain: 'facility-listing', latencyClass: 'market', economicActivity: true }),
-  buyFacility: defineAction({ mutationScope: 'facility-listing', domain: 'facility-listing', latencyClass: 'market', economicActivity: true }),
+  buyFacility: defineAction({ mutationScope: 'none', domain: 'retired', lifecycle: 'retired', acknowledgement: 'retired', publicRoute: false }),
+  retiredFacilityMarket: defineAction({ mutationScope: 'none', domain: 'retired', lifecycle: 'retired', acknowledgement: 'retired' }),
   cancelOrder: defineAction({ rateLimitCategory: 'orders', mutationScope: 'order', domain: 'order', latencyClass: 'market', economicActivity: true }),
   collectFacility: defineAction({ mutationScope: 'factory', domain: 'facility', latencyClass: 'market', publicRoute: false, economicActivity: true }),
 });

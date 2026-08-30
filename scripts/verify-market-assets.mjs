@@ -243,7 +243,7 @@ for (const text of [
 forbidText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '当前上限为 52 笔');
 forbidText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '当前上限 62 笔');
 for (const text of [
-  '商品和工厂合计未完成订单达到当前商品类型数与工厂类型数之和的 10 倍',
+  '玩家未完成订单达到当前商品类型数与工厂类型数之和的 10 倍',
   '说明动态上限并禁用提交',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
