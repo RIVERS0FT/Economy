@@ -13,6 +13,8 @@ const required = [
   'server/src/runtime-store.js',
   'server/src/runtime-store-core.js',
   'server/src/save-deletion.js',
+  'server/src/player-action-registry.js',
+  'server/src/world-storage-v2.js',
   'server/test/save-deletion.test.js',
   'server/test/client-save-epoch-page-lifecycle.test.js',
   'tests/browser/settings-layout.spec.ts',
@@ -37,6 +39,8 @@ if (failures.length === 0) {
   const app = read('server/src/app.js');
   const runtime = `${read('server/src/runtime-store-core.js')}\n${read('server/src/runtime-store.js')}`;
   const deletion = read('server/src/save-deletion.js');
+  const actionRegistry = read('server/src/player-action-registry.js');
+  const worldStorage = read('server/src/world-storage-v2.js');
   const test = read('server/test/save-deletion.test.js');
   const lifecycleTest = read('server/test/client-save-epoch-page-lifecycle.test.js');
   const browser = read('tests/browser/settings-layout.spec.ts');
@@ -119,9 +123,7 @@ if (failures.length === 0) {
     'SAVE_DELETION_CONFIRMATION',
     'activeLoanLiability',
     'weeklySettlementLiability',
-    "'cancelOrder'",
     "'cancelAuction'",
-    "'cancelProductionContract'",
     'delete world.players',
     'ensurePlayer(world, user, now)',
     'player.registeredAt = registeredAt',
@@ -139,6 +141,48 @@ if (failures.length === 0) {
   ]) {
     if (!deletion.includes(text)) failures.push(`重复删档迁移或世代保护缺少: ${text}`);
   }
+  for (const text of [
+    'saveDeletionPreflight:',
+    'saveDeletion:',
+    "mutationScope: 'save-deletion'",
+  ]) {
+    if (!actionRegistry.includes(text)) failures.push(`删档特殊写路由未登记交互元数据: ${text}`);
+  }
+  for (const text of [
+    'saveDeletionMutationScope',
+    "case 'save-deletion'",
+    "label: preflight ? 'save-deletion:preflight' : 'save-deletion:commit'",
+  ]) {
+    if (!worldStorage.includes(text)) failures.push(`删档局部 Mutation Scope 缺少: ${text}`);
+  }
+  for (const text of [
+    'createRuntimeMutationScope',
+    "'saveDeletionPreflight'",
+    "'saveDeletion'",
+    'store.loadWorld(now, mutationScope)',
+    'store.saveWorldIfChanged(revision, world, now, stateJson, mutationScope)',
+    'store.saveWorld(revision, world, now, mutationScope)',
+    'processWorld: !store.scheduledProcessing',
+    '{ migrate: false, process: false }',
+    'cancelOpenProductionContractForSaveDeletion',
+    'player.facilityGroups = [];',
+    'ensurePlayerResearch',
+    '{ migrate: !store.scheduledProcessing }',
+  ]) {
+    if (!deletion.includes(text)) failures.push(`删档局部事务或即时路径缺少: ${text}`);
+  }
+  for (const forbidden of [
+    'applyFacilityGroupAction',
+    'migrateFacilityGroupWorld',
+    'migrateResearchWorld',
+  ]) {
+    if (deletion.includes(forbidden)) failures.push(`删档事务不得恢复全局玩家处理: ${forbidden}`);
+  }
+  const preparedStart = deletion.indexOf('function loadPreparedWorld');
+  const preparedEnd = deletion.indexOf('export function getPlayerSaveDeletionPreflight', preparedStart);
+  const prepared = preparedStart >= 0 && preparedEnd > preparedStart ? deletion.slice(preparedStart, preparedEnd) : '';
+  if (!prepared.includes('if (!store.scheduledProcessing)')) failures.push('正式删档不得在自身事务内重复强制推进全世界');
+
   for (const forbidden of [
     'already_used',
     '当前账号已经使用过一次自助删除存档',
@@ -179,6 +223,9 @@ if (failures.length === 0) {
     '旧标签页请求不得启动研发',
     '旧标签页请求不得创建订单',
     '当前存档世代必须保持可写',
+    'scheduled save deletion keeps unrelated players and markets shared',
+    '删档不得复制无关玩家',
+    '删档不得复制无关市场',
     'assertPlayerSaveEpoch',
   ]) {
     if (!test.includes(text)) failures.push(`服务器测试缺少: ${text}`);
@@ -227,4 +274,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('删除存档的确认、阻断、自动关闭、账号级数据保留、页面存档世代锁、后台自动写 authority 门禁、旧标签页写入隔离与旧接口墓碑验证通过。');
+console.log('删除存档的确认、阻断、自动关闭、局部 Mutation Scope、账号级数据保留、页面存档世代锁、后台自动写 authority 门禁、旧标签页写入隔离与旧接口墓碑验证通过。');

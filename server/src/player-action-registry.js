@@ -12,6 +12,7 @@ const ACTIVE_MUTATION_SCOPES = new Set([
   'facility-listing',
   'auction',
   'order',
+  'save-deletion',
 ]);
 
 function defineAction({
@@ -59,6 +60,8 @@ function contractAction() {
 }
 
 export const PLAYER_ACTION_REGISTRY = Object.freeze({
+  saveDeletionPreflight: defineAction({ mutationScope: 'save-deletion', domain: 'save-deletion', latencyClass: 'market', publicRoute: false }),
+  saveDeletion: defineAction({ mutationScope: 'save-deletion', domain: 'save-deletion', latencyClass: 'market', publicRoute: false }),
   checkIn: defineAction({ mutationScope: 'local-player' }),
   settleProduction: defineAction({ mutationScope: 'local-player', domain: 'production' }),
   buildFacility: defineAction({ mutationScope: 'factory', domain: 'facility', latencyClass: 'market', economicActivity: true, rebuildFactoryPolicies: true }),

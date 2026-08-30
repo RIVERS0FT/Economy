@@ -25,7 +25,7 @@ assert.equal(effectivePollingRate({ configuredRate: '3', idle: true }), '15');
 assert.equal(effectivePollingRate({ configuredRate: '3', hidden: true, idle: true }), '60');
 assert.equal(POLLING_IDLE_AFTER_MS, 30_000);
 
-const validMutationScopes = new Set(['local-player', 'factory', 'profile', 'contract', 'facility-listing', 'auction', 'order']);
+const validMutationScopes = new Set(['local-player', 'factory', 'profile', 'contract', 'facility-listing', 'auction', 'order', 'save-deletion']);
 for (const [action, metadata] of Object.entries(PLAYER_ACTION_REGISTRY)) {
   assert.ok(Number(metadata.latencyBudgetMs) > 0, `${action} 必须声明交互延迟预算`);
   if (metadata.lifecycle === 'active') {
@@ -167,6 +167,8 @@ requireText('server/src/player-action-registry.js', [
   'latencyBudgetMs',
   "acknowledgement = 'immediate'",
   'mutationScope',
+  "saveDeletionPreflight: defineAction({ mutationScope: 'save-deletion'",
+  "saveDeletion: defineAction({ mutationScope: 'save-deletion'",
 ]);
 requireText('server/src/request-metrics.js', [
   'interactiveActionBudgetMs',

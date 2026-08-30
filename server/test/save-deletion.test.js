@@ -8,6 +8,7 @@ import {
   getPlayerSaveDeletionPreflight,
 } from '../src/save-deletion.js';
 import { ensurePlayerBankAccount } from '../src/banking.js';
+import { cloneWorldForMutation, createRuntimeMutationScope } from '../src/world-storage-v2.js';
 
 const user = {
   id: 91001,
@@ -328,6 +329,64 @@ test('active liabilities block save deletion without changing the player', () =>
       (error) => error.statusCode === 409 && error.code === 'SAVE_DELETION_BLOCKED',
     );
     assert.equal(store.loadWorld(now + 4).world.players[String(user.id)].saveEpoch || 0, 0);
+  } finally {
+    store.close();
+  }
+});
+
+test('scheduled save deletion keeps unrelated players and markets shared', () => {
+  const inertTimer = { unref() {} };
+  const store = new EconomyStore(':memory:', {
+    scheduledProcessing: true,
+    nowProvider: () => now,
+    setTimeoutFn: () => inertTimer,
+    clearTimeoutFn: () => {},
+  });
+  const unrelatedUser = {
+    id: 91002,
+    name: 'Unrelated Save Player',
+    email: 'unrelated-save@example.com',
+    role: 'user',
+  };
+  try {
+    store.getState(user, now);
+    store.transaction(() => {
+      const { revision, world } = store.loadWorld(now + 1);
+      ensurePlayer(world, unrelatedUser, now + 1);
+      store.saveWorld(revision, world, now + 1);
+    });
+
+    const committed = store.worldCache.world;
+    const unrelatedPlayer = committed.players[String(unrelatedUser.id)];
+    const markets = committed.markets;
+    const preflightScope = createRuntimeMutationScope(
+      committed,
+      user.id,
+      'saveDeletionPreflight',
+      { preflight: true },
+      { scheduledProcessing: true },
+    );
+    const preflightDraft = cloneWorldForMutation(committed, preflightScope);
+    assert.equal(preflightScope.label, 'save-deletion:preflight');
+    assert.notEqual(preflightDraft.players[String(user.id)], committed.players[String(user.id)]);
+    assert.equal(preflightDraft.players[String(unrelatedUser.id)], unrelatedPlayer);
+    assert.equal(preflightDraft.orders, committed.orders);
+    assert.equal(preflightDraft.markets, markets);
+
+    const response = deletePlayerSave(store, user, {
+      confirmation: '删除存档',
+      requestKey: 'save-delete-bounded-scope-0001',
+      expectedSaveEpoch: '0',
+    }, now + 2);
+    assert.equal(response.result.ok, true);
+
+    const after = store.worldCache.world;
+    assert.equal(after.players[String(unrelatedUser.id)], unrelatedPlayer, '删档不得复制无关玩家');
+    assert.equal(after.markets, markets, '删档不得复制无关市场');
+    assert.notEqual(after.orders, committed.orders, '删档只复制会被清理的订单分区');
+    assert.notEqual(after.assetAuctions, committed.assetAuctions, '删档只复制会被清理的拍卖分区');
+    assert.notEqual(after.productionContracts, committed.productionContracts, '删档只复制会被清理的合同分区');
+    assert.equal(after.players[String(user.id)].saveEpoch, 1);
   } finally {
     store.close();
   }
