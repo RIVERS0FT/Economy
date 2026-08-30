@@ -44,19 +44,19 @@ test('current client state version excludes all player log arrays and factory in
   }
 });
 
-test('runtime COW work remains valid after V2 persistence strips presentation logs', () => {
+test('runtime COW local action remains valid after V2 persistence strips presentation logs', () => {
   const store = new RuntimeEconomyStore(':memory:', { scheduledProcessing: false });
   const now = 1_700_000_000_000;
   try {
     store.getState(alice, now);
     assertPlayerLogsAbsent(persistedWorld(store).players['1']);
-    const worked = store.apply(alice, request(
-      'work',
-      {},
-      'work-after-log-strip-12345678',
-      '/api/game/work',
+    const deposited = store.apply(alice, request(
+      'bankDeposit',
+      { amount: 1 },
+      'bank-after-log-strip-12345678',
+      '/api/game/bank/deposits',
     ), now + 1);
-    assert.equal(worked.result.ok, true);
+    assert.equal(deposited.result.ok, true);
     assertPlayerLogsAbsent(persistedWorld(store).players['1']);
   } finally {
     store.close();

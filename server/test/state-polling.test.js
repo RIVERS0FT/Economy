@@ -60,11 +60,11 @@ test('an authoritative action advances the revision and invalidates an older pol
     const now = 1_700_000_000_000;
     const initial = store.getStateSnapshot(alice, undefined, now);
     const action = store.apply(alice, {
-      action: 'work',
-      payload: {},
-      requestKey: 'state-poll-work-1',
+      action: 'bankDeposit',
+      payload: { amount: 1 },
+      requestKey: 'state-poll-bank-deposit-1',
       method: 'POST',
-      path: '/api/game/work',
+      path: '/api/game/bank/deposits',
     }, now + 2_000);
 
     assert.equal(action.revision > initial.revision, true);
@@ -73,7 +73,7 @@ test('an authoritative action advances the revision and invalidates an older pol
     const changed = store.getStateSnapshot(alice, initial.revision, now + 2_001);
     assert.equal(changed.unchanged, false);
     assert.equal(changed.revision, action.revision);
-    assert.equal(changed.state.credits, 501);
+    assert.equal(changed.state.credits, 499);
 
     const unchanged = store.getStateSnapshot(alice, action.revision, now + 2_500);
     assert.deepEqual(unchanged, { revision: action.revision, unchanged: true });
@@ -147,7 +147,7 @@ test('same economic event window keeps the market revision stable while serverNo
   }
 });
 
-test('another player work action does not send an unrelated viewer a full market partition', () => {
+test('another player local bank action does not send an unrelated viewer a full market partition', () => {
   const store = new RuntimeEconomyStore(':memory:');
   try {
     const now = ECONOMIC_EVENT_EPOCH_MS + 6 * 60 * 60 * 1000;
@@ -165,11 +165,11 @@ test('another player work action does not send an unrelated viewer a full market
     assert.ok(baseline.patches.leaderboard.leaderboard.every((entry) => entry.updatedAt === undefined));
 
     const action = store.apply(bob, {
-      action: 'work',
-      payload: {},
-      requestKey: 'state-poll-bob-work-1',
+      action: 'bankDeposit',
+      payload: { amount: 1 },
+      requestKey: 'state-poll-bob-bank-deposit-1',
       method: 'POST',
-      path: '/api/game/work',
+      path: '/api/game/bank/deposits',
     }, now + 100);
     const changed = createPartitionedStateDelivery(
       store.getStateSnapshot(alice, baseline.revision, now + 101),
@@ -179,9 +179,7 @@ test('another player work action does not send an unrelated viewer a full market
 
     assert.equal(changed.revision, action.revision);
     assert.equal(changed.partitionRevisions.market, baseline.partitionRevisions.market);
-    assert.equal(changed.patches.market, undefined);
-    assert.ok(changed.patches.leaderboard?.leaderboards);
-    assert.equal(changed.patches.leaderboard.leaderboards.generatedAt, undefined);
+    assert.equal(changed.patches?.market, undefined);
   } finally {
     store.close();
   }

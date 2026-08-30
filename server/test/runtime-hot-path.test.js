@@ -31,11 +31,11 @@ test('hot actions do not rerun cold world migrations and process global deadline
     store.worldProcessCalls = 0;
 
     const action = store.apply(alice, {
-      action: 'work',
-      payload: {},
-      requestKey: 'hot-path-work-1',
+      action: 'bankDeposit',
+      payload: { amount: 1 },
+      requestKey: 'hot-path-bank-deposit-1',
       method: 'POST',
-      path: '/api/game/work',
+      path: '/api/game/bank/deposits',
     }, now + 3_001);
 
     assert.equal(action.result.ok, true);
@@ -53,25 +53,25 @@ test('idempotency expiry cleanup is throttled instead of running on every action
     const now = 1_700_000_000_000;
     store.getStateSnapshot(alice, undefined, now);
     store.apply(alice, {
-      action: 'work', payload: {}, requestKey: 'cleanup-initial-1', method: 'POST', path: '/api/game/work',
+      action: 'bankDeposit', payload: { amount: 1 }, requestKey: 'cleanup-initial-1', method: 'POST', path: '/api/game/bank/deposits',
     }, now + 3_001);
 
     store.insertIdempotency.run(
       Number(alice.id),
       'expired-cleanup-probe',
       'POST',
-      '/api/game/work',
+      '/api/game/bank/deposits',
       JSON.stringify({ result: { ok: true, message: '' }, revision: 1 }),
       0,
     );
 
     store.apply(alice, {
-      action: 'work', payload: {}, requestKey: 'cleanup-within-window-1', method: 'POST', path: '/api/game/work',
+      action: 'bankDeposit', payload: { amount: 1 }, requestKey: 'cleanup-within-window-1', method: 'POST', path: '/api/game/bank/deposits',
     }, now + 4_001);
     assert.ok(store.selectIdempotency.get(Number(alice.id), 'expired-cleanup-probe'));
 
     store.apply(alice, {
-      action: 'work', payload: {}, requestKey: 'cleanup-after-window-1', method: 'POST', path: '/api/game/work',
+      action: 'bankDeposit', payload: { amount: 1 }, requestKey: 'cleanup-after-window-1', method: 'POST', path: '/api/game/bank/deposits',
     }, now + 5 * 60 * 1_000 + 3_002);
     assert.equal(store.selectIdempotency.get(Number(alice.id), 'expired-cleanup-probe'), undefined);
   } finally {
