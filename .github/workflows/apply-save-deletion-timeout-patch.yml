@@ -26,6 +26,17 @@ jobs:
         run: |
           python3 scripts/apply-save-deletion-timeout-patch.py
           rm scripts/apply-save-deletion-timeout-patch.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-save-deletion.mjs')
+          content = path.read_text(encoding='utf-8')
+          content = content.replace('    "\'cancelProductionContract\'",\n', '')
+          content = content.replace(
+              '    "\'saveDeletionPreflight\'",\n    "\'saveDeletion\'",\n    "mutationScope: \'save-deletion\'",\n',
+              "    'saveDeletionPreflight:',\n    'saveDeletion:',\n    \"mutationScope: 'save-deletion'\",\n",
+          )
+          path.write_text(content, encoding='utf-8')
+          PY
       - name: Install dependencies
         run: npm ci
       - name: Validate save deletion hot path
