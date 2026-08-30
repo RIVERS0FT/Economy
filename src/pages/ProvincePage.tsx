@@ -110,12 +110,16 @@ function ProvinceUnlockPanel({
   unlockCost,
   distanceKm,
   section,
+  unlocking,
+  onUnlock,
 }: {
   model: OnlineAutoTradeAwareGameViewModel;
   provinceName: string;
   unlockCost: number;
   distanceKm: number;
   section: 'buildings' | 'warehouse';
+  unlocking: boolean;
+  onUnlock: () => void;
 }) {
   const sectionLabel = section === 'buildings' ? '建筑' : '仓库';
   const sectionTitle = section === 'buildings' ? '建筑功能未解锁' : '仓库功能未解锁';
@@ -135,12 +139,14 @@ function ProvinceUnlockPanel({
       <Button
         block
         className="province-unlock-button"
-        disabled={model.game.credits < unlockCost}
-        onClick={() => void model.showResult(model.unlockProvince(model.selectedProvinceId))}
+        disabled={unlocking || model.game.credits < unlockCost}
+        onClick={onUnlock}
       >
-        {model.game.credits < unlockCost
-          ? `资金不足，需要 ${formatCurrency(unlockCost)}`
-          : `解锁${provinceName}（${formatCurrency(unlockCost)}）`}
+        {unlocking
+          ? '正在解锁…'
+          : model.game.credits < unlockCost
+            ? `资金不足，需要 ${formatCurrency(unlockCost)}`
+            : `解锁${provinceName}（${formatCurrency(unlockCost)}）`}
       </Button>
     </section>
   );
@@ -158,6 +164,8 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
   const pageNavigation = usePlayerPageNavigation();
   const [fallbackSection, setFallbackSection] = useState<ProvinceSection>('overview');
   const [fallbackFacilityDetailTypeId, setFallbackFacilityDetailTypeId] = useState<string | null>(null);
+  const [confirmedUnlockedProvinceIds, setConfirmedUnlockedProvinceIds] = useState<string[]>([]);
+  const [unlockingProvinceIds, setUnlockingProvinceIds] = useState<string[]>([]);
   const location = pageNavigation?.currentLocation;
   const locationMatchesProvince = location && 'provinceId' in location
     ? location.provinceId === model.selectedProvinceId
@@ -207,9 +215,10 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
   const isEntityDetail = isFacilityDetail || isMarketDetail;
   const hasProvinceUnlockState = Array.isArray(model.game.unlockedProvinces)
     || typeof model.game.startingProvinceId === 'string';
-  const isUnlocked = !hasProvinceUnlockState
+  const isServerUnlocked = !hasProvinceUnlockState
     || (model.game.unlockedProvinces ?? []).includes(model.selectedProvinceId)
     || model.game.startingProvinceId === model.selectedProvinceId;
+  const isUnlocked = isServerUnlocked || confirmedUnlockedProvinceIds.includes(model.selectedProvinceId);
   const unlockCost = model.selectedProvince
     ? provinceUnlockCost(model.selectedProvinceId, model.game.startingProvinceId, model.game.provinces)
     : PROVINCE_UNLOCK_BASE_COST;
@@ -219,6 +228,32 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
       model.game.provinces.find((province) => province.id === model.game.startingProvinceId) ?? model.selectedProvince,
     ))
     : 0;
+
+  const unlockSelectedProvince = async () => {
+    const provinceId = model.selectedProvinceId;
+    if (unlockingProvinceIds.includes(provinceId)) return;
+    setUnlockingProvinceIds((current) => [...current, provinceId]);
+    try {
+      const result = await model.unlockProvince(provinceId);
+      model.notify(result.message);
+      if (result.ok) {
+        setConfirmedUnlockedProvinceIds((current) => (
+          current.includes(provinceId) ? current : [...current, provinceId]
+        ));
+      }
+    } finally {
+      setUnlockingProvinceIds((current) => current.filter((id) => id !== provinceId));
+    }
+  };
+
+  useEffect(() => {
+    if (!isServerUnlocked) return;
+    setConfirmedUnlockedProvinceIds((current) => (
+      current.includes(model.selectedProvinceId)
+        ? current.filter((id) => id !== model.selectedProvinceId)
+        : current
+    ));
+  }, [isServerUnlocked, model.selectedProvinceId]);
 
   useEffect(() => {
     if (!pageNavigation || model.tab !== 'province') return;
@@ -397,6 +432,8 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
               unlockCost={unlockCost}
               distanceKm={distanceKm}
               section="buildings"
+              unlocking={unlockingProvinceIds.includes(model.selectedProvinceId)}
+              onUnlock={() => void unlockSelectedProvince()}
             />
           ) : (
             <Suspense fallback={<ProvinceSectionLoading />}>
@@ -420,6 +457,8 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
               unlockCost={unlockCost}
               distanceKm={distanceKm}
               section="warehouse"
+              unlocking={unlockingProvinceIds.includes(model.selectedProvinceId)}
+              onUnlock={() => void unlockSelectedProvince()}
             />
           ) : (
             <WarehouseInventoryPanel
