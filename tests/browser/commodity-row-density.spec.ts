@@ -82,5 +82,6 @@ test('market and regional commodity lists share compact square artwork geometry'
   await expect(compactRegionalRow).toBeVisible();
   const compactRegional = await readRowMetrics(compactRegionalRow, '.market-commodity-row__artwork');
   expectAllowedDensity(compactRegional);
+  expect(compactRegional.minHeight).toBe('44px');
   expect(compactRegional).toEqual(compactGlobal);
 });
