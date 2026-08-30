@@ -1,73 +1,11 @@
 import { measureRequestPhase, setRequestGauge } from './request-performance.js';
 import { normalizeProvinceId, provinceScopedKey } from './provinces.js';
 import { installProvinceRuntimeAliases } from './provinces.js';
+import { getPlayerActionMetadata, requireOrderExecutionMetadata } from './player-action-registry.js';
 
 export const WORLD_STORAGE_SCHEMA_VERSION = 2;
 export const AUTHORITATIVE_WORLD_VERSION = 32;
 
-const LOCAL_PLAYER_ACTIONS = new Set([
-  'chooseStartingProvince',
-  'unlockProvince',
-  'startResearch',
-  'accelerateResearch',
-  'bankDeposit',
-  'bankWithdraw',
-  'bankBorrow',
-  'bankRepay',
-  'bankSetAutoRepay',
-  'transportShip',
-  'checkIn',
-  'redeemGift',
-  'exchangeGems',
-  'rejectGemShopQuote',
-  'setFacilityRecipe',
-]);
-const LOCAL_ORDER_POLICY_EXECUTIONS = new Set([
-  'online-auto-sell-policy',
-  'online-auto-trade-policy',
-]);
-const ACTIVE_ORDER_EXECUTIONS = new Set([
-  '',
-  'online-auto-buy',
-  'online-auto-sell',
-]);
-const ORDER_SCOPE_LABELS = Object.freeze({
-  manualCommodity: Object.freeze({ label: 'commodity:placeOrder' }),
-});
-
-const AUCTION_ACTIONS = new Set(['createAuction', 'placeAuctionBid', 'cancelAuction']);
-const FACTORY_SCOPE_ACTIONS = new Set([
-  'factoryAutoOperationRebuild',
-  'buildFacility',
-  'startFacility',
-  'pauseFacility',
-  'setFacilityRecipe',
-]);
-const FACILITY_LISTING_ACTIONS = new Set(['listFacility', 'cancelFacilityListing', 'buyFacility']);
-const CONTRACT_ACTIONS = new Set([
-  'createProductionContract',
-  'acceptProductionContract',
-  'proposeProductionContractNegotiation',
-  'counterProductionContractNegotiation',
-  'acceptProductionContractNegotiation',
-  'rejectProductionContractNegotiation',
-  'revokeProductionContractNegotiation',
-  'cancelProductionContract',
-  'prepareProductionContract',
-  'fundProductionContract',
-  'setProductionContractAutoReserve',
-  'setProductionContractAutoFund',
-  'proposeProductionContractRenewal',
-  'acceptProductionContractRenewal',
-  'rejectProductionContractRenewal',
-  'revokeProductionContractRenewal',
-  'requestProductionContractTermination',
-  'terminateProductionContractNow',
-  'repayPlayerLoan',
-  'setPlayerLoanAutoRepay',
-  'fundFacilityLease',
-  'setFacilityLeaseAutoFund',
-]);
 const CORE_LOCAL_SEGMENTS = Object.freeze([
   'bank',
   'weeklyCashSettlement',
@@ -491,103 +429,177 @@ function facilityListingMutationScope(world, userId, payload, action) {
   };
 }
 
+function orderValidationScope(userId, label) {
+  return {
+    allPlayers: false,
+    allSegments: false,
+    playerIds: new Set([playerKey(userId)]),
+    segments: new Set([...CORE_LOCAL_SEGMENTS, 'orders']),
+    orderIndexes: new Set(),
+    marketKeys: new Set(),
+    facilityMarketKeys: new Set(),
+    includeAuctionEscrow: false,
+    label,
+  };
+}
+
+function interactiveScopeError(action, message, code = 'INTERACTIVE_ACTION_SCOPE_UNDECLARED', statusCode = 500) {
+  setRequestGauge('unexpectedFullWorldAction', 1);
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  error.code = code;
+  error.action = String(action || '');
+  return error;
+}
+
+function publishMutationScopeGauges(scope) {
+  setRequestGauge('mutationScopeFullWorld', scope.allPlayers && scope.allSegments ? 1 : 0);
+  setRequestGauge('mutationScopePlayerCount', scope.playerIds?.size || 0);
+  setRequestGauge('mutationScopeSegmentCount', scope.segments?.size || 0);
+  setRequestGauge('mutationScopeOrderCount', scope.orderIndexes?.size || 0);
+  setRequestGauge('mutationScopeMarketKeyCount', scope.marketKeys?.size || 0);
+  setRequestGauge('mutationScopeFacilityMarketKeyCount', scope.facilityMarketKeys?.size || 0);
+}
+
+function finalizeInteractiveMutationScope(action, scope) {
+  if (
+    !scope
+    || scope.allPlayers
+    || scope.allSegments
+    || scope.playerIds === null
+    || scope.segments === null
+  ) {
+    throw interactiveScopeError(
+      action,
+      `正式玩家动作不得使用未声明或无界 Mutation Scope：${String(action || '')}`,
+    );
+  }
+  setRequestGauge('unexpectedFullWorldAction', 0);
+  publishMutationScopeGauges(scope);
+  return scope;
+}
+
+function invalidScopeInput(action, payload) {
+  const execution = action === 'placeOrder' ? `，execution=${String(payload?.execution || '')}` : '';
+  return interactiveScopeError(
+    action,
+    `无法从动作参数推导安全 Mutation Scope：${String(action || '')}${execution}`,
+    'INTERACTIVE_ACTION_SCOPE_INPUT_INVALID',
+    400,
+  );
+}
+
 export function createRuntimeMutationScope(world, userId, action, payload, {
   scheduledProcessing = true,
 } = {}) {
   if (!scheduledProcessing) return createFullMutationScope();
 
-  if (LOCAL_PLAYER_ACTIONS.has(action)) {
-    return {
-      allPlayers: false,
-      allSegments: false,
-      playerIds: new Set([playerKey(userId)]),
-      segments: new Set(CORE_LOCAL_SEGMENTS),
-      orderIndexes: new Set(),
-      marketKeys: new Set(),
-      facilityMarketKeys: new Set(),
-      includeAuctionEscrow: false,
-      label: `local:${action}`,
-    };
+  const metadata = getPlayerActionMetadata(action);
+  if (!metadata) {
+    throw interactiveScopeError(action, `正式玩家动作未登记 Mutation Scope：${String(action || '')}`);
+  }
+  if (metadata.lifecycle !== 'active' || metadata.mutationScope === 'none') {
+    throw interactiveScopeError(
+      action,
+      `非活动玩家动作不得进入权威写事务：${String(action || '')}`,
+      'INTERACTIVE_ACTION_RETIRED',
+      410,
+    );
   }
 
-  if (FACTORY_SCOPE_ACTIONS.has(action)) {
-    return factoryAutoOperationScope(world, userId, payload);
-  }
-
-  if (action === 'renamePlayer') {
-    return profileMutationScope(world, userId, payload);
-  }
-
-  if (CONTRACT_ACTIONS.has(action)) {
-    return contractMutationScope(world, userId, payload, action);
-  }
-
-  if (FACILITY_LISTING_ACTIONS.has(action)) {
-    return facilityListingMutationScope(world, userId, payload, action);
-  }
-
-  if (AUCTION_ACTIONS.has(action)) {
-    return {
-      allPlayers: false,
-      allSegments: false,
-      playerIds: auctionParticipantIds(world, payload, userId),
-      segments: new Set([...CORE_LOCAL_SEGMENTS, 'assetAuctions']),
-      orderIndexes: new Set(),
-      marketKeys: new Set(),
-      facilityMarketKeys: new Set(),
-      includeAuctionEscrow: true,
-      label: `auction:${action}`,
-    };
-  }
-
-  if (action === 'placeOrder') {
-    const execution = String(payload?.execution || '');
-    if (execution === 'factory-auto-operation-policy') {
-      return factoryAutoOperationScope(world, userId, payload);
-    }
-    if (LOCAL_ORDER_POLICY_EXECUTIONS.has(execution)) {
-      const scope = orderScope(world, userId, [ordinaryOrderAsset(payload)], {
-        label: `commodity:${execution}`,
-        currentPlayerOrdersOnly: true,
-      });
-      if (scope) return scope;
-    }
-    if (execution === 'facility-build-procurement') {
-      const scope = orderScope(world, userId, procurementAssets(payload), {
-        label: 'commodity:facility-build-procurement',
-        mutateMarkets: true,
-      });
-      if (scope) return scope;
-    }
-    if (execution === 'facility-build-procurement-cancel') {
-      const scope = orderScope(world, userId, procurementCancelAssets(world, payload), {
-        label: 'commodity:facility-build-procurement-cancel',
-        currentPlayerOrdersOnly: true,
-      });
-      if (scope) return scope;
-    }
-    if (ACTIVE_ORDER_EXECUTIONS.has(execution)) {
-      const asset = ordinaryOrderAsset(payload);
-      const label = !execution && asset.kind === 'commodity'
-        ? ORDER_SCOPE_LABELS.manualCommodity.label
-        : `${asset.kind}:placeOrder${execution ? `:${execution}` : ''}`;
-      const scope = orderScope(world, userId, [asset], {
-        label,
-        mutateMarkets: true,
-      });
-      if (scope) {
-        scope.playerIds = crossingOrderParticipantIds(world, payload, userId);
-        return scope;
+  let scope = null;
+  switch (metadata.mutationScope) {
+    case 'local-player':
+      scope = {
+        allPlayers: false,
+        allSegments: false,
+        playerIds: new Set([playerKey(userId)]),
+        segments: new Set(CORE_LOCAL_SEGMENTS),
+        orderIndexes: new Set(),
+        marketKeys: new Set(),
+        facilityMarketKeys: new Set(),
+        includeAuctionEscrow: false,
+        label: `local:${action}`,
+      };
+      break;
+    case 'factory':
+      scope = factoryAutoOperationScope(world, userId, payload);
+      break;
+    case 'profile':
+      scope = profileMutationScope(world, userId, payload);
+      break;
+    case 'contract':
+      scope = contractMutationScope(world, userId, payload, action);
+      break;
+    case 'facility-listing':
+      scope = facilityListingMutationScope(world, userId, payload, action);
+      break;
+    case 'auction':
+      scope = {
+        allPlayers: false,
+        allSegments: false,
+        playerIds: auctionParticipantIds(world, payload, userId),
+        segments: new Set([...CORE_LOCAL_SEGMENTS, 'assetAuctions']),
+        orderIndexes: new Set(),
+        marketKeys: new Set(),
+        facilityMarketKeys: new Set(),
+        includeAuctionEscrow: true,
+        label: `auction:${action}`,
+      };
+      break;
+    case 'order': {
+      if (action === 'cancelOrder') {
+        scope = cancelScope(world, userId, payload)
+          || orderValidationScope(userId, 'order:cancel-validation');
+        break;
       }
+      if (action !== 'placeOrder') break;
+      const execution = String(payload?.execution || '');
+      const executionMetadata = requireOrderExecutionMetadata(execution);
+      if (executionMetadata.mutationScope === 'factory-policy') {
+        scope = factoryAutoOperationScope(world, userId, payload);
+        break;
+      }
+      if (executionMetadata.mutationScope === 'local-order-policy') {
+        scope = orderScope(world, userId, [ordinaryOrderAsset(payload)], {
+          label: `commodity:${executionMetadata.label}`,
+          currentPlayerOrdersOnly: true,
+        });
+        break;
+      }
+      if (executionMetadata.mutationScope === 'procurement') {
+        scope = orderScope(world, userId, procurementAssets(payload), {
+          label: 'commodity:facility-build-procurement',
+          mutateMarkets: true,
+        });
+        break;
+      }
+      if (executionMetadata.mutationScope === 'procurement-cancel') {
+        scope = orderScope(world, userId, procurementCancelAssets(world, payload), {
+          label: 'commodity:facility-build-procurement-cancel',
+          currentPlayerOrdersOnly: true,
+        }) || orderValidationScope(userId, 'commodity:facility-build-procurement-cancel-validation');
+        break;
+      }
+      if (executionMetadata.mutationScope === 'active-order') {
+        const asset = ordinaryOrderAsset(payload);
+        const label = !execution && asset.kind === 'commodity'
+          ? 'commodity:placeOrder'
+          : `${asset.kind}:placeOrder${execution ? `:${execution}` : ''}`;
+        scope = orderScope(world, userId, [asset], {
+          label,
+          mutateMarkets: true,
+        });
+        if (scope) scope.playerIds = crossingOrderParticipantIds(world, payload, userId);
+      }
+      break;
     }
+    default:
+      break;
   }
 
-  if (action === 'cancelOrder') {
-    const scope = cancelScope(world, userId, payload);
-    if (scope) return scope;
-  }
-
-  return createFullMutationScope();
+  if (!scope) throw invalidScopeInput(action, payload);
+  return finalizeInteractiveMutationScope(action, scope);
 }
 
 function cloneScopedObject(source, keys) {

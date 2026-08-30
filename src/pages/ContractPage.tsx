@@ -1084,7 +1084,7 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
       const response = await operation();
       model.notify(response.result.message);
       if (response.result.ok) {
-        await model.refresh({ mode: 'authoritative' });
+        void model.refresh({ mode: 'authoritative' });
         if (key === 'publish') { setShowPublish(false); setRepublishContract(null); }
       }
     } catch (reason) {

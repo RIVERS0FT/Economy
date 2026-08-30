@@ -199,7 +199,12 @@ export function createRequestMetricsCollector({
     }
     routes.set(key, current);
 
-    if (status >= 500 || duration >= slowRequestMs || bytes >= largeResponseBytes) {
+    const interactiveBudgetMs = finiteNonNegative(gauges?.interactiveActionBudgetMs);
+    const slowThresholdMs = interactiveBudgetMs > 0
+      ? Math.min(slowRequestMs, interactiveBudgetMs)
+      : slowRequestMs;
+    const unexpectedFullWorldAction = Number(gauges?.unexpectedFullWorldAction || 0) > 0;
+    if (status >= 500 || duration >= slowThresholdMs || bytes >= largeResponseBytes || unexpectedFullWorldAction) {
       warn('Economy request outlier', JSON.stringify({
         method: current.method,
         route,

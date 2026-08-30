@@ -7,6 +7,7 @@ const leaderboard = read('server/src/leaderboards.js');
 const runtimeCore = read('server/src/runtime-store-core.js');
 const runtimeStore = read('server/src/runtime-store.js');
 const runtimeAction = read('server/src/runtime-action-executor.js');
+const actionRegistry = read('server/src/player-action-registry.js');
 const facilityGroups = read('server/src/facility-groups.js');
 const routes = read('server/src/game-routes.js');
 const api = read('src/api/game.ts');
@@ -57,15 +58,16 @@ assert.match(serverSettlement, /contract\.contractType === 'goods_supply'/, '到
 assert.match(runtimeAction, /function settleProductionForAction/, '玩家动作必须统一处理客户端生产提案');
 assert.match(runtimeAction, /error\?\.code !== 'PRODUCTION_SETTLEMENT_STALE'/, '只有明确过期的生产提案允许服务器同事务兜底');
 assert.match(runtimeAction, /settleProductionForPlayerServerSide\(world, userId, now\)/, '过期提案只能对当前玩家执行服务器权威兜底');
+assert.doesNotMatch(runtimeAction, /mutationScopeAction/, '玩家动作不得再依赖分散的 Mutation Scope 别名映射');
 assert.match(
   runtimeAction,
-  /const mutationScopeAction = action === 'settleProduction'[\s\S]*?\? 'setFacilityRecipe'/,
-  '独立生产结算必须继续映射到 setFacilityRecipe 的本地玩家 COW 范围',
+  /createRuntimeMutationScope\([\s\S]*?user\.id,[\s\S]*?action,[\s\S]*?payload,/,
+  '生产结算与其他玩家动作必须使用真实 action 进入统一 Mutation Scope 注册表',
 );
 assert.match(
-  runtimeAction,
-  /createRuntimeMutationScope\([\s\S]*?mutationScopeAction,/,
-  '生产结算与其他玩家动作必须通过解析后的 mutationScopeAction 创建 COW 范围',
+  actionRegistry,
+  /settleProduction: defineAction\(\{ mutationScope: 'local-player', domain: 'production' \}\)/,
+  '独立生产结算必须在统一动作注册表中显式声明当前玩家局部范围',
 );
 assert.match(routes, /\/api\/game\/production\/settle/, '必须保留独立生产结算动作接口');
 assert.match(clientSettlement, /createProductionSettlementBasisId/, '浏览器生产提案必须携带与服务器同算法的基线指纹');
