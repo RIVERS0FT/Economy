@@ -89,7 +89,7 @@ test.describe('authentication root and frosted surface', () => {
     expect(Math.abs(frosted.surfaceHeight - frosted.contentHeight)).toBeLessThanOrEqual(2);
   });
 
-  test('login and registration grow naturally in the same frosted host and retain form values across breakpoints', async ({ page }) => {
+  test('login, registration, and reset panels grow naturally in the same frosted host and retain form values across breakpoints', async ({ page }) => {
     await page.setViewportSize({ width: 721, height: 900 });
     await openLoginPage(page);
     const surface = page.locator('.login-card .frosted-glass-surface');
@@ -100,10 +100,11 @@ test.describe('authentication root and frosted surface', () => {
     await surface.evaluate((element) => { (element as HTMLElement).dataset.instanceProbe = 'stable'; });
     const loginHeight = (await surface.boundingBox())!.height;
 
-    await page.getByRole('tab', { name: '注册' }).click();
+    await page.getByRole('button', { name: '注册账号' }).click();
     await expect(page.getByLabel('邀请码（可选）')).toBeVisible();
     await expect(page.getByLabel('邮箱验证码')).toBeVisible();
     await expect(email).toHaveValue('kept@example.com');
+    await expect(password).toHaveValue('password123');
     const registrationHeight = (await surface.boundingBox())!.height;
     expect(registrationHeight).toBeGreaterThan(loginHeight);
 
@@ -114,16 +115,26 @@ test.describe('authentication root and frosted surface', () => {
     await expect(email).toHaveValue('kept@example.com');
     await expect(password).toHaveValue('password123');
 
-    await page.getByRole('tab', { name: '登录' }).click();
+    await page.getByRole('button', { name: '返回' }).click();
     await expect(page.getByLabel('邀请码（可选）')).toHaveCount(0);
     await expect(page.getByLabel('邮箱验证码')).toHaveCount(0);
     await expect(email).toHaveValue('kept@example.com');
+    await expect(password).toHaveValue('password123');
+
+    await page.getByRole('button', { name: '忘记密码' }).click();
+    await expect(page.getByLabel('邮箱验证码')).toBeVisible();
+    await expect(page.getByLabel('新密码')).toBeVisible();
+    await expect(page.getByRole('button', { name: '重置密码' })).toBeVisible();
+    await expect(email).toHaveValue('kept@example.com');
+    await page.getByRole('button', { name: '返回' }).click();
+    await expect(page.getByLabel('新密码')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '登录' })).toBeVisible();
   });
 
   test('mobile authentication has no internal scrollport and remains inside the viewport', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openLoginPage(page);
-    await page.getByRole('tab', { name: '注册' }).click();
+    await page.getByRole('button', { name: '注册账号' }).click();
 
     const frosted = await readFrostedAuth(page);
     expect(frosted.surfaceRadius).toBe('40px');

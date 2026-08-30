@@ -300,6 +300,8 @@ JSON.parse
 
 “Economy 注册完成”的准确时点是：某个统一账号第一次创建 Economy 玩家档案。任何已登录主页账号首次进入 Economy 时仍允许自动创建玩家档案，并在同一事务记录 Economy 注册 IP 指纹、邮箱、完成时间和来源；不得要求该账号再次走验证码注册。邮箱验证码注册完成接口是另一条首次建档入口，两条入口必须共用同一首次建档、邀请归因、IP 检测和记录逻辑。
 
+统一账号密码重置由主页账号服务权威处理，Economy 游戏服务不得保存密码哈希、重置验证码或会话失效状态。Economy 只通过 Nginx 暴露同源 `/economy-api/password-reset/` 代理到主页 `127.0.0.1:3001/api/password-reset/`；发送验证码前的已注册邮箱确认、验证码校验、密码更新和旧会话失效均由主页账号服务完成。
+
 主页已经完成账号信任与邮箱验证，但邮箱验证码注册和来源为 `homepage_session` 的首次建档仍统一执行注册 IP 规则。Nginx 必须覆盖并传入可信 `X-Real-IP`；应用优先使用该值，避免客户端伪造 `X-Forwarded-For`。只保存由服务器秘密 HMAC 生成的注册 IP 指纹，不保存或展示明文 IP。
 
 同一注册 IP 指纹出现两个或更多不同统一账号时，服务器只创建或更新异常事件、补充事件成员并写事件审计，不得自动写入、恢复或扩大账号封禁。服务启动扫描只补齐异常上报。已复核或已关闭事件出现新成员时重新进入待复核，但成员普通游戏访问不受影响。
@@ -326,7 +328,7 @@ JSON.parse
 - 统一账号创建顺序为先调用主页 `/api/register`；邮箱已存在时再调用 `/api/login`。成功响应的会话 Cookie 转发给 Economy 浏览器会话。
 - 生产验证码投递必须同时配置 `RESEND_API_KEY` 与 `EMAIL_FROM`。`EMAIL_FROM` 是唯一正式发件人变量名，不使用旧名称。缺少任一项时接口返回 `424` 和“邮箱验证码服务未配置，请联系管理员”，不得把配置缺失伪装成整个游戏服务器故障；Resend 超时、拒绝或无效响应继续返回通用 `503`，不得向客户端泄露供应商响应正文。
 
-## 6. 注册与游戏 API
+## 6. 注册、密码重置与游戏 API
 
 注册公网前缀 `/economy-api/registration/`，内部前缀 `/api/registration/`。
 
@@ -334,6 +336,13 @@ JSON.parse
 |---|---|---|---|
 | POST | `/economy-api/registration/email-code` | `/api/registration/email-code` | 发送邮箱验证码 |
 | POST | `/economy-api/registration/complete` | `/api/registration/complete` | 校验验证码、统一账号、邀请链接、同 IP 规则并首次建档 |
+
+密码重置公网前缀 `/economy-api/password-reset/`，由 Nginx 直接代理主页账号服务 `/api/password-reset/`。
+
+| 方法 | 公网路径 | 主页内部路径 | 用途 |
+|---|---|---|---|
+| POST | `/economy-api/password-reset/email-code` | `/api/password-reset/email-code` | 确认邮箱已注册后发送密码重置验证码 |
+| POST | `/economy-api/password-reset/complete` | `/api/password-reset/complete` | 校验验证码、更新统一账号密码并使既有会话失效 |
 
 游戏公网前缀 `/economy-api/game/`，内部前缀 `/api/game/`。
 
@@ -530,10 +539,11 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 /etc/nginx/snippets/game-riversoft-economy-game-api.conf
 ```
 
-注册路由由 `scripts/configure-economy-registration-nginx.py` 幂等加入正式 HTTPS `server`：
+注册与密码重置路由由 `scripts/configure-economy-registration-nginx.py` 幂等加入正式 HTTPS `server`：
 
 ```text
 /economy-api/registration/ → 127.0.0.1:3002/api/registration/
+/economy-api/password-reset/ → 127.0.0.1:3001/api/password-reset/
 ```
 
 部署脚本必须识别已有 snippet 和手工路由，只补缺失部分。
@@ -542,8 +552,9 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 - 不得在游戏 API snippet 或手动游戏路由已存在时再次生成 `/economy-api/game/`。
 - 生产正式域名与临时公网 IP fallback Nginx 都必须保留 exact `location = /economy-api/health`，并把该路径代理到 `http://127.0.0.1:3002/health`；主部署通过生产公网 IP 验收时必须得到 2xx。该路由只用于无认证健康检查，不得开放其他 `/economy-api/*` 根前缀。
 - 不得在手动注册路由已存在时再次生成 `/economy-api/registration/`。
+- 不得在手动密码重置路由已存在时再次生成 `/economy-api/password-reset/`；该代理必须清除浏览器 `Origin`、向主页传入可信 `X-Real-IP`，并保持 `16k` 请求体上限。
 - 连续执行两次，第二次不得产生配置变化。
-- 游戏 API `client_max_body_size` 固定为 `256k`；注册 API 固定为 `16k`。
+- 游戏 API `client_max_body_size` 固定为 `256k`；注册与密码重置 API 固定为 `16k`。
 
 大于 1 KB 的 `application/json` 响应启用 gzip：`gzip_vary on`、`gzip_proxied any`、`gzip_types application/json`、压缩级别 5。部署脚本必须修补既有游戏 API snippet 或手工 `location`，不得只对新安装生效。
 
@@ -620,7 +631,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 - 让相同注册 IP 的邀请关系发放邀请宝石，或把邀请防刷结果等同于账号封禁；
 - 允许一个被邀请账号绑定多个邀请人、重置后重新领取、客户端决定奖励或把宝石计入总资产；
 - 管理员操作删除事件与审计历史、服务重启改变管理员封禁决定，或解禁后自动补发被拦截的邀请奖励；
-- 删除 `/economy-api/registration/` Nginx 路由或打印验证码、Resend API Key 与注册秘密；
+- 删除 `/economy-api/registration/` 或 `/economy-api/password-reset/` Nginx 路由，或打印验证码、密码、Resend API Key 与注册秘密；
 - 把邮件密钥复制到 GitHub Actions，或让部署工作流覆盖服务器已有邮件配置；
 - 删除 `/etc/riversoft-email.env` 的共享加载，颠倒共享文件与 Economy 专用文件的覆盖顺序，或让邮件配置工作流读取并打印环境文件内容；
 - 在缺少 `RESEND_API_KEY` 或 `EMAIL_FROM` 时仍把部署标记为验证码可用，或把明确的邮件配置缺失重新改写成整个游戏服务器不可用；

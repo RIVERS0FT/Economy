@@ -13,6 +13,7 @@ DOMAIN = "game.riversoft.top"
 BEGIN = "# BEGIN MANAGED ECONOMY REGISTRATION API PROXY"
 END = "# END MANAGED ECONOMY REGISTRATION API PROXY"
 REGISTRATION_PATH = "/economy-api/registration/"
+PASSWORD_RESET_PATH = "/economy-api/password-reset/"
 
 REGISTRATION_BLOCK = """
     location ^~ /economy-api/registration/ {
@@ -23,6 +24,22 @@ REGISTRATION_BLOCK = """
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Host $host;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 30s;
+        client_max_body_size 16k;
+    }
+""".strip("\n")
+
+PASSWORD_RESET_BLOCK = """
+    location ^~ /economy-api/password-reset/ {
+        proxy_pass http://127.0.0.1:3001/api/password-reset/;
+        proxy_http_version 1.1;
+        proxy_set_header Host riversoft.top;
+        proxy_set_header X-Forwarded-Host game.riversoft.top;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Origin "";
         proxy_connect_timeout 5s;
         proxy_read_timeout 30s;
         client_max_body_size 16k;
@@ -91,9 +108,9 @@ def is_target_server(block: str) -> bool:
     return bool(has_domain and has_https)
 
 
-def has_registration_proxy(block: str) -> bool:
+def has_proxy(block: str, path: str) -> bool:
     return bool(re.search(
-        rf"\blocation\s+(?:(?:\^~|=)\s+)?{re.escape(REGISTRATION_PATH)}\s*\{{",
+        rf"\blocation\s+(?:(?:\^~|=)\s+)?{re.escape(path)}\s*\{{",
         masked(block),
         re.IGNORECASE,
     ))
@@ -110,13 +127,18 @@ def replace_or_insert(block: str) -> str:
     pattern = managed_pattern()
     had_managed = bool(pattern.search(block))
     cleaned = pattern.sub("", block, count=1)
-    if has_registration_proxy(cleaned):
+    sections: list[str] = []
+    if not has_proxy(cleaned, REGISTRATION_PATH):
+        sections.append(REGISTRATION_BLOCK)
+    if not has_proxy(cleaned, PASSWORD_RESET_PATH):
+        sections.append(PASSWORD_RESET_BLOCK)
+    if not sections:
         return re.sub(r"\n{3,}", "\n\n", cleaned) if had_managed else block
     closing = cleaned.rfind("}")
     if closing < 0:
         raise RuntimeError("Target server block has no closing brace")
     normalized = cleaned[:closing].rstrip()
-    managed = f"    {BEGIN}\n{REGISTRATION_BLOCK}\n    {END}"
+    managed = f"    {BEGIN}\n" + "\n\n".join(sections) + f"\n    {END}"
     return normalized + "\n\n" + managed + "\n" + cleaned[closing:]
 
 
@@ -166,7 +188,7 @@ def main() -> int:
     updated_block = replace_or_insert(text[start:end])
     updated = text[:start] + updated_block + text[end:]
     if updated == text:
-        print(f"Economy registration API proxy already configured in {path}")
+        print(f"Economy registration and password reset API proxies already configured in {path}")
         return 0
     backup = path.with_suffix(path.suffix + ".economy-registration-proxy.bak")
     shutil.copy2(path, backup)
@@ -178,7 +200,7 @@ def main() -> int:
         shutil.copy2(backup, path)
         subprocess.run(["nginx", "-t"], check=False)
         raise
-    print(f"Configured Economy registration API proxy in {path}")
+    print(f"Configured Economy registration and password reset API proxies in {path}")
     return 0
 
 

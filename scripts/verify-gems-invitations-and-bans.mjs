@@ -93,9 +93,14 @@ for (const text of ["import { InvitationSettings }", '<InvitationSettings />', '
 }
 forbidText('src/pages/SettingsPage.tsx', 'InvitationSettings');
 
-for (const text of ['邀请码（可选）', 'name="inviteCode"', "defaultValue={inviteCode ?? ''}", '邀请码已自动填写']) {
-  requireText('src/app/LoginPage.tsx', text);
-}
+for (const text of [
+  '邀请码（可选）',
+  'name="inviteCode"',
+  "const [activeInviteCode, setActiveInviteCode] = useState(inviteCode)",
+  "defaultValue={activeInviteCode ?? ''}",
+  'setActiveInviteCode(undefined)',
+  '邀请码已自动填写',
+]) requireText('src/app/LoginPage.tsx', text);
 for (const text of ['注册表单固定提供', '注册完成后不能补填', '`410 Gone`', '不得根据玩家档案创建时间重新开放 24 小时']) {
   requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', text);
 }
