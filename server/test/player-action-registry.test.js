@@ -17,6 +17,7 @@ const VALID_SCOPES = new Set([
   'facility-listing',
   'auction',
   'order',
+  'save-deletion',
 ]);
 
 test('every active player action declares interaction metadata and an explicit mutation scope', () => {
