@@ -1,0 +1,47 @@
+name: Temporary auction-only CI contract fix
+
+on:
+  push:
+    branches:
+      - codex/factory-auction-only
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/factory-auction-only
+          fetch-depth: 0
+      - name: Refresh provincial verifier
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/verify-provincial-economy.mjs')
+          text = path.read_text(encoding='utf-8')
+          old = "'facility order transfer preserves the province',"
+          new = "'factory market orders are rejected and legacy open orders are retired',"
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one stale provincial factory-order test marker, found {text.count(old)}')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          Path('.github/workflows/codex-factory-auction-only-ci-fix.yml').unlink()
+          PY
+      - name: Commit verifier update
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Update provincial auction-only verification'
+          git push origin HEAD:codex/factory-auction-only
+      - name: Run full CI on updated head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: gh workflow run ci.yml --ref codex/factory-auction-only
