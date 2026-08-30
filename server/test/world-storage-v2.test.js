@@ -365,3 +365,135 @@ test('commodity cancel COW scope stays on the actor and order segment', () => {
   assert.equal(scope.segments.has('orders'), true);
   assert.equal(scope.segments.has('markets'), false);
 });
+
+test('factory interaction scope keeps unrelated players shared while including procurement counterparties', () => {
+  const world = {
+    players: {
+      1: { userId: 1, marker: 'actor' },
+      2: { userId: 2, marker: 'material-seller' },
+      3: { userId: 3, marker: 'unrelated' },
+    },
+    orders: [
+      { id: 'managed', ownerType: 'player', ownerId: 1, provinceId: '110000', assetKind: 'commodity', productId: 'rice', side: 'sell', price: 12, remaining: 1, status: 'open' },
+      { id: 'material', ownerType: 'player', ownerId: 2, provinceId: '110000', assetKind: 'commodity', productId: 'wheat', side: 'sell', price: 9, remaining: 4, status: 'open' },
+      { id: 'other-province', ownerType: 'player', ownerId: 3, provinceId: '130000', assetKind: 'commodity', productId: 'wheat', side: 'sell', price: 8, remaining: 4, status: 'open' },
+    ],
+    markets: { '110000:wheat': { lastPrice: 9 }, '130000:wheat': { lastPrice: 8 } },
+    bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+  };
+  const scope = createRuntimeMutationScope(world, 1, 'factoryAutoOperationRebuild', {
+    provinceId: '110000', autoProcure: true, materialPriceCaps: { wheat: 10 },
+  }, { scheduledProcessing: true });
+  assert.equal(scope.allPlayers, false);
+  assert.equal(scope.allSegments, false);
+  assert.deepEqual([...scope.playerIds].sort(), ['1', '2']);
+  assert.equal(scope.segments.has('orders'), true);
+  assert.equal(scope.segments.has('markets'), true);
+  assert.equal(scope.label, 'facility:auto-operation-rebuild');
+  const draft = cloneWorldForMutation(world, scope);
+  assert.notEqual(draft.players['1'], world.players['1']);
+  assert.notEqual(draft.players['2'], world.players['2']);
+  assert.equal(draft.players['3'], world.players['3']);
+  assert.notEqual(draft.orders[0], world.orders[0]);
+  assert.notEqual(draft.orders[1], world.orders[1]);
+  assert.equal(draft.orders[2], world.orders[2]);
+});
+
+test('factory auto-operation policy uses bounded order scope without cloning markets', () => {
+  const world = {
+    players: { 1: { userId: 1 }, 2: { userId: 2 } },
+    orders: [
+      { id: 'managed', ownerType: 'player', ownerId: 1, provinceId: '110000', assetKind: 'commodity', productId: 'wheat', side: 'buy', price: 8, remaining: 1, status: 'open' },
+      { id: 'other', ownerType: 'player', ownerId: 2, provinceId: '110000', assetKind: 'commodity', productId: 'wheat', side: 'sell', price: 9, remaining: 1, status: 'open' },
+    ],
+    markets: { '110000:wheat': { lastPrice: 9 } },
+    bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+  };
+  const scope = createRuntimeMutationScope(world, 1, 'placeOrder', {
+    execution: 'factory-auto-operation-policy', provinceId: '110000', assetKind: 'facility', facilityTypeId: 'farm',
+  }, { scheduledProcessing: true });
+  assert.deepEqual([...scope.playerIds], ['1']);
+  assert.equal(scope.segments.has('orders'), true);
+  assert.equal(scope.segments.has('markets'), false);
+  const draft = cloneWorldForMutation(world, scope);
+  assert.notEqual(draft.orders[0], world.orders[0]);
+  assert.equal(draft.orders[1], world.orders[1]);
+  assert.equal(draft.markets, world.markets);
+});
+
+test('profile scope clones only actor and actor orders when changing player name', () => {
+  const world = {
+    players: { 1: { userId: 1 }, 2: { userId: 2 } },
+    orders: [
+      { id: 'open-own', ownerType: 'player', ownerId: 1, status: 'open', remaining: 1 },
+      { id: 'closed-own', ownerType: 'player', ownerId: 1, status: 'filled', remaining: 0 },
+      { id: 'other', ownerType: 'player', ownerId: 2, status: 'open', remaining: 1 },
+    ],
+    bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+  };
+  const scope = createRuntimeMutationScope(world, 1, 'renamePlayer', { playerName: '新的名字' }, { scheduledProcessing: true });
+  assert.deepEqual([...scope.playerIds], ['1']);
+  assert.equal(scope.segments.has('orders'), true);
+  const draft = cloneWorldForMutation(world, scope);
+  assert.notEqual(draft.players['1'], world.players['1']);
+  assert.equal(draft.players['2'], world.players['2']);
+  assert.notEqual(draft.orders[0], world.orders[0]);
+  assert.notEqual(draft.orders[1], world.orders[1]);
+  assert.equal(draft.orders[2], world.orders[2]);
+  const avatarScope = createRuntimeMutationScope(world, 1, 'renamePlayer', { avatarData: 'thumbnail' }, { scheduledProcessing: true });
+  assert.equal(avatarScope.segments.has('orders'), false);
+});
+
+test('contract scope clones target participants and contract segment without unrelated players', () => {
+  const world = {
+    players: { 1: { userId: 1 }, 2: { userId: 2 }, 3: { userId: 3 } },
+    productionContracts: [
+      { id: 'contract-a', publisherId: 2, buyerId: 1, supplierId: 2 },
+      { id: 'contract-b', publisherId: 3, buyerId: 3, supplierId: 2 },
+    ],
+    bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+  };
+  const scope = createRuntimeMutationScope(world, 1, 'acceptProductionContract', { contractId: 'contract-a' }, { scheduledProcessing: true });
+  assert.deepEqual([...scope.playerIds].sort(), ['1', '2']);
+  assert.equal(scope.segments.has('productionContracts'), true);
+  assert.equal(scope.label, 'contract:acceptProductionContract');
+  const draft = cloneWorldForMutation(world, scope);
+  assert.notEqual(draft.players['1'], world.players['1']);
+  assert.notEqual(draft.players['2'], world.players['2']);
+  assert.equal(draft.players['3'], world.players['3']);
+  assert.notEqual(draft.productionContracts, world.productionContracts);
+});
+
+test('legacy facility listing scope includes buyer and player seller only', () => {
+  const world = {
+    players: { 1: { userId: 1 }, 2: { userId: 2 }, 3: { userId: 3 } },
+    facilityListings: [{ id: 'listing-a', ownerType: 'player', ownerId: 2 }],
+    bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+  };
+  const scope = createRuntimeMutationScope(world, 1, 'buyFacility', { listingId: 'listing-a' }, { scheduledProcessing: true });
+  assert.deepEqual([...scope.playerIds].sort(), ['1', '2']);
+  assert.equal(scope.segments.has('facilityListings'), true);
+  const draft = cloneWorldForMutation(world, scope);
+  assert.notEqual(draft.players['1'], world.players['1']);
+  assert.notEqual(draft.players['2'], world.players['2']);
+  assert.equal(draft.players['3'], world.players['3']);
+  assert.notEqual(draft.facilityListings, world.facilityListings);
+});
+
+test('production settlement remains current-player local after factory scopes are specialized', () => {
+  const world = {
+    players: { 1: { userId: 1 }, 2: { userId: 2 } },
+    orders: [{ id: 'other', ownerType: 'player', ownerId: 2, status: 'open', remaining: 1 }],
+    bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+  };
+  const scope = createRuntimeMutationScope(world, 1, 'productionSettlement', {}, { scheduledProcessing: true });
+  assert.deepEqual([...scope.playerIds], ['1']);
+  assert.equal(scope.label, 'local:productionSettlement');
+  assert.equal(scope.segments.has('orders'), false);
+});

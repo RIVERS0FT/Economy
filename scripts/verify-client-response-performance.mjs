@@ -304,6 +304,26 @@ requireText('src/app/gameViewModel.ts', [
 forbidText('src/app/gameViewModel.ts', [
   'await syncConfirmedAction(response, action);',
 ]);
+const buildingsSource = read('src/pages/BuildingsPage.tsx');
+assert.equal(
+  (buildingsSource.match(/void model\.refresh\(\{ mode: 'authoritative' \}\);/g) || []).length,
+  2,
+  '建厂采购创建与取消都必须在动作确认后后台补拉状态',
+);
+assert.equal(
+  (buildingsSource.match(/await model\.refresh\(\{ mode: 'authoritative' \}\);/g) || []).length,
+  0,
+  '建厂采购不得等待动作后的状态补拉才结束交互',
+);
+const autoTradeSource = read('src/auto-trade/useOnlineAutoTrade.ts');
+requireText('src/auto-trade/useOnlineAutoTrade.ts', [
+  "void model.refresh({ mode: 'authoritative' });\n      clearAutoSellPolicies(userId);\n      if (normalized.sell.enabled)",
+]);
+assert.equal(
+  (autoTradeSource.match(/await model\.refresh\(\{ mode: 'authoritative' \}\);/g) || []).length,
+  1,
+  '仅允许旧浏览器策略迁移等待权威补拉；用户保存策略必须即时返回',
+);
 
 if (failures.length > 0) {
   console.error('客户端响应性能防回退验证失败:');

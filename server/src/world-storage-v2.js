@@ -20,7 +20,7 @@ const LOCAL_PLAYER_ACTIONS = new Set([
   'redeemGift',
   'exchangeGems',
   'rejectGemShopQuote',
-  'setFacilityRecipe',
+  'productionSettlement',
 ]);
 const LOCAL_ORDER_POLICY_EXECUTIONS = new Set([
   'online-auto-sell-policy',
@@ -36,6 +36,38 @@ const ORDER_SCOPE_LABELS = Object.freeze({
 });
 
 const AUCTION_ACTIONS = new Set(['createAuction', 'placeAuctionBid', 'cancelAuction']);
+const FACTORY_SCOPE_ACTIONS = new Set([
+  'factoryAutoOperationRebuild',
+  'buildFacility',
+  'startFacility',
+  'pauseFacility',
+  'setFacilityRecipe',
+]);
+const FACILITY_LISTING_ACTIONS = new Set(['listFacility', 'cancelFacilityListing', 'buyFacility']);
+const CONTRACT_ACTIONS = new Set([
+  'createProductionContract',
+  'acceptProductionContract',
+  'proposeProductionContractNegotiation',
+  'counterProductionContractNegotiation',
+  'acceptProductionContractNegotiation',
+  'rejectProductionContractNegotiation',
+  'revokeProductionContractNegotiation',
+  'cancelProductionContract',
+  'prepareProductionContract',
+  'fundProductionContract',
+  'setProductionContractAutoReserve',
+  'setProductionContractAutoFund',
+  'proposeProductionContractRenewal',
+  'acceptProductionContractRenewal',
+  'rejectProductionContractRenewal',
+  'revokeProductionContractRenewal',
+  'requestProductionContractTermination',
+  'terminateProductionContractNow',
+  'repayPlayerLoan',
+  'setPlayerLoanAutoRepay',
+  'fundFacilityLease',
+  'setFacilityLeaseAutoFund',
+]);
 const CORE_LOCAL_SEGMENTS = Object.freeze([
   'bank',
   'weeklyCashSettlement',
@@ -349,6 +381,117 @@ function cancelScope(world, userId, payload) {
   };
 }
 
+function addPlayerId(ids, value) {
+  const numeric = Number(value);
+  if (Number.isSafeInteger(numeric) && numeric > 0) ids.add(playerKey(numeric));
+}
+
+function ownedOrderIndexesInProvince(world, userId, provinceId, { openOnly = true } = {}) {
+  const selectedProvinceId = normalizeProvinceId(provinceId);
+  const indexes = new Set();
+  for (const [index, order] of (world?.orders || []).entries()) {
+    if (order?.ownerType !== 'player' || Number(order.ownerId) !== Number(userId)) continue;
+    if (normalizeProvinceId(order.provinceId) !== selectedProvinceId) continue;
+    if (openOnly && !isOpenOrder(order)) continue;
+    indexes.add(index);
+  }
+  return indexes;
+}
+
+function factoryAutoOperationScope(world, userId, payload) {
+  const provinceId = normalizeProvinceId(payload?.provinceId);
+  const orderIndexes = ownedOrderIndexesInProvince(world, userId, provinceId);
+  const procurement = payload?.autoProcure === true ? procurementAssets(payload) : [];
+  for (const index of orderIndexesForAssets(world, procurement)) orderIndexes.add(index);
+  const marketKeys = new Set(procurement.map(({ provinceId: assetProvinceId, assetId }) => (
+    provinceScopedKey(assetProvinceId, assetId)
+  )));
+  const segments = new Set([...CORE_LOCAL_SEGMENTS, 'orders']);
+  if (marketKeys.size > 0) segments.add('markets');
+  return {
+    allPlayers: false,
+    allSegments: false,
+    playerIds: playerIdsForOrderIndexes(world, userId, orderIndexes),
+    segments,
+    orderIndexes,
+    marketKeys,
+    facilityMarketKeys: new Set(),
+    includeAuctionEscrow: false,
+    label: 'facility:auto-operation-rebuild',
+  };
+}
+
+function profileMutationScope(world, userId, payload) {
+  const orderIndexes = new Set();
+  if (Object.hasOwn(payload || {}, 'playerName')) {
+    for (const [index, order] of (world?.orders || []).entries()) {
+      if (order?.ownerType === 'player' && Number(order.ownerId) === Number(userId)) orderIndexes.add(index);
+    }
+  }
+  const segments = new Set(CORE_LOCAL_SEGMENTS);
+  if (orderIndexes.size > 0) segments.add('orders');
+  return {
+    allPlayers: false,
+    allSegments: false,
+    playerIds: new Set([playerKey(userId)]),
+    segments,
+    orderIndexes,
+    marketKeys: new Set(),
+    facilityMarketKeys: new Set(),
+    includeAuctionEscrow: false,
+    label: 'profile:update',
+  };
+}
+
+function contractParticipantIds(world, payload, userId) {
+  const ids = new Set([playerKey(userId)]);
+  const contractId = String(payload?.contractId || payload?.id || '');
+  const contract = (world?.productionContracts || []).find((entry) => String(entry?.id || '') === contractId);
+  if (!contract) return ids;
+  for (const field of [
+    'publisherId',
+    'buyerId',
+    'supplierId',
+    'lenderId',
+    'borrowerId',
+    'lessorId',
+    'lesseeId',
+  ]) addPlayerId(ids, contract[field]);
+  return ids;
+}
+
+function contractMutationScope(world, userId, payload, action) {
+  return {
+    allPlayers: false,
+    allSegments: false,
+    playerIds: contractParticipantIds(world, payload, userId),
+    segments: new Set([...CORE_LOCAL_SEGMENTS, 'productionContracts']),
+    orderIndexes: new Set(),
+    marketKeys: new Set(),
+    facilityMarketKeys: new Set(),
+    includeAuctionEscrow: false,
+    label: `contract:${action}`,
+  };
+}
+
+function facilityListingMutationScope(world, userId, payload, action) {
+  const ids = new Set([playerKey(userId)]);
+  const listingId = String(payload?.listingId || '');
+  const listing = (world?.facilityListings || []).find((entry) => String(entry?.id || '') === listingId);
+  if (listing?.ownerType === 'player') addPlayerId(ids, listing.ownerId);
+  return {
+    allPlayers: false,
+    allSegments: false,
+    playerIds: ids,
+    segments: new Set([...CORE_LOCAL_SEGMENTS, 'facilityListings']),
+    orderIndexes: new Set(),
+    marketKeys: new Set(),
+    facilityMarketKeys: new Set(),
+    includeAuctionEscrow: false,
+    label: `facility-listing:${action}`,
+  };
+}
+
 export function createRuntimeMutationScope(world, userId, action, payload, {
   scheduledProcessing = true,
 } = {}) {
@@ -368,6 +511,22 @@ export function createRuntimeMutationScope(world, userId, action, payload, {
     };
   }
 
+  if (FACTORY_SCOPE_ACTIONS.has(action)) {
+    return factoryAutoOperationScope(world, userId, payload);
+  }
+
+  if (action === 'renamePlayer') {
+    return profileMutationScope(world, userId, payload);
+  }
+
+  if (CONTRACT_ACTIONS.has(action)) {
+    return contractMutationScope(world, userId, payload, action);
+  }
+
+  if (FACILITY_LISTING_ACTIONS.has(action)) {
+    return facilityListingMutationScope(world, userId, payload, action);
+  }
+
   if (AUCTION_ACTIONS.has(action)) {
     return {
       allPlayers: false,
@@ -384,6 +543,9 @@ export function createRuntimeMutationScope(world, userId, action, payload, {
 
   if (action === 'placeOrder') {
     const execution = String(payload?.execution || '');
+    if (execution === 'factory-auto-operation-policy') {
+      return factoryAutoOperationScope(world, userId, payload);
+    }
     if (LOCAL_ORDER_POLICY_EXECUTIONS.has(execution)) {
       const scope = orderScope(world, userId, [ordinaryOrderAsset(payload)], {
         label: `commodity:${execution}`,
