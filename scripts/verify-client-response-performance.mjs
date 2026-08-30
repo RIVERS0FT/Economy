@@ -298,6 +298,13 @@ requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', [
   '`market.orders`',
 ]);
 
+requireText('src/app/gameViewModel.ts', [
+  'void syncConfirmedAction(response, action).finally(finish);',
+]);
+forbidText('src/app/gameViewModel.ts', [
+  'await syncConfirmedAction(response, action);',
+]);
+
 if (failures.length > 0) {
   console.error('客户端响应性能防回退验证失败:');
   failures.forEach((failure) => console.error(`- ${failure}`));

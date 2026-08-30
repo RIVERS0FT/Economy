@@ -6,6 +6,8 @@ export const WORLD_STORAGE_SCHEMA_VERSION = 2;
 export const AUTHORITATIVE_WORLD_VERSION = 32;
 
 const LOCAL_PLAYER_ACTIONS = new Set([
+  'chooseStartingProvince',
+  'unlockProvince',
   'startResearch',
   'accelerateResearch',
   'bankDeposit',
