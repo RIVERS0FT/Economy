@@ -116,7 +116,7 @@ test('global market drills from commodity to regional quotes and existing trade 
   await expect(page.locator('.global-market-product-region-list')).toBeVisible();
 });
 
-test('market and building entity lists share one page-list geometry', async ({ page }) => {
+test('market and building entity lists share surface geometry with commodity density exception', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('?preview=game');
   const sidebar = page.locator('.desktop-sidebar');
@@ -157,12 +157,12 @@ test('market and building entity lists share one page-list geometry', async ({ p
   };
 
   await sidebar.getByRole('button', { name: /^市场/ }).click();
-  const samples = [await inspect('.global-market-goods-surface')];
+  const marketSamples = [await inspect('.global-market-goods-surface')];
   const marketArtworkSize = await page.locator('.global-market-goods-row__artwork > .product-artwork').first().evaluate(
     (element) => getComputedStyle(element).width,
   );
   await page.locator('.global-market-goods-row').first().click();
-  samples.push(await inspect('.global-market-product-region-surface'));
+  marketSamples.push(await inspect('.global-market-product-region-surface'));
 
   await sidebar.getByRole('button', { name: /^建筑/ }).click();
   const hasOwnedFacilityRows = await page.locator('.global-facility-catalog-row').count() > 0;
@@ -208,16 +208,24 @@ test('market and building entity lists share one page-list geometry', async ({ p
       container.append(surface);
     });
   }
-  samples.push(await inspect('.global-facility-catalog'));
+  const facilitySamples = [await inspect('.global-facility-catalog')];
   const facilityArtworkSize = await page.locator('.global-facility-catalog-row__artwork').first().evaluate(
     (element) => getComputedStyle(element).width,
   );
-  expect(facilityArtworkSize).toBe(marketArtworkSize);
+  expect(parseFloat(marketArtworkSize)).toBeLessThan(parseFloat(facilityArtworkSize));
   if (hasOwnedFacilityRows) await page.locator('.global-facility-catalog-row').first().click();
-  samples.push(await inspect('.global-facility-region-surface'));
+  facilitySamples.push(await inspect('.global-facility-region-surface'));
 
+  const samples = [...marketSamples, ...facilitySamples];
+  const densityKeys = new Set<keyof typeof samples[number]>(['paddingTop', 'paddingBottom', 'minHeight']);
   for (const key of Object.keys(samples[0]) as Array<keyof typeof samples[number]>) {
-    expect(new Set(samples.map((sample) => String(sample[key]))).size, `${key} should be shared`).toBe(1);
+    if (densityKeys.has(key)) {
+      expect(new Set(marketSamples.map((sample) => String(sample[key]))).size, `${key} should match inside commodity lists`).toBe(1);
+      expect(new Set(facilitySamples.map((sample) => String(sample[key]))).size, `${key} should match inside facility lists`).toBe(1);
+      expect(String(marketSamples[0][key]), `${key} should keep the commodity density exception`).not.toBe(String(facilitySamples[0][key]));
+      continue;
+    }
+    expect(new Set(samples.map((sample) => String(sample[key]))).size, `${key} should stay shared`).toBe(1);
   }
 });
 
