@@ -2,7 +2,7 @@
 
 > 状态：当前服务器、API、持久化和部署基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-29
+> 更新时间：2026-08-30
 > 客户端状态版本：37
 > 世界状态版本：32
 > 市场需求模型版本：20
@@ -47,6 +47,7 @@
 - `provinces.js`：美国本土连续 48 个州级地区共享目录（含州中心与首府中英文名称及经纬度）、地区规范化、`provinceId:assetId` 权威键、世界 30 迁移与默认地区运行时兼容别名；
 - `state-economic-baselines.js`：校验 `shared/us-state-economic-baselines.json` 与 48 州目录一一对应，提供 Census 2025-07-01 人口、BLS QCEW 2025-Q4 平均周薪和 BEA 2023 PCE 只读基准，并只对已有玩家经营入口的州生成 PCE 消费分配权重；运行时不得访问外部统计 API；
 - `domain.js`：唯一公共领域门面，其他服务器模块只从此导入公共能力；
+- `player-action-registry.js`：普通玩家可达 Action 的统一元数据注册表，唯一声明限流类别、显式 Mutation Scope、确认语义、延迟等级／预算、公开路由状态与订单 execution 白名单；路由、运行时 COW、请求监控和防回退验证共同读取该注册表；
 - `facility-groups.js`：工厂集群、统一周期、配方切换和工厂订单适配；
 - `facility-auto-procure.js`：即时建厂缺料预检、真实商品卖盘价格保护、资金校验、事务内 FOK 采购，以及卖盘不足时按单次建造批量创建／取消正式商品买单的编排；
 - `factory-auto-operation.js`：玩家可编辑的地区＋工厂类型经营意图、默认策略、当前生产配置聚合、商品执行策略派生，以及策略变化时对统一商品托管订单的安全重建；
@@ -151,7 +152,7 @@ economy_world_segments(
 
 完整世界迁移、旧字段补全和全玩家兼容初始化只允许在首次加载、旧单行世界迁移或世界版本升级时执行，不属于普通写事务步骤。动作失败回滚 SAVEPOINT 并丢弃草稿；数据库、审计或分段写入失败则整个外层事务回滚。
 
-运行时内存状态必须区分**已提交世界（committed world）**与**请求草稿（world draft）**。正式服务命中内存缓存的玩家写入必须先通过 `createRuntimeMutationScope` 声明可写玩家与世界 segment，再由 `cloneWorldForMutation` 创建 Copy-on-Write 草稿：可写对象必须隔离复制，未声明对象允许与 committed world 共享引用且必须被视为只读。未知或尚未局部化的动作可以暂时退回完整草稿，但不得为了回滚、投影或持久化再创建第二份完整世界。起始州选择与州解锁只修改当前玩家资金、统计和州访问字段，必须固定使用当前玩家局部 Mutation Scope；不得因这类 O(1) 玩家写入复制、比较或序列化全部玩家与全部世界 segment。工厂建造、启停、配方切换与自动经营策略只复制当前玩家及本州可能被撤销的玩家托管订单；一键购料额外纳入本次材料资产的订单对手方与对应市场键，不得因此退回完整世界草稿。玩家资料修改只复制当前玩家，改名时额外复制该玩家自己的订单以同步公开名称；头像文件写入不得要求复制世界公共 segment。合同动作复制当前操作者、当前合同集合中的全部玩家参与者、`productionContracts` 与必要核心资金域，但不得复制无合同玩家或无关世界 segment；非显然原因是动作提交后的合同域统一后处理仍会遍历当前合同集合，因此 Copy-on-Write 必须覆盖该后处理可能触碰的全部合同参与者。旧设施挂牌动作只复制买卖相关玩家、`facilityListings` 与必要核心资金域。普通商品下单只复制下单者、当前价格可交叉的玩家对手方、订单／市场及必要核心资金域；商品撤单只复制下单者、订单及必要核心资金域；拍卖动作只复制相关卖方／当前最高出价者／当前操作者、拍卖及必要核心资金域。
+运行时内存状态必须区分**已提交世界（committed world）**与**请求草稿（world draft）**。正式服务命中内存缓存的玩家写入必须先通过 `createRuntimeMutationScope` 声明可写玩家与世界 segment，再由 `cloneWorldForMutation` 创建 Copy-on-Write 草稿：可写对象必须隔离复制，未声明对象允许与 committed world 共享引用且必须被视为只读。普通玩家可达 Action 必须先登记到统一玩家动作注册表并显式声明 Mutation Scope；正式 `scheduledProcessing` 服务遇到未登记 Action、未登记订单 execution、无法从参数推导安全 scope 或任何 `allPlayers`／`allSegments` 无界 scope 时必须拒绝请求，不得静默退回完整世界草稿。只有关闭正式调度的内存测试／兼容测试可以显式使用 full-world 草稿，以保持旧测试确定性。起始州选择与州解锁只修改当前玩家资金、统计和州访问字段，必须固定使用当前玩家局部 Mutation Scope；不得因这类 O(1) 玩家写入复制、比较或序列化全部玩家与全部世界 segment。工厂建造、启停、配方切换与自动经营策略只复制当前玩家及本州可能被撤销的玩家托管订单；一键购料额外纳入本次材料资产的订单对手方与对应市场键，不得因此退回完整世界草稿。玩家资料修改只复制当前玩家，改名时额外复制该玩家自己的订单以同步公开名称；头像文件写入不得要求复制世界公共 segment。合同动作复制当前操作者、当前合同集合中的全部玩家参与者、`productionContracts` 与必要核心资金域，但不得复制无合同玩家或无关世界 segment；非显然原因是动作提交后的合同域统一后处理仍会遍历当前合同集合，因此 Copy-on-Write 必须覆盖该后处理可能触碰的全部合同参与者。旧设施挂牌动作只复制买卖相关玩家、`facilityListings` 与必要核心资金域。普通商品下单只复制下单者、当前价格可交叉的玩家对手方、订单／市场及必要核心资金域；商品撤单只复制下单者、订单及必要核心资金域；拍卖动作只复制相关卖方／当前最高出价者／当前操作者、拍卖及必要核心资金域。统一注册表同时为本地、市场和合同类交互声明 250ms、500ms、750ms 请求延迟预算；请求指标必须输出 `interactiveActionBudgetMs`、Mutation Scope 玩家数／segment 数／订单数／市场键数和 `unexpectedFullWorldAction`，超过动作自身预算、出现 5xx 或发现意外无界 scope 时进入异常请求日志。
 
 V2 热保存不得做完整世界 `isDeepStrictEqual`、完整世界 `JSON.stringify` 或全世界资金精度扫描。保存层只序列化 Mutation Scope 覆盖的玩家与 segment，与 committed segmented snapshot 比较并形成 Dirty Set；没有 Dirty Row 时世界修订号保持不变。写入成功后草稿直接成为新的 committed world，未变玩家和 segment 的 SQLite 行内容及 `updated_revision` 必须保持原值。
 

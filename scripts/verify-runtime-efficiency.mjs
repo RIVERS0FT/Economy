@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { createRequestMetricsCollector } from '../server/src/request-metrics.js';
+import { ORDER_EXECUTION_REGISTRY, PLAYER_ACTION_REGISTRY } from '../server/src/player-action-registry.js';
 import { readFileSync } from 'node:fs';
 import {
   effectivePollingRate,
@@ -22,6 +24,46 @@ assert.equal(effectivePollingRate({ configuredRate: '10' }), '10');
 assert.equal(effectivePollingRate({ configuredRate: '3', idle: true }), '15');
 assert.equal(effectivePollingRate({ configuredRate: '3', hidden: true, idle: true }), '60');
 assert.equal(POLLING_IDLE_AFTER_MS, 30_000);
+
+const validMutationScopes = new Set(['local-player', 'factory', 'profile', 'contract', 'facility-listing', 'auction', 'order']);
+for (const [action, metadata] of Object.entries(PLAYER_ACTION_REGISTRY)) {
+  assert.ok(Number(metadata.latencyBudgetMs) > 0, `${action} 必须声明交互延迟预算`);
+  if (metadata.lifecycle === 'active') {
+    assert.equal(metadata.acknowledgement, 'immediate', `${action} 必须在服务器确认后立即完成交互`);
+    assert.ok(validMutationScopes.has(metadata.mutationScope), `${action} 必须显式声明 Mutation Scope`);
+  }
+}
+const routeSource = read('server/src/game-routes.js');
+const routeActionCandidates = new Set([...routeSource.matchAll(/'([a-z][A-Za-z0-9]*[A-Z][A-Za-z0-9]*)'/g)].map((match) => match[1]));
+for (const action of routeActionCandidates) {
+  assert.ok(PLAYER_ACTION_REGISTRY[action], `公开路由动作必须登记在统一注册表: ${action}`);
+}
+for (const [action, metadata] of Object.entries(PLAYER_ACTION_REGISTRY)) {
+  if (metadata.publicRoute) assert.ok(routeSource.includes(`'${action}'`), `公开注册动作必须存在路由: ${action}`);
+}
+const runtimeActionSourceForRegistry = read('server/src/runtime-action-executor.js');
+const runtimeOrderExecutions = new Set([...runtimeActionSourceForRegistry.matchAll(/payload\.execution === '([^']+)'/g)].map((match) => match[1]));
+for (const execution of runtimeOrderExecutions) {
+  assert.ok(ORDER_EXECUTION_REGISTRY[execution], `订单执行方式必须登记: ${execution}`);
+}
+for (const execution of Object.keys(ORDER_EXECUTION_REGISTRY).filter(Boolean)) {
+  assert.ok(runtimeActionSourceForRegistry.includes(`'${execution}'`), `已登记订单执行方式必须由运行时处理: ${execution}`);
+}
+const metricWarnings = [];
+const metricCollector = createRequestMetricsCollector({
+  slowRequestMs: 1_000,
+  warn: (...args) => metricWarnings.push(args),
+  log: () => {},
+});
+metricCollector.record({
+  method: 'POST',
+  url: '/api/game/check-in',
+  statusCode: 200,
+  durationMs: 300,
+  responseBytes: 64,
+  gauges: { interactiveActionBudgetMs: 250, mutationScopeFullWorld: 0 },
+});
+assert.equal(metricWarnings.length, 1, '玩家动作超过自身延迟预算时必须进入请求异常日志');
 
 requireText('src/app/GameApp.tsx', [
   "import { useAdaptivePolling } from './useAdaptivePolling'",
@@ -118,6 +160,18 @@ requireText('server/src/request-performance.js', [
   'measureRequestPhase',
   'setRequestGauge',
   'snapshotRequestPerformance',
+]);
+requireText('server/src/player-action-registry.js', [
+  'PLAYER_ACTION_REGISTRY',
+  'ORDER_EXECUTION_REGISTRY',
+  'latencyBudgetMs',
+  "acknowledgement = 'immediate'",
+  'mutationScope',
+]);
+requireText('server/src/request-metrics.js', [
+  'interactiveActionBudgetMs',
+  'unexpectedFullWorldAction',
+  'slowThresholdMs',
 ]);
 requireText('server/src/authoritative-write-executor.js', [
   'export class AuthoritativeWriteExecutor',
@@ -265,14 +319,20 @@ requireText('server/src/world-storage-v2.js', [
   'economy_world_meta',
   'economy_world_players',
   'economy_world_segments',
-  "label: 'commodity:placeOrder'",
-  'FACTORY_SCOPE_ACTIONS',
+  "? 'commodity:placeOrder'",
+  'getPlayerActionMetadata(action)',
+  'requireOrderExecutionMetadata(execution)',
+  'finalizeInteractiveMutationScope',
+  'unexpectedFullWorldAction',
   'factoryAutoOperationScope',
   'profileMutationScope',
   'contractMutationScope',
   'facilityListingMutationScope',
-  "execution === 'factory-auto-operation-policy'",
 ]);
+const worldStorageSource = read('server/src/world-storage-v2.js');
+assert.equal(worldStorageSource.includes('FACTORY_SCOPE_ACTIONS'), false, 'Mutation Scope 动作集合不得在存储层重复维护');
+assert.equal(worldStorageSource.includes('LOCAL_PLAYER_ACTIONS'), false, '本地玩家动作集合不得在存储层重复维护');
+assert.equal(worldStorageSource.includes('return createFullMutationScope();\n}\n\nfunction cloneScopedObject'), false, '正式玩家动作不得在函数末尾静默回退 full-world');
 requireText('server/src/runtime-store-core.js', [
   'prepareSegmentedWorldWrite',
   'applySegmentedWorldWrite',
@@ -281,7 +341,15 @@ requireText('server/src/runtime-store-core.js', [
 requireText('server/src/runtime-action-executor.js', [
   "measureRequestPhase('playerSnapshotMs'",
   "measureRequestPhase('economicInvariantMs'",
-  "? 'setFacilityRecipe'",
+  'requirePlayerActionMetadata(action)',
+  "setRequestGauge('interactiveActionBudgetMs'",
+  'createRuntimeMutationScope(',
+]);
+assert.equal(read('server/src/runtime-action-executor.js').includes('mutationScopeAction'), false, '运行时不得维护第二份 Mutation Scope 动作映射');
+requireText('server/src/game-routes.js', [
+  'function resolveActionUnchecked',
+  'const metadata = requirePlayerActionMetadata(route.action);',
+  'category: metadata.rateLimitCategory',
 ]);
 requireText('server/src/runtime-store.js', [
   'cloneWorldForMutation',

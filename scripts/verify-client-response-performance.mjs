@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { CURRENT_CLIENT_STATE_VERSION } from '../server/shared/economy-state-version.js';
 import {
@@ -11,6 +11,16 @@ import {
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const failures = [];
+
+function sourceFiles(directory) {
+  const files = [];
+  for (const entry of readdirSync(resolve(root, directory), { withFileTypes: true })) {
+    const path = `${directory}/${entry.name}`;
+    if (entry.isDirectory()) files.push(...sourceFiles(path));
+    else if (/\.(?:ts|tsx)$/.test(entry.name)) files.push(path);
+  }
+  return files;
+}
 
 function requireText(path, fragments) {
   const content = read(path);
@@ -304,6 +314,18 @@ requireText('src/app/gameViewModel.ts', [
 forbidText('src/app/gameViewModel.ts', [
   'await syncConfirmedAction(response, action);',
 ]);
+const blockingRefreshAllowlist = new Map([
+  ['src/auto-trade/useOnlineAutoTrade.ts', 1],
+]);
+for (const path of sourceFiles('src')) {
+  const count = (read(path).match(/await model\.refresh\(\{ mode: 'authoritative' \}\);/g) || []).length;
+  const allowed = blockingRefreshAllowlist.get(path) || 0;
+  assert.equal(
+    count,
+    allowed,
+    `${path} 新增了阻塞式权威状态补拉；普通玩家动作确认后必须立即返回，确需阻塞的迁移路径必须显式登记`,
+  );
+}
 const buildingsSource = read('src/pages/BuildingsPage.tsx');
 assert.equal(
   (buildingsSource.match(/void model\.refresh\(\{ mode: 'authoritative' \}\);/g) || []).length,

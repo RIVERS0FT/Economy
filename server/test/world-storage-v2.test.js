@@ -382,7 +382,7 @@ test('factory interaction scope keeps unrelated players shared while including p
     bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
     moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
   };
-  const scope = createRuntimeMutationScope(world, 1, 'factoryAutoOperationRebuild', {
+  const scope = createRuntimeMutationScope(world, 1, 'buildFacility', {
     provinceId: '110000', autoProcure: true, materialPriceCaps: { wheat: 10 },
   }, { scheduledProcessing: true });
   assert.equal(scope.allPlayers, false);
@@ -486,15 +486,80 @@ test('legacy facility listing scope includes buyer and player seller only', () =
   assert.notEqual(draft.facilityListings, world.facilityListings);
 });
 
-test('production settlement alias remains current-player local after factory scopes are specialized', () => {
+test('production settlement remains current-player local through the action registry', () => {
   const world = {
     players: { 1: { userId: 1 }, 2: { userId: 2 } },
     orders: [{ id: 'other', ownerType: 'player', ownerId: 2, status: 'open', remaining: 1 }],
     bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
     moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
   };
-  const scope = createRuntimeMutationScope(world, 1, 'setFacilityRecipe', {}, { scheduledProcessing: true });
+  const scope = createRuntimeMutationScope(world, 1, 'settleProduction', {}, { scheduledProcessing: true });
   assert.deepEqual([...scope.playerIds], ['1']);
-  assert.equal(scope.label, 'local:setFacilityRecipe');
+  assert.equal(scope.label, 'local:settleProduction');
   assert.equal(scope.segments.has('orders'), false);
+});
+
+test('unregistered interactive actions are rejected instead of falling back to full-world mutation', () => {
+  const world = {
+    players: { 1: { userId: 1 }, 2: { userId: 2 } },
+    bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+  };
+  assert.throws(
+    () => createRuntimeMutationScope(
+      world,
+      1,
+      'futureUnregisteredAction',
+      {},
+      { scheduledProcessing: true },
+    ),
+    { code: 'INTERACTIVE_ACTION_SCOPE_UNDECLARED', statusCode: 500 },
+  );
+
+  const testScope = createRuntimeMutationScope(world, 1, 'futureUnregisteredAction', {}, {
+    scheduledProcessing: false,
+  });
+  assert.equal(testScope.allPlayers, true);
+  assert.equal(testScope.allSegments, true);
+});
+
+test('local action scope size stays constant as unrelated player count grows', () => {
+  const players = Object.fromEntries(Array.from({ length: 1_001 }, (_, index) => [
+    String(index + 1),
+    { userId: index + 1, credits: 5000, unlockedProvinces: ['110000'] },
+  ]));
+  const world = {
+    players,
+    orders: [],
+    markets: {},
+    bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+  };
+  const scope = createRuntimeMutationScope(world, 1, 'unlockProvince', { provinceId: '130000' }, {
+    scheduledProcessing: true,
+  });
+  assert.equal(scope.playerIds.size, 1);
+  assert.equal(scope.allPlayers, false);
+  const draft = cloneWorldForMutation(world, scope);
+  assert.notEqual(draft.players['1'], world.players['1']);
+  assert.equal(draft.players['1001'], world.players['1001']);
+});
+
+test('unknown order execution modes are rejected before mutation scope fallback', () => {
+  const world = {
+    players: { 1: { userId: 1 } },
+    orders: [], markets: {},
+    bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
+    moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
+  };
+  assert.throws(
+    () => createRuntimeMutationScope(world, 1, 'placeOrder', {
+      execution: 'future-unregistered-execution',
+      productId: 'wheat',
+      side: 'buy',
+      price: 10,
+      quantity: 1,
+    }, { scheduledProcessing: true }),
+    { code: 'ORDER_EXECUTION_UNREGISTERED', statusCode: 400 },
+  );
 });
