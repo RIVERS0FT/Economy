@@ -28,8 +28,9 @@ jobs:
 
       - name: Apply patch
         run: |
-          python3 scripts/apply-interaction-mutation-scope-patch.py
+          python3 scripts/apply-interaction-mutation-scope-patch-v2.py
           rm scripts/apply-interaction-mutation-scope-patch.py
+          rm scripts/apply-interaction-mutation-scope-patch-v2.py
 
       - name: Install dependencies
         run: npm ci
