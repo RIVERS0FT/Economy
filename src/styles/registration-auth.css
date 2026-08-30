@@ -21,11 +21,16 @@
   font-size: var(--font-size-sm);
 }
 
-.auth-panel-back:hover,
 .auth-panel-back:focus-visible,
-.auth-entry-links button:hover,
 .auth-entry-links button:focus-visible {
   color: var(--color-text-primary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html[data-input-modality='mouse'] .auth-panel-back:hover,
+  html[data-input-modality='mouse'] .auth-entry-links button:hover {
+    color: var(--color-text-primary);
+  }
 }
 
 .auth-panel-back:disabled,
