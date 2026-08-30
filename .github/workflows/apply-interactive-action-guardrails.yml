@@ -35,6 +35,16 @@ jobs:
           path.write_text(source.replace(old, new, 1), encoding='utf-8')
           PY
           python3 scripts/apply-interactive-action-guardrails.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('src/pages/ContractPage.tsx')
+          source = path.read_text(encoding='utf-8')
+          old = "        await model.refresh({ mode: 'authoritative' });"
+          new = "        void model.refresh({ mode: 'authoritative' });"
+          if source.count(old) != 1:
+              raise SystemExit(f'ContractPage blocking refresh count changed: {source.count(old)}')
+          path.write_text(source.replace(old, new, 1), encoding='utf-8')
+          PY
           rm scripts/apply-interactive-action-guardrails.py
       - name: Install dependencies
         run: npm ci
