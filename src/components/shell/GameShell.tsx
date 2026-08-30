@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import stateEconomicBaselines from '../../../shared/us-state-economic-baselines.json';
 import { useGameAuthorityDependencies } from '../../app/gameAuthorityStore';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { DEFAULT_QQ_GROUP_URL, getCommunityLink } from '../../api/game';
@@ -7,6 +8,7 @@ import { AssetsIcon, ChevronIcon, CreditsIcon, RankIcon, WarehouseIcon } from '.
 import { GemIcon } from '../icons/GemIcon';
 import { CurrencyAmount } from '../ui/CurrencyAmount';
 import { CompactNumber, CompactRank } from '../ui/CompactNumber';
+import { Button, DataList, DataRow, WidgetHeading } from '../ui/layout';
 import { MobileWorkspacePageSheet, type MobileWorkspaceSheetRequestClose } from '../ui/MobileWorkspacePageSheet';
 import { formatCompactNumber, formatCurrency, formatNumber, formatRank } from '../../utils/formatters';
 import { AuctionNewIdsContext, useNavigationBadges } from '../../hooks/useNavigationBadges';
@@ -59,6 +61,102 @@ const STRATEGIC_PAGE_PRESENTATION = {
   settings: 'building',
 } as const;
 
+const STATE_ECONOMIC_BASELINE_BY_PROVINCE_ID = new Map(
+  stateEconomicBaselines.states.map((row) => [row.provinceId, row]),
+);
+
+function StartingProvinceOverview({
+  model,
+  candidateProvinceId,
+}: {
+  model: LoadedGameViewModel;
+  candidateProvinceId: string | null;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  const province = candidateProvinceId
+    ? model.game.provinces.find((candidate) => candidate.id === candidateProvinceId) ?? null
+    : null;
+  const baseline = province ? STATE_ECONOMIC_BASELINE_BY_PROVINCE_ID.get(province.id) : undefined;
+
+  const confirmStartingProvince = async () => {
+    if (!province || submitting) return;
+    setSubmitting(true);
+    try {
+      const result = await model.chooseStartingProvince(province.id);
+      await model.showResult(result);
+      if (result.ok) model.setSelectedProvinceId(province.id);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <section
+      className="panel starting-province-overview"
+      role="region"
+      aria-label="起始州概览"
+      data-starting-province-overview="true"
+      data-candidate-province-id={candidateProvinceId ?? ''}
+      style={{
+        position: 'absolute',
+        insetBlockStart: 0,
+        insetInlineStart: 'var(--strategic-panel-gap, 8px)',
+        width: 'min(320px, 72vw)',
+        maxWidth: 'calc(100% - 16px)',
+        maxHeight: 'calc(100% - 8px)',
+        overflowY: 'auto',
+        zIndex: 3,
+        padding: 'var(--layout-gutter)',
+      }}
+    >
+      <WidgetHeading title="选择起始州" />
+      <p style={{ margin: '0 0 var(--layout-gutter)', color: 'var(--color-text-secondary)' }}>
+        在地图上点击一个州查看概览，再确认作为永久起始州。
+      </p>
+      {province ? (
+        <>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '.5rem', marginBottom: 'var(--layout-gutter)' }}>
+            <strong style={{ fontSize: '1.2rem' }}>{province.name}</strong>
+            <span style={{ color: 'var(--color-text-muted)' }}>{province.shortName}</span>
+          </div>
+          <DataList>
+            <DataRow label="首府" value={province.capitalName} />
+            <DataRow
+              label="常住人口"
+              value={baseline ? <CompactNumber value={baseline.population} /> : '—'}
+            />
+            <DataRow
+              label="平均周薪"
+              value={baseline ? <><CompactNumber value={baseline.averageWeeklyWage} /> 美元</> : '—'}
+            />
+            <DataRow
+              label="州 PCE"
+              value={baseline ? <><CompactNumber value={baseline.pceMillions} /> 百万美元</> : '—'}
+            />
+          </DataList>
+          <small style={{ display: 'block', marginTop: '.7rem', color: 'var(--color-text-muted)', lineHeight: 1.45 }}>
+            人口 {stateEconomicBaselines.sources.population.period} · 工资 {stateEconomicBaselines.sources.wage.period} · PCE {stateEconomicBaselines.sources.consumption.period}
+          </small>
+          <p style={{ margin: 'var(--layout-gutter) 0', color: 'var(--color-warning)' }}>
+            起始州确认后永久绑定，无法更换。
+          </p>
+        </>
+      ) : (
+        <p role="status" style={{ margin: 'var(--layout-gutter) 0', color: 'var(--color-text-muted)' }}>
+          尚未选择州。请直接点击地图中的州面。
+        </p>
+      )}
+      <Button block disabled={!province || submitting} onClick={() => void confirmStartingProvince()}>
+        {submitting
+          ? '正在确认…'
+          : province
+            ? `确认${province.name}为起始州`
+            : '先在地图上选择州'}
+      </Button>
+    </section>
+  );
+}
+
 export function GameShell({ model, children, offline = false }: {
   model: LoadedGameViewModel;
   statusItems?: StatusBarItem[];
@@ -68,6 +166,8 @@ export function GameShell({ model, children, offline = false }: {
   const authorityGame = useGameAuthorityDependencies(['player.identity', 'player.assets', 'leaderboard']);
   const game = authorityGame ?? model.game;
   const derived = model.derived;
+  const startingProvincePicking = !offline && game.startingProvinceChosen === false;
+  const [startingProvinceCandidateId, setStartingProvinceCandidateId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [mapLens, setMapLens] = useState<ProvinceMapLens>('assets');
   const [transportRouteDraft, setTransportRouteDraft] = useState<TransportRouteDraft | null>(null);
@@ -88,7 +188,9 @@ export function GameShell({ model, children, offline = false }: {
   const notificationCenter = useNotificationCenter(model);
   const notificationButtonRef = useRef<HTMLButtonElement>(null);
   const auctionNewIdSet = useMemo(() => new Set(auctionNewIds), [auctionNewIds]);
-  const openBank = useCallback(() => model.setTab('bank'), [model.setTab]);
+  const openBank = useCallback(() => {
+    if (!startingProvincePicking) model.setTab('bank');
+  }, [model.setTab, startingProvincePicking]);
   const pagePresentation = STRATEGIC_PAGE_PRESENTATION[model.tab];
   const tutorial = (model as LoadedGameViewModel & { tutorial?: GameTutorialController }).tutorial;
   const playerName = game.playerName.trim() || '玩家';
@@ -162,6 +264,14 @@ export function GameShell({ model, children, offline = false }: {
       .catch(() => { /* Keep the bundled default when configuration cannot be loaded. */ });
     return () => controller.abort();
   }, [offline]);
+
+  useEffect(() => {
+    if (!startingProvincePicking) setStartingProvinceCandidateId(null);
+  }, [startingProvincePicking]);
+
+  useEffect(() => {
+    if (startingProvincePicking && model.tab !== 'map') model.setTab('map');
+  }, [model.setTab, model.tab, startingProvincePicking]);
 
   useEffect(() => {
     notificationCenter.closePanel();
@@ -271,6 +381,7 @@ export function GameShell({ model, children, offline = false }: {
   }, [showMap]);
 
   const selectPlayerTab = useCallback((tab: TabId) => {
+    if (startingProvincePicking) return;
     if (tab === 'map' && model.tab !== 'map') {
       const requestClose = mobilePageCloseRef.current;
       if (requestClose) {
@@ -285,7 +396,7 @@ export function GameShell({ model, children, offline = false }: {
       return;
     }
     pushPlayerPage(playerPageLocationForTab(tab));
-  }, [model.tab, pushPlayerPage, showMap]);
+  }, [model.tab, pushPlayerPage, showMap, startingProvincePicking]);
 
   const isMobileViewport = useCallback(() => (
     typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches
@@ -438,16 +549,23 @@ export function GameShell({ model, children, offline = false }: {
     <TransportRouteDraftContext.Provider value={transportRouteDraftValue}>
     <AuctionNewIdsContext.Provider value={auctionNewIdSet}>
       <ApplicationMapLayerPortal>
-        <StrategicMapStage model={model} lens={mapLens} />
-        <StrategicMapLensBar lens={mapLens} onLensChange={setMapLens} />
+        <StrategicMapStage
+          model={model}
+          lens={startingProvincePicking ? 'political' : mapLens}
+          startingProvinceCandidateId={startingProvinceCandidateId}
+          onPickStartingProvince={startingProvincePicking ? setStartingProvinceCandidateId : undefined}
+        />
+        {startingProvincePicking ? null : (
+          <StrategicMapLensBar lens={mapLens} onLensChange={setMapLens} />
+        )}
       </ApplicationMapLayerPortal>
       <SignedInShell
-        rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}`}
+        rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}${startingProvincePicking ? ' is-starting-province-picking' : ''}`}
         workspaceClassName="strategic-workspace"
         integratedPrimaryCard
         pageTransitionKey={playerPageLocationKey(pageLocation)}
         sidebarCollapsed={sidebarCollapsed}
-        sidebar={(
+        sidebar={startingProvincePicking ? null : (
           <DesktopSidebar
             activeTab={model.tab}
             badges={badges}
@@ -465,7 +583,7 @@ export function GameShell({ model, children, offline = false }: {
                 playerId: model.user.id,
                 title: BRAND_NAME,
                 playerName,
-                onClick: () => selectPlayerTab('settings'),
+                onClick: startingProvincePicking ? undefined : () => selectPlayerTab('settings'),
               }}
               action={(
                 <NotificationCenterButton
@@ -496,26 +614,35 @@ export function GameShell({ model, children, offline = false }: {
               returnFocusRef={notificationButtonRef}
               onNavigate={(tab) => {
                 notificationCenter.closePanel();
-                selectPlayerTab(tab);
+                if (!startingProvincePicking) selectPlayerTab(tab);
               }}
             />
-            <MobileBottomNavigation
-              activeTab={model.tab}
-              badges={badges}
-              onSelect={selectPlayerTab}
-              workspaceSheetOpen={mobileSheetOpen}
-              returning={mobileNavigationReturning}
-              onReturnAnimationEnd={() => setMobileNavigationReturning(false)}
-            />
+            {startingProvincePicking ? null : (
+              <MobileBottomNavigation
+                activeTab={model.tab}
+                badges={badges}
+                onSelect={selectPlayerTab}
+                workspaceSheetOpen={mobileSheetOpen}
+                returning={mobileNavigationReturning}
+                onReturnAnimationEnd={() => setMobileNavigationReturning(false)}
+              />
+            )}
           </>
         )}
         workspaceChrome={(
           <>
-            <StrategicWorkspaceChrome
-              model={model}
-              tutorial={tutorial}
-              pendingItems={notificationCenter.pendingItems}
-            />
+            {startingProvincePicking ? (
+              <StartingProvinceOverview
+                model={model}
+                candidateProvinceId={startingProvinceCandidateId}
+              />
+            ) : (
+              <StrategicWorkspaceChrome
+                model={model}
+                tutorial={tutorial}
+                pendingItems={notificationCenter.pendingItems}
+              />
+            )}
             {notificationCenter.panelOpen ? null : (
               <NotificationToasts
                 surface="desktop"
@@ -542,6 +669,7 @@ export function GameShell({ model, children, offline = false }: {
             data-strategic-page-location={playerPageLocationKey(pageLocation)}
             data-strategic-presentation={pagePresentation}
             data-map-route-picking={transportRoutePicking ? 'true' : 'false'}
+            data-starting-province-picking={startingProvincePicking ? 'true' : 'false'}
           >
             {model.tab === 'map' ? children : (
               <MobileWorkspacePageSheet
@@ -555,28 +683,6 @@ export function GameShell({ model, children, offline = false }: {
           </div>
         </PlayerPageNavigationProvider>
       </SignedInShell>
-      {!offline && game.startingProvinceChosen === false ? (
-        <div className="starting-province-overlay" role="dialog" aria-modal="true" aria-label="选择起始州">
-          <section className="starting-province-panel">
-            <h2>选择起始州</h2>
-            <p>新玩家需要选择一块起始地块，选定后永久绑定，之后可以解锁其他州并使用市场、工厂与仓库。</p>
-            <div className="starting-province-grid">
-              {game.provinces.map((province) => (
-                <button
-                  type="button"
-                  key={province.id}
-                  className="starting-province-option"
-                  data-ui-interactive="surface"
-                  onClick={() => void model.showResult(model.chooseStartingProvince(province.id))}
-                >
-                  <strong>{province.name}</strong>
-                  <small>{province.shortName}</small>
-                </button>
-              ))}
-            </div>
-          </section>
-        </div>
-      ) : null}
     </AuctionNewIdsContext.Provider>
     </TransportRouteDraftContext.Provider>
   );

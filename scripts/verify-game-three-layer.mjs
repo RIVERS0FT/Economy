@@ -125,11 +125,12 @@ forbidText('src/components/system/ApplicationLoadingState.tsx', 'PhotographicSta
 forbidText('src/components/system/ApplicationLoadingState.tsx', 'FinancialBackdrop');
 
 for (const text of [
-  'rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}`}',
+  "rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}${startingProvincePicking ? ' is-starting-province-picking' : ''}`}",
   '<DesktopSidebar',
   '<StatusBar',
   '<ApplicationMapLayerPortal>',
-  '<StrategicMapStage model={model} lens={mapLens} />',
+  '<StrategicMapStage',
+  "lens={startingProvincePicking ? 'political' : mapLens}",
   '<StrategicMapLensBar lens={mapLens} onLensChange={setMapLens} />',
   '<StrategicWorkspaceChrome',
   'action={(',
