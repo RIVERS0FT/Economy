@@ -298,19 +298,16 @@ function MarketHarness() {
         totalAssets: 97_354,
       },
       stats: {
-        workIssued: 0,
         populationIssued: 0,
         systemSinks: 0,
         commodityVolume: 0,
         facilityVolume: 0,
-        workClicks: 0,
         producedGoods: 0,
         boughtGoods: 0,
         soldGoods: 0,
         giftIssued: 0,
         invitationGemsIssued: 0,
       },
-      work: { cooldownUntil: 0, lastWorkedAt: fixedNow - 20_000, streak: 0, totalClicks: 0 },
     };
     const derived = {
       ownOpenOrders: [],
@@ -378,7 +375,6 @@ function MarketHarness() {
       setPlayerName: () => {},
       refreshRate: '5',
       setRefreshRate: () => {},
-      isWorking: false,
       inventoryUsed: game.warehouseStoredQuantity,
       cashShare: 0,
       commodityShare: 100,
@@ -389,7 +385,6 @@ function MarketHarness() {
       refresh: async () => {},
       clearLocalTrades: () => {},
       signOut: async () => {},
-      work: async () => ({ ok: true, message: '工作完成' }),
       placeAssetOrder: async () => ({ ok: true, message: '测试订单已提交' }),
       cancelOrder: async () => ({ ok: true, message: '测试订单已撤销' }),
     } as unknown as LoadedGameViewModel;

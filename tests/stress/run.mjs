@@ -14,12 +14,11 @@ import { STRESS_PROFILES, validateStressSafety } from './safety.mjs';
 const STATE_PARTITIONS = Object.freeze(['catalog', 'player', 'market', 'auction', 'contract', 'leaderboard']);
 const TRANSACTION_MIX_WEIGHTS = Object.freeze({
   state: 60,
-  work: 10,
-  order: 10,
-  facilityToggle: 8,
+  order: 15,
+  facilityToggle: 10,
   recipe: 5,
-  build: 4,
-  research: 3,
+  build: 5,
+  research: 5,
 });
 const TRANSACTION_MIX_TOTAL = Object.values(TRANSACTION_MIX_WEIGHTS).reduce((sum, value) => sum + value, 0);
 const STRESS_FACILITY_TYPE_ID = 'farm';
@@ -231,7 +230,7 @@ async function loginAccount(metrics, account, endpoints) {
     partitions: {},
     state: null,
     operationIndex: 0,
-    nextWorkAt: Number.POSITIVE_INFINITY,
+    nextWriteAt: 0,
   };
 }
 
@@ -248,13 +247,21 @@ async function initializeClient(metrics, client, endpoints, runId) {
 }
 
 async function verifyIdempotency(metrics, client, endpoints, runId, invariants) {
-  const requestKey = `stress:${runId}:work-idempotency:${client.slot}`;
-  const first = await postAction(metrics, client, endpoints, '/work', '/api/game/work', {}, requestKey);
-  const repeated = await postAction(metrics, client, endpoints, '/work', '/api/game/work', {}, requestKey);
+  const requestKey = `stress:${runId}:order-idempotency:${client.slot}`;
+  const body = {
+    assetKind: 'commodity',
+    assetId: STRESS_PRODUCT_ID,
+    productId: STRESS_PRODUCT_ID,
+    side: 'buy',
+    quantity: 1,
+    price: STRESS_ORDER_PRICE,
+  };
+  const first = await postAction(metrics, client, endpoints, '/orders', '/api/game/orders', body, requestKey);
+  const repeated = await postAction(metrics, client, endpoints, '/orders', '/api/game/orders', body, requestKey);
   assert.deepEqual(repeated, first, '相同幂等键返回了不同动作确认');
   invariants.actionConfirmations += 2;
   invariants.idempotencyChecks += 1;
-  client.nextWorkAt = performance.now() + 3_200;
+  client.nextWriteAt = performance.now() + 3_200;
   await fetchState(metrics, client, endpoints, invariants);
 }
 
@@ -263,8 +270,6 @@ function transactionMixCategory(client) {
   client.operationIndex += 1;
   let threshold = TRANSACTION_MIX_WEIGHTS.state;
   if (slot < threshold) return 'state';
-  threshold += TRANSACTION_MIX_WEIGHTS.work;
-  if (slot < threshold) return 'work';
   threshold += TRANSACTION_MIX_WEIGHTS.order;
   if (slot < threshold) return 'order';
   threshold += TRANSACTION_MIX_WEIGHTS.facilityToggle;
@@ -322,16 +327,6 @@ async function runTransactionMixOperation(metrics, client, endpoints, runId, inv
 
   if (category === 'state') {
     await fetchState(metrics, client, endpoints, invariants);
-    return;
-  }
-
-  if (category === 'work') {
-    if (performance.now() < client.nextWorkAt) {
-      await fetchState(metrics, client, endpoints, invariants);
-      return;
-    }
-    await confirmAction(metrics, client, endpoints, '/work', '/api/game/work', {}, runId, invariants, 'work');
-    client.nextWorkAt = performance.now() + 3_200;
     return;
   }
 
@@ -465,18 +460,38 @@ async function runClientLoop(metrics, client, endpoints, definition, config, run
       await runTransactionMixOperation(metrics, client, endpoints, runId, invariants);
     } else {
       const now = performance.now();
-      if (definition.writes && now >= client.nextWorkAt) {
-        await postAction(
-          metrics,
-          client,
-          endpoints,
-          '/work',
-          '/api/game/work',
-          {},
-          `stress:${runId}:work:${client.slot}:${randomUUID()}`,
-        );
+      if (definition.writes && now >= client.nextWriteAt) {
+        const openOrder = stressOpenOrder(client);
+        if (openOrder) {
+          await postAction(
+            metrics,
+            client,
+            endpoints,
+            `/orders/${encodeURIComponent(String(openOrder.id))}/cancel`,
+            '/api/game/orders/:id/cancel',
+            {},
+            `stress:${runId}:write-cancel:${client.slot}:${randomUUID()}`,
+          );
+        } else {
+          await postAction(
+            metrics,
+            client,
+            endpoints,
+            '/orders',
+            '/api/game/orders',
+            {
+              assetKind: 'commodity',
+              assetId: STRESS_PRODUCT_ID,
+              productId: STRESS_PRODUCT_ID,
+              side: 'buy',
+              quantity: 1,
+              price: STRESS_ORDER_PRICE,
+            },
+            `stress:${runId}:write-order:${client.slot}:${randomUUID()}`,
+          );
+        }
         invariants.actionConfirmations += 1;
-        client.nextWorkAt = performance.now() + 3_200;
+        client.nextWriteAt = performance.now() + 3_200;
         await fetchState(metrics, client, endpoints, invariants);
       } else {
         await fetchState(metrics, client, endpoints, invariants);

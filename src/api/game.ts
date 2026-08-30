@@ -617,7 +617,6 @@ export function updatePlayerAvatar(avatarData: string) {
 }
 
 export const gameActions = {
-  work: () => postAction('/work'),
   checkIn: () => postAction('/check-in'),
   chooseStartingProvince: (provinceId: string) => postAction('/provinces/starting', { provinceId }),
   unlockProvince: (provinceId: string) => postAction('/provinces/unlock', { provinceId }),

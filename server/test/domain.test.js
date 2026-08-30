@@ -60,15 +60,6 @@ test('different products never match in the same order book', () => {
   assert.equal(seller.inventories.ore.frozen, 2);
 });
 
-test('work cooldown uses server time', () => {
-  const world = createWorld(now);
-  deferDemand(world);
-  ensurePlayer(world, alice, now);
-  assert.equal(applyAction(world, alice, 'work', {}, now).ok, true);
-  assert.equal(applyAction(world, alice, 'work', {}, now + 1_000).ok, false);
-  assert.equal(applyAction(world, alice, 'work', {}, now + 2_999).ok, false);
-  assert.equal(applyAction(world, alice, 'work', {}, now + 3_000).ok, true);
-});
 
 test('version 1 state migrates inventory and commodity orders without losing assets', () => {
   const world = {
@@ -87,8 +78,7 @@ test('version 1 state migrates inventory and commodity orders without losing ass
         facilities: [],
         trades: [],
         ledger: [],
-        work: { cooldownUntil: 0, lastWorkedAt: 0, streak: 0, totalClicks: 0 },
-        stats: { workIssued: 0, populationIssued: 0, systemSinks: 0, commodityVolume: 0, facilityVolume: 0 },
+        stats: { populationIssued: 0, systemSinks: 0, commodityVolume: 0, facilityVolume: 0 },
       },
     },
     orders: [{
@@ -140,16 +130,16 @@ test('idempotency returns the original response without applying an action twice
   const store = new EconomyStore(':memory:');
   try {
     const request = {
-      action: 'work',
-      payload: {},
+      action: 'renamePlayer',
+      payload: { playerName: 'Alice Updated' },
       requestKey: 'request-12345678',
-      method: 'POST',
-      path: '/api/game/work',
+      method: 'PATCH',
+      path: '/api/game/profile',
     };
     const first = store.apply(alice, request, now);
     const second = store.apply(alice, request, now + 500);
     assert.deepEqual(second, first);
-    assert.equal(store.getState(alice, now + 1_000).work.totalClicks, 1);
+    assert.equal(store.getState(alice, now + 1_000).playerName, 'Alice Updated');
   } finally {
     store.close();
   }
@@ -532,14 +522,14 @@ test('state polling and failed actions do not refresh economic activity', () => 
     assert.equal(afterPoll.players[String(alice.id)].lastEconomicActivityAt, initialActivity);
 
     const success = store.apply(alice, {
-      action: 'work', payload: {}, requestKey: 'activity-success', method: 'POST', path: '/api/game/work',
+      action: 'bankDeposit', payload: { amount: 1 }, requestKey: 'activity-success', method: 'POST', path: '/api/game/bank/deposits',
     }, now + 10_000);
     assert.equal(success.result.ok, true);
     const afterSuccess = persistedWorld(store);
     assert.equal(afterSuccess.players[String(alice.id)].lastEconomicActivityAt, now + 10_000);
 
     const failure = store.apply(alice, {
-      action: 'work', payload: {}, requestKey: 'activity-failure', method: 'POST', path: '/api/game/work',
+      action: 'bankDeposit', payload: { amount: 999_999 }, requestKey: 'activity-failure', method: 'POST', path: '/api/game/bank/deposits',
     }, now + 10_001);
     assert.equal(failure.result.ok, false);
     const afterFailure = persistedWorld(store);

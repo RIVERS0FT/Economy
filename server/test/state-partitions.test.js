@@ -41,7 +41,6 @@ function sampleState(overrides = {}) {
     assetSummary: { totalAssets: 100 },
     facilityGroups: [],
     research: { active: null },
-    work: { cooldownUntil: 0 },
     checkIn: {},
     bankAccount: {},
     bankSummary: {},
@@ -282,7 +281,7 @@ test('unchanged delivery still returns a fresh server time without creating patc
 
 test('action delivery keeps only result status, message, and committed revision', () => {
   const action = createPartitionedActionDelivery({
-    result: { ok: true, message: '工作完成', creditsReceived: 10 },
+    result: { ok: true, message: '操作完成', creditsReceived: 10 },
     revision: 21,
     unchanged: false,
     partitionRevisions: { player: 'player-00001' },
@@ -291,7 +290,7 @@ test('action delivery keeps only result status, message, and committed revision'
   });
 
   assert.deepEqual(action, {
-    result: { ok: true, message: '工作完成' },
+    result: { ok: true, message: '操作完成' },
     revision: 21,
   });
 });

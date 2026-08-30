@@ -150,12 +150,22 @@ const domainSource = [
   'server/src/order-book-integrity.js',
   'server/src/market-demand/price-transmission.js',
 ].map(read).join('\n');
-for (const text of ['workCooldownMs: 3_000','workClicks','boughtGoods','soldGoods','processPriceTransmission','costAnchor','downstreamValueAnchor','liquidity-buy','liquidity-sell','settleLiquidityBuy','settleLiquiditySell','findSelfCrossingOrder','systemBookIsCrossed']) {
+for (const text of ['boughtGoods','soldGoods','processPriceTransmission','costAnchor','downstreamValueAnchor','liquidity-buy','liquidity-sell','settleLiquidityBuy','settleLiquiditySell','findSelfCrossingOrder','systemBookIsCrossed']) {
   if (!domainSource.includes(text)) failures.push('领域实现缺少: ' + text);
 }
 for (const text of ['market.lastPrice - 2','market.lastPrice + 2']) {
   if (domainSource.includes(text)) failures.push('领域实现不应包含: ' + text);
 }
+for (const text of ['workCooldownMs', 'function work(', "case 'work'", 'work_income', 'workIssued', 'workClicks']) {
+  if (domainSource.includes(text)) failures.push('领域实现不得恢复工作玩法: ' + text);
+}
+for (const [path, text] of [
+  ['src/types.ts', 'export interface WorkState'],
+  ['src/types.ts', 'work: WorkState'],
+  ['src/api/game.ts', "postAction('/work')"],
+  ['src/app/gameViewModel.ts', 'workPendingRef'],
+  ['server/src/game-routes.js', '/api/game/work'],
+]) forbidText(path, text);
 for (const text of ['economy_gift_codes','economy_gift_redemptions','requireAdmin','getAdminSummary']) requireText('server/src/storage.js', text);
 for (const text of ['export interface OrderFill','fills?: OrderFill[]','isOwn?: boolean',"FacilityStatus = 'running' | 'stopped' | 'error'"]) requireText('src/types.ts', text);
 for (const text of ['STORAGE_VERSION = 7','previousFillIds','fill.price','fill.total','normalizeTrades']) requireText('src/utils/localActivityStore.ts', text);

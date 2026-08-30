@@ -6,6 +6,7 @@ const read = (path) => readFileSync(path, 'utf8');
 
 try {
   verifyLocalGamePreviewFixture();
+  assert.equal(read('scripts/generate-local-game-preview.mjs').includes('previewPlayer.work'), false, '免登录预览不得恢复已退役工作状态');
 
   const gameShell = read('src/components/shell/GameShell.tsx');
   assert.ok(

@@ -284,7 +284,6 @@ function rowOrNull(database, sql, ...parameters) {
 
 function actionCounts(action) {
   return {
-    work: action === 'work' ? 1 : 0,
     facility: FACILITY_ACTIONS.has(action) ? 1 : 0,
     order: ORDER_ACTIONS.has(action) ? 1 : 0,
     contract: CONTRACT_ACTIONS.has(action) ? 1 : 0,
@@ -298,7 +297,6 @@ function configureSchema(store, now) {
       day_key TEXT NOT NULL,
       user_id INTEGER NOT NULL,
       successful_action_count INTEGER NOT NULL DEFAULT 0 CHECK (successful_action_count >= 0),
-      work_count INTEGER NOT NULL DEFAULT 0 CHECK (work_count >= 0),
       facility_action_count INTEGER NOT NULL DEFAULT 0 CHECK (facility_action_count >= 0),
       order_action_count INTEGER NOT NULL DEFAULT 0 CHECK (order_action_count >= 0),
       contract_action_count INTEGER NOT NULL DEFAULT 0 CHECK (contract_action_count >= 0),
@@ -350,14 +348,13 @@ function configureSchema(store, now) {
     actionContext: null,
     upsertAction: store.database.prepare(`
       INSERT INTO economy_player_activity_daily (
-        day_key, user_id, successful_action_count, work_count, facility_action_count,
+        day_key, user_id, successful_action_count, facility_action_count,
         order_action_count, contract_action_count, auction_action_count,
         production_output_count, trade_quantity, contract_delivery_count,
         first_activity_at, last_activity_at
-      ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?)
+      ) VALUES (?, ?, 1, ?, ?, ?, ?, 0, 0, 0, ?, ?)
       ON CONFLICT(day_key, user_id) DO UPDATE SET
         successful_action_count = successful_action_count + 1,
-        work_count = work_count + excluded.work_count,
         facility_action_count = facility_action_count + excluded.facility_action_count,
         order_action_count = order_action_count + excluded.order_action_count,
         contract_action_count = contract_action_count + excluded.contract_action_count,
@@ -367,11 +364,11 @@ function configureSchema(store, now) {
     `),
     upsertOperational: store.database.prepare(`
       INSERT INTO economy_player_activity_daily (
-        day_key, user_id, successful_action_count, work_count, facility_action_count,
+        day_key, user_id, successful_action_count, facility_action_count,
         order_action_count, contract_action_count, auction_action_count,
         production_output_count, trade_quantity, contract_delivery_count,
         first_activity_at, last_activity_at
-      ) VALUES (?, ?, 0, 0, 0, 0, 0, 0, ?, ?, ?, NULL, NULL)
+      ) VALUES (?, ?, 0, 0, 0, 0, 0, ?, ?, ?, NULL, NULL)
       ON CONFLICT(day_key, user_id) DO UPDATE SET
         production_output_count = production_output_count + excluded.production_output_count,
         trade_quantity = trade_quantity + excluded.trade_quantity,
@@ -415,7 +412,6 @@ function recordAction(state, context, beforeWorld, world, now) {
   state.upsertAction.run(
     dayKey(now),
     userId,
-    counts.work,
     counts.facility,
     counts.order,
     counts.contract,

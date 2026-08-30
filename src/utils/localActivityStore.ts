@@ -16,7 +16,6 @@ let flushListenerInstalled = false;
 
 export type LocalActivityAction =
   | 'refresh'
-  | 'work'
   | 'checkIn'
   | 'placeOrder'
   | 'onlineAutoSell'

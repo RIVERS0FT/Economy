@@ -42,7 +42,6 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
       const ledgerAt = (player.ledger || []).reduce((latest, item) => Math.max(latest, Number(item.createdAt || 0)), 0);
       const inferred = Math.max(
         Number(player.registeredAt || 0),
-        Number(player.work?.lastWorkedAt || 0),
         latestOrderAt.get(playerId) || 0,
         tradeAt,
         ledgerAt,

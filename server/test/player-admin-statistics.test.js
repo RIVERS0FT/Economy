@@ -28,11 +28,19 @@ test('player statistics record successful economic actions once and keep reads r
     `).run(player.id, player.email, 'test-fingerprint', now - 60_000, 'homepage_session');
 
     const request = {
-      action: 'work',
-      payload: {},
-      requestKey: 'player-stats-work-1',
+      action: 'placeOrder',
+      payload: {
+        provinceId: 'california',
+        assetKind: 'commodity',
+        assetId: 'wheat',
+        productId: 'wheat',
+        side: 'buy',
+        quantity: 1,
+        price: 1,
+      },
+      requestKey: 'player-stats-order-1',
       method: 'POST',
-      path: '/api/game/work',
+      path: '/api/game/orders',
     };
     const first = store.apply(player, request, now);
     const replay = store.apply(player, request, now + 1);
@@ -40,13 +48,16 @@ test('player statistics record successful economic actions once and keep reads r
     assert.deepEqual(replay, first);
 
     const activity = store.database.prepare(`
-      SELECT successful_action_count, work_count, production_output_count, trade_quantity
+      SELECT successful_action_count, order_action_count, production_output_count, trade_quantity
       FROM economy_player_activity_daily WHERE user_id = ?
     `).get(player.id);
     assert.equal(activity.successful_action_count, 1);
-    assert.equal(activity.work_count, 1);
+    assert.equal(activity.order_action_count, 1);
     assert.equal(activity.production_output_count, 0);
     assert.equal(activity.trade_quantity, 0);
+    const activityColumns = store.database.prepare('PRAGMA table_info(economy_player_activity_daily)').all()
+      .map((column) => String(column.name));
+    assert.equal(activityColumns.includes('work_count'), false);
 
     store.transaction(() => {
       const { revision, world } = store.loadWorld(now + 2);

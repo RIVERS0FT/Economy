@@ -15,7 +15,7 @@
     "provinces": [
       {
         "id": "110000",
-        "name": "加利福尼亚州",
+        "name": "加利福尼亚",
         "shortName": "CA",
         "mapName": "California",
         "longitude": -119.42,
@@ -27,7 +27,7 @@
       },
       {
         "id": "120000",
-        "name": "阿拉巴马州",
+        "name": "阿拉巴马",
         "shortName": "AL",
         "mapName": "Alabama",
         "longitude": -86.9,
@@ -39,7 +39,7 @@
       },
       {
         "id": "130000",
-        "name": "亚利桑那州",
+        "name": "亚利桑那",
         "shortName": "AZ",
         "mapName": "Arizona",
         "longitude": -111.09,
@@ -51,7 +51,7 @@
       },
       {
         "id": "140000",
-        "name": "阿肯色州",
+        "name": "阿肯色",
         "shortName": "AR",
         "mapName": "Arkansas",
         "longitude": -92.37,
@@ -63,7 +63,7 @@
       },
       {
         "id": "150000",
-        "name": "科罗拉多州",
+        "name": "科罗拉多",
         "shortName": "CO",
         "mapName": "Colorado",
         "longitude": -105.78,
@@ -75,7 +75,7 @@
       },
       {
         "id": "210000",
-        "name": "康涅狄格州",
+        "name": "康涅狄格",
         "shortName": "CT",
         "mapName": "Connecticut",
         "longitude": -72.76,
@@ -87,7 +87,7 @@
       },
       {
         "id": "220000",
-        "name": "特拉华州",
+        "name": "特拉华",
         "shortName": "DE",
         "mapName": "Delaware",
         "longitude": -75.53,
@@ -99,7 +99,7 @@
       },
       {
         "id": "230000",
-        "name": "佛罗里达州",
+        "name": "佛罗里达",
         "shortName": "FL",
         "mapName": "Florida",
         "longitude": -81.52,
@@ -111,7 +111,7 @@
       },
       {
         "id": "310000",
-        "name": "佐治亚州",
+        "name": "佐治亚",
         "shortName": "GA",
         "mapName": "Georgia",
         "longitude": -82.9,
@@ -123,7 +123,7 @@
       },
       {
         "id": "320000",
-        "name": "爱达荷州",
+        "name": "爱达荷",
         "shortName": "ID",
         "mapName": "Idaho",
         "longitude": -114.74,
@@ -135,7 +135,7 @@
       },
       {
         "id": "330000",
-        "name": "伊利诺伊州",
+        "name": "伊利诺伊",
         "shortName": "IL",
         "mapName": "Illinois",
         "longitude": -89.4,
@@ -147,7 +147,7 @@
       },
       {
         "id": "340000",
-        "name": "印第安纳州",
+        "name": "印第安纳",
         "shortName": "IN",
         "mapName": "Indiana",
         "longitude": -86.13,
@@ -159,7 +159,7 @@
       },
       {
         "id": "350000",
-        "name": "艾奥瓦州",
+        "name": "艾奥瓦",
         "shortName": "IA",
         "mapName": "Iowa",
         "longitude": -93.1,
@@ -171,7 +171,7 @@
       },
       {
         "id": "360000",
-        "name": "堪萨斯州",
+        "name": "堪萨斯",
         "shortName": "KS",
         "mapName": "Kansas",
         "longitude": -98.48,
@@ -183,7 +183,7 @@
       },
       {
         "id": "370000",
-        "name": "肯塔基州",
+        "name": "肯塔基",
         "shortName": "KY",
         "mapName": "Kentucky",
         "longitude": -84.27,
@@ -195,7 +195,7 @@
       },
       {
         "id": "410000",
-        "name": "路易斯安那州",
+        "name": "路易斯安那",
         "shortName": "LA",
         "mapName": "Louisiana",
         "longitude": -91.96,
@@ -207,7 +207,7 @@
       },
       {
         "id": "420000",
-        "name": "缅因州",
+        "name": "缅因",
         "shortName": "ME",
         "mapName": "Maine",
         "longitude": -69.45,
@@ -219,7 +219,7 @@
       },
       {
         "id": "430000",
-        "name": "马里兰州",
+        "name": "马里兰",
         "shortName": "MD",
         "mapName": "Maryland",
         "longitude": -76.64,
@@ -231,7 +231,7 @@
       },
       {
         "id": "440000",
-        "name": "马萨诸塞州",
+        "name": "马萨诸塞",
         "shortName": "MA",
         "mapName": "Massachusetts",
         "longitude": -71.38,
@@ -243,7 +243,7 @@
       },
       {
         "id": "450000",
-        "name": "密歇根州",
+        "name": "密歇根",
         "shortName": "MI",
         "mapName": "Michigan",
         "longitude": -85.6,
@@ -255,7 +255,7 @@
       },
       {
         "id": "460000",
-        "name": "明尼苏达州",
+        "name": "明尼苏达",
         "shortName": "MN",
         "mapName": "Minnesota",
         "longitude": -94.69,
@@ -267,7 +267,7 @@
       },
       {
         "id": "500000",
-        "name": "密西西比州",
+        "name": "密西西比",
         "shortName": "MS",
         "mapName": "Mississippi",
         "longitude": -89.4,
@@ -279,7 +279,7 @@
       },
       {
         "id": "510000",
-        "name": "密苏里州",
+        "name": "密苏里",
         "shortName": "MO",
         "mapName": "Missouri",
         "longitude": -91.83,
@@ -291,7 +291,7 @@
       },
       {
         "id": "520000",
-        "name": "蒙大拿州",
+        "name": "蒙大拿",
         "shortName": "MT",
         "mapName": "Montana",
         "longitude": -110.36,
@@ -303,7 +303,7 @@
       },
       {
         "id": "530000",
-        "name": "内布拉斯加州",
+        "name": "内布拉斯加",
         "shortName": "NE",
         "mapName": "Nebraska",
         "longitude": -99.9,
@@ -315,7 +315,7 @@
       },
       {
         "id": "540000",
-        "name": "内华达州",
+        "name": "内华达",
         "shortName": "NV",
         "mapName": "Nevada",
         "longitude": -116.42,
@@ -327,7 +327,7 @@
       },
       {
         "id": "610000",
-        "name": "新罕布什尔州",
+        "name": "新罕布什尔",
         "shortName": "NH",
         "mapName": "New Hampshire",
         "longitude": -71.57,
@@ -339,7 +339,7 @@
       },
       {
         "id": "620000",
-        "name": "新泽西州",
+        "name": "新泽西",
         "shortName": "NJ",
         "mapName": "New Jersey",
         "longitude": -74.41,
@@ -351,7 +351,7 @@
       },
       {
         "id": "630000",
-        "name": "新墨西哥州",
+        "name": "新墨西哥",
         "shortName": "NM",
         "mapName": "New Mexico",
         "longitude": -105.87,
@@ -363,7 +363,7 @@
       },
       {
         "id": "640000",
-        "name": "纽约州",
+        "name": "纽约",
         "shortName": "NY",
         "mapName": "New York",
         "longitude": -75.5,
@@ -375,7 +375,7 @@
       },
       {
         "id": "650000",
-        "name": "北卡罗来纳州",
+        "name": "北卡罗来纳",
         "shortName": "NC",
         "mapName": "North Carolina",
         "longitude": -79.02,
@@ -387,7 +387,7 @@
       },
       {
         "id": "710000",
-        "name": "北达科他州",
+        "name": "北达科他",
         "shortName": "ND",
         "mapName": "North Dakota",
         "longitude": -101,
@@ -399,7 +399,7 @@
       },
       {
         "id": "810000",
-        "name": "俄亥俄州",
+        "name": "俄亥俄",
         "shortName": "OH",
         "mapName": "Ohio",
         "longitude": -82.91,
@@ -411,7 +411,7 @@
       },
       {
         "id": "820000",
-        "name": "俄克拉何马州",
+        "name": "俄克拉何马",
         "shortName": "OK",
         "mapName": "Oklahoma",
         "longitude": -97.09,
@@ -423,7 +423,7 @@
       },
       {
         "id": "US-OR",
-        "name": "俄勒冈州",
+        "name": "俄勒冈",
         "shortName": "OR",
         "mapName": "Oregon",
         "longitude": -120.55,
@@ -435,7 +435,7 @@
       },
       {
         "id": "US-PA",
-        "name": "宾夕法尼亚州",
+        "name": "宾夕法尼亚",
         "shortName": "PA",
         "mapName": "Pennsylvania",
         "longitude": -77.19,
@@ -447,7 +447,7 @@
       },
       {
         "id": "US-RI",
-        "name": "罗得岛州",
+        "name": "罗得岛",
         "shortName": "RI",
         "mapName": "Rhode Island",
         "longitude": -71.48,
@@ -459,7 +459,7 @@
       },
       {
         "id": "US-SC",
-        "name": "南卡罗来纳州",
+        "name": "南卡罗来纳",
         "shortName": "SC",
         "mapName": "South Carolina",
         "longitude": -80.9,
@@ -471,7 +471,7 @@
       },
       {
         "id": "US-SD",
-        "name": "南达科他州",
+        "name": "南达科他",
         "shortName": "SD",
         "mapName": "South Dakota",
         "longitude": -99.9,
@@ -483,7 +483,7 @@
       },
       {
         "id": "US-TN",
-        "name": "田纳西州",
+        "name": "田纳西",
         "shortName": "TN",
         "mapName": "Tennessee",
         "longitude": -86.58,
@@ -495,7 +495,7 @@
       },
       {
         "id": "US-TX",
-        "name": "得克萨斯州",
+        "name": "得克萨斯",
         "shortName": "TX",
         "mapName": "Texas",
         "longitude": -99.9,
@@ -507,7 +507,7 @@
       },
       {
         "id": "US-UT",
-        "name": "犹他州",
+        "name": "犹他",
         "shortName": "UT",
         "mapName": "Utah",
         "longitude": -111.09,
@@ -519,7 +519,7 @@
       },
       {
         "id": "US-VT",
-        "name": "佛蒙特州",
+        "name": "佛蒙特",
         "shortName": "VT",
         "mapName": "Vermont",
         "longitude": -72.58,
@@ -531,7 +531,7 @@
       },
       {
         "id": "US-VA",
-        "name": "弗吉尼亚州",
+        "name": "弗吉尼亚",
         "shortName": "VA",
         "mapName": "Virginia",
         "longitude": -78.66,
@@ -543,7 +543,7 @@
       },
       {
         "id": "US-WA",
-        "name": "华盛顿州",
+        "name": "华盛顿",
         "shortName": "WA",
         "mapName": "Washington",
         "longitude": -120.74,
@@ -555,7 +555,7 @@
       },
       {
         "id": "US-WV",
-        "name": "西弗吉尼亚州",
+        "name": "西弗吉尼亚",
         "shortName": "WV",
         "mapName": "West Virginia",
         "longitude": -80.45,
@@ -567,7 +567,7 @@
       },
       {
         "id": "US-WI",
-        "name": "威斯康星州",
+        "name": "威斯康星",
         "shortName": "WI",
         "mapName": "Wisconsin",
         "longitude": -89.62,
@@ -579,7 +579,7 @@
       },
       {
         "id": "US-WY",
-        "name": "怀俄明州",
+        "name": "怀俄明",
         "shortName": "WY",
         "mapName": "Wyoming",
         "longitude": -107.29,
@@ -11172,19 +11172,11 @@
       }
     ],
     "facilityListings": [],
-    "work": {
-      "cooldownUntil": 0,
-      "lastWorkedAt": 1786766355000,
-      "streak": 0,
-      "totalClicks": 128
-    },
     "stats": {
-      "workIssued": 8400,
       "populationIssued": 0,
       "systemSinks": 0,
       "commodityVolume": 86400,
       "facilityVolume": 12800,
-      "workClicks": 128,
       "producedGoods": 4820,
       "boughtGoods": 1640,
       "soldGoods": 1290,
@@ -11413,7 +11405,7 @@
         "totalAssets": 174433.9,
         "cashAssets": 157880,
         "facilityCount": 33,
-        "weeklyChange": 8400,
+        "weeklyChange": 0,
         "updatedAt": 1786766400000,
         "isCurrentPlayer": true
       },
