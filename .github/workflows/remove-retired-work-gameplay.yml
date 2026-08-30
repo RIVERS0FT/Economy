@@ -22,7 +22,7 @@ jobs:
           node-version: 24.4.0
           cache: npm
       - run: npm ci
-      - name: Apply retirement patch
+      - name: Apply retirement patch v2
         run: |
           python scripts/remove-retired-work-gameplay-patch-fix.py
           python scripts/remove-retired-work-gameplay-patch.py
