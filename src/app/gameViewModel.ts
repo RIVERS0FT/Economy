@@ -130,7 +130,6 @@ export interface LoadedGameViewModel {
   setPlayerName: Dispatch<SetStateAction<string>>;
   refreshRate: string;
   setRefreshRate: Dispatch<SetStateAction<string>>;
-  isWorking: boolean;
   isCheckingIn: boolean;
   inventoryUsed: number;
   cashShare: number;
@@ -142,7 +141,6 @@ export interface LoadedGameViewModel {
   refresh: (options?: RefreshOptions) => Promise<void>;
   clearLocalTrades: () => void;
   signOut: () => Promise<void>;
-  work: () => Promise<ActionResult>;
   checkIn: () => Promise<ActionResult>;
   chooseStartingProvince: (provinceId: string) => Promise<ActionResult>;
   unlockProvince: (provinceId: string) => Promise<ActionResult>;
@@ -230,13 +228,11 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const [orderQuantity, setOrderQuantity] = useState(1);
   const [orderPrice, setOrderPrice] = useState(1);
   const [refreshRate, setRefreshRate] = useState('5');
-  const [isWorking, setIsWorking] = useState(false);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const gameRef = useRef<EconomyState | null>(null);
   const revisionRef = useRef<number | null>(null);
   const refreshTaskRef = useRef<RefreshTask | null>(null);
   const actionsInFlightRef = useRef(0);
-  const workPendingRef = useRef(false);
   const checkInPendingRef = useRef(false);
   const orderPendingRef = useRef(false);
   const noticeTimerRef = useRef<number | null>(null);
@@ -412,28 +408,17 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   }, [acceptVersionedState, handleUnauthorized]);
 
   const runAction = useCallback(async (action: LocalActivityAction, operation: () => Promise<GameActionResponse>): Promise<ActionResult> => {
-    if (action === 'work' && workPendingRef.current) {
-      return { ok: false, message: '工作正在处理中' };
-    }
     if (action === 'checkIn' && checkInPendingRef.current) {
       return { ok: false, message: '签到正在处理中' };
     }
     actionsInFlightRef.current += 1;
     refreshTaskRef.current?.controller.abort();
-    if (action === 'work') {
-      workPendingRef.current = true;
-      setIsWorking(true);
-    }
     if (action === 'checkIn') {
       checkInPendingRef.current = true;
       setIsCheckingIn(true);
     }
     const finish = () => {
       actionsInFlightRef.current = Math.max(0, actionsInFlightRef.current - 1);
-      if (action === 'work') {
-        workPendingRef.current = false;
-        setIsWorking(false);
-      }
       if (action === 'checkIn') {
         checkInPendingRef.current = false;
         setIsCheckingIn(false);
@@ -593,12 +578,11 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     orderSide, selectOrderSide, orderQuantity, setOrderQuantity, orderPrice, setOrderPrice,
     playerName: playerNameDraft.draft, setPlayerName: playerNameDraft.setDraft,
     refreshRate, setRefreshRate,
-    isWorking, isCheckingIn, inventoryUsed: derived.inventoryUsed,
+    isCheckingIn, inventoryUsed: derived.inventoryUsed,
     cashShare, commodityShare, facilityShare, avatarText,
     showResult, notify, refresh,
     clearLocalTrades: () => { setLocalActivity(clearLocalTradesStore(user.id, loadedGame)); notify('本地成交记录已清除'); },
     signOut,
-    work: () => runAction('work', gameActions.work),
     checkIn: () => runAction('checkIn', gameActions.checkIn),
     chooseStartingProvince: (provinceId) => runAction('chooseStartingProvince', () => gameActions.chooseStartingProvince(provinceId)),
     unlockProvince: (provinceId) => runAction('unlockProvince', () => gameActions.unlockProvince(provinceId)),

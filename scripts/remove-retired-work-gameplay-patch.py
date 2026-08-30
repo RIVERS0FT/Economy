@@ -73,7 +73,7 @@ replace(path, '      weeklyChange: player.stats.workIssued + player.stats.popula
 replace('server/src/runtime-action-executor.js', "  'work', 'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',\n", "  'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',\n", count=1)
 replace('server/src/market-demand/state.js', '        Number(player.work?.lastWorkedAt || 0),\n', '', count=1)
 sub('server/src/facility-groups.js', r"^\s*player\.stats\.workClicks = Number\([^\n]+\);\n", '', count=1, required=True, flags=re.M)
-replace('server/src/facility-groups.js', '        Number(player.stats.workIssued || 0)\n          + ', '        ', count=1)
+replace('server/src/facility-groups.js', '        weeklyChange: Number(player.stats.workIssued || 0)\n          + ', '        weeklyChange: ', count=1)
 
 # Tests: keep idempotency coverage without the retired action.
 path = 'server/test/domain.test.js'

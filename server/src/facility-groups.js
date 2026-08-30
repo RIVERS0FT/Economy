@@ -551,7 +551,6 @@ function migrateLegacyPlayer(world, player, now) {
   ensureWarehouse(player);
   player.facilityGroups ||= [];
   player.stats ||= {};
-  player.stats.workClicks = Number(player.stats.workClicks ?? player.work?.totalClicks ?? 0);
   player.stats.producedGoods = Number(player.stats.producedGoods || 0);
   player.stats.boughtGoods = Number(player.stats.boughtGoods || 0);
   player.stats.soldGoods = Number(player.stats.soldGoods || 0);
@@ -1468,8 +1467,7 @@ function createLeaderboard(world, currentUserId, now) {
         totalAssets: summary.totalAssets,
         cashAssets: summary.cashValue,
         facilityCount: (player.facilityGroups || []).reduce((sum, group) => sum + group.count, 0),
-        weeklyChange: Number(player.stats.workIssued || 0)
-          + Number(player.stats.gemExchangeCredits || 0)
+        weeklyChange: Number(player.stats.gemExchangeCredits || 0)
           + Number(player.stats.populationIncome || 0)
           + Number(player.stats.populationIssued || 0)
           + Number(player.stats.giftIssued || 0)

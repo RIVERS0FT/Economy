@@ -179,10 +179,10 @@ test('HTTP API authenticates through the shared account service and honors idemp
       'Content-Type': 'application/json',
       'Idempotency-Key': 'http-test-request-1',
     };
-    const first = await fetch(`http://127.0.0.1:${gamePort}/api/game/work`, {
-      method: 'POST',
+    const first = await fetch(`http://127.0.0.1:${gamePort}/api/game/profile`, {
+      method: 'PATCH',
       headers,
-      body: '{}',
+      body: JSON.stringify({ playerName: 'Server Player Updated' }),
     });
     assert.equal(first.status, 200);
     const firstPayload = await first.json();
@@ -199,14 +199,15 @@ test('HTTP API authenticates through the shared account service and honors idemp
     assert.equal(actionStateResponse.status, 200);
     const actionStatePayload = await actionStateResponse.json();
     const actionState = mergePatches(initialState, actionStatePayload.patches);
-    assert.equal(actionState.credits, 501);
+    assert.equal(actionState.playerName, 'Server Player Updated');
+    assert.equal(actionState.credits, 500);
     assert.equal(actionStatePayload.revision >= firstPayload.revision, true);
     assert.equal(actionStatePayload.serverNow >= unchangedPayload.serverNow, true);
 
-    const repeated = await fetch(`http://127.0.0.1:${gamePort}/api/game/work`, {
-      method: 'POST',
+    const repeated = await fetch(`http://127.0.0.1:${gamePort}/api/game/profile`, {
+      method: 'PATCH',
       headers,
-      body: '{}',
+      body: JSON.stringify({ playerName: 'Server Player Updated' }),
     });
     assert.equal(repeated.status, 200);
     const repeatedPayload = await repeated.json();
@@ -222,6 +223,13 @@ test('HTTP API authenticates through the shared account service and honors idemp
     assert.equal(repeatedStatePayload.revision, actionStatePayload.revision);
     assert.equal(repeatedStatePayload.unchanged, true);
     assert.equal(repeatedStatePayload.serverNow >= actionStatePayload.serverNow, true);
+
+    const retiredWork = await fetch(`http://127.0.0.1:${gamePort}/api/game/work`, {
+      method: 'POST',
+      headers: { ...headers, 'Idempotency-Key': 'retired-work-route' },
+      body: '{}',
+    });
+    assert.equal(retiredWork.status, 404);
     assert.equal(accountRequestCount, 1);
   } finally {
     if (child.exitCode === null && child.signalCode === null) {

@@ -338,13 +338,6 @@ export interface TradeRecord {
   description: string;
 }
 
-export interface WorkState {
-  cooldownUntil: number;
-  lastWorkedAt: number;
-  streak: number;
-  totalClicks: number;
-}
-
 export interface DemandState {
   cycleMs: number;
   nextDemandAt: number;
@@ -445,12 +438,10 @@ export interface MarketDetail {
 }
 
 export interface EconomyStats {
-  workIssued: number;
   populationIssued: number;
   systemSinks: number;
   commodityVolume: number;
   facilityVolume: number;
-  workClicks: number;
   producedGoods: number;
   boughtGoods: number;
   soldGoods: number;
@@ -711,7 +702,6 @@ export interface EconomyState {
   facilityListings: FacilityListing[];
   valuationPrices: Record<string, number>;
   assetSummary: AssetSummary;
-  work: WorkState;
   stats: EconomyStats;
   leaderboard: LeaderboardEntry[];
   leaderboards?: import('./leaderboardTypes').RankedLeaderboardsState;

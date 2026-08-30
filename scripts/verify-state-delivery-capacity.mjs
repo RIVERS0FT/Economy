@@ -47,7 +47,7 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '共享单调服务器时钟',
   '只有 `GET state` 的分区交付响应可以更新 `EconomyState`',
   '发起任一权威动作时必须使用 `AbortController` 取消正在进行的状态轮询',
-  '工作动作必须在请求发出时同步进入本地“处理中”状态',
+  '存在重复提交风险的权威按钮必须在请求发出时同步进入本地“处理中”状态',
   'gzip_types application/json',
   '部署脚本必须修补既有游戏 API snippet 或手工 `location`',
   '超过 1 KB 的 HTML、JavaScript、CSS、JSON、SVG、Web Manifest、XML 与 WASM',
@@ -62,7 +62,7 @@ requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
   '可选 3／5／10 秒',
   '不得恢复每 1 秒完整状态刷新',
   '按钮必须在同一交互周期立即显示“处理中”',
-  '任何低于当前修订号的迟到响应不得覆盖工作响应',
+  '任何低于当前修订号的迟到响应不得覆盖较新的权威动作结果',
 ]);
 
 requireText('scripts/configure-economy-nginx.py', [
@@ -296,14 +296,19 @@ requireText('src/app/gameViewModel.ts', [
   'refreshTaskRef.current?.controller.abort()',
   "mode === 'normal' && actionsInFlightRef.current > 0",
   'existing.controller.abort()',
-  "action === 'work' && workPendingRef.current",
-  'setIsWorking(true)',
-  'setIsWorking(false)',
 ]);
 forbidText('src/app/gameViewModel.ts', [
   'acceptVersionedState(response.revision, response.state, action',
   'refreshAbortRef.current',
 ]);
+forbidText('src/app/gameViewModel.ts', [
+  "action === 'work'",
+  'workPendingRef',
+  'setIsWorking(',
+  "work: () => runAction('work'",
+]);
+forbidText('src/api/game.ts', ["postAction('/work')"]);
+forbidText('server/src/game-routes.js', ["/api/game/work"]);
 
 requireText('src/hooks/useNow.ts', [
   'estimateServerNow(referenceNow)',

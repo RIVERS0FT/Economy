@@ -42,12 +42,11 @@ for (const text of [
   'unexpectedStatusCount',
   'TRANSACTION_MIX_WEIGHTS',
   'state: 60',
-  'work: 10',
-  'order: 10',
-  'facilityToggle: 8',
+  'order: 15',
+  'facilityToggle: 10',
   'recipe: 5',
-  'build: 4',
-  'research: 3',
+  'build: 5',
+  'research: 5',
   "'/api/game/orders'",
   "const operation = running ? 'pause' : 'start';",
   '`/api/game/facilities/:id/${operation}`',
@@ -60,6 +59,8 @@ for (const text of [
   "timingSource: 'server-local'",
   "seedTransactionAssets: profile === 'transaction-mix'",
 ]) assert.equal(runner.includes(text), true, `压力测试执行器缺少 ${text}`);
+assert.equal(runner.includes('/api/game/work'), false, '压力测试执行器不得恢复已退役工作路由');
+
 assert.equal(
   runner.includes('seedTransactionAssets: true'),
   false,
@@ -136,9 +137,8 @@ assert.equal(packageJson.scripts?.['stress:run'], 'node tests/stress/run.mjs');
 assert.equal(packageJson.scripts?.['verify:stress'], 'node scripts/verify-stress-test-accounts.mjs && node scripts/verify-stress-test-flow.mjs && npm run test:stress');
 
 const budgets = JSON.parse(read('tests/stress/budgets.json'));
-assert.equal(budgets.profiles?.mixed?.routes?.['POST /api/game/work']?.maxP95Ms, 1_100, 'mixed work p95 预算必须使用三次 Node 24 基线校准值');
 assert.equal(budgets.baselines?.mixedGithubNode24?.runIds?.length, 3, 'mixed 预算校准必须保存三个同环境 run ID');
-assert.equal(budgets.baselines?.mixedGithubNode24?.workP95Ms?.length, 3, 'mixed 预算校准必须保存三个同环境观测值');
+assert.equal(JSON.stringify(budgets).includes('/api/game/work'), false, '压力预算不得恢复已退役工作路由');
 assert.equal(budgets.profiles?.['transaction-mix']?.maxTimeouts, 0, 'transaction-mix 不允许超时');
 assert.equal(budgets.profiles?.['transaction-mix']?.maxServerErrors, 0, 'transaction-mix 不允许 5xx');
 assert.equal(budgets.profiles?.['transaction-mix']?.maxUnexpectedStatuses, 0, 'transaction-mix 不允许非预期状态码');
@@ -147,7 +147,7 @@ assert.equal(budgets.profiles?.['transaction-mix']?.maxP99Ms, 3_000, 'transactio
 
 const stressTests = read('tests/stress/stress-flow.test.mjs');
 for (const text of [
-  'isolated transaction mix exercises state, work, orders, facilities, recipes, builds and research',
+  'isolated transaction mix exercises state, orders, facilities, recipes, builds and research',
   "profile: 'transaction-mix'",
   '事务混合场景未覆盖',
   'report.metrics.unexpectedStatusCount',
@@ -161,12 +161,11 @@ for (const text of [
   'run ID、环境和观测值',
   '`transaction-mix`',
   '60% 状态读取',
-  '10% 工作',
-  '10% 商品订单',
-  '8% 工厂启停',
+  '15% 商品订单',
+  '10% 工厂启停',
   '5% 配方切换',
-  '4% 即时建设',
-  '3% 研发',
+  '5% 即时建设',
+  '5% 研发',
 ]) {
   assert.equal(read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md').includes(text), true, `服务器设计缺少压力测试规则 ${text}`);
 }

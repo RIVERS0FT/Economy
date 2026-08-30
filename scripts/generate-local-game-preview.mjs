@@ -143,8 +143,6 @@ export function buildLocalGamePreviewFixture() {
     totalClicks: 128,
   };
   Object.assign(previewPlayer.stats, {
-    workIssued: 8_400,
-    workClicks: 128,
     producedGoods: 4_820,
     boughtGoods: 1_640,
     soldGoods: 1_290,

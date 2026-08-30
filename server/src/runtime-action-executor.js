@@ -72,7 +72,7 @@ const CONTRACT_ACTIONS = new Set([
   'setFacilityLeaseAutoFund',
 ]);
 const ECONOMIC_ACTIVITY_ACTIONS = new Set([
-  'work', 'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',
+  'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',
   'collectFacility', 'placeOrder', 'cancelOrder', 'listFacility',
   'cancelFacilityListing', 'buyFacility', 'redeemGift',
   'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
