@@ -165,7 +165,7 @@ if (failures.length === 0) {
     'processWorld: !store.scheduledProcessing',
     '{ migrate: false, process: false }',
     'cancelOpenProductionContractForSaveDeletion',
-    'ensurePlayerFacilityGroupState',
+    'player.facilityGroups = [];',
     'ensurePlayerResearch',
     '{ migrate: !store.scheduledProcessing }',
   ]) {

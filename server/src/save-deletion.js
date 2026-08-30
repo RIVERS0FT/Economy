@@ -1,5 +1,4 @@
 import { ensurePlayer } from './domain.js';
-import { ensurePlayerFacilityGroupState } from './facility-groups.js';
 import { applyAssetAuctionAction } from './asset-auctions.js';
 import { cancelOpenProductionContractForSaveDeletion } from './contracts.js';
 import {
@@ -416,7 +415,7 @@ function rebuildPlayer(store, world, user, previous, now) {
   Object.assign(player.stats, gemStats);
 
   preparePlayerSystems(store, world, player, now);
-  ensurePlayerFacilityGroupState(world, player, now);
+  player.facilityGroups = [];
   ensurePlayerResearch(world, player, now);
 
   return { player, saveEpochBefore, saveEpochAfter };
