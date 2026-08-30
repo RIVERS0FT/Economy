@@ -30,6 +30,7 @@ const transportPage = read('src/pages/TransportPage.tsx');
 const navigation = read('src/config/navigation.ts');
 const pageRouter = read('src/pages/PageRouter.tsx');
 const gameShell = read('src/components/shell/GameShell.tsx');
+const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');
 const provinceLogistics = read('src/utils/provinceLogistics.ts');
 const provinceAccessTest = existsSync('server/test/province-access.test.js') ? read('server/test/province-access.test.js') : '';
 const transportTest = existsSync('server/test/transport.test.js') ? read('server/test/transport.test.js') : '';
@@ -52,7 +53,8 @@ requireText(warehouseDesign, '整链一次发运、逐站交付', '仓库设计�
 requireText(warehouseDesign, '空驶段只按该段固定成本计费', '仓库设计必须记录空驶段计费口径。');
 requireText(warehouseDesign, '旧路线（无 `viaProvinceIds`、无 `tripType`）与历史在途记录（无 `stopPlan`）按原单段语义', '仓库设计必须记录旧数据兼容边界。');
 requireText(warehouseDesign, '路线只允许手动发运', '仓库设计必须记录路线不自动循环。');
-requireText(pageDesign, '新玩家首次进入游戏必须先选择起始州', '页面设计必须记录起始州选择流程。');
+requireText(pageDesign, '新玩家首次进入游戏必须先按 3.1 的地图选点流程选择起始州', '页面设计必须记录起始州选择流程。');
+requireText(pageDesign, '起始州选择固定复用唯一常驻战略地图', '页面设计必须记录起始州地图选点与左侧概览流程。');
 requireText(pageDesign, '未解锁州仍保留“概览｜市场｜建筑｜仓库”四个分区', '页面设计必须记录未解锁州仍可浏览概览和市场。');
 requireText(pageDesign, '收到服务器精简确认后立即退出锁定视图', '页面设计必须记录州解锁确认后的瞬时退出锁定视图。');
 requireText(pageDesign, '跨州运输路线、发运与运输记录唯一显示在独立 `TransportPage`', '页面设计必须记录独立运输入口归属。');
@@ -142,7 +144,16 @@ requireText(navigation, "{ id: 'transport', label: '运输' }", '一级导航必
 requireText(pageRouter, "transport: loadTransportPage", '页面路由必须预加载运输页。');
 requireText(pageRouter, "case 'transport':", '页面路由必须渲染运输页。');
 requireText(pageRouter, "transport: ['catalog', 'player.assets', 'player.misc', 'market.misc']", '运输页必须只订阅既有运输相关状态切片。');
-requireText(gameShell, 'starting-province-overlay', '游戏外壳必须提供起始州选择浮层。');
+requireText(gameShell, 'data-starting-province-overview="true"', '游戏外壳必须提供左侧起始州概览。');
+requireText(gameShell, 'startingProvinceCandidateId', '游戏外壳必须把地图点击保存为临时起始州候选。');
+requireText(gameShell, 'model.chooseStartingProvince(province.id)', '起始州必须在概览确认按钮中显式提交。');
+requireText(gameShell, "insetInlineStart: 'var(--strategic-panel-gap, 8px)'", '起始州概览必须锚定工作区左侧。');
+requireText(strategicWorkspace, 'onPickStartingProvince', '战略地图必须提供起始州选点回调。');
+requireText(strategicWorkspace, 'data-starting-province-picking', '战略地图必须标记起始州选择模式。');
+requireText(strategicWorkspace, 'state.provinces.map((province) => province.id)', '起始州选择模式必须允许连续 48 州全部参与选点。');
+if (gameShell.includes('starting-province-overlay') || gameShell.includes('starting-province-grid') || gameShell.includes('starting-province-option')) {
+  failures.push('不得恢复旧的起始州遮罩、按钮网格或州按钮列表。');
+}
 requireText(provinceLogistics, 'PROVINCE_UNLOCK_BASE_COST = 1500', '客户端物流工具必须与服务器同步基础费用。');
 requireText(provinceLogistics, 'PROVINCE_UNLOCK_COST_PER_500_KM = 300', '客户端物流工具必须与服务器同步距离费用。');
 requireText(provinceLogistics, 'TRANSPORT_BASE_SECONDS_PER_KM = 60 / 1000', '客户端物流工具必须与服务器同步基准时间。');
@@ -187,4 +198,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('起始州、州解锁与跨州运输验证通过：永久起始州、货币解锁、三种运输模式参数、运费计入运输就业、在途按起始州官方价估值、锁定州写拒绝、持久化手动路线、独立运输页与老玩家迁移均已锁定。');
+console.log('起始州、州解锁与跨州运输验证通过：地图选点与左侧概览确认、永久起始州、货币解锁、三种运输模式参数、运费计入运输就业、在途按起始州官方价估值、锁定州写拒绝、持久化手动路线、独立运输页与老玩家迁移均已锁定。');

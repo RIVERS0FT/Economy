@@ -231,7 +231,7 @@ requireAll(paths.shell, [
   'const [sidebarCollapsed, setSidebarCollapsed] = useState(true)',
   "useGameAuthorityDependencies(['player.identity', 'player.assets', 'leaderboard'])",
   '<SignedInShell',
-  'rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}`}',
+  "rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}${startingProvincePicking ? ' is-starting-province-picking' : ''}`}",
   'sidebarCollapsed={sidebarCollapsed}',
   'onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}',
   '<StrategicWorkspaceChrome',
