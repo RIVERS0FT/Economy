@@ -26,7 +26,7 @@ jobs:
         id: apply
         continue-on-error: true
         shell: bash
-        run: python3 scripts/apply-instant-province-unlock-patch.py 2> patch-error.txt
+        run: python3 scripts/apply-instant-province-unlock-patch-v2.py 2> patch-error.txt
 
       - name: Commit patch diagnostic
         if: steps.apply.outcome == 'failure'
