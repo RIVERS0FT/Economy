@@ -1250,6 +1250,11 @@ function cancelOpenContract(world, user, payload, now, runtimeIndex) {
   return result(true, '公开合同已取消');
 }
 
+export function cancelOpenProductionContractForSaveDeletion(world, user, contractId, now = Date.now()) {
+  const runtimeIndex = createContractRuntimeIndex(world);
+  return cancelOpenContract(world, user, { contractId }, now, runtimeIndex);
+}
+
 function prepareContract(world, user, payload, runtimeIndex) {
   const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
   if (!contract || contract.supplierId !== Number(user.id)) return result(false, '只有供应方可以准备商品');

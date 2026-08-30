@@ -760,7 +760,9 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 ## 12. 玩家自助删除存档
 
-`save-deletion.js` 是玩家自助删除存档的唯一领域入口。`GET /api/game/save-deletion/preflight` 在权威写队列中推进到当前世界状态并返回阻止事项与可自动关闭项目；`POST /api/game/save-deletion` 使用 `Idempotency-Key`、精确确认文字“删除存档”和同一 `BEGIN IMMEDIATE` 事务再次检查。开放订单、旧工厂挂牌、无出价自有拍卖和未承接自有合同按现有取消逻辑正常释放；未偿银行贷款、未完成周资金结算、已有出价的自有拍卖、当前最高出价和履约合同必须返回 `409 SAVE_DELETION_BLOCKED`，任何资产不得改变。
+`save-deletion.js` 是玩家自助删除存档的唯一领域入口。`GET /api/game/save-deletion/preflight` 与 `POST /api/game/save-deletion` 都属于正式玩家可触发的权威写，必须登记显式交互元数据、延迟预算和 Mutation Scope；生产服务器先通过统一权威写队列的 scheduler barrier 推进到当前世界状态，删档领域自身不得再 `force` 推进或复制完整世界。预检查只复制当前玩家与必要核心资金域；正式删除只额外复制 `orders`、旧 `facilityListings`、`assetAuctions`、`productionContracts` 等实际会清理的有界共享分区，无关玩家、市场与工厂行情必须保持共享引用。这个边界是强制规则，因为删除一个玩家的延迟不得随全服玩家数量增长并超过浏览器普通写请求超时。
+
+`POST /api/game/save-deletion` 继续使用 `Idempotency-Key`、精确确认文字“删除存档”和同一 `BEGIN IMMEDIATE` 事务再次检查。开放订单和旧工厂挂牌与被删除玩家本身处于同一原子事务，可直接从共享集合移除，冻结资产随旧玩家存档销毁，不得为了“先解冻再销毁”调用全局工厂迁移或协调；无出价自有拍卖仍走不推进全世界的定向取消路径以保留发布费分配和拍卖审计；未承接自有合同走不执行全局合同处理器的定向取消路径。未偿银行贷款、未完成周资金结算、已有出价的自有拍卖、当前最高出价和履约合同必须返回 `409 SAVE_DELETION_BLOCKED`，任何资产不得改变。
 
 删除事务通过首次建档共用的 `ensurePlayer` 初始化重新创建玩家，保留原 `registeredAt`、宝石余额和宝石发行统计，每次重新发放新存档的 500 普通货币，并写入递增 `saveEpoch`、`saveCreatedAt` 与一条追加式删除审计。`economy_save_deletions` 允许同一 `user_id` 保存多条历史记录，`request_key` 继续唯一，并保存前后世代、删除时间、资产摘要和自动关闭数量；旧的 `user_id UNIQUE` 表结构在首次访问删档领域时幂等迁移为追加式历史表，并建立 `(user_id, deleted_at DESC, id DESC)` 查询索引。同一幂等键只返回第一次结果，但历史删除记录不得阻止再次删除当前经济存档。`economy_registrations`、邀请码与邀请关系、宝石账本、商店兑换、每日签到、礼品兑换、封禁、拍卖审计和合同审计不得删除或重置。教程完成行在同一事务删除，使每个新存档重新进入基础教程。
 

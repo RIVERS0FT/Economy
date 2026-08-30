@@ -1,7 +1,7 @@
 import { ensurePlayer } from './domain.js';
-import { applyFacilityGroupAction, migrateFacilityGroupWorld } from './facility-groups.js';
+import { ensurePlayerFacilityGroupState } from './facility-groups.js';
 import { applyAssetAuctionAction } from './asset-auctions.js';
-import { applyProductionContractAction } from './contracts.js';
+import { cancelOpenProductionContractForSaveDeletion } from './contracts.js';
 import {
   activeLoanLiability,
   ensureBankWorld,
@@ -15,7 +15,10 @@ import {
 } from './weekly-cash-settlement.js';
 import { ensureWarehouse } from './warehouse.js';
 import { ensureGemState } from './invitations.js';
-import { migrateResearchWorld } from './research.js';
+import { ensurePlayerResearch } from './research.js';
+import { requirePlayerActionMetadata } from './player-action-registry.js';
+import { setRequestGauge } from './request-performance.js';
+import { createRuntimeMutationScope } from './world-storage-v2.js';
 
 export const SAVE_DELETION_CONFIRMATION = '删除存档';
 
@@ -169,13 +172,28 @@ export function assertPlayerSaveEpoch(store, user, rawExpectedEpoch, now = Date.
   assertExpectedSaveEpoch(currentPlayer(store, user, now)?.saveEpoch, rawExpectedEpoch);
 }
 
-function preparePlayerSystems(world, player, now) {
+function preparePlayerSystems(store, world, player, now) {
+  const normalizePlayers = !store.scheduledProcessing;
   ensureWarehouse(player);
   ensureGemState(player);
-  ensureBankWorld(world, now);
+  ensureBankWorld(world, now, { normalizePlayers });
   ensurePlayerBankAccount(player, now);
-  ensureWeeklyCashSettlementWorld(world, now);
+  ensureWeeklyCashSettlementWorld(world, now, { normalizePlayers });
   ensurePlayerWeeklyCashSettlement(player, now);
+}
+
+function saveDeletionMutationScope(store, user, preflight) {
+  const action = preflight ? 'saveDeletionPreflight' : 'saveDeletion';
+  const metadata = requirePlayerActionMetadata(action);
+  setRequestGauge('interactiveActionBudgetMs', metadata.latencyBudgetMs);
+  setRequestGauge('interactiveActionRegistered', 1);
+  return createRuntimeMutationScope(
+    store.worldCache?.world,
+    user.id,
+    action,
+    { preflight },
+    { scheduledProcessing: store.scheduledProcessing },
+  );
 }
 
 function analyzeDeletion(store, world, player, userId, now) {
@@ -258,23 +276,40 @@ function analyzeDeletion(store, world, player, userId, now) {
   };
 }
 
-function loadPreparedWorld(store, user, now, expectedSaveEpoch, validateSaveEpoch = false) {
-  const loaded = store.loadWorld(now);
-  const player = ensurePlayer(loaded.world, user, now);
+function loadPreparedWorld(
+  store,
+  user,
+  now,
+  expectedSaveEpoch,
+  { validateSaveEpoch = false, preflight = false } = {},
+) {
+  const mutationScope = saveDeletionMutationScope(store, user, preflight);
+  const loaded = store.loadWorld(now, mutationScope);
+  const player = ensurePlayer(loaded.world, user, now, { migrate: !store.scheduledProcessing });
   if (validateSaveEpoch) assertExpectedSaveEpoch(player.saveEpoch, expectedSaveEpoch);
-  preparePlayerSystems(loaded.world, player, now);
-  store.processWorldIfDue(loaded.world, now, Number(user.id), {
-    force: true,
-    auditTrigger: 'save_deletion_preflight',
+  preparePlayerSystems(store, loaded.world, player, now);
+  if (!store.scheduledProcessing) {
+    store.processWorldIfDue(loaded.world, now, Number(user.id), {
+      force: true,
+      auditTrigger: 'save_deletion_preflight',
+    });
+  }
+  settlePlayerWeeklyCashOnLogin(loaded.world, player, now, {
+    processWorld: !store.scheduledProcessing,
   });
-  settlePlayerWeeklyCashOnLogin(loaded.world, player, now);
-  return { ...loaded, player };
+  return { ...loaded, player, mutationScope };
 }
 
 export function getPlayerSaveDeletionPreflight(store, user, now = Date.now()) {
   return store.transaction(() => {
-    const { revision, stateJson, world, player } = loadPreparedWorld(store, user, now);
-    const nextRevision = store.saveWorldIfChanged(revision, world, now, stateJson);
+    const { revision, stateJson, world, player, mutationScope } = loadPreparedWorld(
+      store,
+      user,
+      now,
+      undefined,
+      { preflight: true },
+    );
+    const nextRevision = store.saveWorldIfChanged(revision, world, now, stateJson, mutationScope);
     return {
       ...analyzeDeletion(store, world, player, user.id, now),
       revision: nextRevision,
@@ -292,27 +327,12 @@ function requireSuccessful(result, description) {
 }
 
 function closeOwnedResources(world, user, preflight, now) {
-  for (const order of [...(world.orders || [])]) {
-    if (Number(order?.ownerId) !== Number(user.id) || !isOpenOrder(order)) continue;
-    requireSuccessful(
-      applyFacilityGroupAction(world, user, 'cancelOrder', { orderId: order.id }, now),
-      `取消订单 ${String(order.id)}`,
-    );
-  }
-
-  for (const listing of [...(world.facilityListings || [])]) {
-    if (Number(listing?.ownerId) !== Number(user.id)) continue;
-    requireSuccessful(
-      applyFacilityGroupAction(
-        world,
-        user,
-        'cancelFacilityListing',
-        { listingId: listing.id },
-        now,
-      ),
-      `取消工厂挂牌 ${String(listing.id)}`,
-    );
-  }
+  world.orders = (world.orders || []).filter(
+    (order) => Number(order?.ownerId) !== Number(user.id),
+  );
+  world.facilityListings = (world.facilityListings || []).filter(
+    (listing) => Number(listing?.ownerId) !== Number(user.id),
+  );
 
   for (const auction of [...(world.assetAuctions || [])]) {
     if (
@@ -328,6 +348,7 @@ function closeOwnedResources(world, user, preflight, now) {
         'cancelAuction',
         { auctionId: auction.id },
         now,
+        { migrate: false, process: false },
       ),
       `取消拍卖 ${String(auction.id)}`,
     );
@@ -336,13 +357,7 @@ function closeOwnedResources(world, user, preflight, now) {
   for (const contract of [...(world.productionContracts || [])]) {
     if (contract?.status !== 'open' || Number(contract?.publisherId) !== Number(user.id)) continue;
     requireSuccessful(
-      applyProductionContractAction(
-        world,
-        user,
-        'cancelProductionContract',
-        { contractId: contract.id },
-        now,
-      ),
+      cancelOpenProductionContractForSaveDeletion(world, user, contract.id, now),
       `取消合同 ${String(contract.id)}`,
     );
   }
@@ -384,7 +399,7 @@ function permanentGemStats(player) {
   )));
 }
 
-function rebuildPlayer(world, user, previous, now) {
+function rebuildPlayer(store, world, user, previous, now) {
   const registeredAt = Math.max(0, Number(previous.registeredAt || now));
   const gems = safeNonNegativeInteger(previous.gems);
   const gemStats = permanentGemStats(previous);
@@ -392,7 +407,7 @@ function rebuildPlayer(world, user, previous, now) {
   const saveEpochAfter = saveEpochBefore + 1;
 
   delete world.players[String(user.id)];
-  const player = ensurePlayer(world, user, now);
+  const player = ensurePlayer(world, user, now, { migrate: !store.scheduledProcessing });
   player.registeredAt = registeredAt;
   player.gems = gems;
   player.saveEpoch = saveEpochAfter;
@@ -400,21 +415,9 @@ function rebuildPlayer(world, user, previous, now) {
   player.saveResetCount = safeNonNegativeInteger(previous.saveResetCount) + 1;
   Object.assign(player.stats, gemStats);
 
-  ensureWarehouse(player);
-  ensureGemState(player);
-  ensureBankWorld(world, now);
-  ensurePlayerBankAccount(player, now);
-  ensureWeeklyCashSettlementWorld(world, now);
-  ensurePlayerWeeklyCashSettlement(player, now);
-  migrateFacilityGroupWorld(world, now);
-  migrateResearchWorld(world, now);
-
-  world.orders = (world.orders || []).filter(
-    (order) => Number(order?.ownerId) !== Number(user.id),
-  );
-  world.facilityListings = (world.facilityListings || []).filter(
-    (listing) => Number(listing?.ownerId) !== Number(user.id),
-  );
+  preparePlayerSystems(store, world, player, now);
+  ensurePlayerFacilityGroupState(world, player, now);
+  ensurePlayerResearch(world, player, now);
 
   return { player, saveEpochBefore, saveEpochAfter };
 }
@@ -449,7 +452,13 @@ export function deletePlayerSave(
       return JSON.parse(String(cached.response_json));
     }
 
-    const { revision, world, player } = loadPreparedWorld(store, user, now, expectedSaveEpoch, true);
+    const { revision, world, player, mutationScope } = loadPreparedWorld(
+      store,
+      user,
+      now,
+      expectedSaveEpoch,
+      { validateSaveEpoch: true },
+    );
     const preflight = analyzeDeletion(store, world, player, user.id, now);
     if (!preflight.allowed) {
       throw httpError(
@@ -470,9 +479,9 @@ export function deletePlayerSave(
       );
     }
 
-    const { saveEpochBefore, saveEpochAfter } = rebuildPlayer(world, user, player, now);
+    const { saveEpochBefore, saveEpochAfter } = rebuildPlayer(store, world, user, player, now);
     statements.deleteTutorialCompletion.run(Number(user.id));
-    const nextRevision = store.saveWorld(revision, world, now);
+    const nextRevision = store.saveWorld(revision, world, now, mutationScope);
     statements.insertDeletion.run(
       Number(user.id),
       saveEpochBefore,

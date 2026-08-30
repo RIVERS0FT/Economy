@@ -429,6 +429,25 @@ function facilityListingMutationScope(world, userId, payload, action) {
   };
 }
 
+function saveDeletionMutationScope(userId, payload) {
+  const preflight = payload?.preflight === true;
+  const segments = new Set(CORE_LOCAL_SEGMENTS);
+  if (!preflight) {
+    for (const key of ['orders', 'facilityListings', 'assetAuctions', 'productionContracts']) segments.add(key);
+  }
+  return {
+    allPlayers: false,
+    allSegments: false,
+    playerIds: new Set([playerKey(userId)]),
+    segments,
+    orderIndexes: new Set(),
+    marketKeys: new Set(),
+    facilityMarketKeys: new Set(),
+    includeAuctionEscrow: !preflight,
+    label: preflight ? 'save-deletion:preflight' : 'save-deletion:commit',
+  };
+}
+
 function orderValidationScope(userId, label) {
   return {
     allPlayers: false,
@@ -533,6 +552,9 @@ export function createRuntimeMutationScope(world, userId, action, payload, {
       break;
     case 'facility-listing':
       scope = facilityListingMutationScope(world, userId, payload, action);
+      break;
+    case 'save-deletion':
+      scope = saveDeletionMutationScope(userId, payload);
       break;
     case 'auction':
       scope = {

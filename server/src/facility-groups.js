@@ -627,6 +627,24 @@ function migrateLegacyPlayer(world, player, now) {
   delete player.facilities;
 }
 
+export function ensurePlayerFacilityGroupState(world, player, now = Date.now()) {
+  migrateLegacyPlayer(world, player, now);
+  player.facilityGroups = (player.facilityGroups || [])
+    .map((group) => normalizeGroup(group, now))
+    .filter(Boolean);
+  for (const group of player.facilityGroups) {
+    const available = availableGroupCount(world, player, group);
+    if (group.status === 'running') {
+      const previousCount = group.participatingCount;
+      if (available > previousCount) expandAvailableFacilities(group, previousCount, available, now);
+      else group.participatingCount = available;
+      if (group.participatingCount < 1) setGroupError(group, 'no_available_facility', now);
+    }
+    reconcileFacilityGroup(world, player, group, now);
+  }
+  return player.facilityGroups;
+}
+
 export function migrateFacilityGroupWorld(world, now = Date.now()) {
   migrateProvinceFields(world);
   world.players ||= {};
