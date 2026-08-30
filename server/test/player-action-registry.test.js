@@ -60,14 +60,16 @@ test('order execution modes are explicit and unknown modes are rejected', () => 
   for (const [execution, metadata] of Object.entries(ORDER_EXECUTION_REGISTRY)) {
     assert.equal(requireOrderExecutionMetadata(execution), metadata);
   }
-  const error = assert.throws(() => requireOrderExecutionMetadata('future-unregistered-execution'));
-  assert.equal(error.code, 'ORDER_EXECUTION_UNREGISTERED');
-  assert.equal(error.statusCode, 400);
+  assert.throws(
+    () => requireOrderExecutionMetadata('future-unregistered-execution'),
+    { code: 'ORDER_EXECUTION_UNREGISTERED', statusCode: 400 },
+  );
 });
 
 test('unknown player actions are never treated as registered interactions', () => {
   assert.equal(getPlayerActionMetadata('futureUnregisteredAction'), null);
-  const error = assert.throws(() => requirePlayerActionMetadata('futureUnregisteredAction'));
-  assert.equal(error.code, 'PLAYER_ACTION_UNREGISTERED');
-  assert.equal(error.statusCode, 500);
+  assert.throws(
+    () => requirePlayerActionMetadata('futureUnregisteredAction'),
+    { code: 'PLAYER_ACTION_UNREGISTERED', statusCode: 500 },
+  );
 });
