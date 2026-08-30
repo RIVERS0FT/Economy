@@ -65,6 +65,7 @@ for (const text of [
   "'tests/browser'",
   'verifyCandidates',
   'COMPOSED_VERIFY_ENTRYPOINTS',
+  'verificationNeedsDependencies',
 ]) requireSelectorText(text);
 
 if (existsSync(pageContentLegacyPath)) failures.push('旧 page-content base verifier 不得继续存在');
@@ -115,6 +116,7 @@ if (!bankingPlan.checks.some((item) => item.command === 'node' && item.args[0] =
 const docsPlan = selectCiPlan(['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md']);
 if (docsPlan.mode !== 'targeted') failures.push('纯设计文档改动不应默认触发完整 CI');
 if (!hasCommand(docsPlan, 'node', ['scripts/verify-document-authority.mjs'])) failures.push('设计文档改动必须执行文档权威性检查');
+if (!docsPlan.needsDependencies) failures.push('选中的 verifier 直接依赖 npm 包时 targeted CI 必须安装依赖');
 
 const directBrowserPlan = selectCiPlan(['tests/browser/bank-runtime.spec.ts']);
 if (directBrowserPlan.mode !== 'targeted' || !directBrowserPlan.browser.tests.includes('tests/browser/bank-runtime.spec.ts')) {
