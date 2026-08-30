@@ -1,0 +1,217 @@
+name: Apply commodity row density patch
+
+on:
+  push:
+    branches:
+      - codex/commodity-row-density-20260830
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply final patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str):
+              file = Path(path)
+              text = file.read_text()
+              if old not in text:
+                  raise SystemExit(f'missing expected block in {path}: {old[:120]!r}')
+              file.write_text(text.replace(old, new, 1))
+
+          css_path = 'src/styles/market-commodity-row.css'
+          replace_once(
+              css_path,
+              ".market-commodity-row {\n  --entity-list-columns: minmax(8rem, 1.45fr) repeat(5, minmax(3.8rem, .64fr)) var(--entity-list-chevron-column, .8rem);\n}\n",
+              ".market-commodity-row {\n  --entity-list-columns: minmax(8rem, 1.45fr) repeat(5, minmax(3.8rem, .64fr)) var(--entity-list-chevron-column, .8rem);\n}\n\n.entity-list-row:is(.market-commodity-row, .global-market-goods-row) {\n  --entity-list-row-height: 50px;\n  --entity-list-artwork-slot: 36px;\n  --entity-list-artwork-size: 32px;\n  padding-block: .3rem;\n}\n"
+          )
+          replace_once(css_path, '  grid-template-columns: 42px minmax(0, 1fr);', '  grid-template-columns: var(--entity-list-artwork-slot) minmax(0, 1fr);')
+          replace_once(
+              css_path,
+              ".market-commodity-row__artwork {\n  width: 42px;\n  height: 42px;\n  display: grid;\n  place-items: center;\n  overflow: hidden;\n  border-radius: var(--radius-control);\n  background: rgba(255, 255, 255, 0.03);\n}\n\n.market-commodity-row__artwork > .product-artwork {\n  width: 34px;\n  height: 34px;\n}\n",
+              ".market-commodity-row__artwork {\n  width: var(--entity-list-artwork-slot);\n  height: var(--entity-list-artwork-slot);\n  aspect-ratio: 1 / 1;\n  display: grid;\n  place-items: center;\n  overflow: hidden;\n  border-radius: var(--radius-control);\n  background: rgba(255, 255, 255, 0.03);\n}\n\n.market-commodity-row__artwork > .product-artwork {\n  width: var(--entity-list-artwork-size);\n  height: var(--entity-list-artwork-size);\n  aspect-ratio: 1 / 1;\n}\n\n.global-market-goods-row__artwork,\n.global-market-goods-row__artwork > .product-artwork {\n  aspect-ratio: 1 / 1;\n}\n"
+          )
+          replace_once(
+              css_path,
+              "  .market-commodity-row {\n    padding-block: .35rem;\n  }\n",
+              "  .entity-list-row:is(.market-commodity-row, .global-market-goods-row) {\n    --entity-list-row-height: 46px;\n    --entity-list-artwork-slot: 32px;\n    --entity-list-artwork-size: 28px;\n    padding-block: .25rem;\n  }\n"
+          )
+          replace_once(css_path, '    grid-template-columns: 34px minmax(0, 1fr);', '    grid-template-columns: var(--entity-list-artwork-slot) minmax(0, 1fr);')
+          replace_once(
+              css_path,
+              "  .market-commodity-row__artwork {\n    width: 34px;\n    height: 34px;\n  }\n\n  .market-commodity-row__artwork > .product-artwork {\n    width: 29px;\n    height: 29px;\n  }\n",
+              "  .market-commodity-row__artwork {\n    width: var(--entity-list-artwork-slot);\n    height: var(--entity-list-artwork-slot);\n  }\n\n  .market-commodity-row__artwork > .product-artwork {\n    width: var(--entity-list-artwork-size);\n    height: var(--entity-list-artwork-size);\n  }\n"
+          )
+          replace_once(
+              css_path,
+              "@container (max-width: 360px) {\n  .market-commodity-row-header,\n  .market-commodity-row {",
+              "@container (max-width: 360px) {\n  .entity-list-row:is(.market-commodity-row, .global-market-goods-row) {\n    --entity-list-row-height: 44px;\n    --entity-list-artwork-slot: 30px;\n    --entity-list-artwork-size: 26px;\n  }\n\n  .market-commodity-row-header,\n  .market-commodity-row {"
+          )
+          replace_once(css_path, '    grid-template-columns: 30px minmax(0, 1fr);', '    grid-template-columns: var(--entity-list-artwork-slot) minmax(0, 1fr);')
+          replace_once(
+              css_path,
+              "  .market-commodity-row__artwork {\n    width: 30px;\n    height: 30px;\n  }\n\n  .market-commodity-row__artwork > .product-artwork {\n    width: 26px;\n    height: 26px;\n  }\n",
+              "  .market-commodity-row__artwork {\n    width: var(--entity-list-artwork-slot);\n    height: var(--entity-list-artwork-slot);\n  }\n\n  .market-commodity-row__artwork > .product-artwork {\n    width: var(--entity-list-artwork-size);\n    height: var(--entity-list-artwork-size);\n  }\n"
+          )
+
+          design_path = 'docs/UI_DESIGN_SYSTEM.md'
+          replace_once(design_path, '> 更新时间：2026-08-29', '> 更新时间：2026-08-30')
+          replace_once(
+              design_path,
+              '| `src/styles/market-commodity-row.css` | 全局商品详情与地区市场共享的紧凑商品数据行、可排序表头交互、默认折叠筛选 disclosure 和移动单行收缩规则 |',
+              '| `src/styles/market-commodity-row.css` | 一级市场商品目录、全局商品详情与地区市场共享的紧凑商品数据行密度、1:1 商品插画槽、可排序表头交互、默认折叠筛选 disclosure 和移动单行收缩规则 |'
+          )
+          replace_once(
+              design_path,
+              '所有带表头的页面实体目录固定使用 `.entity-list-surface` 包裹 `EntityListHeader + .entity-list-rows`。表头与首行、相邻数据行统一使用同一 `.32rem` 间距；列 gap、横向 padding、Chevron 轨道和目录插画槽只能由 `entity-list-header.css` 的共享变量随真实内容容器收缩，业务 CSS 只允许定义字段列模板和业务单元格内部排版，不得为市场、地区商品、建筑或地区建筑各自维护另一套列表密度。正负行情与利润统一通过 `.entity-list-value.is-positive / .is-negative` 表达，避免同一语义跨页面变色。',
+              '所有带表头的页面实体目录固定使用 `.entity-list-surface` 包裹 `EntityListHeader + .entity-list-rows`。表头与首行、相邻数据行统一使用同一 `.32rem` 间距；列 gap、横向 padding、Chevron 轨道和目录插画槽只能由 `entity-list-header.css` 的共享变量随真实内容容器收缩，业务 CSS 只允许定义字段列模板和业务单元格内部排版。商品数据行只有 `market-commodity-row.css` 同时覆盖一级市场 `.global-market-goods-row` 与地区商品 `.market-commodity-row` 的紧凑密度例外，其余市场、地区商品、建筑或地区建筑不得各自维护另一套列表密度。正负行情与利润统一通过 `.entity-list-value.is-positive / .is-negative` 表达，避免同一语义跨页面变色。'
+          )
+          old_market_rule = '''- `MarketCommodityRow` 是商品全局详情地区行和地区市场目录的唯一共享商品数据行。共享列表固定使用独立表头“商品｜卖单量｜买单量｜市场价｜24h｜箭头”，商品全局详情地区列表首列为“地区”，地区行的可见身份只显示地区全名，不渲染商品插画、商品名称、类别或副标题；数据行固定为“实体身份｜卖单量值｜买单量值｜市场价值｜24h 值｜右向 Chevron”且不重复字段名，不显示挂单差额、基准偏离或挂单状态；这些分析指标只在具体地区商品详情保留。表头是唯一排序入口：可排序列渲染为按钮并使用 `role="columnheader"` + `aria-sort` 播报方向，采用“默认方向 → 反方向 → 恢复目录顺序”三态循环，数值列默认从优到劣、名称列默认升序，缺失值固定排末尾；筛选 disclosure 只承载筛选，不得恢复排序下拉或排序按钮组。普通商品身份槽桌面使用 `42px`、商品插画 `34px`；不大于 620px 时收紧为 `34px / 29px`，极窄屏继续缩小。移动端仍保持单行，不得恢复两列／多行摘要卡、隐藏四项核心指标或产生横向主滚动。商品详情头部继续复用对应主视觉；建筑从属交易详情调用按正式 ID 映射的 `FacilityIcon` 并保持居中 `cover`。
+- 市场、地区商品、建筑和地区建筑四类实体列表统一复用 `EntityListHeader` 与 `.entity-list-row` 表面基线。表头固定高 `42px`；数据行桌面最小高 `58px`，不大于 620px 的紧凑容器统一为 `54px`。四类行统一使用 `1px` 弱边框、`var(--radius-control)` 圆角、同一半透明表面、横向内边距、列间距、右向 Chevron 与共享交互反馈，桌面鼠标悬停不得位移。表头与条目必须通过同一个 `--entity-list-columns` 列变量对齐；业务样式只允许定义列模板及响应式最小宽度，不得重新定义行边框、圆角、背景或高度。'''
+          new_market_rule = '''- `MarketCommodityRow` 是商品全局详情地区行和地区市场目录的唯一共享商品数据行；一级市场商品目录保留自身聚合字段结构，但 `.global-market-goods-row` 必须与 `.market-commodity-row` 共同由 `market-commodity-row.css` 收束商品行密度，禁止两处分别维护高度或插画尺寸。共享列表固定使用独立表头“商品｜卖单量｜买单量｜市场价｜24h｜箭头”，商品全局详情地区列表首列为“地区”，地区行的可见身份只显示地区全名，不渲染商品插画、商品名称、类别或副标题；数据行固定为“实体身份｜卖单量值｜买单量值｜市场价值｜24h 值｜右向 Chevron”且不重复字段名，不显示挂单差额、基准偏离或挂单状态；这些分析指标只在具体地区商品详情保留。表头是唯一排序入口：可排序列渲染为按钮并使用 `role="columnheader"` + `aria-sort` 播报方向，采用“默认方向 → 反方向 → 恢复目录顺序”三态循环，数值列默认从优到劣、名称列默认升序，缺失值固定排末尾；筛选 disclosure 只承载筛选，不得恢复排序下拉或排序按钮组。普通商品身份槽桌面使用 `36px`、商品插画 `32px`；不大于 620px 时使用 `32px / 28px`，不大于 360px 时使用 `30px / 26px`；插画槽与 `ProductArtwork` 必须显式保持 `1:1`。商品数据行桌面最小高 `50px`，不大于 620px 时为 `46px`，不大于 360px 时为 `44px`，一级市场与地区商品目录必须同步。`44px` 是移动触控下限；商品目录需要连续扫描较多重复条目，因此只在商品数据行允许低于通用实体行的紧凑高度。移动端仍保持单行，不得恢复两列／多行摘要卡、隐藏四项核心指标或产生横向主滚动。商品详情头部继续复用对应主视觉；建筑从属交易详情调用按正式 ID 映射的 `FacilityIcon` 并保持居中 `cover`。
+- 市场、地区商品、建筑和地区建筑四类实体列表统一复用 `EntityListHeader` 与 `.entity-list-row` 表面基线。表头固定高 `42px`；通用数据行桌面最小高 `58px`，不大于 620px 的紧凑容器为 `54px`。商品数据行是唯一高度例外，固定使用上一条的 `50px / 46px / 44px` 三档并由同一共享样式同时覆盖一级市场和地区商品目录；其他业务列表不得重定义高度。四类行统一使用 `1px` 弱边框、`var(--radius-control)` 圆角、同一半透明表面、横向内边距、列间距、右向 Chevron 与共享交互反馈，桌面鼠标悬停不得位移。表头与条目必须通过同一个 `--entity-list-columns` 列变量对齐；业务样式只允许定义列模板及响应式最小宽度，不得重新定义行边框、圆角或背景。'''
+          replace_once(design_path, old_market_rule, new_market_rule)
+
+          Path('scripts/verify-commodity-row-density.mjs').write_text('''import fs from 'node:fs';
+
+function read(path) {
+  return fs.readFileSync(path, 'utf8');
+}
+
+function requireText(source, text, label) {
+  if (!source.includes(text)) throw new Error(`${label}: missing ${text}`);
+}
+
+const commodityCss = read('src/styles/market-commodity-row.css');
+const design = read('docs/UI_DESIGN_SYSTEM.md');
+const browserSpec = read('tests/browser/commodity-row-density.spec.ts');
+
+for (const token of [
+  '.entity-list-row:is(.market-commodity-row, .global-market-goods-row)',
+  '--entity-list-row-height: 50px;',
+  '--entity-list-artwork-slot: 36px;',
+  '--entity-list-artwork-size: 32px;',
+  '--entity-list-row-height: 46px;',
+  '--entity-list-artwork-slot: 32px;',
+  '--entity-list-artwork-size: 28px;',
+  '--entity-list-row-height: 44px;',
+  '--entity-list-artwork-slot: 30px;',
+  '--entity-list-artwork-size: 26px;',
+  '.global-market-goods-row__artwork,',
+  'aspect-ratio: 1 / 1;',
+]) requireText(commodityCss, token, 'commodity row density css');
+
+for (const token of [
+  '一级市场商品目录、全局商品详情与地区市场共享的紧凑商品数据行密度、1:1 商品插画槽',
+  '商品数据行桌面最小高 `50px`，不大于 620px 时为 `46px`，不大于 360px 时为 `44px`',
+  '插画槽与 `ProductArtwork` 必须显式保持 `1:1`',
+  '`44px` 是移动触控下限',
+  '商品数据行是唯一高度例外',
+]) requireText(design, token, 'commodity row density design');
+
+for (const token of [
+  "name: '打开小麦全局详情'",
+  "name: '查看小麦详情'",
+  "'.global-market-goods-row__artwork'",
+  "'.market-commodity-row__artwork'",
+  'expect(regionalMetrics).toEqual(globalMetrics);',
+  "expect(compactGlobal.minHeight).toBe('44px');",
+]) requireText(browserSpec, token, 'commodity row density browser coverage');
+
+console.log('commodity row density verification passed');
+''')
+
+          Path('tests/browser/commodity-row-density.spec.ts').write_text('''import { expect, test, type Locator } from '@playwright/test';
+
+type RowMetrics = {
+  minHeight: string;
+  height: number;
+  slot: [number, number];
+  artwork: [number, number];
+};
+
+async function readRowMetrics(row: Locator, slotSelector: string): Promise<RowMetrics> {
+  return row.evaluate((element, selector) => {
+    const rowElement = element as HTMLElement;
+    const slot = rowElement.querySelector<HTMLElement>(selector);
+    const artwork = slot?.querySelector<HTMLElement>('.product-artwork');
+    if (!slot || !artwork) throw new Error(`missing commodity artwork for ${selector}`);
+    const rowRect = rowElement.getBoundingClientRect();
+    const slotRect = slot.getBoundingClientRect();
+    const artworkRect = artwork.getBoundingClientRect();
+    return {
+      minHeight: getComputedStyle(rowElement).minHeight,
+      height: Math.round(rowRect.height),
+      slot: [Math.round(slotRect.width), Math.round(slotRect.height)] as [number, number],
+      artwork: [Math.round(artworkRect.width), Math.round(artworkRect.height)] as [number, number],
+    };
+  }, slotSelector);
+}
+
+function expectSquare(metrics: RowMetrics) {
+  expect(metrics.slot[0]).toBe(metrics.slot[1]);
+  expect(metrics.artwork[0]).toBe(metrics.artwork[1]);
+  expect(metrics.height).toBeLessThanOrEqual(52);
+}
+
+async function openGlobalMarket(page: Parameters<typeof test>[0]['page']) {
+  await page.goto('?preview=game');
+  await page.locator('.desktop-sidebar').getByRole('button', { name: /^市场/ }).click();
+  const row = page.getByRole('button', { name: '打开小麦全局详情' });
+  await expect(row).toBeVisible();
+  return row;
+}
+
+test('market and regional commodity lists share one compact square-artwork density', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  const globalRow = await openGlobalMarket(page);
+  const globalMetrics = await readRowMetrics(globalRow, '.global-market-goods-row__artwork');
+  expectSquare(globalMetrics);
+  expect(['50px', '46px']).toContain(globalMetrics.minHeight);
+
+  await page.goto('market-runtime-test.html?scenario=active&view=catalog');
+  const regionalRow = page.getByRole('button', { name: '查看小麦详情' });
+  await expect(regionalRow).toBeVisible();
+  const regionalMetrics = await readRowMetrics(regionalRow, '.market-commodity-row__artwork');
+  expectSquare(regionalMetrics);
+  expect(regionalMetrics).toEqual(globalMetrics);
+
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.goto('?preview=game');
+  const compactGlobalRow = page.getByRole('button', { name: '打开小麦全局详情' });
+  if (!(await compactGlobalRow.isVisible().catch(() => false))) {
+    const mobileMarketButton = page.getByRole('button', { name: /^市场/ }).last();
+    await mobileMarketButton.click();
+  }
+  await expect(compactGlobalRow).toBeVisible();
+  const compactGlobal = await readRowMetrics(compactGlobalRow, '.global-market-goods-row__artwork');
+  expectSquare(compactGlobal);
+  expect(compactGlobal.minHeight).toBe('44px');
+  expect(compactGlobal.slot).toEqual([30, 30]);
+  expect(compactGlobal.artwork).toEqual([26, 26]);
+
+  await page.goto('market-runtime-test.html?scenario=active&view=catalog');
+  const compactRegionalRow = page.getByRole('button', { name: '查看小麦详情' });
+  await expect(compactRegionalRow).toBeVisible();
+  const compactRegional = await readRowMetrics(compactRegionalRow, '.market-commodity-row__artwork');
+  expect(compactRegional).toEqual(compactGlobal);
+});
+''')
+          PY
+          rm .github/workflows/agent-commodity-density-patch.yml
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "压缩商品列表行高并统一图标比例"
+          git push origin HEAD:${GITHUB_REF_NAME}
