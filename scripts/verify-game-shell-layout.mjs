@@ -121,20 +121,27 @@ check('src/components/shell/GameShell.tsx', [
   "leaderboard: 'fullscreen'",
   "const [sidebarCollapsed, setSidebarCollapsed] = useState(true)",
   "const [mapLens, setMapLens] = useState<ProvinceMapLens>('assets')",
+  'const startingProvincePicking = !offline && game.startingProvinceChosen === false;',
   '<ApplicationMapLayerPortal>',
-  '<StrategicMapStage model={model} lens={mapLens} />',
+  'startingProvinceCandidateId={startingProvinceCandidateId}',
+  "lens={startingProvincePicking ? 'political' : mapLens}",
+  'onPickStartingProvince={startingProvincePicking ? setStartingProvinceCandidateId : undefined}',
   '<StrategicMapLensBar lens={mapLens} onLensChange={setMapLens} />',
+  'sidebar={startingProvincePicking ? null : (',
   '<StrategicWorkspaceChrome',
+  '<StartingProvinceOverview',
+  'candidateProvinceId={startingProvinceCandidateId}',
   'tutorial={tutorial}',
   'pendingItems={notificationCenter.pendingItems}',
   'data-strategic-presentation={pagePresentation}',
+  'data-starting-province-picking={startingProvincePicking ? \'true\' : \'false\'}',
   'integratedPrimaryCard',
   'pageTransitionKey={playerPageLocationKey(pageLocation)}',
   'data-strategic-page-location={playerPageLocationKey(pageLocation)}',
   'playerId: model.user.id',
   'title: BRAND_NAME',
   'playerName,',
-  "onClick: () => selectPlayerTab('settings')",
+  "onClick: startingProvincePicking ? undefined : () => selectPlayerTab('settings')",
 ]);
 forbid('src/components/shell/GameShell.tsx', [
   "transport: 'fullscreen'",
@@ -160,8 +167,14 @@ check('src/components/shell/StatusBar.tsx', [
 check('src/components/shell/StrategicWorkspace.tsx', [
   'export function StrategicMapStage',
   '<UsMainlandMap',
+  'startingProvinceCandidateId?: string | null;',
+  'onPickStartingProvince?: (provinceId: string) => void;',
+  'const startingProvincePicking = model.game.startingProvinceChosen === false',
+  'onPickStartingProvince?.(provinceId);',
   "model.setTab('province')",
-  "selectedProvinceId={model.tab === 'province' ? state.selectedProvinceId : null}",
+  'unlockedProvinceIds={startingProvincePicking',
+  'selectedProvinceId={startingProvincePicking',
+  ": model.tab === 'province' ? state.selectedProvinceId : null}",
   'export function StrategicMapLensBar',
   'export function StrategicWorkspaceChrome',
   'aria-label="地图镜头"',
@@ -463,4 +476,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('游戏与管理员共享外壳验证通过：固定状态栏、唯一共享页面滚动、跨页面常驻战略追踪器、研发统一 workspaceCard 与内部透明科技画布、根级 Dialog、48px 通知轨道、8px 战略栅格、主卡片侧栏覆盖、建筑式页面、根级地图镜头、镜头按钮图标文字同轴居中与安全浮层满足当前基线。');
+console.log('游戏与管理员共享外壳验证通过：固定状态栏、唯一共享页面滚动、跨页面常驻战略追踪器、起始州地图选点与左侧概览确认、研发统一 workspaceCard 与内部透明科技画布、根级 Dialog、48px 通知轨道、8px 战略栅格、主卡片侧栏覆盖、建筑式页面、根级地图镜头、镜头按钮图标文字同轴居中与安全浮层满足当前基线。');

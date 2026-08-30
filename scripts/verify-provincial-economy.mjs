@@ -167,7 +167,9 @@ const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');
 for (const text of [
   '<UsMainlandMap', 'summaries={state.summaries}', 'const openProvincePage = (provinceId: string) => {',
   'setSelectedProvinceId(provinceId);', "model.setTab('province');",
-  "selectedProvinceId={model.tab === 'province' ? state.selectedProvinceId : null}",
+  'const startingProvincePicking = model.game.startingProvinceChosen === false',
+  'selectedProvinceId={startingProvincePicking',
+  ": model.tab === 'province' ? state.selectedProvinceId : null}",
   'onSelectProvince={openProvincePage}', 'StrategicMapStage', 'StrategicMapLensBar', 'StrategicWorkspaceChrome',
   "{ id: 'political', label: '州界'", "{ id: 'assets', label: '资产'", "{ id: 'industry', label: '工业'",
   "{ id: 'market', label: '市场'", "{ id: 'alerts', label: '异常'",
@@ -178,7 +180,10 @@ for (const forbidden of ['当前经营地区', 'strategic-province-inspector', '
 const gameShell = read('src/components/shell/GameShell.tsx');
 for (const text of [
   'const STRATEGIC_PAGE_PRESENTATION = {', "province: 'building'", '<ApplicationMapLayerPortal>',
-  '<StrategicMapStage model={model} lens={mapLens} />', '<StrategicMapLensBar lens={mapLens} onLensChange={setMapLens} />',
+  '<StrategicMapStage', "lens={startingProvincePicking ? 'political' : mapLens}",
+  'startingProvinceCandidateId={startingProvinceCandidateId}',
+  'onPickStartingProvince={startingProvincePicking ? setStartingProvinceCandidateId : undefined}',
+  '<StrategicMapLensBar lens={mapLens} onLensChange={setMapLens} />',
   '<StrategicWorkspaceChrome', 'data-strategic-presentation={pagePresentation}',
 ]) assert.ok(gameShell.includes(text), `玩家战略外壳缺少: ${text}`);
 for (const text of [
