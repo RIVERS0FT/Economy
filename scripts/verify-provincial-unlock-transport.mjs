@@ -52,7 +52,8 @@ requireText(warehouseDesign, '空驶段只按该段固定成本计费', '仓库�
 requireText(warehouseDesign, '旧路线（无 `viaProvinceIds`、无 `tripType`）与历史在途记录（无 `stopPlan`）按原单段语义', '仓库设计必须记录旧数据兼容边界。');
 requireText(warehouseDesign, '路线只允许手动发运', '仓库设计必须记录路线不自动循环。');
 requireText(pageDesign, '新玩家首次进入游戏必须先选择起始州', '页面设计必须记录起始州选择流程。');
-requireText(pageDesign, '未解锁州点击后只显示解锁面板', '页面设计必须记录解锁面板。');
+requireText(pageDesign, '未解锁州仍保留“概览｜市场｜建筑｜仓库”四个分区', '页面设计必须记录未解锁州仍可浏览概览和市场。');
+requireText(pageDesign, '收到服务器精简确认后立即退出锁定视图', '页面设计必须记录州解锁确认后的瞬时退出锁定视图。');
 requireText(pageDesign, '跨州运输路线、发运与运输记录唯一显示在独立 `TransportPage`', '页面设计必须记录独立运输入口归属。');
 requireText(pageDesign, '路线只允许玩家手动发运', '页面设计必须锁定路线手动发运边界。');
 requireText(pageDesign, '在地图上选择', '页面设计必须记录地图选州入口。');
@@ -93,6 +94,8 @@ requireText(domain, 'transportRoutes: transportRouteClientState(world, userId)',
 requireText(domain, 'provinceUnlockError(player, provinceId)', '商品下单必须校验州解锁。');
 requireText(storageV2, "'transportShipments'", '运输记录必须进入世界顶层 segment。');
 requireText(storageV2, "'transportShip'", '运输动作必须使用局部玩家 Mutation Scope。');
+requireText(storageV2, "'chooseStartingProvince'", '起始州选择必须使用局部玩家 Mutation Scope。');
+requireText(storageV2, "'unlockProvince'", '州解锁必须使用局部玩家 Mutation Scope。');
 requireText(stateSlices, "keys: Object.freeze(['transportRoutes'])", '运输路线必须显式归入 player.misc slice。');
 requireText(stateSlices, "keys: Object.freeze(['transportShipments'])", '运输记录必须显式归入 market.misc slice。');
 requireText(gameRoutes, "/api/game/provinces/starting", '游戏路由必须提供起始州选择。');
@@ -119,7 +122,9 @@ requireText(gameApi, "/provinces/starting", '游戏 API 必须提供起始州选
 requireText(gameApi, "/provinces/unlock", '游戏 API 必须提供州解锁端点。');
 requireText(gameApi, "/transport", '游戏 API 必须提供运输端点。');
 requireText(provincePage, 'province-lock-content', '州页必须提供直接排列在正文的解锁内容。');
-requireText(provincePage, 'unlockProvince(model.selectedProvinceId)', '州页解锁按钮必须调用解锁动作。');
+requireText(provincePage, 'model.unlockProvince(provinceId)', '州页解锁按钮必须调用解锁动作。');
+requireText(provincePage, 'confirmedUnlockedProvinceIds', '州页必须在服务器确认后立即退出锁定视图。');
+requireText(provincePage, "'正在解锁…'", '州页解锁按钮必须立即显示提交中状态。');
 for (const text of ['WarehouseTransportPanel', 'warehouse-transport-panel', 'warehouse-transport-section', 'transportShip', 'transport-shipment-list']) {
   if (warehousePanel.includes(text)) failures.push(`仓库不得继续承载跨州运输：${text}`);
 }

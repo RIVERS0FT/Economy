@@ -101,6 +101,45 @@ test('local mutation draft clones only the current player and declared segments'
   }
 });
 
+test('province access mutations use the current-player local scope', () => {
+  const world = {
+    players: {
+      1: { userId: 1, credits: 5000, unlockedProvinces: ['110000'] },
+      2: { userId: 2, credits: 5000, unlockedProvinces: ['110000'] },
+    },
+    orders: [],
+    markets: {},
+    bank: {},
+    weeklyCashSettlement: {},
+    populationEconomy: {},
+    marketDemand: {},
+    stats: {},
+    moneyPrecision: { version: 2 },
+    auctionFeeEscrowCredits: 0,
+    systemMarketAudit: {},
+    transportShipments: [],
+    version: 32,
+  };
+
+  for (const actionName of ['chooseStartingProvince', 'unlockProvince']) {
+    const scope = createRuntimeMutationScope(world, alice.id, actionName, { provinceId: '130000' }, {
+      scheduledProcessing: true,
+    });
+    assert.equal(scope.allPlayers, false);
+    assert.equal(scope.allSegments, false);
+    assert.deepEqual([...scope.playerIds], ['1']);
+    assert.equal(scope.label, `local:${actionName}`);
+    assert.equal(scope.segments.has('orders'), false);
+    assert.equal(scope.segments.has('markets'), false);
+
+    const draft = cloneWorldForMutation(world, scope);
+    assert.notEqual(draft.players['1'], world.players['1']);
+    assert.equal(draft.players['2'], world.players['2']);
+    assert.equal(draft.orders, world.orders);
+    assert.equal(draft.markets, world.markets);
+  }
+});
+
 test('transport route mutation uses the current-player local scope', () => {
   const store = new EconomyStore(':memory:', { scheduledProcessing: true });
   try {

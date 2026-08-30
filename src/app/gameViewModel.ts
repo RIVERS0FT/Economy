@@ -428,14 +428,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
       checkInPendingRef.current = true;
       setIsCheckingIn(true);
     }
-    try {
-      const response = await operation();
-      await syncConfirmedAction(response, action);
-      return response.result;
-    } catch (reason) {
-      if (reason instanceof GameApiError && reason.status === 401) handleUnauthorized();
-      return { ok: false, message: messageFromError(reason) };
-    } finally {
+    const finish = () => {
       actionsInFlightRef.current = Math.max(0, actionsInFlightRef.current - 1);
       if (action === 'work') {
         workPendingRef.current = false;
@@ -445,6 +438,15 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
         checkInPendingRef.current = false;
         setIsCheckingIn(false);
       }
+    };
+    try {
+      const response = await operation();
+      void syncConfirmedAction(response, action).finally(finish);
+      return response.result;
+    } catch (reason) {
+      finish();
+      if (reason instanceof GameApiError && reason.status === 401) handleUnauthorized();
+      return { ok: false, message: messageFromError(reason) };
     }
   }, [handleUnauthorized, syncConfirmedAction]);
 
