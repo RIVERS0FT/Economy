@@ -486,15 +486,15 @@ test('legacy facility listing scope includes buyer and player seller only', () =
   assert.notEqual(draft.facilityListings, world.facilityListings);
 });
 
-test('production settlement remains current-player local after factory scopes are specialized', () => {
+test('production settlement alias remains current-player local after factory scopes are specialized', () => {
   const world = {
     players: { 1: { userId: 1 }, 2: { userId: 2 } },
     orders: [{ id: 'other', ownerType: 'player', ownerId: 2, status: 'open', remaining: 1 }],
     bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
     moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
   };
-  const scope = createRuntimeMutationScope(world, 1, 'productionSettlement', {}, { scheduledProcessing: true });
+  const scope = createRuntimeMutationScope(world, 1, 'setFacilityRecipe', {}, { scheduledProcessing: true });
   assert.deepEqual([...scope.playerIds], ['1']);
-  assert.equal(scope.label, 'local:productionSettlement');
+  assert.equal(scope.label, 'local:setFacilityRecipe');
   assert.equal(scope.segments.has('orders'), false);
 });

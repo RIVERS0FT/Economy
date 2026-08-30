@@ -241,7 +241,7 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
   } = requestMeta;
   const payload = normalizePlayerMoneyPayload(action, requestMeta.payload);
   const mutationScopeAction = action === 'settleProduction'
-    ? 'productionSettlement'
+    ? 'setFacilityRecipe'
     : FACTORY_AUTO_OPERATION_REBUILD_ACTIONS.has(action)
       ? 'factoryAutoOperationRebuild'
       : action;

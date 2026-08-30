@@ -20,7 +20,7 @@ const LOCAL_PLAYER_ACTIONS = new Set([
   'redeemGift',
   'exchangeGems',
   'rejectGemShopQuote',
-  'productionSettlement',
+  'setFacilityRecipe',
 ]);
 const LOCAL_ORDER_POLICY_EXECUTIONS = new Set([
   'online-auto-sell-policy',

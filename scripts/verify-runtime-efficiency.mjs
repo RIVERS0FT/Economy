@@ -281,7 +281,7 @@ requireText('server/src/runtime-store-core.js', [
 requireText('server/src/runtime-action-executor.js', [
   "measureRequestPhase('playerSnapshotMs'",
   "measureRequestPhase('economicInvariantMs'",
-  "? 'productionSettlement'",
+  "? 'setFacilityRecipe'",
 ]);
 requireText('server/src/runtime-store.js', [
   'cloneWorldForMutation',
