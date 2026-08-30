@@ -98,6 +98,17 @@ requireText('src/api/auth.ts', [
   "String((reason as { name?: unknown }).name || '') === 'AbortError'",
   "code: 'CLIENT_REQUEST_ABORTED'",
 ]);
+requireText('src/app/LoginPage.tsx', [
+  "type AuthMode = 'login' | 'register' | 'forgot-password'",
+  'auth-entry-links',
+  '忘记密码',
+  '注册账号',
+  'auth-panel-back',
+  '发送验证码',
+  '新密码',
+  '重置密码',
+]);
+forbidText('src/app/LoginPage.tsx', ['auth-mode-switch', 'role="tablist"']);
 
 const packageJson = JSON.parse(read('package.json'));
 if (packageJson.dependencies?.['liquid-glass-react'] || read('package-lock.json').includes('node_modules/liquid-glass-react')) {
@@ -124,11 +135,14 @@ if (!(main.indexOf("import './styles/financial-backdrop.css';")
 
 requireText('tests/browser/auth-three-layer.spec.ts', [
   'desktop keeps one photography root and one CSS frosted authentication card',
-  'login and registration grow naturally in the same frosted host and retain form values across breakpoints',
+  'login, registration, and reset panels grow naturally in the same frosted host and retain form values across breakpoints',
   'mobile authentication has no internal scrollport and remains inside the viewport',
   "surfaceVariant).toBe('authCard')",
   "backdropFilter).toContain('blur(18px)')",
   'liquidDomCount).toBe(0)',
+  "getByRole('button', { name: '注册账号' })",
+  "getByRole('button', { name: '忘记密码' })",
+  "getByLabel('新密码')",
 ]);
 requireText('tests/browser/application-error-state.spec.ts', [
   'mobile authentication abort warning centers recoverable text beside a fixed refresh target',
@@ -150,6 +164,10 @@ requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', [
   '只读快速路径',
   '无法连接游戏服务器',
   '只有 session 明确返回 401',
+  '登录主面板',
+  '注册子面板',
+  '密码重置子面板',
+  '左上角返回',
 ]);
 
 if (failures.length) {
@@ -157,4 +175,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('认证三层验证通过：唯一摄影根、单一 CSS 毛玻璃认证宿主、自然内容高度、断点表单保持和认证错误恢复布局满足当前基线。');
+console.log('认证三层验证通过：唯一摄影根、单一 CSS 毛玻璃认证宿主、自然内容高度、登录主面板与注册／密码重置子面板切换、断点表单保持和认证错误恢复布局满足当前基线。');

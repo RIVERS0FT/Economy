@@ -25,7 +25,7 @@ function fullStateDelivery(revision = 1) {
         researchLevels: [{ id: 'C1', rank: 1, cost: 0, durationMs: 0 }],
         provinces: [{
           id: '110000',
-          name: '加利福尼亚州',
+          name: '加利福尼亚',
           shortName: 'CA',
           mapName: 'California',
           longitude: -119.4179,

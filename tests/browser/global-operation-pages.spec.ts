@@ -28,7 +28,7 @@ test('map keeps gesture zoom without a control panel and primary market/building
 
   await page.getByRole('button', { name: '打开小麦全局详情' }).click();
   await expect(page.locator('.global-market-product-region-list')).toBeVisible();
-  const regionalWheat = page.getByRole('button', { name: '打开加利福尼亚州小麦详情' });
+  const regionalWheat = page.getByRole('button', { name: '打开加利福尼亚小麦详情' });
   await expect(regionalWheat).toBeVisible();
   const regionalMarketHeaderHeight = (await page.locator('.global-market-product-region-surface > .market-commodity-row-header').boundingBox())?.height ?? 0;
   const regionalMarketRowHeight = (await regionalWheat.boundingBox())?.height ?? 0;
@@ -114,9 +114,12 @@ test('map keeps gesture zoom without a control panel and primary market/building
   const regionalFacilityHeaderHeight = (await regionHeader.boundingBox())?.height ?? 0;
   const regionalFacilityRowHeight = (await regionalFacilityRow.boundingBox())?.height ?? 0;
   const headerHeights = [marketHeaderHeight, regionalMarketHeaderHeight, facilityHeaderHeight, regionalFacilityHeaderHeight];
-  const rowHeights = [marketRowHeight, regionalMarketRowHeight, facilityRowHeight, regionalFacilityRowHeight];
+  const marketRowHeights = [marketRowHeight, regionalMarketRowHeight];
+  const facilityRowHeights = [facilityRowHeight, regionalFacilityRowHeight];
   expect(Math.max(...headerHeights) - Math.min(...headerHeights)).toBeLessThanOrEqual(1);
-  expect(Math.max(...rowHeights) - Math.min(...rowHeights)).toBeLessThanOrEqual(1);
+  expect(Math.max(...marketRowHeights) - Math.min(...marketRowHeights)).toBeLessThanOrEqual(1);
+  expect(Math.max(...facilityRowHeights) - Math.min(...facilityRowHeights)).toBeLessThanOrEqual(1);
+  expect(Math.max(...marketRowHeights)).toBeLessThan(Math.min(...facilityRowHeights));
   await expect(regionalFacilityRow.locator('.global-facility-region-row__profit')).toBeVisible();
   await expect(regionalFacilityRow).toHaveAttribute('aria-label', /单厂利润每分钟/);
   const regionalProvinceId = await regionalFacilityRow.getAttribute('data-province-id');

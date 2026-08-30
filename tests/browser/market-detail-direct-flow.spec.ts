@@ -4,7 +4,7 @@ async function openRegionalWheatDetail(page: Page) {
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^市场/ }).click();
   await page.getByRole('button', { name: '打开小麦全局详情' }).click();
-  await page.getByRole('button', { name: '打开加利福尼亚州小麦详情' }).click();
+  await page.getByRole('button', { name: '打开加利福尼亚小麦详情' }).click();
   await expect(page.locator('.market-detail-surface')).toBeVisible();
 }
 

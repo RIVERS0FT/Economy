@@ -8,10 +8,17 @@
   --entity-list-columns: minmax(8rem, 1.45fr) repeat(5, minmax(3.8rem, .64fr)) var(--entity-list-chevron-column, .8rem);
 }
 
+.entity-list-row:is(.market-commodity-row, .global-market-goods-row) {
+  --entity-list-row-height: 50px;
+  --entity-list-artwork-slot: 36px;
+  --entity-list-artwork-size: 32px;
+  padding-block: .3rem;
+}
+
 .market-commodity-row__identity {
   min-width: 0;
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-columns: var(--entity-list-artwork-slot) minmax(0, 1fr);
   align-items: center;
   gap: .5rem;
 }
@@ -21,8 +28,9 @@
 }
 
 .market-commodity-row__artwork {
-  width: 42px;
-  height: 42px;
+  width: var(--entity-list-artwork-slot);
+  height: var(--entity-list-artwork-slot);
+  aspect-ratio: 1 / 1;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -31,8 +39,14 @@
 }
 
 .market-commodity-row__artwork > .product-artwork {
-  width: 34px;
-  height: 34px;
+  width: var(--entity-list-artwork-size);
+  height: var(--entity-list-artwork-size);
+  aspect-ratio: 1 / 1;
+}
+
+.global-market-goods-row__artwork,
+.global-market-goods-row__artwork > .product-artwork {
+  aspect-ratio: 1 / 1;
 }
 
 .market-commodity-row__name,
@@ -140,23 +154,26 @@
     font-size: .625rem;
   }
 
-  .market-commodity-row {
-    padding-block: .35rem;
+  .entity-list-row:is(.market-commodity-row, .global-market-goods-row) {
+    --entity-list-row-height: 46px;
+    --entity-list-artwork-slot: 32px;
+    --entity-list-artwork-size: 28px;
+    padding-block: .25rem;
   }
 
   .market-commodity-row__identity:not(.market-commodity-row__identity--region) {
-    grid-template-columns: 34px minmax(0, 1fr);
+    grid-template-columns: var(--entity-list-artwork-slot) minmax(0, 1fr);
     gap: .35rem;
   }
 
   .market-commodity-row__artwork {
-    width: 34px;
-    height: 34px;
+    width: var(--entity-list-artwork-slot);
+    height: var(--entity-list-artwork-slot);
   }
 
   .market-commodity-row__artwork > .product-artwork {
-    width: 29px;
-    height: 29px;
+    width: var(--entity-list-artwork-size);
+    height: var(--entity-list-artwork-size);
   }
 
   .market-commodity-row__name strong,
@@ -174,6 +191,12 @@
 }
 
 @container (max-width: 360px) {
+  .entity-list-row:is(.market-commodity-row, .global-market-goods-row) {
+    --entity-list-row-height: 44px;
+    --entity-list-artwork-slot: 30px;
+    --entity-list-artwork-size: 26px;
+  }
+
   .market-commodity-row-header,
   .market-commodity-row {
     --entity-list-columns: minmax(4.55rem, 1.2fr) repeat(5, minmax(2.05rem, .56fr)) var(--entity-list-chevron-column, .55rem);
@@ -182,17 +205,17 @@
   }
 
   .market-commodity-row__identity:not(.market-commodity-row__identity--region) {
-    grid-template-columns: 30px minmax(0, 1fr);
+    grid-template-columns: var(--entity-list-artwork-slot) minmax(0, 1fr);
     gap: .28rem;
   }
 
   .market-commodity-row__artwork {
-    width: 30px;
-    height: 30px;
+    width: var(--entity-list-artwork-slot);
+    height: var(--entity-list-artwork-slot);
   }
 
   .market-commodity-row__artwork > .product-artwork {
-    width: 26px;
-    height: 26px;
+    width: var(--entity-list-artwork-size);
+    height: var(--entity-list-artwork-size);
   }
 }

@@ -146,6 +146,24 @@ def registration_location() -> str:
 """.strip("\n")
 
 
+def password_reset_location() -> str:
+    return f"""
+    location ^~ /economy-api/password-reset/ {{
+        proxy_pass http://127.0.0.1:3001/api/password-reset/;
+        proxy_http_version 1.1;
+        proxy_set_header Host riversoft.top;
+        proxy_set_header X-Forwarded-Host {FORMAL_DOMAIN};
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Origin "";
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 30s;
+        client_max_body_size 16k;
+    }}
+""".strip("\n")
+
+
 def origin_maps(target: PublicIpTarget) -> str:
     return f"""map $http_origin $economy_ip_origin_allowed {{
     default 0;
@@ -251,6 +269,8 @@ server {{
 {game_api_location()}
 
 {registration_location()}
+
+{password_reset_location()}
 
     location / {{
         return 404;

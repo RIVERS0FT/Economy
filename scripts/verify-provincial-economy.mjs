@@ -49,10 +49,10 @@ for (const retiredPath of [
 
 assert.equal(PROVINCE_CATALOG.length, 48, '州级地区目录必须包含美国连续 48 州');
 assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.id)).size, 48, '州级地区 ID 必须唯一');
-assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.name)).size, 48, '州级地区中文全名必须唯一');
+assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.name)).size, 48, '州级地区中文短名必须唯一');
 assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.shortName)).size, 48, '州级地区简称必须唯一');
 assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.mapName)).size, 48, '州级地图名称必须唯一');
-assert.equal(PROVINCE_CATALOG.every((province) => /州$/.test(province.name)), true, '地图州名必须使用中文州全名');
+assert.equal(PROVINCE_CATALOG.every((province) => !/州$/.test(province.name)), true, '玩家可见州名必须省略末尾“州”');
 assert.equal(PROVINCE_CATALOG.every((province) => typeof province.capitalName === 'string' && province.capitalName.length > 0), true, '每个州必须记录中文首府名称');
 assert.equal(PROVINCE_CATALOG.every((province) => typeof province.capitalMapName === 'string' && province.capitalMapName.length > 0), true, '每个州必须记录英文首府名称');
 assert.equal(new Set(PROVINCE_CATALOG.map((province) => province.capitalName)).size, 48, '州级中文首府名称必须唯一');
@@ -76,6 +76,7 @@ const legacyRegionIds = [
 ];
 assert.equal(legacyRegionIds.every((id) => PROVINCE_CATALOG.some((province) => province.id === id)), true, '中国地图时期的 34 个地区 ID 必须全部原位保留');
 assert.equal(DEFAULT_PROVINCE_ID, '110000', '默认地区 ID 必须保持稳定以保留既有资产');
+assert.equal(PROVINCE_CATALOG.find((province) => province.id === DEFAULT_PROVINCE_ID)?.name, '加利福尼亚', '默认地区中文短名必须省略“州”');
 assert.equal(PROVINCE_CATALOG.find((province) => province.id === DEFAULT_PROVINCE_ID)?.mapName, 'California', '旧默认地区必须原位映射为加利福尼亚州');
 assert.equal(PROVINCE_CATALOG.find((province) => province.id === DEFAULT_PROVINCE_ID)?.capitalName, '萨克拉门托', '加利福尼亚州必须记录首府萨克拉门托');
 assert.equal(PROVINCE_CATALOG.find((province) => province.mapName === 'Georgia')?.capitalMapName, 'Atlanta', '佐治亚州必须记录首府 Atlanta');
@@ -90,6 +91,10 @@ const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
 assert.ok(productDesign.includes('中文首府名称、英文首府名称与首府经纬度'), '产品权威文档必须登记州首府位置字段');
 const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 assert.ok(serverDesign.includes('州中心与首府中英文名称及经纬度'), '服务器架构权威必须登记共享目录首府位置数据');
+const docsIndex = read('docs/README.md');
+for (const text of ['州级中文短名', '`shared/provinces.json` 的 `name` 是玩家可见州名的唯一数据源', '不带末尾“州”的中文短名', '不得在页面层自行追加或裁剪“州”', '不改变 `provinceId`']) {
+  assert.ok(docsIndex.includes(text), `州名显示权威规则缺少: ${text}`);
+}
 
 const packageJson = JSON.parse(read('package.json'));
 const atlasPackage = JSON.parse(read('node_modules/us-atlas/package.json'));
@@ -300,7 +305,7 @@ for (const text of [
   'persistent strategy map uses one static SVG world for 48 states and Chinese labels',
   "data-map-renderer', 'static-svg'", "data-map-camera-mode', 'html-compositor-transform'",
   "data-map-camera-hot-path', 'single-css-transform'", "data-map-world-path-count', '48'",
-  "data-map-label-camera-mode', 'shared-static-world'", "'加利福尼亚州', '得克萨斯州', '华盛顿州', '佛罗里达州', '纽约州'",
+  "data-map-label-camera-mode', 'shared-static-world'", "'加利福尼亚', '得克萨斯', '华盛顿', '佛罗里达', '纽约'",
   'state selection opens local context without resetting the static camera',
   'mobile static map keeps labels, touch gestures and hidden tooltip behavior',
   "toHaveCSS('touch-action', 'none')", "data-map-tooltip-mode', 'hidden-mobile'",
@@ -364,4 +369,4 @@ for (const text of [
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、版本 37/32、既有地区 ID 原位保留、48 个州首府中英文名称与经纬度完整记录、州级经济隔离、隐藏州级上下文页、静态完整 SVG 世界面、州面与中文州名共享同一合成相机、缩放和平移热路径只写单次 transform、几何在手势期间不可变、屏外州缩小 active 阶段即可重新进入、空白双击／双触重置和移动 Tooltip 边界均已锁定。');
+console.log('地区经济验证通过：美国连续 48 州、中文展示名统一省略“州”、版本 37/32、既有地区 ID 原位保留、48 个州首府中英文名称与经纬度完整记录、州级经济隔离、隐藏州级上下文页、静态完整 SVG 世界面、州面与中文州名共享同一合成相机、缩放和平移热路径只写单次 transform、几何在手势期间不可变、屏外州缩小 active 阶段即可重新进入、空白双击／双触重置和移动 Tooltip 边界均已锁定。');

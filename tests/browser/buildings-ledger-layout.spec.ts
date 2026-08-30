@@ -106,7 +106,7 @@ test('factory card opens second-level detail without changing header height', as
     };
   });
   expect(titleStyle.name).toBe(factoryName);
-  expect(titleStyle.region).toBe('加利福尼亚州');
+  expect(titleStyle.region).toBe('加利福尼亚');
   expect(titleStyle.nameFontSize).toBeGreaterThan(titleStyle.regionFontSize);
   expect(titleStyle.regionColor).toBe(titleStyle.mutedColor);
   expect(titleStyle.wrapperHeight).toBeLessThanOrEqual(40.5);
