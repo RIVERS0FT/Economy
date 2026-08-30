@@ -443,20 +443,19 @@ function profileMutationScope(world, userId, payload) {
   };
 }
 
-function contractParticipantIds(world, payload, userId) {
+function contractParticipantIds(world, userId) {
   const ids = new Set([playerKey(userId)]);
-  const contractId = String(payload?.contractId || payload?.id || '');
-  const contract = (world?.productionContracts || []).find((entry) => String(entry?.id || '') === contractId);
-  if (!contract) return ids;
-  for (const field of [
-    'publisherId',
-    'buyerId',
-    'supplierId',
-    'lenderId',
-    'borrowerId',
-    'lessorId',
-    'lesseeId',
-  ]) addPlayerId(ids, contract[field]);
+  for (const contract of world?.productionContracts || []) {
+    for (const field of [
+      'publisherId',
+      'buyerId',
+      'supplierId',
+      'lenderId',
+      'borrowerId',
+      'lessorId',
+      'lesseeId',
+    ]) addPlayerId(ids, contract?.[field]);
+  }
   return ids;
 }
 
@@ -464,7 +463,7 @@ function contractMutationScope(world, userId, payload, action) {
   return {
     allPlayers: false,
     allSegments: false,
-    playerIds: contractParticipantIds(world, payload, userId),
+    playerIds: contractParticipantIds(world, userId),
     segments: new Set([...CORE_LOCAL_SEGMENTS, 'productionContracts']),
     orderIndexes: new Set(),
     marketKeys: new Set(),

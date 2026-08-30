@@ -447,9 +447,9 @@ test('profile scope clones only actor and actor orders when changing player name
   assert.equal(avatarScope.segments.has('orders'), false);
 });
 
-test('contract scope clones target participants and contract segment without unrelated players', () => {
+test('contract scope clones all contract participants but keeps non-contract players shared', () => {
   const world = {
-    players: { 1: { userId: 1 }, 2: { userId: 2 }, 3: { userId: 3 } },
+    players: { 1: { userId: 1 }, 2: { userId: 2 }, 3: { userId: 3 }, 4: { userId: 4 } },
     productionContracts: [
       { id: 'contract-a', publisherId: 2, buyerId: 1, supplierId: 2 },
       { id: 'contract-b', publisherId: 3, buyerId: 3, supplierId: 2 },
@@ -458,13 +458,14 @@ test('contract scope clones target participants and contract segment without unr
     moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
   };
   const scope = createRuntimeMutationScope(world, 1, 'acceptProductionContract', { contractId: 'contract-a' }, { scheduledProcessing: true });
-  assert.deepEqual([...scope.playerIds].sort(), ['1', '2']);
+  assert.deepEqual([...scope.playerIds].sort(), ['1', '2', '3']);
   assert.equal(scope.segments.has('productionContracts'), true);
   assert.equal(scope.label, 'contract:acceptProductionContract');
   const draft = cloneWorldForMutation(world, scope);
   assert.notEqual(draft.players['1'], world.players['1']);
   assert.notEqual(draft.players['2'], world.players['2']);
-  assert.equal(draft.players['3'], world.players['3']);
+  assert.notEqual(draft.players['3'], world.players['3']);
+  assert.equal(draft.players['4'], world.players['4']);
   assert.notEqual(draft.productionContracts, world.productionContracts);
 });
 
