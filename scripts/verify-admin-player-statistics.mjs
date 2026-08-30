@@ -64,8 +64,11 @@ requireText('server/src/app.js', [
   'store.getPlayerStatistics(',
 ]);
 requireText('server/src/world-storage-v2.js', [
-  "'setFacilityRecipe'",
-  'label: `local:${action}`',
+  'getPlayerActionMetadata(action)',
+  'finalizeInteractiveMutationScope',
+]);
+requireText('server/src/player-action-registry.js', [
+  "setFacilityRecipe: defineAction({ mutationScope: 'factory'",
 ]);
 requireText('src/api/admin.ts', [
   "export type AdminPlayerStatisticsRange = '7d' | '30d' | '90d'",
@@ -136,8 +139,8 @@ requireText('server/test/player-admin-statistics.test.js', [
   'assert.equal(second.revision, statistics.revision)',
 ]);
 requireText('server/test/runtime-hotpath-architecture.test.js', [
-  'facility recipe changes stay on the player-local copy-on-write scope',
-  "assert.equal(scope.label, 'local:setFacilityRecipe')",
+  'facility recipe changes use the bounded factory copy-on-write scope',
+  "assert.equal(scope.label, 'facility:auto-operation-rebuild')",
 ]);
 requireText('tests/browser/admin-runtime.spec.ts', [
   'coverageStartsAt:',
