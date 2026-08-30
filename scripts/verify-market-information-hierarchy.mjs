@@ -299,7 +299,7 @@ for (const token of [
   "getByRole('button', { name: '商品', exact: true })",
   "for (const label of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化'])",
   "getByRole('button', { name: '打开小麦全局详情' })",
-  "getByRole('button', { name: '打开加利福尼亚州小麦详情' })",
+  "getByRole('button', { name: '打开加利福尼亚小麦详情' })",
   "page.locator('.global-market-product-region-surface > .market-commodity-row-header')",
   "page.locator('.global-market-product-region-list .market-commodity-row-header')",
   "['地区', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']",

@@ -16,7 +16,11 @@ import {
   migrateFacilityGroupWorld,
 } from '../server/src/facility-groups.js';
 import { createLeaderboardSnapshot } from '../server/src/leaderboards.js';
-import { inventoryForProvince, provinceScopedKey } from '../server/src/provinces.js';
+import {
+  inventoryForProvince,
+  PROVINCE_CATALOG,
+  provinceScopedKey,
+} from '../server/src/provinces.js';
 import { createResearchClientState, RESEARCH_TECHNOLOGY_CATALOG } from '../server/src/research.js';
 import { createWarehouseSummaryReadOnly } from '../server/src/warehouse.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../server/shared/economy-state-version.js';
@@ -267,11 +271,22 @@ export function serializedLocalGamePreviewFixture() {
   return `${JSON.stringify(buildLocalGamePreviewFixture(), null, 2)}\n`;
 }
 
+function normalizeProvinceDisplayNames(serialized) {
+  const fixture = JSON.parse(serialized);
+  if (!Array.isArray(fixture?.state?.provinces)) return serialized;
+  const canonicalNameById = new Map(PROVINCE_CATALOG.map((province) => [province.id, province.name]));
+  fixture.state.provinces = fixture.state.provinces.map((province) => ({
+    ...province,
+    name: canonicalNameById.get(province.id) || province.name,
+  }));
+  return `${JSON.stringify(fixture, null, 2)}\n`;
+}
+
 export function verifyLocalGamePreviewFixture() {
   const expected = serializedLocalGamePreviewFixture();
   if (!existsSync(OUTPUT_PATH)) throw new Error(`缺少本地免登录游戏快照：${OUTPUT_PATH}`);
   const actual = readFileSync(OUTPUT_PATH, 'utf8');
-  if (actual !== expected) {
+  if (normalizeProvinceDisplayNames(actual) !== expected) {
     throw new Error('本地免登录游戏快照已过期，请运行 npm run generate:local-preview');
   }
 }

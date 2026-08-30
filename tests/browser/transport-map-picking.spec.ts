@@ -25,11 +25,11 @@ test('transport route editor picks ordered stops on the strategic map and suppor
   await pickingBar.getByRole('button', { name: '重置站点', exact: true }).click();
   await expect(pickingBar).toHaveAttribute('data-picking-stop-count', '0');
 
-  await provinceRegion(page, '加利福尼亚州').click();
+  await provinceRegion(page, '加利福尼亚').click();
   await expect(pickingBar).toHaveAttribute('data-picking-stop-count', '1');
-  await provinceRegion(page, '得克萨斯州').click();
+  await provinceRegion(page, '得克萨斯').click();
   await expect(pickingBar).toHaveAttribute('data-picking-stop-count', '2');
-  await provinceRegion(page, '俄克拉何马州').click();
+  await provinceRegion(page, '俄克拉何马').click();
   await expect(pickingBar).toHaveAttribute('data-picking-stop-count', '3');
 
   const draftRoute = page.locator('.province-map-route[data-route-kind="draft"]');
@@ -37,11 +37,11 @@ test('transport route editor picks ordered stops on the strategic map and suppor
   await expect(draftRoute).toHaveAttribute('data-route-closed', 'false');
   await expect(draftRoute.locator('.province-map-route-stop')).toHaveCount(3);
 
-  await provinceRegion(page, '加利福尼亚州').click();
+  await provinceRegion(page, '加利福尼亚').click();
   await expect(draftRoute).toHaveAttribute('data-route-closed', 'true');
   await expect(pickingBar).toHaveAttribute('data-picking-stop-count', '4');
 
-  await provinceRegion(page, '得克萨斯州').click();
+  await provinceRegion(page, '得克萨斯').click();
   await expect(pickingBar).toHaveAttribute('data-picking-stop-count', '4');
   await expect(page.getByText('该州已在线路中')).toBeVisible();
 

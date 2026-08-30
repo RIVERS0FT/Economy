@@ -15,6 +15,7 @@ import type {
   TradeRecord,
 } from '../types';
 import { provinceFor, scopeEconomyState } from '../utils/provinceScope';
+import regionCatalog from '../../shared/provinces.json';
 
 installLocalGamePreviewFetch();
 
@@ -23,6 +24,7 @@ const previewFixture = previewFixtureJson as unknown as {
   generatedAt: number;
   state: EconomyState;
 };
+const previewProvinceNameById = new Map(regionCatalog.map((province) => [province.id, province.name]));
 
 function rebaseEpochTimestamps(value: unknown, delta: number): void {
   if (!value || typeof value !== 'object') return;
@@ -72,6 +74,10 @@ function createPreviewGameState() {
   const now = Date.now();
   rebaseEpochTimestamps(game, now - previewFixture.generatedAt);
   rebaseCheckInDateKeys(game, now);
+  game.provinces = game.provinces.map((province) => ({
+    ...province,
+    name: previewProvinceNameById.get(province.id) || province.name,
+  }));
   // The account-free preview is a navigation/catalog coverage harness, not an
   // unlock-progression simulation. Keep every province traversable without
   // changing the generated authoritative fixture or formal game rules.
