@@ -23,7 +23,9 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Apply retirement patch
-        run: python scripts/remove-retired-work-gameplay-patch.py
+        run: |
+          python scripts/remove-retired-work-gameplay-patch-fix.py
+          python scripts/remove-retired-work-gameplay-patch.py
       - name: Verify
         run: |
           git diff --check
