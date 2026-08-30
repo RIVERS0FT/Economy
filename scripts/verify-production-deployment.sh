@@ -197,6 +197,7 @@ verify_public() {
   check_status game-api /tmp/economy-game-response.json '401' ECONOMY_GAME_API_PROXY_UNAVAILABLE "https://${PUBLIC_IP}/economy-api/game/state"
   check_status login-api /tmp/economy-login-response.json '400' ECONOMY_LOGIN_PROXY_UNAVAILABLE --request POST --header 'Content-Type: application/json' --data '{}' "https://${PUBLIC_IP}/economy-api/login"
   check_status registration-api /tmp/economy-registration-response.json '400' ECONOMY_REGISTRATION_PROXY_UNAVAILABLE --request POST --header 'Content-Type: application/json' --header 'Idempotency-Key: deploy-registration-route-check' --data '{}' "https://${PUBLIC_IP}/economy-api/registration/email-code"
+  check_status password-reset-api /tmp/economy-password-reset-response.json '400' ECONOMY_PASSWORD_RESET_PROXY_UNAVAILABLE --request POST --header 'Content-Type: application/json' --header 'Idempotency-Key: deploy-password-reset-route-check' --data '{}' "https://${PUBLIC_IP}/economy-api/password-reset/email-code"
 }
 
 case "$PHASE" in
