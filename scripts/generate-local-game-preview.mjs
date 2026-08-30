@@ -136,15 +136,7 @@ export function buildLocalGamePreviewFixture() {
   previewPlayer.credits = 128_600;
   previewPlayer.frozenCredits = 1_280;
   previewPlayer.gems = 36;
-  previewPlayer.work = {
-    cooldownUntil: 0,
-    lastWorkedAt: now - 45_000,
-    streak: 7,
-    totalClicks: 128,
-  };
   Object.assign(previewPlayer.stats, {
-    workIssued: 8_400,
-    workClicks: 128,
     producedGoods: 4_820,
     boughtGoods: 1_640,
     soldGoods: 1_290,

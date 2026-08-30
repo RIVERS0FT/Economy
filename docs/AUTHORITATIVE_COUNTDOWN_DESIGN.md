@@ -26,11 +26,7 @@
 
 截止时间本身已经足以判断操作资格，归零时不要求服务器删除对象或转换状态。
 
-当前实例：
-
-- 工作冷却 `work.cooldownUntil`。
-
-客户端必须使用服务器返回的绝对截止时间计算剩余时间。归零后按钮立即恢复，不等待下一次轮询；服务器仍在提交操作时再次校验真实时间。
+当前没有正式的本地资格倒计时实例。未来新增此类资格时，客户端必须使用服务器返回的绝对截止时间计算剩余时间；归零后按钮立即恢复，不等待下一次轮询，服务器仍在提交操作时再次校验真实时间。
 
 ### 2.2 权威状态转换倒计时
 
@@ -52,7 +48,7 @@
 
 客户端收到 `serverNow` 时记录浏览器单调时钟接收点，并建立共享单调服务器时钟：`serverNow + 接收后的单调经过时间`。新响应只能向前校准；当迟到响应或旧快照携带的时间低于当前估算值时，必须保留当前估算值，倒计时不得增加、回退或重新开始。页面共享 `useNow` 和全局到期协调器必须读取同一时钟。
 
-`game.lastProcessedAt` 只表示世界状态最后实际保存或处理的时间，可作为旧响应或兼容测试的初始回退值；它不是 HTTP 响应时间。普通 3／5／10 秒轮询不得在每次接收状态时把 `lastProcessedAt` 重新解释为“当前服务器时间”，否则工作冷却、生产、研发和拍卖倒计时会被旧快照重新计时。
+`game.lastProcessedAt` 只表示世界状态最后实际保存或处理的时间，可作为旧响应或兼容测试的初始回退值；它不是 HTTP 响应时间。普通 3／5／10 秒轮询不得在每次接收状态时把 `lastProcessedAt` 重新解释为“当前服务器时间”，否则生产、研发和拍卖倒计时会被旧快照重新计时。
 
 经济事件日历只返回稳定事件数据和绝对 `startsAt`／`endsAt`，不得把按请求时刻计算的 `visibleUntil` 放入 `market` 分区。概览中的当前状态与剩余时间继续使用 envelope `serverNow` 校准的共享时钟；同一事件可见窗口内连续请求必须产生相同的 `market` 分区哈希。
 
@@ -171,9 +167,8 @@ HTTP 2xx、3xx 或除 408、429 之外的明确 4xx 响应表示本次网络结�
 - 拍卖结束后继续允许出价或取消；
 - 页面自行把研发、生产、拍卖、合同或排行榜标记为已结算；
 - 为每张工厂卡或每场拍卖创建独立确认定时器；
-- 把工作冷却错误登记为必须等待服务器状态转换的倒计时；
 - 使用 `lastProcessedAt + 本次状态接收后的经过时间` 为每次轮询重新建立本地时钟；
-- 允许较旧的 `serverNow` 或迟到响应使共享时钟、工作冷却或其他倒计时回退；
+- 允许较旧的 `serverNow` 或迟到响应使共享时钟或其他倒计时回退；
 - 把 `serverNow` 放入任一状态分区，导致每次轮询都产生分区补丁；
 - 把滚动七天边界 `visibleUntil` 放回经济日历状态，导致无业务变化时 `market` 哈希逐毫秒失效；
 - 把排行榜请求生成时刻 `generatedAt` 或逐行 `updatedAt` 放回状态分区；
@@ -202,7 +197,7 @@ HTTP 2xx、3xx 或除 408、429 之外的明确 4xx 响应表示本次网络结�
 - 让纯 `auction`、`contract` 或 `leaderboard` 更新重新提交与其无关的市场或建筑页面；
 - 让在线自动交易或教程生产完成检测重新依赖根应用因权威状态变化而重渲染才能运行。
 
-`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`，锁定注册表、共享单调服务器时钟、应用外壳协调、请求超时、权威刷新模式、后台恢复、串行每秒确认、研发确认文案、工作冷却例外、拍卖等待结算文案、完整分区替换、稳定分区时间字段、即时建设无倒计时边界、已就绪 authority 复用和本文档规则。经济写请求的同键确认重试、待确认 key 保留、普通经济写 12 秒边界、会话启动超时例外和应用入口安装同时由 `scripts/verify-market-action-latency.mjs` 防回退；生产结算基线指纹、过期提案同事务兜底与非法提案 409 由 `scripts/verify-production-lazy-settlement.mjs` 和服务器测试继续锁定；页面存档世代锁、状态发布前世代校验、普通 reset 保留锁和过期文档本地写阻断由 `scripts/verify-save-deletion.mjs`、`server/test/client-save-epoch-page-lifecycle.test.js` 与 `tests/browser/save-epoch-lifecycle.spec.ts` 继续锁定；客户端状态接受性能边界由 `scripts/verify-client-response-performance.mjs` 与 `server/test/game-authority-render-snapshot.test.js` 继续锁定。
+`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`，锁定注册表、共享单调服务器时钟、应用外壳协调、请求超时、权威刷新模式、后台恢复、串行每秒确认、研发确认文案、拍卖等待结算文案、完整分区替换、稳定分区时间字段、即时建设无倒计时边界、已就绪 authority 复用和本文档规则。经济写请求的同键确认重试、待确认 key 保留、普通经济写 12 秒边界、会话启动超时例外和应用入口安装同时由 `scripts/verify-market-action-latency.mjs` 防回退；生产结算基线指纹、过期提案同事务兜底与非法提案 409 由 `scripts/verify-production-lazy-settlement.mjs` 和服务器测试继续锁定；页面存档世代锁、状态发布前世代校验、普通 reset 保留锁和过期文档本地写阻断由 `scripts/verify-save-deletion.mjs`、`server/test/client-save-epoch-page-lifecycle.test.js` 与 `tests/browser/save-epoch-lifecycle.spec.ts` 继续锁定；客户端状态接受性能边界由 `scripts/verify-client-response-performance.mjs` 与 `server/test/game-authority-render-snapshot.test.js` 继续锁定。
 
 ## 合同领域截止时间
 
@@ -224,6 +219,6 @@ HTTP 2xx、3xx 或除 408、429 之外的明确 4xx 响应表示本次网络结�
 
 页面与外壳可以通过 `useGameAuthorityDependencies` 同时声明外层分区或子切片。纯银行变化不得提交市场页，纯行情变化不得通知 `market.orders` 消费者，纯订单变化不得通知 `market.quotes` / `market.calendar` 消费者；根 `GameApp` 的就绪订阅继续保持低频稳定，但每次实际 render 必须读取一个当前已接受且在该 render 生命周期内不会改变字段来源的 `EconomyState` 快照。
 
-所有默认 1 秒可见时间刷新必须共享同一秒级 ticker；不得为每个 `useNow` 调用分别创建 `setInterval`。页面根组件不得订阅默认 1 秒 ticker：工作冷却、生产进度、研发倒计时、拍卖剩余时间、银行期限、商店报价倒计时和经济事件倒计时应下沉到最小可见叶子或独立动态区块。确实不需要秒级精度的根级判断可以使用至少 10 秒或 60 秒的共享慢速 ticker，但不能因此降低原本需要秒级显示的倒计时精度。
+所有默认 1 秒可见时间刷新必须共享同一秒级 ticker；不得为每个 `useNow` 调用分别创建 `setInterval`。页面根组件不得订阅默认 1 秒 ticker：生产进度、研发倒计时、拍卖剩余时间、银行期限、商店报价倒计时和经济事件倒计时应下沉到最小可见叶子或独立动态区块。确实不需要秒级精度的根级判断可以使用至少 10 秒或 60 秒的共享慢速 ticker，但不能因此降低原本需要秒级显示的倒计时精度。
 
 浏览器回归必须同时证明：子切片 patch 只提交声明该依赖的 React 消费者；共享秒级 ticker 连续运行时父组件 render count 保持不变、时间叶子正常更新；根权威状态在一次 render 中绑定同一个已接受快照，不允许 authority reset／replace 通过实时 Proxy 撕裂字段读取；同一用户已有 authority 时重新挂载游戏应用不得再次出现启动加载页。

@@ -16,7 +16,7 @@ import {
 import { applyFacilityGroupAction, processFacilityGroupWorld } from './facility-groups.js';
 import { ensureGemState } from './invitations.js';
 import { normalizePlayerMoneyPayload } from './money.js';
-import { measureRequestPhase } from './request-performance.js';
+import { measureRequestPhase, setRequestGauge } from './request-performance.js';
 import { applyOnlineAutoBuy } from './online-auto-buy.js';
 import { applyOnlineAutoSell } from './online-auto-sell.js';
 import { applyOnlineAutoSellPolicyAction } from './online-auto-sell-policy.js';
@@ -24,6 +24,7 @@ import { applyOnlineAutoTradePolicyAction } from './online-auto-trade-policy.js'
 import { isOpenOrder, orderKind } from './order-identity.js';
 import { orderById } from './order-book-runtime.js';
 import { applyPlayerProfileAction } from './player-profile.js';
+import { requirePlayerActionMetadata } from './player-action-registry.js';
 import { applyResearchAction, validateResearchAccess } from './research.js';
 import { ensureWarehouse } from './warehouse.js';
 import { createRuntimeMutationScope } from './world-storage-v2.js';
@@ -72,7 +73,7 @@ const CONTRACT_ACTIONS = new Set([
   'setFacilityLeaseAutoFund',
 ]);
 const ECONOMIC_ACTIVITY_ACTIONS = new Set([
-  'work', 'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',
+  'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',
   'collectFacility', 'placeOrder', 'cancelOrder', 'redeemGift',
   'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
   'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay', 'startResearch', 'accelerateResearch',
@@ -240,16 +241,14 @@ export function executeRuntimeAction(store, user, requestMeta, now = Date.now())
     method,
     path,
   } = requestMeta;
+  const actionMetadata = requirePlayerActionMetadata(action);
+  setRequestGauge('interactiveActionBudgetMs', actionMetadata.latencyBudgetMs);
+  setRequestGauge('interactiveActionRegistered', 1);
   const payload = normalizePlayerMoneyPayload(action, requestMeta.payload);
-  const mutationScopeAction = action === 'settleProduction'
-    ? 'setFacilityRecipe'
-    : FACTORY_AUTO_OPERATION_REBUILD_ACTIONS.has(action)
-      ? 'factoryAutoOperationRebuild'
-      : action;
   const mutationScope = createRuntimeMutationScope(
     store.worldCache?.world,
     user.id,
-    mutationScopeAction,
+    action,
     payload,
     { scheduledProcessing: store.scheduledProcessing },
   );

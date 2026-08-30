@@ -4,7 +4,7 @@
 
 > 状态：当前服务器、API、持久化和部署基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-29
+> 更新时间：2026-08-30
 > 客户端状态版本：37
 > 世界状态版本：32
 > 市场需求模型版本：20
@@ -49,6 +49,7 @@
 - `provinces.js`：美国本土连续 48 个州级地区共享目录（含州中心与首府中英文名称及经纬度）、地区规范化、`provinceId:assetId` 权威键、世界 30 迁移与默认地区运行时兼容别名；
 - `state-economic-baselines.js`：校验 `shared/us-state-economic-baselines.json` 与 48 州目录一一对应，提供 Census 2025-07-01 人口、BLS QCEW 2025-Q4 平均周薪和 BEA 2023 PCE 只读基准，并只对已有玩家经营入口的州生成 PCE 消费分配权重；运行时不得访问外部统计 API；
 - `domain.js`：唯一公共领域门面，其他服务器模块只从此导入公共能力；
+- `player-action-registry.js`：普通玩家可达 Action 的统一元数据注册表，唯一声明限流类别、显式 Mutation Scope、确认语义、延迟等级／预算、公开路由状态与订单 execution 白名单；路由、运行时 COW、请求监控和防回退验证共同读取该注册表；
 - `facility-groups.js`：工厂集群、统一周期、配方切换和工厂订单适配；
 - `facility-auto-procure.js`：即时建厂缺料预检、真实商品卖盘价格保护、资金校验、事务内 FOK 采购，以及卖盘不足时按单次建造批量创建／取消正式商品买单的编排；
 - `factory-auto-operation.js`：玩家可编辑的地区＋工厂类型经营意图、默认策略、当前生产配置聚合、商品执行策略派生，以及策略变化时对统一商品托管订单的安全重建；
@@ -153,7 +154,7 @@ economy_world_segments(
 
 完整世界迁移、旧字段补全和全玩家兼容初始化只允许在首次加载、旧单行世界迁移或世界版本升级时执行，不属于普通写事务步骤。动作失败回滚 SAVEPOINT 并丢弃草稿；数据库、审计或分段写入失败则整个外层事务回滚。
 
-运行时内存状态必须区分**已提交世界（committed world）**与**请求草稿（world draft）**。正式服务命中内存缓存的玩家写入必须先通过 `createRuntimeMutationScope` 声明可写玩家与世界 segment，再由 `cloneWorldForMutation` 创建 Copy-on-Write 草稿：可写对象必须隔离复制，未声明对象允许与 committed world 共享引用且必须被视为只读。未知或尚未局部化的动作可以暂时退回完整草稿，但不得为了回滚、投影或持久化再创建第二份完整世界。起始州选择与州解锁只修改当前玩家资金、统计和州访问字段，必须固定使用当前玩家局部 Mutation Scope；不得因这类 O(1) 玩家写入复制、比较或序列化全部玩家与全部世界 segment。普通商品下单只复制下单者、当前价格可交叉的玩家对手方、订单／市场及必要核心资金域；商品撤单只复制下单者、订单及必要核心资金域；拍卖动作只复制相关卖方／当前最高出价者／当前操作者、拍卖及必要核心资金域。
+运行时内存状态必须区分**已提交世界（committed world）**与**请求草稿（world draft）**。正式服务命中内存缓存的玩家写入必须先通过 `createRuntimeMutationScope` 声明可写玩家与世界 segment，再由 `cloneWorldForMutation` 创建 Copy-on-Write 草稿：可写对象必须隔离复制，未声明对象允许与 committed world 共享引用且必须被视为只读。普通玩家可达 Action 必须先登记到统一玩家动作注册表并显式声明 Mutation Scope；正式 `scheduledProcessing` 服务遇到未登记 Action、未登记订单 execution、无法从参数推导安全 scope 或任何 `allPlayers`／`allSegments` 无界 scope 时必须拒绝请求，不得静默退回完整世界草稿。只有关闭正式调度的内存测试／兼容测试可以显式使用 full-world 草稿，以保持旧测试确定性。起始州选择与州解锁只修改当前玩家资金、统计和州访问字段，必须固定使用当前玩家局部 Mutation Scope；不得因这类 O(1) 玩家写入复制、比较或序列化全部玩家与全部世界 segment。工厂建造、启停、配方切换与自动经营策略只复制当前玩家及本州可能被撤销的玩家托管订单；一键购料额外纳入本次材料资产的订单对手方与对应市场键，不得因此退回完整世界草稿。玩家资料修改只复制当前玩家，改名时额外复制该玩家自己的订单以同步公开名称；头像文件写入不得要求复制世界公共 segment。合同动作复制当前操作者、当前合同集合中的全部玩家参与者、`productionContracts` 与必要核心资金域，但不得复制无合同玩家或无关世界 segment；非显然原因是动作提交后的合同域统一后处理仍会遍历当前合同集合，因此 Copy-on-Write 必须覆盖该后处理可能触碰的全部合同参与者。旧设施挂牌动作只复制买卖相关玩家、`facilityListings` 与必要核心资金域。普通商品下单只复制下单者、当前价格可交叉的玩家对手方、订单／市场及必要核心资金域；商品撤单只复制下单者、订单及必要核心资金域；拍卖动作只复制相关卖方／当前最高出价者／当前操作者、拍卖及必要核心资金域。统一注册表同时为本地、市场和合同类交互声明 250ms、500ms、750ms 请求延迟预算；请求指标必须输出 `interactiveActionBudgetMs`、Mutation Scope 玩家数／segment 数／订单数／市场键数和 `unexpectedFullWorldAction`，超过动作自身预算、出现 5xx 或发现意外无界 scope 时进入异常请求日志。
 
 V2 热保存不得做完整世界 `isDeepStrictEqual`、完整世界 `JSON.stringify` 或全世界资金精度扫描。保存层只序列化 Mutation Scope 覆盖的玩家与 segment，与 committed segmented snapshot 比较并形成 Dirty Set；没有 Dirty Row 时世界修订号保持不变。写入成功后草稿直接成为新的 committed world，未变玩家和 segment 的 SQLite 行内容及 `updated_revision` 必须保持原值。
 
@@ -244,7 +245,7 @@ JSON.parse
 
 `serverNow` 是状态交付 envelope 的顶层响应元数据，不属于 `EconomyState`、世界 JSON 或任何状态分区；每次 `GET state` 都必须生成当前值，即使返回 `{ revision, unchanged: true, serverNow }`。浏览器只使用该值向前校准共享单调服务器时钟，不能在客户端每次接收轮询时重新解释为当前服务器时间，也不能让迟到响应使倒计时回退。
 
-经济事件日历的 `market` 分区只包含稳定模板事件和绝对 `announcedAt`／`startsAt`／`endsAt`，不得包含按请求毫秒计算的 `visibleUntil`。未来七天的当前展示与倒计时必须读取 envelope `serverNow` 校准的共享时钟；同一事件窗口内连续请求即使 `serverNow` 前进，也必须产生相同的 `market` revision。某个玩家执行工作、签到、银行或其他不改变公共市场的动作时，无关玩家不得收到完整 `market`；只有订单、成交、需求、储备、估值、行情或事件集合真实变化时才允许改变该分区哈希。
+经济事件日历的 `market` 分区只包含稳定模板事件和绝对 `announcedAt`／`startsAt`／`endsAt`，不得包含按请求毫秒计算的 `visibleUntil`。未来七天的当前展示与倒计时必须读取 envelope `serverNow` 校准的共享时钟；同一事件窗口内连续请求即使 `serverNow` 前进，也必须产生相同的 `market` revision。某个玩家执行签到、银行或其他不改变公共市场的动作时，无关玩家不得收到完整 `market`；只有订单、成交、需求、储备、估值、行情或事件集合真实变化时才允许改变该分区哈希。
 
 市场摘要的商品／工厂身份为 `provinceId + assetKind + assetId`，固定提供买卖盘总量、订单数、最优买卖价、24 小时真实成交量／成交数／价格变化和最近成交信息；商品摘要还只为当前日历中可见且已经结束的事件附带 `tradeCount / volume / firstPrice / lastPrice`。六分区不得出现完整 `priceHistory`、其他玩家逐笔订单、系统逐笔订单或内部 `marketRole`／`signalWeight`。当前 48 州生产目录的首次未压缩 JSON 响应必须不超过 2 MiB，并由容量测试构造全州行情验证；性能目标为状态读取 p95 不超过 800 ms、市场详情 p95 不超过 300 ms、事件循环 p99 不超过 200 ms。
 
@@ -258,7 +259,7 @@ JSON.parse
 
 浏览器必须在把六分区发布到 React 权威状态之前校验 catalog 完整性；任何初始或增量 catalog 缺失必需字段时，该次接受必须保持事务式失败，不得推进已接受 `revision`、不得污染分区或子切片修订缓存，也不得发布部分状态。客户端必须拒绝发布该坏状态并清空本地分区修订缓存，只允许自动执行一次无条件完整状态重拉；重拉仍无效时进入受控中文状态同步错误，不得继续循环重试，也不得让 `undefined.some` 等渲染异常进入错误边界。客户端状态版本不兼容继续属于不可原地恢复错误，不使用这条完整重拉路径。
 
-普通玩家权威动作响应固定为 `{ result: { ok, message }, revision }`，不得携带订单 ID、兑换数量、结算金额或其他动作内部字段，也不得携带完整状态、分区补丁、分区修订、`unchanged` 或 `serverNow`。动作事务和 `economy_idempotency.response_json` 只生成并保存这份精简确认。浏览器在动作确认后使用动作发起前已经接受的全局 `revision` 与当前分区哈希立即补拉 `GET state`；不得在补拉前直接写入客户端状态修订号。补拉失败不得把已经提交成功的动作改写为失败。普通玩家交互不得把动作后的 `GET state` 纳入按钮、表单或提示的阻塞完成路径：请求发出时立即进入本地 pending，收到精简动作确认后立即返回成功或失败，状态补拉在后台继续；服务器确认前不得乐观修改资金、库存、州权限或其他权威经济状态，确认后只允许用不推进客户端权威修订号的短暂 confirmed UI 覆盖消除视觉等待。
+普通玩家权威动作响应固定为 `{ result: { ok, message }, revision }`，不得携带订单 ID、兑换数量、结算金额或其他动作内部字段，也不得携带完整状态、分区补丁、分区修订、`unchanged` 或 `serverNow`。动作事务和 `economy_idempotency.response_json` 只生成并保存这份精简确认。浏览器在动作确认后使用动作发起前已经接受的全局 `revision` 与当前分区哈希立即补拉 `GET state`；不得在补拉前直接写入客户端状态修订号。补拉失败不得把已经提交成功的动作改写为失败。普通玩家交互不得把动作后的 `GET state` 纳入按钮、表单或提示的阻塞完成路径：请求发出时立即进入本地 pending，收到精简动作确认后立即返回成功或失败，状态补拉在后台继续；服务器确认前不得乐观修改资金、库存、州权限或其他权威经济状态，确认后只允许用不推进客户端权威修订号的短暂 confirmed UI 覆盖消除视觉等待。建厂采购创建／取消与商品自动交易策略保存等直接调用动作 API 的路径同样必须在确认后立即结束 pending，并以非阻塞方式触发权威补拉，不得局部重新引入 `await GET state`。
 
 `EconomyStore` 必须在单进程内缓存已迁移、已清理的 committed world、对应全局修订号和 segmented snapshot。当前 V2 世界冷启动直接从 `economy_world_meta`、`economy_world_players` 与 `economy_world_segments` 重建；当 storage schema 和世界版本都已经是当前值时，重复重启不得再次执行完整迁移、重写分段行或增加修订号。旧 `economy_world.state_json` 只允许被读取一次完成 V2 迁移，迁移成功后改写为轻量 manifest。
 
@@ -358,7 +359,6 @@ JSON.parse
 | POST | `/api/game/gem-shop/exchange` | 接受今日报价并原子扣除宝石、增加普通货币；每天一次 |
 | POST | `/api/game/gem-shop/quote/reject` | 明确放弃今日报价；当天不可恢复 |
 | GET | `/api/game/community-link` | 获取侧边栏社区跳转链接 |
-| POST | `/api/game/work` | 工作 |
 | POST | `/api/game/facilities` | 按 `provinceId` 建设当地工厂；可选在同一地区事务内 FOK 购齐缺少的正式建造材料 |
 | POST | `/api/game/facilities/construction/accelerate` | 已退役兼容墓碑，固定返回 `410 Gone` 且不进入经济事务 |
 | POST | `/api/game/facilities/:facilityTypeId/start` | 开启工厂集群 |
@@ -476,7 +476,7 @@ QQ群入口与经济世界快照分离，保存在 `economy_settings`，修改�
 
 优雅关闭必须先停止 HTTP 接收与世界调度，拒绝新写入，排空已经接受的 FIFO 任务，再关闭唯一 SQLite 连接；同步 `close()` 只允许测试在执行器空闲时调用。后续若迁移到 Worker Thread，只允许把完整执行器、唯一数据库连接、世界缓存和全部审计事务整体迁移，外部调用接口和单写语义保持不变；不得把部分领域写入移到线程外形成两套权威状态。
 
-发起任一权威动作时必须使用 `AbortController` 取消正在进行的状态轮询，并在动作确认与紧随其后的状态补拉完成前暂停新轮询。工作动作必须在请求发出时同步进入本地“处理中”状态、立即禁用按钮并阻止重复提交；资产仍以补拉后的服务器分区状态为准。动作确认成功而状态补拉失败时，必须保留成功结果并恢复后续轮询，不得提示用户操作未提交或自动重复写操作。
+发起任一权威动作时必须使用 `AbortController` 取消正在进行的状态轮询，并在动作确认与紧随其后的状态补拉完成前暂停新轮询。存在重复提交风险的权威按钮必须在请求发出时同步进入本地“处理中”状态并立即阻止重复提交；资产仍以补拉后的服务器分区状态为准。动作确认成功而状态补拉失败时，必须保留成功结果并恢复后续轮询，不得提示用户操作未提交或自动重复写操作。
 
 优先级：
 
@@ -583,14 +583,14 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 压力测试执行器固定为 `tests/stress/run.mjs`，使用 Node 24 原生 HTTP 能力、每账号独立 Cookie、全局修订号和六分区哈希模拟真实客户端。每名虚拟玩家的状态请求必须串行，写操作不得自动重试；动作确认后立即补拉状态，并断言全局修订号和 `serverNow` 不倒退、初次状态包含六个完整分区、相同幂等键返回相同确认。测试必须分别统计每个归一化路由的请求数、RPS、响应字节、状态码、超时、5xx 和 p50／p90／p95／p99／最大耗时。所有耗时预算只允许读取 Economy 响应的 `Server-Timing: app;dur` 服务端本地处理值，不得使用客户端端到端耗时或公网传输耗时；该值由服务端已测量的处理 phase 求和得到，不包含事件循环排队和响应传输。登录等没有 Economy `Server-Timing` 的请求仍参与正确性与吞吐统计，但不得进入延迟预算。远程只读 GET 的客户端等待上限为 30 秒，只用于避免公网传输造成误判 abort，不进入性能预算。
 
-`transaction-mix` 的操作构成固定为 60% 状态读取、10% 工作、10% 商品订单、8% 工厂启停、5% 配方切换、4% 即时建设、3% 研发；执行器必须以确定性序列覆盖全部类别，写动作确认后立即补拉状态并继续校验全局修订号、分区修订和 `serverNow` 不倒退。该场景不得用于 staging 或生产，生产继续只允许只读 `smoke`／`poll`。
+`transaction-mix` 的操作构成固定为 60% 状态读取、15% 商品订单、10% 工厂启停、5% 配方切换、5% 即时建设、5% 研发；执行器必须以确定性序列覆盖全部类别，写动作确认后立即补拉状态并继续校验全局修订号、分区修订和 `serverNow` 不倒退。该场景不得用于 staging 或生产，生产继续只允许只读 `smoke`／`poll`。
 
 测试环境分为以下两类：
 
 - 隔离环境使用模拟统一账号服务、临时 SQLite 和真实 Economy API 进程，允许执行 `mixed`／`transaction-mix`／`soak` 写入场景；`transaction-mix` 固定只允许本地隔离环境，临时 SQLite 可为固定测试账号预置充足现金、宝石、库存、仓库和农场资产，但不得增加生产调试接口或改变正式玩家初始资产。结束后必须关闭子进程并删除临时数据库。PR 和 `npm run build` 只运行短时隔离行为测试，证明执行器、状态协议、幂等和安全门禁正确，不把共享 CI 机器延迟作为正式容量基线。
 - 远程 staging 必须由受保护的 `economy-stress` GitHub Environment 提供固定目标和密码，可以执行完整写压测，但目标不得解析为生产域名。生产环境只允许 `smoke`／`poll`，必须使用明确确认词、至少 3 秒轮询、最多 5 分钟，并且固定账号必须已经完成 Economy 建档；生产模式不得调用游戏写操作、初始化会话、注册、管理员、礼品码、封禁或数据库维护接口。
 
-正式场景为 `smoke`、`poll`、`burst`、`mixed`、`transaction-mix` 和 `soak`：`smoke` 验证登录与完整／增量状态，`poll` 模拟正常轮询，`burst` 验证隔离环境冷状态尖峰，`mixed` 在隔离环境混合状态读取、工作动作、动作补拉和幂等重放，`transaction-mix` 在本地隔离环境覆盖状态、工作、订单、工厂启停、配方、即时建设和研发，`soak` 长时间验证延迟、SQLite／WAL 与错误是否持续增长。未专门声明限流场景时，超时、5xx、非预期 4xx 和 429 必须为零。
+正式场景为 `smoke`、`poll`、`burst`、`mixed`、`transaction-mix` 和 `soak`：`smoke` 验证登录与完整／增量状态，`poll` 模拟正常轮询，`burst` 验证隔离环境冷状态尖峰，`mixed` 在隔离环境混合状态读取、商品订单写动作、动作补拉和幂等重放，`transaction-mix` 在本地隔离环境覆盖状态、订单、工厂启停、配方、即时建设和研发，`soak` 长时间验证延迟、SQLite／WAL 与错误是否持续增长。未专门声明限流场景时，超时、5xx、非预期 4xx 和 429 必须为零。
 
 `.github/workflows/stress.yml` 是唯一完整压力测试工作流。每周运行一次五分钟隔离 `poll`，人工运行可选择目标、场景、1～24 个槽位、最长一小时和轮询间隔；同一目标不得并行压测。成功或失败都把脱敏 JSON 与 Markdown 报告写入 Job Summary 并作为 14 天 Artifact 保存，报告只记录槽位范围，不得记录邮箱、密码、Cookie、Token、Session 或请求正文。完整压力测试不得绑定到每个 PR 或主部署；性能预算调整必须依据至少三次同环境基线并作为独立审查修改，所用 GitHub Actions run ID、环境和观测值必须随 `budgets.json` 保存。
 
@@ -605,7 +605,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 - 浏览器本地存储作为正式资产；
 - 服务器持久化展示日志；
 - 单座工厂模型、固定价格工厂市场或定量生产；
-- 连续工作递增冷却；
+- 工作玩法、`/api/game/work`、工作冷却状态或工作货币发行；
 - API 公网监听、root 运行或部署覆盖数据库；
 - 空闲读取或管理员摘要无变化时写库、同修订号轮询进入 SQLite 事务、每次轮询解析／序列化完整世界、修订变化时无条件上传完整状态、把变化分区浅合并进旧完整状态、在客户端或服务器重新硬编码独立客户端状态版本、把版本不兼容误报为初始分区缺失、服务器省略字段后客户端仍保留旧值、动作响应附带完整状态／分区补丁／分区修订／`unchanged`／`serverNow`／内部结算字段、动作幂等缓存保存完整客户端状态、补拉前把动作确认修订号写成已接受修订号、排行榜原型钩子重复处理、每秒完整状态轮询或迟到响应覆盖新状态；
 - 省略 `GET state` 轻量确认中的 `serverNow`、把 `serverNow` 写入世界 JSON 或六分区、让时间校准推进世界修订号，或在每次轮询时用旧 `lastProcessedAt` 重新开始倒计时；
@@ -671,7 +671,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 - 结构承载读取全部已建成工厂 `count`，活跃承载只读取运行 `participatingCount × staffingRateBps`；活跃 EMA 使用 80%旧值／20%当前值；人口占用率为 35%底线加产业运行、收入健康和需求满足加权；
 - 每周期迁入剩余缺口 2%、迁出超额人口 0.5%，类别转换最多总人口 1%，劳动参与率 55%；所有人口与分配计算必须确定性、守恒并使用安全整数／微单位边界；
 - 工厂交易不得改变世界总结构承载，即时建设、产量、库存、商品价格和玩家活跃数不得直接创造人口或补贴；管理员不得直接编辑人口、就业、迁移或承载参数；
-- 工作每次有效点击和商店兑换继续直接发行普通货币，不使用准备金，也不根据通胀自动调整；
+- 商店兑换继续直接发行普通货币，不使用准备金，也不根据通胀自动调整；
 - 生产周期成本、建造费、仓库扩容费、玩家卖出手续费和合同服务费只转移已有货币到人口；借款人实际支付利息的 20% 形成银行服务就业，其余进入存款利息池与风险准备金；
 - 建造业固定 60%／30%／10%，不得读取工厂复杂度改变比例；生产岗位按 C1～C7 分配；
 - 人口消费不得发行普通货币，必须从真实 `credits` 转入 `frozenCredits` 后结算；
@@ -681,7 +681,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 - 不存在人口侧税费、回收、余额衰减、储蓄过期或货币总量控制；
 - `populationModelId` 和 `fundingPool` 必须由单一公开订单序列化函数删除；
 - 人口启动发行只允许在历史人口迁移中执行一次；世界版本 24／客户端状态版本 27 的化肥目录扩展不得再次发放人口启动资金，旧施工费也不得追溯补发；
-- `issued` 只用于工作、兑换、礼品、管理员和迁移发行；就业与人口消费使用 `income`／`transferred` 统计。
+- `issued` 只用于兑换、礼品、管理员和迁移发行；就业与人口消费使用 `income`／`transferred` 统计。
 
 管理员 `/api/game/admin/summary` 与 `/api/game/admin/population-economy` 必须直接读取已提交世界并返回只读人口经济摘要；已有世界缓存时不得进入 SQLite 事务、权威写队列、强制世界推进或世界保存路径，冷缓存仅允许通过只读事务装载当前持久化世界，并返回实际／目标人口、结构／活跃承载、迁移、就业失业、岗位缺口、人均收入、消费状态、状态原因、持续周期、收入健康度、基础收入覆盖和状态判定钱包覆盖；玩家市场状态不得包含管理员人口指标。
 
@@ -762,7 +762,9 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 ## 12. 玩家自助删除存档
 
-`save-deletion.js` 是玩家自助删除存档的唯一领域入口。`GET /api/game/save-deletion/preflight` 在权威写队列中推进到当前世界状态并返回阻止事项与可自动关闭项目；`POST /api/game/save-deletion` 使用 `Idempotency-Key`、精确确认文字“删除存档”和同一 `BEGIN IMMEDIATE` 事务再次检查。开放订单、旧工厂挂牌、无出价自有拍卖和未承接自有合同按现有取消逻辑正常释放；未偿银行贷款、未完成周资金结算、已有出价的自有拍卖、当前最高出价和履约合同必须返回 `409 SAVE_DELETION_BLOCKED`，任何资产不得改变。
+`save-deletion.js` 是玩家自助删除存档的唯一领域入口。`GET /api/game/save-deletion/preflight` 与 `POST /api/game/save-deletion` 都属于正式玩家可触发的权威写，必须登记显式交互元数据、延迟预算和 Mutation Scope；生产服务器先通过统一权威写队列的 scheduler barrier 推进到当前世界状态，删档领域自身不得再 `force` 推进或复制完整世界。预检查只复制当前玩家与必要核心资金域；正式删除只额外复制 `orders`、旧 `facilityListings`、`assetAuctions`、`productionContracts` 等实际会清理的有界共享分区，无关玩家、市场与工厂行情必须保持共享引用。这个边界是强制规则，因为删除一个玩家的延迟不得随全服玩家数量增长并超过浏览器普通写请求超时。
+
+`POST /api/game/save-deletion` 继续使用 `Idempotency-Key`、精确确认文字“删除存档”和同一 `BEGIN IMMEDIATE` 事务再次检查。开放订单和旧工厂挂牌与被删除玩家本身处于同一原子事务，可直接从共享集合移除，冻结资产随旧玩家存档销毁，不得为了“先解冻再销毁”调用全局工厂迁移或协调；无出价自有拍卖仍走不推进全世界的定向取消路径以保留发布费分配和拍卖审计；未承接自有合同走不执行全局合同处理器的定向取消路径。未偿银行贷款、未完成周资金结算、已有出价的自有拍卖、当前最高出价和履约合同必须返回 `409 SAVE_DELETION_BLOCKED`，任何资产不得改变。
 
 删除事务通过首次建档共用的 `ensurePlayer` 初始化重新创建玩家，保留原 `registeredAt`、宝石余额和宝石发行统计，每次重新发放新存档的 500 普通货币，并写入递增 `saveEpoch`、`saveCreatedAt` 与一条追加式删除审计。`economy_save_deletions` 允许同一 `user_id` 保存多条历史记录，`request_key` 继续唯一，并保存前后世代、删除时间、资产摘要和自动关闭数量；旧的 `user_id UNIQUE` 表结构在首次访问删档领域时幂等迁移为追加式历史表，并建立 `(user_id, deleted_at DESC, id DESC)` 查询索引。同一幂等键只返回第一次结果，但历史删除记录不得阻止再次删除当前经济存档。`economy_registrations`、邀请码与邀请关系、宝石账本、商店兑换、每日签到、礼品兑换、封禁、拍卖审计和合同审计不得删除或重置。教程完成行在同一事务删除，使每个新存档重新进入基础教程。
 

@@ -301,19 +301,16 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
       totalAssets: 96_786,
     },
     stats: {
-      workIssued: 20,
       populationIssued: 0,
       systemSinks: 0,
       commodityVolume: 0,
       facilityVolume: 0,
-      workClicks: 12,
       producedGoods: 34,
       boughtGoods: 56,
       soldGoods: 78,
       giftIssued: 0,
       invitationGemsIssued: 0,
     },
-    work: { cooldownUntil: 0, lastWorkedAt: fixedNow - 20_000, streak: 0, totalClicks: 12 },
   };
 
   const derived = {
@@ -368,7 +365,6 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     setPlayerName: () => {},
     refreshRate: '5',
     setRefreshRate: () => {},
-    isWorking: false,
     isCheckingIn: false,
     inventoryUsed: game.warehouseStoredQuantity,
     cashShare: 0,
@@ -380,7 +376,6 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     refresh: async () => {},
     clearLocalTrades: () => {},
     signOut: async () => {},
-    work: async () => ({ ok: true, message: '工作完成' }),
     checkIn: async () => ({ ok: true, message: '签到成功，获得 1 宝石' }),
     exchangeGems: async () => ({ ok: true, message: '兑换成功' }),
     tutorial: scenario === 'tutorial' ? activeTutorial : completedTutorial,
@@ -452,7 +447,6 @@ function SettingsHarness() {
       playerName: '测试玩家',
       registeredAt: Date.UTC(2026, 6, 17),
       stats: {
-        workClicks: 12,
         producedGoods: 34,
         boughtGoods: 56,
         soldGoods: 78,

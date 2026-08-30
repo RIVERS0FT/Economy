@@ -66,12 +66,10 @@ function ensurePlayer(world, user, now) {
     frozenCredits: 0,
     gems: 0,
     stats: {
-      workIssued: 0,
       populationIssued: 0,
       systemSinks: 0,
       commodityVolume: 0,
       facilityVolume: 0,
-      workClicks: 0,
       producedGoods: 0,
       boughtGoods: 0,
       soldGoods: 0,

@@ -9,6 +9,7 @@ const required = [
   'server/src/runtime-store.js',
   'server/src/runtime-store-core.js',
   'server/src/world-storage-v2.js',
+  'server/src/player-action-registry.js',
   'server/src/authoritative-write-executor.js',
   'server/src/order-book-runtime.js',
   'server/src/order-matching.js',
@@ -70,14 +71,22 @@ for (const text of [
 ]) assert.equal(runtimeStore.includes(text), false, `正式状态读取和 V2 热保存不得恢复旧完整世界路径: ${text}`);
 
 const worldStorage = read('server/src/world-storage-v2.js');
+const actionRegistry = read('server/src/player-action-registry.js');
 for (const text of [
   'WORLD_STORAGE_SCHEMA_VERSION = 2',
   'createRuntimeMutationScope',
   'cloneWorldForMutation',
   'prepareSegmentedWorldWrite',
   'applySegmentedWorldWrite',
-  "label: 'commodity:placeOrder'",
+  'getPlayerActionMetadata(action)',
+  'requireOrderExecutionMetadata(execution)',
+  "? 'commodity:placeOrder'",
 ]) assert.ok(worldStorage.includes(text), `分段世界存储缺少: ${text}`);
+for (const text of [
+  "placeOrder: defineAction({ rateLimitCategory: 'orders', mutationScope: 'order'",
+  "cancelOrder: defineAction({ rateLimitCategory: 'orders', mutationScope: 'order'",
+  'ORDER_EXECUTION_REGISTRY',
+]) assert.ok(actionRegistry.includes(text), `玩家动作注册表缺少订单热路径规则: ${text}`);
 for (const forbidden of ['isDeepStrictEqual(world, cached.world)', 'JSON.parse(this.worldCache.stateJson)']) {
   assert.equal(runtimeStore.includes(forbidden), false, `V2 运行时不得恢复旧完整世界热路径: ${forbidden}`);
 }

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { CURRENT_CLIENT_STATE_VERSION } from '../server/shared/economy-state-version.js';
 import {
@@ -11,6 +11,16 @@ import {
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const failures = [];
+
+function sourceFiles(directory) {
+  const files = [];
+  for (const entry of readdirSync(resolve(root, directory), { withFileTypes: true })) {
+    const path = `${directory}/${entry.name}`;
+    if (entry.isDirectory()) files.push(...sourceFiles(path));
+    else if (/\.(?:ts|tsx)$/.test(entry.name)) files.push(path);
+  }
+  return files;
+}
 
 function requireText(path, fragments) {
   const content = read(path);
@@ -304,6 +314,38 @@ requireText('src/app/gameViewModel.ts', [
 forbidText('src/app/gameViewModel.ts', [
   'await syncConfirmedAction(response, action);',
 ]);
+const blockingRefreshAllowlist = new Map([
+  ['src/auto-trade/useOnlineAutoTrade.ts', 1],
+]);
+for (const path of sourceFiles('src')) {
+  const count = (read(path).match(/await model\.refresh\(\{ mode: 'authoritative' \}\);/g) || []).length;
+  const allowed = blockingRefreshAllowlist.get(path) || 0;
+  assert.equal(
+    count,
+    allowed,
+    `${path} 新增了阻塞式权威状态补拉；普通玩家动作确认后必须立即返回，确需阻塞的迁移路径必须显式登记`,
+  );
+}
+const buildingsSource = read('src/pages/BuildingsPage.tsx');
+assert.equal(
+  (buildingsSource.match(/void model\.refresh\(\{ mode: 'authoritative' \}\);/g) || []).length,
+  2,
+  '建厂采购创建与取消都必须在动作确认后后台补拉状态',
+);
+assert.equal(
+  (buildingsSource.match(/await model\.refresh\(\{ mode: 'authoritative' \}\);/g) || []).length,
+  0,
+  '建厂采购不得等待动作后的状态补拉才结束交互',
+);
+const autoTradeSource = read('src/auto-trade/useOnlineAutoTrade.ts');
+requireText('src/auto-trade/useOnlineAutoTrade.ts', [
+  "void model.refresh({ mode: 'authoritative' });\n      clearAutoSellPolicies(userId);\n      if (normalized.sell.enabled)",
+]);
+assert.equal(
+  (autoTradeSource.match(/await model\.refresh\(\{ mode: 'authoritative' \}\);/g) || []).length,
+  1,
+  '仅允许旧浏览器策略迁移等待权威补拉；用户保存策略必须即时返回',
+);
 
 if (failures.length > 0) {
   console.error('客户端响应性能防回退验证失败:');

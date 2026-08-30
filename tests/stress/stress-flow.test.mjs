@@ -94,7 +94,7 @@ test('isolated mixed stress exercises real authentication, state delivery, write
   assert.equal(serialized.includes('local-stress-'), false);
 });
 
-test('isolated transaction mix exercises state, work, orders, facilities, recipes, builds and research', { timeout: 40_000 }, async () => {
+test('isolated transaction mix exercises state, orders, facilities, recipes, builds and research', { timeout: 40_000 }, async () => {
   const report = await runStressTest({
     targetMode: 'local',
     profile: 'transaction-mix',
@@ -105,12 +105,11 @@ test('isolated transaction mix exercises state, work, orders, facilities, recipe
   });
   assert.equal(report.passed, true, report.failures.join('\n'));
   assert.equal(report.configuration.transactionMixWeights.state, 60);
-  assert.equal(report.configuration.transactionMixWeights.work, 10);
-  assert.equal(report.configuration.transactionMixWeights.order, 10);
-  assert.equal(report.configuration.transactionMixWeights.facilityToggle, 8);
+  assert.equal(report.configuration.transactionMixWeights.order, 15);
+  assert.equal(report.configuration.transactionMixWeights.facilityToggle, 10);
   assert.equal(report.configuration.transactionMixWeights.recipe, 5);
-  assert.equal(report.configuration.transactionMixWeights.build, 4);
-  assert.equal(report.configuration.transactionMixWeights.research, 3);
+  assert.equal(report.configuration.transactionMixWeights.build, 5);
+  assert.equal(report.configuration.transactionMixWeights.research, 5);
   for (const [category, count] of Object.entries(report.invariants.transactionMix)) {
     assert.ok(count > 0, `事务混合场景未覆盖 ${category}`);
   }

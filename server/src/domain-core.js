@@ -26,7 +26,6 @@ export { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
 export const ECONOMY_CONSTANTS = Object.freeze({
   maxOpenOrders: (PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length) * 10,
   maxOrderQuantity: Number.MAX_SAFE_INTEGER,
-  workCooldownMs: 3_000,
   demandCycleMs: 5 * 60 * 1000,
   maxPricePoints: 288,
   maxTradesPerPlayer: 240,
@@ -276,14 +275,11 @@ function createPlayer(user, now) {
     facilities: [],
     trades: [],
     ledger: [],
-    work: { cooldownUntil: 0, lastWorkedAt: 0, streak: 0, totalClicks: 0 },
     stats: {
-      workIssued: 0,
       populationIssued: 0,
       systemSinks: 0,
       commodityVolume: 0,
       facilityVolume: 0,
-      workClicks: 0,
       producedGoods: 0,
       boughtGoods: 0,
       soldGoods: 0,
@@ -424,15 +420,11 @@ export function migrateWorld(world, now = Date.now()) {
       if (trade.type === 'commodity') trade.productId ||= 'wheat';
     }
     player.ledger ||= [];
-    player.work ||= { cooldownUntil: 0, lastWorkedAt: 0, streak: 0, totalClicks: 0 };
-    player.work.streak = 0;
     player.stats ||= {};
-    player.stats.workIssued = Number(player.stats.workIssued || 0);
     player.stats.populationIssued = Number(player.stats.populationIssued || 0);
     player.stats.systemSinks = Number(player.stats.systemSinks || 0);
     player.stats.commodityVolume = Number(player.stats.commodityVolume || 0);
     player.stats.facilityVolume = Number(player.stats.facilityVolume || 0);
-    player.stats.workClicks = Number(player.stats.workClicks ?? player.work.totalClicks ?? 0);
     player.stats.producedGoods = Number(player.stats.producedGoods || 0);
     player.stats.boughtGoods = Number(player.stats.boughtGoods || 0);
     player.stats.soldGoods = Number(player.stats.soldGoods || 0);
@@ -877,20 +869,6 @@ function normalizePositiveInteger(value, max = Number.MAX_SAFE_INTEGER) {
   return normalized < 1 || normalized > max ? null : normalized;
 }
 
-function work(world, userId, now) {
-  const player = getPlayer(world, userId);
-  if (now < player.work.cooldownUntil) return result(false, '工作冷却尚未结束');
-  player.work.streak = 0;
-  player.work.cooldownUntil = now + ECONOMY_CONSTANTS.workCooldownMs;
-  player.work.lastWorkedAt = now;
-  player.work.totalClicks += 1;
-  player.credits += 1;
-  player.stats.workIssued += 1;
-  player.stats.workClicks = Number(player.stats.workClicks || 0) + 1;
-  addLedger(player, 'work_income', 1, '完成工作，固定冷却 3 秒', now);
-  return result(true, '工作完成，获得 1 货币');
-}
-
 function buildFacility(world, userId, payload, now) {
   const player = getPlayer(world, userId);
   const type = FACILITY_TYPES.get(String(payload.facilityTypeId || 'farm'));
@@ -1156,7 +1134,6 @@ export function applyAction(
   if (process) processWorld(world, now, { migrate: false });
   const userId = Number(user.id);
   switch (action) {
-    case 'work': return work(world, userId, now);
     case 'buildFacility': return buildFacility(world, userId, payload, now);
     case 'startFacility': return startFacility(world, userId, payload, now);
     case 'pauseFacility': return pauseFacility(world, userId, payload, now);
@@ -1178,7 +1155,7 @@ function createLeaderboard(world, currentUserId, now) {
       totalAssets: totalAssets(world, player),
       cashAssets: player.credits + player.frozenCredits,
       facilityCount: player.facilities.length,
-      weeklyChange: player.stats.workIssued + player.stats.populationIssued - player.stats.systemSinks,
+      weeklyChange: player.stats.populationIssued - player.stats.systemSinks,
       updatedAt: now,
       isCurrentPlayer: player.userId === currentUserId,
     }))
@@ -1225,7 +1202,6 @@ export function createClientState(world, userId, now = Date.now(), { migrate = t
     facilityListings: migrate ? clone(world.facilityListings) : [],
     trades: migrate ? clone(player.trades || []) : [],
     ledger: migrate ? clone(player.ledger || []) : [],
-    work: clone(player.work),
     stats: clone(player.stats),
     leaderboard: migrate ? createLeaderboard(world, userId, now) : [],
     lastProcessedAt: world.lastProcessedAt,

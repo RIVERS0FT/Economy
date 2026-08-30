@@ -16,6 +16,7 @@ test('runtime hot path uses segmented copy-on-write drafts and scheduler barrier
   const executor = read('server/src/authoritative-write-executor.js');
   const action = read('server/src/runtime-action-executor.js');
   const storageV2 = read('server/src/world-storage-v2.js');
+  const actionRegistry = read('server/src/player-action-registry.js');
 
   const cacheStart = runtime.indexOf('  cacheWorld(');
   const loadStart = runtime.indexOf('  loadWorld(', cacheStart);
@@ -52,9 +53,12 @@ test('runtime hot path uses segmented copy-on-write drafts and scheduler barrier
   assert.match(storageV2, /economy_world_segments/);
   assert.match(storageV2, /worldDirtyPlayerRows/);
   assert.match(storageV2, /worldDirtySegments/);
-  assert.match(storageV2, /'setFacilityRecipe'/);
   assert.match(storageV2, /cloneScopedOrders/);
-  assert.match(storageV2, /LOCAL_ORDER_POLICY_EXECUTIONS/);
+  assert.match(storageV2, /getPlayerActionMetadata/);
+  assert.match(storageV2, /requireOrderExecutionMetadata/);
+  assert.doesNotMatch(storageV2, /LOCAL_ORDER_POLICY_EXECUTIONS/);
+  assert.match(actionRegistry, /setFacilityRecipe: defineAction\(\{ mutationScope: 'factory'/);
+  assert.match(actionRegistry, /ORDER_EXECUTION_REGISTRY/);
 
   assert.match(executor, /captureRequestContext = true/);
   assert.match(executor, /captureRequestContext \? requestPerformanceContext\(\) : null/);
@@ -119,7 +123,7 @@ test('segmented copy-on-write draft isolates the mutated player and shares untou
   }
 });
 
-test('facility recipe changes stay on the player-local copy-on-write scope', () => {
+test('facility recipe changes use the bounded factory copy-on-write scope', () => {
   const store = new EconomyStore(':memory:', { scheduledProcessing: true });
   try {
     const now = 1_700_000_000_000;
@@ -132,15 +136,15 @@ test('facility recipe changes stay on the player-local copy-on-write scope', () 
 
     assert.equal(scope.allPlayers, false);
     assert.equal(scope.allSegments, false);
-    assert.equal(scope.label, 'local:setFacilityRecipe');
+    assert.equal(scope.label, 'facility:auto-operation-rebuild');
     assert.deepEqual([...scope.playerIds], [String(alice.id)]);
     assert.equal(scope.segments.has('populationEconomy'), true);
-    assert.equal(scope.segments.has('orders'), false);
+    assert.equal(scope.segments.has('orders'), true);
     assert.equal(scope.segments.has('markets'), false);
 
     const loaded = store.loadWorld(now + 1, scope);
     assert.notEqual(loaded.world.players[String(alice.id)], committed.players[String(alice.id)]);
-    assert.equal(loaded.world.orders, committed.orders);
+    assert.notEqual(loaded.world.orders, committed.orders);
     assert.equal(loaded.world.markets, committed.markets);
     assert.equal(loaded.world.assetAuctions, committed.assetAuctions);
   } finally {

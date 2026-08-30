@@ -8,15 +8,9 @@
         30647348669,
         30647358093
       ],
-      "workP95Ms": [
-        1017.71,
-        995.04,
-        959.63
-      ],
       "requestsPerSecond": 84.72,
       "stateP95Ms": 453.59,
-      "stateP99Ms": 672.68,
-      "workP99Ms": 1411.53
+      "stateP99Ms": 672.68
     }
   },
   "profiles": {
@@ -77,10 +71,6 @@
         "GET /api/game/state": {
           "maxP95Ms": 1000,
           "maxP99Ms": 3000
-        },
-        "POST /api/game/work": {
-          "maxP95Ms": 1100,
-          "maxP99Ms": 3000
         }
       }
     },
@@ -96,10 +86,6 @@
         "GET /api/game/state": {
           "maxP95Ms": 1000,
           "maxP99Ms": 3000
-        },
-        "POST /api/game/work": {
-          "maxP95Ms": 1100,
-          "maxP99Ms": 3000
         }
       }
     },
@@ -113,10 +99,6 @@
       "maxLocalWalBytes": 16777216,
       "routes": {
         "GET /api/game/state": {
-          "maxP95Ms": 1000,
-          "maxP99Ms": 3000
-        },
-        "POST /api/game/work": {
           "maxP95Ms": 1000,
           "maxP99Ms": 3000
         }

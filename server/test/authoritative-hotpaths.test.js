@@ -95,7 +95,7 @@ test('economic savepoint rolls back SQLite side effects without aborting the out
   }
 });
 
-test('failed runtime action persists idempotency but leaves authoritative world revision unchanged', () => {
+test('failed registered runtime action persists idempotency but leaves authoritative world revision unchanged', () => {
   const now = 1_800_000_000_000;
   const store = new EconomyStore(':memory:', { scheduledProcessing: false });
   try {
@@ -103,11 +103,11 @@ test('failed runtime action persists idempotency but leaves authoritative world 
     const revisionBefore = store.worldCache.revision;
     const stateJsonBefore = store.worldCache.stateJson;
     const response = store.apply(user(), {
-      action: 'unknownAtomicAction',
-      payload: {},
+      action: 'bankWithdraw',
+      payload: { amount: 1 },
       requestKey: 'failed-action-hotpath',
       method: 'POST',
-      path: '/economy-api/game/test-failed-action',
+      path: '/economy-api/game/bank/withdraw',
     }, now + 10);
     assert.equal(response.result.ok, false);
     assert.equal(response.revision, revisionBefore);

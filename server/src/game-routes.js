@@ -1,3 +1,5 @@
+import { requirePlayerActionMetadata } from './player-action-registry.js';
+
 export function decodeRouteParameter(value) {
   try {
     return decodeURIComponent(value);
@@ -8,8 +10,7 @@ export function decodeRouteParameter(value) {
   }
 }
 
-export function resolveAction(method, path) {
-  if (method === 'POST' && path === '/api/game/work') return { action: 'work', category: 'general' };
+function resolveActionUnchecked(method, path) {
   if (method === 'POST' && path === '/api/game/check-in') return { action: 'checkIn', category: 'general' };
   if (method === 'POST' && path === '/api/game/production/settle') return { action: 'settleProduction', category: 'general' };
   if (method === 'POST' && path === '/api/game/facilities') return { action: 'buildFacility', category: 'general' };
@@ -146,4 +147,11 @@ const contractAction = path.match(/^\/api\/game\/contracts\/([^/]+)\/(accept|can
     return { action: 'cancelOrder', category: 'orders', routePayload: { orderId: decodeRouteParameter(orderAction[1]) } };
   }
   return null;
+}
+
+export function resolveAction(method, path) {
+  const route = resolveActionUnchecked(method, path);
+  if (!route) return null;
+  const metadata = requirePlayerActionMetadata(route.action);
+  return { ...route, category: metadata.rateLimitCategory };
 }

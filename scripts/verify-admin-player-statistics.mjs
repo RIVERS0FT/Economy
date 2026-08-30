@@ -44,6 +44,9 @@ forbidText('server/src/player-admin-statistics.js', [
   'placeCollectibleBid',
   'cancelCollectibleAuction',
   'function frozenFacilityQuantity(world, userId, facilityTypeId)',
+  "action === 'work'",
+  'work_count',
+  'counts.work',
 ]);
 const playerStatisticsSource = read('server/src/player-admin-statistics.js');
 const playerStatisticsReadStart = playerStatisticsSource.indexOf('  store.getPlayerStatistics = function getPlayerStatistics');
@@ -61,8 +64,11 @@ requireText('server/src/app.js', [
   'store.getPlayerStatistics(',
 ]);
 requireText('server/src/world-storage-v2.js', [
-  "'setFacilityRecipe'",
-  'label: `local:${action}`',
+  'getPlayerActionMetadata(action)',
+  'finalizeInteractiveMutationScope',
+]);
+requireText('server/src/player-action-registry.js', [
+  "setFacilityRecipe: defineAction({ mutationScope: 'factory'",
 ]);
 requireText('src/api/admin.ts', [
   "export type AdminPlayerStatisticsRange = '7d' | '30d' | '90d'",
@@ -124,6 +130,7 @@ forbidText('src/styles/admin-player-statistics.css', ['.admin-player-statistics_
 requireText('server/test/player-admin-statistics.test.js', [
   'successful economic actions once',
   'assert.equal(activity.successful_action_count, 1)',
+  "assert.equal(activityColumns.includes('work_count'), false)",
   'assert.equal(loadWorldCalls, 0)',
   'assert.equal(processWorldCalls, 0)',
   'assert.equal(saveWorldCalls, 0)',
@@ -132,8 +139,8 @@ requireText('server/test/player-admin-statistics.test.js', [
   'assert.equal(second.revision, statistics.revision)',
 ]);
 requireText('server/test/runtime-hotpath-architecture.test.js', [
-  'facility recipe changes stay on the player-local copy-on-write scope',
-  "assert.equal(scope.label, 'local:setFacilityRecipe')",
+  'facility recipe changes use the bounded factory copy-on-write scope',
+  "assert.equal(scope.label, 'facility:auto-operation-rebuild')",
 ]);
 requireText('tests/browser/admin-runtime.spec.ts', [
   'coverageStartsAt:',
@@ -146,6 +153,7 @@ requireText('tests/browser/admin-runtime.spec.ts', [
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '玩家运营统计固定归属“玩家”分区',
   '成功经济写操作',
+  '新的日活动表不再创建或写入 `work_count`',
   '精确日活动覆盖起点',
   '完整经营漏斗覆盖起点',
   '不得把统计结果用于扩张人口需求预算',
