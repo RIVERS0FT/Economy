@@ -1,0 +1,41 @@
+name: Cleanup retired Work telemetry
+
+on:
+  push:
+    branches:
+      - remove-retired-work-gameplay
+    paths:
+      - .github/workflows/cleanup-retired-work-telemetry.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm ci
+      - name: Apply cleanup
+        run: python scripts/cleanup-retired-work-telemetry.py
+      - name: Verify affected domains
+        run: |
+          git diff --check
+          node scripts/verify-admin-player-statistics.mjs
+          node scripts/verify-market-assets.mjs
+          node scripts/verify-state-delivery-capacity.mjs
+          node --test server/test/asset-events.test.js server/test/player-admin-statistics.test.js server/test/runtime-hot-path.test.js server/test/state-polling.test.js server/test/http.test.js
+          npm run typecheck
+      - name: Commit cleanup
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "移除工作玩法统计残留"
+          git push
