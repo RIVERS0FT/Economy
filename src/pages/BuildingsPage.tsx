@@ -484,7 +484,7 @@ export function BuildingsPage({
           return next;
         });
       }
-      await model.refresh({ mode: 'authoritative' });
+      void model.refresh({ mode: 'authoritative' });
       return response.result;
     } catch (reason) {
       return { ok: false, message: reason instanceof Error ? reason.message : '建造材料买单提交失败' };
@@ -505,7 +505,7 @@ export function BuildingsPage({
           return next;
         });
       }
-      await model.refresh({ mode: 'authoritative' });
+      void model.refresh({ mode: 'authoritative' });
       return response.result;
     } catch (reason) {
       return { ok: false, message: reason instanceof Error ? reason.message : '建造材料买单取消失败' };

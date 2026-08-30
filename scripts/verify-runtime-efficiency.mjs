@@ -266,6 +266,12 @@ requireText('server/src/world-storage-v2.js', [
   'economy_world_players',
   'economy_world_segments',
   "label: 'commodity:placeOrder'",
+  'FACTORY_SCOPE_ACTIONS',
+  'factoryAutoOperationScope',
+  'profileMutationScope',
+  'contractMutationScope',
+  'facilityListingMutationScope',
+  "execution === 'factory-auto-operation-policy'",
 ]);
 requireText('server/src/runtime-store-core.js', [
   'prepareSegmentedWorldWrite',
@@ -275,6 +281,7 @@ requireText('server/src/runtime-store-core.js', [
 requireText('server/src/runtime-action-executor.js', [
   "measureRequestPhase('playerSnapshotMs'",
   "measureRequestPhase('economicInvariantMs'",
+  "? 'setFacilityRecipe'",
 ]);
 requireText('server/src/runtime-store.js', [
   'cloneWorldForMutation',
