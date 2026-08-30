@@ -136,7 +136,6 @@ assert.equal(selectorCardSource.includes(' x '), false, '工厂选择卡数量�
 for (const text of [
   'export function FacilityClusterInformation',
   'export function FacilityClusterDetailBody',
-  'export function FacilityMarketAction',
   'export function FacilityClusterDetailContent',
   'className="facility-information"',
   '<MobileDetailSummary',
@@ -147,11 +146,13 @@ for (const text of [
   'aria-label="生产配置"',
   '<FacilityProductionConfigControls',
   'productionRecipeVariantId',
-  '交易该建筑资产',
 ]) assert.equal(detail.includes(text), true, `工厂详情缺少: ${text}`);
 assert.equal(detail.includes('<strong>生产设置</strong>'), false, '工厂详情不得恢复可见生产设置标题');
 
 for (const forbidden of [
+  'FacilityMarketAction',
+  '交易该建筑资产',
+  'onOpenMarket',
   'facility-recipe-section',
   'facility-production-method-section',
   '<strong>{selectedMethod.name}</strong>',

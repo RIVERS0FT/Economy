@@ -113,9 +113,8 @@ for (const text of [
   'facility-recipe-section',
   '生产产物',
   '生产进度已清零',
-  '交易该建筑资产',
-  'ChevronIcon',
 ]) requireText('src/pages/BuildingsPage.tsx', text);
+for (const text of ['交易该建筑资产', 'EmbeddedFacilityAssetMarket', 'facilityAssetTradeId', 'onOpenMarket={openSelectedFacilityMarket}']) forbidText('src/pages/BuildingsPage.tsx', text);
 for (const text of [
   'facility-power-button','产成品去向','挂牌数量','单座价格','启动全部未挂牌工厂','停止全部',
   '>保存计划</Button>','下一周期按 ','<span>冻结 <strong>{group.listedCount}</strong></span>',
@@ -125,7 +124,7 @@ for (const text of ['持有工厂总数','生产商品总数','买入商品总�
 for (const text of ['登录会话','重置经济状态','重置服务器经济状态']) forbidText('src/pages/SettingsPage.tsx', text);
 for (const text of ["label: '仓库库存'", "id: 'warehouse'"]) requireText('src/app/GameApp.tsx', text);
 for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
-for (const text of ['assetKind','matchFacilityOrder','reduceRunningGroupForSellOrder','valuationPricesFor','recentTradePriceFor','lastTradePrice','world.version = 20','reconcileFacilityGroup','activeRecipeId','pendingRecipeId','removeSystemFacilityOrders','SELF_CROSS_MESSAGE']) requireText('server/src/facility-groups.js', text);
+for (const text of ['assetKind','valuationPricesFor','recentTradePriceFor','lastTradePrice','world.version = 20','reconcileFacilityGroup','activeRecipeId','pendingRecipeId','removeSystemFacilityOrders','retireOpenFacilityMarketOrders','工厂资产仅允许通过拍卖交易']) requireText('server/src/facility-groups.js', text);
 for (const text of ['refreshFacilityLiquidity','系统资产采购','系统资产供给']) forbidText('server/src/facility-groups.js', text);
 for (const [path, text] of [
   ['server/src/domain.js', "normalizePlayerMoneyInput(payload.price, { min: 0.01 })"],
@@ -171,7 +170,7 @@ for (const text of [
   '商品订单只允许玩家、消费需求或市场储备作为所有者',
   '市场储备可以提交商品买单和卖单',
   '任何系统订单之间都不得成交',
-  '工厂订单仍只能由玩家提交',
+  '历史工厂订单只用于兼容与审计，新工厂订单禁止提交',
   '同资产、同方向、同价格的有效订单按当前剩余数量聚合为价格档位',
   '档位聚合由市场详情只读投影在服务器完成',
   '聚合完成后再按最优价格截取 5 档',

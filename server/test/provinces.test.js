@@ -237,7 +237,7 @@ test('construction and production consume and output only the selected province 
   assert.equal(inventoryForProvince(player, 'wheat', CALIFORNIA).available, 0);
 });
 
-test('facility order transfer preserves the province and client projections stay partitioned', () => {
+test('factory market orders are rejected and legacy open orders are retired', () => {
   const world = createWorld(NOW);
   world.orders = [];
   const seller = ensurePlayer(world, bob, NOW);
@@ -251,24 +251,41 @@ test('facility order transfer preserves the province and client projections stay
   buyer.credits = 1_000;
   migrateFacilityGroupWorld(world, NOW);
 
-  assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', {
+  const directSell = applyFacilityGroupAction(world, bob, 'placeOrder', {
     provinceId: GEORGIA, assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 1, price: 80,
-  }, NOW + 1).ok, true);
-  assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', {
+  }, NOW + 1);
+  const directBuy = applyFacilityGroupAction(world, alice, 'placeOrder', {
     provinceId: GEORGIA, assetKind: 'facility', assetId: 'farm', side: 'buy', quantity: 1, price: 80,
-  }, NOW + 2).ok, true);
+  }, NOW + 2);
+  assert.deepEqual(directSell, { ok: false, message: '工厂资产仅允许通过拍卖交易' });
+  assert.deepEqual(directBuy, { ok: false, message: '工厂资产仅允许通过拍卖交易' });
+  assert.equal(seller.facilityGroups.find((group) => group.facilityTypeId === 'farm' && group.provinceId === GEORGIA)?.count, 1);
 
-  assert.equal(seller.facilityGroups.some((group) => group.facilityTypeId === 'farm' && group.provinceId === GEORGIA), false);
-  assert.equal(buyer.facilityGroups.some((group) => group.facilityTypeId === 'farm' && group.provinceId === GEORGIA && group.count === 1), true);
-  assert.equal(buyer.facilityGroups.some((group) => group.facilityTypeId === 'farm' && group.provinceId === CALIFORNIA), false);
+  buyer.credits = 920;
+  buyer.frozenCredits = 80;
+  world.orders.push(
+    {
+      id: 'legacy-facility-buy', assetKind: 'facility', assetId: 'farm', facilityTypeId: 'farm',
+      provinceId: GEORGIA, side: 'buy', ownerType: 'player', ownerId: alice.id, ownerName: alice.name,
+      price: 80, quantity: 1, remaining: 1, status: 'open', createdAt: NOW + 3, fills: [],
+    },
+    {
+      id: 'legacy-facility-sell', assetKind: 'facility', assetId: 'farm', facilityTypeId: 'farm',
+      provinceId: GEORGIA, side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: bob.name,
+      price: 80, quantity: 1, remaining: 1, status: 'open', createdAt: NOW + 4, fills: [],
+    },
+  );
 
-  const state = createFacilityGroupClientState(world, alice.id, NOW + 3);
-  assert.equal(state.provinceFacilityGroups[GEORGIA].some((group) => group.facilityTypeId === 'farm'), true);
-  assert.deepEqual(state.provinceFacilityGroups[CALIFORNIA] || [], []);
-  assert.equal(Object.hasOwn(state.markets, 'wheat'), true);
-  assert.equal(Object.hasOwn(state.provinceMarkets[GEORGIA] || {}, 'wheat'), true);
-  assert.equal(state.provinceMarkets[GEORGIA].wheat.provinceId, GEORGIA);
-  assert.equal(state.orders.filter((order) => order.assetKind === 'facility').every((order) => order.provinceId === GEORGIA), true);
+  migrateFacilityGroupWorld(world, NOW + 5);
+
+  assert.equal(world.orders.find((order) => order.id === 'legacy-facility-buy')?.status, 'cancelled');
+  assert.equal(world.orders.find((order) => order.id === 'legacy-facility-sell')?.status, 'cancelled');
+  assert.equal(buyer.frozenCredits, 0);
+  assert.equal(buyer.credits, 1_000);
+  assert.equal(seller.facilityGroups.find((group) => group.facilityTypeId === 'farm' && group.provinceId === GEORGIA)?.count, 1);
+
+  const state = createFacilityGroupClientState(world, alice.id, NOW + 6);
+  assert.equal(state.orders.some((order) => order.assetKind === 'facility' && (order.status === 'open' || order.status === 'partial')), false);
 });
 
 test('global wealth ranking values each inventory with its local market price', () => {

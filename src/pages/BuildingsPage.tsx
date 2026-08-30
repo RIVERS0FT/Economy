@@ -1,5 +1,5 @@
 import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   cancelFacilityBuildProcurement,
   createFacilityBuildProcurement,
@@ -43,9 +43,6 @@ import {
 import '../styles/production-methods.css';
 import '../styles/facility-build-select.css';
 
-const EmbeddedFacilityAssetMarket = lazy(() => import('./MarketPage').then((module) => ({
-  default: module.MarketPage,
-})));
 
 /*
  * Split-module ownership manifest for static page-contract verification. Runtime implementations live in
@@ -57,7 +54,7 @@ const EmbeddedFacilityAssetMarket = lazy(() => import('./MarketPage').then((modu
  * 新增生产可用工厂立即参与运行并同步稀释满员率;
  * 冻结中 <strong>{<CompactNumber value={group.frozenCount ?? group.listedCount} />}</strong>;
  * FacilityProductionFormula; facility-recipe-section; <strong>生产产物</strong>; <strong>生产配置</strong>;
- * 作业制度; 生产方式; 生产进度已清零; 交易该建筑资产; ChevronIcon;
+ * 作业制度; 生产方式; 生产进度已清零;
  * formatNumber(group.count). The legacy branch `if (!entry.constructionOnly)` was removed because
  * construction tasks no longer create selector/detail entries.
  * Retired broad page-verifier markers only: title="建筑概况"; className="buildings-summary-metrics";
@@ -107,7 +104,6 @@ export function BuildingsPage({
 
   const now = game.lastProcessedAt;
   const [internalDetailFacilityTypeId, setInternalDetailFacilityTypeId] = useState('');
-  const [facilityAssetTradeId, setFacilityAssetTradeId] = useState('');
   const [buildQuantity, setBuildQuantity] = useState(1);
   const [procurementPriceDrafts, setProcurementPriceDrafts] = useState<Record<string, string>>({});
   const [procurementGroups, setProcurementGroups] = useState<FacilityBuildProcurementGroup[]>(
@@ -390,7 +386,6 @@ export function BuildingsPage({
   };
 
   const closeFacilityDetail = () => {
-    setFacilityAssetTradeId('');
     if (onDetailFacilityChange) onDetailFacilityChange(null);
     else setInternalDetailFacilityTypeId('');
   };
@@ -450,11 +445,6 @@ export function BuildingsPage({
       current[facilityTypeId] === recipeId ? current : { ...current, [facilityTypeId]: recipeId }
     ));
     flushFacilityRecipeQueue(facilityTypeId);
-  };
-  const openSelectedFacilityMarket = () => {
-    if (!selectedFacilityEntry) return;
-    selectMarketAsset('facility', selectedFacilityEntry.group.facilityTypeId, false);
-    setFacilityAssetTradeId(selectedFacilityEntry.group.facilityTypeId);
   };
   const openProductMarket = (productId: string) => {
     selectMarketAsset('commodity', productId);
@@ -738,7 +728,6 @@ export function BuildingsPage({
           now={now}
           onToggle={toggleSelectedFacility}
           onRecipeChange={changeSelectedFacilityRecipe}
-          onOpenMarket={openSelectedFacilityMarket}
           onOpenProductMarket={openProductMarket}
           onOpenContracts={openProductContracts}
           titleId="facility-detail-title"
@@ -754,16 +743,7 @@ export function BuildingsPage({
     </div>
   );
 
-  const buildingsContent = facilityAssetTradeId ? (
-    <Suspense fallback={<Panel className="empty-state"><span role="status">正在加载建筑资产交易…</span></Panel>}>
-      <EmbeddedFacilityAssetMarket
-        model={model}
-        embedded
-        facilityAssetId={facilityAssetTradeId}
-        onBackFromFacilityAsset={() => setFacilityAssetTradeId('')}
-      />
-    </Suspense>
-  ) : buildingsManagementContent;
+  const buildingsContent = buildingsManagementContent;
 
   if (embedded) return buildingsContent;
 

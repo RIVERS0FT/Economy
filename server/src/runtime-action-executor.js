@@ -73,8 +73,7 @@ const CONTRACT_ACTIONS = new Set([
 ]);
 const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'work', 'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',
-  'collectFacility', 'placeOrder', 'cancelOrder', 'listFacility',
-  'cancelFacilityListing', 'buyFacility', 'redeemGift',
+  'collectFacility', 'placeOrder', 'cancelOrder', 'redeemGift',
   'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
   'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay', 'startResearch', 'accelerateResearch',
 ]);
@@ -153,6 +152,8 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
         gameResult = applyOnlineAutoSell(world, user, payload, now);
       } else if (action === 'placeOrder' && payload.assetKind !== 'facility') {
         gameResult = applySettledCommodityOrder(world, user, payload, now);
+      } else if (action === 'placeOrder' && payload.assetKind === 'facility') {
+        gameResult = { ok: false, message: '工厂资产仅允许通过拍卖交易' };
       } else if (action === 'renamePlayer') {
         gameResult = applyPlayerProfileAction(world, user, payload);
       } else if (action === 'checkIn') {
