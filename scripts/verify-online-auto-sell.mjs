@@ -22,6 +22,7 @@ for (const path of [
   'server/src/online-auto-buy-orders.js',
   'server/src/online-auto-sell-orders.js',
   'server/src/runtime-action-executor.js',
+  'server/src/player-action-registry.js',
   'server/src/warehouse.js',
   'server/test/factory-auto-operation.test.js',
   'server/test/online-auto-buy.test.js',
@@ -72,7 +73,14 @@ for (const [path, texts] of [
   ['server/src/runtime-action-executor.js', [
     "payload.execution === 'factory-auto-operation-policy'",
     'rebuildFactoryAutoTradePoliciesForProvince',
-    "'factoryAutoOperationRebuild'",
+    'requirePlayerActionMetadata(action)',
+  ]],
+  ['server/src/player-action-registry.js', [
+    "buildFacility: defineAction({ mutationScope: 'factory'",
+    "startFacility: defineAction({ mutationScope: 'factory'",
+    "pauseFacility: defineAction({ mutationScope: 'factory'",
+    "setFacilityRecipe: defineAction({ mutationScope: 'factory'",
+    "'factory-auto-operation-policy': defineOrderExecution('factory-policy'",
   ]],
   ['server/src/warehouse.js', [
     'createFactoryAutoTradeExecutionClientState(player)',
@@ -140,6 +148,7 @@ for (const text of [
   'setAutoSellPolicy(',
 ]) forbidText('server/test/online-auto-sell.test.js', text);
 forbidText('server/test/online-auto-buy.test.js', 'applyOnlineAutoTradePolicyAction(world, alice');
+forbidText('server/src/runtime-action-executor.js', 'factoryAutoOperationRebuild');
 
 if (failures.length) {
   console.error('工厂自动经营防回退检查失败：');
