@@ -161,6 +161,21 @@ const isServerTest = (path) => /^server\/test\/.*\.test\.js$/.test(path);
 const isBrowserSpec = (path) => /^tests\/browser\/.*\.spec\.ts$/.test(path);
 const isBrowserHarness = (path) => /^tests\/browser\/.*(?:harness|fixture).*\.(?:ts|tsx)$/.test(path);
 
+const verificationNeedsDependencies = (root, path) => {
+  let content = '';
+  try {
+    content = readFileSync(resolve(root, path), 'utf8');
+  } catch {
+    return false;
+  }
+  const importPattern = /(?:from\s*|import\s*\(\s*)['\"]([^'\"]+)['\"]/g;
+  for (const match of content.matchAll(importPattern)) {
+    const specifier = match[1];
+    if (!specifier.startsWith('node:') && !specifier.startsWith('.') && !specifier.startsWith('/') && !specifier.startsWith('data:')) return true;
+  }
+  return false;
+};
+
 const findFullTrigger = (changedFiles) => changedFiles.find((path) => FULL_TRIGGER_PATTERNS.some((pattern) => pattern.test(path)));
 const verificationEntrypoint = (path) => COMPOSED_VERIFY_ENTRYPOINTS.get(path) ?? path;
 
@@ -226,7 +241,9 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
   }
 
   for (const path of changedFiles.filter(isVerificationScript)) {
-    addCommand(commands, seenCommands, 'node', [verificationEntrypoint(path)]);
+    const entrypoint = verificationEntrypoint(path);
+    addCommand(commands, seenCommands, 'node', [entrypoint]);
+    if (verificationNeedsDependencies(root, entrypoint)) plan.needsDependencies = true;
   }
   for (const path of changedFiles.filter(isServerTest)) {
     plan.needsDependencies = true;
@@ -244,6 +261,7 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
   for (const candidate of verifyCandidates) {
     if (isDomainCandidate(candidate) || isReferenceCandidate(candidate)) {
       addCommand(commands, seenCommands, 'node', [candidate]);
+      if (verificationNeedsDependencies(root, candidate)) plan.needsDependencies = true;
     }
   }
 

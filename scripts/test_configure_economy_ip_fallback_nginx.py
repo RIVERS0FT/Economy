@@ -75,14 +75,26 @@ class EconomyIpFallbackNginxTests(unittest.TestCase):
             "/economy-api/health",
             "/economy-api/game/",
             "/economy-api/registration/",
+            "/economy-api/password-reset/",
         ):
             self.assertIn(path, config)
         self.assertIn("proxy_pass http://127.0.0.1:3001/api/login;", config)
         self.assertIn("proxy_pass http://127.0.0.1:3002/health;", config)
         self.assertIn("proxy_pass http://127.0.0.1:3002/api/game/;", config)
         self.assertIn("proxy_pass http://127.0.0.1:3002/api/registration/;", config)
-        self.assertGreaterEqual(config.count('proxy_set_header Origin "";'), 6)
+        self.assertIn("proxy_pass http://127.0.0.1:3001/api/password-reset/;", config)
+        self.assertGreaterEqual(config.count('proxy_set_header Origin "";'), 7)
         self.assertIn("proxy_set_header X-Forwarded-Proto https;", config)
+
+    def test_password_reset_fallback_uses_homepage_account_authority(self):
+        block = module.password_reset_location()
+        self.assertIn("location ^~ /economy-api/password-reset/", block)
+        self.assertIn("proxy_pass http://127.0.0.1:3001/api/password-reset/;", block)
+        self.assertIn("proxy_set_header Host riversoft.top;", block)
+        self.assertIn("proxy_set_header X-Forwarded-Host game.riversoft.top;", block)
+        self.assertIn("proxy_set_header X-Real-IP $remote_addr;", block)
+        self.assertIn('proxy_set_header Origin "";', block)
+        self.assertIn("client_max_body_size 16k;", block)
 
     def test_certbot_uses_pinned_ip_capable_release_and_shortlived_profile(self):
         command = module.certbot_command(self.target)
@@ -116,6 +128,8 @@ class EconomyIpFallbackNginxTests(unittest.TestCase):
         self.assertIn("riversoft-economy-ip-cert-renew.timer", verification)
         self.assertIn('"http://${PUBLIC_IP}/economy/"', verification)
         self.assertIn('"https://${PUBLIC_IP}/economy/"', verification)
+        self.assertIn("/economy-api/password-reset/email-code", verification)
+        self.assertIn("ECONOMY_PASSWORD_RESET_PROXY_UNAVAILABLE", verification)
         self.assertIn('--connect-to "${PUBLIC_IP}:443:127.0.0.1:443"', verification)
         self.assertIn("--noproxy '*'", verification)
         self.assertNotIn('/etc/letsencrypt/live/riversoft-economy-ip-', verification)
@@ -139,6 +153,8 @@ class EconomyIpFallbackNginxTests(unittest.TestCase):
         self.assertIn("直接读取 `/etc/letsencrypt/live/`", design)
         self.assertIn("`--connect-to`", design)
         self.assertIn("127.0.0.1:443", design)
+        self.assertIn("临时公网 IP fallback 必须镜像客户端所需的同源账号路由", design)
+        self.assertIn("`/economy-api/password-reset/`", design)
         self.assertIn("删除临时 IP 虚拟主机、续签 timer 和专用短期证书", design)
         self.assertNotIn(OLD_PUBLIC_IP, design)
 
