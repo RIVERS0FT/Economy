@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 
 type RowMetrics = {
   minHeight: string;
@@ -41,46 +41,29 @@ function expectAllowedDensity(metrics: RowMetrics) {
   expect(metrics.height).toBeLessThanOrEqual(52);
 }
 
-async function openMarketFromVisibleNavigation(page: Page) {
-  const candidates = page.getByRole('button', { name: /^市场/ });
-  for (let index = 0; index < await candidates.count(); index += 1) {
-    const candidate = candidates.nth(index);
-    if (await candidate.isVisible().catch(() => false)) {
-      await candidate.click();
-      return;
-    }
-  }
-  throw new Error('no visible market navigation button');
-}
-
 test('market and regional commodity lists share compact square artwork geometry', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('?preview=game');
-  await openMarketFromVisibleNavigation(page);
+  await page.locator('.desktop-sidebar').getByRole('button', { name: /^市场/ }).click();
   const globalRow = page.getByRole('button', { name: '打开小麦全局详情' });
   await expect(globalRow).toBeVisible();
   expectAllowedDensity(await readRowMetrics(globalRow, '.global-market-goods-row__artwork'));
 
+  await page.setViewportSize({ width: 320, height: 720 });
+  const compactGlobal = await readRowMetrics(globalRow, '.global-market-goods-row__artwork');
+  expectAllowedDensity(compactGlobal);
+  expect(compactGlobal.minHeight).toBe('44px');
+  expect(compactGlobal.slot).toEqual([30, 30]);
+  expect(compactGlobal.artwork).toEqual([26, 26]);
+
+  await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active&view=catalog');
   const regionalRow = page.getByRole('button', { name: '查看小麦详情' });
   await expect(regionalRow).toBeVisible();
   expectAllowedDensity(await readRowMetrics(regionalRow, '.market-commodity-row__artwork'));
 
   await page.setViewportSize({ width: 320, height: 720 });
-  await page.goto('?preview=game');
-  await openMarketFromVisibleNavigation(page);
-  const compactGlobalRow = page.getByRole('button', { name: '打开小麦全局详情' });
-  await expect(compactGlobalRow).toBeVisible();
-  const compactGlobal = await readRowMetrics(compactGlobalRow, '.global-market-goods-row__artwork');
-  expectAllowedDensity(compactGlobal);
-  expect(compactGlobal.minHeight).toBe('44px');
-  expect(compactGlobal.slot).toEqual([30, 30]);
-  expect(compactGlobal.artwork).toEqual([26, 26]);
-
-  await page.goto('market-runtime-test.html?scenario=active&view=catalog');
-  const compactRegionalRow = page.getByRole('button', { name: '查看小麦详情' });
-  await expect(compactRegionalRow).toBeVisible();
-  const compactRegional = await readRowMetrics(compactRegionalRow, '.market-commodity-row__artwork');
+  const compactRegional = await readRowMetrics(regionalRow, '.market-commodity-row__artwork');
   expectAllowedDensity(compactRegional);
   expect(compactRegional.minHeight).toBe('44px');
   expect(compactRegional).toEqual(compactGlobal);
