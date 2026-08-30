@@ -1,0 +1,63 @@
+name: Refine save deletion scope
+
+on:
+  push:
+    branches:
+      - "fix/save-deletion-timeout"
+    paths:
+      - ".github/workflows/refine-save-deletion-scope.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  refine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/save-deletion-timeout
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Remove unnecessary facility migration dependency
+        run: |
+          git checkout origin/main -- server/src/facility-groups.js
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('server/src/save-deletion.js')
+          content = path.read_text(encoding='utf-8')
+          content = content.replace("import { ensurePlayerFacilityGroupState } from './facility-groups.js';\n", '')
+          content = content.replace(
+              '  ensurePlayerFacilityGroupState(world, player, now);\n  ensurePlayerResearch(world, player, now);',
+              '  player.facilityGroups = [];\n  ensurePlayerResearch(world, player, now);',
+          )
+          path.write_text(content, encoding='utf-8')
+
+          path = Path('scripts/verify-save-deletion.mjs')
+          content = path.read_text(encoding='utf-8')
+          content = content.replace("    'ensurePlayerFacilityGroupState',\n", "    'player.facilityGroups = [];',\n")
+          path.write_text(content, encoding='utf-8')
+          PY
+      - run: npm ci
+      - name: Validate refined deletion scope
+        run: |
+          node scripts/verify-save-deletion.mjs
+          node scripts/verify-runtime-efficiency.mjs
+          node scripts/verify-authoritative-hotpaths.mjs
+          node scripts/verify-market-action-latency.mjs
+          node --test server/test/save-deletion.test.js
+          node --test server/test/world-storage-v2.test.js
+          npm run typecheck
+          npm run server:check
+          git diff --check
+      - name: Commit refined source
+        run: |
+          git config user.name 'RIVERSOFT'
+          git config user.email '105160096+RIVERS0FT@users.noreply.github.com'
+          git add -A
+          git commit -m '收窄删除存档的新玩家初始化范围'
+          git push origin HEAD:fix/save-deletion-timeout
