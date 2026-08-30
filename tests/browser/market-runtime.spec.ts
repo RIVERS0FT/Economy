@@ -568,8 +568,8 @@ test('market product artwork keeps compact catalog and detail slots without stre
     };
   });
   const compactCatalog = catalogMetrics.surfaceWidth <= 620;
-  expect(catalogMetrics.slot).toEqual(compactCatalog ? [34, 34] : [42, 42]);
-  expect(catalogMetrics.artwork).toEqual(compactCatalog ? [29, 29] : [34, 34]);
+  expect(catalogMetrics.slot).toEqual(compactCatalog ? [32, 32] : [36, 36]);
+  expect(catalogMetrics.artwork).toEqual(compactCatalog ? [28, 28] : [32, 32]);
   expect(catalogMetrics.backgroundSize).toBe('contain');
 
   await wheatRow.click();
@@ -590,7 +590,7 @@ test('market product artwork keeps compact catalog and detail slots without stre
     const artwork = slot?.querySelector<HTMLElement>('.product-artwork');
     if (!slot || !artwork) throw new Error('mobile market product catalog artwork is missing');
     return [Math.round(slot.getBoundingClientRect().width), Math.round(artwork.getBoundingClientRect().width)];
-  })).toEqual([34, 29]);
+  })).toEqual([32, 28]);
   await wheatRow.click();
   await expect.poll(() => page.locator('.market-detail-hero__artwork > .product-artwork').evaluate((element) => Math.round(element.getBoundingClientRect().width))).toBe(50);
   expect(pageErrors).toEqual([]);
