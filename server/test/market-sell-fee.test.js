@@ -3,7 +3,6 @@ import test from 'node:test';
 import { applyAction, createWorld, ensurePlayer } from '../src/domain.js';
 import {
   applyFacilityGroupAction,
-  createFacilityGroupClientState,
   migrateFacilityGroupWorld,
 } from '../src/facility-groups.js';
 import {
@@ -88,35 +87,21 @@ test('商品卖单部分成交按同一卖单累计补收手续费', () => {
   assert.equal(buyer.credits, 899);
 });
 
-test('工厂卖单使用相同手续费并只向本人公开匿名金额字段', () => {
+test('工厂直售被拒绝且不会产生市场手续费', () => {
   const world = createWorld(now);
   const seller = ensurePlayer(world, bob, now);
-  const buyer = ensurePlayer(world, alice, now);
   seller.credits = 0;
   seller.facilityGroups = [group('farm', 2)];
-  buyer.credits = 1_000;
   migrateFacilityGroupWorld(world, now);
 
-  assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', {
+  const response = applyFacilityGroupAction(world, bob, 'placeOrder', {
     assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 2, price: 80,
-  }, now + 1).ok, true);
-  assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', {
-    assetKind: 'facility', assetId: 'farm', side: 'buy', quantity: 2, price: 80,
-  }, now + 2).ok, true);
+  }, now + 1);
 
-  const internal = world.orders.find((item) => item.ownerId === bob.id && item.assetKind === 'facility');
-  assert.equal(seller.credits, 158.4);
+  assert.deepEqual(response, { ok: false, message: '工厂资产仅允许通过拍卖交易' });
+  assert.equal(seller.credits, 0);
   assert.equal(seller.stats.systemSinks, 0);
-  assert.equal(seller.stats.marketServiceFees, 1.6);
-  assert.equal(internal.fills[0].total, 160);
-  assert.equal(internal.fills[0].fee, 1.6);
-  assert.equal(internal.fills[0].netTotal, 158.4);
-
-  const state = createFacilityGroupClientState(world, bob.id, now + 3);
-  const publicOrder = state.orders.find((item) => item.id === internal.id);
-  assert.equal(publicOrder.fills[0].fee, 1.6);
-  assert.equal(publicOrder.fills[0].netTotal, 158.4);
-  assert.equal('counterparty' in publicOrder.fills[0], false);
-  assert.equal('marketSellFeeGross' in publicOrder, false);
-  assert.equal('marketSellFeeCharged' in publicOrder, false);
+  assert.equal(seller.stats.marketServiceFees, 0);
+  assert.equal(seller.facilityGroups[0].count, 2);
+  assert.equal(world.orders.some((item) => item.ownerId === bob.id && item.assetKind === 'facility'), false);
 });
