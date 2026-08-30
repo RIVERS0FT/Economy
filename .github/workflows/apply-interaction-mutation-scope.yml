@@ -1,0 +1,58 @@
+name: Apply interaction mutation scope patch
+
+on:
+  push:
+    branches:
+      - fix/interaction-mutation-scopes
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.head_commit.message == 'chore: apply interaction mutation scope patch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/interaction-mutation-scopes
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply patch
+        run: |
+          python3 scripts/apply-interaction-mutation-scope-patch.py
+          rm scripts/apply-interaction-mutation-scope-patch.py
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate targeted behavior
+        run: |
+          node scripts/verify-client-response-performance.mjs
+          node scripts/verify-runtime-efficiency.mjs
+          node --test server/test/world-storage-v2.test.js
+          npm run typecheck
+          git diff --check
+
+      - name: Commit patched source
+        run: |
+          git config user.name 'RIVERSOFT'
+          git config user.email '105160096+RIVERS0FT@users.noreply.github.com'
+          git add docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
+            scripts/verify-client-response-performance.mjs \
+            scripts/verify-runtime-efficiency.mjs \
+            server/src/runtime-action-executor.js \
+            server/src/world-storage-v2.js \
+            server/test/world-storage-v2.test.js \
+            src/auto-trade/useOnlineAutoTrade.ts \
+            src/pages/BuildingsPage.tsx \
+            scripts/apply-interaction-mutation-scope-patch.py
+          git commit -m '修复剩余交互的局部事务与阻塞补拉'
+          git push origin HEAD:fix/interaction-mutation-scopes
