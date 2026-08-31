@@ -2,15 +2,17 @@ import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { currentFormulaScope } from '../components/facilities/FacilityProductionFormula';
+import {
+  FacilityProductionMethodSelect,
+  FacilityProductionProductSelect,
+} from '../components/facilities/FacilityProductionConfigControls';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
-import { AssetsIcon, ChevronIcon, CreditsIcon, CycleIcon, ProductionIcon } from '../components/icons/GameIcons';
-import { ProductArtwork } from '../components/products/ProductArtwork';
+import { ChevronIcon } from '../components/icons/GameIcons';
 import {
   EntityListHeader,
   type EntityListSortDirection,
   type EntityListSortState,
 } from '../components/ui/EntityListHeader';
-import { RichSelectInput } from '../components/ui/RichSelectInput';
 import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import { PageLayout, Panel } from '../components/ui/layout';
@@ -26,6 +28,7 @@ import {
 } from './production/ProductionFacilityDetail';
 import '../styles/global-operation-pages.css';
 import '../styles/entity-list-header.css';
+import '../styles/production-methods.css';
 
 type FacilityCatalogSortKey = 'name' | 'profit' | 'count';
 type FacilityRegionSortKey = 'name' | 'profit' | 'count' | 'status';
@@ -79,12 +82,6 @@ function facilityStatusLabel(status: 'running' | 'stopped' | 'error') {
   return '已停止';
 }
 
-function QuickProductionMethodIcon({ methodId }: { methodId: FacilityProductionMethodId }) {
-  if (methodId === 'rapid' || methodId === 'assisted') return <CycleIcon />;
-  if (methodId === 'economical' || methodId === 'intensive') return <CreditsIcon />;
-  if (methodId === 'high-yield' || methodId === 'mechanized') return <AssetsIcon />;
-  return <ProductionIcon />;
-}
 
 function requiredTechnologyIdsForMethod(method: { requiredTechnologyIds?: string[] }) {
   return Array.isArray(method.requiredTechnologyIds) ? method.requiredTechnologyIds : [];
@@ -203,6 +200,13 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
         ?? productionMethodGroup?.methods.find((method) => method.id === representativeMethodId)?.name
         ?? '标准生产',
       methodMixed: new Set(recipeStates.map(({ recipeState }) => recipeState.selectedProductionMethodId)).size > 1,
+      selectedBaseRecipeId: representativeRecipeState.selectedBaseRecipeId,
+      selectedProductionMethodId: representativeMethodId,
+      recipes: representativeRecipeState.recipes,
+      productionMethodGroup: productionMethodGroup ? {
+        ...productionMethodGroup,
+        methods: quickMethodOptions,
+      } : undefined,
       productOptions: representativeRecipeState.recipes.map((recipe) => ({
         id: recipe.id,
         name: game.products.find((product) => product.id === recipe.output.productId)?.name ?? recipe.name,
@@ -306,6 +310,8 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
           productName: currentProductName,
           methodId: recipeState.selectedProductionMethodId,
           methodName: currentMethodName,
+          recipes: recipeState.recipes,
+          productionMethodGroup,
           productOptions: recipeState.recipes.map((recipe) => ({
             id: recipe.id,
             name: game.products.find((product) => product.id === recipe.output.productId)?.name ?? recipe.name,
@@ -579,33 +585,32 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                       </button>
                       <span className="global-facility-region-row__quick-controls" aria-label={`${row.province.name}${selectedGlobalFacility.name}生产配置`}>
                         <span className="global-facility-region-row__quick-selector" data-quick-production="product">
-                          <RichSelectInput
-                            label="生产产物"
+                          <FacilityProductionProductSelect
+                            typeName={`${row.province.name}${selectedGlobalFacility.name}`}
+                            products={game.products}
+                            recipes={row.quickProduction.recipes}
+                            productionMethodGroup={row.quickProduction.productionMethodGroup}
+                            selectedBaseRecipeId={row.quickProduction.baseRecipeId}
+                            selectedProductionMethodId={row.quickProduction.methodId}
                             fieldClassName="global-facility-region-row__quick-field"
-                            variant="default"
-                            value={row.quickProduction.baseRecipeId}
-                            options={row.quickProduction.productOptions.map((option) => ({
-                              value: option.id,
-                              label: option.name,
-                            }))}
-                            disabled={row.quickProduction.productOptions.length < 2 || pendingRegionQuickKeys.has(`${row.province.id}:${selectedGlobalFacility.id}`)}
-                            aria-label={`${row.province.name}${selectedGlobalFacility.name}生产产物：${row.quickProduction.productName}`}
-                            onValueChange={(value) => void applyRegionalQuickProduction(row, 'product', value)}
+                            disabled={pendingRegionQuickKeys.has(`${row.province.id}:${selectedGlobalFacility.id}`)}
+                            ariaLabel={`${row.province.name}${selectedGlobalFacility.name}生产产物：${row.quickProduction.productName}`}
+                            onProductChange={(value) => void applyRegionalQuickProduction(row, 'product', value)}
                           />
                         </span>
                         <span className="global-facility-region-row__quick-selector" data-quick-production="method">
-                          <RichSelectInput
-                            label="作业制度"
+                          <FacilityProductionMethodSelect
+                            typeName={`${row.province.name}${selectedGlobalFacility.name}`}
+                            products={game.products}
+                            productionMethodGroup={row.quickProduction.productionMethodGroup}
+                            selectedBaseRecipeId={row.quickProduction.baseRecipeId}
+                            selectedProductionMethodId={row.quickProduction.methodId}
+                            completedTechnologyIds={game.research?.completedTechnologyIds ?? []}
+                            researchTechnologies={game.researchTechnologies ?? []}
                             fieldClassName="global-facility-region-row__quick-field"
-                            variant="default"
-                            value={row.quickProduction.methodId}
-                            options={row.quickProduction.methodOptions.map((option) => ({
-                              value: option.id,
-                              label: option.name,
-                            }))}
-                            disabled={row.quickProduction.methodOptions.length < 2 || pendingRegionQuickKeys.has(`${row.province.id}:${selectedGlobalFacility.id}`)}
-                            aria-label={`${row.province.name}${selectedGlobalFacility.name}作业制度：${row.quickProduction.methodName}`}
-                            onValueChange={(value) => void applyRegionalQuickProduction(row, 'method', value)}
+                            disabled={pendingRegionQuickKeys.has(`${row.province.id}:${selectedGlobalFacility.id}`)}
+                            ariaLabel={`${row.province.name}${selectedGlobalFacility.name}作业制度：${row.quickProduction.methodName}`}
+                            onMethodChange={(value) => void applyRegionalQuickProduction(row, 'method', value)}
                           />
                         </span>
                       </span>
@@ -677,20 +682,18 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                             data-quick-production="product"
                             data-mixed={row.quickProduction.productMixed ? 'true' : undefined}
                           >
-                            <RichSelectInput
-                              label="生产产物"
+                            <FacilityProductionProductSelect
+                              typeName={row.name}
+                              products={game.products}
+                              recipes={row.quickProduction.recipes}
+                              productionMethodGroup={row.quickProduction.productionMethodGroup}
+                              selectedBaseRecipeId={row.quickProduction.targets[0]?.baseRecipeId ?? row.quickProduction.selectedBaseRecipeId}
+                              selectedProductionMethodId={row.quickProduction.targets[0]?.methodId ?? row.quickProduction.selectedProductionMethodId}
                               fieldClassName="global-facility-catalog-row__quick-field"
-                              variant="production-config"
-                              value={row.quickProduction.targets[0]?.baseRecipeId ?? row.quickProduction.productOptions[0]?.id ?? ''}
-                              options={row.quickProduction.productOptions.map((option) => ({
-                                value: option.id,
-                                label: option.name,
-                                visual: <ProductArtwork productId={option.productId} />,
-                              }))}
                               notifyOnReselect={row.quickProduction.productMixed}
-                              disabled={row.quickProduction.productOptions.length < 2 || pendingQuickFacilityTypeIds.has(row.facilityTypeId)}
-                              aria-label={`${row.name}生产产物：${row.quickProduction.productMixed ? '各地区不同，当前显示' : ''}${row.quickProduction.productName}`}
-                              onValueChange={(value) => void applyQuickProduction(row, 'product', value)}
+                              disabled={pendingQuickFacilityTypeIds.has(row.facilityTypeId)}
+                              ariaLabel={`${row.name}生产产物：${row.quickProduction.productMixed ? '各地区不同，当前显示' : ''}${row.quickProduction.productName}`}
+                              onProductChange={(value) => void applyQuickProduction(row, 'product', value)}
                             />
                           </span>
                           <span
@@ -698,20 +701,19 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                             data-quick-production="method"
                             data-mixed={row.quickProduction.methodMixed ? 'true' : undefined}
                           >
-                            <RichSelectInput
-                              label="作业制度"
+                            <FacilityProductionMethodSelect
+                              typeName={row.name}
+                              products={game.products}
+                              productionMethodGroup={row.quickProduction.productionMethodGroup}
+                              selectedBaseRecipeId={row.quickProduction.targets[0]?.baseRecipeId ?? row.quickProduction.selectedBaseRecipeId}
+                              selectedProductionMethodId={row.quickProduction.targets[0]?.methodId ?? row.quickProduction.selectedProductionMethodId}
+                              completedTechnologyIds={game.research?.completedTechnologyIds ?? []}
+                              researchTechnologies={game.researchTechnologies ?? []}
                               fieldClassName="global-facility-catalog-row__quick-field"
-                              variant="production-config"
-                              value={row.quickProduction.targets[0]?.methodId ?? row.quickProduction.methodId}
-                              options={row.quickProduction.methodOptions.map((option) => ({
-                                value: option.id,
-                                label: option.name,
-                                visual: <QuickProductionMethodIcon methodId={option.id as FacilityProductionMethodId} />,
-                              }))}
                               notifyOnReselect={row.quickProduction.methodMixed}
-                              disabled={row.quickProduction.methodOptions.length < 2 || pendingQuickFacilityTypeIds.has(row.facilityTypeId)}
-                              aria-label={`${row.name}作业制度：${row.quickProduction.methodMixed ? '各地区不同，当前显示' : ''}${row.quickProduction.methodName}`}
-                              onValueChange={(value) => void applyQuickProduction(row, 'method', value)}
+                              disabled={pendingQuickFacilityTypeIds.has(row.facilityTypeId)}
+                              ariaLabel={`${row.name}作业制度：${row.quickProduction.methodMixed ? '各地区不同，当前显示' : ''}${row.quickProduction.methodName}`}
+                              onMethodChange={(value) => void applyQuickProduction(row, 'method', value)}
                             />
                           </span>
                         </span>
