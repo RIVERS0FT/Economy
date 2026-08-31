@@ -6,6 +6,7 @@ import { hasResearchAccessForFacility } from './research.js';
 import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 import { transferableFacilityQuantity } from './banking.js';
 import { DEFAULT_PROVINCE_ID, normalizeProvinceId, provinceScopedKey } from './provinces.js';
+import { optionalPlayerDisplayName, playerDisplayName } from './player-identity.js';
 
 export const COMMERCIAL_CONTRACT_KINDS = Object.freeze(['loan', 'facility_lease']);
 export const PLAYER_LOAN_TERMS = Object.freeze([12, 24, 72].map((hours) => hours * 60 * 60 * 1000));
@@ -118,9 +119,7 @@ function releaseLeaseEscrow(contract, lessee, lessor) {
 function commercialAliases(contract) {
   if (contract.kind === 'loan') {
     contract.buyerId = contract.borrowerId;
-    contract.buyerName = contract.borrowerName;
     contract.supplierId = contract.lenderId;
-    contract.supplierName = contract.lenderName;
     contract.productId = 'credits';
     contract.quantityPerDelivery = 0;
     contract.unitPrice = contract.principal;
@@ -134,9 +133,7 @@ function commercialAliases(contract) {
     contract.supplierAutoReserve = false;
   } else if (contract.kind === 'facility_lease') {
     contract.buyerId = contract.lesseeId;
-    contract.buyerName = contract.lesseeName;
     contract.supplierId = contract.lessorId;
-    contract.supplierName = contract.lessorName;
     contract.productId = `facility:${contract.facilityTypeId}`;
     contract.quantityPerDelivery = contract.quantity;
     contract.unitPrice = contract.rentPerPeriod;
@@ -152,6 +149,8 @@ function commercialAliases(contract) {
     contract.supplierBondCredits = contract.lessorBondCredits;
     contract.supplierReservedQuantity = contract.status === 'active' && !contract.graceEndsAt && !contract.breachedAt ? contract.quantity : 0;
   }
+  delete contract.buyerName;
+  delete contract.supplierName;
   contract.publisherRole = ['lender', 'lessor'].includes(contract.publisherSide) ? 'supplier' : 'buyer';
   contract.roundStatus = contract.breachedAt ? 'grace' : contract.graceEndsAt ? 'grace' : contract.status === 'active' ? 'ready' : 'preparing';
   return contract;
@@ -202,6 +201,13 @@ function normalizeLoan(contract) {
     marketSellFeeGross: Math.max(0, Number(contract?.marketSellFeeGross || 0)),
     marketSellFeeCharged: Math.max(0, Number(contract?.marketSellFeeCharged || 0)),
   };
+  delete normalized.publisherName;
+  delete normalized.lenderName;
+  delete normalized.borrowerName;
+  delete normalized.lessorName;
+  delete normalized.lesseeName;
+  delete normalized.buyerName;
+  delete normalized.supplierName;
   return commercialAliases(normalized);
 }
 
@@ -251,6 +257,13 @@ function normalizeLease(contract) {
     marketSellFeeGross: Math.max(0, Number(contract?.marketSellFeeGross || 0)),
     marketSellFeeCharged: Math.max(0, Number(contract?.marketSellFeeCharged || 0)),
   };
+  delete normalized.publisherName;
+  delete normalized.lenderName;
+  delete normalized.borrowerName;
+  delete normalized.lessorName;
+  delete normalized.lesseeName;
+  delete normalized.buyerName;
+  delete normalized.supplierName;
   return commercialAliases(normalized);
 }
 
@@ -275,11 +288,9 @@ export function createCommercialContract(world, user, payload, now, runtimeIndex
     if (runtimeIndex.openCountForPublisher(user.id) >= 10) return result(false, '公开合同数量已达上限');
     const contract = normalizeLoan({
       id: `player-loan-contract-${randomUUID()}`, kind: 'loan', publisherSide,
-      publisherId: Number(user.id), publisherName: publisher.playerName,
+      publisherId: Number(user.id),
       lenderId: publisherSide === 'lender' ? Number(user.id) : null,
-      lenderName: publisherSide === 'lender' ? publisher.playerName : null,
       borrowerId: publisherSide === 'borrower' ? Number(user.id) : null,
-      borrowerName: publisherSide === 'borrower' ? publisher.playerName : null,
       principal, principalOutstanding: 0, interestRateBps, interestDue: loanInterest(principal, interestRateBps),
       termMs, provinceId, facilityTypeId, collateralQuantity, autoRepay: true,
       status: 'open', createdAt: now, offerExpiresAt: now + 7 * 24 * 60 * 60 * 1000,
@@ -301,11 +312,9 @@ export function createCommercialContract(world, user, payload, now, runtimeIndex
     if (runtimeIndex.openCountForPublisher(user.id) >= 10) return result(false, '公开合同数量已达上限');
     const contract = normalizeLease({
       id: `facility-lease-contract-${randomUUID()}`, kind: 'facility_lease', publisherSide,
-      publisherId: Number(user.id), publisherName: publisher.playerName,
+      publisherId: Number(user.id),
       lessorId: publisherSide === 'lessor' ? Number(user.id) : null,
-      lessorName: publisherSide === 'lessor' ? publisher.playerName : null,
       lesseeId: publisherSide === 'lessee' ? Number(user.id) : null,
-      lesseeName: publisherSide === 'lessee' ? publisher.playerName : null,
       provinceId, facilityTypeId, quantity, rentPerPeriod, periodMs, totalPeriods, completedPeriods: 0,
       firstPeriodDelayMs, autoFund: true, status: 'open', createdAt: now,
       offerExpiresAt: now + 7 * 24 * 60 * 60 * 1000,
@@ -333,9 +342,7 @@ function acceptLoan(world, contract, user, now, runtimeIndex) {
     lender.credits = roundInternalMoney(lender.credits - contract.principal) || 0;
     borrower.credits = addMoney(borrower.credits, contract.principal) || 0;
     contract.lenderId = Number(lender.userId);
-    contract.lenderName = lender.playerName;
     contract.borrowerId = Number(borrower.userId);
-    contract.borrowerName = borrower.playerName;
     contract.principalOutstanding = contract.principal;
     contract.interestDue = loanInterest(contract.principal, contract.interestRateBps) || 0;
     contract.collateralUnitValue = unitValue;
@@ -367,9 +374,7 @@ function acceptLease(world, contract, user, now, runtimeIndex) {
     lessor.credits = roundInternalMoney(lessor.credits - bond) || 0;
     lessor.frozenCredits = addMoney(lessor.frozenCredits, bond) || 0;
     contract.lessorId = Number(lessor.userId);
-    contract.lessorName = lessor.playerName;
     contract.lesseeId = Number(lessee.userId);
-    contract.lesseeName = lessee.playerName;
     groupFor(lessee, contract.facilityTypeId, contract.provinceId, true, now);
     contract.lesseeEscrowCredits = gross;
     contract.lesseeBondCredits = bond;
@@ -682,10 +687,22 @@ export function commercialIssue(contract, userId = null) {
   return null;
 }
 
-export function publicCommercialContract(contract, userId) {
-  commercialAliases(contract);
+export function publicCommercialContract(world, contract, userId) {
+  const view = commercialAliases(structuredClone(contract));
+  view.publisherName = playerDisplayName(world, view.publisherId);
+  if (view.kind === 'loan') {
+    view.lenderName = optionalPlayerDisplayName(world, view.lenderId);
+    view.borrowerName = optionalPlayerDisplayName(world, view.borrowerId);
+    view.buyerName = view.borrowerName;
+    view.supplierName = view.lenderName;
+  } else if (view.kind === 'facility_lease') {
+    view.lessorName = optionalPlayerDisplayName(world, view.lessorId);
+    view.lesseeName = optionalPlayerDisplayName(world, view.lesseeId);
+    view.buyerName = view.lesseeName;
+    view.supplierName = view.lessorName;
+  }
   return {
-    ...structuredClone(contract),
+    ...view,
     issue: commercialIssue(contract, userId),
     isPublisher: Number(contract.publisherId) === Number(userId),
     isBuyer: Number(contract.buyerId) === Number(userId),

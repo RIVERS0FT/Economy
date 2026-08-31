@@ -29,7 +29,7 @@ interface AssetOrder {
   side: 'buy' | 'sell';
   ownerType: 'player' | 'population';
   ownerId?: number;
-  ownerName: string;
+  ownerName?: string; // 仅非玩家系统主体固定标签；玩家订单不持久化昵称
   demandGroupId?: 'food' | 'household';
   demandTier?: 'direct' | 'derived-liquidity' | 'liquidity-buy' | 'liquidity-sell' | 'liquidity-emergency-sell';
   demandCycleId?: number;
@@ -409,7 +409,7 @@ interface OrderFill {
 
 客户端通过 `isOwn` 识别本人订单，并只显示订单部分成交、全部成交、成交数量、价格、总额、手续费、实收和时间。隐藏界面列不能替代 API 脱敏。
 
-玩家订单内部的 `ownerName` 只作为订单创建时的兼容快照，不是玩家昵称权威来源，也不得作为公开身份字段。普通玩家通过正式资料路由修改昵称时只更新玩家资料行，不回写未完成订单或历史订单；撮合、资产归属、本人识别和审计关联始终以稳定 `ownerId` 为准。非显然原因是昵称回写会迫使单次资料修改重写全局 `orders` segment，而普通玩家接口已经删除 `ownerName`，这种写放大没有任何公开语义收益。
+玩家身份关系必须使用稳定数值 ID 作为唯一权威引用：普通商品订单、工厂兼容订单、玩家拍卖、供货/借贷/租赁合同等业务实体只持久化 `ownerId` / `sellerId` / `publisherId` / `buyerId` / `supplierId` / `lenderId` / `borrowerId` / `lessorId` / `lesseeId` 等关系字段，不得同时持久化 `ownerName`、`sellerName` 或参与方昵称镜像。当前昵称只允许在 API/ViewModel 投影时通过 ID 从玩家实体解析；普通公开订单仍保持匿名。订单 `fills` 也不得持久化 `counterparty` 昵称，关联继续依赖 `makerOrderId` / `takerOrderId` 与订单 `ownerId`。旧存档中的玩家 `ownerName` / `counterparty` 仅作为迁移输入读取并在规范化时移除；系统市场、人口需求、市场储备等非玩家主体的固定标签不受此限制。只有明确的不可变历史记录（例如合同追加式审计、已结算排行榜历史）确实需要保留“事件发生时显示名称”时，才允许在写入历史记录时由稳定 ID 解析并保存名称快照，并且必须同时保留稳定玩家 ID；业务实体本身不得承担该职责。服务器展示用 `trades` 日志不是权威历史记录，不得重新保存对手昵称或玩家 ID。这样玩家资料修改始终是 O(1) 玩家行更新，不会因为订单、合同或拍卖历史规模产生扇出回写。
 
 ## 市场页面布局与可用性
 

@@ -38,7 +38,7 @@ test('player avatar validator only accepts a small 64px WebP thumbnail', () => {
   assert.throws(() => validatePlayerAvatarData(dataUrl(oversized)), /过大|8 KiB/);
 });
 
-test('profile action atomically replaces the stored thumbnail and keeps order owner snapshots stable', () => {
+test('profile action atomically replaces the stored thumbnail without mutating related business entities', () => {
   const directory = mkdtempSync(join(tmpdir(), 'economy-avatar-test-'));
   const previousDirectory = process.env.ECONOMY_AVATAR_DIR;
   process.env.ECONOMY_AVATAR_DIR = directory;
@@ -48,10 +48,11 @@ test('profile action atomically replaces the stored thumbnail and keeps order ow
         7: { userId: 7, playerName: '旧玩家' },
       },
       orders: [
-        { ownerType: 'player', ownerId: 7, ownerName: '旧玩家' },
+        { ownerType: 'player', ownerId: 7 },
         { ownerType: 'population', ownerId: 7, ownerName: '居民' },
       ],
     };
+    const beforeOrders = structuredClone(world.orders);
     const avatar = vp8xWebp();
     const response = applyPlayerProfileAction(
       world,
@@ -61,8 +62,7 @@ test('profile action atomically replaces the stored thumbnail and keeps order ow
 
     assert.equal(response.ok, true);
     assert.equal(world.players[7].playerName, '新玩家');
-    assert.equal(world.orders[0].ownerName, '旧玩家');
-    assert.equal(world.orders[1].ownerName, '居民');
+    assert.deepEqual(world.orders, beforeOrders);
     assert.deepEqual(readFileSync(join(directory, '7.webp')), avatar);
   } finally {
     if (previousDirectory === undefined) delete process.env.ECONOMY_AVATAR_DIR;

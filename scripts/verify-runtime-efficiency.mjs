@@ -536,4 +536,58 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '优雅关闭必须先停止 HTTP 接收与世界调度',
 ]);
 
+
+const playerIdentitySource = read('server/src/player-identity.js');
+const orderMatchingSource = read('server/src/order-matching.js');
+const domainIdentitySource = read('server/src/domain.js');
+const facilityIdentitySource = read('server/src/facility-groups.js');
+const domainCoreIdentitySource = read('server/src/domain-core.js');
+const contractsIdentitySource = read('server/src/contracts.js');
+const commercialIdentitySource = read('server/src/commercial-contracts.js');
+const auctionsIdentitySource = read('server/src/asset-auctions.js');
+const identityDesignSource = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
+assert.match(playerIdentitySource, /world\?\.players\?\.\[String\(id\)\]\?\.playerName/,
+  'player display names should resolve centrally from stable player ids');
+assert.equal(orderMatchingSource.includes('counterparty: describeCounterparty'), false,
+  'persisted order fills must not copy mutable counterparty names');
+assert.equal(domainIdentitySource.includes('ownerName: player.playerName'), false,
+  'new commodity orders must persist ownerId rather than playerName mirrors');
+assert.equal(facilityIdentitySource.includes('ownerName: player.playerName'), false,
+  'legacy facility orders must persist ownerId rather than playerName mirrors');
+assert.equal(facilityIdentitySource.includes('renameFacilityOrders'), false,
+  'profile rename must never fan out into facility/order history');
+assert.equal(domainCoreIdentitySource.includes('ownerName: player.playerName'), false,
+  'compatibility market actions must not recreate playerName mirrors');
+assert.equal(contractsIdentitySource.includes('publisherName: publisher.playerName'), false,
+  'supply contracts must persist participant ids rather than publisher names');
+assert.match(contractsIdentitySource, /playerDisplayName\(world, contract\.publisherId\)/,
+  'supply contract DTOs should resolve current publisher names from ids');
+assert.match(commercialIdentitySource, /publicCommercialContract\(world, contract, userId\)/,
+  'commercial contract DTOs should resolve names with world plus participant ids');
+assert.equal(commercialIdentitySource.includes('publisherName: publisher.playerName'), false,
+  'commercial contracts must not persist mutable publisher names');
+assert.match(auctionsIdentitySource, /playerDisplayName\(world, auction\.sellerId/,
+  'player auction DTOs should resolve current seller name from sellerId');
+assert.equal(auctionsIdentitySource.includes('sellerName: playerName(world'), false,
+  'player auctions must not persist mutable seller names');
+assert.match(identityDesignSource, /关系必须只用稳定数值 ID 持久化/,
+  'server architecture must document stable-id player relationships');
+
+const identityBalancedMarketSource = read('server/src/balanced-market.js');
+const identitySystemMarketSource = read('server/src/system-market.js');
+const identityMarketDemandStateSource = read('server/src/market-demand/state.js');
+assert.equal(domainCoreIdentitySource.includes('player.trades ||='), false,
+  'authoritative world migration must remove rather than recreate obsolete server trades');
+assert.equal(domainCoreIdentitySource.includes('addTrade('), false,
+  'compatibility actions must not recreate presentation-only server trades');
+assert.equal(identityBalancedMarketSource.includes('addTrade('), false,
+  'commodity settlement must not recreate presentation-only server trades');
+assert.equal(identitySystemMarketSource.includes('addTrade('), false,
+  'system market settlement must not recreate presentation-only server trades');
+assert.equal(identityMarketDemandStateSource.includes('player.trades'), false,
+  'activity migration must not depend on presentation-only server trades');
+assert.match(identityDesignSource, /已结算排行榜历史/,
+  'server architecture should distinguish immutable historical name snapshots from mutable identity mirrors');
+
+
 console.log('运行时效率验证通过：自适应轮询、按到期领域调度、无变化动作不写世界、合同审计事务与缓存顺序、单一混合订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');

@@ -25,7 +25,6 @@ export function createSystemMarketRuntime({
   marketFor,
   isOpenOrder,
   recordPrice,
-  addTrade,
   addLedger,
   inventoryFor = inventoryForProvince,
   productFor,
@@ -125,11 +124,6 @@ export function createSystemMarketRuntime({
       player.stats ||= {};
       player.stats.commodityVolume = Number(player.stats.commodityVolume || 0) + quantity;
       player.stats.boughtGoods = Number(player.stats.boughtGoods || 0) + quantity;
-      addTrade(player, {
-        type: 'commodity', productId: product.id, provinceId: normalizeProvinceId(order.provinceId),
-        side: 'buy', quantity, price, total, counterparty: '系统市场',
-        createdAt, description: `买入 ${product.name}`,
-      });
       addLedger(player, 'market_trade', -total, `向系统买入 ${quantity} 个${product.name}，系统价 ${price}`, createdAt);
       market.cycleBuyQuantity = Math.max(0, Math.floor(Number(market.cycleBuyQuantity || 0))) + quantity;
       recordSystemAudit(world, market, product, { side: 'buy', quantity, total });
@@ -145,12 +139,6 @@ export function createSystemMarketRuntime({
         player.stats.marketServiceFees = Number(player.stats.marketServiceFees || 0) + sellerSettlement.fee;
         player.stats.employmentPayments = Number(player.stats.employmentPayments || 0) + sellerSettlement.fee;
       }
-      addTrade(player, {
-        type: 'commodity', productId: product.id, provinceId: normalizeProvinceId(order.provinceId),
-        side: 'sell', quantity, price, total,
-        fee: sellerSettlement.fee, netTotal: sellerSettlement.netTotal, counterparty: '系统市场',
-        createdAt, description: `卖出 ${product.name}`,
-      });
       addLedger(
         player,
         'market_trade',

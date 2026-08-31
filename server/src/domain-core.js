@@ -113,11 +113,6 @@ function addLedger(player, category, amount, description, createdAt = Date.now()
   player.ledger = player.ledger.slice(0, ECONOMY_CONSTANTS.maxLedgerPerPlayer);
 }
 
-function addTrade(player, trade) {
-  if (!Array.isArray(player.trades)) return;
-  player.trades.unshift({ id: createId('trade'), ...trade });
-  player.trades = player.trades.slice(0, ECONOMY_CONSTANTS.maxTradesPerPlayer);
-}
 
 function seedPriceHistory(product, now) {
   const offsets = [-1, 0, 1, 0, 1, 1, 0, -1, 0, 1, 0, 0, 1, -1, 0, 1, 0, 1, 0, -1, 0, 1, 0, 0];
@@ -273,7 +268,6 @@ function createPlayer(user, now) {
     frozenCredits: 0,
     inventories,
     facilities: [],
-    trades: [],
     ledger: [],
     stats: {
       populationIssued: 0,
@@ -414,11 +408,7 @@ export function migrateWorld(world, now = Date.now()) {
     for (const product of PRODUCT_CATALOG) inventoryFor(player, product.id);
     player.facilities = (player.facilities || []).map((facility) => migrateFacility(facility, player.userId));
     player.starterConstructionMaterialsGranted = true;
-    player.trades ||= [];
-    for (const trade of player.trades) {
-      if (trade.productId === 'grain') trade.productId = 'wheat';
-      if (trade.type === 'commodity') trade.productId ||= 'wheat';
-    }
+    delete player.trades;
     player.ledger ||= [];
     player.stats ||= {};
     player.stats.populationIssued = Number(player.stats.populationIssued || 0);
@@ -498,9 +488,6 @@ function sortCandidates(orders, side) {
   });
 }
 
-function describeCounterparty(order) {
-  return order.ownerName || (order.ownerType === 'population' ? '人口需求' : '玩家');
-}
 
 function appendPlayerOrderFill(order, fill) {
   if (order.ownerType !== 'player') return;
@@ -509,7 +496,7 @@ function appendPlayerOrderFill(order, fill) {
   order.fills = order.fills.slice(-120);
 }
 
-function settlePlayerBuy(world, order, quantity, tradePrice, sellerName, createdAt) {
+function settlePlayerBuy(world, order, quantity, tradePrice, createdAt) {
   const player = world.players[String(order.ownerId)];
   if (!player) throw new Error(`Missing buyer ${order.ownerId}`);
   const reserved = quantity * order.price;
@@ -520,18 +507,6 @@ function settlePlayerBuy(world, order, quantity, tradePrice, sellerName, created
   player.stats.commodityVolume += quantity;
   player.stats.boughtGoods = Number(player.stats.boughtGoods || 0) + quantity;
   const product = productDefinition(order.productId);
-  addTrade(player, {
-    type: 'commodity',
-    productId: product.id,
-    provinceId: normalizeProvinceId(order.provinceId),
-    side: 'buy',
-    quantity,
-    price: tradePrice,
-    total: actual,
-    counterparty: sellerName,
-    createdAt,
-    description: `买入 ${product.name}`,
-  });
   addLedger(player, 'market_trade', -actual, `买入 ${quantity} 个${product.name}，成交价 ${tradePrice}`, createdAt);
 }
 
@@ -547,20 +522,6 @@ function settlePlayerSell(world, order, quantity, tradePrice, buyer, settlement,
   player.stats.soldGoods = Number(player.stats.soldGoods || 0) + quantity;
   if (buyer.ownerType === 'population') player.stats.populationIssued += total;
   const product = productDefinition(order.productId);
-  addTrade(player, {
-    type: 'commodity',
-    productId: product.id,
-    provinceId: normalizeProvinceId(order.provinceId),
-    side: 'sell',
-    quantity,
-    price: tradePrice,
-    total,
-    fee: settlement.fee,
-    netTotal: settlement.netTotal,
-    counterparty: describeCounterparty(buyer),
-    createdAt,
-    description: `卖出 ${product.name}`,
-  });
   addLedger(
     player,
     buyer.ownerType === 'population' ? 'population_income' : 'market_trade',
@@ -595,16 +556,14 @@ function executeTrade(world, incoming, resting, quantity, createdAt) {
     ...fillBase,
     fee: 0,
     netTotal: fillBase.total,
-    counterparty: describeCounterparty(sell),
     liquidity: buy.id === resting.id ? 'maker' : 'taker',
   });
   appendPlayerOrderFill(sell, {
     ...fillBase,
     ...settlement,
-    counterparty: describeCounterparty(buy),
     liquidity: sell.id === resting.id ? 'maker' : 'taker',
   });
-  if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, describeCounterparty(sell), createdAt);
+  if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, createdAt);
   if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, settlement, createdAt);
   recordPrice(world, incoming.productId, price, quantity, incoming.side, createdAt, incoming.provinceId);
 }
@@ -972,7 +931,6 @@ function listFacility(world, userId, payload, now) {
     facilityId: facility.id,
     ownerType: 'player',
     ownerId: userId,
-    ownerName: player.playerName,
     price,
     createdAt: now,
     facility: facilitySnapshot(facility),
@@ -1007,16 +965,6 @@ function buyFacility(world, userId, payload, now) {
     seller.facilities = seller.facilities.filter((item) => item.id !== facility.id);
     seller.credits += listing.price;
     seller.stats.facilityVolume += listing.price;
-    addTrade(seller, {
-      type: 'facility',
-      side: 'sell',
-      quantity: 1,
-      price: listing.price,
-      total: listing.price,
-      counterparty: buyer.playerName,
-      createdAt: now,
-      description: `出售 ${facility.name}`,
-    });
     addLedger(seller, 'facility_sale', listing.price, `出售 ${facility.name}`, now);
   } else {
     facility = createFacilityFromType(listing.facility.facilityTypeId, userId, now, {
@@ -1035,16 +983,6 @@ function buyFacility(world, userId, payload, now) {
   delete facility.listedOrderId;
   delete facility.cycleStartedAt;
   buyer.facilities.push(facility);
-  addTrade(buyer, {
-    type: 'facility',
-    side: 'buy',
-    quantity: 1,
-    price: listing.price,
-    total: listing.price,
-    counterparty: listing.ownerName,
-    createdAt: now,
-    description: `收购 ${facility.name}`,
-  });
   addLedger(buyer, 'facility_trade', -listing.price, `收购 ${facility.name}`, now);
   world.facilityListings = world.facilityListings.filter((item) => item.id !== listing.id);
   return result(true, '生产设施产权已完成交割');
@@ -1079,7 +1017,6 @@ function placeOrder(world, userId, payload, now) {
     side,
     ownerType: 'player',
     ownerId: userId,
-    ownerName: player.playerName,
     price,
     quantity,
     remaining: quantity,
@@ -1116,8 +1053,6 @@ function renamePlayer(world, userId, payload) {
   const name = String(payload.playerName || '').trim().slice(0, 32);
   if (name.length < 2) return result(false, '玩家昵称至少需要 2 个字符');
   player.playerName = name;
-  for (const order of world.orders) if (order.ownerId === userId) order.ownerName = name;
-  for (const listing of world.facilityListings) if (listing.ownerId === userId) listing.ownerName = name;
   return result(true, '玩家昵称已更新');
 }
 
@@ -1200,7 +1135,6 @@ export function createClientState(world, userId, now = Date.now(), { migrate = t
     markets: clone(provinceMarkets[DEFAULT_PROVINCE_ID] || {}),
     orders: migrate ? clone(world.orders) : [],
     facilityListings: migrate ? clone(world.facilityListings) : [],
-    trades: migrate ? clone(player.trades || []) : [],
     ledger: migrate ? clone(player.ledger || []) : [],
     stats: clone(player.stats),
     leaderboard: migrate ? createLeaderboard(world, userId, now) : [],

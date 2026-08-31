@@ -288,7 +288,7 @@ test('采购与供应合同允许省略总批次形成长期合同，并在当�
   assert.ok(buyer.credits >= 0 && supplier.credits >= 0);
 });
 
-test('schema 9 迁移不会把旧 proposed 提出方隐式视为同意，旧 accepted 补齐双方确认', () => {
+test('schema 10 迁移不会把旧 proposed 提出方隐式视为同意，旧 accepted 补齐双方确认', () => {
   const { world, buyerUser, supplierUser, now } = setup();
   const base = {
     id: 'legacy-renewal', publisherId: buyerUser.id, publisherName: '采购方', publisherRole: 'buyer',
@@ -307,7 +307,7 @@ test('schema 9 迁移不会把旧 proposed 提出方隐式视为同意，旧 acc
   }];
   world.productionContractSchemaVersion = 7;
   migrateProductionContractWorld(world);
-  assert.equal(world.productionContractSchemaVersion, 9);
+  assert.equal(world.productionContractSchemaVersion, 10);
   assert.equal(world.productionContracts[0].renewalProposal.buyerApprovedAt, undefined);
   assert.equal(world.productionContracts[0].renewalProposal.supplierApprovedAt, undefined);
 

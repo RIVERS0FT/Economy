@@ -30,7 +30,7 @@ assert.equal(formatCurrency(9.996), '10.00');
 assert.equal(formatCurrency(0.000001), '<0.01');
 
 const world = {
-  players: { 1: { credits: 9.9960014, frozenCredits: 0, gems: 3.7, stats: {}, ledger: [], trades: [] } },
+  players: { 1: { credits: 9.9960014, frozenCredits: 0, gems: 3.7, stats: {}, ledger: [] } },
   orders: [], markets: {}, facilityMarkets: {}, assetAuctions: [], productionContracts: [], bank: {},
 };
 normalizeWorldMoneyPrecision(world);
@@ -87,7 +87,7 @@ assert.match(banking, /microsToInternalMoney\(fundedByPoolMicros\)/);
 assert.doesNotMatch(banking, /Math\.floor\(shareMicros \/ 10_000\) \* 10_000/);
 
 const contracts = read('server/src/contracts.js');
-assert.match(contracts, /PRODUCTION_CONTRACT_SCHEMA_VERSION = 9/);
+assert.match(contracts, /PRODUCTION_CONTRACT_SCHEMA_VERSION = 10/);
 assert.match(contracts, /multiplyMoneyByInteger\(contract\.unitPrice, contract\.quantityPerDelivery\)/);
 assert.doesNotMatch(contracts, /floorPlayerMoney/);
 

@@ -97,11 +97,6 @@ export function createBalancedMarketRuntime({ products, constants }) {
     return liquidityGroupFor(world, order)?.reserves?.[String(order?.productId || '')];
   }
 
-  function addTrade(player, trade) {
-    player.trades ||= [];
-    player.trades.unshift({ id: createId('trade'), ...trade });
-    player.trades = player.trades.slice(0, constants.maxTradesPerPlayer);
-  }
 
   function addLedger(player, category, amount, description, createdAt) {
     player.ledger ||= [];
@@ -116,9 +111,6 @@ export function createBalancedMarketRuntime({ products, constants }) {
     player.ledger = player.ledger.slice(0, constants.maxLedgerPerPlayer);
   }
 
-  function counterparty(order) {
-    return order.ownerName || (order.ownerType === 'population' ? '市场系统' : '玩家');
-  }
 
   function recordPrice(
     world,
@@ -139,7 +131,7 @@ export function createBalancedMarketRuntime({ products, constants }) {
     market.priceHistory = market.priceHistory.slice(-constants.maxPricePoints);
   }
 
-  function settlePlayerBuy(world, order, quantity, tradePrice, sellerName, createdAt) {
+  function settlePlayerBuy(world, order, quantity, tradePrice, createdAt) {
     const player = world.players?.[String(order.ownerId)];
     if (!player) throw new Error(`Missing buyer ${order.ownerId}`);
     const reserved = multiplyMoneyByInteger(order.price, quantity) || 0;
@@ -151,10 +143,6 @@ export function createBalancedMarketRuntime({ products, constants }) {
     player.stats.commodityVolume = Number(player.stats.commodityVolume || 0) + quantity;
     player.stats.boughtGoods = Number(player.stats.boughtGoods || 0) + quantity;
     const product = productFor(order.productId);
-    addTrade(player, {
-      type: 'commodity', productId: product.id, provinceId: normalizeProvinceId(order.provinceId), side: 'buy', quantity, price: tradePrice,
-      total: actual, counterparty: sellerName, createdAt, description: `买入 ${product.name}`,
-    });
     addLedger(player, 'market_trade', -actual, `买入 ${quantity} 个${product.name}，成交价 ${tradePrice}`, createdAt);
   }
 
@@ -176,11 +164,6 @@ export function createBalancedMarketRuntime({ products, constants }) {
     const consumptionIncome = isConsumptionOrder(buyer);
     if (consumptionIncome) recordPopulationSellerIncome(player, settlement.netTotal);
     const product = productFor(order.productId);
-    addTrade(player, {
-      type: 'commodity', productId: product.id, provinceId: normalizeProvinceId(order.provinceId), side: 'sell', quantity, price: tradePrice,
-      total, fee: settlement.fee, netTotal: settlement.netTotal,
-      counterparty: counterparty(buyer), createdAt, description: `卖出 ${product.name}`,
-    });
     addLedger(
       player,
       consumptionIncome ? 'population_income' : 'market_trade',
@@ -229,9 +212,8 @@ export function createBalancedMarketRuntime({ products, constants }) {
         && hasValidOwner(world, resting)
         && !(resting.ownerType === 'population' && incoming.ownerType === 'population')
       ),
-      describeCounterparty: counterparty,
       settleTrade: ({ buy, sell, quantity, price, sellerSettlement }) => {
-        if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, counterparty(sell), createdAt);
+        if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, createdAt);
         if (isConsumptionOrder(buy)) settlePopulationBuy(world, buy, quantity, price);
         if (buy.demandTier === LIQUIDITY_BUY) settleLiquidityBuy(world, buy, quantity, price);
         if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, sellerSettlement, createdAt);
@@ -289,7 +271,6 @@ export function createBalancedMarketRuntime({ products, constants }) {
     marketFor,
     isOpenOrder,
     recordPrice,
-    addTrade,
     addLedger,
     inventoryFor,
     productFor,
