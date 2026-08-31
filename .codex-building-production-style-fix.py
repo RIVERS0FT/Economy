@@ -34,12 +34,9 @@ for old, new in page_replacements:
     if old not in page_content:
         raise SystemExit(f'missing page verifier fragment: {old}')
     page_content = page_content.replace(old, new, 1)
-
 page_path.write_text(page_content, encoding='utf-8')
 
-production_path = Path('scripts/verify-production-methods.mjs')
-production_content = production_path.read_text(encoding='utf-8')
-production_replacements = [
+shared_aria_replacements = [
     (
         "  'aria-label={`${typeName}生产产物`}',",
         "  'aria-label={ariaLabel ?? `${typeName}生产产物`}',",
@@ -49,11 +46,19 @@ production_replacements = [
         "  'aria-label={ariaLabel ?? `${typeName}生产方式`}',",
     ),
 ]
-for old, new in production_replacements:
-    if old not in production_content:
-        raise SystemExit(f'missing production verifier fragment: {old}')
-    production_content = production_content.replace(old, new, 1)
-production_path.write_text(production_content, encoding='utf-8')
+for verifier in [
+    'scripts/verify-production-methods.mjs',
+    'scripts/verify-facility-groups.mjs',
+    'scripts/verify-production-settlement-layout.mjs',
+    'scripts/verify-unified-factory-recipes-grid.mjs',
+]:
+    verifier_path = Path(verifier)
+    verifier_content = verifier_path.read_text(encoding='utf-8')
+    for old, new in shared_aria_replacements:
+        if old not in verifier_content:
+            raise SystemExit(f'missing shared aria verifier fragment in {verifier}: {old}')
+        verifier_content = verifier_content.replace(old, new, 1)
+    verifier_path.write_text(verifier_content, encoding='utf-8')
 
 primary_path = Path('scripts/verify-primary-surface-insets.mjs')
 primary_content = primary_path.read_text(encoding='utf-8')
@@ -63,4 +68,4 @@ if old_message not in primary_content:
     raise SystemExit(f'missing primary verifier status text: {old_message}')
 primary_path.write_text(primary_content.replace(old_message, new_message, 1), encoding='utf-8')
 
-print('Fixed shared production selector verifier assertions and two-line status text')
+print('Fixed all shared production selector verifier assertions and two-line status text')
