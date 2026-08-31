@@ -268,8 +268,8 @@ test.describe('player page safe geometry', () => {
       for (const row of catalog.facilityRows) {
         expect(row.left).toBeGreaterThanOrEqual(catalog.facilityList.left - 1);
         expect(row.right).toBeLessThanOrEqual(catalog.facilityList.right + 1);
-        expect(row.height).toBeGreaterThanOrEqual(66);
-        expect(row.height).toBeLessThanOrEqual(80);
+        expect(row.height).toBeGreaterThanOrEqual(82);
+        expect(row.height).toBeLessThanOrEqual(98);
       }
       for (let index = 1; index < catalog.facilityRows.length; index += 1) {
         expect(catalog.facilityRows[index].top).toBeGreaterThanOrEqual(catalog.facilityRows[index - 1].bottom - 1);
@@ -278,6 +278,7 @@ test.describe('player page safe geometry', () => {
       const facilityRows = page.locator('.global-facility-catalog-row');
       await facilityRows.locator('.global-facility-catalog-row__open').first().evaluate((button: HTMLButtonElement) => button.click());
       await expect(page.locator('.global-facility-region-list')).toBeVisible();
+      await expect(page.locator('.global-facility-region-row__quick-controls').first()).toBeVisible();
 
       const regionGeometry = await readPageGeometry(page);
       expectSafePageGeometry(regionGeometry);
@@ -313,7 +314,8 @@ test.describe('player page safe geometry', () => {
       for (const row of regions.regionRows) {
         expect(row.left).toBeGreaterThanOrEqual(regions.regionList.left - 1);
         expect(row.right).toBeLessThanOrEqual(regions.regionList.right + 1);
-        expect(row.height).toBeLessThanOrEqual(58);
+        expect(row.height).toBeGreaterThanOrEqual(82);
+        expect(row.height).toBeLessThanOrEqual(98);
       }
     }
   });
