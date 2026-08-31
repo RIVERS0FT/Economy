@@ -14,11 +14,11 @@ export function optionalPlayerDisplayName(world, userId, fallback = '玩家') {
 
 export function stripMutablePlayerIdentityMirrors(world) {
   if (!world || typeof world !== 'object') return world;
-  for (const order of world.orders || []) {
+  for (const order of Array.isArray(world.orders) ? world.orders : []) {
     if (order?.ownerType === 'player') delete order.ownerName;
-    for (const fill of order?.fills || []) delete fill.counterparty;
+    for (const fill of Array.isArray(order?.fills) ? order.fills : []) delete fill.counterparty;
   }
-  for (const listing of world.facilityListings || []) {
+  for (const listing of Array.isArray(world.facilityListings) ? world.facilityListings : []) {
     if (listing?.ownerType === 'player') delete listing.ownerName;
   }
   return world;
