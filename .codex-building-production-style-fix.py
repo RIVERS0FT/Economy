@@ -54,10 +54,13 @@ for verifier in [
 ]:
     verifier_path = Path(verifier)
     verifier_content = verifier_path.read_text(encoding='utf-8')
+    replaced = 0
     for old, new in shared_aria_replacements:
-        if old not in verifier_content:
-            raise SystemExit(f'missing shared aria verifier fragment in {verifier}: {old}')
-        verifier_content = verifier_content.replace(old, new, 1)
+        if old in verifier_content:
+            verifier_content = verifier_content.replace(old, new, 1)
+            replaced += 1
+    if replaced == 0:
+        raise SystemExit(f'no shared aria verifier fragment found in {verifier}')
     verifier_path.write_text(verifier_content, encoding='utf-8')
 
 primary_path = Path('scripts/verify-primary-surface-insets.mjs')
@@ -68,4 +71,4 @@ if old_message not in primary_content:
     raise SystemExit(f'missing primary verifier status text: {old_message}')
 primary_path.write_text(primary_content.replace(old_message, new_message, 1), encoding='utf-8')
 
-print('Fixed all shared production selector verifier assertions and two-line status text')
+print('Fixed all applicable shared production selector verifier assertions and two-line status text')
