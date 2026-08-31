@@ -259,7 +259,7 @@ test('世界 15 迁移按稳定 ID 去重并优先保留 assetAuctions 记录', 
   state.assetAuctions = [current];
   migrateAssetAuctionWorld(state, 5_000);
   assert.equal(state.assetAuctions.length, 1);
-  assert.equal(state.assetAuctions[0].sellerName, '新记录');
+  assert.equal(Object.hasOwn(state.assetAuctions[0], 'sellerName'), false);
   assert.equal(state.assetAuctions[0].assetKind, 'facility');
 });
 

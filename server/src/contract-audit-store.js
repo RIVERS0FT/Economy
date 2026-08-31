@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { optionalPlayerDisplayName, playerDisplayName } from './player-identity.js';
 import { internalMoneyToMicros, microsToInternalMoney, multiplyMoneyByInteger, roundInternalMoney } from './money.js';
 import { readSegmentedWorld } from './world-storage-v2.js';
 
@@ -59,22 +60,26 @@ function batchGross(contract) {
   ) || 0;
 }
 
-function contractSnapshot(contract) {
+function contractSnapshot(world, contract) {
   if (!contract) return null;
   return {
     id: String(contract.id || ''),
     kind: ['loan', 'facility_lease'].includes(contract.kind) ? contract.kind : 'supply',
     publisherSide: String(contract.publisherSide || contract.publisherRole || 'buyer'),
     publisherId: nullableInteger(contract.publisherId),
-    publisherName: String(contract.publisherName || '玩家'),
+    publisherName: contract.publisherType === 'market_reserve'
+      ? String(contract.publisherName || contract.buyerName || '市场储备')
+      : playerDisplayName(world, contract.publisherId),
     publisherType: contract.publisherType === 'market_reserve' ? 'market_reserve' : 'player',
     fixedTerms: contract.fixedTerms === true,
     marketReserveGroupId: contract.marketReserveGroupId ? String(contract.marketReserveGroupId) : null,
     publisherRole: contract.publisherRole === 'supplier' ? 'supplier' : 'buyer',
     buyerId: nullableInteger(contract.buyerId),
-    buyerName: contract.buyerName ? String(contract.buyerName) : null,
+    buyerName: contract.publisherType === 'market_reserve'
+      ? String(contract.buyerName || contract.publisherName || '市场储备')
+      : optionalPlayerDisplayName(world, contract.buyerId),
     supplierId: nullableInteger(contract.supplierId),
-    supplierName: contract.supplierName ? String(contract.supplierName) : null,
+    supplierName: optionalPlayerDisplayName(world, contract.supplierId),
     productId: String(contract.productId || ''),
     quantityPerDelivery: Math.max(0, safeInteger(contract.quantityPerDelivery, 0)),
     unitPrice: safeMoney(contract.unitPrice, 0),
@@ -114,8 +119,8 @@ function contractSnapshot(contract) {
     renewedFromContractId: contract.renewedFromContractId ? String(contract.renewedFromContractId) : null,
     renewedToContractId: contract.renewedToContractId ? String(contract.renewedToContractId) : null,
     renewalCancellationReason: contract.renewalCancellationReason ? String(contract.renewalCancellationReason) : null,
-    lenderId: nullableInteger(contract.lenderId), lenderName: contract.lenderName ? String(contract.lenderName) : null,
-    borrowerId: nullableInteger(contract.borrowerId), borrowerName: contract.borrowerName ? String(contract.borrowerName) : null,
+    lenderId: nullableInteger(contract.lenderId), lenderName: optionalPlayerDisplayName(world, contract.lenderId),
+    borrowerId: nullableInteger(contract.borrowerId), borrowerName: optionalPlayerDisplayName(world, contract.borrowerId),
     principal: safeMoney(contract.principal, 0), principalOutstanding: safeMoney(contract.principalOutstanding, 0),
     interestRateBps: Math.max(0, safeInteger(contract.interestRateBps, 0)), interestDue: safeMoney(contract.interestDue, 0),
     termMs: Math.max(0, safeInteger(contract.termMs, 0)), dueAt: nullableInteger(contract.dueAt),
@@ -124,8 +129,8 @@ function contractSnapshot(contract) {
     collateralQuantity: Math.max(0, safeInteger(contract.collateralQuantity, 0)), collateralTransferredQuantity: Math.max(0, safeInteger(contract.collateralTransferredQuantity, 0)),
     defaultCollateralQuantity: Math.max(0, safeInteger(contract.defaultCollateralQuantity, 0)), defaultCollateralUnitValue: safeMoney(contract.defaultCollateralUnitValue, 0),
     autoRepay: contract.autoRepay !== false,
-    lessorId: nullableInteger(contract.lessorId), lessorName: contract.lessorName ? String(contract.lessorName) : null,
-    lesseeId: nullableInteger(contract.lesseeId), lesseeName: contract.lesseeName ? String(contract.lesseeName) : null,
+    lessorId: nullableInteger(contract.lessorId), lessorName: optionalPlayerDisplayName(world, contract.lessorId),
+    lesseeId: nullableInteger(contract.lesseeId), lesseeName: optionalPlayerDisplayName(world, contract.lesseeId),
     quantity: Math.max(0, safeInteger(contract.quantity, 0)), rentPerPeriod: safeMoney(contract.rentPerPeriod, 0),
     periodMs: Math.max(0, safeInteger(contract.periodMs, 0)), totalPeriods: Math.max(0, safeInteger(contract.totalPeriods, 0)), completedPeriods: Math.max(0, safeInteger(contract.completedPeriods, 0)),
     lesseeEscrowCredits: safeMoney(contract.lesseeEscrowCredits, 0), lesseeBondCredits: safeMoney(contract.lesseeBondCredits, 0), lessorBondCredits: safeMoney(contract.lessorBondCredits, 0),
@@ -275,14 +280,14 @@ function queueTransitionEvent(world, context, contract, eventType, {
   sourceKey = null,
 } = {}) {
   const normalizedContext = eventContext(context);
-  const afterSnapshot = contractSnapshot(after);
+  const afterSnapshot = contractSnapshot(world, after);
   queueEvent(world, {
     contractId: String(contract?.id || afterSnapshot?.id || before?.id || ''),
     eventType,
     ...normalizedContext,
     batchNumber: batchNumber === null ? null : Math.max(0, safeInteger(batchNumber, 0)),
     reasonCode,
-    before: contractSnapshot(before),
+    before: contractSnapshot(world, before),
     after: afterSnapshot,
     transfers: compactTransfers(transfers),
     metadata: clone(metadata) || {},
@@ -952,8 +957,8 @@ export function configureContractAuditStore(store) {
   `);
 
   store.captureContractAuditTransition = (beforeContracts, world, context = {}) => {
-    const beforeMap = new Map((beforeContracts || []).map((contract) => [String(contract.id), contractSnapshot(contract)]));
-    const afterContracts = (world.productionContracts || []).map(contractSnapshot);
+    const beforeMap = new Map((beforeContracts || []).map((contract) => [String(contract.id), contractSnapshot(world, contract)]));
+    const afterContracts = (world.productionContracts || []).map((contract) => contractSnapshot(world, contract));
     const afterMap = new Map(afterContracts.map((contract) => [contract.id, contract]));
     const incomingByBuyer = reservedIncomingByBuyer(world);
     const normalizedContext = eventContext(context);
@@ -1475,7 +1480,7 @@ const accepted = before.status === 'open' && after.status === 'active';
     }
     const contracts = Array.isArray(world.productionContracts) ? world.productionContracts : [];
     for (const contract of contracts) {
-      const snapshot = contractSnapshot(contract);
+      const snapshot = contractSnapshot(world, contract);
       if (!snapshot?.id || store.selectContractAuditSummary.get(snapshot.id)) continue;
       queueTransitionEvent(world, { triggerType: 'migration', now: Number(updatedAt || snapshot.endedAt || snapshot.completedAt || snapshot.createdAt || Date.now()) }, snapshot, 'legacy_snapshot_imported', {
         after: snapshot,

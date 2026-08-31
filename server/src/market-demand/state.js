@@ -38,12 +38,10 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
       latestOrderAt.set(ownerId, Math.max(latestOrderAt.get(ownerId) || 0, Number(order.createdAt || 0)));
     }
     for (const [playerId, player] of missingPlayers) {
-      const tradeAt = (player.trades || []).reduce((latest, item) => Math.max(latest, Number(item.createdAt || 0)), 0);
       const ledgerAt = (player.ledger || []).reduce((latest, item) => Math.max(latest, Number(item.createdAt || 0)), 0);
       const inferred = Math.max(
         Number(player.registeredAt || 0),
         latestOrderAt.get(playerId) || 0,
-        tradeAt,
         ledgerAt,
       );
       player.lastEconomicActivityAt = inferred > 0 ? inferred : now;
