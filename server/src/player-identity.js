@@ -1,4 +1,4 @@
-// Stable numeric player IDs are authoritative relations; display names are read-time projections only.
+// Stable numeric player IDs are authoritative relations; current display names are resolved only at DTO projection or immutable audit-snapshot boundaries.
 export function playerDisplayName(world, userId, fallback = '玩家') {
   const id = Number(userId);
   if (!Number.isSafeInteger(id) || id <= 0) return fallback;
