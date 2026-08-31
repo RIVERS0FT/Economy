@@ -64,6 +64,7 @@ for (const text of [
   "'server/test'",
   "'tests/browser'",
   'verifyCandidates',
+  'DOMAIN_BROWSER_BASELINES',
   'COMPOSED_VERIFY_ENTRYPOINTS',
   'verificationNeedsDependencies',
 ]) requireSelectorText(text);
@@ -99,8 +100,14 @@ if (marketPlan.browser.mode !== 'selected' || marketPlan.browser.tests.length ==
 if (hasCommand(marketPlan, 'node', ['scripts/verify-market-page-layout-regional.mjs'])) failures.push('targeted CI 不得绕过市场正式组合 verifier 执行内部地区检查');
 if (!hasCommand(marketPlan, 'node', ['scripts/verify-market-page-layout.mjs'])) failures.push('市场页面改动必须通过正式 market-page-layout 入口验证');
 
+const facilityPlan = selectCiPlan(['src/pages/GlobalBuildingsPage.tsx']);
+if (facilityPlan.mode !== 'targeted') failures.push('建筑页面改动必须使用 targeted CI');
+if (facilityPlan.browser.mode !== 'selected' || !facilityPlan.browser.tests.includes('tests/browser/all-pages-preview.spec.ts')) {
+  failures.push('建筑域 targeted CI 必须包含全页面实体列表几何回归');
+}
+
 const directRegionalMarketPlan = selectCiPlan(['scripts/verify-market-page-layout-regional.mjs']);
-if (hasCommand(directRegionalMarketPlan, 'node', ['scripts/verify-market-page-layout-regional.mjs'])) failures.push('直接修改地区市场内部 verifier 时不得绕过正式组合入口');
+if (hasCommand(directRegionalMarketPlan, 'node', ['scripts/verify-market-page-layout-regional.mjs'])) failures.push('targeted CI 不得绕过市场正式组合 verifier 执行内部地区检查');
 if (commandCount(directRegionalMarketPlan, 'node', ['scripts/verify-market-page-layout.mjs']) !== 1) failures.push('直接修改地区市场内部 verifier 时正式组合入口必须且只能执行一次');
 
 const directPageContentPlan = selectCiPlan(['scripts/verify-page-content.mjs']);
@@ -161,6 +168,7 @@ requireText("needs['browser-test'].result", '带连字符的 browser-test Job �
 
 requireDesignText('PR 与非 `main` push 默认使用改动文件选择器', '权威部署设计必须记录增量 CI');
 requireDesignText('改动文件选择规则唯一维护在 `scripts/select-ci-tests.mjs`', '权威部署设计必须保持测试选择规则的唯一入口');
+requireDesignText('建筑域的定向浏览器集合必须固定包含 `tests/browser/all-pages-preview.spec.ts`', '权威部署设计必须记录建筑跨页面几何基线');
 requireDesignText('无法分类的源码改动必须退化为完整验证', '权威部署设计必须记录未知影响范围的全量兜底');
 requireDesignText('`main` 是唯一自动无条件执行完整 `npm run build` 与完整 Playwright 的分支', '权威部署设计必须记录 main 全量门禁边界');
 requireDesignText('完整 `npm run build` 与完整 Playwright 浏览器回归必须作为并行硬门禁', '权威部署设计必须记录完整构建与浏览器回归并行硬门禁');
@@ -194,4 +202,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('PR/分支按改动选择验证；组合 verifier 保持单一正式入口且不保留旧失败兼容层；main 仍以完整 build 与四分片浏览器回归作为部署硬门禁。');
+console.log('PR/分支按改动选择验证；建筑域固定覆盖全页面实体列表几何基线；组合 verifier 保持单一正式入口且不保留旧失败兼容层；main 仍以完整 build 与四分片浏览器回归作为部署硬门禁。');
