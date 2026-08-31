@@ -4,10 +4,10 @@ from pathlib import Path
 css_path = Path('src/styles/global-operation-pages.css')
 css = css_path.read_text(encoding='utf-8')
 replacements = {
-    '  --entity-list-row-height: 76px;\n  --global-facility-catalog-artwork-size: 52px;\n  --global-facility-catalog-main-row-size: 28px;\n': '  --entity-list-row-height: 96px;\n  --global-facility-catalog-artwork-size: 52px;\n  --global-facility-catalog-main-row-size: 44px;\n',
+    '  --entity-list-row-height: 76px;\n  --global-facility-catalog-artwork-size: 52px;\n  --global-facility-catalog-main-row-size: 28px;\n': '  --entity-list-row-height: 96px;\n  --global-facility-catalog-artwork-size: 72px;\n  --global-facility-catalog-main-row-size: 44px;\n',
     '  padding-inline: var(--entity-list-inline-padding);\n  overflow: visible;': '  padding-inline: var(--entity-list-inline-padding);\n  border: 1px solid var(--color-border-subtle);\n  overflow: visible;',
-    '    --entity-list-row-height: 70px;\n    --global-facility-catalog-artwork-size: 46px;\n    --global-facility-catalog-main-row-size: 28px;\n': '    --entity-list-row-height: 88px;\n    --global-facility-catalog-artwork-size: 46px;\n    --global-facility-catalog-main-row-size: 44px;\n',
-    '    --entity-list-row-height: 68px;\n    --global-facility-catalog-artwork-size: 42px;\n    --global-facility-catalog-main-row-size: 27px;\n': '    --entity-list-row-height: 84px;\n    --global-facility-catalog-artwork-size: 42px;\n    --global-facility-catalog-main-row-size: 44px;\n',
+    '    --entity-list-row-height: 70px;\n    --global-facility-catalog-artwork-size: 46px;\n    --global-facility-catalog-main-row-size: 28px;\n': '    --entity-list-row-height: 88px;\n    --global-facility-catalog-artwork-size: 68px;\n    --global-facility-catalog-main-row-size: 44px;\n',
+    '    --entity-list-row-height: 68px;\n    --global-facility-catalog-artwork-size: 42px;\n    --global-facility-catalog-main-row-size: 27px;\n': '    --entity-list-row-height: 84px;\n    --global-facility-catalog-artwork-size: 66px;\n    --global-facility-catalog-main-row-size: 44px;\n',
 }
 for old, new in replacements.items():
     count = css.count(old)
