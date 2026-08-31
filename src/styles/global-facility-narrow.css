@@ -1,9 +1,10 @@
 /* Final geometry authority for the global facility catalog two-line row.
- * global-operation-pages.css keeps the shared business styling; this final stylesheet is
- * loaded after the shared page styles so the facility artwork is a real grid track rather
- * than an absolutely positioned overlay. It also owns the ultra-narrow carrier safety.
+ * GlobalBuildingsPage lazily loads global-operation-pages.css, so these selectors deliberately
+ * include the global-operation-page scope. Their higher specificity keeps the real artwork grid
+ * authoritative regardless of stylesheet injection order, while this file also owns the
+ * ultra-narrow carrier safety.
  */
-.global-facility-catalog {
+.global-operation-page .global-facility-catalog {
   --global-facility-layout-artwork-size: 76px;
   --global-facility-layout-artwork-track: 84px;
   --global-facility-layout-name-track: minmax(0, 1.6fr);
@@ -19,28 +20,28 @@
     var(--global-facility-layout-content-columns);
 }
 
-.global-facility-catalog-header,
-.entity-list-row.global-facility-catalog-row {
+.global-operation-page .global-facility-catalog-header,
+.global-operation-page .entity-list-row.global-facility-catalog-row {
   --entity-list-columns: var(--global-facility-layout-columns);
 }
 
-.global-facility-catalog-header > :nth-child(1) {
+.global-operation-page .global-facility-catalog-header > :nth-child(1) {
   grid-column: 1 / 3;
 }
 
-.global-facility-catalog-header > :nth-child(2) {
+.global-operation-page .global-facility-catalog-header > :nth-child(2) {
   grid-column: 3;
 }
 
-.global-facility-catalog-header > :nth-child(3) {
+.global-operation-page .global-facility-catalog-header > :nth-child(3) {
   grid-column: 4;
 }
 
-.global-facility-catalog-header > :nth-child(4) {
+.global-operation-page .global-facility-catalog-header > :nth-child(4) {
   grid-column: 5;
 }
 
-.entity-list-row.global-facility-catalog-row {
+.global-operation-page .entity-list-row.global-facility-catalog-row {
   --global-facility-catalog-artwork-size: var(--global-facility-layout-artwork-size);
   --global-facility-catalog-main-row-size: 30px;
   --global-facility-catalog-row-gap: 0px;
@@ -50,7 +51,7 @@
   row-gap: 0;
 }
 
-.global-facility-catalog-row__artwork {
+.global-operation-page .global-facility-catalog-row__artwork {
   position: static;
   z-index: auto;
   grid-column: 1;
@@ -64,7 +65,7 @@
   pointer-events: none;
 }
 
-.global-facility-catalog-row__open {
+.global-operation-page .global-facility-catalog-row__open {
   grid-column: 2 / -1;
   grid-row: 1;
   z-index: auto;
@@ -75,11 +76,11 @@
   border-radius: 0 calc(var(--radius-control) - .15rem) 0 0;
 }
 
-.global-facility-catalog-row__identity {
+.global-operation-page .global-facility-catalog-row__identity {
   padding-left: .5rem;
 }
 
-.global-facility-catalog-row__quick-controls {
+.global-operation-page .global-facility-catalog-row__quick-controls {
   grid-column: 2 / -1;
   grid-row: 2;
   z-index: auto;
@@ -92,8 +93,15 @@
   background: color-mix(in srgb, var(--color-surface-inset) 24%, transparent);
 }
 
+.global-operation-page .global-facility-catalog-row__chevron {
+  width: var(--entity-list-chevron-column);
+  min-width: var(--entity-list-chevron-column);
+  max-width: var(--entity-list-chevron-column);
+  justify-self: stretch;
+}
+
 @container (max-width: 620px) {
-  .global-facility-catalog {
+  .global-operation-page .global-facility-catalog {
     --global-facility-layout-artwork-size: 64px;
     --global-facility-layout-artwork-track: 72px;
     --global-facility-layout-name-track: minmax(0, 1.45fr);
@@ -101,18 +109,18 @@
     --global-facility-layout-count-track: minmax(2.4rem, .42fr);
   }
 
-  .global-facility-catalog-row__identity,
-  .global-facility-catalog-row__quick-controls {
+  .global-operation-page .global-facility-catalog-row__identity,
+  .global-operation-page .global-facility-catalog-row__quick-controls {
     padding-left: .32rem;
   }
 
-  .global-facility-catalog-row__quick-controls {
+  .global-operation-page .global-facility-catalog-row__quick-controls {
     gap: .25rem;
   }
 }
 
 @container (max-width: 360px) {
-  .global-facility-catalog {
+  .global-operation-page .global-facility-catalog {
     --global-facility-layout-artwork-size: 52px;
     --global-facility-layout-artwork-track: 60px;
     --global-facility-layout-name-track: minmax(0, 1.35fr);
@@ -120,12 +128,12 @@
     --global-facility-layout-count-track: minmax(2.1rem, .4fr);
   }
 
-  .global-facility-catalog-row__identity,
-  .global-facility-catalog-row__quick-controls {
+  .global-operation-page .global-facility-catalog-row__identity,
+  .global-operation-page .global-facility-catalog-row__quick-controls {
     padding-left: .24rem;
   }
 
-  .global-facility-catalog-row__quick-controls {
+  .global-operation-page .global-facility-catalog-row__quick-controls {
     gap: .18rem;
   }
 }
@@ -150,7 +158,7 @@
 }
 
 @media (max-width: 720px) {
-  .entity-list-row.global-facility-catalog-row {
+  .global-operation-page .entity-list-row.global-facility-catalog-row {
     --global-facility-catalog-main-row-size: 44px;
   }
 }
