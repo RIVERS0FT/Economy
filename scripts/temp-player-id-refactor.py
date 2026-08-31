@@ -1,0 +1,410 @@
+from pathlib import Path
+import re
+
+
+def read(path):
+    return Path(path).read_text(encoding='utf-8')
+
+
+def write(path, text):
+    Path(path).write_text(text, encoding='utf-8')
+
+
+def replace(path, old, new, count=1):
+    text = read(path)
+    actual = text.count(old)
+    if actual < count:
+        raise RuntimeError(f'{path}: expected at least {count} occurrence(s), found {actual}: {old[:120]!r}')
+    write(path, text.replace(old, new, count))
+
+
+def replace_all(path, old, new):
+    text = read(path)
+    actual = text.count(old)
+    if actual < 1:
+        raise RuntimeError(f'{path}: expected occurrence: {old[:120]!r}')
+    write(path, text.replace(old, new))
+
+
+def sub(path, pattern, replacement, count=1, flags=0):
+    text = read(path)
+    next_text, actual = re.subn(pattern, replacement, text, count=count, flags=flags)
+    if actual != count:
+        raise RuntimeError(f'{path}: expected {count} regex replacement(s), got {actual}: {pattern}')
+    write(path, next_text)
+
+
+Path('server/src/player-reference.js').write_text('''export function normalizePlayerReferenceId(value) {
+  const normalized = Number(value);
+  return Number.isSafeInteger(normalized) && normalized > 0 ? normalized : null;
+}
+
+export function playerById(world, userId) {
+  const normalized = normalizePlayerReferenceId(userId);
+  return normalized === null ? null : world?.players?.[String(normalized)] || null;
+}
+
+export function playerDisplayName(world, userId, fallback = undefined) {
+  const normalized = normalizePlayerReferenceId(userId);
+  const name = String(playerById(world, normalized)?.playerName || '').trim();
+  if (name) return name;
+  const fallbackName = fallback === undefined || fallback === null ? '' : String(fallback).trim();
+  if (fallbackName) return fallbackName;
+  return normalized === null ? '玩家' : `玩家 ${normalized}`;
+}
+''', encoding='utf-8')
+
+# Shared matcher: fills retain order IDs and never copy mutable player names.
+replace('server/src/order-matching.js', """function defaultCounterparty(order) {
+  return order?.ownerName || (order?.ownerType === 'population' ? '市场系统' : '玩家');
+}
+
+""", '')
+replace('server/src/order-matching.js', '  describeCounterparty = defaultCounterparty,\n', '')
+replace('server/src/order-matching.js', '      counterparty: describeCounterparty(sell),\n', '')
+replace('server/src/order-matching.js', '      counterparty: describeCounterparty(buy),\n', '')
+
+# Production commodity orders no longer persist the player's name.
+replace('server/src/domain.js', '    ownerName: player.playerName,\n', '')
+
+# Market settlement may render the current name in transient legacy trade text, but matcher fills stay normalized.
+replace('server/src/balanced-market.js', "import { multiplyMoneyByInteger, roundInternalMoney } from './money.js';\n", "import { multiplyMoneyByInteger, roundInternalMoney } from './money.js';\nimport { playerDisplayName } from './player-reference.js';\n")
+replace('server/src/balanced-market.js', """  function counterparty(order) {
+    return order.ownerName || (order.ownerType === 'population' ? '市场系统' : '玩家');
+  }
+""", """  function counterparty(world, order) {
+    if (order?.ownerType === 'player') return playerDisplayName(world, order.ownerId);
+    return order?.ownerName || '市场系统';
+  }
+""")
+replace('server/src/balanced-market.js', '      counterparty: counterparty(buyer),\n', '      counterparty: counterparty(world, buyer),\n')
+replace('server/src/balanced-market.js', '      describeCounterparty: counterparty,\n', '')
+replace('server/src/balanced-market.js', "if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, counterparty(sell), createdAt);", "if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, counterparty(world, sell), createdAt);")
+
+# Legacy/core path follows the same ID-only rule and can no longer backfill names across global collections.
+replace('server/src/domain-core.js', "import { createMarketSummaryStatesByProvince } from './market-state-delivery.js';\n", "import { createMarketSummaryStatesByProvince } from './market-state-delivery.js';\nimport { playerDisplayName } from './player-reference.js';\n")
+replace('server/src/domain-core.js', """function describeCounterparty(order) {
+  return order.ownerName || (order.ownerType === 'population' ? '人口需求' : '玩家');
+}
+""", """function describeCounterparty(world, order) {
+  if (order?.ownerType === 'player') return playerDisplayName(world, order.ownerId);
+  return order?.ownerName || '人口需求';
+}
+""")
+replace('server/src/domain-core.js', '    counterparty: describeCounterparty(sell),\n', '')
+replace('server/src/domain-core.js', '    counterparty: describeCounterparty(buy),\n', '')
+replace_all('server/src/domain-core.js', 'describeCounterparty(sell)', 'describeCounterparty(world, sell)')
+replace('server/src/domain-core.js', 'counterparty: describeCounterparty(buyer),', 'counterparty: describeCounterparty(world, buyer),')
+replace('server/src/domain-core.js', '    ownerName: player.playerName,\n', '', count=1)
+replace('server/src/domain-core.js', '    counterparty: listing.ownerName,\n', "    counterparty: listing.ownerType === 'player'\n      ? playerDisplayName(world, listing.ownerId)\n      : '系统资产市场',\n")
+replace('server/src/domain-core.js', '    ownerName: player.playerName,\n', '', count=1)
+replace('server/src/domain-core.js', "  for (const order of world.orders) if (order.ownerId === userId) order.ownerName = name;\n  for (const listing of world.facilityListings) if (listing.ownerId === userId) listing.ownerName = name;\n", '')
+
+# Retired facility-order compatibility code also stops introducing or synchronizing player names.
+replace('server/src/facility-groups.js', "      ownerName: String(listing.ownerName || '系统资产市场'),\n", '')
+replace('server/src/facility-groups.js', """function describeCounterparty(order) {
+  return order.ownerName || (order.ownerType === 'market' ? '系统资产市场' : '玩家');
+}
+
+""", '')
+replace('server/src/facility-groups.js', '    describeCounterparty,\n', '')
+replace('server/src/facility-groups.js', '    ownerName: player.playerName,\n', '')
+sub('server/src/facility-groups.js', r"\nfunction renameFacilityOrders\(world, userId\) \{\n  const player = getPlayer\(world, userId\);\n  for \(const order of world\.orders \|\| \[\]\) if \(order\.ownerId === userId\) order\.ownerName = player\.playerName;\n\}\n", '\n')
+replace('server/src/facility-groups.js', "  if (action === 'renamePlayer' && actionResult.ok) renameFacilityOrders(world, userId);\n", '')
+
+# Auctions persist sellerId for players; sellerName is now an output projection. Legacy names remain untouched in old rows.
+replace('server/src/asset-auctions.js', "import { queueAuctionAuditEvent } from './auction-audit-store.js';\n", "import { queueAuctionAuditEvent } from './auction-audit-store.js';\nimport { playerDisplayName } from './player-reference.js';\n")
+replace('server/src/asset-auctions.js', "function playerName(world, id, fallback = '未分配') { return player(world, id)?.playerName || fallback; }\n", '')
+replace('server/src/asset-auctions.js', "  auction.sellerName = text(auction.sellerName, 64, auction.sellerType === 'market_reserve' ? '市场储备' : `玩家 ${auction.sellerId}`);\n", "  if (auction.sellerType === 'market_reserve') auction.sellerName = text(auction.sellerName, 64, '市场储备');\n")
+replace('server/src/asset-auctions.js', "    sellerName: playerName(world, userId, `玩家 ${userId}`),\n", '')
+replace('server/src/asset-auctions.js', 'function clientAuction(auction, userId) {', 'function clientAuction(world, auction, userId) {')
+replace('server/src/asset-auctions.js', '    sellerName: auction.sellerName,', "    sellerName: auction.sellerType === 'market_reserve'\n      ? String(auction.sellerName || '市场储备')\n      : playerDisplayName(world, auction.sellerId),")
+replace_all('server/src/asset-auctions.js', '.map((auction) => clientAuction(auction, userId))', '.map((auction) => clientAuction(world, auction, userId))')
+
+# Supply contracts persist only participant IDs. Market-reserve labels remain static system labels.
+replace('server/src/contracts.js', "import { inventoryForProvince } from './provinces.js';\n", "import { inventoryForProvince } from './provinces.js';\nimport { playerDisplayName } from './player-reference.js';\n")
+replace('server/src/contracts.js', "    publisherName: String(contract?.publisherName || '玩家'),\n", '')
+replace('server/src/contracts.js', '    buyerName: contract?.buyerName ? String(contract.buyerName) : null,\n', '')
+replace('server/src/contracts.js', '    supplierName: contract?.supplierName ? String(contract.supplierName) : null,\n', '')
+replace('server/src/contracts.js', '    publisherName: proposerIsBuyer ? buyer.playerName : supplier.playerName,\n', '')
+replace('server/src/contracts.js', '    buyerName: buyer.playerName,\n', '')
+replace('server/src/contracts.js', '    supplierName: supplier.playerName,\n', '')
+replace('server/src/contracts.js', '    publisherName: publisher.playerName,\n', '')
+replace('server/src/contracts.js', "    buyerName: publisherRole === 'buyer' ? publisher.playerName : null,\n", '')
+replace('server/src/contracts.js', "    supplierName: publisherRole === 'supplier' ? publisher.playerName : null,\n", '')
+replace('server/src/contracts.js', '    contract.supplierName = supplier.playerName;\n', '')
+replace('server/src/contracts.js', '    contract.buyerName = buyer.playerName;\n', '')
+replace('server/src/contracts.js', '    contract.supplierName = supplier.playerName;\n', '')
+replace('server/src/contracts.js', "function publicContract(world, contract, userId, runtimeIndex) {\n  if (contract.kind !== 'supply') return publicCommercialContract(contract, userId);", "function publicContract(world, contract, userId, runtimeIndex) {\n  if (contract.kind !== 'supply') return publicCommercialContract(world, contract, userId);")
+replace('server/src/contracts.js', '    publisherName: contract.publisherName,\n', "    publisherName: contract.publisherType === 'market_reserve'\n      ? String(contract.publisherName || '市场储备')\n      : playerDisplayName(world, contract.publisherId),\n")
+replace('server/src/contracts.js', '    buyerName: contract.buyerName,\n', "    buyerName: contract.buyerId === null || contract.buyerId === undefined\n      ? null\n      : contract.publisherType === 'market_reserve' && Number(contract.buyerId) === 0\n        ? String(contract.buyerName || contract.publisherName || '市场储备')\n        : playerDisplayName(world, contract.buyerId),\n")
+replace('server/src/contracts.js', '    supplierName: contract.supplierName,\n', "    supplierName: contract.supplierId === null || contract.supplierId === undefined\n      ? null\n      : playerDisplayName(world, contract.supplierId),\n")
+
+# Commercial loans and leases follow the same rule; aliases contain IDs only and names are projected on output.
+replace('server/src/commercial-contracts.js', "import { DEFAULT_PROVINCE_ID, normalizeProvinceId, provinceScopedKey } from './provinces.js';\n", "import { DEFAULT_PROVINCE_ID, normalizeProvinceId, provinceScopedKey } from './provinces.js';\nimport { playerDisplayName } from './player-reference.js';\n")
+for line in [
+    '    contract.buyerName = contract.borrowerName;\n',
+    '    contract.supplierName = contract.lenderName;\n',
+    '    contract.buyerName = contract.lesseeName;\n',
+    '    contract.supplierName = contract.lessorName;\n',
+    "    publisherName: String(contract?.publisherName || '玩家'),\n",
+    '    lenderName: contract?.lenderName ? String(contract.lenderName) : null,\n',
+    '    borrowerName: contract?.borrowerName ? String(contract.borrowerName) : null,\n',
+    '    lessorName: contract?.lessorName ? String(contract.lessorName) : null,\n',
+    '    lesseeName: contract?.lesseeName ? String(contract.lesseeName) : null,\n',
+    '      publisherId: Number(user.id), publisherName: publisher.playerName,\n',
+    "      lenderName: publisherSide === 'lender' ? publisher.playerName : null,\n",
+    "      borrowerName: publisherSide === 'borrower' ? publisher.playerName : null,\n",
+    "      lessorName: publisherSide === 'lessor' ? publisher.playerName : null,\n",
+    "      lesseeName: publisherSide === 'lessee' ? publisher.playerName : null,\n",
+    '    contract.lenderName = lender.playerName;\n',
+    '    contract.borrowerName = borrower.playerName;\n',
+    '    contract.lessorName = lessor.playerName;\n',
+    '    contract.lesseeName = lessee.playerName;\n',
+]:
+    replace('server/src/commercial-contracts.js', line, '')
+replace('server/src/commercial-contracts.js', "      id: `player-loan-contract-${randomUUID()}`, kind: 'loan', publisherSide,\n", "      id: `player-loan-contract-${randomUUID()}`, kind: 'loan', publisherSide,\n      publisherId: Number(user.id),\n")
+replace('server/src/commercial-contracts.js', "      id: `facility-lease-contract-${randomUUID()}`, kind: 'facility_lease', publisherSide,\n", "      id: `facility-lease-contract-${randomUUID()}`, kind: 'facility_lease', publisherSide,\n      publisherId: Number(user.id),\n")
+replace('server/src/commercial-contracts.js', """export function publicCommercialContract(contract, userId) {
+  commercialAliases(contract);
+  return {
+    ...structuredClone(contract),
+    issue: commercialIssue(contract, userId),
+    isPublisher: Number(contract.publisherId) === Number(userId),
+    isBuyer: Number(contract.buyerId) === Number(userId),
+    isSupplier: Number(contract.supplierId) === Number(userId),
+    isLender: Number(contract.lenderId) === Number(userId),
+    isBorrower: Number(contract.borrowerId) === Number(userId),
+    isLessor: Number(contract.lessorId) === Number(userId),
+    isLessee: Number(contract.lesseeId) === Number(userId),
+    isParticipant: [contract.buyerId, contract.supplierId].some((id) => Number(id) === Number(userId)),
+  };
+}
+""", """export function publicCommercialContract(world, contract, userId) {
+  commercialAliases(contract);
+  const publisherName = playerDisplayName(world, contract.publisherId);
+  const lenderName = contract.lenderId === null || contract.lenderId === undefined ? null : playerDisplayName(world, contract.lenderId);
+  const borrowerName = contract.borrowerId === null || contract.borrowerId === undefined ? null : playerDisplayName(world, contract.borrowerId);
+  const lessorName = contract.lessorId === null || contract.lessorId === undefined ? null : playerDisplayName(world, contract.lessorId);
+  const lesseeName = contract.lesseeId === null || contract.lesseeId === undefined ? null : playerDisplayName(world, contract.lesseeId);
+  return {
+    ...structuredClone(contract),
+    publisherName,
+    lenderName,
+    borrowerName,
+    lessorName,
+    lesseeName,
+    buyerName: contract.kind === 'loan' ? borrowerName : lesseeName,
+    supplierName: contract.kind === 'loan' ? lenderName : lessorName,
+    issue: commercialIssue(contract, userId),
+    isPublisher: Number(contract.publisherId) === Number(userId),
+    isBuyer: Number(contract.buyerId) === Number(userId),
+    isSupplier: Number(contract.supplierId) === Number(userId),
+    isLender: Number(contract.lenderId) === Number(userId),
+    isBorrower: Number(contract.borrowerId) === Number(userId),
+    isLessor: Number(contract.lessorId) === Number(userId),
+    isLessee: Number(contract.lesseeId) === Number(userId),
+    isParticipant: [contract.buyerId, contract.supplierId].some((id) => Number(id) === Number(userId)),
+  };
+}
+""")
+
+# Contract audit is the explicit historical-snapshot exception: snapshot names are resolved from IDs at event time.
+replace('server/src/contract-audit-store.js', "import { readSegmentedWorld } from './world-storage-v2.js';\n", "import { readSegmentedWorld } from './world-storage-v2.js';\nimport { playerDisplayName } from './player-reference.js';\n")
+replace('server/src/contract-audit-store.js', 'function contractSnapshot(contract) {', 'function contractSnapshot(contract, world = null) {')
+replace('server/src/contract-audit-store.js', "    publisherName: String(contract.publisherName || '玩家'),", "    publisherName: contract.publisherType === 'market_reserve'\n      ? String(contract.publisherName || '市场储备')\n      : playerDisplayName(world, contract.publisherId, contract.publisherName),")
+replace('server/src/contract-audit-store.js', "    buyerName: contract.buyerName ? String(contract.buyerName) : null,", "    buyerName: contract.buyerId === null || contract.buyerId === undefined\n      ? null\n      : contract.publisherType === 'market_reserve' && Number(contract.buyerId) === 0\n        ? String(contract.buyerName || contract.publisherName || '市场储备')\n        : playerDisplayName(world, contract.buyerId, contract.buyerName),")
+replace('server/src/contract-audit-store.js', "    supplierName: contract.supplierName ? String(contract.supplierName) : null,", "    supplierName: contract.supplierId === null || contract.supplierId === undefined\n      ? null\n      : playerDisplayName(world, contract.supplierId, contract.supplierName),")
+replace('server/src/contract-audit-store.js', "    lenderId: nullableInteger(contract.lenderId), lenderName: contract.lenderName ? String(contract.lenderName) : null,", "    lenderId: nullableInteger(contract.lenderId), lenderName: contract.lenderId == null ? null : playerDisplayName(world, contract.lenderId, contract.lenderName),")
+replace('server/src/contract-audit-store.js', "    borrowerId: nullableInteger(contract.borrowerId), borrowerName: contract.borrowerName ? String(contract.borrowerName) : null,", "    borrowerId: nullableInteger(contract.borrowerId), borrowerName: contract.borrowerId == null ? null : playerDisplayName(world, contract.borrowerId, contract.borrowerName),")
+replace('server/src/contract-audit-store.js', "    lessorId: nullableInteger(contract.lessorId), lessorName: contract.lessorName ? String(contract.lessorName) : null,", "    lessorId: nullableInteger(contract.lessorId), lessorName: contract.lessorId == null ? null : playerDisplayName(world, contract.lessorId, contract.lessorName),")
+replace('server/src/contract-audit-store.js', "    lesseeId: nullableInteger(contract.lesseeId), lesseeName: contract.lesseeName ? String(contract.lesseeName) : null,", "    lesseeId: nullableInteger(contract.lesseeId), lesseeName: contract.lesseeId == null ? null : playerDisplayName(world, contract.lesseeId, contract.lesseeName),")
+replace('server/src/contract-audit-store.js', '  const afterSnapshot = contractSnapshot(after);', '  const afterSnapshot = contractSnapshot(after, world);')
+replace('server/src/contract-audit-store.js', '    before: contractSnapshot(before),', '    before: contractSnapshot(before, world),')
+replace('server/src/contract-audit-store.js', 'const beforeMap = new Map((beforeContracts || []).map((contract) => [String(contract.id), contractSnapshot(contract)]));', 'const beforeMap = new Map((beforeContracts || []).map((contract) => [String(contract.id), contractSnapshot(contract, world)]));')
+replace('server/src/contract-audit-store.js', 'const afterContracts = (world.productionContracts || []).map(contractSnapshot);', 'const afterContracts = (world.productionContracts || []).map((contract) => contractSnapshot(contract, world));')
+replace('server/src/contract-audit-store.js', '      const snapshot = contractSnapshot(contract);', '      const snapshot = contractSnapshot(contract, world);')
+
+# Design: player names are authoritative only on the player entity; live relations are stable IDs.
+replace('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '  ownerName: string;\n', '  ownerName?: string; // 仅系统订单静态标签与旧数据读取兼容；新玩家订单禁止写入\n')
+old_order_rule = "玩家订单内部的 `ownerName` 只作为订单创建时的兼容快照，不是玩家昵称权威来源，也不得作为公开身份字段。普通玩家通过正式资料路由修改昵称时只更新玩家资料行，不回写未完成订单或历史订单；撮合、资产归属、本人识别和审计关联始终以稳定 `ownerId` 为准。非显然原因是昵称回写会迫使单次资料修改重写全局 `orders` segment，而普通玩家接口已经删除 `ownerName`，这种写放大没有任何公开语义收益。"
+new_order_rule = "玩家订单的实时业务关系只允许保存稳定 `ownerId`，新建玩家订单不得再写入 `ownerName`；逐笔 fill 同样不得复制对手玩家昵称，订单关系通过 `makerOrderId` / `takerOrderId` 回到订单，再以 `ownerId` 关联玩家。`ownerName` 只允许作为人口需求、市场储备等非玩家系统主体的静态兼容标签，旧玩家订单中已经存在的 `ownerName` 只读兼容并在业务判断、公开输出和当前昵称展示中忽略，不做全量历史清理或改名回写。需要展示当前玩家昵称时必须在 API / Client State 投影阶段按 `ownerId` 从玩家实体解析；撮合、资产归属、本人识别和审计关联始终以稳定 ID 为准。非显然原因是可变昵称复制到订单或 fill 会制造一致性责任和随历史规模增长的写放大，而直接迁移清理全部旧记录会再次造成同类全局重写。"
+replace('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', old_order_rule, new_order_rule)
+
+server_doc = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md'
+old_server = "正式玩家资料路由的昵称和头像修改只复制当前玩家与必要核心域，不得复制或重写 `orders`、`facilityListings` 等世界公共 segment；昵称权威值只保存在玩家行，订单内兼容 `ownerName` 不随正式资料改名回写。头像文件写入同样不得要求复制世界公共 segment。非显然原因是普通玩家订单与订单历史已经匿名化，订单身份由稳定 `ownerId` 决定；为改一个昵称回写历史订单会把 O(1) profile 动作放大成全局订单 segment 序列化与持久化。"
+new_server = "正式玩家资料路由的昵称和头像修改只复制当前玩家与必要核心域，不得复制或重写 `orders`、`facilityListings` 等世界公共 segment。可变玩家身份字段（当前昵称、头像及后续同类资料）只能以玩家实体／玩家行作为权威来源；订单、拍卖、供货合同、玩家借贷和工厂租赁等实时业务实体必须用稳定玩家 ID 表示所有者与参与者，新写入不得复制玩家昵称。客户端仍可保留 `sellerName`、`publisherName`、`buyerName` 等展示字段，但只能在 API / Client State 投影时按 ID 解析当前玩家资料，不能反向成为权限、归属或结算依据。旧世界记录已经存在的重复名称只读兼容并忽略，不为了清理字段执行全量历史迁移，也不得在改名时回写。追加式合同／拍卖审计如果确实需要保留事件发生时的文字证据，可以在审计快照中显式保存当时名称；该快照是不可变历史证据，不属于实时关系，也不得参与业务判断。头像文件写入同样不得要求复制世界公共 segment。非显然原因是任何把可变昵称复制进随历史增长的业务集合都会重新引入同步责任与 O(历史规模) 写放大；直接全量清理旧字段也会制造同样的问题，因此迁移采用“旧字段忽略、新写入禁止、输出按 ID 解析”的渐进收敛。"
+replace(server_doc, old_server, new_server)
+
+# Regression guard lives with the existing runtime-efficiency verifier because duplicated mutable names cause write amplification.
+verifier = 'scripts/verify-runtime-efficiency.mjs'
+marker = "assert.equal(profileScopeSource.includes(\"'orders'\"), false, '资料修改 Mutation Scope 不得声明 orders segment');\n"
+addition = marker + """const playerReferenceSource = read('server/src/player-reference.js');
+requireText('server/src/player-reference.js', [
+  'normalizePlayerReferenceId',
+  'playerById',
+  'playerDisplayName',
+]);
+for (const path of ['server/src/domain.js', 'server/src/domain-core.js', 'server/src/facility-groups.js']) {
+  assert.equal(read(path).includes('ownerName: player.playerName'), false, `${path} 新玩家订单/挂牌不得复制玩家昵称`);
+}
+assert.equal(read('server/src/domain-core.js').includes('order.ownerName = name'), false, '兼容改名路径不得回写订单昵称');
+assert.equal(read('server/src/domain-core.js').includes('listing.ownerName = name'), false, '兼容改名路径不得回写挂牌昵称');
+assert.equal(read('server/src/facility-groups.js').includes('renameFacilityOrders'), false, '工厂兼容层不得保留改名扫描器');
+assert.equal(read('server/src/order-matching.js').includes('counterparty: describeCounterparty'), false, '订单 fill 不得复制对手昵称');
+assert.equal(read('server/src/asset-auctions.js').includes('sellerName: playerName(world'), false, '玩家拍卖持久化不得复制卖方昵称');
+for (const path of ['server/src/contracts.js', 'server/src/commercial-contracts.js']) {
+  const source = read(path);
+  assert.doesNotMatch(source, /contract\.(?:publisherName|buyerName|supplierName|lenderName|borrowerName|lessorName|lesseeName)\s*=\s*[^;]*\.playerName/, `${path} 合同关系不得同步复制玩家昵称`);
+}
+assert.ok(read('server/src/contract-audit-store.js').includes('playerDisplayName'), '合同审计快照必须在事件写入时按玩家 ID 解析名称');
+assert.ok(read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md').includes('实时业务实体必须用稳定玩家 ID'), '服务器设计必须锁定稳定玩家 ID 关系规则');
+assert.ok(read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md').includes('新建玩家订单不得再写入 `ownerName`'), '订单设计必须锁定 ID-only 玩家关系规则');
+void playerReferenceSource;
+"""
+replace(verifier, marker, addition)
+
+replace('server/test/player-profile.test.js', "test('profile action atomically replaces the stored thumbnail and keeps order owner snapshots stable', () => {", "test('profile action atomically replaces the stored thumbnail without rewriting legacy duplicated order names', () => {")
+
+Path('server/test/player-id-reference.test.js').write_text('''import assert from 'node:assert/strict';
+import test from 'node:test';
+import { applyAction, createWorld, ensurePlayer, FACILITY_TYPE_CATALOG } from '../src/domain.js';
+import { applyAssetAuctionAction, createAssetAuctionClientState } from '../src/asset-auctions.js';
+import { applyProductionContractAction, createProductionContractClientState } from '../src/contracts.js';
+import { normalizeCommercialContract, publicCommercialContract } from '../src/commercial-contracts.js';
+import { matchIncomingOrder } from '../src/order-matching.js';
+
+function addPlayer(world, id, name, now = 1_000) {
+  const account = ensurePlayer(world, { id, name }, now);
+  account.playerName = name;
+  account.credits = 100_000;
+  account.frozenCredits = 0;
+  return account;
+}
+
+function bareOrder({ id, side, ownerId, price, createdAt }) {
+  return {
+    id,
+    assetKind: 'commodity',
+    assetId: 'wheat',
+    productId: 'wheat',
+    provinceId: '110000',
+    side,
+    ownerType: 'player',
+    ownerId,
+    price,
+    quantity: 1,
+    remaining: 1,
+    status: 'open',
+    createdAt,
+    fills: [],
+  };
+}
+
+test('player orders persist ownerId only and matcher fills do not snapshot counterparty names', () => {
+  const state = createWorld(1_000);
+  addPlayer(state, 1, '甲');
+  const response = applyAction(state, { id: 1 }, 'placeOrder', {
+    assetKind: 'commodity', productId: 'wheat', side: 'buy', quantity: 1, price: 0.01,
+  }, 2_000, { migrate: false, process: false });
+  assert.equal(response.ok, true);
+  const stored = state.orders.find((order) => order.ownerType === 'player' && Number(order.ownerId) === 1);
+  assert.ok(stored);
+  assert.equal(Object.hasOwn(stored, 'ownerName'), false);
+
+  const sell = bareOrder({ id: 'sell', side: 'sell', ownerId: 2, price: 10, createdAt: 1 });
+  const buy = bareOrder({ id: 'buy', side: 'buy', ownerId: 1, price: 10, createdAt: 2 });
+  const matchWorld = { orders: [sell, buy] };
+  matchIncomingOrder({ world: matchWorld, incoming: buy, createdAt: 3, settleTrade: () => {} });
+  assert.equal(Object.hasOwn(buy.fills[0], 'counterparty'), false);
+  assert.equal(Object.hasOwn(sell.fills[0], 'counterparty'), false);
+  assert.equal(buy.fills[0].makerOrderId, sell.id);
+  assert.equal(buy.fills[0].takerOrderId, buy.id);
+});
+
+test('player auction stores sellerId and resolves the current seller name only in client projection', () => {
+  const state = createWorld(1_000);
+  const seller = addPlayer(state, 1, '旧卖家');
+  addPlayer(state, 2, '买家');
+  seller.inventories.wheat.available = 5;
+  const created = applyAssetAuctionAction(state, { id: 1 }, 'createAuction', {
+    assetKind: 'commodity', assetId: 'wheat', quantity: 2, startingBid: 10, durationHours: 1,
+  }, 2_000);
+  assert.equal(created.ok, true);
+  const auction = state.assetAuctions.at(-1);
+  assert.equal(auction.sellerId, 1);
+  assert.equal(Object.hasOwn(auction, 'sellerName'), false);
+  assert.equal(createAssetAuctionClientState(state, 2, 2_100).assetAuctions.find((item) => item.id === auction.id).sellerName, '旧卖家');
+
+  auction.sellerName = '旧兼容快照';
+  seller.playerName = '新卖家';
+  assert.equal(createAssetAuctionClientState(state, 2, 2_200).assetAuctions.find((item) => item.id === auction.id).sellerName, '新卖家');
+  assert.equal(auction.sellerName, '旧兼容快照', '旧字段只读兼容，不通过投影或改名回写');
+});
+
+test('supply contract stores participant IDs while client names follow the current player profile', () => {
+  const state = createWorld(1_000);
+  const publisher = addPlayer(state, 1, '旧采购方');
+  addPlayer(state, 2, '供应方');
+  const created = applyProductionContractAction(state, { id: 1 }, 'createProductionContract', {
+    kind: 'supply', publisherRole: 'buyer', productId: 'wheat', quantityPerDelivery: 1,
+    unitPrice: 10, deliveryIntervalMs: 10 * 60 * 1000, totalDeliveries: 2, firstDeliveryDelayMs: 0,
+  }, 2_000);
+  assert.equal(created.ok, true);
+  const contract = state.productionContracts.at(-1);
+  assert.equal(contract.publisherId, 1);
+  assert.equal(contract.buyerId, 1);
+  assert.equal(Object.hasOwn(contract, 'publisherName'), false);
+  assert.equal(Object.hasOwn(contract, 'buyerName'), false);
+  assert.equal(Object.hasOwn(contract, 'supplierName'), false);
+  let view = createProductionContractClientState(state, 2, 2_100).productionContracts.find((item) => item.id === contract.id);
+  assert.equal(view.publisherName, '旧采购方');
+  assert.equal(view.buyerName, '旧采购方');
+
+  contract.publisherName = '旧合同快照';
+  contract.buyerName = '旧合同快照';
+  publisher.playerName = '新采购方';
+  view = createProductionContractClientState(state, 2, 2_200).productionContracts.find((item) => item.id === contract.id);
+  assert.equal(view.publisherName, '新采购方');
+  assert.equal(view.buyerName, '新采购方');
+  assert.equal(contract.publisherName, '旧合同快照');
+});
+
+test('commercial contract projection derives mutable names from stable participant IDs', () => {
+  const state = createWorld(1_000);
+  const borrower = addPlayer(state, 1, '旧借款方');
+  addPlayer(state, 2, '出借方');
+  const facility = FACILITY_TYPE_CATALOG[0];
+  const contract = normalizeCommercialContract({
+    id: 'loan-1', kind: 'loan', publisherSide: 'borrower', publisherId: 1,
+    borrowerId: 1, lenderId: 2, principal: 10, interestRateBps: 500,
+    termMs: 24 * 60 * 60 * 1000, facilityTypeId: facility.id, collateralQuantity: 1,
+    status: 'active', createdAt: 1_000, acceptedAt: 1_100, dueAt: 2_000,
+  });
+  assert.equal(Object.hasOwn(contract, 'publisherName'), false);
+  assert.equal(Object.hasOwn(contract, 'borrowerName'), false);
+  assert.equal(Object.hasOwn(contract, 'lenderName'), false);
+  let view = publicCommercialContract(state, contract, 1);
+  assert.equal(view.publisherName, '旧借款方');
+  assert.equal(view.borrowerName, '旧借款方');
+  assert.equal(view.lenderName, '出借方');
+
+  contract.publisherName = '旧合同名称';
+  contract.borrowerName = '旧合同名称';
+  borrower.playerName = '新借款方';
+  view = publicCommercialContract(state, contract, 1);
+  assert.equal(view.publisherName, '新借款方');
+  assert.equal(view.borrowerName, '新借款方');
+});
+''', encoding='utf-8')
+
+for path in [
+    'server/src/domain.js', 'server/src/domain-core.js', 'server/src/order-matching.js',
+    'server/src/balanced-market.js', 'server/src/facility-groups.js', 'server/src/asset-auctions.js',
+    'server/src/contracts.js', 'server/src/commercial-contracts.js', 'server/src/contract-audit-store.js',
+    'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+    'scripts/verify-runtime-efficiency.mjs', 'server/test/player-profile.test.js',
+]:
+    text = Path(path).read_text(encoding='utf-8')
+    if not text.endswith('\n'):
+        Path(path).write_text(text + '\n', encoding='utf-8')
