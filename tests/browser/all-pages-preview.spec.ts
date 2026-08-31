@@ -116,7 +116,7 @@ test('global market drills from commodity to regional quotes and existing trade 
   await expect(page.locator('.global-market-product-region-list')).toBeVisible();
 });
 
-test('market and building entity lists share surface geometry with commodity density exception', async ({ page }) => {
+test('market and building entity lists share surface geometry with registered density exceptions', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('?preview=game');
   const sidebar = page.locator('.desktop-sidebar');
@@ -212,8 +212,8 @@ test('market and building entity lists share surface geometry with commodity den
                 <span class="global-facility-region-row__chevron"><svg class="game-icon"></svg></span>
               </button>
               <span class="global-facility-region-row__quick-controls">
-                <span class="global-facility-region-row__quick-selector" data-quick-production="product"><span class="ui-rich-select"><button class="ui-rich-select__trigger" type="button"><span class="ui-rich-select__value">测试产物</span><span class="ui-rich-select__chevron"></span></button></span></span>
-                <span class="global-facility-region-row__quick-selector" data-quick-production="method"><span class="ui-rich-select"><button class="ui-rich-select__trigger" type="button"><span class="ui-rich-select__value">测试制度</span><span class="ui-rich-select__chevron"></span></button></span></span>
+                <span class="global-facility-region-row__quick-selector" data-quick-production="product"><span class="ui-rich-select" data-variant="production-config"><button class="ui-rich-select__trigger" type="button"><span class="ui-rich-select__visual"><span class="product-artwork"></span></span></button></span></span>
+                <span class="global-facility-region-row__quick-selector" data-quick-production="method"><span class="ui-rich-select" data-variant="production-config"><button class="ui-rich-select__trigger" type="button"><span class="ui-rich-select__visual"><svg class="game-icon"></svg></span></button></span></span>
               </span>
             </div>
           </li>
@@ -231,12 +231,11 @@ test('market and building entity lists share surface geometry with commodity den
 
   const samples = [...marketSamples, ...facilitySamples];
   const densityKeys = new Set<keyof typeof samples[number]>(['paddingTop', 'paddingBottom']);
-  expect(facilitySamples[0].paddingTop).toBe(facilitySamples[0].paddingRight);
-  expect(facilitySamples[0].paddingTop).toBe(facilitySamples[0].paddingBottom);
-  expect(facilitySamples[0].paddingTop).toBe(facilitySamples[0].paddingLeft);
-  expect(facilitySamples[1].paddingTop).toBe(facilitySamples[1].paddingRight);
-  expect(facilitySamples[1].paddingTop).toBe(facilitySamples[1].paddingBottom);
-  expect(facilitySamples[1].paddingTop).toBe(facilitySamples[1].paddingLeft);
+  for (const sample of facilitySamples) {
+    expect(sample.paddingTop).toBe(sample.paddingBottom);
+    expect(sample.paddingLeft).toBe(sample.paddingRight);
+    expect(parseFloat(sample.paddingTop)).toBeLessThan(parseFloat(sample.paddingRight));
+  }
   for (const key of Object.keys(samples[0]) as Array<keyof typeof samples[number]>) {
     if (key === 'minHeight') {
       expect(new Set(marketSamples.map((sample) => String(sample[key]))).size, 'minHeight should match inside commodity lists').toBe(1);
