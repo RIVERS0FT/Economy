@@ -11,3 +11,15 @@ export function optionalPlayerDisplayName(world, userId, fallback = '玩家') {
   if (!Number.isSafeInteger(id) || id <= 0) return null;
   return playerDisplayName(world, id, fallback);
 }
+
+export function stripMutablePlayerIdentityMirrors(world) {
+  if (!world || typeof world !== 'object') return world;
+  for (const order of world.orders || []) {
+    if (order?.ownerType === 'player') delete order.ownerName;
+    for (const fill of order?.fills || []) delete fill.counterparty;
+  }
+  for (const listing of world.facilityListings || []) {
+    if (listing?.ownerType === 'player') delete listing.ownerName;
+  }
+  return world;
+}
