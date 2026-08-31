@@ -28,6 +28,7 @@ jobs:
           python .codex-global-building-row-fix-verifier.py
           python .codex-global-building-row-fix-padding.py
           python .codex-global-building-row-fix-geometry.py
+          python .codex-global-building-region-two-line.py
       - name: Install dependencies
         run: npm ci
       - name: Plan validation
@@ -60,11 +61,12 @@ jobs:
           rm .codex-global-building-row-fix-verifier.py
           rm .codex-global-building-row-fix-padding.py
           rm .codex-global-building-row-fix-geometry.py
+          rm .codex-global-building-region-two-line.py
           rm .github/workflows/codex-global-building-row-fix.yml
           git diff --check
           git status --short
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "修复建筑条目交互与生产下拉"
+          git commit -m "修复建筑条目交互与地区生产下拉"
           git push origin HEAD:fix/global-building-row-interactions
