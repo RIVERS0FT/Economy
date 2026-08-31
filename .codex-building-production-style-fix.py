@@ -17,6 +17,10 @@ page_replacements = [
         "  '两个方案槽必须直接复用建筑详情页 `FacilityProductionProductSelect` / `FacilityProductionMethodSelect` 与 `production-config` 视觉',",
     ),
     (
+        "  '--global-facility-catalog-artwork-size: 72px;',",
+        "  '--global-facility-catalog-artwork-size: 80px;',",
+    ),
+    (
         '    "onValueChange={(value) => void applyQuickProduction(row, \'product\', value)}",',
         '    "onProductChange={(value) => void applyQuickProduction(row, \'product\', value)}",',
     ),
@@ -87,4 +91,4 @@ if old_design_artwork not in design_content:
     raise SystemExit('missing global facility artwork design size')
 design_path.write_text(design_content.replace(old_design_artwork, new_design_artwork, 1), encoding='utf-8')
 
-print('Fixed all applicable shared production selector verifiers and kept the compact-row artwork spanning both rows')
+print('Fixed shared production selector verifiers and kept the compact-row artwork spanning both rows')
