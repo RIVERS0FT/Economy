@@ -5,7 +5,7 @@
 > 状态：当前视觉、共享组件、响应式与可访问性实现基线
 > 适用项目：`RIVERS0FT/Economy`
 > 当前平台：网页端
-> 更新时间：2026-08-30
+> 更新时间：2026-08-31
 
 产品和页面职责分别以 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；应用外壳几何和玻璃材质以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。
 
@@ -51,7 +51,7 @@
 | `src/styles/warehouse-expansion.css` | 州级可钻取仓库商品网格、地区商品详情只读自动经营执行、容器查询与紧凑商品卡布局 |
 | `src/styles/transport-page.css` | 独立运输页的路线编辑、路线卡、在途／最近完成记录与响应式布局 |
 | `src/styles/production-surface.css` | 建筑页建设卡和工厂详情的标题轨道、名称下状态与紧凑开关；不得定义一级卡片外层内边距 |
-| `src/styles/regional-entity-page-title.css` | 地区商品／工厂详情共享两行标题：实体主标题、灰色地区副标题，以及不改变固定标题区高度的溢出规则 |
+| `src/styles/regional-entity-page-title.css` | 地区商品／工厂详情共享两行标题：实体主标题、可点击地区导航、固定 40px 标题轨道内紧凑例外与溢出规则 |
 | `src/styles/auth.css` | 登录布局、动态视口与认证自动填充兼容例外 |
 | `src/styles/card-system.css` | 卡片圆角映射 |
 | `src/styles/desktop-sidebar.css` | 桌面侧栏宽度、折叠、导航固有行高、无角标按钮和可访问状态 |
@@ -118,7 +118,7 @@
 
 玩家页面返回统一由 `PlayerPageNavigationContext` 的受限位置栈驱动。栈项必须是轻量可比较描述符，当前页加历史最多 20 层；同级分区使用 replace，实体下钻使用 push，返回 pop，关闭 reset 到 `map`。页面组件不得保存来源回调、DOM 或完整业务状态来实现返回，也不得让轮询更新改变栈深度。仓库商品卡、全局商品／工厂下钻和地区实体详情必须复用这套语义。
 
-`RegionalEntityPageTitle` 是地区商品与地区工厂详情的唯一共享标题结构。第一行固定显示实体名称并使用大于地区行的主标题字号；第二行固定显示州级地区全称，使用 `var(--color-text-muted)` 灰色次级文字。两行各自保持单行与省略号溢出，总容器固定占用现有 `40px` 标题轨道，不得修改 `PageLayout` 的标题 padding、返回／关闭按钮位置、`.page-fixed-header` 高度或正文起点。目录页继续使用普通单行页面标题；只有具体地区实体详情使用该两行结构。
+`RegionalEntityPageTitle` 是地区商品与地区工厂详情的唯一共享标题结构。第一行固定显示实体名称并使用大于地区行的主标题字号；第二行固定显示州级地区全称。当前 `PlayerPageNavigationContext` 位置为 `regional-product` 或 `regional-facility` 时，`RegionalEntityPageTitle` 的地区导航按钮必须以语义化 `<button>` 呈现第二行，点击或键盘激活统一通过受限页面栈 push 到 `province` + 当前 `provinceId` + `overview`，把原商品／工厂详情保留在历史中以便返回；不得按实体类型分别跳到市场／建筑分区、不得创建新路由或地区下拉框。缺少玩家页面导航上下文时继续退化为普通地区文字。地区按钮默认使用 `var(--color-text-muted)`、轻量下划线，细指针鼠标悬停只提高文字与下划线对比度且不得位移，键盘 `:focus-visible` 必须保留明确焦点。两行各自保持单行与省略号溢出，总容器固定占用现有 `40px` 标题轨道，不得修改 `PageLayout` 的标题 padding、返回／关闭按钮位置、`.page-fixed-header` 高度或正文起点。地区按钮是固定 `40px` 标题轨道内的紧凑交互例外，第二行命中高度保持 `13px`，不套用普通业务按钮的 44px 移动触控下限，也不得通过透明命中盒越出标题轨道；non-obvious reason 是扩大到 44px 会破坏跨页面标题稳定几何并与主标题、返回／关闭控制重叠。目录页继续使用普通单行页面标题；只有具体地区实体详情使用该两行结构。
 
 `EconomyChart` 是业务数据图表的唯一 React 入口。项目只安装 Apache `echarts`，不得引入 `echarts-for-react` 或第二套图表包装库；`echarts.init`、SVGRenderer、按需图表模块注册、`ResizeObserver`、`requestAnimationFrame` 合并 resize、Option 更新、事件绑定与卸载 `dispose()` 统一放在 `src/components/charts/`。图表容器宽或高为 `0` 时必须延迟 `setOption` 并跳过 `resize`，在首次获得可渲染尺寸后再应用最新 Option。市场行情、银行资产配置、管理员玩家与人口图表必须从现有 CSS 设计令牌读取颜色，提供中文 `aria-label` 与可读数据摘要；业务页面只提供数据、Option 和语义事件回调，不得直接持有 ECharts 实例或依赖其私有 SVG DOM。ECharts 必须随使用它的数据图表既有动态 import 按需加载，登录首屏不得静态加载图表包。战略地图不属于业务数据图表，不使用 ECharts Map／Geo；它由 `UsMainlandMap` 的静态 SVG 世界面和独立合成相机负责，避免高频缩放触发图表重绘。
 
@@ -199,7 +199,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 - `.ui-switch:focus-visible::before`
 - 明确的 `outline-offset`
 
-建筑页工厂集群卡右上角是明确例外：点击区域与可见胶囊完全一致，为 `2.75rem × 1.6rem`，用于避免透明 44px 高命中盒下压状态行。其他页面和表单继续遵循至少 44 × 44px。工厂开关始终对齐卡片右上角，异常状态通过 `StatusTag` 文字表达，不得创建异常开关变体。
+建筑页工厂集群卡右上角是明确例外：点击区域与可见胶囊完全一致，为 `2.75rem × 1.6rem`，用于避免透明 44px 高命中盒下压状态行。`RegionalEntityPageTitle` 的地区导航按钮是第二个明确例外：它必须留在固定 `40px` 标题轨道的 `13px` 地区行内，不得扩张到 44px 或越过标题轨道；该例外的原因和键盘焦点规则见第 3 节。除此之外其他页面和表单继续遵循至少 44 × 44px。工厂开关始终对齐卡片右上角，异常状态通过 `StatusTag` 文字表达，不得创建异常开关变体。
 
 ## 5. 统一 SVG 图标体系
 
@@ -334,7 +334,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 业务操作使用 `Button` 的正式变体。
 - 危险操作不得使用绿色主要按钮。
 - 输入框、选择器、文本域、文件控件和组合输入统一使用 `FormControls.tsx` 与 `form-controls.css`。
-- 除建筑页工厂紧凑开关的明确例外外，所有可点击控件在移动端至少提供 44px 的有效触控高度。
+- 除建筑页工厂紧凑开关和 `RegionalEntityPageTitle` 固定 40px 标题轨道内地区导航的明确例外外，所有可点击控件在移动端至少提供 44px 的有效触控高度。
 - 禁用状态使用原生 `disabled`。
 
 ### 6.1 统一表单控件
@@ -563,6 +563,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 不得显示年化存款收益率、把微单位余数显示为可用货币，或用浏览器墙上时间直接结息和判定违约；
 不得：
 
+- 把地区商品／工厂详情标题的地区导航恢复为纯文本、改用 replace、按实体类型直接进入市场／建筑分区、删除键盘焦点，或为扩大触控命中而改变固定 40px 标题轨道；
 - 在业务页面复制基础控件视觉；
 - 为 `SafeTooltip` 或 ECharts `commonTooltip` 恢复近不透明独立背景、移除 `.ui-tooltip-surface`、给 Tooltip 套 `FrostedGlassSurface`／额外玻璃 DOM，或在 `safe-floating.css`、`charts.css` 与业务 CSS 中复制 Tooltip 毛玻璃材质；
 - 绕过 `FormControls.tsx` 为普通表单新增平行输入组件，或把 `form-controls.css` 移到 `design-system.css` 之前；

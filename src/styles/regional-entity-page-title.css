@@ -40,6 +40,50 @@
   letter-spacing: 0;
 }
 
+/* The region link is an explicit compact exception inside the fixed 40px
+ * player title track. It must not inherit the regular business-button box. */
+.regional-entity-title__region-button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 0;
+  min-height: 13px;
+  max-width: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: 3px;
+  padding: 0 2px;
+  color: var(--color-text-muted);
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transform: none;
+  filter: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html[data-input-modality='mouse'] .regional-entity-title__region-button:hover:not(:disabled) {
+    color: var(--color-text-secondary);
+    text-decoration-color: currentColor;
+    transform: none;
+    filter: none;
+  }
+}
+
+.regional-entity-title__region-button:focus-visible {
+  outline: 2px solid var(--color-success);
+  outline-offset: 1px;
+  box-shadow: none;
+  transform: none;
+  filter: none;
+}
+
 /* Keep compatibility with the existing factory-detail class while the shared
  * regional entity title owns its internal two-line layout. */
 .regional-entity-title.province-facility-detail-title {
