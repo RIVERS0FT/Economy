@@ -75,7 +75,7 @@ test('player auction client projection resolves seller name from sellerId', () =
   assert.equal(view.sellerName, 'Bob Updated');
 });
 
-test('legacy server trade presentation logs are removed instead of retaining name-only identity links', () => {
+test('legacy mutable player identity mirrors are stripped during base world migration', () => {
   const now = 1_780_000_000_000;
   const world = createWorld(now);
   applyAction(world, user(303), 'ensurePlayer', {}, now);
@@ -83,6 +83,29 @@ test('legacy server trade presentation logs are removed instead of retaining nam
     id: 'legacy-player-trade', type: 'commodity', productId: 'wheat',
     counterparty: 'Mutable Old Name', createdAt: now - 1,
   }];
+  world.orders.push({
+    id: 'legacy-player-order', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat',
+    provinceId: '110000', side: 'sell', ownerType: 'player', ownerId: 303,
+    ownerName: 'Mutable Old Name', price: 10, quantity: 1, remaining: 0, status: 'filled',
+    fills: [{ id: 'legacy-fill', counterparty: 'Another Mutable Name', createdAt: now - 1 }],
+    createdAt: now - 2,
+  });
+  world.facilityListings.push({
+    id: 'legacy-player-listing', facilityId: 'legacy-facility', ownerType: 'player', ownerId: 303,
+    ownerName: 'Mutable Old Name', price: 100, createdAt: now - 2,
+    facility: { id: 'legacy-facility', facilityTypeId: 'farm', outputProductId: 'wheat' },
+  });
+
   migrateWorld(world, now + 1);
+
   assert.equal(Object.hasOwn(world.players['303'], 'trades'), false);
+  const migratedOrder = world.orders.find((order) => order.id === 'legacy-player-order');
+  assert.ok(migratedOrder);
+  assert.equal(Object.hasOwn(migratedOrder, 'ownerName'), false);
+  assert.equal(Object.hasOwn(migratedOrder.fills[0], 'counterparty'), false);
+  const migratedListing = world.facilityListings.find((listing) => listing.id === 'legacy-player-listing');
+  assert.ok(migratedListing);
+  assert.equal(Object.hasOwn(migratedListing, 'ownerName'), false);
+  const systemListing = world.facilityListings.find((listing) => listing.ownerType === 'market');
+  assert.equal(systemListing?.ownerName, '系统资产市场');
 });
