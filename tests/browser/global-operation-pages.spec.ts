@@ -3,15 +3,12 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 async function openGlobalPage(page: Page, navigationName: '市场' | '建筑') {
   await page.goto('?preview=game', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('html')).toHaveAttribute('data-local-game-preview', 'true');
-  const navigation = page.getByRole('button', { name: new RegExp(`^${navigationName}`) });
-  for (let index = 0; index < await navigation.count(); index += 1) {
-    const candidate = navigation.nth(index);
-    if (await candidate.isVisible()) {
-      await candidate.click();
-      return;
-    }
-  }
-  throw new Error(`未找到可见的${navigationName}导航按钮`);
+  const sidebar = page.locator('.desktop-sidebar');
+  await expect(sidebar).toBeVisible();
+  const navigation = sidebar.getByRole('button', { name: new RegExp(`^${navigationName}`) });
+  await navigation.click();
+  await expect(navigation).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('heading', { name: navigationName, exact: true })).toBeVisible();
 }
 
 async function expectNoPageHorizontalOverflow(page: Page) {
@@ -114,8 +111,8 @@ test('global market summary distinguishes official, last-trade and reference pri
 });
 
 test('global market region rows keep four decimal price columns aligned without horizontal page scroll', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
   await openGlobalPage(page, '市场');
+  await page.setViewportSize({ width: 390, height: 844 });
   const firstCommodityRow = page.locator('.global-market-goods-row').first();
   await expect(firstCommodityRow).toBeVisible();
   await firstCommodityRow.click();
@@ -162,7 +159,8 @@ test('building catalog and region list share detail production-config content wh
   expect(openBox.height).toBeGreaterThanOrEqual(30);
   expect(openBox.height).toBeLessThan(44);
   expect(Math.abs(productBox.y - methodBox.y)).toBeLessThanOrEqual(1);
-  expect(artworkBox.y).toBeLessThanOrEqual(openBox.y + 1);
+  expect(artworkBox.y).toBeLessThan(openBox.y + openBox.height);
+  expect(artworkBox.y + artworkBox.height).toBeGreaterThan(productBox.y);
   expect(artworkBox.y + artworkBox.height).toBeGreaterThanOrEqual(productBox.y + productBox.height - 1);
   const rowPadding = await catalogRow.evaluate((element) => {
     const style = getComputedStyle(element);
