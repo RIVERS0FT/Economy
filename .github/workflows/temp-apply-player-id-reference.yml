@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   apply:
-    if: ${{ github.event.head_commit.message == 'chore: apply player id reference refactor' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,32 +22,24 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Apply refactor
-        run: python scripts/temp-player-id-refactor.py
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run focused server regressions
-        run: >-
-          node --test
-          server/test/player-id-reference.test.js
-          server/test/order-matching.test.js
-          server/test/player-profile.test.js
-          server/test/asset-auctions.test.js
-          server/test/contracts.test.js
-          server/test/commercial-contracts.test.js
-          server/test/contract-audit.test.js
-
-      - name: Run runtime efficiency verifier
-        run: node scripts/verify-runtime-efficiency.mjs
-
-      - name: Check diff
-        run: git diff --check
-
-      - name: Commit refactor and remove temporary files
+      - name: Apply and validate when requested
         shell: bash
         run: |
+          if [[ "$(git log -1 --pretty=%s)" != "chore: apply player id reference refactor" ]]; then
+            exit 0
+          fi
+          python scripts/temp-player-id-refactor.py
+          npm ci
+          node --test \
+            server/test/player-id-reference.test.js \
+            server/test/order-matching.test.js \
+            server/test/player-profile.test.js \
+            server/test/asset-auctions.test.js \
+            server/test/contracts.test.js \
+            server/test/commercial-contracts.test.js \
+            server/test/contract-audit.test.js
+          node scripts/verify-runtime-efficiency.mjs
+          git diff --check
           rm .github/workflows/temp-apply-player-id-reference.yml scripts/temp-player-id-refactor.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
