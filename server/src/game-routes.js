@@ -123,7 +123,7 @@ const contractAction = path.match(/^\/api\/game\/contracts\/([^/]+)\/(accept|can
       start: 'startFacility',
       pause: 'pauseFacility',
       stop: 'pauseFacility',
-      list: 'listFacility',
+      list: 'retiredFacilityMarket',
       recipe: 'setFacilityRecipe',
     };
     return {
@@ -136,7 +136,7 @@ const contractAction = path.match(/^\/api\/game\/contracts\/([^/]+)\/(accept|can
   const listingAction = path.match(/^\/api\/game\/facility-listings\/([^/]+)\/(cancel|buy)$/);
   if (method === 'POST' && listingAction) {
     return {
-      action: listingAction[2] === 'cancel' ? 'cancelFacilityListing' : 'buyFacility',
+      action: listingAction[2] === 'cancel' ? 'cancelFacilityListing' : 'retiredFacilityMarket',
       category: 'general',
       routePayload: { listingId: decodeRouteParameter(listingAction[1]) },
     };

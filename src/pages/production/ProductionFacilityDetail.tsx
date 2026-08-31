@@ -1,6 +1,5 @@
 import { CompactNumber } from '../../components/ui/CompactNumber';
 import { FacilityIcon } from '../../components/icons/FacilityIcons';
-import { ChevronIcon } from '../../components/icons/GameIcons';
 import { useFacilityRecipeProfitMarkets } from '../../components/facilities/FacilityRecipeProfitContext';
 import { FacilityRecipeProfitAnalysis } from '../../components/facilities/FacilityRecipeProfitAnalysis';
 import { FacilityOperatingDiagnostics } from '../../components/facilities/FacilityOperatingDiagnostics';
@@ -8,7 +7,6 @@ import { FacilityProductionConfigControls } from '../../components/facilities/Fa
 import { MobileDetailSummary } from '../../components/ui/MobileDetailSummary';
 import { usePlayerPageNavigation } from '../../components/ui/PageNavigationContext';
 import {
-  Button,
   StatusTag,
   SwitchControl,
   type StatusTone,
@@ -50,7 +48,6 @@ export interface FacilityClusterDetailSharedProps {
   now: number;
   onToggle: (enabled: boolean) => void;
   onRecipeChange: (recipeId: string) => void;
-  onOpenMarket: () => void;
   onOpenProductMarket: (productId: string) => void;
   onOpenContracts: (productId: string) => void;
 }
@@ -390,7 +387,7 @@ export function FacilityClusterDetailBody({
   onRecipeChange,
   onOpenProductMarket,
   onOpenContracts,
-}: Omit<FacilityClusterDetailSharedProps, 'onToggle' | 'onOpenMarket'>) {
+}: Omit<FacilityClusterDetailSharedProps, 'onToggle'>) {
   const { group, type } = entry;
   const liveNow = useNow(now);
   const pageNavigation = usePlayerPageNavigation();
@@ -461,15 +458,6 @@ export function FacilityClusterDetailBody({
   );
 }
 
-export function FacilityMarketAction({ onOpenMarket }: { onOpenMarket: () => void }) {
-  return (
-    <div className="facility-market-link-row">
-      <Button variant="text" className="facility-market-link" onClick={onOpenMarket}>
-        交易该建筑资产 <ChevronIcon direction="right" />
-      </Button>
-    </div>
-  );
-}
 
 export function FacilityClusterDetailContent({
   entry,
@@ -482,7 +470,6 @@ export function FacilityClusterDetailContent({
   now,
   onToggle,
   onRecipeChange,
-  onOpenMarket,
   onOpenProductMarket,
   onOpenContracts,
   titleId,
@@ -512,7 +499,6 @@ export function FacilityClusterDetailContent({
         onOpenProductMarket={onOpenProductMarket}
         onOpenContracts={onOpenContracts}
       />
-      <FacilityMarketAction onOpenMarket={onOpenMarket} />
     </>
   );
 }

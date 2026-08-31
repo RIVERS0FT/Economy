@@ -107,24 +107,7 @@ test.describe('factory production methods', () => {
     expect(transitions.fillOverflow).toBe('hidden');
     expect(transitions.arrowClipPath).not.toBe('none');
 
-    const marketLinkGeometry = await detail.getByRole('button', { name: /交易该建筑资产/ }).evaluate((element) => {
-      const icon = element.querySelector<SVGElement>('.game-icon');
-      const style = getComputedStyle(element);
-      const buttonBox = element.getBoundingClientRect();
-      const iconBox = icon?.getBoundingClientRect();
-      return {
-        display: style.display,
-        whiteSpace: style.whiteSpace,
-        buttonTop: buttonBox.top,
-        buttonBottom: buttonBox.bottom,
-        iconTop: iconBox?.top ?? -1,
-        iconBottom: iconBox?.bottom ?? -1,
-      };
-    });
-    expect(marketLinkGeometry.display).toBe('flex');
-    expect(marketLinkGeometry.whiteSpace).toBe('nowrap');
-    expect(marketLinkGeometry.iconTop).toBeGreaterThanOrEqual(marketLinkGeometry.buttonTop);
-    expect(marketLinkGeometry.iconBottom).toBeLessThanOrEqual(marketLinkGeometry.buttonBottom);
+    await expect(detail.getByRole('button', { name: /交易该建筑资产/ })).toHaveCount(0);
 
     async function resetMarketIntent() {
       await page.evaluate(() => {

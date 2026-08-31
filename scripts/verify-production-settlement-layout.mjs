@@ -201,10 +201,8 @@ for (const text of [
   'grid-row: 1;',
   'grid-row: 2;',
   'grid-row: 3;',
-  '.facility-market-link-row .facility-market-link {',
   'display: inline-flex;',
   'white-space: nowrap;',
-  '.facility-market-link-row .facility-market-link .game-icon',
 ]) assert.equal(groupCss.includes(text), true, `工厂详情布局样式缺少: ${text}`);
 assert.equal(groupCss.includes('.facility-information > .facility-average-profit'), false, '平均利润不得移回插画下方');
 assert.equal(groupCss.includes('.facility-production-settings-heading'), false, '不得保留已删除生产设置标题样式');
@@ -269,7 +267,7 @@ for (const text of [
   "informationMain.locator('.facility-staffing-summary')",
   'trackBorderRadius',
   'fillOverflow',
-  'marketLinkGeometry',
+  "getByRole('button', { name: /交易该建筑资产/ })).toHaveCount(0)",
   'expect(box.x + box.width).toBeLessThanOrEqual(width)',
   'expect(geometry.metaBox.width).toBeLessThan(geometry.visualBox.width - 8)',
   'expect(Math.abs(geometry.costBox.y - geometry.cycleBox.y)).toBeLessThanOrEqual(1)',
@@ -300,7 +298,7 @@ for (const text of [
   '生产配置区不显示独立“生产设置”标题',
   '每个投入／产出物资槽整体使用原生按钮语义并可直接打开当前州对应本地商品详情',
   '流光伪元素必须被已完成填充自身裁剪',
-  '“交易该建筑资产”文字与右向 Chevron 固定同一行',
+  '工厂详情不得显示“交易该建筑资产”入口，工厂所有权交易只允许通过拍卖页完成',
   '不得把承载可交互物资槽的 `.facility-formula-visual` 整体设为 `aria-hidden`',
 ]) assert.equal(uiDesign.includes(text) || industryDesign.includes(text), true, `权威设计缺少: ${text}`);
 

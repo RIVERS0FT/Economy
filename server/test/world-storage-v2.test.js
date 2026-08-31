@@ -469,14 +469,14 @@ test('contract scope clones all contract participants but keeps non-contract pla
   assert.notEqual(draft.productionContracts, world.productionContracts);
 });
 
-test('legacy facility listing scope includes buyer and player seller only', () => {
+test('legacy facility listing cancel scope includes actor and listing owner only', () => {
   const world = {
     players: { 1: { userId: 1 }, 2: { userId: 2 }, 3: { userId: 3 } },
     facilityListings: [{ id: 'listing-a', ownerType: 'player', ownerId: 2 }],
     bank: {}, weeklyCashSettlement: {}, populationEconomy: {}, marketDemand: {}, stats: {},
     moneyPrecision: { version: 2 }, auctionFeeEscrowCredits: 0, systemMarketAudit: {}, transportShipments: [], version: 32,
   };
-  const scope = createRuntimeMutationScope(world, 1, 'buyFacility', { listingId: 'listing-a' }, { scheduledProcessing: true });
+  const scope = createRuntimeMutationScope(world, 1, 'cancelFacilityListing', { listingId: 'listing-a' }, { scheduledProcessing: true });
   assert.deepEqual([...scope.playerIds].sort(), ['1', '2']);
   assert.equal(scope.segments.has('facilityListings'), true);
   const draft = cloneWorldForMutation(world, scope);

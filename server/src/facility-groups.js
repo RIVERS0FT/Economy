@@ -642,6 +642,7 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
     }
   }
   for (const player of Object.values(world.players)) migrateLegacyPlayer(world, player, now);
+  retireOpenFacilityMarketOrders(world, now);
 
   for (const player of Object.values(world.players)) {
     player.facilityGroups = (player.facilityGroups || [])
@@ -1207,6 +1208,20 @@ function cancelFacilityOrder(world, userId, order, now = Date.now()) {
   return result(true, '订单已撤销，冻结资产已释放');
 }
 
+function retireOpenFacilityMarketOrders(world, now = Date.now()) {
+  for (const order of world.orders || []) {
+    if (!isOpenOrder(order) || orderKind(order) !== 'facility' || order.ownerType !== 'player') continue;
+    const ownerId = Number(order.ownerId);
+    if (!Number.isSafeInteger(ownerId) || !world.players?.[String(ownerId)]) {
+      order.status = 'cancelled';
+      closeOrderInOrderBook(world, order);
+      continue;
+    }
+    cancelFacilityOrder(world, ownerId, order, now);
+  }
+  world.facilityListings = [];
+}
+
 export function validateFacilityAuctionQuantity(world, userId, typeId, quantity, provinceId = DEFAULT_PROVINCE_ID) {
   const account = world.players?.[String(userId)];
   const type = typeFor(typeId);
@@ -1329,15 +1344,8 @@ export function applyFacilityGroupAction(
   else if (action === 'startFacility') actionResult = startFacilityGroup(world, userId, payload, now);
   else if (action === 'pauseFacility') actionResult = pauseFacilityGroup(world, userId, payload, now);
   else if (action === 'setFacilityRecipe') actionResult = setGroupRecipe(world, userId, payload, now);
-  else if (action === 'placeOrder' && payload.assetKind === 'facility') actionResult = placeFacilityOrder(world, userId, payload, now);
-  else if (action === 'listFacility') actionResult = placeFacilityOrder(world, userId, {
-    assetKind: 'facility',
-    assetId: payload.facilityTypeId,
-    provinceId: payload.provinceId,
-    side: 'sell',
-    quantity: payload.quantity,
-    price: payload.unitPrice ?? payload.price,
-  }, now);
+  else if (action === 'placeOrder' && payload.assetKind === 'facility') actionResult = result(false, '工厂资产仅允许通过拍卖交易');
+  else if (action === 'listFacility') actionResult = result(false, '工厂资产仅允许通过拍卖交易');
   else if (action === 'cancelOrder') {
     const order = orderById(world, payload.orderId);
     actionResult = order && Number(order.ownerId) === userId && isOpenOrder(order) && orderKind(order) === 'facility'
@@ -1349,13 +1357,7 @@ export function applyFacilityGroupAction(
       ? cancelFacilityOrder(world, userId, order, now)
       : result(false, '工厂卖单不存在');
   } else if (action === 'buyFacility') {
-    const listing = orderById(world, payload.listingId);
-    actionResult = listing && isOpenOrder(listing) && orderKind(listing) === 'facility' && listing.side === 'sell'
-      ? placeFacilityOrder(world, userId, {
-        assetKind: 'facility', assetId: orderAssetId(listing), side: 'buy',
-        quantity: payload.quantity || 1, price: listing.price,
-      }, now)
-      : result(false, '工厂卖单不存在');
+    actionResult = result(false, '工厂资产仅允许通过拍卖交易');
   } else {
     actionResult = migrate ? withLegacyFacilitiesSuppressed(world, applyBaseAction) : applyBaseAction();
   }

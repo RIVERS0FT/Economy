@@ -13,7 +13,7 @@ function group(typeId, count, overrides = {}) {
   return { facilityTypeId: typeId, count, participatingCount: 0, enabled: false, status: 'stopped', statusReason: 'manual', activeRecipeId: typeId === 'farm' ? 'wheat-crop' : `${typeId}-default`, lifetimeOutput: 0, ...overrides };
 }
 
-test('factory buy and sell orders use price-time matching and partial fills', () => {
+test('factory direct buy and sell orders are rejected without transferring assets', () => {
   const world = createWorld(now);
   const seller = ensurePlayer(world, bob, now);
   const buyer = ensurePlayer(world, alice, now);
@@ -21,32 +21,34 @@ test('factory buy and sell orders use price-time matching and partial fills', ()
   buyer.credits = 1_000;
   migrateFacilityGroupWorld(world, now);
 
-  assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', { assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 3, price: 80 }, now + 1).ok, true);
-  assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', { assetKind: 'facility', assetId: 'farm', side: 'buy', quantity: 2, price: 90 }, now + 2).ok, true);
+  const sell = applyFacilityGroupAction(world, bob, 'placeOrder', {
+    assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 3, price: 80,
+  }, now + 1);
+  const buy = applyFacilityGroupAction(world, alice, 'placeOrder', {
+    assetKind: 'facility', assetId: 'farm', side: 'buy', quantity: 2, price: 90,
+  }, now + 2);
 
-  assert.equal(seller.facilityGroups[0].count, 3);
-  assert.equal(buyer.facilityGroups.find((item) => item.facilityTypeId === 'farm').count, 2);
-  const sellOrder = world.orders.find((order) => order.ownerId === bob.id && order.assetKind === 'facility');
-  const buyOrder = world.orders.find((order) => order.ownerId === alice.id && order.assetKind === 'facility' && order.side === 'buy');
-  assert.equal(sellOrder.remaining, 1);
-  assert.equal(sellOrder.status, 'partial');
-  assert.deepEqual(buyOrder.fills.map((fill) => ({ price: fill.price, quantity: fill.quantity })), [
-    { price: 80, quantity: 2 },
-  ]);
-  assert.equal(world.facilityMarkets.farm.lastTradePrice, 80);
-  assert.equal(createFacilityGroupClientState(world, alice.id, now + 2).valuationPrices['facility:farm'], 80);
+  assert.deepEqual(sell, { ok: false, message: '工厂资产仅允许通过拍卖交易' });
+  assert.deepEqual(buy, { ok: false, message: '工厂资产仅允许通过拍卖交易' });
+  assert.equal(seller.facilityGroups[0].count, 5);
+  assert.equal(buyer.facilityGroups?.some((item) => item.facilityTypeId === 'farm'), false);
+  assert.equal(buyer.credits, 1_000);
+  assert.equal(buyer.frozenCredits, 0);
+  assert.equal(world.orders.some((order) => order.assetKind === 'facility' && order.ownerType === 'player'), false);
 });
 
-test('running factory sell order immediately reduces participating output', () => {
+test('rejected factory direct sell leaves running participation unchanged', () => {
   const world = createWorld(now);
   const seller = ensurePlayer(world, bob, now);
   seller.facilityGroups = [group('farm', 5, { enabled: true, status: 'running', participatingCount: 5, cycleStartedAt: now })];
   migrateFacilityGroupWorld(world, now);
 
-  const response = applyFacilityGroupAction(world, bob, 'placeOrder', { assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 2, price: 100 }, now + 1);
-  assert.equal(response.ok, true);
-  assert.equal(seller.facilityGroups[0].participatingCount, 3);
-  assert.equal(createFacilityGroupClientState(world, bob.id, now + 1).facilityGroups[0].listedCount, 2);
+  const response = applyFacilityGroupAction(world, bob, 'placeOrder', {
+    assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 2, price: 100,
+  }, now + 1);
+  assert.deepEqual(response, { ok: false, message: '工厂资产仅允许通过拍卖交易' });
+  assert.equal(seller.facilityGroups[0].participatingCount, 5);
+  assert.equal(createFacilityGroupClientState(world, bob.id, now + 1).facilityGroups[0].listedCount, 0);
 });
 
 test('production increments produced goods statistics', () => {
@@ -398,44 +400,6 @@ test('empty factory order books stay empty after world processing', () => {
   migrateFacilityGroupWorld(world, now);
   processFacilityGroupWorld(world, now + 1);
   assert.equal(world.orders.some((order) => order.assetKind === 'facility' || order.facilityTypeId), false);
-});
-
-
-
-
-
-test('purchased factories join a running group immediately and dilute live staffing', () => {
-  const world = createWorld(now);
-  const buyer = ensurePlayer(world, alice, now);
-  const seller = ensurePlayer(world, bob, now);
-  buyer.credits = 10_000;
-  buyer.facilityGroups = [group('farm', 10, {
-    enabled: true,
-    status: 'running',
-    participatingCount: 10,
-    cycleStartedAt: now,
-    staffingRateBps: 8_000,
-    staffingUpdatedAt: now,
-  })];
-  seller.facilityGroups = [group('farm', 2)];
-  migrateFacilityGroupWorld(world, now);
-  assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', {
-    assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 2, price: 80,
-  }, now + 1).ok, true);
-  assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', {
-    assetKind: 'facility', assetId: 'farm', side: 'buy', quantity: 2, price: 80,
-  }, now + 2).ok, true);
-  const farm = buyer.facilityGroups[0];
-  assert.equal(farm.count, 12);
-  assert.equal(farm.participatingCount, 12);
-  assert.equal(farm.staffingRateBps, 6_666);
-  assert.equal(farm.cycleStartedAt, now);
-  assert.equal(Object.hasOwn(farm, 'cycleStaffingRateBps'), false);
-  const state = createFacilityGroupClientState(world, alice.id, now + 2).facilityGroups[0];
-  assert.equal(state.productionAvailableCount, 12);
-  assert.equal(state.projectedEffectiveCount, 7);
-  assert.equal(state.staffingUpdatedAt, now + 2);
-  assert.equal(state.staffingBatchCarryBps, 0);
 });
 
 test('stopped factory staffing decays linearly from its stored timestamp', () => {

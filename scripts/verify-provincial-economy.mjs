@@ -368,7 +368,7 @@ assert.ok(navigation.includes("export type TabId = NavigationTabId | 'map' | 'pr
 const tests = read('server/test/provinces.test.js');
 for (const text of [
   'cannot match across states', 'world 30 geography replacement keeps legacy scoped assets on their existing region IDs',
-  'construction and production consume and output only the selected province inventory', 'facility order transfer preserves the province',
+  'construction and production consume and output only the selected province inventory', 'factory market orders are rejected and legacy open orders are retired',
   'without serialized aliases',
 ]) assert.ok(tests.includes(text), `州级经济专项测试缺少: ${text}`);
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');

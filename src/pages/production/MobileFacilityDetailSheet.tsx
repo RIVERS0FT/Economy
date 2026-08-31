@@ -3,7 +3,6 @@ import { MobileWorkspaceDetailSheet } from '../../components/ui/MobileWorkspaceD
 import {
   FacilityClusterDetailBody,
   FacilityClusterInformation,
-  FacilityMarketAction,
   type FacilityClusterDetailSharedProps,
   type FacilityClusterEntry,
 } from './ProductionFacilityDetail';
@@ -22,7 +21,6 @@ export function MobileFacilityDetailSheet({
   onClose,
   onToggle,
   onRecipeChange,
-  onOpenMarket,
   onOpenProductMarket,
   onOpenContracts,
 }: Omit<FacilityClusterDetailSharedProps, 'entry'> & {
@@ -40,9 +38,6 @@ export function MobileFacilityDetailSheet({
       viewportAriaLabel={`${entry.type.name}工厂详情内容`}
       returnFocusRef={returnFocusRef}
       onClose={onClose}
-      footer={(requestClose) => (
-        <FacilityMarketAction onOpenMarket={() => requestClose(onOpenMarket)} />
-      )}
     >
       <FacilityClusterInformation
         entry={entry}

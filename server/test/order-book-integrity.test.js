@@ -45,7 +45,7 @@ test('commodity orders reject a price that crosses the same player resting order
   assert.equal(world.orders.length, orderCountBefore);
 });
 
-test('facility orders reject a price that crosses the same player resting order before freezing funds', () => {
+test('factory direct orders are rejected before freezing funds or facilities', () => {
   const world = createWorld(now);
   deferDemand(world);
   const player = ensurePlayer(world, alice, now);
@@ -54,21 +54,21 @@ test('facility orders reject a price that crosses the same player resting order 
   player.credits = 100_000;
   player.facilityGroups = [{ facilityTypeId: farm.id, count: 1 }];
 
-  const sell = applyFacilityGroupAction(world, alice, 'placeOrder', {
-    assetKind: 'facility', assetId: farm.id, side: 'sell', quantity: 1, price: farm.systemValue,
-  }, now + 1);
-  assert.equal(sell.ok, true);
-
   const creditsBefore = player.credits;
   const frozenCreditsBefore = player.frozenCredits;
   const orderCountBefore = world.orders.length;
+  const sell = applyFacilityGroupAction(world, alice, 'placeOrder', {
+    assetKind: 'facility', assetId: farm.id, side: 'sell', quantity: 1, price: farm.systemValue,
+  }, now + 1);
   const buy = applyFacilityGroupAction(world, alice, 'placeOrder', {
     assetKind: 'facility', assetId: farm.id, side: 'buy', quantity: 1, price: farm.systemValue,
   }, now + 2);
 
-  assert.deepEqual(buy, { ok: false, message: SELF_CROSS_MESSAGE });
+  assert.deepEqual(sell, { ok: false, message: '工厂资产仅允许通过拍卖交易' });
+  assert.deepEqual(buy, { ok: false, message: '工厂资产仅允许通过拍卖交易' });
   assert.equal(player.credits, creditsBefore);
   assert.equal(player.frozenCredits, frozenCreditsBefore);
+  assert.equal(player.facilityGroups[0].count, 1);
   assert.equal(world.orders.length, orderCountBefore);
 });
 

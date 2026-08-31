@@ -337,11 +337,11 @@ for (const [source, label] of [
 for (const [source, token, label] of [
   [gameShell, '<ChevronIcon direction={weeklyTrendDirection} />', 'status bar'],
   [productionConfig, '<ChevronIcon direction="right" className="production-config-flow-arrow" />', 'production config'],
-  [productionDetail, '<ChevronIcon direction="right" />', 'production detail'],
   [diagnostics, '<ChevronIcon direction={trendDirection} />', 'operating diagnostics'],
   [contractNegotiation, '<ChevronIcon direction="right" />', 'contract negotiation'],
   [transportPage, '<ChevronIcon direction="right" />', 'transport page'],
 ]) requireText(source, token, label + ' directional chevrons');
+forbidText(productionDetail, '交易该建筑资产', 'factory detail direct market entry');
 forbidText(gameGuide, '设置 → 游戏设置 → 教程', 'tutorial breadcrumb');
 requireText(gameGuide, '设置 / 游戏设置 / 教程', 'tutorial breadcrumb');
 

@@ -131,8 +131,9 @@ for (const token of ['自动经营执行', '由工厂策略汇总', '预计自�
 for (const token of ['保存自动交易设置', '目标自由库存', '最低自由库存', 'MoneyInput', 'IntegerInput', 'MobileWorkspaceDetailSheet']) {
   forbidText(autoTradePanel, token, `地区商品详情不得恢复商品级自动交易编辑：${token}。`);
 }
-requireText(buildingsPage, 'facilityAssetId={facilityAssetTradeId}', '建筑详情必须继续打开从属资产交易。');
-requireText(buildingsPage, "onBackFromFacilityAsset={() => setFacilityAssetTradeId('')}", '建筑从属资产交易必须返回原建筑详情。');
+forbidText(buildingsPage, 'facilityAssetId={facilityAssetTradeId}', '建筑详情不得恢复从属工厂资产交易页。');
+forbidText(buildingsPage, "onBackFromFacilityAsset={() => setFacilityAssetTradeId('')}", '建筑详情不得恢复工厂资产交易返回链。');
+forbidText(buildingsPage, '交易该建筑资产', '建筑详情不得恢复工厂直售入口。');
 requireText(marketHistory, 'export function getMarketWindowBounds', '市场窗口边界必须由共享函数生成。');
 requireText(chartStyles, 'font-variant-numeric: tabular-nums;', '行情坐标轴必须使用稳定数字宽度。');
 requireText(runtimeHarness, "scenario === 'funds-empty'", '浏览器运行时必须覆盖资金不足。');

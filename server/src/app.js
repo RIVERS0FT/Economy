@@ -646,6 +646,10 @@ const server = createServer(async (request, response) => {
       sendError(response, 410, '工厂建造已改为资金与材料即时完成，施工加速接口已退役');
       return;
     }
+    if (route?.action === 'retiredFacilityMarket') {
+      sendError(response, 410, '工厂资产仅允许通过拍卖交易');
+      return;
+    }
     if (!route) {
       sendError(response, 404, '游戏操作不存在');
       return;
