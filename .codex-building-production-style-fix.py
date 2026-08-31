@@ -1,9 +1,9 @@
 from pathlib import Path
 
-path = Path('scripts/verify-page-content.mjs')
-content = path.read_text(encoding='utf-8')
+page_path = Path('scripts/verify-page-content.mjs')
+page_content = page_path.read_text(encoding='utf-8')
 
-replacements = [
+page_replacements = [
     (
         "  '.global-facility-region-row__quick-selector .ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger {',",
         '  ".global-facility-region-row__quick-selector .ui-rich-select[data-variant=\'production-config\'] .ui-rich-select__trigger {",',
@@ -30,10 +30,37 @@ replacements = [
     ),
 ]
 
-for old, new in replacements:
-    if old not in content:
-        raise SystemExit(f'missing verifier fragment: {old}')
-    content = content.replace(old, new, 1)
+for old, new in page_replacements:
+    if old not in page_content:
+        raise SystemExit(f'missing page verifier fragment: {old}')
+    page_content = page_content.replace(old, new, 1)
 
-path.write_text(content, encoding='utf-8')
-print('Fixed production-config verifier quoting and shared-selector assertions')
+page_path.write_text(page_content, encoding='utf-8')
+
+production_path = Path('scripts/verify-production-methods.mjs')
+production_content = production_path.read_text(encoding='utf-8')
+production_replacements = [
+    (
+        "  'aria-label={`${typeName}生产产物`}',",
+        "  'aria-label={ariaLabel ?? `${typeName}生产产物`}',",
+    ),
+    (
+        "  'aria-label={`${typeName}生产方式`}',",
+        "  'aria-label={ariaLabel ?? `${typeName}生产方式`}',",
+    ),
+]
+for old, new in production_replacements:
+    if old not in production_content:
+        raise SystemExit(f'missing production verifier fragment: {old}')
+    production_content = production_content.replace(old, new, 1)
+production_path.write_text(production_content, encoding='utf-8')
+
+primary_path = Path('scripts/verify-primary-surface-insets.mjs')
+primary_content = primary_path.read_text(encoding='utf-8')
+old_message = '地区工厂列表保持共享单行密度'
+new_message = '地区工厂列表同步两行生产配置密度'
+if old_message not in primary_content:
+    raise SystemExit(f'missing primary verifier status text: {old_message}')
+primary_path.write_text(primary_content.replace(old_message, new_message, 1), encoding='utf-8')
+
+print('Fixed shared production selector verifier assertions and two-line status text')
