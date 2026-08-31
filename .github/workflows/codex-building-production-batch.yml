@@ -22,7 +22,18 @@ jobs:
           node-version: 24.4.0
           cache: npm
       - name: Apply atomic batch patch
-        run: python .codex-building-production-batch.py
+        run: |
+          python .codex-building-production-batch.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/app/gameViewModel.ts')
+          text = path.read_text(encoding='utf-8')
+          old = "  type FacilityBuildProcurementOptions,\n  type GameActionResult,\n"
+          new = "  type FacilityBuildProcurementOptions,\n  type GameActionResponse,\n  type GameActionResult,\n"
+          if text.count(old) != 1:
+              raise SystemExit('gameViewModel action response import anchor mismatch')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8', newline='\n')
+          PY
       - name: Install dependencies
         run: npm ci
       - name: Validate repository and server
