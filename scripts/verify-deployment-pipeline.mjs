@@ -10,6 +10,7 @@ const pageContentPath = resolve(root, 'scripts/verify-page-content.mjs');
 const pageContentLegacyPath = resolve(root, 'scripts/verify-page-content-base.mjs');
 const uiArchitectureRunnerPath = resolve(root, 'scripts/verify-ui-architecture-runner.mjs');
 const designPath = resolve(root, 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
+const facilityDesignPath = resolve(root, 'docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md');
 const nginxConfiguratorPath = resolve(root, 'scripts/configure-economy-nginx.py');
 const nginxLocationTemplatePath = resolve(root, 'deploy/nginx/game.riversoft.top.economy-location.conf');
 const nginxIpFallbackConfiguratorPath = resolve(root, 'scripts/configure-economy-ip-fallback-nginx.py');
@@ -19,6 +20,7 @@ const selector = readFileSync(selectorPath, 'utf8');
 const pageContent = readFileSync(pageContentPath, 'utf8');
 const uiArchitectureRunner = readFileSync(uiArchitectureRunnerPath, 'utf8');
 const design = readFileSync(designPath, 'utf8');
+const facilityDesign = readFileSync(facilityDesignPath, 'utf8');
 const nginxConfigurator = readFileSync(nginxConfiguratorPath, 'utf8');
 const nginxLocationTemplate = readFileSync(nginxLocationTemplatePath, 'utf8');
 const nginxIpFallbackConfigurator = readFileSync(nginxIpFallbackConfiguratorPath, 'utf8');
@@ -35,6 +37,9 @@ const requireSelectorText = (text, reason) => {
 };
 const requireDesignText = (text, reason) => {
   if (!design.includes(text)) failures.push(reason ?? `部署设计缺少: ${text}`);
+};
+const requireFacilityDesignText = (text, reason) => {
+  if (!facilityDesign.includes(text)) failures.push(reason ?? `工厂目录设计缺少: ${text}`);
 };
 const hasCommand = (plan, command, args = []) => plan.checks.some((item) => item.command === command && JSON.stringify(item.args) === JSON.stringify(args));
 const commandCount = (plan, command, args = []) => plan.checks.filter((item) => item.command === command && JSON.stringify(item.args) === JSON.stringify(args)).length;
@@ -168,7 +173,7 @@ requireText("needs['browser-test'].result", '带连字符的 browser-test Job �
 
 requireDesignText('PR 与非 `main` push 默认使用改动文件选择器', '权威部署设计必须记录增量 CI');
 requireDesignText('改动文件选择规则唯一维护在 `scripts/select-ci-tests.mjs`', '权威部署设计必须保持测试选择规则的唯一入口');
-requireDesignText('建筑域的定向浏览器集合必须固定包含 `tests/browser/all-pages-preview.spec.ts`', '权威部署设计必须记录建筑跨页面几何基线');
+requireFacilityDesignText('建筑域的定向浏览器集合必须固定包含 `tests/browser/all-pages-preview.spec.ts`', '工厂目录设计必须记录建筑跨页面几何基线');
 requireDesignText('无法分类的源码改动必须退化为完整验证', '权威部署设计必须记录未知影响范围的全量兜底');
 requireDesignText('`main` 是唯一自动无条件执行完整 `npm run build` 与完整 Playwright 的分支', '权威部署设计必须记录 main 全量门禁边界');
 requireDesignText('完整 `npm run build` 与完整 Playwright 浏览器回归必须作为并行硬门禁', '权威部署设计必须记录完整构建与浏览器回归并行硬门禁');
