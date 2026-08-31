@@ -29,6 +29,7 @@ jobs:
           python .codex-global-building-row-fix-padding.py
           python .codex-global-building-row-fix-geometry.py
           python .codex-global-building-region-two-line.py
+          python .codex-global-building-region-verifier-fix.py
           python - <<'PY'
           from pathlib import Path
           path = Path('src/styles/global-operation-pages.css')
@@ -67,6 +68,7 @@ jobs:
           rm .codex-global-building-row-fix-padding.py
           rm .codex-global-building-row-fix-geometry.py
           rm .codex-global-building-region-two-line.py
+          rm .codex-global-building-region-verifier-fix.py
           rm .github/workflows/codex-global-building-row-fix.yml
           git diff --check
           git status --short
