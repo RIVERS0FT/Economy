@@ -92,6 +92,10 @@ const DOMAIN_RULES = [
   },
 ];
 
+const DOMAIN_BROWSER_BASELINES = new Map([
+  ['facility', ['tests/browser/all-pages-preview.spec.ts']],
+]);
+
 const COMPOSED_VERIFY_ENTRYPOINTS = new Map([
   ['scripts/verify-market-page-layout-regional.mjs', 'scripts/verify-market-page-layout.mjs'],
 ]);
@@ -277,6 +281,11 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
   const selectedBrowserTests = new Set(changedFiles.filter(isBrowserSpec));
   for (const candidate of browserCandidates) {
     if (isDomainCandidate(candidate) || isReferenceCandidate(candidate)) selectedBrowserTests.add(candidate);
+  }
+  for (const rule of domains) {
+    for (const baseline of DOMAIN_BROWSER_BASELINES.get(rule.name) ?? []) {
+      if (browserCandidates.includes(baseline)) selectedBrowserTests.add(baseline);
+    }
   }
   if (changedFiles.some(isBrowserHarness) && selectedBrowserTests.size === 0) {
     plan.mode = 'full';

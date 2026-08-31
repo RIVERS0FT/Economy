@@ -1,0 +1,19 @@
+/* Ultra-narrow safety override for the registered two-line global facility catalog row.
+ * Base geometry remains in global-operation-pages.css; this file only protects carriers
+ * that are substantially narrower than an ordinary mobile viewport (for example the
+ * mobile workspace sheet at the 320px edge case).
+ */
+@container (max-width: 200px) {
+  .global-operation-page .entity-list-row.global-facility-catalog-row {
+    --global-facility-catalog-artwork-size: 42px;
+  }
+
+  .global-operation-page .global-facility-catalog-row__identity,
+  .global-operation-page .global-facility-catalog-row__quick-controls {
+    padding-left: calc(var(--global-facility-catalog-artwork-size) + .18rem);
+  }
+
+  .global-operation-page .global-facility-catalog-row__quick-controls {
+    gap: .18rem;
+  }
+}
