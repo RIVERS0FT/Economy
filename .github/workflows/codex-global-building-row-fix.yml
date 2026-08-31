@@ -22,7 +22,9 @@ jobs:
           node-version: 24.4.0
           cache: npm
       - name: Apply implementation and design updates
-        run: python .codex-global-building-row-fix.py
+        run: |
+          python .codex-global-building-row-fix-bootstrap.py
+          python .codex-global-building-row-fix.py
       - name: Install dependencies
         run: npm ci
       - name: Plan validation
@@ -51,6 +53,7 @@ jobs:
         shell: bash
         run: |
           rm .codex-global-building-row-fix.py
+          rm .codex-global-building-row-fix-bootstrap.py
           rm .github/workflows/codex-global-building-row-fix.yml
           git diff --check
           git status --short
