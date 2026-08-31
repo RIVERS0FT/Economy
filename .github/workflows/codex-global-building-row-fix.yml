@@ -26,6 +26,7 @@ jobs:
           python .codex-global-building-row-fix-bootstrap.py
           python .codex-global-building-row-fix.py
           python .codex-global-building-row-fix-verifier.py
+          python .codex-global-building-row-fix-padding.py
       - name: Install dependencies
         run: npm ci
       - name: Plan validation
@@ -56,6 +57,7 @@ jobs:
           rm .codex-global-building-row-fix.py
           rm .codex-global-building-row-fix-bootstrap.py
           rm .codex-global-building-row-fix-verifier.py
+          rm .codex-global-building-row-fix-padding.py
           rm .github/workflows/codex-global-building-row-fix.yml
           git diff --check
           git status --short
