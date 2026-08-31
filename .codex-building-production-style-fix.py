@@ -77,11 +77,14 @@ primary_path.write_text(primary_content.replace(old_message, new_message, 1), en
 
 css_path = Path('src/styles/global-operation-pages.css')
 css_content = css_path.read_text(encoding='utf-8')
-old_artwork = '  --global-facility-catalog-artwork-size: 72px;'
-new_artwork = '  --global-facility-catalog-artwork-size: 80px;'
-if old_artwork not in css_content:
-    raise SystemExit('missing compact global facility artwork size')
-css_path.write_text(css_content.replace(old_artwork, new_artwork, 1), encoding='utf-8')
+for old_artwork, new_artwork in [
+    ('  --global-facility-catalog-artwork-size: 72px;', '  --global-facility-catalog-artwork-size: 80px;'),
+    ('    --global-facility-catalog-artwork-size: 68px;', '    --global-facility-catalog-artwork-size: 80px;'),
+]:
+    if old_artwork not in css_content:
+        raise SystemExit(f'missing global facility artwork size: {old_artwork}')
+    css_content = css_content.replace(old_artwork, new_artwork, 1)
+css_path.write_text(css_content, encoding='utf-8')
 
 design_path = Path('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md')
 design_content = design_path.read_text(encoding='utf-8')
@@ -91,4 +94,4 @@ if old_design_artwork not in design_content:
     raise SystemExit('missing global facility artwork design size')
 design_path.write_text(design_content.replace(old_design_artwork, new_design_artwork, 1), encoding='utf-8')
 
-print('Fixed shared production selector verifiers and kept the compact-row artwork spanning both rows')
+print('Fixed shared production selector verifiers and kept the compact-row artwork spanning both rows across the desktop list container')
