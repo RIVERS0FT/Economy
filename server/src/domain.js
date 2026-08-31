@@ -13,6 +13,7 @@ import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrit
 import { orderAssetId, orderKind } from './order-identity.js';
 import { closeOrderInOrderBook, countOpenOrdersForOwner } from './order-book-runtime.js';
 import { ensurePopulationEconomy, releasePopulationOrderFunds } from './population-economy.js';
+import { stripMutablePlayerIdentityMirrors } from './player-identity.js';
 import {
   applyChooseStartingProvince,
   applyUnlockProvince,
@@ -265,6 +266,7 @@ export function migrateWorld(world, now = Date.now()) {
       : undefined,
   };
   const migrated = core.migrateWorld(world, now);
+  stripMutablePlayerIdentityMirrors(migrated);
   balancedMarket.repairMissingMarkets(migrated, existingMarketIds, now, legacy);
   balancedMarket.normalizeSystemPrices(migrated, now);
   migrateProvinceAccess(migrated, now);
