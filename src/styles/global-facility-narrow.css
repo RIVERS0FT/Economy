@@ -1,19 +1,164 @@
-/* Ultra-narrow safety override for the registered two-line global facility catalog row.
- * Base geometry remains in global-operation-pages.css; this file only protects carriers
- * that are substantially narrower than an ordinary mobile viewport (for example the
- * mobile workspace sheet at the 320px edge case).
+/* Final geometry authority for the global facility catalog two-line row.
+ * GlobalBuildingsPage lazily loads global-operation-pages.css, so these selectors deliberately
+ * include the global-operation-page scope. Their higher specificity keeps the real artwork grid
+ * authoritative regardless of stylesheet injection order, while this file also owns the
+ * ultra-narrow carrier safety.
  */
-@container (max-width: 200px) {
-  .global-operation-page .entity-list-row.global-facility-catalog-row {
-    --global-facility-catalog-artwork-size: 42px;
+.global-operation-page .global-facility-catalog {
+  --global-facility-layout-artwork-size: 76px;
+  --global-facility-layout-artwork-track: 84px;
+  --global-facility-layout-name-track: minmax(0, 1.6fr);
+  --global-facility-layout-profit-track: minmax(7rem, .8fr);
+  --global-facility-layout-count-track: minmax(4rem, .45fr);
+  --global-facility-layout-content-columns:
+    var(--global-facility-layout-name-track)
+    var(--global-facility-layout-profit-track)
+    var(--global-facility-layout-count-track)
+    var(--entity-list-chevron-column);
+  --global-facility-layout-columns:
+    var(--global-facility-layout-artwork-track)
+    var(--global-facility-layout-content-columns);
+}
+
+.global-operation-page .global-facility-catalog-header,
+.global-operation-page .entity-list-row.global-facility-catalog-row {
+  --entity-list-columns: var(--global-facility-layout-columns);
+}
+
+.global-operation-page .global-facility-catalog-header > :nth-child(1) {
+  grid-column: 1 / 3;
+}
+
+.global-operation-page .global-facility-catalog-header > :nth-child(2) {
+  grid-column: 3;
+}
+
+.global-operation-page .global-facility-catalog-header > :nth-child(3) {
+  grid-column: 4;
+}
+
+.global-operation-page .global-facility-catalog-header > :nth-child(4) {
+  grid-column: 5;
+}
+
+.global-operation-page .entity-list-row.global-facility-catalog-row {
+  --global-facility-catalog-artwork-size: var(--global-facility-layout-artwork-size);
+  --global-facility-catalog-main-row-size: 30px;
+  --global-facility-catalog-row-gap: 0px;
+  grid-template-columns: var(--global-facility-layout-columns);
+  grid-template-rows: var(--global-facility-catalog-main-row-size) var(--global-facility-production-control-size);
+  column-gap: var(--entity-list-gap);
+  row-gap: 0;
+}
+
+.global-operation-page .global-facility-catalog-row__artwork {
+  position: static;
+  z-index: auto;
+  grid-column: 1;
+  grid-row: 1 / 3;
+  align-self: center;
+  justify-self: center;
+  width: var(--global-facility-layout-artwork-size);
+  height: var(--global-facility-layout-artwork-size);
+  min-width: var(--global-facility-layout-artwork-size);
+  transform: none;
+  pointer-events: none;
+}
+
+.global-operation-page .global-facility-catalog-row__open {
+  grid-column: 2 / -1;
+  grid-row: 1;
+  z-index: auto;
+  box-sizing: border-box;
+  grid-template-columns: var(--global-facility-layout-content-columns);
+  column-gap: var(--entity-list-gap);
+  border-left: 1px solid var(--color-divider);
+  border-radius: 0 calc(var(--radius-control) - .15rem) 0 0;
+}
+
+.global-operation-page .global-facility-catalog-row__identity {
+  padding-left: .5rem;
+}
+
+.global-operation-page .global-facility-catalog-row__quick-controls {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  z-index: auto;
+  box-sizing: border-box;
+  gap: .35rem;
+  padding-left: .5rem;
+  border-top: 1px solid var(--color-divider);
+  border-left: 1px solid var(--color-divider);
+  border-radius: 0 0 calc(var(--radius-control) - .15rem) 0;
+  background: color-mix(in srgb, var(--color-surface-inset) 24%, transparent);
+}
+
+.global-operation-page .global-facility-catalog-row__chevron {
+  width: var(--entity-list-chevron-column);
+  min-width: var(--entity-list-chevron-column);
+  max-width: var(--entity-list-chevron-column);
+  justify-self: stretch;
+}
+
+@container (max-width: 620px) {
+  .global-operation-page .global-facility-catalog {
+    --global-facility-layout-artwork-size: 64px;
+    --global-facility-layout-artwork-track: 72px;
+    --global-facility-layout-name-track: minmax(0, 1.45fr);
+    --global-facility-layout-profit-track: minmax(4.65rem, .8fr);
+    --global-facility-layout-count-track: minmax(2.4rem, .42fr);
   }
 
   .global-operation-page .global-facility-catalog-row__identity,
   .global-operation-page .global-facility-catalog-row__quick-controls {
-    padding-left: calc(var(--global-facility-catalog-artwork-size) + .18rem);
+    padding-left: .32rem;
+  }
+
+  .global-operation-page .global-facility-catalog-row__quick-controls {
+    gap: .25rem;
+  }
+}
+
+@container (max-width: 360px) {
+  .global-operation-page .global-facility-catalog {
+    --global-facility-layout-artwork-size: 52px;
+    --global-facility-layout-artwork-track: 60px;
+    --global-facility-layout-name-track: minmax(0, 1.35fr);
+    --global-facility-layout-profit-track: minmax(4.25rem, .76fr);
+    --global-facility-layout-count-track: minmax(2.1rem, .4fr);
+  }
+
+  .global-operation-page .global-facility-catalog-row__identity,
+  .global-operation-page .global-facility-catalog-row__quick-controls {
+    padding-left: .24rem;
   }
 
   .global-operation-page .global-facility-catalog-row__quick-controls {
     gap: .18rem;
+  }
+}
+
+@container (max-width: 200px) {
+  .global-operation-page .global-facility-catalog {
+    --global-facility-layout-artwork-size: 40px;
+    --global-facility-layout-artwork-track: 46px;
+    --global-facility-layout-name-track: minmax(0, 1.35fr);
+    --global-facility-layout-profit-track: minmax(0, .76fr);
+    --global-facility-layout-count-track: minmax(0, .4fr);
+  }
+
+  .global-operation-page .global-facility-catalog-row__identity,
+  .global-operation-page .global-facility-catalog-row__quick-controls {
+    padding-left: .18rem;
+  }
+
+  .global-operation-page .global-facility-catalog-row__quick-controls {
+    gap: .18rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .global-operation-page .entity-list-row.global-facility-catalog-row {
+    --global-facility-catalog-main-row-size: 44px;
   }
 }
