@@ -177,12 +177,20 @@ test('market and building entity lists share surface geometry with commodity den
         </div>
         <ul class="entity-list-rows global-facility-catalog-list">
           <li>
-            <button class="entity-list-row global-facility-catalog-row" type="button">
-              <span class="global-facility-catalog-row__identity"><svg class="global-facility-catalog-row__artwork"></svg><strong>测试工厂</strong></span>
+            <div class="entity-list-row global-facility-catalog-row">
+              <button class="global-facility-catalog-row__open" type="button"></button>
+              <span class="global-facility-catalog-row__identity">
+                <svg class="global-facility-catalog-row__artwork"></svg>
+                <strong>测试工厂</strong>
+                <span class="global-facility-catalog-row__quick-controls">
+                  <button class="global-facility-catalog-row__quick-control" data-quick-production="product" type="button"><span class="product-artwork"></span></button>
+                  <button class="global-facility-catalog-row__quick-control" data-quick-production="method" type="button"><svg class="game-icon"></svg></button>
+                </span>
+              </span>
               <strong class="entity-list-value global-facility-catalog-row__metric global-facility-catalog-row__profit is-positive">1</strong>
               <strong class="global-facility-catalog-row__metric">1</strong>
               <span class="global-facility-catalog-row__chevron"><svg class="game-icon"></svg></span>
-            </button>
+            </div>
           </li>
         </ul>`;
     });
@@ -213,12 +221,18 @@ test('market and building entity lists share surface geometry with commodity den
     (element) => getComputedStyle(element).width,
   );
   expect(parseFloat(marketArtworkSize)).toBeLessThan(parseFloat(facilityArtworkSize));
-  if (hasOwnedFacilityRows) await page.locator('.global-facility-catalog-row').first().click();
+  if (hasOwnedFacilityRows) await page.locator('.global-facility-catalog-row__open').first().click();
   facilitySamples.push(await inspect('.global-facility-region-surface'));
 
   const samples = [...marketSamples, ...facilitySamples];
-  const densityKeys = new Set<keyof typeof samples[number]>(['paddingTop', 'paddingBottom', 'minHeight']);
+  const densityKeys = new Set<keyof typeof samples[number]>(['paddingTop', 'paddingBottom']);
   for (const key of Object.keys(samples[0]) as Array<keyof typeof samples[number]>) {
+    if (key === 'minHeight') {
+      expect(new Set(marketSamples.map((sample) => String(sample[key]))).size, 'minHeight should match inside commodity lists').toBe(1);
+      expect(String(facilitySamples[0][key]), 'global facility catalog keeps the registered two-line height').not.toBe(String(facilitySamples[1][key]));
+      expect(String(marketSamples[0][key]), 'commodity density remains distinct from regional facilities').not.toBe(String(facilitySamples[1][key]));
+      continue;
+    }
     if (densityKeys.has(key)) {
       expect(new Set(marketSamples.map((sample) => String(sample[key]))).size, `${key} should match inside commodity lists`).toBe(1);
       expect(new Set(facilitySamples.map((sample) => String(sample[key]))).size, `${key} should match inside facility lists`).toBe(1);

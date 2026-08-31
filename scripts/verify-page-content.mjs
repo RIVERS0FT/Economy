@@ -55,6 +55,7 @@ for (const text of [
   '默认态保持正式工厂目录顺序',
   '表头允许按工厂名称、平均利润和拥有数量',
   '一级建筑只提供工厂类型全局总览与工厂优先地区钻取',
+  '图标式快捷生产设置',
   '`ProvincePage` 内的市场与建筑分区仍始终是地图所打开当前州的本地视图',
   '概览无论解锁状态都显示官方常住人口',
   '市场无论解锁状态都允许查看商品目录、行情和订单簿',
@@ -103,7 +104,9 @@ for (const text of [
   '页面内容区不得显示独立“地区建筑”卡片或直接地区入口',
   '统一表头固定为“工厂｜平均利润／分钟｜拥有”',
   '场景插画固定使用圆角正方形裁剪',
-  '全局工厂行必须整行可点击，先进入该工厂类型的地区列表',
+  '全局工厂条目的第一行原数据区域继续作为进入该工厂类型地区列表的主交互面',
+  '第二行只在工厂身份列内显示“当前生产产物”和“当前作业制度”两个方形图标',
+  '不得显示文字标题、字段名、状态胶囊、保存按钮、展开详情、下拉框或浮出的选择面板',
   '固定使用“地区｜利润／分钟｜拥有｜状态”统一表头',
   '地区列只显示州级地区全称，不在地区名下方重复显示字母简写',
   '利润列固定显示该州当前同类工厂的单厂利润／分钟',
@@ -211,6 +214,11 @@ for (const [path, expected] of [
     'className="entity-list-rows global-facility-catalog-list"',
     'className="entity-list-row global-facility-catalog-row"',
     'onClick={() => openGlobalFacility(row.facilityTypeId)}',
+    'data-quick-production="product"',
+    'data-quick-production="method"',
+    '<ProductArtwork productId={row.quickProduction.productId} />',
+    '<QuickProductionMethodIcon methodId={row.quickProduction.methodId} />',
+    'model.setFacilityRecipes(targets)',
     '<FacilityIcon facilityTypeId={row.facilityTypeId} className="global-facility-catalog-row__artwork" />',
     '<ChevronIcon direction="right" />',
     'data-global-facility-type-id={selectedGlobalFacilityTypeId}',
@@ -234,6 +242,19 @@ for (const [path, expected] of [
 ]) {
   for (const text of expected) requireText(path, text);
 }
+
+for (const text of [
+  '<RichSelectInput',
+  '>快捷生产设置<',
+]) forbidText('src/pages/GlobalBuildingsPage.tsx', text);
+for (const text of [
+  '/* Global building catalog quick production: registered two-line row exception. */',
+  '.global-facility-catalog-row__quick-controls {',
+  '--entity-list-row-height: 76px;',
+  '--global-facility-catalog-artwork-size: 52px;',
+  'min-height: var(--global-facility-catalog-quick-size);',
+  'height: 34px;',
+]) requireText('src/styles/global-operation-pages.css', text);
 
 for (const text of [
   '<WidgetHeading title="商品"',

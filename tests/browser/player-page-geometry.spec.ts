@@ -268,14 +268,15 @@ test.describe('player page safe geometry', () => {
       for (const row of catalog.facilityRows) {
         expect(row.left).toBeGreaterThanOrEqual(catalog.facilityList.left - 1);
         expect(row.right).toBeLessThanOrEqual(catalog.facilityList.right + 1);
-        expect(row.height).toBeLessThanOrEqual(62);
+        expect(row.height).toBeGreaterThanOrEqual(66);
+        expect(row.height).toBeLessThanOrEqual(80);
       }
       for (let index = 1; index < catalog.facilityRows.length; index += 1) {
         expect(catalog.facilityRows[index].top).toBeGreaterThanOrEqual(catalog.facilityRows[index - 1].bottom - 1);
       }
 
       const facilityRows = page.locator('.global-facility-catalog-row');
-      await facilityRows.first().evaluate((button: HTMLButtonElement) => button.click());
+      await facilityRows.locator('.global-facility-catalog-row__open').first().evaluate((button: HTMLButtonElement) => button.click());
       await expect(page.locator('.global-facility-region-list')).toBeVisible();
 
       const regionGeometry = await readPageGeometry(page);

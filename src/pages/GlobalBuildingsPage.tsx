@@ -3,7 +3,8 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { currentFormulaScope } from '../components/facilities/FacilityProductionFormula';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
-import { ChevronIcon } from '../components/icons/GameIcons';
+import { AssetsIcon, ChevronIcon, CreditsIcon, CycleIcon, ProductionIcon } from '../components/icons/GameIcons';
+import { ProductArtwork } from '../components/products/ProductArtwork';
 import {
   EntityListHeader,
   type EntityListSortDirection,
@@ -16,8 +17,12 @@ import {
   resolveFacilityProfitPresentation,
   type FacilityProfitTone,
 } from '../utils/facilityProfitPresentation';
+import type { FacilityProductionMethodId } from '../types';
 import { formatCurrency, formatNumber } from '../utils/formatters';
-import { resolveFacilityDetailRecipeState } from './production/ProductionFacilityDetail';
+import {
+  productionRecipeVariantId,
+  resolveFacilityDetailRecipeState,
+} from './production/ProductionFacilityDetail';
 import '../styles/global-operation-pages.css';
 import '../styles/entity-list-header.css';
 
@@ -73,10 +78,28 @@ function facilityStatusLabel(status: 'running' | 'stopped' | 'error') {
   return '已停止';
 }
 
+function QuickProductionMethodIcon({ methodId }: { methodId: FacilityProductionMethodId }) {
+  if (methodId === 'rapid' || methodId === 'assisted') return <CycleIcon />;
+  if (methodId === 'economical' || methodId === 'intensive') return <CreditsIcon />;
+  if (methodId === 'high-yield' || methodId === 'mechanized') return <AssetsIcon />;
+  return <ProductionIcon />;
+}
+
+function requiredTechnologyIdsForMethod(method: { requiredTechnologyIds?: string[] }) {
+  return Array.isArray(method.requiredTechnologyIds) ? method.requiredTechnologyIds : [];
+}
+
+function nextCatalogOption<T extends { id: string }>(options: T[], currentId: string) {
+  if (options.length < 2) return options[0];
+  const index = options.findIndex((option) => option.id === currentId);
+  return options[(index < 0 ? 0 : index + 1) % options.length];
+}
+
 export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
   const [selectedGlobalFacilityTypeId, setSelectedGlobalFacilityTypeId] = useState<string | null>(null);
   const [activeProvinceId, setActiveProvinceId] = useState<string | null>(null);
   const [facilityDetailTypeId, setFacilityDetailTypeId] = useState<string | null>(null);
+  const [pendingQuickFacilityTypeIds, setPendingQuickFacilityTypeIds] = useState<Set<string>>(() => new Set());
   const [catalogSort, setCatalogSort] = useState<EntityListSortState<FacilityCatalogSortKey>>({
     key: 'catalog',
     direction: 'asc',
@@ -116,6 +139,10 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     let weightedProfitTotal = 0;
     let weightedProfitCount = 0;
     const incompleteProfitProvinces: string[] = [];
+    const recipeStates: Array<{
+      provinceId: string;
+      recipeState: ReturnType<typeof resolveFacilityDetailRecipeState>;
+    }> = [];
 
     for (const province of provinces) {
       const group = (game.provinceFacilityGroups?.[province.id] ?? [])
@@ -126,9 +153,10 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
       if (count <= 0) continue;
       totalCount += count;
 
+      const recipeState = resolveFacilityDetailRecipeState({ group, type });
+      recipeStates.push({ provinceId: province.id, recipeState });
       const scope = currentFormulaScope(group, game.lastProcessedAt);
       if (scope.physicalCount <= 0) continue;
-      const recipeState = resolveFacilityDetailRecipeState({ group, type });
       const presentation = resolveFacilityProfitPresentation({
         type: recipeState.formulaType,
         scopeCount: scope.physicalCount,
@@ -155,6 +183,41 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
         ? `跨州单厂平均利润／分钟；${incompleteProfitProvinces.join('、')}缺少当前配方所需商品的最近真实成交价`
         : '跨州单厂平均利润／分钟；当前没有可用于利润估算的工厂'
       : '跨州单厂平均利润／分钟；按各州当前、启动后或恢复后可生产工厂数量加权，使用各州当前配方、最近真实成交价和预计满员率';
+    const representativeRecipeState = recipeStates[0]?.recipeState;
+    const completedTechnologyIds = new Set(game.research?.completedTechnologyIds ?? []);
+    const productionMethodGroup = representativeRecipeState?.productionMethodGroup;
+    const quickMethodOptions = productionMethodGroup?.methods.filter((method) => (
+      requiredTechnologyIdsForMethod(method).every((technologyId) => completedTechnologyIds.has(technologyId))
+      && recipeStates.every(({ recipeState }) => Boolean(productionRecipeVariantId(
+        type,
+        recipeState.selectedBaseRecipeId,
+        method.id,
+      )))
+    )) ?? [];
+    const representativeProductId = representativeRecipeState?.activeBaseRecipe.output.productId ?? '';
+    const representativeMethodId = representativeRecipeState?.selectedProductionMethodId ?? 'standard';
+    const quickProduction = representativeRecipeState ? {
+      productId: representativeProductId,
+      productName: game.products.find((product) => product.id === representativeProductId)?.name
+        ?? representativeRecipeState.activeBaseRecipe.name,
+      productMixed: new Set(recipeStates.map(({ recipeState }) => recipeState.selectedBaseRecipeId)).size > 1,
+      methodId: representativeMethodId,
+      methodName: representativeRecipeState.activeProductionMethod?.name
+        ?? productionMethodGroup?.methods.find((method) => method.id === representativeMethodId)?.name
+        ?? '标准生产',
+      methodMixed: new Set(recipeStates.map(({ recipeState }) => recipeState.selectedProductionMethodId)).size > 1,
+      productOptions: representativeRecipeState.recipes.map((recipe) => ({
+        id: recipe.id,
+        name: game.products.find((product) => product.id === recipe.output.productId)?.name ?? recipe.name,
+        productId: recipe.output.productId,
+      })),
+      methodOptions: quickMethodOptions.map((method) => ({ id: method.id, name: method.name })),
+      targets: recipeStates.map(({ provinceId, recipeState }) => ({
+        provinceId,
+        baseRecipeId: recipeState.selectedBaseRecipeId,
+        methodId: recipeState.selectedProductionMethodId,
+      })),
+    } : null;
 
     return [{
       facilityTypeId: type.id,
@@ -166,6 +229,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
       profitValue: averageProfit === null ? '—' : formatCurrency(Math.abs(averageProfit)),
       profitAccessibleValue: accessibleProfit(averageProfit),
       profitDetail,
+      quickProduction,
     }];
   }), [
     game.facilityTypes,
@@ -173,6 +237,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     game.products,
     game.provinceFacilityGroups,
     game.provinceMarkets,
+    game.research?.completedTechnologyIds,
     provinces,
   ]);
 
@@ -271,6 +336,52 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
       provinceId,
       facilityTypeId: selectedGlobalFacilityTypeId,
     });
+  };
+
+  const cycleQuickProduction = async (
+    row: (typeof facilityRows)[number],
+    target: 'product' | 'method',
+  ) => {
+    const quick = row.quickProduction;
+    const type = game.facilityTypes.find((candidate) => candidate.id === row.facilityTypeId);
+    if (!quick || !type || pendingQuickFacilityTypeIds.has(row.facilityTypeId)) return;
+
+    const next = target === 'product'
+      ? nextCatalogOption(quick.productOptions, quick.targets[0]?.baseRecipeId ?? quick.productOptions[0]?.id ?? '')
+      : nextCatalogOption(quick.methodOptions, quick.targets[0]?.methodId ?? quick.methodId);
+    if (!next) return;
+
+    const targets = quick.targets.flatMap((current) => {
+      const recipeId = target === 'product'
+        ? productionRecipeVariantId(type, next.id, current.methodId)
+          ?? productionRecipeVariantId(type, next.id, 'standard')
+        : productionRecipeVariantId(type, current.baseRecipeId, next.id as FacilityProductionMethodId);
+      return recipeId ? [{
+        provinceId: current.provinceId,
+        facilityTypeId: row.facilityTypeId,
+        recipeId,
+      }] : [];
+    });
+    if (targets.length !== quick.targets.length) {
+      model.notify('当前生产配置无法应用到全部地区');
+      return;
+    }
+    if (!model.setFacilityRecipes) {
+      model.notify('当前环境不支持跨地区生产配置');
+      return;
+    }
+
+    setPendingQuickFacilityTypeIds((current) => new Set(current).add(row.facilityTypeId));
+    try {
+      const result = await model.setFacilityRecipes(targets);
+      model.notify(result.message);
+    } finally {
+      setPendingQuickFacilityTypeIds((current) => {
+        const nextPending = new Set(current);
+        nextPending.delete(row.facilityTypeId);
+        return nextPending;
+      });
+    }
   };
 
   if (activeProvince) {
@@ -426,17 +537,51 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
               <ul className="entity-list-rows global-facility-catalog-list" aria-label="跨州工厂汇总">
                 {sortedFacilityRows.map((row) => (
                   <li key={row.facilityTypeId}>
-                    <button
-                      type="button"
+                    <div
                       className="entity-list-row global-facility-catalog-row"
                       data-ui-interactive="surface"
-                      aria-label={`打开${row.name}地区工厂，拥有 ${formatNumber(row.totalCount)} 座，跨州单厂平均利润每分钟：${row.profitAccessibleValue}`}
-                      title={row.profitDetail}
-                      onClick={() => openGlobalFacility(row.facilityTypeId)}
+                      data-quick-production-row={row.quickProduction ? 'true' : undefined}
                     >
+                      <button
+                        type="button"
+                        className="global-facility-catalog-row__open"
+                        aria-label={`打开${row.name}地区工厂，拥有 ${formatNumber(row.totalCount)} 座，跨州单厂平均利润每分钟：${row.profitAccessibleValue}`}
+                        title={row.profitDetail}
+                        onClick={() => openGlobalFacility(row.facilityTypeId)}
+                      />
                       <span className="global-facility-catalog-row__identity">
                         <FacilityIcon facilityTypeId={row.facilityTypeId} className="global-facility-catalog-row__artwork" />
                         <strong>{row.name}</strong>
+                        {row.quickProduction ? (
+                          <span className="global-facility-catalog-row__quick-controls" aria-label={`${row.name}生产配置`}>
+                            <button
+                              type="button"
+                              className="global-facility-catalog-row__quick-control"
+                              data-ui-interactive="control"
+                              data-quick-production="product"
+                              data-mixed={row.quickProduction.productMixed ? 'true' : undefined}
+                              aria-label={`${row.name}生产产物：${row.quickProduction.productMixed ? '各地区不同，当前显示' : ''}${row.quickProduction.productName}`}
+                              title={`${row.quickProduction.productMixed ? '各地区产物不同；' : ''}生产产物：${row.quickProduction.productName}`}
+                              disabled={row.quickProduction.productOptions.length < 2 || pendingQuickFacilityTypeIds.has(row.facilityTypeId)}
+                              onClick={() => void cycleQuickProduction(row, 'product')}
+                            >
+                              <ProductArtwork productId={row.quickProduction.productId} />
+                            </button>
+                            <button
+                              type="button"
+                              className="global-facility-catalog-row__quick-control"
+                              data-ui-interactive="control"
+                              data-quick-production="method"
+                              data-mixed={row.quickProduction.methodMixed ? 'true' : undefined}
+                              aria-label={`${row.name}作业制度：${row.quickProduction.methodMixed ? '各地区不同，当前显示' : ''}${row.quickProduction.methodName}`}
+                              title={`${row.quickProduction.methodMixed ? '各地区制度不同；' : ''}作业制度：${row.quickProduction.methodName}`}
+                              disabled={row.quickProduction.methodOptions.length < 2 || pendingQuickFacilityTypeIds.has(row.facilityTypeId)}
+                              onClick={() => void cycleQuickProduction(row, 'method')}
+                            >
+                              <QuickProductionMethodIcon methodId={row.quickProduction.methodId} />
+                            </button>
+                          </span>
+                        ) : null}
                       </span>
                       <strong
                         className={`entity-list-value global-facility-catalog-row__metric global-facility-catalog-row__profit is-${row.profitTone}`}
@@ -448,7 +593,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
                       <span className="global-facility-catalog-row__chevron" aria-hidden="true">
                         <ChevronIcon direction="right" />
                       </span>
-                    </button>
+                    </div>
                   </li>
                 ))}
               </ul>
