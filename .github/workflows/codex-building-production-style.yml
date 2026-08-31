@@ -1,0 +1,79 @@
+name: Validate building production list style
+
+on:
+  push:
+    branches:
+      - fix/building-production-style
+    paths:
+      - .github/workflows/codex-building-production-style.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/building-production-style
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Apply shared production style patch
+        run: python .codex-building-production-style.py
+      - name: Install dependencies
+        run: npm ci
+      - name: Plan scoped validation
+        run: |
+          git diff --name-only -- src docs scripts tests > /tmp/changed-files.txt
+          cat /tmp/changed-files.txt
+          node scripts/select-ci-tests.mjs plan \
+            --changed-files-file /tmp/changed-files.txt \
+            --plan-file /tmp/ci-plan.json
+      - name: Run scoped checks
+        run: |
+          MODE=$(node -e "console.log(require('/tmp/ci-plan.json').mode)")
+          if [ "$MODE" = "targeted" ]; then
+            node scripts/select-ci-tests.mjs run --plan-file /tmp/ci-plan.json --phase checks
+          else
+            npm run build
+          fi
+      - name: Prepare Chromium
+        run: bash scripts/prepare-playwright-chromium.sh
+      - name: Run scoped browser checks
+        env:
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: /usr/bin/google-chrome
+        run: |
+          MODE=$(node -e "console.log(require('/tmp/ci-plan.json').mode)")
+          if [ "$MODE" = "targeted" ]; then
+            node scripts/select-ci-tests.mjs run --plan-file /tmp/ci-plan.json --phase browser
+          else
+            npm run test:browser
+          fi
+      - name: Verify diff
+        run: |
+          git diff --check
+          git status --short
+          git diff -- src/components/facilities/FacilityProductionConfigControls.tsx src/pages/GlobalBuildingsPage.tsx src/styles/global-operation-pages.css tests/browser/global-operation-pages.spec.ts docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md docs/UI_DESIGN_SYSTEM.md docs/PRIMARY_SURFACE_INSET_DESIGN.md scripts/verify-page-content.mjs scripts/verify-primary-surface-insets.mjs scripts/verify-production-methods.mjs
+      - name: Commit validated changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src/components/facilities/FacilityProductionConfigControls.tsx \
+            src/pages/GlobalBuildingsPage.tsx \
+            src/styles/global-operation-pages.css \
+            tests/browser/global-operation-pages.spec.ts \
+            docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md \
+            docs/UI_DESIGN_SYSTEM.md \
+            docs/PRIMARY_SURFACE_INSET_DESIGN.md \
+            scripts/verify-page-content.mjs \
+            scripts/verify-primary-surface-insets.mjs \
+            scripts/verify-production-methods.mjs
+          git diff --cached --check
+          git commit -m "统一建筑列表生产设置样式并压缩首行"
+          git push origin HEAD:fix/building-production-style
