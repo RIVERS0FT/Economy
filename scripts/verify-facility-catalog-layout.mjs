@@ -26,15 +26,12 @@ const paths = {
 Object.values(paths).forEach(requireFile);
 
 if (failures.length === 0) {
-  const main = read(paths.main);
-  const finalLayoutIndex = main.indexOf("import './styles/global-facility-narrow.css';");
-  const formControlsIndex = main.indexOf("import './styles/form-controls.css';");
-  if (!(finalLayoutIndex > formControlsIndex)) {
-    failures.push('global-facility-narrow.css 必须作为建筑目录最终几何覆盖在 form-controls.css 之后加载');
-  }
+  requireText(paths.main, "import './styles/global-facility-narrow.css';");
 
   for (const text of [
     'Final geometry authority for the global facility catalog two-line row.',
+    'GlobalBuildingsPage lazily loads global-operation-pages.css',
+    '.global-operation-page .global-facility-catalog {',
     '--global-facility-layout-artwork-track:',
     '--global-facility-layout-content-columns:',
     '--global-facility-layout-columns:',
@@ -54,6 +51,8 @@ if (failures.length === 0) {
     '.global-facility-catalog-row__quick-controls {',
     'border-top: 1px solid var(--color-divider);',
     'background: color-mix(in srgb, var(--color-surface-inset) 24%, transparent);',
+    '.global-facility-catalog-row__chevron {',
+    'width: var(--entity-list-chevron-column);',
     '@container (max-width: 200px)',
     '--global-facility-layout-artwork-track: 46px;',
     '--global-facility-layout-profit-track: minmax(0, .76fr);',
@@ -94,4 +93,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('工厂目录 Grid 分区验证通过：插画真实占位跨两行，第一行数据与第二行生产设置具有明确分区，极窄载体继续无横向溢出。');
+console.log('工厂目录 Grid 分区验证通过：插画真实占位跨两行，第一行数据与第二行生产设置具有明确分区，且懒加载样式不会恢复悬浮布局。');
