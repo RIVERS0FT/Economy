@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: 24.4.0
           cache: npm
-      - name: Apply shared production style patch v3
+      - name: Apply shared production style patch v4
         run: |
           python .codex-building-production-style.py
           python .codex-building-production-style-fix.py
@@ -60,7 +60,20 @@ jobs:
         run: |
           git diff --check
           git status --short
-          git diff -- src/components/facilities/FacilityProductionConfigControls.tsx src/pages/GlobalBuildingsPage.tsx src/styles/global-operation-pages.css tests/browser/global-operation-pages.spec.ts docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md docs/UI_DESIGN_SYSTEM.md docs/PRIMARY_SURFACE_INSET_DESIGN.md scripts/verify-page-content.mjs scripts/verify-primary-surface-insets.mjs scripts/verify-production-methods.mjs
+          git diff -- \
+            src/components/facilities/FacilityProductionConfigControls.tsx \
+            src/pages/GlobalBuildingsPage.tsx \
+            src/styles/global-operation-pages.css \
+            tests/browser/global-operation-pages.spec.ts \
+            docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md \
+            docs/UI_DESIGN_SYSTEM.md \
+            docs/PRIMARY_SURFACE_INSET_DESIGN.md \
+            scripts/verify-page-content.mjs \
+            scripts/verify-primary-surface-insets.mjs \
+            scripts/verify-production-methods.mjs \
+            scripts/verify-facility-groups.mjs \
+            scripts/verify-production-settlement-layout.mjs \
+            scripts/verify-unified-factory-recipes-grid.mjs
       - name: Commit validated changes
         run: |
           git config user.name "github-actions[bot]"
@@ -75,7 +88,10 @@ jobs:
             docs/PRIMARY_SURFACE_INSET_DESIGN.md \
             scripts/verify-page-content.mjs \
             scripts/verify-primary-surface-insets.mjs \
-            scripts/verify-production-methods.mjs
+            scripts/verify-production-methods.mjs \
+            scripts/verify-facility-groups.mjs \
+            scripts/verify-production-settlement-layout.mjs \
+            scripts/verify-unified-factory-recipes-grid.mjs
           git diff --cached --check
           git commit -m "统一建筑列表生产设置样式并压缩首行"
           git push origin HEAD:fix/building-production-style
