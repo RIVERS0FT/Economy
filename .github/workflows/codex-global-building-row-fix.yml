@@ -29,6 +29,11 @@ jobs:
           python .codex-global-building-row-fix-padding.py
           python .codex-global-building-row-fix-geometry.py
           python .codex-global-building-region-two-line.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/styles/global-operation-pages.css')
+          path.write_text(path.read_text(encoding='utf-8').rstrip() + '\n', encoding='utf-8', newline='\n')
+          PY
       - name: Install dependencies
         run: npm ci
       - name: Plan validation
