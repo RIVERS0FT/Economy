@@ -195,9 +195,11 @@ for (const text of [
 ]) assert.ok(detailSource.includes(text), `生产方式客户端合成缺少 ${text}`);
 for (const text of [
   'export function FacilityProductionConfigControls',
+  'export function FacilityProductionProductSelect',
+  'export function FacilityProductionMethodSelect',
   'variant="production-config"',
-  'aria-label={`${typeName}生产产物`}',
-  'aria-label={`${typeName}生产方式`}',
+  'aria-label={ariaLabel ?? `${typeName}生产产物`}',
+  'aria-label={ariaLabel ?? `${typeName}生产方式`}',
   'plansByRecipeId[baseRecipeId]',
   'triggerDetail:',
   '<ProductPlanDetail',

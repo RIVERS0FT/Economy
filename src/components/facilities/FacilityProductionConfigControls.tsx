@@ -148,6 +148,129 @@ function requiredTechnologyIdsForMethod(method: FacilityProductionMethodGroupDef
   return Array.isArray(extended.requiredTechnologyIds) ? extended.requiredTechnologyIds : [];
 }
 
+export function FacilityProductionProductSelect({
+  typeName,
+  products,
+  recipes,
+  productionMethodGroup,
+  selectedBaseRecipeId,
+  selectedProductionMethodId,
+  disabled,
+  fieldClassName,
+  notifyOnReselect = false,
+  ariaLabel,
+  onProductChange,
+}: {
+  typeName: string;
+  products: ProductDefinition[];
+  recipes: FacilityRecipeDefinition[];
+  productionMethodGroup: FacilityProductionMethodGroupDefinition | undefined;
+  selectedBaseRecipeId: string;
+  selectedProductionMethodId: FacilityProductionMethodId;
+  disabled: boolean;
+  fieldClassName?: string;
+  notifyOnReselect?: boolean;
+  ariaLabel?: string;
+  onProductChange: (baseRecipeId: string) => void;
+}) {
+  const productsById = productMap(products);
+  return (
+    <RichSelectInput
+      variant="production-config"
+      label="生产产物"
+      fieldClassName={fieldClassName}
+      aria-label={ariaLabel ?? `${typeName}生产产物`}
+      value={selectedBaseRecipeId}
+      options={recipes.map((recipe) => {
+        const plan = planForMethod(productionMethodGroup, selectedProductionMethodId, recipe.id) ?? recipe;
+        const outputName = productName(productsById, plan.output.productId);
+        return {
+          value: recipe.id,
+          label: recipe.name,
+          visual: <ProductArtwork productId={plan.output.productId} />,
+          triggerDetail: `${outputName} ×${formatNumber(plan.output.quantity)} · ${seconds(plan.cycleMs)}`,
+          detail: <ProductPlanDetail plan={plan} productsById={productsById} />,
+        };
+      })}
+      notifyOnReselect={notifyOnReselect}
+      disabled={disabled || recipes.length === 0}
+      onValueChange={onProductChange}
+    />
+  );
+}
+
+export function FacilityProductionMethodSelect({
+  typeName,
+  products,
+  productionMethodGroup,
+  selectedBaseRecipeId,
+  selectedProductionMethodId,
+  completedTechnologyIds,
+  researchTechnologies,
+  disabled,
+  fieldClassName,
+  notifyOnReselect = false,
+  ariaLabel,
+  onMethodChange,
+}: {
+  typeName: string;
+  products: ProductDefinition[];
+  productionMethodGroup: FacilityProductionMethodGroupDefinition | undefined;
+  selectedBaseRecipeId: string;
+  selectedProductionMethodId: FacilityProductionMethodId;
+  completedTechnologyIds: string[];
+  researchTechnologies: ResearchTechnologyDefinition[];
+  disabled: boolean;
+  fieldClassName?: string;
+  notifyOnReselect?: boolean;
+  ariaLabel?: string;
+  onMethodChange: (methodId: FacilityProductionMethodId) => void;
+}) {
+  const productsById = productMap(products);
+  const completedTechnologies = new Set(completedTechnologyIds);
+  const technologyNamesById = new Map(researchTechnologies.map((technology) => [technology.id, technology.name]));
+  const currentPlan = planForMethod(
+    productionMethodGroup,
+    selectedProductionMethodId,
+    selectedBaseRecipeId,
+  );
+  if (!productionMethodGroup || !currentPlan) return null;
+
+  return (
+    <RichSelectInput
+      variant="production-config"
+      label={productionMethodGroup.name}
+      fieldClassName={fieldClassName}
+      aria-label={ariaLabel ?? `${typeName}生产方式`}
+      value={selectedProductionMethodId}
+      options={productionMethodGroup.methods.map((method) => {
+        const plan = method.plansByRecipeId[selectedBaseRecipeId];
+        const missingTechnologyNames = requiredTechnologyIdsForMethod(method)
+          .filter((technologyId) => !completedTechnologies.has(technologyId))
+          .map((technologyId) => technologyNamesById.get(technologyId) ?? technologyId);
+        const locked = missingTechnologyNames.length > 0;
+        return {
+          value: method.id,
+          label: method.name,
+          disabled: !plan || locked,
+          visual: <ProductionMethodIcon methodId={method.id} />,
+          triggerDetail: plan
+            ? `${seconds(plan.cycleMs)} · 成本 ${formatNumber(plan.operatingCost)} · 产出 ×${formatNumber(plan.output.quantity)}`
+            : undefined,
+          detail: !plan
+            ? <span className="production-config-unavailable">当前产物不可用</span>
+            : locked
+              ? <span className="production-config-unavailable">需要完成「{missingTechnologyNames.join('」「')}」研发</span>
+              : <MethodPlanDetail plan={plan} currentPlan={currentPlan} productsById={productsById} />,
+        };
+      })}
+      notifyOnReselect={notifyOnReselect}
+      disabled={disabled}
+      onValueChange={(methodId) => onMethodChange(methodId as FacilityProductionMethodId)}
+    />
+  );
+}
+
 export function FacilityProductionConfigControls({
   typeName,
   products,
@@ -175,68 +298,29 @@ export function FacilityProductionConfigControls({
   onProductChange: (baseRecipeId: string) => void;
   onMethodChange: (methodId: FacilityProductionMethodId) => void;
 }) {
-  const productsById = productMap(products);
-  const completedTechnologies = new Set(completedTechnologyIds);
-  const technologyNamesById = new Map(researchTechnologies.map((technology) => [technology.id, technology.name]));
-  const currentPlan = planForMethod(
-    productionMethodGroup,
-    selectedProductionMethodId,
-    selectedBaseRecipeId,
-  );
-
   return (
     <div className={className}>
-      <RichSelectInput
-        variant="production-config"
-        label="生产产物"
-        aria-label={`${typeName}生产产物`}
-        value={selectedBaseRecipeId}
-        options={recipes.map((recipe) => {
-          const plan = planForMethod(productionMethodGroup, selectedProductionMethodId, recipe.id) ?? recipe;
-          const outputName = productName(productsById, plan.output.productId);
-          return {
-            value: recipe.id,
-            label: recipe.name,
-            visual: <ProductArtwork productId={plan.output.productId} />,
-            triggerDetail: `${outputName} ×${formatNumber(plan.output.quantity)} · ${seconds(plan.cycleMs)}`,
-            detail: <ProductPlanDetail plan={plan} productsById={productsById} />,
-          };
-        })}
-        disabled={disabled || recipes.length === 0}
-        onValueChange={onProductChange}
+      <FacilityProductionProductSelect
+        typeName={typeName}
+        products={products}
+        recipes={recipes}
+        productionMethodGroup={productionMethodGroup}
+        selectedBaseRecipeId={selectedBaseRecipeId}
+        selectedProductionMethodId={selectedProductionMethodId}
+        disabled={disabled}
+        onProductChange={onProductChange}
       />
-
-      {productionMethodGroup && currentPlan ? (
-        <RichSelectInput
-          variant="production-config"
-          label={productionMethodGroup.name}
-          aria-label={`${typeName}生产方式`}
-          value={selectedProductionMethodId}
-          options={productionMethodGroup.methods.map((method) => {
-            const plan = method.plansByRecipeId[selectedBaseRecipeId];
-            const missingTechnologyNames = requiredTechnologyIdsForMethod(method)
-              .filter((technologyId) => !completedTechnologies.has(technologyId))
-              .map((technologyId) => technologyNamesById.get(technologyId) ?? technologyId);
-            const locked = missingTechnologyNames.length > 0;
-            return {
-              value: method.id,
-              label: method.name,
-              disabled: !plan || locked,
-              visual: <ProductionMethodIcon methodId={method.id} />,
-              triggerDetail: plan
-                ? `${seconds(plan.cycleMs)} · 成本 ${formatNumber(plan.operatingCost)} · 产出 ×${formatNumber(plan.output.quantity)}`
-                : undefined,
-              detail: !plan
-                ? <span className="production-config-unavailable">当前产物不可用</span>
-                : locked
-                  ? <span className="production-config-unavailable">需要完成「{missingTechnologyNames.join('」「')}」研发</span>
-                  : <MethodPlanDetail plan={plan} currentPlan={currentPlan} productsById={productsById} />,
-            };
-          })}
-          disabled={disabled}
-          onValueChange={(methodId) => onMethodChange(methodId as FacilityProductionMethodId)}
-        />
-      ) : null}
+      <FacilityProductionMethodSelect
+        typeName={typeName}
+        products={products}
+        productionMethodGroup={productionMethodGroup}
+        selectedBaseRecipeId={selectedBaseRecipeId}
+        selectedProductionMethodId={selectedProductionMethodId}
+        completedTechnologyIds={completedTechnologyIds}
+        researchTechnologies={researchTechnologies}
+        disabled={disabled}
+        onMethodChange={onMethodChange}
+      />
     </div>
   );
 }

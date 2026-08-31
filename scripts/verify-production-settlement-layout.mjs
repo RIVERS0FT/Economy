@@ -165,7 +165,7 @@ const productionSettingsSource = `${detail}\n${configControls}`;
 for (const text of [
   '<FacilityProductionConfigControls',
   'label="生产产物"',
-  'aria-label={`${typeName}生产产物`}',
+  'aria-label={ariaLabel ?? `${typeName}生产产物`}',
   'visual: <ProductArtwork productId={plan.output.productId} />',
   'visual: <ProductionMethodIcon methodId={method.id} />',
   'data-production-method-icon={methodId}',

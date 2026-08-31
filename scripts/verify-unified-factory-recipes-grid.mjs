@@ -164,8 +164,8 @@ for (const forbidden of [
 
 for (const text of [
   'label="生产产物"',
-  'aria-label={`${typeName}生产产物`}',
-  'aria-label={`${typeName}生产方式`}',
+  'aria-label={ariaLabel ?? `${typeName}生产产物`}',
+  'aria-label={ariaLabel ?? `${typeName}生产方式`}',
   'variant="production-config"',
 ]) assert.equal(controls.includes(text), true, `统一生产设置控件缺少: ${text}`);
 

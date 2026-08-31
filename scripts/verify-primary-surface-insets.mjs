@@ -78,11 +78,11 @@ if (failures.length === 0) {
     '--entity-list-columns: minmax(0, 1.6fr) minmax(7rem, .8fr) minmax(4rem, .45fr) var(--entity-list-chevron-column);',
     '--entity-list-columns: minmax(0, 1.45fr) minmax(6rem, .7fr) minmax(3.5rem, .42fr) minmax(4.5rem, .55fr) var(--entity-list-chevron-column);',
     '.global-facility-catalog-row__artwork {',
-    'padding: var(--entity-list-inline-padding);',
-    'padding-block: var(--entity-list-inline-padding);',
+    'padding-block: .375rem;',
     'padding-inline: var(--entity-list-inline-padding);',
     'border: 1px solid var(--color-border-subtle);',
-    '--global-facility-catalog-main-row-size: 44px;',
+    '--global-facility-catalog-main-row-size: 32px;',
+    '--global-facility-production-control-size: 48px;',
     '.global-facility-catalog-row__open {',
     'grid-row: 1;',
     'min-height: 0;',
@@ -179,13 +179,12 @@ if (failures.length === 0) {
     '全局建筑列表的响应不能只依赖浏览器 viewport',
     '真实页面承载宽度不大于 `620px` 时',
     '通用列间距、横向内边距与 Chevron 轨道必须复用 `entity-list-header.css` 的页面列表共享令牌',
-    '条目四边统一使用同一个 `--entity-list-inline-padding`',
+    '横向内边距必须复用其 `--entity-list-inline-padding`',
     '地区下钻按钮只覆盖第一行',
-    '极窄 `360px` 及以下进一步收紧到约 `84px / 66px / 24px`',
     '一级建筑页已退役独立“地区建筑”卡片及其 `.global-province-list` / `.global-province-row` 布局规则',
     '`tests/browser/player-page-geometry.spec.ts`',
     '分别对一级全局工厂目录和点击工厂后的地区工厂列表执行边界与跨断点真实几何回归',
-    '一级全局工厂目录和地区工厂列表条目必须保持约 `84～96px` 的登记两行高度',
+    '一级全局工厂目录和地区工厂列表条目必须保持约 `93～96px` 的登记两行高度',
     '浏览器真实几何回归若在同一页面实例内跨越 `720px` 桌面／移动断点',
     '`tests/browser/market-runtime.spec.ts` 的跨桌面／移动响应式几何用例',
     '该验证必须加入 `verify:architecture`',
@@ -244,4 +243,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、承载面局部间距、跨端页面安全宽度、正文顶部留白、全局建筑目录按已登记两行高度例外响应，地区工厂列表保持共享单行密度、旧类兼容、样式与设计文档权威均已锁定。');
+console.log('一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、承载面局部间距、跨端页面安全宽度、正文顶部留白、全局建筑目录按已登记两行高度例外响应，地区工厂列表同步两行生产配置密度、旧类兼容、样式与设计文档权威均已锁定。');

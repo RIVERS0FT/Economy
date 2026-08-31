@@ -122,8 +122,8 @@ forbidText('src/components/facilities/FacilityRecipeProfitAnalysis.tsx', '<small
 forbidText('src/components/facilities/FacilityRecipeProfitAnalysis.tsx', '最近真实成交价 · 满员率');
 for (const text of [
   'label="生产产物"',
-  'aria-label={`${typeName}生产产物`}',
-  'aria-label={`${typeName}生产方式`}',
+  'aria-label={ariaLabel ?? `${typeName}生产产物`}',
+  'aria-label={ariaLabel ?? `${typeName}生产方式`}',
   'variant="production-config"',
 ]) requireText('src/components/facilities/FacilityProductionConfigControls.tsx', text);
 for (const forbidden of [

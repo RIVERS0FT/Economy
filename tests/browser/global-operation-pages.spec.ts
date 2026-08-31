@@ -1,4 +1,15 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
+
+async function readProductionTriggerSkin(locator: Locator) {
+  return locator.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      borderRadius: style.borderRadius,
+      color: style.color,
+      fontWeight: style.fontWeight,
+    };
+  });
+}
 
 test('map keeps gesture zoom without a control panel and primary market/buildings are global views', async ({ page }) => {
   test.setTimeout(60_000);
@@ -99,8 +110,10 @@ test('map keeps gesture zoom without a control panel and primary market/building
   expect(methodBox).not.toBeNull();
   expect(openBox).not.toBeNull();
   if (!nameBox || !productBox || !methodBox || !openBox) throw new Error('全局工厂两行布局未完整渲染');
-  expect(artworkBox.y).toBeLessThanOrEqual(nameBox.y + 1);
-  expect(artworkBox.y + artworkBox.height).toBeGreaterThanOrEqual(productBox.y + productBox.height - 3);
+  expect(openBox.height).toBeGreaterThanOrEqual(30);
+  expect(openBox.height).toBeLessThan(44);
+  expect(artworkBox.y).toBeLessThan(openBox.y + openBox.height);
+  expect(artworkBox.y + artworkBox.height).toBeGreaterThan(productBox.y);
   expect(Math.abs(productBox.width - productBox.height)).toBeLessThan(1);
   expect(Math.abs(methodBox.width - methodBox.height)).toBeLessThan(1);
   expect(openBox.y + openBox.height).toBeLessThanOrEqual(productBox.y + 1);
@@ -108,17 +121,27 @@ test('map keeps gesture zoom without a control panel and primary market/building
     const style = getComputedStyle(element);
     return [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft];
   });
-  expect(new Set(rowPadding).size).toBe(1);
+  expect(rowPadding[0]).toBe(rowPadding[2]);
+  expect(rowPadding[1]).toBe(rowPadding[3]);
+  expect(Number.parseFloat(rowPadding[0])).toBeLessThan(Number.parseFloat(rowPadding[1]));
 
   const productSelect = quickProduct.getByRole('combobox');
+  await expect(productSelect).toHaveAttribute('data-variant', 'production-config');
+  await expect(quickProduct.locator('.ui-rich-select__visual')).toHaveCount(1);
   if (await productSelect.isEnabled()) {
     await productSelect.click();
-    await expect(page.getByRole('listbox')).toBeVisible();
+    const listbox = page.getByRole('listbox');
+    await expect(listbox).toBeVisible();
+    await expect(listbox).toHaveAttribute('data-variant', 'production-config');
+    await expect(listbox.locator('.ui-rich-select__visual').first()).toBeVisible();
+    await expect(listbox.locator('.production-config-detail').first()).toBeVisible();
     expect(await page.getByRole('option').count()).toBeGreaterThan(1);
     await page.keyboard.press('Escape');
     await expect(page.getByRole('listbox')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: '建筑', exact: true })).toBeVisible();
   }
+  await productSelect.hover();
+  const catalogTriggerSkin = await readProductionTriggerSkin(productSelect);
 
   await openButton.click();
   await expect(page.getByRole('heading', { name: firstFacilityName!, exact: true })).toBeVisible();
@@ -159,26 +182,44 @@ test('map keeps gesture zoom without a control panel and primary market/building
   await expect(regionalFacilityRow.locator('.global-facility-region-row__profit')).toBeVisible();
   const regionOpenButton = regionalFacilityRow.locator('.global-facility-region-row__open');
   await expect(regionOpenButton).toHaveAttribute('aria-label', /单厂利润每分钟/);
+  const regionOpenBox = await regionOpenButton.boundingBox();
+  expect(regionOpenBox).not.toBeNull();
+  if (!regionOpenBox) throw new Error('地区工厂第一行未渲染');
+  expect(regionOpenBox.height).toBeGreaterThanOrEqual(30);
+  expect(regionOpenBox.height).toBeLessThan(44);
   const regionQuickProduct = regionalFacilityRow.locator('[data-quick-production="product"]');
   const regionQuickMethod = regionalFacilityRow.locator('[data-quick-production="method"]');
   await expect(regionQuickProduct).toHaveCount(1);
   await expect(regionQuickMethod).toHaveCount(1);
   await expect(regionalFacilityRow.locator('.global-facility-region-row__artwork')).toHaveCount(0);
-  await expect(regionalFacilityRow.locator('.global-facility-region-row__quick-controls .ui-rich-select__visual')).toHaveCount(0);
+  await expect(regionalFacilityRow.locator('.global-facility-region-row__quick-controls .ui-rich-select__visual')).toHaveCount(2);
   const regionProductSelect = regionQuickProduct.getByRole('combobox');
+  await expect(regionProductSelect).toHaveAttribute('data-variant', 'production-config');
   if (await regionProductSelect.isEnabled()) {
     await regionProductSelect.click();
-    await expect(page.getByRole('listbox')).toBeVisible();
+    const listbox = page.getByRole('listbox');
+    await expect(listbox).toBeVisible();
+    await expect(listbox).toHaveAttribute('data-variant', 'production-config');
+    await expect(listbox.locator('.ui-rich-select__visual').first()).toBeVisible();
+    await expect(listbox.locator('.production-config-detail').first()).toBeVisible();
     expect(await page.getByRole('option').count()).toBeGreaterThan(1);
     await page.keyboard.press('Escape');
     await expect(page.getByRole('listbox')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: firstFacilityName!, exact: true })).toBeVisible();
   }
+  await regionProductSelect.hover();
+  const regionTriggerSkin = await readProductionTriggerSkin(regionProductSelect);
   const regionalProvinceId = await regionalFacilityRow.getAttribute('data-province-id');
   expect(regionalProvinceId).toBeTruthy();
   await regionOpenButton.click();
   await expect(page.locator(`.global-buildings-page[data-drilldown-province-id="${regionalProvinceId}"]`)).toBeVisible();
   await expect(page.locator('.facility-cluster-detail-page')).toBeVisible();
+  const detailProductSelect = page.locator('.facility-production-settings-grid').getByRole('combobox').first();
+  await expect(detailProductSelect).toHaveAttribute('data-variant', 'production-config');
+  await detailProductSelect.hover();
+  const detailTriggerSkin = await readProductionTriggerSkin(detailProductSelect);
+  expect(catalogTriggerSkin).toEqual(detailTriggerSkin);
+  expect(regionTriggerSkin).toEqual(detailTriggerSkin);
   await page.getByRole('button', { name: '返回上一页面' }).click();
   await expect(page.locator('.global-buildings-page[data-global-facility-type-id]')).toBeVisible();
   await page.getByRole('button', { name: '返回上一页面' }).click();
