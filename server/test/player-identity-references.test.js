@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { createWorld, applyAction, migrateWorld } from '../src/domain.js';
 import { createProductionContractClientState, migrateProductionContractWorld } from '../src/contracts.js';
@@ -108,4 +109,11 @@ test('legacy mutable player identity mirrors are stripped during base world migr
   assert.equal(Object.hasOwn(migratedListing, 'ownerName'), false);
   const systemListing = world.facilityListings.find((listing) => listing.ownerType === 'market');
   assert.equal(systemListing?.ownerName, '系统资产市场');
+});
+
+test('base world migration keeps stable-id identity cleanup centrally wired', () => {
+  const identitySource = readFileSync(new URL('../src/player-identity.js', import.meta.url), 'utf8');
+  const domainSource = readFileSync(new URL('../src/domain.js', import.meta.url), 'utf8');
+  assert.match(identitySource, /export function stripMutablePlayerIdentityMirrors\(world\)/);
+  assert.match(domainSource, /stripMutablePlayerIdentityMirrors\(migrated\)/);
 });
