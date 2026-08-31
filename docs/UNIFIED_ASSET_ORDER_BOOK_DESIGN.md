@@ -29,7 +29,7 @@ interface AssetOrder {
   side: 'buy' | 'sell';
   ownerType: 'player' | 'population';
   ownerId?: number;
-  ownerName: string;
+  ownerName?: string; // 仅系统订单静态标签与旧数据读取兼容；新玩家订单禁止写入
   demandGroupId?: 'food' | 'household';
   demandTier?: 'direct' | 'derived-liquidity' | 'liquidity-buy' | 'liquidity-sell' | 'liquidity-emergency-sell';
   demandCycleId?: number;
@@ -409,7 +409,7 @@ interface OrderFill {
 
 客户端通过 `isOwn` 识别本人订单，并只显示订单部分成交、全部成交、成交数量、价格、总额、手续费、实收和时间。隐藏界面列不能替代 API 脱敏。
 
-玩家订单内部的 `ownerName` 只作为订单创建时的兼容快照，不是玩家昵称权威来源，也不得作为公开身份字段。普通玩家通过正式资料路由修改昵称时只更新玩家资料行，不回写未完成订单或历史订单；撮合、资产归属、本人识别和审计关联始终以稳定 `ownerId` 为准。非显然原因是昵称回写会迫使单次资料修改重写全局 `orders` segment，而普通玩家接口已经删除 `ownerName`，这种写放大没有任何公开语义收益。
+玩家订单的实时业务关系只允许保存稳定 `ownerId`，新建玩家订单不得再写入 `ownerName`；逐笔 fill 同样不得复制对手玩家昵称，订单关系通过 `makerOrderId` / `takerOrderId` 回到订单，再以 `ownerId` 关联玩家。`ownerName` 只允许作为人口需求、市场储备等非玩家系统主体的静态兼容标签，旧玩家订单中已经存在的 `ownerName` 只读兼容并在业务判断、公开输出和当前昵称展示中忽略，不做全量历史清理或改名回写。需要展示当前玩家昵称时必须在 API / Client State 投影阶段按 `ownerId` 从玩家实体解析；撮合、资产归属、本人识别和审计关联始终以稳定 ID 为准。非显然原因是可变昵称复制到订单或 fill 会制造一致性责任和随历史规模增长的写放大，而直接迁移清理全部旧记录会再次造成同类全局重写。
 
 ## 市场页面布局与可用性
 

@@ -38,7 +38,7 @@ test('player avatar validator only accepts a small 64px WebP thumbnail', () => {
   assert.throws(() => validatePlayerAvatarData(dataUrl(oversized)), /过大|8 KiB/);
 });
 
-test('profile action atomically replaces the stored thumbnail and keeps order owner snapshots stable', () => {
+test('profile action atomically replaces the stored thumbnail without rewriting legacy duplicated order names', () => {
   const directory = mkdtempSync(join(tmpdir(), 'economy-avatar-test-'));
   const previousDirectory = process.env.ECONOMY_AVATAR_DIR;
   process.env.ECONOMY_AVATAR_DIR = directory;

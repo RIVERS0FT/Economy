@@ -390,7 +390,6 @@ function applyCommodityOrder(world, user, payload, now) {
     side,
     ownerType: 'player',
     ownerId: userId,
-    ownerName: player.playerName,
     price,
     quantity,
     remaining: quantity,

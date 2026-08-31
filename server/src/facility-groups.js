@@ -525,7 +525,6 @@ function migrateLegacyListings(world) {
       side: 'sell',
       ownerType: listing.ownerType === 'player' ? 'player' : 'market',
       ownerId: listing.ownerId,
-      ownerName: String(listing.ownerName || '系统资产市场'),
       price: Math.max(1, Math.floor(Number(listing.unitPrice || listing.price || type.systemValue))),
       quantity,
       remaining: quantity,
@@ -936,10 +935,6 @@ export function productionReservedQuantitiesForPlayer(world, userId, provinceId)
   return reserved;
 }
 
-function describeCounterparty(order) {
-  return order.ownerName || (order.ownerType === 'market' ? '系统资产市场' : '玩家');
-}
-
 function addPurchasedGroup(world, player, typeId, quantity, now = Date.now(), provinceId = DEFAULT_PROVINCE_ID) {
   const group = groupFor(player, typeId, true, now, provinceId);
   const previousAvailable = availableGroupCount(world, player, group);
@@ -956,7 +951,6 @@ function matchFacilityOrder(world, incoming, createdAt) {
     incoming,
     createdAt,
     canMatch: ({ resting }) => resting.ownerType === 'player' && incoming.ownerType === 'player',
-    describeCounterparty,
     settleTrade: ({ buy, sell, quantity, price, sellerSettlement }) => {
       if (buy.ownerType === 'player') {
         const buyer = world.players[String(buy.ownerId)];
@@ -1216,7 +1210,6 @@ function placeFacilityOrder(world, userId, payload, now) {
     side,
     ownerType: 'player',
     ownerId: userId,
-    ownerName: player.playerName,
     price,
     quantity,
     remaining: quantity,
@@ -1350,10 +1343,6 @@ export function transferFacilityAuctionQuantity(
   return result(true, '拍卖工厂已转移');
 }
 
-function renameFacilityOrders(world, userId) {
-  const player = getPlayer(world, userId);
-  for (const order of world.orders || []) if (order.ownerId === userId) order.ownerName = player.playerName;
-}
 
 export function applyFacilityGroupAction(
   world,
@@ -1404,7 +1393,6 @@ export function applyFacilityGroupAction(
   }
 
   if (migrate) migrateFacilityGroupWorld(world, now);
-  if (action === 'renamePlayer' && actionResult.ok) renameFacilityOrders(world, userId);
   reconcileAllFacilityGroups(world, now);
   if (migrate) stripLegacyFacilityInstances(world);
   return actionResult;

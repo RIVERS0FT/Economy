@@ -17,6 +17,7 @@ import {
 } from './money.js';
 import { creditPopulationEmployment } from './population-economy.js';
 import { queueAuctionAuditEvent } from './auction-audit-store.js';
+import { playerDisplayName } from './player-reference.js';
 
 export const ASSET_AUCTION_RULE_VERSION = 2;
 export const AUCTION_LISTING_FEE_RATE_BPS = 20;
@@ -59,7 +60,6 @@ function text(value, max, fallback = '') {
   return (normalized || fallback).slice(0, max);
 }
 function player(world, id) { return world.players?.[String(id)] || null; }
-function playerName(world, id, fallback = '未分配') { return player(world, id)?.playerName || fallback; }
 
 function marketReserveGroup(world, groupId) {
   return world.marketDemand?.liquidity?.groups?.[String(groupId || '')] || null;
@@ -238,7 +238,7 @@ function normalizeAuction(rawAuction, now, items = undefined) {
   auction.sellerType = auction.sellerType === 'market_reserve' ? 'market_reserve' : 'player';
   auction.marketReserveGroupId = auction.sellerType === 'market_reserve' ? String(auction.marketReserveGroupId || '') : null;
   auction.sellerId = auction.sellerType === 'market_reserve' ? 0 : (integer(auction.sellerId) || 0);
-  auction.sellerName = text(auction.sellerName, 64, auction.sellerType === 'market_reserve' ? '市场储备' : `玩家 ${auction.sellerId}`);
+  if (auction.sellerType === 'market_reserve') auction.sellerName = text(auction.sellerName, 64, '市场储备');
   auction.startingBid = money(auction.startingBid, MAX_BID) || 0.01;
   auction.highestBid = auction.highestBid ? money(auction.highestBid, MAX_BID) : null;
   auction.highestBidderId = auction.highestBidderId ? integer(auction.highestBidderId) : null;
@@ -720,7 +720,6 @@ function createAuction(world, userId, payload, now) {
     auctionRuleVersion: ASSET_AUCTION_RULE_VERSION,
     items,
     sellerId: userId,
-    sellerName: playerName(world, userId, `玩家 ${userId}`),
     startingBid,
     reservePrice,
     minimumIncrement,
@@ -984,7 +983,7 @@ function clientAuctionItem(item) {
   } : null;
 }
 
-function clientAuction(auction, userId) {
+function clientAuction(world, auction, userId) {
   const itemSummaries = auctionItems(auction).map((item) => clientAuctionItem(item));
   if (itemSummaries.some((item) => !item)) return null;
   const asset = itemSummaries[0];
@@ -1010,7 +1009,9 @@ function clientAuction(auction, userId) {
     ...(auction.facilityTypeId ? { facilityTypeId: auction.facilityTypeId } : {}),
     quantity: auction.quantity,
     asset,
-    sellerName: auction.sellerName,
+    sellerName: auction.sellerType === 'market_reserve'
+      ? String(auction.sellerName || '市场储备')
+      : playerDisplayName(world, auction.sellerId),
     sellerType: auction.sellerType,
     startingBid: auction.startingBid,
     highestBid: auction.highestBid,
@@ -1052,7 +1053,7 @@ export function createAssetAuctionClientState(world, userId, now = Date.now()) {
       .slice()
       .sort((left, right) => (left.status === 'open' ? 0 : 1) - (right.status === 'open' ? 0 : 1) || left.endsAt - right.endsAt)
       .slice(0, 200)
-      .map((auction) => clientAuction(auction, userId))
+      .map((auction) => clientAuction(world, auction, userId))
       .filter(Boolean),
   };
 }

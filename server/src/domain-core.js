@@ -20,6 +20,7 @@ import {
   syncDefaultProvinceAlias,
 } from './provinces.js';
 import { createMarketSummaryStatesByProvince } from './market-state-delivery.js';
+import { playerDisplayName } from './player-reference.js';
 
 export { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
 
@@ -498,8 +499,9 @@ function sortCandidates(orders, side) {
   });
 }
 
-function describeCounterparty(order) {
-  return order.ownerName || (order.ownerType === 'population' ? '人口需求' : '玩家');
+function describeCounterparty(world, order) {
+  if (order?.ownerType === 'player') return playerDisplayName(world, order.ownerId);
+  return order?.ownerName || '人口需求';
 }
 
 function appendPlayerOrderFill(order, fill) {
@@ -557,7 +559,7 @@ function settlePlayerSell(world, order, quantity, tradePrice, buyer, settlement,
     total,
     fee: settlement.fee,
     netTotal: settlement.netTotal,
-    counterparty: describeCounterparty(buyer),
+    counterparty: describeCounterparty(world, buyer),
     createdAt,
     description: `卖出 ${product.name}`,
   });
@@ -595,16 +597,14 @@ function executeTrade(world, incoming, resting, quantity, createdAt) {
     ...fillBase,
     fee: 0,
     netTotal: fillBase.total,
-    counterparty: describeCounterparty(sell),
     liquidity: buy.id === resting.id ? 'maker' : 'taker',
   });
   appendPlayerOrderFill(sell, {
     ...fillBase,
     ...settlement,
-    counterparty: describeCounterparty(buy),
     liquidity: sell.id === resting.id ? 'maker' : 'taker',
   });
-  if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, describeCounterparty(sell), createdAt);
+  if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, describeCounterparty(world, sell), createdAt);
   if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, settlement, createdAt);
   recordPrice(world, incoming.productId, price, quantity, incoming.side, createdAt, incoming.provinceId);
 }
@@ -972,7 +972,6 @@ function listFacility(world, userId, payload, now) {
     facilityId: facility.id,
     ownerType: 'player',
     ownerId: userId,
-    ownerName: player.playerName,
     price,
     createdAt: now,
     facility: facilitySnapshot(facility),
@@ -1041,7 +1040,9 @@ function buyFacility(world, userId, payload, now) {
     quantity: 1,
     price: listing.price,
     total: listing.price,
-    counterparty: listing.ownerName,
+    counterparty: listing.ownerType === 'player'
+      ? playerDisplayName(world, listing.ownerId)
+      : '系统资产市场',
     createdAt: now,
     description: `收购 ${facility.name}`,
   });
@@ -1079,7 +1080,6 @@ function placeOrder(world, userId, payload, now) {
     side,
     ownerType: 'player',
     ownerId: userId,
-    ownerName: player.playerName,
     price,
     quantity,
     remaining: quantity,
@@ -1116,8 +1116,6 @@ function renamePlayer(world, userId, payload) {
   const name = String(payload.playerName || '').trim().slice(0, 32);
   if (name.length < 2) return result(false, '玩家昵称至少需要 2 个字符');
   player.playerName = name;
-  for (const order of world.orders) if (order.ownerId === userId) order.ownerName = name;
-  for (const listing of world.facilityListings) if (listing.ownerId === userId) listing.ownerName = name;
   return result(true, '玩家昵称已更新');
 }
 

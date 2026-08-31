@@ -342,6 +342,28 @@ const profileScopeSource = worldStorageSource.slice(
 assert.ok(profileScopeSource.includes('segments: new Set(CORE_LOCAL_SEGMENTS)'), '资料修改必须保持当前玩家局部核心范围');
 assert.equal(profileScopeSource.includes('world?.orders'), false, '资料修改 Mutation Scope 不得扫描全局订单');
 assert.equal(profileScopeSource.includes("'orders'"), false, '资料修改 Mutation Scope 不得声明 orders segment');
+const playerReferenceSource = read('server/src/player-reference.js');
+requireText('server/src/player-reference.js', [
+  'normalizePlayerReferenceId',
+  'playerById',
+  'playerDisplayName',
+]);
+for (const path of ['server/src/domain.js', 'server/src/domain-core.js', 'server/src/facility-groups.js']) {
+  assert.equal(read(path).includes('ownerName: player.playerName'), false, `${path} 新玩家订单/挂牌不得复制玩家昵称`);
+}
+assert.equal(read('server/src/domain-core.js').includes('order.ownerName = name'), false, '兼容改名路径不得回写订单昵称');
+assert.equal(read('server/src/domain-core.js').includes('listing.ownerName = name'), false, '兼容改名路径不得回写挂牌昵称');
+assert.equal(read('server/src/facility-groups.js').includes('renameFacilityOrders'), false, '工厂兼容层不得保留改名扫描器');
+assert.equal(read('server/src/order-matching.js').includes('counterparty: describeCounterparty'), false, '订单 fill 不得复制对手昵称');
+assert.equal(read('server/src/asset-auctions.js').includes('sellerName: playerName(world'), false, '玩家拍卖持久化不得复制卖方昵称');
+for (const path of ['server/src/contracts.js', 'server/src/commercial-contracts.js']) {
+  const source = read(path);
+  assert.doesNotMatch(source, /contract\.(?:publisherName|buyerName|supplierName|lenderName|borrowerName|lessorName|lesseeName)\s*=\s*[^;]*\.playerName/, `${path} 合同关系不得同步复制玩家昵称`);
+}
+assert.ok(read('server/src/contract-audit-store.js').includes('playerDisplayName'), '合同审计快照必须在事件写入时按玩家 ID 解析名称');
+assert.ok(read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md').includes('实时业务实体必须用稳定玩家 ID'), '服务器设计必须锁定稳定玩家 ID 关系规则');
+assert.ok(read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md').includes('新建玩家订单不得再写入 `ownerName`'), '订单设计必须锁定 ID-only 玩家关系规则');
+void playerReferenceSource;
 const playerProfileSource = read('server/src/player-profile.js');
 assert.equal(playerProfileSource.includes('world.orders'), false, '正式昵称保存不得遍历或回写全局订单');
 requireText('server/src/runtime-store-core.js', [

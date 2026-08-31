@@ -6,6 +6,7 @@ import {
   LIQUIDITY_SIGNAL_WEIGHT,
 } from './market-demand/catalog.js';
 import { multiplyMoneyByInteger, roundInternalMoney } from './money.js';
+import { playerDisplayName } from './player-reference.js';
 import { createSystemMarketRuntime } from './system-market.js';
 import {
   creditPopulationEmployment,
@@ -116,8 +117,9 @@ export function createBalancedMarketRuntime({ products, constants }) {
     player.ledger = player.ledger.slice(0, constants.maxLedgerPerPlayer);
   }
 
-  function counterparty(order) {
-    return order.ownerName || (order.ownerType === 'population' ? '市场系统' : '玩家');
+  function counterparty(world, order) {
+    if (order?.ownerType === 'player') return playerDisplayName(world, order.ownerId);
+    return order?.ownerName || '市场系统';
   }
 
   function recordPrice(
@@ -179,7 +181,7 @@ export function createBalancedMarketRuntime({ products, constants }) {
     addTrade(player, {
       type: 'commodity', productId: product.id, provinceId: normalizeProvinceId(order.provinceId), side: 'sell', quantity, price: tradePrice,
       total, fee: settlement.fee, netTotal: settlement.netTotal,
-      counterparty: counterparty(buyer), createdAt, description: `卖出 ${product.name}`,
+      counterparty: counterparty(world, buyer), createdAt, description: `卖出 ${product.name}`,
     });
     addLedger(
       player,
@@ -229,9 +231,8 @@ export function createBalancedMarketRuntime({ products, constants }) {
         && hasValidOwner(world, resting)
         && !(resting.ownerType === 'population' && incoming.ownerType === 'population')
       ),
-      describeCounterparty: counterparty,
       settleTrade: ({ buy, sell, quantity, price, sellerSettlement }) => {
-        if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, counterparty(sell), createdAt);
+        if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, counterparty(world, sell), createdAt);
         if (isConsumptionOrder(buy)) settlePopulationBuy(world, buy, quantity, price);
         if (buy.demandTier === LIQUIDITY_BUY) settleLiquidityBuy(world, buy, quantity, price);
         if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, sellerSettlement, createdAt);

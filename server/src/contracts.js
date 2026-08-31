@@ -14,6 +14,7 @@ import {
 } from './commercial-contracts.js';
 import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 import { inventoryForProvince } from './provinces.js';
+import { playerDisplayName } from './player-reference.js';
 
 export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 9;
 export const PRODUCTION_CONTRACT_INTERVALS = Object.freeze([
@@ -258,7 +259,6 @@ function normalizeContract(contract) {
     ...contract,
     id: String(contract?.id || `contract-${randomUUID()}`),
     publisherId: Number(contract?.publisherId),
-    publisherName: String(contract?.publisherName || '玩家'),
     publisherType: contract?.publisherType === 'market_reserve' ? 'market_reserve' : 'player',
     fixedTerms: contract?.fixedTerms === true,
     marketReserveGroupId: contract?.marketReserveGroupId ? String(contract.marketReserveGroupId) : null,
@@ -266,9 +266,7 @@ function normalizeContract(contract) {
     publisherSide: contract?.publisherRole === 'supplier' ? 'supplier' : 'buyer',
     publisherRole: contract?.publisherRole === 'supplier' ? 'supplier' : 'buyer',
     buyerId: contract?.buyerId === null || contract?.buyerId === undefined ? null : Number(contract.buyerId),
-    buyerName: contract?.buyerName ? String(contract.buyerName) : null,
     supplierId: contract?.supplierId === null || contract?.supplierId === undefined ? null : Number(contract.supplierId),
-    supplierName: contract?.supplierName ? String(contract.supplierName) : null,
     productId: String(contract?.productId || ''),
     quantityPerDelivery: Math.max(1, Math.floor(Number(contract?.quantityPerDelivery || 1))),
     unitPrice: positiveMoney(contract?.unitPrice ?? 1, MAX_UNIT_PRICE) || 0.01,
@@ -426,12 +424,9 @@ function activateRenewal(world, contract, buyer, supplier, now, runtimeIndex) {
   const nextContract = normalizeContract({
     id: `production-contract-${randomUUID()}`,
     publisherId: Number(proposal.proposedBy),
-    publisherName: proposerIsBuyer ? buyer.playerName : supplier.playerName,
     publisherRole: proposerIsBuyer ? 'buyer' : 'supplier',
     buyerId: Number(contract.buyerId),
-    buyerName: buyer.playerName,
     supplierId: Number(contract.supplierId),
-    supplierName: supplier.playerName,
     productId: contract.productId,
     ...proposal.terms,
     completedDeliveries: 0,
@@ -1029,12 +1024,9 @@ function createContract(world, user, payload, now, runtimeIndex) {
   const contract = normalizeContract({
     id: `production-contract-${randomUUID()}`,
     publisherId: Number(user.id),
-    publisherName: publisher.playerName,
     publisherRole,
     buyerId: publisherRole === 'buyer' ? Number(user.id) : null,
-    buyerName: publisherRole === 'buyer' ? publisher.playerName : null,
     supplierId: publisherRole === 'supplier' ? Number(user.id) : null,
-    supplierName: publisherRole === 'supplier' ? publisher.playerName : null,
     productId,
     quantityPerDelivery,
     unitPrice,
@@ -1065,7 +1057,6 @@ function acceptMarketReserveContract(world, contract, user, now, runtimeIndex) {
     supplier.credits = roundInternalMoney(Number(supplier.credits || 0) - bond) || 0;
     supplier.frozenCredits = addMoney(supplier.frozenCredits, bond) || 0;
     contract.supplierId = Number(supplier.userId);
-    contract.supplierName = supplier.playerName;
     contract.buyerEscrowCredits = gross;
     contract.buyerBondCredits = bond;
     contract.supplierBondCredits = bond;
@@ -1110,9 +1101,7 @@ function acceptContract(world, user, payload, now, runtimeIndex) {
     supplier.frozenCredits = Math.max(0, Number(supplier.frozenCredits || 0)) + bond;
 
     contract.buyerId = Number(buyer.userId);
-    contract.buyerName = buyer.playerName;
     contract.supplierId = Number(supplier.userId);
-    contract.supplierName = supplier.playerName;
     contract.buyerEscrowCredits = gross;
     contract.buyerBondCredits = bond;
     contract.supplierBondCredits = bond;
@@ -1600,21 +1589,29 @@ function publicNegotiations(world, contract, userId) {
 }
 
 function publicContract(world, contract, userId, runtimeIndex) {
-  if (contract.kind !== 'supply') return publicCommercialContract(contract, userId);
+  if (contract.kind !== 'supply') return publicCommercialContract(world, contract, userId);
   const gross = batchGross(contract) || 0;
   return {
     id: contract.id,
     kind: 'supply',
     publisherSide: contract.publisherRole,
     publisherId: contract.publisherId,
-    publisherName: contract.publisherName,
+    publisherName: contract.publisherType === 'market_reserve'
+      ? String(contract.publisherName || '市场储备')
+      : playerDisplayName(world, contract.publisherId),
     publisherType: contract.publisherType,
     fixedTerms: contract.fixedTerms,
     publisherRole: contract.publisherRole,
     buyerId: contract.buyerId,
-    buyerName: contract.buyerName,
+    buyerName: contract.buyerId === null || contract.buyerId === undefined
+      ? null
+      : contract.publisherType === 'market_reserve' && Number(contract.buyerId) === 0
+        ? String(contract.buyerName || contract.publisherName || '市场储备')
+        : playerDisplayName(world, contract.buyerId),
     supplierId: contract.supplierId,
-    supplierName: contract.supplierName,
+    supplierName: contract.supplierId === null || contract.supplierId === undefined
+      ? null
+      : playerDisplayName(world, contract.supplierId),
     productId: contract.productId,
     quantityPerDelivery: contract.quantityPerDelivery,
     unitPrice: contract.unitPrice,

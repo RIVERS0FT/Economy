@@ -29,10 +29,6 @@ export function compareRestingOrders(incomingSide, left, right) {
   return Number(left.createdAt || 0) - Number(right.createdAt || 0);
 }
 
-function defaultCounterparty(order) {
-  return order?.ownerName || (order?.ownerType === 'population' ? '市场系统' : '玩家');
-}
-
 function appendPlayerFill(order, fill) {
   if (order.ownerType !== 'player') return;
   order.fills = Array.isArray(order.fills) ? order.fills : [];
@@ -52,7 +48,6 @@ export function matchIncomingOrder({
   incoming,
   createdAt,
   canMatch = () => true,
-  describeCounterparty = defaultCounterparty,
   settleTrade,
   recordTrade = () => {},
   createFillId = () => `order-fill-${randomUUID()}`,
@@ -110,13 +105,11 @@ export function matchIncomingOrder({
       ...fillBase,
       fee: 0,
       netTotal: fillBase.total,
-      counterparty: describeCounterparty(sell),
       liquidity: buy.id === resting.id ? 'maker' : 'taker',
     });
     appendPlayerFill(sell, {
       ...fillBase,
       ...sellerSettlement,
-      counterparty: describeCounterparty(buy),
       liquidity: sell.id === resting.id ? 'maker' : 'taker',
     });
 
