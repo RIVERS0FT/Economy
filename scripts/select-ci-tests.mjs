@@ -93,7 +93,11 @@ const DOMAIN_RULES = [
 ];
 
 const DOMAIN_BROWSER_BASELINES = new Map([
-  ['facility', ['tests/browser/all-pages-preview.spec.ts']],
+  ['facility', [
+    'tests/browser/all-pages-preview.spec.ts',
+    'tests/browser/global-operation-pages.spec.ts',
+    'tests/browser/player-page-geometry.spec.ts',
+  ]],
 ]);
 
 const COMPOSED_VERIFY_ENTRYPOINTS = new Map([

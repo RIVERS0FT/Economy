@@ -20,6 +20,7 @@ const paths = {
   sharedLayout: 'src/styles/global-operation-pages.css',
   design: 'docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md',
   browser: 'tests/browser/facility-catalog-layout.spec.ts',
+  selector: 'scripts/select-ci-tests.mjs',
   runner: 'scripts/verify-ui-architecture-runner.mjs',
 };
 
@@ -53,12 +54,19 @@ if (failures.length === 0) {
     'background: color-mix(in srgb, var(--color-surface-inset) 24%, transparent);',
     '.global-facility-catalog-row__chevron {',
     'width: var(--entity-list-chevron-column);',
+    '.entity-list-row.global-facility-region-row {',
+    '--global-facility-region-main-row-size: 30px;',
+    '--global-facility-region-row-gap: 0px;',
+    '.global-facility-region-row__quick-controls {',
+    'box-sizing: border-box;',
     '@container (max-width: 200px)',
-    '--global-facility-layout-artwork-track: 46px;',
+    '--global-facility-layout-artwork-size: 38px;',
+    '--global-facility-layout-artwork-track: 42px;',
     '--global-facility-layout-profit-track: minmax(0, .76fr);',
     '--global-facility-layout-count-track: minmax(0, .4fr);',
     '@media (max-width: 720px)',
     '--global-facility-catalog-main-row-size: 44px;',
+    '--global-facility-region-main-row-size: 44px;',
   ]) requireText(paths.finalLayout, text);
 
   for (const text of [
@@ -72,8 +80,12 @@ if (failures.length === 0) {
     '插画区与右侧内容区之间使用弱竖向分隔',
     '第一行数据区与第二行生产区之间只在右侧内容区绘制弱横向分隔',
     '桌面第一行收紧为 `30px`',
+    '地区工厂列表同步登记为相同的两行高度例外，并与一级工厂目录保持相同的第一行高度与第二行分区层级',
+    '约 `38×38`、独立插画轨道收紧到约 `42px`',
     '`src/styles/global-facility-narrow.css` 是该两行条目的最终几何覆盖',
     '`tests/browser/facility-catalog-layout.spec.ts`',
+    '`tests/browser/global-operation-pages.spec.ts`',
+    '`tests/browser/player-page-geometry.spec.ts`',
   ]) requireText(paths.design, text);
 
   for (const text of [
@@ -85,6 +97,12 @@ if (failures.length === 0) {
     'expect(narrow.rowScrollWidth).toBeLessThanOrEqual(narrow.rowClientWidth + 1);',
   ]) requireText(paths.browser, text);
 
+  for (const text of [
+    "'tests/browser/all-pages-preview.spec.ts'",
+    "'tests/browser/global-operation-pages.spec.ts'",
+    "'tests/browser/player-page-geometry.spec.ts'",
+  ]) requireText(paths.selector, text);
+
   requireText(paths.runner, "await import('./verify-facility-catalog-layout.mjs');");
 }
 
@@ -93,4 +111,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('工厂目录 Grid 分区验证通过：插画真实占位跨两行，第一行数据与第二行生产设置具有明确分区，且懒加载样式不会恢复悬浮布局。');
+console.log('工厂目录 Grid 分区验证通过：插画真实占位跨两行，一级与地区建筑行共享两行密度和分区层级，极窄载体无横向溢出，建筑域定向 CI 覆盖完整几何基线。');

@@ -2,7 +2,7 @@
  * GlobalBuildingsPage lazily loads global-operation-pages.css, so these selectors deliberately
  * include the global-operation-page scope. Their higher specificity keeps the real artwork grid
  * authoritative regardless of stylesheet injection order, while this file also owns the
- * ultra-narrow carrier safety.
+ * ultra-narrow carrier safety and the shared two-line density of building catalog rows.
  */
 .global-operation-page .global-facility-catalog {
   --global-facility-layout-artwork-size: 76px;
@@ -100,6 +100,20 @@
   justify-self: stretch;
 }
 
+/* Regional building rows use the same two-line density and hierarchy without artwork. */
+.global-operation-page .entity-list-row.global-facility-region-row {
+  --global-facility-region-main-row-size: 30px;
+  --global-facility-region-row-gap: 0px;
+  grid-template-rows: var(--global-facility-region-main-row-size) var(--global-facility-production-control-size);
+  row-gap: 0;
+}
+
+.global-operation-page .global-facility-region-row__quick-controls {
+  box-sizing: border-box;
+  border-top: 1px solid var(--color-divider);
+  background: color-mix(in srgb, var(--color-surface-inset) 24%, transparent);
+}
+
 @container (max-width: 620px) {
   .global-operation-page .global-facility-catalog {
     --global-facility-layout-artwork-size: 64px;
@@ -140,8 +154,8 @@
 
 @container (max-width: 200px) {
   .global-operation-page .global-facility-catalog {
-    --global-facility-layout-artwork-size: 40px;
-    --global-facility-layout-artwork-track: 46px;
+    --global-facility-layout-artwork-size: 38px;
+    --global-facility-layout-artwork-track: 42px;
     --global-facility-layout-name-track: minmax(0, 1.35fr);
     --global-facility-layout-profit-track: minmax(0, .76fr);
     --global-facility-layout-count-track: minmax(0, .4fr);
@@ -160,5 +174,9 @@
 @media (max-width: 720px) {
   .global-operation-page .entity-list-row.global-facility-catalog-row {
     --global-facility-catalog-main-row-size: 44px;
+  }
+
+  .global-operation-page .entity-list-row.global-facility-region-row {
+    --global-facility-region-main-row-size: 44px;
   }
 }
