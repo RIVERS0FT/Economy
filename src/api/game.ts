@@ -660,6 +660,9 @@ export const gameActions = {
   setFacilityRecipe: (provinceId: string, facilityTypeId: string, recipeId: string) => (
     postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/recipe`, { provinceId, recipeId })
   ),
+  setFacilityRecipes: (targets: Array<{ provinceId: string; facilityTypeId: string; recipeId: string }>) => (
+    postAction('/facilities/recipes', { targets })
+  ),
   placeAssetOrder: (provinceId: string, assetKind: AssetKind, assetId: string, side: OrderSide, quantity: number, price: number) => (
     postAction('/orders', {
       provinceId,

@@ -92,16 +92,35 @@ test('map keeps gesture zoom without a control panel and primary market/building
   const nameBox = await firstGlobalFacilityRow.locator('.global-facility-catalog-row__identity > strong').boundingBox();
   const productBox = await quickProduct.boundingBox();
   const methodBox = await quickMethod.boundingBox();
+  const openButton = firstGlobalFacilityRow.locator('.global-facility-catalog-row__open');
+  const openBox = await openButton.boundingBox();
   expect(nameBox).not.toBeNull();
   expect(productBox).not.toBeNull();
   expect(methodBox).not.toBeNull();
-  if (!nameBox || !productBox || !methodBox) throw new Error('全局工厂两行布局未完整渲染');
+  expect(openBox).not.toBeNull();
+  if (!nameBox || !productBox || !methodBox || !openBox) throw new Error('全局工厂两行布局未完整渲染');
   expect(artworkBox.y).toBeLessThanOrEqual(nameBox.y + 1);
-  expect(artworkBox.y + artworkBox.height).toBeGreaterThanOrEqual(productBox.y + productBox.height - 1);
+  expect(artworkBox.y + artworkBox.height).toBeGreaterThanOrEqual(productBox.y + productBox.height - 3);
   expect(Math.abs(productBox.width - productBox.height)).toBeLessThan(1);
   expect(Math.abs(methodBox.width - methodBox.height)).toBeLessThan(1);
+  expect(openBox.y + openBox.height).toBeLessThanOrEqual(productBox.y + 1);
+  const rowPadding = await firstGlobalFacilityRow.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft];
+  });
+  expect(new Set(rowPadding).size).toBe(1);
 
-  await firstGlobalFacilityRow.locator('.global-facility-catalog-row__open').click();
+  const productSelect = quickProduct.getByRole('combobox');
+  if (await productSelect.isEnabled()) {
+    await productSelect.click();
+    await expect(page.getByRole('listbox')).toBeVisible();
+    expect(await page.getByRole('option').count()).toBeGreaterThan(1);
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('listbox')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: '建筑', exact: true })).toBeVisible();
+  }
+
+  await openButton.click();
   await expect(page.getByRole('heading', { name: firstFacilityName!, exact: true })).toBeVisible();
   await expect(page.locator('.global-buildings-page[data-global-facility-type-id]')).toBeVisible();
   const regionHeader = page.locator('.global-facility-region-header');
@@ -133,14 +152,31 @@ test('map keeps gesture zoom without a control panel and primary market/building
   const marketRowHeights = [marketRowHeight, regionalMarketRowHeight];
   expect(Math.max(...headerHeights) - Math.min(...headerHeights)).toBeLessThanOrEqual(1);
   expect(Math.max(...marketRowHeights) - Math.min(...marketRowHeights)).toBeLessThanOrEqual(1);
-  expect(facilityRowHeight).toBeGreaterThan(regionalFacilityRowHeight);
-  expect(facilityRowHeight).toBeGreaterThanOrEqual(68);
+  expect(Math.abs(facilityRowHeight - regionalFacilityRowHeight)).toBeLessThanOrEqual(1);
+  expect(facilityRowHeight).toBeGreaterThanOrEqual(84);
+  expect(regionalFacilityRowHeight).toBeGreaterThanOrEqual(84);
   expect(Math.max(...marketRowHeights)).toBeLessThan(regionalFacilityRowHeight);
   await expect(regionalFacilityRow.locator('.global-facility-region-row__profit')).toBeVisible();
-  await expect(regionalFacilityRow).toHaveAttribute('aria-label', /单厂利润每分钟/);
+  const regionOpenButton = regionalFacilityRow.locator('.global-facility-region-row__open');
+  await expect(regionOpenButton).toHaveAttribute('aria-label', /单厂利润每分钟/);
+  const regionQuickProduct = regionalFacilityRow.locator('[data-quick-production="product"]');
+  const regionQuickMethod = regionalFacilityRow.locator('[data-quick-production="method"]');
+  await expect(regionQuickProduct).toHaveCount(1);
+  await expect(regionQuickMethod).toHaveCount(1);
+  await expect(regionalFacilityRow.locator('.global-facility-region-row__artwork')).toHaveCount(0);
+  await expect(regionalFacilityRow.locator('.global-facility-region-row__quick-controls .ui-rich-select__visual')).toHaveCount(0);
+  const regionProductSelect = regionQuickProduct.getByRole('combobox');
+  if (await regionProductSelect.isEnabled()) {
+    await regionProductSelect.click();
+    await expect(page.getByRole('listbox')).toBeVisible();
+    expect(await page.getByRole('option').count()).toBeGreaterThan(1);
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('listbox')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: firstFacilityName!, exact: true })).toBeVisible();
+  }
   const regionalProvinceId = await regionalFacilityRow.getAttribute('data-province-id');
   expect(regionalProvinceId).toBeTruthy();
-  await regionalFacilityRow.click();
+  await regionOpenButton.click();
   await expect(page.locator(`.global-buildings-page[data-drilldown-province-id="${regionalProvinceId}"]`)).toBeVisible();
   await expect(page.locator('.facility-cluster-detail-page')).toBeVisible();
   await page.getByRole('button', { name: '返回上一页面' }).click();

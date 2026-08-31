@@ -47,6 +47,7 @@ const FACTORY_AUTO_OPERATION_REBUILD_ACTIONS = new Set([
   'startFacility',
   'pauseFacility',
   'setFacilityRecipe',
+  'setFacilityRecipes',
 ]);
 const CONTRACT_ACTIONS = new Set([
   'createProductionContract',
@@ -73,7 +74,7 @@ const CONTRACT_ACTIONS = new Set([
   'setFacilityLeaseAutoFund',
 ]);
 const ECONOMIC_ACTIVITY_ACTIONS = new Set([
-  'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',
+  'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe', 'setFacilityRecipes',
   'collectFacility', 'placeOrder', 'cancelOrder', 'redeemGift',
   'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
   'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay', 'startResearch', 'accelerateResearch',
@@ -202,8 +203,16 @@ function executeActionBody(store, world, user, action, payload, requestKey, now,
     }
 
     if (gameResult?.ok && FACTORY_AUTO_OPERATION_REBUILD_ACTIONS.has(action)) {
-      const rebuilt = rebuildFactoryAutoTradePoliciesForProvince(world, user.id, payload.provinceId);
-      if (!rebuilt.ok) gameResult = rebuilt;
+      const targetProvinceIds = action === 'setFacilityRecipes'
+        ? [...new Set((payload.targets || []).map((target) => target?.provinceId).filter(Boolean))]
+        : [payload.provinceId];
+      for (const provinceId of targetProvinceIds) {
+        const rebuilt = rebuildFactoryAutoTradePoliciesForProvince(world, user.id, provinceId);
+        if (!rebuilt.ok) {
+          gameResult = rebuilt;
+          break;
+        }
+      }
     }
 
     if (gameResult?.ok) {

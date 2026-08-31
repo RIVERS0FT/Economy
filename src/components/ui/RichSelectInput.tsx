@@ -99,6 +99,7 @@ export function RichSelectInput({
   required = false,
   name,
   variant = 'default',
+  notifyOnReselect = false,
   'aria-label': ariaLabel,
 }: {
   label: ReactNode;
@@ -113,6 +114,7 @@ export function RichSelectInput({
   required?: boolean;
   name?: string;
   variant?: RichSelectVariant;
+  notifyOnReselect?: boolean;
   'aria-label'?: string;
 }) {
   const generatedId = useId();
@@ -227,10 +229,10 @@ export function RichSelectInput({
   const selectIndex = useCallback((index: number) => {
     const option = options[index];
     if (!option || option.disabled) return;
-    if (option.value !== value) onValueChange(option.value);
+    if (option.value !== value || notifyOnReselect) onValueChange(option.value);
     closeList();
     triggerRef.current?.focus();
-  }, [closeList, onValueChange, options, value]);
+  }, [closeList, notifyOnReselect, onValueChange, options, value]);
 
   useLayoutEffect(() => {
     if (!topLayerSupported || !open) return undefined;

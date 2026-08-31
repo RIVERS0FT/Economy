@@ -131,7 +131,7 @@ test('market and building entity lists share surface geometry with commodity den
       const rows = element.querySelector<HTMLElement>(':scope > .entity-list-rows');
       const row = rows?.querySelector<HTMLElement>('.entity-list-row');
       const primary = row?.querySelector<HTMLElement>('strong');
-      const chevron = row?.lastElementChild as HTMLElement | null;
+      const chevron = row?.querySelector<HTMLElement>('.global-market-goods-row__chevron, .market-commodity-row__chevron, .global-facility-catalog-row__chevron, .global-facility-region-row__chevron') ?? null;
       if (!header || !rows || !row || !primary || !chevron) throw new Error('entity list fixture is incomplete');
       const surfaceStyle = getComputedStyle(element);
       const rowsStyle = getComputedStyle(rows);
@@ -178,18 +178,17 @@ test('market and building entity lists share surface geometry with commodity den
         <ul class="entity-list-rows global-facility-catalog-list">
           <li>
             <div class="entity-list-row global-facility-catalog-row">
-              <button class="global-facility-catalog-row__open" type="button"></button>
-              <span class="global-facility-catalog-row__identity">
-                <svg class="global-facility-catalog-row__artwork"></svg>
-                <strong>测试工厂</strong>
-                <span class="global-facility-catalog-row__quick-controls">
-                  <button class="global-facility-catalog-row__quick-control" data-quick-production="product" type="button"><span class="product-artwork"></span></button>
-                  <button class="global-facility-catalog-row__quick-control" data-quick-production="method" type="button"><svg class="game-icon"></svg></button>
-                </span>
+              <svg class="global-facility-catalog-row__artwork"></svg>
+              <button class="global-facility-catalog-row__open" type="button">
+                <span class="global-facility-catalog-row__identity"><strong>测试工厂</strong></span>
+                <strong class="entity-list-value global-facility-catalog-row__metric global-facility-catalog-row__profit is-positive">1</strong>
+                <strong class="global-facility-catalog-row__metric">1</strong>
+                <span class="global-facility-catalog-row__chevron"><svg class="game-icon"></svg></span>
+              </button>
+              <span class="global-facility-catalog-row__quick-controls">
+                <span class="global-facility-catalog-row__quick-selector" data-quick-production="product"><span class="ui-rich-select" data-variant="production-config"><button class="ui-rich-select__trigger" type="button"><span class="ui-rich-select__visual"><span class="product-artwork"></span></span></button></span></span>
+                <span class="global-facility-catalog-row__quick-selector" data-quick-production="method"><span class="ui-rich-select" data-variant="production-config"><button class="ui-rich-select__trigger" type="button"><span class="ui-rich-select__visual"><svg class="game-icon"></svg></span></button></span></span>
               </span>
-              <strong class="entity-list-value global-facility-catalog-row__metric global-facility-catalog-row__profit is-positive">1</strong>
-              <strong class="global-facility-catalog-row__metric">1</strong>
-              <span class="global-facility-catalog-row__chevron"><svg class="game-icon"></svg></span>
             </div>
           </li>
         </ul>`;
@@ -204,13 +203,19 @@ test('market and building entity lists share surface geometry with commodity den
         </div>
         <ul class="entity-list-rows global-facility-region-list">
           <li>
-            <button class="entity-list-row global-facility-region-row" type="button">
-              <span class="global-facility-region-row__identity"><strong>测试地区</strong></span>
-              <strong class="entity-list-value global-facility-region-row__profit is-positive">1</strong>
-              <strong class="global-facility-region-row__metric">1</strong>
-              <strong class="global-facility-region-row__status">运行中</strong>
-              <span class="global-facility-region-row__chevron"><svg class="game-icon"></svg></span>
-            </button>
+            <div class="entity-list-row global-facility-region-row">
+              <button class="global-facility-region-row__open" type="button">
+                <span class="global-facility-region-row__identity"><strong>测试地区</strong></span>
+                <strong class="entity-list-value global-facility-region-row__profit is-positive">1</strong>
+                <strong class="global-facility-region-row__metric">1</strong>
+                <strong class="global-facility-region-row__status">运行中</strong>
+                <span class="global-facility-region-row__chevron"><svg class="game-icon"></svg></span>
+              </button>
+              <span class="global-facility-region-row__quick-controls">
+                <span class="global-facility-region-row__quick-selector" data-quick-production="product"><span class="ui-rich-select"><button class="ui-rich-select__trigger" type="button"><span class="ui-rich-select__value">测试产物</span><span class="ui-rich-select__chevron"></span></button></span></span>
+                <span class="global-facility-region-row__quick-selector" data-quick-production="method"><span class="ui-rich-select"><button class="ui-rich-select__trigger" type="button"><span class="ui-rich-select__value">测试制度</span><span class="ui-rich-select__chevron"></span></button></span></span>
+              </span>
+            </div>
           </li>
         </ul>`;
       container.append(surface);
@@ -226,16 +231,22 @@ test('market and building entity lists share surface geometry with commodity den
 
   const samples = [...marketSamples, ...facilitySamples];
   const densityKeys = new Set<keyof typeof samples[number]>(['paddingTop', 'paddingBottom']);
+  expect(facilitySamples[0].paddingTop).toBe(facilitySamples[0].paddingRight);
+  expect(facilitySamples[0].paddingTop).toBe(facilitySamples[0].paddingBottom);
+  expect(facilitySamples[0].paddingTop).toBe(facilitySamples[0].paddingLeft);
+  expect(facilitySamples[1].paddingTop).toBe(facilitySamples[1].paddingRight);
+  expect(facilitySamples[1].paddingTop).toBe(facilitySamples[1].paddingBottom);
+  expect(facilitySamples[1].paddingTop).toBe(facilitySamples[1].paddingLeft);
   for (const key of Object.keys(samples[0]) as Array<keyof typeof samples[number]>) {
     if (key === 'minHeight') {
       expect(new Set(marketSamples.map((sample) => String(sample[key]))).size, 'minHeight should match inside commodity lists').toBe(1);
-      expect(String(facilitySamples[0][key]), 'global facility catalog keeps the registered two-line height').not.toBe(String(facilitySamples[1][key]));
+      expect(new Set(facilitySamples.map((sample) => String(sample[key]))).size, 'facility two-line heights should match').toBe(1);
       expect(String(marketSamples[0][key]), 'commodity density remains distinct from regional facilities').not.toBe(String(facilitySamples[1][key]));
       continue;
     }
     if (densityKeys.has(key)) {
       expect(new Set(marketSamples.map((sample) => String(sample[key]))).size, `${key} should match inside commodity lists`).toBe(1);
-      expect(new Set(facilitySamples.map((sample) => String(sample[key]))).size, `${key} should match inside facility lists`).toBe(1);
+      expect(new Set(facilitySamples.map((sample) => String(sample[key]))).size, `${key} should match inside facility two-line lists`).toBe(1);
       expect(String(marketSamples[0][key]), `${key} should keep the commodity density exception`).not.toBe(String(facilitySamples[0][key]));
       continue;
     }
