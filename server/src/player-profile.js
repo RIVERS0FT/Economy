@@ -143,14 +143,7 @@ export function applyPlayerProfileAction(world, user, payload = {}) {
   if (hasPlayerName && !nextName) return result(false, '昵称长度需为 1 到 32 个字符');
   const avatarBuffer = hasAvatar ? validatePlayerAvatarData(payload.avatarData) : null;
 
-  if (hasPlayerName) {
-    player.playerName = nextName;
-    for (const order of world.orders || []) {
-      if (order.ownerType === 'player' && Number(order.ownerId) === userId) {
-        order.ownerName = nextName;
-      }
-    }
-  }
+  if (hasPlayerName) player.playerName = nextName;
   if (avatarBuffer) writePlayerAvatar(userId, avatarBuffer);
 
   if (hasPlayerName && hasAvatar) return result(true, '玩家资料和头像已更新');

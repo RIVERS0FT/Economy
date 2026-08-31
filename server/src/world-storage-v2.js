@@ -369,21 +369,13 @@ function factoryAutoOperationScope(world, userId, payload) {
   };
 }
 
-function profileMutationScope(world, userId, payload) {
-  const orderIndexes = new Set();
-  if (Object.hasOwn(payload || {}, 'playerName')) {
-    for (const [index, order] of (world?.orders || []).entries()) {
-      if (order?.ownerType === 'player' && Number(order.ownerId) === Number(userId)) orderIndexes.add(index);
-    }
-  }
-  const segments = new Set(CORE_LOCAL_SEGMENTS);
-  if (orderIndexes.size > 0) segments.add('orders');
+function profileMutationScope(userId) {
   return {
     allPlayers: false,
     allSegments: false,
     playerIds: new Set([playerKey(userId)]),
-    segments,
-    orderIndexes,
+    segments: new Set(CORE_LOCAL_SEGMENTS),
+    orderIndexes: new Set(),
     marketKeys: new Set(),
     facilityMarketKeys: new Set(),
     includeAuctionEscrow: false,
@@ -555,7 +547,7 @@ export function createRuntimeMutationScope(world, userId, action, payload, {
       scope = factoryAutoOperationScope(world, userId, payload);
       break;
     case 'profile':
-      scope = profileMutationScope(world, userId, payload);
+      scope = profileMutationScope(userId);
       break;
     case 'contract':
       scope = contractMutationScope(world, userId, payload, action);

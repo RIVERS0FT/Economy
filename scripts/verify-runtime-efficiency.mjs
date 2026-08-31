@@ -335,6 +335,15 @@ const worldStorageSource = read('server/src/world-storage-v2.js');
 assert.equal(worldStorageSource.includes('FACTORY_SCOPE_ACTIONS'), false, 'Mutation Scope 动作集合不得在存储层重复维护');
 assert.equal(worldStorageSource.includes('LOCAL_PLAYER_ACTIONS'), false, '本地玩家动作集合不得在存储层重复维护');
 assert.equal(worldStorageSource.includes('return createFullMutationScope();\n}\n\nfunction cloneScopedObject'), false, '正式玩家动作不得在函数末尾静默回退 full-world');
+const profileScopeSource = worldStorageSource.slice(
+  worldStorageSource.indexOf('function profileMutationScope'),
+  worldStorageSource.indexOf('function contractParticipantIds'),
+);
+assert.ok(profileScopeSource.includes('segments: new Set(CORE_LOCAL_SEGMENTS)'), '资料修改必须保持当前玩家局部核心范围');
+assert.equal(profileScopeSource.includes('world?.orders'), false, '资料修改 Mutation Scope 不得扫描全局订单');
+assert.equal(profileScopeSource.includes("'orders'"), false, '资料修改 Mutation Scope 不得声明 orders segment');
+const playerProfileSource = read('server/src/player-profile.js');
+assert.equal(playerProfileSource.includes('world.orders'), false, '正式昵称保存不得遍历或回写全局订单');
 requireText('server/src/runtime-store-core.js', [
   'prepareSegmentedWorldWrite',
   'applySegmentedWorldWrite',

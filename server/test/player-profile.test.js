@@ -38,7 +38,7 @@ test('player avatar validator only accepts a small 64px WebP thumbnail', () => {
   assert.throws(() => validatePlayerAvatarData(dataUrl(oversized)), /过大|8 KiB/);
 });
 
-test('profile action atomically replaces the stored thumbnail and keeps nickname ownership in sync', () => {
+test('profile action atomically replaces the stored thumbnail and keeps order owner snapshots stable', () => {
   const directory = mkdtempSync(join(tmpdir(), 'economy-avatar-test-'));
   const previousDirectory = process.env.ECONOMY_AVATAR_DIR;
   process.env.ECONOMY_AVATAR_DIR = directory;
@@ -61,7 +61,7 @@ test('profile action atomically replaces the stored thumbnail and keeps nickname
 
     assert.equal(response.ok, true);
     assert.equal(world.players[7].playerName, '新玩家');
-    assert.equal(world.orders[0].ownerName, '新玩家');
+    assert.equal(world.orders[0].ownerName, '旧玩家');
     assert.equal(world.orders[1].ownerName, '居民');
     assert.deepEqual(readFileSync(join(directory, '7.webp')), avatar);
   } finally {

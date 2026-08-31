@@ -423,7 +423,7 @@ test('factory auto-operation policy uses bounded order scope without cloning mar
   assert.equal(draft.markets, world.markets);
 });
 
-test('profile scope clones only actor and actor orders when changing player name', () => {
+test('profile scope keeps the global order segment shared for name and avatar changes', () => {
   const world = {
     players: { 1: { userId: 1 }, 2: { userId: 2 } },
     orders: [
@@ -436,15 +436,66 @@ test('profile scope clones only actor and actor orders when changing player name
   };
   const scope = createRuntimeMutationScope(world, 1, 'renamePlayer', { playerName: '新的名字' }, { scheduledProcessing: true });
   assert.deepEqual([...scope.playerIds], ['1']);
-  assert.equal(scope.segments.has('orders'), true);
+  assert.equal(scope.segments.has('orders'), false);
+  assert.equal(scope.orderIndexes.size, 0);
   const draft = cloneWorldForMutation(world, scope);
   assert.notEqual(draft.players['1'], world.players['1']);
   assert.equal(draft.players['2'], world.players['2']);
-  assert.notEqual(draft.orders[0], world.orders[0]);
-  assert.notEqual(draft.orders[1], world.orders[1]);
-  assert.equal(draft.orders[2], world.orders[2]);
+  assert.equal(draft.orders, world.orders);
   const avatarScope = createRuntimeMutationScope(world, 1, 'renamePlayer', { avatarData: 'thumbnail' }, { scheduledProcessing: true });
   assert.equal(avatarScope.segments.has('orders'), false);
+  assert.equal(avatarScope.orderIndexes.size, 0);
+});
+
+test('profile rename persists only the player row and leaves order history byte-identical', () => {
+  const store = new EconomyStore(':memory:', { scheduledProcessing: true });
+  store.stopScheduler();
+  try {
+    store.getState(alice, now);
+    store.transaction(() => {
+      const { revision, world } = store.loadWorld(now + 1);
+      world.orders.push({
+        id: 'profile-history-order',
+        provinceId: '110000',
+        assetKind: 'commodity',
+        assetId: 'wheat',
+        productId: 'wheat',
+        side: 'buy',
+        ownerType: 'player',
+        ownerId: alice.id,
+        ownerName: 'Alice',
+        price: 1,
+        quantity: 1,
+        remaining: 0,
+        status: 'filled',
+        createdAt: now,
+      });
+      store.saveWorld(revision, world, now + 1);
+    });
+    const beforeOrders = store.database.prepare(
+      "SELECT updated_revision, state_json FROM economy_world_segments WHERE segment_key = 'orders'",
+    ).get();
+
+    const result = store.apply(
+      alice,
+      action('renamePlayer', { playerName: 'Alice Updated' }, 'storage-v2-profile-rename-12345678'),
+      now + 2,
+    );
+    assert.equal(result.result.ok, true);
+    assert.equal(store.worldCache.world.players['1'].playerName, 'Alice Updated');
+    assert.equal(
+      store.worldCache.world.orders.find((order) => order.id === 'profile-history-order')?.ownerName,
+      'Alice',
+      '订单 ownerName 是创建时兼容快照，正式资料改名不得回写历史订单',
+    );
+
+    const afterOrders = store.database.prepare(
+      "SELECT updated_revision, state_json FROM economy_world_segments WHERE segment_key = 'orders'",
+    ).get();
+    assert.deepEqual(afterOrders, beforeOrders);
+  } finally {
+    store.close();
+  }
 });
 
 test('contract scope clones all contract participants but keeps non-contract players shared', () => {
