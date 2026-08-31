@@ -71,4 +71,20 @@ if old_message not in primary_content:
     raise SystemExit(f'missing primary verifier status text: {old_message}')
 primary_path.write_text(primary_content.replace(old_message, new_message, 1), encoding='utf-8')
 
-print('Fixed all applicable shared production selector verifier assertions and two-line status text')
+css_path = Path('src/styles/global-operation-pages.css')
+css_content = css_path.read_text(encoding='utf-8')
+old_artwork = '  --global-facility-catalog-artwork-size: 72px;'
+new_artwork = '  --global-facility-catalog-artwork-size: 80px;'
+if old_artwork not in css_content:
+    raise SystemExit('missing compact global facility artwork size')
+css_path.write_text(css_content.replace(old_artwork, new_artwork, 1), encoding='utf-8')
+
+design_path = Path('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md')
+design_content = design_path.read_text(encoding='utf-8')
+old_design_artwork = '桌面约 `72×72`'
+new_design_artwork = '桌面约 `80×80`'
+if old_design_artwork not in design_content:
+    raise SystemExit('missing global facility artwork design size')
+design_path.write_text(design_content.replace(old_design_artwork, new_design_artwork, 1), encoding='utf-8')
+
+print('Fixed all applicable shared production selector verifiers and kept the compact-row artwork spanning both rows')
