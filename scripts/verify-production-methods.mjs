@@ -105,6 +105,11 @@ const configControlsSource = readFileSync('src/components/facilities/FacilityPro
 const richSelectSource = readFileSync('src/components/ui/RichSelectInput.tsx', 'utf8');
 const pageSource = readFileSync('src/pages/BuildingsPage.tsx', 'utf8');
 const gameViewModelSource = readFileSync('src/app/gameViewModel.ts', 'utf8');
+const gameApiSource = readFileSync('src/api/game.ts', 'utf8');
+const gameRoutesSource = readFileSync('server/src/game-routes.js', 'utf8');
+const actionRegistrySource = readFileSync('server/src/player-action-registry.js', 'utf8');
+const runtimeExecutorSource = readFileSync('server/src/runtime-action-executor.js', 'utf8');
+const worldStorageSource = readFileSync('server/src/world-storage-v2.js', 'utf8');
 const styleSource = readFileSync('src/styles/production-methods.css', 'utf8');
 const formControlStyleSource = readFileSync('src/styles/form-controls.css', 'utf8');
 const browserHarnessSource = readFileSync('tests/browser/runtime-harness.tsx', 'utf8');
@@ -246,6 +251,27 @@ for (const text of [
   'void syncConfirmedAction(response, action).finally(finish);',
   "setFacilityRecipe: (facilityTypeId, recipeId) => runAcknowledgedAction(",
 ]) assert.ok(gameViewModelSource.includes(text), `生产配置确认同步缺少 ${text}`);
+for (const text of [
+  "postAction('/facilities/recipes', { targets })",
+  'setFacilityRecipes: (targets) => runAcknowledgedAction(',
+  '() => gameActions.setFacilityRecipes(targets),',
+]) {
+  assert.ok(gameApiSource.includes(text) || gameViewModelSource.includes(text), `跨地区生产配置原子入口缺少 ${text}`);
+}
+assert.equal(
+  gameViewModelSource.includes('for (const target of targets) {\n        const response = await gameActions.setFacilityRecipe('),
+  false,
+  '跨地区生产配置不得恢复客户端逐州串行写入',
+);
+for (const [source, text] of [
+  [gameRoutesSource, "path === '/api/game/facilities/recipes'"],
+  [actionRegistrySource, 'setFacilityRecipes: defineAction'],
+  [runtimeSource, 'function setGroupRecipes(world, userId, payload, now)'],
+  [runtimeSource, 'const prepared = [];'],
+  [researchSource, "action === 'setFacilityRecipes'"],
+  [runtimeExecutorSource, "action === 'setFacilityRecipes'"],
+  [worldStorageSource, 'function factoryMutationProvinceIds(payload)'],
+]) assert.ok(source.includes(text), `跨地区生产配置权威批量边界缺少 ${text}`);
 assert.equal(styleSource.includes('.facility-production-method-summary'), false, '生产方式规格摘要必须删除');
 for (const text of [
   '.production-config-detail',

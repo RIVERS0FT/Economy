@@ -607,22 +607,10 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
       'setFacilityRecipe',
       () => gameActions.setFacilityRecipe(selectedProvinceId, facilityTypeId, recipeId),
     ),
-    setFacilityRecipes: (targets) => runAcknowledgedAction('setFacilityRecipe', async () => {
-      let latestResponse: GameActionResponse | null = null;
-      for (const target of targets) {
-        const response = await gameActions.setFacilityRecipe(
-          target.provinceId,
-          target.facilityTypeId,
-          target.recipeId,
-        );
-        latestResponse = response;
-        if (!response.result.ok) return response;
-      }
-      return latestResponse ?? {
-        result: { ok: true, message: '生产设置未变化' },
-        revision: revisionRef.current ?? 0,
-      };
-    }),
+    setFacilityRecipes: (targets) => runAcknowledgedAction(
+      'setFacilityRecipe',
+      () => gameActions.setFacilityRecipes(targets),
+    ),
     placeAssetOrder,
     onlineAutoBuy: (productId, maxPrice, targetFreeInventory = 0) => runAction(
       'placeOrder',

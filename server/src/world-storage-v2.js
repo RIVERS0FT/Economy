@@ -336,9 +336,19 @@ function ownedOrderIndexesInProvince(world, userId, provinceId, { openOnly = tru
   return indexes;
 }
 
+function factoryMutationProvinceIds(payload) {
+  const targets = Array.isArray(payload?.targets) ? payload.targets : [];
+  if (targets.length > 0) {
+    return [...new Set(targets.map((target) => normalizeProvinceId(target?.provinceId)))];
+  }
+  return [normalizeProvinceId(payload?.provinceId)];
+}
+
 function factoryAutoOperationScope(world, userId, payload) {
-  const provinceId = normalizeProvinceId(payload?.provinceId);
-  const orderIndexes = ownedOrderIndexesInProvince(world, userId, provinceId);
+  const orderIndexes = new Set();
+  for (const provinceId of factoryMutationProvinceIds(payload)) {
+    for (const index of ownedOrderIndexesInProvince(world, userId, provinceId)) orderIndexes.add(index);
+  }
   const procurement = payload?.autoProcure === true ? procurementAssets(payload) : [];
   for (const index of orderIndexesForAssets(world, procurement)) orderIndexes.add(index);
   const marketKeys = new Set(procurement.map(({ provinceId: assetProvinceId, assetId }) => (

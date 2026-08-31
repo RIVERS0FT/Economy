@@ -511,6 +511,24 @@ export function validateResearchAccess(world, user, action, payload = {}, now = 
   const player = world.players[String(user.id)];
   if (Number(world.version || 0) < RESEARCH_WORLD_VERSION) processResearchWorld(world, now);
   else processPlayerResearch(world, player, now);
+  if (action === 'setFacilityRecipes') {
+    const targets = Array.isArray(payload?.targets) ? payload.targets : [];
+    for (const target of targets) {
+      const facilityTypeId = String(target?.facilityTypeId || '');
+      if (!facilityTypeId) continue;
+      const facilityLocked = lockedResult(world, player, facilityTypeId, now);
+      if (facilityLocked) return facilityLocked;
+      const methodLocked = productionMethodLockedResult(
+        world,
+        player,
+        facilityTypeId,
+        target?.recipeId,
+        now,
+      );
+      if (methodLocked) return methodLocked;
+    }
+    return null;
+  }
   let facilityTypeId = null;
   if (['buildFacility', 'startFacility', 'setFacilityRecipe'].includes(action)) {
     facilityTypeId = payload.facilityTypeId;

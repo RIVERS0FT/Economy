@@ -40,6 +40,7 @@ import {
 const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 const MAX_CYCLES_PER_GROUP = 50_000;
 const MAX_FACILITY_AUCTION_QUANTITY = 1_000_000;
+const MAX_FACILITY_RECIPE_BATCH_TARGETS = 64;
 const MAX_PRICE_POINTS = 288;
 export const FACILITY_STAFFING_FULL_BPS = 10_000;
 export const FACILITY_STAFFING_RECOVERY_MS = 10 * 60 * 1000;
@@ -1127,6 +1128,45 @@ function setGroupRecipe(world, userId, payload, now) {
   );
 }
 
+function setGroupRecipes(world, userId, payload, now) {
+  const player = getPlayer(world, userId);
+  const targets = Array.isArray(payload?.targets) ? payload.targets : [];
+  if (targets.length < 1 || targets.length > MAX_FACILITY_RECIPE_BATCH_TARGETS) {
+    return result(false, `批量生产配置必须包含 1 到 ${MAX_FACILITY_RECIPE_BATCH_TARGETS} 个地区目标`);
+  }
+
+  const seen = new Set();
+  const prepared = [];
+  for (const target of targets) {
+    const requestedProvinceId = String(target?.provinceId || '');
+    if (!requestedProvinceId) return result(false, '批量生产配置缺少地区');
+    const provinceId = normalizeProvinceId(requestedProvinceId);
+    const type = typeFor(target?.facilityTypeId);
+    if (!type) return result(false, '工厂类型不存在');
+    const key = `${provinceId}:${type.id}`;
+    if (seen.has(key)) return result(false, '批量生产配置包含重复地区工厂');
+    seen.add(key);
+
+    const accessError = provinceUnlockError(player, provinceId);
+    if (accessError) return result(false, accessError);
+    const group = groupFor(player, type.id, false, now, provinceId);
+    if (!group) return result(false, '工厂集群不存在');
+    const recipe = recipesFor(type).find((candidate) => candidate.id === target?.recipeId);
+    if (!recipe) return result(false, '生产配方不存在');
+    prepared.push({ provinceId, type, recipe });
+  }
+
+  for (const item of prepared) {
+    const applied = setGroupRecipe(world, userId, {
+      provinceId: item.provinceId,
+      facilityTypeId: item.type.id,
+      recipeId: item.recipe.id,
+    }, now);
+    if (!applied.ok) return applied;
+  }
+  return result(true, `已更新 ${prepared.length} 个地区的生产配置`);
+}
+
 function reduceRunningGroupForSellOrder(group, type, quantity, now = Date.now()) {
   if (group.status !== 'running') return;
   group.participatingCount = Math.max(0, group.participatingCount - quantity);
@@ -1344,6 +1384,7 @@ export function applyFacilityGroupAction(
   else if (action === 'startFacility') actionResult = startFacilityGroup(world, userId, payload, now);
   else if (action === 'pauseFacility') actionResult = pauseFacilityGroup(world, userId, payload, now);
   else if (action === 'setFacilityRecipe') actionResult = setGroupRecipe(world, userId, payload, now);
+  else if (action === 'setFacilityRecipes') actionResult = setGroupRecipes(world, userId, payload, now);
   else if (action === 'placeOrder' && payload.assetKind === 'facility') actionResult = result(false, '工厂资产仅允许通过拍卖交易');
   else if (action === 'listFacility') actionResult = result(false, '工厂资产仅允许通过拍卖交易');
   else if (action === 'cancelOrder') {

@@ -13,6 +13,12 @@ function group(typeId, count, overrides = {}) {
   return { facilityTypeId: typeId, count, participatingCount: 0, enabled: false, status: 'stopped', statusReason: 'manual', activeRecipeId: typeId === 'farm' ? 'wheat-crop' : `${typeId}-default`, lifetimeOutput: 0, ...overrides };
 }
 
+function unlockFacilityTestProvinces(player) {
+  player.startingProvinceChosen = true;
+  player.startingProvinceId = '110000';
+  player.unlockedProvinces = ['110000', '120000'];
+}
+
 test('factory direct buy and sell orders are rejected without transferring assets', () => {
   const world = createWorld(now);
   const seller = ensurePlayer(world, bob, now);
@@ -519,4 +525,48 @@ test('error staffing decays and auto recovery starts from the reduced live rate'
   assert.equal(recovered.staffingRateBps, 5_000);
   assert.equal(recovered.cycleStartedAt, now + 15 * 60_000 + 1);
   assert.equal(Object.hasOwn(recovered, 'cycleStaffingRateBps'), false);
+});
+
+test('batch recipe change applies every regional target in one facility action', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  unlockFacilityTestProvinces(player);
+  player.facilityGroups = [
+    group('farm', 1, { provinceId: '110000' }),
+    group('farm', 1, { provinceId: '120000' }),
+  ];
+  migrateFacilityGroupWorld(world, now);
+
+  const response = applyFacilityGroupAction(world, alice, 'setFacilityRecipes', {
+    targets: [
+      { provinceId: '110000', facilityTypeId: 'farm', recipeId: 'rice-crop' },
+      { provinceId: '120000', facilityTypeId: 'farm', recipeId: 'rice-crop' },
+    ],
+  }, now + 1);
+
+  assert.equal(response.ok, true);
+  assert.equal(player.facilityGroups.find((item) => item.provinceId === '110000').activeRecipeId, 'rice-crop');
+  assert.equal(player.facilityGroups.find((item) => item.provinceId === '120000').activeRecipeId, 'rice-crop');
+});
+
+test('batch recipe change rejects the whole request before mutating any regional target', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  unlockFacilityTestProvinces(player);
+  player.facilityGroups = [
+    group('farm', 1, { provinceId: '110000' }),
+    group('farm', 1, { provinceId: '120000' }),
+  ];
+  migrateFacilityGroupWorld(world, now);
+
+  const response = applyFacilityGroupAction(world, alice, 'setFacilityRecipes', {
+    targets: [
+      { provinceId: '110000', facilityTypeId: 'farm', recipeId: 'rice-crop' },
+      { provinceId: '120000', facilityTypeId: 'farm', recipeId: 'missing-recipe' },
+    ],
+  }, now + 1);
+
+  assert.equal(response.ok, false);
+  assert.equal(player.facilityGroups.find((item) => item.provinceId === '110000').activeRecipeId, 'wheat-crop');
+  assert.equal(player.facilityGroups.find((item) => item.provinceId === '120000').activeRecipeId, 'wheat-crop');
 });

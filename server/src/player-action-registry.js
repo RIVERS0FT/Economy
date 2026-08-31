@@ -109,6 +109,7 @@ export const PLAYER_ACTION_REGISTRY = Object.freeze({
   startFacility: defineAction({ mutationScope: 'factory', domain: 'facility', latencyClass: 'market', economicActivity: true, rebuildFactoryPolicies: true }),
   pauseFacility: defineAction({ mutationScope: 'factory', domain: 'facility', latencyClass: 'market', economicActivity: true, rebuildFactoryPolicies: true }),
   setFacilityRecipe: defineAction({ mutationScope: 'factory', domain: 'facility', latencyClass: 'market', economicActivity: true, rebuildFactoryPolicies: true }),
+  setFacilityRecipes: defineAction({ mutationScope: 'factory', domain: 'facility', latencyClass: 'market', economicActivity: true, rebuildFactoryPolicies: true }),
   listFacility: defineAction({ mutationScope: 'none', domain: 'retired', lifecycle: 'retired', acknowledgement: 'retired', publicRoute: false }),
   cancelFacilityListing: defineAction({ mutationScope: 'facility-listing', domain: 'facility-listing', latencyClass: 'market', economicActivity: true }),
   buyFacility: defineAction({ mutationScope: 'none', domain: 'retired', lifecycle: 'retired', acknowledgement: 'retired', publicRoute: false }),
