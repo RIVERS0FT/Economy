@@ -94,4 +94,21 @@ if old_design_artwork not in design_content:
     raise SystemExit('missing global facility artwork design size')
 design_path.write_text(design_content.replace(old_design_artwork, new_design_artwork, 1), encoding='utf-8')
 
-print('Fixed shared production selector verifiers and kept the compact-row artwork spanning both rows across the desktop list container')
+browser_path = Path('tests/browser/global-operation-pages.spec.ts')
+browser_content = browser_path.read_text(encoding='utf-8')
+for old, new in [
+    (
+        "  const regionTriggerStyle = await regionProductSelect.evaluate((element) => {",
+        "  await page.mouse.move(0, 0);\n  const regionTriggerStyle = await regionProductSelect.evaluate((element) => {",
+    ),
+    (
+        "  const detailTriggerStyle = await detailProductSelect.evaluate((element) => {",
+        "  await page.mouse.move(0, 0);\n  const detailTriggerStyle = await detailProductSelect.evaluate((element) => {",
+    ),
+]:
+    if old not in browser_content:
+        raise SystemExit(f'missing browser style comparison fragment: {old}')
+    browser_content = browser_content.replace(old, new, 1)
+browser_path.write_text(browser_content, encoding='utf-8')
+
+print('Fixed shared production selector verifiers, compact-row artwork span, and hover-neutral style comparison')
