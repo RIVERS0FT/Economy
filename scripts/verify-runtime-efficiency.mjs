@@ -356,6 +356,7 @@ assert.equal(read('server/src/domain-core.js').includes('listing.ownerName = nam
 assert.equal(read('server/src/facility-groups.js').includes('renameFacilityOrders'), false, '工厂兼容层不得保留改名扫描器');
 assert.equal(read('server/src/order-matching.js').includes('counterparty: describeCounterparty'), false, '订单 fill 不得复制对手昵称');
 assert.equal(read('server/src/asset-auctions.js').includes('sellerName: playerName(world'), false, '玩家拍卖持久化不得复制卖方昵称');
+assert.equal(read('server/src/commercial-contracts.js').includes("publisherName: String(contract?.publisherName || '玩家')"), false, '玩家借贷与租赁 normalizer 不得合成关系名称字段');
 for (const path of ['server/src/contracts.js', 'server/src/commercial-contracts.js']) {
   const source = read(path);
   assert.doesNotMatch(source, /contract\.(?:publisherName|buyerName|supplierName|lenderName|borrowerName|lessorName|lesseeName)\s*=\s*[^;]*\.playerName/, `${path} 合同关系不得同步复制玩家昵称`);

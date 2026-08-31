@@ -128,3 +128,23 @@ test('commercial contract projection derives mutable names from stable participa
   assert.equal(view.publisherName, '新借款方');
   assert.equal(view.borrowerName, '新借款方');
 });
+
+test('commercial lease normalization does not synthesize player name fields', () => {
+  const state = createWorld(1_000);
+  addPlayer(state, 1, '出租方');
+  addPlayer(state, 2, '承租方');
+  const facility = FACILITY_TYPE_CATALOG[0];
+  const contract = normalizeCommercialContract({
+    id: 'lease-1', kind: 'facility_lease', publisherSide: 'lessor', publisherId: 1,
+    lessorId: 1, lesseeId: 2, provinceId: '110000', facilityTypeId: facility.id,
+    quantity: 1, rentPerPeriod: 10, periodMs: 24 * 60 * 60 * 1000, totalPeriods: 2,
+    firstPeriodDelayMs: 0, status: 'active', createdAt: 1_000, acceptedAt: 1_100, nextDueAt: 2_000,
+  });
+  assert.equal(Object.hasOwn(contract, 'publisherName'), false);
+  assert.equal(Object.hasOwn(contract, 'lessorName'), false);
+  assert.equal(Object.hasOwn(contract, 'lesseeName'), false);
+  const view = publicCommercialContract(state, contract, 1);
+  assert.equal(view.publisherName, '出租方');
+  assert.equal(view.lessorName, '出租方');
+  assert.equal(view.lesseeName, '承租方');
+});

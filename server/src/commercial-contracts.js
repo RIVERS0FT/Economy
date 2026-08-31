@@ -216,7 +216,6 @@ function normalizeLease(contract) {
     kind: 'facility_lease',
     publisherSide: contract?.publisherSide === 'lessor' ? 'lessor' : contract?.publisherSide === 'lessee' ? 'lessee' : contract?.publisherRole === 'supplier' ? 'lessor' : 'lessee',
     publisherId: Number(contract?.publisherId),
-    publisherName: String(contract?.publisherName || '玩家'),
     lessorId: contract?.lessorId == null ? null : Number(contract.lessorId),
     lesseeId: contract?.lesseeId == null ? null : Number(contract.lesseeId),
     provinceId,
