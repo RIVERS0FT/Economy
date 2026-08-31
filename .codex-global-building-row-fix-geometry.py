@@ -16,7 +16,6 @@ for old, new in replacements.items():
     css = css.replace(old, new, 1)
 css_path.write_text(css, encoding='utf-8', newline='\n')
 
-# The registered density exception follows the real 44px first-row touch target.
 ui_path = Path('docs/UI_DESIGN_SYSTEM.md')
 ui = ui_path.read_text(encoding='utf-8')
 old = '登记为约 `76px / 70px / 68px` 的两行高度例外'
@@ -33,9 +32,12 @@ if facility.count(anchor) != 1:
     raise SystemExit(f'facility doc geometry expected one occurrence, got {facility.count(anchor)}')
 facility_path.write_text(facility.replace(anchor, replacement, 1), encoding='utf-8', newline='\n')
 
-# Static guards lock the explicit parent border and 44px first-row track.
 verify_path = Path('scripts/verify-page-content.mjs')
 verify = verify_path.read_text(encoding='utf-8')
+legacy_height = "  '--entity-list-row-height: 76px;',"
+if verify.count(legacy_height) != 1:
+    raise SystemExit(f'legacy page verifier height expected one occurrence, got {verify.count(legacy_height)}')
+verify = verify.replace(legacy_height, "  '--entity-list-row-height: 96px;',", 1)
 old = "  'padding-inline: var(--entity-list-inline-padding);',\n  'grid-row: 1;',"
 new = "  'padding-inline: var(--entity-list-inline-padding);',\n  'border: 1px solid var(--color-border-subtle);',\n  '--global-facility-catalog-main-row-size: 44px;',\n  'grid-row: 1;',"
 if verify.count(old) != 1:
