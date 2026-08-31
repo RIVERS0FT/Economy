@@ -5,9 +5,8 @@ async function readProductionTriggerSkin(locator: Locator) {
     const style = getComputedStyle(element);
     return {
       borderRadius: style.borderRadius,
-      borderTopColor: style.borderTopColor,
-      backgroundColor: style.backgroundColor,
       color: style.color,
+      fontWeight: style.fontWeight,
     };
   });
 }
