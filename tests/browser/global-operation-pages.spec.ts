@@ -1,11 +1,17 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { openRuntimePage } from './runtime-harness';
 
 async function openGlobalPage(page: Page, navigationName: '市场' | '建筑') {
-  await openRuntimePage(page, '/?page=home');
-  const navigation = page.getByRole('button', { name: navigationName, exact: true });
-  if (await navigation.count()) await navigation.click();
-  else await page.goto(`/runtime-test.html?page=${navigationName === '市场' ? 'market' : 'buildings'}`);
+  await page.goto('?preview=game', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('html')).toHaveAttribute('data-local-game-preview', 'true');
+  const navigation = page.getByRole('button', { name: new RegExp(`^${navigationName}`) });
+  for (let index = 0; index < await navigation.count(); index += 1) {
+    const candidate = navigation.nth(index);
+    if (await candidate.isVisible()) {
+      await candidate.click();
+      return;
+    }
+  }
+  throw new Error(`未找到可见的${navigationName}导航按钮`);
 }
 
 async function expectNoPageHorizontalOverflow(page: Page) {
@@ -179,6 +185,8 @@ test('building catalog and region list share detail production-config content wh
     await page.keyboard.press('Escape');
     await expect(page.getByRole('listbox')).toHaveCount(0);
   }
+  await productSelect.hover();
+  const catalogTriggerStyle = await expectListTriggerSkin(productSelect);
 
   await openButton.click();
   await expect(page.getByRole('heading', { name: firstFacilityName!, exact: true })).toBeVisible();
@@ -221,6 +229,7 @@ test('building catalog and region list share detail production-config content wh
   await expect(detailProductSelect).toHaveAttribute('data-variant', 'production-config');
   await detailProductSelect.hover();
   const detailTriggerStyle = await expectListTriggerSkin(detailProductSelect);
+  expect(catalogTriggerStyle).toEqual(detailTriggerStyle);
   expect(regionTriggerStyle).toEqual(detailTriggerStyle);
   await page.getByRole('button', { name: '返回上一页面' }).click();
   await expect(page.locator('.global-buildings-page[data-global-facility-type-id]')).toBeVisible();
