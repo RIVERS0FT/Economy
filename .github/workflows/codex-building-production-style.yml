@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: 24.4.0
           cache: npm
-      - name: Apply shared production style patch v7
+      - name: Apply shared production style patch v8
         run: |
           python .codex-building-production-style.py
           python .codex-building-production-style-fix.py
