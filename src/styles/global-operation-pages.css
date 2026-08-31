@@ -403,3 +403,157 @@
     --entity-list-columns: minmax(4.35rem, 1.15fr) repeat(5, minmax(2.15rem, .52fr)) var(--entity-list-chevron-column);
   }
 }
+
+
+/* Global building catalog quick production: registered two-line row exception. */
+.entity-list-row.global-facility-catalog-row {
+  --entity-list-row-height: 76px;
+  --global-facility-catalog-artwork-size: 52px;
+  --global-facility-catalog-quick-size: 28px;
+  align-items: start;
+  overflow: hidden;
+}
+
+.global-facility-catalog-row__open {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 34px;
+  z-index: 1;
+  border: 0;
+  border-radius: inherit;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.global-facility-catalog-row__open:focus-visible {
+  outline: 2px solid var(--color-focus-ring, var(--accent));
+  outline-offset: -2px;
+}
+
+.global-facility-catalog-row__identity {
+  grid-template-columns: var(--global-facility-catalog-artwork-size) minmax(0, 1fr);
+  grid-template-rows: 20px var(--global-facility-catalog-quick-size);
+  align-items: center;
+  column-gap: .45rem;
+  row-gap: 4px;
+  pointer-events: none;
+}
+
+.global-facility-catalog-row__identity > strong {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+}
+
+.global-facility-catalog-row__artwork {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  width: var(--global-facility-catalog-artwork-size);
+  height: var(--global-facility-catalog-artwork-size);
+  min-width: var(--global-facility-catalog-artwork-size);
+}
+
+.global-facility-catalog-row__quick-controls {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: .28rem;
+  min-width: 0;
+  pointer-events: auto;
+}
+
+.global-facility-catalog-row__quick-control {
+  width: var(--global-facility-catalog-quick-size);
+  height: var(--global-facility-catalog-quick-size);
+  min-width: var(--global-facility-catalog-quick-size);
+  min-height: var(--global-facility-catalog-quick-size);
+  max-width: var(--global-facility-catalog-quick-size);
+  max-height: var(--global-facility-catalog-quick-size);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  padding: 2px;
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-surface-inset) 82%, transparent);
+  cursor: pointer;
+}
+
+.global-facility-catalog-row__quick-control[data-mixed='true'] {
+  border-style: dashed;
+  opacity: .72;
+}
+
+.global-facility-catalog-row__quick-control:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.global-facility-catalog-row__quick-control[data-mixed='true']:disabled {
+  opacity: .72;
+}
+
+.global-facility-catalog-row__quick-control .product-artwork,
+.global-facility-catalog-row__quick-control .game-icon {
+  width: 100%;
+  height: 100%;
+}
+
+.global-facility-catalog-row__metric,
+.global-facility-catalog-row__chevron {
+  align-self: start;
+  margin-top: 2px;
+  pointer-events: none;
+}
+
+@container (max-width: 620px) {
+  .entity-list-row.global-facility-catalog-row {
+    --entity-list-row-height: 70px;
+    --global-facility-catalog-artwork-size: 46px;
+    --global-facility-catalog-quick-size: 26px;
+  }
+
+  .global-facility-catalog-row__identity {
+    grid-template-rows: 18px var(--global-facility-catalog-quick-size);
+    column-gap: .32rem;
+    row-gap: 2px;
+  }
+
+  .global-facility-catalog-row__open {
+    height: 32px;
+  }
+
+  .global-facility-catalog-row__quick-controls {
+    gap: .2rem;
+  }
+
+  .global-facility-catalog-row__metric,
+  .global-facility-catalog-row__chevron {
+    margin-top: 1px;
+  }
+}
+
+@container (max-width: 360px) {
+  .entity-list-row.global-facility-catalog-row {
+    --entity-list-row-height: 68px;
+    --global-facility-catalog-artwork-size: 42px;
+    --global-facility-catalog-quick-size: 24px;
+  }
+
+  .global-facility-catalog-row__identity {
+    grid-template-rows: 17px var(--global-facility-catalog-quick-size);
+    column-gap: .24rem;
+    row-gap: 1px;
+  }
+
+  .global-facility-catalog-row__open {
+    height: 30px;
+  }
+}

@@ -185,6 +185,7 @@ export interface LoadedGameViewModel {
   stopFacility: (facilityTypeId: string) => Promise<ActionResult>;
   pauseFacility: (facilityTypeId: string) => Promise<ActionResult>;
   setFacilityRecipe: (facilityTypeId: string, recipeId: string) => Promise<ActionResult>;
+  setFacilityRecipes?: (targets: Array<{ provinceId: string; facilityTypeId: string; recipeId: string }>) => Promise<ActionResult>;
   placeAssetOrder: (assetKind: AssetKind, assetId: string, side: OrderSide, quantity: number, price: number) => Promise<ActionResult>;
   onlineAutoBuy: (productId: string, maxPrice: number, targetFreeInventory?: number) => Promise<ActionResult>;
   onlineAutoSell: (productId: string, price: number, minimumFreeInventory?: number) => Promise<ActionResult>;
@@ -606,6 +607,22 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
       'setFacilityRecipe',
       () => gameActions.setFacilityRecipe(selectedProvinceId, facilityTypeId, recipeId),
     ),
+    setFacilityRecipes: (targets) => runAcknowledgedAction('setFacilityRecipe', async () => {
+      let latestResponse: GameActionResponse | null = null;
+      for (const target of targets) {
+        const response = await gameActions.setFacilityRecipe(
+          target.provinceId,
+          target.facilityTypeId,
+          target.recipeId,
+        );
+        latestResponse = response;
+        if (!response.result.ok) return response;
+      }
+      return latestResponse ?? {
+        result: { ok: true, message: '生产设置未变化' },
+        revision: revisionRef.current ?? 0,
+      };
+    }),
     placeAssetOrder,
     onlineAutoBuy: (productId, maxPrice, targetFreeInventory = 0) => runAction(
       'placeOrder',

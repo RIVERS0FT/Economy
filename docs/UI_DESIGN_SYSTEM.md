@@ -112,7 +112,7 @@
 
 `PagePanel` 只用于实际存在视觉分组意义的一级业务模块。若页面正文在正常状态下只有一个一级业务模块，内容必须直接排列在 `PageLayout` 正文而不是再套唯一大圆角卡；`workspaceCard`／Mobile Workspace Sheet 已经是页面承载面，禁止用第二层整页卡片重复边框、圆角和外层内边距。
 
-所有带表头的页面实体目录固定使用 `.entity-list-surface` 包裹 `EntityListHeader + .entity-list-rows`。表头与首行、相邻数据行统一使用同一 `.32rem` 间距；列 gap、横向 padding、Chevron 轨道和目录插画槽只能由 `entity-list-header.css` 的共享变量随真实内容容器收缩，业务 CSS 只允许定义字段列模板和业务单元格内部排版。商品数据行只有 `market-commodity-row.css` 同时覆盖一级市场 `.global-market-goods-row` 与地区商品 `.market-commodity-row` 的紧凑密度例外，其余市场、地区商品、建筑或地区建筑不得各自维护另一套列表密度。正负行情与利润统一通过 `.entity-list-value.is-positive / .is-negative` 表达，避免同一语义跨页面变色。
+所有带表头的页面实体目录固定使用 `.entity-list-surface` 包裹 `EntityListHeader + .entity-list-rows`。表头与首行、相邻数据行统一使用同一 `.32rem` 间距；列 gap、横向 padding、Chevron 轨道和目录插画槽只能由 `entity-list-header.css` 的共享变量随真实内容容器收缩，业务 CSS 只允许定义字段列模板和业务单元格内部排版。列表密度例外只有两类：`market-commodity-row.css` 同时覆盖一级市场 `.global-market-goods-row` 与地区商品 `.market-commodity-row` 的紧凑商品行；一级全局建筑 `.global-facility-catalog-row` 为容纳第二行两个图标生产设置，登记为约 `76px / 70px / 68px` 的两行高度例外，第一行继续对齐共享表头，`FacilityIcon` 正方形插画跨两行，第二行只允许留在身份列。地区建筑列表仍使用共享单行高度，除这两类外其他市场、地区商品、建筑或地区建筑不得维护另一套列表密度。正负行情与利润统一通过 `.entity-list-value.is-positive / .is-negative` 表达，避免同一语义跨页面变色。
 
 玩家端 `PageLayout` 的标题区固定只包含返回、主标题和关闭三个槽位，不得渲染刷新、创建、筛选、保存或其他业务按钮；业务操作必须进入正文中的对应业务模块或正文顶部操作区。`PageLayout.actions` 只允许非玩家页面继续使用，玩家导航上下文存在时不得生成第二行标题操作区。原因是标题轨道承担跨页面稳定导航几何，业务操作进入标题区会改变标题高度、正文起点和跨页面按钮位置。
 
