@@ -450,7 +450,7 @@ export function BuildingsPage({
     selectMarketAsset('commodity', productId);
   };
   const openProductContracts = (productId: string) => {
-    setContractMarketIntent(productId);
+    setContractMarketIntent(productId, model.selectedProvinceId);
     model.setTab('contracts');
   };
 

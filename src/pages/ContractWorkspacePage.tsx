@@ -131,7 +131,7 @@ function OpenContractCard({ contract, label, busy, run }: { contract: Production
           <DataRow label="期限" value={dayLabel(contract.kind === 'loan' ? (contract.termDays ?? msAsDays(contract.termMs)) : (contract.periodDays ?? msAsDays(contract.periodMs)))} />
         </DataList>
       )}
-      <div className="contract-card-actions"><Button disabled={busy} onClick={() => void run(`${contract.id}:accept`, () => productionContractActions.accept(contract.id))}>承接合同</Button>{contract.isPublisher ? <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:cancel`, () => productionContractActions.cancel(contract.id))}>取消公开合同</Button> : null}</div>
+      <div className="contract-card-actions">{!contract.isPublisher ? <Button disabled={busy} onClick={() => void run(`${contract.id}:accept`, () => productionContractActions.accept(contract.id))}>承接合同</Button> : null}{contract.isPublisher ? <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:cancel`, () => productionContractActions.cancel(contract.id))}>取消公开合同</Button> : null}</div>
       {contract.kind === 'supply' && contract.supplyMode === 'daily' ? <ContractNegotiationSection contract={contract} busy={busy} run={run} /> : null}
     </PagePanel>
   );
@@ -163,6 +163,16 @@ function SupplyPriorityEditor({ contract, busy, run }: { contract: ProductionCon
   );
 }
 
+function CommercialContractActions({ contract, busy, run }: { contract: ProductionContract; busy: boolean; run: RunAction }) {
+  if (contract.kind === 'loan' && contract.isBorrower) {
+    return <div className="contract-card-actions"><Button variant="secondary" disabled={busy} onClick={() => void run(`${contract.id}:repay`, () => productionContractActions.repayLoan(contract.id))}>立即还款</Button><ToggleField checked={contract.autoRepay !== false} onChange={(event) => void run(`${contract.id}:auto-repay`, () => productionContractActions.setLoanAutoRepay(contract.id, event.target.checked))} label="自动还款" /></div>;
+  }
+  if (contract.kind === 'facility_lease' && contract.isLessee) {
+    return <div className="contract-card-actions"><Button variant="secondary" disabled={busy} onClick={() => void run(`${contract.id}:lease-fund`, () => productionContractActions.fundLease(contract.id))}>补充租金</Button><ToggleField checked={contract.autoFund !== false} onChange={(event) => void run(`${contract.id}:lease-auto-fund`, () => productionContractActions.setLeaseAutoFund(contract.id, event.target.checked))} label="自动补充租金" /></div>;
+  }
+  return null;
+}
+
 function ActiveContractCard({ contract, label, busy, run }: { contract: ProductionContract; label: string; busy: boolean; run: RunAction }) {
   const needsAttention = contractNeedsAttention(contract);
   const className = `contract-card contract-active-card contract-card--${contract.graceEndsAt ? 'danger' : needsAttention ? 'attention' : 'normal'}`;
@@ -191,12 +201,16 @@ function ActiveContractCard({ contract, label, busy, run }: { contract: Producti
           <DataRow label="期限" value={dayLabel(contract.kind === 'loan' ? (contract.termDays ?? msAsDays(contract.termMs)) : (contract.periodDays ?? msAsDays(contract.periodMs)))} />
         </DataList>
       )}
-      {contract.kind === 'supply' ? <div className="contract-card-actions">
-        {contract.isSupplier ? <Button variant="secondary" disabled={busy} onClick={() => void run(`${contract.id}:prepare`, () => productionContractActions.prepare(contract.id))}>自动准备商品</Button> : null}
-        {contract.isBuyer ? <Button variant="secondary" disabled={busy} onClick={() => void run(`${contract.id}:fund`, () => productionContractActions.fund(contract.id))}>自动补充货款</Button> : null}
+      {contract.kind === 'supply' ? <>
+      {contract.isSupplier ? <ToggleField checked={contract.supplierAutoReserve} onChange={(event) => void run(`${contract.id}:auto-reserve`, () => productionContractActions.setAutoReserve(contract.id, event.target.checked, contract.prioritySupply))} label="自动准备商品" /> : null}
+      {contract.isBuyer ? <ToggleField checked={contract.buyerAutoFund} onChange={(event) => void run(`${contract.id}:auto-fund`, () => productionContractActions.setAutoFund(contract.id, event.target.checked))} label="自动补充货款" /> : null}
+      <div className="contract-card-actions">
+        {contract.isSupplier ? <Button variant="secondary" disabled={busy} onClick={() => void run(`${contract.id}:prepare`, () => productionContractActions.prepare(contract.id))}>立即准备商品</Button> : null}
+        {contract.isBuyer ? <Button variant="secondary" disabled={busy} onClick={() => void run(`${contract.id}:fund`, () => productionContractActions.fund(contract.id))}>立即补充货款</Button> : null}
         <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:request-end`, () => productionContractActions.requestTermination(contract.id))}>按当前日结束</Button>
         <Button variant="text" disabled={busy} onClick={() => { if (window.confirm('立即终止会触发违约保证金赔付，是否继续？')) void run(`${contract.id}:terminate`, () => productionContractActions.terminateNow(contract.id)); }}>立即终止</Button>
-      </div> : null}
+      </div>
+    </> : <CommercialContractActions contract={contract} busy={busy} run={run} />}
       <SupplyPriorityEditor contract={contract} busy={busy} run={run} />
     </PagePanel>
   );
