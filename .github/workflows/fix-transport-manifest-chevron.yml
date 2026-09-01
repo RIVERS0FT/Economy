@@ -1,0 +1,28 @@
+name: Fix transport manifest chevron
+
+on:
+  push:
+    branches:
+      - codex/transport-route-pages-auto-logistics
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply manifest chevron patch
+        run: python3 scripts/fix-transport-manifest-chevron.py
+      - name: Commit patch and remove temporary files
+        run: |
+          rm -f scripts/fix-transport-manifest-chevron.py .github/workflows/fix-transport-manifest-chevron.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "use shared chevron in transport manifest"
+          git push origin HEAD:codex/transport-route-pages-auto-logistics
