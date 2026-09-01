@@ -230,6 +230,39 @@ function encodePng(pixels, targetSize) {
   ]);
 }
 
+export function inspectArtworkTransparency(filePath, sourceSize) {
+  const { width, height, pixels } = parsePng(filePath, sourceSize);
+  const cornerIndexes = [
+    3,
+    (width - 1) * bytesPerPixel + 3,
+    (height - 1) * width * bytesPerPixel + 3,
+    (width * height - 1) * bytesPerPixel + 3,
+  ];
+  let transparentPixels = 0;
+  let visiblePixels = 0;
+  let greenDominantVisiblePixels = 0;
+
+  for (let offset = 0; offset < pixels.length; offset += bytesPerPixel) {
+    const alpha = pixels[offset + 3];
+    if (alpha === 0) {
+      transparentPixels += 1;
+      continue;
+    }
+    visiblePixels += 1;
+    if (pixels[offset + 1] - Math.max(pixels[offset], pixels[offset + 2]) > 24) {
+      greenDominantVisiblePixels += 1;
+    }
+  }
+
+  const pixelCount = width * height;
+  return {
+    cornerAlphas: cornerIndexes.map((index) => pixels[index]),
+    transparentRatio: transparentPixels / pixelCount,
+    visibleRatio: visiblePixels / pixelCount,
+    greenDominantVisibleRatio: greenDominantVisiblePixels / Math.max(1, visiblePixels),
+  };
+}
+
 export function generateArtworkThumbnails({
   ids,
   label,
