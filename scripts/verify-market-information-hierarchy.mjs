@@ -227,7 +227,7 @@ for (const token of [
   'market-detail-hero__metric',
   '<Panel className="widget market-chart-card">',
   '<section className="market-trade-card">',
-  '<Panel className="widget market-account-panel">',
+  '<Panel className="widget span-3 market-account-panel">',
 ]) requireText(regionalDetail, token, 'regional market detail');
 for (const token of [
   'MarketBalanceBar',
