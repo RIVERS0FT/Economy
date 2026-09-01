@@ -9,6 +9,7 @@ test.describe('navigation pill geometry', () => {
     const navigation = page.getByRole('navigation', { name: '游戏主导航' });
     const overview = navigation.getByRole('button', { name: '概览', exact: true });
     const market = navigation.getByRole('button', { name: '市场', exact: true });
+    const hiddenOverview = host.locator('.sidebar-nav-button').filter({ hasText: '概览' });
     await expect(host).toBeVisible();
 
     const geometry = await overview.evaluate((button) => {
@@ -59,8 +60,8 @@ test.describe('navigation pill geometry', () => {
 
     await overview.click();
     await expect(host).toHaveAttribute('data-workspace-sheet-hidden', 'true');
-    await expect(overview).toHaveClass(/active/);
-    const activeVisual = await overview.evaluate((button) => {
+    await expect(hiddenOverview).toHaveClass(/active/);
+    const activeVisual = await hiddenOverview.evaluate((button) => {
       const style = getComputedStyle(button);
       return { background: style.backgroundColor, border: style.borderTopColor };
     });
@@ -116,6 +117,7 @@ test.describe('navigation pill geometry', () => {
 
     await buttons.nth(2).click();
     await expect(page.locator('.strategic-map-stage')).toHaveAttribute('data-map-lens', 'industry');
+    await expect(buttons.nth(2)).toHaveAttribute('aria-pressed', 'true');
     const activeVisual = await buttons.nth(2).evaluate((button) => {
       const style = getComputedStyle(button);
       return {
@@ -125,7 +127,7 @@ test.describe('navigation pill geometry', () => {
       };
     });
     expect(activeVisual.color).not.toBe(geometry.color);
-    expect(activeVisual.border).not.toBe(geometry.border);
+    expect(activeVisual.border).toBe(geometry.border);
     expect(activeVisual.background).toBe(geometry.background);
   });
 });
