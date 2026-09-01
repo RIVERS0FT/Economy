@@ -210,6 +210,7 @@ export function StrategicMapStage({
       data-transport-route-picking={!startingProvincePicking && routeDraft?.picking ? 'true' : 'false'}
       data-transport-route-stop-count={draftStops.length}
       data-active-transport-count={shipmentOverlays.length}
+      data-active-transport-label={shipmentOverlays.length > 0 ? '正在运输' : '无在途运输'}
     >
       <UsMainlandMap
         provinces={state.provinces}
