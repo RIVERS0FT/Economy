@@ -4,6 +4,7 @@ import { ScrollArea } from '../ui/ScrollArea';
 import {
   WorkspaceDialogLayerContext,
   WorkspaceFloatingLayerContext,
+  WorkspaceTooltipLayerContext,
 } from '../ui/WorkspaceFloatingLayer';
 
 function classNames(...values: Array<string | false | null | undefined>) {
@@ -40,7 +41,9 @@ export function SignedInShell({
   children: ReactNode;
 }) {
   const [floatingLayer, setFloatingLayer] = useState<HTMLDivElement | null>(null);
+  const [tooltipLayer, setTooltipLayer] = useState<HTMLDivElement | null>(null);
   const [dialogLayer, setDialogLayer] = useState<HTMLDivElement | null>(null);
+
   const pageContent = pageFrameClassName ? <div className={pageFrameClassName}>{children}</div> : children;
   const pageLayer = (
     <div className="mobile-page-overlay">
@@ -71,55 +74,63 @@ export function SignedInShell({
         ref={setFloatingLayer}
         className="workspace-floating-layer"
         data-workspace-floating-layer="true"
-      />
+      >
+        <div
+          ref={setTooltipLayer}
+          className="workspace-tooltip-layer"
+          data-workspace-tooltip-layer="true"
+        />
+      </div>
     </>
   );
 
   return (
     <WorkspaceFloatingLayerContext.Provider value={floatingLayer}>
-      <WorkspaceDialogLayerContext.Provider value={dialogLayer}>
-        <main
-          className={classNames(
-            rootClassName,
-            'signed-in-shell',
-            'sidebar-layout',
-            sidebarCollapsed && 'sidebar-collapsed',
-          )}
-        >
-          <div className="signed-in-shell__body">
-            {integratedPrimaryCard ? (
-              <section className={classNames('workspace', workspaceClassName)}>
-                <FrostedGlassSurface variant="workspaceCard" className="signed-in-shell__primary-card">
-                  {sidebar}
-                  <div className="signed-in-shell__primary-page">
-                    {pageLayer}
-                  </div>
-                </FrostedGlassSurface>
-                {workspaceLayers}
-              </section>
-            ) : (
-              <>
-                {sidebar}
+      <WorkspaceTooltipLayerContext.Provider value={tooltipLayer}>
+        <WorkspaceDialogLayerContext.Provider value={dialogLayer}>
+          <main
+            className={classNames(
+              rootClassName,
+              'signed-in-shell',
+              'sidebar-layout',
+              sidebarCollapsed && 'sidebar-collapsed',
+            )}
+          >
+            <div className="signed-in-shell__body">
+              {integratedPrimaryCard ? (
                 <section className={classNames('workspace', workspaceClassName)}>
-                  {pageLayer}
+                  <FrostedGlassSurface variant="workspaceCard" className="signed-in-shell__primary-card">
+                    {sidebar}
+                    <div className="signed-in-shell__primary-page">
+                      {pageLayer}
+                    </div>
+                  </FrostedGlassSurface>
                   {workspaceLayers}
                 </section>
-              </>
-            )}
-          </div>
-          <div
-            className={classNames('mobile-chrome-overlay', 'signed-in-shell__chrome', chromeOverlayClassName)}
-            data-admin-mobile-chrome={adminChromeLayer ? 'true' : undefined}
-          >
-            {chrome}
-          </div>
-          <div
-            ref={setDialogLayer}
-            className="workspace-dialog-layer"
-            data-workspace-dialog-layer="true"
-          />
-        </main>
-      </WorkspaceDialogLayerContext.Provider>
+              ) : (
+                <>
+                  {sidebar}
+                  <section className={classNames('workspace', workspaceClassName)}>
+                    {pageLayer}
+                    {workspaceLayers}
+                  </section>
+                </>
+              )}
+            </div>
+            <div
+              className={classNames('mobile-chrome-overlay', 'signed-in-shell__chrome', chromeOverlayClassName)}
+              data-admin-mobile-chrome={adminChromeLayer ? 'true' : undefined}
+            >
+              {chrome}
+            </div>
+            <div
+              ref={setDialogLayer}
+              className="workspace-dialog-layer"
+              data-workspace-dialog-layer="true"
+            />
+          </main>
+        </WorkspaceDialogLayerContext.Provider>
+      </WorkspaceTooltipLayerContext.Provider>
     </WorkspaceFloatingLayerContext.Provider>
   );
 }

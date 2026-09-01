@@ -34,6 +34,7 @@ check('src/components/shell/SignedInShell.tsx', [
   "import { FrostedGlassSurface } from '../ui/FrostedGlassSurface'",
   "import { ScrollArea } from '../ui/ScrollArea'",
   'WorkspaceFloatingLayerContext.Provider',
+  'WorkspaceTooltipLayerContext.Provider',
   'WorkspaceDialogLayerContext.Provider',
   'className="signed-in-shell__body"',
   "'signed-in-shell__chrome'",
@@ -41,6 +42,8 @@ check('src/components/shell/SignedInShell.tsx', [
   'className="workspace-strategic-chrome"',
   'className="workspace-floating-layer"',
   'data-workspace-floating-layer="true"',
+  'className="workspace-tooltip-layer"',
+  'data-workspace-tooltip-layer="true"',
   'className="workspace-dialog-layer"',
   'data-workspace-dialog-layer="true"',
   'className="page-scroll-area"',
@@ -57,7 +60,18 @@ if (!(sharedShell.indexOf('className="mobile-page-overlay"') >= 0
   && sharedShell.indexOf('className="workspace-strategic-chrome"') < sharedShell.indexOf('className="workspace-floating-layer"'))) {
   failures.push('SignedInShell 工作区必须按页面、战略 Chrome、普通浮层顺序渲染');
 }
-forbid('src/components/shell/SignedInShell.tsx', ['workspaceBackground', 'className="workspace-background-layer"']);
+if (!(sharedShell.indexOf('className="workspace-floating-layer"') >= 0
+  && sharedShell.indexOf('className="workspace-floating-layer"') < sharedShell.indexOf('className="workspace-tooltip-layer"'))) {
+  failures.push('共享 Tooltip 宿主必须作为工作区安全浮层的子层存在，不得创建第五个根级 Portal');
+}
+forbid('src/components/shell/SignedInShell.tsx', [
+  'workspaceBackground',
+  'className="workspace-background-layer"',
+  'showTopLayerPopover(tooltipLayer)',
+  'hideTopLayerPopover(tooltipLayer)',
+  "popover={topLayerSupported ? 'manual' : undefined}",
+  "data-top-layer={topLayerSupported ? 'true' : undefined}",
+]);
 if (sharedShell.indexOf('className="signed-in-shell__body"') >= sharedShell.indexOf("'signed-in-shell__chrome'")) {
   failures.push('SignedInShell 必须先渲染页面主体、再渲染 Chrome，保持移动玻璃采样顺序');
 }
@@ -67,12 +81,22 @@ if (sharedShell.indexOf("'signed-in-shell__chrome'") >= sharedShell.indexOf('cla
 check('src/components/ui/WorkspaceFloatingLayer.tsx', [
   'WorkspaceFloatingLayerContext',
   'useWorkspaceFloatingLayer',
+  'WorkspaceTooltipLayerContext',
+  'useWorkspaceTooltipLayer',
   'WorkspaceDialogLayerContext',
   'useWorkspaceDialogLayer',
 ]);
 check('src/components/ui/SafeTooltip.tsx', [
-  'createPortal', 'useWorkspaceFloatingLayer', 'SAFE_FLOATING_GAP = 8',
-  'role="tooltip"', 'floatingLayer.getBoundingClientRect()',
+  'createPortal', 'useWorkspaceFloatingLayer', 'useWorkspaceTooltipLayer', 'SAFE_FLOATING_GAP = 8',
+  'supportsTopLayerPopover()', 'showTopLayerPopover(tooltip)', 'hideTopLayerPopover(tooltip)',
+  "popover={topLayerActive ? 'manual' : undefined}", 'role="tooltip"',
+  'floatingLayer.getBoundingClientRect()', 'const portalTarget = tooltipLayer',
+]);
+check('src/components/provinces/UsMainlandMap.tsx', [
+  'useWorkspaceTooltipLayer()', 'supportsTopLayerPopover()',
+  'showTopLayerPopover(tooltip)', 'hideTopLayerPopover(tooltip)',
+  "popover={tooltipTopLayerActive ? 'manual' : undefined}",
+  'data-top-layer={tooltipTopLayerActive',
 ]);
 check('src/components/shell/AdminDesktopBar.tsx', [
   "import { SafeTooltip } from '../ui/SafeTooltip'",
@@ -330,7 +354,17 @@ check('src/styles/mobile-status-layout.css', [
   ".game-shell .strategic-outliner[data-tutorial-visible='true']",
   ".strategic-outliner-section:not(.strategic-outliner-section--tutorial)",
 ]);
-check('src/styles/safe-floating.css', ['.safe-tooltip {', 'position: absolute;', 'pointer-events: none !important;']);
+check('src/styles/safe-floating.css', [
+  '.workspace-tooltip-layer {',
+  '.workspace-tooltip-layer > * {',
+  '.safe-tooltip {',
+  'position: absolute;',
+  'pointer-events: none !important;',
+]);
+forbid('src/styles/safe-floating.css', [
+  ".workspace-tooltip-layer[data-top-layer='true']",
+  '.workspace-tooltip-layer::backdrop',
+]);
 check('src/components/charts/chartOptions.ts', ['appendToBody: false', 'confine: true']);
 check('tests/browser/game-shell-layout.spec.ts', [
   "test.describe('persistent-map grand-strategy game shell'",
@@ -396,9 +430,16 @@ check('tests/browser/game-three-layer.spec.ts', [
 check('tests/browser/shell-floating-safe-zone.spec.ts', [
   'market-runtime-test.html?scenario=active',
   "read('axisLeft')", "read('priceTop')", 'scrollIntoViewIfNeeded',
-  'game ECharts tooltip remains inside the lower workspace and never covers shell chrome',
+  'game ECharts tooltip uses the shared tooltip host and never covers shell chrome',
+  '.workspace-tooltip-layer',
+  "not.toHaveAttribute('popover', 'manual')",
   'mobile workspace floating layer excludes the top status bar and bottom navigation',
   'intersectionArea',
+]);
+check('tests/browser/top-layer-overlays.spec.ts', [
+  "not.toHaveAttribute('popover', 'manual')",
+  "conceptTooltip.evaluate((element) => element.matches(':popover-open'))",
+  'expectTopLayerHitTarget',
 ]);
 check('tests/browser/notification-center.spec.ts', [
   'mobile notification panel overlays an open workspace sheet without leaving an island mounted',
@@ -458,7 +499,11 @@ check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '状态栏始终位于 Sheet 与通知面板之上',
 ]);
 check('docs/UI_DESIGN_SYSTEM.md', [
-  '登录后浮层安全区', '`SafeTooltip`',
+  '登录后浮层安全区', '`SafeTooltip`', '`.workspace-tooltip-layer`',
+  '唯一共享 Tooltip 宿主',
+  'Tooltip Layer 只负责 DOM 归属与工作区安全几何',
+  '不得给 `.workspace-tooltip-layer` 本身添加 `popover`',
+  '实际 `SafeTooltip` 与地图 Tooltip 节点分别使用浏览器 Popover Top Layer',
   '`building` 左侧毛玻璃面板',
   '`fullscreen` 占满可用区域',
   '`.application-map-layer`、`.application-ui-layer` 与 `.workspace-strategic-chrome` 必须保持 `isolation:auto`',
@@ -476,4 +521,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('游戏与管理员共享外壳验证通过：固定状态栏、唯一共享页面滚动、跨页面常驻战略追踪器、起始州地图选点与左侧概览确认、研发统一 workspaceCard 与内部透明科技画布、根级 Dialog、48px 通知轨道、8px 战略栅格、主卡片侧栏覆盖、建筑式页面、根级地图镜头、镜头按钮图标文字同轴居中与安全浮层满足当前基线。');
+console.log('游戏与管理员共享外壳验证通过：固定状态栏、唯一共享页面滚动、跨页面常驻战略追踪器、起始州地图选点与左侧概览确认、研发统一 workspaceCard 与内部透明科技画布、根级 Dialog、共享 Tooltip 宿主与逐节点 Top Layer、48px 通知轨道、8px 战略栅格、主卡片侧栏覆盖、建筑式页面、根级地图镜头、镜头按钮图标文字同轴居中与安全浮层满足当前基线。');

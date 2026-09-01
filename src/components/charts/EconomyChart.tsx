@@ -5,6 +5,7 @@ import {
   useState,
   type CSSProperties,
 } from 'react';
+import { useWorkspaceTooltipLayer } from '../ui/WorkspaceFloatingLayer';
 import { initECharts, type EChartsCoreOption, type EChartsType } from './echartsCore';
 import { resolveEChartsCssColors } from './resolveEChartsCssColors';
 
@@ -46,18 +47,42 @@ export interface EconomyChartSize {
   height: number;
 }
 
+function optionWithTooltipLayer(option: EChartsCoreOption, tooltipLayer: HTMLElement | null) {
+  if (!tooltipLayer || !option || typeof option !== 'object' || Array.isArray(option)) return option;
+  const source = option as unknown as Record<string, unknown>;
+  const tooltip = source.tooltip;
+  if (!tooltip || typeof tooltip !== 'object' || Array.isArray(tooltip)) return option;
+  const next = { ...source };
+  next.tooltip = {
+    ...(tooltip as Record<string, unknown>),
+    appendTo: tooltipLayer,
+    appendToBody: false,
+  };
+  return next as unknown as EChartsCoreOption;
+}
+
 function applyChartOption(
   chart: EChartsType,
   container: HTMLElement,
   option: EChartsCoreOption,
   updateMode: EconomyChartUpdateMode,
   lazyUpdate: boolean,
+  tooltipLayer: HTMLElement | null,
 ) {
-  chart.setOption(resolveEChartsCssColors(option, container), {
+  const resolvedOption = resolveEChartsCssColors(option, container);
+  // Callback refs publish the shared host through React context one render after the
+  // host DOM itself exists. ECharts fixes the HTML tooltip parent when TooltipHTMLContent
+  // is first constructed, so the first setOption must synchronously recover that host.
+  if (!tooltipLayer?.isConnected) {
+    tooltipLayer = container.closest('.workspace')
+      ?.querySelector<HTMLElement>('[data-workspace-tooltip-layer="true"]') ?? null;
+  }
+  chart.setOption(optionWithTooltipLayer(resolvedOption, tooltipLayer), {
     notMerge: updateMode !== 'merge',
     lazyUpdate,
   });
   container.dataset.echartsCssColorsResolved = 'true';
+  container.dataset.echartsTooltipLayer = tooltipLayer ? 'workspace' : 'local';
 }
 
 function hasRenderableSize(container: HTMLElement) {
@@ -93,9 +118,11 @@ export function EconomyChart({
   onCanvasClick?: (event: EconomyChartCanvasClickEvent, chart: EChartsType) => void;
   onDoubleClick?: (event: EconomyChartDoubleClickEvent, chart: EChartsType) => void;
 }) {
+  const tooltipLayer = useWorkspaceTooltipLayer();
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<EChartsType | null>(null);
   const optionRef = useRef(option);
+  const tooltipLayerRef = useRef(tooltipLayer);
   const resizeFrameRef = useRef<number | null>(null);
   const optionAppliedRef = useRef(false);
   const chartReadyRef = useRef(false);
@@ -109,6 +136,7 @@ export function EconomyChart({
   const [ready, setReady] = useState(false);
 
   updateModeRef.current = updateMode;
+  tooltipLayerRef.current = tooltipLayer;
   onChartReadyRef.current = onChartReady;
   onOptionAppliedRef.current = onOptionApplied;
   onResizeRef.current = onResize;
@@ -121,7 +149,7 @@ export function EconomyChart({
     const chart = chartRef.current;
     const container = containerRef.current;
     if (!chart || !container || !hasRenderableSize(container)) return;
-    applyChartOption(chart, container, option, updateMode, true);
+    applyChartOption(chart, container, option, updateMode, true, tooltipLayer);
     optionAppliedRef.current = true;
     if (!chartReadyRef.current) {
       chartReadyRef.current = true;
@@ -129,7 +157,7 @@ export function EconomyChart({
       onChartReadyRef.current?.(chart);
     }
     onOptionAppliedRef.current?.(chart);
-  }, [option, updateMode]);
+  }, [option, tooltipLayer, updateMode]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -160,7 +188,14 @@ export function EconomyChart({
     chart.getZr().on('dblclick', handleDoubleClick);
     const applyCurrentOption = () => {
       if (!hasRenderableSize(container)) return false;
-      applyChartOption(chart, container, optionRef.current, updateModeRef.current, false);
+      applyChartOption(
+        chart,
+        container,
+        optionRef.current,
+        updateModeRef.current,
+        false,
+        tooltipLayerRef.current,
+      );
       optionAppliedRef.current = true;
       if (!chartReadyRef.current) {
         chartReadyRef.current = true;

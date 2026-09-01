@@ -52,6 +52,7 @@ if (!existsSync(pathFor(agentsPath))) {
 const canonicalDocs = [
   'README.md',
   'docs/README.md',
+  'docs/CI_EXECUTION_DESIGN.md',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
@@ -127,6 +128,7 @@ if (existsSync(pathFor('README.md'))) {
     'https://game.riversoft.top/economy/admin',
     '[docs/README.md](docs/README.md)',
     '[AGENTS.md](AGENTS.md)',
+    '[CI 执行设计](docs/CI_EXECUTION_DESIGN.md)',
     'Node.js 24.4.0',
     'npm ci',
     'npm run build',
@@ -169,6 +171,7 @@ if (existsSync(pathFor('docs/README.md'))) {
     '未列入下方权威文档表的 Markdown 文件不得存在',
     '新的功能规则必须合并进现有权威文档',
     '`scripts/verify-document-authority.mjs` 必须遍历 `docs/*.md`',
+    '`CI_EXECUTION_DESIGN.md`',
     '参考分钟利润必须由正式目录自动校验',
     '人口数量、工厂承载、迁入迁出、就业收入、三类人口真实钱包、生产复杂度岗位结构',
     '州级居民经济只保存官方统计基准，不复制人口钱包',
@@ -255,4 +258,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`文档权威性验证通过：精简协作入口与项目 README、登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/32、美国本土连续 48 州、起始州与州解锁、三种跨州运输、本地市场与工厂、500 新玩家启动资金、市场需求模型 20、固定银行收益与周资金结算、商品供货、玩家抵押借贷与工厂使用权租赁合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备、官方系统价市场、十二个正式页面与十一项可见导航和银行资产总览职责均满足当前基线。`);
+console.log(`文档权威性验证通过：精简协作入口与项目 README、登记文档清单、CI 执行设计、版本 ${CURRENT_CLIENT_STATE_VERSION}/32、美国本土连续 48 州、起始州与州解锁、三种跨州运输、本地市场与工厂、500 新玩家启动资金、市场需求模型 20、固定银行收益与周资金结算、商品供货、玩家抵押借贷与工厂使用权租赁合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备、官方系统价市场、十二个正式页面与十一项可见导航和银行资产总览职责均满足当前基线。`);

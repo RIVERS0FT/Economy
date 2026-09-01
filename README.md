@@ -158,6 +158,7 @@ Economy/
 - [页面内容与导航设计](docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md)
 - [UI 设计系统](docs/UI_DESIGN_SYSTEM.md)
 - [服务器架构与部署设计](docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md)
+- [CI 执行设计](docs/CI_EXECUTION_DESIGN.md)
 
 业务规则、当前版本和部署参数只在权威设计文档、实现代码及对应验证脚本中维护；本文件不复制会随产品迭代变化的详细口径。
 

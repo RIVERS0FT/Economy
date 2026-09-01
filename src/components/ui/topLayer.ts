@@ -34,13 +34,12 @@ export function showTopLayerPopover(element: HTMLElement) {
   }
 }
 
-export function hideTopLayerPopover(element: HTMLElement) {
+export function hideTopLayerPopover(element: HTMLElement): void {
   const popover = asPopoverElement(element);
-  if (!popover || !isTopLayerPopoverOpen(element)) return false;
+  if (!popover || !isTopLayerPopoverOpen(element)) return;
   try {
     popover.hidePopover();
-    return true;
   } catch {
-    return false;
+    // Hiding a detached or already-closed popover is a no-op for callers.
   }
 }

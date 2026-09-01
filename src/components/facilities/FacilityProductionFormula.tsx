@@ -1,6 +1,7 @@
 import { CompactCurrency, CompactNumber } from '../ui/CompactNumber';
 import { CreditsIcon, CycleIcon, WarehouseIcon } from '../icons/GameIcons';
 import { ProductArtwork } from '../products/ProductArtwork';
+import { GameConcept } from '../ui/GameConcept';
 import type {
   FacilityGroup,
   FacilityRecipeItem,
@@ -191,12 +192,12 @@ export function FacilityProductionFormula({
         aria-label={description}
       >
         <div className="facility-production-formula-heading">
-          <strong>生产结算</strong>
+          <strong><GameConcept concept="production-settlement" /></strong>
         </div>
         <div className="facility-formula-visual">
           <div className="facility-formula-top">
             <div className="facility-formula-input-side">
-              <span className="facility-formula-side-label">投入</span>
+              <span className="facility-formula-side-label"><GameConcept concept="production-input" /></span>
               <div className="facility-formula-input">
                 {inputs.length > 0 ? (
                   <RecipeItems
@@ -213,7 +214,7 @@ export function FacilityProductionFormula({
             </div>
 
             <div className="facility-formula-output-side">
-              <span className="facility-formula-side-label">产出</span>
+              <span className="facility-formula-side-label"><GameConcept concept="production-output" /></span>
               <div className="facility-formula-output">
                 <RecipeItems
                   items={outputs}

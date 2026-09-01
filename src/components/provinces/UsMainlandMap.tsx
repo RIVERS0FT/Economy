@@ -10,12 +10,19 @@ import {
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { feature } from 'topojson-client';
 import usStateAtlas from 'us-atlas/states-10m.json';
 import regionCatalog from '../../../shared/provinces.json';
 import type { ProvinceAssetSummary, ProvinceDefinition, TransportModeId, TransportTripType } from '../../types';
 import { formatNumber } from '../../utils/formatters';
 import { formatTransportDuration } from '../../utils/provinceLogistics';
+import { useWorkspaceTooltipLayer } from '../ui/WorkspaceFloatingLayer';
+import {
+  hideTopLayerPopover,
+  showTopLayerPopover,
+  supportsTopLayerPopover,
+} from '../ui/topLayer';
 import { createProvinceMapCamera, type ProvinceMapCameraController } from './provinceMapCamera';
 import { createProvinceMapProjection, provinceGeometryPath } from './provinceMapProjection';
 import {
@@ -222,6 +229,8 @@ export function UsMainlandMap({
   shipmentOverlays?: ProvinceMapShipmentOverlay[];
   now?: number;
 }) {
+  const tooltipLayer = useWorkspaceTooltipLayer();
+  const tooltipTopLayerActive = supportsTopLayerPopover() && Boolean(tooltipLayer);
   const unlockedSet = useMemo(() => new Set(unlockedProvinceIds || []), [unlockedProvinceIds]);
   const data = useMemo(() => provinces.map((province) => datumFor(province, summaries[province.id], lens, !unlockedSet.has(province.id))), [lens, provinces, summaries, unlockedSet]);
   const datumByProvinceId = useMemo(() => new Map(data.map((datum) => [datum.provinceId, datum])), [data]);
@@ -360,6 +369,14 @@ export function UsMainlandMap({
     container.dataset.mapSelectedProvinceId = selectedProvinceId ?? '';
   }, [selectedProvinceId]);
 
+  useLayoutEffect(() => {
+    if ((!hoveredProvinceId && !hoveredShipmentId) || !tooltipTopLayerActive) return undefined;
+    const tooltip = tooltipRef.current;
+    if (!tooltip) return undefined;
+    showTopLayerPopover(tooltip);
+    return () => hideTopLayerPopover(tooltip);
+  }, [hoveredProvinceId, hoveredShipmentId, tooltipTopLayerActive, tooltipLayer]);
+
   const selectProvince = useCallback((provinceId: string) => {
     if (routePicking?.active) {
       routePicking.onPickProvince(provinceId);
@@ -380,6 +397,41 @@ export function UsMainlandMap({
     const top = Math.min(window.innerHeight - 220, Math.max(8, event.clientY + 14));
     tooltipRef.current.style.transform = `translate3d(${left}px, ${top}px, 0)`;
   }, [hoveredProvinceId, hoveredShipmentId]);
+
+  const tooltipNode = hoveredShipment && hoveredShipmentPosition ? (
+    <div
+      ref={tooltipRef}
+      className="economy-chart-tooltip ui-tooltip-surface province-map-tooltip province-map-static-tooltip province-map-shipment-tooltip"
+      data-tooltip-kind="shipment"
+      data-tooltip-layer={tooltipLayer ? 'workspace' : 'local'}
+      data-top-layer={tooltipTopLayerActive ? 'true' : undefined}
+      popover={tooltipTopLayerActive ? 'manual' : undefined}
+      role="status"
+    >
+      <strong>{hoveredShipment.routeName}</strong>
+      <span>{provinceNameById.get(hoveredShipmentPosition.fromProvinceId) ?? hoveredShipmentPosition.fromProvinceId} → {provinceNameById.get(hoveredShipmentPosition.toProvinceId) ?? hoveredShipmentPosition.toProvinceId}</span>
+      <span>剩余时间：{formatTransportDuration(Math.max(0, hoveredShipment.arrivesAt - now))}</span>
+      <span>当前载荷：<CompactNumber value={hoveredShipmentPosition.remainingLoad} /></span>
+      {hoveredShipment.cargo.length > 0 ? hoveredShipment.cargo.map((entry, index) => (
+        <span key={`${entry.productName}-${entry.destinationName}-${index}`} className="province-map-shipment-tooltip-cargo">
+          {entry.productName} ×<CompactNumber value={entry.quantity} /> → {entry.destinationName}
+        </span>
+      )) : <span>没有剩余货物</span>}
+    </div>
+  ) : hoveredDatum ? (
+    <div
+      ref={tooltipRef}
+      className="economy-chart-tooltip ui-tooltip-surface province-map-tooltip province-map-static-tooltip"
+      data-tooltip-layer={tooltipLayer ? 'workspace' : 'local'}
+      data-top-layer={tooltipTopLayerActive ? 'true' : undefined}
+      popover={tooltipTopLayerActive ? 'manual' : undefined}
+      aria-hidden="true"
+    >
+      <strong>{hoveredDatum.provinceName}</strong>
+      {hoveredDatum.locked ? <span className="province-map-tooltip__locked">未解锁</span> : null}
+      {tooltipRows(hoveredDatum).map((row) => <span key={row}>{row}</span>)}
+    </div>
+  ) : null;
 
   const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}当前有 ${shipmentOverlays.length} 笔运输在途。州面和中文州全名位于同一个静态 SVG 世界面，通过同一个合成相机同步缩放和平移。${routePickingActive ? '当前处于运输路线选州模式，按顺序点击州面即可追加站点，再次点击起点州可以闭环。' : '点击州面可以打开对应州页面，'}滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置缩放和平移。`;
 
@@ -478,25 +530,7 @@ export function UsMainlandMap({
               </g>
             </svg>
           </div>
-          {hoveredShipment && hoveredShipmentPosition ? (
-            <div ref={tooltipRef} className="economy-chart-tooltip ui-tooltip-surface province-map-tooltip province-map-static-tooltip province-map-shipment-tooltip" data-tooltip-kind="shipment" role="status">
-              <strong>{hoveredShipment.routeName}</strong>
-              <span>{provinceNameById.get(hoveredShipmentPosition.fromProvinceId) ?? hoveredShipmentPosition.fromProvinceId} → {provinceNameById.get(hoveredShipmentPosition.toProvinceId) ?? hoveredShipmentPosition.toProvinceId}</span>
-              <span>剩余时间：{formatTransportDuration(Math.max(0, hoveredShipment.arrivesAt - now))}</span>
-              <span>当前载荷：<CompactNumber value={hoveredShipmentPosition.remainingLoad} /></span>
-              {hoveredShipment.cargo.length > 0 ? hoveredShipment.cargo.map((entry, index) => (
-                <span key={`${entry.productName}-${entry.destinationName}-${index}`} className="province-map-shipment-tooltip-cargo">
-                  {entry.productName} ×<CompactNumber value={entry.quantity} /> → {entry.destinationName}
-                </span>
-              )) : <span>没有剩余货物</span>}
-            </div>
-          ) : hoveredDatum ? (
-            <div ref={tooltipRef} className="economy-chart-tooltip ui-tooltip-surface province-map-tooltip province-map-static-tooltip" aria-hidden="true">
-              <strong>{hoveredDatum.provinceName}</strong>
-              {hoveredDatum.locked ? <span className="province-map-tooltip__locked">未解锁</span> : null}
-              {tooltipRows(hoveredDatum).map((row) => <span key={row}>{row}</span>)}
-            </div>
-          ) : null}
+          {tooltipNode ? (tooltipLayer ? createPortal(tooltipNode, tooltipLayer) : tooltipNode) : null}
         </div>
         <span className="economy-chart__accessible-summary">{accessibleSummary}</span>
       </div>
