@@ -6,6 +6,7 @@ import type {
   ContractKind,
   ProductionContractRole,
   ProductionContractStatus,
+  SupplyPriorityCondition,
 } from './types';
 
 const GAME_API_BASE = '/economy-api/game';
@@ -15,25 +16,30 @@ const READ_TIMEOUT_MS = 12_000;
 export interface CreateSupplyContractInput {
   kind?: 'supply';
   publisherRole: ProductionContractRole;
+  provinceId?: string;
   productId: string;
-  quantityPerDelivery: number;
+  dailyMaxQuantity?: number;
   unitPrice: number;
-  deliveryIntervalMs: number;
-  totalDeliveries: number | null;
-  firstDeliveryDelayMs: number;
+  durationDays?: number | null;
+  startDelayDays?: number;
+  /** Legacy finite-batch compatibility. */
+  quantityPerDelivery?: number;
+  deliveryIntervalMs?: number;
+  totalDeliveries?: number | null;
+  firstDeliveryDelayMs?: number;
 }
-
 export interface CreateLoanContractInput {
   kind: 'loan';
   publisherSide: 'lender' | 'borrower';
   provinceId: string;
   principal: number;
   interestRateBps: number;
-  termMs: number;
+  termDays?: number;
+  /** Legacy UI compatibility; new UI sends termDays. */
+  termMs?: number;
   facilityTypeId: string;
   collateralQuantity: number;
 }
-
 export interface CreateFacilityLeaseContractInput {
   kind: 'facility_lease';
   publisherSide: 'lessor' | 'lessee';
@@ -41,14 +47,32 @@ export interface CreateFacilityLeaseContractInput {
   facilityTypeId: string;
   quantity: number;
   rentPerPeriod: number;
-  periodMs: number;
+  periodDays?: number;
+  /** Legacy UI compatibility; new UI sends periodDays. */
+  periodMs?: number;
   totalPeriods: number;
-  firstPeriodDelayMs: number;
+  firstPeriodDelayDays?: number;
+  firstPeriodDelayMs?: number;
 }
-
 export type CreateProductionContractInput = CreateSupplyContractInput | CreateLoanContractInput | CreateFacilityLeaseContractInput;
-export type RenewProductionContractInput = Omit<CreateSupplyContractInput, 'kind' | 'publisherRole' | 'productId'>;
-export type SupplyNegotiationTermsInput = RenewProductionContractInput;
+export interface RenewProductionContractInput {
+  quantityPerDelivery: number;
+  unitPrice: number;
+  deliveryIntervalMs: number;
+  totalDeliveries: number | null;
+  firstDeliveryDelayMs: number;
+}
+export type SupplyNegotiationTermsInput = {
+  dailyMaxQuantity?: number;
+  unitPrice: number;
+  durationDays?: number | null;
+  startDelayDays?: number;
+  /** Legacy page compatibility. */
+  quantityPerDelivery?: number;
+  deliveryIntervalMs?: number;
+  totalDeliveries?: number | null;
+  firstDeliveryDelayMs?: number;
+};
 
 export interface ContractHistoryQuery {
   cursor?: string | null;
@@ -65,16 +89,10 @@ function requestKey() {
   if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   return `contract-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
-
 async function readError(response: Response, fallback: string) {
-  try {
-    const payload = await response.json() as { message?: string };
-    return payload.message || fallback;
-  } catch {
-    return fallback;
-  }
+  try { const payload = await response.json() as { message?: string }; return payload.message || fallback; }
+  catch { return fallback; }
 }
-
 async function post(path: string, body: unknown = {}): Promise<GameActionResponse> {
   const controller = new AbortController();
   const timeout = globalThis.setTimeout(() => controller.abort(), WRITE_TIMEOUT_MS);
@@ -89,32 +107,22 @@ async function post(path: string, body: unknown = {}): Promise<GameActionRespons
   } catch (reason) {
     if (reason instanceof Error && reason.name === 'AbortError') throw new GameApiError(408, '合同操作超时，请稍后重试');
     throw reason;
-  } finally {
-    globalThis.clearTimeout(timeout);
-  }
+  } finally { globalThis.clearTimeout(timeout); }
 }
-
 async function getJson<T>(path: string, search?: URLSearchParams): Promise<T> {
   const controller = new AbortController();
   const timeout = globalThis.setTimeout(() => controller.abort(), READ_TIMEOUT_MS);
   try {
     const query = search && search.size > 0 ? `?${search.toString()}` : '';
-    const response = await fetch(`${GAME_API_BASE}${path}${query}`, {
-      method: 'GET', credentials: 'include', signal: controller.signal, headers: { Accept: 'application/json' },
-    });
+    const response = await fetch(`${GAME_API_BASE}${path}${query}`, { method: 'GET', credentials: 'include', signal: controller.signal, headers: { Accept: 'application/json' } });
     if (!response.ok) throw new GameApiError(response.status, await readError(response, '合同审计读取失败'));
     return await response.json() as T;
   } catch (reason) {
     if (reason instanceof Error && reason.name === 'AbortError') throw new GameApiError(408, '合同审计读取超时，请稍后重试');
     throw reason;
-  } finally {
-    globalThis.clearTimeout(timeout);
-  }
+  } finally { globalThis.clearTimeout(timeout); }
 }
-
-function contractPath(contractId: string, action: string) {
-  return `/contracts/${encodeURIComponent(contractId)}/${action}`;
-}
+function contractPath(contractId: string, action: string) { return `/contracts/${encodeURIComponent(contractId)}/${action}`; }
 
 export const productionContractActions = {
   create: (input: CreateProductionContractInput) => post('/contracts', input),
@@ -127,7 +135,7 @@ export const productionContractActions = {
   cancel: (contractId: string) => post(contractPath(contractId, 'cancel')),
   prepare: (contractId: string) => post(contractPath(contractId, 'prepare')),
   fund: (contractId: string) => post(contractPath(contractId, 'fund')),
-  setAutoReserve: (contractId: string, enabled: boolean) => post(contractPath(contractId, 'auto-reserve'), { enabled }),
+  setAutoReserve: (contractId: string, enabled: boolean, prioritySupply?: SupplyPriorityCondition) => post(contractPath(contractId, 'auto-reserve'), { enabled, ...(prioritySupply ? { prioritySupply } : {}) }),
   setAutoFund: (contractId: string, enabled: boolean) => post(contractPath(contractId, 'auto-fund'), { enabled }),
   requestTermination: (contractId: string) => post(contractPath(contractId, 'request-termination')),
   terminateNow: (contractId: string) => post(contractPath(contractId, 'terminate-now')),
