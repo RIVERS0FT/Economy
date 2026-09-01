@@ -1,6 +1,7 @@
 /* Regional market detail keeps contextual and trading content in the page flow.
  * Order-entry and order-book controls keep their internal boundaries without an outer card shell.
- * Commodity identity exposes only the two retained facts, so removed fundamentals reserve no layout tracks. */
+ * Commodity identity exposes only the two retained facts, so removed fundamentals reserve no layout tracks.
+ * This page-flow contract is independent of unrelated global state-version migrations. */
 
 .market-detail-surface > .market-detail-hero.ui-primary-surface,
 .market-detail-surface .market-chart-card.ui-primary-surface,
