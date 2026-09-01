@@ -36,6 +36,7 @@ export const TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER = 20;
 export const TRANSPORT_MAX_ROUTES_PER_PLAYER = 50;
 export const TRANSPORT_HISTORY_PER_PLAYER = 30;
 export const TRANSPORT_TRIP_TYPES = Object.freeze(['round', 'one-way']);
+export const TRANSPORT_DEFAULT_TRIP_TYPE = 'one-way';
 
 const TRANSPORT_TRIP_TYPE_IDS = new Set(TRANSPORT_TRIP_TYPES);
 
@@ -62,6 +63,14 @@ function inTransitCountFor(world, playerId) {
   )).length;
 }
 
+function hasActiveShipmentForRoute(world, playerId, routeId) {
+  return (world.transportShipments || []).some((shipment) => (
+    Number(shipment.ownerId) === Number(playerId)
+    && String(shipment.routeId || '') === String(routeId || '')
+    && shipment.status === 'in-transit'
+  ));
+}
+
 export function normalizeTransportStops(payload = {}) {
   const sourceProvinceId = normalizeProvinceId(payload.sourceProvinceId);
   const destinationProvinceId = normalizeProvinceId(payload.destinationProvinceId);
@@ -71,7 +80,7 @@ export function normalizeTransportStops(payload = {}) {
   if (!Array.isArray(rawViaProvinceIds)) return { ok: false, message: '运输路线参数无效' };
   const viaProvinceIds = rawViaIdsOf(rawViaProvinceIds);
   const tripType = payload.tripType === undefined || payload.tripType === null
-    ? 'one-way'
+    ? TRANSPORT_DEFAULT_TRIP_TYPE
     : String(payload.tripType);
   if (!TRANSPORT_TRIP_TYPE_IDS.has(tripType)) return { ok: false, message: '运输路线参数无效' };
   const closed = destinationProvinceId === sourceProvinceId;
@@ -129,11 +138,31 @@ export function transportDeliveryStops(route) {
   return [...viaProvinceIds, normalizeProvinceId(route?.destinationProvinceId)];
 }
 
+function validateTransportLoad(route, mode, quantity) {
+  const definition = TRANSPORT_MODES[mode];
+  if (!definition) return { ok: false, message: '运输方式无效' };
+  const deliveryCount = transportDeliveryStops(route).length;
+  if (deliveryCount < 1) return { ok: false, message: '运输路线参数无效' };
+  const initialLoad = quantity * deliveryCount;
+  if (!Number.isSafeInteger(initialLoad) || initialLoad > definition.capacity) {
+    const maxPerStop = Math.floor(definition.capacity / deliveryCount);
+    return {
+      ok: false,
+      message: `${definition.name}首段总载荷不能超过 ${definition.capacity} 个；当前 ${deliveryCount} 个交付站，每站最多 ${maxPerStop} 个`,
+    };
+  }
+  return { ok: true, deliveryCount, initialLoad };
+}
+
 export function buildTransportPlan(route, mode, quantity, now = Date.now()) {
   const traversalStops = transportTraversalStops(route);
-  const deliveryProvinceIds = new Set(transportDeliveryStops(route));
+  const deliveryStops = transportDeliveryStops(route);
+  const deliveryProvinceIds = new Set(deliveryStops);
   const deliveredProvinceIds = new Set();
   const stopPlan = [];
+  const normalizedQuantity = Math.max(0, Math.floor(Number(quantity) || 0));
+  const initialLoad = normalizedQuantity * deliveryStops.length;
+  let remainingLoad = initialLoad;
   let elapsedMs = 0;
   let cost = 0;
   let distanceKm = 0;
@@ -144,6 +173,7 @@ export function buildTransportPlan(route, mode, quantity, now = Date.now()) {
     distanceKm += legDistanceKm;
     elapsedMs += transportDurationMs(mode, legDistanceKm);
     const delivers = deliveryProvinceIds.has(toProvinceId) && !deliveredProvinceIds.has(toProvinceId);
+    cost += transportCost(mode, remainingLoad, legDistanceKm);
     if (delivers) {
       deliveredProvinceIds.add(toProvinceId);
       stopPlan.push({
@@ -151,9 +181,7 @@ export function buildTransportPlan(route, mode, quantity, now = Date.now()) {
         arrivesAt: now + elapsedMs,
         deliveredAt: null,
       });
-      cost += transportCost(mode, quantity, legDistanceKm);
-    } else {
-      cost += transportCost(mode, 0, legDistanceKm);
+      remainingLoad = Math.max(0, remainingLoad - normalizedQuantity);
     }
   }
   return {
@@ -162,11 +190,12 @@ export function buildTransportPlan(route, mode, quantity, now = Date.now()) {
     cost: roundInternalMoney(cost) || 0,
     distanceKm,
     deliveryCount: stopPlan.length,
+    initialLoad,
     traversalStops,
   };
 }
 
-function normalizedRouteInput(player, payload = {}) {
+function normalizedRouteInput(player, payload = {}, { autoDispatchFallback = false } = {}) {
   const stops = normalizeTransportStops(payload);
   if (!stops.ok) return stops;
   const productId = PRODUCT_IDS.has(String(payload.productId || '')) ? String(payload.productId) : null;
@@ -184,9 +213,11 @@ function normalizedRouteInput(player, payload = {}) {
   if (!Number.isSafeInteger(quantity) || quantity <= 0) {
     return { ok: false, message: '运输数量必须是不低于 1 的整数' };
   }
-  if (quantity > TRANSPORT_MODES[mode].capacity) {
-    return { ok: false, message: `${TRANSPORT_MODES[mode].name}单次最多运输 ${TRANSPORT_MODES[mode].capacity} 个` };
-  }
+  const load = validateTransportLoad(stops.stops, mode, quantity);
+  if (!load.ok) return load;
+  const autoDispatch = payload.autoDispatch === undefined
+    ? autoDispatchFallback === true
+    : payload.autoDispatch === true;
   return {
     ok: true,
     route: {
@@ -197,6 +228,7 @@ function normalizedRouteInput(player, payload = {}) {
       productId,
       quantity,
       mode,
+      autoDispatch,
     },
   };
 }
@@ -225,7 +257,7 @@ export function applyCreateTransportRoute(world, user, payload = {}, now = Date.
     createdAt: now,
     updatedAt: now,
   }];
-  return { ok: true, message: '运输路线已创建' };
+  return { ok: true, message: normalized.route.autoDispatch ? '运输路线已创建，自动发运已开启' : '运输路线已创建' };
 }
 
 export function applyUpdateTransportRoute(world, user, payload = {}, now = Date.now()) {
@@ -233,10 +265,10 @@ export function applyUpdateTransportRoute(world, user, payload = {}, now = Date.
   if (!player) return { ok: false, message: '玩家状态无效' };
   const route = findPlayerRoute(player, payload.routeId);
   if (!route) return { ok: false, message: '运输路线不存在' };
-  const normalized = normalizedRouteInput(player, payload);
+  const normalized = normalizedRouteInput(player, payload, { autoDispatchFallback: route.autoDispatch === true });
   if (!normalized.ok) return normalized;
   Object.assign(route, normalized.route, { updatedAt: now });
-  return { ok: true, message: '运输路线已更新' };
+  return { ok: true, message: normalized.route.autoDispatch ? '运输路线已更新，自动发运已开启' : '运输路线已更新' };
 }
 
 export function applyDeleteTransportRoute(world, user, payload = {}) {
@@ -269,9 +301,8 @@ function applyTransportShipment(world, user, payload = {}, now = Date.now(), { r
     return { ok: false, message: '目的州尚未解锁' };
   }
   if (!Number.isSafeInteger(quantity) || quantity <= 0) return { ok: false, message: '运输数量必须是不低于 1 的整数' };
-  if (quantity > TRANSPORT_MODES[mode].capacity) {
-    return { ok: false, message: `${TRANSPORT_MODES[mode].name}单次最多运输 ${TRANSPORT_MODES[mode].capacity} 个` };
-  }
+  const load = validateTransportLoad(stops.stops, mode, quantity);
+  if (!load.ok) return load;
   if (inTransitCountFor(world, user.id) >= TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER) {
     return { ok: false, message: `同时在途运输不能超过 ${TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER} 笔` };
   }
@@ -281,7 +312,7 @@ function applyTransportShipment(world, user, payload = {}, now = Date.now(), { r
   if (cost === null || Number(player.credits || 0) < cost) {
     return { ok: false, message: '运输资金不足' };
   }
-  const shipmentQuantity = quantity * plan.deliveryCount;
+  const shipmentQuantity = plan.initialLoad;
   const inventory = inventoryForProvince(player, productId, sourceProvinceId);
   if (Number(inventory.available || 0) < shipmentQuantity) return { ok: false, message: '起始州可用库存不足' };
   const product = PRODUCT_CATALOG.find((entry) => entry.id === productId);
@@ -311,7 +342,7 @@ function applyTransportShipment(world, user, payload = {}, now = Date.now(), { r
   });
   return {
     ok: true,
-    message: `已通过${TRANSPORT_MODES[mode].name}按每站 ${quantity} 个${product?.name || productId}发运 ${plan.deliveryCount} 站，预计 ${Math.ceil((arrivesAt - now) / 1000)} 秒后完成整链运输`,
+    message: `已通过${TRANSPORT_MODES[mode].name}装载 ${shipmentQuantity} 个${product?.name || productId}，按每站 ${quantity} 个发运 ${plan.deliveryCount} 站，预计 ${Math.ceil((arrivesAt - now) / 1000)} 秒后完成整链运输`,
   };
 }
 
@@ -320,6 +351,9 @@ export function applyDispatchTransportRoute(world, user, payload = {}, now = Dat
   if (!player) return { ok: false, message: '玩家状态无效' };
   const route = findPlayerRoute(player, payload.routeId);
   if (!route) return { ok: false, message: '运输路线不存在' };
+  if (route.autoDispatch === true && hasActiveShipmentForRoute(world, user.id, route.id)) {
+    return { ok: false, message: '自动发运路线已有运输在途' };
+  }
   return applyTransportShipment(world, user, route, now, { routeId: route.id });
 }
 
@@ -329,6 +363,21 @@ export function applyTransportShip(world, user, payload = {}, now = Date.now()) 
   if (payload.operation === 'route-delete') return applyDeleteTransportRoute(world, user, payload);
   if (payload.operation === 'route-dispatch') return applyDispatchTransportRoute(world, user, payload, now);
   return applyTransportShipment(world, user, payload, now);
+}
+
+export function processAutomaticTransportRoutes(world, now = Date.now()) {
+  let dispatched = 0;
+  for (const [playerId, player] of Object.entries(world.players || {})) {
+    if (inTransitCountFor(world, playerId) >= TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER) continue;
+    for (const route of playerTransportRoutes(player)) {
+      if (route?.autoDispatch !== true || !route?.id) continue;
+      if (hasActiveShipmentForRoute(world, playerId, route.id)) continue;
+      const result = applyTransportShipment(world, { id: Number(playerId) }, route, now, { routeId: route.id });
+      if (result.ok) dispatched += 1;
+      if (inTransitCountFor(world, playerId) >= TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER) break;
+    }
+  }
+  return dispatched;
 }
 
 export function processTransportWorld(world, now = Date.now()) {
@@ -379,6 +428,7 @@ export function processTransportWorld(world, now = Date.now()) {
     next.push(...ownerHistory.slice(0, TRANSPORT_HISTORY_PER_PLAYER));
   }
   world.transportShipments = next;
+  processed += processAutomaticTransportRoutes(world, now);
   return processed;
 }
 
@@ -413,6 +463,7 @@ export function transportRouteClientState(world, userId) {
     productId: String(route.productId || ''),
     quantity: Math.max(0, Math.floor(Number(route.quantity) || 0)),
     mode: String(route.mode || ''),
+    autoDispatch: route.autoDispatch === true,
     createdAt: Number(route.createdAt || 0),
     updatedAt: Number(route.updatedAt || route.createdAt || 0),
   })).filter((route) => (
