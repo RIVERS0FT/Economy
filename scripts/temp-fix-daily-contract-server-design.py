@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
 text = path.read_text()
@@ -8,6 +9,13 @@ def replace(old, new, label):
     if old not in text:
         raise SystemExit(f'missing {label}')
     text = text.replace(old, new, 1)
+
+
+def sub(pattern, new, label):
+    global text
+    text, count = re.subn(pattern, new, text, count=1, flags=re.S)
+    if count != 1:
+        raise SystemExit(f'missing {label}')
 
 replace(
     '- 三类合同领域：长期商品供货、玩家抵押借贷、工厂使用权租赁，以及对应托管、抵押、保证金、宽限期、周期结算与追加式合同审计；',
@@ -19,8 +27,8 @@ replace(
     '- `contract-runtime-index.js`：旧有限批次／市场储备合同的合同 ID、公开／进行中数量、参与者集合、采购方下一批仓库预占和最近到期时间的事务内派生索引；每日额度合同不建立“下一批”仓库预占；',
     'runtime index registry',
 )
-replace(
-    '每次合同处理、合同动作或合同客户端序列化只能对 `productionContracts` 建立一次 `contract-runtime-index.js` 派生索引；采购方下一批仓库预占、公开合同数量、参与者进行中合同数量和合同 ID 查询必须读取该索引，不得在每份合同容量检查中再次遍历全部合同或建立第二个运行索引。合同进入或离开 `active` 状态、完成批次、过期、取消或终止时必须同步刷新索引计数；同一工作世界的合同数组引用、长度和末项未变化时必须复用同一索引，避免仓库、合同与调度查询重复线性构建。索引不进入世界 JSON、客户端分区、分区哈希或 SQLite，事务回滚后直接丢弃。',
+sub(
+    r'每次合同处理、合同动作或合同客户端序列化只能对 `productionContracts` 建立一次 `contract-runtime-index\.js` 派生索引；.*?索引不进入世界 JSON、客户端分区、分区哈希或 SQLite，事务回滚后直接丢弃。',
     '旧有限批次／市场储备合同的处理、动作或客户端序列化只能对旧合同视图建立一次 `contract-runtime-index.js` 派生索引；采购方下一批仓库预占、旧公开合同数量、旧参与者进行中合同数量和合同 ID 查询必须读取该索引，不得在每份旧合同容量检查中再次遍历全部合同。旧合同进入或离开 `active` 状态、完成批次、过期、取消或终止时必须同步刷新索引计数；索引不进入世界 JSON、客户端分区、分区哈希或 SQLite，事务回滚后直接丢弃。每日额度商品合同由 `daily-supply-contracts.js` 的地区＋商品＋参与方条件直接派生当日额度和托管状态，不得伪造“下一批仓库预占”，也不得为了兼容旧索引重复建立第二个全合同索引。',
     'legacy index paragraph',
 )
