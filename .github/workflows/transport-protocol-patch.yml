@@ -1,0 +1,265 @@
+name: Transport protocol alignment
+
+on:
+  push:
+    branches:
+      - codex/transport-route-pages-auto-logistics
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Align transport client API and protocol versions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(path): return Path(path).read_text(encoding='utf-8')
+          def write(path, text): Path(path).write_text(text, encoding='utf-8')
+          def rep(text, old, new, label, count=None):
+              found = text.count(old)
+              if count is not None and found != count:
+                  raise SystemExit(f'{label}: expected {count}, got {found}')
+              if found < 1:
+                  raise SystemExit(f'{label}: missing')
+              return text.replace(old, new)
+          def sub1(text, pattern, replacement, label, flags=0):
+              out, n = re.subn(pattern, replacement, text, count=1, flags=flags)
+              if n != 1: raise SystemExit(f'{label}: expected 1, got {n}')
+              return out
+
+          # Client transport protocol types: routes describe corridors; shipments describe actual manifests/legs.
+          p='src/types.ts'; t=read(p)
+          transport_types='''export interface TransportManifestItem {
+  productId: string;
+  destinationProvinceId: string;
+  quantity: number;
+}
+
+export interface TransportLegPlanEntry {
+  fromProvinceId: string;
+  toProvinceId: string;
+  departsAt: number;
+  arrivesAt: number;
+  remainingLoad: number;
+}
+
+export interface TransportRoute {
+  id: string;
+  name: string;
+  sourceProvinceId: string;
+  destinationProvinceId: string;
+  viaProvinceIds?: string[];
+  tripType?: TransportTripType;
+  mode: TransportModeId;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TransportShipment {
+  id: string;
+  routeId?: string;
+  routeName?: string;
+  sourceProvinceId: string;
+  destinationProvinceId: string;
+  viaProvinceIds?: string[];
+  tripType?: TransportTripType;
+  stopPlan?: TransportStopPlanEntry[];
+  manifest: TransportManifestItem[];
+  legPlan: TransportLegPlanEntry[];
+  mode: TransportModeId;
+  cost: number;
+  departsAt: number;
+  arrivesAt: number;
+  status: TransportShipmentStatus;
+  createdAt: number;
+  arrivedAt?: number;
+}
+'''
+          t=sub1(t, r'export interface TransportRoute \{.*?\n\}\n\nexport interface TransportShipment \{.*?\n\}\n', transport_types, 'transport type block', re.S)
+          t=rep(t, '  version: 37;', '  version: 38;', 'EconomyState version', 1)
+          write(p,t)
+
+          # Public game API no longer exposes arbitrary/manual shipment or route dispatch.
+          p='src/api/game.ts'; t=read(p)
+          t=sub1(t, r'export interface TransportRouteInput \{.*?\n\}', '''export interface TransportRouteInput {
+  sourceProvinceId: string;
+  destinationProvinceId: string;
+  viaProvinceIds?: string[];
+  tripType?: TransportTripType;
+  mode: TransportModeId;
+}''', 'TransportRouteInput', re.S)
+          old="""  transportShip: (input: TransportRouteInput) => postAction('/transport', { ...input }),
+  createTransportRoute: (input: TransportRouteInput) => postAction('/transport', {
+    operation: 'route-create',
+    ...input,
+  }),
+  updateTransportRoute: (routeId: string, input: TransportRouteInput) => postAction('/transport', {
+    operation: 'route-update',
+    routeId,
+    ...input,
+  }),
+  deleteTransportRoute: (routeId: string) => postAction('/transport', {
+    operation: 'route-delete',
+    routeId,
+  }),
+  dispatchTransportRoute: (routeId: string) => postAction('/transport', {
+    operation: 'route-dispatch',
+    routeId,
+  }),"""
+          new="""  createTransportRoute: (input: TransportRouteInput) => postAction('/transport', {
+    operation: 'route-create',
+    ...input,
+  }),
+  updateTransportRoute: (routeId: string, input: TransportRouteInput) => postAction('/transport', {
+    operation: 'route-update',
+    routeId,
+    ...input,
+  }),
+  renameTransportRoute: (routeId: string, name: string) => postAction('/transport', {
+    operation: 'route-rename',
+    routeId,
+    name,
+  }),
+  deleteTransportRoute: (routeId: string) => postAction('/transport', {
+    operation: 'route-delete',
+    routeId,
+  }),"""
+          t=rep(t, old, new, 'gameActions transport block', 1); write(p,t)
+
+          # View model mirrors the reduced route-only write API.
+          p='src/app/gameViewModel.ts'; t=read(p)
+          t=sub1(t, r'  transportShip: \(input: \{.*?  dispatchTransportRoute: \(routeId: string\) => Promise<ActionResult>;\n', '''  createTransportRoute: (input: {
+    sourceProvinceId: string;
+    destinationProvinceId: string;
+    viaProvinceIds?: string[];
+    tripType?: TransportTripType;
+    mode: TransportModeId;
+  }) => Promise<ActionResult>;
+  updateTransportRoute: (routeId: string, input: {
+    sourceProvinceId: string;
+    destinationProvinceId: string;
+    viaProvinceIds?: string[];
+    tripType?: TransportTripType;
+    mode: TransportModeId;
+  }) => Promise<ActionResult>;
+  renameTransportRoute: (routeId: string, name: string) => Promise<ActionResult>;
+  deleteTransportRoute: (routeId: string) => Promise<ActionResult>;
+''', 'view model transport interface', re.S)
+          t=rep(t, "    transportShip: (input) => runAction('transportShip', () => gameActions.transportShip(input)),\n", '', 'remove view transportShip', 1)
+          t=rep(t, "    updateTransportRoute: (routeId, input) => runAction('transportShip', () => gameActions.updateTransportRoute(routeId, input)),\n    deleteTransportRoute: (routeId) => runAction('transportShip', () => gameActions.deleteTransportRoute(routeId)),\n    dispatchTransportRoute: (routeId) => runAction('transportShip', () => gameActions.dispatchTransportRoute(routeId)),", "    updateTransportRoute: (routeId, input) => runAction('transportShip', () => gameActions.updateTransportRoute(routeId, input)),\n    renameTransportRoute: (routeId, name) => runAction('transportShip', () => gameActions.renameTransportRoute(routeId, name)),\n    deleteTransportRoute: (routeId) => runAction('transportShip', () => gameActions.deleteTransportRoute(routeId)),", 'view model mappings', 1)
+          write(p,t)
+
+          p='src/app/LocalGamePreviewApp.tsx'; t=read(p)
+          t=rep(t, '    transportShip: localOnlyAction,\n', '', 'preview manual ship', 1)
+          t=rep(t, '    updateTransportRoute: localOnlyAction,\n    deleteTransportRoute: localOnlyAction,\n    dispatchTransportRoute: localOnlyAction,', '    updateTransportRoute: localOnlyAction,\n    renameTransportRoute: localOnlyAction,\n    deleteTransportRoute: localOnlyAction,', 'preview route actions', 1)
+          write(p,t)
+
+          p='src/pages/TransportPage.tsx'; t=read(p)
+          t=rep(t, '  transportDeliveryStopIds,\n', '', 'unused transport delivery import', 1)
+          t=sub1(t, r'type TransportRouteView = TransportRoute & \{ name\?: string \};.*?type RouteConfig =', '''type TransportRouteView = TransportRoute;
+type TransportShipmentView = TransportShipment;
+type RouteConfig =''', 'transport page local protocol aliases', re.S)
+          t=sub1(t, r'function shipmentManifest\(shipment: TransportShipmentView\): ManifestEntry\[\] \{.*?\n\}', '''function shipmentManifest(shipment: TransportShipmentView) {
+  return Array.isArray(shipment.manifest) ? shipment.manifest : [];
+}''', 'transport page manifest helper', re.S)
+          t=rep(t, "      // Compatibility-only request fields. The server route schema no longer persists or reads them.\n      productId: '',\n      quantity: 1,\n", '', 'route dummy request fields', 1)
+          t=sub1(t, r'    const renameInput = \{.*?    await runMutation\(`route-rename:\$\{route\.id\}`, \(\) => model\.updateTransportRoute\(route\.id, renameInput\)\);', "    await runMutation(`route-rename:${route.id}`, () => model.renameTransportRoute(route.id, name));", 'route rename call', re.S)
+          write(p,t)
+
+          # Transport migration is part of the world migration boundary, not only the next tick.
+          p='server/src/domain.js'; t=read(p)
+          t=rep(t, '  processTransportWorld,\n', '  migrateTransportWorld,\n  processTransportWorld,\n', 'domain transport migration import', 1)
+          t=rep(t, '  migrateProvinceAccess(migrated, now);\n', '  migrateProvinceAccess(migrated, now);\n  migrateTransportWorld(migrated, now);\n', 'domain transport migration call', 1)
+          t=t.replace('world.version = 32;', 'world.version = 33;').replace('migrated.version = 32;', 'migrated.version = 33;')
+          write(p,t)
+
+          # Runtime protocol constants.
+          p='server/shared/economy-state-version.js'; t=read(p)
+          t=rep(t, 'CURRENT_CLIENT_STATE_VERSION = 37', 'CURRENT_CLIENT_STATE_VERSION = 38', 'client version current', 1)
+          t=rep(t, 'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 37', 'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 38', 'client version minimum', 1); write(p,t)
+          p='server/src/world-storage-v2.js'; t=read(p); t=rep(t, 'AUTHORITATIVE_WORLD_VERSION = 32', 'AUTHORITATIVE_WORLD_VERSION = 33', 'world version', 1); write(p,t)
+          p='server/src/domain-core.js'; t=read(p); t=t.replace('    version: 32,', '    version: 33,', 1).replace('    version: 37,', '    version: 38,', 1); write(p,t)
+
+          # Authority docs and root project entry current-version metadata.
+          versioned_docs=[
+            'docs/README.md','docs/PRODUCT_AND_GAMEPLAY_DESIGN.md','docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md',
+            'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md','docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md','docs/WAREHOUSE_EXPANSION_DESIGN.md',
+            'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md','docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+            'docs/LOCAL_ACTIVITY_LOG_DESIGN.md','docs/GIFT_CODE_AND_ADMIN_DESIGN.md']
+          for p in versioned_docs:
+              t=read(p).replace('客户端状态版本：37','客户端状态版本：38',1).replace('世界状态版本：32','世界状态版本：33',1)
+              write(p,t)
+          p='README.md'; t=read(p); t=rep(t, '客户端状态 37、世界状态 32', '客户端状态 38、世界状态 33', 'root protocol metadata', 1); write(p,t)
+
+          p='docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md'; t=read(p)
+          t=rep(t, '运输路线继续作为玩家可选状态保存。当前客户端只接受版本 37；', '运输路线继续作为玩家可选状态保存；客户端状态版本 38 将路线字段收敛为名称、路径、行程与运输方式，并把实际货物与逐段权威时间改由 shipment 的 `manifest` / `legPlan` 表达，同时永久删除客户端手动发运接口。当前客户端只接受版本 38；', 'server client 38 history', 1)
+          t=rep(t, '世界 32 是当前持久化边界，当前客户端状态版本为 37，世界存储 schema 为 V2。', '世界 33 是当前持久化边界，当前客户端状态版本为 38，世界存储 schema 为 V2。世界 33 在冷加载迁移中把旧运输路线的商品、固定数量与 `autoDispatch` 字段移除，并为旧 shipment 补齐 `manifest` 与 `legPlan` 后再持久化；迁移不得改变旧在途商品总量或既定到达结果。', 'server world 33 history', 1)
+          write(p,t)
+
+          p='docs/WAREHOUSE_EXPANSION_DESIGN.md'; t=read(p)
+          t=t.replace('客户端状态版本保持 37，世界状态版本保持 32。', '客户端状态版本为 38，世界状态版本为 33。')
+          write(p,t)
+
+          # Verifiers follow the new single protocol boundary. Historical prose remains untouched.
+          for p in Path('scripts').glob('*.mjs'):
+              t=read(p)
+              t=t.replace('CURRENT_CLIENT_STATE_VERSION = 37','CURRENT_CLIENT_STATE_VERSION = 38')
+              t=t.replace('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 37','MIN_COMPATIBLE_CLIENT_STATE_VERSION = 38')
+              t=t.replace('CURRENT_CLIENT_STATE_VERSION, 37','CURRENT_CLIENT_STATE_VERSION, 38')
+              t=t.replace('AUTHORITATIVE_WORLD_VERSION = 32','AUTHORITATIVE_WORLD_VERSION = 33')
+              t=t.replace('AUTHORITATIVE_WORLD_VERSION, 32','AUTHORITATIVE_WORLD_VERSION, 33')
+              t=t.replace('客户端状态版本：37','客户端状态版本：38')
+              t=t.replace('世界状态版本：32','世界状态版本：33')
+              t=t.replace("'世界状态版本：32'", "'世界状态版本：33'")
+              if p.name=='verify-provincial-unlock-transport.mjs':
+                  t=t.replace("'运输页只显示运输路线目录'", "'运输一级页只显示运输路线目录'")
+                  anchor="requireText(types, 'inTransit: number;', '客户端类型必须声明在途库存。');"
+                  extra="""requireText(types, 'name: string;', '运输路线类型必须声明名称。');
+requireText(types, 'manifest: TransportManifestItem[];', '运输记录类型必须声明多商品 manifest。');
+requireText(types, 'legPlan: TransportLegPlanEntry[];', '运输记录类型必须声明权威 legPlan。');
+requireText(viewModel, 'renameTransportRoute', '视图模型必须提供路线重命名。');
+requireText(gameApi, 'renameTransportRoute', '游戏 API 必须提供路线重命名。');
+forbidText(viewModel, 'dispatchTransportRoute', '视图模型不得恢复手动路线发运。');
+forbidText(gameApi, 'dispatchTransportRoute', '游戏 API 不得恢复手动路线发运。');
+forbidText(gameApi, 'transportShip: (input', '客户端 API 不得暴露任意运输发运。');"""
+                  if extra not in t:
+                      t=rep(t, anchor, anchor+'\n'+extra, 'transport client verifier anchor', 1)
+              write(p,t)
+
+          # Current-world server tests/fixtures. Old pre-32 migration inputs keep their explicit older versions.
+          for p in Path('server/test').glob('*.test.js'):
+              t=read(p)
+              t=t.replace('assert.equal(world.version, 32)', 'assert.equal(world.version, 33)')
+              t=t.replace('assert.equal(migrated.version, 32)', 'assert.equal(migrated.version, 33)')
+              t=t.replace('version: 32,', 'version: 33,')
+              t=t.replace('version: 37,', 'version: 38,')
+              write(p,t)
+          for p in Path('tests/browser').glob('*.ts*'):
+              t=read(p).replace('version: 37,', 'version: 38,')
+              write(p,t)
+
+          # A few current-state harnesses live outside browser specs.
+          for p in [Path('tests/browser/runtime-harness.tsx'), Path('tests/browser/market-runtime-harness.tsx')]:
+              if p.exists():
+                  t=read(p).replace('version: 37,','version: 38,')
+                  write(p,t)
+
+          # Remove this one-shot workflow from the final branch diff.
+          Path('.github/workflows/transport-protocol-patch.yml').unlink()
+          PY
+      - name: Commit protocol alignment
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m "align transport protocol boundary"
+          git push origin HEAD:codex/transport-route-pages-auto-logistics
