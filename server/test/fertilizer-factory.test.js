@@ -10,9 +10,10 @@ import {
 } from '../src/domain.js';
 
 function standardRecipe(facility) {
+  const defaultMethodId = facility.productionMethodGroups[0].defaultMethodId;
   return facility.recipes.find((recipe) => (
     recipe.id === facility.defaultRecipeId
-    && recipe.productionMethodId === 'standard'
+    && recipe.productionMethodId === defaultMethodId
   ));
 }
 

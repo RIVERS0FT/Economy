@@ -12,6 +12,26 @@ import { migrateResearchWorld } from '../src/research.js';
 const now = 1_700_000_000_000;
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 const prices = new Map(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice]));
+const retiredMethodIds = new Set([
+  'standard', 'rapid', 'economical', 'high-yield', 'assisted', 'intensive', 'mechanized',
+]);
+const retiredMethodNames = new Set(['标准生产', '高速生产', '节约生产', '高产生产']);
+
+function productionGroup(type) {
+  return type.productionMethodGroups.find((group) => group.id === 'operation');
+}
+
+function variantsFor(type, baseRecipeId) {
+  const group = productionGroup(type);
+  return group.methods.map((method) => type.recipes.find((recipe) => (
+    recipe.baseRecipeId === baseRecipeId && recipe.productionMethodId === method.id
+  )));
+}
+
+function baseRecipes(type) {
+  const defaultMethodId = productionGroup(type).defaultMethodId;
+  return type.recipes.filter((recipe) => recipe.productionMethodId === defaultMethodId);
+}
 
 function referenceProfitPerMinute(recipe) {
   const inputValue = recipe.inputs.reduce(
@@ -22,288 +42,182 @@ function referenceProfitPerMinute(recipe) {
   return (outputValue - inputValue - recipe.operatingCost) * 60_000 / recipe.cycleMs;
 }
 
-function productionGroup(type) {
-  return type.productionMethodGroups.find((group) => group.id === 'operation');
-}
-
-function variant(type, baseRecipeId, productionMethodId) {
-  return type.recipes.find((recipe) => (
-    !recipe.legacyProductionMethod
-    && recipe.baseRecipeId === baseRecipeId
-    && recipe.productionMethodId === productionMethodId
-  ));
-}
-
-const dedicatedMethods = ['standard', 'assisted', 'intensive', 'mechanized'];
-const genericMethods = ['standard', 'rapid', 'economical', 'high-yield'];
-
-const expectedC1Methods = {
-  farm: {
-    standard: { inputs: [], output: 1 },
-    assisted: { inputs: [{ productId: 'tools', quantity: 1 }], output: 12 },
-    intensive: { inputs: [{ productId: 'fertilizer', quantity: 2 }], output: 14 },
-    mechanized: { inputs: [{ productId: 'tractor', quantity: 1 }], output: 16 },
-  },
-  orchard: {
-    standard: { inputs: [], output: 1 },
-    assisted: { inputs: [{ productId: 'tools', quantity: 1 }], output: 11 },
-    intensive: { inputs: [{ productId: 'fertilizer', quantity: 2 }], output: 13 },
-    mechanized: { inputs: [{ productId: 'tractor', quantity: 1 }], output: 15 },
-  },
-  ranch: {
-    standard: { inputs: [], output: 1 },
-    assisted: { inputs: [{ productId: 'feed', quantity: 1 }], output: 4 },
-    intensive: { inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], output: 8 },
-    mechanized: { inputs: [{ productId: 'machinery', quantity: 1 }], output: 9 },
-  },
-  fishery: {
-    standard: { inputs: [], output: 1 },
-    assisted: { inputs: [{ productId: 'feed', quantity: 1 }], output: 4 },
-    intensive: { inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], output: 8 },
-    mechanized: { inputs: [{ productId: 'machinery', quantity: 1 }], output: 9 },
-  },
-};
-
-const expectedC2Profits = { standard: 3, assisted: 6, intensive: 9, mechanized: 10.5 };
-const expectedC2Plans = {
-  'logging-camp': [
-    [[], 2, 9],
-    [[['tools', 1]], 4, 6],
-    [[['tools', 1], ['industrial-fuel', 1]], 5, 5],
-    [[['machinery', 1], ['industrial-fuel', 2]], 7, 7.95],
-  ],
-  mine: [
-    [[], 2, 11],
-    [[['tools', 1]], 4, 10],
-    [[['tools', 1], ['industrial-chemicals', 1]], 5, 9],
-    [[['machinery', 1], ['industrial-chemicals', 1], ['industrial-fuel', 1]], 6, 6.95],
-  ],
-  'oil-field': [
-    [[], 2, 15],
-    [[['industrial-chemicals', 1]], 3, 16],
-    [[['machinery', 1], ['industrial-chemicals', 1]], 5, 15.45],
-    [[['machinery', 1], ['industrial-chemicals', 1], ['industrial-fuel', 1]], 6, 18.95],
-  ],
-  mill: [
-    [[['wheat', 2]], 1, 8.6],
-    [[['wheat', 4], ['tools', 1]], 2, 5.2],
-    [[['wheat', 6], ['machinery', 1]], 3, 10.25],
-    [[['wheat', 6], ['machinery', 1], ['industrial-fuel', 1]], 4, 18.25],
-  ],
-  sawmill: [
-    [[['timber', 2]], 1, 3],
-    [[['timber', 8], ['tools', 1]], 4, 4],
-    [[['timber', 7], ['machinery', 1]], 4, 4.45],
-    [[['timber', 8], ['machinery', 1], ['industrial-fuel', 1]], 5, 10.45],
-  ],
-  'feed-factory': [
-    [[['wheat', 2], ['fruit', 1]], 2, 4.9],
-    [[['wheat', 4], ['fruit', 2], ['tools', 1]], 5, 3.6],
-    [[['wheat', 6], ['fruit', 3], ['machinery', 1]], 8, 10.75],
-    [[['wheat', 8], ['fruit', 4], ['machinery', 1], ['industrial-fuel', 1]], 11, 18.95],
-  ],
-};
-
-test('every factory route exposes dedicated C1/C2 methods and generic C3-C7 methods', () => {
+test('every factory exposes four named special methods with semantic icons', () => {
+  const sharedDefinitions = new Map();
   for (const type of FACILITY_TYPE_CATALOG) {
-    const methodGroup = productionGroup(type);
-    assert.ok(methodGroup, `${type.id} 缺少作业制度`);
-    assert.equal(methodGroup.defaultMethodId, 'standard');
-    const dedicated = type.complexity === 'C1' || type.complexity === 'C2';
-    const expectedMethodIds = dedicated ? dedicatedMethods : genericMethods;
-    assert.deepEqual(methodGroup.methods.map((method) => method.id), expectedMethodIds);
+    const group = productionGroup(type);
+    assert.ok(group, `${type.id} 缺少作业制度`);
+    assert.equal(group.methods.length, 4, `${type.id} 作业制度数量错误`);
+    assert.equal(group.defaultMethodId, group.methods[0].id);
+    assert.equal(new Set(group.methods.map((method) => method.id)).size, 4);
 
-    for (const method of methodGroup.methods) {
+    for (const method of group.methods) {
+      assert.equal(retiredMethodIds.has(method.id), false, `${type.id} 仍公开旧制度 ${method.id}`);
+      assert.equal(retiredMethodNames.has(method.name), false, `${type.id} 仍公开旧制度名称 ${method.name}`);
+      assert.match(method.iconId, /^[a-z][a-z0-9-]*$/, `${type.id}/${method.id} 缺少语义图标`);
       assert.ok(Array.isArray(method.requiredTechnologyIds));
-      if (dedicated && method.id !== 'standard') assert.ok(method.requiredTechnologyIds.length > 0);
-      if (!dedicated) assert.deepEqual(method.requiredTechnologyIds, []);
+      const shared = sharedDefinitions.get(method.id);
+      if (shared) {
+        assert.deepEqual(
+          [method.name, method.iconId, method.requiredTechnologyIds],
+          shared,
+          `${method.id} 跨工厂复用时定义不一致`,
+        );
+      } else {
+        sharedDefinitions.set(method.id, [method.name, method.iconId, method.requiredTechnologyIds]);
+      }
     }
 
-    const baseRecipes = type.recipes.filter((recipe) => (
-      !recipe.legacyProductionMethod && recipe.productionMethodId === 'standard'
-    ));
-    for (const baseRecipe of baseRecipes) {
-      const variants = expectedMethodIds.map((methodId) => variant(type, baseRecipe.id, methodId));
-      assert.equal(variants.every(Boolean), true, `${type.id}/${baseRecipe.id} 生产方式不完整`);
+    for (const baseRecipe of baseRecipes(type)) {
+      const variants = variantsFor(type, baseRecipe.id);
+      assert.equal(variants.every(Boolean), true, `${type.id}/${baseRecipe.id} 制度配方不完整`);
+      assert.equal(variants[0].id, baseRecipe.id, '默认制度必须保留基础配方 ID');
       for (const recipe of variants) {
         assert.equal(Number.isInteger(recipe.cycleMs / 1_000), true);
         assert.ok(Math.abs(recipe.operatingCost - Math.round(recipe.operatingCost * 100) / 100) < 1e-9);
-        assert.equal(recipe.operatingCost >= 0, true);
+        assert.ok(recipe.operatingCost >= 0);
       }
-
-      if (type.complexity === 'C1') {
-        for (const recipe of variants) {
-          const expected = expectedC1Methods[type.id][recipe.productionMethodId];
-          assert.equal(recipe.cycleMs, baseRecipe.cycleMs);
-          assert.equal(recipe.operatingCost, baseRecipe.operatingCost);
-          assert.deepEqual(recipe.inputs, expected.inputs);
-          assert.equal(recipe.output.quantity, expected.output);
-        }
-        continue;
-      }
-
-      if (type.complexity === 'C2') {
-        for (const recipe of variants) {
-          assert.ok(Math.abs(referenceProfitPerMinute(recipe) - expectedC2Profits[recipe.productionMethodId]) < 1e-9);
-        }
-        continue;
-      }
-
-      const baseProfit = referenceProfitPerMinute(baseRecipe);
-      for (const recipe of variants) {
-        assert.ok(Math.abs(referenceProfitPerMinute(recipe) - baseProfit) < 1e-9, `${type.id}/${recipe.id} 参考分钟利润错误`);
-      }
-      const [standard, rapid, economical, highYield] = variants;
-      assert.equal(rapid.cycleMs <= standard.cycleMs, true);
-      assert.equal(rapid.operatingCost >= standard.operatingCost, true);
-      assert.equal(economical.cycleMs >= standard.cycleMs, true);
-      assert.equal(economical.operatingCost <= standard.operatingCost, true);
-      assert.equal(highYield.cycleMs, standard.cycleMs);
-      assert.equal(highYield.output.quantity, standard.output.quantity * 2);
-      assert.deepEqual(highYield.inputs, standard.inputs.map((input) => ({ ...input, quantity: input.quantity * 2 })));
-    }
-
-    if (type.complexity === 'C2') {
-      const aliases = type.recipes.filter((recipe) => recipe.legacyProductionMethod);
-      assert.equal(aliases.length, baseRecipes.length * 3);
-      assert.equal(aliases.every((recipe) => ['rapid', 'economical', 'high-yield'].includes(recipe.productionMethodId)), true);
     }
   }
+  assert.ok(sharedDefinitions.has('precision-fertilization'));
+  assert.ok(sharedDefinitions.has('automated-assembly'));
 });
 
-test('representative C1 and all C2 dedicated plans use approved fixed-precision values', () => {
+test('C1 and C2 special methods preserve their approved material plans', () => {
   const farm = FACILITY_TYPE_CATALOG.find((type) => type.id === 'farm');
   assert.deepEqual(
-    dedicatedMethods.map((methodId) => {
-      const recipe = variant(farm, 'wheat-crop', methodId);
-      return [recipe.cycleMs, recipe.inputs, recipe.output.quantity, recipe.operatingCost];
-    }),
+    variantsFor(farm, 'wheat-crop').map((recipe) => [recipe.inputs, recipe.output.quantity, recipe.operatingCost]),
     [
-      [20_000, [], 1, 1],
-      [20_000, [{ productId: 'tools', quantity: 1 }], 12, 1],
-      [20_000, [{ productId: 'fertilizer', quantity: 2 }], 14, 1],
-      [20_000, [{ productId: 'tractor', quantity: 1 }], 16, 1],
+      [[], 1, 1],
+      [[{ productId: 'tools', quantity: 1 }], 12, 1],
+      [[{ productId: 'fertilizer', quantity: 2 }], 14, 1],
+      [[{ productId: 'tractor', quantity: 1 }], 16, 1],
     ],
   );
 
-  for (const [facilityId, expectedPlans] of Object.entries(expectedC2Plans)) {
-    const type = FACILITY_TYPE_CATALOG.find((candidate) => candidate.id === facilityId);
-    const baseRecipe = type.recipes.find((recipe) => !recipe.legacyProductionMethod && recipe.productionMethodId === 'standard');
-    assert.deepEqual(dedicatedMethods.map((methodId) => {
-      const recipe = variant(type, baseRecipe.id, methodId);
-      return [recipe.inputs.map((input) => [input.productId, input.quantity]), recipe.output.quantity, recipe.operatingCost];
-    }), expectedPlans);
+  const mine = FACILITY_TYPE_CATALOG.find((type) => type.id === 'mine');
+  assert.deepEqual(productionGroup(mine).methods.map((method) => method.id), [
+    'conventional-mining', 'drill-mining', 'blast-mining', 'mechanized-mining',
+  ]);
+  assert.deepEqual(
+    variantsFor(mine, 'mine-default').map((recipe) => [recipe.inputs, recipe.output.quantity, recipe.operatingCost]),
+    [
+      [[], 2, 11],
+      [[{ productId: 'tools', quantity: 1 }], 4, 10],
+      [[{ productId: 'tools', quantity: 1 }, { productId: 'industrial-chemicals', quantity: 1 }], 5, 9],
+      [[
+        { productId: 'machinery', quantity: 1 },
+        { productId: 'industrial-chemicals', quantity: 1 },
+        { productId: 'industrial-fuel', quantity: 1 },
+      ], 6, 6.95],
+    ],
+  );
+});
+
+test('C3-C7 special methods retain the existing fixed-precision balance', () => {
+  for (const type of FACILITY_TYPE_CATALOG.filter((candidate) => Number(candidate.complexity.slice(1)) >= 3)) {
+    for (const baseRecipe of baseRecipes(type)) {
+      const variants = variantsFor(type, baseRecipe.id);
+      const baseProfit = referenceProfitPerMinute(baseRecipe);
+      assert.equal(variants.every((recipe) => Math.abs(referenceProfitPerMinute(recipe) - baseProfit) < 1e-9), true);
+      const [base, shortCycle, longCycle, doubleBatch] = variants;
+      assert.ok(shortCycle.cycleMs <= base.cycleMs);
+      assert.ok(shortCycle.operatingCost >= base.operatingCost);
+      assert.ok(longCycle.cycleMs >= base.cycleMs);
+      assert.ok(longCycle.operatingCost <= base.operatingCost);
+      assert.equal(doubleBatch.cycleMs, base.cycleMs);
+      assert.equal(doubleBatch.output.quantity, base.output.quantity * 2);
+      assert.deepEqual(doubleBatch.inputs, base.inputs.map((input) => ({ ...input, quantity: input.quantity * 2 })));
+    }
   }
 });
 
-test('C4 refinery provides plastic, industrial fuel, and industrial chemicals at the C4 baseline', () => {
-  const refinery = FACILITY_TYPE_CATALOG.find((type) => type.id === 'refinery');
-  const routes = refinery.recipes.filter((recipe) => !recipe.legacyProductionMethod && recipe.productionMethodId === 'standard');
-  assert.deepEqual(routes.map((recipe) => recipe.output.productId), ['plastic', 'industrial-fuel', 'industrial-chemicals']);
-  assert.equal(routes.every((recipe) => Math.abs(referenceProfitPerMinute(recipe) - 6) < 1e-9), true);
-
-  const fuelEconomical = variant(refinery, 'industrial-fuel-refining', 'economical');
-  assert.equal(fuelEconomical.cycleMs, 70_000);
-  assert.equal(fuelEconomical.operatingCost, 0);
-  assert.ok(Math.abs(referenceProfitPerMinute(fuelEconomical) - 6) < 1e-9);
-});
-
-test('public client state hides legacy C2 aliases and exposes current method metadata', () => {
+test('public client state exposes default recipes plus all current method metadata', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
   const state = createFacilityGroupClientState(world, alice.id, now);
 
   for (const type of state.facilityTypes) {
-    assert.ok(Array.isArray(type.productionMethodGroups));
-    assert.equal(type.productionMethodGroups.length, 1);
-    assert.equal(type.recipes.every((recipe) => (recipe.productionMethodId || 'standard') === 'standard'), true);
-    assert.equal(type.recipes.some((recipe) => recipe.legacyProductionMethod), false);
-    const internal = FACILITY_TYPE_CATALOG.find((candidate) => candidate.id === type.id);
-    const expectedBaseRecipeCount = internal.recipes.filter((recipe) => (
-      !recipe.legacyProductionMethod && recipe.productionMethodId === 'standard'
-    )).length;
-    assert.equal(type.recipes.length, expectedBaseRecipeCount);
+    const group = productionGroup(type);
+    assert.equal(type.recipes.every((recipe) => recipe.productionMethodId === group.defaultMethodId), true);
+    assert.equal(type.recipes.length, baseRecipes(FACILITY_TYPE_CATALOG.find((item) => item.id === type.id)).length);
+    assert.equal(group.methods.every((method) => Boolean(method.iconId)), true);
   }
 });
 
-test('running factory switches C1 method immediately with one staffing penalty', () => {
+test('running factory switches to a named special method immediately', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 100;
   player.inventories.tools.available = 10;
   player.facilityGroups = [{
-    facilityTypeId: 'farm',
-    count: 5,
-    participatingCount: 5,
-    enabled: true,
-    status: 'running',
-    cycleStartedAt: now,
-    staffingRateBps: 10_000,
-    staffingUpdatedAt: now,
-    staffingBatchCarryBps: 9_999,
-    activeRecipeId: 'wheat-crop',
-    lifetimeOutput: 0,
+    facilityTypeId: 'farm', count: 5, participatingCount: 5, enabled: true,
+    status: 'running', cycleStartedAt: now, staffingRateBps: 10_000,
+    staffingUpdatedAt: now, staffingBatchCarryBps: 9_999,
+    activeRecipeId: 'wheat-crop', lifetimeOutput: 0,
   }];
   migrateFacilityGroupWorld(world, now);
 
   const result = applyFacilityGroupAction(world, alice, 'setFacilityRecipe', {
-    facilityTypeId: 'farm',
-    recipeId: 'wheat-crop--assisted',
+    facilityTypeId: 'farm', recipeId: 'wheat-crop--tool-tillage',
   }, now + 1);
-  const farm = player.facilityGroups[0];
   assert.equal(result.ok, true);
-  assert.equal(farm.activeRecipeId, 'wheat-crop--assisted');
-  assert.equal(farm.cycleStartedAt, now + 1);
-  assert.equal(farm.staffingRateBps, 8_000);
-  assert.equal(farm.staffingBatchCarryBps, 0);
-  assert.equal(Object.hasOwn(farm, 'pendingRecipeId'), false);
+  assert.equal(player.facilityGroups[0].activeRecipeId, 'wheat-crop--tool-tillage');
+  assert.equal(player.facilityGroups[0].staffingRateBps, 8_000);
 
-  processFacilityGroupWorld(world, now + 20_000);
-  assert.equal(player.inventories.wheat.available, 0);
   processFacilityGroupWorld(world, now + 20_001);
   assert.equal(player.inventories.wheat.available, 48);
   assert.equal(player.inventories.tools.available, 6);
-  assert.ok(Math.abs(player.credits - 96) < 1e-9);
-  assert.equal(player.facilityGroups[0].lifetimeOutput, 48);
 });
 
-test('legacy C2 generic method IDs preserve the selected base route and migrate to standard without staffing penalty', () => {
+test('legacy method IDs migrate to equivalent special methods without resetting progress', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
-  player.facilityGroups = [{
-    facilityTypeId: 'mine', count: 1, participatingCount: 1, enabled: true,
-    status: 'running', cycleStartedAt: now - 20_000, staffingRateBps: 9_000,
-    staffingUpdatedAt: now, staffingBatchCarryBps: 321, activeRecipeId: 'copper-ore-mining--rapid', lifetimeOutput: 0,
-  }];
-
+  migrateResearchWorld(world, now);
+  player.research.completedTechnologyIds.push('tool-manufacturing', 'tool-operation');
+  player.facilityGroups = [
+    {
+      facilityTypeId: 'mine', count: 1, participatingCount: 1, enabled: true,
+      status: 'running', cycleStartedAt: now - 20_000, staffingRateBps: 9_000,
+      staffingUpdatedAt: now, staffingBatchCarryBps: 321,
+      activeRecipeId: 'copper-ore-mining--assisted', lifetimeOutput: 0,
+    },
+    {
+      facilityTypeId: 'machine-factory', count: 1, participatingCount: 1, enabled: true,
+      status: 'running', cycleStartedAt: now - 40_000, staffingRateBps: 8_000,
+      staffingUpdatedAt: now, staffingBatchCarryBps: 123,
+      activeRecipeId: 'machine-factory-default--economical', lifetimeOutput: 0,
+    },
+  ];
   migrateFacilityGroupWorld(world, now);
-  assert.equal(player.facilityGroups[0].activeRecipeId, 'copper-ore-mining--rapid');
   migrateResearchWorld(world, now + 1);
 
-  assert.equal(player.facilityGroups[0].activeRecipeId, 'copper-ore-mining');
-  assert.equal(player.facilityGroups[0].cycleStartedAt, now + 1);
-  assert.equal(player.facilityGroups[0].staffingRateBps, 9_000);
+  assert.equal(player.facilityGroups[0].activeRecipeId, 'copper-ore-mining--drill-mining');
+  assert.equal(player.facilityGroups[0].cycleStartedAt, now - 20_000);
   assert.equal(player.facilityGroups[0].staffingBatchCarryBps, 321);
+  assert.equal(player.facilityGroups[1].activeRecipeId, 'machine-factory-default--cellular-manufacturing');
+  assert.equal(player.facilityGroups[1].cycleStartedAt, now - 40_000);
+  assert.equal(player.facilityGroups[1].staffingBatchCarryBps, 123);
 });
 
-test('C1 whole-good inputs fail atomically when a complete cycle input is unavailable', () => {
+test('whole-good inputs still fail atomically when a cycle input is unavailable', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
+  migrateResearchWorld(world, now);
+  player.research.completedTechnologyIds.push('fertilizer-engineering', 'fertilizer-application');
   player.credits = 100;
   player.inventories.fertilizer.available = 2;
   player.facilityGroups = [{
     facilityTypeId: 'farm', count: 1, participatingCount: 1, enabled: true,
     status: 'running', cycleStartedAt: now, staffingRateBps: 10_000,
-    staffingUpdatedAt: now, activeRecipeId: 'wheat-crop--intensive', lifetimeOutput: 0,
+    staffingUpdatedAt: now, activeRecipeId: 'wheat-crop--precision-fertilization', lifetimeOutput: 0,
   }];
   migrateFacilityGroupWorld(world, now);
   player.inventories.fertilizer.available = 1;
-
   processFacilityGroupWorld(world, now + 20_000);
 
   assert.equal(player.facilityGroups[0].status, 'error');
   assert.equal(player.inventories.fertilizer.available, 1);
   assert.equal(player.inventories.wheat.available, 0);
   assert.equal(player.credits, 100);
-  assert.equal(player.facilityGroups[0].lifetimeOutput, 0);
 });

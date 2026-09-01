@@ -124,7 +124,7 @@ for (const text of [
   '地区商品详情只读展示',
   '自动经营配置唯一归属工厂详情',
   '每个“玩家 + 地区 + 商品”最多维护一张关联自动买单和一张关联自动卖单',
-  '客户端状态版本保持 37',
+  '`factoryAutoOperationPolicies` 是现有玩家状态中的可选字段',
   '世界状态版本保持 32',
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
 

@@ -67,6 +67,14 @@ requireText('server/src/storage.js', [
   "from '../shared/economy-state-version.js'",
   'version: CURRENT_CLIENT_STATE_VERSION',
 ]);
+requireText('server/src/domain-core.js', [
+  "from '../shared/economy-state-version.js'",
+  'version: CURRENT_CLIENT_STATE_VERSION',
+]);
+requireText('tests/browser/market-runtime-harness.tsx', [
+  "from '../../server/shared/economy-state-version.js'",
+  'version: CURRENT_CLIENT_STATE_VERSION',
+]);
 
 const types = read('src/types.ts');
 const stateTypeStart = types.indexOf('export interface EconomyState');

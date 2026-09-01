@@ -1,5 +1,6 @@
 import { CompactNumber } from '../ui/CompactNumber';
-import { AssetsIcon, ChevronIcon, CreditsIcon, CycleIcon, ProductionIcon } from '../icons/GameIcons';
+import { ChevronIcon } from '../icons/GameIcons';
+import { OperationMethodIcon } from '../icons/OperationMethodIcons';
 import { ProductArtwork } from '../products/ProductArtwork';
 import { RichSelectInput } from '../ui/RichSelectInput';
 import type {
@@ -43,17 +44,10 @@ function metricDirection(next: number, current: number) {
   );
 }
 
-function ProductionMethodIcon({ methodId }: { methodId: FacilityProductionMethodId }) {
-  const icon = methodId === 'rapid' || methodId === 'assisted'
-    ? <CycleIcon />
-    : methodId === 'economical' || methodId === 'intensive'
-      ? <CreditsIcon />
-      : methodId === 'high-yield' || methodId === 'mechanized'
-        ? <AssetsIcon />
-        : <ProductionIcon />;
+function ProductionMethodIcon({ methodId, iconId }: { methodId: FacilityProductionMethodId; iconId: string }) {
   return (
-    <span className="production-method-icon" data-production-method-icon={methodId}>
-      {icon}
+    <span className="production-method-icon" data-production-method-icon={iconId} data-production-method-id={methodId}>
+      <OperationMethodIcon iconId={iconId} />
     </span>
   );
 }
@@ -253,7 +247,7 @@ export function FacilityProductionMethodSelect({
           value: method.id,
           label: method.name,
           disabled: !plan || locked,
-          visual: <ProductionMethodIcon methodId={method.id} />,
+          visual: <ProductionMethodIcon methodId={method.id} iconId={method.iconId} />,
           triggerDetail: plan
             ? `${seconds(plan.cycleMs)} · 成本 ${formatNumber(plan.operatingCost)} · 产出 ×${formatNumber(plan.output.quantity)}`
             : undefined,

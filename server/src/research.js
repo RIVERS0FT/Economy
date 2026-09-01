@@ -1,4 +1,8 @@
 import { FACILITY_TYPE_CATALOG } from './industry-catalog.js';
+import {
+  isLegacyProductionMethodRecipeId,
+  migrateLegacyProductionMethodRecipeId,
+} from './legacy-production-methods.js';
 import { creditPopulationEmployment } from './population-economy.js';
 import {
   RESEARCH_DURATION_MS,
@@ -90,34 +94,36 @@ function productionMethodGroupForFacility(facility) {
 function productionMethodForRecipe(facility, recipe) {
   const group = productionMethodGroupForFacility(facility);
   if (!group || !recipe) return null;
-  const methodId = String(recipe.productionMethodId || group.defaultMethodId || 'standard');
+  const methodId = String(recipe.productionMethodId || group.defaultMethodId || '');
   return group.methods.find((method) => method.id === methodId) || null;
 }
-function standardRecipeForFacility(facility, recipeId) {
+function defaultRecipeForFacility(facility, recipeId) {
   if (!facility) return null;
   const baseRecipeId = String(recipeId || '').split('--')[0];
+  const defaultMethodId = productionMethodGroupForFacility(facility)?.defaultMethodId;
   return facility.recipes.find((recipe) => (
     recipe.id === baseRecipeId
-    && (recipe.productionMethodId || 'standard') === 'standard'
+    && recipe.productionMethodId === defaultMethodId
   )) || facility.recipes.find((recipe) => (
     recipe.baseRecipeId === baseRecipeId
-    && (recipe.productionMethodId || 'standard') === 'standard'
+    && recipe.productionMethodId === defaultMethodId
   )) || facility.recipes.find((recipe) => recipe.id === facility.defaultRecipeId) || facility.recipes[0] || null;
 }
 function normalizeProductionMethodAccess(player, completed, now) {
   for (const group of player?.facilityGroups || []) {
     const facility = FACILITY_BY_ID.get(String(group?.facilityTypeId || ''));
     if (!facility) continue;
-    const recipeId = String(group?.activeRecipeId || facility.defaultRecipeId || '');
+    const storedRecipeId = String(group?.activeRecipeId || facility.defaultRecipeId || '');
+    const recipeId = migrateLegacyProductionMethodRecipeId(facility.id, storedRecipeId);
+    if (recipeId !== storedRecipeId) group.activeRecipeId = recipeId;
     const recipe = facility.recipes.find((candidate) => candidate.id === recipeId);
     const method = productionMethodForRecipe(facility, recipe);
     const requiredTechnologyIds = method?.requiredTechnologyIds || [];
     const lacksRequiredTechnology = requiredTechnologyIds.some((technologyId) => !completed.has(technologyId));
-    const isLegacyMethod = Boolean(recipe?.legacyProductionMethod) || (recipe && !method);
-    if (!lacksRequiredTechnology && !isLegacyMethod) continue;
-    const standardRecipe = standardRecipeForFacility(facility, recipe?.baseRecipeId || recipeId);
-    if (!standardRecipe || standardRecipe.id === group.activeRecipeId) continue;
-    group.activeRecipeId = standardRecipe.id;
+    if (!lacksRequiredTechnology && method) continue;
+    const defaultRecipe = defaultRecipeForFacility(facility, recipe?.baseRecipeId || recipeId);
+    if (!defaultRecipe || defaultRecipe.id === group.activeRecipeId) continue;
+    group.activeRecipeId = defaultRecipe.id;
     if (group.enabled && group.status === 'running') group.cycleStartedAt = Number(now);
   }
 }
@@ -491,9 +497,9 @@ function lockedResult(world, player, facilityTypeId, now) {
 function productionMethodLockedResult(world, player, facilityTypeId, recipeId, now) {
   const facility = FACILITY_BY_ID.get(String(facilityTypeId || ''));
   if (!facility) return null;
+  if (isLegacyProductionMethodRecipeId(recipeId)) return { ok: false, message: '该旧作业制度已退役，请选择当前作业制度' };
   const recipe = facility.recipes.find((candidate) => candidate.id === String(recipeId || ''));
   if (!recipe) return null;
-  if (recipe.legacyProductionMethod) return { ok: false, message: '该旧作业制度已退役，请选择当前作业制度' };
   const method = productionMethodForRecipe(facility, recipe);
   if (!method) return { ok: false, message: '该旧作业制度已退役，请选择当前作业制度' };
   const research = ensurePlayerResearch(world, player, now);

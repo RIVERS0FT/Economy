@@ -53,14 +53,8 @@ export interface FacilityRecipeItem {
   quantity: number;
 }
 
-export type FacilityProductionMethodId =
-  | 'standard'
-  | 'rapid'
-  | 'economical'
-  | 'high-yield'
-  | 'assisted'
-  | 'intensive'
-  | 'mechanized';
+export type FacilityProductionMethodId = string;
+export type FacilityProductionMethodIconId = string;
 
 export interface FacilityProductionMethodPlan {
   recipeId: string;
@@ -76,6 +70,7 @@ export interface FacilityProductionMethodPlan {
 export interface FacilityProductionMethodDefinition {
   id: FacilityProductionMethodId;
   name: string;
+  iconId: FacilityProductionMethodIconId;
   description: string;
   tone: 'neutral' | 'warning' | 'success' | 'accent';
   requiredTechnologyIds?: string[];
@@ -376,7 +371,7 @@ export interface ProductMarketState {
   lastImbalance?: number;
   /** Last cycle official price change in signed basis points. */
   lastPriceChangeBps?: number;
-  /** Full history is loaded only for the actively viewed market in client state version 37. */
+  /** Full history is loaded only for the actively viewed market in client state version 38. */
   priceHistory?: PricePoint[];
   demand: DemandState;
   priceChange24h?: number | null;
@@ -403,7 +398,7 @@ export interface FacilityMarketState {
   provinceId?: string;
   lastPrice: number;
   lastTradePrice: number | null;
-  /** Full history is loaded only for the actively viewed market in client state version 37. */
+  /** Full history is loaded only for the actively viewed market in client state version 38. */
   priceHistory?: PricePoint[];
   priceChange24h?: number | null;
   tradeVolume24h?: number;
@@ -664,7 +659,7 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState {
-  version: 37;
+  version: 38;
   userId: number;
   playerName: string;
   startingProvinceId: string;
