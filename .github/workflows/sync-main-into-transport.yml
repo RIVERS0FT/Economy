@@ -1,0 +1,28 @@
+name: Sync latest main into transport branch
+
+on:
+  push:
+    branches:
+      - codex/transport-route-pages-auto-logistics
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Merge latest main
+        run: |
+          git fetch origin main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-commit --no-ff origin/main
+          rm -f .github/workflows/sync-main-into-transport.yml
+          git add -A
+          git diff --cached --check
+          git commit -m "merge latest main into transport branch"
+          git push origin HEAD:codex/transport-route-pages-auto-logistics
