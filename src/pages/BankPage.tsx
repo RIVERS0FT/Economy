@@ -217,7 +217,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
                 {activeLoan.collateral.map((item) => {
                   const type = model.game.facilityTypes.find((facility) => facility.id === item.facilityTypeId);
                   const province = provinces.find((candidate) => candidate.id === item.provinceId);
-                  return <span key={`${item.provinceId}:${item.facilityTypeId}`}><FactoryIcon />{province?.shortName || province?.name || item.provinceId} · {type?.name || item.facilityTypeId} × {<CompactNumber value={item.quantity} />}</span>;
+                  return <span key={`${item.provinceId}:${item.facilityTypeId}`}><FactoryIcon />{province?.name || item.provinceId} · {type?.name || item.facilityTypeId} × {<CompactNumber value={item.quantity} />}</span>;
                 })}
               </div>
               <small>抵押工厂继续生产，但在贷款结清前不能出售、拍卖或重复抵押。</small>
@@ -263,7 +263,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
                       const transactionFrozen = Math.max(0, item.totalQuantity - item.mortgagedQuantity - item.availableQuantity);
                       return (
                         <tr key={key}>
-                          <td>{province?.shortName || province?.name || item.provinceId}</td>
+                          <td>{province?.name || item.provinceId}</td>
                           <td><span className="bank-factory-name"><FactoryIcon />{type?.name || item.facilityTypeId}</span></td>
                           <td>{<CompactNumber value={item.totalQuantity} />}</td>
                           <td>{<CompactNumber value={transactionFrozen} />}</td>
