@@ -1,0 +1,50 @@
+name: Temporary Contract Workspace Fix
+
+on:
+  push:
+    branches:
+      - feature/daily-regional-supply-contracts-impl
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/daily-regional-supply-contracts-impl
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.4.0'
+          cache: npm
+      - name: Apply contract workspace patch
+        run: python3 scripts/temp-fix-contract-workspace.py
+      - name: Check diff
+        run: git diff --check
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify gameplay decision support
+        run: npm run verify:gameplay-decision-support
+      - name: Verify contract audit and compact history
+        run: npm run verify:contract-audit
+      - name: Verify contract layout
+        run: npm run verify:contract-layout
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Test contract server paths
+        run: node --test server/test/contract-audit.test.js server/test/daily-supply-contracts.test.js server/test/state-projection-cache.test.js
+      - name: Commit contract workspace fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/temp-fix-contract-workspace.yml
+          rm scripts/temp-fix-contract-workspace.py
+          git config user.name "RIVERSOFT"
+          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "补齐合同履约档案历史与违约领取"
+          git push origin HEAD:feature/daily-regional-supply-contracts-impl
