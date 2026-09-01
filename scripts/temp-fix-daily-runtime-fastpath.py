@@ -9,12 +9,6 @@ def replace(path, old, new, label):
     p.write_text(text.replace(old, new, 1))
 
 # A cheap pure predicate lets ordinary actions preserve the existing single-transaction fast path.
-replace(
-    'server/src/production-input-sourcing.js',
-    "function aggregateProductionDemand(world, userId, now) {",
-    "function aggregateProductionDemand(world, userId, now) {",
-    'aggregate demand anchor',
-)
 p = Path('server/src/production-input-sourcing.js')
 text = p.read_text()
 marker = "function buyMarketShortage(world, userId, productId, provinceId, shortage, now) {"
@@ -44,6 +38,48 @@ replacement = """export function migrateDailySupplyContracts(world, now = Date.n
 }
 """
 text = text[:start] + replacement + text[end:]
+
+# Keep the internal derived remaining quota synchronized; public projection exposes the same fact.
+old_alias = """  const remaining = dailyRemaining(contract);
+  const remainingGross = multiplyMoneyByInteger(contract.unitPrice, remaining) || 0;
+"""
+new_alias = """  const remaining = dailyRemaining(contract);
+  contract.dailyRemainingQuantity = remaining;
+  const remainingGross = multiplyMoneyByInteger(contract.unitPrice, remaining) || 0;
+"""
+if old_alias not in text:
+    raise SystemExit('missing daily remaining alias anchor')
+text = text.replace(old_alias, new_alias, 1)
+
+# Return every newly reserved unit caused by this call, including processDailySupplyContracts auto-reservation.
+start = text.index('export function allocateDailySupplyReservesForSupplier')
+end = text.index('function normalizeStats', start)
+allocate = """export function allocateDailySupplyReservesForSupplier(world, supplierId, provinceId = null, productId = null, now = Date.now()) {
+  const matches = (contract) => isDailySupplyContract(contract)
+    && contract.status === 'active'
+    && contract.supplierAutoReserve
+    && Number(contract.supplierId) === Number(supplierId)
+    && (provinceId === null || normalizeProvinceId(contract.provinceId) === normalizeProvinceId(provinceId))
+    && (productId === null || String(contract.productId) === String(productId));
+  const beforeReserved = new Map((world.productionContracts || [])
+    .filter(matches)
+    .map((contract) => [String(contract.id), nonNegativeInteger(contract.supplierReservedQuantity)]));
+  processDailySupplyContracts(world, now);
+  const supplier = playerFor(world, supplierId);
+  if (!supplier) return 0;
+  const contracts = (world.productionContracts || [])
+    .filter(matches)
+    .sort((left, right) => Number(priorityEligible(right, supplier, now)) - Number(priorityEligible(left, supplier, now))
+      || Number(right.unitPrice) - Number(left.unitPrice)
+      || Number(left.acceptedAt || 0) - Number(right.acceptedAt || 0)
+      || String(left.id).localeCompare(String(right.id)));
+  for (const contract of contracts) reserveSupplierGoods(contract, supplier, now);
+  return contracts.reduce((sum, contract) => (
+    sum + Math.max(0, nonNegativeInteger(contract.supplierReservedQuantity) - (beforeReserved.get(String(contract.id)) || 0))
+  ), 0);
+}
+"""
+text = text[:start] + allocate + text[end:]
 p.write_text(text)
 
 # Preserve normal executeRuntimeAction path unless production really has due input demand.
@@ -121,7 +157,7 @@ test('legacy long-term supply contracts are not force-migrated', () => {
 """
 p.write_text(text)
 
-# The branch still has protocol 37 before merging latest main; avoid a stale hard-coded number in the new paragraph.
+# Avoid a stale protocol number here; latest main may advance the shared client protocol independently.
 p = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
 text = p.read_text()
 old = '客户端状态版本继续为 37、世界状态版本继续为 32，因为新增字段通过兼容别名与现有分区增量投影交付，不扩大兼容窗口。'
