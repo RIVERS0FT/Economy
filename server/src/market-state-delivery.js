@@ -193,7 +193,7 @@ export function createMarketDetail(world, {
       ? completedEventWindowsByProduct(now).get(assetId)
       : undefined,
   });
-  const priceHistory = (market.priceHistory || []).map(publicPricePoint);
+  const priceHistory = realTradePoints(market, now).map(publicPricePoint);
   const bids = publicDepth(getOrderBookDepth(world, {
     provinceId: normalizedProvinceId,
     assetKind,
