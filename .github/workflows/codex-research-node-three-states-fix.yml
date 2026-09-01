@@ -1,0 +1,61 @@
+name: Codex finalize research node three states
+
+on:
+  push:
+    branches:
+      - codex/research-node-three-states
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Finalize authoritative rules
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one match, found {count}: {old[:120]!r}')
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              'C1–C7 只显示为科技节点上的阶段标签，不决定树的纵向层级。',
+              'C1–C7 仍作为科技定义中的产业阶段元数据，只用于目录、详情与业务判定语义，不决定树的纵向层级，也不得作为科技节点可见字段。',
+          )
+          replace_once(
+              'scripts/verify-research-page.mjs',
+              "  '.research-technology-node[data-status=',\n  \".research-technology-node[data-status='active'],\",\n  \".research-technology-node[data-status='available'] {\",\n",
+              "  '.research-technology-node[data-status=',\n  \".research-technology-node[data-status='mastered'] {\",\n  \".research-technology-node[data-status='active'],\",\n  \".research-technology-node[data-status='available'] {\",\n  \".research-technology-node[data-status='locked'] {\",\n",
+          )
+          replace_once(
+              'scripts/verify-research-page.mjs',
+              "  '自上而下 DAG',\n  '基础视觉状态固定为“已解锁已研发／已解锁未研发／未解锁未研发”三种',\n",
+              "  '自上而下 DAG',\n  'C1–C7 仍作为科技定义中的产业阶段元数据',\n  '也不得作为科技节点可见字段',\n  '基础视觉状态固定为“已解锁已研发／已解锁未研发／未解锁未研发”三种',\n",
+          )
+          PY
+      - name: Verify focused research rules
+        run: |
+          node scripts/verify-research-page.mjs
+          git diff --check
+      - name: Commit final correction
+        shell: bash
+        run: |
+          rm .github/workflows/codex-research-node-three-states-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md scripts/verify-research-page.mjs .github/workflows/codex-research-node-three-states-fix.yml
+          git commit -m "消除研发节点阶段标签旧规则"
+          git push origin HEAD:codex/research-node-three-states
