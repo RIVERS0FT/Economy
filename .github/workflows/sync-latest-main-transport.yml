@@ -55,7 +55,7 @@ jobs:
           npm ci
           npm run build
           bash scripts/prepare-playwright-chromium.sh
-          npx playwright test tests/browser/top-layer-overlays.spec.ts tests/browser/shell-floating-safe-zone.spec.ts tests/browser/province-map.spec.ts tests/browser/transport-map-picking.spec.ts --workers=2
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/google-chrome npx playwright test tests/browser/top-layer-overlays.spec.ts tests/browser/shell-floating-safe-zone.spec.ts tests/browser/province-map.spec.ts tests/browser/transport-map-picking.spec.ts --workers=2
       - name: Commit synchronized main
         shell: bash
         run: |
