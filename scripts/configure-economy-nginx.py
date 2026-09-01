@@ -427,13 +427,27 @@ def ensure_avatar_location(block: str) -> tuple[str, bool]:
 
 
 def ensure_health_location(block: str) -> tuple[str, bool]:
-    if has_health_proxy(block):
+    view = masked(block)
+    location = re.search(
+        r"\blocation\s+(?:=\s+)?/economy-api/health\s*\{",
+        view,
+        re.IGNORECASE,
+    )
+    if not location:
+        closing = block.rfind("}")
+        if closing < 0:
+            raise RuntimeError("Target server block has no closing brace")
+        normalized = block[:closing].rstrip()
+        return normalized + "\n\n" + HEALTH_API_BLOCK + "\n" + block[closing:], True
+
+    opening = view.find("{", location.start())
+    closing = matching_brace(block, opening)
+    start = block.rfind("\n", 0, location.start()) + 1
+    end = closing + 1
+    replacement = HEALTH_API_BLOCK
+    if block[start:end] == replacement:
         return block, False
-    closing = block.rfind("}")
-    if closing < 0:
-        raise RuntimeError("Target server block has no closing brace")
-    normalized = block[:closing].rstrip()
-    return normalized + "\n\n" + HEALTH_API_BLOCK + "\n" + block[closing:], True
+    return block[:start] + replacement + block[end:], True
 
 
 def ensure_game_api_compression(text: str) -> tuple[str, bool]:

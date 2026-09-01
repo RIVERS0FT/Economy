@@ -192,6 +192,8 @@ for (const path of [
   ]) forbidText(path, text);
 }
 requireText('scripts/configure-economy-nginx.py', 'ECONOMY_NGINX_ENABLED_BACKUP_CONFLICT');
+requireText('deploy/nginx/game.riversoft.top.economy-location.conf', 'proxy_read_timeout 90s;');
+forbidText('deploy/nginx/game.riversoft.top.economy-location.conf', 'proxy_read_timeout 3s;');
 
 for (const text of [
   'RETIRED_FACILITY_GROUP_FIELDS',
