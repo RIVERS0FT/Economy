@@ -1,0 +1,39 @@
+name: Temporary Document Page Wrapper
+
+on:
+  push:
+    branches:
+      - feature/daily-regional-supply-contracts-impl
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/daily-regional-supply-contracts-impl
+          fetch-depth: 0
+      - name: Document zero-DOM route wrapper exception
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('docs/UI_DESIGN_SYSTEM.md')
+          text = path.read_text()
+          old = '其他业务页面不得直接创建 `.page-content`、复制页面外壳或手动插入第二个 `.ui-page-stack`。'
+          new = '稳定路由可以保留零 DOM 的薄 `*Page.tsx` 包装器并直接返回另一个正式页面组件；此类包装器自身不得创建 `PageLayout`、`.page-content` 或 `.ui-page-stack`，但被委托的实际页面组件必须使用共享 `PageLayout` 并承担全部页面几何。其他业务页面不得直接创建 `.page-content`、复制页面外壳或手动插入第二个 `.ui-page-stack`。'
+          if old not in text:
+              raise SystemExit('PageLayout design anchor not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          rm .github/workflows/temp-document-page-wrapper.yml
+          git config user.name "RIVERSOFT"
+          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "登记零 DOM 路由包装器页面规则"
+          git push origin HEAD:feature/daily-regional-supply-contracts-impl
