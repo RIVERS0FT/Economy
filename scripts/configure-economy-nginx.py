@@ -59,6 +59,20 @@ NGINX_BACKUP_NAME_PATTERN = re.compile(
     r"(?:^|[._-])(?:bak|backup)(?:$|[._-])",
     re.IGNORECASE,
 )
+NGINX_BACKUP_DIRECTORY = Path("/var/tmp/economy-nginx-backups")
+
+
+def create_nginx_backup(path: Path) -> Path:
+    NGINX_BACKUP_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    descriptor, backup_name = tempfile.mkstemp(
+        prefix=f"{path.name}.",
+        suffix=".bak",
+        dir=NGINX_BACKUP_DIRECTORY,
+    )
+    os.close(descriptor)
+    backup = Path(backup_name)
+    shutil.copy2(path, backup)
+    return backup
 
 ACCOUNT_BLOCK = """
     location = /economy-api/login {
@@ -128,7 +142,7 @@ HEALTH_API_BLOCK = """
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
         proxy_connect_timeout 2s;
-        proxy_read_timeout 3s;
+        proxy_read_timeout 90s;
     }
 """.strip("\n")
 
@@ -800,6 +814,17 @@ def main() -> int:
     if os.geteuid() != 0:
         raise RuntimeError("This script must run as root")
 
+    enabled_backups = [
+        candidate
+        for candidate in Path("/etc/nginx/sites-enabled").iterdir()
+        if is_nginx_backup_path(candidate)
+    ]
+    if enabled_backups:
+        raise RuntimeError(
+            "ECONOMY_NGINX_ENABLED_BACKUP_CONFLICT="
+            + ",".join(str(candidate) for candidate in enabled_backups)
+        )
+
     path, text, (start, end) = find_target()
     updated_block = replace_or_insert(text[start:end])
     updated = text[:start] + updated_block + text[end:]
@@ -822,8 +847,7 @@ def main() -> int:
     backups = []
     try:
         for changed_path, _original, changed_content in changes:
-            backup = changed_path.with_suffix(changed_path.suffix + ".economy-proxy.bak")
-            shutil.copy2(changed_path, backup)
+            backup = create_nginx_backup(changed_path)
             backups.append((changed_path, backup))
             write_atomic(changed_path, changed_content)
         run(["nginx", "-t"])
