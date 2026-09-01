@@ -51,6 +51,7 @@ class ReplaceOrInsertTests(unittest.TestCase):
         self.assertIn(f"include {nginx.GAME_API_SNIPPET};", updated)
         self.assertIn("location = /economy-api/health", updated)
         self.assertIn("proxy_pass http://127.0.0.1:3002/health;", updated)
+        self.assertIn("proxy_read_timeout 90s;", updated)
         self.assertEqual(updated.count("location = /economy-api/health"), 1)
         self.assertEqual(nginx.replace_or_insert(updated), updated)
 
@@ -402,6 +403,23 @@ class DeploymentDesignContractTests(unittest.TestCase):
         for rule in required_rules:
             with self.subTest(rule=rule):
                 self.assertIn(rule, self.design)
+
+
+class NginxBackupSafetyTests(unittest.TestCase):
+    def test_backup_is_written_outside_loaded_config_roots(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "game.riversoft.top"
+            target.write_text("server {}\n", encoding="utf-8")
+            backup_root = root / "safe-backups"
+            with mock.patch.object(nginx, "NGINX_BACKUP_DIRECTORY", backup_root):
+                backup = nginx.create_nginx_backup(target)
+
+            self.assertEqual(backup.parent, backup_root)
+            self.assertEqual(
+                backup.read_text(encoding="utf-8"),
+                target.read_text(encoding="utf-8"),
+            )
 
 
 if __name__ == "__main__":
