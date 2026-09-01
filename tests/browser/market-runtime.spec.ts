@@ -84,7 +84,7 @@ async function inspectChartAxis(chart: Locator) {
   });
 }
 
-test('market desktop layout keeps market context and chart above the combined trade card in the compact page', async ({ page }) => {
+test('market desktop layout keeps market context and chart above the combined trade area in the compact page', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('market-runtime-test.html?scenario=active');
@@ -105,6 +105,7 @@ test('market desktop layout keeps market context and chart above the combined tr
   const chartBox = await requireBox(chart);
 
   await expect(page.locator('.market-trade-card')).toHaveCount(1);
+  await expect(tradeCard).not.toHaveClass(/ui-primary-surface/);
   await expect(page.locator('.market-grid > .order-entry')).toHaveCount(0);
   await expect(page.locator('.market-grid > .single-order-book')).toHaveCount(0);
   expect(tradeBox.y).toBeGreaterThan(chartCardBox.y + chartCardBox.height - 2);
@@ -186,7 +187,7 @@ test('market chart uses one linked hover state and keeps the price line protecte
   expect(pageErrors).toEqual([]);
 });
 
-test('market medium and narrow layouts keep the trade card responsive without horizontal overflow', async ({ page }) => {
+test('market medium and narrow layouts keep the trade area responsive without horizontal overflow', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active');
@@ -402,14 +403,18 @@ test('market commodity catalog keeps compact core metrics and opens a focused de
 
   await expect(page.locator('.regional-entity-title__name')).toHaveText('小麦');
   await expect(page.locator('.regional-entity-title__region')).toHaveText('加利福尼亚州');
-  await expect(page.getByRole('heading', { name: '商品基本面', exact: true })).toBeVisible();
-  await expect(page.getByText('基准偏离', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText('挂单差额', { exact: true })).toBeVisible();
+  await expect(page.locator('.market-detail-hero__metric').filter({ hasText: '24h 变化' })).toBeVisible();
+  await expect(page.locator('.market-detail-hero__metric').filter({ hasText: '可用库存' })).toBeVisible();
+  for (const label of ['市场价', '基准偏离', '需求满足率', '参考价', '上轮需求']) {
+    await expect(page.getByText(label, { exact: true })).toHaveCount(0);
+  }
+  await expect(page.locator('.market-fundamentals-grid')).toHaveCount(0);
   await expect(page.locator('.market-trade-card')).toBeVisible();
+  await expect(page.locator('.market-trade-card')).not.toHaveClass(/ui-primary-surface/);
   expect(pageErrors).toEqual([]);
 });
 
-test('market commodity detail keeps read-only factory-derived auto-operation execution and catalog has no workspace switch', async ({ page }) => {
+test('market commodity detail omits automatic-operation execution and catalog has no workspace switch', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active&view=catalog');
@@ -422,20 +427,12 @@ test('market commodity detail keeps read-only factory-derived auto-operation exe
   expect(await page.locator('.market-catalog-list .product-artwork').count()).toBeGreaterThan(0);
 
   await page.getByRole('button', { name: '查看小麦详情' }).click();
-  const executionCard = page.locator('.market-auto-trade-execution');
-  await expect(executionCard).toBeVisible();
-  await expect(executionCard.getByRole('heading', { name: '自动经营执行', exact: true })).toBeVisible();
-  await expect(executionCard.getByText('由工厂策略汇总', { exact: true })).toBeVisible();
-  for (const label of ['当前可用', '生产预定', '合同预定', '当前自由库存', '预计自动采购', '预计自动出售', '采购价格上限', '出售价格下限']) {
-    await expect(executionCard.getByText(label, { exact: true })).toBeVisible();
-  }
-  await expect(executionCard.locator('input, select, textarea')).toHaveCount(0);
+  await expect(page.locator('.market-auto-trade-execution')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '自动经营执行', exact: true })).toHaveCount(0);
   await expect(page.getByRole('combobox', { name: '自动交易商品' })).toHaveCount(0);
   await expect(page.locator('.market-auto-trade-products')).toHaveCount(0);
   await expect(page.locator('.market-auto-trade-workspace--fixed')).toHaveCount(0);
   await expect(page.locator('.market-auto-trade-card')).toHaveCount(0);
-  await expect(executionCard.getByLabel('目标自由库存')).toHaveCount(0);
-  await expect(executionCard.getByLabel('最低自由库存')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 
