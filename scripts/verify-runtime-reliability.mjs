@@ -168,9 +168,32 @@ for (const text of [
   'ECONOMY_API_HEALTH_DIAGNOSTICS_BEGIN',
   'ECONOMY_HEALTH_PROXY_UNAVAILABLE',
   'https://${PUBLIC_IP}/economy-api/health',
+  'FORMAL_DOMAIN="game.riversoft.top"',
+  'formal-domain-page',
+  'formal-domain-health-api',
+  'formal-domain-game-api',
   'systemctl status riversoft-economy-api.service --no-pager --full',
   'journalctl -u riversoft-economy-api.service -n 80 --no-pager',
 ]) requireText('scripts/verify-production-deployment.sh', text);
+
+for (const path of [
+  'scripts/configure-economy-nginx.py',
+  'scripts/configure-economy-registration-nginx.py',
+  'scripts/configure-economy-static-cache.py',
+]) {
+  for (const text of [
+    'NGINX_BACKUP_DIRECTORY = Path("/var/tmp/economy-nginx-backups")',
+    'def create_nginx_backup(path: Path) -> Path:',
+  ]) requireText(path, text);
+  for (const text of [
+    '.with_suffix(changed_path.suffix + ".economy-proxy.bak")',
+    '.with_suffix(path.suffix + ".economy-registration-proxy.bak")',
+    '.with_name(path.name + ".economy-static-cache.bak")',
+  ]) forbidText(path, text);
+}
+requireText('scripts/configure-economy-nginx.py', 'ECONOMY_NGINX_ENABLED_BACKUP_CONFLICT');
+requireText('deploy/nginx/game.riversoft.top.economy-location.conf', 'proxy_read_timeout 90s;');
+forbidText('deploy/nginx/game.riversoft.top.economy-location.conf', 'proxy_read_timeout 3s;');
 
 for (const text of [
   'RETIRED_FACILITY_GROUP_FIELDS',

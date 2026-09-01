@@ -59,6 +59,20 @@ NGINX_BACKUP_NAME_PATTERN = re.compile(
     r"(?:^|[._-])(?:bak|backup)(?:$|[._-])",
     re.IGNORECASE,
 )
+NGINX_BACKUP_DIRECTORY = Path("/var/tmp/economy-nginx-backups")
+
+
+def create_nginx_backup(path: Path) -> Path:
+    NGINX_BACKUP_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    descriptor, backup_name = tempfile.mkstemp(
+        prefix=f"{path.name}.",
+        suffix=".bak",
+        dir=NGINX_BACKUP_DIRECTORY,
+    )
+    os.close(descriptor)
+    backup = Path(backup_name)
+    shutil.copy2(path, backup)
+    return backup
 
 ACCOUNT_BLOCK = """
     location = /economy-api/login {
@@ -128,7 +142,7 @@ HEALTH_API_BLOCK = """
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
         proxy_connect_timeout 2s;
-        proxy_read_timeout 3s;
+        proxy_read_timeout 90s;
     }
 """.strip("\n")
 
@@ -413,13 +427,27 @@ def ensure_avatar_location(block: str) -> tuple[str, bool]:
 
 
 def ensure_health_location(block: str) -> tuple[str, bool]:
-    if has_health_proxy(block):
+    view = masked(block)
+    location = re.search(
+        r"\blocation\s+(?:=\s+)?/economy-api/health\s*\{",
+        view,
+        re.IGNORECASE,
+    )
+    if not location:
+        closing = block.rfind("}")
+        if closing < 0:
+            raise RuntimeError("Target server block has no closing brace")
+        normalized = block[:closing].rstrip()
+        return normalized + "\n\n" + HEALTH_API_BLOCK + "\n" + block[closing:], True
+
+    opening = view.find("{", location.start())
+    closing = matching_brace(block, opening)
+    start = block.rfind("\n", 0, location.start()) + 1
+    end = closing + 1
+    replacement = HEALTH_API_BLOCK
+    if block[start:end] == replacement:
         return block, False
-    closing = block.rfind("}")
-    if closing < 0:
-        raise RuntimeError("Target server block has no closing brace")
-    normalized = block[:closing].rstrip()
-    return normalized + "\n\n" + HEALTH_API_BLOCK + "\n" + block[closing:], True
+    return block[:start] + replacement + block[end:], True
 
 
 def ensure_game_api_compression(text: str) -> tuple[str, bool]:
@@ -800,6 +828,17 @@ def main() -> int:
     if os.geteuid() != 0:
         raise RuntimeError("This script must run as root")
 
+    enabled_backups = [
+        candidate
+        for candidate in Path("/etc/nginx/sites-enabled").iterdir()
+        if is_nginx_backup_path(candidate)
+    ]
+    if enabled_backups:
+        raise RuntimeError(
+            "ECONOMY_NGINX_ENABLED_BACKUP_CONFLICT="
+            + ",".join(str(candidate) for candidate in enabled_backups)
+        )
+
     path, text, (start, end) = find_target()
     updated_block = replace_or_insert(text[start:end])
     updated = text[:start] + updated_block + text[end:]
@@ -822,8 +861,7 @@ def main() -> int:
     backups = []
     try:
         for changed_path, _original, changed_content in changes:
-            backup = changed_path.with_suffix(changed_path.suffix + ".economy-proxy.bak")
-            shutil.copy2(changed_path, backup)
+            backup = create_nginx_backup(changed_path)
             backups.append((changed_path, backup))
             write_atomic(changed_path, changed_content)
         run(["nginx", "-t"])

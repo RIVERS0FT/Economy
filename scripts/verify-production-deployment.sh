@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 PHASE="${1:-}"
 PUBLIC_IP="${2:-}"
+FORMAL_DOMAIN="game.riversoft.top"
 CURRENT_CHECK="bootstrap"
 FAILURE_REPORTED=0
 API_HEALTH_MAX_ATTEMPTS=15
@@ -195,6 +196,9 @@ verify_public() {
   check_status account-proxy /tmp/economy-auth-response.json '200,401' AUTH_PROXY_UNAVAILABLE "https://${PUBLIC_IP}/economy-api/me"
   check_status health-api /tmp/economy-health-response.json '200' ECONOMY_HEALTH_PROXY_UNAVAILABLE "https://${PUBLIC_IP}/economy-api/health"
   check_status game-api /tmp/economy-game-response.json '401' ECONOMY_GAME_API_PROXY_UNAVAILABLE "https://${PUBLIC_IP}/economy-api/game/state"
+  check_status formal-domain-page /tmp/economy-formal-domain-page-response.json '200' ECONOMY_FORMAL_DOMAIN_PAGE_UNAVAILABLE "https://${FORMAL_DOMAIN}/economy/"
+  check_status formal-domain-health-api /tmp/economy-formal-domain-health-response.json '200' ECONOMY_FORMAL_DOMAIN_HEALTH_PROXY_UNAVAILABLE "https://${FORMAL_DOMAIN}/economy-api/health"
+  check_status formal-domain-game-api /tmp/economy-formal-domain-game-response.json '401' ECONOMY_FORMAL_DOMAIN_GAME_API_PROXY_UNAVAILABLE "https://${FORMAL_DOMAIN}/economy-api/game/state"
   check_status login-api /tmp/economy-login-response.json '400' ECONOMY_LOGIN_PROXY_UNAVAILABLE --request POST --header 'Content-Type: application/json' --data '{}' "https://${PUBLIC_IP}/economy-api/login"
   check_status registration-api /tmp/economy-registration-response.json '400' ECONOMY_REGISTRATION_PROXY_UNAVAILABLE --request POST --header 'Content-Type: application/json' --header 'Idempotency-Key: deploy-registration-route-check' --data '{}' "https://${PUBLIC_IP}/economy-api/registration/email-code"
   check_status password-reset-api /tmp/economy-password-reset-response.json '400' ECONOMY_PASSWORD_RESET_PROXY_UNAVAILABLE --request POST --header 'Content-Type: application/json' --header 'Idempotency-Key: deploy-password-reset-route-check' --data '{}' "https://${PUBLIC_IP}/economy-api/password-reset/email-code"

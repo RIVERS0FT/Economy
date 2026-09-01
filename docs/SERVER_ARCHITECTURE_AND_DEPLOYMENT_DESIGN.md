@@ -297,6 +297,7 @@ JSON.parse
 - 每名玩家最多 10 笔未完成商品／工厂订单、10 份公开合同和 20 份进行中合同。
 - Nginx 游戏 API 请求体上限为 256 KB；普通 JSON 仍由应用限制为 16 KB。
 - 生产 HTTPS `server` 必须由 `scripts/configure-economy-nginx.py` 统一维护动态 gzip：`gzip_vary on`、`gzip_proxied any`、最小长度 `1024`、静态资源压缩级别 `6`。超过 1 KB 的 HTML、JavaScript、CSS、JSON、SVG、Web Manifest、XML 与 WASM 必须压缩；游戏 API `location` 继续使用面向 JSON 的压缩级别 `5`。PNG、JPEG、WebP、AVIF 与 WOFF2 等已经压缩的媒体和字体不得加入 `gzip_types` 重复压缩。`/economy/assets/` 与 `/economy/` 两个静态 `location` 必须直接输出 `Vary: Accept-Encoding`，不得只依赖服务器级继承；资产位置原有 `Cache-Control` 必须保留。哈希静态资源缓存固定为 365 天，使用 `public, max-age=31536000, immutable`；入口 HTML 固定使用 `no-cache, max-age=0, must-revalidate`，确保刷新页面重新验证并取得最新资源地址。`scripts/configure-economy-static-cache.py` 必须幂等修补这两个位置、通过本机正式 HTTPS 验证入口与实际构建资源的缓存头，并在验证失败时回滚配置。配置脚本必须扫描 `sites-enabled`、`conf.d`、`sites-available` 与 `snippets` 四个 Nginx 配置根目录，按解析后的真实路径去重，并修补位于主 `server` 文件或任意被 include 的独立 snippet 中的 Economy 静态位置；扫描时必须跳过 `.bak`、`.backup-*` 与 `.economy-proxy.bak` 等备份文件，已规范的 `Vary` 指令必须保持幂等。脚本必须清除目标 `server` 中冲突的顶层 gzip 指令、写入唯一托管块并保持重复执行幂等；`scripts/configure-economy-nginx.py` 重载 Nginx 后必须通过 `--resolve game.riversoft.top:443:127.0.0.1` 命中本机正式 HTTPS 与 TLS SNI 入口，禁止使用可能返回 301 跳转页的 80 端口；Nginx reload 后必须在 5 秒窗口内对旧 worker 导致的缺 gzip、缺 `Vary` 或本机 curl 暂态失败进行有限重试，确定性内容错误必须立即失败；必须以 `Accept-Encoding: gzip` 实测 HTML、实际构建 JS 与 CSS，要求 `Content-Encoding: gzip`、`Vary: Accept-Encoding`、压缩流可解码且正文与磁盘源文件一致，线上压缩响应体必须小于构建产物原始字节数；任一检查最终失败必须恢复旧配置并重新加载 Nginx。
+- Nginx 修改前备份只能写入 `/var/tmp/economy-nginx-backups`，不得留在 `sites-enabled`、`conf.d` 或 `snippets` 等 Nginx 会加载的目录；主配置脚本发现 `sites-enabled` 内残留备份文件必须立即失败并列出路径。
 - 单进程操作限流缓存每分钟清理已过期桶，并限制最多 10,000 个用户／类别桶；不得让历史用户键永久累积。
 
 ### 5.1 Economy 注册、邀请归因、异常上报与管理员封禁
@@ -503,6 +504,7 @@ QQ群入口与经济世界快照分离，保存在 `economy_settings`，修改�
 - 浏览器运行时测试使用固定 Playwright 版本；需要浏览器验证的增量 CI 与主部署必须优先复用 GitHub hosted runner 已安装的 Chrome／Chromium，并通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 交给 Playwright，仅在 runner 没有可用浏览器时下载固定 Playwright Chromium。浏览器 CDN 不得成为 CI 或部署的必需单点依赖；只要选择器要求浏览器验证，`npm run test:browser` 就必须继续作为硬门禁，`main` 主部署始终执行完整浏览器回归。浏览器回归至少覆盖 localStorage 拒绝访问仍能渲染、正式设置控件存在以及无效设置控件不存在；测试 artifact 只在失败时上传并保留 3 天，完整标准输出继续保存在 Actions job log。
 - 部署中的每个 shell 命令步骤必须把标准输出和标准错误保存到独立临时日志；任一步失败时只把该失败步骤的完整命令输出复制到 `economy-deploy-failure-<run>-<attempt>` Artifact，成功步骤日志不得上传。Artifact 保留 3 天并使用文本高压缩；完整失败输出不得依赖可能被截断的 job log，也不得再为单次构建失败创建临时诊断工作流。
 - 主部署线上验收固定拆分为发布前远端验收和发布后公网验收：远端验收必须在原子替换 `index.html` 前确认 Node runtime、API health、正式域名本机 Nginx、当前入口、注册秘密、生产 IP 证书、续签 timer 和 SQLite `auto_vacuum=INCREMENTAL`／`quick_check`；全部通过后才允许发布新入口。公网验收在发布后从 GitHub Runner 直接检查生产 IP 的 80→443、受信任 HTTPS 页面、账号代理、未登录游戏 401、登录参数 400、注册参数 400 与密码重置参数 400。两阶段统一由 `scripts/verify-production-deployment.sh` 执行，每个检查必须输出稳定的 `ECONOMY_DEPLOY_VERIFY_START`／`OK`／`FAILED` 检查名，未包装的意外错误也必须由 trap 输出当前检查名和退出码，不得再以无说明的 `exit 1` 结束。
+- 发布后公网验收除生产 IP 外，还必须检查正式域名页面、exact health 2xx 与未登录游戏 API 401；不得把仅 IP fallback 可用视为正式入口发布成功。
 - 发布前远端的生产 IP 证书验收不得由非 root 的 `deploy` 用户直接读取 `/etc/letsencrypt/live/` 下的证书或私钥路径，也不得为验收扩大证书文件权限或部署账号权限；`scripts/configure-economy-ip-fallback-nginx.py` 仍在 root 配置阶段确认 Certbot 已生成证书文件。远端验收必须通过 Nginx 实际 TLS 行为确认该证书：使用生产公网 IP 作为 URL／TLS 身份，以 `--connect-to` 把 TCP 连接固定到 `127.0.0.1:443`，禁用环境代理并保持系统正常证书校验，不得使用 `-k`／`--insecure`；发布后的公网验收继续从 GitHub Runner 直接访问生产 IP，形成本机证书服务与真实公网链路两层验证。
 - 两阶段验收日志必须通过 `set -o pipefail` 与同步 `tee` 在步骤退出前完整落盘，失败 Artifact 只收集真实失败步骤及其派生摘要。`deploy/economy` 失败状态的 description 只能读取该次失败步骤生成的 `economy-failure-summary.txt`，优先使用稳定 `ECONOMY_DEPLOY_VERIFY_FAILED`／明确失败标记，禁止重新扫描或拼接成功步骤日志来猜测失败原因。
 - 部署工作流只在运行器缺少 `rsync` 时执行 APT 安装，不得每次无条件更新软件包索引。
@@ -554,7 +556,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 - 不得在账号 snippet 已存在时再次生成同名账号 `location`。
 - 不得在游戏 API snippet 或手动游戏路由已存在时再次生成 `/economy-api/game/`。
-- 生产正式域名与临时公网 IP fallback Nginx 都必须保留 exact `location = /economy-api/health`，并把该路径代理到 `http://127.0.0.1:3002/health`；主部署通过生产公网 IP 验收时必须得到 2xx。该路由只用于无认证健康检查，不得开放其他 `/economy-api/*` 根前缀。
+- 生产正式域名与临时公网 IP fallback Nginx 都必须保留 exact `location = /economy-api/health`，并把该路径代理到 `http://127.0.0.1:3002/health`；主部署通过生产公网 IP 与正式域名验收时都必须得到 2xx。该路由只用于无认证健康检查，不得开放其他 `/economy-api/*` 根前缀；health 代理读超时固定为 90 秒，避免权威写事务在高峰期阻塞单线程事件循环时把仍在运行的服务误判为网关失败。
 - 临时公网 IP fallback 必须镜像客户端所需的同源账号路由，至少包含登录／会话／退出、注册与 `/economy-api/password-reset/`；密码重置继续代理主页 `127.0.0.1:3001/api/password-reset/`、清除浏览器 `Origin`、传入可信 `X-Real-IP` 并保持 `16k` 请求体上限。发布后公网验收必须通过生产 IP 对密码重置空 JSON 请求得到 `400`，不得把只在正式域名存在的代理视为部署完成。
 - 不得在手动注册路由已存在时再次生成 `/economy-api/registration/`。
 - 不得在手动密码重置路由已存在时再次生成 `/economy-api/password-reset/`；该代理必须清除浏览器 `Origin`、向主页传入可信 `X-Real-IP`，并保持 `16k` 请求体上限。
