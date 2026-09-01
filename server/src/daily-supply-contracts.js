@@ -14,6 +14,7 @@ import { provinceUnlockError } from './province-access.js';
 import { optionalPlayerDisplayName, playerDisplayName } from './player-identity.js';
 
 export const CONTRACT_DAY_MS = 24 * 60 * 60 * 1000;
+export const CONTRACT_DAY_OFFSET_MS = 8 * 60 * 60 * 1000;
 export const DAILY_SUPPLY_CONTRACT_SCHEMA_VERSION = 11;
 
 const OFFER_TTL_MS = 7 * CONTRACT_DAY_MS;
@@ -46,8 +47,8 @@ function optionalDurationDays(value) {
   return normalized === null ? undefined : normalized;
 }
 const positiveMoney = (value) => normalizePlayerMoneyInput(value, { min: 0.01, max: MAX_UNIT_PRICE });
-const dayKey = (now) => Math.floor(Math.max(0, Number(now) || 0) / CONTRACT_DAY_MS);
-const nextDayAt = (now) => (dayKey(now) + 1) * CONTRACT_DAY_MS;
+const dayKey = (now) => Math.floor((Math.max(0, Number(now) || 0) + CONTRACT_DAY_OFFSET_MS) / CONTRACT_DAY_MS);
+const nextDayAt = (now) => (dayKey(now) + 1) * CONTRACT_DAY_MS - CONTRACT_DAY_OFFSET_MS;
 const playerFor = (world, userId) => world.players?.[String(userId)] || null;
 const addMoney = (...values) => roundInternalMoney(values.reduce((sum, value) => sum + Number(value || 0), 0)) || 0;
 const mutableInventory = (player, productId, provinceId) => inventoryForProvince(player, productId, provinceId);

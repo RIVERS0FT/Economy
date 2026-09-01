@@ -1,3 +1,4 @@
+import { ContractWorkspacePage } from './ContractWorkspacePage';
 import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
 import { useEffect, useMemo, useState } from 'react';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
@@ -981,7 +982,7 @@ function PublishContractPanel({
 }
 
 
-export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
+export function LegacyContractPage({ model }: { model: TutorialAwareGameViewModel }) {
   const [personalView, setPersonalView] = useState<PersonalContractView>('active');
   const [showPublish, setShowPublish] = useState(false);
   const [busyKey, setBusyKey] = useState('');
@@ -1287,4 +1288,9 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
       </div>
     </PageLayout>
   );
+}
+
+
+export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
+  return <ContractWorkspacePage model={model} />;
 }

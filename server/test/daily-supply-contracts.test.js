@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CONTRACT_DAY_MS,
+  CONTRACT_DAY_OFFSET_MS,
   allocateDailySupplyReservesForSupplier,
   consumeDailySupplyForBuyer,
   processDailySupplyContracts,
@@ -45,7 +46,7 @@ function dailyContract(overrides = {}) {
     acceptedAt: NOW - 1_000,
     startsAt: NOW - 1_000,
     endsAt: NOW + 30 * CONTRACT_DAY_MS,
-    currentDayKey: Math.floor(NOW / CONTRACT_DAY_MS),
+    currentDayKey: Math.floor((NOW + CONTRACT_DAY_OFFSET_MS) / CONTRACT_DAY_MS),
     dailyUsedQuantity: 0,
     totalDeliveredQuantity: 0,
     completedDeliveryEvents: 0,
@@ -148,4 +149,23 @@ test('priority supply does not reserve when contract price is below supplier min
 
   assert.equal(allocateDailySupplyReservesForSupplier(state, 2, PROVINCE_ID, PRODUCT_ID, NOW), 0);
   assert.equal(state.productionContracts[0].supplierReservedQuantity, 0);
+});
+
+
+test('daily quota resets at Beijing midnight', () => {
+  const beforeMidnight = 2_000 * CONTRACT_DAY_MS - CONTRACT_DAY_OFFSET_MS - 1;
+  const afterMidnight = beforeMidnight + 2;
+  const state = world(dailyContract({
+    acceptedAt: beforeMidnight - 1_000,
+    startsAt: beforeMidnight - 1_000,
+    endsAt: afterMidnight + 10 * CONTRACT_DAY_MS,
+    currentDayKey: Math.floor((beforeMidnight + CONTRACT_DAY_OFFSET_MS) / CONTRACT_DAY_MS),
+    dailyUsedQuantity: 10,
+  }));
+  processDailySupplyContracts(state, afterMidnight);
+  assert.equal(state.productionContracts[0].dailyUsedQuantity, 0);
+  assert.equal(
+    state.productionContracts[0].nextDueAt,
+    (Math.floor((afterMidnight + CONTRACT_DAY_OFFSET_MS) / CONTRACT_DAY_MS) + 1) * CONTRACT_DAY_MS - CONTRACT_DAY_OFFSET_MS,
+  );
 });

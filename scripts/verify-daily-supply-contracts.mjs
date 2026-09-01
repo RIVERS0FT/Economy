@@ -33,6 +33,7 @@ for (const token of [
   'dailyRemainingQuantity',
   'totalDeliveredQuantity',
   'CONTRACT_DAY_MS',
+  'CONTRACT_DAY_OFFSET_MS',
   'minDailyProduction',
   'minContractPrice',
   'consumeDailySupplyForBuyer',
@@ -93,6 +94,16 @@ for (const [source, token, message] of [
   [serverDesign, '客户端与 API 的合同时间统一以天表达', '服务器权威设计必须锁定合同时间单位。'],
   [docsIndex, '地区化每日商品合同', '设计索引修改规则必须登记本次合同规则。'],
 ]) requireText(source, token, message);
+
+
+for (const [source, token, message] of [
+  [pageDesign, '玩家发布的采购／供应商品合同允许将总批次设置为 2～100 批', '页面权威设计不得把旧总批次模型继续描述为新发布规则。'],
+  [pageDesign, '进行中合同卡先展示当前批次履约状态', '页面权威设计不得把旧当前批次卡片继续描述为新每日合同。'],
+  [serverDesign, '承接时采购方冻结首批完整货款', '服务器权威设计不得把旧首批托管描述为每日合同当前规则。'],
+  [serverDesign, '每批结算在一个事务中同时检查供应方冻结商品', '服务器权威设计不得把旧整批结算描述为每日合同当前规则。'],
+  [serverDesign, '旧玩家长期商品合同迁移为默认地区的每日额度长期合同', '服务器权威设计不得声明实现不存在的强制旧长约迁移。'],
+]) forbidText(source, token, message);
+requireText(daily, 'CONTRACT_DAY_OFFSET_MS = 8 * 60 * 60 * 1000', '每日额度自然日必须与北京时间边界一致。');
 
 if (failures.length) {
   console.error(`地区化每日商品合同验证失败：\n- ${failures.join('\n- ')}`);

@@ -16,7 +16,7 @@ function cachedLoader<T>(loader: () => Promise<T>) {
 
 const loadAuctionPage = cachedLoader(() => import('./AuctionPage'));
 const loadBankPage = cachedLoader(() => import('./BankPage'));
-const loadContractPage = cachedLoader(() => import('./ContractWorkspacePage'));
+const loadContractPage = cachedLoader(() => import('./ContractPage'));
 const loadLeaderboardPage = cachedLoader(() => import('./LeaderboardPage'));
 const loadGlobalMarketPage = cachedLoader(() => import('./GlobalMarketPage'));
 const loadMapPage = cachedLoader(() => import('./MapPage'));
@@ -45,11 +45,28 @@ const pagePreloaders: Record<TabId, () => Promise<unknown>> = {
 };
 
 const PAGE_AUTHORITY_DEPENDENCIES: Record<TabId, readonly StateAuthorityDependency[]> = {
-  home: ['catalog', 'player.identity', 'player.assets', 'player.production', 'player.progression', 'market.orders', 'market.quotes', 'market.calendar'],
+  home: [
+    'catalog',
+    'player.identity',
+    'player.assets',
+    'player.production',
+    'player.progression',
+    'market.orders',
+    'market.quotes',
+    'market.calendar',
+  ],
   map: ['catalog', 'player.assets', 'player.production', 'market.orders', 'market.quotes'],
   province: ['catalog', 'player.assets', 'player.production', 'market.orders', 'market.quotes'],
   market: ['catalog', 'player.assets', 'player.production', 'market.orders', 'market.quotes'],
-  buildings: ['catalog', 'player.assets', 'player.production', 'player.progression', 'market.orders', 'market.quotes', 'contract'],
+  buildings: [
+    'catalog',
+    'player.assets',
+    'player.production',
+    'player.progression',
+    'market.orders',
+    'market.quotes',
+    'contract',
+  ],
   transport: ['catalog', 'player.assets', 'player.misc', 'market.quotes', 'market.misc'],
   research: ['catalog', 'player.assets', 'player.production', 'player.progression', 'market.quotes'],
   auction: ['catalog', 'player.assets', 'player.production', 'auction'],
@@ -66,7 +83,7 @@ export function preloadPage(tab: TabId) {
 
 const AuctionPage = lazy(() => import('./AuctionPage').then((module) => ({ default: module.AuctionPage })));
 const BankPage = lazy(() => import('./BankPage').then((module) => ({ default: module.BankPage })));
-const ContractPage = lazy(() => import('./ContractWorkspacePage').then((module) => ({ default: module.ContractWorkspacePage })));
+const ContractPage = lazy(() => import('./ContractPage').then((module) => ({ default: module.ContractPage })));
 const LeaderboardPage = lazy(() => import('./LeaderboardPage').then((module) => ({ default: module.LeaderboardPage })));
 const GlobalMarketPage = lazy(() => import('./GlobalMarketPage').then((module) => ({ default: module.GlobalMarketPage })));
 const MapPage = lazy(() => import('./MapPage').then((module) => ({ default: module.MapPage })));
@@ -88,7 +105,11 @@ function AuthorityPageBoundary({
   render: () => ReactNode;
 }) {
   useGameAuthorityDependencies(dependencies);
-  return <FacilitySelectAvailabilityScope game={model.game}>{render()}</FacilitySelectAvailabilityScope>;
+  return (
+    <FacilitySelectAvailabilityScope game={model.game}>
+      {render()}
+    </FacilitySelectAvailabilityScope>
+  );
 }
 
 export function PageRouter({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
