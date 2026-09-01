@@ -18,7 +18,7 @@ replacement = """  } else {
   }
 """
 text, count = pattern.subn(replacement, text, count=1)
-if count != 1:
+if count != 1 and "json_extract(contract_json, '$.lenderId') = ?" not in text:
     raise SystemExit('missing history participant visibility anchor')
 
 pattern = re.compile(r"      WHERE status NOT IN \('open', 'active'\)\n        AND \(publisher_id = \? OR buyer_id = \? OR supplier_id = \?\)\n      ORDER BY sort_at DESC, contract_id DESC\n    `\)\.all\(userId, userId, userId\);")
@@ -33,7 +33,7 @@ replacement = """      WHERE status NOT IN ('open', 'active')
       ORDER BY sort_at DESC, contract_id DESC
     `).all(userId, userId, userId, userId, userId, userId, userId);"""
 text, count = pattern.subn(replacement, text, count=1)
-if count != 1:
+if count != 1 and ".all(userId, userId, userId, userId, userId, userId, userId);" not in text:
     raise SystemExit('missing performance participant visibility anchor')
 
 pattern = re.compile(r"      SELECT \* FROM economy_contract_audit_contracts\n      WHERE contract_id = \? AND \(publisher_id = \? OR buyer_id = \? OR supplier_id = \?\)\n    `\)\.get\(String\(contractId\), userId, userId, userId\);")
@@ -47,7 +47,7 @@ replacement = """      SELECT * FROM economy_contract_audit_contracts
       )
     `).get(String(contractId), userId, userId, userId, userId, userId, userId, userId);"""
 text, count = pattern.subn(replacement, text, count=1)
-if count != 1:
+if count != 1 and ".get(String(contractId), userId, userId, userId, userId, userId, userId, userId);" not in text:
     raise SystemExit('missing audit detail participant visibility anchor')
 p.write_text(text)
 
@@ -124,10 +124,10 @@ p.write_text(text)
 # Expand static audit guard for every participant relationship as defense in depth.
 p = Path('scripts/verify-contract-audit.mjs')
 text = p.read_text()
-line = "includesAll(store, [\"'$.lenderId'\", \"'$.borrowerId'\", \"'$.lessorId'\", \"'$.lesseeId'\"], 'commercial contract audit participant visibility');"
+line = "includesAll(auditStore, [\"'$.lenderId'\", \"'$.borrowerId'\", \"'$.lessorId'\", \"'$.lesseeId'\"], 'commercial contract audit participant visibility');"
 if line not in text:
-    marker = 'if (failures.length) {'
+    marker = "console.log('Contract audit and compact history verification passed.');"
     if marker not in text:
-        raise SystemExit('missing audit verifier final marker')
+        raise SystemExit('missing audit verifier completion marker')
     text = text.replace(marker, line + '\n\n' + marker, 1)
 p.write_text(text)
