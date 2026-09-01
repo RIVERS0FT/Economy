@@ -37,6 +37,17 @@ text = text.replace(
     "await expect(page.locator('.contract-publish-preview').getByText('长期合同', { exact: true })).toBeVisible();",
     "await expect(page.locator('.contract-publish-preview')).toContainText('长期合同');",
 )
+old_options = '''  await expect(page.getByLabel('合同标的').getByRole('option', { name: '普通货币' })).toHaveCount(1);
+  await expect(page.getByLabel('合同标的').getByRole('option', { name: '机械工厂' })).toHaveCount(1);'''
+new_options = '''  const targetSelect = page.getByRole('combobox', { name: '合同标的' });
+  await targetSelect.click();
+  const targetList = page.getByRole('listbox', { name: '合同标的' });
+  await expect(targetList.getByRole('option', { name: '普通货币', exact: true })).toBeVisible();
+  await expect(targetList.getByRole('option', { name: '机械工厂', exact: true })).toBeVisible();
+  await targetSelect.press('Escape');'''
+if old_options not in text:
+    raise SystemExit('missing history target option browser anchor')
+text = text.replace(old_options, new_options, 1)
 history_route = '''  await page.route('**/economy-api/game/contracts/history**', async (route) => {
     await route.fulfill({ json: { history: { items: [contract], nextCursor: null } } });
   });'''
@@ -44,6 +55,9 @@ if history_route in text and "**/api/game/contracts/performance**" not in text:
     text = text.replace(history_route, history_route + '''
   await page.route('**/api/game/contracts/performance**', async (route) => {
     await route.fulfill({ json: { performance: { totalEnded: 1, completed: 1, abnormalEnded: 0, defaulted: 0, completionRateBps: 10_000, compensationPaid: 0, compensationReceived: 0, recent: [] } } });
+  });
+  await page.route('**/api/game/community-link**', async (route) => {
+    await route.fulfill({ json: { communityLink: null } });
   });''', 1)
 p.write_text(text)
 
