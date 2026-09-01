@@ -14,7 +14,7 @@ const app = read('server/src/app.js');
 const statePartitions = read('server/src/state-partitions.js');
 const contractApi = read('src/contracts/api.ts');
 const contractTypes = read('src/contracts/types.ts');
-const contractPage = read('src/pages/ContractPage.tsx');
+const contractPage = read('src/pages/ContractWorkspacePage.tsx');
 const contractAuditCss = read('src/styles/contract-audit.css');
 const serverTests = read('server/test/contract-audit.test.js');
 const browserTests = read('tests/browser/contract-layout.spec.ts');
@@ -48,8 +48,9 @@ assert.ok(!statePartitions.includes('contractHistory'));
 includesAll(contractApi, ['productionContractAudit', "getJson<{ history: ContractAuditHistoryPage }>('/contracts/history'", 'lender', 'borrower', 'lessor', 'lessee'], 'contract audit client API');
 includesAll(contractTypes, ['ContractEndSummary', 'ContractEndSettlementSummary', 'ContractAuditHistoryItem', 'endSummary: ContractEndSummary'], 'contract history client types');
 includesAll(contractPage, [
-  "import '../styles/contract-audit.css';", '合同历史筛选', '合同内容', '结束原因', '结束时间',
-  '完成情况', '结束统计', '重新拟定', 'productionContractAudit.history', 'initialContract',
+  "import '../styles/contract-audit.css';", 'contract-history-filters', '合同内容', '结束原因', '结束时间',
+  '完成事实', '结束统计', '重新拟定', 'productionContractAudit.history', 'startRepublish',
+  '我的履约档案', 'productionContractAudit.performance', '实际交付事件',
 ], 'contract history player UI');
 assert.ok(!contractPage.includes('productionContractAudit.detail'), 'player history must not load audit detail timelines');
 assert.ok(!contractPage.includes('合同完整审计'), 'player history must not expose the audit viewer');

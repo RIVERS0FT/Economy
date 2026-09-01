@@ -78,8 +78,13 @@ requireText('src/pages/ResearchPage.tsx', 'className="research-investment mobile
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '科技详情不显示“产业经营视角”');
 requireText('server/src/contract-audit-store.js', 'store.getContractPerformance');
 requireText('src/contracts/api.ts', "getJson<{ performance: ContractPerformanceSummary }>('/contracts/performance')");
-requireText('src/pages/ContractPage.tsx', '我的履约档案');
-requireText('src/pages/ContractPage.tsx', '不生成星级、信用等级或主观评分');
+requireText('src/pages/ContractWorkspacePage.tsx', '我的履约档案');
+requireText('src/pages/ContractWorkspacePage.tsx', '不生成星级、信用等级或主观评分');
+requireText('src/pages/ContractWorkspacePage.tsx', 'canClaimConfirmedDefault');
+requireText('src/pages/ContractWorkspacePage.tsx', '解除合同并领取违约金');
+requireText('src/pages/ContractWorkspacePage.tsx', '实际交付事件');
+requireText('src/pages/ContractWorkspacePage.tsx', '使用历史合同参数将替换当前未发布内容');
+
 requireText('server/src/contracts.js', 'MAX_NEGOTIATIONS_PER_CONTRACT = 3');
 requireText('server/src/contracts.js', 'MAX_NEGOTIATION_REVISIONS = 5');
 const negotiationContractSource = read('server/src/contracts.js');
@@ -117,7 +122,7 @@ requireText('server/src/economic-events.js', 'EVENT_RESULT_WINDOW_MS');
 requireText('src/utils/marketDecisionSignals.ts', 'markets[productId]?.eventTradeWindows?.[eventId]');
 forbidText('src/components/facilities/FacilityOperatingDiagnostics.tsx', '最佳配方');
 forbidText('src/pages/ResearchPage.tsx', '最佳科技推荐');
-forbidText('src/pages/ContractPage.tsx', 'creditScore');
+forbidText('src/pages/ContractWorkspacePage.tsx', 'creditScore');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '经营决策支持固定边界');
 requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '工厂经营诊断');
 forbidText('src/utils/facilityOperatingDiagnostics.ts', 'warehouseAvailableCapacity');
