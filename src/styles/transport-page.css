@@ -187,8 +187,16 @@
 }
 
 .transport-manifest-list > li > span:last-child {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
   color: var(--color-text-muted);
   text-align: right;
+}
+
+.transport-manifest-list > li > span:last-child svg {
+  flex: 0 0 auto;
 }
 
 .transport-empty {
@@ -214,6 +222,7 @@
 
   .transport-manifest-list > li > span:last-child {
     grid-column: 1 / -1;
+    justify-content: flex-start;
     text-align: left;
   }
 }
