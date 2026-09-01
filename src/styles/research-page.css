@@ -144,11 +144,6 @@
   text-align: center;
 }
 
-.research-tree-viewport[data-zoom-tier='overview'] .research-technology-node-meta,
-.research-tree-viewport[data-zoom-tier='overview'] .research-technology-node-status {
-  opacity: 0;
-}
-
 .research-facility-node {
   min-width: 0;
   color: var(--color-text-secondary);
@@ -195,14 +190,10 @@
   --research-node-soft: var(--color-success-soft);
 }
 
-.research-technology-node[data-status='active'] {
-  --research-node-color: var(--color-info);
-  --research-node-soft: var(--color-info-soft);
-}
-
+.research-technology-node[data-status='active'],
 .research-technology-node[data-status='available'] {
-  --research-node-color: var(--color-warning);
-  --research-node-soft: var(--color-warning-soft);
+  --research-node-color: var(--color-text-muted);
+  --research-node-soft: color-mix(in srgb, var(--color-text-muted) 10%, var(--color-surface-inset));
 }
 
 .research-technology-node[data-status='locked'] {
@@ -302,22 +293,6 @@
   line-height: var(--line-height-tight);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.research-technology-node-meta,
-.research-technology-node-status {
-  max-width: 100%;
-  overflow: hidden;
-  color: var(--color-text-muted);
-  font-size: 0.66rem;
-  line-height: var(--line-height-tight);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.research-technology-node-status {
-  color: var(--research-node-color);
-  font-weight: 700;
 }
 
 .research-detail-content,
