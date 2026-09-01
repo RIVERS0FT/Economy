@@ -212,7 +212,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     && location.host === 'province'
     ? location.productId
     : null;
-  const provinceName = model.selectedProvince?.name || '加利福尼亚州';
+  const provinceName = model.selectedProvince?.name || '加利福尼亚';
   const facilityDetailEntry = facilityDetailTypeId
     ? model.game.facilityGroups.find((group) => (
       group.facilityTypeId === facilityDetailTypeId && group.count > 0

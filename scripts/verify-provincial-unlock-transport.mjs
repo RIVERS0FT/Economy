@@ -5,14 +5,20 @@ const failures = [];
 function requireText(source, text, message) {
   if (!source.includes(text)) failures.push(message);
 }
+function forbidText(source, text, message) {
+  if (source.includes(text)) failures.push(message);
+}
 
 const index = read('docs/README.md');
 const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
 const warehouseDesign = read('docs/WAREHOUSE_EXPANSION_DESIGN.md');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
+const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
+const provinceEconomicPolicy = JSON.parse(read('shared/province-economic-level-policy.json'));
 const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 const orderBookDesign = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
 const provinceAccess = read('server/src/province-access.js');
+const stateEconomicBaselines = read('server/src/state-economic-baselines.js');
 const transport = read('server/src/transport.js');
 const domain = read('server/src/domain.js');
 const storageV2 = read('server/src/world-storage-v2.js');
@@ -25,6 +31,8 @@ const types = read('src/types.ts');
 const viewModel = read('src/app/gameViewModel.ts');
 const gameApi = read('src/api/game.ts');
 const provincePage = read('src/pages/ProvincePage.tsx');
+const bankPage = read('src/pages/BankPage.tsx');
+const contractPage = read('src/pages/ContractPage.tsx');
 const warehousePanel = read('src/components/warehouse/WarehouseInventoryPanel.tsx');
 const transportPage = read('src/pages/TransportPage.tsx');
 const navigation = read('src/config/navigation.ts');
@@ -32,6 +40,7 @@ const pageRouter = read('src/pages/PageRouter.tsx');
 const gameShell = read('src/components/shell/GameShell.tsx');
 const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');
 const provinceLogistics = read('src/utils/provinceLogistics.ts');
+const provinceEconomicLevel = read('src/utils/provinceEconomicLevel.ts');
 const provinceAccessTest = existsSync('server/test/province-access.test.js') ? read('server/test/province-access.test.js') : '';
 const transportTest = existsSync('server/test/transport.test.js') ? read('server/test/transport.test.js') : '';
 
@@ -39,6 +48,10 @@ requireText(index, '新玩家起始州永久绑定、其他州按货币费用解
 requireText(index, 'scripts/verify-provincial-unlock-transport.mjs', '设计索引必须登记州解锁运输验证脚本。');
 requireText(productDesign, '新玩家首次进入游戏必须从 48 州中选择一块起始地块并永久绑定', '产品设计必须记录起始州选择。');
 requireText(productDesign, '跨州商品只能通过付费运输在已解锁州之间流动', '产品设计必须记录付费运输边界。');
+requireText(productDesign, '综合分数固定为 PCE `50%` + 平均周薪 `30%` + 常住人口 `20%`', '产品设计必须记录地区水平综合分数。');
+requireText(productDesign, '1～5 级地区基础解锁费依次为 `1,500 / 2,500 / 4,000 / 6,000 / 9,000`', '产品设计必须锁定五档地区基础解锁费。');
+requireText(productDesign, '每完整 `500 km` 增加 `300`', '产品设计必须锁定距离附加费。');
+requireText(productDesign, '总费用最多 `20,000`', '产品设计必须锁定地区解锁费用上限。');
 requireText(warehouseDesign, '跨州运输', '仓库设计必须记录跨州运输章节。');
 requireText(warehouseDesign, '固定 10 + 0.0002/单位/公里', '仓库设计必须锁定公路成本。');
 requireText(warehouseDesign, '固定 50 + 0.0001/单位/公里', '仓库设计必须锁定铁路成本。');
@@ -56,6 +69,11 @@ requireText(warehouseDesign, '路线只允许手动发运', '仓库设计必须�
 requireText(pageDesign, '新玩家首次进入游戏必须先按 3.1 的地图选点流程选择起始州', '页面设计必须记录起始州选择流程。');
 requireText(pageDesign, '起始州选择固定复用唯一常驻战略地图', '页面设计必须记录起始州地图选点与左侧概览流程。');
 requireText(pageDesign, '未解锁州仍保留“概览｜市场｜建筑｜仓库”四个分区', '页面设计必须记录未解锁州仍可浏览概览和市场。');
+requireText(pageDesign, '候选州中文名称、地区水平、首府', '页面设计必须锁定起始州中文名称与地区水平展示。');
+requireText(pageDesign, '该面板不得显示 `shortName` 州缩写', '页面设计必须禁止起始州概览显示州缩写。');
+requireText(pageDesign, '地区水平、常住人口、平均周薪、州 PCE、地区基础费用、距永久起始州距离、距离费用、总解锁费用和当前资金', '页面设计必须锁定未解锁地区费用拆分。');
+requireText(pageDesign, '不得增加工厂数、资产、已解锁州数等额外解锁门槛', '页面设计必须锁定无额外解锁门槛。');
+requireText(uiDesign, '`shortName` 仅属于协议、目录映射、经济基准一致性校验和兼容测试元数据', 'UI 设计必须记录 shortName 仅作内部兼容元数据。');
 requireText(pageDesign, '收到服务器精简确认后立即退出锁定视图', '页面设计必须记录州解锁确认后的瞬时退出锁定视图。');
 requireText(pageDesign, '跨州运输路线、发运与运输记录唯一显示在独立 `TransportPage`', '页面设计必须记录独立运输入口归属。');
 requireText(pageDesign, '路线只允许玩家手动发运', '页面设计必须锁定路线手动发运边界。');
@@ -66,9 +84,18 @@ requireText(serverDesign, 'transportShipments', '服务器设计必须记录运�
 requireText(serverDesign, '`stopPlan` 注册“下一未交付站”', '服务器设计必须记录逐站到达调度。');
 requireText(orderBookDesign, '运输中的商品按起始州官方系统价计入玩家财富', '订单簿设计必须记录在途估值口径。');
 
-requireText(provinceAccess, 'PROVINCE_UNLOCK_BASE_COST = 1500', '州访问模块必须锁定基础解锁费用。');
-requireText(provinceAccess, 'PROVINCE_UNLOCK_COST_PER_500_KM = 300', '州访问模块必须锁定距离费用。');
-requireText(provinceAccess, 'PROVINCE_UNLOCK_MAX_COST = 20000', '州访问模块必须锁定费用上限。');
+if (provinceEconomicPolicy.version !== 1) failures.push('地区水平策略版本必须为 1。');
+if (provinceEconomicPolicy.levelCount !== 5) failures.push('地区水平必须固定为五档。');
+if (JSON.stringify(provinceEconomicPolicy.weights) !== JSON.stringify({ pceMillions: 0.5, averageWeeklyWage: 0.3, population: 0.2 })) failures.push('地区水平权重必须保持 PCE 50%、工资 30%、人口 20%。');
+if (JSON.stringify(provinceEconomicPolicy.levelBaseCosts) !== JSON.stringify({ 1: 1500, 2: 2500, 3: 4000, 4: 6000, 5: 9000 })) failures.push('地区水平基础解锁费必须保持 1500/2500/4000/6000/9000。');
+if (provinceEconomicPolicy.distanceStepKm !== 500 || provinceEconomicPolicy.distanceCostPerStep !== 300 || provinceEconomicPolicy.maxUnlockCost !== 20000) failures.push('地区解锁距离步长、附加费和上限必须保持 500km/300/20000。');
+requireText(stateEconomicBaselines, "provinceEconomicLevelPolicy from '../../shared/province-economic-level-policy.json'", '服务器经济基准必须读取共享地区水平策略。');
+requireText(stateEconomicBaselines, 'stateEconomicLevelFor', '服务器经济基准必须导出地区水平。');
+requireText(provinceAccess, 'stateEconomicLevelFor', '州访问模块必须使用服务器地区水平。');
+requireText(provinceAccess, 'provinceUnlockBaseCostForLevel', '州访问模块必须按地区水平选择基础费用。');
+requireText(provinceAccess, 'provinceUnlockCostBreakdown', '州访问模块必须提供权威费用拆分。');
+requireText(provinceAccess, 'PROVINCE_UNLOCK_DISTANCE_STEP_KM', '州访问模块必须读取共享距离步长。');
+requireText(provinceAccess, 'PROVINCE_UNLOCK_MAX_COST', '州访问模块必须读取共享费用上限。');
 requireText(provinceAccess, 'applyChooseStartingProvince', '州访问模块必须提供起始州选择。');
 requireText(provinceAccess, 'applyUnlockProvince', '州访问模块必须提供州解锁。');
 requireText(provinceAccess, 'migrateProvinceAccess', '州访问模块必须提供老玩家迁移。');
@@ -127,6 +154,8 @@ requireText(gameApi, "/provinces/starting", '游戏 API 必须提供起始州选
 requireText(gameApi, "/provinces/unlock", '游戏 API 必须提供州解锁端点。');
 requireText(gameApi, "/transport", '游戏 API 必须提供运输端点。');
 requireText(provincePage, 'province-lock-content', '州页必须提供直接排列在正文的解锁内容。');
+requireText(provincePage, 'provinceUnlockCostBreakdown', '州页必须使用共享解锁费用拆分。');
+for (const text of ['label="地区水平"', 'label="地区基础费用"', 'label="距离费用"', 'label="解锁费用"']) requireText(provincePage, text, `州页解锁信息缺少：${text}`);
 requireText(provincePage, 'model.unlockProvince(provinceId)', '州页解锁按钮必须调用解锁动作。');
 requireText(provincePage, 'confirmedUnlockedProvinceIds', '州页必须在服务器确认后立即退出锁定视图。');
 requireText(provincePage, "'正在解锁…'", '州页解锁按钮必须立即显示提交中状态。');
@@ -147,6 +176,8 @@ requireText(pageRouter, "transport: ['catalog', 'player.assets', 'player.misc', 
 requireText(gameShell, 'data-starting-province-overview="true"', '游戏外壳必须提供左侧起始州概览。');
 requireText(gameShell, 'startingProvinceCandidateId', '游戏外壳必须把地图点击保存为临时起始州候选。');
 requireText(gameShell, 'model.chooseStartingProvince(province.id)', '起始州必须在概览确认按钮中显式提交。');
+requireText(gameShell, 'label="地区水平"', '起始州概览必须显示地区水平。');
+for (const [label, visibleSource] of [['GameShell', gameShell], ['ProvincePage', provincePage], ['BankPage', bankPage], ['ContractPage', contractPage]]) forbidText(visibleSource, 'shortName', `${label} 玩家可见实现不得读取 shortName。`);
 requireText(gameShell, "insetInlineStart: 'var(--strategic-panel-gap, 8px)'", '起始州概览必须锚定工作区左侧。');
 requireText(strategicWorkspace, 'onPickStartingProvince', '战略地图必须提供起始州选点回调。');
 requireText(strategicWorkspace, 'data-starting-province-picking', '战略地图必须标记起始州选择模式。');
@@ -154,13 +185,22 @@ requireText(strategicWorkspace, 'state.provinces.map((province) => province.id)'
 if (gameShell.includes('starting-province-overlay') || gameShell.includes('starting-province-grid') || gameShell.includes('starting-province-option')) {
   failures.push('不得恢复旧的起始州遮罩、按钮网格或州按钮列表。');
 }
-requireText(provinceLogistics, 'PROVINCE_UNLOCK_BASE_COST = 1500', '客户端物流工具必须与服务器同步基础费用。');
-requireText(provinceLogistics, 'PROVINCE_UNLOCK_COST_PER_500_KM = 300', '客户端物流工具必须与服务器同步距离费用。');
+requireText(provinceEconomicLevel, "provinceEconomicLevelPolicy from '../../shared/province-economic-level-policy.json'", '客户端地区水平必须读取共享策略。');
+requireText(provinceEconomicLevel, 'provinceEconomicLevelFor', '客户端必须提供地区水平计算。');
+requireText(provinceLogistics, "provinceEconomicLevelPolicy from '../../shared/province-economic-level-policy.json'", '客户端物流工具必须读取共享地区水平策略。');
+requireText(provinceLogistics, 'provinceUnlockCostBreakdown', '客户端物流工具必须同步解锁费用拆分。');
+requireText(provinceLogistics, 'PROVINCE_UNLOCK_DISTANCE_STEP_KM', '客户端物流工具必须同步距离步长。');
 requireText(provinceLogistics, 'TRANSPORT_BASE_SECONDS_PER_KM = 60 / 1000', '客户端物流工具必须与服务器同步基准时间。');
 requireText(provinceLogistics, 'TRANSPORT_MAX_ROUTES_PER_PLAYER = 50', '客户端物流工具必须同步路线数量上限。');
 
 if (!provinceAccessTest.includes('new player chooses a permanent starting province before economic writes')) {
   failures.push('州访问测试必须覆盖起始州选择。');
+}
+if (!provinceAccessTest.includes('economic levels cover five tiers with monotonic base costs')) {
+  failures.push('州访问测试必须覆盖五档地区水平与基础费用。');
+}
+if (!provinceAccessTest.includes('unlock cost follows economic level and distance and is deducted atomically')) {
+  failures.push('州访问测试必须覆盖地区水平与距离组合解锁费用。');
 }
 if (!provinceAccessTest.includes('world migration unlocks every state with existing assets')) {
   failures.push('州访问测试必须覆盖老玩家迁移。');
@@ -198,4 +238,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('起始州、州解锁与跨州运输验证通过：地图选点与左侧概览确认、永久起始州、货币解锁、三种运输模式参数、运费计入运输就业、在途按起始州官方价估值、锁定州写拒绝、持久化手动路线、独立运输页与老玩家迁移均已锁定。');
+console.log('起始州、州解锁与跨州运输验证通过：地图选点与左侧概览确认、永久起始州、地区水平与距离解锁、玩家界面中文地区名、三种运输模式参数、运费计入运输就业、在途按起始州官方价估值、锁定州写拒绝、持久化手动路线、独立运输页与老玩家迁移均已锁定。');
