@@ -1,0 +1,38 @@
+name: Temporary Fix Server Design Header
+
+on:
+  push:
+    branches:
+      - feature/daily-regional-supply-contracts-impl
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/daily-regional-supply-contracts-impl
+          fetch-depth: 0
+      - name: Fix server design client version header
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          text = path.read_text()
+          old = '> 客户端状态版本：38'
+          if old not in text:
+              raise SystemExit('stale server design client version header not found')
+          path.write_text(text.replace(old, '> 客户端状态版本：39', 1))
+          PY
+          rm .github/workflows/temp-fix-server-doc-header.yml
+          git config user.name "RIVERSOFT"
+          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "修正服务器设计客户端协议头部为 39"
+          git push origin HEAD:feature/daily-regional-supply-contracts-impl
