@@ -1,0 +1,110 @@
+name: Codex research node three states
+
+on:
+  push:
+    branches:
+      - codex/research-node-three-states
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply research node three-state update
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one match, found {count}: {old[:120]!r}')
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              'src/pages/ResearchPage.tsx',
+              '''                      <small className="research-technology-node-meta">\n                        {technology.stage} · {technology.kind === 'operation' ? '作业科技' : '生产科技'}\n                      </small>\n                      <small className="research-technology-node-status">{statusLabels[status]}</small>\n''',
+              '',
+          )
+
+          replace_once(
+              'src/styles/research-page.css',
+              '''.research-tree-viewport[data-zoom-tier='overview'] .research-technology-node-meta,\n.research-tree-viewport[data-zoom-tier='overview'] .research-technology-node-status {\n  opacity: 0;\n}\n\n''',
+              '',
+          )
+          replace_once(
+              'src/styles/research-page.css',
+              '''.research-technology-node[data-status='active'] {\n  --research-node-color: var(--color-info);\n  --research-node-soft: var(--color-info-soft);\n}\n\n.research-technology-node[data-status='available'] {\n  --research-node-color: var(--color-warning);\n  --research-node-soft: var(--color-warning-soft);\n}\n''',
+              '''.research-technology-node[data-status='active'],\n.research-technology-node[data-status='available'] {\n  --research-node-color: var(--color-text-muted);\n  --research-node-soft: color-mix(in srgb, var(--color-text-muted) 10%, var(--color-surface-inset));\n}\n''',
+          )
+          replace_once(
+              'src/styles/research-page.css',
+              '''.research-technology-node-meta,\n.research-technology-node-status {\n  max-width: 100%;\n  overflow: hidden;\n  color: var(--color-text-muted);\n  font-size: 0.66rem;\n  line-height: var(--line-height-tight);\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.research-technology-node-status {\n  color: var(--research-node-color);\n  font-weight: 700;\n}\n\n''',
+              '',
+          )
+
+          replace_once(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '节点显示科技名称、阶段、科技类型、已掌握／研发中／可研发／锁定状态和研发中环形进度。',
+              '科技节点只显示代表图标与科技名称，基础视觉状态固定为“已解锁已研发／已解锁未研发／未解锁未研发”三种；当前研发科技继续归入“已解锁未研发”基础样式，并仅在图标外围叠加研发中环形进度，不构成第四种基础状态。节点不得显示阶段、科技类型或“可研发／已掌握／尚未开放”等可见文字状态字段。',
+          )
+
+          replace_once(
+              'tests/browser/research-technology-tree.spec.ts',
+              "    await expect(page.locator('.research-technology-node')).toHaveCount(32);\n",
+              "    await expect(page.locator('.research-technology-node')).toHaveCount(32);\n    await expect(page.locator('.research-technology-node .research-facility-artwork')).toHaveCount(32);\n    await expect(page.locator('.research-technology-node .research-technology-node-name')).toHaveCount(32);\n    await expect(page.locator('.research-technology-node-meta')).toHaveCount(0);\n    await expect(page.locator('.research-technology-node-status')).toHaveCount(0);\n",
+          )
+
+          replace_once(
+              'scripts/verify-research-page.mjs',
+              "  '.research-technology-node[data-status=',\n",
+              "  '.research-technology-node[data-status=',\n  \".research-technology-node[data-status='active'],\",\n  \".research-technology-node[data-status='available'] {\",\n",
+          )
+          replace_once(
+              'scripts/verify-research-page.mjs',
+              "  'self-contained placeholder that should never exist',\n" if False else "  '完整阶段',\n  'actions={',\n]) forbidText('src/pages/ResearchPage.tsx', forbidden);\n",
+              "  '完整阶段',\n  'actions={',\n  'research-technology-node-meta',\n  'research-technology-node-status',\n]) forbidText('src/pages/ResearchPage.tsx', forbidden);\n",
+          )
+          replace_once(
+              'scripts/verify-research-page.mjs',
+              "  '.research-tree-heading',\n]) forbidText('src/styles/research-page.css', forbidden);\n",
+              "  '.research-tree-heading',\n  '.research-technology-node-meta',\n  '.research-technology-node-status',\n]) forbidText('src/styles/research-page.css', forbidden);\n",
+          )
+          replace_once(
+              'scripts/verify-research-page.mjs',
+              "  '自上而下 DAG',\n",
+              "  '自上而下 DAG',\n  '基础视觉状态固定为“已解锁已研发／已解锁未研发／未解锁未研发”三种',\n  '节点不得显示阶段、科技类型或“可研发／已掌握／尚未开放”等可见文字状态字段',\n",
+          )
+          replace_once(
+              'scripts/verify-research-page.mjs',
+              "  \"page.locator('.page-card-static')).toBeVisible()\",\n",
+              "  \"page.locator('.page-card-static')).toBeVisible()\",\n  \"page.locator('.research-technology-node .research-facility-artwork')).toHaveCount(32)\",\n  \"page.locator('.research-technology-node .research-technology-node-name')).toHaveCount(32)\",\n  \"page.locator('.research-technology-node-meta')).toHaveCount(0)\",\n  \"page.locator('.research-technology-node-status')).toHaveCount(0)\",\n",
+          )
+          replace_once(
+              'scripts/verify-research-page.mjs',
+              "console.log('downward prerequisite research DAG, edge-to-edge desktop canvas, stable hover geometry, ordinary wheel zoom, drag pan, double-click current focus, shared workspace card with transparent research canvas, shared mobile pan/zoom viewport, stable selection, no below-tree page-flow card, detail sheet and design verification passed');",
+              "console.log('downward prerequisite research DAG, three-state icon-and-name technology nodes, edge-to-edge desktop canvas, stable hover geometry, ordinary wheel zoom, drag pan, double-click current focus, shared workspace card with transparent research canvas, shared mobile pan/zoom viewport, stable selection, no below-tree page-flow card, detail sheet and design verification passed');",
+          )
+          PY
+      - name: Verify focused research rules
+        run: |
+          node scripts/verify-research-page.mjs
+          git diff --check
+      - name: Commit final change
+        shell: bash
+        run: |
+          rm .github/workflows/codex-research-node-three-states.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/ResearchPage.tsx src/styles/research-page.css docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md tests/browser/research-technology-tree.spec.ts scripts/verify-research-page.mjs .github/workflows/codex-research-node-three-states.yml
+          git commit -m "统一研发科技节点三态样式"
+          git push origin HEAD:codex/research-node-three-states
