@@ -12,7 +12,20 @@ new = """  await regionalRow.click();
 """
 if old not in text:
     raise SystemExit('market information drill-down anchor not found')
-p.write_text(text.replace(old, new, 1))
+text = text.replace(old, new, 1)
+old = """  const accountPanel = page.locator('.market-account-panel');
+  await expect(accountPanel).toBeVisible();
+  await expect(accountPanel.getByText('资产', { exact: true })).toHaveCount(0);
+"""
+new = """  const accountPanel = page.locator('.market-account-panel');
+  await expect(accountPanel).toBeVisible();
+  const localTradesSection = accountPanel.locator('.local-trades-section');
+  await expect(localTradesSection.getByText('资产', { exact: true })).toHaveCount(0);
+"""
+if old not in text:
+    raise SystemExit('local trade asset-column browser anchor not found')
+text = text.replace(old, new, 1)
+p.write_text(text)
 
 # 2. Disabled-stepper stability is a local layout invariant. Viewport y can change when browser focus/scroll ownership changes.
 p = Path('tests/browser/market-order-entry-compact.spec.ts')
@@ -69,7 +82,7 @@ if detail_rule not in text:
     text = text.replace(detail_anchor, detail_anchor + detail_rule, 1)
 p.write_text(text)
 
-# 4. Lock the repaired synchronization and local-geometry semantics into static guards.
+# 4. Lock the repaired synchronization, local-trade scope, and local-geometry semantics into static guards.
 p = Path('scripts/verify-market-information-hierarchy.mjs')
 text = p.read_text()
 line = "requireText(hierarchyBrowserSpec, \"await expect(page.locator('.market-detail-surface')).toBeVisible();\", 'regional market browser waits for authoritative detail surface');"
@@ -77,6 +90,10 @@ if line not in text:
     marker = "const warehouseVerifier = read('scripts/verify-warehouse-expansion.mjs');"
     if marker not in text:
         raise SystemExit('market information verifier constant anchor missing')
+    text = text.replace(marker, marker + '\n' + line, 1)
+line = "requireText(hierarchyBrowserSpec, \"accountPanel.locator('.local-trades-section')\", 'local trade asset-column assertion stays scoped to local trades');"
+if line not in text:
+    marker = "requireText(hierarchyBrowserSpec, \"await expect(page.locator('.market-detail-surface')).toBeVisible();\", 'regional market browser waits for authoritative detail surface');"
     text = text.replace(marker, marker + '\n' + line, 1)
 p.write_text(text)
 
