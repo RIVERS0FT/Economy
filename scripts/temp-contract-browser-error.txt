@@ -1,102 +1,71 @@
 
 Running 6 tests using 2 workers
-[WebServer] 3:58:05 PM [vite] http proxy error: /api/game/contracts/performance
+[WebServer] 4:05:03 PM [vite] http proxy error: /api/game/contracts/performance
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 3:58:05 PM [vite] http proxy error: /api/game/community-link
+[WebServer] 4:05:03 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 3:58:06 PM [vite] http proxy error: /api/game/community-link
+[WebServer] 4:05:04 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-·×[WebServer] 3:58:10 PM [vite] http proxy error: /api/game/community-link
+·[WebServer] 4:05:07 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 3:58:12 PM [vite] http proxy error: /api/game/community-link
+[WebServer] 4:05:08 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 3:58:12 PM [vite] http proxy error: /api/game/community-link
+·[WebServer] 4:05:12 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-·[WebServer] 3:58:14 PM [vite] http proxy error: /api/game/community-link
+×[WebServer] 4:05:13 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-F::error file=tests/browser/contract-layout.spec.ts,title=[chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts,line=10,col=18::  1) [chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts %0A    Error: locator.evaluate: Error: strict mode violation: locator('.contract-summary-grid') resolved to 2 elements:%0A        1) <div class="contract-summary-grid">…</div> aka getByText('进行中的合同2供货、借贷或租赁等待我处理1')%0A        2) <div class="contract-summary-grid">…</div> aka getByText('今日已使用20每日上限 60今日剩余额度40固定价格46.00累计交付')%0A%0A    Call log:%0A      - waiting for locator('.contract-summary-grid')%0A%0A%0A       8 |%0A       9 | async function gridTrackCount(locator: Locator) {%0A    > 10 |   return locator.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);%0A         |                  ^%0A      11 | }%0A      12 |%0A      13 | async function expectUniformPageSectionGaps(page: Page) {%0A        at gridTrackCount (/home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:10:18)%0A        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:99:16
-::error file=tests/browser/contract-layout.spec.ts,title=[chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts,line=10,col=18::  1) [chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts %0A%0A    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────%0A    Error: locator.evaluate: Error: strict mode violation: locator('.contract-summary-grid') resolved to 2 elements:%0A        1) <div class="contract-summary-grid">…</div> aka getByText('进行中的合同2供货、借贷或租赁等待我处理1')%0A        2) <div class="contract-summary-grid">…</div> aka getByText('今日已使用20每日上限 60今日剩余额度40固定价格46.00累计交付')%0A%0A    Call log:%0A      - waiting for locator('.contract-summary-grid')%0A%0A%0A       8 |%0A       9 | async function gridTrackCount(locator: Locator) {%0A    > 10 |   return locator.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);%0A         |                  ^%0A      11 | }%0A      12 |%0A      13 | async function expectUniformPageSectionGaps(page: Page) {%0A        at gridTrackCount (/home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:10:18)%0A        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:99:16
-[WebServer] 3:58:16 PM [vite] http proxy error: /api/game/community-link
+·[WebServer] 4:05:17 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 3:58:18 PM [vite] http proxy error: /api/game/community-link
+[WebServer] 4:05:17 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-×[WebServer] 3:58:20 PM [vite] http proxy error: /api/game/community-link
+[WebServer] 4:05:18 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 3:58:22 PM [vite] http proxy error: /api/game/community-link
+[WebServer] 4:05:19 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-·[WebServer] 3:58:24 PM [vite] http proxy error: /api/game/community-link
+·[WebServer] 4:05:23 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 3:58:25 PM [vite] http proxy error: /api/game/community-link
+[WebServer] 4:05:24 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-F::error file=tests/browser/contract-layout.spec.ts,title=[chromium] › tests/browser/contract-layout.spec.ts:171:1 › mobile contract workspace keeps two-column summaries, scrollable tabs and full-size inputs,line=10,col=18::  2) [chromium] › tests/browser/contract-layout.spec.ts:171:1 › mobile contract workspace keeps two-column summaries, scrollable tabs and full-size inputs %0A    Error: locator.evaluate: Error: strict mode violation: locator('.contract-summary-grid') resolved to 2 elements:%0A        1) <div class="contract-summary-grid">…</div> aka getByText('进行中的合同2供货、借贷或租赁等待我处理1')%0A        2) <div class="contract-summary-grid">…</div> aka getByText('今日已使用20每日上限 60今日剩余额度40固定价格46.00累计交付')%0A%0A    Call log:%0A      - waiting for locator('.contract-summary-grid')%0A%0A%0A       8 |%0A       9 | async function gridTrackCount(locator: Locator) {%0A    > 10 |   return locator.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);%0A         |                  ^%0A      11 | }%0A      12 |%0A      13 | async function expectUniformPageSectionGaps(page: Page) {%0A        at gridTrackCount (/home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:10:18)%0A        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:174:16
-::error file=tests/browser/contract-layout.spec.ts,title=[chromium] › tests/browser/contract-layout.spec.ts:171:1 › mobile contract workspace keeps two-column summaries, scrollable tabs and full-size inputs,line=10,col=18::  2) [chromium] › tests/browser/contract-layout.spec.ts:171:1 › mobile contract workspace keeps two-column summaries, scrollable tabs and full-size inputs %0A%0A    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────%0A    Error: locator.evaluate: Error: strict mode violation: locator('.contract-summary-grid') resolved to 2 elements:%0A        1) <div class="contract-summary-grid">…</div> aka getByText('进行中的合同2供货、借贷或租赁等待我处理1')%0A        2) <div class="contract-summary-grid">…</div> aka getByText('今日已使用20每日上限 60今日剩余额度40固定价格46.00累计交付')%0A%0A    Call log:%0A      - waiting for locator('.contract-summary-grid')%0A%0A%0A       8 |%0A       9 | async function gridTrackCount(locator: Locator) {%0A    > 10 |   return locator.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);%0A         |                  ^%0A      11 | }%0A      12 |%0A      13 | async function expectUniformPageSectionGaps(page: Page) {%0A        at gridTrackCount (/home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:10:18)%0A        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:174:16
-[WebServer] 3:58:26 PM [vite] http proxy error: /api/game/contracts/performance
-[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
-[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 3:58:26 PM [vite] http proxy error: /api/game/community-link
-[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
-[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 3:58:27 PM [vite] http proxy error: /api/game/contracts/performance
-[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
-[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 3:58:27 PM [vite] http proxy error: /api/game/community-link
-[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
-[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 3:58:28 PM [vite] http proxy error: /api/game/contracts/performance
-[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
-[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 3:58:28 PM [vite] http proxy error: /api/game/community-link
-[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
-[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-×[WebServer] 3:58:36 PM [vite] http proxy error: /api/game/contracts/performance
-[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
-[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 3:58:36 PM [vite] http proxy error: /api/game/community-link
-[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
-[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 3:58:37 PM [vite] http proxy error: /api/game/contracts/performance
-[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
-[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 3:58:37 PM [vite] http proxy error: /api/game/community-link
-[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
-[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-F::error file=tests/browser/contract-workspace.spec.ts,title=[chromium] › tests/browser/contract-workspace.spec.ts:3:1 › contract market stays visible while personal contracts switch views,line=15,col=60::  3) [chromium] › tests/browser/contract-workspace.spec.ts:3:1 › contract market stays visible while personal contracts switch views %0A    Error: expect(locator).toBeVisible() failed%0A%0A    Locator: getByRole('region', { name: '合同广场' }).getByText('采购 机械', { exact: true })%0A    Expected: visible%0A    Timeout: 5000ms%0A    Error: element(s) not found%0A%0A    Call log:%0A      - Expect "toBeVisible" with timeout 5000ms%0A      - waiting for getByRole('region', { name: '合同广场' }).getByText('采购 机械', { exact: true })%0A%0A%0A      13 |   await expect(market).toBeVisible();%0A      14 |   await expect(personal).toBeVisible();%0A    > 15 |   await expect(market.getByText('采购 机械', { exact: true })).toBeVisible();%0A         |                                                            ^%0A      16 |%0A      17 |   const activeCards = personal.locator('.contract-active-grid .contract-card');%0A      18 |   await expect(activeCards).toHaveCount(2);%0A        at /home/runner/work/Economy/Economy/tests/browser/contract-workspace.spec.ts:15:60
-::error file=tests/browser/contract-workspace.spec.ts,title=[chromium] › tests/browser/contract-workspace.spec.ts:3:1 › contract market stays visible while personal contracts switch views,line=15,col=60::  3) [chromium] › tests/browser/contract-workspace.spec.ts:3:1 › contract market stays visible while personal contracts switch views %0A%0A    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────%0A    Error: expect(locator).toBeVisible() failed%0A%0A    Locator: getByRole('region', { name: '合同广场' }).getByText('采购 机械', { exact: true })%0A    Expected: visible%0A    Timeout: 5000ms%0A    Error: element(s) not found%0A%0A    Call log:%0A      - Expect "toBeVisible" with timeout 5000ms%0A      - waiting for getByRole('region', { name: '合同广场' }).getByText('采购 机械', { exact: true })%0A%0A%0A      13 |   await expect(market).toBeVisible();%0A      14 |   await expect(personal).toBeVisible();%0A    > 15 |   await expect(market.getByText('采购 机械', { exact: true })).toBeVisible();%0A         |                                                            ^%0A      16 |%0A      17 |   const activeCards = personal.locator('.contract-active-grid .contract-card');%0A      18 |   await expect(activeCards).toHaveCount(2);%0A        at /home/runner/work/Economy/Economy/tests/browser/contract-workspace.spec.ts:15:60
+·F::error file=tests/browser/contract-layout.spec.ts,title=[chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts,line=132,col=94::  1) [chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts %0A    Error: expect(locator).toBeVisible() failed%0A%0A    Locator: locator('.contract-publish-preview').getByText('长期合同', { exact: true })%0A    Expected: visible%0A    Timeout: 5000ms%0A    Error: element(s) not found%0A%0A    Call log:%0A      - Expect "toBeVisible" with timeout 5000ms%0A      - waiting for locator('.contract-publish-preview').getByText('长期合同', { exact: true })%0A%0A%0A      130 |   await expect(duration).toHaveValue('');%0A      131 |   await expect(page.getByLabel('开始延迟（天）')).toHaveValue('0');%0A    > 132 |   await expect(page.locator('.contract-publish-preview').getByText('长期合同', { exact: true })).toBeVisible();%0A          |                                                                                              ^%0A      133 |   await expect(submit).toBeEnabled();%0A      134 |%0A      135 |   await page.getByRole('tab', { name: /历史合同/ }).click();%0A        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:132:94
+::error file=tests/browser/contract-layout.spec.ts,title=[chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts,line=132,col=94::  1) [chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts %0A%0A    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────%0A    Error: expect(locator).toBeVisible() failed%0A%0A    Locator: locator('.contract-publish-preview').getByText('长期合同', { exact: true })%0A    Expected: visible%0A    Timeout: 5000ms%0A    Error: element(s) not found%0A%0A    Call log:%0A      - Expect "toBeVisible" with timeout 5000ms%0A      - waiting for locator('.contract-publish-preview').getByText('长期合同', { exact: true })%0A%0A%0A      130 |   await expect(duration).toHaveValue('');%0A      131 |   await expect(page.getByLabel('开始延迟（天）')).toHaveValue('0');%0A    > 132 |   await expect(page.locator('.contract-publish-preview').getByText('长期合同', { exact: true })).toBeVisible();%0A          |                                                                                              ^%0A      133 |   await expect(submit).toBeEnabled();%0A      134 |%0A      135 |   await page.getByRole('tab', { name: /历史合同/ }).click();%0A        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:132:94
 
-::notice title=🎭 Playwright Run Summary::  3 failed%0A    [chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts %0A    [chromium] › tests/browser/contract-layout.spec.ts:171:1 › mobile contract workspace keeps two-column summaries, scrollable tabs and full-size inputs %0A    [chromium] › tests/browser/contract-workspace.spec.ts:3:1 › contract market stays visible while personal contracts switch views %0A  3 passed (48.0s)
+::notice title=🎭 Playwright Run Summary::  1 failed%0A    [chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts %0A  5 passed (34.0s)
 
   1) [chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts 
 
-    Error: locator.evaluate: Error: strict mode violation: locator('.contract-summary-grid') resolved to 2 elements:
-        1) <div class="contract-summary-grid">…</div> aka getByText('进行中的合同2供货、借贷或租赁等待我处理1')
-        2) <div class="contract-summary-grid">…</div> aka getByText('今日已使用20每日上限 60今日剩余额度40固定价格46.00累计交付')
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.contract-publish-preview').getByText('长期合同', { exact: true })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
 
     Call log:
-      - waiting for locator('.contract-summary-grid')
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('.contract-publish-preview').getByText('长期合同', { exact: true })
 
 
-       8 |
-       9 | async function gridTrackCount(locator: Locator) {
-    > 10 |   return locator.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
-         |                  ^
-      11 | }
-      12 |
-      13 | async function expectUniformPageSectionGaps(page: Page) {
-        at gridTrackCount (/home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:10:18)
-        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:99:16
+      130 |   await expect(duration).toHaveValue('');
+      131 |   await expect(page.getByLabel('开始延迟（天）')).toHaveValue('0');
+    > 132 |   await expect(page.locator('.contract-publish-preview').getByText('长期合同', { exact: true })).toBeVisible();
+          |                                                                                              ^
+      133 |   await expect(submit).toBeEnabled();
+      134 |
+      135 |   await page.getByRole('tab', { name: /历史合同/ }).click();
+        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:132:94
 
     Error Context: test-results/contract-layout-desktop-co-c9c00-nd-dense-two-column-layouts-chromium/error-context.md
 
@@ -110,23 +79,26 @@ F::error file=tests/browser/contract-workspace.spec.ts,title=[chromium] › test
 
     Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
 
-    Error: locator.evaluate: Error: strict mode violation: locator('.contract-summary-grid') resolved to 2 elements:
-        1) <div class="contract-summary-grid">…</div> aka getByText('进行中的合同2供货、借贷或租赁等待我处理1')
-        2) <div class="contract-summary-grid">…</div> aka getByText('今日已使用20每日上限 60今日剩余额度40固定价格46.00累计交付')
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.contract-publish-preview').getByText('长期合同', { exact: true })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
 
     Call log:
-      - waiting for locator('.contract-summary-grid')
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('.contract-publish-preview').getByText('长期合同', { exact: true })
 
 
-       8 |
-       9 | async function gridTrackCount(locator: Locator) {
-    > 10 |   return locator.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
-         |                  ^
-      11 | }
-      12 |
-      13 | async function expectUniformPageSectionGaps(page: Page) {
-        at gridTrackCount (/home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:10:18)
-        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:99:16
+      130 |   await expect(duration).toHaveValue('');
+      131 |   await expect(page.getByLabel('开始延迟（天）')).toHaveValue('0');
+    > 132 |   await expect(page.locator('.contract-publish-preview').getByText('长期合同', { exact: true })).toBeVisible();
+          |                                                                                              ^
+      133 |   await expect(submit).toBeEnabled();
+      134 |
+      135 |   await page.getByRole('tab', { name: /历史合同/ }).click();
+        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:132:94
 
     Error Context: test-results/contract-layout-desktop-co-c9c00-nd-dense-two-column-layouts-chromium-retry1/error-context.md
 
@@ -138,134 +110,6 @@ F::error file=tests/browser/contract-workspace.spec.ts,title=[chromium] › test
 
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
-  2) [chromium] › tests/browser/contract-layout.spec.ts:171:1 › mobile contract workspace keeps two-column summaries, scrollable tabs and full-size inputs 
-
-    Error: locator.evaluate: Error: strict mode violation: locator('.contract-summary-grid') resolved to 2 elements:
-        1) <div class="contract-summary-grid">…</div> aka getByText('进行中的合同2供货、借贷或租赁等待我处理1')
-        2) <div class="contract-summary-grid">…</div> aka getByText('今日已使用20每日上限 60今日剩余额度40固定价格46.00累计交付')
-
-    Call log:
-      - waiting for locator('.contract-summary-grid')
-
-
-       8 |
-       9 | async function gridTrackCount(locator: Locator) {
-    > 10 |   return locator.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
-         |                  ^
-      11 | }
-      12 |
-      13 | async function expectUniformPageSectionGaps(page: Page) {
-        at gridTrackCount (/home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:10:18)
-        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:174:16
-
-    Error Context: test-results/contract-layout-mobile-con-06735-e-tabs-and-full-size-inputs-chromium/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/contract-layout-mobile-con-06735-e-tabs-and-full-size-inputs-chromium/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/contract-layout-mobile-con-06735-e-tabs-and-full-size-inputs-chromium/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
-
-    Error: locator.evaluate: Error: strict mode violation: locator('.contract-summary-grid') resolved to 2 elements:
-        1) <div class="contract-summary-grid">…</div> aka getByText('进行中的合同2供货、借贷或租赁等待我处理1')
-        2) <div class="contract-summary-grid">…</div> aka getByText('今日已使用20每日上限 60今日剩余额度40固定价格46.00累计交付')
-
-    Call log:
-      - waiting for locator('.contract-summary-grid')
-
-
-       8 |
-       9 | async function gridTrackCount(locator: Locator) {
-    > 10 |   return locator.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
-         |                  ^
-      11 | }
-      12 |
-      13 | async function expectUniformPageSectionGaps(page: Page) {
-        at gridTrackCount (/home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:10:18)
-        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:174:16
-
-    Error Context: test-results/contract-layout-mobile-con-06735-e-tabs-and-full-size-inputs-chromium-retry1/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/contract-layout-mobile-con-06735-e-tabs-and-full-size-inputs-chromium-retry1/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/contract-layout-mobile-con-06735-e-tabs-and-full-size-inputs-chromium-retry1/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-  3) [chromium] › tests/browser/contract-workspace.spec.ts:3:1 › contract market stays visible while personal contracts switch views 
-
-    Error: expect(locator).toBeVisible() failed
-
-    Locator: getByRole('region', { name: '合同广场' }).getByText('采购 机械', { exact: true })
-    Expected: visible
-    Timeout: 5000ms
-    Error: element(s) not found
-
-    Call log:
-      - Expect "toBeVisible" with timeout 5000ms
-      - waiting for getByRole('region', { name: '合同广场' }).getByText('采购 机械', { exact: true })
-
-
-      13 |   await expect(market).toBeVisible();
-      14 |   await expect(personal).toBeVisible();
-    > 15 |   await expect(market.getByText('采购 机械', { exact: true })).toBeVisible();
-         |                                                            ^
-      16 |
-      17 |   const activeCards = personal.locator('.contract-active-grid .contract-card');
-      18 |   await expect(activeCards).toHaveCount(2);
-        at /home/runner/work/Economy/Economy/tests/browser/contract-workspace.spec.ts:15:60
-
-    Error Context: test-results/contract-workspace-contrac-82c51-onal-contracts-switch-views-chromium/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/contract-workspace-contrac-82c51-onal-contracts-switch-views-chromium/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/contract-workspace-contrac-82c51-onal-contracts-switch-views-chromium/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
-
-    Error: expect(locator).toBeVisible() failed
-
-    Locator: getByRole('region', { name: '合同广场' }).getByText('采购 机械', { exact: true })
-    Expected: visible
-    Timeout: 5000ms
-    Error: element(s) not found
-
-    Call log:
-      - Expect "toBeVisible" with timeout 5000ms
-      - waiting for getByRole('region', { name: '合同广场' }).getByText('采购 机械', { exact: true })
-
-
-      13 |   await expect(market).toBeVisible();
-      14 |   await expect(personal).toBeVisible();
-    > 15 |   await expect(market.getByText('采购 机械', { exact: true })).toBeVisible();
-         |                                                            ^
-      16 |
-      17 |   const activeCards = personal.locator('.contract-active-grid .contract-card');
-      18 |   await expect(activeCards).toHaveCount(2);
-        at /home/runner/work/Economy/Economy/tests/browser/contract-workspace.spec.ts:15:60
-
-    Error Context: test-results/contract-workspace-contrac-82c51-onal-contracts-switch-views-chromium-retry1/error-context.md
-
-    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
-    test-results/contract-workspace-contrac-82c51-onal-contracts-switch-views-chromium-retry1/trace.zip
-    Usage:
-
-        npx playwright show-trace test-results/contract-workspace-contrac-82c51-onal-contracts-switch-views-chromium-retry1/trace.zip
-
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-  3 failed
+  1 failed
     [chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts 
-    [chromium] › tests/browser/contract-layout.spec.ts:171:1 › mobile contract workspace keeps two-column summaries, scrollable tabs and full-size inputs 
-    [chromium] › tests/browser/contract-workspace.spec.ts:3:1 › contract market stays visible while personal contracts switch views 
-  3 passed (48.0s)
+  5 passed (34.0s)
