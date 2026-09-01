@@ -1,0 +1,34 @@
+name: Temporary Daily Contract Audit Fix
+
+on:
+  push:
+    branches:
+      - feature/daily-regional-supply-contracts-impl
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/daily-regional-supply-contracts-impl
+          fetch-depth: 0
+      - name: Apply daily contract audit fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/temp-fix-daily-contract-audit.py
+          rm .github/workflows/temp-fix-daily-contract-audit.yml
+          rm scripts/temp-fix-daily-contract-audit.py
+          git config user.name "RIVERSOFT"
+          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          node scripts/verify-daily-supply-contracts.mjs
+          node scripts/verify-contract-audit.mjs
+          node --test server/test/daily-supply-contracts.test.js server/test/state-projection-cache.test.js
+          git commit -m "补齐每日合同审计与历史完成事实"
+          git push origin HEAD:feature/daily-regional-supply-contracts-impl
