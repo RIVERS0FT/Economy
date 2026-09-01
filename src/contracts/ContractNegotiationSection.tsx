@@ -132,7 +132,7 @@ export function ContractNegotiationSection({ contract, busy, run }: { contract: 
 
   const own = negotiations.find((item) => item.isProposer);
   if (!own) {
-    if (editing !== 'new') return <div className="contract-negotiation-entry"><Button variant="secondary" disabled={busy} onClick={() => setEditing('new')}>提出议价</Button><span>议价只调整每日最大供应量、固定价格和按天计算的合同时间。</span></div>;
+    if (editing !== 'new') return <div className="contract-negotiation-entry"><Button variant="secondary" disabled={busy} onClick={() => setEditing('new')}>提出议价</Button><span>议价阶段不冻结资产；只调整每日最大供应量、固定价格和按天计算的合同时间。</span></div>;
     return <section className="contract-negotiation-panel" aria-label="提出合同议价"><div className="contract-negotiation-heading"><strong>提出议价</strong><StatusTag tone="info">最多 5 轮</StatusTag></div><TermsEditor initial={baseTerms} busy={busy} submitLabel="发送议价" onCancel={() => setEditing(null)} onSubmit={(input) => { setEditing(null); void run(`${contract.id}:negotiation:propose`, () => productionContractActions.proposeNegotiation(contract.id, input)); }} /></section>;
   }
   return (
