@@ -21,6 +21,8 @@ export const PRODUCT_ICON_IDS = [
   'steel',
   'copper',
   'plastic',
+  'industrial-fuel',
+  'industrial-chemicals',
   'fertilizer',
   'feed',
   'veterinary-medicine',
@@ -237,6 +239,24 @@ export function ProductIcon({ productId, ...props }: ProductIconProps) {
           <path d="M10 3v3l-2 2v10c0 1.7 1.3 3 3 3h2c1.7 0 3-1.3 3-3V8l-2-2V3" />
           <path d="M8 11h8" />
           <path d="M10.5 15.5h3" />
+        </ProductSvg>
+      );
+    case 'industrial-fuel':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M6 5h12v15H6Z" />
+          <path d="M6 8h12M6 17h12M8 3h8v2" />
+          <path d="m12 10 3 3-3 3-3-3Z" />
+          <path d="M12.1 11.5c.9 1 .9 1.6.2 2.1.1-.6-.2-.9-.6-1.3-.5.7-.4 1.3.3 1.7" />
+        </ProductSvg>
+      );
+    case 'industrial-chemicals':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M7 5h9l2 3v12H6V8Z" />
+          <path d="M9 5V3h5v2M8 9h8" />
+          <path d="M10 13h4M12 11v4" />
+          <path d="M18 14h2v6h-4v-2" />
         </ProductSvg>
       );
     case 'fertilizer':

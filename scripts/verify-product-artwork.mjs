@@ -1,11 +1,16 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PRODUCT_CATALOG } from '../server/src/domain.js';
+import { inspectArtworkTransparency } from './artwork-thumbnails.mjs';
 
 const root = process.cwd();
 const failures = [];
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const productIds = PRODUCT_CATALOG.map((product) => product.id);
+const sourceArtworkHash = (productId) => createHash('sha256')
+  .update(readFileSync(resolve(root, `src/assets/product-icons/${productId}.png`)))
+  .digest('hex');
 
 const artworkStylePath = 'src/styles/product-artwork.css';
 const generatorPath = 'scripts/generate-product-artwork-thumbnails.mjs';
@@ -15,6 +20,7 @@ const gitignorePath = '.gitignore';
 const uiDesignPath = 'docs/UI_DESIGN_SYSTEM.md';
 const mainPath = 'src/main.tsx';
 const productIconsPath = 'src/components/icons/ProductIcons.tsx';
+const iconSystemPath = 'src/styles/icon-system.css';
 const productArtworkPath = 'src/components/products/ProductArtwork.tsx';
 const richSelectPath = 'src/components/ui/RichSelectInput.tsx';
 const formulaPath = 'src/components/facilities/FacilityProductionFormula.tsx';
@@ -60,6 +66,7 @@ for (const path of [
   uiDesignPath,
   mainPath,
   productIconsPath,
+  iconSystemPath,
   productArtworkPath,
   richSelectPath,
   formulaPath,
@@ -77,12 +84,20 @@ if (failures.length === 0) {
   const uiDesign = read(uiDesignPath);
   const main = read(mainPath);
   const productIcons = read(productIconsPath);
+  const iconSystem = read(iconSystemPath);
 
   for (const productId of productIds) {
     const sourcePath = `src/assets/product-icons/${productId}.png`;
     const thumbnailPath = `src/assets/product-icons/generated/128/${productId}.png`;
     validatePng(sourcePath, 1024, '商品源图片');
     validatePng(thumbnailPath, 128, '商品运行时缩略图');
+    const transparency = inspectArtworkTransparency(resolve(root, sourcePath), 1024);
+    if (transparency.cornerAlphas.some((alpha) => alpha !== 0)) {
+      failures.push(`${sourcePath} 四角必须完全透明`);
+    }
+    if (transparency.transparentRatio < 0.05 || transparency.visibleRatio < 0.05) {
+      failures.push(`${sourcePath} 必须包含真实透明背景和可见商品主体`);
+    }
 
     if (!artworkStyles.includes(`[data-product-icon='${productId}']`)) {
       failures.push(`${artworkStylePath} 缺少 ${productId} 映射`);
@@ -96,6 +111,46 @@ if (failures.length === 0) {
     if (!generator.includes(`'${productId}'`)) {
       failures.push(`${generatorPath} 未生成商品 ${productId}`);
     }
+  }
+
+  const fuelArtworkHash = sourceArtworkHash('industrial-fuel');
+  const chemicalArtworkHash = sourceArtworkHash('industrial-chemicals');
+  const fertilizerArtworkHash = sourceArtworkHash('fertilizer');
+  if (new Set([fuelArtworkHash, chemicalArtworkHash, fertilizerArtworkHash]).size !== 3) {
+    failures.push('工业燃料、工业化学品与化肥必须使用三张互不相同的商品源图');
+  }
+  for (const productId of ['industrial-fuel', 'industrial-chemicals']) {
+    const transparency = inspectArtworkTransparency(
+      resolve(root, `src/assets/product-icons/${productId}.png`),
+      1024,
+    );
+    if (transparency.greenDominantVisibleRatio > 0.002) {
+      failures.push(`${productId} 透明商品插画不得保留可见绿色色键残边`);
+    }
+  }
+
+  for (const required of [
+    "'industrial-fuel'",
+    "'industrial-chemicals'",
+    "case 'industrial-fuel':",
+    "case 'industrial-chemicals':",
+  ]) {
+    if (!productIcons.includes(required)) failures.push(`${productIconsPath} 缺少: ${required}`);
+  }
+  for (const required of [
+    ".product-icon[data-product-icon='industrial-fuel']",
+    'color: var(--color-danger);',
+  ]) {
+    if (!iconSystem.includes(required)) failures.push(`${iconSystemPath} 缺少燃料危险色语义: ${required}`);
+  }
+
+  for (const required of [
+    '`industrial-fuel`：红色钢制燃料桶与易燃标志',
+    '`industrial-chemicals`：密封工业化学品桶、实验器皿与分子结构',
+    '不得与化肥复用同一源图',
+    '四角完全透明，边缘干净且不得带白边或色键残边',
+  ]) {
+    if (!uiDesign.includes(required)) failures.push(`${uiDesignPath} 缺少商品辨识规则: ${required}`);
   }
 
   if (!productIcons.includes('default:') || !productIcons.includes('data-product-icon={productId}')) {
