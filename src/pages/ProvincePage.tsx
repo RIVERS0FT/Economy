@@ -25,11 +25,8 @@ import {
 } from '../components/ui/layout';
 import type { ProvinceSection } from '../navigation/playerPageStack';
 import { formatCurrency, formatNumber } from '../utils/formatters';
-import {
-  PROVINCE_UNLOCK_BASE_COST,
-  provinceDistanceKm,
-  provinceUnlockCost,
-} from '../utils/provinceLogistics';
+import { provinceEconomicLevelFor } from '../utils/provinceEconomicLevel';
+import { provinceUnlockCostBreakdown } from '../utils/provinceLogistics';
 
 const EmbeddedMarketPage = lazy(() => import('./MarketPage').then((module) => ({
   default: module.MarketPage,
@@ -49,6 +46,7 @@ const STATE_ECONOMIC_BASELINE_BY_PROVINCE_ID = new Map(
   stateEconomicBaselines.states.map((row) => [row.provinceId, row]),
 );
 const POPULATION_BASELINE_PERIOD = stateEconomicBaselines.sources.population.period;
+type StateEconomicBaseline = (typeof stateEconomicBaselines.states)[number];
 
 function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
   const summary = model.game.provinceAssetSummaries[model.selectedProvinceId] ?? {
@@ -60,6 +58,7 @@ function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameVie
     openOrderCount: 0,
   };
   const economicBaseline = STATE_ECONOMIC_BASELINE_BY_PROVINCE_ID.get(model.selectedProvinceId);
+  const economicLevel = provinceEconomicLevelFor(model.selectedProvinceId);
   const stoppedFacilityCount = Math.max(
     0,
     summary.facilityCount - summary.runningFacilityCount - summary.blockedFacilityCount,
@@ -74,10 +73,19 @@ function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameVie
           : <StatusTag tone="success">经营正常</StatusTag>}
       />
       <div className="province-overview-metrics">
+        <MetricCard label="地区水平" value={`${economicLevel} / 5`} />
         <MetricCard
           label="常住人口"
           value={economicBaseline ? <CompactNumber value={economicBaseline.population} /> : '—'}
           detail={economicBaseline ? `Census · ${POPULATION_BASELINE_PERIOD}` : undefined}
+        />
+        <MetricCard
+          label="平均周薪"
+          value={economicBaseline ? <><CompactNumber value={economicBaseline.averageWeeklyWage} /> 美元</> : '—'}
+        />
+        <MetricCard
+          label="州 PCE"
+          value={economicBaseline ? <><CompactNumber value={economicBaseline.pceMillions} /> 百万美元</> : '—'}
         />
         <MetricCard label="本地库存" value={<CompactNumber value={summary.storedQuantity} />} />
         <MetricCard label="工厂总数" value={<CompactNumber value={summary.facilityCount} />} />
@@ -107,6 +115,10 @@ function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameVie
 function ProvinceUnlockPanel({
   model,
   provinceName,
+  economicLevel,
+  economicBaseline,
+  baseCost,
+  distanceCost,
   unlockCost,
   distanceKm,
   section,
@@ -115,13 +127,16 @@ function ProvinceUnlockPanel({
 }: {
   model: OnlineAutoTradeAwareGameViewModel;
   provinceName: string;
+  economicLevel: number;
+  economicBaseline?: StateEconomicBaseline;
+  baseCost: number;
+  distanceCost: number;
   unlockCost: number;
   distanceKm: number;
   section: 'buildings' | 'warehouse';
   unlocking: boolean;
   onUnlock: () => void;
 }) {
-  const sectionLabel = section === 'buildings' ? '建筑' : '仓库';
   const sectionTitle = section === 'buildings' ? '建筑功能未解锁' : '仓库功能未解锁';
   return (
     <section className="province-lock-content">
@@ -132,7 +147,13 @@ function ProvinceUnlockPanel({
           : '解锁该州后才能使用本地库存和跨州运输。'}
       </p>
       <DataList>
+        <DataRow label="地区水平" value={`${economicLevel} / 5`} />
+        <DataRow label="常住人口" value={economicBaseline ? <CompactNumber value={economicBaseline.population} /> : '—'} />
+        <DataRow label="平均周薪" value={economicBaseline ? <><CompactNumber value={economicBaseline.averageWeeklyWage} /> 美元</> : '—'} />
+        <DataRow label="州 PCE" value={economicBaseline ? <><CompactNumber value={economicBaseline.pceMillions} /> 百万美元</> : '—'} />
+        <DataRow label="地区基础费用" value={<CurrencyAmount>{formatCurrency(baseCost)}</CurrencyAmount>} />
         <DataRow label="距起始州" value={`约 ${formatNumber(distanceKm)} 公里`} />
+        <DataRow label="距离费用" value={<CurrencyAmount>{formatCurrency(distanceCost)}</CurrencyAmount>} />
         <DataRow label="解锁费用" value={<CurrencyAmount>{formatCurrency(unlockCost)}</CurrencyAmount>} />
         <DataRow label="当前资金" value={<CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>} />
       </DataList>
@@ -219,15 +240,14 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     || (model.game.unlockedProvinces ?? []).includes(model.selectedProvinceId)
     || model.game.startingProvinceId === model.selectedProvinceId;
   const isUnlocked = isServerUnlocked || confirmedUnlockedProvinceIds.includes(model.selectedProvinceId);
-  const unlockCost = model.selectedProvince
-    ? provinceUnlockCost(model.selectedProvinceId, model.game.startingProvinceId, model.game.provinces)
-    : PROVINCE_UNLOCK_BASE_COST;
-  const distanceKm = model.selectedProvince && model.game.provinces.length > 0
-    ? Math.round(provinceDistanceKm(
-      model.selectedProvince,
-      model.game.provinces.find((province) => province.id === model.game.startingProvinceId) ?? model.selectedProvince,
-    ))
-    : 0;
+  const unlockBreakdown = provinceUnlockCostBreakdown(
+    model.selectedProvinceId,
+    model.game.startingProvinceId,
+    model.game.provinces,
+  );
+  const unlockCost = unlockBreakdown.totalCost;
+  const distanceKm = Math.round(unlockBreakdown.distanceKm);
+  const selectedEconomicBaseline = STATE_ECONOMIC_BASELINE_BY_PROVINCE_ID.get(model.selectedProvinceId);
 
   const unlockSelectedProvince = async () => {
     const provinceId = model.selectedProvinceId;
@@ -429,6 +449,10 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
             <ProvinceUnlockPanel
               model={model}
               provinceName={provinceName}
+              economicLevel={unlockBreakdown.economicLevel}
+              economicBaseline={selectedEconomicBaseline}
+              baseCost={unlockBreakdown.baseCost}
+              distanceCost={unlockBreakdown.distanceCost}
               unlockCost={unlockCost}
               distanceKm={distanceKm}
               section="buildings"
@@ -454,6 +478,10 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
             <ProvinceUnlockPanel
               model={model}
               provinceName={provinceName}
+              economicLevel={unlockBreakdown.economicLevel}
+              economicBaseline={selectedEconomicBaseline}
+              baseCost={unlockBreakdown.baseCost}
+              distanceCost={unlockBreakdown.distanceCost}
               unlockCost={unlockCost}
               distanceKm={distanceKm}
               section="warehouse"
