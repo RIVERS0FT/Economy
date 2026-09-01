@@ -47,7 +47,7 @@ for (const target of ['./AdminApp', './GameApp']) {
 
 const routerImports = importTargets('src/pages/PageRouter.tsx');
 for (const target of [
-  './AuctionPage', './BankPage', './ContractPage', './LeaderboardPage', './GlobalMarketPage',
+  './AuctionPage', './BankPage', './ContractWorkspacePage', './LeaderboardPage', './GlobalMarketPage',
   './OverviewPage', './GlobalBuildingsPage', './GemShopPage', './SettingsPage',
 ]) {
   if (!routerImports.dynamic.includes(target)) fail(`PageRouter.tsx 必须动态导入 ${target}`);
@@ -150,4 +150,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('运行时架构验证通过：全局市场/建筑与州级内嵌页面均按职责动态拆包，权威时间基准与叶子级共享时钟、虚拟列表二分与滚动合并、ECharts 资产圆环、资产比例和本地匿名成交缓存均已锁定。');
+console.log('运行时架构验证通过：全局市场/建筑、每日额度合同工作区与州级内嵌页面均按职责动态拆包，权威时间基准与叶子级共享时钟、虚拟列表二分与滚动合并、ECharts 资产圆环、资产比例和本地匿名成交缓存均已锁定。');
