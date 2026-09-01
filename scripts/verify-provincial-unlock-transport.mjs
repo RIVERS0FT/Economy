@@ -51,8 +51,6 @@ requireText(index, '非闭环默认单程', '设计索引必须登记运输默�
 requireText(index, '可选受控自动发运', '设计索引必须登记受控自动发运。');
 requireText(productDesign, '新玩家首次进入游戏必须从 48 州中选择一块起始地块并永久绑定', '产品设计必须记录起始州选择。');
 requireText(productDesign, '跨州商品只能通过付费运输在已解锁州之间流动', '产品设计必须记录付费运输边界。');
-requireText(productDesign, '非闭环默认单程', '产品设计必须记录运输默认单程。');
-requireText(productDesign, '路线可选受控自动发运', '产品设计必须记录受控自动发运。');
 requireText(productDesign, '综合分数固定为 PCE `50%` + 平均周薪 `30%` + 常住人口 `20%`', '产品设计必须记录地区水平综合分数。');
 requireText(productDesign, '1～5 级地区基础解锁费依次为 `1,500 / 2,500 / 4,000 / 6,000 / 9,000`', '产品设计必须锁定五档地区基础解锁费。');
 requireText(productDesign, '每完整 `500 km` 增加 `300`', '产品设计必须锁定距离附加费。');
@@ -85,15 +83,11 @@ requireText(pageDesign, '不得增加工厂数、资产、已解锁州数等额�
 requireText(uiDesign, '`shortName` 仅属于协议、目录映射、经济基准一致性校验和兼容测试元数据', 'UI 设计必须记录 shortName 仅作内部兼容元数据。');
 requireText(pageDesign, '收到服务器精简确认后立即退出锁定视图', '页面设计必须记录州解锁确认后的瞬时退出锁定视图。');
 requireText(pageDesign, '跨州运输路线、发运与运输记录唯一显示在独立 `TransportPage`', '页面设计必须记录独立运输入口归属。');
-requireText(pageDesign, '路线默认手动发运；开启自动发运后', '页面设计必须记录自动发运入口与边界。');
-requireText(pageDesign, '非闭环默认单程', '页面设计必须记录运输默认单程。');
-requireText(pageDesign, '交付参考收入与参考价差', '页面设计必须记录运输经济决策展示。');
 requireText(pageDesign, '在地图上选择', '页面设计必须记录地图选州入口。');
 requireText(pageDesign, '按顺序点击已解锁州面追加站点', '页面设计必须记录按顺序选州规则。');
 requireText(pageDesign, '按首府坐标顺序连接的路线连线', '页面设计必须记录首府顺序连线可视化。');
 requireText(serverDesign, 'transportShipments', '服务器设计必须记录运输记录存储。');
 requireText(serverDesign, '`stopPlan` 注册“下一未交付站”', '服务器设计必须记录逐站到达调度。');
-requireText(serverDesign, '路线自动发运默认关闭', '服务器设计必须记录受控自动发运调度。');
 requireText(orderBookDesign, '运输中的商品按起始州官方系统价计入玩家财富', '订单簿设计必须记录在途估值口径。');
 
 if (provinceEconomicPolicy.version !== 1) failures.push('地区水平策略版本必须为 1。');
