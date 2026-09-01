@@ -1,0 +1,34 @@
+name: Probe latest main transport merge
+
+on:
+  push:
+    branches:
+      - codex/transport-route-pages-auto-logistics
+    paths:
+      - .github/workflows/sync-latest-main-transport.yml
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Probe merge conflicts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          if git merge --no-commit --no-ff origin/main; then
+            echo ECONOMY_TRANSPORT_SYNC_CONFLICTS=none
+            git merge --abort || true
+          else
+            echo ECONOMY_TRANSPORT_SYNC_CONFLICTS
+            git diff --name-only --diff-filter=U
+            git merge --abort
+            exit 1
+          fi
