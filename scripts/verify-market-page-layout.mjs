@@ -75,7 +75,9 @@ for (const text of [
   'market-trade-readonly',
   'readOnly ? (',
   '该地区尚未解锁，市场仅供查看。',
-]) requireText('src/pages/MarketPage.tsx', text, `锁定州市场必须保留详情并在交易区内切换只读状态: ${text}`);
+  '<section className="market-trade-card">',
+]) requireText('src/pages/MarketPage.tsx', text, `地区商品详情必须保留当前只读／直接交易布局: ${text}`);
+forbidText('src/pages/MarketPage.tsx', '<Panel className="widget market-trade-card">', '地区商品详情不得恢复一级交易卡底座。');
 
 requireText('src/pages/ProvincePage.tsx', '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />', '州级上下文必须继续复用地区 MarketPage，并允许锁定州只读查看。');
 requireText('src/pages/ProvincePage.tsx', '<RegionalEntityPageTitle entityName={marketDetailProduct.name} regionName={provinceName} />', '州级商品详情必须使用共享两行地区实体标题。');
