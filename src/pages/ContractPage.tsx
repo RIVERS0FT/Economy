@@ -650,6 +650,7 @@ function endReasonTone(reasonCode: string) {
 function completionUnitLabel(unit: ContractAuditHistoryItem['endSummary']['completion']['unit']) {
   if (unit === 'repayment') return '笔';
   if (unit === 'lease_period') return '期';
+  if (unit === 'quantity') return '个';
   return '批';
 }
 

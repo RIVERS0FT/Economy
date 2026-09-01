@@ -80,7 +80,23 @@ function contractSnapshot(world, contract) {
       : optionalPlayerDisplayName(world, contract.buyerId),
     supplierId: nullableInteger(contract.supplierId),
     supplierName: optionalPlayerDisplayName(world, contract.supplierId),
+    provinceId: contract.provinceId ? String(contract.provinceId) : null,
     productId: String(contract.productId || ''),
+    supplyMode: contract.supplyMode === 'daily' ? 'daily' : null,
+    contractSchemaVersion: Math.max(0, safeInteger(contract.contractSchemaVersion, 0)),
+    dailyMaxQuantity: contract.supplyMode === 'daily' ? Math.max(0, safeInteger(contract.dailyMaxQuantity, 0)) : null,
+    dailyUsedQuantity: contract.supplyMode === 'daily' ? Math.max(0, safeInteger(contract.dailyUsedQuantity, 0)) : null,
+    dailyRemainingQuantity: contract.supplyMode === 'daily' ? Math.max(0, safeInteger(contract.dailyRemainingQuantity, 0)) : null,
+    dailyGrossLimit: contract.supplyMode === 'daily' ? safeMoney(contract.dailyGrossLimit, 0) : null,
+    totalDeliveredQuantity: contract.supplyMode === 'daily' ? Math.max(0, safeInteger(contract.totalDeliveredQuantity, 0)) : null,
+    completedDeliveryEvents: contract.supplyMode === 'daily' ? Math.max(0, safeInteger(contract.completedDeliveryEvents, 0)) : null,
+    durationDays: contract.supplyMode === 'daily'
+      ? (contract.durationDays === null ? null : Math.max(0, safeInteger(contract.durationDays, 0)))
+      : null,
+    startDelayDays: contract.supplyMode === 'daily' ? Math.max(0, safeInteger(contract.startDelayDays, 0)) : null,
+    startsAt: contract.supplyMode === 'daily' ? nullableInteger(contract.startsAt) : null,
+    endsAt: contract.supplyMode === 'daily' ? nullableInteger(contract.endsAt) : null,
+    prioritySupply: contract.supplyMode === 'daily' && contract.prioritySupply ? clone(contract.prioritySupply) : null,
     quantityPerDelivery: Math.max(0, safeInteger(contract.quantityPerDelivery, 0)),
     unitPrice: safeMoney(contract.unitPrice, 0),
     batchGross: batchGross(contract),
@@ -99,6 +115,7 @@ function contractSnapshot(world, contract) {
     endedAt: nullableInteger(contract.endedAt),
     completedAt: nullableInteger(contract.completedAt),
     lastDeliveryAt: nullableInteger(contract.lastDeliveryAt),
+    lastDeliveryQuantity: Math.max(0, safeInteger(contract.lastDeliveryQuantity, 0)),
     lastDeliveryGross: safeMoney(contract.lastDeliveryGross, 0),
     lastDeliveryFee: safeMoney(contract.lastDeliveryFee, 0),
     buyerEscrowCredits: safeMoney(contract.buyerEscrowCredits, 0),
@@ -124,7 +141,6 @@ function contractSnapshot(world, contract) {
     principal: safeMoney(contract.principal, 0), principalOutstanding: safeMoney(contract.principalOutstanding, 0),
     interestRateBps: Math.max(0, safeInteger(contract.interestRateBps, 0)), interestDue: safeMoney(contract.interestDue, 0),
     termMs: Math.max(0, safeInteger(contract.termMs, 0)), dueAt: nullableInteger(contract.dueAt),
-    provinceId: contract.provinceId ? String(contract.provinceId) : null,
     facilityTypeId: contract.facilityTypeId ? String(contract.facilityTypeId) : null,
     collateralQuantity: Math.max(0, safeInteger(contract.collateralQuantity, 0)), collateralTransferredQuantity: Math.max(0, safeInteger(contract.collateralTransferredQuantity, 0)),
     defaultCollateralQuantity: Math.max(0, safeInteger(contract.defaultCollateralQuantity, 0)), defaultCollateralUnitValue: safeMoney(contract.defaultCollateralUnitValue, 0),
@@ -151,6 +167,7 @@ function inventoryStored(player) {
 function reservedIncomingByBuyer(world) {
   const reserved = new Map();
   for (const contract of world.productionContracts || []) {
+    if (contract?.supplyMode === 'daily') continue;
     if (contract?.status !== 'active' || contract.breachedAt || contract.publisherType === 'market_reserve' || contract.buyerId === null || contract.buyerId === undefined) continue;
     const buyerId = Number(contract.buyerId);
     const renewalQuantity = contract.renewalProposal?.status === 'accepted'
@@ -600,6 +617,14 @@ function historyCompletion(contract) {
   if (contract.kind === 'loan') {
     const completed = contract.status === 'completed' ? 1 : 0;
     return { completed, total: 1, unit: 'repayment', ratioBps: completed ? 10_000 : 0 };
+  }
+  if (contract.kind === 'supply' && contract.supplyMode === 'daily') {
+    return {
+      completed: Math.max(0, safeInteger(contract.totalDeliveredQuantity, 0)),
+      total: null,
+      unit: 'quantity',
+      ratioBps: null,
+    };
   }
   const completed = contract.kind === 'facility_lease'
     ? Math.max(0, safeInteger(contract.completedPeriods ?? contract.completedDeliveries, 0))
@@ -1190,6 +1215,7 @@ const accepted = before.status === 'open' && after.status === 'active';
           metadata: {
             plannedAt: before.nextDueAt,
             deliveredAt: after.lastDeliveryAt || normalizedContext.occurredAt,
+            quantity: after.lastDeliveryQuantity || after.quantityPerDelivery,
             gross: after.lastDeliveryGross || after.batchGross,
             fee: after.lastDeliveryFee || Math.max(0, after.marketSellFeeCharged - before.marketSellFeeCharged),
           },
@@ -1323,7 +1349,9 @@ const accepted = before.status === 'open' && after.status === 'active';
         storedMoney(grossTotal),
         storedMoney(feeTotal),
         storedMoney(Math.max(0, roundInternalMoney(grossTotal - feeTotal) || 0)),
-        Math.max(0, after.completedDeliveries * after.quantityPerDelivery),
+        after.supplyMode === 'daily'
+          ? Math.max(0, safeInteger(after.totalDeliveredQuantity, 0))
+          : Math.max(0, after.completedDeliveries * after.quantityPerDelivery),
         storedMoney(compensationDelta),
         sequence,
         event.occurredAt,

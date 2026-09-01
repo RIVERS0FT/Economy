@@ -8,6 +8,7 @@ const forbidText = (source, text, message) => { if (source.includes(text)) failu
 const daily = read('server/src/daily-supply-contracts.js');
 const sourcing = read('server/src/production-input-sourcing.js');
 const unified = read('server/src/unified-contracts.js');
+const audit = read('server/src/contract-audit-store.js');
 const runtime = read('server/src/runtime-store.js');
 const reservations = read('server/src/online-auto-trade-reservations.js');
 const types = read('src/contracts/types.ts');
@@ -107,6 +108,11 @@ requireText(daily, 'CONTRACT_DAY_OFFSET_MS = 8 * 60 * 60 * 1000', '每日额度�
 requireText(daily, 'isDailySupplyContract(contract) ? normalizeDailyContract(contract, now) : contract', '旧商品合同迁移必须只规范已标记的每日合同。');
 forbidText(daily, "contract?.totalDeliveries !== null", '每日合同迁移不得再用旧 totalDeliveries 是否为空判断并强制迁移旧长期合同。');
 requireText(runtime, 'return executeRuntimeAction(this, user, requestMeta, now);', '无到期生产输入需求的普通动作必须保留既有单事务 fast path。');
+requireText(audit, "supplyMode: contract.supplyMode === 'daily' ? 'daily' : null", '每日合同审计快照必须保留 daily 模式。');
+requireText(audit, "totalDeliveredQuantity: contract.supplyMode === 'daily'", '每日合同审计快照必须保留累计真实交付数量。');
+requireText(audit, "unit: 'quantity'", '每日合同历史完成事实必须按实际交付数量表达。');
+requireText(audit, "if (contract?.supplyMode === 'daily') continue;", '每日合同不得进入旧下一批仓库预占审计计算。');
+
 
 
 if (failures.length) {

@@ -95,6 +95,14 @@ export class EconomyStore extends CoreEconomyStore {
   }
 
   getStateSnapshot(user, knownRevision = null, now = Date.now(), options = {}) {
+    const currentRevision = this.worldCache?.revision;
+    if (currentRevision !== undefined && this.canReuseStateProjection(user.id, now)) {
+      if (Number.isInteger(knownRevision) && Number(knownRevision) === Number(currentRevision)) {
+        return { revision: Number(currentRevision), unchanged: true };
+      }
+      const cachedProjection = this.cachedStateProjection(user.id, currentRevision);
+      if (cachedProjection) return cachedProjection;
+    }
     const snapshot = super.getStateSnapshot(user, knownRevision, now, options);
     if (!snapshot || snapshot.unchanged || !snapshot.state) return snapshot;
     const project = (world) => {

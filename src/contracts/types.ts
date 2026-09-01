@@ -107,6 +107,7 @@ export interface ProductionContract {
   dailyGrossLimit?: number;
   totalDeliveredQuantity?: number;
   completedDeliveryEvents?: number;
+  lastDeliveryQuantity?: number;
   durationDays?: number | null;
   startDelayDays?: number;
   startsAt?: number | null;
@@ -167,7 +168,7 @@ export interface ProductionContract {
   isLessee?: boolean;
 }
 
-export type ContractCompletionUnit = 'delivery' | 'repayment' | 'lease_period';
+export type ContractCompletionUnit = 'delivery' | 'quantity' | 'repayment' | 'lease_period';
 export interface ContractEndSettlementSummary {
   grossTotal: number;
   feeTotal: number;
