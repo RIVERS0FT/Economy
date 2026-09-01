@@ -7,12 +7,11 @@ test.describe('navigation pill geometry', () => {
 
     const host = page.locator('.mobile-bottom-navigation[data-navigation-surface="game-mobile-navigation"]');
     const navigation = page.getByRole('navigation', { name: '游戏主导航' });
-    const active = navigation.getByRole('button', { name: '概览', exact: true });
-    const inactive = navigation.getByRole('button', { name: '市场', exact: true });
+    const overview = navigation.getByRole('button', { name: '概览', exact: true });
+    const market = navigation.getByRole('button', { name: '市场', exact: true });
     await expect(host).toBeVisible();
-    await expect(active).toHaveClass(/active/);
 
-    const geometry = await active.evaluate((button) => {
+    const geometry = await overview.evaluate((button) => {
       const iconSlot = button.querySelector<HTMLElement>(':scope > span');
       const icon = iconSlot?.querySelector<HTMLElement>('.game-icon');
       const label = button.querySelector<HTMLElement>(':scope > strong');
@@ -39,7 +38,7 @@ test.describe('navigation pill geometry', () => {
         surfaceFilter: surfaceStyle.backdropFilter,
       };
     });
-    const inactiveVisual = await inactive.evaluate((button) => {
+    const inactiveVisual = await market.evaluate((button) => {
       const style = getComputedStyle(button);
       return { background: style.backgroundColor, border: style.borderTopColor };
     });
@@ -51,12 +50,22 @@ test.describe('navigation pill geometry', () => {
     expect(geometry.iconHeight).toBeCloseTo(21.6, 0);
     expect(Math.abs(geometry.iconCenterX - geometry.labelCenterX)).toBeLessThanOrEqual(1);
     expect(geometry.iconBottom).toBeLessThanOrEqual(geometry.labelTop + 1);
-    expect(geometry.background).toBe('rgba(50, 159, 88, 0.18)');
-    expect(geometry.border).toBe('rgba(123, 228, 158, 0.34)');
+    expect(geometry.background).toBe('rgba(0, 0, 0, 0)');
+    expect(geometry.border).toBe('rgba(0, 0, 0, 0)');
     expect(inactiveVisual.background).toBe('rgba(0, 0, 0, 0)');
     expect(inactiveVisual.border).toBe('rgba(0, 0, 0, 0)');
     expect(geometry.surfaceBackground).toBe('rgba(5, 20, 14, 0.76)');
     expect(geometry.surfaceFilter).toContain('blur(18px)');
+
+    await overview.click();
+    await expect(host).toHaveAttribute('data-workspace-sheet-hidden', 'true');
+    await expect(overview).toHaveClass(/active/);
+    const activeVisual = await overview.evaluate((button) => {
+      const style = getComputedStyle(button);
+      return { background: style.backgroundColor, border: style.borderTopColor };
+    });
+    expect(activeVisual.background).toBe('rgba(50, 159, 88, 0.18)');
+    expect(activeVisual.border).toBe('rgba(123, 228, 158, 0.34)');
   });
 
   test('desktop map lens controls use horizontal pills while retaining the existing map glass and colors', async ({ page }) => {
@@ -90,6 +99,7 @@ test.describe('navigation pill geometry', () => {
         labelCenterY: (labelBox.top + labelBox.bottom) / 2,
         color: style.color,
         background: style.backgroundColor,
+        border: style.borderTopColor,
         barFilter: barStyle.backdropFilter,
       };
     });
@@ -108,9 +118,14 @@ test.describe('navigation pill geometry', () => {
     await expect(page.locator('.strategic-map-stage')).toHaveAttribute('data-map-lens', 'industry');
     const activeVisual = await buttons.nth(2).evaluate((button) => {
       const style = getComputedStyle(button);
-      return { color: style.color, background: style.backgroundColor };
+      return {
+        color: style.color,
+        background: style.backgroundColor,
+        border: style.borderTopColor,
+      };
     });
     expect(activeVisual.color).not.toBe(geometry.color);
-    expect(activeVisual.background).not.toBe('rgba(0, 0, 0, 0)');
+    expect(activeVisual.border).not.toBe(geometry.border);
+    expect(activeVisual.background).toBe(geometry.background);
   });
 });
