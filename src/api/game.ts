@@ -168,8 +168,6 @@ export interface TransportRouteInput {
   destinationProvinceId: string;
   viaProvinceIds?: string[];
   tripType?: TransportTripType;
-  productId: string;
-  quantity: number;
   mode: TransportModeId;
 }
 export interface FacilityBuildProcurementOptions {
@@ -620,7 +618,6 @@ export const gameActions = {
   checkIn: () => postAction('/check-in'),
   chooseStartingProvince: (provinceId: string) => postAction('/provinces/starting', { provinceId }),
   unlockProvince: (provinceId: string) => postAction('/provinces/unlock', { provinceId }),
-  transportShip: (input: TransportRouteInput) => postAction('/transport', { ...input }),
   createTransportRoute: (input: TransportRouteInput) => postAction('/transport', {
     operation: 'route-create',
     ...input,
@@ -630,12 +627,13 @@ export const gameActions = {
     routeId,
     ...input,
   }),
+  renameTransportRoute: (routeId: string, name: string) => postAction('/transport', {
+    operation: 'route-rename',
+    routeId,
+    name,
+  }),
   deleteTransportRoute: (routeId: string) => postAction('/transport', {
     operation: 'route-delete',
-    routeId,
-  }),
-  dispatchTransportRoute: (routeId: string) => postAction('/transport', {
-    operation: 'route-dispatch',
     routeId,
   }),
   bankDeposit: (amount: number) => postAction('/bank/deposits', { amount }),

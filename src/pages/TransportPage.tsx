@@ -19,7 +19,7 @@ import {
   transportRouteStopIds,
 } from '../utils/provinceLogistics';
 
-type TransportRouteView = TransportRoute & { name?: string };
+type TransportRouteView = TransportRoute;
 type ManifestEntry = { productId: string; destinationProvinceId: string; quantity: number };
 type LegPlanEntry = {
   fromProvinceId: string;
@@ -47,14 +47,7 @@ function routeTripLabel(route: RouteConfig) {
 }
 
 function shipmentManifest(shipment: TransportShipmentView): ManifestEntry[] {
-  if (Array.isArray(shipment.manifest) && shipment.manifest.length > 0) return shipment.manifest;
-  const productId = String(shipment.productId || '');
-  const quantity = Math.max(0, Math.floor(Number(shipment.quantity || 0)));
-  if (!productId || quantity < 1) return [];
-  const destinations = (shipment.stopPlan || []).length > 0
-    ? (shipment.stopPlan || []).map((stop) => stop.provinceId)
-    : transportDeliveryStopIds(shipment);
-  return destinations.map((destinationProvinceId) => ({ productId, destinationProvinceId, quantity }));
+  return Array.isArray(shipment.manifest) ? shipment.manifest : [];
 }
 
 export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
@@ -122,9 +115,6 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
       destinationProvinceId: route.destinationProvinceId,
       viaProvinceIds: route.viaProvinceIds,
       tripType: isTransportRouteClosed(route) ? 'one-way' as const : route.tripType ?? TRANSPORT_DEFAULT_TRIP_TYPE,
-      // Compatibility-only request fields. The server route schema no longer persists or reads them.
-      productId: '',
-      quantity: 1,
       mode: route.mode,
     };
   }
@@ -176,12 +166,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
       await model.showResult({ ok: false, message: '路线名称不能为空' });
       return;
     }
-    const renameInput = {
-      ...mutationInput(route),
-      operation: 'route-rename',
-      name,
-    } as Parameters<typeof model.updateTransportRoute>[1] & { operation: 'route-rename'; name: string };
-    await runMutation(`route-rename:${route.id}`, () => model.updateTransportRoute(route.id, renameInput));
+    await runMutation(`route-rename:${route.id}`, () => model.renameTransportRoute(route.id, name));
   }
 
   async function deleteRoute(route: TransportRouteView) {

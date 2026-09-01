@@ -29,6 +29,9 @@ const gameRoutes = read('server/src/game-routes.js');
 const populationEconomy = read('server/src/population-economy.js');
 const leaderboards = read('server/src/leaderboards.js');
 const types = read('src/types.ts');
+const gameApi = read('src/api/game.ts');
+const viewModel = read('src/app/gameViewModel.ts');
+const localPreview = read('src/app/LocalGamePreviewApp.tsx');
 const provincePage = read('src/pages/ProvincePage.tsx');
 const bankPage = read('src/pages/BankPage.tsx');
 const contractPage = read('src/pages/ContractPage.tsx');
@@ -174,8 +177,20 @@ requireText(types, 'unlockedProvinces: string[];', '客户端类型必须声明�
 requireText(types, 'export interface TransportRoute', '客户端类型必须声明运输路线。');
 requireText(types, 'transportRoutes?: TransportRoute[];', '客户端状态必须声明运输路线。');
 requireText(types, 'routeId?: string;', '运输记录必须允许关联路线。');
+requireText(types, 'name: string;', '运输路线客户端类型必须声明名称。');
+requireText(types, 'manifest: TransportManifestItem[];', '运输记录客户端类型必须声明多商品货单。');
+requireText(types, 'legPlan: TransportLegPlanEntry[];', '运输记录客户端类型必须声明逐段计划。');
 requireText(types, 'transportShipments: TransportShipment[];', '客户端类型必须声明运输记录。');
 requireText(types, 'inTransit: number;', '客户端类型必须声明在途库存。');
+for (const [label, source] of [['game API', gameApi], ['view model', viewModel], ['local preview', localPreview]]) {
+  forbidText(source, 'dispatchTransportRoute', `${label} 不得恢复手动路线发运入口。`);
+}
+forbidText(gameApi, "operation: 'route-dispatch'", '客户端 API 不得恢复 route-dispatch 请求。');
+forbidText(gameApi, 'transportShip: (input:', '客户端 API 不得暴露直接运输动作。');
+forbidText(viewModel, 'transportShip: (input:', '视图模型不得暴露直接运输动作。');
+requireText(gameApi, 'renameTransportRoute', '客户端 API 必须提供独立路线改名动作。');
+requireText(viewModel, 'renameTransportRoute', '视图模型必须提供独立路线改名动作。');
+requireText(localPreview, 'renameTransportRoute', '本地预览必须与路线改名接口保持一致。');
 
 requireText(provincePage, 'province-lock-content', '州页必须提供直接排列在正文的解锁内容。');
 requireText(provincePage, 'provinceUnlockCostBreakdown', '州页必须使用共享解锁费用拆分。');
