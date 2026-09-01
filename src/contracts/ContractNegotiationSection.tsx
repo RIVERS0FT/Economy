@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { ChevronIcon } from '../components/icons/GameIcons';
 import { IntegerInput, MoneyInput } from '../components/ui/FormControls';
 import { Button, DataList, DataRow, StatusTag } from '../components/ui/layout';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
@@ -14,15 +15,47 @@ function optionalDays(value: string): number | null | undefined {
   if (value.trim() === '') return null;
   return parseIntegerDraft(value, { min: 1, max: 3650 }) ?? undefined;
 }
-function daysLabel(value: number | null) { return value === null ? '长期' : `${value} 天`; }
 
-function TermsSummary({ terms }: { terms: ProductionContractNegotiationTerms }) {
+function daysLabel(value: number | null) {
+  return value === null ? '长期' : `${value} 天`;
+}
+
+function TermChange({ from, to }: { from: ReactNode; to: ReactNode }) {
+  return (
+    <span className="contract-negotiation-change">
+      <span>{from}</span>
+      <ChevronIcon direction="right" />
+      <span>{to}</span>
+    </span>
+  );
+}
+
+function TermsSummary({
+  terms,
+  baseTerms,
+}: {
+  terms: ProductionContractNegotiationTerms;
+  baseTerms: ProductionContractNegotiationTerms;
+}) {
+  const quantity = terms.dailyMaxQuantity === baseTerms.dailyMaxQuantity
+    ? <CompactNumber value={terms.dailyMaxQuantity} />
+    : <TermChange from={<CompactNumber value={baseTerms.dailyMaxQuantity} />} to={<CompactNumber value={terms.dailyMaxQuantity} />} />;
+  const price = terms.unitPrice === baseTerms.unitPrice
+    ? <CurrencyAmount>{terms.unitPrice}</CurrencyAmount>
+    : <TermChange from={<CurrencyAmount>{baseTerms.unitPrice}</CurrencyAmount>} to={<CurrencyAmount>{terms.unitPrice}</CurrencyAmount>} />;
+  const duration = terms.durationDays === baseTerms.durationDays
+    ? daysLabel(terms.durationDays)
+    : <TermChange from={daysLabel(baseTerms.durationDays)} to={daysLabel(terms.durationDays)} />;
+  const startDelay = terms.startDelayDays === baseTerms.startDelayDays
+    ? `${terms.startDelayDays} 天`
+    : <TermChange from={`${baseTerms.startDelayDays} 天`} to={`${terms.startDelayDays} 天`} />;
+
   return (
     <DataList className="compact contract-negotiation-summary">
-      <DataRow label="每日最大供应量" value={<CompactNumber value={terms.dailyMaxQuantity} />} />
-      <DataRow label="固定价格" value={<CurrencyAmount>{terms.unitPrice}</CurrencyAmount>} />
-      <DataRow label="合同时间" value={daysLabel(terms.durationDays)} />
-      <DataRow label="开始延迟" value={`${terms.startDelayDays} 天`} />
+      <DataRow label="每日最大供应量" value={quantity} />
+      <DataRow label="固定价格" value={price} />
+      <DataRow label="合同时间" value={duration} />
+      <DataRow label="开始延迟" value={startDelay} />
     </DataList>
   );
 }
@@ -81,7 +114,7 @@ export function ContractNegotiationSection({ contract, busy, run }: { contract: 
         {negotiations.map((item) => (
           <article key={item.id} className="contract-negotiation-item">
             <header><div><strong>{item.proposerName || '议价玩家'}</strong><span>第 {item.revision} 轮</span></div><StatusTag tone={item.awaitingMyResponse ? 'warning' : 'info'}>{item.awaitingMyResponse ? '等待你处理' : '等待对方'}</StatusTag></header>
-            <TermsSummary terms={item.terms} />
+            <TermsSummary terms={item.terms} baseTerms={baseTerms} />
             {editing === item.id ? (
               <TermsEditor initial={item.terms} busy={busy} submitLabel="发送反报价" onCancel={() => setEditing(null)} onSubmit={(input) => { setEditing(null); void run(`${contract.id}:negotiation:${item.id}:counter`, () => productionContractActions.counterNegotiation(contract.id, item.id, input)); }} />
             ) : item.awaitingMyResponse ? (
@@ -105,7 +138,7 @@ export function ContractNegotiationSection({ contract, busy, run }: { contract: 
   return (
     <section className="contract-negotiation-panel" aria-label="我的合同议价">
       <div className="contract-negotiation-heading"><div><strong>{own.awaitingMyResponse ? '收到反报价' : '我的议价'}</strong><span>第 {own.revision} 轮</span></div><StatusTag tone={own.awaitingMyResponse ? 'warning' : 'info'}>{own.awaitingMyResponse ? '等待你处理' : '等待发布者'}</StatusTag></div>
-      <TermsSummary terms={own.terms} />
+      <TermsSummary terms={own.terms} baseTerms={baseTerms} />
       {editing === own.id ? <TermsEditor initial={own.terms} busy={busy} submitLabel="发送再报价" onCancel={() => setEditing(null)} onSubmit={(input) => { setEditing(null); void run(`${contract.id}:negotiation:${own.id}:counter`, () => productionContractActions.counterNegotiation(contract.id, own.id, input)); }} /> : (
         <div className="contract-negotiation-actions">
           {own.awaitingMyResponse ? <><Button disabled={busy} onClick={() => void run(`${contract.id}:negotiation:${own.id}:accept`, () => productionContractActions.acceptNegotiation(contract.id, own.id))}>接受并签订</Button><Button variant="secondary" disabled={busy || own.revision >= 5} onClick={() => setEditing(own.id)}>再报价</Button><Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:negotiation:${own.id}:reject`, () => productionContractActions.rejectNegotiation(contract.id, own.id))}>拒绝</Button></> : <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:negotiation:${own.id}:revoke`, () => productionContractActions.revokeNegotiation(contract.id, own.id))}>撤回议价</Button>}
