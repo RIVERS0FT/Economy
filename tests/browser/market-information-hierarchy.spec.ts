@@ -2,6 +2,9 @@ import { expect, test } from '@playwright/test';
 
 // Regional detail regression locks the compact facts-only layout; retired fundamentals must stay absent.
 test('market uses product-first global and regional information hierarchy', async ({ page }) => {
+  await page.route('**/api/game/community-link**', async (route) => {
+    await route.fulfill({ json: { communityLink: null } });
+  });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('?preview=game');
   const sidebar = page.locator('.desktop-sidebar');
