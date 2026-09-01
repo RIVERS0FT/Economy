@@ -33,6 +33,18 @@ text = p.read_text().replace(
     "page.locator('.contract-summary-grid')",
     "page.locator('.ui-page-stack > .contract-summary-grid')",
 )
+text = text.replace(
+    "await expect(page.locator('.contract-publish-preview').getByText('长期合同', { exact: true })).toBeVisible();",
+    "await expect(page.locator('.contract-publish-preview')).toContainText('长期合同');",
+)
+history_route = '''  await page.route('**/economy-api/game/contracts/history**', async (route) => {
+    await route.fulfill({ json: { history: { items: [contract], nextCursor: null } } });
+  });'''
+if history_route in text and "**/api/game/contracts/performance**" not in text:
+    text = text.replace(history_route, history_route + '''
+  await page.route('**/api/game/contracts/performance**', async (route) => {
+    await route.fulfill({ json: { performance: { totalEnded: 1, completed: 1, abnormalEnded: 0, defaulted: 0, completionRateBps: 10_000, compensationPaid: 0, compensationReceived: 0, recent: [] } } });
+  });''', 1)
 p.write_text(text)
 
 p = Path('tests/browser/contract-workspace.spec.ts')
@@ -43,7 +55,7 @@ old = '''  await page.route('**/economy-api/game/contracts/history**', async (ro
 new = '''  await page.route('**/economy-api/game/contracts/history**', async (route) => {
     await route.fulfill({ json: { history: { items: [], nextCursor: null } } });
   });
-  await page.route('**/economy-api/game/contracts/performance**', async (route) => {
+  await page.route('**/api/game/contracts/performance**', async (route) => {
     await route.fulfill({ json: { performance: { totalEnded: 0, completed: 0, abnormalEnded: 0, defaulted: 0, completionRateBps: 0, compensationPaid: 0, compensationReceived: 0, recent: [] } } });
   });
   await page.route('**/api/game/community-link**', async (route) => {
