@@ -1,0 +1,142 @@
+from pathlib import Path
+
+DOC_PATH = Path('docs/UI_DESIGN_SYSTEM.md')
+MAP_PATH = Path('src/components/provinces/UsMainlandMap.tsx')
+
+
+def update_design_document() -> None:
+    lines = DOC_PATH.read_text().splitlines()
+    route_index = next(
+        i for i, line in enumerate(lines)
+        if line.startswith('- 运输路线图层唯一挂载在 `UsMainlandMap`')
+    )
+    route_rule = (
+        '- 运输路线图层唯一挂载在 `UsMainlandMap` 静态 SVG 世界面内、州面上方且不拦截州面交互：'
+        '首府坐标经同一静态投影在模块初始化时求点，路线连线、返程虚线与站点标记跟随唯一 '
+        '`.province-map-camera-surface` 合成相机，使用 `non-scaling-stroke`，缩放／平移期间不重投影、不重排州名。'
+        '草稿连线使用 `--color-info` 高亮，已保存路线使用 `--color-map-label` 弱化，卡片高亮使用 `--color-warning`；'
+        '选州模式压暗不可选州面并保留可选项的中性轮廓反馈。选州操作条位于地图层顶部安全区内，复用既有表面令牌，'
+        '并同时承载站点序列、运输方式、单程／往返、闭环、重置、完成与取消。'
+    )
+    shipment_rule = (
+        '- 在途运输标记与运输路线使用同一 SVG 世界坐标系和同一合成相机，不创建第二张地图、第二套投影或 ECharts 动画层。'
+        '标记位置只根据服务器权威时间和 shipment 固化的 `legPlan` 当前运输段插值计算；公路、铁路、航空使用紧凑且可辨识的 SVG 标记。'
+        '桌面 hover、键盘 focus 和移动点击必须显示统一 Tooltip，至少包含路线名称、当前运输段、剩余时间、当前载荷以及正在运输的商品、数量和各自目的州；'
+        '已卸货商品不得继续列为正在运输。运输标记 Tooltip 与州 Tooltip 共用唯一 `.workspace-tooltip-layer` 作为 Portal DOM 父级，'
+        '实际 Tooltip 节点自己声明 `popover="manual"` 并通过既有 `topLayer.ts` 进入浏览器 Top Layer；'
+        '不得把共享宿主整体送入 Top Layer 或创建运输专属 Portal 根。`prefers-reduced-motion` 下关闭装饰性运动／过渡，'
+        '但仍按服务器权威时间显示准确当前位置和货物信息。'
+    )
+    lines[route_index:route_index + 1] = [route_rule, shipment_rule]
+    DOC_PATH.write_text('\n'.join(lines) + '\n')
+
+
+def update_map() -> None:
+    text = MAP_PATH.read_text()
+    assert '<<<<<<<' not in text and '>>>>>>>' not in text
+
+    if "import { createPortal } from 'react-dom';" not in text:
+        text = text.replace(
+            "} from 'react';\n",
+            "} from 'react';\nimport { createPortal } from 'react-dom';\n",
+            1,
+        )
+
+    import_anchor = "import { formatTransportDuration } from '../../utils/provinceLogistics';\n"
+    tooltip_imports = (
+        "import { useWorkspaceTooltipLayer } from '../ui/WorkspaceFloatingLayer';\n"
+        "import {\n"
+        "  hideTopLayerPopover,\n"
+        "  showTopLayerPopover,\n"
+        "  supportsTopLayerPopover,\n"
+        "} from '../ui/topLayer';\n"
+    )
+    assert import_anchor in text
+    if 'useWorkspaceTooltipLayer' not in text:
+        text = text.replace(import_anchor, import_anchor + tooltip_imports, 1)
+
+    init_anchor = (
+        "}) {\n"
+        "  const unlockedSet = useMemo(() => new Set(unlockedProvinceIds || []), [unlockedProvinceIds]);"
+    )
+    init_replacement = (
+        "}) {\n"
+        "  const tooltipLayer = useWorkspaceTooltipLayer();\n"
+        "  const tooltipTopLayerActive = supportsTopLayerPopover() && Boolean(tooltipLayer);\n"
+        "  const unlockedSet = useMemo(() => new Set(unlockedProvinceIds || []), [unlockedProvinceIds]);"
+    )
+    assert init_anchor in text
+    text = text.replace(init_anchor, init_replacement, 1)
+
+    selected_effect = (
+        "  useEffect(() => {\n"
+        "    const container = viewportRef.current;\n"
+        "    if (!container) return;\n"
+        "    container.dataset.mapSelectedProvinceId = selectedProvinceId ?? '';\n"
+        "  }, [selectedProvinceId]);\n\n"
+    )
+    top_layer_effect = (
+        "  useLayoutEffect(() => {\n"
+        "    if ((!hoveredProvinceId && !hoveredShipmentId) || !tooltipTopLayerActive) return undefined;\n"
+        "    const tooltip = tooltipRef.current;\n"
+        "    if (!tooltip) return undefined;\n"
+        "    showTopLayerPopover(tooltip);\n"
+        "    return () => hideTopLayerPopover(tooltip);\n"
+        "  }, [hoveredProvinceId, hoveredShipmentId, tooltipTopLayerActive, tooltipLayer]);\n\n"
+    )
+    assert selected_effect in text
+    text = text.replace(selected_effect, selected_effect + top_layer_effect, 1)
+
+    tooltip_node = '''  const tooltipNode = hoveredShipment && hoveredShipmentPosition ? (
+    <div
+      ref={tooltipRef}
+      className="economy-chart-tooltip ui-tooltip-surface province-map-tooltip province-map-static-tooltip province-map-shipment-tooltip"
+      data-tooltip-kind="shipment"
+      data-tooltip-layer={tooltipLayer ? 'workspace' : 'local'}
+      data-top-layer={tooltipTopLayerActive ? 'true' : undefined}
+      popover={tooltipTopLayerActive ? 'manual' : undefined}
+      role="status"
+    >
+      <strong>{hoveredShipment.routeName}</strong>
+      <span>{provinceNameById.get(hoveredShipmentPosition.fromProvinceId) ?? hoveredShipmentPosition.fromProvinceId} → {provinceNameById.get(hoveredShipmentPosition.toProvinceId) ?? hoveredShipmentPosition.toProvinceId}</span>
+      <span>剩余时间：{formatTransportDuration(Math.max(0, hoveredShipment.arrivesAt - now))}</span>
+      <span>当前载荷：<CompactNumber value={hoveredShipmentPosition.remainingLoad} /></span>
+      {hoveredShipment.cargo.length > 0 ? hoveredShipment.cargo.map((entry, index) => (
+        <span key={`${entry.productName}-${entry.destinationName}-${index}`} className="province-map-shipment-tooltip-cargo">
+          {entry.productName} ×<CompactNumber value={entry.quantity} /> → {entry.destinationName}
+        </span>
+      )) : <span>没有剩余货物</span>}
+    </div>
+  ) : hoveredDatum ? (
+    <div
+      ref={tooltipRef}
+      className="economy-chart-tooltip ui-tooltip-surface province-map-tooltip province-map-static-tooltip"
+      data-tooltip-layer={tooltipLayer ? 'workspace' : 'local'}
+      data-top-layer={tooltipTopLayerActive ? 'true' : undefined}
+      popover={tooltipTopLayerActive ? 'manual' : undefined}
+      aria-hidden="true"
+    >
+      <strong>{hoveredDatum.provinceName}</strong>
+      {hoveredDatum.locked ? <span className="province-map-tooltip__locked">未解锁</span> : null}
+      {tooltipRows(hoveredDatum).map((row) => <span key={row}>{row}</span>)}
+    </div>
+  ) : null;
+
+'''
+    summary_anchor = '  const accessibleSummary = `美国本土州级经营地图'
+    assert summary_anchor in text
+    text = text.replace(summary_anchor, tooltip_node + summary_anchor, 1)
+
+    inline_start = text.index('          {hoveredShipment && hoveredShipmentPosition ? (')
+    inline_end_marker = '        </div>\n        <span className="economy-chart__accessible-summary">'
+    inline_end = text.index(inline_end_marker, inline_start)
+    text = (
+        text[:inline_start]
+        + '          {tooltipNode ? (tooltipLayer ? createPortal(tooltipNode, tooltipLayer) : tooltipNode) : null}\n'
+        + text[inline_end:]
+    )
+    MAP_PATH.write_text(text)
+
+
+update_design_document()
+update_map()
