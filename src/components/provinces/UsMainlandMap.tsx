@@ -310,7 +310,7 @@ export function UsMainlandMap({
     container.dataset.mapFitMode = 'contain-static-svg';
     container.dataset.mapContainViewport = `${width}x${height}`;
     container.dataset.mapIntrinsicAspect = provinceMapProjection.aspect.toFixed(6);
-    container.dataset.mapTooltipMode = width > MOBILE_MAP_MAX_WIDTH ? 'desktop' : 'touch';
+    container.dataset.mapTooltipMode = width > MOBILE_MAP_MAX_WIDTH ? 'desktop' : 'hidden-mobile';
   }, []);
 
   useLayoutEffect(() => {
