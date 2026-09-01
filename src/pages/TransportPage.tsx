@@ -1,144 +1,108 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { ChevronIcon } from '../components/icons/GameIcons';
-import { IntegerInput, SelectInput } from '../components/ui/FormControls';
 import { useTransportRouteDraft, type TransportRouteDraft } from '../components/shell/TransportRouteDraftContext';
-import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { CompactNumber } from '../components/ui/CompactNumber';
-import { Button, PageLayout, PagePanel, StatusTag, ToggleField, WidgetHeading } from '../components/ui/layout';
+import { TextInput } from '../components/ui/FormControls';
+import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
+import { Button, PageLayout, PagePanel, StatusTag, WidgetHeading } from '../components/ui/layout';
 import { useNow } from '../hooks/useNow';
-import type { TransportModeId, TransportRoute, TransportShipment } from '../types';
+import type { TransportModeId, TransportRoute, TransportShipment, TransportTripType } from '../types';
 import { formatCurrency } from '../utils/formatters';
-import { parseIntegerDraft } from '../utils/integerDraft';
 import {
   formatTransportDuration,
   isTransportRouteClosed,
   TRANSPORT_DEFAULT_TRIP_TYPE,
-  TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER,
   TRANSPORT_MAX_ROUTES_PER_PLAYER,
   TRANSPORT_MODES,
   transportDeliveryStopIds,
-  transportRouteMaxQuantityPerStop,
-  transportRoutePlanMetrics,
   transportRouteStopIds,
-  type TransportRoutePlanMetrics,
 } from '../utils/provinceLogistics';
 
-type TransportRouteWithAutomation = TransportRoute & { autoDispatch?: boolean };
-type RouteLike = Pick<TransportRoute, 'sourceProvinceId' | 'destinationProvinceId' | 'viaProvinceIds' | 'tripType'>;
-type RouteEconomicsInput = RouteLike & { productId: string; quantity: number };
+type TransportRouteView = TransportRoute & { name?: string };
+type ManifestEntry = { productId: string; destinationProvinceId: string; quantity: number };
+type LegPlanEntry = {
+  fromProvinceId: string;
+  toProvinceId: string;
+  departsAt: number;
+  arrivesAt: number;
+  remainingLoad: number;
+};
+type TransportShipmentView = TransportShipment & {
+  routeName?: string;
+  manifest?: ManifestEntry[];
+  legPlan?: LegPlanEntry[];
+};
+type RouteConfig = {
+  sourceProvinceId: string;
+  destinationProvinceId: string;
+  viaProvinceIds?: string[];
+  tripType?: TransportTripType;
+  mode: TransportModeId;
+};
 
-function routeTripLabel(route: RouteLike) {
+function routeTripLabel(route: RouteConfig) {
   if (isTransportRouteClosed(route)) return '环线';
   return route.tripType === 'round' ? '往返' : '单程';
 }
 
+function shipmentManifest(shipment: TransportShipmentView): ManifestEntry[] {
+  if (Array.isArray(shipment.manifest) && shipment.manifest.length > 0) return shipment.manifest;
+  const productId = String(shipment.productId || '');
+  const quantity = Math.max(0, Math.floor(Number(shipment.quantity || 0)));
+  if (!productId || quantity < 1) return [];
+  const destinations = (shipment.stopPlan || []).length > 0
+    ? (shipment.stopPlan || []).map((stop) => stop.provinceId)
+    : transportDeliveryStopIds(shipment);
+  return destinations.map((destinationProvinceId) => ({ productId, destinationProvinceId, quantity }));
+}
+
 export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
   const { game } = model;
+  const pageNavigation = usePlayerPageNavigation();
   const now = useNow(game.lastProcessedAt, 1_000);
-  const routes = (Array.isArray(game.transportRoutes) ? game.transportRoutes : []) as TransportRouteWithAutomation[];
-  const shipments = Array.isArray(game.transportShipments) ? game.transportShipments : [];
+  const routes = (Array.isArray(game.transportRoutes) ? game.transportRoutes : []) as TransportRouteView[];
+  const shipments = (Array.isArray(game.transportShipments) ? game.transportShipments : []) as TransportShipmentView[];
   const {
     draft: routeDraft,
     setDraft,
-    updateDraft: setRouteDraft,
     closeDraft,
     picking,
     beginPicking,
-    finishPicking,
-    cancelPicking,
     setHighlightedRouteStops,
   } = useTransportRouteDraft();
   const [pendingAction, setPendingAction] = useState('');
+  const [routeNameDraft, setRouteNameDraft] = useState('');
 
+  const provinceById = useMemo(() => new Map(game.provinces.map((province) => [province.id, province])), [game.provinces]);
+  const productById = useMemo(() => new Map(game.products.map((product) => [product.id, product])), [game.products]);
   const unlockedProvinceIds = useMemo(() => new Set([
     ...(Array.isArray(game.unlockedProvinces) ? game.unlockedProvinces : []),
     game.startingProvinceId,
   ].filter(Boolean)), [game.startingProvinceId, game.unlockedProvinces]);
-  const unlockedProvinces = useMemo(
-    () => game.provinces.filter((province) => unlockedProvinceIds.has(province.id)),
-    [game.provinces, unlockedProvinceIds],
-  );
-  const provinceById = useMemo(
-    () => new Map(game.provinces.map((province) => [province.id, province])),
-    [game.provinces],
-  );
-  const productById = useMemo(
-    () => new Map(game.products.map((product) => [product.id, product])),
-    [game.products],
-  );
-  const activeShipments = useMemo(
-    () => shipments
-      .filter((shipment) => shipment.status === 'in-transit')
-      .sort((left, right) => left.arrivesAt - right.arrivesAt),
-    [shipments],
-  );
-  const completedShipments = useMemo(
-    () => shipments
-      .filter((shipment) => shipment.status === 'arrived')
-      .sort((left, right) => Number(right.arrivedAt || right.createdAt) - Number(left.arrivedAt || left.createdAt)),
-    [shipments],
-  );
+  const activeByRouteId = useMemo(() => new Map(
+    shipments
+      .filter((shipment) => shipment.status === 'in-transit' && shipment.routeId)
+      .map((shipment) => [String(shipment.routeId), shipment]),
+  ), [shipments]);
 
-  function marketReferencePrice(provinceId: string, productId: string) {
-    const market = game.provinceMarkets?.[provinceId]?.[productId];
-    const product = productById.get(productId);
-    const candidates = [
-      market?.bestBid,
-      market?.lastTradePrice,
-      market?.officialPrice,
-      market?.lastPrice,
-      product?.basePrice,
-    ];
-    const selected = candidates.find((value) => Number.isFinite(Number(value)) && Number(value) > 0);
-    return selected === undefined ? 0 : Number(selected);
+  const currentLocation = pageNavigation?.currentLocation;
+  const detailRouteId = currentLocation?.type === 'transport-route' ? currentLocation.routeId : null;
+  const detailRoute = detailRouteId ? routes.find((route) => route.id === detailRouteId) ?? null : null;
+
+  function defaultRouteName(route: RouteConfig) {
+    const source = provinceById.get(route.sourceProvinceId)?.name ?? route.sourceProvinceId;
+    const destination = provinceById.get(route.destinationProvinceId)?.name ?? route.destinationProvinceId;
+    return `${source}-${destination}`;
   }
 
-  function routeEconomics(route: RouteEconomicsInput, plan: TransportRoutePlanMetrics | null) {
-    if (!plan || plan.deliveryStops.length < 1 || plan.initialLoad < 1) return null;
-    const sourceUnitValue = marketReferencePrice(route.sourceProvinceId, route.productId);
-    const sourceReferenceValue = sourceUnitValue * plan.initialLoad;
-    const deliveryReferenceValue = plan.deliveryStops.reduce((total, provinceId) => (
-      total + marketReferencePrice(provinceId, route.productId) * route.quantity
-    ), 0);
-    const spread = deliveryReferenceValue - sourceReferenceValue - plan.cost;
-    return {
-      sourceReferenceValue,
-      deliveryReferenceValue,
-      spread,
-      spreadRate: sourceReferenceValue > 0 ? spread / sourceReferenceValue : null,
-    };
+  function visibleRouteName(route: TransportRouteView) {
+    return route.name?.trim() || defaultRouteName(route);
   }
 
-  function emptyRouteDraft(): TransportRouteDraft {
-    const sourceProvinceId = unlockedProvinces[0]?.id ?? '';
-    const destinationProvinceId = unlockedProvinces.find((province) => province.id !== sourceProvinceId)?.id ?? '';
-    return {
-      routeId: null,
-      sourceProvinceId,
-      destinationProvinceId,
-      viaProvinceIds: [],
-      tripType: TRANSPORT_DEFAULT_TRIP_TYPE,
-      productId: game.products[0]?.id ?? '',
-      quantity: '1',
-      mode: 'road',
-      autoDispatch: false,
-    };
-  }
-
-  function editRoute(route: TransportRouteWithAutomation) {
-    setDraft({
-      routeId: route.id,
-      sourceProvinceId: route.sourceProvinceId,
-      destinationProvinceId: route.destinationProvinceId,
-      viaProvinceIds: Array.isArray(route.viaProvinceIds) ? [...route.viaProvinceIds] : [],
-      tripType: route.tripType ?? TRANSPORT_DEFAULT_TRIP_TYPE,
-      productId: route.productId,
-      quantity: String(route.quantity),
-      mode: route.mode,
-      autoDispatch: route.autoDispatch === true,
-    });
-  }
+  useEffect(() => {
+    setRouteNameDraft(detailRoute ? visibleRouteName(detailRoute) : '');
+  }, [detailRoute?.destinationProvinceId, detailRoute?.id, detailRoute?.name, detailRoute?.sourceProvinceId]);
 
   async function runMutation(key: string, operation: () => Promise<{ ok: boolean; message: string }>) {
     if (pendingAction) return false;
@@ -152,432 +116,288 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
     }
   }
 
-  async function saveRoute() {
+  function mutationInput(route: RouteConfig) {
+    return {
+      sourceProvinceId: route.sourceProvinceId,
+      destinationProvinceId: route.destinationProvinceId,
+      viaProvinceIds: route.viaProvinceIds,
+      tripType: isTransportRouteClosed(route) ? 'one-way' as const : route.tripType ?? TRANSPORT_DEFAULT_TRIP_TYPE,
+      // Compatibility-only request fields. The server route schema no longer persists or reads them.
+      productId: '',
+      quantity: 1,
+      mode: route.mode,
+    };
+  }
+
+  function beginCreateRoute() {
+    setDraft({
+      routeId: null,
+      sourceProvinceId: '',
+      destinationProvinceId: '',
+      viaProvinceIds: [],
+      tripType: TRANSPORT_DEFAULT_TRIP_TYPE,
+      mode: 'road',
+    });
+    beginPicking();
+  }
+
+  function beginEditRoute(route: TransportRouteView) {
+    setDraft({
+      routeId: route.id,
+      sourceProvinceId: route.sourceProvinceId,
+      destinationProvinceId: route.destinationProvinceId,
+      viaProvinceIds: Array.isArray(route.viaProvinceIds) ? [...route.viaProvinceIds] : [],
+      tripType: route.tripType ?? TRANSPORT_DEFAULT_TRIP_TYPE,
+      mode: route.mode,
+    });
+    beginPicking();
+  }
+
+  async function saveRouteDraft() {
     if (!routeDraft) return;
-    const maxPerStop = transportRouteMaxQuantityPerStop(routeDraft, routeDraft.mode);
-    const quantity = maxPerStop >= 1
-      ? parseIntegerDraft(routeDraft.quantity, { min: 1, max: maxPerStop })
-      : null;
-    const closed = isTransportRouteClosed(routeDraft);
-    const stopIds = transportRouteStopIds(routeDraft);
-    if (
-      !routeDraft.sourceProvinceId
-      || !routeDraft.destinationProvinceId
-      || stopIds.length < 2
-      || (closed && routeDraft.viaProvinceIds.length < 1)
-      || !routeDraft.productId
-      || quantity === null
-    ) {
-      await model.showResult({ ok: false, message: '请完整填写有效的运输路线，并确保首段总载荷不超过运输方式容量' });
+    const stops = transportRouteStopIds(routeDraft);
+    if (!routeDraft.sourceProvinceId || !routeDraft.destinationProvinceId || stops.length < 2) {
+      await model.showResult({ ok: false, message: '请先在地图上选择完整运输路线' });
       return;
     }
-    const routeId = routeDraft.routeId;
-    const editing = Boolean(routeId);
-    const input = {
-      sourceProvinceId: routeDraft.sourceProvinceId,
-      destinationProvinceId: routeDraft.destinationProvinceId,
-      viaProvinceIds: routeDraft.viaProvinceIds,
-      tripType: closed ? 'one-way' as const : routeDraft.tripType,
-      productId: routeDraft.productId,
-      quantity,
-      mode: routeDraft.mode,
-      autoDispatch: routeDraft.autoDispatch,
-    };
+    const input = mutationInput(routeDraft);
     const ok = await runMutation(
-      editing ? `update:${routeId}` : 'create',
-      () => routeId
-        ? model.updateTransportRoute(routeId, input)
+      routeDraft.routeId ? `route-update:${routeDraft.routeId}` : 'route-create',
+      () => routeDraft.routeId
+        ? model.updateTransportRoute(routeDraft.routeId, input)
         : model.createTransportRoute(input),
     );
+    if (ok) closeDraft();
+  }
+
+  async function renameRoute(route: TransportRouteView) {
+    const name = routeNameDraft.trim();
+    if (!name) {
+      await model.showResult({ ok: false, message: '路线名称不能为空' });
+      return;
+    }
+    const renameInput = {
+      ...mutationInput(route),
+      operation: 'route-rename',
+      name,
+    } as Parameters<typeof model.updateTransportRoute>[1] & { operation: 'route-rename'; name: string };
+    await runMutation(`route-rename:${route.id}`, () => model.updateTransportRoute(route.id, renameInput));
+  }
+
+  async function deleteRoute(route: TransportRouteView) {
+    const ok = await runMutation(`route-delete:${route.id}`, () => model.deleteTransportRoute(route.id));
     if (ok) {
       closeDraft();
-      cancelPicking();
+      pageNavigation?.replacePage({ type: 'tab', tab: 'transport' });
     }
   }
 
-  function changeSourceProvince(sourceProvinceId: string) {
-    if (!routeDraft) return;
-    const viaProvinceIds = routeDraft.viaProvinceIds.filter((provinceId) => provinceId !== sourceProvinceId);
-    const currentDestination = routeDraft.destinationProvinceId;
-    const destinationProvinceId = currentDestination === sourceProvinceId
-      ? (viaProvinceIds.length >= 1 ? sourceProvinceId : '')
-      : currentDestination;
-    setRouteDraft({
-      sourceProvinceId,
-      viaProvinceIds: viaProvinceIds.filter((provinceId) => provinceId !== destinationProvinceId),
-      destinationProvinceId,
-    });
-  }
-
-  function changeDestinationProvince(destinationProvinceId: string) {
-    if (!routeDraft) return;
-    const closingLoop = destinationProvinceId === routeDraft.sourceProvinceId
-      && Boolean(routeDraft.destinationProvinceId)
-      && routeDraft.destinationProvinceId !== destinationProvinceId;
-    const viaAfterClose = closingLoop
-      ? [...routeDraft.viaProvinceIds, routeDraft.destinationProvinceId]
-      : routeDraft.viaProvinceIds;
-    setRouteDraft({
-      viaProvinceIds: viaAfterClose.filter((provinceId) => provinceId !== destinationProvinceId),
-      destinationProvinceId,
-    });
-  }
-
-  function appendViaProvince(provinceId: string) {
-    if (!routeDraft || !provinceId) return;
-    const stopIds = transportRouteStopIds(routeDraft);
-    if (stopIds.includes(provinceId)) {
-      void model.showResult({ ok: false, message: '该州已在线路中' });
-      return;
-    }
-    if (isTransportRouteClosed(routeDraft)) {
-      const nextStopIds = [...stopIds.slice(0, -1), provinceId];
-      setRouteDraft({
-        sourceProvinceId: nextStopIds[0],
-        viaProvinceIds: nextStopIds.slice(1, -1),
-        destinationProvinceId: nextStopIds[nextStopIds.length - 1],
-      });
-      return;
-    }
-    setRouteDraft({ viaProvinceIds: [...routeDraft.viaProvinceIds, provinceId] });
-  }
-
-  function removeViaProvince(provinceId: string) {
-    if (!routeDraft) return;
-    setRouteDraft({ viaProvinceIds: routeDraft.viaProvinceIds.filter((id) => id !== provinceId) });
-  }
-
-  const draftStopIds = routeDraft ? transportRouteStopIds(routeDraft) : [];
-  const draftClosed = routeDraft ? isTransportRouteClosed(routeDraft) : false;
-  const draftDeliveryCount = routeDraft ? transportDeliveryStopIds(routeDraft).length : 0;
-  const editorMaxQuantity = routeDraft ? transportRouteMaxQuantityPerStop(routeDraft, routeDraft.mode) : 0;
-  const editorQuantity = routeDraft && editorMaxQuantity >= 1
-    ? parseIntegerDraft(routeDraft.quantity, { min: 1, max: editorMaxQuantity })
-    : null;
-  const editorPlan = routeDraft && editorQuantity !== null
-    ? transportRoutePlanMetrics({ ...routeDraft, quantity: editorQuantity }, provinceById)
-    : null;
-  const editorEconomics = routeDraft && editorQuantity !== null
-    ? routeEconomics({ ...routeDraft, quantity: editorQuantity }, editorPlan)
-    : null;
-  const canAddRoute = unlockedProvinces.length >= 2 && routes.length < TRANSPORT_MAX_ROUTES_PER_PLAYER;
-  const viaOptions = routeDraft
-    ? unlockedProvinces.filter((province) => !draftStopIds.includes(province.id))
-    : [];
-
-  function stopChipLabel(provinceId: string, index: number, total: number) {
-    const province = provinceById.get(provinceId);
-    const role = index === 0 ? '起' : index === total - 1 ? (draftClosed ? '环' : '终') : String(index);
-    return `${role} · ${province?.name ?? provinceId}（${province?.capitalName ?? ''}）`;
-  }
-
-  function shipmentRow(shipment: TransportShipment, showRemaining: boolean) {
-    const source = provinceById.get(shipment.sourceProvinceId);
-    const destination = provinceById.get(shipment.destinationProvinceId);
-    const product = productById.get(shipment.productId);
-    const stopPlan = Array.isArray(shipment.stopPlan) ? shipment.stopPlan : [];
-    const deliveredCount = stopPlan.filter((stop) => stop.deliveredAt).length;
-    const nextStop = stopPlan.find((stop) => !stop.deliveredAt);
-    const nextStopName = nextStop ? provinceById.get(nextStop.provinceId)?.name ?? nextStop.provinceId : '';
-    const viaNames = (shipment.viaProvinceIds || []).map((provinceId) => provinceById.get(provinceId)?.name ?? provinceId);
-    const progress = stopPlan.length > 1
-      ? `已到 ${deliveredCount}/${stopPlan.length} 站${nextStopName ? ` · 下一站 ${nextStopName}` : ''} · 剩余 ${formatTransportDuration(Math.max(0, shipment.arrivesAt - now))}`
-      : `剩余 ${formatTransportDuration(Math.max(0, shipment.arrivesAt - now))}`;
+  function routePath(route: RouteConfig) {
+    const stopIds = transportRouteStopIds(route);
     return (
-      <li key={shipment.id} className="transport-record-row">
-        <div className="transport-record-route">
-          <strong>{source?.name ?? shipment.sourceProvinceId}</strong>
-          {viaNames.length > 0 ? (
-            <>
-              <ChevronIcon direction="right" />
-              <span className="transport-record-via">{viaNames.join(' · ')}</span>
-            </>
-          ) : null}
-          <ChevronIcon direction="right" />
-          <strong>{destination?.name ?? shipment.destinationProvinceId}</strong>
-          <StatusTag tone="neutral">{routeTripLabel(shipment)}</StatusTag>
+      <div className="transport-route-path" aria-label="运输路线站点">
+        {stopIds.map((provinceId, index) => (
+          <span className="transport-route-path-stop" key={`${provinceId}-${index}`}>
+            {index > 0 ? <ChevronIcon direction="right" /> : null}
+            <strong>{provinceById.get(provinceId)?.name ?? provinceId}</strong>
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  function manifestList(shipment: TransportShipmentView, remainingOnly = false) {
+    const delivered = new Set((shipment.stopPlan || []).filter((stop) => stop.deliveredAt).map((stop) => stop.provinceId));
+    const entries = shipmentManifest(shipment).filter((entry) => !remainingOnly || !delivered.has(entry.destinationProvinceId));
+    if (entries.length === 0) return <span className="transport-empty">无在途货物</span>;
+    return (
+      <ul className="transport-manifest-list">
+        {entries.map((entry, index) => (
+          <li key={`${entry.productId}-${entry.destinationProvinceId}-${index}`}>
+            <strong>{productById.get(entry.productId)?.name ?? entry.productId}</strong>
+            <span>×<CompactNumber value={entry.quantity} /></span>
+            <span>→ {provinceById.get(entry.destinationProvinceId)?.name ?? entry.destinationProvinceId}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  function shipmentProgress(shipment: TransportShipmentView) {
+    const nextStop = (shipment.stopPlan || []).find((stop) => !stop.deliveredAt);
+    const nextName = nextStop ? provinceById.get(nextStop.provinceId)?.name ?? nextStop.provinceId : '';
+    const remaining = formatTransportDuration(Math.max(0, shipment.arrivesAt - now));
+    return nextName ? `下一站 ${nextName} · 剩余 ${remaining}` : `剩余 ${remaining}`;
+  }
+
+  function shipmentCard(shipment: TransportShipmentView, active: boolean) {
+    return (
+      <li className="transport-shipment-card" key={shipment.id} data-shipment-status={shipment.status}>
+        <div className="transport-shipment-heading">
+          <strong>{active ? shipmentProgress(shipment) : '已完成'}</strong>
+          <StatusTag tone={active ? 'info' : 'neutral'}>{TRANSPORT_MODES[shipment.mode]?.name ?? shipment.mode}</StatusTag>
         </div>
-        <span>{product?.name ?? shipment.productId} 每站 ×<CompactNumber value={shipment.quantity} /></span>
-        <span>{TRANSPORT_MODES[shipment.mode]?.name ?? shipment.mode}</span>
-        <span className="transport-record-time">{showRemaining ? progress : '已到达'}</span>
+        {routePath(shipment)}
+        <div className="transport-shipment-meta">
+          <span><small>运费</small><strong>{formatCurrency(shipment.cost)}</strong></span>
+          <span><small>{active ? '预计完成' : '完成时间'}</small><strong>{new Date(active ? shipment.arrivesAt : Number(shipment.arrivedAt || shipment.arrivesAt)).toLocaleString()}</strong></span>
+        </div>
+        <div className="transport-shipment-cargo">
+          <small>{active ? '正在运输' : '运输货物'}</small>
+          {manifestList(shipment, active)}
+        </div>
       </li>
     );
   }
 
+  const pendingDraftPanel = routeDraft && !picking ? (
+    <PagePanel className="transport-route-draft-panel" data-route-draft-id={routeDraft.routeId ?? 'new'}>
+      <WidgetHeading
+        title={routeDraft.routeId ? '地图修改待保存' : '新路线待保存'}
+        action={<StatusTag tone="neutral">只能通过地图修改路线</StatusTag>}
+      />
+      {routePath(routeDraft)}
+      <div className="transport-route-summary-grid">
+        <span><small>行程</small><strong>{routeTripLabel(routeDraft)}</strong></span>
+        <span><small>运输方式</small><strong>{TRANSPORT_MODES[routeDraft.mode]?.name ?? routeDraft.mode}</strong></span>
+        <span><small>站点</small><strong>{transportRouteStopIds(routeDraft).length}</strong></span>
+      </div>
+      <div className="transport-route-editor-actions">
+        <Button variant="primary" disabled={Boolean(pendingAction)} onClick={() => void saveRouteDraft()}>保存路线</Button>
+        <Button variant="secondary" disabled={Boolean(pendingAction)} onClick={closeDraft}>取消修改</Button>
+      </div>
+    </PagePanel>
+  ) : null;
+
+  if (detailRouteId) {
+    if (!detailRoute) {
+      return (
+        <PageLayout title="运输路线">
+          <PagePanel>
+            <p className="transport-empty">该运输路线不存在或已删除。</p>
+            <Button variant="secondary" onClick={() => pageNavigation?.replacePage({ type: 'tab', tab: 'transport' })}>返回运输</Button>
+          </PagePanel>
+        </PageLayout>
+      );
+    }
+
+    const activeShipment = activeByRouteId.get(detailRoute.id) ?? null;
+    const routeShipments = shipments
+      .filter((shipment) => String(shipment.routeId || '') === detailRoute.id)
+      .sort((left, right) => Number(right.createdAt || 0) - Number(left.createdAt || 0));
+    const history = routeShipments.filter((shipment) => shipment.status === 'arrived');
+    const routeMode = TRANSPORT_MODES[detailRoute.mode];
+    const editingThisRoute = routeDraft?.routeId === detailRoute.id;
+
+    return (
+      <PageLayout title={visibleRouteName(detailRoute)}>
+        <div className="transport-page-content" data-transport-route-detail={detailRoute.id}>
+          <PagePanel className="transport-route-detail-panel">
+            <WidgetHeading
+              title="路线设置"
+              action={<StatusTag tone={activeShipment ? 'info' : 'neutral'}>{activeShipment ? '运输中' : '等待发运'}</StatusTag>}
+            />
+            <div className="transport-route-name-editor">
+              <TextInput
+                label="路线名称"
+                value={routeNameDraft}
+                maxLength={40}
+                disabled={Boolean(pendingAction)}
+                onChange={(event) => setRouteNameDraft(event.target.value)}
+              />
+              <Button
+                variant="secondary"
+                disabled={Boolean(pendingAction) || !routeNameDraft.trim() || routeNameDraft.trim() === visibleRouteName(detailRoute)}
+                onClick={() => void renameRoute(detailRoute)}
+              >
+                保存名称
+              </Button>
+            </div>
+            {routePath(detailRoute)}
+            <div className="transport-route-summary-grid">
+              <span><small>行程</small><strong>{routeTripLabel(detailRoute)}</strong></span>
+              <span><small>运输方式</small><strong>{routeMode?.name ?? detailRoute.mode}</strong></span>
+              <span><small>最大载荷</small><strong><CompactNumber value={routeMode?.capacity ?? 0} /></strong></span>
+              <span><small>站点</small><strong>{transportRouteStopIds(detailRoute).length}</strong></span>
+            </div>
+            <p className="transport-route-auto-note">路线没有手动发运按钮。服务器在正常世界推进中自动选择有正预期净价差的货物，满足库存、运力和资金条件后立即发运。</p>
+            <div className="transport-route-editor-actions">
+              <Button variant="secondary" disabled={Boolean(pendingAction)} onClick={() => beginEditRoute(detailRoute)}>在地图上编辑路线</Button>
+              <Button variant="danger" disabled={Boolean(pendingAction) || Boolean(activeShipment)} onClick={() => void deleteRoute(detailRoute)}>删除路线</Button>
+            </div>
+          </PagePanel>
+
+          {editingThisRoute ? pendingDraftPanel : null}
+
+          <PagePanel className="transport-route-current-panel">
+            <WidgetHeading title="当前运输" />
+            {activeShipment ? (
+              <ul className="transport-shipment-list">{shipmentCard(activeShipment, true)}</ul>
+            ) : (
+              <p className="transport-empty">当前没有运输在途；条件满足后会自动发运。</p>
+            )}
+          </PagePanel>
+
+          <PagePanel className="transport-route-history-panel">
+            <WidgetHeading title="运输记录" />
+            {history.length > 0 ? (
+              <ul className="transport-shipment-list">{history.map((shipment) => shipmentCard(shipment, false))}</ul>
+            ) : (
+              <p className="transport-empty">该路线暂无已完成运输记录。</p>
+            )}
+          </PagePanel>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  const canAddRoute = unlockedProvinceIds.size >= 2 && routes.length < TRANSPORT_MAX_ROUTES_PER_PLAYER;
   return (
     <PageLayout title="运输">
-      <div className="transport-page-content">
+      <div className="transport-page-content" data-transport-route-index="true">
         <div className="transport-page-actions">
-          <Button
-            variant="secondary"
-            disabled={!canAddRoute || Boolean(pendingAction)}
-            onClick={() => setDraft(emptyRouteDraft())}
-          >
-            增加路线
-          </Button>
+          <Button variant="secondary" disabled={!canAddRoute || Boolean(pendingAction)} onClick={beginCreateRoute}>增加路线</Button>
         </div>
-        {routeDraft ? (
-        <PagePanel className="transport-route-editor">
-          <WidgetHeading
-            title={routeDraft.routeId ? '编辑运输路线' : '增加运输路线'}
-            action={<StatusTag tone="neutral">整链一次发运 · 逐站交付</StatusTag>}
-          />
-          <div className="transport-route-stops" aria-label="运输站点序列">
-            {draftStopIds.length > 0 ? draftStopIds.map((provinceId, index) => (
-              <span
-                key={`${provinceId}-${index}`}
-                className="transport-route-stop-chip"
-                data-stop-index={index}
-                data-stop-role={index === 0 ? 'start' : index === draftStopIds.length - 1 ? 'end' : 'via'}
-              >
-                {stopChipLabel(provinceId, index, draftStopIds.length)}
-                {index > 0 && index < draftStopIds.length - 1 ? (
+
+        {pendingDraftPanel}
+
+        <PagePanel className="transport-routes-panel">
+          <WidgetHeading title="运输路线" action={<StatusTag tone="neutral">{routes.length}/{TRANSPORT_MAX_ROUTES_PER_PLAYER}</StatusTag>} />
+          {routes.length > 0 ? (
+            <div className="transport-route-grid">
+              {routes.map((route) => {
+                const activeShipment = activeByRouteId.get(route.id);
+                const stops = transportRouteStopIds(route);
+                return (
                   <button
                     type="button"
-                    className="transport-route-stop-remove"
-                    aria-label={`移除站点 ${provinceById.get(provinceId)?.name ?? provinceId}`}
-                    onClick={() => removeViaProvince(provinceId)}
+                    className="transport-route-card"
+                    key={route.id}
+                    data-route-id={route.id}
+                    onClick={() => pageNavigation?.pushPage({ type: 'transport-route', routeId: route.id })}
+                    onMouseEnter={() => setHighlightedRouteStops(stops)}
+                    onMouseLeave={() => setHighlightedRouteStops(null)}
+                    onFocus={() => setHighlightedRouteStops(stops)}
+                    onBlur={() => setHighlightedRouteStops(null)}
                   >
-                    ×
+                    <div className="transport-route-card-heading">
+                      <strong>{visibleRouteName(route)}</strong>
+                      <StatusTag tone={activeShipment ? 'info' : 'neutral'}>{activeShipment ? '运输中' : '等待发运'}</StatusTag>
+                    </div>
+                    {routePath(route)}
+                    <div className="transport-route-summary-grid">
+                      <span><small>方式</small><strong>{TRANSPORT_MODES[route.mode]?.name ?? route.mode}</strong></span>
+                      <span><small>行程</small><strong>{routeTripLabel(route)}</strong></span>
+                      <span><small>站点</small><strong>{stops.length}</strong></span>
+                    </div>
                   </button>
-                ) : null}
-              </span>
-            )) : <span className="transport-route-stops-empty">先在地图上选择起点州</span>}
-            <Button
-              variant={picking ? 'primary' : 'secondary'}
-              disabled={Boolean(pendingAction)}
-              onClick={() => (picking ? finishPicking() : beginPicking())}
-            >
-              {picking ? '完成选择' : '在地图上选择'}
-            </Button>
-          </div>
-          {picking ? (
-            <p className="transport-route-picking-hint" role="status">
-              地图已进入选州模式：按顺序点击州面追加站点，再次点击起点州闭环；未闭环默认单程运输。
-            </p>
-          ) : null}
-          <div className="transport-route-editor-grid">
-            <SelectInput
-              label="起始州"
-              value={routeDraft.sourceProvinceId}
-              onChange={(event) => changeSourceProvince(event.target.value)}
-            >
-              {unlockedProvinces.map((province) => (
-                <option key={province.id} value={province.id}>{province.name}</option>
-              ))}
-            </SelectInput>
-            <SelectInput
-              label="目的州"
-              value={routeDraft.destinationProvinceId}
-              onChange={(event) => changeDestinationProvince(event.target.value)}
-            >
-              {!routeDraft.destinationProvinceId ? <option value="">请选择目的州</option> : null}
-              {unlockedProvinces
-                .filter((province) => (
-                  province.id !== routeDraft.sourceProvinceId
-                  || routeDraft.viaProvinceIds.length >= 1
-                ))
-                .map((province) => (
-                  <option key={province.id} value={province.id}>
-                    {province.id === routeDraft.sourceProvinceId ? `${province.name}（闭环）` : province.name}
-                  </option>
-                ))}
-            </SelectInput>
-            <SelectInput
-              label="追加中间站"
-              value=""
-              onChange={(event) => appendViaProvince(event.target.value)}
-            >
-              <option value="">选择要追加的州</option>
-              {viaOptions.map((province) => (
-                <option key={province.id} value={province.id}>{province.name}</option>
-              ))}
-            </SelectInput>
-            <SelectInput
-              label="行程"
-              value={draftClosed ? 'loop' : routeDraft.tripType}
-              disabled={draftClosed}
-              onChange={(event) => {
-                const value = event.target.value;
-                if (value === 'round' || value === 'one-way') {
-                  setRouteDraft({ tripType: value });
-                }
-              }}
-            >
-              {draftClosed ? <option value="loop">环线</option> : null}
-              <option value="one-way">单程运输（默认）</option>
-              <option value="round">往返运输（空驶返程）</option>
-            </SelectInput>
-            <SelectInput
-              label="商品"
-              value={routeDraft.productId}
-              onChange={(event) => setRouteDraft({ productId: event.target.value })}
-            >
-              {game.products.map((product) => (
-                <option key={product.id} value={product.id}>{product.name}</option>
-              ))}
-            </SelectInput>
-            <IntegerInput
-              label={`每站数量${draftDeliveryCount > 0 ? `（当前 ≤ ${editorMaxQuantity}）` : ''}`}
-              value={routeDraft.quantity}
-              fallbackValue={1}
-              min={1}
-              max={Math.max(1, editorMaxQuantity)}
-              onValueChange={(quantity) => setRouteDraft({ quantity })}
-            />
-            <SelectInput
-              label="运输方式"
-              value={routeDraft.mode}
-              onChange={(event) => {
-                const mode = event.target.value as TransportModeId;
-                const parsed = parseIntegerDraft(routeDraft.quantity, { min: 1 });
-                const maxPerStop = transportRouteMaxQuantityPerStop(routeDraft, mode);
-                const quantity = parsed === null || maxPerStop < 1
-                  ? routeDraft.quantity
-                  : String(Math.min(parsed, maxPerStop));
-                setRouteDraft({ mode, quantity });
-              }}
-            >
-              {Object.values(TRANSPORT_MODES).map((mode) => (
-                <option key={mode.id} value={mode.id}>{mode.name} · 总载重 ≤ {mode.capacity}</option>
-              ))}
-            </SelectInput>
-            <ToggleField
-              label="自动发运"
-              description="路线空闲且库存、资金满足时自动发出下一趟"
-              checked={routeDraft.autoDispatch}
-              onChange={(event) => setRouteDraft({ autoDispatch: event.target.checked })}
-            />
-          </div>
-          <div className="transport-route-estimate" aria-label="路线预估">
-            <span><small>总距离</small><strong>约 <CompactNumber value={Math.round(editorPlan?.distanceKm ?? 0)} /> 公里</strong></span>
-            <span><small>单次总费用</small><strong><CurrencyAmount>{formatCurrency(editorPlan?.cost ?? 0)}</CurrencyAmount></strong></span>
-            <span><small>全程耗时</small><strong>{formatTransportDuration(editorPlan?.durationMs ?? 0)}</strong></span>
-            <span><small>首段装载</small><strong><CompactNumber value={editorPlan?.initialLoad ?? 0} /> / <CompactNumber value={routeDraft ? TRANSPORT_MODES[routeDraft.mode].capacity : 0} /></strong></span>
-            <span>
-              <small>交付站数</small>
-              <strong>{editorPlan ? editorPlan.deliveryStops.length : 0} 站 · 每站 ×<CompactNumber value={editorQuantity ?? 0} /></strong>
-            </span>
-            <span><small>交付参考收入</small><strong><CurrencyAmount>{formatCurrency(editorEconomics?.deliveryReferenceValue ?? 0)}</CurrencyAmount></strong></span>
-            <span><small>参考价差</small><strong><CurrencyAmount>{formatCurrency(editorEconomics?.spread ?? 0)}</CurrencyAmount>{editorEconomics?.spreadRate !== null && editorEconomics ? ` · ${(editorEconomics.spreadRate * 100).toFixed(1)}%` : ''}</strong></span>
-          </div>
-          <p className="muted">参考价差按起点与各交付州当前可售参考价估算，优先使用最优买价，其次回退最近成交、官方价或基础价；不代表最终成交收益。</p>
-          <div className="transport-route-editor-actions">
-            <Button variant="secondary" disabled={Boolean(pendingAction)} onClick={() => { closeDraft(); cancelPicking(); }}>取消</Button>
-            <Button disabled={Boolean(pendingAction)} onClick={() => { void saveRoute(); }}>
-              {routeDraft.routeId ? '保存路线' : '创建路线'}
-            </Button>
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="transport-empty">暂无运输路线。选择“增加路线”后直接在地图上依次选择站点。</p>
+          )}
         </PagePanel>
-      ) : null}
-
-      <PagePanel className="transport-routes-panel">
-        <WidgetHeading
-          title="运输路线"
-          action={<StatusTag tone="neutral">{routes.length} / {TRANSPORT_MAX_ROUTES_PER_PLAYER}</StatusTag>}
-        />
-        {routes.length > 0 ? (
-          <div className="transport-route-grid">
-            {routes.map((route) => {
-              const source = provinceById.get(route.sourceProvinceId);
-              const destination = provinceById.get(route.destinationProvinceId);
-              const product = productById.get(route.productId);
-              const routeStopIds = transportRouteStopIds(route);
-              const closed = isTransportRouteClosed(route);
-              const plan = transportRoutePlanMetrics({ ...route, quantity: route.quantity }, provinceById);
-              const economics = routeEconomics(route, plan);
-              const available = game.provinceInventories?.[route.sourceProvinceId]?.[route.productId]?.available ?? 0;
-              const routeHasActiveShipment = activeShipments.some((shipment) => shipment.routeId === route.id);
-              return (
-                <article
-                  key={route.id}
-                  className="transport-route-card"
-                  onMouseEnter={() => setHighlightedRouteStops(routeStopIds)}
-                  onMouseLeave={() => setHighlightedRouteStops(null)}
-                  onFocus={() => setHighlightedRouteStops(routeStopIds)}
-                  onBlur={() => setHighlightedRouteStops(null)}
-                >
-                  <div className="transport-route-card-heading">
-                    <div className="transport-route-path">
-                      <strong>{source?.name ?? route.sourceProvinceId}</strong>
-                      {routeStopIds.slice(1, -1).map((provinceId) => (
-                        <span key={provinceId} className="transport-route-via">
-                          <ChevronIcon direction="right" />
-                          {provinceById.get(provinceId)?.name ?? provinceId}
-                        </span>
-                      ))}
-                      <ChevronIcon direction="right" />
-                      <strong>{destination?.name ?? route.destinationProvinceId}</strong>
-                    </div>
-                    <div className="transport-route-tags">
-                      {route.autoDispatch ? <StatusTag tone="success">自动发运</StatusTag> : null}
-                      <StatusTag tone="neutral">{routeTripLabel(route)}</StatusTag>
-                      <StatusTag tone={TRANSPORT_MODES[route.mode].tone}>{TRANSPORT_MODES[route.mode].name}</StatusTag>
-                    </div>
-                  </div>
-                  <div className="transport-route-product">
-                    <strong>{product?.name ?? route.productId}</strong>
-                    <span>每站 ×<CompactNumber value={route.quantity} /> · 首段装载 <CompactNumber value={plan?.initialLoad ?? 0} /></span>
-                  </div>
-                  <div className="transport-route-meta">
-                    <span><small>起点可用</small><strong><CompactNumber value={available} /></strong></span>
-                    <span><small>总距离</small><strong><CompactNumber value={Math.round(plan?.distanceKm ?? 0)} /> km</strong></span>
-                    <span><small>单次费用</small><strong><CurrencyAmount>{formatCurrency(plan?.cost ?? 0)}</CurrencyAmount></strong></span>
-                    <span><small>全程耗时</small><strong>{formatTransportDuration(plan?.durationMs ?? 0)}</strong></span>
-                    <span><small>交付站数</small><strong>{plan?.deliveryStops.length ?? 0} 站{closed ? ' · 环线' : ''}</strong></span>
-                    <span><small>交付参考收入</small><strong><CurrencyAmount>{formatCurrency(economics?.deliveryReferenceValue ?? 0)}</CurrencyAmount></strong></span>
-                    <span><small>参考价差</small><strong><CurrencyAmount>{formatCurrency(economics?.spread ?? 0)}</CurrencyAmount>{economics?.spreadRate !== null && economics ? ` · ${(economics.spreadRate * 100).toFixed(1)}%` : ''}</strong></span>
-                  </div>
-                  <div className="transport-route-card-actions">
-                    <Button
-                      disabled={Boolean(pendingAction) || (route.autoDispatch === true && routeHasActiveShipment)}
-                      onClick={() => { void runMutation(`dispatch:${route.id}`, () => model.dispatchTransportRoute(route.id)); }}
-                    >
-                      {route.autoDispatch && routeHasActiveShipment ? '自动在途' : '发运'}
-                    </Button>
-                    <Button variant="secondary" disabled={Boolean(pendingAction)} onClick={() => editRoute(route)}>编辑</Button>
-                    <Button
-                      variant="text"
-                      disabled={Boolean(pendingAction)}
-                      onClick={() => { void runMutation(`delete:${route.id}`, () => model.deleteTransportRoute(route.id)); }}
-                    >
-                      删除
-                    </Button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="empty-state transport-empty-state">
-            <strong>尚未创建运输路线</strong>
-            <span>{unlockedProvinces.length < 2 ? '至少解锁两个州后才能建立路线。' : '在地图上按顺序点选多个州，可点击起点州闭合成环；未闭环默认单程运输。'}</span>
-          </div>
-        )}
-      </PagePanel>
-
-      <PagePanel className="transport-records-panel">
-        <WidgetHeading
-          title="运输记录"
-          action={<StatusTag tone="neutral">在途 {activeShipments.length} / {TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER}</StatusTag>}
-        />
-        <section className="transport-record-section" aria-label="进行中运输">
-          <h3>进行中运输</h3>
-          {activeShipments.length > 0 ? (
-            <ul className="transport-record-list transport-shipment-list">
-              {activeShipments.map((shipment) => shipmentRow(shipment, true))}
-            </ul>
-          ) : <p className="muted transport-empty">当前没有进行中的运输。</p>}
-        </section>
-        <section className="transport-record-section" aria-label="最近完成运输">
-          <h3>最近完成</h3>
-          {completedShipments.length > 0 ? (
-            <ul className="transport-record-list">
-              {completedShipments.map((shipment) => shipmentRow(shipment, false))}
-            </ul>
-          ) : <p className="muted transport-empty">暂无已完成运输。</p>}
-        </section>
-      </PagePanel>
       </div>
     </PageLayout>
   );
