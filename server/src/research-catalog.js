@@ -1,3 +1,5 @@
+import { resolveProductDisplayNames } from './product-catalog.js';
+
 export const RESEARCH_DURATION_MS = 6 * 60 * 60_000;
 
 const rawTechnologies = [
@@ -14,7 +16,7 @@ const rawTechnologies = [
   {
     id: 'forestry-development', name: '林业开发', stage: 'C2', rank: 2, cost: 300, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['basic-crops'], unlockFacilityTypeIds: ['logging-camp'],
-    description: '建立规模化木材采伐能力。',
+    descriptionTemplate: '建立规模化{product:timber}采伐能力。',
   },
   {
     id: 'mineral-exploration', name: '矿产勘探', stage: 'C2', rank: 2, cost: 350, durationMs: RESEARCH_DURATION_MS,
@@ -24,7 +26,7 @@ const rawTechnologies = [
   {
     id: 'petroleum-exploration', name: '石油勘探', stage: 'C2', rank: 2, cost: 400, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['basic-crops'], unlockFacilityTypeIds: ['oil-field'],
-    description: '建立原油勘探与开采能力。',
+    descriptionTemplate: '建立{product:crude-oil}勘探与开采能力。',
   },
   {
     id: 'grain-processing', name: '粮食加工', stage: 'C2', rank: 2, cost: 300, durationMs: RESEARCH_DURATION_MS,
@@ -34,32 +36,32 @@ const rawTechnologies = [
   {
     id: 'wood-processing', name: '木材加工', stage: 'C2', rank: 2, cost: 400, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['forestry-development'], unlockFacilityTypeIds: ['sawmill'],
-    description: '将原木加工为标准木板。',
+    descriptionTemplate: '将原木加工为标准{product:lumber}。',
   },
   {
     id: 'feed-processing', name: '饲料加工', stage: 'C2', rank: 2, cost: 350, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['basic-crops'], unlockFacilityTypeIds: ['feed-factory'],
-    description: '生产标准化配合饲料。',
+    descriptionTemplate: '生产标准化{product:feed}。',
   },
   {
-    id: 'tool-operation', name: '工具作业', stage: 'C2', rank: 2, cost: 300, durationMs: RESEARCH_DURATION_MS,
+    id: 'tool-operation', nameTemplate: '{product:tools}作业', stage: 'C2', rank: 2, cost: 300, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['basic-crops'], unlockFacilityTypeIds: [], kind: 'operation', operationProductIds: ['tools'],
-    description: '掌握在农业、采掘和初级加工中使用工业工具的作业能力，不提供工具制造能力。',
+    descriptionTemplate: '掌握在农业、采掘和初级加工中使用工业{product:tools}的作业能力，不提供{product:tools}制造能力。',
   },
   {
-    id: 'feed-husbandry', name: '饲料饲养', stage: 'C2', rank: 2, cost: 200, durationMs: RESEARCH_DURATION_MS,
+    id: 'feed-husbandry', nameTemplate: '{product:feed}饲养', stage: 'C2', rank: 2, cost: 200, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['basic-livestock'], unlockFacilityTypeIds: [], kind: 'operation', operationProductIds: ['feed'],
-    description: '掌握使用配合饲料进行标准化养殖的作业能力，不提供饲料生产能力。',
+    descriptionTemplate: '掌握使用{product:feed}进行标准化养殖的作业能力，不提供饲料生产能力。',
   },
   {
     id: 'pulp-technology', name: '制浆技术', stage: 'C3', rank: 3, cost: 550, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['forestry-development'], unlockFacilityTypeIds: ['pulp-mill'],
-    description: '将木材转化为工业纸浆。',
+    descriptionTemplate: '将{product:timber}转化为工业{product:pulp}。',
   },
   {
     id: 'metallurgy', name: '冶金技术', stage: 'C3', rank: 3, cost: 700, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['mineral-exploration'], unlockFacilityTypeIds: ['steelworks'],
-    description: '冶炼钢材与铜材。',
+    descriptionTemplate: '冶炼{product:steel}与{product:copper}。',
   },
   {
     id: 'textile-technology', name: '纺织技术', stage: 'C3', rank: 3, cost: 600, durationMs: RESEARCH_DURATION_MS,
@@ -69,107 +71,112 @@ const rawTechnologies = [
   {
     id: 'food-industry', name: '食品工业', stage: 'C3', rank: 3, cost: 550, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['grain-processing'], unlockFacilityTypeIds: ['food-factory'],
-    description: '建立规模化食品与预制餐生产。',
+    descriptionTemplate: '建立规模化{product:food}与{product:prepared-meal}生产。',
   },
   {
     id: 'papermaking', name: '造纸技术', stage: 'C3', rank: 3, cost: 700, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['pulp-technology'], unlockFacilityTypeIds: ['paper-mill'],
-    description: '将纸浆加工为终端纸品。',
+    descriptionTemplate: '将{product:pulp}加工为终端{product:paper}。',
   },
   {
-    id: 'fertilizer-application', name: '化肥施用', stage: 'C3', rank: 3, cost: 400, durationMs: RESEARCH_DURATION_MS,
+    id: 'fertilizer-application', nameTemplate: '{product:fertilizer}施用', stage: 'C3', rank: 3, cost: 400, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['basic-crops'], unlockFacilityTypeIds: [], kind: 'operation', operationProductIds: ['fertilizer'],
-    description: '掌握在农场与果园中使用工业化肥的施用能力，不提供化肥生产能力。',
+    descriptionTemplate: '掌握在农场与果园中使用工业{product:fertilizer}的施用能力，不提供{product:fertilizer}生产能力。',
   },
   {
     id: 'veterinary-application', name: '药剂精养', stage: 'C3', rank: 3, cost: 450, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['feed-husbandry'], unlockFacilityTypeIds: [], kind: 'operation', operationProductIds: ['veterinary-medicine'],
-    description: '掌握在畜牧与渔业中使用养殖药剂的精养能力，不提供养殖药剂生产能力。',
+    descriptionTemplate: '掌握在畜牧与渔业中使用{product:veterinary-medicine}的精养能力，不提供{product:veterinary-medicine}生产能力。',
   },
   {
     id: 'industrial-fuel-operation', name: '工业动力作业', stage: 'C3', rank: 3, cost: 450, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['tool-operation'], unlockFacilityTypeIds: [], kind: 'operation', operationProductIds: ['industrial-fuel'],
-    description: '掌握将工业燃料用于动力采伐和连续化加工的作业能力，不提供炼油能力。',
+    descriptionTemplate: '掌握将{product:industrial-fuel}用于动力采伐和连续化加工的作业能力，不提供炼油能力。',
   },
   {
     id: 'industrial-chemical-operation', name: '工业化学作业', stage: 'C3', rank: 3, cost: 500, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['tool-operation'], unlockFacilityTypeIds: [], kind: 'operation', operationProductIds: ['industrial-chemicals'],
-    description: '掌握将工业化学品用于强化采矿与采油的作业能力，不提供炼化生产能力。',
+    descriptionTemplate: '掌握将{product:industrial-chemicals}用于强化采矿与采油的作业能力，不提供炼化生产能力。',
   },
   {
     id: 'oil-refining', name: '石油炼化', stage: 'C4', rank: 4, cost: 950, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['petroleum-exploration'], unlockFacilityTypeIds: ['refinery'],
-    description: '从原油生产塑料等基础化工材料。',
+    descriptionTemplate: '从{product:crude-oil}生产{product:plastic}等基础化工材料。',
   },
   {
     id: 'fertilizer-engineering', name: '化肥工程', stage: 'C4', rank: 4, cost: 1_000, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['oil-refining'], unlockFacilityTypeIds: ['fertilizer-factory'],
-    description: '建立工业化肥生产能力。',
+    descriptionTemplate: '建立工业{product:fertilizer}生产能力。',
   },
   {
-    id: 'veterinary-medicine', name: '养殖药剂', stage: 'C4', rank: 4, cost: 1_250, durationMs: RESEARCH_DURATION_MS,
+    id: 'veterinary-medicine', nameTemplate: '{product:veterinary-medicine}', stage: 'C4', rank: 4, cost: 1_250, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['feed-processing', 'fertilizer-engineering'], unlockFacilityTypeIds: ['veterinary-medicine-factory'],
-    description: '生产专业养殖药剂。',
+    descriptionTemplate: '生产专业{product:veterinary-medicine}。',
   },
   {
     id: 'beverage-industry', name: '饮料工业', stage: 'C4', rank: 4, cost: 850, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['grain-processing', 'basic-livestock'], unlockFacilityTypeIds: ['beverage-factory'],
-    description: '建立乳制与果汁饮料生产线。',
+    descriptionTemplate: '建立乳制与果汁{product:beverage}生产线。',
   },
   {
     id: 'furniture-manufacturing', name: '家具制造', stage: 'C4', rank: 4, cost: 800, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['wood-processing'], unlockFacilityTypeIds: ['furniture-factory'],
-    description: '将标准木板加工为家具。',
+    descriptionTemplate: '将标准{product:lumber}加工为{product:furniture}。',
   },
   {
     id: 'garment-manufacturing', name: '成衣制造', stage: 'C4', rank: 4, cost: 900, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['textile-technology'], unlockFacilityTypeIds: ['garment-factory'],
-    description: '将纺织品加工为成衣。',
+    descriptionTemplate: '将{product:textile}加工为成衣。',
   },
   {
     id: 'tool-manufacturing', name: '工具制造', stage: 'C4', rank: 4, cost: 1_050, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['metallurgy', 'wood-processing'], unlockFacilityTypeIds: ['tool-workshop'],
-    description: '生产工业工具并奠定机械工业基础。',
+    descriptionTemplate: '生产工业{product:tools}并奠定机械工业基础。',
   },
   {
     id: 'machinery-operation', name: '机械化作业', stage: 'C4', rank: 4, cost: 700, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['tool-operation'], unlockFacilityTypeIds: [], kind: 'operation', operationProductIds: ['machinery'],
-    description: '掌握在农业、养殖、采掘与加工中使用通用机械的作业能力，不提供机械制造能力。',
+    descriptionTemplate: '掌握在农业、养殖、采掘与加工中使用通用{product:machinery}的作业能力，不提供{product:machinery}制造能力。',
   },
   {
-    id: 'tractor-operation', name: '拖拉机作业', stage: 'C4', rank: 4, cost: 800, durationMs: RESEARCH_DURATION_MS,
+    id: 'tractor-operation', nameTemplate: '{product:tractor}作业', stage: 'C4', rank: 4, cost: 800, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['machinery-operation'], unlockFacilityTypeIds: [], kind: 'operation', operationProductIds: ['tractor'],
-    description: '掌握在农场与果园中使用拖拉机的农业作业能力，不提供拖拉机制造能力。',
+    descriptionTemplate: '掌握在农场与果园中使用{product:tractor}的农业作业能力，不提供{product:tractor}制造能力。',
   },
   {
     id: 'mechanical-engineering', name: '机械工程', stage: 'C5', rank: 5, cost: 2_500, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['tool-manufacturing', 'metallurgy'], unlockFacilityTypeIds: ['machine-factory'],
-    description: '建立通用机械制造体系。',
+    descriptionTemplate: '建立通用{product:machinery}制造体系。',
   },
   {
     id: 'agricultural-machinery', name: '农业机械', stage: 'C5', rank: 5, cost: 1_900, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['mechanical-engineering', 'fertilizer-engineering'], unlockFacilityTypeIds: ['tractor-factory'],
-    description: '将机械工程应用于拖拉机制造。',
+    descriptionTemplate: '将机械工程应用于{product:tractor}制造。',
   },
   {
     id: 'electronics-engineering', name: '电子工程', stage: 'C6', rank: 6, cost: 4_500, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['mechanical-engineering', 'oil-refining', 'metallurgy'], unlockFacilityTypeIds: ['electronics-factory'],
-    description: '建立电子元件与电子产品制造体系。',
+    descriptionTemplate: '建立电子元件与{product:electronics}制造体系。',
   },
   {
     id: 'appliance-engineering', name: '家电工程', stage: 'C7', rank: 7, cost: 7_000, durationMs: RESEARCH_DURATION_MS,
     prerequisiteTechnologyIds: ['electronics-engineering', 'mechanical-engineering'], unlockFacilityTypeIds: ['appliance-factory'],
-    description: '综合机械与电子技术生产家电。',
+    descriptionTemplate: '综合机械与电子技术生产{product:appliance}。',
   },
 ];
 
-export const RESEARCH_TECHNOLOGY_CATALOG = Object.freeze(rawTechnologies.map((technology) => Object.freeze({
-  ...technology,
-  kind: technology.kind || 'production',
-  prerequisiteTechnologyIds: Object.freeze([...technology.prerequisiteTechnologyIds]),
-  unlockFacilityTypeIds: Object.freeze([...technology.unlockFacilityTypeIds]),
-  operationProductIds: Object.freeze([...(technology.operationProductIds || [])]),
-})));
+export const RESEARCH_TECHNOLOGY_CATALOG = Object.freeze(rawTechnologies.map((technology) => {
+  const { nameTemplate, descriptionTemplate, ...technologyFields } = technology;
+  return Object.freeze({
+    ...technologyFields,
+    name: resolveProductDisplayNames(nameTemplate || technology.name),
+    description: resolveProductDisplayNames(descriptionTemplate || technology.description),
+    kind: technology.kind || 'production',
+    prerequisiteTechnologyIds: Object.freeze([...technology.prerequisiteTechnologyIds]),
+    unlockFacilityTypeIds: Object.freeze([...technology.unlockFacilityTypeIds]),
+    operationProductIds: Object.freeze([...(technology.operationProductIds || [])]),
+  });
+}));
 
 export const RESEARCH_TECHNOLOGY_BY_ID = new Map(
   RESEARCH_TECHNOLOGY_CATALOG.map((technology) => [technology.id, technology]),

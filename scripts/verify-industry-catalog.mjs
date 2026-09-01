@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../server/src/domain.js';
+import { RESEARCH_TECHNOLOGY_CATALOG } from '../server/src/research-catalog.js';
 
 const expectedProducts = [
   'wheat', 'rice', 'cotton', 'sugarcane', 'fruit', 'timber', 'ore', 'copper-ore', 'crude-oil',
@@ -128,6 +129,8 @@ assert.equal(PRODUCT_CATALOG.length, 38, '商品目录必须为 38 项');
 assert.equal(FACILITY_TYPE_CATALOG.length, 26, '工厂目录必须为 26 项');
 assert.deepEqual(PRODUCT_CATALOG.map((item) => item.id), expectedProducts);
 assert.deepEqual(FACILITY_TYPE_CATALOG.map((item) => item.id), expectedFacilities);
+assert.equal(PRODUCT_CATALOG.every((product) => typeof product.name === 'string' && product.name.trim().length > 0), true, '商品显示名必须非空');
+assert.equal(new Set(PRODUCT_CATALOG.map((product) => product.name)).size, PRODUCT_CATALOG.length, '商品显示名必须唯一');
 const facilityComplexityRanks = FACILITY_TYPE_CATALOG.map((item) => Number(item.complexity.slice(1)));
 assert.deepEqual(
   facilityComplexityRanks,
@@ -282,6 +285,8 @@ assert.deepEqual(standardRecipes(facilities.get('appliance-factory'))[0].inputs,
 
 const refineryRecipes = standardRecipes(facilities.get('refinery'));
 assert.deepEqual(refineryRecipes.map((recipe) => recipe.id), ['refinery-default', 'industrial-fuel-refining', 'industrial-chemicals-refining']);
+const fuelProduct = PRODUCT_CATALOG.find((product) => product.id === 'industrial-fuel');
+assert.equal(refineryRecipes[1].name, `生产${fuelProduct.name}`);
 assert.deepEqual(refineryRecipes[1].inputs, [{ productId: 'crude-oil', quantity: 1 }]);
 assert.deepEqual(refineryRecipes[1].output, { productId: 'industrial-fuel', quantity: 4 });
 assert.equal(refineryRecipes[1].cycleMs, 60_000);
@@ -292,29 +297,47 @@ assert.equal(refineryRecipes[2].cycleMs, 60_000);
 assert.equal(refineryRecipes[2].operatingCost, 6);
 
 const coreSource = readFileSync('server/src/domain-core.js', 'utf8');
+const productCatalogSource = readFileSync('server/src/product-catalog.js', 'utf8');
 const catalogSource = readFileSync('server/src/industry-catalog.js', 'utf8');
 const methodSource = readFileSync('server/src/production-methods.js', 'utf8');
+const researchSource = readFileSync('server/src/research-catalog.js', 'utf8');
 const legacyMethodSource = readFileSync('server/src/legacy-production-methods.js', 'utf8');
 assert.ok(coreSource.includes("from './industry-catalog.js'"), '核心领域必须读取单一产业目录');
 assert.equal(coreSource.includes('export const PRODUCT_CATALOG = Object.freeze(['), false, 'domain-core.js 不得复制正式商品目录');
+assert.ok(productCatalogSource.includes('export const PRODUCT_CATALOG'), '商品目录必须由独立模块提供');
+assert.ok(productCatalogSource.includes('resolveProductDisplayNames'), '商品目录必须提供显示名模板解析器');
+assert.ok(catalogSource.includes("from './product-catalog.js'"), '产业目录必须从单一商品目录读取显示名');
+assert.ok(methodSource.includes("from './product-catalog.js'"), '生产制度必须从单一商品目录解析显示名');
+assert.ok(researchSource.includes("from './product-catalog.js'"), '研发目录必须从单一商品目录解析显示名');
+for (const [path, source] of [
+  ['industry-catalog.js', catalogSource],
+  ['production-methods.js', methodSource],
+  ['research-catalog.js', researchSource],
+]) assert.equal(source.includes(fuelProduct.name), false, `${path} 不得复制 ${fuelProduct.id} 的显示名`);
+assert.equal(FACILITY_TYPE_CATALOG.some((facility) => facility.recipes.some((recipe) => recipe.name.includes('{product:'))), false, '运行时配方名不得残留商品占位符');
+assert.equal(FACILITY_TYPE_CATALOG.some((facility) => facility.productionMethodGroups.some((group) => (
+  group.methods.some((method) => `${method.name}${method.description}`.includes('{product:'))
+))), false, '运行时作业制度不得残留商品占位符');
+assert.equal(RESEARCH_TECHNOLOGY_CATALOG.some((technology) => `${technology.name}${technology.description}`.includes('{product:')), false, '运行时研发目录不得残留商品占位符');
 assert.equal(coreSource.includes('STARTER_CONSTRUCTION_MATERIALS'), false, '不得恢复新玩家建造材料包');
 assert.equal(coreSource.includes('grantStarterConstructionMaterials'), false, '不得恢复建造材料补发逻辑');
 assert.ok(catalogSource.includes("from './production-methods.js'"));
 assert.ok(catalogSource.includes("from './legacy-production-methods.js'"));
 for (const text of [
   'FACILITY_METHOD_BLUEPRINTS',
-  "id: 'industrial-fuel'",
-  "id: 'industrial-chemicals'",
   "name: '基础采伐'",
   "name: '机械化采矿'",
   "name: '连续化加工'",
   "name: '动力连续混配'",
   'requiredTechnologyIds',
 ]) assert.ok(methodSource.includes(text) || catalogSource.includes(text), `C2 目录缺少 ${text}`);
+for (const text of ["id: 'industrial-fuel'", "id: 'industrial-chemicals'"]) {
+  assert.ok(productCatalogSource.includes(text), `商品目录缺少 ${text}`);
+}
 assert.ok(legacyMethodSource.includes('legacyProductionMethod'));
 assert.ok(legacyMethodSource.includes("['rapid', 'economical', 'high-yield']"));
 
-assert.equal(existsSync('src/assets/product-icons/industrial-fuel.png'), true, '工业燃料缺少商品插画源文件');
+assert.equal(existsSync('src/assets/product-icons/industrial-fuel.png'), true, 'industrial-fuel 缺少商品插画源文件');
 assert.equal(existsSync('src/assets/product-icons/industrial-chemicals.png'), true, '工业化学品缺少商品插画源文件');
 const artworkStyle = readFileSync('src/styles/product-artwork.css', 'utf8');
 const artworkGenerator = readFileSync('scripts/generate-product-artwork-thumbnails.mjs', 'utf8');
@@ -328,9 +351,8 @@ for (const [path, texts] of [
     '当前基线为 38 种商品和 26 种工厂类型',
     'C1 基础制度采用工厂级参考分钟利润',
     'C2 四级制度参考分钟利润固定为 3、6、9、10.5',
-    '工业燃料 (`industrial-fuel`)',
     '工业化学品 (`industrial-chemicals`)',
-    '炼油厂同时提供塑料、工业燃料和工业化学品三条正式配方',
+    '`server/src/product-catalog.js` 是商品玩家可见名称的唯一运行时来源',
     'C1 与 C2 使用工厂专属作业制度',
     'C3～C7 继续使用标准生产、高速生产、节约生产和高产生产',
     '非基础作业制度必须校验 `requiredTechnologyIds`',

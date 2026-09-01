@@ -7,12 +7,12 @@
     "node": ">=24.4.0 <25"
   },
   "scripts": {
-    "dev": "npm run generate:artwork && vite",
+    "dev": "npm run generate:artwork && npm run generate:local-preview && vite",
     "generate:artwork": "npm run generate:product-artwork && npm run generate:facility-artwork",
     "generate:product-artwork": "node scripts/generate-product-artwork-thumbnails.mjs",
     "generate:facility-artwork": "node scripts/generate-facility-artwork-thumbnails.mjs",
     "generate:local-preview": "node scripts/generate-local-game-preview.mjs",
-    "verify:local-preview": "node scripts/verify-local-game-preview.mjs",
+    "verify:local-preview": "npm run generate:local-preview && node scripts/verify-local-game-preview.mjs",
     "verify:navigation-badges": "node --experimental-strip-types scripts/verify-navigation-badges.mjs",
     "verify:leaderboards": "node scripts/verify-leaderboards.mjs",
     "verify:daily-check-in": "node scripts/verify-daily-check-in.mjs",

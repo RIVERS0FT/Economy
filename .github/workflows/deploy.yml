@@ -138,6 +138,7 @@ jobs:
           exec > >(tee /tmp/economy-build-artifact.log) 2>&1
           set -euo pipefail
           npm run generate:artwork
+          npm run generate:local-preview
           ./node_modules/.bin/tsc
           ./node_modules/.bin/vite build
 

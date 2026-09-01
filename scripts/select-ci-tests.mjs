@@ -26,6 +26,11 @@ const FULL_TRIGGER_PATTERNS = [
 
 const DOMAIN_RULES = [
   {
+    name: 'product-catalog',
+    source: /product-catalog/i,
+    candidate: /(?:industry-catalog|production-methods|research|local-game-preview|product-artwork)/i,
+  },
+  {
     name: 'market',
     source: /(?:market|order|trade|warehouse|asset)/i,
     candidate: /(?:market|order|trade|warehouse|asset)/i,
@@ -93,6 +98,9 @@ const DOMAIN_RULES = [
 ];
 
 const DOMAIN_BROWSER_BASELINES = new Map([
+  ['product-catalog', [
+    'tests/browser/all-pages-preview.spec.ts',
+  ]],
   ['facility', [
     'tests/browser/all-pages-preview.spec.ts',
     'tests/browser/global-operation-pages.spec.ts',
@@ -238,6 +246,7 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
   if (frontendChanges.length > 0) {
     plan.needsDependencies = true;
     addCommand(commands, seenCommands, 'npm', ['run', 'generate:artwork']);
+    addCommand(commands, seenCommands, 'npm', ['run', 'generate:local-preview']);
     addCommand(commands, seenCommands, 'npm', ['run', 'typecheck']);
     addCommand(commands, seenCommands, './node_modules/.bin/vite', ['build']);
   }
@@ -262,6 +271,9 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
   const serverTestCandidates = listFiles(root, 'server/test', (path) => /^server\/test\/.*\.test\.js$/.test(path));
   const browserCandidates = listFiles(root, 'tests/browser', (path) => /^tests\/browser\/.*\.spec\.ts$/.test(path));
   const domains = inferDomains(changedFiles);
+  if (domains.some((rule) => rule.name === 'product-catalog')) {
+    addCommand(commands, seenCommands, 'npm', ['run', 'generate:local-preview']);
+  }
 
   const isDomainCandidate = (candidate) => domains.some((rule) => rule.candidate.test(candidate));
   const isReferenceCandidate = (candidate) => candidateReferencesAnyChangedFile(root, candidate, changedFiles);
