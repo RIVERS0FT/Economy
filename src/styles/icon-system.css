@@ -12,6 +12,10 @@
   height: 1.25rem;
 }
 
+.product-icon[data-product-icon='industrial-fuel'] {
+  color: var(--color-danger);
+}
+
 .product-icon-label {
   min-width: 0;
   display: inline-flex;
@@ -87,5 +91,15 @@
   .mobile-bottom-navigation .sidebar-nav-button > span > .game-icon {
     width: 1.15rem;
     height: 1.15rem;
+  }
+
+  .mobile-bottom-navigation[data-navigation-surface='game-mobile-navigation'] .sidebar-nav-button > span {
+    width: 1.45rem;
+    height: 1.45rem;
+  }
+
+  .mobile-bottom-navigation[data-navigation-surface='game-mobile-navigation'] .sidebar-nav-button > span > .game-icon {
+    width: 1.35rem;
+    height: 1.35rem;
   }
 }
