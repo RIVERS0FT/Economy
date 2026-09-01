@@ -1,71 +1,79 @@
 
 Running 6 tests using 2 workers
-[WebServer] 4:05:03 PM [vite] http proxy error: /api/game/contracts/performance
+[WebServer] 4:07:36 PM [vite] http proxy error: /api/game/contracts/performance
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 4:05:03 PM [vite] http proxy error: /api/game/community-link
+[WebServer] 4:07:36 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 4:05:04 PM [vite] http proxy error: /api/game/community-link
+[WebServer] 4:07:37 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-·[WebServer] 4:05:07 PM [vite] http proxy error: /api/game/community-link
+·[WebServer] 4:07:41 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 4:05:08 PM [vite] http proxy error: /api/game/community-link
+[WebServer] 4:07:42 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-·[WebServer] 4:05:12 PM [vite] http proxy error: /api/game/community-link
+·[WebServer] 4:07:46 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-×[WebServer] 4:05:13 PM [vite] http proxy error: /api/game/community-link
+×[WebServer] 4:07:47 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-·[WebServer] 4:05:17 PM [vite] http proxy error: /api/game/community-link
+·[WebServer] 4:07:52 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 4:05:17 PM [vite] http proxy error: /api/game/community-link
+[WebServer] 4:07:53 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 4:05:18 PM [vite] http proxy error: /api/game/community-link
+[WebServer] 4:07:53 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 4:05:19 PM [vite] http proxy error: /api/game/community-link
+[WebServer] 4:07:54 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-·[WebServer] 4:05:23 PM [vite] http proxy error: /api/game/community-link
+·[WebServer] 4:07:58 PM [vite] http proxy error: /api/game/contracts/performance
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-[WebServer] 4:05:24 PM [vite] http proxy error: /api/game/community-link
+[WebServer] 4:07:58 PM [vite] http proxy error: /api/game/community-link
 [WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
 [WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
-·F::error file=tests/browser/contract-layout.spec.ts,title=[chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts,line=132,col=94::  1) [chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts %0A    Error: expect(locator).toBeVisible() failed%0A%0A    Locator: locator('.contract-publish-preview').getByText('长期合同', { exact: true })%0A    Expected: visible%0A    Timeout: 5000ms%0A    Error: element(s) not found%0A%0A    Call log:%0A      - Expect "toBeVisible" with timeout 5000ms%0A      - waiting for locator('.contract-publish-preview').getByText('长期合同', { exact: true })%0A%0A%0A      130 |   await expect(duration).toHaveValue('');%0A      131 |   await expect(page.getByLabel('开始延迟（天）')).toHaveValue('0');%0A    > 132 |   await expect(page.locator('.contract-publish-preview').getByText('长期合同', { exact: true })).toBeVisible();%0A          |                                                                                              ^%0A      133 |   await expect(submit).toBeEnabled();%0A      134 |%0A      135 |   await page.getByRole('tab', { name: /历史合同/ }).click();%0A        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:132:94
-::error file=tests/browser/contract-layout.spec.ts,title=[chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts,line=132,col=94::  1) [chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts %0A%0A    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────%0A    Error: expect(locator).toBeVisible() failed%0A%0A    Locator: locator('.contract-publish-preview').getByText('长期合同', { exact: true })%0A    Expected: visible%0A    Timeout: 5000ms%0A    Error: element(s) not found%0A%0A    Call log:%0A      - Expect "toBeVisible" with timeout 5000ms%0A      - waiting for locator('.contract-publish-preview').getByText('长期合同', { exact: true })%0A%0A%0A      130 |   await expect(duration).toHaveValue('');%0A      131 |   await expect(page.getByLabel('开始延迟（天）')).toHaveValue('0');%0A    > 132 |   await expect(page.locator('.contract-publish-preview').getByText('长期合同', { exact: true })).toBeVisible();%0A          |                                                                                              ^%0A      133 |   await expect(submit).toBeEnabled();%0A      134 |%0A      135 |   await page.getByRole('tab', { name: /历史合同/ }).click();%0A        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:132:94
+[WebServer] 4:07:59 PM [vite] http proxy error: /api/game/contracts/performance
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 4:07:59 PM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·F::error file=tests/browser/contract-layout.spec.ts,title=[chromium] › tests/browser/contract-layout.spec.ts:95:1 › desktop contract workspace uses shared controls and dense two-column layouts,line=140,col=79::  1) [chromium] › tests/browser/contract-layout.spec.ts:95:1 › desktop contract workspace uses shared controls and dense two-column layouts %0A    Error: expect(locator).toHaveCount(expected) failed%0A%0A    Locator:  getByLabel('合同标的').getByRole('option', { name: '普通货币' })%0A    Expected: 1%0A    Received: 0%0A    Timeout:  5000ms%0A%0A    Call log:%0A      - Expect "toHaveCount" with timeout 5000ms%0A      - waiting for getByLabel('合同标的').getByRole('option', { name: '普通货币' })%0A        14 × locator resolved to 0 elements%0A           - unexpected value "0"%0A%0A%0A      138 |   await page.getByRole('tab', { name: /历史合同/ }).click();%0A      139 |   await expect(page.locator('.contract-history-entry')).toHaveCount(1);%0A    > 140 |   await expect(page.getByLabel('合同标的').getByRole('option', { name: '普通货币' })).toHaveCount(1);%0A          |                                                                               ^%0A      141 |   await expect(page.getByLabel('合同标的').getByRole('option', { name: '机械工厂' })).toHaveCount(1);%0A      142 |   await expect(page.getByText('合同内容', { exact: true })).toBeVisible();%0A      143 |   await expect(page.getByText('完成事实', { exact: true })).toBeVisible();%0A        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:140:79
+::error file=tests/browser/contract-layout.spec.ts,title=[chromium] › tests/browser/contract-layout.spec.ts:95:1 › desktop contract workspace uses shared controls and dense two-column layouts,line=140,col=79::  1) [chromium] › tests/browser/contract-layout.spec.ts:95:1 › desktop contract workspace uses shared controls and dense two-column layouts %0A%0A    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────%0A    Error: expect(locator).toHaveCount(expected) failed%0A%0A    Locator:  getByLabel('合同标的').getByRole('option', { name: '普通货币' })%0A    Expected: 1%0A    Received: 0%0A    Timeout:  5000ms%0A%0A    Call log:%0A      - Expect "toHaveCount" with timeout 5000ms%0A      - waiting for getByLabel('合同标的').getByRole('option', { name: '普通货币' })%0A        14 × locator resolved to 0 elements%0A           - unexpected value "0"%0A%0A%0A      138 |   await page.getByRole('tab', { name: /历史合同/ }).click();%0A      139 |   await expect(page.locator('.contract-history-entry')).toHaveCount(1);%0A    > 140 |   await expect(page.getByLabel('合同标的').getByRole('option', { name: '普通货币' })).toHaveCount(1);%0A          |                                                                               ^%0A      141 |   await expect(page.getByLabel('合同标的').getByRole('option', { name: '机械工厂' })).toHaveCount(1);%0A      142 |   await expect(page.getByText('合同内容', { exact: true })).toBeVisible();%0A      143 |   await expect(page.getByText('完成事实', { exact: true })).toBeVisible();%0A        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:140:79
 
-::notice title=🎭 Playwright Run Summary::  1 failed%0A    [chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts %0A  5 passed (34.0s)
+::notice title=🎭 Playwright Run Summary::  1 failed%0A    [chromium] › tests/browser/contract-layout.spec.ts:95:1 › desktop contract workspace uses shared controls and dense two-column layouts %0A  5 passed (36.7s)
 
-  1) [chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts 
+  1) [chromium] › tests/browser/contract-layout.spec.ts:95:1 › desktop contract workspace uses shared controls and dense two-column layouts 
 
-    Error: expect(locator).toBeVisible() failed
+    Error: expect(locator).toHaveCount(expected) failed
 
-    Locator: locator('.contract-publish-preview').getByText('长期合同', { exact: true })
-    Expected: visible
-    Timeout: 5000ms
-    Error: element(s) not found
+    Locator:  getByLabel('合同标的').getByRole('option', { name: '普通货币' })
+    Expected: 1
+    Received: 0
+    Timeout:  5000ms
 
     Call log:
-      - Expect "toBeVisible" with timeout 5000ms
-      - waiting for locator('.contract-publish-preview').getByText('长期合同', { exact: true })
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for getByLabel('合同标的').getByRole('option', { name: '普通货币' })
+        14 × locator resolved to 0 elements
+           - unexpected value "0"
 
 
-      130 |   await expect(duration).toHaveValue('');
-      131 |   await expect(page.getByLabel('开始延迟（天）')).toHaveValue('0');
-    > 132 |   await expect(page.locator('.contract-publish-preview').getByText('长期合同', { exact: true })).toBeVisible();
-          |                                                                                              ^
-      133 |   await expect(submit).toBeEnabled();
-      134 |
-      135 |   await page.getByRole('tab', { name: /历史合同/ }).click();
-        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:132:94
+      138 |   await page.getByRole('tab', { name: /历史合同/ }).click();
+      139 |   await expect(page.locator('.contract-history-entry')).toHaveCount(1);
+    > 140 |   await expect(page.getByLabel('合同标的').getByRole('option', { name: '普通货币' })).toHaveCount(1);
+          |                                                                               ^
+      141 |   await expect(page.getByLabel('合同标的').getByRole('option', { name: '机械工厂' })).toHaveCount(1);
+      142 |   await expect(page.getByText('合同内容', { exact: true })).toBeVisible();
+      143 |   await expect(page.getByText('完成事实', { exact: true })).toBeVisible();
+        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:140:79
 
     Error Context: test-results/contract-layout-desktop-co-c9c00-nd-dense-two-column-layouts-chromium/error-context.md
 
@@ -79,26 +87,28 @@ Running 6 tests using 2 workers
 
     Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
 
-    Error: expect(locator).toBeVisible() failed
+    Error: expect(locator).toHaveCount(expected) failed
 
-    Locator: locator('.contract-publish-preview').getByText('长期合同', { exact: true })
-    Expected: visible
-    Timeout: 5000ms
-    Error: element(s) not found
+    Locator:  getByLabel('合同标的').getByRole('option', { name: '普通货币' })
+    Expected: 1
+    Received: 0
+    Timeout:  5000ms
 
     Call log:
-      - Expect "toBeVisible" with timeout 5000ms
-      - waiting for locator('.contract-publish-preview').getByText('长期合同', { exact: true })
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for getByLabel('合同标的').getByRole('option', { name: '普通货币' })
+        14 × locator resolved to 0 elements
+           - unexpected value "0"
 
 
-      130 |   await expect(duration).toHaveValue('');
-      131 |   await expect(page.getByLabel('开始延迟（天）')).toHaveValue('0');
-    > 132 |   await expect(page.locator('.contract-publish-preview').getByText('长期合同', { exact: true })).toBeVisible();
-          |                                                                                              ^
-      133 |   await expect(submit).toBeEnabled();
-      134 |
-      135 |   await page.getByRole('tab', { name: /历史合同/ }).click();
-        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:132:94
+      138 |   await page.getByRole('tab', { name: /历史合同/ }).click();
+      139 |   await expect(page.locator('.contract-history-entry')).toHaveCount(1);
+    > 140 |   await expect(page.getByLabel('合同标的').getByRole('option', { name: '普通货币' })).toHaveCount(1);
+          |                                                                               ^
+      141 |   await expect(page.getByLabel('合同标的').getByRole('option', { name: '机械工厂' })).toHaveCount(1);
+      142 |   await expect(page.getByText('合同内容', { exact: true })).toBeVisible();
+      143 |   await expect(page.getByText('完成事实', { exact: true })).toBeVisible();
+        at /home/runner/work/Economy/Economy/tests/browser/contract-layout.spec.ts:140:79
 
     Error Context: test-results/contract-layout-desktop-co-c9c00-nd-dense-two-column-layouts-chromium-retry1/error-context.md
 
@@ -111,5 +121,5 @@ Running 6 tests using 2 workers
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
   1 failed
-    [chromium] › tests/browser/contract-layout.spec.ts:92:1 › desktop contract workspace uses shared controls and dense two-column layouts 
-  5 passed (34.0s)
+    [chromium] › tests/browser/contract-layout.spec.ts:95:1 › desktop contract workspace uses shared controls and dense two-column layouts 
+  5 passed (36.7s)
