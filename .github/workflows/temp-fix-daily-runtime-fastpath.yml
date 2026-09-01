@@ -1,0 +1,34 @@
+name: Temporary Daily Runtime Fastpath Fix
+
+on:
+  push:
+    branches:
+      - feature/daily-regional-supply-contracts-impl
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/daily-regional-supply-contracts-impl
+          fetch-depth: 0
+      - name: Apply daily runtime fastpath fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/temp-fix-daily-runtime-fastpath.py
+          rm .github/workflows/temp-fix-daily-runtime-fastpath.yml
+          rm scripts/temp-fix-daily-runtime-fastpath.py
+          git config user.name "RIVERSOFT"
+          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          node scripts/verify-daily-supply-contracts.mjs
+          node scripts/verify-runtime-efficiency.mjs
+          node --test server/test/daily-supply-contracts.test.js
+          git commit -m "恢复普通动作热路径并保留旧长约语义"
+          git push origin HEAD:feature/daily-regional-supply-contracts-impl
