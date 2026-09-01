@@ -192,6 +192,7 @@ test('mobile contract workspace keeps two-column summaries, scrollable tabs and 
   await page.getByRole('button', { name: '发布合同', exact: true }).click();
   expect(await gridTrackCount(page.locator('.contract-publish-layout'))).toBe(1);
   expect(await gridTrackCount(page.locator('.contract-publish-grid'))).toBe(1);
+  await expectUniformPageSectionGaps(page);
   const quantity = page.getByLabel('每日最大供应量');
   const quantityBox = await requireBox(quantity);
   expect(quantityBox.height).toBeGreaterThanOrEqual(48);
