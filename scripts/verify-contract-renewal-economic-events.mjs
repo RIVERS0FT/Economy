@@ -72,9 +72,9 @@ for (const token of ['optionalTotalDeliveries', "contract.totalDeliveries === nu
 assert.ok(pageDesign.includes('旧玩家商品合同协议中的 `totalDeliveries = null`') && pageDesign.includes('旧长期合同不会因完成批次数自动结束'), 'page design must preserve legacy long-term supply compatibility');
 assert.ok(serverDesign.includes('旧玩家商品合同协议中 `totalDeliveries` 允许为 2～100 的整数或 `null`') && serverDesign.includes('旧长期合同不接受续签'), 'server design must preserve legacy long-term supply lifecycle');
 assert.ok(serverDesign.includes('合同 schema 10 同时'), 'server design must keep the current supply contract schema baseline');
-assert.ok(serverDesign.includes('世界 32 是当前持久化边界') && serverDesign.includes('当前客户端状态版本为 38'), 'server design must keep current world and client baselines');
+assert.ok(serverDesign.includes('世界 32 是当前持久化边界') && serverDesign.includes('当前客户端状态版本为 39'), 'server design must keep current world and client baselines');
 assert.ok(serverDesign.includes('合同历史冷启动导入必须优先读取 V2 分段世界'), 'contract audit cold-start must prefer segmented V2 authority');
-assert.ok(!serverDesign.includes('合同 schema 8 同时') && !serverDesign.includes('世界 26 是当前持久化边界。') && !serverDesign.includes('当前客户端状态版本为 30。'), 'server design must not retain stale contract/world/client baselines');
+assert.ok(!serverDesign.includes('合同 schema 8 同时') && !serverDesign.includes('世界 26 是当前持久化边界。') && !serverDesign.includes('当前客户端状态版本为 30。') && !serverDesign.includes('当前客户端状态版本为 38'), 'server design must not retain stale contract/world/client baselines');
 assert.ok(rootReadme.includes('新商品采购／供应合同按地区使用固定价格') && rootReadme.includes('旧有限批次／旧长期商品合同继续按原语义兼容'), 'root README must summarize daily current contracts and legacy compatibility');
 for (const token of ['renewal_approved', 'renewal_approval_revoked', 'renewal_confirmed']) assert.ok(auditStore.includes(token), `contract audit store missing ${token}`);
 
