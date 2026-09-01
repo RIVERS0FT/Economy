@@ -92,4 +92,14 @@
     width: 1.15rem;
     height: 1.15rem;
   }
+
+  .mobile-bottom-navigation[data-navigation-surface='game-mobile-navigation'] .sidebar-nav-button > span {
+    width: 1.45rem;
+    height: 1.45rem;
+  }
+
+  .mobile-bottom-navigation[data-navigation-surface='game-mobile-navigation'] .sidebar-nav-button > span > .game-icon {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
 }
