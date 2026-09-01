@@ -27,6 +27,7 @@ for (const path of [
   'src/components/facilities/FacilityProductionFormula.tsx',
   'src/components/market/MarketAutoTradePanel.tsx',
   'src/components/warehouse/WarehouseInventoryPanel.tsx',
+  'src/pages/MarketPage.tsx',
   'src/pages/ProvincePage.tsx',
   'src/pages/TransportPage.tsx',
   'src/styles/factory-auto-operation.css',
@@ -112,6 +113,7 @@ for (const text of [
   '最低自由库存',
   'MobileWorkspaceDetailSheet',
 ]) forbidText('src/components/market/MarketAutoTradePanel.tsx', text);
+forbidText('src/pages/MarketPage.tsx', '<MarketAutoTradePanel', '');
 
 for (const text of [
   '仓库容量永久无限',
@@ -121,8 +123,8 @@ for (const text of [
   '玩家在工厂详情表达自动经营意图',
   'factoryAutoOperationPolicies',
   'inputCoverageCycles: 1 | 2 | 3 | 5',
-  '地区商品详情只读展示',
-  '自动经营配置唯一归属工厂详情',
+  '地区商品详情不渲染“自动经营执行”卡',
+  '工厂详情是自动经营策略与执行解释的唯一玩家界面',
   '每个“玩家 + 地区 + 商品”最多维护一张关联自动买单和一张关联自动卖单',
   '`factoryAutoOperationPolicies` 是现有玩家状态中的可选字段',
   '世界状态版本保持 32',
@@ -132,6 +134,8 @@ for (const text of [
   '页面直接显示“无限容量”状态',
   '自动交易卡必须提供全商品选择器',
   '自动交易唯一显示在地区商品详情',
+  '地区商品详情保留“自动经营执行”只读卡',
+  '商品详情中的自动经营执行区只读',
 ]) forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
 
 const runtimePaths = ['server/src', 'src'];

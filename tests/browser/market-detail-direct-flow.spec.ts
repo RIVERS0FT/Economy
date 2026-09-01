@@ -35,12 +35,9 @@ async function readDetailGeometry(page: Page) {
         height: bounds.height,
       };
     };
-    const visibleMetricCards = Array.from(surface.querySelectorAll('.market-fundamentals-grid .ui-metric-card'))
-      .filter((element) => element.getClientRects().length > 0)
-      .map(rect);
     const hero = surface.querySelector('.market-detail-hero');
-    const fundamentals = surface.querySelector('.market-fundamentals-grid');
     const chart = surface.querySelector('.market-chart-card');
+    const trade = surface.querySelector('.market-trade-card');
     const heroMetrics = Array.from(surface.querySelectorAll('.market-detail-hero__metric'))
       .filter((element) => element.getClientRects().length > 0)
       .map(rect);
@@ -48,23 +45,27 @@ async function readDetailGeometry(page: Page) {
       surface: rect(surface),
       hero: hero ? rect(hero) : null,
       heroMetrics,
-      fundamentals: fundamentals ? rect(fundamentals) : null,
-      visibleMetricCards,
       chart: chart ? rect(chart) : null,
+      trade: trade ? rect(trade) : null,
     };
   });
 }
 
-test('regional commodity detail keeps only non-duplicate context in direct page flow', async ({ page }) => {
+test('regional commodity detail keeps only compact market facts in direct page flow', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openRegionalWheatDetail(page);
 
-  const visibleFundamentals = await page.locator(
-    '.market-fundamentals-grid .ui-metric-card:visible > span',
+  const visibleHeroMetrics = await page.locator(
+    '.market-detail-hero__metric:visible small',
   ).allTextContents();
-  expect(visibleFundamentals).toEqual(['需求满足率', '参考价', '上轮需求', '可用库存']);
+  expect(visibleHeroMetrics).toEqual(['24h 变化', '可用库存']);
 
-  for (const hiddenLabel of [
+  for (const deletedLabel of [
+    '市场价',
+    '基准偏离',
+    '需求满足率',
+    '参考价',
+    '上轮需求',
     '官方系统价',
     '卖单量',
     '买单量',
@@ -75,11 +76,11 @@ test('regional commodity detail keeps only non-duplicate context in direct page 
     '预计生产速度',
     '预计等效产能',
   ]) {
-    await expect(page.getByText(hiddenLabel, { exact: true })).toBeHidden();
+    await expect(page.getByText(deletedLabel, { exact: true })).toHaveCount(0);
   }
-  await expect(page.locator('.market-fundamentals-balance')).toBeHidden();
-  await expect(page.locator('.market-fundamentals-card > .widget-heading')).toBeHidden();
-  await expect(page.locator('.market-inventory-production-card > .widget-heading')).toBeHidden();
+  await expect(page.locator('.market-fundamentals-grid')).toHaveCount(0);
+  await expect(page.locator('.market-auto-trade-execution')).toHaveCount(0);
+  await expect(page.locator('.market-detail-auto-trade')).toHaveCount(0);
 
   const visibleTradeSummary = await page.locator(
     '.market-trade-summary > span:visible small',
@@ -88,24 +89,20 @@ test('regional commodity detail keeps only non-duplicate context in direct page 
 
   for (const selector of [
     '.market-detail-hero',
-    '.market-fundamentals-card',
-    '.market-inventory-production-card',
     '.market-chart-card',
+    '.market-trade-card',
     '.market-account-panel',
   ]) {
     await expectDirectSurface(page, selector);
   }
-
-  await expect(page.locator('.market-trade-card')).toHaveClass(/ui-primary-surface/);
-  await expect(page.locator('.market-detail-auto-trade')).toBeVisible();
+  await expect(page.locator('.market-trade-card')).not.toHaveClass(/ui-primary-surface/);
 
   const geometry = await readDetailGeometry(page);
   expect(geometry.surface.width).toBeLessThanOrEqual(720);
   expect(geometry.hero).not.toBeNull();
-  expect(geometry.heroMetrics).toHaveLength(3);
-  expect(geometry.visibleMetricCards).toHaveLength(4);
-  expect(geometry.fundamentals).not.toBeNull();
+  expect(geometry.heroMetrics).toHaveLength(2);
   expect(geometry.chart).not.toBeNull();
+  expect(geometry.trade).not.toBeNull();
 
   const hero = geometry.hero!;
   for (const metric of geometry.heroMetrics) {
@@ -114,16 +111,8 @@ test('regional commodity detail keeps only non-duplicate context in direct page 
   }
   expect(Math.max(...geometry.heroMetrics.map((metric) => metric.top))
     - Math.min(...geometry.heroMetrics.map((metric) => metric.top))).toBeLessThanOrEqual(2);
-
-  const summary = geometry.fundamentals!;
-  const [demand, reference, previousDemand, inventory] = geometry.visibleMetricCards;
-  expect(Math.abs(demand.top - reference.top)).toBeLessThanOrEqual(2);
-  expect(previousDemand.top).toBeGreaterThan(demand.top + 2);
-  expect(Math.abs(previousDemand.top - inventory.top)).toBeLessThanOrEqual(2);
-  expect(inventory.right).toBeGreaterThanOrEqual(summary.right - 2);
-  expect(summary.bottom - Math.max(...geometry.visibleMetricCards.map((metric) => metric.bottom)))
-    .toBeLessThanOrEqual(20);
-  expect(geometry.chart!.top - summary.bottom).toBeLessThanOrEqual(40);
+  expect(geometry.chart!.top - hero.bottom).toBeLessThanOrEqual(40);
+  expect(geometry.trade!.top).toBeGreaterThan(geometry.chart!.top);
 });
 
 test('regional commodity direct detail flow stays readable on mobile', async ({ page }) => {
@@ -139,25 +128,25 @@ test('regional commodity direct detail flow stays readable on mobile', async ({ 
   }));
   expect(widthGeometry.scrollWidth).toBeLessThanOrEqual(widthGeometry.clientWidth + 1);
 
-  const visibleFundamentals = await page.locator(
-    '.market-fundamentals-grid .ui-metric-card:visible > span',
+  const visibleHeroMetrics = await page.locator(
+    '.market-detail-hero__metric:visible small',
   ).allTextContents();
-  expect(visibleFundamentals).toEqual(['需求满足率', '参考价', '上轮需求', '可用库存']);
+  expect(visibleHeroMetrics).toEqual(['24h 变化', '可用库存']);
+  await expect(page.locator('.market-fundamentals-grid')).toHaveCount(0);
+  await expect(page.locator('.market-auto-trade-execution')).toHaveCount(0);
   await expect(page.locator('.market-trade-summary > span:visible')).toHaveCount(2);
   await expect(page.locator('.market-chart-card')).toBeVisible();
   await expect(page.locator('.market-trade-card')).toBeVisible();
+  await expect(page.locator('.market-trade-card')).not.toHaveClass(/ui-primary-surface/);
 
   const geometry = await readDetailGeometry(page);
   expect(geometry.hero).not.toBeNull();
-  expect(geometry.heroMetrics).toHaveLength(3);
-  expect(geometry.visibleMetricCards).toHaveLength(4);
+  expect(geometry.heroMetrics).toHaveLength(2);
   const hero = geometry.hero!;
   for (const metric of geometry.heroMetrics) {
     expect(metric.left).toBeGreaterThanOrEqual(hero.left - 1);
     expect(metric.right).toBeLessThanOrEqual(hero.right + 1);
   }
-  const [demand, reference, previousDemand, inventory] = geometry.visibleMetricCards;
-  expect(Math.abs(demand.top - reference.top)).toBeLessThanOrEqual(2);
-  expect(previousDemand.top).toBeGreaterThan(demand.top + 2);
-  expect(Math.abs(previousDemand.top - inventory.top)).toBeLessThanOrEqual(2);
+  expect(Math.max(...geometry.heroMetrics.map((metric) => metric.top))
+    - Math.min(...geometry.heroMetrics.map((metric) => metric.top))).toBeLessThanOrEqual(2);
 });

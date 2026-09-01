@@ -210,7 +210,7 @@ requireText('server/test/state-delivery-size.test.js', [
 ]);
 requireText('server/test/market-state-delivery.test.js', [
   'initial player state keeps market summaries and only the current player orders',
-  'market detail returns public history, aggregated five-level depth, and a conditional revision',
+  'market detail returns bounded public real-trade history, aggregated five-level depth, and a conditional revision',
 ]);
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '首次未压缩 JSON 响应必须不超过 2 MiB',
