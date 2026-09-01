@@ -68,6 +68,6 @@ for (const [label, content] of [['industry design', industryDesign], ['server de
   assert.ok(content.includes('合同审计'), `${label} must define contract audit rules`);
 }
 includesAll(serverDesign, ['economy_contract_audit_contracts', 'economy_contract_audit_events', 'economy_contract_audit_transfers', '/api/game/contracts/history', '/api/game/contracts/:contractId/audit', '终态摘要'], 'server contract audit design');
-includesAll(pageDesign, ['单张一级', 'PagePanel', '合同内容、结束原因、结束时间、完成情况、结束统计', '重新拟定', '不加载审计事件时间线'], 'page contract history design');
+includesAll(pageDesign, ['单张一级', 'PagePanel', '合同内容、结束原因、结束时间、完成事实、结束统计', '重新拟定', '不加载审计事件时间线'], 'page contract history design');
 
 console.log('Contract audit and compact history verification passed.');
