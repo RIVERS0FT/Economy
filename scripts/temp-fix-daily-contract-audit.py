@@ -142,7 +142,7 @@ if "const audit = read('server/src/contract-audit-store.js');" not in text:
     text = text.replace("const unified = read('server/src/unified-contracts.js');", "const unified = read('server/src/unified-contracts.js');\nconst audit = read('server/src/contract-audit-store.js');", 1)
 anchor = "requireText(runtime, 'return executeRuntimeAction(this, user, requestMeta, now);', '无到期生产输入需求的普通动作必须保留既有单事务 fast path。');"
 addition = """requireText(audit, "supplyMode: contract.supplyMode === 'daily' ? 'daily' : null", '每日合同审计快照必须保留 daily 模式。');
-requireText(audit, 'totalDeliveredQuantity: contract.supplyMode === \'daily\'', '每日合同审计快照必须保留累计真实交付数量。');
+requireText(audit, "totalDeliveredQuantity: contract.supplyMode === 'daily'", '每日合同审计快照必须保留累计真实交付数量。');
 requireText(audit, "unit: 'quantity'", '每日合同历史完成事实必须按实际交付数量表达。');
 requireText(audit, "if (contract?.supplyMode === 'daily') continue;", '每日合同不得进入旧下一批仓库预占审计计算。');
 """
