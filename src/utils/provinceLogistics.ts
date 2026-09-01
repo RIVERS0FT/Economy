@@ -25,7 +25,7 @@ export const TRANSPORT_MODES: Record<TransportModeId, {
 export const TRANSPORT_BASE_SECONDS_PER_KM = 60 / 1000;
 export const TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER = 20;
 export const TRANSPORT_MAX_ROUTES_PER_PLAYER = 50;
-export const TRANSPORT_DEFAULT_TRIP_TYPE: TransportTripType = 'round';
+export const TRANSPORT_DEFAULT_TRIP_TYPE: TransportTripType = 'one-way';
 
 function toRadians(value: number) {
   return value * Math.PI / 180;
@@ -84,6 +84,7 @@ export interface TransportRouteLeg {
   distanceKm: number;
   durationMs: number;
   cost: number;
+  loadQuantity: number;
   delivers: boolean;
 }
 
@@ -91,6 +92,7 @@ export interface TransportRoutePlanMetrics {
   distanceKm: number;
   durationMs: number;
   cost: number;
+  initialLoad: number;
   deliveryStops: string[];
   legs: TransportRouteLeg[];
 }
@@ -125,15 +127,26 @@ export function transportDeliveryStopIds(route: TransportRouteStopsInput) {
   return route.destinationProvinceId ? [...viaProvinceIds, route.destinationProvinceId] : [...viaProvinceIds];
 }
 
+export function transportRouteMaxQuantityPerStop(route: TransportRouteStopsInput, mode: TransportModeId) {
+  const definition = TRANSPORT_MODES[mode];
+  const deliveryCount = transportDeliveryStopIds(route).length;
+  if (!definition || deliveryCount < 1) return 0;
+  return Math.floor(definition.capacity / deliveryCount);
+}
+
 export function transportRoutePlanMetrics(
   route: TransportRouteStopsInput & { mode: TransportModeId; quantity: number },
   provinceById: Map<string, ProvinceDefinition>,
 ): TransportRoutePlanMetrics | null {
   const traversalStopIds = transportTraversalStopIds(route);
   if (traversalStopIds.length < 2) return null;
-  const deliveryStopSet = new Set(transportDeliveryStopIds(route));
+  const deliveryStops = transportDeliveryStopIds(route);
+  const deliveryStopSet = new Set(deliveryStops);
   const deliveredStops = new Set<string>();
+  const normalizedQuantity = Math.max(0, Math.floor(route.quantity));
+  const initialLoad = normalizedQuantity * deliveryStops.length;
   const legs: TransportRouteLeg[] = [];
+  let remainingLoad = initialLoad;
   let distanceKm = 0;
   let durationMs = 0;
   let cost = 0;
@@ -146,8 +159,12 @@ export function transportRoutePlanMetrics(
     const legDistanceKm = from.id === to.id ? 0 : provinceDistanceKm(from, to);
     const legDurationMs = transportDurationMs(route.mode, legDistanceKm);
     const delivers = deliveryStopSet.has(to.id) && !deliveredStops.has(to.id);
-    const legCost = transportCost(route.mode, delivers ? route.quantity : 0, legDistanceKm);
-    if (delivers) deliveredStops.add(to.id);
+    const legLoadQuantity = remainingLoad;
+    const legCost = transportCost(route.mode, legLoadQuantity, legDistanceKm);
+    if (delivers) {
+      deliveredStops.add(to.id);
+      remainingLoad = Math.max(0, remainingLoad - normalizedQuantity);
+    }
     distanceKm += legDistanceKm;
     durationMs += legDurationMs;
     cost += legCost;
@@ -157,6 +174,7 @@ export function transportRoutePlanMetrics(
       distanceKm: legDistanceKm,
       durationMs: legDurationMs,
       cost: legCost,
+      loadQuantity: legLoadQuantity,
       delivers,
     });
   }
@@ -165,6 +183,7 @@ export function transportRoutePlanMetrics(
     distanceKm,
     durationMs,
     cost: Math.round(cost * 1_000_000) / 1_000_000,
+    initialLoad,
     deliveryStops: [...deliveredStops],
     legs,
   };
