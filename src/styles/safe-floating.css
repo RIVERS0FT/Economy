@@ -1,3 +1,23 @@
+.workspace-tooltip-layer {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  pointer-events: none !important;
+}
+
+.workspace-tooltip-layer > * {
+  pointer-events: none;
+}
+
 .safe-tooltip-anchor {
   min-width: 0;
   display: inline-flex;
@@ -15,4 +35,56 @@
   line-height: 1.4;
   overflow-wrap: anywhere;
   pointer-events: none !important;
+}
+
+.province-map-static-tooltip[popover] {
+  inset: auto;
+  top: 0;
+  left: 0;
+  margin: 0;
+}
+
+.game-concept-anchor {
+  display: inline;
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.game-concept-text {
+  color: inherit;
+  cursor: help;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, var(--color-info) 78%, transparent);
+  text-underline-offset: .18em;
+  text-decoration-skip-ink: auto;
+}
+
+.game-concept-anchor:focus-visible .game-concept-text {
+  color: var(--color-info);
+  text-decoration-color: currentColor;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html[data-input-modality='mouse'] .game-concept-anchor:hover .game-concept-text {
+    color: var(--color-info);
+    text-decoration-color: currentColor;
+  }
+}
+
+.game-concept-anchor:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-info) 72%, transparent);
+  outline-offset: 2px;
+}
+
+.game-concept-tooltip {
+  display: grid;
+  gap: var(--space-1);
+  max-width: min(28rem, calc(100vw - 32px));
+}
+
+.game-concept-tooltip > strong {
+  font-size: var(--font-size-sm);
+  line-height: 1.3;
 }

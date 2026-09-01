@@ -32,7 +32,7 @@
 | `src/styles/globals.css` | 通用业务布局 |
 | `src/styles/strategic-game-shell.css` | 玩家端常驻地图、侧栏与页面单一主卡片、统一紧凑页宽、页面开启动画、地图镜头栏、覆盖式指挥栏与移动安全布局；不得修改管理员外壳 |
 | `src/styles/charts.css` | 共享 ECharts 容器、Tooltip 内容排版、无障碍摘要、市场底部安全区、管理员图表与资产圆环布局；不得定义 Tooltip 毛玻璃材质 |
-| `src/styles/safe-floating.css` | 工作区安全 Tooltip 的容器内定位、尺寸、滚动与交互几何；不得定义 Tooltip 毛玻璃材质或承担外壳几何 |
+| `src/styles/safe-floating.css` | 唯一 `.workspace-tooltip-layer` Tooltip 宿主、工作区安全定位、尺寸、滚动、游戏名词点状下划线与交互几何；不得定义 Tooltip 毛玻璃材质或承担应用外壳几何 |
 | `src/styles/overview.css` | 概览主列核心卡片、右侧公开事件日志和响应式布局 |
 | `src/styles/icon-system.css` | 全局 SVG 图标尺寸、商品图标标签、货币金额、导航图标槽位和移动图标尺寸 |
 | `src/styles/player-avatar.css` | 玩家 64px 头像、缺省首字符回退与圆形裁切的共享视觉 |
@@ -97,6 +97,7 @@
 - `CurrencyText`
 - `EmptyState`
 - `SafeTooltip`
+- `GameConcept`
 - `FormField`
 - `TextInput`
 - `IntegerInput`
@@ -124,7 +125,11 @@
 
 ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`EconomyChart` 必须在每次 `setOption` 前读取图表容器的浏览器计算样式，把 Option 中静态颜色、颜色数组、数据项颜色和颜色回调结果统一解析为实体色值；业务图表不得自行复制颜色解析器。以 Tooltip 为唯一悬浮信息反馈的折线、柱状和饼图系列必须复用 `STABLE_TOOLTIP_EMPHASIS`，禁止库默认 emphasis 改写填充、描边或透明度。鼠标、触控点击、状态刷新和尺寸变化均不得让当前或其他数据图形消失、变为透明或丢失原始颜色。
 
-应用内 Tooltip 的普通 React 入口统一使用 `SafeTooltip`，图表 Tooltip 统一复用 `src/components/charts/chartOptions.ts` 的 `commonTooltip`。两类实际 Tooltip 浮层节点都必须包含 `.ui-tooltip-surface`，其半透明背景、`backdrop-filter`、柔和边界、高光与阴影唯一来自 `src/styles/frosted-glass-surfaces.css`；`safe-floating.css` 只负责安全定位、尺寸与滚动，`charts.css` 只负责 ECharts Tooltip 的内容排版。Tooltip 必须保持单节点轻量毛玻璃，不得套用 `FrostedGlassSurface`、增加装饰性玻璃 DOM，或在业务 CSS 中复制第二套材质。浏览器原生 `title` 不属于应用内 Tooltip 材质，只能按既有可访问性规则保留非必要补充说明。
+应用内 Tooltip 的普通 React 入口统一使用 `SafeTooltip`，游戏机制名词使用基于它的 `GameConcept`，图表 Tooltip 统一复用 `src/components/charts/chartOptions.ts` 的 `commonTooltip`。`SignedInShell` 必须在既有 `.workspace-floating-layer` 内提供唯一共享 Tooltip 宿主 `.workspace-tooltip-layer`；该宿主不是第五个全局层或第二个 Portal 根，而是工作区安全浮层的专用子层。Tooltip Layer 只负责 DOM 归属与工作区安全几何；它必须保持普通 DOM 子层与 `pointer-events: none`，不得给 `.workspace-tooltip-layer` 本身添加 `popover`、`showPopover()`／`hidePopover()` 生命周期或让整块宿主进入浏览器 Top Layer。非显然原因是：工作区尺寸的透明 Popover 宿主即使计算样式为 `pointer-events: none`，仍可能在浏览器真实 hit-test 中成为覆盖输入的 Top Layer 命中面。实际 `SafeTooltip` 与地图 Tooltip 节点分别使用浏览器 Popover Top Layer：节点自己声明 `popover="manual"` 并通过既有 `topLayer.ts` 的 `showTopLayerPopover`／`hideTopLayerPopover` 生命周期进入与退出 Top Layer，同时仍以 `.workspace-tooltip-layer` 作为 Portal DOM 父级和安全矩形来源。ECharts 6.1.0 由 `EconomyChart` 在应用 Option 时统一注入 `tooltip.appendTo` 指向该宿主并继续保留 `appendToBody: false` 与 `confine: true`；ECharts 生成节点保持库托管，不得用 `MutationObserver` 强行改造成 Popover，业务图表也不得自行指定另一 Tooltip Portal。`RichSelectInput` 等真正可交互 Popover 继续按既有自身 Top Layer 规则工作。
+
+所有实际 Tooltip 浮层节点都必须包含 `.ui-tooltip-surface`，其半透明背景、`backdrop-filter`、柔和边界、高光与阴影唯一来自 `src/styles/frosted-glass-surfaces.css`；`safe-floating.css` 只负责宿主、安全定位、尺寸、滚动和游戏名词触发器几何，`charts.css` 只负责 ECharts Tooltip 的内容排版。Tooltip 必须保持单节点轻量毛玻璃，不得套用 `FrostedGlassSurface`、增加装饰性玻璃 DOM，或在业务 CSS 中复制第二套材质。浏览器原生 `title` 不属于应用内 Tooltip 材质，只能按既有可访问性规则保留非必要补充说明。
+
+`GameConcept` 参考大战略经营游戏的“正文内可解释名词”信息层级，只允许对真正需要学习的游戏机制进行显式标记，不得运行时扫描整段中文、按字符串自动替换或通过 `MutationObserver` 注入。名词定义集中维护在 `src/game-guide/gameConcepts.ts`，业务组件只引用稳定 concept ID；定义只写当前稳定语义，涉及会变化的数值、费率、周期或状态时必须从运行时数据生成而不是复制固定参数。可解释名词普通状态继承正文颜色并使用细点状信息色下划线和约 `.18em` 下划线偏移，细指针悬停或键盘 `:focus-visible` 时增强信息色但不得位移；使用 `role="term"`、可键盘聚焦，触摸通过聚焦打开同一 `SafeTooltip`。首批生产详情固定把“生产结算”“投入”“产出”作为 `GameConcept`，解释框显示名词标题和简短机制说明；普通“工厂”“商品”“价格”等无需学习的词不得机械地全部加下划线。
 
 所有 `type: 'pie'` 系列（包括实心饼图与圆环图）必须使用 `chartOptions.ts` 的共享 `PIE_PAD_ANGLE = 5`，统一设置 `padAngle: PIE_PAD_ANGLE`；不得在业务图表中改回零间隔、直接写入魔法数字或定义第二套扇区间隔。
 
@@ -168,7 +173,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 `MobileWorkspaceSheetHost` 是唯一允许调用 `useMobileWorkspaceSheetDrag`、`useWorkspaceDialogLayer`、创建根 backdrop 和实施页面滚动锁的组件；它以可与顶部 Chrome 并存的非模态 `role="dialog"` 工作，不得设置 `aria-modal="true"`，也不得建立全局 `Tab` 焦点陷阱。状态栏通知按钮必须能够在 Sheet 打开时获得焦点。`MobileWorkspacePageSheet` 只是零 DOM 兼容适配器，`MobileWorkspaceDetailSheet` 只是内容注册器。物理根 Sheet 独占一套 Pointer／Touch 监听，详情打开时只切换同一拖动内核的视觉目标，不得把监听下沉或重复注册。
 
-普通 Tooltip、Popover 与不应覆盖应用 Chrome 的业务浮层继续使用 `.workspace-floating-layer`；来自唯一根 Sheet 内的富下拉可以继续以 `.workspace-dialog-layer` 作为安全定位边界并位于 Sheet 表面之上。移动通知面板是明确例外：它复用同一个 `.workspace-dialog-layer` 的更高内部层级覆盖 Sheet，但位于移动状态栏之下，不创建第二个 Portal 根或第五个全局层。通知面板打开时必须卸载通知岛、Toast 及对应 ARIA live region，`Escape` 由通知面板在捕获阶段消费并只关闭通知，不得穿透去关闭下层详情或根 Sheet。任何业务页、工厂详情或研发详情都不得创建嵌套 `.mobile-detail-sheet`、第二个 backdrop、第二个根级 Portal 或平行拖动状态机。地区商品详情的自动经营执行卡固定当前商品，在桌面与移动端都作为商品详情正文只读显示，不创建策略页签、全商品选择器、保存动作、固定底栏或第二个详情 Sheet。
+普通 Tooltip 统一 Portal 到 `.workspace-floating-layer` 内唯一 `.workspace-tooltip-layer`；该子层只承担 DOM 归属与工作区安全几何，必须保持普通 DOM 子层和 `pointer-events: none`，不得把宿主本身放入浏览器 Top Layer。实际 `SafeTooltip` 与地图 Tooltip 节点在支持 Popover API 时各自通过既有 `topLayer.ts` 进入浏览器 Top Layer；普通非 Tooltip Popover 与不应覆盖应用 Chrome 的业务浮层继续使用 `.workspace-floating-layer`。来自唯一根 Sheet 内的富下拉可以继续以 `.workspace-dialog-layer` 作为安全定位边界并位于 Sheet 表面之上。`.workspace-tooltip-layer` 不得提升为新的根级 Portal 或第五个全局层。移动通知面板是明确例外：它复用同一个 `.workspace-dialog-layer` 的更高内部层级覆盖 Sheet，但位于移动状态栏之下，不创建第二个 Portal 根或第五个全局层。通知面板打开时必须卸载通知岛、Toast 及对应 ARIA live region，`Escape` 由通知面板在捕获阶段消费并只关闭通知，不得穿透去关闭下层详情或根 Sheet。任何业务页、工厂详情或研发详情都不得创建嵌套 `.mobile-detail-sheet`、第二个 backdrop、第二个根级 Portal 或平行拖动状态机。地区商品详情的自动经营执行卡固定当前商品，在桌面与移动端都作为商品详情正文只读显示，不创建策略页签、全商品选择器、保存动作、固定底栏或第二个详情 Sheet。
 
 ### 3.2 输入方式与共享交互状态
 
@@ -442,7 +447,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 移动双指从州面、州界附近或地图空白起手必须等价。相机输入层在容器捕获阶段同时跟踪 Pointer 与 Touch 生命周期；一旦本轮出现两个及以上触点，从多点手势开始到最后触点释放后的 `420ms` 内，必须抑制合成 click、州面选择和空白双触重置。该窗口只负责输入仲裁，不得驱动、回滚或复制相机；窗口结束后的正常单指点击必须立即恢复。防回退必须记录多点序列数、当前触点数和被抑制 click 数，使真浏览器 CDP 双触可以验证州面内起手也不会误打开地区页。
 - 战略地图州面交互固定采用“镜头底色 + 中性轮廓”分层，视觉强度固定为“选中悬浮 > 选中 > 普通悬浮 > 默认”。每个州的基础 `areaColor` 继续由政治／资产／工业／市场／异常镜头和未解锁状态决定；普通悬浮、选中及选中后继续悬浮都必须原样保留该底色。桌面普通悬浮只使用 `--color-text-secondary` 的 `1.5px` 中性亮边且无辉光；选中使用 `--color-text-primary` 的 `2.5px` 亮边与低强度 `5px` 辉光；选中悬浮使用 `3px` 亮边与 `7px` 辉光。未解锁州始终保持灰显底色，悬浮其他州不得清除选中州。上述视觉只允许在同一静态 SVG path 上通过原生 `:hover`、`:focus-visible` 和外部 `data-selected` 表达，不得恢复第二张地图、第二套州面 SVG、ECharts `emphasis/select`、pointermove 驱动的 React 高频视觉状态或交互时 `setOption`；州名选中只更新既有 `data-selected`，不得重排标签或修改相机。
 - 地区默认、当前、资产、工业、市场和异常语义继续使用区域填充、边界、文字、Tooltip 和五种镜头共同表达；默认州面、未解锁州面、州界与州名分别读取 `--color-map-region-default`、`--color-map-region-locked`、`--color-map-region-border` 与 `--color-map-label`。当前地区由外部 `selectedProvinceId` 驱动 path 与标签选中属性；镜头状态只属于 `GameShell` 客户端视觉上下文，不写入服务器或更换地区。每个州面保留鼠标、触摸和键盘激活；单击后设置经营州并打开隐藏 `province` 上下文页。离开州级页立即清除地图视觉高亮，但保留经营州供后续业务写操作使用。
-- 桌面 Tooltip 继续使用 `.ui-tooltip-surface` 的统一毛玻璃材质，并显示本地库存、工厂、运行中与本地挂单；未解锁州明确标注“未解锁”。不大于 `720px` 时地图 Tooltip 必须禁用并隐藏，触摸州面直接打开州级上下文页。地图容器继续提供“美国本土州级经营地图”可访问名称与可读摘要。`MapPage` 只保留透明路由占位；市场、建筑和其他业务页面不得恢复地区下拉框、第二张地图或平行选择状态。
+- 桌面 Tooltip 继续使用 `.ui-tooltip-surface` 的统一毛玻璃材质，并 Portal 到共享 `.workspace-tooltip-layer`；实际地图 Tooltip 节点自己声明 `popover="manual"` 并通过既有 `topLayer.ts` 进入浏览器 Top Layer，宿主本身保持普通 DOM 子层。内容显示本地库存、工厂、运行中与本地挂单，未解锁州明确标注“未解锁”。不大于 `720px` 时地图 Tooltip 必须禁用并隐藏，触摸州面直接打开州级上下文页。地图容器继续提供“美国本土州级经营地图”可访问名称与可读摘要。`MapPage` 只保留透明路由占位；市场、建筑和其他业务页面不得恢复地区下拉框、第二张地图或平行选择状态。
 - 运输路线图层唯一挂载在 `UsMainlandMap` 静态 SVG 世界面内、州面上方且不拦截州面交互：首府坐标经同一静态投影在模块初始化时求点，路线连线、返程虚线与站点圆点与州面共享同一 `.province-map-camera-surface` 合成相机，使用 `non-scaling-stroke`，缩放／平移期间不重投影、不重排州名。草稿连线使用 `--color-info` 高亮，已保存路线使用 `--color-map-label` 弱化，卡片高亮使用 `--color-warning`；选州模式压暗不可选州面并保留可选项的中性轮廓反馈。选州操作条位于地图层顶部安全区内，使用既有表面令牌与单行动作按钮，不新建第二根级浮层或 Portal。
 - 性能回归必须验证实际热路径：缩放／平移前后的 48 条 path `d` 与州名基础 glyph transform 保持不变；州面和州名都能追溯到同一个 `.province-map-camera-surface`；同一任务内的多次滚轮输入在下一绘制帧只增加一次 camera write；放大使外围州离开屏幕后，缩小且 `data-map-zoom-active="true"` 时外围州已经重新进入且州名中心仍命中对应 path。不得用最终 settle 后才恢复、隐藏屏外州、永久 `will-change`、第二套相机或 ECharts Map 规避检查。
 - 玩家端仍采用大战略游戏式常驻地图工作台：图片层 `0`、氛围层 `10`、地图层 `20`、UI 层 `30`，`.application-map-layer` 通过同一个 Portal 持有唯一 `StrategicMapStage` 和 `StrategicMapLensBar`。业务页面和通知仍位于更高 UI 层；不大于 `720px` 时镜头栏隐藏。地图数据只用于游戏经营地区视觉，不用于现实测绘、导航或法律边界声明；既有 34 个地区 ID 与新增 14 个州 ID 必须继续稳定对应现有资产。
@@ -491,7 +496,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 移动详情悬浮框不显示顶部关闭按钮；共享固定头部只保留拖动把手，完整工厂信息通过 `MobileDetailSummary` 作为正文 `ScrollArea` 的第一个区块。对话框容器承担初始焦点，点击透明 backdrop、按 `Escape` 和有效向下拖动共用向下收起流程，关闭后焦点返回触发卡。移动详情复用 `SignedInShell` 唯一根级 `.workspace-dialog-layer`，但实体 Sheet 顶边必须始终低于移动状态栏；状态栏不被 Sheet 截获。根 Sheet 存在期间底部导航保持同一 DOM 但隐藏、`aria-hidden`、`inert` 且不可命中；完整根 Sheet 关闭到地图后才恢复。Bottom Sheet 必须在首次可见绘制前通过 `useLayoutEffect` 完成页面滚动锁定、稳定视觉视口高度快照和 `focus({ preventScroll: true })`；打开后不得继续读取动态 `dvh` 改变高度。
 - 当前工厂详情顺序固定为“移动把手（桌面无）→ 工厂信息（插画右侧三行：数量摘要 → 单厂平均利润 → 满员率）→ 生产配置 → 自动经营 → 生产结算 → 经营诊断 → 市场入口”。工厂信息内部使用纵向插画与主信息两列；右侧三行和其余区块都必须按 DOM 自上而下排列。满员率使用无独立圆角和背景的状态带，只显示百分比、方向和进度条。
 - 玩家可见的“生产产物”与“作业制度”固定使用同一个无标题生产配置区和共享 `RichSelectInput` 的 `production-config` 生产方案槽；生产配置区不显示独立“生产设置”标题；桌面和移动详情都固定同一行 Auto 槽横排，移动端在 `320px` 及以上不得换行。两个字段均按自身 Desired Size 从左向右连续排列，第二项紧跟第一项并只由统一 `gap` 分隔，不得使用两等分 `1fr`、百分比或 `flex-grow` 制造 Fill 槽。两个收起触发按钮固定为正方形并按内容宽度布局，只显示当前产物／作业制度图片，不显示名称、参数摘要或下拉箭头，图片本身不得带独立黑色底板或图片槽边框；字段和触发按钮命中区域都不得扩展到父容器剩余空间；展开菜单才显示候选名称、结构化投入／产出、周期／成本信息，作业制度候选还必须相对当前方案标示周期、成本与产量变化。不得恢复收起态文字详情、箭头、Fill 轨道、字段／按钮全宽拉伸、剩余空白命中或作业制度说明。
-- 工厂生产公式固定采用双列顶层布局：左侧为输入组合区，右侧为输出区；输入与输出物资槽顶部对齐。时间与成本位于双列物资区下方的同一条操作数据带，中间使用竖向分隔线；多输入或多输出内部允许换行，时间与成本不得回到输入输出之间的独立中列。公式、操作数据带和进度共同组成“生产结算”；生产进度位于数据带下方，并且是生产结算最后一个可见元素；生产进度轨道使用胶囊圆角，流光伪元素必须被已完成填充自身裁剪，未完成轨道不得出现流光；单厂平均利润只属于工厂信息区。
+- 工厂生产公式固定采用双列顶层布局：左侧为输入组合区，右侧为输出区；输入与输出物资槽顶部对齐。时间与成本位于双列物资区下方的同一条操作数据带，中间使用竖向分隔线；多输入或多输出内部允许换行，时间与成本不得回到输入输出之间的独立中列。公式、操作数据带和进度共同组成“生产结算”；生产进度位于数据带下方，并且是生产结算最后一个可见元素；生产进度轨道使用胶囊圆角，流光伪元素必须被已完成填充自身裁剪，未完成轨道不得出现流光；单厂平均利润只属于工厂信息区。生产结算标题“生产结算”以及公式两侧标签“投入”“产出”固定使用 `GameConcept` 的点状信息色下划线和共享 Tooltip 解释；不得为这三个名词添加问号图标、独立说明按钮或页面内常驻解释文字。
 - 输入和输出项目统一使用“商品图片、生产数量、仓库 Icon、当前可用库存”的单行结构；多项物资只通过独立物资槽与间距分隔，不显示 `+` 或其他连接字符。输入与输出均显示当前可用库存，输出库存不得改成预计入库后的预测值。商品位置只能调用 `ProductArtwork` 加载 128px PNG，不得渲染 `ProductIcon` SVG；仓库等功能语义继续使用统一功能 Icon，不得在生产详情中手写 SVG 标记。
 - 生产结算中的每个投入／产出物资槽整体使用原生按钮语义并可直接打开当前州对应本地商品详情；点击目标覆盖完整物资槽，继续只显示商品图片、生产数量、仓库 Icon 与当前可用库存，不新增“查看市场”、箭头或外链 Icon。按钮必须复用 `data-ui-interactive="surface"` 的统一 hover／active／`:focus-visible` 反馈，并提供包含商品名、生产数量和库存的 `aria-label`；不得把承载可交互物资槽的 `.facility-formula-visual` 整体设为 `aria-hidden`。
 - 从生产结算商品物资槽进入本地商品详情必须复用受限页面栈，从当前 `regional-facility` push 同 `provinceId + productId` 的 `regional-product` 并允许返回原工厂详情；应用外壳继续以 `commodity + productId` 打开当前州对应商品，不得先进入商品全局详情或商品目录；不得根据生产配方语义自动推断采购／出售方向，数量和价格继续按统一市场资产切换的订单草稿初始化规则处理，不得自动提交订单，也不得改写建筑页建设工厂类型、数量、配方、作业制度或任何服务器权威生产状态。
@@ -570,6 +575,8 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 把地区商品／工厂详情标题的地区导航恢复为纯文本、改用 replace、按实体类型直接进入市场／建筑分区、删除键盘焦点，或为扩大触控命中而改变固定 40px 标题轨道；
 - 在业务页面复制基础控件视觉；
 - 为 `SafeTooltip` 或 ECharts `commonTooltip` 恢复近不透明独立背景、移除 `.ui-tooltip-surface`、给 Tooltip 套 `FrostedGlassSurface`／额外玻璃 DOM，或在 `safe-floating.css`、`charts.css` 与业务 CSS 中复制 Tooltip 毛玻璃材质；
+- 删除 `.workspace-tooltip-layer`、把它改成独立根级 Portal／第五个全局层、把该宿主整体送入浏览器 Top Layer、让 `SafeTooltip`／地图 Tooltip 不再由实际节点各自使用 Popover Top Layer、让地图 Tooltip 留在地图 DOM 内，或让登录后 ECharts Tooltip 绕过 `EconomyChart` 的共享 `appendTo` 宿主；
+- 绕过 `GameConcept` 对名词解释另造 Tooltip、把游戏机制名词改成问号图标／常驻说明、取消点状信息色下划线和键盘焦点，或通过 DOM 文本扫描、字符串自动替换、`MutationObserver` 批量注入下划线；
 - 绕过 `FormControls.tsx` 为普通表单新增平行输入组件，或把 `form-controls.css` 移到 `design-system.css` 之前；
 - 在业务页面直接渲染可见原生 `<select>`、恢复浏览器原生选项弹层，或绕过共享 `SelectInput`／`RichSelectInput` 自建第二套下拉框；
 - 把生产产物／作业制度收起态恢复为“图标 + 名称／参数／箭头”、恢复图片黑色底板或图片槽边框、恢复两等分 `1fr`／百分比／`flex-grow` Fill 轨道、恢复字段或按钮全宽拉伸、让父容器剩余空白成为下拉命中区域、改回默认普通下拉、删除 `production-config` 生产方案槽、把方案菜单重新限制为正方形触发按钮宽度，或在业务组件复制第二套 Popover、键盘导航、焦点返回、Portal 或刷新状态；
@@ -672,13 +679,13 @@ Playwright 必须验证 `1684×931`、`1280×900`、`900×1000`、`390×844` 和
 
 ## 登录后浮层安全区
 
-- 游戏端与管理员端的 Tooltip、Popover、下拉菜单、上下文菜单、确认框和普通页面 Dialog 必须使用 `SignedInShell` 提供的 `.workspace-floating-layer`，或由业务容器在自身边界内完成 `confine`。唯一根级 Mobile Workspace Sheet 和移动通知面板使用现有 `.workspace-dialog-layer`，但不得为它们建立第二个 Portal 根。
+- 游戏端与管理员端普通 Tooltip 统一由 `SignedInShell` 在既有 `.workspace-floating-layer` 内提供唯一共享 Tooltip 宿主 `.workspace-tooltip-layer`。Tooltip Layer 只负责 DOM 归属与工作区安全几何；宿主必须保持普通 DOM 子层、`pointer-events: none`，不得给 `.workspace-tooltip-layer` 本身添加 `popover`、调用 `showPopover()` 或整体进入浏览器 Top Layer，也不得创建新的根级 Portal 或第五个全局层。普通非 Tooltip Popover、下拉菜单、上下文菜单、确认框和普通页面 Dialog 继续使用 `.workspace-floating-layer`，或由业务容器在自身边界内完成 `confine`。唯一根级 Mobile Workspace Sheet 和移动通知面板使用现有 `.workspace-dialog-layer`，但不得为它们建立第二个 Portal 根。
 - 普通 Tooltip、Popover、菜单以及桌面通知面板等工作区安全浮层不得与桌面顶部状态栏／管理员工作栏、桌面侧栏、移动顶部状态栏或可见移动底栏相交。移动根 Sheet 是结构例外但不是 Chrome 覆盖例外：实体 Sheet 顶边必须低于移动状态栏，外部 backdrop 完全透明且不模糊 Chrome；底部导航在 Sheet 存在时由导航自身隐藏、`aria-hidden`、`inert` 并退出命中，而不是被 Sheet 视觉遮挡。
 - 移动通知面板是 Chrome 级例外：它复用同一个 `.workspace-dialog-layer` 的更高内部层级，覆盖根 Sheet但位于移动状态栏下方。状态栏始终位于 Sheet 与通知面板之上。面板不得新增 Portal 根、第五个全局层或额外毛玻璃宿主；面板外点击捕获层必须透明。
-- `SafeTooltip` 是普通 React Tooltip 的共享入口，其定位必须根据工作区浮层根计算、自动上下翻转、水平收敛并保留 `8px` 安全间距；ECharts Tooltip 统一通过 `commonTooltip` 在图表容器边界内 `confine`。两者的实际浮层节点都必须使用 `.ui-tooltip-surface`，材质唯一归属 `src/styles/frosted-glass-surfaces.css`，不得增加第二层玻璃包装。
+- `SafeTooltip` 是普通 React Tooltip 的共享入口，其定位必须根据工作区浮层根计算、自动上下翻转、水平收敛并保留 `8px` 安全间距；`GameConcept` 只作为其语义化名词触发器。实际 `SafeTooltip` 与地图 Tooltip 节点分别使用浏览器 Popover Top Layer：各自 Portal 到唯一 `.workspace-tooltip-layer` 后，由自身 `popover="manual"` 和既有 `topLayer.ts` 生命周期进入／退出 Top Layer；宿主只提供 DOM 父级与安全矩形。ECharts Tooltip 由 `EconomyChart` 在 `setOption` 前统一设置 `appendTo` 为该宿主，同时继续复用 `commonTooltip` 的 `appendToBody: false` 与 `confine: true`，保持 ECharts 节点由库托管而不强行改造成 Popover。三类实际浮层节点都必须使用 `.ui-tooltip-surface`，材质唯一归属 `src/styles/frosted-glass-surfaces.css`，不得增加第二层玻璃包装。
 - 登录后界面不得使用原生 `title` 承担被截断文本、操作说明或其他必须可访问的信息；原生 `title` 只允许保留非必要补充说明。
 - 唯一根级 Mobile Workspace Sheet 只实施页面滚动锁、当前基础页／详情的 `inert` 切换和自身点击／拖动关闭；不得建立全局 `Tab` 焦点陷阱，不得设置 `aria-modal="true"`，也不得阻止移动状态栏通知按钮取得焦点。移动通知面板打开时由其自身消费 `Escape`，关闭后焦点返回通知入口；不得继续把该按键传递给下层 Sheet。
-- 浏览器回归必须分别验证玩家图表 Tooltip、管理员工作栏 Tooltip、侧栏展开／折叠、移动安全区、Sheet／通知／状态栏层级和 `125%` 根字号；Tooltip 回归还必须读取真实计算样式验证共享半透明毛玻璃，而不能只检查类名、`z-index` 或 Option 字符串。
+- 浏览器回归必须分别验证玩家 ECharts Tooltip 实际成为 `.workspace-tooltip-layer` 子节点且共享宿主本身不匹配 `:popover-open`、宿主 `pointer-events` 为 `none` 并在 Tooltip 可见时仍能真实点击底层业务控件；实际 `SafeTooltip`／地图 Tooltip 节点必须匹配 `:popover-open`。同时验证游戏名词的点状信息色下划线与键盘解释、管理员工作栏 Tooltip、侧栏展开／折叠、移动安全区、Sheet／通知／状态栏层级和 `125%` 根字号；Tooltip 回归还必须读取真实计算样式验证共享半透明毛玻璃，而不能只检查类名、`z-index` 或 Option 字符串。
 
 ## 生产方式下拉选择
 

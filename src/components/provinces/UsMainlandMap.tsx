@@ -10,11 +10,18 @@ import {
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { feature } from 'topojson-client';
 import usStateAtlas from 'us-atlas/states-10m.json';
 import regionCatalog from '../../../shared/provinces.json';
 import type { ProvinceAssetSummary, ProvinceDefinition, TransportTripType } from '../../types';
 import { formatNumber } from '../../utils/formatters';
+import { useWorkspaceTooltipLayer } from '../ui/WorkspaceFloatingLayer';
+import {
+  hideTopLayerPopover,
+  showTopLayerPopover,
+  supportsTopLayerPopover,
+} from '../ui/topLayer';
 import { createProvinceMapCamera, type ProvinceMapCameraController } from './provinceMapCamera';
 import {
   createProvinceMapProjection,
@@ -178,6 +185,8 @@ export function UsMainlandMap({
   routePicking?: ProvinceMapRoutePicking | null;
   routeOverlays?: ProvinceMapRouteOverlay[];
 }) {
+  const tooltipLayer = useWorkspaceTooltipLayer();
+  const tooltipTopLayerActive = supportsTopLayerPopover() && Boolean(tooltipLayer);
   const unlockedSet = useMemo(() => new Set(unlockedProvinceIds || []), [unlockedProvinceIds]);
   const data = useMemo(() => provinces.map((province) => (
     datumFor(province, summaries[province.id], lens, !unlockedSet.has(province.id))
@@ -302,6 +311,14 @@ export function UsMainlandMap({
     container.dataset.mapSelectedProvinceId = selectedProvinceId ?? '';
   }, [selectedProvinceId]);
 
+  useLayoutEffect(() => {
+    if (!hoveredProvinceId || !tooltipTopLayerActive) return undefined;
+    const tooltip = tooltipRef.current;
+    if (!tooltip) return undefined;
+    showTopLayerPopover(tooltip);
+    return () => hideTopLayerPopover(tooltip);
+  }, [hoveredProvinceId, tooltipTopLayerActive, tooltipLayer]);
+
   const selectProvince = useCallback((provinceId: string) => {
     if (routePicking?.active) {
       routePicking.onPickProvince(provinceId);
@@ -322,6 +339,21 @@ export function UsMainlandMap({
     const top = Math.min(window.innerHeight - 180, Math.max(8, event.clientY + 14));
     tooltipRef.current.style.transform = `translate3d(${left}px, ${top}px, 0)`;
   }, [hoveredProvinceId]);
+
+  const tooltipNode = hoveredDatum ? (
+    <div
+      ref={tooltipRef}
+      className="economy-chart-tooltip ui-tooltip-surface province-map-tooltip province-map-static-tooltip"
+      data-tooltip-layer={tooltipLayer ? 'workspace' : 'local'}
+      data-top-layer={tooltipTopLayerActive ? 'true' : undefined}
+      popover={tooltipTopLayerActive ? 'manual' : undefined}
+      aria-hidden="true"
+    >
+      <strong>{hoveredDatum.provinceName}</strong>
+      {hoveredDatum.locked ? <span className="province-map-tooltip__locked">未解锁</span> : null}
+      {tooltipRows(hoveredDatum).map((row) => <span key={row}>{row}</span>)}
+    </div>
+  ) : null;
 
   const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}州面和中文州全名位于同一个静态 SVG 世界面，通过同一个合成相机同步缩放和平移。${routePickingActive ? '当前处于运输路线选州模式，按顺序点击州面即可追加站点，再次点击起点州可以闭环。' : '点击州面可以打开对应州页面，'}滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置缩放和平移。`;
 
@@ -451,17 +483,7 @@ export function UsMainlandMap({
               </g>
             </svg>
           </div>
-          {hoveredDatum ? (
-            <div
-              ref={tooltipRef}
-              className="economy-chart-tooltip ui-tooltip-surface province-map-tooltip province-map-static-tooltip"
-              aria-hidden="true"
-            >
-              <strong>{hoveredDatum.provinceName}</strong>
-              {hoveredDatum.locked ? <span className="province-map-tooltip__locked">未解锁</span> : null}
-              {tooltipRows(hoveredDatum).map((row) => <span key={row}>{row}</span>)}
-            </div>
-          ) : null}
+          {tooltipNode ? (tooltipLayer ? createPortal(tooltipNode, tooltipLayer) : tooltipNode) : null}
         </div>
         <span className="economy-chart__accessible-summary">{accessibleSummary}</span>
       </div>

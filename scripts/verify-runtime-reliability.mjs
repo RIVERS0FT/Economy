@@ -34,6 +34,7 @@ for (const path of [
   '.github/workflows/ci.yml',
   '.github/workflows/deploy.yml',
   '.github/workflows/configure-registration-email.yml',
+  'docs/CI_EXECUTION_DESIGN.md',
 ]) requireFile(path);
 forbidFile('.github/workflows/web-build.yml');
 forbidText('.github/workflows/deploy.yml', 'ssh-keyscan -p \"$SERVER_PORT\" \"$SERVER_HOST\"');
@@ -103,11 +104,26 @@ for (const text of [
   'actions: read',
   'No push workflow run found for the pull request head SHA',
   'npm run build',
+  'browser-test:',
+  'needs: build',
+  "if: needs.build.outputs.browser == 'true'",
+  'fail-fast: false',
+  'shard: [1, 2, 3, 4]',
   'bash scripts/prepare-playwright-chromium.sh',
-  'npm run test:browser 2>&1 | tee browser-test.log',
+  'npm run test:browser -- --shard=${{ matrix.shard }}/4 2>&1 | tee browser-test.log',
+  'ECONOMY_PLAYWRIGHT_SHARD: ${{ matrix.shard }}/4',
+  '--phase browser 2>&1 | tee browser-test.log',
+  'name: economy-browser-test-artifacts-${{ matrix.shard }}',
   'if: failure()',
   'retention-days: 3',
 ]) requireText('.github/workflows/ci.yml', text);
+for (const text of [
+  'const readBrowserShard = () => {',
+  'process.env.ECONOMY_PLAYWRIGHT_SHARD?.trim()',
+  'ECONOMY_PLAYWRIGHT_SHARD 格式无效',
+  'ECONOMY_PLAYWRIGHT_SHARD 超出范围',
+  'if (shard) browserArgs.push(`--shard=${shard}`);',
+]) requireText('scripts/select-ci-tests.mjs', text);
 for (const text of [
   'node-version: 24.4.0',
   'cache: npm',
@@ -239,6 +255,9 @@ for (const [path, text] of [
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '服务器语法检查由 Node 枚举'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '浏览器 CDN'],
+  ['docs/CI_EXECUTION_DESIGN.md', '只要选择器要求浏览器验证，PR 与非 `main` push 的浏览器硬门禁固定拆成四个独立 shard'],
+  ['docs/CI_EXECUTION_DESIGN.md', '不得通过提高 Job 超时'],
+  ['docs/CI_EXECUTION_DESIGN.md', 'ECONOMY_PLAYWRIGHT_SHARD=N/4'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得显示没有实际运行效果的“界面音效”或“画面性能”控件'],
   ['docs/README.md', '运行时可靠性、依赖锁、浏览器测试'],
   ['docs/README.md', '服务安装完成条件必须包含真实 `/health` 就绪'],
@@ -262,4 +281,4 @@ if (failures.length) {
   console.error(`运行时可靠性验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('依赖锁、CI 去重、失败步骤日志 Artifact、API 就绪与共享运行时数据、浏览器存储容错、管理员分页、验证码保留、限流清理、冷加载兼容迁移和浏览器测试均符合当前设计。');
+console.log('依赖锁、CI 去重、PR/分支四分片浏览器硬门禁、失败步骤日志 Artifact、API 就绪与共享运行时数据、浏览器存储容错、管理员分页、验证码保留、限流清理、冷加载兼容迁移和浏览器测试均符合当前设计。');

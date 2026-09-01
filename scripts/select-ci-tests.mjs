@@ -368,6 +368,17 @@ const requireValue = (args, flag) => {
   return args[index + 1];
 };
 
+const readBrowserShard = () => {
+  const raw = process.env.ECONOMY_PLAYWRIGHT_SHARD?.trim();
+  if (!raw) return null;
+  const match = /^([1-9]\d*)\/([1-9]\d*)$/.exec(raw);
+  if (!match) throw new Error(`ECONOMY_PLAYWRIGHT_SHARD 格式无效: ${raw}`);
+  const index = Number(match[1]);
+  const total = Number(match[2]);
+  if (index > total) throw new Error(`ECONOMY_PLAYWRIGHT_SHARD 超出范围: ${raw}`);
+  return `${index}/${total}`;
+};
+
 function main() {
   const [, , action, ...args] = process.argv;
   if (action === 'plan') {
@@ -393,7 +404,10 @@ function main() {
     if (phase === 'browser') {
       if (plan.browser.mode === 'none') return;
       if (plan.browser.mode !== 'selected' || plan.browser.tests.length === 0) throw new Error('targeted browser 计划缺少测试文件');
-      runCommand({ command: 'npm', args: ['run', 'test:browser', '--', ...plan.browser.tests] });
+      const browserArgs = ['run', 'test:browser', '--', ...plan.browser.tests];
+      const shard = readBrowserShard();
+      if (shard) browserArgs.push(`--shard=${shard}`);
+      runCommand({ command: 'npm', args: browserArgs });
       return;
     }
     throw new Error(`未知 phase: ${phase}`);
