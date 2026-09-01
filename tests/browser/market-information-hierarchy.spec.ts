@@ -133,4 +133,8 @@ test('market uses product-first global and regional information hierarchy', asyn
   expect(chartBox).not.toBeNull();
   expect(tradeBox).not.toBeNull();
   expect(chartBox!.y).toBeLessThan(tradeBox!.y);
+
+  const accountPanel = page.locator('.market-account-panel');
+  await expect(accountPanel).toBeVisible();
+  await expect(accountPanel.getByText('资产', { exact: true })).toHaveCount(0);
 });
