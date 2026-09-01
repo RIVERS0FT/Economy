@@ -141,6 +141,8 @@ for (const text of [
   '--ui-interactive-active-transform: none;',
   '.research-technology-node',
   '.research-technology-node[data-status=',
+  ".research-technology-node[data-status='active'],",
+  ".research-technology-node[data-status='available'] {",
   '.research-technology-node[data-selected=',
   '@media (max-width: 720px)',
   '.mobile-detail-summary.research-detail-summary {',
@@ -221,6 +223,10 @@ for (const text of [
   "getByText('32 项科技', { exact: true })).toHaveCount(0)",
   "page.locator('.page-card-scroll-area')).toHaveCount(0)",
   "page.locator('.page-card-static')).toBeVisible()",
+  "page.locator('.research-technology-node .research-facility-artwork')).toHaveCount(32)",
+  "page.locator('.research-technology-node .research-technology-node-name')).toHaveCount(32)",
+  "page.locator('.research-technology-node-meta')).toHaveCount(0)",
+  "page.locator('.research-technology-node-status')).toHaveCount(0)",
   "getByText('完整阶段', { exact: false })).toHaveCount(0)",
   "page.locator('.page-heading-actions')).toHaveCount(0)",
 ]) requireText('tests/browser/research-technology-tree.spec.ts', text);
@@ -260,6 +266,8 @@ for (const text of [
   'C1–C7 只作为产业阶段',
   '其余节点按照真实产业链设置前置关系',
   '自上而下 DAG',
+  '基础视觉状态固定为“已解锁已研发／已解锁未研发／未解锁未研发”三种',
+  '节点不得显示阶段、科技类型或“可研发／已掌握／尚未开放”等可见文字状态字段',
   '结构定位不得复用 `transform`',
   '选中科技只能改变节点和连接线的强调状态',
   '同一确定性 DAG 世界坐标',
@@ -306,6 +314,8 @@ for (const forbidden of [
   'remainingAfterAcceleration',
   '完整阶段',
   'actions={',
+  'research-technology-node-meta',
+  'research-technology-node-status',
 ]) forbidText('src/pages/ResearchPage.tsx', forbidden);
 for (const forbidden of [
   'grid-template-columns: repeat(7',
@@ -320,6 +330,8 @@ for (const forbidden of [
   '.research-industry-context',
   '.research-gem-acceleration',
   '.research-tree-heading',
+  '.research-technology-node-meta',
+  '.research-technology-node-status',
 ]) forbidText('src/styles/research-page.css', forbidden);
 for (const forbidden of [
   'MOBILE_COLUMNS',
@@ -346,4 +358,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('downward prerequisite research DAG, edge-to-edge desktop canvas, stable hover geometry, ordinary wheel zoom, drag pan, double-click current focus, shared workspace card with transparent research canvas, shared mobile pan/zoom viewport, stable selection, no below-tree page-flow card, detail sheet and design verification passed');
+console.log('downward prerequisite research DAG, three-state icon-and-name technology nodes, edge-to-edge desktop canvas, stable hover geometry, ordinary wheel zoom, drag pan, double-click current focus, shared workspace card with transparent research canvas, shared mobile pan/zoom viewport, stable selection, no below-tree page-flow card, detail sheet and design verification passed');

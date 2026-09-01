@@ -611,10 +611,6 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
                           : facility ? <FacilityIcon facilityTypeId={facility.id} /> : <span>{technology.stage}</span>}
                       </span>
                       <span className="research-technology-node-name">{technology.name}</span>
-                      <small className="research-technology-node-meta">
-                        {technology.stage} · {technology.kind === 'operation' ? '作业科技' : '生产科技'}
-                      </small>
-                      <small className="research-technology-node-status">{statusLabels[status]}</small>
                     </button>
                   );
                 })}

@@ -41,6 +41,10 @@ test.describe('research technology tree', () => {
     expect(fixedPageOverflow.stackScrollHeight).toBeLessThanOrEqual(fixedPageOverflow.stackClientHeight + 1);
     await expect(page.locator('.research-stage-node')).toHaveCount(0);
     await expect(page.locator('.research-technology-node')).toHaveCount(32);
+    await expect(page.locator('.research-technology-node .research-facility-artwork')).toHaveCount(32);
+    await expect(page.locator('.research-technology-node .research-technology-node-name')).toHaveCount(32);
+    await expect(page.locator('.research-technology-node-meta')).toHaveCount(0);
+    await expect(page.locator('.research-technology-node-status')).toHaveCount(0);
     await expect(page.locator('.research-tree-heading')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: '技术树' })).toHaveCount(0);
     await expect(page.getByText('32 项科技', { exact: true })).toHaveCount(0);
