@@ -23,7 +23,22 @@ jobs:
       - name: Apply workspace finalizer
         run: python3 scripts/temp-finalize-contract-workspace.py
       - name: Apply audit participant finalizer
-        run: python3 scripts/temp-fix-contract-audit-participants.py
+        shell: bash
+        run: |
+          set +e
+          python3 scripts/temp-fix-contract-audit-participants.py > /tmp/participant-finalizer.log 2>&1
+          code=$?
+          cat /tmp/participant-finalizer.log
+          if [ "$code" -ne 0 ]; then
+            cp /tmp/participant-finalizer.log scripts/temp-participant-finalizer-error.txt
+            rm .github/workflows/temp-finalize-contract-workspace.yml
+            git config user.name "RIVERSOFT"
+            git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
+            git add .github/workflows/temp-finalize-contract-workspace.yml scripts/temp-participant-finalizer-error.txt
+            git commit -m "记录合同审计收尾脚本错误"
+            git push origin HEAD:feature/daily-regional-supply-contracts-impl
+            exit "$code"
+          fi
       - name: Check diff
         run: git diff --check
       - name: Install dependencies
@@ -51,6 +66,7 @@ jobs:
           rm .github/workflows/temp-finalize-contract-workspace.yml
           rm scripts/temp-finalize-contract-workspace.py
           rm scripts/temp-fix-contract-audit-participants.py
+          rm -f scripts/temp-participant-finalizer-error.txt
           git config user.name "RIVERSOFT"
           git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
           git add -A
