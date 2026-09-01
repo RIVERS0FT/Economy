@@ -1,0 +1,147 @@
+name: Transport authority document patch
+
+on:
+  push:
+    branches:
+      - codex/transport-route-pages-auto-logistics
+
+permissions:
+  contents: write
+
+jobs:
+  patch-authority-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Align transport authority rules
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, text):
+              Path(path).write_text(text, encoding='utf-8')
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 occurrence, got {count}')
+              return text.replace(old, new, 1)
+
+          def sub_once(text, pattern, replacement, label, flags=0):
+              next_text, count = re.subn(pattern, replacement, text, count=1, flags=flags)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 match, got {count}')
+              return next_text
+
+          page_path = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md'
+          page = read(page_path)
+          page = sub_once(
+              page,
+              r'^\| 运输 \| `transport` \| `TransportPage` \|.*$',
+              '| 运输 | `transport` | `TransportPage` | 只显示跨州运输路线目录；路线通过 `transport-route` 详情钻取查看当前运输与历史，路径只允许在常驻战略地图编辑，发运由服务器自动执行 |',
+              'transport table row',
+              re.M,
+          )
+          page = sub_once(
+              page,
+              r'^运输页的“增加路线”固定放在正文顶部操作区.*$',
+              '运输页的“增加路线”固定放在正文顶部操作区，不占用页面标题区。运输一级页只显示运输路线目录，不显示全局运输记录；点击路线进入同一 `transport` 导航上下文内的 `transport-route` 详情位置。路线详情负责名称、只读路径／行程／运输方式、当前运输和该路线历史；完整规则见 3.1。',
+              'top transport paragraph',
+              re.M,
+          )
+          page = sub_once(
+              page,
+              r'^路线编辑的“在地图上选择”必须复用唯一常驻战略地图进入选州模式.*$',
+              '路线只能通过唯一常驻战略地图编辑。新建路线点击“增加路线”后直接进入地图编辑模式；已有路线只能从 `transport-route` 详情点击“在地图上编辑路线”进入。地图按顺序点击已解锁州面追加站点、再次点击起点州闭环，未解锁州与已在线路中的州给出提示且不进入序列；地图操作条同时负责运输方式、非闭环单程／往返、闭环、重置、完成与取消。选州期间拦截“点击州面打开州级上下文页”的默认行为，并在州面之上绘制按首府坐标顺序连接的路线连线（草稿高亮、已保存路线弱化、往返返程虚线、闭环自动收尾）。桌面端运输页与地图同屏；移动端通过既有唯一 Mobile Workspace Sheet 的关闭路径回到纯地图，完成或取消后回到运输上下文，路线草稿由 `GameShell` 持有且不因页面切换丢失。退出地图编辑必须清理草稿连线与选州模式；路线卡 hover／聚焦继续高亮对应连线。',
+              'map-only route editing paragraph',
+              re.M,
+          )
+          page = replace_once(
+              page,
+              '页面栈只保存 `tab`、`provinceId`、分区、`productId`、`facilityTypeId` 和渲染宿主等轻量位置描述',
+              '页面栈只保存 `tab`、`provinceId`、分区、`productId`、`facilityTypeId`、运输 `routeId` 和渲染宿主等轻量位置描述',
+              'page stack route id',
+          )
+          page = replace_once(
+              page,
+              '运输页固定使用与市场相同的 `building` 外壳；其路线编辑、路线列表和运输记录仍是多个独立业务分组，可以继续使用一级卡片，但内部响应式必须依据真实页面内容容器宽度而不是只依赖 `720px` 浏览器视口断点。',
+              '运输页固定使用与市场相同的 `building` 外壳；一级运输页只承载路线目录，`transport-route` 详情在同一外壳内承载路线信息、当前运输和该路线历史。路径编辑临时切到常驻地图层，不为路线目录或详情创建第二套页面外壳；内部响应式必须依据真实页面内容容器宽度而不是只依赖 `720px` 浏览器视口断点。',
+              'transport presentation paragraph',
+          )
+          transport_section = '''## 3.1 运输页
+
+运输一级页只显示运输路线目录，并使用 `building` 战略展示。“增加路线”进入唯一常驻战略地图编辑模式；路线卡显示名称、起终点、站点数、行程、运输方式以及“运输中／等待发运”状态，点击后通过受限页面栈 push `{ type: 'transport-route', routeId }`。`transport-route` 不是新的 `TabId` 或一级导航，返回恢复运输路线目录，关闭仍回到透明 `map`。
+
+运输记录唯一显示在对应路线页面。路线详情把该 `routeId` 的 `transportShipments` 分成当前运输和历史运输，展示每趟实际 `manifest`、运输方式、费用、到达状态与时间；一级运输页不得恢复“进行中运输／最近完成”的全局记录。路线名称允许单独修改，新建路线默认使用玩家可见州名形成“起始州-终点州”；仍使用系统默认名时修改起终点会同步默认名，自定义名称后修改路径不得覆盖名称。
+
+路线只能通过唯一常驻战略地图编辑：路线详情中的路径、站点顺序、行程和运输方式均为只读，只提供“在地图上编辑路线”入口；页面正文不得恢复起始州／目的州／中间站下拉、商品、运输数量或自动发运开关。地图编辑模式按顺序点击已解锁州面追加站点，可再次点击起点闭环，并在同一操作条修改运输方式和非闭环单程／往返。完成地图编辑后保存路线；取消则恢复原路线且不得改写服务器状态。
+
+运输路线不指定商品或固定数量，也不得显示手动“发运”按钮。服务器在正常世界推进中为没有在途任务的路线自动选择正预期净价差货物，条件满足时直接发运，条件不足时保持“等待发运”；每条路线同时最多一笔在途运输。有在途运输时禁止删除路线，编辑路线不得影响已经出发的运输。自动选货、`manifest`／`legPlan`、费用、到达与兼容规则以 `WAREHOUSE_EXPANSION_DESIGN.md` 为准。
+
+路线是玩家私有配置，`transportRoutes` 继续进入现有玩家分区的 `player.misc` slice；真实在途与到达记录 `transportShipments` 继续进入现有市场分区的 `market.misc` slice。运输页订阅 `catalog + player.assets + player.misc + market.quotes + market.misc`，不得为路线详情、自动发运或地图动画新增第七个状态分区、专用轮询或第二份运输记录。
+'''
+          page = sub_once(
+              page,
+              r'## 3\.1 运输页\n\n.*?\n\n## 4\. 市场',
+              transport_section + '\n## 4. 市场',
+              'transport dedicated section',
+              re.S,
+          )
+          page = replace_once(
+              page,
+              '跨州运输路线、发运与运输记录唯一显示在独立 `TransportPage`。',
+              '跨州运输路线目录与路线详情唯一显示在独立 `TransportPage`；运输记录唯一显示在对应路线页面，玩家不再拥有手动发运入口。',
+              'warehouse cross-page wording',
+          )
+          write(page_path, page)
+
+          ui_path = 'docs/UI_DESIGN_SYSTEM.md'
+          ui = read(ui_path)
+          ui_transport = '''- 运输路线图层唯一挂载在 `UsMainlandMap` 静态 SVG 世界面内、州面上方且不拦截州面交互：首府坐标经同一静态投影在模块初始化时求点，路线连线、返程虚线与站点标记跟随唯一 `.province-map-camera-surface` 合成相机，使用 `non-scaling-stroke`，缩放／平移期间不重投影、不重排州名。草稿连线使用 `--color-info` 高亮，已保存路线使用 `--color-map-label` 弱化，卡片高亮使用 `--color-warning`；选州模式压暗不可选州面并保留可选项的中性轮廓反馈。选州操作条位于地图层顶部安全区内，复用既有表面令牌，并同时承载站点序列、运输方式、单程／往返、闭环、重置、完成与取消。
+- 在途运输标记与运输路线使用同一 SVG 世界坐标系和同一合成相机，不创建第二张地图、第二套投影或 ECharts 动画层。标记位置只根据服务器权威时间和 shipment 固化的 `legPlan` 当前运输段插值计算；公路、铁路、航空使用紧凑且可辨识的 SVG 标记。桌面 hover、键盘 focus 和移动点击必须显示统一 Tooltip，至少包含路线名称、当前运输段、剩余时间、当前载荷以及正在运输的商品、数量和各自目的州；已卸货商品不得继续列为正在运输。`prefers-reduced-motion` 下关闭装饰性运动／过渡，但仍按服务器权威时间显示准确当前位置和货物信息。'''
+          ui = sub_once(
+              ui,
+              r'^- 运输路线图层唯一挂载.*$',
+              ui_transport,
+              'transport map UI rules',
+              re.M,
+          )
+          write(ui_path, ui)
+
+          server_path = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md'
+          server = read(server_path)
+          server_transport = '''跨州运输把 `world.transportShipments` 作为顶层 segment 随事务持久化，并在世界截止时间规划器注册运输到达边界；多站点运输继续按 `stopPlan` 注册“下一未交付站”的最早截止时间，shipment 同时固化多商品 `manifest` 与逐段权威时间／载荷 `legPlan`。到达某站时只把 `manifest` 中目的地为该站的源州 `inTransit` 转入该站 `available`，整链完成后才把 shipment 置为 `arrived`。玩家运输路线直接保存在对应玩家分段状态的 `transportRoutes` 中，每人最多 50 条、站点序列无上限；运输路线不保存商品、数量或自动发运开关，只保存 ID、名称、路径、行程、运输方式和时间戳。路线创建、地图编辑保存、重命名和删除继续复用 `transportShip` 权威动作，普通玩家不存在 `route-dispatch` 手动发运操作。有运输在途时禁止删除路线，路线编辑不得改写已经出发 shipment 的 `manifest`、`stopPlan` 或 `legPlan`。服务器只在既有正常世界推进末尾检查等待路线：同一路线没有在途运输、玩家全局在途未达上限，并且按当前库存、州级参考价、运输容量和资金能够形成整趟正预期净价差 `manifest` 时立即自动发运；条件不足只保持等待，不产生失败写入。每条路线同时最多一笔在途运输，整链完成后可在同一次正常世界推进末尾重新检查下一趟；不得新增运输专用轮询器、离线定时器或后台扫描器。'''
+          server, count = re.subn(
+              r'跨州运输把 `world\.transportShipments`.*?删除路线不得删除已经在途的 shipment。',
+              server_transport,
+              server,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit(f'server transport rules: expected 1 match, got {count}')
+          write(server_path, server)
+
+          workspace_path = 'src/components/shell/StrategicWorkspace.tsx'
+          workspace = read(workspace_path)
+          workspace = replace_once(
+              workspace,
+              '      data-active-transport-count={shipmentOverlays.length}\n',
+              "      data-active-transport-count={shipmentOverlays.length}\n      data-active-transport-label={shipmentOverlays.length > 0 ? '正在运输' : '无在途运输'}\n",
+              'strategic workspace transport label',
+          )
+          write(workspace_path, workspace)
+          PY
+      - name: Commit authority document alignment
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/UI_DESIGN_SYSTEM.md docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md src/components/shell/StrategicWorkspace.tsx
+          git diff --cached --check
+          git commit -m "align transport authority documents"
+          git push origin HEAD:codex/transport-route-pages-auto-logistics
