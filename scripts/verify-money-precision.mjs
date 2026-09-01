@@ -57,9 +57,10 @@ assert.match(formControls, /export function MoneyInput/);
 assert.match(formControls, /inputMode="decimal"/);
 assert.match(formControls, /normalizeMoneyDraft/);
 
-for (const path of ['src/pages/MarketPage.tsx', 'src/pages/BankPage.tsx', 'src/pages/AuctionPage.tsx', 'src/pages/ContractPage.tsx']) {
+for (const path of ['src/pages/MarketPage.tsx', 'src/pages/BankPage.tsx', 'src/pages/AuctionPage.tsx', 'src/pages/ContractWorkspacePage.tsx']) {
   assert.match(read(path), /MoneyInput/);
 }
+assert.match(read('src/pages/ContractPage.tsx'), /ContractWorkspacePage/);
 
 assert.match(read('server/shared/economy-state-version.js'), /CURRENT_CLIENT_STATE_VERSION = 39/);
 assert.match(read('server/shared/economy-state-version.js'), /MIN_COMPATIBLE_CLIENT_STATE_VERSION = 39/);
