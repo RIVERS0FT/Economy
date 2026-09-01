@@ -129,7 +129,7 @@ test.describe('production configuration visual triggers', () => {
       await expectSquareImageOnlyTrigger(methodSelect, expectedSize);
       await expectAutoSlotRow(page, recipeSelect);
       await expect(recipeSelect.locator('[data-product-artwork="machinery"]')).toHaveCount(1);
-      await expect(methodSelect.locator('[data-production-method-icon="rapid"]')).toHaveCount(1);
+      await expect(methodSelect.locator('[data-production-method-icon="precision-machine"]')).toHaveCount(1);
 
       await recipeSelect.click();
       const recipeListbox = page.getByRole('listbox', { name: '机械工厂生产产物' });
@@ -152,7 +152,7 @@ test.describe('production configuration visual triggers', () => {
 
       await methodSelect.click();
       const methodListbox = page.getByRole('listbox', { name: '机械工厂生产方式' });
-      const currentMethod = methodListbox.getByRole('option', { name: '高速生产' });
+      const currentMethod = methodListbox.getByRole('option', { name: '精密机加' });
       await expect(currentMethod).toContainText('周期 60s');
       await expect(currentMethod).toContainText('成本 12');
       await expect(currentMethod).toContainText('产出 ×1');

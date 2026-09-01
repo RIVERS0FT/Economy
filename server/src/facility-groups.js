@@ -24,6 +24,7 @@ import {
   playerLoanFinancialPosition,
 } from './contract-asset-locks.js';
 import { weeklySettlementLiability } from './weekly-cash-settlement.js';
+import { migrateLegacyProductionMethodRecipeId } from './legacy-production-methods.js';
 import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 import {
   DEFAULT_PROVINCE_ID,
@@ -381,6 +382,7 @@ function normalizeStatusReason(value, enabled) {
 
 function createGroup(typeId, overrides = {}, now = Date.now()) {
   const type = typeFor(typeId);
+  const activeRecipeId = migrateLegacyProductionMethodRecipeId(typeId, overrides.activeRecipeId);
   const legacyStatus = String(overrides.status || 'stopped');
   const legacyPlanComplete = legacyStatus === 'plan_complete' || overrides.statusReason === 'plan_complete';
   const enabled = legacyPlanComplete
@@ -413,7 +415,7 @@ function createGroup(typeId, overrides = {}, now = Date.now()) {
     staffingUpdatedAt,
     staffingBatchCarryBps: normalizeStaffingCarry(overrides.staffingBatchCarryBps),
     lifetimeOutput: Math.max(0, Number(overrides.lifetimeOutput ?? overrides.completedQuantity ?? 0)),
-    activeRecipeId: recipeFor(type, overrides.activeRecipeId)?.id,
+    activeRecipeId: recipeFor(type, activeRecipeId)?.id,
   };
 }
 
@@ -1075,10 +1077,10 @@ function pauseFacilityGroup(world, userId, payload, now) {
 }
 
 function productionMethodName(type, recipe) {
-  const methodId = recipe?.productionMethodId || 'standard';
   const group = type?.productionMethodGroups?.find((candidate) => candidate.id === 'operation')
     || type?.productionMethodGroups?.[0];
-  return group?.methods?.find((method) => method.id === methodId)?.name || '标准生产';
+  const methodId = recipe?.productionMethodId || group?.defaultMethodId;
+  return group?.methods?.find((method) => method.id === methodId)?.name || '默认作业制度';
 }
 
 function recipeConfigurationLabel(type, recipe) {
@@ -1589,9 +1591,11 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
     facilityTypes: FACILITY_TYPE_CATALOG.map(({ internalCapacity: _internalCapacity, ...type }) => clone({
       ...type,
       buildTimeMs: 0,
-      recipes: recipesFor(type).filter(
-        (recipe) => (recipe.productionMethodId || 'standard') === 'standard',
-      ),
+      recipes: recipesFor(type).filter((recipe) => {
+        const group = type.productionMethodGroups?.find((candidate) => candidate.id === 'operation')
+          || type.productionMethodGroups?.[0];
+        return recipe.productionMethodId === group?.defaultMethodId;
+      }),
     })),
     orders: normalizedOrders,
     facilityListings: [],

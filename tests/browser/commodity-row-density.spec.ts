@@ -45,7 +45,7 @@ test('market and regional commodity lists share compact square artwork geometry'
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^市场/ }).click();
-  const globalRow = page.getByRole('button', { name: '打开小麦全局详情' });
+  const globalRow = page.getByRole('button', { name: '打开小麦全局详情' }).first();
   await expect(globalRow).toBeVisible();
   expectAllowedDensity(await readRowMetrics(globalRow, '.global-market-goods-row__artwork'));
 
@@ -58,11 +58,12 @@ test('market and regional commodity lists share compact square artwork geometry'
 
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active&view=catalog');
-  const regionalRow = page.getByRole('button', { name: '查看小麦详情' });
+  const regionalRow = page.getByRole('button', { name: '查看小麦详情' }).first();
   await expect(regionalRow).toBeVisible();
   expectAllowedDensity(await readRowMetrics(regionalRow, '.market-commodity-row__artwork'));
 
   await page.setViewportSize({ width: 320, height: 720 });
+  await expect(regionalRow).toBeVisible();
   const compactRegional = await readRowMetrics(regionalRow, '.market-commodity-row__artwork');
   expectAllowedDensity(compactRegional);
   expect(compactRegional.minHeight).toBe('44px');

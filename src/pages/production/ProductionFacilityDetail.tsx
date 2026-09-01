@@ -133,21 +133,24 @@ export function FacilityStaffingSummary({
 }
 
 export function recipeVariantsForType(type: FacilityTypeDefinition): FacilityRecipeDefinition[] {
-  const baseRecipes = Array.isArray(type.recipes) && type.recipes.length > 0
-    ? type.recipes.filter((recipe) => (recipe.productionMethodId ?? 'standard') === 'standard')
+  const methodGroup = productionMethodGroupForType(type);
+  const defaultMethodId = methodGroup?.defaultMethodId ?? type.recipes?.[0]?.productionMethodId ?? '';
+  const currentRecipes = Array.isArray(type.recipes) ? type.recipes : [];
+  const defaultRecipes = currentRecipes.filter((recipe) => recipe.productionMethodId === defaultMethodId);
+  const baseRecipes = currentRecipes.length > 0
+    ? (defaultRecipes.length > 0 ? defaultRecipes : currentRecipes)
     : [
       {
         id: type.defaultRecipeId || `${type.id}-default`,
         name: type.name,
         baseRecipeId: type.defaultRecipeId || `${type.id}-default`,
-        productionMethodId: 'standard' as const,
+        productionMethodId: defaultMethodId,
         cycleMs: type.cycleMs,
         operatingCost: type.operatingCost,
         inputs: Array.isArray(type.inputs) ? type.inputs : type.input ? [type.input] : [],
         output: type.output,
       },
     ];
-  const methodGroup = productionMethodGroupForType(type);
   if (!methodGroup) return baseRecipes;
   const variants = baseRecipes.flatMap((baseRecipe) => methodGroup.methods.flatMap((method) => {
     const plan = method.plansByRecipeId[baseRecipe.id];
@@ -168,8 +171,9 @@ export function recipeVariantsForType(type: FacilityTypeDefinition): FacilityRec
 
 export function recipesForType(type: FacilityTypeDefinition): FacilityRecipeDefinition[] {
   const variants = recipeVariantsForType(type);
-  const standardRecipes = variants.filter((recipe) => (recipe.productionMethodId ?? 'standard') === 'standard');
-  return standardRecipes.length > 0 ? standardRecipes : variants;
+  const defaultMethodId = productionMethodGroupForType(type)?.defaultMethodId;
+  const defaultRecipes = variants.filter((recipe) => recipe.productionMethodId === defaultMethodId);
+  return defaultRecipes.length > 0 ? defaultRecipes : variants;
 }
 
 function baseRecipeId(recipe: FacilityRecipeDefinition) {
@@ -177,7 +181,7 @@ function baseRecipeId(recipe: FacilityRecipeDefinition) {
 }
 
 function productionMethodId(recipe: FacilityRecipeDefinition): FacilityProductionMethodId {
-  return recipe.productionMethodId ?? 'standard';
+  return recipe.productionMethodId ?? '';
 }
 
 function productionMethodGroupForType(type: FacilityTypeDefinition) {

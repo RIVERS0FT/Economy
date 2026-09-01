@@ -2,8 +2,8 @@
 
 > 状态：当前文档入口
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-30
-> 客户端状态版本：37
+> 更新时间：2026-09-01
+> 客户端状态版本：38
 > 世界状态版本：32
 
 本目录只保留当前设计。旧规则不归档在 `docs/`，也不得以“补充说明”“V2/V3”或未登记专题文档的形式继续并行存在。未列入下方权威文档表的 Markdown 文件不得存在。
@@ -16,7 +16,7 @@
 |---|---|
 | `PRODUCT_AND_GAMEPLAY_DESIGN.md` | 产品定位、核心循环、美国本土连续 48 个州级经营地区、本地经济边界、首次建档启动资金、每日签到、普通货币与宝石、直接货币发行、人口数量、工厂承载、迁入迁出、就业收入、三类人口真实钱包、消费需求与排行榜目标 |
 | `GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md` | 工厂施工加速退役、研发宝石加速、每日终端动态报价、接受／拒绝决策、历史汇率、SQLite 审计与禁止宝石兑换工厂产量 |
-| `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 38 种商品、26 种工厂（含 C1 与 C2 工厂专属作业制度、生产科技／作业科技分离、燃料／化学品，以及配套工具、化肥、饲料、养殖药剂、机械、拖拉机产业支线）、州级工厂集群与本地投入产出、固定精度经济数值、参考利润、周期成本工资、C1–C7 人口承载权重、生产复杂度岗位结构、固定建造业岗位结构、持续生产、集群级生产方式、三态、自动恢复、工厂抵押生产资格，以及商品供货、玩家抵押借贷、工厂使用权租赁与生产／资产守恒审计边界 |
+| `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 38 种商品、26 种工厂的专属具名作业制度与语义图标、生产科技／作业科技分离、燃料／化学品，以及配套工具、化肥、饲料、养殖药剂、机械、拖拉机产业支线、州级工厂集群与本地投入产出、固定精度经济数值、参考利润、周期成本工资、C1–C7 人口承载权重、生产复杂度岗位结构、固定建造业岗位结构、持续生产、集群级生产方式、三态、自动恢复、工厂抵押生产资格，以及商品供货、玩家抵押借贷、工厂使用权租赁与生产／资产守恒审计边界 |
 | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 客户端工厂目录展示顺序、已拥有工厂卡片排序和目录顺序防回退 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 州级本地商品限价订单、冻结、撮合、成交价与普通玩家成交匿名化；工厂订单仅保留历史兼容，新的工厂所有权交易只允许拍卖 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 州级本地无限仓库、真实商品库存、容量机制退役、州页仓库分区、地区工厂自动经营策略、地区商品详情只读自动经营执行、统一商品订单维护、仓库商品网格密度，以及跨州运输模式、费用、在途资产与持久化运输路线 |
@@ -116,7 +116,9 @@
 71. 所有正式玩家经济动作（包括合同动作）必须在外层 `BEGIN IMMEDIATE` 权威事务内部再建立 SQLite `SAVEPOINT`，并统一在请求的 Copy-on-Write world draft 上执行：本动作声明为可写的对象必须独占，未声明对象可以与 committed world 共享但必须保持只读；动作业务返回失败或抛异常时回滚保存点并直接丢弃未提交草稿，不得再复制整个世界作为第二份回滚快照。经济活动判定只允许保存当前玩家的动作前快照；合同动作可额外保存合同集合快照用于变更判定与审计，但不得保存第二份完整世界。动作成功必须在释放保存点前执行资金、库存、工厂数量和银行负债等非负／安全整数不变量检查；合同动作允许在成功后执行合同领域专项后处理并在同一事务完成审计。失败动作仍可保存精简幂等确认，但不得写回世界或推进世界修订号。该规则归属 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并由 `economic-mutation.js`、`runtime-action-executor.js`、`server/test/state-polling.test.js`、`server/test/authoritative-hotpaths.test.js`、`server/test/runtime-hotpath-architecture.test.js` 与 `scripts/verify-authoritative-hotpaths.mjs` 防回退。
 72. 浏览器服务器权威状态必须由 `stateDelivery.js` 的六分区缓存统一发布，`gameAuthorityStore.ts` 通过 React `useSyncExternalStore` 提供完整状态、修订号和单分区订阅；`gameViewModel.ts` 不得重新维护第二份 `useState<EconomyState>`，只保留动作编排、通知、导航、表单草稿和其他交互状态。分区 patch 只替换发生变化的分区，未变化分区必须保持引用稳定；服务器刷新不得通过权威状态发布隐式重置价格／数量草稿、选中项、弹层或滚动位置。该规则归属 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` 的状态交付边界，并由 `server/test/authoritative-hotpaths.test.js`、TypeScript 构建和 `scripts/verify-authoritative-hotpaths.mjs` 防回退。
 
-73. 世界 32 的美国本土连续 48 个州级地区、本地无限仓库、本地商品／工厂行情、州级工厂集群与订单隔离属于产品、产业、仓库、订单簿、页面、UI、拍卖和服务器共同规则。世界 30 已使用的 34 个地区 ID 原位对应 34 个州，新增 14 个州 ID，不移动或合并既有资产；共享目录必须为 48 个州各记录一组唯一中文／英文首府名称与本土范围内的首府经纬度；现金、宝石、研发、银行、排行榜与世界人口不按地区复制；跨州商品只能通过付费运输流动，客户端切换地图不得移动任何资产。内部 API 和复合键继续使用兼容名称 `provinceId`。地图使用独立静态 SVG 世界面与单一 `.province-map-camera-surface` 合成相机并位于铺满视口的根级地图层，州面点击直接切换地区；缩放／平移不得恢复 ECharts Geo/Map、`geoRoam`、第二套标签相机或手势期间几何重建；地图页不得恢复命令、经营详情、“当前经营地区”或图例卡片。开源底图精确锁定 ISC `us-atlas@3.0.1` 与 `topojson-client@3.1.0`，只注册连续 48 州，排除阿拉斯加、夏威夷、华盛顿特区和海外领地；来源、许可与非测绘说明由权威文档和依赖清单保留。实现必须同步共享目录、客户端状态版本 37、地图页、写动作 `provinceId`、专项服务器／浏览器测试与 `scripts/verify-provincial-economy.mjs`。
+73. 世界 32 的美国本土连续 48 个州级地区、本地无限仓库、本地商品／工厂行情、州级工厂集群与订单隔离属于产品、产业、仓库、订单簿、页面、UI、拍卖和服务器共同规则。世界 30 已使用的 34 个地区 ID 原位对应 34 个州，新增 14 个州 ID，不移动或合并既有资产；共享目录必须为 48 个州各记录一组唯一中文／英文首府名称与本土范围内的首府经纬度；现金、宝石、研发、银行、排行榜与世界人口不按地区复制；跨州商品只能通过付费运输流动，客户端切换地图不得移动任何资产。内部 API 和复合键继续使用兼容名称 `provinceId`。地图使用独立静态 SVG 世界面与单一 `.province-map-camera-surface` 合成相机并位于铺满视口的根级地图层，州面点击直接切换地区；缩放／平移不得恢复 ECharts Geo/Map、`geoRoam`、第二套标签相机或手势期间几何重建；地图页不得恢复命令、经营详情、“当前经营地区”或图例卡片。开源底图精确锁定 ISC `us-atlas@3.0.1` 与 `topojson-client@3.1.0`，只注册连续 48 州，排除阿拉斯加、夏威夷、华盛顿特区和海外领地；来源、许可与非测绘说明由权威文档和依赖清单保留。实现必须同步共享目录、当前客户端状态版本、地图页、写动作 `provinceId`、专项服务器／浏览器测试与 `scripts/verify-provincial-economy.mjs`。
+
+74. 客户端状态版本 38 淘汰所有工厂共用的“标准／高速／节约／高产”制度及 C1/C2 档位 ID；26 类工厂都由正式生产目录提供四种产业语义制度和 `iconId`，不同工厂允许复用同一制度定义。旧制度 ID 只用于存档迁移，必须映射到同参数的新制度且保留运行周期起点；主动提交旧 ID 必须拒绝。权威规则、图标系统、服务器测试、浏览器测试和 `scripts/verify-production-methods.mjs` 必须同步防回退。
 74. 每个州×商品的官方系统价、恰好等于系统价的玩家买卖单实时全量清算、按周期系统买卖量调价、调价瞬间的精确价格订单簿扫描、系统成交审计与商品／货币生成销毁边界属于产品、订单簿、页面和服务器共同规则；必须同步更新 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`UNIFIED_ASSET_ORDER_BOOK_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、测试和 `scripts/verify-system-market.mjs`，不得恢复仅按订单簿成交生成市场价的旧口径，也不得把玩家间成交计入系统买卖比。
 75. 新玩家起始州永久绑定、其他州按货币费用解锁、锁定州禁用市场／工厂／仓库、公路／铁路／航空三种跨州运输（成本、单次运量、时间、运费计入运输就业、在途商品按起始州官方价估值），以及最多 50 条玩家私有手动多站点运输路线（站点无上限、允许闭环、非闭环默认往返、整链一次发运逐站交付）与独立运输页属于产品、仓库、页面和服务器共同规则；路线创建／编辑不要求当前库存或资金，发运时必须重新校验，编辑／删除路线不得影响已发运 shipment。必须同步更新 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`WAREHOUSE_EXPANSION_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、测试和 `scripts/verify-provincial-unlock-transport.mjs`，不得恢复任意州自由经营、免费跨州物流、仓库运输卡、自动循环路线或取消起始州绑定。
 76. Economy API 的部署就绪与共享运行时目录细则归 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`：服务安装完成条件必须包含真实 `/health` 就绪，不能只以 `systemctl is-active` 作为完成信号；生产 Nginx 还必须公开 exact `/economy-api/health` 并在发布后返回 2xx。`server/src/provinces.js` 固定通过 `../../shared/provinces.json` 读取仓库根 `shared/provinces.json`，不得复制第二份州级目录到 `server/`；生产部署必须把仓库根 `shared/` 同步到 `/var/www/game/shared/`，确保运行时文件 `/var/www/game/shared/provinces.json` 与源码相对导入一致，并由 `scripts/install-economy-api.py` 在重启 systemd 前作为必需文件验证。安装器重启服务后必须在最长 45 秒内轮询 `127.0.0.1:3002/health`，同时要求 systemd 处于 active 且健康检查返回 2xx；发布前远端验收再独立执行有限重试，冷启动期间短暂的 `connection refused` 不得直接判定为发布失败。共享运行时文件缺失、就绪超时或重试耗尽都必须在原子发布 `index.html` 之前终止；失败日志必须包含 `systemctl status` 与最近 `journalctl`，从而区分发布包缺失、慢启动与真实服务崩溃并保持旧入口可用。该规则由 `scripts/verify-runtime-reliability.mjs` 防回退。

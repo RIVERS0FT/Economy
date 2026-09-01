@@ -20,7 +20,7 @@ import {
   resolveFacilityProfitPresentation,
   type FacilityProfitTone,
 } from '../utils/facilityProfitPresentation';
-import type { FacilityProductionMethodId } from '../types';
+import type { FacilityProductionMethodId, FacilityTypeDefinition } from '../types';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import {
   productionRecipeVariantId,
@@ -85,6 +85,11 @@ function facilityStatusLabel(status: 'running' | 'stopped' | 'error') {
 
 function requiredTechnologyIdsForMethod(method: { requiredTechnologyIds?: string[] }) {
   return Array.isArray(method.requiredTechnologyIds) ? method.requiredTechnologyIds : [];
+}
+
+function productionMethodGroupForType(type: FacilityTypeDefinition) {
+  return type.productionMethodGroups?.find((group) => group.id === 'operation')
+    ?? type.productionMethodGroups?.[0];
 }
 
 
@@ -189,7 +194,9 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
       )))
     )) ?? [];
     const representativeProductId = representativeRecipeState?.activeBaseRecipe.output.productId ?? '';
-    const representativeMethodId = representativeRecipeState?.selectedProductionMethodId ?? 'standard';
+    const representativeMethodId = representativeRecipeState?.selectedProductionMethodId
+      ?? productionMethodGroup?.defaultMethodId
+      ?? '';
     const quickProduction = representativeRecipeState ? {
       productId: representativeProductId,
       productName: game.products.find((product) => product.id === representativeProductId)?.name
@@ -198,7 +205,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
       methodId: representativeMethodId,
       methodName: representativeRecipeState.activeProductionMethod?.name
         ?? productionMethodGroup?.methods.find((method) => method.id === representativeMethodId)?.name
-        ?? '标准生产',
+        ?? '作业制度',
       methodMixed: new Set(recipeStates.map(({ recipeState }) => recipeState.selectedProductionMethodId)).size > 1,
       selectedBaseRecipeId: representativeRecipeState.selectedBaseRecipeId,
       selectedProductionMethodId: representativeMethodId,
@@ -292,7 +299,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
         ?? recipeState.activeBaseRecipe.name;
       const currentMethodName = recipeState.activeProductionMethod?.name
         ?? productionMethodGroup?.methods.find((method) => method.id === recipeState.selectedProductionMethodId)?.name
-        ?? '标准生产';
+        ?? '作业制度';
 
       return [{
         province,
@@ -387,7 +394,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
     const targets = quick.targets.flatMap((current) => {
       const recipeId = target === 'product'
         ? productionRecipeVariantId(type, nextValue, current.methodId)
-          ?? productionRecipeVariantId(type, nextValue, 'standard')
+          ?? productionRecipeVariantId(type, nextValue, productionMethodGroupForType(type)?.defaultMethodId ?? '')
         : productionRecipeVariantId(type, current.baseRecipeId, nextValue as FacilityProductionMethodId);
       return recipeId ? [{
         provinceId: current.provinceId,
@@ -432,7 +439,7 @@ export function GlobalBuildingsPage({ model }: { model: OnlineAutoTradeAwareGame
 
     const recipeId = target === 'product'
       ? productionRecipeVariantId(type, nextValue, quick.methodId)
-        ?? productionRecipeVariantId(type, nextValue, 'standard')
+        ?? productionRecipeVariantId(type, nextValue, productionMethodGroupForType(type)?.defaultMethodId ?? '')
       : productionRecipeVariantId(type, quick.baseRecipeId, nextValue as FacilityProductionMethodId);
     if (!recipeId) {
       model.notify('当前生产配置无法应用到该地区');
