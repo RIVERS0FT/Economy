@@ -29,8 +29,21 @@ function unlockedPlayer(world, user, credits = 50_000) {
   return player;
 }
 
+function testMarketFor(world, provinceId, productId) {
+  const key = provinceScopedKey(provinceId, productId);
+  if (!world.markets[key]) {
+    const template = world.markets[provinceScopedKey('110000', productId)]
+      || Object.values(world.markets).find((market) => market?.productId === productId);
+    assert.ok(template, `missing market fixture for ${productId}`);
+    world.markets[key] = structuredClone(template);
+    world.markets[key].provinceId = provinceId;
+    world.markets[key].productId = productId;
+  }
+  return world.markets[key];
+}
+
 function setReferencePrice(world, provinceId, productId, price) {
-  const market = world.markets[provinceScopedKey(provinceId, productId)];
+  const market = testMarketFor(world, provinceId, productId);
   market.lastTradePrice = price;
   market.lastPrice = price;
   market.officialPrice = null;
