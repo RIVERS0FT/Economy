@@ -24,30 +24,44 @@ jobs:
         run: python3 scripts/temp-finalize-contract-workspace.py
       - name: Apply audit participant finalizer
         run: python3 scripts/temp-fix-contract-audit-participants.py
+      - name: Normalize generated verifiers
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('scripts/verify-contract-layout.mjs')
+          text = p.read_text()
+          old = """const pageSource = read(pagePath);
+          if (pageSource.indexOf('className=\"contract-content-actions\"') > pageSource.indexOf('className=\"contract-summary-grid\"')) failures.push('合同正文发布按钮必须位于摘要卡之前');
+          if (pageSource.indexOf('className=\"contract-summary-grid\"') > pageSource.indexOf('className=\"contract-workspace\"')) failures.push('合同摘要必须位于工作区之前');
+          """
+          new = """const pageSource = read(pagePath);
+          const pageLayoutStart = pageSource.indexOf('<PageLayout title=\"合同\"');
+          const pageActionIndex = pageSource.indexOf('className=\"contract-content-actions\"', pageLayoutStart);
+          const pageSummaryIndex = pageSource.indexOf('className=\"contract-summary-grid\"', pageLayoutStart);
+          const pageWorkspaceIndex = pageSource.indexOf('className=\"contract-workspace\"', pageLayoutStart);
+          if (pageLayoutStart < 0 || pageActionIndex < 0 || pageSummaryIndex < 0 || pageWorkspaceIndex < 0) failures.push('合同 PageLayout 一级结构不完整');
+          else {
+            if (pageActionIndex > pageSummaryIndex) failures.push('合同正文发布按钮必须位于摘要卡之前');
+            if (pageSummaryIndex > pageWorkspaceIndex) failures.push('合同摘要必须位于工作区之前');
+          }
+          """
+          if old not in text:
+              raise SystemExit('missing page-level ordering verifier anchor')
+          p.write_text(text.replace(old, new, 1))
+
+          p = Path('scripts/verify-contract-audit.mjs')
+          text = p.read_text()
+          text = text.replace("includesAll(store, [\"target === 'credits'\", \"target.startsWith('facility:')\", \"json_extract(contract_json, '$.facilityTypeId') = ?\"], 'contract history server target filtering');", "includesAll(auditStore, [\"target === 'credits'\", \"target.startsWith('facility:')\", \"json_extract(contract_json, '$.facilityTypeId') = ?\"], 'contract history server target filtering');")
+          p.write_text(text)
+          PY
       - name: Check diff
         run: git diff --check
       - name: Install dependencies
         run: npm ci
       - name: Verify contract layout
-        id: layout
-        shell: bash
-        run: |
-          set +e
-          npm run verify:contract-layout 2>&1 | tee scripts/temp-contract-layout-error.txt
-          status=${PIPESTATUS[0]}
-          echo "status=$status" >> "$GITHUB_OUTPUT"
-          exit 0
-      - name: Commit layout diagnostic
-        if: steps.layout.outputs.status != '0'
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "RIVERSOFT"
-          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
-          git add scripts/temp-contract-layout-error.txt
-          git commit -m "记录合同布局验证失败"
-          git push origin HEAD:feature/daily-regional-supply-contracts-impl
-          exit 1
+        run: npm run verify:contract-layout
       - name: Verify gameplay decision support
         run: npm run verify:gameplay-decision-support
       - name: Verify contract audit
