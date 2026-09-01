@@ -88,7 +88,7 @@ for (const [source, token, message] of [
   [warehouse, '合同简要', '仓库权威设计必须锁定商品详情合同摘要。'],
   [pageDesign, '领域、地区和商品筛选', '页面权威设计必须锁定合同地区筛选。'],
   [pageDesign, '`provinceId + productId`', '页面权威设计必须锁定合同跳转地区上下文。'],
-  [productDesign, '固定价格 + 每日最大供应量', '产品权威设计必须锁定新商品合同核心条款。'],
+  [productDesign, '固定 `unitPrice`、`dailyMaxQuantity`', '产品权威设计必须锁定新商品合同核心条款。'],
   [serverDesign, '`server/src/unified-contracts.js`', '服务器权威设计必须登记统一合同门面。'],
   [serverDesign, '客户端与 API 的合同时间统一以天表达', '服务器权威设计必须锁定合同时间单位。'],
   [docsIndex, '地区化每日商品合同', '设计索引修改规则必须登记本次合同规则。'],
