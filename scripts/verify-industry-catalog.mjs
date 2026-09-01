@@ -286,7 +286,9 @@ assert.deepEqual(standardRecipes(facilities.get('appliance-factory'))[0].inputs,
 const refineryRecipes = standardRecipes(facilities.get('refinery'));
 assert.deepEqual(refineryRecipes.map((recipe) => recipe.id), ['refinery-default', 'industrial-fuel-refining', 'industrial-chemicals-refining']);
 const fuelProduct = PRODUCT_CATALOG.find((product) => product.id === 'industrial-fuel');
+const chemicalProduct = PRODUCT_CATALOG.find((product) => product.id === 'industrial-chemicals');
 assert.equal(refineryRecipes[1].name, `生产${fuelProduct.name}`);
+assert.equal(refineryRecipes[2].name, `生产${chemicalProduct.name}`);
 assert.deepEqual(refineryRecipes[1].inputs, [{ productId: 'crude-oil', quantity: 1 }]);
 assert.deepEqual(refineryRecipes[1].output, { productId: 'industrial-fuel', quantity: 4 });
 assert.equal(refineryRecipes[1].cycleMs, 60_000);
@@ -313,7 +315,11 @@ for (const [path, source] of [
   ['industry-catalog.js', catalogSource],
   ['production-methods.js', methodSource],
   ['research-catalog.js', researchSource],
-]) assert.equal(source.includes(fuelProduct.name), false, `${path} 不得复制 ${fuelProduct.id} 的显示名`);
+]) {
+  for (const product of [fuelProduct, chemicalProduct]) {
+    assert.equal(source.includes(product.name), false, `${path} 不得复制 ${product.id} 的显示名`);
+  }
+}
 assert.equal(FACILITY_TYPE_CATALOG.some((facility) => facility.recipes.some((recipe) => recipe.name.includes('{product:'))), false, '运行时配方名不得残留商品占位符');
 assert.equal(FACILITY_TYPE_CATALOG.some((facility) => facility.productionMethodGroups.some((group) => (
   group.methods.some((method) => `${method.name}${method.description}`.includes('{product:'))
@@ -338,7 +344,7 @@ assert.ok(legacyMethodSource.includes('legacyProductionMethod'));
 assert.ok(legacyMethodSource.includes("['rapid', 'economical', 'high-yield']"));
 
 assert.equal(existsSync('src/assets/product-icons/industrial-fuel.png'), true, 'industrial-fuel 缺少商品插画源文件');
-assert.equal(existsSync('src/assets/product-icons/industrial-chemicals.png'), true, '工业化学品缺少商品插画源文件');
+assert.equal(existsSync('src/assets/product-icons/industrial-chemicals.png'), true, 'industrial-chemicals 缺少商品插画源文件');
 const artworkStyle = readFileSync('src/styles/product-artwork.css', 'utf8');
 const artworkGenerator = readFileSync('scripts/generate-product-artwork-thumbnails.mjs', 'utf8');
 for (const id of ['industrial-fuel', 'industrial-chemicals']) {
@@ -351,7 +357,7 @@ for (const [path, texts] of [
     '当前基线为 38 种商品和 26 种工厂类型',
     'C1 基础制度采用工厂级参考分钟利润',
     'C2 四级制度参考分钟利润固定为 3、6、9、10.5',
-    '工业化学品 (`industrial-chemicals`)',
+    '化学品 (`industrial-chemicals`)',
     '`server/src/product-catalog.js` 是商品玩家可见名称的唯一运行时来源',
     'C1 与 C2 使用工厂专属作业制度',
     'C3～C7 继续使用标准生产、高速生产、节约生产和高产生产',

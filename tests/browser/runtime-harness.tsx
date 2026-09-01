@@ -1145,7 +1145,7 @@ function ResearchHarness() {
       },
       {
             "id": "industrial-chemical-operation", "name": "工业化学作业", "stage": "C3", "rank": 3, "cost": 500, "durationMs": 21600000,
-            "prerequisiteTechnologyIds": ["tool-operation"], "unlockFacilityTypeIds": [], "kind": "operation", "operationProductIds": ["industrial-chemicals"], "description": "掌握工业化学品作业能力。"
+            "prerequisiteTechnologyIds": ["tool-operation"], "unlockFacilityTypeIds": [], "kind": "operation", "operationProductIds": ["industrial-chemicals"], "description": "掌握化工作业能力。"
       },
       {
             "id": "oil-refining",

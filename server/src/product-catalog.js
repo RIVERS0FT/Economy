@@ -20,7 +20,7 @@ const rawProducts = [
   { id: 'copper', name: '铜材', category: 'intermediate', basePrice: 29 },
   { id: 'plastic', name: '塑料', category: 'intermediate', basePrice: 30 },
   { id: 'industrial-fuel', name: '燃料', category: 'intermediate', basePrice: 4 },
-  { id: 'industrial-chemicals', name: '工业化学品', category: 'intermediate', basePrice: 5 },
+  { id: 'industrial-chemicals', name: '化学品', category: 'intermediate', basePrice: 5 },
   { id: 'fertilizer', name: '化肥', category: 'intermediate', basePrice: 6.76 },
   { id: 'feed', name: '配合饲料', category: 'intermediate', basePrice: 5.8 },
   { id: 'veterinary-medicine', name: '养殖药剂', category: 'intermediate', basePrice: 14.1 },
