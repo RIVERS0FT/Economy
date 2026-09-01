@@ -201,7 +201,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
           <li key={`${entry.productId}-${entry.destinationProvinceId}-${index}`}>
             <strong>{productById.get(entry.productId)?.name ?? entry.productId}</strong>
             <span>×<CompactNumber value={entry.quantity} /></span>
-            <span>→ {provinceById.get(entry.destinationProvinceId)?.name ?? entry.destinationProvinceId}</span>
+            <span><ChevronIcon direction="right" />{provinceById.get(entry.destinationProvinceId)?.name ?? entry.destinationProvinceId}</span>
           </li>
         ))}
       </ul>
