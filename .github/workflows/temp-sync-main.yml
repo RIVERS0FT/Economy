@@ -1,0 +1,35 @@
+name: Temporary Sync Latest Main
+
+on:
+  push:
+    branches:
+      - feature/daily-regional-supply-contracts-impl
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/daily-regional-supply-contracts-impl
+          fetch-depth: 0
+      - name: Merge latest main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "RIVERSOFT"
+          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
+          git fetch origin main
+          git merge --no-edit origin/main
+          rm -f .github/workflows/temp-sync-main.yml
+          git add -A
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            git commit --allow-empty -m "同步最新 main 并清理临时工作流"
+          else
+            git commit -m "同步最新 main 并清理临时工作流"
+          fi
+          git push origin HEAD:feature/daily-regional-supply-contracts-impl
