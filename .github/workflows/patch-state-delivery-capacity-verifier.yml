@@ -1,0 +1,38 @@
+name: Patch state delivery capacity verifier
+
+on:
+  push:
+    branches:
+      - fix/market-detail-direct-flow-20260901
+
+permissions:
+  contents: write
+
+jobs:
+  patch-verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Align market detail capacity regression
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-state-delivery-capacity.mjs')
+          text = path.read_text(encoding='utf-8')
+          old = 'market detail returns public history, aggregated five-level depth, and a conditional revision'
+          new = 'market detail returns bounded public real-trade history, aggregated five-level depth, and a conditional revision'
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'market detail capacity test name: expected exactly one match, found {count}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/patch-state-delivery-capacity-verifier.yml
+          git add scripts/verify-state-delivery-capacity.mjs
+          git diff --cached --quiet && exit 0
+          git commit -m "test: align market detail capacity regression"
+          git push origin HEAD:${GITHUB_REF_NAME}
