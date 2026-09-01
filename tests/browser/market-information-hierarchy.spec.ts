@@ -120,8 +120,13 @@ test('market uses product-first global and regional information hierarchy', asyn
   await page.setViewportSize({ width: 1440, height: 900 });
 
   await regionalRow.click();
-  await expect(page.locator('.market-detail-hero__market-price')).toBeVisible();
-  await expect(page.locator('.market-fundamentals-balance .market-balance-bar')).toHaveCount(1);
+  const visibleHeroMetrics = await page.locator('.market-detail-hero__metric:visible small').allTextContents();
+  expect(visibleHeroMetrics).toEqual(['24h 变化', '可用库存']);
+  for (const deletedLabel of ['市场价', '基准偏离', '需求满足率', '参考价', '上轮需求']) {
+    await expect(page.getByText(deletedLabel, { exact: true })).toHaveCount(0);
+  }
+  await expect(page.locator('.market-fundamentals-grid')).toHaveCount(0);
+  await expect(page.locator('.market-auto-trade-execution')).toHaveCount(0);
   const chartBox = await page.locator('.market-chart-card').boundingBox();
   const tradeBox = await page.locator('.market-trade-card').boundingBox();
   expect(chartBox).not.toBeNull();
