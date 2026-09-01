@@ -123,7 +123,7 @@ def health_location() -> str:
         proxy_set_header X-Forwarded-Host {FORMAL_DOMAIN};
         proxy_set_header Origin "";
         proxy_connect_timeout 2s;
-        proxy_read_timeout 3s;
+        proxy_read_timeout 90s;
     }}
 """.strip("\n")
 

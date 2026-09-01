@@ -14,6 +14,20 @@ BEGIN = "# BEGIN MANAGED ECONOMY REGISTRATION API PROXY"
 END = "# END MANAGED ECONOMY REGISTRATION API PROXY"
 REGISTRATION_PATH = "/economy-api/registration/"
 PASSWORD_RESET_PATH = "/economy-api/password-reset/"
+NGINX_BACKUP_DIRECTORY = Path("/var/tmp/economy-nginx-backups")
+
+
+def create_nginx_backup(path: Path) -> Path:
+    NGINX_BACKUP_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    descriptor, backup_name = tempfile.mkstemp(
+        prefix=f"{path.name}.",
+        suffix=".bak",
+        dir=NGINX_BACKUP_DIRECTORY,
+    )
+    os.close(descriptor)
+    backup = Path(backup_name)
+    shutil.copy2(path, backup)
+    return backup
 
 REGISTRATION_BLOCK = """
     location ^~ /economy-api/registration/ {
@@ -190,8 +204,7 @@ def main() -> int:
     if updated == text:
         print(f"Economy registration and password reset API proxies already configured in {path}")
         return 0
-    backup = path.with_suffix(path.suffix + ".economy-registration-proxy.bak")
-    shutil.copy2(path, backup)
+    backup = create_nginx_backup(path)
     try:
         write_atomic(path, updated)
         subprocess.run(["nginx", "-t"], check=True)

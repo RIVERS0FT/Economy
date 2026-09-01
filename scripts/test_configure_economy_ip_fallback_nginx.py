@@ -80,6 +80,7 @@ class EconomyIpFallbackNginxTests(unittest.TestCase):
             self.assertIn(path, config)
         self.assertIn("proxy_pass http://127.0.0.1:3001/api/login;", config)
         self.assertIn("proxy_pass http://127.0.0.1:3002/health;", config)
+        self.assertIn("proxy_read_timeout 90s;", config)
         self.assertIn("proxy_pass http://127.0.0.1:3002/api/game/;", config)
         self.assertIn("proxy_pass http://127.0.0.1:3002/api/registration/;", config)
         self.assertIn("proxy_pass http://127.0.0.1:3001/api/password-reset/;", config)
