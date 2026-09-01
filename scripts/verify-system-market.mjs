@@ -5,11 +5,15 @@ const failures = [];
 function requireText(source, text, message) {
   if (!source.includes(text)) failures.push(message);
 }
+function forbidText(source, text, message) {
+  if (source.includes(text)) failures.push(message);
+}
 
 const design = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
 const index = read('docs/README.md');
 const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
 const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
+const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const balancedMarket = read('server/src/balanced-market.js');
 const systemMarket = read('server/src/system-market.js');
 const domain = read('server/src/domain.js');
@@ -17,6 +21,7 @@ const catalog = read('server/src/market-demand/catalog.js');
 const storageV2 = read('server/src/world-storage-v2.js');
 const types = read('src/types.ts');
 const marketPage = read('src/pages/MarketPage.tsx');
+const globalMarketPage = read('src/pages/GlobalMarketPage.tsx');
 const systemMarketTest = existsSync('server/test/system-market.test.js')
   ? read('server/test/system-market.test.js')
   : '';
@@ -54,8 +59,13 @@ requireText(catalog, 'SYSTEM_PRICE_MAX_CHANGE_BPS = 50', '系统价格变化上�
 requireText(storageV2, "'systemMarketAudit'", '系统成交审计必须进入世界顶层 segment 持久化。');
 requireText(types, 'officialPrice?: number;', '客户端类型必须声明官方系统价。');
 requireText(types, 'cycleSellQuantity?: number;', '客户端类型必须声明周期系统买入量。');
-requireText(marketPage, '官方系统价', '市场页必须展示官方系统价。');
-requireText(marketPage, "const marketPrice = typeof market?.officialPrice === 'number' ? market.officialPrice : undefined", '市场列表必须使用官方系统价作为市场价。');
+
+requireText(marketPage, "const marketPrice = typeof market?.officialPrice === 'number' ? market.officialPrice : undefined", '地区商品目录必须使用官方系统价作为市场价。');
+requireText(globalMarketPage, "if (typeof market?.officialPrice === 'number') officialPrices.push(market.officialPrice);", '一级市场商品目录必须从已解锁地区官方系统价生成市场价摘要。');
+requireText(globalMarketPage, "const marketPrice = typeof market?.officialPrice === 'number' ? market.officialPrice : undefined;", '商品全局详情地区行必须读取该地区官方系统价。');
+requireText(globalMarketPage, "{ label: '市场价', sortKey: 'market-price', defaultDirection: 'desc' }", '一级市场商品目录必须展示市场价列。');
+requireText(pageDesign, '地区商品详情不再显示“生产者与消费者”关系卡，也不再渲染基本面条。顶部只显示真实 24h 变化和当前可用库存；市场价、基准偏离、需求满足率、参考价与上轮需求不得在地区详情恢复。', '页面设计必须明确官方系统价只保留在目录／地区行，不回到地区商品详情顶部。');
+forbidText(marketPage, 'market-detail-hero__market-price', '地区商品详情不得恢复独立市场价指标。');
 
 if (!systemMarketTest.includes('player sell order at exactly the system price is fully bought by the system in real time')) {
   failures.push('系统市场测试必须覆盖卖单实时清算。');
@@ -79,4 +89,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('官方系统价市场验证通过：实时精确清算、买卖对称供给、五分钟买卖量调价、价格边界、系统成交审计与页面展示均已锁定。');
+console.log('官方系统价市场验证通过：实时精确清算、买卖对称供给、五分钟买卖量调价、价格边界与系统成交审计均已锁定；官方系统价继续用于目录市场价，但不回到地区商品详情顶部。');
