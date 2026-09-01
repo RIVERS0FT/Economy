@@ -29,7 +29,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Verify contract layout
-        run: npm run verify:contract-layout
+        id: layout
+        shell: bash
+        run: |
+          set +e
+          npm run verify:contract-layout 2>&1 | tee scripts/temp-contract-layout-error.txt
+          status=${PIPESTATUS[0]}
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Commit layout diagnostic
+        if: steps.layout.outputs.status != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "RIVERSOFT"
+          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
+          git add scripts/temp-contract-layout-error.txt
+          git commit -m "记录合同布局验证失败"
+          git push origin HEAD:feature/daily-regional-supply-contracts-impl
+          exit 1
       - name: Verify gameplay decision support
         run: npm run verify:gameplay-decision-support
       - name: Verify contract audit
@@ -56,6 +74,7 @@ jobs:
           rm -f scripts/temp-finalize-contract-workspace.py
           rm -f scripts/temp-fix-contract-audit-participants.py
           rm -f scripts/temp-participant-finalizer-error.txt
+          rm -f scripts/temp-contract-layout-error.txt
           git config user.name "RIVERSOFT"
           git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
           git add -A
