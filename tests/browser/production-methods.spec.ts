@@ -47,9 +47,9 @@ test.describe('factory production methods', () => {
     await expect(recipeSelect).toHaveAttribute('data-variant', 'production-config');
     await expect(methodSelect).toHaveAttribute('data-variant', 'production-config');
     await expect(recipeSelect.locator('[data-product-artwork="machinery"]')).toHaveCount(1);
-    await expect(methodSelect.locator('[data-production-method-icon="rapid"]')).toHaveCount(1);
+    await expect(methodSelect.locator('[data-production-method-icon="precision-machine"]')).toHaveCount(1);
     await expect(detail).not.toContainText('下一周期');
-    await expect(detail).not.toContainText('缩短周期并提高成本');
+    await expect(detail).not.toContainText('精密机加并加快工序周转');
 
     await recipeSelect.click();
     const recipeListbox = page.getByRole('listbox', { name: '机械工厂生产产物' });
@@ -65,19 +65,20 @@ test.describe('factory production methods', () => {
 
     await methodSelect.click();
     const methodListbox = page.getByRole('listbox', { name: '机械工厂生产方式' });
-    const economical = methodListbox.getByRole('option', { name: '节约生产' });
-    await expect(economical).toContainText('周期 180s');
-    await expect(economical).toContainText('成本 4');
-    await expect(economical.locator('.production-config-metric-chevron')).toHaveCount(2);
-    await expect(economical).toContainText('产出 ×1');
-    await economical.click();
+    const cellular = methodListbox.getByRole('option', { name: '单元制造' });
+    await expect(cellular).toContainText('周期 180s');
+    await expect(cellular).toContainText('成本 4');
+    await expect(cellular.locator('[data-production-method-icon="factory-cell"]')).toHaveCount(1);
+    await expect(cellular.locator('.production-config-metric-chevron')).toHaveCount(2);
+    await expect(cellular).toContainText('产出 ×1');
+    await cellular.click();
 
     await expect.poll(async () => page.evaluate(() => (
       window as typeof window & { __productionRecipeRequests?: string[] }
     ).__productionRecipeRequests ?? [])).toEqual([
-      'machine-factory:machinery-recipe--economical',
+      'machine-factory:machinery-recipe--cellular-manufacturing',
     ]);
-    await expect(methodSelect).toContainText('节约生产');
+    await expect(methodSelect).toContainText('单元制造');
     await expect(methodSelect).toContainText('180s · 成本 4 · 产出 ×1');
     await expect.poll(() => formula.getAttribute('aria-label'))
       .toContain('每3m消耗18 钢材，产出9 机械，成本36.00');

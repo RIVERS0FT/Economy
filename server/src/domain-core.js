@@ -20,6 +20,7 @@ import {
   syncDefaultProvinceAlias,
 } from './provinces.js';
 import { createMarketSummaryStatesByProvince } from './market-state-delivery.js';
+import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 
 export { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
 
@@ -1113,7 +1114,7 @@ export function createClientState(world, userId, now = Date.now(), { migrate = t
     ? marketStatesByProvince(world.markets)
     : createMarketSummaryStatesByProvince(world.markets, world, 'commodity', now);
   return {
-    version: 37,
+    version: CURRENT_CLIENT_STATE_VERSION,
     userId: player.userId,
     playerName: player.playerName,
     startingProvinceId: player.startingProvinceId || DEFAULT_PROVINCE_ID,

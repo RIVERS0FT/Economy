@@ -40,13 +40,13 @@ test('mobile production rich selects use the browser top layer above the factory
   const methodListbox = page.getByRole('listbox', { name: '机械工厂生产方式' });
   await expect(methodListbox).toBeVisible();
   await expect(methodListbox).toHaveAttribute('data-top-layer', 'true');
-  const economical = methodListbox.getByRole('option', { name: '节约生产' });
-  await expectTopLayerHitTarget(economical);
-  await economical.click();
+  const cellular = methodListbox.getByRole('option', { name: '单元制造' });
+  await expectTopLayerHitTarget(cellular);
+  await cellular.click();
 
   await expect.poll(async () => page.evaluate(() => (
     window as typeof window & { __productionRecipeRequests?: string[] }
   ).__productionRecipeRequests ?? [])).toEqual([
-    'machine-factory:machinery-recipe--economical',
+    'machine-factory:machinery-recipe--cellular-manufacturing',
   ]);
 });

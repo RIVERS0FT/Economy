@@ -13,7 +13,7 @@ const expectedUpstream = {
   'veterinary-medicine-factory': { output: 4, cost: 13.64, profit: 6 },
   'machine-factory': { output: 5, cost: 11.75, profit: 8 },
 };
-const bands = { assisted: [3, 5], intensive: [6, 8], mechanized: [8, 10] };
+const bands = [[3, 5], [6, 8], [8, 10]];
 const c1Ids = ['farm', 'orchard', 'ranch', 'fishery'];
 
 function profit(recipe) {
@@ -24,34 +24,38 @@ function profit(recipe) {
 assert.equal(MARKET_DEMAND_MODEL_VERSION, 20);
 for (const [productId, expected] of Object.entries(expectedPrices)) assert.equal(prices.get(productId), expected);
 for (const [facilityId, expected] of Object.entries(expectedUpstream)) {
-  const recipe = facilities.get(facilityId).recipes.find((item) => item.productionMethodId === 'standard');
+  const facility = facilities.get(facilityId);
+  const defaultMethodId = facility.productionMethodGroups[0].defaultMethodId;
+  const recipe = facility.recipes.find((item) => item.productionMethodId === defaultMethodId);
   assert.equal(recipe.output.quantity, expected.output, facilityId);
   assert.equal(recipe.operatingCost, expected.cost, facilityId);
   assert.ok(Math.abs(profit(recipe) - expected.profit) < 1e-9, facilityId);
 }
-const feedRecipe = facilities.get('feed-factory').recipes.find((item) => item.productionMethodId === 'standard');
+const feedFactory = facilities.get('feed-factory');
+const feedRecipe = feedFactory.recipes.find(
+  (item) => item.productionMethodId === feedFactory.productionMethodGroups[0].defaultMethodId,
+);
 assert.deepEqual(feedRecipe.inputs, [
   { productId: 'wheat', quantity: 2 },
   { productId: 'fruit', quantity: 1 },
 ]);
-const profitsByMethod = { assisted: [], intensive: [], mechanized: [] };
+const profitsByMethod = [[], [], []];
 for (const facilityId of c1Ids) {
   const facility = facilities.get(facilityId);
   const variants = facility.recipes.filter((recipe) => recipe.baseRecipeId === facility.defaultRecipeId);
   const quantities = variants.map((recipe) => recipe.output.quantity);
   assert.deepEqual(quantities, [...quantities].sort((a, b) => a - b), facilityId);
   assert.equal(new Set(quantities).size, quantities.length, facilityId);
-  for (const methodId of Object.keys(bands)) {
-    const recipe = variants.find((item) => item.productionMethodId === methodId);
+  for (const [index, [minimum, maximum]] of bands.entries()) {
+    const recipe = variants[index + 1];
     const value = profit(recipe);
-    const [minimum, maximum] = bands[methodId];
-    assert.ok(value >= minimum - 1e-9 && value <= maximum + 1e-9, facilityId + '/' + methodId + ': ' + value);
-    assert.ok(value < 12, facilityId + '/' + methodId);
-    profitsByMethod[methodId].push(value);
+    assert.ok(value >= minimum - 1e-9 && value <= maximum + 1e-9, `${facilityId}/method-${index + 1}: ${value}`);
+    assert.ok(value < 12, `${facilityId}/method-${index + 1}`);
+    profitsByMethod[index].push(value);
   }
 }
-for (const [methodId, values] of Object.entries(profitsByMethod)) {
-  assert.ok(Math.max(...values) - Math.min(...values) <= 2 + 1e-9, methodId);
+for (const [index, values] of profitsByMethod.entries()) {
+  assert.ok(Math.max(...values) - Math.min(...values) <= 2 + 1e-9, `method-${index + 1}`);
 }
 const domain = readFileSync('server/src/domain.js', 'utf8');
 const design = readFileSync('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', 'utf8');

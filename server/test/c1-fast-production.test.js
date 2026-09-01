@@ -8,7 +8,8 @@ const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id,
 function standardRecipes(facilityId) {
   const facility = facilities.get(facilityId);
   assert.ok(facility, `${facilityId} 必须存在于正式目录`);
-  return facility.recipes.filter((recipe) => recipe.productionMethodId === 'standard');
+  const defaultMethodId = facility.productionMethodGroups[0].defaultMethodId;
+  return facility.recipes.filter((recipe) => recipe.productionMethodId === defaultMethodId);
 }
 
 function routeVariants(facilityId, baseRecipeId) {
@@ -60,7 +61,6 @@ test('C1 factories use the approved fast-production parameters', () => {
 });
 
 test('C1 work systems keep fixed time and cash cost while consuming whole goods each cycle', () => {
-  const methodIds = ['standard', 'assisted', 'intensive', 'mechanized'];
   const plans = {
     farm: [
       { inputs: [], output: 1 },
@@ -92,6 +92,7 @@ test('C1 work systems keep fixed time and cash cost while consuming whole goods 
     const facility = facilities.get(facilityId);
     const baseRecipe = standardRecipes(facilityId)[0];
     const variants = routeVariants(facilityId, baseRecipe.id);
+    const methodIds = facility.productionMethodGroups[0].methods.map((method) => method.id);
     assert.deepEqual(variants.map((recipe) => recipe.productionMethodId), methodIds);
     assert.equal(facility.productionMethodGroups[0].methods.length, 4);
     for (const [index, recipe] of variants.entries()) {

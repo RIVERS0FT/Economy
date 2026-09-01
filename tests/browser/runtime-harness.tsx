@@ -604,15 +604,15 @@ function ProductionHarness() {
         productionMethodGroups: [{
           id: 'operation',
           name: '作业制度',
-          defaultMethodId: 'standard',
+          defaultMethodId: 'machining-assembly',
           methods: [
             {
-              id: 'standard', name: '标准生产', description: '保持标准生产参数。', tone: 'neutral',
+              id: 'machining-assembly', name: '机加装配', iconId: 'gear', description: '按机加与装配工序制造机械。', tone: 'neutral',
               plansByRecipeId: {
                 [baseRecipe.id]: {
                   recipeId: baseRecipe.id,
                   baseRecipeId: baseRecipe.id,
-                  productionMethodId: 'standard',
+                  productionMethodId: 'machining-assembly',
                   cycleMs: baseRecipe.cycleMs,
                   operatingCost: baseRecipe.operatingCost,
                   inputs: baseRecipe.inputs,
@@ -621,12 +621,12 @@ function ProductionHarness() {
               },
             },
             {
-              id: 'rapid', name: '高速生产', description: '缩短周期并提高成本。', tone: 'warning',
+              id: 'precision-machining', name: '精密机加', iconId: 'precision-machine', description: '精密机加并加快工序周转。', tone: 'warning',
               plansByRecipeId: {
                 [baseRecipe.id]: {
-                  recipeId: `${baseRecipe.id}--rapid`,
+                  recipeId: `${baseRecipe.id}--precision-machining`,
                   baseRecipeId: baseRecipe.id,
-                  productionMethodId: 'rapid',
+                  productionMethodId: 'precision-machining',
                   cycleMs: 60_000,
                   operatingCost: 12,
                   inputs: baseRecipe.inputs,
@@ -635,12 +635,12 @@ function ProductionHarness() {
               },
             },
             {
-              id: 'economical', name: '节约生产', description: '延长周期并降低成本。', tone: 'success',
+              id: 'cellular-manufacturing', name: '单元制造', iconId: 'factory-cell', description: '按制造单元组织生产。', tone: 'success',
               plansByRecipeId: {
                 [baseRecipe.id]: {
-                  recipeId: `${baseRecipe.id}--economical`,
+                  recipeId: `${baseRecipe.id}--cellular-manufacturing`,
                   baseRecipeId: baseRecipe.id,
-                  productionMethodId: 'economical',
+                  productionMethodId: 'cellular-manufacturing',
                   cycleMs: 180_000,
                   operatingCost: 4,
                   inputs: baseRecipe.inputs,
@@ -649,12 +649,12 @@ function ProductionHarness() {
               },
             },
             {
-              id: 'high-yield', name: '高产生产', description: '增加投入与产出。', tone: 'accent',
+              id: 'automated-assembly', name: '自动装配线', iconId: 'robot-arm', description: '自动组织双倍装配批次。', tone: 'accent',
               plansByRecipeId: {
                 [baseRecipe.id]: {
-                  recipeId: `${baseRecipe.id}--high-yield`,
+                  recipeId: `${baseRecipe.id}--automated-assembly`,
                   baseRecipeId: baseRecipe.id,
-                  productionMethodId: 'high-yield',
+                  productionMethodId: 'automated-assembly',
                   cycleMs: baseRecipe.cycleMs,
                   operatingCost: 16,
                   inputs: baseRecipe.inputs.map((input) => ({ ...input, quantity: input.quantity * 2 })),
@@ -667,7 +667,7 @@ function ProductionHarness() {
       }];
       next.game.facilityGroups = [{
         ...next.game.facilityGroups[0],
-        activeRecipeId: `${baseRecipe.id}--rapid`,
+        activeRecipeId: `${baseRecipe.id}--precision-machining`,
         staffingRateBps: 8_000,
       }];
     }

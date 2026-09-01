@@ -57,8 +57,9 @@ const expectedConstruction = {
 };
 const expectedProfitByComplexity = { C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
 const expectedC1ProfitByFacility = { farm: 0.6, orchard: 0.9, ranch: 0.8, fishery: 1 };
-const genericMethodIds = ['standard', 'rapid', 'economical', 'high-yield'];
-const dedicatedMethodIds = ['standard', 'assisted', 'intensive', 'mechanized'];
+const retiredMethodIds = new Set([
+  'standard', 'rapid', 'economical', 'high-yield', 'assisted', 'intensive', 'mechanized',
+]);
 const expectedC1Plans = {
   farm: [[], [['tools', 1], 12], [['fertilizer', 2], 14], [['tractor', 1], 16]],
   orchard: [[], [['tools', 1], 11], [['fertilizer', 2], 13], [['tractor', 1], 15]],
@@ -103,16 +104,15 @@ const expectedC2FirstRoutePlans = {
     [[['wheat', 8], ['fruit', 4], ['machinery', 1], ['industrial-fuel', 1]], 11, 18.95],
   ],
 };
-const c2ProfitByMethod = { standard: 3, assisted: 6, intensive: 9, mechanized: 10.5 };
+const c2Profits = [3, 6, 9, 10.5];
 
 function standardRecipes(facility) {
-  return facility.recipes.filter((recipe) => (
-    !recipe.legacyProductionMethod && (recipe.productionMethodId || 'standard') === 'standard'
-  ));
+  const defaultMethodId = facility.productionMethodGroups.find((group) => group.id === 'operation')?.defaultMethodId;
+  return facility.recipes.filter((recipe) => recipe.productionMethodId === defaultMethodId);
 }
 
 function currentVariantsForRoute(facility, routeId) {
-  return facility.recipes.filter((recipe) => recipe.baseRecipeId === routeId && !recipe.legacyProductionMethod);
+  return facility.recipes.filter((recipe) => recipe.baseRecipeId === routeId);
 }
 
 function hasAtMostTwoDecimals(value) {
@@ -179,25 +179,22 @@ for (const facility of FACILITY_TYPE_CATALOG) {
 
   const methodGroup = facility.productionMethodGroups.find((group) => group.id === 'operation');
   assert.ok(methodGroup, `${facility.id} 必须声明作业制度`);
-  assert.equal(methodGroup.defaultMethodId, 'standard');
+  assert.equal(methodGroup.methods.length, 4, `${facility.id} 必须有四种具名作业制度`);
+  assert.equal(methodGroup.defaultMethodId, methodGroup.methods[0].id, `${facility.id} 默认制度必须是第一项`);
   const isDedicated = facility.complexity === 'C1' || facility.complexity === 'C2';
-  const methodIds = isDedicated ? dedicatedMethodIds : genericMethodIds;
-  assert.deepEqual(methodGroup.methods.map((method) => method.id), methodIds);
+  const methodIds = methodGroup.methods.map((method) => method.id);
+  assert.equal(new Set(methodIds).size, 4, `${facility.id} 作业制度 ID 必须唯一`);
+  assert.equal(methodIds.some((methodId) => retiredMethodIds.has(methodId)), false, `${facility.id} 不得泄漏旧制度 ID`);
   for (const method of methodGroup.methods) {
     assert.ok(Array.isArray(method.requiredTechnologyIds), `${facility.id}/${method.id} 必须声明研发依赖数组`);
-    if (isDedicated && method.id !== 'standard') assert.ok(method.requiredTechnologyIds.length > 0, `${facility.id}/${method.id} 必须有研发门槛`);
-    if (!isDedicated) assert.deepEqual(method.requiredTechnologyIds, [], `${facility.id}/${method.id} 通用制度不得新增隐式研发门槛`);
+    assert.match(method.iconId, /^[a-z][a-z0-9-]*$/, `${facility.id}/${method.id} 缺少语义图标`);
+    if (isDedicated && method.id !== methodGroup.defaultMethodId) assert.ok(method.requiredTechnologyIds.length > 0, `${facility.id}/${method.id} 必须有研发门槛`);
+    if (!isDedicated) assert.deepEqual(method.requiredTechnologyIds, [], `${facility.id}/${method.id} 具名制度不得新增隐式研发门槛`);
   }
 
-  const currentRecipes = facility.recipes.filter((recipe) => !recipe.legacyProductionMethod);
+  const currentRecipes = facility.recipes;
   assert.equal(currentRecipes.length, routes.length * methodIds.length);
-  if (facility.complexity === 'C2') {
-    const aliases = facility.recipes.filter((recipe) => recipe.legacyProductionMethod);
-    assert.equal(aliases.length, routes.length * 3, `${facility.id} 必须只保留三种旧 C2 迁移别名`);
-    assert.equal(aliases.every((recipe) => ['rapid', 'economical', 'high-yield'].includes(recipe.productionMethodId)), true);
-  } else {
-    assert.equal(facility.recipes.some((recipe) => recipe.legacyProductionMethod), false);
-  }
+  assert.equal(facility.recipes.some((recipe) => recipe.legacyProductionMethod), false);
 
   for (const route of routes) {
     const variants = currentVariantsForRoute(facility, route.id);
@@ -213,10 +210,11 @@ for (const facility of FACILITY_TYPE_CATALOG) {
       }
       assert.ok(productIds.has(recipe.output.productId));
       assert.equal(Number.isInteger(recipe.output.quantity), true);
-      if (facility.complexity === 'C1' && recipe.productionMethodId === 'standard') {
+      if (facility.complexity === 'C1' && recipe.productionMethodId === methodGroup.defaultMethodId) {
         assert.ok(Math.abs(profitPerMinute(recipe) - expectedC1ProfitByFacility[facility.id]) < 1e-9);
       } else if (facility.complexity === 'C2') {
-        assert.ok(Math.abs(profitPerMinute(recipe) - c2ProfitByMethod[recipe.productionMethodId]) < 1e-9, `${facility.id}/${recipe.id} C2 利润梯度错误`);
+        const methodIndex = methodIds.indexOf(recipe.productionMethodId);
+        assert.ok(Math.abs(profitPerMinute(recipe) - c2Profits[methodIndex]) < 1e-9, `${facility.id}/${recipe.id} C2 利润梯度错误`);
       } else if (facility.complexity !== 'C1') {
         assert.ok(Math.abs(profitPerMinute(recipe) - expectedProfitByComplexity[facility.complexity]) < 1e-9, `${facility.id}/${recipe.id} 参考分钟利润错误`);
       }
@@ -236,9 +234,9 @@ for (const facility of FACILITY_TYPE_CATALOG) {
     }
     if (facility.complexity === 'C2') continue;
 
-    const rapid = variants.find((recipe) => recipe.productionMethodId === 'rapid');
-    const economical = variants.find((recipe) => recipe.productionMethodId === 'economical');
-    const highYield = variants.find((recipe) => recipe.productionMethodId === 'high-yield');
+    const rapid = variants[1];
+    const economical = variants[2];
+    const highYield = variants[3];
     assert.ok(rapid.cycleMs <= route.cycleMs && rapid.operatingCost >= route.operatingCost);
     assert.ok(economical.cycleMs >= route.cycleMs && economical.operatingCost <= route.operatingCost);
     assert.equal(highYield.cycleMs, route.cycleMs);
@@ -328,20 +326,21 @@ assert.equal(RESEARCH_TECHNOLOGY_CATALOG.some((technology) => `${technology.name
 assert.equal(coreSource.includes('STARTER_CONSTRUCTION_MATERIALS'), false, '不得恢复新玩家建造材料包');
 assert.equal(coreSource.includes('grantStarterConstructionMaterials'), false, '不得恢复建造材料补发逻辑');
 assert.ok(catalogSource.includes("from './production-methods.js'"));
-assert.ok(catalogSource.includes("from './legacy-production-methods.js'"));
 for (const text of [
   'FACILITY_METHOD_BLUEPRINTS',
-  "name: '基础采伐'",
-  "name: '机械化采矿'",
-  "name: '连续化加工'",
-  "name: '动力连续混配'",
+  "id: 'selective-logging'",
+  "id: 'mechanized-mining'",
+  "id: 'continuous-processing'",
+  "id: 'continuous-mixing'",
   'requiredTechnologyIds',
+  'iconId',
 ]) assert.ok(methodSource.includes(text) || catalogSource.includes(text), `C2 目录缺少 ${text}`);
 for (const text of ["id: 'industrial-fuel'", "id: 'industrial-chemicals'"]) {
   assert.ok(productCatalogSource.includes(text), `商品目录缺少 ${text}`);
 }
-assert.ok(legacyMethodSource.includes('legacyProductionMethod'));
-assert.ok(legacyMethodSource.includes("['rapid', 'economical', 'high-yield']"));
+assert.ok(legacyMethodSource.includes('migrateLegacyProductionMethodRecipeId'));
+assert.ok(legacyMethodSource.includes('isLegacyProductionMethodRecipeId'));
+assert.equal(catalogSource.includes('appendLegacyC2RecipeAliases'), false, '产业目录不得装配旧制度别名');
 
 assert.equal(existsSync('src/assets/product-icons/industrial-fuel.png'), true, 'industrial-fuel 缺少商品插画源文件');
 assert.equal(existsSync('src/assets/product-icons/industrial-chemicals.png'), true, 'industrial-chemicals 缺少商品插画源文件');
@@ -355,14 +354,14 @@ for (const id of ['industrial-fuel', 'industrial-chemicals']) {
 for (const [path, texts] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
     '当前基线为 38 种商品和 26 种工厂类型',
-    'C1 基础制度采用工厂级参考分钟利润',
-    'C2 四级制度参考分钟利润固定为 3、6、9、10.5',
+    'C1 默认制度采用工厂级参考分钟利润',
+    'C2 四种具名制度参考分钟利润固定为 3、6、9、10.5',
     '化学品 (`industrial-chemicals`)',
     '`server/src/product-catalog.js` 是商品玩家可见名称的唯一运行时来源',
-    'C1 与 C2 使用工厂专属作业制度',
-    'C3～C7 继续使用标准生产、高速生产、节约生产和高产生产',
-    '非基础作业制度必须校验 `requiredTechnologyIds`',
-    '旧 C2 `rapid`／`economical`／`high-yield`',
+    '26 类工厂全部使用正式目录声明的产业语义制度',
+    '不同工厂允许复用同一制度 ID',
+    '非默认作业制度必须校验 `requiredTechnologyIds`',
+    '旧制度 ID 只允许存在于迁移模块',
     '每周期整件消耗',
     '不累计折旧',
     '生产方式与配方必须在同一次配置动作中原子切换',
@@ -374,7 +373,7 @@ for (const [path, texts] of [
   for (const text of texts) assert.ok(content.includes(text), `${path} 缺少: ${text}`);
 }
 
-console.log('产业目录验证通过：38 种商品、26 种工厂、C1/C2 工厂专属作业制度、炼油工业耗材和 C2 3/6/9/10.5 利润梯度。');
+console.log('产业目录验证通过：38 种商品、26 种工厂、全工厂具名作业制度、炼油工业耗材和 C2 3/6/9/10.5 利润梯度。');
 
 const fertilizerFacility = facilities.get('fertilizer-factory');
 assert.ok(fertilizerFacility, '化肥厂必须存在于正式目录');
