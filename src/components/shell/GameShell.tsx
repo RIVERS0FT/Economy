@@ -11,6 +11,7 @@ import { CompactNumber, CompactRank } from '../ui/CompactNumber';
 import { Button, DataList, DataRow, WidgetHeading } from '../ui/layout';
 import { MobileWorkspacePageSheet, type MobileWorkspaceSheetRequestClose } from '../ui/MobileWorkspacePageSheet';
 import { formatCompactNumber, formatCurrency, formatNumber, formatRank } from '../../utils/formatters';
+import { provinceEconomicLevelFor } from '../../utils/provinceEconomicLevel';
 import { AuctionNewIdsContext, useNavigationBadges } from '../../hooks/useNavigationBadges';
 import { useNotificationCenter } from '../../hooks/useNotificationCenter';
 import {
@@ -77,6 +78,7 @@ function StartingProvinceOverview({
     ? model.game.provinces.find((candidate) => candidate.id === candidateProvinceId) ?? null
     : null;
   const baseline = province ? STATE_ECONOMIC_BASELINE_BY_PROVINCE_ID.get(province.id) : undefined;
+  const economicLevel = province ? provinceEconomicLevelFor(province.id) : null;
 
   const confirmStartingProvince = async () => {
     if (!province || submitting) return;
@@ -115,11 +117,11 @@ function StartingProvinceOverview({
       </p>
       {province ? (
         <>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '.5rem', marginBottom: 'var(--layout-gutter)' }}>
+          <div style={{ marginBottom: 'var(--layout-gutter)' }}>
             <strong style={{ fontSize: '1.2rem' }}>{province.name}</strong>
-            <span style={{ color: 'var(--color-text-muted)' }}>{province.shortName}</span>
           </div>
           <DataList>
+            <DataRow label="地区水平" value={economicLevel ? `${economicLevel} / 5` : '—'} />
             <DataRow label="首府" value={province.capitalName} />
             <DataRow
               label="常住人口"
