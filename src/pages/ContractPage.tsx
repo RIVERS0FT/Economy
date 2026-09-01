@@ -1011,9 +1011,9 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
       ? productNames.get(contract.productId) ?? contract.productId
       : productNames.get(`facility:${contract.facilityTypeId || ''}`) ?? contract.facilityTypeId ?? '—';
     if (contract.kind === 'supply') return assetName;
-    const provinceName = model.game.provinces.find((province) => province.id === contract.provinceId)?.shortName
+    const provinceName = model.game.provinces.find((province) => province.id === contract.provinceId)?.name
       || contract.provinceId
-      || model.game.provinces.find((province) => province.id === model.game.defaultProvinceId)?.shortName;
+      || model.game.provinces.find((province) => province.id === model.game.defaultProvinceId)?.name;
     return provinceName ? `${provinceName} · ${assetName}` : assetName;
   };
 
