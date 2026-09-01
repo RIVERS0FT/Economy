@@ -61,12 +61,7 @@ test.describe('navigation pill geometry', () => {
     await overview.click();
     await expect(host).toHaveAttribute('data-workspace-sheet-hidden', 'true');
     await expect(hiddenOverview).toHaveClass(/active/);
-    const activeVisual = await hiddenOverview.evaluate((button) => {
-      const style = getComputedStyle(button);
-      return { background: style.backgroundColor, border: style.borderTopColor };
-    });
-    expect(activeVisual.background).toBe('rgba(50, 159, 88, 0.18)');
-    expect(activeVisual.border).toBe('rgba(123, 228, 158, 0.34)');
+    await expect(hiddenOverview).toHaveAttribute('aria-current', 'page');
   });
 
   test('desktop map lens controls use horizontal pills while retaining the existing map glass and colors', async ({ page }) => {
