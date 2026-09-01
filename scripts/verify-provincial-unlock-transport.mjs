@@ -21,6 +21,7 @@ const provinceAccess = read('server/src/province-access.js');
 const stateEconomicBaselines = read('server/src/state-economic-baselines.js');
 const transport = read('server/src/transport.js');
 const domain = read('server/src/domain.js');
+const worldDeadlinePlanner = read('server/src/world-deadline-planner.js');
 const storageV2 = read('server/src/world-storage-v2.js');
 const actionRegistry = read('server/src/player-action-registry.js');
 const stateSlices = read('server/shared/economy-state-slices.js');
@@ -46,8 +47,12 @@ const transportTest = existsSync('server/test/transport.test.js') ? read('server
 
 requireText(index, '新玩家起始州永久绑定、其他州按货币费用解锁', '设计索引必须登记起始州与解锁规则。');
 requireText(index, 'scripts/verify-provincial-unlock-transport.mjs', '设计索引必须登记州解锁运输验证脚本。');
+requireText(index, '非闭环默认单程', '设计索引必须登记运输默认单程。');
+requireText(index, '可选受控自动发运', '设计索引必须登记受控自动发运。');
 requireText(productDesign, '新玩家首次进入游戏必须从 48 州中选择一块起始地块并永久绑定', '产品设计必须记录起始州选择。');
 requireText(productDesign, '跨州商品只能通过付费运输在已解锁州之间流动', '产品设计必须记录付费运输边界。');
+requireText(productDesign, '非闭环默认单程', '产品设计必须记录运输默认单程。');
+requireText(productDesign, '路线可选受控自动发运', '产品设计必须记录受控自动发运。');
 requireText(productDesign, '综合分数固定为 PCE `50%` + 平均周薪 `30%` + 常住人口 `20%`', '产品设计必须记录地区水平综合分数。');
 requireText(productDesign, '1～5 级地区基础解锁费依次为 `1,500 / 2,500 / 4,000 / 6,000 / 9,000`', '产品设计必须锁定五档地区基础解锁费。');
 requireText(productDesign, '每完整 `500 km` 增加 `300`', '产品设计必须锁定距离附加费。');
@@ -61,11 +66,15 @@ requireText(warehouseDesign, '计入运输就业人口收入', '仓库设计必�
 requireText(warehouseDesign, '在途商品按起始州官方系统价计入玩家财富', '仓库设计必须记录在途估值口径。');
 requireText(warehouseDesign, '每名玩家最多保存 50 条运输路线', '仓库设计必须记录路线数量上限。');
 requireText(warehouseDesign, '站点数量不设上限', '仓库设计必须记录站点数量无上限。');
-requireText(warehouseDesign, '非闭环默认 `round` 往返运输', '仓库设计必须记录非闭环默认往返。');
+requireText(warehouseDesign, '非闭环默认 `one-way` 单程运输', '仓库设计必须记录非闭环默认单程。');
+requireText(warehouseDesign, '首段总载荷不超过对应运输方式容量', '仓库设计必须记录首段总载重约束。');
+requireText(warehouseDesign, '实际剩余载荷计算', '仓库设计必须记录逐段真实载荷计费。');
 requireText(warehouseDesign, '整链一次发运、逐站交付', '仓库设计必须记录整链一次发运逐站交付。');
 requireText(warehouseDesign, '空驶段只按该段固定成本计费', '仓库设计必须记录空驶段计费口径。');
-requireText(warehouseDesign, '旧路线（无 `viaProvinceIds`、无 `tripType`）与历史在途记录（无 `stopPlan`）按原单段语义', '仓库设计必须记录旧数据兼容边界。');
-requireText(warehouseDesign, '路线只允许手动发运', '仓库设计必须记录路线不自动循环。');
+requireText(warehouseDesign, '旧路线（无 `viaProvinceIds`、无 `tripType`）缺失行程类型时按 `one-way` 单程读取', '仓库设计必须记录旧路线缺失行程类型的兼容边界。');
+requireText(warehouseDesign, '路线 `autoDispatch` 默认关闭', '仓库设计必须记录自动发运默认关闭。');
+requireText(warehouseDesign, '不新增轮询器、后台扫描任务或离线定时器', '仓库设计必须锁定自动发运调度边界。');
+requireText(warehouseDesign, '参考价差固定为', '仓库设计必须记录运输参考价差。');
 requireText(pageDesign, '新玩家首次进入游戏必须先按 3.1 的地图选点流程选择起始州', '页面设计必须记录起始州选择流程。');
 requireText(pageDesign, '起始州选择固定复用唯一常驻战略地图', '页面设计必须记录起始州地图选点与左侧概览流程。');
 requireText(pageDesign, '未解锁州仍保留“概览｜市场｜建筑｜仓库”四个分区', '页面设计必须记录未解锁州仍可浏览概览和市场。');
@@ -76,12 +85,15 @@ requireText(pageDesign, '不得增加工厂数、资产、已解锁州数等额�
 requireText(uiDesign, '`shortName` 仅属于协议、目录映射、经济基准一致性校验和兼容测试元数据', 'UI 设计必须记录 shortName 仅作内部兼容元数据。');
 requireText(pageDesign, '收到服务器精简确认后立即退出锁定视图', '页面设计必须记录州解锁确认后的瞬时退出锁定视图。');
 requireText(pageDesign, '跨州运输路线、发运与运输记录唯一显示在独立 `TransportPage`', '页面设计必须记录独立运输入口归属。');
-requireText(pageDesign, '路线只允许玩家手动发运', '页面设计必须锁定路线手动发运边界。');
+requireText(pageDesign, '路线默认手动发运；开启自动发运后', '页面设计必须记录自动发运入口与边界。');
+requireText(pageDesign, '非闭环默认单程', '页面设计必须记录运输默认单程。');
+requireText(pageDesign, '交付参考收入与参考价差', '页面设计必须记录运输经济决策展示。');
 requireText(pageDesign, '在地图上选择', '页面设计必须记录地图选州入口。');
 requireText(pageDesign, '按顺序点击已解锁州面追加站点', '页面设计必须记录按顺序选州规则。');
 requireText(pageDesign, '按首府坐标顺序连接的路线连线', '页面设计必须记录首府顺序连线可视化。');
 requireText(serverDesign, 'transportShipments', '服务器设计必须记录运输记录存储。');
 requireText(serverDesign, '`stopPlan` 注册“下一未交付站”', '服务器设计必须记录逐站到达调度。');
+requireText(serverDesign, '路线自动发运默认关闭', '服务器设计必须记录受控自动发运调度。');
 requireText(orderBookDesign, '运输中的商品按起始州官方系统价计入玩家财富', '订单簿设计必须记录在途估值口径。');
 
 if (provinceEconomicPolicy.version !== 1) failures.push('地区水平策略版本必须为 1。');
@@ -115,6 +127,11 @@ requireText(transport, 'applyCreateTransportRoute', '运输模块必须提供路
 requireText(transport, 'applyUpdateTransportRoute', '运输模块必须提供路线编辑。');
 requireText(transport, 'applyDeleteTransportRoute', '运输模块必须提供路线删除。');
 requireText(transport, 'applyDispatchTransportRoute', '运输模块必须提供按路线发运。');
+requireText(transport, "TRANSPORT_DEFAULT_TRIP_TYPE = 'one-way'", '运输模块必须默认单程。');
+requireText(transport, 'validateTransportLoad', '运输模块必须按首段总载重校验。');
+requireText(transport, 'remainingLoad', '运输模块必须按逐段剩余载荷计费。');
+requireText(transport, 'processAutomaticTransportRoutes', '运输模块必须提供受控自动发运。');
+requireText(transport, 'autoDispatch: route.autoDispatch === true', '运输客户端状态必须返回自动发运设置。');
 requireText(transport, "payload.operation === 'route-dispatch'", '运输动作必须分发路线发运操作。');
 requireText(domain, "action === 'chooseStartingProvince'", '领域动作必须分发起始州选择。');
 requireText(domain, "action === 'unlockProvince'", '领域动作必须分发州解锁。');
@@ -122,6 +139,7 @@ requireText(domain, "action === 'transportShip'", '领域动作必须分发运�
 requireText(domain, 'processTransportWorld(world, now)', '世界推进必须结算到达到期。');
 requireText(domain, 'transportRoutes: transportRouteClientState(world, userId)', '客户端状态必须返回当前玩家路线。');
 requireText(domain, 'provinceUnlockError(player, provinceId)', '商品下单必须校验州解锁。');
+requireText(worldDeadlinePlanner, 'market: earlier(marketDeadline(world, normalizedNow), transportDeadline)', '运输截止时间必须进入会执行完整世界推进的调度域。');
 requireText(storageV2, "'transportShipments'", '运输记录必须进入世界顶层 segment。');
 requireText(storageV2, "case 'local-player':", '分段存储必须保留注册表驱动的局部玩家 Mutation Scope。');
 requireText(storageV2, 'label: `local:${action}`', '局部玩家 Mutation Scope 必须保留动作标签。');
@@ -166,13 +184,13 @@ if (warehousePanel.includes('warehouse-product-card-in-transit')) failures.push(
 for (const text of ['title="运输"', 'title="运输路线"', 'title="运输记录"', '增加路线', 'createTransportRoute', 'updateTransportRoute', 'deleteTransportRoute', 'dispatchTransportRoute']) {
   requireText(transportPage, text, `运输页缺少：${text}`);
 }
-for (const text of ['在地图上选择', '每站数量', '交付站数', '追加中间站', '往返运输（默认）', 'useTransportRouteDraft']) {
+for (const text of ['在地图上选择', '每站数量', '交付站数', '追加中间站', '单程运输（默认）', '自动发运', '首段装载', '参考价差', 'useTransportRouteDraft']) {
   requireText(transportPage, text, `运输页多站点编辑缺少：${text}`);
 }
 requireText(navigation, "{ id: 'transport', label: '运输' }", '一级导航必须包含运输。');
 requireText(pageRouter, "transport: loadTransportPage", '页面路由必须预加载运输页。');
 requireText(pageRouter, "case 'transport':", '页面路由必须渲染运输页。');
-requireText(pageRouter, "transport: ['catalog', 'player.assets', 'player.misc', 'market.misc']", '运输页必须只订阅既有运输相关状态切片。');
+requireText(pageRouter, "transport: ['catalog', 'player.assets', 'player.misc', 'market.quotes', 'market.misc']", '运输页必须订阅库存、路线、州级市场报价和运输记录切片。');
 requireText(gameShell, 'data-starting-province-overview="true"', '游戏外壳必须提供左侧起始州概览。');
 requireText(gameShell, 'startingProvinceCandidateId', '游戏外壳必须把地图点击保存为临时起始州候选。');
 requireText(gameShell, 'model.chooseStartingProvince(province.id)', '起始州必须在概览确认按钮中显式提交。');
@@ -192,6 +210,9 @@ requireText(provinceLogistics, 'provinceUnlockCostBreakdown', '客户端物流�
 requireText(provinceLogistics, 'PROVINCE_UNLOCK_DISTANCE_STEP_KM', '客户端物流工具必须同步距离步长。');
 requireText(provinceLogistics, 'TRANSPORT_BASE_SECONDS_PER_KM = 60 / 1000', '客户端物流工具必须与服务器同步基准时间。');
 requireText(provinceLogistics, 'TRANSPORT_MAX_ROUTES_PER_PLAYER = 50', '客户端物流工具必须同步路线数量上限。');
+requireText(provinceLogistics, "TRANSPORT_DEFAULT_TRIP_TYPE: TransportTripType = 'one-way'", '客户端物流工具必须默认单程。');
+requireText(provinceLogistics, 'transportRouteMaxQuantityPerStop', '客户端物流工具必须按首段总载重限制每站数量。');
+requireText(provinceLogistics, 'loadQuantity', '客户端物流工具必须暴露逐段实际载荷。');
 
 if (!provinceAccessTest.includes('new player chooses a permanent starting province before economic writes')) {
   failures.push('州访问测试必须覆盖起始州选择。');
@@ -225,9 +246,11 @@ if (!transportTest.includes('transport route limit is enforced')) {
 }
 for (const name of [
   'multi-stop routes validate ordered stations without a station cap',
+  'multi-stop capacity applies to initial load and cost follows remaining cargo',
   'round-trip dispatch delivers every stop and charges empty return legs once',
   'closed loop dispatch returns to the starting state as one in-transit shipment',
   'staged arrivals settle each stop at its own deadline',
+  'automatic routes wait for resources and keep at most one active shipment per route',
 ]) {
   if (!transportTest.includes(name)) failures.push(`运输测试必须覆盖多站点规则：${name}`);
 }
@@ -238,4 +261,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('起始州、州解锁与跨州运输验证通过：地图选点与左侧概览确认、永久起始州、地区水平与距离解锁、玩家界面中文地区名、三种运输模式参数、运费计入运输就业、在途按起始州官方价估值、锁定州写拒绝、持久化手动路线、独立运输页与老玩家迁移均已锁定。');
+console.log('起始州、州解锁与跨州运输验证通过：地图选点与左侧概览确认、永久起始州、地区水平与距离解锁、玩家界面中文地区名、三种运输模式参数、运费计入运输就业、在途按起始州官方价估值、锁定州写拒绝、首段真实载重与逐段计费、默认单程、受控自动路线、跨州参考价差、独立运输页与老玩家迁移均已锁定。');
