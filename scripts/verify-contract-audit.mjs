@@ -14,7 +14,7 @@ const app = read('server/src/app.js');
 const statePartitions = read('server/src/state-partitions.js');
 const contractApi = read('src/contracts/api.ts');
 const contractTypes = read('src/contracts/types.ts');
-const contractPage = read('src/pages/ContractPage.tsx');
+const contractPage = read('src/pages/ContractWorkspacePage.tsx');
 const contractAuditCss = read('src/styles/contract-audit.css');
 const serverTests = read('server/test/contract-audit.test.js');
 const browserTests = read('tests/browser/contract-layout.spec.ts');
@@ -48,11 +48,14 @@ assert.ok(!statePartitions.includes('contractHistory'));
 includesAll(contractApi, ['productionContractAudit', "getJson<{ history: ContractAuditHistoryPage }>('/contracts/history'", 'lender', 'borrower', 'lessor', 'lessee'], 'contract audit client API');
 includesAll(contractTypes, ['ContractEndSummary', 'ContractEndSettlementSummary', 'ContractAuditHistoryItem', 'endSummary: ContractEndSummary'], 'contract history client types');
 includesAll(contractPage, [
-  "import '../styles/contract-audit.css';", '合同历史筛选', '合同内容', '结束原因', '结束时间',
-  '完成情况', '结束统计', '重新拟定', 'productionContractAudit.history', 'initialContract',
+  "import '../styles/contract-audit.css';", 'contract-history-filters', '合同内容', '结束原因', '结束时间',
+  '完成事实', '结束统计', '重新拟定', 'productionContractAudit.history', 'startRepublish',
+  '我的履约档案', 'productionContractAudit.performance', '实际交付事件',
 ], 'contract history player UI');
 assert.ok(!contractPage.includes('productionContractAudit.detail'), 'player history must not load audit detail timelines');
 assert.ok(!contractPage.includes('合同完整审计'), 'player history must not expose the audit viewer');
+includesAll(contractPage, ['<option value="credits">普通货币</option>', 'value={`facility:${facility.id}`}'], 'contract history target filters');
+includesAll(auditStore, ["target === 'credits'", "target.startsWith('facility:')", "json_extract(contract_json, '$.facilityTypeId') = ?"], 'contract history server target filtering');
 includesAll(contractAuditCss, ['.contract-history-filters', '.contract-history-result-grid', '.contract-history-section', '.contract-history-republish'], 'contract history result styles');
 assert.ok(!contractAuditCss.includes('.contract-audit-timeline'), 'timeline styles must be removed from player UI');
 
@@ -68,6 +71,9 @@ for (const [label, content] of [['industry design', industryDesign], ['server de
   assert.ok(content.includes('合同审计'), `${label} must define contract audit rules`);
 }
 includesAll(serverDesign, ['economy_contract_audit_contracts', 'economy_contract_audit_events', 'economy_contract_audit_transfers', '/api/game/contracts/history', '/api/game/contracts/:contractId/audit', '终态摘要'], 'server contract audit design');
-includesAll(pageDesign, ['单张一级', 'PagePanel', '合同内容、结束原因、结束时间、完成情况、结束统计', '重新拟定', '不加载审计事件时间线'], 'page contract history design');
+includesAll(serverDesign, ['合同实际参与者访问', '放贷、贷款、出租、租赁', '第三方不可见'], 'contract audit participant visibility design');
+includesAll(pageDesign, ['单张一级', 'PagePanel', '合同内容、结束原因、结束时间、完成事实、结束统计', '重新拟定', '不加载审计事件时间线'], 'page contract history design');
+
+includesAll(auditStore, ["'$.lenderId'", "'$.borrowerId'", "'$.lessorId'", "'$.lesseeId'"], 'commercial contract audit participant visibility');
 
 console.log('Contract audit and compact history verification passed.');

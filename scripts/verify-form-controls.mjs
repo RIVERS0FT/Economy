@@ -64,7 +64,7 @@ const adminGiftCodesPath = 'src/components/AdminGiftCodesSection.tsx';
   adminGiftCodesPath,
   'src/pages/MarketPage.tsx',
   'src/pages/AuctionPage.tsx',
-  'src/pages/ContractPage.tsx',
+  'src/pages/ContractWorkspacePage.tsx',
   'src/pages/GemShopPage.tsx',
   'src/pages/SettingsPage.tsx',
   'src/pages/BuildingsPage.tsx',
@@ -241,7 +241,7 @@ for (const path of [
   adminGiftCodesPath,
   'src/pages/MarketPage.tsx',
   'src/pages/AuctionPage.tsx',
-  'src/pages/ContractPage.tsx',
+  'src/pages/ContractWorkspacePage.tsx',
   'src/pages/GemShopPage.tsx',
 ]) {
   requireText(path, 'parseIntegerDraft');
@@ -252,7 +252,7 @@ for (const path of [
   adminGiftCodesPath,
   'src/pages/MarketPage.tsx',
   'src/pages/AuctionPage.tsx',
-  'src/pages/ContractPage.tsx',
+  'src/pages/ContractWorkspacePage.tsx',
   'src/pages/GemShopPage.tsx',
   'src/pages/SettingsPage.tsx',
   'src/pages/BuildingsPage.tsx',

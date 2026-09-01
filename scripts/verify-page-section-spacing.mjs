@@ -27,15 +27,15 @@ const paths = {
 
 Object.values(paths).forEach(requireFile);
 
-  if (failures.length === 0) {
-    for (const text of [
-      "'page-content',",
-      "pageNavigation && 'page-content--player'",
-      "pageNavigation && !scrollable && 'page-content--fixed-body'",
-      '<div className="page-fixed-header">',
-      'className="page-card-scroll-area"',
-      'className="page-card-static"',
-      '<div className="ui-page-stack">',
+if (failures.length === 0) {
+  for (const text of [
+    "'page-content',",
+    "pageNavigation && 'page-content--player'",
+    "pageNavigation && !scrollable && 'page-content--fixed-body'",
+    '<div className="page-fixed-header">',
+    'className="page-card-scroll-area"',
+    'className="page-card-static"',
+    '<div className="ui-page-stack">',
     '{children}',
   ]) requireText(paths.layout, text);
 
@@ -66,13 +66,23 @@ Object.values(paths).forEach(requireFile);
   const fullWorkspacePageExceptions = new Map([
     ['src/pages/MapPage.tsx', 'className="province-map-page"'],
   ]);
+  const zeroDomRouteWrapperExceptions = new Map([
+    ['src/pages/ContractPage.tsx', [
+      "import { ContractWorkspacePage } from './ContractWorkspacePage';",
+      'return <ContractWorkspacePage model={model} />;',
+    ]],
+  ]);
 
   if (formalPages.length < 9) failures.push(`正式页面数量异常，当前仅发现 ${formalPages.length} 个 *${formalPageSuffix}`);
 
   for (const path of [...formalPages, paths.admin]) {
     const fullWorkspaceRoot = fullWorkspacePageExceptions.get(path);
+    const routeWrapperTokens = zeroDomRouteWrapperExceptions.get(path);
     if (fullWorkspaceRoot) {
       requireText(path, fullWorkspaceRoot);
+      forbidText(path, '<PageLayout');
+    } else if (routeWrapperTokens) {
+      for (const token of routeWrapperTokens) requireText(path, token);
       forbidText(path, '<PageLayout');
     } else {
       requireText(path, '<PageLayout');
@@ -97,6 +107,7 @@ Object.values(paths).forEach(requireFile);
     '`--page-section-gap` 映射为当前 `var(--layout-gutter)`',
     '不得为特殊页面增加 `disableSpacing`',
     '地图页是唯一全工作区例外',
+    '稳定路由可以保留零 DOM 的薄 `*Page.tsx` 包装器',
     '`scripts/verify-page-section-spacing.mjs`',
   ]) requireText(paths.uiDesign, text);
 
@@ -124,4 +135,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('页面一级区块统一间距验证通过：PageLayout 自动内容栈、研发固定正文例外、地图全工作区例外、外壳沟槽映射、直接子元素外边距清理、新页面扫描、设计权威与真实几何回归均已锁定。');
+console.log('页面一级区块统一间距验证通过：PageLayout 自动内容栈、零 DOM 路由包装器、研发固定正文例外、地图全工作区例外、外壳沟槽映射、直接子元素外边距清理、新页面扫描、设计权威与真实几何回归均已锁定。');

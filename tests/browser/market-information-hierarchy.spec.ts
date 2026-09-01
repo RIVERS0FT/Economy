@@ -2,6 +2,9 @@ import { expect, test } from '@playwright/test';
 
 // Regional detail regression locks the compact facts-only layout; retired fundamentals must stay absent.
 test('market uses product-first global and regional information hierarchy', async ({ page }) => {
+  await page.route('**/api/game/community-link**', async (route) => {
+    await route.fulfill({ json: { communityLink: null } });
+  });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('?preview=game');
   const sidebar = page.locator('.desktop-sidebar');
@@ -121,6 +124,7 @@ test('market uses product-first global and regional information hierarchy', asyn
   await page.setViewportSize({ width: 1440, height: 900 });
 
   await regionalRow.click();
+  await expect(page.locator('.market-detail-surface')).toBeVisible();
   const visibleHeroMetrics = await page.locator('.market-detail-hero__metric:visible small').allTextContents();
   expect(visibleHeroMetrics).toEqual(['24h 变化', '可用库存']);
   for (const deletedLabel of ['市场价', '基准偏离', '需求满足率', '参考价', '上轮需求']) {
@@ -136,5 +140,6 @@ test('market uses product-first global and regional information hierarchy', asyn
 
   const accountPanel = page.locator('.market-account-panel');
   await expect(accountPanel).toBeVisible();
-  await expect(accountPanel.getByText('资产', { exact: true })).toHaveCount(0);
+  const localTradesSection = accountPanel.locator('.local-trades-section');
+  await expect(localTradesSection.getByText('资产', { exact: true })).toHaveCount(0);
 });

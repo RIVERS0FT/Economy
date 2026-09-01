@@ -75,7 +75,8 @@ const buildSelectStyles = read('src/styles/facility-build-select.css');
 const pageRouter = read('src/pages/PageRouter.tsx');
 const formControls = read('src/components/ui/FormControls.tsx');
 const availabilityScope = read('src/components/facilities/FacilitySelectAvailabilityScope.tsx');
-const contractPage = read('src/pages/ContractPage.tsx');
+const contractRoute = read('src/pages/ContractPage.tsx');
+const contractWorkspace = read('src/pages/ContractWorkspacePage.tsx');
 const browserTest = read('tests/browser/production-facility-cards.spec.ts');
 const design = read('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md');
 
@@ -190,12 +191,17 @@ requireText(
   'page-wide facility select availability scope',
 );
 requireText(
-  contractPage,
+  contractRoute,
+  "import { ContractWorkspacePage } from './ContractWorkspacePage';",
+  'contract route delegates to current workspace',
+);
+requireText(
+  contractWorkspace,
   'label="抵押工厂"',
   'contract collateral facility selector',
 );
 requireText(
-  contractPage,
+  contractWorkspace,
   'label="租赁工厂"',
   'contract lease facility selector',
 );

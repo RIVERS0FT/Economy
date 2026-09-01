@@ -8,13 +8,11 @@ export type ProductionContractRoundStatus = 'preparing' | 'ready' | 'grace';
 export type ContractAuditCompleteness = 'full' | 'legacy_partial';
 
 export interface ProductionContractNegotiationTerms {
-  quantityPerDelivery: number;
+  dailyMaxQuantity: number;
   unitPrice: number;
-  deliveryIntervalMs: number;
-  totalDeliveries: number | null;
-  firstDeliveryDelayMs: number;
+  durationDays: number | null;
+  startDelayDays: number;
 }
-
 export interface ProductionContractNegotiation {
   id: string;
   revision: number;
@@ -26,7 +24,6 @@ export interface ProductionContractNegotiation {
   isProposer: boolean;
   awaitingMyResponse: boolean;
 }
-
 export interface ProductionContractRenewalProposal {
   id: string;
   status: 'proposed' | 'accepted' | 'activated';
@@ -56,6 +53,11 @@ export interface ProductionContractRenewalProposal {
   supplierBondCredits: number;
   supplierReservedQuantity: number;
 }
+export interface SupplyPriorityCondition {
+  enabled: boolean;
+  minDailyProduction: number;
+  minContractPrice: number;
+}
 
 export interface ProductionContract {
   id: string;
@@ -70,14 +72,9 @@ export interface ProductionContract {
   buyerName: string | null;
   supplierId: number | null;
   supplierName: string | null;
+  provinceId?: string;
   productId: string;
-  quantityPerDelivery: number;
   unitPrice: number;
-  batchGross: number;
-  deliveryIntervalMs: number;
-  totalDeliveries: number | null;
-  completedDeliveries: number;
-  firstDeliveryDelayMs: number;
   createdAt: number;
   offerExpiresAt: number;
   acceptedAt?: number;
@@ -92,11 +89,6 @@ export interface ProductionContract {
   supplierBondCredits: number;
   buyerAutoFund: boolean;
   supplierAutoReserve: boolean;
-  renewalProposal?: ProductionContractRenewalProposal | null;
-  negotiations?: ProductionContractNegotiation[];
-  renewedFromContractId?: string;
-  renewedToContractId?: string;
-  renewalCancellationReason?: string;
   terminationRequestedBy?: number;
   terminationReason?: string;
   endedAt?: number;
@@ -107,16 +99,44 @@ export interface ProductionContract {
   isSupplier: boolean;
   isParticipant?: boolean;
 
+  supplyMode?: 'daily';
+  contractSchemaVersion?: number;
+  dailyMaxQuantity?: number;
+  dailyUsedQuantity?: number;
+  dailyRemainingQuantity?: number;
+  dailyGrossLimit?: number;
+  totalDeliveredQuantity?: number;
+  completedDeliveryEvents?: number;
+  lastDeliveryQuantity?: number;
+  durationDays?: number | null;
+  startDelayDays?: number;
+  startsAt?: number | null;
+  endsAt?: number | null;
+  prioritySupply?: SupplyPriorityCondition;
+  negotiations?: ProductionContractNegotiation[];
+
+  /** Legacy finite-batch supply compatibility. */
+  quantityPerDelivery: number;
+  batchGross: number;
+  deliveryIntervalMs: number;
+  totalDeliveries: number | null;
+  completedDeliveries: number;
+  firstDeliveryDelayMs: number;
+  renewalProposal?: ProductionContractRenewalProposal | null;
+  renewedFromContractId?: string;
+  renewedToContractId?: string;
+  renewalCancellationReason?: string;
+
   lenderId?: number | null;
   lenderName?: string | null;
   borrowerId?: number | null;
   borrowerName?: string | null;
-  provinceId?: string;
   principal?: number;
   principalOutstanding?: number;
   interestRateBps?: number;
   interestDue?: number;
   termMs?: number;
+  termDays?: number;
   dueAt?: number | null;
   collateralQuantity?: number;
   collateralUnitValue?: number;
@@ -135,9 +155,11 @@ export interface ProductionContract {
   quantity?: number;
   rentPerPeriod?: number;
   periodMs?: number;
+  periodDays?: number;
   totalPeriods?: number;
   completedPeriods?: number;
   firstPeriodDelayMs?: number;
+  firstPeriodDelayDays?: number;
   lesseeEscrowCredits?: number;
   lesseeBondCredits?: number;
   lessorBondCredits?: number;
@@ -146,8 +168,7 @@ export interface ProductionContract {
   isLessee?: boolean;
 }
 
-export type ContractCompletionUnit = 'delivery' | 'repayment' | 'lease_period';
-
+export type ContractCompletionUnit = 'delivery' | 'quantity' | 'repayment' | 'lease_period';
 export interface ContractEndSettlementSummary {
   grossTotal: number;
   feeTotal: number;
@@ -163,19 +184,12 @@ export interface ContractEndSettlementSummary {
   collateralReceivedByMe: number;
   collateralReturnedToMe: number;
 }
-
 export interface ContractEndSummary {
   reasonCode: string;
   endedAt: number;
-  completion: {
-    completed: number;
-    total: number | null;
-    unit: ContractCompletionUnit;
-    ratioBps: number | null;
-  };
+  completion: { completed: number; total: number | null; unit: ContractCompletionUnit; ratioBps: number | null };
   settlement: ContractEndSettlementSummary;
 }
-
 export interface ContractAuditHistoryItem extends Omit<ProductionContract, 'issue'> {
   issue: string | null;
   auditCompleteness: ContractAuditCompleteness;
@@ -188,7 +202,6 @@ export interface ContractAuditHistoryItem extends Omit<ProductionContract, 'issu
   compensationTotal: number;
   endSummary: ContractEndSummary;
 }
-
 export interface ContractAuditTransfer {
   assetType: 'credits' | 'commodity';
   productId: string | null;
@@ -201,7 +214,6 @@ export interface ContractAuditTransfer {
   toAccount: string;
   purpose: string;
 }
-
 export interface ContractAuditEvent {
   sequence: number;
   eventType: string;
@@ -215,61 +227,16 @@ export interface ContractAuditEvent {
   metadata: Record<string, unknown>;
   transfers: ContractAuditTransfer[];
 }
-
-export interface ContractAuditHistoryPage {
-  items: ContractAuditHistoryItem[];
-  nextCursor: string | null;
-}
-
-export interface ContractPerformanceRecentItem {
-  id: string;
-  kind: ContractKind;
-  status: ProductionContractStatus;
-  endedAt: number;
-  reasonCode: string;
-  completionRatioBps: number;
-}
-
-export interface ContractPerformanceSummary {
-  totalEnded: number;
-  completed: number;
-  abnormalEnded: number;
-  defaulted: number;
-  completionRateBps: number;
-  compensationPaid: number;
-  compensationReceived: number;
-  recent: ContractPerformanceRecentItem[];
-}
-
-export interface ContractAuditDetail {
-  contract: ContractAuditHistoryItem;
-  events: ContractAuditEvent[];
-  nextCursor: string | null;
-}
-
-export interface ProductionContractSummary {
-  active: number;
-  open: number;
-  needsAttention: number;
-  upcomingWithin24Hours: number;
-}
-
-export interface ProductionContractState {
-  productionContracts: ProductionContract[];
-  productionContractSummary: ProductionContractSummary;
-}
-
-const EMPTY_SUMMARY: ProductionContractSummary = {
-  active: 0,
-  open: 0,
-  needsAttention: 0,
-  upcomingWithin24Hours: 0,
-};
+export interface ContractAuditHistoryPage { items: ContractAuditHistoryItem[]; nextCursor: string | null }
+export interface ContractPerformanceRecentItem { id: string; kind: ContractKind; status: ProductionContractStatus; endedAt: number; reasonCode: string; completionRatioBps: number }
+export interface ContractPerformanceSummary { totalEnded: number; completed: number; abnormalEnded: number; defaulted: number; completionRateBps: number; compensationPaid: number; compensationReceived: number; recent: ContractPerformanceRecentItem[] }
+export interface ContractAuditDetail { contract: ContractAuditHistoryItem; events: ContractAuditEvent[]; nextCursor: string | null }
+export interface ProductionContractSummary { active: number; open: number; needsAttention: number; upcomingWithin24Hours: number }
+export interface ProductionContractState { productionContracts: ProductionContract[]; productionContractSummary: ProductionContractSummary }
 
 export function productionContractStateFromGame(game: EconomyState): ProductionContractState {
-  const state = game as EconomyState & Partial<ProductionContractState>;
   return {
-    productionContracts: Array.isArray(state.productionContracts) ? state.productionContracts : [],
-    productionContractSummary: state.productionContractSummary ?? EMPTY_SUMMARY,
+    productionContracts: game.productionContracts ?? [],
+    productionContractSummary: game.productionContractSummary ?? { active: 0, open: 0, needsAttention: 0, upcomingWithin24Hours: 0 },
   };
 }
