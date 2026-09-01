@@ -232,14 +232,27 @@ export interface TransportStopPlanEntry {
   deliveredAt?: number | null;
 }
 
+export interface TransportManifestItem {
+  productId: string;
+  destinationProvinceId: string;
+  quantity: number;
+}
+
+export interface TransportLegPlanEntry {
+  fromProvinceId: string;
+  toProvinceId: string;
+  departsAt: number;
+  arrivesAt: number;
+  remainingLoad: number;
+}
+
 export interface TransportRoute {
   id: string;
+  name: string;
   sourceProvinceId: string;
   destinationProvinceId: string;
   viaProvinceIds?: string[];
   tripType?: TransportTripType;
-  productId: string;
-  quantity: number;
   mode: TransportModeId;
   createdAt: number;
   updatedAt: number;
@@ -248,13 +261,14 @@ export interface TransportRoute {
 export interface TransportShipment {
   id: string;
   routeId?: string;
+  routeName?: string;
   sourceProvinceId: string;
   destinationProvinceId: string;
   viaProvinceIds?: string[];
   tripType?: TransportTripType;
-  stopPlan?: TransportStopPlanEntry[];
-  productId: string;
-  quantity: number;
+  stopPlan: TransportStopPlanEntry[];
+  legPlan: TransportLegPlanEntry[];
+  manifest: TransportManifestItem[];
   mode: TransportModeId;
   cost: number;
   departsAt: number;
@@ -659,7 +673,7 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState {
-  version: 38;
+  version: 39;
   userId: number;
   playerName: string;
   startingProvinceId: string;

@@ -6,24 +6,19 @@ function provinceRegion(page: import('@playwright/test').Page, provinceName: str
   return page.locator(`.province-map-region[data-province-name="${provinceName}"]`);
 }
 
-test('transport route editor picks ordered stops on the strategic map and supports loops', async ({ page }) => {
+test('transport route editor picks ordered stops directly on the strategic map and supports loops', async ({ page }) => {
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^运输/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: '运输' })).toBeVisible();
 
   await page.locator('.transport-page-actions').getByRole('button', { name: '增加路线', exact: true }).click();
-  await expect(page.locator('.transport-route-editor')).toBeVisible();
-  await expect(page.locator('.transport-route-stop-chip')).toHaveCount(2);
-
-  await page.getByRole('button', { name: '在地图上选择', exact: true }).click();
   const map = page.getByTestId('us-mainland-map');
-  await expect(map).toHaveAttribute('data-route-picking', 'true');
-  await expect(page.locator('.province-map-region[data-route-pickable="true"]')).not.toHaveCount(0);
   const pickingBar = page.locator('.transport-map-picking-bar');
+  await expect(map).toHaveAttribute('data-route-picking', 'true');
   await expect(pickingBar).toBeVisible();
-
-  await pickingBar.getByRole('button', { name: '重置站点', exact: true }).click();
   await expect(pickingBar).toHaveAttribute('data-picking-stop-count', '0');
+  await expect(page.locator('.transport-route-draft-panel')).toHaveCount(0);
+  await expect(page.locator('.province-map-region[data-route-pickable="true"]')).not.toHaveCount(0);
 
   await provinceRegion(page, '加利福尼亚').click();
   await expect(pickingBar).toHaveAttribute('data-picking-stop-count', '1');
@@ -48,12 +43,13 @@ test('transport route editor picks ordered stops on the strategic map and suppor
   await pickingBar.getByRole('button', { name: '完成选择', exact: true }).click();
   await expect(map).toHaveAttribute('data-route-picking', 'false');
   await expect(pickingBar).toHaveCount(0);
-  await expect(page.locator('.transport-route-stop-chip')).toHaveCount(4);
-  await expect(page.locator('.transport-route-stop-chip[data-stop-role="end"]')).toHaveText(/环/);
-  await expect(page.getByRole('combobox', { name: '行程' })).toBeDisabled();
+  const pendingDraft = page.locator('.transport-route-draft-panel');
+  await expect(pendingDraft).toBeVisible();
+  await expect(pendingDraft.locator('.transport-route-path-stop')).toHaveCount(4);
+  await expect(pendingDraft.getByText('环线', { exact: true })).toBeVisible();
   await expect(draftRoute).toHaveAttribute('data-route-stop-count', '4');
 
-  await page.getByRole('button', { name: '取消', exact: true }).click();
-  await expect(page.locator('.transport-route-editor')).toHaveCount(0);
+  await pendingDraft.getByRole('button', { name: '取消修改', exact: true }).click();
+  await expect(pendingDraft).toHaveCount(0);
   await expect(page.locator('.province-map-route[data-route-kind="draft"]')).toHaveCount(0);
 });
