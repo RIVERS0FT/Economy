@@ -72,19 +72,25 @@ p.write_text(text)
 # 4. Lock the repaired synchronization and local-geometry semantics into static guards.
 p = Path('scripts/verify-market-information-hierarchy.mjs')
 text = p.read_text()
-needle = "await expect(page.locator('.market-detail-surface')).toBeVisible();"
-if needle not in text:
-    marker = "'market-detail-hero__metric:visible small'"
+line = "requireText(hierarchyBrowserSpec, \"await expect(page.locator('.market-detail-surface')).toBeVisible();\", 'regional market browser waits for authoritative detail surface');"
+if line not in text:
+    marker = "const warehouseVerifier = read('scripts/verify-warehouse-expansion.mjs');"
     if marker not in text:
-        raise SystemExit('market information verifier browser marker missing')
-    text = text.replace(marker, marker + ",\n  \"await expect(page.locator('.market-detail-surface')).toBeVisible();\"", 1)
+        raise SystemExit('market information verifier constant anchor missing')
+    text = text.replace(marker, marker + '\n' + line, 1)
 p.write_text(text)
 
 p = Path('scripts/verify-market-order-entry-compact.mjs')
 text = p.read_text()
-if 'requireStepperBox' not in text:
+if "'requireStepperBox'," not in text:
     marker = "'embedded market steppers keep stable geometry through press and disabled states',"
     if marker not in text:
         raise SystemExit('market order entry verifier browser marker missing')
     text = text.replace(marker, marker + "\n  'requireStepperBox',", 1)
+if "以同一 `.market-stepper` 本地容器为坐标基准" not in text:
+    marker = "  'wheelStep={0.01}',\n]) requireText(orderDesignPath, text);"
+    replacement = "  'wheelStep={0.01}',\n  '以同一 `.market-stepper` 本地容器为坐标基准',\n]) requireText(orderDesignPath, text);"
+    if marker not in text:
+        raise SystemExit('market order design verifier anchor missing')
+    text = text.replace(marker, replacement, 1)
 p.write_text(text)
