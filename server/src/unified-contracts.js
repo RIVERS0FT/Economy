@@ -22,6 +22,14 @@ function partitionContracts(world) {
   const legacy = original.filter((contract) => !isDailySupplyContract(contract));
   return { original, daily, legacy };
 }
+
+function legacyWorldView(world, legacy) {
+  const original = world.productionContracts || [];
+  return legacy.length === original.length
+    ? world
+    : { ...world, productionContracts: legacy };
+}
+
 function runLegacy(world, callback) {
   const { original, daily, legacy } = partitionContracts(world);
   world.productionContracts = legacy;
@@ -118,9 +126,12 @@ function dailyVisibleContracts(world, userId, now) {
 }
 
 export function createProductionContractClientState(world, userId, now = Date.now()) {
-  migrateProductionContractWorld(world, now);
-  let legacyState = null;
-  runLegacy(world, () => { legacyState = createLegacyProductionContractClientState(world, userId, now); });
+  const { legacy } = partitionContracts(world);
+  const legacyState = createLegacyProductionContractClientState(
+    legacyWorldView(world, legacy),
+    userId,
+    now,
+  );
   const legacyContracts = (legacyState?.productionContracts || []).map(enrichCommercialDays);
   const dailyContracts = dailyVisibleContracts(world, userId, now);
   const productionContracts = [...legacyContracts, ...dailyContracts];
