@@ -23,6 +23,9 @@ const sourceFiles = (directory) => readdirSync(resolve(root, directory), { withF
 const componentPath = 'src/components/ui/FormControls.tsx';
 const richSelectPath = 'src/components/ui/RichSelectInput.tsx';
 const safeTooltipPath = 'src/components/ui/SafeTooltip.tsx';
+const gameConceptPath = 'src/components/ui/GameConcept.tsx';
+const gameConceptCatalogPath = 'src/game-guide/gameConcepts.ts';
+const safeFloatingStylePath = 'src/styles/safe-floating.css';
 const topLayerPath = 'src/components/ui/topLayer.ts';
 const draftPath = 'src/utils/integerDraft.ts';
 const stylePath = 'src/styles/form-controls.css';
@@ -41,6 +44,9 @@ const adminGiftCodesPath = 'src/components/AdminGiftCodesSection.tsx';
   componentPath,
   richSelectPath,
   safeTooltipPath,
+  gameConceptPath,
+  gameConceptCatalogPath,
+  safeFloatingStylePath,
   topLayerPath,
   draftPath,
   stylePath,
@@ -122,14 +128,52 @@ for (const text of [
 
 for (const text of [
   'supportsTopLayerPopover()',
+  'useWorkspaceTooltipLayer()',
+  'const topLayerActive = supportsTopLayerPopover() && Boolean(tooltipLayer);',
   'showTopLayerPopover(tooltip)',
   'hideTopLayerPopover(tooltip)',
-  "popover={topLayerSupported ? 'manual' : undefined}",
-  "data-top-layer={topLayerSupported ? 'true' : undefined}",
-  "position: topLayerSupported ? 'fixed' : undefined",
-  "zIndex: topLayerSupported ? 'auto' : undefined",
-  'createPortal(',
+  "popover={topLayerActive ? 'manual' : undefined}",
+  "data-top-layer={topLayerActive ? 'true' : undefined}",
+  "position: topLayerActive ? 'fixed' : undefined",
+  "zIndex: topLayerActive ? 'auto' : undefined",
+  'const portalTarget = tooltipLayer',
+  'createPortal(tooltipNode, portalTarget)',
+  'anchorTabIndex?: number;',
+  "event.pointerType !== 'mouse'",
 ]) requireText(safeTooltipPath, text);
+for (const forbidden of [
+  "popover={topLayerSupported ? 'manual' : undefined}",
+]) forbidText(safeTooltipPath, forbidden);
+
+for (const text of [
+  'export function GameConcept',
+  'gameConceptDefinition',
+  'className="game-concept-anchor"',
+  'anchorRole="term"',
+  'anchorTabIndex={0}',
+  'data-game-concept={concept}',
+]) requireText(gameConceptPath, text);
+for (const text of [
+  'export const GAME_CONCEPTS',
+  "'production-settlement'",
+  "'production-input'",
+  "'production-output'",
+  'export type GameConceptId',
+]) requireText(gameConceptCatalogPath, text);
+for (const text of [
+  '.workspace-tooltip-layer {',
+  'pointer-events: none !important;',
+  '.workspace-tooltip-layer > * {',
+  '.province-map-static-tooltip[popover] {',
+  '.game-concept-text {',
+  'text-decoration-style: dotted;',
+  'text-underline-offset: .18em;',
+  '.game-concept-anchor:focus-visible',
+]) requireText(safeFloatingStylePath, text);
+for (const forbidden of [
+  ".workspace-tooltip-layer[data-top-layer='true']",
+  '.workspace-tooltip-layer::backdrop',
+]) forbidText(safeFloatingStylePath, forbidden);
 
 for (const text of [
   'export function supportsTopLayerPopover',
@@ -246,6 +290,13 @@ for (const text of [
   '`aria-label` 中保留完整数量和来源',
   '只显示 `1`～`99` 或 `99+`',
   '根级 Dialog 内的 `RichSelectInput` 列表继续复用该 Dialog 根作为安全定位边界并位于详情 Sheet 表面之上',
+  '`GameConcept`',
+  '点状信息色下划线',
+  '`.workspace-tooltip-layer`',
+  '唯一共享 Tooltip 宿主',
+  'Tooltip Layer 只负责 DOM 归属与工作区安全几何',
+  '不得给 `.workspace-tooltip-layer` 本身添加 `popover`',
+  '实际 `SafeTooltip` 与地图 Tooltip 节点分别使用浏览器 Popover Top Layer',
   'Tooltip 回归还必须读取真实计算样式验证共享半透明毛玻璃',
   '不能只检查类名、`z-index` 或 Option 字符串',
 ]) requireText(designDocPath, text);
@@ -262,8 +313,12 @@ for (const text of [
   'mobile bottom navigation keeps its compact reminder badge while a sheet hides the navigation',
 ]) requireText(sidebarBadgeTestPath, text);
 for (const text of [
-  'mobile production rich selects use the browser top layer above the factory detail page',
-  "element.matches(':popover-open')",
+  'mobile production overlays use the browser top layer above the factory detail page',
+  '.workspace-tooltip-layer',
+  "not.toHaveAttribute('popover', 'manual')",
+  'data-game-concept="production-settlement"',
+  'textDecorationStyle',
+  "conceptTooltip.evaluate((element) => element.matches(':popover-open'))",
   'document.elementFromPoint(',
   'expectTopLayerHitTarget',
   "toHaveAttribute('data-top-layer', 'true')",
@@ -276,8 +331,8 @@ for (const text of [
 ]) requireText(unifiedSelectTestPath, text);
 
 if (failures.length) {
-  console.error(`统一表单、顶层浮层与统一导航角标验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`统一表单、顶层浮层、游戏名词与统一导航角标验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('统一表单、统一可见下拉、受控生产配置变体、顶层浮层、数字草稿、整数输入滚轮归属、统一导航角标与移动端尺寸验证通过。');
+console.log('统一表单、统一可见下拉、受控生产配置变体、共享 Tooltip 宿主与逐节点 Top Layer、游戏名词、数字草稿、整数输入滚轮归属、统一导航角标与移动端尺寸验证通过。');

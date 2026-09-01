@@ -73,11 +73,14 @@ requireText('src/components/charts/EconomyChart.tsx', [
   'onChartReadyRef.current?.(chart)', 'onOptionAppliedRef.current?.(chart)',
   'hasRenderableSize', 'if (!hasRenderableSize(container)) return;',
   "chart.on('click', handleClick)", "chart.off('click', handleClick)",
+  'useWorkspaceTooltipLayer', 'optionWithTooltipLayer', 'appendTo: tooltipLayer',
+  "dataset.echartsTooltipLayer = tooltipLayer ? 'workspace' : 'local'",
 ]);
 requireText('src/components/provinces/UsMainlandMap.tsx', [
   'province-map-world-svg', 'province-map-camera-surface', 'province-map-region',
   'createProvinceMapCamera', 'createProvinceMapProjection', 'layoutProvinceMapLabels',
   "className=\"economy-chart-tooltip ui-tooltip-surface province-map-tooltip province-map-static-tooltip\"",
+  'useWorkspaceTooltipLayer', 'createPortal(tooltipNode, tooltipLayer)',
 ]);
 forbidText('src/components/provinces/UsMainlandMap.tsx', [
   '<EconomyChart', "type: 'map'", 'registerEChartsMap', 'geoRoam', 'dispatchAction',
@@ -98,13 +101,16 @@ requireText('src/main.tsx', ["import './styles/charts.css';"]);
 requireText('tests/browser/chart-hover-visibility.spec.ts', [
   'data-echarts-css-colors-resolved', 'assertStableHover', 'economy-chart-tooltip', 'callback-color-chart',
 ]);
+requireText('tests/browser/shell-floating-safe-zone.spec.ts', [
+  'data-echarts-tooltip-layer', '.workspace-tooltip-layer', "element.matches(':popover-open')",
+]);
 requireText('docs/UI_DESIGN_SYSTEM.md', [
   '`EconomyChart` 是业务数据图表的唯一 React 入口', '不得引入 `echarts-for-react`',
   '战略地图不属于业务数据图表', '静态 SVG 世界面',
   '图表容器宽或高为 `0` 时必须延迟 `setOption` 并跳过 `resize`',
   '`PIE_PAD_ANGLE = 5`', '`padAngle: PIE_PAD_ANGLE`', 'STABLE_TOOLTIP_EMPHASIS',
   '不得把 `var(--color-*)` 原样交给 ZRender', '每次 `setOption` 前读取图表容器的浏览器计算样式',
-  '`commonTooltip`', '`.ui-tooltip-surface`',
+  '`commonTooltip`', '`.ui-tooltip-surface`', '`.workspace-tooltip-layer`', '`appendTo`',
 ]);
 requireText('docs/MARKET_CHART_LAYOUT_DESIGN.md', ['ECharts SVG', '双 Grid', '稳定 `data-*`']);
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', ['玩家运营图统一使用共享 `EconomyChart`', '人口分析图统一使用共享 `EconomyChart`']);
@@ -125,4 +131,4 @@ if (failures.length) {
   console.error(`ECharts 架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('ECharts 架构验证通过：唯一 EconomyChart 继续负责业务数据图表，战略地图使用独立静态 SVG 世界面与合成相机；统一 commonTooltip 毛玻璃材质、精确依赖、SVG 按需模块、生命周期、无障碍、市场动态几何、统一 Pie padAngle 及管理员与资产图表均已锁定。');
+console.log('ECharts 架构验证通过：唯一 EconomyChart 继续负责业务数据图表，战略地图使用独立静态 SVG 世界面与合成相机；统一 commonTooltip 进入共享 Top Layer Tooltip 宿主，毛玻璃材质、精确依赖、SVG 按需模块、生命周期、无障碍、市场动态几何、统一 Pie padAngle 及管理员与资产图表均已锁定。');
