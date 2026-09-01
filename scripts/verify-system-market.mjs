@@ -37,6 +37,8 @@ requireText(design, '玩家间每笔成交同时包含买卖双方，不得计�
 requireText(design, 'world.systemMarketAudit', '订单簿权威设计必须记录系统成交审计。');
 requireText(design, '人口消费订单和市场储备订单不是官方系统价的对手方', '订单簿权威设计必须限定系统只与玩家清算。');
 requireText(design, '只清算恰好等于新系统价的玩家订单', '订单簿权威设计必须锁定精确相等清算。');
+requireText(design, '一级商品目录的“市场价”只取当前玩家全部已解锁地区 `officialPrice` 的简单平均', '订单簿权威设计必须锁定一级市场官方系统价只作为跨地区只读摘要。');
+requireText(design, '地区商品详情顶部也不显示官方系统价，只保留真实 24h 变化和当前可用库存', '订单簿权威设计必须锁定地区商品详情不恢复官方系统价指标。');
 requireText(index, 'scripts/verify-system-market.mjs', '设计索引必须登记系统市场验证脚本。');
 requireText(productDesign, '每个州×商品维护唯一官方系统价', '产品设计必须记录官方系统价市场。');
 requireText(serverDesign, 'world.systemMarketAudit', '服务器设计必须记录系统成交审计 segment。');
