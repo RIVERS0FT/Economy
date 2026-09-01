@@ -37,6 +37,8 @@ const orderBookDesign = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
 const chartDesign = read('docs/MARKET_CHART_LAYOUT_DESIGN.md');
 const hierarchyBrowserSpec = read('tests/browser/market-information-hierarchy.spec.ts');
 const warehouseVerifier = read('scripts/verify-warehouse-expansion.mjs');
+requireText(hierarchyBrowserSpec, "await expect(page.locator('.market-detail-surface')).toBeVisible();", 'regional market browser waits for authoritative detail surface');
+requireText(hierarchyBrowserSpec, "accountPanel.locator('.local-trades-section')", 'local trade asset-column assertion stays scoped to local trades');
 const recipeProfitVerifier = read('scripts/verify-recipe-profit-analysis.mjs');
 
 for (const token of [

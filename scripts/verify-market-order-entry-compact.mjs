@@ -70,6 +70,7 @@ for (const text of [
   '桌面端和移动端订单簿使用同一信息结构',
   '不渲染“档位／价格／数量”表头或真实最近成交价“最新”分隔行',
   'wheelStep={0.01}',
+  '以同一 `.market-stepper` 本地容器为坐标基准',
 ]) requireText(orderDesignPath, text);
 
 for (const text of [
@@ -88,6 +89,7 @@ for (const text of [
   'market order fields keep labels and embedded steppers on one row',
   'focused market price input owns the wheel in 0.01 steps',
   'embedded market steppers keep stable geometry through press and disabled states',
+  'requireStepperBox',
   'market order book yields width to the order entry on desktop and mobile',
 ]) requireText(browserPath, text);
 

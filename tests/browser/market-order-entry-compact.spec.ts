@@ -6,6 +6,21 @@ async function requireBox(locator: Locator) {
   return box!;
 }
 
+async function requireStepperBox(locator: Locator) {
+  return locator.evaluate((element) => {
+    const stepper = element.closest('.market-stepper');
+    if (!(stepper instanceof HTMLElement)) throw new Error('market stepper parent is missing');
+    const elementBox = element.getBoundingClientRect();
+    const stepperBox = stepper.getBoundingClientRect();
+    return {
+      x: elementBox.x - stepperBox.x,
+      y: elementBox.y - stepperBox.y,
+      width: elementBox.width,
+      height: elementBox.height,
+    };
+  });
+}
+
 async function expectEmbeddedStepper(
   input: Locator,
   label: Locator,
@@ -88,11 +103,11 @@ test('embedded market steppers keep stable geometry through press and disabled s
   await quantityInput.blur();
   await expect(quantityInput).toHaveValue(String(maxQuantity - 1));
   await expect(quantityIncrease).toBeEnabled();
-  const increaseBefore = await requireBox(quantityIncrease);
+  const increaseBefore = await requireStepperBox(quantityIncrease);
   await quantityIncrease.click();
   await expect(quantityInput).toHaveValue(String(maxQuantity));
   await expect(quantityIncrease).toBeDisabled();
-  const increaseAfter = await requireBox(quantityIncrease);
+  const increaseAfter = await requireStepperBox(quantityIncrease);
   expect(Math.abs(increaseAfter.x - increaseBefore.x)).toBeLessThan(0.5);
   expect(Math.abs(increaseAfter.y - increaseBefore.y)).toBeLessThan(0.5);
   expect(Math.abs(increaseAfter.width - increaseBefore.width)).toBeLessThan(0.5);
@@ -102,11 +117,11 @@ test('embedded market steppers keep stable geometry through press and disabled s
   await quantityInput.blur();
   await expect(quantityInput).toHaveValue('2');
   await expect(quantityDecrease).toBeEnabled();
-  const decreaseBefore = await requireBox(quantityDecrease);
+  const decreaseBefore = await requireStepperBox(quantityDecrease);
   await quantityDecrease.click();
   await expect(quantityInput).toHaveValue('1');
   await expect(quantityDecrease).toBeDisabled();
-  const decreaseAfter = await requireBox(quantityDecrease);
+  const decreaseAfter = await requireStepperBox(quantityDecrease);
   expect(Math.abs(decreaseAfter.x - decreaseBefore.x)).toBeLessThan(0.5);
   expect(Math.abs(decreaseAfter.y - decreaseBefore.y)).toBeLessThan(0.5);
   expect(Math.abs(decreaseAfter.width - decreaseBefore.width)).toBeLessThan(0.5);
