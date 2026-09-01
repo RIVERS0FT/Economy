@@ -5,6 +5,7 @@ import {
   CONTRACT_DAY_OFFSET_MS,
   allocateDailySupplyReservesForSupplier,
   consumeDailySupplyForBuyer,
+  migrateDailySupplyContracts,
   processDailySupplyContracts,
   recordDailyProductProduction,
 } from '../src/daily-supply-contracts.js';
@@ -168,4 +169,32 @@ test('daily quota resets at Beijing midnight', () => {
     state.productionContracts[0].nextDueAt,
     (Math.floor((afterMidnight + CONTRACT_DAY_OFFSET_MS) / CONTRACT_DAY_MS) + 1) * CONTRACT_DAY_MS - CONTRACT_DAY_OFFSET_MS,
   );
+});
+
+
+test('legacy long-term supply contracts are not force-migrated', () => {
+  const legacy = {
+    id: 'legacy-long-term',
+    kind: 'supply',
+    publisherId: 1,
+    publisherRole: 'buyer',
+    buyerId: 1,
+    supplierId: 2,
+    productId: PRODUCT_ID,
+    quantityPerDelivery: 10,
+    unitPrice: 5,
+    deliveryIntervalMs: CONTRACT_DAY_MS,
+    totalDeliveries: null,
+    completedDeliveries: 3,
+    firstDeliveryDelayMs: 0,
+    status: 'active',
+    createdAt: NOW - CONTRACT_DAY_MS,
+    acceptedAt: NOW - CONTRACT_DAY_MS,
+    nextDueAt: NOW + CONTRACT_DAY_MS,
+  };
+  const state = world(legacy);
+  migrateDailySupplyContracts(state, NOW);
+  assert.equal(state.productionContracts[0].supplyMode, undefined);
+  assert.equal(state.productionContracts[0].totalDeliveries, null);
+  assert.equal(state.productionContracts[0].completedDeliveries, 3);
 });

@@ -16,6 +16,7 @@ import { isDailySupplyContract, processDailySupplyContracts } from './daily-supp
 import {
   finalizeProductionOutputContracts,
   prepareProductionInputsForPlayer,
+  productionInputSourcingRequired,
 } from './production-input-sourcing.js';
 import {
   assertEconomicStateInvariants,
@@ -237,6 +238,15 @@ export class EconomyStore extends CoreEconomyStore {
   }
 
   apply(user, requestMeta, now = Date.now()) {
+    const needsProductionInputSourcing = this.worldCache?.world
+      ? productionInputSourcingRequired(this.worldCache.world, Number(user.id), now)
+      : true;
+    if (!CONTRACT_ACTIONS.has(requestMeta.action) && !needsProductionInputSourcing) {
+      return executeRuntimeAction(this, user, requestMeta, now);
+    }
+    if (!needsProductionInputSourcing) {
+      return this.applyContractAction(user, requestMeta, null, now);
+    }
     const prepared = this.prepareProductionInputs(user, requestMeta, now);
     if (prepared.cached) return prepared.cached;
     if (CONTRACT_ACTIONS.has(requestMeta.action)) return this.applyContractAction(user, requestMeta, prepared.baseline, now);

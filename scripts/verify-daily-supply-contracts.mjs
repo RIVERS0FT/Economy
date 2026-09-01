@@ -104,6 +104,10 @@ for (const [source, token, message] of [
   [serverDesign, '旧玩家长期商品合同迁移为默认地区的每日额度长期合同', '服务器权威设计不得声明实现不存在的强制旧长约迁移。'],
 ]) forbidText(source, token, message);
 requireText(daily, 'CONTRACT_DAY_OFFSET_MS = 8 * 60 * 60 * 1000', '每日额度自然日必须与北京时间边界一致。');
+requireText(daily, 'isDailySupplyContract(contract) ? normalizeDailyContract(contract, now) : contract', '旧商品合同迁移必须只规范已标记的每日合同。');
+forbidText(daily, "contract?.totalDeliveries !== null", '每日合同迁移不得再用旧 totalDeliveries 是否为空判断并强制迁移旧长期合同。');
+requireText(runtime, 'return executeRuntimeAction(this, user, requestMeta, now);', '无到期生产输入需求的普通动作必须保留既有单事务 fast path。');
+
 
 if (failures.length) {
   console.error(`地区化每日商品合同验证失败：\n- ${failures.join('\n- ')}`);

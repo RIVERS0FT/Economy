@@ -83,6 +83,11 @@ function aggregateProductionDemand(world, userId, now) {
   return demands;
 }
 
+export function productionInputSourcingRequired(world, userId, now = Date.now()) {
+  if (!world?.players?.[String(userId)]) return false;
+  return aggregateProductionDemand(world, userId, now).size > 0;
+}
+
 function buyMarketShortage(world, userId, productId, provinceId, shortage, now) {
   const amount = nonNegativeInteger(shortage);
   if (amount <= 0) return 0;

@@ -148,6 +148,7 @@ function applyAliases(contract) {
   contract.completedDeliveries = nonNegativeInteger(contract.completedDeliveryEvents);
   contract.firstDeliveryDelayMs = nonNegativeInteger(contract.startDelayDays) * CONTRACT_DAY_MS;
   const remaining = dailyRemaining(contract);
+  contract.dailyRemainingQuantity = remaining;
   const remainingGross = multiplyMoneyByInteger(contract.unitPrice, remaining) || 0;
   contract.roundStatus = contract.buyerEscrowCredits >= remainingGross && contract.supplierReservedQuantity >= remaining ? 'ready' : 'preparing';
   return contract;
@@ -252,11 +253,9 @@ function processOne(world, contract, now) {
 }
 export function migrateDailySupplyContracts(world, now = Date.now()) {
   world.productionContracts ||= [];
-  world.productionContracts = world.productionContracts.map((contract) => {
-    if (isDailySupplyContract(contract)) return normalizeDailyContract(contract, now);
-    if (contract?.kind !== 'supply' || contract?.fixedTerms === true || contract?.totalDeliveries !== null) return contract;
-    return normalizeDailyContract({ ...contract, supplyMode: 'daily', provinceId: contract.provinceId || DEFAULT_PROVINCE_ID, dailyMaxQuantity: contract.quantityPerDelivery, durationDays: null, startDelayDays: Math.max(0, Math.round(Number(contract.firstDeliveryDelayMs || 0) / CONTRACT_DAY_MS)), currentDayKey: dayKey(now), dailyUsedQuantity: 0, totalDeliveredQuantity: nonNegativeInteger(contract.completedDeliveries) * nonNegativeInteger(contract.quantityPerDelivery), completedDeliveryEvents: nonNegativeInteger(contract.completedDeliveries) }, now);
-  });
+  world.productionContracts = world.productionContracts.map((contract) => (
+    isDailySupplyContract(contract) ? normalizeDailyContract(contract, now) : contract
+  ));
   return world;
 }
 export function processDailySupplyContracts(world, now = Date.now()) {
@@ -265,12 +264,28 @@ export function processDailySupplyContracts(world, now = Date.now()) {
   return world;
 }
 export function allocateDailySupplyReservesForSupplier(world, supplierId, provinceId = null, productId = null, now = Date.now()) {
+  const matches = (contract) => isDailySupplyContract(contract)
+    && contract.status === 'active'
+    && contract.supplierAutoReserve
+    && Number(contract.supplierId) === Number(supplierId)
+    && (provinceId === null || normalizeProvinceId(contract.provinceId) === normalizeProvinceId(provinceId))
+    && (productId === null || String(contract.productId) === String(productId));
+  const beforeReserved = new Map((world.productionContracts || [])
+    .filter(matches)
+    .map((contract) => [String(contract.id), nonNegativeInteger(contract.supplierReservedQuantity)]));
   processDailySupplyContracts(world, now);
-  const supplier = playerFor(world, supplierId); if (!supplier) return 0;
-  const contracts = (world.productionContracts || []).filter((contract) => isDailySupplyContract(contract) && contract.status === 'active' && contract.supplierAutoReserve && Number(contract.supplierId) === Number(supplierId) && (provinceId === null || normalizeProvinceId(contract.provinceId) === normalizeProvinceId(provinceId)) && (productId === null || String(contract.productId) === String(productId))).sort((left, right) => Number(priorityEligible(right, supplier, now)) - Number(priorityEligible(left, supplier, now)) || Number(right.unitPrice) - Number(left.unitPrice) || Number(left.acceptedAt || 0) - Number(right.acceptedAt || 0) || String(left.id).localeCompare(String(right.id)));
-  let reserved = 0;
-  for (const contract of contracts) { const before = contract.supplierReservedQuantity; reserveSupplierGoods(contract, supplier, now); reserved += Math.max(0, contract.supplierReservedQuantity - before); }
-  return reserved;
+  const supplier = playerFor(world, supplierId);
+  if (!supplier) return 0;
+  const contracts = (world.productionContracts || [])
+    .filter(matches)
+    .sort((left, right) => Number(priorityEligible(right, supplier, now)) - Number(priorityEligible(left, supplier, now))
+      || Number(right.unitPrice) - Number(left.unitPrice)
+      || Number(left.acceptedAt || 0) - Number(right.acceptedAt || 0)
+      || String(left.id).localeCompare(String(right.id)));
+  for (const contract of contracts) reserveSupplierGoods(contract, supplier, now);
+  return contracts.reduce((sum, contract) => (
+    sum + Math.max(0, nonNegativeInteger(contract.supplierReservedQuantity) - (beforeReserved.get(String(contract.id)) || 0))
+  ), 0);
 }
 function normalizeStats(player) {
   player.stats ||= {};
