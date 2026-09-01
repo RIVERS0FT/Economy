@@ -212,6 +212,42 @@ function CommercialContractActions({ contract, busy, run }: { contract: Producti
   return null;
 }
 
+
+function LegacyRenewalResolution({ contract, busy, run }: { contract: ProductionContract; busy: boolean; run: RunAction }) {
+  const proposal = contract.kind === 'supply' && contract.supplyMode !== 'daily' ? contract.renewalProposal : null;
+  if (!proposal) return null;
+  const terms = proposal.terms;
+  const approvedCount = Number(Boolean(proposal.buyerApproved)) + Number(Boolean(proposal.supplierApproved));
+  const pendingText = proposal.approvedByMe ? '你已同意，等待合作方确认' : '等待你确认旧合同续签条款';
+  return (
+    <section className="contract-renewal-panel" aria-label="旧合同续签兼容">
+      <div className="contract-renewal-heading">
+        <div><strong>旧合同续签</strong><span>{proposal.status === 'proposed' ? pendingText : proposal.status === 'accepted' ? '双方已同意，当前旧合同完成后生效' : '关联旧合同已经生效'}</span></div>
+        <StatusTag tone={proposal.status === 'accepted' || proposal.status === 'activated' ? 'success' : 'info'}>{proposal.status === 'proposed' ? `${approvedCount}/2 已同意` : proposal.status === 'accepted' ? '已锁定' : '已生效'}</StatusTag>
+      </div>
+      <p className="contract-section-description">该区域只处理已经存在的旧有限批次续签，不会把批次、交付周期或续签入口恢复到新每日额度合同。</p>
+      <DataList className="compact contract-renewal-summary">
+        <DataRow label="每批数量" value={<CompactNumber value={terms.quantityPerDelivery} />} />
+        <DataRow label="单位价格" value={<CurrencyAmount>{formatCurrency(terms.unitPrice)}</CurrencyAmount>} />
+        <DataRow label="交付周期" value={dayLabel(msAsDays(terms.deliveryIntervalMs))} />
+        <DataRow label="总批次" value={terms.totalDeliveries === null ? '旧长期合同' : `${formatNumber(terms.totalDeliveries)} 批`} />
+        <DataRow label="采购方确认" value={<StatusTag tone={proposal.buyerApproved ? 'success' : 'neutral'}>{proposal.buyerApproved ? '已同意' : '待确认'}</StatusTag>} />
+        <DataRow label="供应方确认" value={<StatusTag tone={proposal.supplierApproved ? 'success' : 'neutral'}>{proposal.supplierApproved ? '已同意' : '待确认'}</StatusTag>} />
+      </DataList>
+      {proposal.status === 'proposed' ? <div className="contract-renewal-actions">
+        {proposal.approvedByMe
+          ? <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:renewal-revoke`, () => productionContractActions.revokeRenewal(contract.id))}>撤销同意</Button>
+          : <Button disabled={busy} onClick={() => void run(`${contract.id}:renewal-accept`, () => productionContractActions.acceptRenewal(contract.id))}>同意续签</Button>}
+        {proposal.isProposer
+          ? <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:renewal-cancel`, () => productionContractActions.rejectRenewal(contract.id))}>取消续签提议</Button>
+          : !proposal.approvedByMe
+            ? <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:renewal-reject`, () => productionContractActions.rejectRenewal(contract.id))}>拒绝续签</Button>
+            : null}
+      </div> : null}
+    </section>
+  );
+}
+
 function ActiveContractCard({ contract, label, busy, run }: { contract: ProductionContract; label: string; busy: boolean; run: RunAction }) {
   const needsAttention = contractNeedsAttention(contract);
   const confirmedDefault = isConfirmedDefault(contract);
@@ -222,7 +258,7 @@ function ActiveContractCard({ contract, label, busy, run }: { contract: Producti
   const remaining = contract.dailyRemainingQuantity ?? Math.max(0, dailyMax - dailyUsed);
   return (
     <PagePanel className={className}>
-      <header className="contract-card-heading"><div><div className="contract-card-tags"><StatusTag tone={statusTone(contract)}>{confirmedDefault ? '已违约待解除' : STATUS_LABELS[contract.status]}</StatusTag><StatusTag>{roleTag(contract)}</StatusTag></div><h2>{label}</h2><p>{confirmedDefault ? '违约已经服务器确认，合同不会通过事后补货、补款或还款恢复。' : contract.issue || `下一状态边界：${dateTimeLabel(contract.nextDueAt)}`}</p></div></header>
+      <header className="contract-card-heading"><div><div className="contract-card-tags"><StatusTag tone={statusTone(contract)}>{confirmedDefault ? '已违约待解除' : STATUS_LABELS[contract.status]}</StatusTag><StatusTag>{roleTag(contract)}</StatusTag>{needsAttention && !confirmedDefault ? <StatusTag tone="warning">待处理</StatusTag> : null}</div><h2>{label}</h2><p>{confirmedDefault ? '违约已经服务器确认，合同不会通过事后补货、补款或还款恢复。' : contract.issue || `下一状态边界：${dateTimeLabel(contract.nextDueAt)}`}</p></div></header>
       {contract.kind === 'supply' && contract.supplyMode === 'daily' ? <>
         <div className="contract-summary-grid">
           <MetricCard label="今日已使用" value={<CompactNumber value={dailyUsed} />} detail={`每日上限 ${formatNumber(dailyMax)}`} />
@@ -259,6 +295,7 @@ function ActiveContractCard({ contract, label, busy, run }: { contract: Producti
         </div>
       </> : <CommercialContractActions contract={contract} busy={busy} run={run} />}
       {!confirmedDefault ? <SupplyPriorityEditor contract={contract} busy={busy} run={run} /> : null}
+      {!confirmedDefault ? <LegacyRenewalResolution contract={contract} busy={busy} run={run} /> : null}
     </PagePanel>
   );
 }
@@ -597,7 +634,7 @@ export function ContractWorkspacePage({ model }: { model: TutorialAwareGameViewM
                   <SelectInput label="合同领域" value={historyKind} onChange={(event) => setHistoryKind(event.target.value as ContractKind | '')}><option value="">全部领域</option><option value="supply">商品合作</option><option value="loan">资金借贷</option><option value="facility_lease">工厂租赁</option></SelectInput>
                   <SelectInput label="最终状态" value={historyStatus} onChange={(event) => setHistoryStatus(event.target.value as ProductionContractStatus | '')}><option value="">全部状态</option><option value="completed">已完成</option><option value="terminated">已终止</option><option value="cancelled">已取消</option><option value="expired">已过期</option></SelectInput>
                   <SelectInput label="我的角色" value={historyRole} onChange={(event) => setHistoryRole(event.target.value as HistoryRole)}><option value="any">全部角色</option><option value="buyer">我采购</option><option value="supplier">我供货</option><option value="lender">我放贷</option><option value="borrower">我贷款</option><option value="lessor">我出租</option><option value="lessee">我租赁</option><option value="publisher">我发布</option></SelectInput>
-                  <SelectInput label="合同标的" value={historyProductId} onChange={(event) => setHistoryProductId(event.target.value)}><option value="">全部标的</option>{model.game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</SelectInput>
+                  <SelectInput label="合同标的" value={historyProductId} onChange={(event) => setHistoryProductId(event.target.value)}><option value="">全部标的</option><option value="credits">普通货币</option>{model.game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}{model.game.facilityTypes.map((facility) => <option key={`facility:${facility.id}`} value={`facility:${facility.id}`}>{facility.name}</option>)}</SelectInput>
                   <TextInput label="开始日期" type="date" value={historyFrom} onChange={(event) => setHistoryFrom(event.target.value)} /><TextInput label="结束日期" type="date" value={historyTo} onChange={(event) => setHistoryTo(event.target.value)} />
                 </div>
                 {historyError ? <p className="contract-issue">{historyError}</p> : null}{historyLoading && !historyItems.length ? <p>正在读取权威合同历史…</p> : null}{!historyLoading && !historyItems.length && !historyError ? <EmptyState>当前没有符合筛选条件的已结束合同。</EmptyState> : null}

@@ -54,6 +54,8 @@ includesAll(contractPage, [
 ], 'contract history player UI');
 assert.ok(!contractPage.includes('productionContractAudit.detail'), 'player history must not load audit detail timelines');
 assert.ok(!contractPage.includes('合同完整审计'), 'player history must not expose the audit viewer');
+includesAll(contractPage, ['<option value="credits">普通货币</option>', 'value={`facility:${facility.id}`}'], 'contract history target filters');
+includesAll(auditStore, ["target === 'credits'", "target.startsWith('facility:')", "json_extract(contract_json, '$.facilityTypeId') = ?"], 'contract history server target filtering');
 includesAll(contractAuditCss, ['.contract-history-filters', '.contract-history-result-grid', '.contract-history-section', '.contract-history-republish'], 'contract history result styles');
 assert.ok(!contractAuditCss.includes('.contract-audit-timeline'), 'timeline styles must be removed from player UI');
 
@@ -70,5 +72,7 @@ for (const [label, content] of [['industry design', industryDesign], ['server de
 }
 includesAll(serverDesign, ['economy_contract_audit_contracts', 'economy_contract_audit_events', 'economy_contract_audit_transfers', '/api/game/contracts/history', '/api/game/contracts/:contractId/audit', '终态摘要'], 'server contract audit design');
 includesAll(pageDesign, ['单张一级', 'PagePanel', '合同内容、结束原因、结束时间、完成事实、结束统计', '重新拟定', '不加载审计事件时间线'], 'page contract history design');
+
+includesAll(auditStore, ["'$.lenderId'", "'$.borrowerId'", "'$.lessorId'", "'$.lesseeId'"], 'commercial contract audit participant visibility');
 
 console.log('Contract audit and compact history verification passed.');

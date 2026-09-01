@@ -1,6 +1,0 @@
-
-> economy@0.4.0 verify:contract-layout
-> node scripts/verify-contract-layout.mjs
-
-合同页统一布局验证失败:
-- 合同正文发布按钮必须位于摘要卡之前

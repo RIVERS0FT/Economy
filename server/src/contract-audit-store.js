@@ -499,8 +499,14 @@ function visibleHistoryWhere(userId, options) {
     clauses.push("json_extract(contract_json, '$.lesseeId') = ?");
     values.push(userId);
   } else {
-    clauses.push('(publisher_id = ? OR buyer_id = ? OR supplier_id = ?)');
-    values.push(userId, userId, userId);
+    clauses.push(`(
+      publisher_id = ? OR buyer_id = ? OR supplier_id = ?
+      OR json_extract(contract_json, '$.lenderId') = ?
+      OR json_extract(contract_json, '$.borrowerId') = ?
+      OR json_extract(contract_json, '$.lessorId') = ?
+      OR json_extract(contract_json, '$.lesseeId') = ?
+    )`);
+    values.push(userId, userId, userId, userId, userId, userId, userId);
   }
   if (options.status && TERMINAL_STATUSES.has(options.status)) {
     clauses.push('status = ?');
@@ -511,8 +517,18 @@ function visibleHistoryWhere(userId, options) {
     values.push(String(options.kind));
   }
   if (options.productId) {
-    clauses.push('product_id = ?');
-    values.push(String(options.productId));
+    const target = String(options.productId);
+    if (target === 'credits') {
+      clauses.push("json_extract(contract_json, '$.kind') = 'loan'");
+    } else if (target.startsWith('facility:')) {
+      clauses.push("json_extract(contract_json, '$.kind') = 'facility_lease'");
+      clauses.push("json_extract(contract_json, '$.facilityTypeId') = ?");
+      values.push(target.slice('facility:'.length));
+    } else {
+      clauses.push("json_extract(contract_json, '$.kind') = 'supply'");
+      clauses.push('product_id = ?');
+      values.push(target);
+    }
   }
   if (options.from !== null) {
     clauses.push('sort_at >= ?');
@@ -1394,9 +1410,15 @@ const accepted = before.status === 'open' && after.status === 'active';
     const rows = store.database.prepare(`
       SELECT * FROM economy_contract_audit_contracts
       WHERE status NOT IN ('open', 'active')
-        AND (publisher_id = ? OR buyer_id = ? OR supplier_id = ?)
+        AND (
+          publisher_id = ? OR buyer_id = ? OR supplier_id = ?
+          OR json_extract(contract_json, '$.lenderId') = ?
+          OR json_extract(contract_json, '$.borrowerId') = ?
+          OR json_extract(contract_json, '$.lessorId') = ?
+          OR json_extract(contract_json, '$.lesseeId') = ?
+        )
       ORDER BY sort_at DESC, contract_id DESC
-    `).all(userId, userId, userId);
+    `).all(userId, userId, userId, userId, userId, userId, userId);
     const settlementSummaries = contractHistorySettlementSummaries(store, rows, userId);
     const history = rows.map((row) => publicHistoryRow(
       row, userId, settlementSummaries.get(String(row.contract_id)) || emptyHistorySettlement(),
@@ -1435,8 +1457,14 @@ const accepted = before.status === 'open' && after.status === 'active';
     const userId = Number(user.id);
     const summary = store.database.prepare(`
       SELECT * FROM economy_contract_audit_contracts
-      WHERE contract_id = ? AND (publisher_id = ? OR buyer_id = ? OR supplier_id = ?)
-    `).get(String(contractId), userId, userId, userId);
+      WHERE contract_id = ? AND (
+        publisher_id = ? OR buyer_id = ? OR supplier_id = ?
+        OR json_extract(contract_json, '$.lenderId') = ?
+        OR json_extract(contract_json, '$.borrowerId') = ?
+        OR json_extract(contract_json, '$.lessorId') = ?
+        OR json_extract(contract_json, '$.lesseeId') = ?
+      )
+    `).get(String(contractId), userId, userId, userId, userId, userId, userId, userId);
     if (!summary) {
       const error = new Error('合同审计记录不存在');
       error.statusCode = 404;

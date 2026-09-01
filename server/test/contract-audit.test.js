@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -287,4 +287,52 @@ test('合同审计按整数微单位保留小数单价、手续费和转账', ()
   assert.equal(stored.fee_total, 199_800);
   assert.equal(stored.money_precision_version, 2);
   store.close();
+});
+
+
+test('commercial counterparties keep history performance audit access and target filters stay server authoritative', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'economy-contract-audit-targets-'));
+  const store = new EconomyStore(join(directory, 'game.sqlite'), { scheduledProcessing: false });
+  try {
+    const insert = store.database.prepare(`
+      INSERT INTO economy_contract_audit_contracts (
+        contract_id, publisher_id, buyer_id, supplier_id, product_id, status,
+        audit_completeness, created_at, accepted_at, ended_at, sort_at,
+        completed_deliveries, total_deliveries, quantity_per_delivery, unit_price,
+        batch_gross, gross_total, fee_total, net_total, transferred_goods,
+        compensation_total, last_event_sequence, last_event_at, contract_json, money_precision_version
+      ) VALUES (?, ?, ?, ?, ?, 'completed', 'full', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?, 2)
+    `);
+    const endedAt = Date.now() - 10_000;
+    const createdAt = endedAt - 100_000;
+    const acceptedAt = endedAt - 90_000;
+    const commonTimes = [createdAt, acceptedAt, endedAt, endedAt];
+    insert.run(
+      'history-supply', 2, 1, 2, 'wheat', ...commonTimes,
+      1, 1, 5, 2_000_000, 10_000_000, 10_000_000, 0, 10_000_000, 5, endedAt,
+      JSON.stringify({ id: 'history-supply', kind: 'supply', publisherId: 2, publisherRole: 'supplier', buyerId: 1, supplierId: 2, productId: 'wheat', quantityPerDelivery: 5, unitPrice: 2, batchGross: 10, totalDeliveries: 1, completedDeliveries: 1, status: 'completed', createdAt, acceptedAt, completedAt: endedAt, endedAt }),
+    );
+    insert.run(
+      'history-loan', 2, null, null, '', ...commonTimes,
+      1, 1, 0, 0, 0, 100_000_000, 0, 100_000_000, 0, endedAt,
+      JSON.stringify({ id: 'history-loan', kind: 'loan', publisherId: 2, publisherSide: 'borrower', lenderId: 1, borrowerId: 2, principal: 100, principalOutstanding: 0, interestRateBps: 500, interestDue: 0, facilityTypeId: 'farm', collateralQuantity: 1, completedDeliveries: 0, totalDeliveries: 0, status: 'completed', createdAt, acceptedAt, completedAt: endedAt, endedAt }),
+    );
+    insert.run(
+      'history-lease', 2, null, null, '', ...commonTimes,
+      2, 2, 0, 0, 0, 20_000_000, 0, 20_000_000, 0, endedAt,
+      JSON.stringify({ id: 'history-lease', kind: 'facility_lease', publisherId: 2, publisherSide: 'lessor', lessorId: 2, lesseeId: 1, facilityTypeId: 'farm', quantity: 1, rentPerPeriod: 10, completedPeriods: 2, totalPeriods: 2, completedDeliveries: 0, totalDeliveries: 0, status: 'completed', createdAt, acceptedAt, completedAt: endedAt, endedAt }),
+    );
+
+    const user = { id: 1 };
+    assert.deepEqual(store.listContractAuditHistory(user, { productId: 'wheat' }).items.map((item) => item.id), ['history-supply']);
+    assert.deepEqual(store.listContractAuditHistory(user, { productId: 'credits' }).items.map((item) => item.id), ['history-loan']);
+    assert.deepEqual(store.listContractAuditHistory(user, { productId: 'facility:farm' }).items.map((item) => item.id), ['history-lease']);
+    assert.deepEqual(new Set(store.listContractAuditHistory(user).items.map((item) => item.id)), new Set(['history-supply', 'history-loan', 'history-lease']));
+    assert.equal(store.getContractPerformance(user).totalEnded, 3);
+    assert.equal(store.getContractAuditDetail(user, 'history-loan').contract.isLender, true);
+    assert.throws(() => store.getContractAuditDetail({ id: 999 }, 'history-loan'), /合同审计记录不存在/);
+  } finally {
+    store.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
