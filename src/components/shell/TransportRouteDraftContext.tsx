@@ -10,6 +10,7 @@ export interface TransportRouteDraft {
   productId: string;
   quantity: string;
   mode: TransportModeId;
+  autoDispatch: boolean;
 }
 
 export interface TransportRouteDraftContextValue {
