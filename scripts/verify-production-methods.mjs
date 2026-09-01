@@ -327,7 +327,7 @@ for (const [path, required] of [
     'C3～C7 继续使用标准生产、高速生产、节约生产和高产生产',
     'C2 四级制度参考分钟利润固定为 3、6、9、10.5',
     '`server/src/product-catalog.js` 是商品玩家可见名称的唯一运行时来源',
-    '工业化学品 (`industrial-chemicals`)',
+    '化学品 (`industrial-chemicals`)',
     '每周期整件消耗',
     '不累计折旧',
     '非基础作业制度必须校验 `requiredTechnologyIds`',

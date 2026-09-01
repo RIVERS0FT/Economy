@@ -108,6 +108,7 @@ if (!hasCommand(marketPlan, 'node', ['scripts/verify-market-page-layout.mjs'])) 
 
 const facilityPlan = selectCiPlan(['src/pages/GlobalBuildingsPage.tsx']);
 if (facilityPlan.mode !== 'targeted') failures.push('建筑页面改动必须使用 targeted CI');
+if (!hasCommand(facilityPlan, 'npm', ['run', 'generate:facility-artwork'])) failures.push('建筑域 targeted CI 必须先生成工厂运行时缩略图');
 if (facilityPlan.browser.mode !== 'selected' || !facilityPlan.browser.tests.includes('tests/browser/all-pages-preview.spec.ts')) {
   failures.push('建筑域 targeted CI 必须包含全页面实体列表几何回归');
 }
@@ -116,6 +117,7 @@ const productCatalogPlan = selectCiPlan(['server/src/product-catalog.js']);
 if (productCatalogPlan.mode !== 'targeted') failures.push('单一商品目录改动必须使用 targeted CI');
 if (!productCatalogPlan.reasons.includes('domains:product-catalog')) failures.push('商品目录改动必须只归入独立 product-catalog 域');
 if (!hasCommand(productCatalogPlan, 'npm', ['run', 'server:check'])) failures.push('商品目录改动必须执行服务器语法检查');
+if (!hasCommand(productCatalogPlan, 'npm', ['run', 'generate:product-artwork'])) failures.push('商品目录改动必须先生成商品运行时缩略图');
 if (!hasCommand(productCatalogPlan, 'npm', ['run', 'generate:local-preview'])) failures.push('商品目录改动必须重新生成免登录预览状态');
 if (!hasCommand(productCatalogPlan, 'node', ['scripts/verify-industry-catalog.mjs'])) failures.push('商品目录改动必须执行产业目录验证');
 if (!productCatalogPlan.browser.tests.includes('tests/browser/all-pages-preview.spec.ts')) failures.push('商品目录改动必须执行全页面预览浏览器基线');
