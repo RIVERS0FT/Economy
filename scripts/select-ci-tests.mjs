@@ -272,7 +272,11 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
   const browserCandidates = listFiles(root, 'tests/browser', (path) => /^tests\/browser\/.*\.spec\.ts$/.test(path));
   const domains = inferDomains(changedFiles);
   if (domains.some((rule) => rule.name === 'product-catalog')) {
+    addCommand(commands, seenCommands, 'npm', ['run', 'generate:product-artwork']);
     addCommand(commands, seenCommands, 'npm', ['run', 'generate:local-preview']);
+  }
+  if (domains.some((rule) => rule.name === 'facility')) {
+    addCommand(commands, seenCommands, 'npm', ['run', 'generate:facility-artwork']);
   }
 
   const isDomainCandidate = (candidate) => domains.some((rule) => rule.candidate.test(candidate));
