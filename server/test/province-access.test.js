@@ -7,11 +7,13 @@ import {
   migrateWorld,
 } from '../src/domain.js';
 import {
-  PROVINCE_UNLOCK_BASE_COST,
   provinceDistanceKm,
+  provinceUnlockBaseCostForLevel,
   provinceUnlockCost,
+  provinceUnlockCostBreakdown,
 } from '../src/province-access.js';
-import { inventoryForProvince } from '../src/provinces.js';
+import { inventoryForProvince, PROVINCE_CATALOG } from '../src/provinces.js';
+import { stateEconomicLevelFor } from '../src/state-economic-baselines.js';
 
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 const bob = { id: 2, email: 'bob@example.com', name: 'Bob' };
@@ -39,7 +41,13 @@ test('new player chooses a permanent starting province before economic writes', 
   assert.equal(player.startingProvinceId, '130000');
 });
 
-test('unlock cost follows distance and is deducted atomically', () => {
+test('economic levels cover five tiers with monotonic base costs', () => {
+  const levels = PROVINCE_CATALOG.map((province) => stateEconomicLevelFor(province.id));
+  assert.deepEqual([...new Set(levels)].sort((left, right) => left - right), [1, 2, 3, 4, 5]);
+  assert.deepEqual([1, 2, 3, 4, 5].map(provinceUnlockBaseCostForLevel), [1_500, 2_500, 4_000, 6_000, 9_000]);
+});
+
+test('unlock cost follows economic level and distance and is deducted atomically', () => {
   const world = createWorld(now);
   deferDemand(world);
   const player = ensurePlayer(world, bob, now);
@@ -48,18 +56,19 @@ test('unlock cost follows distance and is deducted atomically', () => {
   player.startingProvinceId = '110000';
   player.unlockedProvinces = ['110000'];
 
+  const breakdown = provinceUnlockCostBreakdown('130000', '110000');
   const distanceKm = provinceDistanceKm('110000', '130000');
-  const expectedCost = Math.min(
-    20_000,
-    PROVINCE_UNLOCK_BASE_COST + 300 * Math.floor(distanceKm / 500),
-  );
-  assert.equal(provinceUnlockCost('130000', '110000'), expectedCost);
+  assert.equal(breakdown.economicLevel, stateEconomicLevelFor('130000'));
+  assert.equal(breakdown.distanceKm, distanceKm);
+  assert.equal(breakdown.distanceCost, 300 * Math.floor(distanceKm / 500));
+  assert.equal(breakdown.totalCost, Math.min(20_000, breakdown.baseCost + breakdown.distanceCost));
+  assert.equal(provinceUnlockCost('130000', '110000'), breakdown.totalCost);
 
   const before = player.credits;
   const result = applyAction(world, bob, 'unlockProvince', { provinceId: '130000' }, now + 1);
   assert.equal(result.ok, true);
-  assert.equal(player.credits, before - expectedCost);
-  assert.equal(player.stats.systemSinks, expectedCost);
+  assert.equal(player.credits, before - breakdown.totalCost);
+  assert.equal(player.stats.systemSinks, breakdown.totalCost);
   assert.ok(player.unlockedProvinces.includes('130000'));
 
   const again = applyAction(world, bob, 'unlockProvince', { provinceId: '130000' }, now + 2);

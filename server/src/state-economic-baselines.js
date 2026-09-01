@@ -1,4 +1,5 @@
 import baselineData from '../../shared/us-state-economic-baselines.json' with { type: 'json' };
+import provinceEconomicLevelPolicy from '../../shared/province-economic-level-policy.json' with { type: 'json' };
 import { DEFAULT_PROVINCE_ID, PROVINCE_CATALOG } from './provinces.js';
 
 export const STATE_ECONOMIC_BASELINE_VERSION = 1;
@@ -29,10 +30,58 @@ for (const province of PROVINCE_CATALOG) {
   }
 }
 
+function percentileRanks(metric) {
+  const sorted = [...rows].sort((left, right) => (
+    Number(left[metric]) - Number(right[metric])
+    || String(left.provinceId).localeCompare(String(right.provinceId))
+  ));
+  const denominator = Math.max(1, sorted.length - 1);
+  const ranks = new Map();
+  let index = 0;
+  while (index < sorted.length) {
+    let end = index + 1;
+    while (end < sorted.length && Number(sorted[end][metric]) === Number(sorted[index][metric])) end += 1;
+    const percentile = ((index + end - 1) / 2) / denominator;
+    for (let cursor = index; cursor < end; cursor += 1) ranks.set(sorted[cursor].provinceId, percentile);
+    index = end;
+  }
+  return ranks;
+}
+
+const populationPercentiles = percentileRanks('population');
+const wagePercentiles = percentileRanks('averageWeeklyWage');
+const pcePercentiles = percentileRanks('pceMillions');
+const economicScores = rows.map((row) => Object.freeze({
+  provinceId: row.provinceId,
+  score:
+    (pcePercentiles.get(row.provinceId) || 0) * Number(provinceEconomicLevelPolicy.weights.pceMillions)
+    + (wagePercentiles.get(row.provinceId) || 0) * Number(provinceEconomicLevelPolicy.weights.averageWeeklyWage)
+    + (populationPercentiles.get(row.provinceId) || 0) * Number(provinceEconomicLevelPolicy.weights.population),
+}));
+const economicScoreByProvinceId = new Map(economicScores.map((row) => [row.provinceId, row.score]));
+const economicLevelByProvinceId = new Map();
+const levelCount = Number(provinceEconomicLevelPolicy.levelCount);
+[...economicScores]
+  .sort((left, right) => left.score - right.score || left.provinceId.localeCompare(right.provinceId))
+  .forEach((row, index) => {
+    economicLevelByProvinceId.set(
+      row.provinceId,
+      Math.min(levelCount, Math.floor(index * levelCount / Math.max(1, economicScores.length)) + 1),
+    );
+  });
+
 export const STATE_ECONOMIC_BASELINES = Object.freeze(rows);
 
 export function stateEconomicBaselineFor(provinceId) {
   return byProvinceId.get(String(provinceId || '')) || byProvinceId.get(DEFAULT_PROVINCE_ID);
+}
+
+export function stateEconomicScoreFor(provinceId) {
+  return economicScoreByProvinceId.get(String(provinceId || '')) || 0;
+}
+
+export function stateEconomicLevelFor(provinceId) {
+  return economicLevelByProvinceId.get(String(provinceId || '')) || 1;
 }
 
 export function activePopulationDemandProvinceIds(world) {

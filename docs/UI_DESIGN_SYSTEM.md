@@ -5,7 +5,7 @@
 > 状态：当前视觉、共享组件、响应式与可访问性实现基线
 > 适用项目：`RIVERS0FT/Economy`
 > 当前平台：网页端
-> 更新时间：2026-08-31
+> 更新时间：2026-09-01
 
 产品和页面职责分别以 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；应用外壳几何和玻璃材质以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。
 
@@ -539,6 +539,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 ## 15. 中文、品牌、响应式与安全区
 
 - 玩家可见界面统一使用中文，不允许固定文案中英文夹杂。
+- 州级地区玩家可见名称唯一使用 `shared/provinces.json.name` 的中文短名；`shortName` 仅属于协议、目录映射、经济基准一致性校验和兼容测试元数据，不得出现在任何玩家可见标题、起始州概览、地图 Tooltip／文本、地区商品／工厂标题、银行抵押、合同、运输、拍卖、列表或可见 fallback。高密度列表也不得用州缩写替代中文名。
 - 技术枚举必须转换为中文。
 - 时间使用秒、分钟、小时。
 - 玩家状态栏身份轨道第一行固定为“金融帝国”，第二行显示玩家用户名；身份槽固定使用共享 `PlayerAvatar` 玩家头像，点击或键盘激活身份控件进入设置页；宽屏显示完整文字，紧凑桌面和移动端可隐藏文字，但必须保持头像与五项状态数据可读。
@@ -563,6 +564,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 不得显示年化存款收益率、把微单位余数显示为可用货币，或用浏览器墙上时间直接结息和判定违约；
 不得：
 
+- 在任何玩家可见 React 页面或组件重新读取 `province.shortName`、`province?.shortName` 或等价 `shortName` fallback 作为地区显示；
 - 把地区商品／工厂详情标题的地区导航恢复为纯文本、改用 replace、按实体类型直接进入市场／建筑分区、删除键盘焦点，或为扩大触控命中而改变固定 40px 标题轨道；
 - 在业务页面复制基础控件视觉；
 - 为 `SafeTooltip` 或 ECharts `commonTooltip` 恢复近不透明独立背景、移除 `.ui-tooltip-surface`、给 Tooltip 套 `FrostedGlassSurface`／额外玻璃 DOM，或在 `safe-floating.css`、`charts.css` 与业务 CSS 中复制 Tooltip 毛玻璃材质；

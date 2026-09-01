@@ -1,9 +1,16 @@
+import provinceEconomicLevelPolicy from '../../shared/province-economic-level-policy.json' with { type: 'json' };
 import { DEFAULT_PROVINCE_ID, normalizeProvinceId, PROVINCE_CATALOG, splitProvinceScopedKey } from './provinces.js';
+import { stateEconomicLevelFor } from './state-economic-baselines.js';
 import { roundInternalMoney } from './money.js';
 
-export const PROVINCE_UNLOCK_BASE_COST = 1500;
-export const PROVINCE_UNLOCK_COST_PER_500_KM = 300;
-export const PROVINCE_UNLOCK_MAX_COST = 20000;
+export const PROVINCE_UNLOCK_BASE_COST = Number(provinceEconomicLevelPolicy.levelBaseCosts['1']);
+export const PROVINCE_UNLOCK_DISTANCE_STEP_KM = Number(provinceEconomicLevelPolicy.distanceStepKm);
+export const PROVINCE_UNLOCK_COST_PER_DISTANCE_STEP = Number(provinceEconomicLevelPolicy.distanceCostPerStep);
+export const PROVINCE_UNLOCK_COST_PER_500_KM = PROVINCE_UNLOCK_COST_PER_DISTANCE_STEP;
+export const PROVINCE_UNLOCK_MAX_COST = Number(provinceEconomicLevelPolicy.maxUnlockCost);
+export const PROVINCE_UNLOCK_LEVEL_BASE_COSTS = Object.freeze(
+  Object.fromEntries(Object.entries(provinceEconomicLevelPolicy.levelBaseCosts).map(([level, cost]) => [level, Number(cost)])),
+);
 
 const PROVINCE_IDS = new Set(PROVINCE_CATALOG.map((province) => province.id));
 const PROVINCE_BY_ID = new Map(PROVINCE_CATALOG.map((province) => [province.id, province]));
@@ -35,11 +42,31 @@ export function provinceDistanceKm(leftId, rightId) {
   return distance;
 }
 
-export function provinceUnlockCost(provinceId, startingProvinceId) {
+export function provinceUnlockBaseCostForLevel(level) {
+  const normalizedLevel = Math.min(
+    Number(provinceEconomicLevelPolicy.levelCount),
+    Math.max(1, Math.trunc(Number(level) || 1)),
+  );
+  return PROVINCE_UNLOCK_LEVEL_BASE_COSTS[String(normalizedLevel)] || PROVINCE_UNLOCK_BASE_COST;
+}
+
+export function provinceUnlockCostBreakdown(provinceId, startingProvinceId) {
+  const economicLevel = stateEconomicLevelFor(provinceId);
+  const baseCost = provinceUnlockBaseCostForLevel(economicLevel);
   const distanceKm = provinceDistanceKm(provinceId, startingProvinceId);
-  const cost = PROVINCE_UNLOCK_BASE_COST
-    + PROVINCE_UNLOCK_COST_PER_500_KM * Math.floor(distanceKm / 500);
-  return Math.min(PROVINCE_UNLOCK_MAX_COST, cost);
+  const distanceCost = PROVINCE_UNLOCK_COST_PER_DISTANCE_STEP
+    * Math.floor(distanceKm / PROVINCE_UNLOCK_DISTANCE_STEP_KM);
+  return {
+    economicLevel,
+    baseCost,
+    distanceKm,
+    distanceCost,
+    totalCost: Math.min(PROVINCE_UNLOCK_MAX_COST, baseCost + distanceCost),
+  };
+}
+
+export function provinceUnlockCost(provinceId, startingProvinceId) {
+  return provinceUnlockCostBreakdown(provinceId, startingProvinceId).totalCost;
 }
 
 export function isProvinceUnlocked(player, provinceId) {
