@@ -1,0 +1,153 @@
+name: Patch market design authority
+
+on:
+  push:
+    branches:
+      - fix/market-detail-direct-flow-20260901
+
+permissions:
+  contents: write
+
+jobs:
+  patch-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Align authoritative market docs
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, found {count}')
+              return text.replace(old, new, 1)
+
+          page_path = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          page = page_path.read_text(encoding='utf-8')
+
+          page = replace_once(
+              page,
+              '商品总览与跨地区钻取由 `GlobalMarketPage` 承担，实际盘口、下单和自动经营只读执行状态继续由地区 `MarketPage` 执行',
+              '商品总览与跨地区钻取由 `GlobalMarketPage` 承担，实际盘口与手动下单继续由地区 `MarketPage` 执行；自动经营策略与玩家可见执行解释唯一归属地区工厂详情',
+              'page market responsibility',
+          )
+          page = replace_once(
+              page,
+              '自动经营执行状态可以继续只读显示。',
+              '地区商品详情不渲染自动经营执行卡；自动经营策略与玩家可见执行解释只在已解锁州的地区工厂详情显示。',
+              'page locked province market',
+          )
+          page = replace_once(
+              page,
+              '地区商品自动经营执行卡继续位于商品详情正文，不创建独立策略详情层。',
+              '地区商品详情不创建自动经营执行卡或独立策略详情层；自动经营策略与玩家可见执行解释统一留在地区工厂详情。',
+              'page mobile sheet',
+          )
+          page = replace_once(
+              page,
+              '商品行情、自动经营执行状态、五档盘口、未完成订单和本地成交记录都只展示当前地区；切换地区必须重新投影同一完整权威状态，不得沿用上一地区的盘口、库存、价格、策略或成交记录。',
+              '商品行情、五档盘口、未完成订单和本地成交记录都只展示当前地区；切换地区必须重新投影同一完整权威状态，不得沿用上一地区的盘口、库存、价格或成交记录。自动经营策略与玩家可见执行解释不属于地区商品详情，统一留在地区工厂详情。',
+              'page regional market scope',
+          )
+          page = replace_once(
+              page,
+              '点击商品进入当前地区商品详情；详情固定承载当前地区真实价格与近 24 小时真实成交量／趋势、当前仓库可用库存、统一五档订单簿与手动下单、本人订单／本地成交，以及锁定当前 `provinceId + productId` 的只读自动经营执行状态；该执行状态只显示预计自动采购／出售数量和价格边界，不提供商品级策略草稿或保存动作。',
+              '点击商品进入当前地区商品详情；详情固定承载当前地区近 24 小时真实成交趋势、当前仓库可用库存、统一五档订单簿与手动下单、本人订单／本地成交。顶部只保留商品身份、真实 24h 变化和当前可用库存；不渲染自动经营执行卡，也不提供商品级策略草稿或执行摘要。',
+              'page regional detail contents',
+          )
+          page = replace_once(
+              page,
+              '商品详情中的上轮消费需求量、预算、满足率和参考价只读取服务器 `ProductMarketState.demand`，没有直接需求时必须明确显示，不得由客户端阈值伪造短缺或过剩。',
+              '服务器 `ProductMarketState.demand` 继续作为权威需求状态供目录筛选与后续经济逻辑使用，但地区商品详情不显示上轮需求、预算、需求满足率或参考价，也不得由客户端阈值伪造短缺或过剩。',
+              'page demand visibility',
+          )
+          page = replace_once(
+              page,
+              '地区商品详情不再显示“生产者与消费者”关系卡。地区商品详情基本面条固定只显示需求满足率、参考价、上轮需求（含预算）和当前可用库存；冻结库存、发运在途、预计生产速度和预计等效产能分别归仓库或建筑页面，不在市场详情重复。未来若要显示维多利亚式完整市场贡献量或真实利润表，必须先由服务器提供权威字段。',
+              '地区商品详情不再显示“生产者与消费者”关系卡，也不再渲染基本面条。顶部只显示真实 24h 变化和当前可用库存；市场价、基准偏离、需求满足率、参考价与上轮需求不得在地区详情恢复。冻结库存、发运在途、预计生产速度和预计等效产能分别归仓库或建筑页面，不在市场详情重复。未来若要显示维多利亚式完整市场贡献量或真实利润表，必须先由服务器提供权威字段。',
+              'page fundamentals',
+          )
+          page = replace_once(
+              page,
+              '详情交易区继续按实际内容宽度使用响应式布局：交易卡内部同时显示下单与五档盘口，直接基本面条、行情卡以及纵向排列的当前资产订单／成交按单一页面滚动区排列。',
+              '详情交易区继续按实际内容宽度使用响应式布局：下单与五档盘口直接排列在正文并保持各自内部操作边界，不使用一级交易卡底座；行情卡以及纵向排列的当前资产订单／成交按单一页面滚动区排列。',
+              'page direct trade layout',
+          )
+          page = replace_once(
+              page,
+              '地区商品详情顶部身份与核心价格事实、直接基本面条的响应式断点必须读取 `.market-page-surface` 的真实内容容器宽度，不得只用浏览器 viewport。容器不大于 `720px` 时身份与三项核心价格事实分成上下两行，三项价格指标第二行等分且不得越出内容边界；直接基本面条固定为“需求满足率／参考价、上轮需求／可用库存”两列两行，第二行必须占满两列并按自然高度紧跟行情图，不保留空白占位列或固定填充高度。',
+              '地区商品详情顶部身份与两项市场事实的响应式断点必须读取 `.market-page-surface` 的真实内容容器宽度，不得只用浏览器 viewport。容器不大于 `720px` 时商品身份占第一行，24h 变化与可用库存进入第二行并完整位于内容边界内；不得为已删除的市场价、基准偏离、需求满足率、参考价、上轮需求或基本面条保留空白轨道。',
+              'page compact hero layout',
+          )
+          page = replace_once(
+              page,
+              '本地成交表必须显示成交总额以及卖方“手续费／实收”，买方对应位置显示无手续费，不得新增来源或对手列。',
+              '本地成交表必须显示成交总额以及卖方“手续费／实收”，买方对应位置显示无手续费；当前资产由详情上下文唯一确定，不显示资产列，也不得新增来源或对手列。窗口化只负责性能，表头与数据行视觉必须复用全局实体列表基线。',
+              'page local trades',
+          )
+          page = replace_once(
+              page,
+              '玩家可编辑自动经营策略唯一归属地区工厂详情；地区商品详情只读展示按当前州全部工厂策略、生产配置和合同保留汇总后的自动采购／出售执行状态。',
+              '玩家可编辑自动经营策略及玩家可见执行解释唯一归属地区工厂详情；地区商品详情不渲染逐商品自动采购／出售执行卡或独立执行摘要。',
+              'page factory auto operation ownership',
+          )
+          page = replace_once(
+              page,
+              '| 工厂自动经营策略 | 建筑的地区 `BuildingsPage` 工厂详情；按 `provinceId + facilityTypeId` 保存经营意图 |\n| 商品自动经营执行状态 | 市场的地区 `MarketPage` 商品详情；只读展示统一订单簿执行结果，不提供商品级策略编辑 |',
+              '| 工厂自动经营策略与执行解释 | 建筑的地区 `BuildingsPage` 工厂详情；按 `provinceId + facilityTypeId` 保存经营意图，并解释服务端派生的统一订单簿执行；地区商品详情不建立第二套执行卡 |',
+              'page responsibility table auto operation',
+          )
+          page = replace_once(
+              page,
+              '| 本地成交匿名展示 | 市场页；按地区保存并展示资产、方向、数量、价格、总额、手续费／实收和时间七列；不显示对手与来源；240 条上限继续通过原生双轴 `VirtualRecordTable` 窗口化 |',
+              '| 本地成交匿名展示 | 市场页；按地区保存，在当前资产详情只展示方向、数量、价格、总额、手续费／实收和时间六列；不显示资产、对手与来源；240 条上限继续通过原生双轴 `VirtualRecordTable` 窗口化并复用全局实体列表视觉 |',
+              'page responsibility table local trades',
+          )
+          page = replace_once(
+              page,
+              '- 在业务页面重建已拆分页面的并行入口。',
+              '- 在业务页面重建已拆分页面的并行入口。\n- 在地区商品详情恢复市场价、基准偏离、需求满足率、参考价、上轮需求、基本面条、自动经营执行卡、一级交易卡底座或本地成交“资产”列。',
+              'page anti regression',
+          )
+          page_path.write_text(page, encoding='utf-8')
+
+          ui_path = Path('docs/UI_DESIGN_SYSTEM.md')
+          ui = ui_path.read_text(encoding='utf-8')
+          ui = replace_once(
+              ui,
+              '一级市场采用“商品目录 → 商品全局详情 → 地区商品详情”，地区州上下文采用“地区商品目录 → 地区商品详情”；两条路径最终都复用同一个地区商品详情、订单簿、下单和只读自动经营执行实现。',
+              '一级市场采用“商品目录 → 商品全局详情 → 地区商品详情”，地区州上下文采用“地区商品目录 → 地区商品详情”；两条路径最终都复用同一个地区商品详情、订单簿和手动下单实现；地区商品详情不渲染自动经营执行卡，自动经营策略与玩家可见执行解释唯一归属地区工厂详情。',
+              'ui market drilldown',
+          )
+          ui = replace_once(
+              ui,
+              '不显示挂单差额、基准偏离或挂单状态；这些分析指标只在具体地区商品详情保留。',
+              '不显示挂单差额、基准偏离或挂单状态；这些字段不得以行内标签或地区商品详情基本面恢复。',
+              'ui market row fields',
+          )
+          ui = replace_once(
+              ui,
+              '工厂详情与研发详情继续使用 `MobileWorkspaceDetailSheet` API；地区商品自动经营执行卡留在商品详情正文，但该组件只能把详情正文和可选固定底栏 Portal 到 Host 预留的详情槽位，不得创建第二个 Sheet DOM。',
+              '工厂详情与研发详情继续使用 `MobileWorkspaceDetailSheet` API；地区商品详情不渲染自动经营执行卡。`MobileWorkspaceDetailSheet` 只能把详情正文和可选固定底栏 Portal 到 Host 预留的详情槽位，不得创建第二个 Sheet DOM。',
+              'ui mobile detail sheet',
+          )
+          ui = replace_once(
+              ui,
+              '- 绕过唯一根级 Mobile Workspace Sheet 让业务页面或详情创建第二个 Sheet DOM、第二个 backdrop、第二个根级 Portal 或平行拖动状态机；不得恢复外部 backdrop 的压暗／模糊或 `backdrop-filter`，不得让实体 Sheet 覆盖／截获移动状态栏，不得恢复 `aria-modal="true"` 或全局 `Tab` 焦点陷阱；不得让根 Sheet 存在时移动底栏保持可见可交互，也不得在详情切换、通知开关、刷新或初始挂载时播放底栏返回动画；',
+              '- 绕过唯一根级 Mobile Workspace Sheet 让业务页面或详情创建第二个 Sheet DOM、第二个 backdrop、第二个根级 Portal 或平行拖动状态机；不得恢复外部 backdrop 的压暗／模糊或 `backdrop-filter`，不得让实体 Sheet 覆盖／截获移动状态栏，不得恢复 `aria-modal="true"` 或全局 `Tab` 焦点陷阱；不得让根 Sheet 存在时移动底栏保持可见可交互，也不得在详情切换、通知开关、刷新或初始挂载时播放底栏返回动画；\n- 在地区商品详情恢复市场价、基准偏离、需求满足率、参考价、上轮需求、基本面条、自动经营执行卡、一级交易卡底座或本地成交“资产”列；',
+              'ui anti regression',
+          )
+          ui_path.write_text(ui, encoding='utf-8')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/patch-market-doc-authority.yml
+          git add docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/UI_DESIGN_SYSTEM.md
+          git diff --cached --quiet && exit 0
+          git commit -m "docs: align market detail authority"
+          git push origin HEAD:${GITHUB_REF_NAME}
