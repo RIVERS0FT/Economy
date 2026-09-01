@@ -130,18 +130,18 @@ test('C1 and C2 non-base production methods require their declared technologies'
   assert.equal(player.research.completedTechnologyIds.includes('forestry-development'), true);
 
   const blockedTool = validateResearchAccess(world, user, 'setFacilityRecipe', {
-    facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--assisted',
+    facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--saw-assisted-logging',
   }, NOW);
   assert.equal(blockedTool?.ok, false);
   assert.match(blockedTool.message, /工具作业/);
 
   player.research.completedTechnologyIds.push('tool-operation');
   assert.equal(validateResearchAccess(world, user, 'setFacilityRecipe', {
-    facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--assisted',
+    facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--saw-assisted-logging',
   }, NOW), null);
 
   const blockedMechanized = validateResearchAccess(world, user, 'setFacilityRecipe', {
-    facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--mechanized',
+    facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--mechanized-logging',
   }, NOW);
   assert.equal(blockedMechanized?.ok, false);
   assert.match(blockedMechanized.message, /机械化作业/);
@@ -149,7 +149,7 @@ test('C1 and C2 non-base production methods require their declared technologies'
 
   player.research.completedTechnologyIds.push('machinery-operation', 'industrial-fuel-operation');
   assert.equal(validateResearchAccess(world, user, 'setFacilityRecipe', {
-    facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--mechanized',
+    facilityTypeId: 'logging-camp', recipeId: 'logging-camp-default--mechanized-logging',
   }, NOW), null);
 
   const retired = validateResearchAccess(world, user, 'setFacilityRecipe', {

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { CURRENT_CLIENT_STATE_VERSION } from '../../server/shared/economy-state-version.js';
 import '../../src/app/interactionBootstrap';
 import type { LoadedGameViewModel, MarketViewMode } from '../../src/app/gameViewModel';
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../../src/components/icons/GameIcons';
@@ -264,7 +265,7 @@ function MarketHarness() {
       },
     ]));
     const game = {
-      version: 37,
+      version: CURRENT_CLIENT_STATE_VERSION,
       lastProcessedAt: fixedNow,
       userId: 123,
       playerName: 'MEVIUS',

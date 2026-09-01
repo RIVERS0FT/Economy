@@ -200,7 +200,7 @@ test('expanded industry catalog exposes fruit and complete production chains', (
   const productIds = new Set(expectedProducts);
   const expectedProfitByComplexity = { C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
   const expectedC1ProfitByFacility = { farm: 0.6, orchard: 0.9, ranch: 0.8, fishery: 1 };
-  const expectedC2ProfitByMethod = { standard: 3, assisted: 6, intensive: 9, mechanized: 10.5 };
+  const expectedC2Profits = [3, 6, 9, 10.5];
   for (const product of PRODUCT_CATALOG) {
     assert.ok(Math.abs(product.basePrice - Math.round(product.basePrice * 100) / 100) < 1e-9, `${product.id} 初始参考价最多保留两位小数`);
   }
@@ -208,6 +208,9 @@ test('expanded industry catalog exposes fruit and complete production chains', (
     assert.ok(Array.isArray(facility.recipes) && facility.recipes.length >= 1);
     assert.ok(facility.recipes.some((recipe) => recipe.id === facility.defaultRecipeId));
     const defaultRecipe = facility.recipes.find((recipe) => recipe.id === facility.defaultRecipeId);
+    const methodGroup = facility.productionMethodGroups.find((group) => group.id === 'operation');
+    const defaultMethodId = methodGroup?.defaultMethodId;
+    const methodIds = methodGroup?.methods.map((method) => method.id) ?? [];
     assert.equal(facility.cycleMs, defaultRecipe.cycleMs);
     assert.equal(facility.operatingCost, defaultRecipe.operatingCost);
     for (const recipe of facility.recipes) {
@@ -223,12 +226,11 @@ test('expanded industry catalog exposes fruit and complete production chains', (
       const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
       const profit = (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
         * 60_000 / recipe.cycleMs;
-      if (recipe.legacyProductionMethod) continue;
-      if (facility.complexity === 'C1' && recipe.productionMethodId !== 'standard') continue;
+      if (facility.complexity === 'C1' && recipe.productionMethodId !== defaultMethodId) continue;
       const expectedProfit = facility.complexity === 'C1'
         ? expectedC1ProfitByFacility[facility.id]
         : facility.complexity === 'C2'
-          ? expectedC2ProfitByMethod[recipe.productionMethodId || 'standard']
+          ? expectedC2Profits[methodIds.indexOf(recipe.productionMethodId)]
           : expectedProfitByComplexity[facility.complexity];
       assert.ok(Number.isFinite(expectedProfit), `${facility.id}/${recipe.id} 缺少参考分钟利润规则`);
       assert.ok(Math.abs(profit - expectedProfit) < 1e-9, `${facility.id}/${recipe.id} 参考分钟利润不正确`);
@@ -237,7 +239,7 @@ test('expanded industry catalog exposes fruit and complete production chains', (
 
   const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
   const standardRecipes = (facility) => facility.recipes.filter(
-    (recipe) => (recipe.productionMethodId || 'standard') === 'standard',
+    (recipe) => recipe.productionMethodId === facility.productionMethodGroups[0].defaultMethodId,
   );
   assert.deepEqual(standardRecipes(facilities.get('farm')).map((recipe) => recipe.output.productId), ['wheat', 'rice', 'cotton', 'sugarcane']);
   assert.equal(facilities.get('orchard').recipes[0].output.productId, 'fruit');

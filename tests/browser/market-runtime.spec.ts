@@ -218,9 +218,14 @@ test('market medium and narrow layouts keep the trade card responsive without ho
     if (!trade || !chart) return -Infinity;
     return trade.y - (chart.y + chart.height);
   }).toBeGreaterThanOrEqual(-1);
+  await expect.poll(async () => {
+    const order = await orderEntry.boundingBox();
+    const book = await orderBook.boundingBox();
+    if (!order || !book) return Number.POSITIVE_INFINITY;
+    return Math.abs(order.y - book.y);
+  }).toBeLessThan(3);
   const narrowOrder = await requireBox(orderEntry);
   const narrowBook = await requireBox(orderBook);
-  expect(Math.abs(narrowOrder.y - narrowBook.y)).toBeLessThan(3);
   expect(narrowBook.x).toBeGreaterThan(narrowOrder.x + narrowOrder.width - 3);
   expect(narrowOrder.width / narrowBook.width).toBeGreaterThan(1.4);
   expect(narrowOrder.width / narrowBook.width).toBeLessThan(1.7);
