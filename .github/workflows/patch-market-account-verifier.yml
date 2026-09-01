@@ -1,0 +1,38 @@
+name: Patch market account verifier
+
+on:
+  push:
+    branches:
+      - fix/market-detail-direct-flow-20260901
+
+permissions:
+  contents: write
+
+jobs:
+  patch-verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Align account panel token
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-market-information-hierarchy.mjs')
+          text = path.read_text(encoding='utf-8')
+          old = '<Panel className="widget market-account-panel">'
+          new = '<Panel className="widget span-3 market-account-panel">'
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'account panel token: expected exactly one match, found {count}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/patch-market-account-verifier.yml
+          git add scripts/verify-market-information-hierarchy.mjs
+          git diff --cached --quiet && exit 0
+          git commit -m "test: align market account panel hierarchy token"
+          git push origin HEAD:${GITHUB_REF_NAME}
