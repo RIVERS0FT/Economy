@@ -1,0 +1,138 @@
+name: Temporary transport rule patch
+
+on:
+  push:
+    branches:
+      - codex/transport-economy-loop
+    paths:
+      - .github/workflows/tmp-transport-rule-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/transport-economy-loop
+      - name: Patch transport rules exactly
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, count=1):
+              file = Path(path)
+              text = file.read_text()
+              hits = text.count(old)
+              if hits != count:
+                  raise SystemExit(f'{path}: expected {count} match(es), found {hits}: {old[:100]!r}')
+              file.write_text(text.replace(old, new, count))
+
+          replace(
+              'docs/README.md',
+              '公路／铁路／航空三种跨州运输（成本、单次运量、时间、运费计入运输就业、在途商品按起始州官方价估值），以及最多 50 条玩家私有手动多站点运输路线（站点无上限、允许闭环、非闭环默认往返、整链一次发运逐站交付）',
+              '公路／铁路／航空三种跨州运输（成本、首段总载重、时间、运费计入运输就业、在途商品按起始州官方价估值），以及最多 50 条玩家私有多站点运输路线（站点无上限、允许闭环、非闭环默认单程、首段总载重受运输方式容量限制、按剩余载荷逐段计费、整链一次发运逐站交付、可选受控自动发运）',
+          )
+          replace(
+              'docs/README.md',
+              '不得恢复任意州自由经营、免费跨州物流、仓库运输卡、自动循环路线或取消起始州绑定。',
+              '不得恢复任意州自由经营、免费跨州物流、仓库运输卡、绕过库存／资金／容量／在途上限校验的后台运输扫描或取消起始州绑定。',
+          )
+
+          replace(
+              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+              '运输路线支持任意多个已解锁站点、闭环与默认往返；一次发运生成一条整链运输，货物记入源州库存的 `inTransit` 并按站点顺序逐站交付进入对应州本地仓库。',
+              '运输路线支持任意多个已解锁站点、闭环与显式往返，非闭环默认单程；运输方式容量约束首段“每站数量 × 交付站数”的实际总载重，载货段按进入该段时的剩余载荷逐段计费。一次发运生成一条整链运输，货物记入源州库存的 `inTransit` 并按站点顺序逐站交付进入对应州本地仓库。路线可选受控自动发运，只复用正常世界推进，并仅在同一路线无在途且库存、资金、容量与玩家在途上限全部满足时发出下一趟，不新增独立后台扫描。',
+          )
+
+          replace(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '| 运输 | `transport` | `TransportPage` | 保存、编辑和删除跨州运输路线，按路线手动发运，并集中显示进行中与最近完成的运输记录 |',
+              '| 运输 | `transport` | `TransportPage` | 保存、编辑和删除跨州运输路线，支持手动或受控自动发运，并集中显示进行中／最近完成运输与跨州参考价差 |',
+          )
+          replace(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '运输页的“增加路线”固定放在正文顶部操作区，不占用页面标题区；路线编辑、路线列表和运输记录继续作为正文内独立业务分组。路线编辑固定提供有序站点序列（带序号与首府名的站点 chips、中间站可移除）、起始州／目的州／追加中间站下拉、行程（非闭环默认往返，闭环显示环线且不可切换）、商品、每站数量、运输方式，以及总距离、单次总费用、全程耗时和交付站数预估；站点序列与地图选州双向同步。玩家标题区的通用按钮限制以 `UI_DESIGN_SYSTEM.md` 为准。',
+              '运输页的“增加路线”固定放在正文顶部操作区，不占用页面标题区；路线编辑、路线列表和运输记录继续作为正文内独立业务分组。路线编辑固定提供有序站点序列（带序号与首府名的站点 chips、中间站可移除）、起始州／目的州／追加中间站下拉、行程（非闭环默认单程，闭环显示环线且不可切换）、商品、每站数量、运输方式和自动发运开关，以及总距离、单次总费用、全程耗时、首段装载／容量、交付站数、交付参考收入和参考价差预估；站点序列与地图选州双向同步。参考价差只读取既有州级市场摘要，不能替代真实成交。玩家标题区的通用按钮限制以 `UI_DESIGN_SYSTEM.md` 为准。',
+          )
+          replace(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '''运输页是跨州物流配置与运输记录的唯一玩家入口，并使用 `fullscreen` 战略展示。页面上方“增加路线”打开同页路线编辑区；路线固定保存起始州、目的州、商品、单次数量和运输方式，最多保存 50 条。创建或编辑路线只校验两州均已解锁、起止州不同、商品与运输方式合法、数量不超过对应方式单次容量，不要求提交当时具备库存或运费；点击“发运”时服务器必须重新按当前库存、资金、方式容量与最多 20 笔同时在途上限校验。路线只允许玩家手动发运，不得自动循环、离线定时或后台补发。编辑或删除路线不得修改、撤销或重定向已经出发的运输。
+
+运输页下半区统一显示“进行中运输”和“最近完成”。路线是玩家私有配置，`transportRoutes` 进入现有玩家分区的 `player.misc` slice；真实在途与到达记录继续由 `transportShipments` 进入现有市场分区的 `market.misc` slice。页面订阅 `catalog + player.assets + player.misc + market.misc`，不得为了路线新增第七个状态分区、专用轮询或第二份运输记录。''',
+              '''运输页是跨州物流配置、跨州价格决策与运输记录的唯一玩家入口，并使用与市场一致的 `building` 战略展示。页面上方“增加路线”打开同页路线编辑区；路线固定保存起始州、任意多个有序中间站、目的州、行程类型、商品、每站数量、运输方式和自动发运开关，最多保存 50 条。非闭环默认单程，可显式选择空驶返程的往返；闭环由目的州回到起始州表示。创建或编辑路线必须校验全部站点已解锁、站点不重复、商品与运输方式合法，并保证“每站数量 × 交付站数”的首段总载重不超过运输方式容量，但不要求提交当时具备库存或运费；点击“发运”时服务器仍必须重新按当前库存、资金、总载重与最多 20 笔同时在途上限校验。
+
+路线默认手动发运；开启自动发运后，只能复用正常世界推进，在同一路线没有进行中的运输且库存、资金、州解锁、总载重和玩家 20 笔在途上限全部满足时发出下一趟，不得新增专用轮询、离线定时或第二套运输任务。路线编辑器和路线卡必须显示首段实际装载、单次总费用、全程耗时、交付参考收入与参考价差；参考价格优先读取交付州最优买价并按运输权威设计规定回退，只提供决策参考，不自动卖货或保证成交。编辑或删除路线不得修改、撤销或重定向已经出发的运输。
+
+运输页下半区统一显示“进行中运输”和“最近完成”。路线是玩家私有配置，`transportRoutes` 进入现有玩家分区的 `player.misc` slice；真实在途与到达记录继续由 `transportShipments` 进入现有市场分区的 `market.misc` slice。页面订阅 `catalog + player.assets + player.misc + market.misc`，不得为了路线新增第七个状态分区、专用轮询或第二份运输记录。''',
+          )
+
+          replace(
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+              '路线不会自动循环、离线定时或新增后台扫描器，删除路线不得删除已经在途的 shipment。',
+              '路线自动发运只在正常世界推进中、同一路线无在途且既有库存／资金／州解锁／总载重／玩家在途上限校验全部通过时复用 `transportShip` 执行，不新增离线定时器或独立后台扫描器；删除路线不得删除已经在途的 shipment。',
+          )
+
+          replace(
+              'src/types.ts',
+              '''  productId: string;
+  quantity: number;
+  mode: TransportModeId;
+  createdAt: number;''',
+              '''  productId: string;
+  quantity: number;
+  mode: TransportModeId;
+  autoDispatch?: boolean;
+  createdAt: number;''',
+          )
+          replace(
+              'src/api/game.ts',
+              '''  productId: string;
+  quantity: number;
+  mode: TransportModeId;
+}
+export interface FacilityBuildProcurementOptions''',
+              '''  productId: string;
+  quantity: number;
+  mode: TransportModeId;
+  autoDispatch?: boolean;
+}
+export interface FacilityBuildProcurementOptions''',
+          )
+
+          path = Path('scripts/verify-provincial-unlock-transport.mjs')
+          text = path.read_text()
+          swaps = [
+              ("requireText(index, 'scripts/verify-provincial-unlock-transport.mjs', '设计索引必须登记州解锁运输验证脚本。');", "requireText(index, 'scripts/verify-provincial-unlock-transport.mjs', '设计索引必须登记州解锁运输验证脚本。');\nrequireText(index, '非闭环默认单程', '设计索引必须登记运输默认单程。');\nrequireText(index, '可选受控自动发运', '设计索引必须登记受控自动发运。');"),
+              ("requireText(productDesign, '跨州商品只能通过付费运输在已解锁州之间流动', '产品设计必须记录付费运输边界。');", "requireText(productDesign, '跨州商品只能通过付费运输在已解锁州之间流动', '产品设计必须记录付费运输边界。');\nrequireText(productDesign, '非闭环默认单程', '产品设计必须记录运输默认单程。');\nrequireText(productDesign, '路线可选受控自动发运', '产品设计必须记录受控自动发运。');"),
+              ("requireText(warehouseDesign, '非闭环默认 `round` 往返运输', '仓库设计必须记录非闭环默认往返。');", "requireText(warehouseDesign, '非闭环默认 `one-way` 单程运输', '仓库设计必须记录非闭环默认单程。');"),
+              ("requireText(warehouseDesign, '旧路线（无 `viaProvinceIds`、无 `tripType`）与历史在途记录（无 `stopPlan`）按原单段语义', '仓库设计必须记录旧数据兼容边界。');", "requireText(warehouseDesign, '旧路线（无 `viaProvinceIds`、无 `tripType`）缺失行程类型时按 `one-way` 单程读取', '仓库设计必须记录旧路线缺失行程类型的兼容边界。');"),
+              ("requireText(warehouseDesign, '路线只允许手动发运', '仓库设计必须记录路线不自动循环。');", "requireText(warehouseDesign, '路线 `autoDispatch` 默认关闭', '仓库设计必须记录自动发运默认关闭。');\nrequireText(warehouseDesign, '首段总载荷不超过对应运输方式容量', '仓库设计必须记录首段总载重约束。');\nrequireText(warehouseDesign, '实际剩余载荷计算', '仓库设计必须记录逐段真实载荷计费。');\nrequireText(warehouseDesign, '不新增轮询器、后台扫描任务或离线定时器', '仓库设计必须锁定自动发运调度边界。');\nrequireText(warehouseDesign, '参考价差固定为', '仓库设计必须记录运输参考价差。');"),
+              ("requireText(pageDesign, '路线只允许玩家手动发运', '页面设计必须锁定路线手动发运边界。');", "requireText(pageDesign, '路线默认手动发运；开启自动发运后', '页面设计必须记录自动发运入口与边界。');\nrequireText(pageDesign, '非闭环默认单程', '页面设计必须记录运输默认单程。');\nrequireText(pageDesign, '交付参考收入与参考价差', '页面设计必须记录运输经济决策展示。');"),
+              ("requireText(serverDesign, '`stopPlan` 注册“下一未交付站”', '服务器设计必须记录逐站到达调度。');", "requireText(serverDesign, '`stopPlan` 注册“下一未交付站”', '服务器设计必须记录逐站到达调度。');\nrequireText(serverDesign, '路线自动发运只在正常世界推进中', '服务器设计必须记录受控自动发运调度。');"),
+              ("requireText(transport, 'applyDispatchTransportRoute', '运输模块必须提供按路线发运。');", "requireText(transport, 'applyDispatchTransportRoute', '运输模块必须提供按路线发运。');\nrequireText(transport, \"TRANSPORT_DEFAULT_TRIP_TYPE = 'one-way'\", '运输模块必须默认单程。');\nrequireText(transport, 'validateTransportLoad', '运输模块必须按首段总载重校验。');\nrequireText(transport, 'remainingLoad', '运输模块必须按逐段剩余载荷计费。');\nrequireText(transport, 'processAutomaticTransportRoutes', '运输模块必须提供受控自动发运。');\nrequireText(transport, 'autoDispatch: route.autoDispatch === true', '运输客户端状态必须返回自动发运设置。');"),
+              ("requireText(types, 'export interface TransportRoute', '客户端类型必须声明运输路线。');", "requireText(types, 'export interface TransportRoute', '客户端类型必须声明运输路线。');\nrequireText(types, 'autoDispatch?: boolean;', '客户端运输路线类型必须声明自动发运。');"),
+              ("requireText(gameApi, \"/transport\", '游戏 API 必须提供运输端点。');", "requireText(gameApi, \"/transport\", '游戏 API 必须提供运输端点。');\nrequireText(gameApi, 'autoDispatch?: boolean;', '运输 API 输入必须允许自动发运。');"),
+              ("for (const text of ['在地图上选择', '每站数量', '交付站数', '追加中间站', '往返运输（默认）', 'useTransportRouteDraft']) {", "for (const text of ['在地图上选择', '每站数量', '交付站数', '追加中间站', '单程运输（默认）', '自动发运', '首段装载', '参考价差', 'useTransportRouteDraft']) {"),
+              ("requireText(provinceLogistics, 'TRANSPORT_MAX_ROUTES_PER_PLAYER = 50', '客户端物流工具必须同步路线数量上限。');", "requireText(provinceLogistics, 'TRANSPORT_MAX_ROUTES_PER_PLAYER = 50', '客户端物流工具必须同步路线数量上限。');\nrequireText(provinceLogistics, \"TRANSPORT_DEFAULT_TRIP_TYPE: TransportTripType = 'one-way'\", '客户端物流工具必须默认单程。');\nrequireText(provinceLogistics, 'transportRouteMaxQuantityPerStop', '客户端物流工具必须按首段总载重限制每站数量。');\nrequireText(provinceLogistics, 'loadQuantity', '客户端物流工具必须暴露逐段实际载荷。');"),
+              ("  'multi-stop routes validate ordered stations without a station cap',", "  'multi-stop routes validate ordered stations without a station cap',\n  'multi-stop capacity applies to initial load and cost follows remaining cargo',"),
+              ("  'staged arrivals settle each stop at its own deadline',", "  'staged arrivals settle each stop at its own deadline',\n  'automatic routes wait for resources and keep at most one active shipment per route',"),
+              ("持久化手动路线、独立运输页与老玩家迁移均已锁定。", "首段真实载重与逐段计费、默认单程、受控自动路线、跨州参考价差、独立运输页与老玩家迁移均已锁定。"),
+          ]
+          for old, new in swaps:
+              hits = text.count(old)
+              if hits != 1:
+                  raise SystemExit(f'verify script: expected one match, found {hits}: {old[:100]!r}')
+              text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/README.md docs/PRODUCT_AND_GAMEPLAY_DESIGN.md docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md src/types.ts src/api/game.ts scripts/verify-provincial-unlock-transport.mjs
+          git commit -m "同步运输自动化与载重规则"
+          git push origin HEAD:codex/transport-economy-loop
