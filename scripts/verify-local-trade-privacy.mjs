@@ -93,7 +93,7 @@ for (const [path, text] of [
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '六分区主状态不得发送公共逐笔订单或全部 800 笔关闭历史'],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '集中式公开订单序列化'],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '`populationModelId`'],
-  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得设置“来源”列'],
+  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得新增来源或对手列'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '市场页面不得增加人口经济区域'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '单一公开订单序列化函数'],
 ]) requireText(path, text);
