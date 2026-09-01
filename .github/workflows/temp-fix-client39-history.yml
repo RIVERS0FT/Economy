@@ -1,0 +1,39 @@
+name: Temporary Fix Client 39 History
+
+on:
+  push:
+    branches:
+      - feature/daily-regional-supply-contracts-impl
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/daily-regional-supply-contracts-impl
+          fetch-depth: 0
+      - name: Update authoritative client version history
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          text = path.read_text()
+          old = '客户端状态版本 38 把 26 类工厂全部切换为具名作业制度并为每种制度增加 `iconId`。运输路线继续作为玩家可选状态保存。当前客户端只接受版本 38；'
+          new = '客户端状态版本 38 把 26 类工厂全部切换为具名作业制度并为每种制度增加 `iconId`；客户端状态版本 39 将运输路线重构为自动物流通道，路线本身只保存路径与运输方式，运输实例固化多商品 `manifest` 与逐段 `legPlan`，并删除普通玩家手动 `route-dispatch` 语义。当前客户端只接受版本 39；'
+          if old not in text:
+              raise SystemExit('stale client 38 history sentence not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          rm .github/workflows/temp-fix-client39-history.yml
+          git config user.name "RIVERSOFT"
+          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "补齐客户端协议 39 自动物流版本历史"
+          git push origin HEAD:feature/daily-regional-supply-contracts-impl
