@@ -32,6 +32,20 @@ NGINX_BACKUP_NAME_PATTERN = re.compile(
     r"(?:^|[._-])(?:bak|backup)(?:$|[._-])",
     re.IGNORECASE,
 )
+NGINX_BACKUP_DIRECTORY = Path("/var/tmp/economy-nginx-backups")
+
+
+def create_nginx_backup(path: Path) -> Path:
+    NGINX_BACKUP_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    descriptor, backup_name = tempfile.mkstemp(
+        prefix=f"{path.name}.",
+        suffix=".bak",
+        dir=NGINX_BACKUP_DIRECTORY,
+    )
+    os.close(descriptor)
+    backup = Path(backup_name)
+    shutil.copy2(path, backup)
+    return backup
 
 
 def masked(text: str) -> str:
@@ -311,9 +325,10 @@ def apply_changes() -> None:
             "ECONOMY_STATIC_CACHE_LOCATIONS_MISSING=" + ",".join(sorted(missing))
         )
 
+    backups = []
     for path, original, updated in changes:
-        backup = path.with_name(path.name + ".economy-static-cache.bak")
-        shutil.copy2(path, backup)
+        backup = create_nginx_backup(path)
+        backups.append((path, backup))
         write_atomic(path, updated)
 
     try:
@@ -321,8 +336,8 @@ def apply_changes() -> None:
         run(["systemctl", "reload", "nginx"])
         verify_after_reload()
     except Exception:
-        for path, original, _updated in changes:
-            write_atomic(path, original)
+        for path, backup in reversed(backups):
+            shutil.copy2(backup, path)
         if changes:
             run(["nginx", "-t"])
             run(["systemctl", "reload", "nginx"])
