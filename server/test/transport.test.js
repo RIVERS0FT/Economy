@@ -57,6 +57,7 @@ test('road transport moves goods into in-transit and charges the mode cost', () 
   assert.equal(world.transportShipments.length, 1);
   const shipment = world.transportShipments[0];
   assert.equal(shipment.status, 'in-transit');
+  assert.equal(shipment.tripType, 'one-way');
   assert.equal(shipment.arrivesAt, now + 1 + expectedMs);
   assert.equal(shipment.cost, expectedCost);
   assert.ok(expectedMs >= 1_000);
@@ -209,6 +210,8 @@ test('transport routes persist without requiring current inventory or funds', ()
   }, now + 2);
   assert.equal(created.ok, true);
   assert.equal(player.transportRoutes.length, 1);
+  assert.equal(player.transportRoutes[0].tripType, 'one-way');
+  assert.equal(player.transportRoutes[0].autoDispatch, false);
   const routeId = player.transportRoutes[0].id;
 
   const updated = applyAction(world, alice, 'transportShip', {
@@ -225,10 +228,13 @@ test('transport routes persist without requiring current inventory or funds', ()
   assert.equal(player.transportRoutes[0].productId, 'ore');
   assert.equal(player.transportRoutes[0].quantity, 500);
   assert.equal(player.transportRoutes[0].mode, 'rail');
+  assert.equal(player.transportRoutes[0].tripType, 'one-way');
 
   const client = createClientState(world, alice.id, now + 4);
   assert.equal(client.transportRoutes.length, 1);
   assert.equal(client.transportRoutes[0].id, routeId);
+  assert.equal(client.transportRoutes[0].tripType, 'one-way');
+  assert.equal(client.transportRoutes[0].autoDispatch, false);
 });
 
 test('dispatching and deleting a route leaves the shipment in transit', () => {
@@ -373,6 +379,42 @@ test('multi-stop routes validate ordered stations without a station cap', () => 
   assert.equal(client.transportRoutes[0].tripType, 'round');
 });
 
+test('multi-stop capacity applies to initial load and cost follows remaining cargo', () => {
+  const world = createWorld(now);
+  deferDemand(world);
+  const player = unlockedPlayer(world, alice, 1_000_000);
+  inventoryForProvince(player, 'wheat', '110000').available = 200;
+
+  const dispatched = applyAction(world, alice, 'transportShip', {
+    sourceProvinceId: '110000',
+    viaProvinceIds: ['130000'],
+    destinationProvinceId: '120000',
+    productId: 'wheat',
+    quantity: 50,
+    mode: 'road',
+  }, now + 1);
+  assert.equal(dispatched.ok, true);
+  const shipment = world.transportShipments[0];
+  const firstLeg = provinceDistanceKm('110000', '130000');
+  const secondLeg = provinceDistanceKm('130000', '120000');
+  assert.equal(shipment.tripType, 'one-way');
+  assert.equal(shipment.cost,
+    transportCost('road', 100, firstLeg) + transportCost('road', 50, secondLeg));
+  assert.equal(inventoryForProvince(player, 'wheat', '110000').available, 100);
+  assert.equal(inventoryForProvince(player, 'wheat', '110000').inTransit, 100);
+
+  const overCapacity = applyAction(world, alice, 'transportShip', {
+    sourceProvinceId: '110000',
+    viaProvinceIds: ['130000'],
+    destinationProvinceId: '120000',
+    productId: 'wheat',
+    quantity: 51,
+    mode: 'road',
+  }, now + 2);
+  assert.equal(overCapacity.ok, false);
+  assert.match(overCapacity.message, /首段总载荷不能超过 100/);
+});
+
 test('round-trip dispatch delivers every stop and charges empty return legs once', () => {
   const world = createWorld(now);
   deferDemand(world);
@@ -392,7 +434,7 @@ test('round-trip dispatch delivers every stop and charges empty return legs once
   const shipment = world.transportShipments[0];
   const leg110To130 = provinceDistanceKm('110000', '130000');
   const leg130To120 = provinceDistanceKm('130000', '120000');
-  const expectedCost = transportCost('road', 5, leg110To130)
+  const expectedCost = transportCost('road', 10, leg110To130)
     + transportCost('road', 5, leg130To120)
     + transportCost('road', 0, leg130To120)
     + transportCost('road', 0, leg110To130);
@@ -491,4 +533,43 @@ test('staged arrivals settle each stop at its own deadline', () => {
   assert.equal(inventoryForProvince(player, 'wheat', '120000').available, 5);
   assert.equal(inventoryForProvince(player, 'wheat', '110000').inTransit, 0);
   assert.equal(nextTransportDeadline(world), null);
+});
+
+test('automatic routes wait for resources and keep at most one active shipment per route', () => {
+  const world = createWorld(now);
+  deferDemand(world);
+  const player = unlockedPlayer(world, alice, 1_000_000);
+  const source = inventoryForProvince(player, 'wheat', '110000');
+  source.available = 0;
+
+  const created = applyAction(world, alice, 'transportShip', {
+    operation: 'route-create',
+    sourceProvinceId: '110000',
+    destinationProvinceId: '130000',
+    productId: 'wheat',
+    quantity: 4,
+    mode: 'road',
+    autoDispatch: true,
+  }, now + 1);
+  assert.equal(created.ok, true);
+  const routeId = player.transportRoutes[0].id;
+  assert.equal(player.transportRoutes[0].autoDispatch, true);
+
+  processTransportWorld(world, now + 2);
+  assert.equal(world.transportShipments.length, 0);
+
+  source.available = 8;
+  processTransportWorld(world, now + 3);
+  assert.equal(world.transportShipments.length, 1);
+  const shipment = world.transportShipments[0];
+  assert.equal(shipment.routeId, routeId);
+  assert.equal(shipment.status, 'in-transit');
+  assert.equal(source.available, 4);
+
+  processTransportWorld(world, now + 4);
+  assert.equal(world.transportShipments.length, 1);
+  assert.equal(source.available, 4);
+
+  const client = createClientState(world, alice.id, now + 5);
+  assert.equal(client.transportRoutes[0].autoDispatch, true);
 });
