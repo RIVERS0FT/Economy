@@ -5,7 +5,7 @@ import { IntegerInput, SelectInput } from '../components/ui/FormControls';
 import { useTransportRouteDraft, type TransportRouteDraft } from '../components/shell/TransportRouteDraftContext';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { CompactNumber } from '../components/ui/CompactNumber';
-import { Button, PageLayout, PagePanel, StatusTag, WidgetHeading } from '../components/ui/layout';
+import { Button, PageLayout, PagePanel, StatusTag, ToggleField, WidgetHeading } from '../components/ui/layout';
 import { useNow } from '../hooks/useNow';
 import type { TransportModeId, TransportRoute, TransportShipment } from '../types';
 import { formatCurrency } from '../utils/formatters';
@@ -17,11 +17,16 @@ import {
   TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER,
   TRANSPORT_MAX_ROUTES_PER_PLAYER,
   TRANSPORT_MODES,
+  transportDeliveryStopIds,
+  transportRouteMaxQuantityPerStop,
   transportRoutePlanMetrics,
   transportRouteStopIds,
+  type TransportRoutePlanMetrics,
 } from '../utils/provinceLogistics';
 
+type TransportRouteWithAutomation = TransportRoute & { autoDispatch?: boolean };
 type RouteLike = Pick<TransportRoute, 'sourceProvinceId' | 'destinationProvinceId' | 'viaProvinceIds' | 'tripType'>;
+type RouteEconomicsInput = RouteLike & { productId: string; quantity: number };
 
 function routeTripLabel(route: RouteLike) {
   if (isTransportRouteClosed(route)) return '环线';
@@ -31,7 +36,7 @@ function routeTripLabel(route: RouteLike) {
 export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
   const { game } = model;
   const now = useNow(game.lastProcessedAt, 1_000);
-  const routes = Array.isArray(game.transportRoutes) ? game.transportRoutes : [];
+  const routes = (Array.isArray(game.transportRoutes) ? game.transportRoutes : []) as TransportRouteWithAutomation[];
   const shipments = Array.isArray(game.transportShipments) ? game.transportShipments : [];
   const {
     draft: routeDraft,
@@ -75,6 +80,36 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
     [shipments],
   );
 
+  function marketReferencePrice(provinceId: string, productId: string) {
+    const market = game.provinceMarkets?.[provinceId]?.[productId];
+    const product = productById.get(productId);
+    const candidates = [
+      market?.bestBid,
+      market?.lastTradePrice,
+      market?.officialPrice,
+      market?.lastPrice,
+      product?.basePrice,
+    ];
+    const selected = candidates.find((value) => Number.isFinite(Number(value)) && Number(value) > 0);
+    return selected === undefined ? 0 : Number(selected);
+  }
+
+  function routeEconomics(route: RouteEconomicsInput, plan: TransportRoutePlanMetrics | null) {
+    if (!plan || plan.deliveryStops.length < 1 || plan.initialLoad < 1) return null;
+    const sourceUnitValue = marketReferencePrice(route.sourceProvinceId, route.productId);
+    const sourceReferenceValue = sourceUnitValue * plan.initialLoad;
+    const deliveryReferenceValue = plan.deliveryStops.reduce((total, provinceId) => (
+      total + marketReferencePrice(provinceId, route.productId) * route.quantity
+    ), 0);
+    const spread = deliveryReferenceValue - sourceReferenceValue - plan.cost;
+    return {
+      sourceReferenceValue,
+      deliveryReferenceValue,
+      spread,
+      spreadRate: sourceReferenceValue > 0 ? spread / sourceReferenceValue : null,
+    };
+  }
+
   function emptyRouteDraft(): TransportRouteDraft {
     const sourceProvinceId = unlockedProvinces[0]?.id ?? '';
     const destinationProvinceId = unlockedProvinces.find((province) => province.id !== sourceProvinceId)?.id ?? '';
@@ -87,19 +122,21 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
       productId: game.products[0]?.id ?? '',
       quantity: '1',
       mode: 'road',
+      autoDispatch: false,
     };
   }
 
-  function editRoute(route: TransportRoute) {
+  function editRoute(route: TransportRouteWithAutomation) {
     setDraft({
       routeId: route.id,
       sourceProvinceId: route.sourceProvinceId,
       destinationProvinceId: route.destinationProvinceId,
       viaProvinceIds: Array.isArray(route.viaProvinceIds) ? [...route.viaProvinceIds] : [],
-      tripType: route.tripType ?? 'one-way',
+      tripType: route.tripType ?? TRANSPORT_DEFAULT_TRIP_TYPE,
       productId: route.productId,
       quantity: String(route.quantity),
       mode: route.mode,
+      autoDispatch: route.autoDispatch === true,
     });
   }
 
@@ -117,10 +154,10 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
 
   async function saveRoute() {
     if (!routeDraft) return;
-    const quantity = parseIntegerDraft(routeDraft.quantity, {
-      min: 1,
-      max: TRANSPORT_MODES[routeDraft.mode].capacity,
-    });
+    const maxPerStop = transportRouteMaxQuantityPerStop(routeDraft, routeDraft.mode);
+    const quantity = maxPerStop >= 1
+      ? parseIntegerDraft(routeDraft.quantity, { min: 1, max: maxPerStop })
+      : null;
     const closed = isTransportRouteClosed(routeDraft);
     const stopIds = transportRouteStopIds(routeDraft);
     if (
@@ -131,7 +168,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
       || !routeDraft.productId
       || quantity === null
     ) {
-      await model.showResult({ ok: false, message: '请完整填写有效的运输路线，站点不能重复且至少包含起终点' });
+      await model.showResult({ ok: false, message: '请完整填写有效的运输路线，并确保首段总载荷不超过运输方式容量' });
       return;
     }
     const routeId = routeDraft.routeId;
@@ -144,6 +181,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
       productId: routeDraft.productId,
       quantity,
       mode: routeDraft.mode,
+      autoDispatch: routeDraft.autoDispatch,
     };
     const ok = await runMutation(
       editing ? `update:${routeId}` : 'create',
@@ -211,11 +249,16 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
 
   const draftStopIds = routeDraft ? transportRouteStopIds(routeDraft) : [];
   const draftClosed = routeDraft ? isTransportRouteClosed(routeDraft) : false;
-  const editorQuantity = routeDraft
-    ? parseIntegerDraft(routeDraft.quantity, { min: 1, max: TRANSPORT_MODES[routeDraft.mode].capacity })
+  const draftDeliveryCount = routeDraft ? transportDeliveryStopIds(routeDraft).length : 0;
+  const editorMaxQuantity = routeDraft ? transportRouteMaxQuantityPerStop(routeDraft, routeDraft.mode) : 0;
+  const editorQuantity = routeDraft && editorMaxQuantity >= 1
+    ? parseIntegerDraft(routeDraft.quantity, { min: 1, max: editorMaxQuantity })
     : null;
   const editorPlan = routeDraft && editorQuantity !== null
     ? transportRoutePlanMetrics({ ...routeDraft, quantity: editorQuantity }, provinceById)
+    : null;
+  const editorEconomics = routeDraft && editorQuantity !== null
+    ? routeEconomics({ ...routeDraft, quantity: editorQuantity }, editorPlan)
     : null;
   const canAddRoute = unlockedProvinces.length >= 2 && routes.length < TRANSPORT_MAX_ROUTES_PER_PLAYER;
   const viaOptions = routeDraft
@@ -310,7 +353,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
           </div>
           {picking ? (
             <p className="transport-route-picking-hint" role="status">
-              地图已进入选州模式：按顺序点击州面追加站点，再次点击起点州闭环；未闭环默认往返运输。
+              地图已进入选州模式：按顺序点击州面追加站点，再次点击起点州闭环；未闭环默认单程运输。
             </p>
           ) : null}
           <div className="transport-route-editor-grid">
@@ -362,8 +405,8 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
               }}
             >
               {draftClosed ? <option value="loop">环线</option> : null}
-              <option value="round">往返运输（默认）</option>
-              <option value="one-way">单程运输</option>
+              <option value="one-way">单程运输（默认）</option>
+              <option value="round">往返运输（空驶返程）</option>
             </SelectInput>
             <SelectInput
               label="商品"
@@ -375,11 +418,11 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
               ))}
             </SelectInput>
             <IntegerInput
-              label="每站数量"
+              label={`每站数量${draftDeliveryCount > 0 ? `（当前 ≤ ${editorMaxQuantity}）` : ''}`}
               value={routeDraft.quantity}
               fallbackValue={1}
               min={1}
-              max={TRANSPORT_MODES[routeDraft.mode].capacity}
+              max={Math.max(1, editorMaxQuantity)}
               onValueChange={(quantity) => setRouteDraft({ quantity })}
             />
             <SelectInput
@@ -388,26 +431,37 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
               onChange={(event) => {
                 const mode = event.target.value as TransportModeId;
                 const parsed = parseIntegerDraft(routeDraft.quantity, { min: 1 });
-                const quantity = parsed === null
+                const maxPerStop = transportRouteMaxQuantityPerStop(routeDraft, mode);
+                const quantity = parsed === null || maxPerStop < 1
                   ? routeDraft.quantity
-                  : String(Math.min(parsed, TRANSPORT_MODES[mode].capacity));
+                  : String(Math.min(parsed, maxPerStop));
                 setRouteDraft({ mode, quantity });
               }}
             >
               {Object.values(TRANSPORT_MODES).map((mode) => (
-                <option key={mode.id} value={mode.id}>{mode.name} · 每站 ≤ {mode.capacity}</option>
+                <option key={mode.id} value={mode.id}>{mode.name} · 总载重 ≤ {mode.capacity}</option>
               ))}
             </SelectInput>
+            <ToggleField
+              label="自动发运"
+              description="路线空闲且库存、资金满足时自动发出下一趟"
+              checked={routeDraft.autoDispatch}
+              onChange={(event) => setRouteDraft({ autoDispatch: event.target.checked })}
+            />
           </div>
           <div className="transport-route-estimate" aria-label="路线预估">
             <span><small>总距离</small><strong>约 <CompactNumber value={Math.round(editorPlan?.distanceKm ?? 0)} /> 公里</strong></span>
             <span><small>单次总费用</small><strong><CurrencyAmount>{formatCurrency(editorPlan?.cost ?? 0)}</CurrencyAmount></strong></span>
             <span><small>全程耗时</small><strong>{formatTransportDuration(editorPlan?.durationMs ?? 0)}</strong></span>
+            <span><small>首段装载</small><strong><CompactNumber value={editorPlan?.initialLoad ?? 0} /> / <CompactNumber value={routeDraft ? TRANSPORT_MODES[routeDraft.mode].capacity : 0} /></strong></span>
             <span>
               <small>交付站数</small>
               <strong>{editorPlan ? editorPlan.deliveryStops.length : 0} 站 · 每站 ×<CompactNumber value={editorQuantity ?? 0} /></strong>
             </span>
+            <span><small>交付参考收入</small><strong><CurrencyAmount>{formatCurrency(editorEconomics?.deliveryReferenceValue ?? 0)}</CurrencyAmount></strong></span>
+            <span><small>参考价差</small><strong><CurrencyAmount>{formatCurrency(editorEconomics?.spread ?? 0)}</CurrencyAmount>{editorEconomics?.spreadRate !== null && editorEconomics ? ` · ${(editorEconomics.spreadRate * 100).toFixed(1)}%` : ''}</strong></span>
           </div>
+          <p className="muted">参考价差按起点与各交付州当前可售参考价估算，优先使用最优买价，其次回退最近成交、官方价或基础价；不代表最终成交收益。</p>
           <div className="transport-route-editor-actions">
             <Button variant="secondary" disabled={Boolean(pendingAction)} onClick={() => { closeDraft(); cancelPicking(); }}>取消</Button>
             <Button disabled={Boolean(pendingAction)} onClick={() => { void saveRoute(); }}>
@@ -431,7 +485,9 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
               const routeStopIds = transportRouteStopIds(route);
               const closed = isTransportRouteClosed(route);
               const plan = transportRoutePlanMetrics({ ...route, quantity: route.quantity }, provinceById);
+              const economics = routeEconomics(route, plan);
               const available = game.provinceInventories?.[route.sourceProvinceId]?.[route.productId]?.available ?? 0;
+              const routeHasActiveShipment = activeShipments.some((shipment) => shipment.routeId === route.id);
               return (
                 <article
                   key={route.id}
@@ -454,13 +510,14 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
                       <strong>{destination?.name ?? route.destinationProvinceId}</strong>
                     </div>
                     <div className="transport-route-tags">
+                      {route.autoDispatch ? <StatusTag tone="success">自动发运</StatusTag> : null}
                       <StatusTag tone="neutral">{routeTripLabel(route)}</StatusTag>
                       <StatusTag tone={TRANSPORT_MODES[route.mode].tone}>{TRANSPORT_MODES[route.mode].name}</StatusTag>
                     </div>
                   </div>
                   <div className="transport-route-product">
                     <strong>{product?.name ?? route.productId}</strong>
-                    <span>每站 ×<CompactNumber value={route.quantity} /></span>
+                    <span>每站 ×<CompactNumber value={route.quantity} /> · 首段装载 <CompactNumber value={plan?.initialLoad ?? 0} /></span>
                   </div>
                   <div className="transport-route-meta">
                     <span><small>起点可用</small><strong><CompactNumber value={available} /></strong></span>
@@ -468,13 +525,15 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
                     <span><small>单次费用</small><strong><CurrencyAmount>{formatCurrency(plan?.cost ?? 0)}</CurrencyAmount></strong></span>
                     <span><small>全程耗时</small><strong>{formatTransportDuration(plan?.durationMs ?? 0)}</strong></span>
                     <span><small>交付站数</small><strong>{plan?.deliveryStops.length ?? 0} 站{closed ? ' · 环线' : ''}</strong></span>
+                    <span><small>交付参考收入</small><strong><CurrencyAmount>{formatCurrency(economics?.deliveryReferenceValue ?? 0)}</CurrencyAmount></strong></span>
+                    <span><small>参考价差</small><strong><CurrencyAmount>{formatCurrency(economics?.spread ?? 0)}</CurrencyAmount>{economics?.spreadRate !== null && economics ? ` · ${(economics.spreadRate * 100).toFixed(1)}%` : ''}</strong></span>
                   </div>
                   <div className="transport-route-card-actions">
                     <Button
-                      disabled={Boolean(pendingAction)}
+                      disabled={Boolean(pendingAction) || (route.autoDispatch === true && routeHasActiveShipment)}
                       onClick={() => { void runMutation(`dispatch:${route.id}`, () => model.dispatchTransportRoute(route.id)); }}
                     >
-                      发运
+                      {route.autoDispatch && routeHasActiveShipment ? '自动在途' : '发运'}
                     </Button>
                     <Button variant="secondary" disabled={Boolean(pendingAction)} onClick={() => editRoute(route)}>编辑</Button>
                     <Button
@@ -492,7 +551,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
         ) : (
           <div className="empty-state transport-empty-state">
             <strong>尚未创建运输路线</strong>
-            <span>{unlockedProvinces.length < 2 ? '至少解锁两个州后才能建立路线。' : '在地图上按顺序点选多个州，可点击起点州闭合成环；未闭环默认往返运输。'}</span>
+            <span>{unlockedProvinces.length < 2 ? '至少解锁两个州后才能建立路线。' : '在地图上按顺序点选多个州，可点击起点州闭合成环；未闭环默认单程运输。'}</span>
           </div>
         )}
       </PagePanel>

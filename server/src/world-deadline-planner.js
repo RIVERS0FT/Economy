@@ -90,10 +90,13 @@ export function createWorldDeadlinePlan(world, now = Date.now()) {
   if (!world || typeof world !== 'object') {
     return { nextDueAt: normalizedNow, deadlines: { initialization: normalizedNow } };
   }
+  const transportDeadline = nextTransportDeadline(world);
   const deadlines = {
     // Player facility production is settled lazily per player and is intentionally absent from the global scheduler.
     facility: null,
-    market: marketDeadline(world, normalizedNow),
+    // Scheduled market processing runs the full world processor. Fold transport arrivals into this due domain so
+    // staged deliveries settle at their authoritative stop deadline instead of waiting for the next market cycle.
+    market: earlier(marketDeadline(world, normalizedNow), transportDeadline),
     auction: auctionDeadline(world),
     contract: createContractRuntimeIndex(world).nextDeadlineAt(),
     leaderboard: leaderboardDeadline(world, normalizedNow),
@@ -101,7 +104,7 @@ export function createWorldDeadlinePlan(world, now = Date.now()) {
     bank: nextBankDeadlineAt(world, normalizedNow),
     weeklyCashSettlement: nextWeeklyCashSettlementDeadlineAt(world, normalizedNow),
     research: nextResearchDeadlineAt(world),
-    transport: nextTransportDeadline(world),
+    transport: transportDeadline,
     orderPrune: orderPruneDeadline(world, normalizedNow),
   };
   const nextDueAt = Object.values(deadlines).reduce(earlier, null);
