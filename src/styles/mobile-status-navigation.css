@@ -237,6 +237,30 @@
     outline: none;
     box-shadow: inset 0 0 0 2px rgba(123, 228, 158, .72);
   }
+
+  .mobile-bottom-navigation[data-navigation-surface='game-mobile-navigation'] .mobile-bottom-navigation__viewport {
+    gap: .125rem;
+  }
+
+  .mobile-bottom-navigation[data-navigation-surface='game-mobile-navigation'] .sidebar-nav-button {
+    flex: 0 0 56px;
+    width: 56px;
+    min-width: 56px;
+    height: 50px;
+    grid-template-rows: 1.45rem min-content;
+    gap: .1rem;
+    border-radius: 999px;
+    padding: .12rem .3rem .2rem;
+  }
+
+  .mobile-bottom-navigation[data-navigation-surface='game-mobile-navigation'] .sidebar-nav-button strong {
+    font-size: .68rem;
+  }
+
+  .mobile-bottom-navigation[data-navigation-surface='game-mobile-navigation'] .sidebar-nav-button .navigation-badge {
+    top: 0;
+    right: .18rem;
+  }
 }
 
 @keyframes mobile-bottom-navigation-return {

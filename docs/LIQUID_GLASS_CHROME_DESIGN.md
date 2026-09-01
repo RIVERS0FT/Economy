@@ -2,7 +2,7 @@
 
 > 状态：当前正式外壳、毛玻璃材质与响应式几何权威
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-29
+> 更新时间：2026-09-01
 
 文件名沿用既有权威文档路径，正文规则已经完全替换旧 Liquid Glass 实现。
 
@@ -46,6 +46,7 @@
 - 所有“刷新页面”恢复操作统一使用 `src/components/system/RefreshPageButton.tsx`，内部使用 `GameIcons.tsx` 的 `RefreshIcon` 并直接执行 `window.location.reload()`；视觉固定为无文字的 `44px × 44px` 圆形浏览器式刷新控件，默认透明，细指针 hover 只出现中性圆形背景，active 轻微压缩，保留 `aria-label`、`title` 与键盘 `:focus-visible`。不得改回应用内 retry、伪刷新、延时刷新或文字主按钮。
 - 桌面状态栏和认证卡片圆角为 `24px`；移动状态栏、认证卡片和底栏圆角为 `40px`；`stateCard` 桌面使用 `var(--radius-card)`，移动使用 `var(--radius-card-mobile)`。
 - 移动状态栏固定 `48px`，移动底栏固定 `68px`。底栏内容层提供唯一 `8px 0` 垂直留白，语义化 `nav` 是唯一横向滚动视口。
+- 玩家移动底栏的游戏导航项固定使用 `56px × 50px` 胶囊几何，图标在上、中文标签在下并保持同一水平中心；玩家图标槽固定为 `1.45rem`、实际 SVG 为 `1.35rem`，按钮使用全圆胶囊圆角。该规则只作用于 `game-mobile-navigation`，管理员移动导航继续使用共享基础几何；未选中、按下、选中、焦点的既有颜色、透明度和反馈语义全部保持不变，底栏外层 `68px` 高度、`40px` 圆角、共享毛玻璃背景／边界／模糊／阴影也不得因该几何调整改变。导航项在可用宽度内仍整组居中，溢出时继续使用唯一原生横向滚动视口。
 - 移动底栏必须始终保留同一 DOM 实例。唯一根级 Mobile Workspace Sheet 存在期间，底栏通过 `aria-hidden`、`inert`、不可见和禁用命中退出交互树；不得只依赖 Sheet 遮挡。只有根 Sheet 完整收起并进入 `map` 后才恢复，并使用约 `280ms cubic-bezier(.2,.8,.2,1)` 的通知灵动岛同系弹性进入动画。详情层切换、通知面板开关、状态刷新和初始挂载不得触发该返回动画；`prefers-reduced-motion: reduce` 时立即恢复且不播放动画。
 - 状态栏、移动底栏、认证卡片、根级状态卡和管理员工作栏每处只允许一个 `.frosted-glass-surface`；通知、Toast、Popover 和业务 Dialog 不得为了装饰再套 `FrostedGlassSurface` 或增加额外玻璃包装层。Tooltip 只允许按第 1 节在自身唯一浮层节点使用 `.ui-tooltip-surface`，该单节点轻量毛玻璃例外不得扩展成嵌套玻璃容器。
 
@@ -83,6 +84,7 @@
 - 移动页面卡片自己的竖向滚动条必须继续绝对定位在 `.page-card-scroll-area` 根上，并跨出 `--mobile-workspace-gutter + 1px` 卡片边框，使视觉滑块到达物理安全右边缘，同时不改变内容视口宽度。只有根级 `.page-scroll-area` 的竖向轨道允许使用 viewport-fixed 定位；不得把页面卡片滚动条设为 `fixed` 放在带 `backdrop-filter` 的毛玻璃祖先下，因为 Chromium 会为固定后代建立局部包含块并把轨道错误地向内偏移。
 - 滚动条浏览器回归必须以 `getComputedStyle(workspace).paddingRight` 等已解析为像素的实际几何作为沟槽基准，再加页面卡片 `1px` 边框核对滚动根 inset；不得对可能为 `rem` 的 `--mobile-workspace-gutter` 原始字符串直接 `parseFloat` 后当作像素使用。最终滑块仍需验证距离物理右边缘约 `2px`。
 - 地图镜头栏与唯一地图舞台通过同一个 `ApplicationMapLayerPortal` 挂载为根级 `.application-map-layer` 的直接子节点；镜头栏位于地图舞台之上，但整个地图层 `20` 必须低于承载页面的 UI 层 `30`，不得再把镜头栏挂入 `StrategicWorkspaceChrome`。镜头栏底部外距继续读取 `var(--layout-gutter)`。页面不为镜头栏预留高度；镜头栏位于页面层下方，在页面覆盖范围内由页面自然遮挡，不能挤压正文。桌面通知面板继续位于工作区安全浮层并保持原有右上角几何；移动通知面板复用现有 `.workspace-dialog-layer`，作为 Chrome 级临时覆盖层位于 Sheet 之上、移动状态栏之下，面板外点击捕获层必须透明且不得压暗地图，点击面板外遮罩空白必须关闭。移动通知灵动岛位于 Chrome Overlay；通知面板和灵动岛都不得推动页面或新增第五个全局层。
+- 桌面地图镜头切换按钮固定使用单行横向“图标 + 文字”胶囊，最小高度 `44px`、全圆胶囊圆角，图标始终位于文字左侧且禁止换行；州界／资产／工业／市场／异常五项的既有未选中与选中颜色、边框、背景、毛玻璃镜头栏材质和按钮间距语义保持不变，不得为了同步胶囊风格把桌面镜头按钮改成移动底栏的上下排列。
 - 战略地图滚轮与双指逻辑缩放继续允许 `0.5–4`，但地图不再通过 ECharts `geoRoam` 逐帧重绘。完整 48 州与中文州名共用同一个静态 SVG 世界面和单一合成相机；缩放、平移每帧最多一次写入 `.province-map-camera-surface` 的 `translate3d + scale`，州面 path `d`、州名基础坐标和 glyph transform 在手势期间保持不变。根级 `.application-map-layer` 继续承担最终物理视口裁剪，屏幕外的州面不得从世界面卸载，因此缩小时必须在手势 active 阶段直接重新进入视口。滚轮／双指围绕真实焦点更新 `x / y / zoom`，同一帧输入合并；只要仍有待提交的 `requestAnimationFrame` 相机写入，本轮输入就不得先进入 idle，必须至少提交一帧 active 合成结果后才允许 `INPUT_SETTLE_MS` 收口；`will-change: transform` 只在 active 期间临时开启并在停止后清除。地图拖动、缩放不得调用 ECharts、ZRender、重新投影、重新布局州名或维护第二套标签相机；空白双击／双触继续恢复默认 Contain 镜头。移动双指从州面、州界附近或地图空白起手必须等价；一旦本轮出现双指，从多点手势开始到最后触点抬起后的 `420ms` 内，必须抑制合成 click、州面选择和空白双触重置，窗口结束后的正常单指点击立即恢复。多点抑制只负责输入仲裁，不得驱动、回滚或复制相机。
 - 战略地图州面交互固定采用“镜头底色 + 中性轮廓”分层，参考大战略地图的悬浮与选中层级但保持 Economy 自身配色。每个州的基础 `areaColor` 继续由当前政治／资产／工业／市场／异常镜头和未解锁状态决定；桌面悬浮、选中以及选中后继续悬浮都必须原样复用该州当前 `areaColor`，不得再用 `--color-surface-hover`、`--color-success-strong` 或其他业务状态色覆盖镜头底色。普通悬浮只使用 `--color-text-secondary` 的 `1.5px` 中性亮边，不增加辉光；选中使用 `--color-text-primary` 的 `2.5px` 亮边与低强度 `5px` 辉光；已选中州再次悬浮时提升为 `3px` 亮边与 `7px` 辉光，视觉强度必须保持“选中悬浮 > 选中 > 普通悬浮 > 默认”。未解锁州在任何交互状态下继续保持灰显底色；鼠标悬浮其他州不得清除当前选中州。上述视觉只能通过同一静态 SVG path 的原生 CSS `:hover`／`:focus-visible` 与外部 `data-selected` 状态实现，不得增加第二张地图、第二套州面 SVG、ECharts `emphasis/select`、pointermove 驱动的 React 高频视觉状态或交互时 `setOption` 重绘；州名选中仍只更新既有 `data-selected`，不得触发完整标签布局，也不得修改合成相机。
 - 根级业务 Dialog 在移动玩家端由唯一 `MobileWorkspaceSheetHost` 统一占用，承载一级业务页面以及同根内的详情内容层。`MobileWorkspacePageSheet` 不再拥有可见根容器，只是 Host 的零 DOM 适配器；`MobileWorkspaceDetailSheet` 不再创建 Dialog，只向 Host 注册详情内容和固定底栏。普通 Tooltip、Popover 继续限制在工作区安全浮层内；Tooltip 自身仅可在唯一浮层节点使用 `.ui-tooltip-surface` 复用共享毛玻璃，不得再创建玻璃包装器。来自唯一根 Sheet 内的富下拉可以使用根 Dialog 作为安全边界。移动通知面板是明确例外：它复用同一个根 Dialog Layer 的更高内部层级覆盖 Sheet，但不创建第二个 Portal 根。状态栏始终位于 Sheet 与通知面板之上。不得创建第二份 `.mobile-detail-sheet`、第二个 backdrop 或第二个根级 Portal。
@@ -96,6 +98,7 @@
 必须通过以下防回退：
 
 - `scripts/verify-liquid-glass-chrome.mjs`：历史脚本路径保留，但验证对象已改为 CSS 毛玻璃、依赖删除、共享组件、单节点 Tooltip 材质、统一 `workspaceCard`、战略追踪器四分区、页面路由与追踪器生命周期解耦、`fullscreen` 桌面隐藏并释放右侧预留空间以及移动教程复用同一 Outliner DOM。
+- `scripts/verify-navigation-pill-geometry.mjs`：锁定玩家移动底栏 `56px × 50px` 上图标下文字胶囊、玩家专属放大图标槽、桌面地图镜头 `44px` 单行横向胶囊，以及两处既有颜色与共享毛玻璃材质不得随几何调整漂移。
 - `scripts/verify-strategic-outliner.mjs`：锁定“教程／进行中／关注／公开经济事件”四分区、唯一纵向滚动根、关注引用与分区折叠本地持久化边界、禁止保存实时经济值、现有通知待处理复用、桌面普通页完整展示／`fullscreen` 隐藏同一 DOM、禁止整体横向收起状态与移动教程单实例。
 - `scripts/verify-province-map-focus.mjs`：锁定静态 SVG 州面 hover／select 必须复用镜头基础 `areaColor`，普通悬浮使用中性弱轮廓，选中及选中悬浮使用更强中性轮廓与低强度辉光，禁止恢复 `surface-hover`／绿色业务状态填充、第二地图、ECharts 交互态或 React 高频 hover 状态。
 - `scripts/verify-client-update-recovery.mjs`：锁定 `RefreshPageButton` 的浏览器式 SVG 刷新控件、真实 `window.location.reload()` 恢复语义，并禁止异常入口恢复文字刷新按钮或应用内 retry。
@@ -115,6 +118,7 @@
 - `tests/browser/notification-center.spec.ts`：桌面完整通知面板保持工作区安全浮层右上角；桌面关闭态 Toast 与战略追踪器同属战略 Chrome、固定工作区右下角且宽度独立，发生局部重叠时允许覆盖追踪器；移动通知面板必须覆盖已打开的根 Sheet、保持状态栏最高且面板打开期间通知岛为零，`Escape` 只关闭通知面板并恢复通知入口焦点。
 - `tests/browser/mobile-notification-sheet-reserve.spec.ts`：移动根 Sheet 即使当前没有通知岛也必须永久低于 `56px` 通知岛安全槽；打开通知面板只覆盖而不得改变 Sheet 顶边／高度；按玩家禁用主动通知后刷新仍保持该偏好且不补弹历史提醒。
 - `tests/browser/mobile-navigation-scrollbar.spec.ts`：移动底栏保持同一 DOM、Sheet 存在时不可见且不可交互、根 Sheet 收起到地图后使用通知灵动岛同系弹性返回动画，并继续验证无 hover、按下／选中／未选中状态和横向滚动。
+- `tests/browser/navigation-pill-geometry.spec.ts`：真实浏览器分别锁定玩家移动底栏大号上图标下文字胶囊、既有导航状态色与毛玻璃材质，以及桌面地图镜头横向图标文字胶囊、最小高度和既有镜头栏材质。
 - `tests/browser/all-pages-preview.spec.ts`：概览、市场、建筑、运输、设置五个同宽紧凑页面，研发、拍卖、合同、银行、排行榜与商店六个全区域页面，并验证所有桌面页面共享同一战略追踪器而不是恢复页面专属右栏。
 - `tests/browser/province-map-focus.spec.ts`：真实浏览器中验证静态 SVG path 的 hover 不改写州面镜头填充、选中亮边强于普通悬浮并保留 `5px / 7px` 低强度辉光、悬浮其他州时选中州继续存在，同时保证 `.province-map-camera-surface` transform、地图缩放目标与州名完整布局修订不因交互视觉变化而重置。
 - `tests/browser/map-zoom-out-boundary.spec.ts`：必须先把地图放大到外围州真实离开屏幕，再缩小到 `0.5`，验证在合成相机仍 active 时加利福尼亚、佛罗里达、缅因和华盛顿已经重新进入物理视口且州名中心命中对应州面；`tests/browser/map-zoom-transient.spec.ts` 锁定手势期间 48 条 path `d` 与 glyph 基础 transform 不变、同帧滚轮只写一次合成相机；`tests/browser/map-zoom-render-sync.spec.ts` 锁定州面和州名共享同一个静态世界与相机；`tests/browser/map-reset-sync.spec.ts` 锁定空白重置首帧同步。
