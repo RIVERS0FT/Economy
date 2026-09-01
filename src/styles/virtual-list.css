@@ -108,9 +108,31 @@
 
 .local-trades-virtual-table {
   --virtual-record-header-height: 42px;
-  --virtual-table-columns: minmax(140px, 1.45fr) 60px 72px 88px 96px minmax(108px, 1fr) 118px;
-  --virtual-table-min-width: 760px;
-  --virtual-row-height: 54px;
+  --virtual-table-columns: 60px 72px 88px 96px minmax(108px, 1fr) 118px;
+  --virtual-table-min-width: 600px;
+  --virtual-row-height: 58px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.local-trades-virtual-table .virtual-record-header {
+  min-height: 42px;
+  padding: 0 var(--entity-list-inline-padding, .6rem);
+  border-bottom: 1px solid var(--color-divider);
+  color: var(--color-text-muted);
+  background: transparent;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.local-trades-virtual-table .virtual-record-row {
+  min-height: var(--virtual-row-height);
+  padding: .45rem var(--entity-list-inline-padding, .6rem);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-surface-panel) 70%, transparent);
 }
 
 .trade-side-cell {

@@ -181,7 +181,8 @@ for (const text of [
   'readOnly = false',
   'readOnly?: boolean;',
   '该地区尚未解锁，市场仅供查看。',
-  "selectedProduct && !readOnly",
+  'market-trade-readonly',
+  'readOnly ? (',
   'disabled={readOnly}',
   "readOnly ? '实时五档 · 只读' : '实时五档 · 点击填价'",
 ]) requireText('src/pages/MarketPage.tsx', text);

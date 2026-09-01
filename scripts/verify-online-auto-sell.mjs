@@ -126,8 +126,8 @@ for (const text of [
 ]) forbidText('src/components/market/MarketAutoTradePanel.tsx', text);
 
 for (const text of [
-  '自动经营配置唯一归属工厂详情',
-  '地区商品详情只读展示',
+  '地区商品详情不再渲染“自动经营执行”卡或逐商品执行摘要',
+  '工厂详情是自动经营策略与执行解释的唯一玩家界面',
   'inputCoverageCycles: 1 | 2 | 3 | 5',
   '自动经营 = 开启',
   '原料保障 = 2 个生产周期',

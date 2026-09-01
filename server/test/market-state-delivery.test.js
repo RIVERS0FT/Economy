@@ -75,12 +75,14 @@ test('initial player state keeps market summaries and only the current player or
   );
 });
 
-test('market detail returns public history, aggregated five-level depth, and a conditional revision', () => {
+test('market detail returns bounded public real-trade history, aggregated five-level depth, and a conditional revision', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
   ensurePlayer(world, bob, now);
   const market = world.markets[provinceScopedKey(DEFAULT_PROVINCE_ID, 'wheat')];
   market.priceHistory = [
+    { price: 2.75, quantity: 9, createdAt: now - DAY_MS - 1, takerSide: 'buy', marketRole: 'expired' },
+    { price: 3, quantity: 1, createdAt: now - 3_000, marketRole: 'synthetic', signalWeight: 8 },
     { price: 3.25, quantity: 2, createdAt: now - 2_000, takerSide: 'buy', marketRole: 'reserve', signalWeight: 3 },
     { price: 3.5, quantity: 4, createdAt: now - 1_000, takerSide: 'sell', marketRole: 'consumption', signalWeight: 4 },
   ];
@@ -108,9 +110,15 @@ test('market detail returns public history, aggregated five-level depth, and a c
     createdAt: now - 2_000,
     takerSide: 'buy',
   });
+  assert.deepEqual(detail.market.priceHistory[1], {
+    price: 3.5,
+    quantity: 4,
+    createdAt: now - 1_000,
+    takerSide: 'sell',
+  });
   assert.match(detail.revision, /^[A-Za-z0-9_-]{16}$/);
   const serialized = JSON.stringify(detail);
-  for (const privateValue of ['Alice', 'Bob', 'ask-same-level', 'marketRole', 'signalWeight']) {
+  for (const privateValue of ['Alice', 'Bob', 'ask-same-level', 'marketRole', 'signalWeight', 'expired', 'synthetic']) {
     assert.equal(serialized.includes(privateValue), false, `${privateValue} must not be public`);
   }
 

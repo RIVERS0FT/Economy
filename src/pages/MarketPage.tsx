@@ -1,4 +1,4 @@
-import { CompactCurrency, CompactNumber } from '../components/ui/CompactNumber';
+import { CompactNumber } from '../components/ui/CompactNumber';
 import {
   forwardRef,
   memo,
@@ -14,9 +14,6 @@ import { getClientOrderIndex, openOrdersForAsset } from '../app/clientOrderIndex
 import { getMarketDetail } from '../api/game';
 import { orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
-import { currentFormulaScope } from '../components/facilities/FacilityProductionFormula';
-import { MarketAutoTradePanel } from '../components/market/MarketAutoTradePanel';
-import { MarketBalanceBar } from '../components/market/MarketBalanceBar';
 import {
   compareMarketOptionalValue,
   MarketCommodityHeader,
@@ -25,14 +22,13 @@ import {
 } from '../components/market/MarketCommodityRow';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
 import { FactoryIcon } from '../components/icons/GameIcons';
-import { ProductIcon, ProductIconLabel } from '../components/icons/ProductIcons';
+import { ProductIconLabel } from '../components/icons/ProductIcons';
 import { ProductArtwork } from '../components/products/ProductArtwork';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import { IntegerInput, MoneyInput, SelectInput } from '../components/ui/FormControls';
 import {
   Button,
-  MetricCard,
   PageLayout,
   Panel,
   ScrollableTable,
@@ -42,7 +38,6 @@ import {
 } from '../components/ui/layout';
 import { VirtualRecordTable } from '../components/ui/VirtualRecordTable';
 import { economyConstants, openOrderLimitForCatalog } from '../config/economy';
-import { AUTO_SELL_PANEL_EVENT, consumeAutoSellPanelRequest } from '../auto-sell/autoSellStorage';
 import type { AssetKind, AssetOrder, MarketDetail, OrderSide, ProductCategory } from '../types';
 import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
@@ -57,11 +52,6 @@ function orderTone(status: AssetOrder['status']): StatusTone {
   if (status === 'partial') return 'warning';
   if (status === 'cancelled') return 'danger';
   return 'neutral';
-}
-
-function localTradeAssetName(trade: { description: string; side: 'buy' | 'sell' }) {
-  const historicalPrefix = trade.side === 'buy' ? '买入' : '卖出';
-  return trade.description.replace(new RegExp(`^${historicalPrefix}\\s+`), '').trim() || '资产';
 }
 
 type MarketCatalogStatus = 'all' | 'traded' | 'buy' | 'sell' | 'unmet-demand' | 'own-order';
@@ -400,7 +390,6 @@ export function MarketPage({
   } = model;
   const now = game.lastProcessedAt;
   const orderEntryRef = useRef<MarketOrderEntryHandle>(null);
-  const [requestedAutoTradeProductId, setRequestedAutoTradeProductId] = useState<string | null>(null);
   const [catalogCategory, setCatalogCategory] = useState('all');
   const [catalogStatus, setCatalogStatus] = useState<MarketCatalogStatus>('all');
   const [catalogSort, setCatalogSort] = useState<MarketCatalogSort>('catalog');
@@ -408,27 +397,6 @@ export function MarketPage({
   const [marketDetail, setMarketDetail] = useState<MarketDetail | null>(null);
   const [marketDetailLoading, setMarketDetailLoading] = useState(false);
   const [marketDetailError, setMarketDetailError] = useState('');
-
-  useEffect(() => {
-    if (readOnly) {
-      setRequestedAutoTradeProductId(null);
-      return;
-    }
-    const openRequestedAutoTrade = (productId: string) => {
-      if (!game.products.some((product) => product.id === productId)) return;
-      setRequestedAutoTradeProductId(productId);
-      selectMarketAsset('commodity', productId, !embedded);
-    };
-    const requested = consumeAutoSellPanelRequest(model.user.id);
-    if (requested) openRequestedAutoTrade(requested);
-    const handlePanelRequest = (event: Event) => {
-      const detail = (event as CustomEvent<{ userId?: number; productId?: string }>).detail;
-      if (Number(detail?.userId) !== Number(model.user.id) || !detail?.productId) return;
-      openRequestedAutoTrade(detail.productId);
-    };
-    window.addEventListener(AUTO_SELL_PANEL_EVENT, handlePanelRequest);
-    return () => window.removeEventListener(AUTO_SELL_PANEL_EVENT, handlePanelRequest);
-  }, [embedded, game.products, model.user.id, readOnly, selectMarketAsset]);
 
   const productById = useMemo(
     () => new Map(game.products.map((product) => [product.id, product])),
@@ -460,7 +428,6 @@ export function MarketPage({
   const selectedMarket = selectedProduct
     ? game.markets[selectedProduct.id]
     : selectedFacility ? game.facilityMarkets[selectedFacility.id] : undefined;
-  const selectedProductMarket = selectedProduct ? game.markets[selectedProduct.id] : undefined;
   const assetName = selectedProduct?.name ?? selectedFacility?.name ?? '资产';
   const assetId = selectedProduct?.id ?? selectedFacility?.id ?? activeAssetId;
   const selectedMarketDetail = marketDetail
@@ -469,6 +436,17 @@ export function MarketPage({
     && marketDetail.assetId === assetId
     ? marketDetail
     : null;
+  const marketDetailRefreshToken = [
+    selectedMarket?.lastTradeAt ?? '',
+    selectedMarket?.lastTradePrice ?? '',
+    selectedMarket?.tradeVolume24h ?? '',
+    selectedMarket?.buyVolume ?? '',
+    selectedMarket?.sellVolume ?? '',
+    selectedMarket?.buyOrderCount ?? '',
+    selectedMarket?.sellOrderCount ?? '',
+    selectedMarket?.bestBid ?? '',
+    selectedMarket?.bestAsk ?? '',
+  ].join('|');
 
   useEffect(() => {
     const shouldLoad = Boolean(facilityAssetId) || marketViewMode === 'detail';
@@ -495,10 +473,9 @@ export function MarketPage({
     activeAssetKind,
     assetId,
     facilityAssetId,
-    game.orders,
+    marketDetailRefreshToken,
     marketViewMode,
     model.selectedProvinceId,
-    selectedMarket,
   ]);
 
   const orderIndex = useMemo(() => getClientOrderIndex(game.orders), [game.orders]);
@@ -531,9 +508,6 @@ export function MarketPage({
       : [],
     [selectedMarketDetail],
   );
-  const selectedBuyVolume = Math.max(0, Number(selectedMarket?.buyVolume || 0));
-  const selectedSellVolume = Math.max(0, Number(selectedMarket?.sellVolume || 0));
-  const selectedBalance = selectedSellVolume - selectedBuyVolume;
   const maxBookDepth = Math.max(
     1,
     ...bestAsks.map((level) => level.remaining),
@@ -546,10 +520,6 @@ export function MarketPage({
     ?? selectedProduct?.basePrice
     ?? selectedFacility?.systemValue
     ?? 1;
-  const selectedMarketPrice = selectedProductMarket?.officialPrice ?? marketFallbackPrice;
-  const selectedBaseDeviationPercent = selectedProduct && selectedProduct.basePrice > 0
-    ? ((selectedMarketPrice / selectedProduct.basePrice) - 1) * 100
-    : undefined;
   const marketBuckets = useMemo(
     () => buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now),
     [marketFallbackPrice, marketHistory, now],
@@ -574,28 +544,6 @@ export function MarketPage({
   const availableAssetQuantity = activeAssetKind === 'commodity'
     ? selectedInventory.available
     : selectedGroup?.availableCount ?? 0;
-  const productionSummary = useMemo(() => {
-    if (!selectedProduct) return { effectiveCount: 0, unitsPerMinute: 0 };
-    let effectiveCount = 0;
-    let unitsPerMinute = 0;
-    for (const group of game.facilityGroups) {
-      if (!group.enabled || group.status !== 'running') continue;
-      const facility = facilityTypeById.get(group.facilityTypeId);
-      if (!facility) continue;
-      const recipes = facility.recipes.length > 0 ? facility.recipes : [facility];
-      const recipe = recipes.find((candidate) => candidate.id === group.activeRecipeId) ?? recipes[0];
-      if (!recipe || recipe.output.productId !== selectedProduct.id) continue;
-      const scope = currentFormulaScope(group, now);
-      const count = Math.max(0, scope.count);
-      if (count <= 0) continue;
-      effectiveCount += count;
-      unitsPerMinute += count * recipe.output.quantity * (60_000 / Math.max(1, recipe.cycleMs));
-    }
-    return {
-      effectiveCount,
-      unitsPerMinute: Math.round(unitsPerMinute * 100) / 100,
-    };
-  }, [facilityTypeById, game.facilityGroups, now, selectedProduct]);
 
   const catalogEntries = useMemo(() => {
     const entries: MarketCatalogEntry[] = game.products.map((product) => {
@@ -783,7 +731,7 @@ export function MarketPage({
         </div>
       ) : null}
       <div className="market-page-surface market-detail-surface">
-        <Panel className="widget market-detail-hero">
+        <Panel className={`widget market-detail-hero${selectedProduct ? ' market-detail-hero--commodity' : ''}`}>
           <span className="market-detail-hero__artwork" aria-hidden="true">
             {selectedProduct
               ? <ProductArtwork productId={selectedProduct.id} />
@@ -797,21 +745,15 @@ export function MarketPage({
           </span>
           {selectedProduct ? (
             <>
-              <span className="market-detail-hero__metric market-detail-hero__market-price">
-                <small>市场价</small>
-                <strong><CurrencyAmount>{formatCurrency(selectedMarketPrice)}</CurrencyAmount></strong>
-              </span>
-              <span className="market-detail-hero__metric">
-                <small>基准偏离</small>
-                <strong className={(selectedBaseDeviationPercent ?? 0) > 0 ? 'market-value-warning' : (selectedBaseDeviationPercent ?? 0) < 0 ? 'market-value-info' : ''}>
-                  {typeof selectedBaseDeviationPercent === 'number' ? (selectedBaseDeviationPercent > 0 ? '+' : '') + selectedBaseDeviationPercent.toFixed(1) + '%' : '—'}
-                </strong>
-              </span>
               <span className="market-detail-hero__metric">
                 <small>24h 变化</small>
                 <strong className={marketTrend > 0 ? 'market-value-positive' : marketTrend < 0 ? 'market-value-negative' : ''}>
                   <CurrencyAmount sign={marketTrend > 0 ? '+' : undefined}>{formatCurrency(marketTrend)}</CurrencyAmount>
                 </strong>
+              </span>
+              <span className="market-detail-hero__metric">
+                <small>可用库存</small>
+                <strong>{<CompactNumber value={selectedInventory.available} />}</strong>
               </span>
             </>
           ) : (
@@ -822,64 +764,6 @@ export function MarketPage({
             </>
           )}
         </Panel>
-        {selectedProduct && selectedProductMarket ? (
-          <div className="market-fundamentals-grid">
-            <Panel className="widget market-fundamentals-card">
-              <WidgetHeading title="商品基本面" action={<StatusTag tone="info">服务器数据</StatusTag>} />
-              <div className="market-fundamentals-metrics">
-                <MetricCard
-                  label="官方系统价"
-                  value={<CurrencyAmount>{formatCurrency(selectedMarketPrice)}</CurrencyAmount>}
-                  detail={typeof selectedBaseDeviationPercent === 'number' ? '相对基础价 ' + (selectedBaseDeviationPercent > 0 ? '+' : '') + selectedBaseDeviationPercent.toFixed(1) + '%' : undefined}
-                  tone={(selectedBaseDeviationPercent ?? 0) > 0 ? 'warning' : (selectedBaseDeviationPercent ?? 0) < 0 ? 'info' : 'neutral'}
-                />
-                <MetricCard label="卖单量" value={<CompactNumber value={selectedSellVolume} />} />
-                <MetricCard label="买单量" value={<CompactNumber value={selectedBuyVolume} />} />
-                <MetricCard
-                  label="挂单差额"
-                  value={(selectedBalance > 0 ? '+' : '') + formatNumber(selectedBalance)}
-                  detail="卖单量 − 买单量"
-                  tone={selectedBalance > 0 ? 'info' : selectedBalance < 0 ? 'warning' : 'neutral'}
-                />
-                <MetricCard
-                  label="需求满足率"
-                  value={selectedProductMarket.demand.lastQuantity > 0 ? (selectedProductMarket.demand.satisfaction * 100).toFixed(1) + '%' : '无直接需求'}
-                  tone={selectedProductMarket.demand.lastQuantity > 0 && selectedProductMarket.demand.satisfaction < 1 ? 'warning' : 'neutral'}
-                />
-                <MetricCard label="参考价" value={<CurrencyAmount>{formatCurrency(selectedProductMarket.demand.referencePrice)}</CurrencyAmount>} />
-                <MetricCard label="上轮需求" value={<CompactNumber value={selectedProductMarket.demand.lastQuantity} />} detail={'预算 ' + formatCurrency(selectedProductMarket.demand.lastBudget)} />
-                <MetricCard
-                  label="周期系统买卖量"
-                  value={formatNumber(selectedProductMarket.cycleSellQuantity ?? 0) + ' 卖 / ' + formatNumber(selectedProductMarket.cycleBuyQuantity ?? 0) + ' 买'}
-                />
-              </div>
-              <div className="market-fundamentals-balance" aria-label="当前订单簿失衡程度">
-                <span><small>订单簿失衡</small><strong>{selectedBalance > 0 ? '卖单较多' : selectedBalance < 0 ? '买单较多' : selectedBuyVolume + selectedSellVolume > 0 ? '数量均衡' : '无挂单'}</strong></span>
-                <MarketBalanceBar buyVolume={selectedBuyVolume} sellVolume={selectedSellVolume} />
-              </div>
-              <p className="market-authority-note">挂单量来自当前公开订单簿；消费需求来自服务器上一周期结算。库存和理论产量不计作供给或需求。</p>
-            </Panel>
-            <Panel className="widget market-inventory-production-card">
-              <WidgetHeading title="库存与生产" />
-              <div className="market-inventory-production-metrics">
-                <MetricCard label="可用库存" value={<CompactNumber value={selectedInventory.available} />} />
-                <MetricCard label="冻结库存" value={<CompactNumber value={selectedInventory.frozen} />} />
-                <MetricCard label="发运在途" value={<CompactNumber value={selectedInventory.inTransit} />} />
-                <MetricCard
-                  label="预计生产速度"
-                  value={`${formatNumber(productionSummary.unitsPerMinute)} / 分钟`}
-                  tone={productionSummary.unitsPerMinute > 0 ? 'success' : 'neutral'}
-                />
-                <MetricCard
-                  label="预计等效产能"
-                  value={<CompactNumber value={productionSummary.effectiveCount} />}
-                  tone={productionSummary.effectiveCount > 0 ? 'success' : 'neutral'}
-                />
-              </div>
-              <p className="market-authority-note">预计生产速度只统计当前地区运行中、当前配方实际产出该商品的工厂，并按当前预计整数等效产能换算。</p>
-            </Panel>
-          </div>
-        ) : null}
         <div className="market-grid unified-market-grid">
           <Panel className="widget market-chart-card">
             <WidgetHeading
@@ -891,11 +775,11 @@ export function MarketPage({
               )}
             />
             {marketDetailLoading && !selectedMarketDetail ? <small className="muted" role="status">正在加载当前市场行情…</small> : null}
-            {marketDetailError ? <small className="ui-form-field__error" role="alert">{marketDetailError}</small> : null}
+            {marketDetailError && !selectedMarketDetail ? <small className="ui-form-field__error" role="alert">{marketDetailError}</small> : null}
             <PriceSparkline buckets={marketBuckets} variant="full" />
           </Panel>
 
-          <Panel className="widget market-trade-card">
+          <section className="market-trade-card">
             <WidgetHeading
               title={selectedAssetTitle(`${assetName}交易`)}
               action={<StatusTag>{<CompactNumber value={ownSelectedOrders.length} />} 笔未完成</StatusTag>}
@@ -990,17 +874,7 @@ export function MarketPage({
                 </div>
               </section>
             </div>
-
-          </Panel>
-
-          {selectedProduct && !readOnly ? (
-            <MarketAutoTradePanel
-              model={model}
-              fixedProductId={selectedProduct.id}
-              requestedProductId={requestedAutoTradeProductId}
-              className="market-detail-auto-trade"
-            />
-          ) : null}
+          </section>
 
           <Panel className="widget span-3 market-account-panel">
             <WidgetHeading title={`我的${assetName}订单与成交`} action={<StatusTag>{<CompactNumber value={ownSelectedOrders.length} />} 笔未完成</StatusTag>} />
@@ -1047,17 +921,16 @@ export function MarketPage({
                   <VirtualRecordTable
                     items={selectedLocalTrades}
                     getKey={localTradeKey}
-                    estimateSize={54}
+                    estimateSize={58}
                     viewportHeight={520}
                     minViewportHeight={96}
                     overscan={6}
-                    gap={0}
+                    gap={5}
                     className="local-trades-scroll-area"
                     tableClassName="local-trades-virtual-table"
                     ariaLabel={`${assetName}本地成交`}
                     header={(
                       <>
-                        <span role="columnheader">资产</span>
                         <span role="columnheader" className="trade-side-cell">方向</span>
                         <span role="columnheader" className="numeric-cell">数量</span>
                         <span role="columnheader" className="numeric-cell">价格</span>
@@ -1068,9 +941,6 @@ export function MarketPage({
                     )}
                     renderRow={(trade) => (
                       <div className="virtual-record-row" role="row">
-                        <span role="cell">{trade.type === 'commodity' && trade.productId
-                          ? <ProductIconLabel productId={trade.productId}>{localTradeAssetName(trade)}</ProductIconLabel>
-                          : <span className="product-icon-label facility-icon-label"><FactoryIcon />{localTradeAssetName(trade)}</span>}</span>
                         <span role="cell" className="trade-side-cell"><StatusTag tone={trade.side === 'buy' ? 'success' : 'danger'}>{trade.side === 'buy' ? '买入' : '卖出'}</StatusTag></span>
                         <span role="cell" className="numeric-cell">{<CompactNumber value={trade.quantity} />}</span>
                         <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.price)}</CurrencyAmount></span>
