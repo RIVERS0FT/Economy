@@ -7,6 +7,7 @@ import type { PendingNotificationItem } from '../../notifications/notificationCe
 import type { ProvinceAssetSummary, ProvinceDefinition, TransportModeId, TransportShipment } from '../../types';
 import { isTransportRouteClosed, transportRouteStopIds } from '../../utils/provinceLogistics';
 import { StrategicOutliner } from '../outliner/StrategicOutliner';
+import { SelectInput } from '../ui/FormControls';
 import {
   UsMainlandMap,
   type ProvinceMapLens,
@@ -235,28 +236,24 @@ export function StrategicMapStage({
           </div>
           <p className="transport-map-picking-hint">按顺序点击州面追加站点；再次点击起点州可闭环。路线默认单程，运输方式和往返设置也只在地图编辑模式修改。</p>
           <div className="transport-map-picking-options">
-            <label>
-              <span>运输方式</span>
-              <select
-                value={routeDraft.draft?.mode ?? 'road'}
-                onChange={(event) => routeDraft.updateDraft({ mode: event.target.value as TransportModeId })}
-              >
-                <option value="road">公路运输</option>
-                <option value="rail">铁路运输</option>
-                <option value="air">航空运输</option>
-              </select>
-            </label>
-            <label>
-              <span>行程</span>
-              <select
-                value={draftClosed ? 'one-way' : routeDraft.draft?.tripType ?? 'one-way'}
-                disabled={draftClosed}
-                onChange={(event) => routeDraft.updateDraft({ tripType: event.target.value === 'round' ? 'round' : 'one-way' })}
-              >
-                <option value="one-way">单程</option>
-                <option value="round">往返</option>
-              </select>
-            </label>
+            <SelectInput
+              label="运输方式"
+              value={routeDraft.draft?.mode ?? 'road'}
+              onChange={(event) => routeDraft.updateDraft({ mode: event.target.value as TransportModeId })}
+            >
+              <option value="road">公路运输</option>
+              <option value="rail">铁路运输</option>
+              <option value="air">航空运输</option>
+            </SelectInput>
+            <SelectInput
+              label="行程"
+              value={draftClosed ? 'one-way' : routeDraft.draft?.tripType ?? 'one-way'}
+              disabled={draftClosed}
+              onChange={(event) => routeDraft.updateDraft({ tripType: event.target.value === 'round' ? 'round' : 'one-way' })}
+            >
+              <option value="one-way">单程</option>
+              <option value="round">往返</option>
+            </SelectInput>
           </div>
           <div className="transport-map-picking-actions">
             <button type="button" onClick={routeDraft.closeLoop} disabled={draftStops.length < 2 || draftClosed}>闭环</button>
