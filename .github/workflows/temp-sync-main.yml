@@ -1,0 +1,31 @@
+name: Temporary Sync Main
+
+on:
+  push:
+    branches:
+      - feature/daily-regional-supply-contracts-impl
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/daily-regional-supply-contracts-impl
+          fetch-depth: 0
+      - name: Merge latest main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "RIVERSOFT"
+          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
+          git fetch origin main
+          git merge --no-commit --no-ff origin/main
+          rm .github/workflows/temp-sync-main.yml
+          git add -A
+          git diff --cached --check
+          git commit -m "同步最新 main"
+          git push origin HEAD:feature/daily-regional-supply-contracts-impl
