@@ -236,7 +236,7 @@ if (failures.length === 0) {
   }
 
   for (const required of [
-    '"dev": "npm run generate:artwork && vite"',
+    '"dev": "npm run generate:artwork && npm run generate:local-preview && vite"',
     '"generate:artwork": "npm run generate:product-artwork && npm run generate:facility-artwork"',
     '"generate:facility-artwork": "node scripts/generate-facility-artwork-thumbnails.mjs"',
     '"verify:facility-artwork": "npm run generate:facility-artwork && node scripts/verify-facility-artwork.mjs"',

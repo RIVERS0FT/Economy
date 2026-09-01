@@ -93,6 +93,7 @@ for (const facility of FACILITY_TYPE_CATALOG) {
 const methodSource = readFileSync('server/src/production-methods.js', 'utf8');
 const legacyMethodSource = readFileSync('server/src/legacy-production-methods.js', 'utf8');
 const catalogSource = readFileSync('server/src/industry-catalog.js', 'utf8');
+const productCatalogSource = readFileSync('server/src/product-catalog.js', 'utf8');
 const runtimeSource = readFileSync('server/src/facility-groups.js', 'utf8');
 const researchSource = readFileSync('server/src/research.js', 'utf8');
 const allocationSource = readFileSync('server/src/market-demand/allocation.js', 'utf8');
@@ -139,9 +140,10 @@ for (const text of [
 for (const text of ['legacyProductionMethod', "['rapid', 'economical', 'high-yield']"]) {
   assert.ok(legacyMethodSource.includes(text), `旧 C2 迁移别名缺少 ${text}`);
 }
-for (const text of ["id: 'industrial-fuel'", "id: 'industrial-chemicals'", 'appendLegacyC2RecipeAliases']) {
-  assert.ok(catalogSource.includes(text), `产业目录缺少 ${text}`);
+for (const text of ["id: 'industrial-fuel'", "id: 'industrial-chemicals'"]) {
+  assert.ok(productCatalogSource.includes(text), `商品目录缺少 ${text}`);
 }
+assert.ok(catalogSource.includes('appendLegacyC2RecipeAliases'), '产业目录缺少迁移别名装配');
 assert.ok(catalogSource.includes('productionMethodGroups'));
 assert.ok(catalogSource.includes('createProductionMethodRecipes'));
 assert.ok(runtimeSource.includes('group.activeRecipeId = recipe.id'));
@@ -324,7 +326,7 @@ for (const [path, required] of [
     'C1 与 C2 使用工厂专属作业制度',
     'C3～C7 继续使用标准生产、高速生产、节约生产和高产生产',
     'C2 四级制度参考分钟利润固定为 3、6、9、10.5',
-    '工业燃料 (`industrial-fuel`)',
+    '`server/src/product-catalog.js` 是商品玩家可见名称的唯一运行时来源',
     '工业化学品 (`industrial-chemicals`)',
     '每周期整件消耗',
     '不累计折旧',

@@ -32,6 +32,7 @@ const generatedArtifactPrefixes = [
   'blob-report/',
   'coverage/',
   '.nyc_output/',
+  'src/dev/generated/',
 ];
 
 let attributes = '';

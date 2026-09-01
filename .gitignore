@@ -10,5 +10,7 @@ coverage/
 .nyc_output/
 src/assets/product-icons/generated/
 src/assets/facility-icons/generated/
+# Account-free preview state is regenerated from the authoritative server catalogs.
+src/dev/generated/
 __pycache__/
 *.pyc

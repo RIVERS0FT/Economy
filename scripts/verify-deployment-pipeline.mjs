@@ -99,6 +99,7 @@ for (const forbidden of ['readFileSync', '.replace(', 'data:text/javascript', 'B
 const marketPlan = selectCiPlan(['src/pages/MarketPage.tsx']);
 if (marketPlan.mode !== 'targeted') failures.push('市场页面改动必须使用 targeted CI');
 if (!marketPlan.needsDependencies) failures.push('前端 targeted CI 必须安装依赖');
+if (!hasCommand(marketPlan, 'npm', ['run', 'generate:local-preview'])) failures.push('前端 targeted CI 必须从服务器目录生成本地预览状态');
 if (!hasCommand(marketPlan, 'npm', ['run', 'typecheck'])) failures.push('前端 targeted CI 必须执行 TypeScript 检查');
 if (!hasCommand(marketPlan, './node_modules/.bin/vite', ['build'])) failures.push('前端 targeted CI 必须执行 Vite 生产构建');
 if (marketPlan.browser.mode !== 'selected' || marketPlan.browser.tests.length === 0) failures.push('市场页面改动必须选择相关 Playwright 测试');
@@ -110,6 +111,14 @@ if (facilityPlan.mode !== 'targeted') failures.push('建筑页面改动必须使
 if (facilityPlan.browser.mode !== 'selected' || !facilityPlan.browser.tests.includes('tests/browser/all-pages-preview.spec.ts')) {
   failures.push('建筑域 targeted CI 必须包含全页面实体列表几何回归');
 }
+
+const productCatalogPlan = selectCiPlan(['server/src/product-catalog.js']);
+if (productCatalogPlan.mode !== 'targeted') failures.push('单一商品目录改动必须使用 targeted CI');
+if (!productCatalogPlan.reasons.includes('domains:product-catalog')) failures.push('商品目录改动必须只归入独立 product-catalog 域');
+if (!hasCommand(productCatalogPlan, 'npm', ['run', 'server:check'])) failures.push('商品目录改动必须执行服务器语法检查');
+if (!hasCommand(productCatalogPlan, 'npm', ['run', 'generate:local-preview'])) failures.push('商品目录改动必须重新生成免登录预览状态');
+if (!hasCommand(productCatalogPlan, 'node', ['scripts/verify-industry-catalog.mjs'])) failures.push('商品目录改动必须执行产业目录验证');
+if (!productCatalogPlan.browser.tests.includes('tests/browser/all-pages-preview.spec.ts')) failures.push('商品目录改动必须执行全页面预览浏览器基线');
 
 const directRegionalMarketPlan = selectCiPlan(['scripts/verify-market-page-layout-regional.mjs']);
 if (hasCommand(directRegionalMarketPlan, 'node', ['scripts/verify-market-page-layout-regional.mjs'])) failures.push('targeted CI 不得绕过市场正式组合 verifier 执行内部地区检查');
@@ -161,6 +170,7 @@ requireText('ServerAliveCountMax=3', '生产文件同步 SSH 必须在 keepalive
 requireText('timeout 120s rsync --timeout=60 -az -e "$RSYNC_RSH"', '入口 HTML 发布同步必须具备独立有限超时');
 requireText('npm run build', 'build 验证 Job 必须执行完整 npm run build');
 requireText('npm run generate:artwork', '部署 Job 必须从同一源码 SHA 重新生成运行时美术资产');
+requireText('npm run generate:local-preview', '部署 Job 必须从同一源码 SHA 重新生成免登录预览状态');
 requireText('./node_modules/.bin/tsc', '部署 Job 必须在上传前执行 TypeScript 生产构建检查');
 requireText('./node_modules/.bin/vite build', '部署 Job 必须从同一源码 SHA 生成生产 dist');
 requireText("node_version=\"$(node -p 'process.versions.node')\"", '生产 runtime 版本必须从固定 setup-node 运行时读取，避免重复维护版本常量');

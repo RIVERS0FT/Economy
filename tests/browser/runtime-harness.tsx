@@ -1141,7 +1141,7 @@ function ResearchHarness() {
       },
       {
             "id": "industrial-fuel-operation", "name": "工业动力作业", "stage": "C3", "rank": 3, "cost": 450, "durationMs": 21600000,
-            "prerequisiteTechnologyIds": ["tool-operation"], "unlockFacilityTypeIds": [], "kind": "operation", "operationProductIds": ["industrial-fuel"], "description": "掌握工业燃料作业能力。"
+            "prerequisiteTechnologyIds": ["tool-operation"], "unlockFacilityTypeIds": [], "kind": "operation", "operationProductIds": ["industrial-fuel"], "description": "掌握工业动力作业能力。"
       },
       {
             "id": "industrial-chemical-operation", "name": "工业化学作业", "stage": "C3", "rank": 3, "cost": 500, "durationMs": 21600000,

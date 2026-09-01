@@ -1,3 +1,5 @@
+import { resolveProductDisplayNames } from './product-catalog.js';
+
 export const PRODUCTION_METHOD_GROUP_ID = 'operation';
 export const DEFAULT_PRODUCTION_METHOD_ID = 'standard';
 
@@ -33,8 +35,11 @@ const METHOD_DEFINITIONS = Object.freeze([
 ]);
 
 function dedicatedMethod(definition) {
+  const { nameTemplate, descriptionTemplate, ...methodFields } = definition;
   return Object.freeze({
-    ...definition,
+    ...methodFields,
+    name: resolveProductDisplayNames(nameTemplate || definition.name),
+    description: resolveProductDisplayNames(descriptionTemplate || definition.description),
     additionalInputs: Object.freeze((definition.additionalInputs || []).map((item) => Object.freeze({ ...item }))),
     baseInputQuantities: definition.baseInputQuantities
       ? Object.freeze([...definition.baseInputQuantities])
@@ -46,63 +51,63 @@ function dedicatedMethod(definition) {
 const FACILITY_METHOD_BLUEPRINTS = Object.freeze({
   farm: Object.freeze([
     dedicatedMethod({ id: 'standard', name: '基础耕作', description: '保持基础耕作，不消耗额外生产资料。', tone: 'neutral', outputQuantity: 1 }),
-    dedicatedMethod({ id: 'assisted', name: '工具耕作', description: '每周期整件消耗 1 工具并提高作物产量。', tone: 'warning', additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 12, requiredTechnologyIds: ['tool-operation'] }),
-    dedicatedMethod({ id: 'intensive', name: '化肥耕作', description: '每周期整件消耗 2 化肥并进一步提高作物产量。', tone: 'success', additionalInputs: [{ productId: 'fertilizer', quantity: 2 }], outputQuantity: 14, requiredTechnologyIds: ['fertilizer-application'] }),
-    dedicatedMethod({ id: 'mechanized', name: '拖拉机耕作', description: '每周期整件消耗 1 拖拉机并获得最高作物产量。', tone: 'accent', additionalInputs: [{ productId: 'tractor', quantity: 1 }], outputQuantity: 16, requiredTechnologyIds: ['tractor-operation'] }),
+    dedicatedMethod({ id: 'assisted', nameTemplate: '{product:tools}耕作', descriptionTemplate: '每周期整件消耗 1 {product:tools}并提高作物产量。', tone: 'warning', additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 12, requiredTechnologyIds: ['tool-operation'] }),
+    dedicatedMethod({ id: 'intensive', nameTemplate: '{product:fertilizer}耕作', descriptionTemplate: '每周期整件消耗 2 {product:fertilizer}并进一步提高作物产量。', tone: 'success', additionalInputs: [{ productId: 'fertilizer', quantity: 2 }], outputQuantity: 14, requiredTechnologyIds: ['fertilizer-application'] }),
+    dedicatedMethod({ id: 'mechanized', nameTemplate: '{product:tractor}耕作', descriptionTemplate: '每周期整件消耗 1 {product:tractor}并获得最高作物产量。', tone: 'accent', additionalInputs: [{ productId: 'tractor', quantity: 1 }], outputQuantity: 16, requiredTechnologyIds: ['tractor-operation'] }),
   ]),
   orchard: Object.freeze([
     dedicatedMethod({ id: 'standard', name: '基础管护', description: '保持基础果园管护，不消耗额外生产资料。', tone: 'neutral', outputQuantity: 1 }),
-    dedicatedMethod({ id: 'assisted', name: '工具管护', description: '每周期整件消耗 1 工具并提高水果产量。', tone: 'warning', additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 11, requiredTechnologyIds: ['tool-operation'] }),
-    dedicatedMethod({ id: 'intensive', name: '化肥管护', description: '每周期整件消耗 2 化肥并进一步提高水果产量。', tone: 'success', additionalInputs: [{ productId: 'fertilizer', quantity: 2 }], outputQuantity: 13, requiredTechnologyIds: ['fertilizer-application'] }),
-    dedicatedMethod({ id: 'mechanized', name: '拖拉机管护', description: '每周期整件消耗 1 拖拉机并获得最高水果产量。', tone: 'accent', additionalInputs: [{ productId: 'tractor', quantity: 1 }], outputQuantity: 15, requiredTechnologyIds: ['tractor-operation'] }),
+    dedicatedMethod({ id: 'assisted', nameTemplate: '{product:tools}管护', descriptionTemplate: '每周期整件消耗 1 {product:tools}并提高{product:fruit}产量。', tone: 'warning', additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 11, requiredTechnologyIds: ['tool-operation'] }),
+    dedicatedMethod({ id: 'intensive', nameTemplate: '{product:fertilizer}管护', descriptionTemplate: '每周期整件消耗 2 {product:fertilizer}并进一步提高{product:fruit}产量。', tone: 'success', additionalInputs: [{ productId: 'fertilizer', quantity: 2 }], outputQuantity: 13, requiredTechnologyIds: ['fertilizer-application'] }),
+    dedicatedMethod({ id: 'mechanized', nameTemplate: '{product:tractor}管护', descriptionTemplate: '每周期整件消耗 1 {product:tractor}并获得最高{product:fruit}产量。', tone: 'accent', additionalInputs: [{ productId: 'tractor', quantity: 1 }], outputQuantity: 15, requiredTechnologyIds: ['tractor-operation'] }),
   ]),
   ranch: Object.freeze([
     dedicatedMethod({ id: 'standard', name: '粗放饲养', description: '保持粗放饲养，不消耗额外生产资料。', tone: 'neutral', outputQuantity: 1 }),
-    dedicatedMethod({ id: 'assisted', name: '饲料饲养', description: '每周期整件消耗 1 配合饲料并提高畜产品产量。', tone: 'warning', additionalInputs: [{ productId: 'feed', quantity: 1 }], outputQuantity: 4, requiredTechnologyIds: ['feed-husbandry'] }),
-    dedicatedMethod({ id: 'intensive', name: '药剂精养', description: '每周期整件消耗 1 养殖药剂并进一步提高畜产品产量。', tone: 'success', additionalInputs: [{ productId: 'veterinary-medicine', quantity: 1 }], outputQuantity: 8, requiredTechnologyIds: ['veterinary-application'] }),
-    dedicatedMethod({ id: 'mechanized', name: '机械化养殖', description: '每周期整件消耗 1 机械并获得最高畜产品产量。', tone: 'accent', additionalInputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 9, requiredTechnologyIds: ['machinery-operation'] }),
+    dedicatedMethod({ id: 'assisted', nameTemplate: '{product:feed}饲养', descriptionTemplate: '每周期整件消耗 1 {product:feed}并提高畜产品产量。', tone: 'warning', additionalInputs: [{ productId: 'feed', quantity: 1 }], outputQuantity: 4, requiredTechnologyIds: ['feed-husbandry'] }),
+    dedicatedMethod({ id: 'intensive', name: '药剂精养', descriptionTemplate: '每周期整件消耗 1 {product:veterinary-medicine}并进一步提高畜产品产量。', tone: 'success', additionalInputs: [{ productId: 'veterinary-medicine', quantity: 1 }], outputQuantity: 8, requiredTechnologyIds: ['veterinary-application'] }),
+    dedicatedMethod({ id: 'mechanized', name: '机械化养殖', descriptionTemplate: '每周期整件消耗 1 {product:machinery}并获得最高畜产品产量。', tone: 'accent', additionalInputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 9, requiredTechnologyIds: ['machinery-operation'] }),
   ]),
   fishery: Object.freeze([
     dedicatedMethod({ id: 'standard', name: '粗放养殖', description: '保持粗放养殖，不消耗额外生产资料。', tone: 'neutral', outputQuantity: 1 }),
-    dedicatedMethod({ id: 'assisted', name: '饲料精养', description: '每周期整件消耗 1 配合饲料并提高鱼类产量。', tone: 'warning', additionalInputs: [{ productId: 'feed', quantity: 1 }], outputQuantity: 4, requiredTechnologyIds: ['feed-husbandry'] }),
-    dedicatedMethod({ id: 'intensive', name: '药剂精养', description: '每周期整件消耗 1 养殖药剂并进一步提高鱼类产量。', tone: 'success', additionalInputs: [{ productId: 'veterinary-medicine', quantity: 1 }], outputQuantity: 8, requiredTechnologyIds: ['veterinary-application'] }),
-    dedicatedMethod({ id: 'mechanized', name: '机械化养殖', description: '每周期整件消耗 1 机械并获得最高鱼类产量。', tone: 'accent', additionalInputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 9, requiredTechnologyIds: ['machinery-operation'] }),
+    dedicatedMethod({ id: 'assisted', nameTemplate: '{product:feed}精养', descriptionTemplate: '每周期整件消耗 1 {product:feed}并提高{product:fish}产量。', tone: 'warning', additionalInputs: [{ productId: 'feed', quantity: 1 }], outputQuantity: 4, requiredTechnologyIds: ['feed-husbandry'] }),
+    dedicatedMethod({ id: 'intensive', name: '药剂精养', descriptionTemplate: '每周期整件消耗 1 {product:veterinary-medicine}并进一步提高{product:fish}产量。', tone: 'success', additionalInputs: [{ productId: 'veterinary-medicine', quantity: 1 }], outputQuantity: 8, requiredTechnologyIds: ['veterinary-application'] }),
+    dedicatedMethod({ id: 'mechanized', name: '机械化养殖', descriptionTemplate: '每周期整件消耗 1 {product:machinery}并获得最高{product:fish}产量。', tone: 'accent', additionalInputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 9, requiredTechnologyIds: ['machinery-operation'] }),
   ]),
   'logging-camp': Object.freeze([
-    dedicatedMethod({ id: 'standard', name: '基础采伐', description: '采用基础人工作业采伐木材。', tone: 'neutral', outputQuantity: 2, operatingCost: 9 }),
-    dedicatedMethod({ id: 'assisted', name: '锯具采伐', description: '每周期整件消耗 1 工具，提高木材采伐量。', tone: 'warning', additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 4, operatingCost: 6, requiredTechnologyIds: ['tool-operation'] }),
-    dedicatedMethod({ id: 'intensive', name: '动力采伐', description: '工具配合工业燃料形成动力采伐线。', tone: 'success', additionalInputs: [{ productId: 'tools', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 5, operatingCost: 5, requiredTechnologyIds: ['tool-operation', 'industrial-fuel-operation'] }),
-    dedicatedMethod({ id: 'mechanized', name: '机械化采伐', description: '机械与工业燃料共同驱动最高强度采伐。', tone: 'accent', additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-fuel', quantity: 2 }], outputQuantity: 7, operatingCost: 7.95, requiredTechnologyIds: ['machinery-operation', 'industrial-fuel-operation'] }),
+    dedicatedMethod({ id: 'standard', name: '基础采伐', descriptionTemplate: '采用基础人工作业采伐{product:timber}。', tone: 'neutral', outputQuantity: 2, operatingCost: 9 }),
+    dedicatedMethod({ id: 'assisted', name: '锯具采伐', descriptionTemplate: '每周期整件消耗 1 {product:tools}，提高{product:timber}采伐量。', tone: 'warning', additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 4, operatingCost: 6, requiredTechnologyIds: ['tool-operation'] }),
+    dedicatedMethod({ id: 'intensive', name: '动力采伐', descriptionTemplate: '{product:tools}配合{product:industrial-fuel}形成动力采伐线。', tone: 'success', additionalInputs: [{ productId: 'tools', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 5, operatingCost: 5, requiredTechnologyIds: ['tool-operation', 'industrial-fuel-operation'] }),
+    dedicatedMethod({ id: 'mechanized', name: '机械化采伐', descriptionTemplate: '{product:machinery}与{product:industrial-fuel}共同驱动最高强度采伐。', tone: 'accent', additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-fuel', quantity: 2 }], outputQuantity: 7, operatingCost: 7.95, requiredTechnologyIds: ['machinery-operation', 'industrial-fuel-operation'] }),
   ]),
   mine: Object.freeze([
     dedicatedMethod({ id: 'standard', name: '常规开采', description: '保持常规矿井开采方式。', tone: 'neutral', outputQuantity: 2, operatingCost: 11 }),
-    dedicatedMethod({ id: 'assisted', name: '钻具开采', description: '每周期整件消耗 1 工具，提高矿石产量。', tone: 'warning', additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 4, operatingCost: 10, requiredTechnologyIds: ['tool-operation'] }),
-    dedicatedMethod({ id: 'intensive', name: '爆破开采', description: '工具与工业化学品配合进行强化开采。', tone: 'success', additionalInputs: [{ productId: 'tools', quantity: 1 }, { productId: 'industrial-chemicals', quantity: 1 }], outputQuantity: 5, operatingCost: 9, requiredTechnologyIds: ['tool-operation', 'industrial-chemical-operation'] }),
-    dedicatedMethod({ id: 'mechanized', name: '机械化采矿', description: '机械、工业化学品与工业燃料组成完整机械化矿山。', tone: 'accent', additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-chemicals', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 6, operatingCost: 6.95, requiredTechnologyIds: ['machinery-operation', 'industrial-chemical-operation', 'industrial-fuel-operation'] }),
+    dedicatedMethod({ id: 'assisted', name: '钻具开采', descriptionTemplate: '每周期整件消耗 1 {product:tools}，提高矿石产量。', tone: 'warning', additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 4, operatingCost: 10, requiredTechnologyIds: ['tool-operation'] }),
+    dedicatedMethod({ id: 'intensive', name: '爆破开采', descriptionTemplate: '{product:tools}与{product:industrial-chemicals}配合进行强化开采。', tone: 'success', additionalInputs: [{ productId: 'tools', quantity: 1 }, { productId: 'industrial-chemicals', quantity: 1 }], outputQuantity: 5, operatingCost: 9, requiredTechnologyIds: ['tool-operation', 'industrial-chemical-operation'] }),
+    dedicatedMethod({ id: 'mechanized', name: '机械化采矿', descriptionTemplate: '{product:machinery}、{product:industrial-chemicals}与{product:industrial-fuel}组成完整机械化矿山。', tone: 'accent', additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-chemicals', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 6, operatingCost: 6.95, requiredTechnologyIds: ['machinery-operation', 'industrial-chemical-operation', 'industrial-fuel-operation'] }),
   ]),
   'oil-field': Object.freeze([
     dedicatedMethod({ id: 'standard', name: '常规抽采', description: '保持常规油井抽采方式。', tone: 'neutral', outputQuantity: 2, operatingCost: 15 }),
-    dedicatedMethod({ id: 'assisted', name: '化学辅助采油', description: '每周期整件消耗 1 工业化学品提高采收率。', tone: 'warning', additionalInputs: [{ productId: 'industrial-chemicals', quantity: 1 }], outputQuantity: 3, operatingCost: 16, requiredTechnologyIds: ['industrial-chemical-operation'] }),
-    dedicatedMethod({ id: 'intensive', name: '机械增产钻采', description: '机械配合工业化学品进行强化钻采。', tone: 'success', additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-chemicals', quantity: 1 }], outputQuantity: 5, operatingCost: 15.45, requiredTechnologyIds: ['machinery-operation', 'industrial-chemical-operation'] }),
-    dedicatedMethod({ id: 'mechanized', name: '动力机械钻采', description: '机械、工业化学品与工业燃料组成最高强度钻采体系。', tone: 'accent', additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-chemicals', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 6, operatingCost: 18.95, requiredTechnologyIds: ['machinery-operation', 'industrial-chemical-operation', 'industrial-fuel-operation'] }),
+    dedicatedMethod({ id: 'assisted', name: '化学辅助采油', descriptionTemplate: '每周期整件消耗 1 {product:industrial-chemicals}提高采收率。', tone: 'warning', additionalInputs: [{ productId: 'industrial-chemicals', quantity: 1 }], outputQuantity: 3, operatingCost: 16, requiredTechnologyIds: ['industrial-chemical-operation'] }),
+    dedicatedMethod({ id: 'intensive', name: '机械增产钻采', descriptionTemplate: '{product:machinery}配合{product:industrial-chemicals}进行强化钻采。', tone: 'success', additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-chemicals', quantity: 1 }], outputQuantity: 5, operatingCost: 15.45, requiredTechnologyIds: ['machinery-operation', 'industrial-chemical-operation'] }),
+    dedicatedMethod({ id: 'mechanized', name: '动力机械钻采', descriptionTemplate: '{product:machinery}、{product:industrial-chemicals}与{product:industrial-fuel}组成最高强度钻采体系。', tone: 'accent', additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-chemicals', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 6, operatingCost: 18.95, requiredTechnologyIds: ['machinery-operation', 'industrial-chemical-operation', 'industrial-fuel-operation'] }),
   ]),
   mill: Object.freeze([
     dedicatedMethod({ id: 'standard', name: '基础加工', description: '保持基础粮食或糖料加工。', tone: 'neutral', outputQuantity: 1, operatingCost: 8.6 }),
-    dedicatedMethod({ id: 'assisted', name: '辊式加工', description: '扩大原料批量并整件消耗工具进行辊式加工。', tone: 'warning', baseInputQuantities: [4], additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 2, operatingCost: 5.2, requiredTechnologyIds: ['tool-operation'] }),
-    dedicatedMethod({ id: 'intensive', name: '机械加工', description: '扩大原料批量并整件消耗机械进行加工。', tone: 'success', baseInputQuantities: [6], additionalInputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 3, operatingCost: 10.25, requiredTechnologyIds: ['machinery-operation'] }),
-    dedicatedMethod({ id: 'mechanized', name: '连续化加工', description: '机械与工业燃料驱动连续化加工线。', tone: 'accent', baseInputQuantities: [6], additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 4, operatingCost: 18.25, requiredTechnologyIds: ['machinery-operation', 'industrial-fuel-operation'] }),
+    dedicatedMethod({ id: 'assisted', name: '辊式加工', descriptionTemplate: '扩大原料批量并整件消耗{product:tools}进行辊式加工。', tone: 'warning', baseInputQuantities: [4], additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 2, operatingCost: 5.2, requiredTechnologyIds: ['tool-operation'] }),
+    dedicatedMethod({ id: 'intensive', name: '机械加工', descriptionTemplate: '扩大原料批量并整件消耗{product:machinery}进行加工。', tone: 'success', baseInputQuantities: [6], additionalInputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 3, operatingCost: 10.25, requiredTechnologyIds: ['machinery-operation'] }),
+    dedicatedMethod({ id: 'mechanized', name: '连续化加工', descriptionTemplate: '{product:machinery}与{product:industrial-fuel}驱动连续化加工线。', tone: 'accent', baseInputQuantities: [6], additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 4, operatingCost: 18.25, requiredTechnologyIds: ['machinery-operation', 'industrial-fuel-operation'] }),
   ]),
   sawmill: Object.freeze([
-    dedicatedMethod({ id: 'standard', name: '基础锯切', description: '保持基础木材锯切方式。', tone: 'neutral', outputQuantity: 1, operatingCost: 3 }),
-    dedicatedMethod({ id: 'assisted', name: '锯具流水线', description: '扩大木材批量并整件消耗工具形成锯切流水线。', tone: 'warning', baseInputQuantities: [8], additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 4, operatingCost: 4, requiredTechnologyIds: ['tool-operation'] }),
-    dedicatedMethod({ id: 'intensive', name: '机械制材', description: '机械提高木材利用率与制材吞吐。', tone: 'success', baseInputQuantities: [7], additionalInputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 4, operatingCost: 4.45, requiredTechnologyIds: ['machinery-operation'] }),
-    dedicatedMethod({ id: 'mechanized', name: '动力连续制材', description: '机械与工业燃料驱动连续制材线。', tone: 'accent', baseInputQuantities: [8], additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 5, operatingCost: 10.45, requiredTechnologyIds: ['machinery-operation', 'industrial-fuel-operation'] }),
+    dedicatedMethod({ id: 'standard', name: '基础锯切', descriptionTemplate: '保持基础{product:timber}锯切方式。', tone: 'neutral', outputQuantity: 1, operatingCost: 3 }),
+    dedicatedMethod({ id: 'assisted', name: '锯具流水线', descriptionTemplate: '扩大{product:timber}批量并整件消耗{product:tools}形成锯切流水线。', tone: 'warning', baseInputQuantities: [8], additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 4, operatingCost: 4, requiredTechnologyIds: ['tool-operation'] }),
+    dedicatedMethod({ id: 'intensive', name: '机械制材', descriptionTemplate: '{product:machinery}提高{product:timber}利用率与制材吞吐。', tone: 'success', baseInputQuantities: [7], additionalInputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 4, operatingCost: 4.45, requiredTechnologyIds: ['machinery-operation'] }),
+    dedicatedMethod({ id: 'mechanized', name: '动力连续制材', descriptionTemplate: '{product:machinery}与{product:industrial-fuel}驱动连续制材线。', tone: 'accent', baseInputQuantities: [8], additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 5, operatingCost: 10.45, requiredTechnologyIds: ['machinery-operation', 'industrial-fuel-operation'] }),
   ]),
   'feed-factory': Object.freeze([
-    dedicatedMethod({ id: 'standard', name: '基础配制', description: '保持基础配合饲料配制方式。', tone: 'neutral', outputQuantity: 2, operatingCost: 4.9 }),
-    dedicatedMethod({ id: 'assisted', name: '批量配料', description: '扩大原料批量并整件消耗工具辅助配料。', tone: 'warning', baseInputQuantities: [4, 2], additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 5, operatingCost: 3.6, requiredTechnologyIds: ['tool-operation'] }),
-    dedicatedMethod({ id: 'intensive', name: '机械混配', description: '机械完成大批量稳定混配。', tone: 'success', baseInputQuantities: [6, 3], additionalInputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 8, operatingCost: 10.75, requiredTechnologyIds: ['machinery-operation'] }),
-    dedicatedMethod({ id: 'mechanized', name: '动力连续混配', description: '机械与工业燃料驱动连续混配生产线。', tone: 'accent', baseInputQuantities: [8, 4], additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 11, operatingCost: 18.95, requiredTechnologyIds: ['machinery-operation', 'industrial-fuel-operation'] }),
+    dedicatedMethod({ id: 'standard', name: '基础配制', descriptionTemplate: '保持基础{product:feed}配制方式。', tone: 'neutral', outputQuantity: 2, operatingCost: 4.9 }),
+    dedicatedMethod({ id: 'assisted', name: '批量配料', descriptionTemplate: '扩大原料批量并整件消耗{product:tools}辅助配料。', tone: 'warning', baseInputQuantities: [4, 2], additionalInputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 5, operatingCost: 3.6, requiredTechnologyIds: ['tool-operation'] }),
+    dedicatedMethod({ id: 'intensive', name: '机械混配', descriptionTemplate: '{product:machinery}完成大批量稳定混配。', tone: 'success', baseInputQuantities: [6, 3], additionalInputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 8, operatingCost: 10.75, requiredTechnologyIds: ['machinery-operation'] }),
+    dedicatedMethod({ id: 'mechanized', name: '动力连续混配', descriptionTemplate: '{product:machinery}与{product:industrial-fuel}驱动连续混配生产线。', tone: 'accent', baseInputQuantities: [8, 4], additionalInputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'industrial-fuel', quantity: 1 }], outputQuantity: 11, operatingCost: 18.95, requiredTechnologyIds: ['machinery-operation', 'industrial-fuel-operation'] }),
   ]),
 });
 
