@@ -1,0 +1,173 @@
+name: Temporary Daily Contract Patcher
+
+on:
+  push:
+    branches:
+      - feature/daily-regional-supply-contracts-impl
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/daily-regional-supply-contracts-impl
+          fetch-depth: 0
+      - name: Apply authoritative daily contract patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f'missing replacement anchor in {path}: {old[:100]}')
+              p.write_text(text.replace(old, new, 1))
+
+          # Source integrations that are easier to patch in place than reconstruct.
+          replace(
+              'src/pages/BuildingsPage.tsx',
+              'setContractMarketIntent(productId);',
+              'setContractMarketIntent(productId, model.selectedProvinceId);',
+          )
+
+          p = Path('src/pages/ContractWorkspacePage.tsx')
+          text = p.read_text()
+          old = '''      <div className="contract-card-actions"><Button disabled={busy} onClick={() => void run(`${contract.id}:accept`, () => productionContractActions.accept(contract.id))}>承接合同</Button>{contract.isPublisher ? <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:cancel`, () => productionContractActions.cancel(contract.id))}>取消公开合同</Button> : null}</div>'''
+          new = '''      <div className="contract-card-actions">{!contract.isPublisher ? <Button disabled={busy} onClick={() => void run(`${contract.id}:accept`, () => productionContractActions.accept(contract.id))}>承接合同</Button> : null}{contract.isPublisher ? <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:cancel`, () => productionContractActions.cancel(contract.id))}>取消公开合同</Button> : null}</div>'''
+          if old not in text:
+              raise SystemExit('missing open contract action anchor')
+          text = text.replace(old, new, 1)
+
+          marker = 'function ActiveContractCard({ contract, label, busy, run }: { contract: ProductionContract; label: string; busy: boolean; run: RunAction }) {'
+          helper = '''function CommercialContractActions({ contract, busy, run }: { contract: ProductionContract; busy: boolean; run: RunAction }) {
+            if (contract.kind === 'loan' && contract.isBorrower) {
+              return <div className="contract-card-actions"><Button variant="secondary" disabled={busy} onClick={() => void run(`${contract.id}:repay`, () => productionContractActions.repayLoan(contract.id))}>立即还款</Button><ToggleField checked={contract.autoRepay !== false} onChange={(event) => void run(`${contract.id}:auto-repay`, () => productionContractActions.setLoanAutoRepay(contract.id, event.target.checked))} label="自动还款" /></div>;
+            }
+            if (contract.kind === 'facility_lease' && contract.isLessee) {
+              return <div className="contract-card-actions"><Button variant="secondary" disabled={busy} onClick={() => void run(`${contract.id}:lease-fund`, () => productionContractActions.fundLease(contract.id))}>补充租金</Button><ToggleField checked={contract.autoFund !== false} onChange={(event) => void run(`${contract.id}:lease-auto-fund`, () => productionContractActions.setLeaseAutoFund(contract.id, event.target.checked))} label="自动补充租金" /></div>;
+            }
+            return null;
+          }
+
+          ''' + marker
+          if marker not in text:
+              raise SystemExit('missing active contract marker')
+          text = text.replace(marker, helper, 1)
+
+          old = '''      {contract.kind === 'supply' ? <div className="contract-card-actions">
+                {contract.isSupplier ? <Button variant="secondary" disabled={busy} onClick={() => void run(`${contract.id}:prepare`, () => productionContractActions.prepare(contract.id))}>自动准备商品</Button> : null}
+                {contract.isBuyer ? <Button variant="secondary" disabled={busy} onClick={() => void run(`${contract.id}:fund`, () => productionContractActions.fund(contract.id))}>自动补充货款</Button> : null}
+                <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:request-end`, () => productionContractActions.requestTermination(contract.id))}>按当前日结束</Button>
+                <Button variant="text" disabled={busy} onClick={() => { if (window.confirm('立即终止会触发违约保证金赔付，是否继续？')) void run(`${contract.id}:terminate`, () => productionContractActions.terminateNow(contract.id)); }}>立即终止</Button>
+              </div> : null}'''
+          new = '''      {contract.kind === 'supply' ? <>
+                {contract.isSupplier ? <ToggleField checked={contract.supplierAutoReserve} onChange={(event) => void run(`${contract.id}:auto-reserve`, () => productionContractActions.setAutoReserve(contract.id, event.target.checked, contract.prioritySupply))} label="自动准备商品" /> : null}
+                {contract.isBuyer ? <ToggleField checked={contract.buyerAutoFund} onChange={(event) => void run(`${contract.id}:auto-fund`, () => productionContractActions.setAutoFund(contract.id, event.target.checked))} label="自动补充货款" /> : null}
+                <div className="contract-card-actions">
+                  {contract.isSupplier ? <Button variant="secondary" disabled={busy} onClick={() => void run(`${contract.id}:prepare`, () => productionContractActions.prepare(contract.id))}>立即准备商品</Button> : null}
+                  {contract.isBuyer ? <Button variant="secondary" disabled={busy} onClick={() => void run(`${contract.id}:fund`, () => productionContractActions.fund(contract.id))}>立即补充货款</Button> : null}
+                  <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:request-end`, () => productionContractActions.requestTermination(contract.id))}>按当前日结束</Button>
+                  <Button variant="text" disabled={busy} onClick={() => { if (window.confirm('立即终止会触发违约保证金赔付，是否继续？')) void run(`${contract.id}:terminate`, () => productionContractActions.terminateNow(contract.id)); }}>立即终止</Button>
+                </div>
+              </> : <CommercialContractActions contract={contract} busy={busy} run={run} />}'''
+          if old not in text:
+              raise SystemExit('missing supply action anchor')
+          text = text.replace(old, new, 1)
+          p.write_text(text)
+
+          # Ensure audit compatibility aliases describe the actual partial daily delivery at transition capture time.
+          replace(
+              'server/src/daily-supply-contracts.js',
+              "if (contract.buyerAutoFund) reserveBuyerCredits(contract, buyer); if (contract.supplierAutoReserve) reserveSupplierGoods(contract, supplier, now); applyAliases(contract); return amount;",
+              "if (contract.buyerAutoFund) reserveBuyerCredits(contract, buyer); if (contract.supplierAutoReserve) reserveSupplierGoods(contract, supplier, now); applyAliases(contract); contract.quantityPerDelivery = amount; contract.batchGross = gross; return amount;",
+          )
+
+          # Authoritative product/gameplay rule.
+          replace(
+              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+              '商品长期供货合同允许玩家在直接承接之外进行多人供应链议价。议价只改变正式商品合同已有的数量、价格和交付时间参数，不创建聊天、自由文本、信用分、额外货币、议价奖励或新的合同资产。议价中的报价不冻结任何资产，也不进入统一订单簿价格、成交曲线、商品估值或排行榜；只有双方接受最终报价并通过现有服务器签约校验后，才形成正式履约合同。',
+              '玩家新发布的商品采购／供应合同统一为地区化每日额度合同：必须指定 `provinceId + productId`，使用固定 `unitPrice`、`dailyMaxQuantity`、按天计的 `durationDays`（`null` 表示长期）与 `startDelayDays`。每日最大供应量是当日最多可实际使用的额度，不是强制每日交付量；未使用额度不补算、不跨日累计。每日额度商品合同允许玩家在直接承接之外进行多人供应链议价，议价只改变每日最大供应量、固定价格、合同天数与开始延迟天数，不创建聊天、自由文本、信用分、额外货币、议价奖励或新的合同资产。议价中的报价不冻结任何资产，也不进入统一订单簿价格、成交曲线、商品估值或排行榜；只有双方接受最终报价并通过服务器重新执行地区、资金、保证金和参与方校验后，才形成正式履约合同。',
+          )
+
+          # Industry / production source ordering and priority supply.
+          replace(
+              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+              '- 周期投入只从工厂集群所在地区的本地仓库原子扣除，产成品只进入同一地区的本地无限仓库；不得跨地区寻找原料或落库。',
+              '- 周期投入仍严格限定工厂集群所在地区，不得跨地区寻找原料或落库；服务器在正式周期扣料前按“同地区固定价采购合同 → 本地仓库 → 同地区统一商品订单簿”解析来源。只有当完成本周期需求所需的真实可执行市场边际卖价严格高于有效采购合同固定价时，才按合同固定价从最低价合同开始消费其当日剩余额度；否则不主动消费较贵合同而直接使用本地仓库。合同额度或预留不足后继续使用本地仓库，本地库存不足时才通过同地区统一订单簿即时采购；仍不足则按真实缺料进入现有生产异常。该流程不得创建工厂私有库存、第二套市场或跨州隐式调货。\n- 每个地区商品的当日真实工厂产量由正式生产结算后的 `lifetimeOutput` 增量派生，只用于供应合同优先预留条件；供应方可以为每日额度商品合同设置“最低当日产量 + 最低合同固定价”两个条件，启用时必须同时满足后新增可用库存才自动进入合同预留。多个符合条件合同按固定价高者、承接时间早者、合同 ID 的确定性顺序预留；手动准备仍可显式忽略该自动优先条件。',
+          )
+
+          # Warehouse / regional inventory authority.
+          replace(
+              'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+              '采购合同承接、续签、准备、交付、违约确认与索赔不得包含仓库空间条件；货款、保证金、供应方商品准备等真实合同约束保持。',
+              '商品采购／供应合同必须携带 `provinceId`，供应方只能从合同地区本地仓库准备商品，采购方取得的商品也只进入同一地区仓库；不得从其他州库存自动补货，跨州调货仍只能通过正式运输。玩家新发布的商品合同使用固定价格与每日最大供应量，合同时间与开始延迟以天为单位；每日额度只限制当日最多实际使用数量，不要求强制用满。合同承接、准备、实际使用、违约确认与结束不得包含仓库空间条件；货款、20% 日额度保证金与供应方商品预留等真实合同约束保持。\n\n地区商品详情的“自动经营执行”区域在原有生产预定、合同预定和自动买卖状态之外增加只读合同简要：当前有效采购合同数、供应合同数、今日采购合同剩余额度、最低可用采购合同固定价，以及“查看相关合同”跳转按钮。该按钮固定携带当前 `provinceId + productId`，合同页只据此筛选，不自动判断采购／供应方向。',
+          )
+          replace(
+              'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+              '生产周期只检查可参与生产的工厂、运营资金和工厂所在地区的本地原料等真实条件，产出直接进入同一地区仓库。旧 `warehouse_full` / `output_full` 状态迁移后按当前真实条件重新协调，不补算历史停产周期。',
+              '生产周期只检查可参与生产的工厂、运营资金以及工厂所在地区可取得的真实原料来源，产出直接进入同一地区仓库。正式扣料前先比较同地区有效采购合同固定价与完成当次需求所需的统一订单簿真实可执行边际卖价：市场严格更贵时先使用更低价合同，当合同不更便宜时先用本地仓库；合同使用后或未使用合同时，本地仓库不足才从同地区统一市场即时采购。任何一步都不得跨地区取货。旧 `warehouse_full` / `output_full` 状态迁移后按当前真实条件重新协调，不补算历史停产周期。',
+          )
+
+          # Page ownership and navigation context.
+          replace('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '合同广场增加领域和商品筛选。', '合同广场增加领域、地区和商品筛选。')
+          replace('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '该导航只携带 `productId`', '该导航固定携带当前 `provinceId + productId`')
+          p = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          text = p.read_text()
+          anchor = '商品议价只向发布者和对应发起者展示'
+          if anchor not in text:
+              raise SystemExit('missing page design negotiation anchor')
+          addition = '新商品采购／供应发布表单固定包含合同地区、商品、每日最大供应量、固定价格、合同时间（天，可留空表示长期）和开始延迟（天）；进行中每日额度卡固定展示今日已使用／每日上限／今日剩余额度、固定价格、地区和累计交付。供应方在合同详情可设置最低当日产量与最低合同价格两个优先供应条件。借贷、租赁及商品合同的玩家可见时间输入与标签统一以天表达；历史兼容的毫秒截止时间只允许存在于服务器内部协议，不得在新合同工作区恢复小时／分钟输入。\n\n'
+          text = text.replace(anchor, addition + anchor, 1)
+          p.write_text(text)
+
+          # Server architecture: replace the obsolete commodity-contract paragraph in place.
+          p = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          text = p.read_text()
+          pattern = re.compile(r'`server/src/contracts\.js` 是合同统一门面.*?固定批次合同的议价与续签条款可以把下一份合同切换为长期。', re.S)
+          replacement = '''`server/src/unified-contracts.js` 是合同统一运行门面：`daily-supply-contracts.js` 负责玩家新发布的地区化每日额度商品采购／供应合同，`contracts.js` 只保留旧有限批次商品合同、市场储备固定条款合同及其历史兼容，`commercial-contracts.js` 继续负责玩家抵押借贷与工厂使用权租赁。三类合同领域仍固定为商品供货 `supply`、玩家抵押借贷 `loan` 和工厂使用权租赁 `facility_lease`；六类玩家名称只表示发布方向。客户端与 API 的合同时间统一以天表达：商品合同使用 `durationDays + startDelayDays`，借贷使用 0.5／1／3 天期限，租赁租金周期使用 1/24／1/8／1/4／0.5／1 天并以天表达首次生效延迟；服务端内部仍可把借贷／租赁日数兼容换算为既有绝对毫秒截止时间，倒计时权威规则不变。玩家新发布的商品合同必须指定 `provinceId + productId`、固定 `unitPrice` 与 `dailyMaxQuantity`；`durationDays = null` 是长期合同的唯一表示。每日额度按服务器权威自然日惰性重置，未使用额度不累计，采购方只为实际取得数量支付固定价；20% 双方保证金以“固定价 × 每日最大供应量”为基准，当日货款和商品只按当日剩余额度托管／预留。有限每日合同到期正常释放资产；长期合同可以申请当前自然日结束后正常终止，不使用续签。旧有限批次商品合同保持原语义直至结束，不强制迁移；旧玩家长期商品合同迁移为默认地区的每日额度长期合同，市场储备固定条款合同继续保留有限批次机制。'''
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'server design contract paragraph replacement count={count}')
+          sourcing = '''\n\n每日额度商品合同直接参与权威生产输入择源，但不创建第二套库存或订单系统。每次正式生产结算前，服务器按工厂所在 `provinceId + productId` 计算当次真实投入需求，并读取同地区统一商品订单簿完成该需求所需的边际可执行卖价；只有 `contract.unitPrice < executableMarketPrice` 时才按固定价从最低价有效采购合同开始消费当日剩余额度，随后使用本地仓库，仍不足时复用统一订单簿即时采购与现有经济回滚边界。市场不比合同贵时不主动消费较贵合同，直接使用本地仓库并只为仓库缺口采购市场。供应合同的自动商品预留可以使用供应方私有 `minDailyProduction + minContractPrice` 条件；当日真实产量只由正式生产结算后的产出增量派生，多个符合条件合同按合同价高者、承接早者、合同 ID 排序。所有合同货物、市场补购与生产扣料均严格地区隔离。客户端状态版本继续为 37、世界状态版本继续为 32，因为新增字段通过兼容别名与现有分区增量投影交付，不扩大兼容窗口。'''
+          text = text.replace(replacement, replacement + sourcing, 1)
+          p.write_text(text)
+
+          # Design index records the cross-document non-regression rule without creating another design document.
+          p = Path('docs/README.md')
+          text = p.read_text()
+          marker = '地区化每日商品合同'
+          if marker not in text:
+              text += '''\n\n> 地区化每日商品合同不可回退规则：玩家新发布的商品采购／供应合同必须按 `provinceId + productId` 使用固定价格、每日最大供应量和按天时间；生产输入按同地区“更低价合同 → 本地仓库 → 统一市场缺口采购”解析，供应优先条件只允许最低当日产量与最低合同价格，地区商品详情必须保留合同简要及 `provinceId + productId` 跳转。该规则必须同步更新 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`INDUSTRY_AND_PRODUCTION_DESIGN.md`、`WAREHOUSE_EXPANSION_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、服务器测试与 `scripts/verify-daily-supply-contracts.mjs`。\n'''
+              p.write_text(text)
+
+          # Register the dedicated verifier in the architecture gate.
+          p = Path('package.json')
+          text = p.read_text()
+          old = 'node scripts/verify-contract-types.mjs && node scripts/verify-currency-svg.mjs'
+          new = 'node scripts/verify-contract-types.mjs && node scripts/verify-daily-supply-contracts.mjs && node scripts/verify-currency-svg.mjs'
+          if old not in text:
+              raise SystemExit('missing package architecture verifier anchor')
+          text = text.replace(old, new, 1)
+          old = '"verify:contract-types": "node scripts/verify-contract-types.mjs"'
+          new = '"verify:contract-types": "node scripts/verify-contract-types.mjs",\n    "verify:daily-supply-contracts": "node scripts/verify-daily-supply-contracts.mjs"'
+          if old not in text:
+              raise SystemExit('missing package script anchor')
+          text = text.replace(old, new, 1)
+          p.write_text(text)
+          PY
+
+          rm .github/workflows/temp-daily-contract-patcher.yml
+          git config user.name "RIVERSOFT"
+          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "同步每日地区合同权威设计与防回退"
+          git push origin HEAD:feature/daily-regional-supply-contracts-impl
