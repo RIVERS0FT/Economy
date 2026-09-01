@@ -36,7 +36,7 @@ test.describe('navigation pill geometry', () => {
         iconBottom: iconBox.bottom,
         labelTop: labelBox.top,
         surfaceBackground: surfaceStyle.backgroundColor,
-        surfaceFilter: surfaceStyle.backdropFilter || surfaceStyle.webkitBackdropFilter,
+        surfaceFilter: surfaceStyle.backdropFilter,
       };
     });
     const inactiveVisual = await inactive.evaluate((button) => {
@@ -90,7 +90,7 @@ test.describe('navigation pill geometry', () => {
         labelCenterY: (labelBox.top + labelBox.bottom) / 2,
         color: style.color,
         background: style.backgroundColor,
-        barFilter: barStyle.backdropFilter || barStyle.webkitBackdropFilter,
+        barFilter: barStyle.backdropFilter,
       };
     });
 
