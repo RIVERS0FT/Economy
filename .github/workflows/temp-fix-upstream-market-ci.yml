@@ -1,0 +1,46 @@
+name: Temporary Fix Upstream Market CI
+
+on:
+  push:
+    branches:
+      - feature/daily-regional-supply-contracts-impl
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/daily-regional-supply-contracts-impl
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.4.0'
+          cache: npm
+      - name: Apply upstream market CI fix
+        run: python3 scripts/temp-fix-upstream-market-ci.py
+      - name: Validate changed market guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          npm ci
+          node scripts/verify-market-information-hierarchy.mjs
+          node scripts/verify-market-order-entry-compact.mjs
+          npx playwright install --with-deps chromium
+          npx playwright test tests/browser/market-information-hierarchy.spec.ts tests/browser/market-order-entry-compact.spec.ts
+      - name: Commit market CI fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/temp-fix-upstream-market-ci.yml
+          rm -f scripts/temp-fix-upstream-market-ci.py
+          git config user.name "RIVERSOFT"
+          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "修复地区行情切换与步进器浏览器回归"
+          git push origin HEAD:feature/daily-regional-supply-contracts-impl
