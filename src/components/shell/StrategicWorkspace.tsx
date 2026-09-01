@@ -35,6 +35,13 @@ const MAP_LENSES: Array<{
   { id: 'alerts', label: '异常', icon: WarehouseIcon },
 ];
 
+const MAP_LENS_BUTTON_STYLE = {
+  minHeight: 44,
+  borderRadius: 999,
+  flexDirection: 'row',
+  whiteSpace: 'nowrap',
+} as const;
+
 function strategicMapState(model: LoadedGameViewModel) {
   const game = model.game as LoadedGameViewModel['game'] & {
     provinces?: ProvinceDefinition[];
@@ -258,6 +265,7 @@ export function StrategicMapLensBar({
             className={item.id === lens ? 'strategic-map-lens-button is-active' : 'strategic-map-lens-button'}
             data-ui-interactive="surface"
             aria-pressed={item.id === lens}
+            style={MAP_LENS_BUTTON_STYLE}
             onClick={() => onLensChange(item.id)}
           >
             <Icon />
