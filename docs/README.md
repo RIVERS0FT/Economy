@@ -3,7 +3,7 @@
 > 状态：当前文档入口
 > 适用项目：`RIVERS0FT/Economy`
 > 更新时间：2026-09-01
-> 客户端状态版本：38
+> 客户端状态版本：39
 > 世界状态版本：32
 
 本目录只保留当前设计。旧规则不归档在 `docs/`，也不得以“补充说明”“V2/V3”或未登记专题文档的形式继续并行存在。未列入下方权威文档表的 Markdown 文件不得存在。
@@ -30,6 +30,7 @@
 | `PRODUCTION_PILL_ALIGNMENT_DESIGN.md` | 建筑页状态／等级胶囊与工厂开关的统一可见几何和紧凑点击区域例外 |
 | `LIQUID_GLASS_CHROME_DESIGN.md` | 认证卡片、游戏与管理员共享根外壳、纯 CSS 毛玻璃材质、玩家常驻战略地图、建筑式／全区域页面、独立公开事件右栏、侧栏输入方式、浮层安全根、移动工作区与底栏 |
 | `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、世界级人口状态与周期迁移、跨州运输路线存档与在途结算、银行事务与结息调度、每日签到、三类合同事务、追加式 SQLite 合同／拍卖审计、匿名最近 10 条出价接口与 `contract` 分区、普通玩家订单公开序列化、邮箱验证码注册、统一账号密码重置代理、统一账号首次建档、邀请归因、注册 IP 封禁、生产 SQLite 只读诊断、生产 SQLite INCREMENTAL 空间维护、API、64×64 玩家头像静态资源、容量限制、Nginx、systemd 和部署 |
+| `CI_EXECUTION_DESIGN.md` | PR、非 `main` 分支与主部署的 CI 执行并行度、四分片浏览器硬门禁、targeted 选测分片、20 分钟有限失败边界、失败诊断与真实浏览器输入回归 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器仅保留匿名逐笔成交所需的最小地区订单快照、v7 迁移、按当前地区展示、清除语义与银行权威流水边界 |
 | `GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、商品／工厂单项与捆绑资产包拍卖、发布费与卖方手续费、隐藏保留价、最低加价、自动延时、匿名出价、世界 15／21 迁移、人口规模与就业诊断、人口政策、封禁复核、管理员权限和运营控制台编排 |
 
@@ -117,7 +118,6 @@
 72. 浏览器服务器权威状态必须由 `stateDelivery.js` 的六分区缓存统一发布，`gameAuthorityStore.ts` 通过 React `useSyncExternalStore` 提供完整状态、修订号和单分区订阅；`gameViewModel.ts` 不得重新维护第二份 `useState<EconomyState>`，只保留动作编排、通知、导航、表单草稿和其他交互状态。分区 patch 只替换发生变化的分区，未变化分区必须保持引用稳定；服务器刷新不得通过权威状态发布隐式重置价格／数量草稿、选中项、弹层或滚动位置。该规则归属 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` 的状态交付边界，并由 `server/test/authoritative-hotpaths.test.js`、TypeScript 构建和 `scripts/verify-authoritative-hotpaths.mjs` 防回退。
 
 73. 世界 32 的美国本土连续 48 个州级地区、本地无限仓库、本地商品／工厂行情、州级工厂集群与订单隔离属于产品、产业、仓库、订单簿、页面、UI、拍卖和服务器共同规则。世界 30 已使用的 34 个地区 ID 原位对应 34 个州，新增 14 个州 ID，不移动或合并既有资产；共享目录必须为 48 个州各记录一组唯一中文／英文首府名称与本土范围内的首府经纬度；现金、宝石、研发、银行、排行榜与世界人口不按地区复制；跨州商品只能通过付费运输流动，客户端切换地图不得移动任何资产。内部 API 和复合键继续使用兼容名称 `provinceId`。地图使用独立静态 SVG 世界面与单一 `.province-map-camera-surface` 合成相机并位于铺满视口的根级地图层，州面点击直接切换地区；缩放／平移不得恢复 ECharts Geo/Map、`geoRoam`、第二套标签相机或手势期间几何重建；地图页不得恢复命令、经营详情、“当前经营地区”或图例卡片。开源底图精确锁定 ISC `us-atlas@3.0.1` 与 `topojson-client@3.1.0`，只注册连续 48 州，排除阿拉斯加、夏威夷、华盛顿特区和海外领地；来源、许可与非测绘说明由权威文档和依赖清单保留。实现必须同步共享目录、当前客户端状态版本、地图页、写动作 `provinceId`、专项服务器／浏览器测试与 `scripts/verify-provincial-economy.mjs`。
-
 74. 客户端状态版本 38 淘汰所有工厂共用的“标准／高速／节约／高产”制度及 C1/C2 档位 ID；26 类工厂都由正式生产目录提供四种产业语义制度和 `iconId`，不同工厂允许复用同一制度定义。旧制度 ID 只用于存档迁移，必须映射到同参数的新制度且保留运行周期起点；主动提交旧 ID 必须拒绝。权威规则、图标系统、服务器测试、浏览器测试和 `scripts/verify-production-methods.mjs` 必须同步防回退。
 74. 每个州×商品的官方系统价、恰好等于系统价的玩家买卖单实时全量清算、按周期系统买卖量调价、调价瞬间的精确价格订单簿扫描、系统成交审计与商品／货币生成销毁边界属于产品、订单簿、页面和服务器共同规则；必须同步更新 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`UNIFIED_ASSET_ORDER_BOOK_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、测试和 `scripts/verify-system-market.mjs`，不得恢复仅按订单簿成交生成市场价的旧口径，也不得把玩家间成交计入系统买卖比。
 75. 新玩家起始州永久绑定、其他州按货币费用解锁、锁定州禁用市场／工厂／仓库、公路／铁路／航空三种跨州运输（成本、单次运量、时间、运费计入运输就业、在途商品按起始州官方价估值），以及最多 50 条玩家私有手动多站点运输路线（站点无上限、允许闭环、非闭环默认往返、整链一次发运逐站交付）与独立运输页属于产品、仓库、页面和服务器共同规则；路线创建／编辑不要求当前库存或资金，发运时必须重新校验，编辑／删除路线不得影响已发运 shipment。必须同步更新 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`WAREHOUSE_EXPANSION_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、测试和 `scripts/verify-provincial-unlock-transport.mjs`，不得恢复任意州自由经营、免费跨州物流、仓库运输卡、自动循环路线或取消起始州绑定。

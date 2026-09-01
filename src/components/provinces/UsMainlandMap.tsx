@@ -10,16 +10,21 @@ import {
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { feature } from 'topojson-client';
 import usStateAtlas from 'us-atlas/states-10m.json';
 import regionCatalog from '../../../shared/provinces.json';
-import type { ProvinceAssetSummary, ProvinceDefinition, TransportTripType } from '../../types';
+import type { ProvinceAssetSummary, ProvinceDefinition, TransportModeId, TransportTripType } from '../../types';
 import { formatNumber } from '../../utils/formatters';
-import { createProvinceMapCamera, type ProvinceMapCameraController } from './provinceMapCamera';
+import { formatTransportDuration } from '../../utils/provinceLogistics';
+import { useWorkspaceTooltipLayer } from '../ui/WorkspaceFloatingLayer';
 import {
-  createProvinceMapProjection,
-  provinceGeometryPath,
-} from './provinceMapProjection';
+  hideTopLayerPopover,
+  showTopLayerPopover,
+  supportsTopLayerPopover,
+} from '../ui/topLayer';
+import { createProvinceMapCamera, type ProvinceMapCameraController } from './provinceMapCamera';
+import { createProvinceMapProjection, provinceGeometryPath } from './provinceMapProjection';
 import {
   layoutProvinceMapLabels,
   type ProvinceMapLabelLayout,
@@ -44,16 +49,31 @@ export interface ProvinceMapRoutePicking {
   onPickProvince: (provinceId: string) => void;
 }
 
+export interface ProvinceMapShipmentOverlay {
+  id: string;
+  routeId?: string;
+  routeName: string;
+  mode: TransportModeId;
+  arrivesAt: number;
+  legPlan: Array<{
+    fromProvinceId: string;
+    toProvinceId: string;
+    departsAt: number;
+    arrivesAt: number;
+    remainingLoad: number;
+  }>;
+  cargo: Array<{
+    productName: string;
+    quantity: number;
+    destinationName: string;
+  }>;
+}
+
 const regionByMapName = new Map(regionCatalog.map((region) => [region.mapName, region]));
 const atlasTopology = usStateAtlas as unknown as Parameters<typeof feature>[0];
-const atlasStateObject = (usStateAtlas as unknown as {
-  objects: { states: Parameters<typeof feature>[1] };
-}).objects.states;
+const atlasStateObject = (usStateAtlas as unknown as { objects: { states: Parameters<typeof feature>[1] } }).objects.states;
 const atlasStateCollection = feature(atlasTopology, atlasStateObject);
-
-if (atlasStateCollection.type !== 'FeatureCollection') {
-  throw new Error('US_STATE_ATLAS_FEATURE_COLLECTION_REQUIRED');
-}
+if (atlasStateCollection.type !== 'FeatureCollection') throw new Error('US_STATE_ATLAS_FEATURE_COLLECTION_REQUIRED');
 
 const mainlandFeatures = atlasStateCollection.features.flatMap((stateFeature) => {
   const mapName = String(stateFeature.properties?.name || '');
@@ -72,16 +92,10 @@ const provinceMapProjection = createProvinceMapProjection(mainlandFeatures.map((
 const capitalPointByProvinceId = new Map(
   regionCatalog.map((region) => {
     const capital = region as ProvinceDefinition;
-    return [
-      region.id,
-      provinceMapProjection.project([capital.capitalLongitude, capital.capitalLatitude]),
-    ] as const;
+    return [region.id, provinceMapProjection.project([capital.capitalLongitude, capital.capitalLatitude])] as const;
   }),
 );
-const provinceMapWorld = mainlandFeatures.map((entry) => ({
-  ...entry,
-  path: provinceGeometryPath(entry.geometry, provinceMapProjection),
-}));
+const provinceMapWorld = mainlandFeatures.map((entry) => ({ ...entry, path: provinceGeometryPath(entry.geometry, provinceMapProjection) }));
 const provinceMapLabelSources: ProvinceMapLabelSource[] = mainlandFeatures.map((entry) => ({
   provinceId: entry.provinceId,
   provinceName: entry.provinceName,
@@ -103,12 +117,7 @@ interface ProvinceMapDatum {
   borderColor: string;
 }
 
-function datumFor(
-  province: ProvinceDefinition,
-  summary: ProvinceAssetSummary | undefined,
-  lens: ProvinceMapLens,
-  locked = false,
-): ProvinceMapDatum {
+function datumFor(province: ProvinceDefinition, summary: ProvinceAssetSummary | undefined, lens: ProvinceMapLens, locked = false): ProvinceMapDatum {
   const storedQuantity = Number(summary?.storedQuantity || 0);
   const facilityCount = Number(summary?.facilityCount || 0);
   const blockedFacilityCount = Number(summary?.blockedFacilityCount || 0);
@@ -126,9 +135,7 @@ function datumFor(
             ? blockedFacilityCount > 0 ? 'var(--color-danger-soft)' : 'var(--color-map-region-default)'
             : blockedFacilityCount > 0
               ? 'var(--color-danger-soft)'
-              : hasAssets
-                ? 'var(--color-success-soft)'
-                : 'var(--color-map-region-default)';
+              : hasAssets ? 'var(--color-success-soft)' : 'var(--color-map-region-default)';
   return {
     name: province.name,
     provinceId: province.id,
@@ -140,9 +147,7 @@ function datumFor(
     openOrderCount,
     locked,
     areaColor,
-    borderColor: lens === 'alerts' && blockedFacilityCount > 0
-      ? 'var(--color-danger)'
-      : 'var(--color-map-region-border)',
+    borderColor: lens === 'alerts' && blockedFacilityCount > 0 ? 'var(--color-danger)' : 'var(--color-map-region-border)',
   };
 }
 
@@ -159,6 +164,48 @@ function tooltipRows(datum: ProvinceMapDatum) {
   ];
 }
 
+function currentShipmentPosition(shipment: ProvinceMapShipmentOverlay, now: number) {
+  if (shipment.legPlan.length < 1) return null;
+  const leg = shipment.legPlan.find((candidate) => now >= candidate.departsAt && now < candidate.arrivesAt)
+    ?? shipment.legPlan.find((candidate) => now < candidate.arrivesAt)
+    ?? shipment.legPlan[shipment.legPlan.length - 1];
+  const from = capitalPointByProvinceId.get(leg.fromProvinceId);
+  const to = capitalPointByProvinceId.get(leg.toProvinceId);
+  if (!from || !to) return null;
+  const duration = Math.max(1, leg.arrivesAt - leg.departsAt);
+  const progress = Math.max(0, Math.min(1, (now - leg.departsAt) / duration));
+  return {
+    x: from.x + (to.x - from.x) * progress,
+    y: from.y + (to.y - from.y) * progress,
+    fromProvinceId: leg.fromProvinceId,
+    toProvinceId: leg.toProvinceId,
+    remainingLoad: leg.remainingLoad,
+  };
+}
+
+function ShipmentMarkerIcon({ mode }: { mode: TransportModeId }) {
+  if (mode === 'air') {
+    return <path className="province-map-shipment-icon" d="M -7 1 L 7 -3 L 2 2 L 1 6 L -1 6 L -2 2 Z" />;
+  }
+  if (mode === 'rail') {
+    return (
+      <g className="province-map-shipment-icon">
+        <rect x="-6" y="-5" width="12" height="9" rx="2" />
+        <circle cx="-3.5" cy="5" r="1.5" />
+        <circle cx="3.5" cy="5" r="1.5" />
+      </g>
+    );
+  }
+  return (
+    <g className="province-map-shipment-icon">
+      <rect x="-6" y="-3.5" width="10" height="7" rx="2" />
+      <path d="M 4 -2 L 7 -2 L 7 3.5 L 4 3.5 Z" />
+      <circle cx="-3" cy="4.5" r="1.5" />
+      <circle cx="4.5" cy="4.5" r="1.5" />
+    </g>
+  );
+}
+
 export function UsMainlandMap({
   provinces,
   summaries,
@@ -168,6 +215,8 @@ export function UsMainlandMap({
   unlockedProvinceIds,
   routePicking = null,
   routeOverlays = [],
+  shipmentOverlays = [],
+  now = Date.now(),
 }: {
   provinces: ProvinceDefinition[];
   summaries: Record<string, ProvinceAssetSummary>;
@@ -177,13 +226,16 @@ export function UsMainlandMap({
   unlockedProvinceIds?: string[];
   routePicking?: ProvinceMapRoutePicking | null;
   routeOverlays?: ProvinceMapRouteOverlay[];
+  shipmentOverlays?: ProvinceMapShipmentOverlay[];
+  now?: number;
 }) {
+  const tooltipLayer = useWorkspaceTooltipLayer();
+  const tooltipTopLayerActive = supportsTopLayerPopover() && Boolean(tooltipLayer);
   const unlockedSet = useMemo(() => new Set(unlockedProvinceIds || []), [unlockedProvinceIds]);
-  const data = useMemo(() => provinces.map((province) => (
-    datumFor(province, summaries[province.id], lens, !unlockedSet.has(province.id))
-  )), [lens, provinces, summaries, unlockedSet]);
+  const data = useMemo(() => provinces.map((province) => datumFor(province, summaries[province.id], lens, !unlockedSet.has(province.id))), [lens, provinces, summaries, unlockedSet]);
   const datumByProvinceId = useMemo(() => new Map(data.map((datum) => [datum.provinceId, datum])), [data]);
   const selectedProvince = provinces.find((province) => province.id === selectedProvinceId);
+  const provinceNameById = useMemo(() => new Map(provinces.map((province) => [province.id, province.name])), [provinces]);
   const viewportRef = useRef<HTMLDivElement>(null);
   const cameraSurfaceRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<ProvinceMapCameraController | null>(null);
@@ -191,51 +243,74 @@ export function UsMainlandMap({
   const labelRevisionRef = useRef(0);
   const [labels, setLabels] = useState<ProvinceMapLabelLayout[]>([]);
   const [hoveredProvinceId, setHoveredProvinceId] = useState<string | null>(null);
+  const [hoveredShipmentId, setHoveredShipmentId] = useState<string | null>(null);
   const hoveredDatum = hoveredProvinceId ? datumByProvinceId.get(hoveredProvinceId) ?? null : null;
+  const hoveredShipment = hoveredShipmentId ? shipmentOverlays.find((shipment) => shipment.id === hoveredShipmentId) ?? null : null;
+  const hoveredShipmentPosition = hoveredShipment ? currentShipmentPosition(hoveredShipment, now) : null;
   const routePickingActive = Boolean(routePicking?.active);
+
   const routeOverlaysMarkup = useMemo(() => routeOverlays.map((overlay) => {
-    const points = overlay.stops
-      .map((provinceId) => capitalPointByProvinceId.get(provinceId))
-      .filter((point): point is { x: number; y: number } => Boolean(point));
+    const points = overlay.stops.map((provinceId) => capitalPointByProvinceId.get(provinceId)).filter((point): point is { x: number; y: number } => Boolean(point));
     if (points.length < 2) return null;
-    const forwardPath = points
-      .map((point, index) => `${index === 0 ? 'M' : 'L'}${formatGeometryValue(point.x)} ${formatGeometryValue(point.y)}`)
-      .join(' ');
-    const returnPoints = overlay.closed || overlay.tripType !== 'round'
-      ? []
-      : [points[points.length - 1], ...points.slice(1, -1).reverse(), points[0]];
-    const returnPath = returnPoints.length < 2 ? '' : returnPoints
-      .map((point, index) => `${index === 0 ? 'M' : 'L'}${formatGeometryValue(point.x)} ${formatGeometryValue(point.y)}`)
-      .join(' ');
+    const forwardPath = points.map((point, index) => `${index === 0 ? 'M' : 'L'}${formatGeometryValue(point.x)} ${formatGeometryValue(point.y)}`).join(' ');
+    const returnPoints = overlay.closed || overlay.tripType !== 'round' ? [] : [points[points.length - 1], ...points.slice(1, -1).reverse(), points[0]];
+    const returnPath = returnPoints.length < 2 ? '' : returnPoints.map((point, index) => `${index === 0 ? 'M' : 'L'}${formatGeometryValue(point.x)} ${formatGeometryValue(point.y)}`).join(' ');
     return (
-      <g
-        key={overlay.id}
-        className="province-map-route"
-        data-route-id={overlay.id}
-        data-route-kind={overlay.kind}
-        data-route-stop-count={overlay.stops.length}
-        data-route-closed={overlay.closed ? 'true' : 'false'}
-        data-route-trip-type={overlay.tripType}
-      >
+      <g key={overlay.id} className="province-map-route" data-route-id={overlay.id} data-route-kind={overlay.kind} data-route-stop-count={overlay.stops.length} data-route-closed={overlay.closed ? 'true' : 'false'} data-route-trip-type={overlay.tripType}>
         <path className="province-map-route-path" d={forwardPath} vectorEffect="non-scaling-stroke" />
-        {returnPath ? (
-          <path className="province-map-route-return-path" d={returnPath} vectorEffect="non-scaling-stroke" />
-        ) : null}
+        {returnPath ? <path className="province-map-route-return-path" d={returnPath} vectorEffect="non-scaling-stroke" /> : null}
         {points.map((point, index) => (
-          <circle
-            key={`${overlay.id}-stop-${index}`}
-            className="province-map-route-stop"
-            data-stop-index={index}
-            data-stop-first={index === 0 ? 'true' : 'false'}
-            data-stop-last={index === points.length - 1 ? 'true' : 'false'}
-            cx={formatGeometryValue(point.x)}
-            cy={formatGeometryValue(point.y)}
-            r={index === 0 || index === points.length - 1 ? 5 : 4}
-          />
+          <circle key={`${overlay.id}-stop-${index}`} className="province-map-route-stop" data-stop-index={index} data-stop-first={index === 0 ? 'true' : 'false'} data-stop-last={index === points.length - 1 ? 'true' : 'false'} cx={formatGeometryValue(point.x)} cy={formatGeometryValue(point.y)} r={index === 0 || index === points.length - 1 ? 5 : 4} />
         ))}
       </g>
     );
   }), [routeOverlays]);
+
+  const shipmentMarkup = shipmentOverlays.map((shipment) => {
+    const position = currentShipmentPosition(shipment, now);
+    if (!position) return null;
+    const selected = hoveredShipmentId === shipment.id;
+    const cargoLabel = shipment.cargo.length > 0
+      ? shipment.cargo.map((entry) => `${entry.productName}${entry.quantity}`).join('、')
+      : '无剩余货物';
+    return (
+      <g
+        key={shipment.id}
+        className="province-map-shipment"
+        data-shipment-id={shipment.id}
+        data-route-id={shipment.routeId ?? ''}
+        data-transport-mode={shipment.mode}
+        data-selected={selected ? 'true' : 'false'}
+        transform={`translate(${formatGeometryValue(position.x)} ${formatGeometryValue(position.y)})`}
+        role="button"
+        tabIndex={0}
+        aria-label={`${shipment.routeName}，${cargoLabel}`}
+        onPointerDown={(event) => event.stopPropagation()}
+        onPointerEnter={(event) => {
+          setHoveredProvinceId(null);
+          setHoveredShipmentId(shipment.id);
+          if (tooltipRef.current) tooltipRef.current.style.transform = `translate3d(${Math.min(window.innerWidth - 300, event.clientX + 14)}px, ${Math.min(window.innerHeight - 220, event.clientY + 14)}px, 0)`;
+        }}
+        onPointerLeave={() => setHoveredShipmentId((current) => current === shipment.id ? null : current)}
+        onFocus={(event) => {
+          setHoveredProvinceId(null);
+          setHoveredShipmentId(shipment.id);
+          const rect = event.currentTarget.getBoundingClientRect();
+          if (tooltipRef.current) tooltipRef.current.style.transform = `translate3d(${Math.min(window.innerWidth - 300, rect.right + 10)}px, ${Math.min(window.innerHeight - 220, rect.top)}px, 0)`;
+        }}
+        onBlur={() => setHoveredShipmentId((current) => current === shipment.id ? null : current)}
+        onClick={(event) => {
+          event.stopPropagation();
+          setHoveredProvinceId(null);
+          setHoveredShipmentId(shipment.id);
+        }}
+      >
+        <circle className="province-map-shipment-hit" r="12" />
+        <circle className="province-map-shipment-badge" r="8" />
+        <ShipmentMarkerIcon mode={shipment.mode} />
+      </g>
+    );
+  });
 
   const updateViewportMetadata = useCallback((container: HTMLElement) => {
     const width = container.clientWidth;
@@ -254,12 +329,10 @@ export function UsMainlandMap({
     cameraRef.current?.destroy();
     cameraRef.current = createProvinceMapCamera(container, surface);
     updateViewportMetadata(container);
-    const observer = typeof ResizeObserver === 'undefined'
-      ? null
-      : new ResizeObserver(() => {
-        updateViewportMetadata(container);
-        cameraRef.current?.reset();
-      });
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
+      updateViewportMetadata(container);
+      cameraRef.current?.reset();
+    });
     observer?.observe(container);
     return () => {
       observer?.disconnect();
@@ -275,11 +348,7 @@ export function UsMainlandMap({
     const renderLabels = () => {
       if (cancelled) return;
       const fontFamily = getComputedStyle(container).fontFamily || 'sans-serif';
-      const nextLabels = layoutProvinceMapLabels(
-        provinceMapLabelSources,
-        provinceMapProjection,
-        fontFamily,
-      );
+      const nextLabels = layoutProvinceMapLabels(provinceMapLabelSources, provinceMapProjection, fontFamily);
       labelRevisionRef.current += 1;
       container.dataset.mapLabelLayoutRevision = String(labelRevisionRef.current);
       container.dataset.mapLabelCount = String(nextLabels.length);
@@ -291,9 +360,7 @@ export function UsMainlandMap({
     };
     renderLabels();
     void document.fonts?.ready.then(renderLabels);
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -301,6 +368,14 @@ export function UsMainlandMap({
     if (!container) return;
     container.dataset.mapSelectedProvinceId = selectedProvinceId ?? '';
   }, [selectedProvinceId]);
+
+  useLayoutEffect(() => {
+    if ((!hoveredProvinceId && !hoveredShipmentId) || !tooltipTopLayerActive) return undefined;
+    const tooltip = tooltipRef.current;
+    if (!tooltip) return undefined;
+    showTopLayerPopover(tooltip);
+    return () => hideTopLayerPopover(tooltip);
+  }, [hoveredProvinceId, hoveredShipmentId, tooltipTopLayerActive, tooltipLayer]);
 
   const selectProvince = useCallback((provinceId: string) => {
     if (routePicking?.active) {
@@ -317,53 +392,63 @@ export function UsMainlandMap({
   }, [selectProvince]);
 
   const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!hoveredProvinceId || !tooltipRef.current) return;
-    const left = Math.min(window.innerWidth - 260, Math.max(8, event.clientX + 14));
-    const top = Math.min(window.innerHeight - 180, Math.max(8, event.clientY + 14));
+    if ((!hoveredProvinceId && !hoveredShipmentId) || !tooltipRef.current) return;
+    const left = Math.min(window.innerWidth - 300, Math.max(8, event.clientX + 14));
+    const top = Math.min(window.innerHeight - 220, Math.max(8, event.clientY + 14));
     tooltipRef.current.style.transform = `translate3d(${left}px, ${top}px, 0)`;
-  }, [hoveredProvinceId]);
+  }, [hoveredProvinceId, hoveredShipmentId]);
 
-  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}州面和中文州全名位于同一个静态 SVG 世界面，通过同一个合成相机同步缩放和平移。${routePickingActive ? '当前处于运输路线选州模式，按顺序点击州面即可追加站点，再次点击起点州可以闭环。' : '点击州面可以打开对应州页面，'}滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置缩放和平移。`;
+  const tooltipNode = hoveredShipment && hoveredShipmentPosition ? (
+    <div
+      ref={tooltipRef}
+      className="economy-chart-tooltip ui-tooltip-surface province-map-tooltip province-map-static-tooltip province-map-shipment-tooltip"
+      data-tooltip-kind="shipment"
+      data-tooltip-layer={tooltipLayer ? 'workspace' : 'local'}
+      data-top-layer={tooltipTopLayerActive ? 'true' : undefined}
+      popover={tooltipTopLayerActive ? 'manual' : undefined}
+      role="status"
+    >
+      <strong>{hoveredShipment.routeName}</strong>
+      <span>{provinceNameById.get(hoveredShipmentPosition.fromProvinceId) ?? hoveredShipmentPosition.fromProvinceId} → {provinceNameById.get(hoveredShipmentPosition.toProvinceId) ?? hoveredShipmentPosition.toProvinceId}</span>
+      <span>剩余时间：{formatTransportDuration(Math.max(0, hoveredShipment.arrivesAt - now))}</span>
+      <span>当前载荷：<CompactNumber value={hoveredShipmentPosition.remainingLoad} /></span>
+      {hoveredShipment.cargo.length > 0 ? hoveredShipment.cargo.map((entry, index) => (
+        <span key={`${entry.productName}-${entry.destinationName}-${index}`} className="province-map-shipment-tooltip-cargo">
+          {entry.productName} ×<CompactNumber value={entry.quantity} /> → {entry.destinationName}
+        </span>
+      )) : <span>没有剩余货物</span>}
+    </div>
+  ) : hoveredDatum ? (
+    <div
+      ref={tooltipRef}
+      className="economy-chart-tooltip ui-tooltip-surface province-map-tooltip province-map-static-tooltip"
+      data-tooltip-layer={tooltipLayer ? 'workspace' : 'local'}
+      data-top-layer={tooltipTopLayerActive ? 'true' : undefined}
+      popover={tooltipTopLayerActive ? 'manual' : undefined}
+      aria-hidden="true"
+    >
+      <strong>{hoveredDatum.provinceName}</strong>
+      {hoveredDatum.locked ? <span className="province-map-tooltip__locked">未解锁</span> : null}
+      {tooltipRows(hoveredDatum).map((row) => <span key={row}>{row}</span>)}
+    </div>
+  ) : null;
+
+  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}当前有 ${shipmentOverlays.length} 笔运输在途。州面和中文州全名位于同一个静态 SVG 世界面，通过同一个合成相机同步缩放和平移。${routePickingActive ? '当前处于运输路线选州模式，按顺序点击州面即可追加站点，再次点击起点州可以闭环。' : '点击州面可以打开对应州页面，'}滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置缩放和平移。`;
 
   return (
-    <div
-      className="province-map-chart"
-      data-province-count={provinces.length}
-      data-map-feature-count={provinceMapWorld.length}
-      data-selected-province-id={selectedProvinceId ?? ''}
-      data-map-lens={lens}
-      data-map-zoom-min="0.5"
-      data-map-zoom-max="4"
-      data-map-label-mode="curved-chinese-full-name"
-      data-route-picking={routePickingActive ? 'true' : 'false'}
-      data-route-overlay-count={routeOverlays.length}
-    >
-      <div
-        className="province-map-echart province-map-static-map"
-        role="group"
-        aria-label="美国本土州级经营地图"
-        data-map-ready="true"
-        data-testid="us-mainland-map"
-        data-route-picking={routePickingActive ? 'true' : 'false'}
-        data-route-overlay-count={routeOverlays.length}
-      >
+    <div className="province-map-chart" data-province-count={provinces.length} data-map-feature-count={provinceMapWorld.length} data-selected-province-id={selectedProvinceId ?? ''} data-map-lens={lens} data-map-zoom-min="0.5" data-map-zoom-max="4" data-map-label-mode="curved-chinese-full-name" data-route-picking={routePickingActive ? 'true' : 'false'} data-route-overlay-count={routeOverlays.length} data-shipment-overlay-count={shipmentOverlays.length}>
+      <div className="province-map-echart province-map-static-map" role="group" aria-label="美国本土州级经营地图" data-map-ready="true" data-testid="us-mainland-map" data-route-picking={routePickingActive ? 'true' : 'false'} data-route-overlay-count={routeOverlays.length} data-shipment-overlay-count={shipmentOverlays.length}>
         <div
           ref={viewportRef}
           className="economy-chart__canvas province-map-static-viewport"
           onPointerMove={handlePointerMove}
-          onPointerDown={() => setHoveredProvinceId(null)}
-          onWheelCapture={() => setHoveredProvinceId(null)}
+          onPointerDown={() => { setHoveredProvinceId(null); setHoveredShipmentId(null); }}
+          onWheelCapture={() => { setHoveredProvinceId(null); setHoveredShipmentId(null); }}
           data-map-world-path-count={provinceMapWorld.length}
           data-map-path-revision="1"
         >
           <div ref={cameraSurfaceRef} className="province-map-camera-surface">
-            <svg
-              className="province-map-world-svg"
-              viewBox={provinceMapProjection.viewBox}
-              preserveAspectRatio="xMidYMid meet"
-              role="group"
-              aria-label="美国连续四十八州地图"
-            >
+            <svg className="province-map-world-svg" viewBox={provinceMapProjection.viewBox} preserveAspectRatio="xMidYMid meet" role="group" aria-label="美国连续四十八州地图">
               <g className="province-map-world">
                 <g className="province-map-regions">
                   {provinceMapWorld.map((entry) => {
@@ -393,17 +478,13 @@ export function UsMainlandMap({
                         aria-label={`${entry.provinceName}${datum.locked ? '，未解锁' : ''}`}
                         onClick={() => selectProvince(entry.provinceId)}
                         onKeyDown={(event) => handleRegionKeyDown(event, entry.provinceId)}
-                        onPointerEnter={() => setHoveredProvinceId(entry.provinceId)}
-                        onPointerLeave={() => setHoveredProvinceId((current) => (
-                          current === entry.provinceId ? null : current
-                        ))}
+                        onPointerEnter={() => { setHoveredShipmentId(null); setHoveredProvinceId(entry.provinceId); }}
+                        onPointerLeave={() => setHoveredProvinceId((current) => current === entry.provinceId ? null : current)}
                       />
                     );
                   })}
                 </g>
-                <g className="province-map-routes" pointerEvents="none" aria-hidden="true">
-                  {routeOverlaysMarkup}
-                </g>
+                <g className="province-map-routes" pointerEvents="none" aria-hidden="true">{routeOverlaysMarkup}</g>
                 <g className="province-map-label-camera" pointerEvents="none" aria-hidden="true">
                   {labels.map((label) => (
                     <g
@@ -423,10 +504,7 @@ export function UsMainlandMap({
                       data-label-center-x={label.center.x.toFixed(2)}
                       data-label-center-y={label.center.y.toFixed(2)}
                       data-selected={label.provinceId === selectedProvinceId ? 'true' : 'false'}
-                      style={{
-                        fontSize: `${label.fontSize.toFixed(2)}px`,
-                        strokeWidth: `${label.strokeWidth.toFixed(2)}px`,
-                      }}
+                      style={{ fontSize: `${label.fontSize.toFixed(2)}px`, strokeWidth: `${label.strokeWidth.toFixed(2)}px` }}
                     >
                       {label.glyphs.map((glyph, index) => (
                         <text
@@ -448,20 +526,11 @@ export function UsMainlandMap({
                     </g>
                   ))}
                 </g>
+                <g className="province-map-shipments">{shipmentMarkup}</g>
               </g>
             </svg>
           </div>
-          {hoveredDatum ? (
-            <div
-              ref={tooltipRef}
-              className="economy-chart-tooltip ui-tooltip-surface province-map-tooltip province-map-static-tooltip"
-              aria-hidden="true"
-            >
-              <strong>{hoveredDatum.provinceName}</strong>
-              {hoveredDatum.locked ? <span className="province-map-tooltip__locked">未解锁</span> : null}
-              {tooltipRows(hoveredDatum).map((row) => <span key={row}>{row}</span>)}
-            </div>
-          ) : null}
+          {tooltipNode ? (tooltipLayer ? createPortal(tooltipNode, tooltipLayer) : tooltipNode) : null}
         </div>
         <span className="economy-chart__accessible-summary">{accessibleSummary}</span>
       </div>

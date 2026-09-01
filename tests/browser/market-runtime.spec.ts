@@ -172,7 +172,7 @@ test('market chart uses one linked hover state and keeps the price line protecte
     };
   });
   const x = bounds.x + geometry.left + (bounds.width - geometry.left - geometry.right) * 0.44;
-  const tooltip = chart.locator('.economy-chart-tooltip');
+  const tooltip = page.locator('.workspace-tooltip-layer .economy-chart-tooltip');
 
   await page.mouse.move(x, bounds.y + (geometry.priceTop + geometry.priceBottom) / 2);
   await expect(tooltip).toBeVisible();

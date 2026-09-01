@@ -164,6 +164,51 @@
   opacity: .95;
 }
 
+.province-map-shipments {
+  pointer-events: none;
+}
+
+.province-map-shipment {
+  cursor: pointer;
+  outline: none;
+  pointer-events: auto;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.province-map-shipment-hit {
+  fill: transparent;
+  stroke: none;
+}
+
+.province-map-shipment-badge {
+  fill: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  stroke: var(--color-info);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.province-map-shipment-icon {
+  fill: var(--color-text-primary);
+  stroke: var(--color-text-primary);
+  stroke-width: .8;
+  vector-effect: non-scaling-stroke;
+}
+
+.province-map-shipment[data-transport-mode='rail'] .province-map-shipment-badge {
+  stroke: var(--color-success);
+}
+
+.province-map-shipment[data-transport-mode='air'] .province-map-shipment-badge {
+  stroke: var(--color-warning);
+}
+
+.province-map-shipment[data-selected='true'] .province-map-shipment-badge,
+.province-map-shipment:focus-visible .province-map-shipment-badge {
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-text-primary) 45%, transparent));
+}
+
 .province-map-chart[data-route-picking='true'] .province-map-region[data-route-pickable='false'] {
   filter: saturate(.35) brightness(.72);
 }
@@ -209,7 +254,7 @@
   display: grid;
   gap: 2px;
   width: max-content;
-  max-width: 240px;
+  max-width: 280px;
   padding: 8px 10px;
   pointer-events: none;
   user-select: none;
@@ -221,12 +266,30 @@
   display: block;
 }
 
+.province-map-shipment-tooltip {
+  gap: 4px;
+}
+
+.province-map-shipment-tooltip-cargo {
+  color: var(--color-text-secondary);
+}
+
 .province-map-tooltip__locked {
   color: var(--color-warning);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .province-map-shipment {
+    transition: none !important;
+  }
+}
+
 @media (max-width: 720px) {
-  .province-map-static-tooltip {
+  .province-map-static-tooltip:not(.province-map-shipment-tooltip) {
     display: none;
+  }
+
+  .province-map-shipment-tooltip {
+    max-width: min(280px, calc(100vw - 24px));
   }
 }

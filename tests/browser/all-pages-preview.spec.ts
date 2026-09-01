@@ -383,11 +383,14 @@ test('overview, market, buildings, transport, and settings share a one-third car
   const transportOverflow = await transportContent.evaluate((element) => ({ clientWidth: element.clientWidth, scrollWidth: element.scrollWidth }));
   expect(transportOverflow.scrollWidth).toBeLessThanOrEqual(transportOverflow.clientWidth + 1);
   await addRouteButton.click();
-  const transportEditorGrid = page.locator('.transport-route-editor-grid');
-  await expect(transportEditorGrid).toBeVisible();
-  const transportEditorColumns = await transportEditorGrid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(/\s+/).filter(Boolean).length);
-  expect(transportEditorColumns).toBe(1);
-  await page.getByRole('button', { name: '取消', exact: true }).click();
+  const transportMapPickingBar = page.locator('.transport-map-picking-bar');
+  await expect(page.getByTestId('us-mainland-map')).toHaveAttribute('data-route-picking', 'true');
+  await expect(transportMapPickingBar).toBeVisible();
+  await expect(page.locator('.transport-route-draft-panel')).toHaveCount(0);
+  await expect(outliner).toBeVisible();
+  await expect(outliner).toHaveAttribute('data-preview-outliner-sentinel', 'persistent');
+  await transportMapPickingBar.getByRole('button', { name: '取消', exact: true }).click();
+  await expect(page.getByTestId('us-mainland-map')).toHaveAttribute('data-route-picking', 'false');
 
   const fullAreaWidths = new Map<string, number>();
   for (const label of ['研发', '拍卖', '合同', '银行', '排行', '商店']) {

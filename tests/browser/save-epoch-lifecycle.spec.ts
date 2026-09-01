@@ -19,7 +19,7 @@ function fullStateDelivery(saveEpoch: number, revision = 1) {
     },
     patches: {
       catalog: {
-        version: 38,
+        version: 39,
         products: [{ id: 'wheat', name: '小麦', category: 'raw', basePrice: 1 }],
         facilityTypes: [{
           id: 'farm',

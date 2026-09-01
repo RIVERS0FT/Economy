@@ -10,6 +10,7 @@ const pageContentPath = resolve(root, 'scripts/verify-page-content.mjs');
 const pageContentLegacyPath = resolve(root, 'scripts/verify-page-content-base.mjs');
 const uiArchitectureRunnerPath = resolve(root, 'scripts/verify-ui-architecture-runner.mjs');
 const designPath = resolve(root, 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
+const ciDesignPath = resolve(root, 'docs/CI_EXECUTION_DESIGN.md');
 const facilityDesignPath = resolve(root, 'docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md');
 const nginxConfiguratorPath = resolve(root, 'scripts/configure-economy-nginx.py');
 const nginxLocationTemplatePath = resolve(root, 'deploy/nginx/game.riversoft.top.economy-location.conf');
@@ -20,6 +21,7 @@ const selector = readFileSync(selectorPath, 'utf8');
 const pageContent = readFileSync(pageContentPath, 'utf8');
 const uiArchitectureRunner = readFileSync(uiArchitectureRunnerPath, 'utf8');
 const design = readFileSync(designPath, 'utf8');
+const ciDesign = readFileSync(ciDesignPath, 'utf8');
 const facilityDesign = readFileSync(facilityDesignPath, 'utf8');
 const nginxConfigurator = readFileSync(nginxConfiguratorPath, 'utf8');
 const nginxLocationTemplate = readFileSync(nginxLocationTemplatePath, 'utf8');
@@ -38,6 +40,9 @@ const requireSelectorText = (text, reason) => {
 const requireDesignText = (text, reason) => {
   if (!design.includes(text)) failures.push(reason ?? `部署设计缺少: ${text}`);
 };
+const requireCiDesignText = (text, reason) => {
+  if (!ciDesign.includes(text)) failures.push(reason ?? `CI 执行设计缺少: ${text}`);
+};
 const requireFacilityDesignText = (text, reason) => {
   if (!facilityDesign.includes(text)) failures.push(reason ?? `工厂目录设计缺少: ${text}`);
 };
@@ -52,12 +57,13 @@ for (const text of [
   "if: steps.scope.outputs.dependencies == 'true'",
   "if: steps.scope.outputs.mode == 'full'",
   "if: steps.scope.outputs.mode == 'targeted'",
-  "if: steps.scope.outputs.browser == 'true'",
+  "if: needs.build.outputs.browser == 'true'",
   'node scripts/select-ci-tests.mjs run',
   '--phase checks',
   '--phase browser',
   'npm run build 2>&1 | tee build-test.log',
-  'npm run test:browser 2>&1 | tee browser-test.log',
+  'npm run test:browser -- --shard=${{ matrix.shard }}/4 2>&1 | tee browser-test.log',
+  'ECONOMY_PLAYWRIGHT_SHARD: ${{ matrix.shard }}/4',
 ]) requireCiText(text);
 
 for (const text of [
@@ -72,6 +78,7 @@ for (const text of [
   'DOMAIN_BROWSER_BASELINES',
   'COMPOSED_VERIFY_ENTRYPOINTS',
   'verificationNeedsDependencies',
+  'ECONOMY_PLAYWRIGHT_SHARD',
 ]) requireSelectorText(text);
 
 if (existsSync(pageContentLegacyPath)) failures.push('旧 page-content base verifier 不得继续存在');
@@ -157,7 +164,7 @@ for (const highRiskPath of [
 }
 const unclassifiedSourcePath = `src/utils/${['new', 'CrossCutting', 'Helper'].join('')}.ts`;
 if (selectCiPlan([unclassifiedSourcePath]).mode !== 'full') {
-  failures.push('无法分类且没有测试引用的新源码必须退化为完整 CI');
+  failures.push('无法分类且没有测试引用的新源码必须退化为完整验证');
 }
 
 requireText('  build:\n', '部署工作流必须保留独立 build 验证 Job');
@@ -183,6 +190,21 @@ requireText('  report-validation-failure:\n', '验证失败必须写入 deploy/e
 requireText('needs: [build, browser-test]', '验证失败状态 Job 必须等待 build 与 browser-test');
 requireText("needs['browser-test'].result", '带连字符的 browser-test Job 必须使用 bracket 语法读取 needs 结果');
 
+requireCiText('  browser-test:\n    needs: build\n', 'PR/分支 CI 必须把浏览器门禁拆为独立 browser-test Job 并等待 build');
+requireCiText('      fail-fast: false\n', 'PR/分支浏览器分片必须保留完整失败诊断');
+requireCiText('        shard: [1, 2, 3, 4]\n', 'PR/分支浏览器门禁必须固定为四个 shard');
+const ciBuildIndex = ciWorkflow.indexOf('  build:\n');
+const ciBrowserIndex = ciWorkflow.indexOf('  browser-test:\n');
+if (!(ciBuildIndex >= 0 && ciBrowserIndex > ciBuildIndex)) {
+  failures.push('PR/分支 CI 工作流顺序必须是 build → browser-test');
+}
+const ciBuildSection = ciBuildIndex >= 0
+  ? ciWorkflow.slice(ciBuildIndex, ciBrowserIndex >= 0 ? ciBrowserIndex : ciWorkflow.length)
+  : '';
+if (ciBuildSection.includes('--phase browser') || ciBuildSection.includes('npm run test:browser')) {
+  failures.push('PR/分支 build Job 不得重新串行执行浏览器测试');
+}
+
 requireDesignText('PR 与非 `main` push 默认使用改动文件选择器', '权威部署设计必须记录增量 CI');
 requireDesignText('改动文件选择规则唯一维护在 `scripts/select-ci-tests.mjs`', '权威部署设计必须保持测试选择规则的唯一入口');
 requireFacilityDesignText('建筑域的定向浏览器集合必须固定包含 `tests/browser/all-pages-preview.spec.ts`', '工厂目录设计必须记录建筑跨页面几何基线');
@@ -196,6 +218,11 @@ requireDesignText('完全匹配时必须复用且不得重新下载或上传', '
 requireDesignText('已通过精确校验时复用服务器现有运行时', '权威部署设计必须记录运行时部署包条件');
 requireDesignText('Nginx 头像 `location ~` 正则包含 `{m,n}` 量词，必须整体使用引号包裹', '权威部署设计必须记录头像正则的 Nginx 引用规则');
 requireDesignText('生产文件同步必须同时受 deploy Job 20 分钟整体上限、单次 rsync 300 秒外层上限、60 秒 I/O 无进展上限与 SSH keepalive 约束', '权威部署设计必须记录文件同步的有限失败边界');
+requireCiDesignText('PR 与非 `main` push 的浏览器硬门禁固定拆成四个独立 shard', 'CI 执行设计必须锁定 PR/分支四分片浏览器门禁');
+requireCiDesignText('`build` Job 只执行依赖安装、静态/服务器检查、TypeScript、Vite 与完整 fallback build', 'CI 执行设计必须禁止把浏览器回归塞回 build Job');
+requireCiDesignText('targeted 模式必须把选择器已经确定的同一组 Playwright spec 交给四个 shard', 'CI 执行设计必须保持 targeted 选择器唯一权威');
+requireCiDesignText('不得通过提高 Job 超时', 'CI 执行设计必须禁止通过延长超时掩盖浏览器失败');
+requireCiDesignText('透明 Top Layer、Portal、Popover 等共享浮层变更必须至少保留一个真实浏览器命中测试', 'CI 执行设计必须锁定共享浮层真实输入回归');
 
 const browserIndex = workflow.indexOf('  browser-test:\n');
 const deployIndex = workflow.indexOf('  deploy:\n');
@@ -219,4 +246,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('PR/分支按改动选择验证；建筑域固定覆盖全页面实体列表几何基线；组合 verifier 保持单一正式入口且不保留旧失败兼容层；main 仍以完整 build 与四分片浏览器回归作为部署硬门禁。');
+console.log('PR/分支按改动选择验证并以四分片执行所选浏览器门禁；建筑域固定覆盖全页面实体列表几何基线；组合 verifier 保持单一正式入口且不保留旧失败兼容层；main 仍以完整 build 与四分片浏览器回归作为部署硬门禁。');
