@@ -397,9 +397,11 @@ test('multi-stop capacity applies to initial load and cost follows remaining car
   const shipment = world.transportShipments[0];
   const firstLeg = provinceDistanceKm('110000', '130000');
   const secondLeg = provinceDistanceKm('130000', '120000');
+  const expectedCost = Math.round((
+    transportCost('road', 100, firstLeg) + transportCost('road', 50, secondLeg)
+  ) * 1_000_000) / 1_000_000;
   assert.equal(shipment.tripType, 'one-way');
-  assert.equal(shipment.cost,
-    transportCost('road', 100, firstLeg) + transportCost('road', 50, secondLeg));
+  assert.equal(shipment.cost, expectedCost);
   assert.equal(inventoryForProvince(player, 'wheat', '110000').available, 100);
   assert.equal(inventoryForProvince(player, 'wheat', '110000').inTransit, 100);
 
