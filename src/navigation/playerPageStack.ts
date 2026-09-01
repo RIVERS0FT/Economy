@@ -11,7 +11,8 @@ export type PlayerPageLocation =
   | { type: 'regional-product'; host: 'province' | 'market'; provinceId: string; productId: string }
   | { type: 'regional-facility'; host: 'province' | 'buildings'; provinceId: string; facilityTypeId: string }
   | { type: 'global-market-product'; productId: string }
-  | { type: 'global-building'; facilityTypeId: string };
+  | { type: 'global-building'; facilityTypeId: string }
+  | { type: 'transport-route'; routeId: string };
 
 export function playerPageLocationForTab(tab: TabId): PlayerPageLocation {
   return tab === 'map' ? { type: 'map' } : { type: 'tab', tab };
@@ -23,6 +24,7 @@ export function tabForPlayerPageLocation(location: PlayerPageLocation): TabId {
   if (location.type === 'province') return 'province';
   if (location.type === 'global-market-product') return 'market';
   if (location.type === 'global-building') return 'buildings';
+  if (location.type === 'transport-route') return 'transport';
   if (location.type === 'regional-product') return location.host === 'province' ? 'province' : 'market';
   return location.host === 'province' ? 'province' : 'buildings';
 }
@@ -38,6 +40,7 @@ export function playerPageLocationKey(location: PlayerPageLocation) {
     return `regional-facility:${location.host}:${location.provinceId}:${location.facilityTypeId}`;
   }
   if (location.type === 'global-market-product') return `global-market-product:${location.productId}`;
+  if (location.type === 'transport-route') return `transport-route:${location.routeId}`;
   return `global-building:${location.facilityTypeId}`;
 }
 
