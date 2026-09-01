@@ -1,0 +1,111 @@
+name: Patch market hierarchy verifier
+
+on:
+  push:
+    branches:
+      - fix/market-detail-direct-flow-20260901
+
+permissions:
+  contents: write
+
+jobs:
+  patch-verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Align market hierarchy regression with current detail design
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/verify-market-information-hierarchy.mjs')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old: str, new: str, label: str):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, found {count}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              """for (const token of [
+            'MarketBalanceBar',
+            'market-detail-hero__market-price',
+            'market-fundamentals-balance',
+            '挂单差额',
+            '基准偏离',
+          ]) requireText(regionalMarket.slice(regionalDetailStart), token, 'regional market detail');""",
+              """const regionalDetail = regionalMarket.slice(regionalDetailStart);
+          for (const token of [
+            'market-detail-hero__metric',
+            '<Panel className=\"widget market-chart-card\">',
+            '<section className=\"market-trade-card\">',
+            '<Panel className=\"widget market-account-panel\">',
+          ]) requireText(regionalDetail, token, 'regional market detail');
+          for (const token of [
+            'MarketBalanceBar',
+            'market-detail-hero__market-price',
+            'market-fundamentals-balance',
+            'market-fundamentals-grid',
+            '挂单差额',
+            '基准偏离',
+            '<MarketAutoTradePanel',
+          ]) forbidText(regionalDetail, token, 'regional market detail');""",
+              'regional detail hierarchy',
+          )
+          replace_once(
+              "const tradeIndex = regionalMarket.indexOf('<Panel className=\"widget market-trade-card\">');",
+              "const tradeIndex = regionalMarket.indexOf('<section className=\"market-trade-card\">');",
+              'manual trading direct section',
+          )
+          replace_once(
+              "requireText(marketCss, '.market-fundamentals-balance', 'regional detail css');\n",
+              "",
+              'retired fundamentals css assertion',
+          )
+          replace_once(
+              """for (const token of [
+            '全局市场商品目录不再承载跨州覆盖条',
+            '商品全局详情的地区行情行',
+            '商品详情必须先给出市场基本面',
+          ]) requireText(chartDesign, token, 'market visualization authority');""",
+              """for (const token of [
+            '全局市场商品目录不再承载跨州覆盖条',
+            '商品全局详情的地区行情行',
+            '地区商品详情顶部只保留商品身份、真实 24h 变化和当前可用库存',
+            '地区商品详情不再渲染基本面条或商品基本面卡',
+            '手动交易区不使用一级卡片底座',
+            '地区商品详情不得渲染自动经营执行卡',
+          ]) requireText(chartDesign, token, 'market visualization authority');""",
+              'market visualization authority',
+          )
+          replace_once(
+              "  \"page.locator('.market-fundamentals-balance .market-balance-bar')\",\n",
+              "  \"expect(visibleHeroMetrics).toEqual(['24h 变化', '可用库存'])\",\n  \"page.locator('.market-fundamentals-grid')).toHaveCount(0)\",\n  \"page.locator('.market-auto-trade-execution')).toHaveCount(0)\",\n",
+              'market hierarchy browser detail assertions',
+          )
+          replace_once(
+              """for (const token of [
+            '自动经营配置唯一归属工厂详情',
+            '地区商品详情只读展示',
+          ]) requireText(warehouseVerifier, token, 'warehouse/market responsibility verifier');""",
+              """for (const token of [
+            '地区商品详情不渲染“自动经营执行”卡',
+            '工厂详情是自动经营策略与执行解释的唯一玩家界面',
+          ]) requireText(warehouseVerifier, token, 'warehouse/market responsibility verifier');""",
+              'warehouse market ownership verifier',
+          )
+
+          path.write_text(text, encoding='utf-8')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/patch-market-hierarchy-verifier.yml
+          git add scripts/verify-market-information-hierarchy.mjs
+          git diff --cached --quiet && exit 0
+          git commit -m "test: align market information hierarchy with compact detail"
+          git push origin HEAD:${GITHUB_REF_NAME}
