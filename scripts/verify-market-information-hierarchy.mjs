@@ -222,16 +222,25 @@ for (const token of ['market-catalog-filter-disclosure', '<MarketCommodityHeader
 forbidText(regionalCatalog, '筛选与排序', 'regional market sort must live in the header');
 requireText(regionalCatalog, '<span>筛选</span>', 'regional market filter disclosure must be named 筛选');
 for (const token of ['TextInput', 'catalogQuery', '挂单差额', '基准偏离', '挂单状态']) forbidText(regionalCatalog, token, 'regional market catalog');
+const regionalDetail = regionalMarket.slice(regionalDetailStart);
+for (const token of [
+  'market-detail-hero__metric',
+  '<Panel className="widget market-chart-card">',
+  '<section className="market-trade-card">',
+  '<Panel className="widget market-account-panel">',
+]) requireText(regionalDetail, token, 'regional market detail');
 for (const token of [
   'MarketBalanceBar',
   'market-detail-hero__market-price',
   'market-fundamentals-balance',
+  'market-fundamentals-grid',
   '挂单差额',
   '基准偏离',
-]) requireText(regionalMarket.slice(regionalDetailStart), token, 'regional market detail');
+  '<MarketAutoTradePanel',
+]) forbidText(regionalDetail, token, 'regional market detail');
 
 const chartIndex = regionalMarket.indexOf('<Panel className="widget market-chart-card">');
-const tradeIndex = regionalMarket.indexOf('<Panel className="widget market-trade-card">');
+const tradeIndex = regionalMarket.indexOf('<section className="market-trade-card">');
 if (chartIndex < 0 || tradeIndex < 0 || chartIndex >= tradeIndex) {
   throw new Error('regional market hierarchy: price chart must precede manual trading');
 }
@@ -248,7 +257,6 @@ for (const token of [
   'border-bottom: 2px solid currentColor;',
 ]) requireText(globalCss, token, 'global market css');
 for (const token of ['.global-market-province-row', '.global-market-summary-strip', '.global-market-product-detail-panel', "content: '⌄';"]) forbidText(globalCss, token, 'global market css');
-requireText(marketCss, '.market-fundamentals-balance', 'regional detail css');
 
 for (const token of [
   'const allProvinceOrders = game.orders || [];',
@@ -286,7 +294,10 @@ for (const token of [
 for (const token of [
   '全局市场商品目录不再承载跨州覆盖条',
   '商品全局详情的地区行情行',
-  '商品详情必须先给出市场基本面',
+  '地区商品详情顶部只保留商品身份、真实 24h 变化和当前可用库存',
+  '地区商品详情不再渲染基本面条或商品基本面卡',
+  '手动交易区不使用一级卡片底座',
+  '地区商品详情不得渲染自动经营执行卡',
 ]) requireText(chartDesign, token, 'market visualization authority');
 
 for (const token of [
@@ -303,7 +314,9 @@ for (const token of [
   "page.locator('.global-market-product-region-surface > .market-commodity-row-header')",
   "page.locator('.global-market-product-region-list .market-commodity-row-header')",
   "['地区', '卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']",
-  "page.locator('.market-fundamentals-balance .market-balance-bar')",
+  "expect(visibleHeroMetrics).toEqual(['24h 变化', '可用库存'])",
+  "page.locator('.market-fundamentals-grid')).toHaveCount(0)",
+  "page.locator('.market-auto-trade-execution')).toHaveCount(0)",
   "regionalRow.locator('.market-commodity-row__artwork')).toHaveCount(0)",
   "toHaveAttribute('aria-sort', 'ascending')",
 ]) requireText(hierarchyBrowserSpec, token, 'market hierarchy browser regression');
@@ -313,8 +326,8 @@ for (const token of [
 ]) forbidText(hierarchyBrowserSpec, token, 'market hierarchy browser regression');
 
 for (const token of [
-  '自动经营配置唯一归属工厂详情',
-  '地区商品详情只读展示',
+  '地区商品详情不渲染“自动经营执行”卡',
+  '工厂详情是自动经营策略与执行解释的唯一玩家界面',
 ]) requireText(warehouseVerifier, token, 'warehouse/market responsibility verifier');
 for (const token of [
   "const marketCommodityRowSource = read('src/components/market/MarketCommodityRow.tsx');",
