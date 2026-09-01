@@ -38,7 +38,9 @@ for (const text of [
   'className="market-submit-order"',
   'const orderActionLabel = orderDisabledReason',
   'aria-label={orderActionLabel}',
+  '<section className="market-trade-card">',
 ]) requireText(pagePath, text);
+forbidText(pagePath, '<Panel className="widget market-trade-card">');
 
 for (const text of [
   'grid-template-columns: minmax(320px, 3fr) minmax(240px, 2fr);',
@@ -59,9 +61,10 @@ for (const text of [
 ]) requireText(stylePath, text);
 
 for (const text of [
+  '地区商品详情的手动下单与同资产五档订单簿直接排列在页面正文，不使用一级“{资产}交易”卡片底座',
   '字段标签／内嵌减号按钮／共享输入控件／内嵌加号按钮',
   '不再提供“交易资产详情”折叠区',
-  '下单 60%／盘口 40%',
+  '下单与盘口保持约 60%／40% 双列',
   '不大于 `720px` 的移动端始终同时显示下单区和五档盘口',
   '盘口保留不小于 112px 的可读宽度',
   '桌面端和移动端订单簿使用同一信息结构',
@@ -111,4 +114,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('市场同行标签、内嵌步进按钮稳定定位、聚焦金额滚轮、详情移除、移动端永久双列和极窄盘口验证通过。');
+console.log('市场同行标签、内嵌步进按钮稳定定位、聚焦金额滚轮、详情移除、正文直排交易、移动端永久双列和极窄盘口验证通过。');
