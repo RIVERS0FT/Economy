@@ -1,5 +1,5 @@
 export const CURRENT_CLIENT_STATE_VERSION = 39;
-// Version 39 is a breaking transport-state boundary: route cargo fields were removed and shipment manifest/legPlan became authoritative.
+// Version 39 is a breaking transport-state boundary: routes no longer carry fixed cargo, and shipments use authoritative manifest/legPlan data.
 export const MIN_COMPATIBLE_CLIENT_STATE_VERSION = 39;
 
 export function isCompatibleClientStateVersion(value) {
