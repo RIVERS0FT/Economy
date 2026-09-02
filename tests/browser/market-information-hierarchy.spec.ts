@@ -1,7 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-// Regional detail regression locks the compact facts-only layout; retired fundamentals must stay absent.
-test('market uses product-first global and regional information hierarchy', async ({ page }) => {
+async function openGlobalMarket(page: Page) {
   await page.route('**/api/game/community-link**', async (route) => {
     await route.fulfill({ json: { communityLink: null } });
   });
@@ -9,12 +8,25 @@ test('market uses product-first global and regional information hierarchy', asyn
   await page.goto('?preview=game');
   const sidebar = page.locator('.desktop-sidebar');
   await sidebar.getByRole('button', { name: /^市场/ }).click();
-
   await expect(page.getByRole('heading', { level: 1, name: '市场' })).toBeVisible();
   const expandedSidebarBox = await sidebar.boundingBox();
   if (!expandedSidebarBox) throw new Error('desktop sidebar is missing after opening market');
   await page.mouse.move(expandedSidebarBox.x + expandedSidebarBox.width + 80, expandedSidebarBox.y + 30);
   await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+}
+
+async function openGlobalProductRegions(page: Page) {
+  await openGlobalMarket(page);
+  const globalRow = page.getByRole('button', { name: '打开小麦全局详情' });
+  await expect(globalRow).toBeVisible();
+  await globalRow.click();
+  await expect(page.locator('.global-market-product-region-list')).toBeVisible();
+}
+
+// Keep the global catalog, regional list, and regional detail as independent browser cases.
+// Each case rebuilds the same preview state so full CI preserves all assertions without relying on a longer test timeout.
+test('market uses product-first global and regional information hierarchy', async ({ page }) => {
+  await openGlobalMarket(page);
 
   await expect(page.locator('.global-market-page > .widget-heading')).toHaveCount(0);
   await expect(page.locator('.global-market-summary-strip')).toHaveCount(0);
@@ -71,10 +83,11 @@ test('market uses product-first global and regional information hierarchy', asyn
   const compactGlobalRowGeometry = await globalRow.evaluate((row) => ({ clientWidth: row.clientWidth, scrollWidth: row.scrollWidth }));
   expect(compactGlobalHeaderGeometry.scrollWidth).toBeLessThanOrEqual(compactGlobalHeaderGeometry.clientWidth + 1);
   expect(compactGlobalRowGeometry.scrollWidth).toBeLessThanOrEqual(compactGlobalRowGeometry.clientWidth + 1);
-  await page.setViewportSize({ width: 1440, height: 900 });
+});
 
-  await globalRow.click();
-  await expect(page.locator('.global-market-product-region-list')).toBeVisible();
+test('global product detail keeps one sortable regional hierarchy', async ({ page }) => {
+  await openGlobalProductRegions(page);
+
   const regionalHeader = page.locator('.global-market-product-region-surface > .market-commodity-row-header');
   await expect(regionalHeader).toBeVisible();
   await expect(page.locator('.global-market-product-region-list .market-commodity-row-header')).toHaveCount(0);
@@ -121,9 +134,15 @@ test('market uses product-first global and regional information hierarchy', asyn
   expect(compactRegionIdentityGeometry.columnCount).toBe(1);
   expect(compactRegionIdentityGeometry.width).toBeGreaterThan(60);
   expect(compactRegionNameGeometry.scrollWidth).toBeLessThanOrEqual(compactRegionNameGeometry.clientWidth + 1);
-  await page.setViewportSize({ width: 1440, height: 900 });
+});
 
+// Regional detail regression locks the compact facts-only layout; retired fundamentals must stay absent.
+test('regional market detail keeps the compact facts-only hierarchy', async ({ page }) => {
+  await openGlobalProductRegions(page);
+  const regionalRow = page.getByRole('button', { name: '打开加利福尼亚小麦详情' });
+  await expect(regionalRow).toBeVisible();
   await regionalRow.click();
+
   await expect(page.locator('.market-detail-surface')).toBeVisible();
   const visibleHeroMetrics = await page.locator('.market-detail-hero__metric:visible small').allTextContents();
   expect(visibleHeroMetrics).toEqual(['24h 变化', '可用库存']);

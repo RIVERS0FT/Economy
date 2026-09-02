@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { feature } from 'topojson-client';
 import usStateAtlas from 'us-atlas/states-10m.json' with { type: 'json' };
@@ -21,6 +22,8 @@ const requiredFiles = [
   'src/components/provinces/provinceMapProjection.ts',
   'src/components/provinces/provinceMapCamera.ts',
   'src/components/provinces/provinceMapStaticLabels.ts',
+  'src/data/north-america-land-10m.json',
+  'scripts/generate-province-map-world-context.mjs',
   'src/styles/province-map.css',
   'src/styles/province-page.css',
   'src/styles/strategic-game-shell.css',
@@ -254,9 +257,19 @@ for (const text of [
 ]) assert.ok(projection.includes(text), `静态地图投影缺少: ${text}`);
 
 const worldContext = read('src/components/provinces/provinceMapWorldOutline.ts');
-for (const text of ["world-atlas/countries-10m.json", 'NORTH_AMERICA_CONTEXT_COUNTRY_IDS', 'northAmericaContextGeometry', 'createProvinceMapWorldOutlinePath', 'createProvinceMapMainlandFocusBounds']) {
-  assert.ok(worldContext.includes(text), `10m 世界大陆上下文缺少: ${text}`);
+for (const text of ['north-america-land-10m.json', "import { feature } from 'topojson-client'", 'northAmericaContextGeometry', 'createProvinceMapWorldOutlinePath', 'createProvinceMapMainlandFocusBounds']) {
+  assert.ok(worldContext.includes(text), `10m 世界大陆运行时上下文缺少: ${text}`);
 }
+for (const forbidden of ['world-atlas/', 'NORTH_AMERICA_CONTEXT_COUNTRY_IDS', 'mergeArcs']) {
+  assert.equal(worldContext.includes(forbidden), false, `玩家运行时不得恢复完整 atlas 或现场裁剪: ${forbidden}`);
+}
+const worldContextGenerator = read('scripts/generate-province-map-world-context.mjs');
+for (const text of ['world-atlas/countries-10m.json', 'NORTH_AMERICA_CONTEXT_COUNTRY_IDS', "'840'", 'mergeArcs(worldCountryAtlas, contextGeometries)', 'referencedArcIndexes', 'remapArcRefs', "process.argv.includes('--check')"]) {
+  assert.ok(worldContextGenerator.includes(text), `10m 世界大陆生成器缺少: ${text}`);
+}
+const worldContextAsset = read('src/data/north-america-land-10m.json');
+assert.ok(worldContextAsset.length < 1_500_000, '北美 10m 裁剪 TopoJSON 不得退化为完整 atlas 或预展开浮点 GeoJSON 体积');
+execFileSync(process.execPath, ['scripts/generate-province-map-world-context.mjs', '--check'], { stdio: 'inherit' });
 const camera = read('src/components/provinces/provinceMapCamera.ts');
 for (const text of [
   'export const PROVINCE_MAP_ZOOM_MIN = 1', 'export const PROVINCE_MAP_ZOOM_MAX = 4',
