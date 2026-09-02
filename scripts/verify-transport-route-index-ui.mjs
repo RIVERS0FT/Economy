@@ -56,13 +56,18 @@ forbidText(
 );
 
 for (const text of [
-  ".page-card-scroll:has([data-transport-route-index='true']) > .ui-page-stack",
+  ".page-card-scroll:has([data-transport-route-index='true']) {",
+  'grid-template-rows: minmax(100%, auto);',
+  ".transport-page-content[data-transport-route-index='true'] {",
+  'min-height: 100%;',
   '.transport-page-footer {',
   'position: sticky;',
   'bottom: 0;',
   '.transport-route-grid {',
   'gap: var(--space-3);',
 ]) requireText(transportCss, text, `运输页样式缺少：${text}`);
+forbidText(transportCss, '.ui-page-stack', '运输页不得覆盖共享 .ui-page-stack 几何。');
+forbidText(transportCss, '--page-section-gap', '运输页不得重定义共享页面一级间距。');
 
 forbidText(
   scrollingCss,
@@ -78,7 +83,7 @@ for (const text of [
   'routeBorderRadius',
   'footerBefore',
   'footerAfter',
-  'not.toContainText(/\\d+\\s*\\/\\s*50/)',
+  'not.toContainText(/\\d+\\s*\/\\s*50/)',
 ]) requireText(browserTest, text, `运输浏览器回归缺少：${text}`);
 forbidText(browserTest, "toContainText('0/50')", '运输浏览器回归不得要求已删除的路线数量胶囊。');
 
@@ -97,4 +102,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('运输路线目录 UI 防回退验证通过：路线使用对象卡且无行分割线，重复标题和路线数量胶囊已移除，增加路线固定在页面底部。');
+console.log('运输路线目录 UI 防回退验证通过：路线使用对象卡且无行分割线，重复标题和路线数量胶囊已移除，底部操作区不覆盖共享页面栈。');
