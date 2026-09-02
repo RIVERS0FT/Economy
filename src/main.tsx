@@ -65,6 +65,7 @@ import './styles/strategic-game-shell.css';
 import './styles/strategic-outliner.css';
 import './styles/mobile-detail-sheet.css';
 import './styles/mobile-status-layout.css';
+import './styles/scrolling-page-sections.css';
 import './styles/market-detail-direct-flow.css';
 import './styles/global-facility-narrow.css';
 
