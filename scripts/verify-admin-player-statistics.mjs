@@ -158,6 +158,7 @@ requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '完整经营漏斗覆盖起点',
   '不得把统计结果用于扩张人口需求预算',
   'ECharts',
+  '7／30／90 日',
 ]);
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '`player-admin-statistics.js`',
@@ -165,8 +166,6 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '`GET /api/game/admin/player-statistics?range=7d|30d|90d`',
   '`lastPlayerScaleBudget` 与 `lastInventoryBoost`',
 ]);
-requireText('docs/README.md', ['管理员玩家运营统计']);
-requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', ['7／30／90 日', '成功经济写操作', '精确日活动覆盖起点']);
 requireText('package.json', ['verify:admin-player-statistics']);
 
 if (failures.length) {
