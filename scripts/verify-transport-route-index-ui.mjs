@@ -16,6 +16,8 @@ const transportPage = read('src/pages/TransportPage.tsx');
 const transportCss = read('src/styles/transport-page.css');
 const scrollingCss = read('src/styles/scrolling-page-sections.css');
 const browserTest = read('tests/browser/transport-route-cost-style-lock.spec.ts');
+const allPagesBrowserTest = read('tests/browser/all-pages-preview.spec.ts');
+const transportMapPickingTest = read('tests/browser/transport-map-picking.spec.ts');
 const pageContentVerifier = read('scripts/verify-page-content.mjs');
 
 for (const text of [
@@ -87,6 +89,14 @@ for (const text of [
 ]) requireText(browserTest, text, `运输浏览器回归缺少：${text}`);
 forbidText(browserTest, "toContainText('0/50')", '运输浏览器回归不得要求已删除的路线数量胶囊。');
 
+for (const [source, label] of [
+  [allPagesBrowserTest, '全页面浏览器回归'],
+  [transportMapPickingTest, '运输地图选点回归'],
+]) {
+  requireText(source, '.transport-page-footer', `${label}必须通过底部操作区定位增加路线按钮。`);
+  forbidText(source, '.transport-page-actions', `${label}不得恢复已删除的顶部运输操作区定位。`);
+}
+
 for (const text of [
   "'运输页的“增加路线”固定放在页面正文承载面的底部 sticky 操作区'",
   "'className=\"transport-page-footer\"'",
@@ -102,4 +112,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('运输路线目录 UI 防回退验证通过：路线使用对象卡且无行分割线，重复标题和路线数量胶囊已移除，底部操作区不覆盖共享页面栈。');
+console.log('运输路线目录 UI 防回退验证通过：路线使用对象卡且无行分割线，重复标题和路线数量胶囊已移除，底部操作区不覆盖共享页面栈，浏览器回归统一使用底部入口。');
