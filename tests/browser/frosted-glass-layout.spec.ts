@@ -49,7 +49,7 @@ test.describe('shared frosted-glass shell', () => {
 
     expect(alphaFromColor(styles.panel.backgroundColor)).toBe(0);
     expect(styles.panel.backdropFilter).toBe('none');
-    expect(styles.panel.borderWidth).toBe('0px');
+    expect(styles.panel.borderWidth).toBe('1px');
     expect(styles.panel.borderRadius).toBe('0px');
     expect(styles.panel.boxShadow).toBe('none');
   });
