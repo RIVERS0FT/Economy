@@ -69,6 +69,16 @@ assert.notEqual(sameFirst.forward.path, sameSecond.forward.path, '同一区段�
 assert.equal(sameDirection.laneCountByEdge.get('A:B'), 2);
 assert.equal(sameFirst.forward.segments[0].laneOffset, -sameSecond.forward.segments[0].laneOffset);
 
+const threeLanes = layoutProvinceMapRoutes([
+  route('route-1', ['A', 'B']),
+  route('route-2', ['A', 'B']),
+  route('route-3', ['A', 'B']),
+], points);
+const threeOffsets = ['route-1', 'route-2', 'route-3'].map((id) => threeLanes.byLaneOwnerId.get(id)?.forward.segments[0].laneOffset);
+assert.equal(threeLanes.laneCountByEdge.get('A:B'), 3);
+assert.deepEqual(threeOffsets, [-4.5, 0, 4.5], '三条共享路线必须保持稳定对称车道');
+assert.equal(new Set(['route-1', 'route-2', 'route-3'].map((id) => threeLanes.byLaneOwnerId.get(id)?.forward.path)).size, 3);
+
 const reverseDirection = layoutProvinceMapRoutes([
   route('route-1', ['A', 'B']),
   route('route-2', ['B', 'A']),
