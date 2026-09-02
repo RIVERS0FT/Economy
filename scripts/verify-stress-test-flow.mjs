@@ -34,7 +34,7 @@ const serverApp = read('server/src/app.js');
 const requestPerformance = read('server/src/request-performance.js');
 for (const text of [
   'STATE_PARTITIONS',
-  '状态响应 修订号发生倒退',
+  '修订号发生倒退',
   'serverNow 发生倒退',
   '相同幂等键返回了不同命令结果',
   'commandRevision',
