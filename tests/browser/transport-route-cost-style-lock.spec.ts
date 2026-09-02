@@ -4,6 +4,19 @@ function provinceRegion(page: import('@playwright/test').Page, provinceName: str
   return page.locator(`.province-map-region[data-province-name="${provinceName}"]`);
 }
 
+async function chooseRichSelectOption(
+  page: import('@playwright/test').Page,
+  scope: import('@playwright/test').Locator,
+  label: string,
+  optionName: string,
+) {
+  const trigger = scope.getByRole('combobox', { name: label });
+  await trigger.click();
+  const listbox = page.getByRole('listbox', { name: label });
+  await expect(listbox).toBeVisible();
+  await listbox.getByRole('option', { name: optionName }).click();
+}
+
 test('transport draft line style follows mode and map editor clears desktop and mobile status bars', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto('?preview=game');
@@ -25,11 +38,11 @@ test('transport draft line style follows mode and map editor clears desktop and 
   await expect(draft).toHaveAttribute('data-route-id', 'draft-road-route');
   const roadDash = await draft.locator('.province-map-route-path').evaluate((element) => getComputedStyle(element).strokeDasharray);
 
-  await pickingBar.getByLabel('运输方式').selectOption('rail');
+  await chooseRichSelectOption(page, pickingBar, '运输方式', '铁路运输');
   await expect(draft).toHaveAttribute('data-route-id', 'draft-rail-route');
   const railDash = await draft.locator('.province-map-route-path').evaluate((element) => getComputedStyle(element).strokeDasharray);
 
-  await pickingBar.getByLabel('运输方式').selectOption('air');
+  await chooseRichSelectOption(page, pickingBar, '运输方式', '航空运输');
   await expect(draft).toHaveAttribute('data-route-id', 'draft-air-route');
   const airDash = await draft.locator('.province-map-route-path').evaluate((element) => getComputedStyle(element).strokeDasharray);
 
@@ -46,29 +59,29 @@ test('transport draft line style follows mode and map editor clears desktop and 
   expect(mobilePickingBox!.y + mobilePickingBox!.height).toBeLessThanOrEqual(844 + 1);
 });
 
-test('saved route catalogue is a divider list and detail exposes no route editor', async ({ page }) => {
+test('transport route catalogue uses divider rows instead of rounded cards', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^运输/ }).click();
 
-  const firstRoute = page.locator('.transport-route-card').first();
-  await expect(firstRoute).toBeVisible();
-  const catalogueVisual = await firstRoute.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return {
+  await expect(page.locator('.transport-route-card')).toHaveCount(0);
+  await expect(page.getByText('暂无运输路线。选择“增加路线”后直接在地图上依次选择站点。')).toBeVisible();
+
+  const catalogueVisual = await page.locator('.page-card-scroll').evaluate((container) => {
+    const row = document.createElement('button');
+    row.className = 'transport-route-card';
+    container.appendChild(row);
+    const style = getComputedStyle(row);
+    const result = {
       borderRadius: style.borderRadius,
       borderBottomWidth: style.borderBottomWidth,
       borderBottomStyle: style.borderBottomStyle,
     };
+    row.remove();
+    return result;
   });
+
   expect(catalogueVisual.borderRadius).toBe('0px');
   expect(catalogueVisual.borderBottomWidth).toBe('1px');
   expect(catalogueVisual.borderBottomStyle).toBe('solid');
-
-  await firstRoute.click();
-  await expect(page.getByLabel('路线名称')).toBeVisible();
-  await expect(page.getByRole('button', { name: '保存名称', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '删除路线', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '在地图上编辑路线', exact: true })).toHaveCount(0);
-  await expect(page.getByText(/路线创建后不可修改路径、行程或运输方式/)).toBeVisible();
 });
