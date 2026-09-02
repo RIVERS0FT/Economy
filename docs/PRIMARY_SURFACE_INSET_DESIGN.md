@@ -15,7 +15,7 @@
 - `UI_DESIGN_SYSTEM.md` 决定页面分区、列表、对象卡和高层独立表面的视觉语义；本文只负责获准圆角表面的共享 inset 与承载几何，不得再以“是否滚动”判断卡片资格。
 - `src/styles/primary-surfaces.css` 是共享圆角表面外层内边距的唯一 CSS 权威；`--primary-surface-inset` 是唯一外层 inset 令牌。
 - 宽度大于 `720px` 时使用 `var(--space-4)`，即 `16px`；不大于 `720px` 时使用 `var(--space-3)`，即 `12px`；四边必须相同。
-- 正文 `.ui-entity-card` 与当前兼容入口 `.contract-card`、`.asset-auction-card` 复用 `--primary-surface-inset`，不得创建对象专属 padding 变量。
+- 正文 `.ui-entity-card` 与合同兼容入口 `.contract-card` 复用 `--primary-surface-inset`；拍卖兼容入口 `.asset-auction-card` 同样复用该令牌，三者都不得创建对象专属 padding 变量。
 - `--player-page-content-inset` 固定使用当前 `.game-shell` 的 `var(--layout-gutter)`，用于 `PageLayout` 可滚动正文四边安全留白；标题栏下方第一块正文不得恢复顶部 `0` 或负 margin 抵消。
 - `primary-surfaces.css` 必须在 `design-system.css` 之后、`form-controls.css` 之前加载；正文表面语义由 `content-surfaces.css` 与 `scrolling-page-sections.css` 收束。
 
