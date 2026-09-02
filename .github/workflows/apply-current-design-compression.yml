@@ -63,6 +63,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           def clean_header(text):
               kept = []
@@ -107,6 +108,15 @@ jobs:
 
           '''.replace('          ', '')
           ui = ui[:component_start] + compact_components + ui[component_tail:]
+
+          compact_product_icons = '''### 5.1 商品 SVG 图标目录
+
+          所有服务器正式商品必须在共享商品图标组件中拥有稳定、可辨识且与商品语义对应的本地内联 SVG；正式商品 ID、数量与增删范围以服务器商品目录和组件映射为运行事实，DESIGN 不复制完整逐商品清单。已知正式商品不得退化为同一个默认包装箱、字符、字母缩写或 Emoji；服务器未来返回未知商品 ID 时只允许使用明确的通用安全回退，不得因此改变已知商品映射。新增或删除正式商品必须在同一变更中同步目录、图标映射和专项验证。
+
+          '''.replace('          ', '')
+          ui, product_replacements = re.subn(r'### 5\.1 商品 SVG 图标目录[\s\S]*?(?=### 5\.2 )', compact_product_icons, ui, count=1)
+          if product_replacements != 1:
+              raise SystemExit('未找到可压缩的商品 SVG 图标目录')
 
           artwork_start = ui.index('当前 C1 复杂度工厂')
           artwork_tail = ui.index('C1–C7 全部图片都必须', artwork_start)
