@@ -199,6 +199,7 @@ jobs:
           node scripts/generate-province-map-world-context.mjs --check
           npm run verify:provincial-economy
           node scripts/verify-page-content.mjs
+          npm run generate:local-preview
           npm run typecheck
           git diff --check
 
@@ -218,7 +219,6 @@ jobs:
 
       - name: Run strategic map browser regressions
         run: |
-          npm run generate:local-preview
           bash scripts/prepare-playwright-chromium.sh
           npx playwright test tests/browser/province-map-world-boundary.spec.ts tests/browser/map-reset-sync.spec.ts tests/browser/map-zoom-out-boundary.spec.ts tests/browser/province-map.spec.ts --project=chromium --workers=1
 
