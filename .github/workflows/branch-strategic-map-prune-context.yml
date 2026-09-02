@@ -217,17 +217,17 @@ jobs:
               raise SystemExit(f'GameApp bundle still too large after atlas pruning: {size}')
           PY
 
-      - name: Run strategic map browser regressions
-        run: |
-          bash scripts/prepare-playwright-chromium.sh
-          npx playwright test tests/browser/province-map-world-boundary.spec.ts tests/browser/map-reset-sync.spec.ts tests/browser/map-zoom-out-boundary.spec.ts tests/browser/province-map.spec.ts --project=chromium --workers=1
+      - name: Prepare Chromium
+        run: bash scripts/prepare-playwright-chromium.sh
 
-      - name: Remove one-shot workflow and commit
+      - name: Run strategic map browser regressions
+        run: npx playwright test tests/browser/province-map-world-boundary.spec.ts tests/browser/map-reset-sync.spec.ts tests/browser/map-zoom-out-boundary.spec.ts tests/browser/province-map.spec.ts --project=chromium --workers=1
+
+      - name: Commit generated strategic map changes
         run: |
-          rm -f .github/workflows/branch-strategic-map-prune-context.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add docs scripts src .github/workflows/branch-strategic-map-prune-context.yml
+          git add docs scripts src
           git diff --cached --check
           git commit -m 'Precompile strategic map world context'
           git push origin HEAD:codex/strategic-map-pruned-context
