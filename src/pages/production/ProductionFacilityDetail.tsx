@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { CompactNumber } from '../../components/ui/CompactNumber';
 import { FacilityIcon } from '../../components/icons/FacilityIcons';
 import { useFacilityRecipeProfitMarkets } from '../../components/facilities/FacilityRecipeProfitContext';
@@ -15,6 +16,11 @@ import {
   FacilityProductionFormula,
   currentFormulaScope,
 } from '../../components/facilities/FacilityProductionFormula';
+import {
+  getFacilityEnabledIntent,
+  reconcileFacilityEnabledIntent,
+  subscribeFacilityEnabledIntent,
+} from '../../app/immediateCommandIntent';
 import type {
   FacilityGroup,
   FacilityProductionMethodDefinition,
@@ -320,6 +326,28 @@ export function FacilityClusterInformation({
   const liveNow = useNow(now);
   const recipeState = resolveFacilityDetailRecipeState(entry);
   const profitScope = currentFormulaScope(group, liveNow);
+  const subscribeEnabledIntent = useCallback(
+    (listener: () => void) => subscribeFacilityEnabledIntent(
+      group.provinceId,
+      group.facilityTypeId,
+      listener,
+    ),
+    [group.facilityTypeId, group.provinceId],
+  );
+  const enabledIntent = useSyncExternalStore(
+    subscribeEnabledIntent,
+    () => getFacilityEnabledIntent(group.provinceId, group.facilityTypeId),
+    () => null,
+  );
+  const displayedEnabled = enabledIntent ?? group.enabled;
+
+  useEffect(() => {
+    reconcileFacilityEnabledIntent(
+      group.provinceId,
+      group.facilityTypeId,
+      group.enabled,
+    );
+  }, [group.enabled, group.facilityTypeId, group.provinceId]);
 
   return (
     <section
@@ -343,9 +371,9 @@ export function FacilityClusterInformation({
         }
         action={
           <SwitchControl
-            checked={group.enabled}
-            aria-label={group.enabled ? `停止${type.name}生产` : `开启${type.name}生产`}
-            title={group.enabled ? '停止生产' : '开启自动运行'}
+            checked={displayedEnabled}
+            aria-label={displayedEnabled ? `停止${type.name}生产` : `开启${type.name}生产`}
+            title={displayedEnabled ? '停止生产' : '开启自动运行'}
             disabled={group.count < 1}
             onChange={(event) => onToggle(event.target.checked)}
           />
