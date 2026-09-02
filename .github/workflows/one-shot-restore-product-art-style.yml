@@ -1,0 +1,50 @@
+name: One-shot restore product art authority
+
+on:
+  push:
+    branches:
+      - codex/transport-route-cards-footer
+    paths:
+      - .github/workflows/one-shot-restore-product-art-style.yml
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/transport-route-cards-footer
+          fetch-depth: 0
+
+      - name: Restore product artwork authority in section 5.3
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/UI_DESIGN_SYSTEM.md')
+          text = path.read_text(encoding='utf-8')
+          anchor = '### 5.3 商品物资插画图标绘制规范\n\n'
+          rule = '- 商品插画统一为写实与游戏插画融合的 3D 手绘风格；轻微俯视的三分之四视角、居中悬浮构图；主体约占画布 75%；柔和暖色主光从左上方照射；非常柔和的半透明接触阴影；`1024 × 1024`、PNG RGBA 和真实 Alpha 透明通道；四角完全透明，边缘干净且不得带白边或色键残边。\n\n'
+          if anchor not in text:
+              raise SystemExit('UI design section 5.3 anchor not found')
+          if '写实与游戏插画融合的 3D 手绘风格' not in text:
+              text = text.replace(anchor, anchor + rule, 1)
+          path.write_text(text, encoding='utf-8')
+
+          workflow = Path('.github/workflows/one-shot-restore-product-art-style.yml')
+          workflow.unlink()
+          PY
+
+      - name: Commit restored authority and remove one-shot workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/UI_DESIGN_SYSTEM.md .github/workflows/one-shot-restore-product-art-style.yml
+          git commit -m "Restore product artwork authority"
+          git push origin HEAD:codex/transport-route-cards-footer
