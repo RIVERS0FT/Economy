@@ -2,7 +2,7 @@
 
 > 状态：当前客户端倒计时、到期刷新与服务器确认基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-27
+> 更新时间：2026-09-02
 
 ## 1. 唯一职责
 
@@ -76,6 +76,8 @@
 `useGameViewModel` 初始化时必须先读取当前 authority 快照。若快照 `state.userId` 与当前用户一致且 revision 有效，必须复用该 `state + revision` 作为当前视图模型和后续增量轮询基线，不得先调用 `resetGameStateDelivery()` 再重新请求完整状态。只有浏览器完整刷新后的冷启动、用户身份实际变化、首次加载失败后的显式重试或存档世代导致当前文档失效等真实生命周期边界，才允许清空状态交付 authority 并重新进入启动流程。
 
 退出回调属于会话边界通知，不得参与普通 `refresh` 与初始化 effect 的引用稳定性。父级应提供稳定回调，视图模型内部仍必须通过 ref 读取最新退出回调，使父组件无关 render 不会改变 `handleUnauthorized`、`refresh` 或重新触发 cold reset。已经显示游戏后，普通状态读取暂时延迟或失败时继续保留上一份已接受 authority；只有当前没有可用 authority 的首次读取失败才显示全页“无法加载游戏状态”。
+
+浏览器生命周期回归在注入 catalog 完整性恢复、传输缓存清理或完整状态重拉故障时，必须先观察当前用户已经进入 `ready` 且初始 authority 已被接受，再武装故障。测试不得根据 `/state` 的绝对请求序号推断“启动读取／主动刷新／恢复重拉”阶段，因为 React StrictMode 的挂载重放、已中止启动读取和 CI runner 调度都可能改变实际请求次数。武装后仍必须证明 `ready → 后台恢复 → ready`，恢复期间上一份已接受 authority 持续可见，并且 `loading` 转换次数保持为 0。
 
 ### 4.1 到期状态的分区替换语义
 
@@ -193,11 +195,12 @@ HTTP 2xx、3xx 或除 408、429 之外的明确 4xx 响应表示本次网络结�
 - 让 `useGameAuthorityState()` 把实时转发全局 store 的 Proxy 作为一次 React render 的状态对象，使 authority reset／replace 能在同一次 render 中把原本合法的 `provinces`、`products` 或其他字段变成 `undefined`；
 - 在同一用户已有可用 authority 时因 `GameApp` 重挂载、父组件回调引用变化或普通轮询重新执行 cold reset，使已经显示的游戏回退到全屏“正在连接服务器…”；
 - 让退出回调引用直接参与 `handleUnauthorized`／`refresh`／初始化 effect 依赖链，导致无关父级 render 触发 authority reset；
+- 在浏览器生命周期回归中把第 1／2／3 次 `/state` 等绝对请求序号硬编码为启动、故障和恢复阶段，使 StrictMode 或慢 runner 的额外读取提前消费故障；
 - 让页面、状态栏、导航角标、通知中心或权威倒计时绕过声明的分区边界读取全局变更通知；
 - 让纯 `auction`、`contract` 或 `leaderboard` 更新重新提交与其无关的市场或建筑页面；
 - 让在线自动交易或教程生产完成检测重新依赖根应用因权威状态变化而重渲染才能运行。
 
-`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`，锁定注册表、共享单调服务器时钟、应用外壳协调、请求超时、权威刷新模式、后台恢复、串行每秒确认、研发确认文案、拍卖等待结算文案、完整分区替换、稳定分区时间字段、即时建设无倒计时边界、已就绪 authority 复用和本文档规则。经济写请求的同键确认重试、待确认 key 保留、普通经济写 12 秒边界、会话启动超时例外和应用入口安装同时由 `scripts/verify-market-action-latency.mjs` 防回退；生产结算基线指纹、过期提案同事务兜底与非法提案 409 由 `scripts/verify-production-lazy-settlement.mjs` 和服务器测试继续锁定；页面存档世代锁、状态发布前世代校验、普通 reset 保留锁和过期文档本地写阻断由 `scripts/verify-save-deletion.mjs`、`server/test/client-save-epoch-page-lifecycle.test.js` 与 `tests/browser/save-epoch-lifecycle.spec.ts` 继续锁定；客户端状态接受性能边界由 `scripts/verify-client-response-performance.mjs` 与 `server/test/game-authority-render-snapshot.test.js` 继续锁定。
+`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`，锁定注册表、共享单调服务器时钟、应用外壳协调、请求超时、权威刷新模式、后台恢复、串行每秒确认、研发确认文案、拍卖等待结算文案、完整分区替换、稳定分区时间字段、即时建设无倒计时边界、已就绪 authority 复用和本文档规则。经济写请求的同键确认重试、待确认 key 保留、普通经济写 12 秒边界、会话启动超时例外和应用入口安装同时由 `scripts/verify-market-action-latency.mjs` 防回退；生产结算基线指纹、过期提案同事务兜底与非法提案 409 由 `scripts/verify-production-lazy-settlement.mjs` 和服务器测试继续锁定；页面存档世代锁、状态发布前世代校验、普通 reset 保留锁和过期文档本地写阻断由 `scripts/verify-save-deletion.mjs`、`server/test/client-save-epoch-page-lifecycle.test.js` 与 `tests/browser/save-epoch-lifecycle.spec.ts` 继续锁定；已就绪 authority 的浏览器生命周期恢复由 `tests/browser/game-loading-lifecycle.spec.ts` 直接锁定，并要求故障只在初始 `ready` 已确认后武装；客户端状态接受性能边界由 `scripts/verify-client-response-performance.mjs` 与 `server/test/game-authority-render-snapshot.test.js` 继续锁定。
 
 ## 合同领域截止时间
 
