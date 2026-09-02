@@ -25,14 +25,23 @@ jobs:
         run: |
           set +e
           failed=0
+          : > /tmp/design-verifier-failures.txt
           while IFS= read -r file; do
-            echo "::group::$file"
-            node --experimental-strip-types "$file"
+            output_file="/tmp/$(basename "$file").log"
+            node --experimental-strip-types "$file" >"$output_file" 2>&1
             status=$?
-            echo "::endgroup::"
             if [ "$status" -ne 0 ]; then
-              echo "DESIGN_VERIFIER_FAILURE $file exit=$status"
               failed=1
+              {
+                echo "===== $file (exit $status) ====="
+                tail -n 24 "$output_file"
+                echo
+              } >> /tmp/design-verifier-failures.txt
             fi
           done < <(grep -lE "docs/[A-Z0-9_]+_DESIGN\.md|docs/UI_DESIGN_SYSTEM\.md" scripts/verify-*.mjs | sort)
+          if [ -s /tmp/design-verifier-failures.txt ]; then
+            cat /tmp/design-verifier-failures.txt
+          else
+            echo 'ALL_DESIGN_VERIFIERS_PASSED'
+          fi
           exit "$failed"
