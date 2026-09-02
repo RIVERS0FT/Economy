@@ -36,9 +36,11 @@ forbidText(domain, 'world.orders = originalOrders.filter');
 for (const text of [
   'const orderPendingRef = useRef(false);',
   "return { ok: false, message: '市场订单正在同步中，请勿重复提交' };",
-  "void syncConfirmedAction(response, 'placeOrder').finally(finish);",
+  "syncConfirmedAction(response, 'placeOrder');",
+  'finish();',
   'return response.result;',
 ]) requireText(model, text);
+forbidText(model, ".finally(finish)");
 
 for (const text of [
   'const DEFAULT_READ_TIMEOUT_MS = 8_000;',
@@ -52,6 +54,8 @@ for (const text of [
   'const WRITE_ATTEMPT_TIMEOUT_MS = 12_000;',
   "const STORAGE_KEY = 'economy.pending-write-idempotency.v1';",
   "headers.set('Idempotency-Key', reservation.key);",
+  "headers.set('X-Economy-State-Revisions', JSON.stringify(revisions));",
+  'acceptExternalStateDelivery(payload);',
   'function isSessionBootstrapWrite(input',
   'const timeout = isSessionBootstrapWrite(input)',
   'if (timeout !== null) globalThis.clearTimeout(timeout);',
@@ -74,7 +78,8 @@ for (const text of [
 for (const text of [
   '`order-matching.js`：商品与工厂共用的价格优先、同价时间优先、maker price、部分成交、订单状态推进、逐笔 fill 与手续费结算编排',
   '绕过统一商品撮合层处理玩家订单',
-  '权威动作响应固定为 `{ result: { ok, message }, revision }`',
+  '普通玩家权威动作的持久化幂等确认仍固定为 `{ result: { ok, message }, revision }`',
+  '正常成功路径不得为了取得同一动作结果再追加一次 `GET state`',
 ]) requireText(serverDesign, text);
 for (const text of [
   '权威刷新必须中止正在等待的普通轮询',
@@ -91,4 +96,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('市场动作延迟防回退验证通过：商品订单单次共享撮合、全量修复版本化、POST 后异步补拉、重复提交锁、普通写请求超时、会话启动例外、限流保留与同键确认重试均已锁定。');
+console.log('市场动作延迟防回退验证通过：商品订单单次共享撮合、全量修复版本化、动作权威增量回执、确认即结束 pending、普通写请求超时、会话启动例外、限流保留与同键确认重试均已锁定。');
