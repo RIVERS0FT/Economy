@@ -1,0 +1,36 @@
+name: Restore building catalog test
+
+on:
+  push:
+    branches:
+      - codex/building-list-surfaces
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore test and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin backup/building-list-surfaces-20260902
+          git show origin/backup/building-list-surfaces-20260902:tests/browser/facility-catalog-layout.spec.ts > tests/browser/facility-catalog-layout.spec.ts
+          node scripts/verify-facility-catalog-layout.mjs
+          git diff --check
+      - name: Commit restore and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name RIVERSOFT
+          git config user.email 105160096+RIVERS0FT@users.noreply.github.com
+          git rm .github/workflows/restore-building-catalog-test.yml
+          git add tests/browser/facility-catalog-layout.spec.ts
+          git commit -m '恢复建筑列表浏览器回归'
+          git push origin HEAD:codex/building-list-surfaces
