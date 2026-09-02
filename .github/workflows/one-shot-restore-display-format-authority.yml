@@ -1,0 +1,57 @@
+name: One-shot restore display format authority
+
+on:
+  push:
+    branches:
+      - codex/transport-route-cards-footer
+    paths:
+      - .github/workflows/one-shot-restore-display-format-authority.yml
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/transport-route-cards-footer
+          fetch-depth: 0
+
+      - name: Restore display format authority
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/UI_DESIGN_SYSTEM.md')
+          text = path.read_text(encoding='utf-8')
+          old = '- 时间使用秒、分钟、小时。'
+          new = '- 玩家时长只使用小写 `s`、`m`、`h`；不得恢复中文“秒／分钟／小时”的玩家时长展示。'
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif new not in text:
+              raise SystemExit('UI design duration authority anchor not found')
+
+          anchor = '- “紧凑数字”是全局固定显示规则，不再是客户端偏好；数量、普通货币与排名等只读业务数值对绝对值达到 1,000 的内容统一使用 K/M/B/T，不提供关闭入口或按设备分流。日期、时间、时长和百分比继续使用各自语义格式，可编辑数字输入始终显示并提交完整原值。\n'
+          rule = '- 所有排名数值统一通过 `formatRank` 显示为 `#N`，不得恢复“第 N 名”或裸数字排名展示；页面摘要不得重复状态栏已经显示的净资产和排名。\n'
+          if anchor not in text:
+              raise SystemExit('UI design compact number authority anchor not found')
+          if '所有排名数值统一通过 `formatRank` 显示为 `#N`' not in text:
+              text = text.replace(anchor, anchor + rule, 1)
+          path.write_text(text, encoding='utf-8')
+
+          workflow = Path('.github/workflows/one-shot-restore-display-format-authority.yml')
+          workflow.unlink()
+          PY
+
+      - name: Commit restored authority and remove one-shot workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/UI_DESIGN_SYSTEM.md .github/workflows/one-shot-restore-display-format-authority.yml
+          git commit -m "Restore display format authority"
+          git push origin HEAD:codex/transport-route-cards-footer
