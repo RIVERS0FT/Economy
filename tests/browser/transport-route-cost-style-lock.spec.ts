@@ -1,0 +1,55 @@
+import { expect, test } from '@playwright/test';
+
+function provinceRegion(page: import('@playwright/test').Page, provinceName: string) {
+  return page.locator(`.province-map-region[data-province-name="${provinceName}"]`);
+}
+
+test('transport draft line style follows mode and map editor clears the status bar', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('?preview=game');
+  await page.locator('.desktop-sidebar').getByRole('button', { name: /^运输/ }).click();
+  await page.locator('.transport-page-actions').getByRole('button', { name: '增加路线', exact: true }).click();
+
+  const statusBar = page.locator('.asset-bar');
+  const pickingBar = page.locator('.transport-map-picking-bar');
+  await expect(pickingBar).toBeVisible();
+  const [statusBox, pickingBox] = await Promise.all([statusBar.boundingBox(), pickingBar.boundingBox()]);
+  expect(statusBox).not.toBeNull();
+  expect(pickingBox).not.toBeNull();
+  expect(pickingBox!.y).toBeGreaterThanOrEqual(statusBox!.y + statusBox!.height - 1);
+
+  await provinceRegion(page, '加利福尼亚').click();
+  await provinceRegion(page, '得克萨斯').click();
+
+  const draft = page.locator('.province-map-route[data-route-kind="draft"]');
+  await expect(draft).toHaveAttribute('data-route-id', 'draft-road-route');
+  const roadDash = await draft.locator('.province-map-route-path').evaluate((element) => getComputedStyle(element).strokeDasharray);
+
+  await pickingBar.getByLabel('运输方式').selectOption('rail');
+  await expect(draft).toHaveAttribute('data-route-id', 'draft-rail-route');
+  const railDash = await draft.locator('.province-map-route-path').evaluate((element) => getComputedStyle(element).strokeDasharray);
+
+  await pickingBar.getByLabel('运输方式').selectOption('air');
+  await expect(draft).toHaveAttribute('data-route-id', 'draft-air-route');
+  const airDash = await draft.locator('.province-map-route-path').evaluate((element) => getComputedStyle(element).strokeDasharray);
+
+  expect(new Set([roadDash, railDash, airDash]).size).toBe(3);
+  await expect(pickingBar.locator('.transport-map-picking-cost')).toContainText('一次性建线费');
+  await expect(pickingBar.locator('.transport-map-picking-cost')).not.toContainText('选择完整路线后计算');
+});
+
+test('saved route detail exposes rename and delete but no route editor', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('?preview=game');
+  await page.locator('.desktop-sidebar').getByRole('button', { name: /^运输/ }).click();
+
+  const firstRoute = page.locator('.transport-route-card').first();
+  await expect(firstRoute).toBeVisible();
+  await firstRoute.click();
+
+  await expect(page.getByLabel('路线名称')).toBeVisible();
+  await expect(page.getByRole('button', { name: '保存名称', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '删除路线', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '在地图上编辑路线', exact: true })).toHaveCount(0);
+  await expect(page.getByText(/路线创建后不可修改路径、行程或运输方式/)).toBeVisible();
+});
