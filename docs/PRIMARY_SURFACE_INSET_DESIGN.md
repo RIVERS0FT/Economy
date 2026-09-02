@@ -15,14 +15,14 @@
 - `UI_DESIGN_SYSTEM.md` 决定页面分区、列表、对象卡和高层独立表面的视觉语义；本文只负责获准圆角表面的共享 inset 与承载几何，不得再以“是否滚动”判断卡片资格。
 - `src/styles/primary-surfaces.css` 是共享圆角表面外层内边距的唯一 CSS 权威；`--primary-surface-inset` 是唯一外层 inset 令牌。
 - 宽度大于 `720px` 时使用 `var(--space-4)`，即 `16px`；不大于 `720px` 时使用 `var(--space-3)`，即 `12px`；四边必须相同。
-- 正文 `.ui-entity-card` 与合同兼容入口 `.contract-card` 复用 `--primary-surface-inset`，不得创建对象专属 padding 变量。
+- 正文 `.ui-entity-card` 与当前兼容入口 `.contract-card`、`.asset-auction-card` 复用 `--primary-surface-inset`，不得创建对象专属 padding 变量。
 - `--player-page-content-inset` 固定使用当前 `.game-shell` 的 `var(--layout-gutter)`，用于 `PageLayout` 可滚动正文四边安全留白；标题栏下方第一块正文不得恢复顶部 `0` 或负 margin 抵消。
 - `primary-surfaces.css` 必须在 `design-system.css` 之后、`form-controls.css` 之前加载；正文表面语义由 `content-surfaces.css` 与 `scrolling-page-sections.css` 收束。
 
 ## 3. React 与页面结构规则
 
 - `PagePanel` 固定输出 `panel widget ui-primary-surface` 兼容语义，但它本身不等于可见圆角卡片。进入 `.page-card-scroll` 后，普通 `PagePanel` 默认作为页面章节扁平化。
-- 新增复杂独立业务对象时使用 `.ui-entity-card`；不得为了对象卡创建页面专属基础卡片系统。合同页现有 `.contract-card` 是迁移兼容入口，公开合同和进行中合同必须保持对象卡边界。
+- 新增复杂独立业务对象时使用 `.ui-entity-card`；不得为了对象卡创建页面专属基础卡片系统。合同页现有 `.contract-card` 是迁移兼容入口，公开合同和进行中合同必须保持对象卡边界；拍卖页现有 `.asset-auction-card` 同样是迁移兼容入口，单场进行中拍卖必须保持对象卡边界，而“发起拍卖”仍属于页面工作区分区。
 - 页面章节、筛选区、发布表单大分组、资产总览、合同广场、“我的合同”、履约档案等集合或页面结构不得仅为了视觉分组增加圆角外壳。
 - 页面摘要指标属于同一比较条，不是多个独立业务对象；玩家正文优先使用无逐项圆角背景的指标条。合同 `.contract-summary-grid` 是当前兼容映射。
 - 商品目录、工厂目录、运输路线、成交记录和历史记录等主要任务为连续比较的同构数据使用列表或表格，不为每条记录创建对象卡。
@@ -65,11 +65,11 @@
 `scripts/verify-primary-surface-insets.mjs` 必须验证：
 
 - 唯一 inset 令牌、桌面 `16px`、移动 `12px`、页面安全宽度链和样式加载顺序；
-- 普通滚动正文结构继续扁平化，同时 `.ui-entity-card` / `.contract-card` 不被滚动父级无条件扁平化；
-- `content-surfaces.css` 中正文对象卡无毛玻璃、合同对象卡有独立边界，合同摘要指标条无逐项圆角卡片；
+- 普通滚动正文结构继续扁平化，同时 `.ui-entity-card`、`.contract-card` 与 `.asset-auction-card` 不被滚动父级无条件扁平化；
+- `content-surfaces.css` 中正文对象卡无毛玻璃，合同与进行中拍卖对象卡有独立边界，合同摘要指标条无逐项圆角卡片；
 - `PagePanel`、旧 `Panel + widget` 兼容桥以及生产／排行兼容入口继续存在；
 - 已清理页面不恢复旧外层 padding、整页唯一圆角包裹卡、全局建筑退役结构或页面级横向溢出；
-- `tests/browser/contract-attention-background.spec.ts` 验证正常合同与待处理合同保持同一对象卡圆角、待处理警告强调可见、对象卡无 `backdrop-filter`，同时合同摘要指标保持透明且无圆角；
+- `tests/browser/contract-attention-background.spec.ts` 验证正常合同与待处理合同保持同一对象卡圆角、待处理警告强调可见、对象卡无 `backdrop-filter`，同时合同摘要指标保持透明且无圆角；拍卖浏览器回归必须证明 `.asset-auction-card` 继续保留对象边界且无正文毛玻璃；
 - `tests/browser/player-page-geometry.spec.ts` 和市场响应式几何回归继续覆盖真实承载面与跨断点稳定性。
 
 该验证必须加入 `verify:architecture`，防止后续修改重新以滚动状态决定卡片资格、恢复页面专属 inset 或破坏页面安全几何。
