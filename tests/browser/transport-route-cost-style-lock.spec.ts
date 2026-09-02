@@ -46,15 +46,26 @@ test('transport draft line style follows mode and map editor clears desktop and 
   expect(mobilePickingBox!.y + mobilePickingBox!.height).toBeLessThanOrEqual(844 + 1);
 });
 
-test('saved route detail exposes rename and delete but no route editor', async ({ page }) => {
+test('saved route catalogue is a divider list and detail exposes no route editor', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^运输/ }).click();
 
   const firstRoute = page.locator('.transport-route-card').first();
   await expect(firstRoute).toBeVisible();
-  await firstRoute.click();
+  const catalogueVisual = await firstRoute.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      borderRadius: style.borderRadius,
+      borderBottomWidth: style.borderBottomWidth,
+      borderBottomStyle: style.borderBottomStyle,
+    };
+  });
+  expect(catalogueVisual.borderRadius).toBe('0px');
+  expect(catalogueVisual.borderBottomWidth).toBe('1px');
+  expect(catalogueVisual.borderBottomStyle).toBe('solid');
 
+  await firstRoute.click();
   await expect(page.getByLabel('路线名称')).toBeVisible();
   await expect(page.getByRole('button', { name: '保存名称', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '删除路线', exact: true })).toBeVisible();
