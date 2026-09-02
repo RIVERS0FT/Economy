@@ -62,12 +62,12 @@ for (const text of [
 forbidText(stylePath, '--page-section-gap');
 
 for (const text of [
-  '.page-card-scroll .ui-entity-card,',
-  '.page-card-scroll .panel.contract-card {',
+  '.ui-entity-card,',
+  '.panel.contract-card {',
   'background: var(--color-surface-subtle);',
   '-webkit-backdrop-filter: none;',
-  '.page-card-scroll .contract-summary-grid > .ui-metric-card {',
-  '.page-card-scroll .contract-card--attention {',
+  '.contract-summary-grid > .ui-metric-card {',
+  '.panel.contract-card--attention {',
 ]) requireText(scrollingStylePath, text);
 forbidText(scrollingStylePath, '.page-card-scroll .panel,\n.page-card-scroll .ui-primary-surface {');
 
