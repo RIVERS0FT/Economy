@@ -329,51 +329,53 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
   return (
     <PageLayout title="运输">
       <div className="transport-page-content" data-transport-route-index="true">
-        <div className="transport-page-actions">
-          <Button variant="secondary" disabled={!canAddRoute || Boolean(pendingAction)} onClick={beginCreateRoute}>增加路线</Button>
+        <div className="transport-page-index-body">
+          {pendingDraftPanel}
+
+          <section className="transport-page-section transport-routes-panel">
+            {routes.length > 0 ? (
+              <div className="transport-route-grid">
+                {routes.map((route) => {
+                  const activeShipment = activeByRouteId.get(route.id);
+                  const stops = transportRouteStopIds(route);
+                  return (
+                    <button
+                      type="button"
+                      className="transport-route-card ui-entity-card"
+                      key={route.id}
+                      data-route-id={route.id}
+                      data-transport-mode={route.mode}
+                      onClick={() => pageNavigation?.pushPage({ type: 'transport-route', routeId: route.id })}
+                      onMouseEnter={() => setHighlightedRouteStops(stops)}
+                      onMouseLeave={() => setHighlightedRouteStops(null)}
+                      onFocus={() => setHighlightedRouteStops(stops)}
+                      onBlur={() => setHighlightedRouteStops(null)}
+                    >
+                      <div className="transport-route-card-heading">
+                        <strong>{visibleRouteName(route)}</strong>
+                        <StatusTag tone={activeShipment ? 'info' : 'neutral'}>{activeShipment ? '运输中' : '等待发运'}</StatusTag>
+                      </div>
+                      {routePath(route)}
+                      <div className="transport-route-summary-grid">
+                        <span><small>方式</small><strong>{TRANSPORT_MODES[route.mode]?.name ?? route.mode}</strong></span>
+                        <span><small>行程</small><strong>{routeTripLabel(route)}</strong></span>
+                        <span><small>站点</small><strong>{stops.length}</strong></span>
+                        <span><small>建线投入</small><strong>{formatCurrency(Number(route.setupCost || 0))}</strong></span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="transport-empty">暂无运输路线。选择“增加路线”后直接在地图上依次选择站点。</p>
+            )}
+          </section>
         </div>
 
-        {pendingDraftPanel}
-
-        <section className="transport-page-section transport-routes-panel">
-          <WidgetHeading title="运输路线" action={<StatusTag tone="neutral">{routes.length}/{TRANSPORT_MAX_ROUTES_PER_PLAYER}</StatusTag>} />
-          {routes.length > 0 ? (
-            <div className="transport-route-grid">
-              {routes.map((route) => {
-                const activeShipment = activeByRouteId.get(route.id);
-                const stops = transportRouteStopIds(route);
-                return (
-                  <button
-                    type="button"
-                    className="transport-route-card"
-                    key={route.id}
-                    data-route-id={route.id}
-                    data-transport-mode={route.mode}
-                    onClick={() => pageNavigation?.pushPage({ type: 'transport-route', routeId: route.id })}
-                    onMouseEnter={() => setHighlightedRouteStops(stops)}
-                    onMouseLeave={() => setHighlightedRouteStops(null)}
-                    onFocus={() => setHighlightedRouteStops(stops)}
-                    onBlur={() => setHighlightedRouteStops(null)}
-                  >
-                    <div className="transport-route-card-heading">
-                      <strong>{visibleRouteName(route)}</strong>
-                      <StatusTag tone={activeShipment ? 'info' : 'neutral'}>{activeShipment ? '运输中' : '等待发运'}</StatusTag>
-                    </div>
-                    {routePath(route)}
-                    <div className="transport-route-summary-grid">
-                      <span><small>方式</small><strong>{TRANSPORT_MODES[route.mode]?.name ?? route.mode}</strong></span>
-                      <span><small>行程</small><strong>{routeTripLabel(route)}</strong></span>
-                      <span><small>站点</small><strong>{stops.length}</strong></span>
-                      <span><small>建线投入</small><strong>{formatCurrency(Number(route.setupCost || 0))}</strong></span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="transport-empty">暂无运输路线。选择“增加路线”后直接在地图上依次选择站点。</p>
-          )}
-        </section>
+        <div className="transport-page-footer" data-transport-page-footer="true">
+          <StatusTag tone="neutral">{routes.length}/{TRANSPORT_MAX_ROUTES_PER_PLAYER}</StatusTag>
+          <Button variant="secondary" disabled={!canAddRoute || Boolean(pendingAction)} onClick={beginCreateRoute}>增加路线</Button>
+        </div>
       </div>
     </PageLayout>
   );
