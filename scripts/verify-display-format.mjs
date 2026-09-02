@@ -94,7 +94,7 @@ requireText('src/pages/SettingsPage.tsx', [
   '<option value="5">每 5s</option>',
   '<option value="10">每 10s</option>',
 ]);
-requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
+requireText('docs/UI_DESIGN_SYSTEM.md', [
   '只使用小写 `s`、`m`、`h`',
   '所有排名数值统一通过 `formatRank` 显示为 `#N`',
   '恢复中文“秒／分钟／小时”的玩家时长展示',

@@ -98,7 +98,7 @@ requireText('deploy/nginx/game.riversoft.top.economy-location.conf', [
   'alias /var/lib/riversoft-economy-avatars/$avatar_id.webp;',
   'image/webp',
 ]);
-requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
+requireText('docs/UI_DESIGN_SYSTEM.md', [
   '状态栏左侧玩家头像',
   '排行榜玩家列固定复用 `PlayerAvatar`',
   '必须始终保持 `1:1` 正方形',

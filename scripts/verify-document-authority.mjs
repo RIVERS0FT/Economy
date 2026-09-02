@@ -216,6 +216,24 @@ for (const name of designDocs) {
   if (Buffer.byteLength(content, 'utf8') < 200) failures.push(`${path} 内容异常过短，不能作为权威 DESIGN`);
 }
 
+// DESIGN_COMPRESSION_GUARD
+let totalDesignBytes = 0;
+const datedRollbackOwners = [];
+const duplicatedFactoryRuleOwners = [];
+for (const name of designDocs) {
+  const path = `docs/${name}`;
+  if (!existsSync(pathFor(path))) continue;
+  const content = read(path);
+  const bytes = Buffer.byteLength(content, 'utf8');
+  totalDesignBytes += bytes;
+  if (bytes > 128 * 1024) failures.push(`${path} 过大：${bytes} 字节，最多 128 KiB`);
+  if (/^>\s*\d{4}-\d{2}-\d{2}.*不可回退规则/m.test(content)) datedRollbackOwners.push(name);
+  if (content.includes('工厂资产禁止通过市场订单簿直接买卖')) duplicatedFactoryRuleOwners.push(name);
+}
+if (totalDesignBytes > 820 * 1024) failures.push(`全部 DESIGN 过大：${totalDesignBytes} 字节，最多 820 KiB`);
+if (datedRollbackOwners.length) failures.push(`DESIGN 不得保留日期式不可回退横幅: ${datedRollbackOwners.join(', ')}`);
+if (duplicatedFactoryRuleOwners.length > 1) failures.push(`工厂订单簿禁售规则存在多个 DESIGN owner: ${duplicatedFactoryRuleOwners.join(', ')}`);
+
 if (failures.length) {
   console.error(`文档权威性验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);

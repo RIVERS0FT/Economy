@@ -102,24 +102,8 @@ for (const text of [
 ]) forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
-  '一级“建筑”全局页只保留全局工厂目录',
-  '页面内容区不得显示独立“地区建筑”卡片或直接地区入口',
-  '统一表头固定为“工厂｜平均利润／分钟｜拥有”',
-  '场景插画固定使用圆角正方形裁剪',
-  '全局工厂条目只有第一行原数据区域作为进入该工厂类型地区列表的主交互面',
-  '第二行显示“当前生产产物”和“当前作业制度”两个方形生产方案槽',
-  '两个方案槽必须直接复用建筑详情页 `FacilityProductionProductSelect` / `FacilityProductionMethodSelect` 与 `production-config` 视觉',
-  '地区下钻按钮不得覆盖第二行',
-  '固定使用“地区｜利润／分钟｜拥有｜状态”统一表头',
-  '地区列只显示州级地区全称，不在地区名下方重复显示字母简写',
-  '利润列固定显示该州当前同类工厂的单厂利润／分钟',
-  '地区条目第一行再切换经营州并复用现有 `BuildingsPage` 工厂详情；第二行生产设置只修改该州当前同类工厂集群，不触发页面下钻',
-  '地区工厂列表同步登记为相同的两行高度例外',
-  '第二行与建筑详情页复用同一 `production-config` 生产产物／作业制度方案槽及富内容候选',
-  '返回层级固定为“地区工厂详情 → 该工厂的地区列表 → 全局工厂列表”',
-  '跨州单厂平均利润必须逐州复用同一地区工厂利润口径',
-  '再按 `scope.physicalCount` 对各州单厂利润加权',
-  '任一参与州缺少当前配方所需商品的最近真实成交价时，全局值统一显示 `—`',
+  '正式目录必须按 `complexity` 从 `C1` 到 `C7` 升序排列',
+  '只过滤、不二次排序',
 ]) requireText('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md', text);
 
 for (const text of [

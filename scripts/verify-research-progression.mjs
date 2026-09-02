@@ -129,7 +129,6 @@ const sourceChecks = [
   ['src/api/game.ts', "postAction('/research/start', { technologyId })"],
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '工厂研发准入由具体科技节点决定'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '所有可启动研发任务的基础时长固定为 6h'],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'completedTechnologyIds'],
 ];
 for (const [path, text] of sourceChecks) {
   assert.ok(readFileSync(path, 'utf8').includes(text), `${path} missing ${text}`);

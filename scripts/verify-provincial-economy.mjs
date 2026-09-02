@@ -90,8 +90,8 @@ for (const field of ['capitalName: string;', 'capitalMapName: string;', 'capital
 }
 const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
 assert.ok(productDesign.includes('中文首府名称、英文首府名称与首府经纬度'), '产品权威文档必须登记州首府位置字段');
-const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
-assert.ok(serverDesign.includes('州中心与首府中英文名称及经纬度'), '服务器架构权威必须登记共享目录首府位置数据');
+// 首府字段属于共享正式目录的运行事实，上面的 PROVINCE_CATALOG 与 ProvinceDefinition 断言直接验证，
+// 不要求服务器架构 DESIGN 复制字段清单。
 const docsIndex = read('docs/README.md');
 assert.ok(docsIndex.includes('`UI_DESIGN_SYSTEM.md`') && docsIndex.includes('州级中文短名'), '设计索引必须将州级中文短名路由到 UI DESIGN owner');
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');

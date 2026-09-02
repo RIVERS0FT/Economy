@@ -18,7 +18,7 @@ const paths = {
   main: 'src/main.tsx',
   finalLayout: 'src/styles/global-facility-narrow.css',
   sharedLayout: 'src/styles/global-operation-pages.css',
-  design: 'docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md',
+  design: 'docs/UI_DESIGN_SYSTEM.md',
   browser: 'tests/browser/facility-catalog-layout.spec.ts',
   selector: 'scripts/select-ci-tests.mjs',
   runner: 'scripts/verify-ui-architecture-runner.mjs',

@@ -19,7 +19,6 @@ const contractAuditCss = read('src/styles/contract-audit.css');
 const serverTests = read('server/test/contract-audit.test.js');
 const browserTests = read('tests/browser/contract-layout.spec.ts');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
-const industryDesign = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
 const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 const docsIndex = read('docs/README.md');
 
@@ -67,10 +66,8 @@ includesAll(serverTests, [
 includesAll(browserTests, ['mockContractAudit', '合同内容', '结束统计', '重新拟定', '.contract-history-result-grid'], 'contract history browser tests');
 assert.ok(!browserTests.includes("page.locator('.contract-audit-timeline')).toBeVisible()"), 'browser tests must not restore visible audit timelines');
 
-for (const [label, content] of [['industry design', industryDesign], ['server design', serverDesign]]) {
-  assert.ok(content.includes('合同审计'), `${label} must define contract audit rules`);
-}
-includesAll(docsIndex, ['`INDUSTRY_AND_PRODUCTION_DESIGN.md`', '`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`', '`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`'], 'contract audit design routing');
+assert.ok(serverDesign.includes('合同审计'), 'server design must define contract audit authority');
+includesAll(docsIndex, ['`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`', '`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`'], 'contract audit design routing');
 includesAll(serverDesign, ['economy_contract_audit_contracts', 'economy_contract_audit_events', 'economy_contract_audit_transfers', '/api/game/contracts/history', '/api/game/contracts/:contractId/audit', '终态摘要'], 'server contract audit design');
 includesAll(serverDesign, ['合同实际参与者访问', '放贷、贷款、出租、租赁', '第三方不可见'], 'contract audit participant visibility design');
 includesAll(pageDesign, ['单张一级', 'PagePanel', '合同内容、结束原因、结束时间、完成事实、结束统计', '重新拟定', '不加载审计事件时间线'], 'page contract history design');

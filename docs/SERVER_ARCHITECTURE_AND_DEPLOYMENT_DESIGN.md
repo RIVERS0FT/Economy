@@ -1,22 +1,10 @@
 # Economy 服务器架构与部署设计
 
-> 2026-08-30 不可回退规则：工厂资产禁止通过市场订单簿直接买卖，新的工厂所有权转移只能通过拍卖完成；建筑详情与市场不得提供工厂直售入口或从属工厂交易页。旧未完成工厂订单在迁移时自动撤销并释放冻结资产；已结束历史订单／历史行情只可用于兼容、审计或估值，不得重新成为业务入口。
-
-> 状态：当前服务器、API、持久化和部署基线
-> 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-09-02
-> 客户端状态版本：39
-> 世界状态版本：32
-> 市场需求模型版本：20
-
-> 模型 20 在世界加载事务内释放模型 19 及更早人口消费订单的真实冻结资金并重建州级系统需求；市场储备通过既有重建流程归还冻结资金与库存，玩家订单、真实历史成交和所有存量资产数量保持不变。州级官方经济基准是随代码发布的只读快照，不在世界加载或需求热路径访问外部 API。
-
 > 州级运行时兼容别名的全量安装只允许在世界冷加载／迁移或同一 record 首次访问时执行一次；同一 `markets`／`facilityMarkets`／玩家 `inventories` record 的后续热查询必须复用已安装别名与迁移结果。运行时新增或删除默认州的单个 scoped 键时，只允许同步该资产对应的兼容别名，不得重新扫描整份 record。48 州需求周期会高频查询州级市场与库存，重复 O(州数 × 商品数) 属性扫描会阻塞 Node 事件循环并让正常 API 穿透 Nginx 30 秒超时。
 
 > 生产文件同步必须同时受 deploy Job 20 分钟整体上限、单次 rsync 300 秒外层上限、60 秒 I/O 无进展上限与 SSH keepalive 约束；任一边界触发必须失败并保留步骤日志，不得让生产部署无限挂起。
 
 ## 1. 权威边界
-
 
 市场储备不是玩家。服务器不得通过 `userId = 0`、负数 ID 或隐藏玩家档案模拟储备主体；储备采购合同使用 `publisherType = market_reserve` 与内部 `marketReserveGroupId`，储备清仓拍卖使用 `sellerType = market_reserve` 与同一需求组 ID，所有资金和商品直接结算到 `marketDemand.liquidity.groups` 的真实储备账户。普通玩家索引、排行榜、仓库、玩家统计和登录身份不得出现储备伪账号。
 
@@ -43,55 +31,13 @@
 
 周期轮询、动作响应权威增量、六分区补丁和权威截止时间确认只负责传输服务器权威状态，不承担客户端选择、表单草稿、弹层、焦点或滚动位置的初始化和重置职责。客户端可以基于稳定实体 ID 保留交互状态；服务器只在实体删除、权限变化或动作确认中返回足以判定失效与冲突的权威数据，不通过刷新频率隐式驱动界面默认值。
 
-## 2. 领域模块
+## 2. 领域边界
 
-- `domain-core.js`：商品目录、工厂目录、世界和玩家基础结构、商品订单与市场核心；
-- `provinces.js`：美国本土连续 48 个州级地区共享目录（含州中心与首府中英文名称及经纬度）、地区规范化、`provinceId:assetId` 权威键、世界 30 迁移与默认地区运行时兼容别名；
-- `state-economic-baselines.js`：校验 `shared/us-state-economic-baselines.json` 与 48 州目录一一对应，提供 Census 2025-07-01 人口、BLS QCEW 2025-Q4 平均周薪和 BEA 2023 PCE 只读基准，并只对已有玩家经营入口的州生成 PCE 消费分配权重；运行时不得访问外部统计 API；
-- `domain.js`：唯一公共领域门面，其他服务器模块只从此导入公共能力；
-- `player-action-registry.js`：普通玩家可达 Action 的统一元数据注册表，唯一声明限流类别、显式 Mutation Scope、确认语义、延迟等级／预算、公开路由状态与订单 execution 白名单；路由、运行时 COW、请求监控和防回退验证共同读取该注册表；
-- `facility-groups.js`：工厂集群、统一周期、配方切换和工厂订单适配；
-- `facility-auto-procure.js`：即时建厂缺料预检、真实商品卖盘价格保护、资金校验、事务内 FOK 采购，以及卖盘不足时按单次建造批量创建／取消正式商品买单的编排；
-- `factory-auto-operation.js`：玩家可编辑的地区＋工厂类型经营意图、默认策略、当前生产配置聚合、商品执行策略派生，以及策略变化时对统一商品托管订单的安全重建；
-- `online-auto-trade-reservations.js`：商品自动采购／出售执行共享的生产预定与供货合同可用保留计算；
-- `online-auto-trade-policy.js`：商品执行兼容镜像的原子写入与既有托管订单撤销／冻结释放；它不再是玩家经营意图来源；
-- `online-auto-buy-policy.js`、`online-auto-buy-orders.js`、`online-auto-buy.js`：商品执行兼容状态、私有真实买单关联、资金释放与在线买单重平衡；服务器执行时必须重新从工厂自动经营策略派生当前买入边界；
-- `online-auto-sell-policy.js`、`online-auto-sell-orders.js`、`online-auto-sell.js`：商品执行兼容状态、私有真实卖单关联、库存释放与在线卖单重平衡；服务器执行时必须重新从工厂自动经营策略派生当前卖出边界；
-- `research.js`：产业科技节点研发、旧等级与资产承诺迁移、就业进度释放、具体科技准入校验、研发宝石加速、客户端状态与最近调度截止时间；
-- `order-matching.js`：商品与工厂共用的价格优先、同价时间优先、maker price、部分成交、订单状态推进、逐笔 fill 与手续费结算编排；
-- `order-book-runtime.js`：按资产、方向、价格、时间和原数组顺序建立的事务内订单簿派生索引，以及玩家普通订单计数、自动交易托管订单配额豁免、工厂卖单冻结和需求组订单查询；
-- `order-book-integrity.js`：玩家自交叉阻断与系统盘口完整性；
-- `warehouse.js`：无限共享仓库真实库存汇总、工厂自动经营策略、由工厂策略派生的商品执行状态和私有托管订单关联的客户端投影；
-- `asset-auctions.js`：商品／工厂单项与捆绑资产拍卖、世界 15／21 迁移、发布费托管、保留价、最低加价、匿名竞价、截止延时、费用结算与原子资产转移；
-- `auction-audit-store.js`：拍卖发布、有效出价、被超价退款、截止延时、取消、流拍、收费、退款和成交的追加式 SQLite 事件、最近 10 条匿名出价查询与同事务审计写入；
-- `unified-contracts.js`：三类合同的统一运行门面和新旧商品合同分流；`daily-supply-contracts.js` 权威维护玩家新发布的地区化每日额度商品合同与结构化议价；`contracts.js` 仅保留旧商品合同、市场储备合同和历史兼容，旧合同 schema 10 同时维护“宽限结束只确认违约 → 已违约待解除 → 受偿方主动解除/领取”的两阶段违约状态机；
-- `commercial-contracts.js`：玩家抵押借贷与工厂使用权租赁的条款、承接、结算、宽限和违约处置；
-- `contract-asset-locks.js`：贷款抵押、出租与租入数量和玩家贷款应收／负债的无副作用派生；
-- `contract-runtime-index.js`：旧有限批次／市场储备合同的合同 ID、公开／进行中数量、参与者集合、采购方下一批仓库预占和最近到期时间的事务内派生索引；每日额度合同不建立“下一批”仓库预占；
-- `contract-audit-store.js`：合同摘要、追加式事件、资产转移、旧合同部分完整导入、参与者分页查询和同事务审计写入；
-- `banking.js`：银行账户、存取款、工厂抵押、贷款评估、放款与还款、已实现贷款利息分配、每日最低余额结息、宽限和违约处置；
-- `invitations.js`：邀请码、邀请关系、同 IP 异常上报、邀请阻断与管理员封禁；
-- `daily-check-in.js`：北京时间自然日／自然周、每日签到、全勤资格和状态摘要；
-- `gem-shop.js`：每日动态终端报价纯函数、汇率边界和宝石兑换摘要；
-- `gem-economy-store.js`：每日汇率、玩家接受／拒绝、实际兑换、研发宝石加速审计与历史施工宝石加速只读表；
-- `market-sell-fee.js`：单张玩家卖单和单份合同累计成交额 1% 手续费的唯一纯函数；
-- `population-economy.js`：三类人口真实钱包、生产复杂度岗位、固定建造业岗位、即时建造业就业收入、市场服务与银行服务就业、收入 EMA、五档消费状态和整数资金分配；
-- `balanced-market.js`：模型 10 的人口消费、派生流动性、稳定需求补充、市场储备双边订单、价格压力、官方系统价实时清算与五分钟价格周期；
-- `registration.js`：邮箱验证码注册、统一账号、首次 Economy 建档和邀请归因；
-- `account-registration.js`：主页已登录账号首次进入 Economy 时的共用建档入口；
-- `ip-bans.js`：注册 IP 指纹、同 IP 异常上报与管理员手动封禁边界；
-- `storage.js`：SQLite、事务、修订号、幂等响应、礼品码、商店流水与管理员查询；
-- `runtime-store-core.js`：合同动作、人口政策、存档世代投影隔离、管理员运行时能力与现有持久化扩展的主体实现；
-- `runtime-store.js`：正式运行时热路径编排层，负责已提交世界缓存、请求草稿创建、调度 barrier 与权威写入准入；
-- `save-deletion.js`：可重复玩家存档删除预检、共享关系阻断、自动关闭、重新初始化、追加式审计与旧标签页世代防护；
-- `state-partitions.js`：目录、玩家、市场、拍卖、合同和排行榜六个状态分区、分区哈希、动作权威增量交付与分区修订协商；
-- `server/shared/economy-state-version.js`：当前客户端状态版本与最低兼容版本的唯一来源；
-- `game-routes.js`：普通游戏动作路由；
-- `app.js`：HTTP、会话、限流、客户端状态和管理员 API；
-- `leaderboards.js`：排行榜唯一实现。
-- `player-admin-statistics.js`：管理员玩家运营统计、精确日活动覆盖、首次里程碑、财富分布和只读运营诊断。
-
-`domain-core.js` 不得成为跨模块公共入口；目录、世界迁移和订单函数统一从 `domain.js` 导出。商品初始参考价、生产参数和复杂度只维护在服务器目录中，客户端和市场模块不得复制第二套正式数值。
+- `domain.js` 是服务器领域公共门面；普通玩家可达 Action 的限流、Mutation Scope、确认语义和延迟预算由统一 Action 注册表声明。
+- 市场、生产、仓库与运输、拍卖、合同、银行、研发、邀请／礼品码、人口需求分别由领域模块实现，但模块文件名和函数清单属于代码运行事实，不在 DESIGN 维护副本。
+- 追加式审计与 SQLite 持久化属于服务器权威实现；任何资产变化必须与对应事务和审计原子一致。
+- API、周期调度、状态投影和缓存只能传输或推进服务器权威状态，不得成为第二套业务规则来源。
+- 玩家可见业务资格和经济语义引用对应玩法 DESIGN；服务器只负责权威校验、事务、存储、容量和安全边界。
 
 ## 3. SQLite 持久化
 
@@ -259,20 +205,6 @@ V2 热保存不得做完整世界 `isDeepStrictEqual`、完整世界 `JSON.strin
 
 ### 5.2 邮箱验证码
 
-- `economy_email_verifications` 保存请求幂等键、邮箱、验证码 HMAC、IP 指纹、有效期、错误次数、投递状态、使用状态和完成账号；不得保存验证码明文。
-- `economy_registrations` 以统一账号 ID 为主键，保存首次玩家档案创建时的邮箱、注册 IP 指纹、完成时间和来源。
-- `economy_invite_codes`、`economy_invitation_relations`、`economy_daily_check_ins`、`economy_gem_ledger`、`economy_gem_shop_daily_rates`、`economy_gem_shop_quote_decisions`、`economy_gem_shop_exchanges`、`economy_facility_gem_actions`、`economy_ip_ban_incidents`、`economy_ip_ban_members`、`economy_account_bans` 与 `economy_ban_audit` 是邀请、宝石兑换和封禁的权威业务表。
-- 生成验证码记录和调用 Resend 前，Economy 必须通过主页账号服务仅限同机回环的 `POST /api/internal/account-email-exists` 查询邮箱是否已经注册。已注册邮箱返回 `409` 和“该邮箱已注册，请直接登录”，不得创建 `economy_email_verifications` 记录，也不得发送邮件；查询失败时返回统一账号服务不可用，不得绕过查重继续投递。
-- 验证码固定为 6 位数字，有效期 10 分钟；同一邮箱或同一 IP 指纹 60 秒内禁止再次发送。
-- 验证码错误 5 次后状态变为不可用；过期、已使用或作废验证码不能重复使用。
-- 验证码终态记录保留 30 天；注册请求触发的清理任务最多每小时执行一次，先将已过期的 `pending`／`sent` 标记为 `expired`，再删除超过保留期的 `failed`、`expired`、`invalid` 和 `used` 记录。未过期活动验证码和永久注册记录不得删除。
-- 发送 IP 和提交 IP 的指纹必须一致，否则拒绝完成注册。
-- 发送与完成接口都要求 `Idempotency-Key`；同一完成请求重试只能返回同一个统一账号、玩家档案、邀请关系和宝石结果，不得重复创建或发放。
-- `server/src/email.js` 只使用 Resend HTTP API，超时固定 8 秒，并向 Resend 发送稳定幂等键。
-- 生产日志不得打印验证码、`RESEND_API_KEY`、注册秘密、注册 IP 明文或邮件请求正文。
-- 统一账号创建顺序为先调用主页 `/api/register`；邮箱已存在时再调用 `/api/login`。成功响应的会话 Cookie 转发给 Economy 浏览器会话。
-- 生产验证码投递必须同时配置 `RESEND_API_KEY` 与 `EMAIL_FROM`。`EMAIL_FROM` 是唯一正式发件人变量名，不使用旧名称。缺少任一项时接口返回 `424` 和“邮箱验证码服务未配置，请联系管理员”，不得把配置缺失伪装成整个游戏服务器故障；Resend 超时、拒绝或无效响应继续返回通用 `503`，不得向客户端泄露供应商响应正文。
-
 ## 6. 注册、密码重置与游戏 API
 
 注册公网前缀 `/economy-api/registration/`，内部前缀 `/api/registration/`。
@@ -364,8 +296,6 @@ QQ群入口与经济世界快照分离，保存在 `economy_settings`，修改�
 
 ### 6.3 长期生产合作合同事务
 
-`server/src/unified-contracts.js` 是合同统一运行门面：`daily-supply-contracts.js` 负责玩家新发布的地区化每日额度商品采购／供应合同，`contracts.js` 只保留旧有限批次商品合同、市场储备固定条款合同及其历史兼容，`commercial-contracts.js` 继续负责玩家抵押借贷与工厂使用权租赁。三类合同领域仍固定为商品供货 `supply`、玩家抵押借贷 `loan` 和工厂使用权租赁 `facility_lease`；六类玩家名称只表示发布方向。客户端与 API 的合同时间统一以天表达：商品合同使用 `durationDays + startDelayDays`，借贷使用 0.5／1／3 天期限，租赁租金周期使用 1/24／1/8／1/4／0.5／1 天并以天表达首次生效延迟；服务端内部仍可把借贷／租赁日数兼容换算为既有绝对毫秒截止时间，倒计时权威规则不变。玩家新发布的商品合同必须指定 `provinceId + productId`、固定 `unitPrice` 与 `dailyMaxQuantity`；`durationDays = null` 是长期合同的唯一表示。每日额度按北京时间自然日惰性重置，未使用额度不累计，采购方只为实际取得数量支付固定价；20% 双方保证金以“固定价 × 每日最大供应量”为基准，当日货款和商品只按当日剩余额度托管／预留。有限每日合同到期正常释放资产；长期合同可以申请当前自然日结束后正常终止，不使用续签。旧有限批次商品合同保持原语义直至结束，不强制迁移；所有已存在的旧玩家商品合同（含旧长期合同）保持原语义直至结束，不强制转换为每日额度；旧玩家商品合同协议中 `totalDeliveries` 允许为 2～100 的整数或 `null`，其中 `null` 继续表示旧长期合同，旧长期合同不接受续签；市场储备固定条款合同继续保留有限批次机制。
-
 每日额度商品合同直接参与权威生产输入择源，但不创建第二套库存或订单系统。每次正式生产结算前，服务器按工厂所在 `provinceId + productId` 计算当次真实投入需求，并读取同地区统一商品订单簿完成该需求所需的边际可执行卖价；只有 `contract.unitPrice < executableMarketPrice` 时才按固定价从最低价有效采购合同开始消费当日剩余额度，随后使用本地仓库，仍不足时复用统一订单簿即时采购与现有经济回滚边界。市场不比合同贵时不主动消费较贵合同，直接使用本地仓库并只为仓库缺口采购市场。供应合同的自动商品预留可以使用供应方私有 `minDailyProduction + minContractPrice` 条件；当日真实产量只由正式生产结算后的产出增量派生，多个符合条件合同按合同价高者、承接早者、合同 ID 排序。所有合同货物、市场补购与生产扣料均严格地区隔离。客户端状态版本继续使用共享当前协议版本、世界状态版本继续为 32；本次合同字段通过兼容别名与现有分区增量投影交付，不单独扩大客户端兼容窗口。
 
 每日额度商品合同承接时，采购方和供应方分别冻结“固定价格 × 每日最大供应量”的 20% 履约保证金；采购方自动补款和供应方自动准备只为当前北京时间自然日剩余额度冻结真实货款／商品，不能透支未来资金、未来产量或其他地区库存。合同实际使用可以小于每日额度，并按每次真实取得数量即时转移同地区商品、扣除固定价货款和累计 1% 卖方市场服务费；未用满额度本身不是违约。跨日时先释放上一日未使用货款和商品预留，再把 `dailyUsedQuantity` 归零并按自动设置准备新一天。
@@ -432,35 +362,6 @@ QQ群入口与经济世界快照分离，保存在 `economy_settings`，修改�
 
 ## 8. Node、systemd 与部署权限
 
-- GitHub Actions 固定使用 Node 24.4.0 构建和测试；根依赖必须使用精确版本并提交 `package-lock.json`，CI 和 Deploy 均启用 `setup-node` 的 npm 下载缓存但仍固定使用 `npm ci`，不得恢复 `latest`、范围依赖或无锁安装。
-- `.github/workflows/ci.yml` 是唯一 CI 工作流：PR 与非 `main` push 默认使用改动文件选择器。非 `main` push 以分支真实头提交相对最新 `main` 的 merge-base 计算完整分支差异并在真实头提交上执行；`pull_request` 以 base/head 计算改动文件，同时在 GitHub 合并快照上执行所选验证，覆盖与最新 `main` 的集成结果。两类事件使用既有独立并发键，各自只保留该事件最新运行；不保留第二个重复的 PR Web Build 工作流，也不得用手工成功状态替代任一真实检查。
-- 改动文件选择规则唯一维护在 `scripts/select-ci-tests.mjs`：直接修改 verify、server test 或 Playwright spec 时必须执行对应检查；前端源码至少重新生成免登录预览状态、执行 TypeScript 与 Vite 生产构建并选择同领域 verify／浏览器测试，服务端源码至少执行服务器语法检查并选择同领域 verify／server test，纯设计文档执行文档权威性检查。单一商品目录变更必须归入独立 `product-catalog` targeted 域，覆盖产业目录、生产制度、研发、预览生成、商品美术验证与全页面预览浏览器基线，不得仅因商品显示名变化升级为完整验证或叠加市场、建筑、研发三个大域。商品目录域与建筑域的 targeted checks 必须分别先生成商品与工厂运行时缩略图，使干净检出不依赖本地已有的忽略产物；前端完整生成入口继续统一生成两类缩略图。targeted 计划只要选中的 verifier 直接导入外部 npm 包，就必须标记依赖安装并执行 `npm ci`，不得假定 GitHub Runner 已有 `node_modules`。依赖、构建／测试配置、CI 工作流、共享客户端入口、共享状态／存储／领域核心、选择器自身等高影响路径必须直接升级为完整验证；任何无法分类的源码改动必须退化为完整验证，禁止以“没有匹配测试”为成功结果。`main` 是唯一自动无条件执行完整 `npm run build` 与完整 Playwright 的分支；人工 `workflow_dispatch` 可以显式请求完整 CI，高风险 PR／分支也只作为保守兜底升级为完整验证。
-- `pull_request` 运行必须包含只读 `verify-head-ci-registration` Job，确认同一 head SHA 的非 `main` push Economy CI 已注册；该 Job 只允许读取 Actions 元数据，不得写入 commit status、check run 或分支内容，也不得替代头提交 `build` 或合并快照 `build`。
-- `main` 分支由 `.github/workflows/deploy.yml` 对实际待部署提交重新执行完整验证，但完整 `npm run build` 与完整 Playwright 浏览器回归必须作为并行硬门禁，不得重新串行塞回生产部署 Job：独立 `build` Job 执行完整 `npm run build`，独立 `browser-test` Job 固定以四个 shard 覆盖同一完整 `npm run test:browser` 集合并使用 `fail-fast: false` 保留其他 shard 的失败诊断；生产 `deploy` Job 必须同时 `needs` 两者，任一验证失败都不得进入数据库备份、文件上传或服务变更，并写入 `deploy/economy` 失败状态。全部验证成功后，`deploy` Job 只允许从同一 `GITHUB_SHA` 重新执行运行时美术与免登录预览状态生成、TypeScript 检查与 Vite 生产构建来生成待发布 `dist`；这一步只生成同源发布产物，不得替代或重复完整 `npm run build`／Playwright 门禁。浏览器运行时准备必须优先探测 GitHub runner 已有的 `google-chrome`／`google-chrome-stable`／`chromium`／`chromium-browser`，命中后通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 交给 Playwright；只有全部本地候选都不存在时才允许调用固定 Playwright Chromium 下载。浏览器 CDN 不得成为主部署的必需单点依赖，也不得以 CDN 地域不可达、403 或临时故障为理由跳过浏览器测试。正式部署的 SSH 初始化不得依赖单次 `ssh-keyscan`：新 runner 必须使用部署私钥执行真实只读认证预检，以 `StrictHostKeyChecking=accept-new` 仅接受首次未知主机密钥、继续拒绝同一 runner 内发生变化的主机密钥，并使用 `BatchMode=yes`、15 秒连接超时最多尝试 5 次、失败尝试之间等待 5 秒。全部预检失败时必须在数据库备份、文件上传和服务变更之前终止，保留 `economy-ssh.log` 的实际 SSH 诊断；预检成功后由同一 `known_hosts` 约束本次部署余下所有 SSH/rsync 连接。
-- `game.riversoft.top` 公网链路暂时不可用期间，正式生产公网 IPv4 由 `.github/workflows/deploy.yml` 顶层唯一常量 `ECONOMY_PRODUCTION_PUBLIC_IP=116.204.134.56` 定义；SSH、IP 证书、临时 Nginx 入口和 Deploy 外部验收必须全部读取该值，不得继续使用独立 `SERVER_HOST` Secret，也不得在脚本中维护第二个独立 IP 常量。`scripts/configure-economy-ip-fallback-nginx.py` 只接受该生产公网 IPv4 作为唯一命令行参数，并拒绝域名、私网／回环或非 IPv4 地址；不得通过关闭主页账号服务 `COOKIE_SECURE=true`、降低 Cookie 安全属性、修改 Economy `PUBLIC_ORIGIN` 或放宽服务端来源白名单来支持明文 HTTP。首次安装先只为该 IP 建立 80 端口 ACME challenge 路由，其余请求返回不可用；使用固定 Certbot 5.4.0、`webroot`、`--preferred-profile shortlived` 与动态 `--ip-address` 获取受信任 IP 证书后，80 端口除 challenge 外全部 `308` 到 HTTPS。HTTPS IP 虚拟主机必须镜像客户端所需的同源账号路由，复用 `/economy/`、`/economy/assets/`、账号登录／会话／退出、`/economy-api/game/`、`/economy-api/registration/` 与 `/economy-api/password-reset/`；向内部账号和 Economy 服务继续发送正式 `X-Forwarded-Proto=https` 与正式域名 Host，IP 入口只在反向代理边界清除浏览器 `Origin`，保留 `Sec-Fetch-Site` 让现有同源／same-site 防护继续拒绝跨站请求。短期 IP 证书由 `riversoft-economy-ip-cert-renew.timer` 每 6 小时检查续签并在成功续签后 reload Nginx；Deploy 外部验收必须直接使用由该唯一常量构造的受信任 HTTPS IP Origin 且不得加 `-k`，同时确认 80→443 重定向、动态证书文件、续签 timer、网页、账号代理、未登录游戏 401、登录参数 400、注册参数 400 与密码重置参数 400。服务器本机仍必须以 `Host: game.riversoft.top` 验证正式域名 Nginx 路由，禁止因为临时 IP 入口删除、改名或弱化正式域名配置。公网域名恢复后，必须先独立验证 `https://game.riversoft.top/economy/` 及账号／游戏／登录／注册 API，再把 Deploy 外部验收切回正式域名并删除临时 IP 虚拟主机、续签 timer 和专用短期证书。
-- 正式 SQLite 必须保持 `auto_vacuum=INCREMENTAL`。从 `NONE` 迁移只能由受控维护执行停服、WAL 收口、`VACUUM INTO`、逻辑哈希校验、原子替换与失败回滚；普通玩家事务不得执行 `incremental_vacuum`。每周一北京时间 02:30 的维护只在可回收空间不少于 64 MiB 且 freelist 比例不少于 25% 时运行，每批固定 1,024 页、单次最多四批。维护互斥锁在 Linux 正式环境使用 `fcntl.flock`，Windows 本地行为验证使用等价的 `msvcrt.locking`，不得因测试平台差异绕过互斥。
-- 分段存储 V2 首次迁移前必须创建 `economy-pre-storage-v2` 紧凑 gzip SQLite 快照；部署备份以 `economy_world_meta.storage_schema_version` 判断是否已经完成 V2，schema 小于 2 或表不存在时必须备份，schema 已为 2 时跳过重复的 V2 迁移备份。该备份覆盖完整 SQLite 文件，回滚到 V1 二进制时必须同时恢复迁移前数据库快照，禁止仅回滚服务代码后读取已经停止更新的旧 `economy_world.state_json`。后续世界版本迁移若需要独立快照，必须再以对应世界版本建立新的迁移族，不得复用 V2 存储迁移族。
-- 正式 SQLite 迁移备份按文件名中的迁移族统一管理：每个迁移族只保留最新一份紧凑 gzip SQLite 快照，最多保留最近 5 个迁移族。备份统一以 `VACUUM INTO` 消除 freelist，完成 `quick_check`、外键和模式校验后使用 gzip 级别 6 流式压缩并校验解压哈希；解压后的 `auto_vacuum` 必须保持 `INCREMENTAL`。部署必须先执行全局备份清理，再判断是否需要创建当前迁移备份；版本已经满足目标时也不得跳过清理。备份工具必须在删除临时 SQLite 前显式关闭全部连接；所有权变更和目录 `fsync` 只在操作系统支持时执行，使 Windows 本地行为验证与 Linux 正式部署共用同一实现。不得删除正式数据库、注册 HMAC 秘密或运行中的权威状态。
-- 创建新迁移备份前，可用空间必须至少为预计有效数据两倍再加 512 MiB 余量；不得按包含 freelist 的历史高水位主文件大小要求第二份同等空间。上传前 `/var/www/game` 所在文件系统可用空间不得低于 1 GiB。空间不足必须在写入发布文件前明确失败。API 代码继续使用 `rsync --delete-before` 完整替换，但同步 `server/` 时必须排除 `runtime/`；便携 Node 运行时先以当前固定 `setup-node` 的精确版本和 `require("node:sqlite")` 对服务器现有 `/var/www/game/economy-api/runtime/bin/node` 做只读校验，完全匹配时必须复用且不得重新下载或上传，缺失、版本不匹配或能力检查失败时才下载匹配架构的官方运行时并对 `runtime/` 使用 `rsync --delete-before` 完整替换。网站发布必须把 `dist/assets/` 以只增加方式先同步，其他非哈希文件使用排除 `assets/` 与 `index.html` 的受控删除同步。服务安装、Nginx 路由和缓存验证全部成功后，才允许上传临时入口并最后原子替换 `index.html`。旧哈希资源至少保留 400 天，再按最后修改时间清理，使其长于浏览器 365 天不可变缓存；部署过程中不得立即删除仍可能被旧标签页引用的 JavaScript、CSS、图片或字体。
-- 浏览器运行时测试使用固定 Playwright 版本；需要浏览器验证的增量 CI 与主部署必须优先复用 GitHub hosted runner 已安装的 Chrome／Chromium，并通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 交给 Playwright，仅在 runner 没有可用浏览器时下载固定 Playwright Chromium。浏览器 CDN 不得成为 CI 或部署的必需单点依赖；只要选择器要求浏览器验证，`npm run test:browser` 就必须继续作为硬门禁，`main` 主部署始终执行完整浏览器回归。浏览器回归至少覆盖 localStorage 拒绝访问仍能渲染、正式设置控件存在以及无效设置控件不存在；测试 artifact 只在失败时上传并保留 3 天，完整标准输出继续保存在 Actions job log。
-- 部署中的每个 shell 命令步骤必须把标准输出和标准错误保存到独立临时日志；任一步失败时只把该失败步骤的完整命令输出复制到 `economy-deploy-failure-<run>-<attempt>` Artifact，成功步骤日志不得上传。Artifact 保留 3 天并使用文本高压缩；完整失败输出不得依赖可能被截断的 job log，也不得再为单次构建失败创建临时诊断工作流。
-- 主部署线上验收固定拆分为发布前远端验收和发布后公网验收：远端验收必须在原子替换 `index.html` 前确认 Node runtime、API health、正式域名本机 Nginx、当前入口、注册秘密、生产 IP 证书、续签 timer 和 SQLite `auto_vacuum=INCREMENTAL`／`quick_check`；全部通过后才允许发布新入口。公网验收在发布后从 GitHub Runner 直接检查生产 IP 的 80→443、受信任 HTTPS 页面、账号代理、未登录游戏 401、登录参数 400、注册参数 400 与密码重置参数 400。两阶段统一由 `scripts/verify-production-deployment.sh` 执行，每个检查必须输出稳定的 `ECONOMY_DEPLOY_VERIFY_START`／`OK`／`FAILED` 检查名，未包装的意外错误也必须由 trap 输出当前检查名和退出码，不得再以无说明的 `exit 1` 结束。
-- 发布后公网验收除生产 IP 外，还必须检查正式域名页面、exact health 2xx 与未登录游戏 API 401；不得把仅 IP fallback 可用视为正式入口发布成功。
-- 发布前远端的生产 IP 证书验收不得由非 root 的 `deploy` 用户直接读取 `/etc/letsencrypt/live/` 下的证书或私钥路径，也不得为验收扩大证书文件权限或部署账号权限；`scripts/configure-economy-ip-fallback-nginx.py` 仍在 root 配置阶段确认 Certbot 已生成证书文件。远端验收必须通过 Nginx 实际 TLS 行为确认该证书：使用生产公网 IP 作为 URL／TLS 身份，以 `--connect-to` 把 TCP 连接固定到 `127.0.0.1:443`，禁用环境代理并保持系统正常证书校验，不得使用 `-k`／`--insecure`；发布后的公网验收继续从 GitHub Runner 直接访问生产 IP，形成本机证书服务与真实公网链路两层验证。
-- 两阶段验收日志必须通过 `set -o pipefail` 与同步 `tee` 在步骤退出前完整落盘，失败 Artifact 只收集真实失败步骤及其派生摘要。`deploy/economy` 失败状态的 description 只能读取该次失败步骤生成的 `economy-failure-summary.txt`，优先使用稳定 `ECONOMY_DEPLOY_VERIFY_FAILED`／明确失败标记，禁止重新扫描或拼接成功步骤日志来猜测失败原因。
-- 部署工作流只在运行器缺少 `rsync` 时执行 APT 安装，不得每次无条件更新软件包索引。
-- 服务器缺少精确匹配的 Node 运行时或 `node:sqlite` 校验失败时，部署包必须携带匹配架构的官方 Node 运行时；已通过精确校验时复用服务器现有运行时。
-- 服务端 Node 最低版本 `22.16.0`，必须支持 `node:sqlite`；构建工具链固定在 Node 24.4.0。
-- systemd 首选可执行文件：`/var/www/game/economy-api/runtime/bin/node`。
-- systemd 服务单元固定为 `riversoft-economy-api.service`。
-- 服务不得以 root 运行。
-- 安装脚本在 `/var/lib/riversoft-economy/registration-secret` 首次生成持久注册 HMAC 秘密，权限固定为服务用户 `0600`，部署不得覆盖。该秘密同时用于验证码、邀请码确定性生成和注册 IP 指纹。
-- systemd 先加载共享 `/etc/riversoft-email.env`，再加载 `/etc/riversoft-economy-api.env`。共享文件先加载，Economy 专用文件后加载；专用文件中的同名变量可以覆盖共享值。
-- 两个环境文件均为可选，但运行进程最终必须同时具有非空 `RESEND_API_KEY` 与 `EMAIL_FROM` 才能标记验证码可用；文件不得提交到仓库或打印到日志。
-- 邮件密钥只保存在服务器。GitHub Actions 不保存、不上传也不改写 `RESEND_API_KEY` 或 `EMAIL_FROM`。
-- `.github/workflows/configure-registration-email.yml` 在主部署成功后运行。主部署已负责重写 systemd 单元并重启服务；邮件配置工作流不得再次读取 root-only 环境文件或重启服务。
-- 配置工作流必须以服务用户读取运行进程的 `/proc/<pid>/environ`，只验证 `RESEND_API_KEY` 与 `EMAIL_FROM` 是否非空，不得输出变量值，并写回 `deploy/economy-email` 提交状态。
-
 ```text
 WorkingDirectory=/var/www/game/economy-api
 PORT=3002
@@ -476,6 +377,10 @@ PUBLIC_ORIGIN=https://game.riversoft.top
 ```
 
 GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该账号。`deploy` 只能通过白名单完成发布、systemd 和 Nginx 操作；不得扩大为 root 服务或把数据库移入发布目录。
+
+正式 systemd 单元固定为 `riversoft-economy-api.service`；固定 Node 运行时入口为 `/var/www/game/economy-api/runtime/bin/node`。
+
+生产公网 IP 的唯一部署来源固定为 `ECONOMY_PRODUCTION_PUBLIC_IP=116.204.134.56`；SSH、IP 证书、临时 Nginx 入口和 Deploy 外部验收必须全部读取该值，不得继续使用独立 `SERVER_HOST` Secret，不得在脚本中维护第二个独立 IP 常量。临时 IP HTTPS 入口保持 `COOKIE_SECURE=true`；短期证书申请使用 `--preferred-profile shortlived`，续签由 `riversoft-economy-ip-cert-renew.timer` 管理。TLS 验收不得加 `-k`，证书状态直接读取 `/etc/letsencrypt/live/`，本机正式 HTTPS 验收使用 `--connect-to` 指向 `127.0.0.1:443`。回收 fallback 时必须删除临时 IP 虚拟主机、续签 timer 和专用短期证书。
 
 ## 9. Nginx 与验收
 
@@ -510,23 +415,11 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 `npm run build` 必须执行设计与架构验证、Nginx 测试、服务器语法和测试、TypeScript 与 Vite 构建。服务器语法检查由 Node 枚举 `server/src` 顶层 JavaScript 文件并逐个调用当前 Node 的 `--check`，不得依赖 shell 展开通配符，确保 Windows 本地与 Linux CI 检查同一文件集。需要浏览器验证的增量 CI 与主部署都必须使用固定 Playwright 版本执行 `npm run test:browser`；浏览器准备统一调用 `scripts/prepare-playwright-chromium.sh`，优先复用 runner 本地 Chrome／Chromium并通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 交给 Playwright，只有本地候选都不存在时才下载固定 Chromium。浏览器 CDN 不得成为 CI 或主部署的必需单点依赖，也不得以 CDN 不可达为理由跳过浏览器回归；应用根节点必须由错误边界包裹，意外渲染异常只能显示可恢复页面，不得留下空白屏。主部署后验证 API 健康、静态网页、账号代理、注册代理、未登录 401、systemd 用户／端口／数据库、注册秘密和无重复路由；邀请与封禁专项验收必须覆盖分享链接即时奖励、手动邀请码唯一绑定、同 IP 异常上报不封禁、管理员手动封禁、423 响应、历史自动封禁幂等迁移和管理员解禁。邮件配置工作流另行验证运行进程实际环境和服务健康，并以 `deploy/economy-email` 独立状态防止主部署误报验证码可用。 静态发布验收还必须确认 `/economy/` 与 `/economy/index.html` 返回入口重新验证策略、实际构建哈希资源返回一年 `immutable` 策略、新入口引用的全部资源可读取，并且入口只在服务与 Nginx 验证通过后发布。
 
-仓库所有文本文件必须通过根目录 `.gitattributes` 在所有平台统一为 LF，Git 索引与工作区均不得保留 CRLF 或混合换行；PNG、字体、压缩包、SQLite 等二进制资源必须标记为 `binary`，禁止参与文本转换。该规则不得依赖开发者的全局 `core.autocrlf` 配置；`npm run normalize:repository-text` 只允许转换 Git 已跟踪文本文件的换行字节，`scripts/verify-repository-text-format.mjs` 必须在其他架构校验前检查属性文件、索引行尾、工作区行尾和二进制属性，避免 Windows 本地源码精确匹配与 Linux CI 产生不同结果。
-
 ## 9.1 验证策略
 
 固定文案、禁止导入和样式入口可以使用源码字符串检查；交易估值、状态缓存快路径、资产比例、虚拟列表可视区间和本地日志持久化等行为不得仅靠 `includes()` 证明。核心规则必须至少由以下一种方式验证：服务器／浏览器行为测试、可直接执行的纯函数测试或 TypeScript 语法 token／AST 结构检查。注释、死代码或同名字符串不得让核心行为测试通过；变量改名和格式化也不得无意义破坏验证。
 
-页面拆包验证必须通过 TypeScript 语法 token／AST 确认 `App.tsx` 与 `PageRouter.tsx` 使用动态 `import()` 且不存在对应页面静态导入。全局秒级时钟、虚拟列表二分区间和 `requestAnimationFrame` 合并滚动同样由语法结构或可执行纯函数验证；设计脚本只保留必要的固定文案和防回退禁词。
-
 ## 9.2 固定压力测试账号池
-
-- `tests/stress/accounts.json` 是压力测试普通玩家身份的唯一仓库记录，固定保存 24 个槽位 `stress-player-01`～`stress-player-24` 及对应 `economy-stress-01@riversoft.top`～`economy-stress-24@riversoft.top` 邮箱。
-- 这些账号只需在主页账号服务中预置一次；后续压力测试必须按槽位复用，不得默认调用注册接口、生成随机邮箱或在每轮测试后删除账号。需要超过 24 个并发身份时，必须先扩展清单、验证唯一性并完成一次性预置。
-- 仓库不得保存密码、Cookie、Token、Session 或管理员身份。运行时密码只从 `ECONOMY_STRESS_TEST_PASSWORD` 环境变量读取；测试日志、错误输出和 CI artifact 均不得打印该值。
-- `tests/stress/loadAccounts.mjs` 是 Node 压力测试脚本读取账号池的统一入口，支持按稳定顺序、`offset` 和 `limit` 选择槽位；非法或越过 24 个槽位的范围必须直接失败，不得静默裁剪为空或换用其他账号。账号池只提供登录身份，不改变经济资产、封禁、邀请或排行榜规则。
-- 固定账号必须保持普通玩家角色，不得借压力测试账号绕过主页账号认证、同 IP 规则、写操作幂等或 Economy 服务器资产校验。
-
-压力测试执行器固定为 `tests/stress/run.mjs`，使用 Node 24 原生 HTTP 能力、每账号独立 Cookie、全局修订号和六分区哈希模拟真实客户端。每名虚拟玩家的状态请求必须串行，写操作不得自动重试；动作确认后立即补拉状态，并断言全局修订号和 `serverNow` 不倒退、初次状态包含六个完整分区、相同幂等键返回相同确认。测试必须分别统计每个归一化路由的请求数、RPS、响应字节、状态码、超时、5xx 和 p50／p90／p95／p99／最大耗时。所有耗时预算只允许读取 Economy 响应的 `Server-Timing: app;dur` 服务端本地处理值，不得使用客户端端到端耗时或公网传输耗时；该值由服务端已测量的处理 phase 求和得到，不包含事件循环排队和响应传输。登录等没有 Economy `Server-Timing` 的请求仍参与正确性与吞吐统计，但不得进入延迟预算。远程只读 GET 的客户端等待上限为 30 秒，只用于避免公网传输造成误判 abort，不进入性能预算。
 
 `transaction-mix` 的操作构成固定为 60% 状态读取、15% 商品订单、10% 工厂启停、5% 配方切换、5% 即时建设、5% 研发；执行器必须以确定性序列覆盖全部类别，写动作确认后立即补拉状态并继续校验全局修订号、分区修订和 `serverNow` 不倒退。该场景不得用于 staging 或生产，生产继续只允许只读 `smoke`／`poll`。
 
@@ -542,51 +435,6 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 ## 10. 防回退
 
 不得恢复：
-
-- 用固定或无资金来源的发行支付存款利息、让未支付贷款利息提前进入利息池、让当日新增存款参与当日结息，或在结息时丢弃不足 1 的个人微单位余数；
-- 让贷款本金提高净资产／增长榜、把还本计入人口收入、让抵押工厂停止生产，或允许抵押工厂出售、拍卖和重复抵押；
-- 为银行增加独立每秒扫描、浏览器本地结息／违约、并行多笔贷款、系统工厂卖单，或在重启和幂等重试时重复放款、还款、结息和处置；
-- 在没有世界 16 在线数据库快照与 `PRAGMA quick_check` 成功结果时部署银行迁移，或只回滚代码而保留不匹配的贷款与抵押数据；
-- 浏览器本地存储作为正式资产；
-- 服务器持久化展示日志；
-- 单座工厂模型、固定价格工厂市场或定量生产；
-- 工作玩法、`/api/game/work`、工作冷却状态或工作货币发行；
-- API 公网监听、root 运行或部署覆盖数据库；
-- 空闲读取或管理员摘要无变化时写库、同修订号轮询进入 SQLite 事务、每次轮询解析／序列化完整世界、修订变化时无条件上传完整状态、把变化分区浅合并进旧完整状态、在客户端或服务器重新硬编码独立客户端状态版本、把版本不兼容误报为初始分区缺失、服务器省略字段后客户端仍保留旧值、动作幂等缓存保存完整客户端状态、动作响应跳过共享状态交付缓存直接修改 authority、动作交付顶层 `revision` 低于 `commandRevision`、排行榜原型钩子重复处理、每秒完整状态轮询或迟到响应覆盖新状态；
-- 省略 `GET state` 轻量确认中的 `serverNow`、把 `serverNow` 写入世界 JSON 或六分区、让时间校准推进世界修订号，或在每次轮询时用旧 `lastProcessedAt` 重新开始倒计时；
-- 把 `visibleUntil`、排行榜 `generatedAt`、逐行 `updatedAt` 或其他按请求时刻派生字段放回状态分区；
-- 把四榜重新嵌入玩家 `stats`、让排行榜变化污染玩家分区，或因其他玩家不改变公共市场的操作向无关玩家返回完整 `market`；
-- 权威动作与旧轮询并行覆盖界面、正常成功动作仍强制追加第二次 `GET state`，或让直接控制等待网络往返后才改变开关；
-- 把动作响应权威增量的本地验收失败改写成动作失败、自动重试新的写操作或重复扣款；
-- 把合同交付写入订单簿行情、估值或交易排行榜，允许合同涉及其他资产类型、工厂转移、工厂出租、自由文本或配方控制，或由客户端判定交付、宽限期和违约；
-- 玩家经济状态重置、清空进度或重新开始接口；
-- 原始 Cookie 缓存、管理员认证缓存或超过 5,000 条 LRU；
-- 永久保留失效验证码、让操作限流 Map 无边界增长、恢复浮动依赖或删除依赖锁；
-- 删除 CI 或主部署中的 Chromium 浏览器运行时测试、localStorage 拒绝访问覆盖或顶层错误边界；
-- 压力测试重新随机注册账号、把测试账号密码或会话写入仓库、让账号池包含管理员身份，或绕过 `tests/stress/accounts.json` 与 `loadAccounts.mjs` 的固定槽位；
-- 对生产环境执行经济写入、初始化未建档压力账号、使用低于 3 秒的生产轮询、允许任意远程目标、自动重试写操作、并行使用同一玩家状态请求、忽略修订号／`serverNow` 倒退、把 GitHub 共享 Runner 延迟或公网传输写成 Economy 服务端耗时、删除公开 `/economy-api/health` exact 路由，或让压力测试失败仍以零退出码结束；
-- 恢复与 CI 或 Deploy 重复执行完整构建的独立 `web-build.yml`、关闭同一 PR 旧运行自动取消，或在成功时长期上传浏览器测试 artifact；
-- 删除游戏 JSON gzip；
-- 让任何模块绕过 `domain.js` 直接导入 `domain-core.js`；
-- 让 `balanced-market.js` 或 `market-liquidity.js` 维护第二套商品数值；
-- 绕过统一商品撮合层处理玩家订单、允许系统订单彼此成交、创建无真实资金／库存支持的储备订单，或在模型 4 初始化后重复补发储备资产；
-- 在商品、工厂或人口需求撮合引擎内分别维护不同费率、对每条 fill 重复收最低手续费、重复成交再次扣费、追收历史成交、公开卖单累计字段，或让拍卖调用 `applyMarketSellFee`／伪造订单簿 fill；拍卖独立的发布费和卖方 1% 成交手续费必须使用拍卖规则快照与市场服务就业资金流。
-- 恢复旧商品参考价、旧农场参数、食品独立需求、60 预算旧主食需求或按件数计算满足率；
-- 在登录 401 后自动调用主页注册接口；
-- 保存验证码、注册 IP 明文或邀请人隐私信息，跳过 10 分钟有效期／60 秒重发／错误 5 次作废、允许验证码复用或允许发送与提交 IP 不一致；
-- 让邮箱验证码入口和主页已登录自动建档维护两套首次建档、邀请归因或 IP 检测逻辑；
-- 让系统因同 IP 异常自动封禁、恢复封禁或扩大封禁范围；
-- 让相同注册 IP 的邀请关系发放邀请宝石，或把邀请防刷结果等同于账号封禁；
-- 允许一个被邀请账号绑定多个邀请人、重置后重新领取、客户端决定奖励或把宝石计入总资产；
-- 管理员操作删除事件与审计历史、服务重启改变管理员封禁决定，或解禁后自动补发被拦截的邀请奖励；
-- 删除 `/economy-api/registration/` 或 `/economy-api/password-reset/` Nginx 路由，或打印验证码、密码、Resend API Key 与注册秘密；
-- 把邮件密钥复制到 GitHub Actions，或让部署工作流覆盖服务器已有邮件配置；
-- 删除 `/etc/riversoft-email.env` 的共享加载，颠倒共享文件与 Economy 专用文件的覆盖顺序，或让邮件配置工作流读取并打印环境文件内容；
-- 在缺少 `RESEND_API_KEY` 或 `EMAIL_FROM` 时仍把部署标记为验证码可用，或把明确的邮件配置缺失重新改写成整个游戏服务器不可用；
-- 把正式发件人变量从 `EMAIL_FROM` 改回其他名称。
-- 恢复藏品玩法、客户端页面、管理员分区或活动态藏品拍卖类型；旧藏品 API 必须固定返回 `410 Gone`；
-- 在缺少迁移前快照或未通过数据库校验时上传新服务，或将含旧藏品项目的开放资产包删项后继续竞价；
-- 在拍卖主状态恢复真实竞买人 ID／名称、内嵌出价数组或别名映射，让出价历史进入常规轮询，允许接口返回超过最近 10 条、分页或加载更多，或让浏览器决定保留价、最低加价、延时、发布费及结算手续费。
 
 - 在客户端状态版本不兼容时继续原地重试状态请求、把刷新按钮改回普通重试、直接展示浏览器原生 `Failed to fetch`／`Load failed`／`NetworkError`，或让登录后才首次请求游戏入口分块；
 - 缩短哈希资源一年不可变缓存、把入口 HTML 设为长期或 `immutable` 缓存、在新入口发布前删除旧哈希资源、让旧资源保留期短于 400 天，或在服务与 Nginx 验证完成前发布 `index.html`；
@@ -609,8 +457,6 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 ## 人口经济与货币事务
 
-`server/src/population-demographics.js` 是人口数量、工厂结构与活跃承载、占用率、迁移、类别转换、劳动力和就业诊断的唯一实现；`server/src/population-economy.js` 是三类人口钱包、就业收入、即时建造业就业分配、人均收入 EMA、五档消费状态、真实人口订单冻结和管理员摘要的唯一实现。人口经济内部版本固定为 7，运行时状态只允许 `lavish | prosperous | normal | strained | subsistence`；旧 `cautious` 只允许在版本迁移时映射为 `strained`。市场需求模型 17 必须遵守：
-
 - 人口是世界级聚合状态，不属于玩家或单座工厂；基础人口固定 1,000，C1 单厂承载基数固定 11，C1～C7 权重固定为 1.00／1.50／2.20／3.20／4.50／6.20／8.50；
 - 结构承载读取全部已建成工厂 `count`，活跃承载只读取运行 `participatingCount × staffingRateBps`；活跃 EMA 使用 80%旧值／20%当前值；人口占用率为 35%底线加产业运行、收入健康和需求满足加权；
 - 每周期迁入剩余缺口 2%、迁出超额人口 0.5%，类别转换最多总人口 1%，劳动参与率 55%；所有人口与分配计算必须确定性、守恒并使用安全整数／微单位边界；
@@ -628,7 +474,6 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 - `issued` 只用于兑换、礼品、管理员和迁移发行；就业与人口消费使用 `income`／`transferred` 统计。
 
 管理员 `/api/game/admin/summary` 与 `/api/game/admin/population-economy` 必须直接读取已提交世界并返回只读人口经济摘要；已有世界缓存时不得进入 SQLite 事务、权威写队列、强制世界推进或世界保存路径，冷缓存仅允许通过只读事务装载当前持久化世界，并返回实际／目标人口、结构／活跃承载、迁移、就业失业、岗位缺口、人均收入、消费状态、状态原因、持续周期、收入健康度、基础收入覆盖和状态判定钱包覆盖；玩家市场状态不得包含管理员人口指标。
-
 
 ### 每日签到持久化与调度
 
@@ -650,12 +495,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 合同审计 SQLite 的金额列和信用货币转账数量以整数微单位保存，并用 `money_precision_version` 区分旧整数货币快照；商品转账数量继续保存整数。银行存款、取款、借款、还款、利息池分配和合同托管、保证金、手续费全部保留六位账户精度。
 
-
 ## 统一订单簿运行时容量边界
-
-`server/src/order-book-runtime.js` 是 `world.orders` 的事务内唯一派生索引。索引继续使用按资产与方向组织的单一混合盘口，不得按玩家订单与系统订单拆分第二套盘口。全量构建只允许一次遍历未完成订单完成分组，再对各分组统一排序；已关闭订单不进入活动盘口。尾部追加、成交缩量、撤单和系统订单释放必须同步更新玩家开放订单数、商品买单仓库预占与工厂卖单冻结聚合。
-
-当前版本迁移、无变化订单历史维护和不存在旧系统工厂订单时不得替换 `world.orders` 引用；只有真实迁移删除或历史剪枝才允许整体替换并触发索引重建。订单历史最多保留最近 800 笔未过期关闭订单，全部未完成订单必须无条件保留在服务器世界。订单 ID 查询与撤单必须复用 `orderById`，不得恢复全量线性查找。市场需求周期结算所需的需求组历史集合可以保留已关闭需求订单，但只承担有界历史查询，不得进入活动盘口、价格排序或玩家资产聚合，也不得演变为玩家／系统分离盘口。以上边界由订单簿运行时测试、剪枝测试、市场需求服务器测试、`scripts/verify-order-matching-core.mjs` 与 `scripts/verify-runtime-efficiency.mjs` 防回退。
 
 六分区主状态不得发送公共逐笔订单或全部 800 笔关闭历史：`orders` 固定只包含当前玩家全部未完成订单，以及当前玩家最近 `ECONOMY_CONSTANTS.maxOpenOrders` 笔已关闭订单，用于撤单、自动交易关联和覆盖一次轮询窗口内可能新增的本人 fills；其他玩家和系统订单无论是否未完成均排除。公共盘口读取市场摘要和按需详情。更早的本人关闭订单由只读 `GET /api/game/orders/history?cursor=&limit=` 按活动时间和订单 ID 的不透明游标分页，默认 50、最多 100 条；接口总数只统计当前玩家关闭订单，复用唯一公开订单序列化并继续删除对手、需求、人口和资金切片字段。历史读取不推进世界、不改变修订号、不进入常规轮询或分区哈希。
 
@@ -669,8 +509,6 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 世界 20 迁移初始化周结算状态和银行版本 3，不追溯规则上线前利息或扣除，并把上线所在周标记为不完整周；下一个完整周开始正式关闭活跃周账单。客户端状态版本 23 增加周结算摘要。重复加载、登录重试、服务重启与跨周追赶不得重复建账或重复扣款。同一自然周内的普通状态读取、无账单登录和幂等重试不得刷新登录周标记，也不得因此推进世界修订号。
 
-
-
 ## 研发宝石加速接口
 
 正式写接口增加 `POST /api/game/research/accelerate`，继续要求 `Idempotency-Key`；持久化幂等确认仍只保存 `{ result: { ok, message }, revision }`，HTTP 层继续使用通用权威动作增量交付 envelope。存储事务必须先推进世界和研发，确认玩家存在进行中的未到期研发与至少 1 宝石，再扣费、将截止时间最多提前 30 分钟、释放对应研发就业收入、完成到期等级、更新周活跃经济状态并写入 `economy_research_gem_actions`。审计记录目标等级、请求键、宝石余额、前后剩余时间、实际缩短时间、是否立即完成和本次就业资金释放量；失败动作不得扣费、改写截止时间或写审计。
@@ -680,9 +518,6 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 世界版本 27 将研发持久状态从单一 `unlockedComplexity` 扩展为 `completedTechnologyIds`、`completedAtByTechnologyId` 和单个 `active` 科技项目。`active` 保存 `technologyId`、所属阶段、原始 `durationMs`、截止时间、费用和已释放就业资金；宝石加速只缩短截止时间，进度和就业释放仍使用原始基础时长计算。
 
 服务器 `research-catalog.js` 是科技节点、前置关系与工厂映射的唯一目录。所有工厂资产入口、生产操作和工厂租赁运营资格均调用同一具体科技校验；`unlockedComplexity` 只作为连续完整阶段的兼容派生值。旧世界按既有等级、资产、施工、买单与最高竞拍承诺授予科技及前置闭包；旧进行中阶段研发保存为 `legacy-stage-Cn`，到期授予该阶段剩余节点。迁移、处理和加速必须幂等，不得重复扣费、重复发放就业资金或降低既有准入。
-
-
-
 
 世界 29 研发迁移把生产资料的生产能力与使用能力拆开。只在 `world.version < 29` 时按已完成的旧生产科技一次性授予等价作业科技：工具制造→工具作业、化肥工程→化肥施用、饲料加工→饲料饲养、养殖药剂→药剂精养、石油炼化→工业动力作业+工业化学作业、机械工程→机械化作业、农业机械→拖拉机作业。迁移前已经开始的上述生产科技必须在同一活动研发的 `grantTechnologyIds` 中补入对应作业科技；迁移完成后生产科技和作业科技必须独立研发，服务器 `setFacilityRecipe` 只按正式制度声明的作业科技进行权限校验。
 
@@ -710,8 +545,6 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 排行榜个人最好成绩保存在玩家权威 `stats.leaderboardPersonalBests` 中，按 `wealth/growth/production/trading` 保存已结算最好分数与 `periodKey`。只有完整周结算可以更新该历史值；排行榜读取只比较当前完整周成绩与已结算最好成绩并返回 `currentIsRecord`，不得由 GET 请求或浏览器本地状态写入历史纪录。
 
-
-
 ### 六分区内部子修订元数据
 
 状态交付的六个外层分区保持不变，字段归属仍由 `state-partitions.js` 决定。为允许新客户端在收到完整 `player` / `market` 快照时复用未变化字段引用，服务器可在 envelope 顶层同时返回 `sliceRevisions`。子切片定义唯一维护在 `server/shared/economy-state-slices.js`；服务端与客户端必须共享同一字段归属，禁止各自复制一套映射。运输路线 `transportRoutes` 显式归入 `player.misc`，真实运输记录 `transportShipments` 显式归入 `market.misc`，不得为运输新增第七个父分区。
@@ -720,14 +553,11 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 增加、删除或调整子切片不得修改客户端状态版本或世界状态版本，除非实际 `EconomyState` 字段或持久化结构同时发生了不兼容变化。旧客户端会忽略 `sliceRevisions`；新客户端遇到缺少该元数据的旧响应必须按整个父分区变化处理，因此发布期间不需要双协议切换。
 
-
 ## 生产懒结算与调度边界
 
 正式工厂生产采用“客户端计算生产结算提案、服务器闭式校验并权威入账”的按玩家懒结算模型。客户端直接复用正常状态响应和 envelope `serverNow`，不新增一套可写资产状态；提案只允许声明稳定排序后的工厂组完成周期数。服务器必须从当前 committed world／请求 COW 草稿重新取得真实玩家资源与工厂基线，使用共享闭式 `staffingRateBps + staffingBatchCarryBps` 数学验证 `n` 与 `n + 1`，再在同一权威写事务中生成实际资金、库存、产出、就业和运行状态变化。正常提案验证复杂度按当前玩家工厂组数增长，不得按离线欠周期数增长；客户端二分搜索和旧客户端服务端兜底可以按 `log(欠周期数)` 搜索，但服务端兜底只能作用于当前玩家。
 
 全局世界截止时间计划固定 `facility = null`。排行榜、市场、服务冷启动和常规世界调度不得通过 `processFacilityGroupWorld` 扫描全部玩家工厂或逐周期重放离线生产。供货与工厂租赁合同在真实到期时可以从合同参与者索引确定供应方／承租方，只对这些明确受影响玩家物化生产，然后继续合同结算；不得把合同兜底扩展为全玩家遍历。普通玩家动作可以携带最近一次客户端提案并与业务动作同一 COW 事务提交；提案过期返回稳定 `PRODUCTION_SETTLEMENT_*` 冲突，客户端可以清除旧提案并由同一动作触发当前玩家服务端兜底。独立 `POST /api/game/production/settle` 使用本地玩家 Mutation Scope，不能因为结算动作恢复完整世界克隆。
-
-正式持久化 API 构造后必须在第一次后台世界处理前至少让出 1 秒事件循环窗口，使 systemd 启动后真实 `GET /health` 能立即由 HTTP 层处理；这不是降低就绪标准，`scripts/install-economy-api.py` 的 45 秒真实健康检查门槛保持不变。生产结算私有工资余数和累计人口分配账本不得进入普通客户端状态。上述边界由 `scripts/verify-production-lazy-settlement.mjs`、生产结算服务器测试、运行时热路径测试和部署可靠性验证共同防回退。
 
 ## 玩家头像静态资源
 
@@ -737,9 +567,27 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 Nginx 头像 `location ~` 正则包含 `{m,n}` 量词，必须整体使用引号包裹；未引用时 Nginx 会把 `{` 识别为配置块边界并把截断表达式交给 PCRE，因此部署验证必须同时锁定生成脚本和静态 location 模板的引用形式。
 
-
 ### 玩家身份关系与可变资料
 
 玩家昵称、头像等可变身份资料的权威值只存在于玩家实体。普通权威业务实体（订单、订单成交记录、玩家拍卖、供货/借贷/租赁合同及旧工厂交易兼容数据）与玩家的关系必须只用稳定数值 ID 持久化，不得复制玩家昵称作为关系字段。对外 DTO 若需要显示当前昵称，应在状态/API 投影阶段按 ID 从玩家实体解析，且不得把解析结果写回 World。系统市场、人口需求、市场储备等非玩家主体可以继续持久化自身固定标签。明确的不可变历史快照是例外：合同追加式审计、已结算排行榜历史等若语义要求保留事件发生时的名称，可以在写入历史记录时由稳定 ID 解析一次并保存名称快照；快照必须同时保留稳定玩家 ID，且不得反向成为当前身份来源。服务器 `trades` / `ledger` / `assetEvents` 等展示日志不属于权威历史记录，继续禁止进入当前 World、SQLite 或普通玩家状态。
 
 因此资料修改的 Mutation Scope 只覆盖当前玩家和必要本地核心域；昵称修改不得通过订单、合同、拍卖或旧兼容列表做扇出同步。迁移层可以读取旧存档中的昵称镜像以保持兼容，但必须逐步规范化为 ID-only 关系。该规则用于保证资料修改的时间/写入复杂度与全服历史数据量无关。
+
+## 压缩后关键运行与部署不变量
+
+以下条目只保留服务器领域必须长期稳定的边界；具体模块清单仍以代码为运行事实。
+
+- 资产拍卖追加式审计由 `auction-audit-store.js` 承担；即时建厂缺料采购由 `facility-auto-procure.js` 承担；玩家卖出手续费由 `market-sell-fee.js` 落实；人口需求实现包含 `population-economy.js`。这些文件名只作为实现与验证映射，不创建第二套业务规则。
+- 地区化每日商品合同继续通过统一合同门面执行，合同时间单位统一为天；邮箱验证码有效期为 10 分钟，错误 5 次即失效，并核对发送 IP 和提交 IP。`RESEND_API_KEY` 与 `EMAIL_FROM` 只保存在服务器；共享 `/etc/riversoft-email.env` 先加载，Economy 专用 `/etc/riversoft-economy-api.env` 后加载。未配置时返回“邮箱验证码服务未配置，请联系管理员”。发送前通过 `POST /api/internal/account-email-exists` 检查统一账号；已注册邮箱不得创建 `economy_email_verifications` 记录，也不得发送邮件。
+- 验证码记录清理、验证码创建／状态更新和完成前校验只写注册专用 SQLite 表，不得触发世界到期调度 barrier；最终创建 Economy 玩家档案继续属于普通用户世界写入。已有 `economy_registrations` 且永久邀请码元数据完整的 `/api/game/session` 直接走只读会话；仅缺元数据时使用 `system:session-metadata:*`，真正建档使用 `session-profile-creation`。验证码终态记录保留 30 天。
+- 正式 SQLite 必须保持 `auto_vacuum=INCREMENTAL`；普通玩家事务不得执行 `incremental_vacuum`。每周一北京时间 02:30 执行受限维护，每批固定 1,024 页、单次最多四批。迁移备份使用紧凑 gzip SQLite 快照并通过 `VACUUM INTO` 消除 freelist；解压后的 `auto_vacuum` 必须保持 `INCREMENTAL`。最多保留最近 5 个迁移族，迁移工作空间至少为预计有效数据两倍再加 512 MiB，删除临时 SQLite 前显式关闭全部连接。Windows 本地行为验证与 Linux 正式部署共用同一实现，分段存储 V2 首次迁移前必须创建 `economy-pre-storage-v2`。
+- API 代码继续使用 `rsync --delete-before` 完整替换，同步 `server/` 时必须排除 `runtime/`。固定 Node runtime 完全匹配时必须复用且不得重新下载或上传；正式运行时固定 Node 24.4.0。旧哈希资源至少保留 400 天，发布时最后原子替换 `index.html`。
+- CI 必须验证真实头提交，而不是 GitHub 合并快照；`verify-head-ci-registration` 只确认真实 push 检查存在，不得写入 commit status，不保留第二个重复的 PR Web Build 工作流，也不得用手工成功状态替代任一真实检查。
+- 部署 SSH 主机密钥不得依赖单次 `ssh-keyscan`，最多尝试 5 次；连接验证失败必须在数据库备份、文件上传和服务变更之前终止。成功步骤日志不得上传；失败摘要使用 `economy-failure-summary.txt`，禁止重新扫描或拼接成功步骤日志，不得再为单次构建失败创建临时诊断工作流。生产验收同时包含发布前远端验收和发布后公网验收，`ECONOMY_DEPLOY_VERIFY_START` 之后的 45 秒真实健康检查门槛保持不变。
+- 压力测试继续报告 p50／p90／p95／p99，并验证高负载不会突破请求超时和事件循环容量边界。
+
+### 实现映射补充
+
+- 统一合同门面：`server/src/unified-contracts.js`；客户端与 API 的合同时间统一以天表达。
+- 认证环境：共享文件先加载，Economy 专用文件后加载；邮件密钥只保存在服务器。
+- 人口运行映射：`population-demographics.js`；人口经济内部版本固定为 7；五档状态只重新分配食品／家庭与类别份额；人口消费不得发行普通货币。
