@@ -1,0 +1,126 @@
+name: Apply current design compression
+
+on:
+  push:
+    branches:
+      - docs/design-authority-compression-current-20260902
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+      - name: Reuse verified compression outside the new surface-design domain
+        run: |
+          git fetch origin docs/design-authority-compression-20260902:refs/remotes/origin/old-compression
+          files=(
+            docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md
+            docs/CI_EXECUTION_DESIGN.md
+            docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md
+            docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md
+            docs/GIFT_CODE_AND_ADMIN_DESIGN.md
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md
+            docs/LIQUID_GLASS_CHROME_DESIGN.md
+            docs/LOCAL_ACTIVITY_LOG_DESIGN.md
+            docs/MARKET_CHART_LAYOUT_DESIGN.md
+            docs/OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
+            docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md
+            docs/PRODUCT_AND_GAMEPLAY_DESIGN.md
+            docs/README.md
+            docs/REGISTRATION_INVITE_FLOW_DESIGN.md
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
+            docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md
+            docs/WAREHOUSE_EXPANSION_DESIGN.md
+            scripts/verify-client-state-version.mjs
+            scripts/verify-contract-audit.mjs
+            scripts/verify-contract-renewal-economic-events.mjs
+            scripts/verify-deployment-pipeline.mjs
+            scripts/verify-document-authority.mjs
+            scripts/verify-industry-catalog.mjs
+            scripts/verify-market-action-latency.mjs
+            scripts/verify-order-matching-core.mjs
+            scripts/verify-production-methods.mjs
+            scripts/verify-provincial-economy.mjs
+            scripts/verify-provincial-unlock-transport.mjs
+            scripts/verify-research-progression.mjs
+            scripts/verify-state-delivery-capacity.mjs
+          )
+          for file in "${files[@]}"; do
+            git show "origin/old-compression:${file}" > "${file}"
+          done
+      - name: Compress the latest UI design without reverting surface semantics
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def clean_header(text):
+              kept = []
+              for line in text.splitlines():
+                  if line.startswith('> 2026-') and '不可回退规则' in line:
+                      continue
+                  if line.startswith('> 状态：') or line.startswith('> 适用项目：') or line.startswith('> 当前平台：') or line.startswith('> 更新时间：'):
+                      continue
+                  kept.append(line)
+              return '\n'.join(kept)
+
+          ui_path = Path('docs/UI_DESIGN_SYSTEM.md')
+          ui = clean_header(ui_path.read_text())
+
+          style_start = ui.index('## 2. 样式职责')
+          style_tail = ui.index('业务页面样式先加载', style_start)
+          compact_style = '''## 2. 样式职责
+
+          共享视觉按职责分层，业务页面不得复制基础样式：
+
+          | 权威层 | 主要职责 |
+          |---|---|
+          | `design-system.css` / `interaction-states.css` / `form-controls.css` | 设计令牌、共享控件、输入状态、交互反馈与焦点 |
+          | `primary-surfaces.css` / `content-surfaces.css` / `scrolling-page-sections.css` | 圆角表面 inset、正文对象卡、页面分区与同构列表表面语义 |
+          | `strategic-game-shell.css` / `mobile-detail-sheet.css` / `frosted-glass-surfaces.css` | 战略工作区、唯一移动 Workspace Sheet 与高层毛玻璃表面 |
+          | `safe-floating.css` / `charts.css` / `scrollbars.css` | 顶层 Tooltip、图表容器和共享滚动行为 |
+          | `entity-list-header.css` / `market-commodity-row.css` | 带表头实体列表及已登记的紧凑商品行 |
+          | 商品、工厂、银行、合同、设置等领域样式 | 只负责领域内部布局与已登记场景例外，不得重做共享表面、控件或交互基础视觉 |
+
+          具体样式文件属于实现事实；新增或拆分文件不需要在 DESIGN 维护完整目录副本，但必须继续服从上述唯一职责和加载层级。
+
+          '''.replace('          ', '')
+          ui = ui[:style_start] + compact_style + ui[style_tail:]
+
+          component_start = ui.index('## 3. 共享 React 组件')
+          component_tail = ui.index('`MobileWorkspaceSheetHost` 是移动端唯一根级 Sheet 宿主', component_start)
+          compact_components = '''## 3. 共享 React 组件
+
+          页面、表单、列表、金额、图表、Tooltip、商品／工厂插画和移动 Workspace Sheet 必须优先复用现有共享组件，不为单页复制第二套基础组件。核心结构包括 `PageLayout`、`PagePanel`、`MobileWorkspaceSheetHost`、共享 FormControls、实体列表、金额格式化、`SafeTooltip` / `GameConcept` 与 `EconomyChart`；具体组件清单属于代码事实。
+
+          `PagePanel` 只是兼容结构语义，不自动决定可见圆角。页面章节与同构比较列表保持平面分区；具有独立身份、状态、属性和操作的复杂业务对象可以使用 `.ui-entity-card` 或已登记兼容入口，即使随 `.page-card-scroll` 滚动。正文对象卡只使用实体背景、边框和圆角，不使用毛玻璃或高层阴影。
+
+          '''.replace('          ', '')
+          ui = ui[:component_start] + compact_components + ui[component_tail:]
+          ui_path.write_text(ui.rstrip() + '\n')
+
+          primary_path = Path('docs/PRIMARY_SURFACE_INSET_DESIGN.md')
+          primary = clean_header(primary_path.read_text())
+          primary_path.write_text(primary.rstrip() + '\n')
+          PY
+      - name: Verify authority and syntax
+        run: |
+          node scripts/verify-document-authority.mjs
+          git diff --check
+      - name: Commit permanent compression
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs scripts
+          git commit -m '压缩最新设计文档并归一化权威验证'
+          git push origin HEAD:${GITHUB_REF_NAME}
