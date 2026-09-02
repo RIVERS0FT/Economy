@@ -1,10 +1,10 @@
-/* Browser harness aggregation for the shared CSS shell and final player
- * content-surface rules. Production continues to load these styles from the
- * normal application entry in its authoritative order. */
+/* Browser harness aggregation for the shared CSS shell plus content-owned
+ * surface semantics. Scroll-parent flattening stays out of this harness-level
+ * aggregate so fixed/mobile workspace panels keep their own surface geometry. */
 @import './performance.css';
 @import './scrollbars.css';
 @import './game-shell-layout.css';
 @import './safe-floating.css';
 @import './financial-backdrop.css';
 @import './frosted-glass-surfaces.css';
-@import './scrolling-page-sections.css';
+@import './content-surfaces.css';
