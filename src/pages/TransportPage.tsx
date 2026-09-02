@@ -373,7 +373,6 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
         </div>
 
         <div className="transport-page-footer" data-transport-page-footer="true">
-          <StatusTag tone="neutral">{routes.length}/{TRANSPORT_MAX_ROUTES_PER_PLAYER}</StatusTag>
           <Button variant="secondary" disabled={!canAddRoute || Boolean(pendingAction)} onClick={beginCreateRoute}>增加路线</Button>
         </div>
       </div>
