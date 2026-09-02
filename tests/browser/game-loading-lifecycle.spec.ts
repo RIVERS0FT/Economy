@@ -105,7 +105,7 @@ async function observeLoadingTransitions(page: Page) {
   });
 }
 
-async function loadingTransitions(page: Page) {
+async function readLoadingTransitions(page: Page) {
   return page.evaluate(() => (
     window as typeof window & { __gameLoadingTransitions?: number }
   ).__gameLoadingTransitions ?? 0);
@@ -135,7 +135,8 @@ test('ready game view model does not return to loading on parent rerender or sam
   await expect(status).toHaveText('ready');
   expect(stateRequests).toBe(requestsAfterReady);
 
-  expect(await loadingTransitions(page)).toBe(0);
+  const loadingTransitions = await readLoadingTransitions(page);
+  expect(loadingTransitions).toBe(0);
 });
 
 test('ready game stays visible while integrity recovery clears transport cache and refetches a full snapshot', async ({ page }) => {
@@ -166,5 +167,6 @@ test('ready game stays visible while integrity recovery clears transport cache a
   await expect(status).toHaveText('ready');
   await expect(playerName).toHaveText('Lifecycle Tester 3');
   expect(stateRequests).toBe(3);
-  expect(await loadingTransitions(page)).toBe(0);
+  const loadingTransitions = await readLoadingTransitions(page);
+  expect(loadingTransitions).toBe(0);
 });
