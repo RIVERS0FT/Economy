@@ -1,0 +1,82 @@
+name: Fix building region fixture
+
+on:
+  push:
+    branches:
+      - codex/building-list-surfaces
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Move region fixture outside React-owned DOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/browser/facility-catalog-layout.spec.ts')
+          text = path.read_text(encoding='utf-8')
+          start = text.index("async function ensureFacilityRegionFixture")
+          end = text.index("\nasync function inspectFacilityRow", start)
+          old = text[start:end]
+          new = '''async function ensureFacilityRegionFixture(page: import('@playwright/test').Page) {
+  if (await page.locator('.global-facility-region-row').count()) return;
+
+  await page.locator('body').evaluate((body) => {
+    const fixture = document.createElement('div');
+    fixture.className = 'global-operation-page global-facility-region-fixture';
+    fixture.innerHTML = `
+      <section class="entity-list-surface global-facility-region-page">
+        <div class="entity-list-header global-facility-region-header">
+          <span class="entity-list-header__cell">地区</span>
+          <span class="entity-list-header__cell">利润</span>
+          <span class="entity-list-header__cell">拥有</span>
+          <span class="entity-list-header__cell">状态</span>
+          <span class="entity-list-header__cell"></span>
+        </div>
+        <ul class="entity-list-rows global-facility-region-list">
+          <li>
+            <div class="entity-list-row global-facility-region-row">
+              <button class="global-facility-region-row__open" type="button">
+                <span class="global-facility-region-row__identity"><strong>测试地区</strong></span>
+                <strong class="entity-list-value global-facility-region-row__profit is-positive">1</strong>
+                <strong class="global-facility-region-row__metric">1</strong>
+                <span class="global-facility-region-row__status">运行中</span>
+                <span class="global-facility-region-row__chevron"><svg class="game-icon"></svg></span>
+              </button>
+              <span class="global-facility-region-row__quick-controls">
+                <span class="global-facility-region-row__quick-selector" data-quick-production="product"><span class="ui-rich-select" data-variant="production-config"><button class="ui-rich-select__trigger" type="button"><span class="ui-rich-select__visual"><span class="product-artwork"></span></span></button></span></span>
+                <span class="global-facility-region-row__quick-selector" data-quick-production="method"><span class="ui-rich-select" data-variant="production-config"><button class="ui-rich-select__trigger" type="button"><span class="ui-rich-select__visual"><svg class="game-icon"></svg></span></button></span></span>
+              </span>
+            </div>
+          </li>
+        </ul>
+      </section>`;
+    body.appendChild(fixture);
+  });
+}
+'''
+          text = text[:start] + new + text[end:]
+          path.write_text(text, encoding='utf-8')
+          PY
+          node scripts/verify-facility-catalog-layout.mjs
+          git diff --check
+      - name: Commit fix and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name RIVERSOFT
+          git config user.email 105160096+RIVERS0FT@users.noreply.github.com
+          git rm .github/workflows/fix-building-region-fixture.yml
+          git add tests/browser/facility-catalog-layout.spec.ts
+          git commit -m '稳定地区建筑列表浏览器夹具'
+          git push origin HEAD:codex/building-list-surfaces
