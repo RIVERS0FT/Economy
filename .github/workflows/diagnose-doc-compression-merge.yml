@@ -1,4 +1,4 @@
-name: Diagnose doc compression merge
+name: Sync doc compression with main
 
 on:
   push:
@@ -6,28 +6,47 @@ on:
       - docs/design-authority-compression-current-20260902
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose:
+  sync:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Diagnose merge with main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+      - name: Merge current main and keep compact overview owner
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          set +e
           git fetch --no-tags origin main:refs/remotes/origin/main
+          set +e
           git merge --no-commit --no-ff refs/remotes/origin/main
           code=$?
-          echo "MERGE_EXIT=$code"
-          echo "CONFLICTS_BEGIN"
-          git diff --name-only --diff-filter=U
-          echo "CONFLICTS_END"
-          git merge --abort >/dev/null 2>&1 || true
-          exit $code
+          set -e
+          conflicts="$(git diff --name-only --diff-filter=U)"
+          if [ "$conflicts" != "docs/OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md" ]; then
+            echo "unexpected merge conflict set:" >&2
+            printf '%s\n' "$conflicts" >&2
+            git merge --abort >/dev/null 2>&1 || true
+            exit 1
+          fi
+          git checkout --ours docs/OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md
+          git add docs/OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md
+          test -z "$(git diff --name-only --diff-filter=U)"
+      - name: Verify merged authority boundaries
+        run: |
+          node scripts/verify-overview-content.mjs
+          node scripts/verify-desktop-primary-surfaces.mjs
+          node scripts/verify-liquid-glass-chrome.mjs
+          node scripts/verify-document-authority.mjs
+          git diff --check
+      - name: Commit main sync
+        run: |
+          git commit -m '同步主线正文表面基线'
+          git push origin HEAD:${GITHUB_REF_NAME}
