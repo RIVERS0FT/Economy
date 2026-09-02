@@ -19,8 +19,8 @@ const contractWorkspace = read('src/pages/ContractWorkspacePage.tsx');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
 const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
+const docsIndex = read('docs/README.md');
 const auditStore = read('server/src/contract-audit-store.js');
-const rootReadme = read('README.md');
 
 for (const token of [
   'PRODUCTION_CONTRACT_SCHEMA_VERSION = 10',
@@ -65,7 +65,7 @@ assert.ok(pageDesign.includes('提出续签条款不代表同意续签'), 'page 
 assert.ok(pageDesign.includes('新每日额度商品合同不使用续签'), 'page design must forbid renewal on new daily supply contracts');
 assert.ok(serverDesign.includes('单方同意不冻结任何续签资产'), 'server design must define single-party approval without escrow');
 assert.ok(serverDesign.includes('旧 schema 7'), 'server design must preserve the legacy renewal migration rule');
-assert.ok(rootReadme.includes('单方同意不冻结续签资产'), 'root README must summarize explicit bilateral renewal approval');
+assert.ok(docsIndex.includes('`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`') && docsIndex.includes('`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`'), 'design index must route legacy renewal UI and server semantics to their DESIGN owners');
 for (const token of ['optionalTotalDeliveries', "contract.totalDeliveries === null ? 'completed' : 'terminated'", "return result(false, '长期合同无需续签')"]) {
   assert.ok(contracts.includes(token), `contracts.js missing long-term contract rule ${token}`);
 }
@@ -76,7 +76,6 @@ assert.ok(serverDesign.includes('> 客户端状态版本：39') && serverDesign.
 assert.ok(serverDesign.includes('客户端状态版本 39 将运输路线重构为自动物流通道') && serverDesign.includes('当前客户端只接受版本 39'), 'server design must record client 39 logistics semantics and compatibility window');
 assert.ok(serverDesign.includes('合同历史冷启动导入必须优先读取 V2 分段世界'), 'contract audit cold-start must prefer segmented V2 authority');
 assert.ok(!serverDesign.includes('合同 schema 8 同时') && !serverDesign.includes('世界 26 是当前持久化边界。') && !serverDesign.includes('当前客户端状态版本为 30。') && !serverDesign.includes('当前客户端状态版本为 38') && !serverDesign.includes('> 客户端状态版本：38') && !serverDesign.includes('当前客户端只接受版本 38'), 'server design must not retain stale contract/world/client baselines');
-assert.ok(rootReadme.includes('新商品采购／供应合同按地区使用固定价格') && rootReadme.includes('旧有限批次／旧长期商品合同继续按原语义兼容'), 'root README must summarize daily current contracts and legacy compatibility');
 for (const token of ['renewal_approved', 'renewal_approval_revoked', 'renewal_confirmed']) assert.ok(auditStore.includes(token), `contract audit store missing ${token}`);
 
 const now = ECONOMIC_EVENT_EPOCH_MS + 6 * 60 * 60 * 1000;
