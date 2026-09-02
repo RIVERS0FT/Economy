@@ -1,0 +1,38 @@
+name: Diagnose current design verifiers
+
+on:
+  push:
+    branches:
+      - docs/design-authority-compression-current-20260902
+
+jobs:
+  diagnose:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm ci
+      - name: Generate verifier prerequisites
+        run: |
+          npm run generate:artwork
+          npm run generate:local-preview
+      - name: Run every verifier that reads a DESIGN
+        run: |
+          set +e
+          failed=0
+          while IFS= read -r file; do
+            echo "::group::$file"
+            node --experimental-strip-types "$file"
+            status=$?
+            echo "::endgroup::"
+            if [ "$status" -ne 0 ]; then
+              echo "DESIGN_VERIFIER_FAILURE $file exit=$status"
+              failed=1
+            fi
+          done < <(grep -lE "docs/[A-Z0-9_]+_DESIGN\.md|docs/UI_DESIGN_SYSTEM\.md" scripts/verify-*.mjs | sort)
+          exit "$failed"
