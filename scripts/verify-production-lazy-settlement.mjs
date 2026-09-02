@@ -90,6 +90,8 @@ assert.match(countdownDesign, /非法生产提案仍返回 409/);
 assert.match(serverDesign, /45 秒真实健康检查门槛保持不变/);
 assert.match(industryDesign, /生产结果必须与结算批次大小无关/);
 assert.match(industryDesign, /离线补算多个周期时必须逐周期使用各自的 `cycleDueAt` 对应语义/);
-assert.match(docsIndex, /77\. 工厂持续生产采用按玩家懒结算/);
+assert.match(docsIndex, /`INDUSTRY_AND_PRODUCTION_DESIGN\.md`/);
+assert.match(docsIndex, /`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN\.md`/);
+assert.match(docsIndex, /`AUTHORITATIVE_COUNTDOWN_DESIGN\.md`/);
 
 console.log('production lazy settlement architecture verified');
