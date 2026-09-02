@@ -1,0 +1,48 @@
+name: One-shot compact UI design authority
+
+on:
+  push:
+    branches:
+      - codex/transport-route-cards-footer
+    paths:
+      - .github/workflows/one-shot-compress-ui-design.yml
+
+permissions:
+  contents: write
+
+jobs:
+  compact:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/transport-route-cards-footer
+          fetch-depth: 0
+
+      - name: Remove duplicated compressed-summary tail
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/UI_DESIGN_SYSTEM.md')
+          text = path.read_text(encoding='utf-8')
+          marker = '\n## 压缩后共享视觉防回退摘要\n'
+          if marker not in text:
+              raise SystemExit('UI design summary marker not found')
+          text = text.split(marker, 1)[0].rstrip() + '\n'
+          path.write_text(text, encoding='utf-8')
+
+          workflow = Path('.github/workflows/one-shot-compress-ui-design.yml')
+          workflow.unlink()
+          PY
+
+      - name: Commit compaction and remove one-shot workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/UI_DESIGN_SYSTEM.md .github/workflows/one-shot-compress-ui-design.yml
+          git commit -m "Compress UI design authority"
+          git push origin HEAD:codex/transport-route-cards-footer
