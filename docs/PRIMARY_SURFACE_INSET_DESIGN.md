@@ -2,7 +2,7 @@
 
 > 状态：玩家端一级卡片外层几何的唯一规则
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-31
+> 更新时间：2026-09-02
 
 ## 1. 目标
 
@@ -11,6 +11,8 @@
 同时，一级卡片必须完整落在当前页面承载面的真实内部宽度内：桌面端承载面是集成 `workspaceCard` 扣除固定指挥轨道后的页面槽，移动端承载面是唯一根级 Mobile Workspace Sheet 的内容盒。不得依赖外壳 `overflow: hidden` 裁掉超宽页面来获得“看似对齐”的结果。
 
 ## 2. 唯一权威
+
+本文只负责获 `UI_DESIGN_SYSTEM.md` 允许保留圆角的非滚动玩家一级表面的 inset 几何。可滚动 `.page-card-scroll` 正文不属于圆角一级卡片适用范围；其模块边界统一由 UI 设计系统规定为透明内容与细线分区。历史组件即使继续输出 `.ui-primary-surface`，进入可滚动正文后也必须由最终滚动正文样式清除圆角、背景、阴影与卡片 padding 视觉，不得借本文恢复。
 
 - `src/styles/primary-surfaces.css` 是玩家端一级卡片外层内边距的唯一 CSS 权威。
 - `--primary-surface-inset` 是唯一一级卡片内边距令牌。
@@ -22,8 +24,8 @@
 
 ## 3. React 组件规则
 
-- 新增一级卡片必须使用 `PagePanel`。
-- 只有页面正文确实存在需要独立视觉分组的一级业务模块时才创建一级卡片；正常状态下若整个正文只有一个一级业务模块，不得仅为包裹整页再增加 `PagePanel`、`Panel className="widget ..."` 或其他圆角卡片。该单一模块的标题、指标、列表和操作直接排列在 `PageLayout` 正文中。原因是桌面 `workspaceCard` 与移动根级 Mobile Workspace Sheet 已经承担页面一级承载面，再包一层唯一大卡只会形成没有信息层级增益的双层边框、圆角和内边距。
+- 获准保留圆角的非滚动玩家一级表面必须使用 `PagePanel`；可滚动正文不得为了视觉分组新增圆角 `PagePanel`。
+- 可滚动 `.page-card-scroll` 正文不属于圆角一级卡片适用范围，无论有一个还是多个业务模块都只使用留白与细线分区；旧 `PagePanel` 只可作为结构兼容节点并由最终滚动正文样式扁平化。非滚动固定／sticky／浮动表面确实需要独立承载时，才进入本文的统一 inset 规则。
 - `PagePanel` 固定输出 `panel widget ui-primary-surface` 三个语义类。
 - 现有 `Panel className="widget ..."` 由 `Panel` 兼容桥自动补充 `ui-primary-surface`，用于避免一次性重写全部页面造成无关风险。
 - 现有 `.panel.production-surface` 与 `.panel.leaderboard-board-card` 由 `primary-surfaces.css` 作为旧类兼容入口统一接管，直到对应组件迁移为 `PagePanel`；这两个类不得在业务 CSS 中重新声明外层 padding。

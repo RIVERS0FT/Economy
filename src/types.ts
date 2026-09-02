@@ -249,6 +249,7 @@ export interface TransportLegPlanEntry {
 export interface TransportRoute {
   id: string;
   name: string;
+  setupCost: number;
   sourceProvinceId: string;
   destinationProvinceId: string;
   viaProvinceIds?: string[];

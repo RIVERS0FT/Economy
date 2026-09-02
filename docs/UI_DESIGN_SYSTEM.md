@@ -5,7 +5,7 @@
 > 状态：当前视觉、共享组件、响应式与可访问性实现基线
 > 适用项目：`RIVERS0FT/Economy`
 > 当前平台：网页端
-> 更新时间：2026-09-01
+> 更新时间：2026-09-02
 
 产品和页面职责分别以 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；应用外壳几何和玻璃材质以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。
 
@@ -50,6 +50,7 @@
 | `src/styles/factory-auto-operation.css` | 地区工厂详情自动经营的启停、原料保障、经营模式、产成品处理与响应式布局 |
 | `src/styles/warehouse-expansion.css` | 州级可钻取仓库商品网格、容器查询与紧凑商品卡布局 |
 | `src/styles/transport-page.css` | 独立运输页的路线编辑、路线卡、在途／最近完成记录与响应式布局 |
+| `src/styles/scrolling-page-sections.css` | 玩家可滚动正文的最终细线分区与圆角卡片视觉清除、运输路线方式线型以及运输地图创建面板状态栏安全定位；不得定义表单控件基础视觉 |
 | `src/styles/production-surface.css` | 建筑页建设卡和工厂详情的标题轨道、名称下状态与紧凑开关；不得定义一级卡片外层内边距 |
 | `src/styles/regional-entity-page-title.css` | 地区商品／工厂详情共享两行标题：实体主标题、可点击地区导航、固定 40px 标题轨道内紧凑例外与溢出规则 |
 | `src/styles/auth.css` | 登录布局、动态视口与认证自动填充兼容例外 |
@@ -109,9 +110,9 @@
 
 `MobileWorkspaceSheetHost` 是移动端唯一根级 Sheet 宿主，并独占 `useMobileWorkspaceSheetDrag` 的向下拖动、速度判定、回弹、关闭和 reduced-motion 状态机。`MobileWorkspacePageSheet` 只保留为 `GameShell` 的零 DOM 兼容适配器，`MobileWorkspaceDetailSheet` 只向 Host 注册详情内容和固定底栏；两者都不得创建自己的 Sheet 外框、遮罩、Portal 或第二套手势状态机。
 
-`PagePanel` 是新增玩家端一级卡片的唯一 React 入口，固定复用 `Panel`、`.widget` 与 `.ui-primary-surface`。现有 `Panel className="widget ..."` 由兼容桥自动补充 `.ui-primary-surface`；建筑页和排行页尚未迁移的旧一级卡片类只允许在 `primary-surfaces.css` 中作为兼容入口，不得在业务 CSS 中重新定义外层 padding。
+`PagePanel` 继续作为旧玩家页面一级业务模块的 React 兼容入口，并固定复用 `Panel`、`.widget` 与 `.ui-primary-surface`；但它不再自动意味着可滚动正文可以显示成圆角卡片。可滚动 `.page-card-scroll` 正文统一由 `scrolling-page-sections.css` 把 `.ui-primary-surface` 扁平化为透明内容区与 `1px` 细线分区，清除圆角、独立背景、阴影和 `backdrop-filter`。新建可滚动业务模块优先使用语义化 `section`、列表或表格表面，不应为了分组新增 `PagePanel`。
 
-`PagePanel` 只用于实际存在视觉分组意义的一级业务模块。若页面正文在正常状态下只有一个一级业务模块，内容必须直接排列在 `PageLayout` 正文而不是再套唯一大圆角卡；`workspaceCard`／Mobile Workspace Sheet 已经是页面承载面，禁止用第二层整页卡片重复边框、圆角和外层内边距。
+只有不随页面正文滚动的固定、sticky、浮动、Popover、Dialog、Tooltip、根级工作区等真正独立表面可以保留圆角卡片；这类获准表面若属于玩家端一级表面仍使用 `PagePanel` 与共享 inset。`.page-card-static` 只有在内容本身固定且不随页面滚动时才可按所属专项规则保留批准的圆角表面。该规则优先于页面专项中历史遗留的“卡片／PagePanel／Panel”措辞：若该模块位于 `.page-card-scroll`，这些词只表示结构，不允许恢复圆角卡片视觉。
 
 所有带表头的页面实体目录固定使用 `.entity-list-surface` 包裹 `EntityListHeader + .entity-list-rows`。表头与首行、相邻数据行统一使用同一 `.32rem` 间距；列 gap、横向 padding、Chevron 轨道和目录插画槽只能由 `entity-list-header.css` 的共享变量随真实内容容器收缩，业务 CSS 只允许定义字段列模板和业务单元格内部排版。列表密度例外只有两类：`market-commodity-row.css` 同时覆盖一级市场 `.global-market-goods-row` 与地区商品 `.market-commodity-row` 的紧凑商品行；一级全局建筑 `.global-facility-catalog-row` 为容纳第二行生产设置，登记为约 `93～96px` 的两行高度例外：桌面第一行固定收紧到 `32px`，移动端第一行保持 `44px` 触控高度；`FacilityIcon` 正方形插画跨两行，第二行两个方案槽使用列表场景 `48px` 尺寸。横向内边距继续复用 `--entity-list-inline-padding` 与共享表头对齐，纵向内边距允许按两行密度独立收紧；地区下钻主按钮只覆盖第一行。第二行必须复用建筑详情页 `FacilityProductionProductSelect` / `FacilityProductionMethodSelect` 及同一个 `production-config` 变体，按钮皮肤、`ProductArtwork` / 作业制度 Icon、候选名称、投入／产出／周期／成本和相对变化摘要与详情页保持同源，仅触发尺寸可按列表密度从详情默认尺寸收紧到 `48px`。工厂地区列表 `.global-facility-region-row` 同步使用相同的两行密度与共享生产方案槽，但不增加 `FacilityIcon` 场景插画；第一行仍使用共享表头列并独占下钻交互。除这两类外其他市场、地区商品、建筑或地区建筑不得维护另一套列表密度。正负行情与利润统一通过 `.entity-list-value.is-positive / .is-negative` 表达，避免同一语义跨页面变色。
 
@@ -435,7 +436,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 一级市场采用“商品目录 → 商品全局详情 → 地区商品详情”，地区州上下文采用“地区商品目录 → 地区商品详情”；两条路径最终都复用同一个地区商品详情、订单簿和手动下单实现；地区商品详情不渲染自动经营执行卡，自动经营策略与玩家可见执行解释唯一归属地区工厂详情。一级市场不显示独立地区市场面板，地区目录不提供“市场行情／自动交易”工作区、四张目录汇总统计卡或商品列表外层一级卡片；商品全局详情的地区商品列表同样直接排列在页面正文，不显示“地区行情”标题、地区计数或外层一级卡片；工厂资产不出现在市场目录，所有权交易统一进入一级拍卖页面。全局与地区市场筛选均使用原生 disclosure，默认折叠且不提供商品名称搜索框。
 - 买入使用成功色，卖出使用危险色，但方向必须有文字。
 - `MarketCommodityRow` 是商品全局详情地区行和地区市场目录的唯一共享商品数据行；一级市场商品目录保留自身聚合字段结构，但 `.global-market-goods-row` 必须与 `.market-commodity-row` 共同由 `market-commodity-row.css` 收束商品行密度，禁止两处分别维护高度或插画尺寸。共享列表固定使用独立表头“商品｜卖单量｜买单量｜市场价｜24h｜箭头”，商品全局详情地区列表首列为“地区”，地区行的可见身份只显示地区全名，不渲染商品插画、商品名称、类别或副标题；数据行固定为“实体身份｜卖单量值｜买单量值｜市场价值｜24h 值｜右向 Chevron”且不重复字段名，不显示挂单差额、基准偏离或挂单状态；这些字段不得以行内标签或地区商品详情基本面恢复。表头是唯一排序入口：可排序列渲染为按钮并使用 `role="columnheader"` + `aria-sort` 播报方向，采用“默认方向 → 反方向 → 恢复目录顺序”三态循环，数值列默认从优到劣、名称列默认升序，缺失值固定排末尾；筛选 disclosure 只承载筛选，不得恢复排序下拉或排序按钮组。普通商品身份槽桌面使用 `36px`、商品插画 `32px`；不大于 620px 时使用 `32px / 28px`，不大于 360px 时使用 `30px / 26px`；插画槽与 `ProductArtwork` 必须显式保持 `1:1`。商品数据行桌面最小高 `50px`，不大于 620px 时为 `46px`，不大于 360px 时为 `44px`，一级市场与地区商品目录必须同步。`44px` 是移动触控下限；商品目录需要连续扫描较多重复条目，因此只在商品数据行允许低于通用实体行的紧凑高度。移动端仍保持单行，不得恢复两列／多行摘要卡、隐藏四项核心指标或产生横向主滚动。商品详情头部继续复用对应主视觉。
-- 市场、地区商品、建筑和地区建筑四类实体列表统一复用 `EntityListHeader` 与 `.entity-list-row` 表面基线。表头固定高 `42px`；通用数据行桌面最小高 `58px`，不大于 620px 的紧凑容器为 `54px`。商品数据行是唯一高度例外，固定使用上一条的 `50px / 46px / 44px` 三档并由同一共享样式同时覆盖一级市场和地区商品目录；其他业务列表不得重定义高度。四类行统一使用 `1px` 弱边框、`var(--radius-control)` 圆角、同一半透明表面、横向内边距、列间距、右向 Chevron 与共享交互反馈，桌面鼠标悬停不得位移。表头与条目必须通过同一个 `--entity-list-columns` 列变量对齐；业务样式只允许定义列模板及响应式最小宽度，不得重新定义行边框、圆角或背景。
+- 市场、地区商品、建筑和地区建筑四类实体列表统一复用 `EntityListHeader` 与 `.entity-list-row` 表面基线。表头固定高 `42px`；通用数据行桌面最小高 `58px`，不大于 620px 的紧凑容器为 `54px`。商品数据行是唯一高度例外，固定使用上一条的 `50px / 46px / 44px` 三档并由同一共享样式同时覆盖一级市场和地区商品目录；其他业务列表不得重定义高度。四类行在可滚动正文中统一使用相邻行 `1px` 细线分隔、透明基础表面、横向内边距、列间距、右向 Chevron 与共享交互反馈，不为每一行重复创建圆角卡片边框，桌面鼠标悬停不得位移。表头与条目必须通过同一个 `--entity-list-columns` 列变量对齐；业务样式只允许定义列模板及响应式最小宽度，不得重新定义行边框、圆角或背景。
 - 所有带表头的实体列表统一使用 `.entity-list-header` 基线：弱化文字、`--font-size-xs`、700 字重、`--color-divider` 下边框分隔和单元格省略。可排序实体列表必须复用 `EntityListHeader` 的按钮、方向 Chevron、键盘焦点、`aria-sort` 与三态状态机，不得在市场或建筑页面复制排序表头。全局市场商品目录、全局工厂目录、全局工厂地区列表和银行资产构成表只在各自样式文件补充列模板与横向内边距，不得重新定义表头颜色、字重或分隔线；`VirtualRecordTable` 与管理员记录表保留自身粘性表头和横纵同步结构，仅遵循同一表头令牌。
 
 ### 8.1 美国本土州级经营地图
@@ -449,6 +450,8 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 地区默认、当前、资产、工业、市场和异常语义继续使用区域填充、边界、文字、Tooltip 和五种镜头共同表达；默认州面、未解锁州面、州界与州名分别读取 `--color-map-region-default`、`--color-map-region-locked`、`--color-map-region-border` 与 `--color-map-label`。当前地区由外部 `selectedProvinceId` 驱动 path 与标签选中属性；镜头状态只属于 `GameShell` 客户端视觉上下文，不写入服务器或更换地区。每个州面保留鼠标、触摸和键盘激活；单击后设置经营州并打开隐藏 `province` 上下文页。离开州级页立即清除地图视觉高亮，但保留经营州供后续业务写操作使用。
 - 桌面 Tooltip 继续使用 `.ui-tooltip-surface` 的统一毛玻璃材质，并 Portal 到共享 `.workspace-tooltip-layer`；实际地图 Tooltip 节点自己声明 `popover="manual"` 并通过既有 `topLayer.ts` 进入浏览器 Top Layer，宿主本身保持普通 DOM 子层。内容显示本地库存、工厂、运行中与本地挂单，未解锁州明确标注“未解锁”。不大于 `720px` 时地图 Tooltip 必须禁用并隐藏，触摸州面直接打开州级上下文页。地图容器继续提供“美国本土州级经营地图”可访问名称与可读摘要。`MapPage` 只保留透明路由占位；市场、建筑和其他业务页面不得恢复地区下拉框、第二张地图或平行选择状态。
 - 运输路线图层唯一挂载在 `UsMainlandMap` 静态 SVG 世界面内、州面上方且不拦截州面交互：首府坐标经同一静态投影在模块初始化时求点，路线连线、返程虚线与站点标记跟随唯一 `.province-map-camera-surface` 合成相机，使用 `non-scaling-stroke`，缩放／平移期间不重投影、不重排州名。草稿连线使用 `--color-info` 高亮，已保存路线使用 `--color-map-label` 弱化，卡片高亮使用 `--color-warning`；选州模式压暗不可选州面并保留可选项的中性轮廓反馈。选州操作条位于地图层顶部安全区内，复用既有表面令牌，并同时承载站点序列、运输方式、单程／往返、闭环、重置、完成与取消。
+- 路线线型必须直接表达运输方式而不能只依赖颜色：公路使用连续实线，铁路使用短长节奏组合虚线表现轨道节奏，航空使用间隔更大的长虚线航线。草稿、已保存和卡片 hover／focus 高亮只改变强调色、透明度或粗细，不得覆盖运输方式线型。
+- 运输地图创建面板属于固定地图浮层，因此允许保留圆角表面，但其顶部必须显式避让状态栏：桌面使用状态栏实际高度、状态栏间距与工作区沟槽计算安全 top；移动直接复用 `--mobile-below-status-top`。面板必须限制最大高度并允许自身滚动，任何视口下都不得被状态栏覆盖。
 - 在途运输标记与运输路线使用同一 SVG 世界坐标系和同一合成相机，不创建第二张地图、第二套投影或 ECharts 动画层。标记位置只根据服务器权威时间和 shipment 固化的 `legPlan` 当前运输段插值计算；公路、铁路、航空使用紧凑且可辨识的 SVG 标记。桌面 hover、键盘 focus 和移动点击必须显示统一 Tooltip，至少包含路线名称、当前运输段、剩余时间、当前载荷以及正在运输的商品、数量和各自目的州；已卸货商品不得继续列为正在运输。运输标记 Tooltip 与州 Tooltip 共用唯一 `.workspace-tooltip-layer` 作为 Portal DOM 父级，实际 Tooltip 节点自己声明 `popover="manual"` 并通过既有 `topLayer.ts` 进入浏览器 Top Layer；不得把共享宿主整体送入 Top Layer 或创建运输专属 Portal 根。`prefers-reduced-motion` 下关闭装饰性运动／过渡，但仍按服务器权威时间显示准确当前位置和货物信息。
 - 性能回归必须验证实际热路径：缩放／平移前后的 48 条 path `d` 与州名基础 glyph transform 保持不变；州面和州名都能追溯到同一个 `.province-map-camera-surface`；同一任务内的多次滚轮输入在下一绘制帧只增加一次 camera write；放大使外围州离开屏幕后，缩小且 `data-map-zoom-active="true"` 时外围州已经重新进入且州名中心仍命中对应 path。不得用最终 settle 后才恢复、隐藏屏外州、永久 `will-change`、第二套相机或 ECharts Map 规避检查。
 - 玩家端仍采用大战略游戏式常驻地图工作台：图片层 `0`、氛围层 `10`、地图层 `20`、UI 层 `30`，`.application-map-layer` 通过同一个 Portal 持有唯一 `StrategicMapStage` 和 `StrategicMapLensBar`。业务页面和通知仍位于更高 UI 层；不大于 `720px` 时镜头栏隐藏。地图数据只用于游戏经营地区视觉，不用于现实测绘、导航或法律边界声明；既有 34 个地区 ID 与新增 14 个州 ID 必须继续稳定对应现有资产。
@@ -566,6 +569,9 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 不得把账号或密码重新绑定到初始为空的 React `value` 状态。
 
 ## 16. 防回退
+
+- 可滚动 `.page-card-scroll` 正文不得恢复圆角一级卡片、独立卡片背景、卡片阴影或卡片级毛玻璃分区；固定／sticky／浮动等不随正文滚动的表面才允许按规则使用圆角。
+- 公路、铁路、航空运输路线必须保持三种不同线型，保存、草稿和高亮状态均不得退化为同一线型；运输地图创建面板不得进入桌面或移动状态栏覆盖区域。
 
 - 不得在地区商品详情恢复市场价、基准偏离、需求满足率、参考价、上轮需求、基本面条、自动经营执行卡、一级交易卡底座或本地成交“资产”列；
 

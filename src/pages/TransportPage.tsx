@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
 import { ChevronIcon } from '../components/icons/GameIcons';
-import { useTransportRouteDraft, type TransportRouteDraft } from '../components/shell/TransportRouteDraftContext';
+import { useTransportRouteDraft } from '../components/shell/TransportRouteDraftContext';
 import { CompactNumber } from '../components/ui/CompactNumber';
 import { TextInput } from '../components/ui/FormControls';
 import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
