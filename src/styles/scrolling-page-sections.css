@@ -3,8 +3,8 @@
 /* Scrollable player-page structural sections use spacing and dividers instead
  * of nested rounded cards. Independent business-object semantics are owned by
  * content-surfaces.css and are explicitly excluded from this flattening rule. */
-.page-card-scroll .panel:not(.ui-entity-card):not(.contract-card),
-.page-card-scroll .ui-primary-surface:not(.ui-entity-card):not(.contract-card) {
+.page-card-scroll .panel:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card),
+.page-card-scroll .ui-primary-surface:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card) {
   border: 0;
   border-top: 1px solid var(--color-divider);
   border-radius: 0;
@@ -15,10 +15,10 @@
   backdrop-filter: none;
 }
 
-.page-card-scroll > * > .panel:not(.ui-entity-card):not(.contract-card):first-child,
-.page-card-scroll > * > .ui-primary-surface:not(.ui-entity-card):not(.contract-card):first-child,
-.page-card-scroll .transport-page-actions + .panel:not(.ui-entity-card):not(.contract-card),
-.page-card-scroll .transport-page-actions + .ui-primary-surface:not(.ui-entity-card):not(.contract-card) {
+.page-card-scroll > * > .panel:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card):first-child,
+.page-card-scroll > * > .ui-primary-surface:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card):first-child,
+.page-card-scroll .transport-page-actions + .panel:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card),
+.page-card-scroll .transport-page-actions + .ui-primary-surface:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card) {
   border-top: 0;
 }
 
