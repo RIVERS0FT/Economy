@@ -361,8 +361,8 @@ for (const text of [
 
 assert.equal((uiDesign.match(/### 8\.1 美国本土州级经营地图/g) ?? []).length, 1, 'UI 设计文档只能保留一份美国本土州级经营地图 8.1 规则');
 for (const text of [
-  '静态 SVG 世界面', '单一合成相机', '48 个州面 path 必须始终完整挂载',
-  '每个动画帧最多写一次', '州面 path 的 `d`', '中文州全名', '同一个 SVG 世界坐标系',
+  '静态 SVG 世界面', '同一个 `.province-map-camera-surface`', '48 个州面 path 必须始终完整挂载',
+  '响应式条件下不得通过第二相机、第二地图或重排标签来实现镜头变化', '州面 path 的 `d`', '中文州全名', '同一个 SVG 世界坐标系',
   '不得通过 `textLength`', '不大于 `720px` 时地图 Tooltip',
 ]) assert.ok(uiDesign.includes(text), `静态地图 UI 设计规则缺少: ${text}`);
 for (const forbidden of ['每个动画帧必须把 `nextZoom / currentZoom` 作为增量通过正式 `geoRoam`', '每个动画帧最多调用一次增量 `geoRoam`']) {
@@ -371,7 +371,7 @@ for (const forbidden of ['每个动画帧必须把 `nextZoom / currentZoom` 作�
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 for (const text of [
   '州级上下文页（无导航按钮）', '概览｜市场｜建筑｜仓库', '中文州全名作为唯一州面名称',
-  '静态 SVG 世界面', '唯一相机状态', '名称随地图缩放和平移同步变化',
+  '静态 SVG 世界面', '战略地图镜头、缩放、重置和平移边界唯一遵循', '名称随地图缩放和平移同步变化',
   '不大于 `720px` 时镜头栏和地图 Tooltip 必须隐藏',
 ]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
 const chromeDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
