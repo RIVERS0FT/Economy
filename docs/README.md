@@ -67,7 +67,7 @@
 | `PRODUCTION_PILL_ALIGNMENT_DESIGN.md` | 建筑页生产状态胶囊和开关的局部对齐几何 | 生产状态业务语义、通用控件设计、工厂算法 |
 | `LIQUID_GLASS_CHROME_DESIGN.md` | 根外壳、毛玻璃材质与 Chrome、战略地图与工作区层级结构 | 页面业务内容、通用表单/颜色令牌、经济规则 |
 | `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威、API、事务、存储、缓存、安全、容量与生产部署 | 玩家可见玩法定义、页面模块归属、通用视觉设计 |
-| `CI_EXECUTION_DESIGN.md` | PR、分支与主线 CI 的选择、并行、分片、超时和发布前门禁 | 业务规则、服务器运行时实现、生产业务配置 |
+| `CI_EXECUTION_DESIGN.md` | PR、分支、主线与手动 GitHub Actions 的选择、并行、分片、超时、发布前门禁和生产只读诊断执行安全 | 业务规则、服务器运行时实现、SQLite 维护语义、生产业务配置 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器本地活动记录的最小数据、迁移、展示与清除边界 | 服务器权威账本、市场撮合、全局通知系统 |
 | `GIFT_CODE_AND_ADMIN_DESIGN.md` | 礼品码、管理员运营能力、管理审计和管理端专属规则 | 普通玩家通用页面、产业生产规则、服务器基础设施 |
 
@@ -92,7 +92,7 @@
 | 宝石加速与动态兑换 | `GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md` |
 | 权威倒计时、状态读取恢复、ready 生命周期 | `AUTHORITATIVE_COUNTDOWN_DESIGN.md` |
 | API、事务、状态协议、存储、缓存、安全、容量、部署 | `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` |
-| CI 选测、分片、超时和主线发布门禁 | `CI_EXECUTION_DESIGN.md` |
+| CI 选测、分片、超时、主线发布门禁和手动生产只读诊断执行 | `CI_EXECUTION_DESIGN.md` |
 | 浏览器本地成交/活动历史 | `LOCAL_ACTIVITY_LOG_DESIGN.md` |
 | 礼品码与管理员专属运营能力 | `GIFT_CODE_AND_ADMIN_DESIGN.md` |
 
