@@ -19,6 +19,8 @@ jobs:
           fetch-depth: 0
       - name: Diagnose merge with main
         run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           set +e
           git fetch --no-tags origin main:refs/remotes/origin/main
           git merge --no-commit --no-ff refs/remotes/origin/main
