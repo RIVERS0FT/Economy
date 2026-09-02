@@ -59,6 +59,11 @@ for (const text of [
   "variant === 'production-config'",
   'availableBelow >= estimatedHeight',
   'availableAbove >= estimatedHeight',
+  'availableLayerHeight',
+  'productionCanFitLayer',
+  'safeTop',
+  'safeBottom',
+  'clamp(preferredTop, safeTop, safeBottom - maxHeight)',
 ]) {
   assert.ok(richSelect.includes(text), `生产配置菜单自然高度定位缺少 ${text}`);
 }
@@ -78,9 +83,10 @@ for (const text of [
   '图片槽不得绘制独立黑色底板',
   '完整名称与参数只在展开候选中显示',
   '候选菜单按自身实际内容高度展开',
-  '上方或下方任一方向能够完整容纳全部候选',
-  '不得生成内部纵向滚动条',
-  '只有上下方向都无法完整容纳时才允许保留受限高度与内部滚动',
+  '安全可用矩形整体能够完整容纳全部候选',
+  '沿纵向平移收敛到安全边界',
+  '不得为保持严格上下关系制造内部纵向滚动条',
+  '只有完整候选菜单本身高于安全可用矩形时才允许保留受限高度与内部滚动',
 ]) {
   assert.ok(design.includes(text), `UI 设计文档缺少生产配置规则：${text}`);
 }
@@ -142,4 +148,4 @@ for (const text of [
   assert.ok(browser.includes(text), `生产配置浏览器回归缺少 ${text}`);
 }
 
-console.log('生产配置视觉验证通过：生产产物与作业制度使用 UMG 风格 Auto 槽连续左排；候选能够完整容纳时按真实内容高度展开，不产生内部纵向滚动。');
+console.log('生产配置视觉验证通过：生产产物与作业制度使用 UMG 风格 Auto 槽连续左排；安全矩形能容纳完整候选时按真实内容高度展开并在安全区内平移，不产生内部纵向滚动。');
