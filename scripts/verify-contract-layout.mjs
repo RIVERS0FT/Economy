@@ -12,6 +12,7 @@ const routePath = 'src/pages/ContractPage.tsx';
 const pagePath = 'src/pages/ContractWorkspacePage.tsx';
 const stylePath = 'src/styles/contracts.css';
 const scrollingStylePath = 'src/styles/scrolling-page-sections.css';
+const contentSurfaceStylePath = 'src/styles/content-surfaces.css';
 const harnessAggregateStylePath = 'src/styles/frosted-glass-chrome.css';
 const auditStylePath = 'src/styles/contract-audit.css';
 const designPath = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md';
@@ -24,7 +25,7 @@ const formVerifierPath = 'scripts/verify-form-controls.mjs';
 const serverPath = 'server/src/contract-audit-store.js';
 const packagePath = 'package.json';
 
-[routePath, pagePath, stylePath, scrollingStylePath, harnessAggregateStylePath, auditStylePath, designPath, serverDesignPath, browserTestPath, attentionBrowserTestPath, workspaceTestPath, harnessPath, formVerifierPath, serverPath, packagePath].forEach(requireFile);
+[routePath, pagePath, stylePath, scrollingStylePath, contentSurfaceStylePath, harnessAggregateStylePath, auditStylePath, designPath, serverDesignPath, browserTestPath, attentionBrowserTestPath, workspaceTestPath, harnessPath, formVerifierPath, serverPath, packagePath].forEach(requireFile);
 
 for (const text of [
   "import { ContractWorkspacePage } from './ContractWorkspacePage';",
@@ -63,15 +64,25 @@ for (const text of [
 forbidText(stylePath, '--page-section-gap');
 
 for (const text of [
-  '.ui-entity-card,',
+  "@import './content-surfaces.css';",
+  '.page-card-scroll .panel:not(.ui-entity-card):not(.contract-card),',
+  '.page-card-scroll .ui-primary-surface:not(.ui-entity-card):not(.contract-card) {',
+  'border-top: 1px solid var(--color-divider);',
+]) requireText(scrollingStylePath, text);
+forbidText(scrollingStylePath, '.page-card-scroll .panel,\n.page-card-scroll .ui-primary-surface {');
+
+for (const text of [
+  '.ui-entity-card:not(.panel),',
+  '.panel.ui-entity-card,',
   '.panel.contract-card {',
   'background: var(--color-surface-subtle);',
   '-webkit-backdrop-filter: none;',
+  'backdrop-filter: none;',
   '.contract-summary-grid > .ui-metric-card {',
   '.panel.contract-card--attention {',
-]) requireText(scrollingStylePath, text);
-forbidText(scrollingStylePath, '.page-card-scroll .panel,\n.page-card-scroll .ui-primary-surface {');
-requireText(harnessAggregateStylePath, "@import './scrolling-page-sections.css';");
+]) requireText(contentSurfaceStylePath, text);
+requireText(harnessAggregateStylePath, "@import './content-surfaces.css';");
+forbidText(harnessAggregateStylePath, "@import './scrolling-page-sections.css';");
 
 for (const text of ['.contract-history-result-grid', '.contract-history-entry', '.contract-history-republish']) requireText(auditStylePath, text);
 for (const text of [
