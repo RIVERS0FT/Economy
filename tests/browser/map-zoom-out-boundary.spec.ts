@@ -76,7 +76,8 @@ test('states outside the viewport re-enter during zoom-out because all 48 paths 
 
   const zoomOutActiveFrame = await wheelBurst(page, 180, 16);
   expect(zoomOutActiveFrame.active).toBe('true');
-  expect(zoomOutActiveFrame.current).toBeLessThanOrEqual(0.501);
+  expect(zoomOutActiveFrame.current).toBeGreaterThanOrEqual(0.999);
+  expect(zoomOutActiveFrame.current).toBeLessThanOrEqual(1.001);
   const restoredDuringActiveZoom = await readEdgeProvinceHits(page);
   expect(restoredDuringActiveZoom.every((entry) => entry.insideCanvas)).toBe(true);
   expect(restoredDuringActiveZoom.every((entry) => entry.statePathVisibleAtLabel)).toBe(true);

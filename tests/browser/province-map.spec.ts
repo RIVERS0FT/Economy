@@ -41,7 +41,7 @@ test('persistent strategy map uses one static SVG world for 48 states and Chines
   await expect(canvas).toHaveAttribute('data-map-camera-mode', 'html-compositor-transform');
   await expect(canvas).toHaveAttribute('data-map-camera-hot-path', 'single-css-transform');
   await expect(canvas).toHaveAttribute('data-map-camera-geometry-mode', 'immutable-svg-world');
-  await expect(canvas).toHaveAttribute('data-map-fit-mode', 'contain-static-svg');
+  await expect(canvas).toHaveAttribute('data-map-fit-mode', 'mainland-area-target');
   await expect(canvas).toHaveAttribute('data-map-contain-viewport', '1440x900');
   await expect(canvas).toHaveAttribute('data-map-world-path-count', '48');
   await expect(canvas).toHaveAttribute('data-map-label-count', '48');
