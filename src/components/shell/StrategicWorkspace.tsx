@@ -151,7 +151,17 @@ export function StrategicMapStage({
       for (const route of transportRoutes) {
         const stops = transportRouteStopIds(route);
         if (stops.length < 2) continue;
-        overlays.push({ id: `saved-${route.mode}-${route.id}`, stops, closed: isTransportRouteClosed(route), tripType: route.tripType ?? 'one-way', kind: 'saved' });
+        overlays.push({
+          id: `saved-${route.mode}-${route.id}`,
+          routeId: route.id,
+          laneOwnerId: route.id,
+          sortKey: `${String(route.createdAt).padStart(16, '0')}-${route.id}`,
+          mode: route.mode,
+          stops,
+          closed: isTransportRouteClosed(route),
+          tripType: route.tripType ?? 'one-way',
+          kind: 'saved',
+        });
       }
     }
     const highlightedStops = routeDraft?.highlightedRouteStops;
@@ -162,6 +172,10 @@ export function StrategicMapStage({
       });
       overlays.push({
         id: highlightedRoute ? `highlighted-${highlightedRoute.mode}-route` : 'highlighted-route',
+        routeId: highlightedRoute?.id,
+        laneOwnerId: highlightedRoute?.id ?? 'highlighted-route',
+        sortKey: highlightedRoute ? `${String(highlightedRoute.createdAt).padStart(16, '0')}-${highlightedRoute.id}` : 'zzzz-highlighted-route',
+        mode: highlightedRoute?.mode ?? 'road',
         stops: highlightedStops,
         closed: highlightedStops[0] === highlightedStops[highlightedStops.length - 1],
         tripType: highlightedRoute?.tripType ?? 'one-way',
@@ -171,6 +185,9 @@ export function StrategicMapStage({
     if (routeDraft?.draft && draftStops.length >= 2) {
       overlays.push({
         id: `draft-${routeDraft.draft.mode}-route`,
+        laneOwnerId: 'draft-route',
+        sortKey: 'zzzz-draft-route',
+        mode: routeDraft.draft.mode,
         stops: draftStops,
         closed: isTransportRouteClosed(routeDraft.draft),
         tripType: routeDraft.draft.tripType,
