@@ -5,7 +5,8 @@ import type { GameTutorialController } from '../../game-guide/useGameTutorial';
 import { useNow } from '../../hooks/useNow';
 import type { PendingNotificationItem } from '../../notifications/notificationCenter';
 import type { ProvinceAssetSummary, ProvinceDefinition, TransportModeId, TransportShipment } from '../../types';
-import { isTransportRouteClosed, transportRouteStopIds } from '../../utils/provinceLogistics';
+import { formatCurrency } from '../../utils/formatters';
+import { isTransportRouteClosed, transportRouteSetupCost, transportRouteStopIds } from '../../utils/provinceLogistics';
 import { StrategicOutliner } from '../outliner/StrategicOutliner';
 import { SelectInput } from '../ui/FormControls';
 import {
@@ -139,6 +140,9 @@ export function StrategicMapStage({
   const transportRoutes = Array.isArray(model.game.transportRoutes) ? model.game.transportRoutes : [];
   const routeById = useMemo(() => new Map(transportRoutes.map((route) => [route.id, route])), [transportRoutes]);
   const draftStops = routeDraft?.draft ? transportRouteStopIds(routeDraft.draft) : [];
+  const draftSetupCost = routeDraft?.draft && draftStops.length >= 2
+    ? transportRouteSetupCost(routeDraft.draft, routeDraft.draft.mode, provinceById)
+    : 0;
   const routeOverlays = useMemo<ProvinceMapRouteOverlay[]>(() => {
     if (startingProvincePicking) return [];
     const overlays: ProvinceMapRouteOverlay[] = [];
@@ -146,7 +150,7 @@ export function StrategicMapStage({
       for (const route of transportRoutes) {
         const stops = transportRouteStopIds(route);
         if (stops.length < 2) continue;
-        overlays.push({ id: `saved-${route.id}`, stops, closed: isTransportRouteClosed(route), tripType: route.tripType ?? 'one-way', kind: 'saved' });
+        overlays.push({ id: `saved-${route.mode}-${route.id}`, stops, closed: isTransportRouteClosed(route), tripType: route.tripType ?? 'one-way', kind: 'saved' });
       }
     }
     const highlightedStops = routeDraft?.highlightedRouteStops;
@@ -161,7 +165,7 @@ export function StrategicMapStage({
     }
     if (routeDraft?.draft && draftStops.length >= 2) {
       overlays.push({
-        id: 'draft-route',
+        id: `draft-${routeDraft.draft.mode}-route`,
         stops: draftStops,
         closed: isTransportRouteClosed(routeDraft.draft),
         tripType: routeDraft.draft.tripType,
@@ -234,7 +238,7 @@ export function StrategicMapStage({
               </span>
             )) : <span className="transport-map-picking-empty">先点击一个州作为起点</span>}
           </div>
-          <p className="transport-map-picking-hint">按顺序点击州面追加站点；再次点击起点州可闭环。路线默认单程，运输方式和往返设置也只在地图编辑模式修改。</p>
+          <p className="transport-map-picking-hint">按顺序点击州面追加站点；再次点击起点州可闭环。路线创建后路径、行程与运输方式均不可修改。</p>
           <div className="transport-map-picking-options">
             <SelectInput
               label="运输方式"
@@ -254,6 +258,10 @@ export function StrategicMapStage({
               <option value="one-way">单程</option>
               <option value="round">往返</option>
             </SelectInput>
+          </div>
+          <div className="transport-map-picking-cost" data-route-setup-cost={draftSetupCost}>
+            <span>一次性建线费</span>
+            <strong>{draftStops.length >= 2 ? formatCurrency(draftSetupCost) : '选择完整路线后计算'}</strong>
           </div>
           <div className="transport-map-picking-actions">
             <button type="button" onClick={routeDraft.closeLoop} disabled={draftStops.length < 2 || draftClosed}>闭环</button>
