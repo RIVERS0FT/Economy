@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Add deterministic 10m context generator
+      - name: Add deterministic pruned 10m topology generator
         run: |
           mkdir -p src/data
           cat > scripts/generate-province-map-world-context.mjs <<'EOF'
@@ -36,7 +36,7 @@ jobs:
           import { createRequire } from 'node:module';
           import { dirname, resolve } from 'node:path';
           import { fileURLToPath } from 'node:url';
-          import { merge } from 'topojson-client';
+          import { mergeArcs } from 'topojson-client';
 
           const require = createRequire(import.meta.url);
           const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -54,23 +54,61 @@ jobs:
             return NORTH_AMERICA_CONTEXT_COUNTRY_IDS.has(normalizedId);
           });
           assert.ok(contextGeometries.length >= 10, 'PROVINCE_MAP_WORLD_10M_CONTEXT_REQUIRED');
-          const geometry = merge(worldCountryAtlas, contextGeometries);
-          const generated = `${JSON.stringify(geometry)}\n`;
+          const mergedGeometry = mergeArcs(worldCountryAtlas, contextGeometries);
+
+          const referencedArcIndexes = new Set();
+          const collectArcIndexes = (value) => {
+            if (!Array.isArray(value)) return;
+            if (value.length > 0 && value.every((entry) => Number.isInteger(entry))) {
+              for (const arcRef of value) referencedArcIndexes.add(arcRef < 0 ? ~arcRef : arcRef);
+              return;
+            }
+            for (const nested of value) collectArcIndexes(nested);
+          };
+          collectArcIndexes(mergedGeometry.arcs);
+          const orderedArcIndexes = [...referencedArcIndexes].sort((left, right) => left - right);
+          const remapByOriginalIndex = new Map(orderedArcIndexes.map((originalIndex, index) => [originalIndex, index]));
+          const remapArcRefs = (value) => {
+            if (!Array.isArray(value)) return value;
+            if (value.length > 0 && value.every((entry) => Number.isInteger(entry))) {
+              return value.map((arcRef) => {
+                const originalIndex = arcRef < 0 ? ~arcRef : arcRef;
+                const nextIndex = remapByOriginalIndex.get(originalIndex);
+                assert.notEqual(nextIndex, undefined, `missing remapped arc ${originalIndex}`);
+                return arcRef < 0 ? ~nextIndex : nextIndex;
+              });
+            }
+            return value.map(remapArcRefs);
+          };
+
+          const topology = {
+            type: 'Topology',
+            transform: worldCountryAtlas.transform,
+            objects: {
+              land: {
+                type: mergedGeometry.type,
+                arcs: remapArcRefs(mergedGeometry.arcs),
+              },
+            },
+            arcs: orderedArcIndexes.map((originalIndex) => worldCountryAtlas.arcs[originalIndex]),
+          };
+          const generated = `${JSON.stringify(topology)}\n`;
 
           if (process.argv.includes('--check')) {
             const current = readFileSync(outputPath, 'utf8');
-            assert.equal(current, generated, '北美 10m 运行时几何必须由固定 world-atlas 2.0.2 输入生成');
-            console.log(`Strategic map 10m context asset verified: ${Buffer.byteLength(current)} bytes`);
+            assert.equal(current, generated, '北美 10m 运行时 TopoJSON 必须由固定 world-atlas 2.0.2 输入逐字生成');
+            console.log(`Strategic map pruned 10m topology verified: ${Buffer.byteLength(current)} bytes`);
           } else {
             writeFileSync(outputPath, generated);
-            console.log(`Generated ${outputPath}: ${Buffer.byteLength(generated)} bytes`);
+            console.log(`Generated ${outputPath}: ${Buffer.byteLength(generated)} bytes from ${orderedArcIndexes.length} arcs`);
           }
           EOF
           node scripts/generate-province-map-world-context.mjs
 
-      - name: Switch runtime to pruned geometry
+      - name: Switch runtime to pruned topology
         run: |
           cat > src/components/provinces/provinceMapWorldOutline.ts <<'EOF'
+          import { feature } from 'topojson-client';
           import northAmericaLand10m from '../../data/north-america-land-10m.json';
           import { provinceGeometryPath, type ProvinceMapProjection } from './provinceMapProjection';
 
@@ -81,10 +119,17 @@ jobs:
             maxY: number;
           }
 
-          // The committed geometry is deterministically generated from world-atlas@2.0.2 countries-10m.
-          // Runtime intentionally imports only the dissolved North-American subset so the persistent map
-          // does not parse or bundle the complete global 10m atlas on every signed-in page.
-          const northAmericaContextGeometry = northAmericaLand10m as unknown;
+          // This committed topology is deterministically pruned from world-atlas@2.0.2 countries-10m.
+          // Runtime expands only the dissolved North-American arcs; the complete global atlas never enters GameApp.
+          const northAmericaTopology = northAmericaLand10m as unknown as Parameters<typeof feature>[0];
+          const northAmericaLandObject = (northAmericaLand10m as unknown as {
+            objects: { land: Parameters<typeof feature>[1] };
+          }).objects.land;
+          const northAmericaLandFeature = feature(northAmericaTopology, northAmericaLandObject);
+          const northAmericaContextGeometry = northAmericaLandFeature.type === 'Feature'
+            ? northAmericaLandFeature.geometry
+            : null;
+          if (!northAmericaContextGeometry) throw new Error('PROVINCE_MAP_WORLD_10M_CONTEXT_REQUIRED');
 
           export function createProvinceMapWorldOutlinePath(projection: ProvinceMapProjection) {
             return provinceGeometryPath(northAmericaContextGeometry, projection);
@@ -108,12 +153,12 @@ jobs:
           design = Path('docs/LIQUID_GLASS_CHROME_DESIGN.md')
           text = design.read_text()
           old = '世界大陆背景固定使用 `world-atlas@2.0.2` 的 Natural Earth 1:10m countries 数据，并只把可能进入美国有限平移上下文的北美陆地对象 dissolve 为单一无行政边界 path，提供低对比土地填充、海岸主线和柔和外阴影；不得把完整全球 10m geometry 送入常驻 SVG，否则会把不可见地理复杂度带入所有玩家页面的指针热路径；'
-          new = '世界大陆背景的源数据固定为 `world-atlas@2.0.2` 的 Natural Earth 1:10m countries 数据；仓库内必须由确定性生成脚本预先把可能进入美国有限平移上下文的北美陆地对象 dissolve 成单一无行政边界运行时几何，客户端只允许导入这份裁剪后的几何并据此生成低对比土地填充、海岸主线和柔和外阴影。完整全球 10m atlas 只能存在于生成／防回退工具输入，禁止被玩家运行时模块直接 import、解析或打入常驻 `GameApp` 包，否则会让所有登录页面承担不可见全球几何的下载、解析和指针命中开销；'
+          new = '世界大陆背景的源数据固定为 `world-atlas@2.0.2` 的 Natural Earth 1:10m countries 数据；仓库内必须由确定性生成脚本先 dissolve 可能进入美国有限平移上下文的北美陆地，再只保留该结果引用的 TopoJSON arcs 并重映射为裁剪后的单一运行时 topology，客户端只允许导入这份裁剪 topology 并展开为无行政边界几何，用于低对比土地填充、海岸主线和柔和外阴影。完整全球 10m atlas 只能存在于生成／防回退工具输入，禁止被玩家运行时模块直接 import、解析或打入常驻 `GameApp` 包；也禁止把裁剪结果预展开成高体积浮点 GeoJSON，因为这会抵消 TopoJSON 的共享弧与量化压缩收益；'
           if text.count(old) != 1:
               raise SystemExit('strategic map world context design anchor missing')
           text = text.replace(old, new, 1)
           old_test = '- `tests/browser/province-map-world-boundary.spec.ts`：锁定世界背景只 dissolve 可进入有限镜头的北美 10m 陆地上下文，提供大陆填充、海岸主线和低强度外阴影且保持完全不可交互；'
-          new_test = '- `tests/browser/province-map-world-boundary.spec.ts`：锁定世界背景使用预生成的北美 10m 裁剪几何，提供大陆填充、海岸主线和低强度外阴影且保持完全不可交互；`scripts/verify-provincial-economy.mjs` 同时锁定该资产可由固定 `world-atlas@2.0.2` 输入逐字重建，且玩家运行时不得直接 import 完整 atlas；'
+          new_test = '- `tests/browser/province-map-world-boundary.spec.ts`：锁定世界背景使用预生成的北美 10m 裁剪 TopoJSON，提供大陆填充、海岸主线和低强度外阴影且保持完全不可交互；`scripts/verify-provincial-economy.mjs` 同时锁定该 topology 可由固定 `world-atlas@2.0.2` 输入逐字重建、运行时文件体积保持受限，且玩家模块不得直接 import 完整 atlas；'
           if text.count(old_test) != 1:
               raise SystemExit('strategic map world browser test design anchor missing')
           design.write_text(text.replace(old_test, new_test, 1))
@@ -131,25 +176,25 @@ jobs:
             assert.ok(worldContext.includes(text), `10m 世界大陆上下文缺少: ${text}`);
           }'''
           new_world = '''const worldContext = read('src/components/provinces/provinceMapWorldOutline.ts');
-          for (const text of ['north-america-land-10m.json', 'northAmericaContextGeometry', 'createProvinceMapWorldOutlinePath', 'createProvinceMapMainlandFocusBounds']) {
+          for (const text of ['north-america-land-10m.json', "import { feature } from 'topojson-client'", 'northAmericaContextGeometry', 'createProvinceMapWorldOutlinePath', 'createProvinceMapMainlandFocusBounds']) {
             assert.ok(worldContext.includes(text), `10m 世界大陆运行时上下文缺少: ${text}`);
           }
-          for (const forbidden of ['world-atlas/', "from 'topojson-client'", 'NORTH_AMERICA_CONTEXT_COUNTRY_IDS']) {
-            assert.equal(worldContext.includes(forbidden), false, `玩家运行时不得恢复完整 atlas 或现场 dissolve: ${forbidden}`);
+          for (const forbidden of ['world-atlas/', 'NORTH_AMERICA_CONTEXT_COUNTRY_IDS', 'mergeArcs']) {
+            assert.equal(worldContext.includes(forbidden), false, `玩家运行时不得恢复完整 atlas 或现场裁剪: ${forbidden}`);
           }
           const worldContextGenerator = read('scripts/generate-province-map-world-context.mjs');
-          for (const text of ['world-atlas/countries-10m.json', 'NORTH_AMERICA_CONTEXT_COUNTRY_IDS', "'840'", 'merge(worldCountryAtlas, contextGeometries)', "process.argv.includes('--check')"]) {
+          for (const text of ['world-atlas/countries-10m.json', 'NORTH_AMERICA_CONTEXT_COUNTRY_IDS', "'840'", 'mergeArcs(worldCountryAtlas, contextGeometries)', 'referencedArcIndexes', 'remapArcRefs', "process.argv.includes('--check')"]) {
             assert.ok(worldContextGenerator.includes(text), `10m 世界大陆生成器缺少: ${text}`);
           }
           const worldContextAsset = read('src/data/north-america-land-10m.json');
-          assert.ok(worldContextAsset.length < 1_500_000, '北美 10m 裁剪几何不得退化为接近完整全球 atlas 的运行时体积');
+          assert.ok(worldContextAsset.length < 1_500_000, '北美 10m 裁剪 TopoJSON 不得退化为完整 atlas 或预展开浮点 GeoJSON 体积');
           execFileSync(process.execPath, ['scripts/generate-province-map-world-context.mjs', '--check'], { stdio: 'inherit' });'''
           if text.count(old_world) != 1:
               raise SystemExit('province verifier world-context anchor missing')
           verifier.write_text(text.replace(old_world, new_world, 1))
           PY
 
-      - name: Verify generated geometry and focused static checks
+      - name: Verify generated topology and focused static checks
         run: |
           node scripts/generate-province-map-world-context.mjs --check
           npm run verify:provincial-economy
