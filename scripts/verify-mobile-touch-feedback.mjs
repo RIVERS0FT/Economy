@@ -17,7 +17,8 @@ const forbidText = (path, text) => {
 const stylePath = 'src/styles/mobile-interaction.css';
 const mainPath = 'src/main.tsx';
 const designSystemPath = 'src/styles/design-system.css';
-const docsPath = 'docs/README.md';
+const docsIndexPath = 'docs/README.md';
+const uiDocsPath = 'docs/UI_DESIGN_SYSTEM.md';
 const chartDocsPath = 'docs/MARKET_CHART_LAYOUT_DESIGN.md';
 const browserSpecPath = 'tests/browser/mobile-chart-tap-highlight.spec.ts';
 const packagePath = 'package.json';
@@ -26,7 +27,8 @@ const packagePath = 'package.json';
   stylePath,
   mainPath,
   designSystemPath,
-  docsPath,
+  docsIndexPath,
+  uiDocsPath,
   chartDocsPath,
   browserSpecPath,
   packagePath,
@@ -68,13 +70,14 @@ for (const text of [
   '.ui-switch:focus-visible::before',
 ]) requireText(designSystemPath, text);
 
+requireText(docsIndexPath, '`UI_DESIGN_SYSTEM.md`');
 for (const text of [
   '移动触摸反馈与可访问性',
   '关闭浏览器原生蓝色 tap highlight',
   '保留 `:focus-visible` 键盘焦点',
   '`src/styles/mobile-interaction.css`',
   '`scripts/verify-mobile-touch-feedback.mjs`',
-]) requireText(docsPath, text);
+]) requireText(uiDocsPath, text);
 
 for (const text of [
   '移动端触控高亮',
