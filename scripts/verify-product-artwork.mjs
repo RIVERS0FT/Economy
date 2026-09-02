@@ -146,7 +146,9 @@ if (failures.length === 0) {
 
   for (const required of [
     '`industrial-fuel`：红色钢制燃料桶与易燃标志',
+    '紧凑 SVG 使用红色危险语义',
     '`industrial-chemicals`：密封工业化学品桶、实验器皿与分子结构',
+    '不得出现肥料袋、叶片、土壤或颗粒等农业语义',
     '不得与化肥复用同一源图',
     '四角完全透明，边缘干净且不得带白边或色键残边',
   ]) {
