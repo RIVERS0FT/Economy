@@ -245,21 +245,35 @@ export class EconomyStore extends CoreEconomyStore {
     });
   }
 
+  executeDirectRuntimeAction(user, requestMeta, now) {
+    return executeRuntimeAction(this, user, requestMeta, now);
+  }
+
   apply(user, requestMeta, now = Date.now()) {
     const needsProductionInputSourcing = this.worldCache?.world
       ? productionInputSourcingRequired(this.worldCache.world, Number(user.id), now)
       : true;
+    let response;
     if (!CONTRACT_ACTIONS.has(requestMeta.action) && !needsProductionInputSourcing) {
-      return executeRuntimeAction(this, user, requestMeta, now);
+      response = this.executeDirectRuntimeAction(user, requestMeta, now);
+    } else if (!needsProductionInputSourcing) {
+      response = this.applyContractAction(user, requestMeta, null, now);
+    } else {
+      const prepared = this.prepareProductionInputs(user, requestMeta, now);
+      if (prepared.cached) response = prepared.cached;
+      else if (CONTRACT_ACTIONS.has(requestMeta.action)) {
+        response = this.applyContractAction(user, requestMeta, prepared.baseline, now);
+      } else {
+        response = this.executeDirectRuntimeAction(user, requestMeta, now);
+        response = this.finalizeProductionInputs(user, prepared.baseline, response, requestMeta, now);
+      }
     }
-    if (!needsProductionInputSourcing) {
-      return this.applyContractAction(user, requestMeta, null, now);
-    }
-    const prepared = this.prepareProductionInputs(user, requestMeta, now);
-    if (prepared.cached) return prepared.cached;
-    if (CONTRACT_ACTIONS.has(requestMeta.action)) return this.applyContractAction(user, requestMeta, prepared.baseline, now);
-    const response = executeRuntimeAction(this, user, requestMeta, now);
-    return this.finalizeProductionInputs(user, prepared.baseline, response, requestMeta, now);
+    Object.defineProperty(response, 'stateSnapshot', {
+      configurable: true,
+      enumerable: false,
+      value: this.getStateSnapshot(user, null, now),
+    });
+    return response;
   }
 
   enqueueAuthoritativeWrite(options, callback) {

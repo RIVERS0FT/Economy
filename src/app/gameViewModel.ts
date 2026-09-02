@@ -359,27 +359,46 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     if (type.id !== marketAssetId) setMarketAssetId(type.id);
   }, [game, marketAssetId, marketAssetKind]);
 
-  const syncConfirmedAction = useCallback(async (
+  const syncConfirmedAction = useCallback((
     response: GameActionResponse,
     action: LocalActivityAction,
   ) => {
-    try {
-      const stateResponse = await getGameState(revisionRef.current);
-      if (stateResponse.revision < response.revision) {
-        throw new Error('服务器状态同步落后于已确认操作');
-      }
+    const authoritySnapshot = getGameAuthoritySnapshot();
+    if (
+      authoritySnapshot.state
+      && typeof authoritySnapshot.revision === 'number'
+      && authoritySnapshot.revision >= response.revision
+    ) {
       acceptVersionedState(
-        stateResponse.revision,
-        stateResponse.state,
+        authoritySnapshot.revision,
+        authoritySnapshot.state,
         action,
         response.result.message,
-        stateResponse.changedPartitions,
+        authoritySnapshot.changedPartitions,
       );
       setLoadError('');
-    } catch (syncReason) {
-      if (syncReason instanceof GameApiError && syncReason.status === 401) handleUnauthorized();
-      else setLoadError(`操作已完成，但状态同步失败：${messageFromError(syncReason)}`);
+      return;
     }
+
+    void (async () => {
+      try {
+        const stateResponse = await getGameState(revisionRef.current);
+        if (stateResponse.revision < response.revision) {
+          throw new Error('服务器状态同步落后于已确认操作');
+        }
+        acceptVersionedState(
+          stateResponse.revision,
+          stateResponse.state,
+          action,
+          response.result.message,
+          stateResponse.changedPartitions,
+        );
+        setLoadError('');
+      } catch (syncReason) {
+        if (syncReason instanceof GameApiError && syncReason.status === 401) handleUnauthorized();
+        else setLoadError(`操作已完成，但状态同步失败：${messageFromError(syncReason)}`);
+      }
+    })();
   }, [acceptVersionedState, handleUnauthorized]);
 
   const runAction = useCallback(async (action: LocalActivityAction, operation: () => Promise<GameActionResponse>): Promise<ActionResult> => {
@@ -401,7 +420,8 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     };
     try {
       const response = await operation();
-      void syncConfirmedAction(response, action).finally(finish);
+      syncConfirmedAction(response, action);
+      finish();
       return response.result;
     } catch (reason) {
       finish();
@@ -421,7 +441,8 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     };
     try {
       const response = await operation();
-      void syncConfirmedAction(response, action).finally(finish);
+      syncConfirmedAction(response, action);
+      finish();
       return response.result;
     } catch (reason) {
       finish();
@@ -447,7 +468,8 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     };
     try {
       const response = await gameActions.placeAssetOrder(selectedProvinceId, assetKind, assetId, side, quantity, price);
-      void syncConfirmedAction(response, 'placeOrder').finally(finish);
+      syncConfirmedAction(response, 'placeOrder');
+      finish();
       return response.result;
     } catch (reason) {
       finish();
