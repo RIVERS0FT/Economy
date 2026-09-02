@@ -1,0 +1,52 @@
+name: Fix overview surface verifier
+
+on:
+  push:
+    branches:
+      - fix/content-surface-runtime-harness-20260902
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+      - name: Align overview verifier with current surface owner
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-overview-content.mjs')
+          text = path.read_text(encoding='utf-8')
+          old = "  '概览使用参考大战略建筑页面的左侧毛玻璃业务面板',\n"
+          new = (
+              "  '概览位于玩家外壳唯一毛玻璃 `workspaceCard` 的左侧页面区域',\n"
+              "  '结构性 `Panel`',\n"
+              "  '不得因为外层 `workspaceCard` 使用毛玻璃而恢复毛玻璃背景、blur、阴影或圆角子卡',\n"
+          )
+          if old not in text:
+              raise SystemExit('old overview surface verifier phrase missing')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Verify overview contract
+        run: |
+          node scripts/verify-overview-content.mjs
+          node scripts/verify-desktop-primary-surfaces.mjs
+          node scripts/verify-liquid-glass-chrome.mjs
+          git diff --check
+      - name: Commit verifier fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/verify-overview-content.mjs
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m '同步概览正文表面验证边界'
+          git push origin HEAD:${GITHUB_REF_NAME}
