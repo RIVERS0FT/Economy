@@ -12,6 +12,7 @@ const routePath = 'src/pages/ContractPage.tsx';
 const pagePath = 'src/pages/ContractWorkspacePage.tsx';
 const stylePath = 'src/styles/contracts.css';
 const scrollingStylePath = 'src/styles/scrolling-page-sections.css';
+const harnessAggregateStylePath = 'src/styles/frosted-glass-chrome.css';
 const auditStylePath = 'src/styles/contract-audit.css';
 const designPath = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md';
 const serverDesignPath = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md';
@@ -23,7 +24,7 @@ const formVerifierPath = 'scripts/verify-form-controls.mjs';
 const serverPath = 'server/src/contract-audit-store.js';
 const packagePath = 'package.json';
 
-[routePath, pagePath, stylePath, scrollingStylePath, auditStylePath, designPath, serverDesignPath, browserTestPath, attentionBrowserTestPath, workspaceTestPath, harnessPath, formVerifierPath, serverPath, packagePath].forEach(requireFile);
+[routePath, pagePath, stylePath, scrollingStylePath, harnessAggregateStylePath, auditStylePath, designPath, serverDesignPath, browserTestPath, attentionBrowserTestPath, workspaceTestPath, harnessPath, formVerifierPath, serverPath, packagePath].forEach(requireFile);
 
 for (const text of [
   "import { ContractWorkspacePage } from './ContractWorkspacePage';",
@@ -70,6 +71,7 @@ for (const text of [
   '.panel.contract-card--attention {',
 ]) requireText(scrollingStylePath, text);
 forbidText(scrollingStylePath, '.page-card-scroll .panel,\n.page-card-scroll .ui-primary-surface {');
+requireText(harnessAggregateStylePath, "@import './scrolling-page-sections.css';");
 
 for (const text of ['.contract-history-result-grid', '.contract-history-entry', '.contract-history-republish']) requireText(auditStylePath, text);
 for (const text of [
@@ -103,6 +105,7 @@ for (const text of ['contract market stays visible while personal contracts swit
 for (const text of [
   "import { ContractPage } from '../../src/pages/ContractPage';", '<ContractPage model={model} />', "id: 'contract-active'", "renewalProposal:",
   "id: 'contract-active-normal'", "supplyMode: 'daily'", "dailyMaxQuantity: 60", "id: 'contract-open'",
+  "import '../../src/styles/frosted-glass-chrome.css';",
 ]) requireText(harnessPath, text);
 requireText(formVerifierPath, "'src/pages/ContractWorkspacePage.tsx'");
 for (const text of ['"verify:contract-layout": "node scripts/verify-contract-layout.mjs"', 'node scripts/verify-contract-layout.mjs']) requireText(packagePath, text);
