@@ -32,6 +32,7 @@ for (const path of [
   'src/components/ui/RichSelectInput.tsx',
   'src/components/facilities/FacilityProductionConfigControls.tsx',
   'src/styles/transport-page.css',
+  'src/styles/scrolling-page-sections.css',
   'docs/UI_DESIGN_SYSTEM.md',
   'tests/browser/runtime-harness.tsx',
   'tests/browser/province-locked-access.spec.ts',
@@ -66,9 +67,9 @@ for (const text of [
   '邀请卡与礼品码兑换唯一归属商店',
   '用户缩放范围固定为 `0.5～4`',
   '地图不得提供独立的放大、缩小或重置功能面板',
-]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
-for (const text of [
-  '运输页的“增加路线”固定放在正文顶部操作区',
+  '运输页的“增加路线”固定放在页面正文承载面的底部 sticky 操作区',
+  '该操作区只显示“增加路线”，不得显示路线数量／上限胶囊',
+  '一级目录不重复显示“运输路线”分区标题',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
   '玩家端 `PageLayout` 的标题区固定只包含返回、主标题和关闭三个槽位',
@@ -76,15 +77,26 @@ for (const text of [
   '所有带表头的页面实体目录固定使用 `.entity-list-surface` 包裹 `EntityListHeader + .entity-list-rows`',
   '表头与首行、相邻数据行统一使用同一 `.32rem` 间距',
   '正负行情与利润统一通过 `.entity-list-value.is-positive / .is-negative` 表达',
+  '运输路线是已登记的独立业务对象例外',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 for (const text of [
-  'className="transport-page-actions"',
+  'className="transport-page-footer"',
+  'className="transport-route-card ui-entity-card"',
   '<PageLayout title="运输">',
 ]) requireText('src/pages/TransportPage.tsx', text);
 for (const text of [
   'actions={(',
+  'className="transport-page-actions"',
+  '<WidgetHeading title="运输路线"',
+  '<StatusTag tone="neutral">{routes.length}/{TRANSPORT_MAX_ROUTES_PER_PLAYER}</StatusTag>',
 ]) forbidText('src/pages/TransportPage.tsx', text);
-requireText('src/styles/transport-page.css', '.transport-page-actions {');
+for (const text of [
+  '.transport-page-footer {',
+  'position: sticky;',
+  'bottom: 0;',
+]) requireText('src/styles/transport-page.css', text);
+forbidText('src/styles/transport-page.css', '.transport-page-actions {');
+forbidText('src/styles/scrolling-page-sections.css', '.page-card-scroll .transport-route-card {');
 for (const text of [
   'page-heading-actions--player',
   'data-player-page-actions',
@@ -418,4 +430,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('页面内容与职责验证通过：一级市场/建筑锁定全局视图；市场、地区商品、建筑和地区建筑目录共用统一页面实体列表表面、间距、Chevron、目录插画槽和正负数值色；一级建筑按工厂类型 → 地区 → 现有地区工厂详情下钻；所有玩家 PageLayout 共用 40px 标题轨道与紧凑单行标题；州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。');
+console.log('页面内容与职责验证通过：一级市场/建筑锁定全局视图；市场、地区商品、建筑和地区建筑目录共用统一页面实体列表表面、间距、Chevron、目录插画槽和正负数值色；一级建筑按工厂类型 → 地区 → 现有地区工厂详情下钻；运输页路线使用对象卡且增加路线固定在页面底部；所有玩家 PageLayout 共用 40px 标题轨道与紧凑单行标题；州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。');
