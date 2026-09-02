@@ -59,7 +59,7 @@ test('transport draft line style follows mode and map editor clears desktop and 
   expect(mobilePickingBox!.y + mobilePickingBox!.height).toBeLessThanOrEqual(844 + 1);
 });
 
-test('transport route catalogue uses divider rows instead of rounded cards', async ({ page }) => {
+test('scrolling page content uses divider sections instead of rounded cards', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^运输/ }).click();
@@ -67,27 +67,58 @@ test('transport route catalogue uses divider rows instead of rounded cards', asy
   await expect(page.locator('.transport-route-card')).toHaveCount(0);
   await expect(page.getByText('暂无运输路线。选择“增加路线”后直接在地图上依次选择站点。')).toBeVisible();
 
-  const catalogueVisual = await page.locator('.page-card-scroll').evaluate((container) => {
+  const visual = await page.locator('.page-card-scroll').evaluate((container) => {
     const firstRow = document.createElement('button');
     firstRow.className = 'transport-route-card';
     const lastRow = document.createElement('button');
     lastRow.className = 'transport-route-card';
-    container.append(firstRow, lastRow);
+
+    const legacyPanel = document.createElement('article');
+    legacyPanel.className = 'panel leaderboard-board-card';
+
+    const sectionGroup = document.createElement('div');
+    sectionGroup.className = 'transport-page-content';
+    const firstSection = document.createElement('section');
+    firstSection.className = 'transport-page-section';
+    const secondSection = document.createElement('section');
+    secondSection.className = 'transport-page-section';
+    sectionGroup.append(firstSection, secondSection);
+
+    container.append(firstRow, lastRow, legacyPanel, sectionGroup);
+
     const firstStyle = getComputedStyle(firstRow);
     const lastStyle = getComputedStyle(lastRow);
+    const panelStyle = getComputedStyle(legacyPanel);
+    const firstSectionStyle = getComputedStyle(firstSection);
+    const secondSectionStyle = getComputedStyle(secondSection);
     const result = {
-      borderRadius: firstStyle.borderRadius,
-      borderBottomWidth: firstStyle.borderBottomWidth,
-      borderBottomStyle: firstStyle.borderBottomStyle,
-      lastBorderBottomWidth: lastStyle.borderBottomWidth,
+      routeBorderRadius: firstStyle.borderRadius,
+      routeBorderBottomWidth: firstStyle.borderBottomWidth,
+      routeBorderBottomStyle: firstStyle.borderBottomStyle,
+      routeLastBorderBottomWidth: lastStyle.borderBottomWidth,
+      panelBorderRadius: panelStyle.borderRadius,
+      panelBorderTopWidth: panelStyle.borderTopWidth,
+      panelBackdropFilter: panelStyle.backdropFilter,
+      firstSectionBorderTopWidth: firstSectionStyle.borderTopWidth,
+      secondSectionBorderTopWidth: secondSectionStyle.borderTopWidth,
+      secondSectionBorderTopStyle: secondSectionStyle.borderTopStyle,
     };
+
     firstRow.remove();
     lastRow.remove();
+    legacyPanel.remove();
+    sectionGroup.remove();
     return result;
   });
 
-  expect(catalogueVisual.borderRadius).toBe('0px');
-  expect(catalogueVisual.borderBottomWidth).toBe('1px');
-  expect(catalogueVisual.borderBottomStyle).toBe('solid');
-  expect(catalogueVisual.lastBorderBottomWidth).toBe('0px');
+  expect(visual.routeBorderRadius).toBe('0px');
+  expect(visual.routeBorderBottomWidth).toBe('1px');
+  expect(visual.routeBorderBottomStyle).toBe('solid');
+  expect(visual.routeLastBorderBottomWidth).toBe('0px');
+  expect(visual.panelBorderRadius).toBe('0px');
+  expect(visual.panelBorderTopWidth).toBe('1px');
+  expect(visual.panelBackdropFilter).toBe('none');
+  expect(visual.firstSectionBorderTopWidth).toBe('0px');
+  expect(visual.secondSectionBorderTopWidth).toBe('1px');
+  expect(visual.secondSectionBorderTopStyle).toBe('solid');
 });
