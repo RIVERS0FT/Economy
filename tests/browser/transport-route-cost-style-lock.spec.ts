@@ -72,6 +72,7 @@ test('transport route cards stay rounded without row dividers and the add action
   const addRoute = footer.getByRole('button', { name: '增加路线', exact: true });
   await expect(footer).toBeVisible();
   await expect(addRoute).toBeVisible();
+  await expect(footer.locator('.ui-status-tag')).toHaveCount(0);
 
   const visual = await page.locator('.page-card-scroll').evaluate((container) => {
     const routesPanel = container.querySelector<HTMLElement>('.transport-routes-panel');
@@ -158,6 +159,7 @@ test('transport route cards stay rounded without row dividers and the add action
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(footer).toBeVisible();
   await expect(addRoute).toBeVisible();
+  await expect(footer.locator('.ui-status-tag')).toHaveCount(0);
   const [mobileScrollBox, mobileFooterBox] = await Promise.all([scroll.boundingBox(), footer.boundingBox()]);
   expect(mobileScrollBox).not.toBeNull();
   expect(mobileFooterBox).not.toBeNull();
