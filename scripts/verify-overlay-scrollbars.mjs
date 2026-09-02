@@ -33,6 +33,7 @@ const paths = {
   design: 'docs/UI_DESIGN_SYSTEM.md',
   localDesign: 'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
   browser: 'tests/browser/scroll-input-modality.spec.ts',
+  pageScrollbarBrowser: 'tests/browser/page-scrollbar-auto-hide.spec.ts',
   facilityBrowser: 'tests/browser/mobile-detail-sheet.spec.ts',
 };
 Object.values(paths).forEach(requireFile);
@@ -48,10 +49,13 @@ if (failures.length === 0) {
 
   for (const text of [
     'scrollbarVisibility?: ScrollbarVisibility',
+    'scrollbarRevealOnHover?: boolean',
     "scrollbarVisibility = 'adaptive'",
+    'scrollbarRevealOnHover = true',
     'mouseIdleDelay = 1_200',
     'touchVerticalIdleDelay = 1_600',
     'data-scrollbar-visibility={scrollbarVisibility}',
+    "data-scrollbar-reveal-on-hover={scrollbarRevealOnHover ? 'true' : 'false'}",
     'role="scrollbar"',
   ]) requireText(paths.scrollArea, text);
 
@@ -59,6 +63,8 @@ if (failures.length === 0) {
     'const MIN_THUMB_SIZE = 44',
     'horizontalHideTimerRef',
     'verticalHideTimerRef',
+    'scrollbarRevealOnHover: boolean',
+    'scrollbarRevealOnHover && modality ===',
     "getInputModality() === 'touch'",
     'setPointerCapture',
     'window.requestAnimationFrame(commitPendingDrag)',
@@ -74,12 +80,14 @@ if (failures.length === 0) {
     '--scrollbar-min-thumb-size: 44px;',
     'html[data-input-modality="touch"] .ui-scrollbar--horizontal',
     'display: none !important;',
+    '[data-scrollbar-reveal-on-hover="true"][data-scrollable-y="true"]:hover',
     'html[data-input-modality="touch"] *:not(.ui-scroll-area__viewport)',
     '.mobile-detail-sheet-scroll-area > .ui-scrollbar--vertical',
     'right: env(safe-area-inset-right, 0px);',
     '.page-card-scroll-area > .ui-scrollbar--vertical',
     '.page-card-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb',
   ]) requireText(paths.styles, text);
+  forbidText(paths.styles, '.ui-scroll-area[data-scrollbar-visibility="adaptive"][data-scrollable-y="true"]:hover');
 
   for (const text of [
     "import { ScrollArea } from './ScrollArea'",
@@ -106,7 +114,11 @@ if (failures.length === 0) {
 
   for (const text of ['useVirtualWindow', 'axis="both"', 'virtual-record-canvas']) requireText(paths.virtualTable, text);
   for (const text of ['ResizeObserver', 'requestAnimationFrame', 'findVisibleRange']) requireText(paths.virtualHook, text);
-  for (const text of ["import { ScrollArea } from './ScrollArea'", 'scrollbarVisibility="adaptive"']) requireText(paths.layout, text);
+  for (const text of [
+    "import { ScrollArea } from './ScrollArea'",
+    'scrollbarVisibility="adaptive"',
+    'scrollbarRevealOnHover={false}',
+  ]) requireText(paths.layout, text);
   for (const text of [
     "import { ScrollArea } from '../ui/ScrollArea'",
     'className="page-scroll-area"',
@@ -125,6 +137,7 @@ if (failures.length === 0) {
   for (const text of [
     '触控模式下横向项目轨道始终 `display: none`',
     '业务 `ScrollArea` 不得通过 `padding`、`margin` 或宽度计算预留 `--scrollbar-hit-size`',
+    '鼠标模式下，横纵轨道在悬停、键盘聚焦、实际滚动、滑块拖动或轨道操作时显示；离开且空闲后隐藏。',
     '轨道和可见滑块都必须贴紧右边',
     '移动根级 Dialog 内与视口同宽的纵向轨道',
     '市场商品列表不得建立横向主滚动区',
@@ -136,6 +149,12 @@ if (failures.length === 0) {
     'touch input hides horizontal rails while local trade cells keep native two-axis scrolling',
     'mixed input switches scrollbar policy at runtime',
   ]) requireText(paths.browser, text);
+  for (const text of [
+    'player page scrollbar hides after idle even while page content stays hovered',
+    "data-scrollbar-reveal-on-hover', 'false'",
+    "element.matches(':hover')",
+    "toHaveCSS('visibility', 'hidden')",
+  ]) requireText(paths.pageScrollbarBrowser, text);
   for (const text of [
     'detail scroll area reuses the shared overlay scrollbar geometry',
     'railRightInset',
@@ -151,9 +170,9 @@ if (failures.length === 0) {
 }
 
 if (failures.length > 0) {
-  console.error('输入方式滚动条、共享登录后外壳、共享移动详情安全边缘、市场列表无横向主滚动与单一双轴虚拟成交表验证失败：');
+  console.error('输入方式滚动条、玩家页面空闲自动隐藏、共享登录后外壳、共享移动详情安全边缘、市场列表无横向主滚动与单一双轴虚拟成交表验证失败：');
   failures.forEach((failure) => console.error(`- ${failure}`));
   process.exit(1);
 }
 
-console.log('统一尺寸、共享登录后页面滚动、共享移动详情安全边缘、鼠标与触控策略、市场列表无横向主滚动和单一双轴虚拟成交表验证通过。');
+console.log('统一尺寸、玩家页面滚动条空闲自动隐藏、共享登录后页面滚动、共享移动详情安全边缘、鼠标与触控策略、市场列表无横向主滚动和单一双轴虚拟成交表验证通过。');
