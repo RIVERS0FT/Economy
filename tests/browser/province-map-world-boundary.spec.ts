@@ -66,7 +66,7 @@ test('single compositor camera clamps panning continuously to the world boundary
   await dragToEdge(page, canvas, 'right', 3);
   await expect.poll(async () => Math.abs(Number(await canvas.getAttribute('data-map-camera-x')) - rightBoundaryX)).toBeLessThan(1);
 
-  await page.dblclick('.province-map-static-viewport', { position: { x: 20, y: 20 } });
+  await canvas.dispatchEvent('dblclick', { clientX: 20, clientY: 20 });
   await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');
   await expect(camera).toHaveCSS('transform', /matrix\(1, 0, 0, 1, 0, 0\)|none/);
 
