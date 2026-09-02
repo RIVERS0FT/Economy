@@ -309,10 +309,16 @@ requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', [
 ]);
 
 requireText('src/app/gameViewModel.ts', [
-  'void syncConfirmedAction(response, action).finally(finish);',
+  'syncConfirmedAction(response, action);',
+  'finish();',
 ]);
 forbidText('src/app/gameViewModel.ts', [
   'await syncConfirmedAction(response, action);',
+  '.finally(finish)',
+]);
+requireText('src/api/idempotentGameWriteFetch.ts', [
+  "headers.set('X-Economy-State-Revisions', JSON.stringify(revisions));",
+  'acceptExternalStateDelivery(payload);',
 ]);
 const blockingRefreshAllowlist = new Map([
   ['src/auto-trade/useOnlineAutoTrade.ts', 1],
@@ -330,7 +336,7 @@ const buildingsSource = read('src/pages/BuildingsPage.tsx');
 assert.equal(
   (buildingsSource.match(/void model\.refresh\(\{ mode: 'authoritative' \}\);/g) || []).length,
   2,
-  '建厂采购创建与取消都必须在动作确认后后台补拉状态',
+  '建厂采购创建与取消的兼容路径仍必须在动作确认后后台补拉状态',
 );
 assert.equal(
   (buildingsSource.match(/await model\.refresh\(\{ mode: 'authoritative' \}\);/g) || []).length,
@@ -353,4 +359,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('客户端响应性能防回退验证通过：六分区外层协议、player/market 子修订结构共享、React render 快照一致性、子切片隔离、共享秒级叶子时钟和客户端订单索引均已锁定。');
+console.log('客户端响应性能防回退验证通过：六分区外层协议、动作权威增量交付、确认即结束 pending、player/market 子修订结构共享、React render 快照一致性、子切片隔离、共享秒级叶子时钟和客户端订单索引均已锁定。');
