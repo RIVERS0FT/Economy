@@ -36,7 +36,7 @@ requireText('src/styles/frosted-glass-surfaces.css', [
   'border-radius: 24px;',
 ]);
 requireText('tests/browser/frosted-glass-layout.spec.ts', [
-  'desktop chrome stays frosted while scrolling page sections stay flat without Liquid Glass DOM',
+  'desktop chrome uses CSS frosted glass without Liquid Glass DOM while scrolling page sections stay flat',
   'player desktop uses one workspaceCard host for the sidebar and active page',
   "expect(styles.panel.backdropFilter).toBe('none')",
   "expect(styles.panel.borderRadius).toBe('0px')",
