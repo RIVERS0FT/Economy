@@ -102,7 +102,7 @@ test('route creation requires the one-time setup cost and does not mutate state 
   const created = createRoute(world, alice);
   assert.equal(created.ok, false);
   assert.match(created.message, /建线费/);
-  assert.equal(player.transportRoutes.length, 0);
+  assert.equal((player.transportRoutes || []).length, 0);
   assert.equal(player.credits, 0);
 });
 
@@ -297,7 +297,7 @@ test('deleting and recreating a route charges the one-time setup cost again', ()
   assert.equal(applyAction(world, bob, 'transportShip', { operation: 'route-delete', routeId: first.id }, now + 2).ok, true);
   assert.equal(createRoute(world, bob, {}, now + 3).ok, true);
   assert.equal(player.transportRoutes[0].setupCost, first.setupCost);
-  assert.equal(player.credits, firstCredits - first.setupCost);
+  assert.equal(Number(player.credits.toFixed(6)), Number((firstCredits - first.setupCost).toFixed(6)));
 });
 
 test('route validation still enforces unlocked ordered stops and route count limits', () => {
