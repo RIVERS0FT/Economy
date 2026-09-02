@@ -16,6 +16,7 @@ const transportPage = read('src/pages/TransportPage.tsx');
 const transportCss = read('src/styles/transport-page.css');
 const scrollingCss = read('src/styles/scrolling-page-sections.css');
 const browserTest = read('tests/browser/transport-route-cost-style-lock.spec.ts');
+const pageContentVerifier = read('scripts/verify-page-content.mjs');
 
 for (const text of [
   '底部 sticky 操作区',
@@ -80,6 +81,15 @@ for (const text of [
   'not.toContainText(/\\d+\\s*\\/\\s*50/)',
 ]) requireText(browserTest, text, `运输浏览器回归缺少：${text}`);
 forbidText(browserTest, "toContainText('0/50')", '运输浏览器回归不得要求已删除的路线数量胶囊。');
+
+for (const text of [
+  "'运输页的“增加路线”固定放在页面正文承载面的底部 sticky 操作区'",
+  "'className=\"transport-page-footer\"'",
+  "requireText('src/styles/transport-page.css', '.transport-page-footer {');",
+  "forbidText('src/pages/TransportPage.tsx', 'className=\"transport-page-actions\"');",
+  "forbidText('src/styles/transport-page.css', '.transport-page-actions {');",
+  "forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '运输页的“增加路线”固定放在正文顶部操作区');",
+]) requireText(pageContentVerifier, text, `页面内容 verifier 未同步运输底部操作区规则：${text}`);
 
 if (failures.length > 0) {
   console.error('运输路线目录 UI 防回退验证失败：');
