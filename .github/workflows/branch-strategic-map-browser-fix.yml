@@ -1,0 +1,81 @@
+name: Fix and verify strategic map browser regressions
+
+on:
+  push:
+    branches:
+      - codex/strategic-map-mainland-focus
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/strategic-map-mainland-focus
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+
+      - name: Align browser regressions with new map contract
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+            'tests/browser/global-operation-pages.spec.ts': [
+              ("toHaveAttribute('data-map-zoom-min', '0.5')", "toHaveAttribute('data-map-zoom-min', '1')"),
+            ],
+            'tests/browser/province-map.spec.ts': [
+              ("toHaveAttribute('data-map-fit-mode', 'contain-static-svg')", "toHaveAttribute('data-map-fit-mode', 'mainland-area-target')"),
+            ],
+            'tests/browser/province-map-world-boundary.spec.ts': [
+              ("await expect(map).toHaveAttribute('data-map-zoom-min', '1');", "await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-zoom-min', '1');"),
+            ],
+          }
+          for filename, items in replacements.items():
+              path = Path(filename)
+              text = path.read_text()
+              for old, new in items:
+                  count = text.count(old)
+                  if count != 1:
+                      raise SystemExit(f'{filename}: expected exactly one {old!r}, got {count}')
+                  text = text.replace(old, new, 1)
+              path.write_text(text)
+          PY
+
+      - name: Reject stale map browser assertions
+        run: |
+          if grep -R -n -E "data-map-zoom-min'.*'0\.5|data-map-fit-mode'.*contain-static-svg|data-map-pan-boundary'.*'world'" tests/browser; then
+            echo 'Stale strategic-map browser assertion remains' >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate local preview
+        run: npm run generate:local-preview
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run strategic map browser regressions
+        run: npx playwright test tests/browser/global-operation-pages.spec.ts tests/browser/province-map.spec.ts tests/browser/province-map-world-boundary.spec.ts tests/browser/map-reset-sync.spec.ts tests/browser/map-zoom-out-boundary.spec.ts --project=chromium --workers=1
+
+      - name: Remove one-shot workflow and commit fixes
+        run: |
+          rm -f .github/workflows/branch-strategic-map-browser-fix.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tests/browser .github/workflows/branch-strategic-map-browser-fix.yml
+          git diff --cached --check
+          git commit -m 'Align strategic map browser regressions'
+          git push origin HEAD:codex/strategic-map-mainland-focus
