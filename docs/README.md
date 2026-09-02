@@ -60,7 +60,7 @@
 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 页面模块归属、导航、页面内容与玩家信息架构 | 业务算法、通用视觉令牌、服务器事务和存储 |
 | `MARKET_CHART_LAYOUT_DESIGN.md` | 市场行情图的布局、坐标、交互几何和浏览器回归 | 行情数据生成、撮合价格规则、通用 UI 设计系统 |
 | `REGISTRATION_INVITE_FLOW_DESIGN.md` | 登录/注册/密码重置入口与邀请流程的玩家可见行为 | 通用表单视觉、账号服务安全与存储、部署路由实现 |
-| `UI_DESIGN_SYSTEM.md` | 通用设计令牌、共享组件、商品与工厂场景插画主视觉、视觉语义、响应式与可访问性 | 单页业务内容、玩法资格、服务器逻辑 |
+| `UI_DESIGN_SYSTEM.md` | 通用设计令牌、共享组件、州级中文短名、商品与工厂场景插画主视觉、视觉语义、响应式与可访问性 | 单页业务内容、玩法资格、服务器逻辑 |
 | `AUTHORITATIVE_COUNTDOWN_DESIGN.md` | 客户端权威时间、倒计时确认、状态读取恢复与 ready 生命周期 | 各业务领域的结算结果、普通页面内容、服务器容量 |
 | `PRIMARY_SURFACE_INSET_DESIGN.md` | 玩家一级表面的统一外层内边距与贴边例外 | 通用卡片视觉、页面业务结构、其他布局系统 |
 | `OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md` | 概览页布局完整性、宽度断点与局部几何回归 | 概览业务数据含义、通用响应式系统、服务器数据来源 |
@@ -83,6 +83,7 @@
 | 仓库、地区库存、运输、工厂自动经营 | `WAREHOUSE_EXPANSION_DESIGN.md` |
 | 页面有哪些模块、导航到哪里、内容放在哪页 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` |
 | 通用颜色、字体、控件、列表、响应式、可访问性 | `UI_DESIGN_SYSTEM.md` |
+| 州级中文短名与跨页面州名视觉语义 | `UI_DESIGN_SYSTEM.md` |
 | 商品与工厂场景插画主视觉 | `UI_DESIGN_SYSTEM.md` |
 | 根外壳、毛玻璃材质、地图和工作区层级 | `LIQUID_GLASS_CHROME_DESIGN.md` |
 | 市场行情图局部几何 | `MARKET_CHART_LAYOUT_DESIGN.md` |
