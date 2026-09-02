@@ -606,15 +606,3 @@ Playwright 必须验证 `1684×931`、`1280×900`、`900×1000`、`390×844` 和
 ### 玩家头像
 
 玩家头像统一由 `PlayerAvatar` 渲染。服务器实际资源固定为 64×64 WebP；加载失败或旧玩家尚未设置头像时使用玩家名称首字符作为本地回退，不请求大图。设置页选择原图后必须先在浏览器本地居中裁成正方形、缩放至 64×64 并压缩，再上传最终缩略图；原图不得发送到服务器。状态栏和设置页不得各自实现第二套头像加载逻辑。
-
-## 压缩后共享视觉防回退摘要
-
-- 列表：一级市场商品目录、全局商品详情与地区市场共享的紧凑商品数据行密度、1:1 商品插画槽。
-- 数值：“紧凑数字”是全局固定显示规则；保留完整数字 Tooltip。时长只使用小写 `s`、`m`、`h`；所有排名数值统一通过 `formatRank` 显示为 `#N`；不得恢复中文“秒／分钟／小时”的玩家时长展示、恢复“第 N 名”或裸数字排名展示；不得重复状态栏已经显示的净资产和排名。
-- 头像：状态栏左侧玩家头像；排行榜玩家列固定复用 `PlayerAvatar`；必须始终保持 `1:1` 正方形；64×64 WebP；`PlayerAvatar`、`CompactNumber` 继续使用共享入口。
-- 输入：`src/app/interactionBootstrap.ts`、`src/styles/interaction-states.css`、`scripts/verify-interaction-modality.mjs`、`tests/browser/input-modality.spec.ts`；触摸产生的浏览器粘滞 `:hover` 不得改变可见样式；输入方式为 `keyboard` 时必须显示明确的 `:focus-visible` 焦点。
-- 标题：地区商品／工厂详情共享两行标题。
-- 工厂列表：插画必须作为真实 Grid 列参与条目尺寸计算；禁止再通过 `position: absolute`、`transform` 与正文 `padding-left` 模拟插画占位；建筑两行目录不显示表头底线、条目外边界、插画与正文之间的竖向分隔或第一行与第二行之间的横向分隔；建筑名称、利润和拥有数量必须高于状态、Chevron 等辅助信息的视觉权重；生产方案槽继续复用 `production-config`，列表场景允许通过现有令牌强化触发按钮边界、底色与内阴影，但不得复制第二套控件、Popover、焦点或交互状态；桌面第一行收紧为 `30px`；地区工厂列表同步登记为相同的两行高度例外，并与一级工厂目录保持相同的第一行高度与第二行分区层级；约 `38×38`、独立插画轨道收紧到约 `42px`；`src/styles/global-facility-narrow.css` 是该两行条目的最终几何覆盖；验证：`tests/browser/facility-catalog-layout.spec.ts`、`tests/browser/global-operation-pages.spec.ts`、`tests/browser/player-page-geometry.spec.ts`。
-- 商品辨识：`industrial-fuel`：红色钢制燃料桶与易燃标志；`industrial-chemicals`：密封工业化学品桶、实验器皿与分子结构。
-
-- 商品插画风格索引：写实与游戏插画融合的 3D 手绘风格；轻微俯视的三分之四视角、居中悬浮构图；主体约占画布 75%；柔和暖色主光从左上方照射；非常柔和的半透明接触阴影；`1024 × 1024`、PNG RGBA 和真实 Alpha 透明通道；四角完全透明，边缘干净且不得带白边或色键残边。
