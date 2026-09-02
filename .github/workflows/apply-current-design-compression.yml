@@ -109,6 +109,15 @@ jobs:
           '''.replace('          ', '')
           ui = ui[:component_start] + compact_components + ui[component_tail:]
 
+          interaction_start = ui.index('### 3.2 输入方式与共享交互状态')
+          interaction_tail = ui.index('## 4. 开关焦点环与点击区域', interaction_start)
+          compact_interaction = '''### 3.2 输入方式与共享交互状态
+
+          所有 React 根入口共享唯一输入方式 bootstrap；最近一次有效输入把根元素 `data-input-modality` 动态更新为 `mouse`、`touch` 或 `keyboard`，混合输入设备不得依赖刷新或只按视口判断。需要共享悬停／按压／焦点视觉的交互表面声明 `data-ui-interactive="surface"`：hover 只在 `mouse` 且设备满足 hover / `pointer: fine` 时可见，触摸不得残留粘滞 hover 或类似选中态的焦点环，键盘 `:focus-visible` 必须清晰可见。覆盖式滚动条复用同一输入方式；历史未约束 hover 基线只允许收缩，不得新增。
+
+          '''.replace('          ', '')
+          ui = ui[:interaction_start] + compact_interaction + ui[interaction_tail:]
+
           compact_product_icons = '''### 5.1 商品 SVG 图标目录
 
           所有服务器正式商品必须在共享商品图标组件中拥有稳定、可辨识且与商品语义对应的本地内联 SVG；正式商品 ID、数量与增删范围以服务器商品目录和组件映射为运行事实，DESIGN 不复制完整逐商品清单。已知正式商品不得退化为同一个默认包装箱、字符、字母缩写或 Emoji；服务器未来返回未知商品 ID 时只允许使用明确的通用安全回退，不得因此改变已知商品映射。新增或删除正式商品必须在同一变更中同步目录、图标映射和专项验证。
