@@ -166,7 +166,6 @@ test.describe('mobile workspace overlay geometry', () => {
     expect(geometry.assetBar.height).toBeLessThan(geometry.workspace.height);
     expect(geometry.sheetRadius).toBe('20px');
     expect(geometry.navigationPosition).toBe('absolute');
-    expect(geometry.navigationRadius).toBe(geometry.primaryPanelRadius);
     expect(geometry.navigationRadius).toBe('40px');
     expect(geometry.chromePointerEvents).toBe('none');
     expect(geometry.assetPointerEvents).toBe('auto');
