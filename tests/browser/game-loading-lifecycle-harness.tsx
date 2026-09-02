@@ -13,7 +13,20 @@ const user: AuthUser = {
 
 function GameViewModelProbe({ onSignedOut }: { onSignedOut: () => void }) {
   const state = useGameViewModel(user, onSignedOut);
-  return <output data-testid="game-view-model-status">{state.status}</output>;
+  return (
+    <section>
+      <output data-testid="game-view-model-status">{state.status}</output>
+      <output data-testid="game-player-name">{state.status === 'ready' ? state.model.game.playerName : ''}</output>
+      <button
+        id="refresh-game"
+        type="button"
+        disabled={state.status !== 'ready'}
+        onClick={() => { if (state.status === 'ready') void state.model.refresh(); }}
+      >
+        refresh
+      </button>
+    </section>
+  );
 }
 
 function Harness() {
