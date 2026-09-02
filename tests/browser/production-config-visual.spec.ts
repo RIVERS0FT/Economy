@@ -101,6 +101,23 @@ async function expectAutoSlotRow(page: Page, trigger: Locator) {
   expect(expanded).toEqual(['false', 'false']);
 }
 
+async function expectNoVerticalOverflow(listbox: Locator) {
+  await expect(listbox).toBeVisible();
+  const geometry = await listbox.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+      top: rect.top,
+      bottom: rect.bottom,
+      viewportHeight: document.documentElement.clientHeight,
+    };
+  });
+  expect(geometry.scrollHeight - geometry.clientHeight).toBeLessThanOrEqual(1);
+  expect(geometry.top).toBeGreaterThanOrEqual(0);
+  expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewportHeight);
+}
+
 test.describe('production configuration visual triggers', () => {
   test('collapsed production selectors use UMG-like auto slots instead of fill tracks', async ({ page }) => {
     for (const viewport of [
@@ -139,6 +156,7 @@ test.describe('production configuration visual triggers', () => {
       await expect(recipeOption).toContainText('产出');
       await expect(recipeOption).toContainText('周期 60s');
       await expect(recipeOption).toContainText('成本 12');
+      await expectNoVerticalOverflow(recipeListbox);
       const optionVisualStyle = await recipeOption.locator('.ui-rich-select__visual').evaluate((element) => {
         const style = getComputedStyle(element);
         return {
@@ -153,10 +171,12 @@ test.describe('production configuration visual triggers', () => {
       await methodSelect.click();
       const methodListbox = page.getByRole('listbox', { name: '机械工厂生产方式' });
       const currentMethod = methodListbox.getByRole('option', { name: '精密机加' });
+      await expect(methodListbox.getByRole('option')).toHaveCount(4);
       await expect(currentMethod).toContainText('周期 60s');
       await expect(currentMethod).toContainText('成本 12');
       await expect(currentMethod).toContainText('产出 ×1');
       await expect(currentMethod).toContainText('投入');
+      await expectNoVerticalOverflow(methodListbox);
       await page.keyboard.press('Escape');
     }
   });
