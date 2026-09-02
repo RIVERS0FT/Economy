@@ -1,8 +1,10 @@
-/* Scrollable player-page business content uses spacing and dividers instead of
- * nested rounded cards. Rounded surfaces remain available to fixed, sticky,
- * dialog, popover and other non-scrolling UI. */
-.page-card-scroll .panel,
-.page-card-scroll .ui-primary-surface {
+/* Scrollable player-page content distinguishes structural sections from
+ * independent business objects. Page sections stay flat and use spacing plus
+ * dividers. Independent entity cards may keep a rounded object boundary even
+ * when they scroll with the page, but they are lightweight content surfaces,
+ * not another frosted-glass layer. */
+.page-card-scroll .panel:not(.ui-entity-card):not(.contract-card),
+.page-card-scroll .ui-primary-surface:not(.ui-entity-card):not(.contract-card) {
   border: 0;
   border-top: 1px solid var(--color-divider);
   border-radius: 0;
@@ -13,16 +15,65 @@
   backdrop-filter: none;
 }
 
-.page-card-scroll > * > .panel:first-child,
-.page-card-scroll > * > .ui-primary-surface:first-child,
-.page-card-scroll .transport-page-actions + .panel,
-.page-card-scroll .transport-page-actions + .ui-primary-surface {
+.page-card-scroll > * > .panel:not(.ui-entity-card):not(.contract-card):first-child,
+.page-card-scroll > * > .ui-primary-surface:not(.ui-entity-card):not(.contract-card):first-child,
+.page-card-scroll .transport-page-actions + .panel:not(.ui-entity-card):not(.contract-card),
+.page-card-scroll .transport-page-actions + .ui-primary-surface:not(.ui-entity-card):not(.contract-card) {
   border-top: 0;
 }
 
 .page-card-scroll .panel + .panel,
 .page-card-scroll .ui-primary-surface + .ui-primary-surface {
   margin-top: 0;
+}
+
+/* Entity cards are for complex, individually actionable business objects.
+ * They remain visually distinct inside scrolling content, while intentionally
+ * avoiding the backdrop-filter and elevated shadow used by floating surfaces. */
+.page-card-scroll .ui-entity-card,
+.page-card-scroll .panel.contract-card {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: var(--primary-surface-inset);
+  background: var(--color-surface-subtle);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.page-card-scroll .contract-card--attention {
+  border-color: var(--color-warning);
+  background:
+    linear-gradient(0deg, var(--color-warning-soft), var(--color-warning-soft)),
+    var(--color-surface-subtle);
+  box-shadow: inset 3px 0 0 var(--color-warning);
+}
+
+.page-card-scroll .contract-card--danger {
+  border-color: var(--color-danger);
+  background:
+    linear-gradient(0deg, var(--color-danger-soft), var(--color-danger-soft)),
+    var(--color-surface-subtle);
+  box-shadow: inset 3px 0 0 var(--color-danger);
+}
+
+/* Page-level metric summaries are comparison strips, not collections of
+ * independent objects. `.contract-summary-grid` is the current compatibility
+ * mapping while new summaries can opt in with `.ui-metric-strip`. */
+.page-card-scroll .ui-metric-strip,
+.page-card-scroll .contract-summary-grid {
+  border-block: 1px solid var(--color-divider);
+  padding-block: var(--space-2);
+}
+
+.page-card-scroll .ui-metric-strip > .ui-metric-card,
+.page-card-scroll .contract-summary-grid > .ui-metric-card {
+  border: 0;
+  border-radius: 0;
+  padding: var(--space-2) 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 /* Semantic transport sections no longer depend on a Panel wrapper. They use
