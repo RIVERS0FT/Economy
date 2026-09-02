@@ -35,6 +35,7 @@ import {
   type ProvinceMapLabelLayout,
   type ProvinceMapLabelSource,
 } from './provinceMapStaticLabels';
+import { createProvinceMapWorldBounds, createProvinceMapWorldOutlinePath } from './provinceMapWorldOutline';
 
 const MOBILE_MAP_MAX_WIDTH = 720;
 
@@ -98,6 +99,8 @@ const mainlandFeatures = atlasStateCollection.features.flatMap((stateFeature) =>
 });
 
 const provinceMapProjection = createProvinceMapProjection(mainlandFeatures.map((entry) => entry.geometry));
+const provinceMapWorldOutlinePath = createProvinceMapWorldOutlinePath(provinceMapProjection);
+const provinceMapWorldBounds = createProvinceMapWorldBounds(provinceMapProjection);
 const capitalPointByProvinceId = new Map(
   regionCatalog.map((region) => {
     const capital = region as ProvinceDefinition;
@@ -348,6 +351,8 @@ export function UsMainlandMap({
     container.dataset.mapContainViewport = `${width}x${height}`;
     container.dataset.mapIntrinsicAspect = provinceMapProjection.aspect.toFixed(6);
     container.dataset.mapTooltipMode = width > MOBILE_MAP_MAX_WIDTH ? 'desktop' : 'hidden-mobile';
+    container.dataset.mapWorldContext = 'continents-only';
+    container.dataset.mapWorldInteractive = 'false';
   }, []);
 
   useLayoutEffect(() => {
@@ -355,7 +360,7 @@ export function UsMainlandMap({
     const surface = cameraSurfaceRef.current;
     if (!container || !surface) return undefined;
     cameraRef.current?.destroy();
-    cameraRef.current = createProvinceMapCamera(container, surface);
+    cameraRef.current = createProvinceMapCamera(container, surface, { worldBounds: provinceMapWorldBounds });
     updateViewportMetadata(container);
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
       updateViewportMetadata(container);
@@ -461,11 +466,11 @@ export function UsMainlandMap({
     </div>
   ) : null;
 
-  const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}当前有 ${shipmentOverlays.length} 笔运输在途。州面和中文州全名位于同一个静态 SVG 世界面，通过同一个合成相机同步缩放和平移。${routePickingActive ? '当前处于运输路线选州模式，按顺序点击州面即可追加站点，再次点击起点州可以闭环。' : '点击州面可以打开对应州页面，'}滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置缩放和平移。`;
+  const accessibleSummary = `世界战略地图以大陆海岸轮廓提供地理背景，美国本土连续 ${provinces.length} 州是唯一可经营和交互地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}当前有 ${shipmentOverlays.length} 笔运输在途。世界背景、州面、州名和运输叠层位于同一个静态 SVG 世界面，并通过同一个合成相机同步缩放和平移；平移受世界边界限制。${routePickingActive ? '当前处于运输路线选州模式，只能按顺序选择美国本土州面作为站点，再次点击起点州可以闭环。' : '点击美国本土州面可以打开对应州页面，'}滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置缩放和平移。`;
 
   return (
-    <div className="province-map-chart" data-province-count={provinces.length} data-map-feature-count={provinceMapWorld.length} data-selected-province-id={selectedProvinceId ?? ''} data-map-lens={lens} data-map-zoom-min="0.5" data-map-zoom-max="4" data-map-label-mode="curved-chinese-full-name" data-route-picking={routePickingActive ? 'true' : 'false'} data-route-overlay-count={routeOverlays.length} data-route-lane-edge-count={routeLayout.laneCountByEdge.size} data-shipment-overlay-count={shipmentOverlays.length}>
-      <div className="province-map-echart province-map-static-map" role="group" aria-label="美国本土州级经营地图" data-map-ready="true" data-testid="us-mainland-map" data-route-picking={routePickingActive ? 'true' : 'false'} data-route-overlay-count={routeOverlays.length} data-shipment-overlay-count={shipmentOverlays.length}>
+    <div className="province-map-chart" data-province-count={provinces.length} data-map-feature-count={provinceMapWorld.length} data-selected-province-id={selectedProvinceId ?? ''} data-map-lens={lens} data-map-zoom-min="0.5" data-map-zoom-max="4" data-map-label-mode="curved-chinese-full-name" data-map-world-context="continents-only" data-route-picking={routePickingActive ? 'true' : 'false'} data-route-overlay-count={routeOverlays.length} data-route-lane-edge-count={routeLayout.laneCountByEdge.size} data-shipment-overlay-count={shipmentOverlays.length}>
+      <div className="province-map-echart province-map-static-map" role="group" aria-label="世界战略地图，美国本土连续四十八州可交互" data-map-ready="true" data-testid="us-mainland-map" data-route-picking={routePickingActive ? 'true' : 'false'} data-route-overlay-count={routeOverlays.length} data-shipment-overlay-count={shipmentOverlays.length}>
         <div
           ref={viewportRef}
           className="economy-chart__canvas province-map-static-viewport"
@@ -473,11 +478,28 @@ export function UsMainlandMap({
           onPointerDown={() => { setHoveredProvinceId(null); setHoveredShipmentId(null); }}
           onWheelCapture={() => { setHoveredProvinceId(null); setHoveredShipmentId(null); }}
           data-map-world-path-count={provinceMapWorld.length}
+          data-map-world-outline-path-count="1"
           data-map-path-revision="1"
         >
           <div ref={cameraSurfaceRef} className="province-map-camera-surface">
-            <svg className="province-map-world-svg" viewBox={provinceMapProjection.viewBox} preserveAspectRatio="xMidYMid meet" role="group" aria-label="美国连续四十八州地图">
+            <svg className="province-map-world-svg" viewBox={provinceMapProjection.viewBox} preserveAspectRatio="xMidYMid meet" role="group" aria-label="世界战略地图，美国连续四十八州可交互">
               <g className="province-map-world">
+                <g className="province-map-world-context" pointerEvents="none" aria-hidden="true">
+                  <path
+                    className="province-map-world-outline"
+                    data-world-outline="continents-only"
+                    data-interactive="false"
+                    d={provinceMapWorldOutlinePath}
+                    fill="none"
+                    stroke="var(--color-map-region-border)"
+                    strokeWidth="1.2"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                    opacity="0.34"
+                    vectorEffect="non-scaling-stroke"
+                    pointerEvents="none"
+                  />
+                </g>
                 <g className="province-map-regions">
                   {provinceMapWorld.map((entry) => {
                     const datum = datumByProvinceId.get(entry.provinceId);

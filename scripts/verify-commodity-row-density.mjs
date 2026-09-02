@@ -33,7 +33,7 @@ for (const token of [
   '商品数据行桌面最小高 `50px`，不大于 620px 时为 `46px`，不大于 360px 时为 `44px`',
   '插画槽与 `ProductArtwork` 必须显式保持 `1:1`',
   '`44px` 是移动触控下限',
-  '商品数据行是唯一高度例外',
+  '商品数据行是紧凑高度例外',
 ]) requireText(design, token, 'commodity row density design');
 
 for (const token of [

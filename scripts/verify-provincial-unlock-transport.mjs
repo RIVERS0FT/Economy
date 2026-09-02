@@ -113,7 +113,7 @@ for (const text of [
   '服务器权威时间',
   '正在运输的商品',
   'prefers-reduced-motion',
-  '可滚动正文',
+  '普通玩家页面的 `.page-card-scroll` 是页面主体纵向滚动容器',
   '细线分区',
   '公路、铁路、航空',
 ]) requireText(uiDesign, text, `UI 设计缺少运输地图/正文分区规则：${text}`);
