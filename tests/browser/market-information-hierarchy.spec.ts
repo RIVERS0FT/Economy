@@ -25,7 +25,7 @@ async function openGlobalProductRegions(page: Page) {
 
 // Keep the global catalog, regional list, and regional detail as independent browser cases.
 // Each case rebuilds the same preview state so full CI preserves all assertions without relying on a longer test timeout.
-test('global market catalog keeps the product-first sortable hierarchy', async ({ page }) => {
+test('market uses product-first global and regional information hierarchy', async ({ page }) => {
   await openGlobalMarket(page);
 
   await expect(page.locator('.global-market-page > .widget-heading')).toHaveCount(0);
