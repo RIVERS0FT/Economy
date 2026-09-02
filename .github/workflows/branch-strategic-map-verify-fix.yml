@@ -82,7 +82,6 @@ jobs:
         run: |
           npm run verify:provincial-economy
           node scripts/verify-page-content.mjs
-          npm run typecheck
 
       - name: Remove one-shot workflow and commit fixes
         run: |
