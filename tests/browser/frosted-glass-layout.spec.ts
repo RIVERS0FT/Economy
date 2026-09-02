@@ -6,7 +6,7 @@ function alphaFromColor(color: string) {
 }
 
 test.describe('shared frosted-glass shell', () => {
-  test('desktop chrome stays frosted while scrolling page sections stay flat without Liquid Glass DOM', async ({ page }) => {
+  test('desktop chrome uses CSS frosted glass without Liquid Glass DOM while scrolling page sections stay flat', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
 
