@@ -47,7 +47,11 @@ if (existsSync('shared/economy-state-version.js')) {
   fail('不得恢复根目录平行客户端状态版本模块');
 }
 
+// docs/README only exposes the current compatibility metadata needed to select the
+// correct design set. Source ownership and verification implementation belong to
+// SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md and executable code.
 requireCurrentVersion('docs/README.md', /> 客户端状态版本：(\d+)/, '客户端状态版本');
+requireText('docs/README.md', ['`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`']);
 requireCurrentVersion(
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
   /> 客户端状态版本：(\d+)/,
@@ -103,14 +107,11 @@ requireText('server/src/state-partitions.js', [
 ]);
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '`server/shared/economy-state-version.js`',
+  '`scripts/verify-client-state-version.mjs`',
   MIN_COMPATIBLE_CLIENT_STATE_VERSION === CURRENT_CLIENT_STATE_VERSION
     ? `当前客户端只接受版本 ${CURRENT_CLIENT_STATE_VERSION}`
     : `当前客户端接受版本 ${MIN_COMPATIBLE_CLIENT_STATE_VERSION} 与 ${CURRENT_CLIENT_STATE_VERSION}`,
   '不得维护独立常量',
-]);
-requireText('docs/README.md', [
-  '`server/shared/economy-state-version.js`',
-  '`scripts/verify-client-state-version.mjs`',
 ]);
 
 function completePatches(version) {
