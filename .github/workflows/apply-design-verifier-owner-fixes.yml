@@ -23,7 +23,9 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Apply owner fixes
-        run: node scripts/fix-design-verifier-ownership.mjs
+        run: |
+          node scripts/fix-design-verifier-ownership.mjs
+          node scripts/trim-design-owner-summary.mjs
       - name: Generate verifier prerequisites
         run: |
           npm run generate:artwork
