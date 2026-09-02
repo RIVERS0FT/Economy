@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useRef, useSyncExternalStore } from 'react';
 import type { EconomyState } from '../types';
 import {
   getStateAuthorityPartition,
@@ -76,7 +76,13 @@ function useAuthorityRenderSnapshot(readySelector: () => boolean): EconomyState 
 }
 
 export function useGameAuthorityState(): EconomyState | null {
-  return useAuthorityRenderSnapshot(() => readGameAuthorityState() !== null);
+  const currentState = useAuthorityRenderSnapshot(() => readGameAuthorityState() !== null);
+  const retainedStateRef = useRef<EconomyState | null>(null);
+  if (currentState) retainedStateRef.current = currentState;
+  // Transport recovery may temporarily reset the shared delivery cache before a
+  // full snapshot is accepted. A mounted ready game must keep rendering its last
+  // accepted authority until the component itself crosses a real lifecycle boundary.
+  return currentState ?? retainedStateRef.current;
 }
 
 export function useGameAuthorityView(userId: number): EconomyState | null {
