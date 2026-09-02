@@ -23,3 +23,11 @@
 ## 4. 实现与验证
 
 `production-surface.css` 必须在 `facility-group-card-grid.css` 之后加载。`tests/browser/buildings-ledger-layout.spec.ts` 验证建设卡顺序、三列卡片、二级详情和移动端无裁切；`tests/browser/player-page-geometry.spec.ts` 验证共享标题轨道。
+
+## 5. 压缩后场景防回退补充
+
+- 所有玩家 `PageLayout` 标题统一使用 `design-system.css` 的 `--player-page-title-track-height: 40px`；普通单行标题统一使用 `--font-size-player-page-title`。
+- 移动端工厂卡点击行为与桌面一致，继续进入同一地区建筑二级详情。
+- 建设卡和工厂详情都保持普通文档流，不使用建筑页场景 sticky，也不建立第二纵向滚动根。
+
+- 地区工厂详情不再从 `BuildingsPage` 打开专用 `MobileFacilityDetailSheet`；页面唯一纵向滚动视口继续由 `PageLayout` 管理，建设卡和详情不得创建自己的纵向滚动条。

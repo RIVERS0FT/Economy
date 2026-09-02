@@ -61,3 +61,7 @@
 不得移除注册邀请码输入框，不得让分享链接只在后台隐式归因而不预填输入框，不得在设置页、商店或其他已登录页面恢复邀请码输入、补填、更换或重新绑定入口，也不得根据玩家档案创建时间重新开放 24 小时或其他临时补填窗口。不得恢复登录／注册模式切换器；登录主面板的“忘记密码”和“注册账号”必须位于密码输入框下方，注册子面板和密码重置子面板必须保留左上角返回。不得把认证服务错误条恢复为文本与刷新图标的行内基线排列，不得移除对称三列以让刷新控件挤偏错误文案，不得向玩家重新显示 `AbortError` 或 `signal is aborted without reason`。不得把 `/economy-api/game/session` 重新纳入普通经济写动作的 12 秒客户端 Abort 定时器；该例外只作用于认证启动初始化，不得扩大到其他玩家、合同或管理员经济写动作。
 
 `scripts/verify-auth-three-layer.mjs` 必须校验认证三层 DOM、根级唯一摄影组件、`AuthCardSurface`、唯一 `FrostedGlassSurface`、自然内容高度、移动圆角、表单值跨认证面板与断点保持、认证服务错误条三列内部布局、Abort 文案归一化、无旧 Liquid Glass DOM 和最终 CSS 加载顺序。`scripts/verify-liquid-glass-chrome.mjs` 的历史路径继续验证第三方依赖删除、纯 CSS 毛玻璃令牌、共享宿主和回退材质。`scripts/verify-open-glass-sampling.mjs` 与 `tests/browser/open-glass-sampling.spec.ts` 必须覆盖桌面玩家、桌面管理员、移动玩家和移动管理员四种根级采样链及真实 `blur(18px) saturate(128%)`；`tests/browser/application-photography.spec.ts` 验证唯一摄影节点跨加载、认证、玩家、管理员和异常状态保持。`tests/browser/auth-three-layer.spec.ts` 必须覆盖 `1440×900` 桌面、`390×844` 移动注册、单一宿主、自然增高、无内部滚动和表单值保持；`tests/browser/application-error-state.spec.ts` 必须覆盖认证会话 Abort 被转换为中文恢复提示以及移动错误条文案真正居中、刷新控件保持 `44px × 44px` 且不重叠。认证浏览器回归还必须覆盖登录主面板 → 注册／密码重置子面板 → 登录主面板的返回路径，不得为适配视觉布局改变统一账号认证安全边界。
+
+## 压缩后认证入口防回退补充
+
+未登录外壳固定以登录主面板作为默认入口；注册子面板和密码重置子面板只从登录主面板进入。“忘记密码”和“注册账号”必须位于密码输入框下方。邮箱已注册时直接提示登录且不启动倒计时、不创建验证码记录、不发送邮件。

@@ -568,3 +568,22 @@ Nginx 头像 `location ~` 正则包含 `{m,n}` 量词，必须整体使用引号
 玩家昵称、头像等可变身份资料的权威值只存在于玩家实体。普通权威业务实体（订单、订单成交记录、玩家拍卖、供货/借贷/租赁合同及旧工厂交易兼容数据）与玩家的关系必须只用稳定数值 ID 持久化，不得复制玩家昵称作为关系字段。对外 DTO 若需要显示当前昵称，应在状态/API 投影阶段按 ID 从玩家实体解析，且不得把解析结果写回 World。系统市场、人口需求、市场储备等非玩家主体可以继续持久化自身固定标签。明确的不可变历史快照是例外：合同追加式审计、已结算排行榜历史等若语义要求保留事件发生时的名称，可以在写入历史记录时由稳定 ID 解析一次并保存名称快照；快照必须同时保留稳定玩家 ID，且不得反向成为当前身份来源。服务器 `trades` / `ledger` / `assetEvents` 等展示日志不属于权威历史记录，继续禁止进入当前 World、SQLite 或普通玩家状态。
 
 因此资料修改的 Mutation Scope 只覆盖当前玩家和必要本地核心域；昵称修改不得通过订单、合同、拍卖或旧兼容列表做扇出同步。迁移层可以读取旧存档中的昵称镜像以保持兼容，但必须逐步规范化为 ID-only 关系。该规则用于保证资料修改的时间/写入复杂度与全服历史数据量无关。
+
+## 压缩后关键运行与部署不变量
+
+以下条目只保留服务器领域必须长期稳定的边界；具体模块清单仍以代码为运行事实。
+
+- 资产拍卖追加式审计由 `auction-audit-store.js` 承担；即时建厂缺料采购由 `facility-auto-procure.js` 承担；玩家卖出手续费由 `market-sell-fee.js` 落实；人口需求实现包含 `population-economy.js`。这些文件名只作为实现与验证映射，不创建第二套业务规则。
+- 地区化每日商品合同继续通过统一合同门面执行，合同时间单位统一为天；邮箱验证码有效期为 10 分钟，错误 5 次即失效，并核对发送 IP 和提交 IP。`RESEND_API_KEY` 与 `EMAIL_FROM` 只保存在服务器；共享 `/etc/riversoft-email.env` 先加载，Economy 专用 `/etc/riversoft-economy-api.env` 后加载。未配置时返回“邮箱验证码服务未配置，请联系管理员”。发送前通过 `POST /api/internal/account-email-exists` 检查统一账号；已注册邮箱不得创建 `economy_email_verifications` 记录，也不得发送邮件。
+- 验证码记录清理、验证码创建／状态更新和完成前校验只写注册专用 SQLite 表，不得触发世界到期调度 barrier；最终创建 Economy 玩家档案继续属于普通用户世界写入。已有 `economy_registrations` 且永久邀请码元数据完整的 `/api/game/session` 直接走只读会话；仅缺元数据时使用 `system:session-metadata:*`，真正建档使用 `session-profile-creation`。验证码终态记录保留 30 天。
+- 正式 SQLite 必须保持 `auto_vacuum=INCREMENTAL`；普通玩家事务不得执行 `incremental_vacuum`。每周一北京时间 02:30 执行受限维护，每批固定 1,024 页、单次最多四批。迁移备份使用紧凑 gzip SQLite 快照并通过 `VACUUM INTO` 消除 freelist；解压后的 `auto_vacuum` 必须保持 `INCREMENTAL`。最多保留最近 5 个迁移族，迁移工作空间至少为预计有效数据两倍再加 512 MiB，删除临时 SQLite 前显式关闭全部连接。Windows 本地行为验证与 Linux 正式部署共用同一实现，分段存储 V2 首次迁移前必须创建 `economy-pre-storage-v2`。
+- API 代码继续使用 `rsync --delete-before` 完整替换，同步 `server/` 时必须排除 `runtime/`。固定 Node runtime 完全匹配时必须复用且不得重新下载或上传；正式运行时固定 Node 24.4.0。旧哈希资源至少保留 400 天，发布时最后原子替换 `index.html`。
+- CI 必须验证真实头提交，而不是 GitHub 合并快照；`verify-head-ci-registration` 只确认真实 push 检查存在，不得写入 commit status，不保留第二个重复的 PR Web Build 工作流，也不得用手工成功状态替代任一真实检查。
+- 部署 SSH 主机密钥不得依赖单次 `ssh-keyscan`，最多尝试 5 次；连接验证失败必须在数据库备份、文件上传和服务变更之前终止。成功步骤日志不得上传；失败摘要使用 `economy-failure-summary.txt`，禁止重新扫描或拼接成功步骤日志，不得再为单次构建失败创建临时诊断工作流。生产验收同时包含发布前远端验收和发布后公网验收，`ECONOMY_DEPLOY_VERIFY_START` 之后的 45 秒真实健康检查门槛保持不变。
+- 压力测试继续报告 p50／p90／p95／p99，并验证高负载不会突破请求超时和事件循环容量边界。
+
+### 实现映射补充
+
+- 统一合同门面：`server/src/unified-contracts.js`；客户端与 API 的合同时间统一以天表达。
+- 认证环境：共享文件先加载，Economy 专用文件后加载；邮件密钥只保存在服务器。
+- 人口运行映射：`population-demographics.js`；人口经济内部版本固定为 7；五档状态只重新分配食品／家庭与类别份额；人口消费不得发行普通货币。

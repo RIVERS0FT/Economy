@@ -119,3 +119,8 @@
 - `tests/browser/province-map-focus.spec.ts`：真实浏览器中验证静态 SVG path 的 hover 不改写州面镜头填充、选中亮边强于普通悬浮并保留 `5px / 7px` 低强度辉光、悬浮其他州时选中州继续存在，同时保证 `.province-map-camera-surface` transform、地图缩放目标与州名完整布局修订不因交互视觉变化而重置。
 - `tests/browser/map-zoom-out-boundary.spec.ts`：必须先把地图放大到外围州真实离开屏幕，再缩小到 `0.5`，验证在合成相机仍 active 时加利福尼亚、佛罗里达、缅因和华盛顿已经重新进入物理视口且州名中心命中对应州面；`tests/browser/map-zoom-transient.spec.ts` 锁定手势期间 48 条 path `d` 与 glyph 基础 transform 不变、同帧滚轮只写一次合成相机；`tests/browser/map-zoom-render-sync.spec.ts` 锁定州面和州名共享同一个静态世界与相机；`tests/browser/map-reset-sync.spec.ts` 锁定空白重置首帧同步。
 - `tests/browser/map-mobile-pinch.spec.ts`：必须通过 CDP `Input.dispatchTouchEvent` 从同一真实静态州面内部发出两触点 `touchStart → touchMove → touchEnd`，验证双指真实 Pointer 距离／中点能推进唯一合成相机且全程不打开州页；最后触点释放后的 `420ms` 抑制窗口内单指触摸仍不得选中州面，窗口结束后同一州面的正常单指点击必须恢复。
+
+## 压缩后工作区层级防回退摘要
+
+- 通知面板作为 Chrome 级临时覆盖层始终位于 Sheet 之上；通知面板打开期间不得挂载通知岛。移动底栏在根 Sheet 存在时继续保持同一 DOM，但必须隐藏并退出交互树。
+- 战略追踪器与页面路由生命周期解耦，不得提供整体横向展开／收起按钮；六个 `fullscreen` 页面在桌面端隐藏同一追踪器 DOM，离开后恢复同一实例。

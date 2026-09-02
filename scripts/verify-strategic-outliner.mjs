@@ -95,9 +95,9 @@ requireText(browserSpec, 'toHaveCount(0)', '浏览器回归必须验证整体收
 requireText(browserSpec, 'toBeCloseTo(8, 0)', '浏览器回归必须验证 fullscreen 主卡片右侧只保留 8px 屏幕边距');
 
 requireText(pageDesign, '战略追踪器', '页面权威设计必须记录战略追踪器规则');
-requireText(pageDesign, '页面路由生命周期解耦', '页面权威设计必须锁定追踪器与页面生命周期解耦');
-requireText(pageDesign, '不得提供整体横向展开／收起按钮', '页面权威设计必须锁定无整体横向收起按钮');
-requireText(pageDesign, '六个 `fullscreen` 页面在桌面端隐藏同一追踪器 DOM', '页面权威设计必须锁定 fullscreen 隐藏同一追踪器 DOM');
+requireText(chromeDesign, '页面路由生命周期解耦', '外壳权威设计必须锁定追踪器与页面生命周期解耦');
+requireText(chromeDesign, '不得提供整体横向展开／收起按钮', '外壳权威设计必须锁定无整体横向收起按钮');
+requireText(chromeDesign, '六个 `fullscreen` 页面在桌面端隐藏同一追踪器 DOM', '外壳权威设计必须锁定 fullscreen 隐藏同一追踪器 DOM');
 requireText(chromeDesign, '战略追踪器', '外壳权威设计必须记录战略追踪器几何');
 requireText(chromeDesign, '不得提供追踪器整体横向展开／收起按钮', '外壳权威设计必须锁定无整体横向收起按钮');
 requireText(chromeDesign, '六个 `fullscreen` 页面在桌面端隐藏同一追踪器', '外壳权威设计必须锁定 fullscreen 隐藏同一追踪器');

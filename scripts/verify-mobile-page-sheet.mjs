@@ -260,7 +260,7 @@ requireAll('docs/UI_DESIGN_SYSTEM.md', [
   'Sheet 自身承担唯一移动毛玻璃模糊',
   '移动底部导航必须始终保留同一个 DOM 实例',
 ]);
-requireAll('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
+requireAll('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '通知面板作为 Chrome 级临时覆盖层始终位于 Sheet 之上',
   '通知面板打开期间不得挂载通知岛',
   '移动底栏在根 Sheet 存在时继续保持同一 DOM，但必须隐藏并退出交互树',

@@ -304,10 +304,9 @@ assert.match(pageDesign, /待处理事项不能删除/);
 assert.match(pageDesign, /概览不得再维护第二套经营提醒列表/);
 assert.match(pageDesign, /同一稳定待处理键持续存在期间/);
 assert.match(pageDesign, /禁用主动通知提醒/);
-assert.match(pageDesign, /通知面板作为 Chrome 级临时覆盖层始终位于 Sheet 之上/);
-assert.match(pageDesign, /通知面板打开期间不得挂载通知岛/);
-
 const liquidDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
+assert.match(liquidDesign, /通知面板作为 Chrome 级临时覆盖层始终位于 Sheet 之上/);
+assert.match(liquidDesign, /通知面板打开期间不得挂载通知岛/);
 assert.match(liquidDesign, /\.asset-bar-layout/);
 assert.match(liquidDesign, /桌面关闭态 Toast/);
 assert.match(liquidDesign, /\.workspace-strategic-chrome/);
