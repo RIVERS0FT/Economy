@@ -65,7 +65,7 @@
 | `PRIMARY_SURFACE_INSET_DESIGN.md` | 玩家一级表面的统一外层内边距与贴边例外 | 通用卡片视觉、页面业务结构、其他布局系统 |
 | `OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md` | 概览页布局完整性、宽度断点与局部几何回归 | 概览业务数据含义、通用响应式系统、服务器数据来源 |
 | `PRODUCTION_PILL_ALIGNMENT_DESIGN.md` | 建筑页生产状态胶囊和开关的局部对齐几何 | 生产状态业务语义、通用控件设计、工厂算法 |
-| `LIQUID_GLASS_CHROME_DESIGN.md` | 根外壳、毛玻璃 Chrome、战略地图与工作区层级结构 | 页面业务内容、通用表单/颜色令牌、经济规则 |
+| `LIQUID_GLASS_CHROME_DESIGN.md` | 根外壳、毛玻璃材质与 Chrome、战略地图与工作区层级结构 | 页面业务内容、通用表单/颜色令牌、经济规则 |
 | `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威、API、事务、存储、缓存、安全、容量与生产部署 | 玩家可见玩法定义、页面模块归属、通用视觉设计 |
 | `CI_EXECUTION_DESIGN.md` | PR、分支与主线 CI 的选择、并行、分片、超时和发布前门禁 | 业务规则、服务器运行时实现、生产业务配置 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器本地活动记录的最小数据、迁移、展示与清除边界 | 服务器权威账本、市场撮合、全局通知系统 |
@@ -84,7 +84,7 @@
 | 页面有哪些模块、导航到哪里、内容放在哪页 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` |
 | 通用颜色、字体、控件、列表、响应式、可访问性 | `UI_DESIGN_SYSTEM.md` |
 | 商品与工厂场景插画主视觉 | `UI_DESIGN_SYSTEM.md` |
-| 根外壳、毛玻璃、地图和工作区层级 | `LIQUID_GLASS_CHROME_DESIGN.md` |
+| 根外壳、毛玻璃材质、地图和工作区层级 | `LIQUID_GLASS_CHROME_DESIGN.md` |
 | 市场行情图局部几何 | `MARKET_CHART_LAYOUT_DESIGN.md` |
 | 概览、一级表面 inset、生产胶囊等局部布局专项 | 对应布局专项 DESIGN |
 | 注册、邀请、登录入口的玩家流程 | `REGISTRATION_INVITE_FLOW_DESIGN.md` |
