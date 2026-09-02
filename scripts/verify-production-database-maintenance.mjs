@@ -14,6 +14,7 @@ const root = process.cwd();
 const maintenancePath = 'scripts/manage-production-database.py';
 const migrationWorkflowPath = '.github/workflows/migrate-production-database-incremental.yml';
 const maintenanceWorkflowPath = '.github/workflows/maintain-production-database-space.yml';
+const serverDesignPath = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md';
 const docsIndexPath = 'docs/README.md';
 const packagePath = 'package.json';
 const failures = [];
@@ -34,6 +35,7 @@ for (const path of [
   maintenancePath,
   migrationWorkflowPath,
   maintenanceWorkflowPath,
+  serverDesignPath,
   docsIndexPath,
   packagePath,
 ]) {
@@ -77,11 +79,12 @@ if (failures.length === 0) {
   ]) requireText(maintenanceWorkflowPath, text);
 
   for (const text of [
-    '生产 SQLite `INCREMENTAL` 自动压缩',
-    '`PRAGMA incremental_vacuum(1024)`',
+    'INCREMENTAL',
+    '普通玩家事务不得执行 `incremental_vacuum`',
     '每周一北京时间 02:30',
-    '不得把 `incremental_vacuum` 放入玩家请求事务',
-  ]) requireText(docsIndexPath, text);
+    '每批固定 1,024 页、单次最多四批',
+  ]) requireText(serverDesignPath, text);
+  requireText(docsIndexPath, '`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`');
   requireText(packagePath, 'node scripts/verify-production-database-maintenance.mjs');
 
   for (const text of [
@@ -197,4 +200,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('生产 SQLite INCREMENTAL 迁移、限量回收与设计规则验证通过。');
+console.log('生产 SQLite INCREMENTAL 迁移、限量回收与服务器 DESIGN 规则验证通过。');
