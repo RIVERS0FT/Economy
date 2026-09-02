@@ -164,23 +164,25 @@ export function StrategicMapStage({
         });
       }
     }
-    const highlightedStops = routeDraft?.highlightedRouteStops;
-    if (highlightedStops && highlightedStops.length >= 2) {
-      const highlightedRoute = transportRoutes.find((route) => {
-        const stops = transportRouteStopIds(route);
-        return stops.length === highlightedStops.length && stops.every((provinceId, index) => provinceId === highlightedStops[index]);
-      });
-      overlays.push({
-        id: highlightedRoute ? `highlighted-${highlightedRoute.mode}-route` : 'highlighted-route',
-        routeId: highlightedRoute?.id,
-        laneOwnerId: highlightedRoute?.id ?? 'highlighted-route',
-        sortKey: highlightedRoute ? `${String(highlightedRoute.createdAt).padStart(16, '0')}-${highlightedRoute.id}` : 'zzzz-highlighted-route',
-        mode: highlightedRoute?.mode ?? 'road',
-        stops: highlightedStops,
-        closed: highlightedStops[0] === highlightedStops[highlightedStops.length - 1],
-        tripType: highlightedRoute?.tripType ?? 'one-way',
-        kind: 'highlight',
-      });
+    const highlightedRouteId = routeDraft?.highlightedRouteId;
+    const highlightedRoute = highlightedRouteId
+      ? transportRoutes.find((route) => route.id === highlightedRouteId)
+      : undefined;
+    if (highlightedRoute) {
+      const highlightedStops = transportRouteStopIds(highlightedRoute);
+      if (highlightedStops.length >= 2) {
+        overlays.push({
+          id: `highlighted-${highlightedRoute.mode}-route`,
+          routeId: highlightedRoute.id,
+          laneOwnerId: highlightedRoute.id,
+          sortKey: `${String(highlightedRoute.createdAt).padStart(16, '0')}-${highlightedRoute.id}`,
+          mode: highlightedRoute.mode,
+          stops: highlightedStops,
+          closed: isTransportRouteClosed(highlightedRoute),
+          tripType: highlightedRoute.tripType ?? 'one-way',
+          kind: 'highlight',
+        });
+      }
     }
     if (routeDraft?.draft && draftStops.length >= 2) {
       overlays.push({
@@ -195,7 +197,7 @@ export function StrategicMapStage({
       });
     }
     return overlays;
-  }, [draftStops, model.tab, routeDraft?.draft, routeDraft?.highlightedRouteStops, startingProvincePicking, transportRoutes]);
+  }, [draftStops, model.tab, routeDraft?.draft, routeDraft?.highlightedRouteId, startingProvincePicking, transportRoutes]);
 
   const shipmentOverlays = useMemo<ProvinceMapShipmentOverlay[]>(() => {
     if (startingProvincePicking) return [];

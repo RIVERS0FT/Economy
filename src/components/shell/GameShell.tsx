@@ -174,7 +174,7 @@ export function GameShell({ model, children, offline = false }: {
   const [mapLens, setMapLens] = useState<ProvinceMapLens>('assets');
   const [transportRouteDraft, setTransportRouteDraft] = useState<TransportRouteDraft | null>(null);
   const [transportRoutePicking, setTransportRoutePicking] = useState(false);
-  const [highlightedRouteStops, setHighlightedRouteStops] = useState<string[] | null>(null);
+  const [highlightedRouteId, setHighlightedRouteId] = useState<string | null>(null);
   const initialPageLocation = playerPageLocationForTab(model.tab);
   const pageHistoryRef = useRef<PlayerPageLocation[]>([]);
   const pageLocationRef = useRef<PlayerPageLocation>(initialPageLocation);
@@ -411,7 +411,7 @@ export function GameShell({ model, children, offline = false }: {
   const closeTransportRouteDraft = useCallback(() => {
     setTransportRouteDraft(null);
     setTransportRoutePicking(false);
-    setHighlightedRouteStops(null);
+    setHighlightedRouteId(null);
   }, []);
 
   const beginTransportRoutePicking = useCallback(() => {
@@ -516,7 +516,7 @@ export function GameShell({ model, children, offline = false }: {
   }, [model.tab, transportRoutePicking]);
 
   useEffect(() => {
-    if (model.tab !== 'transport') setHighlightedRouteStops(null);
+    if (model.tab !== 'transport') setHighlightedRouteId(null);
   }, [model.tab]);
 
   const transportRouteDraftValue = useMemo<TransportRouteDraftContextValue>(() => ({
@@ -531,15 +531,15 @@ export function GameShell({ model, children, offline = false }: {
     pickProvince: pickTransportRouteProvince,
     closeLoop: closeTransportRouteLoop,
     resetStops: resetTransportRouteStops,
-    highlightedRouteStops,
-    setHighlightedRouteStops,
+    highlightedRouteId,
+    setHighlightedRouteId,
   }), [
     beginTransportRoutePicking,
     cancelTransportRoutePicking,
     closeTransportRouteDraft,
     closeTransportRouteLoop,
     finishTransportRoutePicking,
-    highlightedRouteStops,
+    highlightedRouteId,
     pickTransportRouteProvince,
     resetTransportRouteStops,
     transportRouteDraft,

@@ -62,7 +62,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
     closeDraft,
     picking,
     beginPicking,
-    setHighlightedRouteStops,
+    setHighlightedRouteId,
   } = useTransportRouteDraft();
   const [pendingAction, setPendingAction] = useState('');
   const [routeNameDraft, setRouteNameDraft] = useState('');
@@ -346,10 +346,10 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
                       data-route-id={route.id}
                       data-transport-mode={route.mode}
                       onClick={() => pageNavigation?.pushPage({ type: 'transport-route', routeId: route.id })}
-                      onMouseEnter={() => setHighlightedRouteStops(stops)}
-                      onMouseLeave={() => setHighlightedRouteStops(null)}
-                      onFocus={() => setHighlightedRouteStops(stops)}
-                      onBlur={() => setHighlightedRouteStops(null)}
+                      onMouseEnter={() => setHighlightedRouteId(route.id)}
+                      onMouseLeave={() => setHighlightedRouteId(null)}
+                      onFocus={() => setHighlightedRouteId(route.id)}
+                      onBlur={() => setHighlightedRouteId(null)}
                     >
                       <div className="transport-route-card-heading">
                         <strong>{visibleRouteName(route)}</strong>
