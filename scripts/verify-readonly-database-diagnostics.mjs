@@ -15,7 +15,8 @@ import { pythonFailureOutput, spawnPythonSync } from './python-runtime.mjs';
 const root = process.cwd();
 const workflowPath = '.github/workflows/diagnose-production-database.yml';
 const diagnosticPath = 'scripts/diagnose-production-database.py';
-const designPath = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md';
+const executionDesignPath = 'docs/CI_EXECUTION_DESIGN.md';
+const serverDesignPath = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md';
 const docsIndexPath = 'docs/README.md';
 const packagePath = 'package.json';
 const failures = [];
@@ -32,7 +33,14 @@ function forbidText(path, text) {
   if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`);
 }
 
-for (const path of [workflowPath, diagnosticPath, designPath, docsIndexPath, packagePath]) {
+for (const path of [
+  workflowPath,
+  diagnosticPath,
+  executionDesignPath,
+  serverDesignPath,
+  docsIndexPath,
+  packagePath,
+]) {
   if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`);
 }
 
@@ -85,7 +93,9 @@ if (failures.length === 0) {
     'SQLite URI `mode=ro`、`PRAGMA query_only = ON` 和 authorizer 三重只读约束',
     '不得执行 `VACUUM`、`wal_checkpoint`、`PRAGMA optimize`、备份、附加数据库、DDL 或 DML',
     '诊断不得上传数据库、WAL、SHM、备份或包含玩家明细的 Artifact',
-  ]) requireText(designPath, text);
+  ]) requireText(executionDesignPath, text);
+  requireText(serverDesignPath, '正式 SQLite 必须保持 `auto_vacuum=INCREMENTAL`');
+  requireText(docsIndexPath, '`CI_EXECUTION_DESIGN.md`');
   requireText(docsIndexPath, '`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`');
 
   requireText(packagePath, 'node scripts/verify-readonly-database-diagnostics.mjs');
@@ -192,4 +202,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('生产 SQLite 只读诊断、无写入行为、汇总输出与服务器 DESIGN 规则验证通过。');
+console.log('生产 SQLite 只读诊断、无写入行为、汇总输出与 CI/服务器 DESIGN 职责边界验证通过。');
