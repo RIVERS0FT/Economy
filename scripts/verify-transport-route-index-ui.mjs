@@ -72,6 +72,7 @@ forbidText(
 for (const text of [
   'transport route cards stay rounded without row dividers and the add action stays pinned to the page bottom',
   "getByRole('heading', { name: '运输路线', exact: true })",
+  "toHaveText('增加路线')",
   "footer.locator('.ui-status-tag')",
   'routeBorderRadius',
   'footerBefore',
