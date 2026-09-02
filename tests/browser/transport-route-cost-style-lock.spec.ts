@@ -4,7 +4,7 @@ function provinceRegion(page: import('@playwright/test').Page, provinceName: str
   return page.locator(`.province-map-region[data-province-name="${provinceName}"]`);
 }
 
-test('transport draft line style follows mode and map editor clears the status bar', async ({ page }) => {
+test('transport draft line style follows mode and map editor clears desktop and mobile status bars', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^运输/ }).click();
@@ -13,10 +13,10 @@ test('transport draft line style follows mode and map editor clears the status b
   const statusBar = page.locator('.asset-bar');
   const pickingBar = page.locator('.transport-map-picking-bar');
   await expect(pickingBar).toBeVisible();
-  const [statusBox, pickingBox] = await Promise.all([statusBar.boundingBox(), pickingBar.boundingBox()]);
-  expect(statusBox).not.toBeNull();
-  expect(pickingBox).not.toBeNull();
-  expect(pickingBox!.y).toBeGreaterThanOrEqual(statusBox!.y + statusBox!.height - 1);
+  const [desktopStatusBox, desktopPickingBox] = await Promise.all([statusBar.boundingBox(), pickingBar.boundingBox()]);
+  expect(desktopStatusBox).not.toBeNull();
+  expect(desktopPickingBox).not.toBeNull();
+  expect(desktopPickingBox!.y).toBeGreaterThanOrEqual(desktopStatusBox!.y + desktopStatusBox!.height - 1);
 
   await provinceRegion(page, '加利福尼亚').click();
   await provinceRegion(page, '得克萨斯').click();
@@ -36,6 +36,14 @@ test('transport draft line style follows mode and map editor clears the status b
   expect(new Set([roadDash, railDash, airDash]).size).toBe(3);
   await expect(pickingBar.locator('.transport-map-picking-cost')).toContainText('一次性建线费');
   await expect(pickingBar.locator('.transport-map-picking-cost')).not.toContainText('选择完整路线后计算');
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(pickingBar).toBeVisible();
+  const [mobileStatusBox, mobilePickingBox] = await Promise.all([statusBar.boundingBox(), pickingBar.boundingBox()]);
+  expect(mobileStatusBox).not.toBeNull();
+  expect(mobilePickingBox).not.toBeNull();
+  expect(mobilePickingBox!.y).toBeGreaterThanOrEqual(mobileStatusBox!.y + mobileStatusBox!.height - 1);
+  expect(mobilePickingBox!.y + mobilePickingBox!.height).toBeLessThanOrEqual(844 + 1);
 });
 
 test('saved route detail exposes rename and delete but no route editor', async ({ page }) => {
