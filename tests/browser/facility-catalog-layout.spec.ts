@@ -35,8 +35,10 @@ async function ensureFacilityCatalogFixture(page: import('@playwright/test').Pag
 async function ensureFacilityRegionFixture(page: import('@playwright/test').Page) {
   if (await page.locator('.global-facility-region-row').count()) return;
 
-  await page.locator('.global-operation-page').evaluate((surface) => {
-    surface.insertAdjacentHTML('beforeend', `
+  await page.locator('body').evaluate((body) => {
+    const fixture = document.createElement('div');
+    fixture.className = 'global-operation-page global-facility-region-fixture';
+    fixture.innerHTML = `
       <section class="entity-list-surface global-facility-region-page">
         <div class="entity-list-header global-facility-region-header">
           <span class="entity-list-header__cell">地区</span>
@@ -62,7 +64,8 @@ async function ensureFacilityRegionFixture(page: import('@playwright/test').Page
             </div>
           </li>
         </ul>
-      </section>`);
+      </section>`;
+    body.appendChild(fixture);
   });
 }
 
