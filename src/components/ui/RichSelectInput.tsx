@@ -26,7 +26,6 @@ const DETAIL_OPTION_HEIGHT = 64;
 const PRODUCTION_CONFIG_OPTION_HEIGHT = 88;
 const PRODUCTION_CONFIG_MENU_WIDTH = 420;
 const MAX_VISIBLE_OPTIONS = 6;
-const PRODUCTION_CONFIG_VISIBLE_OPTIONS = 4;
 const TYPEAHEAD_RESET_MS = 700;
 
 type RichSelectPosition = {
@@ -50,6 +49,10 @@ export type RichSelectOption = {
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
+}
+
+function naturalScrollHeight(element: HTMLElement) {
+  return Math.ceil(element.scrollHeight + Math.max(0, element.offsetHeight - element.clientHeight));
 }
 
 function describedBy(...values: Array<string | undefined>) {
@@ -155,9 +158,6 @@ export function RichSelectInput({
     : options.some((option) => Boolean(option.detail))
       ? DETAIL_OPTION_HEIGHT
       : OPTION_HEIGHT;
-  const visibleOptionCount = variant === 'production-config'
-    ? PRODUCTION_CONFIG_VISIBLE_OPTIONS
-    : MAX_VISIBLE_OPTIONS;
 
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current;
@@ -171,10 +171,15 @@ export function RichSelectInput({
       ? Math.max(triggerRect.width, PRODUCTION_CONFIG_MENU_WIDTH)
       : triggerRect.width;
     const width = Math.min(preferredWidth, availableWidth);
-    const estimatedHeight = Math.min(
-      optionHeight * visibleOptionCount + FLOATING_INSET,
+    const defaultEstimatedHeight = Math.min(
+      optionHeight * MAX_VISIBLE_OPTIONS + FLOATING_INSET,
       Math.max(optionHeight, options.length * optionHeight + FLOATING_INSET),
     );
+    const estimatedHeight = variant === 'production-config'
+      ? listboxRef.current
+        ? naturalScrollHeight(listboxRef.current)
+        : Math.max(optionHeight, options.length * optionHeight + FLOATING_INSET * 2)
+      : defaultEstimatedHeight;
     const availableBelow = Math.max(
       0,
       layerRect.bottom - triggerRect.bottom - FLOATING_GAP - FLOATING_INSET,
@@ -183,10 +188,18 @@ export function RichSelectInput({
       0,
       triggerRect.top - layerRect.top - FLOATING_GAP - FLOATING_INSET,
     );
-    const placement = availableBelow < Math.min(estimatedHeight, optionHeight * 3)
-      && availableAbove > availableBelow
-      ? 'above'
-      : 'below';
+    const placement = variant === 'production-config'
+      ? availableBelow >= estimatedHeight
+        ? 'below'
+        : availableAbove >= estimatedHeight
+          ? 'above'
+          : availableAbove > availableBelow
+            ? 'above'
+            : 'below'
+      : availableBelow < Math.min(estimatedHeight, optionHeight * 3)
+        && availableAbove > availableBelow
+        ? 'above'
+        : 'below';
     const availableHeight = placement === 'above' ? availableAbove : availableBelow;
     const maxHeight = Math.max(optionHeight, Math.min(estimatedHeight, availableHeight || estimatedHeight));
     const left = viewportLayer
@@ -209,7 +222,7 @@ export function RichSelectInput({
         : triggerRect.bottom - layerRect.top + FLOATING_GAP;
 
     setPosition({ left, top, width, maxHeight, placement });
-  }, [floatingLayer, optionHeight, options.length, variant, viewportLayer, visibleOptionCount]);
+  }, [floatingLayer, optionHeight, options.length, variant, viewportLayer]);
 
   const openList = useCallback((direction: 1 | -1 = 1) => {
     if (disabled || options.length === 0) return;
