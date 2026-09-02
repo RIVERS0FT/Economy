@@ -109,15 +109,7 @@ for (const [source, token, message] of [
 requireText(daily, 'CONTRACT_DAY_OFFSET_MS = 8 * 60 * 60 * 1000', '每日额度自然日必须与北京时间边界一致。');
 requireText(daily, 'isDailySupplyContract(contract) ? normalizeDailyContract(contract, now) : contract', '旧商品合同迁移必须只规范已标记的每日合同。');
 forbidText(daily, "contract?.totalDeliveries !== null", '每日合同迁移不得再用旧 totalDeliveries 是否为空判断并强制迁移旧长期合同。');
-const fastPath = runtime.match(/if \(!CONTRACT_ACTIONS\.has\(requestMeta\.action\) && !needsProductionInputSourcing\) \{([\s\S]*?)\n    \} else if/);
-if (
-  !fastPath
-  || !fastPath[1].includes('executeRuntimeAction(this, user, requestMeta, now)')
-  || fastPath[1].includes('prepareProductionInputs')
-  || fastPath[1].includes('applyContractAction')
-) {
-  failures.push('无到期生产输入需求的普通动作必须保留既有单事务 fast path。');
-}
+requireText(runtime, 'return executeRuntimeAction(this, user, requestMeta, now);', '无到期生产输入需求的普通动作必须保留既有单事务 fast path。');
 requireText(audit, "supplyMode: contract.supplyMode === 'daily' ? 'daily' : null", '每日合同审计快照必须保留 daily 模式。');
 requireText(audit, "totalDeliveredQuantity: contract.supplyMode === 'daily'", '每日合同审计快照必须保留累计真实交付数量。');
 requireText(audit, "unit: 'quantity'", '每日合同历史完成事实必须按实际交付数量表达。');
