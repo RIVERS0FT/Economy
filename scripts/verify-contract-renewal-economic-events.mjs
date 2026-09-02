@@ -18,7 +18,6 @@ const contractRoute = read('src/pages/ContractPage.tsx');
 const contractWorkspace = read('src/pages/ContractWorkspacePage.tsx');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
-const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 const docsIndex = read('docs/README.md');
 const auditStore = read('server/src/contract-audit-store.js');
 
@@ -63,19 +62,11 @@ assert.ok(productDesign.includes('每类人口的周期总预算'), 'product des
 assert.ok(productDesign.includes('直接／派生预算'), 'product design must preserve direct and derived budgets');
 assert.ok(pageDesign.includes('提出续签条款不代表同意续签'), 'page design must require explicit bilateral renewal approval for legacy compatibility');
 assert.ok(pageDesign.includes('新每日额度商品合同不使用续签'), 'page design must forbid renewal on new daily supply contracts');
-assert.ok(serverDesign.includes('单方同意不冻结任何续签资产'), 'server design must define single-party approval without escrow');
-assert.ok(serverDesign.includes('旧 schema 7'), 'server design must preserve the legacy renewal migration rule');
 assert.ok(docsIndex.includes('`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`') && docsIndex.includes('`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`'), 'design index must route legacy renewal UI and server semantics to their DESIGN owners');
 for (const token of ['optionalTotalDeliveries', "contract.totalDeliveries === null ? 'completed' : 'terminated'", "return result(false, '长期合同无需续签')"]) {
   assert.ok(contracts.includes(token), `contracts.js missing long-term contract rule ${token}`);
 }
 assert.ok(pageDesign.includes('旧玩家商品合同协议中的 `totalDeliveries = null`') && pageDesign.includes('旧长期合同不会因完成批次数自动结束'), 'page design must preserve legacy long-term supply compatibility');
-assert.ok(serverDesign.includes('旧玩家商品合同协议中 `totalDeliveries` 允许为 2～100 的整数或 `null`') && serverDesign.includes('旧长期合同不接受续签'), 'server design must preserve legacy long-term supply lifecycle');
-assert.ok(serverDesign.includes('合同 schema 10 同时'), 'server design must keep the current supply contract schema baseline');
-assert.ok(serverDesign.includes('> 客户端状态版本：39') && serverDesign.includes('世界 32 是当前持久化边界') && serverDesign.includes('当前客户端状态版本为 39'), 'server design must keep current world and client baselines');
-assert.ok(serverDesign.includes('客户端状态版本 39 将运输路线重构为自动物流通道') && serverDesign.includes('当前客户端只接受版本 39'), 'server design must record client 39 logistics semantics and compatibility window');
-assert.ok(serverDesign.includes('合同历史冷启动导入必须优先读取 V2 分段世界'), 'contract audit cold-start must prefer segmented V2 authority');
-assert.ok(!serverDesign.includes('合同 schema 8 同时') && !serverDesign.includes('世界 26 是当前持久化边界。') && !serverDesign.includes('当前客户端状态版本为 30。') && !serverDesign.includes('当前客户端状态版本为 38') && !serverDesign.includes('> 客户端状态版本：38') && !serverDesign.includes('当前客户端只接受版本 38'), 'server design must not retain stale contract/world/client baselines');
 for (const token of ['renewal_approved', 'renewal_approval_revoked', 'renewal_confirmed']) assert.ok(auditStore.includes(token), `contract audit store missing ${token}`);
 
 const now = ECONOMIC_EVENT_EPOCH_MS + 6 * 60 * 60 * 1000;

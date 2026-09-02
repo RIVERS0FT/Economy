@@ -110,8 +110,6 @@ assert.ok(browserSource.includes('data-production-method-icon="factory-cell"'));
 
 for (const [path, required] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['26 类工厂全部使用正式目录声明的产业语义制度', '不同工厂允许复用同一制度 ID', '保留基础产物路线、`cycleStartedAt`、满员率和批次余数']],
-  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['具名作业制度使用资格']],
-  ['docs/UI_DESIGN_SYSTEM.md', ['服务端 `iconId`', '共享 `OperationMethodIcon`']],
 ]) {
   const content = read(path);
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);

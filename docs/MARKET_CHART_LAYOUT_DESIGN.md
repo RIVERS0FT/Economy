@@ -1,8 +1,5 @@
 # Economy 市场行情图布局设计
 
-> 状态：市场行情图几何、交互与可读性唯一专项基线
-> 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-09-01
 > 上位文档：`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`、`UI_DESIGN_SYSTEM.md`
 
 ## 1. 规则优先级

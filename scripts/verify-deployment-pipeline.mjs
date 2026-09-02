@@ -9,9 +9,7 @@ const selectorPath = resolve(root, 'scripts/select-ci-tests.mjs');
 const pageContentPath = resolve(root, 'scripts/verify-page-content.mjs');
 const pageContentLegacyPath = resolve(root, 'scripts/verify-page-content-base.mjs');
 const uiArchitectureRunnerPath = resolve(root, 'scripts/verify-ui-architecture-runner.mjs');
-const designPath = resolve(root, 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 const ciDesignPath = resolve(root, 'docs/CI_EXECUTION_DESIGN.md');
-const facilityDesignPath = resolve(root, 'docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md');
 const nginxConfiguratorPath = resolve(root, 'scripts/configure-economy-nginx.py');
 const nginxLocationTemplatePath = resolve(root, 'deploy/nginx/game.riversoft.top.economy-location.conf');
 const nginxIpFallbackConfiguratorPath = resolve(root, 'scripts/configure-economy-ip-fallback-nginx.py');
@@ -20,9 +18,7 @@ const ciWorkflow = readFileSync(ciPath, 'utf8');
 const selector = readFileSync(selectorPath, 'utf8');
 const pageContent = readFileSync(pageContentPath, 'utf8');
 const uiArchitectureRunner = readFileSync(uiArchitectureRunnerPath, 'utf8');
-const design = readFileSync(designPath, 'utf8');
 const ciDesign = readFileSync(ciDesignPath, 'utf8');
-const facilityDesign = readFileSync(facilityDesignPath, 'utf8');
 const nginxConfigurator = readFileSync(nginxConfiguratorPath, 'utf8');
 const nginxLocationTemplate = readFileSync(nginxLocationTemplatePath, 'utf8');
 const nginxIpFallbackConfigurator = readFileSync(nginxIpFallbackConfiguratorPath, 'utf8');
@@ -37,14 +33,8 @@ const requireCiText = (text, reason) => {
 const requireSelectorText = (text, reason) => {
   if (!selector.includes(text)) failures.push(reason ?? `select-ci-tests.mjs 缺少: ${text}`);
 };
-const requireDesignText = (text, reason) => {
-  if (!design.includes(text)) failures.push(reason ?? `部署设计缺少: ${text}`);
-};
 const requireCiDesignText = (text, reason) => {
   if (!ciDesign.includes(text)) failures.push(reason ?? `CI 执行设计缺少: ${text}`);
-};
-const requireFacilityDesignText = (text, reason) => {
-  if (!facilityDesign.includes(text)) failures.push(reason ?? `工厂目录设计缺少: ${text}`);
 };
 const hasCommand = (plan, command, args = []) => plan.checks.some((item) => item.command === command && JSON.stringify(item.args) === JSON.stringify(args));
 const commandCount = (plan, command, args = []) => plan.checks.filter((item) => item.command === command && JSON.stringify(item.args) === JSON.stringify(args)).length;
@@ -85,6 +75,7 @@ if (existsSync(pageContentLegacyPath)) failures.push('旧 page-content base veri
 for (const forbidden of ['obsoleteBaseFailures', "['scripts/verify-page-content-base.mjs']", 'spawnSync(']) {
   if (pageContent.includes(forbidden)) failures.push(`page-content 正式 verifier 不得保留旧兼容层: ${forbidden}`);
 }
+
 const quotedAvatarLocation = 'location ~ "^/economy-avatars/(?<avatar_id>[1-9][0-9]{0,15})\\.webp$" {';
 const healthLocation = 'location = /economy-api/health {';
 for (const [source, label] of [
@@ -213,19 +204,8 @@ if (ciBuildSection.includes('--phase browser') || ciBuildSection.includes('npm r
   failures.push('PR/分支 build Job 不得重新串行执行浏览器测试');
 }
 
-requireDesignText('PR 与非 `main` push 默认使用改动文件选择器', '权威部署设计必须记录增量 CI');
-requireDesignText('改动文件选择规则唯一维护在 `scripts/select-ci-tests.mjs`', '权威部署设计必须保持测试选择规则的唯一入口');
-requireFacilityDesignText('建筑域的定向浏览器集合必须固定包含 `tests/browser/all-pages-preview.spec.ts`', '工厂目录设计必须记录建筑跨页面几何基线');
-requireDesignText('无法分类的源码改动必须退化为完整验证', '权威部署设计必须记录未知影响范围的全量兜底');
-requireDesignText('`main` 是唯一自动无条件执行完整 `npm run build` 与完整 Playwright 的分支', '权威部署设计必须记录 main 全量门禁边界');
-requireDesignText('完整 `npm run build` 与完整 Playwright 浏览器回归必须作为并行硬门禁', '权威部署设计必须记录完整构建与浏览器回归并行硬门禁');
-requireDesignText('独立 `browser-test` Job 固定以四个 shard', '权威部署设计必须记录四分片浏览器回归');
-requireDesignText('生产 `deploy` Job 必须同时 `needs` 两者', '权威部署设计必须记录生产写入等待全部验证');
-requireDesignText('同步 `server/` 时必须排除 `runtime/`', '权威部署设计必须记录 API 同步保护可复用 runtime');
-requireDesignText('完全匹配时必须复用且不得重新下载或上传', '权威部署设计必须记录 Node runtime 精确匹配复用');
-requireDesignText('已通过精确校验时复用服务器现有运行时', '权威部署设计必须记录运行时部署包条件');
-requireDesignText('Nginx 头像 `location ~` 正则包含 `{m,n}` 量词，必须整体使用引号包裹', '权威部署设计必须记录头像正则的 Nginx 引用规则');
-requireDesignText('生产文件同步必须同时受 deploy Job 20 分钟整体上限、单次 rsync 300 秒外层上限、60 秒 I/O 无进展上限与 SSH keepalive 约束', '权威部署设计必须记录文件同步的有限失败边界');
+// CI 与部署行为由工作流、选择器和上面的行为断言直接验证；DESIGN 只保留 owner 与稳定原则，
+// 不再要求 SERVER/FACILITY DESIGN 逐字复制实现路径、分片数量或测试文件名。
 requireCiDesignText('PR 与非 `main` push 的浏览器硬门禁固定拆成四个独立 shard', 'CI 执行设计必须锁定 PR/分支四分片浏览器门禁');
 requireCiDesignText('`build` Job 只执行依赖安装、静态/服务器检查、TypeScript、Vite 与完整 fallback build', 'CI 执行设计必须禁止把浏览器回归塞回 build Job');
 requireCiDesignText('targeted 模式必须把选择器已经确定的同一组 Playwright spec 交给四个 shard', 'CI 执行设计必须保持 targeted 选择器唯一权威');

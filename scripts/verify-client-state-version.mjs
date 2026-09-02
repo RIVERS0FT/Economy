@@ -47,16 +47,10 @@ if (existsSync('shared/economy-state-version.js')) {
   fail('不得恢复根目录平行客户端状态版本模块');
 }
 
-// docs/README only exposes the current compatibility metadata needed to select the
-// correct design set. Source ownership and executable verification remain in the
-// server DESIGN, package scripts and implementation respectively.
+// docs/README 只暴露用于选择当前设计集的兼容元数据并路由服务器架构 owner；
+// 当前数字版本、兼容下限和具体共享模块路径属于可执行代码事实，不再要求 SERVER DESIGN 复制。
 requireCurrentVersion('docs/README.md', /> 客户端状态版本：(\d+)/, '客户端状态版本');
 requireText('docs/README.md', ['`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`']);
-requireCurrentVersion(
-  'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
-  /> 客户端状态版本：(\d+)/,
-  '客户端状态版本',
-);
 
 requireText('package.json', [
   '"verify:state-version": "node scripts/verify-client-state-version.mjs"',
@@ -104,13 +98,6 @@ requireText('server/src/state-partitions.js', [
   "'contract'",
   "'productionContracts'",
   "'productionContractSummary'",
-]);
-requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
-  '`server/shared/economy-state-version.js`',
-  MIN_COMPATIBLE_CLIENT_STATE_VERSION === CURRENT_CLIENT_STATE_VERSION
-    ? `当前客户端只接受版本 ${CURRENT_CLIENT_STATE_VERSION}`
-    : `当前客户端接受版本 ${MIN_COMPATIBLE_CLIENT_STATE_VERSION} 与 ${CURRENT_CLIENT_STATE_VERSION}`,
-  '不得维护独立常量',
 ]);
 
 function completePatches(version) {

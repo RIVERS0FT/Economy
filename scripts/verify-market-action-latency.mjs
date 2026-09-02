@@ -75,9 +75,9 @@ for (const text of [
   "'Idempotency-Key': requestKey()",
 ]) requireText(contractsApi, text);
 
+// 撮合模块文件名和调用路径由上面的实际源码及共享撮合专项 verifier 直接验证；
+// SERVER DESIGN 只保留动作确认与状态交付等稳定服务器架构约束，不复制模块目录。
 for (const text of [
-  '`order-matching.js`：商品与工厂共用的价格优先、同价时间优先、maker price、部分成交、订单状态推进、逐笔 fill 与手续费结算编排',
-  '绕过统一商品撮合层处理玩家订单',
   '普通玩家权威动作的持久化幂等确认仍固定为 `{ result: { ok, message }, revision }`',
   '正常成功路径不得为了取得同一动作结果再追加一次 `GET state`',
 ]) requireText(serverDesign, text);

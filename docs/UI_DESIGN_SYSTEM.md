@@ -1,11 +1,6 @@
 # Economy UI 设计系统
 
-> 2026-08-30 不可回退规则：工厂资产禁止通过市场订单簿直接买卖，新的工厂所有权转移只能通过拍卖完成；建筑详情与市场不得提供工厂直售入口或从属工厂交易页。旧未完成工厂订单在迁移时自动撤销并释放冻结资产；已结束历史订单／历史行情只可用于兼容、审计或估值，不得重新成为业务入口。
 
-> 状态：当前视觉、共享组件、响应式与可访问性实现基线
-> 适用项目：`RIVERS0FT/Economy`
-> 当前平台：网页端
-> 更新时间：2026-09-02
 
 产品和页面职责分别以 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；应用外壳几何和玻璃材质以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。
 
@@ -23,90 +18,26 @@
 
 ## 2. 样式职责
 
-| 文件 | 唯一职责 |
+共享视觉按职责分层，业务页面不得复制基础样式：
+
+| 权威层 | 主要职责 |
 |---|---|
-| `src/styles/design-system.css` | 设计令牌、页面一级内容栈、按钮、面板、状态、表格、开关和通用焦点视觉 |
-| `src/styles/interaction-states.css` | 最近输入方式驱动的共享 hover、active、程序化焦点与键盘焦点视觉 |
-| `src/styles/primary-surfaces.css` | 玩家端一级卡片外层内边距令牌、最终选择器、移动断点与旧一级卡片类兼容入口 |
-| `src/styles/form-controls.css` | 输入、选择器、文本域、文件控件、自动填充、错误／只读／禁用状态和移动尺寸的最终视觉权威 |
-| `src/styles/globals.css` | 通用业务布局 |
-| `src/styles/strategic-game-shell.css` | 玩家端常驻地图、侧栏与页面单一主卡片、统一紧凑页宽、页面开启动画、地图镜头栏、覆盖式指挥栏与移动安全布局；不得修改管理员外壳 |
-| `src/styles/charts.css` | 共享 ECharts 容器、Tooltip 内容排版、无障碍摘要、市场底部安全区、管理员图表与资产圆环布局；不得定义 Tooltip 毛玻璃材质 |
-| `src/styles/safe-floating.css` | 唯一 `.workspace-tooltip-layer` Tooltip 宿主、工作区安全定位、尺寸、滚动、游戏名词点状下划线与交互几何；不得定义 Tooltip 毛玻璃材质或承担应用外壳几何 |
-| `src/styles/overview.css` | 概览主列核心卡片、右侧公开事件日志和响应式布局 |
-| `src/styles/icon-system.css` | 全局 SVG 图标尺寸、商品图标标签、货币金额、导航图标槽位和移动图标尺寸 |
-| `src/styles/player-avatar.css` | 玩家 64px 头像、缺省首字符回退与圆形裁切的共享视觉 |
-| `src/styles/product-artwork.css` | 商品插画 128px 运行时缩略图映射、批准展示上下文、尺寸与低流量 SVG 回退 |
-| `src/styles/facility-artwork.css` | 工厂场景插画 256px 运行时缩略图映射、批准展示上下文、尺寸与低流量 SVG 回退 |
-| `src/styles/unified-market-admin.css` | 统一市场与管理员页面布局 |
-| `src/styles/entity-list-header.css` | 所有带表头页面实体列表的统一视觉权威：列表表面、表头、数据行、表头到首行间距、行间距、响应式列间距／横向内边距、箭头列、目录插画槽和正负数值色；业务列表只补充列模板与业务单元格内容 |
-| `src/styles/market-commodity-row.css` | 一级市场商品目录、全局商品详情与地区市场共享的紧凑商品数据行密度、1:1 商品插画槽、可排序表头交互、默认折叠筛选 disclosure 和移动单行收缩规则 |
-| `src/styles/settings.css` | 设置页统一单列、统计密度、账号分组和存档管理布局 |
-| `src/styles/asset-overview.css` | 银行页资产总览的净资产摘要、资产配置圆环、资产构成表和移动两行两列重排 |
-| `src/styles/bank.css` | 存款余额条、存取款双列、贷款评估表、抵押摘要、还款与银行记录的业务布局 |
-| `src/styles/industry-system.css` | 工厂、建设列、自适应同行等高卡片与生产密度 |
-| `src/styles/facility-group-card-grid.css` | 生产主从布局、工厂集群详情内部排列和“生产产物／作业制度”横向 Auto 槽位布局 |
-| `src/styles/facility-production-formula.css` | 工厂集群生产结算的输入侧周期成本、物资槽、流向进度、范围标识和响应式布局 |
-| `src/styles/factory-auto-operation.css` | 地区工厂详情自动经营的启停、原料保障、经营模式、产成品处理与响应式布局 |
-| `src/styles/warehouse-expansion.css` | 州级可钻取仓库商品网格、容器查询与紧凑商品卡布局 |
-| `src/styles/transport-page.css` | 独立运输页的路线编辑、路线卡、在途／最近完成记录与响应式布局 |
-| `src/styles/scrolling-page-sections.css` | 玩家可滚动正文的页面结构扁平化、独立业务对象轻量圆角卡、摘要指标条、运输路线方式线型以及运输地图创建面板状态栏安全定位；不得定义表单控件基础视觉或给正文对象卡增加毛玻璃 |
-| `src/styles/production-surface.css` | 建筑页建设卡和工厂详情的标题轨道、名称下状态与紧凑开关；不得定义一级卡片外层内边距 |
-| `src/styles/regional-entity-page-title.css` | 地区商品／工厂详情共享两行标题：实体主标题、可点击地区导航、固定 40px 标题轨道内紧凑例外与溢出规则 |
-| `src/styles/auth.css` | 登录布局、动态视口与认证自动填充兼容例外 |
-| `src/styles/card-system.css` | 卡片圆角映射 |
-| `src/styles/desktop-sidebar.css` | 桌面侧栏宽度、折叠、导航固有行高、无角标按钮和可访问状态 |
-| `src/styles/mobile-detail-sheet.css` | 唯一根级 Mobile Workspace Sheet 的工厂详情卡片容器、透明点击 backdrop、圆角、拖动、页面／详情内容层、滚动区、安全区和动效最终权威；所有移动业务页面与业务详情共用同一个根 Sheet，Sheet 自身承担唯一移动毛玻璃模糊，状态栏与移动通知层保持在其上，底部导航保持同一 DOM 但在 Sheet 存在期间隐藏，不得创建第二个 Sheet DOM |
-| `src/styles/scrollbars.css` | 全局覆盖式滚动条宽度、颜色、层级、显隐与移动页面／根级 Dialog 安全边缘轨道 |
-| `src/styles/performance.css` | 渲染性能保护和触控惯性；不得阻断页面或虚拟列表的纵向滚动链 |
-| `src/styles/frosted-glass-surfaces.css` | 状态栏、认证卡片、移动底栏、玩家 `workspaceCard`、根级状态卡与 `.ui-tooltip-surface` 的统一纯 CSS 毛玻璃材质；Tooltip 只允许单节点轻量表面 |
-| `src/styles/frosted-glass-chrome.css` | 仅供浏览器运行时 harness 使用的固定样式聚合入口 |
-| `src/styles/virtual-list.css` | 共享窗口化列表、虚拟表格行、滚动视口和管理员高增长记录布局 |
-| `src/styles/mobile-*.css` | 移动导航、安全区和页面布局 |
+| `design-system.css` / `interaction-states.css` / `form-controls.css` | 设计令牌、共享控件、输入状态、交互反馈与焦点 |
+| `primary-surfaces.css` / `content-surfaces.css` / `scrolling-page-sections.css` | 圆角表面 inset、正文对象卡、页面分区与同构列表表面语义 |
+| `strategic-game-shell.css` / `mobile-detail-sheet.css` / `frosted-glass-surfaces.css` | 战略工作区、唯一移动 Workspace Sheet 与高层毛玻璃表面 |
+| `safe-floating.css` / `charts.css` / `scrollbars.css` | 顶层 Tooltip、图表容器和共享滚动行为 |
+| `entity-list-header.css` / `market-commodity-row.css` | 带表头实体列表及已登记的紧凑商品行 |
+| 商品、工厂、银行、合同、设置等领域样式 | 只负责领域内部布局与已登记场景例外，不得重做共享表面、控件或交互基础视觉 |
+
+具体样式文件属于实现事实；新增或拆分文件不需要在 DESIGN 维护完整目录副本，但必须继续服从上述唯一职责和加载层级。
 
 业务页面样式先加载，`design-system.css` 在页面样式之后收束页面一级区块间距和共享基础视觉，`interaction-states.css` 随后根据最近输入方式收束共享交互状态，`primary-surfaces.css` 再收束玩家端一级卡片外层几何，`form-controls.css` 最后加载并只负责表单控件。页面样式不得重新实现页面一级区块间距、按钮、输入、面板、一级卡片外层内边距、状态标签、开关、表格、图标、hover、active 或焦点的基础外观。
 
 ## 3. 共享 React 组件
 
-业务页面优先使用：
+页面、表单、列表、金额、图表、Tooltip、商品／工厂插画和移动 Workspace Sheet 必须优先复用现有共享组件，不为单页复制第二套基础组件。核心结构包括 `PageLayout`、`PagePanel`、`MobileWorkspaceSheetHost`、共享 FormControls、实体列表、金额格式化、`SafeTooltip` / `GameConcept` 与 `EconomyChart`；具体组件清单属于代码事实。
 
-- `PageLayout`
-- `RegionalEntityPageTitle`
-- `MobileWorkspaceSheetHost`
-- `MobileWorkspacePageSheet`
-- `MobileWorkspaceDetailSheet`
-- `MobileDetailSummary`
-- `Panel`
-- `PagePanel`
-- `WidgetHeading`
-- `Button`
-- `StatusTag`
-- `MetricCard`
-- `DataList`
-- `DataRow`
-- `SwitchControl`
-- `ToggleField`
-- `ScrollableTable`
-- `VirtualList`
-- `VirtualRecordTable`
-- `CompactNumber`
-- `CompactCurrency`
-- `CompactRank`
-- `PlayerAvatar`
-- `CurrencyAmount`
-- `MarketCommodityRow`
-- `CurrencyText`
-- `EmptyState`
-- `SafeTooltip`
-- `GameConcept`
-- `FormField`
-- `TextInput`
-- `IntegerInput`
-- `SelectInput`
-- `TextArea`
-- `FileInput`
-- `InputGroup`
-- `EconomyChart`
+`PagePanel` 只是兼容结构语义，不自动决定可见圆角。页面章节与同构比较列表保持平面分区；具有独立身份、状态、属性和操作的复杂业务对象可以使用 `.ui-entity-card` 或已登记兼容入口，即使随 `.page-card-scroll` 滚动。正文对象卡只使用实体背景、边框和圆角，不使用毛玻璃或高层阴影。
 
 `MobileWorkspaceSheetHost` 是移动端唯一根级 Sheet 宿主，并独占 `useMobileWorkspaceSheetDrag` 的向下拖动、速度判定、回弹、关闭和 reduced-motion 状态机。`MobileWorkspacePageSheet` 只保留为 `GameShell` 的零 DOM 兼容适配器，`MobileWorkspaceDetailSheet` 只向 Host 注册详情内容和固定底栏；两者都不得创建自己的 Sheet 外框、遮罩、Portal 或第二套手势状态机。
 
@@ -187,21 +118,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 ### 3.2 输入方式与共享交互状态
 
-输入方式是跨页面 UI 能力，不属于滚动条私有实现。所有 React 根入口必须导入 `src/app/interactionBootstrap.ts`，由其唯一安装 `src/utils/inputModality.ts`；最近一次有效鼠标／触控板、手指／笔或键盘输入分别把根元素 `data-input-modality` 更新为 `mouse`、`touch` 或 `keyboard`，混合输入设备必须在不刷新页面的情况下即时切换。
-
-| 能力 | 运行时权威 | 样式／组件入口 | 防回退 | 浏览器测试 |
-|---|---|---|---|---|
-| 输入方式 | `src/utils/inputModality.ts` + `src/app/interactionBootstrap.ts` | 根元素 `data-input-modality` | `scripts/verify-interaction-modality.mjs` | `tests/browser/input-modality.spec.ts` |
-| 共享交互表面 | 根输入方式 | `src/styles/interaction-states.css` + `data-ui-interactive="surface"` | `scripts/verify-interaction-modality.mjs` | 工厂详情与混合输入测试 |
-| 覆盖式滚动条 | `src/hooks/useOverlayScrollbar.ts` | `ScrollArea` + `src/styles/scrollbars.css` | `scripts/verify-overlay-scrollbars.mjs` | `scroll-input-modality.spec.ts` |
-
-共享交互规则：
-
-- 需要自定义悬停／按压／焦点视觉的卡片按钮必须声明 `data-ui-interactive="surface"`，业务 CSS 只提供 `--ui-interactive-*` 变量，不得再次直接声明同一元素的裸 `:hover`、`:active` 或 `:focus-visible`。
-- hover 必须同时满足最近输入方式为 `mouse`、`(hover: hover)` 和 `(pointer: fine)`；触摸产生的浏览器粘滞 `:hover` 不得改变可见样式。
-- 触摸关闭 Overlay 后可以把语义焦点返回触发元素，但共享交互表面不得显示类似选中态的焦点环；输入方式为 `keyboard` 时必须显示明确的 `:focus-visible` 焦点。
-- `scripts/interaction-hover-legacy.json` 只记录迁移前已经存在的未约束 hover。`scripts/verify-interaction-modality.mjs` 禁止增加新条目；修改既有交互区域时应迁移到共享协议，而不是扩大遗留基线。
-- 新增 React 根入口时必须自动纳入静态扫描并安装交互 bootstrap；不得依赖修改者记住手动调用 `configureInputModality()`。
+所有 React 根入口共享唯一输入方式 bootstrap；最近一次有效输入把根元素 `data-input-modality` 动态更新为 `mouse`、`touch` 或 `keyboard`，混合输入设备不得依赖刷新或只按视口判断。需要共享悬停／按压／焦点视觉的交互表面声明 `data-ui-interactive="surface"`：hover 只在 `mouse` 且设备满足 hover / `pointer: fine` 时可见，触摸不得残留粘滞 hover 或类似选中态的焦点环，键盘 `:focus-visible` 必须清晰可见。覆盖式滚动条复用同一输入方式；历史未约束 hover 基线只允许收缩，不得新增。
 
 ## 4. 开关焦点环与点击区域
 
@@ -242,47 +159,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 ### 5.1 商品 SVG 图标目录
 
-当前 38 种正式商品必须在 `ProductIcons.tsx` 中各有一个独立、可辨识的本地内联 SVG。甘蔗、水果、鱼类、砂糖、纸浆、饮料、预制餐、纸品、配合饲料、养殖药剂、拖拉机和家电不得使用默认包装箱图标。
-
-- `wheat`：麦穗；
-- `rice`：稻穗与米碗；
-- `sugarcane`：甘蔗秆与叶片；
-- `fruit`：带叶水果；
-- `timber`：原木；
-- `cotton`：棉花；
-- `ore`：铁矿石；
-- `copper-ore`：铜矿石；
-- `crude-oil`：油滴；
-- `fish`：鱼；
-- `meat`：肉；
-- `eggs`：鸡蛋；
-- `milk`：牛奶；
-- `wool`：羊毛；
-- `flour`：面粉袋；
-- `sugar`：砂糖袋；
-- `lumber`：堆叠木板；
-- `steel`：工字钢；
-- `copper`：铜材；
-- `plastic`：塑料瓶；
-- `industrial-fuel`：红色钢制燃料桶与易燃标志；
-- `industrial-chemicals`：密封工业化学品桶、实验器皿与分子结构；
-- `fertilizer`：化肥袋与颗粒；
-- `feed`：配合饲料袋与颗粒；
-- `veterinary-medicine`：养殖药剂瓶；
-- `pulp`：纸浆卷；
-- `textile`：纺织布卷；
-- `food`：食物碗；
-- `beverage`：饮料瓶；
-- `prepared-meal`：分格餐盒；
-- `paper`：叠放纸张；
-- `furniture`：椅子；
-- `clothing`：服装；
-- `machinery`：齿轮机械；
-- `tractor`：农业拖拉机；
-- `electronics`：芯片；
-- `appliance`：家电机身与滚筒。
-
-服务器未来返回未知商品 ID 时必须使用统一包装箱 SVG 回退，页面仍按服务器数组动态渲染，不得隐藏商品。市场商品标签、概览商品行情、仓库商品卡、商品订单和商品资产变动必须使用相同的 `ProductIcon`／`ProductIconLabel`。
+所有服务器正式商品必须在共享商品图标组件中拥有稳定、可辨识且与商品语义对应的本地内联 SVG；正式商品 ID、数量与增删范围以服务器商品目录和组件映射为运行事实，DESIGN 不复制完整逐商品清单。已知正式商品不得退化为同一个默认包装箱、字符、字母缩写或 Emoji；服务器未来返回未知商品 ID 时只允许使用明确的通用安全回退，不得因此改变已知商品映射。新增或删除正式商品必须在同一变更中同步目录、图标映射和专项验证。
 
 ### 5.2 主页品牌 Logo
 
@@ -327,17 +204,11 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 - 最终文件为 `1:1`、`1024 × 1024`、8-bit PNG RGBA；工厂是满画布场景，允许 Alpha 全不透明，不要求商品插画的透明四角；
 - 同一批资源必须保持相机高度、透视、主体占比、日间光向、材质细节密度和空气透视一致，单个产业不得另起一套画风。
 
-当前 C1 复杂度工厂 `farm`、`orchard`、`ranch` 与 `fishery` 已采用统一新风格从空白新绘，均为独立原创构图，不以旧图为编辑、描摹或重绘底稿：农场突出谷仓、粮仓与主食作物，果园突出果树与分拣作业建筑，畜牧场突出主畜舍、围栏和牲畜，渔场突出养殖池、处理建筑与供水设施。
-
-当前 C2 复杂度工厂 `logging-camp`、`mine`、`oil-field`、`mill` 与 `sawmill` 同样采用统一新风格从空白新绘：伐木场突出林间作业建筑、原木与集材设备，矿场突出露天矿阶、破碎分选建筑和矿石堆，油田突出完整泵机、储罐与作业建筑，磨坊突出砖木主体、粮仓、面粉与主食作物，锯木厂突出加工厂房、原木进料和成品板材。五张 C2 图片均为独立原创构图，不把旧 C2 图作为图像生成、编辑、构图参考或描摹输入。
-
-当前 C3 复杂度工厂 `pulp-mill`、`steelworks`、`textile-mill`、`food-factory` 与 `paper-mill` 采用统一新风格从空白新绘：纸浆厂突出原木、木片输送、蒸煮罐和清洁管线，冶炼厂突出高炉、矿石上料、铸轧厂房和受控炉光，纺织厂突出锯齿采光屋顶、棉毛原料和成品布卷，食品厂突出面粉储存、洁净加工与冷藏设施，造纸厂突出纸浆罐、造纸主厂房、纸卷和水处理设施。
-
-当前 C4 复杂度工厂 `refinery`、`beverage-factory`、`furniture-factory` 与 `garment-factory`，以及 `fertilizer-factory`、`veterinary-medicine-factory` 与 `tool-workshop`，均采用统一新风格从空白新绘：炼油厂突出分馏塔、换热器、管廊和储罐，化肥厂突出造粒、储存、输送与包装，养殖药剂厂突出洁净混合与灌装，饮料厂突出卫生级混合罐、瓶装线、乳品与水果收料，家具厂突出木料、除尘系统、加工厂房和成品家具，制衣厂突出布卷、采光厂房、裁缝生产区和成衣出库，工具工坊突出中小型锻造与手工具加工。当前 C5 `machine-factory`、C6 `electronics-factory` 与 C7 `appliance-factory` 分别以重型机械总装、洁净自动化电子制造和集成式家电装配为核心；C5 `tractor-factory` 另以拖拉机总装线和轮胎工位保持区分。全部 C3–C7 图片均为独立原创构图，不把旧 C3–C7 图作为图像生成、编辑、构图参考或描摹输入。
+当前 C1–C7 正式工厂均采用统一的新场景插画语言并使用独立原创构图；具体工厂 ID、产业语义和增删范围以服务器正式目录为唯一来源，DESIGN 不再逐级复制完整工厂清单。每张图必须突出对应产业的核心建筑、设备、原料或产物，缩小并按 `4:5` 居中裁切后仍可直接识别，不得把旧图作为生成、编辑、描摹或构图输入。
 
 C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体完整，且不得恢复“底部宽阔道路—远处小建筑—高饱和蓝天”的统一模板。当前批准源图的 SHA-256、覆盖复杂度与从空白新绘的创作模式记录在 `scripts/facility-artwork-baseline.json`，由 `scripts/verify-facility-artwork.mjs` 校验；替换任一已纳入基线的图片时必须采用独立新构图，同步更新本节视觉规则、机器基线和审核结果，不得只覆盖 PNG 或把旧图作为图像编辑输入。
 
-运行时不得直接加载 1024px 源图。`npm run dev`、`npm run build` 和独立工厂图片验证先调用 `scripts/generate-facility-artwork-thumbnails.mjs`，通过共享预乘 Alpha 面积采样生成 `src/assets/facility-icons/generated/256/` 下的 256px RGBA 缩略图；生成目录是可复现构建产物，构建产物不得提交仓库。`facility-artwork.css` 只能通过 `FacilityIcon` 的 `data-facility-icon` 映射缩略图，并且只允许在上述主视觉上下文显示；未知 ID 沿用组件内厂房 SVG，`prefers-reduced-data` 下所有工厂场景恢复厂房 SVG。建筑集群选择卡、当前工厂详情横幅、拍卖工厂主视觉统一加载 256px 运行时缩略图。建筑集群选择卡中的插画必须覆盖完整 `4:5` 竖卡；当前工厂详情横幅保持 `4:5` 独立插画槽并满幅承载插画。所有工厂插画统一使用 `background-size: cover` 与居中定位等比裁切，不得拉伸、重复、偏移主体或叠加状态滤镜；建筑卡继续通过上下两层黑色渐变保护文字，当前工厂详情横幅只在独立插画槽内展示图像，不得把图像铺到整行文字数据下方。运行、异常、停止、当前和悬停状态只能由边框、背景、文字、胶囊和数量表达，不得给插画本身着色。
+运行时只加载构建阶段从 1024px 源图生成的 256px RGBA 工厂缩略图；生成目录属于可再生成产物，不提交仓库。`FacilityIcon` 只在已批准的主视觉上下文使用缩略图，未知 ID 与低流量模式回退共享厂房 SVG；插画始终等比 `cover` 居中裁切，运行／异常／停止／悬停等状态只能由边框、背景、文字、胶囊和数量表达，不得给插画本身着色。源图、缩略图、目录映射、批准上下文与基线哈希由专项生成脚本和 verifier 直接检查，不在 DESIGN 复制完整实现路径清单。
 
 新增或删除正式工厂时，服务器目录、同名源图、`FacilityIcon` ID 声明、CSS 映射和验证必须在同一变更中完成。`scripts/verify-facility-artwork.mjs` 必须校验目录一一对应、源图、缩略图、映射、生成入口、批准使用上下文、低流量回退、未知 ID 降级，以及 C1–C7 目录、覆盖复杂度与批准源图 SHA-256 基线一致。
 

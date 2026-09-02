@@ -57,14 +57,8 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   'Nginx reload 后必须在 5 秒窗口内',
 ]);
 
-requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
-  '默认每 5 秒按服务器全局修订号轮询',
-  '目录、玩家、市场、拍卖、合同和排行榜六个状态分区',
-  '可选 3／5／10 秒',
-  '不得恢复每 1 秒完整状态刷新',
-  '按钮必须在同一交互周期立即显示“处理中”',
-  '任何低于当前修订号的迟到响应不得覆盖较新的权威动作结果',
-]);
+// 状态轮询、分区、修订门禁与动作 pending 属于服务器权威状态交付和客户端生命周期，
+// 已由 SERVER DESIGN 与下方实际实现断言覆盖；PAGE DESIGN 不再复制状态协议规则。
 
 requireText('scripts/configure-economy-nginx.py', [
   'STATIC_COMPRESSION_BEGIN',

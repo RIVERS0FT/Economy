@@ -80,11 +80,8 @@ const design = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
 for (const text of ['共享撮合内核', '`server/src/order-matching.js`', '唯一撮合状态机', '不得各自重新实现', '`order-book-runtime.js`', '不得各自重新对完整 `world.orders` 过滤排序']) {
   assert.ok(design.includes(text), `统一订单簿设计缺少: ${text}`);
 }
-const architecture = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
-assert.ok(
-  architecture.includes('`server/src/order-matching.js`') || architecture.includes('`order-matching.js`'),
-  '服务器架构未登记共享撮合内核',
-);
+// 共享撮合实现路径由上面的源码、调用方与单元测试直接验证；
+// SERVER DESIGN 只保留服务器领域边界，不复制模块文件目录。
 
 for (const text of [
   'function finalizeRuntimeBooks(state)',

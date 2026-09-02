@@ -1,9 +1,5 @@
 # Economy CI 执行设计
 
-> 状态：PR、非 `main` 分支、主部署与手动运维诊断的 GitHub Actions 执行基线
-> 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-09-02
-
 ## 1. 权威入口
 
 - `.github/workflows/ci.yml` 是 PR 与非 `main` push 的唯一 CI 工作流；`.github/workflows/deploy.yml` 是 `main` 自动部署与完整生产门禁。
