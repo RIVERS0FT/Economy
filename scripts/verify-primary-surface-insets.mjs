@@ -19,6 +19,7 @@ const paths = {
   layout: 'src/components/ui/layout.tsx',
   primaryStyles: 'src/styles/primary-surfaces.css',
   scrollingStyles: 'src/styles/scrolling-page-sections.css',
+  contentSurfaceStyles: 'src/styles/content-surfaces.css',
   globalOperationStyles: 'src/styles/global-operation-pages.css',
   entityHeaderStyles: 'src/styles/entity-list-header.css',
   productionStyles: 'src/styles/production-surface.css',
@@ -47,7 +48,7 @@ if (failures.length === 0) {
     failures.push('src/main.tsx 必须按 design-system.css → primary-surfaces.css → form-controls.css 顺序加载');
   }
   if (!(scrollingSectionsIndex > formControlsIndex)) {
-    failures.push('src/main.tsx 必须在共享控件样式之后加载 scrolling-page-sections.css 作为正文表面最终权威');
+    failures.push('src/main.tsx 必须在共享控件样式之后加载 scrolling-page-sections.css 作为正文结构最终权威');
   }
 
   for (const text of [
@@ -73,10 +74,16 @@ if (failures.length === 0) {
   forbidText(paths.primaryStyles, ':root {\n  --primary-surface-inset: var(--space-4);\n  --player-page-content-inset:');
 
   for (const text of [
+    "@import './content-surfaces.css';",
     '.page-card-scroll .panel:not(.ui-entity-card):not(.contract-card),',
     '.page-card-scroll .ui-primary-surface:not(.ui-entity-card):not(.contract-card) {',
     'border-top: 1px solid var(--color-divider);',
-    '.ui-entity-card,',
+  ]) requireText(paths.scrollingStyles, text);
+  forbidText(paths.scrollingStyles, '.page-card-scroll .panel,\n.page-card-scroll .ui-primary-surface {');
+
+  for (const text of [
+    '.ui-entity-card:not(.panel),',
+    '.panel.ui-entity-card,',
     '.panel.contract-card {',
     'border-radius: var(--radius-card);',
     'padding: var(--primary-surface-inset);',
@@ -88,8 +95,7 @@ if (failures.length === 0) {
     '.contract-summary-grid > .ui-metric-card {',
     'border-radius: 0;',
     'background: transparent;',
-  ]) requireText(paths.scrollingStyles, text);
-  forbidText(paths.scrollingStyles, '.page-card-scroll .panel,\n.page-card-scroll .ui-primary-surface {');
+  ]) requireText(paths.contentSurfaceStyles, text);
 
   for (const text of [
     '.global-operation-page {',
