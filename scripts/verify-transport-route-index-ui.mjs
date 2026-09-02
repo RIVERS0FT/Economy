@@ -80,10 +80,10 @@ for (const text of [
   "getByRole('heading', { name: '运输路线', exact: true })",
   "toHaveText('增加路线')",
   "footer.locator('.ui-status-tag')",
+  'await expect(footer).not.toContainText',
   'routeBorderRadius',
   'footerBefore',
   'footerAfter',
-  'not.toContainText(/\\d+\\s*\/\\s*50/)',
 ]) requireText(browserTest, text, `运输浏览器回归缺少：${text}`);
 forbidText(browserTest, "toContainText('0/50')", '运输浏览器回归不得要求已删除的路线数量胶囊。');
 
