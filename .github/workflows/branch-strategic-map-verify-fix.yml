@@ -31,11 +31,21 @@ jobs:
 
           path = Path('scripts/verify-provincial-economy.mjs')
           text = path.read_text()
-          old = "  '静态 SVG 世界面', '唯一相机状态', '名称随地图缩放和平移同步变化',"
-          new = "  '静态 SVG 世界面', '战略地图镜头、缩放、重置和平移边界唯一遵循', '名称随地图缩放和平移同步变化',"
-          if old not in text:
-              raise SystemExit('province verifier page camera assertion anchor missing')
-          path.write_text(text.replace(old, new, 1))
+          replacements = [
+              (
+                  "  '静态 SVG 世界面', '唯一相机状态', '名称随地图缩放和平移同步变化',",
+                  "  '静态 SVG 世界面', '战略地图镜头、缩放、重置和平移边界唯一遵循', '名称随地图缩放和平移同步变化',",
+              ),
+              (
+                  "  '静态 SVG 世界面', '单一合成相机', '48 个州面 path 必须始终完整挂载',",
+                  "  '静态 SVG 世界面', '同一个 `.province-map-camera-surface`', '48 个州面 path 必须始终完整挂载',",
+              ),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f'province verifier assertion anchor missing: {old}')
+              text = text.replace(old, new, 1)
+          path.write_text(text)
 
           path = Path('scripts/verify-page-content.mjs')
           text = path.read_text()
