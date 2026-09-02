@@ -15,7 +15,8 @@ import { pythonFailureOutput, spawnPythonSync } from './python-runtime.mjs';
 const root = process.cwd();
 const workflowPath = '.github/workflows/diagnose-production-database.yml';
 const diagnosticPath = 'scripts/diagnose-production-database.py';
-const designPath = 'docs/README.md';
+const designPath = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md';
+const docsIndexPath = 'docs/README.md';
 const packagePath = 'package.json';
 const failures = [];
 
@@ -31,7 +32,7 @@ function forbidText(path, text) {
   if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`);
 }
 
-for (const path of [workflowPath, diagnosticPath, designPath, packagePath]) {
+for (const path of [workflowPath, diagnosticPath, designPath, docsIndexPath, packagePath]) {
   if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`);
 }
 
@@ -85,6 +86,7 @@ if (failures.length === 0) {
     '不得执行 `VACUUM`、`wal_checkpoint`、`PRAGMA optimize`、备份、附加数据库、DDL 或 DML',
     '诊断不得上传数据库、WAL、SHM、备份或包含玩家明细的 Artifact',
   ]) requireText(designPath, text);
+  requireText(docsIndexPath, '`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`');
 
   requireText(packagePath, 'node scripts/verify-readonly-database-diagnostics.mjs');
 }
@@ -190,4 +192,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('生产 SQLite 只读诊断、无写入行为、汇总输出与设计规则验证通过。');
+console.log('生产 SQLite 只读诊断、无写入行为、汇总输出与服务器 DESIGN 规则验证通过。');
