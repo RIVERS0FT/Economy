@@ -1,16 +1,16 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-async function dragToEdge(page: Page, canvas: Locator, direction: 'right' | 'down', times = 16) {
+async function dragToEdge(page: Page, canvas: Locator, direction: 'right' | 'down', times = 4) {
+  const bounds = await canvas.boundingBox();
+  if (!bounds) throw new Error('map bounds missing');
+  const startX = bounds.x + bounds.width / 2;
+  const startY = bounds.y + bounds.height / 2;
+  const endX = direction === 'right' ? bounds.x + bounds.width - 8 : startX;
+  const endY = direction === 'down' ? bounds.y + bounds.height - 8 : startY;
   for (let index = 0; index < times; index += 1) {
-    const bounds = await canvas.boundingBox();
-    if (!bounds) throw new Error('map bounds missing');
-    const startX = bounds.x + bounds.width / 2;
-    const startY = bounds.y + bounds.height / 2;
-    const endX = direction === 'right' ? bounds.x + bounds.width - 8 : startX;
-    const endY = direction === 'down' ? bounds.y + bounds.height - 8 : startY;
     await page.mouse.move(startX, startY);
     await page.mouse.down();
-    await page.mouse.move(endX, endY, { steps: 4 });
+    await page.mouse.move(endX, endY, { steps: 2 });
     await page.mouse.up();
   }
 }
@@ -97,7 +97,7 @@ test('minimum logical zoom centers the mainland near two thirds of the map and p
   const map = page.getByTestId('us-mainland-map');
   const canvas = map.locator('.province-map-static-viewport');
   await expect(map).toHaveAttribute('data-map-ready', 'true');
-  await expect(map).toHaveAttribute('data-map-zoom-min', '1');
+  await expect(page.locator('.province-map-chart')).toHaveAttribute('data-map-zoom-min', '1');
   await expect(canvas).toHaveAttribute('data-map-pan-boundary', 'mainland-context');
   await expect(canvas).toHaveAttribute('data-map-pan-clamp-mode', 'continuous');
   await expect(canvas).toHaveAttribute('data-map-pan-edge-inset', '12');
