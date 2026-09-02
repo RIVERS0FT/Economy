@@ -292,7 +292,7 @@ requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '卖方成交手续费为成交总价的精确 1%',
   '结束前 2 分钟出现有效最高出价',
   '最近 10 条匿名有效出价',
-  '世界 21 收费、延时与隐私迁移',
+  '旧快照兼容结果',
 ]);
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
   '发布费、最低加价、卖方 1% 成交手续费',
@@ -303,7 +303,7 @@ requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
   '不得渲染最近结束或历史结算区域',
   '整包出价输入框与“提交出价／提高出价”按钮在桌面和移动宽度都必须保持同一横向操作行',
 ]);
-requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['`auction-audit-store.js`', '`economy_asset_auction_events`', 'GET | `/api/game/auctions/:auctionId/bids`', '世界 21 迁移']);
+requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['`auction-audit-store.js`', '`economy_asset_auction_events`', 'GET | `/api/game/auctions/:auctionId/bids`']);
 requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['拍卖使用自身规则快照', '拍卖独立收费不得被误删']);
 requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['未达保留价']);
 requireText('docs/UI_DESIGN_SYSTEM.md', [
@@ -328,4 +328,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('资产包拍卖发布费、卖方手续费、保留价、最低加价、自动延时、匿名竞价、最近十条按需历史、整包出价同行操作、工厂插画铺满与 256px 主视觉上限、主视觉静态展示与资产矩阵名称数量安全悬浮、SQLite 审计、世界 21 迁移、原子托管及订单簿隔离验证通过。');
+console.log('资产包拍卖发布费、卖方手续费、保留价、最低加价、自动延时、匿名竞价、最近十条按需历史、整包出价同行操作、工厂插画铺满与 256px 主视觉上限、主视觉静态展示与资产矩阵名称数量安全悬浮、SQLite 审计、旧快照兼容、原子托管及订单簿隔离验证通过。');
