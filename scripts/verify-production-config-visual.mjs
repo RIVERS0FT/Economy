@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const style = readFileSync('src/styles/form-controls.css', 'utf8');
 const layout = readFileSync('src/styles/facility-group-card-grid.css', 'utf8');
+const richSelect = readFileSync('src/components/ui/RichSelectInput.tsx', 'utf8');
 const design = readFileSync('docs/UI_DESIGN_SYSTEM.md', 'utf8');
 const browser = readFileSync('tests/browser/production-config-visual.spec.ts', 'utf8');
 
@@ -52,6 +53,22 @@ assert.equal(
 );
 
 for (const text of [
+  'naturalScrollHeight',
+  'element.scrollHeight',
+  'element.offsetHeight - element.clientHeight',
+  "variant === 'production-config'",
+  'availableBelow >= estimatedHeight',
+  'availableAbove >= estimatedHeight',
+]) {
+  assert.ok(richSelect.includes(text), `生产配置菜单自然高度定位缺少 ${text}`);
+}
+assert.equal(
+  richSelect.includes('PRODUCTION_CONFIG_VISIBLE_OPTIONS'),
+  false,
+  '生产配置菜单不得恢复固定可见项数限高',
+);
+
+for (const text of [
   '类似 UMG Horizontal Box 的 Auto／Desired Size 槽位',
   '两个字段按自身内容宽度从左向右连续排列',
   '不得使用 `1fr`、百分比或 `flex-grow` 制造 Fill 槽',
@@ -60,6 +77,10 @@ for (const text of [
   '不显示名称、参数摘要或下拉箭头',
   '图片槽不得绘制独立黑色底板',
   '完整名称与参数只在展开候选中显示',
+  '候选菜单按自身实际内容高度展开',
+  '上方或下方任一方向能够完整容纳全部候选',
+  '不得生成内部纵向滚动条',
+  '只有上下方向都无法完整容纳时才允许保留受限高度与内部滚动',
 ]) {
   assert.ok(design.includes(text), `UI 设计文档缺少生产配置规则：${text}`);
 }
@@ -91,6 +112,7 @@ for (const text of [
   'UMG-like auto slots instead of fill tracks',
   'expectSquareImageOnlyTrigger',
   'expectAutoSlotRow',
+  'expectNoVerticalOverflow',
   'Math.abs(geometry.width - geometry.height)',
   "expect(geometry.display).toBe('flex')",
   "expect(geometry.justifyContent).toBe('flex-start')",
@@ -108,6 +130,10 @@ for (const text of [
   '.ui-rich-select__chevron',
   'backgroundColor',
   'borderTopWidth',
+  'scrollHeight',
+  'clientHeight',
+  'toBeLessThanOrEqual(1)',
+  "toHaveCount(4)",
   '机械工厂生产产物',
   '机械工厂生产方式',
   "toContainText('投入')",
@@ -116,4 +142,4 @@ for (const text of [
   assert.ok(browser.includes(text), `生产配置浏览器回归缺少 ${text}`);
 }
 
-console.log('生产配置视觉验证通过：生产产物与作业制度使用 UMG 风格 Auto 槽连续左排，无 Fill 轨道，右侧剩余空间不触发下拉。');
+console.log('生产配置视觉验证通过：生产产物与作业制度使用 UMG 风格 Auto 槽连续左排；候选能够完整容纳时按真实内容高度展开，不产生内部纵向滚动。');
