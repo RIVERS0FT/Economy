@@ -1,4 +1,4 @@
-import { useContext, useMemo } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import regionCatalog from '../../../shared/provinces.json';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import type { GameTutorialController } from '../../game-guide/useGameTutorial';
@@ -124,6 +124,7 @@ export function StrategicMapStage({
   const state = strategicMapState(model);
   const now = useNow(model.game.lastProcessedAt, 500);
   const routeDraft = useContext(TransportRouteDraftContext);
+  const [savingRoute, setSavingRoute] = useState(false);
   const startingProvincePicking = model.game.startingProvinceChosen === false && typeof onPickStartingProvince === 'function';
   const effectiveLens: ProvinceMapLens = startingProvincePicking ? 'political' : lens;
   const provinceById = useMemo(() => new Map(state.provinces.map((province) => [province.id, province])), [state.provinces]);
@@ -155,11 +156,15 @@ export function StrategicMapStage({
     }
     const highlightedStops = routeDraft?.highlightedRouteStops;
     if (highlightedStops && highlightedStops.length >= 2) {
+      const highlightedRoute = transportRoutes.find((route) => {
+        const stops = transportRouteStopIds(route);
+        return stops.length === highlightedStops.length && stops.every((provinceId, index) => provinceId === highlightedStops[index]);
+      });
       overlays.push({
-        id: 'highlighted-route',
+        id: highlightedRoute ? `highlighted-${highlightedRoute.mode}-route` : 'highlighted-route',
         stops: highlightedStops,
         closed: highlightedStops[0] === highlightedStops[highlightedStops.length - 1],
-        tripType: 'one-way',
+        tripType: highlightedRoute?.tripType ?? 'one-way',
         kind: 'highlight',
       });
     }
@@ -205,6 +210,32 @@ export function StrategicMapStage({
     ? { active: true, stops: draftStops, onPickProvince: routeDraft.pickProvince }
     : null;
   const draftClosed = Boolean(routeDraft?.draft && isTransportRouteClosed(routeDraft.draft));
+
+  async function createDraftRoute() {
+    if (!routeDraft?.draft || savingRoute) return;
+    const draft = routeDraft.draft;
+    const stops = transportRouteStopIds(draft);
+    if (!draft.sourceProvinceId || !draft.destinationProvinceId || stops.length < 2) {
+      await model.showResult({ ok: false, message: '请先在地图上选择完整运输路线' });
+      return;
+    }
+    setSavingRoute(true);
+    try {
+      const result = await model.createTransportRoute({
+        sourceProvinceId: draft.sourceProvinceId,
+        destinationProvinceId: draft.destinationProvinceId,
+        viaProvinceIds: draft.viaProvinceIds,
+        tripType: isTransportRouteClosed(draft) ? 'one-way' : draft.tripType,
+        mode: draft.mode,
+      });
+      await model.showResult(result);
+      if (result.ok) routeDraft.closeDraft();
+      else routeDraft.finishPicking();
+    } finally {
+      setSavingRoute(false);
+    }
+  }
+
   return (
     <div
       className="strategic-map-stage"
@@ -243,6 +274,7 @@ export function StrategicMapStage({
             <SelectInput
               label="运输方式"
               value={routeDraft.draft?.mode ?? 'road'}
+              disabled={savingRoute}
               onChange={(event) => routeDraft.updateDraft({ mode: event.target.value as TransportModeId })}
             >
               <option value="road">公路运输</option>
@@ -252,7 +284,7 @@ export function StrategicMapStage({
             <SelectInput
               label="行程"
               value={draftClosed ? 'one-way' : routeDraft.draft?.tripType ?? 'one-way'}
-              disabled={draftClosed}
+              disabled={draftClosed || savingRoute}
               onChange={(event) => routeDraft.updateDraft({ tripType: event.target.value === 'round' ? 'round' : 'one-way' })}
             >
               <option value="one-way">单程</option>
@@ -264,10 +296,10 @@ export function StrategicMapStage({
             <strong>{draftStops.length >= 2 ? formatCurrency(draftSetupCost) : '选择完整路线后计算'}</strong>
           </div>
           <div className="transport-map-picking-actions">
-            <button type="button" onClick={routeDraft.closeLoop} disabled={draftStops.length < 2 || draftClosed}>闭环</button>
-            <button type="button" onClick={routeDraft.resetStops} disabled={draftStops.length === 0}>重置站点</button>
-            <button type="button" className="is-primary" onClick={routeDraft.finishPicking}>完成选择</button>
-            <button type="button" onClick={routeDraft.cancelPicking}>取消</button>
+            <button type="button" onClick={routeDraft.closeLoop} disabled={savingRoute || draftStops.length < 2 || draftClosed}>闭环</button>
+            <button type="button" onClick={routeDraft.resetStops} disabled={savingRoute || draftStops.length === 0}>重置站点</button>
+            <button type="button" className="is-primary" onClick={() => void createDraftRoute()} disabled={savingRoute || draftStops.length < 2}>{savingRoute ? '创建中…' : '完成选择'}</button>
+            <button type="button" onClick={routeDraft.cancelPicking} disabled={savingRoute}>取消</button>
           </div>
         </div>
       ) : null}
