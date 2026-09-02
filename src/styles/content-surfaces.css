@@ -5,7 +5,8 @@
 
 .ui-entity-card:not(.panel),
 .panel.ui-entity-card,
-.panel.contract-card {
+.panel.contract-card,
+.panel.asset-auction-card {
   min-width: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
