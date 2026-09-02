@@ -7,6 +7,7 @@ import {
   migrateTransportWorld,
   nextTransportDeadline,
   processTransportWorld,
+  transportRouteSetupCost,
   TRANSPORT_MAX_ROUTES_PER_PLAYER,
   TRANSPORT_MODES,
 } from '../src/transport.js';
@@ -67,7 +68,8 @@ function createRoute(world, user, input = {}, at = now + 1) {
 test('transport routes persist without current inventory and default to start-end names', () => {
   const world = createWorld(now);
   deferDemand(world);
-  const player = unlockedPlayer(world, alice, 0);
+  const player = unlockedPlayer(world, alice, 50_000);
+  const creditsBefore = player.credits;
 
   const created = createRoute(world, alice);
   assert.equal(created.ok, true);
@@ -76,6 +78,9 @@ test('transport routes persist without current inventory and default to start-en
   assert.equal(route.name, defaultTransportRouteName('110000', '130000'));
   assert.equal(route.tripType, 'one-way');
   assert.equal(route.mode, 'road');
+  assert.ok(route.setupCost > 0);
+  assert.equal(route.setupCost, transportRouteSetupCost(route, route.mode));
+  assert.equal(player.credits, creditsBefore - route.setupCost);
   assert.equal(Object.hasOwn(route, 'productId'), false);
   assert.equal(Object.hasOwn(route, 'quantity'), false);
   assert.equal(Object.hasOwn(route, 'autoDispatch'), false);
@@ -84,28 +89,46 @@ test('transport routes persist without current inventory and default to start-en
   const client = createClientState(world, alice.id, now + 2);
   assert.equal(client.transportRoutes.length, 1);
   assert.equal(client.transportRoutes[0].name, route.name);
+  assert.equal(client.transportRoutes[0].setupCost, route.setupCost);
   assert.equal(Object.hasOwn(client.transportRoutes[0], 'productId'), false);
   assert.equal(Object.hasOwn(client.transportRoutes[0], 'quantity'), false);
   assert.equal(Object.hasOwn(client.transportRoutes[0], 'autoDispatch'), false);
 });
 
-test('route rename is independent and default names follow endpoint edits until customized', () => {
+test('route creation requires the one-time setup cost and does not mutate state when funds are insufficient', () => {
   const world = createWorld(now);
   deferDemand(world);
   const player = unlockedPlayer(world, alice, 0);
-  assert.equal(createRoute(world, alice).ok, true);
-  const routeId = player.transportRoutes[0].id;
+  const created = createRoute(world, alice);
+  assert.equal(created.ok, false);
+  assert.match(created.message, /建线费/);
+  assert.equal((player.transportRoutes || []).length, 0);
+  assert.equal(player.credits, 0);
+});
 
-  const updatedDefault = applyAction(world, alice, 'transportShip', {
+test('route path trip type and mode are immutable after creation while name remains editable', () => {
+  const world = createWorld(now);
+  deferDemand(world);
+  const player = unlockedPlayer(world, alice, 50_000);
+  assert.equal(createRoute(world, alice).ok, true);
+  const original = structuredClone(player.transportRoutes[0]);
+  const routeId = original.id;
+
+  const updated = applyAction(world, alice, 'transportShip', {
     operation: 'route-update',
     routeId,
     sourceProvinceId: '110000',
     destinationProvinceId: '120000',
+    tripType: 'round',
     mode: 'rail',
   }, now + 2);
-  assert.equal(updatedDefault.ok, true);
-  assert.equal(player.transportRoutes[0].name, defaultTransportRouteName('110000', '120000'));
-  assert.equal(player.transportRoutes[0].mode, 'rail');
+  assert.equal(updated.ok, false);
+  assert.match(updated.message, /不可修改/);
+  assert.equal(player.transportRoutes[0].sourceProvinceId, original.sourceProvinceId);
+  assert.equal(player.transportRoutes[0].destinationProvinceId, original.destinationProvinceId);
+  assert.equal(player.transportRoutes[0].tripType, original.tripType);
+  assert.equal(player.transportRoutes[0].mode, original.mode);
+  assert.equal(player.transportRoutes[0].setupCost, original.setupCost);
 
   const renamed = applyAction(world, alice, 'transportShip', {
     operation: 'route-rename',
@@ -113,16 +136,6 @@ test('route rename is independent and default names follow endpoint edits until 
     name: '东部工业线',
   }, now + 3);
   assert.equal(renamed.ok, true);
-  assert.equal(player.transportRoutes[0].name, '东部工业线');
-
-  const updatedCustom = applyAction(world, alice, 'transportShip', {
-    operation: 'route-update',
-    routeId,
-    sourceProvinceId: '130000',
-    destinationProvinceId: '120000',
-    mode: 'air',
-  }, now + 4);
-  assert.equal(updatedCustom.ok, true);
   assert.equal(player.transportRoutes[0].name, '东部工业线');
 });
 
@@ -138,8 +151,9 @@ test('profitable inventory automatically dispatches without a manual route actio
   assert.equal(created.ok, true);
   assert.match(created.message, /自动发运/);
   assert.equal(world.transportShipments.length, 1);
+  const route = player.transportRoutes[0];
   const shipment = world.transportShipments[0];
-  assert.equal(shipment.routeId, player.transportRoutes[0].id);
+  assert.equal(shipment.routeId, route.id);
   assert.equal(shipment.status, 'in-transit');
   assert.equal(shipment.manifest.length, 1);
   assert.deepEqual(shipment.manifest[0], {
@@ -149,13 +163,14 @@ test('profitable inventory automatically dispatches without a manual route actio
   });
   assert.ok(Array.isArray(shipment.legPlan));
   assert.equal(shipment.legPlan.length, 1);
+  assert.ok(shipment.cost > 0);
+  assert.equal(player.credits, creditsBefore - route.setupCost - shipment.cost);
   assert.equal(inventoryForProvince(player, 'wheat', '110000').available, 0);
   assert.equal(inventoryForProvince(player, 'wheat', '110000').inTransit, 80);
-  assert.ok(player.credits < creditsBefore);
 
   const manual = applyAction(world, alice, 'transportShip', {
     operation: 'route-dispatch',
-    routeId: player.transportRoutes[0].id,
+    routeId: route.id,
   }, now + 2);
   assert.equal(manual.ok, false);
   assert.match(manual.message, /自动发运/);
@@ -184,10 +199,11 @@ test('automatic cargo can combine products and fills transport capacity by expec
 test('routes wait silently until cargo and funds make an automatic shipment possible', () => {
   const world = createWorld(now);
   deferDemand(world);
-  const player = unlockedPlayer(world, alice, 0);
+  const player = unlockedPlayer(world, alice, 50_000);
   profitableProduct(world, 'wheat');
   assert.equal(createRoute(world, alice).ok, true);
   assert.equal(world.transportShipments.length, 0);
+  player.credits = 0;
 
   inventoryForProvince(player, 'wheat', '110000').available = 10;
   processTransportWorld(world, now + 2);
@@ -271,10 +287,23 @@ test('route deletion is blocked while its shipment is active and allowed after a
   assert.deepEqual(player.transportRoutes, []);
 });
 
+test('deleting and recreating a route charges the one-time setup cost again', () => {
+  const world = createWorld(now);
+  deferDemand(world);
+  const player = unlockedPlayer(world, bob, 50_000);
+  assert.equal(createRoute(world, bob).ok, true);
+  const first = player.transportRoutes[0];
+  const firstCredits = player.credits;
+  assert.equal(applyAction(world, bob, 'transportShip', { operation: 'route-delete', routeId: first.id }, now + 2).ok, true);
+  assert.equal(createRoute(world, bob, {}, now + 3).ok, true);
+  assert.equal(player.transportRoutes[0].setupCost, first.setupCost);
+  assert.equal(Number(player.credits.toFixed(6)), Number((firstCredits - first.setupCost).toFixed(6)));
+});
+
 test('route validation still enforces unlocked ordered stops and route count limits', () => {
   const world = createWorld(now);
   deferDemand(world);
-  const player = unlockedPlayer(world, alice, 0);
+  const player = unlockedPlayer(world, alice, 100_000);
 
   const duplicate = createRoute(world, alice, { viaProvinceIds: ['130000'], destinationProvinceId: '130000' });
   assert.equal(duplicate.ok, false);
@@ -352,6 +381,7 @@ test('legacy route goods and auto-dispatch fields migrate away while legacy ship
   migrateTransportWorld(world);
   const route = player.transportRoutes[0];
   assert.equal(route.name, defaultTransportRouteName('110000', '130000'));
+  assert.equal(route.setupCost, 0);
   assert.equal(Object.hasOwn(route, 'productId'), false);
   assert.equal(Object.hasOwn(route, 'quantity'), false);
   assert.equal(Object.hasOwn(route, 'autoDispatch'), false);

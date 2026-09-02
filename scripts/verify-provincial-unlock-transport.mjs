@@ -46,6 +46,8 @@ const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');
 const provinceMap = read('src/components/provinces/UsMainlandMap.tsx');
 const provinceMapCss = read('src/styles/province-map.css');
 const transportCss = read('src/styles/transport-page.css');
+const scrollingPageSections = read('src/styles/scrolling-page-sections.css');
+const main = read('src/main.tsx');
 const provinceLogistics = read('src/utils/provinceLogistics.ts');
 const provinceEconomicLevel = read('src/utils/provinceEconomicLevel.ts');
 const provinceAccessTest = existsSync('server/test/province-access.test.js') ? read('server/test/province-access.test.js') : '';
@@ -70,6 +72,10 @@ for (const text of [
   '固定 10 + 0.0002/单位/公里',
   '固定 50 + 0.0001/单位/公里',
   '固定 100 + 0.0006/单位/公里',
+  '固定 100 + 0.02/公里',
+  '固定 1,000 + 0.15/公里',
+  '固定 500 + 0.05/公里',
+  '一次性建线费',
   '60 秒 / 1,000 公里',
   '计入运输就业人口收入',
   '在途商品按起始州官方系统价计入玩家财富',
@@ -78,6 +84,8 @@ for (const text of [
   '非闭环默认 `one-way` 单程运输',
   '起始州-终点州',
   '`productId`、`quantity` 与 `autoDispatch` 不再属于路线',
+  '路线创建后不得修改路径、行程类型或运输方式',
+  '删除后重新建立必须重新支付建线费',
   '条件满足后立即自动发运',
   '每条路线同时最多一笔在途运输',
   '`manifest`',
@@ -93,7 +101,8 @@ for (const text of [
   '运输记录唯一显示在对应路线页面',
   '路线名称允许单独修改',
   '起始州-终点州',
-  '路线只能通过唯一常驻战略地图编辑',
+  '创建前的路线只能通过唯一常驻战略地图编辑',
+  '路线创建后不提供编辑入口',
   '不得显示手动“发运”按钮',
   '按顺序点击已解锁州面追加站点',
 ]) requireText(pageDesign, text, `页面设计缺少运输页面规则：${text}`);
@@ -104,7 +113,10 @@ for (const text of [
   '服务器权威时间',
   '正在运输的商品',
   'prefers-reduced-motion',
-]) requireText(uiDesign, text, `UI 设计缺少运输地图规则：${text}`);
+  '可滚动正文',
+  '细线分区',
+  '公路、铁路、航空',
+]) requireText(uiDesign, text, `UI 设计缺少运输地图/正文分区规则：${text}`);
 
 for (const text of [
   'transportShipments',
@@ -133,12 +145,16 @@ requireText(provinceAccess, 'migrateProvinceAccess', '州访问模块必须提�
 
 for (const text of [
   'fixedCost: 10', 'fixedCost: 50', 'fixedCost: 100',
+  'setupFixedCost: 100', 'setupFixedCost: 1000', 'setupFixedCost: 500',
+  'setupCostPerKm: 0.02', 'setupCostPerKm: 0.15', 'setupCostPerKm: 0.05',
   'capacity: 100', 'capacity: 2000', 'capacity: 500',
   'timeFactor: 1.0', 'timeFactor: 2.0', 'timeFactor: 0.25',
   "creditPopulationEmployment(world, plan.cost, 'transportService')",
+  "creditPopulationEmployment(world, setupCost, 'transportService')",
   'TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER = 20',
   'TRANSPORT_MAX_ROUTES_PER_PLAYER = 50',
   'defaultTransportRouteName',
+  'transportRouteSetupCost',
   'applyCreateTransportRoute',
   'applyUpdateTransportRoute',
   'applyRenameTransportRoute',
@@ -149,6 +165,7 @@ for (const text of [
   'migrateTransportWorld',
   'legPlan',
   'manifest',
+  "message: '路线创建后不可修改，请删除后重新建立'",
 ]) requireText(transport, text, `运输模块缺少：${text}`);
 forbidText(transport, 'applyDispatchTransportRoute', '运输模块不得恢复路线手动发运函数。');
 forbidText(transport, "payload.operation === 'route-dispatch'", '运输模块不得恢复 route-dispatch 操作。');
@@ -215,16 +232,19 @@ for (const text of [
   "pushPage({ type: 'transport-route', routeId: route.id })",
   '路线名称',
   '保存名称',
-  '在地图上编辑路线',
   '当前运输',
   '运输记录',
   '等待发运',
+  '一次性建线费',
+  '路线创建后不可修改路径、行程或运输方式',
   'beginPicking()',
 ]) requireText(transportPage, text, `运输页缺少路线目录/详情规则：${text}`);
 forbidText(transportPage, 'dispatchTransportRoute', '运输页不得恢复手动发运动作。');
 forbidText(transportPage, 'ToggleField', '运输页不得恢复自动发运开关。');
 forbidText(transportPage, 'IntegerInput', '运输路线不得恢复固定运输数量输入。');
 forbidText(transportPage, 'SelectInput', '运输路线页不得恢复页面内路径/商品选择下拉。');
+forbidText(transportPage, 'beginEditRoute(', '已保存路线不得恢复地图编辑入口。');
+forbidText(transportPage, 'model.updateTransportRoute(', '运输页不得调用路线更新接口。');
 requireText(routeDraft, 'mode: TransportModeId;', '地图路线草稿必须保留运输方式。');
 forbidText(routeDraft, 'productId:', '路线草稿不得保存指定商品。');
 forbidText(routeDraft, 'quantity:', '路线草稿不得保存固定运输数量。');
@@ -251,6 +271,10 @@ for (const text of [
   '正在运输',
   "routeDraft.updateDraft({ mode:",
   "routeDraft.updateDraft({ tripType:",
+  'transportRouteSetupCost',
+  '`saved-${route.mode}-${route.id}`',
+  '`draft-${routeDraft.draft.mode}-route`',
+  '一次性建线费',
 ]) requireText(strategicWorkspace, text, `战略地图运输集成缺少：${text}`);
 requireText(strategicWorkspace, 'onPickStartingProvince', '战略地图必须提供起始州选点回调。');
 requireText(strategicWorkspace, 'data-starting-province-picking', '战略地图必须标记起始州选择模式。');
@@ -265,6 +289,18 @@ for (const text of [
 ]) requireText(provinceMap, text, `地图运输动画缺少：${text}`);
 for (const text of ['.province-map-shipment', '.province-map-shipment-tooltip', '@media (prefers-reduced-motion: reduce)']) requireText(provinceMapCss, text, `地图运输样式缺少：${text}`);
 for (const text of ['.transport-route-card', '.transport-route-name-editor', '.transport-shipment-list', '.transport-manifest-list']) requireText(transportCss, text, `运输页面样式缺少：${text}`);
+for (const text of [
+  ".page-card-scroll .ui-primary-surface",
+  'border-radius: 0;',
+  'border-top: 1px solid var(--color-divider);',
+  ".province-map-route[data-route-id^='saved-road-']",
+  ".province-map-route[data-route-id^='saved-rail-']",
+  ".province-map-route[data-route-id^='saved-air-']",
+  '.transport-map-picking-bar',
+  'var(--mobile-below-status-top)',
+  'var(--desktop-asset-bar-height, 64px)',
+]) requireText(scrollingPageSections, text, `滚动正文/运输地图统一样式缺少：${text}`);
+requireText(main, "import './styles/scrolling-page-sections.css';", '主样式入口必须加载滚动正文细线分区规则。');
 
 requireText(provinceEconomicLevel, "provinceEconomicLevelPolicy from '../../shared/province-economic-level-policy.json'", '客户端地区水平必须读取共享策略。');
 requireText(provinceEconomicLevel, 'provinceEconomicLevelFor', '客户端必须提供地区水平计算。');
@@ -274,6 +310,7 @@ requireText(provinceLogistics, 'PROVINCE_UNLOCK_DISTANCE_STEP_KM', '客户端物
 requireText(provinceLogistics, 'TRANSPORT_BASE_SECONDS_PER_KM = 60 / 1000', '客户端物流工具必须与服务器同步基准时间。');
 requireText(provinceLogistics, 'TRANSPORT_MAX_ROUTES_PER_PLAYER = 50', '客户端物流工具必须同步路线数量上限。');
 requireText(provinceLogistics, "TRANSPORT_DEFAULT_TRIP_TYPE: TransportTripType = 'one-way'", '客户端物流工具必须默认单程。');
+for (const text of ['setupFixedCost: 100', 'setupFixedCost: 1000', 'setupFixedCost: 500', 'transportRouteSetupCost']) requireText(provinceLogistics, text, `客户端物流工具必须同步建线费：${text}`);
 
 for (const name of [
   'new player chooses a permanent starting province before economic writes',
@@ -284,13 +321,15 @@ for (const name of [
 
 for (const name of [
   'transport routes persist without current inventory and default to start-end names',
-  'route rename is independent and default names follow endpoint edits until customized',
+  'route creation requires the one-time setup cost and does not mutate state when funds are insufficient',
+  'route path trip type and mode are immutable after creation while name remains editable',
   'profitable inventory automatically dispatches without a manual route action',
   'automatic cargo can combine products and fills transport capacity by expected unit spread',
   'routes wait silently until cargo and funds make an automatic shipment possible',
   'a route keeps at most one active shipment and starts the next trip after completion',
   'multi-stop manifests unload only the cargo assigned to each stop',
   'route deletion is blocked while its shipment is active and allowed after arrival',
+  'deleting and recreating a route charges the one-time setup cost again',
   'legacy route goods and auto-dispatch fields migrate away while legacy shipments gain manifests and leg plans',
 ]) if (!transportTest.includes(name)) failures.push(`运输测试必须覆盖：${name}`);
 
@@ -300,4 +339,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('起始州、州解锁与跨州运输验证通过：永久起始州、地区水平与距离解锁、路线独立页面、默认命名、地图唯一编辑、自动选货与自动发运、多商品货单、逐站交付、在途地图动画与路线记录归属均已锁定。');
+console.log('起始州、州解锁与跨州运输验证通过：永久起始州、地区水平与距离解锁、路线建线费、创建后不可编辑、自动选货与自动发运、多商品货单、逐站交付、三种地图线型、状态栏安全编辑面板与细线正文分区均已锁定。');

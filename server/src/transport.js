@@ -12,9 +12,9 @@ import {
 import { isProvinceUnlocked, provinceDistanceKm } from './province-access.js';
 
 export const TRANSPORT_MODES = Object.freeze({
-  road: Object.freeze({ id: 'road', name: '公路运输', fixedCost: 10, unitCostPerKm: 0.0002, capacity: 100, timeFactor: 1.0 }),
-  rail: Object.freeze({ id: 'rail', name: '铁路运输', fixedCost: 50, unitCostPerKm: 0.0001, capacity: 2000, timeFactor: 2.0 }),
-  air: Object.freeze({ id: 'air', name: '航空运输', fixedCost: 100, unitCostPerKm: 0.0006, capacity: 500, timeFactor: 0.25 }),
+  road: Object.freeze({ id: 'road', name: '公路运输', fixedCost: 10, unitCostPerKm: 0.0002, setupFixedCost: 100, setupCostPerKm: 0.02, capacity: 100, timeFactor: 1.0 }),
+  rail: Object.freeze({ id: 'rail', name: '铁路运输', fixedCost: 50, unitCostPerKm: 0.0001, setupFixedCost: 1000, setupCostPerKm: 0.15, capacity: 2000, timeFactor: 2.0 }),
+  air: Object.freeze({ id: 'air', name: '航空运输', fixedCost: 100, unitCostPerKm: 0.0006, setupFixedCost: 500, setupCostPerKm: 0.05, capacity: 500, timeFactor: 0.25 }),
 });
 export const TRANSPORT_BASE_SECONDS_PER_KM = 60 / 1000;
 export const TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER = 20;
@@ -110,6 +110,17 @@ export function transportDeliveryStops(route) {
   const viaProvinceIds = transportViaProvinceIds(route);
   if (transportRouteClosed(route)) return [...viaProvinceIds];
   return [...viaProvinceIds, normalizeProvinceId(route?.destinationProvinceId)];
+}
+
+export function transportRouteSetupCost(route, mode = route?.mode) {
+  const definition = TRANSPORT_MODES[mode];
+  const stops = transportRouteStops(route);
+  if (!definition || stops.length < 2) return null;
+  let distanceKm = 0;
+  for (let index = 0; index < stops.length - 1; index += 1) {
+    distanceKm += provinceDistanceKm(stops[index], stops[index + 1]);
+  }
+  return roundInternalMoney(definition.setupFixedCost + definition.setupCostPerKm * distanceKm);
 }
 
 function normalizeManifest(manifest) {
@@ -350,10 +361,16 @@ export function applyCreateTransportRoute(world, user, payload = {}, now = Date.
   if (routes.length >= TRANSPORT_MAX_ROUTES_PER_PLAYER) return { ok: false, message: `运输路线不能超过 ${TRANSPORT_MAX_ROUTES_PER_PLAYER} 条` };
   const normalized = normalizedRouteInput(player, payload);
   if (!normalized.ok) return normalized;
+  const setupCost = transportRouteSetupCost(normalized.route, normalized.route.mode);
+  if (!(setupCost >= 0)) return { ok: false, message: '运输路线费用无效' };
+  if (Number(player.credits || 0) < setupCost) return { ok: false, message: '资金不足，无法支付运输路线建线费' };
+  player.credits = roundInternalMoney(player.credits - setupCost) || 0;
+  creditPopulationEmployment(world, setupCost, 'transportService');
   const route = {
     id: `transport-route-${randomUUID()}`,
     name: defaultTransportRouteName(normalized.route.sourceProvinceId, normalized.route.destinationProvinceId),
     ...normalized.route,
+    setupCost,
     createdAt: now,
     updatedAt: now,
   };
@@ -362,21 +379,12 @@ export function applyCreateTransportRoute(world, user, payload = {}, now = Date.
   return { ok: true, message: dispatched ? '运输路线已创建并自动发运' : '运输路线已创建，等待满足发运条件', routeId: route.id };
 }
 
-export function applyUpdateTransportRoute(world, user, payload = {}, now = Date.now()) {
+export function applyUpdateTransportRoute(world, user, payload = {}) {
   const player = world.players?.[String(user.id)];
   if (!player) return { ok: false, message: '玩家状态无效' };
   const route = findPlayerRoute(player, payload.routeId);
   if (!route) return { ok: false, message: '运输路线不存在' };
-  const normalized = normalizedRouteInput(player, payload);
-  if (!normalized.ok) return normalized;
-  const oldDefaultName = defaultTransportRouteName(route.sourceProvinceId, route.destinationProvinceId);
-  const keepsDefaultName = !normalizedTransportRouteName(route.name) || route.name === oldDefaultName;
-  Object.assign(route, normalized.route, {
-    ...(keepsDefaultName ? { name: defaultTransportRouteName(normalized.route.sourceProvinceId, normalized.route.destinationProvinceId) } : {}),
-    updatedAt: now,
-  });
-  const dispatched = applyAutomaticTransportShipment(world, user.id, route, now);
-  return { ok: true, message: dispatched ? '运输路线已更新并自动发运' : '运输路线已更新' };
+  return { ok: false, message: '路线创建后不可修改，请删除后重新建立' };
 }
 
 export function applyRenameTransportRoute(world, user, payload = {}, now = Date.now()) {
@@ -474,6 +482,9 @@ export function migrateTransportWorld(world) {
       if (!route || typeof route !== 'object' || !route.id || !TRANSPORT_MODES[route.mode]) return [];
       const stops = normalizeTransportStops(route);
       if (!stops.ok) return [];
+      const setupCost = Number.isFinite(Number(route.setupCost)) && Number(route.setupCost) >= 0
+        ? Number(route.setupCost)
+        : 0;
       return [{
         id: String(route.id),
         name: normalizedTransportRouteName(route.name) || defaultTransportRouteName(stops.stops.sourceProvinceId, stops.stops.destinationProvinceId),
@@ -482,6 +493,7 @@ export function migrateTransportWorld(world) {
         ...(stops.stops.viaProvinceIds.length > 0 ? { viaProvinceIds: stops.stops.viaProvinceIds } : {}),
         tripType: stops.stops.tripType,
         mode: String(route.mode),
+        setupCost,
         createdAt: Number(route.createdAt || 0),
         updatedAt: Number(route.updatedAt || route.createdAt || 0),
       }];
@@ -571,6 +583,7 @@ export function transportRouteClientState(world, userId) {
     ...(transportViaProvinceIds(route).length > 0 ? { viaProvinceIds: [...transportViaProvinceIds(route)] } : {}),
     tripType: TRANSPORT_TRIP_TYPE_IDS.has(route.tripType) ? route.tripType : TRANSPORT_DEFAULT_TRIP_TYPE,
     mode: TRANSPORT_MODES[route.mode] ? route.mode : 'road',
+    setupCost: Number.isFinite(Number(route.setupCost)) && Number(route.setupCost) >= 0 ? Number(route.setupCost) : 0,
     createdAt: Number(route.createdAt || 0),
     updatedAt: Number(route.updatedAt || route.createdAt || 0),
   }));

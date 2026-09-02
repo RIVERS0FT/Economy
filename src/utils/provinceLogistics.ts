@@ -13,13 +13,45 @@ export const TRANSPORT_MODES: Record<TransportModeId, {
   name: string;
   fixedCost: number;
   unitCostPerKm: number;
+  setupFixedCost: number;
+  setupCostPerKm: number;
   capacity: number;
   timeFactor: number;
   tone: 'neutral' | 'info' | 'warning';
 }> = {
-  road: { id: 'road', name: '公路运输', fixedCost: 10, unitCostPerKm: 0.0002, capacity: 100, timeFactor: 1.0, tone: 'neutral' },
-  rail: { id: 'rail', name: '铁路运输', fixedCost: 50, unitCostPerKm: 0.0001, capacity: 2000, timeFactor: 2.0, tone: 'info' },
-  air: { id: 'air', name: '航空运输', fixedCost: 100, unitCostPerKm: 0.0006, capacity: 500, timeFactor: 0.25, tone: 'warning' },
+  road: {
+    id: 'road',
+    name: '公路运输',
+    fixedCost: 10,
+    unitCostPerKm: 0.0002,
+    setupFixedCost: 100,
+    setupCostPerKm: 0.02,
+    capacity: 100,
+    timeFactor: 1.0,
+    tone: 'neutral',
+  },
+  rail: {
+    id: 'rail',
+    name: '铁路运输',
+    fixedCost: 50,
+    unitCostPerKm: 0.0001,
+    setupFixedCost: 1000,
+    setupCostPerKm: 0.15,
+    capacity: 2000,
+    timeFactor: 2.0,
+    tone: 'info',
+  },
+  air: {
+    id: 'air',
+    name: '航空运输',
+    fixedCost: 100,
+    unitCostPerKm: 0.0006,
+    setupFixedCost: 500,
+    setupCostPerKm: 0.05,
+    capacity: 500,
+    timeFactor: 0.25,
+    tone: 'warning',
+  },
 };
 
 export const TRANSPORT_BASE_SECONDS_PER_KM = 60 / 1000;
@@ -125,6 +157,26 @@ export function transportDeliveryStopIds(route: TransportRouteStopsInput) {
   const viaProvinceIds = transportRouteViaIds(route);
   if (isTransportRouteClosed(route)) return [...viaProvinceIds];
   return route.destinationProvinceId ? [...viaProvinceIds, route.destinationProvinceId] : [...viaProvinceIds];
+}
+
+export function transportRouteSetupCost(
+  route: TransportRouteStopsInput,
+  mode: TransportModeId,
+  provinceById: Map<string, ProvinceDefinition>,
+) {
+  const definition = TRANSPORT_MODES[mode];
+  const stops = transportRouteStopIds(route);
+  if (!definition || stops.length < 2) return 0;
+  let distanceKm = 0;
+  for (let index = 0; index < stops.length - 1; index += 1) {
+    const from = provinceById.get(stops[index]);
+    const to = provinceById.get(stops[index + 1]);
+    if (!from || !to) return 0;
+    distanceKm += provinceDistanceKm(from, to);
+  }
+  return Math.max(0, Math.round(
+    (definition.setupFixedCost + definition.setupCostPerKm * distanceKm) * 1_000_000,
+  ) / 1_000_000);
 }
 
 export function transportRouteMaxQuantityPerStop(route: TransportRouteStopsInput, mode: TransportModeId) {
