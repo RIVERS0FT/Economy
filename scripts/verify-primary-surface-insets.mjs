@@ -18,6 +18,7 @@ const paths = {
   main: 'src/main.tsx',
   layout: 'src/components/ui/layout.tsx',
   primaryStyles: 'src/styles/primary-surfaces.css',
+  scrollingStyles: 'src/styles/scrolling-page-sections.css',
   globalOperationStyles: 'src/styles/global-operation-pages.css',
   entityHeaderStyles: 'src/styles/entity-list-header.css',
   productionStyles: 'src/styles/production-surface.css',
@@ -27,6 +28,7 @@ const paths = {
   provincePage: 'src/pages/ProvincePage.tsx',
   provinceStyles: 'src/styles/province-page.css',
   geometryTest: 'tests/browser/player-page-geometry.spec.ts',
+  contractSurfaceTest: 'tests/browser/contract-attention-background.spec.ts',
   marketRuntimeTest: 'tests/browser/market-runtime.spec.ts',
   design: 'docs/PRIMARY_SURFACE_INSET_DESIGN.md',
   uiDesign: 'docs/UI_DESIGN_SYSTEM.md',
@@ -39,9 +41,13 @@ if (failures.length === 0) {
   const designSystemIndex = main.indexOf("import './styles/design-system.css';");
   const primarySurfaceIndex = main.indexOf("import './styles/primary-surfaces.css';");
   const formControlsIndex = main.indexOf("import './styles/form-controls.css';");
+  const scrollingSectionsIndex = main.indexOf("import './styles/scrolling-page-sections.css';");
 
   if (!(designSystemIndex >= 0 && primarySurfaceIndex > designSystemIndex && formControlsIndex > primarySurfaceIndex)) {
     failures.push('src/main.tsx 必须按 design-system.css → primary-surfaces.css → form-controls.css 顺序加载');
+  }
+  if (!(scrollingSectionsIndex > formControlsIndex)) {
+    failures.push('src/main.tsx 必须在共享控件样式之后加载 scrolling-page-sections.css 作为正文表面最终权威');
   }
 
   for (const text of [
@@ -65,6 +71,25 @@ if (failures.length === 0) {
   ]) requireText(paths.primaryStyles, text);
   forbidText(paths.primaryStyles, '.ui-page-stack');
   forbidText(paths.primaryStyles, ':root {\n  --primary-surface-inset: var(--space-4);\n  --player-page-content-inset:');
+
+  for (const text of [
+    '.page-card-scroll .panel:not(.ui-entity-card):not(.contract-card),',
+    '.page-card-scroll .ui-primary-surface:not(.ui-entity-card):not(.contract-card) {',
+    'border-top: 1px solid var(--color-divider);',
+    '.page-card-scroll .ui-entity-card,',
+    '.page-card-scroll .panel.contract-card {',
+    'border-radius: var(--radius-card);',
+    'padding: var(--primary-surface-inset);',
+    'background: var(--color-surface-subtle);',
+    '-webkit-backdrop-filter: none;',
+    'backdrop-filter: none;',
+    '.page-card-scroll .contract-card--attention {',
+    '.page-card-scroll .contract-summary-grid {',
+    '.page-card-scroll .contract-summary-grid > .ui-metric-card {',
+    'border-radius: 0;',
+    'background: transparent;',
+  ]) requireText(paths.scrollingStyles, text);
+  forbidText(paths.scrollingStyles, '.page-card-scroll .panel,\n.page-card-scroll .ui-primary-surface {');
 
   for (const text of [
     '.global-operation-page {',
@@ -162,16 +187,22 @@ if (failures.length === 0) {
   ]) forbidText(path, forbidden);
 
   for (const text of [
-    '`src/styles/primary-surfaces.css` 是玩家端一级卡片外层内边距的唯一 CSS 权威',
+    '# Economy 页面表面与卡片内边距设计',
+    '页面章节、集合容器、摘要和同构列表属于页面结构',
+    '是否随 `.page-card-scroll` 滚动不再决定是否允许圆角',
+    '`src/styles/primary-surfaces.css` 是玩家端获准圆角表面外层内边距的唯一 CSS 权威',
+    '`--primary-surface-inset` 是共享圆角表面的唯一外层内边距令牌',
     '宽度大于 `720px` 时使用 `var(--space-4)`，即 `16px`',
     '宽度不大于 `720px` 时使用 `var(--space-3)`，即 `12px`',
     '`--player-page-content-inset` 固定使用当前 `.game-shell` 的 `var(--layout-gutter)`',
     '桌面端页面实际宽度必须等于 `workspaceCard` 中扣除固定 `78px` 指挥轨道后的页面槽宽度',
     '移动端页面实际宽度必须等于唯一根级 Mobile Workspace Sheet 的内容盒宽度',
     '不得再使用 `padding-top: 0`',
-    '获准保留圆角的非滚动玩家一级表面必须使用 `PagePanel`',
-    '可滚动 `.page-card-scroll` 正文不属于圆角一级卡片适用范围',
-    '州级概览与未解锁建筑／仓库不再使用包裹整个分区的唯一一级卡片',
+    '普通 `PagePanel` 默认被视为页面章节并由最终样式扁平化',
+    '`.ui-entity-card`',
+    '圆角不等于毛玻璃',
+    '合同广场与“我的合同”保持平面页面分区',
+    '合同顶部四项摘要改为同一无圆角摘要条',
     '`.panel.production-surface` 与 `.panel.leaderboard-board-card`',
     '业务页面 CSS 不得',
     '一级建筑页只保留全局工厂目录，不再存在独立地区建筑卡片',
@@ -183,6 +214,7 @@ if (failures.length === 0) {
     '地区下钻按钮只覆盖第一行',
     '一级建筑页已退役独立“地区建筑”卡片及其 `.global-province-list` / `.global-province-row` 布局规则',
     '`tests/browser/player-page-geometry.spec.ts`',
+    '`tests/browser/contract-attention-background.spec.ts`',
     '分别对一级全局工厂目录和点击工厂后的地区工厂列表执行边界与跨断点真实几何回归',
     '一级全局工厂目录和地区工厂列表条目必须保持约 `93～96px` 的登记两行高度',
     '浏览器真实几何回归若在同一页面实例内跨越 `720px` 桌面／移动断点',
@@ -227,20 +259,30 @@ if (failures.length === 0) {
   forbidText(paths.geometryTest, 'buildings metrics fixture is incomplete');
 
   for (const text of [
+    'independent contract cards keep object boundaries and warning tint',
+    'borderRadius',
+    'backdropFilter',
+    'summaryMetric',
+    "expect(summaryStyle.borderRadius).toBe('0px');",
+  ]) requireText(paths.contractSurfaceTest, text);
+
+  for (const text of [
     '| `src/styles/primary-surfaces.css` | 玩家端一级卡片外层内边距令牌、最终选择器、移动断点与旧一级卡片类兼容入口 |',
     '- `PagePanel`',
     '`PagePanel` 继续作为旧玩家页面一级业务模块的 React 兼容入口',
-    '可滚动 `.page-card-scroll` 正文统一由 `scrolling-page-sections.css`',
-    '`--primary-surface-inset` 唯一控制',
+    '页面结构与独立业务对象必须按语义而不是滚动状态分类',
+    '`.ui-entity-card`',
+    '圆角不等于毛玻璃',
+    '`--primary-surface-inset`',
     '不得定义一级卡片外层内边距',
     '在业务页面 CSS 中重新声明一级卡片外层 padding',
   ]) requireText(paths.uiDesign, text);
 }
 
 if (failures.length > 0) {
-  console.error('一级卡片统一内边距验证失败:');
+  console.error('页面表面与卡片内边距验证失败:');
   failures.forEach((failure) => console.error(`- ${failure}`));
   process.exit(1);
 }
 
-console.log('一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、承载面局部间距、跨端页面安全宽度、正文顶部留白、全局建筑目录按已登记两行高度例外响应，地区工厂列表同步两行生产配置密度、旧类兼容、样式与设计文档权威均已锁定。');
+console.log('页面表面与卡片内边距验证通过：页面章节保持扁平，独立对象卡保留轻量圆角且无毛玻璃，合同摘要保持同一信息条，同时继续锁定跨端共享 inset、承载安全宽度和全局建筑列表几何。');
