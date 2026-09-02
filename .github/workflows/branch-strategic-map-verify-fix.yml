@@ -1,0 +1,73 @@
+name: Verify and finish strategic map branch
+
+on:
+  push:
+    branches:
+      - codex/strategic-map-mainland-focus
+
+permissions:
+  contents: write
+
+jobs:
+  finish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/strategic-map-mainland-focus
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+
+      - name: Finish verifier wording
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/verify-provincial-economy.mjs')
+          text = path.read_text()
+          old = "  '静态 SVG 世界面', '唯一相机状态', '名称随地图缩放和平移同步变化',"
+          new = "  '静态 SVG 世界面', '战略地图镜头、缩放、重置和平移边界唯一遵循', '名称随地图缩放和平移同步变化',"
+          if old not in text:
+              raise SystemExit('province verifier page camera assertion anchor missing')
+          path.write_text(text.replace(old, new, 1))
+
+          path = Path('scripts/verify-page-content.mjs')
+          text = path.read_text()
+          old = '地图保留 0.5–4 手势缩放并禁止恢复独立缩放功能面板。'
+          new = '地图保留逻辑 1–4 动态美国居中手势缩放并禁止恢复独立缩放功能面板。'
+          if old not in text:
+              raise SystemExit('page verifier summary zoom wording anchor missing')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Verify no retired map rule remains
+        run: |
+          if grep -R -n -E '0\.5[～–-]4|world-land-110m|continents-only' docs src scripts tests/browser; then
+            echo 'Retired strategic-map rule remains' >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused static checks
+        run: |
+          npm run verify:provincial-economy
+          node scripts/verify-page-content.mjs
+          npm run typecheck
+
+      - name: Remove one-shot workflow and commit fixes
+        run: |
+          rm -f .github/workflows/branch-strategic-map-verify-fix.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts .github/workflows/branch-strategic-map-verify-fix.yml
+          git diff --cached --check
+          git commit -m 'Align strategic map verifiers'
+          git push origin HEAD:codex/strategic-map-mainland-focus
