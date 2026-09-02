@@ -1,0 +1,187 @@
+name: Prune strategic map world context
+
+on:
+  push:
+    branches:
+      - codex/strategic-map-pruned-context
+
+permissions:
+  contents: write
+
+jobs:
+  prune-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/strategic-map-pruned-context
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Add deterministic 10m context generator
+        run: |
+          cat > scripts/generate-province-map-world-context.mjs <<'EOF'
+          import assert from 'node:assert/strict';
+          import { readFileSync, writeFileSync } from 'node:fs';
+          import { createRequire } from 'node:module';
+          import { dirname, resolve } from 'node:path';
+          import { fileURLToPath } from 'node:url';
+          import { merge } from 'topojson-client';
+
+          const require = createRequire(import.meta.url);
+          const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+          const outputPath = resolve(repositoryRoot, 'src/data/north-america-land-10m.json');
+          const atlasPath = require.resolve('world-atlas/countries-10m.json');
+          const worldCountryAtlas = JSON.parse(readFileSync(atlasPath, 'utf8'));
+
+          const NORTH_AMERICA_CONTEXT_COUNTRY_IDS = new Set([
+            '044', '084', '124', '188', '192', '214', '222', '304', '320',
+            '332', '340', '388', '484', '558', '591', '666', '840',
+          ]);
+
+          const contextGeometries = worldCountryAtlas.objects.countries.geometries.filter((geometry) => {
+            const normalizedId = String(geometry.id ?? '').padStart(3, '0');
+            return NORTH_AMERICA_CONTEXT_COUNTRY_IDS.has(normalizedId);
+          });
+          assert.ok(contextGeometries.length >= 10, 'PROVINCE_MAP_WORLD_10M_CONTEXT_REQUIRED');
+          const geometry = merge(worldCountryAtlas, contextGeometries);
+          const generated = `${JSON.stringify(geometry)}\n`;
+
+          if (process.argv.includes('--check')) {
+            const current = readFileSync(outputPath, 'utf8');
+            assert.equal(current, generated, '北美 10m 运行时几何必须由固定 world-atlas 2.0.2 输入生成');
+            console.log(`Strategic map 10m context asset verified: ${Buffer.byteLength(current)} bytes`);
+          } else {
+            writeFileSync(outputPath, generated);
+            console.log(`Generated ${outputPath}: ${Buffer.byteLength(generated)} bytes`);
+          }
+          EOF
+          node scripts/generate-province-map-world-context.mjs
+
+      - name: Switch runtime to pruned geometry
+        run: |
+          cat > src/components/provinces/provinceMapWorldOutline.ts <<'EOF'
+          import northAmericaLand10m from '../../data/north-america-land-10m.json';
+          import { provinceGeometryPath, type ProvinceMapProjection } from './provinceMapProjection';
+
+          export interface ProvinceMapMainlandFocusBounds {
+            minX: number;
+            minY: number;
+            maxX: number;
+            maxY: number;
+          }
+
+          // The committed geometry is deterministically generated from world-atlas@2.0.2 countries-10m.
+          // Runtime intentionally imports only the dissolved North-American subset so the persistent map
+          // does not parse or bundle the complete global 10m atlas on every signed-in page.
+          const northAmericaContextGeometry = northAmericaLand10m as unknown;
+
+          export function createProvinceMapWorldOutlinePath(projection: ProvinceMapProjection) {
+            return provinceGeometryPath(northAmericaContextGeometry, projection);
+          }
+
+          export function createProvinceMapMainlandFocusBounds(projection: ProvinceMapProjection): ProvinceMapMainlandFocusBounds {
+            return {
+              minX: 0,
+              minY: 0,
+              maxX: projection.width,
+              maxY: projection.height,
+            };
+          }
+          EOF
+
+      - name: Update authoritative design and verifier
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          design = Path('docs/LIQUID_GLASS_CHROME_DESIGN.md')
+          text = design.read_text()
+          old = '世界大陆背景固定使用 `world-atlas@2.0.2` 的 Natural Earth 1:10m countries 数据，并只把可能进入美国有限平移上下文的北美陆地对象 dissolve 为单一无行政边界 path，提供低对比土地填充、海岸主线和柔和外阴影；不得把完整全球 10m geometry 送入常驻 SVG，否则会把不可见地理复杂度带入所有玩家页面的指针热路径；'
+          new = '世界大陆背景的源数据固定为 `world-atlas@2.0.2` 的 Natural Earth 1:10m countries 数据；仓库内必须由确定性生成脚本预先把可能进入美国有限平移上下文的北美陆地对象 dissolve 成单一无行政边界运行时几何，客户端只允许导入这份裁剪后的几何并据此生成低对比土地填充、海岸主线和柔和外阴影。完整全球 10m atlas 只能存在于生成／防回退工具输入，禁止被玩家运行时模块直接 import、解析或打入常驻 `GameApp` 包，否则会让所有登录页面承担不可见全球几何的下载、解析和指针命中开销；'
+          if text.count(old) != 1:
+              raise SystemExit('strategic map world context design anchor missing')
+          text = text.replace(old, new, 1)
+          old_test = '- `tests/browser/province-map-world-boundary.spec.ts`：锁定世界背景只 dissolve 可进入有限镜头的北美 10m 陆地上下文，提供大陆填充、海岸主线和低强度外阴影且保持完全不可交互；'
+          new_test = '- `tests/browser/province-map-world-boundary.spec.ts`：锁定世界背景使用预生成的北美 10m 裁剪几何，提供大陆填充、海岸主线和低强度外阴影且保持完全不可交互；`scripts/verify-provincial-economy.mjs` 同时锁定该资产可由固定 `world-atlas@2.0.2` 输入逐字重建，且玩家运行时不得直接 import 完整 atlas；'
+          if text.count(old_test) != 1:
+              raise SystemExit('strategic map world browser test design anchor missing')
+          design.write_text(text.replace(old_test, new_test, 1))
+
+          verifier = Path('scripts/verify-provincial-economy.mjs')
+          text = verifier.read_text()
+          text = text.replace("import assert from 'node:assert/strict';\n", "import assert from 'node:assert/strict';\nimport { execFileSync } from 'node:child_process';\n", 1)
+          old_required = "  'src/components/provinces/provinceMapCamera.ts',\n  'src/components/provinces/provinceMapStaticLabels.ts',"
+          new_required = "  'src/components/provinces/provinceMapCamera.ts',\n  'src/components/provinces/provinceMapStaticLabels.ts',\n  'src/data/north-america-land-10m.json',\n  'scripts/generate-province-map-world-context.mjs',"
+          if text.count(old_required) != 1:
+              raise SystemExit('province verifier required-files anchor missing')
+          text = text.replace(old_required, new_required, 1)
+          old_world = '''const worldContext = read('src/components/provinces/provinceMapWorldOutline.ts');
+          for (const text of ["world-atlas/countries-10m.json", 'NORTH_AMERICA_CONTEXT_COUNTRY_IDS', 'northAmericaContextGeometry', 'createProvinceMapWorldOutlinePath', 'createProvinceMapMainlandFocusBounds']) {
+            assert.ok(worldContext.includes(text), `10m 世界大陆上下文缺少: ${text}`);
+          }'''
+          new_world = '''const worldContext = read('src/components/provinces/provinceMapWorldOutline.ts');
+          for (const text of ['north-america-land-10m.json', 'northAmericaContextGeometry', 'createProvinceMapWorldOutlinePath', 'createProvinceMapMainlandFocusBounds']) {
+            assert.ok(worldContext.includes(text), `10m 世界大陆运行时上下文缺少: ${text}`);
+          }
+          for (const forbidden of ['world-atlas/', "from 'topojson-client'", 'NORTH_AMERICA_CONTEXT_COUNTRY_IDS']) {
+            assert.equal(worldContext.includes(forbidden), false, `玩家运行时不得恢复完整 atlas 或现场 dissolve: ${forbidden}`);
+          }
+          const worldContextGenerator = read('scripts/generate-province-map-world-context.mjs');
+          for (const text of ['world-atlas/countries-10m.json', 'NORTH_AMERICA_CONTEXT_COUNTRY_IDS', "'840'", 'merge(worldCountryAtlas, contextGeometries)', "process.argv.includes('--check')"]) {
+            assert.ok(worldContextGenerator.includes(text), `10m 世界大陆生成器缺少: ${text}`);
+          }
+          const worldContextAsset = read('src/data/north-america-land-10m.json');
+          assert.ok(worldContextAsset.length < 1_500_000, '北美 10m 裁剪几何不得退化为接近完整全球 atlas 的运行时体积');
+          execFileSync(process.execPath, ['scripts/generate-province-map-world-context.mjs', '--check'], { stdio: 'inherit' });'''
+          if text.count(old_world) != 1:
+              raise SystemExit('province verifier world-context anchor missing')
+          verifier.write_text(text.replace(old_world, new_world, 1))
+          PY
+
+      - name: Verify generated geometry and focused static checks
+        run: |
+          node scripts/generate-province-map-world-context.mjs --check
+          npm run verify:provincial-economy
+          node scripts/verify-page-content.mjs
+          npm run typecheck
+          git diff --check
+
+      - name: Verify production bundle no longer carries the full atlas
+        run: |
+          npm run build > build-test.log 2>&1
+          python3 - <<'PY'
+          from pathlib import Path
+          chunks = list(Path('dist/assets').glob('GameApp-*.js'))
+          if len(chunks) != 1:
+              raise SystemExit(f'expected one GameApp chunk, got {len(chunks)}')
+          size = chunks[0].stat().st_size
+          print(f'GameApp bundle bytes: {size}')
+          if size >= 2_000_000:
+              raise SystemExit(f'GameApp bundle still too large after atlas pruning: {size}')
+          PY
+
+      - name: Run strategic map browser regressions
+        run: |
+          npm run generate:local-preview
+          bash scripts/prepare-playwright-chromium.sh
+          npx playwright test tests/browser/province-map-world-boundary.spec.ts tests/browser/map-reset-sync.spec.ts tests/browser/map-zoom-out-boundary.spec.ts tests/browser/province-map.spec.ts --project=chromium --workers=1
+
+      - name: Remove one-shot workflow and commit
+        run: |
+          rm -f .github/workflows/branch-strategic-map-prune-context.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs scripts src .github/workflows/branch-strategic-map-prune-context.yml
+          git diff --cached --check
+          git commit -m 'Precompile strategic map world context'
+          git push origin HEAD:codex/strategic-map-pruned-context
