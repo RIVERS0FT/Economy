@@ -5,6 +5,9 @@ import { layoutProvinceMapRoutes, routeLayoutSegmentForDirection } from '../src/
 const read = (path) => readFileSync(path, 'utf8');
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');
+const gameShell = read('src/components/shell/GameShell.tsx');
+const routeDraftContext = read('src/components/shell/TransportRouteDraftContext.tsx');
+const transportPage = read('src/pages/TransportPage.tsx');
 const mapComponent = read('src/components/provinces/UsMainlandMap.tsx');
 const layoutSource = read('src/components/provinces/provinceMapRouteLayout.ts');
 
@@ -12,17 +15,35 @@ for (const text of [
   '地图几何不得共线覆盖',
   '无方向的“州 A—州 B”区段',
   '正向、反向和非闭环 `round` 返程分别占用独立车道',
-  '高亮必须复用原路线车道',
+  '按 `routeId` 精确对应原路线',
+  '所有路线站点标记必须落在同一个首府投影点',
   '在途运输标记沿对应路线实际并排后的当前运输段插值',
 ]) assert.ok(uiDesign.includes(text), `UI 设计缺少运输路线并排规则：${text}`);
 
 for (const text of [
   'laneOwnerId: route.id',
   "laneOwnerId: 'draft-route'",
-  'laneOwnerId: highlightedRoute?.id',
+  'const highlightedRouteId = routeDraft?.highlightedRouteId;',
+  'transportRoutes.find((route) => route.id === highlightedRouteId)',
+  'laneOwnerId: highlightedRoute.id',
+  'mode: highlightedRoute.mode',
   'sortKey:',
   'mode: route.mode',
 ]) assert.ok(strategicWorkspace.includes(text), `战略地图路线 overlay 缺少稳定车道元数据：${text}`);
+
+for (const text of [
+  'highlightedRouteId: string | null;',
+  'setHighlightedRouteId: (routeId: string | null) => void;',
+]) assert.ok(routeDraftContext.includes(text), `运输路线高亮上下文缺少精确路线身份：${text}`);
+
+assert.ok(
+  gameShell.includes('const [highlightedRouteId, setHighlightedRouteId] = useState<string | null>(null);'),
+  'GameShell 必须按路线 ID 保存悬浮高亮状态。',
+);
+for (const text of [
+  'onMouseEnter={() => setHighlightedRouteId(route.id)}',
+  'onFocus={() => setHighlightedRouteId(route.id)}',
+]) assert.ok(transportPage.includes(text), `运输路线卡必须按路线 ID 触发高亮：${text}`);
 
 for (const text of [
   'layoutProvinceMapRoutes',
@@ -38,6 +59,9 @@ for (const text of [
   'participantsByEdge',
   'laneIndex = index - (participants.length - 1) / 2',
   'MITER_LIMIT_MULTIPLIER',
+  'const lanePoints: ProvinceMapPoint[]',
+  'const stopPoints = traversal.stops.flatMap',
+  'path: pathForPoints(lanePoints)',
   'returnPath',
 ]) assert.ok(layoutSource.includes(text), `路线布局算法缺少稳定车道边界：${text}`);
 
@@ -68,6 +92,9 @@ assert.ok(sameFirst && sameSecond);
 assert.notEqual(sameFirst.forward.path, sameSecond.forward.path, '同一区段的两条路线不得共线');
 assert.equal(sameDirection.laneCountByEdge.get('A:B'), 2);
 assert.equal(sameFirst.forward.segments[0].laneOffset, -sameSecond.forward.segments[0].laneOffset);
+assert.deepEqual(sameFirst.forward.points, [{ x: 0, y: 0 }, { x: 100, y: 0 }], '共享路线站点必须使用首府原始点');
+assert.deepEqual(sameSecond.forward.points, sameFirst.forward.points, '共享路线不得为站点拆分偏移点');
+assert.notDeepEqual(sameFirst.forward.segments[0].start, sameFirst.forward.points[0], '共享线路必须在首府点之间使用并排车道');
 
 const threeLanes = layoutProvinceMapRoutes([
   route('route-1', ['A', 'B']),

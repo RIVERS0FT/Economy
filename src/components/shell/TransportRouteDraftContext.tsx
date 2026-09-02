@@ -22,8 +22,8 @@ export interface TransportRouteDraftContextValue {
   pickProvince: (provinceId: string) => void;
   closeLoop: () => void;
   resetStops: () => void;
-  highlightedRouteStops: string[] | null;
-  setHighlightedRouteStops: (stops: string[] | null) => void;
+  highlightedRouteId: string | null;
+  setHighlightedRouteId: (routeId: string | null) => void;
 }
 
 export const TransportRouteDraftContext = createContext<TransportRouteDraftContextValue | null>(null);
