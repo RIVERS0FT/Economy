@@ -249,17 +249,25 @@ export class EconomyStore extends CoreEconomyStore {
     const needsProductionInputSourcing = this.worldCache?.world
       ? productionInputSourcingRequired(this.worldCache.world, Number(user.id), now)
       : true;
+    let response;
     if (!CONTRACT_ACTIONS.has(requestMeta.action) && !needsProductionInputSourcing) {
-      return executeRuntimeAction(this, user, requestMeta, now);
+      response = executeRuntimeAction(this, user, requestMeta, now);
+    } else if (!needsProductionInputSourcing) {
+      response = this.applyContractAction(user, requestMeta, null, now);
+    } else {
+      const prepared = this.prepareProductionInputs(user, requestMeta, now);
+      if (prepared.cached) response = prepared.cached;
+      else if (CONTRACT_ACTIONS.has(requestMeta.action)) {
+        response = this.applyContractAction(user, requestMeta, prepared.baseline, now);
+      } else {
+        response = executeRuntimeAction(this, user, requestMeta, now);
+        response = this.finalizeProductionInputs(user, prepared.baseline, response, requestMeta, now);
+      }
     }
-    if (!needsProductionInputSourcing) {
-      return this.applyContractAction(user, requestMeta, null, now);
-    }
-    const prepared = this.prepareProductionInputs(user, requestMeta, now);
-    if (prepared.cached) return prepared.cached;
-    if (CONTRACT_ACTIONS.has(requestMeta.action)) return this.applyContractAction(user, requestMeta, prepared.baseline, now);
-    const response = executeRuntimeAction(this, user, requestMeta, now);
-    return this.finalizeProductionInputs(user, prepared.baseline, response, requestMeta, now);
+    return {
+      ...response,
+      stateSnapshot: this.getStateSnapshot(user, null, now),
+    };
   }
 
   enqueueAuthoritativeWrite(options, callback) {
