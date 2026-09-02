@@ -11,6 +11,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 const routePath = 'src/pages/ContractPage.tsx';
 const pagePath = 'src/pages/ContractWorkspacePage.tsx';
 const stylePath = 'src/styles/contracts.css';
+const scrollingStylePath = 'src/styles/scrolling-page-sections.css';
 const auditStylePath = 'src/styles/contract-audit.css';
 const designPath = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md';
 const serverDesignPath = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md';
@@ -22,7 +23,7 @@ const formVerifierPath = 'scripts/verify-form-controls.mjs';
 const serverPath = 'server/src/contract-audit-store.js';
 const packagePath = 'package.json';
 
-[routePath, pagePath, stylePath, auditStylePath, designPath, serverDesignPath, browserTestPath, attentionBrowserTestPath, workspaceTestPath, harnessPath, formVerifierPath, serverPath, packagePath].forEach(requireFile);
+[routePath, pagePath, stylePath, scrollingStylePath, auditStylePath, designPath, serverDesignPath, browserTestPath, attentionBrowserTestPath, workspaceTestPath, harnessPath, formVerifierPath, serverPath, packagePath].forEach(requireFile);
 
 for (const text of [
   "import { ContractWorkspacePage } from './ContractWorkspacePage';",
@@ -58,9 +59,19 @@ for (const text of [
   '.contract-workspace .contract-card--attention {', '.contract-publish-layout', '.contract-history-panel',
   '@media (max-width: 1399px)', '@media (max-width: 960px)', '@media (max-width: 720px)',
 ]) requireText(stylePath, text);
-for (const text of ['.contract-history-result-grid', '.contract-history-entry', '.contract-history-republish']) requireText(auditStylePath, text);
 forbidText(stylePath, '--page-section-gap');
 
+for (const text of [
+  '.page-card-scroll .ui-entity-card,',
+  '.page-card-scroll .panel.contract-card {',
+  'background: var(--color-surface-subtle);',
+  '-webkit-backdrop-filter: none;',
+  '.page-card-scroll .contract-summary-grid > .ui-metric-card {',
+  '.page-card-scroll .contract-card--attention {',
+]) requireText(scrollingStylePath, text);
+forbidText(scrollingStylePath, '.page-card-scroll .panel,\n.page-card-scroll .ui-primary-surface {');
+
+for (const text of ['.contract-history-result-grid', '.contract-history-entry', '.contract-history-republish']) requireText(auditStylePath, text);
 for (const text of [
   '玩家新发布的商品采购／供应合同统一使用地区化每日额度模型', '新每日额度商品合同不使用续签',
   '旧有限批次商品合同的当前批次、续签、宽限与受偿方主动解除界面只保留兼容展示',
@@ -79,7 +90,15 @@ for (const text of [
   "getByText('完成事实'", "getByText('我的履约档案'", 'auditRequestCount()',
 ]) requireText(browserTestPath, text);
 
-for (const text of ['pending contract card keeps warning tint over panel material', '.contract-card--attention', '.contract-card--normal']) requireText(attentionBrowserTestPath, text);
+for (const text of [
+  'independent contract cards keep object boundaries and warning tint',
+  '.contract-card--attention',
+  '.contract-card--normal',
+  'borderRadius',
+  'backdropFilter',
+  'summaryMetric',
+  "expect(summaryStyle.borderRadius).toBe('0px');",
+]) requireText(attentionBrowserTestPath, text);
 for (const text of ['contract market stays visible while personal contracts switch views', "getByRole('region', { name: '合同广场' })", "getByRole('region', { name: '我的合同' })"]) requireText(workspaceTestPath, text);
 for (const text of [
   "import { ContractPage } from '../../src/pages/ContractPage';", '<ContractPage model={model} />', "id: 'contract-active'", "renewalProposal:",
@@ -92,4 +111,4 @@ if (failures.length) {
   console.error(`合同页统一布局验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('合同页现行工作区、新每日额度、旧合同兼容、历史标的筛选和响应式回归验证通过。');
+console.log('合同页现行工作区、独立对象卡、新每日额度、旧合同兼容、历史标的筛选和响应式回归验证通过。');
