@@ -50,7 +50,7 @@ forbidText(transportPage, 'className="transport-page-actions"', '运输页不得
 forbidText(transportPage, '<WidgetHeading title="运输路线"', '运输目录不得恢复“运输路线”重复标题。');
 forbidText(
   transportPage,
-  '<StatusTag tone="neutral">{routes.length}/{TRANSPORT_MAX_ROUTES_PER_PLAYER}</StatusTag>',
+  '{routes.length}/{TRANSPORT_MAX_ROUTES_PER_PLAYER}',
   '运输目录不得恢复路线数量/上限胶囊。',
 );
 
