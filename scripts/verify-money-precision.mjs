@@ -99,7 +99,7 @@ assert.match(audit, /storedMoney\(item\.quantity\)/);
 assert.match(audit, /restoredMoney\(row\.gross_total/);
 
 assert.match(read('server/src/market-sell-fee.js'), /calculateRateMoney/);
-assert.match(read('docs/README.md'), /一种六位微单位运算精度/);
+assert.match(read('docs/README.md'), /`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN\.md`/);
 assert.match(read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md'), /单一微单位货币核心/);
 assert.match(read('docs/UI_DESIGN_SYSTEM.md'), /普通金额统一显示两位/);
 

@@ -59,11 +59,9 @@ for (const text of [
 ]) assert.ok(buildingDesign.includes(text), `地区工厂移动详情设计缺少: ${text}`);
 
 const index = read('docs/README.md');
-for (const text of [
-  '登录态根视口的纵向 overscroll 终止',
-  '`scripts/verify-mobile-facility-pull-refresh.mjs`',
-  '`tests/browser/mobile-facility-pull-refresh.spec.ts`',
-]) assert.ok(index.includes(text), `设计索引缺少下拉刷新防回退规则: ${text}`);
+for (const owner of ['`LIQUID_GLASS_CHROME_DESIGN.md`', '`PRODUCTION_PILL_ALIGNMENT_DESIGN.md`']) {
+  assert.ok(index.includes(owner), `设计索引必须路由移动 Workspace Sheet 规则到 DESIGN owner: ${owner}`);
+}
 
 const browser = read('tests/browser/mobile-facility-pull-refresh.spec.ts');
 for (const text of [

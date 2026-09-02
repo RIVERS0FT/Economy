@@ -35,9 +35,10 @@ for (const path of [
   '.github/workflows/deploy.yml',
   '.github/workflows/configure-registration-email.yml',
   'docs/CI_EXECUTION_DESIGN.md',
+  'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
 ]) requireFile(path);
 forbidFile('.github/workflows/web-build.yml');
-forbidText('.github/workflows/deploy.yml', 'ssh-keyscan -p \"$SERVER_PORT\" \"$SERVER_HOST\"');
+forbidText('.github/workflows/deploy.yml', 'ssh-keyscan -p "$SERVER_PORT" "$SERVER_HOST"');
 forbidText('.github/workflows/deploy.yml', 'cat /tmp/economy-install-dependencies.log 2>/dev/null || true');
 forbidText('.github/workflows/ci.yml', 'npx playwright install --with-deps chromium');
 forbidText('.github/workflows/deploy.yml', 'npx playwright install --with-deps chromium');
@@ -255,25 +256,12 @@ for (const [path, text] of [
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '服务器语法检查由 Node 枚举'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '浏览器 CDN'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '45 秒真实健康检查门槛保持不变'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'exact `location = /economy-api/health`'],
   ['docs/CI_EXECUTION_DESIGN.md', '只要选择器要求浏览器验证，PR 与非 `main` push 的浏览器硬门禁固定拆成四个独立 shard'],
   ['docs/CI_EXECUTION_DESIGN.md', '不得通过提高 Job 超时'],
   ['docs/CI_EXECUTION_DESIGN.md', 'ECONOMY_PLAYWRIGHT_SHARD=N/4'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得显示没有实际运行效果的“界面音效”或“画面性能”控件'],
-  ['docs/README.md', '运行时可靠性、依赖锁、浏览器测试'],
-  ['docs/README.md', '服务安装完成条件必须包含真实 `/health` 就绪'],
-  ['docs/README.md', '最长 45 秒'],
-  ['docs/README.md', 'systemctl status'],
-  ['docs/README.md', 'journalctl'],
-  ['docs/README.md', '/var/www/game/shared/provinces.json'],
-  ['docs/README.md', '仓库根 `shared/provinces.json`'],
-  ['docs/README.md', 'PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH'],
-  ['docs/README.md', '浏览器 CDN'],
-  ['docs/README.md', '15 秒总截止时间'],
-  ['docs/README.md', '单次探针最多 1 秒'],
-  ['docs/README.md', '子进程 stdout/stderr'],
-  ['docs/README.md', '世界冷加载迁移与热保存必须分离'],
-  ['docs/README.md', '完整世界迁移、旧字段补全和全玩家兼容初始化只允许在首次加载'],
-  ['docs/README.md', '当前 V2 世界重复冷启动不得迁移、重写或推进修订号'],
   ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '礼品码列表和兑换记录可能持续增长'],
 ]) requireText(path, text);
 

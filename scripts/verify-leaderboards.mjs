@@ -130,11 +130,8 @@ check(previewSpec.includes("page.locator('.leaderboard-board-card:visible')).toH
 check(previewSpec.includes("toHaveAttribute('aria-label', '选择排行榜')"), 'browser preview must verify the four-button leaderboard switch');
 check(previewSpec.includes("leaderboard-board-heading p')).toHaveCount(0)"), 'browser preview must verify descriptions are removed');
 check(previewSpec.includes("leaderboard-column-labels span')).toHaveText(['排名', '玩家', '成绩', '奖励'])"), 'browser preview must verify the four leaderboard columns');
-check(docsIndex.includes('宽度不小于 `72rem` 时隐藏切换按钮并四列同时展示'), 'design index must record the responsive leaderboard mode');
-check(docsIndex.includes('排行榜生产数量纯数字显示'), 'design index must assign number-only production display to the page design');
-check(docsIndex.includes('只显示经过 `formatNumber` 全局紧凑格式化的纯数字'), 'design index must record compact number-only production output');
-check(docsIndex.includes('数据行固定为“排名｜玩家｜成绩｜奖励”四列并保持单行'), 'design index must record the final leaderboard row structure');
-check(docsIndex.includes('不附加“个”“件”“单位”或恢复“分”'), 'design index must forbid production quantity suffixes');
+check(docsIndex.includes('`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`'), 'design index must route leaderboard page structure to the page DESIGN owner');
+check(docsIndex.includes('`PRODUCT_AND_GAMEPLAY_DESIGN.md`'), 'design index must route leaderboard scoring semantics to the product DESIGN owner');
 
 if (failures.length > 0) {
   console.error('Leaderboard verification failed:');

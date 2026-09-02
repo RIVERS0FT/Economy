@@ -93,9 +93,11 @@ for (const [source, token, message] of [
   [productDesign, '固定 `unitPrice`、`dailyMaxQuantity`', '产品权威设计必须锁定新商品合同核心条款。'],
   [serverDesign, '`server/src/unified-contracts.js`', '服务器权威设计必须登记统一合同门面。'],
   [serverDesign, '客户端与 API 的合同时间统一以天表达', '服务器权威设计必须锁定合同时间单位。'],
-  [docsIndex, '地区化每日商品合同', '设计索引修改规则必须登记本次合同规则。'],
 ]) requireText(source, token, message);
-
+requireText(docsIndex, '`INDUSTRY_AND_PRODUCTION_DESIGN.md`', '设计索引必须路由产业合同规则。');
+requireText(docsIndex, '`WAREHOUSE_EXPANSION_DESIGN.md`', '设计索引必须路由仓库与商品详情合同规则。');
+requireText(docsIndex, '`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`', '设计索引必须路由合同页面规则。');
+requireText(docsIndex, '`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`', '设计索引必须路由合同事务与 API 规则。');
 
 for (const [source, token, message] of [
   [pageDesign, '玩家发布的采购／供应商品合同允许将总批次设置为 2～100 批', '页面权威设计不得把旧总批次模型继续描述为新发布规则。'],
@@ -112,8 +114,6 @@ requireText(audit, "supplyMode: contract.supplyMode === 'daily' ? 'daily' : null
 requireText(audit, "totalDeliveredQuantity: contract.supplyMode === 'daily'", '每日合同审计快照必须保留累计真实交付数量。');
 requireText(audit, "unit: 'quantity'", '每日合同历史完成事实必须按实际交付数量表达。');
 requireText(audit, "if (contract?.supplyMode === 'daily') continue;", '每日合同不得进入旧下一批仓库预占审计计算。');
-
-
 
 if (failures.length) {
   console.error(`地区化每日商品合同验证失败：\n- ${failures.join('\n- ')}`);

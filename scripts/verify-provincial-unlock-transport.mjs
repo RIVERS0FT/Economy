@@ -51,8 +51,14 @@ const provinceEconomicLevel = read('src/utils/provinceEconomicLevel.ts');
 const provinceAccessTest = existsSync('server/test/province-access.test.js') ? read('server/test/province-access.test.js') : '';
 const transportTest = existsSync('server/test/transport.test.js') ? read('server/test/transport.test.js') : '';
 
-requireText(index, '新玩家起始州永久绑定、其他州按货币费用解锁', '设计索引必须登记起始州与解锁规则。');
-requireText(index, 'scripts/verify-provincial-unlock-transport.mjs', '设计索引必须登记州解锁运输验证脚本。');
+for (const owner of [
+  '`PRODUCT_AND_GAMEPLAY_DESIGN.md`',
+  '`WAREHOUSE_EXPANSION_DESIGN.md`',
+  '`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`',
+  '`UI_DESIGN_SYSTEM.md`',
+  '`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`',
+  '`UNIFIED_ASSET_ORDER_BOOK_DESIGN.md`',
+]) requireText(index, owner, `设计索引必须将州解锁与运输规则路由到 DESIGN owner：${owner}`);
 requireText(productDesign, '新玩家首次进入游戏必须从 48 州中选择一块起始地块并永久绑定', '产品设计必须记录起始州选择。');
 requireText(productDesign, '跨州商品只能通过付费运输在已解锁州之间流动', '产品设计必须记录付费运输边界。');
 requireText(productDesign, '综合分数固定为 PCE `50%` + 平均周薪 `30%` + 常住人口 `20%`', '产品设计必须记录地区水平综合分数。');

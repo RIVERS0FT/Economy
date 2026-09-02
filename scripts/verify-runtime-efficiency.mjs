@@ -131,7 +131,11 @@ requireText('server/src/request-metrics.js', [
   'Economy request metrics',
   "response.getHeader('Content-Length')",
   'gauges?.responseJsonBytes ?? responseBytes',
+  'DEFAULT_WINDOW_MS = 60_000',
+  'DEFAULT_SLOW_REQUEST_MS = 1_000',
+  'DEFAULT_LARGE_RESPONSE_BYTES = 200 * 1024',
   'DEFAULT_MAX_ROUTE_KEYS = 256',
+  "OVERFLOW_METHOD = 'OTHER'",
   "OVERFLOW_ROUTE = '/api/other'",
   'overflowedRequestCount',
   'monitorEventLoopDelay',
@@ -373,19 +377,9 @@ const runtimeStore = read('server/src/runtime-store.js');
 assert.equal(runtimeStore.includes('isDeepStrictEqual(world, cached.world)'), false, 'V2 热保存不得恢复完整世界深比较');
 assert.equal(runtimeStore.includes('this.updateWorld.run(nextRevision, stateJson, now)'), false, 'V2 热保存不得恢复单行完整世界写入');
 const runtimeCore = read('server/src/runtime-store-core.js');
-assert.ok(
-  runtimeCore.includes('createMarketDetail(world, { ...options, now })'),
-  '市场详情必须直接读取 committed world，以复用订单簿运行时索引',
-);
-assert.equal(
-  runtimeCore.includes('createMarketDetail(currentSaveWorld(world'),
-  false,
-  '市场详情不得为只读聚合构造浅复制 world',
-);
-assert.ok(
-  runtimeCore.includes('createFacilityBuildProcurementQuote(\n          world,'),
-  '建造报价必须直接读取 committed world',
-);
+assert.ok(runtimeCore.includes('createMarketDetail(world, { ...options, now })'), '市场详情必须直接读取 committed world，以复用订单簿运行时索引');
+assert.equal(runtimeCore.includes('createMarketDetail(currentSaveWorld(world'), false, '市场详情不得为只读聚合构造浅复制 world');
+assert.ok(runtimeCore.includes('createFacilityBuildProcurementQuote(\n          world,'), '建造报价必须直接读取 committed world');
 assert.ok(
   runtimeCore.indexOf('applySegmentedWorldWrite(this, plan, world, now)')
     < runtimeCore.indexOf('this.flushContractAuditEvents(world, revision, nextRevision)')
@@ -472,70 +466,51 @@ requireText('server/test/runtime-hot-path.test.js', [
   'hot actions do not rerun cold world migrations and process global deadlines once',
   'idempotency expiry cleanup is throttled instead of running on every action',
 ]);
-requireText('docs/README.md', [
-  '状态刷新设置继续只保存和显示 `3s`／`5s`／`10s`',
-  '连续 30 秒无交互后临时使用 15 秒',
-  '页面隐藏时临时使用 60 秒',
-  '重新可见、网络恢复或从限速状态恢复交互时立即请求一次权威状态',
-  '每 60 秒输出一次按方法与归一化路由聚合的请求指标',
-  '超过 1 秒、超过 200 KB 或返回 5xx',
-  '单个窗口最多保留 256 个方法／路由键',
+
+// 文档只验证领域 owner 和非显然边界；运行时阈值与固定常量直接由上面的代码检查锁定，
+// 不再要求 docs/README.md 复制实现常量或跨领域规则。
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
+  '当前可配置客户端偏好只有“状态刷新频率”',
+  '默认 `5s`，可选 `3s`／`5s`／`10s`',
+]);
+requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', [
+  '统一混合盘口',
+  '先单次遍历未完成订单完成分组',
+  '不得因历史保存上限删除任何未完成订单',
+]);
+requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', [
+  '仓库容量永久无限',
+  '商品买单、商品拍卖和采购合同不预占仓库空间',
+]);
+requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
+  '正式客户端默认每 5 秒轮询一次修订号，可选 3／5／10 秒',
+  '正式服务的每个 60 秒请求指标窗口最多保留 256 个方法／归一化路由键',
   '`OTHER /api/other`',
-  '合同分区必须复用当前修订缓存',
-  '失败或无变化动作仍保存幂等确认但不得触发全服补拉',
-  '每次合同处理、动作和状态序列化只能建立一次事务内合同索引',
-  '统一订单簿运行时索引只属于服务器事务内派生状态',
-  '统一订单簿运行时性能属于订单簿与服务器共同规则',
-  '单一混合盘口，不得按玩家／系统拆分盘口',
-  '历史剪枝只限制已关闭订单为最近 800 笔',
-  '正式世界调度只能使用 `world-deadline-planner.js` 计算的单一最早到期 `setTimeout`',
-  '州级仓库容量永久无限',
-  '`DatabaseSync` 的 5 秒超时是 SQLite 锁等待上限',
-  '不得记录 Cookie、请求体、玩家资产或其他敏感内容',
-  '世界冷加载迁移与热保存必须分离',
-  '只按实际到期领域推进',
-  '幂等记录过期清理最多每 5 分钟执行一次',
   '`responseJsonBytes`',
-  '管理员 `GET /api/game/admin/summary` 与 `GET /api/game/admin/population-economy`',
-  '最终客户端状态必须在运行时存储层直接形成六分区快照',
-  '目录分区固定为进程内共享静态快照',
-  '所有可能修改 SQLite、世界状态、审计、注册、封禁、礼品、教程或运行时调度状态的操作必须进入同一进程内有界权威写执行器',
-  '全局总深度最多 128、同一主体最多 4 个待处理操作、普通请求最多等待 10 秒',
-  '注册邮件与统一账号网络调用必须位于写队列外',
+  '异常摘要和周期日志不得记录 Cookie、请求体',
+  '世界存储必须区分冷加载迁移与热保存收口',
+  '`migrateLoadedWorld`',
+  '`finalizeWorldForStorage`',
+  '幂等确认仍保留 24 小时，但过期删除使用服务内 5 分钟门控',
+  '按 `世界修订号 + 玩家 ID` 缓存最终投影',
+  '目录分区在同一服务进程内是静态快照',
+  '失败或无变化动作不得制造全服状态补拉',
+  '单一全局到期调度器',
+  '`server/src/authoritative-write-executor.js` 的单一进程内执行器',
+  '默认总深度上限固定为 128',
+  '同一玩家、注册网络指纹或系统主体最多保留 4 个正在执行或排队任务',
+  '普通请求排队最多 10 秒',
+  '统一账号可用性检查、邮件发送和统一账号创建／登录等外部网络调用必须在队列外执行',
+  '管理员 `/api/game/admin/summary` 与 `/api/game/admin/population-economy`',
+  '六分区主状态不得发送公共逐笔订单或全部 800 笔关闭历史',
+  '`GET /api/game/orders/history?cursor=&limit=`',
+  '优雅关闭必须先停止 HTTP 接收与世界调度',
 ]);
 
 if (failures.length) {
   console.error(`运行时效率验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-
-requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', [
-  '统一混合盘口',
-  '先单次遍历未完成订单完成分组',
-  '不得因历史保存上限删除任何未完成订单',
-]);
-requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
-  '统一订单簿运行时容量边界',
-  '不得按玩家订单与系统订单拆分第二套盘口',
-  '订单历史最多保留最近 800 笔未过期关闭订单',
-  '世界存储必须区分冷加载迁移与热保存收口',
-  '`migrateLoadedWorld`',
-  '`finalizeWorldForStorage`',
-  '幂等确认仍保留 24 小时，但过期删除使用服务内 5 分钟门控',
-  '按 `世界修订号 + 玩家 ID` 缓存最终投影',
-  'HTTP 交付层优先消费已经构造的 `partitions` 与 `partitionRevisions`',
-  '六分区主状态不得发送公共逐笔订单或全部 800 笔关闭历史',
-  '`GET /api/game/orders/history?cursor=&limit=`',
-  '`server/src/authoritative-write-executor.js` 的单一进程内执行器',
-  '默认总深度上限固定为 128',
-  '同一玩家、注册网络指纹或系统主体最多保留 4 个正在执行或排队任务',
-  '统一账号可用性检查、邮件发送和统一账号创建／登录等外部网络调用必须在队列外执行',
-  '`responseJsonBytes`',
-  '`worldEqualityMs`',
-  '管理员 `/api/game/admin/summary` 与 `/api/game/admin/population-economy`',
-  '优雅关闭必须先停止 HTTP 接收与世界调度',
-]);
-
 
 const playerIdentitySource = read('server/src/player-identity.js');
 const orderMatchingSource = read('server/src/order-matching.js');
@@ -588,6 +563,5 @@ assert.equal(identityMarketDemandStateSource.includes('player.trades'), false,
   'activity migration must not depend on presentation-only server trades');
 assert.match(identityDesignSource, /已结算排行榜历史/,
   'server architecture should distinguish immutable historical name snapshots from mutable identity mirrors');
-
 
 console.log('运行时效率验证通过：自适应轮询、按到期领域调度、无变化动作不写世界、合同审计事务与缓存顺序、单一混合订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');

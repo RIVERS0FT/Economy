@@ -114,10 +114,7 @@ requireText('docs/UI_DESIGN_SYSTEM.md', [
 ]);
 requireText('docs/MARKET_CHART_LAYOUT_DESIGN.md', ['ECharts SVG', '双 Grid', '稳定 `data-*`']);
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', ['玩家运营图统一使用共享 `EconomyChart`', '人口分析图统一使用共享 `EconomyChart`']);
-requireText('docs/README.md', [
-  '项目业务数据图表只允许通过共享 `EconomyChart` 使用 Apache ECharts SVG',
-  '不得引入 `echarts-for-react`',
-]);
+requireText('docs/README.md', ['`UI_DESIGN_SYSTEM.md`', '`MARKET_CHART_LAYOUT_DESIGN.md`', '`GIFT_CODE_AND_ADMIN_DESIGN.md`']);
 
 forbidText('src/components/charts/PriceSparkline.tsx', ['<svg', '<polyline', '<polygon', '<rect']);
 forbidText('src/utils/assetAllocation.ts', ['CSSProperties', 'allocationStyle', 'conic-gradient']);

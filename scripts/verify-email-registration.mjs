@@ -30,6 +30,7 @@ const files = [
   'scripts/verify-production-deployment.sh',
   'scripts/test_configure_economy_registration_nginx.py',
   '.github/workflows/configure-registration-email.yml',
+  'docs/README.md',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
@@ -207,9 +208,6 @@ for (const text of [
 forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '资料、偏好、邀请、礼品、退出和重置');
 forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '未登录外壳必须明确拆分“登录”和“注册”两个模式');
 
-requireText('docs/README.md', '登录主面板、注册／密码重置子面板入口');
-requireText('README.md', '完整登录、注册、密码重置和游戏流程');
-
 for (const text of [
   '登录主面板',
   '注册子面板',
@@ -218,6 +216,9 @@ for (const text of [
   '不得恢复登录／注册模式切换器',
   '“忘记密码”和“注册账号”必须位于密码输入框下方',
 ]) requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', text);
+requireText('docs/README.md', '`REGISTRATION_INVITE_FLOW_DESIGN.md`');
+requireText('docs/README.md', '`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`');
+requireText('docs/README.md', '`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`');
 
 for (const text of [
   'ECONOMY_REGISTRATION_SECRET_FILE',

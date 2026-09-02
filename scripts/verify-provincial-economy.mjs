@@ -30,6 +30,7 @@ const requiredFiles = [
   'tests/browser/map-zoom-transient.spec.ts',
   'tests/browser/map-zoom-render-sync.spec.ts',
   'tests/browser/map-zoom-out-boundary.spec.ts',
+  'docs/README.md',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
@@ -92,8 +93,10 @@ assert.ok(productDesign.includes('中文首府名称、英文首府名称与首�
 const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 assert.ok(serverDesign.includes('州中心与首府中英文名称及经纬度'), '服务器架构权威必须登记共享目录首府位置数据');
 const docsIndex = read('docs/README.md');
-for (const text of ['州级中文短名', '`shared/provinces.json` 的 `name` 是玩家可见州名的唯一数据源', '不带末尾“州”的中文短名', '不得在页面层自行追加或裁剪“州”', '不改变 `provinceId`']) {
-  assert.ok(docsIndex.includes(text), `州名显示权威规则缺少: ${text}`);
+assert.ok(docsIndex.includes('`UI_DESIGN_SYSTEM.md`') && docsIndex.includes('州级中文短名'), '设计索引必须将州级中文短名路由到 UI DESIGN owner');
+const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
+for (const text of ['地区商品／工厂详情共享两行标题', '州级地区全称', '中文州全名']) {
+  assert.ok(uiDesign.includes(text), `UI DESIGN 缺少州级名称视觉语义: ${text}`);
 }
 
 const packageJson = JSON.parse(read('package.json'));
@@ -338,7 +341,6 @@ for (const text of [
   "'blank-double-click'", 'baselinePathRevision', 'baselineLabelCenter', 'firstFrameLabelCenter',
 ]) assert.ok(resetTest.includes(text), `地图重置回归缺少: ${text}`);
 
-const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 assert.equal((uiDesign.match(/### 8\.1 美国本土州级经营地图/g) ?? []).length, 1, 'UI 设计文档只能保留一份美国本土州级经营地图 8.1 规则');
 for (const text of [
   '静态 SVG 世界面', '单一合成相机', '48 个州面 path 必须始终完整挂载',

@@ -247,9 +247,8 @@ for (const text of [
   '连续采样至少 `120` 个动画帧',
   '稳定 `data-*`', '`721 × 445`', '390 × 844` 且根字号放大到 `125%',
 ]) assert.ok(chartDesign.includes(text), `市场行情图专项设计缺少: ${text}`);
-for (const text of ['动态横纵轴刻度', '零间距双 Grid', '统一 AxisPointer／Tooltip', '悬浮折线保护']) {
-  assert.ok(designIndex.includes(text), `设计索引缺少市场图规则: ${text}`);
-}
+assert.ok(designIndex.includes('`MARKET_CHART_LAYOUT_DESIGN.md`'), '设计索引必须将市场图表几何与交互路由到专项 DESIGN owner');
+assert.ok(designIndex.includes('`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`'), '设计索引必须将市场页面内容路由到页面 DESIGN owner');
 for (const text of ['保存吃单方（taker／incoming order）的买卖方向', '净主动量为主动买入量减主动卖出量', '禁止伪造迁移方向']) {
   assert.ok(orderBookDesign.includes(text), `订单簿设计文档缺少: ${text}`);
 }

@@ -69,9 +69,9 @@ const requiredFiles = [
   'src/utils/inputModality.ts',
   'src/app/interactionBootstrap.ts',
   'src/styles/interaction-states.css',
-    'src/pages/BuildingsPage.tsx',
-    'src/pages/ResearchPage.tsx',
-    'src/styles/research-page.css',
+  'src/pages/BuildingsPage.tsx',
+  'src/pages/ResearchPage.tsx',
+  'src/styles/research-page.css',
   productionDetailPath,
   mobileDetailPath,
   mobileSheetHostPath,
@@ -159,7 +159,7 @@ if (failures.length === 0) {
   ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
   requireText('docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md', '移动端工厂卡点击行为与桌面一致');
   requireText('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md', '键盘焦点仍保持可见');
-  requireText('docs/README.md', '输入方式、共享交互表面');
+  requireText('docs/README.md', '`UI_DESIGN_SYSTEM.md`');
 
   for (const text of [
     'Input.dispatchTouchEvent',
