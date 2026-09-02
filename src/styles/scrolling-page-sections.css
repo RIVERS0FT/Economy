@@ -1,6 +1,7 @@
 /* Scrollable player-page business content uses spacing and dividers instead of
  * nested rounded cards. Rounded surfaces remain available to fixed, sticky,
  * dialog, popover and other non-scrolling UI. */
+.page-card-scroll .panel,
 .page-card-scroll .ui-primary-surface {
   border: 0;
   border-top: 1px solid var(--color-divider);
@@ -12,13 +13,31 @@
   backdrop-filter: none;
 }
 
-.page-card-scroll .ui-primary-surface:first-child,
+.page-card-scroll .ui-page-stack > .panel:first-child,
+.page-card-scroll .ui-page-stack > .ui-primary-surface:first-child,
+.page-card-scroll .transport-page-actions + .panel,
 .page-card-scroll .transport-page-actions + .ui-primary-surface {
   border-top: 0;
 }
 
+.page-card-scroll .panel + .panel,
 .page-card-scroll .ui-primary-surface + .ui-primary-surface {
   margin-top: 0;
+}
+
+/* Semantic transport sections no longer depend on a Panel wrapper. They use
+ * the same divider contract, with no redundant rule immediately below the
+ * page action row. */
+.page-card-scroll .transport-page-section {
+  min-width: 0;
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--space-4);
+}
+
+.page-card-scroll .transport-page-content > .transport-page-section:first-child,
+.page-card-scroll .transport-page-actions + .transport-page-section {
+  border-top: 0;
+  padding-top: 0;
 }
 
 /* The transport catalogue is a list, not a grid of cards. */
