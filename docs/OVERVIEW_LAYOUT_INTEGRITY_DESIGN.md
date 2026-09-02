@@ -2,11 +2,11 @@
 
 > 状态：当前正式概览布局防回退基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-24
+> 更新时间：2026-09-02
 
 ## 1. 目标
 
-概览使用参考大战略建筑页面的左侧毛玻璃业务面板，保留常驻地图，并与玩家外壳右侧统一战略追踪器并列。概览正文只负责签到、生产摘要、资产与银行、当前挂单，不持有桌面或移动教程、公开事件、今日经营、基础工作或第二套经营提醒。
+概览位于玩家外壳唯一毛玻璃 `workspaceCard` 的左侧页面区域，保留常驻地图，并与玩家外壳右侧统一战略追踪器并列。概览内部可滚动正文的结构性 `Panel` 只按 `UI_DESIGN_SYSTEM.md` 的正文表面语义使用留白与细线分区，不得因为外层 `workspaceCard` 使用毛玻璃而恢复毛玻璃背景、blur、阴影或圆角子卡；只有通用 UI 设计明确允许的独立业务对象可使用对象卡。概览正文只负责签到、生产摘要、资产与银行、当前挂单，不持有桌面或移动教程、公开事件、今日经营、基础工作或第二套经营提醒。
 
 ## 2. 页面与外壳职责
 
@@ -59,7 +59,8 @@
 5. `900×1000` 下概览摘要单列且无横向溢出，Outliner 保持完整宽度且不存在整体 `data-collapsed` 或 `44px` 收起轨道；
 6. 侧栏悬浮展开覆盖概览但不改变页面和战略追踪器几何，且竖线与阴影跟随展开边缘；
 7. 签到七格、短挂单和长挂单滚动语义；
-8. “今日经营”、基础工作和概览独立提醒均不存在。
+8. “今日经营”、基础工作和概览独立提醒均不存在；
+9. 桌面资产栏和唯一 `workspaceCard` 保持毛玻璃；概览可滚动正文中的签到等结构性 `Panel` 保持透明、无 backdrop blur、无阴影和无圆角，不得把外壳材质复制进正文。
 
 ## 7. 文件职责
 
@@ -69,5 +70,5 @@
 - `src/styles/mobile-status-layout.css`：移动同一 Outliner 教程分区的状态栏下方锚点以及与通知共享的顶部基准；
 - `src/styles/overview.css`、`overview-polish.css`：概览正文；
 - `src/styles/strategic-game-shell.css`、`strategic-outliner.css`：建筑面板、全区域页面和战略追踪器几何／最终层级；
-- `tests/browser/runtime.spec.ts` 与 `tests/browser/tutorial-right-rail.spec.ts`：概览内容、Outliner 常驻、缺省投影安全降级、移动覆盖层级与真实几何；
+- `tests/browser/runtime.spec.ts`、`tests/browser/tutorial-right-rail.spec.ts` 与 `tests/browser/frosted-glass-layout.spec.ts`：概览内容、Outliner 常驻、缺省投影安全降级、移动覆盖层级、外壳/正文材质边界与真实几何；
 - `scripts/verify-overview-content.mjs`、`scripts/verify-strategic-outliner.mjs`：静态防回退。
