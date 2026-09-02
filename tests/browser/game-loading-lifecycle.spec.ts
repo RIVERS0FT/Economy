@@ -1,4 +1,4 @@
-import { expect, test, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 
 async function json(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -36,7 +36,7 @@ function fullStateDelivery(revision = 1) {
       player: {
         userId: 1,
         saveEpoch: 1,
-        playerName: 'Lifecycle Tester',
+        playerName: `Lifecycle Tester ${revision}`,
         registeredAt: 1_800_000_000_000,
         lastProcessedAt: 1_850_000_000_000,
         credits: 100,
@@ -64,18 +64,26 @@ function fullStateDelivery(revision = 1) {
   };
 }
 
-test('ready game view model does not return to loading on parent rerender or same-user remount', async ({ page }) => {
-  let stateRequests = 0;
-  await page.route('**/economy-api/game/state**', async (route) => {
-    stateRequests += 1;
-    await json(route, fullStateDelivery(stateRequests));
-  });
+function brokenCatalogDelivery(revision = 2) {
+  return {
+    revision,
+    unchanged: false,
+    serverNow: 1_850_000_001_000,
+    partitionRevisions: {
+      catalog: `catalog-${String(revision).padStart(4, '0')}`,
+      player: 'player-00001',
+      market: 'market-00001',
+      auction: 'auction-0001',
+      contract: 'contract-0001',
+      leaderboard: 'leader-00001',
+    },
+    patches: {
+      catalog: { version: 39 },
+    },
+  };
+}
 
-  await page.goto('/economy/game-loading-lifecycle-test.html');
-  const status = page.getByTestId('game-view-model-status');
-  await expect(status).toHaveText('ready');
-  const requestsAfterReady = stateRequests;
-
+async function observeLoadingTransitions(page: Page) {
   await page.evaluate(() => {
     const target = window as typeof window & {
       __gameLoadingTransitions?: number;
@@ -95,6 +103,27 @@ test('ready game view model does not return to loading on parent rerender or sam
     });
     target.__gameLoadingObserver = observer;
   });
+}
+
+async function loadingTransitions(page: Page) {
+  return page.evaluate(() => (
+    window as typeof window & { __gameLoadingTransitions?: number }
+  ).__gameLoadingTransitions ?? 0);
+}
+
+test('ready game view model does not return to loading on parent rerender or same-user remount', async ({ page }) => {
+  let stateRequests = 0;
+  await page.route('**/economy-api/game/state**', async (route) => {
+    stateRequests += 1;
+    await json(route, fullStateDelivery(stateRequests));
+  });
+
+  await page.goto('/economy/game-loading-lifecycle-test.html');
+  const status = page.getByTestId('game-view-model-status');
+  await expect(status).toHaveText('ready');
+  const requestsAfterReady = stateRequests;
+
+  await observeLoadingTransitions(page);
 
   await page.locator('#rerender-parent').click();
   await page.waitForTimeout(100);
@@ -106,8 +135,36 @@ test('ready game view model does not return to loading on parent rerender or sam
   await expect(status).toHaveText('ready');
   expect(stateRequests).toBe(requestsAfterReady);
 
-  const loadingTransitions = await page.evaluate(() => (
-    window as typeof window & { __gameLoadingTransitions?: number }
-  ).__gameLoadingTransitions ?? 0);
-  expect(loadingTransitions).toBe(0);
+  expect(await loadingTransitions(page)).toBe(0);
+});
+
+test('ready game stays visible while integrity recovery clears transport cache and refetches a full snapshot', async ({ page }) => {
+  let stateRequests = 0;
+  await page.route('**/economy-api/game/state**', async (route) => {
+    stateRequests += 1;
+    if (stateRequests === 1) {
+      await json(route, fullStateDelivery(1));
+      return;
+    }
+    if (stateRequests === 2) {
+      await json(route, brokenCatalogDelivery(2));
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await json(route, fullStateDelivery(3));
+  });
+
+  await page.goto('/economy/game-loading-lifecycle-test.html');
+  const status = page.getByTestId('game-view-model-status');
+  const playerName = page.getByTestId('game-player-name');
+  await expect(status).toHaveText('ready');
+  await expect(playerName).toHaveText('Lifecycle Tester 1');
+
+  await observeLoadingTransitions(page);
+  await page.locator('#refresh-game').click();
+
+  await expect(status).toHaveText('ready');
+  await expect(playerName).toHaveText('Lifecycle Tester 3');
+  expect(stateRequests).toBe(3);
+  expect(await loadingTransitions(page)).toBe(0);
 });
