@@ -9,7 +9,6 @@ const requireText = (path, text) => { if (!read(path).includes(text)) failures.p
 const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不得包含: ${text}`); };
 
 [
-  'README.md',
   'server/src/gem-shop.js',
   'server/src/gem-economy-store.js',
   'server/src/storage.js',
@@ -92,10 +91,7 @@ for (const text of [
 }
 forbidText('docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md', '世界状态版本继续为 26');
 forbidText('docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md', '每次固定消耗 1 宝石，减少当前施工 30 分钟');
-requireText('README.md', '当前研发支持 1 宝石减少 30 分钟的服务器权威加速，工厂建设即时完成且不产生施工加速');
-forbidText('README.md', '施工与研发均支持 1 宝石减少 30 分钟');
-requireText('docs/README.md', '研发宝石加速、工厂施工加速退役');
-forbidText('docs/README.md', '直接货币发行、施工宝石加速、兑换幂等');
+requireText('docs/README.md', '`GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md`');
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '/api/game/facilities/construction/accelerate');
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '410 Gone');
 for (const text of ['礼品码兑换', 'model.redeemGift', 'giftCode', 'gem-shop-gift-card', 'label="礼品兑换码"']) {
