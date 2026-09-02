@@ -68,20 +68,26 @@ test('transport route catalogue uses divider rows instead of rounded cards', asy
   await expect(page.getByText('暂无运输路线。选择“增加路线”后直接在地图上依次选择站点。')).toBeVisible();
 
   const catalogueVisual = await page.locator('.page-card-scroll').evaluate((container) => {
-    const row = document.createElement('button');
-    row.className = 'transport-route-card';
-    container.appendChild(row);
-    const style = getComputedStyle(row);
+    const firstRow = document.createElement('button');
+    firstRow.className = 'transport-route-card';
+    const lastRow = document.createElement('button');
+    lastRow.className = 'transport-route-card';
+    container.append(firstRow, lastRow);
+    const firstStyle = getComputedStyle(firstRow);
+    const lastStyle = getComputedStyle(lastRow);
     const result = {
-      borderRadius: style.borderRadius,
-      borderBottomWidth: style.borderBottomWidth,
-      borderBottomStyle: style.borderBottomStyle,
+      borderRadius: firstStyle.borderRadius,
+      borderBottomWidth: firstStyle.borderBottomWidth,
+      borderBottomStyle: firstStyle.borderBottomStyle,
+      lastBorderBottomWidth: lastStyle.borderBottomWidth,
     };
-    row.remove();
+    firstRow.remove();
+    lastRow.remove();
     return result;
   });
 
   expect(catalogueVisual.borderRadius).toBe('0px');
   expect(catalogueVisual.borderBottomWidth).toBe('1px');
   expect(catalogueVisual.borderBottomStyle).toBe('solid');
+  expect(catalogueVisual.lastBorderBottomWidth).toBe('0px');
 });
