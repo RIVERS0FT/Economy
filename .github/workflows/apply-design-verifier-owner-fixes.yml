@@ -26,6 +26,7 @@ jobs:
         run: |
           node scripts/fix-design-verifier-ownership.mjs
           node scripts/trim-design-owner-summary.mjs
+          node scripts/fix-design-verifier-ownership-v2.mjs
       - name: Generate verifier prerequisites
         run: |
           npm run generate:artwork
