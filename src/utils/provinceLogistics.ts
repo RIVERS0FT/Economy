@@ -104,6 +104,7 @@ export function provinceUnlockCost(provinceId: string, startingProvinceId: strin
 }
 
 export interface TransportRouteStopsInput {
+  id?: string;
   sourceProvinceId: string;
   destinationProvinceId: string;
   viaProvinceIds?: string[];
@@ -129,16 +130,24 @@ export interface TransportRoutePlanMetrics {
   legs: TransportRouteLeg[];
 }
 
+const transportRouteIdByStopIds = new WeakMap<string[], string>();
+
 export function transportRouteViaIds(route: Pick<TransportRouteStopsInput, 'viaProvinceIds'>) {
   return Array.isArray(route.viaProvinceIds) ? route.viaProvinceIds.filter(Boolean) : [];
 }
 
 export function transportRouteStopIds(route: TransportRouteStopsInput) {
-  return [
+  const stops = [
     route.sourceProvinceId,
     ...transportRouteViaIds(route),
     route.destinationProvinceId,
   ].filter(Boolean);
+  if (typeof route.id === 'string' && route.id) transportRouteIdByStopIds.set(stops, route.id);
+  return stops;
+}
+
+export function transportRouteIdForStopIds(stops: string[] | null | undefined) {
+  return stops ? transportRouteIdByStopIds.get(stops) : undefined;
 }
 
 export function isTransportRouteClosed(route: TransportRouteStopsInput) {

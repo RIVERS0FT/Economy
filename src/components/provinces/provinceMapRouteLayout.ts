@@ -56,7 +56,7 @@ interface RawSegment extends ProvinceMapRouteSegmentLayout {
   originalVertexTo: ProvinceMapPoint;
 }
 
-const DEFAULT_LANE_GAP = 4.5;
+const DEFAULT_LANE_GAP = 3.5;
 const MITER_LIMIT_MULTIPLIER = 3.5;
 
 function edgeKey(left: string, right: string) {
@@ -193,7 +193,7 @@ function buildTraversal(
   }
   if (rawSegments.length < 1) return { points: [], path: '', segments: [] };
 
-  const points: ProvinceMapPoint[] = [rawSegments[0].start];
+  const pathPoints: ProvinceMapPoint[] = [rawSegments[0].start];
   for (let index = 1; index < rawSegments.length; index += 1) {
     const previous = rawSegments[index - 1];
     const current = rawSegments[index];
@@ -202,18 +202,22 @@ function buildTraversal(
     const originalVertex = previous.originalVertexTo;
     const maxLaneOffset = Math.max(Math.abs(previous.laneOffset), Math.abs(current.laneOffset));
     const miterLimit = Math.max(laneGap * MITER_LIMIT_MULTIPLIER, maxLaneOffset * MITER_LIMIT_MULTIPLIER + laneGap);
-    points.push(intersection && distance(intersection, originalVertex) <= miterLimit ? intersection : fallback);
+    pathPoints.push(intersection && distance(intersection, originalVertex) <= miterLimit ? intersection : fallback);
   }
-  points.push(rawSegments[rawSegments.length - 1].end);
+  pathPoints.push(rawSegments[rawSegments.length - 1].end);
 
   const segments = rawSegments.map((segment, index) => ({
     fromProvinceId: segment.fromProvinceId,
     toProvinceId: segment.toProvinceId,
-    start: points[index],
-    end: points[index + 1],
+    start: pathPoints[index],
+    end: pathPoints[index + 1],
     laneOffset: segment.laneOffset,
   }));
-  return { points, path: pathForPoints(points), segments };
+  const points = traversal.stops.flatMap((provinceId) => {
+    const point = pointByProvinceId.get(provinceId);
+    return point ? [point] : [];
+  });
+  return { points, path: pathForPoints(pathPoints), segments };
 }
 
 export function layoutProvinceMapRoutes(

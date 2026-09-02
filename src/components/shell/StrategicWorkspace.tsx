@@ -6,7 +6,7 @@ import { useNow } from '../../hooks/useNow';
 import type { PendingNotificationItem } from '../../notifications/notificationCenter';
 import type { ProvinceAssetSummary, ProvinceDefinition, TransportModeId, TransportShipment } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
-import { isTransportRouteClosed, transportRouteSetupCost, transportRouteStopIds } from '../../utils/provinceLogistics';
+import { isTransportRouteClosed, transportRouteIdForStopIds, transportRouteSetupCost, transportRouteStopIds } from '../../utils/provinceLogistics';
 import { StrategicOutliner } from '../outliner/StrategicOutliner';
 import { SelectInput } from '../ui/FormControls';
 import {
@@ -166,10 +166,13 @@ export function StrategicMapStage({
     }
     const highlightedStops = routeDraft?.highlightedRouteStops;
     if (highlightedStops && highlightedStops.length >= 2) {
-      const highlightedRoute = transportRoutes.find((route) => {
-        const stops = transportRouteStopIds(route);
-        return stops.length === highlightedStops.length && stops.every((provinceId, index) => provinceId === highlightedStops[index]);
-      });
+      const highlightedRouteId = transportRouteIdForStopIds(highlightedStops);
+      const highlightedRoute = highlightedRouteId
+        ? transportRoutes.find((route) => route.id === highlightedRouteId)
+        : transportRoutes.find((route) => {
+          const stops = transportRouteStopIds(route);
+          return stops.length === highlightedStops.length && stops.every((provinceId, index) => provinceId === highlightedStops[index]);
+        });
       overlays.push({
         id: highlightedRoute ? `highlighted-${highlightedRoute.mode}-route` : 'highlighted-route',
         routeId: highlightedRoute?.id,
