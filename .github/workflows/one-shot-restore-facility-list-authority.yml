@@ -1,0 +1,50 @@
+name: One-shot restore facility list authority
+
+on:
+  push:
+    branches:
+      - codex/transport-route-cards-footer
+    paths:
+      - .github/workflows/one-shot-restore-facility-list-authority.yml
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/transport-route-cards-footer
+          fetch-depth: 0
+
+      - name: Restore facility list authority in shared entity list section
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/UI_DESIGN_SYSTEM.md')
+          text = path.read_text(encoding='utf-8')
+          anchor = '正负行情与利润统一通过 `.entity-list-value.is-positive / .is-negative` 表达，避免同一语义跨页面变色。\n'
+          rule = '\n建筑两行目录的最终几何规则：插画必须作为真实 Grid 列参与条目尺寸计算，禁止再通过 `position: absolute`、`transform` 与正文 `padding-left` 模拟插画占位；建筑两行目录不显示表头底线、条目外边界、插画与正文之间的竖向分隔或第一行与第二行之间的横向分隔；建筑名称、利润和拥有数量必须高于状态、Chevron 等辅助信息的视觉权重；生产方案槽继续复用 `production-config`，列表场景允许通过现有令牌强化触发按钮边界、底色与内阴影。桌面第一行收紧为 `30px`；地区工厂列表同步登记为相同的两行高度例外，并与一级工厂目录保持相同的第一行高度与第二行分区层级；约 `38×38`、独立插画轨道收紧到约 `42px`。`src/styles/global-facility-narrow.css` 是该两行条目的最终几何覆盖；验证：`tests/browser/facility-catalog-layout.spec.ts`、`tests/browser/global-operation-pages.spec.ts`、`tests/browser/player-page-geometry.spec.ts`。\n'
+          if anchor not in text:
+              raise SystemExit('UI design shared entity list anchor not found')
+          if '插画必须作为真实 Grid 列参与条目尺寸计算' not in text:
+              text = text.replace(anchor, anchor + rule, 1)
+          path.write_text(text, encoding='utf-8')
+
+          workflow = Path('.github/workflows/one-shot-restore-facility-list-authority.yml')
+          workflow.unlink()
+          PY
+
+      - name: Commit restored authority and remove one-shot workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/UI_DESIGN_SYSTEM.md .github/workflows/one-shot-restore-facility-list-authority.yml
+          git commit -m "Restore facility list authority"
+          git push origin HEAD:codex/transport-route-cards-footer
