@@ -1,18 +1,16 @@
 import { feature } from 'topojson-client';
-import worldLandAtlas from '../../data/world-land-110m.json';
+import worldLandAtlas from 'world-atlas/land-10m.json';
 import { provinceGeometryPath, type ProvinceMapProjection } from './provinceMapProjection';
 
-type GeographicPoint = [number, number];
-
-export interface ProvinceMapWorldBounds {
+export interface ProvinceMapMainlandFocusBounds {
   minX: number;
   minY: number;
   maxX: number;
   maxY: number;
 }
 
-// Vendored from world-atlas@2.0.2 land-110m.json, derived from Natural Earth
-// 1:110m public-domain land boundaries. This layer has no gameplay identity.
+// world-atlas@2.0.2 land-10m.json is derived from Natural Earth 1:10m public-domain land data.
+// This layer has no gameplay identity; the contiguous-US interaction layer remains us-atlas states-10m.
 const worldTopology = worldLandAtlas as unknown as Parameters<typeof feature>[0];
 const worldLandObject = (worldLandAtlas as unknown as {
   objects: { land: Parameters<typeof feature>[1] };
@@ -29,18 +27,11 @@ export function createProvinceMapWorldOutlinePath(projection: ProvinceMapProject
     .join(' ');
 }
 
-export function createProvinceMapWorldBounds(projection: ProvinceMapProjection): ProvinceMapWorldBounds {
-  const corners: GeographicPoint[] = [
-    [-180, 90],
-    [180, 90],
-    [180, -90],
-    [-180, -90],
-  ];
-  const points = corners.map((coordinate) => projection.project(coordinate));
+export function createProvinceMapMainlandFocusBounds(projection: ProvinceMapProjection): ProvinceMapMainlandFocusBounds {
   return {
-    minX: Math.min(...points.map((point) => point.x)),
-    minY: Math.min(...points.map((point) => point.y)),
-    maxX: Math.max(...points.map((point) => point.x)),
-    maxY: Math.max(...points.map((point) => point.y)),
+    minX: 0,
+    minY: 0,
+    maxX: projection.width,
+    maxY: projection.height,
   };
 }
