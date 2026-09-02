@@ -211,15 +211,10 @@ if (failures.length === 0) {
     '施工确认文案',
   ]) forbidText(paths.design, text);
 
-  for (const text of [
-    '`AUTHORITATIVE_COUNTDOWN_DESIGN.md`',
-    '所有可见倒计时必须先区分本地资格到期与服务器权威状态转换',
-    '共享单调服务器时钟',
-    '每个返回分区内部都是完整快照',
-    '状态版本 22 固定稳定分区时间字段',
-    '`scripts/verify-authoritative-countdowns.mjs`',
-    '子修订',
-  ]) requireText(paths.docsIndex, text);
+  // docs/README only routes this domain to its DESIGN owner. Protocol semantics,
+  // snapshot replacement and revision behavior are asserted directly above against
+  // AUTHORITATIVE_COUNTDOWN_DESIGN.md and the implementation, never against the index.
+  requireText(paths.docsIndex, '`AUTHORITATIVE_COUNTDOWN_DESIGN.md`');
 
   requireText(paths.package, '"verify:authoritative-countdowns": "node scripts/verify-authoritative-countdowns.mjs"');
   requireText(paths.package, 'node scripts/verify-authoritative-countdowns.mjs && node scripts/verify-primary-surface-insets.mjs');
