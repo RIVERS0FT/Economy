@@ -1,0 +1,67 @@
+name: Replay building list surfaces
+
+on:
+  push:
+    branches:
+      - codex/building-list-surfaces
+
+permissions:
+  contents: write
+
+jobs:
+  replay:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Replay building files and patch design
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin backup/building-list-surfaces-20260902
+          git show origin/backup/building-list-surfaces-20260902:src/styles/global-facility-narrow.css > src/styles/global-facility-narrow.css
+          git show origin/backup/building-list-surfaces-20260902:tests/browser/facility-catalog-layout.spec.ts > tests/browser/facility-catalog-layout.spec.ts
+          git show origin/backup/building-list-surfaces-20260902:scripts/verify-facility-catalog-layout.mjs > scripts/verify-facility-catalog-layout.mjs
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/UI_DESIGN_SYSTEM.md')
+          text = path.read_text(encoding='utf-8')
+          replacements = [
+              (
+                  '建筑两行目录是共享实体列表的无分隔线例外：一级与地区建筑均不显示表头底线、条目外边界、插画与正文之间的竖向分隔或第一行与第二行之间的横向分隔，条目之间继续由 `.32rem` 间距区分；',
+                  '建筑两行目录为分区表面例外：外层行保持透明且不增加条目外边界；第一行下钻按钮必须使用可见共享表面底色，第二行生产配置必须使用独立可见底部卡片；第一行与第二行之间不得绘制独立横向分隔线，表头底线和插画正文竖线也不显示；',
+              ),
+              (
+                  '约 `38×38`、独立插画轨道收紧到约 `42px`',
+                  '插画轨道宽度必须与当前响应式插画尺寸一致',
+              ),
+          ]
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one design match, got {count}: {old}')
+              text = text.replace(old, new, 1)
+          encoded = text.encode('utf-8')
+          if len(encoded) > 128 * 1024:
+              raise SystemExit(f'UI_DESIGN_SYSTEM.md exceeds 128 KiB after patch: {len(encoded)} bytes')
+          path.write_text(text, encoding='utf-8')
+          print(f'UI_DESIGN_SYSTEM.md bytes={len(encoded)}')
+          PY
+          node scripts/verify-facility-catalog-layout.mjs
+          git diff --check
+
+      - name: Commit replay and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name RIVERSOFT
+          git config user.email 105160096+RIVERS0FT@users.noreply.github.com
+          git rm .github/workflows/replay-building-list-surfaces.yml
+          git add docs/UI_DESIGN_SYSTEM.md scripts/verify-facility-catalog-layout.mjs src/styles/global-facility-narrow.css tests/browser/facility-catalog-layout.spec.ts
+          git commit -m '调整建筑列表分区表面与插画轨道'
+          git push origin HEAD:codex/building-list-surfaces
