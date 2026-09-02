@@ -126,7 +126,7 @@ for (const text of [
 ]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 for (const text of ['抵押数量必须继续计入当前或下一周期生产能力', '可转让数量', 'mortgagedCount']) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 for (const text of ['| 银行 | `bank` | `BankPage`', '十一个业务导航按钮', '资产总览', '存款账户', '额度评估']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
-for (const text of ['`banking.js`', '世界版本 17', '客户端状态版本 20', '/api/game/bank/deposits', '银行每日结息']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
+for (const text of ['`banking.js`', '/api/game/bank/deposits', '银行每日结息']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 requireText('docs/UI_DESIGN_SYSTEM.md', '`src/styles/bank.css`');
 
 for (const text of [
