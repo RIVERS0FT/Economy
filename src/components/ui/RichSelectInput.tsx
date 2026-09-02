@@ -188,6 +188,9 @@ export function RichSelectInput({
       0,
       triggerRect.top - layerRect.top - FLOATING_GAP - FLOATING_INSET,
     );
+    const availableLayerHeight = Math.max(optionHeight, layerRect.height - FLOATING_INSET * 2);
+    const productionCanFitLayer = variant === 'production-config'
+      && estimatedHeight <= availableLayerHeight;
     const placement = variant === 'production-config'
       ? availableBelow >= estimatedHeight
         ? 'below'
@@ -201,7 +204,9 @@ export function RichSelectInput({
         ? 'above'
         : 'below';
     const availableHeight = placement === 'above' ? availableAbove : availableBelow;
-    const maxHeight = Math.max(optionHeight, Math.min(estimatedHeight, availableHeight || estimatedHeight));
+    const maxHeight = productionCanFitLayer
+      ? estimatedHeight
+      : Math.max(optionHeight, Math.min(estimatedHeight, availableHeight || estimatedHeight));
     const left = viewportLayer
       ? clamp(
         triggerRect.left,
@@ -213,13 +218,18 @@ export function RichSelectInput({
         FLOATING_INSET,
         layerRect.width - width - FLOATING_INSET,
       );
-    const top = viewportLayer
+    const preferredTop = viewportLayer
       ? placement === 'above'
         ? triggerRect.top - FLOATING_GAP - maxHeight
         : triggerRect.bottom + FLOATING_GAP
       : placement === 'above'
         ? triggerRect.top - layerRect.top - FLOATING_GAP - maxHeight
         : triggerRect.bottom - layerRect.top + FLOATING_GAP;
+    const safeTop = viewportLayer ? layerRect.top + FLOATING_INSET : FLOATING_INSET;
+    const safeBottom = viewportLayer ? layerRect.bottom - FLOATING_INSET : layerRect.height - FLOATING_INSET;
+    const top = productionCanFitLayer
+      ? clamp(preferredTop, safeTop, safeBottom - maxHeight)
+      : preferredTop;
 
     setPosition({ left, top, width, maxHeight, placement });
   }, [floatingLayer, optionHeight, options.length, variant, viewportLayer]);
