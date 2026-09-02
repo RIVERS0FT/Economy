@@ -89,11 +89,20 @@ for (const text of [
 ]) requireText(browserTest, text, `运输浏览器回归缺少：${text}`);
 forbidText(browserTest, "toContainText('0/50')", '运输浏览器回归不得要求已删除的路线数量胶囊。');
 
+requireText(
+  allPagesBrowserTest,
+  "transportContent.locator('.transport-page-footer')",
+  '全页面浏览器回归必须从运输正文内的底部操作区定位增加路线按钮。',
+);
+requireText(
+  transportMapPickingTest,
+  "page.locator('.transport-page-footer')",
+  '运输地图选点回归必须从底部操作区定位增加路线按钮。',
+);
 for (const [source, label] of [
   [allPagesBrowserTest, '全页面浏览器回归'],
   [transportMapPickingTest, '运输地图选点回归'],
 ]) {
-  requireText(source, '.transport-page-footer', `${label}必须通过底部操作区定位增加路线按钮。`);
   forbidText(source, '.transport-page-actions', `${label}不得恢复已删除的顶部运输操作区定位。`);
 }
 
