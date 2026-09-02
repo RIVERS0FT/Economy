@@ -1,0 +1,53 @@
+name: One-shot restore commodity density authority
+
+on:
+  push:
+    branches:
+      - codex/transport-route-cards-footer
+    paths:
+      - .github/workflows/one-shot-restore-commodity-density-authority.yml
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/transport-route-cards-footer
+          fetch-depth: 0
+
+      - name: Restore commodity density authority in market section
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/UI_DESIGN_SYSTEM.md')
+          text = path.read_text(encoding='utf-8')
+          anchor = '- `MarketCommodityRow` 是商品全局详情地区行和地区市场目录的唯一共享商品数据行；'
+          phrase = '一级市场商品目录、全局商品详情与地区市场共享的紧凑商品数据行密度、1:1 商品插画槽'
+          if anchor not in text:
+              raise SystemExit('UI design MarketCommodityRow anchor not found')
+          if phrase not in text:
+              index = text.index(anchor)
+              end = text.index('\n', index)
+              sentence = f'- {phrase}；具体 `50px / 46px / 44px` 行高与 `36px / 32px` 等插画槽规则沿用本节 `MarketCommodityRow` 权威定义，不另建第二套密度。\n'
+              text = text[:end + 1] + sentence + text[end + 1:]
+          path.write_text(text, encoding='utf-8')
+
+          workflow = Path('.github/workflows/one-shot-restore-commodity-density-authority.yml')
+          workflow.unlink()
+          PY
+
+      - name: Commit restored authority and remove one-shot workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/UI_DESIGN_SYSTEM.md .github/workflows/one-shot-restore-commodity-density-authority.yml
+          git commit -m "Restore commodity density authority"
+          git push origin HEAD:codex/transport-route-cards-footer
