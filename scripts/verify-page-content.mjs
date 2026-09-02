@@ -64,7 +64,7 @@ for (const text of [
   '建筑与仓库只有已解锁州才显示经营内容',
   '一级市场商品的地区行情列表与一级建筑工厂的地区列表只允许出现当前玩家已解锁州',
   '邀请卡与礼品码兑换唯一归属商店',
-  '用户缩放范围固定为 `0.5～4`',
+  '战略地图镜头、缩放、重置和平移边界唯一遵循 `LIQUID_GLASS_CHROME_DESIGN.md`',
   '地图不得提供独立的放大、缩小或重置功能面板',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
