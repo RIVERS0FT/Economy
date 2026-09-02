@@ -71,8 +71,8 @@ if (failures.length === 0) {
 
   for (const text of [
     "@import './content-surfaces.css';",
-    '.page-card-scroll .panel:not(.ui-entity-card):not(.contract-card),',
-    '.page-card-scroll .ui-primary-surface:not(.ui-entity-card):not(.contract-card) {',
+    '.page-card-scroll .panel:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card),',
+    '.page-card-scroll .ui-primary-surface:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card) {',
     'border-top: 1px solid var(--color-divider);',
     'border-radius: 0;',
     'background: transparent;',
@@ -83,7 +83,8 @@ if (failures.length === 0) {
   for (const text of [
     '.ui-entity-card:not(.panel),',
     '.panel.ui-entity-card,',
-    '.panel.contract-card {',
+    '.panel.contract-card,',
+    '.panel.asset-auction-card {',
     'border: 1px solid var(--color-border);',
     'border-radius: var(--radius-card);',
     'padding: var(--primary-surface-inset);',
@@ -246,4 +247,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('页面表面与卡片内边距验证通过：页面结构继续扁平化，复杂独立业务对象保留轻量圆角边界，合同摘要保持统一指标条，正文对象卡无毛玻璃，同时共享 inset、承载安全几何和既有列表回归均已锁定。');
+console.log('页面表面与卡片内边距验证通过：页面结构继续扁平化，合同与进行中拍卖等复杂独立业务对象保留轻量圆角边界，合同摘要保持统一指标条，正文对象卡无毛玻璃，同时共享 inset、承载安全几何和既有列表回归均已锁定。');
