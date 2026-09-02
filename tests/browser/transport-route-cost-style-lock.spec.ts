@@ -68,10 +68,13 @@ test('scrolling page content uses divider sections instead of rounded cards', as
   await expect(page.getByText('暂无运输路线。选择“增加路线”后直接在地图上依次选择站点。')).toBeVisible();
 
   const visual = await page.locator('.page-card-scroll').evaluate((container) => {
+    const routeGrid = document.createElement('div');
+    routeGrid.className = 'transport-route-grid';
     const firstRow = document.createElement('button');
     firstRow.className = 'transport-route-card';
     const lastRow = document.createElement('button');
     lastRow.className = 'transport-route-card';
+    routeGrid.append(firstRow, lastRow);
 
     const legacyPanel = document.createElement('article');
     legacyPanel.className = 'panel leaderboard-board-card';
@@ -84,7 +87,7 @@ test('scrolling page content uses divider sections instead of rounded cards', as
     secondSection.className = 'transport-page-section';
     sectionGroup.append(firstSection, secondSection);
 
-    container.append(firstRow, lastRow, legacyPanel, sectionGroup);
+    container.append(routeGrid, legacyPanel, sectionGroup);
 
     const firstStyle = getComputedStyle(firstRow);
     const lastStyle = getComputedStyle(lastRow);
@@ -104,8 +107,7 @@ test('scrolling page content uses divider sections instead of rounded cards', as
       secondSectionBorderTopStyle: secondSectionStyle.borderTopStyle,
     };
 
-    firstRow.remove();
-    lastRow.remove();
+    routeGrid.remove();
     legacyPanel.remove();
     sectionGroup.remove();
     return result;
