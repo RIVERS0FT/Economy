@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: 24.4.0
 
-      - name: Finish verifier wording
+      - name: Finish verifier and authority wording
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -44,12 +44,24 @@ jobs:
           if old not in text:
               raise SystemExit('page verifier summary zoom wording anchor missing')
           path.write_text(text.replace(old, new, 1))
+
+          path = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          text = path.read_text()
+          old = '- 把地图缩放范围改离 `0.5～4`，移除滚轮／双指缩放、恢复独立放大／缩小／重置功能面板，让页面切换、州面点击和镜头切换重置用户当前相机，或在不大于 `720px` 时恢复地图 Tooltip；不得恢复 ECharts `geoRoam`／ZRender、手势期间重绘州面 path、重新投影、重新执行 48 州完整标签布局、第二套标签相机或 settle 后二次提交缩放。交互缩放和平移必须只在单一 RAF 中更新 `.province-map-camera-surface` 的 `translate3d + scale`，完整静态世界面不得因视口裁剪卸载屏外州；'
+          new = '- 把地图逻辑缩放范围改离 `1–4`、破坏 `LIQUID_GLASS_CHROME_DESIGN.md` 定义的动态最小美国居中镜头与有限平移上下文，移除滚轮／双指缩放、恢复独立放大／缩小／重置功能面板，让页面切换、州面点击和镜头切换重置用户当前相机，或在不大于 `720px` 时恢复地图 Tooltip；不得恢复 ECharts `geoRoam`／ZRender、手势期间重绘州面 path、重新投影、重新执行 48 州完整标签布局、第二套标签相机或 settle 后二次提交缩放。交互缩放和平移必须只在单一 RAF 中更新 `.province-map-camera-surface` 的 `translate3d + scale`，完整静态世界面不得因视口裁剪卸载屏外州；'
+          if old not in text:
+              raise SystemExit('page design retired zoom guard anchor missing')
+          path.write_text(text.replace(old, new, 1))
           PY
 
       - name: Verify no retired map rule remains
         run: |
-          if grep -R -n -E '0\.5[～–-]4|world-land-110m|continents-only' docs src scripts tests/browser; then
-            echo 'Retired strategic-map rule remains' >&2
+          if grep -R -n -E '0\.5[～–-]4|continents-only' docs src tests/browser; then
+            echo 'Retired strategic-map rule remains in product/design/runtime/test sources' >&2
+            exit 1
+          fi
+          if grep -R -n 'world-land-110m' docs src tests/browser; then
+            echo 'Retired 110m world source remains outside the negative verifier guard' >&2
             exit 1
           fi
 
@@ -67,7 +79,7 @@ jobs:
           rm -f .github/workflows/branch-strategic-map-verify-fix.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add scripts .github/workflows/branch-strategic-map-verify-fix.yml
+          git add docs scripts .github/workflows/branch-strategic-map-verify-fix.yml
           git diff --cached --check
           git commit -m 'Align strategic map verifiers'
           git push origin HEAD:codex/strategic-map-mainland-focus
