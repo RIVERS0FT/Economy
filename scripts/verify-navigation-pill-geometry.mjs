@@ -14,6 +14,7 @@ const strategicPath = 'src/styles/strategic-game-shell.css';
 const workspacePath = 'src/components/shell/StrategicWorkspace.tsx';
 const glassPath = 'src/styles/frosted-glass-surfaces.css';
 const designPath = 'docs/LIQUID_GLASS_CHROME_DESIGN.md';
+const browserPath = 'tests/browser/navigation-pill-geometry.spec.ts';
 
 for (const text of [
   ".mobile-bottom-navigation[data-navigation-surface='game-mobile-navigation'] .mobile-bottom-navigation__viewport {",
@@ -60,6 +61,12 @@ for (const text of [
   'border-color: color-mix(in srgb, var(--color-success) 72%, transparent);',
   'background: var(--color-success-soft);',
 ]) requireText(strategicPath, text);
+
+for (const text of [
+  'expect(activeVisual.color).not.toBe(geometry.color);',
+  'expect(activeVisual.border).not.toBe(geometry.border);',
+  'expect(activeVisual.background).not.toBe(geometry.background);',
+]) requireText(browserPath, text);
 
 for (const text of [
   '--frosted-glass-background: rgba(5, 20, 14, 0.76);',

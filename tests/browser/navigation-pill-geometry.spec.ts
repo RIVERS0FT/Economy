@@ -122,7 +122,7 @@ test.describe('navigation pill geometry', () => {
       };
     });
     expect(activeVisual.color).not.toBe(geometry.color);
-    expect(activeVisual.border).toBe(geometry.border);
-    expect(activeVisual.background).toBe(geometry.background);
+    expect(activeVisual.border).not.toBe(geometry.border);
+    expect(activeVisual.background).not.toBe(geometry.background);
   });
 });
