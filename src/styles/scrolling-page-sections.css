@@ -13,8 +13,8 @@
   backdrop-filter: none;
 }
 
-.page-card-scroll .ui-page-stack > .panel:first-child,
-.page-card-scroll .ui-page-stack > .ui-primary-surface:first-child,
+.page-card-scroll > * > .panel:first-child,
+.page-card-scroll > * > .ui-primary-surface:first-child,
 .page-card-scroll .transport-page-actions + .panel,
 .page-card-scroll .transport-page-actions + .ui-primary-surface {
   border-top: 0;
