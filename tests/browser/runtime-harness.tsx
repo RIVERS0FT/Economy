@@ -64,6 +64,7 @@ import '../../src/styles/game-guide.css';
 import '../../src/styles/financial-backdrop.css';
 import '../../src/styles/province-map.css';
 import '../../src/styles/strategic-game-shell.css';
+import '../../src/styles/scrolling-page-sections.css';
 import provinces from '../../shared/provinces.json';
 
 const localActivityResult = loadLocalActivity(123);
@@ -1692,7 +1693,11 @@ function AuctionHarness() {
     }];
     return next;
   }, [tab]);
-  return <AuctionPage model={model} />;
+  return (
+    <GameShell model={model}>
+      <AuctionPage model={model} />
+    </GameShell>
+  );
 }
 
 function ScrollOwnershipHarness() {

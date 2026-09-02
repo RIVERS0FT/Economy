@@ -36,8 +36,10 @@ requireText('src/styles/frosted-glass-surfaces.css', [
   'border-radius: 24px;',
 ]);
 requireText('tests/browser/frosted-glass-layout.spec.ts', [
-  'desktop chrome and page panels use CSS frosted glass without Liquid Glass DOM',
+  'desktop chrome uses CSS frosted glass without Liquid Glass DOM while scrolling page sections stay flat',
   'player desktop uses one workspaceCard host for the sidebar and active page',
+  "expect(styles.panel.backdropFilter).toBe('none')",
+  "expect(styles.panel.borderRadius).toBe('0px')",
   "toHaveCSS('border-radius', '24px')",
   "toContain('blur(18px)')",
 ]);
@@ -49,9 +51,14 @@ requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '`blur(18px) saturate(128%)`',
   '桌面状态栏和认证卡片圆角为 `24px`',
 ]);
+requireText('docs/OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md', [
+  '唯一毛玻璃 `workspaceCard`',
+  '结构性 `Panel`',
+  '不得因为外层 `workspaceCard` 使用毛玻璃而恢复毛玻璃背景、blur、阴影或圆角子卡',
+]);
 
 if (failures.length) {
   console.error('桌面一级表面与毛玻璃材质验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
-console.log('桌面一级卡片、玩家状态栏与管理员工作栏的共享毛玻璃材质验证通过。');
+console.log('桌面外壳毛玻璃与滚动正文平面表面边界验证通过。');

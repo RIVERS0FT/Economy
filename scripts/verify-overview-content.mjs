@@ -372,7 +372,9 @@ requireAll(paths.pageDesign, [
 ]);
 requireAll(paths.uiDesign, ['## 10. 概览布局', '经营决策优先', '签到日历']);
 requireAll(paths.integrityDesign, [
-  '概览使用参考大战略建筑页面的左侧毛玻璃业务面板',
+  '概览位于玩家外壳唯一毛玻璃 `workspaceCard` 的左侧页面区域',
+  '结构性 `Panel`',
+  '不得因为外层 `workspaceCard` 使用毛玻璃而恢复毛玻璃背景、blur、阴影或圆角子卡',
   '桌面工作区右侧：StrategicWorkspaceChrome → StrategicOutliner',
   '移动工作区顶部：同一 StrategicOutliner DOM',
   '教程属于 `StrategicOutliner`',
