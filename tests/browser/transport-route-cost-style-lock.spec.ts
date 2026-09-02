@@ -21,7 +21,7 @@ test('transport draft line style follows mode and map editor clears desktop and 
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^运输/ }).click();
-  await page.locator('.transport-page-actions').getByRole('button', { name: '增加路线', exact: true }).click();
+  await page.locator('.transport-page-footer').getByRole('button', { name: '增加路线', exact: true }).click();
 
   const statusBar = page.locator('.asset-bar');
   const pickingBar = page.locator('.transport-map-picking-bar');
@@ -59,22 +59,39 @@ test('transport draft line style follows mode and map editor clears desktop and 
   expect(mobilePickingBox!.y + mobilePickingBox!.height).toBeLessThanOrEqual(844 + 1);
 });
 
-test('scrolling page content uses divider sections instead of rounded cards', async ({ page }) => {
+test('transport route cards stay rounded without row dividers and the add action stays pinned to the page bottom', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^运输/ }).click();
 
   await expect(page.locator('.transport-route-card')).toHaveCount(0);
   await expect(page.getByText('暂无运输路线。选择“增加路线”后直接在地图上依次选择站点。')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '运输路线', exact: true })).toHaveCount(0);
+
+  const footer = page.locator('.transport-page-footer');
+  const addRoute = footer.getByRole('button', { name: '增加路线', exact: true });
+  await expect(footer).toBeVisible();
+  await expect(addRoute).toBeVisible();
 
   const visual = await page.locator('.page-card-scroll').evaluate((container) => {
+    const routesPanel = container.querySelector<HTMLElement>('.transport-routes-panel');
+    if (!routesPanel) throw new Error('transport routes panel missing');
+
     const routeGrid = document.createElement('div');
-    routeGrid.className = 'transport-route-grid';
-    const firstRow = document.createElement('button');
-    firstRow.className = 'transport-route-card';
-    const lastRow = document.createElement('button');
-    lastRow.className = 'transport-route-card';
-    routeGrid.append(firstRow, lastRow);
+    routeGrid.className = 'transport-route-grid transport-route-style-fixture';
+    for (let index = 0; index < 10; index += 1) {
+      const routeCard = document.createElement('button');
+      routeCard.type = 'button';
+      routeCard.className = 'transport-route-card ui-entity-card';
+      routeCard.style.minHeight = '160px';
+      routeCard.textContent = `route-${index}`;
+      routeGrid.append(routeCard);
+    }
+    routesPanel.prepend(routeGrid);
+
+    const firstCard = routeGrid.firstElementChild as HTMLElement;
+    const firstStyle = getComputedStyle(firstCard);
+    const gridStyle = getComputedStyle(routeGrid);
 
     const legacyPanel = document.createElement('article');
     legacyPanel.className = 'panel leaderboard-board-card';
@@ -87,18 +104,17 @@ test('scrolling page content uses divider sections instead of rounded cards', as
     secondSection.className = 'transport-page-section';
     sectionGroup.append(firstSection, secondSection);
 
-    container.append(routeGrid, legacyPanel, sectionGroup);
+    container.append(legacyPanel, sectionGroup);
 
-    const firstStyle = getComputedStyle(firstRow);
-    const lastStyle = getComputedStyle(lastRow);
     const panelStyle = getComputedStyle(legacyPanel);
     const firstSectionStyle = getComputedStyle(firstSection);
     const secondSectionStyle = getComputedStyle(secondSection);
     const result = {
       routeBorderRadius: firstStyle.borderRadius,
+      routeBorderTopWidth: firstStyle.borderTopWidth,
       routeBorderBottomWidth: firstStyle.borderBottomWidth,
-      routeBorderBottomStyle: firstStyle.borderBottomStyle,
-      routeLastBorderBottomWidth: lastStyle.borderBottomWidth,
+      routeBackground: firstStyle.backgroundColor,
+      routeGridRowGap: gridStyle.rowGap,
       panelBorderRadius: panelStyle.borderRadius,
       panelBorderTopWidth: panelStyle.borderTopWidth,
       panelBackdropFilter: panelStyle.backdropFilter,
@@ -107,20 +123,43 @@ test('scrolling page content uses divider sections instead of rounded cards', as
       secondSectionBorderTopStyle: secondSectionStyle.borderTopStyle,
     };
 
-    routeGrid.remove();
     legacyPanel.remove();
     sectionGroup.remove();
     return result;
   });
 
-  expect(visual.routeBorderRadius).toBe('0px');
+  expect(visual.routeBorderRadius).not.toBe('0px');
+  expect(visual.routeBorderTopWidth).toBe('1px');
   expect(visual.routeBorderBottomWidth).toBe('1px');
-  expect(visual.routeBorderBottomStyle).toBe('solid');
-  expect(visual.routeLastBorderBottomWidth).toBe('0px');
+  expect(visual.routeBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(visual.routeGridRowGap).not.toBe('0px');
   expect(visual.panelBorderRadius).toBe('0px');
   expect(visual.panelBorderTopWidth).toBe('1px');
   expect(visual.panelBackdropFilter).toBe('none');
   expect(visual.firstSectionBorderTopWidth).toBe('0px');
   expect(visual.secondSectionBorderTopWidth).toBe('1px');
   expect(visual.secondSectionBorderTopStyle).toBe('solid');
+
+  const scroll = page.locator('.page-card-scroll');
+  const [scrollBox, footerBefore] = await Promise.all([scroll.boundingBox(), footer.boundingBox()]);
+  expect(scrollBox).not.toBeNull();
+  expect(footerBefore).not.toBeNull();
+  expect(footerBefore!.y + footerBefore!.height).toBeLessThanOrEqual(scrollBox!.y + scrollBox!.height + 1);
+
+  const scrollTop = await scroll.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    return element.scrollTop;
+  });
+  expect(scrollTop).toBeGreaterThan(0);
+  const footerAfter = await footer.boundingBox();
+  expect(footerAfter).not.toBeNull();
+  expect(Math.abs(footerAfter!.y - footerBefore!.y)).toBeLessThanOrEqual(1);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(footer).toBeVisible();
+  await expect(addRoute).toBeVisible();
+  const [mobileScrollBox, mobileFooterBox] = await Promise.all([scroll.boundingBox(), footer.boundingBox()]);
+  expect(mobileScrollBox).not.toBeNull();
+  expect(mobileFooterBox).not.toBeNull();
+  expect(mobileFooterBox!.y + mobileFooterBox!.height).toBeLessThanOrEqual(mobileScrollBox!.y + mobileScrollBox!.height + 1);
 });
