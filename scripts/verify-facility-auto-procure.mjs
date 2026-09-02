@@ -178,8 +178,6 @@ for (const [file, texts] of Object.entries({
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md': ['“一键购齐并建造”仍属于即时建设'],
   'docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md': ['一键购齐并建造不会产生施工任务'],
   'docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md': ['一键购齐并建造同样不注册施工截止时间'],
-  'docs/README.md': ['缺料且当前卖盘足够时允许在同一建造事务内执行真实统一订单簿 FOK 采购', '缺料买单'],
-  'README.md': ['缺料且当前卖盘足够时可继续一键从真实统一订单簿 FOK 购齐后建造', '缺料买单'],
 })) {
   if (!fs.existsSync(path.join(root, file))) {
     failures.push(`缺少文件：${file}`);
@@ -187,6 +185,14 @@ for (const [file, texts] of Object.entries({
   }
   for (const text of texts) requireText(file, text);
 }
+
+for (const owner of [
+  'INDUSTRY_AND_PRODUCTION_DESIGN.md',
+  'UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+  'WAREHOUSE_EXPANSION_DESIGN.md',
+  'PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  'SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+]) requireText('docs/README.md', `\`${owner}\``);
 
 requireText('package.json', '"verify:facility-auto-procure": "node scripts/verify-facility-auto-procure.mjs"');
 requireText('package.json', 'npm run verify:facility-auto-procure');
@@ -203,7 +209,6 @@ forbidText('src/utils/facilityBuildProcurement.ts', 'quoteFacilityBuildProcureme
 forbidText('src/pages/BuildingsPage.tsx', '买价会与自己的卖单交叉，请先撤单或降低价格。');
 forbidText('server/test/instant-facility-construction.test.js', 'still requires warehouse space for market delivery');
 forbidText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '资金或仓库不足');
-forbidText('docs/README.md', '仓库临时交割');
 forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '临时交割空间');
 
 if (failures.length > 0) {
