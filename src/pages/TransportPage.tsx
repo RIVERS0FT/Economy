@@ -5,7 +5,7 @@ import { useTransportRouteDraft, type TransportRouteDraft } from '../components/
 import { CompactNumber } from '../components/ui/CompactNumber';
 import { TextInput } from '../components/ui/FormControls';
 import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
-import { Button, PageLayout, PagePanel, StatusTag, WidgetHeading } from '../components/ui/layout';
+import { Button, PageLayout, StatusTag, WidgetHeading } from '../components/ui/layout';
 import { useNow } from '../hooks/useNow';
 import type { TransportModeId, TransportRoute, TransportShipment, TransportTripType } from '../types';
 import { formatCurrency } from '../utils/formatters';
@@ -15,11 +15,11 @@ import {
   TRANSPORT_DEFAULT_TRIP_TYPE,
   TRANSPORT_MAX_ROUTES_PER_PLAYER,
   TRANSPORT_MODES,
-  transportDeliveryStopIds,
+  transportRouteSetupCost,
   transportRouteStopIds,
 } from '../utils/provinceLogistics';
 
-type TransportRouteView = TransportRoute;
+type TransportRouteView = TransportRoute & { setupCost?: number };
 type ManifestEntry = { productId: string; destinationProvinceId: string; quantity: number };
 type LegPlanEntry = {
   fromProvinceId: string;
@@ -131,18 +131,6 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
     beginPicking();
   }
 
-  function beginEditRoute(route: TransportRouteView) {
-    setDraft({
-      routeId: route.id,
-      sourceProvinceId: route.sourceProvinceId,
-      destinationProvinceId: route.destinationProvinceId,
-      viaProvinceIds: Array.isArray(route.viaProvinceIds) ? [...route.viaProvinceIds] : [],
-      tripType: route.tripType ?? TRANSPORT_DEFAULT_TRIP_TYPE,
-      mode: route.mode,
-    });
-    beginPicking();
-  }
-
   async function saveRouteDraft() {
     if (!routeDraft) return;
     const stops = transportRouteStopIds(routeDraft);
@@ -150,12 +138,14 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
       await model.showResult({ ok: false, message: '请先在地图上选择完整运输路线' });
       return;
     }
-    const input = mutationInput(routeDraft);
+    if (routeDraft.routeId) {
+      await model.showResult({ ok: false, message: '路线创建后不可修改，请删除后重新建立' });
+      closeDraft();
+      return;
+    }
     const ok = await runMutation(
-      routeDraft.routeId ? `route-update:${routeDraft.routeId}` : 'route-create',
-      () => routeDraft.routeId
-        ? model.updateTransportRoute(routeDraft.routeId, input)
-        : model.createTransportRoute(input),
+      'route-create',
+      () => model.createTransportRoute(mutationInput(routeDraft)),
     );
     if (ok) closeDraft();
   }
@@ -236,32 +226,33 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
   }
 
   const pendingDraftPanel = routeDraft && !picking ? (
-    <PagePanel className="transport-route-draft-panel" data-route-draft-id={routeDraft.routeId ?? 'new'}>
+    <section className="transport-page-section transport-route-draft-panel" data-route-draft-id={routeDraft.routeId ?? 'new'}>
       <WidgetHeading
-        title={routeDraft.routeId ? '地图修改待保存' : '新路线待保存'}
-        action={<StatusTag tone="neutral">只能通过地图修改路线</StatusTag>}
+        title="新路线待保存"
+        action={<StatusTag tone="warning">保存后不可修改</StatusTag>}
       />
       {routePath(routeDraft)}
       <div className="transport-route-summary-grid">
         <span><small>行程</small><strong>{routeTripLabel(routeDraft)}</strong></span>
         <span><small>运输方式</small><strong>{TRANSPORT_MODES[routeDraft.mode]?.name ?? routeDraft.mode}</strong></span>
         <span><small>站点</small><strong>{transportRouteStopIds(routeDraft).length}</strong></span>
+        <span><small>一次性建线费</small><strong>{formatCurrency(transportRouteSetupCost(routeDraft, routeDraft.mode, provinceById))}</strong></span>
       </div>
       <div className="transport-route-editor-actions">
-        <Button variant="primary" disabled={Boolean(pendingAction)} onClick={() => void saveRouteDraft()}>保存路线</Button>
-        <Button variant="secondary" disabled={Boolean(pendingAction)} onClick={closeDraft}>取消修改</Button>
+        <Button variant="primary" disabled={Boolean(pendingAction)} onClick={() => void saveRouteDraft()}>创建路线</Button>
+        <Button variant="secondary" disabled={Boolean(pendingAction)} onClick={closeDraft}>取消</Button>
       </div>
-    </PagePanel>
+    </section>
   ) : null;
 
   if (detailRouteId) {
     if (!detailRoute) {
       return (
         <PageLayout title="运输路线">
-          <PagePanel>
+          <section className="transport-page-section">
             <p className="transport-empty">该运输路线不存在或已删除。</p>
             <Button variant="secondary" onClick={() => pageNavigation?.replacePage({ type: 'tab', tab: 'transport' })}>返回运输</Button>
-          </PagePanel>
+          </section>
         </PageLayout>
       );
     }
@@ -272,12 +263,11 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
       .sort((left, right) => Number(right.createdAt || 0) - Number(left.createdAt || 0));
     const history = routeShipments.filter((shipment) => shipment.status === 'arrived');
     const routeMode = TRANSPORT_MODES[detailRoute.mode];
-    const editingThisRoute = routeDraft?.routeId === detailRoute.id;
 
     return (
       <PageLayout title={visibleRouteName(detailRoute)}>
         <div className="transport-page-content" data-transport-route-detail={detailRoute.id}>
-          <PagePanel className="transport-route-detail-panel">
+          <section className="transport-page-section transport-route-detail-panel">
             <WidgetHeading
               title="路线设置"
               action={<StatusTag tone={activeShipment ? 'info' : 'neutral'}>{activeShipment ? '运输中' : '等待发运'}</StatusTag>}
@@ -304,33 +294,32 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
               <span><small>运输方式</small><strong>{routeMode?.name ?? detailRoute.mode}</strong></span>
               <span><small>最大载荷</small><strong><CompactNumber value={routeMode?.capacity ?? 0} /></strong></span>
               <span><small>站点</small><strong>{transportRouteStopIds(detailRoute).length}</strong></span>
+              <span><small>建线投入</small><strong>{formatCurrency(Number(detailRoute.setupCost || 0))}</strong></span>
             </div>
             <p className="transport-route-auto-note">路线没有手动发运按钮。服务器在正常世界推进中自动选择有正预期净价差的货物，满足库存、运力和资金条件后立即发运。</p>
+            <p className="transport-route-auto-note">路线创建后不可修改路径、行程或运输方式，不提供“在地图上编辑路线”入口；需要调整时请删除后重新建立并再次支付建线费。</p>
             <div className="transport-route-editor-actions">
-              <Button variant="secondary" disabled={Boolean(pendingAction)} onClick={() => beginEditRoute(detailRoute)}>在地图上编辑路线</Button>
               <Button variant="danger" disabled={Boolean(pendingAction) || Boolean(activeShipment)} onClick={() => void deleteRoute(detailRoute)}>删除路线</Button>
             </div>
-          </PagePanel>
+          </section>
 
-          {editingThisRoute ? pendingDraftPanel : null}
-
-          <PagePanel className="transport-route-current-panel">
+          <section className="transport-page-section transport-route-current-panel">
             <WidgetHeading title="当前运输" />
             {activeShipment ? (
               <ul className="transport-shipment-list">{shipmentCard(activeShipment, true)}</ul>
             ) : (
               <p className="transport-empty">当前没有运输在途；条件满足后会自动发运。</p>
             )}
-          </PagePanel>
+          </section>
 
-          <PagePanel className="transport-route-history-panel">
+          <section className="transport-page-section transport-route-history-panel">
             <WidgetHeading title="运输记录" />
             {history.length > 0 ? (
               <ul className="transport-shipment-list">{history.map((shipment) => shipmentCard(shipment, false))}</ul>
             ) : (
               <p className="transport-empty">该路线暂无已完成运输记录。</p>
             )}
-          </PagePanel>
+          </section>
         </div>
       </PageLayout>
     );
@@ -346,7 +335,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
 
         {pendingDraftPanel}
 
-        <PagePanel className="transport-routes-panel">
+        <section className="transport-page-section transport-routes-panel">
           <WidgetHeading title="运输路线" action={<StatusTag tone="neutral">{routes.length}/{TRANSPORT_MAX_ROUTES_PER_PLAYER}</StatusTag>} />
           {routes.length > 0 ? (
             <div className="transport-route-grid">
@@ -359,6 +348,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
                     className="transport-route-card"
                     key={route.id}
                     data-route-id={route.id}
+                    data-transport-mode={route.mode}
                     onClick={() => pageNavigation?.pushPage({ type: 'transport-route', routeId: route.id })}
                     onMouseEnter={() => setHighlightedRouteStops(stops)}
                     onMouseLeave={() => setHighlightedRouteStops(null)}
@@ -374,6 +364,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
                       <span><small>方式</small><strong>{TRANSPORT_MODES[route.mode]?.name ?? route.mode}</strong></span>
                       <span><small>行程</small><strong>{routeTripLabel(route)}</strong></span>
                       <span><small>站点</small><strong>{stops.length}</strong></span>
+                      <span><small>建线投入</small><strong>{formatCurrency(Number(route.setupCost || 0))}</strong></span>
                     </div>
                   </button>
                 );
@@ -382,7 +373,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
           ) : (
             <p className="transport-empty">暂无运输路线。选择“增加路线”后直接在地图上依次选择站点。</p>
           )}
-        </PagePanel>
+        </section>
       </div>
     </PageLayout>
   );
