@@ -107,6 +107,20 @@ jobs:
 
           '''.replace('          ', '')
           ui = ui[:component_start] + compact_components + ui[component_tail:]
+
+          artwork_start = ui.index('当前 C1 复杂度工厂')
+          artwork_tail = ui.index('C1–C7 全部图片都必须', artwork_start)
+          compact_artwork = '''当前 C1–C7 正式工厂均采用统一的新场景插画语言并使用独立原创构图；具体工厂 ID、产业语义和增删范围以服务器正式目录为唯一来源，DESIGN 不再逐级复制完整工厂清单。每张图必须突出对应产业的核心建筑、设备、原料或产物，缩小并按 `4:5` 居中裁切后仍可直接识别，不得把旧图作为生成、编辑、描摹或构图输入。
+
+          '''.replace('          ', '')
+          ui = ui[:artwork_start] + compact_artwork + ui[artwork_tail:]
+
+          runtime_start = ui.index('运行时不得直接加载 1024px 源图')
+          runtime_tail = ui.index('新增或删除正式工厂时', runtime_start)
+          compact_runtime = '''运行时只加载构建阶段从 1024px 源图生成的 256px RGBA 工厂缩略图；生成目录属于可再生成产物，不提交仓库。`FacilityIcon` 只在已批准的主视觉上下文使用缩略图，未知 ID 与低流量模式回退共享厂房 SVG；插画始终等比 `cover` 居中裁切，运行／异常／停止／悬停等状态只能由边框、背景、文字、胶囊和数量表达，不得给插画本身着色。源图、缩略图、目录映射、批准上下文与基线哈希由专项生成脚本和 verifier 直接检查，不在 DESIGN 复制完整实现路径清单。
+
+          '''.replace('          ', '')
+          ui = ui[:runtime_start] + compact_runtime + ui[runtime_tail:]
           ui_path.write_text(ui.rstrip() + '\n')
 
           primary_path = Path('docs/PRIMARY_SURFACE_INSET_DESIGN.md')
