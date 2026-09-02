@@ -192,6 +192,21 @@ const verificationNeedsDependencies = (root, path) => {
   return false;
 };
 
+const VERIFICATION_GENERATED_PREREQUISITES = new Map([
+  ['scripts/verify-local-game-preview.mjs', [['npm', ['run', 'generate:local-preview']]]],
+  ['scripts/verify-product-artwork.mjs', [['npm', ['run', 'generate:product-artwork']]]],
+  ['scripts/verify-facility-artwork.mjs', [['npm', ['run', 'generate:facility-artwork']]]],
+]);
+
+function addVerificationCommand(commands, seenCommands, entrypoint) {
+  const prerequisites = VERIFICATION_GENERATED_PREREQUISITES.get(entrypoint) ?? [];
+  for (const [command, args] of prerequisites) {
+    addCommand(commands, seenCommands, command, args);
+  }
+  addCommand(commands, seenCommands, 'node', [entrypoint]);
+  return prerequisites.length > 0;
+}
+
 const findFullTrigger = (changedFiles) => changedFiles.find((path) => FULL_TRIGGER_PATTERNS.some((pattern) => pattern.test(path)));
 const verificationEntrypoint = (path) => COMPOSED_VERIFY_ENTRYPOINTS.get(path) ?? path;
 
@@ -259,7 +274,7 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
 
   for (const path of changedFiles.filter(isVerificationScript)) {
     const entrypoint = verificationEntrypoint(path);
-    addCommand(commands, seenCommands, 'node', [entrypoint]);
+    if (addVerificationCommand(commands, seenCommands, entrypoint)) plan.needsDependencies = true;
     if (verificationNeedsDependencies(root, entrypoint)) plan.needsDependencies = true;
   }
   for (const path of changedFiles.filter(isServerTest)) {
@@ -284,7 +299,7 @@ export function selectCiPlan(inputFiles, { root = ROOT, forceFull = false } = {}
 
   for (const candidate of verifyCandidates) {
     if (isDomainCandidate(candidate) || isReferenceCandidate(candidate)) {
-      addCommand(commands, seenCommands, 'node', [candidate]);
+      if (addVerificationCommand(commands, seenCommands, candidate)) plan.needsDependencies = true;
       if (verificationNeedsDependencies(root, candidate)) plan.needsDependencies = true;
     }
   }

@@ -148,6 +148,14 @@ if (docsPlan.mode !== 'targeted') failures.push('纯设计文档改动不应默�
 if (!hasCommand(docsPlan, 'node', ['scripts/verify-document-authority.mjs'])) failures.push('设计文档改动必须执行文档权威性检查');
 if (!docsPlan.needsDependencies) failures.push('选中的 verifier 直接依赖 npm 包时 targeted CI 必须安装依赖');
 
+const pageDocsPlan = selectCiPlan(['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md']);
+if (
+  hasCommand(pageDocsPlan, 'node', ['scripts/verify-local-game-preview.mjs'])
+  && !hasCommand(pageDocsPlan, 'npm', ['run', 'generate:local-preview'])
+) {
+  failures.push('选中免登录预览 verifier 的 targeted CI 必须先生成忽略跟踪快照');
+}
+
 const directBrowserPlan = selectCiPlan(['tests/browser/bank-runtime.spec.ts']);
 if (directBrowserPlan.mode !== 'targeted' || !directBrowserPlan.browser.tests.includes('tests/browser/bank-runtime.spec.ts')) {
   failures.push('直接修改 Playwright spec 时必须执行该 spec');
