@@ -6,7 +6,7 @@ function alphaFromColor(color: string) {
 }
 
 test.describe('shared frosted-glass shell', () => {
-  test('desktop chrome and page panels use CSS frosted glass without Liquid Glass DOM', async ({ page }) => {
+  test('desktop chrome uses CSS frosted glass without Liquid Glass DOM while scrolling page sections stay flat', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
 
@@ -26,6 +26,7 @@ test.describe('shared frosted-glass shell', () => {
           backgroundColor: style.backgroundColor,
           backdropFilter: style.backdropFilter || style.webkitBackdropFilter || '',
           borderWidth: style.borderTopWidth,
+          borderRadius: style.borderRadius,
           boxShadow: style.boxShadow,
         };
       };
@@ -39,14 +40,18 @@ test.describe('shared frosted-glass shell', () => {
       };
     });
 
-    for (const style of [styles.surface, styles.panel]) {
-      expect(alphaFromColor(style.backgroundColor)).toBeGreaterThan(0.5);
-      expect(alphaFromColor(style.backgroundColor)).toBeLessThan(0.95);
-      expect(style.backdropFilter).toContain('blur(18px)');
-      expect(style.borderWidth).toBe('1px');
-      expect(style.boxShadow).not.toBe('none');
-    }
+    expect(alphaFromColor(styles.surface.backgroundColor)).toBeGreaterThan(0.5);
+    expect(alphaFromColor(styles.surface.backgroundColor)).toBeLessThan(0.95);
+    expect(styles.surface.backdropFilter).toContain('blur(18px)');
+    expect(styles.surface.borderWidth).toBe('1px');
+    expect(styles.surface.boxShadow).not.toBe('none');
     expect(styles.highlightContent).not.toBe('none');
+
+    expect(alphaFromColor(styles.panel.backgroundColor)).toBe(0);
+    expect(styles.panel.backdropFilter).toBe('none');
+    expect(styles.panel.borderWidth).toBe('1px');
+    expect(styles.panel.borderRadius).toBe('0px');
+    expect(styles.panel.boxShadow).toBe('none');
   });
 
   test('player desktop uses one workspaceCard host for the sidebar and active page', async ({ page }) => {
@@ -106,8 +111,8 @@ test.describe('shared frosted-glass shell', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(surface).toHaveCount(1);
     await expect(surface).toHaveAttribute('data-instance-probe', 'stable');
-    await expect(surface).toHaveCSS('border-radius', '40px');
     const navigationSurface = page.locator('.mobile-bottom-navigation .frosted-glass-surface');
+    await expect(surface).toHaveCSS('border-radius', '40px');
     await expect(navigationSurface).toHaveAttribute('data-frosted-glass-variant', 'mobileNavigation');
     await expect(navigationSurface).toHaveCSS('border-radius', '40px');
   });
