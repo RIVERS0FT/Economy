@@ -264,10 +264,12 @@ export class EconomyStore extends CoreEconomyStore {
         response = this.finalizeProductionInputs(user, prepared.baseline, response, requestMeta, now);
       }
     }
-    return {
-      ...response,
-      stateSnapshot: this.getStateSnapshot(user, null, now),
-    };
+    Object.defineProperty(response, 'stateSnapshot', {
+      configurable: true,
+      enumerable: false,
+      value: this.getStateSnapshot(user, null, now),
+    });
+    return response;
   }
 
   enqueueAuthoritativeWrite(options, callback) {
