@@ -36,15 +36,26 @@ async function inspectFacilityRow(page: import('@playwright/test').Page) {
   const row = page.locator('.global-facility-catalog-row').first();
   await expect(row).toBeVisible();
   return row.evaluate((element) => {
+    const header = document.querySelector<HTMLElement>('.global-facility-catalog-header');
     const artwork = element.querySelector<HTMLElement>('.global-facility-catalog-row__artwork');
     const open = element.querySelector<HTMLElement>('.global-facility-catalog-row__open');
     const quick = element.querySelector<HTMLElement>('.global-facility-catalog-row__quick-controls');
+    const name = element.querySelector<HTMLElement>('.global-facility-catalog-row__identity > strong');
     const profit = element.querySelector<HTMLElement>('.global-facility-catalog-row__profit');
-    if (!artwork || !open || !quick || !profit) throw new Error('facility catalog layout fixture is incomplete');
+    const count = element.querySelector<HTMLElement>('.global-facility-catalog-row__metric:not(.global-facility-catalog-row__profit)');
+    const productionTrigger = element.querySelector<HTMLElement>(".global-facility-catalog-row__quick-selector .ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger");
+    if (!header || !artwork || !open || !quick || !name || !profit || !count || !productionTrigger) {
+      throw new Error('facility catalog layout fixture is incomplete');
+    }
+    const headerStyle = getComputedStyle(header);
     const artworkStyle = getComputedStyle(artwork);
     const openStyle = getComputedStyle(open);
     const quickStyle = getComputedStyle(quick);
     const rowStyle = getComputedStyle(element);
+    const nameStyle = getComputedStyle(name);
+    const profitStyle = getComputedStyle(profit);
+    const countStyle = getComputedStyle(count);
+    const productionTriggerStyle = getComputedStyle(productionTrigger);
     const artworkBox = artwork.getBoundingClientRect();
     const openBox = open.getBoundingClientRect();
     const quickBox = quick.getBoundingClientRect();
@@ -54,6 +65,8 @@ async function inspectFacilityRow(page: import('@playwright/test').Page) {
       rowScrollWidth: element.scrollWidth,
       rowHeight: element.getBoundingClientRect().height,
       rowColumns: rowStyle.gridTemplateColumns,
+      rowBorderTop: rowStyle.borderTopWidth,
+      headerBorderBottom: headerStyle.borderBottomWidth,
       artworkPosition: artworkStyle.position,
       artworkTransform: artworkStyle.transform,
       artworkGridColumn: artworkStyle.gridColumnStart,
@@ -75,11 +88,20 @@ async function inspectFacilityRow(page: import('@playwright/test').Page) {
       quickBorderTop: quickStyle.borderTopWidth,
       quickBackground: quickStyle.backgroundColor,
       profitLeft: profitBox.left,
+      nameFontSize: Number.parseFloat(nameStyle.fontSize),
+      nameFontWeight: nameStyle.fontWeight,
+      profitFontSize: Number.parseFloat(profitStyle.fontSize),
+      profitFontWeight: profitStyle.fontWeight,
+      countFontSize: Number.parseFloat(countStyle.fontSize),
+      countFontWeight: countStyle.fontWeight,
+      productionTriggerBorderWidth: productionTriggerStyle.borderTopWidth,
+      productionTriggerBackground: productionTriggerStyle.backgroundColor,
+      productionTriggerBoxShadow: productionTriggerStyle.boxShadow,
     };
   });
 }
 
-test('global facility artwork occupies a real grid track and the two rows have visible hierarchy', async ({ page }) => {
+test('global facility artwork keeps a real grid track while building rows remove separators and emphasize key values', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('?preview=game', { waitUntil: 'domcontentloaded' });
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^建筑/ }).click();
@@ -107,10 +129,20 @@ test('global facility artwork occupies a real grid track and the two rows have v
   expect(desktop.openBottom).toBeLessThanOrEqual(desktop.quickTop + 1);
   expect(desktop.openHeight).toBeGreaterThanOrEqual(29);
   expect(desktop.openHeight).toBeLessThanOrEqual(31);
-  expect(desktop.openBorderLeft).toBe('1px');
-  expect(desktop.quickBorderLeft).toBe('1px');
-  expect(desktop.quickBorderTop).toBe('1px');
-  expect(desktop.quickBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(desktop.rowBorderTop).toBe('0px');
+  expect(desktop.headerBorderBottom).toBe('0px');
+  expect(desktop.openBorderLeft).toBe('0px');
+  expect(desktop.quickBorderLeft).toBe('0px');
+  expect(desktop.quickBorderTop).toBe('0px');
+  expect(desktop.quickBackground).toBe('rgba(0, 0, 0, 0)');
+  expect(Number(desktop.nameFontWeight)).toBeGreaterThanOrEqual(700);
+  expect(Number(desktop.profitFontWeight)).toBeGreaterThanOrEqual(700);
+  expect(Number(desktop.countFontWeight)).toBeGreaterThanOrEqual(700);
+  expect(desktop.profitFontSize).toBeGreaterThanOrEqual(desktop.nameFontSize);
+  expect(desktop.countFontSize).toBeGreaterThanOrEqual(desktop.nameFontSize - 1);
+  expect(desktop.productionTriggerBorderWidth).toBe('1px');
+  expect(desktop.productionTriggerBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(desktop.productionTriggerBoxShadow).not.toBe('none');
   expect(Math.abs(desktop.profitLeft - headerProfitLeft)).toBeLessThanOrEqual(1);
   expect(desktop.rowScrollWidth).toBeLessThanOrEqual(desktop.rowClientWidth + 1);
 
@@ -119,6 +151,11 @@ test('global facility artwork occupies a real grid track and the two rows have v
   expect(narrow.artworkPosition).toBe('static');
   expect(narrow.artworkRight).toBeLessThan(narrow.openLeft);
   expect(Math.abs(narrow.openLeft - narrow.quickLeft)).toBeLessThanOrEqual(1);
+  expect(narrow.rowBorderTop).toBe('0px');
+  expect(narrow.quickBorderTop).toBe('0px');
+  expect(Number(narrow.nameFontWeight)).toBeGreaterThanOrEqual(700);
+  expect(Number(narrow.profitFontWeight)).toBeGreaterThanOrEqual(700);
+  expect(Number(narrow.countFontWeight)).toBeGreaterThanOrEqual(700);
   expect(narrow.rowScrollWidth).toBeLessThanOrEqual(narrow.rowClientWidth + 1);
   expect(narrow.rowHeight).toBeGreaterThanOrEqual(90);
 });
