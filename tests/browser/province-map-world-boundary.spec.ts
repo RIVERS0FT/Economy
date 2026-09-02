@@ -155,10 +155,10 @@ test('portrait minimum zoom keeps the whole mainland visible and centered instea
     if (!canvas) return false;
     const canvasRect = canvas.getBoundingClientRect();
     const rect = (region as SVGGraphicsElement).getBoundingClientRect();
-    return rect.right >= canvasRect.left - 1
-      && rect.left <= canvasRect.right + 1
-      && rect.bottom >= canvasRect.top - 1
-      && rect.top <= canvasRect.bottom + 1;
+    return rect.left >= canvasRect.left - 1
+      && rect.right <= canvasRect.right + 1
+      && rect.top >= canvasRect.top - 1
+      && rect.bottom <= canvasRect.bottom + 1;
   }));
   expect(visibleStates).toBe(true);
 });
