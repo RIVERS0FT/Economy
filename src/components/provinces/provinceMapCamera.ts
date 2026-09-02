@@ -1,4 +1,4 @@
-export const PROVINCE_MAP_ZOOM_MIN = 0.5;
+export const PROVINCE_MAP_ZOOM_MIN = 1;
 export const PROVINCE_MAP_ZOOM_MAX = 4;
 
 const WHEEL_ZOOM_SENSITIVITY = 0.0016;
@@ -8,7 +8,10 @@ const INPUT_SETTLE_MS = 90;
 const MOBILE_BLANK_DOUBLE_TAP_MS = 360;
 const MOBILE_BLANK_DOUBLE_TAP_DISTANCE = 28;
 const MULTITOUCH_TAP_SUPPRESS_MS = 420;
-const WORLD_PAN_EDGE_INSET = 12;
+const MAINLAND_PAN_EDGE_INSET = 12;
+const MAINLAND_MIN_AREA_RATIO = 2 / 3;
+const MAINLAND_CONTEXT_EXPAND_X = 0.35;
+const MAINLAND_CONTEXT_EXPAND_Y = 0.25;
 
 interface CameraState {
   x: number;
@@ -34,13 +37,15 @@ interface ContainerBounds {
 interface CameraClampMetrics {
   viewportWidth: number;
   viewportHeight: number;
-  worldLeft: number;
-  worldTop: number;
-  worldRight: number;
-  worldBottom: number;
+  focusLeft: number;
+  focusTop: number;
+  focusRight: number;
+  focusBottom: number;
+  baseZoom: number;
+  baseAreaRatio: number;
 }
 
-export interface ProvinceMapCameraWorldBounds {
+export interface ProvinceMapCameraFocusBounds {
   minX: number;
   minY: number;
   maxX: number;
@@ -48,7 +53,7 @@ export interface ProvinceMapCameraWorldBounds {
 }
 
 export interface ProvinceMapCameraOptions {
-  worldBounds?: ProvinceMapCameraWorldBounds;
+  focusBounds?: ProvinceMapCameraFocusBounds;
 }
 
 export interface ProvinceMapCameraController {
@@ -90,12 +95,12 @@ function clampCameraAxis(
   translation: number,
   zoom: number,
   viewportSize: number,
-  worldStart: number,
-  worldEnd: number,
+  focusStart: number,
+  focusEnd: number,
 ) {
-  const edgeInset = Math.min(WORLD_PAN_EDGE_INSET, viewportSize / 2);
-  const scaledStart = worldStart * zoom;
-  const scaledEnd = worldEnd * zoom;
+  const edgeInset = Math.min(MAINLAND_PAN_EDGE_INSET, viewportSize / 2);
+  const scaledStart = focusStart * zoom;
+  const scaledEnd = focusEnd * zoom;
   const scaledExtent = scaledEnd - scaledStart;
   if (scaledExtent <= Math.max(0, viewportSize - edgeInset * 2)) {
     return viewportSize / 2 - (scaledStart + scaledEnd) / 2;
@@ -105,6 +110,21 @@ function clampCameraAxis(
     viewportSize - edgeInset - scaledEnd,
     edgeInset - scaledStart,
   );
+}
+
+function minimumPhysicalZoom(
+  viewportWidth: number,
+  viewportHeight: number,
+  focusWidth: number,
+  focusHeight: number,
+) {
+  const viewportArea = viewportWidth * viewportHeight;
+  const focusArea = focusWidth * focusHeight;
+  if (!(viewportArea > 0) || !(focusArea > 0)) return 1;
+  const targetAreaZoom = Math.sqrt((viewportArea * MAINLAND_MIN_AREA_RATIO) / focusArea);
+  const horizontalFit = Math.max(1, viewportWidth - MAINLAND_PAN_EDGE_INSET * 2) / focusWidth;
+  const verticalFit = Math.max(1, viewportHeight - MAINLAND_PAN_EDGE_INSET * 2) / focusHeight;
+  return Math.max(Number.EPSILON, Math.min(targetAreaZoom, horizontalFit, verticalFit));
 }
 
 export function createProvinceMapCamera(
@@ -145,10 +165,14 @@ export function createProvinceMapCamera(
   container.dataset.mapZoomCameraMode = 'static-svg-compositor';
   container.dataset.mapZoomHotPath = 'css-transform';
   container.dataset.mapZoomCommitMode = 'none';
+  container.dataset.mapZoomScaleMode = 'logical-mainland-base';
   container.dataset.mapTapSuppressMs = String(MULTITOUCH_TAP_SUPPRESS_MS);
-  container.dataset.mapPanBoundary = options.worldBounds ? 'world' : 'none';
-  container.dataset.mapPanClampMode = options.worldBounds ? 'continuous' : 'none';
-  container.dataset.mapPanEdgeInset = String(WORLD_PAN_EDGE_INSET);
+  container.dataset.mapPanBoundary = options.focusBounds ? 'mainland-context' : 'none';
+  container.dataset.mapPanClampMode = options.focusBounds ? 'continuous' : 'none';
+  container.dataset.mapPanEdgeInset = String(MAINLAND_PAN_EDGE_INSET);
+  container.dataset.mapFocusAreaTarget = MAINLAND_MIN_AREA_RATIO.toFixed(6);
+  container.dataset.mapContextExpandX = MAINLAND_CONTEXT_EXPAND_X.toFixed(2);
+  container.dataset.mapContextExpandY = MAINLAND_CONTEXT_EXPAND_Y.toFixed(2);
 
   const readBounds = () => {
     if (interactionBounds) return interactionBounds;
@@ -166,7 +190,7 @@ export function createProvinceMapCamera(
   };
 
   const readCameraClampMetrics = (): CameraClampMetrics | null => {
-    if (!options.worldBounds) return null;
+    if (!options.focusBounds) return null;
     if (cameraClampMetrics) return cameraClampMetrics;
     const svg = surface.querySelector<SVGSVGElement>('.province-map-world-svg');
     const viewBox = svg?.viewBox.baseVal;
@@ -178,22 +202,47 @@ export function createProvinceMapCamera(
     const renderedHeight = viewBox.height * fitScale;
     const offsetX = (viewportWidth - renderedWidth) / 2;
     const offsetY = (viewportHeight - renderedHeight) / 2;
+    const focusLeft = offsetX + (options.focusBounds.minX - viewBox.x) * fitScale;
+    const focusTop = offsetY + (options.focusBounds.minY - viewBox.y) * fitScale;
+    const focusRight = offsetX + (options.focusBounds.maxX - viewBox.x) * fitScale;
+    const focusBottom = offsetY + (options.focusBounds.maxY - viewBox.y) * fitScale;
+    const focusWidth = focusRight - focusLeft;
+    const focusHeight = focusBottom - focusTop;
+    const baseZoom = minimumPhysicalZoom(viewportWidth, viewportHeight, focusWidth, focusHeight);
     cameraClampMetrics = {
       viewportWidth,
       viewportHeight,
-      worldLeft: offsetX + (options.worldBounds.minX - viewBox.x) * fitScale,
-      worldTop: offsetY + (options.worldBounds.minY - viewBox.y) * fitScale,
-      worldRight: offsetX + (options.worldBounds.maxX - viewBox.x) * fitScale,
-      worldBottom: offsetY + (options.worldBounds.maxY - viewBox.y) * fitScale,
+      focusLeft,
+      focusTop,
+      focusRight,
+      focusBottom,
+      baseZoom,
+      baseAreaRatio: (focusWidth * baseZoom * focusHeight * baseZoom) / (viewportWidth * viewportHeight),
     };
     return cameraClampMetrics;
   };
 
-  const clampTargetToWorld = () => {
+  const logicalZoomFor = (physicalZoom: number, metrics = readCameraClampMetrics()) => (
+    metrics ? physicalZoom / Math.max(Number.EPSILON, metrics.baseZoom) : physicalZoom
+  );
+
+  const clampTargetToFocus = () => {
     const metrics = readCameraClampMetrics();
     if (!metrics) return;
-    const nextX = clampCameraAxis(target.x, target.zoom, metrics.viewportWidth, metrics.worldLeft, metrics.worldRight);
-    const nextY = clampCameraAxis(target.y, target.zoom, metrics.viewportHeight, metrics.worldTop, metrics.worldBottom);
+    const logicalZoom = clamp(logicalZoomFor(target.zoom, metrics), PROVINCE_MAP_ZOOM_MIN, PROVINCE_MAP_ZOOM_MAX);
+    const progress = clamp(
+      (logicalZoom - PROVINCE_MAP_ZOOM_MIN) / (PROVINCE_MAP_ZOOM_MAX - PROVINCE_MAP_ZOOM_MIN),
+      0,
+      1,
+    );
+    const focusWidth = metrics.focusRight - metrics.focusLeft;
+    const focusHeight = metrics.focusBottom - metrics.focusTop;
+    const focusLeft = metrics.focusLeft - focusWidth * MAINLAND_CONTEXT_EXPAND_X * progress;
+    const focusRight = metrics.focusRight + focusWidth * MAINLAND_CONTEXT_EXPAND_X * progress;
+    const focusTop = metrics.focusTop - focusHeight * MAINLAND_CONTEXT_EXPAND_Y * progress;
+    const focusBottom = metrics.focusBottom + focusHeight * MAINLAND_CONTEXT_EXPAND_Y * progress;
+    const nextX = clampCameraAxis(target.x, target.zoom, metrics.viewportWidth, focusLeft, focusRight);
+    const nextY = clampCameraAxis(target.y, target.zoom, metrics.viewportHeight, focusTop, focusBottom);
     if (Math.abs(nextX - target.x) > 0.001 || Math.abs(nextY - target.y) > 0.001) panClampCount += 1;
     target.x = nextX;
     target.y = nextY;
@@ -208,8 +257,11 @@ export function createProvinceMapCamera(
   };
 
   const publishState = () => {
-    container.dataset.mapZoomCurrent = current.zoom.toFixed(5);
-    container.dataset.mapZoomTarget = target.zoom.toFixed(5);
+    const metrics = readCameraClampMetrics();
+    container.dataset.mapZoomCurrent = logicalZoomFor(current.zoom, metrics).toFixed(5);
+    container.dataset.mapZoomTarget = logicalZoomFor(target.zoom, metrics).toFixed(5);
+    container.dataset.mapZoomBaseScale = (metrics?.baseZoom ?? 1).toFixed(6);
+    container.dataset.mapFocusAreaActual = (metrics?.baseAreaRatio ?? 0).toFixed(6);
     container.dataset.mapCameraX = current.x.toFixed(3);
     container.dataset.mapCameraY = current.y.toFixed(3);
     container.dataset.mapCameraTargetX = target.x.toFixed(3);
@@ -307,8 +359,11 @@ export function createProvinceMapCamera(
     scheduleSettle();
   };
 
-  const applyZoomAround = (zoom: number, point: PointerPosition) => {
-    const nextZoom = clamp(zoom, PROVINCE_MAP_ZOOM_MIN, PROVINCE_MAP_ZOOM_MAX);
+  const applyZoomAround = (logicalZoom: number, point: PointerPosition) => {
+    const metrics = readCameraClampMetrics();
+    const baseZoom = metrics?.baseZoom ?? 1;
+    const nextLogicalZoom = clamp(logicalZoom, PROVINCE_MAP_ZOOM_MIN, PROVINCE_MAP_ZOOM_MAX);
+    const nextZoom = baseZoom * nextLogicalZoom;
     const localX = (point.x - target.x) / Math.max(Number.EPSILON, target.zoom);
     const localY = (point.y - target.y) / Math.max(Number.EPSILON, target.zoom);
     target = {
@@ -316,7 +371,7 @@ export function createProvinceMapCamera(
       x: point.x - localX * nextZoom,
       y: point.y - localY * nextZoom,
     };
-    clampTargetToWorld();
+    clampTargetToFocus();
   };
 
   const reset = () => {
@@ -326,12 +381,21 @@ export function createProvinceMapCamera(
     settleTimer = null;
     interactionBounds = null;
     cameraClampMetrics = null;
-    current = { x: 0, y: 0, zoom: 1 };
-    target = { ...current };
+    const metrics = readCameraClampMetrics();
+    const baseZoom = metrics?.baseZoom ?? 1;
+    target = metrics
+      ? {
+        zoom: baseZoom,
+        x: metrics.viewportWidth / 2 - ((metrics.focusLeft + metrics.focusRight) / 2) * baseZoom,
+        y: metrics.viewportHeight / 2 - ((metrics.focusTop + metrics.focusBottom) / 2) * baseZoom,
+      }
+      : { x: 0, y: 0, zoom: baseZoom };
+    clampTargetToFocus();
+    current = { ...target };
     inputMode = 'reset';
     active = false;
     surface.style.willChange = '';
-    surface.style.transform = 'translate3d(0px, 0px, 0) scale(1)';
+    surface.style.transform = `translate3d(${current.x.toFixed(3)}px, ${current.y.toFixed(3)}px, 0) scale(${current.zoom.toFixed(6)})`;
     writeCount += 1;
     publishState();
   };
@@ -349,7 +413,7 @@ export function createProvinceMapCamera(
       -MAX_WHEEL_LOG_STEP,
       MAX_WHEEL_LOG_STEP,
     );
-    applyZoomAround(target.zoom * Math.exp(logStep), point);
+    applyZoomAround(logicalZoomFor(target.zoom) * Math.exp(logStep), point);
     scheduleWrite('wheel');
   };
 
@@ -406,7 +470,7 @@ export function createProvinceMapCamera(
       const reference = pinchReference ?? { midpoint: nextMidpoint, distance: nextDistance };
       target.x += nextMidpoint.x - reference.midpoint.x;
       target.y += nextMidpoint.y - reference.midpoint.y;
-      applyZoomAround(target.zoom * (nextDistance / reference.distance), nextMidpoint);
+      applyZoomAround(logicalZoomFor(target.zoom) * (nextDistance / reference.distance), nextMidpoint);
       pinchReference = { midpoint: nextMidpoint, distance: nextDistance };
       dragDistance += Math.hypot(next.x - previous.x, next.y - previous.y);
       suppressNextDragClick = true;
@@ -419,7 +483,7 @@ export function createProvinceMapCamera(
     if (dx === 0 && dy === 0) return;
     target.x += dx;
     target.y += dy;
-    clampTargetToWorld();
+    clampTargetToFocus();
     dragDistance += Math.hypot(dx, dy);
     if (dragDistance > POINTER_DRAG_THRESHOLD) suppressNextDragClick = true;
     scheduleWrite('move');
