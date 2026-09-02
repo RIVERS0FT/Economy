@@ -52,34 +52,40 @@
   background: color-mix(in srgb, var(--color-surface-hover) 42%, transparent);
 }
 
-/* Saved and draft transport routes retain their mode in the overlay id so the
- * three network types stay distinguishable without relying on colour alone. */
+/* Saved, highlighted and draft routes retain their transport mode so the three
+ * network types stay distinguishable without relying on colour alone. */
 .province-map-route[data-route-id^='saved-road-'] .province-map-route-path,
+.province-map-route[data-route-id='highlighted-road-route'] .province-map-route-path,
 .province-map-route[data-route-id='draft-road-route'] .province-map-route-path {
   stroke-dasharray: none;
 }
 
 .province-map-route[data-route-id^='saved-rail-'] .province-map-route-path,
+.province-map-route[data-route-id='highlighted-rail-route'] .province-map-route-path,
 .province-map-route[data-route-id='draft-rail-route'] .province-map-route-path {
   stroke-dasharray: 12 3 2 3;
 }
 
 .province-map-route[data-route-id^='saved-air-'] .province-map-route-path,
+.province-map-route[data-route-id='highlighted-air-route'] .province-map-route-path,
 .province-map-route[data-route-id='draft-air-route'] .province-map-route-path {
   stroke-dasharray: 10 8;
 }
 
 .province-map-route[data-route-id^='saved-road-'] .province-map-route-return-path,
+.province-map-route[data-route-id='highlighted-road-route'] .province-map-route-return-path,
 .province-map-route[data-route-id='draft-road-route'] .province-map-route-return-path {
   stroke-dasharray: 5 6;
 }
 
 .province-map-route[data-route-id^='saved-rail-'] .province-map-route-return-path,
+.province-map-route[data-route-id='highlighted-rail-route'] .province-map-route-return-path,
 .province-map-route[data-route-id='draft-rail-route'] .province-map-route-return-path {
   stroke-dasharray: 12 3 2 3;
 }
 
 .province-map-route[data-route-id^='saved-air-'] .province-map-route-return-path,
+.province-map-route[data-route-id='highlighted-air-route'] .province-map-route-return-path,
 .province-map-route[data-route-id='draft-air-route'] .province-map-route-return-path {
   stroke-dasharray: 10 8;
 }
