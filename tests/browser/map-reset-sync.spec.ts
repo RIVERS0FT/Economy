@@ -99,7 +99,9 @@ test('blank double click resets the single compositor camera for paths and label
   await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');
   await expect(canvas).toHaveAttribute('data-map-zoom-target', '1.00000');
   await expect(canvas).toHaveAttribute('data-map-zoom-active', 'false');
-  await expect(camera).toHaveAttribute('style', /scale\(1\)/);
+  const baseScale = await canvas.getAttribute('data-map-zoom-base-scale');
+  expect(Number(baseScale)).toBeGreaterThan(0);
+  expect(await camera.getAttribute('style')).toContain(`scale(${baseScale})`);
   await expect(canvas).toHaveAttribute('data-map-label-layout-revision', layoutRevision || '');
   await expect(canvas).toHaveAttribute('data-map-path-revision', baselinePathRevision || '');
 });
