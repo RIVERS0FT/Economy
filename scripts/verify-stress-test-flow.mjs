@@ -169,6 +169,13 @@ for (const text of [
 ]) {
   assert.equal(read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md').includes(text), true, `服务器设计缺少压力测试规则 ${text}`);
 }
-assert.equal(read('docs/README.md').includes('压力测试执行器、环境隔离、安全门禁'), true, '设计索引缺少压力测试跨模块规则');
+
+// 压力测试属于服务器容量与生产安全验证；设计索引只负责把容量／生产规则
+// 路由到 SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN，不再复制压力场景正文。
+assert.equal(
+  read('docs/README.md').includes('`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`'),
+  true,
+  '设计索引必须登记服务器架构与部署 DESIGN',
+);
 
 console.log('压力测试执行器、事务混合覆盖、隔离预置、协议断言、性能预算、生产安全门禁、报告和工作流均已锁定。');
