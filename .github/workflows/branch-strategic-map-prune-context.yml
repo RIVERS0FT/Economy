@@ -29,6 +29,7 @@ jobs:
 
       - name: Add deterministic 10m context generator
         run: |
+          mkdir -p src/data
           cat > scripts/generate-province-map-world-context.mjs <<'EOF'
           import assert from 'node:assert/strict';
           import { readFileSync, writeFileSync } from 'node:fs';
