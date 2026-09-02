@@ -378,6 +378,8 @@ PUBLIC_ORIGIN=https://game.riversoft.top
 
 GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该账号。`deploy` 只能通过白名单完成发布、systemd 和 Nginx 操作；不得扩大为 root 服务或把数据库移入发布目录。
 
+正式 systemd 单元固定为 `riversoft-economy-api.service`；固定 Node 运行时入口为 `/var/www/game/economy-api/runtime/bin/node`。
+
 ## 9. Nginx 与验收
 
 账号路由和游戏 API 路由分别位于：
