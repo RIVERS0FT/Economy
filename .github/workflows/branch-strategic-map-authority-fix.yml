@@ -1,0 +1,78 @@
+name: Finalize strategic map authority
+
+on:
+  push:
+    branches:
+      - codex/strategic-map-mainland-focus
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/strategic-map-mainland-focus
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+
+      - name: Update authoritative world-context rule and verifier
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          design = Path('docs/LIQUID_GLASS_CHROME_DESIGN.md')
+          text = design.read_text()
+          old = "世界大陆背景固定使用 `world-atlas@2.0.2` 的 Natural Earth 1:10m land 数据，提供低对比土地填充、海岸主线和柔和外阴影；"
+          new = "世界大陆背景固定使用 `world-atlas@2.0.2` 的 Natural Earth 1:10m countries 数据，并只把可能进入美国有限平移上下文的北美陆地对象 dissolve 为单一无行政边界 path，提供低对比土地填充、海岸主线和柔和外阴影；不得把完整全球 10m geometry 送入常驻 SVG，否则会把不可见地理复杂度带入所有玩家页面的指针热路径；"
+          if text.count(old) != 1:
+              raise SystemExit('chrome design world-atlas authority anchor missing')
+          text = text.replace(old, new, 1)
+          old_test = "- `tests/browser/province-map-world-boundary.spec.ts`：锁定世界背景使用 10m 大陆填充、海岸主线和低强度外阴影且保持完全不可交互；"
+          new_test = "- `tests/browser/province-map-world-boundary.spec.ts`：锁定世界背景只 dissolve 可进入有限镜头的北美 10m 陆地上下文，提供大陆填充、海岸主线和低强度外阴影且保持完全不可交互；"
+          if text.count(old_test) != 1:
+              raise SystemExit('chrome design browser regression anchor missing')
+          design.write_text(text.replace(old_test, new_test, 1))
+
+          verifier = Path('scripts/verify-provincial-economy.mjs')
+          text = verifier.read_text()
+          old = 'for (const text of ["world-atlas/land-10m.json", \'createProvinceMapWorldOutlinePath\', \'createProvinceMapMainlandFocusBounds\']) {'
+          new = 'for (const text of ["world-atlas/countries-10m.json", \'NORTH_AMERICA_CONTEXT_COUNTRY_IDS\', \'northAmericaContextGeometry\', \'createProvinceMapWorldOutlinePath\', \'createProvinceMapMainlandFocusBounds\']) {'
+          if text.count(old) != 1:
+              raise SystemExit('province verifier world context anchor missing')
+          verifier.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Reject full-globe runtime context
+        run: |
+          if grep -R -n "world-atlas/land-10m.json" src docs; then
+            echo 'Full-globe 10m land path must not return to the persistent map runtime' >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused authority checks
+        run: |
+          npm run verify:provincial-economy
+          node scripts/verify-page-content.mjs
+          git diff --check
+
+      - name: Remove one-shot workflow and commit
+        run: |
+          rm -f .github/workflows/branch-strategic-map-authority-fix.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs scripts .github/workflows/branch-strategic-map-authority-fix.yml
+          git diff --cached --check
+          git commit -m 'Record strategic map regional context rule'
+          git push origin HEAD:codex/strategic-map-mainland-focus
