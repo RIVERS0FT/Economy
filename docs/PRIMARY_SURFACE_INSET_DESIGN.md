@@ -1,89 +1,75 @@
-# Economy 一级卡片内边距设计
+# Economy 页面表面与卡片内边距设计
 
-> 状态：玩家端一级卡片外层几何的唯一规则
+> 状态：玩家端圆角表面外层几何的唯一规则
 > 适用项目：`RIVERS0FT/Economy`
 > 更新时间：2026-09-02
 
 ## 1. 目标
 
-九个正式玩家页面中，处于页面主布局网格、拥有完整面板背景与边框、与其他主要模块同级的卡片统一视为一级卡片。一级卡片不得因页面类型、内容数量、卡片宽度或历史样式分别改变四边内边距。
+玩家页面必须先区分页面结构、同构列表、独立业务对象和高层独立表面，再决定是否使用圆角。页面章节、集合容器、摘要和以连续比较为主要任务的同构记录直接排列在正文，通过留白与细线建立层级；具有独立身份、状态、属性和操作的复杂业务对象可以使用轻量圆角对象卡，即使它随 `.page-card-scroll` 一起滚动。
 
-同时，一级卡片必须完整落在当前页面承载面的真实内部宽度内：桌面端承载面是集成 `workspaceCard` 扣除固定指挥轨道后的页面槽，移动端承载面是唯一根级 Mobile Workspace Sheet 的内容盒。不得依赖外壳 `overflow: hidden` 裁掉超宽页面来获得“看似对齐”的结果。
+是否滚动不再决定卡片资格。固定、sticky、Popover、Dialog、Tooltip、地图编辑器和根级工作区属于高层独立表面，可以按对应设计使用毛玻璃；正文对象卡只使用实体背景、边框和圆角，不使用毛玻璃或高层阴影。所有获准圆角表面必须完整落在当前页面承载面的真实内部宽度内。
 
 ## 2. 唯一权威
 
-本文只负责获 `UI_DESIGN_SYSTEM.md` 允许保留圆角的非滚动玩家一级表面的 inset 几何。可滚动 `.page-card-scroll` 正文不属于圆角一级卡片适用范围；其模块边界统一由 UI 设计系统规定为透明内容与细线分区。历史组件即使继续输出 `.ui-primary-surface`，进入可滚动正文后也必须由最终滚动正文样式清除圆角、背景、阴影与卡片 padding 视觉，不得借本文恢复。
+- `UI_DESIGN_SYSTEM.md` 决定页面分区、列表、对象卡和高层独立表面的视觉语义；本文只负责获准圆角表面的共享 inset 与承载几何，不得再以“是否滚动”判断卡片资格。
+- `src/styles/primary-surfaces.css` 是共享圆角表面外层内边距的唯一 CSS 权威；`--primary-surface-inset` 是唯一外层 inset 令牌。
+- 宽度大于 `720px` 时使用 `var(--space-4)`，即 `16px`；不大于 `720px` 时使用 `var(--space-3)`，即 `12px`；四边必须相同。
+- 正文 `.ui-entity-card` 与合同兼容入口 `.contract-card` 复用 `--primary-surface-inset`，不得创建对象专属 padding 变量。
+- `--player-page-content-inset` 固定使用当前 `.game-shell` 的 `var(--layout-gutter)`，用于 `PageLayout` 可滚动正文四边安全留白；标题栏下方第一块正文不得恢复顶部 `0` 或负 margin 抵消。
+- `primary-surfaces.css` 必须在 `design-system.css` 之后、`form-controls.css` 之前加载；正文表面语义由 `content-surfaces.css` 与 `scrolling-page-sections.css` 收束。
 
-- `src/styles/primary-surfaces.css` 是玩家端一级卡片外层内边距的唯一 CSS 权威。
-- `--primary-surface-inset` 是唯一一级卡片内边距令牌。
-- 宽度大于 `720px` 时使用 `var(--space-4)`，即 `16px`。
-- 宽度不大于 `720px` 时使用 `var(--space-3)`，即 `12px`。
-- 一级卡片四边必须使用同一个令牌，不得分别设置上下或左右数值。
-- `--player-page-content-inset` 固定使用当前 `.game-shell` 的 `var(--layout-gutter)`，用于 `PageLayout` 可滚动正文四边安全留白；令牌必须在 `.game-shell` 上解析，不能提前在 `:root` 解析成固定像素，否则会覆盖桌面宽屏／紧凑断点已经存在的战略网格间距。标题栏下方第一块正文必须因此保留同一内容间距，不得恢复顶部 `0` 的特殊规则。
-- `primary-surfaces.css` 必须在 `design-system.css` 之后、`form-controls.css` 之前加载，确保业务页面样式不能重新覆盖一级卡片外层几何，同时继续保持表单控件为最后视觉权威。
+## 3. React 与页面结构规则
 
-## 3. React 组件规则
-
-- 获准保留圆角的非滚动玩家一级表面必须使用 `PagePanel`；可滚动正文不得为了视觉分组新增圆角 `PagePanel`。
-- 可滚动 `.page-card-scroll` 正文不属于圆角一级卡片适用范围，无论有一个还是多个业务模块都只使用留白与细线分区；旧 `PagePanel` 只可作为结构兼容节点并由最终滚动正文样式扁平化。非滚动固定／sticky／浮动表面确实需要独立承载时，才进入本文的统一 inset 规则。
-- `PagePanel` 固定输出 `panel widget ui-primary-surface` 三个语义类。
-- 现有 `Panel className="widget ..."` 由 `Panel` 兼容桥自动补充 `ui-primary-surface`，用于避免一次性重写全部页面造成无关风险。
-- 现有 `.panel.production-surface` 与 `.panel.leaderboard-board-card` 由 `primary-surfaces.css` 作为旧类兼容入口统一接管，直到对应组件迁移为 `PagePanel`；这两个类不得在业务 CSS 中重新声明外层 padding。
-- 修改现有一级卡片时应优先迁移为 `PagePanel`；不得创建新的页面专属一级卡片基础组件。
-- 普通 `Panel` 继续用于登录、管理员、弹窗、嵌套面板或其他不属于玩家页面一级平面的表面。
+- `PagePanel` 固定输出 `panel widget ui-primary-surface` 兼容语义，但它本身不等于可见圆角卡片。进入 `.page-card-scroll` 后，普通 `PagePanel` 默认作为页面章节扁平化。
+- 新增复杂独立业务对象时使用 `.ui-entity-card`；不得为了对象卡创建页面专属基础卡片系统。合同页现有 `.contract-card` 是迁移兼容入口，公开合同和进行中合同必须保持对象卡边界。
+- 页面章节、筛选区、发布表单大分组、资产总览、合同广场、“我的合同”、履约档案等集合或页面结构不得仅为了视觉分组增加圆角外壳。
+- 页面摘要指标属于同一比较条，不是多个独立业务对象；玩家正文优先使用无逐项圆角背景的指标条。合同 `.contract-summary-grid` 是当前兼容映射。
+- 商品目录、工厂目录、运输路线、成交记录和历史记录等主要任务为连续比较的同构数据使用列表或表格，不为每条记录创建对象卡。
+- 如果去掉边界会让相邻内容的身份、状态、属性或操作归属产生歧义，并且主要任务是阅读或操作单个复杂对象，则允许使用 `.ui-entity-card`。
+- 正文对象卡禁止 `backdrop-filter` 和高层浮动阴影；圆角不等于毛玻璃。
+- 现有 `Panel className="widget ..."` 继续由兼容桥补充 `ui-primary-surface`；`.panel.production-surface` 与 `.panel.leaderboard-board-card` 的共享 inset 仍由 `primary-surfaces.css` 接管，业务 CSS 不得重新声明外层 padding。
 
 ## 4. 页面 CSS 边界
 
-业务页面 CSS 可以控制：
-
-- 网格、列宽、卡片高度和内部排列；
-- 标题、列表、表格、指标块和操作区的内部间距；
-- 内嵌二级卡片、状态块和表单区域的 padding；
-- 图表、媒体或表格的明确贴边子区域。
+业务页面 CSS 可以控制网格、列宽、对象卡高度和内部排列，标题、列表、表格、指标条和操作区内部间距，以及对象卡的业务状态色、警告边界和局部强调。
 
 业务页面 CSS 不得：
 
-- 对 `.ui-primary-surface` 或页面一级卡片类直接声明外层 `padding`；
-- 创建 `--production-surface-inset`、`--asset-card-padding`、`--shop-card-padding` 等页面专属一级卡片内边距变量；
-- 使用负 margin、transform 或标题专属 padding 修正一级卡片标题左上锚点；
-- 在移动端为某个正式玩家页面恢复 `16px` 或引入第三种一级卡片内边距；
+- 对 `.ui-primary-surface`、`.ui-entity-card` 或获准圆角对象卡声明另一套外层 `padding`；
+- 创建 `--production-surface-inset`、`--asset-card-padding`、`--contract-card-padding`、`--shop-card-padding` 等页面专属外层 inset；
+- 使用负 margin、transform 或标题专属 padding 修正圆角表面的标题锚点；
+- 在移动端引入第三种圆角表面内边距；
+- 给滚动正文对象卡增加 `backdrop-filter`、大范围高层阴影或第二层玻璃包装；
 - 通过根级横向滚动、超宽 Grid/Flex 子项或父级裁剪突破当前页面承载面的真实内部宽度。
 
 ## 5. 贴边内容例外
 
-表格、图表或媒体确实需要贴边时，一级卡片本身仍保持统一 padding。贴边效果必须由内部子元素通过明确的负 margin 或独立边缘容器实现，且标题和主要操作区继续与统一锚点对齐。例外不得覆盖 `.ui-primary-surface` 本身。
-
-需要横向浏览的数据表或图表可以在自身批准的内部滚动容器中横向滚动，但 `.page-card-scroll`、`.page-card-static` 与 `.ui-page-stack` 本身不得产生页面级横向溢出。
+表格、图表或媒体确实需要贴边时，圆角表面本身仍保持统一 padding；贴边效果只能由内部边缘容器实现。需要横向浏览的数据表或图表可以在自身批准的内部滚动容器中横向滚动，但 `.page-card-scroll`、`.page-card-static` 与 `.ui-page-stack` 本身不得产生页面级横向溢出。
 
 ## 6. 页面承载安全几何
 
-- `.page-content--player` 必须占满承载页面槽并保持既有桌面 `max-width: none` 语义；其下 `.page-fixed-header`、`.page-card-scroll-area / .page-card-static`、`.page-card-scroll` 与页面内容栈必须保持 `width: 100%`、`max-width: 100%`、`min-width: 0` 等价约束，一级直接子项同样不得超过 `100%`。
-- 桌面端页面实际宽度必须等于 `workspaceCard` 中扣除固定 `78px` 指挥轨道后的页面槽宽度。侧栏由 `78px` 覆盖展开到 `224px` 时只允许覆盖页面，不得推动、扩宽或裁剪页面正文。
-- 移动端页面实际宽度必须等于唯一根级 Mobile Workspace Sheet 的内容盒宽度；Sheet 边框之外不得存在页面正文，Sheet 内部也不得保留桌面宽度或隐形超宽盒。
-- 可滚动 `PageLayout` 的 `.page-card-scroll` 四边统一使用 `--player-page-content-inset`。标题栏底边到第一块正文顶边必须至少保留该间距；不得再使用 `padding-top: 0` 或通过第一块卡片负 margin 抵消。
-- 不可滚动 `.page-card-static` 仍必须遵守宽度链和禁止横向溢出规则，但不强制追加正文 inset，避免破坏研发树等固定工作区的既有内部布局。
-- `GlobalBuildingsPage` 等全局经营页必须以 `minmax(0, 1fr)`、`min-width: 0` 和可收缩列表行保证内容随真实承载面收缩。一级建筑页只保留全局工厂目录，不再存在独立地区建筑卡片；全局工厂目录第一行继续保持“工厂｜平均利润／分钟｜拥有”的共享表头结构，一级目录条目登记为两行高度例外，第二行仅在工厂身份列内承载“当前生产产物／当前作业制度”两个方形图标，正方形工厂插画跨越两行。条目四边统一使用同一个 `--entity-list-inline-padding`，地区下钻按钮只覆盖第一行；第二行图标的候选菜单使用工作区顶层浮层，不得通过改变条目高度显示。点击工厂后出现的地区工厂列表继续保持“地区｜利润／分钟｜拥有｜状态”的第一行共享列，但条目同步改为两行结构：第一行负责地区详情下钻，第二行承载纯文字生产产物与作业制度下拉，不加入任何工厂插画或生产配置图标。两级列表都不得依赖卡片网格、抽屉裁剪或页面级横向滚动。
-- 全局建筑列表的响应不能只依赖浏览器 viewport。`.global-operation-page` 必须建立 inline-size 容器；真实页面承载宽度不大于 `620px` 时，两级工厂列表继续压缩业务列模板，通用列间距、横向内边距与 Chevron 轨道必须复用 `entity-list-header.css` 的页面列表共享令牌。一级全局工厂目录按已登记例外把条目高度／跨行工厂插画／第二行方形图标收紧到约 `88px / 68px / 26px`，极窄 `360px` 及以下进一步收紧到约 `84px / 66px / 24px`；地区工厂列表同步使用约 `88px / 84px` 的两行高度，但第二行只显示纯文字下拉并保持无图标。原因是 `721px` 及以上已经进入桌面外壳，但固定侧栏和主卡轨道仍可能把实际页面槽压缩到远小于移动断点的宽度；响应必须以实际页面槽为准，同时不得为了避免溢出把第一行数值列或地区列表改成多行，也不得重新形成未登记的页面专属列表样式。
-- 浏览器真实几何回归若在同一页面实例内跨越 `720px` 桌面／移动断点，必须先等待断点后的目标业务节点恢复为可见且具有非零布局盒，再读取 `boundingBox()` 或其他几何；视口切换会触发玩家外壳与 Mobile Workspace Sheet 的响应式重排，测试不得把切换调用返回的瞬间误判为布局已经稳定。
+- `.page-content--player` 及其 `.page-fixed-header`、`.page-card-scroll-area / .page-card-static`、`.page-card-scroll` 必须保持 `width: 100%`、`max-width: 100%`、`min-width: 0` 等价约束。
+- 桌面端页面实际宽度等于 `workspaceCard` 扣除固定 `78px` 指挥轨道后的页面槽宽度；侧栏展开只能覆盖页面，不能推动、扩宽或裁剪正文。
+- 移动端页面实际宽度等于唯一根级 Mobile Workspace Sheet 的内容盒宽度。
+- 可滚动 `PageLayout` 的 `.page-card-scroll` 四边统一使用 `--player-page-content-inset`；不可滚动 `.page-card-static` 继续遵守宽度链和禁止横向溢出规则。
+- 全局建筑页继续通过 `minmax(0, 1fr)`、`min-width: 0`、共享实体列表列令牌和按真实容器宽度触发的 `620px / 360px` 密度规则保证两级工厂列表不产生页面级横向溢出；已登记的两行目录结构、第一行下钻、第二行生产配置和插画跨行例外保持不变。
+- 浏览器真实几何回归在同一页面实例跨越 `720px` 桌面／移动断点时，必须等待目标业务节点恢复可见且具有非零布局盒后再读取几何。
 
 ## 7. 退役页面与结构边界
 
-已删除的旧银行统计面板、全局建筑统计卡和地区建筑独立卡片不再拥有 DESIGN 规则。当前页面只约束实际存在的一级表面与已登记例外；不得恢复整页唯一包裹卡，不得恢复平行地区列表，也不得恢复无业务语义的 spacer。
+已删除的旧银行统计面板、全局建筑统计卡和地区建筑独立卡片不再拥有 DESIGN 规则。当前页面不得恢复整页唯一包裹卡、平行地区列表或无业务语义 spacer；同时也不得把独立复杂业务对象重新无条件扁平化成无法区分归属的连续正文。
 
 ## 8. 自动验证
 
 `scripts/verify-primary-surface-insets.mjs` 必须验证：
 
-- 唯一令牌、桌面 `16px` 和移动 `12px` 规则存在；
-- `PagePanel`、旧 `Panel + widget` 兼容桥以及生产／排行旧类兼容入口存在；
-- 正常正文只有一个一级业务模块时必须直接进入正文，不得恢复整页唯一圆角包裹卡；
-- 玩家页面宽度链、`.game-shell` 局部解析的正文四边 inset、禁止根级横向溢出和一级直接子项宽度约束存在；
-- 页面内容栈本身的命名样式仍唯一保留在 `design-system.css`，不得在 `primary-surfaces.css` 重复声明；
-- 全局建筑页只保留全局工厂目录入口；一级全局工厂目录在 `620px`、`360px` 实际承载断点保持已登记的两行高度与插画跨行例外，第一行共享列、gap 和 Chevron 仍由 `entity-list-header.css` 控制，横向内边距必须复用其 `--entity-list-inline-padding`，纵向内边距允许为两行密度独立收紧；工厂类型下的地区工厂列表同步保持两行密度、第一行下钻与第二行同源 `production-config` 图标方案槽。一级页面不得恢复 `.global-province-list` / `.global-province-row`，两级列表都不得产生页面级横向溢出，也不得恢复已退役的 `.global-operation-metrics`；
-- 样式加载顺序正确；
-- 已清理页面不再声明旧外层 padding；
-- 本设计文档中的唯一权威和禁止回退规则仍存在；
-- `tests/browser/player-page-geometry.spec.ts` 在桌面和移动断点覆盖正式页面，验证页面不超出承载面、可滚动正文首项有统一顶部间距且根级无横向溢出，并分别对一级全局工厂目录和点击工厂后的地区工厂列表执行边界与跨断点真实几何回归；一级全局工厂目录和地区工厂列表条目必须保持约 `93～96px` 的登记两行高度；桌面第一行收紧到 `32px`，移动端第一行保持 `44px`，不得再恢复地区工厂单行高度规则；
-- `tests/browser/market-runtime.spec.ts` 的跨桌面／移动响应式几何用例必须在断点切换后等待下单区与订单簿重新可见，再读取真实布局盒，防止把外壳重排中的瞬态无布局状态误报为页面几何回归。
+- 唯一 inset 令牌、桌面 `16px`、移动 `12px`、页面安全宽度链和样式加载顺序；
+- 普通滚动正文结构继续扁平化，同时 `.ui-entity-card` / `.contract-card` 不被滚动父级无条件扁平化；
+- `content-surfaces.css` 中正文对象卡无毛玻璃、合同对象卡有独立边界，合同摘要指标条无逐项圆角卡片；
+- `PagePanel`、旧 `Panel + widget` 兼容桥以及生产／排行兼容入口继续存在；
+- 已清理页面不恢复旧外层 padding、整页唯一圆角包裹卡、全局建筑退役结构或页面级横向溢出；
+- `tests/browser/contract-attention-background.spec.ts` 验证正常合同与待处理合同保持同一对象卡圆角、待处理警告强调可见、对象卡无 `backdrop-filter`，同时合同摘要指标保持透明且无圆角；
+- `tests/browser/player-page-geometry.spec.ts` 和市场响应式几何回归继续覆盖真实承载面与跨断点稳定性。
 
-该验证必须加入 `verify:architecture`，防止后续修改重新引入页面专属一级卡片内边距、页面宽度漂移或外壳裁剪。
+该验证必须加入 `verify:architecture`，防止后续修改重新以滚动状态决定卡片资格、恢复页面专属 inset 或破坏页面安全几何。
