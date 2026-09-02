@@ -58,7 +58,7 @@ for (const text of ['estimatedSellFee', 'estimatedNetTotal', '预计到账', '�
 }
 
 for (const [path, text] of [
-  ['docs/README.md', '统一订单簿玩家卖出手续费'],
+  ['docs/README.md', '`UNIFIED_ASSET_ORDER_BOOK_DESIGN.md`'],
   ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '不设最低手续费'],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '累计成交总额精确计算'],
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', 'fee'],
