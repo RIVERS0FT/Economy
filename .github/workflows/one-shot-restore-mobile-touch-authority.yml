@@ -1,0 +1,39 @@
+name: One-shot restore mobile touch authority
+
+on:
+  push:
+    branches:
+      - codex/transport-route-cards-footer
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/transport-route-cards-footer
+          fetch-depth: 0
+      - name: Restore mobile touch authority wording
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('docs/UI_DESIGN_SYSTEM.md')
+          text = path.read_text(encoding='utf-8')
+          old = '触摸不保留粘滞 hover，键盘保留明确 `:focus-visible`。'
+          new = '触摸产生的浏览器粘滞 `:hover` 不得改变可见样式；输入方式为 `keyboard` 时必须显示明确的 `:focus-visible` 焦点。'
+          if old not in text:
+              raise SystemExit('target interaction wording not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+      - name: Commit restored authority and remove one-shot workflow
+        run: |
+          git config user.name "RIVERSOFT"
+          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
+          rm .github/workflows/one-shot-restore-mobile-touch-authority.yml
+          git add docs/UI_DESIGN_SYSTEM.md .github/workflows/one-shot-restore-mobile-touch-authority.yml
+          git commit -m "Restore mobile touch feedback authority"
+          git push origin HEAD:codex/transport-route-cards-footer
