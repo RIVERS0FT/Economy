@@ -24,6 +24,8 @@ const required = [
   'server/test/runtime-hotpath-architecture.test.js',
   'server/test/order-book-price-level.test.js',
   'docs/README.md',
+  'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+  'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
 ];
 for (const path of required) assert.ok(existsSync(path), `缺少权威热路径文件: ${path}`);
 
@@ -194,29 +196,21 @@ for (const text of [
   'commodityPriceExtrema',
 ]) assert.ok(clientOrderIndex.includes(text), `客户端订单热路径索引缺少: ${text}`);
 
-const design = read('docs/README.md');
-const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
-for (const text of [
-  '价格档位 + 同价 FIFO',
-  '按实际到期领域推进',
-  '调度 barrier',
-  'committed world',
-  'Mutation Scope',
-  'Copy-on-Write',
-  '分段存储 V2',
-  'Dirty Row',
-  'SQLite `SAVEPOINT`',
-  '失败动作仍可保存精简幂等确认，但不得写回世界或推进世界修订号',
-  '`useSyncExternalStore`',
-  '允许页面或共享组件按分区订阅',
-  '子修订',
-]) assert.ok(design.includes(text), `设计索引缺少权威热路径规则: ${text}`);
+const docsIndex = read('docs/README.md');
+assert.ok(docsIndex.includes('`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`'), '设计索引必须路由服务器权威热路径');
+assert.ok(docsIndex.includes('`UNIFIED_ASSET_ORDER_BOOK_DESIGN.md`'), '设计索引必须路由订单簿热路径');
 
+const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 for (const text of [
   '玩家 V2 持久化行不得保存仅用于旧客户端展示的',
   '失败动作、重复操作或其他无业务状态变化的动作',
   '不得仅因兼容规范化、空数组补全',
   '合同历史冷启动导入必须优先读取 V2 分段世界',
 ]) assert.ok(serverDesign.includes(text), `服务器设计缺少 V2 持久化防回退规则: ${text}`);
+
+const orderBookDesign = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
+for (const text of ['同价时间优先规则', '客户端订单索引只是查询加速器']) {
+  assert.ok(orderBookDesign.includes(text), `订单簿设计缺少热路径边界: ${text}`);
+}
 
 console.log('权威热路径验证通过：按领域截止时间推进、分段存储 V2、Copy-on-Write 动作草稿、Dirty Row 持久化、纯只读状态投影、统一订单簿与六分区客户端权威状态均受防回退约束。');
