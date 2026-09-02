@@ -103,6 +103,7 @@ requireText('docs/UI_DESIGN_SYSTEM.md', [
   '排行榜玩家列固定复用 `PlayerAvatar`',
   '必须始终保持 `1:1` 正方形',
   '64×64 WebP',
+  '状态栏、设置页和排行榜不得各自实现第二套头像加载逻辑',
 ]);
 requireText('docs/UI_DESIGN_SYSTEM.md', [
   '`PlayerAvatar`',
@@ -119,4 +120,4 @@ if (failures.length) {
   console.error(`玩家头像验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('玩家头像验证通过：浏览器仅上传 64×64 WebP 缩略图，服务器独立存储并由状态栏、设置页与排行榜复用，头像盒保持正圆。');
+console.log('玩家头像验证通过：状态栏、设置页与排行榜复用 PlayerAvatar，头像盒保持 1:1，浏览器仅上传 64×64 WebP 缩略图并由服务器独立存储。');

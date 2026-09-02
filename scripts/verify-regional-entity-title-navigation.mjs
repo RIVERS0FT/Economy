@@ -49,6 +49,9 @@ for (const text of [
 ]) requireText('src/styles/regional-entity-page-title.css', text);
 
 for (const text of [
+  '`RegionalEntityPageTitle` 固定负责地区商品／工厂详情共享两行标题',
+  '第一行显示实体名称并使用大于地区行的主标题字号',
+  '第二行显示州级地区全称',
   '`RegionalEntityPageTitle` 的地区导航按钮',
   '固定 `40px` 标题轨道内的紧凑交互例外',
   '`province` + 当前 `provinceId` + `overview`',
@@ -72,4 +75,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('地区实体标题导航验证通过：商品与工厂详情共享可点击地区名，统一通过受限页面栈 push 到对应地区概览并保留原详情返回路径，40px 标题轨道紧凑例外与浏览器回归均已锁定。');
+console.log('地区实体标题导航验证通过：商品与工厂详情共享两行地区标题与可点击地区名，统一通过受限页面栈 push 到对应地区概览并保留原详情返回路径，40px 标题轨道紧凑例外与浏览器回归均已锁定。');

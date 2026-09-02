@@ -16,9 +16,7 @@
 }
 
 .page-card-scroll > * > .panel:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card):first-child,
-.page-card-scroll > * > .ui-primary-surface:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card):first-child,
-.page-card-scroll .transport-page-actions + .panel:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card),
-.page-card-scroll .transport-page-actions + .ui-primary-surface:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card) {
+.page-card-scroll > * > .ui-primary-surface:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card):first-child {
   border-top: 0;
 }
 
@@ -34,37 +32,9 @@
 }
 
 .page-card-scroll .transport-page-content > .transport-page-section:first-child,
-.page-card-scroll .transport-page-actions + .transport-page-section {
+.page-card-scroll .transport-page-index-body > .transport-page-section:first-child {
   border-top: 0;
   padding-top: 0;
-}
-
-.page-card-scroll .transport-route-grid {
-  display: block;
-}
-
-.page-card-scroll .transport-route-card {
-  width: 100%;
-  border: 0;
-  border-bottom: 1px solid var(--color-divider);
-  border-radius: 0;
-  padding: var(--space-3) 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.page-card-scroll .transport-route-card:last-child { border-bottom: 0; }
-
-@media (hover: hover) and (pointer: fine) {
-  html[data-input-modality='mouse'] .page-card-scroll .transport-route-card:hover {
-    border-color: var(--color-divider);
-    background: color-mix(in srgb, var(--color-surface-hover) 42%, transparent);
-  }
-}
-
-.page-card-scroll .transport-route-card:focus-visible {
-  border-color: var(--color-divider);
-  background: color-mix(in srgb, var(--color-surface-hover) 42%, transparent);
 }
 
 .province-map-route[data-route-id^='saved-road-'] .province-map-route-path,
