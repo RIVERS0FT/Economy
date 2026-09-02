@@ -1,3 +1,9 @@
+import {
+  acceptExternalStateDelivery,
+  getActiveStatePartitionRevisions,
+} from '../app/stateDelivery.js';
+import { acceptServerNow } from '../utils/serverClock.js';
+
 const GAME_API_PATH_PREFIX = '/economy-api/game';
 const SESSION_BOOTSTRAP_PATH = `${GAME_API_PATH_PREFIX}/session`;
 const WRITE_ATTEMPT_TIMEOUT_MS = 12_000;
@@ -157,6 +163,46 @@ function isAmbiguousTransportFailure(reason: unknown) {
   return reason instanceof TypeError || errorName(reason) === 'AbortError';
 }
 
+function actionDeliveryPayload(value: unknown): value is {
+  result: { ok?: unknown; message?: unknown };
+  revision: number;
+  unchanged: boolean;
+  serverNow: number;
+} {
+  if (!value || typeof value !== 'object') return false;
+  const payload = value as {
+    result?: unknown;
+    revision?: unknown;
+    unchanged?: unknown;
+    serverNow?: unknown;
+  };
+  return Boolean(payload.result && typeof payload.result === 'object')
+    && Number.isInteger(payload.revision)
+    && typeof payload.unchanged === 'boolean'
+    && Number.isFinite(Number(payload.serverNow));
+}
+
+function attachKnownStateRevisions(input: RequestInfo | URL, headers: Headers) {
+  if (isSessionBootstrapWrite(input)) return;
+  const revisions = getActiveStatePartitionRevisions();
+  if (Object.keys(revisions).length === 0) return;
+  headers.set('X-Economy-State-Revisions', JSON.stringify(revisions));
+}
+
+async function reconcileActionDelivery(response: Response) {
+  if (!response.ok) return;
+  try {
+    const payload = await response.clone().json() as unknown;
+    if (!actionDeliveryPayload(payload)) return;
+    acceptServerNow(payload.serverNow);
+    acceptExternalStateDelivery(payload);
+  } catch {
+    // The write may already be committed. Never turn a successful HTTP write into
+    // an apparent failed command because local delivery reconciliation failed;
+    // the normal authority poll remains the recovery path.
+  }
+}
+
 async function fetchWriteAttempt(
   nativeFetch: typeof globalThis.fetch,
   input: RequestInfo | URL,
@@ -197,6 +243,7 @@ export function installIdempotentGameWriteFetch() {
     const headers = new Headers(init.headers);
     const proposedKey = headers.get('Idempotency-Key');
     if (!proposedKey) return nativeFetch(input, init);
+    attachKnownStateRevisions(input, headers);
 
     const fingerprint = stableFingerprint([
       method,
@@ -217,6 +264,7 @@ export function installIdempotentGameWriteFetch() {
           headers,
           attemptIndex === 0 ? init.signal : undefined,
         );
+        await reconcileActionDelivery(response);
         if (!shouldKeepReservation(response)) {
           releaseWriteKey(fingerprint, reservation.key);
         }
