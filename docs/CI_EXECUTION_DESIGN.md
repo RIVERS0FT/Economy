@@ -1,14 +1,15 @@
 # Economy CI 执行设计
 
-> 状态：PR、非 `main` 分支与主部署的浏览器门禁执行基线
+> 状态：PR、非 `main` 分支、主部署与手动运维诊断的 GitHub Actions 执行基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-09-01
+> 更新时间：2026-09-02
 
 ## 1. 权威入口
 
 - `.github/workflows/ci.yml` 是 PR 与非 `main` push 的唯一 CI 工作流；`.github/workflows/deploy.yml` 是 `main` 自动部署与完整生产门禁。
 - 改动文件影响范围仍唯一由 `scripts/select-ci-tests.mjs` 计算。CI 分片只改变已选测试的执行并行度，不得扩大、缩小或复制第二套领域选择规则。
 - `pull_request` 与非 `main` push 继续按各自真实 base/head 或 merge-base 计算改动，并保留 `verify-head-ci-registration` 对同一 PR head push CI 的只读登记校验。
+- GitHub Actions 中针对生产环境的手动诊断工作流只负责执行受控只读检查；生产 SQLite 的持久化、维护、备份、恢复与服务运行边界仍归 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`。
 
 ## 2. PR 与分支浏览器门禁
 
@@ -26,7 +27,14 @@
 - 透明 Top Layer、Portal、Popover 等共享浮层变更必须至少保留一个真实浏览器命中测试，证明浮层打开时无关底层控件仍可正常 click/hover/tap，而不能只检查 CSS 字符串或计算样式。
 - 使用正式 `SignedInShell`／工作区浮层的专用 runtime harness 必须加载与正式应用一致的共享安全浮层样式。`src/styles/frosted-glass-chrome.css` 是这些 harness 的唯一共享外壳聚合入口，并必须包含 `safe-floating.css`；不得在各测试 HTML 中复制 Tooltip Layer 的定位或 `pointer-events` 规则。这样测试到的是正式宿主几何，而不是缺失生产 CSS 后的静态空块。
 
-## 4. 防回退
+## 4. 生产数据库只读诊断执行
+
+- 生产数据库只读诊断工作流固定为 `.github/workflows/diagnose-production-database.yml`，只允许由 `workflow_dispatch` 人工触发并使用最小只读仓库权限；不得把诊断嵌入普通 CI、自动部署或定时写维护流程。
+- 诊断脚本连接正式 SQLite 时必须同时使用 SQLite URI `mode=ro`、`PRAGMA query_only = ON` 和 authorizer 三重只读约束；任一层缺失都不得视为可安全执行的生产诊断。
+- 只读诊断不得执行 `VACUUM`、`wal_checkpoint`、`PRAGMA optimize`、备份、附加数据库、DDL 或 DML，也不得停止、重启或改变生产服务；诊断前后数据库、WAL 与 SHM 必须保持不变。
+- 诊断不得上传数据库、WAL、SHM、备份或包含玩家明细的 Artifact；只允许把无身份的容量、空闲页、完整性和 SQLite 对象聚合结果写入 Job Summary。非显然原因是诊断本身不能改变待观察的 WAL/freelist 证据，也不能借故障排查扩大生产数据暴露面。
+
+## 5. 防回退
 
 不得恢复以下行为：
 
@@ -35,4 +43,6 @@
 - 用延长 20 分钟上限替代四分片；
 - targeted shard 自行重新定义测试集合；
 - 只依赖静态 `pointer-events` 检查而删除真实浏览器输入穿透回归；
-- 让 SignedInShell runtime harness 绕过共享外壳聚合入口或缺少 `safe-floating.css`，再用测试专用 CSS 伪造 Tooltip Layer 几何。
+- 让 SignedInShell runtime harness 绕过共享外壳聚合入口或缺少 `safe-floating.css`，再用测试专用 CSS 伪造 Tooltip Layer 几何；
+- 把生产数据库诊断改成自动触发、可写连接、维护操作或服务控制入口；
+- 为诊断上传数据库文件、WAL/SHM、备份或玩家级明细 Artifact。
