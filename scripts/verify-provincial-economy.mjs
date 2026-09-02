@@ -30,6 +30,7 @@ const requiredFiles = [
   'tests/browser/map-zoom-transient.spec.ts',
   'tests/browser/map-zoom-render-sync.spec.ts',
   'tests/browser/map-zoom-out-boundary.spec.ts',
+  'tests/browser/province-map-world-boundary.spec.ts',
   'docs/README.md',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
@@ -102,11 +103,15 @@ for (const text of ['地区商品／工厂详情共享两行标题', '州级地�
 const packageJson = JSON.parse(read('package.json'));
 const atlasPackage = JSON.parse(read('node_modules/us-atlas/package.json'));
 const topoJsonPackage = JSON.parse(read('node_modules/topojson-client/package.json'));
+const worldAtlasPackage = JSON.parse(read('node_modules/world-atlas/package.json'));
 assert.equal(packageJson.dependencies?.['us-atlas'], '3.0.1', '州界数据依赖必须精确锁定 us-atlas 3.0.1');
 assert.equal(packageJson.dependencies?.['topojson-client'], '3.1.0', 'TopoJSON 转换依赖必须精确锁定 topojson-client 3.1.0');
+assert.equal(packageJson.dependencies?.['world-atlas'], '2.0.2', '世界大陆 10m 数据依赖必须精确锁定 world-atlas 2.0.2');
 assert.equal(packageJson.dependencies?.['china-geojson'], undefined, '不得继续安装中国地图数据依赖');
 assert.match(String(atlasPackage.license || ''), /ISC/i, '州界数据包必须保留 ISC 许可元数据');
 assert.match(String(topoJsonPackage.license || ''), /ISC/i, 'TopoJSON 转换包必须保留 ISC 许可元数据');
+assert.match(String(worldAtlasPackage.license || ''), /ISC/i, '世界大陆数据包必须保留 ISC 许可元数据');
+assert.equal(existsSync('src/data/world-land-110m.json'), false, '不得恢复已退役的 110m 世界大陆数据副本');
 const atlasStateCollection = feature(usStateAtlas, usStateAtlas.objects.states);
 assert.equal(atlasStateCollection.type, 'FeatureCollection', '州界数据必须可转换为 GeoJSON FeatureCollection');
 const atlasRegionNames = atlasStateCollection.features.map((stateFeature) => String(stateFeature?.properties?.name || ''));
@@ -225,9 +230,10 @@ assert.ok(provinceStyles.includes('min-height: 44px;'), '州级上下文切换�
 
 const mapComponent = read('src/components/provinces/UsMainlandMap.tsx');
 for (const text of [
-  "us-atlas/states-10m.json", "import { feature } from 'topojson-client'", 'const regionByMapName = new Map',
+  "us-atlas/states-10m.json", "import { feature, merge } from 'topojson-client'", 'const regionByMapName = new Map',
   'createProvinceMapProjection', 'provinceGeometryPath', 'layoutProvinceMapLabels', 'createProvinceMapCamera',
   'provinceMapWorld', 'province-map-camera-surface', 'province-map-world-svg', 'province-map-region',
+  'provinceMapMainlandOutlinePath', 'province-map-world-shadow', 'province-map-world-fill', 'province-map-mainland-seam', 'province-map-mainland-outline',
   'province-map-label-camera', 'data-map-world-path-count={provinceMapWorld.length}', 'data-map-path-revision="1"',
   'data-selected-province-id={selectedProvinceId ?? \'\'}', 'data-map-lens={lens}', 'data-map-label-mode="curved-chinese-full-name"',
   'data-map-ready="true"', 'data-testid="us-mainland-map"',
@@ -247,9 +253,15 @@ for (const text of [
   'export function provinceGeometryPath', 'viewBox:', 'project:',
 ]) assert.ok(projection.includes(text), `静态地图投影缺少: ${text}`);
 
+const worldContext = read('src/components/provinces/provinceMapWorldOutline.ts');
+for (const text of ["world-atlas/countries-10m.json", 'NORTH_AMERICA_CONTEXT_COUNTRY_IDS', 'northAmericaContextGeometry', 'createProvinceMapWorldOutlinePath', 'createProvinceMapMainlandFocusBounds']) {
+  assert.ok(worldContext.includes(text), `10m 世界大陆上下文缺少: ${text}`);
+}
 const camera = read('src/components/provinces/provinceMapCamera.ts');
 for (const text of [
-  'export const PROVINCE_MAP_ZOOM_MIN = 0.5', 'export const PROVINCE_MAP_ZOOM_MAX = 4',
+  'export const PROVINCE_MAP_ZOOM_MIN = 1', 'export const PROVINCE_MAP_ZOOM_MAX = 4',
+  'MAINLAND_MIN_AREA_RATIO = 2 / 3', 'MAINLAND_CONTEXT_EXPAND_X = 0.35', 'MAINLAND_CONTEXT_EXPAND_Y = 0.25',
+  "container.dataset.mapPanBoundary = options.focusBounds ? 'mainland-context' : 'none'", 'minimumPhysicalZoom', 'mapZoomBaseScale',
   "container.dataset.mapRenderer = 'static-svg'", "container.dataset.mapCameraMode = 'html-compositor-transform'",
   "container.dataset.mapCameraHotPath = 'single-css-transform'", "container.dataset.mapCameraGeometryMode = 'immutable-svg-world'",
   'surface.style.transform = `translate3d(', 'requestAnimationFrame(writeCamera)', 'if (frame === null)',
@@ -281,6 +293,7 @@ const mapStyles = read('src/styles/province-map.css');
 for (const text of [
   '.province-map-camera-surface', 'transform-origin: 0 0;', '.province-map-world-svg', '.province-map-region',
   '.province-map-label', '.province-map-label-glyph', 'fill: var(--color-map-label);', "[data-selected='true']",
+  '.province-map-world-shadow', '.province-map-world-fill', '.province-map-world-outline', '.province-map-mainland-seam', '.province-map-mainland-outline',
   'touch-action: none;', '.province-map-static-tooltip',
   '.province-map-routes', '.province-map-route-path', '.province-map-route-return-path', '.province-map-route-stop',
   "[data-route-picking='true']", "[data-route-kind='draft']", "[data-route-kind='highlight']",
@@ -308,6 +321,11 @@ for (const [path, selector, expectedOverflow] of [
   for (const text of ['border: 0;', 'border-radius: 0;', 'outline: 0;', 'box-shadow: none;']) assert.ok(block.includes(text), `${selector} 不得产生地图外缘白边，缺少: ${text}`);
 }
 
+const worldBoundaryTest = read('tests/browser/province-map-world-boundary.spec.ts');
+for (const text of [
+  'continents-filled-10m', 'data-map-world-resolution', 'states-10m-union',
+  'data-map-focus-area-target', 'baseline.areaRatio', 'centerOffsetX', 'mainland-context',
+]) assert.ok(worldBoundaryTest.includes(text), `战略地图世界上下文浏览器回归缺少: ${text}`);
 const mapBrowserTest = read('tests/browser/province-map.spec.ts');
 for (const text of [
   'persistent strategy map uses one static SVG world for 48 states and Chinese labels',
@@ -343,8 +361,8 @@ for (const text of [
 
 assert.equal((uiDesign.match(/### 8\.1 美国本土州级经营地图/g) ?? []).length, 1, 'UI 设计文档只能保留一份美国本土州级经营地图 8.1 规则');
 for (const text of [
-  '静态 SVG 世界面', '单一合成相机', '48 个州面 path 必须始终完整挂载',
-  '每个动画帧最多写一次', '州面 path 的 `d`', '中文州全名', '同一个 SVG 世界坐标系',
+  '静态 SVG 世界面', '同一个 `.province-map-camera-surface`', '48 个州面 path 必须始终完整挂载',
+  '响应式条件下不得通过第二相机、第二地图或重排标签来实现镜头变化', '州面 path 的 `d`', '中文州全名', '同一个 SVG 世界坐标系',
   '不得通过 `textLength`', '不大于 `720px` 时地图 Tooltip',
 ]) assert.ok(uiDesign.includes(text), `静态地图 UI 设计规则缺少: ${text}`);
 for (const forbidden of ['每个动画帧必须把 `nextZoom / currentZoom` 作为增量通过正式 `geoRoam`', '每个动画帧最多调用一次增量 `geoRoam`']) {
@@ -353,12 +371,13 @@ for (const forbidden of ['每个动画帧必须把 `nextZoom / currentZoom` 作�
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 for (const text of [
   '州级上下文页（无导航按钮）', '概览｜市场｜建筑｜仓库', '中文州全名作为唯一州面名称',
-  '静态 SVG 世界面', '唯一相机状态', '名称随地图缩放和平移同步变化',
+  '静态 SVG 世界面', '战略地图镜头、缩放、重置和平移边界唯一遵循', '名称随地图缩放和平移同步变化',
   '不大于 `720px` 时镜头栏和地图 Tooltip 必须隐藏',
 ]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
 const chromeDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
 for (const text of [
   '静态 SVG 世界面', '单一合成相机', '每帧最多一次', '屏幕外的州面',
+  '`world-atlas@2.0.2`', '`states-10m`', '逻辑 `1×`', '`2/3`', '水平方向约扩展 `35%`', '垂直方向约扩展 `25%`',
   '待提交的 `requestAnimationFrame` 相机写入', '至少提交一帧 active 合成结果', '`INPUT_SETTLE_MS` 收口',
 ]) {
   assert.ok(chromeDesign.includes(text), `地图外壳权威缺少: ${text}`);

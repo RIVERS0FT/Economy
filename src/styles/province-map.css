@@ -66,6 +66,59 @@
   transform: none;
 }
 
+.province-map-world {
+  --province-map-world-fill: color-mix(in srgb, var(--color-map-region-default) 42%, transparent);
+}
+
+.province-map-world-context,
+.province-map-world-shadow,
+.province-map-world-fill,
+.province-map-world-outline,
+.province-map-mainland-seam,
+.province-map-mainland-outline {
+  pointer-events: none;
+}
+
+.province-map-world-shadow {
+  fill: var(--province-map-world-fill);
+  stroke: none;
+  opacity: .64;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-map-region-border) 30%, transparent));
+}
+
+.province-map-world-fill {
+  fill: var(--province-map-world-fill);
+  stroke: none;
+  opacity: .78;
+}
+
+.province-map-world-outline {
+  fill: none;
+  stroke: var(--color-map-region-border);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: .42;
+}
+
+.province-map-mainland-seam {
+  fill: none;
+  stroke: var(--province-map-world-fill);
+  stroke-width: 3.4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 1;
+}
+
+.province-map-mainland-outline {
+  fill: none;
+  stroke: var(--color-map-region-border);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: .72;
+}
+
 .province-map-region {
   fill: var(--province-map-area-color, var(--color-map-region-default));
   stroke: var(--province-map-border-color, var(--color-map-region-border));
