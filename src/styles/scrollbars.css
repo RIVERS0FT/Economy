@@ -127,10 +127,10 @@ html[data-input-modality="touch"] .ui-scrollbar--vertical .ui-scrollbar__thumb::
 .ui-scroll-area[data-scrollbar-visibility="always"][data-scrollable-y="true"]
   > .ui-scrollbar--vertical,
 html[data-input-modality="mouse"]
-  .ui-scroll-area[data-scrollbar-visibility="adaptive"][data-scrollable-x="true"]:hover
+  .ui-scroll-area[data-scrollbar-visibility="adaptive"][data-scrollbar-reveal-on-hover="true"][data-scrollable-x="true"]:hover
   > .ui-scrollbar--horizontal,
 html[data-input-modality="mouse"]
-  .ui-scroll-area[data-scrollbar-visibility="adaptive"][data-scrollable-y="true"]:hover
+  .ui-scroll-area[data-scrollbar-visibility="adaptive"][data-scrollbar-reveal-on-hover="true"][data-scrollable-y="true"]:hover
   > .ui-scrollbar--vertical,
 html[data-input-modality="keyboard"]
   .ui-scroll-area[data-scrollbar-visibility="adaptive"][data-scrollable-x="true"]:focus-within
