@@ -43,13 +43,17 @@ test('transport route editor picks ordered stops directly on the strategic map a
   await pickingBar.getByRole('button', { name: '完成选择', exact: true }).click();
   await expect(map).toHaveAttribute('data-route-picking', 'false');
   await expect(pickingBar).toHaveCount(0);
+
+  // The account-free preview rejects all writes, so the failed direct-create
+  // attempt preserves the draft in the transport page for a retry instead of
+  // pretending a server route was created.
   const pendingDraft = page.locator('.transport-route-draft-panel');
   await expect(pendingDraft).toBeVisible();
   await expect(pendingDraft.locator('.transport-route-path-stop')).toHaveCount(4);
   await expect(pendingDraft.getByText('环线', { exact: true })).toBeVisible();
   await expect(draftRoute).toHaveAttribute('data-route-stop-count', '4');
 
-  await pendingDraft.getByRole('button', { name: '取消修改', exact: true }).click();
+  await pendingDraft.getByRole('button', { name: '取消', exact: true }).click();
   await expect(pendingDraft).toHaveCount(0);
   await expect(page.locator('.province-map-route[data-route-kind="draft"]')).toHaveCount(0);
 });
