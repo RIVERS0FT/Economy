@@ -8,6 +8,7 @@ const INPUT_SETTLE_MS = 90;
 const MOBILE_BLANK_DOUBLE_TAP_MS = 360;
 const MOBILE_BLANK_DOUBLE_TAP_DISTANCE = 28;
 const MULTITOUCH_TAP_SUPPRESS_MS = 420;
+const WORLD_PAN_EDGE_INSET = 12;
 
 interface CameraState {
   x: number;
@@ -28,6 +29,26 @@ interface PinchReference {
 interface ContainerBounds {
   left: number;
   top: number;
+}
+
+interface CameraClampMetrics {
+  viewportWidth: number;
+  viewportHeight: number;
+  worldLeft: number;
+  worldTop: number;
+  worldRight: number;
+  worldBottom: number;
+}
+
+export interface ProvinceMapCameraWorldBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+export interface ProvinceMapCameraOptions {
+  worldBounds?: ProvinceMapCameraWorldBounds;
 }
 
 export interface ProvinceMapCameraController {
@@ -65,9 +86,31 @@ function isProvinceTarget(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest('.province-map-region'));
 }
 
+function clampCameraAxis(
+  translation: number,
+  zoom: number,
+  viewportSize: number,
+  worldStart: number,
+  worldEnd: number,
+) {
+  const edgeInset = Math.min(WORLD_PAN_EDGE_INSET, viewportSize / 2);
+  const scaledStart = worldStart * zoom;
+  const scaledEnd = worldEnd * zoom;
+  const scaledExtent = scaledEnd - scaledStart;
+  if (scaledExtent <= Math.max(0, viewportSize - edgeInset * 2)) {
+    return viewportSize / 2 - (scaledStart + scaledEnd) / 2;
+  }
+  return clamp(
+    translation,
+    viewportSize - edgeInset - scaledEnd,
+    edgeInset - scaledStart,
+  );
+}
+
 export function createProvinceMapCamera(
   container: HTMLElement,
   surface: HTMLElement,
+  options: ProvinceMapCameraOptions = {},
 ): ProvinceMapCameraController {
   let current: CameraState = { x: 0, y: 0, zoom: 1 };
   let target: CameraState = { ...current };
@@ -76,6 +119,7 @@ export function createProvinceMapCamera(
   let multiTouchIdleTimer: ReturnType<typeof setTimeout> | null = null;
   let frameCount = 0;
   let writeCount = 0;
+  let panClampCount = 0;
   let inputMode: CameraInputMode = 'idle';
   let active = false;
   let destroyed = false;
@@ -83,6 +127,7 @@ export function createProvinceMapCamera(
   let suppressNextDragClick = false;
   let pinchReference: PinchReference | null = null;
   let interactionBounds: ContainerBounds | null = null;
+  let cameraClampMetrics: CameraClampMetrics | null = null;
   let lastBlankTap: { at: number; x: number; y: number } | null = null;
   let multiTouchSequenceActive = false;
   let multiTouchSequenceCount = 0;
@@ -101,6 +146,9 @@ export function createProvinceMapCamera(
   container.dataset.mapZoomHotPath = 'css-transform';
   container.dataset.mapZoomCommitMode = 'none';
   container.dataset.mapTapSuppressMs = String(MULTITOUCH_TAP_SUPPRESS_MS);
+  container.dataset.mapPanBoundary = options.worldBounds ? 'world' : 'none';
+  container.dataset.mapPanClampMode = options.worldBounds ? 'continuous' : 'none';
+  container.dataset.mapPanEdgeInset = String(WORLD_PAN_EDGE_INSET);
 
   const readBounds = () => {
     if (interactionBounds) return interactionBounds;
@@ -117,6 +165,40 @@ export function createProvinceMapCamera(
     };
   };
 
+  const readCameraClampMetrics = (): CameraClampMetrics | null => {
+    if (!options.worldBounds) return null;
+    if (cameraClampMetrics) return cameraClampMetrics;
+    const svg = surface.querySelector<SVGSVGElement>('.province-map-world-svg');
+    const viewBox = svg?.viewBox.baseVal;
+    const viewportWidth = container.clientWidth;
+    const viewportHeight = container.clientHeight;
+    if (!viewBox || !(viewBox.width > 0) || !(viewBox.height > 0) || !(viewportWidth > 0) || !(viewportHeight > 0)) return null;
+    const fitScale = Math.min(viewportWidth / viewBox.width, viewportHeight / viewBox.height);
+    const renderedWidth = viewBox.width * fitScale;
+    const renderedHeight = viewBox.height * fitScale;
+    const offsetX = (viewportWidth - renderedWidth) / 2;
+    const offsetY = (viewportHeight - renderedHeight) / 2;
+    cameraClampMetrics = {
+      viewportWidth,
+      viewportHeight,
+      worldLeft: offsetX + (options.worldBounds.minX - viewBox.x) * fitScale,
+      worldTop: offsetY + (options.worldBounds.minY - viewBox.y) * fitScale,
+      worldRight: offsetX + (options.worldBounds.maxX - viewBox.x) * fitScale,
+      worldBottom: offsetY + (options.worldBounds.maxY - viewBox.y) * fitScale,
+    };
+    return cameraClampMetrics;
+  };
+
+  const clampTargetToWorld = () => {
+    const metrics = readCameraClampMetrics();
+    if (!metrics) return;
+    const nextX = clampCameraAxis(target.x, target.zoom, metrics.viewportWidth, metrics.worldLeft, metrics.worldRight);
+    const nextY = clampCameraAxis(target.y, target.zoom, metrics.viewportHeight, metrics.worldTop, metrics.worldBottom);
+    if (Math.abs(nextX - target.x) > 0.001 || Math.abs(nextY - target.y) > 0.001) panClampCount += 1;
+    target.x = nextX;
+    target.y = nextY;
+  };
+
   const publishMultiTouchState = () => {
     container.dataset.mapMultitouchActive = multiTouchSequenceActive ? 'true' : 'false';
     container.dataset.mapMultitouchSequenceCount = String(multiTouchSequenceCount);
@@ -128,6 +210,11 @@ export function createProvinceMapCamera(
   const publishState = () => {
     container.dataset.mapZoomCurrent = current.zoom.toFixed(5);
     container.dataset.mapZoomTarget = target.zoom.toFixed(5);
+    container.dataset.mapCameraX = current.x.toFixed(3);
+    container.dataset.mapCameraY = current.y.toFixed(3);
+    container.dataset.mapCameraTargetX = target.x.toFixed(3);
+    container.dataset.mapCameraTargetY = target.y.toFixed(3);
+    container.dataset.mapPanClampCount = String(panClampCount);
     container.dataset.mapZoomActive = active ? 'true' : 'false';
     container.dataset.mapZoomFrameCount = String(frameCount);
     container.dataset.mapCameraWriteCount = String(writeCount);
@@ -207,6 +294,7 @@ export function createProvinceMapCamera(
         return;
       }
       interactionBounds = null;
+      cameraClampMetrics = null;
       inputMode = 'idle';
       setActive(false);
     }, INPUT_SETTLE_MS);
@@ -228,6 +316,7 @@ export function createProvinceMapCamera(
       x: point.x - localX * nextZoom,
       y: point.y - localY * nextZoom,
     };
+    clampTargetToWorld();
   };
 
   const reset = () => {
@@ -236,6 +325,7 @@ export function createProvinceMapCamera(
     if (settleTimer !== null) clearTimeout(settleTimer);
     settleTimer = null;
     interactionBounds = null;
+    cameraClampMetrics = null;
     current = { x: 0, y: 0, zoom: 1 };
     target = { ...current };
     inputMode = 'reset';
@@ -284,7 +374,10 @@ export function createProvinceMapCamera(
 
   const handlePointerDown = (event: PointerEvent) => {
     if (destroyed || (event.pointerType === 'mouse' && event.button !== 0)) return;
-    if (pointers.size === 0) interactionBounds = null;
+    if (pointers.size === 0) {
+      interactionBounds = null;
+      cameraClampMetrics = null;
+    }
     pointers.set(event.pointerId, localPoint(event.clientX, event.clientY));
     if (event.pointerType === 'touch') {
       activeTouchPointerIds.add(event.pointerId);
@@ -326,6 +419,7 @@ export function createProvinceMapCamera(
     if (dx === 0 && dy === 0) return;
     target.x += dx;
     target.y += dy;
+    clampTargetToWorld();
     dragDistance += Math.hypot(dx, dy);
     if (dragDistance > POINTER_DRAG_THRESHOLD) suppressNextDragClick = true;
     scheduleWrite('move');
@@ -345,6 +439,7 @@ export function createProvinceMapCamera(
     updatePinchReference();
     if (pointers.size === 0 && active && settleTimer === null) {
       interactionBounds = null;
+      cameraClampMetrics = null;
       inputMode = 'idle';
       setActive(false);
     }
@@ -451,6 +546,7 @@ export function createProvinceMapCamera(
       frame = null;
       settleTimer = null;
       interactionBounds = null;
+      cameraClampMetrics = null;
       pointers.clear();
       activeTouchPointerIds.clear();
       container.removeEventListener('wheel', handleWheel);
