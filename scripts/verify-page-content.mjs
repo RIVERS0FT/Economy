@@ -68,7 +68,7 @@ for (const text of [
   '地图不得提供独立的放大、缩小或重置功能面板',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
-  '运输页的“增加路线”固定放在正文顶部操作区',
+  '运输页的“增加路线”固定放在页面正文承载面的底部 sticky 操作区',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
   '玩家端 `PageLayout` 的标题区固定只包含返回、主标题和关闭三个槽位',
@@ -78,13 +78,16 @@ for (const text of [
   '正负行情与利润统一通过 `.entity-list-value.is-positive / .is-negative` 表达',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 for (const text of [
-  'className="transport-page-actions"',
+  'className="transport-page-footer"',
   '<PageLayout title="运输">',
 ]) requireText('src/pages/TransportPage.tsx', text);
 for (const text of [
   'actions={(',
 ]) forbidText('src/pages/TransportPage.tsx', text);
-requireText('src/styles/transport-page.css', '.transport-page-actions {');
+requireText('src/styles/transport-page.css', '.transport-page-footer {');
+forbidText('src/pages/TransportPage.tsx', 'className="transport-page-actions"');
+forbidText('src/styles/transport-page.css', '.transport-page-actions {');
+forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '运输页的“增加路线”固定放在正文顶部操作区');
 for (const text of [
   'page-heading-actions--player',
   'data-player-page-actions',

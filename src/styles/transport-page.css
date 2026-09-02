@@ -5,10 +5,34 @@
   container: transport-page / inline-size;
 }
 
-.transport-page-actions {
+.page-card-scroll:has([data-transport-route-index='true']) {
+  display: grid;
+  grid-template-rows: minmax(100%, auto);
+  align-content: start;
+}
+
+.transport-page-content[data-transport-route-index='true'] {
+  min-height: 100%;
+  grid-template-rows: minmax(min-content, 1fr) auto;
+  gap: var(--space-3);
+}
+
+.transport-page-index-body {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--layout-gutter);
+}
+
+.transport-page-footer {
+  position: sticky;
+  z-index: 1;
+  bottom: 0;
   min-width: 0;
   display: flex;
   justify-content: flex-end;
+  padding-top: var(--space-3);
+  background: var(--color-surface-panel);
 }
 
 .transport-routes-panel,
@@ -29,10 +53,6 @@
   min-width: 0;
   display: grid;
   gap: var(--space-3);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-control);
-  padding: var(--space-4);
-  background: var(--color-surface-subtle);
   color: inherit;
   font: inherit;
   text-align: left;
@@ -211,6 +231,7 @@
     grid-template-columns: 1fr;
   }
 
+  .transport-page-footer > .ui-button,
   .transport-route-name-editor > .ui-button,
   .transport-route-editor-actions > .ui-button {
     width: 100%;

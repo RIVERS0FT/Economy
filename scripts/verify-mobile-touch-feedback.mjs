@@ -76,6 +76,7 @@ for (const text of [
   '触摸产生的浏览器粘滞 `:hover` 不得改变可见样式',
   '输入方式为 `keyboard` 时必须显示明确的 `:focus-visible` 焦点',
 ]) requireText(uiDocsPath, text);
+forbidText(uiDocsPath, '触摸不保留粘滞 hover，键盘保留明确 `:focus-visible`。');
 
 for (const text of [
   '移动端触控高亮',
