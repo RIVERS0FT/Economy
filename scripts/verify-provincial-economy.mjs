@@ -254,7 +254,7 @@ for (const text of [
 ]) assert.ok(projection.includes(text), `静态地图投影缺少: ${text}`);
 
 const worldContext = read('src/components/provinces/provinceMapWorldOutline.ts');
-for (const text of ["world-atlas/land-10m.json", 'createProvinceMapWorldOutlinePath', 'createProvinceMapMainlandFocusBounds']) {
+for (const text of ["world-atlas/countries-10m.json", 'NORTH_AMERICA_CONTEXT_COUNTRY_IDS', 'northAmericaContextGeometry', 'createProvinceMapWorldOutlinePath', 'createProvinceMapMainlandFocusBounds']) {
   assert.ok(worldContext.includes(text), `10m 世界大陆上下文缺少: ${text}`);
 }
 const camera = read('src/components/provinces/provinceMapCamera.ts');
