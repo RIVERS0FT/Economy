@@ -380,6 +380,8 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 正式 systemd 单元固定为 `riversoft-economy-api.service`；固定 Node 运行时入口为 `/var/www/game/economy-api/runtime/bin/node`。
 
+生产公网 IP 的唯一部署来源固定为 `ECONOMY_PRODUCTION_PUBLIC_IP=116.204.134.56`；SSH、IP 证书、临时 Nginx 入口和 Deploy 外部验收必须全部读取该值，不得继续使用独立 `SERVER_HOST` Secret，不得在脚本中维护第二个独立 IP 常量。临时 IP HTTPS 入口保持 `COOKIE_SECURE=true`；短期证书申请使用 `--preferred-profile shortlived`，续签由 `riversoft-economy-ip-cert-renew.timer` 管理。TLS 验收不得加 `-k`，证书状态直接读取 `/etc/letsencrypt/live/`，本机正式 HTTPS 验收使用 `--connect-to` 指向 `127.0.0.1:443`。回收 fallback 时必须删除临时 IP 虚拟主机、续签 timer 和专用短期证书。
+
 ## 9. Nginx 与验收
 
 账号路由和游戏 API 路由分别位于：
