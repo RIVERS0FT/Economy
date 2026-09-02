@@ -22,6 +22,7 @@ interface UseOverlayScrollbarOptions {
   verticalThumbRef: RefObject<HTMLElement | null>;
   axis: ScrollAxis;
   scrollbarVisibility: ScrollbarVisibility;
+  scrollbarRevealOnHover: boolean;
   mouseIdleDelay: number;
   touchVerticalIdleDelay: number;
   verticalPriority: boolean;
@@ -87,6 +88,7 @@ export function useOverlayScrollbar({
   verticalThumbRef,
   axis,
   scrollbarVisibility,
+  scrollbarRevealOnHover,
   mouseIdleDelay,
   touchVerticalIdleDelay,
   verticalPriority,
@@ -116,12 +118,12 @@ export function useOverlayScrollbar({
     if (
       root.dataset[`scrollbarDragging${suffix}`] === 'true'
       || root.dataset[`scrollbarTrackPressing${suffix}`] === 'true'
-      || (modality === 'mouse' && root.dataset.scrollbarHover === 'true')
+      || (scrollbarRevealOnHover && modality === 'mouse' && root.dataset.scrollbarHover === 'true')
     ) return;
     delete root.dataset[`scrollbarActive${suffix}`];
     const timerRef = targetAxis === 'x' ? horizontalHideTimerRef : verticalHideTimerRef;
     timerRef.current = undefined;
-  }, [rootRef]);
+  }, [rootRef, scrollbarRevealOnHover]);
 
   const scheduleHideAxis = useCallback((targetAxis: TargetAxis) => {
     clearAxisHideTimer(targetAxis);
@@ -296,7 +298,7 @@ export function useOverlayScrollbar({
     };
 
     const handlePointerEnter = (event: PointerEvent) => {
-      if (event.pointerType !== 'mouse' || getInputModality() !== 'mouse') return;
+      if (!scrollbarRevealOnHover || event.pointerType !== 'mouse' || getInputModality() !== 'mouse') return;
       root.dataset.scrollbarHover = 'true';
       revealAxis('x');
       revealAxis('y');
@@ -338,7 +340,7 @@ export function useOverlayScrollbar({
     window.addEventListener('resize', scheduleSync);
 
     if (inputModality === 'touch') clearAxisState('x');
-    if (inputModality === 'mouse' && root.matches(':hover')) {
+    if (scrollbarRevealOnHover && inputModality === 'mouse' && root.matches(':hover')) {
       root.dataset.scrollbarHover = 'true';
       revealAxis('x');
       revealAxis('y');
@@ -381,6 +383,7 @@ export function useOverlayScrollbar({
     rootRef,
     scheduleHideAxis,
     scheduleSync,
+    scrollbarRevealOnHover,
     verticalPriority,
     viewportRef,
   ]);

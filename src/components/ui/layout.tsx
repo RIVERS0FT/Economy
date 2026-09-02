@@ -87,6 +87,7 @@ export function PageLayout({
           className="page-card-scroll-area"
           viewportClassName="page-card-scroll"
           scrollbarVisibility="adaptive"
+          scrollbarRevealOnHover={false}
         >
           {pageStack}
         </ScrollArea>

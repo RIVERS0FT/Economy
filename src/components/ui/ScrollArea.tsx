@@ -36,6 +36,7 @@ export interface ScrollAreaProps {
   viewportTabIndex?: number;
   onViewportScroll?: UIEventHandler<HTMLDivElement>;
   scrollbarVisibility?: ScrollbarVisibility;
+  scrollbarRevealOnHover?: boolean;
   mouseIdleDelay?: number;
   touchVerticalIdleDelay?: number;
   verticalPriority?: boolean;
@@ -55,6 +56,7 @@ export function ScrollArea({
   viewportTabIndex,
   onViewportScroll,
   scrollbarVisibility = 'adaptive',
+  scrollbarRevealOnHover = true,
   mouseIdleDelay = 1_200,
   touchVerticalIdleDelay = 1_600,
   verticalPriority = true,
@@ -81,6 +83,7 @@ export function ScrollArea({
     verticalThumbRef,
     axis,
     scrollbarVisibility,
+    scrollbarRevealOnHover,
     mouseIdleDelay,
     touchVerticalIdleDelay,
     verticalPriority,
@@ -92,6 +95,7 @@ export function ScrollArea({
       className={classNames('ui-scroll-area', className)}
       data-scroll-axis={axis}
       data-scrollbar-visibility={scrollbarVisibility}
+      data-scrollbar-reveal-on-hover={scrollbarRevealOnHover ? 'true' : 'false'}
       style={style}
     >
       <div

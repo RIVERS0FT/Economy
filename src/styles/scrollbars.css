@@ -126,12 +126,6 @@ html[data-input-modality="touch"] .ui-scrollbar--vertical .ui-scrollbar__thumb::
   > .ui-scrollbar--horizontal,
 .ui-scroll-area[data-scrollbar-visibility="always"][data-scrollable-y="true"]
   > .ui-scrollbar--vertical,
-html[data-input-modality="mouse"]
-  .ui-scroll-area[data-scrollbar-visibility="adaptive"][data-scrollable-x="true"]:hover
-  > .ui-scrollbar--horizontal,
-html[data-input-modality="mouse"]
-  .ui-scroll-area[data-scrollbar-visibility="adaptive"][data-scrollable-y="true"]:hover
-  > .ui-scrollbar--vertical,
 html[data-input-modality="keyboard"]
   .ui-scroll-area[data-scrollbar-visibility="adaptive"][data-scrollable-x="true"]:focus-within
   > .ui-scrollbar--horizontal,
@@ -154,6 +148,20 @@ html[data-input-modality="keyboard"]
   visibility: visible;
   pointer-events: auto;
   transition-delay: 0s;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html[data-input-modality="mouse"]
+    .ui-scroll-area[data-scrollbar-visibility="adaptive"][data-scrollbar-reveal-on-hover="true"][data-scrollable-x="true"]:hover
+    > .ui-scrollbar--horizontal,
+  html[data-input-modality="mouse"]
+    .ui-scroll-area[data-scrollbar-visibility="adaptive"][data-scrollbar-reveal-on-hover="true"][data-scrollable-y="true"]:hover
+    > .ui-scrollbar--vertical {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+  }
 }
 
 .ui-scroll-area[data-scrollbar-visibility="hidden"] > .ui-scrollbar,
