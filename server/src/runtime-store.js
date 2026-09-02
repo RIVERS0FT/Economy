@@ -245,13 +245,17 @@ export class EconomyStore extends CoreEconomyStore {
     });
   }
 
+  executeDirectRuntimeAction(user, requestMeta, now) {
+    return executeRuntimeAction(this, user, requestMeta, now);
+  }
+
   apply(user, requestMeta, now = Date.now()) {
     const needsProductionInputSourcing = this.worldCache?.world
       ? productionInputSourcingRequired(this.worldCache.world, Number(user.id), now)
       : true;
     let response;
     if (!CONTRACT_ACTIONS.has(requestMeta.action) && !needsProductionInputSourcing) {
-      response = executeRuntimeAction(this, user, requestMeta, now);
+      response = this.executeDirectRuntimeAction(user, requestMeta, now);
     } else if (!needsProductionInputSourcing) {
       response = this.applyContractAction(user, requestMeta, null, now);
     } else {
@@ -260,7 +264,7 @@ export class EconomyStore extends CoreEconomyStore {
       else if (CONTRACT_ACTIONS.has(requestMeta.action)) {
         response = this.applyContractAction(user, requestMeta, prepared.baseline, now);
       } else {
-        response = executeRuntimeAction(this, user, requestMeta, now);
+        response = this.executeDirectRuntimeAction(user, requestMeta, now);
         response = this.finalizeProductionInputs(user, prepared.baseline, response, requestMeta, now);
       }
     }
