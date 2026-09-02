@@ -41,6 +41,9 @@ if (failures.length === 0) {
     '.entity-list-row.global-facility-catalog-row {',
     '--global-facility-catalog-main-row-size: 30px;',
     'grid-template-columns: var(--global-facility-layout-columns);',
+    'border-bottom: 0;',
+    'border: 0;',
+    'background: transparent;',
     '.global-facility-catalog-row__artwork {',
     'position: static;',
     'grid-column: 1;',
@@ -48,10 +51,19 @@ if (failures.length === 0) {
     'transform: none;',
     '.global-facility-catalog-row__open {',
     'grid-column: 2 / -1;',
-    'border-left: 1px solid var(--color-divider);',
+    'border-left: 0;',
+    '.global-facility-catalog-row__identity > strong,',
+    'font-size: .95rem;',
+    'font-weight: 800;',
+    '.global-facility-catalog-row__profit,',
+    'font-size: 1rem;',
+    '.global-facility-catalog-row__metric:not(.global-facility-catalog-row__profit),',
+    '.global-facility-region-row__status {',
+    'color: var(--color-text-secondary);',
     '.global-facility-catalog-row__quick-controls {',
-    'border-top: 1px solid var(--color-divider);',
-    'background: color-mix(in srgb, var(--color-surface-inset) 24%, transparent);',
+    '.global-facility-catalog-row__quick-selector .ui-rich-select[data-variant=\'production-config\'] .ui-rich-select__trigger,',
+    'border-color: var(--color-border-strong);',
+    'box-shadow:',
     '.global-facility-catalog-row__chevron {',
     'width: var(--entity-list-chevron-column);',
     '.entity-list-row.global-facility-region-row {',
@@ -72,13 +84,17 @@ if (failures.length === 0) {
   for (const text of [
     'padding-left: calc(var(--global-facility-catalog-artwork-size)',
     'transform: translateY(-50%)',
+    'border-left: 1px solid var(--color-divider);',
+    'border-top: 1px solid var(--color-divider);',
+    'background: color-mix(in srgb, var(--color-surface-inset) 24%, transparent);',
   ]) forbidText(paths.finalLayout, text);
 
   for (const text of [
     '插画必须作为真实 Grid 列参与条目尺寸计算',
     '禁止再通过 `position: absolute`、`transform` 与正文 `padding-left` 模拟插画占位',
-    '插画区与右侧内容区之间使用弱竖向分隔',
-    '第一行数据区与第二行生产区之间只在右侧内容区绘制弱横向分隔',
+    '建筑两行目录不显示表头底线、条目外边界、插画与正文之间的竖向分隔或第一行与第二行之间的横向分隔',
+    '建筑名称、利润和拥有数量必须高于状态、Chevron 等辅助信息的视觉权重',
+    '生产方案槽继续复用 `production-config`，列表场景允许通过现有令牌强化触发按钮边界、底色与内阴影',
     '桌面第一行收紧为 `30px`',
     '地区工厂列表同步登记为相同的两行高度例外，并与一级工厂目录保持相同的第一行高度与第二行分区层级',
     '约 `38×38`、独立插画轨道收紧到约 `42px`',
@@ -89,10 +105,18 @@ if (failures.length === 0) {
   ]) requireText(paths.design, text);
 
   for (const text of [
-    "test('global facility artwork occupies a real grid track and the two rows have visible hierarchy'",
+    "test('global facility artwork keeps a real grid track while building rows remove separators and emphasize key values'",
     "expect(desktop.artworkPosition).toBe('static');",
     'expect(desktop.artworkRight).toBeLessThan(desktop.openLeft);',
-    "expect(desktop.quickBorderTop).toBe('1px');",
+    "expect(desktop.rowBorderTop).toBe('0px');",
+    "expect(desktop.headerBorderBottom).toBe('0px');",
+    "expect(desktop.openBorderLeft).toBe('0px');",
+    "expect(desktop.quickBorderTop).toBe('0px');",
+    "expect(desktop.quickBackground).toBe('rgba(0, 0, 0, 0)');",
+    'expect(Number(desktop.profitFontWeight)).toBeGreaterThanOrEqual(700);',
+    'expect(Number(desktop.countFontWeight)).toBeGreaterThanOrEqual(700);',
+    "expect(desktop.productionTriggerBorderWidth).toBe('1px');",
+    "expect(desktop.productionTriggerBoxShadow).not.toBe('none');",
     'expect(Math.abs(desktop.profitLeft - headerProfitLeft)).toBeLessThanOrEqual(1);',
     'expect(narrow.rowScrollWidth).toBeLessThanOrEqual(narrow.rowClientWidth + 1);',
   ]) requireText(paths.browser, text);
@@ -111,4 +135,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('工厂目录 Grid 分区验证通过：插画真实占位跨两行，一级与地区建筑行共享两行密度和分区层级，极窄载体无横向溢出，建筑域定向 CI 覆盖完整几何基线。');
+console.log('工厂目录 Grid 分区验证通过：插画真实占位跨两行，建筑名称／利润／数量保持主信息层级，一级与地区建筑行不显示分隔线并强化生产方案按钮，极窄载体无横向溢出。');
