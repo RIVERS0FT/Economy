@@ -280,13 +280,16 @@ export function createPartitionedStateDelivery(snapshot, knownRevisions = {}, se
 
 export function createPartitionedActionDelivery(
   actionResponse,
-  snapshot,
   knownRevisions = {},
   serverNow = Date.now(),
 ) {
   const commandRevision = Number(actionResponse?.revision);
   if (!Number.isInteger(commandRevision) || commandRevision < 0) {
     throw new Error('游戏操作未返回有效的提交修订号');
+  }
+  const snapshot = actionResponse?.stateSnapshot;
+  if (!snapshot || typeof snapshot !== 'object') {
+    throw new Error('游戏操作未返回提交后的权威状态');
   }
   const delivery = createPartitionedStateDelivery(snapshot, knownRevisions, serverNow);
   if (!Number.isInteger(delivery.revision) || delivery.revision < commandRevision) {
