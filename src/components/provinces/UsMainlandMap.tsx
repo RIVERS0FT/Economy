@@ -26,6 +26,11 @@ import {
 import { createProvinceMapCamera, type ProvinceMapCameraController } from './provinceMapCamera';
 import { createProvinceMapProjection, provinceGeometryPath } from './provinceMapProjection';
 import {
+  layoutProvinceMapRoutes,
+  routeLayoutSegmentForDirection,
+  type ProvinceMapRouteLayout,
+} from './provinceMapRouteLayout';
+import {
   layoutProvinceMapLabels,
   type ProvinceMapLabelLayout,
   type ProvinceMapLabelSource,
@@ -37,6 +42,10 @@ export type ProvinceMapLens = 'political' | 'assets' | 'industry' | 'market' | '
 
 export interface ProvinceMapRouteOverlay {
   id: string;
+  routeId?: string;
+  laneOwnerId: string;
+  sortKey: string;
+  mode: TransportModeId;
   stops: string[];
   closed: boolean;
   tripType: TransportTripType;
@@ -164,13 +173,19 @@ function tooltipRows(datum: ProvinceMapDatum) {
   ];
 }
 
-function currentShipmentPosition(shipment: ProvinceMapShipmentOverlay, now: number) {
+function currentShipmentPosition(
+  shipment: ProvinceMapShipmentOverlay,
+  now: number,
+  routeLayoutByOwnerId: ReadonlyMap<string, ProvinceMapRouteLayout>,
+) {
   if (shipment.legPlan.length < 1) return null;
   const leg = shipment.legPlan.find((candidate) => now >= candidate.departsAt && now < candidate.arrivesAt)
     ?? shipment.legPlan.find((candidate) => now < candidate.arrivesAt)
     ?? shipment.legPlan[shipment.legPlan.length - 1];
-  const from = capitalPointByProvinceId.get(leg.fromProvinceId);
-  const to = capitalPointByProvinceId.get(leg.toProvinceId);
+  const routeLayout = shipment.routeId ? routeLayoutByOwnerId.get(shipment.routeId) : undefined;
+  const laneSegment = routeLayout ? routeLayoutSegmentForDirection(routeLayout, leg.fromProvinceId, leg.toProvinceId) : null;
+  const from = laneSegment?.start ?? capitalPointByProvinceId.get(leg.fromProvinceId);
+  const to = laneSegment?.end ?? capitalPointByProvinceId.get(leg.toProvinceId);
   if (!from || !to) return null;
   const duration = Math.max(1, leg.arrivesAt - leg.departsAt);
   const progress = Math.max(0, Math.min(1, (now - leg.departsAt) / duration));
@@ -246,17 +261,30 @@ export function UsMainlandMap({
   const [hoveredShipmentId, setHoveredShipmentId] = useState<string | null>(null);
   const hoveredDatum = hoveredProvinceId ? datumByProvinceId.get(hoveredProvinceId) ?? null : null;
   const hoveredShipment = hoveredShipmentId ? shipmentOverlays.find((shipment) => shipment.id === hoveredShipmentId) ?? null : null;
-  const hoveredShipmentPosition = hoveredShipment ? currentShipmentPosition(hoveredShipment, now) : null;
   const routePickingActive = Boolean(routePicking?.active);
+  const routeLayout = useMemo(() => layoutProvinceMapRoutes(routeOverlays, capitalPointByProvinceId), [routeOverlays]);
+  const hoveredShipmentPosition = hoveredShipment ? currentShipmentPosition(hoveredShipment, now, routeLayout.byLaneOwnerId) : null;
 
   const routeOverlaysMarkup = useMemo(() => routeOverlays.map((overlay) => {
-    const points = overlay.stops.map((provinceId) => capitalPointByProvinceId.get(provinceId)).filter((point): point is { x: number; y: number } => Boolean(point));
-    if (points.length < 2) return null;
-    const forwardPath = points.map((point, index) => `${index === 0 ? 'M' : 'L'}${formatGeometryValue(point.x)} ${formatGeometryValue(point.y)}`).join(' ');
-    const returnPoints = overlay.closed || overlay.tripType !== 'round' ? [] : [points[points.length - 1], ...points.slice(1, -1).reverse(), points[0]];
-    const returnPath = returnPoints.length < 2 ? '' : returnPoints.map((point, index) => `${index === 0 ? 'M' : 'L'}${formatGeometryValue(point.x)} ${formatGeometryValue(point.y)}`).join(' ');
+    const geometry = routeLayout.byOverlayId.get(overlay.id);
+    if (!geometry || geometry.forward.points.length < 2) return null;
+    const points = geometry.forward.points;
+    const forwardPath = geometry.forward.path;
+    const returnPath = geometry.returnPath?.path ?? '';
     return (
-      <g key={overlay.id} className="province-map-route" data-route-id={overlay.id} data-route-kind={overlay.kind} data-route-stop-count={overlay.stops.length} data-route-closed={overlay.closed ? 'true' : 'false'} data-route-trip-type={overlay.tripType}>
+      <g
+        key={overlay.id}
+        className="province-map-route"
+        data-route-id={overlay.id}
+        data-route-owner-id={overlay.routeId ?? overlay.laneOwnerId}
+        data-route-lane-owner-id={overlay.laneOwnerId}
+        data-route-kind={overlay.kind}
+        data-transport-mode={overlay.mode}
+        data-route-stop-count={overlay.stops.length}
+        data-route-closed={overlay.closed ? 'true' : 'false'}
+        data-route-trip-type={overlay.tripType}
+        data-route-forward-lanes={geometry.forward.segments.map((segment) => formatGeometryValue(segment.laneOffset)).join(',')}
+      >
         <path className="province-map-route-path" d={forwardPath} vectorEffect="non-scaling-stroke" />
         {returnPath ? <path className="province-map-route-return-path" d={returnPath} vectorEffect="non-scaling-stroke" /> : null}
         {points.map((point, index) => (
@@ -264,10 +292,10 @@ export function UsMainlandMap({
         ))}
       </g>
     );
-  }), [routeOverlays]);
+  }), [routeLayout, routeOverlays]);
 
   const shipmentMarkup = shipmentOverlays.map((shipment) => {
-    const position = currentShipmentPosition(shipment, now);
+    const position = currentShipmentPosition(shipment, now, routeLayout.byLaneOwnerId);
     if (!position) return null;
     const selected = hoveredShipmentId === shipment.id;
     const cargoLabel = shipment.cargo.length > 0
@@ -436,7 +464,7 @@ export function UsMainlandMap({
   const accessibleSummary = `美国本土州级经营地图，共 ${provinces.length} 个可经营地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}当前有 ${shipmentOverlays.length} 笔运输在途。州面和中文州全名位于同一个静态 SVG 世界面，通过同一个合成相机同步缩放和平移。${routePickingActive ? '当前处于运输路线选州模式，按顺序点击州面即可追加站点，再次点击起点州可以闭环。' : '点击州面可以打开对应州页面，'}滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置缩放和平移。`;
 
   return (
-    <div className="province-map-chart" data-province-count={provinces.length} data-map-feature-count={provinceMapWorld.length} data-selected-province-id={selectedProvinceId ?? ''} data-map-lens={lens} data-map-zoom-min="0.5" data-map-zoom-max="4" data-map-label-mode="curved-chinese-full-name" data-route-picking={routePickingActive ? 'true' : 'false'} data-route-overlay-count={routeOverlays.length} data-shipment-overlay-count={shipmentOverlays.length}>
+    <div className="province-map-chart" data-province-count={provinces.length} data-map-feature-count={provinceMapWorld.length} data-selected-province-id={selectedProvinceId ?? ''} data-map-lens={lens} data-map-zoom-min="0.5" data-map-zoom-max="4" data-map-label-mode="curved-chinese-full-name" data-route-picking={routePickingActive ? 'true' : 'false'} data-route-overlay-count={routeOverlays.length} data-route-lane-edge-count={routeLayout.laneCountByEdge.size} data-shipment-overlay-count={shipmentOverlays.length}>
       <div className="province-map-echart province-map-static-map" role="group" aria-label="美国本土州级经营地图" data-map-ready="true" data-testid="us-mainland-map" data-route-picking={routePickingActive ? 'true' : 'false'} data-route-overlay-count={routeOverlays.length} data-shipment-overlay-count={shipmentOverlays.length}>
         <div
           ref={viewportRef}
