@@ -65,7 +65,8 @@ for (const text of [
 forbidText(stylePath, '--page-section-gap');
 
 for (const text of [
-  '.panel.contract-card {',
+  '.panel.contract-card,',
+  '.panel.asset-auction-card {',
   'border-radius: var(--radius-card);',
   'padding: var(--primary-surface-inset);',
   'background: var(--color-surface-subtle);',
@@ -77,7 +78,7 @@ for (const text of [
   'border-radius: 0;',
   'background: transparent;',
 ]) requireText(contentSurfacePath, text);
-requireText(scrollingSurfacePath, '.page-card-scroll .panel:not(.ui-entity-card):not(.contract-card),');
+requireText(scrollingSurfacePath, '.page-card-scroll .panel:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card),');
 forbidText(scrollingSurfacePath, '.page-card-scroll .panel,\n.page-card-scroll .ui-primary-surface {');
 
 for (const text of ['.contract-history-result-grid', '.contract-history-entry', '.contract-history-republish']) requireText(auditStylePath, text);
