@@ -1,8 +1,10 @@
-/* Scrollable player-page business content uses spacing and dividers instead of
- * nested rounded cards. Rounded surfaces remain available to fixed, sticky,
- * dialog, popover and other non-scrolling UI. */
-.page-card-scroll .panel,
-.page-card-scroll .ui-primary-surface {
+@import './content-surfaces.css';
+
+/* Scrollable player-page structural sections use spacing and dividers instead
+ * of nested rounded cards. Independent business-object semantics are owned by
+ * content-surfaces.css and are explicitly excluded from this flattening rule. */
+.page-card-scroll .panel:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card),
+.page-card-scroll .ui-primary-surface:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card) {
   border: 0;
   border-top: 1px solid var(--color-divider);
   border-radius: 0;
@@ -13,10 +15,10 @@
   backdrop-filter: none;
 }
 
-.page-card-scroll > * > .panel:first-child,
-.page-card-scroll > * > .ui-primary-surface:first-child,
-.page-card-scroll .transport-page-actions + .panel,
-.page-card-scroll .transport-page-actions + .ui-primary-surface {
+.page-card-scroll > * > .panel:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card):first-child,
+.page-card-scroll > * > .ui-primary-surface:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card):first-child,
+.page-card-scroll .transport-page-actions + .panel:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card),
+.page-card-scroll .transport-page-actions + .ui-primary-surface:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card) {
   border-top: 0;
 }
 
@@ -25,9 +27,6 @@
   margin-top: 0;
 }
 
-/* Semantic transport sections no longer depend on a Panel wrapper. They use
- * the same divider contract, with no redundant rule immediately below the
- * page action row. */
 .page-card-scroll .transport-page-section {
   min-width: 0;
   border-top: 1px solid var(--color-divider);
@@ -40,7 +39,6 @@
   padding-top: 0;
 }
 
-/* The transport catalogue is a list, not a grid of cards. */
 .page-card-scroll .transport-route-grid {
   display: block;
 }
@@ -55,9 +53,7 @@
   box-shadow: none;
 }
 
-.page-card-scroll .transport-route-card:last-child {
-  border-bottom: 0;
-}
+.page-card-scroll .transport-route-card:last-child { border-bottom: 0; }
 
 @media (hover: hover) and (pointer: fine) {
   html[data-input-modality='mouse'] .page-card-scroll .transport-route-card:hover {
@@ -71,43 +67,29 @@
   background: color-mix(in srgb, var(--color-surface-hover) 42%, transparent);
 }
 
-/* Saved, highlighted and draft routes retain their transport mode so the three
- * network types stay distinguishable without relying on colour alone. */
 .province-map-route[data-route-id^='saved-road-'] .province-map-route-path,
 .province-map-route[data-route-id='highlighted-road-route'] .province-map-route-path,
-.province-map-route[data-route-id='draft-road-route'] .province-map-route-path {
-  stroke-dasharray: none;
-}
+.province-map-route[data-route-id='draft-road-route'] .province-map-route-path { stroke-dasharray: none; }
 
 .province-map-route[data-route-id^='saved-rail-'] .province-map-route-path,
 .province-map-route[data-route-id='highlighted-rail-route'] .province-map-route-path,
-.province-map-route[data-route-id='draft-rail-route'] .province-map-route-path {
-  stroke-dasharray: 12 3 2 3;
-}
+.province-map-route[data-route-id='draft-rail-route'] .province-map-route-path { stroke-dasharray: 12 3 2 3; }
 
 .province-map-route[data-route-id^='saved-air-'] .province-map-route-path,
 .province-map-route[data-route-id='highlighted-air-route'] .province-map-route-path,
-.province-map-route[data-route-id='draft-air-route'] .province-map-route-path {
-  stroke-dasharray: 10 8;
-}
+.province-map-route[data-route-id='draft-air-route'] .province-map-route-path { stroke-dasharray: 10 8; }
 
 .province-map-route[data-route-id^='saved-road-'] .province-map-route-return-path,
 .province-map-route[data-route-id='highlighted-road-route'] .province-map-route-return-path,
-.province-map-route[data-route-id='draft-road-route'] .province-map-route-return-path {
-  stroke-dasharray: 5 6;
-}
+.province-map-route[data-route-id='draft-road-route'] .province-map-route-return-path { stroke-dasharray: 5 6; }
 
 .province-map-route[data-route-id^='saved-rail-'] .province-map-route-return-path,
 .province-map-route[data-route-id='highlighted-rail-route'] .province-map-route-return-path,
-.province-map-route[data-route-id='draft-rail-route'] .province-map-route-return-path {
-  stroke-dasharray: 12 3 2 3;
-}
+.province-map-route[data-route-id='draft-rail-route'] .province-map-route-return-path { stroke-dasharray: 12 3 2 3; }
 
 .province-map-route[data-route-id^='saved-air-'] .province-map-route-return-path,
 .province-map-route[data-route-id='highlighted-air-route'] .province-map-route-return-path,
-.province-map-route[data-route-id='draft-air-route'] .province-map-route-return-path {
-  stroke-dasharray: 10 8;
-}
+.province-map-route[data-route-id='draft-air-route'] .province-map-route-return-path { stroke-dasharray: 10 8; }
 
 .transport-map-picking-cost {
   display: flex;
@@ -125,21 +107,10 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The map editor lives in the map layer, so it must explicitly clear the
- * status bar rather than relying on the ordinary page-scroll inset. */
 @media (min-width: 721px) {
   .transport-map-picking-bar {
-    top: calc(
-      var(--desktop-layout-gutter, 8px)
-      + var(--desktop-asset-bar-height, 64px)
-      + var(--desktop-status-gap, 8px)
-    );
-    max-height: calc(
-      100dvh
-      - var(--desktop-asset-bar-height, 64px)
-      - var(--desktop-status-gap, 8px)
-      - var(--desktop-layout-gutter, 8px) * 3
-    );
+    top: calc(var(--desktop-layout-gutter, 8px) + var(--desktop-asset-bar-height, 64px) + var(--desktop-status-gap, 8px));
+    max-height: calc(100dvh - var(--desktop-asset-bar-height, 64px) - var(--desktop-status-gap, 8px) - var(--desktop-layout-gutter, 8px) * 3);
     overflow: auto;
   }
 }
@@ -147,11 +118,7 @@
 @media (max-width: 720px) {
   .transport-map-picking-bar {
     top: var(--mobile-below-status-top);
-    max-height: calc(
-      100dvh
-      - var(--mobile-below-status-top)
-      - max(var(--mobile-workspace-gutter), env(safe-area-inset-bottom))
-    );
+    max-height: calc(100dvh - var(--mobile-below-status-top) - max(var(--mobile-workspace-gutter), env(safe-area-inset-bottom)));
     overflow: auto;
   }
 }

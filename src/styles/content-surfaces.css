@@ -1,0 +1,49 @@
+/* Content-surface semantics that belong to the content itself rather than its
+ * scroll parent. Complex independently actionable business objects may use a
+ * lightweight rounded boundary. Page-level metric summaries remain one flat
+ * comparison strip instead of a row of separate cards. */
+
+.ui-entity-card:not(.panel),
+.panel.ui-entity-card,
+.panel.contract-card,
+.panel.asset-auction-card {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: var(--primary-surface-inset);
+  background: var(--color-surface-subtle);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.panel.contract-card--attention {
+  border-color: var(--color-warning);
+  background:
+    linear-gradient(0deg, var(--color-warning-soft), var(--color-warning-soft)),
+    var(--color-surface-subtle);
+  box-shadow: inset 3px 0 0 var(--color-warning);
+}
+
+.panel.contract-card--danger {
+  border-color: var(--color-danger);
+  background:
+    linear-gradient(0deg, var(--color-danger-soft), var(--color-danger-soft)),
+    var(--color-surface-subtle);
+  box-shadow: inset 3px 0 0 var(--color-danger);
+}
+
+.ui-metric-strip,
+.contract-summary-grid {
+  border-block: 1px solid var(--color-divider);
+  padding-block: var(--space-2);
+}
+
+.ui-metric-strip > .ui-metric-card,
+.contract-summary-grid > .ui-metric-card {
+  border: 0;
+  border-radius: 0;
+  padding: var(--space-2) 0;
+  background: transparent;
+  box-shadow: none;
+}

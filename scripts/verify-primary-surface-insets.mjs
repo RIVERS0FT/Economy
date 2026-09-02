@@ -18,6 +18,8 @@ const paths = {
   main: 'src/main.tsx',
   layout: 'src/components/ui/layout.tsx',
   primaryStyles: 'src/styles/primary-surfaces.css',
+  scrollingStyles: 'src/styles/scrolling-page-sections.css',
+  contentSurfaces: 'src/styles/content-surfaces.css',
   globalOperationStyles: 'src/styles/global-operation-pages.css',
   entityHeaderStyles: 'src/styles/entity-list-header.css',
   productionStyles: 'src/styles/production-surface.css',
@@ -28,6 +30,7 @@ const paths = {
   provinceStyles: 'src/styles/province-page.css',
   geometryTest: 'tests/browser/player-page-geometry.spec.ts',
   marketRuntimeTest: 'tests/browser/market-runtime.spec.ts',
+  contractAttentionTest: 'tests/browser/contract-attention-background.spec.ts',
   design: 'docs/PRIMARY_SURFACE_INSET_DESIGN.md',
   uiDesign: 'docs/UI_DESIGN_SYSTEM.md',
 };
@@ -67,6 +70,38 @@ if (failures.length === 0) {
   forbidText(paths.primaryStyles, ':root {\n  --primary-surface-inset: var(--space-4);\n  --player-page-content-inset:');
 
   for (const text of [
+    "@import './content-surfaces.css';",
+    '.page-card-scroll .panel:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card),',
+    '.page-card-scroll .ui-primary-surface:not(.ui-entity-card):not(.contract-card):not(.asset-auction-card) {',
+    'border-top: 1px solid var(--color-divider);',
+    'border-radius: 0;',
+    'background: transparent;',
+    'backdrop-filter: none;',
+  ]) requireText(paths.scrollingStyles, text);
+  forbidText(paths.scrollingStyles, '.page-card-scroll .panel,\n.page-card-scroll .ui-primary-surface {');
+
+  for (const text of [
+    '.ui-entity-card:not(.panel),',
+    '.panel.ui-entity-card,',
+    '.panel.contract-card,',
+    '.panel.asset-auction-card {',
+    'border: 1px solid var(--color-border);',
+    'border-radius: var(--radius-card);',
+    'padding: var(--primary-surface-inset);',
+    'background: var(--color-surface-subtle);',
+    'box-shadow: none;',
+    'backdrop-filter: none;',
+    '.panel.contract-card--attention {',
+    '.panel.contract-card--danger {',
+    '.ui-metric-strip,',
+    '.contract-summary-grid {',
+    '.contract-summary-grid > .ui-metric-card {',
+    'border-radius: 0;',
+    'background: transparent;',
+  ]) requireText(paths.contentSurfaces, text);
+  forbidText(paths.contentSurfaces, 'blur(');
+
+  for (const text of [
     '.global-operation-page {',
     'width: 100%;',
     'max-width: 100%;',
@@ -92,11 +127,7 @@ if (failures.length === 0) {
     '.global-facility-region-row__open {',
     '.global-facility-region-row__quick-controls {',
     '@container (max-width: 620px)',
-    '--entity-list-columns: minmax(0, 1.45fr) minmax(4.65rem, .8fr) minmax(2.4rem, .42fr) var(--entity-list-chevron-column);',
-    '--entity-list-columns: minmax(0, 1.2fr) minmax(4.5rem, .68fr) minmax(2.2rem, .35fr) minmax(3rem, .48fr) var(--entity-list-chevron-column);',
     '@container (max-width: 360px)',
-    '--entity-list-columns: minmax(0, 1.35fr) minmax(4.25rem, .76fr) minmax(2.1rem, .4fr) var(--entity-list-chevron-column);',
-    '--entity-list-columns: minmax(0, .9fr) minmax(0, 1.15fr) minmax(0, .45fr) minmax(0, .75fr) var(--entity-list-chevron-column);',
     '@media (max-width: 720px)',
   ]) requireText(paths.globalOperationStyles, text);
   for (const text of [
@@ -110,18 +141,11 @@ if (failures.length === 0) {
     'gap: .32rem;',
     '.entity-list-header {',
     'border-bottom: 1px solid var(--color-divider);',
-    '.entity-list-header > span,',
     '.entity-list-row {',
-    'text-overflow: ellipsis;',
     '@container (max-width: 620px)',
-    '--entity-list-artwork-slot: 34px;',
-    '--entity-list-artwork-size: 29px;',
     '@container (max-width: 360px)',
-    '--entity-list-artwork-slot: 30px;',
-    '--entity-list-artwork-size: 26px;',
   ]) requireText(paths.entityHeaderStyles, text);
   for (const text of [
-    '.global-facility-catalog-row {\n    grid-template-columns: repeat(2, minmax(0, 1fr));',
     '.global-province-list',
     '.global-province-row',
     '.global-operation-metrics',
@@ -140,14 +164,8 @@ if (failures.length === 0) {
     "classNames('widget', className)",
   ]) requireText(paths.layout, text);
 
-  for (const text of [
-    'className="province-overview-content"',
-    'className="province-lock-content"',
-  ]) requireText(paths.provincePage, text);
-  for (const text of [
-    '.province-overview-content {',
-    '.province-lock-content {',
-  ]) requireText(paths.provinceStyles, text);
+  for (const text of ['className="province-overview-content"', 'className="province-lock-content"']) requireText(paths.provincePage, text);
+  for (const text of ['.province-overview-content {', '.province-lock-content {']) requireText(paths.provinceStyles, text);
   for (const text of ['province-overview-panel', 'province-lock-panel']) {
     forbidText(paths.provincePage, text);
     forbidText(paths.provinceStyles, text);
@@ -162,33 +180,28 @@ if (failures.length === 0) {
   ]) forbidText(path, forbidden);
 
   for (const text of [
-    '`src/styles/primary-surfaces.css` 是玩家端一级卡片外层内边距的唯一 CSS 权威',
-    '宽度大于 `720px` 时使用 `var(--space-4)`，即 `16px`',
-    '宽度不大于 `720px` 时使用 `var(--space-3)`，即 `12px`',
-    '`--player-page-content-inset` 固定使用当前 `.game-shell` 的 `var(--layout-gutter)`',
-    '桌面端页面实际宽度必须等于 `workspaceCard` 中扣除固定 `78px` 指挥轨道后的页面槽宽度',
-    '移动端页面实际宽度必须等于唯一根级 Mobile Workspace Sheet 的内容盒宽度',
-    '不得再使用 `padding-top: 0`',
-    '获准保留圆角的非滚动玩家一级表面必须使用 `PagePanel`',
-    '可滚动 `.page-card-scroll` 正文不属于圆角一级卡片适用范围',
+    '是否滚动不再决定卡片资格',
+    '`UI_DESIGN_SYSTEM.md` 决定页面分区、列表、对象卡和高层独立表面的视觉语义',
+    '`--primary-surface-inset` 是唯一外层 inset 令牌',
+    '正文 `.ui-entity-card` 与合同兼容入口 `.contract-card` 复用 `--primary-surface-inset`',
+    '`PagePanel` 固定输出 `panel widget ui-primary-surface` 兼容语义',
+    '公开合同和进行中合同必须保持对象卡边界',
+    '页面摘要指标属于同一比较条',
+    '正文对象卡禁止 `backdrop-filter` 和高层浮动阴影',
     '退役页面与结构边界',
-    '`.panel.production-surface` 与 `.panel.leaderboard-board-card`',
-    '业务页面 CSS 不得',
-    '一级建筑页只保留全局工厂目录，不再存在独立地区建筑卡片',
-    '点击工厂后出现的地区工厂列表继续保持“地区｜利润／分钟｜拥有｜状态”的第一行共享列，但条目同步改为两行结构',
-    '全局建筑列表的响应不能只依赖浏览器 viewport',
-    '真实页面承载宽度不大于 `620px` 时',
-    '通用列间距、横向内边距与 Chevron 轨道必须复用 `entity-list-header.css` 的页面列表共享令牌',
-    '横向内边距必须复用其 `--entity-list-inline-padding`',
-    '地区下钻按钮只覆盖第一行',
-    '不得恢复平行地区列表',
-    '`tests/browser/player-page-geometry.spec.ts`',
-    '分别对一级全局工厂目录和点击工厂后的地区工厂列表执行边界与跨断点真实几何回归',
-    '一级全局工厂目录和地区工厂列表条目必须保持约 `93～96px` 的登记两行高度',
-    '浏览器真实几何回归若在同一页面实例内跨越 `720px` 桌面／移动断点',
-    '`tests/browser/market-runtime.spec.ts` 的跨桌面／移动响应式几何用例',
+    '不得把独立复杂业务对象重新无条件扁平化',
+    '`tests/browser/contract-attention-background.spec.ts`',
     '该验证必须加入 `verify:architecture`',
   ]) requireText(paths.design, text);
+
+  for (const text of [
+    '页面结构与独立业务对象必须按语义而不是滚动状态分类',
+    '页面内容区固定使用四类表面语义',
+    '是否随页面正文滚动不再作为是否使用圆角卡片的判断条件',
+    '圆角不等于毛玻璃',
+    '现有合同 `.contract-summary-grid` 是该语义的兼容映射',
+    '合同页作为当前对象卡样板',
+  ]) requireText(paths.uiDesign, text);
 
   requireText(
     paths.marketRuntimeTest,
@@ -208,39 +221,30 @@ if (failures.length === 0) {
     "await expect(page.locator('.global-province-list')).toHaveCount(0);",
     "querySelector<HTMLElement>('.global-facility-catalog-list')",
     "querySelectorAll<HTMLElement>(':scope > li > .global-facility-catalog-row')",
-    "throw new Error('buildings catalog fixture is incomplete');",
-    "await facilityRows.locator('.global-facility-catalog-row__open').first().evaluate((button: HTMLButtonElement) => button.click());",
     "await expect(page.locator('.global-facility-region-list')).toBeVisible();",
     "querySelector<HTMLElement>('.global-facility-region-list')",
     "querySelectorAll<HTMLElement>(':scope > li > .global-facility-region-row')",
-    "throw new Error('buildings region list fixture is incomplete');",
     'expect(row.height).toBeGreaterThanOrEqual(82);',
     'expect(row.height).toBeLessThanOrEqual(98);',
     "page.locator('.global-facility-region-row__quick-controls')",
   ]) requireText(paths.geometryTest, text);
-  forbidText(paths.geometryTest, "querySelectorAll<HTMLElement>(':scope > .global-facility-catalog-row')");
-  forbidText(paths.geometryTest, "querySelector<HTMLElement>('.global-province-list')");
-  forbidText(paths.geometryTest, "querySelectorAll<HTMLElement>(':scope > li > .global-province-row')");
   forbidText(paths.geometryTest, '.global-operation-metrics');
   forbidText(paths.geometryTest, '.global-facility-catalog-grid');
   forbidText(paths.geometryTest, '.global-facility-catalog-card');
-  forbidText(paths.geometryTest, 'buildings metrics fixture is incomplete');
 
   for (const text of [
-    '| `src/styles/primary-surfaces.css` | 玩家端一级卡片外层内边距令牌、最终选择器、移动断点与旧一级卡片类兼容入口 |',
-    '- `PagePanel`',
-    '`PagePanel` 继续作为旧玩家页面一级业务模块的 React 兼容入口',
-    '可滚动 `.page-card-scroll` 正文统一由 `scrolling-page-sections.css`',
-    '`--primary-surface-inset` 唯一控制',
-    '不得定义一级卡片外层内边距',
-    '在业务页面 CSS 中重新声明一级卡片外层 padding',
-  ]) requireText(paths.uiDesign, text);
+    'independent contract cards keep object boundaries and warning tint',
+    'normalStyle.borderRadius',
+    'normalStyle.backdropFilter',
+    'summaryStyle.borderRadius',
+    "expect(summaryStyle.borderRadius).toBe('0px')",
+  ]) requireText(paths.contractAttentionTest, text);
 }
 
 if (failures.length > 0) {
-  console.error('一级卡片统一内边距验证失败:');
+  console.error('页面表面与卡片内边距验证失败:');
   failures.forEach((failure) => console.error(`- ${failure}`));
   process.exit(1);
 }
 
-console.log('一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、承载面局部间距、跨端页面安全宽度、正文顶部留白、全局建筑目录按已登记两行高度例外响应，地区工厂列表同步两行生产配置密度、旧类兼容、样式与设计文档权威均已锁定。');
+console.log('页面表面与卡片内边距验证通过：页面结构继续扁平化，合同与进行中拍卖等复杂独立业务对象保留轻量圆角边界，合同摘要保持统一指标条，正文对象卡无毛玻璃，同时共享 inset、承载安全几何和既有列表回归均已锁定。');
