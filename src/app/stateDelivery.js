@@ -27,6 +27,7 @@ const EMPTY_AUTHORITY_SNAPSHOT = Object.freeze({
   changedSlices: Object.freeze([]),
 });
 let authoritySnapshot = EMPTY_AUTHORITY_SNAPSHOT;
+let activeDeliveryCache = null;
 const authorityListeners = new Set();
 const partitionAuthorityListeners = new Map(
   STATE_PARTITION_NAMES.map((name) => [name, new Set()]),
@@ -176,6 +177,17 @@ export function getStateAuthoritySliceRevision(name) {
   return authoritySnapshot.sliceRevisions?.[name] || null;
 }
 
+export function getActiveStatePartitionRevisions() {
+  return activeDeliveryCache?.getPartitionRevisions?.() ?? {};
+}
+
+export function acceptExternalStateDelivery(payload) {
+  if (!activeDeliveryCache) {
+    throw new StateDeliveryIntegrityError('客户端权威状态尚未初始化');
+  }
+  return activeDeliveryCache.accept(payload);
+}
+
 export function subscribeStateAuthority(listener) {
   if (typeof listener !== 'function') return () => {};
   authorityListeners.add(listener);
@@ -293,7 +305,7 @@ export function createStateDeliveryCache(options = {}) {
   let sliceRevisions = {};
   let partitions = {};
 
-  return {
+  const cache = {
     reset() {
       state = null;
       revision = null;
@@ -371,4 +383,6 @@ export function createStateDeliveryCache(options = {}) {
       return state ? { ...acceptance, state } : acceptance;
     },
   };
+  activeDeliveryCache = cache;
+  return cache;
 }

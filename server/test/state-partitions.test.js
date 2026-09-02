@@ -279,20 +279,45 @@ test('unchanged delivery still returns a fresh server time without creating patc
   });
 });
 
-test('action delivery keeps only result status, message, and committed revision', () => {
+test('action delivery returns the command result with the committed authoritative delta', () => {
+  const initial = createPartitionedStateDelivery({
+    revision: 20,
+    unchanged: false,
+    state: sampleState(),
+  });
+  const stateSnapshot = {
+    revision: 21,
+    unchanged: false,
+    ...createStatePartitionSnapshot(sampleState({ credits: 101 })),
+  };
   const action = createPartitionedActionDelivery({
     result: { ok: true, message: '操作完成', creditsReceived: 10 },
     revision: 21,
-    unchanged: false,
-    partitionRevisions: { player: 'player-00001' },
-    patches: { player: { credits: 101 } },
-    state: sampleState({ credits: 101 }),
-  });
+    stateSnapshot,
+  }, initial.partitionRevisions, 1_700_000_006_000);
 
-  assert.deepEqual(action, {
+  assert.equal(action.result.ok, true);
+  assert.equal(action.result.message, '操作完成');
+  assert.equal('creditsReceived' in action.result, false);
+  assert.equal(action.commandRevision, 21);
+  assert.equal(action.revision, 21);
+  assert.equal(action.serverNow, 1_700_000_006_000);
+  assert.deepEqual(Object.keys(action.patches), ['player']);
+  assert.equal(action.patches.player.credits, 101);
+  assert.equal(action.unchanged, false);
+});
+
+test('action delivery rejects a state snapshot older than the committed command', () => {
+  const stateSnapshot = {
+    revision: 20,
+    unchanged: false,
+    ...createStatePartitionSnapshot(sampleState()),
+  };
+  assert.throws(() => createPartitionedActionDelivery({
     result: { ok: true, message: '操作完成' },
     revision: 21,
-  });
+    stateSnapshot,
+  }), /动作后的权威状态落后于已提交操作/);
 });
 
 test('partition revisions accept only bounded safe tokens', () => {

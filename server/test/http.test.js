@@ -178,6 +178,7 @@ test('HTTP API authenticates through the shared account service and honors idemp
       Origin: 'https://game.riversoft.top',
       'Content-Type': 'application/json',
       'Idempotency-Key': 'http-test-request-1',
+      'X-Economy-State-Revisions': JSON.stringify(statePayload.partitionRevisions),
     };
     const first = await fetch(`http://127.0.0.1:${gamePort}/api/game/profile`, {
       method: 'PATCH',
@@ -186,23 +187,33 @@ test('HTTP API authenticates through the shared account service and honors idemp
     });
     assert.equal(first.status, 200);
     const firstPayload = await first.json();
-    assert.deepEqual(Object.keys(firstPayload).sort(), ['result', 'revision']);
+    assert.deepEqual(Object.keys(firstPayload).sort(), [
+      'commandRevision', 'partitionRevisions', 'patches', 'result', 'revision', 'serverNow', 'sliceRevisions', 'unchanged',
+    ]);
     assert.deepEqual(Object.keys(firstPayload.result).sort(), ['message', 'ok']);
     assert.equal(firstPayload.result.ok, true);
     assert.equal(typeof firstPayload.result.message, 'string');
-    assert.equal(firstPayload.revision > statePayload.revision, true);
+    assert.equal(firstPayload.commandRevision > statePayload.revision, true);
+    assert.equal(firstPayload.revision >= firstPayload.commandRevision, true);
+    assert.equal(firstPayload.serverNow >= unchangedPayload.serverNow, true);
+    assert.equal(firstPayload.unchanged, false);
+    assert.deepEqual(Object.keys(firstPayload.partitionRevisions).sort(), [
+      'auction', 'catalog', 'contract', 'leaderboard', 'market', 'player',
+    ]);
+    const actionState = mergePatches(initialState, firstPayload.patches);
+    assert.equal(actionState.playerName, 'Server Player Updated');
+    assert.equal(actionState.credits, 500);
 
     const actionStateResponse = await fetch(
-      `http://127.0.0.1:${gamePort}/api/game/state?${revisionQuery(statePayload.revision, statePayload.partitionRevisions)}`,
+      `http://127.0.0.1:${gamePort}/api/game/state?${revisionQuery(firstPayload.revision, firstPayload.partitionRevisions)}`,
       { headers: { Cookie: 'session=ok' } },
     );
     assert.equal(actionStateResponse.status, 200);
     const actionStatePayload = await actionStateResponse.json();
-    const actionState = mergePatches(initialState, actionStatePayload.patches);
-    assert.equal(actionState.playerName, 'Server Player Updated');
-    assert.equal(actionState.credits, 500);
-    assert.equal(actionStatePayload.revision >= firstPayload.revision, true);
-    assert.equal(actionStatePayload.serverNow >= unchangedPayload.serverNow, true);
+    assert.deepEqual(Object.keys(actionStatePayload).sort(), ['revision', 'serverNow', 'unchanged']);
+    assert.equal(actionStatePayload.revision, firstPayload.revision);
+    assert.equal(actionStatePayload.unchanged, true);
+    assert.equal(actionStatePayload.serverNow >= firstPayload.serverNow, true);
 
     const repeated = await fetch(`http://127.0.0.1:${gamePort}/api/game/profile`, {
       method: 'PATCH',
@@ -211,18 +222,24 @@ test('HTTP API authenticates through the shared account service and honors idemp
     });
     assert.equal(repeated.status, 200);
     const repeatedPayload = await repeated.json();
-    assert.deepEqual(repeatedPayload, firstPayload);
+    assert.deepEqual(repeatedPayload.result, firstPayload.result);
+    assert.equal(repeatedPayload.commandRevision, firstPayload.commandRevision);
+    assert.equal(repeatedPayload.revision >= repeatedPayload.commandRevision, true);
+    assert.equal(repeatedPayload.serverNow >= firstPayload.serverNow, true);
+    const repeatedState = mergePatches(initialState, repeatedPayload.patches);
+    assert.equal(repeatedState.playerName, 'Server Player Updated');
+    assert.equal(repeatedState.credits, 500);
 
     const repeatedStateResponse = await fetch(
-      `http://127.0.0.1:${gamePort}/api/game/state?${revisionQuery(actionStatePayload.revision, actionStatePayload.partitionRevisions)}`,
+      `http://127.0.0.1:${gamePort}/api/game/state?${revisionQuery(repeatedPayload.revision, repeatedPayload.partitionRevisions)}`,
       { headers: { Cookie: 'session=ok' } },
     );
     assert.equal(repeatedStateResponse.status, 200);
     const repeatedStatePayload = await repeatedStateResponse.json();
     assert.deepEqual(Object.keys(repeatedStatePayload).sort(), ['revision', 'serverNow', 'unchanged']);
-    assert.equal(repeatedStatePayload.revision, actionStatePayload.revision);
+    assert.equal(repeatedStatePayload.revision, repeatedPayload.revision);
     assert.equal(repeatedStatePayload.unchanged, true);
-    assert.equal(repeatedStatePayload.serverNow >= actionStatePayload.serverNow, true);
+    assert.equal(repeatedStatePayload.serverNow >= repeatedPayload.serverNow, true);
 
     const retiredWork = await fetch(`http://127.0.0.1:${gamePort}/api/game/work`, {
       method: 'POST',

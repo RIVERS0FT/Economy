@@ -34,9 +34,12 @@ const serverApp = read('server/src/app.js');
 const requestPerformance = read('server/src/request-performance.js');
 for (const text of [
   'STATE_PARTITIONS',
-  '状态修订号发生倒退',
+  '修订号发生倒退',
   'serverNow 发生倒退',
-  '相同幂等键返回了不同动作确认',
+  '相同幂等键返回了不同命令结果',
+  'commandRevision',
+  'X-Economy-State-Revisions',
+  'acceptDelivery(client, payload',
   'Promise.allSettled',
   'accountSlots',
   'unexpectedStatusCount',
@@ -178,4 +181,4 @@ assert.equal(
   '设计索引必须登记服务器架构与部署 DESIGN',
 );
 
-console.log('压力测试执行器、事务混合覆盖、隔离预置、协议断言、性能预算、生产安全门禁、报告和工作流均已锁定。');
+console.log('压力测试执行器、事务混合覆盖、动作权威增量、幂等命令语义、隔离预置、性能预算、生产安全门禁、报告和工作流均已锁定。');

@@ -152,26 +152,13 @@ function rebuildClientState(client, payload) {
   client.state = state;
 }
 
-async function fetchState(metrics, client, endpoints, invariants) {
-  const { payload } = await requestJson(metrics, {
-    url: stateUrl(client, endpoints.gameBaseUrl),
-    route: '/api/game/state',
-    cookie: client.cookie,
-  });
-  assert.ok(Number.isInteger(payload.revision) && payload.revision >= 0, '状态响应缺少有效修订号');
-  assert.ok(Number.isFinite(payload.serverNow) && payload.serverNow >= 0, '状态响应缺少 serverNow');
-  if (client.revision !== null) assert.ok(payload.revision >= client.revision, '状态修订号发生倒退');
-  if (client.serverNow !== null) assert.ok(payload.serverNow >= client.serverNow, 'serverNow 发生倒退');
-  if (client.revision === null) {
-    assert.equal(payload.unchanged, false, '初次状态不得为 unchanged');
-    assert.ok(payload.patches && typeof payload.patches === 'object', '初次状态缺少分区正文');
-    for (const name of STATE_PARTITIONS) assert.ok(name in payload.patches, `初次状态缺少 ${name} 分区`);
-    invariants.fullStateResponses += 1;
-  } else if (payload.unchanged) {
-    invariants.unchangedStateResponses += 1;
-  } else {
-    assert.ok(payload.patches && typeof payload.patches === 'object', '变化状态缺少分区正文');
-    invariants.incrementalStateResponses += 1;
+function acceptDelivery(client, payload, label) {
+  assert.ok(Number.isInteger(payload.revision) && payload.revision >= 0, `${label} 缺少有效修订号`);
+  assert.ok(Number.isFinite(payload.serverNow) && payload.serverNow >= 0, `${label} 缺少 serverNow`);
+  if (client.revision !== null) assert.ok(payload.revision >= client.revision, `${label} 修订号发生倒退`);
+  if (client.serverNow !== null) assert.ok(payload.serverNow >= client.serverNow, `${label} serverNow 发生倒退`);
+  if (!payload.unchanged) {
+    assert.ok(payload.patches && typeof payload.patches === 'object', `${label} 变化交付缺少分区正文`);
   }
   if (payload.partitionRevisions && typeof payload.partitionRevisions === 'object') {
     for (const name of STATE_PARTITIONS) {
@@ -182,6 +169,26 @@ async function fetchState(metrics, client, endpoints, invariants) {
   rebuildClientState(client, payload);
   client.revision = payload.revision;
   client.serverNow = payload.serverNow;
+}
+
+async function fetchState(metrics, client, endpoints, invariants) {
+  const { payload } = await requestJson(metrics, {
+    url: stateUrl(client, endpoints.gameBaseUrl),
+    route: '/api/game/state',
+    cookie: client.cookie,
+  });
+  const initial = client.revision === null;
+  if (initial) {
+    assert.equal(payload.unchanged, false, '初次状态不得为 unchanged');
+    assert.ok(payload.patches && typeof payload.patches === 'object', '初次状态缺少分区正文');
+    for (const name of STATE_PARTITIONS) assert.ok(name in payload.patches, `初次状态缺少 ${name} 分区`);
+    invariants.fullStateResponses += 1;
+  } else if (payload.unchanged) {
+    invariants.unchangedStateResponses += 1;
+  } else {
+    invariants.incrementalStateResponses += 1;
+  }
+  acceptDelivery(client, payload, '状态响应');
   invariants.stateResponses += 1;
   return payload;
 }
@@ -193,6 +200,16 @@ function saveEpochHeader(client) {
     : {};
 }
 
+function actionHeaders(client) {
+  const headers = {
+    ...saveEpochHeader(client),
+  };
+  if (Object.keys(client.partitionRevisions).length > 0) {
+    headers['X-Economy-State-Revisions'] = JSON.stringify(client.partitionRevisions);
+  }
+  return headers;
+}
+
 async function postAction(metrics, client, endpoints, path, route, body, idempotencyKey) {
   const { payload } = await requestJson(metrics, {
     url: `${endpoints.gameBaseUrl}${path}`,
@@ -201,11 +218,13 @@ async function postAction(metrics, client, endpoints, path, route, body, idempot
     cookie: client.cookie,
     body,
     idempotencyKey,
-    headers: saveEpochHeader(client),
+    headers: actionHeaders(client),
   });
-  assert.ok(Number.isInteger(payload.revision), `${route} 确认缺少修订号`);
+  assert.ok(Number.isInteger(payload.commandRevision), `${route} 确认缺少命令修订号`);
   assert.equal(payload.result?.ok, true, `${route} 业务结果失败：${String(payload.result?.message || '')}`);
   assert.equal(typeof payload.result?.message, 'string', `${route} 确认缺少消息`);
+  assert.ok(Number(payload.revision) >= Number(payload.commandRevision), `${route} 权威交付落后于命令提交`);
+  acceptDelivery(client, payload, `${route} 动作响应`);
   return payload;
 }
 
@@ -258,7 +277,11 @@ async function verifyIdempotency(metrics, client, endpoints, runId, invariants) 
   };
   const first = await postAction(metrics, client, endpoints, '/orders', '/api/game/orders', body, requestKey);
   const repeated = await postAction(metrics, client, endpoints, '/orders', '/api/game/orders', body, requestKey);
-  assert.deepEqual(repeated, first, '相同幂等键返回了不同动作确认');
+  assert.deepEqual(
+    { result: repeated.result, commandRevision: repeated.commandRevision },
+    { result: first.result, commandRevision: first.commandRevision },
+    '相同幂等键返回了不同命令结果',
+  );
   invariants.actionConfirmations += 2;
   invariants.idempotencyChecks += 1;
   client.nextWriteAt = performance.now() + 3_200;

@@ -58,6 +58,13 @@ export const STATE_PARTITION_NAMES: readonly StatePartitionName[];
 export function getStateAuthoritySnapshot(): StateAuthoritySnapshot;
 export function getStateAuthorityPartition(name: StatePartitionName): Partial<EconomyState> | null;
 export function getStateAuthoritySliceRevision(name: StateSliceName): string | null;
+export function getActiveStatePartitionRevisions(): StatePartitionRevisions;
+export function acceptExternalStateDelivery<T extends StateDeliveryEnvelope>(payload: T): T & {
+  state?: EconomyState;
+  stateChanged: boolean;
+  changedPartitions: readonly StatePartitionName[];
+  changedSlices: readonly StateSliceName[];
+};
 export function subscribeStateAuthority(listener: () => void): () => void;
 export function subscribeStateAuthorityPartition(
   name: StatePartitionName,

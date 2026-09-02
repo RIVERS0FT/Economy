@@ -1,3 +1,14 @@
+import {
+  acceptExternalStateDelivery,
+  getActiveStatePartitionRevisions,
+} from '../app/stateDelivery.js';
+import {
+  acknowledgeFacilityEnabledIntent,
+  rejectFacilityEnabledIntent,
+  setFacilityEnabledIntent,
+} from '../app/immediateCommandIntent';
+import { acceptServerNow } from '../utils/serverClock.js';
+
 const GAME_API_PATH_PREFIX = '/economy-api/game';
 const SESSION_BOOTSTRAP_PATH = `${GAME_API_PATH_PREFIX}/session`;
 const WRITE_ATTEMPT_TIMEOUT_MS = 12_000;
@@ -10,9 +21,23 @@ interface PendingWriteReservation {
   createdAt: number;
 }
 
+interface FacilityToggleIntent {
+  provinceId: string;
+  facilityTypeId: string;
+  enabled: boolean;
+  sequence: number;
+  queueKey: string;
+}
+
+interface ActionDeliveryReconciliation {
+  commandOk: boolean | null;
+  authorityApplied: boolean;
+}
+
 type StoredPendingWrites = Record<string, PendingWriteReservation>;
 
 const pendingWrites = new Map<string, PendingWriteReservation>();
+const directControlTails = new Map<string, Promise<void>>();
 let hydrated = false;
 let installed = false;
 
@@ -119,13 +144,17 @@ function requestMethod(input: RequestInfo | URL, init?: RequestInit) {
   return 'GET';
 }
 
-function isTargetGameWrite(input: RequestInfo | URL, method: string) {
-  if (method === 'GET' || method === 'HEAD') return false;
+function parsedRequestUrl(input: RequestInfo | URL) {
   const base = typeof globalThis.location?.origin === 'string'
     ? globalThis.location.origin
     : 'http://localhost';
+  return new URL(requestUrl(input), base);
+}
+
+function isTargetGameWrite(input: RequestInfo | URL, method: string) {
+  if (method === 'GET' || method === 'HEAD') return false;
   try {
-    const url = new URL(requestUrl(input), base);
+    const url = parsedRequestUrl(input);
     return url.pathname === GAME_API_PATH_PREFIX || url.pathname.startsWith(`${GAME_API_PATH_PREFIX}/`);
   } catch {
     return false;
@@ -133,15 +162,38 @@ function isTargetGameWrite(input: RequestInfo | URL, method: string) {
 }
 
 function canonicalRequestPath(input: RequestInfo | URL) {
-  const base = typeof globalThis.location?.origin === 'string'
-    ? globalThis.location.origin
-    : 'http://localhost';
-  const url = new URL(requestUrl(input), base);
+  const url = parsedRequestUrl(input);
   return `${url.pathname}${url.search}`;
 }
 
 function isSessionBootstrapWrite(input: RequestInfo | URL) {
   return canonicalRequestPath(input) === SESSION_BOOTSTRAP_PATH;
+}
+
+function facilityToggleIntent(
+  input: RequestInfo | URL,
+  init: RequestInit,
+): FacilityToggleIntent | null {
+  if (typeof init.body !== 'string') return null;
+  try {
+    const path = parsedRequestUrl(input).pathname;
+    const match = path.match(/^\/economy-api\/game\/facilities\/([^/]+)\/(start|stop|pause)$/);
+    if (!match) return null;
+    const body = JSON.parse(init.body) as { provinceId?: unknown };
+    const provinceId = String(body.provinceId || '');
+    const facilityTypeId = decodeURIComponent(match[1]);
+    if (!provinceId || !facilityTypeId) return null;
+    const enabled = match[2] === 'start';
+    return {
+      provinceId,
+      facilityTypeId,
+      enabled,
+      sequence: setFacilityEnabledIntent(provinceId, facilityTypeId, enabled),
+      queueKey: `${provinceId}:${facilityTypeId}`,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function shouldKeepReservation(response: Response) {
@@ -155,6 +207,72 @@ function errorName(reason: unknown) {
 
 function isAmbiguousTransportFailure(reason: unknown) {
   return reason instanceof TypeError || errorName(reason) === 'AbortError';
+}
+
+function actionDeliveryPayload(value: unknown): value is {
+  result: { ok?: unknown; message?: unknown };
+  revision: number;
+  unchanged: boolean;
+  serverNow: number;
+} {
+  if (!value || typeof value !== 'object') return false;
+  const payload = value as {
+    result?: unknown;
+    revision?: unknown;
+    unchanged?: unknown;
+    serverNow?: unknown;
+  };
+  return Boolean(payload.result && typeof payload.result === 'object')
+    && Number.isInteger(payload.revision)
+    && typeof payload.unchanged === 'boolean'
+    && Number.isFinite(Number(payload.serverNow));
+}
+
+function attachKnownStateRevisions(input: RequestInfo | URL, headers: Headers) {
+  if (isSessionBootstrapWrite(input)) return;
+  const revisions = getActiveStatePartitionRevisions();
+  if (Object.keys(revisions).length === 0) return;
+  headers.set('X-Economy-State-Revisions', JSON.stringify(revisions));
+}
+
+async function reconcileActionDelivery(response: Response): Promise<ActionDeliveryReconciliation> {
+  if (!response.ok) return { commandOk: null, authorityApplied: false };
+  let payload: unknown;
+  try {
+    payload = await response.clone().json() as unknown;
+  } catch {
+    return { commandOk: null, authorityApplied: false };
+  }
+  if (!actionDeliveryPayload(payload)) return { commandOk: null, authorityApplied: false };
+  const commandOk = payload.result.ok === true;
+  try {
+    acceptServerNow(payload.serverNow);
+    acceptExternalStateDelivery(payload);
+    return { commandOk, authorityApplied: true };
+  } catch {
+    // The write may already be committed. Never turn a successful HTTP write into
+    // an apparent failed command because local delivery reconciliation failed;
+    // the normal authority poll remains the recovery path.
+    return { commandOk, authorityApplied: false };
+  }
+}
+
+async function runSerializedDirectControl<T>(key: string | null, operation: () => Promise<T>) {
+  if (!key) return operation();
+  const previous = directControlTails.get(key) ?? Promise.resolve();
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const tail = previous.catch(() => {}).then(() => gate);
+  directControlTails.set(key, tail);
+  await previous.catch(() => {});
+  try {
+    return await operation();
+  } finally {
+    release();
+    void tail.finally(() => {
+      if (directControlTails.get(key) === tail) directControlTails.delete(key);
+    });
+  }
 }
 
 async function fetchWriteAttempt(
@@ -197,6 +315,8 @@ export function installIdempotentGameWriteFetch() {
     const headers = new Headers(init.headers);
     const proposedKey = headers.get('Idempotency-Key');
     if (!proposedKey) return nativeFetch(input, init);
+    attachKnownStateRevisions(input, headers);
+    const immediateIntent = facilityToggleIntent(input, init);
 
     const fingerprint = stableFingerprint([
       method,
@@ -207,29 +327,62 @@ export function installIdempotentGameWriteFetch() {
     const reservation = reserveWriteKey(fingerprint, proposedKey);
     headers.set('Idempotency-Key', reservation.key);
 
-    let lastFailure: unknown;
-    for (let attemptIndex = 0; attemptIndex < 2; attemptIndex += 1) {
-      try {
-        const response = await fetchWriteAttempt(
-          nativeFetch,
-          input,
-          init,
-          headers,
-          attemptIndex === 0 ? init.signal : undefined,
-        );
-        if (!shouldKeepReservation(response)) {
-          releaseWriteKey(fingerprint, reservation.key);
+    return runSerializedDirectControl(immediateIntent?.queueKey ?? null, async () => {
+      let lastFailure: unknown;
+      for (let attemptIndex = 0; attemptIndex < 2; attemptIndex += 1) {
+        try {
+          const response = await fetchWriteAttempt(
+            nativeFetch,
+            input,
+            init,
+            headers,
+            attemptIndex === 0 ? init.signal : undefined,
+          );
+          const reconciliation = await reconcileActionDelivery(response);
+          if (immediateIntent) {
+            if (!response.ok || reconciliation.commandOk === false) {
+              rejectFacilityEnabledIntent(
+                immediateIntent.provinceId,
+                immediateIntent.facilityTypeId,
+                immediateIntent.sequence,
+              );
+            } else {
+              acknowledgeFacilityEnabledIntent(
+                immediateIntent.provinceId,
+                immediateIntent.facilityTypeId,
+                immediateIntent.sequence,
+                reconciliation.authorityApplied,
+              );
+            }
+          }
+          if (!shouldKeepReservation(response)) {
+            releaseWriteKey(fingerprint, reservation.key);
+          }
+          return response;
+        } catch (reason) {
+          lastFailure = reason;
+          if (!isAmbiguousTransportFailure(reason)) {
+            if (immediateIntent) {
+              rejectFacilityEnabledIntent(
+                immediateIntent.provinceId,
+                immediateIntent.facilityTypeId,
+                immediateIntent.sequence,
+              );
+            }
+            releaseWriteKey(fingerprint, reservation.key);
+            throw reason;
+          }
+          if (attemptIndex === 0) continue;
         }
-        return response;
-      } catch (reason) {
-        lastFailure = reason;
-        if (!isAmbiguousTransportFailure(reason)) {
-          releaseWriteKey(fingerprint, reservation.key);
-          throw reason;
-        }
-        if (attemptIndex === 0) continue;
       }
-    }
-    throw lastFailure;
+      if (immediateIntent) {
+        rejectFacilityEnabledIntent(
+          immediateIntent.provinceId,
+          immediateIntent.facilityTypeId,
+          immediateIntent.sequence,
+        );
+      }
+      throw lastFailure;
+    });
   };
 }

@@ -34,18 +34,19 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '字段缺失即代表该字段已经被服务器删除',
   '`catalog` 的必需目录字段必须在完整快照中同时存在',
   '客户端必须拒绝发布该坏状态并清空本地分区修订缓存，只允许自动执行一次无条件完整状态重拉',
-  '普通玩家权威动作响应固定为 `{ result: { ok, message }, revision }`',
-  '不得携带订单 ID、兑换数量、结算金额或其他动作内部字段',
+  '普通玩家权威动作的持久化幂等确认仍固定为 `{ result: { ok, message }, revision }`',
   '动作事务和 `economy_idempotency.response_json` 只生成并保存这份精简确认',
-  '动作发起前已经接受的全局 `revision`',
-  '不得在补拉前直接写入客户端状态修订号',
+  'HTTP 传输层在事务提交后必须从当前 committed world 为当前玩家生成一次权威状态交付',
+  '`commandRevision` 表示该命令实际提交时的世界修订号',
+  '正常成功路径不得为了取得同一动作结果再追加一次 `GET state`',
   '补拉失败不得把已经提交成功的动作改写为失败',
   '`X-Economy-State-Revisions`',
+  'Intent Overlay',
   '普通轮询不得承担时间推进',
   '正式服务的全局调度器保证到期处理延后不超过 1 秒',
   '正式客户端默认每 5 秒轮询一次修订号',
   '共享单调服务器时钟',
-  '只有 `GET state` 的分区交付响应可以更新 `EconomyState`',
+  '只有 `GET state` 或权威动作响应中的状态交付可以更新 `EconomyState`',
   '发起任一权威动作时必须使用 `AbortController` 取消正在进行的状态轮询',
   '存在重复提交风险的权威按钮必须在请求发出时同步进入本地“处理中”状态',
   'gzip_types application/json',
@@ -134,6 +135,11 @@ requireText('server/src/storage.js', [
   'createActionAcknowledgement(cachedResponse.result, cachedResponse.revision)',
 ]);
 
+requireText('server/src/runtime-store.js', [
+  "Object.defineProperty(response, 'stateSnapshot'",
+  'value: this.getStateSnapshot(user, null, now)',
+]);
+
 requireText('server/src/world-storage-v2.js', [
   'prepareSegmentedWorldWrite(',
   'segmentedSnapshotsEqual(',
@@ -166,6 +172,8 @@ requireText('server/src/state-partitions.js', [
   'createPartitionedStateDelivery(snapshot, knownRevisions = {}, serverNow = Date.now())',
   'serverNow: responseServerNow',
   'createPartitionedActionDelivery',
+  'const snapshot = actionResponse?.stateSnapshot',
+  'commandRevision',
   "message: String(actionResponse?.result?.message || '')",
   'readKnownPartitionRevisionsFromSearch',
   'readKnownPartitionRevisionsFromHeader',
@@ -233,6 +241,8 @@ requireText('src/app/stateDelivery.d.ts', [
   'serverNow: number;',
   'StateDeliveryEnvelope',
   'StateDeliveryIntegrityError',
+  'getActiveStatePartitionRevisions',
+  'acceptExternalStateDelivery',
   "'contract'",
 ]);
 
@@ -248,10 +258,36 @@ requireText('src/app/stateDelivery.js', [
   'partitions[name] = { ...patch }',
   'Object.assign(state, partition)',
   'createStateDeliveryCache',
+  'activeDeliveryCache = cache',
+  'acceptExternalStateDelivery',
+  'getActiveStatePartitionRevisions',
   'payload.revision < revision',
 ]);
 forbidText('src/app/stateDelivery.js', [
   'Object.assign(next, patch)',
+]);
+
+requireText('src/api/idempotentGameWriteFetch.ts', [
+  'getActiveStatePartitionRevisions',
+  "headers.set('X-Economy-State-Revisions', JSON.stringify(revisions))",
+  'acceptExternalStateDelivery(payload);',
+  'facilityToggleIntent',
+  'runSerializedDirectControl',
+  'acknowledgeFacilityEnabledIntent',
+  'rejectFacilityEnabledIntent',
+]);
+requireText('src/app/immediateCommandIntent.ts', [
+  'setFacilityEnabledIntent',
+  'expectedSequence',
+  'acknowledged: true',
+  'reconcileFacilityEnabledIntent',
+  'subscribeFacilityEnabledIntent',
+]);
+requireText('src/pages/production/ProductionFacilityDetail.tsx', [
+  'useSyncExternalStore',
+  'getFacilityEnabledIntent',
+  'reconcileFacilityEnabledIntent',
+  'checked={displayedEnabled}',
 ]);
 
 requireText('src/utils/serverClock.js', [
@@ -289,9 +325,12 @@ requireText('src/app/gameViewModel.ts', [
   'revisionRef.current',
   'canAcceptRevision(currentRevision, incomingRevision)',
   'getGameState(revisionRef.current, controller.signal)',
+  'const authoritySnapshot = getGameAuthoritySnapshot();',
   'const stateResponse = await getGameState(revisionRef.current);',
   'stateResponse.revision < response.revision',
   '操作已完成，但状态同步失败',
+  'syncConfirmedAction(response, action);',
+  'finish();',
   'return response.result;',
   'refreshTaskRef.current?.controller.abort()',
   "mode === 'normal' && actionsInFlightRef.current > 0",
@@ -300,6 +339,7 @@ requireText('src/app/gameViewModel.ts', [
 forbidText('src/app/gameViewModel.ts', [
   'acceptVersionedState(response.revision, response.state, action',
   'refreshAbortRef.current',
+  '.finally(finish)',
 ]);
 forbidText('src/app/gameViewModel.ts', [
   "action === 'work'",
@@ -536,4 +576,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('状态交付容量验证通过：世界缓存、单一全局调度、六分区增量交付与完整快照替换、catalog 完整性门禁与单次全量恢复、独立 serverNow、共享单调服务器时钟、动作精简确认与确认后分区补拉、修订号门禁、可抢占刷新任务、5 秒默认间隔和 JSON gzip 均已锁定。');
+console.log('状态交付容量验证通过：世界缓存、单一全局调度、六分区增量交付与完整快照替换、catalog 完整性门禁与单次全量恢复、独立 serverNow、共享单调服务器时钟、动作权威增量回执与直接控制 Intent、修订号门禁、可抢占刷新任务、5 秒默认间隔和 JSON gzip 均已锁定。');
