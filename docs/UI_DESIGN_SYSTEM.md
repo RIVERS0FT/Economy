@@ -120,7 +120,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 ### 3.2 输入方式与共享交互状态
 
-所有 React 根入口共享唯一输入方式 bootstrap；最近一次有效输入把根元素 `data-input-modality` 动态更新为 `mouse`、`touch` 或 `keyboard`，混合输入设备不得依赖刷新或只按视口判断。需要共享悬停／按压／焦点视觉的交互表面声明 `data-ui-interactive="surface"`：hover 只在 `mouse` 且设备满足 hover / `pointer: fine` 时可见，触摸不得残留粘滞 hover 或类似选中态的焦点环，键盘 `:focus-visible` 必须清晰可见。覆盖式滚动条复用同一输入方式；历史未约束 hover 基线只允许收缩，不得新增。
+所有 React 根入口通过 `src/app/interactionBootstrap.ts` 维护 `mouse`／`touch`／`keyboard` 输入方式；共享视觉由 `src/styles/interaction-states.css` 收束。交互表面声明 `data-ui-interactive="surface"`，鼠标 hover 必须同时满足输入方式与 `hover: hover`／`pointer: fine`，触摸不保留粘滞 hover，键盘保留明确 `:focus-visible`。防回退由 `scripts/verify-interaction-modality.mjs` 与 `tests/browser/input-modality.spec.ts` 锁定。
 
 ## 4. 开关焦点环与点击区域
 
