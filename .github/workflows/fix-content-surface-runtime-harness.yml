@@ -37,6 +37,8 @@ jobs:
               path.write_text(text, encoding='utf-8')
           PY
       - name: Verify content surface regression
+        env:
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: /usr/bin/google-chrome
         run: |
           npm run generate:local-preview
           bash scripts/prepare-playwright-chromium.sh
