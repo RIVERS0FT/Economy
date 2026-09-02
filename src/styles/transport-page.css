@@ -29,16 +29,10 @@
   z-index: 1;
   bottom: 0;
   min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-3);
+  display: flex;
+  justify-content: flex-end;
   padding-top: var(--space-3);
   background: var(--color-surface-panel);
-}
-
-.transport-page-footer > .ui-button {
-  justify-self: end;
 }
 
 .transport-routes-panel,
