@@ -1,18 +1,55 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-async function dragToEdge(page: Page, canvas: Locator, direction: 'right' | 'down', times = 4) {
+async function dragToEdge(canvas: Locator, direction: 'right' | 'down', times = 4) {
   const bounds = await canvas.boundingBox();
   if (!bounds) throw new Error('map bounds missing');
   const startX = bounds.x + bounds.width / 2;
   const startY = bounds.y + bounds.height / 2;
   const endX = direction === 'right' ? bounds.x + bounds.width - 8 : startX;
   const endY = direction === 'down' ? bounds.y + bounds.height - 8 : startY;
-  for (let index = 0; index < times; index += 1) {
-    await page.mouse.move(startX, startY);
-    await page.mouse.down();
-    await page.mouse.move(endX, endY, { steps: 2 });
-    await page.mouse.up();
-  }
+  await canvas.evaluate((element, input) => {
+    const target = element as HTMLElement;
+    const originalCapture = target.setPointerCapture;
+    Object.defineProperty(target, 'setPointerCapture', { configurable: true, value: () => {} });
+    try {
+      for (let index = 0; index < input.times; index += 1) {
+        const pointerId = 700 + index;
+        target.dispatchEvent(new PointerEvent('pointerdown', {
+          bubbles: true,
+          pointerId,
+          pointerType: 'mouse',
+          isPrimary: true,
+          button: 0,
+          buttons: 1,
+          clientX: input.startX,
+          clientY: input.startY,
+        }));
+        target.dispatchEvent(new PointerEvent('pointermove', {
+          bubbles: true,
+          pointerId,
+          pointerType: 'mouse',
+          isPrimary: true,
+          button: 0,
+          buttons: 1,
+          clientX: input.endX,
+          clientY: input.endY,
+        }));
+        target.dispatchEvent(new PointerEvent('pointerup', {
+          bubbles: true,
+          pointerId,
+          pointerType: 'mouse',
+          isPrimary: true,
+          button: 0,
+          buttons: 0,
+          clientX: input.endX,
+          clientY: input.endY,
+        }));
+      }
+    } finally {
+      if (originalCapture) Object.defineProperty(target, 'setPointerCapture', { configurable: true, value: originalCapture });
+      else delete (target as HTMLElement & { setPointerCapture?: (pointerId: number) => void }).setPointerCapture;
+    }
+  }, { startX, startY, endX, endY, times });
 }
 
 async function zoomIn(page: Page, canvas: Locator, times = 5) {
@@ -142,7 +179,7 @@ test('minimum zoom centers the mainland and every zoom level stays inside one fi
   expect(Math.abs(baseline.centerOffsetX)).toBeLessThan(3);
   expect(Math.abs(baseline.centerOffsetY)).toBeLessThan(3);
 
-  await dragToEdge(page, canvas, 'right', 3);
+  await dragToEdge(canvas, 'right', 3);
   await expect.poll(async () => Math.abs((await readCameraViewBox(canvas)).x - minimumView.x)).toBeLessThan(0.02);
   await expect.poll(async () => Math.abs((await readCameraViewBox(canvas)).y - minimumView.y)).toBeLessThan(0.02);
 
@@ -154,11 +191,11 @@ test('minimum zoom centers the mainland and every zoom level stays inside one fi
   expect(zoomedView.height).toBeLessThan(minimumView.height);
   expectViewInsideBounds(zoomedView, fixedBounds);
 
-  await dragToEdge(page, canvas, 'right');
+  await dragToEdge(canvas, 'right');
   await expect.poll(async () => Number(await canvas.getAttribute('data-map-pan-clamp-count'))).toBeGreaterThan(0);
   const rightBoundary = await readCameraViewBox(canvas);
   expectViewInsideBounds(rightBoundary, fixedBounds);
-  await dragToEdge(page, canvas, 'right', 3);
+  await dragToEdge(canvas, 'right', 3);
   await expect.poll(async () => Math.abs((await readCameraViewBox(canvas)).x - rightBoundary.x)).toBeLessThan(0.02);
 
   await canvas.dispatchEvent('dblclick', { clientX: 20, clientY: 20 });
@@ -170,10 +207,10 @@ test('minimum zoom centers the mainland and every zoom level stays inside one fi
   expect(Math.abs(reset.areaRatio - baseline.areaRatio)).toBeLessThan(0.01);
 
   await zoomIn(page, canvas, 6);
-  await dragToEdge(page, canvas, 'down');
+  await dragToEdge(canvas, 'down');
   const bottomBoundary = await readCameraViewBox(canvas);
   expectViewInsideBounds(bottomBoundary, fixedBounds);
-  await dragToEdge(page, canvas, 'down', 3);
+  await dragToEdge(canvas, 'down', 3);
   await expect.poll(async () => Math.abs((await readCameraViewBox(canvas)).y - bottomBoundary.y)).toBeLessThan(0.02);
 });
 
