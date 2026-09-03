@@ -142,6 +142,7 @@ export function StrategicMapStage({
   const draftSetupCost = routeDraft?.draft && draftStops.length >= 2
     ? transportRouteSetupCost(routeDraft.draft, routeDraft.draft.mode, provinceById)
     : 0;
+  const highlightedRouteId = routeDraft?.highlightedRouteId ?? null;
   const routeOverlays = useMemo<ProvinceMapRouteOverlay[]>(() => {
     if (startingProvincePicking) return [];
     const overlays: ProvinceMapRouteOverlay[] = [];
@@ -159,28 +160,7 @@ export function StrategicMapStage({
           stops,
           closed,
           tripType: closed ? 'one-way' : 'round',
-          kind: 'saved',
-        });
-      }
-    }
-    const highlightedRouteId = routeDraft?.highlightedRouteId;
-    const highlightedRoute = highlightedRouteId
-      ? transportRoutes.find((route) => route.id === highlightedRouteId)
-      : undefined;
-    if (highlightedRoute) {
-      const highlightedStops = transportRouteStopIds(highlightedRoute);
-      if (highlightedStops.length >= 2) {
-        const closed = isTransportRouteClosed(highlightedRoute);
-        overlays.push({
-          id: `highlighted-${highlightedRoute.mode}-route`,
-          routeId: highlightedRoute.id,
-          laneOwnerId: highlightedRoute.id,
-          sortKey: `${String(highlightedRoute.createdAt).padStart(16, '0')}-${highlightedRoute.id}`,
-          mode: highlightedRoute.mode,
-          stops: highlightedStops,
-          closed,
-          tripType: closed ? 'one-way' : 'round',
-          kind: 'highlight',
+          kind: route.id === highlightedRouteId ? 'highlight' : 'saved',
         });
       }
     }
@@ -198,7 +178,7 @@ export function StrategicMapStage({
       });
     }
     return overlays;
-  }, [draftStops, model.tab, routeDraft?.draft, routeDraft?.highlightedRouteId, startingProvincePicking, transportRoutes]);
+  }, [draftStops, highlightedRouteId, model.tab, routeDraft?.draft, startingProvincePicking, transportRoutes]);
 
   const shipmentOverlays = useMemo<ProvinceMapShipmentOverlay[]>(() => {
     if (startingProvincePicking) return [];
