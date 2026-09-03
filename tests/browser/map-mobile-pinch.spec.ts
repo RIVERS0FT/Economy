@@ -57,7 +57,7 @@ async function findPinchSeedInsideProvince(page: Page, provinceId: string) {
   });
 }
 
-test('mobile pinch starting inside a province zooms without selecting the province', async ({ browser }) => {
+test('mobile pinch starting inside a province zooms the SVG viewBox without selecting the province', async ({ browser }) => {
   test.setTimeout(60_000);
   const context = await browser.newContext({
     baseURL: 'http://127.0.0.1:1420/economy/',
@@ -71,10 +71,12 @@ test('mobile pinch starting inside a province zooms without selecting the provin
     await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
     const map = page.getByTestId('us-mainland-map');
     const canvas = map.locator('.economy-chart__canvas');
+    const svg = map.locator('.province-map-world-svg');
     await expect(map).toHaveAttribute('data-map-ready', 'true');
-    await expect(canvas).toHaveAttribute('data-map-camera-mode', 'html-compositor-transform');
+    await expect(canvas).toHaveAttribute('data-map-camera-mode', 'svg-viewbox');
     await expect(canvas).toHaveCSS('touch-action', 'none');
     await expect(page.locator('.province-map-chart')).toHaveAttribute('data-selected-province-id', '');
+    const viewBoxBefore = await svg.getAttribute('viewBox');
 
     const seed = await findPinchSeedInsideProvince(page, 'US-TX');
     const touchPoints = (half: number) => ([
@@ -108,6 +110,7 @@ test('mobile pinch starting inside a province zooms without selecting the provin
     await expect(canvas).toHaveAttribute('data-map-zoom-input-mode', 'pinch');
     await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-target'))).toBeGreaterThan(1.05);
     await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.05);
+    await expect.poll(async () => svg.getAttribute('viewBox')).not.toBe(viewBoxBefore);
 
     await cdp.send('Input.dispatchTouchEvent', {
       type: 'touchEnd',
