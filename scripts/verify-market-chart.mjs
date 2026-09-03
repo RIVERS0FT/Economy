@@ -174,13 +174,16 @@ for (const text of [
 ]) assert.ok(chartCss.includes(text), `共享图表样式缺少: ${text}`);
 
 for (const text of [
-  'market chart preserves readable volume height, zero-gap grids and dynamic ticks',
+  'const marketChartViewports = [',
   "{ width: 1684, height: 931, label: '桌面端' }", "{ width: 390, height: 844, label: '移动端' }",
-  "{ width: 320, height: 700, label: '极窄移动端' }", "document.documentElement.style.fontSize = '20px'",
+  "{ width: 320, height: 700, label: '极窄移动端' }", 'for (const viewport of marketChartViewports)',
+  'market chart responsive tick density follows real chart width in one runtime', 'resizeAndInspectChart', 'expect.poll',
+  'market chart 125% root font keeps mobile safe geometry and tick density', "document.documentElement.style.fontSize = '20px'",
   'priceVolumeGap', 'dividerBoundaryDelta', 'timeAxisInterval', 'priceTickCount', 'volumeTickCount',
   '价格与成交量 Grid 必须零间距连续排列',
   '成交量图区实际高度不得低于 48px', '成交量图区不得低于数据绘图区的 22%',
 ]) assert.ok(safeZoneSpec.includes(text), `行情图浏览器几何回归缺少: ${text}`);
+assert.ok(!safeZoneSpec.includes('test.setTimeout('), '行情图浏览器几何回归不得扩大 Playwright 单测超时');
 for (const text of [
   'market zero-gap grids give the shared boundary label to the price axis only',
   "{ width: 721, height: 445, label: '问题截图尺寸' }",
