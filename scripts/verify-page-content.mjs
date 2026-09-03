@@ -170,9 +170,16 @@ for (const text of [
   '该地区尚未解锁，市场仅供查看。',
   'market-trade-readonly',
   'readOnly ? (',
-  'disabled={readOnly}',
-  "readOnly ? '实时五档 · 只读' : '实时五档 · 点击填价'",
+  '即时交易',
+  '今日成交价',
+  '下次调价',
 ]) requireText('src/pages/MarketPage.tsx', text);
+for (const text of [
+  '实时五档',
+  'orderBook.bids',
+  'orderBook.asks',
+  'market-order-price',
+]) forbidText('src/pages/MarketPage.tsx', text);
 for (const path of ['src/pages/GlobalMarketPage.tsx', 'src/pages/GlobalBuildingsPage.tsx']) {
   requireText(path, 'game.provinces.filter((province) => unlocked.has(province.id))');
   requireText(path, 'const provinces = operationalProvinces(model);');
@@ -288,12 +295,11 @@ for (const text of [
 ]) forbidText('src/pages/GlobalMarketPage.tsx', text);
 for (const text of [
   'market-commodity-row-header',
-  '卖单量',
-  '买单量',
-  '市场价',
-  '24h',
+  '今日价格',
+  '24h成交量',
+  '24h价格变化',
 ]) requireText('src/components/market/MarketCommodityRow.tsx', text);
-for (const text of ['挂单差额', '基准偏离', '挂单状态']) forbidText('src/components/market/MarketCommodityRow.tsx', text);
+for (const text of ['卖单量', '买单量', '挂单差额', '基准偏离', '挂单状态']) forbidText('src/components/market/MarketCommodityRow.tsx', text);
 for (const text of [
   '.entity-list-surface {',
   '.entity-list-rows {',
@@ -421,4 +427,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('页面内容与职责验证通过：一级市场/建筑锁定全局视图；市场、地区商品、建筑和地区建筑目录共用统一页面实体列表表面、间距、Chevron、目录插画槽和正负数值色；一级建筑按工厂类型 → 地区 → 现有地区工厂详情下钻；所有玩家 PageLayout 共用 40px 标题轨道与紧凑单行标题；州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留逻辑 1–4 动态美国居中手势缩放并禁止恢复独立缩放功能面板。');
+console.log('页面内容与职责验证通过：一级市场/建筑锁定全局视图；市场目录使用今日价格与真实成交信息，地区商品详情使用服务器当日价即时交易且禁止恢复五档/自定义价格；建筑和地区建筑目录继续共用统一页面实体列表表面、间距、Chevron、目录插画槽和正负数值色；一级建筑按工厂类型 → 地区 → 现有地区工厂详情下钻；所有玩家 PageLayout 共用 40px 标题轨道与紧凑单行标题；州级上下文继续复用本地市场/建筑，邀请卡与礼品码兑换唯一归属商店，地图保留逻辑 1–4 动态美国居中手势缩放并禁止恢复独立缩放功能面板。');
