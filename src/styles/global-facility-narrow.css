@@ -57,7 +57,7 @@
   column-gap: var(--entity-list-gap);
   row-gap: var(--global-facility-catalog-row-gap);
   padding-block: .3rem;
-  padding-inline: calc(var(--entity-list-inline-padding) - 1px);
+  padding-inline: var(--entity-list-inline-padding);
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 72%, var(--color-border));
   border-radius: var(--radius-card);
   background-color: var(--color-surface-subtle);
@@ -218,7 +218,7 @@
   align-items: center;
   row-gap: var(--global-facility-region-row-gap);
   padding-block: .3rem;
-  padding-inline: calc(var(--entity-list-inline-padding) - 1px);
+  padding-inline: var(--entity-list-inline-padding);
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 72%, var(--color-border));
   border-radius: var(--radius-card);
   background-color: var(--color-surface-subtle);
