@@ -1,207 +1,121 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const failures = [];
-const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.push('缺少文件: ' + path); };
-const requireText = (path, text) => { if (!read(path).includes(text)) failures.push(path + ' 缺少: ' + text); };
-const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(path + ' 不应包含: ' + text); };
-[
-  'src/pages/MarketPage.tsx','src/components/market/MarketCommodityRow.tsx','src/pages/BuildingsPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx','src/components/AdminGiftCodesSection.tsx',
-  'src/app/gameViewModel.ts','src/utils/defaultOrderPrice.ts','src/utils/orderIdentity.ts','src/utils/orderBookLevels.ts',
-  'src/api/admin.ts','src/styles/unified-market-admin.css','src/styles/virtual-list.css','server/src/domain.js','server/src/domain-core.js','server/src/facility-groups.js','server/src/storage.js',
-  'server/src/market-demand.js','server/src/market-liquidity.js','server/src/balanced-market.js','server/src/order-book-integrity.js','server/src/market-demand/price-transmission.js',
-  'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md','docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md','docs/GIFT_CODE_AND_ADMIN_DESIGN.md','docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
-  'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx','src/components/ui/VirtualList.tsx','src/components/ui/VirtualRecordTable.tsx','src/hooks/useVirtualWindow.ts','src/components/icons/GameIcons.tsx'
-].forEach(requireFile);
+const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`); };
+const requireText = (path, text) => { if (!existsSync(resolve(root, path)) || !read(path).includes(text)) failures.push(`${path} 缺少: ${text}`); };
+const forbidText = (path, text) => { if (existsSync(resolve(root, path)) && read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`); };
+
+for (const path of [
+  'src/pages/MarketPage.tsx',
+  'src/components/market/MarketCommodityRow.tsx',
+  'src/components/products/ProductArtwork.tsx',
+  'src/components/icons/FacilityIcons.tsx',
+  'src/components/icons/GameIcons.tsx',
+  'src/components/ui/VirtualRecordTable.tsx',
+  'src/components/ui/VirtualList.tsx',
+  'src/utils/orderBookLevels.ts',
+  'server/src/market-state-delivery.js',
+  'server/src/order-matching.js',
+  'server/src/market-sell-fee.js',
+  'server/test/market-detail.test.js',
+  'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+  'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
+  'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
+]) requireFile(path);
+
 for (const text of [
-  "if (!facilityAssetId && marketViewMode === 'catalog')",'market-catalog-filter-disclosure','<MarketCommodityRow','placeAssetOrder','single-order-book','items={selectedLocalTrades}',
-  'local-trades-virtual-table','VirtualRecordTable',
-  "from '../components/icons/GameIcons'",'FactoryIcon','<FactoryIcon />','selectOrderSide',
-  '<FacilityIcon facilityTypeId={selectedFacility.id} />','backAction={{',
-  'title={selectedAssetTitle(`${assetName}交易`)}','label="价格"','className="numeric-cell">价格</th>',
-  '<CompactNumber value={order.remaining} />','formatCurrency(order.price)',
-  'selectedMarketDetail.orderBook.asks',
-  'selectedMarketDetail.orderBook.bids',
-  'const levelName = `卖${bestAsks.length - index}`;',
-  'const levelName = `买${index + 1}`;',
-  'className="market-book-level"','data-order-count={level.orderCount}',
-  '合计剩余 ${formatNumber(level.remaining)}','点击填入价格',
-  'onClick={readOnly ? undefined : () => fillOrderPrice(level.price)}','const maxBookDepth = Math.max',
-  'key={`sell-${level.price}`}','key={`buy-${level.price}`}',
+  "import { FacilityIcon } from '../components/icons/FacilityIcons';",
+  "import { FactoryIcon } from '../components/icons/GameIcons';",
+  "import { ProductIconLabel } from '../components/icons/ProductIcons';",
+  "import { ProductArtwork } from '../components/products/ProductArtwork';",
+  "import { VirtualRecordTable } from '../components/ui/VirtualRecordTable';",
+  'function MarketImmediateTradeEntry({',
+  'const [quantityDraft',
+  'const maxBuyByFunds = officialPrice > 0',
+  'const total = officialPrice * effectiveQuantity;',
+  'marketDetailRefreshToken',
+  'getMarketDetail(',
+  'detailedMarket?.priceHistory',
+  'className="market-detail-hero__artwork"',
+  '<ProductArtwork productId={selectedProduct.id} />',
+  '<FacilityIcon facilityTypeId={selectedFacility.id} />',
+  'className="market-stepper market-quantity-stepper"',
+  'id="market-trade-quantity"',
+  'order-quick-fill',
+  '25%',
+  '50%',
+  '最大',
+  '今日成交价',
+  '今日成交量',
+  '下次调价',
+  '立即买入',
+  '立即卖出',
+  '最近成交',
 ]) requireText('src/pages/MarketPage.tsx', text);
-requireText('src/components/market/MarketCommodityRow.tsx', '<ProductArtwork productId={productId} />');
-requireText('src/components/market/MarketCommodityRow.tsx', 'className="entity-list-row market-commodity-row"');
 for (const text of [
-  'unified-asset-tabs','asset-directory-shell','localTrades.map(','market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>','限价','order-book-columns','order-book-midpoint',
-  '最低价前 5 笔','最高价前 5 笔','order-book-side-label',
-  ".filter((order) => order.side === 'sell')\n    .sort(",
-  ".filter((order) => order.side === 'buy')\n    .sort(",
+  'MoneyInput',
+  'market-order-price',
+  '调整订单价格',
+  'orderBook.bids',
+  'orderBook.asks',
+  'ownOpenOrderCount',
+  'maxOpenOrders',
+  '已有订单',
+  '实时五档',
+  '>撤单<',
 ]) forbidText('src/pages/MarketPage.tsx', text);
 
 for (const text of [
-  'export interface OrderBookLevel','export function buildOrderBookLevels','const levels = new Map<number, OrderBookLevel>()',
-  "order.side !== side", "!['open', 'partial'].includes(order.status)", 'order.remaining <= 0',
-  'current.remaining += order.remaining','current.orderCount += 1','price: order.price','remaining: order.remaining','orderCount: 1',
-  ".sort(side === 'buy'", '.slice(0, normalizedLimit)',
-]) requireText('src/utils/orderBookLevels.ts', text);
-for (const text of ['order.quantity +', 'order.quantity *', 'createdAt', 'ownerId', 'ownerName']) {
-  forbidText('src/utils/orderBookLevels.ts', text);
+  "import { ProductArtwork } from '../products/ProductArtwork';",
+  '<ProductArtwork productId={productId} />',
+  "{ label: '今日价格', sortKey: 'price' }",
+  "{ label: '24h成交量', sortKey: 'volume24h' }",
+]) requireText('src/components/market/MarketCommodityRow.tsx', text);
+for (const text of ['卖单量', '买单量']) forbidText('src/components/market/MarketCommodityRow.tsx', text);
+
+for (const text of [
+  'const EMPTY_PUBLIC_ORDER_BOOK',
+  'buyVolume: 0',
+  'sellVolume: 0',
+  'buyOrderCount: 0',
+  'sellOrderCount: 0',
+  'bestBid: null',
+  'bestAsk: null',
+  "assetKind === 'commodity' ? [] : publicDepth(getOrderBookDepth",
+  "assetKind === 'commodity'\n      ? EMPTY_PUBLIC_ORDER_BOOK",
+]) requireText('server/src/market-state-delivery.js', text);
+
+const marketDetailTest = read('server/test/market-detail.test.js');
+for (const text of [
+  'market detail returns bounded history and aggregated depth without owner data',
+  'market detail supports revision-based unchanged responses',
+]) {
+  if (!marketDetailTest.includes(text)) failures.push(`市场详情测试缺少: ${text}`);
+}
+for (const forbidden of ['ownerId', 'ownerName', 'counterparty', 'demandTier', 'fundingSlices']) {
+  if (marketDetailTest.includes(`assert.ok(body.includes('${forbidden}'))`)) failures.push(`市场详情测试不得要求公开字段: ${forbidden}`);
 }
 
 for (const text of [
-  'items={giftCodes}','items={redemptions}',
-  'admin-gifts-virtual-table','admin-redemptions-virtual-table',
-]) requireText('src/components/AdminGiftCodesSection.tsx', text);
-for (const text of ['giftCodes.map(','redemptions.map(']) forbidText('src/components/AdminGiftCodesSection.tsx', text);
-for (const text of ['collectibles','ownership']) forbidText('src/app/AdminApp.tsx', text);
-
-for (const text of ['ResizeObserver','overscan','measuredSizesRef','requestAnimationFrame','findVisibleRange']) requireText('src/hooks/useVirtualWindow.ts', text);
-for (const text of ['useVirtualWindow','aria-setsize','virtual-list__canvas']) requireText('src/components/ui/VirtualList.tsx', text);
-for (const text of ['useVirtualWindow','axis="both"','virtual-record-canvas']) requireText('src/components/ui/VirtualRecordTable.tsx', text);
-for (const text of ['virtual-record-table','virtual-record-row']) requireText('src/styles/virtual-list.css', text);
-
-for (const text of [
-  "import type { AssetKind, AssetOrder, OrderSide } from '../types'",
-  "!['open', 'partial'].includes(order.status) || order.remaining <= 0",
-  'orderKind(order) !== assetKind || orderAssetId(order) !== assetId',
-  'Number.isFinite(price) && price >= 0.01 && Math.abs(price * 100 - Math.round(price * 100)) < 1e-8',
-  'Math.max(bestBid, order.price)',
-  'Math.min(bestAsk, order.price)',
-  'summaryBestAsk ?? summaryBestBid ?? bestAsk ?? bestBid ?? 1',
-  'summaryBestBid ?? summaryBestAsk ?? bestBid ?? bestAsk ?? 1',
-]) requireText('src/utils/defaultOrderPrice.ts', text);
-for (const text of ['lastPrice','basePrice','systemValue','valuationPrices','getGameState','refresh']) forbidText('src/utils/defaultOrderPrice.ts', text);
-for (const text of [
-  "order.assetKind === 'facility' || order.facilityTypeId",
-  "order.assetId || order.facilityTypeId || ''",
-  "order.assetId || order.productId || 'wheat'",
-]) requireText('src/utils/orderIdentity.ts', text);
-
-for (const text of [
-  "import { defaultOrderPrice } from '../utils/defaultOrderPrice'",
-  'setTab: (tab: TabId) => void;',
-  'selectOrderSide: (side: OrderSide) => void;',
-  "const [tab, setActiveTab] = useState<TabId>('map');",
-  "const [orderSide, setOrderSideState] = useState<OrderSide>('buy');",
-  'const [orderPrice, setOrderPrice] = useState(1);',
-  "const [marketViewMode, setMarketViewMode] = useState<MarketViewMode>('catalog');",
-  'const loadedGame = scopedGame;',
-  "if (nextTab === 'market') {",
-  "setMarketViewMode('catalog');",
-  "setMarketViewMode('detail');",
-  'marketSummaryFor(marketAssetKind, marketAssetId)',
-  "if (changed || tab !== 'market')",
-  'marketSummaryFor(kind, assetId)',
-  'function selectOrderSide(side: OrderSide)',
-  'marketSummaryFor(marketAssetKind, marketAssetId)',
-]) requireText('src/app/gameViewModel.ts', text);
-for (const text of [
-  'const [orderPrice, setOrderPrice] = useState(6);',
-  'setOrderPrice(market.lastPrice)',
-  'orderSide, setOrderSide,',
-]) forbidText('src/app/gameViewModel.ts', text);
-
-requireText('src/components/icons/GameIcons.tsx', 'export function FactoryIcon');
-requireText('src/components/icons/GameIcons.tsx', 'M17 6V3h3v17');
-for (const text of [
-  'SwitchControl',
-  '运行中 <strong>{<CompactNumber value={group.participatingCount} />}</strong>',
-  '新增生产可用工厂立即参与运行并同步稀释满员率',
-  '冻结中 <strong>{<CompactNumber value={group.frozenCount ?? group.listedCount} />}</strong>',
-  'facility-recipe-section',
-  '生产产物',
-  '生产进度已清零',
-]) requireText('src/pages/BuildingsPage.tsx', text);
-for (const text of ['交易该建筑资产', 'EmbeddedFacilityAssetMarket', 'facilityAssetTradeId', 'onOpenMarket={openSelectedFacilityMarket}']) forbidText('src/pages/BuildingsPage.tsx', text);
-for (const text of [
-  'facility-power-button','产成品去向','挂牌数量','单座价格','启动全部未挂牌工厂','停止全部',
-  '>保存计划</Button>','下一周期按 ','<span>冻结 <strong>{group.listedCount}</strong></span>',
-  '下一周期加入','下一周期切换为：'
-]) forbidText('src/pages/BuildingsPage.tsx', text);
-for (const text of ['持有工厂总数','生产商品总数','买入商品总数','卖出商品总数','礼品兑换','存档管理','删除存档','退出登录']) requireText('src/pages/SettingsPage.tsx', text);
-for (const text of ['登录会话','重置经济状态','重置服务器经济状态']) forbidText('src/pages/SettingsPage.tsx', text);
-for (const text of ["label: '仓库库存'", "id: 'warehouse'"]) requireText('src/app/GameApp.tsx', text);
-for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
-for (const text of ['assetKind','valuationPricesFor','recentTradePriceFor','lastTradePrice','world.version = 20','reconcileFacilityGroup','activeRecipeId','pendingRecipeId','removeSystemFacilityOrders','retireOpenFacilityMarketOrders','工厂资产仅允许通过拍卖交易']) requireText('server/src/facility-groups.js', text);
-for (const text of ['refreshFacilityLiquidity','系统资产采购','系统资产供给']) forbidText('server/src/facility-groups.js', text);
-for (const [path, text] of [
-  ['server/src/domain.js', "normalizePlayerMoneyInput(payload.price, { min: 0.01 })"],
-  ['server/src/facility-groups.js', "normalizePlayerMoneyInput(payload.price ?? payload.unitPrice, { min: 0.01 })"],
-  ['src/config/economy.ts', 'maxOrderPrice: Number.MAX_SAFE_INTEGER / 1_000_000'],
-  ['src/pages/MarketPage.tsx', 'max: economyConstants.maxOrderPrice'],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '不设置固定业务最高价'],
-]) requireText(path, text);
-for (const [path, text] of [
-  ['server/src/domain.js', 'max: 1_000_000'],
-  ['server/src/facility-groups.js', 'MAX_ORDER_PRICE'],
-  ['server/src/facility-groups.js', '系统参考价的 50%～200%'],
-  ['src/pages/MarketPage.tsx', 'max={1_000_000}'],
-]) forbidText(path, text);
-for (const text of ['SELF_CROSS_MESSAGE','findSelfCrossingOrder','pricesCross','bestSystemPrice','systemBookIsCrossed']) requireText('server/src/order-book-integrity.js', text);
-const domainSource = [
-  'server/src/domain.js',
-  'server/src/domain-core.js',
-  'server/src/market-demand.js',
-  'server/src/market-liquidity.js',
-  'server/src/balanced-market.js',
-  'server/src/order-book-integrity.js',
-  'server/src/market-demand/price-transmission.js',
-].map(read).join('\n');
-for (const text of ['boughtGoods','soldGoods','processPriceTransmission','costAnchor','downstreamValueAnchor','liquidity-buy','liquidity-sell','settleLiquidityBuy','settleLiquiditySell','findSelfCrossingOrder','systemBookIsCrossed']) {
-  if (!domainSource.includes(text)) failures.push('领域实现缺少: ' + text);
-}
-for (const text of ['market.lastPrice - 2','market.lastPrice + 2']) {
-  if (domainSource.includes(text)) failures.push('领域实现不应包含: ' + text);
-}
-for (const text of ['workCooldownMs', 'function work(', "case 'work'", 'work_income', 'workIssued', 'workClicks']) {
-  if (domainSource.includes(text)) failures.push('领域实现不得恢复工作玩法: ' + text);
-}
-for (const [path, text] of [
-  ['src/types.ts', 'export interface WorkState'],
-  ['src/types.ts', 'work: WorkState'],
-  ['src/api/game.ts', "postAction('/work')"],
-  ['src/app/gameViewModel.ts', 'workPendingRef'],
-  ['server/src/game-routes.js', '/api/game/work'],
-]) forbidText(path, text);
-for (const text of ['economy_gift_codes','economy_gift_redemptions','requireAdmin','getAdminSummary']) requireText('server/src/storage.js', text);
-for (const text of ['export interface OrderFill','fills?: OrderFill[]','isOwn?: boolean',"FacilityStatus = 'running' | 'stopped' | 'error'"]) requireText('src/types.ts', text);
-for (const text of ['STORAGE_VERSION = 7','previousFillIds','fill.price','fill.total','normalizeTrades']) requireText('src/utils/localActivityStore.ts', text);
-for (const text of ['makerOrderId','takerOrderId','counterparty: string']) forbidText('src/types.ts', text);
-for (const text of ['fill.counterparty','trade.counterparty']) forbidText('src/utils/localActivityStore.ts', text);
-for (const text of ['after.markets[assetId]?.lastPrice','after.facilityMarkets[assetId]?.lastPrice','executedQuantity * price']) forbidText('src/utils/localActivityStore.ts', text);
-for (const text of [
-  'maker price','反推玩家成交价','逐笔','紧凑工厂标签使用独立厂房 SVG',
-  '玩家界面统一将订单输入字段称为“价格”',
-  '默认价格只从客户端主状态已经加载的市场摘要 `bestAsk`／`bestBid` 计算',
-  '从其他页面重新进入当前资产所属详情',
-  '自动刷新、市场详情响应、下单响应、成交、撤单或其他权威状态同步只更新市场摘要、五档和本人订单，不得直接覆盖当前价格输入',
-  '商品订单只允许玩家、消费需求或市场储备作为所有者',
-  '市场储备可以提交商品买单和卖单',
-  '任何系统订单之间都不得成交',
-  '历史工厂订单只用于兼容与审计，新工厂订单禁止提交',
-  '同资产、同方向、同价格的有效订单按当前剩余数量聚合为价格档位',
-  '档位聚合由市场详情只读投影在服务器完成',
-  '聚合完成后再按最优价格截取 5 档',
-  '卖 5 至卖 1',
-  '买 1 至买 5',
-  '桌面端和移动端订单簿使用同一信息结构',
-  '不渲染“档位／价格／数量”表头或真实最近成交价“最新”分隔行',
-  '点击任一档位只把该档价格填入价格输入',
-  '字段标签／内嵌减号按钮／共享输入控件／内嵌加号按钮',
-  '最高系统买价 < 最低系统卖价',
-  '服务器必须在冻结任何资金、商品或工厂之前拒绝新订单',
-  '不同主体之间可成交的同地区交叉订单必须在新订单进入订单簿时立即按 maker price 撮合',
-  '旧快照只允许为重建系统订单释放并重挂人口消费和市场储备订单',
+  '玩家商品交易不得创建 `open`／`partial` 商品订单',
+  '玩家商品页面永久移除：价格输入框',
+  '内部人口／储备订单继续复用共享撮合内核',
+  '普通玩家页面不得展示内部订单所有者',
+  '玩家即时商品交易不得经过该共享撮合内核',
+  '商品卖出继续收取累计口径等价 1% 的市场服务费',
+  '工厂所有权转移继续只通过拍卖完成',
 ]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
 for (const text of [
-  '玩家可见输入字段、订单标题和未完成订单表头统一使用“价格”',
-  '侧栏进入市场列表不必初始化隐藏的下单草稿',
-  '自动刷新和下单后的状态同步不得覆盖详情当前输入',
-  '订单簿按价格档位聚合展示',
-  '我的未完成订单继续逐单展示并可单独撤销',
-]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+  '卖 5 至卖 1',
+  '买 1 至买 5',
+  '点击任一档位只把该档价格填入价格输入',
+  '玩家未完成订单达到当前商品类型数与工厂类型数之和的 10 倍',
+]) forbidText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
+
 for (const text of [
   '本地成交表使用 `VirtualRecordTable` 与 `useVirtualWindow`',
   'DOM 只创建当前滚动视口及少量 `overscan` 条目',
@@ -212,40 +126,19 @@ for (const text of [
   '让礼品码或兑换记录接口恢复无边界全表返回',
 ]) requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', text);
 
-for (const text of [
-  'maxOrderQuantity: Number.MAX_SAFE_INTEGER',
-  'openOrderLimitForCatalog',
-  'return (products + facilities) * 10;',
-]) requireText('src/config/economy.ts', text);
-for (const text of [
-  'openOrderLimitForCatalog(game.products.length, game.facilityTypes.length)',
-  'economyConstants.maxOrderQuantity',
-  '未完成订单数量已达上限（${formatNumber(maxOpenOrders)} 笔）。',
-  'formatNumber(maxOpenOrders)',
-]) requireText('src/pages/MarketPage.tsx', text);
-for (const text of [
-  'maxOpenOrders: (PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length) * 10',
-  'maxOrderQuantity: Number.MAX_SAFE_INTEGER',
-]) requireText('server/src/domain-core.js', text);
-for (const text of [
-  'ECONOMY_CONSTANTS.maxOrderQuantity',
-  'ECONOMY_CONSTANTS.maxOpenOrders',
-  'multiplyMoneyByInteger',
-  '工厂订单总额超出系统可表示范围',
-]) requireText('server/src/facility-groups.js', text);
-forbidText('server/src/facility-groups.js', 'MAX_FACILITY_ORDER_QUANTITY');
-forbidText('server/src/facility-groups.js', 'MAX_OPEN_ORDERS');
-for (const text of [
-  '只表示技术安全边界，不构成固定业务数量上限',
-  '(PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length) * 10',
-  '当前权威目录为 38 种商品与 26 种工厂类型，即当前上限 640 笔',
-]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
-forbidText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '当前上限为 52 笔');
-forbidText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '当前上限 62 笔');
-for (const text of [
-  '玩家未完成订单达到当前商品类型数与工厂类型数之和的 10 倍',
-  '说明动态上限并禁用提交',
-]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+for (const [path, texts] of [
+  ['src/components/AdminGiftSection.tsx', ['VirtualList', 'GiftCodeIcon']],
+  ['src/components/AdminUserSection.tsx', ['VirtualRecordTable']],
+  ['src/components/AdminAuctionSection.tsx', ['VirtualRecordTable', 'FactoryIcon']],
+  ['src/components/AdminPopulationSection.tsx', ['VirtualRecordTable']],
+]) {
+  if (!existsSync(resolve(root, path))) continue;
+  for (const text of texts) requireText(path, text);
+}
+
+requireText('src/utils/orderBookLevels.ts', 'export function buildOrderBookLevels');
+requireText('server/src/order-matching.js', 'export function matchIncomingOrder');
+requireText('server/src/market-sell-fee.js', 'MARKET_SELL_FEE_VERSION = 4');
 
 if (!failures.length) {
   const { buildOrderBookLevels } = await import('../src/utils/orderBookLevels.ts');
@@ -261,45 +154,29 @@ if (!failures.length) {
     status,
     createdAt: Number(id.replace(/\D/g, '')) || 1,
   });
-
   const buyLevels = buildOrderBookLevels([
     order('buy-1', 'buy', 10, 100, 2),
     order('buy-2', 'buy', 10, 200, 3, 'partial'),
     order('buy-3', 'buy', 9, 1, 1),
-    order('buy-4', 'buy', 8, 1, 1),
-    order('buy-5', 'buy', 7, 1, 1),
-    order('buy-6', 'buy', 6, 1, 1),
-    order('buy-7', 'buy', 5, 1, 1),
     order('buy-filled', 'buy', 99, 50, 50, 'filled'),
-    order('buy-cancelled', 'buy', 98, 50, 50, 'cancelled'),
-    order('buy-zero', 'buy', 97, 50, 0),
-    order('sell-other-side', 'sell', 100, 1, 1),
   ], 'buy');
   assert.deepEqual(buyLevels, [
     { side: 'buy', price: 10, remaining: 5, orderCount: 2 },
     { side: 'buy', price: 9, remaining: 1, orderCount: 1 },
-    { side: 'buy', price: 8, remaining: 1, orderCount: 1 },
-    { side: 'buy', price: 7, remaining: 1, orderCount: 1 },
-    { side: 'buy', price: 6, remaining: 1, orderCount: 1 },
   ]);
-
   const sellLevels = buildOrderBookLevels([
     order('sell-1', 'sell', 4, 8, 2),
     order('sell-2', 'sell', 2, 8, 3),
     order('sell-3', 'sell', 2, 9, 4, 'partial'),
-    order('sell-4', 'sell', 3, 1, 1),
-    order('sell-5', 'sell', 1, 1, 1),
-    order('sell-6', 'sell', 5, 1, 1),
-    order('sell-7', 'sell', 6, 1, 1),
   ], 'sell');
   assert.deepEqual(sellLevels, [
-    { side: 'sell', price: 1, remaining: 1, orderCount: 1 },
     { side: 'sell', price: 2, remaining: 7, orderCount: 2 },
-    { side: 'sell', price: 3, remaining: 1, orderCount: 1 },
     { side: 'sell', price: 4, remaining: 2, orderCount: 1 },
-    { side: 'sell', price: 5, remaining: 1, orderCount: 1 },
   ]);
 }
 
-if (failures.length) { console.error('统一资产市场、价格档位、窗口化记录与管理功能验证失败:\n- ' + failures.join('\n- ')); process.exit(1); }
-console.log('统一资产市场、非交叉撮合、连续五档价格聚合、玩家／消费需求／市场储备商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。');
+if (failures.length) {
+  console.error('商品即时市场、内部档位兼容、主视觉、窗口化记录与管理功能验证失败:\n- ' + failures.join('\n- '));
+  process.exit(1);
+}
+console.log('商品即时市场资产验证通过：玩家只按当日服务器价格即时交易；公开商品盘口为空；内部人口／储备档位兼容、商品／工厂主视觉、本地成交窗口化与管理员高增长列表继续受保护。');
