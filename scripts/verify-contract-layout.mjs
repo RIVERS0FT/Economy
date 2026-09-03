@@ -97,7 +97,8 @@ for (const text of [
   "export type ContractMarketDirection = 'purchase' | 'supply'", 'direction?: ContractMarketDirection',
   'setContractMarketIntent(productId: string, provinceId?: string, direction?: ContractMarketDirection)',
 ]) requireText(navigationPath, text);
-for (const text of ['寻找采购合同', '寻找供应合同', "openContracts('purchase')", "openContracts('supply')"]) requireText(marketPanelPath, text);
+for (const text of ['setContractMarketIntent(product.id, model.selectedProvinceId);', '查看相关合同']) requireText(marketPanelPath, text);
+forbidText(marketPanelPath, 'setContractMarketIntent(product.id, model.selectedProvinceId,');
 
 for (const text of [
   '合同是连接生产、市场、库存、运输与玩家资本关系的核心长期经营机制',
@@ -109,7 +110,7 @@ for (const text of [
 ]) requireText(designPath, text);
 for (const text of [
   '合同页作为当前对象卡样板', '公开合同和进行中合同逐份使用独立对象卡',
-  '合同顶部四项摘要使用无逐项圆角的同一摘要条', '合同工作区使用四项共享分段按钮',
+  '合同顶部四项摘要使用无逐项圆角的同一摘要条',
 ]) requireText(uiDesignPath, text);
 for (const text of ['公开合同和进行中合同必须保持对象卡边界', '页面摘要指标属于同一比较条', '正文对象卡禁止 `backdrop-filter` 和高层浮动阴影']) requireText(surfaceDesignPath, text);
 
