@@ -257,8 +257,12 @@ for (const text of [
 ]) assert.ok(chartDesign.includes(text), `市场行情图专项设计缺少: ${text}`);
 assert.ok(designIndex.includes('`MARKET_CHART_LAYOUT_DESIGN.md`'), '设计索引必须将市场图表几何与交互路由到专项 DESIGN owner');
 assert.ok(designIndex.includes('`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`'), '设计索引必须将市场页面内容路由到页面 DESIGN owner');
-for (const text of ['保存吃单方（taker／incoming order）的买卖方向', '净主动量为主动买入量减主动卖出量', '禁止伪造迁移方向']) {
-  assert.ok(orderBookDesign.includes(text), `订单簿设计文档缺少: ${text}`);
+for (const text of [
+  '真实玩家即时交易继续写入商品真实成交历史',
+  '内部人口／储备订单继续复用共享撮合内核',
+  '零成交调价记录不得伪造真实玩家成交量',
+]) {
+  assert.ok(orderBookDesign.includes(text), `即时市场设计文档缺少: ${text}`);
 }
 
 console.log('Market ECharts verification passed: distinct price semantics, minimal-padding integer scales, readable volume labels, mobile axis layout, linked persistent hover and zero-gap grids satisfy the design baseline.');
