@@ -13,6 +13,11 @@ const playerPages = [
   { tab: 'settings', label: '设置', heading: '设置' },
 ] as const;
 
+const pageGeometryViewports = [
+  { width: 390, height: 844, label: '移动端' },
+  { width: 1440, height: 900, label: '桌面端' },
+] as const;
+
 async function selectPlayerPage(
   page: Page,
   target: (typeof playerPages)[number],
@@ -200,22 +205,18 @@ function expectSafePageGeometry(geometry: Awaited<ReturnType<typeof readPageGeom
 }
 
 test.describe('player page safe geometry', () => {
-  test('desktop and mobile pages stay inside their real carrier width', async ({ page }) => {
-    for (const viewport of [
-      { width: 390, height: 844 },
-      { width: 1440, height: 900 },
-    ]) {
-      await page.setViewportSize(viewport);
-      await openPreview(page);
-
-      for (const target of playerPages) {
+  for (const viewport of pageGeometryViewports) {
+    for (const target of playerPages) {
+      test(`${viewport.label} ${target.label}页面保持在真实承载宽度内`, async ({ page }) => {
+        await page.setViewportSize(viewport);
+        await openPreview(page);
         await selectPlayerPage(page, target);
         await expect(page.locator('.page-content--player')).toBeVisible();
         expectSafePageGeometry(await readPageGeometry(page));
         expectSharedSingleLineTitleGeometry(await readTitleGeometry(page));
-      }
+      });
     }
-  });
+  }
 
   for (const viewport of [
     { width: 320, height: 720 },
