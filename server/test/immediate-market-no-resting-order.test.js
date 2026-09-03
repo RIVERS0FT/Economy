@@ -25,6 +25,8 @@ test('manual commodity buys and sells never leave player resting orders or froze
   market.officialPrice = 0.8;
   const priceDateKeyBeforeTrades = market.priceDateKey;
   const nextPriceAtBeforeTrades = market.nextPriceAt;
+  assert.match(priceDateKeyBeforeTrades, /^\d{4}-\d{2}-\d{2}$/);
+  assert.ok(nextPriceAtBeforeTrades > NOW + 2);
 
   const buy = applyAction(world, BUYER, 'placeOrder', {
     provinceId: DEFAULT_PROVINCE_ID,
