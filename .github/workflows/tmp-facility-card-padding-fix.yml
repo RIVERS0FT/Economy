@@ -1,0 +1,41 @@
+name: Tighten facility object-card vertical padding
+
+on:
+  push:
+    branches:
+      - codex/facility-object-card-visual
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/facility-object-card-visual
+          fetch-depth: 0
+      - name: Tighten vertical padding
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/styles/global-facility-narrow.css')
+          text = path.read_text(encoding='utf-8')
+          old = '  padding-block: .4rem;'
+          if text.count(old) != 2:
+              raise SystemExit(f'padding match count={text.count(old)}')
+          path.write_text(text.replace(old, '  padding-block: .3rem;'), encoding='utf-8')
+          PY
+          node scripts/verify-facility-catalog-layout.mjs
+          git diff --check
+      - name: Commit padding fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/styles/global-facility-narrow.css
+          git commit -m "收紧建筑对象卡纵向内边距"
+          git push origin HEAD:codex/facility-object-card-visual
