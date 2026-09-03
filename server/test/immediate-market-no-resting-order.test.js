@@ -45,6 +45,8 @@ test('manual commodity buys and sells never leave player resting orders or froze
   assert.equal(sell.executedPrice, 0.8);
   assert.equal(buyer.frozenCredits, 0);
   assert.equal(seller.inventories.wheat.frozen, 0);
+  assert.equal(market.todayBuyQuantity, 2);
+  assert.equal(market.todaySellQuantity, 3);
   assert.equal(openPlayerCommodityOrders(world).length, 0);
   const completed = world.orders.filter((order) => order.ownerType === 'player' && order.assetKind === 'commodity');
   assert.equal(completed.length, 2);
