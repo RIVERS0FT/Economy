@@ -223,7 +223,7 @@ export type OrderStatus = 'open' | 'partial' | 'filled' | 'cancelled';
 export type OrderOwnerType = 'player' | 'population';
 
 export type TransportModeId = 'road' | 'rail' | 'air';
-export type TransportShipmentStatus = 'in-transit' | 'arrived';
+export type TransportShipmentStatus = 'in-transit' | 'docked' | 'arrived';
 export type TransportTripType = 'round' | 'one-way';
 
 export interface TransportStopPlanEntry {
@@ -255,12 +255,17 @@ export interface TransportRoute {
   viaProvinceIds?: string[];
   tripType?: TransportTripType;
   mode: TransportModeId;
+  cycleDistanceKm?: number;
+  cycleTransportFee?: number;
+  cycleFuelCost?: number;
+  cycleCost?: number;
   createdAt: number;
   updatedAt: number;
 }
 
 export interface TransportShipment {
   id: string;
+  cycleId?: string;
   routeId?: string;
   routeName?: string;
   sourceProvinceId: string;
@@ -272,6 +277,13 @@ export interface TransportShipment {
   manifest: TransportManifestItem[];
   mode: TransportModeId;
   cost: number;
+  transportFee?: number;
+  fuelCost?: number;
+  fuelPurchased?: number;
+  fuelConsumed?: number;
+  cycleDistanceKm?: number;
+  currentProvinceId?: string;
+  currentVisitIndex?: number;
   departsAt: number;
   arrivesAt: number;
   status: TransportShipmentStatus;
