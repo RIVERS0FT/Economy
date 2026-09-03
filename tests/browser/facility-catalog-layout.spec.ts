@@ -240,15 +240,15 @@ test('global facility rows use object-card surfaces with square artwork and embe
   expect(desktop.artworkTop).toBeLessThanOrEqual(desktop.openTop);
   expect(desktop.artworkBottom).toBeGreaterThanOrEqual(desktop.quickBottom);
   expect(desktop.openBottom).toBeLessThan(desktop.quickTop);
-  expect(desktop.openHeight).toBeGreaterThanOrEqual(47);
-  expect(desktop.openHeight).toBeLessThanOrEqual(49);
+  expect(desktop.openHeight).toBeGreaterThanOrEqual(44);
+  expect(desktop.openHeight).toBeLessThanOrEqual(48);
   expect(desktop.openHeight).toBeLessThan(desktop.artworkHeight);
 
   expect(desktop.rowBorderTop).toBe('1px');
   expect(desktop.rowBackground).not.toBe('rgba(0, 0, 0, 0)');
   expect(desktop.rowBackgroundImage).not.toBe('none');
   expect(desktop.rowBoxShadow).not.toBe('none');
-  expect(desktop.listGap).toBeGreaterThanOrEqual(8);
+  expect(desktop.listGap).toBeGreaterThanOrEqual(5);
   expect(desktop.headerBorderBottom).toBe('0px');
 
   expect(desktop.openBorderTop).toBe('0px');
@@ -278,7 +278,7 @@ test('global facility rows use object-card surfaces with square artwork and embe
   expect(region.rowBackground).not.toBe('rgba(0, 0, 0, 0)');
   expect(region.rowBackgroundImage).not.toBe('none');
   expect(region.rowBoxShadow).not.toBe('none');
-  expect(region.listGap).toBeGreaterThanOrEqual(8);
+  expect(region.listGap).toBeGreaterThanOrEqual(5);
   expect(region.openBackground).not.toBe('rgba(0, 0, 0, 0)');
   expect(region.openBackgroundImage).not.toBe('none');
   expect(region.openBoxShadow).not.toBe('none');

@@ -46,11 +46,6 @@
   grid-column: 5;
 }
 
-.global-operation-page .global-facility-catalog-list,
-.global-operation-page .global-facility-region-list {
-  gap: .62rem;
-}
-
 .global-operation-page .entity-list-row.global-facility-catalog-row {
   --global-facility-catalog-artwork-size: var(--global-facility-layout-artwork-size);
   --global-facility-catalog-main-row-size: 48px;
@@ -257,11 +252,6 @@
     --global-facility-layout-count-track: minmax(2.4rem, .42fr);
   }
 
-  .global-operation-page .global-facility-catalog-list,
-  .global-operation-page .global-facility-region-list {
-    gap: .55rem;
-  }
-
   .global-operation-page .entity-list-row.global-facility-catalog-row {
     --global-facility-catalog-main-row-size: 46px;
     --global-facility-catalog-row-gap: 6px;
@@ -303,11 +293,6 @@
     --global-facility-layout-name-track: minmax(0, 1.35fr);
     --global-facility-layout-profit-track: minmax(4.25rem, .76fr);
     --global-facility-layout-count-track: minmax(2.1rem, .4fr);
-  }
-
-  .global-operation-page .global-facility-catalog-list,
-  .global-operation-page .global-facility-region-list {
-    gap: .5rem;
   }
 
   .global-operation-page .entity-list-row.global-facility-catalog-row {
