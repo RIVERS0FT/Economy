@@ -48,6 +48,16 @@ jobs:
           path.write_text(text, encoding='utf-8')
           PY
           python3 /tmp/province-access-migration.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-provincial-unlock-transport.mjs')
+          text = path.read_text(encoding='utf-8')
+          old = "requireText(provincePage, 'model.unlockProvince(provinceId)', '州页解锁按钮必须调用解锁动作。');"
+          new = "forbidText(provincePage, 'model.unlockProvince(', '州页不得恢复地区解锁动作。');"
+          if text.count(old) != 1:
+              raise SystemExit('旧州页解锁 verifier 断言数量异常')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
 
       - name: Install dependencies
         run: npm ci
