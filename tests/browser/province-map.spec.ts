@@ -108,7 +108,7 @@ test('persistent strategy map uses one static SVG world for 48 states and Chines
   expect(await svg.getAttribute('viewBox')).toBe(viewBoxBeforeLens);
 });
 
-test('state selection opens local context without resetting the static SVG viewBox camera', async ({ page }) => {
+test('state selection opens local context without resetting the static camera', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
