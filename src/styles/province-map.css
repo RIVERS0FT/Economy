@@ -327,9 +327,6 @@
   color: var(--color-text-secondary);
 }
 
-.province-map-tooltip__locked {
-  color: var(--color-warning);
-}
 
 @media (prefers-reduced-motion: reduce) {
   .province-map-shipment {

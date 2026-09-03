@@ -164,8 +164,12 @@ if (failures.length === 0) {
     "classNames('widget', className)",
   ]) requireText(paths.layout, text);
 
-  for (const text of ['className="province-overview-content"', 'className="province-lock-content"']) requireText(paths.provincePage, text);
-  for (const text of ['.province-overview-content {', '.province-lock-content {']) requireText(paths.provinceStyles, text);
+  requireText(paths.provincePage, 'className="province-overview-content"');
+  requireText(paths.provinceStyles, '.province-overview-content {');
+  for (const text of ['province-lock-content', 'province-unlock-button']) {
+    forbidText(paths.provincePage, text);
+    forbidText(paths.provinceStyles, text);
+  }
   for (const text of ['province-overview-panel', 'province-lock-panel']) {
     forbidText(paths.provincePage, text);
     forbidText(paths.provinceStyles, text);

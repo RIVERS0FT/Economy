@@ -109,30 +109,17 @@ function strategicOutlinerModel(model: LoadedGameViewModel): LoadedGameViewModel
   } as LoadedGameViewModel;
 }
 
-export function StrategicMapStage({
-  model,
-  lens,
-  startingProvinceCandidateId = null,
-  onPickStartingProvince,
-}: {
+export function StrategicMapStage({ model, lens }: {
   model: LoadedGameViewModel;
   lens: ProvinceMapLens;
-  startingProvinceCandidateId?: string | null;
-  onPickStartingProvince?: (provinceId: string) => void;
 }) {
   const state = strategicMapState(model);
   const routeDraft = useContext(TransportRouteDraftContext);
   const [savingRoute, setSavingRoute] = useState(false);
-  const startingProvincePicking = model.game.startingProvinceChosen === false && typeof onPickStartingProvince === 'function';
-  const effectiveLens: ProvinceMapLens = startingProvincePicking ? 'political' : lens;
   const provinceById = useMemo(() => new Map(state.provinces.map((province) => [province.id, province])), [state.provinces]);
   const productById = useMemo(() => new Map(model.game.products.map((product) => [product.id, product])), [model.game.products]);
   const setSelectedProvinceId = typeof model.setSelectedProvinceId === 'function' ? model.setSelectedProvinceId : () => {};
   const openProvincePage = (provinceId: string) => {
-    if (startingProvincePicking) {
-      onPickStartingProvince?.(provinceId);
-      return;
-    }
     setSelectedProvinceId(provinceId);
     model.setTab('province');
   };
@@ -143,7 +130,6 @@ export function StrategicMapStage({
     ? transportRouteSetupCost(routeDraft.draft, routeDraft.draft.mode, provinceById)
     : 0;
   const routeOverlays = useMemo<ProvinceMapRouteOverlay[]>(() => {
-    if (startingProvincePicking) return [];
     const overlays: ProvinceMapRouteOverlay[] = [];
     if (model.tab === 'transport') {
       for (const route of transportRoutes) {
@@ -198,10 +184,9 @@ export function StrategicMapStage({
       });
     }
     return overlays;
-  }, [draftStops, model.tab, routeDraft?.draft, routeDraft?.highlightedRouteId, startingProvincePicking, transportRoutes]);
+  }, [draftStops, model.tab, routeDraft?.draft, routeDraft?.highlightedRouteId, transportRoutes]);
 
   const shipmentOverlays = useMemo<ProvinceMapShipmentOverlay[]>(() => {
-    if (startingProvincePicking) return [];
     return ((model.game.transportShipments || []) as ShipmentView[])
       .filter((shipment) => shipment.status === 'in-transit' && Array.isArray(shipment.legPlan) && shipment.legPlan.length > 0)
       .map((shipment) => {
@@ -224,9 +209,9 @@ export function StrategicMapStage({
           })),
         };
       });
-  }, [model.game.transportShipments, productById, provinceById, routeById, startingProvincePicking]);
+  }, [model.game.transportShipments, productById, provinceById, routeById]);
 
-  const routePicking: ProvinceMapRoutePicking | null = !startingProvincePicking && routeDraft?.picking
+  const routePicking: ProvinceMapRoutePicking | null = routeDraft?.picking
     ? { active: true, stops: draftStops, onPickProvince: routeDraft.pickProvince }
     : null;
   const draftClosed = Boolean(routeDraft?.draft && isTransportRouteClosed(routeDraft.draft));
@@ -259,10 +244,8 @@ export function StrategicMapStage({
     <div
       className="strategic-map-stage"
       data-strategic-map-stage="true"
-      data-map-lens={effectiveLens}
-      data-starting-province-picking={startingProvincePicking ? 'true' : 'false'}
-      data-starting-province-candidate-id={startingProvinceCandidateId ?? ''}
-      data-transport-route-picking={!startingProvincePicking && routeDraft?.picking ? 'true' : 'false'}
+      data-map-lens={lens}
+      data-transport-route-picking={routeDraft?.picking ? 'true' : 'false'}
       data-transport-route-stop-count={draftStops.length}
       data-active-transport-count={shipmentOverlays.length}
       data-active-transport-label={shipmentOverlays.length > 0 ? '正在运输' : '无在途运输'}
@@ -270,16 +253,15 @@ export function StrategicMapStage({
       <UsMainlandMap
         provinces={state.provinces}
         summaries={state.summaries}
-        unlockedProvinceIds={startingProvincePicking ? state.provinces.map((province) => province.id) : model.game.unlockedProvinces}
-        selectedProvinceId={startingProvincePicking ? startingProvinceCandidateId : model.tab === 'province' ? state.selectedProvinceId : null}
+        selectedProvinceId={model.tab === 'province' ? state.selectedProvinceId : null}
         onSelectProvince={openProvincePage}
-        lens={effectiveLens}
+        lens={lens}
         routePicking={routePicking}
         routeOverlays={routeOverlays}
         shipmentOverlays={shipmentOverlays}
         referenceNow={model.game.lastProcessedAt}
       />
-      {!startingProvincePicking && routeDraft?.picking ? (
+      {routeDraft?.picking ? (
         <div className="transport-map-picking-bar" role="region" aria-label="运输路线地图选州" data-picking-stop-count={draftStops.length}>
           <div className="transport-map-picking-sequence">
             {draftStops.length > 0 ? draftStops.map((provinceId, index) => (

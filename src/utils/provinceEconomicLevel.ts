@@ -54,13 +54,4 @@ export function provinceEconomicScoreFor(provinceId: string) {
   return economicScoreByProvinceId.get(provinceId) ?? 0;
 }
 
-export function provinceEconomicLevelBaseCost(level: number) {
-  const normalizedLevel = Math.min(levelCount, Math.max(1, Math.trunc(level)));
-  return Number(
-    provinceEconomicLevelPolicy.levelBaseCosts[
-      String(normalizedLevel) as keyof typeof provinceEconomicLevelPolicy.levelBaseCosts
-    ],
-  );
-}
-
 export const PROVINCE_ECONOMIC_LEVEL_COUNT = levelCount;

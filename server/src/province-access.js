@@ -1,16 +1,4 @@
-import provinceEconomicLevelPolicy from '../../shared/province-economic-level-policy.json' with { type: 'json' };
-import { DEFAULT_PROVINCE_ID, normalizeProvinceId, PROVINCE_CATALOG, splitProvinceScopedKey } from './provinces.js';
-import { stateEconomicLevelFor } from './state-economic-baselines.js';
-import { roundInternalMoney } from './money.js';
-
-export const PROVINCE_UNLOCK_BASE_COST = Number(provinceEconomicLevelPolicy.levelBaseCosts['1']);
-export const PROVINCE_UNLOCK_DISTANCE_STEP_KM = Number(provinceEconomicLevelPolicy.distanceStepKm);
-export const PROVINCE_UNLOCK_COST_PER_DISTANCE_STEP = Number(provinceEconomicLevelPolicy.distanceCostPerStep);
-export const PROVINCE_UNLOCK_COST_PER_500_KM = PROVINCE_UNLOCK_COST_PER_DISTANCE_STEP;
-export const PROVINCE_UNLOCK_MAX_COST = Number(provinceEconomicLevelPolicy.maxUnlockCost);
-export const PROVINCE_UNLOCK_LEVEL_BASE_COSTS = Object.freeze(
-  Object.fromEntries(Object.entries(provinceEconomicLevelPolicy.levelBaseCosts).map(([level, cost]) => [level, Number(cost)])),
-);
+import { DEFAULT_PROVINCE_ID, normalizeProvinceId, PROVINCE_CATALOG } from './provinces.js';
 
 const PROVINCE_IDS = new Set(PROVINCE_CATALOG.map((province) => province.id));
 const PROVINCE_BY_ID = new Map(PROVINCE_CATALOG.map((province) => [province.id, province]));
@@ -42,101 +30,28 @@ export function provinceDistanceKm(leftId, rightId) {
   return distance;
 }
 
-export function provinceUnlockBaseCostForLevel(level) {
-  const normalizedLevel = Math.min(
-    Number(provinceEconomicLevelPolicy.levelCount),
-    Math.max(1, Math.trunc(Number(level) || 1)),
-  );
-  return PROVINCE_UNLOCK_LEVEL_BASE_COSTS[String(normalizedLevel)] || PROVINCE_UNLOCK_BASE_COST;
-}
-
-export function provinceUnlockCostBreakdown(provinceId, startingProvinceId) {
-  const economicLevel = stateEconomicLevelFor(provinceId);
-  const baseCost = provinceUnlockBaseCostForLevel(economicLevel);
-  const distanceKm = provinceDistanceKm(provinceId, startingProvinceId);
-  const distanceCost = PROVINCE_UNLOCK_COST_PER_DISTANCE_STEP
-    * Math.floor(distanceKm / PROVINCE_UNLOCK_DISTANCE_STEP_KM);
-  return {
-    economicLevel,
-    baseCost,
-    distanceKm,
-    distanceCost,
-    totalCost: Math.min(PROVINCE_UNLOCK_MAX_COST, baseCost + distanceCost),
-  };
-}
-
-export function provinceUnlockCost(provinceId, startingProvinceId) {
-  return provinceUnlockCostBreakdown(provinceId, startingProvinceId).totalCost;
-}
-
 export function isProvinceUnlocked(player, provinceId) {
-  const id = normalizeProvinceId(provinceId);
-  if (!player || !PROVINCE_IDS.has(id)) return false;
-  if (String(player.startingProvinceId || '') === id) return true;
-  return Array.isArray(player.unlockedProvinces) && player.unlockedProvinces.includes(id);
+  if (!player) return false;
+  return PROVINCE_IDS.has(normalizeProvinceId(provinceId));
 }
 
 export function provinceUnlockError(player, provinceId) {
-  const id = normalizeProvinceId(provinceId);
-  if (!PROVINCE_IDS.has(id)) return '州级地区无效';
-  if (!player?.startingProvinceChosen) return null;
-  if (isProvinceUnlocked(player, id)) return null;
-  return '该州尚未解锁，请先完成解锁';
+  if (!player) return '玩家状态无效';
+  return PROVINCE_IDS.has(normalizeProvinceId(provinceId)) ? null : '州级地区无效';
 }
 
-function provinceName(provinceId) {
-  return PROVINCE_BY_ID.get(normalizeProvinceId(provinceId))?.name || '该州';
-}
-
-function hasEconomicFootprint(player, world) {
-  if ((player.facilities && player.facilities.length > 0)
-    || (player.facilityGroups && player.facilityGroups.length > 0)) return true;
-  if ((player.trades && player.trades.length > 0)
-    || (player.ledger && player.ledger.some((entry) => String(entry.category || '') !== 'system'))) return true;
-  const stats = player.stats || {};
-  const activityKeys = [
-    'workIssued', 'populationIssued', 'commodityVolume', 'facilityVolume',
-    'soldGoods', 'boughtGoods', 'giftIssued', 'gemExchangeCredits',
-    'contractCreditsPaid', 'contractCreditsReceived', 'populationIncome',
-  ];
-  if (activityKeys.some((key) => Number(stats[key] || 0) > 0)) return true;
-  return (world.orders || []).some((order) => (
-    Number(order.ownerId) === Number(player.userId)
-    && (order.status === 'open' || order.status === 'partial')
-  ));
-}
-
-export function applyChooseStartingProvince(world, user, payload = {}) {
+export function applyChooseStartingProvince(world, user) {
   const player = world.players?.[String(user.id)];
   if (!player) return { ok: false, message: '玩家状态无效' };
-  const provinceId = normalizeProvinceId(payload.provinceId);
-  if (!PROVINCE_IDS.has(provinceId)) return { ok: false, message: '州级地区无效' };
-  if (player.startingProvinceChosen) return { ok: false, message: '起始州已选定，不能更换' };
-  if (hasEconomicFootprint(player, world)) return { ok: false, message: '已开始经营，不能更换起始州' };
-  player.startingProvinceId = provinceId;
-  player.startingProvinceChosen = true;
-  player.unlockedProvinces = [provinceId];
-  return { ok: true, message: `起始州已选定为${provinceName(provinceId)}` };
+  normalizeProvinceAccess(player);
+  return { ok: false, message: '起始州选择已取消，连续 48 州均可直接经营' };
 }
 
-export function applyUnlockProvince(world, user, payload = {}) {
+export function applyUnlockProvince(world, user) {
   const player = world.players?.[String(user.id)];
   if (!player) return { ok: false, message: '玩家状态无效' };
-  const provinceId = normalizeProvinceId(payload.provinceId);
-  if (!PROVINCE_IDS.has(provinceId)) return { ok: false, message: '州级地区无效' };
-  if (isProvinceUnlocked(player, provinceId)) return { ok: false, message: '该州已经解锁' };
-  if (!player.startingProvinceChosen || !player.startingProvinceId) {
-    return { ok: false, message: '请先选择起始州' };
-  }
-  const cost = provinceUnlockCost(provinceId, player.startingProvinceId);
-  if (Number(player.credits || 0) < cost) {
-    return { ok: false, message: `解锁资金不足，需要 ${cost} 货币` };
-  }
-  player.credits = roundInternalMoney(player.credits - cost) || 0;
-  player.stats ||= {};
-  player.stats.systemSinks = Number(player.stats.systemSinks || 0) + cost;
-  player.unlockedProvinces = [...(player.unlockedProvinces || []), provinceId];
-  return { ok: true, message: `已解锁${provinceName(provinceId)}，支出 ${cost} 货币` };
+  normalizeProvinceAccess(player);
+  return { ok: false, message: '地区解锁已取消，连续 48 州均可直接经营' };
 }
 
 export function normalizeProvinceAccess(player) {
@@ -144,44 +59,13 @@ export function normalizeProvinceAccess(player) {
   if (!PROVINCE_IDS.has(String(player.startingProvinceId || ''))) {
     player.startingProvinceId = DEFAULT_PROVINCE_ID;
   }
-  if (!Array.isArray(player.unlockedProvinces)) player.unlockedProvinces = [];
-  if (!player.unlockedProvinces.includes(player.startingProvinceId)) {
-    player.unlockedProvinces = [...player.unlockedProvinces, player.startingProvinceId];
-  }
-  player.startingProvinceChosen = player.startingProvinceChosen !== false;
+  player.startingProvinceChosen = true;
+  player.unlockedProvinces = PROVINCE_CATALOG.map((province) => province.id);
   return player;
 }
 
-export function migrateProvinceAccess(world, now = Date.now()) {
-  for (const player of Object.values(world.players || {})) {
-    normalizeProvinceAccess(player);
-    const ids = new Set(player.unlockedProvinces || []);
-    ids.add(player.startingProvinceId);
-    for (const [key, inventory] of Object.entries(player.inventories || {})) {
-      const { provinceId } = splitProvinceScopedKey(key);
-      if (Number(inventory?.available || 0) > 0
-        || Number(inventory?.frozen || 0) > 0
-        || Number(inventory?.inTransit || 0) > 0) ids.add(provinceId);
-    }
-    for (const group of player.facilityGroups || []) ids.add(normalizeProvinceId(group.provinceId));
-    for (const order of world.orders || []) {
-      if (Number(order.ownerId) === Number(player.userId)
-        && (order.status === 'open' || order.status === 'partial')) ids.add(normalizeProvinceId(order.provinceId));
-    }
-    for (const auction of world.assetAuctions || []) {
-      const participant = Number(auction.sellerId) === Number(player.userId)
-        || Number(auction.highestBidderId) === Number(player.userId)
-        || Number(auction.highestBid?.bidderId) === Number(player.userId);
-      if (!participant) continue;
-      for (const item of auction.items || []) ids.add(normalizeProvinceId(item.provinceId));
-    }
-    for (const contract of world.productionContracts || []) {
-      const participant = [contract.buyerId, contract.supplierId, contract.lenderId, contract.lesseeId, contract.lessorId]
-        .some((id) => Number(id) === Number(player.userId));
-      if (participant && contract.provinceId) ids.add(normalizeProvinceId(contract.provinceId));
-    }
-    player.unlockedProvinces = [...ids];
-  }
+export function migrateProvinceAccess(world) {
+  for (const player of Object.values(world.players || {})) normalizeProvinceAccess(player);
   return world;
 }
 

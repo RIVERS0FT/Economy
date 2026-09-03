@@ -59,10 +59,10 @@ for (const text of [
   '一级建筑只提供工厂类型全局总览与工厂优先地区钻取',
   '图标式快捷生产设置',
   '`ProvincePage` 内的市场与建筑分区仍始终是地图所打开当前州的本地视图',
-  '概览无论解锁状态都显示官方常住人口',
-  '市场无论解锁状态都允许查看商品目录、今日价格和真实成交行情',
-  '建筑与仓库只有已解锁州才显示经营内容',
-  '一级市场商品的地区行情列表与一级建筑工厂的地区列表只允许出现当前玩家已解锁州',
+  '概览始终显示官方常住人口',
+  '市场提供商品目录、今日官方价格、真实成交行情和当日价即时交易写操作',
+  '建筑与仓库直接显示本地经营内容',
+  '一级市场商品的地区行情列表与一级建筑工厂的地区列表覆盖连续 48 州',
   '邀请卡与礼品码兑换唯一归属商店',
   '战略地图镜头、缩放、重置和平移边界唯一遵循 `LIQUID_GLASS_CHROME_DESIGN.md`',
   '地图不得提供独立的放大、缩小或重置功能面板',
@@ -150,26 +150,27 @@ for (const text of [
 ]) forbidText('src/pages/PageRouter.tsx', text);
 
 for (const text of [
-  '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />',
+  '<EmbeddedMarketPage model={model} embedded readOnly={false} />',
   '<EmbeddedBuildingsPage',
   'onDetailFacilityChange={handleFacilityDetailChange}',
   "import stateEconomicBaselines from '../../shared/us-state-economic-baselines.json';",
   'label="常住人口"',
-  'section="buildings"',
-  'section="warehouse"',
-  '建筑功能未解锁',
-  '仓库功能未解锁',
+  '<WarehouseInventoryPanel',
+  'className="province-warehouse-section"',
 ]) requireText('src/pages/ProvincePage.tsx', text);
 for (const text of [
   '该州尚未解锁，解锁后可以使用市场、工厂与仓库经营功能。',
   '<WidgetHeading title="州级地区未解锁"',
+  'section="buildings"',
+  'section="warehouse"',
+  '建筑功能未解锁',
+  '仓库功能未解锁',
+  'ProvinceUnlockPanel',
+  'province-unlock-button',
 ]) forbidText('src/pages/ProvincePage.tsx', text);
 for (const text of [
   'readOnly = false',
   'readOnly?: boolean;',
-  '该地区尚未解锁，市场仅供查看。',
-  'market-trade-readonly',
-  'readOnly ? (',
   '即时交易',
   '今日成交价',
   '下次调价',
@@ -181,8 +182,9 @@ for (const text of [
   'market-order-price',
 ]) forbidText('src/pages/MarketPage.tsx', text);
 for (const path of ['src/pages/GlobalMarketPage.tsx', 'src/pages/GlobalBuildingsPage.tsx']) {
-  requireText(path, 'game.provinces.filter((province) => unlocked.has(province.id))');
+  requireText(path, 'return model.game.provinces;');
   requireText(path, 'const provinces = operationalProvinces(model);');
+  forbidText(path, 'unlocked.has(province.id)');
 }
 
 for (const [path, expected] of [
@@ -342,10 +344,10 @@ forbidText('src/styles/global-operation-pages.css', '.global-facility-region-row
 forbidText('src/pages/GlobalMarketPage.tsx', '筛选与排序');
 forbidText('src/pages/MarketPage.tsx', '筛选与排序');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品目录 → 商品全局详情 → 地区商品详情');
-requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '未解锁州的地区概览仍公开官方常住人口');
-requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '地区市场允许只读查看今日官方价格与真实成交行情');
-requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '仅已解锁州显示本地库存内容');
-requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '建筑与仓库只有已解锁州才显示经营内容');
+requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '连续 48 州从玩家首次建档起全部可直接经营');
+requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '任一州都可直接进行商品即时交易');
+requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '连续 48 州均直接显示本地库存内容');
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '建筑与仓库直接显示本地经营内容');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '筛选默认折叠且不提供商品名称搜索框');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '市场标题区固定显示“市场”，商品目录正文不重复显示“商品”分区标题');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品列表字段名使用独立表头');

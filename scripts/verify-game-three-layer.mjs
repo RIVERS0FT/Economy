@@ -125,12 +125,11 @@ forbidText('src/components/system/ApplicationLoadingState.tsx', 'PhotographicSta
 forbidText('src/components/system/ApplicationLoadingState.tsx', 'FinancialBackdrop');
 
 for (const text of [
-  "rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}${startingProvincePicking ? ' is-starting-province-picking' : ''}`}",
+  "rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}`}",
   '<DesktopSidebar',
   '<StatusBar',
   '<ApplicationMapLayerPortal>',
-  '<StrategicMapStage',
-  "lens={startingProvincePicking ? 'political' : mapLens}",
+  '<StrategicMapStage model={model} lens={mapLens} />',
   '<StrategicMapLensBar lens={mapLens} onLensChange={setMapLens} />',
   '<StrategicWorkspaceChrome',
   'action={(',
@@ -138,6 +137,7 @@ for (const text of [
 ]) requireText('src/components/shell/GameShell.tsx', text);
 forbidText('src/components/shell/GameShell.tsx', 'FinancialBackdrop');
 forbidText('src/components/shell/GameShell.tsx', 'backdrop=');
+for (const text of ['StartingProvinceOverview', 'startingProvincePicking', 'startingProvinceCandidateId', 'onPickStartingProvince', 'chooseStartingProvince']) forbidText('src/components/shell/GameShell.tsx', text);
 
 for (const text of [
   "import { ApplicationLoadingState } from '../components/system/ApplicationLoadingState';",
