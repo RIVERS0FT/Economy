@@ -43,10 +43,10 @@ for (const path of ['server/src/balanced-market.js', 'server/src/facility-groups
 const commodity = read('server/src/balanced-market.js');
 const facility = read('server/src/facility-groups.js');
 for (const forbidden of ['function executeTrade(', 'function appendFill(']) {
-  assert.equal(commodity.includes(forbidden), false, `商品模块残留重复撮合逻辑: ${forbidden}`);
+  assert.equal(commodity.includes(forbidden), false, `商品内部模拟残留重复撮合逻辑: ${forbidden}`);
 }
 for (const forbidden of ['function executeFacilityTrade(', 'function sortCandidates(', 'function appendPlayerOrderFill(']) {
-  assert.equal(facility.includes(forbidden), false, `工厂模块残留重复撮合逻辑: ${forbidden}`);
+  assert.equal(facility.includes(forbidden), false, `工厂历史兼容模块残留重复撮合逻辑: ${forbidden}`);
 }
 
 const runtime = read('server/src/order-book-runtime.js');
@@ -62,7 +62,7 @@ for (const text of [
   'sortedPrices: []',
   'nodesByOrder: new WeakMap()',
 ]) {
-  assert.ok(runtime.includes(text), `订单簿运行时索引缺少: ${text}`);
+  assert.ok(runtime.includes(text), `内部订单运行时索引缺少: ${text}`);
 }
 const tests = read('server/test/order-matching.test.js');
 for (const text of ['price-time priority', 'maker price', 'partial fills', 'same-player', 'system orders']) {
@@ -70,18 +70,21 @@ for (const text of ['price-time priority', 'maker price', 'partial fills', 'same
 }
 const runtimeTests = read('server/test/order-book-runtime.test.js');
 for (const text of ['4000 orders', 'tail appends', 'repeated matching reuses one runtime index']) {
-  assert.ok(runtimeTests.includes(text), `订单簿索引测试缺少: ${text}`);
+  assert.ok(runtimeTests.includes(text), `内部订单索引测试缺少: ${text}`);
 }
 const priceLevelTests = read('server/test/order-book-price-level.test.js');
 for (const text of ['50000 open orders', 'explicit close removes an order', 'visits only crossing price-level nodes']) {
-  assert.ok(priceLevelTests.includes(text), `价格档位订单簿测试缺少: ${text}`);
+  assert.ok(priceLevelTests.includes(text), `价格档位内部索引测试缺少: ${text}`);
 }
 const design = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
-for (const text of ['共享撮合内核', '`server/src/order-matching.js`', '唯一撮合状态机', '不得各自重新实现', '`order-book-runtime.js`', '不得各自重新对完整 `world.orders` 过滤排序']) {
-  assert.ok(design.includes(text), `统一订单簿设计缺少: ${text}`);
+for (const text of [
+  '服务器内部人口与储备订单',
+  '内部人口／储备订单不是玩家商品交易入口',
+  '普通玩家页面不得展示内部订单',
+  '玩家商品交易不得创建 `open`／`partial` 商品订单',
+]) {
+  assert.ok(design.includes(text), `商品即时市场设计缺少内部撮合边界: ${text}`);
 }
-// 共享撮合实现路径由上面的源码、调用方与单元测试直接验证；
-// SERVER DESIGN 只保留服务器领域边界，不复制模块文件目录。
 
 for (const text of [
   'function finalizeRuntimeBooks(state)',
@@ -89,14 +92,15 @@ for (const text of [
   'recordOrderBookReduction',
   'closeOrderInOrderBook',
   'orderById',
-]) assert.ok(runtime.includes(text), `订单簿索引优化缺少: ${text}`);
+]) assert.ok(runtime.includes(text), `内部订单索引优化缺少: ${text}`);
 for (const forbidden of ['playerBooks', 'systemBooks', 'playerOrdersByAsset', 'systemOrdersByAsset', 'compactClosedOrders']) {
-  assert.equal(runtime.includes(forbidden), false, `统一订单簿不得恢复旧扫描结构: ${forbidden}`);
+  assert.equal(runtime.includes(forbidden), false, `内部订单索引不得恢复旧扫描结构: ${forbidden}`);
 }
 const runtimeBuild = runtime.slice(runtime.indexOf('function buildRuntime(world)'), runtime.indexOf('function runtimeFor(world)'));
-assert.equal(runtimeBuild.includes('insertSorted('), false, '订单簿全量构建不得逐单二分插入');
-for (const text of ['统一混合盘口', '先单次遍历未完成订单完成分组', '不得因历史保存上限删除任何未完成订单']) {
-  assert.ok(design.includes(text), `统一订单簿设计缺少运行时边界: ${text}`);
-}
+assert.equal(runtimeBuild.includes('insertSorted('), false, '内部订单全量构建不得逐单二分插入');
 
-console.log('共享撮合内核验证通过：商品与工厂复用单一混合盘口、价格档位 FIFO 运行时索引、流式价格时间优先撮合、maker price、部分成交、fill 和手续费状态机。');
+const marketPage = read('src/pages/MarketPage.tsx');
+assert.equal(marketPage.includes('orderBook.bids'), false, '玩家市场页面不得把内部订单索引恢复成买盘。');
+assert.equal(marketPage.includes('orderBook.asks'), false, '玩家市场页面不得把内部订单索引恢复成卖盘。');
+
+console.log('共享撮合内核验证通过：共享内核继续服务服务器内部模拟与历史兼容；玩家商品交易保持每日系统价即时成交且不暴露盘口。');
