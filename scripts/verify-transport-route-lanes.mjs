@@ -51,7 +51,8 @@ for (const text of [
   '共享同一运输方式和物理区段时允许完全共线',
   '不得为了区分玩家路线生成平行车道',
   '公路沿公路折线、铁路沿铁路折线、航空沿抛物线采样点',
-  '真实公路／铁路绕行长度和航空抛物线弧长不得反向进入经济数值',
+  '真实公路／铁路绕行长度不得反向进入经济数值',
+  '航空抛物线弧长同样不得反向进入经济数值',
 ]) assert.ok(networkDesign.includes(text), `运输路网几何设计缺少规则：${text}`);
 assert.ok(
   warehouseDesign.includes('距离统一使用 `shared/provinces.json` 州中心经纬度的球面距离；首府坐标只用于可视化，不参与经济数值'),
@@ -157,16 +158,8 @@ for (const mode of ['road', 'rail']) {
       assert.ok(coordinates.length <= 96, `${mode} 首府对 ${key} 超过 96 个折点`);
       const canonicalLeft = left.id < right.id ? left : right;
       const canonicalRight = left.id < right.id ? right : left;
-      assert.deepEqual(
-        coordinates[0],
-        [Number(canonicalLeft.capitalLongitude.toFixed(5)), Number(canonicalLeft.capitalLatitude.toFixed(5))],
-        `${mode} ${key} 必须从真实首府坐标开始`,
-      );
-      assert.deepEqual(
-        coordinates.at(-1),
-        [Number(canonicalRight.capitalLongitude.toFixed(5)), Number(canonicalRight.capitalLatitude.toFixed(5))],
-        `${mode} ${key} 必须在真实首府坐标结束`,
-      );
+      assert.deepEqual(coordinates[0], [Number(canonicalLeft.capitalLongitude.toFixed(5)), Number(canonicalLeft.capitalLatitude.toFixed(5))], `${mode} ${key} 必须从真实首府坐标开始`);
+      assert.deepEqual(coordinates.at(-1), [Number(canonicalRight.capitalLongitude.toFixed(5)), Number(canonicalRight.capitalLatitude.toFixed(5))], `${mode} ${key} 必须在真实首府坐标结束`);
     }
   }
 }
