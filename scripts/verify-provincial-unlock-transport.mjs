@@ -229,10 +229,10 @@ forbidText(strategicWorkspace, 'label="行程"', '战略地图不得恢复玩家
 
 requireText(pageStack, "| { type: 'transport-route'; routeId: string }", '页面栈必须提供运输路线详情位置。');
 requireText(navigation, "{ id: 'transport', label: '运输' }", '一级导航必须保留运输入口。');
-for (const text of ['routeOverlays', 'shipmentOverlays', 'transport-route-lanes', 'transport-shipment-marker']) {
+for (const text of ['routeOverlays', 'shipmentOverlays', 'province-map-route-path', 'province-map-shipment']) {
   requireText(provinceMap, text, `美国地图缺少运输可视化：${text}`);
 }
-for (const text of ['.province-map-route-path', '.province-map-shipment-marker']) requireText(provinceMapCss, text, `地图样式缺少：${text}`);
+for (const text of ['.province-map-route-path', '.province-map-shipment']) requireText(provinceMapCss, text, `地图样式缺少：${text}`);
 requireText(transportCss, '.transport-page-content', '运输页样式必须保留内容区。');
 
 for (const text of [
