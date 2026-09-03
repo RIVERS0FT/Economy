@@ -10,7 +10,7 @@ import {
 import { formatCurrency } from '../../utils/formatters';
 import '../../styles/market-commodity-row.css';
 
-export type MarketCommoditySortKey = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume' | 'volume24h';
+export type MarketCommoditySortKey = 'catalog' | 'name' | 'price' | 'trend' | 'volume24h';
 export type MarketSortDirection = EntityListSortDirection;
 
 const MARKET_SORT_DEFAULT_DIRECTION: Record<MarketCommoditySortKey, MarketSortDirection> = {
@@ -18,8 +18,6 @@ const MARKET_SORT_DEFAULT_DIRECTION: Record<MarketCommoditySortKey, MarketSortDi
   name: 'asc',
   price: 'desc',
   trend: 'desc',
-  'buy-volume': 'desc',
-  'sell-volume': 'desc',
   volume24h: 'desc',
 };
 
@@ -87,9 +85,6 @@ export interface MarketCommodityRowProps {
   categoryLabel: string;
   regionName?: string;
   regionPrimary?: boolean;
-  /** Deprecated order-book summaries kept optional for older call sites. */
-  sellVolume?: number;
-  buyVolume?: number;
   tradeVolume24h: number;
   marketPrice?: number;
   trend?: number;
