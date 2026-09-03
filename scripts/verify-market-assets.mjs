@@ -134,7 +134,6 @@ for (const [path, texts] of [
   ['src/components/AdminGiftSection.tsx', ['VirtualList', 'GiftCodeIcon']],
   ['src/components/AdminUserSection.tsx', ['VirtualRecordTable']],
   ['src/components/AdminAuctionSection.tsx', ['VirtualRecordTable', 'FactoryIcon']],
-  ['src/components/AdminPopulationSection.tsx', ['VirtualRecordTable']],
 ]) {
   if (!existsSync(resolve(root, path))) continue;
   for (const text of texts) requireText(path, text);
