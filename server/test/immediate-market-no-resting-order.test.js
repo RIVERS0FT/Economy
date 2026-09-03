@@ -41,6 +41,8 @@ test('manual commodity buys and sells never leave player resting orders or froze
 
   assert.equal(buy.ok, true);
   assert.equal(sell.ok, true);
+  assert.equal(buy.quantity, 2);
+  assert.equal(sell.quantity, 3);
   assert.equal(buy.executedPrice, 0.8);
   assert.equal(sell.executedPrice, 0.8);
   assert.equal(buy.total, 1.6);
