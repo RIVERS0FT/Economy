@@ -211,7 +211,13 @@ if (failures.length === 0) {
   for (const text of [
     "test.describe('player page safe geometry'",
     'desktop and mobile pages stay inside their real carrier width',
-    'edge breakpoints keep the buildings lists fully visible',
+    'edge breakpoint ${viewport.width}x${viewport.height} keeps the buildings lists fully visible',
+    'test(`edge breakpoint ${viewport.width}x${viewport.height} keeps the buildings lists fully visible`',
+    '{ width: 320, height: 720 },',
+    '{ width: 720, height: 900 },',
+    '{ width: 721, height: 900 },',
+    '{ width: 960, height: 900 },',
+    '{ width: 1440, height: 900 },',
     'scrollWidth',
     'clientWidth',
     'firstContentTopGap',
@@ -231,6 +237,7 @@ if (failures.length === 0) {
   forbidText(paths.geometryTest, '.global-operation-metrics');
   forbidText(paths.geometryTest, '.global-facility-catalog-grid');
   forbidText(paths.geometryTest, '.global-facility-catalog-card');
+  forbidText(paths.geometryTest, "test('edge breakpoints keep the buildings lists fully visible'");
 
   for (const text of [
     'independent contract cards keep object boundaries and warning tint',
