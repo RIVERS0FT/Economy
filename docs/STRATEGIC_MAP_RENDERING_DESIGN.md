@@ -44,6 +44,7 @@
 - 航空运输使用唯一稳定的二次贝塞尔抛物线 `M A Q C B`。控制点由两端首府中点、标准法线和受上下限约束的距离比例确定；同一首府对正反向复用同一曲线，只反转运动方向。
 - 航空曲线必须生成同源采样点；飞机沿这些采样点按累计路径长度插值，保证视觉 path 和运动轨迹一致。
 - 多条玩家路线使用同一种运输方式并经过同一物理区段时允许完全共线。不得生成平行车道、标准法线偏移、laneOffset 变体、正反向独立车道、往返第二条线或为了辨认路线而改变物理几何。
+- 运行时路线数据模型和 DOM 诊断属性不得保留 `laneOwnerId`、`laneOffset`、`laneCountByEdge`、`byLaneOwnerId`、`data-route-lane-*` 或 `returnPath` 等车道／返程副线字段；路线身份只由 `routeId`／overlay id 表达，单条 overlay 直接持有唯一 `path` 与正式 segment points。
 - 非闭环往返路线到达终点后只反转同一条正式几何；地图只显示一条路线。运输 marker 查询反向段时允许对原 segment points 反序，但不得创建第二份可见 path。
 - 公路使用连续实线，铁路使用轨道节奏虚线，航空使用间隔更大的航线虚线。草稿和高亮只改变强调色／粗细／透明度，不改变方式线型和 path `d`。
 - 地图只渲染玩家实际保存路线、草稿和对应在途标记，不绘制全国完整 1128×2 首府对路网集合。
@@ -77,7 +78,7 @@
 - 州名位图化或随 CSS scale 放大的低倍率纹理；
 - 地图世界／选中州的大范围 `drop-shadow` 缩放滤镜；
 - 公路／铁路共享同一中心线、地面运输首府直线正式几何；
-- 运输路线强制并排、laneOffset、返程第二条线；
+- 运输路线强制并排、车道数据结构、laneOffset 或返程第二条线；
 - 航空首府直线正式显示和直线运动；
 - hover／详情高亮通过复制或偏移第二条路线实现；
 - 地图镜头栏或运输选路面板恢复毛玻璃。
@@ -93,4 +94,4 @@
 - `tests/browser/map-zoom-transient.spec.ts`：同帧输入只发生一次根 SVG `viewBox` 属性变化、Camera Surface style 不变、诊断属性热路径不变、path/glyph 几何静态。
 - `tests/browser/province-map-world-boundary.spec.ts`：不同倍率下 fixed world bounds 不变，并按当前 viewBox 尺寸反求可用 Camera center。
 - `tests/browser/map-zoom-out-boundary.spec.ts`、`map-reset-sync.spec.ts`、`map-mobile-pinch.spec.ts`、`province-map-focus.spec.ts`：屏外州恢复、重置、移动双指和州交互不破坏同一 SVG Camera。
-- 运输浏览器回归必须验证重复路线共线、往返无第二 path、公路／铁路／航空路径不同、航空包含 `Q` 曲线、运输标记沿对应几何、高亮不改变路线 `d`，以及地图镜头栏／选路面板最终 `backdrop-filter:none`。
+- 运输浏览器回归必须验证重复路线共线、运行时无车道字段、往返无第二 path、公路／铁路／航空路径不同、航空包含 `Q` 曲线、运输标记沿对应几何、高亮不改变路线 `d`，以及地图镜头栏／选路面板最终 `backdrop-filter:none`。
