@@ -22,6 +22,7 @@ export interface ProvinceMapRouteSegmentLayout {
   points: ProvinceMapPoint[];
   laneOffset: number;
   networkGeometry: boolean;
+  airControlPoint?: ProvinceMapPoint;
 }
 
 export interface ProvinceMapRouteTraversalLayout {
@@ -42,15 +43,9 @@ export interface ProvinceMapRouteLayoutResult {
   laneCountByEdge: Map<string, number>;
 }
 
-interface DirectedRouteGeometry {
-  points: ProvinceMapPoint[];
-  path: string;
-  networkGeometry: boolean;
-}
-
 const POINT_EPSILON = 1e-6;
 const AIR_CURVE_RATIO = 0.16;
-const AIR_CURVE_MIN = 24;
+const AIR_CURVE_MIN = 18;
 const AIR_CURVE_MAX = 120;
 const AIR_SAMPLE_STEPS = 28;
 
@@ -62,15 +57,6 @@ export function provinceMapPhysicalRouteEdgeKey(mode: TransportModeId, left: str
   return `${mode}|${provinceEdgeKey(left, right)}`;
 }
 
-function formatGeometryValue(value: number) {
-  const rounded = Number(value.toFixed(2));
-  return Object.is(rounded, -0) ? 0 : rounded;
-}
-
-function pathForPoints(points: ProvinceMapPoint[]) {
-  return points.map((point, index) => `${index === 0 ? 'M' : 'L'}${formatGeometryValue(point.x)} ${formatGeometryValue(point.y)}`).join(' ');
-}
-
 function quadraticPoint(start: ProvinceMapPoint, control: ProvinceMapPoint, end: ProvinceMapPoint, t: number) {
   const inverse = 1 - t;
   return {
@@ -79,72 +65,45 @@ function quadraticPoint(start: ProvinceMapPoint, control: ProvinceMapPoint, end:
   };
 }
 
-function canonicalAirGeometry(
-  left: string,
-  right: string,
-  pointByProvinceId: ReadonlyMap<string, ProvinceMapPoint>,
-) {
-  const [fromProvinceId, toProvinceId] = left < right ? [left, right] : [right, left];
-  const start = pointByProvinceId.get(fromProvinceId);
-  const end = pointByProvinceId.get(toProvinceId);
-  if (!start || !end) return null;
+export function provinceMapAirRouteControlPoint(start: ProvinceMapPoint, end: ProvinceMapPoint) {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
-  const length = Math.hypot(dx, dy);
-  if (!(length > POINT_EPSILON)) return null;
-  let normalX = -dy / length;
-  let normalY = dx / length;
-  if (normalY > 0) {
-    normalX *= -1;
-    normalY *= -1;
-  }
-  const curve = Math.max(AIR_CURVE_MIN, Math.min(AIR_CURVE_MAX, length * AIR_CURVE_RATIO));
-  const control = {
-    x: (start.x + end.x) / 2 + normalX * curve,
-    y: (start.y + end.y) / 2 + normalY * curve,
+  const length = Math.max(POINT_EPSILON, Math.hypot(dx, dy));
+  const lift = Math.max(AIR_CURVE_MIN, Math.min(AIR_CURVE_MAX, length * AIR_CURVE_RATIO));
+  return {
+    x: (start.x + end.x) / 2 - (dy / length) * lift,
+    y: (start.y + end.y) / 2 + (dx / length) * lift,
   };
+}
+
+function airRouteGeometry(start: ProvinceMapPoint, end: ProvinceMapPoint) {
+  const control = provinceMapAirRouteControlPoint(start, end);
   const points = Array.from({ length: AIR_SAMPLE_STEPS + 1 }, (_, index) => (
     quadraticPoint(start, control, end, index / AIR_SAMPLE_STEPS)
   ));
-  return { fromProvinceId, toProvinceId, start, end, control, points };
+  return { points, control };
 }
 
-function directedGeometry(
+function canonicalEdgePoints(
+  left: string,
+  right: string,
   mode: TransportModeId,
-  fromProvinceId: string,
-  toProvinceId: string,
   pointByProvinceId: ReadonlyMap<string, ProvinceMapPoint>,
   physicalPathByEdge: ProvinceMapPhysicalPathMap,
-): DirectedRouteGeometry | null {
+) {
+  const [fromProvinceId, toProvinceId] = left < right ? [left, right] : [right, left];
+  const from = pointByProvinceId.get(fromProvinceId);
+  const to = pointByProvinceId.get(toProvinceId);
+  if (!from || !to) return null;
   if (mode === 'air') {
-    const canonical = canonicalAirGeometry(fromProvinceId, toProvinceId, pointByProvinceId);
-    if (!canonical) return null;
-    const reverse = fromProvinceId !== canonical.fromProvinceId;
-    const points = reverse ? [...canonical.points].reverse() : canonical.points.map((point) => ({ ...point }));
-    const start = reverse ? canonical.end : canonical.start;
-    const end = reverse ? canonical.start : canonical.end;
-    return {
-      points,
-      path: `M${formatGeometryValue(start.x)} ${formatGeometryValue(start.y)} Q${formatGeometryValue(canonical.control.x)} ${formatGeometryValue(canonical.control.y)} ${formatGeometryValue(end.x)} ${formatGeometryValue(end.y)}`,
-      networkGeometry: true,
-    };
+    const air = airRouteGeometry(from, to);
+    return { points: air.points, networkGeometry: false, airControlPoint: air.control };
   }
-
-  const [canonicalFrom, canonicalTo] = fromProvinceId < toProvinceId
-    ? [fromProvinceId, toProvinceId]
-    : [toProvinceId, fromProvinceId];
-  const networkPoints = physicalPathByEdge.get(provinceMapPhysicalRouteEdgeKey(mode, canonicalFrom, canonicalTo));
+  const networkPoints = physicalPathByEdge.get(provinceMapPhysicalRouteEdgeKey(mode, fromProvinceId, toProvinceId));
   if (networkPoints && networkPoints.length >= 2) {
-    const points = fromProvinceId === canonicalFrom
-      ? networkPoints.map((point) => ({ ...point }))
-      : [...networkPoints].reverse().map((point) => ({ ...point }));
-    return { points, path: pathForPoints(points), networkGeometry: true };
+    return { points: networkPoints, networkGeometry: true, airControlPoint: undefined };
   }
-  const start = pointByProvinceId.get(fromProvinceId);
-  const end = pointByProvinceId.get(toProvinceId);
-  if (!start || !end) return null;
-  const points = [{ ...start }, { ...end }];
-  return { points, path: pathForPoints(points), networkGeometry: false };
+  return { points: [from, to], networkGeometry: false, airControlPoint: undefined };
 }
 
 export function provinceMapRouteBasePointsForDirection(
@@ -154,8 +113,27 @@ export function provinceMapRouteBasePointsForDirection(
   pointByProvinceId: ReadonlyMap<string, ProvinceMapPoint>,
   physicalPathByEdge: ProvinceMapPhysicalPathMap = new Map(),
 ) {
-  const geometry = directedGeometry(mode, fromProvinceId, toProvinceId, pointByProvinceId, physicalPathByEdge);
-  return geometry ? { points: geometry.points, networkGeometry: geometry.networkGeometry } : null;
+  const canonical = canonicalEdgePoints(fromProvinceId, toProvinceId, mode, pointByProvinceId, physicalPathByEdge);
+  if (!canonical) return null;
+  return fromProvinceId < toProvinceId
+    ? { points: canonical.points, networkGeometry: canonical.networkGeometry }
+    : { points: [...canonical.points].reverse(), networkGeometry: canonical.networkGeometry };
+}
+
+function formatGeometryValue(value: number) {
+  const rounded = Number(value.toFixed(2));
+  return Object.is(rounded, -0) ? 0 : rounded;
+}
+
+function pathForPoints(points: ProvinceMapPoint[]) {
+  return points.map((point, index) => `${index === 0 ? 'M' : 'L'}${formatGeometryValue(point.x)} ${formatGeometryValue(point.y)}`).join(' ');
+}
+
+function pathForSegment(segment: ProvinceMapRouteSegmentLayout, mode: TransportModeId) {
+  if (mode === 'air' && segment.airControlPoint) {
+    return `M${formatGeometryValue(segment.start.x)} ${formatGeometryValue(segment.start.y)} Q${formatGeometryValue(segment.airControlPoint.x)} ${formatGeometryValue(segment.airControlPoint.y)} ${formatGeometryValue(segment.end.x)} ${formatGeometryValue(segment.end.y)}`;
+  }
+  return pathForPoints(segment.points);
 }
 
 export function provinceMapPointAlongPolyline(points: ProvinceMapPoint[], progress: number) {
@@ -211,28 +189,33 @@ function buildTraversal(
   physicalPathByEdge: ProvinceMapPhysicalPathMap,
 ): ProvinceMapRouteTraversalLayout {
   const segments: ProvinceMapRouteSegmentLayout[] = [];
-  const pathParts: string[] = [];
   for (let index = 0; index < input.stops.length - 1; index += 1) {
     const fromProvinceId = input.stops[index];
     const toProvinceId = input.stops[index + 1];
-    const geometry = directedGeometry(input.mode, fromProvinceId, toProvinceId, pointByProvinceId, physicalPathByEdge);
-    if (!geometry || geometry.points.length < 2) continue;
+    const canonical = canonicalEdgePoints(fromProvinceId, toProvinceId, input.mode, pointByProvinceId, physicalPathByEdge);
+    if (!canonical) continue;
+    const points = fromProvinceId < toProvinceId ? canonical.points : [...canonical.points].reverse();
+    if (points.length < 2) continue;
     segments.push({
       fromProvinceId,
       toProvinceId,
-      start: geometry.points[0],
-      end: geometry.points[geometry.points.length - 1],
-      points: geometry.points,
+      start: points[0],
+      end: points[points.length - 1],
+      points,
       laneOffset: 0,
-      networkGeometry: geometry.networkGeometry,
+      networkGeometry: canonical.networkGeometry,
+      airControlPoint: canonical.airControlPoint,
     });
-    pathParts.push(geometry.path);
   }
   const stopPoints = input.stops.flatMap((provinceId) => {
     const point = pointByProvinceId.get(provinceId);
     return point ? [point] : [];
   });
-  return { points: stopPoints, path: pathParts.join(' '), segments };
+  return {
+    points: stopPoints,
+    path: segments.map((segment) => pathForSegment(segment, input.mode)).join(' '),
+    segments,
+  };
 }
 
 export function layoutProvinceMapRoutes(
@@ -247,14 +230,10 @@ export function layoutProvinceMapRoutes(
 
   for (const input of canonical) {
     const forward = buildTraversal(input, pointByProvinceId, physicalPathByEdge);
-    for (const segment of forward.segments) {
-      laneCountByEdge.set(provinceMapPhysicalRouteEdgeKey(input.mode, segment.fromProvinceId, segment.toProvinceId), 1);
+    byLaneOwnerId.set(input.laneOwnerId, { laneOwnerId: input.laneOwnerId, forward, returnPath: null });
+    for (let index = 0; index < input.stops.length - 1; index += 1) {
+      laneCountByEdge.set(provinceMapPhysicalRouteEdgeKey(input.mode, input.stops[index], input.stops[index + 1]), 1);
     }
-    byLaneOwnerId.set(input.laneOwnerId, {
-      laneOwnerId: input.laneOwnerId,
-      forward,
-      returnPath: null,
-    });
   }
 
   const byOverlayId = new Map<string, ProvinceMapRouteLayout>();
@@ -270,21 +249,16 @@ export function routeLayoutSegmentForDirection(
   fromProvinceId: string,
   toProvinceId: string,
 ) {
-  const direct = layout.forward.segments.find((segment) => (
-    segment.fromProvinceId === fromProvinceId && segment.toProvinceId === toProvinceId
-  ));
+  const direct = layout.forward.segments.find((segment) => segment.fromProvinceId === fromProvinceId && segment.toProvinceId === toProvinceId);
   if (direct) return direct;
-  const reverse = layout.forward.segments.find((segment) => (
-    segment.fromProvinceId === toProvinceId && segment.toProvinceId === fromProvinceId
-  ));
+  const reverse = layout.forward.segments.find((segment) => segment.fromProvinceId === toProvinceId && segment.toProvinceId === fromProvinceId);
   if (!reverse) return null;
-  const points = [...reverse.points].reverse();
   return {
     ...reverse,
     fromProvinceId,
     toProvinceId,
-    start: points[0],
-    end: points[points.length - 1],
-    points,
+    start: reverse.end,
+    end: reverse.start,
+    points: [...reverse.points].reverse(),
   };
 }
