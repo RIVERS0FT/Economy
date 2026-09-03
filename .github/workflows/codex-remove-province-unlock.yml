@@ -94,33 +94,13 @@ jobs:
               if text.count(old) != 1:
                   raise SystemExit(f'页面内容 verifier 旧地区访问断言数量异常: {old}')
               text = text.replace(old, new, 1)
-          old_required = """  'label=\"常住人口\"',
-  'section=\"buildings\"',
-  'section=\"warehouse\"',
-  '建筑功能未解锁',
-  '仓库功能未解锁',
-"""
-          new_required = """  'label=\"常住人口\"',
-  '<WarehouseInventoryPanel',
-  'className=\"province-warehouse-section\"',
-"""
+          old_required = "  'label=\"常住人口\"',\n  'section=\"buildings\"',\n  'section=\"warehouse\"',\n  '建筑功能未解锁',\n  '仓库功能未解锁',\n"
+          new_required = "  'label=\"常住人口\"',\n  '<WarehouseInventoryPanel',\n  'className=\"province-warehouse-section\"',\n"
           if text.count(old_required) != 1:
               raise SystemExit('页面内容 verifier 旧解锁区块断言数量异常')
           text = text.replace(old_required, new_required, 1)
-          old_forbid = """for (const text of [
-  '该州尚未解锁，解锁后可以使用市场、工厂与仓库经营功能。',
-  '<WidgetHeading title=\"州级地区未解锁\"',
-]) forbidText('src/pages/ProvincePage.tsx', text);"""
-          new_forbid = """for (const text of [
-  '该州尚未解锁，解锁后可以使用市场、工厂与仓库经营功能。',
-  '<WidgetHeading title=\"州级地区未解锁\"',
-  'section=\"buildings\"',
-  'section=\"warehouse\"',
-  '建筑功能未解锁',
-  '仓库功能未解锁',
-  'ProvinceUnlockPanel',
-  'province-unlock-button',
-]) forbidText('src/pages/ProvincePage.tsx', text);"""
+          old_forbid = "for (const text of [\n  '该州尚未解锁，解锁后可以使用市场、工厂与仓库经营功能。',\n  '<WidgetHeading title=\"州级地区未解锁\"',\n]) forbidText('src/pages/ProvincePage.tsx', text);"
+          new_forbid = "for (const text of [\n  '该州尚未解锁，解锁后可以使用市场、工厂与仓库经营功能。',\n  '<WidgetHeading title=\"州级地区未解锁\"',\n  'section=\"buildings\"',\n  'section=\"warehouse\"',\n  '建筑功能未解锁',\n  '仓库功能未解锁',\n  'ProvinceUnlockPanel',\n  'province-unlock-button',\n]) forbidText('src/pages/ProvincePage.tsx', text);"
           if text.count(old_forbid) != 1:
               raise SystemExit('页面内容 verifier 锁定州 forbid 区块数量异常')
           page_verifier.write_text(text.replace(old_forbid, new_forbid, 1), encoding='utf-8')
