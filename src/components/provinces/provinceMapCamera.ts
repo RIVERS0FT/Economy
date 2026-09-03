@@ -136,6 +136,7 @@ export function createProvinceMapCamera(
   let target: CameraState = { ...current };
   let frame: number | null = null;
   let settleTimer: ReturnType<typeof setTimeout> | null = null;
+  let settleDeadline = 0;
   let multiTouchIdleTimer: ReturnType<typeof setTimeout> | null = null;
   let frameCount = 0;
   let writeCount = 0;
@@ -295,13 +296,14 @@ export function createProvinceMapCamera(
   };
 
   const beginMultiTouchSequence = () => {
+    const stateChanged = !multiTouchSequenceActive || !pendingSuppressedTouchTap;
     if (!multiTouchSequenceActive) multiTouchSequenceCount += 1;
     multiTouchSequenceActive = true;
     pendingSuppressedTouchTap = true;
     refreshTapSuppression();
     cancelMultiTouchIdleTimer();
     lastBlankTap = null;
-    publishMultiTouchState();
+    if (stateChanged) publishMultiTouchState();
   };
 
   const finishMultiTouchSequence = () => {
@@ -321,35 +323,39 @@ export function createProvinceMapCamera(
   );
 
   const setActive = (nextActive: boolean) => {
+    if (active === nextActive) return;
     active = nextActive;
-    surface.style.willChange = nextActive ? 'transform' : '';
     publishState();
   };
 
   const writeCamera = () => {
     frame = null;
     if (destroyed) return;
-    current = { ...target };
+    current.x = target.x;
+    current.y = target.y;
+    current.zoom = target.zoom;
     surface.style.transform = `translate3d(${current.x.toFixed(3)}px, ${current.y.toFixed(3)}px, 0) scale(${current.zoom.toFixed(6)})`;
     frameCount += 1;
     writeCount += 1;
-    publishState();
+  };
+
+  const finishSettle = () => {
+    settleTimer = null;
+    if (destroyed) return;
+    const remaining = settleDeadline - performance.now();
+    if (remaining > 0 || frame !== null) {
+      settleTimer = setTimeout(finishSettle, Math.max(1, remaining > 0 ? remaining : 16));
+      return;
+    }
+    inputMode = 'idle';
+    setActive(false);
+    interactionBounds = null;
+    cameraClampMetrics = null;
   };
 
   const scheduleSettle = () => {
-    if (settleTimer !== null) clearTimeout(settleTimer);
-    settleTimer = setTimeout(() => {
-      settleTimer = null;
-      if (destroyed) return;
-      if (frame !== null) {
-        scheduleSettle();
-        return;
-      }
-      interactionBounds = null;
-      cameraClampMetrics = null;
-      inputMode = 'idle';
-      setActive(false);
-    }, INPUT_SETTLE_MS);
+    settleDeadline = performance.now() + INPUT_SETTLE_MS;
+    if (settleTimer === null) settleTimer = setTimeout(finishSettle, INPUT_SETTLE_MS);
   };
 
   const scheduleWrite = (mode: Exclude<CameraInputMode, 'idle' | 'reset'>) => {
@@ -379,6 +385,7 @@ export function createProvinceMapCamera(
     frame = null;
     if (settleTimer !== null) clearTimeout(settleTimer);
     settleTimer = null;
+    settleDeadline = 0;
     interactionBounds = null;
     cameraClampMetrics = null;
     const metrics = readCameraClampMetrics();
@@ -394,7 +401,6 @@ export function createProvinceMapCamera(
     current = { ...target };
     inputMode = 'reset';
     active = false;
-    surface.style.willChange = '';
     surface.style.transform = `translate3d(${current.x.toFixed(3)}px, ${current.y.toFixed(3)}px, 0) scale(${current.zoom.toFixed(6)})`;
     writeCount += 1;
     publishState();
@@ -446,8 +452,10 @@ export function createProvinceMapCamera(
     if (event.pointerType === 'touch') {
       activeTouchPointerIds.add(event.pointerId);
       if (activeTouchPointerIds.size >= 2) beginMultiTouchSequence();
-      else if (!multiTouchSequenceActive && Date.now() > suppressTapUntil) pendingSuppressedTouchTap = false;
-      publishMultiTouchState();
+      else {
+        if (!multiTouchSequenceActive && Date.now() > suppressTapUntil) pendingSuppressedTouchTap = false;
+        publishMultiTouchState();
+      }
     }
     const captureTarget = event.target as Element & { setPointerCapture?: (pointerId: number) => void };
     captureTarget.setPointerCapture?.(event.pointerId);
@@ -497,15 +505,17 @@ export function createProvinceMapCamera(
     if (event.pointerType === 'touch') {
       activeTouchPointerIds.delete(event.pointerId);
       if (multiTouchSequenceActive && activeTouchPointerIds.size === 0) finishMultiTouchSequence();
-      else if (multiTouchSequenceActive) refreshTapSuppression();
-      publishMultiTouchState();
+      else {
+        if (multiTouchSequenceActive) refreshTapSuppression();
+        publishMultiTouchState();
+      }
     }
     updatePinchReference();
     if (pointers.size === 0 && active && settleTimer === null) {
-      interactionBounds = null;
-      cameraClampMetrics = null;
       inputMode = 'idle';
       setActive(false);
+      interactionBounds = null;
+      cameraClampMetrics = null;
     }
 
     if (
@@ -609,6 +619,7 @@ export function createProvinceMapCamera(
       cancelMultiTouchIdleTimer();
       frame = null;
       settleTimer = null;
+      settleDeadline = 0;
       interactionBounds = null;
       cameraClampMetrics = null;
       pointers.clear();
@@ -624,7 +635,6 @@ export function createProvinceMapCamera(
       container.removeEventListener('touchcancel', handleTouchEnd, true);
       container.removeEventListener('dblclick', handleDoubleClick);
       container.removeEventListener('click', handleClickCapture, true);
-      surface.style.willChange = '';
     },
   };
 }

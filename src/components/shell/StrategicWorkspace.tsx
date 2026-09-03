@@ -2,7 +2,6 @@ import { useContext, useMemo, useState } from 'react';
 import regionCatalog from '../../../shared/provinces.json';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import type { GameTutorialController } from '../../game-guide/useGameTutorial';
-import { useNow } from '../../hooks/useNow';
 import type { PendingNotificationItem } from '../../notifications/notificationCenter';
 import type { ProvinceAssetSummary, ProvinceDefinition, TransportModeId, TransportShipment } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
@@ -122,7 +121,6 @@ export function StrategicMapStage({
   onPickStartingProvince?: (provinceId: string) => void;
 }) {
   const state = strategicMapState(model);
-  const now = useNow(model.game.lastProcessedAt, 500);
   const routeDraft = useContext(TransportRouteDraftContext);
   const [savingRoute, setSavingRoute] = useState(false);
   const startingProvincePicking = model.game.startingProvinceChosen === false && typeof onPickStartingProvince === 'function';
@@ -279,7 +277,7 @@ export function StrategicMapStage({
         routePicking={routePicking}
         routeOverlays={routeOverlays}
         shipmentOverlays={shipmentOverlays}
-        now={now}
+        referenceNow={model.game.lastProcessedAt}
       />
       {!startingProvincePicking && routeDraft?.picking ? (
         <div className="transport-map-picking-bar" role="region" aria-label="运输路线地图选州" data-picking-stop-count={draftStops.length}>

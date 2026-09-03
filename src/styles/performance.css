@@ -20,6 +20,11 @@ body::before { display: none; }
   contain: paint;
 }
 
+/* The single strategic-map camera remains promoted so wheel/pinch bursts do not repeatedly re-rasterize the SVG world. */
+.province-map-camera-surface {
+  will-change: transform;
+}
+
 /* Skip layout and paint work for records outside the active scrollport. */
 .facility-card,
 .listing-card,

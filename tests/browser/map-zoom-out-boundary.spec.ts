@@ -30,7 +30,7 @@ async function readEdgeProvinceHits(page: Page) {
 
 async function wheelBurst(page: Page, deltaY: number, count: number) {
   const canvas = page.getByTestId('us-mainland-map').locator('.province-map-static-viewport');
-  return canvas.evaluate((container, input) => new Promise<{ active: string | undefined; current: number }>((resolve) => {
+  return canvas.evaluate((container, input) => new Promise<{ active: string | undefined; transform: string }>((resolve) => {
     const bounds = container.getBoundingClientRect();
     for (let index = 0; index < input.count; index += 1) {
       container.dispatchEvent(new WheelEvent('wheel', {
@@ -43,7 +43,7 @@ async function wheelBurst(page: Page, deltaY: number, count: number) {
     }
     requestAnimationFrame(() => resolve({
       active: container.dataset.mapZoomActive,
-      current: Number(container.dataset.mapZoomCurrent),
+      transform: container.querySelector<HTMLElement>('.province-map-camera-surface')?.style.transform ?? '',
     }));
   }), { deltaY, count });
 }
@@ -55,6 +55,7 @@ test('states outside the viewport re-enter during zoom-out because all 48 paths 
 
   const map = page.getByTestId('us-mainland-map');
   const canvas = map.locator('.province-map-static-viewport');
+  const camera = map.locator('.province-map-camera-surface');
   await expect(map).toHaveAttribute('data-map-ready', 'true');
   await expect(canvas).toHaveAttribute('data-map-renderer', 'static-svg');
   await expect(canvas).toHaveAttribute('data-map-world-path-count', '48');
@@ -63,12 +64,13 @@ test('states outside the viewport re-enter during zoom-out because all 48 paths 
   const initialHits = await readEdgeProvinceHits(page);
   expect(initialHits.every((entry) => entry.insideCanvas)).toBe(true);
   expect(initialHits.every((entry) => entry.statePathVisibleAtLabel)).toBe(true);
+  const initialTransform = await camera.evaluate((node) => node.style.transform);
 
   const pathsBefore = await map.locator('.province-map-region').evaluateAll((paths) => (
     paths.map((path) => path.getAttribute('d'))
   ));
   const zoomedInFrame = await wheelBurst(page, -180, 8);
-  expect(zoomedInFrame.current).toBeGreaterThan(2.5);
+  expect(zoomedInFrame.transform).not.toBe(initialTransform);
   const zoomedInHits = await readEdgeProvinceHits(page);
   const offscreenBeforeZoomOut = zoomedInHits.filter((entry) => !entry.insideCanvas).length;
   expect(offscreenBeforeZoomOut).toBeGreaterThanOrEqual(2);
@@ -76,8 +78,7 @@ test('states outside the viewport re-enter during zoom-out because all 48 paths 
 
   const zoomOutActiveFrame = await wheelBurst(page, 180, 16);
   expect(zoomOutActiveFrame.active).toBe('true');
-  expect(zoomOutActiveFrame.current).toBeGreaterThanOrEqual(0.999);
-  expect(zoomOutActiveFrame.current).toBeLessThanOrEqual(1.001);
+  expect(zoomOutActiveFrame.transform).toBe(initialTransform);
   const restoredDuringActiveZoom = await readEdgeProvinceHits(page);
   expect(restoredDuringActiveZoom.every((entry) => entry.insideCanvas)).toBe(true);
   expect(restoredDuringActiveZoom.every((entry) => entry.statePathVisibleAtLabel)).toBe(true);
@@ -87,6 +88,7 @@ test('states outside the viewport re-enter during zoom-out because all 48 paths 
   ));
   expect(pathsAfter).toEqual(pathsBefore);
   await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
+  await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');
 
   const california = restoredDuringActiveZoom.find((entry) => entry.provinceId === '110000');
   if (!california) throw new Error('California probe missing');
