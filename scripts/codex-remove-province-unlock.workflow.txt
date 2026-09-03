@@ -1,0 +1,696 @@
+name: Codex Province Access Migration
+
+on:
+  push:
+    branches:
+      - codex/remove-province-unlock
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply province access migration
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          import re
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, text):
+              Path(path).write_text(text, encoding='utf-8')
+
+          def replace_once(path, old, new):
+              text = read(path)
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one occurrence, found {count}: {old[:120]!r}')
+              write(path, text.replace(old, new, 1))
+
+          def replace_regex_once(path, pattern, replacement):
+              text = read(path)
+              next_text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+              if count != 1:
+                  raise SystemExit(f'{path}: regex expected one occurrence: {pattern}')
+              write(path, next_text)
+
+          # Shared economic-level policy remains the authority for levels only; unlock pricing is retired.
+          policy_path = Path('shared/province-economic-level-policy.json')
+          policy = json.loads(policy_path.read_text(encoding='utf-8'))
+          policy_path.write_text(json.dumps({
+              'version': 2,
+              'levelCount': policy['levelCount'],
+              'weights': policy['weights'],
+          }, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          # Server access layer: every canonical province is directly accessible. Legacy actions remain non-mutating compatibility endpoints.
+          write('server/src/province-access.js', """import { DEFAULT_PROVINCE_ID, normalizeProvinceId, PROVINCE_CATALOG } from './provinces.js';
+
+const PROVINCE_IDS = new Set(PROVINCE_CATALOG.map((province) => province.id));
+const PROVINCE_BY_ID = new Map(PROVINCE_CATALOG.map((province) => [province.id, province]));
+const DISTANCE_CACHE = new Map();
+
+function toRadians(value) {
+  return Number(value) * Math.PI / 180;
+}
+
+export function provinceDistanceKm(leftId, rightId) {
+  const left = normalizeProvinceId(leftId);
+  const right = normalizeProvinceId(rightId);
+  if (left === right) return 0;
+  const key = left < right ? `${left}:${right}` : `${right}:${left}`;
+  const cached = DISTANCE_CACHE.get(key);
+  if (cached !== undefined) return cached;
+  const leftProvince = PROVINCE_BY_ID.get(left);
+  const rightProvince = PROVINCE_BY_ID.get(right);
+  if (!leftProvince || !rightProvince) return 0;
+  const earthRadiusKm = 6371;
+  const lat1 = toRadians(leftProvince.latitude);
+  const lat2 = toRadians(rightProvince.latitude);
+  const dLat = toRadians(Number(rightProvince.latitude) - Number(leftProvince.latitude));
+  const dLon = toRadians(Number(rightProvince.longitude) - Number(leftProvince.longitude));
+  const haversine = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  const distance = 2 * earthRadiusKm * Math.asin(Math.min(1, Math.sqrt(haversine)));
+  DISTANCE_CACHE.set(key, distance);
+  return distance;
+}
+
+export function isProvinceUnlocked(player, provinceId) {
+  if (!player) return false;
+  return PROVINCE_IDS.has(normalizeProvinceId(provinceId));
+}
+
+export function provinceUnlockError(player, provinceId) {
+  if (!player) return '玩家状态无效';
+  return PROVINCE_IDS.has(normalizeProvinceId(provinceId)) ? null : '州级地区无效';
+}
+
+export function applyChooseStartingProvince(world, user) {
+  const player = world.players?.[String(user.id)];
+  if (!player) return { ok: false, message: '玩家状态无效' };
+  normalizeProvinceAccess(player);
+  return { ok: false, message: '起始州选择已取消，连续 48 州均可直接经营' };
+}
+
+export function applyUnlockProvince(world, user) {
+  const player = world.players?.[String(user.id)];
+  if (!player) return { ok: false, message: '玩家状态无效' };
+  normalizeProvinceAccess(player);
+  return { ok: false, message: '地区解锁已取消，连续 48 州均可直接经营' };
+}
+
+export function normalizeProvinceAccess(player) {
+  if (!player) return player;
+  if (!PROVINCE_IDS.has(String(player.startingProvinceId || ''))) {
+    player.startingProvinceId = DEFAULT_PROVINCE_ID;
+  }
+  player.startingProvinceChosen = true;
+  player.unlockedProvinces = PROVINCE_CATALOG.map((province) => province.id);
+  return player;
+}
+
+export function migrateProvinceAccess(world) {
+  for (const player of Object.values(world.players || {})) normalizeProvinceAccess(player);
+  return world;
+}
+
+export function provinceAccessCatalog() {
+  return PROVINCE_CATALOG.map((province) => ({
+    id: province.id,
+    name: province.name,
+    shortName: province.shortName,
+    mapName: province.mapName,
+  }));
+}
+""")
+
+          # New and migrated players always receive compatibility fields normalized to all 48 provinces.
+          replace_once(
+              'server/src/domain-core.js',
+              "    startingProvinceId: DEFAULT_PROVINCE_ID,\n    startingProvinceChosen: false,\n    unlockedProvinces: [DEFAULT_PROVINCE_ID],",
+              "    startingProvinceId: DEFAULT_PROVINCE_ID,\n    startingProvinceChosen: true,\n    unlockedProvinces: PROVINCE_CATALOG.map((province) => province.id),",
+          )
+          replace_once(
+              'server/src/domain-core.js',
+              "    if (!player.startingProvinceId) player.startingProvinceId = DEFAULT_PROVINCE_ID;\n    if (!Array.isArray(player.unlockedProvinces)) player.unlockedProvinces = [DEFAULT_PROVINCE_ID];\n    player.startingProvinceChosen = player.startingProvinceChosen !== false;",
+              "    if (!player.startingProvinceId) player.startingProvinceId = DEFAULT_PROVINCE_ID;\n    player.startingProvinceChosen = true;\n    player.unlockedProvinces = PROVINCE_CATALOG.map((province) => province.id);",
+          )
+
+          # Client no longer computes or renders unlock pricing.
+          replace_regex_once(
+              'src/utils/provinceEconomicLevel.ts',
+              r"\nexport function provinceEconomicLevelBaseCost\(level: number\) \{.*?\n\}\n\nexport const PROVINCE_ECONOMIC_LEVEL_COUNT",
+              "\nexport const PROVINCE_ECONOMIC_LEVEL_COUNT",
+          )
+          replace_once('src/utils/provinceLogistics.ts', "import provinceEconomicLevelPolicy from '../../shared/province-economic-level-policy.json';\n", '')
+          replace_once('src/utils/provinceLogistics.ts', "import { provinceEconomicLevelBaseCost, provinceEconomicLevelFor } from './provinceEconomicLevel';\n", '')
+          replace_regex_once(
+              'src/utils/provinceLogistics.ts',
+              r"\nexport const PROVINCE_UNLOCK_BASE_COST = .*?export const PROVINCE_UNLOCK_MAX_COST = .*?;\n",
+              "\n",
+          )
+          replace_regex_once(
+              'src/utils/provinceLogistics.ts',
+              r"\nexport function provinceUnlockCostBreakdown\(.*?\nexport interface TransportRouteStopsInput",
+              "\nexport interface TransportRouteStopsInput",
+          )
+
+          # Province page is always fully operational; remove unlock panel and related optimistic state.
+          replace_once('src/pages/ProvincePage.tsx', "import { CurrencyAmount } from '../components/ui/CurrencyAmount';\n", '')
+          replace_once('src/pages/ProvincePage.tsx', "import { formatCurrency, formatNumber } from '../utils/formatters';\n", '')
+          replace_once('src/pages/ProvincePage.tsx', "import { provinceUnlockCostBreakdown } from '../utils/provinceLogistics';\n", '')
+          replace_once('src/pages/ProvincePage.tsx', "type StateEconomicBaseline = (typeof stateEconomicBaselines.states)[number];\n", '')
+          replace_regex_once(
+              'src/pages/ProvincePage.tsx',
+              r"\nfunction ProvinceUnlockPanel\(\{.*?\n\}\n\nfunction ProvinceSectionLoading",
+              "\nfunction ProvinceSectionLoading",
+          )
+          replace_once('src/pages/ProvincePage.tsx', "  const [confirmedUnlockedProvinceIds, setConfirmedUnlockedProvinceIds] = useState<string[]>([]);\n  const [unlockingProvinceIds, setUnlockingProvinceIds] = useState<string[]>([]);\n", '')
+          replace_regex_once(
+              'src/pages/ProvincePage.tsx',
+              r"  const hasProvinceUnlockState = .*?  const selectedEconomicBaseline = STATE_ECONOMIC_BASELINE_BY_PROVINCE_ID.get\(model.selectedProvinceId\);\n\n",
+              '',
+          )
+          replace_regex_once(
+              'src/pages/ProvincePage.tsx',
+              r"  const unlockSelectedProvince = async \(\) => \{.*?\n  \}, \[isServerUnlocked, model.selectedProvinceId\]\);\n\n",
+              '',
+          )
+          replace_once(
+              'src/pages/ProvincePage.tsx',
+              '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />',
+              '<EmbeddedMarketPage model={model} embedded readOnly={false} />',
+          )
+          old_buildings = """        {activeSection === 'buildings' ? (
+          !isUnlocked ? (
+            <ProvinceUnlockPanel
+              model={model}
+              provinceName={provinceName}
+              economicLevel={unlockBreakdown.economicLevel}
+              economicBaseline={selectedEconomicBaseline}
+              baseCost={unlockBreakdown.baseCost}
+              distanceCost={unlockBreakdown.distanceCost}
+              unlockCost={unlockCost}
+              distanceKm={distanceKm}
+              section="buildings"
+              unlocking={unlockingProvinceIds.includes(model.selectedProvinceId)}
+              onUnlock={() => void unlockSelectedProvince()}
+            />
+          ) : (
+            <Suspense fallback={<ProvinceSectionLoading />}>
+              <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
+                {/* Retired static verifier marker: <EmbeddedBuildingsPage model={model} embedded /> */}
+                <EmbeddedBuildingsPage
+                  model={model}
+                  embedded
+                  detailFacilityTypeId={facilityDetailTypeId ?? undefined}
+                  onDetailFacilityChange={handleFacilityDetailChange}
+                />
+              </FacilityRecipeProfitMarketsProvider>
+            </Suspense>
+          )
+        ) : null}"""
+          new_buildings = """        {activeSection === 'buildings' ? (
+          <Suspense fallback={<ProvinceSectionLoading />}>
+            <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
+              {/* Retired static verifier marker: <EmbeddedBuildingsPage model={model} embedded /> */}
+              <EmbeddedBuildingsPage
+                model={model}
+                embedded
+                detailFacilityTypeId={facilityDetailTypeId ?? undefined}
+                onDetailFacilityChange={handleFacilityDetailChange}
+              />
+            </FacilityRecipeProfitMarketsProvider>
+          </Suspense>
+        ) : null}"""
+          replace_once('src/pages/ProvincePage.tsx', old_buildings, new_buildings)
+          old_warehouse = """        {activeSection === 'warehouse' ? (
+          !isUnlocked ? (
+            <ProvinceUnlockPanel
+              model={model}
+              provinceName={provinceName}
+              economicLevel={unlockBreakdown.economicLevel}
+              economicBaseline={selectedEconomicBaseline}
+              baseCost={unlockBreakdown.baseCost}
+              distanceCost={unlockBreakdown.distanceCost}
+              unlockCost={unlockCost}
+              distanceKm={distanceKm}
+              section="warehouse"
+              unlocking={unlockingProvinceIds.includes(model.selectedProvinceId)}
+              onUnlock={() => void unlockSelectedProvince()}
+            />
+          ) : (
+            <WarehouseInventoryPanel
+              model={model}
+              className="province-warehouse-section"
+              onOpenProduct={openWarehouseProduct}
+            />
+          )
+        ) : null}"""
+          new_warehouse = """        {activeSection === 'warehouse' ? (
+          <WarehouseInventoryPanel
+            model={model}
+            className="province-warehouse-section"
+            onOpenProduct={openWarehouseProduct}
+          />
+        ) : null}"""
+          replace_once('src/pages/ProvincePage.tsx', old_warehouse, new_warehouse)
+
+          # Remove retired unlock-only styles.
+          replace_regex_once(
+              'src/styles/province-page.css',
+              r"\n\.province-lock-content \{.*?\.province-unlock-button \{\n  margin-top: 8px;\n\}\n?",
+              "\n",
+          )
+
+          # Global market/building drilldowns cover all provinces independent of legacy fields.
+          operational_old = """function operationalProvinces(model: OnlineAutoTradeAwareGameViewModel) {
+  const game = model.game;
+  const hasUnlockState = Array.isArray(game.unlockedProvinces)
+    || typeof game.startingProvinceId === 'string';
+  if (!hasUnlockState) return game.provinces;
+  const unlocked = new Set(game.unlockedProvinces ?? []);
+  if (game.startingProvinceId) unlocked.add(game.startingProvinceId);
+  return game.provinces.filter((province) => unlocked.has(province.id));
+}"""
+          operational_new = """function operationalProvinces(model: OnlineAutoTradeAwareGameViewModel) {
+  return model.game.provinces;
+}"""
+          replace_once('src/pages/GlobalMarketPage.tsx', operational_old, operational_new)
+          replace_once('src/pages/GlobalBuildingsPage.tsx', operational_old, operational_new)
+
+          # Strategic map and route creation never consult legacy access fields.
+          replace_once(
+              'src/components/shell/GameShell.tsx',
+              "  const startingProvincePicking = !offline && game.startingProvinceChosen === false;",
+              "  const startingProvincePicking = false;",
+          )
+          replace_once(
+              'src/components/shell/GameShell.tsx',
+              """    const unlocked = new Set([
+      ...(Array.isArray(game.unlockedProvinces) ? game.unlockedProvinces : []),
+      game.startingProvinceId,
+    ].filter(Boolean));
+    if (!unlocked.has(provinceId)) {
+      void model.showResult({ ok: false, message: '该州尚未解锁，不能加入运输路线' });
+      return;
+    }""",
+              """    const availableProvinceIds = new Set(game.provinces.map((province) => province.id));
+    if (!availableProvinceIds.has(provinceId)) {
+      void model.showResult({ ok: false, message: '州级地区无效，不能加入运输路线' });
+      return;
+    }""",
+          )
+          replace_once(
+              'src/components/shell/GameShell.tsx',
+              "  }, [game.startingProvinceId, game.unlockedProvinces, model, transportRouteDraft]);",
+              "  }, [game.provinces, model, transportRouteDraft]);",
+          )
+          replace_once(
+              'src/components/shell/StrategicWorkspace.tsx',
+              "  const startingProvincePicking = model.game.startingProvinceChosen === false && typeof onPickStartingProvince === 'function';",
+              "  const startingProvincePicking = false;",
+          )
+          replace_once(
+              'src/components/shell/StrategicWorkspace.tsx',
+              'unlockedProvinceIds={startingProvincePicking ? state.provinces.map((province) => province.id) : model.game.unlockedProvinces}',
+              'unlockedProvinceIds={state.provinces.map((province) => province.id)}',
+          )
+          replace_once(
+              'src/pages/TransportPage.tsx',
+              """  const unlockedProvinceIds = useMemo(() => new Set([
+    ...(Array.isArray(game.unlockedProvinces) ? game.unlockedProvinces : []),
+    game.startingProvinceId,
+  ].filter(Boolean)), [game.startingProvinceId, game.unlockedProvinces]);""",
+              """  const unlockedProvinceIds = useMemo(
+    () => new Set(game.provinces.map((province) => province.id)),
+    [game.provinces],
+  );""",
+          )
+          replace_once(
+              'src/app/LocalGamePreviewApp.tsx',
+              "  // unlock-progression simulation. Keep every province traversable without\n  // changing the generated authoritative fixture or formal game rules.\n  game.startingProvinceChosen = true;\n  game.unlockedProvinces = game.provinces.map((province) => province.id);",
+              "  // Mirror the formal rule: all 48 provinces are directly accessible; these fields are compatibility mirrors only.\n  game.startingProvinceChosen = true;\n  game.unlockedProvinces = game.provinces.map((province) => province.id);",
+          )
+
+          # Server regression tests now prove legacy access flags cannot gate writes or spend money.
+          write('server/test/province-access.test.js', """import assert from 'node:assert/strict';
+import test from 'node:test';
+import {
+  applyAction,
+  createWorld,
+  ensurePlayer,
+  migrateWorld,
+} from '../src/domain.js';
+import { isProvinceUnlocked, provinceUnlockError } from '../src/province-access.js';
+import { inventoryForProvince, PROVINCE_CATALOG } from '../src/provinces.js';
+import { stateEconomicLevelFor } from '../src/state-economic-baselines.js';
+
+const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
+const now = 1_700_000_000_000;
+
+function deferDemand(world, at = now + 5 * 60 * 1000) {
+  for (const state of Object.values(world.demandGroups)) state.nextDemandAt = at;
+}
+
+function assertAllProvincesAccessible(player) {
+  assert.equal(player.startingProvinceChosen, true);
+  assert.equal(new Set(player.unlockedProvinces).size, PROVINCE_CATALOG.length);
+  assert.deepEqual(new Set(player.unlockedProvinces), new Set(PROVINCE_CATALOG.map((province) => province.id)));
+  for (const province of PROVINCE_CATALOG) {
+    assert.equal(isProvinceUnlocked(player, province.id), true, `${province.id} 应直接可经营`);
+    assert.equal(provinceUnlockError(player, province.id), null, `${province.id} 不应存在解锁门禁`);
+  }
+}
+
+test('new player can operate every province without choosing a starting province', () => {
+  const world = createWorld(now);
+  deferDemand(world);
+  const player = ensurePlayer(world, alice, now);
+  assertAllProvincesAccessible(player);
+
+  const result = applyAction(world, alice, 'placeOrder', {
+    productId: 'wheat', side: 'buy', quantity: 1, price: 1, provinceId: '130000',
+  }, now + 1);
+  assert.equal(result.ok, true);
+});
+
+test('economic levels remain five-tier information and no longer control access', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.startingProvinceChosen = false;
+  player.unlockedProvinces = ['110000'];
+  const levels = PROVINCE_CATALOG.map((province) => stateEconomicLevelFor(province.id));
+  assert.deepEqual([...new Set(levels)].sort((left, right) => left - right), [1, 2, 3, 4, 5]);
+  for (const province of PROVINCE_CATALOG) assert.equal(isProvinceUnlocked(player, province.id), true);
+});
+
+test('retired starting and unlock actions never spend funds or change access eligibility', () => {
+  const world = createWorld(now);
+  deferDemand(world);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 50_000;
+  const before = player.credits;
+
+  const choose = applyAction(world, alice, 'chooseStartingProvince', { provinceId: '130000' }, now + 1);
+  assert.equal(choose.ok, false);
+  assert.match(choose.message, /已取消/);
+  assert.equal(player.credits, before);
+
+  const unlock = applyAction(world, alice, 'unlockProvince', { provinceId: '310000' }, now + 2);
+  assert.equal(unlock.ok, false);
+  assert.match(unlock.message, /已取消/);
+  assert.equal(player.credits, before);
+  assertAllProvincesAccessible(player);
+});
+
+test('legacy access fields cannot block province economic writes', () => {
+  const world = createWorld(now);
+  deferDemand(world);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 1_000;
+  player.startingProvinceChosen = false;
+  player.startingProvinceId = '110000';
+  player.unlockedProvinces = ['110000'];
+
+  const result = applyAction(world, alice, 'placeOrder', {
+    productId: 'wheat', side: 'buy', quantity: 1, price: 1, provinceId: '130000',
+  }, now + 1);
+  assert.equal(result.ok, true);
+});
+
+test('world migration normalizes legacy province access fields to all 48 states and preserves assets', () => {
+  const world = createWorld(now);
+  deferDemand(world);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 5_000;
+  inventoryForProvince(player, 'wheat', '120000').available = 3;
+  inventoryForProvince(player, 'ore', '310000').available = 2;
+  world.version = 31;
+  delete player.startingProvinceId;
+  player.startingProvinceChosen = false;
+  player.unlockedProvinces = ['110000'];
+
+  migrateWorld(world, now + 1);
+
+  assert.equal(world.version, 32);
+  assert.equal(player.startingProvinceId, '110000');
+  assertAllProvincesAccessible(player);
+  assert.equal(player.inventories['120000:wheat'].available, 3);
+  assert.equal(player.inventories['310000:ore'].available, 2);
+});
+""")
+
+          # Browser regression deliberately feeds a legacy locked snapshot and proves the UI ignores it.
+          replace_once(
+              'tests/browser/runtime-harness.tsx',
+              "          startingProvinceChosen: true,\n          unlockedProvinces: ['110000'],",
+              "          startingProvinceChosen: false,\n          unlockedProvinces: ['110000'],",
+          )
+          write('tests/browser/province-locked-access.spec.ts', """import { expect, test } from '@playwright/test';
+
+const legacyAccessSnapshotUrl = 'runtime-test.html?view=map&scenario=locked-province';
+
+test('legacy province access fields do not restore an unlock gate', async ({ page }) => {
+  await page.goto(legacyAccessSnapshotUrl);
+  await expect(page.getByText('常住人口', { exact: true })).toBeVisible();
+  await expect(page.getByText('Census · 2025-07-01', { exact: true })).toBeVisible();
+  await expect(page.locator('.province-unlock-button')).toHaveCount(0);
+  await expect(page.getByText(/未解锁/)).toHaveCount(0);
+});
+
+test('legacy access fields cannot make a regional market read-only', async ({ page }) => {
+  await page.goto(legacyAccessSnapshotUrl);
+  await page.getByRole('tab', { name: '市场' }).click();
+  await expect(page.locator('.market-catalog-list')).toBeVisible();
+  await page.getByRole('button', { name: '查看机械详情' }).click();
+  await expect(page.getByText('该地区尚未解锁，市场仅供查看。', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.market-submit-order')).toBeVisible();
+  await expect(page.getByText('实时五档 · 点击填价', { exact: true })).toHaveCount(1);
+});
+
+test('legacy access fields cannot hide regional buildings or warehouse', async ({ page }) => {
+  await page.goto(legacyAccessSnapshotUrl);
+  await page.getByRole('tab', { name: '建筑' }).click();
+  await expect(page.getByText('建筑功能未解锁', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.province-unlock-button')).toHaveCount(0);
+  await expect(page.getByText('建设新工厂', { exact: true })).toBeVisible();
+
+  await page.getByRole('tab', { name: '仓库' }).click();
+  await expect(page.getByText('仓库功能未解锁', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.province-unlock-button')).toHaveCount(0);
+  await expect(page.getByText('无限容量', { exact: false })).toBeVisible();
+});
+""")
+
+          # Player-facing design authority: all 48 states are open from first profile creation.
+          product_first_old = """世界 32 固定提供美国本土连续 48 个州级经营地区，稳定 ID、中文名称、州缩写、地图英文名、中文首府名称、英文首府名称与首府经纬度以 `shared/provinces.json` 为准；默认地区 ID `110000` 保持不变并显示为加利福尼亚州。新玩家首次进入游戏必须从 48 州中选择一块起始地块并永久绑定，之后必须按目标地区水平与距永久起始州距离计算的货币费用逐个解锁其他州才能在该州提交订单／自动交易、建设或运营工厂以及使用仓库；未解锁州的地区概览仍公开官方常住人口，地区市场允许只读查看行情与订单簿，但不得产生任何市场写操作，建筑与仓库分区改为显示解锁信息和解锁按钮。地图选择是玩家经营上下文，不是可买卖资产或可迁移的出生地。每次建设、生产、商品订单、工厂订单、自动交易、资产拍卖和跨州运输都必须携带明确州级地区；内部协议继续使用兼容字段名 `provinceId`。"""
+          product_first_new = """世界 32 固定提供美国本土连续 48 个州级经营地区，稳定 ID、中文名称、州缩写、地图英文名、中文首府名称、英文首府名称与首府经纬度以 `shared/provinces.json` 为准；默认地区 ID `110000` 保持不变并显示为加利福尼亚州。连续 48 州从玩家首次建档起全部可直接经营，不存在起始州选择、地区解锁或解锁费用；任一州都可直接提交订单／自动交易、建设或运营工厂以及使用仓库，唯一限制来自对应业务自身的资金、库存、研发、合同、运输等正式规则。地图选择只表示当前经营上下文，不是可买卖资产、出生地或访问资格。每次建设、生产、商品订单、工厂订单、自动交易、资产拍卖和跨州运输仍必须携带明确州级地区；内部协议继续使用兼容字段名 `provinceId`。"""
+          replace_once('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', product_first_old, product_first_new)
+          replace_regex_once(
+              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+              r"地区水平只由上述 48 州官方经济基准确定，不允许人工给州配置等级。.*?所有解锁费用由服务器权威计算和扣除，客户端只使用同一策略展示费用拆分。",
+              "地区水平只由上述 48 州官方经济基准确定，不允许人工给州配置等级。对 `pceMillions`、`averageWeeklyWage`、`population` 分别在 48 州内计算百分位，同值使用平均百分位；综合分数固定为 PCE `50%` + 平均周薪 `30%` + 常住人口 `20%`。按综合分数升序（同分按 `provinceId`）把 48 州等量分为 1～5 级；运行时参数唯一来源为 `shared/province-economic-level-policy.json`。地区水平只用于经济基准、展示和后续明确引用该等级的业务模型，不再决定地区访问资格，也不得附带地区解锁价格、距离附加费或解锁上限。",
+          )
+          replace_once(
+              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+              '每个消费周期仍先从同一套三类人口真实钱包形成全局可消费预算，再仅在至少一名玩家已选择、已解锁或已有工厂经营足迹的州之间按 PCE 总额权重以六位小数完整分摊；同一州无论有多少玩家只计算一次真实州经济，不按玩家人数复制人口。没有任何州经营足迹时回退默认加利福尼亚州。',
+              '每个消费周期仍先从同一套三类人口真实钱包形成全局可消费预算；存在 Economy 玩家时，连续 48 州都作为可经营地区按 PCE 总额权重以六位小数完整分摊，同一州无论有多少玩家只计算一次真实州经济，不按玩家人数复制人口。没有任何玩家时回退默认加利福尼亚州。',
+          )
+          replace_once(
+              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+              '跨州商品只能通过付费运输在已解锁州之间流动',
+              '跨州商品只能通过付费运输在连续 48 州之间流动',
+          )
+
+          # Page/content owner: no picker, no read-only locked province and no unlock panel.
+          replace_once('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '全局页默认读取完整权威状态中的全部已解锁州摘要。', '全局页默认读取完整权威状态中的连续 48 州摘要。')
+          replace_regex_once(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              r"州级上下文页不得因地区未解锁而整页拦截。.*?不能因为锁定州的概览或市场可查看就把锁定州加入这些全局经营钻取列表。",
+              "连续 48 州均为完整经营上下文，不存在地区锁定、只读锁定市场、解锁信息、解锁按钮或按解锁状态裁剪全局列表。概览始终显示官方常住人口以及该玩家在该州的只读经营摘要；市场按正常市场规则提供目录、行情、订单簿和写操作；建筑与仓库直接显示本地经营内容；地区商品详情仍不渲染自动经营执行卡，自动经营策略与玩家可见执行解释继续只在地区工厂详情显示。一级市场商品的地区行情列表与一级建筑工厂的地区列表覆盖连续 48 州，并仅按各自业务筛选、排序和数据可用性决定展示。",
+          )
+          replace_regex_once(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              r"起始州选择固定复用唯一常驻战略地图。.*?\n\n",
+              "起始州选择已永久退役。新玩家和旧兼容快照进入游戏后都直接使用正常战略地图镜头、镜头栏和州级导航；任何 `startingProvinceChosen` 兼容字段都不得重新触发选点模式、隐藏业务导航或阻止打开页面。地图上的连续 48 州全部是正常经营入口，点击州面只切换／打开经营上下文。\n\n",
+          )
+          page_design = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          page_design = page_design.replace('地图创建模式按顺序点击已解锁州面追加站点', '地图创建模式按顺序点击连续 48 州中的州面追加站点')
+          write('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', page_design)
+
+          replace_once(
+              'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+              '当前地区完整仓库入口只位于隐藏 `ProvincePage` 的“仓库”分区；仅已解锁州显示本地库存内容。',
+              '当前地区完整仓库入口只位于隐藏 `ProvincePage` 的“仓库”分区；连续 48 州均直接显示本地库存内容，不存在仓库地区解锁门禁。',
+          )
+
+          # Server authority explicitly records the compatibility-only fields/endpoints so they cannot become gates again.
+          server_design = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          anchor = '## 1. 权威边界\n\n'
+          access_rule = (
+              '州级访问不再是服务器业务资格维度：美国本土连续 48 州均直接可经营。客户端状态 39 与旧快照中的 '
+              '`startingProvinceId`、`startingProvinceChosen`、`unlockedProvinces` 只作为兼容字段保留；新建玩家和迁移统一归一为 '
+              '`startingProvinceId = 110000`、`startingProvinceChosen = true`、`unlockedProvinces = 连续 48 州`，任何服务器写动作不得据此拒绝合法州级操作。'
+              '旧 `/api/game/provinces/starting` 与 `/api/game/provinces/unlock` 可保留兼容路由，但只能返回玩法已退役提示，不得扣款、发行资产或改变经营资格。\n\n'
+          )
+          if access_rule not in server_design:
+              if anchor not in server_design:
+                  raise SystemExit('server design authority anchor missing')
+              server_design = server_design.replace(anchor, anchor + access_rule, 1)
+              write('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', server_design)
+
+          # Static verifiers are inverted so unlock behavior cannot silently return.
+          replace_once(
+              'scripts/verify-provincial-unlock-transport.mjs',
+              "requireText(productDesign, '新玩家首次进入游戏必须从 48 州中选择一块起始地块并永久绑定', '产品设计必须记录起始州选择。');\nrequireText(productDesign, '跨州商品只能通过付费运输在已解锁州之间流动', '产品设计必须记录付费运输边界。');",
+              "requireText(productDesign, '连续 48 州从玩家首次建档起全部可直接经营，不存在起始州选择、地区解锁或解锁费用', '产品设计必须记录 48 州默认开放。');\nrequireText(productDesign, '跨州商品只能通过付费运输在连续 48 州之间流动', '产品设计必须记录全州运输边界。');",
+          )
+          replace_once(
+              'scripts/verify-provincial-unlock-transport.mjs',
+              "if (provinceEconomicPolicy.version !== 1) failures.push('地区水平策略版本必须为 1。');",
+              "if (provinceEconomicPolicy.version !== 2) failures.push('地区水平策略版本必须为 2。');",
+          )
+          replace_once(
+              'scripts/verify-provincial-unlock-transport.mjs',
+              "if (JSON.stringify(provinceEconomicPolicy.levelBaseCosts) !== JSON.stringify({ 1: 1500, 2: 2500, 3: 4000, 4: 6000, 5: 9000 })) failures.push('地区水平基础解锁费必须保持 1500/2500/4000/6000/9000。');\nif (provinceEconomicPolicy.distanceStepKm !== 500 || provinceEconomicPolicy.distanceCostPerStep !== 300 || provinceEconomicPolicy.maxUnlockCost !== 20000) failures.push('地区解锁距离步长、附加费和上限必须保持 500km/300/20000。');",
+              "for (const retiredField of ['levelBaseCosts', 'distanceStepKm', 'distanceCostPerStep', 'maxUnlockCost']) {\n  if (Object.hasOwn(provinceEconomicPolicy, retiredField)) failures.push(`地区水平策略不得继续携带解锁字段：${retiredField}`);\n}",
+          )
+          replace_once(
+              'scripts/verify-provincial-unlock-transport.mjs',
+              "for (const text of ['stateEconomicLevelFor', 'provinceUnlockBaseCostForLevel', 'provinceUnlockCostBreakdown', 'applyChooseStartingProvince', 'applyUnlockProvince', 'migrateProvinceAccess']) {\n  requireText(provinceAccess, text, `州访问模块缺少：${text}`);\n}",
+              "for (const text of ['provinceDistanceKm', 'isProvinceUnlocked', 'provinceUnlockError', 'applyChooseStartingProvince', 'applyUnlockProvince', 'migrateProvinceAccess']) {\n  requireText(provinceAccess, text, `州访问模块缺少：${text}`);\n}\nfor (const text of ['provinceUnlockBaseCostForLevel', 'provinceUnlockCostBreakdown', 'PROVINCE_UNLOCK_']) {\n  forbidText(provinceAccess, text, `州访问模块不得恢复地区解锁计价：${text}`);\n}\nrequireText(provinceAccess, 'player.unlockedProvinces = PROVINCE_CATALOG.map((province) => province.id);', '兼容州访问字段必须归一为连续 48 州。');",
+          )
+          # Read GameShell for new anti-regression checks.
+          replace_once(
+              'scripts/verify-provincial-unlock-transport.mjs',
+              "const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');",
+              "const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');\nconst gameShell = read('src/components/shell/GameShell.tsx');",
+          )
+          verifier = read('scripts/verify-provincial-unlock-transport.mjs')
+          marker = "requireText(pageRouter, \"transport: ['catalog', 'player.assets', 'player.misc', 'market.quotes']\", '运输页必须消费玩家私有运输切片与行情摘要。');"
+          addition = """
+requireText(gameShell, 'const startingProvincePicking = false;', '应用外壳不得恢复起始州选点门禁。');
+forbidText(gameShell, 'game.startingProvinceChosen === false', '应用外壳不得按旧起始州字段阻止正常导航。');
+requireText(strategicWorkspace, 'const startingProvincePicking = false;', '战略地图不得恢复起始州选点门禁。');
+forbidText(strategicWorkspace, 'model.game.startingProvinceChosen === false', '战略地图不得按旧起始州字段进入选点模式。');
+requireText(strategicWorkspace, 'unlockedProvinceIds={state.provinces.map((province) => province.id)}', '战略地图必须将连续 48 州全部视为可访问。');
+for (const text of ['ProvinceUnlockPanel', 'provinceUnlockCostBreakdown', 'model.unlockProvince(', 'province-unlock-button']) {
+  forbidText(provincePage, text, `地区页不得恢复解锁 UI：${text}`);
+}
+for (const text of ['PROVINCE_UNLOCK_', 'provinceUnlockCostBreakdown']) {
+  forbidText(provinceLogistics, text, `客户端运输工具不得恢复地区解锁计价：${text}`);
+}
+"""
+          if addition.strip() not in verifier:
+              if marker not in verifier:
+                  raise SystemExit('provincial verifier insertion marker missing')
+              verifier = verifier.replace(marker, marker + '\n' + addition.rstrip(), 1)
+              write('scripts/verify-provincial-unlock-transport.mjs', verifier)
+
+          replace_once(
+              'scripts/verify-game-shell-layout.mjs',
+              "'const startingProvincePicking = !offline && game.startingProvinceChosen === false;',",
+              "'const startingProvincePicking = false;',",
+          )
+          replace_once(
+              'scripts/verify-game-shell-layout.mjs',
+              "'const startingProvincePicking = model.game.startingProvinceChosen === false',",
+              "'const startingProvincePicking = false;',",
+          )
+          replace_once(
+              'scripts/verify-provincial-economy.mjs',
+              "'const startingProvincePicking = model.game.startingProvinceChosen === false',",
+              "'const startingProvincePicking = false;',",
+          )
+          replace_once(
+              'scripts/verify-local-game-preview.mjs',
+              "    gameShell.includes('!offline && game.startingProvinceChosen === false'),\n    '免登录完整游戏预览不得被一次性起始州选择写流程拦截，旧兼容快照也只能在明确 false 时显示选择门禁',",
+              "    gameShell.includes('const startingProvincePicking = false;'),\n    '免登录与在线外壳都不得恢复起始州选择门禁',",
+          )
+
+          replace_once(
+              'scripts/verify-page-content.mjs',
+              "requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '未解锁州的地区概览仍公开官方常住人口');\nrequireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '地区市场允许只读查看行情与订单簿');\nrequireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '仅已解锁州显示本地库存内容');\nrequireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '建筑与仓库只有已解锁州才显示经营内容');",
+              "requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '连续 48 州从玩家首次建档起全部可直接经营');\nrequireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '不存在起始州选择、地区解锁或解锁费用');\nrequireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '连续 48 州均直接显示本地库存内容');\nrequireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不存在地区锁定、只读锁定市场、解锁信息、解锁按钮或按解锁状态裁剪全局列表');",
+          )
+          replace_once(
+              'scripts/verify-page-content.mjs',
+              "for (const path of ['src/pages/GlobalMarketPage.tsx', 'src/pages/GlobalBuildingsPage.tsx']) {\n  requireText(path, 'game.provinces.filter((province) => unlocked.has(province.id))');\n  requireText(path, 'const provinces = operationalProvinces(model);');\n}",
+              "for (const path of ['src/pages/GlobalMarketPage.tsx', 'src/pages/GlobalBuildingsPage.tsx']) {\n  requireText(path, 'return model.game.provinces;');\n  requireText(path, 'const provinces = operationalProvinces(model);');\n  forbidText(path, 'unlocked.has(province.id)');\n}",
+          )
+
+          replace_once(
+              'scripts/verify-primary-surface-insets.mjs',
+              "  for (const text of ['className=\"province-overview-content\"', 'className=\"province-lock-content\"']) requireText(paths.provincePage, text);\n  for (const text of ['.province-overview-content {', '.province-lock-content {']) requireText(paths.provinceStyles, text);",
+              "  requireText(paths.provincePage, 'className=\"province-overview-content\"');\n  requireText(paths.provinceStyles, '.province-overview-content {');\n  for (const text of ['province-lock-content', 'province-unlock-button']) {\n    forbidText(paths.provincePage, text);\n    forbidText(paths.provinceStyles, text);\n  }",
+          )
+
+          # The dedicated province verifier also stops expecting the old picker condition.
+          provincial = read('scripts/verify-provincial-economy.mjs')
+          if 'model.game.startingProvinceChosen === false' in provincial:
+              raise SystemExit('provincial economy verifier still contains old starting-province gate')
+
+          # Anti-regression sanity over production code and design.
+          for path in [
+              'src/pages/ProvincePage.tsx',
+              'src/pages/GlobalMarketPage.tsx',
+              'src/pages/GlobalBuildingsPage.tsx',
+              'src/pages/TransportPage.tsx',
+              'src/components/shell/GameShell.tsx',
+              'src/components/shell/StrategicWorkspace.tsx',
+          ]:
+              text = read(path)
+              if '尚未解锁' in text or 'ProvinceUnlockPanel' in text:
+                  raise SystemExit(f'{path}: retired province unlock behavior remains')
+
+          print('Province access migration applied successfully.')
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify focused province access rules
+        run: |
+          node --test server/test/province-access.test.js
+          node scripts/verify-provincial-unlock-transport.mjs
+          node scripts/verify-provincial-economy.mjs
+          node scripts/verify-game-shell-layout.mjs
+          node scripts/verify-local-game-preview.mjs
+          node scripts/verify-page-content.mjs
+          node scripts/verify-primary-surface-insets.mjs
+          npm run build
+          git diff --check
+
+      - name: Commit implementation
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A ':!.github/workflows/codex-remove-province-unlock.yml'
+          if git diff --cached --quiet; then
+            echo 'No implementation changes to commit.'
+            exit 1
+          fi
+          git commit -m '取消地区解锁与起始州选择'
+          git push origin HEAD:codex/remove-province-unlock
