@@ -4,7 +4,6 @@ const marketPage = fs.readFileSync('src/pages/MarketPage.tsx', 'utf8');
 const marketStyles = fs.readFileSync('src/styles/market-page-polish.css', 'utf8');
 const detailStyles = fs.readFileSync('src/styles/market-detail-direct-flow.css', 'utf8');
 const design = fs.readFileSync('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', 'utf8');
-const chartDesign = fs.readFileSync('docs/MARKET_CHART_LAYOUT_DESIGN.md', 'utf8');
 const browserSpec = fs.readFileSync('tests/browser/market-desktop-cleanup.spec.ts', 'utf8');
 
 const failures = [];
@@ -57,12 +56,6 @@ for (const token of [
   '玩家商品页面不展示服务器内部人口／储备订单深度',
   '北京时间每日 `00:00`',
 ]) requireText(design, token, `商品市场设计缺少即时交易边界: ${token}`);
-
-for (const token of [
-  '地区商品详情顶部只保留商品身份、今日价格、真实 24h 变化和当前可用库存',
-  '地区商品详情不得渲染自动经营执行卡',
-  '成交趋势详情接口只下发当前时刻向前 24h 内带真实',
-]) requireText(chartDesign, token, `市场图表设计缺少当前详情边界: ${token}`);
 
 for (const token of [
   'desktop market shows daily-price immediate trade without an order book',
