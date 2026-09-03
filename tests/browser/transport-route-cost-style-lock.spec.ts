@@ -35,9 +35,13 @@ test('transport draft line style and physical geometry follow mode while the map
   await provinceRegion(page, '加利福尼亚').click();
   await provinceRegion(page, '得克萨斯').click();
 
+  const map = page.locator('.province-map-chart');
   const draft = page.locator('.province-map-route[data-route-kind="draft"]');
   await expect(draft).toHaveAttribute('data-route-id', 'draft-road-route');
   await expect(draft).toHaveAttribute('data-route-geometry-source', 'network');
+  expect(await draft.getAttribute('data-route-lane-owner-id')).toBeNull();
+  expect(await draft.getAttribute('data-route-forward-lanes')).toBeNull();
+  expect(await map.getAttribute('data-route-lane-edge-count')).toBeNull();
   const roadPath = await draft.locator('.province-map-route-path').getAttribute('d');
   const roadDash = await draft.locator('.province-map-route-path').evaluate((element) => getComputedStyle(element).strokeDasharray);
   await expect(draft.locator('.province-map-route-return-path')).toHaveCount(0);
@@ -45,12 +49,16 @@ test('transport draft line style and physical geometry follow mode while the map
   await chooseRichSelectOption(page, pickingBar, '运输方式', '铁路运输');
   await expect(draft).toHaveAttribute('data-route-id', 'draft-rail-route');
   await expect(draft).toHaveAttribute('data-route-geometry-source', 'network');
+  expect(await draft.getAttribute('data-route-lane-owner-id')).toBeNull();
+  expect(await draft.getAttribute('data-route-forward-lanes')).toBeNull();
   const railPath = await draft.locator('.province-map-route-path').getAttribute('d');
   const railDash = await draft.locator('.province-map-route-path').evaluate((element) => getComputedStyle(element).strokeDasharray);
   await expect(draft.locator('.province-map-route-return-path')).toHaveCount(0);
 
   await chooseRichSelectOption(page, pickingBar, '运输方式', '航空运输');
   await expect(draft).toHaveAttribute('data-route-id', 'draft-air-route');
+  expect(await draft.getAttribute('data-route-lane-owner-id')).toBeNull();
+  expect(await draft.getAttribute('data-route-forward-lanes')).toBeNull();
   const airPath = await draft.locator('.province-map-route-path').getAttribute('d');
   const airDash = await draft.locator('.province-map-route-path').evaluate((element) => getComputedStyle(element).strokeDasharray);
   await expect(draft.locator('.province-map-route-return-path')).toHaveCount(0);
