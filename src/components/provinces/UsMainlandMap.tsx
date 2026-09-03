@@ -143,20 +143,17 @@ interface ProvinceMapDatum {
   runningFacilityCount: number;
   blockedFacilityCount: number;
   openOrderCount: number;
-  locked: boolean;
   areaColor: string;
   borderColor: string;
 }
 
-function datumFor(province: ProvinceDefinition, summary: ProvinceAssetSummary | undefined, lens: ProvinceMapLens, locked = false): ProvinceMapDatum {
+function datumFor(province: ProvinceDefinition, summary: ProvinceAssetSummary | undefined, lens: ProvinceMapLens): ProvinceMapDatum {
   const storedQuantity = Number(summary?.storedQuantity || 0);
   const facilityCount = Number(summary?.facilityCount || 0);
   const blockedFacilityCount = Number(summary?.blockedFacilityCount || 0);
   const openOrderCount = Number(summary?.openOrderCount || 0);
   const hasAssets = storedQuantity > 0 || facilityCount > 0;
-  const areaColor = locked
-    ? 'var(--color-map-region-locked)'
-    : lens === 'political'
+  const areaColor = lens === 'political'
       ? 'var(--color-map-region-default)'
       : lens === 'industry'
         ? facilityCount > 0 ? 'var(--color-success-soft)' : 'var(--color-map-region-default)'
@@ -176,7 +173,6 @@ function datumFor(province: ProvinceDefinition, summary: ProvinceAssetSummary | 
     runningFacilityCount: Number(summary?.runningFacilityCount || 0),
     blockedFacilityCount,
     openOrderCount,
-    locked,
     areaColor,
     borderColor: lens === 'alerts' && blockedFacilityCount > 0 ? 'var(--color-danger)' : 'var(--color-map-region-border)',
   };
@@ -257,7 +253,6 @@ export function UsMainlandMap({
   selectedProvinceId,
   onSelectProvince,
   lens = 'assets',
-  unlockedProvinceIds,
   routePicking = null,
   routeOverlays = [],
   shipmentOverlays = [],
@@ -268,7 +263,6 @@ export function UsMainlandMap({
   selectedProvinceId: string | null;
   onSelectProvince: (provinceId: string) => void;
   lens?: ProvinceMapLens;
-  unlockedProvinceIds?: string[];
   routePicking?: ProvinceMapRoutePicking | null;
   routeOverlays?: ProvinceMapRouteOverlay[];
   shipmentOverlays?: ProvinceMapShipmentOverlay[];
@@ -276,8 +270,7 @@ export function UsMainlandMap({
 }) {
   const tooltipLayer = useWorkspaceTooltipLayer();
   const tooltipTopLayerActive = supportsTopLayerPopover() && Boolean(tooltipLayer);
-  const unlockedSet = useMemo(() => new Set(unlockedProvinceIds || []), [unlockedProvinceIds]);
-  const data = useMemo(() => provinces.map((province) => datumFor(province, summaries[province.id], lens, !unlockedSet.has(province.id))), [lens, provinces, summaries, unlockedSet]);
+  const data = useMemo(() => provinces.map((province) => datumFor(province, summaries[province.id], lens)), [lens, provinces, summaries]);
   const datumByProvinceId = useMemo(() => new Map(data.map((datum) => [datum.provinceId, datum])), [data]);
   const selectedProvince = provinces.find((province) => province.id === selectedProvinceId);
   const provinceNameById = useMemo(() => new Map(provinces.map((province) => [province.id, province.name])), [provinces]);
@@ -506,7 +499,6 @@ export function UsMainlandMap({
       aria-hidden="true"
     >
       <strong>{hoveredDatum.provinceName}</strong>
-      {hoveredDatum.locked ? <span className="province-map-tooltip__locked">未解锁</span> : null}
       {tooltipRows(hoveredDatum).map((row) => <span key={row}>{row}</span>)}
     </div>
   ) : null;
@@ -585,7 +577,7 @@ export function UsMainlandMap({
                     const datum = datumByProvinceId.get(entry.provinceId);
                     if (!datum) return null;
                     const selected = entry.provinceId === selectedProvinceId;
-                    const routePickable = routePickingActive && !datum.locked;
+                    const routePickable = routePickingActive;
                     const style = {
                       '--province-map-area-color': datum.areaColor,
                       '--province-map-border-color': datum.borderColor,
@@ -597,7 +589,6 @@ export function UsMainlandMap({
                         data-province-id={entry.provinceId}
                         data-province-name={entry.provinceName}
                         data-selected={selected ? 'true' : 'false'}
-                        data-locked={datum.locked ? 'true' : 'false'}
                         data-route-pickable={routePickable ? 'true' : 'false'}
                         d={entry.path}
                         fillRule="evenodd"
@@ -605,7 +596,7 @@ export function UsMainlandMap({
                         style={style}
                         role="button"
                         tabIndex={0}
-                        aria-label={`${entry.provinceName}${datum.locked ? '，未解锁' : ''}`}
+                        aria-label={entry.provinceName}
                         onClick={() => selectProvince(entry.provinceId)}
                         onKeyDown={(event) => handleRegionKeyDown(event, entry.provinceId)}
                         onPointerEnter={() => { setHoveredShipmentId(null); setHoveredProvinceId(entry.provinceId); }}

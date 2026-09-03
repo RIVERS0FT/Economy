@@ -74,10 +74,6 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
 
   const provinceById = useMemo(() => new Map(game.provinces.map((province) => [province.id, province])), [game.provinces]);
   const productById = useMemo(() => new Map(game.products.map((product) => [product.id, product])), [game.products]);
-  const unlockedProvinceIds = useMemo(() => new Set([
-    ...(Array.isArray(game.unlockedProvinces) ? game.unlockedProvinces : []),
-    game.startingProvinceId,
-  ].filter(Boolean)), [game.startingProvinceId, game.unlockedProvinces]);
   const activeByRouteId = useMemo(() => new Map(
     shipments
       .filter((shipment) => shipment.status !== 'arrived' && shipment.routeId)
@@ -124,11 +120,6 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
   useEffect(() => {
     setRouteNameDraft(detailRoute ? visibleRouteName(detailRoute) : '');
   }, [detailRoute?.destinationProvinceId, detailRoute?.id, detailRoute?.name, detailRoute?.sourceProvinceId]);
-
-  useEffect(() => {
-    setHighlightedRouteId(detailRouteId);
-    return () => setHighlightedRouteId(null);
-  }, [detailRouteId, setHighlightedRouteId]);
 
   async function runMutation(key: string, operation: () => Promise<{ ok: boolean; message: string }>) {
     if (pendingAction) return false;
@@ -372,7 +363,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
     );
   }
 
-  const canAddRoute = unlockedProvinceIds.size >= 2 && routes.length < TRANSPORT_MAX_ROUTES_PER_PLAYER;
+  const canAddRoute = game.provinces.length >= 2 && routes.length < TRANSPORT_MAX_ROUTES_PER_PLAYER;
   return (
     <PageLayout title="运输">
       <div className="transport-page-content" data-transport-route-index="true">

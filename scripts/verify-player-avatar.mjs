@@ -63,7 +63,7 @@ requireText('src/components/shell/StatusBar.tsx', [
 ]);
 requireText('src/components/shell/GameShell.tsx', [
   'playerId: model.user.id',
-  "onClick: startingProvincePicking ? undefined : () => selectPlayerTab('settings')",
+  "onClick: () => selectPlayerTab('settings')",
 ]);
 requireText('src/pages/LeaderboardPage.tsx', [
   "import { PlayerAvatar } from '../components/ui/PlayerAvatar';",

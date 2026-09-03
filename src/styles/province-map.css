@@ -46,17 +46,17 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  transform: none;
+  transform: translate3d(0, 0, 0) scale(1);
   transform-origin: 0 0;
-  backface-visibility: visible;
+  backface-visibility: hidden;
 }
 
 .province-map-world-svg {
   display: block;
   width: 100%;
   height: 100%;
-  overflow: hidden;
-  shape-rendering: auto;
+  overflow: visible;
+  shape-rendering: geometricPrecision;
   user-select: none;
 }
 
@@ -80,13 +80,10 @@
 }
 
 .province-map-world-shadow {
-  fill: none;
-  stroke: color-mix(in srgb, var(--color-map-region-border) 28%, transparent);
-  stroke-width: 4;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-  opacity: .22;
-  filter: none;
+  fill: var(--province-map-world-fill);
+  stroke: none;
+  opacity: .64;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-map-region-border) 30%, transparent));
 }
 
 .province-map-world-fill {
@@ -145,7 +142,7 @@
     fill: var(--province-map-area-color, var(--color-map-region-default));
     stroke: var(--color-text-primary);
     stroke-width: 3;
-    filter: none;
+    filter: drop-shadow(0 0 7px color-mix(in srgb, var(--color-text-primary) 38%, transparent));
   }
 }
 
@@ -153,14 +150,14 @@
   fill: var(--province-map-area-color, var(--color-map-region-default));
   stroke: var(--color-text-primary);
   stroke-width: 2.5;
-  filter: none;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-text-primary) 32%, transparent));
 }
 
 .province-map-region:focus-visible {
   fill: var(--province-map-area-color, var(--color-map-region-default));
   stroke: var(--color-text-primary);
   stroke-width: 2.5;
-  filter: none;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-text-primary) 32%, transparent));
 }
 
 .province-map-routes {
@@ -177,19 +174,13 @@
 }
 
 .province-map-route-return-path {
-  display: none;
-}
-
-.province-map-route[data-transport-mode='road'] .province-map-route-path {
-  stroke-dasharray: none;
-}
-
-.province-map-route[data-transport-mode='rail'] .province-map-route-path {
-  stroke-dasharray: 3 2 10 2;
-}
-
-.province-map-route[data-transport-mode='air'] .province-map-route-path {
-  stroke-dasharray: 12 8;
+  fill: none;
+  stroke: var(--color-map-label);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: .38;
 }
 
 .province-map-route-stop {
@@ -203,6 +194,11 @@
   stroke: var(--color-info);
   stroke-width: 2.5;
   opacity: .92;
+}
+
+.province-map-route[data-route-kind='draft'] .province-map-route-return-path {
+  stroke: var(--color-info);
+  opacity: .55;
 }
 
 .province-map-route[data-route-kind='draft'] .province-map-route-stop {
@@ -263,12 +259,11 @@
 .province-map-shipment[data-selected='true'] .province-map-shipment-badge,
 .province-map-shipment:focus-visible .province-map-shipment-badge {
   stroke-width: 2.5;
-  filter: none;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-text-primary) 45%, transparent));
 }
 
 .province-map-chart[data-route-picking='true'] .province-map-region[data-route-pickable='false'] {
-  opacity: .45;
-  filter: none;
+  filter: saturate(.35) brightness(.72);
 }
 
 .province-map-chart[data-route-picking='true'] .province-map-region[data-route-pickable='true'] {
@@ -288,7 +283,7 @@
   font-family: inherit;
   font-weight: 600;
   opacity: .86;
-  text-rendering: optimizeLegibility;
+  text-rendering: geometricPrecision;
   pointer-events: none;
   user-select: none;
 }
@@ -332,17 +327,6 @@
   color: var(--color-text-secondary);
 }
 
-.province-map-tooltip__locked {
-  color: var(--color-warning);
-}
-
-.application-map-layer > .strategic-map-lens-bar.panel,
-.transport-map-picking-bar,
-.transport-map-picking-bar.panel {
-  background: var(--color-surface) !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-}
 
 @media (prefers-reduced-motion: reduce) {
   .province-map-shipment {
