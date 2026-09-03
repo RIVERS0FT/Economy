@@ -131,6 +131,7 @@ test('desktop contract page prioritizes workbench and master detail contract man
   expect(await gridTrackCount(page.locator('.contract-publish-layout'))).toBe(2);
   await expect(page.locator('.contract-type-option')).toHaveCount(6);
   await expect(page.locator('.contract-type-option').filter({ hasText: '采购合同' })).toHaveAttribute('aria-pressed', 'true');
+  await expectUniformPageSectionGaps(page);
 
   const quantity = page.getByLabel('每日最大供应量');
   const submit = page.locator('.contract-publish-panel').getByRole('button', { name: '发布合同', exact: true });
