@@ -5,26 +5,14 @@ test('independent contract cards keep object boundaries and warning tint', async
   await page.goto('runtime-test.html?view=contracts');
   await expect(page.getByRole('heading', { name: '合同', exact: true })).toBeVisible();
 
-  const attentionCard = page.locator('.contract-active-grid .contract-card--attention').first();
-  const normalCard = page.locator('.contract-active-grid .contract-card--normal').first();
+  const attentionCard = page.locator('.contract-master-detail-panel .contract-card--attention').first();
   const summaryMetric = page.locator('.contract-summary-grid .ui-metric-card').first();
   await expect(attentionCard).toBeVisible();
-  await expect(normalCard).toBeVisible();
   await expect(summaryMetric).toBeVisible();
 
   const attentionStyle = await attentionCard.evaluate((element) => {
     const style = getComputedStyle(element);
     return {
-      backgroundImage: style.backgroundImage,
-      borderColor: style.borderColor,
-      borderRadius: style.borderRadius,
-      backdropFilter: style.backdropFilter,
-    };
-  });
-  const normalStyle = await normalCard.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return {
-      backgroundColor: style.backgroundColor,
       backgroundImage: style.backgroundImage,
       borderColor: style.borderColor,
       borderRadius: style.borderRadius,
@@ -37,6 +25,23 @@ test('independent contract cards keep object boundaries and warning tint', async
       backgroundColor: style.backgroundColor,
       borderRadius: style.borderRadius,
       borderTopWidth: style.borderTopWidth,
+    };
+  });
+
+  await page.getByRole('tab', { name: /我的合同/ }).click();
+  const contractRows = page.locator('.contract-personal-pane .contract-master-list-item');
+  await expect(contractRows).toHaveCount(2);
+  await contractRows.nth(1).click();
+  const normalCard = page.locator('.contract-personal-pane .contract-master-detail-panel .contract-card--normal');
+  await expect(normalCard).toBeVisible();
+  const normalStyle = await normalCard.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      backgroundColor: style.backgroundColor,
+      backgroundImage: style.backgroundImage,
+      borderColor: style.borderColor,
+      borderRadius: style.borderRadius,
+      backdropFilter: style.backdropFilter,
     };
   });
 
