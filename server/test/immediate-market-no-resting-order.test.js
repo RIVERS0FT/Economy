@@ -60,4 +60,5 @@ test('manual commodity buys and sells never leave player resting orders or froze
   assert.ok(completed.every((order) => order.status === 'filled' && order.remaining === 0));
   assert.ok(completed.every((order) => order.price === market.officialPrice));
   assert.ok(completed.every((order) => order.fills.length === 1 && order.fills[0].price === market.officialPrice));
+  assert.deepEqual(completed.map((order) => order.fills[0].total).sort((left, right) => left - right), [1.6, 2.4]);
 });
