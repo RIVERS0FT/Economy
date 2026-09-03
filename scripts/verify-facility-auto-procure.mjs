@@ -89,13 +89,10 @@ for (const [path, tokens] of [
   for (const token of tokens) requireText(path, token);
 }
 
-for (const text of [
-  'official-price missing-material quote is read-only and complete',
-  'one-click construction purchases all missing materials at the protected daily official price',
-  'one-click construction rejects stale daily-price protection atomically',
-]) requireText('server/test/facility-build-quote.test.js', text);
+requireText('server/test/facility-build-quote.test.js', 'official-price missing-material quote is read-only and complete');
 for (const text of [
   'one-click construction buys every missing material from the daily official price and stays idempotent',
+  'one-click construction rejects stale daily-price protection atomically',
   'one-click construction rolls back when total funds cannot cover build plus official-price procurement',
   'one-click construction ignores legacy warehouse capacity fields during official-price procurement',
 ]) requireText('server/test/instant-facility-construction.test.js', text);
