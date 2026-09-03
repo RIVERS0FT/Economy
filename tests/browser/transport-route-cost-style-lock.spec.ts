@@ -17,7 +17,7 @@ async function chooseRichSelectOption(
   await listbox.getByRole('option', { name: optionName }).click();
 }
 
-test('transport draft line style follows mode and map editor clears desktop and mobile status bars', async ({ page }) => {
+test('transport draft line style and physical geometry follow mode while the map editor clears status bars', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto('?preview=game');
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^运输/ }).click();
@@ -36,17 +36,27 @@ test('transport draft line style follows mode and map editor clears desktop and 
 
   const draft = page.locator('.province-map-route[data-route-kind="draft"]');
   await expect(draft).toHaveAttribute('data-route-id', 'draft-road-route');
+  await expect(draft).toHaveAttribute('data-route-geometry-source', 'network');
+  const roadPath = await draft.locator('.province-map-route-path').getAttribute('d');
   const roadDash = await draft.locator('.province-map-route-path').evaluate((element) => getComputedStyle(element).strokeDasharray);
 
   await chooseRichSelectOption(page, pickingBar, '运输方式', '铁路运输');
   await expect(draft).toHaveAttribute('data-route-id', 'draft-rail-route');
+  await expect(draft).toHaveAttribute('data-route-geometry-source', 'network');
+  const railPath = await draft.locator('.province-map-route-path').getAttribute('d');
   const railDash = await draft.locator('.province-map-route-path').evaluate((element) => getComputedStyle(element).strokeDasharray);
 
   await chooseRichSelectOption(page, pickingBar, '运输方式', '航空运输');
   await expect(draft).toHaveAttribute('data-route-id', 'draft-air-route');
+  await expect(draft).toHaveAttribute('data-route-geometry-source', 'direct');
+  const airPath = await draft.locator('.province-map-route-path').getAttribute('d');
   const airDash = await draft.locator('.province-map-route-path').evaluate((element) => getComputedStyle(element).strokeDasharray);
 
   expect(new Set([roadDash, railDash, airDash]).size).toBe(3);
+  expect(roadPath).toBeTruthy();
+  expect(railPath).toBeTruthy();
+  expect(airPath).toBeTruthy();
+  expect(new Set([roadPath, railPath, airPath]).size).toBe(3);
   await expect(pickingBar.locator('.transport-map-picking-cost')).toContainText('一次性建线费');
   await expect(pickingBar.locator('.transport-map-picking-cost')).not.toContainText('选择完整路线后计算');
 
