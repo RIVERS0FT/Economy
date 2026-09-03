@@ -67,7 +67,7 @@ const PAGE_AUTHORITY_DEPENDENCIES: Record<TabId, readonly StateAuthorityDependen
     'market.quotes',
     'contract',
   ],
-  transport: ['catalog', 'player.assets', 'player.misc', 'market.quotes', 'market.misc'],
+  transport: ['catalog', 'player.assets', 'player.misc', 'market.quotes'],
   research: ['catalog', 'player.assets', 'player.production', 'player.progression', 'market.quotes'],
   auction: ['catalog', 'player.assets', 'player.production', 'auction'],
   contracts: ['catalog', 'player.assets', 'player.production', 'market.quotes', 'contract'],

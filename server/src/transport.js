@@ -1,60 +1,40 @@
 import { randomUUID } from 'node:crypto';
+import {
+  TRANSPORT_BASE_SECONDS_PER_KM,
+  TRANSPORT_FUEL_UNIT_PRICE,
+  TRANSPORT_MODE_POLICY,
+} from '../../shared/transport-policy.js';
 import { PRODUCT_CATALOG } from './industry-catalog.js';
 import { roundInternalMoney } from './money.js';
-import { getOrderBookSummary } from './order-book-runtime.js';
 import { creditPopulationEmployment } from './population-economy.js';
 import {
   inventoryForProvince,
   normalizeProvinceId,
   PROVINCE_CATALOG,
-  provinceScopedKey,
 } from './provinces.js';
 import { isProvinceUnlocked, provinceDistanceKm } from './province-access.js';
 
-export const TRANSPORT_MODES = Object.freeze({
-  road: Object.freeze({ id: 'road', name: '公路运输', fixedCost: 10, unitCostPerKm: 0.0002, setupFixedCost: 100, setupCostPerKm: 0.02, capacity: 100, timeFactor: 1.0 }),
-  rail: Object.freeze({ id: 'rail', name: '铁路运输', fixedCost: 50, unitCostPerKm: 0.0001, setupFixedCost: 1000, setupCostPerKm: 0.15, capacity: 2000, timeFactor: 2.0 }),
-  air: Object.freeze({ id: 'air', name: '航空运输', fixedCost: 100, unitCostPerKm: 0.0006, setupFixedCost: 500, setupCostPerKm: 0.05, capacity: 500, timeFactor: 0.25 }),
-});
-export const TRANSPORT_BASE_SECONDS_PER_KM = 60 / 1000;
+export const TRANSPORT_MODES = TRANSPORT_MODE_POLICY;
+export { TRANSPORT_BASE_SECONDS_PER_KM, TRANSPORT_FUEL_UNIT_PRICE };
 export const TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER = 20;
 export const TRANSPORT_MAX_ROUTES_PER_PLAYER = 50;
 export const TRANSPORT_HISTORY_PER_PLAYER = 30;
 export const TRANSPORT_ROUTE_NAME_MAX_LENGTH = 40;
 export const TRANSPORT_TRIP_TYPES = Object.freeze(['round', 'one-way']);
-export const TRANSPORT_DEFAULT_TRIP_TYPE = 'one-way';
+export const TRANSPORT_DEFAULT_TRIP_TYPE = 'round';
 
-const TRANSPORT_TRIP_TYPE_IDS = new Set(TRANSPORT_TRIP_TYPES);
 const PRODUCT_BY_ID = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 const PROVINCE_BY_ID = new Map(PROVINCE_CATALOG.map((province) => [province.id, province]));
 
-export function transportCost(mode, quantity, distanceKm) {
-  const normalizedMode = TRANSPORT_MODES[mode];
-  if (!normalizedMode) return null;
-  const count = Math.max(0, Math.floor(Number(quantity) || 0));
-  const distance = Math.max(0, Number(distanceKm) || 0);
-  return roundInternalMoney(normalizedMode.fixedCost + normalizedMode.unitCostPerKm * count * distance);
+function roundFuel(value) {
+  return Math.max(0, Math.round((Number(value) || 0) * 1_000_000) / 1_000_000);
 }
 
 export function transportDurationMs(mode, distanceKm) {
-  const normalizedMode = TRANSPORT_MODES[mode];
-  if (!normalizedMode) return null;
+  const definition = TRANSPORT_MODES[mode];
+  if (!definition) return null;
   const distance = Math.max(0, Number(distanceKm) || 0);
-  return Math.max(1_000, Math.round(distance * TRANSPORT_BASE_SECONDS_PER_KM * normalizedMode.timeFactor * 1000));
-}
-
-function inTransitCountFor(world, playerId) {
-  return (world.transportShipments || []).filter((shipment) => (
-    Number(shipment.ownerId) === Number(playerId) && shipment.status === 'in-transit'
-  )).length;
-}
-
-function hasActiveShipmentForRoute(world, playerId, routeId) {
-  return (world.transportShipments || []).some((shipment) => (
-    Number(shipment.ownerId) === Number(playerId)
-    && String(shipment.routeId || '') === String(routeId || '')
-    && shipment.status === 'in-transit'
-  ));
+  return Math.max(1_000, Math.round(distance * TRANSPORT_BASE_SECONDS_PER_KM * definition.timeFactor * 1000));
 }
 
 export function normalizeTransportStops(payload = {}) {
@@ -63,10 +43,6 @@ export function normalizeTransportStops(payload = {}) {
   const rawViaProvinceIds = payload.viaProvinceIds === undefined || payload.viaProvinceIds === null ? [] : payload.viaProvinceIds;
   if (!Array.isArray(rawViaProvinceIds)) return { ok: false, message: '运输路线参数无效' };
   const viaProvinceIds = rawViaProvinceIds.map((entry) => normalizeProvinceId(entry));
-  const tripType = payload.tripType === undefined || payload.tripType === null
-    ? TRANSPORT_DEFAULT_TRIP_TYPE
-    : String(payload.tripType);
-  if (!TRANSPORT_TRIP_TYPE_IDS.has(tripType)) return { ok: false, message: '运输路线参数无效' };
   const closed = destinationProvinceId === sourceProvinceId;
   if (closed && viaProvinceIds.length === 0) return { ok: false, message: '起止州不能相同' };
   const seenProvinceIds = new Set([sourceProvinceId]);
@@ -81,7 +57,7 @@ export function normalizeTransportStops(payload = {}) {
       sourceProvinceId,
       destinationProvinceId,
       viaProvinceIds,
-      tripType: closed ? 'one-way' : tripType,
+      tripType: closed ? 'one-way' : 'round',
       closed,
     },
   };
@@ -102,14 +78,7 @@ export function transportRouteClosed(route) {
 export function transportTraversalStops(route) {
   const stops = transportRouteStops(route);
   if (transportRouteClosed(route)) return stops;
-  if (route?.tripType === 'round') return [...stops, ...stops.slice(0, -1).reverse()];
-  return stops;
-}
-
-export function transportDeliveryStops(route) {
-  const viaProvinceIds = transportViaProvinceIds(route);
-  if (transportRouteClosed(route)) return [...viaProvinceIds];
-  return [...viaProvinceIds, normalizeProvinceId(route?.destinationProvinceId)];
+  return [...stops, ...stops.slice(0, -1).reverse()];
 }
 
 export function transportRouteSetupCost(route, mode = route?.mode) {
@@ -123,70 +92,29 @@ export function transportRouteSetupCost(route, mode = route?.mode) {
   return roundInternalMoney(definition.setupFixedCost + definition.setupCostPerKm * distanceKm);
 }
 
-function normalizeManifest(manifest) {
-  if (!Array.isArray(manifest)) return [];
-  return manifest.flatMap((entry) => {
-    const productId = String(entry?.productId || '');
-    const destinationProvinceId = normalizeProvinceId(entry?.destinationProvinceId);
-    const quantity = Math.floor(Number(entry?.quantity));
-    if (!PRODUCT_BY_ID.has(productId) || !Number.isSafeInteger(quantity) || quantity <= 0) return [];
-    return [{ productId, destinationProvinceId, quantity }];
-  });
+export function transportCycleDistanceKm(route) {
+  const stops = transportTraversalStops(route);
+  if (stops.length < 2) return 0;
+  let distanceKm = 0;
+  for (let index = 0; index < stops.length - 1; index += 1) {
+    distanceKm += provinceDistanceKm(stops[index], stops[index + 1]);
+  }
+  return distanceKm;
 }
 
-function manifestQuantityAtStop(manifest, provinceId) {
-  return manifest.reduce((total, entry) => entry.destinationProvinceId === provinceId ? total + entry.quantity : total, 0);
-}
-
-function manifestTotalQuantity(manifest) {
-  return manifest.reduce((total, entry) => total + entry.quantity, 0);
-}
-
-export function buildTransportPlan(route, mode, rawManifest, now = Date.now()) {
+export function transportCycleCost(route, mode = route?.mode) {
   const definition = TRANSPORT_MODES[mode];
   if (!definition) return null;
-  const traversalStops = transportTraversalStops(route);
-  const deliveryStops = transportDeliveryStops(route);
-  if (traversalStops.length < 2 || deliveryStops.length < 1) return null;
-  const manifest = normalizeManifest(rawManifest);
-  const initialLoad = manifestTotalQuantity(manifest);
-  if (initialLoad < 1 || initialLoad > definition.capacity) return null;
-  const deliveryProvinceIds = new Set(deliveryStops);
-  const deliveredProvinceIds = new Set();
-  const stopPlan = [];
-  const legPlan = [];
-  let remainingLoad = initialLoad;
-  let elapsedMs = 0;
-  let cost = 0;
-  let distanceKm = 0;
-  for (let index = 0; index < traversalStops.length - 1; index += 1) {
-    const fromProvinceId = traversalStops[index];
-    const toProvinceId = traversalStops[index + 1];
-    const legDistanceKm = provinceDistanceKm(fromProvinceId, toProvinceId);
-    const legDepartsAt = now + elapsedMs;
-    const legDurationMs = transportDurationMs(mode, legDistanceKm);
-    elapsedMs += legDurationMs;
-    const legArrivesAt = now + elapsedMs;
-    distanceKm += legDistanceKm;
-    cost += transportCost(mode, remainingLoad, legDistanceKm);
-    legPlan.push({ fromProvinceId, toProvinceId, departsAt: legDepartsAt, arrivesAt: legArrivesAt, remainingLoad });
-    const delivers = deliveryProvinceIds.has(toProvinceId) && !deliveredProvinceIds.has(toProvinceId);
-    if (delivers) {
-      deliveredProvinceIds.add(toProvinceId);
-      stopPlan.push({ provinceId: toProvinceId, arrivesAt: legArrivesAt, deliveredAt: null });
-      remainingLoad = Math.max(0, remainingLoad - manifestQuantityAtStop(manifest, toProvinceId));
-    }
-  }
+  const distanceKm = transportCycleDistanceKm(route);
+  const transportFee = roundInternalMoney(distanceKm * definition.transportFeePerKm) || 0;
+  const fuelPurchased = roundFuel(distanceKm * definition.fuelPerKm);
+  const fuelCost = roundInternalMoney(fuelPurchased * TRANSPORT_FUEL_UNIT_PRICE) || 0;
   return {
-    manifest,
-    stopPlan,
-    legPlan,
-    arrivesAt: now + elapsedMs,
-    cost: roundInternalMoney(cost) || 0,
     distanceKm,
-    deliveryCount: stopPlan.length,
-    initialLoad,
-    traversalStops,
+    transportFee,
+    fuelPurchased,
+    fuelCost,
+    totalCost: roundInternalMoney(transportFee + fuelCost) || 0,
   };
 }
 
@@ -197,6 +125,20 @@ function playerTransportRoutes(player) {
 function findPlayerRoute(player, routeId) {
   const id = String(routeId || '');
   return playerTransportRoutes(player).find((route) => String(route?.id || '') === id) || null;
+}
+
+function activeShipmentForRoute(world, playerId, routeId) {
+  return (world.transportShipments || []).find((shipment) => (
+    Number(shipment.ownerId) === Number(playerId)
+    && String(shipment.routeId || '') === String(routeId || '')
+    && shipment.status !== 'arrived'
+  )) || null;
+}
+
+function inTransitCountFor(world, playerId) {
+  return (world.transportShipments || []).filter((shipment) => (
+    Number(shipment.ownerId) === Number(playerId) && shipment.status === 'in-transit'
+  )).length;
 }
 
 export function defaultTransportRouteName(sourceProvinceId, destinationProvinceId) {
@@ -235,123 +177,111 @@ function normalizedRouteInput(player, payload = {}) {
   };
 }
 
-function marketReferencePrice(world, provinceId, product) {
-  const market = world.markets?.[provinceScopedKey(provinceId, product.id)];
-  const bestBid = getOrderBookSummary(world, {
-    provinceId,
-    assetKind: 'commodity',
-    assetId: product.id,
-    side: 'buy',
-  }).bestPrice;
-  const candidates = [bestBid, market?.lastTradePrice, market?.officialPrice, market?.lastPrice, product.basePrice];
-  const selected = candidates.find((value) => Number.isFinite(Number(value)) && Number(value) > 0);
-  return selected === undefined ? 0 : Number(selected);
+function normalizeCargoRequest(value) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) return null;
+  const totals = new Map();
+  for (const entry of value) {
+    const productId = String(entry?.productId || '');
+    const quantity = Math.floor(Number(entry?.quantity));
+    if (!PRODUCT_BY_ID.has(productId) || !Number.isSafeInteger(quantity) || quantity <= 0) return null;
+    totals.set(productId, (totals.get(productId) || 0) + quantity);
+  }
+  return [...totals].map(([productId, quantity]) => ({ productId, quantity }));
 }
 
-function forwardDistanceByDeliveryStop(route) {
-  const stops = transportRouteStops(route);
-  const deliveryStopSet = new Set(transportDeliveryStops(route));
-  const distances = new Map();
-  let distanceKm = 0;
-  for (let index = 0; index < stops.length - 1; index += 1) {
-    distanceKm += provinceDistanceKm(stops[index], stops[index + 1]);
-    if (deliveryStopSet.has(stops[index + 1]) && !distances.has(stops[index + 1])) distances.set(stops[index + 1], distanceKm);
-  }
-  return distances;
+function normalizeCargoLots(value, fallbackOriginProvinceId) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    const productId = String(entry?.productId || '');
+    const originProvinceId = normalizeProvinceId(entry?.originProvinceId || fallbackOriginProvinceId);
+    const quantity = Math.floor(Number(entry?.quantity));
+    if (!PRODUCT_BY_ID.has(productId) || !Number.isSafeInteger(quantity) || quantity <= 0) return [];
+    return [{ productId, originProvinceId, quantity }];
+  });
 }
 
-function automaticManifestForRoute(world, player, route) {
-  const definition = TRANSPORT_MODES[route.mode];
-  if (!definition) return null;
-  const deliveryDistance = forwardDistanceByDeliveryStop(route);
-  if (deliveryDistance.size < 1) return null;
-  const candidates = [];
-  const availableByProduct = new Map();
-  for (const product of PRODUCT_CATALOG) {
-    const sourceInventory = inventoryForProvince(player, product.id, route.sourceProvinceId);
-    const available = Math.max(0, Math.floor(Number(sourceInventory.available || 0)));
-    if (available < 1) continue;
-    availableByProduct.set(product.id, available);
-    const sourcePrice = marketReferencePrice(world, route.sourceProvinceId, product);
-    for (const [destinationProvinceId, distanceKm] of deliveryDistance) {
-      const destinationPrice = marketReferencePrice(world, destinationProvinceId, product);
-      const unitSpread = destinationPrice - sourcePrice - definition.unitCostPerKm * distanceKm;
-      if (!(unitSpread > 0)) continue;
-      candidates.push({ productId: product.id, destinationProvinceId, sourcePrice, destinationPrice, unitSpread });
-    }
-  }
-  candidates.sort((left, right) => (
-    right.unitSpread - left.unitSpread
-    || String(left.productId).localeCompare(String(right.productId))
-    || String(left.destinationProvinceId).localeCompare(String(right.destinationProvinceId))
+function cargoQuantityForProduct(cargoLots, productId) {
+  return cargoLots.reduce((total, entry) => entry.productId === productId ? total + entry.quantity : total, 0);
+}
+
+function cargoTotalQuantity(cargoLots) {
+  return cargoLots.reduce((total, entry) => total + entry.quantity, 0);
+}
+
+function cargoManifestForDestination(cargoLots, destinationProvinceId) {
+  const totals = new Map();
+  for (const entry of cargoLots) totals.set(entry.productId, (totals.get(entry.productId) || 0) + entry.quantity);
+  return [...totals].map(([productId, quantity]) => ({ productId, destinationProvinceId, quantity }));
+}
+
+function appendDeliveredManifest(shipment, productId, destinationProvinceId, quantity) {
+  shipment.cycleManifest ||= [];
+  const existing = shipment.cycleManifest.find((entry) => (
+    entry.productId === productId && entry.destinationProvinceId === destinationProvinceId
   ));
-  const manifest = [];
-  let remainingCapacity = definition.capacity;
-  for (const candidate of candidates) {
-    if (remainingCapacity < 1) break;
-    const available = availableByProduct.get(candidate.productId) || 0;
-    if (available < 1) continue;
-    const quantity = Math.min(available, remainingCapacity);
-    manifest.push({
-      productId: candidate.productId,
-      destinationProvinceId: candidate.destinationProvinceId,
-      quantity,
-      sourceReferencePrice: candidate.sourcePrice,
-      destinationReferencePrice: candidate.destinationPrice,
-    });
-    availableByProduct.set(candidate.productId, available - quantity);
-    remainingCapacity -= quantity;
-  }
-  return manifest.length > 0 ? manifest : null;
+  if (existing) existing.quantity += quantity;
+  else shipment.cycleManifest.push({ productId, destinationProvinceId, quantity });
 }
 
-function shipmentOpportunitySpread(manifest, cost) {
-  const sourceValue = manifest.reduce((total, entry) => total + entry.sourceReferencePrice * entry.quantity, 0);
-  const destinationValue = manifest.reduce((total, entry) => total + entry.destinationReferencePrice * entry.quantity, 0);
-  return destinationValue - sourceValue - cost;
+function departShipmentLeg(shipment, now) {
+  const traversalStops = Array.isArray(shipment.traversalStops) ? shipment.traversalStops : [];
+  const currentVisitIndex = Math.max(0, Math.floor(Number(shipment.currentVisitIndex || 0)));
+  const nextVisitIndex = currentVisitIndex + 1;
+  if (nextVisitIndex >= traversalStops.length) return false;
+  const fromProvinceId = normalizeProvinceId(traversalStops[currentVisitIndex]);
+  const toProvinceId = normalizeProvinceId(traversalStops[nextVisitIndex]);
+  const distanceKm = provinceDistanceKm(fromProvinceId, toProvinceId);
+  const durationMs = transportDurationMs(shipment.mode, distanceKm);
+  const departsAt = Number(now);
+  const arrivesAt = departsAt + durationMs;
+  const remainingLoad = cargoTotalQuantity(shipment.cargoLots || []);
+  const leg = { fromProvinceId, toProvinceId, departsAt, arrivesAt, remainingLoad, distanceKm };
+  shipment.currentLeg = leg;
+  shipment.legHistory ||= [];
+  shipment.legHistory.push(leg);
+  shipment.nextVisitIndex = nextVisitIndex;
+  shipment.departsAt = departsAt;
+  shipment.arrivesAt = arrivesAt;
+  shipment.status = 'in-transit';
+  const definition = TRANSPORT_MODES[shipment.mode];
+  if (!shipment.legacyCycle && definition) {
+    shipment.fuelConsumed = Math.min(
+      Number(shipment.fuelPurchased || 0),
+      roundFuel(Number(shipment.fuelConsumed || 0) + distanceKm * definition.fuelPerKm),
+    );
+  }
+  return true;
 }
 
-function applyAutomaticTransportShipment(world, playerId, route, now = Date.now()) {
-  const player = world.players?.[String(playerId)];
-  if (!player || hasActiveShipmentForRoute(world, playerId, route.id)) return false;
-  if (inTransitCountFor(world, playerId) >= TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER) return false;
-  const manifestWithReferences = automaticManifestForRoute(world, player, route);
-  if (!manifestWithReferences) return false;
-  const manifest = manifestWithReferences.map(({ productId, destinationProvinceId, quantity }) => ({ productId, destinationProvinceId, quantity }));
-  const plan = buildTransportPlan(route, route.mode, manifest, now);
-  if (!plan || plan.deliveryCount < 1 || shipmentOpportunitySpread(manifestWithReferences, plan.cost) <= 0) return false;
-  if (Number(player.credits || 0) < plan.cost) return false;
-  for (const entry of manifest) {
-    if (Number(inventoryForProvince(player, entry.productId, route.sourceProvinceId).available || 0) < entry.quantity) return false;
-  }
-  player.credits = roundInternalMoney(player.credits - plan.cost) || 0;
-  creditPopulationEmployment(world, plan.cost, 'transportService');
-  for (const entry of manifest) {
-    const inventory = inventoryForProvince(player, entry.productId, route.sourceProvinceId);
+function addCargoFromInventory(player, cargoLots, provinceId, load) {
+  for (const entry of load) {
+    const inventory = inventoryForProvince(player, entry.productId, provinceId);
     inventory.available = Math.max(0, Number(inventory.available || 0) - entry.quantity);
     inventory.inTransit = Math.max(0, Number(inventory.inTransit || 0)) + entry.quantity;
+    const existing = cargoLots.find((lot) => lot.productId === entry.productId && lot.originProvinceId === provinceId);
+    if (existing) existing.quantity += entry.quantity;
+    else cargoLots.push({ productId: entry.productId, originProvinceId: provinceId, quantity: entry.quantity });
   }
-  world.transportShipments ||= [];
-  world.transportShipments.push({
-    id: `transport-${randomUUID()}`,
-    ownerId: Number(playerId),
-    routeId: route.id,
-    routeName: route.name,
-    sourceProvinceId: route.sourceProvinceId,
-    destinationProvinceId: route.destinationProvinceId,
-    ...(transportViaProvinceIds(route).length > 0 ? { viaProvinceIds: [...transportViaProvinceIds(route)] } : {}),
-    tripType: route.tripType ?? TRANSPORT_DEFAULT_TRIP_TYPE,
-    stopPlan: plan.stopPlan,
-    legPlan: plan.legPlan,
-    manifest,
-    mode: route.mode,
-    cost: plan.cost,
-    departsAt: now,
-    arrivesAt: plan.arrivesAt,
-    status: 'in-transit',
-    createdAt: now,
-  });
-  return true;
+}
+
+function unloadCargoToInventory(player, shipment, provinceId, unload) {
+  const cargoLots = shipment.cargoLots || [];
+  for (const entry of unload) {
+    let remaining = entry.quantity;
+    for (const lot of cargoLots) {
+      if (remaining < 1 || lot.productId !== entry.productId || lot.quantity < 1) continue;
+      const moved = Math.min(remaining, lot.quantity);
+      lot.quantity -= moved;
+      remaining -= moved;
+      const origin = inventoryForProvince(player, entry.productId, lot.originProvinceId);
+      origin.inTransit = Math.max(0, Number(origin.inTransit || 0) - moved);
+      const destination = inventoryForProvince(player, entry.productId, provinceId);
+      destination.available = Math.max(0, Number(destination.available || 0)) + moved;
+      appendDeliveredManifest(shipment, entry.productId, provinceId, moved);
+    }
+  }
+  shipment.cargoLots = cargoLots.filter((lot) => lot.quantity > 0);
 }
 
 export function applyCreateTransportRoute(world, user, payload = {}, now = Date.now()) {
@@ -375,8 +305,7 @@ export function applyCreateTransportRoute(world, user, payload = {}, now = Date.
     updatedAt: now,
   };
   player.transportRoutes = [...routes, route];
-  const dispatched = applyAutomaticTransportShipment(world, user.id, route, now);
-  return { ok: true, message: dispatched ? '运输路线已创建并自动发运' : '运输路线已创建，等待满足发运条件', routeId: route.id };
+  return { ok: true, message: '运输路线已创建，在线时将自动规划节点装卸', routeId: route.id };
 }
 
 export function applyUpdateTransportRoute(world, user, payload = {}) {
@@ -406,9 +335,137 @@ export function applyDeleteTransportRoute(world, user, payload = {}) {
   const routeId = String(payload.routeId || '');
   const index = routes.findIndex((route) => String(route?.id || '') === routeId);
   if (index < 0) return { ok: false, message: '运输路线不存在' };
-  if (hasActiveShipmentForRoute(world, user.id, routeId)) return { ok: false, message: '该路线有运输在途，完成后才能删除' };
+  if (activeShipmentForRoute(world, user.id, routeId)) return { ok: false, message: '该路线仍有运输周期进行中，完成后才能删除' };
   player.transportRoutes = routes.filter((_, routeIndex) => routeIndex !== index);
   return { ok: true, message: '运输路线已删除' };
+}
+
+export function applyStartTransportCycle(world, user, payload = {}, now = Date.now()) {
+  const player = world.players?.[String(user.id)];
+  if (!player) return { ok: false, message: '玩家状态无效' };
+  const route = findPlayerRoute(player, payload.routeId);
+  if (!route) return { ok: false, message: '运输路线不存在' };
+  if (activeShipmentForRoute(world, user.id, route.id)) return { ok: false, message: '该路线已有运输周期进行中' };
+  if (inTransitCountFor(world, user.id) >= TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER) {
+    return { ok: false, message: `同时在途运输不能超过 ${TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER} 笔` };
+  }
+  const load = normalizeCargoRequest(payload.load);
+  if (load === null) return { ok: false, message: '运输装货参数无效' };
+  const definition = TRANSPORT_MODES[route.mode];
+  const totalLoad = load.reduce((total, entry) => total + entry.quantity, 0);
+  if (totalLoad > definition.capacity) return { ok: false, message: '装货数量超过运输方式容量' };
+  for (const entry of load) {
+    if (Number(inventoryForProvince(player, entry.productId, route.sourceProvinceId).available || 0) < entry.quantity) {
+      return { ok: false, message: '起点可用库存不足，无法开始运输周期' };
+    }
+  }
+  const cycleCost = transportCycleCost(route, route.mode);
+  if (!cycleCost) return { ok: false, message: '运输周期费用无效' };
+  if (Number(player.credits || 0) < cycleCost.totalCost) {
+    return { ok: false, message: '资金不足，无法一次性支付本周期运输费和燃料费' };
+  }
+  const traversalStops = transportTraversalStops(route);
+  if (traversalStops.length < 2) return { ok: false, message: '运输路线无效' };
+
+  player.credits = roundInternalMoney(player.credits - cycleCost.totalCost) || 0;
+  creditPopulationEmployment(world, cycleCost.totalCost, 'transportService');
+  const cargoLots = [];
+  addCargoFromInventory(player, cargoLots, route.sourceProvinceId, load);
+
+  const shipment = {
+    nodeCycleVersion: 1,
+    id: `transport-${randomUUID()}` ,
+    ownerId: Number(user.id),
+    routeId: route.id,
+    routeName: route.name,
+    sourceProvinceId: route.sourceProvinceId,
+    destinationProvinceId: route.destinationProvinceId,
+    ...(transportViaProvinceIds(route).length > 0 ? { viaProvinceIds: [...transportViaProvinceIds(route)] } : {}),
+    tripType: transportRouteClosed(route) ? 'one-way' : 'round',
+    traversalStops,
+    currentVisitIndex: 0,
+    nextVisitIndex: 1,
+    cargoLots,
+    cycleManifest: [],
+    legHistory: [],
+    mode: route.mode,
+    cost: cycleCost.totalCost,
+    transportFee: cycleCost.transportFee,
+    fuelCost: cycleCost.fuelCost,
+    fuelPurchased: cycleCost.fuelPurchased,
+    fuelConsumed: 0,
+    cycleDistanceKm: cycleCost.distanceKm,
+    status: 'docked',
+    createdAt: now,
+  };
+  if (!departShipmentLeg(shipment, now)) return { ok: false, message: '运输路线无法开始' };
+  world.transportShipments ||= [];
+  world.transportShipments.push(shipment);
+  return { ok: true, message: '运输周期已启动，运输费与整周期燃料费已一次性结算', cycleId: shipment.id };
+}
+
+export function applyServiceTransportNode(world, user, payload = {}, now = Date.now()) {
+  const player = world.players?.[String(user.id)];
+  if (!player) return { ok: false, message: '玩家状态无效' };
+  const route = findPlayerRoute(player, payload.routeId);
+  if (!route) return { ok: false, message: '运输路线不存在' };
+  const shipment = activeShipmentForRoute(world, user.id, route.id);
+  if (!shipment || shipment.status !== 'docked') return { ok: false, message: '运输车辆当前未停靠节点' };
+  if (payload.cycleId && String(payload.cycleId) !== String(shipment.id)) return { ok: false, message: '运输周期已变化，请等待客户端同步' };
+  const visitIndex = Math.floor(Number(payload.visitIndex));
+  if (!Number.isSafeInteger(visitIndex) || visitIndex !== Number(shipment.currentVisitIndex)) {
+    return { ok: false, message: '运输节点已变化，请等待客户端同步' };
+  }
+  const traversalStops = Array.isArray(shipment.traversalStops) ? shipment.traversalStops : transportTraversalStops(route);
+  const currentProvinceId = normalizeProvinceId(traversalStops[visitIndex]);
+  const finalVisit = visitIndex >= traversalStops.length - 1;
+  if (!finalVisit && inTransitCountFor(world, user.id) >= TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER) {
+    return { ok: false, message: `同时在途运输不能超过 ${TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER} 笔` };
+  }
+  const unload = normalizeCargoRequest(payload.unload);
+  const load = normalizeCargoRequest(payload.load);
+  if (unload === null || load === null) return { ok: false, message: '运输装卸参数无效' };
+  if (finalVisit && load.length > 0) return { ok: false, message: '返回起点时必须先完成本周期卸货，再开始下一周期' };
+  const unloadIds = new Set(unload.map((entry) => entry.productId));
+  if (load.some((entry) => unloadIds.has(entry.productId))) {
+    return { ok: false, message: '同一节点同一商品不能同时装货和卸货' };
+  }
+
+  const cargoLots = normalizeCargoLots(shipment.cargoLots, shipment.sourceProvinceId);
+  for (const entry of unload) {
+    if (cargoQuantityForProduct(cargoLots, entry.productId) < entry.quantity) {
+      return { ok: false, message: '卸货数量超过车辆实际货物' };
+    }
+  }
+  for (const entry of load) {
+    if (Number(inventoryForProvince(player, entry.productId, currentProvinceId).available || 0) < entry.quantity) {
+      return { ok: false, message: '当前节点可用库存不足' };
+    }
+  }
+  const nextLoad = cargoTotalQuantity(cargoLots)
+    - unload.reduce((total, entry) => total + entry.quantity, 0)
+    + load.reduce((total, entry) => total + entry.quantity, 0);
+  if (nextLoad > Number(TRANSPORT_MODES[route.mode]?.capacity || 0)) {
+    return { ok: false, message: '装卸后车辆货量超过运输方式容量' };
+  }
+
+  shipment.cargoLots = cargoLots;
+  unloadCargoToInventory(player, shipment, currentProvinceId, unload);
+  addCargoFromInventory(player, shipment.cargoLots, currentProvinceId, load);
+
+  if (finalVisit) {
+    if (cargoTotalQuantity(shipment.cargoLots) > 0) {
+      return { ok: true, message: '起点卸货已完成，车辆仍有货物需要卸下' };
+    }
+    shipment.status = 'arrived';
+    shipment.arrivedAt = now;
+    shipment.currentLeg = null;
+    shipment.nextVisitIndex = null;
+    return { ok: true, message: '运输周期已完成并返回起点' };
+  }
+
+  if (!departShipmentLeg(shipment, now)) return { ok: false, message: '下一段运输路线无效' };
+  return { ok: true, message: '节点装卸已完成，车辆已发往下一节点' };
 }
 
 export function applyTransportShip(world, user, payload = {}, now = Date.now()) {
@@ -416,62 +473,95 @@ export function applyTransportShip(world, user, payload = {}, now = Date.now()) 
   if (payload.operation === 'route-update') return applyUpdateTransportRoute(world, user, payload, now);
   if (payload.operation === 'route-rename') return applyRenameTransportRoute(world, user, payload, now);
   if (payload.operation === 'route-delete') return applyDeleteTransportRoute(world, user, payload);
-  return { ok: false, message: '运输仅由已保存路线自动发运' };
-}
-
-export function processAutomaticTransportRoutes(world, now = Date.now()) {
-  let dispatched = 0;
-  for (const [playerId, player] of Object.entries(world.players || {})) {
-    if (inTransitCountFor(world, playerId) >= TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER) continue;
-    for (const route of playerTransportRoutes(player)) {
-      if (inTransitCountFor(world, playerId) >= TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER) break;
-      if (hasActiveShipmentForRoute(world, playerId, route.id)) continue;
-      if (applyAutomaticTransportShipment(world, playerId, route, now)) dispatched += 1;
-    }
-  }
-  return dispatched;
+  if (payload.operation === 'cycle-start') return applyStartTransportCycle(world, user, payload, now);
+  if (payload.operation === 'node-service') return applyServiceTransportNode(world, user, payload, now);
+  return { ok: false, message: '运输仅接受路线维护、周期启动和节点装卸操作' };
 }
 
 function legacyShipmentManifest(shipment) {
+  if (Array.isArray(shipment?.manifest)) {
+    return shipment.manifest.flatMap((entry) => {
+      const productId = String(entry?.productId || '');
+      const destinationProvinceId = normalizeProvinceId(entry?.destinationProvinceId || shipment.destinationProvinceId);
+      const quantity = Math.floor(Number(entry?.quantity));
+      if (!PRODUCT_BY_ID.has(productId) || !Number.isSafeInteger(quantity) || quantity <= 0) return [];
+      return [{ productId, destinationProvinceId, quantity }];
+    });
+  }
   const productId = String(shipment?.productId || '');
   const quantity = Math.floor(Number(shipment?.quantity));
   if (!PRODUCT_BY_ID.has(productId) || !Number.isSafeInteger(quantity) || quantity <= 0) return [];
-  const deliveryProvinceIds = Array.isArray(shipment?.stopPlan) && shipment.stopPlan.length > 0
-    ? shipment.stopPlan.map((stop) => normalizeProvinceId(stop?.provinceId))
-    : transportDeliveryStops(shipment);
-  return deliveryProvinceIds.map((destinationProvinceId) => ({ productId, destinationProvinceId, quantity }));
+  return [{ productId, destinationProvinceId: normalizeProvinceId(shipment.destinationProvinceId), quantity }];
 }
 
-function shipmentManifest(shipment) {
-  const current = normalizeManifest(shipment?.manifest);
-  return current.length > 0 ? current : legacyShipmentManifest(shipment);
-}
+function migrateLegacyShipment(world, shipment) {
+  if (shipment.nodeCycleVersion === 1) return;
+  const player = world.players?.[String(shipment.ownerId)];
+  const route = findPlayerRoute(player, shipment.routeId) || shipment;
+  const traversalStops = transportTraversalStops(route);
+  shipment.routeName ||= route?.name;
+  shipment.tripType = transportRouteClosed(route) ? 'one-way' : 'round';
+  shipment.traversalStops = traversalStops;
+  shipment.cycleDistanceKm = Number(shipment.cycleDistanceKm || transportCycleDistanceKm(route));
+  shipment.transportFee = Number.isFinite(Number(shipment.transportFee)) ? Number(shipment.transportFee) : Number(shipment.cost || 0);
+  shipment.fuelCost = Number.isFinite(Number(shipment.fuelCost)) ? Number(shipment.fuelCost) : 0;
+  shipment.fuelPurchased = Number.isFinite(Number(shipment.fuelPurchased)) ? Number(shipment.fuelPurchased) : 0;
+  shipment.fuelConsumed = Number.isFinite(Number(shipment.fuelConsumed)) ? Number(shipment.fuelConsumed) : 0;
+  shipment.legacyCycle = shipment.legacyCycle === true || shipment.fuelPurchased === 0;
+  shipment.legHistory ||= [];
+  shipment.cycleManifest ||= [];
 
-function derivedShipmentLegPlan(shipment) {
-  if (Array.isArray(shipment?.legPlan) && shipment.legPlan.length > 0) {
-    return shipment.legPlan.map((leg) => ({
-      fromProvinceId: normalizeProvinceId(leg.fromProvinceId),
-      toProvinceId: normalizeProvinceId(leg.toProvinceId),
-      departsAt: Number(leg.departsAt || shipment.departsAt || shipment.createdAt || 0),
-      arrivesAt: Number(leg.arrivesAt || shipment.arrivesAt || 0),
-      remainingLoad: Math.max(0, Math.floor(Number(leg.remainingLoad || 0))),
-    }));
+  if (shipment.status === 'arrived') {
+    if (shipment.cycleManifest.length === 0) shipment.cycleManifest = legacyShipmentManifest(shipment);
+    shipment.nodeCycleVersion = 1;
+    return;
   }
-  const traversalStops = transportTraversalStops(shipment);
-  if (traversalStops.length < 2) return [];
-  const manifest = shipmentManifest(shipment);
-  let remainingLoad = manifestTotalQuantity(manifest);
-  let cursor = Number(shipment.departsAt || shipment.createdAt || 0);
-  const result = [];
-  for (let index = 0; index < traversalStops.length - 1; index += 1) {
-    const fromProvinceId = traversalStops[index];
-    const toProvinceId = traversalStops[index + 1];
-    const departsAt = cursor;
-    cursor += transportDurationMs(shipment.mode, provinceDistanceKm(fromProvinceId, toProvinceId));
-    result.push({ fromProvinceId, toProvinceId, departsAt, arrivesAt: cursor, remainingLoad });
-    remainingLoad = Math.max(0, remainingLoad - manifestQuantityAtStop(manifest, toProvinceId));
+  if (Array.isArray(shipment.cargoLots) && shipment.cargoLots.length > 0) {
+    shipment.nodeCycleVersion = 1;
+    return;
   }
-  return result;
+
+  const deliveredProvinceIds = new Set((Array.isArray(shipment.stopPlan) ? shipment.stopPlan : [])
+    .filter((stop) => stop?.deliveredAt)
+    .map((stop) => normalizeProvinceId(stop.provinceId)));
+  const manifest = legacyShipmentManifest(shipment);
+  for (const entry of manifest) {
+    if (deliveredProvinceIds.has(entry.destinationProvinceId)) {
+      appendDeliveredManifest(shipment, entry.productId, entry.destinationProvinceId, entry.quantity);
+    }
+  }
+  const pendingManifest = manifest.filter((entry) => !deliveredProvinceIds.has(entry.destinationProvinceId));
+  shipment.cargoLots = pendingManifest.map((entry) => ({
+    productId: entry.productId,
+    originProvinceId: normalizeProvinceId(shipment.sourceProvinceId),
+    quantity: entry.quantity,
+  }));
+
+  const pendingStop = (Array.isArray(shipment.stopPlan) ? shipment.stopPlan : []).find((stop) => !stop?.deliveredAt);
+  let nextVisitIndex = pendingStop
+    ? traversalStops.findIndex((provinceId, index) => index > 0 && normalizeProvinceId(provinceId) === normalizeProvinceId(pendingStop.provinceId))
+    : traversalStops.length - 1;
+  if (nextVisitIndex < 1) nextVisitIndex = Math.min(1, traversalStops.length - 1);
+  shipment.currentVisitIndex = Math.max(0, nextVisitIndex - 1);
+  shipment.nextVisitIndex = nextVisitIndex;
+  const legacyLeg = (Array.isArray(shipment.legPlan) ? shipment.legPlan : []).find((leg) => (
+    normalizeProvinceId(leg.toProvinceId) === normalizeProvinceId(traversalStops[nextVisitIndex])
+    && Number(leg.arrivesAt || 0) > 0
+  ));
+  const departsAt = Number(legacyLeg?.departsAt || shipment.departsAt || shipment.createdAt || 0);
+  const arrivesAt = Number(pendingStop?.arrivesAt || legacyLeg?.arrivesAt || shipment.arrivesAt || departsAt);
+  shipment.currentLeg = {
+    fromProvinceId: normalizeProvinceId(traversalStops[shipment.currentVisitIndex]),
+    toProvinceId: normalizeProvinceId(traversalStops[nextVisitIndex]),
+    departsAt,
+    arrivesAt,
+    remainingLoad: cargoTotalQuantity(shipment.cargoLots),
+    distanceKm: provinceDistanceKm(traversalStops[shipment.currentVisitIndex], traversalStops[nextVisitIndex]),
+  };
+  shipment.departsAt = departsAt;
+  shipment.arrivesAt = arrivesAt;
+  shipment.status = 'in-transit';
+  shipment.nodeCycleVersion = 1;
 }
 
 export function migrateTransportWorld(world) {
@@ -482,9 +572,7 @@ export function migrateTransportWorld(world) {
       if (!route || typeof route !== 'object' || !route.id || !TRANSPORT_MODES[route.mode]) return [];
       const stops = normalizeTransportStops(route);
       if (!stops.ok) return [];
-      const setupCost = Number.isFinite(Number(route.setupCost)) && Number(route.setupCost) >= 0
-        ? Number(route.setupCost)
-        : 0;
+      const setupCost = Number.isFinite(Number(route.setupCost)) && Number(route.setupCost) >= 0 ? Number(route.setupCost) : 0;
       return [{
         id: String(route.id),
         name: normalizedTransportRouteName(route.name) || defaultTransportRouteName(stops.stops.sourceProvinceId, stops.stops.destinationProvinceId),
@@ -502,13 +590,7 @@ export function migrateTransportWorld(world) {
   world.transportShipments ||= [];
   for (const shipment of world.transportShipments) {
     if (!shipment || typeof shipment !== 'object') continue;
-    const manifest = shipmentManifest(shipment);
-    if (manifest.length > 0) shipment.manifest = manifest;
-    if (!Array.isArray(shipment.legPlan) || shipment.legPlan.length === 0) shipment.legPlan = derivedShipmentLegPlan(shipment);
-    if (!shipment.routeName && shipment.routeId) {
-      const route = findPlayerRoute(world.players?.[String(shipment.ownerId)], shipment.routeId);
-      if (route?.name) shipment.routeName = route.name;
-    }
+    migrateLegacyShipment(world, shipment);
   }
   return world;
 }
@@ -517,35 +599,17 @@ export function processTransportWorld(world, now = Date.now()) {
   migrateTransportWorld(world);
   world.transportShipments ||= [];
   for (const shipment of world.transportShipments) {
-    if (shipment.status !== 'in-transit') continue;
-    const player = world.players?.[String(shipment.ownerId)];
-    if (!player) continue;
-    const manifest = shipmentManifest(shipment);
-    const stopPlan = Array.isArray(shipment.stopPlan) && shipment.stopPlan.length > 0
-      ? shipment.stopPlan
-      : [{ provinceId: shipment.destinationProvinceId, arrivesAt: shipment.arrivesAt, deliveredAt: null }];
-    for (const stop of stopPlan) {
-      if (stop.deliveredAt || Number(stop.arrivesAt || 0) > now) continue;
-      const destinationProvinceId = normalizeProvinceId(stop.provinceId);
-      for (const entry of manifest) {
-        if (entry.destinationProvinceId !== destinationProvinceId) continue;
-        const source = inventoryForProvince(player, entry.productId, shipment.sourceProvinceId);
-        const destination = inventoryForProvince(player, entry.productId, destinationProvinceId);
-        source.inTransit = Math.max(0, Number(source.inTransit || 0) - entry.quantity);
-        destination.available = Math.max(0, Number(destination.available || 0)) + entry.quantity;
-      }
-      stop.deliveredAt = Number(stop.arrivesAt || now);
-    }
-    shipment.stopPlan = stopPlan;
-    if (Number(shipment.arrivesAt || 0) <= now && stopPlan.every((stop) => stop.deliveredAt)) {
-      shipment.status = 'arrived';
-      shipment.arrivedAt = Number(shipment.arrivesAt || now);
-    }
+    if (shipment.status !== 'in-transit' || Number(shipment.arrivesAt || 0) > now) continue;
+    shipment.status = 'docked';
+    shipment.currentVisitIndex = Number(shipment.nextVisitIndex || 0);
+    shipment.dockedAt = Number(shipment.arrivesAt || now);
+    shipment.currentLeg = null;
   }
-  const active = world.transportShipments.filter((shipment) => shipment.status === 'in-transit');
+
+  const active = world.transportShipments.filter((shipment) => shipment.status !== 'arrived');
   const historyByOwner = new Map();
   for (const shipment of world.transportShipments) {
-    if (shipment.status === 'in-transit') continue;
+    if (shipment.status !== 'arrived') continue;
     const ownerId = String(shipment.ownerId);
     const entries = historyByOwner.get(ownerId) || [];
     entries.push(shipment);
@@ -558,15 +622,13 @@ export function processTransportWorld(world, now = Date.now()) {
       .slice(0, TRANSPORT_HISTORY_PER_PLAYER));
   }
   world.transportShipments = [...active, ...history];
-  processAutomaticTransportRoutes(world, now);
 }
 
 export function nextTransportDeadline(world) {
   let next = null;
   for (const shipment of world.transportShipments || []) {
     if (shipment.status !== 'in-transit') continue;
-    const pendingStop = (Array.isArray(shipment.stopPlan) ? shipment.stopPlan : []).find((stop) => !stop.deliveredAt);
-    const candidate = Number(pendingStop?.arrivesAt || shipment.arrivesAt || 0);
+    const candidate = Number(shipment.arrivesAt || 0);
     if (!(candidate > 0)) continue;
     next = next === null ? candidate : Math.min(next, candidate);
   }
@@ -575,44 +637,78 @@ export function nextTransportDeadline(world) {
 
 export function transportRouteClientState(world, userId) {
   const player = world.players?.[String(userId)];
-  return playerTransportRoutes(player).map((route) => ({
-    id: String(route.id),
-    name: normalizedTransportRouteName(route.name) || defaultTransportRouteName(route.sourceProvinceId, route.destinationProvinceId),
-    sourceProvinceId: normalizeProvinceId(route.sourceProvinceId),
-    destinationProvinceId: normalizeProvinceId(route.destinationProvinceId),
-    ...(transportViaProvinceIds(route).length > 0 ? { viaProvinceIds: [...transportViaProvinceIds(route)] } : {}),
-    tripType: TRANSPORT_TRIP_TYPE_IDS.has(route.tripType) ? route.tripType : TRANSPORT_DEFAULT_TRIP_TYPE,
-    mode: TRANSPORT_MODES[route.mode] ? route.mode : 'road',
-    setupCost: Number.isFinite(Number(route.setupCost)) && Number(route.setupCost) >= 0 ? Number(route.setupCost) : 0,
-    createdAt: Number(route.createdAt || 0),
-    updatedAt: Number(route.updatedAt || route.createdAt || 0),
-  }));
+  return playerTransportRoutes(player).map((route) => {
+    const cycle = transportCycleCost(route, route.mode);
+    return {
+      id: String(route.id),
+      name: normalizedTransportRouteName(route.name) || defaultTransportRouteName(route.sourceProvinceId, route.destinationProvinceId),
+      sourceProvinceId: normalizeProvinceId(route.sourceProvinceId),
+      destinationProvinceId: normalizeProvinceId(route.destinationProvinceId),
+      ...(transportViaProvinceIds(route).length > 0 ? { viaProvinceIds: [...transportViaProvinceIds(route)] } : {}),
+      tripType: transportRouteClosed(route) ? 'one-way' : 'round',
+      mode: TRANSPORT_MODES[route.mode] ? route.mode : 'road',
+      setupCost: Number.isFinite(Number(route.setupCost)) && Number(route.setupCost) >= 0 ? Number(route.setupCost) : 0,
+      cycleDistanceKm: Number(cycle?.distanceKm || 0),
+      cycleTransportFee: Number(cycle?.transportFee || 0),
+      cycleFuelCost: Number(cycle?.fuelCost || 0),
+      cycleCost: Number(cycle?.totalCost || 0),
+      createdAt: Number(route.createdAt || 0),
+      updatedAt: Number(route.updatedAt || route.createdAt || 0),
+    };
+  });
 }
 
 export function transportShipmentClientState(world, userId) {
   return (world.transportShipments || [])
     .filter((shipment) => Number(shipment.ownerId) === Number(userId))
-    .map((shipment) => ({
-      id: String(shipment.id),
-      ...(shipment.routeId ? { routeId: String(shipment.routeId) } : {}),
-      ...(shipment.routeName ? { routeName: String(shipment.routeName) } : {}),
-      sourceProvinceId: normalizeProvinceId(shipment.sourceProvinceId),
-      destinationProvinceId: normalizeProvinceId(shipment.destinationProvinceId),
-      ...(transportViaProvinceIds(shipment).length > 0 ? { viaProvinceIds: [...transportViaProvinceIds(shipment)] } : {}),
-      tripType: TRANSPORT_TRIP_TYPE_IDS.has(shipment.tripType) ? shipment.tripType : TRANSPORT_DEFAULT_TRIP_TYPE,
-      stopPlan: (Array.isArray(shipment.stopPlan) ? shipment.stopPlan : []).map((stop) => ({
-        provinceId: normalizeProvinceId(stop.provinceId),
-        arrivesAt: Number(stop.arrivesAt || 0),
-        deliveredAt: stop.deliveredAt ? Number(stop.deliveredAt) : null,
-      })),
-      legPlan: derivedShipmentLegPlan(shipment),
-      manifest: shipmentManifest(shipment),
-      mode: TRANSPORT_MODES[shipment.mode] ? shipment.mode : 'road',
-      cost: Number(shipment.cost || 0),
-      departsAt: Number(shipment.departsAt || shipment.createdAt || 0),
-      arrivesAt: Number(shipment.arrivesAt || 0),
-      status: shipment.status === 'arrived' ? 'arrived' : 'in-transit',
-      createdAt: Number(shipment.createdAt || shipment.departsAt || 0),
-      ...(shipment.arrivedAt ? { arrivedAt: Number(shipment.arrivedAt) } : {}),
-    }));
+    .map((shipment) => {
+      const traversalStops = Array.isArray(shipment.traversalStops) ? shipment.traversalStops : transportTraversalStops(shipment);
+      const currentVisitIndex = Math.max(0, Math.floor(Number(shipment.currentVisitIndex || 0)));
+      const nextVisitIndex = shipment.status === 'in-transit'
+        ? Math.max(0, Math.floor(Number(shipment.nextVisitIndex || currentVisitIndex + 1)))
+        : currentVisitIndex;
+      const currentProvinceId = normalizeProvinceId(traversalStops[currentVisitIndex] || shipment.sourceProvinceId);
+      const nextProvinceId = normalizeProvinceId(traversalStops[nextVisitIndex] || currentProvinceId);
+      const cargoLots = normalizeCargoLots(shipment.cargoLots, shipment.sourceProvinceId);
+      const activeManifest = cargoManifestForDestination(cargoLots, shipment.status === 'in-transit' ? nextProvinceId : currentProvinceId);
+      const historyManifest = Array.isArray(shipment.cycleManifest) ? shipment.cycleManifest : legacyShipmentManifest(shipment);
+      const currentLeg = shipment.status === 'in-transit' && shipment.currentLeg ? shipment.currentLeg : null;
+      return {
+        id: String(shipment.id),
+        cycleId: String(shipment.id),
+        ...(shipment.routeId ? { routeId: String(shipment.routeId) } : {}),
+        ...(shipment.routeName ? { routeName: String(shipment.routeName) } : {}),
+        sourceProvinceId: normalizeProvinceId(shipment.sourceProvinceId),
+        destinationProvinceId: normalizeProvinceId(shipment.destinationProvinceId),
+        ...(transportViaProvinceIds(shipment).length > 0 ? { viaProvinceIds: [...transportViaProvinceIds(shipment)] } : {}),
+        tripType: transportRouteClosed(shipment) ? 'one-way' : 'round',
+        stopPlan: shipment.status === 'arrived' ? [] : [{
+          provinceId: shipment.status === 'in-transit' ? nextProvinceId : currentProvinceId,
+          arrivesAt: Number(shipment.status === 'in-transit' ? shipment.arrivesAt : shipment.dockedAt || shipment.arrivesAt || 0),
+          deliveredAt: null,
+        }],
+        legPlan: currentLeg ? [{
+          fromProvinceId: normalizeProvinceId(currentLeg.fromProvinceId),
+          toProvinceId: normalizeProvinceId(currentLeg.toProvinceId),
+          departsAt: Number(currentLeg.departsAt || 0),
+          arrivesAt: Number(currentLeg.arrivesAt || 0),
+          remainingLoad: Math.max(0, Math.floor(Number(currentLeg.remainingLoad || 0))),
+        }] : [],
+        manifest: shipment.status === 'arrived' ? historyManifest : activeManifest,
+        mode: TRANSPORT_MODES[shipment.mode] ? shipment.mode : 'road',
+        cost: Number(shipment.cost || 0),
+        transportFee: Number(shipment.transportFee || 0),
+        fuelCost: Number(shipment.fuelCost || 0),
+        fuelPurchased: Number(shipment.fuelPurchased || 0),
+        fuelConsumed: Number(shipment.fuelConsumed || 0),
+        cycleDistanceKm: Number(shipment.cycleDistanceKm || 0),
+        currentProvinceId,
+        currentVisitIndex,
+        departsAt: Number(shipment.departsAt || shipment.createdAt || 0),
+        arrivesAt: Number(shipment.arrivesAt || shipment.dockedAt || shipment.arrivedAt || 0),
+        status: shipment.status === 'arrived' ? 'arrived' : shipment.status === 'docked' ? 'docked' : 'in-transit',
+        createdAt: Number(shipment.createdAt || shipment.departsAt || 0),
+        ...(shipment.arrivedAt ? { arrivedAt: Number(shipment.arrivedAt) } : {}),
+      };
+    });
 }

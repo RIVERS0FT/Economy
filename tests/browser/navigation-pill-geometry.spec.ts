@@ -113,16 +113,25 @@ test.describe('navigation pill geometry', () => {
     await buttons.nth(2).click();
     await expect(page.locator('.strategic-map-stage')).toHaveAttribute('data-map-lens', 'industry');
     await expect(buttons.nth(2)).toHaveAttribute('aria-pressed', 'true');
-    const activeVisual = await buttons.nth(2).evaluate((button) => {
-      const style = getComputedStyle(button);
+    await expect(buttons.nth(2)).toHaveClass(/is-active/);
+    await expect.poll(async () => {
+      const activeVisual = await buttons.nth(2).evaluate((button) => {
+        const style = getComputedStyle(button);
+        return {
+          color: style.color,
+          background: style.backgroundColor,
+          border: style.borderTopColor,
+        };
+      });
       return {
-        color: style.color,
-        background: style.backgroundColor,
-        border: style.borderTopColor,
+        colorChanged: activeVisual.color !== geometry.color,
+        borderChanged: activeVisual.border !== geometry.border,
+        backgroundChanged: activeVisual.background !== geometry.background,
       };
+    }, { message: '地图镜头激活态必须提交颜色、边框与背景三项视觉变化' }).toEqual({
+      colorChanged: true,
+      borderChanged: true,
+      backgroundChanged: true,
     });
-    expect(activeVisual.color).not.toBe(geometry.color);
-    expect(activeVisual.border).not.toBe(geometry.border);
-    expect(activeVisual.background).not.toBe(geometry.background);
   });
 });

@@ -217,17 +217,17 @@ test.describe('player page safe geometry', () => {
     }
   });
 
-  test('edge breakpoints keep the buildings lists fully visible', async ({ page }) => {
-    const buildings = playerPages.find((target) => target.tab === 'buildings');
-    if (!buildings) throw new Error('buildings page fixture is missing');
+  for (const viewport of [
+    { width: 320, height: 720 },
+    { width: 720, height: 900 },
+    { width: 721, height: 900 },
+    { width: 960, height: 900 },
+    { width: 1440, height: 900 },
+  ]) {
+    test(`edge breakpoint ${viewport.width}x${viewport.height} keeps the buildings lists fully visible`, async ({ page }) => {
+      const buildings = playerPages.find((target) => target.tab === 'buildings');
+      if (!buildings) throw new Error('buildings page fixture is missing');
 
-    for (const viewport of [
-      { width: 320, height: 720 },
-      { width: 720, height: 900 },
-      { width: 721, height: 900 },
-      { width: 960, height: 900 },
-      { width: 1440, height: 900 },
-    ]) {
       await page.setViewportSize(viewport);
       await openPreview(page);
       await selectPlayerPage(page, buildings);
@@ -317,6 +317,6 @@ test.describe('player page safe geometry', () => {
         expect(row.height).toBeGreaterThanOrEqual(82);
         expect(row.height).toBeLessThanOrEqual(98);
       }
-    }
-  });
+    });
+  }
 });

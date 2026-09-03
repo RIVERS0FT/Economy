@@ -9,6 +9,7 @@ import { FrostedGlassSurface } from '../components/ui/FrostedGlassSurface';
 import { PageRouter } from '../pages/PageRouter';
 import { useGameTutorial, type TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { useOnlineAutoTrade, type OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineAutoTrade';
+import { useOnlineTransport } from '../transport/useOnlineTransport';
 import { useGameViewModel, type LoadedGameViewModel } from './gameViewModel';
 import { useAdaptivePolling } from './useAdaptivePolling';
 import '../styles/game-guide.css';
@@ -40,6 +41,7 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
   const autoTrade = useOnlineAutoTrade(pollingModel, {
     onSale: tutorial.recordAutoSellCompletion,
   });
+  useOnlineTransport(pollingModel);
   const tutorialModel = useMemo<TutorialAwareGameViewModel>(() => ({
     ...pollingModel,
     tutorial,

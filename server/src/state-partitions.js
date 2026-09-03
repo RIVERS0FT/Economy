@@ -30,7 +30,6 @@ const MARKET_KEYS = new Set([
   'provinceFacilityMarkets',
   'orders',
   'facilityListings',
-  'transportShipments',
   'valuationPrices',
   'marketPrice',
   'marketPriceHistory',

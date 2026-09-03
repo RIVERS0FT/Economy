@@ -261,6 +261,8 @@ for (const [path, text] of [
   ['docs/CI_EXECUTION_DESIGN.md', '只要选择器要求浏览器验证，PR 与非 `main` push 的浏览器硬门禁固定拆成四个独立 shard'],
   ['docs/CI_EXECUTION_DESIGN.md', '不得通过提高 Job 超时'],
   ['docs/CI_EXECUTION_DESIGN.md', 'ECONOMY_PLAYWRIGHT_SHARD=N/4'],
+  ['docs/CI_EXECUTION_DESIGN.md', '必须在测试声明期按视口生成独立 Playwright test'],
+  ['docs/CI_EXECUTION_DESIGN.md', '再使用 `expect.poll` 条件轮询读取 computed style'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得显示没有实际运行效果的“界面音效”或“画面性能”控件'],
   ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '礼品码列表和兑换记录可能持续增长'],
 ]) requireText(path, text);
