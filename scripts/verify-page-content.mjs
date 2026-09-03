@@ -60,7 +60,7 @@ for (const text of [
   '图标式快捷生产设置',
   '`ProvincePage` 内的市场与建筑分区仍始终是地图所打开当前州的本地视图',
   '概览无论解锁状态都显示官方常住人口',
-  '市场无论解锁状态都允许查看商品目录、行情和订单簿',
+  '市场无论解锁状态都允许查看商品目录、今日价格和真实成交行情',
   '建筑与仓库只有已解锁州才显示经营内容',
   '一级市场商品的地区行情列表与一级建筑工厂的地区列表只允许出现当前玩家已解锁州',
   '邀请卡与礼品码兑换唯一归属商店',
@@ -343,7 +343,7 @@ forbidText('src/pages/GlobalMarketPage.tsx', '筛选与排序');
 forbidText('src/pages/MarketPage.tsx', '筛选与排序');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '商品目录 → 商品全局详情 → 地区商品详情');
 requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '未解锁州的地区概览仍公开官方常住人口');
-requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '地区市场允许只读查看行情与订单簿');
+requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '地区市场允许只读查看今日官方价格与真实成交行情');
 requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', '仅已解锁州显示本地库存内容');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '建筑与仓库只有已解锁州才显示经营内容');
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '筛选默认折叠且不提供商品名称搜索框');
