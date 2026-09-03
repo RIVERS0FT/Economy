@@ -346,8 +346,8 @@ for (const path of sourceFiles('src')) {
 const buildingsSource = read('src/pages/BuildingsPage.tsx');
 assert.equal(
   (buildingsSource.match(/void model\.refresh\(\{ mode: 'authoritative' \}\);/g) || []).length,
-  2,
-  '建厂采购创建与取消的兼容路径仍必须在动作确认后后台补拉状态',
+  0,
+  '建厂缺料已改为报价后原子即时购齐并建造，不得保留创建/取消挂单后的后台状态补拉路径',
 );
 assert.equal(
   (buildingsSource.match(/await model\.refresh\(\{ mode: 'authoritative' \}\);/g) || []).length,
