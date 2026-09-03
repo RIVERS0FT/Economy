@@ -28,6 +28,7 @@ test('official-price missing-material quote is read-only and complete', () => {
     }, now + 3);
     assert.equal(response.serverNow, now + 3);
     assert.equal(response.quote.complete, true);
+    assert.ok(response.quote.estimatedTotal > 0);
     assert.equal(
       response.quote.missingQuantity,
       ranch.buildInputs.reduce((sum, input) => sum + input.quantity, 0),
