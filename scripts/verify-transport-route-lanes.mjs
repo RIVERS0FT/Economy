@@ -11,6 +11,7 @@ import { capitalPairKey } from './transport-capital-route-core.mjs';
 
 const read = (path) => readFileSync(path, 'utf8');
 const networkDesign = read('docs/TRANSPORT_NETWORK_GEOMETRY_DESIGN.md');
+const mapDesign = read('docs/STRATEGIC_MAP_RENDERING_DESIGN.md');
 const warehouseDesign = read('docs/WAREHOUSE_EXPANSION_DESIGN.md');
 const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');
 const routeDraftContext = read('src/components/shell/TransportRouteDraftContext.tsx');
@@ -33,12 +34,13 @@ for (const text of [
   '共享同一运输方式和物理区段时允许完全共线',
   '不得为了区分玩家路线生成平行车道',
   '公路沿公路折线、铁路沿铁路折线、航空沿抛物线采样点',
-  '高亮只能改变既有路线的强调样式，不得改变几何',
 ]) assert.ok(networkDesign.includes(text), `运输路网几何设计缺少规则：${text}`);
-
+for (const text of ['不得生成平行车道', '高亮必须在这一个实例上', '往返路线到达终点后只反转同一条正式几何']) {
+  assert.ok(mapDesign.includes(text), `战略地图渲染设计缺少运输视觉规则：${text}`);
+}
 assert.ok(
   warehouseDesign.includes('距离统一使用 `shared/provinces.json` 州中心经纬度的球面距离；首府坐标只用于可视化，不参与经济数值'),
-  '运输经济距离必须继续使用州中心球面距离，地图路网只用于可视化。',
+  '运输经济距离必须继续使用州中心球面距离，地图几何只用于可视化。',
 );
 
 for (const text of [
@@ -49,8 +51,13 @@ for (const text of [
   'onMouseEnter={() => setHighlightedRouteId(route.id)}',
   'onFocus={() => setHighlightedRouteId(route.id)}',
   'setHighlightedRouteId(detailRouteId);',
+  'return () => setHighlightedRouteId(null);',
 ]) assert.ok(transportPage.includes(text), `运输路线列表或详情缺少 routeId 高亮：${text}`);
-assert.ok(strategicWorkspace.includes('const highlightedRouteId = routeDraft?.highlightedRouteId;'), '战略地图必须消费路线高亮 ID');
+for (const text of [
+  'const highlightedRouteId = routeDraft?.highlightedRouteId ?? null;',
+  "kind: route.id === highlightedRouteId ? 'highlight' : 'saved'",
+]) assert.ok(strategicWorkspace.includes(text), `战略地图必须消费路线高亮 ID 并原地切换样式：${text}`);
+assert.equal(strategicWorkspace.includes('transportRoutes.find((route) => route.id === highlightedRouteId)'), false, '高亮不得创建第二条路线 overlay');
 
 for (const text of [
   'createProvinceMapTransportPhysicalPaths',
@@ -72,11 +79,13 @@ for (const text of [
   'AIR_SAMPLE_STEPS',
   'quadraticPoint',
   "if (mode === 'air')",
-  "path: `M${formatGeometryValue(start.x)} ${formatGeometryValue(start.y)} Q",
+  'provinceMapAirRouteControlPoint',
+  "return `M${formatGeometryValue(segment.start.x)} ${formatGeometryValue(segment.start.y)} Q",
   'laneOffset: 0',
   'returnPath: null',
+  'points: [...reverse.points].reverse()',
 ]) assert.ok(layoutSource.includes(text), `路线布局缺少统一路网或航空抛物线边界：${text}`);
-for (const forbidden of ['offsetPolyline(', 'participantsByEdge', 'laneIndex =', 'canonicalPathNormal(']) {
+for (const forbidden of ['DEFAULT_LANE_GAP', 'offsetPolyline(', 'participantsByEdge', 'laneIndex =', 'canonicalPathNormal(']) {
   assert.equal(layoutSource.includes(forbidden), false, `路线布局不得恢复并排车道算法：${forbidden}`);
 }
 for (const text of [
@@ -113,9 +122,7 @@ for (const mode of ['road', 'rail']) {
   assert.equal(Object.keys(routes).length, expectedPairCount, `${mode} 首府对快照必须完整`);
   for (let leftIndex = 0; leftIndex < provinces.length - 1; leftIndex += 1) {
     for (let rightIndex = leftIndex + 1; rightIndex < provinces.length; rightIndex += 1) {
-      const left = provinces[leftIndex];
-      const right = provinces[rightIndex];
-      const key = capitalPairKey(left.id, right.id);
+      const key = capitalPairKey(provinces[leftIndex].id, provinces[rightIndex].id);
       const coordinates = routes[key];
       assert.ok(Array.isArray(coordinates) && coordinates.length >= 2, `${mode} 缺少首府对 ${key}`);
       assert.ok(coordinates.length <= 96, `${mode} 首府对 ${key} 超过 96 个折点`);
@@ -160,10 +167,6 @@ assert.equal(shared.laneCountByEdge.get('road|A:B'), 1, '物理区段不得再�
 assert.equal(sharedFirst.returnPath, null);
 assert.equal(sharedSecond.returnPath, null);
 
-const reverse = layoutProvinceMapRoutes([
-  route('reverse-route', ['B', 'A']),
-], points, physicalPaths).byLaneOwnerId.get('reverse-route');
-assert.ok(reverse);
 const forwardBase = provinceMapRouteBasePointsForDirection('road', 'A', 'B', points, physicalPaths);
 const reverseBase = provinceMapRouteBasePointsForDirection('road', 'B', 'A', points, physicalPaths);
 assert.deepEqual(reverseBase?.points, [...(forwardBase?.points ?? [])].reverse(), '公路正反向必须复用同一中心线并只反转点序');
