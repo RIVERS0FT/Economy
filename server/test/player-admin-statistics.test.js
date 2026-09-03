@@ -146,6 +146,7 @@ test('player statistics record successful economic actions once and keep reads r
     assert.equal(statistics.participation.rows.find((row) => row.id === 'open-auction')?.count, 1);
     assert.equal(statistics.wealth.composition.commodities, 63);
     assert.equal(statistics.wealth.composition.frozen, 21);
+    assert.equal(statistics.wealth.unpricedAssetPlayers, 0);
     assert.notEqual(statistics.wealth.composition.commodities, 9 * 111);
     assert.equal(statistics.range.key, '30d');
     assert.equal(statistics.range.timeZone, 'Asia/Shanghai');
