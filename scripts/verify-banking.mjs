@@ -86,18 +86,37 @@ for (const text of [
 ]) requireText('src/config/navigation.ts', text);
 requireText('src/pages/PageRouter.tsx', "import('./BankPage')");
 for (const text of [
-  'title="银行"',
+  '<PageLayout title="银行">',
   '<AssetOverviewPanel model={model} />',
+  'title="资金管理"',
   'bank-account-balance-strip',
   '今日计息余额',
-  '存款利息与周结算',
-  '工厂抵押贷款',
+  'bank-transfer-direction',
+  'aria-label="资金转移方向"',
+  '>25%</Button>',
+  '>50%</Button>',
+  '>最大</Button>',
+  '本周资金计划',
+  'title="工厂抵押融资"',
+  'bank-collateral-list',
+  'aria-label="可抵押工厂"',
+  'bank-loan-decision',
+  '授信利用率',
+  'role="progressbar"',
+  '剩余授信',
   '抵押物审慎估值',
   '最高可贷额度',
   '贷款本金会同时增加等额负债',
   '成功经济操作会激活本周',
   '抵押工厂继续生产',
+  'bank-history-filters',
 ]) requireText('src/pages/BankPage.tsx', text);
+for (const text of [
+  'description="统一查看资产构成',
+  '<table className="bank-collateral-table">',
+  'bank-collateral-table-wrap',
+  '领取利息',
+]) forbidText('src/pages/BankPage.tsx', text);
 for (const text of ['bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay']) {
   requireText('src/api/game.ts', text);
   requireText('src/app/gameViewModel.ts', text);
@@ -116,7 +135,14 @@ for (const text of [
   '本金发行与等额负债同步发生',
   '净资产',
 ]) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
-for (const text of ['固定日利率', '每日固定 1%', '预计 10% 周扣除']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+for (const text of [
+  '固定日利率',
+  '每日固定 1%',
+  '预计 10% 周扣除',
+  '页面顺序固定为“资产总览／资金管理／工厂抵押融资／银行记录”',
+  '授信利用率',
+  '连续抵押列表',
+]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
   '每日固定 1%',
   '贷款利息池优先支付',
@@ -125,9 +151,9 @@ for (const text of [
   '业务模块不得自行使用 `value * 100`、`value * 1_000_000`',
 ]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 for (const text of ['抵押数量必须继续计入当前或下一周期生产能力', '可转让数量', 'mortgagedCount']) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
-for (const text of ['| 银行 | `bank` | `BankPage`', '十一个业务导航按钮', '资产总览', '存款账户', '额度评估']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+for (const text of ['| 银行 | `bank` | `BankPage`', '十一个业务导航按钮', '资产总览', '资金管理', '额度评估']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of ['`banking.js`', '/api/game/bank/deposits', '银行每日结息']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
-requireText('docs/UI_DESIGN_SYSTEM.md', '`src/styles/bank.css`');
+for (const text of ['`src/styles/bank.css`', '授信利用率', '不得依赖横向滚动']) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 for (const text of [
   'deposits and withdrawals move existing funds without changing net assets',
@@ -142,7 +168,12 @@ for (const text of [
 ]) requireText('server/test/banking.test.js', text);
 
 for (const text of ['<BankPage model={model} />', 'version: 26']) requireText('tests/browser/bank-runtime-harness.tsx', text);
-for (const text of ['transparent collateral assessment', 'stacks safely on mobile', 'scrollWidth <= element.clientWidth + 1']) requireText('tests/browser/bank-runtime.spec.ts', text);
+for (const text of [
+  'transparent credit utilization',
+  'without a collateral horizontal table',
+  "getByRole('progressbar', { name: '授信利用率' })",
+  'scrollWidth <= element.clientWidth + 1',
+]) requireText('tests/browser/bank-runtime.spec.ts', text);
 requireText('bank-runtime-test.html', '/tests/browser/bank-runtime-harness.tsx');
 
 forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '2%／3%／5%');
@@ -159,10 +190,9 @@ forbidText('server/src/banking.js', 'BANK_INTEREST_MICROS_PER_CREDIT');
 forbidText('server/src/banking.js', 'Math.round(poolCredits *');
 forbidText('server/src/banking.js', 'pendingJoinCount');
 forbidText('server/test/banking.test.js', 'participatingCount: 0, pendingJoinCount: 0');
-forbidText('src/pages/BankPage.tsx', '领取利息');
 
 if (failures.length) {
   console.error(`银行与存款利息验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('银行验证通过：存取款守恒、抵押生产边界、违约处置不恢复退役工厂过渡字段、净资产、透明额度、期限利率、活跃周每日固定 1%、贷款利息池优先支付、补贴发行、周结算和统一截止时间均已锁定。');
+console.log('银行验证通过：现有存取款守恒、抵押生产、净资产、期限利率与活跃周结息规则保持不变，资金管理、连续抵押列表、授信利用率、移动端无横向抵押表格与权威流水筛选均已锁定。');
