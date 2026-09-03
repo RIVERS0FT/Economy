@@ -1,0 +1,26 @@
+name: Restore transport design boundary
+
+on:
+  push:
+    branches:
+      - codex/daily-system-market
+    paths:
+      - .github/workflows/codex-restore-transport-design-boundary.yml
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: node scripts/codex-restore-transport-design-boundary.mjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "恢复运输设计权威边界"
+          git push origin HEAD:codex/daily-system-market
