@@ -106,10 +106,10 @@ for (const text of [
 ]) requireText(productDesignPath, text);
 for (const text of [
   '工作台｜合同市场｜我的合同｜历史', '默认进入“工作台”', '左侧选择、右侧完整详情',
-  '合同市场按领域、合作方向、地区和商品筛选', '不得恢复合同广场与我的合同桌面常驻双栏',
+  '合同市场按领域、合作方向、地区和商品筛选', '不得恢复合同市场与我的合同桌面常驻双栏',
 ]) requireText(designPath, text);
 for (const text of [
-  '合同页作为当前对象卡样板', '公开合同和进行中合同逐份使用独立对象卡',
+  '合同页作为当前对象卡样板', '当前选中的公开合同或进行中合同使用独立对象卡',
   '合同顶部四项摘要使用无逐项圆角的同一摘要条',
 ]) requireText(uiDesignPath, text);
 for (const text of ['公开合同和进行中合同必须保持对象卡边界', '页面摘要指标属于同一比较条', '正文对象卡禁止 `backdrop-filter` 和高层浮动阴影']) requireText(surfaceDesignPath, text);
