@@ -105,7 +105,6 @@ jobs:
               raise SystemExit('页面内容 verifier 锁定州 forbid 区块数量异常')
           page_verifier.write_text(text.replace(old_forbid, new_forbid, 1), encoding='utf-8')
 
-          # Province access is all-48, but population-demand activation remains tied to economic footprints.
           baseline_path = Path('server/src/state-economic-baselines.js')
           text = baseline_path.read_text(encoding='utf-8')
           old_unlock_demand = "    for (const provinceId of player?.unlockedProvinces || []) {\n      const id = String(provinceId || '');\n      if (provinceById.has(id)) active.add(id);\n    }\n"
@@ -130,28 +129,7 @@ jobs:
           transport_test = Path('server/test/transport.test.js')
           text = transport_test.read_text(encoding='utf-8')
           pattern = r"test\('route validation still enforces unlocked ordered stops and route count limits', \(\) => \{.*?\n\}\);\n\ntest\('current leg is the only transport deadline"
-          replacement = """test('route validation ignores legacy access fields while enforcing ordered stops and route count limits', () => {
-  const world = createWorld(now);
-  const player = unlockedPlayer(world, alice, 1_000_000);
-
-  const duplicate = createRoute(world, alice, { viaProvinceIds: ['130000'], destinationProvinceId: '130000' });
-  assert.equal(duplicate.ok, false);
-  assert.match(duplicate.message, /站点不能重复/);
-
-  player.unlockedProvinces = ['110000'];
-  const unrestricted = createRoute(world, alice, { destinationProvinceId: '130000' }, now + 2);
-  assert.equal(unrestricted.ok, true);
-
-  for (let index = 1; index < TRANSPORT_MAX_ROUTES_PER_PLAYER; index += 1) {
-    const result = createRoute(world, alice, { destinationProvinceId: index % 2 === 0 ? '130000' : '120000' }, now + 10 + index);
-    assert.equal(result.ok, true);
-  }
-  const over = createRoute(world, alice, {}, now + 100);
-  assert.equal(over.ok, false);
-  assert.match(over.message, /路线不能超过/);
-});
-
-test('current leg is the only transport deadline"""
+          replacement = "test('route validation ignores legacy access fields while enforcing ordered stops and route count limits', () => {\n  const world = createWorld(now);\n  const player = unlockedPlayer(world, alice, 1_000_000);\n\n  const duplicate = createRoute(world, alice, { viaProvinceIds: ['130000'], destinationProvinceId: '130000' });\n  assert.equal(duplicate.ok, false);\n  assert.match(duplicate.message, /站点不能重复/);\n\n  player.unlockedProvinces = ['110000'];\n  const unrestricted = createRoute(world, alice, { destinationProvinceId: '130000' }, now + 2);\n  assert.equal(unrestricted.ok, true);\n\n  for (let index = 1; index < TRANSPORT_MAX_ROUTES_PER_PLAYER; index += 1) {\n    const result = createRoute(world, alice, { destinationProvinceId: index % 2 === 0 ? '130000' : '120000' }, now + 10 + index);\n    assert.equal(result.ok, true);\n  }\n  const over = createRoute(world, alice, {}, now + 100);\n  assert.equal(over.ok, false);\n  assert.match(over.message, /路线不能超过/);\n});\n\ntest('current leg is the only transport deadline"
           text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
           if count != 1:
               raise SystemExit('运输旧解锁测试块数量异常')
