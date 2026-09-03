@@ -38,7 +38,7 @@ for (const [source, text, message] of [
   [globalMarket, '<MarketCommodityHeader', '商品全局详情地区列表必须复用共享商品表头。'],
   [globalMarket, '<MarketCommodityRow', '商品全局详情地区列表必须复用共享商品行。'],
   [globalMarket, '<EmbeddedMarketPage model={model} embedded />', '地区商品钻取必须复用现有 MarketPage。'],
-  [provincePage, '<EmbeddedMarketPage model={model} embedded readOnly={false} />', '州级市场必须直接复用可交易 MarketPage。'],
+  [provincePage, '<EmbeddedMarketPage model={model} embedded />', '州级市场必须直接复用可交易 MarketPage。'],
   [marketPage, 'function MarketImmediateTradeEntry({', '地区 MarketPage 必须使用即时交易入口。'],
   [marketPage, '<small>今日成交价</small>', '地区 MarketPage 必须显示今日成交价。'],
   [marketPage, 'id="market-trade-quantity"', '地区 MarketPage 必须保留数量输入。'],

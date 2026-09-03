@@ -333,7 +333,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
         {activeSection === 'overview' ? <ProvinceOverviewSection model={model} /> : null}
         {activeSection === 'market' ? (
           <Suspense fallback={<ProvinceSectionLoading />}>
-            <EmbeddedMarketPage model={model} embedded readOnly={false} />
+            <EmbeddedMarketPage model={model} embedded />
           </Suspense>
         ) : null}
         {activeSection === 'buildings' ? (

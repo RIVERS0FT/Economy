@@ -217,13 +217,11 @@ function MarketImmediateTradeEntry({
 export function MarketPage({
   model,
   embedded = false,
-  readOnly = false,
   facilityAssetId,
   onBackFromFacilityAsset,
 }: {
   model: LoadedGameViewModel;
   embedded?: boolean;
-  readOnly?: boolean;
   facilityAssetId?: string;
   onBackFromFacilityAsset?: () => void;
 }) {
@@ -514,14 +512,7 @@ export function MarketPage({
               <span><small>24h 成交量</small><strong><CompactNumber value={marketVolume24h} /></strong></span>
               <span><small>下次调价</small><strong>{typeof nextPriceAt === 'number' ? formatTime(nextPriceAt) : '次日 00:00'}</strong></span>
             </div>
-            {readOnly ? (
-              <section className="order-entry market-trade-entry market-trade-readonly" aria-labelledby="market-immediate-trade-title">
-                <h3 id="market-immediate-trade-title" className="market-trade-section-title">即时交易</h3>
-                <StatusTag tone="warning">只读</StatusTag>
-                <p className="muted">该地区尚未解锁，市场仅供查看。</p>
-              </section>
-            ) : (
-              <MarketImmediateTradeEntry
+            <MarketImmediateTradeEntry
                 key={`${assetId}:${orderSide}`}
                 assetId={assetId}
                 assetName={assetName}
@@ -535,7 +526,6 @@ export function MarketPage({
                 placeAssetOrder={placeAssetOrder}
                 showResult={showResult}
               />
-            )}
           </section>
         ) : (
           <Panel className="widget market-trade-card">
@@ -545,6 +535,7 @@ export function MarketPage({
         )}
 
         <Panel className="widget span-3 market-account-panel">
+          <section className="local-trades-section">
           <div className="local-trades-heading">
             <WidgetHeading title={`${assetName}最近成交`} />
             <Button variant="compact" onClick={clearLocalTrades} disabled={localTrades.length === 0}>清除全部本地成交</Button>
@@ -583,6 +574,7 @@ export function MarketPage({
               )}
             />
           )}
+          </section>
         </Panel>
       </div>
     </div>

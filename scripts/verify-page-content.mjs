@@ -150,7 +150,7 @@ for (const text of [
 ]) forbidText('src/pages/PageRouter.tsx', text);
 
 for (const text of [
-  '<EmbeddedMarketPage model={model} embedded readOnly={false} />',
+  '<EmbeddedMarketPage model={model} embedded />',
   '<EmbeddedBuildingsPage',
   'onDetailFacilityChange={handleFacilityDetailChange}',
   "import stateEconomicBaselines from '../../shared/us-state-economic-baselines.json';",
