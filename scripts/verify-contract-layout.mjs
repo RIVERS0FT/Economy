@@ -126,7 +126,7 @@ for (const text of [
   "getByText('完成事实'", "getByText('我的履约档案'", 'auditRequestCount()',
 ]) requireText(browserTestPath, text);
 for (const text of ['independent contract cards keep object boundaries and warning tint', '.contract-card--attention', '.contract-card--normal', 'normalStyle.borderRadius', 'normalStyle.backdropFilter', 'summaryStyle.borderRadius']) requireText(attentionBrowserTestPath, text);
-for (const text of ['contract core workspace switches between workbench market active and history views', "getByRole('region', { name: '合同工作台' })", "getByRole('region', { name: '合同市场' })", "getByRole('region', { name: '我的合同' })"]) requireText(workspaceTestPath, text);
+for (const text of ['contract core workspace switches between workbench market active and history views', "getByRole('tabpanel', { name: '合同工作台' })", "getByRole('tabpanel', { name: '合同市场' })", "getByRole('tabpanel', { name: '我的合同' })"]) requireText(workspaceTestPath, text);
 for (const text of ["import { ContractPage } from '../../src/pages/ContractPage';", '<ContractPage model={model} />', "id: 'contract-active'", 'renewalProposal:', "id: 'contract-active-normal'", "supplyMode: 'daily'", "dailyMaxQuantity: 60", "id: 'contract-open'"]) requireText(harnessPath, text);
 requireText(formVerifierPath, "'src/pages/ContractWorkspacePage.tsx'");
 for (const text of ['"verify:contract-layout": "node scripts/verify-contract-layout.mjs"', 'node scripts/verify-contract-layout.mjs']) requireText(packagePath, text);

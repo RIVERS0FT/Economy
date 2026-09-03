@@ -105,7 +105,7 @@ test('desktop contract page prioritizes workbench and master detail contract man
   await expect(page.locator('.page-fixed-header').getByRole('button', { name: '发布合同', exact: true })).toHaveCount(0);
   expect(await gridTrackCount(page.locator('.ui-page-stack > .contract-summary-grid'))).toBe(4);
   expect(await gridTrackCount(page.locator('.contract-master-detail').first())).toBe(2);
-  await expect(page.locator('.contract-master-list-item')).toHaveCount(2);
+  await expect(page.locator('.contract-master-list-item')).toHaveCount(1);
   await expect(page.locator('.contract-master-detail-panel .contract-card')).toHaveCount(1);
   await expect(page.getByText('我的履约档案', { exact: true })).toBeVisible();
   await expectWorkspaceTabs(page, 4);
