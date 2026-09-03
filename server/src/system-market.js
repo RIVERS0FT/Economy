@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
 import { isOpenOrder, orderKind } from './order-identity.js';
-import { getOrderBookSide, recordOrderBookReduction } from './order-book-runtime.js';
+import { recordOrderBookReduction } from './order-book-runtime.js';
 import {
   PRICE_MAX_MULTIPLIER,
   PRICE_MIN_MULTIPLIER,
@@ -10,6 +10,7 @@ import {
   SYSTEM_PRICE_MAX_CHANGE_BPS,
 } from './market-demand/catalog.js';
 import { clamp, round4 } from './market-demand/math.js';
+import { dailyCheckInPeriodFor, checkInDateKey } from './daily-check-in.js';
 import { ceilPlayerMoney, floorPlayerMoney, multiplyMoneyByInteger, ORDER_PRICE_TICK, roundInternalMoney } from './money.js';
 import { creditPopulationEmployment } from './population-economy.js';
 import {
@@ -18,6 +19,13 @@ import {
   normalizeProvinceId,
   provinceScopedKey,
 } from './provinces.js';
+
+export const DAILY_SYSTEM_MARKET_VERSION = 2;
+
+function positiveInteger(value) {
+  const normalized = Math.floor(Number(value || 0));
+  return Number.isSafeInteger(normalized) && normalized > 0 ? normalized : 0;
+}
 
 export function createSystemMarketRuntime({
   products,
@@ -55,19 +63,49 @@ export function createSystemMarketRuntime({
     } else {
       market.officialPrice = clampSystemPrice(product, market.officialPrice);
     }
-    if (!Number.isFinite(Number(market.nextPriceAt))) market.nextPriceAt = now + constants.demandCycleMs;
-    market.cycleBuyQuantity = Math.max(0, Math.floor(Number(market.cycleBuyQuantity || 0)));
-    market.cycleSellQuantity = Math.max(0, Math.floor(Number(market.cycleSellQuantity || 0)));
+
+    const period = dailyCheckInPeriodFor(now);
+    if (Number(market.systemPriceVersion || 0) < DAILY_SYSTEM_MARKET_VERSION) {
+      // The retired five-minute counters can represent only a partial day. Do not reinterpret them as yesterday.
+      market.systemPriceVersion = DAILY_SYSTEM_MARKET_VERSION;
+      market.priceDateKey = period.todayKey;
+      market.nextPriceAt = period.nextResetAt;
+      market.todayBuyQuantity = 0;
+      market.todaySellQuantity = 0;
+      market.previousDayBuyQuantity = 0;
+      market.previousDaySellQuantity = 0;
+      market.cycleBuyQuantity = 0;
+      market.cycleSellQuantity = 0;
+      market.lastImbalance = 0;
+      market.lastPriceChangeBps = 0;
+      market.lastPriceAt = now;
+      return market;
+    }
+
+    if (typeof market.priceDateKey !== 'string' || !market.priceDateKey) {
+      market.priceDateKey = period.todayKey;
+    }
+    market.todayBuyQuantity = positiveInteger(market.todayBuyQuantity ?? market.cycleBuyQuantity);
+    market.todaySellQuantity = positiveInteger(market.todaySellQuantity ?? market.cycleSellQuantity);
+    market.previousDayBuyQuantity = positiveInteger(market.previousDayBuyQuantity);
+    market.previousDaySellQuantity = positiveInteger(market.previousDaySellQuantity);
+    // Keep old fields as read-only migration aliases while all new pricing logic uses daily counters.
+    market.cycleBuyQuantity = market.todayBuyQuantity;
+    market.cycleSellQuantity = market.todaySellQuantity;
     market.lastImbalance = Number.isFinite(Number(market.lastImbalance)) ? Number(market.lastImbalance) : 0;
     market.lastPriceChangeBps = Number.isFinite(Number(market.lastPriceChangeBps))
       ? Math.trunc(Number(market.lastPriceChangeBps))
       : 0;
     if (!Number.isFinite(Number(market.lastPriceAt))) market.lastPriceAt = now;
+    if (!Number.isFinite(Number(market.nextPriceAt)) || market.priceDateKey === period.todayKey) {
+      market.nextPriceAt = period.nextResetAt;
+    }
     return market;
   }
 
   function recordSystemAudit(world, market, product, { side, quantity, total, netTotal = total }) {
-    world.systemMarketAudit ||= { version: 1, products: {} };
+    world.systemMarketAudit ||= { version: 2, products: {} };
+    world.systemMarketAudit.version = 2;
     const key = provinceScopedKey(market.provinceId, product.id);
     const audit = world.systemMarketAudit.products[key] ||= {
       provinceId: market.provinceId,
@@ -88,6 +126,95 @@ export function createSystemMarketRuntime({
     audit.fillCount = Math.max(0, Number(audit.fillCount || 0)) + 1;
   }
 
+  function recordDailyVolume(market, side, quantity) {
+    if (side === 'buy') market.todayBuyQuantity = positiveInteger(market.todayBuyQuantity) + quantity;
+    else market.todaySellQuantity = positiveInteger(market.todaySellQuantity) + quantity;
+    market.cycleBuyQuantity = market.todayBuyQuantity;
+    market.cycleSellQuantity = market.todaySellQuantity;
+  }
+
+  function settleImmediatePlayerTrade(world, {
+    userId,
+    productId,
+    provinceId = DEFAULT_PROVINCE_ID,
+    side,
+    quantity,
+    createdAt = Date.now(),
+  }) {
+    const normalizedQuantity = positiveInteger(quantity);
+    if ((side !== 'buy' && side !== 'sell') || normalizedQuantity < 1) {
+      return { ok: false, message: '即时交易参数无效' };
+    }
+    const product = productFor(productId);
+    const market = marketFor(world, product.id, createdAt, provinceId);
+    ensureSystemPrice(market, product, createdAt);
+    const player = world.players?.[String(userId)];
+    if (!player) return { ok: false, message: '玩家不存在' };
+    const price = market.officialPrice;
+    const total = multiplyMoneyByInteger(price, normalizedQuantity);
+    if (total === null) return { ok: false, message: '交易总额超出系统可表示范围' };
+
+    let fee = 0;
+    let netTotal = total;
+    if (side === 'buy') {
+      if (Number(player.credits || 0) < total) return { ok: false, message: '可用资金不足' };
+      player.credits = roundInternalMoney(Number(player.credits || 0) - total) || 0;
+      inventoryFor(player, product.id, market.provinceId).available += normalizedQuantity;
+      player.stats ||= {};
+      player.stats.commodityVolume = Number(player.stats.commodityVolume || 0) + normalizedQuantity;
+      player.stats.boughtGoods = Number(player.stats.boughtGoods || 0) + normalizedQuantity;
+      addLedger(player, 'market_trade', -total, `按今日系统价买入 ${normalizedQuantity} 个${product.name}，成交价 ${price}`, createdAt);
+    } else {
+      const inventory = inventoryFor(player, product.id, market.provinceId);
+      if (Number(inventory.available || 0) < normalizedQuantity) return { ok: false, message: '可用商品库存不足' };
+      const settlement = applyMarketSellFee({ ownerType: 'player', side: 'sell', fills: [] }, total);
+      fee = settlement.fee;
+      netTotal = settlement.netTotal;
+      inventory.available = Math.max(0, Number(inventory.available || 0) - normalizedQuantity);
+      player.credits = roundInternalMoney(Number(player.credits || 0) + netTotal) || 0;
+      player.stats ||= {};
+      player.stats.commodityVolume = Number(player.stats.commodityVolume || 0) + normalizedQuantity;
+      player.stats.soldGoods = Number(player.stats.soldGoods || 0) + normalizedQuantity;
+      if (fee > 0) {
+        creditPopulationEmployment(world, fee, 'marketService');
+        player.stats.marketServiceFees = Number(player.stats.marketServiceFees || 0) + fee;
+        player.stats.employmentPayments = Number(player.stats.employmentPayments || 0) + fee;
+      }
+      addLedger(
+        player,
+        'market_trade',
+        netTotal,
+        `按今日系统价卖出 ${normalizedQuantity} 个${product.name}，成交价 ${price}，市场服务费 ${fee}`,
+        createdAt,
+      );
+    }
+
+    recordDailyVolume(market, side, normalizedQuantity);
+    recordSystemAudit(world, market, product, { side, quantity: normalizedQuantity, total, netTotal });
+    const fill = {
+      id: `system-fill-${randomUUID()}`,
+      quantity: normalizedQuantity,
+      price,
+      total,
+      fee,
+      netTotal,
+      createdAt,
+    };
+    recordPrice(
+      world,
+      product.id,
+      price,
+      normalizedQuantity,
+      side,
+      createdAt,
+      1,
+      'player',
+      market.provinceId,
+    );
+    return { ok: true, price, quantity: normalizedQuantity, total, fee, netTotal, fill };
+  }
+
+  // Compatibility settlement for legacy player commodity orders encountered before migration.
   function settlePlayerOrderWithSystem(world, order, createdAt) {
     if (order?.ownerType !== 'player' || orderKind(order) !== 'commodity' || !isOpenOrder(order)) return 0;
     const product = productFor(order.productId);
@@ -95,7 +222,7 @@ export function createSystemMarketRuntime({
     ensureSystemPrice(market, product, createdAt);
     const price = market.officialPrice;
     if (Number(order.price) !== price) return 0;
-    const quantity = Math.max(0, Math.floor(Number(order.remaining || 0)));
+    const quantity = positiveInteger(order.remaining);
     if (quantity <= 0) return 0;
     const player = world.players?.[String(order.ownerId)];
     if (!player) return 0;
@@ -111,26 +238,20 @@ export function createSystemMarketRuntime({
       total,
       fee: sellerSettlement.fee,
       netTotal: sellerSettlement.netTotal,
-      counterparty: '系统市场',
-      liquidity: 'taker',
-      makerOrderId: order.id,
-      takerOrderId: order.id,
       createdAt,
     };
     if (order.side === 'buy') {
       const reserved = multiplyMoneyByInteger(order.price, quantity) || 0;
-      player.frozenCredits = roundInternalMoney(player.frozenCredits - reserved) || 0;
+      player.frozenCredits = roundInternalMoney(Number(player.frozenCredits || 0) - reserved) || 0;
       inventoryFor(player, product.id, order.provinceId).available += quantity;
       player.stats ||= {};
       player.stats.commodityVolume = Number(player.stats.commodityVolume || 0) + quantity;
       player.stats.boughtGoods = Number(player.stats.boughtGoods || 0) + quantity;
-      addLedger(player, 'market_trade', -total, `向系统买入 ${quantity} 个${product.name}，系统价 ${price}`, createdAt);
-      market.cycleBuyQuantity = Math.max(0, Math.floor(Number(market.cycleBuyQuantity || 0))) + quantity;
-      recordSystemAudit(world, market, product, { side: 'buy', quantity, total });
+      addLedger(player, 'market_trade', -total, `按今日系统价买入 ${quantity} 个${product.name}，成交价 ${price}`, createdAt);
     } else {
       const inventory = inventoryFor(player, product.id, order.provinceId);
       inventory.frozen = Math.max(0, Number(inventory.frozen || 0) - quantity);
-      player.credits = roundInternalMoney(player.credits + sellerSettlement.netTotal) || 0;
+      player.credits = roundInternalMoney(Number(player.credits || 0) + sellerSettlement.netTotal) || 0;
       player.stats ||= {};
       player.stats.commodityVolume = Number(player.stats.commodityVolume || 0) + quantity;
       player.stats.soldGoods = Number(player.stats.soldGoods || 0) + quantity;
@@ -143,17 +264,17 @@ export function createSystemMarketRuntime({
         player,
         'market_trade',
         sellerSettlement.netTotal,
-        `向系统卖出 ${quantity} 个${product.name}，系统价 ${price}，市场服务费 ${sellerSettlement.fee}`,
+        `按今日系统价卖出 ${quantity} 个${product.name}，成交价 ${price}，市场服务费 ${sellerSettlement.fee}`,
         createdAt,
       );
-      market.cycleSellQuantity = Math.max(0, Math.floor(Number(market.cycleSellQuantity || 0))) + quantity;
-      recordSystemAudit(world, market, product, {
-        side: 'sell',
-        quantity,
-        total,
-        netTotal: sellerSettlement.netTotal,
-      });
     }
+    recordDailyVolume(market, order.side, quantity);
+    recordSystemAudit(world, market, product, {
+      side: order.side,
+      quantity,
+      total,
+      netTotal: sellerSettlement.netTotal,
+    });
     order.remaining = 0;
     order.status = 'filled';
     order.lastFilledAt = createdAt;
@@ -161,50 +282,33 @@ export function createSystemMarketRuntime({
     order.fills.push(fill);
     order.fills = order.fills.slice(-120);
     recordOrderBookReduction(world, order, quantity);
-    recordPrice(
-      world,
-      product.id,
-      price,
-      quantity,
-      order.side,
-      createdAt,
-      1,
-      'player',
-      order.provinceId,
-    );
+    recordPrice(world, product.id, price, quantity, order.side, createdAt, 1, 'player', order.provinceId);
     return quantity;
-  }
-
-  function clearPlayerOrdersAtSystemPrice(world, market, product, now) {
-    const price = market.officialPrice;
-    for (const side of ['sell', 'buy']) {
-      const candidates = getOrderBookSide(world, {
-        provinceId: market.provinceId,
-        assetKind: 'commodity',
-        assetId: product.id,
-        side,
-      });
-      for (const order of candidates) {
-        if (order.ownerType !== 'player' || Number(order.price) !== price || !isOpenOrder(order)) continue;
-        settlePlayerOrderWithSystem(world, order, now);
-      }
-    }
   }
 
   function advancePriceCycle(world, market, product, now) {
     ensureSystemPrice(market, product, now);
-    const buyQuantity = Math.max(0, Math.floor(Number(market.cycleBuyQuantity || 0)));
-    const sellQuantity = Math.max(0, Math.floor(Number(market.cycleSellQuantity || 0)));
+    const period = dailyCheckInPeriodFor(now);
+    if (market.priceDateKey === period.todayKey) return false;
+    const yesterdayKey = checkInDateKey(period.todayStartsAt - 1);
+    const isYesterday = market.priceDateKey === yesterdayKey;
+    const buyQuantity = isYesterday ? positiveInteger(market.todayBuyQuantity) : 0;
+    const sellQuantity = isYesterday ? positiveInteger(market.todaySellQuantity) : 0;
     const baseline = SYSTEM_PRICE_LIQUIDITY_BASELINE;
     const imbalance = (buyQuantity - sellQuantity) / (buyQuantity + sellQuantity + 2 * baseline);
     const rawBps = Math.round(imbalance * SYSTEM_PRICE_K_BPS);
     const changeBps = clamp(-SYSTEM_PRICE_MAX_CHANGE_BPS, SYSTEM_PRICE_MAX_CHANGE_BPS, rawBps);
     const nextPrice = clampSystemPrice(product, market.officialPrice * (1 + changeBps / 10_000));
+    market.previousDayBuyQuantity = buyQuantity;
+    market.previousDaySellQuantity = sellQuantity;
     market.lastImbalance = round4(imbalance);
     market.lastPriceChangeBps = changeBps;
     market.officialPrice = nextPrice;
     market.lastPriceAt = now;
-    market.nextPriceAt = now + constants.demandCycleMs;
+    market.priceDateKey = period.todayKey;
+    market.nextPriceAt = period.nextResetAt;
+    market.todayBuyQuantity = 0;
+    market.todaySellQuantity = 0;
     market.cycleBuyQuantity = 0;
     market.cycleSellQuantity = 0;
     market.priceHistory ||= [];
@@ -214,7 +318,7 @@ export function createSystemMarketRuntime({
       createdAt: now,
     });
     market.priceHistory = market.priceHistory.slice(-constants.maxPricePoints);
-    clearPlayerOrdersAtSystemPrice(world, market, product, now);
+    return true;
   }
 
   function normalizeSystemPrices(world, now = Date.now()) {
@@ -226,11 +330,12 @@ export function createSystemMarketRuntime({
   }
 
   function processPriceCycles(world, now = Date.now()) {
+    const period = dailyCheckInPeriodFor(now);
     for (const market of Object.values(world.markets || {})) {
       if (!market?.productId) continue;
       const product = productFor(market.productId);
       ensureSystemPrice(market, product, now);
-      if (Number(market.nextPriceAt || 0) > now) continue;
+      if (market.priceDateKey === period.todayKey) continue;
       advancePriceCycle(world, market, product, now);
     }
     return world;
@@ -248,6 +353,7 @@ export function createSystemMarketRuntime({
     ensureSystemPrice,
     normalizeSystemPrices,
     processPriceCycles,
+    settleImmediatePlayerTrade,
     settlePlayerOrderWithSystem,
     systemPriceFor,
   };
