@@ -20,11 +20,11 @@
 
 /* viewBox zoom re-rasterizes the visible vectors. Keep the map world filter-free so each frame does not rerun large SVG filters. */
 .province-map-world-shadow {
-  fill: none;
-  stroke: color-mix(in srgb, var(--color-map-region-border) 28%, transparent);
+  fill: none !important;
+  stroke: color-mix(in srgb, var(--color-map-region-border) 28%, transparent) !important;
   stroke-width: 4;
   opacity: .22;
-  filter: none;
+  filter: none !important;
 }
 
 .province-map-region[data-selected='true'],
@@ -61,17 +61,21 @@
   display: none;
 }
 
-.application-map-layer > .strategic-map-lens-bar,
-.transport-map-picking-bar {
-  background: var(--color-surface);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
+.strategic-map-lens-bar,
+.strategic-map-lens-bar.panel,
+.transport-map-picking-bar,
+.transport-map-picking-bar.panel {
+  background: var(--color-surface) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
-.application-map-layer > .strategic-map-lens-bar {
+.strategic-map-lens-bar,
+.strategic-map-lens-bar.panel {
   box-shadow: 0 8px 20px rgb(0 0 0 / 18%);
 }
 
-.transport-map-picking-bar {
+.transport-map-picking-bar,
+.transport-map-picking-bar.panel {
   box-shadow: 0 10px 24px rgb(0 0 0 / 20%);
 }
