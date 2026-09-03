@@ -15,26 +15,26 @@ test('contract core workspace switches between workbench market active and histo
   await page.goto('runtime-test.html?view=contracts');
 
   await expect(page.getByRole('tab', { name: /工作台/ })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('region', { name: '合同工作台' })).toBeVisible();
-  await expect(page.getByRole('region', { name: '合同市场' })).toHaveCount(0);
-  await expect(page.getByRole('region', { name: '我的合同' })).toHaveCount(0);
-  await expect(page.locator('.contract-master-list-item')).toHaveCount(2);
+  await expect(page.getByRole('tabpanel', { name: '合同工作台' })).toBeVisible();
+  await expect(page.getByRole('tabpanel', { name: '合同市场' })).toHaveCount(0);
+  await expect(page.getByRole('tabpanel', { name: '我的合同' })).toHaveCount(0);
+  await expect(page.locator('.contract-master-list-item')).toHaveCount(1);
   await expect(page.locator('.contract-master-detail-panel .contract-card')).toHaveCount(1);
 
   await page.getByRole('tab', { name: /合同市场/ }).click();
-  const market = page.getByRole('region', { name: '合同市场' });
+  const market = page.getByRole('tabpanel', { name: '合同市场' });
   await expect(market).toBeVisible();
   await expect(market.getByText('每日额度', { exact: true })).toBeVisible();
   await expect(market.locator('.contract-master-detail-panel .contract-card')).toHaveCount(1);
 
   await page.getByRole('tab', { name: /我的合同/ }).click();
-  const personal = page.getByRole('region', { name: '我的合同' });
+  const personal = page.getByRole('tabpanel', { name: '我的合同' });
   await expect(personal).toBeVisible();
   await expect(personal.locator('.contract-master-list-item')).toHaveCount(2);
   await expect(personal.locator('.contract-master-detail-panel .contract-card')).toHaveCount(1);
 
   await page.getByRole('tab', { name: '历史', exact: true }).click();
   await expect(page.getByRole('tab', { name: '历史', exact: true })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('region', { name: '历史合同' })).toBeVisible();
+  await expect(page.getByRole('tabpanel', { name: '历史合同' })).toBeVisible();
   await expect(page.locator('.contract-history-panel')).toBeVisible();
 });
