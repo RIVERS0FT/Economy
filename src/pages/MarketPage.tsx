@@ -469,10 +469,12 @@ export function MarketPage({
 
   const detailContent = (
     <div className="market-page-surface market-detail-surface">
-      <Panel className="market-detail-hero">
-        {selectedProduct
-          ? <ProductArtwork productId={selectedProduct.id} />
-          : selectedFacility ? <FacilityIcon facilityTypeId={selectedFacility.id} /> : <FactoryIcon />}
+      <Panel className={`widget market-detail-hero${selectedProduct ? ' market-detail-hero--commodity' : ''}`}>
+        <span className="market-detail-hero__artwork" aria-hidden="true">
+          {selectedProduct
+            ? <ProductArtwork productId={selectedProduct.id} />
+            : selectedFacility ? <FacilityIcon facilityTypeId={selectedFacility.id} /> : <FactoryIcon />}
+        </span>
         <div className="market-detail-hero__metrics">
           {selectedProduct ? (
             <>
