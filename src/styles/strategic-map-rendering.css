@@ -1,0 +1,42 @@
+/* Strategic map rendering owns only the map camera viewport, route strokes and map-only floating surfaces. */
+.province-map-static-viewport,
+.province-map-world-svg {
+  overflow: hidden;
+}
+
+.province-map-camera-surface {
+  transform: none !important;
+  will-change: auto !important;
+  backface-visibility: visible;
+}
+
+.province-map-route[data-transport-mode='road'] .province-map-route-path {
+  stroke-dasharray: none;
+}
+
+.province-map-route[data-transport-mode='rail'] .province-map-route-path {
+  stroke-dasharray: 3 2 10 2;
+}
+
+.province-map-route[data-transport-mode='air'] .province-map-route-path {
+  stroke-dasharray: 12 8;
+}
+
+.province-map-route-return-path {
+  display: none;
+}
+
+.application-map-layer > .strategic-map-lens-bar,
+.transport-map-picking-bar {
+  background: var(--color-surface);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.application-map-layer > .strategic-map-lens-bar {
+  box-shadow: 0 8px 20px rgb(0 0 0 / 18%);
+}
+
+.transport-map-picking-bar {
+  box-shadow: 0 10px 24px rgb(0 0 0 / 20%);
+}
