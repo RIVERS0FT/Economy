@@ -66,7 +66,7 @@ async function mainlandFootprint(page: Page) {
   });
 }
 
-test('world context uses filled 10m land, coastline shadow and the contiguous-US 10m seam while only states stay interactive', async ({ page }) => {
+test('world context uses filled 10m land, filter-free coastline hierarchy and the contiguous-US 10m seam while only states stay interactive', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
@@ -100,7 +100,9 @@ test('world context uses filled 10m land, coastline shadow and the contiguous-US
     expect(await layer.getAttribute('tabindex')).toBeNull();
   }
   await expect(fill).not.toHaveCSS('fill', 'none');
-  await expect(shadow).not.toHaveCSS('filter', 'none');
+  await expect(shadow).toHaveCSS('filter', 'none');
+  await expect(shadow).toHaveCSS('fill', 'none');
+  await expect(shadow).not.toHaveCSS('stroke', 'none');
   await expect(map.locator('.province-map-region')).toHaveCount(48);
   await expect(map.locator('.province-map-region[role="button"]')).toHaveCount(48);
 
