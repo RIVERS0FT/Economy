@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { OnlineAutoTradeController } from '../../auto-trade/useOnlineAutoTrade';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
-import { setContractMarketIntent, type ContractMarketDirection } from '../../contracts/navigation';
+import { setContractMarketIntent } from '../../contracts/navigation';
 import { productionContractStateFromGame } from '../../contracts/types';
 import { formatCurrency } from '../../utils/formatters';
 import { CompactNumber } from '../ui/CompactNumber';
@@ -64,8 +64,8 @@ export function MarketAutoTradePanel({ model, className = '', requestedProductId
 
   if (!product || !status || !buyPolicy || !sellPolicy) return null;
 
-  const openContracts = (direction: ContractMarketDirection) => {
-    setContractMarketIntent(product.id, model.selectedProvinceId, direction);
+  const openContracts = () => {
+    setContractMarketIntent(product.id, model.selectedProvinceId);
     model.setTab('contracts');
   };
 
@@ -96,10 +96,7 @@ export function MarketAutoTradePanel({ model, className = '', requestedProductId
         <div><span>今日采购额度</span><strong><CompactNumber value={purchaseRemaining} /></strong></div>
         <div><span>最低采购合同价</span><strong><CurrencyAmount>{lowestPurchasePrice === null ? '—' : formatCurrency(lowestPurchasePrice)}</CurrencyAmount></strong></div>
       </div>
-      <div className="market-auto-trade-contract-actions">
-        <Button variant="text" onClick={() => openContracts('purchase')}>寻找采购合同</Button>
-        <Button variant="text" onClick={() => openContracts('supply')}>寻找供应合同</Button>
-      </div>
+      <Button variant="text" onClick={openContracts}>查看相关合同</Button>
       <p className="warehouse-auto-trade-note">数量与库存保护由本州工厂的自动经营策略、当前生产配置和合同共同决定；真实买卖仍进入统一商品订单簿。工厂生产只使用同州来源：市场可执行价格高于固定合同价时优先使用合同，否则先用仓库，仓库不足再从市场采购。</p>
     </PagePanel>
   );
