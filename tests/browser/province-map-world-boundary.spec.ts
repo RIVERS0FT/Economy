@@ -22,6 +22,15 @@ async function zoomIn(page: Page, canvas: Locator, times = 5) {
   for (let index = 0; index < times; index += 1) await page.mouse.wheel(0, -420);
 }
 
+async function readCameraTranslation(canvas: Locator) {
+  return canvas.locator('.province-map-camera-surface').evaluate((surface) => new Promise<{ x: number; y: number }>((resolve) => {
+    requestAnimationFrame(() => {
+      const matrix = new DOMMatrixReadOnly(getComputedStyle(surface).transform);
+      resolve({ x: matrix.m41, y: matrix.m42 });
+    });
+  }));
+}
+
 async function mainlandFootprint(page: Page) {
   return page.getByTestId('us-mainland-map').evaluate((map) => {
     const canvas = map.querySelector<HTMLElement>('.province-map-static-viewport');
@@ -109,20 +118,19 @@ test('minimum logical zoom centers the mainland near two thirds of the map and p
   expect(baseline.areaRatio).toBeLessThan(0.70);
   expect(Math.abs(baseline.centerOffsetX)).toBeLessThan(3);
   expect(Math.abs(baseline.centerOffsetY)).toBeLessThan(3);
-  const minimumX = Number(await canvas.getAttribute('data-map-camera-x'));
-  const minimumY = Number(await canvas.getAttribute('data-map-camera-y'));
+  const minimumTranslation = await readCameraTranslation(canvas);
 
   await dragToEdge(page, canvas, 'right', 3);
-  await expect.poll(async () => Math.abs(Number(await canvas.getAttribute('data-map-camera-x')) - minimumX)).toBeLessThan(1);
-  await expect.poll(async () => Math.abs(Number(await canvas.getAttribute('data-map-camera-y')) - minimumY)).toBeLessThan(1);
+  await expect.poll(async () => Math.abs((await readCameraTranslation(canvas)).x - minimumTranslation.x)).toBeLessThan(1);
+  await expect.poll(async () => Math.abs((await readCameraTranslation(canvas)).y - minimumTranslation.y)).toBeLessThan(1);
 
   await zoomIn(page, canvas, 6);
   await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.5);
   await dragToEdge(page, canvas, 'right');
   await expect.poll(async () => Number(await canvas.getAttribute('data-map-pan-clamp-count'))).toBeGreaterThan(0);
-  const rightBoundaryX = Number(await canvas.getAttribute('data-map-camera-x'));
+  const rightBoundary = await readCameraTranslation(canvas);
   await dragToEdge(page, canvas, 'right', 3);
-  await expect.poll(async () => Math.abs(Number(await canvas.getAttribute('data-map-camera-x')) - rightBoundaryX)).toBeLessThan(1);
+  await expect.poll(async () => Math.abs((await readCameraTranslation(canvas)).x - rightBoundary.x)).toBeLessThan(1);
 
   await canvas.dispatchEvent('dblclick', { clientX: 20, clientY: 20 });
   await expect(canvas).toHaveAttribute('data-map-zoom-current', '1.00000');
@@ -133,9 +141,9 @@ test('minimum logical zoom centers the mainland near two thirds of the map and p
 
   await zoomIn(page, canvas, 6);
   await dragToEdge(page, canvas, 'down');
-  const bottomBoundaryY = Number(await canvas.getAttribute('data-map-camera-y'));
+  const bottomBoundary = await readCameraTranslation(canvas);
   await dragToEdge(page, canvas, 'down', 3);
-  await expect.poll(async () => Math.abs(Number(await canvas.getAttribute('data-map-camera-y')) - bottomBoundaryY)).toBeLessThan(1);
+  await expect.poll(async () => Math.abs((await readCameraTranslation(canvas)).y - bottomBoundary.y)).toBeLessThan(1);
 });
 
 test('portrait minimum zoom keeps the whole mainland visible and centered instead of cropping to force the two-thirds target', async ({ page }) => {
