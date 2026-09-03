@@ -93,11 +93,11 @@ export function provinceMapRouteBasePointsForDirection(
     : { points: [...canonical.points].reverse(), networkGeometry: canonical.networkGeometry };
 }
 
-function localNormal(points: ProvinceMapPoint[], index: number) {
-  const previous = points[Math.max(0, index - 1)];
-  const next = points[Math.min(points.length - 1, index + 1)];
-  const dx = next.x - previous.x;
-  const dy = next.y - previous.y;
+function canonicalPathNormal(points: ProvinceMapPoint[]) {
+  const first = points[0];
+  const last = points[points.length - 1];
+  const dx = last.x - first.x;
+  const dy = last.y - first.y;
   const length = Math.hypot(dx, dy);
   if (!(length > POINT_EPSILON)) return { x: 0, y: 0 };
   return { x: -dy / length, y: dx / length };
@@ -105,10 +105,8 @@ function localNormal(points: ProvinceMapPoint[], index: number) {
 
 function offsetPolyline(points: ProvinceMapPoint[], offset: number) {
   if (Math.abs(offset) <= POINT_EPSILON) return points.map((point) => ({ ...point }));
-  return points.map((point, index) => {
-    const normal = localNormal(points, index);
-    return { x: point.x + normal.x * offset, y: point.y + normal.y * offset };
-  });
+  const normal = canonicalPathNormal(points);
+  return points.map((point) => ({ x: point.x + normal.x * offset, y: point.y + normal.y * offset }));
 }
 
 function formatGeometryValue(value: number) {
