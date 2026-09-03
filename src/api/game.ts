@@ -170,6 +170,10 @@ export interface TransportRouteInput {
   tripType?: TransportTripType;
   mode: TransportModeId;
 }
+export interface TransportCargoRequestItem {
+  productId: string;
+  quantity: number;
+}
 export interface FacilityBuildProcurementOptions {
   autoProcure: true;
   maxProcurementTotal: number;
@@ -635,6 +639,25 @@ export const gameActions = {
   deleteTransportRoute: (routeId: string) => postAction('/transport', {
     operation: 'route-delete',
     routeId,
+  }),
+  startTransportCycle: (routeId: string, load: TransportCargoRequestItem[]) => postAction('/transport', {
+    operation: 'cycle-start',
+    routeId,
+    load,
+  }),
+  serviceTransportNode: (
+    routeId: string,
+    cycleId: string,
+    visitIndex: number,
+    unload: TransportCargoRequestItem[],
+    load: TransportCargoRequestItem[],
+  ) => postAction('/transport', {
+    operation: 'node-service',
+    routeId,
+    cycleId,
+    visitIndex,
+    unload,
+    load,
   }),
   bankDeposit: (amount: number) => postAction('/bank/deposits', { amount }),
   bankWithdraw: (amount: number) => postAction('/bank/withdrawals', { amount }),
