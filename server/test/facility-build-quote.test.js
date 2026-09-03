@@ -19,6 +19,7 @@ test('official-price missing-material quote is read-only and complete', () => {
     const state = store.getState(buyer, now + 2);
     const before = store.database.prepare('SELECT revision, state_json, updated_at FROM economy_world WHERE id = 1').get();
     const committedWorldBefore = JSON.stringify(store.worldCache.world);
+    const orderCountBefore = store.worldCache.world.orders.length;
 
     const response = store.getFacilityBuildQuote(buyer, {
       provinceId: DEFAULT_PROVINCE_ID,
@@ -48,6 +49,7 @@ test('official-price missing-material quote is read-only and complete', () => {
       quantity: 1,
     }, now + 4);
     assert.deepEqual(repeated.quote, response.quote);
+    assert.equal(store.worldCache.world.orders.length, orderCountBefore, 'read-only quote must not create player commodity orders');
     const after = store.database.prepare('SELECT revision, state_json, updated_at FROM economy_world WHERE id = 1').get();
     assert.deepEqual(after, before, 'read-only quote must not write the database');
     assert.equal(JSON.stringify(store.worldCache.world), committedWorldBefore, 'read-only quote must not mutate the committed in-memory world');
