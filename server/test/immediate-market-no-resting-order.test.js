@@ -49,4 +49,6 @@ test('manual commodity buys and sells never leave player resting orders or froze
   const completed = world.orders.filter((order) => order.ownerType === 'player' && order.assetKind === 'commodity');
   assert.equal(completed.length, 2);
   assert.ok(completed.every((order) => order.status === 'filled' && order.remaining === 0));
+  assert.ok(completed.every((order) => order.price === market.officialPrice));
+  assert.ok(completed.every((order) => order.fills.length === 1 && order.fills[0].price === market.officialPrice));
 });
