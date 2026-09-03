@@ -9,15 +9,13 @@ import {
   MARKET_DEMAND_PRESERVE_STATE_FROM_VERSION,
   MARKET_DEMAND_PRODUCT_IDS,
 } from './market-demand.js';
-import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
 import { orderAssetId, orderKind } from './order-identity.js';
-import { closeOrderInOrderBook, countOpenOrdersForOwner } from './order-book-runtime.js';
+import { closeOrderInOrderBook } from './order-book-runtime.js';
 import { ensurePopulationEconomy, releasePopulationOrderFunds } from './population-economy.js';
 import { stripMutablePlayerIdentityMirrors } from './player-identity.js';
 import {
   applyChooseStartingProvince,
   applyUnlockProvince,
-  isProvinceUnlocked,
   migrateProvinceAccess,
   provinceUnlockError,
 } from './province-access.js';
@@ -39,6 +37,7 @@ export {
 
 const clone = (value) => structuredClone(value);
 const ORDER_BOOK_INTEGRITY_VERSION = 1;
+const PLAYER_COMMODITY_INSTANT_TRADE_VERSION = 1;
 const C1_INPUT_BALANCE_MODEL_VERSION = 18;
 const C1_INPUT_BALANCE_PRODUCT_IDS = Object.freeze([
   'tools',
@@ -145,11 +144,6 @@ const marketDemand = createMarketDemandRuntime({
   isOpenOrder: (order) => balancedMarket.isOpenOrder(order),
 });
 
-function newestOrdersFirst(left, right) {
-  return Number(right.createdAt || 0) - Number(left.createdAt || 0)
-    || String(right.id || '').localeCompare(String(left.id || ''));
-}
-
 function cancelLegacyCommodityOrder(world, order) {
   if (!balancedMarket.isOpenOrder(order) || order.ownerType !== 'player') return false;
   const player = world.players?.[String(order.ownerId)];
@@ -169,6 +163,17 @@ function cancelLegacyCommodityOrder(world, order) {
   order.status = 'cancelled';
   closeOrderInOrderBook(world, order);
   return true;
+}
+
+function migrateLegacyPlayerCommodityOrders(world) {
+  for (const order of world.orders || []) {
+    if (
+      order.ownerType === 'player'
+      && orderKind(order) === 'commodity'
+      && balancedMarket.isOpenOrder(order)
+    ) cancelLegacyCommodityOrder(world, order);
+  }
+  world.playerCommodityInstantTradeVersion = PLAYER_COMMODITY_INSTANT_TRADE_VERSION;
 }
 
 function migrateC1InputBalance(world) {
@@ -207,38 +212,13 @@ function migrateC1InputBalance(world) {
   if (world.marketDemand && typeof world.marketDemand === 'object') world.marketDemand.relations = {};
 }
 
-function reconcileCommodityOrderBook(world, now) {
-  const playerOrders = (world.orders || [])
-    .filter((order) => (
-      order.ownerType === 'player'
-      && orderKind(order) === 'commodity'
-      && balancedMarket.isOpenOrder(order)
-    ))
-    .sort(newestOrdersFirst);
-
-  for (const order of playerOrders) {
-    if (balancedMarket.isOpenOrder(order)) balancedMarket.matchOrder(world, order, now);
-  }
-
-  for (const order of playerOrders) {
-    if (!balancedMarket.isOpenOrder(order)) continue;
-    if (findSelfCrossingOrder(world, {
-      ownerId: order.ownerId,
-      assetKind: 'commodity',
-      assetId: orderAssetId(order),
-      provinceId: order.provinceId,
-      side: order.side,
-      price: order.price,
-    })) cancelLegacyCommodityOrder(world, order);
-  }
-}
-
 export function createWorld(now = Date.now()) {
   const world = core.createWorld(now);
   balancedMarket.rebalanceNewWorld(world, now);
   marketDemand.initializeWorld(world, now);
   ensurePopulationEconomy(world, now);
   world.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
+  world.playerCommodityInstantTradeVersion = PLAYER_COMMODITY_INSTANT_TRADE_VERSION;
   world.auctionFeeEscrowCredits = Math.max(0, Number(world.auctionFeeEscrowCredits || 0));
   world.version = 32;
   normalizeWorldMoneyPrecision(world);
@@ -248,7 +228,6 @@ export function createWorld(now = Date.now()) {
 export function migrateWorld(world, now = Date.now()) {
   if (!world || typeof world !== 'object') return createWorld(now);
   const previousVersion = Number(world.version || 0);
-  const needsOrderBookRepair = Number(world.orderBookIntegrityVersion || 0) < ORDER_BOOK_INTEGRITY_VERSION;
   const previousMarketDemandModelVersion = Number(world.marketDemand?.modelVersion || 0);
   const needsC1InputBalanceMigration = previousMarketDemandModelVersion < C1_INPUT_BALANCE_MODEL_VERSION;
   const hadCompatibleMarketDemandModel = previousMarketDemandModelVersion
@@ -270,6 +249,7 @@ export function migrateWorld(world, now = Date.now()) {
   balancedMarket.repairMissingMarkets(migrated, existingMarketIds, now, legacy);
   balancedMarket.normalizeSystemPrices(migrated, now);
   migrateProvinceAccess(migrated, now);
+  migrateLegacyPlayerCommodityOrders(migrated);
   if (needsC1InputBalanceMigration) migrateC1InputBalance(migrated);
   if (!hadCompatibleDemandSystem) {
     ensurePopulationEconomy(migrated, now);
@@ -281,7 +261,9 @@ export function migrateWorld(world, now = Date.now()) {
   }
   const migratedOrders = migrated.orders || (migrated.orders = []);
   const retainedOrders = migratedOrders.filter((order) => {
-    if (order.ownerType === 'player') return true;
+    if (order.ownerType === 'player') {
+      return orderKind(order) !== 'commodity' || !balancedMarket.isOpenOrder(order);
+    }
     if (order.ownerType !== 'population') return false;
     return hadCompatibleDemandSystem && marketDemand.isValidMarketOrder(order);
   });
@@ -295,9 +277,9 @@ export function migrateWorld(world, now = Date.now()) {
   marketDemand.normalizeWorld(migrated, now, {
     forceRebuild: !hadCompatibleDemandSystem,
   });
-  if (needsOrderBookRepair) reconcileCommodityOrderBook(migrated, now);
   ensurePopulationEconomy(migrated, now);
   migrated.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
+  migrated.playerCommodityInstantTradeVersion = PLAYER_COMMODITY_INSTANT_TRADE_VERSION;
   migrated.auctionFeeEscrowCredits = Math.max(0, Number(migrated.auctionFeeEscrowCredits || 0));
   migrated.version = 32;
   normalizeWorldMoneyPrecision(migrated);
@@ -334,10 +316,9 @@ function normalizePositiveInteger(value, max = Number.MAX_SAFE_INTEGER) {
   return normalized >= 1 && normalized <= max ? normalized : null;
 }
 
-function playerInventoryFor(player, productId, provinceId) {
-  return inventoryForProvince(player, productId, provinceId);
+export function commoditySystemPriceFor(world, productId, provinceId = DEFAULT_PROVINCE_ID, now = Date.now()) {
+  return balancedMarket.systemPriceFor(world, productId, now, provinceId);
 }
-
 
 function applyCommodityOrder(world, user, payload, now) {
   const userId = Number(user.id);
@@ -346,44 +327,39 @@ function applyCommodityOrder(world, user, payload, now) {
     ? String(payload.productId || payload.assetId || 'wheat')
     : null;
   const quantity = normalizePositiveInteger(payload.quantity, core.ECONOMY_CONSTANTS.maxOrderQuantity);
-  const price = normalizePlayerMoneyInput(payload.price, { min: 0.01 });
   const provinceId = normalizeProvinceId(payload.provinceId);
-  if (!side || !productId || !quantity || !price) return { ok: false, message: '订单参数无效' };
-  const total = multiplyMoneyByInteger(price, quantity);
-  if (total === null) return { ok: false, message: '订单总额超出系统可表示范围' };
-  const fillOrKill = payload.execution === 'fill-or-kill';
-  const onlineAutoSell = payload.execution === 'online-auto-sell';
-  const onlineAutoBuy = payload.execution === 'online-auto-buy';
-  const transientExecution = fillOrKill || onlineAutoSell || onlineAutoBuy;
-  if (findSelfCrossingOrder(world, {
-    ownerId: userId,
-    assetKind: 'commodity',
-    assetId: productId,
-    provinceId,
-    side,
-    price,
-  })) return { ok: false, message: SELF_CROSS_MESSAGE };
-
-  world.orders ||= [];
-  if (!transientExecution && countOpenOrdersForOwner(world, userId) >= core.ECONOMY_CONSTANTS.maxOpenOrders) {
-    return { ok: false, message: '未完成订单数量已达上限' };
-  }
+  if (!side || !productId || !quantity) return { ok: false, message: '交易参数无效' };
 
   const player = core.ensurePlayer(world, user, now, { migrate: false });
   const provinceError = provinceUnlockError(player, provinceId);
   if (provinceError) return { ok: false, message: provinceError };
-  if (side === 'buy') {
-    if (Number(player.credits || 0) < total) return { ok: false, message: '可用资金不足' };
-    player.credits -= total;
-    player.frozenCredits = Number(player.frozenCredits || 0) + total;
-  } else {
-    const inventory = playerInventoryFor(player, productId, provinceId);
-    if (Number(inventory.available || 0) < quantity) return { ok: false, message: '可用商品库存不足' };
-    inventory.available -= quantity;
-    inventory.frozen = Number(inventory.frozen || 0) + quantity;
-  }
 
-  const incoming = {
+  const officialPrice = balancedMarket.systemPriceFor(world, productId, now, provinceId);
+  const requestedPrice = normalizePlayerMoneyInput(payload.price, { min: 0.01 });
+  const execution = String(payload.execution || '');
+  if (
+    (execution === 'online-auto-buy' || execution === 'fill-or-kill' || execution === 'facility-build-procurement')
+    && typeof requestedPrice === 'number'
+    && officialPrice > requestedPrice
+  ) return { ok: false, message: '今日系统价高于本次最高买价' };
+  if (
+    execution === 'online-auto-sell'
+    && typeof requestedPrice === 'number'
+    && officialPrice < requestedPrice
+  ) return { ok: false, message: '今日系统价低于自动出售最低价' };
+
+  const settlement = balancedMarket.settleImmediatePlayerTrade(world, {
+    userId,
+    productId,
+    provinceId,
+    side,
+    quantity,
+    createdAt: now,
+  });
+  if (!settlement?.ok) return settlement;
+
+  world.orders ||= [];
+  const closedTrade = {
     id: `order-${randomUUID()}`,
     assetKind: 'commodity',
     assetId: productId,
@@ -392,22 +368,24 @@ function applyCommodityOrder(world, user, payload, now) {
     side,
     ownerType: 'player',
     ownerId: userId,
-    price,
+    price: settlement.price,
     quantity,
-    remaining: quantity,
-    status: 'open',
-    fills: [],
+    remaining: 0,
+    status: 'filled',
+    fills: [settlement.fill],
     createdAt: now,
+    lastFilledAt: now,
   };
-  world.orders.push(incoming);
-  balancedMarket.matchOrder(world, incoming, now);
-  if (balancedMarket.isOpenOrder(incoming)) {
-    balancedMarket.settlePlayerOrderWithSystem(world, incoming, now);
-  }
-  if (incoming.status === 'filled') return { ok: true, message: '订单已全部成交' };
-  if (fillOrKill) return { ok: false, message: '市场卖盘已变化，未能一次购齐' };
-  if (incoming.status === 'partial') return { ok: true, message: '订单已部分成交' };
-  return { ok: true, message: '订单已进入订单簿' };
+  world.orders.push(closedTrade);
+  return {
+    ok: true,
+    message: '已按今日系统价即时成交',
+    executedPrice: settlement.price,
+    quantity,
+    total: settlement.total,
+    fee: settlement.fee,
+    netTotal: settlement.netTotal,
+  };
 }
 
 export function applySettledCommodityOrder(world, user, payload = {}, now = Date.now()) {
