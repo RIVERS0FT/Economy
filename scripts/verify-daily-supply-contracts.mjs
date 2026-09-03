@@ -88,7 +88,7 @@ for (const token of ['合同简要', '采购合同', '供应合同', '今日采�
 requireText(productDetail, 'setContractMarketIntent(product.id, model.selectedProvinceId)', '地区商品详情合同跳转必须携带 provinceId + productId。');
 
 for (const [source, token, message] of [
-  [industry, '同地区固定价采购合同 → 本地仓库 → 同地区统一商品订单簿', '产业权威设计必须锁定生产输入来源顺序。'],
+  [industry, '有效采购合同固定价严格低于当日 `officialPrice` 时可以优先使用合同额度；否则先使用本地仓库。本地库存不足时才按同地区当日官方价即时采购缺口', '产业权威设计必须锁定“低价合同 → 本地仓库 → 当日官方价即时采购”的生产输入来源顺序。'],
   [industry, '最低当日产量 + 最低合同固定价', '产业权威设计必须锁定供应优先条件。'],
   [warehouse, '每日最大供应量', '仓库权威设计必须锁定每日额度合同。'],
   [warehouse, '合同简要', '仓库权威设计必须锁定商品详情合同摘要。'],
