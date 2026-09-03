@@ -51,6 +51,7 @@ test('manual commodity buys and sells never leave player resting orders or froze
   assert.equal(sell.netTotal, 2.376);
   assert.equal(buyer.credits, 998.4);
   assert.equal(seller.credits, 2.376);
+  assert.ok(Math.abs((seller.credits + sell.fee) - sell.total) < 1e-9);
   assert.equal(buyer.inventories.wheat.available, 2);
   assert.equal(seller.inventories.wheat.available, 2);
   assert.equal(buyer.frozenCredits, 0);
