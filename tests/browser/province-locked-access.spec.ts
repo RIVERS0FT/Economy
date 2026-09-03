@@ -30,5 +30,5 @@ test('legacy access fields cannot hide regional buildings or warehouse', async (
   await page.getByRole('tab', { name: '仓库' }).click();
   await expect(page.getByText('仓库功能未解锁', { exact: true })).toHaveCount(0);
   await expect(page.locator('.province-unlock-button')).toHaveCount(0);
-  await expect(page.getByText('无限容量', { exact: false })).toBeVisible();
+  await expect(page.locator('.province-warehouse-section .warehouse-content')).toBeVisible();
 });
