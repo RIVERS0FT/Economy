@@ -179,9 +179,7 @@ const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');
 for (const text of [
   '<UsMainlandMap', 'summaries={state.summaries}', 'const openProvincePage = (provinceId: string) => {',
   'setSelectedProvinceId(provinceId);', "model.setTab('province');",
-  'const startingProvincePicking = false;',
-  'selectedProvinceId={startingProvincePicking',
-  ": model.tab === 'province' ? state.selectedProvinceId : null}",
+  "selectedProvinceId={model.tab === 'province' ? state.selectedProvinceId : null}",
   'onSelectProvince={openProvincePage}', 'referenceNow={model.game.lastProcessedAt}',
   'StrategicMapStage', 'StrategicMapLensBar', 'StrategicWorkspaceChrome',
   "{ id: 'political', label: '州界'", "{ id: 'assets', label: '资产'", "{ id: 'industry', label: '工业'",
@@ -194,9 +192,7 @@ for (const forbidden of ['当前经营地区', 'strategic-province-inspector', '
 const gameShell = read('src/components/shell/GameShell.tsx');
 for (const text of [
   'const STRATEGIC_PAGE_PRESENTATION = {', "province: 'building'", '<ApplicationMapLayerPortal>',
-  '<StrategicMapStage', "lens={startingProvincePicking ? 'political' : mapLens}",
-  'startingProvinceCandidateId={startingProvinceCandidateId}',
-  'onPickStartingProvince={startingProvincePicking ? setStartingProvinceCandidateId : undefined}',
+  '<StrategicMapStage model={model} lens={mapLens} />',
   '<StrategicMapLensBar lens={mapLens} onLensChange={setMapLens} />',
   '<StrategicWorkspaceChrome', 'data-strategic-presentation={pagePresentation}',
 ]) assert.ok(gameShell.includes(text), `玩家战略外壳缺少: ${text}`);
@@ -220,7 +216,7 @@ for (const text of [
   'export function ProvincePage', 'title={isMarketDetail && marketDetailProduct ? (', 'role="tablist"', 'role="tab"', 'role="tabpanel"',
   "{ id: 'overview', label: '概览' }", "{ id: 'market', label: '市场' }",
   "{ id: 'buildings', label: '建筑' }", "{ id: 'warehouse', label: '仓库' }",
-  '<EmbeddedMarketPage model={model} embedded readOnly={false} />', '<EmbeddedBuildingsPage model={model} embedded />',
+  '<EmbeddedMarketPage model={model} embedded readOnly={false} />', '<EmbeddedBuildingsPage',
   '<WarehouseInventoryPanel', 'className="province-warehouse-section"', 'onOpenProduct={openWarehouseProduct}',
   "if (current.type === 'map') {", 'pageNavigation.pushPage(provinceLocation);',
   'pageNavigation.replacePage(provinceLocation);',

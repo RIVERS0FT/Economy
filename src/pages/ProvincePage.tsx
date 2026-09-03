@@ -335,24 +335,25 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
           <Suspense fallback={<ProvinceSectionLoading />}>
             <EmbeddedMarketPage model={model} embedded readOnly={false} />
           </Suspense>
-        ) : null}        {activeSection === 'buildings' ? (
-<Suspense fallback={<ProvinceSectionLoading />}>
-  <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
-    {/* Retired static verifier marker: <EmbeddedBuildingsPage model={model} embedded /> */}
-    <EmbeddedBuildingsPage
-      model={model}
-      embedded
-      detailFacilityTypeId={facilityDetailTypeId ?? undefined}
-      onDetailFacilityChange={handleFacilityDetailChange}
-    />
-  </FacilityRecipeProfitMarketsProvider>
-</Suspense>
-        ) : null}        {activeSection === 'warehouse' ? (
-<WarehouseInventoryPanel
-  model={model}
-  className="province-warehouse-section"
-  onOpenProduct={openWarehouseProduct}
-/>
+        ) : null}
+        {activeSection === 'buildings' ? (
+          <Suspense fallback={<ProvinceSectionLoading />}>
+            <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
+              <EmbeddedBuildingsPage
+                model={model}
+                embedded
+                detailFacilityTypeId={facilityDetailTypeId ?? undefined}
+                onDetailFacilityChange={handleFacilityDetailChange}
+              />
+            </FacilityRecipeProfitMarketsProvider>
+          </Suspense>
+        ) : null}
+        {activeSection === 'warehouse' ? (
+          <WarehouseInventoryPanel
+            model={model}
+            className="province-warehouse-section"
+            onOpenProduct={openWarehouseProduct}
+          />
         ) : null}
       </section>
     </PageLayout>

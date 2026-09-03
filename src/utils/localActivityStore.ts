@@ -36,8 +36,6 @@ export type LocalActivityAction =
   | 'bankBorrow'
   | 'bankRepay'
   | 'bankSetAutoRepay'
-  | 'chooseStartingProvince'
-  | 'unlockProvince'
   | 'transportShip';
 
 export interface LocalActivityView {

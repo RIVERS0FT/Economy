@@ -61,6 +61,8 @@ for (const owner of [
 ]) requireText(index, owner, `设计索引必须将州解锁与运输规则路由到 DESIGN owner：${owner}`);
 
 requireText(productDesign, '连续 48 州从玩家首次建档起全部可直接经营，不存在起始州选择、地区解锁或解锁费用', '产品设计必须记录 48 州默认开放。');
+requireText(pageDesign, '实现层不得保留仅靠固定 `false` 关闭的 `StartingProvinceOverview`', '页面设计必须禁止保留可重新启用的起始州死分支。');
+requireText(pageDesign, '`UsMainlandMap` 不接受 `unlockedProvinceIds` 或 `locked` 访问状态', '页面设计必须禁止地图恢复锁定州访问状态。');
 requireText(productDesign, '跨州商品只能通过付费运输在连续 48 州之间流动', '产品设计必须记录全州运输边界。');
 requireText(productDesign, '综合分数固定为 PCE `50%` + 平均周薪 `30%` + 常住人口 `20%`', '产品设计必须记录地区水平综合分数。');
 
@@ -183,11 +185,22 @@ forbidText(stateSlices, "keys: Object.freeze(['transportShipments'])", '运输�
 forbidText(statePartitions, "'transportShipments',", 'transportShipments 不得继续进入 MARKET_KEYS。');
 requireText(pageRouter, "transport: ['catalog', 'player.assets', 'player.misc', 'market.quotes']", '运输页必须消费玩家私有运输切片与行情摘要。');
 
-requireText(gameShell, 'const startingProvincePicking = false;', '应用外壳不得恢复起始州选点门禁。');
-forbidText(gameShell, 'game.startingProvinceChosen === false', '应用外壳不得按旧起始州字段阻止正常导航。');
-requireText(strategicWorkspace, 'const startingProvincePicking = false;', '战略地图不得恢复起始州选点门禁。');
-forbidText(strategicWorkspace, 'model.game.startingProvinceChosen === false', '战略地图不得按旧起始州字段进入选点模式。');
-requireText(strategicWorkspace, 'unlockedProvinceIds={state.provinces.map((province) => province.id)}', '战略地图必须将连续 48 州全部视为可访问。');
+for (const text of ['StartingProvinceOverview', 'startingProvincePicking', 'startingProvinceCandidateId', 'onPickStartingProvince', 'chooseStartingProvince']) {
+  forbidText(gameShell, text, `应用外壳不得保留起始州选择分支：${text}`);
+}
+for (const text of ['startingProvincePicking', 'startingProvinceCandidateId', 'onPickStartingProvince', 'unlockedProvinceIds']) {
+  forbidText(strategicWorkspace, text, `战略地图不得保留地区访问门禁：${text}`);
+}
+for (const text of ['unlockedProvinceIds', 'locked: boolean', 'data-locked=', 'province-map-tooltip__locked', '--color-map-region-locked']) {
+  forbidText(provinceMap, text, `地图组件不得保留地区访问状态：${text}`);
+}
+for (const text of ['chooseStartingProvince', 'unlockProvince', '/provinces/starting', '/provinces/unlock']) {
+  forbidText(gameApi, text, `正式客户端 API 不得暴露已退役地区访问动作：${text}`);
+  forbidText(viewModel, text, `正式客户端 ViewModel 不得暴露已退役地区访问动作：${text}`);
+}
+for (const text of ['chooseStartingProvince', 'unlockProvince', 'startingProvinceChosen', 'unlockedProvinces']) {
+  forbidText(localPreview, text, `本地预览不得依赖已退役地区访问状态：${text}`);
+}
 for (const text of ['ProvinceUnlockPanel', 'provinceUnlockCostBreakdown', 'model.unlockProvince(', 'province-unlock-button']) {
   forbidText(provincePage, text, `地区页不得恢复解锁 UI：${text}`);
 }
