@@ -57,10 +57,6 @@
   stroke-dasharray: 12 8;
 }
 
-.province-map-route-return-path {
-  display: none;
-}
-
 .application-map-layer > .strategic-map-lens-bar,
 .strategic-map-lens-bar,
 .transport-map-picking-bar {
