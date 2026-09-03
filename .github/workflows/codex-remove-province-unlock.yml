@@ -39,11 +39,11 @@ jobs:
           text = path.read_text(encoding='utf-8')
           text = text.replace(
               "replace_once('src/pages/ProvincePage.tsx', old_buildings, new_buildings)",
-              "replace_regex_once('src/pages/ProvincePage.tsx', r\"        \\\{activeSection === 'buildings' \\\? \\\(\\n.*?\\n        \\\) : null\\\}\", new_buildings)",
+              "replace_regex_once('src/pages/ProvincePage.tsx', r\"\\s*[{]activeSection === 'buildings' [?] [(]\\n.*?\\n\\s*[)] : null[}]\", new_buildings)",
           )
           text = text.replace(
               "replace_once('src/pages/ProvincePage.tsx', old_warehouse, new_warehouse)",
-              "replace_regex_once('src/pages/ProvincePage.tsx', r\"        \\\{activeSection === 'warehouse' \\\? \\\(\\n.*?\\n        \\\) : null\\\}\", new_warehouse)",
+              "replace_regex_once('src/pages/ProvincePage.tsx', r\"\\s*[{]activeSection === 'warehouse' [?] [(]\\n.*?\\n\\s*[)] : null[}]\", new_warehouse)",
           )
           path.write_text(text, encoding='utf-8')
           PY
