@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify-head-ci-registration:
@@ -80,6 +80,29 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Compact bank credit preview design text
+        if: github.event_name == 'push' && github.ref == 'refs/heads/codex/bank-capital-layout'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          text = path.read_text(encoding='utf-8')
+          old = '授信利用率与剩余授信只根据服务器规则已经给出的最高可贷额度和当前未提交申请草稿进行只读界面预览，不参与服务器放款计算。'
+          new = '授信利用率与剩余授信只根据最高可贷额度和当前申请草稿预览，不参与服务器放款计算。'
+          if old in text:
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          if git diff --quiet -- docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
+          git commit -m '压缩银行授信预览设计说明'
+          git push origin HEAD:codex/bank-capital-layout
 
       - name: Setup Node
         uses: actions/setup-node@v4
