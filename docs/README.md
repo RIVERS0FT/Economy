@@ -57,7 +57,7 @@
 | `PRIMARY_SURFACE_INSET_DESIGN.md` | 玩家一级表面的统一外层内边距与贴边例外 | 卡片通用视觉和业务结构 |
 | `OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md` | 概览页布局完整性和局部几何回归 | 概览业务数据和通用响应式系统 |
 | `PRODUCTION_PILL_ALIGNMENT_DESIGN.md` | 生产状态胶囊与开关局部对齐 | 生产业务语义和通用控件 |
-| `LIQUID_GLASS_CHROME_DESIGN.md` | 四层根外壳、通用毛玻璃 Chrome、Workspace 和浮层层级 | 战略地图 Camera／路线渲染、页面业务、经济规则 |
+| `LIQUID_GLASS_CHROME_DESIGN.md` | 四层根外壳、通用毛玻璃材质与 Chrome、Workspace 和浮层层级 | 战略地图 Camera／路线渲染、地图专属表面材质、页面业务、经济规则 |
 | `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威、API、事务、存储、缓存、安全、容量和生产部署 | 玩家玩法、页面与通用视觉 |
 | `CI_EXECUTION_DESIGN.md` | CI 选测、并行、分片、超时、发布门禁和生产只读诊断安全 | 业务和运行时实现 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器本地活动记录最小数据、迁移、展示和清除 | 服务器账本和全局通知 |
@@ -79,7 +79,7 @@
 | 战略地图 Camera、固定视场边界、地图路线显示／运动／高亮、地图专属表面 | `STRATEGIC_MAP_RENDERING_DESIGN.md` |
 | 页面模块、导航和内容归属 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` |
 | 通用颜色、字体、控件、列表、响应式、可访问性 | `UI_DESIGN_SYSTEM.md` |
-| 根外壳、通用毛玻璃 Chrome、Workspace 和浮层层级 | `LIQUID_GLASS_CHROME_DESIGN.md` |
+| 根外壳、通用毛玻璃材质与 Chrome、Workspace 和浮层层级 | `LIQUID_GLASS_CHROME_DESIGN.md` |
 | 市场行情图局部几何 | `MARKET_CHART_LAYOUT_DESIGN.md` |
 | 注册、邀请和账号入口流程 | `REGISTRATION_INVITE_FLOW_DESIGN.md` |
 | 宝石加速与动态兑换 | `GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md` |
