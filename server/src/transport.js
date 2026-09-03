@@ -373,7 +373,8 @@ export function applyStartTransportCycle(world, user, payload = {}, now = Date.n
   addCargoFromInventory(player, cargoLots, route.sourceProvinceId, load);
 
   const shipment = {
-    id: `transport-${randomUUID()}`,
+    nodeCycleVersion: 1,
+    id: `transport-${randomUUID()}` ,
     ownerId: Number(user.id),
     routeId: route.id,
     routeName: route.name,
@@ -494,6 +495,7 @@ function legacyShipmentManifest(shipment) {
 }
 
 function migrateLegacyShipment(world, shipment) {
+  if (shipment.nodeCycleVersion === 1) return;
   const player = world.players?.[String(shipment.ownerId)];
   const route = findPlayerRoute(player, shipment.routeId) || shipment;
   const traversalStops = transportTraversalStops(route);
@@ -511,9 +513,13 @@ function migrateLegacyShipment(world, shipment) {
 
   if (shipment.status === 'arrived') {
     if (shipment.cycleManifest.length === 0) shipment.cycleManifest = legacyShipmentManifest(shipment);
+    shipment.nodeCycleVersion = 1;
     return;
   }
-  if (Array.isArray(shipment.cargoLots) && shipment.cargoLots.length > 0) return;
+  if (Array.isArray(shipment.cargoLots) && shipment.cargoLots.length > 0) {
+    shipment.nodeCycleVersion = 1;
+    return;
+  }
 
   const deliveredProvinceIds = new Set((Array.isArray(shipment.stopPlan) ? shipment.stopPlan : [])
     .filter((stop) => stop?.deliveredAt)
@@ -555,6 +561,7 @@ function migrateLegacyShipment(world, shipment) {
   shipment.departsAt = departsAt;
   shipment.arrivesAt = arrivesAt;
   shipment.status = 'in-transit';
+  shipment.nodeCycleVersion = 1;
 }
 
 export function migrateTransportWorld(world) {
