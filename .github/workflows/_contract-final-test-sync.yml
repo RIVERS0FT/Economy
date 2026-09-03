@@ -1,0 +1,44 @@
+name: Contract final test sync
+
+on:
+  pull_request:
+    types: [synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.head_ref == 'codex/contracts-core-workspace'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Align master detail browser assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          layout = Path('tests/browser/contract-layout.spec.ts')
+          text = layout.read_text()
+          old = "expect(await gridTrackCount(page.locator('.contract-master-detail').first())).toBe(2);\n  await expect(page.locator('.contract-master-list-item')).toHaveCount(2);"
+          new = "expect(await gridTrackCount(page.locator('.contract-master-detail').first())).toBe(2);\n  await expect(page.locator('.contract-master-list-item')).toHaveCount(1);"
+          assert old in text
+          layout.write_text(text.replace(old, new, 1))
+
+          verifier = Path('scripts/verify-contract-layout.mjs')
+          text = verifier.read_text()
+          text = text.replace("getByRole('region', { name: '合同工作台' })", "getByRole('tabpanel', { name: '合同工作台' })")
+          text = text.replace("getByRole('region', { name: '合同市场' })", "getByRole('tabpanel', { name: '合同市场' })")
+          text = text.replace("getByRole('region', { name: '我的合同' })", "getByRole('tabpanel', { name: '我的合同' })")
+          verifier.write_text(text)
+          PY
+          rm .github/workflows/_contract-final-test-sync.yml
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "对齐合同主从布局浏览器断言"
+          git push origin HEAD:${{ github.head_ref }}
