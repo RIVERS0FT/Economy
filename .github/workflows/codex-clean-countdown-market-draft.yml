@@ -1,0 +1,26 @@
+name: Clean countdown market draft wording
+
+on:
+  push:
+    branches:
+      - codex/daily-system-market
+
+permissions:
+  contents: write
+
+jobs:
+  clean:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: node scripts/codex-clean-countdown-market-draft.mjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "清理倒计时设计市场草稿旧语义"
+          git push origin HEAD:codex/daily-system-market
