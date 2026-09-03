@@ -209,8 +209,13 @@ for (const text of [
 ]) assert.ok(serverDesign.includes(text), `服务器设计缺少 V2 持久化防回退规则: ${text}`);
 
 const orderBookDesign = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
-for (const text of ['同价时间优先规则', '客户端订单索引只是查询加速器']) {
-  assert.ok(orderBookDesign.includes(text), `订单簿设计缺少热路径边界: ${text}`);
+for (const text of [
+  '内部人口／储备订单继续复用共享撮合内核',
+  '价格档位 FIFO 状态机',
+  '玩家即时商品交易不得经过该共享撮合内核',
+  '具体索引构建、分组方式和裁剪阈值属于运行实现，由代码与专项测试锁定',
+]) {
+  assert.ok(orderBookDesign.includes(text), `即时市场设计缺少内部热路径边界: ${text}`);
 }
 
-console.log('权威热路径验证通过：按领域截止时间推进、分段存储 V2、Copy-on-Write 动作草稿、Dirty Row 持久化、纯只读状态投影、统一订单簿与六分区客户端权威状态均受防回退约束。');
+console.log('权威热路径验证通过：按领域截止时间推进、分段存储 V2、Copy-on-Write 动作草稿、Dirty Row 持久化、纯只读状态投影、内部订单运行时索引与六分区客户端权威状态均受防回退约束。');
