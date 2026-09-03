@@ -74,10 +74,10 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
 
   const provinceById = useMemo(() => new Map(game.provinces.map((province) => [province.id, province])), [game.provinces]);
   const productById = useMemo(() => new Map(game.products.map((product) => [product.id, product])), [game.products]);
-  const unlockedProvinceIds = useMemo(() => new Set([
-    ...(Array.isArray(game.unlockedProvinces) ? game.unlockedProvinces : []),
-    game.startingProvinceId,
-  ].filter(Boolean)), [game.startingProvinceId, game.unlockedProvinces]);
+  const unlockedProvinceIds = useMemo(
+    () => new Set(game.provinces.map((province) => province.id)),
+    [game.provinces],
+  );
   const activeByRouteId = useMemo(() => new Map(
     shipments
       .filter((shipment) => shipment.status !== 'arrived' && shipment.routeId)

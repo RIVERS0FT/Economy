@@ -168,7 +168,7 @@ export function GameShell({ model, children, offline = false }: {
   const authorityGame = useGameAuthorityDependencies(['player.identity', 'player.assets', 'leaderboard']);
   const game = authorityGame ?? model.game;
   const derived = model.derived;
-  const startingProvincePicking = !offline && game.startingProvinceChosen === false;
+  const startingProvincePicking = false;
   const [startingProvinceCandidateId, setStartingProvinceCandidateId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [mapLens, setMapLens] = useState<ProvinceMapLens>('assets');
@@ -460,12 +460,9 @@ export function GameShell({ model, children, offline = false }: {
   const pickTransportRouteProvince = useCallback((provinceId: string) => {
     const current = transportRouteDraft;
     if (!current) return;
-    const unlocked = new Set([
-      ...(Array.isArray(game.unlockedProvinces) ? game.unlockedProvinces : []),
-      game.startingProvinceId,
-    ].filter(Boolean));
-    if (!unlocked.has(provinceId)) {
-      void model.showResult({ ok: false, message: '该州尚未解锁，不能加入运输路线' });
+    const availableProvinceIds = new Set(game.provinces.map((province) => province.id));
+    if (!availableProvinceIds.has(provinceId)) {
+      void model.showResult({ ok: false, message: '州级地区无效，不能加入运输路线' });
       return;
     }
     const stopIds = [
@@ -507,7 +504,7 @@ export function GameShell({ model, children, offline = false }: {
       viaProvinceIds: remainingStopIds.slice(0, -1),
       destinationProvinceId: remainingStopIds[remainingStopIds.length - 1],
     });
-  }, [game.startingProvinceId, game.unlockedProvinces, model, transportRouteDraft]);
+  }, [game.provinces, model, transportRouteDraft]);
 
   useEffect(() => {
     if (transportRoutePicking && model.tab !== 'transport' && model.tab !== 'map') {

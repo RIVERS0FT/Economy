@@ -79,7 +79,7 @@ for (const text of [
 ]) requireText('src/pages/MarketPage.tsx', text, `地区商品详情必须保留当前只读／直接交易布局: ${text}`);
 forbidText('src/pages/MarketPage.tsx', '<Panel className="widget market-trade-card">', '地区商品详情不得恢复一级交易卡底座。');
 
-requireText('src/pages/ProvincePage.tsx', '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />', '州级上下文必须继续复用地区 MarketPage，并允许锁定州只读查看。');
+requireText('src/pages/ProvincePage.tsx', '<EmbeddedMarketPage model={model} embedded readOnly={false} />', '州级上下文必须继续复用地区 MarketPage，并保持连续 48 州正常交易。');
 requireText('src/pages/ProvincePage.tsx', '<RegionalEntityPageTitle entityName={marketDetailProduct.name} regionName={provinceName} />', '州级商品详情必须使用共享两行地区实体标题。');
 requireText('src/utils/provinceScope.ts', 'allProvinceOrders,', '地区投影必须保留全部已加载的本人订单。');
 requireText('src/utils/provinceScope.ts', 'const orders = allProvinceOrders.filter((order) => order.provinceId === provinceId);', '地区 MarketPage 仍必须只看到当前州订单。');

@@ -123,7 +123,7 @@ export function StrategicMapStage({
   const state = strategicMapState(model);
   const routeDraft = useContext(TransportRouteDraftContext);
   const [savingRoute, setSavingRoute] = useState(false);
-  const startingProvincePicking = model.game.startingProvinceChosen === false && typeof onPickStartingProvince === 'function';
+  const startingProvincePicking = false;
   const effectiveLens: ProvinceMapLens = startingProvincePicking ? 'political' : lens;
   const provinceById = useMemo(() => new Map(state.provinces.map((province) => [province.id, province])), [state.provinces]);
   const productById = useMemo(() => new Map(model.game.products.map((product) => [product.id, product])), [model.game.products]);
@@ -270,7 +270,7 @@ export function StrategicMapStage({
       <UsMainlandMap
         provinces={state.provinces}
         summaries={state.summaries}
-        unlockedProvinceIds={startingProvincePicking ? state.provinces.map((province) => province.id) : model.game.unlockedProvinces}
+        unlockedProvinceIds={state.provinces.map((province) => province.id)}
         selectedProvinceId={startingProvincePicking ? startingProvinceCandidateId : model.tab === 'province' ? state.selectedProvinceId : null}
         onSelectProvince={openProvincePage}
         lens={effectiveLens}

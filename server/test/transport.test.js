@@ -328,7 +328,7 @@ test('legacy in-transit shipment migrates without fuel backcharge and stops at i
   assert.equal(player.credits, creditsBefore);
 });
 
-test('route validation still enforces unlocked ordered stops and route count limits', () => {
+test('route validation ignores legacy access fields while enforcing ordered stops and route count limits', () => {
   const world = createWorld(now);
   const player = unlockedPlayer(world, alice, 1_000_000);
 
@@ -337,12 +337,10 @@ test('route validation still enforces unlocked ordered stops and route count lim
   assert.match(duplicate.message, /站点不能重复/);
 
   player.unlockedProvinces = ['110000'];
-  const locked = createRoute(world, alice, { destinationProvinceId: '130000' }, now + 2);
-  assert.equal(locked.ok, false);
-  assert.match(locked.message, /尚未解锁/);
+  const unrestricted = createRoute(world, alice, { destinationProvinceId: '130000' }, now + 2);
+  assert.equal(unrestricted.ok, true);
 
-  player.unlockedProvinces = ['110000', '130000', '120000'];
-  for (let index = 0; index < TRANSPORT_MAX_ROUTES_PER_PLAYER; index += 1) {
+  for (let index = 1; index < TRANSPORT_MAX_ROUTES_PER_PLAYER; index += 1) {
     const result = createRoute(world, alice, { destinationProvinceId: index % 2 === 0 ? '130000' : '120000' }, now + 10 + index);
     assert.equal(result.ok, true);
   }

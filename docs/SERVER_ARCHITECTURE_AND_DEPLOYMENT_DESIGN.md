@@ -6,6 +6,10 @@
 
 ## 1. 权威边界
 
+州级访问不再是服务器业务资格维度：美国本土连续 48 州均直接可经营。客户端状态 39 与旧快照中的 `startingProvinceId`、`startingProvinceChosen`、`unlockedProvinces` 只作为兼容字段保留；新建玩家和迁移统一归一为 `startingProvinceId = 110000`、`startingProvinceChosen = true`、`unlockedProvinces = 连续 48 州`，任何服务器写动作不得据此拒绝合法州级操作。旧 `/api/game/provinces/starting` 与 `/api/game/provinces/unlock` 可保留兼容路由，但只能返回玩法已退役提示，不得扣款、发行资产或改变经营资格。
+
+人口需求激活与州访问资格必须解耦：`activePopulationDemandProvinceIds` 不得读取兼容字段 `unlockedProvinces`；它只使用兼容默认经营地区 `startingProvinceId` 与实际工厂经营足迹决定需求州，避免取消地区解锁时顺带把既有全局消费预算稀释到连续 48 州。
+
 市场储备不是玩家。服务器不得通过 `userId = 0`、负数 ID 或隐藏玩家档案模拟储备主体；储备采购合同使用 `publisherType = market_reserve` 与内部 `marketReserveGroupId`，储备清仓拍卖使用 `sellerType = market_reserve` 与同一需求组 ID，所有资金和商品直接结算到 `marketDemand.liquidity.groups` 的真实储备账户。普通玩家索引、排行榜、仓库、玩家统计和登录身份不得出现储备伪账号。
 
 跨市场储备调节只在对应五分钟需求周期 `lastCycleId` 变化后评估一次，不新增每秒全商品扫描器；服务器现有权威世界推进先完成市场需求/储备订单重挂，再评估短缺合同和过剩拍卖，随后处理合同到期与履约。合同与拍卖的冻结必须与订单簿共享储备真实 `frozenCredits` / `frozenInventory` 总量且逐实体释放，审计事件把储备侧记录为系统账户。紧急储备卖单仍由订单簿周期创建，不新增独立定时器。

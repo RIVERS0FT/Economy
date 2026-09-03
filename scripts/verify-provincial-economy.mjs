@@ -179,7 +179,7 @@ const strategicWorkspace = read('src/components/shell/StrategicWorkspace.tsx');
 for (const text of [
   '<UsMainlandMap', 'summaries={state.summaries}', 'const openProvincePage = (provinceId: string) => {',
   'setSelectedProvinceId(provinceId);', "model.setTab('province');",
-  'const startingProvincePicking = model.game.startingProvinceChosen === false',
+  'const startingProvincePicking = false;',
   'selectedProvinceId={startingProvincePicking',
   ": model.tab === 'province' ? state.selectedProvinceId : null}",
   'onSelectProvince={openProvincePage}', 'referenceNow={model.game.lastProcessedAt}',
@@ -220,7 +220,7 @@ for (const text of [
   'export function ProvincePage', 'title={isMarketDetail && marketDetailProduct ? (', 'role="tablist"', 'role="tab"', 'role="tabpanel"',
   "{ id: 'overview', label: '概览' }", "{ id: 'market', label: '市场' }",
   "{ id: 'buildings', label: '建筑' }", "{ id: 'warehouse', label: '仓库' }",
-  '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />', '<EmbeddedBuildingsPage model={model} embedded />',
+  '<EmbeddedMarketPage model={model} embedded readOnly={false} />', '<EmbeddedBuildingsPage model={model} embedded />',
   '<WarehouseInventoryPanel', 'className="province-warehouse-section"', 'onOpenProduct={openWarehouseProduct}',
   "if (current.type === 'map') {", 'pageNavigation.pushPage(provinceLocation);',
   'pageNavigation.replacePage(provinceLocation);',

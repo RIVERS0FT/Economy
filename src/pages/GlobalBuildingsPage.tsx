@@ -53,13 +53,7 @@ const EmbeddedBuildingsPage = lazy(() => import('./BuildingsPage').then((module)
 })));
 
 function operationalProvinces(model: OnlineAutoTradeAwareGameViewModel) {
-  const game = model.game;
-  const hasUnlockState = Array.isArray(game.unlockedProvinces)
-    || typeof game.startingProvinceId === 'string';
-  if (!hasUnlockState) return game.provinces;
-  const unlocked = new Set(game.unlockedProvinces ?? []);
-  if (game.startingProvinceId) unlocked.add(game.startingProvinceId);
-  return game.provinces.filter((province) => unlocked.has(province.id));
+  return model.game.provinces;
 }
 
 function globalProfitTone(value: number | null): FacilityProfitTone {

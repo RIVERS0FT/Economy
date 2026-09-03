@@ -79,8 +79,7 @@ function createPreviewGameState() {
     name: previewProvinceNameById.get(province.id) || province.name,
   }));
   // The account-free preview is a navigation/catalog coverage harness, not an
-  // unlock-progression simulation. Keep every province traversable without
-  // changing the generated authoritative fixture or formal game rules.
+  // Mirror the formal rule: all 48 provinces are directly accessible; these fields are compatibility mirrors only.
   game.startingProvinceChosen = true;
   game.unlockedProvinces = game.provinces.map((province) => province.id);
   return game;

@@ -89,10 +89,6 @@ export function activePopulationDemandProvinceIds(world) {
   for (const player of Object.values(world?.players || {})) {
     const startingProvinceId = String(player?.startingProvinceId || '');
     if (provinceById.has(startingProvinceId)) active.add(startingProvinceId);
-    for (const provinceId of player?.unlockedProvinces || []) {
-      const id = String(provinceId || '');
-      if (provinceById.has(id)) active.add(id);
-    }
     for (const group of player?.facilityGroups || []) {
       const id = String(group?.provinceId || '');
       if (Number(group?.count || 0) > 0 && provinceById.has(id)) active.add(id);
