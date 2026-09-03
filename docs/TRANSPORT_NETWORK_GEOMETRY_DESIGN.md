@@ -7,7 +7,7 @@
 
 本文唯一负责运输地图中州首府之间公路／铁路物理中心线，以及航空虚拟航路的几何来源、离线派生、压缩和运行时加载边界。
 
-本文不负责运输费用、燃料、耗时、载荷、发运和结算语义；这些继续以 `WAREHOUSE_EXPANSION_DESIGN.md` 为唯一权威。路线颜色、线型、高亮、站点标记、静态 SVG 世界面和 Camera 视场规则继续以 `UI_DESIGN_SYSTEM.md` 与 `LIQUID_GLASS_CHROME_DESIGN.md` 的既有职责为准。服务器协议、存储和部署流程继续以 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` 为准。
+本文不负责运输费用、燃料、耗时、载荷、发运和结算语义；这些继续以 `WAREHOUSE_EXPANSION_DESIGN.md` 为唯一权威。路线颜色、线型、高亮、站点标记、在途标记、静态 SVG 世界面和 Camera 视场规则统一由 `STRATEGIC_MAP_RENDERING_DESIGN.md` 负责。服务器协议、存储和部署流程继续以 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` 为准。
 
 ## 2. 当前最终规则
 
