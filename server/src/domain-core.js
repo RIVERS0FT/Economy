@@ -261,8 +261,8 @@ function createPlayer(user, now) {
     userId: Number(user.id),
     playerName: String(user.name || user.email?.split('@')[0] || '新玩家').trim().slice(0, 32) || '新玩家',
     startingProvinceId: DEFAULT_PROVINCE_ID,
-    startingProvinceChosen: false,
-    unlockedProvinces: [DEFAULT_PROVINCE_ID],
+    startingProvinceChosen: true,
+    unlockedProvinces: PROVINCE_CATALOG.map((province) => province.id),
     registeredAt: now,
     lastEconomicActivityAt: now,
     credits: 500,
@@ -396,8 +396,8 @@ export function migrateWorld(world, now = Date.now()) {
       inventoryFor(player, 'wheat').frozen = Number(player.frozenInventory || 0);
     }
     if (!player.startingProvinceId) player.startingProvinceId = DEFAULT_PROVINCE_ID;
-    if (!Array.isArray(player.unlockedProvinces)) player.unlockedProvinces = [DEFAULT_PROVINCE_ID];
-    player.startingProvinceChosen = player.startingProvinceChosen !== false;
+    player.startingProvinceChosen = true;
+    player.unlockedProvinces = PROVINCE_CATALOG.map((province) => province.id);
     migrateProvinceInventories(player);
     const legacyGrainKey = provinceScopedKey(DEFAULT_PROVINCE_ID, 'grain');
     if (player.inventories[legacyGrainKey]) {

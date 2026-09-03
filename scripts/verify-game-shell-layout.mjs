@@ -98,6 +98,7 @@ check('src/components/provinces/UsMainlandMap.tsx', [
   "popover={tooltipTopLayerActive ? 'manual' : undefined}",
   'data-top-layer={tooltipTopLayerActive',
 ]);
+forbid('src/components/provinces/UsMainlandMap.tsx', ['unlockedProvinceIds', 'locked: boolean', 'data-locked=', 'province-map-tooltip__locked', '--color-map-region-locked']);
 check('src/components/shell/AdminDesktopBar.tsx', [
   "import { SafeTooltip } from '../ui/SafeTooltip'",
   'className="admin-command-bar-identity"',
@@ -145,27 +146,22 @@ check('src/components/shell/GameShell.tsx', [
   "leaderboard: 'fullscreen'",
   "const [sidebarCollapsed, setSidebarCollapsed] = useState(true)",
   "const [mapLens, setMapLens] = useState<ProvinceMapLens>('assets')",
-  'const startingProvincePicking = !offline && game.startingProvinceChosen === false;',
   '<ApplicationMapLayerPortal>',
-  'startingProvinceCandidateId={startingProvinceCandidateId}',
-  "lens={startingProvincePicking ? 'political' : mapLens}",
-  'onPickStartingProvince={startingProvincePicking ? setStartingProvinceCandidateId : undefined}',
+  '<StrategicMapStage model={model} lens={mapLens} />',
   '<StrategicMapLensBar lens={mapLens} onLensChange={setMapLens} />',
-  'sidebar={startingProvincePicking ? null : (',
+  'sidebar={(',
+  '<DesktopSidebar',
   '<StrategicWorkspaceChrome',
-  '<StartingProvinceOverview',
-  'candidateProvinceId={startingProvinceCandidateId}',
   'tutorial={tutorial}',
   'pendingItems={notificationCenter.pendingItems}',
   'data-strategic-presentation={pagePresentation}',
-  'data-starting-province-picking={startingProvincePicking ? \'true\' : \'false\'}',
   'integratedPrimaryCard',
   'pageTransitionKey={playerPageLocationKey(pageLocation)}',
   'data-strategic-page-location={playerPageLocationKey(pageLocation)}',
   'playerId: model.user.id',
   'title: BRAND_NAME',
   'playerName,',
-  "onClick: startingProvincePicking ? undefined : () => selectPlayerTab('settings')",
+  "onClick: () => selectPlayerTab('settings')",
 ]);
 forbid('src/components/shell/GameShell.tsx', [
   "transport: 'fullscreen'",
@@ -173,6 +169,12 @@ forbid('src/components/shell/GameShell.tsx', [
   "const showRightRail = pagePresentation !== 'fullscreen';",
   'tutorial={showRightRail ? tutorial : undefined}',
   'showEventRail=',
+  'StartingProvinceOverview',
+  'startingProvincePicking',
+  'startingProvinceCandidateId',
+  'onPickStartingProvince',
+  'chooseStartingProvince',
+  'data-starting-province-picking',
 ]);
 check('src/components/shell/DesktopSidebar.tsx', [
   'showIdentity={false}',
@@ -191,14 +193,10 @@ check('src/components/shell/StatusBar.tsx', [
 check('src/components/shell/StrategicWorkspace.tsx', [
   'export function StrategicMapStage',
   '<UsMainlandMap',
-  'startingProvinceCandidateId?: string | null;',
-  'onPickStartingProvince?: (provinceId: string) => void;',
-  'const startingProvincePicking = model.game.startingProvinceChosen === false',
-  'onPickStartingProvince?.(provinceId);',
+  'const openProvincePage = (provinceId: string) => {',
+  'setSelectedProvinceId(provinceId);',
   "model.setTab('province')",
-  'unlockedProvinceIds={startingProvincePicking',
-  'selectedProvinceId={startingProvincePicking',
-  ": model.tab === 'province' ? state.selectedProvinceId : null}",
+  "selectedProvinceId={model.tab === 'province' ? state.selectedProvinceId : null}",
   'export function StrategicMapLensBar',
   'export function StrategicWorkspaceChrome',
   'aria-label="地图镜头"',
@@ -212,6 +210,11 @@ forbid('src/components/shell/StrategicWorkspace.tsx', [
   '管理本地生产',
   'strategic-economic-event-rail',
   'EconomicEventLogPanel',
+  'startingProvincePicking',
+  'startingProvinceCandidateId',
+  'onPickStartingProvince',
+  'unlockedProvinceIds',
+  'data-starting-province',
 ]);
 check('src/components/outliner/StrategicOutliner.tsx', [
   'aria-label="战略追踪器"',
@@ -521,4 +524,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('游戏与管理员共享外壳验证通过：固定状态栏、唯一共享页面滚动、跨页面常驻战略追踪器、起始州地图选点与左侧概览确认、研发统一 workspaceCard 与内部透明科技画布、根级 Dialog、共享 Tooltip 宿主与逐节点 Top Layer、48px 通知轨道、8px 战略栅格、主卡片侧栏覆盖、建筑式页面、根级地图镜头、镜头按钮图标文字同轴居中与安全浮层满足当前基线。');
+console.log('游戏与管理员共享外壳验证通过：固定状态栏、唯一共享页面滚动、跨页面常驻战略追踪器、连续 48 州直接经营、研发统一 workspaceCard 与内部透明科技画布、根级 Dialog、共享 Tooltip 宿主与逐节点 Top Layer、48px 通知轨道、8px 战略栅格、主卡片侧栏覆盖、建筑式页面、根级地图镜头、镜头按钮图标文字同轴居中与安全浮层满足当前基线。');

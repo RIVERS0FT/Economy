@@ -44,18 +44,3 @@
     padding-inline: var(--space-1);
   }
 }
-
-.province-lock-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.province-lock-description {
-  margin: 0;
-  color: var(--color-text-secondary);
-}
-
-.province-unlock-button {
-  margin-top: 8px;
-}

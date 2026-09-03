@@ -1,17 +1,10 @@
-import provinceEconomicLevelPolicy from '../../shared/province-economic-level-policy.json';
 import {
   TRANSPORT_BASE_SECONDS_PER_KM,
   TRANSPORT_FUEL_UNIT_PRICE,
   TRANSPORT_MODE_POLICY,
 } from '../../shared/transport-policy.js';
 import type { ProvinceDefinition, TransportModeId, TransportTripType } from '../types';
-import { provinceEconomicLevelBaseCost, provinceEconomicLevelFor } from './provinceEconomicLevel';
 
-export const PROVINCE_UNLOCK_BASE_COST = provinceEconomicLevelBaseCost(1);
-export const PROVINCE_UNLOCK_DISTANCE_STEP_KM = Number(provinceEconomicLevelPolicy.distanceStepKm);
-export const PROVINCE_UNLOCK_COST_PER_DISTANCE_STEP = Number(provinceEconomicLevelPolicy.distanceCostPerStep);
-export const PROVINCE_UNLOCK_COST_PER_500_KM = PROVINCE_UNLOCK_COST_PER_DISTANCE_STEP;
-export const PROVINCE_UNLOCK_MAX_COST = Number(provinceEconomicLevelPolicy.maxUnlockCost);
 
 export const TRANSPORT_MODES: Record<TransportModeId, {
   id: TransportModeId;
@@ -48,34 +41,6 @@ export function provinceDistanceKm(left: ProvinceDefinition, right: ProvinceDefi
   const haversine = Math.sin(dLat / 2) ** 2
     + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
   return 2 * earthRadiusKm * Math.asin(Math.min(1, Math.sqrt(haversine)));
-}
-
-export function provinceUnlockCostBreakdown(
-  provinceId: string,
-  startingProvinceId: string,
-  provinces: ProvinceDefinition[],
-) {
-  const economicLevel = provinceEconomicLevelFor(provinceId);
-  const baseCost = provinceEconomicLevelBaseCost(economicLevel);
-  const left = provinces.find((province) => province.id === provinceId);
-  const right = provinces.find((province) => province.id === startingProvinceId);
-  if (!left || !right) {
-    return { economicLevel, baseCost, distanceKm: 0, distanceCost: 0, totalCost: Math.min(PROVINCE_UNLOCK_MAX_COST, baseCost) };
-  }
-  const distanceKm = provinceDistanceKm(left, right);
-  const distanceCost = PROVINCE_UNLOCK_COST_PER_DISTANCE_STEP
-    * Math.floor(distanceKm / PROVINCE_UNLOCK_DISTANCE_STEP_KM);
-  return {
-    economicLevel,
-    baseCost,
-    distanceKm,
-    distanceCost,
-    totalCost: Math.min(PROVINCE_UNLOCK_MAX_COST, baseCost + distanceCost),
-  };
-}
-
-export function provinceUnlockCost(provinceId: string, startingProvinceId: string, provinces: ProvinceDefinition[]) {
-  return provinceUnlockCostBreakdown(provinceId, startingProvinceId, provinces).totalCost;
 }
 
 export interface TransportRouteStopsInput {

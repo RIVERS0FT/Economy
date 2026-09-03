@@ -48,8 +48,9 @@ test('official state economic baseline covers every contiguous state with explic
   });
 });
 
-test('population demand activates each accessible state once and falls back to California', () => {
+test('population demand follows economic footprints instead of legacy access fields and falls back to California', () => {
   assert.deepEqual(activePopulationDemandProvinceIds({ players: {} }), [CALIFORNIA]);
+  assert.deepEqual(activePopulationDemandProvinceIds({ players: { '1': { startingProvinceId: CALIFORNIA, unlockedProvinces: [CALIFORNIA, TEXAS], facilityGroups: [] } } }), [CALIFORNIA]);
 
   const world = {
     players: {

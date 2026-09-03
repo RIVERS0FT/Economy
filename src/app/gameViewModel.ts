@@ -141,8 +141,6 @@ export interface LoadedGameViewModel {
   clearLocalTrades: () => void;
   signOut: () => Promise<void>;
   checkIn: () => Promise<ActionResult>;
-  chooseStartingProvince: (provinceId: string) => Promise<ActionResult>;
-  unlockProvince: (provinceId: string) => Promise<ActionResult>;
   createTransportRoute: (input: TransportRouteInput) => Promise<ActionResult>;
   updateTransportRoute: (routeId: string, input: TransportRouteInput) => Promise<ActionResult>;
   renameTransportRoute: (routeId: string, name: string) => Promise<ActionResult>;
@@ -581,8 +579,6 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     clearLocalTrades: () => { setLocalActivity(clearLocalTradesStore(user.id, loadedGame)); notify('本地成交记录已清除'); },
     signOut,
     checkIn: () => runAction('checkIn', gameActions.checkIn),
-    chooseStartingProvince: (provinceId) => runAction('chooseStartingProvince', () => gameActions.chooseStartingProvince(provinceId)),
-    unlockProvince: (provinceId) => runAction('unlockProvince', () => gameActions.unlockProvince(provinceId)),
     createTransportRoute: (input) => runAction('transportShip', () => gameActions.createTransportRoute(input)),
     updateTransportRoute: (routeId, input) => runAction('transportShip', () => gameActions.updateTransportRoute(routeId, input)),
     renameTransportRoute: (routeId, name) => runAction('transportShip', () => gameActions.renameTransportRoute(routeId, name)),

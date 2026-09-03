@@ -231,12 +231,13 @@ requireAll(paths.shell, [
   'const [sidebarCollapsed, setSidebarCollapsed] = useState(true)',
   "useGameAuthorityDependencies(['player.identity', 'player.assets', 'leaderboard'])",
   '<SignedInShell',
-  "rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}${startingProvincePicking ? ' is-starting-province-picking' : ''}`}",
+  "rootClassName={`game-shell strategic-game-shell strategic-tab-${model.tab}`}",
   'sidebarCollapsed={sidebarCollapsed}',
   'onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}',
   '<StrategicWorkspaceChrome',
   'pendingItems={notificationCenter.pendingItems}',
 ]);
+forbidAll(paths.shell, ['StartingProvinceOverview', 'startingProvincePicking', 'startingProvinceCandidateId', 'onPickStartingProvince']);
 requireAll(paths.sharedShell, [
   "sidebarCollapsed && 'sidebar-collapsed'",
   "'signed-in-shell'",

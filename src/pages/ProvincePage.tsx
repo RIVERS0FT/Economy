@@ -10,7 +10,6 @@ import type { OnlineAutoTradeAwareGameViewModel } from '../auto-trade/useOnlineA
 import stateEconomicBaselines from '../../shared/us-state-economic-baselines.json';
 import { FacilityRecipeProfitMarketsProvider } from '../components/facilities/FacilityRecipeProfitContext';
 import { WarehouseInventoryPanel } from '../components/warehouse/WarehouseInventoryPanel';
-import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { usePlayerPageNavigation } from '../components/ui/PageNavigationContext';
 import { RegionalEntityPageTitle } from '../components/ui/RegionalEntityPageTitle';
 import {
@@ -24,9 +23,7 @@ import {
   WidgetHeading,
 } from '../components/ui/layout';
 import type { ProvinceSection } from '../navigation/playerPageStack';
-import { formatCurrency, formatNumber } from '../utils/formatters';
 import { provinceEconomicLevelFor } from '../utils/provinceEconomicLevel';
-import { provinceUnlockCostBreakdown } from '../utils/provinceLogistics';
 
 const EmbeddedMarketPage = lazy(() => import('./MarketPage').then((module) => ({
   default: module.MarketPage,
@@ -46,7 +43,6 @@ const STATE_ECONOMIC_BASELINE_BY_PROVINCE_ID = new Map(
   stateEconomicBaselines.states.map((row) => [row.provinceId, row]),
 );
 const POPULATION_BASELINE_PERIOD = stateEconomicBaselines.sources.population.period;
-type StateEconomicBaseline = (typeof stateEconomicBaselines.states)[number];
 
 function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
   const summary = model.game.provinceAssetSummaries[model.selectedProvinceId] ?? {
@@ -112,67 +108,6 @@ function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameVie
   );
 }
 
-function ProvinceUnlockPanel({
-  model,
-  provinceName,
-  economicLevel,
-  economicBaseline,
-  baseCost,
-  distanceCost,
-  unlockCost,
-  distanceKm,
-  section,
-  unlocking,
-  onUnlock,
-}: {
-  model: OnlineAutoTradeAwareGameViewModel;
-  provinceName: string;
-  economicLevel: number;
-  economicBaseline?: StateEconomicBaseline;
-  baseCost: number;
-  distanceCost: number;
-  unlockCost: number;
-  distanceKm: number;
-  section: 'buildings' | 'warehouse';
-  unlocking: boolean;
-  onUnlock: () => void;
-}) {
-  const sectionTitle = section === 'buildings' ? '建筑功能未解锁' : '仓库功能未解锁';
-  return (
-    <section className="province-lock-content">
-      <WidgetHeading title={sectionTitle} action={<StatusTag tone="warning">锁定</StatusTag>} />
-      <p className="province-lock-description">
-        {section === 'buildings'
-          ? '解锁该州后才能建设、运营和交易本地工厂。'
-          : '解锁该州后才能使用本地库存和跨州运输。'}
-      </p>
-      <DataList>
-        <DataRow label="地区水平" value={`${economicLevel} / 5`} />
-        <DataRow label="常住人口" value={economicBaseline ? <CompactNumber value={economicBaseline.population} /> : '—'} />
-        <DataRow label="平均周薪" value={economicBaseline ? <><CompactNumber value={economicBaseline.averageWeeklyWage} /> 美元</> : '—'} />
-        <DataRow label="州 PCE" value={economicBaseline ? <><CompactNumber value={economicBaseline.pceMillions} /> 百万美元</> : '—'} />
-        <DataRow label="地区基础费用" value={<CurrencyAmount>{formatCurrency(baseCost)}</CurrencyAmount>} />
-        <DataRow label="距起始州" value={`约 ${formatNumber(distanceKm)} 公里`} />
-        <DataRow label="距离费用" value={<CurrencyAmount>{formatCurrency(distanceCost)}</CurrencyAmount>} />
-        <DataRow label="解锁费用" value={<CurrencyAmount>{formatCurrency(unlockCost)}</CurrencyAmount>} />
-        <DataRow label="当前资金" value={<CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>} />
-      </DataList>
-      <Button
-        block
-        className="province-unlock-button"
-        disabled={unlocking || model.game.credits < unlockCost}
-        onClick={onUnlock}
-      >
-        {unlocking
-          ? '正在解锁…'
-          : model.game.credits < unlockCost
-            ? `资金不足，需要 ${formatCurrency(unlockCost)}`
-            : `解锁${provinceName}（${formatCurrency(unlockCost)}）`}
-      </Button>
-    </section>
-  );
-}
-
 function ProvinceSectionLoading() {
   return (
     <Panel className="empty-state province-section-loading">
@@ -185,8 +120,6 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
   const pageNavigation = usePlayerPageNavigation();
   const [fallbackSection, setFallbackSection] = useState<ProvinceSection>('overview');
   const [fallbackFacilityDetailTypeId, setFallbackFacilityDetailTypeId] = useState<string | null>(null);
-  const [confirmedUnlockedProvinceIds, setConfirmedUnlockedProvinceIds] = useState<string[]>([]);
-  const [unlockingProvinceIds, setUnlockingProvinceIds] = useState<string[]>([]);
   const location = pageNavigation?.currentLocation;
   const locationMatchesProvince = location && 'provinceId' in location
     ? location.provinceId === model.selectedProvinceId
@@ -234,47 +167,6 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     : undefined;
   const isMarketDetail = Boolean(marketDetailProduct);
   const isEntityDetail = isFacilityDetail || isMarketDetail;
-  const hasProvinceUnlockState = Array.isArray(model.game.unlockedProvinces)
-    || typeof model.game.startingProvinceId === 'string';
-  const isServerUnlocked = !hasProvinceUnlockState
-    || (model.game.unlockedProvinces ?? []).includes(model.selectedProvinceId)
-    || model.game.startingProvinceId === model.selectedProvinceId;
-  const isUnlocked = isServerUnlocked || confirmedUnlockedProvinceIds.includes(model.selectedProvinceId);
-  const unlockBreakdown = provinceUnlockCostBreakdown(
-    model.selectedProvinceId,
-    model.game.startingProvinceId,
-    model.game.provinces,
-  );
-  const unlockCost = unlockBreakdown.totalCost;
-  const distanceKm = Math.round(unlockBreakdown.distanceKm);
-  const selectedEconomicBaseline = STATE_ECONOMIC_BASELINE_BY_PROVINCE_ID.get(model.selectedProvinceId);
-
-  const unlockSelectedProvince = async () => {
-    const provinceId = model.selectedProvinceId;
-    if (unlockingProvinceIds.includes(provinceId)) return;
-    setUnlockingProvinceIds((current) => [...current, provinceId]);
-    try {
-      const result = await model.unlockProvince(provinceId);
-      model.notify(result.message);
-      if (result.ok) {
-        setConfirmedUnlockedProvinceIds((current) => (
-          current.includes(provinceId) ? current : [...current, provinceId]
-        ));
-      }
-    } finally {
-      setUnlockingProvinceIds((current) => current.filter((id) => id !== provinceId));
-    }
-  };
-
-  useEffect(() => {
-    if (!isServerUnlocked) return;
-    setConfirmedUnlockedProvinceIds((current) => (
-      current.includes(model.selectedProvinceId)
-        ? current.filter((id) => id !== model.selectedProvinceId)
-        : current
-    ));
-  }, [isServerUnlocked, model.selectedProvinceId]);
-
   useEffect(() => {
     if (!pageNavigation || model.tab !== 'province') return;
     const current = pageNavigation.currentLocation;
@@ -441,60 +333,27 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
         {activeSection === 'overview' ? <ProvinceOverviewSection model={model} /> : null}
         {activeSection === 'market' ? (
           <Suspense fallback={<ProvinceSectionLoading />}>
-            <EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />
+            <EmbeddedMarketPage model={model} embedded readOnly={false} />
           </Suspense>
         ) : null}
         {activeSection === 'buildings' ? (
-          !isUnlocked ? (
-            <ProvinceUnlockPanel
-              model={model}
-              provinceName={provinceName}
-              economicLevel={unlockBreakdown.economicLevel}
-              economicBaseline={selectedEconomicBaseline}
-              baseCost={unlockBreakdown.baseCost}
-              distanceCost={unlockBreakdown.distanceCost}
-              unlockCost={unlockCost}
-              distanceKm={distanceKm}
-              section="buildings"
-              unlocking={unlockingProvinceIds.includes(model.selectedProvinceId)}
-              onUnlock={() => void unlockSelectedProvince()}
-            />
-          ) : (
-            <Suspense fallback={<ProvinceSectionLoading />}>
-              <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
-                {/* Retired static verifier marker: <EmbeddedBuildingsPage model={model} embedded /> */}
-                <EmbeddedBuildingsPage
-                  model={model}
-                  embedded
-                  detailFacilityTypeId={facilityDetailTypeId ?? undefined}
-                  onDetailFacilityChange={handleFacilityDetailChange}
-                />
-              </FacilityRecipeProfitMarketsProvider>
-            </Suspense>
-          )
+          <Suspense fallback={<ProvinceSectionLoading />}>
+            <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
+              <EmbeddedBuildingsPage
+                model={model}
+                embedded
+                detailFacilityTypeId={facilityDetailTypeId ?? undefined}
+                onDetailFacilityChange={handleFacilityDetailChange}
+              />
+            </FacilityRecipeProfitMarketsProvider>
+          </Suspense>
         ) : null}
         {activeSection === 'warehouse' ? (
-          !isUnlocked ? (
-            <ProvinceUnlockPanel
-              model={model}
-              provinceName={provinceName}
-              economicLevel={unlockBreakdown.economicLevel}
-              economicBaseline={selectedEconomicBaseline}
-              baseCost={unlockBreakdown.baseCost}
-              distanceCost={unlockBreakdown.distanceCost}
-              unlockCost={unlockCost}
-              distanceKm={distanceKm}
-              section="warehouse"
-              unlocking={unlockingProvinceIds.includes(model.selectedProvinceId)}
-              onUnlock={() => void unlockSelectedProvince()}
-            />
-          ) : (
-            <WarehouseInventoryPanel
-              model={model}
-              className="province-warehouse-section"
-              onOpenProduct={openWarehouseProduct}
-            />
-          )
+          <WarehouseInventoryPanel
+            model={model}
+            className="province-warehouse-section"
+            onOpenProduct={openWarehouseProduct}
+          />
         ) : null}
       </section>
     </PageLayout>

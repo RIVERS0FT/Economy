@@ -64,13 +64,7 @@ const REGIONAL_STATUS_FILTERS: Array<{ value: RegionalProductStatus; label: stri
 ];
 
 function operationalProvinces(model: OnlineAutoTradeAwareGameViewModel) {
-  const game = model.game;
-  const hasUnlockState = Array.isArray(game.unlockedProvinces)
-    || typeof game.startingProvinceId === 'string';
-  if (!hasUnlockState) return game.provinces;
-  const unlocked = new Set(game.unlockedProvinces ?? []);
-  if (game.startingProvinceId) unlocked.add(game.startingProvinceId);
-  return game.provinces.filter((province) => unlocked.has(province.id));
+  return model.game.provinces;
 }
 
 function average(values: number[]) {

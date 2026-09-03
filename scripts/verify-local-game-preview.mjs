@@ -9,10 +9,9 @@ try {
   assert.equal(read('scripts/generate-local-game-preview.mjs').includes('previewPlayer.work'), false, '免登录预览不得恢复已退役工作状态');
 
   const gameShell = read('src/components/shell/GameShell.tsx');
-  assert.ok(
-    gameShell.includes('!offline && game.startingProvinceChosen === false'),
-    '免登录完整游戏预览不得被一次性起始州选择写流程拦截，旧兼容快照也只能在明确 false 时显示选择门禁',
-  );
+  for (const token of ['StartingProvinceOverview', 'startingProvincePicking', 'startingProvinceCandidateId', 'onPickStartingProvince']) {
+    assert.equal(gameShell.includes(token), false, `免登录与在线外壳不得保留已退役起始州分支: ${token}`);
+  }
 
   const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
   for (const text of [

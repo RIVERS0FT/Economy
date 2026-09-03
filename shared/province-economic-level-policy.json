@@ -1,19 +1,9 @@
 {
-  "version": 1,
+  "version": 2,
   "levelCount": 5,
   "weights": {
     "pceMillions": 0.5,
     "averageWeeklyWage": 0.3,
     "population": 0.2
-  },
-  "levelBaseCosts": {
-    "1": 1500,
-    "2": 2500,
-    "3": 4000,
-    "4": 6000,
-    "5": 9000
-  },
-  "distanceStepKm": 500,
-  "distanceCostPerStep": 300,
-  "maxUnlockCost": 20000
+  }
 }

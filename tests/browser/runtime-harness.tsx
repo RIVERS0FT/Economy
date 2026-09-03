@@ -395,7 +395,7 @@ function MapHarness() {
       ? {
           ...next.game,
           startingProvinceId: '110000',
-          startingProvinceChosen: true,
+          startingProvinceChosen: false,
           unlockedProvinces: ['110000'],
         }
       : next.game;
