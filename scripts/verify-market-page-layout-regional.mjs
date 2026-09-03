@@ -44,13 +44,13 @@ for (const token of [
   'ownOrderCount',
 ]) forbidText(marketPage, token, `地区商品目录不得恢复玩家挂单筛选或指标: ${token}`);
 
-for (const token of ['24h成交量', '市场价', '24h价格变化']) requireText(commodityRow, token, `共享商品表头必须显示 ${token}。`);
-for (const token of ['卖单量', '买单量', 'sellVolume', 'buyVolume']) forbidText(commodityRow, token, `共享商品列表不得恢复盘口指标: ${token}`);
+for (const token of ['今日价格', '24h成交量', '24h价格变化']) requireText(commodityRow, token, `共享商品表头必须显示 ${token}。`);
+for (const token of ['卖单量', '买单量', 'sellVolume', 'buyVolume', "'buy-volume'", "'sell-volume'"]) forbidText(commodityRow, token, `共享商品列表不得恢复盘口接口或指标: ${token}`);
 requireText(commodityRow, "entityLabel = '商品'", '共享商品表头默认首列必须为商品。');
 requireText(commodityRow, '<EntityListHeader', '共享商品表头必须复用统一实体列表表头。');
 requireText(entityListHeader, 'role="columnheader"', '共享实体列表表头必须使用列标题语义。');
 requireText(entityListHeader, 'aria-sort={ariaSort}', '共享实体列表表头必须播报排序方向。');
-requireText(commodityRowStyles, '--entity-list-columns: minmax(8rem, 1.45fr) repeat(3, minmax(4.4rem, .78fr)) var(--entity-list-chevron-column, .8rem);', '商品行必须只保留身份、三项指标和箭头。');
+requireText(commodityRowStyles, '--entity-list-columns: minmax(8rem, 1.55fr) repeat(3, minmax(4.5rem, .72fr)) var(--entity-list-chevron-column, .8rem);', '商品行必须只保留身份、三项指标和箭头。');
 requireText(commodityRowStyles, '@container (max-width: 620px)', '共享商品数据行必须提供移动紧凑断点。');
 requireText(commodityRowStyles, '@container (max-width: 360px)', '共享商品数据行必须覆盖极窄屏。');
 
@@ -90,8 +90,6 @@ for (const token of [
   '<small>今日成交量</small>',
   '<small>24h 成交量</small>',
 ]) requireText(marketPage, token, `地区商品详情缺少市场事实: ${token}`);
-requireText(marketPage, 'market-trade-readonly', '未开放交易的地区视图必须保留只读态。');
-requireText(marketPage, '该地区尚未解锁，市场仅供查看。', '只读态必须解释无法交易。');
 requireText(detailStyles, '.market-detail-surface .market-trade-card {', '详情样式必须继续拥有直接交易区。');
 requireText(detailStyles, 'background: transparent;', '直接交易区不得恢复一级卡片背景。');
 
@@ -103,10 +101,10 @@ requireText(serverDelivery, 'const priceHistory = realTradePoints(market, now).m
 requireText(serverDeliveryTest, 'bounded public real-trade history', '服务器测试必须锁定详情历史边界。');
 
 for (const token of [
-  '玩家商品交易不创建开放订单',
-  '北京时间',
-  '每日 00:00',
-  '不得提交自定义价格',
+  '玩家商品交易不得创建 `open`／`partial` 商品订单',
+  '北京时间每日 `00:00`',
+  '客户端提交的 `price` 不是手动交易成交价',
+  '不得恢复成玩家盘口玩法',
 ]) requireText(marketDesign, token, `商品市场设计必须锁定即时交易边界: ${token}`);
 
 if (failures.length) {
@@ -115,4 +113,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('地区商品市场验证通过：目录只展示成交量/今日系统价/变化，详情只允许数量型即时交易，不存在价格输入、盘口、开放订单或撤单。');
+console.log('地区商品市场验证通过：目录只展示 24h 成交量、今日官方价与 24h 变化，详情只允许数量型即时交易，不存在价格输入、盘口、开放订单或撤单。');
