@@ -63,6 +63,8 @@
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器本地活动记录最小数据、迁移、展示和清除 | 服务器账本和全局通知 |
 | `GIFT_CODE_AND_ADMIN_DESIGN.md` | 礼品码、管理员运营能力、管理审计和管理端规则 | 普通玩家页面和产业规则 |
 
+工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`；具体工厂目录展示顺序和场景选择仍归 `FACILITY_CATALOG_PRESENTATION_DESIGN.md`。
+
 文档名称表达领域而不是版本。职责变化时直接更新现有 DESIGN 和本表，不建立版本化或补充型平行文档。
 
 ## 4. 规则路由
