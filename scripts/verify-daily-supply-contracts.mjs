@@ -75,8 +75,12 @@ requireText(buildings, 'setContractMarketIntent(productId, model.selectedProvinc
 for (const token of ['每日最大供应量', '固定价格', '合同时间（天', '开始延迟（天）', '合同地区', '最低当日产量', '最低合同价格', '今日剩余额度']) {
   requireText(workspace, token, `合同工作区缺少：${token}`);
 }
-forbidText(workspace, '小时', '新合同工作区不得以小时作为合同时间输入或展示单位。');
-forbidText(workspace, '分钟', '新合同工作区不得以分钟作为合同时间输入或展示单位。');
+for (const token of ['首次交付（小时）', '交付周期（小时）', '贷款期限（小时）', '租金周期（小时）', '首次生效（小时）']) {
+  forbidText(workspace, token, `新合同工作区不得恢复旧按小时合同字段：${token}`);
+}
+for (const token of ['首次交付（分钟）', '交付周期（分钟）', '贷款期限（分钟）', '租金周期（分钟）', '首次生效（分钟）']) {
+  forbidText(workspace, token, `新合同工作区不得恢复旧按分钟合同字段：${token}`);
+}
 
 for (const token of ['合同简要', '采购合同', '供应合同', '今日采购额度', '最低采购合同价', '查看相关合同']) {
   requireText(productDetail, token, `地区商品详情合同摘要缺少：${token}`);
@@ -88,7 +92,7 @@ for (const [source, token, message] of [
   [industry, '最低当日产量 + 最低合同固定价', '产业权威设计必须锁定供应优先条件。'],
   [warehouse, '每日最大供应量', '仓库权威设计必须锁定每日额度合同。'],
   [warehouse, '合同简要', '仓库权威设计必须锁定商品详情合同摘要。'],
-  [pageDesign, '领域、地区和商品筛选', '页面权威设计必须锁定合同地区筛选。'],
+  [pageDesign, '领域、合作方向、地区和商品筛选', '页面权威设计必须锁定合同领域、合作方向、地区和商品筛选。'],
   [pageDesign, '`provinceId + productId`', '页面权威设计必须锁定合同跳转地区上下文。'],
   [productDesign, '固定 `unitPrice`、`dailyMaxQuantity`', '产品权威设计必须锁定新商品合同核心条款。'],
   [serverDesign, '`server/src/unified-contracts.js`', '服务器权威设计必须登记统一合同门面。'],
