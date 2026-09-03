@@ -107,6 +107,13 @@ assert.ok(iconSource.includes('aria-hidden="true"'));
 assert.ok(harnessSource.includes("id: 'cellular-manufacturing'"));
 assert.ok(browserSource.includes("getByRole('option', { name: '单元制造' })"));
 assert.ok(browserSource.includes('data-production-method-icon="factory-cell"'));
+assert.ok(browserSource.includes('for (const width of [320, 360, 390, 430, 720]) {'));
+assert.ok(browserSource.includes('test(`keeps mobile production controls and settlement in one non-overlapping page detail flow at ${width}px`'));
+assert.equal(
+  browserSource.includes("test('keeps mobile production controls and settlement in one non-overlapping page detail flow'"),
+  false,
+  '移动生产详情五个完整视口不得共享同一个 Playwright 单测预算',
+);
 
 for (const [path, required] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['26 类工厂全部使用正式目录声明的产业语义制度', '不同工厂允许复用同一制度 ID', '保留基础产物路线、`cycleStartedAt`、满员率和批次余数']],
@@ -115,4 +122,4 @@ for (const [path, required] of [
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);
 }
 
-console.log('生产方式验证通过：26 类工厂均使用四种具名制度与语义图标，旧制度只参与等参数存档迁移，共享制度定义、固定精度、研发校验与客户端版本 39 均已锁定。');
+console.log('生产方式验证通过：26 类工厂均使用四种具名制度与语义图标，旧制度只参与等参数存档迁移，共享制度定义、固定精度、研发校验、独立移动视口门禁与客户端版本 39 均已锁定。');
