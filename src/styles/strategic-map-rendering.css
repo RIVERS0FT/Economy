@@ -57,6 +57,14 @@
   stroke-dasharray: 12 8;
 }
 
+/* Map-only operational surfaces are solid. :root raises final-owner specificity so stale legacy map CSS cannot restore glass or an invalid transparent fallback regardless of load order. */
+:root .application-map-layer > .strategic-map-lens-bar.panel,
+:root .transport-map-picking-bar {
+  background: var(--color-surface-panel) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
 .application-map-layer > .strategic-map-lens-bar,
 .strategic-map-lens-bar,
 .transport-map-picking-bar {
