@@ -233,8 +233,8 @@ if (failures.length === 0) {
     "await expect(page.locator('.global-facility-region-list')).toBeVisible();",
     "querySelector<HTMLElement>('.global-facility-region-list')",
     "querySelectorAll<HTMLElement>(':scope > li > .global-facility-region-row')",
-    'expect(row.height).toBeGreaterThanOrEqual(82);',
-    'expect(row.height).toBeLessThanOrEqual(98);',
+    'expect(row.height).toBeGreaterThanOrEqual(104);',
+    'expect(row.height).toBeLessThanOrEqual(132);',
     "page.locator('.global-facility-region-row__quick-controls')",
   ]) requireText(paths.geometryTest, text);
   forbidText(paths.geometryTest, 'test.setTimeout(');

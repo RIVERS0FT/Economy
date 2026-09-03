@@ -110,8 +110,8 @@ test('map keeps gesture zoom without a control panel and primary market/building
   expect(methodBox).not.toBeNull();
   expect(openBox).not.toBeNull();
   if (!nameBox || !productBox || !methodBox || !openBox) throw new Error('全局工厂两行布局未完整渲染');
-  expect(openBox.height).toBeGreaterThanOrEqual(30);
-  expect(openBox.height).toBeLessThan(44);
+  expect(openBox.height).toBeGreaterThanOrEqual(44);
+  expect(openBox.height).toBeLessThan(artworkBox.height);
   expect(artworkBox.y).toBeLessThan(openBox.y + openBox.height);
   expect(artworkBox.y + artworkBox.height).toBeGreaterThan(productBox.y);
   expect(Math.abs(productBox.width - productBox.height)).toBeLessThan(1);
@@ -185,8 +185,8 @@ test('map keeps gesture zoom without a control panel and primary market/building
   const regionOpenBox = await regionOpenButton.boundingBox();
   expect(regionOpenBox).not.toBeNull();
   if (!regionOpenBox) throw new Error('地区工厂第一行未渲染');
-  expect(regionOpenBox.height).toBeGreaterThanOrEqual(30);
-  expect(regionOpenBox.height).toBeLessThan(44);
+  expect(regionOpenBox.height).toBeGreaterThanOrEqual(44);
+  expect(regionOpenBox.height).toBeLessThanOrEqual(48);
   const regionQuickProduct = regionalFacilityRow.locator('[data-quick-production="product"]');
   const regionQuickMethod = regionalFacilityRow.locator('[data-quick-production="method"]');
   await expect(regionQuickProduct).toHaveCount(1);

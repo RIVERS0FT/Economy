@@ -13,11 +13,12 @@ async function ensureFacilityCatalogFixture(page: import('@playwright/test').Pag
         <span class="entity-list-header__cell"></span>
       </div>
       <ul class="entity-list-rows global-facility-catalog-list">
+        ${[1, 2].map((index) => `
         <li>
           <div class="entity-list-row global-facility-catalog-row">
             <svg class="global-facility-catalog-row__artwork"></svg>
             <button class="global-facility-catalog-row__open" type="button">
-              <span class="global-facility-catalog-row__identity"><strong>测试工厂</strong></span>
+              <span class="global-facility-catalog-row__identity"><strong>测试工厂${index}</strong></span>
               <strong class="entity-list-value global-facility-catalog-row__metric global-facility-catalog-row__profit is-positive">1</strong>
               <strong class="global-facility-catalog-row__metric">1</strong>
               <span class="global-facility-catalog-row__chevron"><svg class="game-icon"></svg></span>
@@ -27,7 +28,7 @@ async function ensureFacilityCatalogFixture(page: import('@playwright/test').Pag
               <span class="global-facility-catalog-row__quick-selector" data-quick-production="method"><span class="ui-rich-select" data-variant="production-config"><button class="ui-rich-select__trigger" type="button"><span class="ui-rich-select__visual"><svg class="game-icon"></svg></span></button></span></span>
             </span>
           </div>
-        </li>
+        </li>`).join('')}
       </ul>`;
   });
 }
@@ -73,6 +74,7 @@ async function inspectFacilityRow(page: import('@playwright/test').Page) {
   const row = page.locator('.global-facility-catalog-row').first();
   await expect(row).toBeVisible();
   return row.evaluate((element) => {
+    const list = element.closest<HTMLElement>('.global-facility-catalog-list');
     const header = document.querySelector<HTMLElement>('.global-facility-catalog-header');
     const artwork = element.querySelector<HTMLElement>('.global-facility-catalog-row__artwork');
     const open = element.querySelector<HTMLElement>('.global-facility-catalog-row__open');
@@ -81,9 +83,11 @@ async function inspectFacilityRow(page: import('@playwright/test').Page) {
     const profit = element.querySelector<HTMLElement>('.global-facility-catalog-row__profit');
     const count = element.querySelector<HTMLElement>('.global-facility-catalog-row__metric:not(.global-facility-catalog-row__profit)');
     const productionTrigger = element.querySelector<HTMLElement>(".global-facility-catalog-row__quick-selector .ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger");
-    if (!header || !artwork || !open || !quick || !name || !profit || !count || !productionTrigger) {
+    if (!list || !header || !artwork || !open || !quick || !name || !profit || !count || !productionTrigger) {
       throw new Error('facility catalog layout fixture is incomplete');
     }
+
+    const listStyle = getComputedStyle(list);
     const headerStyle = getComputedStyle(header);
     const artworkStyle = getComputedStyle(artwork);
     const openStyle = getComputedStyle(open);
@@ -96,20 +100,32 @@ async function inspectFacilityRow(page: import('@playwright/test').Page) {
     const artworkBox = artwork.getBoundingClientRect();
     const openBox = open.getBoundingClientRect();
     const quickBox = quick.getBoundingClientRect();
+    const rowBox = element.getBoundingClientRect();
     const profitBox = profit.getBoundingClientRect();
+
     return {
+      listGap: Number.parseFloat(listStyle.rowGap || listStyle.gap || '0'),
       rowClientWidth: element.clientWidth,
       rowScrollWidth: element.scrollWidth,
-      rowHeight: element.getBoundingClientRect().height,
+      rowHeight: rowBox.height,
       rowColumns: rowStyle.gridTemplateColumns,
       rowBorderTop: rowStyle.borderTopWidth,
+      rowBorderBottom: rowStyle.borderBottomWidth,
+      rowBorderRadius: rowStyle.borderRadius,
+      rowBackground: rowStyle.backgroundColor,
+      rowBackgroundImage: rowStyle.backgroundImage,
+      rowBoxShadow: rowStyle.boxShadow,
+      rowPaddingTop: Number.parseFloat(rowStyle.paddingTop),
+      rowPaddingBottom: Number.parseFloat(rowStyle.paddingBottom),
       headerBorderBottom: headerStyle.borderBottomWidth,
       artworkPosition: artworkStyle.position,
       artworkTransform: artworkStyle.transform,
       artworkGridColumn: artworkStyle.gridColumnStart,
       artworkGridRowStart: artworkStyle.gridRowStart,
       artworkGridRowEnd: artworkStyle.gridRowEnd,
+      artworkAspectRatio: artworkStyle.aspectRatio,
       artworkWidth: artworkBox.width,
+      artworkHeight: artworkBox.height,
       artworkTrackWidth: Number.parseFloat(rowStyle.gridTemplateColumns.split(' ')[0] ?? '0'),
       artworkLeft: artworkBox.left,
       artworkRight: artworkBox.right,
@@ -119,14 +135,17 @@ async function inspectFacilityRow(page: import('@playwright/test').Page) {
       openTop: openBox.top,
       openBottom: openBox.bottom,
       openHeight: openBox.height,
-      openBorderLeft: openStyle.borderLeftWidth,
+      openBorderTop: openStyle.borderTopWidth,
       openBackground: openStyle.backgroundColor,
+      openBackgroundImage: openStyle.backgroundImage,
+      openBoxShadow: openStyle.boxShadow,
       quickLeft: quickBox.left,
       quickTop: quickBox.top,
       quickBottom: quickBox.bottom,
-      quickBorderLeft: quickStyle.borderLeftWidth,
       quickBorderTop: quickStyle.borderTopWidth,
       quickBackground: quickStyle.backgroundColor,
+      quickBackgroundImage: quickStyle.backgroundImage,
+      quickBoxShadow: quickStyle.boxShadow,
       profitLeft: profitBox.left,
       nameFontSize: Number.parseFloat(nameStyle.fontSize),
       nameFontWeight: nameStyle.fontWeight,
@@ -136,6 +155,7 @@ async function inspectFacilityRow(page: import('@playwright/test').Page) {
       countFontWeight: countStyle.fontWeight,
       productionTriggerBorderWidth: productionTriggerStyle.borderTopWidth,
       productionTriggerBackground: productionTriggerStyle.backgroundColor,
+      productionTriggerBackgroundImage: productionTriggerStyle.backgroundImage,
       productionTriggerBoxShadow: productionTriggerStyle.boxShadow,
     };
   });
@@ -145,28 +165,45 @@ async function inspectFacilityRegionRow(page: import('@playwright/test').Page) {
   const row = page.locator('.global-facility-region-row').first();
   await expect(row).toBeVisible();
   return row.evaluate((element) => {
+    const list = element.closest<HTMLElement>('.global-facility-region-list');
     const open = element.querySelector<HTMLElement>('.global-facility-region-row__open');
     const quick = element.querySelector<HTMLElement>('.global-facility-region-row__quick-controls');
-    if (!open || !quick) throw new Error('facility region layout fixture is incomplete');
+    const productionTrigger = element.querySelector<HTMLElement>(".global-facility-region-row__quick-selector .ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger");
+    if (!list || !open || !quick || !productionTrigger) throw new Error('facility region layout fixture is incomplete');
+
+    const listStyle = getComputedStyle(list);
     const rowStyle = getComputedStyle(element);
     const openStyle = getComputedStyle(open);
     const quickStyle = getComputedStyle(quick);
+    const productionTriggerStyle = getComputedStyle(productionTrigger);
     const openBox = open.getBoundingClientRect();
     const quickBox = quick.getBoundingClientRect();
+
     return {
+      listGap: Number.parseFloat(listStyle.rowGap || listStyle.gap || '0'),
       rowBorderTop: rowStyle.borderTopWidth,
+      rowBackground: rowStyle.backgroundColor,
+      rowBackgroundImage: rowStyle.backgroundImage,
+      rowBoxShadow: rowStyle.boxShadow,
       openBackground: openStyle.backgroundColor,
+      openBackgroundImage: openStyle.backgroundImage,
+      openBoxShadow: openStyle.boxShadow,
       openBottom: openBox.bottom,
       quickTop: quickBox.top,
       quickBorderTop: quickStyle.borderTopWidth,
       quickBackground: quickStyle.backgroundColor,
+      quickBackgroundImage: quickStyle.backgroundImage,
+      quickBoxShadow: quickStyle.boxShadow,
+      productionTriggerBackground: productionTriggerStyle.backgroundColor,
+      productionTriggerBackgroundImage: productionTriggerStyle.backgroundImage,
+      productionTriggerBoxShadow: productionTriggerStyle.boxShadow,
       rowClientWidth: element.clientWidth,
       rowScrollWidth: element.scrollWidth,
     };
   });
 }
 
-test('global facility rows use visible split surfaces while artwork track has no extra inset', async ({ page }) => {
+test('global facility rows use object-card surfaces with square artwork and embedded production buttons', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('?preview=game', { waitUntil: 'domcontentloaded' });
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^建筑/ }).click();
@@ -183,26 +220,47 @@ test('global facility rows use visible split surfaces while artwork track has no
 
   const desktop = await inspectFacilityRow(page);
   const headerProfitLeft = (await headerProfit.boundingBox())?.x ?? 0;
+  const desktopInnerHeight = desktop.rowHeight
+    - desktop.rowPaddingTop
+    - desktop.rowPaddingBottom
+    - Number.parseFloat(desktop.rowBorderTop)
+    - Number.parseFloat(desktop.rowBorderBottom);
+
   expect(desktop.artworkPosition).toBe('static');
   expect(desktop.artworkTransform).toBe('none');
   expect(desktop.artworkGridColumn).toBe('1');
   expect(desktop.artworkGridRowStart).toBe('1');
   expect(desktop.artworkGridRowEnd).toBe('3');
+  expect(desktop.artworkAspectRatio).not.toBe('auto');
+  expect(Math.abs(desktop.artworkWidth - desktop.artworkHeight)).toBeLessThanOrEqual(1);
   expect(Math.abs(desktop.artworkTrackWidth - desktop.artworkWidth)).toBeLessThanOrEqual(1);
+  expect(Math.abs(desktopInnerHeight - desktop.artworkHeight)).toBeLessThanOrEqual(1);
   expect(desktop.artworkRight).toBeLessThan(desktop.openLeft);
   expect(Math.abs(desktop.openLeft - desktop.quickLeft)).toBeLessThanOrEqual(1);
-  expect(desktop.artworkTop).toBeLessThan(desktop.openBottom);
-  expect(desktop.artworkBottom).toBeGreaterThan(desktop.quickTop);
+  expect(desktop.artworkTop).toBeLessThanOrEqual(desktop.openTop);
+  expect(desktop.artworkBottom).toBeGreaterThanOrEqual(desktop.quickBottom);
   expect(desktop.openBottom).toBeLessThan(desktop.quickTop);
-  expect(desktop.openHeight).toBeGreaterThanOrEqual(29);
-  expect(desktop.openHeight).toBeLessThanOrEqual(31);
-  expect(desktop.rowBorderTop).toBe('0px');
+  expect(desktop.openHeight).toBeGreaterThanOrEqual(44);
+  expect(desktop.openHeight).toBeLessThanOrEqual(48);
+  expect(desktop.openHeight).toBeLessThan(desktop.artworkHeight);
+
+  expect(desktop.rowBorderTop).toBe('1px');
+  expect(desktop.rowBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(desktop.rowBackgroundImage).not.toBe('none');
+  expect(desktop.rowBoxShadow).not.toBe('none');
+  expect(desktop.listGap).toBeGreaterThanOrEqual(5);
   expect(desktop.headerBorderBottom).toBe('0px');
-  expect(desktop.openBorderLeft).toBe('0px');
+
+  expect(desktop.openBorderTop).toBe('0px');
   expect(desktop.openBackground).not.toBe('rgba(0, 0, 0, 0)');
-  expect(desktop.quickBorderLeft).toBe('0px');
+  expect(desktop.openBackgroundImage).not.toBe('none');
+  expect(desktop.openBoxShadow).not.toBe('none');
+
   expect(desktop.quickBorderTop).toBe('0px');
-  expect(desktop.quickBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(desktop.quickBackground).toBe('rgba(0, 0, 0, 0)');
+  expect(desktop.quickBackgroundImage).toBe('none');
+  expect(desktop.quickBoxShadow).toBe('none');
+
   expect(Number(desktop.nameFontWeight)).toBeGreaterThanOrEqual(700);
   expect(Number(desktop.profitFontWeight)).toBeGreaterThanOrEqual(700);
   expect(Number(desktop.countFontWeight)).toBeGreaterThanOrEqual(700);
@@ -210,36 +268,59 @@ test('global facility rows use visible split surfaces while artwork track has no
   expect(desktop.countFontSize).toBeGreaterThanOrEqual(desktop.nameFontSize - 1);
   expect(desktop.productionTriggerBorderWidth).toBe('1px');
   expect(desktop.productionTriggerBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(desktop.productionTriggerBackgroundImage).not.toBe('none');
   expect(desktop.productionTriggerBoxShadow).not.toBe('none');
-  expect(Math.abs(desktop.profitLeft - headerProfitLeft)).toBeLessThanOrEqual(1);
+  expect(Math.abs(desktop.profitLeft - headerProfitLeft)).toBeLessThanOrEqual(2);
   expect(desktop.rowScrollWidth).toBeLessThanOrEqual(desktop.rowClientWidth + 1);
 
   const region = await inspectFacilityRegionRow(page);
-  expect(region.rowBorderTop).toBe('0px');
+  expect(region.rowBorderTop).toBe('1px');
+  expect(region.rowBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(region.rowBackgroundImage).not.toBe('none');
+  expect(region.rowBoxShadow).not.toBe('none');
+  expect(region.listGap).toBeGreaterThanOrEqual(5);
   expect(region.openBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(region.openBackgroundImage).not.toBe('none');
+  expect(region.openBoxShadow).not.toBe('none');
   expect(region.openBottom).toBeLessThan(region.quickTop);
   expect(region.quickBorderTop).toBe('0px');
-  expect(region.quickBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(region.quickBackground).toBe('rgba(0, 0, 0, 0)');
+  expect(region.quickBackgroundImage).toBe('none');
+  expect(region.quickBoxShadow).toBe('none');
+  expect(region.productionTriggerBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(region.productionTriggerBackgroundImage).not.toBe('none');
+  expect(region.productionTriggerBoxShadow).not.toBe('none');
   expect(region.rowScrollWidth).toBeLessThanOrEqual(region.rowClientWidth + 1);
 
   await page.setViewportSize({ width: 320, height: 760 });
   const narrow = await inspectFacilityRow(page);
+  const narrowInnerHeight = narrow.rowHeight
+    - narrow.rowPaddingTop
+    - narrow.rowPaddingBottom
+    - Number.parseFloat(narrow.rowBorderTop)
+    - Number.parseFloat(narrow.rowBorderBottom);
+
   expect(narrow.artworkPosition).toBe('static');
+  expect(Math.abs(narrow.artworkWidth - narrow.artworkHeight)).toBeLessThanOrEqual(1);
   expect(Math.abs(narrow.artworkTrackWidth - narrow.artworkWidth)).toBeLessThanOrEqual(1);
+  expect(Math.abs(narrowInnerHeight - narrow.artworkHeight)).toBeLessThanOrEqual(1);
+  expect(narrow.artworkWidth).toBeGreaterThanOrEqual(95);
   expect(narrow.artworkRight).toBeLessThan(narrow.openLeft);
   expect(Math.abs(narrow.openLeft - narrow.quickLeft)).toBeLessThanOrEqual(1);
-  expect(narrow.rowBorderTop).toBe('0px');
+  expect(narrow.rowBorderTop).toBe('1px');
+  expect(narrow.rowBackground).not.toBe('rgba(0, 0, 0, 0)');
   expect(narrow.openBackground).not.toBe('rgba(0, 0, 0, 0)');
-  expect(narrow.quickBorderTop).toBe('0px');
-  expect(narrow.quickBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(narrow.openHeight).toBeLessThan(narrow.artworkHeight);
+  expect(narrow.quickBackground).toBe('rgba(0, 0, 0, 0)');
   expect(Number(narrow.nameFontWeight)).toBeGreaterThanOrEqual(700);
   expect(Number(narrow.profitFontWeight)).toBeGreaterThanOrEqual(700);
   expect(Number(narrow.countFontWeight)).toBeGreaterThanOrEqual(700);
   expect(narrow.rowScrollWidth).toBeLessThanOrEqual(narrow.rowClientWidth + 1);
-  expect(narrow.rowHeight).toBeGreaterThanOrEqual(90);
+  expect(narrow.rowHeight).toBeGreaterThanOrEqual(100);
 
   const narrowRegion = await inspectFacilityRegionRow(page);
+  expect(narrowRegion.rowBorderTop).toBe('1px');
   expect(narrowRegion.openBackground).not.toBe('rgba(0, 0, 0, 0)');
-  expect(narrowRegion.quickBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(narrowRegion.quickBackground).toBe('rgba(0, 0, 0, 0)');
   expect(narrowRegion.rowScrollWidth).toBeLessThanOrEqual(narrowRegion.rowClientWidth + 1);
 });
