@@ -1,17 +1,19 @@
 name: Temporary Facility Radius Regression Sync
 
 on:
-  push:
+  pull_request:
     branches:
-      - codex/facility-shared-padding-fix
+      - main
     paths:
       - .github/workflows/tmp-facility-radius-regression.yml
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   sync:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'codex/facility-shared-padding-fix'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
