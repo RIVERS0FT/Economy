@@ -61,7 +61,7 @@
   align-items: center;
   column-gap: var(--entity-list-gap);
   row-gap: var(--global-facility-catalog-row-gap);
-  padding-block: .4rem;
+  padding-block: .3rem;
   padding-inline: calc(var(--entity-list-inline-padding) - 1px);
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 72%, var(--color-border));
   border-radius: var(--radius-card);
@@ -222,7 +222,7 @@
   align-content: center;
   align-items: center;
   row-gap: var(--global-facility-region-row-gap);
-  padding-block: .4rem;
+  padding-block: .3rem;
   padding-inline: calc(var(--entity-list-inline-padding) - 1px);
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 72%, var(--color-border));
   border-radius: var(--radius-card);
