@@ -23,6 +23,8 @@ test('manual commodity buys and sells never leave player resting orders or froze
   seller.inventories.wheat.available = 5;
   const market = world.markets[provinceScopedKey(DEFAULT_PROVINCE_ID, 'wheat')];
   market.officialPrice = 0.8;
+  const priceDateKeyBeforeTrades = market.priceDateKey;
+  const nextPriceAtBeforeTrades = market.nextPriceAt;
 
   const buy = applyAction(world, BUYER, 'placeOrder', {
     provinceId: DEFAULT_PROVINCE_ID,
@@ -47,6 +49,8 @@ test('manual commodity buys and sells never leave player resting orders or froze
   assert.equal(sell.executedPrice, 0.8);
   assert.equal(buy.executedPrice, sell.executedPrice);
   assert.equal(market.officialPrice, 0.8);
+  assert.equal(market.priceDateKey, priceDateKeyBeforeTrades);
+  assert.equal(market.nextPriceAt, nextPriceAtBeforeTrades);
   assert.equal(buy.total, 1.6);
   assert.equal(sell.total, 2.4);
   assert.equal(sell.fee, 0.024);
