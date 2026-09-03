@@ -61,6 +61,7 @@
   display: none;
 }
 
+.application-map-layer > .strategic-map-lens-bar,
 .strategic-map-lens-bar,
 .strategic-map-lens-bar.panel,
 .transport-map-picking-bar,
@@ -70,6 +71,7 @@
   backdrop-filter: none !important;
 }
 
+.application-map-layer > .strategic-map-lens-bar,
 .strategic-map-lens-bar,
 .strategic-map-lens-bar.panel {
   box-shadow: 0 8px 20px rgb(0 0 0 / 18%);
