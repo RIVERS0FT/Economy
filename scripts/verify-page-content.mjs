@@ -169,13 +169,16 @@ for (const text of [
   'province-unlock-button',
 ]) forbidText('src/pages/ProvincePage.tsx', text);
 for (const text of [
-  'readOnly = false',
-  'readOnly?: boolean;',
   '即时交易',
   '今日成交价',
   '下次调价',
+  'local-trades-section',
 ]) requireText('src/pages/MarketPage.tsx', text);
 for (const text of [
+  'readOnly = false',
+  'readOnly?: boolean;',
+  '该地区尚未解锁，市场仅供查看。',
+  'market-trade-readonly',
   '实时五档',
   'orderBook.bids',
   'orderBook.asks',
