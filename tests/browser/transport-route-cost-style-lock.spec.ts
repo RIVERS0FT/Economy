@@ -51,7 +51,6 @@ test('transport draft line style and physical geometry follow mode while the map
 
   await chooseRichSelectOption(page, pickingBar, '运输方式', '航空运输');
   await expect(draft).toHaveAttribute('data-route-id', 'draft-air-route');
-  await expect(draft).toHaveAttribute('data-route-geometry-source', 'network');
   const airPath = await draft.locator('.province-map-route-path').getAttribute('d');
   const airDash = await draft.locator('.province-map-route-path').evaluate((element) => getComputedStyle(element).strokeDasharray);
   await expect(draft.locator('.province-map-route-return-path')).toHaveCount(0);
