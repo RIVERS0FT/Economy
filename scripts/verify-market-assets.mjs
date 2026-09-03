@@ -21,7 +21,7 @@ for (const path of [
   'server/src/market-state-delivery.js',
   'server/src/order-matching.js',
   'server/src/market-sell-fee.js',
-  'server/test/market-detail.test.js',
+  'server/test/market-state-delivery.test.js',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
   'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
   'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
@@ -89,10 +89,14 @@ for (const text of [
   "assetKind === 'commodity'\n      ? EMPTY_PUBLIC_ORDER_BOOK",
 ]) requireText('server/src/market-state-delivery.js', text);
 
-const marketDetailTest = read('server/test/market-detail.test.js');
+const marketDetailTest = read('server/test/market-state-delivery.test.js');
 for (const text of [
-  'market detail returns bounded history and aggregated depth without owner data',
-  'market detail supports revision-based unchanged responses',
+  'commodity market detail returns bounded public real-trade history, empty public depth, and a conditional revision',
+  'market detail store response omits an unchanged conditional payload',
+  'assert.deepEqual(detail.orderBook.bids, [])',
+  'assert.deepEqual(detail.orderBook.asks, [])',
+  'assert.equal(detail.market.bestBid, null)',
+  'assert.equal(detail.market.bestAsk, null)',
 ]) {
   if (!marketDetailTest.includes(text)) failures.push(`市场详情测试缺少: ${text}`);
 }
