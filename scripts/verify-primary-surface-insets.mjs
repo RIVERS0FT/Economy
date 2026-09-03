@@ -29,7 +29,7 @@ const paths = {
   provincePage: 'src/pages/ProvincePage.tsx',
   provinceStyles: 'src/styles/province-page.css',
   geometryTest: 'tests/browser/player-page-geometry.spec.ts',
-  marketRuntimeTest: 'tests/browser/market-runtime.spec.ts',
+  marketResponsiveTest: 'tests/browser/market-desktop-cleanup.spec.ts',
   contractAttentionTest: 'tests/browser/contract-attention-background.spec.ts',
   design: 'docs/PRIMARY_SURFACE_INSET_DESIGN.md',
   uiDesign: 'docs/UI_DESIGN_SYSTEM.md',
@@ -207,10 +207,14 @@ if (failures.length === 0) {
     '合同页作为当前对象卡样板',
   ]) requireText(paths.uiDesign, text);
 
-  requireText(
-    paths.marketRuntimeTest,
-    "await expect(orderEntry).toBeVisible();\n  await expect(orderBook).toBeVisible();\n  const mobileOrder = await requireBox(orderEntry);\n  const mobileBook = await requireBox(orderBook);",
-  );
+  for (const text of [
+    "test('desktop market shows daily-price immediate trade without an order book'",
+    "test('mobile market keeps quantity-only immediate trade and recent trades readable'",
+    "await expect(detail.locator('.market-immediate-trade-card')).toBeVisible();",
+    "await expect(detail.locator('#market-trade-quantity')).toBeVisible();",
+    "await expect(page.getByRole('button', { name: '盘口', exact: true })).toHaveCount(0);",
+    'expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);',
+  ]) requireText(paths.marketResponsiveTest, text);
 
   for (const text of [
     "test.describe('player page safe geometry'",
