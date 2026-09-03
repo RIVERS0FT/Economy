@@ -7,6 +7,9 @@ const failures = [];
 const requireText = (path, text) => {
   if (!read(path).includes(text)) failures.push(`${path} 缺少: ${text}`);
 };
+const forbidText = (path, text) => {
+  if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`);
+};
 
 const mobilePath = 'src/styles/mobile-status-navigation.css';
 const iconPath = 'src/styles/icon-system.css';
@@ -14,6 +17,7 @@ const strategicPath = 'src/styles/strategic-game-shell.css';
 const workspacePath = 'src/components/shell/StrategicWorkspace.tsx';
 const glassPath = 'src/styles/frosted-glass-surfaces.css';
 const designPath = 'docs/LIQUID_GLASS_CHROME_DESIGN.md';
+const ciDesignPath = 'docs/CI_EXECUTION_DESIGN.md';
 const browserPath = 'tests/browser/navigation-pill-geometry.spec.ts';
 
 for (const text of [
@@ -63,10 +67,21 @@ for (const text of [
 ]) requireText(strategicPath, text);
 
 for (const text of [
+  'await expect(buttons.nth(2)).toHaveClass(/is-active/);',
+  'await expect.poll(async () => {',
+  'colorChanged: activeVisual.color !== geometry.color,',
+  'borderChanged: activeVisual.border !== geometry.border,',
+  'backgroundChanged: activeVisual.background !== geometry.background,',
+  "message: '地图镜头激活态必须提交颜色、边框与背景三项视觉变化'",
+  'colorChanged: true,',
+  'borderChanged: true,',
+  'backgroundChanged: true,',
+]) requireText(browserPath, text);
+for (const text of [
   'expect(activeVisual.color).not.toBe(geometry.color);',
   'expect(activeVisual.border).not.toBe(geometry.border);',
   'expect(activeVisual.background).not.toBe(geometry.background);',
-]) requireText(browserPath, text);
+]) forbidText(browserPath, text);
 
 for (const text of [
   '--frosted-glass-background: rgba(5, 20, 14, 0.76);',
@@ -83,9 +98,15 @@ for (const text of [
   '`tests/browser/navigation-pill-geometry.spec.ts`',
 ]) requireText(designPath, text);
 
+for (const text of [
+  '必须先等待权威 DOM 状态',
+  '再使用 `expect.poll` 条件轮询读取 computed style',
+  '不得用固定 sleep 猜测渲染提交时机',
+]) requireText(ciDesignPath, text);
+
 if (failures.length > 0) {
   console.error(`导航胶囊几何验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('玩家移动导航与桌面地图镜头胶囊几何验证通过。');
+console.log('玩家移动导航与桌面地图镜头胶囊几何及异步激活视觉验证通过。');
