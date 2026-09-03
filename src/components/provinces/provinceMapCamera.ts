@@ -14,8 +14,8 @@ const MAINLAND_CONTEXT_EXPAND_X = 0.35;
 const MAINLAND_CONTEXT_EXPAND_Y = 0.25;
 
 interface CameraState {
-  x: number;
-  y: number;
+  centerX: number;
+  centerY: number;
   zoom: number;
 }
 
@@ -34,15 +34,29 @@ interface ContainerBounds {
   top: number;
 }
 
-interface CameraClampMetrics {
+interface WorldRect {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+interface SvgViewBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface CameraMetrics {
   viewportWidth: number;
   viewportHeight: number;
-  focusLeft: number;
-  focusTop: number;
-  focusRight: number;
-  focusBottom: number;
-  baseZoom: number;
+  baseViewWidth: number;
+  baseViewHeight: number;
   baseAreaRatio: number;
+  focusCenterX: number;
+  focusCenterY: number;
+  worldBounds: WorldRect;
 }
 
 export interface ProvinceMapCameraFocusBounds {
@@ -91,40 +105,42 @@ function isProvinceTarget(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest('.province-map-region'));
 }
 
-function clampCameraAxis(
-  translation: number,
-  zoom: number,
-  viewportSize: number,
-  focusStart: number,
-  focusEnd: number,
-) {
-  const edgeInset = Math.min(MAINLAND_PAN_EDGE_INSET, viewportSize / 2);
-  const scaledStart = focusStart * zoom;
-  const scaledEnd = focusEnd * zoom;
-  const scaledExtent = scaledEnd - scaledStart;
-  if (scaledExtent <= Math.max(0, viewportSize - edgeInset * 2)) {
-    return viewportSize / 2 - (scaledStart + scaledEnd) / 2;
-  }
-  return clamp(
-    translation,
-    viewportSize - edgeInset - scaledEnd,
-    edgeInset - scaledStart,
-  );
+function formatViewValue(value: number) {
+  const rounded = Number(value.toFixed(4));
+  return Object.is(rounded, -0) ? 0 : rounded;
 }
 
-function minimumPhysicalZoom(
+function formatViewBox(viewBox: SvgViewBox) {
+  return `${formatViewValue(viewBox.x)} ${formatViewValue(viewBox.y)} ${formatViewValue(viewBox.width)} ${formatViewValue(viewBox.height)}`;
+}
+
+function baseViewSize(
   viewportWidth: number,
   viewportHeight: number,
   focusWidth: number,
   focusHeight: number,
 ) {
-  const viewportArea = viewportWidth * viewportHeight;
-  const focusArea = focusWidth * focusHeight;
-  if (!(viewportArea > 0) || !(focusArea > 0)) return 1;
-  const targetAreaZoom = Math.sqrt((viewportArea * MAINLAND_MIN_AREA_RATIO) / focusArea);
-  const horizontalFit = Math.max(1, viewportWidth - MAINLAND_PAN_EDGE_INSET * 2) / focusWidth;
-  const verticalFit = Math.max(1, viewportHeight - MAINLAND_PAN_EDGE_INSET * 2) / focusHeight;
-  return Math.max(Number.EPSILON, Math.min(targetAreaZoom, horizontalFit, verticalFit));
+  const aspect = Math.max(Number.EPSILON, viewportWidth / Math.max(1, viewportHeight));
+  const focusArea = Math.max(Number.EPSILON, focusWidth * focusHeight);
+  const targetArea = focusArea / MAINLAND_MIN_AREA_RATIO;
+  const targetWidth = Math.sqrt(targetArea * aspect);
+  const usableWidth = Math.max(1, viewportWidth - MAINLAND_PAN_EDGE_INSET * 2);
+  const usableHeight = Math.max(1, viewportHeight - MAINLAND_PAN_EDGE_INSET * 2);
+  const minimumWidthForFocus = focusWidth * viewportWidth / usableWidth;
+  const minimumHeightForFocus = focusHeight * viewportHeight / usableHeight;
+  const width = Math.max(targetWidth, minimumWidthForFocus, minimumHeightForFocus * aspect);
+  return { width, height: width / aspect };
+}
+
+function clampCameraCenter(
+  center: number,
+  viewSize: number,
+  minimum: number,
+  maximum: number,
+) {
+  const worldSize = maximum - minimum;
+  if (!(worldSize > viewSize)) return (minimum + maximum) / 2;
+  return clamp(center, minimum + viewSize / 2, maximum - viewSize / 2);
 }
 
 export function createProvinceMapCamera(
@@ -132,7 +148,18 @@ export function createProvinceMapCamera(
   surface: HTMLElement,
   options: ProvinceMapCameraOptions = {},
 ): ProvinceMapCameraController {
-  let current: CameraState = { x: 0, y: 0, zoom: 1 };
+  const svg = surface.querySelector<SVGSVGElement>('.province-map-world-svg');
+  if (!svg) throw new Error('PROVINCE_MAP_CAMERA_SVG_REQUIRED');
+  const initialViewBox = svg.viewBox.baseVal;
+  const sourceViewBox: SvgViewBox = initialViewBox && initialViewBox.width > 0 && initialViewBox.height > 0
+    ? { x: initialViewBox.x, y: initialViewBox.y, width: initialViewBox.width, height: initialViewBox.height }
+    : { x: 0, y: 0, width: 1, height: 1 };
+
+  let current: CameraState = {
+    centerX: sourceViewBox.x + sourceViewBox.width / 2,
+    centerY: sourceViewBox.y + sourceViewBox.height / 2,
+    zoom: 1,
+  };
   let target: CameraState = { ...current };
   let frame: number | null = null;
   let settleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -148,7 +175,7 @@ export function createProvinceMapCamera(
   let suppressNextDragClick = false;
   let pinchReference: PinchReference | null = null;
   let interactionBounds: ContainerBounds | null = null;
-  let cameraClampMetrics: CameraClampMetrics | null = null;
+  let cameraMetrics: CameraMetrics | null = null;
   let lastBlankTap: { at: number; x: number; y: number } | null = null;
   let multiTouchSequenceActive = false;
   let multiTouchSequenceCount = 0;
@@ -158,18 +185,23 @@ export function createProvinceMapCamera(
   const pointers = new Map<number, PointerPosition>();
   const activeTouchPointerIds = new Set<number>();
 
+  surface.style.transform = 'none';
+  surface.style.willChange = 'auto';
+  surface.style.backfaceVisibility = 'visible';
   container.dataset.mapRenderer = 'static-svg';
-  container.dataset.mapCameraMode = 'html-compositor-transform';
-  container.dataset.mapCameraHotPath = 'single-css-transform';
+  container.dataset.mapCameraMode = 'svg-viewbox';
+  container.dataset.mapCameraHotPath = 'single-svg-viewbox-write';
   container.dataset.mapCameraGeometryMode = 'immutable-svg-world';
-  container.dataset.mapZoomMode = 'compositor';
-  container.dataset.mapZoomCameraMode = 'static-svg-compositor';
-  container.dataset.mapZoomHotPath = 'css-transform';
+  container.dataset.mapZoomMode = 'svg-viewbox';
+  container.dataset.mapZoomCameraMode = 'static-svg-viewbox';
+  container.dataset.mapZoomHotPath = 'single-viewbox-attribute';
   container.dataset.mapZoomCommitMode = 'none';
   container.dataset.mapZoomScaleMode = 'logical-mainland-base';
+  container.dataset.mapCameraBoundaryMode = options.focusBounds ? 'fixed-world-bounds' : 'source-viewbox';
+  container.dataset.mapCameraCoordinateMode = 'svg-world-center';
   container.dataset.mapTapSuppressMs = String(MULTITOUCH_TAP_SUPPRESS_MS);
-  container.dataset.mapPanBoundary = options.focusBounds ? 'mainland-context' : 'none';
-  container.dataset.mapPanClampMode = options.focusBounds ? 'continuous' : 'none';
+  container.dataset.mapPanBoundary = options.focusBounds ? 'fixed-world-context' : 'source-viewbox';
+  container.dataset.mapPanClampMode = options.focusBounds ? 'fixed-world-viewbox' : 'none';
   container.dataset.mapPanEdgeInset = String(MAINLAND_PAN_EDGE_INSET);
   container.dataset.mapFocusAreaTarget = MAINLAND_MIN_AREA_RATIO.toFixed(6);
   container.dataset.mapContextExpandX = MAINLAND_CONTEXT_EXPAND_X.toFixed(2);
@@ -190,63 +222,94 @@ export function createProvinceMapCamera(
     };
   };
 
-  const readCameraClampMetrics = (): CameraClampMetrics | null => {
-    if (!options.focusBounds) return null;
-    if (cameraClampMetrics) return cameraClampMetrics;
-    const svg = surface.querySelector<SVGSVGElement>('.province-map-world-svg');
-    const viewBox = svg?.viewBox.baseVal;
-    const viewportWidth = container.clientWidth;
-    const viewportHeight = container.clientHeight;
-    if (!viewBox || !(viewBox.width > 0) || !(viewBox.height > 0) || !(viewportWidth > 0) || !(viewportHeight > 0)) return null;
-    const fitScale = Math.min(viewportWidth / viewBox.width, viewportHeight / viewBox.height);
-    const renderedWidth = viewBox.width * fitScale;
-    const renderedHeight = viewBox.height * fitScale;
-    const offsetX = (viewportWidth - renderedWidth) / 2;
-    const offsetY = (viewportHeight - renderedHeight) / 2;
-    const focusLeft = offsetX + (options.focusBounds.minX - viewBox.x) * fitScale;
-    const focusTop = offsetY + (options.focusBounds.minY - viewBox.y) * fitScale;
-    const focusRight = offsetX + (options.focusBounds.maxX - viewBox.x) * fitScale;
-    const focusBottom = offsetY + (options.focusBounds.maxY - viewBox.y) * fitScale;
-    const focusWidth = focusRight - focusLeft;
-    const focusHeight = focusBottom - focusTop;
-    const baseZoom = minimumPhysicalZoom(viewportWidth, viewportHeight, focusWidth, focusHeight);
-    cameraClampMetrics = {
+  const readCameraMetrics = (): CameraMetrics => {
+    if (cameraMetrics) return cameraMetrics;
+    const viewportWidth = Math.max(1, container.clientWidth);
+    const viewportHeight = Math.max(1, container.clientHeight);
+    const focus = options.focusBounds ?? {
+      minX: sourceViewBox.x,
+      minY: sourceViewBox.y,
+      maxX: sourceViewBox.x + sourceViewBox.width,
+      maxY: sourceViewBox.y + sourceViewBox.height,
+    };
+    const focusWidth = Math.max(Number.EPSILON, focus.maxX - focus.minX);
+    const focusHeight = Math.max(Number.EPSILON, focus.maxY - focus.minY);
+    const focusCenterX = (focus.minX + focus.maxX) / 2;
+    const focusCenterY = (focus.minY + focus.maxY) / 2;
+    const base = baseViewSize(viewportWidth, viewportHeight, focusWidth, focusHeight);
+    const baseLeft = focusCenterX - base.width / 2;
+    const baseRight = focusCenterX + base.width / 2;
+    const baseTop = focusCenterY - base.height / 2;
+    const baseBottom = focusCenterY + base.height / 2;
+    const expandedLeft = focus.minX - focusWidth * MAINLAND_CONTEXT_EXPAND_X;
+    const expandedRight = focus.maxX + focusWidth * MAINLAND_CONTEXT_EXPAND_X;
+    const expandedTop = focus.minY - focusHeight * MAINLAND_CONTEXT_EXPAND_Y;
+    const expandedBottom = focus.maxY + focusHeight * MAINLAND_CONTEXT_EXPAND_Y;
+    cameraMetrics = {
       viewportWidth,
       viewportHeight,
-      focusLeft,
-      focusTop,
-      focusRight,
-      focusBottom,
-      baseZoom,
-      baseAreaRatio: (focusWidth * baseZoom * focusHeight * baseZoom) / (viewportWidth * viewportHeight),
+      baseViewWidth: base.width,
+      baseViewHeight: base.height,
+      baseAreaRatio: (focusWidth * focusHeight) / Math.max(Number.EPSILON, base.width * base.height),
+      focusCenterX,
+      focusCenterY,
+      worldBounds: {
+        minX: Math.min(expandedLeft, baseLeft),
+        minY: Math.min(expandedTop, baseTop),
+        maxX: Math.max(expandedRight, baseRight),
+        maxY: Math.max(expandedBottom, baseBottom),
+      },
     };
-    return cameraClampMetrics;
+    return cameraMetrics;
   };
 
-  const logicalZoomFor = (physicalZoom: number, metrics = readCameraClampMetrics()) => (
-    metrics ? physicalZoom / Math.max(Number.EPSILON, metrics.baseZoom) : physicalZoom
-  );
+  const viewBoxFor = (state: CameraState, metrics = readCameraMetrics()): SvgViewBox => {
+    const zoom = clamp(state.zoom, PROVINCE_MAP_ZOOM_MIN, PROVINCE_MAP_ZOOM_MAX);
+    const width = metrics.baseViewWidth / zoom;
+    const height = metrics.baseViewHeight / zoom;
+    return {
+      x: state.centerX - width / 2,
+      y: state.centerY - height / 2,
+      width,
+      height,
+    };
+  };
 
-  const clampTargetToFocus = () => {
-    const metrics = readCameraClampMetrics();
-    if (!metrics) return;
-    const logicalZoom = clamp(logicalZoomFor(target.zoom, metrics), PROVINCE_MAP_ZOOM_MIN, PROVINCE_MAP_ZOOM_MAX);
-    const progress = clamp(
-      (logicalZoom - PROVINCE_MAP_ZOOM_MIN) / (PROVINCE_MAP_ZOOM_MAX - PROVINCE_MAP_ZOOM_MIN),
-      0,
-      1,
+  const clampTargetToBounds = () => {
+    const metrics = readCameraMetrics();
+    target.zoom = clamp(target.zoom, PROVINCE_MAP_ZOOM_MIN, PROVINCE_MAP_ZOOM_MAX);
+    const view = viewBoxFor(target, metrics);
+    const nextCenterX = clampCameraCenter(
+      target.centerX,
+      view.width,
+      metrics.worldBounds.minX,
+      metrics.worldBounds.maxX,
     );
-    const focusWidth = metrics.focusRight - metrics.focusLeft;
-    const focusHeight = metrics.focusBottom - metrics.focusTop;
-    const focusLeft = metrics.focusLeft - focusWidth * MAINLAND_CONTEXT_EXPAND_X * progress;
-    const focusRight = metrics.focusRight + focusWidth * MAINLAND_CONTEXT_EXPAND_X * progress;
-    const focusTop = metrics.focusTop - focusHeight * MAINLAND_CONTEXT_EXPAND_Y * progress;
-    const focusBottom = metrics.focusBottom + focusHeight * MAINLAND_CONTEXT_EXPAND_Y * progress;
-    const nextX = clampCameraAxis(target.x, target.zoom, metrics.viewportWidth, focusLeft, focusRight);
-    const nextY = clampCameraAxis(target.y, target.zoom, metrics.viewportHeight, focusTop, focusBottom);
-    if (Math.abs(nextX - target.x) > 0.001 || Math.abs(nextY - target.y) > 0.001) panClampCount += 1;
-    target.x = nextX;
-    target.y = nextY;
+    const nextCenterY = clampCameraCenter(
+      target.centerY,
+      view.height,
+      metrics.worldBounds.minY,
+      metrics.worldBounds.maxY,
+    );
+    if (Math.abs(nextCenterX - target.centerX) > 0.0001 || Math.abs(nextCenterY - target.centerY) > 0.0001) {
+      panClampCount += 1;
+    }
+    target.centerX = nextCenterX;
+    target.centerY = nextCenterY;
+  };
+
+  const screenPointToWorld = (
+    point: PointerPosition,
+    state: CameraState,
+    metrics = readCameraMetrics(),
+  ): PointerPosition => {
+    const view = viewBoxFor(state, metrics);
+    const normalizedX = clamp(point.x / metrics.viewportWidth, 0, 1);
+    const normalizedY = clamp(point.y / metrics.viewportHeight, 0, 1);
+    return {
+      x: view.x + view.width * normalizedX,
+      y: view.y + view.height * normalizedY,
+    };
   };
 
   const publishMultiTouchState = () => {
@@ -258,15 +321,20 @@ export function createProvinceMapCamera(
   };
 
   const publishState = () => {
-    const metrics = readCameraClampMetrics();
-    container.dataset.mapZoomCurrent = logicalZoomFor(current.zoom, metrics).toFixed(5);
-    container.dataset.mapZoomTarget = logicalZoomFor(target.zoom, metrics).toFixed(5);
-    container.dataset.mapZoomBaseScale = (metrics?.baseZoom ?? 1).toFixed(6);
-    container.dataset.mapFocusAreaActual = (metrics?.baseAreaRatio ?? 0).toFixed(6);
-    container.dataset.mapCameraX = current.x.toFixed(3);
-    container.dataset.mapCameraY = current.y.toFixed(3);
-    container.dataset.mapCameraTargetX = target.x.toFixed(3);
-    container.dataset.mapCameraTargetY = target.y.toFixed(3);
+    const metrics = readCameraMetrics();
+    const currentView = viewBoxFor(current, metrics);
+    const targetView = viewBoxFor(target, metrics);
+    container.dataset.mapZoomCurrent = current.zoom.toFixed(5);
+    container.dataset.mapZoomTarget = target.zoom.toFixed(5);
+    container.dataset.mapZoomBaseScale = '1.000000';
+    container.dataset.mapFocusAreaActual = metrics.baseAreaRatio.toFixed(6);
+    container.dataset.mapCameraX = current.centerX.toFixed(3);
+    container.dataset.mapCameraY = current.centerY.toFixed(3);
+    container.dataset.mapCameraTargetX = target.centerX.toFixed(3);
+    container.dataset.mapCameraTargetY = target.centerY.toFixed(3);
+    container.dataset.mapCameraViewBox = formatViewBox(currentView);
+    container.dataset.mapCameraTargetViewBox = formatViewBox(targetView);
+    container.dataset.mapCameraWorldBounds = `${formatViewValue(metrics.worldBounds.minX)} ${formatViewValue(metrics.worldBounds.minY)} ${formatViewValue(metrics.worldBounds.maxX)} ${formatViewValue(metrics.worldBounds.maxY)}`;
     container.dataset.mapPanClampCount = String(panClampCount);
     container.dataset.mapZoomActive = active ? 'true' : 'false';
     container.dataset.mapZoomFrameCount = String(frameCount);
@@ -331,10 +399,8 @@ export function createProvinceMapCamera(
   const writeCamera = () => {
     frame = null;
     if (destroyed) return;
-    current.x = target.x;
-    current.y = target.y;
-    current.zoom = target.zoom;
-    surface.style.transform = `translate3d(${current.x.toFixed(3)}px, ${current.y.toFixed(3)}px, 0) scale(${current.zoom.toFixed(6)})`;
+    current = { ...target };
+    svg.setAttribute('viewBox', formatViewBox(viewBoxFor(current)));
     frameCount += 1;
     writeCount += 1;
   };
@@ -350,7 +416,7 @@ export function createProvinceMapCamera(
     inputMode = 'idle';
     setActive(false);
     interactionBounds = null;
-    cameraClampMetrics = null;
+    cameraMetrics = null;
   };
 
   const scheduleSettle = () => {
@@ -366,18 +432,15 @@ export function createProvinceMapCamera(
   };
 
   const applyZoomAround = (logicalZoom: number, point: PointerPosition) => {
-    const metrics = readCameraClampMetrics();
-    const baseZoom = metrics?.baseZoom ?? 1;
-    const nextLogicalZoom = clamp(logicalZoom, PROVINCE_MAP_ZOOM_MIN, PROVINCE_MAP_ZOOM_MAX);
-    const nextZoom = baseZoom * nextLogicalZoom;
-    const localX = (point.x - target.x) / Math.max(Number.EPSILON, target.zoom);
-    const localY = (point.y - target.y) / Math.max(Number.EPSILON, target.zoom);
-    target = {
-      zoom: nextZoom,
-      x: point.x - localX * nextZoom,
-      y: point.y - localY * nextZoom,
-    };
-    clampTargetToFocus();
+    const metrics = readCameraMetrics();
+    const anchor = screenPointToWorld(point, target, metrics);
+    target.zoom = clamp(logicalZoom, PROVINCE_MAP_ZOOM_MIN, PROVINCE_MAP_ZOOM_MAX);
+    const nextView = viewBoxFor(target, metrics);
+    const normalizedX = clamp(point.x / metrics.viewportWidth, 0, 1) - 0.5;
+    const normalizedY = clamp(point.y / metrics.viewportHeight, 0, 1) - 0.5;
+    target.centerX = anchor.x - normalizedX * nextView.width;
+    target.centerY = anchor.y - normalizedY * nextView.height;
+    clampTargetToBounds();
   };
 
   const reset = () => {
@@ -387,21 +450,18 @@ export function createProvinceMapCamera(
     settleTimer = null;
     settleDeadline = 0;
     interactionBounds = null;
-    cameraClampMetrics = null;
-    const metrics = readCameraClampMetrics();
-    const baseZoom = metrics?.baseZoom ?? 1;
-    target = metrics
-      ? {
-        zoom: baseZoom,
-        x: metrics.viewportWidth / 2 - ((metrics.focusLeft + metrics.focusRight) / 2) * baseZoom,
-        y: metrics.viewportHeight / 2 - ((metrics.focusTop + metrics.focusBottom) / 2) * baseZoom,
-      }
-      : { x: 0, y: 0, zoom: baseZoom };
-    clampTargetToFocus();
+    cameraMetrics = null;
+    const metrics = readCameraMetrics();
+    target = {
+      centerX: metrics.focusCenterX,
+      centerY: metrics.focusCenterY,
+      zoom: PROVINCE_MAP_ZOOM_MIN,
+    };
+    clampTargetToBounds();
     current = { ...target };
     inputMode = 'reset';
     active = false;
-    surface.style.transform = `translate3d(${current.x.toFixed(3)}px, ${current.y.toFixed(3)}px, 0) scale(${current.zoom.toFixed(6)})`;
+    svg.setAttribute('viewBox', formatViewBox(viewBoxFor(current, metrics)));
     writeCount += 1;
     publishState();
   };
@@ -419,7 +479,7 @@ export function createProvinceMapCamera(
       -MAX_WHEEL_LOG_STEP,
       MAX_WHEEL_LOG_STEP,
     );
-    applyZoomAround(logicalZoomFor(target.zoom) * Math.exp(logStep), point);
+    applyZoomAround(target.zoom * Math.exp(logStep), point);
     scheduleWrite('wheel');
   };
 
@@ -446,7 +506,7 @@ export function createProvinceMapCamera(
     if (destroyed || (event.pointerType === 'mouse' && event.button !== 0)) return;
     if (pointers.size === 0) {
       interactionBounds = null;
-      cameraClampMetrics = null;
+      cameraMetrics = null;
     }
     pointers.set(event.pointerId, localPoint(event.clientX, event.clientY));
     if (event.pointerType === 'touch') {
@@ -476,9 +536,15 @@ export function createProvinceMapCamera(
       const nextMidpoint = midpoint(points[0], points[1]);
       const nextDistance = Math.max(1, distance(points[0], points[1]));
       const reference = pinchReference ?? { midpoint: nextMidpoint, distance: nextDistance };
-      target.x += nextMidpoint.x - reference.midpoint.x;
-      target.y += nextMidpoint.y - reference.midpoint.y;
-      applyZoomAround(logicalZoomFor(target.zoom) * (nextDistance / reference.distance), nextMidpoint);
+      const metrics = readCameraMetrics();
+      const anchor = screenPointToWorld(reference.midpoint, target, metrics);
+      target.zoom = clamp(target.zoom * (nextDistance / reference.distance), PROVINCE_MAP_ZOOM_MIN, PROVINCE_MAP_ZOOM_MAX);
+      const nextView = viewBoxFor(target, metrics);
+      const normalizedX = clamp(nextMidpoint.x / metrics.viewportWidth, 0, 1) - 0.5;
+      const normalizedY = clamp(nextMidpoint.y / metrics.viewportHeight, 0, 1) - 0.5;
+      target.centerX = anchor.x - normalizedX * nextView.width;
+      target.centerY = anchor.y - normalizedY * nextView.height;
+      clampTargetToBounds();
       pinchReference = { midpoint: nextMidpoint, distance: nextDistance };
       dragDistance += Math.hypot(next.x - previous.x, next.y - previous.y);
       suppressNextDragClick = true;
@@ -489,9 +555,11 @@ export function createProvinceMapCamera(
     const dx = next.x - previous.x;
     const dy = next.y - previous.y;
     if (dx === 0 && dy === 0) return;
-    target.x += dx;
-    target.y += dy;
-    clampTargetToFocus();
+    const metrics = readCameraMetrics();
+    const view = viewBoxFor(target, metrics);
+    target.centerX -= dx / metrics.viewportWidth * view.width;
+    target.centerY -= dy / metrics.viewportHeight * view.height;
+    clampTargetToBounds();
     dragDistance += Math.hypot(dx, dy);
     if (dragDistance > POINTER_DRAG_THRESHOLD) suppressNextDragClick = true;
     scheduleWrite('move');
@@ -515,7 +583,7 @@ export function createProvinceMapCamera(
       inputMode = 'idle';
       setActive(false);
       interactionBounds = null;
-      cameraClampMetrics = null;
+      cameraMetrics = null;
     }
 
     if (
@@ -621,7 +689,7 @@ export function createProvinceMapCamera(
       settleTimer = null;
       settleDeadline = 0;
       interactionBounds = null;
-      cameraClampMetrics = null;
+      cameraMetrics = null;
       pointers.clear();
       activeTouchPointerIds.clear();
       container.removeEventListener('wheel', handleWheel);
@@ -635,6 +703,7 @@ export function createProvinceMapCamera(
       container.removeEventListener('touchcancel', handleTouchEnd, true);
       container.removeEventListener('dblclick', handleDoubleClick);
       container.removeEventListener('click', handleClickCapture, true);
+      svg.setAttribute('viewBox', formatViewBox(sourceViewBox));
     },
   };
 }
