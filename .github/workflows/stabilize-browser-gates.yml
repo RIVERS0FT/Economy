@@ -1,0 +1,99 @@
+name: Stabilize browser gates
+
+on:
+  push:
+    branches:
+      - transport-client-node-logistics
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: transport-client-node-logistics
+          fetch-depth: 0
+
+      - name: Patch browser gate timing boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text()
+              if old not in text:
+                  raise SystemExit(f'marker missing: {path}: {old[:100]!r}')
+              file.write_text(text.replace(old, new, 1))
+
+          navigation = 'tests/browser/navigation-pill-geometry.spec.ts'
+          replace_once(
+              navigation,
+              """    const activeVisual = await buttons.nth(2).evaluate((button) => {\n      const style = getComputedStyle(button);\n      return {\n        color: style.color,\n        background: style.backgroundColor,\n        border: style.borderTopColor,\n      };\n    });\n    expect(activeVisual.color).not.toBe(geometry.color);\n    expect(activeVisual.border).not.toBe(geometry.border);\n    expect(activeVisual.background).not.toBe(geometry.background);\n""",
+              """    await expect(buttons.nth(2)).toHaveClass(/is-active/);\n    await expect.poll(async () => {\n      const activeVisual = await buttons.nth(2).evaluate((button) => {\n        const style = getComputedStyle(button);\n        return {\n          color: style.color,\n          background: style.backgroundColor,\n          border: style.borderTopColor,\n        };\n      });\n      return {\n        colorChanged: activeVisual.color !== geometry.color,\n        borderChanged: activeVisual.border !== geometry.border,\n        backgroundChanged: activeVisual.background !== geometry.background,\n      };\n    }, { message: '地图镜头激活态必须提交颜色、边框与背景三项视觉变化' }).toEqual({\n      colorChanged: true,\n      borderChanged: true,\n      backgroundChanged: true,\n    });\n""",
+          )
+
+          geometry = 'tests/browser/player-page-geometry.spec.ts'
+          replace_once(
+              geometry,
+              """  test('edge breakpoints keep the buildings lists fully visible', async ({ page }) => {\n    const buildings = playerPages.find((target) => target.tab === 'buildings');\n    if (!buildings) throw new Error('buildings page fixture is missing');\n\n    for (const viewport of [\n      { width: 320, height: 720 },\n      { width: 720, height: 900 },\n      { width: 721, height: 900 },\n      { width: 960, height: 900 },\n      { width: 1440, height: 900 },\n    ]) {\n      await page.setViewportSize(viewport);\n""",
+              """  for (const viewport of [\n    { width: 320, height: 720 },\n    { width: 720, height: 900 },\n    { width: 721, height: 900 },\n    { width: 960, height: 900 },\n    { width: 1440, height: 900 },\n  ]) {\n    test(`edge breakpoint ${viewport.width}x${viewport.height} keeps the buildings lists fully visible`, async ({ page }) => {\n      const buildings = playerPages.find((target) => target.tab === 'buildings');\n      if (!buildings) throw new Error('buildings page fixture is missing');\n\n      await page.setViewportSize(viewport);\n""",
+          )
+          geometry_file = Path(geometry)
+          geometry_text = geometry_file.read_text()
+          old_tail = """      }\n    }\n  });\n});\n"""
+          new_tail = """      }\n    });\n  }\n});\n"""
+          tail_index = geometry_text.rfind(old_tail)
+          if tail_index < 0:
+              raise SystemExit('player geometry final marker missing')
+          geometry_file.write_text(geometry_text[:tail_index] + new_tail + geometry_text[tail_index + len(old_tail):])
+
+          primary = 'scripts/verify-primary-surface-insets.mjs'
+          replace_once(
+              primary,
+              """    'edge breakpoints keep the buildings lists fully visible',\n""",
+              """    'edge breakpoint ${viewport.width}x${viewport.height} keeps the buildings lists fully visible',\n    'test(`edge breakpoint ${viewport.width}x${viewport.height} keeps the buildings lists fully visible`',\n    '{ width: 320, height: 720 },',\n    '{ width: 720, height: 900 },',\n    '{ width: 721, height: 900 },',\n    '{ width: 960, height: 900 },',\n    '{ width: 1440, height: 900 },',\n""",
+          )
+          replace_once(
+              primary,
+              """  forbidText(paths.geometryTest, '.global-facility-catalog-card');\n""",
+              """  forbidText(paths.geometryTest, '.global-facility-catalog-card');\n  forbidText(paths.geometryTest, \"test('edge breakpoints keep the buildings lists fully visible'\");\n""",
+          )
+
+          design = 'docs/CI_EXECUTION_DESIGN.md'
+          replace_once(
+              design,
+              """- 单个 Playwright test 不得把可独立重建状态的多个完整页面层级串成长链直到消耗默认单测超时。此类回归必须按独立用户阶段拆分为多个 test，并在每个 test 中从同一确定性 fixture 重建前置状态，同时保留原有断言；例如市场信息层级固定分为“全局商品目录”“商品地区列表”“地区商品详情”三个独立浏览器阶段，禁止通过延长 30 秒单测预算维持单体长链。\n""",
+              """- 单个 Playwright test 不得把可独立重建状态的多个完整页面层级串成长链直到消耗默认单测超时。此类回归必须按独立用户阶段拆分为多个 test，并在每个 test 中从同一确定性 fixture 重建前置状态，同时保留原有断言；例如市场信息层级固定分为“全局商品目录”“商品地区列表”“地区商品详情”三个独立浏览器阶段，禁止通过延长 30 秒单测预算维持单体长链。\n- 同一几何基线需要覆盖三个以上完整视口并且每个视口都会重新加载 runtime／preview fixture 时，必须在测试声明期按视口生成独立 Playwright test，使每个视口拥有独立默认单测预算；不得在单个 test 内循环多个完整 reload，也不得因此删减任何视口或几何断言。\n- 交互激活态的浏览器门禁必须先等待权威 DOM 状态（例如 `class`、`aria-*` 或 `data-*`）提交，再使用 `expect.poll` 条件轮询读取 computed style；不得用固定 sleep 猜测渲染提交时机，也不得通过删除颜色、边框或背景断言绕过视觉状态验证。\n""",
+          )
+          replace_once(
+              design,
+              """- 把可独立重建 fixture 的多阶段页面回归重新合并成逼近默认单测超时的单体长链，或用提高 Playwright 单测超时替代阶段拆分；\n""",
+              """- 把可独立重建 fixture 的多阶段页面回归重新合并成逼近默认单测超时的单体长链，或用提高 Playwright 单测超时替代阶段拆分；\n- 把三个以上需要完整 reload 的视口重新串进同一个 Playwright test，共享一份默认单测预算；\n- 在权威 DOM 状态切换后立即一次性读取 computed style，或用固定 sleep／删除视觉断言替代 `expect.poll` 条件等待；\n""",
+          )
+
+          reliability = 'scripts/verify-runtime-reliability.mjs'
+          replace_once(
+              reliability,
+              """  ['docs/CI_EXECUTION_DESIGN.md', 'ECONOMY_PLAYWRIGHT_SHARD=N/4'],\n""",
+              """  ['docs/CI_EXECUTION_DESIGN.md', 'ECONOMY_PLAYWRIGHT_SHARD=N/4'],\n  ['docs/CI_EXECUTION_DESIGN.md', '必须在测试声明期按视口生成独立 Playwright test'],\n  ['docs/CI_EXECUTION_DESIGN.md', '再使用 `expect.poll` 条件轮询读取 computed style'],\n""",
+          )
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/CI_EXECUTION_DESIGN.md \
+            scripts/verify-primary-surface-insets.mjs \
+            scripts/verify-runtime-reliability.mjs \
+            tests/browser/navigation-pill-geometry.spec.ts \
+            tests/browser/player-page-geometry.spec.ts
+          git rm .github/workflows/stabilize-browser-gates.yml
+          git diff --cached --check
+          git commit -m '稳定浏览器门禁时序边界'
+          git push origin HEAD:transport-client-node-logistics
