@@ -210,7 +210,10 @@ if (failures.length === 0) {
 
   for (const text of [
     "test.describe('player page safe geometry'",
-    'desktop and mobile pages stay inside their real carrier width',
+    'const pageGeometryViewports = [',
+    'for (const viewport of pageGeometryViewports)',
+    'for (const target of playerPages)',
+    '页面保持在真实承载宽度内',
     'edge breakpoint ${viewport.width}x${viewport.height} keeps the buildings lists fully visible',
     'test(`edge breakpoint ${viewport.width}x${viewport.height} keeps the buildings lists fully visible`',
     '{ width: 320, height: 720 },',
@@ -234,6 +237,8 @@ if (failures.length === 0) {
     'expect(row.height).toBeLessThanOrEqual(98);',
     "page.locator('.global-facility-region-row__quick-controls')",
   ]) requireText(paths.geometryTest, text);
+  forbidText(paths.geometryTest, 'test.setTimeout(');
+  forbidText(paths.geometryTest, 'desktop and mobile pages stay inside their real carrier width');
   forbidText(paths.geometryTest, '.global-operation-metrics');
   forbidText(paths.geometryTest, '.global-facility-catalog-grid');
   forbidText(paths.geometryTest, '.global-facility-catalog-card');
