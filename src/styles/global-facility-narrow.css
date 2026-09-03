@@ -2,10 +2,10 @@
  * GlobalBuildingsPage lazily loads global-operation-pages.css, so these selectors deliberately
  * include the global-operation-page scope. Their higher specificity keeps the real artwork grid
  * authoritative regardless of stylesheet injection order, while this file also owns the
- * ultra-narrow carrier safety and the shared two-line density of building catalog rows.
+ * ultra-narrow carrier safety and the shared object-card treatment of building catalog rows.
  */
 .global-operation-page .global-facility-catalog {
-  --global-facility-layout-artwork-size: 76px;
+  --global-facility-layout-artwork-size: 104px;
   --global-facility-layout-artwork-track: var(--global-facility-layout-artwork-size);
   --global-facility-layout-name-track: minmax(0, 1.6fr);
   --global-facility-layout-profit-track: minmax(7rem, .8fr);
@@ -46,16 +46,36 @@
   grid-column: 5;
 }
 
+.global-operation-page .global-facility-catalog-list,
+.global-operation-page .global-facility-region-list {
+  gap: .62rem;
+}
+
 .global-operation-page .entity-list-row.global-facility-catalog-row {
   --global-facility-catalog-artwork-size: var(--global-facility-layout-artwork-size);
-  --global-facility-catalog-main-row-size: 30px;
-  --global-facility-catalog-row-gap: 4px;
+  --global-facility-catalog-main-row-size: 48px;
+  --global-facility-catalog-row-gap: 8px;
   grid-template-columns: var(--global-facility-layout-columns);
   grid-template-rows: var(--global-facility-catalog-main-row-size) var(--global-facility-production-control-size);
+  align-content: center;
+  align-items: center;
   column-gap: var(--entity-list-gap);
   row-gap: var(--global-facility-catalog-row-gap);
-  border: 0;
-  background: transparent;
+  padding-block: .4rem;
+  padding-inline: calc(var(--entity-list-inline-padding) - 1px);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 72%, var(--color-border));
+  border-radius: var(--radius-card);
+  background-color: var(--color-surface-subtle);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-surface-soft) 38%, transparent),
+    color-mix(in srgb, var(--color-bg-deep) 18%, transparent)
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-text-primary) 8%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--color-bg-deep) 42%, transparent),
+    0 2px 8px color-mix(in srgb, var(--color-bg-deep) 24%, transparent);
+  overflow: visible;
 }
 
 .global-operation-page .global-facility-catalog-row__artwork {
@@ -65,29 +85,56 @@
   grid-row: 1 / 3;
   align-self: center;
   justify-self: center;
+  box-sizing: border-box;
   width: var(--global-facility-layout-artwork-size);
   height: var(--global-facility-layout-artwork-size);
   min-width: var(--global-facility-layout-artwork-size);
+  aspect-ratio: 1;
   margin: 0;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 68%, var(--color-border));
+  border-radius: var(--radius-control);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-text-primary) 10%, transparent),
+    0 2px 7px color-mix(in srgb, var(--color-bg-deep) 30%, transparent);
   transform: none;
+  overflow: hidden;
   pointer-events: none;
 }
 
-.global-operation-page .global-facility-catalog-row__open {
+.global-operation-page .global-facility-catalog-row__open,
+.global-operation-page .global-facility-region-row__open {
+  --ui-interactive-hover-border-color: var(--color-border-strong);
   --ui-interactive-hover-background: var(--color-surface-soft);
+  --ui-interactive-hover-transform: none;
+  --ui-interactive-active-transform: scale(.995);
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface-control);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-surface-soft) 58%, transparent),
+    color-mix(in srgb, var(--color-bg-deep) 15%, transparent)
+  );
+  box-shadow:
+    inset 0 0 0 1px var(--color-border-strong),
+    inset 0 1px 0 color-mix(in srgb, var(--color-text-primary) 11%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--color-bg-deep) 38%, transparent),
+    0 1px 3px color-mix(in srgb, var(--color-bg-deep) 24%, transparent);
+}
+
+.global-operation-page .global-facility-catalog-row__open {
   grid-column: 2 / -1;
   grid-row: 1;
   z-index: auto;
-  box-sizing: border-box;
   grid-template-columns: var(--global-facility-layout-content-columns);
   column-gap: var(--entity-list-gap);
-  border-left: 0;
-  border-radius: calc(var(--radius-control) - .15rem);
-  background: var(--color-surface-panel);
 }
 
 .global-operation-page .global-facility-catalog-row__identity {
-  padding-left: .5rem;
+  padding-left: .65rem;
 }
 
 .global-operation-page .global-facility-catalog-row__identity > strong,
@@ -121,25 +168,43 @@
   font-weight: 650;
 }
 
+.global-operation-page .global-facility-catalog-row__quick-controls,
+.global-operation-page .global-facility-region-row__quick-controls {
+  z-index: auto;
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  height: var(--global-facility-production-control-size);
+  justify-self: start;
+  align-self: center;
+  gap: .45rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .global-operation-page .global-facility-catalog-row__quick-controls {
   grid-column: 2 / -1;
   grid-row: 2;
-  z-index: auto;
-  box-sizing: border-box;
-  gap: .35rem;
-  padding-left: .5rem;
-  border: 0;
-  border-radius: calc(var(--radius-control) - .15rem);
-  background: var(--color-surface-control);
 }
 
 .global-operation-page .global-facility-catalog-row__quick-selector .ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger,
 .global-operation-page .global-facility-region-row__quick-selector .ui-rich-select[data-variant='production-config'] .ui-rich-select__trigger {
   border-color: var(--color-border-strong);
-  background: color-mix(in srgb, var(--color-surface-control) 76%, var(--color-bg-deep));
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface-soft);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-surface-control) 82%, var(--color-surface-soft)),
+    color-mix(in srgb, var(--color-bg-deep) 24%, var(--color-surface-control))
+  );
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--color-text-primary) 10%, transparent),
-    0 2px 6px color-mix(in srgb, var(--color-bg-deep) 34%, transparent);
+    inset 0 1px 0 color-mix(in srgb, var(--color-text-primary) 13%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--color-bg-deep) 42%, transparent),
+    0 2px 5px color-mix(in srgb, var(--color-bg-deep) 28%, transparent);
 }
 
 .global-operation-page .global-facility-catalog-row__chevron {
@@ -149,55 +214,119 @@
   justify-self: stretch;
 }
 
-/* Regional building rows use the same two-line density and split surfaces without artwork. */
+/* Regional building rows mirror the object-card hierarchy without facility artwork. */
 .global-operation-page .entity-list-row.global-facility-region-row {
-  --global-facility-region-main-row-size: 30px;
-  --global-facility-region-row-gap: 4px;
+  --global-facility-region-main-row-size: 48px;
+  --global-facility-region-row-gap: 8px;
   grid-template-rows: var(--global-facility-region-main-row-size) var(--global-facility-production-control-size);
+  align-content: center;
+  align-items: center;
   row-gap: var(--global-facility-region-row-gap);
-  border: 0;
-  background: transparent;
+  padding-block: .4rem;
+  padding-inline: calc(var(--entity-list-inline-padding) - 1px);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 72%, var(--color-border));
+  border-radius: var(--radius-card);
+  background-color: var(--color-surface-subtle);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-surface-soft) 38%, transparent),
+    color-mix(in srgb, var(--color-bg-deep) 18%, transparent)
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-text-primary) 8%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--color-bg-deep) 42%, transparent),
+    0 2px 8px color-mix(in srgb, var(--color-bg-deep) 24%, transparent);
+  overflow: visible;
 }
 
 .global-operation-page .global-facility-region-row__open {
-  --ui-interactive-hover-background: var(--color-surface-soft);
-  background: var(--color-surface-panel);
+  grid-column: 1 / -1;
+  grid-row: 1;
 }
 
 .global-operation-page .global-facility-region-row__quick-controls {
   grid-column: 1 / -1;
-  box-sizing: border-box;
-  padding-left: .35rem;
-  border: 0;
-  border-radius: calc(var(--radius-control) - .15rem);
-  background: var(--color-surface-control);
+  grid-row: 2;
 }
 
 @container (max-width: 620px) {
   .global-operation-page .global-facility-catalog {
-    --global-facility-layout-artwork-size: 64px;
+    --global-facility-layout-artwork-size: 100px;
     --global-facility-layout-name-track: minmax(0, 1.45fr);
     --global-facility-layout-profit-track: minmax(4.65rem, .8fr);
     --global-facility-layout-count-track: minmax(2.4rem, .42fr);
   }
 
-  .global-operation-page .entity-list-row.global-facility-catalog-row,
+  .global-operation-page .global-facility-catalog-list,
+  .global-operation-page .global-facility-region-list {
+    gap: .55rem;
+  }
+
+  .global-operation-page .entity-list-row.global-facility-catalog-row {
+    --global-facility-catalog-main-row-size: 46px;
+    --global-facility-catalog-row-gap: 6px;
+  }
+
   .global-operation-page .entity-list-row.global-facility-region-row {
-    --global-facility-catalog-row-gap: 2px;
-    --global-facility-region-row-gap: 2px;
+    --global-facility-region-main-row-size: 46px;
+    --global-facility-region-row-gap: 6px;
   }
 
-  .global-operation-page .global-facility-catalog-row__identity,
-  .global-operation-page .global-facility-catalog-row__quick-controls {
-    padding-left: .32rem;
+  .global-operation-page .global-facility-catalog-row__identity {
+    padding-left: .48rem;
   }
 
-  .global-operation-page .global-facility-catalog-row__quick-controls {
-    gap: .25rem;
-  }
-
+  .global-operation-page .global-facility-catalog-row__quick-controls,
   .global-operation-page .global-facility-region-row__quick-controls {
-    padding-left: .25rem;
+    gap: .35rem;
+  }
+
+  .global-operation-page .global-facility-catalog-row__identity > strong,
+  .global-operation-page .global-facility-region-row__identity > strong {
+    font-size: .9rem;
+  }
+
+  .global-operation-page .global-facility-catalog-row__profit,
+  .global-operation-page .global-facility-region-row__profit {
+    font-size: .95rem;
+  }
+
+  .global-operation-page .global-facility-catalog-row__metric:not(.global-facility-catalog-row__profit),
+  .global-operation-page .global-facility-region-row__metric {
+    font-size: .9rem;
+  }
+}
+
+@container (max-width: 360px) {
+  .global-operation-page .global-facility-catalog {
+    --global-facility-layout-artwork-size: 96px;
+    --global-facility-layout-name-track: minmax(0, 1.35fr);
+    --global-facility-layout-profit-track: minmax(4.25rem, .76fr);
+    --global-facility-layout-count-track: minmax(2.1rem, .4fr);
+  }
+
+  .global-operation-page .global-facility-catalog-list,
+  .global-operation-page .global-facility-region-list {
+    gap: .5rem;
+  }
+
+  .global-operation-page .entity-list-row.global-facility-catalog-row {
+    --global-facility-catalog-main-row-size: 44px;
+    --global-facility-catalog-row-gap: 4px;
+  }
+
+  .global-operation-page .entity-list-row.global-facility-region-row {
+    --global-facility-region-main-row-size: 44px;
+    --global-facility-region-row-gap: 4px;
+  }
+
+  .global-operation-page .global-facility-catalog-row__identity {
+    padding-left: .4rem;
+  }
+
+  .global-operation-page .global-facility-catalog-row__quick-controls,
+  .global-operation-page .global-facility-region-row__quick-controls {
+    gap: .28rem;
   }
 
   .global-operation-page .global-facility-catalog-row__identity > strong,
@@ -216,73 +345,40 @@
   }
 }
 
-@container (max-width: 360px) {
-  .global-operation-page .global-facility-catalog {
-    --global-facility-layout-artwork-size: 52px;
-    --global-facility-layout-name-track: minmax(0, 1.35fr);
-    --global-facility-layout-profit-track: minmax(4.25rem, .76fr);
-    --global-facility-layout-count-track: minmax(2.1rem, .4fr);
-  }
-
-  .global-operation-page .entity-list-row.global-facility-catalog-row,
-  .global-operation-page .entity-list-row.global-facility-region-row {
-    --global-facility-catalog-row-gap: 1px;
-    --global-facility-region-row-gap: 1px;
-  }
-
-  .global-operation-page .global-facility-catalog-row__identity,
-  .global-operation-page .global-facility-catalog-row__quick-controls {
-    padding-left: .24rem;
-  }
-
-  .global-operation-page .global-facility-catalog-row__quick-controls {
-    gap: .18rem;
-  }
-
-  .global-operation-page .global-facility-region-row__quick-controls {
-    padding-left: .18rem;
-  }
-
-  .global-operation-page .global-facility-catalog-row__identity > strong,
-  .global-operation-page .global-facility-region-row__identity > strong {
-    font-size: .76rem;
-  }
-
-  .global-operation-page .global-facility-catalog-row__profit,
-  .global-operation-page .global-facility-region-row__profit {
-    font-size: .82rem;
-  }
-
-  .global-operation-page .global-facility-catalog-row__metric:not(.global-facility-catalog-row__profit),
-  .global-operation-page .global-facility-region-row__metric {
-    font-size: .78rem;
-  }
-}
-
 @container (max-width: 200px) {
   .global-operation-page .global-facility-catalog {
-    --global-facility-layout-artwork-size: 38px;
+    --global-facility-layout-artwork-size: 64px;
     --global-facility-layout-name-track: minmax(0, 1.35fr);
     --global-facility-layout-profit-track: minmax(0, .76fr);
     --global-facility-layout-count-track: minmax(0, .4fr);
   }
 
-  .global-operation-page .global-facility-catalog-row__identity,
-  .global-operation-page .global-facility-catalog-row__quick-controls {
-    padding-left: .18rem;
-  }
-
-  .global-operation-page .global-facility-catalog-row__quick-controls {
-    gap: .18rem;
-  }
-}
-
-@media (max-width: 720px) {
   .global-operation-page .entity-list-row.global-facility-catalog-row {
-    --global-facility-catalog-main-row-size: 44px;
+    --global-facility-catalog-main-row-size: 64px;
+    --global-facility-catalog-row-gap: 4px;
+    grid-template-rows: var(--global-facility-catalog-main-row-size) var(--global-facility-production-control-size);
   }
 
-  .global-operation-page .entity-list-row.global-facility-region-row {
-    --global-facility-region-main-row-size: 44px;
+  .global-operation-page .global-facility-catalog-row__artwork {
+    grid-row: 1;
+  }
+
+  .global-operation-page .global-facility-catalog-row__open {
+    height: 44px;
+    align-self: center;
+  }
+
+  .global-operation-page .global-facility-catalog-row__quick-controls {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .global-operation-page .global-facility-catalog-row__identity {
+    padding-left: .3rem;
+  }
+
+  .global-operation-page .global-facility-catalog-row__quick-controls,
+  .global-operation-page .global-facility-region-row__quick-controls {
+    gap: .22rem;
   }
 }
