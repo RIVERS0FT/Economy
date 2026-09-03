@@ -26,19 +26,12 @@ async function readDetailGeometry(page: Page) {
   return page.locator('.market-detail-surface').evaluate((surface) => {
     const rect = (element: Element) => {
       const bounds = element.getBoundingClientRect();
-      return {
-        top: bounds.top,
-        right: bounds.right,
-        bottom: bounds.bottom,
-        left: bounds.left,
-        width: bounds.width,
-        height: bounds.height,
-      };
+      return { top: bounds.top, right: bounds.right, bottom: bounds.bottom, left: bounds.left, width: bounds.width, height: bounds.height };
     };
     const hero = surface.querySelector('.market-detail-hero');
     const chart = surface.querySelector('.market-chart-card');
     const trade = surface.querySelector('.market-trade-card');
-    const heroMetrics = Array.from(surface.querySelectorAll('.market-detail-hero__metric'))
+    const heroMetrics = Array.from(surface.querySelectorAll('.market-detail-hero__metrics > span'))
       .filter((element) => element.getClientRects().length > 0)
       .map(rect);
     return {
@@ -51,48 +44,24 @@ async function readDetailGeometry(page: Page) {
   });
 }
 
-test('regional commodity detail keeps only compact market facts in direct page flow', async ({ page }) => {
+test('regional commodity detail keeps daily price and immediate trade in direct page flow', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openRegionalWheatDetail(page);
 
-  const visibleHeroMetrics = await page.locator(
-    '.market-detail-hero__metric:visible small',
-  ).allTextContents();
-  expect(visibleHeroMetrics).toEqual(['24h 变化', '可用库存']);
+  const visibleHeroMetrics = await page.locator('.market-detail-hero__metrics > span:visible small').allTextContents();
+  expect(visibleHeroMetrics).toEqual(['今日价格', '24h 变化', '可用库存']);
+  const visibleTradeSummary = await page.locator('.market-trade-summary > span:visible small').allTextContents();
+  expect(visibleTradeSummary).toEqual(['今日价格', '今日成交量', '24h 成交量', '下次调价']);
 
-  for (const deletedLabel of [
-    '市场价',
-    '基准偏离',
-    '需求满足率',
-    '参考价',
-    '上轮需求',
-    '官方系统价',
-    '卖单量',
-    '买单量',
-    '挂单差额',
-    '周期系统买卖量',
-    '冻结库存',
-    '发运在途',
-    '预计生产速度',
-    '预计等效产能',
-  ]) {
-    await expect(page.getByText(deletedLabel, { exact: true })).toHaveCount(0);
+  await expect(page.locator('.market-immediate-trade-card')).toBeVisible();
+  await expect(page.locator('#market-trade-quantity')).toBeVisible();
+  await expect(page.locator('.local-trades-section')).toBeVisible();
+  for (const selector of ['.market-fundamentals-grid', '.market-auto-trade-execution', '.market-detail-auto-trade', '.market-trade-book', '.book-order-row', '.own-open-orders-table', '.market-order-price']) {
+    await expect(page.locator(selector)).toHaveCount(0);
   }
-  await expect(page.locator('.market-fundamentals-grid')).toHaveCount(0);
-  await expect(page.locator('.market-auto-trade-execution')).toHaveCount(0);
-  await expect(page.locator('.market-detail-auto-trade')).toHaveCount(0);
+  await expect(page.getByText('已有订单', { exact: true })).toHaveCount(0);
 
-  const visibleTradeSummary = await page.locator(
-    '.market-trade-summary > span:visible small',
-  ).allTextContents();
-  expect(visibleTradeSummary).toEqual(['最近成交', '24h 成交量']);
-
-  for (const selector of [
-    '.market-detail-hero',
-    '.market-chart-card',
-    '.market-trade-card',
-    '.market-account-panel',
-  ]) {
+  for (const selector of ['.market-detail-hero', '.market-chart-card', '.market-trade-card', '.market-account-panel']) {
     await expectDirectSurface(page, selector);
   }
   await expect(page.locator('.market-trade-card')).not.toHaveClass(/ui-primary-surface/);
@@ -100,53 +69,27 @@ test('regional commodity detail keeps only compact market facts in direct page f
   const geometry = await readDetailGeometry(page);
   expect(geometry.surface.width).toBeLessThanOrEqual(720);
   expect(geometry.hero).not.toBeNull();
-  expect(geometry.heroMetrics).toHaveLength(2);
+  expect(geometry.heroMetrics).toHaveLength(3);
   expect(geometry.chart).not.toBeNull();
   expect(geometry.trade).not.toBeNull();
-
-  const hero = geometry.hero!;
-  for (const metric of geometry.heroMetrics) {
-    expect(metric.left).toBeGreaterThanOrEqual(hero.left - 1);
-    expect(metric.right).toBeLessThanOrEqual(hero.right + 1);
-  }
-  expect(Math.max(...geometry.heroMetrics.map((metric) => metric.top))
-    - Math.min(...geometry.heroMetrics.map((metric) => metric.top))).toBeLessThanOrEqual(2);
-  expect(geometry.chart!.top - hero.bottom).toBeLessThanOrEqual(40);
+  expect(geometry.chart!.top).toBeGreaterThanOrEqual(geometry.hero!.bottom - 2);
   expect(geometry.trade!.top).toBeGreaterThan(geometry.chart!.top);
 });
 
-test('regional commodity direct detail flow stays readable on mobile', async ({ page }) => {
+test('regional commodity daily-price detail stays readable on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openRegionalWheatDetail(page);
   await page.setViewportSize({ width: 390, height: 844 });
 
   const surface = page.locator('.market-detail-surface');
-  await expect(surface).toBeVisible();
-  const widthGeometry = await surface.evaluate((node) => ({
-    clientWidth: node.clientWidth,
-    scrollWidth: node.scrollWidth,
-  }));
+  const widthGeometry = await surface.evaluate((node) => ({ clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));
   expect(widthGeometry.scrollWidth).toBeLessThanOrEqual(widthGeometry.clientWidth + 1);
-
-  const visibleHeroMetrics = await page.locator(
-    '.market-detail-hero__metric:visible small',
-  ).allTextContents();
-  expect(visibleHeroMetrics).toEqual(['24h 变化', '可用库存']);
-  await expect(page.locator('.market-fundamentals-grid')).toHaveCount(0);
-  await expect(page.locator('.market-auto-trade-execution')).toHaveCount(0);
-  await expect(page.locator('.market-trade-summary > span:visible')).toHaveCount(2);
-  await expect(page.locator('.market-chart-card')).toBeVisible();
-  await expect(page.locator('.market-trade-card')).toBeVisible();
-  await expect(page.locator('.market-trade-card')).not.toHaveClass(/ui-primary-surface/);
-
-  const geometry = await readDetailGeometry(page);
-  expect(geometry.hero).not.toBeNull();
-  expect(geometry.heroMetrics).toHaveLength(2);
-  const hero = geometry.hero!;
-  for (const metric of geometry.heroMetrics) {
-    expect(metric.left).toBeGreaterThanOrEqual(hero.left - 1);
-    expect(metric.right).toBeLessThanOrEqual(hero.right + 1);
-  }
-  expect(Math.max(...geometry.heroMetrics.map((metric) => metric.top))
-    - Math.min(...geometry.heroMetrics.map((metric) => metric.top))).toBeLessThanOrEqual(2);
+  await expect(page.locator('#market-trade-quantity')).toBeVisible();
+  await expect(page.locator('.market-quantity-stepper')).toBeVisible();
+  await expect(page.locator('.market-trade-book')).toHaveCount(0);
+  await expect(page.locator('.own-open-orders-table')).toHaveCount(0);
+  const heroMetrics = await page.locator('.market-detail-hero__metrics > span:visible small').allTextContents();
+  expect(heroMetrics).toEqual(['今日价格', '24h 变化', '可用库存']);
+  const tradeSummary = await page.locator('.market-trade-summary > span:visible small').allTextContents();
+  expect(tradeSummary).toEqual(['今日价格', '今日成交量', '24h 成交量', '下次调价']);
 });
