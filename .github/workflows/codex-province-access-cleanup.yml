@@ -28,6 +28,7 @@ jobs:
       - name: Apply cleanup
         shell: bash
         run: |
+          sed -i "/EmbeddedBuildingsPage model={model} embedded/d" scripts/codex-province-access-cleanup.py
           python3 scripts/codex-province-access-cleanup.py
           rm .github/workflows/codex-province-access-cleanup.yml
           rm scripts/codex-province-access-cleanup.py
