@@ -20,6 +20,7 @@ const paths = {
   sharedLayout: 'src/styles/global-operation-pages.css',
   design: 'docs/UI_DESIGN_SYSTEM.md',
   browser: 'tests/browser/facility-catalog-layout.spec.ts',
+  crossPageBrowser: 'tests/browser/all-pages-preview.spec.ts',
   selector: 'scripts/select-ci-tests.mjs',
   runner: 'scripts/verify-ui-architecture-runner.mjs',
 };
@@ -143,6 +144,13 @@ if (failures.length === 0) {
     'expect(narrow.artworkWidth).toBeGreaterThanOrEqual(95);',
     'expect(narrow.rowScrollWidth).toBeLessThanOrEqual(narrow.rowClientWidth + 1);',
   ]) requireText(paths.browser, text);
+
+  for (const text of [
+    "if (key === 'borderRadius') {",
+    'borderRadius should match inside commodity lists',
+    'borderRadius should match inside facility object cards',
+    'facility object-card radius should remain distinct from commodity rows',
+  ]) requireText(paths.crossPageBrowser, text);
 
   for (const text of [
     "'tests/browser/all-pages-preview.spec.ts'",
