@@ -41,6 +41,8 @@ jobs:
           if old not in text:
               raise SystemExit('provincial economy verifier embedded buildings anchor missing')
           path.write_text(text.replace(old, "'<EmbeddedBuildingsPage'", 1), encoding='utf-8')
+          style_path = Path('src/styles/game-shell-layout.css')
+          style_path.write_text(style_path.read_text(encoding='utf-8').rstrip() + '\n', encoding='utf-8')
           PY
           rm .github/workflows/codex-province-access-cleanup.yml
           rm scripts/codex-province-access-cleanup.py
