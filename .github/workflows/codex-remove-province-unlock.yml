@@ -33,6 +33,20 @@ jobs:
             capture && /^[[:space:]]*PY$/ { exit }
             capture { sub(/^          /, ""); print }
           ' scripts/codex-remove-province-unlock.workflow.txt > /tmp/province-access-migration.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('/tmp/province-access-migration.py')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              "replace_once('src/pages/ProvincePage.tsx', old_buildings, new_buildings)",
+              "replace_regex_once('src/pages/ProvincePage.tsx', r\"        \\\{activeSection === 'buildings' \\\? \\\(\\n.*?\\n        \\\) : null\\\}\", new_buildings)",
+          )
+          text = text.replace(
+              "replace_once('src/pages/ProvincePage.tsx', old_warehouse, new_warehouse)",
+              "replace_regex_once('src/pages/ProvincePage.tsx', r\"        \\\{activeSection === 'warehouse' \\\? \\\(\\n.*?\\n        \\\) : null\\\}\", new_warehouse)",
+          )
+          path.write_text(text, encoding='utf-8')
+          PY
           python3 /tmp/province-access-migration.py
 
       - name: Install dependencies
