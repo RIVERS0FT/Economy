@@ -123,7 +123,7 @@ jobs:
           node scripts/verify-provincial-unlock-transport.mjs
           node scripts/verify-provincial-economy.mjs
           node scripts/verify-game-shell-layout.mjs
-          node scripts/verify-local-game-preview.mjs
+          npm run verify:local-preview
           node scripts/verify-page-content.mjs
           node scripts/verify-primary-surface-insets.mjs
           node scripts/verify-market-page-layout.mjs
