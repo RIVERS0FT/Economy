@@ -134,7 +134,8 @@ forbidText(transportPolicy, 'unitCostPerKm', '共享运输策略不得恢复按�
 forbidText(transportPolicy, 'fixedCost:', '共享运输策略不得恢复每段固定运输费。');
 
 for (const text of [
-  "TRANSPORT_MODE_POLICY from '../../shared/transport-policy.js'",
+  'TRANSPORT_MODE_POLICY,',
+  "from '../../shared/transport-policy.js'",
   'TRANSPORT_MAX_IN_TRANSIT_PER_PLAYER = 20',
   'TRANSPORT_MAX_ROUTES_PER_PLAYER = 50',
   'transportCycleDistanceKm',
