@@ -1,0 +1,40 @@
+name: Fix transport node cycle marker
+
+on:
+  push:
+    branches:
+      - transport-client-node-logistics
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fix-transport-node-cycle-marker
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+      - name: Apply node-cycle marker fix
+        run: node scripts/fix-transport-node-cycle-marker.mjs
+      - name: Remove one-shot patch files
+        run: |
+          rm scripts/fix-transport-node-cycle-marker.mjs
+          rm .github/workflows/fix-transport-node-cycle-marker.yml
+      - name: Commit runtime fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add server/src/transport.js scripts/fix-transport-node-cycle-marker.mjs .github/workflows/fix-transport-node-cycle-marker.yml
+          git diff --cached --check
+          git commit -m '修复空车运输周期迁移'
+          git push origin HEAD:transport-client-node-logistics
