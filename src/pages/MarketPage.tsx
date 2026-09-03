@@ -9,6 +9,8 @@ import {
   MarketCommodityRow,
   type MarketSortDirection,
 } from '../components/market/MarketCommodityRow';
+import { FacilityIcon } from '../components/icons/FacilityIcons';
+import { FactoryIcon } from '../components/icons/GameIcons';
 import { ProductIconLabel } from '../components/icons/ProductIcons';
 import { ProductArtwork } from '../components/products/ProductArtwork';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
@@ -468,7 +470,9 @@ export function MarketPage({
   const detailContent = (
     <div className="market-page-surface market-detail-surface">
       <Panel className="market-detail-hero">
-        {selectedProduct ? <ProductArtwork productId={selectedProduct.id} /> : null}
+        {selectedProduct
+          ? <ProductArtwork productId={selectedProduct.id} />
+          : selectedFacility ? <FacilityIcon facilityTypeId={selectedFacility.id} /> : <FactoryIcon />}
         <div className="market-detail-hero__metrics">
           {selectedProduct ? (
             <>
@@ -491,7 +495,7 @@ export function MarketPage({
           <WidgetHeading
             title={selectedProduct
               ? <ProductIconLabel productId={selectedProduct.id}>{`${assetName}近 24h 成交趋势`}</ProductIconLabel>
-              : `${assetName}近 24h 成交趋势`}
+              : <span className="product-icon-label facility-icon-label"><FactoryIcon />{`${assetName}近 24h 成交趋势`}</span>}
             action={<StatusTag tone={trendTone}><CurrencyAmount sign={marketTrend > 0 ? '+' : undefined}>{formatCurrency(marketTrend)}</CurrencyAmount></StatusTag>}
           />
           {marketDetailLoading && !selectedMarketDetail ? <small className="muted" role="status">正在加载当前市场行情…</small> : null}
