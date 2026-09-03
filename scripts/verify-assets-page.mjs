@@ -64,12 +64,21 @@ for (const text of [
   "import { AssetOverviewPanel } from '../components/assets/AssetOverviewPanel'",
   '<AssetOverviewPanel model={model} />',
   'className="bank-account-balance-strip"',
-  'title="存款账户"',
-  'title="存款利息与周结算"',
-  'title="工厂抵押贷款"',
+  'title="资金管理"',
+  '本周资金计划',
+  'title="工厂抵押融资"',
+  'bank-collateral-list',
+  '授信利用率',
   'title="银行记录"',
 ]) requireText(bankPath, text);
-for (const text of ['bank-metric-grid', 'title="本地资产变动"', 'localAssetEvents']) forbidText(bankPath, text);
+for (const text of [
+  'bank-metric-grid',
+  'title="本地资产变动"',
+  'localAssetEvents',
+  'title="存款账户"',
+  'title="存款利息与周结算"',
+  '<table className="bank-collateral-table">',
+]) forbidText(bankPath, text);
 
 for (const text of [
   '.asset-overview-body',
@@ -84,7 +93,7 @@ forbidText(navigationPath, "{ id: 'assets', label: '资产' }");
 requireText(navigationPath, "{ id: 'bank', label: '银行' }");
 for (const text of [
   '独立资产页面已经永久删除，资产总览唯一归属银行页',
-  '页面顺序固定为“资产总览／存款账户与存款利息、周资金结算／工厂抵押贷款／银行记录”',
+  '页面顺序固定为“资产总览／资金管理／工厂抵押融资／银行记录”',
   '不得恢复独立资产页',
 ]) requireText(designPath, text);
 
@@ -105,6 +114,7 @@ for (const text of [
   "getByText('当前净资产', { exact: true })).toHaveCount(1)",
   "getByText('冻结资产', { exact: true })).toHaveCount(1)",
   'compositionColumns).toBe(2)',
+  'cashWorkspaceColumns).toBe(1)',
   'scrollWidth <= element.clientWidth + 1',
 ]) requireText(runtimeSpecPath, text);
 
@@ -113,4 +123,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('银行资产总览、十二个正式页面与十一项可见导航、本地成交 v7、移动资产构成与独立资产页删除验证通过。');
+console.log('银行资产总览、资金管理与抵押融资布局、十二个正式页面与十一项可见导航、本地成交 v7、移动资产构成与独立资产页删除验证通过。');
