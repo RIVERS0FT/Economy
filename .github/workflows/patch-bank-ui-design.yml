@@ -1,0 +1,83 @@
+name: Patch bank UI design
+
+on:
+  push:
+    branches:
+      - codex/bank-capital-layout
+    paths:
+      - .github/workflows/patch-bank-ui-design.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-design:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/bank-capital-layout
+          fetch-depth: 0
+      - name: Patch authoritative bank UI rules
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/UI_DESIGN_SYSTEM.md')
+          text = path.read_text(encoding='utf-8')
+
+          old_section = '''## 12. 银行页面布局
+
+银行页必须使用 `PageLayout` 和 `PagePanel`，一级顺序固定为资产总览、存款账户与存款利息双列、工厂抵押贷款、银行记录。`src/styles/asset-overview.css` 只负责资产总览内部几何，`src/styles/bank.css` 只负责存款余额条、业务网格、紧凑工厂表格、抵押胶囊、还款行和响应式折叠；不得恢复独立资产页或页面顶部五张重复指标卡。输入、按钮、开关、状态标签、数据行、货币图标、一级面板外层内边距、hover 和焦点继续由共享设计系统收束。这里的 `PagePanel` 仍只是兼容结构入口；银行各一级章节位于普通滚动正文时按页面结构规则扁平化，只有明确登记为独立对象的内容才允许 `.ui-entity-card`。
+
+银行总览桌面五列，宽度不足时按三列、两列逐级折叠；不得通过横向滚动保留五列。存款账户与存款利息在宽屏两列、窄屏单列。工厂抵押表格允许横向滚动以保留“工厂／总持有／交易冻结／已抵押／可抵押／审慎单价／本次抵押”完整列，首列保持可读最小宽度；移动端不得把同一工厂拆成多张重复卡片。抵押数量使用带 `.ui-control` 的紧凑原生整数输入，仍必须遵守统一表单字号、触控尺寸、错误状态和字符串草稿规则。
+
+贷款评估在桌面使用“评估依据／申请表单”双列，移动端单列；所有加减项必须同时显示文字和正负数值，颜色不能作为唯一依据。当前贷款摘要在宽屏四列，抵押明细使用工厂图标与数量胶囊；自动还款复用 `ToggleField`，不得创建银行专属开关。银行记录使用单张一级面板内的分隔记录行，不得每条记录创建独立玻璃卡片。
+
+结息和贷款倒计时复用共享 `useNow`、`formatDuration` 与服务器单调时钟。倒计时到零时显示等待服务器确认，不改变按钮以外的权威余额。存款利率只显示日收益率，不显示夸大的年化值；微单位余数不作为普通货币金额渲染。银行图标必须复用 `GameIcons.tsx` 的 `BankIcon`，不得使用 Emoji、文本字符或外部图片。
+'''
+
+          new_section = '''## 12. 银行页面布局
+
+银行页使用 `PageLayout` 和 `PagePanel`，一级顺序固定为资产总览、资金管理、工厂抵押融资、银行记录；标题只显示“银行”，不得增加副标题。`asset-overview.css` 只负责资产总览内部几何，`bank.css` 只负责余额条、资金工作区、连续抵押列表、融资方案、授信利用率、抵押摘要、还款行、记录筛选和响应式重排。输入、按钮、开关、状态标签、数据行、货币图标、一级面板 inset、hover 和焦点继续由共享组件与令牌收束。普通滚动正文中的一级 `PagePanel` 仍按页面分区扁平化；融资方案可以作为当前抵押选择的轻量 sticky inset，但不得使用毛玻璃或高层阴影。
+
+资金管理在宽屏内部使用“资金转移／本周资金计划”双列，窄屏单列。资金转移只使用一个 `MoneyInput`，配合“存入／取出”互斥方向、`25%／50%／最大` 快捷金额和一个确认按钮；不得恢复两套平行存取表单。本周资金计划只整理服务器返回的计息资格、结息和周结算状态。余额条继续显示可用资金、银行存款和今日计息余额，不得建立第二套净资产摘要。
+
+工厂抵押融资在宽屏使用“连续抵押列表／融资方案”双列，窄屏单列。抵押列表桌面第一层固定为“抵押资产／可抵押／审慎单价／本次抵押”，地区、总持有、交易冻结和已抵押作为身份辅助行；移动端在同一连续列表内重排为两行，不得依赖横向滚动，也不得把每种工厂改成独立圆角卡片。抵押数量继续使用 `.ui-control` 紧凑原生整数输入和字符串草稿。
+
+融资方案必须显著显示最高可贷额度、申请金额、授信利用率、剩余授信、实际贷款价值比、总利率、预计利息和应还总额；基础成数与各加减项保留在“授信依据”中，并同时使用文字与正负数值。授信利用率使用文字百分比和带 `progressbar` 语义的轨道，颜色不得成为唯一表达。当前贷款改为债务控制台，优先显示总应还、本金、利息、贷款价值比、总利率和剩余时间；宽限期必须有文字风险说明。银行记录可用共享分段按钮筛选，但仍保持单一分隔记录列表，不得逐条创建玻璃卡片。
+
+结息和贷款倒计时复用共享 `useNow` 与服务器单调时钟；到零只显示等待服务器确认。存款利率只显示日收益率，不显示年化值；微单位余数不渲染为普通货币。银行图标复用 `BankIcon`，不得使用 Emoji、文本字符或外部图片。
+'''
+
+          if old_section not in text:
+              raise SystemExit('bank UI section did not match authoritative baseline')
+          text = text.replace(old_section, new_section, 1)
+
+          old_defense = '''- 银行页面不得绕过 `PageLayout`、`PagePanel`、`IntegerInput`、`.ui-control`、`ToggleField`、`CurrencyAmount` 或共享交互状态；
+- 不得把工厂抵押评估改为移动端逐工厂独立一级卡片、隐藏审慎价格／可抵押数量，或只用颜色表达额度加减项；
+- 不得显示年化存款收益率、把微单位余数显示为可用货币，或用浏览器墙上时间直接结息和判定违约；
+'''
+          new_defense = '''- 银行页面不得绕过 `PageLayout`、`PagePanel`、`MoneyInput`、`.ui-control`、`ToggleField`、`CurrencyAmount` 或共享交互状态；不得恢复两套平行存取表单、横向滚动抵押大表格或移动端逐工厂圆角卡片；
+- 不得隐藏审慎价格、可抵押数量、授信利用率、剩余授信或文字化额度加减项，也不得让客户端授信预览参与服务器放款计算；
+- 不得显示年化存款收益率、把微单位余数显示为可用货币，或用浏览器墙上时间直接结息和判定违约；
+'''
+          if old_defense not in text:
+              raise SystemExit('bank UI defense section did not match authoritative baseline')
+          text = text.replace(old_defense, new_defense, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit design synchronization
+        shell: bash
+        run: |
+          if git diff --quiet -- docs/UI_DESIGN_SYSTEM.md; then
+            echo 'No design change produced'
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/UI_DESIGN_SYSTEM.md
+          git commit -m '更新银行页面布局设计规则'
+          git push origin HEAD:codex/bank-capital-layout
