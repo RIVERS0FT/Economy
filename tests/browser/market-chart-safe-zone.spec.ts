@@ -1,6 +1,12 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 // compact 变体继续满足“成交量图区实际高度不得低于 48px”，本回归验证 full 变体提高后的 68px 基线。
+const marketChartViewports = [
+  { width: 1684, height: 931, label: '桌面端' },
+  { width: 390, height: 844, label: '移动端' },
+  { width: 320, height: 700, label: '极窄移动端' },
+] as const;
+
 async function capturePageErrors(page: Page) {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
@@ -113,39 +119,75 @@ function expectWidthResponsiveAxisChrome(
   ).toBe(usesMobileAxisChrome ? 'false' : 'true');
 }
 
-test('market chart preserves readable volume height, zero-gap grids and dynamic ticks', async ({ page }) => {
-  const pageErrors = await capturePageErrors(page);
-  const viewports = [
-    { width: 1684, height: 931, label: '桌面端' },
-    { width: 390, height: 844, label: '移动端' },
-    { width: 320, height: 700, label: '极窄移动端' },
-  ];
-  const results = new Map<string, Awaited<ReturnType<typeof inspectChartGeometry>>>();
+async function resizeAndInspectChart(
+  page: Page,
+  chart: Locator,
+  viewport: { width: number; height: number },
+  previousWidth: number,
+) {
+  await page.setViewportSize(viewport);
+  await expect.poll(async () => {
+    const bounds = await inspectChartGeometry(chart);
+    const usesMobileAxisChrome = bounds.chartWidth <= 720;
+    return {
+      widthChanged: Math.abs(bounds.chartWidth - previousWidth) > 1,
+      responsiveChrome: bounds.mobileAxisTitles === (usesMobileAxisChrome ? 'true' : 'false')
+        && bounds.xAxisTitleVisible === (usesMobileAxisChrome ? 'false' : 'true'),
+      heightSynced: Math.abs(bounds.actualHeight - bounds.declaredHeight) <= 2,
+    };
+  }).toEqual({ widthChanged: true, responsiveChrome: true, heightSynced: true });
+  return inspectChartGeometry(chart);
+}
 
-  for (const viewport of viewports) {
-    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+for (const viewport of marketChartViewports) {
+  test(`market chart ${viewport.label} preserves readable volume height, zero-gap grids and dynamic ticks`, async ({ page }) => {
+    const pageErrors = await capturePageErrors(page);
+    await page.setViewportSize(viewport);
     await page.goto('market-runtime-test.html?scenario=active');
     const bounds = await expectChartGeometry(page.locator('.market-history-chart.full'), viewport.label);
     expectWidthResponsiveAxisChrome(bounds, viewport.label);
-    results.set(viewport.label, bounds);
-  }
+    expect(pageErrors).toEqual([]);
+  });
+}
 
-  const desktop = results.get('桌面端')!;
-  const mobile = results.get('移动端')!;
-  const narrow = results.get('极窄移动端')!;
+test('market chart responsive tick density follows real chart width in one runtime', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  const chart = page.locator('.market-history-chart.full');
+
+  await page.setViewportSize(marketChartViewports[0]);
+  await page.goto('market-runtime-test.html?scenario=active');
+  const desktop = await expectChartGeometry(chart, marketChartViewports[0].label);
+
+  const mobile = await resizeAndInspectChart(page, chart, marketChartViewports[1], desktop.chartWidth);
+  expectWidthResponsiveAxisChrome(mobile, marketChartViewports[1].label);
+  const narrow = await resizeAndInspectChart(page, chart, marketChartViewports[2], mobile.chartWidth);
+  expectWidthResponsiveAxisChrome(narrow, marketChartViewports[2].label);
+
   expect(desktop.timeAxisInterval).toBeLessThan(mobile.timeAxisInterval);
   expect(mobile.timeAxisInterval).toBeLessThanOrEqual(narrow.timeAxisInterval);
   expect(desktop.priceTickCount).toBeGreaterThanOrEqual(mobile.priceTickCount);
+  expect(pageErrors).toEqual([]);
+});
 
-  await page.setViewportSize({ width: 390, height: 844 });
+test('market chart 125% root font keeps mobile safe geometry and tick density', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  const chart = page.locator('.market-history-chart.full');
+  await page.setViewportSize(marketChartViewports[1]);
   await page.goto('market-runtime-test.html?scenario=active');
+  const baseline = await expectChartGeometry(chart, marketChartViewports[1].label);
+
   await page.evaluate(() => {
     document.documentElement.style.fontSize = '20px';
     window.dispatchEvent(new Event('resize'));
   });
-  const enlarged = await expectChartGeometry(page.locator('.market-history-chart.full'), '125% 根字号移动端');
-  expectWidthResponsiveAxisChrome(enlarged, '125% 根字号移动端');
-  expect(enlarged.timeAxisInterval).toBeGreaterThanOrEqual(mobile.timeAxisInterval);
+  await expect.poll(async () => {
+    const bounds = await inspectChartGeometry(chart);
+    return bounds.timeAxisInterval >= baseline.timeAxisInterval
+      && Math.abs(bounds.actualHeight - bounds.declaredHeight) <= 2;
+  }).toBe(true);
 
+  const enlarged = await expectChartGeometry(chart, '125% 根字号移动端');
+  expectWidthResponsiveAxisChrome(enlarged, '125% 根字号移动端');
+  expect(enlarged.timeAxisInterval).toBeGreaterThanOrEqual(baseline.timeAxisInterval);
   expect(pageErrors).toEqual([]);
 });
