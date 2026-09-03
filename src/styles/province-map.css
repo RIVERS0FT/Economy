@@ -80,9 +80,12 @@
 }
 
 .province-map-world-shadow {
-  fill: var(--province-map-world-fill);
-  stroke: none;
-  opacity: .64;
+  fill: none;
+  stroke: color-mix(in srgb, var(--color-map-region-border) 28%, transparent);
+  stroke-width: 4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: .22;
   filter: none;
 }
 
@@ -331,6 +334,14 @@
 
 .province-map-tooltip__locked {
   color: var(--color-warning);
+}
+
+.application-map-layer > .strategic-map-lens-bar.panel,
+.transport-map-picking-bar,
+.transport-map-picking-bar.panel {
+  background: var(--color-surface) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
