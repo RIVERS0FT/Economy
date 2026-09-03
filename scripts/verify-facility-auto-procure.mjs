@@ -73,9 +73,10 @@ for (const [path, tokens] of [
     '不创建 FOK、开放买单或系统材料商店',
   ]],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', [
-    '建厂一键购料使用同州当前 `officialPrice`',
-    '不读取玩家盘口深度，不创建 FOK 或普通商品挂单',
-    '全部缺失材料的即时购买与建厂继续处于同一原子事务',
+    '服务器报价按建厂地区每种缺失材料的当前 `officialPrice` 计算',
+    '建厂一键购料不再读取真实卖盘深度，也不创建 FOK 或普通买单',
+    '原有事务边界继续保证“全部购齐或全部回滚”',
+    '不得留下部分成功后等待成交的材料挂单',
   ]],
   ['docs/WAREHOUSE_EXPANSION_DESIGN.md', [
     '“一键购齐并建造”按建造州各缺失材料的当日 `officialPrice` 即时购齐',
