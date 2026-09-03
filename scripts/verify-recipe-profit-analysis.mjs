@@ -300,8 +300,8 @@ for (const removedText of [
   '窄屏利润分析保持紧凑而不删减信息',
 ]) assert.equal(designSource.includes(removedText), false, `产业设计不得保留旧利润卡规则: ${removedText}`);
 assert.ok(
-  marketDesignSource.includes('地区商品目录和商品全局详情的地区行使用该地区官方系统价 `officialPrice` 与真实 24h 成交变化'),
-  '统一订单簿设计必须锁定地区商品列表使用官方系统价',
+  marketDesignSource.includes('一级商品目录与商品全局详情使用各地区 `officialPrice` 作为市场价格摘要'),
+  '即时市场设计必须锁定地区商品列表使用官方系统价',
 );
 
 console.log('市场官方系统价、单厂平均利润固定单座口径、具体缺价提示和完整利润卡移除验证通过。');
