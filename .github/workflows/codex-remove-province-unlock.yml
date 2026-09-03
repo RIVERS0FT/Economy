@@ -50,13 +50,63 @@ jobs:
           python3 /tmp/province-access-migration.py
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('scripts/verify-provincial-unlock-transport.mjs')
-          text = path.read_text(encoding='utf-8')
-          old = "requireText(provincePage, 'model.unlockProvince(provinceId)', '州页解锁按钮必须调用解锁动作。');"
-          new = "forbidText(provincePage, 'model.unlockProvince(', '州页不得恢复地区解锁动作。');"
+          import re
+
+          def replace_once(path, old, new):
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              if text.count(old) != 1:
+                  raise SystemExit(f'{path}: expected exactly one legacy fragment: {old[:100]}')
+              file.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_once(
+              'scripts/verify-provincial-unlock-transport.mjs',
+              "requireText(provincePage, 'model.unlockProvince(provinceId)', '州页解锁按钮必须调用解锁动作。');",
+              "forbidText(provincePage, 'model.unlockProvince(', '州页不得恢复地区解锁动作。');",
+          )
+
+          for path in ['scripts/verify-provincial-economy.mjs', 'scripts/verify-page-content.mjs']:
+              replace_once(
+                  path,
+                  '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />',
+                  '<EmbeddedMarketPage model={model} embedded readOnly={false} />',
+              )
+
+          replace_once(
+              'scripts/verify-market-page-layout.mjs',
+              "requireText('src/pages/ProvincePage.tsx', '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />', '州级上下文必须继续复用地区 MarketPage，并允许锁定州只读查看。');",
+              "requireText('src/pages/ProvincePage.tsx', '<EmbeddedMarketPage model={model} embedded readOnly={false} />', '州级上下文必须继续复用地区 MarketPage，并保持连续 48 州正常交易。');",
+          )
+
+          page_design = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          text = page_design.read_text(encoding='utf-8')
+          old = '未解锁州灰显，桌面 Tooltip 标注“未解锁”，点击后仍进入州级上下文页展示解锁面板；起始州选点模式则按上段专用语义只更新候选。'
+          new = '连续 48 州均使用正常镜头底色，桌面 Tooltip 只展示本地经营摘要，不显示“未解锁”访问状态；点击任一州都直接进入该州级经营上下文。'
           if text.count(old) != 1:
-              raise SystemExit('旧州页解锁 verifier 断言数量异常')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+              raise SystemExit('页面设计中的地图锁定州规则数量异常')
+          page_design.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          ui_design = Path('docs/UI_DESIGN_SYSTEM.md')
+          text = ui_design.read_text(encoding='utf-8')
+          text, count = re.subn(r'和未解锁状态决定', '决定', text)
+          if count < 1:
+              raise SystemExit('UI 设计缺少地图未解锁状态规则')
+          text = text.replace('未解锁州始终保持灰显底色，悬浮其他州不得清除选中州。', '连续 48 州都保持对应镜头的正常底色，悬浮其他州不得清除选中州。')
+          text = text.replace('未解锁州明确标注“未解锁”', '所有州都展示正常本地经营摘要，不显示“未解锁”访问状态')
+          text, count = re.subn(
+              r'默认州面、未解锁州面、州界与州名分别读取 `--color-map-region-default`、`--color-map-region-locked`、`--color-map-region-border` 与 `--color-map-label`。',
+              '默认州面、州界与州名分别读取 `--color-map-region-default`、`--color-map-region-border` 与 `--color-map-label`；`--color-map-region-locked` 只保留旧主题兼容，不得用于州级访问状态。',
+              text,
+          )
+          if count != 1:
+              raise SystemExit('UI 设计中的地图锁定色规则数量异常')
+          ui_design.write_text(text, encoding='utf-8')
+
+          liquid_design = Path('docs/LIQUID_GLASS_CHROME_DESIGN.md')
+          text = liquid_design.read_text(encoding='utf-8')
+          text = text.replace('和未解锁状态决定', '决定')
+          text = text.replace('未解锁州在任何交互状态下继续保持灰显底色；', '连续 48 州在任何交互状态下都保持对应镜头的正常底色；')
+          liquid_design.write_text(text, encoding='utf-8')
           PY
 
       - name: Install dependencies
@@ -71,6 +121,7 @@ jobs:
           node scripts/verify-local-game-preview.mjs
           node scripts/verify-page-content.mjs
           node scripts/verify-primary-surface-insets.mjs
+          node scripts/verify-market-page-layout.mjs
           npm run build
           git diff --check
 
