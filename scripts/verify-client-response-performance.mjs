@@ -253,18 +253,22 @@ forbidText('src/pages/MarketPage.tsx', [
   'orderBook.asks',
 ]);
 requireText('src/auto-trade/useOnlineAutoTrade.ts', [
-  'getClientOrderIndex(game.orders)',
-  'managedCommodityOrder(',
-  'hasCrossingCommodityOrder(',
+  'function productOfficialPrice(',
+  'const buyPriceEligible = officialPrice <= buyPolicy.maxPrice;',
+  'const sellPriceEligible = officialPrice >= sellPolicy.price;',
   'statusCacheRef',
-  'enabledSellProductIds',
   'subscribeStateAuthorityDependencies(',
-  "['catalog', 'player.assets', 'player.production', 'market.orders', 'market.quotes', 'contract']",
+  "['catalog', 'player.assets', 'player.production', 'market.quotes', 'contract']",
 ]);
 forbidText('src/auto-trade/useOnlineAutoTrade.ts', [
+  'getClientOrderIndex(',
+  'managedCommodityOrder(',
+  'hasCrossingCommodityOrder(',
+  'game.onlineAutoBuyManagedOrderIds',
+  'game.onlineAutoSellManagedOrderIds',
   'game.orders.some((order)',
   'game.orders.find((order)',
-  "['catalog', 'player', 'market', 'contract']",
+  "['catalog', 'player.assets', 'player.production', 'market.orders', 'market.quotes', 'contract']",
 ]);
 requireText('src/hooks/useNow.ts', [
   'const sharedTickers = new Map',
@@ -312,10 +316,7 @@ requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', [
   '普通玩家页面不得展示内部订单',
   '玩家即时商品交易不得经过该共享撮合内核',
   '不得为了公开行情再次对完整 `world.orders` 做逐请求过滤排序',
-]);
-requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', [
-  '客户端订单索引',
-  '`market.orders`',
+  '不再维护 managed-order ID',
 ]);
 
 requireText('src/app/gameViewModel.ts', [
@@ -369,4 +370,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('客户端响应性能防回退验证通过：六分区外层协议、动作权威增量交付、确认即结束 pending、player/market 子修订结构共享、React render 快照一致性、子切片隔离、共享秒级叶子时钟保持；玩家即时市场不再扫描开放订单或构建页面订单索引。');
+console.log('客户端响应性能防回退验证通过：六分区外层协议、动作权威增量交付、确认即结束 pending、player/market 子修订结构共享、React render 快照一致性、子切片隔离、共享秒级叶子时钟保持；玩家即时市场和自动经营均不再扫描开放订单或构建玩家挂单索引。');
