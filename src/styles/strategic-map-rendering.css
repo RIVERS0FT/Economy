@@ -29,10 +29,15 @@
 
 .province-map-region[data-selected='true'],
 .province-map-region:focus-visible,
-html[data-input-modality='mouse'] .province-map-region[data-selected='true']:hover,
 .province-map-shipment[data-selected='true'] .province-map-shipment-badge,
 .province-map-shipment:focus-visible .province-map-shipment-badge {
   filter: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html[data-input-modality='mouse'] .province-map-region[data-selected='true']:hover {
+    filter: none;
+  }
 }
 
 .province-map-chart[data-route-picking='true'] .province-map-region[data-route-pickable='false'] {
