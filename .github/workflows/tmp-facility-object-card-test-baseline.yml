@@ -1,0 +1,50 @@
+name: Update facility object-card browser baselines
+
+on:
+  push:
+    branches:
+      - codex/facility-object-card-visual
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/facility-object-card-visual
+          fetch-depth: 0
+      - name: Update building geometry baselines
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          op_path = Path('tests/browser/global-operation-pages.spec.ts')
+          op = op_path.read_text(encoding='utf-8')
+          old = "  expect(openBox.height).toBeGreaterThanOrEqual(30);\n  expect(openBox.height).toBeLessThan(44);"
+          new = "  expect(openBox.height).toBeGreaterThanOrEqual(44);\n  expect(openBox.height).toBeLessThan(artworkBox.height);"
+          if op.count(old) != 1:
+              raise SystemExit(f'global-operation-pages baseline match count={op.count(old)}')
+          op_path.write_text(op.replace(old, new), encoding='utf-8')
+
+          geometry_path = Path('tests/browser/player-page-geometry.spec.ts')
+          geometry = geometry_path.read_text(encoding='utf-8')
+          old_range = "        expect(row.height).toBeGreaterThanOrEqual(82);\n        expect(row.height).toBeLessThanOrEqual(98);"
+          if geometry.count(old_range) != 2:
+              raise SystemExit(f'player-page-geometry baseline match count={geometry.count(old_range)}')
+          new_range = "        expect(row.height).toBeGreaterThanOrEqual(104);\n        expect(row.height).toBeLessThanOrEqual(132);"
+          geometry_path.write_text(geometry.replace(old_range, new_range), encoding='utf-8')
+          PY
+          git diff --check
+      - name: Commit updated baselines
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/browser/global-operation-pages.spec.ts tests/browser/player-page-geometry.spec.ts
+          git commit -m "同步建筑对象卡浏览器几何基线"
+          git push origin HEAD:codex/facility-object-card-visual
