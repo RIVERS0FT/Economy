@@ -105,6 +105,86 @@ jobs:
               raise SystemExit('页面内容 verifier 锁定州 forbid 区块数量异常')
           page_verifier.write_text(text.replace(old_forbid, new_forbid, 1), encoding='utf-8')
 
+          # Province access is all-48, but population-demand activation remains tied to economic footprints.
+          baseline_path = Path('server/src/state-economic-baselines.js')
+          text = baseline_path.read_text(encoding='utf-8')
+          old_unlock_demand = "    for (const provinceId of player?.unlockedProvinces || []) {\n      const id = String(provinceId || '');\n      if (provinceById.has(id)) active.add(id);\n    }\n"
+          if text.count(old_unlock_demand) != 1:
+              raise SystemExit('人口需求仍读取旧 unlockedProvinces 的代码位置异常')
+          baseline_path.write_text(text.replace(old_unlock_demand, '', 1), encoding='utf-8')
+
+          baseline_test = Path('server/test/state-economic-baselines.test.js')
+          text = baseline_test.read_text(encoding='utf-8')
+          text = text.replace(
+              "test('population demand activates each accessible state once and falls back to California', () => {",
+              "test('population demand follows economic footprints instead of legacy access fields and falls back to California', () => {",
+              1,
+          )
+          anchor = "  assert.deepEqual(activePopulationDemandProvinceIds({ players: {} }), [CALIFORNIA]);\n"
+          proof = "  assert.deepEqual(activePopulationDemandProvinceIds({ players: { '1': { startingProvinceId: CALIFORNIA, unlockedProvinces: [CALIFORNIA, TEXAS], facilityGroups: [] } } }), [CALIFORNIA]);\n"
+          if text.count(anchor) != 1:
+              raise SystemExit('人口需求基准测试 fallback 锚点异常')
+          text = text.replace(anchor, anchor + proof, 1)
+          baseline_test.write_text(text, encoding='utf-8')
+
+          transport_test = Path('server/test/transport.test.js')
+          text = transport_test.read_text(encoding='utf-8')
+          pattern = r"test\('route validation still enforces unlocked ordered stops and route count limits', \(\) => \{.*?\n\}\);\n\ntest\('current leg is the only transport deadline"
+          replacement = """test('route validation ignores legacy access fields while enforcing ordered stops and route count limits', () => {
+  const world = createWorld(now);
+  const player = unlockedPlayer(world, alice, 1_000_000);
+
+  const duplicate = createRoute(world, alice, { viaProvinceIds: ['130000'], destinationProvinceId: '130000' });
+  assert.equal(duplicate.ok, false);
+  assert.match(duplicate.message, /站点不能重复/);
+
+  player.unlockedProvinces = ['110000'];
+  const unrestricted = createRoute(world, alice, { destinationProvinceId: '130000' }, now + 2);
+  assert.equal(unrestricted.ok, true);
+
+  for (let index = 1; index < TRANSPORT_MAX_ROUTES_PER_PLAYER; index += 1) {
+    const result = createRoute(world, alice, { destinationProvinceId: index % 2 === 0 ? '130000' : '120000' }, now + 10 + index);
+    assert.equal(result.ok, true);
+  }
+  const over = createRoute(world, alice, {}, now + 100);
+  assert.equal(over.ok, false);
+  assert.match(over.message, /路线不能超过/);
+});
+
+test('current leg is the only transport deadline"""
+          text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit('运输旧解锁测试块数量异常')
+          transport_test.write_text(text, encoding='utf-8')
+
+          product_design = Path('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md')
+          text = product_design.read_text(encoding='utf-8')
+          old_demand_rule = '每个消费周期仍先从同一套三类人口真实钱包形成全局可消费预算；存在 Economy 玩家时，连续 48 州都作为可经营地区按 PCE 总额权重以六位小数完整分摊，同一州无论有多少玩家只计算一次真实州经济，不按玩家人数复制人口。没有任何玩家时回退默认加利福尼亚州。'
+          new_demand_rule = '每个消费周期仍先从同一套三类人口真实钱包形成全局可消费预算；地区访问资格与人口需求落点彻底解耦：连续 48 州均可直接经营，但人口需求州只由玩家兼容默认经营地区 `startingProvinceId` 与实际已有工厂经营足迹激活，兼容字段 `unlockedProvinces` 不参与需求激活。激活州之间按 PCE 总额权重以六位小数完整分摊，同一州无论有多少玩家只计算一次真实州经济，不按玩家人数复制人口；没有任何玩家或经营足迹时回退默认加利福尼亚州。'
+          if text.count(old_demand_rule) != 1:
+              raise SystemExit('产品设计人口需求全州分摊规则数量异常')
+          product_design.write_text(text.replace(old_demand_rule, new_demand_rule, 1), encoding='utf-8')
+
+          server_design = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          text = server_design.read_text(encoding='utf-8')
+          access_anchor = '旧 `/api/game/provinces/starting` 与 `/api/game/provinces/unlock` 可保留兼容路由，但只能返回玩法已退役提示，不得扣款、发行资产或改变经营资格。\n\n'
+          demand_rule = '人口需求激活与州访问资格必须解耦：`activePopulationDemandProvinceIds` 不得读取兼容字段 `unlockedProvinces`；它只使用兼容默认经营地区 `startingProvinceId` 与实际工厂经营足迹决定需求州，避免取消地区解锁时顺带把既有全局消费预算稀释到连续 48 州。\n\n'
+          if demand_rule not in text:
+              if text.count(access_anchor) != 1:
+                  raise SystemExit('服务器设计州访问兼容锚点异常')
+              text = text.replace(access_anchor, access_anchor + demand_rule, 1)
+          server_design.write_text(text, encoding='utf-8')
+
+          verifier_path = Path('scripts/verify-provincial-unlock-transport.mjs')
+          text = verifier_path.read_text(encoding='utf-8')
+          verifier_anchor = "requireText(stateEconomicBaselines, \"provinceEconomicLevelPolicy from '../../shared/province-economic-level-policy.json'\", '服务器经济基准必须读取共享地区水平策略。');"
+          demand_verifier = "\nforbidText(stateEconomicBaselines, 'for (const provinceId of player?.unlockedProvinces', '人口需求激活不得重新读取 legacy unlockedProvinces。');\nrequireText(stateEconomicBaselines, \"const startingProvinceId = String(player?.startingProvinceId || '');\", '人口需求必须保留兼容默认经营地区作为经济足迹。');\nrequireText(stateEconomicBaselines, 'for (const group of player?.facilityGroups || [])', '人口需求必须继续读取实际工厂经营足迹。');"
+          if demand_verifier.strip() not in text:
+              if text.count(verifier_anchor) != 1:
+                  raise SystemExit('州级专项 verifier 人口需求锚点异常')
+              text = text.replace(verifier_anchor, verifier_anchor + demand_verifier, 1)
+          verifier_path.write_text(text, encoding='utf-8')
+
           page_design = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
           text = page_design.read_text(encoding='utf-8')
           old = '未解锁州灰显，桌面 Tooltip 标注“未解锁”，点击后仍进入州级上下文页展示解锁面板；起始州选点模式则按上段专用语义只更新候选。'
@@ -141,7 +221,7 @@ jobs:
 
       - name: Verify focused province access rules
         run: |
-          node --test server/test/province-access.test.js
+          node --test server/test/province-access.test.js server/test/state-economic-baselines.test.js server/test/transport.test.js
           node scripts/verify-provincial-unlock-transport.mjs
           node scripts/verify-provincial-economy.mjs
           node scripts/verify-game-shell-layout.mjs
