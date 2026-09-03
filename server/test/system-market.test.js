@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applyAction, createWorld, ensurePlayer, processWorld } from '../src/domain.js';
+import { dailyCheckInPeriodFor } from '../src/daily-check-in.js';
+import { applyAction, createWorld, ensurePlayer, migrateWorld, processWorld } from '../src/domain.js';
 import { DEFAULT_PROVINCE_ID, provinceScopedKey } from '../src/provinces.js';
 
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 const bob = { id: 2, email: 'bob@example.com', name: 'Bob' };
-const carol = { id: 3, email: 'carol@example.com', name: 'Carol' };
 const now = 1_700_000_000_000;
 const cycleMs = 5 * 60 * 1000;
 
-function deferDemand(world, at = now + cycleMs) {
+function deferDemand(world, at = now + (3 * 24 * 60 * 60 * 1000)) {
   for (const state of Object.values(world.demandGroups)) state.nextDemandAt = at;
 }
 
@@ -25,7 +25,7 @@ function auditFor(world, productId) {
   return world.systemMarketAudit?.products?.[provinceScopedKey(DEFAULT_PROVINCE_ID, productId)];
 }
 
-test('player sell order at exactly the system price is fully bought by the system in real time', () => {
+test('manual sell executes immediately at the server daily price without creating a resting order', () => {
   const world = createWorld(now);
   deferDemand(world);
   const player = ensurePlayer(world, alice, now);
@@ -35,31 +35,33 @@ test('player sell order at exactly the system price is fully bought by the syste
   market.officialPrice = 0.8;
 
   const result = applyAction(world, alice, 'placeOrder', {
-    productId: 'wheat', side: 'sell', quantity: 4, price: 0.8,
+    productId: 'wheat', side: 'sell', quantity: 4, price: 99,
   }, now + 1);
 
   assert.equal(result.ok, true);
-  assert.equal(result.message, '订单已全部成交');
+  assert.equal(result.message, '已按今日系统价即时成交');
+  assert.equal(result.executedPrice, 0.8);
   assert.equal(player.inventories.wheat.frozen, 0);
   assert.equal(player.inventories.wheat.available, 6);
   assert.equal(player.credits, 1_003.168);
-  assert.equal(market.cycleSellQuantity, 4);
-  assert.equal(market.cycleBuyQuantity, 0);
+  assert.equal(market.todaySellQuantity, 4);
+  assert.equal(market.todayBuyQuantity, 0);
   const order = world.orders.at(-1);
   assert.equal(order.status, 'filled');
   assert.equal(order.remaining, 0);
+  assert.equal(order.price, 0.8);
   assert.equal(order.fills.length, 1);
   assert.equal(order.fills[0].price, 0.8);
-  assert.equal(order.fills[0].quantity, 4);
   assert.equal(order.fills[0].fee, 0.032);
   assert.equal(order.fills[0].netTotal, 3.168);
+  assert.equal(world.orders.some((candidate) => candidate.ownerType === 'player' && ['open', 'partial'].includes(candidate.status)), false);
   const audit = auditFor(world, 'wheat');
   assert.equal(audit.boughtQuantity, 4);
   assert.equal(audit.creditsIssued, 3.168);
-  assert.equal(world.systemMarketAudit.version, 1);
+  assert.equal(world.systemMarketAudit.version, 2);
 });
 
-test('player buy order at exactly the system price is fully supplied by the system in real time', () => {
+test('manual buy executes immediately at the server daily price and ignores a client supplied price', () => {
   const world = createWorld(now);
   deferDemand(world);
   const player = ensurePlayer(world, bob, now);
@@ -68,185 +70,122 @@ test('player buy order at exactly the system price is fully supplied by the syst
   market.officialPrice = 0.8;
 
   const result = applyAction(world, bob, 'placeOrder', {
-    productId: 'wheat', side: 'buy', quantity: 5, price: 0.8,
+    productId: 'wheat', side: 'buy', quantity: 5, price: 0.01,
   }, now + 1);
 
   assert.equal(result.ok, true);
-  assert.equal(result.message, '订单已全部成交');
+  assert.equal(result.executedPrice, 0.8);
   assert.equal(player.frozenCredits, 0);
   assert.equal(player.credits, 996);
   assert.equal(player.inventories.wheat.available, 5);
-  assert.equal(market.cycleBuyQuantity, 5);
-  assert.equal(market.cycleSellQuantity, 0);
+  assert.equal(market.todayBuyQuantity, 5);
+  assert.equal(market.todaySellQuantity, 0);
   const audit = auditFor(world, 'wheat');
   assert.equal(audit.soldQuantity, 5);
   assert.equal(audit.creditsCollected, 4);
 });
 
-test('orders one tick away from the system price stay in the order book', () => {
+test('official price remains fixed during the same Asia Shanghai natural day', () => {
   const world = createWorld(now);
   deferDemand(world);
-  const seller = ensurePlayer(world, alice, now);
-  const buyer = ensurePlayer(world, bob, now);
-  seller.credits = 1_000;
-  buyer.credits = 1_000;
-  seller.inventories.wheat.available = 10;
-  const market = wheatMarket(world);
-  market.officialPrice = 0.8;
-
-  assert.equal(applyAction(world, alice, 'placeOrder', {
-    productId: 'wheat', side: 'sell', quantity: 4, price: 0.81,
-  }, now + 1).message, '订单已进入订单簿');
-  assert.equal(applyAction(world, bob, 'placeOrder', {
-    productId: 'wheat', side: 'buy', quantity: 5, price: 0.79,
-  }, now + 2).message, '订单已进入订单簿');
-
-  assert.equal(seller.inventories.wheat.frozen, 4);
-  assert.equal(buyer.frozenCredits, 3.95);
-  assert.equal(market.cycleSellQuantity, 0);
-  assert.equal(market.cycleBuyQuantity, 0);
-});
-
-test('player-to-player matching runs first and the system only takes the remaining quantity', () => {
-  const world = createWorld(now);
-  deferDemand(world);
-  const buyer = ensurePlayer(world, bob, now);
-  const seller = ensurePlayer(world, alice, now);
-  buyer.credits = 1_000;
-  seller.credits = 1_000;
-  seller.inventories.wheat.available = 10;
-  const market = wheatMarket(world);
-  market.officialPrice = 0.8;
+  const player = ensurePlayer(world, bob, now);
+  player.credits = 10_000;
+  const market = oreMarket(world);
+  market.officialPrice = 10;
 
   assert.equal(applyAction(world, bob, 'placeOrder', {
-    productId: 'wheat', side: 'buy', quantity: 2, price: 0.85,
-  }, now + 1).message, '订单已进入订单簿');
-  assert.equal(applyAction(world, alice, 'placeOrder', {
-    productId: 'wheat', side: 'sell', quantity: 4, price: 0.8,
-  }, now + 2).message, '订单已全部成交');
+    productId: 'ore', side: 'buy', quantity: 20, price: 1,
+  }, now + 1).ok, true);
+  processWorld(world, now + cycleMs + 2);
 
-  assert.equal(buyer.inventories.wheat.available, 2);
-  assert.equal(buyer.frozenCredits, 0);
-  assert.equal(seller.inventories.wheat.frozen, 0);
-  assert.equal(seller.credits, 1_003.267);
-  assert.equal(market.cycleSellQuantity, 2);
-  const order = world.orders.at(-1);
-  assert.equal(order.fills.length, 2);
-  assert.deepEqual(order.fills.map((fill) => fill.price), [0.85, 0.8]);
-  assert.equal(seller.stats.soldGoods, 4);
+  assert.equal(market.officialPrice, 10);
+  assert.equal(market.todayBuyQuantity, 20);
+  assert.equal(market.lastPriceChangeBps, 0);
 });
 
-test('price cycle raises the official price from buy pressure and resets counters', () => {
+test('Asia Shanghai midnight raises the daily price from yesterday buy pressure and resets daily counters', () => {
   const world = createWorld(now);
   deferDemand(world);
   const market = oreMarket(world);
   market.officialPrice = 10;
+  market.todayBuyQuantity = 20;
+  market.todaySellQuantity = 4;
   market.cycleBuyQuantity = 20;
   market.cycleSellQuantity = 4;
-  market.nextPriceAt = now + 1;
+  const nextResetAt = dailyCheckInPeriodFor(now).nextResetAt;
 
-  processWorld(world, now + 2);
+  processWorld(world, nextResetAt + 1);
 
-  assert.equal(market.officialPrice, 10.04);
-  assert.equal(market.lastPriceChangeBps, 40);
+  assert.equal(market.officialPrice, 10.4);
+  assert.equal(market.lastPriceChangeBps, 400);
   assert.equal(market.lastImbalance, 0.4);
-  assert.equal(market.cycleBuyQuantity, 0);
-  assert.equal(market.cycleSellQuantity, 0);
-  assert.equal(market.nextPriceAt, now + 2 + cycleMs);
+  assert.equal(market.previousDayBuyQuantity, 20);
+  assert.equal(market.previousDaySellQuantity, 4);
+  assert.equal(market.todayBuyQuantity, 0);
+  assert.equal(market.todaySellQuantity, 0);
+  assert.equal(market.priceDateKey, dailyCheckInPeriodFor(nextResetAt + 1).todayKey);
+  assert.equal(market.nextPriceAt, dailyCheckInPeriodFor(nextResetAt + 1).nextResetAt);
 });
 
-test('price cycle clears every resting player order at the new exact price and not adjacent ticks', () => {
+test('balanced or zero yesterday volume does not move the next daily price', () => {
+  const balancedWorld = createWorld(now);
+  deferDemand(balancedWorld);
+  const balanced = oreMarket(balancedWorld);
+  balanced.officialPrice = 10;
+  balanced.todayBuyQuantity = 50;
+  balanced.todaySellQuantity = 50;
+  processWorld(balancedWorld, dailyCheckInPeriodFor(now).nextResetAt + 1);
+  assert.equal(balanced.officialPrice, 10);
+  assert.equal(balanced.lastPriceChangeBps, 0);
+
+  const idleWorld = createWorld(now);
+  deferDemand(idleWorld);
+  const idle = oreMarket(idleWorld);
+  idle.officialPrice = 10;
+  processWorld(idleWorld, dailyCheckInPeriodFor(now).nextResetAt + 1);
+  assert.equal(idle.officialPrice, 10);
+  assert.equal(idle.previousDayBuyQuantity, 0);
+  assert.equal(idle.previousDaySellQuantity, 0);
+});
+
+test('daily system price is capped to five percent per day and base price 50 to 300 percent bounds', () => {
+  const upWorld = createWorld(now);
+  deferDemand(upWorld);
+  const up = oreMarket(upWorld);
+  up.officialPrice = 20.9;
+  up.todayBuyQuantity = 10_000;
+  up.todaySellQuantity = 0;
+  processWorld(upWorld, dailyCheckInPeriodFor(now).nextResetAt + 1);
+  assert.equal(up.lastPriceChangeBps, 500);
+  assert.equal(up.officialPrice, 21);
+
+  const downWorld = createWorld(now);
+  deferDemand(downWorld);
+  const down = oreMarket(downWorld);
+  down.officialPrice = 3.5;
+  down.todayBuyQuantity = 0;
+  down.todaySellQuantity = 10_000;
+  processWorld(downWorld, dailyCheckInPeriodFor(now).nextResetAt + 1);
+  assert.equal(down.lastPriceChangeBps, -500);
+  assert.equal(down.officialPrice, 3.5);
+});
+
+test('stale volume older than yesterday is not applied after a multi-day offline gap', () => {
   const world = createWorld(now);
-  deferDemand(world);
-  const sellerA = ensurePlayer(world, alice, now);
-  const sellerB = ensurePlayer(world, bob, now);
-  sellerA.credits = 1_000;
-  sellerB.credits = 1_000;
-  sellerA.inventories.ore.available = 10;
-  sellerB.inventories.ore.available = 10;
+  deferDemand(world, now + (10 * 24 * 60 * 60 * 1000));
   const market = oreMarket(world);
   market.officialPrice = 10;
+  market.todayBuyQuantity = 1_000;
+  market.todaySellQuantity = 0;
 
-  assert.equal(applyAction(world, alice, 'placeOrder', {
-    productId: 'ore', side: 'sell', quantity: 3, price: 10.04,
-  }, now + 1).message, '订单已进入订单簿');
-  assert.equal(applyAction(world, bob, 'placeOrder', {
-    productId: 'ore', side: 'sell', quantity: 2, price: 10.04,
-  }, now + 2).message, '订单已进入订单簿');
-  assert.equal(applyAction(world, alice, 'placeOrder', {
-    productId: 'ore', side: 'sell', quantity: 1, price: 10.03,
-  }, now + 3).message, '订单已进入订单簿');
-  assert.equal(applyAction(world, bob, 'placeOrder', {
-    productId: 'ore', side: 'sell', quantity: 1, price: 10.05,
-  }, now + 4).message, '订单已进入订单簿');
+  processWorld(world, now + (2 * 24 * 60 * 60 * 1000));
 
-  market.cycleBuyQuantity = 20;
-  market.cycleSellQuantity = 4;
-  market.nextPriceAt = now + 10;
-  processWorld(world, now + 11);
-
-  assert.equal(market.officialPrice, 10.04);
-  const filledAtPrice = world.orders.filter((order) => (
-    order.ownerType === 'player' && order.side === 'sell' && order.price === 10.04
-  ));
-  assert.equal(filledAtPrice.length, 2);
-  assert.ok(filledAtPrice.every((order) => order.status === 'filled' && order.remaining === 0));
-  const resting = world.orders.filter((order) => (
-    order.ownerType === 'player' && order.side === 'sell' && (order.price === 10.03 || order.price === 10.05)
-  ));
-  assert.equal(resting.length, 2);
-  assert.ok(resting.every((order) => order.status === 'open' && order.remaining > 0));
-  assert.equal(market.cycleSellQuantity, 5);
-  assert.equal(market.cycleBuyQuantity, 0);
-  assert.equal(sellerA.stats.soldGoods, 3);
-  assert.equal(sellerB.stats.soldGoods, 2);
+  assert.equal(market.officialPrice, 10);
+  assert.equal(market.previousDayBuyQuantity, 0);
+  assert.equal(market.previousDaySellQuantity, 0);
 });
 
-test('price cycle supplies resting player buys at the new exact price', () => {
-  const world = createWorld(now);
-  deferDemand(world);
-  const buyer = ensurePlayer(world, carol, now);
-  buyer.credits = 1_000;
-  const market = oreMarket(world);
-  market.officialPrice = 10;
-
-  assert.equal(applyAction(world, carol, 'placeOrder', {
-    productId: 'ore', side: 'buy', quantity: 2, price: 10.04,
-  }, now + 1).message, '订单已进入订单簿');
-  market.cycleBuyQuantity = 20;
-  market.cycleSellQuantity = 4;
-  market.nextPriceAt = now + 10;
-  processWorld(world, now + 11);
-
-  assert.equal(market.officialPrice, 10.04);
-  assert.equal(buyer.inventories.ore.available, 2);
-  assert.equal(buyer.frozenCredits, 0);
-  assert.equal(market.cycleBuyQuantity, 2);
-  const order = world.orders.at(-1);
-  assert.equal(order.status, 'filled');
-});
-
-test('system price stays within the base price 50% to 300% bounds', () => {
-  const world = createWorld(now);
-  deferDemand(world);
-  const market = oreMarket(world);
-
-  market.officialPrice = 20.9;
-  market.cycleBuyQuantity = 10_000;
-  market.cycleSellQuantity = 0;
-  market.nextPriceAt = now + 1;
-  processWorld(world, now + 2);
-  assert.equal(market.officialPrice, 21);
-
-  market.cycleBuyQuantity = 0;
-  market.cycleSellQuantity = 10_000;
-  market.officialPrice = 3.5;
-  market.nextPriceAt = now + 3;
-  processWorld(world, now + 4);
-  assert.equal(market.officialPrice, 3.5);
-});
-
-test('price cycle never clears population consumption orders', () => {
+test('daily price rollover never clears server internal population orders', () => {
   const world = createWorld(now);
   deferDemand(world);
   const market = oreMarket(world);
@@ -262,21 +201,52 @@ test('price cycle never clears population consumption orders', () => {
     ownerName: '食品市场需求',
     demandGroupId: 'food',
     demandTier: 'direct',
-    price: 10.04,
+    price: 10.4,
     quantity: 3,
     remaining: 3,
     status: 'open',
     createdAt: now + 1,
   };
   world.orders.push(populationOrder);
-  market.cycleBuyQuantity = 20;
-  market.cycleSellQuantity = 4;
-  market.nextPriceAt = now + 10;
+  market.todayBuyQuantity = 20;
+  market.todaySellQuantity = 4;
 
-  processWorld(world, now + 11);
+  processWorld(world, dailyCheckInPeriodFor(now).nextResetAt + 1);
 
-  assert.equal(market.officialPrice, 10.04);
+  assert.equal(market.officialPrice, 10.4);
   assert.equal(populationOrder.status, 'open');
   assert.equal(populationOrder.remaining, 3);
-  assert.equal(market.cycleBuyQuantity, 0);
+});
+
+test('migration cancels legacy resting player commodity orders and releases frozen assets', () => {
+  const world = createWorld(now);
+  deferDemand(world);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 100;
+  player.frozenCredits = 5;
+  world.playerCommodityInstantTradeVersion = 0;
+  world.orders.push({
+    id: 'legacy-player-buy',
+    assetKind: 'commodity',
+    assetId: 'wheat',
+    productId: 'wheat',
+    provinceId: DEFAULT_PROVINCE_ID,
+    side: 'buy',
+    ownerType: 'player',
+    ownerId: 1,
+    price: 1,
+    quantity: 5,
+    remaining: 5,
+    status: 'open',
+    fills: [],
+    createdAt: now - 1,
+  });
+
+  migrateWorld(world, now + 1);
+
+  const legacy = world.orders.find((order) => order.id === 'legacy-player-buy');
+  assert.equal(legacy.status, 'cancelled');
+  assert.equal(player.frozenCredits, 0);
+  assert.equal(player.credits, 105);
+  assert.equal(world.playerCommodityInstantTradeVersion, 1);
 });
