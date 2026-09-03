@@ -1,5 +1,11 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
+const marketBoundaryViewports = [
+  { width: 721, height: 445, label: '问题截图尺寸' },
+  { width: 390, height: 844, label: '移动端' },
+  { width: 320, height: 700, label: '极窄移动端' },
+] as const;
+
 async function capturePageErrors(page: Page) {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
@@ -61,20 +67,18 @@ async function expectSinglePriceBoundaryLabel(chart: Locator, context: string) {
   expect(result.boundaryLabels, `${context}共享边界只能存在一项纵轴刻度`).toEqual([result.priceMinLabel]);
 }
 
-test('market zero-gap grids give the shared boundary label to the price axis only', async ({ page }) => {
-  const pageErrors = await capturePageErrors(page);
-  const viewports = [
-    { width: 721, height: 445, label: '问题截图尺寸' },
-    { width: 390, height: 844, label: '移动端' },
-    { width: 320, height: 700, label: '极窄移动端' },
-  ];
-
-  for (const viewport of viewports) {
+for (const viewport of marketBoundaryViewports) {
+  test(`market zero-gap grids give the shared boundary label to the price axis only at ${viewport.label}`, async ({ page }) => {
+    const pageErrors = await capturePageErrors(page);
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto('market-runtime-test.html?scenario=active');
     await expectSinglePriceBoundaryLabel(page.locator('.market-history-chart.full'), viewport.label);
-  }
+    expect(pageErrors).toEqual([]);
+  });
+}
 
+test('market zero-gap grids keep the shared boundary label on the price axis at 125% root font', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('market-runtime-test.html?scenario=active');
   await page.evaluate(() => {
@@ -86,6 +90,5 @@ test('market zero-gap grids give the shared boundary label to the price axis onl
     return `${result.priceMinMatches}:${result.volumeMaxMatches}:${result.boundaryLabels.length}`;
   }).toBe('1:0:1');
   await expectSinglePriceBoundaryLabel(page.locator('.market-history-chart.full'), '125% 根字号移动端');
-
   expect(pageErrors).toEqual([]);
 });
