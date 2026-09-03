@@ -427,6 +427,23 @@ for (const text of [
   'aria-label="重置地图缩放和平移"',
 ]) forbidText('src/components/shell/StrategicWorkspace.tsx', text);
 
+for (const text of [
+  '起始州选择已永久移除',
+  '连续 48 州不得按访问资格灰显',
+  '不存在未解锁州、解锁费用、解锁按钮或市场只读分支',
+  '概览只展示当前州库存、工厂、运行／异常与经营摘要',
+]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+for (const text of [
+  '起始州选择固定复用唯一常驻战略地图',
+  '起始州选点模式则只更新候选',
+  '未解锁州灰显',
+  '新玩家首次进入游戏必须先按 3.1 的地图选点流程选择起始州',
+  '市场保持只读',
+  '州解锁按钮点击后',
+  '距永久起始州距离',
+  '概览只展示当前州库存、工厂、运行／异常与挂单摘要',
+]) forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+
 if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);

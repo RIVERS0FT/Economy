@@ -228,10 +228,10 @@ assert.ok(commodityMarket.includes('LIQUIDITY_SIGNAL_WEIGHT'), '储备成交必�
 assert.ok(facilityMarket.includes('recordFacilityPrice(world, typeId, price, quantity, takerSide, createdAt, incoming.provinceId);'), '工厂成交必须记录吃单方向与地区');
 
 for (const text of [
-  '市场页的商品行情统一统计当前资产最近 24h', '柱高始终表示总成交量',
-  '净主动买入使用成功色', '旧历史方向未知使用中性色',
-  '价格轴刻度只能是整数', '图例只显示净主动买入和净主动卖出',
-  '不得显示行情图下方统计栏', 'ECharts',
+  '商品地区详情必须包含今日官方价格',
+  '近 24h 真实成交趋势',
+  '24h 成交量',
+  '浏览器本地最近成交',
 ]) assert.ok(design.includes(text), `页面设计文档缺少: ${text}`);
 for (const text of [
   '市场行情图几何、交互与可读性唯一专项基线', 'ECharts SVG', '零间距连续双 Grid',

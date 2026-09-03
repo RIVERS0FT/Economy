@@ -149,7 +149,7 @@ export function AdminPlayerStatistics({
 
       <section className="admin-player-statistics__two-column">
         <article className="admin-player-statistics__card">
-          <header><div><h3>财富分布</h3><small>商品与工厂只按最近一次订单簿真实成交价估值</small></div></header>
+          <header><div><h3>财富分布</h3><small>商品按当日官方价、工厂按最近产权成交价估值</small></div></header>
           <section className="admin-player-statistics__wealth-summary">
             <Metric label="玩家财富总额" value={<Amount value={wealth.total} />} />
             <Metric label="人均／中位" value={<><Amount value={wealth.average} />／<Amount value={wealth.median} /></>} />
@@ -167,7 +167,7 @@ export function AdminPlayerStatistics({
               <NumberBarChart rows={wealth.brackets.map((row) => ({ label: row.label, value: row.count }))} ariaLabel="各财富区间玩家人数" />
             </section>
           </div>
-          {wealth.unpricedAssetPlayers > 0 ? <small className="admin-player-statistics__note">{wealth.unpricedAssetPlayers} 名玩家持有尚无真实成交估值的商品或工厂。</small> : null}
+          {wealth.unpricedAssetPlayers > 0 ? <small className="admin-player-statistics__note">{wealth.unpricedAssetPlayers} 名玩家持有尚无真实产权成交估值的工厂。</small> : null}
         </article>
 
         <article className="admin-player-statistics__card">

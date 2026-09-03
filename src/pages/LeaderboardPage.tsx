@@ -66,7 +66,7 @@ function fallbackLeaderboards(model: LoadedGameViewModel): RankedLeaderboardsSta
       wealth: {
         id: 'wealth',
         title: '财富榜',
-        description: '按最近一次订单簿真实成交价计算资产毛值并扣除贷款负债后的实时净资产',
+        description: '商品按当日官方价、工厂按最近产权成交价计算资产毛值并扣除贷款负债后的实时净资产',
         unit: 'currency',
         rewarded: false,
         entries: wealthEntries,

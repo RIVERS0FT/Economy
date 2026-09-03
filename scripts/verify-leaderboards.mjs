@@ -135,7 +135,12 @@ check(previewSpec.includes("leaderboard-column-labels span')).toHaveText(['排�
 check(docsIndex.includes('`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`'), 'design index must route leaderboard page structure to the page DESIGN owner');
 check(docsIndex.includes('`PRODUCT_AND_GAMEPLAY_DESIGN.md`'), 'design index must route leaderboard scoring semantics to the product DESIGN owner');
 
-if (failures.length > 0) {
+check(page.includes('商品按当日官方价、工厂按最近产权成交价计算资产毛值并扣除贷款负债后的实时净资产'), 'wealth fallback copy must match authoritative commodity and facility valuation');
+check(!page.includes('按最近一次订单簿真实成交价计算资产毛值'), 'wealth fallback copy must not restore commodity order-book valuation');
+check(productDesign.includes('商品估值 = Σ((可用数量 + 冻结数量) × 所在州当日官方系统价)'), 'product design must value commodities at the current regional official price');
+check(productDesign.includes('工厂估值 = Σ(总持有数量 × 所在州最近一次真实产权成交价)'), 'product design must keep facility valuation separate from commodity official prices');
+
+if (failures.length) {
   console.error('Leaderboard verification failed:');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);

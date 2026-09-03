@@ -33,7 +33,7 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
     <PagePanel className="asset-overview-card">
       <WidgetHeading
         title="资产总览"
-        action={<span className="muted">商品和工厂按最近一次订单簿真实成交价估值</span>}
+        action={<span className="muted">商品按当日官方价、工厂按最近产权成交价估值</span>}
       />
 
       <div className="asset-overview-body">
