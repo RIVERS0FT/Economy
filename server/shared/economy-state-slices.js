@@ -46,7 +46,11 @@ export const STATE_SLICE_DEFINITIONS = Object.freeze({
     partition: 'player',
     keys: Object.freeze(['stats', 'lastProcessedAt']),
   }),
-  'player.misc': Object.freeze({ partition: 'player', keys: Object.freeze(['transportRoutes']), fallback: true }),
+  'player.misc': Object.freeze({
+    partition: 'player',
+    keys: Object.freeze(['transportRoutes', 'transportShipments']),
+    fallback: true,
+  }),
   'market.orders': Object.freeze({
     partition: 'market',
     keys: Object.freeze(['orders', 'facilityListings']),
@@ -68,7 +72,7 @@ export const STATE_SLICE_DEFINITIONS = Object.freeze({
     partition: 'market',
     keys: Object.freeze(['economicCalendar']),
   }),
-  'market.misc': Object.freeze({ partition: 'market', keys: Object.freeze(['transportShipments']), fallback: true }),
+  'market.misc': Object.freeze({ partition: 'market', keys: Object.freeze([]), fallback: true }),
 });
 
 export const STATE_SLICE_NAMES = Object.freeze(Object.keys(STATE_SLICE_DEFINITIONS));
