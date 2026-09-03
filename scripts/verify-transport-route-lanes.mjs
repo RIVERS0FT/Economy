@@ -60,17 +60,14 @@ assert.ok(
 );
 
 for (const text of [
-  'laneOwnerId: route.id',
-  "laneOwnerId: 'draft-route'",
   'const highlightedRouteId = routeDraft?.highlightedRouteId ?? null;',
   "kind: route.id === highlightedRouteId ? 'highlight' : 'saved'",
-  'sortKey:',
   'mode: route.mode',
 ]) assert.ok(strategicWorkspace.includes(text), `战略地图路线 overlay 缺少最终身份语义：${text}`);
 for (const forbidden of [
   'transportRoutes.find((route) => route.id === highlightedRouteId)',
-  'laneOwnerId: highlightedRoute.id',
-]) assert.equal(strategicWorkspace.includes(forbidden), false, `路线高亮不得恢复第二 overlay：${forbidden}`);
+  'laneOwnerId', 'sortKey:', 'highlighted-${',
+]) assert.equal(strategicWorkspace.includes(forbidden), false, `路线高亮不得恢复第二 overlay 或车道身份：${forbidden}`);
 
 for (const text of [
   'highlightedRouteId: string | null;',
@@ -84,7 +81,11 @@ for (const text of [
   'onMouseEnter={() => setHighlightedRouteId(route.id)}',
   'onFocus={() => setHighlightedRouteId(route.id)}',
   'setHighlightedRouteId(detailRouteId);',
+  'return () => setHighlightedRouteId(null);',
 ]) assert.ok(transportPage.includes(text), `运输路线列表或详情缺少 routeId 高亮：${text}`);
+for (const forbidden of ['unlockedProvinceIds', 'startingProvincePicking']) {
+  assert.equal(transportPage.includes(forbidden), false, `运输路线不得恢复地区解锁门禁：${forbidden}`);
+}
 
 for (const text of [
   'createProvinceMapTransportPhysicalPaths',
@@ -92,12 +93,14 @@ for (const text of [
   'provinceMapPointAlongPolyline',
   'provinceMapRouteBasePointsForDirection',
   'layoutProvinceMapRoutes(routeOverlays, capitalPointByProvinceId, transportPhysicalPathByEdge)',
+  'routeLayout.byOverlayId',
   'data-route-geometry-source',
   'data-route-network-segment-count',
-  'data-route-lane-owner-id',
-  'data-route-forward-lanes',
-  'routeLayout.byLaneOwnerId',
-]) assert.ok(mapComponent.includes(text), `战略地图缺少真实运输几何：${text}`);
+]) assert.ok(mapComponent.includes(text), `战略地图缺少正式运输几何：${text}`);
+for (const forbidden of [
+  'laneOwnerId', 'laneOffset', 'laneCountByEdge', 'byLaneOwnerId', 'returnPath',
+  'data-route-lane-owner-id', 'data-route-forward-lanes', 'data-route-lane-edge-count', 'province-map-route-return-path',
+]) assert.equal(mapComponent.includes(forbidden), false, `战略地图不得保留旧车道或返程副线数据：${forbidden}`);
 
 for (const text of [
   "for (const mode of ['road', 'rail'] as const)",
@@ -115,13 +118,14 @@ for (const text of [
   'quadraticPoint',
   'pathForSegment',
   "if (mode === 'air' && segment.airControlPoint)",
-  'laneOffset: 0',
-  'returnPath: null',
+  'byOverlayId',
+  'stopPoints',
   'points: [...reverse.points].reverse()',
 ]) assert.ok(layoutSource.includes(text), `路线布局缺少真实路网、航空抛物线或共线边界：${text}`);
-for (const forbidden of ['DEFAULT_LANE_GAP', 'offsetPolyline(', 'participantsByEdge', 'laneIndex =', 'canonicalPathNormal(']) {
-  assert.equal(layoutSource.includes(forbidden), false, `路线布局不得恢复并排车道算法：${forbidden}`);
-}
+for (const forbidden of [
+  'laneOwnerId', 'laneOffset', 'laneCountByEdge', 'byLaneOwnerId', 'returnPath',
+  'DEFAULT_LANE_GAP', 'offsetPolyline(', 'participantsByEdge', 'laneIndex =', 'canonicalPathNormal(',
+]) assert.equal(layoutSource.includes(forbidden), false, `路线布局不得恢复车道数据模型或并排算法：${forbidden}`);
 
 for (const text of [
   naturalEarthCommit,
@@ -177,82 +181,64 @@ const physicalPaths = new Map([
   [provinceMapPhysicalRouteEdgeKey('road', 'B', 'C'), [{ x: 100, y: 0 }, { x: 145, y: 35 }, { x: 200, y: 50 }]],
   [provinceMapPhysicalRouteEdgeKey('road', 'B', 'D'), [{ x: 100, y: 0 }, { x: 112, y: 45 }, { x: 100, y: 100 }]],
 ]);
-const route = (id, stops, extras = {}) => ({
-  id,
-  laneOwnerId: id,
-  sortKey: id,
-  mode: 'road',
-  stops,
-  closed: false,
-  tripType: 'one-way',
-  kind: 'saved',
-  ...extras,
-});
+const route = (id, stops, mode = 'road') => ({ id, mode, stops });
 
 const shared = layoutProvinceMapRoutes([
   route('route-1', ['A', 'B']),
   route('route-2', ['A', 'B']),
 ], points, physicalPaths);
-const sharedFirst = shared.byLaneOwnerId.get('route-1');
-const sharedSecond = shared.byLaneOwnerId.get('route-2');
+const sharedFirst = shared.byOverlayId.get('route-1');
+const sharedSecond = shared.byOverlayId.get('route-2');
 assert.ok(sharedFirst && sharedSecond);
-assert.equal(sharedFirst.forward.path, sharedSecond.forward.path, '同一路网区段的多条路线必须完全共线');
-assert.equal(sharedFirst.forward.segments[0].laneOffset, 0);
-assert.equal(sharedSecond.forward.segments[0].laneOffset, 0);
-assert.equal(shared.laneCountByEdge.get('road|A:B'), 1, '物理区段不得按玩家路线数量分配车道');
-assert.equal(sharedFirst.forward.segments[0].networkGeometry, true);
-assert.equal(sharedFirst.forward.segments[0].points.length, 3, '真实路网折点不得退化为首府直线');
-assert.equal(sharedFirst.returnPath, null);
-assert.equal(sharedSecond.returnPath, null);
+assert.equal(sharedFirst.path, sharedSecond.path, '同一路网区段的多条路线必须完全共线');
+assert.equal(sharedFirst.segments[0].networkGeometry, true);
+assert.equal(sharedSecond.segments[0].networkGeometry, true);
+assert.equal(sharedFirst.segments[0].points.length, 3, '真实路网折点不得退化为首府直线');
+assert.deepEqual(sharedFirst.segments[0].points, sharedSecond.segments[0].points, '共享区段必须使用完全相同的物理中心线点序');
 
 const reverse = layoutProvinceMapRoutes([
   route('reverse-route', ['B', 'A']),
-], points, physicalPaths).byLaneOwnerId.get('reverse-route');
+], points, physicalPaths).byOverlayId.get('reverse-route');
 assert.ok(reverse);
 const forwardBase = provinceMapRouteBasePointsForDirection('road', 'A', 'B', points, physicalPaths);
 const reverseBase = provinceMapRouteBasePointsForDirection('road', 'B', 'A', points, physicalPaths);
 assert.deepEqual(reverseBase?.points, [...(forwardBase?.points ?? [])].reverse(), '公路正反向必须复用同一中心线并只反转点序');
+assert.deepEqual(reverse.segments[0].points, reverseBase?.points, '反向路线布局必须与正式反向物理点序一致');
 
 const round = layoutProvinceMapRoutes([
-  route('round-route', ['A', 'B', 'C'], { tripType: 'round' }),
-], points, physicalPaths).byLaneOwnerId.get('round-route');
+  route('round-route', ['A', 'B', 'C']),
+], points, physicalPaths).byOverlayId.get('round-route');
 assert.ok(round);
-assert.equal(round.returnPath, null, '往返路线不得创建第二条返程几何');
 const reverseSegment = routeLayoutSegmentForDirection(round, 'B', 'A');
 assert.ok(reverseSegment, '往返运输必须能从同一正程中心线反向取得运输段');
-assert.deepEqual(reverseSegment.points, [...round.forward.segments[0].points].reverse());
+assert.deepEqual(reverseSegment.points, [...round.segments[0].points].reverse());
 
 const partial = layoutProvinceMapRoutes([
   route('route-1', ['A', 'B', 'C']),
   route('route-2', ['D', 'B', 'C']),
 ], points, physicalPaths);
-const partialFirst = partial.byLaneOwnerId.get('route-1');
-const partialSecond = partial.byLaneOwnerId.get('route-2');
+const partialFirst = partial.byOverlayId.get('route-1');
+const partialSecond = partial.byOverlayId.get('route-2');
 assert.ok(partialFirst && partialSecond);
-assert.equal(partialFirst.forward.segments[0].laneOffset, 0, '未共享 A-B 区段必须保持物理中心线');
-assert.equal(partialSecond.forward.segments[0].laneOffset, 0, '未共享 D-B 区段必须保持物理中心线');
-assert.equal(partialFirst.forward.segments[1].laneOffset, 0, '共享 B-C 区段也不得偏移');
-assert.equal(partialSecond.forward.segments[1].laneOffset, 0, '共享 B-C 区段也不得偏移');
-assert.equal(partialFirst.forward.segments[1].path, partialSecond.forward.segments[1].path, '共享 B-C 区段必须完全共线');
+assert.deepEqual(partialFirst.segments[1].points, partialSecond.segments[1].points, '共享 B-C 区段必须完全共线');
+assert.notDeepEqual(partialFirst.segments[0].points, partialSecond.segments[0].points, '不同物理区段仍使用各自中心线');
 
 const crossMode = layoutProvinceMapRoutes([
-  route('road-route', ['A', 'B']),
-  route('rail-route', ['A', 'B'], { mode: 'rail' }),
+  route('road-route', ['A', 'B'], 'road'),
+  route('rail-route', ['A', 'B'], 'rail'),
 ], points, physicalPaths);
-const roadGeometry = crossMode.byLaneOwnerId.get('road-route');
-const railGeometry = crossMode.byLaneOwnerId.get('rail-route');
+const roadGeometry = crossMode.byOverlayId.get('road-route');
+const railGeometry = crossMode.byOverlayId.get('rail-route');
 assert.ok(roadGeometry && railGeometry);
-assert.equal(crossMode.laneCountByEdge.get('road|A:B'), 1);
-assert.equal(crossMode.laneCountByEdge.get('rail|A:B'), 1);
-assert.notEqual(roadGeometry.forward.path, railGeometry.forward.path, '公路和铁路必须使用各自物理中心线');
+assert.notEqual(roadGeometry.path, railGeometry.path, '公路和铁路必须使用各自物理中心线');
 
 const air = layoutProvinceMapRoutes([
-  route('air-route', ['A', 'B'], { mode: 'air' }),
-], points, physicalPaths).byLaneOwnerId.get('air-route');
+  route('air-route', ['A', 'B'], 'air'),
+], points, physicalPaths).byOverlayId.get('air-route');
 assert.ok(air);
-assert.match(air.forward.path, /\sQ[-\d.]+\s[-\d.]+\s[-\d.]+\s[-\d.]+/u, '航空路线必须使用 SVG Q 二次贝塞尔曲线');
-assert.ok(air.forward.segments[0].points.length > 10, '航空运输必须拥有同源曲线采样点');
-assert.equal(air.forward.segments[0].networkGeometry, false, '航空不属于地面物理路网');
+assert.match(air.path, /\sQ[-\d.]+\s[-\d.]+\s[-\d.]+\s[-\d.]+/u, '航空路线必须使用 SVG Q 二次贝塞尔曲线');
+assert.ok(air.segments[0].points.length > 10, '航空运输必须拥有同源曲线采样点');
+assert.equal(air.segments[0].networkGeometry, false, '航空不属于地面物理路网');
 const airBase = provinceMapRouteBasePointsForDirection('air', 'A', 'B', points, physicalPaths);
 const airReverseBase = provinceMapRouteBasePointsForDirection('air', 'B', 'A', points, physicalPaths);
 assert.ok(airBase && airReverseBase);
@@ -281,4 +267,4 @@ assert.equal(Object.keys(capitalRoutes.routes).length, 1);
 assert.deepEqual(capitalRoutes.routes['P1:P2'][0], [-100, 40]);
 assert.deepEqual(capitalRoutes.routes['P1:P2'].at(-1), [-98, 40]);
 
-console.log('运输路网验证通过：Natural Earth 固定版本、1128×2 首府快照、首尾首府坐标与核心寻路继续受保护；公路与铁路复用各自真实中心线，重复路线完全共线且无车道偏移，往返只反转同一几何，航空使用唯一 Q 抛物线并沿同源采样点运动，路线列表与详情按 routeId 高亮，经济距离仍与地图几何解耦。');
+console.log('运输路网验证通过：Natural Earth 固定版本、1128×2 首府快照、首尾首府坐标与核心寻路继续受保护；公路与铁路直接复用各自真实中心线，重复路线完全共线且运行时无车道数据模型，往返只反转同一几何，航空使用唯一 Q 抛物线并沿同源采样点运动，路线列表与详情按 routeId 高亮，经济距离仍与地图几何解耦。');
