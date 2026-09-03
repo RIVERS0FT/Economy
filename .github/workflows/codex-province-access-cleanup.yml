@@ -30,6 +30,7 @@ jobs:
         run: |
           sed -i "/EmbeddedBuildingsPage model={model} embedded/d" scripts/codex-province-access-cleanup.py
           sed -i "/startingProvinceModal/d" scripts/codex-province-access-cleanup.py
+          sed -i "/^\.province-map-tooltip__locked {$/,/^}$/d" src/styles/province-map.css
           python3 scripts/codex-province-access-cleanup.py
           rm .github/workflows/codex-province-access-cleanup.yml
           rm scripts/codex-province-access-cleanup.py
