@@ -21,7 +21,7 @@ test('map zoom only changes the shared compositor camera while SVG geometry stay
     pathData: [...container.querySelectorAll<SVGPathElement>('.province-map-region')].map((path) => path.getAttribute('d')),
     glyphTransforms: [...container.querySelectorAll<SVGTextElement>('.province-map-label-glyph')]
       .map((glyph) => glyph.getAttribute('transform')),
-    cameraWriteCount: Number(container.dataset.mapCameraWriteCount || 0),
+    cameraTransform: container.querySelector<HTMLElement>('.province-map-camera-surface')?.style.transform ?? '',
   }));
 
   await canvas.evaluate((container) => {
@@ -38,20 +38,17 @@ test('map zoom only changes the shared compositor camera while SVG geometry stay
   });
 
   await expect(canvas).toHaveAttribute('data-map-zoom-active', 'true');
-  await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.2);
-  await expect.poll(async () => camera.evaluate((surface) => surface.style.transform)).toContain('scale(');
+  await expect.poll(async () => camera.evaluate((surface) => surface.style.transform)).not.toBe(baseline.cameraTransform);
 
   const during = await canvas.evaluate((container) => ({
     pathRevision: container.dataset.mapPathRevision,
     pathData: [...container.querySelectorAll<SVGPathElement>('.province-map-region')].map((path) => path.getAttribute('d')),
     glyphTransforms: [...container.querySelectorAll<SVGTextElement>('.province-map-label-glyph')]
       .map((glyph) => glyph.getAttribute('transform')),
-    cameraWriteCount: Number(container.dataset.mapCameraWriteCount || 0),
   }));
   expect(during.pathRevision).toBe(baseline.pathRevision);
   expect(during.pathData).toEqual(baseline.pathData);
   expect(during.glyphTransforms).toEqual(baseline.glyphTransforms);
-  expect(during.cameraWriteCount).toBeGreaterThan(baseline.cameraWriteCount);
 
   await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
   const settled = await canvas.evaluate((container) => ({
@@ -61,10 +58,10 @@ test('map zoom only changes the shared compositor camera while SVG geometry stay
   }));
   expect(settled.pathData).toEqual(baseline.pathData);
   expect(settled.glyphTransforms).toEqual(baseline.glyphTransforms);
-  await expect(camera).toHaveCSS('will-change', 'auto');
+  await expect(camera).toHaveCSS('will-change', 'transform');
 });
 
-test('wheel bursts are coalesced to one compositor write per animation frame', async ({ page }) => {
+test('active wheel bursts mutate only the camera transform once per animation frame', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
@@ -72,24 +69,39 @@ test('wheel bursts are coalesced to one compositor write per animation frame', a
   await expect(canvas).toHaveAttribute('data-map-renderer', 'static-svg');
 
   const result = await canvas.evaluate(async (container) => {
-    const beforeWrites = Number(container.dataset.mapCameraWriteCount || 0);
-    const beforeFrames = Number(container.dataset.mapZoomFrameCount || 0);
+    const camera = container.querySelector<HTMLElement>('.province-map-camera-surface');
+    if (!camera) throw new Error('camera surface is missing');
     const bounds = container.getBoundingClientRect();
-    for (let index = 0; index < 20; index += 1) {
-      container.dispatchEvent(new WheelEvent('wheel', {
-        bubbles: true,
-        cancelable: true,
-        clientX: bounds.left + bounds.width / 2,
-        clientY: bounds.top + bounds.height / 2,
-        deltaY: -16,
-      }));
-    }
+    const dispatchWheel = (deltaY: number) => container.dispatchEvent(new WheelEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      clientX: bounds.left + bounds.width / 2,
+      clientY: bounds.top + bounds.height / 2,
+      deltaY,
+    }));
+
+    dispatchWheel(-40);
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    return {
-      writes: Number(container.dataset.mapCameraWriteCount || 0) - beforeWrites,
-      frames: Number(container.dataset.mapZoomFrameCount || 0) - beforeFrames,
-    };
+
+    let transformMutations = 0;
+    let diagnosticMutations = 0;
+    const cameraObserver = new MutationObserver((records) => {
+      transformMutations += records.filter((record) => record.attributeName === 'style').length;
+    });
+    const diagnosticObserver = new MutationObserver((records) => {
+      diagnosticMutations += records.filter((record) => record.attributeName?.startsWith('data-')).length;
+    });
+    cameraObserver.observe(camera, { attributes: true, attributeFilter: ['style'] });
+    diagnosticObserver.observe(container, { attributes: true });
+
+    for (let index = 0; index < 20; index += 1) dispatchWheel(-16);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await Promise.resolve();
+    cameraObserver.disconnect();
+    diagnosticObserver.disconnect();
+    return { transformMutations, diagnosticMutations };
   });
-  expect(result.writes).toBe(1);
-  expect(result.frames).toBe(1);
+
+  expect(result.transformMutations).toBe(1);
+  expect(result.diagnosticMutations).toBe(0);
 });

@@ -17,6 +17,7 @@ import regionCatalog from '../../../shared/provinces.json';
 import type { ProvinceAssetSummary, ProvinceDefinition, TransportModeId, TransportTripType } from '../../types';
 import { formatNumber } from '../../utils/formatters';
 import { formatTransportDuration } from '../../utils/provinceLogistics';
+import { LiveServerTime } from '../time/LiveServerTime';
 import { useWorkspaceTooltipLayer } from '../ui/WorkspaceFloatingLayer';
 import {
   hideTopLayerPopover,
@@ -245,7 +246,7 @@ export function UsMainlandMap({
   routePicking = null,
   routeOverlays = [],
   shipmentOverlays = [],
-  now = Date.now(),
+  referenceNow = Date.now(),
 }: {
   provinces: ProvinceDefinition[];
   summaries: Record<string, ProvinceAssetSummary>;
@@ -256,7 +257,7 @@ export function UsMainlandMap({
   routePicking?: ProvinceMapRoutePicking | null;
   routeOverlays?: ProvinceMapRouteOverlay[];
   shipmentOverlays?: ProvinceMapShipmentOverlay[];
-  now?: number;
+  referenceNow?: number;
 }) {
   const tooltipLayer = useWorkspaceTooltipLayer();
   const tooltipTopLayerActive = supportsTopLayerPopover() && Boolean(tooltipLayer);
@@ -277,7 +278,6 @@ export function UsMainlandMap({
   const hoveredShipment = hoveredShipmentId ? shipmentOverlays.find((shipment) => shipment.id === hoveredShipmentId) ?? null : null;
   const routePickingActive = Boolean(routePicking?.active);
   const routeLayout = useMemo(() => layoutProvinceMapRoutes(routeOverlays, capitalPointByProvinceId), [routeOverlays]);
-  const hoveredShipmentPosition = hoveredShipment ? currentShipmentPosition(hoveredShipment, now, routeLayout.byLaneOwnerId) : null;
 
   const routeOverlaysMarkup = useMemo(() => routeOverlays.map((overlay) => {
     const geometry = routeLayout.byOverlayId.get(overlay.id);
@@ -308,7 +308,7 @@ export function UsMainlandMap({
     );
   }), [routeLayout, routeOverlays]);
 
-  const shipmentMarkup = shipmentOverlays.map((shipment) => {
+  const renderShipmentMarkup = (now: number) => shipmentOverlays.map((shipment) => {
     const position = currentShipmentPosition(shipment, now, routeLayout.byLaneOwnerId);
     if (!position) return null;
     const selected = hoveredShipmentId === shipment.id;
@@ -444,26 +444,34 @@ export function UsMainlandMap({
     tooltipRef.current.style.transform = `translate3d(${left}px, ${top}px, 0)`;
   }, [hoveredProvinceId, hoveredShipmentId]);
 
-  const tooltipNode = hoveredShipment && hoveredShipmentPosition ? (
-    <div
-      ref={tooltipRef}
-      className="economy-chart-tooltip ui-tooltip-surface province-map-tooltip province-map-static-tooltip province-map-shipment-tooltip"
-      data-tooltip-kind="shipment"
-      data-tooltip-layer={tooltipLayer ? 'workspace' : 'local'}
-      data-top-layer={tooltipTopLayerActive ? 'true' : undefined}
-      popover={tooltipTopLayerActive ? 'manual' : undefined}
-      role="status"
-    >
-      <strong>{hoveredShipment.routeName}</strong>
-      <span>{provinceNameById.get(hoveredShipmentPosition.fromProvinceId) ?? hoveredShipmentPosition.fromProvinceId} → {provinceNameById.get(hoveredShipmentPosition.toProvinceId) ?? hoveredShipmentPosition.toProvinceId}</span>
-      <span>剩余时间：{formatTransportDuration(Math.max(0, hoveredShipment.arrivesAt - now))}</span>
-      <span>当前载荷：<CompactNumber value={hoveredShipmentPosition.remainingLoad} /></span>
-      {hoveredShipment.cargo.length > 0 ? hoveredShipment.cargo.map((entry, index) => (
-        <span key={`${entry.productName}-${entry.destinationName}-${index}`} className="province-map-shipment-tooltip-cargo">
-          {entry.productName} ×<CompactNumber value={entry.quantity} /> → {entry.destinationName}
-        </span>
-      )) : <span>没有剩余货物</span>}
-    </div>
+  const tooltipNode = hoveredShipment ? (
+    <LiveServerTime referenceNow={referenceNow} intervalMs={500}>
+      {(now) => {
+        const hoveredShipmentPosition = currentShipmentPosition(hoveredShipment, now, routeLayout.byLaneOwnerId);
+        if (!hoveredShipmentPosition) return null;
+        return (
+          <div
+            ref={tooltipRef}
+            className="economy-chart-tooltip ui-tooltip-surface province-map-tooltip province-map-static-tooltip province-map-shipment-tooltip"
+            data-tooltip-kind="shipment"
+            data-tooltip-layer={tooltipLayer ? 'workspace' : 'local'}
+            data-top-layer={tooltipTopLayerActive ? 'true' : undefined}
+            popover={tooltipTopLayerActive ? 'manual' : undefined}
+            role="status"
+          >
+            <strong>{hoveredShipment.routeName}</strong>
+            <span>{provinceNameById.get(hoveredShipmentPosition.fromProvinceId) ?? hoveredShipmentPosition.fromProvinceId} → {provinceNameById.get(hoveredShipmentPosition.toProvinceId) ?? hoveredShipmentPosition.toProvinceId}</span>
+            <span>剩余时间：{formatTransportDuration(Math.max(0, hoveredShipment.arrivesAt - now))}</span>
+            <span>当前载荷：<CompactNumber value={hoveredShipmentPosition.remainingLoad} /></span>
+            {hoveredShipment.cargo.length > 0 ? hoveredShipment.cargo.map((entry, index) => (
+              <span key={`${entry.productName}-${entry.destinationName}-${index}`} className="province-map-shipment-tooltip-cargo">
+                {entry.productName} ×<CompactNumber value={entry.quantity} /> → {entry.destinationName}
+              </span>
+            )) : <span>没有剩余货物</span>}
+          </div>
+        );
+      }}
+    </LiveServerTime>
   ) : hoveredDatum ? (
     <div
       ref={tooltipRef}
@@ -624,7 +632,13 @@ export function UsMainlandMap({
                     </g>
                   ))}
                 </g>
-                <g className="province-map-shipments">{shipmentMarkup}</g>
+                <g className="province-map-shipments" data-map-clock-scope="shipment-leaf">
+                  {shipmentOverlays.length > 0 ? (
+                    <LiveServerTime referenceNow={referenceNow} intervalMs={500}>
+                      {renderShipmentMarkup}
+                    </LiveServerTime>
+                  ) : null}
+                </g>
               </g>
             </svg>
           </div>
