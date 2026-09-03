@@ -48,7 +48,8 @@ test('compact status values expose a full number tooltip while numeric inputs st
   await expect(page.locator('.safe-tooltip')).toBeVisible();
 
   await page.locator('.desktop-sidebar').getByRole('button', { name: /^银行/ }).click();
-  await page.getByRole('button', { name: '全部存入' }).click();
+  await page.getByRole('button', { name: '存入', exact: true }).click();
+  await page.getByRole('button', { name: '最大', exact: true }).click();
   const amount = page.getByRole('textbox', { name: '存入金额' });
   await expect(amount).toHaveValue(/^-?\d+(?:\.\d+)?$/);
   await expect(amount).not.toHaveValue(/[KMBT]/);
