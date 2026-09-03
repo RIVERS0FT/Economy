@@ -97,6 +97,8 @@ if (existsSync(pathFor('docs'))) {
   }
 }
 
+// AGENTS is the compact collaboration layer. It must describe the hierarchy without
+// becoming another project README or design document.
 enforceSize('AGENTS.md', { maxLines: 60, maxBytes: 6 * 1024 }, 'AGENTS.md');
 requireAll('AGENTS.md', [
   '# Economy 仓库协作规则',
@@ -121,6 +123,9 @@ forbidAll('AGENTS.md', [
   '500 普通货币',
 ], 'AGENTS.md');
 
+// Root README is a public entry and developer quick-start, not a business or
+// deployment specification. Keep a size ceiling so detailed rules cannot silently
+// accumulate there again.
 enforceSize('README.md', { maxLines: 220, maxBytes: 14 * 1024 }, 'README.md');
 requireAll('README.md', [
   '# Economy',
@@ -159,6 +164,9 @@ forbidAll('README.md', [
   '固定按基础人口',
 ], 'README.md');
 
+// docs/README is a router. It may expose global compatibility metadata used to
+// choose the correct design set, but it must not copy domain rules or implementation
+// checklists from the DESIGN documents.
 enforceSize('docs/README.md', { maxLines: 260, maxBytes: 24 * 1024 }, 'docs/README.md');
 requireAll('docs/README.md', [
   '# Economy 设计文档索引',
@@ -200,6 +208,8 @@ forbidAll('docs/README.md', [
   '/var/www/',
 ], 'docs/README.md');
 
+// DESIGN files remain the only rule authority. The index owns their routing, so
+// every registered file must be a real design document rather than an empty marker.
 for (const name of designDocs) {
   const path = `docs/${name}`;
   if (!existsSync(pathFor(path))) continue;
@@ -208,6 +218,7 @@ for (const name of designDocs) {
   if (Buffer.byteLength(content, 'utf8') < 200) failures.push(`${path} 内容异常过短，不能作为权威 DESIGN`);
 }
 
+// DESIGN_COMPRESSION_GUARD
 let totalDesignBytes = 0;
 const datedRollbackOwners = [];
 const duplicatedFactoryRuleOwners = [];
