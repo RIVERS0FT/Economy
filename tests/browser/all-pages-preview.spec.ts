@@ -249,6 +249,12 @@ test('market and building entity lists share surface geometry with registered de
       expect(parseFloat(String(facilitySamples[0][key])), 'facility primary identity should be visually stronger than commodity rows').toBeGreaterThan(parseFloat(String(marketSamples[0][key])));
       continue;
     }
+    if (key === 'borderRadius') {
+      expect(new Set(marketSamples.map((sample) => String(sample[key]))).size, 'borderRadius should match inside commodity lists').toBe(1);
+      expect(new Set(facilitySamples.map((sample) => String(sample[key]))).size, 'borderRadius should match inside facility object cards').toBe(1);
+      expect(String(marketSamples[0][key]), 'facility object-card radius should remain distinct from commodity rows').not.toBe(String(facilitySamples[0][key]));
+      continue;
+    }
     if (densityKeys.has(key)) {
       expect(new Set(marketSamples.map((sample) => String(sample[key]))).size, `${key} should match inside commodity lists`).toBe(1);
       expect(new Set(facilitySamples.map((sample) => String(sample[key]))).size, `${key} should match inside facility two-line lists`).toBe(1);
