@@ -116,7 +116,7 @@
 - 接收新 `serverNow` 可以通知当前可见倒计时和全局协调器重新校准，但不得触发全部静态页面每秒重渲染。
 - `stateChanged: false` 的响应不得执行 `setGame`、完整派生数据重算或本地成交快照扫描；只允许推进修订号、接受新的 `serverNow` 和结束当前请求。
 - 本地匿名成交快照只依赖 `catalog` 与 `market` 分区；仅 `player`、`auction`、`contract` 或 `leaderboard` 变化时不得重新复制自有订单和目录。
-- 市场下单的价格与数量草稿必须留在 `MarketOrderEntry` 局部状态；根 `GameViewModel` 的 `orderPrice`／`orderQuantity` 只负责首次进入市场、重新进入市场、主动切换资产或主动切换方向时提供初始化种子。正常键入、步进按钮、快捷数量和订单簿点击填价不得更新根模型或触发 `GameApp`、状态栏及市场页其他静态区域的 React 提交。
+- 商品即时交易只保留方向与数量草稿：数量必须留在 `MarketImmediateTradeEntry` 局部状态，成交价格只读取当前州×商品当日服务器 `officialPrice`，不得存在玩家价格草稿或订单簿点击填价。正常键入数量、步进按钮和快捷数量不得更新根模型或触发 `GameApp`、状态栏及市场页其他静态区域的 React 提交；资产或方向切换只允许重置局部数量草稿。
 - 根级 `derived` 只能按真实数据引用分组重算：自有开放订单依赖 `orders`，排行摘要依赖 `leaderboard`，工厂状态计数依赖 `facilityGroups`，资产摘要依赖 `assetSummary`；完整 `EconomyState` 因无关分区变化而更换对象时不得重新扫描这些未变化集合。
 - 状态栏五项资产数据必须使用稳定 `statusItems` 引用；页面本地交互、通知面板或其他不改变状态栏显示值的更新不得仅因数组或导航回调重新创建而触发移动数值宽度测量。现有单一 `ResizeObserver + requestAnimationFrame` 几何适配继续保留。
 - 根级游戏控制器的就绪订阅可以保持稳定，六分区中任意业务分区替换时不得仅因为完整 `EconomyState` 被重新组合就强制 `GameApp` React 提交；但每次实际 React render 必须绑定一个已经通过状态交付完整性校验的普通 `EconomyState` 快照对象。同一次 render 内对 `userId`、`provinces`、`products`、`facilityTypes` 等字段的读取不得因全局 authority 的 reset 或 replace 突然变成另一份状态或 `undefined`。`useGameAuthorityState()` 不得把会实时转发到全局 store 的 Proxy 作为 render 状态返回值。
