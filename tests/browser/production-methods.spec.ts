@@ -134,8 +134,8 @@ test.describe('factory production methods', () => {
     await expectProductMarketIntent('machinery');
   });
 
-  test('keeps mobile production controls and settlement in one non-overlapping page detail flow', async ({ page }) => {
-    for (const width of [320, 360, 390, 430, 720]) {
+  for (const width of [320, 360, 390, 430, 720]) {
+    test(`keeps mobile production controls and settlement in one non-overlapping page detail flow at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 844 });
       await page.goto('runtime-test.html?view=production&scenario=production-methods');
       await page.getByRole('button', { name: /机械工厂，/ }).first().click();
@@ -253,6 +253,6 @@ test.describe('factory production methods', () => {
       ).__lastSelectedTab ?? '')).toBe('market');
       await expect(detail).toBeVisible();
       await expect(scroll).toBeVisible();
-    }
-  });
+    });
+  }
 });
