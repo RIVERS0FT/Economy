@@ -63,8 +63,13 @@
 
 .application-map-layer > .strategic-map-lens-bar,
 .strategic-map-lens-bar,
+.transport-map-picking-bar {
+  background: var(--color-surface);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
 .strategic-map-lens-bar.panel,
-.transport-map-picking-bar,
 .transport-map-picking-bar.panel {
   background: var(--color-surface) !important;
   -webkit-backdrop-filter: none !important;
