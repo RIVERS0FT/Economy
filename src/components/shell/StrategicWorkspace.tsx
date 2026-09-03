@@ -151,6 +151,7 @@ export function StrategicMapStage({
       for (const route of transportRoutes) {
         const stops = transportRouteStopIds(route);
         if (stops.length < 2) continue;
+        const closed = isTransportRouteClosed(route);
         overlays.push({
           id: `saved-${route.mode}-${route.id}`,
           routeId: route.id,
@@ -158,8 +159,8 @@ export function StrategicMapStage({
           sortKey: `${String(route.createdAt).padStart(16, '0')}-${route.id}`,
           mode: route.mode,
           stops,
-          closed: isTransportRouteClosed(route),
-          tripType: route.tripType ?? 'one-way',
+          closed,
+          tripType: closed ? 'one-way' : 'round',
           kind: 'saved',
         });
       }
@@ -171,6 +172,7 @@ export function StrategicMapStage({
     if (highlightedRoute) {
       const highlightedStops = transportRouteStopIds(highlightedRoute);
       if (highlightedStops.length >= 2) {
+        const closed = isTransportRouteClosed(highlightedRoute);
         overlays.push({
           id: `highlighted-${highlightedRoute.mode}-route`,
           routeId: highlightedRoute.id,
@@ -178,21 +180,22 @@ export function StrategicMapStage({
           sortKey: `${String(highlightedRoute.createdAt).padStart(16, '0')}-${highlightedRoute.id}`,
           mode: highlightedRoute.mode,
           stops: highlightedStops,
-          closed: isTransportRouteClosed(highlightedRoute),
-          tripType: highlightedRoute.tripType ?? 'one-way',
+          closed,
+          tripType: closed ? 'one-way' : 'round',
           kind: 'highlight',
         });
       }
     }
     if (routeDraft?.draft && draftStops.length >= 2) {
+      const closed = isTransportRouteClosed(routeDraft.draft);
       overlays.push({
         id: `draft-${routeDraft.draft.mode}-route`,
         laneOwnerId: 'draft-route',
         sortKey: 'zzzz-draft-route',
         mode: routeDraft.draft.mode,
         stops: draftStops,
-        closed: isTransportRouteClosed(routeDraft.draft),
-        tripType: routeDraft.draft.tripType,
+        closed,
+        tripType: closed ? 'one-way' : 'round',
         kind: 'draft',
       });
     }
@@ -244,7 +247,6 @@ export function StrategicMapStage({
         sourceProvinceId: draft.sourceProvinceId,
         destinationProvinceId: draft.destinationProvinceId,
         viaProvinceIds: draft.viaProvinceIds,
-        tripType: isTransportRouteClosed(draft) ? 'one-way' : draft.tripType,
         mode: draft.mode,
       });
       await model.showResult(result);
@@ -288,7 +290,7 @@ export function StrategicMapStage({
               </span>
             )) : <span className="transport-map-picking-empty">先点击一个州作为起点</span>}
           </div>
-          <p className="transport-map-picking-hint">按顺序点击州面追加站点；再次点击起点州可闭环。路线创建后路径、行程与运输方式均不可修改。</p>
+          <p className="transport-map-picking-hint">按顺序点击州面追加站点；再次点击起点州形成环线，起终点不同则自动沿原路往返。路线创建后路径与运输方式不可修改。</p>
           <div className="transport-map-picking-options">
             <SelectInput
               label="运输方式"
@@ -299,15 +301,6 @@ export function StrategicMapStage({
               <option value="road">公路运输</option>
               <option value="rail">铁路运输</option>
               <option value="air">航空运输</option>
-            </SelectInput>
-            <SelectInput
-              label="行程"
-              value={draftClosed ? 'one-way' : routeDraft.draft?.tripType ?? 'one-way'}
-              disabled={draftClosed || savingRoute}
-              onChange={(event) => routeDraft.updateDraft({ tripType: event.target.value === 'round' ? 'round' : 'one-way' })}
-            >
-              <option value="one-way">单程</option>
-              <option value="round">往返</option>
             </SelectInput>
           </div>
           <div className="transport-map-picking-cost" data-route-setup-cost={draftSetupCost}>
