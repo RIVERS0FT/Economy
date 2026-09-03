@@ -53,7 +53,7 @@ for (const token of ['.order-book-columns', '.order-book-midpoint']) {
 for (const token of [
   '玩家商品页面永久移除：价格输入框',
   '玩家商品交易不得创建 `open`／`partial` 商品订单',
-  '玩家商品页面不展示服务器内部人口／储备订单深度',
+  '普通玩家页面不得展示内部订单所有者',
   '北京时间每日 `00:00`',
 ]) requireText(design, token, `商品市场设计缺少即时交易边界: ${token}`);
 
