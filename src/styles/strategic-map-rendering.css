@@ -10,6 +10,36 @@
   backface-visibility: visible;
 }
 
+.province-map-world-svg {
+  shape-rendering: auto;
+}
+
+.province-map-label {
+  text-rendering: optimizeLegibility;
+}
+
+/* viewBox zoom re-rasterizes the visible vectors. Keep the map world filter-free so each frame does not rerun large SVG filters. */
+.province-map-world-shadow {
+  fill: none;
+  stroke: color-mix(in srgb, var(--color-map-region-border) 28%, transparent);
+  stroke-width: 4;
+  opacity: .22;
+  filter: none;
+}
+
+.province-map-region[data-selected='true'],
+.province-map-region:focus-visible,
+html[data-input-modality='mouse'] .province-map-region[data-selected='true']:hover,
+.province-map-shipment[data-selected='true'] .province-map-shipment-badge,
+.province-map-shipment:focus-visible .province-map-shipment-badge {
+  filter: none;
+}
+
+.province-map-chart[data-route-picking='true'] .province-map-region[data-route-pickable='false'] {
+  filter: none;
+  opacity: .48;
+}
+
 .province-map-route[data-transport-mode='road'] .province-map-route-path {
   stroke-dasharray: none;
 }
