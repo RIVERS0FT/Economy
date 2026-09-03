@@ -15,6 +15,7 @@ import {
   TRANSPORT_DEFAULT_TRIP_TYPE,
   TRANSPORT_MAX_ROUTES_PER_PLAYER,
   TRANSPORT_MODES,
+  transportCycleCost,
   transportRouteSetupCost,
   transportRouteStopIds,
 } from '../utils/provinceLogistics';
@@ -42,12 +43,16 @@ type RouteConfig = {
 };
 
 function routeTripLabel(route: RouteConfig) {
-  if (isTransportRouteClosed(route)) return '环线';
-  return route.tripType === 'round' ? '往返' : '单程';
+  return isTransportRouteClosed(route) ? '环线' : '往返';
 }
 
 function shipmentManifest(shipment: TransportShipmentView): ManifestEntry[] {
   return Array.isArray(shipment.manifest) ? shipment.manifest : [];
+}
+
+function routeRuntimeLabel(shipment: TransportShipmentView | undefined) {
+  if (!shipment) return '等待在线规划';
+  return shipment.status === 'docked' ? '节点装卸' : '运输中';
 }
 
 export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
@@ -75,7 +80,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
   ].filter(Boolean)), [game.startingProvinceId, game.unlockedProvinces]);
   const activeByRouteId = useMemo(() => new Map(
     shipments
-      .filter((shipment) => shipment.status === 'in-transit' && shipment.routeId)
+      .filter((shipment) => shipment.status !== 'arrived' && shipment.routeId)
       .map((shipment) => [String(shipment.routeId), shipment]),
   ), [shipments]);
 
@@ -91,6 +96,29 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
 
   function visibleRouteName(route: TransportRouteView) {
     return route.name?.trim() || defaultRouteName(route);
+  }
+
+  function cycleCostFor(route: TransportRouteView) {
+    if (
+      Number.isFinite(Number(route.cycleDistanceKm))
+      && Number.isFinite(Number(route.cycleTransportFee))
+      && Number.isFinite(Number(route.cycleFuelCost))
+      && Number.isFinite(Number(route.cycleCost))
+    ) {
+      return {
+        distanceKm: Number(route.cycleDistanceKm),
+        transportFee: Number(route.cycleTransportFee),
+        fuelCost: Number(route.cycleFuelCost),
+        totalCost: Number(route.cycleCost),
+      };
+    }
+    const calculated = transportCycleCost(route, route.mode, provinceById);
+    return {
+      distanceKm: calculated.distanceKm,
+      transportFee: calculated.transportFee,
+      fuelCost: calculated.fuelCost,
+      totalCost: calculated.totalCost,
+    };
   }
 
   useEffect(() => {
@@ -114,7 +142,6 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
       sourceProvinceId: route.sourceProvinceId,
       destinationProvinceId: route.destinationProvinceId,
       viaProvinceIds: route.viaProvinceIds,
-      tripType: isTransportRouteClosed(route) ? 'one-way' as const : route.tripType ?? TRANSPORT_DEFAULT_TRIP_TYPE,
       mode: route.mode,
     };
   }
@@ -181,10 +208,9 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
     );
   }
 
-  function manifestList(shipment: TransportShipmentView, remainingOnly = false) {
-    const delivered = new Set((shipment.stopPlan || []).filter((stop) => stop.deliveredAt).map((stop) => stop.provinceId));
-    const entries = shipmentManifest(shipment).filter((entry) => !remainingOnly || !delivered.has(entry.destinationProvinceId));
-    if (entries.length === 0) return <span className="transport-empty">无在途货物</span>;
+  function manifestList(shipment: TransportShipmentView) {
+    const entries = shipmentManifest(shipment);
+    if (entries.length === 0) return <span className="transport-empty">无车载货物</span>;
     return (
       <ul className="transport-manifest-list">
         {entries.map((entry, index) => (
@@ -199,13 +225,21 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
   }
 
   function shipmentProgress(shipment: TransportShipmentView) {
-    const nextStop = (shipment.stopPlan || []).find((stop) => !stop.deliveredAt);
+    if (shipment.status === 'docked') {
+      const provinceId = shipment.currentProvinceId ?? shipment.stopPlan?.[0]?.provinceId;
+      const name = provinceId ? provinceById.get(provinceId)?.name ?? provinceId : '当前节点';
+      return `停靠 ${name} · 在线自动装卸`;
+    }
+    const nextStop = (shipment.stopPlan || [])[0];
     const nextName = nextStop ? provinceById.get(nextStop.provinceId)?.name ?? nextStop.provinceId : '';
     const remaining = formatTransportDuration(Math.max(0, shipment.arrivesAt - now));
     return nextName ? `下一站 ${nextName} · 剩余 ${remaining}` : `剩余 ${remaining}`;
   }
 
   function shipmentCard(shipment: TransportShipmentView, active: boolean) {
+    const timestamp = active
+      ? shipment.arrivesAt
+      : Number(shipment.arrivedAt || shipment.arrivesAt);
     return (
       <li className="transport-shipment-card" key={shipment.id} data-shipment-status={shipment.status}>
         <div className="transport-shipment-heading">
@@ -214,12 +248,14 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
         </div>
         {routePath(shipment)}
         <div className="transport-shipment-meta">
-          <span><small>运费</small><strong>{formatCurrency(shipment.cost)}</strong></span>
-          <span><small>{active ? '预计完成' : '完成时间'}</small><strong>{new Date(active ? shipment.arrivesAt : Number(shipment.arrivedAt || shipment.arrivesAt)).toLocaleString()}</strong></span>
+          <span><small>周期总费用</small><strong>{formatCurrency(shipment.cost)}</strong></span>
+          <span><small>运输费</small><strong>{formatCurrency(Number(shipment.transportFee || 0))}</strong></span>
+          <span><small>燃料费</small><strong>{formatCurrency(Number(shipment.fuelCost || 0))}</strong></span>
+          <span><small>{active ? shipment.status === 'docked' ? '停靠时间' : '预计到站' : '完成时间'}</small><strong>{new Date(timestamp).toLocaleString()}</strong></span>
         </div>
         <div className="transport-shipment-cargo">
-          <small>{active ? '正在运输' : '运输货物'}</small>
-          {manifestList(shipment, active)}
+          <small>{active ? '当前车载' : '周期运输记录'}</small>
+          {manifestList(shipment)}
         </div>
       </li>
     );
@@ -263,6 +299,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
       .sort((left, right) => Number(right.createdAt || 0) - Number(left.createdAt || 0));
     const history = routeShipments.filter((shipment) => shipment.status === 'arrived');
     const routeMode = TRANSPORT_MODES[detailRoute.mode];
+    const cycleCost = cycleCostFor(detailRoute);
 
     return (
       <PageLayout title={visibleRouteName(detailRoute)}>
@@ -270,7 +307,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
           <section className="transport-page-section transport-route-detail-panel">
             <WidgetHeading
               title="路线设置"
-              action={<StatusTag tone={activeShipment ? 'info' : 'neutral'}>{activeShipment ? '运输中' : '等待发运'}</StatusTag>}
+              action={<StatusTag tone={activeShipment ? 'info' : 'neutral'}>{routeRuntimeLabel(activeShipment ?? undefined)}</StatusTag>}
             />
             <div className="transport-route-name-editor">
               <TextInput
@@ -294,10 +331,15 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
               <span><small>运输方式</small><strong>{routeMode?.name ?? detailRoute.mode}</strong></span>
               <span><small>最大载荷</small><strong><CompactNumber value={routeMode?.capacity ?? 0} /></strong></span>
               <span><small>站点</small><strong>{transportRouteStopIds(detailRoute).length}</strong></span>
+              <span><small>周期距离</small><strong>{Math.round(cycleCost.distanceKm).toLocaleString()} km</strong></span>
+              <span><small>周期运输费</small><strong>{formatCurrency(cycleCost.transportFee)}</strong></span>
+              <span><small>周期燃料费</small><strong>{formatCurrency(cycleCost.fuelCost)}</strong></span>
+              <span><small>周期总费用</small><strong>{formatCurrency(cycleCost.totalCost)}</strong></span>
               <span><small>建线投入</small><strong>{formatCurrency(Number(detailRoute.setupCost || 0))}</strong></span>
             </div>
-            <p className="transport-route-auto-note">路线没有手动发运按钮。服务器在正常世界推进中自动选择有正预期净价差的货物，满足库存、运力和资金条件后立即发运。</p>
-            <p className="transport-route-auto-note">路线创建后不可修改路径、行程或运输方式，不提供“在地图上编辑路线”入口；需要调整时请删除后重新建立并再次支付建线费。</p>
+            <p className="transport-route-auto-note">起终点相同时按环线运行；起终点不同时按保存路径到达终点后沿原路返回。运输费和整周期燃料费都只按完整周期距离计算，并只在从起点启动新周期时一次性扣除。</p>
+            <p className="transport-route-auto-note">在线客户端在每个停靠节点根据最新库存和州级行情自动决定装卸；服务器只校验真实库存、车辆容量、节点位置和资产守恒。客户端离线时车辆最多到达当前下一节点，并停靠等待重新上线。</p>
+            <p className="transport-route-auto-note">路线创建后不可修改路径或运输方式；需要调整时请删除后重新建立并再次支付建线费。</p>
             <div className="transport-route-editor-actions">
               <Button variant="danger" disabled={Boolean(pendingAction) || Boolean(activeShipment)} onClick={() => void deleteRoute(detailRoute)}>删除路线</Button>
             </div>
@@ -308,7 +350,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
             {activeShipment ? (
               <ul className="transport-shipment-list">{shipmentCard(activeShipment, true)}</ul>
             ) : (
-              <p className="transport-empty">当前没有运输在途；条件满足后会自动发运。</p>
+              <p className="transport-empty">当前没有运行中的运输周期；在线客户端发现可运输机会后会从起点启动新周期。</p>
             )}
           </section>
 
@@ -338,6 +380,7 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
                 {routes.map((route) => {
                   const activeShipment = activeByRouteId.get(route.id);
                   const stops = transportRouteStopIds(route);
+                  const cycleCost = cycleCostFor(route);
                   return (
                     <button
                       type="button"
@@ -353,13 +396,14 @@ export function TransportPage({ model }: { model: OnlineAutoTradeAwareGameViewMo
                     >
                       <div className="transport-route-card-heading">
                         <strong>{visibleRouteName(route)}</strong>
-                        <StatusTag tone={activeShipment ? 'info' : 'neutral'}>{activeShipment ? '运输中' : '等待发运'}</StatusTag>
+                        <StatusTag tone={activeShipment ? 'info' : 'neutral'}>{routeRuntimeLabel(activeShipment)}</StatusTag>
                       </div>
                       {routePath(route)}
                       <div className="transport-route-summary-grid">
                         <span><small>方式</small><strong>{TRANSPORT_MODES[route.mode]?.name ?? route.mode}</strong></span>
                         <span><small>行程</small><strong>{routeTripLabel(route)}</strong></span>
-                        <span><small>站点</small><strong>{stops.length}</strong></span>
+                        <span><small>周期距离</small><strong>{Math.round(cycleCost.distanceKm).toLocaleString()} km</strong></span>
+                        <span><small>周期费用</small><strong>{formatCurrency(cycleCost.totalCost)}</strong></span>
                         <span><small>建线投入</small><strong>{formatCurrency(Number(route.setupCost || 0))}</strong></span>
                       </div>
                     </button>
