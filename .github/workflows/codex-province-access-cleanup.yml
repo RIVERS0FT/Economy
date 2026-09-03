@@ -33,6 +33,15 @@ jobs:
           sed -i "/^\.province-map-tooltip__locked {$/,/^}$/d" src/styles/province-map.css
           sed -i "/  | 'chooseStartingProvince'/d; /  | 'unlockProvince'/d" src/utils/localActivityStore.ts
           python3 scripts/codex-province-access-cleanup.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-provincial-economy.mjs')
+          text = path.read_text(encoding='utf-8')
+          old = "'<EmbeddedBuildingsPage model={model} embedded />'"
+          if old not in text:
+              raise SystemExit('provincial economy verifier embedded buildings anchor missing')
+          path.write_text(text.replace(old, "'<EmbeddedBuildingsPage'", 1), encoding='utf-8')
+          PY
           rm .github/workflows/codex-province-access-cleanup.yml
           rm scripts/codex-province-access-cleanup.py
 
