@@ -44,7 +44,6 @@
     padding-inline: var(--space-1);
   }
 }
-
 .province-lock-content {
   display: flex;
   flex-direction: column;
