@@ -1,0 +1,49 @@
+name: Split production mobile browser gates
+
+on:
+  push:
+    branches:
+      - transport-client-node-logistics
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: transport-client-node-logistics
+          fetch-depth: 0
+
+      - name: Split production mobile viewport tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/browser/production-methods.spec.ts')
+          text = path.read_text()
+          old_header = """  test('keeps mobile production controls and settlement in one non-overlapping page detail flow', async ({ page }) => {\n    for (const width of [320, 360, 390, 430, 720]) {\n      await page.setViewportSize({ width, height: 844 });\n"""
+          new_header = """  for (const width of [320, 360, 390, 430, 720]) {\n    test(`keeps mobile production controls and settlement in one non-overlapping page detail flow at ${width}px`, async ({ page }) => {\n      await page.setViewportSize({ width, height: 844 });\n"""
+          if old_header not in text:
+              raise SystemExit('production mobile test header marker missing')
+          text = text.replace(old_header, new_header, 1)
+          old_tail = """      await expect(detail).toBeVisible();\n      await expect(scroll).toBeVisible();\n    }\n  });\n});\n"""
+          new_tail = """      await expect(detail).toBeVisible();\n      await expect(scroll).toBeVisible();\n    });\n  }\n});\n"""
+          tail_index = text.rfind(old_tail)
+          if tail_index < 0:
+              raise SystemExit('production mobile test tail marker missing')
+          path.write_text(text[:tail_index] + new_tail + text[tail_index + len(old_tail):])
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tests/browser/production-methods.spec.ts
+          git rm .github/workflows/split-production-mobile-gates.yml
+          git diff --cached --check
+          git commit -m '拆分生产移动端视口门禁'
+          git push origin HEAD:transport-client-node-logistics
