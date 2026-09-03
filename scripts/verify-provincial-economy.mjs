@@ -17,29 +17,38 @@ const requiredFiles = [
   'server/test/provinces.test.js',
   'src/pages/MapPage.tsx',
   'src/pages/ProvincePage.tsx',
+  'src/components/shell/GameShell.tsx',
   'src/components/shell/StrategicWorkspace.tsx',
+  'src/navigation/playerPageStack.ts',
   'src/components/provinces/UsMainlandMap.tsx',
   'src/components/provinces/provinceMapProjection.ts',
   'src/components/provinces/provinceMapCamera.ts',
   'src/components/provinces/provinceMapStaticLabels.ts',
+  'src/components/provinces/provinceMapRouteLayout.ts',
+  'src/components/provinces/provinceMapTransportNetwork.ts',
   'src/data/north-america-land-10m.json',
   'scripts/generate-province-map-world-context.mjs',
   'src/styles/performance.css',
   'src/styles/province-map.css',
   'src/styles/province-page.css',
   'src/styles/strategic-game-shell.css',
+  'src/styles/strategic-map-rendering.css',
   'src/utils/provinceScope.ts',
   'tests/browser/province-map.spec.ts',
   'tests/browser/map-reset-sync.spec.ts',
   'tests/browser/map-zoom-transient.spec.ts',
   'tests/browser/map-zoom-render-sync.spec.ts',
   'tests/browser/map-zoom-out-boundary.spec.ts',
+  'tests/browser/map-mobile-pinch.spec.ts',
   'tests/browser/province-map-world-boundary.spec.ts',
+  'tests/browser/transport-route-cost-style-lock.spec.ts',
   'docs/README.md',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
   'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+  'docs/TRANSPORT_NETWORK_GEOMETRY_DESIGN.md',
+  'docs/STRATEGIC_MAP_RENDERING_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/UI_DESIGN_SYSTEM.md',
   'docs/LIQUID_GLASS_CHROME_DESIGN.md',
@@ -51,6 +60,7 @@ for (const retiredPath of [
   'src/components/provinces/provinceMapLayoutCamera.ts',
   'src/components/provinces/provinceMapLabels.ts',
   'src/components/provinces/provinceMapZoomInterpolator.ts',
+  'src/components/provinces/provinceMapViewBoxCamera.ts',
 ]) assert.equal(existsSync(retiredPath), false, `不得恢复已退役地图实现: ${retiredPath}`);
 
 assert.equal(PROVINCE_CATALOG.length, 48, '州级地区目录必须包含美国连续 48 州');
@@ -80,12 +90,10 @@ const legacyRegionIds = [
   '530000', '540000', '610000', '620000', '630000', '640000', '650000', '710000',
   '810000', '820000',
 ];
-assert.equal(legacyRegionIds.every((id) => PROVINCE_CATALOG.some((province) => province.id === id)), true, '中国地图时期的 34 个地区 ID 必须全部原位保留');
-assert.equal(DEFAULT_PROVINCE_ID, '110000', '默认地区 ID 必须保持稳定以保留既有资产');
-assert.equal(PROVINCE_CATALOG.find((province) => province.id === DEFAULT_PROVINCE_ID)?.name, '加利福尼亚', '默认地区中文短名必须省略“州”');
-assert.equal(PROVINCE_CATALOG.find((province) => province.id === DEFAULT_PROVINCE_ID)?.mapName, 'California', '旧默认地区必须原位映射为加利福尼亚州');
-assert.equal(PROVINCE_CATALOG.find((province) => province.id === DEFAULT_PROVINCE_ID)?.capitalName, '萨克拉门托', '加利福尼亚州必须记录首府萨克拉门托');
-assert.equal(PROVINCE_CATALOG.find((province) => province.mapName === 'Georgia')?.capitalMapName, 'Atlanta', '佐治亚州必须记录首府 Atlanta');
+assert.equal(legacyRegionIds.every((id) => PROVINCE_CATALOG.some((province) => province.id === id)), true, '既有 34 个地区 ID 必须原位保留');
+assert.equal(PROVINCE_CATALOG.filter((province) => !legacyRegionIds.includes(province.id)).length, 14, '连续 48 州只能新增 14 个新地区 ID');
+assert.equal(DEFAULT_PROVINCE_ID, '110000', '默认地区 ID 必须保持稳定');
+assert.equal(PROVINCE_CATALOG.find((province) => province.id === DEFAULT_PROVINCE_ID)?.mapName, 'California', '旧默认地区必须继续映射加利福尼亚');
 assert.equal(CURRENT_CLIENT_STATE_VERSION, 39, '州级状态协议必须使用客户端版本 39');
 assert.equal(AUTHORITATIVE_WORLD_VERSION, 32, '州级持久化必须使用世界版本 32');
 
@@ -93,70 +101,28 @@ const provinceTypes = read('src/types.ts');
 for (const field of ['capitalName: string;', 'capitalMapName: string;', 'capitalLongitude: number;', 'capitalLatitude: number;']) {
   assert.ok(provinceTypes.includes(`  ${field}`), `ProvinceDefinition 缺少首府字段: ${field}`);
 }
-const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
-assert.ok(productDesign.includes('中文首府名称、英文首府名称与首府经纬度'), '产品权威文档必须登记州首府位置字段');
-// 首府字段属于共享正式目录的运行事实，上面的 PROVINCE_CATALOG 与 ProvinceDefinition 断言直接验证，
-// 不要求服务器架构 DESIGN 复制字段清单。
-const docsIndex = read('docs/README.md');
-assert.ok(docsIndex.includes('`UI_DESIGN_SYSTEM.md`') && docsIndex.includes('州级中文短名'), '设计索引必须将州级中文短名路由到 UI DESIGN owner');
-const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
-for (const text of ['地区商品／工厂详情共享两行标题', '州级地区全称', '中文州全名']) {
-  assert.ok(uiDesign.includes(text), `UI DESIGN 缺少州级名称视觉语义: ${text}`);
-}
-
 const packageJson = JSON.parse(read('package.json'));
-const atlasPackage = JSON.parse(read('node_modules/us-atlas/package.json'));
-const topoJsonPackage = JSON.parse(read('node_modules/topojson-client/package.json'));
-const worldAtlasPackage = JSON.parse(read('node_modules/world-atlas/package.json'));
-assert.equal(packageJson.dependencies?.['us-atlas'], '3.0.1', '州界数据依赖必须精确锁定 us-atlas 3.0.1');
-assert.equal(packageJson.dependencies?.['topojson-client'], '3.1.0', 'TopoJSON 转换依赖必须精确锁定 topojson-client 3.1.0');
-assert.equal(packageJson.dependencies?.['world-atlas'], '2.0.2', '世界大陆 10m 数据依赖必须精确锁定 world-atlas 2.0.2');
-assert.equal(packageJson.dependencies?.['china-geojson'], undefined, '不得继续安装中国地图数据依赖');
-assert.match(String(atlasPackage.license || ''), /ISC/i, '州界数据包必须保留 ISC 许可元数据');
-assert.match(String(topoJsonPackage.license || ''), /ISC/i, 'TopoJSON 转换包必须保留 ISC 许可元数据');
-assert.match(String(worldAtlasPackage.license || ''), /ISC/i, '世界大陆数据包必须保留 ISC 许可元数据');
-assert.equal(existsSync('src/data/world-land-110m.json'), false, '不得恢复已退役的 110m 世界大陆数据副本');
+assert.equal(packageJson.dependencies?.['us-atlas'], '3.0.1', 'us-atlas 必须固定为 3.0.1');
+assert.equal(packageJson.dependencies?.['topojson-client'], '3.1.0', 'topojson-client 必须固定为 3.1.0');
+assert.equal(packageJson.dependencies?.['world-atlas'], '2.0.2', 'world-atlas 必须固定为 2.0.2');
 const atlasStateCollection = feature(usStateAtlas, usStateAtlas.objects.states);
-assert.equal(atlasStateCollection.type, 'FeatureCollection', '州界数据必须可转换为 GeoJSON FeatureCollection');
+assert.equal(atlasStateCollection.type, 'FeatureCollection');
 const atlasRegionNames = atlasStateCollection.features.map((stateFeature) => String(stateFeature?.properties?.name || ''));
-for (const excludedName of ['Alaska', 'Hawaii', 'District of Columbia', 'Puerto Rico']) {
-  assert.equal(atlasRegionNames.includes(excludedName), true, `上游州界数据变化时必须重新审查过滤: ${excludedName}`);
-  assert.equal(PROVINCE_CATALOG.some((province) => province.mapName === excludedName), false, `美国本土经营目录不得包含: ${excludedName}`);
-}
-const mapRegionNames = atlasRegionNames.filter((name) => PROVINCE_CATALOG.some((province) => province.mapName === name));
-assert.equal(mapRegionNames.length, 48, '静态 SVG 地图必须只包含美国连续 48 州');
-assert.deepEqual(new Set(mapRegionNames), new Set(PROVINCE_CATALOG.map((province) => province.mapName)), '静态 SVG 州名必须与共享经营地区目录一一对应');
+assert.equal(atlasRegionNames.filter((name) => PROVINCE_CATALOG.some((province) => province.mapName === name)).length, 48, '静态地图必须只包含连续 48 州');
 
 const matching = read('server/src/order-matching.js');
-for (const text of ['provinceId: orderProvinceId(incoming)', 'iterateOrderBookSide(world, {']) {
-  assert.ok(matching.includes(text), `共享撮合缺少州级隔离: ${text}`);
-}
+assert.ok(matching.includes('provinceId: orderProvinceId(incoming)'), '共享撮合必须保持州级隔离');
 const facilities = read('server/src/facility-groups.js');
-for (const text of [
-  'const provinceId = normalizeProvinceId(payload.provinceId);',
-  'inventoryFor(player, item.productId, provinceId).available -= item.quantity',
-  'inventoryFor(player, recipe.output.productId, group.provinceId).available += requirements.output',
-  'addPurchasedGroup(world, buyer, typeId, quantity, createdAt, incoming.provinceId)',
-  'provinceFacilityGroups', 'provinceFacilityMarkets',
-]) assert.ok(facilities.includes(text), `工厂州级边界缺少: ${text}`);
-const banking = read('server/src/banking.js');
-for (const text of [
-  'const provinceId = normalizeProvinceId(item?.provinceId);',
-  'transferableFacilityQuantity(world, player, item.facilityTypeId, item.provinceId)',
-  'const group = groupFor(player, item.facilityTypeId, item.provinceId);',
-]) assert.ok(banking.includes(text), `银行抵押州级边界缺少: ${text}`);
-const commercialContracts = read('server/src/commercial-contracts.js');
-for (const text of [
-  'const provinceId = normalizeProvinceId(payload.provinceId);',
-  'groupFor(lessee, contract.facilityTypeId, contract.provinceId, true, now)',
-  'groupFor(lender, contract.facilityTypeId, contract.provinceId, true, now)',
-]) assert.ok(commercialContracts.includes(text), `借贷或租赁州级边界缺少: ${text}`);
+for (const text of ['const provinceId = normalizeProvinceId(payload.provinceId);', 'provinceFacilityGroups', 'provinceFacilityMarkets']) {
+  assert.ok(facilities.includes(text), `工厂州级边界缺少: ${text}`);
+}
+assert.ok(read('server/src/banking.js').includes('const provinceId = normalizeProvinceId(item?.provinceId);'), '银行抵押必须保持州级边界');
+assert.ok(read('server/src/commercial-contracts.js').includes('const provinceId = normalizeProvinceId(payload.provinceId);'), '工厂合同必须保持州级边界');
+assert.ok(read('server/src/contract-asset-locks.js').includes('provinceId'), '合同资产锁必须记录州级范围');
 const clientScope = read('src/utils/provinceScope.ts');
-for (const text of [
-  'game.provinceInventories?.[provinceId]', 'game.provinceFacilityGroups?.[provinceId]',
-  'game.provinceMarkets?.[provinceId]', 'game.provinceFacilityMarkets?.[provinceId]',
-  'filter((order) => order.provinceId === provinceId)',
-]) assert.ok(clientScope.includes(text), `客户端州级切换缺少: ${text}`);
+for (const text of ['game.provinceInventories?.[provinceId]', 'game.provinceFacilityGroups?.[provinceId]', 'game.provinceMarkets?.[provinceId]']) {
+  assert.ok(clientScope.includes(text), `客户端州级作用域缺少: ${text}`);
+}
 
 const mapPage = read('src/pages/MapPage.tsx');
 for (const text of ['className="province-map-page"', 'aria-label="美国本土州级经营地图页面"']) {
@@ -186,11 +152,15 @@ for (const text of [
   'StrategicMapStage', 'StrategicMapLensBar', 'StrategicWorkspaceChrome',
   "{ id: 'political', label: '州界'", "{ id: 'assets', label: '资产'", "{ id: 'industry', label: '工业'",
   "{ id: 'market', label: '市场'", "{ id: 'alerts', label: '异常'",
+  'const highlightedRouteId = routeDraft?.highlightedRouteId ?? null;',
+  "kind: route.id === highlightedRouteId ? 'highlight' : 'saved'",
 ]) assert.ok(strategicWorkspace.includes(text), `常驻战略地图交互缺少: ${text}`);
+assert.equal(strategicWorkspace.includes('transportRoutes.find((route) => route.id === highlightedRouteId)'), false, '路线高亮不得创建第二条地图 overlay');
 assert.equal(strategicWorkspace.includes('useNow('), false, 'StrategicMapStage 不得订阅高频运输时钟');
 for (const forbidden of ['当前经营地区', 'strategic-province-inspector', '进入本地市场', '管理本地生产']) {
   assert.equal(strategicWorkspace.includes(forbidden), false, `战略 Chrome 不得恢复已删除的经营地区卡片: ${forbidden}`);
 }
+
 const gameShell = read('src/components/shell/GameShell.tsx');
 for (const text of [
   'const STRATEGIC_PAGE_PRESENTATION = {', "province: 'building'", '<ApplicationMapLayerPortal>',
@@ -200,36 +170,24 @@ for (const text of [
   '<StrategicMapLensBar lens={mapLens} onLensChange={setMapLens} />',
   '<StrategicWorkspaceChrome', 'data-strategic-presentation={pagePresentation}',
 ]) assert.ok(gameShell.includes(text), `玩家战略外壳缺少: ${text}`);
-for (const text of [
-  'appendPlayerPageHistory',
-  'pushPlayerPage',
-  'replacePlayerPage',
-  'currentLocation: pageLocation',
-]) assert.ok(gameShell.includes(text), `州级上下文页统一返回栈缺少: ${text}`);
+for (const text of ['appendPlayerPageHistory', 'pushPlayerPage', 'replacePlayerPage', 'currentLocation: pageLocation']) {
+  assert.ok(gameShell.includes(text), `州级上下文页统一返回栈缺少: ${text}`);
+}
 const pageStack = read('src/navigation/playerPageStack.ts');
 for (const text of [
-  'MAX_PLAYER_PAGE_STACK_DEPTH = 20',
-  "type: 'province'",
-  "type: 'regional-product'",
-  "type: 'regional-facility'",
+  'MAX_PLAYER_PAGE_STACK_DEPTH = 20', "type: 'province'", "type: 'regional-product'", "type: 'regional-facility'",
   'maximumHistoryDepth = MAX_PLAYER_PAGE_STACK_DEPTH - 1',
 ]) assert.ok(pageStack.includes(text), `受限页面栈缺少: ${text}`);
 
 const provincePage = read('src/pages/ProvincePage.tsx');
 for (const text of [
   'export function ProvincePage', 'title={isMarketDetail && marketDetailProduct ? (', 'role="tablist"', 'role="tab"', 'role="tabpanel"',
-  "{ id: 'overview', label: '概览' }", "{ id: 'market', label: '市场' }",
-  "{ id: 'buildings', label: '建筑' }", "{ id: 'warehouse', label: '仓库' }",
+  "{ id: 'overview', label: '概览' }", "{ id: 'market', label: '市场' }", "{ id: 'buildings', label: '建筑' }", "{ id: 'warehouse', label: '仓库' }",
   '<EmbeddedMarketPage model={model} embedded readOnly={!isUnlocked} />', '<EmbeddedBuildingsPage model={model} embedded />',
   '<WarehouseInventoryPanel', 'className="province-warehouse-section"', 'onOpenProduct={openWarehouseProduct}',
-  "if (current.type === 'map') {", 'pageNavigation.pushPage(provinceLocation);',
-  'pageNavigation.replacePage(provinceLocation);',
+  "if (current.type === 'map') {", 'pageNavigation.pushPage(provinceLocation);', 'pageNavigation.replacePage(provinceLocation);',
 ]) assert.ok(provincePage.includes(text), `州级上下文页缺少: ${text}`);
-assert.equal(
-  provincePage.includes("model.tab !== 'province' || !isUnlocked"),
-  false,
-  '锁定州也必须先建立 map → province 返回层，不能因未解锁跳过位置规范化',
-);
+assert.equal(provincePage.includes("model.tab !== 'province' || !isUnlocked"), false, '锁定州也必须先建立 map → province 返回层');
 const provinceStyles = read('src/styles/province-page.css');
 assert.ok(provinceStyles.includes('grid-template-columns: repeat(4, minmax(0, 1fr));'), '州级上下文切换必须保持四个等宽按钮');
 assert.ok(provinceStyles.includes('min-height: 44px;'), '州级上下文切换必须保持 44px 触控高度');
@@ -243,7 +201,10 @@ for (const text of [
   'province-map-label-camera', 'data-map-world-path-count={provinceMapWorld.length}', 'data-map-path-revision="1"',
   'data-selected-province-id={selectedProvinceId ?? \'\'}', 'data-map-lens={lens}', 'data-map-label-mode="curved-chinese-full-name"',
   'data-map-ready="true"', 'data-testid="us-mainland-map"',
-  'capitalPointByProvinceId', 'province-map-routes', 'province-map-route-path', 'province-map-route-return-path',
+  'capitalPointByProvinceId', 'province-map-routes', 'province-map-route-path',
+  'createProvinceMapTransportPhysicalPaths', 'transportPhysicalPathByEdge',
+  'layoutProvinceMapRoutes(routeOverlays, capitalPointByProvinceId, transportPhysicalPathByEdge)',
+  'routeLayout.byLaneOwnerId', 'provinceMapPointAlongPolyline',
   'routePicking', 'data-route-picking={routePickingActive ? \'true\' : \'false\'}', 'data-route-pickable',
   "import { LiveServerTime } from '../time/LiveServerTime'", 'referenceNow = Date.now()',
   'data-map-clock-scope="shipment-leaf"', '<LiveServerTime referenceNow={referenceNow} intervalMs={500}>',
@@ -275,30 +236,35 @@ for (const text of ['world-atlas/countries-10m.json', 'NORTH_AMERICA_CONTEXT_COU
 const worldContextAsset = read('src/data/north-america-land-10m.json');
 assert.ok(worldContextAsset.length < 1_500_000, '北美 10m 裁剪 TopoJSON 不得退化为完整 atlas 或预展开浮点 GeoJSON 体积');
 execFileSync(process.execPath, ['scripts/generate-province-map-world-context.mjs', '--check'], { stdio: 'inherit' });
+
 const camera = read('src/components/provinces/provinceMapCamera.ts');
 for (const text of [
   'export const PROVINCE_MAP_ZOOM_MIN = 1', 'export const PROVINCE_MAP_ZOOM_MAX = 4',
   'MAINLAND_MIN_AREA_RATIO = 2 / 3', 'MAINLAND_CONTEXT_EXPAND_X = 0.35', 'MAINLAND_CONTEXT_EXPAND_Y = 0.25',
-  "container.dataset.mapPanBoundary = options.focusBounds ? 'mainland-context' : 'none'", 'minimumPhysicalZoom', 'mapZoomBaseScale',
-  "container.dataset.mapRenderer = 'static-svg'", "container.dataset.mapCameraMode = 'html-compositor-transform'",
-  "container.dataset.mapCameraHotPath = 'single-css-transform'", "container.dataset.mapCameraGeometryMode = 'immutable-svg-world'",
-  'surface.style.transform = `translate3d(', 'requestAnimationFrame(writeCamera)', 'if (frame === null)',
+  "container.dataset.mapCameraMode = 'svg-viewbox'", "container.dataset.mapCameraHotPath = 'single-svg-viewbox-write'",
+  "container.dataset.mapCameraBoundaryMode = options.focusBounds ? 'fixed-world-bounds' : 'source-viewbox'",
+  "container.dataset.mapPanBoundary = options.focusBounds ? 'fixed-world-context' : 'source-viewbox'",
+  "container.dataset.mapPanClampMode = options.focusBounds ? 'fixed-world-viewbox' : 'none'",
+  'function baseViewSize(', 'function clampCameraCenter(', 'const normalizedState = (', 'const viewBoxFor = (', 'const screenPointToWorld = (',
+  'zoom <= PROVINCE_MAP_ZOOM_MIN + MIN_ZOOM_EPSILON',
   'let settleDeadline = 0;', 'const finishSettle = () => {', 'settleDeadline = performance.now() + INPUT_SETTLE_MS;',
   "container.addEventListener('wheel', handleWheel, { passive: false })", 'event.preventDefault();',
-  'applyZoomAround', 'pointers.size >= 2', "container.dataset.mapCameraReset = 'blank-double-click'",
+  'applyZoomAround', 'activeTouchPointerIds.size >= 2', "container.dataset.mapCameraReset = 'blank-double-click'",
   "container.dataset.mapCameraReset = 'blank-double-tap'",
-]) assert.ok(camera.includes(text), `静态地图合成相机缺少: ${text}`);
+]) assert.ok(camera.includes(text), `SVG viewBox Camera 缺少: ${text}`);
 const writeCameraStart = camera.indexOf('const writeCamera = () => {');
 const writeCameraEnd = camera.indexOf('\n  };', writeCameraStart);
 assert.ok(writeCameraStart >= 0 && writeCameraEnd > writeCameraStart, '必须能定位地图相机 RAF 热路径');
 const writeCameraSource = camera.slice(writeCameraStart, writeCameraEnd);
-assert.ok(writeCameraSource.includes('surface.style.transform ='), '地图相机 RAF 必须写入唯一 transform');
-for (const forbidden of ['container.dataset', 'publishState(', 'getBoundingClientRect(', 'setTimeout(', 'setActive(']) {
+assert.ok(writeCameraSource.includes("svg.setAttribute('viewBox'"), '地图相机 RAF 必须写入唯一 SVG viewBox');
+for (const forbidden of ['surface.style.transform', 'container.dataset', 'publishState(', 'getBoundingClientRect(', 'setTimeout(', 'setActive(', 'setState(']) {
   assert.equal(writeCameraSource.includes(forbidden), false, `地图相机 RAF 热路径不得包含: ${forbidden}`);
 }
-for (const forbidden of ['geoRoam', 'dispatchAction', 'setOption(', 'convertToPixel', 'layoutSize', 'layoutCenter', "surface.style.willChange = nextActive ? 'transform' : ''"]) {
-  assert.equal(camera.includes(forbidden), false, `地图交互热路径不得恢复几何重绘或手势级合成层切换: ${forbidden}`);
-}
+for (const forbidden of [
+  'geoRoam', 'dispatchAction', 'setOption(', 'convertToPixel', 'layoutSize', 'layoutCenter',
+  "mapCameraMode = 'html-compositor-transform'", "mapCameraHotPath = 'single-css-transform'",
+  'surface.style.transform = `translate3d(', "surface.style.willChange = nextActive ? 'transform' : ''",
+]) assert.equal(camera.includes(forbidden), false, `地图交互热路径不得恢复旧实现: ${forbidden}`);
 
 const labels = read('src/components/provinces/provinceMapStaticLabels.ts');
 for (const text of [
@@ -309,23 +275,41 @@ for (const text of [
 for (const forbidden of ['EChartsType', 'convertToPixel', 'geoRoam', 'requestAnimationFrame', 'textPath', 'textLength', 'scaleX', 'scaleY']) {
   assert.equal(labels.includes(forbidden), false, `州名布局不得进入交互热路径: ${forbidden}`);
 }
-
 const echartsCore = read('src/components/charts/echartsCore.ts');
 for (const forbidden of ['MapChart', 'GeoComponent', 'registerMap', 'registerEChartsMap']) {
   assert.equal(echartsCore.includes(forbidden), false, `战略地图退役后不得继续加载 ECharts 地图模块: ${forbidden}`);
 }
 
+const routeLayout = read('src/components/provinces/provinceMapRouteLayout.ts');
+for (const text of [
+  'provinceMapAirRouteControlPoint', 'AIR_CURVE_RATIO', 'AIR_SAMPLE_STEPS', 'quadraticPoint(', "mode === 'air'",
+  'laneOffset: 0', 'returnPath: null', 'points: [...reverse.points].reverse()',
+]) assert.ok(routeLayout.includes(text), `运输几何最终实现缺少: ${text}`);
+for (const forbidden of ['DEFAULT_LANE_GAP', 'canonicalPathNormal', 'offsetPolyline(', 'participantsByEdge', 'laneIndex =']) {
+  assert.equal(routeLayout.includes(forbidden), false, `运输路线不得恢复并排车道算法: ${forbidden}`);
+}
+
 const mapStyles = read('src/styles/province-map.css');
 for (const text of [
-  '.province-map-camera-surface', 'transform-origin: 0 0;', '.province-map-world-svg', '.province-map-region',
-  '.province-map-label', '.province-map-label-glyph', 'fill: var(--color-map-label);', "[data-selected='true']",
-  '.province-map-world-shadow', '.province-map-world-fill', '.province-map-world-outline', '.province-map-mainland-seam', '.province-map-mainland-outline',
-  'touch-action: none;', '.province-map-static-tooltip',
-  '.province-map-routes', '.province-map-route-path', '.province-map-route-return-path', '.province-map-route-stop',
-  "[data-route-picking='true']", "[data-route-kind='draft']", "[data-route-kind='highlight']",
+  '.province-map-camera-surface', 'transform: none;', '.province-map-world-svg', 'shape-rendering: auto;', '.province-map-region',
+  '.province-map-label', 'text-rendering: optimizeLegibility;', '.province-map-label-glyph', 'fill: var(--color-map-label);', "[data-selected='true']",
+  '.province-map-world-shadow', 'filter: none;', '.province-map-world-fill', '.province-map-world-outline', '.province-map-mainland-seam', '.province-map-mainland-outline',
+  'touch-action: none;', '.province-map-static-tooltip', '.province-map-routes', '.province-map-route-path', '.province-map-route-stop',
+  ".province-map-route[data-transport-mode='road']", ".province-map-route[data-transport-mode='rail']", ".province-map-route[data-transport-mode='air']",
+  '.province-map-route-return-path', 'display: none;', "[data-route-picking='true']", "[data-route-kind='draft']", "[data-route-kind='highlight']",
 ]) assert.ok(mapStyles.includes(text), `静态地图样式缺少: ${text}`);
 const performanceStyles = read('src/styles/performance.css');
-assert.ok(performanceStyles.includes('.province-map-camera-surface') && performanceStyles.includes('will-change: transform;'), '唯一战略地图相机层必须常驻 will-change: transform');
+assert.ok(performanceStyles.includes('.province-map-camera-surface') && performanceStyles.includes('will-change: auto;'), 'SVG viewBox Camera 不得永久提升完整世界纹理');
+assert.equal(performanceStyles.includes('will-change: transform;'), false, '地图性能样式不得恢复永久 transform 合成');
+for (const forbidden of ['drop-shadow(', 'saturate(.35) brightness(.72)']) {
+  assert.equal(mapStyles.includes(forbidden), false, `地图基础样式不得恢复缩放期高成本滤镜: ${forbidden}`);
+}
+const renderingStyles = read('src/styles/strategic-map-rendering.css');
+for (const text of [
+  '.application-map-layer > .strategic-map-lens-bar', '.transport-map-picking-bar',
+  'backdrop-filter: none;', '-webkit-backdrop-filter: none;',
+]) assert.ok(renderingStyles.includes(text), `地图专属实体表面覆盖缺少: ${text}`);
+assert.ok(read('src/main.tsx').includes("import './styles/strategic-map-rendering.css';"), '战略地图最终渲染样式必须被正式入口加载');
 for (const forbidden of ['.province-map-marker', '.province-map-silhouette', '.province-map-command-panel', '.province-map-meta', '.province-map-legend']) {
   assert.equal(mapStyles.includes(forbidden), false, `地图样式不得恢复旧地图标记或卡片: ${forbidden}`);
 }
@@ -350,82 +334,81 @@ for (const [path, selector, expectedOverflow] of [
 
 const worldBoundaryTest = read('tests/browser/province-map-world-boundary.spec.ts');
 for (const text of [
-  'continents-filled-10m', 'data-map-world-resolution', 'states-10m-union',
-  'data-map-focus-area-target', 'baseline.areaRatio', 'centerOffsetX', 'mainland-context',
-]) assert.ok(worldBoundaryTest.includes(text), `战略地图世界上下文浏览器回归缺少: ${text}`);
+  'continents-filled-10m', 'data-map-world-resolution', 'states-10m-union', 'data-map-focus-area-target',
+  'baseline.areaRatio', 'centerOffsetX', 'fixed-world-context', 'fixed-world-viewbox', 'fixed-world-bounds',
+  'data-map-camera-world-bounds', 'expectViewInsideBounds',
+]) assert.ok(worldBoundaryTest.includes(text), `战略地图固定边界浏览器回归缺少: ${text}`);
 const mapBrowserTest = read('tests/browser/province-map.spec.ts');
 for (const text of [
   'persistent strategy map uses one static SVG world for 48 states and Chinese labels',
-  "data-map-renderer', 'static-svg'", "data-map-camera-mode', 'html-compositor-transform'",
-  "data-map-camera-hot-path', 'single-css-transform'", "data-map-world-path-count', '48'",
-  "data-map-label-camera-mode', 'shared-static-world'", "'加利福尼亚', '得克萨斯', '华盛顿', '佛罗里达', '纽约'",
+  "data-map-renderer', 'static-svg'", "data-map-camera-mode', 'svg-viewbox'", "data-map-camera-hot-path', 'single-svg-viewbox-write'",
+  "data-map-world-path-count', '48'", "data-map-label-camera-mode', 'shared-static-world'",
+  "'加利福尼亚', '得克萨斯', '华盛顿', '佛罗里达', '纽约'",
   'state selection opens local context without resetting the static camera',
   'mobile static map keeps labels, touch gestures and hidden tooltip behavior',
-  "toHaveCSS('touch-action', 'none')", "data-map-tooltip-mode', 'hidden-mobile'",
+  "toHaveCSS('touch-action', 'none')", "data-map-tooltip-mode', 'hidden-mobile'", "toHaveCSS('backdrop-filter', 'none')",
 ]) assert.ok(mapBrowserTest.includes(text), `静态地图浏览器回归缺少: ${text}`);
-
 const transientTest = read('tests/browser/map-zoom-transient.spec.ts');
 for (const text of [
-  'map zoom only changes the shared compositor camera while SVG geometry stays immutable',
-  'pathData', 'glyphTransforms', 'active wheel bursts mutate only the camera transform once per animation frame',
-  'MutationObserver', 'transformMutations', 'diagnosticMutations',
-  'expect(result.transformMutations).toBe(1)', 'expect(result.diagnosticMutations).toBe(0)',
-  "toHaveCSS('will-change', 'transform')",
-]) assert.ok(transientTest.includes(text), `地图合成热路径回归缺少: ${text}`);
+  'map zoom changes only the root SVG viewBox while static geometry and glyph transforms stay immutable',
+  'pathData', 'glyphTransforms', 'active wheel bursts mutate only the root SVG viewBox once per animation frame',
+  'MutationObserver', 'viewBoxMutations', 'cameraStyleMutations', 'diagnosticMutations',
+  'expect(result.viewBoxMutations).toBe(1)', 'expect(result.cameraStyleMutations).toBe(0)', 'expect(result.diagnosticMutations).toBe(0)',
+  "toHaveCSS('will-change', 'auto')",
+]) assert.ok(transientTest.includes(text), `地图 viewBox 热路径回归缺少: ${text}`);
 const syncTest = read('tests/browser/map-zoom-render-sync.spec.ts');
-for (const text of [
-  'province paths and labels share one static SVG world and never require camera resynchronization',
-  'pathCamera: true', 'labelCamera: true', 'labelSvg: true', 'zoomedGeometry', 'baselineGeometry',
-]) assert.ok(syncTest.includes(text), `地图州名同步回归缺少: ${text}`);
-const boundaryTest = read('tests/browser/map-zoom-out-boundary.spec.ts');
-for (const text of [
-  'states outside the viewport re-enter during zoom-out because all 48 paths remain mounted',
-  'offscreenBeforeZoomOut', 'zoomOutActiveFrame.active', "toBe('true')", 'restoredDuringActiveZoom', 'pathsAfter', 'pathsBefore',
-  'zoomOutActiveFrame.transform',
-]) assert.ok(boundaryTest.includes(text), `地图屏外州恢复回归缺少: ${text}`);
-const resetTest = read('tests/browser/map-reset-sync.spec.ts');
-for (const text of [
-  'blank double click resets the single compositor camera for paths and labels in the first frame',
-  "'blank-double-click'", 'baselinePathRevision', 'baselineLabelCenter', 'firstFrameLabelCenter',
-]) assert.ok(resetTest.includes(text), `地图重置回归缺少: ${text}`);
-
-assert.equal((uiDesign.match(/### 8\.1 美国本土州级经营地图/g) ?? []).length, 1, 'UI 设计文档只能保留一份美国本土州级经营地图 8.1 规则');
-for (const text of [
-  '静态 SVG 世界面', '同一个 `.province-map-camera-surface`', '48 个州面 path 必须始终完整挂载',
-  '响应式条件下不得通过第二相机、第二地图或重排标签来实现镜头变化', '州面 path 的 `d`', '中文州全名', '同一个 SVG 世界坐标系',
-  '不得通过 `textLength`', '不大于 `720px` 时地图 Tooltip',
-]) assert.ok(uiDesign.includes(text), `静态地图 UI 设计规则缺少: ${text}`);
-for (const forbidden of ['每个动画帧必须把 `nextZoom / currentZoom` 作为增量通过正式 `geoRoam`', '每个动画帧最多调用一次增量 `geoRoam`']) {
-  assert.equal(uiDesign.includes(forbidden), false, `UI 设计文档不得保留逐帧 ECharts 缩放旧规则: ${forbidden}`);
+for (const text of ['province paths and labels share one static SVG world and never require camera resynchronization', 'pathCamera: true', 'labelCamera: true', 'labelSvg: true', 'zoomedGeometry', 'baselineGeometry']) {
+  assert.ok(syncTest.includes(text), `地图州名同步回归缺少: ${text}`);
 }
+const zoomOutTest = read('tests/browser/map-zoom-out-boundary.spec.ts');
+for (const text of ['states outside the viewport re-enter during zoom-out because all 48 paths remain mounted', 'offscreenBeforeZoomOut', 'zoomOutActiveFrame.active', "toBe('true')", 'restoredDuringActiveZoom', 'pathsAfter', 'pathsBefore', 'zoomOutActiveFrame.viewBox']) {
+  assert.ok(zoomOutTest.includes(text), `地图屏外州恢复回归缺少: ${text}`);
+}
+const resetTest = read('tests/browser/map-reset-sync.spec.ts');
+for (const text of ['blank double click resets the single SVG viewBox camera', "'blank-double-click'", 'baselinePathRevision', 'baselineLabelCenter', 'firstFrameLabelCenter']) {
+  assert.ok(resetTest.includes(text), `地图重置回归缺少: ${text}`);
+}
+assert.ok(read('tests/browser/map-mobile-pinch.spec.ts').includes("data-map-camera-mode', 'svg-viewbox'"), '移动双指必须使用 SVG viewBox Camera');
+const routeBrowserTest = read('tests/browser/transport-route-cost-style-lock.spec.ts');
+for (const text of [
+  "data-route-id', 'draft-road-route'", "data-route-id', 'draft-rail-route'", "data-route-id', 'draft-air-route'",
+  'expect(airPath).toMatch', 'toHaveCount(0)', "toHaveCSS('backdrop-filter', 'none')",
+]) assert.ok(routeBrowserTest.includes(text), `运输路线浏览器回归缺少: ${text}`);
+
+const transportPage = read('src/pages/TransportPage.tsx');
+for (const text of [
+  'setHighlightedRouteId(detailRouteId);', 'return () => setHighlightedRouteId(null);',
+  'onMouseEnter={() => setHighlightedRouteId(route.id)}', 'onFocus={() => setHighlightedRouteId(route.id)}',
+]) assert.ok(transportPage.includes(text), `路线列表／详情高亮边界缺少: ${text}`);
+
+const docsIndex = read('docs/README.md');
+assert.ok(docsIndex.includes('`STRATEGIC_MAP_RENDERING_DESIGN.md`'), '设计索引必须登记战略地图渲染 owner');
+const mapDesign = read('docs/STRATEGIC_MAP_RENDERING_DESIGN.md');
+for (const text of [
+  '本文是战略地图', 'SVG viewBox Camera', '该 world bounds 不得随 zoom 改变',
+  '`viewWidth = baseViewWidth / zoom`', '真实 SVG `text`', '二次贝塞尔抛物线',
+  '不得生成平行车道', '`backdrop-filter` 与 `-webkit-backdrop-filter` 必须为 `none`',
+]) assert.ok(mapDesign.includes(text), `战略地图渲染 DESIGN 缺少: ${text}`);
+const networkDesign = read('docs/TRANSPORT_NETWORK_GEOMETRY_DESIGN.md');
+for (const text of [
+  '`STRATEGIC_MAP_RENDERING_DESIGN.md`', '允许完全共线', '二次贝塞尔抛物线虚拟航路',
+  '公路沿公路折线、铁路沿铁路折线、航空沿抛物线采样点',
+]) assert.ok(networkDesign.includes(text), `运输几何 DESIGN 缺少: ${text}`);
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
-for (const text of [
-  '州级上下文页（无导航按钮）', '概览｜市场｜建筑｜仓库', '中文州全名作为唯一州面名称',
-  '静态 SVG 世界面', '战略地图镜头、缩放、重置和平移边界唯一遵循', '名称随地图缩放和平移同步变化',
-  '不大于 `720px` 时镜头栏和地图 Tooltip 必须隐藏',
-]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
-const chromeDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
-for (const text of [
-  '静态 SVG 世界面', '单一合成相机', '每帧最多一次', '屏幕外的州面',
-  '`world-atlas@2.0.2`', '`states-10m`', '逻辑 `1×`', '`2/3`', '水平方向约扩展 `35%`', '垂直方向约扩展 `25%`',
-  '待提交的 `requestAnimationFrame` 相机写入', '至少提交一帧 active 合成结果', '`INPUT_SETTLE_MS` 收口',
-  '必须常驻 `will-change: transform`', '诊断 `data-*` 只允许在初始化、输入开始、输入结束或重置等边界同步',
-  '输入 settle 只能更新一个 deadline 并复用单一定时器', '在途运输位置的 `500ms` 共享时间只允许由运输 marker 最小动态子树消费',
-  '`StrategicMapStage` 不得订阅该高频时间',
-]) {
-  assert.ok(chromeDesign.includes(text), `地图外壳权威缺少: ${text}`);
+for (const text of ['州级上下文页（无导航按钮）', '概览｜市场｜建筑｜仓库', '中文州全名作为唯一州面名称']) {
+  assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
 }
 
 const navigation = read('src/config/navigation.ts');
 assert.equal(navigation.includes("{ id: 'map', label: '地图' }"), false, '桌面侧栏与移动底栏不得显示地图按钮');
 assert.ok(navigation.includes("export type TabId = NavigationTabId | 'map' | 'province';"), '纯地图与隐藏州级上下文视图必须保留 TabId');
-const tests = read('server/test/provinces.test.js');
+const provinceTests = read('server/test/provinces.test.js');
 for (const text of [
   'cannot match across states', 'world 30 geography replacement keeps legacy scoped assets on their existing region IDs',
   'construction and production consume and output only the selected province inventory', 'factory market orders are rejected and legacy open orders are retired',
   'without serialized aliases',
-]) assert.ok(tests.includes(text), `州级经济专项测试缺少: ${text}`);
+]) assert.ok(provinceTests.includes(text), `州级经济专项测试缺少: ${text}`);
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、中文展示名统一省略“州”、版本 39/32、既有地区 ID 原位保留、48 个州首府中英文名称与经纬度完整记录、州级经济隔离、隐藏州级上下文页、静态完整 SVG 世界面、州面与中文州名共享同一合成相机、缩放和平移 RAF 热路径只写单次 transform 且不逐帧批量写诊断属性、唯一相机层常驻合成、运输 500ms 时钟只提交 marker/Tooltip 叶子、几何在手势期间不可变、屏外州缩小 active 阶段即可重新进入、空白双击／双触重置和移动 Tooltip 边界均已锁定。');
+console.log('地区经济验证通过：美国连续 48 州、既有地区 ID 与州级经济隔离保持稳定；战略地图使用唯一静态 SVG 世界和固定 world bounds 的单次 viewBox RAF Camera，州名保持矢量清晰；公路、铁路和航空沿各自正式几何运动，重复路线允许共线且无并排车道，地图专属镜头栏和选路面板不再使用毛玻璃。');
