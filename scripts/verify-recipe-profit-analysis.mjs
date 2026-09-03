@@ -244,7 +244,7 @@ for (const text of [
   'const market = game.markets[product.id];',
   ': selectedFacility ? game.facilityMarkets[selectedFacility.id] : undefined;',
   'lastTradePrice: typeof market?.lastTradePrice === \'number\' ? market.lastTradePrice : undefined',
-  "const marketPrice = typeof market?.officialPrice === 'number' ? market.officialPrice : undefined;",
+  "marketPrice: typeof market?.officialPrice === 'number' ? market.officialPrice : undefined,",
   'marketPrice={entry.marketPrice}',
 ]) assert.ok(marketPageSource.includes(text), `地区市场目录缺少官方价／真实成交边界: ${text}`);
 for (const text of [
