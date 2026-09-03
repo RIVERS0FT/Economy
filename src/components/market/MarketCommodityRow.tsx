@@ -6,7 +6,6 @@ import {
   EntityListHeader,
   nextEntityListSort,
   type EntityListSortDirection,
-  type EntityListSortState,
 } from '../ui/EntityListHeader';
 import { formatCurrency } from '../../utils/formatters';
 import '../../styles/market-commodity-row.css';
@@ -24,7 +23,10 @@ const MARKET_SORT_DEFAULT_DIRECTION: Record<MarketCommoditySortKey, MarketSortDi
   volume24h: 'desc',
 };
 
-export type MarketCommoditySortState = EntityListSortState<Exclude<MarketCommoditySortKey, 'catalog'>>;
+export interface MarketCommoditySortState {
+  key: MarketCommoditySortKey;
+  direction: MarketSortDirection;
+}
 
 export function nextMarketCommoditySort(
   clickedKey: Exclude<MarketCommoditySortKey, 'catalog'>,
