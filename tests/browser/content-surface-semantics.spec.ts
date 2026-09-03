@@ -4,7 +4,7 @@ test('scrolling page keeps complex business objects distinct without frosted gla
   await page.setViewportSize({ width: 1440, height: 900 });
 
   await page.goto('runtime-test.html?view=contracts');
-  const contractCard = page.locator('.contract-active-grid .contract-card').first();
+  const contractCard = page.locator('.contract-master-detail-panel .contract-card').first();
   const contractSummary = page.locator('.contract-summary-grid .ui-metric-card').first();
   await expect(contractCard).toBeVisible();
   await expect(contractSummary).toBeVisible();

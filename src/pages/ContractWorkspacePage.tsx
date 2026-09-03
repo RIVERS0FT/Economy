@@ -39,7 +39,7 @@ import '../styles/contract-audit.css';
 import '../styles/contract-negotiation.css';
 import '../styles/contract-commercial.css';
 
-type PersonalContractView = 'active' | 'history';
+type ContractWorkspaceView = 'workbench' | 'market' | 'active' | 'history';
 type PublishType = 'supply' | 'purchase' | 'lend' | 'borrow' | 'lease-out' | 'lease-in';
 type HistoryRole = 'any' | 'publisher' | 'buyer' | 'supplier' | 'lender' | 'borrower' | 'lessor' | 'lessee';
 type RunAction = (key: string, operation: () => Promise<{ result: { ok: boolean; message: string } }>) => Promise<void>;
@@ -211,7 +211,6 @@ function CommercialContractActions({ contract, busy, run }: { contract: Producti
   }
   return null;
 }
-
 
 function LegacyRenewalResolution({ contract, busy, run }: { contract: ProductionContract; busy: boolean; run: RunAction }) {
   const proposal = contract.kind === 'supply' && contract.supplyMode !== 'daily' ? contract.renewalProposal : null;
@@ -534,13 +533,16 @@ function ContractPerformancePanel({ performance, error }: { performance: Contrac
 export function ContractWorkspacePage({ model }: { model: TutorialAwareGameViewModel }) {
   const state = productionContractStateFromGame(model.game);
   const intent = useMemo(() => consumeContractMarketIntent(), []);
-  const [personalView, setPersonalView] = useState<PersonalContractView>('active');
+  const [workspaceView, setWorkspaceView] = useState<ContractWorkspaceView>(intent?.productId ? 'market' : 'workbench');
   const [showPublish, setShowPublish] = useState(false);
   const [republish, setRepublish] = useState<ContractAuditHistoryItem | null>(null);
   const [busyKey, setBusyKey] = useState('');
   const [marketKind, setMarketKind] = useState<ContractKind | ''>(intent?.productId ? 'supply' : '');
+  const [marketDirection, setMarketDirection] = useState<'' | 'purchase' | 'supply'>(intent?.direction ?? '');
   const [marketProductId, setMarketProductId] = useState(intent?.productId ?? '');
   const [marketProvinceId, setMarketProvinceId] = useState(intent?.provinceId ?? model.selectedProvinceId);
+  const [selectedOpenContractId, setSelectedOpenContractId] = useState('');
+  const [selectedActiveContractId, setSelectedActiveContractId] = useState('');
   const [historyItems, setHistoryItems] = useState<ContractAuditHistoryItem[]>([]);
   const [historyStatus, setHistoryStatus] = useState<ProductionContractStatus | ''>('');
   const [historyKind, setHistoryKind] = useState<ContractKind | ''>('');
@@ -565,7 +567,15 @@ export function ContractWorkspacePage({ model }: { model: TutorialAwareGameViewM
   const activeContracts = state.productionContracts.filter((contract) => contract.status === 'active' && (contract.isParticipant || contract.isBuyer || contract.isSupplier || contract.isLender || contract.isBorrower || contract.isLessor || contract.isLessee)).sort((a, b) => Number(isConfirmedDefault(b)) - Number(isConfirmedDefault(a)) || Number(contractNeedsAttention(b)) - Number(contractNeedsAttention(a)) || Number(a.nextDueAt || Infinity) - Number(b.nextDueAt || Infinity));
   const pendingContracts = activeContracts.filter(contractNeedsAttention);
   const allOpen = state.productionContracts.filter((contract) => contract.status === 'open');
-  const openContracts = allOpen.filter((contract) => (!marketKind || contract.kind === marketKind) && (!marketProductId || contract.productId === marketProductId) && (!marketProvinceId || !contract.provinceId || contract.provinceId === marketProvinceId));
+  const openContracts = allOpen.filter((contract) => (
+    (!marketKind || contract.kind === marketKind)
+    && (!marketProductId || contract.productId === marketProductId)
+    && (!marketProvinceId || !contract.provinceId || contract.provinceId === marketProvinceId)
+    && (!marketDirection || contract.kind !== 'supply' || (marketDirection === 'purchase' ? contract.publisherRole === 'supplier' : contract.publisherRole === 'buyer'))
+  ));
+  const selectedOpenContract = openContracts.find((contract) => contract.id === selectedOpenContractId) ?? openContracts[0] ?? null;
+  const preferredActiveContracts = pendingContracts.length ? pendingContracts : activeContracts;
+  const selectedActiveContract = activeContracts.find((contract) => contract.id === selectedActiveContractId) ?? preferredActiveContracts[0] ?? null;
 
   const run: RunAction = async (key, operation) => {
     if (busyKey) return;
@@ -599,53 +609,84 @@ export function ContractWorkspacePage({ model }: { model: TutorialAwareGameViewM
     to: historyTo ? new Date(`${historyTo}T23:59:59.999`).getTime() : null,
   }), [historyStatus, historyKind, historyRole, historyProductId, historyFrom, historyTo]);
   useEffect(() => {
-    if (personalView !== 'history') return;
+    if (workspaceView !== 'history') return;
     let cancelled = false; setHistoryLoading(true); setHistoryError('');
     void productionContractAudit.history(historyQuery).then((page) => { if (!cancelled) { setHistoryItems(page.items); setHistoryNextCursor(page.nextCursor); } }).catch((reason) => { if (!cancelled) setHistoryError(reason instanceof Error ? reason.message : '合同历史读取失败'); }).finally(() => { if (!cancelled) setHistoryLoading(false); });
     return () => { cancelled = true; };
-  }, [personalView, historyQuery]);
+  }, [workspaceView, historyQuery]);
+
+  const contractListItem = (contract: ProductionContract, selected: boolean, onSelect: () => void) => (
+    <Button key={contract.id} variant="text" className={`contract-master-list-item${selected ? ' active' : ''}${contractNeedsAttention(contract) ? ' attention' : ''}`} aria-pressed={selected} onClick={onSelect}>
+      <span className="contract-master-list-copy"><strong>{labelFor(contract)}</strong><small>{roleTag(contract)}{contract.kind === 'supply' ? ` · 固定价 ${formatCurrency(contract.unitPrice)}` : ''}</small></span>
+      <StatusTag tone={statusTone(contract)}>{contractNeedsAttention(contract) ? '待处理' : STATUS_LABELS[contract.status]}</StatusTag>
+    </Button>
+  );
 
   return (
-    <PageLayout title="合同" description="商品合同按地区使用固定价格与每日最大供应量；工厂会比较同州合同价和真实市场可执行价格后选择输入来源。所有合同时间在界面与 API 中统一以天表达。">
+    <PageLayout title="合同">
       <div className="contract-content-actions"><Button onClick={() => { setRepublish(null); setShowPublish((value) => !value); }}>{showPublish ? '收起发布表单' : '发布合同'}</Button></div>
       <div className="contract-summary-grid">
+        <MetricCard label="等待我处理" value={<CompactNumber value={state.productionContractSummary.needsAttention} />} detail="议价、资金、商品或合同边界" tone={state.productionContractSummary.needsAttention ? 'warning' : 'success'} />
+        <MetricCard label="24 小时内履约" value={<CompactNumber value={state.productionContractSummary.upcomingWithin24Hours} />} detail="自然日、到期或租期边界" />
         <MetricCard label="进行中的合同" value={<CompactNumber value={state.productionContractSummary.active} />} detail="供货、借贷或租赁" tone="info" />
-        <MetricCard label="等待我处理" value={<CompactNumber value={state.productionContractSummary.needsAttention} />} detail="资金、商品或合同边界" tone={state.productionContractSummary.needsAttention ? 'warning' : 'success'} />
-        <MetricCard label="1 天内边界" value={<CompactNumber value={state.productionContractSummary.upcomingWithin24Hours} />} detail="下一自然日、到期或租期" />
         <MetricCard label="我的公开合同" value={<CompactNumber value={state.productionContractSummary.open} />} detail="尚未承接" />
       </div>
       {showPublish ? <PublishPanel key={republish?.id || 'new'} model={model} busy={Boolean(busyKey)} close={() => { setShowPublish(false); setRepublish(null); }} run={run} initial={republish} /> : null}
-      <div className="contract-workspace">
-        <section className="contract-workspace-pane contract-market-pane" aria-label="合同广场">
-          <header className="contract-pane-heading"><div><h2>合同广场</h2><p>公开商品合同按地区筛选；每日额度合同支持结构化议价。</p></div><StatusTag>{openContracts.length} / {allOpen.length} 个公开合同</StatusTag></header>
-          <div className="contract-market-filters">
-            <SelectInput label="合同领域" value={marketKind} onChange={(event) => setMarketKind(event.target.value as ContractKind | '')}><option value="">全部领域</option><option value="supply">商品合作</option><option value="loan">资金借贷</option><option value="facility_lease">工厂租赁</option></SelectInput>
-            <SelectInput label="地区" value={marketProvinceId} onChange={(event) => setMarketProvinceId(event.target.value)}><option value="">全部地区</option>{model.game.provinces.map((province) => <option key={province.id} value={province.id}>{province.name}</option>)}</SelectInput>
-            <SelectInput label="商品" value={marketProductId} onChange={(event) => { setMarketProductId(event.target.value); if (event.target.value) setMarketKind('supply'); }}><option value="">全部商品</option>{model.game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</SelectInput>
+      <nav className="ui-segmented contract-workspace-tabs" role="tablist" aria-label="合同工作区">
+        <Button variant="text" role="tab" aria-selected={workspaceView === 'workbench'} className={workspaceView === 'workbench' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setWorkspaceView('workbench')}>工作台 {pendingContracts.length ? <span className="contract-tab-attention-count">{pendingContracts.length}</span> : null}</Button>
+        <Button variant="text" role="tab" aria-selected={workspaceView === 'market'} className={workspaceView === 'market' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setWorkspaceView('market')}>合同市场 <span className="contract-tab-count">{allOpen.length}</span></Button>
+        <Button variant="text" role="tab" aria-selected={workspaceView === 'active'} className={workspaceView === 'active' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setWorkspaceView('active')}>我的合同 <span className="contract-tab-count">{activeContracts.length}</span></Button>
+        <Button variant="text" role="tab" aria-selected={workspaceView === 'history'} className={workspaceView === 'history' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setWorkspaceView('history')}>历史</Button>
+      </nav>
+
+      {workspaceView === 'workbench' ? <>
+        <section className="contract-workspace-pane contract-workbench" aria-label="合同工作台" role="tabpanel" tabIndex={0}>
+          <header className="contract-pane-heading"><div><h2>今日合同工作台</h2><p>优先处理会阻塞供应链、资金或合同边界的事项，再查看下一份即将履约的合同。</p></div><StatusTag tone={pendingContracts.length ? 'warning' : 'success'}>{pendingContracts.length ? `${pendingContracts.length} 项待处理` : '当前正常'}</StatusTag></header>
+          <div className="contract-master-detail">
+            <div className="contract-master-list" aria-label="待处理与近期合同">{preferredActiveContracts.length ? preferredActiveContracts.map((contract) => contractListItem(contract, selectedActiveContract?.id === contract.id, () => setSelectedActiveContractId(contract.id))) : <EmptyState>当前没有进行中的合同。</EmptyState>}</div>
+            <div className="contract-master-detail-panel">{selectedActiveContract ? <ActiveContractCard contract={selectedActiveContract} label={labelFor(selectedActiveContract)} busy={Boolean(busyKey)} run={run} /> : <EmptyState>签订合同后，这里会显示下一项需要处理的履约关系。</EmptyState>}</div>
           </div>
-          <div className="contract-pane-grid contract-market-grid">{openContracts.length ? openContracts.map((contract) => <OpenContractCard key={contract.id} contract={contract} label={labelFor(contract)} busy={Boolean(busyKey)} run={run} />) : <EmptyState>当前没有符合筛选条件的公开合同。</EmptyState>}</div>
         </section>
-        <section className="contract-workspace-pane contract-personal-pane" aria-label="我的合同">
-          <header className="contract-pane-heading contract-personal-heading"><div><h2>我的合同</h2><p>待处理合同优先显示；商品每日额度不要求每天强制用满。</p></div><nav className="ui-segmented contract-personal-tabs" role="tablist" aria-label="我的合同分类"><Button variant="text" role="tab" aria-selected={personalView === 'active'} className={personalView === 'active' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setPersonalView('active')}>进行中的合同 <span className="contract-tab-count">{activeContracts.length}</span>{pendingContracts.length ? <span className="contract-tab-attention-count">待处理 {pendingContracts.length}</span> : null}</Button><Button variant="text" role="tab" aria-selected={personalView === 'history'} className={personalView === 'history' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setPersonalView('history')}>历史合同</Button></nav></header>
-          <section className={`contract-personal-content${personalView === 'active' ? ' contract-active-grid' : ''}`} role="tabpanel" tabIndex={0}>
-            {personalView === 'active' ? (activeContracts.length ? activeContracts.map((contract) => <ActiveContractCard key={contract.id} contract={contract} label={labelFor(contract)} busy={Boolean(busyKey)} run={run} />) : <EmptyState>当前没有进行中的合同。</EmptyState>) : (
-              <PagePanel className="contract-history-panel">
-                <div className="contract-history-filters">
-                  <SelectInput label="合同领域" value={historyKind} onChange={(event) => setHistoryKind(event.target.value as ContractKind | '')}><option value="">全部领域</option><option value="supply">商品合作</option><option value="loan">资金借贷</option><option value="facility_lease">工厂租赁</option></SelectInput>
-                  <SelectInput label="最终状态" value={historyStatus} onChange={(event) => setHistoryStatus(event.target.value as ProductionContractStatus | '')}><option value="">全部状态</option><option value="completed">已完成</option><option value="terminated">已终止</option><option value="cancelled">已取消</option><option value="expired">已过期</option></SelectInput>
-                  <SelectInput label="我的角色" value={historyRole} onChange={(event) => setHistoryRole(event.target.value as HistoryRole)}><option value="any">全部角色</option><option value="buyer">我采购</option><option value="supplier">我供货</option><option value="lender">我放贷</option><option value="borrower">我贷款</option><option value="lessor">我出租</option><option value="lessee">我租赁</option><option value="publisher">我发布</option></SelectInput>
-                  <SelectInput label="合同标的" value={historyProductId} onChange={(event) => setHistoryProductId(event.target.value)}><option value="">全部标的</option><option value="credits">普通货币</option>{model.game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}{model.game.facilityTypes.map((facility) => <option key={`facility:${facility.id}`} value={`facility:${facility.id}`}>{facility.name}</option>)}</SelectInput>
-                  <TextInput label="开始日期" type="date" value={historyFrom} onChange={(event) => setHistoryFrom(event.target.value)} /><TextInput label="结束日期" type="date" value={historyTo} onChange={(event) => setHistoryTo(event.target.value)} />
-                </div>
-                {historyError ? <p className="contract-issue">{historyError}</p> : null}{historyLoading && !historyItems.length ? <p>正在读取权威合同历史…</p> : null}{!historyLoading && !historyItems.length && !historyError ? <EmptyState>当前没有符合筛选条件的已结束合同。</EmptyState> : null}
-                {historyItems.map((contract) => <HistoryRow key={contract.id} contract={contract} label={labelFor(contract)} productName={products.get(contract.productId) || contract.productId} facilityName={facilities.get(contract.facilityTypeId || '') || contract.facilityTypeId || '—'} provinceName={contract.provinceId ? provinces.get(contract.provinceId) || contract.provinceId : '—'} republish={() => startRepublish(contract)} />)}
-                {historyNextCursor ? <Button variant="text" disabled={historyLoading} onClick={() => { setHistoryLoading(true); void productionContractAudit.history({ ...historyQuery, cursor: historyNextCursor }).then((page) => { setHistoryItems((current) => [...current, ...page.items]); setHistoryNextCursor(page.nextCursor); }).finally(() => setHistoryLoading(false)); }}>加载更多合同历史</Button> : null}
-              </PagePanel>
-            )}
-          </section>
-        </section>
-      </div>
-      <ContractPerformancePanel performance={contractPerformance} error={contractPerformanceError} />
+        <ContractPerformancePanel performance={contractPerformance} error={contractPerformanceError} />
+      </> : null}
+
+      {workspaceView === 'market' ? <section className="contract-workspace-pane contract-market-pane" aria-label="合同市场" role="tabpanel" tabIndex={0}>
+        <header className="contract-pane-heading"><div><h2>合同市场</h2><p>先筛选合作方向，再在左侧比较公开合同，右侧查看完整条款、议价并承接。</p></div><StatusTag>{openContracts.length} / {allOpen.length} 个公开合同</StatusTag></header>
+        <div className="contract-market-filters">
+          <SelectInput label="合同领域" value={marketKind} onChange={(event) => setMarketKind(event.target.value as ContractKind | '')}><option value="">全部领域</option><option value="supply">商品合作</option><option value="loan">资金借贷</option><option value="facility_lease">工厂租赁</option></SelectInput>
+          <SelectInput label="合作方向" value={marketDirection} onChange={(event) => { setMarketDirection(event.target.value as '' | 'purchase' | 'supply'); if (event.target.value) setMarketKind('supply'); }}><option value="">全部方向</option><option value="purchase">我要采购</option><option value="supply">我要供货</option></SelectInput>
+          <SelectInput label="地区" value={marketProvinceId} onChange={(event) => setMarketProvinceId(event.target.value)}><option value="">全部地区</option>{model.game.provinces.map((province) => <option key={province.id} value={province.id}>{province.name}</option>)}</SelectInput>
+          <SelectInput label="商品" value={marketProductId} onChange={(event) => { setMarketProductId(event.target.value); if (event.target.value) setMarketKind('supply'); }}><option value="">全部商品</option>{model.game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</SelectInput>
+        </div>
+        <div className="contract-master-detail contract-market-master-detail">
+          <div className="contract-master-list" aria-label="公开合同列表">{openContracts.length ? openContracts.map((contract) => contractListItem(contract, selectedOpenContract?.id === contract.id, () => setSelectedOpenContractId(contract.id))) : <EmptyState>当前没有符合筛选条件的公开合同。</EmptyState>}</div>
+          <div className="contract-master-detail-panel">{selectedOpenContract ? <OpenContractCard contract={selectedOpenContract} label={labelFor(selectedOpenContract)} busy={Boolean(busyKey)} run={run} /> : <EmptyState>选择公开合同后查看完整条款。</EmptyState>}</div>
+        </div>
+      </section> : null}
+
+      {workspaceView === 'active' ? <section className="contract-workspace-pane contract-personal-pane" aria-label="我的合同" role="tabpanel" tabIndex={0}>
+        <header className="contract-pane-heading"><div><h2>我的合同</h2><p>待处理合同优先排序；选择一份合同后在右侧完成履约、自动化和结束操作。</p></div><StatusTag>{activeContracts.length} 份进行中</StatusTag></header>
+        <div className="contract-master-detail">
+          <div className="contract-master-list" aria-label="进行中的合同列表">{activeContracts.length ? activeContracts.map((contract) => contractListItem(contract, selectedActiveContract?.id === contract.id, () => setSelectedActiveContractId(contract.id))) : <EmptyState>当前没有进行中的合同。</EmptyState>}</div>
+          <div className="contract-master-detail-panel">{selectedActiveContract ? <ActiveContractCard contract={selectedActiveContract} label={labelFor(selectedActiveContract)} busy={Boolean(busyKey)} run={run} /> : <EmptyState>当前没有进行中的合同。</EmptyState>}</div>
+        </div>
+      </section> : null}
+
+      {workspaceView === 'history' ? <section className="contract-workspace-pane contract-history-workspace" aria-label="历史合同" role="tabpanel" tabIndex={0}>
+        <header className="contract-pane-heading"><div><h2>历史合同</h2><p>按真实结束事实筛选历史合同，可重新拟定但不会复制旧合同的运行状态。</p></div></header>
+        <PagePanel className="contract-history-panel">
+          <div className="contract-history-filters">
+            <SelectInput label="合同领域" value={historyKind} onChange={(event) => setHistoryKind(event.target.value as ContractKind | '')}><option value="">全部领域</option><option value="supply">商品合作</option><option value="loan">资金借贷</option><option value="facility_lease">工厂租赁</option></SelectInput>
+            <SelectInput label="最终状态" value={historyStatus} onChange={(event) => setHistoryStatus(event.target.value as ProductionContractStatus | '')}><option value="">全部状态</option><option value="completed">已完成</option><option value="terminated">已终止</option><option value="cancelled">已取消</option><option value="expired">已过期</option></SelectInput>
+            <SelectInput label="我的角色" value={historyRole} onChange={(event) => setHistoryRole(event.target.value as HistoryRole)}><option value="any">全部角色</option><option value="buyer">我采购</option><option value="supplier">我供货</option><option value="lender">我放贷</option><option value="borrower">我贷款</option><option value="lessor">我出租</option><option value="lessee">我租赁</option><option value="publisher">我发布</option></SelectInput>
+            <SelectInput label="合同标的" value={historyProductId} onChange={(event) => setHistoryProductId(event.target.value)}><option value="">全部标的</option><option value="credits">普通货币</option>{model.game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}{model.game.facilityTypes.map((facility) => <option key={`facility:${facility.id}`} value={`facility:${facility.id}`}>{facility.name}</option>)}</SelectInput>
+            <TextInput label="开始日期" type="date" value={historyFrom} onChange={(event) => setHistoryFrom(event.target.value)} /><TextInput label="结束日期" type="date" value={historyTo} onChange={(event) => setHistoryTo(event.target.value)} />
+          </div>
+          {historyError ? <p className="contract-issue">{historyError}</p> : null}{historyLoading && !historyItems.length ? <p>正在读取权威合同历史…</p> : null}{!historyLoading && !historyItems.length && !historyError ? <EmptyState>当前没有符合筛选条件的已结束合同。</EmptyState> : null}
+          {historyItems.map((contract) => <HistoryRow key={contract.id} contract={contract} label={labelFor(contract)} productName={products.get(contract.productId) || contract.productId} facilityName={facilities.get(contract.facilityTypeId || '') || contract.facilityTypeId || '—'} provinceName={contract.provinceId ? provinces.get(contract.provinceId) || contract.provinceId : '—'} republish={() => startRepublish(contract)} />)}
+          {historyNextCursor ? <Button variant="text" disabled={historyLoading} onClick={() => { setHistoryLoading(true); void productionContractAudit.history({ ...historyQuery, cursor: historyNextCursor }).then((page) => { setHistoryItems((current) => [...current, ...page.items]); setHistoryNextCursor(page.nextCursor); }).finally(() => setHistoryLoading(false)); }}>加载更多合同历史</Button> : null}
+        </PagePanel>
+      </section> : null}
     </PageLayout>
   );
 }
