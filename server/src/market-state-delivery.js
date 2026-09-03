@@ -14,6 +14,14 @@ import {
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 const DETAIL_DEPTH_LIMIT = 5;
+const EMPTY_PUBLIC_ORDER_BOOK = Object.freeze({
+  buyVolume: 0,
+  sellVolume: 0,
+  buyOrderCount: 0,
+  sellOrderCount: 0,
+  bestBid: null,
+  bestAsk: null,
+});
 
 function publicPricePoint(point) {
   return {
@@ -114,7 +122,9 @@ export function createMarketSummary(market, world, {
     ...(assetKind === 'commodity' && economicEventWindows?.length > 0
       ? { eventTradeWindows: summarizeEventWindows(market, economicEventWindows) }
       : {}),
-    ...orderBookSummary(world, provinceId, assetKind, assetId),
+    ...(assetKind === 'commodity'
+      ? EMPTY_PUBLIC_ORDER_BOOK
+      : orderBookSummary(world, provinceId, assetKind, assetId)),
   };
 }
 
@@ -194,14 +204,14 @@ export function createMarketDetail(world, {
       : undefined,
   });
   const priceHistory = realTradePoints(market, now).map(publicPricePoint);
-  const bids = publicDepth(getOrderBookDepth(world, {
+  const bids = assetKind === 'commodity' ? [] : publicDepth(getOrderBookDepth(world, {
     provinceId: normalizedProvinceId,
     assetKind,
     assetId,
     side: 'buy',
     limit: DETAIL_DEPTH_LIMIT,
   }), 'buy');
-  const asks = publicDepth(getOrderBookDepth(world, {
+  const asks = assetKind === 'commodity' ? [] : publicDepth(getOrderBookDepth(world, {
     provinceId: normalizedProvinceId,
     assetKind,
     assetId,
