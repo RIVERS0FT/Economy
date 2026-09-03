@@ -26,7 +26,10 @@ const networkAdapter = read('src/components/provinces/provinceMapTransportNetwor
 const layoutSource = read('src/components/provinces/provinceMapRouteLayout.ts');
 const generator = read('scripts/generate-transport-capital-routes.mjs');
 const viteConfig = read('vite.config.ts');
+const provinces = JSON.parse(read('shared/provinces.json'));
 const generated = JSON.parse(read('src/generated/transport-capital-routes.json'));
+const expectedPairCount = provinces.length * (provinces.length - 1) / 2;
+const naturalEarthCommit = 'ca96624a56bd078437bca8184e78163e5039ad19';
 
 for (const text of [
   '地图几何不得共线覆盖',
@@ -38,13 +41,13 @@ for (const text of [
 ]) assert.ok(uiDesign.includes(text), `UI 设计缺少运输路线并排规则：${text}`);
 
 for (const text of [
-  'National Highway Planning Network',
-  'North American Rail Network',
+  'Natural Earth 1:10m Roads / Railroads',
   '1128',
-  '不得由浏览器运行时访问外部 GIS 服务',
+  '该派生快照必须提交到仓库',
+  '构建与浏览器运行只能读取已提交快照',
   '单个首府对控制在最多 96 个折点',
   '航空不读取地面路网',
-  '正式 `vite build` 永远不得因 `CI` 环境变量改用占位数据',
+  '不得用占位数据通过正式构建',
   '真实公路／铁路绕行长度不得反向进入经济数值',
 ]) assert.ok(networkDesign.includes(text), `运输路网几何设计缺少规则：${text}`);
 assert.ok(
@@ -112,26 +115,46 @@ for (const text of [
 ]) assert.ok(layoutSource.includes(text), `路线布局算法缺少真实路网或稳定车道边界：${text}`);
 
 for (const text of [
-  'NTAD_National_Highway_Planning_Network',
-  'NTAD_North_American_Rail_Network_Lines',
-  "where: \"COUNTRY='US'\"",
+  naturalEarthCommit,
+  'ne_10m_roads.geojson',
+  'ne_10m_railroads.geojson',
+  'insideContiguousUnitedStates',
+  'segmentizeNaturalEarthFeatures',
   'buildTransportNetworkGraph',
   'buildCapitalPairRoutes',
   'TRANSPORT_NETWORK_REQUIRES_48_CAPITALS',
-  "kind: 'ntad-capital-pairs'",
-  "kind: 'placeholder'",
-]) assert.ok(generator.includes(text), `首府路网生成器缺少：${text}`);
-for (const text of [
-  "import { generateTransportCapitalRoutes } from './scripts/generate-transport-capital-routes.mjs';",
-  "placeholder: command === 'serve' && Boolean(process.env.CI)",
-]) assert.ok(viteConfig.includes(text), `Vite 路网生成门禁缺少：${text}`);
+  'assertCompleteRouteSet',
+  "kind: 'natural-earth-capital-pairs'",
+]) assert.ok(generator.includes(text), `首府路网显式生成器缺少：${text}`);
+assert.ok(!generator.includes("kind: 'placeholder'"), '运输路网生成器不得恢复正式占位数据模式。');
+assert.ok(!viteConfig.includes('generateTransportCapitalRoutes'), 'Vite 启动和构建不得调用外部路网生成器。');
+assert.ok(!viteConfig.includes('raw.githubusercontent.com'), 'Vite 配置不得依赖外部路网数据源。');
 
-assert.equal(generated.version, 1, '开发路网占位数据 schema 必须保持版本 1');
-assert.equal(generated.kind, 'placeholder', '仓库只提交最小开发占位路网，正式构建必须重新生成');
-assert.equal(generated.capitalCount, 48, '开发路网占位仍必须声明连续 48 州目录');
-assert.ok(Array.isArray(generated.routes?.road?.['110000:US-TX']));
-assert.ok(Array.isArray(generated.routes?.rail?.['110000:US-TX']));
-assert.notDeepEqual(generated.routes.road['110000:US-TX'], generated.routes.rail['110000:US-TX'], '开发占位必须能验证公路和铁路不是同一中心线');
+assert.equal(provinces.length, 48, '运输路网快照必须对应连续 48 州首府目录');
+assert.equal(generated.version, 1, '运输路网快照 schema 必须保持版本 1');
+assert.equal(generated.kind, 'natural-earth-capital-pairs', '仓库必须提交正式首府路网快照');
+assert.equal(generated.capitalCount, 48, '正式首府路网快照必须声明连续 48 州');
+assert.equal(generated.pairCountPerMode, expectedPairCount, '正式首府路网快照必须声明每种方式 1128 个首府对');
+assert.equal(generated.sourceCommit, naturalEarthCommit, '首府路网快照必须固定到设计认可的上游版本');
+for (const mode of ['road', 'rail']) {
+  const routes = generated.routes?.[mode] ?? {};
+  assert.equal(Object.keys(routes).length, expectedPairCount, `${mode} 首府对快照必须完整`);
+  for (let leftIndex = 0; leftIndex < provinces.length - 1; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < provinces.length; rightIndex += 1) {
+      const left = provinces[leftIndex];
+      const right = provinces[rightIndex];
+      const key = capitalPairKey(left.id, right.id);
+      const coordinates = routes[key];
+      assert.ok(Array.isArray(coordinates) && coordinates.length >= 2, `${mode} 缺少首府对 ${key}`);
+      assert.ok(coordinates.length <= 96, `${mode} 首府对 ${key} 超过 96 个折点`);
+      const canonicalLeft = left.id < right.id ? left : right;
+      const canonicalRight = left.id < right.id ? right : left;
+      assert.deepEqual(coordinates[0], [Number(canonicalLeft.capitalLongitude.toFixed(5)), Number(canonicalLeft.capitalLatitude.toFixed(5))], `${mode} ${key} 必须从真实首府坐标开始`);
+      assert.deepEqual(coordinates.at(-1), [Number(canonicalRight.capitalLongitude.toFixed(5)), Number(canonicalRight.capitalLatitude.toFixed(5))], `${mode} ${key} 必须在真实首府坐标结束`);
+    }
+  }
+}
+assert.notDeepEqual(generated.routes.road['110000:US-TX'], generated.routes.rail['110000:US-TX'], '同一首府对的公路和铁路不得共用同一中心线');
 
 const points = new Map([
   ['A', { x: 0, y: 0 }],
