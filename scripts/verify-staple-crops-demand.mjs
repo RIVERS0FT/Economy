@@ -142,6 +142,7 @@ for (const text of [
   "resting.ownerType === 'population' && incoming.ownerType === 'population'",
   'settleLiquidityBuy',
   'settleLiquiditySell',
+  'matchIncomingOrder({',
   'SYSTEM_ORDER_RETENTION_RATE',
   'DEMAND_CURVE',
   'DIRECT_DEMAND_UNFILLED_PRICE_STEP = 1.0025',
@@ -180,11 +181,13 @@ for (const text of [
   'marketDemand.initializeWorld',
   'marketDemand.normalizeWorld',
   'marketDemand.process',
-  'balancedMarket.matchOrder(world, incoming, now)',
-  'reconcileCommodityOrderBook',
   'ensurePopulationEconomy',
   'world.version = 32',
 ]) assert.ok(domain.includes(text), 'domain.js 缺少: ' + text);
+for (const forbidden of [
+  'balancedMarket.matchOrder(world, incoming, now)',
+  'reconcileCommodityOrderBook',
+]) assert.equal(domain.includes(forbidden), false, `玩家 domain 不得恢复旧统一商品挂单路径: ${forbidden}`);
 
 const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
 const standardRecipes = (facility) => facility.recipes.filter((recipe) => (
@@ -248,7 +251,7 @@ for (const text of [
 
 for (const [path, texts] of [
   ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：20', '38 种正式商品', '单座 C1 工厂人口承载基数固定为 **11**', '每五分钟迁入剩余缺口的 **2%**', '实际人口 × 0.57', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点', '上一锚点的 0.25%', '参考价缺口的 2%', '最多为参考价的 0.75%', '只恢复 1% 缺口', '当前报价锚点上追涨 0.25%']],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：20', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '双向报价锚点']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['服务器内部人口与储备订单', '`populationModelId`', '`fundingPool`', '内部订单字段只服务服务器模拟和审计', '玩家即时商品交易不得经过该共享撮合内核']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', 'population-demographics.js', '人口经济内部版本固定为 7', '五档状态只重新分配食品／家庭与类别份额', '人口消费不得发行普通货币']],
   ['src/api/admin.ts', ["'lavish' | 'prosperous' | 'normal' | 'strained' | 'subsistence'", 'PopulationDemographicsAdminSummary', 'currentPopulation', 'targetPopulation', 'structuralCapacityByComplexity', 'laborForce', 'employed', 'unemployed', 'vacancies', 'perCapitaIncomeEma', 'stateCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps', 'stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
   ['src/components/AdminPopulationHealth.tsx', ['实际／目标人口', '结构人口承载', '活跃承载 EMA', '就业／失业／岗位缺口', '人均收入 EMA', '产业人口承载', '累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充']],
@@ -259,7 +262,7 @@ for (const [path, texts] of [
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
 
-console.log('市场需求验证通过：模型 20 使用工厂承载驱动的实际人口与真实钱包覆盖全部 38 种商品，并按州级 PCE 权重生成本地需求，同时保持双向报价、派生流动性和市场储备约束。');
+console.log('市场需求验证通过：模型 20 使用工厂承载驱动的实际人口与真实钱包覆盖全部 38 种商品，并按州级 PCE 权重生成本地需求；共享撮合只服务服务器内部人口／储备模拟，玩家商品交易保持每日系统价即时成交。');
 
 const populationPolicy = read('server/src/population-policy.js');
 const populationControl = read('server/src/population-admin-control.js');
