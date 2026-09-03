@@ -30,6 +30,7 @@ async function inspectChartAxis(chart: Locator) {
 
 test('commodity detail uses the daily server price and has no resting-order UI', async ({ page }) => {
   await openCommodityDetail(page);
+  await expect(page.locator('.market-immediate-trade-card')).toBeVisible();
   await expect(page.getByText('今日成交价')).toBeVisible();
   await expect(page.getByText('下次调价')).toBeVisible();
   await expect(page.getByLabel('调整交易数量')).toBeVisible();
