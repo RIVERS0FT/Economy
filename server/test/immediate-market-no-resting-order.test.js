@@ -15,7 +15,7 @@ function openPlayerCommodityOrders(world) {
   ));
 }
 
-test('manual commodity buys and sells never leave player resting orders', () => {
+test('manual commodity buys and sells never leave player resting orders or frozen assets', () => {
   const world = createWorld(NOW);
   const buyer = ensurePlayer(world, BUYER, NOW);
   const seller = ensurePlayer(world, SELLER, NOW);
@@ -43,6 +43,8 @@ test('manual commodity buys and sells never leave player resting orders', () => 
   assert.equal(sell.ok, true);
   assert.equal(buy.executedPrice, 0.8);
   assert.equal(sell.executedPrice, 0.8);
+  assert.equal(buyer.frozenCredits, 0);
+  assert.equal(seller.inventories.wheat.frozen, 0);
   assert.equal(openPlayerCommodityOrders(world).length, 0);
   const completed = world.orders.filter((order) => order.ownerType === 'player' && order.assetKind === 'commodity');
   assert.equal(completed.length, 2);
