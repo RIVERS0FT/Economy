@@ -2,7 +2,7 @@
 
 > 状态：当前设计文档入口与内容边界
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-09-02
+> 更新时间：2026-09-03
 > 客户端状态版本：39
 > 世界状态版本：32
 
@@ -57,6 +57,7 @@
 | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 工厂目录与已拥有工厂的展示顺序 | 工厂经济规则、卡片通用视觉、服务器目录生成 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 市场订单、冻结、撮合、成交与市场资产交易语义 | 市场页面布局、行情图几何、服务器容量与存储实现 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 仓库、地区库存、运输和工厂自动经营业务语义 | 市场撮合、生产配方、通用页面 Chrome、服务器部署 |
+| `TRANSPORT_NETWORK_GEOMETRY_DESIGN.md` | 运输地图公路／铁路首府物理中心线的数据源、离线派生、压缩与运行时加载边界 | 运输经济结算、路线通用视觉、服务器协议与存储 |
 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 页面模块归属、导航、页面内容与玩家信息架构 | 业务算法、通用视觉令牌、服务器事务和存储 |
 | `MARKET_CHART_LAYOUT_DESIGN.md` | 市场行情图的布局、坐标、交互几何和浏览器回归 | 行情数据生成、撮合价格规则、通用 UI 设计系统 |
 | `REGISTRATION_INVITE_FLOW_DESIGN.md` | 登录/注册/密码重置入口与邀请流程的玩家可见行为 | 通用表单视觉、账号服务安全与存储、部署路由实现 |
@@ -81,6 +82,7 @@
 | 商品、工厂、生产、配方、产业科技 | `INDUSTRY_AND_PRODUCTION_DESIGN.md` |
 | 市场订单、冻结、撮合、成交 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` |
 | 仓库、地区库存、运输、工厂自动经营 | `WAREHOUSE_EXPANSION_DESIGN.md` |
+| 运输地图公路／铁路首府几何的数据源、离线生成与运行时加载 | `TRANSPORT_NETWORK_GEOMETRY_DESIGN.md` |
 | 页面有哪些模块、导航到哪里、内容放在哪页 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` |
 | 通用颜色、字体、控件、列表、响应式、可访问性 | `UI_DESIGN_SYSTEM.md` |
 | 州级中文短名与跨页面州名视觉语义 | `UI_DESIGN_SYSTEM.md` |
