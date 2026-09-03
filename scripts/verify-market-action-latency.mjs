@@ -21,17 +21,19 @@ const serverDesign = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md';
 const countdownDesign = 'docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md';
 
 for (const text of [
-  'const ORDER_BOOK_INTEGRITY_VERSION = 1',
-  'const needsOrderBookRepair = Number(world.orderBookIntegrityVersion || 0) < ORDER_BOOK_INTEGRITY_VERSION',
-  'if (needsOrderBookRepair) reconcileCommodityOrderBook(migrated, now);',
-  'migrated.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION',
-  'balancedMarket.matchOrder(world, incoming, now);',
+  'const PLAYER_COMMODITY_INSTANT_TRADE_VERSION = 1',
+  'migrateLegacyPlayerCommodityOrders(migrated);',
+  'balancedMarket.settleImmediatePlayerTrade',
+  "status: 'filled'",
   'const processedWorldAt = new WeakMap();',
   'if (processedWorldAt.get(world) === now) return world;',
   'processedWorldAt.delete(world);',
 ]) requireText(domain, text);
-forbidText(domain, 'const hiddenIds = new Set');
-forbidText(domain, 'world.orders = originalOrders.filter');
+for (const forbidden of [
+  'const hiddenIds = new Set',
+  'world.orders = originalOrders.filter',
+  "return { ok: true, message: '订单已进入订单簿' }",
+]) forbidText(domain, forbidden);
 
 for (const text of [
   'const orderPendingRef = useRef(false);',
@@ -75,8 +77,6 @@ for (const text of [
   "'Idempotency-Key': requestKey()",
 ]) requireText(contractsApi, text);
 
-// 撮合模块文件名和调用路径由上面的实际源码及共享撮合专项 verifier 直接验证；
-// SERVER DESIGN 只保留动作确认与状态交付等稳定服务器架构约束，不复制模块目录。
 for (const text of [
   '普通玩家权威动作的持久化幂等确认仍固定为 `{ result: { ok, message }, revision }`',
   '正常成功路径不得为了取得同一动作结果再追加一次 `GET state`',
@@ -96,4 +96,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('市场动作延迟防回退验证通过：商品订单单次共享撮合、全量修复版本化、动作权威增量回执、确认即结束 pending、普通写请求超时、会话启动例外、限流保留与同键确认重试均已锁定。');
+console.log('市场动作延迟防回退验证通过：玩家商品写动作单次按服务器当日价即时结算，旧挂单迁移版本化，动作权威增量回执、确认即结束 pending、普通写请求超时、会话启动例外、限流保留与同键确认重试均已锁定。');
