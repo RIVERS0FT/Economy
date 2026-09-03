@@ -199,56 +199,107 @@ export function createPartitionRevisions(partitions, { catalogSnapshot, keyDiges
     && Number(catalogSnapshot.version) === Number(partitions.catalog?.version)
   );
   const digests = keyDigests || keyDigestsForPartitions(partitions, { skipCatalog: reusableCatalog });
-  return Object.fromEntries(STATE_PARTITION_NAMES.map((name) => [
-    name,
-    name === 'catalog' && reusableCatalog
-      ? catalogSnapshot.revision
-      : revisionForPartition(partitions[name], digests),
-  ]));
+  return Object.fromEntries(STATE_PARTITION_NAMES.map((name) => {
+    if (name === 'catalog' && reusableCatalog) {
+      partitions.catalog = catalogSnapshot.partition;
+      return [name, catalogSnapshot.revision];
+    }
+    return [name, revisionForPartition(partitions[name] || {}, digests)];
+  }));
 }
 
-export function createStatePartitionEnvelope(state, revision, options = {}) {
-  return measureRequestPhase('partitionEnvelopeMs', () => {
-    const serverNow = normalizeServerNow(options.serverNow);
-    const partitions = splitClientState(state);
-    assertValidCatalogPartitionSnapshot(partitions.catalog);
-    const reusableCatalog = Boolean(
-      options.catalogSnapshot?.revision
-      && isValidCatalogPartitionSnapshot(options.catalogSnapshot?.partition)
-      && Number(options.catalogSnapshot.version) === Number(partitions.catalog?.version)
-    );
-    const keyDigests = keyDigestsForPartitions(partitions, { skipCatalog: reusableCatalog });
-    const partitionRevisions = createPartitionRevisions(partitions, {
-      catalogSnapshot: options.catalogSnapshot,
-      keyDigests,
-    });
-    const sliceRevisions = createSliceRevisions(partitions, { keyDigests });
-    const known = normalizeRevisionRecord(options.knownPartitionRevisions);
-    const changedPartitions = STATE_PARTITION_NAMES.filter((name) => known[name] !== partitionRevisions[name]);
-    const changedSlices = [];
-    const patches = {};
-    const knownSlices = options.knownSliceRevisions && typeof options.knownSliceRevisions === 'object'
-      ? options.knownSliceRevisions
-      : {};
-    for (const name of changedPartitions) {
-      patches[name] = name === 'catalog' && reusableCatalog
-        ? options.catalogSnapshot.partition
-        : partitions[name];
-      if (name === 'player' || name === 'market') {
-        for (const sliceName of STATE_SLICE_NAMES.filter((candidate) => candidate.startsWith(`${name}.`))) {
-          if (knownSlices[sliceName] !== sliceRevisions[sliceName]) changedSlices.push(sliceName);
-        }
+export function createStatePartitionSnapshot(state, { catalogSnapshot } = {}) {
+  const partitions = measureRequestPhase('partitionBuildMs', () => splitClientState(state));
+  assertValidCatalogPartitionSnapshot(partitions.catalog);
+  const reusableCatalog = Boolean(
+    catalogSnapshot?.revision
+    && isValidCatalogPartitionSnapshot(catalogSnapshot?.partition)
+    && Number(catalogSnapshot.version) === Number(partitions.catalog?.version)
+  );
+  const keyDigests = keyDigestsForPartitions(partitions, { skipCatalog: reusableCatalog });
+  const partitionRevisions = createPartitionRevisions(partitions, { catalogSnapshot, keyDigests });
+  const sliceRevisions = createSliceRevisions(partitions, { keyDigests });
+  setRequestGauge('statePartitionCount', STATE_PARTITION_NAMES.length);
+  setRequestGauge('stateSliceCount', STATE_SLICE_NAMES.length);
+  setRequestGauge('stateHashedFieldCount', keyDigests.size);
+  return { partitions, partitionRevisions, sliceRevisions };
+}
+
+export function combineStatePartitions(partitions = {}) {
+  return Object.assign({}, ...STATE_PARTITION_NAMES.map((name) => partitions[name] || {}));
+}
+
+export function readKnownPartitionRevisionsFromSearch(searchParams) {
+  return normalizeRevisionRecord(Object.fromEntries(
+    STATE_PARTITION_NAMES.map((name) => [name, searchParams.get(name)]),
+  ));
+}
+
+export function readKnownPartitionRevisionsFromHeader(value) {
+  if (typeof value !== 'string' || value.length > 1_024) return {};
+  try {
+    return normalizeRevisionRecord(JSON.parse(value));
+  } catch {
+    return {};
+  }
+}
+
+export function createPartitionedStateDelivery(snapshot, knownRevisions = {}, serverNow = Date.now()) {
+  const responseServerNow = normalizeServerNow(serverNow);
+  if (snapshot?.unchanged) return { revision: snapshot.revision, unchanged: true, serverNow: responseServerNow };
+  let prepared = snapshot?.partitions && snapshot?.partitionRevisions
+    ? {
+        partitions: snapshot.partitions,
+        partitionRevisions: snapshot.partitionRevisions,
+        sliceRevisions: snapshot.sliceRevisions ?? createSliceRevisions(snapshot.partitions),
       }
-    }
-    return {
-      revision,
-      serverNow,
-      unchanged: changedPartitions.length === 0,
-      partitionRevisions,
-      sliceRevisions,
-      changedPartitions,
-      changedSlices,
-      ...(changedPartitions.length > 0 ? { patches } : {}),
-    };
-  });
+    : snapshot?.state
+      ? createStatePartitionSnapshot(snapshot.state)
+      : null;
+  if (prepared && !isValidCatalogPartitionSnapshot(prepared.partitions?.catalog) && snapshot?.state) {
+    prepared = createStatePartitionSnapshot(snapshot.state);
+  }
+  if (!prepared) return { revision: snapshot?.revision, unchanged: true, serverNow: responseServerNow };
+  assertValidCatalogPartitionSnapshot(prepared.partitions?.catalog);
+  const { partitions, partitionRevisions, sliceRevisions } = prepared;
+  const known = normalizeRevisionRecord(knownRevisions);
+  const patches = {};
+  for (const name of STATE_PARTITION_NAMES) {
+    if (known[name] !== partitionRevisions[name]) patches[name] = partitions[name];
+  }
+  return {
+    revision: snapshot.revision,
+    unchanged: Object.keys(patches).length === 0,
+    serverNow: responseServerNow,
+    partitionRevisions,
+    sliceRevisions,
+    patches,
+  };
+}
+
+export function createPartitionedActionDelivery(
+  actionResponse,
+  knownRevisions = {},
+  serverNow = Date.now(),
+) {
+  const commandRevision = Number(actionResponse?.revision);
+  if (!Number.isInteger(commandRevision) || commandRevision < 0) {
+    throw new Error('游戏操作未返回有效的提交修订号');
+  }
+  const snapshot = actionResponse?.stateSnapshot;
+  if (!snapshot || typeof snapshot !== 'object') {
+    throw new Error('游戏操作未返回提交后的权威状态');
+  }
+  const delivery = createPartitionedStateDelivery(snapshot, knownRevisions, serverNow);
+  if (!Number.isInteger(delivery.revision) || delivery.revision < commandRevision) {
+    throw new Error('动作后的权威状态落后于已提交操作');
+  }
+  return {
+    result: {
+      ok: actionResponse?.result?.ok === true,
+      message: String(actionResponse?.result?.message || ''),
+    },
+    commandRevision,
+    ...delivery,
+  };
 }
