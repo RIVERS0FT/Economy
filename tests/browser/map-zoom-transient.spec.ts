@@ -14,6 +14,7 @@ test('active zoom uses one transient camera transform while static geometry stay
   await expect(canvas).toHaveAttribute('data-map-camera-mode', 'svg-viewbox');
   await expect(canvas).toHaveAttribute('data-map-camera-hot-path', 'single-css-transform-write');
   await expect(canvas).toHaveAttribute('data-map-camera-transient-mode', 'compositor-transform');
+  await expect(canvas).toHaveAttribute('data-map-camera-preload-mode', 'fixed-world-viewbox');
   await expect(canvas).toHaveAttribute('data-map-zoom-hot-path', 'css-transform');
   await expect(canvas).toHaveAttribute('data-map-zoom-commit-mode', 'settle-viewbox');
   await expect(canvas).toHaveAttribute('data-map-camera-geometry-mode', 'immutable-svg-world');
@@ -22,6 +23,8 @@ test('active zoom uses one transient camera transform while static geometry stay
   await expect(canvas).toHaveAttribute('data-map-label-count', '48');
   await expect(camera).toHaveCSS('transform', 'none');
   await expect(camera).toHaveCSS('will-change', 'auto');
+  await expect(camera).toHaveCSS('contain', 'paint');
+  await expect(svg).toHaveCSS('overflow', 'hidden');
 
   const baseline = await canvas.evaluate((container) => ({
     pathRevision: container.dataset.mapPathRevision,
@@ -52,13 +55,15 @@ test('active zoom uses one transient camera transform while static geometry stay
       transform: style.transform,
       willChange: style.willChange,
       viewBox: worldSvg.getAttribute('viewBox') ?? '',
+      svgOverflow: getComputedStyle(worldSvg).overflow,
     };
   });
 
   expect(activeBoundary.active).toBe('true');
   expect(activeBoundary.transform).not.toBe('none');
   expect(activeBoundary.willChange).toBe('transform');
-  expect(activeBoundary.viewBox).toBe(baseline.viewBox);
+  expect(activeBoundary.viewBox).not.toBe(baseline.viewBox);
+  expect(activeBoundary.svgOverflow).toBe('hidden');
 
   const during = await canvas.evaluate((container) => ({
     pathRevision: container.dataset.mapPathRevision,
@@ -71,7 +76,9 @@ test('active zoom uses one transient camera transform while static geometry stay
   expect(during.glyphTransforms).toEqual(baseline.glyphTransforms);
 
   await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
-  await expect.poll(async () => svg.getAttribute('viewBox')).not.toBe(baseline.viewBox);
+  await expect.poll(async () => svg.getAttribute('viewBox')).not.toBe(activeBoundary.viewBox);
+  const settledViewBox = await svg.getAttribute('viewBox');
+  expect(settledViewBox).not.toBe(baseline.viewBox);
   const settled = await canvas.evaluate((container) => ({
     pathData: [...container.querySelectorAll<SVGPathElement>('.province-map-region')].map((path) => path.getAttribute('d')),
     glyphTransforms: [...container.querySelectorAll<SVGTextElement>('.province-map-label-glyph')]
@@ -107,6 +114,7 @@ test('active wheel bursts mutate only the transient camera transform once per an
 
     dispatchWheel(-40);
     await nextFrame();
+    const preloadViewBox = svg.getAttribute('viewBox') ?? '';
 
     let viewBoxMutations = 0;
     let cameraStyleMutations = 0;
@@ -132,10 +140,19 @@ test('active wheel bursts mutate only the transient camera transform once per an
     svgObserver.disconnect();
     cameraObserver.disconnect();
     diagnosticObserver.disconnect();
-    return { baselineViewBox, activeViewBox, transientTransform, viewBoxMutations, cameraStyleMutations, diagnosticMutations };
+    return {
+      baselineViewBox,
+      preloadViewBox,
+      activeViewBox,
+      transientTransform,
+      viewBoxMutations,
+      cameraStyleMutations,
+      diagnosticMutations,
+    };
   });
 
-  expect(result.activeViewBox).toBe(result.baselineViewBox);
+  expect(result.preloadViewBox).not.toBe(result.baselineViewBox);
+  expect(result.activeViewBox).toBe(result.preloadViewBox);
   expect(result.transientTransform).not.toBe('none');
   expect(result.viewBoxMutations).toBe(0);
   expect(result.cameraStyleMutations).toBe(1);
@@ -144,7 +161,7 @@ test('active wheel bursts mutate only the transient camera transform once per an
   const svg = canvas.locator('.province-map-world-svg');
   const camera = canvas.locator('.province-map-camera-surface');
   await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
-  await expect.poll(async () => svg.getAttribute('viewBox')).not.toBe(result.baselineViewBox);
+  await expect.poll(async () => svg.getAttribute('viewBox')).not.toBe(result.preloadViewBox);
   await expect(camera).toHaveCSS('transform', 'none');
   await expect(camera).toHaveCSS('will-change', 'auto');
 });
@@ -156,6 +173,7 @@ test('transient camera frames stay close to the same-browser empty-frame budget'
   const canvas = page.getByTestId('us-mainland-map').locator('.province-map-static-viewport');
   await expect(canvas).toHaveAttribute('data-map-world-stroke-resolution', '110m');
   await expect(canvas).toHaveAttribute('data-map-camera-hot-path', 'single-css-transform-write');
+  await expect(canvas).toHaveAttribute('data-map-camera-preload-mode', 'fixed-world-viewbox');
 
   const result = await canvas.evaluate(async (container) => {
     const svg = container.querySelector<SVGSVGElement>('.province-map-world-svg');
@@ -195,7 +213,9 @@ test('transient camera frames stay close to the same-browser empty-frame budget'
       detailedFillDisplay: getComputedStyle(detailedFill).display,
       lodFill: getComputedStyle(lodFill).fill,
       cameraTransform: getComputedStyle(camera).transform,
-      committedViewBox: svg.getAttribute('viewBox') ?? '',
+      preloadViewBox: svg.getAttribute('viewBox') ?? '',
+      svgOverflow: getComputedStyle(svg).overflow,
+      cameraContain: getComputedStyle(camera).contain,
     };
 
     const cameraSamples: number[] = [];
@@ -212,13 +232,15 @@ test('transient camera frames stay close to the same-browser empty-frame budget'
   expect(result.activeBoundary.detailedFillDisplay).toBe('none');
   expect(result.activeBoundary.lodFill).not.toBe('none');
   expect(result.activeBoundary.cameraTransform).not.toBe('none');
-  expect(result.activeBoundary.committedViewBox).toBe(result.baselineViewBox);
+  expect(result.activeBoundary.preloadViewBox).not.toBe(result.baselineViewBox);
+  expect(result.activeBoundary.svgOverflow).toBe('hidden');
+  expect(result.activeBoundary.cameraContain).toBe('paint');
   expect(result.cameraFrameMedianMs).toBeLessThanOrEqual(result.emptyFrameMedianMs * 2 + 8);
 
   const svg = canvas.locator('.province-map-world-svg');
   const camera = canvas.locator('.province-map-camera-surface');
   await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
-  await expect.poll(async () => svg.getAttribute('viewBox')).not.toBe(result.baselineViewBox);
+  await expect.poll(async () => svg.getAttribute('viewBox')).not.toBe(result.activeBoundary.preloadViewBox);
   await expect(camera).toHaveCSS('transform', 'none');
   await expect(camera).toHaveCSS('will-change', 'auto');
 });
