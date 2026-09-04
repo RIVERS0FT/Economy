@@ -47,10 +47,9 @@ assert.ok(registry.includes("commercialBuilding: defineAction({ mutationScope: '
 assert.ok(deadlinePlanner.includes('nextCommercialBuildingDeadline'));
 assert.ok(deadlinePlanner.includes('commercialDeadline'));
 assert.ok(statePartitions.includes("'commercialBuildingTypes'"), '商业目录必须归入 catalog 分区');
-assert.equal(
+assert.ok(
   statePartitions.includes("['products', 'facilityTypes', 'commercialBuildingTypes', 'researchLevels', 'provinces']"),
-  false,
-  '客户端状态版本未变时不得把新增商业目录字段设为旧同版本缓存的结构硬门槛',
+  '客户端状态版本 40 必须把商业目录设为 catalog 结构硬门槛',
 );
 for (const token of ['commercialValue', '+ commercialValue', 'COMMERCIAL_BUILDING_TYPE_CATALOG']) {
   assert.ok(assetRuntime.includes(token), `净资产口径缺少商业建筑价值: ${token}`);

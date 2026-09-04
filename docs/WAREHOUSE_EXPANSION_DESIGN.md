@@ -135,7 +135,7 @@ warehouseAvailableCapacity
 
 升级瞬间仍在途的旧 shipment 不重算资产、不撤销，也不追缴新燃料费。兼容层只把旧货单转换为当前车载来源批次，并保留其当前待到达的第一个下一节点截止时间；到达该节点后必须停为 `docked`，不得继续离线补跑后续节点。旧运输完成后才进入正常的新周期收费规则。
 
-客户端状态版本保持 39，世界状态版本保持 32；新运行字段继续复用既有 `transportRoutes` / `transportShipments` 顶层语义，不新增世界顶层 segment。
+客户端状态版本保持 40，世界状态版本保持 32；新运行字段继续复用既有 `transportRoutes` / `transportShipments` 顶层语义，不新增世界顶层 segment。
 
 ## 5. 州级仓库与工厂自动经营界面
 
