@@ -448,14 +448,15 @@ test('player inventory never increases market demand budget or product allocatio
 test('consumer substitutes shift demand toward the cheaper grain without changing total budget', () => {
   const world = createWorld(now);
   ensurePlayer(world, bob, now);
-  world.priceTransmission.products.wheat.referencePrice = 6;
-  world.priceTransmission.products.rice.referencePrice = 2;
+  world.markets.wheat.officialPrice = 3;
+  world.markets.rice.officialPrice = 0.6;
 
   prepareDemand(world, 'food', now + 3);
   processWorld(world, now + 3);
   const shares = world.demandGroups.food.lastClassAllocation.basic.staples.shares;
   assert.ok(shares.rice > shares.wheat);
   assert.ok(world.demandGroups.food.lastBudget > 0);
+  assert.equal(world.orders.some((order) => order.ownerType === 'player' && ['open', 'partial'].includes(order.status)), false);
 });
 
 test('beverage production paths shift toward cheaper fruit inputs', () => {
@@ -491,8 +492,13 @@ test('fruit participates in fresh direct demand without expanding the food budge
 
 test('complement gating prioritizes the bottleneck input for electronics', () => {
   const world = createWorld(now);
-  ensurePlayer(world, bob, now);
-  world.priceTransmission.products.plastic.referencePrice = 24;
+  const seller = ensurePlayer(world, bob, now);
+  seller.inventories.plastic.available = 1_000;
+  deferDemand(world);
+  assert.equal(applyAction(world, bob, 'placeOrder', {
+    productId: 'plastic', side: 'sell', quantity: 1_000, price: 24,
+  }, now + 1).ok, true);
+  assert.equal(world.orders.some((order) => order.ownerType === 'player' && ['open', 'partial'].includes(order.status)), false);
 
   prepareDemand(world, 'household', now + 2);
   processWorld(world, now + 2);

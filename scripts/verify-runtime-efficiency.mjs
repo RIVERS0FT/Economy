@@ -287,7 +287,13 @@ requireText('server/src/market-demand/signals.js', [
   'planningCache = {',
   'tradeStats: new Map()',
   'quotes: new Map()',
+  'playerSellQuantity',
+  'market?.officialPrice',
+  'available / targetDepth',
 ]);
+const demandSignalSource = read('server/src/market-demand/signals.js');
+assert.equal(demandSignalSource.includes('iterateOrderBookSide'), false, '玩家挂单退役后人口需求信号不得扫描订单簿');
+assert.equal(demandSignalSource.includes('recordOrderBookVisit'), false, '人口需求即时市场信号不得增加订单簿访问计数');
 requireText('server/src/market-demand.js', [
   'signals.beginPlanningCache(world, now);',
   'signals.endPlanningCache(world);',

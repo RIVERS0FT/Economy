@@ -101,7 +101,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     }
   }
 
-  const signals = createMarketSignalRuntime({ marketFor, isOpenOrder });
+  const signals = createMarketSignalRuntime({ marketFor });
   const stateRuntime = createMarketDemandStateRuntime({ products, constants, marketFor, isOpenOrder });
   const allocationRuntime = createDemandAllocationRuntime({
     productFor,
@@ -699,6 +699,8 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
         product,
         requested,
         Number(priceState?.referencePrice || product.basePrice),
+        DEFAULT_PROVINCE_ID,
+        now,
       );
       const tradeStats = signals.realTradeStats(world, productId, now);
       const activeImbalance = tradeStats.playerQuantity <= 0 ? 0 : tradeStats.playerNetActive / tradeStats.playerQuantity;

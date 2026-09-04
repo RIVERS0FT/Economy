@@ -172,6 +172,12 @@ for (const text of [
 for (const forbidden of ['DEMAND_INVENTORY_BOOST_RATE', 'stockSnapshot.totalValue', 'inventoryFactor', 'playerScaleBudget * tradeActivityFactor', 'totalPopulationBaseBudget']) {
   assert.equal(runtime.includes(forbidden), false, '人口需求不得恢复库存或活跃玩家增发预算: ' + forbidden);
 }
+const marketSignalSource = read('server/src/market-demand/signals.js');
+for (const text of ['playerSellQuantity', 'market?.officialPrice', 'available / targetDepth']) {
+  assert.ok(marketSignalSource.includes(text), '人口需求即时市场信号缺少: ' + text);
+}
+assert.equal(marketSignalSource.includes('iterateOrderBookSide'), false, '人口需求即时市场信号不得扫描玩家开放卖单');
+assert.equal(marketSignalSource.includes('recordOrderBookVisit'), false, '人口需求即时市场信号不得伪装成盘口访问');
 
 const domain = read('server/src/domain.js');
 for (const text of [
@@ -207,6 +213,11 @@ for (const text of [
   'population demand uses PCE weights to create state-local orders without duplicating wallet budget',
 ]) assert.ok(stateBaselineTests.includes(text), '州级人口经济测试缺少: ' + text);
 
+const domainDemandTests = read('server/test/domain.test.js');
+for (const text of [
+  'consumer substitutes shift demand toward the cheaper grain without changing total budget',
+  'complement gating prioritizes the bottleneck input for electronics',
+]) assert.ok(domainDemandTests.includes(text), '人口需求即时市场回归缺少: ' + text);
 const marketDemandTests = read('server/test/market-demand-v6.test.js');
 for (const text of [
   'direct demand quote anchor accumulates fractional no-fill increases and recovers after service',
@@ -249,6 +260,14 @@ for (const text of [
   'player immediate buying does not consume an internal reserve ask',
 ]) assert.ok(liquidityTests.includes(text), '储备测试缺少: ' + text);
 
+for (const [path, texts] of [
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['最近 30 分钟真实玩家向官方系统完成的卖出数量', '同州当日 `officialPrice`']],
+  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['内部可执行供给信号', '最近 30 分钟真实玩家向官方系统完成的卖出数量', '同州当日 `officialPrice`']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['内部需求规划不得再扫描玩家开放卖单', '最近 30 分钟真实玩家向官方系统完成的卖出数量', '同州当前 `officialPrice`']],
+]) {
+  const source = read(path);
+  for (const text of texts) assert.ok(source.includes(text), `${path} 缺少即时市场人口需求规则: ${text}`);
+}
 for (const [path, texts] of [
   ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：20', '38 种正式商品', '单座 C1 工厂人口承载基数固定为 **11**', '每五分钟迁入剩余缺口的 **2%**', '实际人口 × 0.57', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点', '上一锚点的 0.25%', '参考价缺口的 2%', '最多为参考价的 0.75%', '只恢复 1% 缺口', '当前报价锚点上追涨 0.25%']],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['服务器内部人口与储备订单', '`populationModelId`', '`fundingPool`', '内部订单字段只服务服务器模拟和审计', '玩家即时商品交易不得经过该共享撮合内核']],
