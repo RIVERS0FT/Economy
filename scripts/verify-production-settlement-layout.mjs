@@ -96,12 +96,12 @@ for (const text of [
   'justify-self: start;',
   '.facility-formula-meta-unit.is-cost {',
   'border-left: 1px solid var(--color-divider);',
-  '.facility-formula-progress .progress-track span::after',
-  'clip-path: polygon(0 0, 100% 50%, 0 100%);',
-  'border-radius: var(--radius-pill);',
-  '.facility-formula-progress .progress-track span {',
+  '.facility-formula-progress .progress-track {',
+  'border-radius: var(--radius-control);',
+  '.facility-formula-progress .progress-track > span {',
+  'inset: 0 auto 0 0;',
+  'border-radius: inherit;',
   'overflow: hidden;',
-  'right: 0;',
   '@container (max-width: 420px)',
   '@media (prefers-reduced-motion: reduce)',
   'appearance: none;',
@@ -117,6 +117,9 @@ for (const forbidden of [
   '.facility-formula-separator',
   '  .facility-formula-meta {\n    width: 100%;\n  }',
   'right: -0.18rem;',
+  '.facility-formula-progress .progress-track span::after',
+  'clip-path: polygon(0 0, 100% 50%, 0 100%);',
+  'border-radius: var(--radius-pill);',
 ]) assert.equal(formulaCss.includes(forbidden), false, `生产结算样式不得包含: ${forbidden}`);
 for (const forbidden of [
   '@container (max-width: 519px)',
@@ -176,10 +179,21 @@ for (const text of [
 ]) assert.equal(productionSettingsSource.includes(text), true, `生产配置富内容选项缺少: ${text}`);
 const settingsStart = detail.indexOf('<section className="facility-production-settings mobile-detail-section" aria-label="生产配置">');
 const settingsEnd = detail.indexOf('<FacilityProductionFormula', settingsStart);
-const settingsSource = `${detail.slice(settingsStart, settingsEnd)}\n${configControls}`;
-for (const forbidden of ['<SelectInput', '<option', '<strong>生产设置</strong>', 'facility-production-settings-heading']) {
+const detailSettingsSource = detail.slice(settingsStart, settingsEnd);
+const settingsSource = `${detailSettingsSource}\n${configControls}`;
+for (const forbidden of ['<strong>生产设置</strong>', 'facility-production-settings-heading']) {
   assert.equal(settingsSource.includes(forbidden), false, `生产配置不得恢复: ${forbidden}`);
 }
+assert.equal(configControls.includes('<SelectInput'), false, '生产产物与作业制度两个 production-config 槽不得恢复通用 SelectInput');
+assert.equal(configControls.includes('<option'), false, '生产产物与作业制度必须继续使用富内容 option 数据而不是原生 option JSX');
+assert.equal((detailSettingsSource.match(/<SelectInput/g) ?? []).length, 1, '生产配置区必须且只允许一个原料保障共享 SelectInput');
+assert.equal((detailSettingsSource.match(/<option /g) ?? []).length, 4, '原料保障共享 SelectInput 必须保留四个周期候选');
+for (const text of [
+  'label={<GameConcept concept="input-coverage">原料保障</GameConcept>}',
+  'aria-label={`${type.name}原料保障`}',
+  'fieldClassName="facility-auto-operation__coverage"',
+  'inputCoverageCycles: Number(event.target.value) as 1 | 2 | 3 | 5',
+]) assert.equal(detailSettingsSource.includes(text), true, `原料保障共享下拉缺少: ${text}`);
 
 for (const text of [
   'description={',
@@ -267,7 +281,9 @@ for (const text of [
   "informationMain.locator('.facility-average-profit')",
   "informationMain.locator('.facility-staffing-summary')",
   'trackBorderRadius',
-  'fillOverflow',
+  'fillBorderRadius',
+  "expect(transitions.fillBorderRadius).toBe(transitions.trackBorderRadius)",
+  "expect(transitions.arrowClipPath).toBe('none')",
   "getByRole('button', { name: /交易该建筑资产/ })).toHaveCount(0)",
   'expect(box.x + box.width).toBeLessThanOrEqual(width)',
   'expect(geometry.metaBox.width).toBeLessThan(geometry.visualBox.width - 8)',
@@ -279,7 +295,6 @@ for (const text of [
   'expect(geometry.diagnosticsBox.y).toBeGreaterThanOrEqual(geometry.settlementBox.y + geometry.settlementBox.height + 6)',
   'expect(geometry.mobileDiagnosticsIndex).toBeGreaterThan(geometry.mobileSettlementIndex)',
   'for (const width of [320, 360, 390, 430, 720])',
-  'arrowClipPath',
   'await expect(workspaceHost).toHaveCount(1);',
   "await expect(workspaceHost).toHaveAttribute('data-detail-active', 'false');",
   "await expect(workspaceHost.locator('.mobile-workspace-sheet-detail-view')).toHaveCount(0);",
@@ -298,10 +313,15 @@ for (const text of [
   '单厂平均利润固定第二行且只显示标题和值',
   '生产配置区不显示独立“生产设置”标题',
   '每个投入／产出物资槽整体使用原生按钮语义并可直接打开当前州对应本地商品详情',
-  '流光伪元素必须被已完成填充自身裁剪',
+  '生产进度轨道使用与按钮相同的 `--radius-control` 圆角，不使用胶囊圆角、流光或箭头端点',
   '工厂详情不得显示“交易该建筑资产”入口，工厂所有权交易只允许通过拍卖页完成',
   '不得把承载可交互物资槽的 `.facility-formula-visual` 整体设为 `aria-hidden`',
 ]) assert.equal(uiDesign.includes(text) || industryDesign.includes(text), true, `权威设计缺少: ${text}`);
+assert.equal(
+  buildingLayoutDesign.includes('不得使用 `--radius-pill` 半圆端点、扫光或箭头端点'),
+  true,
+  '地区工厂详情布局设计必须禁止恢复旧胶囊、扫光和箭头端点。',
+);
 
 for (const text of [
   '生产结算 → 经营诊断 → 市场入口',
@@ -327,4 +347,4 @@ for (const text of [
   '移动端工厂卡点击行为与桌面一致',
 ]) assert.equal(buildingLayoutDesign.includes(text), true, `地区工厂详情布局设计缺少: ${text}`);
 
-console.log('生产结算商品 PNG、无标题生产配置、插画右侧经营指标、本地商品详情导航、进度流光裁剪、资产入口同行与几何防回退验证通过。');
+console.log('生产结算商品 PNG、无标题生产配置、插画右侧经营指标、本地商品详情导航、按钮圆角进度、资产入口同行与几何防回退验证通过。');

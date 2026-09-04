@@ -19,9 +19,10 @@ function fullStateDelivery(revision = 1) {
     },
     patches: {
       catalog: {
-        version: 39,
+        version: 40,
         products: [{ id: 'wheat', name: '小麦', category: 'raw', basePrice: 1 }],
         facilityTypes: [{ id: 'farm', name: '农场', category: 'raw' }],
+        commercialBuildingTypes: [{ id: 'convenience-store', name: '便利店' }],
         researchLevels: [{ id: 'C1', rank: 1, cost: 0, durationMs: 0 }],
         provinces: [{
           id: '110000',
@@ -78,7 +79,7 @@ function brokenCatalogDelivery(revision = 2) {
       leaderboard: 'leader-00001',
     },
     patches: {
-      catalog: { version: 39 },
+      catalog: { version: 40 },
     },
   };
 }

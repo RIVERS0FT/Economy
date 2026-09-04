@@ -520,7 +520,12 @@ input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill {
 
 .ui-rich-select__listbox[data-variant='production-config'] {
   gap: 0.3rem;
+  overflow-y: hidden;
   padding: 0.4rem;
+}
+
+.ui-rich-select__listbox[data-variant='production-config'][data-scrollable='true'] {
+  overflow-y: auto;
 }
 
 .ui-rich-select__listbox[data-variant='production-config'] .ui-rich-select__option {

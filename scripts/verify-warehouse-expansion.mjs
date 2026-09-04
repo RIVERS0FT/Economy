@@ -28,16 +28,15 @@ requireText('src/pages/ProvincePage.tsx', 'onOpenProduct={openWarehouseProduct}'
 
 for (const text of [
   '自动经营',
-  '原料保障',
-  '经营模式',
-  '产成品处理',
-  '利润优先',
-  '均衡',
-  '保供优先',
-  '满足内部需求后出售',
-  '全部保留',
+  'GameConcept',
+  'children({ policy: draft, saving, updatePolicy })',
 ]) requireText('src/components/facilities/FacilityAutoOperationControls.tsx', text);
-requireText('src/components/facilities/FacilityProductionFormula.tsx', '<FacilityAutoOperationControls group={group} />');
+for (const text of ['经营模式', '产成品处理', '利润优先', '保供优先', '满足内部需求后出售', '全部保留']) {
+  forbidText('src/components/facilities/FacilityAutoOperationControls.tsx', text);
+}
+for (const text of ['<FacilityAutoOperationControls group={group}>', 'GameConcept concept="input-coverage"', '原料保障']) {
+  requireText('src/pages/production/ProductionFacilityDetail.tsx', text);
+}
 forbidText('src/pages/MarketPage.tsx', '<MarketAutoTradePanel');
 
 for (const [path, tokens] of [

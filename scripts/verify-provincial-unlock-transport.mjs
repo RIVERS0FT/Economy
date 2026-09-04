@@ -78,7 +78,7 @@ for (const text of [
   '`transportRoutes` 与进行中／历史 `transportShipments` 均属于玩家私有运输状态',
   '每名玩家最多保存 50 条路线',
   '同时真正处于 `in-transit` 的运输最多 20 笔',
-  '客户端状态版本保持 39，世界状态版本保持 32',
+  '客户端状态版本保持 40，世界状态版本保持 32',
 ]) requireText(warehouseDesign, text, `仓库设计缺少节点循环运输规则：${text}`);
 
 for (const text of [

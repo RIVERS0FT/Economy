@@ -672,6 +672,53 @@ function ProductionHarness() {
         staffingRateBps: 8_000,
       }];
     }
+    if (scenario === 'production-crops') {
+      const baseType = next.game.facilityTypes[0];
+      const baseGroup = next.game.facilityGroups[0];
+      const cropRecipes = [
+        { id: 'wheat-crop', name: '种植小麦', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'wheat', quantity: 1 } },
+        { id: 'rice-crop', name: '种植水稻', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'rice', quantity: 1 } },
+        { id: 'cotton-crop', name: '种植棉花', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'cotton', quantity: 1 } },
+        { id: 'sugarcane-crop', name: '种植甘蔗', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'sugarcane', quantity: 1 } },
+      ];
+      const plansFor = (methodId: string) => Object.fromEntries(cropRecipes.map((recipe) => [recipe.id, {
+        recipeId: methodId === 'open-field' ? recipe.id : `${recipe.id}--${methodId}`,
+        baseRecipeId: recipe.id,
+        productionMethodId: methodId,
+        cycleMs: recipe.cycleMs,
+        operatingCost: recipe.operatingCost,
+        inputs: recipe.inputs,
+        output: recipe.output,
+      }]));
+      next.game.products = [
+        { id: 'wheat', name: '小麦', category: 'raw', basePrice: 4 },
+        { id: 'rice', name: '水稻', category: 'raw', basePrice: 5 },
+        { id: 'cotton', name: '棉花', category: 'raw', basePrice: 6 },
+        { id: 'sugarcane', name: '甘蔗', category: 'raw', basePrice: 5 },
+        ...next.game.products,
+      ];
+      next.game.facilityTypes = [{
+        ...baseType,
+        id: 'farm',
+        name: '农场',
+        defaultRecipeId: 'wheat-crop',
+        recipes: cropRecipes,
+        productionMethodGroups: [{
+          id: 'operation',
+          name: '作业制度',
+          defaultMethodId: 'open-field',
+          methods: [
+            { id: 'open-field', name: '露天轮作', iconId: 'seedling', tone: 'neutral', plansByRecipeId: plansFor('open-field') },
+            { id: 'tool-tillage', name: '工具耕作', iconId: 'tool', tone: 'success', plansByRecipeId: plansFor('tool-tillage') },
+          ],
+        }],
+      }];
+      next.game.facilityGroups = [{
+        ...baseGroup,
+        facilityTypeId: 'farm',
+        activeRecipeId: 'wheat-crop',
+      }];
+    }
     if (scenario === 'decimal-profit') {
       const markets = next.game.markets as Record<string, ProductMarketState>;
       markets.steel = {

@@ -4,7 +4,13 @@ import { FacilityIcon } from '../../components/icons/FacilityIcons';
 import { useFacilityRecipeProfitMarkets } from '../../components/facilities/FacilityRecipeProfitContext';
 import { FacilityRecipeProfitAnalysis } from '../../components/facilities/FacilityRecipeProfitAnalysis';
 import { FacilityOperatingDiagnostics } from '../../components/facilities/FacilityOperatingDiagnostics';
+import {
+  FacilityAutoOperationControls,
+  type FacilityAutoOperationController,
+} from '../../components/facilities/FacilityAutoOperationControls';
 import { FacilityProductionConfigControls } from '../../components/facilities/FacilityProductionConfigControls';
+import { SelectInput } from '../../components/ui/FormControls';
+import { GameConcept } from '../../components/ui/GameConcept';
 import { MobileDetailSummary } from '../../components/ui/MobileDetailSummary';
 import { usePlayerPageNavigation } from '../../components/ui/PageNavigationContext';
 import {
@@ -120,10 +126,6 @@ export function FacilityStaffingSummary({
 
   return (
     <section className="facility-staffing-summary" aria-label={description}>
-      <div className="facility-staffing-heading">
-        <strong>满员率 {<CompactNumber value={currentPercent} />}%</strong>
-        <span>{directionLabel}</span>
-      </div>
       <div
         className="facility-staffing-track"
         role="progressbar"
@@ -133,6 +135,10 @@ export function FacilityStaffingSummary({
         aria-valuenow={currentPercent}
       >
         <span className="facility-staffing-fill" style={{ width: `${currentPercent}%` }} />
+        <div className="facility-staffing-track-copy">
+          <strong>满员率 {<CompactNumber value={currentPercent} />}%</strong>
+          <span>{directionLabel}</span>
+        </div>
       </div>
     </section>
   );
@@ -315,13 +321,10 @@ export function FacilityClusterInformation({
   inventories,
   now,
   onToggle,
-  titleId,
 }: Pick<
   FacilityClusterDetailSharedProps,
   'entry' | 'products' | 'inventories' | 'now' | 'onToggle'
-> & {
-  titleId: string;
-}) {
+>) {
   const { group, type } = entry;
   const liveNow = useNow(now);
   const recipeState = resolveFacilityDetailRecipeState(entry);
@@ -359,7 +362,7 @@ export function FacilityClusterInformation({
         className="facility-information-summary"
         artworkClassName="facility-detail-artwork facility-information-artwork"
         artwork={<FacilityIcon facilityTypeId={type.id} className="facility-detail-artwork-icon" />}
-        title={<h2 id={titleId}>{type.name}</h2>}
+        title={null}
         meta={
           <>
             <span className="facility-information-total">
@@ -449,24 +452,45 @@ export function FacilityClusterDetailBody({
   return (
     <>
       <section className="facility-production-settings mobile-detail-section" aria-label="生产配置">
-        <FacilityProductionConfigControls
-          className="facility-production-settings-grid"
-          typeName={type.name}
-          products={products}
-          recipes={recipeState.recipes}
-          productionMethodGroup={recipeState.productionMethodGroup}
-          selectedBaseRecipeId={recipeState.selectedBaseRecipeId}
-          selectedProductionMethodId={recipeState.selectedProductionMethodId}
-          completedTechnologyIds={completedTechnologyIds}
-          researchTechnologies={researchTechnologies}
-          disabled={group.count < 1}
-          onProductChange={(selectedBaseRecipeId) => {
-            selectConfiguration(selectedBaseRecipeId, recipeState.selectedProductionMethodId);
-          }}
-          onMethodChange={(methodId) => {
-            selectConfiguration(recipeState.selectedBaseRecipeId, methodId);
-          }}
-        />
+        <FacilityAutoOperationControls group={group}>
+          {({ policy, saving, updatePolicy }: FacilityAutoOperationController) => (
+            <FacilityProductionConfigControls
+              className="facility-production-settings-grid"
+              typeName={type.name}
+              products={products}
+              recipes={recipeState.recipes}
+              productionMethodGroup={recipeState.productionMethodGroup}
+              selectedBaseRecipeId={recipeState.selectedBaseRecipeId}
+              selectedProductionMethodId={recipeState.selectedProductionMethodId}
+              completedTechnologyIds={completedTechnologyIds}
+              researchTechnologies={researchTechnologies}
+              disabled={group.count < 1}
+              onProductChange={(selectedBaseRecipeId) => {
+                selectConfiguration(selectedBaseRecipeId, recipeState.selectedProductionMethodId);
+              }}
+              onMethodChange={(methodId) => {
+                selectConfiguration(recipeState.selectedBaseRecipeId, methodId);
+              }}
+            >
+              <SelectInput
+                label={<GameConcept concept="input-coverage">原料保障</GameConcept>}
+                aria-label={`${type.name}原料保障`}
+                fieldClassName="facility-auto-operation__coverage"
+                value={String(policy.inputCoverageCycles)}
+                disabled={!policy.enabled || saving || group.count < 1}
+                onChange={(event) => updatePolicy({
+                  ...policy,
+                  inputCoverageCycles: Number(event.target.value) as 1 | 2 | 3 | 5,
+                })}
+              >
+                <option value="1">1 个生产周期</option>
+                <option value="2">2 个生产周期</option>
+                <option value="3">3 个生产周期</option>
+                <option value="5">5 个生产周期</option>
+              </SelectInput>
+            </FacilityProductionConfigControls>
+          )}
+        </FacilityAutoOperationControls>
       </section>
 
       <FacilityProductionFormula
@@ -504,10 +528,7 @@ export function FacilityClusterDetailContent({
   onRecipeChange,
   onOpenProductMarket,
   onOpenContracts,
-  titleId,
-}: FacilityClusterDetailSharedProps & {
-  titleId: string;
-}) {
+}: FacilityClusterDetailSharedProps) {
   return (
     <>
       <FacilityClusterInformation
@@ -516,7 +537,6 @@ export function FacilityClusterDetailContent({
         inventories={inventories}
         now={now}
         onToggle={onToggle}
-        titleId={titleId}
       />
       <FacilityClusterDetailBody
         entry={entry}

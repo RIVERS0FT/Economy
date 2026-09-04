@@ -230,7 +230,7 @@ assert.ok(facilityMarket.includes('recordFacilityPrice(world, typeId, price, qua
 for (const text of [
   '商品地区详情最上方固定为商品图标与四项交易摘要：今日价格、今日成交量、可用库存和冻结库存',
   '近 24h 真实成交趋势',
-  '市场行情图几何继续以 `MARKET_CHART_LAYOUT_DESIGN.md` 为准',
+    '市场行情图几何继续以 `MARKET_CHART_LAYOUT_DESIGN.md` 为准',
   '24h 成交量',
   '浏览器本地成交记录',
 ]) assert.ok(design.includes(text), `页面设计文档缺少: ${text}`);

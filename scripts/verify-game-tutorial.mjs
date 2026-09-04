@@ -76,8 +76,11 @@ forbidText(controller, "status: 'hidden'", '教程控制器不得继续写入隐
 
 requireText(definition, "id: 'set-auto-sell'", '教程必须保留兼容技术步骤 ID');
 requireText(definition, "title: '设置工厂自动经营'", '教程必须教玩家设置工厂自动经营');
-for (const text of ['原料保障', '经营模式', '产成品处理']) {
+for (const text of ['原料保障']) {
   requireText(definition, text, `自动经营教程必须说明 ${text}`);
+}
+for (const text of ['经营模式', '产成品处理']) {
+  forbidText(definition, text, `自动经营教程不得恢复 ${text}`);
 }
 requireText(definition, "actionLabel: '设置自动经营'", '自动经营教程操作名称必须指向工厂策略');
 requireText(definition, "targetTab: 'buildings'", '自动经营教程必须引导到建筑页');
@@ -177,7 +180,7 @@ forbidText(tutorialStore, 'soldGoods', '服务器教程完成记录不得读取�
 requireText(pageDesign, '### 11.1 客户端教程', '页面权威设计必须记录客户端教程规则');
 requireText(pageDesign, '教程固定为九步', '页面权威设计必须锁定教程九步结构');
 requireText(pageDesign, '设置工厂自动经营、完成一次自动出售', '页面权威设计必须记录生产—自动经营—统一商品出售教程');
-requireText(pageDesign, '成功保存工厂自动经营策略', '页面权威设计必须记录自动经营步骤只由成功保存推进');
+requireText(pageDesign, '成功更新自动经营策略', '页面权威设计必须记录自动经营步骤只由成功更新推进');
 requireText(pageDesign, '教程只有进行中、已跳过和已完成三种结果', '页面权威设计必须锁定教程结果状态');
 requireText(pageDesign, '设置页不提供“显示教程”或继续教程入口', '页面权威设计必须锁定跳过后只能重新开始');
 requireText(pageDesign, '桌面所有页面（包括六个 `fullscreen` 页面）都复用同一 Outliner DOM', '页面权威设计必须锁定桌面教程与路由生命周期解耦');

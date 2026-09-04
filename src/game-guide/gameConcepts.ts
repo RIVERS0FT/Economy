@@ -11,6 +11,14 @@ export const GAME_CONCEPTS = {
     label: '产出',
     description: '工厂完成生产周期后写入当前地区本地仓库的商品；显示数量会随有效参与产能同步变化。',
   },
+  'factory-auto-operation': {
+    label: '自动经营',
+    description: '开启后，系统会按本工厂当前生产配置与原料保障周期派生自动采购和出售；玩家不需要逐商品维护策略。',
+  },
+  'input-coverage': {
+    label: '原料保障',
+    description: '除当前生产周期已预定的原料外，再保留指定数量完整生产周期所需的本地原料。',
+  },
   'local-trades': {
     label: '本地成交',
     description: '当前浏览器为当前地区保存的匿名逐笔成交记录，只用于本地查看，不替代服务器权威资产、订单或银行流水。',

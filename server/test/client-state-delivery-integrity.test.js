@@ -25,6 +25,7 @@ function fullDelivery(revision = 7) {
         version: CURRENT_CLIENT_STATE_VERSION,
         products: [{ id: 'wheat' }],
         facilityTypes: [{ id: 'farm' }],
+        commercialBuildingTypes: [{ id: 'convenience-store' }],
         researchLevels: [{ id: 'C1' }],
         provinces: [{ id: '110000' }],
         defaultProvinceId: '110000',
@@ -75,6 +76,20 @@ test('client rejects an incomplete initial catalog before publishing authority s
   assert.throws(
     () => cache.accept(delivery),
     StateDeliveryIntegrityError,
+  );
+  assert.equal(cache.getSnapshot().revision, null);
+  assert.equal(cache.getSnapshot().state, null);
+  assert.deepEqual(cache.getPartitionRevisions(), {});
+});
+
+test('client rejects an initial catalog without the commercial building directory', () => {
+  const cache = createStateDeliveryCache();
+  const delivery = fullDelivery();
+  delete delivery.patches.catalog.commercialBuildingTypes;
+
+  assert.throws(
+    () => cache.accept(delivery),
+    /catalog\.commercialBuildingTypes/,
   );
   assert.equal(cache.getSnapshot().revision, null);
   assert.equal(cache.getSnapshot().state, null);

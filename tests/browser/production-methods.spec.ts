@@ -98,15 +98,15 @@ test.describe('factory production methods', () => {
         trackTransition: track ? getComputedStyle(track).transition : '',
         trackBorderRadius: track ? getComputedStyle(track).borderRadius : '',
         fillTransition: fill ? getComputedStyle(fill).transition : '',
-        fillOverflow: fill ? getComputedStyle(fill).overflow : '',
+        fillBorderRadius: fill ? getComputedStyle(fill).borderRadius : '',
         arrowClipPath: fill ? getComputedStyle(fill, '::after').clipPath : '',
       };
     });
     expect(transitions.trackTransition).toBe('all');
     expect(transitions.trackBorderRadius).not.toBe('0px');
     expect(transitions.fillTransition).toContain('width');
-    expect(transitions.fillOverflow).toBe('hidden');
-    expect(transitions.arrowClipPath).not.toBe('none');
+    expect(transitions.fillBorderRadius).toBe(transitions.trackBorderRadius);
+    expect(transitions.arrowClipPath).toBe('none');
 
     await expect(detail.getByRole('button', { name: /交易该建筑资产/ })).toHaveCount(0);
 
