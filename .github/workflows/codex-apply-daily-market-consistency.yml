@@ -1,0 +1,30 @@
+name: Apply daily market consistency
+
+on:
+  push:
+    branches:
+      - codex/daily-system-market
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node scripts/codex-fix-browser-instant-market-regressions.mjs
+      - run: node scripts/codex-fix-market-runtime-base.mjs
+      - run: node scripts/codex-split-strategic-layout-st.mjs
+      - run: node scripts/codex-fix-consistency-fixture.mjs
+      - run: node scripts/codex-fix-daily-market-consistency.mjs
+      - run: rm -f .github/workflows/codex-apply-daily-market-consistency.yml
+      - run: git diff --check
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "收口每日系统价市场回归"
+          git push origin HEAD:codex/daily-system-market
