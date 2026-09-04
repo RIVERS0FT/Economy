@@ -5,9 +5,18 @@
 }
 
 .province-map-camera-surface {
-  contain: none;
+  contain: paint;
   will-change: auto !important;
   backface-visibility: visible;
+}
+
+/* A real mouse-wheel interaction necessarily starts over the map. Prime the single camera layer on hover so Chromium can
+   rasterize it before the first wheel frame; idle maps that are not under pointer intent still release the promotion. */
+@media (hover: hover) and (pointer: fine) {
+  .province-map-static-viewport:hover .province-map-camera-surface {
+    will-change: transform !important;
+    backface-visibility: hidden;
+  }
 }
 
 .province-map-static-viewport[data-map-zoom-active='true'] .province-map-camera-surface {
@@ -16,9 +25,9 @@
   backface-visibility: hidden;
 }
 
-/* The outer strategic viewport owns the active clip. Removing the inner SVG viewport clip and paint containment avoids
-   re-clipping/repainting the large transiently transformed vector world on every compositor frame; settled mode restores
-   the SVG clip with the final viewBox. */
+/* The outer strategic viewport owns the active clip. Removing the inner SVG viewport clip avoids re-clipping the large
+   transiently transformed vector world on every compositor frame; the camera paint containment bounds the promoted layer
+   to one map viewport and settled mode restores the SVG clip with the final viewBox. */
 .province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-svg {
   overflow: visible;
 }
