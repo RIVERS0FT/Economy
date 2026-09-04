@@ -269,8 +269,8 @@
   .global-operation-page .global-facility-catalog {
     --global-facility-layout-artwork-size: 96px;
     --global-facility-layout-name-track: minmax(0, 1.35fr);
-    --global-facility-layout-profit-track: minmax(4.25rem, .76fr);
-    --global-facility-layout-count-track: minmax(2.1rem, .4fr);
+    --global-facility-layout-profit-track: minmax(4rem, .76fr);
+    --global-facility-layout-count-track: minmax(1.9rem, .4fr);
   }
 
   .global-operation-page .entity-list-row.global-facility-catalog-row {
