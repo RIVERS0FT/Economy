@@ -4,7 +4,6 @@ import { EconomyStore } from '../src/runtime-store.js';
 import { FACILITY_TYPE_CATALOG } from '../src/domain.js';
 
 const user = { id: 91, email: 'builder@example.com', name: '建设玩家', role: 'user' };
-const seller = { id: 92, email: 'supplier@example.com', name: '材料供应商', role: 'user' };
 
 function prepareStore(now) {
   const store = new EconomyStore(':memory:');
@@ -20,38 +19,28 @@ function prepareStore(now) {
 function prepareProcurementStore(now, { warehouseFill = 0 } = {}) {
   const store = new EconomyStore(':memory:');
   store.getState(user, now);
-  store.getState(seller, now + 1);
-  const loaded = store.loadWorld(now + 2);
+  const loaded = store.loadWorld(now + 1);
   const buyer = loaded.world.players[String(user.id)];
-  const supplier = loaded.world.players[String(seller.id)];
   buyer.credits = 100_000;
-  supplier.credits = 1_000;
   for (const inventory of Object.values(buyer.inventories)) {
-    inventory.available = 0;
-    inventory.frozen = 0;
-  }
-  for (const inventory of Object.values(supplier.inventories)) {
     inventory.available = 0;
     inventory.frozen = 0;
   }
   buyer.inventoryCapacity = 500;
   if (warehouseFill > 0) buyer.inventories.wheat.available = warehouseFill;
-  store.saveWorld(loaded.revision, loaded.world, now + 2);
+  store.saveWorld(loaded.revision, loaded.world, now + 1);
   return store;
 }
 
-function placeMaterialSell(store, productId, quantity, price, requestKey, now) {
-  const loaded = store.loadWorld(now);
-  loaded.world.players[String(seller.id)].inventories[productId].available = quantity;
-  store.saveWorld(loaded.revision, loaded.world, now);
-  return store.apply(seller, {
-    action: 'placeOrder',
-    payload: { assetKind: 'commodity', assetId: productId, productId, side: 'sell', quantity, price },
-    requestKey,
-    method: 'POST',
-    path: '/api/game/orders',
-  }, now + 1);
+function openPlayerCommodityOrders(state) {
+  return (state.orders || []).filter((order) => (
+    order.isOwn
+    && order.assetKind === 'commodity'
+    && (order.status === 'open' || order.status === 'partial')
+  ));
 }
+
+const broadPriceCaps = { timber: 999, ore: 999 };
 
 
 test('new players do not receive a starter construction material pack', () => {
@@ -100,7 +89,7 @@ test('farm and orchard batches atomically consume only credits and complete imme
   }
 });
 
-test('material-backed construction rolls back completely when one material is missing', () => {
+test('material-backed construction rolls back completely when one material is missing and auto procurement is not requested', () => {
   const now = 1_700_100_000_000;
   const store = prepareStore(now);
   try {
@@ -123,13 +112,11 @@ test('material-backed construction rolls back completely when one material is mi
   }
 });
 
-test('one-click construction buys every missing material from the real order book and stays idempotent', () => {
+test('one-click construction buys every missing material at today official prices and stays idempotent', () => {
   const now = 1_700_150_000_000;
   const store = prepareProcurementStore(now);
   try {
-    assert.equal(placeMaterialSell(store, 'timber', 3, 60, 'material-sell-0001', now + 10).result.ok, true);
-    assert.equal(placeMaterialSell(store, 'ore', 2, 70, 'material-sell-0002', now + 20).result.ok, true);
-    const before = store.getState(user, now + 30);
+    const before = store.getState(user, now + 10);
     const ranch = FACILITY_TYPE_CATALOG.find((item) => item.id === 'ranch');
     const request = {
       action: 'buildFacility',
@@ -137,102 +124,97 @@ test('one-click construction buys every missing material from the real order boo
         facilityTypeId: 'ranch',
         quantity: 1,
         autoProcure: true,
-        maxProcurementTotal: 320,
-        materialPriceCaps: { timber: 60, ore: 70 },
+        maxProcurementTotal: 10_000,
+        materialPriceCaps: broadPriceCaps,
       },
       requestKey: 'instant-build-procure-0001',
       method: 'POST',
       path: '/api/game/facilities',
     };
-    const first = store.apply(user, request, now + 31);
-    const repeated = store.apply(user, request, now + 32);
+    const first = store.apply(user, request, now + 11);
+    const repeated = store.apply(user, request, now + 12);
     assert.deepEqual(repeated, first, '一键采购建造的幂等重试不得重复采购或建厂');
-    assert.equal(first.result.ok, true);
+    assert.equal(first.result.ok, true, first.result.message);
     assert.match(first.result.message, /一键购齐 5 件建造材料/);
 
-    const after = store.getState(user, now + 33);
+    const after = store.getState(user, now + 13);
     assert.equal(after.facilityGroups.find((group) => group.facilityTypeId === 'ranch')?.count, 1);
     assert.equal(after.inventories.timber.available, 0);
     assert.equal(after.inventories.ore.available, 0);
-    const procurementOrders = after.orders.filter((order) => (
+    assert.equal(after.inventories.timber.frozen, 0);
+    assert.equal(after.inventories.ore.frozen, 0);
+    assert.equal(after.frozenCredits, 0);
+    assert.equal(openPlayerCommodityOrders(after).length, 0);
+
+    const procurementTrades = after.orders.filter((order) => (
       order.isOwn && order.assetKind === 'commodity' && order.status === 'filled'
     ));
-    assert.equal(procurementOrders.reduce((sum, order) => sum + order.quantity, 0), 5);
-    const procurementTotal = procurementOrders.reduce((orderSum, order) => (
-      orderSum + order.fills.reduce((fillSum, fill) => fillSum + fill.total, 0)
-    ), 0);
-    assert.ok(procurementTotal > 0 && procurementTotal <= 320, '实际采购额必须使用真实 maker price 且不超过客户端确认上限');
+    assert.equal(procurementTrades.reduce((sum, order) => sum + order.quantity, 0), 5);
+    const procurementTotal = procurementTrades.reduce((sum, order) => sum + Number(order.fills?.[0]?.total || 0), 0);
     assert.equal(
       Number((before.credits - after.credits - ranch.buildCost).toFixed(6)),
       Number(procurementTotal.toFixed(6)),
-      '买方应只支付真实成交总额，而不是价格保护上限',
+      '建厂采购只支付服务器当日官方价对应的真实成交总额',
     );
-    assert.ok(after.markets.timber.lastTradePrice > 0 && after.markets.timber.lastTradePrice <= 60);
-    assert.ok(after.markets.ore.lastTradePrice > 0 && after.markets.ore.lastTradePrice <= 70);
   } finally {
     store.close();
   }
 });
 
-test('one-click construction rolls back completely when market depth cannot fill every missing material', () => {
+test('one-click construction rolls back completely when the confirmed procurement total is too low', () => {
   const now = 1_700_160_000_000;
   const store = prepareProcurementStore(now);
   try {
-    assert.equal(placeMaterialSell(store, 'timber', 1, 60, 'material-sell-0011', now + 10).result.ok, true);
-    assert.equal(placeMaterialSell(store, 'ore', 2, 70, 'material-sell-0012', now + 20).result.ok, true);
-    const beforeBuyer = store.getState(user, now + 30);
-    const beforeSeller = store.getState(seller, now + 30);
+    const before = store.getState(user, now + 10);
     const result = store.apply(user, {
       action: 'buildFacility',
       payload: {
         facilityTypeId: 'ranch', quantity: 1, autoProcure: true,
-        maxProcurementTotal: 1_000, materialPriceCaps: { timber: 100, ore: 100 },
+        maxProcurementTotal: 0.01, materialPriceCaps: broadPriceCaps,
       },
       requestKey: 'instant-build-procure-0002', method: 'POST', path: '/api/game/facilities',
-    }, now + 31);
+    }, now + 11);
     assert.equal(result.result.ok, false);
-    assert.match(result.result.message, /木材市场卖盘不足/);
-    const afterBuyer = store.getState(user, now + 32);
-    const afterSeller = store.getState(seller, now + 32);
-    assert.equal(afterBuyer.credits, beforeBuyer.credits);
-    assert.equal(afterBuyer.inventories.timber.available, 0);
-    assert.equal(afterBuyer.inventories.ore.available, 0);
-    assert.equal(afterBuyer.facilityGroups.find((group) => group.facilityTypeId === 'ranch'), undefined);
-    assert.equal(afterSeller.inventories.timber.frozen, beforeSeller.inventories.timber.frozen);
-    assert.equal(afterSeller.inventories.ore.frozen, beforeSeller.inventories.ore.frozen);
+    assert.match(result.result.message, /预计采购总额超过确认上限/);
+    const after = store.getState(user, now + 12);
+    assert.equal(after.credits, before.credits);
+    assert.equal(after.inventories.timber.available, 0);
+    assert.equal(after.inventories.ore.available, 0);
+    assert.equal(after.facilityGroups.find((group) => group.facilityTypeId === 'ranch'), undefined);
+    assert.equal(after.frozenCredits, 0);
+    assert.equal(openPlayerCommodityOrders(after).length, 0);
   } finally {
     store.close();
   }
 });
 
-test('one-click construction rejects stale price protection without buying anything', () => {
+test('one-click construction rejects stale daily-price protection without buying anything', () => {
   const now = 1_700_170_000_000;
   const store = prepareProcurementStore(now);
   try {
-    assert.equal(placeMaterialSell(store, 'timber', 3, 60, 'material-sell-0021', now + 10).result.ok, true);
-    assert.equal(placeMaterialSell(store, 'ore', 2, 70, 'material-sell-0022', now + 20).result.ok, true);
-    const before = store.getState(user, now + 30);
+    const before = store.getState(user, now + 10);
     const result = store.apply(user, {
       action: 'buildFacility',
       payload: {
         facilityTypeId: 'ranch', quantity: 1, autoProcure: true,
-        maxProcurementTotal: 320, materialPriceCaps: { timber: 59.99, ore: 70 },
+        maxProcurementTotal: 10_000, materialPriceCaps: { timber: 0.01, ore: 999 },
       },
       requestKey: 'instant-build-procure-0003', method: 'POST', path: '/api/game/facilities',
-    }, now + 31);
+    }, now + 11);
     assert.equal(result.result.ok, false);
-    assert.match(result.result.message, /木材市场价格已变化/);
-    const after = store.getState(user, now + 32);
+    assert.match(result.result.message, /木材今日系统价已变化/);
+    const after = store.getState(user, now + 12);
     assert.equal(after.credits, before.credits);
     assert.equal(after.facilityGroups.find((group) => group.facilityTypeId === 'ranch'), undefined);
     assert.equal(after.inventories.timber.available, 0);
     assert.equal(after.inventories.ore.available, 0);
+    assert.equal(after.frozenCredits, 0);
   } finally {
     store.close();
   }
 });
 
-test('one-click construction ignores legacy warehouse capacity fields during market delivery', () => {
+test('one-click construction ignores legacy warehouse capacity fields during immediate material delivery', () => {
   const now = 1_700_180_000_000;
   const store = prepareProcurementStore(now, { warehouseFill: 499 });
   try {
@@ -241,24 +223,23 @@ test('one-click construction ignores legacy warehouse capacity fields during mar
     buyer.inventoryCapacity = 1;
     buyer.warehouseLevel = 99;
     store.saveWorld(loaded.revision, loaded.world, now + 3);
-    assert.equal(placeMaterialSell(store, 'timber', 3, 60, 'material-sell-0031', now + 10).result.ok, true);
-    assert.equal(placeMaterialSell(store, 'ore', 2, 70, 'material-sell-0032', now + 20).result.ok, true);
     const result = store.apply(user, {
       action: 'buildFacility',
       payload: {
         facilityTypeId: 'ranch', quantity: 1, autoProcure: true,
-        maxProcurementTotal: 320, materialPriceCaps: { timber: 60, ore: 70 },
+        maxProcurementTotal: 10_000, materialPriceCaps: broadPriceCaps,
       },
       requestKey: 'instant-build-procure-0004', method: 'POST', path: '/api/game/facilities',
-    }, now + 31);
-    assert.equal(result.result.ok, true);
-    const after = store.getState(user, now + 32);
+    }, now + 4);
+    assert.equal(result.result.ok, true, result.result.message);
+    const after = store.getState(user, now + 5);
     assert.equal(after.facilityGroups.find((group) => group.facilityTypeId === 'ranch')?.count, 1);
     assert.equal(after.inventories.wheat.available, 499);
     assert.equal(after.inventories.timber.available, 0);
     assert.equal(after.inventories.ore.available, 0);
     assert.equal(Object.hasOwn(after, 'inventoryCapacity'), false);
     assert.equal(Object.hasOwn(after, 'warehouseLevel'), false);
+    assert.equal(after.frozenCredits, 0);
   } finally {
     store.close();
   }
