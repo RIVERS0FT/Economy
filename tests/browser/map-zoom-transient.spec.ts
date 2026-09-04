@@ -23,7 +23,7 @@ test('active zoom uses one transient camera transform while static geometry stay
   await expect(canvas).toHaveAttribute('data-map-label-count', '48');
   await expect(camera).toHaveCSS('transform', 'none');
   await expect(camera).toHaveCSS('will-change', 'auto');
-  await expect(camera).toHaveCSS('contain', 'paint');
+  await expect(camera).toHaveCSS('contain', 'none');
   await expect(svg).toHaveCSS('overflow', 'hidden');
 
   const baseline = await canvas.evaluate((container) => ({
@@ -249,7 +249,7 @@ test('transient camera frames stay close to the same-browser empty-frame budget'
   expect(result.activeBoundary.cameraTransform).not.toBe('none');
   expect(result.activeBoundary.preloadViewBox).not.toBe(result.baselineViewBox);
   expect(result.activeBoundary.svgOverflow).toBe('visible');
-  expect(result.activeBoundary.cameraContain).toBe('paint');
+  expect(result.activeBoundary.cameraContain).toBe('none');
   const frameBudgetMs = result.emptyFrameMedianMs * 2 + 8;
   console.log(`[map-camera-perf] empty=${result.emptyFrameMedianMs.toFixed(2)}ms total=${result.cameraFrameMedianMs.toFixed(2)}ms dispatch=${result.cameraDispatchMedianMs.toFixed(2)}ms raf-wait=${result.cameraRafWaitMedianMs.toFixed(2)}ms budget=${frameBudgetMs.toFixed(2)}ms`);
   expect(result.cameraFrameMedianMs, `map camera perf ${JSON.stringify(result)}`).toBeLessThanOrEqual(frameBudgetMs);
