@@ -34,6 +34,7 @@ type RichSelectPosition = {
   width: number;
   maxHeight: number;
   placement: 'above' | 'below';
+  scrollable: boolean;
 };
 
 export type RichSelectVariant = 'default' | 'production-config';
@@ -137,6 +138,7 @@ export function RichSelectInput({
     width: 240,
     maxHeight: OPTION_HEIGHT * MAX_VISIBLE_OPTIONS,
     placement: 'below',
+    scrollable: false,
   });
 
   const selectedIndex = useMemo(
@@ -231,7 +233,14 @@ export function RichSelectInput({
       ? clamp(preferredTop, safeTop, safeBottom - maxHeight)
       : preferredTop;
 
-    setPosition({ left, top, width, maxHeight, placement });
+    setPosition({
+      left,
+      top,
+      width,
+      maxHeight,
+      placement,
+      scrollable: variant === 'production-config' && !productionCanFitLayer,
+    });
   }, [floatingLayer, optionHeight, options.length, variant, viewportLayer]);
 
   const openList = useCallback((direction: 1 | -1 = 1) => {
@@ -414,6 +423,7 @@ export function RichSelectInput({
       aria-label={ariaLabel ?? (typeof label === 'string' ? label : undefined)}
       data-variant={variant}
       data-placement={position.placement}
+      data-scrollable={position.scrollable ? 'true' : undefined}
       data-top-layer={topLayerSupported ? 'true' : undefined}
       popover={topLayerSupported ? 'manual' : undefined}
       style={listboxStyle}

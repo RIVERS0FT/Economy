@@ -117,10 +117,14 @@ for (const [path, texts] of [
   ]],
   ['src/components/facilities/FacilityAutoOperationControls.tsx', [
     '自动经营',
+    'GameConcept',
+    'const updatePolicy',
+    'void save(nextPolicy);',
+  ]],
+  ['src/pages/production/ProductionFacilityDetail.tsx', [
     '原料保障',
-    '经营模式',
-    '产成品处理',
-    '保存自动经营策略',
+    'FacilityAutoOperationControls',
+    'GameConcept concept="input-coverage"',
   ]],
   ['src/components/market/MarketAutoTradePanel.tsx', [
     '自动经营执行',
@@ -132,6 +136,13 @@ for (const [path, texts] of [
   ]],
 ]) {
   for (const text of texts) requireText(path, text);
+}
+for (const text of [
+  '保存自动经营策略',
+  '系统仍通过本州统一商品订单簿执行真实买卖；合同保留与其他工厂的原料需求会一起计算，不创建工厂专属订单簿。',
+]) forbidText('src/components/facilities/FacilityAutoOperationControls.tsx', text);
+for (const text of ['经营模式', '产成品处理', '利润优先', '保供优先', '满足内部需求后出售', '全部保留']) {
+  forbidText('src/components/facilities/FacilityAutoOperationControls.tsx', text);
 }
 for (const text of [
   'getClientOrderIndex(',

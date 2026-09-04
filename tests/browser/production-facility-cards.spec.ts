@@ -101,7 +101,8 @@ test.describe('production facility selector cards', () => {
 
     await page.locator('.facility-cluster-selector-card').first().click();
     await expect(page.locator('.facility-cluster-detail-page')).toBeVisible();
-    await expect(page.locator('#facility-detail-title')).toContainText('农场');
+    await expect(page.locator('.page-heading-title h1')).toContainText('农场');
+    await expect(page.locator('.facility-information-summary h2')).toHaveCount(0);
     await expect(page.locator('.facility-cluster-selector-region')).toHaveCount(0);
   });
 

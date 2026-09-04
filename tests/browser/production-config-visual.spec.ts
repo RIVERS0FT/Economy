@@ -79,7 +79,7 @@ async function expectAutoSlotRow(page: Page, trigger: Locator) {
   expect(geometry.display).toBe('flex');
   expect(geometry.justifyContent).toBe('flex-start');
   expect(geometry.flexWrap).toBe('nowrap');
-  expect(geometry.fields).toHaveLength(2);
+  expect(geometry.fields).toHaveLength(3);
   for (const field of geometry.fields) {
     expect(field.flexGrow).toBe('0');
     expect(field.flexShrink).toBe('0');
@@ -87,7 +87,8 @@ async function expectAutoSlotRow(page: Page, trigger: Locator) {
   }
   expect(Math.abs(geometry.fields[0].left - geometry.rowLeft)).toBeLessThanOrEqual(1);
   expect(Math.abs((geometry.fields[1].left - geometry.fields[0].right) - geometry.gap)).toBeLessThanOrEqual(1);
-  expect(geometry.rowRight - geometry.fields[1].right).toBeGreaterThan(24);
+  expect(Math.abs((geometry.fields[2].left - geometry.fields[1].right) - geometry.gap)).toBeLessThanOrEqual(1);
+  expect(geometry.rowRight - geometry.fields[2].right).toBeGreaterThanOrEqual(0);
 
   await page.mouse.click(
     geometry.rowRight - 8,
@@ -98,7 +99,7 @@ async function expectAutoSlotRow(page: Page, trigger: Locator) {
     return Array.from(row?.querySelectorAll('[role="combobox"]') ?? [])
       .map((item) => item.getAttribute('aria-expanded'));
   });
-  expect(expanded).toEqual(['false', 'false']);
+  expect(expanded).toEqual(['false', 'false', 'false']);
 }
 
 async function expectNoVerticalOverflow(listbox: Locator) {
@@ -108,12 +109,14 @@ async function expectNoVerticalOverflow(listbox: Locator) {
     return {
       scrollHeight: element.scrollHeight,
       clientHeight: element.clientHeight,
+      overflowY: getComputedStyle(element).overflowY,
       top: rect.top,
       bottom: rect.bottom,
       viewportHeight: document.documentElement.clientHeight,
     };
   });
   expect(geometry.scrollHeight - geometry.clientHeight).toBeLessThanOrEqual(1);
+  expect(geometry.overflowY).toBe('hidden');
   expect(geometry.top).toBeGreaterThanOrEqual(0);
   expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewportHeight);
 }
@@ -140,11 +143,13 @@ test.describe('production configuration visual triggers', () => {
       }
       const recipeSelect = scope.getByRole('combobox', { name: '机械工厂生产产物' });
       const methodSelect = scope.getByRole('combobox', { name: '机械工厂生产方式' });
+      const coverageSelect = scope.getByRole('combobox', { name: '机械工厂原料保障' });
       const expectedSize = viewport.width <= 720 ? 48 : 52;
 
       await expectSquareImageOnlyTrigger(recipeSelect, expectedSize);
       await expectSquareImageOnlyTrigger(methodSelect, expectedSize);
       await expectAutoSlotRow(page, recipeSelect);
+      await expect(coverageSelect).toHaveAttribute('data-variant', 'default');
       await expect(recipeSelect.locator('[data-product-artwork="machinery"]')).toHaveCount(1);
       await expect(methodSelect.locator('[data-production-method-icon="precision-machine"]')).toHaveCount(1);
 
@@ -179,5 +184,28 @@ test.describe('production configuration visual triggers', () => {
       await expectNoVerticalOverflow(methodListbox);
       await page.keyboard.press('Escape');
     }
+  });
+
+  test('crop and work-method menus hide their scrollbar when all options fit', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('runtime-test.html?view=production&scenario=production-crops');
+    await page.getByRole('button', { name: /农场，/ }).click();
+
+    const scope = page.locator('.facility-cluster-detail-card');
+    const cropSelect = scope.getByRole('combobox', { name: '农场生产产物' });
+    const methodSelect = scope.getByRole('combobox', { name: '农场生产方式' });
+
+    await cropSelect.click();
+    const cropListbox = page.getByRole('listbox', { name: '农场生产产物' });
+    await expect(cropListbox.getByRole('option')).toHaveCount(4);
+    await expect(cropListbox).not.toHaveAttribute('data-scrollable', 'true');
+    await expectNoVerticalOverflow(cropListbox);
+    await page.keyboard.press('Escape');
+
+    await methodSelect.click();
+    const methodListbox = page.getByRole('listbox', { name: '农场生产方式' });
+    await expect(methodListbox.getByRole('option')).toHaveCount(2);
+    await expect(methodListbox).not.toHaveAttribute('data-scrollable', 'true');
+    await expectNoVerticalOverflow(methodListbox);
   });
 });

@@ -34,7 +34,7 @@ export function MobileFacilityDetailSheet({
   return (
     <MobileWorkspaceDetailSheet
       isOpen={isOpen}
-      ariaLabelledBy="mobile-facility-detail-title"
+      ariaLabel={`${entry.type.name}工厂详情`}
       viewportAriaLabel={`${entry.type.name}工厂详情内容`}
       returnFocusRef={returnFocusRef}
       onClose={onClose}
@@ -45,7 +45,6 @@ export function MobileFacilityDetailSheet({
         inventories={inventories}
         now={now}
         onToggle={onToggle}
-        titleId="mobile-facility-detail-title"
       />
       <FacilityClusterDetailBody
         entry={entry}
