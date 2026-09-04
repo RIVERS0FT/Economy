@@ -186,7 +186,7 @@ requireText('server/src/market-state-delivery.js', [
   "includeOrderBook: assetKind !== 'commodity'",
   'todayBuyQuantity',
   'todaySellQuantity',
-  'demand: { lastQuantity: demandLastQuantity, satisfaction: demandSatisfaction },
+  'demand: { lastQuantity: demandLastQuantity, satisfaction: demandSatisfaction },',
   'createMarketDetail',
   'eventTradeWindows',
   'getOrderBookDepth',
