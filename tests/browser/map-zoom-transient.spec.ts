@@ -219,14 +219,29 @@ test('transient camera frames stay close to the same-browser empty-frame budget'
     };
 
     const cameraSamples: number[] = [];
+    const dispatchSamples: number[] = [];
+    const rafWaitSamples: number[] = [];
     for (let index = 0; index < 12; index += 1) {
       const started = performance.now();
       dispatchWheel(index % 2 === 0 ? -18 : 18);
+      const dispatched = performance.now();
       await nextFrame();
-      cameraSamples.push(performance.now() - started);
+      const finished = performance.now();
+      dispatchSamples.push(dispatched - started);
+      rafWaitSamples.push(finished - dispatched);
+      cameraSamples.push(finished - started);
     }
     const cameraFrameMedianMs = median(cameraSamples);
-    return { baselineViewBox, emptyFrameMedianMs, cameraFrameMedianMs, activeBoundary };
+    const cameraDispatchMedianMs = median(dispatchSamples);
+    const cameraRafWaitMedianMs = median(rafWaitSamples);
+    return {
+      baselineViewBox,
+      emptyFrameMedianMs,
+      cameraFrameMedianMs,
+      cameraDispatchMedianMs,
+      cameraRafWaitMedianMs,
+      activeBoundary,
+    };
   });
 
   expect(result.activeBoundary.detailedFillDisplay).toBe('none');
@@ -235,7 +250,9 @@ test('transient camera frames stay close to the same-browser empty-frame budget'
   expect(result.activeBoundary.preloadViewBox).not.toBe(result.baselineViewBox);
   expect(result.activeBoundary.svgOverflow).toBe('hidden');
   expect(result.activeBoundary.cameraContain).toBe('paint');
-  expect(result.cameraFrameMedianMs).toBeLessThanOrEqual(result.emptyFrameMedianMs * 2 + 8);
+  const frameBudgetMs = result.emptyFrameMedianMs * 2 + 8;
+  console.log(`[map-camera-perf] empty=${result.emptyFrameMedianMs.toFixed(2)}ms total=${result.cameraFrameMedianMs.toFixed(2)}ms dispatch=${result.cameraDispatchMedianMs.toFixed(2)}ms raf-wait=${result.cameraRafWaitMedianMs.toFixed(2)}ms budget=${frameBudgetMs.toFixed(2)}ms`);
+  expect(result.cameraFrameMedianMs, `map camera perf ${JSON.stringify(result)}`).toBeLessThanOrEqual(frameBudgetMs);
 
   const svg = canvas.locator('.province-map-world-svg');
   const camera = canvas.locator('.province-map-camera-surface');
