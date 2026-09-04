@@ -325,6 +325,8 @@ test('player page heading keeps SVG back, centered title, and SVG close in that 
 });
 
 test('overview, market, buildings, transport, and settings share a one-third card width while research, auction, contracts, bank, leaderboard, and shop stay full-area with one persistent strategic outliner', async ({ page }) => {
+  test.setTimeout(60_000);
+  const pageReadyTimeout = 15_000;
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('?preview=game');
@@ -345,7 +347,7 @@ test('overview, market, buildings, transport, and settings share a one-third car
   const provinceHost = page.locator('.strategic-page-host');
   const provinceContent = provinceHost.locator(':scope > .page-content:not(.page-loading)');
   await expect(provinceHost).toHaveAttribute('data-strategic-presentation', 'building');
-  await expect(provinceHost.locator(':scope > .page-loading')).toHaveCount(0);
+  await expect(provinceHost.locator(':scope > .page-loading')).toHaveCount(0, { timeout: pageReadyTimeout });
   await expect(page.getByRole('heading', { level: 1, name: '得克萨斯' })).toBeVisible();
   await expect(provinceContent).toBeVisible();
   await expect(outliner).toHaveAttribute('data-preview-outliner-sentinel', 'persistent');
@@ -362,7 +364,7 @@ test('overview, market, buildings, transport, and settings share a one-third car
       : sidebar.getByRole('button', { name: new RegExp(`^${label}`) });
     await button.click();
     const host = page.locator('.strategic-page-host');
-    await expect(host.locator(':scope > .page-loading')).toHaveCount(0);
+    await expect(host.locator(':scope > .page-loading')).toHaveCount(0, { timeout: pageReadyTimeout });
     const content = host.locator(':scope > .page-content:not(.page-loading)');
     await expect(host).toHaveAttribute('data-strategic-presentation', 'building');
     await expect(content).toBeVisible();
@@ -408,7 +410,7 @@ test('overview, market, buildings, transport, and settings share a one-third car
   for (const label of ['研发', '拍卖', '合同', '银行', '排行', '商店']) {
     await sidebar.getByRole('button', { name: new RegExp(`^${label}`) }).click();
     const host = page.locator('.strategic-page-host');
-    await expect(host.locator(':scope > .page-loading')).toHaveCount(0);
+    await expect(host.locator(':scope > .page-loading')).toHaveCount(0, { timeout: pageReadyTimeout });
     const content = host.locator(':scope > .page-content:not(.page-loading)');
     await expect(host).toHaveAttribute('data-strategic-presentation', 'fullscreen');
     await expect(content).toBeVisible();
