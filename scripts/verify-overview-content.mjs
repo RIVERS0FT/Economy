@@ -379,6 +379,8 @@ requireAll(paths.pageDesign, [
   '`1920×1080`',
   '`1440×900`',
   '桌面教程固定显示在战略追踪器顶部',
+  '概览与通知中心不得恢复玩家商品挂单摘要',
+  '概览不得显示“当前挂单”、管理订单、玩家买卖单统计、开放订单列表或订单专用滚动区',
 ]);
 requireAll(paths.uiDesign, ['## 10. 概览布局', '`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`', '`OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md`', '不得以 UI 兼容理由恢复“当前挂单”']);
 requireAll(paths.integrityDesign, [
@@ -401,10 +403,7 @@ requireAll(paths.integrityDesign, [
   'Outliner 保持完整宽度且不存在整体 `data-collapsed` 或 `44px` 收起轨道',
   '侧栏悬浮展开覆盖概览但不改变页面和战略追踪器几何',
 ]);
-for (const path of [paths.pageDesign, paths.integrityDesign]) {
-  forbidText(path, '统一为 `384px` 高');
-  forbidText(path, '当前挂单');
-}
+for (const path of [paths.pageDesign, paths.integrityDesign]) forbidText(path, '统一为 `384px` 高');
 forbidText(paths.uiDesign, '统一为 `384px` 高');
 
 requireText(paths.main, "import './styles/overview.css'");
