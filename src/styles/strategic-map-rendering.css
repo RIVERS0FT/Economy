@@ -5,6 +5,7 @@
 }
 
 .province-map-camera-surface {
+  contain: paint;
   will-change: auto !important;
   backface-visibility: visible;
 }
@@ -13,10 +14,6 @@
   transform-origin: 0 0 !important;
   will-change: transform !important;
   backface-visibility: hidden;
-}
-
-.province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-svg {
-  overflow: visible;
 }
 
 .province-map-world-svg {
