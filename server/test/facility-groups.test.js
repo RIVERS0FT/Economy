@@ -4,6 +4,7 @@ import { createWorld, ensurePlayer } from '../src/domain.js';
 import { applyFacilityGroupAction, createFacilityGroupClientState, migrateFacilityGroupWorld, processFacilityGroupWorld } from '../src/facility-groups.js';
 import { applyPopulationPolicy } from '../src/population-admin-control.js';
 import { ensurePopulationEconomy } from '../src/population-economy.js';
+import { DEFAULT_PROVINCE_ID, provinceScopedKey } from '../src/provinces.js';
 
 const now = 1_700_000_000_000;
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
@@ -173,31 +174,30 @@ test('fruit beverage recipe uses its own cost and atomically consumes fruit and 
   assert.ok(Math.abs(player.credits - 85.6) < 1e-9);
 });
 
-test('asset valuation uses the latest order-book trade and ignores open bid prices', () => {
+test('commodity valuation uses the daily official price and ignores retired open bid prices', () => {
   const world = createWorld(now);
-  for (const state of Object.values(world.demandGroups)) state.nextDemandAt = now + 5 * 60 * 1000;
   const buyer = ensurePlayer(world, alice, now);
-  const seller = ensurePlayer(world, bob, now);
   buyer.credits = 10_000;
-  seller.inventories.wheat.available = 10;
   migrateFacilityGroupWorld(world, now);
+  const market = world.markets[provinceScopedKey(DEFAULT_PROVINCE_ID, 'wheat')];
 
   const initial = createFacilityGroupClientState(world, alice.id, now);
-  assert.equal(initial.valuationPrices['commodity:wheat'], 1.2, 'commodity valuation uses the official system price');
+  assert.equal(initial.valuationPrices['commodity:wheat'], market.officialPrice);
 
-  assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', { assetKind: 'commodity', assetId: 'wheat', side: 'sell', quantity: 2, price: 7 }, now + 1).ok, true);
-  assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', { assetKind: 'commodity', assetId: 'wheat', side: 'buy', quantity: 2, price: 9 }, now + 2).ok, true);
-  assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', { assetKind: 'commodity', assetId: 'wheat', side: 'sell', quantity: 1, price: 11 }, now + 3).ok, true);
-  assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', { assetKind: 'commodity', assetId: 'wheat', side: 'buy', quantity: 1, price: 12 }, now + 4).ok, true);
-
-  world.orders.push({ id: 'open-bid', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat', side: 'buy', ownerType: 'player', ownerId: 3, ownerName: 'Charlie', price: 999, quantity: 1, remaining: 1, status: 'open', createdAt: now + 5 });
+  market.lastTradePrice = 3;
+  market.officialPrice = 11;
+  world.orders.push({
+    id: 'retired-open-bid', provinceId: DEFAULT_PROVINCE_ID, assetKind: 'commodity', assetId: 'wheat', productId: 'wheat',
+    side: 'buy', ownerType: 'player', ownerId: 3, ownerName: 'Charlie', price: 999, quantity: 1, remaining: 1,
+    status: 'open', createdAt: now + 1,
+  });
   buyer.inventories.wheat.available = 10;
-  world.markets.wheat.officialPrice = 11;
-  const state = createFacilityGroupClientState(world, alice.id, now + 5);
-  assert.equal(world.markets.wheat.lastTradePrice, 11);
+
+  const state = createFacilityGroupClientState(world, alice.id, now + 2);
+  assert.equal(market.lastTradePrice, 3);
   assert.equal(state.valuationPrices['commodity:wheat'], 11);
   assert.equal(state.assetSummary.commodityValue, 110);
-});
+}
 
 test('factory automatically recovers after funds return', () => {
   const world = createWorld(now);

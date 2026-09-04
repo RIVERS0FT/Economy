@@ -61,7 +61,7 @@ test('delete save recreates the player baseline and preserves permanent account 
     const registeredAt = before.registeredAt;
     const preflight = getPlayerSaveDeletionPreflight(store, user, now + 3);
     assert.equal(preflight.allowed, true);
-    assert.equal(preflight.autoClose.orders, 1);
+    assert.equal(preflight.autoClose.orders, 0);
 
     const response = deletePlayerSave(store, user, {
       confirmation: '删除存档',

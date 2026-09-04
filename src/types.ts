@@ -386,21 +386,25 @@ export interface ProductMarketState {
   provinceId?: string;
   lastPrice: number;
   lastTradePrice: number | null;
-  /** Current official system price at which the system clears player orders in real time. */
+  /** Current state-product daily official price used for immediate player trades. */
   officialPrice?: number;
-  /** Server timestamp of the next official price cycle. */
+  /** Server timestamp of the next Beijing-midnight daily price adjustment. */
   nextPriceAt?: number;
-  /** Quantity the system sold to players during the current price cycle. */
+  /** Quantity the system sold to players during the current Beijing calendar day. */
+  todayBuyQuantity?: number;
+  /** Quantity the system bought from players during the current Beijing calendar day. */
+  todaySellQuantity?: number;
+  /** @deprecated Server-only five-minute migration alias; not shipped in normal market summaries. */
   cycleBuyQuantity?: number;
-  /** Quantity the system bought from players during the current price cycle. */
+  /** @deprecated Server-only five-minute migration alias; not shipped in normal market summaries. */
   cycleSellQuantity?: number;
-  /** Last cycle imbalance ((B - S) / (B + S + 2L)). */
+  /** @deprecated Server-side pricing diagnostic; normal client summaries omit it. */
   lastImbalance?: number;
-  /** Last cycle official price change in signed basis points. */
+  /** Last daily official price change in signed basis points. */
   lastPriceChangeBps?: number;
   /** Full history is loaded only for the actively viewed market in client state version 38. */
   priceHistory?: PricePoint[];
-  demand: DemandState;
+  demand?: Partial<DemandState>;
   priceChange24h?: number | null;
   tradeVolume24h?: number;
   tradeCount24h?: number;

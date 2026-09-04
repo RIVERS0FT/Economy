@@ -156,7 +156,7 @@ test('market detail store response omits an unchanged conditional payload', () =
     }, now + 1);
     assert.equal(first.unchanged, false);
     assert.equal(first.marketDetailRevision, first.marketDetail.revision);
-    assert.equal(getOrderBookRuntimeDiagnostics(committedWorld).builds, 1);
+    assert.equal(getOrderBookRuntimeDiagnostics(committedWorld).builds, 0);
     const repeated = store.getMarketDetail(alice, {
       provinceId: DEFAULT_PROVINCE_ID,
       assetKind: 'commodity',
@@ -169,8 +169,8 @@ test('market detail store response omits an unchanged conditional payload', () =
     assert.equal(repeated.serverNow, now + 2);
     assert.equal(
       getOrderBookRuntimeDiagnostics(committedWorld).builds,
-      1,
-      'repeated market detail must reuse the committed-world order-book runtime',
+      0,
+      'commodity market detail must not build a public order-book runtime',
     );
   } finally {
     store.close();

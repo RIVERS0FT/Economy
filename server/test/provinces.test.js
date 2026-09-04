@@ -172,39 +172,42 @@ test('world 29 inventory migration conserves legacy assets in default California
   assert.equal(JSON.stringify(player.inventories).includes('"wheat":'), false);
 });
 
-test('same commodity cannot match across states while same-state price-time order remains authoritative', () => {
+test('same commodity immediate trades use independent state daily prices and inventories', () => {
   const world = createWorld(NOW);
   world.orders = [];
   const buyer = ensurePlayer(world, alice, NOW);
-  const firstSeller = ensurePlayer(world, bob, NOW);
-  const secondSeller = ensurePlayer(world, carol, NOW);
+  const seller = ensurePlayer(world, bob, NOW);
   buyer.credits = 1_000;
-  inventoryForProvince(firstSeller, 'wheat', GEORGIA).available = 1;
-  inventoryForProvince(secondSeller, 'wheat', GEORGIA).available = 1;
+  seller.credits = 0;
+  inventoryForProvince(seller, 'wheat', GEORGIA).available = 1;
+  world.markets[provinceScopedKey(CALIFORNIA, 'wheat')].officialPrice = 1;
+  world.markets[provinceScopedKey(GEORGIA, 'wheat')].officialPrice = 2;
 
-  assert.equal(applySettledCommodityOrder(world, bob, {
-    provinceId: GEORGIA, productId: 'wheat', side: 'sell', quantity: 1, price: 5,
-  }, NOW + 1).ok, true);
-  assert.equal(applySettledCommodityOrder(world, carol, {
-    provinceId: GEORGIA, productId: 'wheat', side: 'sell', quantity: 1, price: 5,
-  }, NOW + 2).ok, true);
-  assert.equal(applySettledCommodityOrder(world, alice, {
-    provinceId: CALIFORNIA, productId: 'wheat', side: 'buy', quantity: 2, price: 5,
-  }, NOW + 3).ok, true);
+  const georgiaSell = applySettledCommodityOrder(world, bob, {
+    provinceId: GEORGIA, productId: 'wheat', side: 'sell', quantity: 1, price: 999,
+  }, NOW + 1);
+  const californiaBuy = applySettledCommodityOrder(world, alice, {
+    provinceId: CALIFORNIA, productId: 'wheat', side: 'buy', quantity: 2, price: 999,
+  }, NOW + 2);
+  const georgiaBuy = applySettledCommodityOrder(world, alice, {
+    provinceId: GEORGIA, productId: 'wheat', side: 'buy', quantity: 1, price: 0.01,
+  }, NOW + 3);
 
-  assert.equal(inventoryForProvince(buyer, 'wheat', CALIFORNIA).available, 0);
-  assert.equal(world.orders.filter((order) => order.provinceId === GEORGIA && order.side === 'sell' && order.status === 'open').length, 2);
-
-  assert.equal(applySettledCommodityOrder(world, alice, {
-    provinceId: GEORGIA, productId: 'wheat', side: 'buy', quantity: 2, price: 5,
-  }, NOW + 4).ok, true);
-
-  const georgiaSells = world.orders.filter((order) => order.provinceId === GEORGIA && order.side === 'sell');
-  assert.deepEqual(georgiaSells.map((order) => order.ownerId), [bob.id, carol.id]);
-  assert.deepEqual(georgiaSells.map((order) => order.status), ['filled', 'filled']);
-  assert.equal(inventoryForProvince(buyer, 'wheat', GEORGIA).available, 2);
-  assert.equal(world.orders.some((order) => order.provinceId === CALIFORNIA && order.side === 'buy' && order.status === 'open'), true);
-});
+  assert.equal(georgiaSell.ok, true);
+  assert.equal(californiaBuy.ok, true);
+  assert.equal(georgiaBuy.ok, true);
+  assert.equal(georgiaSell.executedPrice, 2);
+  assert.equal(californiaBuy.executedPrice, 1);
+  assert.equal(georgiaBuy.executedPrice, 2);
+  assert.equal(inventoryForProvince(buyer, 'wheat', CALIFORNIA).available, 2);
+  assert.equal(inventoryForProvince(buyer, 'wheat', GEORGIA).available, 1);
+  assert.equal(inventoryForProvince(seller, 'wheat', GEORGIA).available, 0);
+  assert.equal(world.markets[provinceScopedKey(CALIFORNIA, 'wheat')].todayBuyQuantity, 2);
+  assert.equal(world.markets[provinceScopedKey(CALIFORNIA, 'wheat')].todaySellQuantity, 0);
+  assert.equal(world.markets[provinceScopedKey(GEORGIA, 'wheat')].todayBuyQuantity, 1);
+  assert.equal(world.markets[provinceScopedKey(GEORGIA, 'wheat')].todaySellQuantity, 1);
+  assert.equal(world.orders.some((order) => order.ownerType === 'player' && ['open', 'partial'].includes(order.status)), false);
+}
 
 test('construction and production consume and output only the selected province inventory', () => {
   const world = createWorld(NOW);

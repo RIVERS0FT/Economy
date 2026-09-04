@@ -352,7 +352,7 @@ export function MarketPage({
     ? detailedProductMarket?.nextPriceAt ?? selectedMarket?.nextPriceAt
     : undefined;
   const todayVolume = selectedProduct
-    ? Math.max(0, Number(selectedMarket?.cycleBuyQuantity || 0)) + Math.max(0, Number(selectedMarket?.cycleSellQuantity || 0))
+    ? Math.max(0, Number(selectedMarket?.todayBuyQuantity || 0)) + Math.max(0, Number(selectedMarket?.todaySellQuantity || 0))
     : 0;
 
   const catalogEntries = useMemo(() => {
