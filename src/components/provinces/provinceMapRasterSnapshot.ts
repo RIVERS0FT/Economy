@@ -60,25 +60,39 @@ function applySnapshotWorldLod(sourceSvg: SVGSVGElement, cloneSvg: SVGSVGElement
   cloneLodFill.style.fillOpacity = '.78';
 }
 
+async function decodeSvgImageElement(blob: Blob): Promise<ProvinceMapRasterSnapshot> {
+  const url = URL.createObjectURL(blob);
+  const image = new Image();
+  image.decoding = 'async';
+  image.src = url;
+  try {
+    await image.decode();
+    return {
+      image,
+      dispose: () => URL.revokeObjectURL(url),
+    };
+  } catch (error) {
+    URL.revokeObjectURL(url);
+    throw error;
+  }
+}
+
 async function decodeSvgBlob(blob: Blob): Promise<ProvinceMapRasterSnapshot> {
   if (typeof createImageBitmap === 'function') {
-    const bitmap = await createImageBitmap(blob);
-    return {
-      image: bitmap,
-      dispose: () => bitmap.close(),
-    };
+    try {
+      const bitmap = await createImageBitmap(blob);
+      return {
+        image: bitmap,
+        dispose: () => bitmap.close(),
+      };
+    } catch {
+      // Chromium can reject SVG blobs through createImageBitmap even when the same
+      // serialized SVG is decodable by an HTMLImageElement. Keep snapshot generation
+      // off the Camera hot path and fall back to the browser image decoder.
+    }
   }
 
-  const url = URL.createObjectURL(blob);
-  try {
-    const image = new Image();
-    image.decoding = 'async';
-    image.src = url;
-    await image.decode();
-    return { image, dispose: () => undefined };
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  return decodeSvgImageElement(blob);
 }
 
 export async function createProvinceMapRasterSnapshot(
