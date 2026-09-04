@@ -68,6 +68,10 @@ async function readCameraViewBox(canvas: Locator) {
   }));
 }
 
+async function waitForSettledCamera(canvas: Locator) {
+  await expect.poll(async () => canvas.getAttribute('data-map-zoom-active')).toBe('false');
+}
+
 function parseWorldBounds(value: string | null) {
   const [minX, minY, maxX, maxY] = String(value || '').split(/\s+/u).map(Number);
   if (![minX, minY, maxX, maxY].every(Number.isFinite)) throw new Error('fixed camera world bounds missing');
@@ -207,11 +211,13 @@ test('minimum zoom centers the mainland and every zoom level stays inside one fi
   expect(Math.abs(baseline.centerOffsetY)).toBeLessThan(3);
 
   await dragToEdge(canvas, 'right', 3);
+  await waitForSettledCamera(canvas);
   await expect.poll(async () => Math.abs((await readCameraViewBox(canvas)).x - minimumView.x)).toBeLessThan(0.02);
   await expect.poll(async () => Math.abs((await readCameraViewBox(canvas)).y - minimumView.y)).toBeLessThan(0.02);
 
   await zoomIn(page, canvas, 6);
   await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.5);
+  await waitForSettledCamera(canvas);
   expect(await canvas.getAttribute('data-map-camera-world-bounds')).toBe(fixedBoundsText);
   const zoomedView = await readCameraViewBox(canvas);
   expect(zoomedView.width).toBeLessThan(minimumView.width);
@@ -220,9 +226,11 @@ test('minimum zoom centers the mainland and every zoom level stays inside one fi
 
   await dragToEdge(canvas, 'right');
   await expect.poll(async () => Number(await canvas.getAttribute('data-map-pan-clamp-count'))).toBeGreaterThan(0);
+  await waitForSettledCamera(canvas);
   const rightBoundary = await readCameraViewBox(canvas);
   expectViewInsideBounds(rightBoundary, fixedBounds);
   await dragToEdge(canvas, 'right', 3);
+  await waitForSettledCamera(canvas);
   await expect.poll(async () => Math.abs((await readCameraViewBox(canvas)).x - rightBoundary.x)).toBeLessThan(0.02);
 
   await canvas.dispatchEvent('dblclick', { clientX: 20, clientY: 20 });
@@ -234,10 +242,14 @@ test('minimum zoom centers the mainland and every zoom level stays inside one fi
   expect(Math.abs(reset.areaRatio - baseline.areaRatio)).toBeLessThan(0.01);
 
   await zoomIn(page, canvas, 6);
+  await expect.poll(async () => Number(await canvas.getAttribute('data-map-zoom-current'))).toBeGreaterThan(1.5);
+  await waitForSettledCamera(canvas);
   await dragToEdge(canvas, 'down');
+  await waitForSettledCamera(canvas);
   const bottomBoundary = await readCameraViewBox(canvas);
   expectViewInsideBounds(bottomBoundary, fixedBounds);
   await dragToEdge(canvas, 'down', 3);
+  await waitForSettledCamera(canvas);
   await expect.poll(async () => Math.abs((await readCameraViewBox(canvas)).y - bottomBoundary.y)).toBeLessThan(0.02);
 });
 
