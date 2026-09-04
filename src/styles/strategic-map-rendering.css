@@ -5,9 +5,20 @@
 }
 
 .province-map-camera-surface {
-  transform: none !important;
+  transform: var(--province-map-camera-transform, none) !important;
+  transform-origin: 0 0;
   will-change: auto !important;
   backface-visibility: visible;
+}
+
+.province-map-static-viewport[data-map-zoom-active='true'] .province-map-camera-surface {
+  will-change: transform !important;
+  backface-visibility: hidden;
+}
+
+/* The transient compositor camera can move world content outside the last committed SVG viewport. The outer map viewport remains the only physical clip. */
+.province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-svg {
+  overflow: visible;
 }
 
 .province-map-world-svg {
@@ -18,7 +29,7 @@
   text-rendering: optimizeLegibility;
 }
 
-/* viewBox zoom re-rasterizes the visible vectors. Keep the map world filter-free so each frame does not rerun large SVG filters. */
+/* Idle viewBox commits re-rasterize the visible vectors. Keep the map world filter-free so the settle frame does not rerun large SVG filters. */
 .province-map-world-shadow {
   fill: none !important;
   fill-opacity: 0;
