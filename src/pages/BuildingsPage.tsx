@@ -415,6 +415,7 @@ export function BuildingsPage({
             tone={game.credits >= estimatedTotalSpend ? 'neutral' : 'danger'}
           />
         ) : null}
+      </DataList>
       <Button
         block
         onClick={submitBuild}

@@ -268,9 +268,9 @@ export function MarketPage({
   const selectedInventory = selectedProduct
     ? game.inventories[selectedProduct.id] ?? { available: 0, frozen: 0, inTransit: 0 }
     : { available: 0, frozen: 0, inTransit: 0 };
-  const selectedMarket = selectedProduct
-    ? game.markets[selectedProduct.id]
-    : selectedFacility ? game.facilityMarkets[selectedFacility.id] : undefined;
+  const selectedProductMarket = selectedProduct ? game.markets[selectedProduct.id] : undefined;
+  const selectedFacilityMarket = selectedFacility ? game.facilityMarkets[selectedFacility.id] : undefined;
+  const selectedMarket = selectedProductMarket ?? selectedFacilityMarket;
   const assetName = selectedProduct?.name ?? selectedFacility?.name ?? '资产';
   const assetId = selectedProduct?.id ?? selectedFacility?.id ?? activeAssetId;
   const selectedMarketDetail = marketDetail
@@ -283,8 +283,8 @@ export function MarketPage({
     selectedMarket?.lastTradeAt ?? '',
     selectedMarket?.lastTradePrice ?? '',
     selectedMarket?.tradeVolume24h ?? '',
-    selectedProduct ? selectedMarket?.officialPrice ?? '' : '',
-    selectedProduct ? selectedMarket?.nextPriceAt ?? '' : '',
+    selectedProductMarket?.officialPrice ?? '',
+    selectedProductMarket?.nextPriceAt ?? '',
   ].join('|');
 
   useEffect(() => {
@@ -346,13 +346,13 @@ export function MarketPage({
   const trendTone: StatusTone = marketTrend > 0 ? 'success' : marketTrend < 0 ? 'danger' : 'neutral';
   const detailedProductMarket = selectedProduct ? detailedMarket as ProductMarketState | undefined : undefined;
   const officialPrice = selectedProduct
-    ? detailedProductMarket?.officialPrice ?? selectedMarket?.officialPrice ?? selectedProduct.basePrice
+    ? detailedProductMarket?.officialPrice ?? selectedProductMarket?.officialPrice ?? selectedProduct.basePrice
     : undefined;
   const nextPriceAt = selectedProduct
-    ? detailedProductMarket?.nextPriceAt ?? selectedMarket?.nextPriceAt
+    ? detailedProductMarket?.nextPriceAt ?? selectedProductMarket?.nextPriceAt
     : undefined;
   const todayVolume = selectedProduct
-    ? Math.max(0, Number(selectedMarket?.todayBuyQuantity || 0)) + Math.max(0, Number(selectedMarket?.todaySellQuantity || 0))
+    ? Math.max(0, Number(selectedProductMarket?.todayBuyQuantity || 0)) + Math.max(0, Number(selectedProductMarket?.todaySellQuantity || 0))
     : 0;
 
   const catalogEntries = useMemo(() => {
