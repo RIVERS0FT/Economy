@@ -702,4 +702,3 @@ test('commodity compatibility fills always record the daily official price inste
   assert.equal(sellerB.inventories.wheat.available, 0);
   assert.equal(world.orders.some((order) => order.ownerType === 'player' && ['open', 'partial'].includes(order.status)), false);
 });
-
