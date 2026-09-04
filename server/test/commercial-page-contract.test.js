@@ -13,6 +13,8 @@ test('province page keeps market-commerce-industry order and commercial detail n
   const commerce = read('src/pages/CommercePage.tsx');
   const regionalTitle = read('src/components/ui/RegionalEntityPageTitle.tsx');
   const provinceMapBrowser = read('tests/browser/province-map.spec.ts');
+  const allPagesBrowser = read('tests/browser/all-pages-preview.spec.ts');
+  const lockedAccessBrowser = read('tests/browser/province-locked-access.spec.ts');
 
   const marketIndex = province.indexOf("{ id: 'market', label: '市场' }");
   const commerceIndex = province.indexOf("{ id: 'commerce', label: '商业' }");
@@ -27,6 +29,10 @@ test('province page keeps market-commerce-industry order and commercial detail n
   assert.ok(provinceMapBrowser.includes("await expect(tabs.getByRole('tab', { name: '商业', exact: true })).toBeVisible();"));
   assert.ok(provinceMapBrowser.includes("await expect(tabs.getByRole('tab', { name: '工业', exact: true })).toBeVisible();"));
   assert.ok(provinceMapBrowser.includes("await tabs.getByRole('tab', { name: '工业', exact: true }).click();"));
+  assert.ok(allPagesBrowser.includes("await expect(provinceTabs.getByRole('tab')).toHaveCount(5);"));
+  assert.ok(allPagesBrowser.includes("await expect(provinceTabs.getByRole('tab', { name: '商业', exact: true })).toBeVisible();"));
+  assert.ok(allPagesBrowser.includes("await expect(provinceTabs.getByRole('tab', { name: '工业', exact: true })).toBeVisible();"));
+  assert.ok(lockedAccessBrowser.includes("await page.getByRole('tab', { name: '工业', exact: true }).click();"));
 
   for (const token of [
     'regional-buildings-management',
