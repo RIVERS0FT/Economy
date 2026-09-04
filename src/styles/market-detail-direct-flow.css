@@ -1,7 +1,4 @@
-/* Regional market detail keeps contextual and trading content in the page flow.
- * Order-entry and order-book controls keep their internal boundaries without an outer card shell.
- * Commodity identity exposes only the two retained facts, so removed fundamentals reserve no layout tracks.
- * This page-flow contract is independent of unrelated global state-version migrations. */
+/* Regional commodity detail keeps identity, daily price facts, chart, immediate trade and recent trades in direct page flow. */
 
 .market-detail-surface > .market-detail-hero.ui-primary-surface,
 .market-detail-surface .market-chart-card.ui-primary-surface,
@@ -30,7 +27,34 @@
 }
 
 .market-detail-surface > .market-detail-hero--commodity {
-  grid-template-columns: 76px minmax(10rem, 1fr) repeat(2, minmax(6rem, auto));
+  grid-template-columns: 76px minmax(10rem, 1fr) minmax(18rem, auto);
+}
+
+.market-detail-surface .market-detail-hero__metrics {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(5rem, 1fr));
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.market-detail-surface .market-detail-hero__metrics > span {
+  min-width: 0;
+  display: grid;
+  gap: .08rem;
+}
+
+.market-detail-surface .market-detail-hero__metrics small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.market-detail-surface .market-detail-hero__metrics strong {
+  min-width: 0;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .market-detail-surface .market-chart-card,
@@ -58,11 +82,7 @@
 }
 
 .market-detail-surface .market-trade-summary {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.market-detail-surface .market-trade-summary > span:nth-child(2) {
-  display: none;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .market-detail-surface .market-account-panel {
@@ -70,13 +90,9 @@
 }
 
 @container market-page (max-width: 720px) {
-  .market-detail-surface > .market-detail-hero {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-2) var(--space-3);
-  }
-
   .market-detail-surface > .market-detail-hero--commodity {
-    grid-template-columns: 64px repeat(2, minmax(0, 1fr));
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: var(--space-2) var(--space-3);
   }
 
   .market-detail-surface .market-detail-hero__artwork {
@@ -87,46 +103,38 @@
     justify-self: start;
   }
 
-  .market-detail-surface .market-detail-hero--commodity .market-detail-hero__artwork {
-    grid-row: 1 / 3;
-  }
-
   .market-detail-surface .market-detail-hero__artwork > .product-artwork {
     width: 50px;
     height: 50px;
   }
 
-  .market-detail-surface .market-detail-hero__artwork > .facility-icon,
-  .market-detail-surface .market-detail-hero__artwork > .game-icon {
-    width: 58px;
-    height: 58px;
-  }
-
   .market-detail-surface .market-detail-hero__identity {
-    grid-column: 2 / -1;
+    min-width: 0;
+    grid-column: 2;
     grid-row: 1;
     align-self: center;
   }
 
-  .market-detail-surface .market-detail-hero__metric,
-  .market-detail-surface .market-detail-hero > span:not(.market-detail-hero__artwork):not(.market-detail-hero__identity) {
-    min-width: 0;
+  .market-detail-surface .market-detail-hero__metrics {
+    grid-column: 1 / -1;
     grid-row: 2;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-2);
   }
 
-  .market-detail-surface .market-detail-hero__metric strong {
-    max-width: 100%;
+  .market-detail-surface .market-detail-hero__metrics strong {
     font-size: var(--font-size-md);
+  }
+
+  .market-detail-surface .market-trade-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @container market-page (max-width: 420px) {
-  .market-detail-surface > .market-detail-hero {
-    gap: var(--space-2);
-  }
-
   .market-detail-surface > .market-detail-hero--commodity {
-    grid-template-columns: 56px repeat(2, minmax(0, 1fr));
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: var(--space-2);
   }
 
   .market-detail-surface .market-detail-hero__artwork {
@@ -139,9 +147,7 @@
     height: 46px;
   }
 
-  .market-detail-surface .market-detail-hero__artwork > .facility-icon,
-  .market-detail-surface .market-detail-hero__artwork > .game-icon {
-    width: 52px;
-    height: 52px;
+  .market-detail-surface .market-detail-hero__metrics {
+    gap: var(--space-1);
   }
 }
