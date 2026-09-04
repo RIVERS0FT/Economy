@@ -133,7 +133,7 @@ for (const text of [
   'geometry.fields[1].left - geometry.fields[0].right',
   'geometry.rowRight - geometry.fields[2].right',
   'page.mouse.click',
-  "expect(expanded).toEqual(['false', 'false'])",
+  "expect(expanded).toEqual(['false', 'false', 'false'])",
   'expectedSize',
   "innerText.trim()",
   "toBe('')",
