@@ -180,7 +180,7 @@ check('src/components/shell/DesktopSidebar.tsx', [
   'showIdentity={false}',
   "excludedTabs={['settings']}",
   'className="sidebar-settings sidebar-footer-action"',
-  "onClick={() => onSelect('settings')}",
+  "onClick={() => onSelect('settings')",
 ]);
 forbid('src/components/shell/DesktopSidebar.tsx', ['LogoutIcon', 'onSignOut', 'playerName']);
 check('src/components/shell/StatusBar.tsx', [
@@ -469,12 +469,19 @@ check('tests/browser/frosted-glass-layout.spec.ts', [
   "toHaveCSS('border-radius', '40px')",
 ]);
 check('tests/browser/all-pages-preview.spec.ts', [
-  'overview, market, buildings, transport, and settings share a one-third card width while research, auction, contracts, bank, leaderboard, and shop stay full-area',
+  'async function openPersistentLayoutPreview',
+  'province, overview, market, buildings, transport, and settings share a one-third card width with one persistent strategic outliner',
+  'transport route picking keeps the persistent strategic outliner and compact page geometry',
+  'research, auction, contracts, bank, leaderboard, and shop stay full-area with one persistent strategic outliner',
   'page navigation unfolds only the active page while the persistent map keeps its instance and geometry',
   'reduced motion disables card width and page unfold animation',
   'expect(Math.max(...compactWidths) - Math.min(...compactWidths)).toBeLessThanOrEqual(1)',
   'expect(compactCardWidths[0]).toBeLessThanOrEqual(1684 / 3)',
   "expect(fullAreaWidths.get('排行')).toBeCloseTo(fullAreaWidths.get('商店')!, 0)",
+]);
+forbid('tests/browser/all-pages-preview.spec.ts', [
+  'test.setTimeout(',
+  'pageReadyTimeout',
 ]);
 check('tests/browser/tutorial-right-rail.spec.ts', [
   'desktop strategic outliner persists across business and fullscreen pages',
