@@ -8,7 +8,7 @@ async function waitForRasterReady(canvas: import('@playwright/test').Locator) {
     .toBeGreaterThan(0);
 }
 
-test('active zoom transforms only the raster snapshot while settled SVG geometry stays immutable until one viewBox commit', async ({ page }) => {
+test('active zoom uses one transient camera transform while static geometry stays immutable and settle commits one viewBox', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
