@@ -249,11 +249,12 @@ test('market and building entity lists share surface geometry with registered de
   facilitySamples.push(await inspect('.global-facility-region-surface'));
 
   const samples = [...marketSamples, ...facilitySamples];
-  const densityKeys = new Set<keyof typeof samples[number]>(['paddingTop', 'paddingBottom']);
+  const densityKeys = new Set<keyof typeof samples[number]>(['paddingLeft', 'paddingRight', 'paddingTop', 'paddingBottom']);
   for (const sample of facilitySamples) {
     expect(sample.paddingTop).toBe(sample.paddingBottom);
-    expect(sample.paddingLeft).toBe(sample.paddingRight);
-    expect(parseFloat(sample.paddingTop)).toBeLessThan(parseFloat(sample.paddingRight));
+    expect(sample.paddingLeft).toBe('0px');
+    expect(sample.paddingRight).toBe('0px');
+    expect(parseFloat(sample.paddingTop)).toBeGreaterThan(0);
   }
   for (const key of Object.keys(samples[0]) as Array<keyof typeof samples[number]>) {
     if (key === 'minHeight') {
