@@ -86,7 +86,10 @@ for (const text of [
   'bestBid: null',
   'bestAsk: null',
   "assetKind === 'commodity' ? [] : publicDepth(getOrderBookDepth",
-  "assetKind === 'commodity'\n      ? EMPTY_PUBLIC_ORDER_BOOK",
+  'includeOrderBook = true',
+  "includeOrderBook: assetKind !== 'commodity'",
+  "const bids = assetKind === 'commodity' ? [] : publicDepth",
+  "const asks = assetKind === 'commodity' ? [] : publicDepth",
 ]) requireText('server/src/market-state-delivery.js', text);
 
 const marketDetailTest = read('server/test/market-state-delivery.test.js');
