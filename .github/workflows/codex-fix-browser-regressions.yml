@@ -1,0 +1,80 @@
+name: Fix immediate-trade browser regressions
+
+on:
+  push:
+    branches:
+      - codex/daily-system-market
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update browser fixtures and stale assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              source = file.read_text(encoding='utf-8')
+              if source.count(old) != 1:
+                  raise RuntimeError(f'{path}: expected exactly one match, got {source.count(old)}')
+              file.write_text(source.replace(old, new, 1), encoding='utf-8')
+
+          replace_once(
+              'tests/browser/runtime-harness.tsx',
+              """      markets.steel = {
+                ...markets.machinery,
+                productId: 'steel',
+                lastPrice: 29,
+                lastTradePrice: 28.75,
+                priceHistory: [],
+              };
+              markets.machinery = {
+                ...markets.machinery,
+                lastTradePrice: 76.25,
+              };""",
+              """      markets.steel = {
+                ...markets.machinery,
+                productId: 'steel',
+                lastPrice: 29,
+                officialPrice: 28.75,
+                lastTradePrice: 28.75,
+                priceHistory: [],
+              };
+              markets.machinery = {
+                ...markets.machinery,
+                officialPrice: 76.25,
+                lastTradePrice: 76.25,
+              };""",
+          )
+
+          replace_once(
+              'tests/browser/runtime.spec.ts',
+              """  const nestedOverflowModes = await page.locator('.overview-open-orders-list')
+                .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).overflowY));
+              expect(nestedOverflowModes).toEqual(['visible']);""",
+              """  await expect(page.locator('.overview-open-orders-list')).toHaveCount(0);""",
+          )
+          PY
+          node scripts/verify-recipe-profit-analysis.mjs
+          node scripts/verify-overview-content.mjs
+      - name: Commit browser regression fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/codex-fix-browser-regressions.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "修复即时交易浏览器回归夹具"
+          git push origin HEAD:codex/daily-system-market
