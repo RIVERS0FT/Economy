@@ -28,14 +28,27 @@ import { provinceEconomicLevelFor } from '../utils/provinceEconomicLevel';
 const EmbeddedMarketPage = lazy(() => import('./MarketPage').then((module) => ({
   default: module.MarketPage,
 })));
+const EmbeddedCommercePage = lazy(() => import('./CommercePage').then((module) => ({
+  default: module.CommercePage,
+})));
 const EmbeddedBuildingsPage = lazy(() => import('./BuildingsPage').then((module) => ({
   default: module.BuildingsPage,
 })));
 
+interface ProvinceCommercialState {
+  commercialBuildingTypes?: Array<{ id: string; name: string }>;
+  commercialBuildingGroups?: Array<{
+    commercialTypeId: string;
+    provinceId: string;
+    count: number;
+  }>;
+}
+
 const PROVINCE_SECTIONS: Array<{ id: ProvinceSection; label: string }> = [
   { id: 'overview', label: '概览' },
   { id: 'market', label: '市场' },
-  { id: 'buildings', label: '建筑' },
+  { id: 'commerce', label: '商业' },
+  { id: 'buildings', label: '工业' },
   { id: 'warehouse', label: '仓库' },
 ];
 
@@ -53,6 +66,11 @@ function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameVie
     blockedFacilityCount: 0,
     openOrderCount: 0,
   };
+  const commercialGame = model.game as typeof model.game & ProvinceCommercialState;
+  const commercialGroups = (commercialGame.commercialBuildingGroups ?? []).filter((group) => (
+    group.provinceId === model.selectedProvinceId && group.count > 0
+  ));
+  const commercialCount = commercialGroups.reduce((sum, group) => sum + group.count, 0);
   const economicBaseline = STATE_ECONOMIC_BASELINE_BY_PROVINCE_ID.get(model.selectedProvinceId);
   const economicLevel = provinceEconomicLevelFor(model.selectedProvinceId);
   const stoppedFacilityCount = Math.max(
@@ -84,9 +102,10 @@ function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameVie
           value={economicBaseline ? <><CompactNumber value={economicBaseline.pceMillions} /> 百万美元</> : '—'}
         />
         <MetricCard label="本地库存" value={<CompactNumber value={summary.storedQuantity} />} />
-        <MetricCard label="工厂总数" value={<CompactNumber value={summary.facilityCount} />} />
+        <MetricCard label="工业建筑" value={<CompactNumber value={summary.facilityCount} />} />
+        <MetricCard label="商业建筑" value={<CompactNumber value={commercialCount} />} />
         <MetricCard
-          label="运行中"
+          label="工业运行中"
           value={<CompactNumber value={summary.runningFacilityCount} />}
           tone={summary.runningFacilityCount > 0 ? 'success' : 'neutral'}
         />
@@ -98,11 +117,11 @@ function ProvinceOverviewSection({ model }: { model: OnlineAutoTradeAwareGameVie
       </div>
       <DataList>
         <DataRow
-          label="异常工厂"
+          label="异常工业建筑"
           value={<CompactNumber value={summary.blockedFacilityCount} />}
           tone={summary.blockedFacilityCount > 0 ? 'danger' : 'neutral'}
         />
-        <DataRow label="已停止工厂" value={<CompactNumber value={stoppedFacilityCount} />} />
+        <DataRow label="已停止工业建筑" value={<CompactNumber value={stoppedFacilityCount} />} />
       </DataList>
     </section>
   );
@@ -118,8 +137,10 @@ function ProvinceSectionLoading() {
 
 export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewModel }) {
   const pageNavigation = usePlayerPageNavigation();
+  const commercialGame = model.game as typeof model.game & ProvinceCommercialState;
   const [fallbackSection, setFallbackSection] = useState<ProvinceSection>('overview');
   const [fallbackFacilityDetailTypeId, setFallbackFacilityDetailTypeId] = useState<string | null>(null);
+  const [fallbackCommercialDetailTypeId, setFallbackCommercialDetailTypeId] = useState<string | null>(null);
   const location = pageNavigation?.currentLocation;
   const locationMatchesProvince = location && 'provinceId' in location
     ? location.provinceId === model.selectedProvinceId
@@ -129,9 +150,11 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
       ? location.section
       : locationMatchesProvince && location?.type === 'regional-product' && location.host === 'province'
         ? 'market'
-        : locationMatchesProvince && location?.type === 'regional-facility' && location.host === 'province'
-          ? 'buildings'
-          : 'overview'
+        : locationMatchesProvince && location?.type === 'regional-commercial'
+          ? 'commerce'
+          : locationMatchesProvince && location?.type === 'regional-facility' && location.host === 'province'
+            ? 'buildings'
+            : 'overview'
     : fallbackSection;
   const facilityDetailTypeId = pageNavigation
     && locationMatchesProvince
@@ -139,6 +162,11 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     && location.host === 'province'
     ? location.facilityTypeId
     : fallbackFacilityDetailTypeId;
+  const commercialDetailTypeId = pageNavigation
+    && locationMatchesProvince
+    && location?.type === 'regional-commercial'
+    ? location.commercialTypeId
+    : fallbackCommercialDetailTypeId;
   const stackedProductId = pageNavigation
     && locationMatchesProvince
     && location?.type === 'regional-product'
@@ -154,7 +182,18 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
   const facilityDetailType = facilityDetailEntry
     ? model.game.facilityTypes.find((type) => type.id === facilityDetailEntry.facilityTypeId)
     : undefined;
+  const commercialDetailEntry = commercialDetailTypeId
+    ? (commercialGame.commercialBuildingGroups ?? []).find((group) => (
+      group.commercialTypeId === commercialDetailTypeId
+      && group.provinceId === model.selectedProvinceId
+      && group.count > 0
+    ))
+    : undefined;
+  const commercialDetailType = commercialDetailEntry
+    ? (commercialGame.commercialBuildingTypes ?? []).find((type) => type.id === commercialDetailEntry.commercialTypeId)
+    : undefined;
   const isFacilityDetail = activeSection === 'buildings' && Boolean(facilityDetailType);
+  const isCommercialDetail = activeSection === 'commerce' && Boolean(commercialDetailType);
   const marketDetailProductId = activeSection === 'market'
     ? stackedProductId ?? (
       model.marketViewMode === 'detail' && model.marketAssetKind === 'commodity'
@@ -166,7 +205,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     ? model.game.products.find((product) => product.id === marketDetailProductId)
     : undefined;
   const isMarketDetail = Boolean(marketDetailProduct);
-  const isEntityDetail = isFacilityDetail || isMarketDetail;
+  const isEntityDetail = isFacilityDetail || isCommercialDetail || isMarketDetail;
   useEffect(() => {
     if (!pageNavigation || model.tab !== 'province') return;
     const current = pageNavigation.currentLocation;
@@ -175,6 +214,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
       && (
         current.type === 'province'
         || (current.type === 'regional-product' && current.host === 'province')
+        || current.type === 'regional-commercial'
         || (current.type === 'regional-facility' && current.host === 'province')
       );
     if (!validCurrentLocation) {
@@ -217,8 +257,6 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     pageNavigation,
   ]);
 
-
-
   const selectSection = (section: ProvinceSection, focus = false) => {
     if (section === 'market') model.showMarketCatalog();
     if (pageNavigation) {
@@ -226,6 +264,7 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     } else {
       setFallbackSection(section);
       setFallbackFacilityDetailTypeId(null);
+      setFallbackCommercialDetailTypeId(null);
     }
     if (focus) {
       document.getElementById(`province-section-tab-${section}`)?.focus({ preventScroll: true });
@@ -250,6 +289,26 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
       type: 'province',
       provinceId: model.selectedProvinceId,
       section: 'buildings',
+    });
+  };
+
+  const handleCommercialDetailChange = (commercialTypeId: string | null) => {
+    if (!pageNavigation) {
+      setFallbackCommercialDetailTypeId(commercialTypeId);
+      return;
+    }
+    if (commercialTypeId) {
+      pageNavigation.pushPage({
+        type: 'regional-commercial',
+        provinceId: model.selectedProvinceId,
+        commercialTypeId,
+      });
+      return;
+    }
+    pageNavigation.replacePage({
+      type: 'province',
+      provinceId: model.selectedProvinceId,
+      section: 'commerce',
     });
   };
 
@@ -309,6 +368,8 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
     <PageLayout
       title={isMarketDetail && marketDetailProduct ? (
         <RegionalEntityPageTitle entityName={marketDetailProduct.name} regionName={provinceName} />
+      ) : isCommercialDetail && commercialDetailType ? (
+        <RegionalEntityPageTitle entityName={commercialDetailType.name} regionName={provinceName} />
       ) : isFacilityDetail && facilityDetailType ? (
         <RegionalEntityPageTitle
           entityName={facilityDetailType.name}
@@ -318,9 +379,11 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
       ) : provinceName}
       backAction={pageNavigation ? undefined : isMarketDetail
         ? { label: '返回商品列表', onClick: model.showMarketCatalog }
-        : isFacilityDetail
-          ? { label: '返回建筑列表', onClick: () => setFallbackFacilityDetailTypeId(null) }
-          : { label: '返回地图', onClick: () => model.setTab('map') }}
+        : isCommercialDetail
+          ? { label: '返回商业建筑列表', onClick: () => setFallbackCommercialDetailTypeId(null) }
+          : isFacilityDetail
+            ? { label: '返回工业建筑列表', onClick: () => setFallbackFacilityDetailTypeId(null) }
+            : { label: '返回地图', onClick: () => model.setTab('map') }}
     >
       {!isEntityDetail ? sectionSwitch : null}
       <section
@@ -334,6 +397,16 @@ export function ProvincePage({ model }: { model: OnlineAutoTradeAwareGameViewMod
         {activeSection === 'market' ? (
           <Suspense fallback={<ProvinceSectionLoading />}>
             <EmbeddedMarketPage model={model} embedded />
+          </Suspense>
+        ) : null}
+        {activeSection === 'commerce' ? (
+          <Suspense fallback={<ProvinceSectionLoading />}>
+            <EmbeddedCommercePage
+              model={model}
+              embedded
+              detailCommercialTypeId={commercialDetailTypeId ?? undefined}
+              onDetailCommercialTypeChange={handleCommercialDetailChange}
+            />
           </Suspense>
         ) : null}
         {activeSection === 'buildings' ? (
