@@ -54,6 +54,7 @@ test('decimal daily-price commodity buy settles exactly without frozen funds or 
     assert.equal(afterPlace.frozenCredits, 0);
     assert.equal(afterPlace.credits, 98.77);
     assert.equal(afterPlace.inventories.wheat.available, 3);
+    assert.equal(afterPlace.provinceMarkets[DEFAULT_PROVINCE_ID].wheat.officialPrice, 0.41);
     const order = afterPlace.orders.find((candidate) => candidate.isOwn && candidate.assetKind === 'commodity' && candidate.assetId === 'wheat');
     assert.ok(order);
     assert.equal(order.status, 'filled');
