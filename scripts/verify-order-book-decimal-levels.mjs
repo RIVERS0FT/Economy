@@ -83,11 +83,14 @@ assert.deepEqual(
 
 assert.match(levelSource, /validOrderPrice\(order\.price\)/);
 assert.doesNotMatch(levelSource, /Number\.isInteger\(order\.price\)|order\.price\s*<\s*1/);
-assert.doesNotMatch(levelSource, /^import \{.*\} from '\.\/defaultOrderPrice';$/m);
 
 const design = read('../docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
-assert.match(design, /价格为不低于 0\.01 的两位小数订单/);
-assert.match(design, /同资产、同方向、同价格的有效订单按当前剩余数量聚合为价格档位/);
-assert.match(design, /聚合完成后再按最优价格截取 5 档/);
+assert.match(design, /服务器内部人口与储备订单/);
+assert.match(design, /普通玩家页面不得展示内部订单/);
+assert.match(design, /不得创建 `open`／`partial` 商品订单/);
 
-console.log('Decimal order-book level verification passed.');
+const marketPage = read('../src/pages/MarketPage.tsx');
+assert.doesNotMatch(marketPage, /orderBook\.bids|orderBook\.asks|buildOrderBookLevels|实时五档|点击填价/);
+assert.match(marketPage, /今日成交价/);
+
+console.log('Internal decimal order-level compatibility verification passed; player commodity UI remains immediate-price only.');

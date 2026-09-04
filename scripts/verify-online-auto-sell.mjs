@@ -19,8 +19,6 @@ for (const path of [
   'server/src/online-auto-buy.js',
   'server/src/online-auto-sell.js',
   'server/src/online-auto-trade-policy.js',
-  'server/src/online-auto-buy-orders.js',
-  'server/src/online-auto-sell-orders.js',
   'server/src/runtime-action-executor.js',
   'server/src/player-action-registry.js',
   'server/src/warehouse.js',
@@ -33,6 +31,7 @@ for (const path of [
   'src/auto-trade/useOnlineAutoTrade.ts',
   'src/api/game.ts',
   'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+  'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
 ]) requireFile(path);
 
 for (const text of [
@@ -54,22 +53,39 @@ for (const text of [
   'applyFactoryAutoOperationPolicyAction',
 ]) requireText('server/src/factory-auto-operation.js', text);
 
+for (const text of [
+  'factoryAutoTradeExecutionPolicyFor(player, productId, provinceId)?.buy',
+  'commoditySystemPriceFor(world, productId, provinceId, now)',
+  'officialPrice > policy.maxPrice',
+  'desiredQuantity(world, player, productId, policy, provinceId)',
+  'affordableQuantity(player, officialPrice, desired)',
+  'applySettledCommodityOrder(world, user',
+  "execution: 'online-auto-buy'",
+  '已按今日系统价',
+]) requireText('server/src/online-auto-buy.js', text);
+for (const text of [
+  'managedOnlineAutoBuyOrderFor',
+  'cancelManagedOnlineAutoBuyOrder',
+  'onlineAutoBuyManagedOrderIds',
+]) forbidText('server/src/online-auto-buy.js', text);
+
+for (const text of [
+  'factoryAutoTradeExecutionPolicyFor(player, productId, provinceId)?.sell',
+  'commoditySystemPriceFor(world, productId, provinceId, now)',
+  'officialPrice < policy.price',
+  'productionReservedQuantitiesForPlayer',
+  'contractAvailableHoldForOnlineTrade',
+  'applySettledCommodityOrder(world, user',
+  "execution: 'online-auto-sell'",
+  '已按今日系统价',
+]) requireText('server/src/online-auto-sell.js', text);
+for (const text of [
+  'managedOnlineAutoSellOrderFor',
+  'cancelManagedOnlineAutoSellOrder',
+  'onlineAutoSellManagedOrderIds',
+]) forbidText('server/src/online-auto-sell.js', text);
+
 for (const [path, texts] of [
-  ['server/src/online-auto-buy.js', [
-    'factoryAutoTradeExecutionPolicyFor(player, productId, provinceId)?.buy',
-    '当前工厂策略无需自动采购该商品',
-    '已撤销旧托管买单',
-    'managedOnlineAutoBuyOrderFor',
-    'applySettledCommodityOrder',
-  ]],
-  ['server/src/online-auto-sell.js', [
-    'factoryAutoTradeExecutionPolicyFor(player, productId, provinceId)?.sell',
-    '当前工厂策略无需自动出售该商品',
-    '已撤销旧托管卖单',
-    'productionReservedQuantitiesForPlayer',
-    'contractAvailableHoldForOnlineTrade',
-    'managedOnlineAutoSellOrderFor',
-  ]],
   ['server/src/runtime-action-executor.js', [
     "payload.execution === 'factory-auto-operation-policy'",
     'rebuildFactoryAutoTradePoliciesForProvince',
@@ -87,10 +103,12 @@ for (const [path, texts] of [
     'createFactoryAutoOperationClientState(player)',
   ]],
   ['src/auto-trade/useOnlineAutoTrade.ts', [
-    'Object.keys(game.onlineAutoSellManagedOrderIds ?? {})',
-    'Object.keys(game.onlineAutoBuyManagedOrderIds ?? {})',
-    'if (!policy?.enabled) return status.hasManagedSellOrder',
-    'if (!policy?.enabled) return status.hasManagedBuyOrder',
+    'function productOfficialPrice(',
+    'const buyPriceEligible = officialPrice <= buyPolicy.maxPrice;',
+    'const sellPriceEligible = officialPrice >= sellPolicy.price;',
+    'buyNeedsMaintenance',
+    'sellNeedsMaintenance',
+    "['catalog', 'player.assets', 'player.production', 'market.quotes', 'contract']",
   ]],
   ['src/api/game.ts', [
     'FactoryAutoOperationPolicyInput',
@@ -115,6 +133,14 @@ for (const [path, texts] of [
 ]) {
   for (const text of texts) requireText(path, text);
 }
+for (const text of [
+  'getClientOrderIndex(',
+  'managedCommodityOrder(',
+  'hasCrossingCommodityOrder(',
+  'onlineAutoBuyManagedOrderIds',
+  'onlineAutoSellManagedOrderIds',
+  'market.orders',
+]) forbidText('src/auto-trade/useOnlineAutoTrade.ts', text);
 
 for (const text of [
   'MoneyInput',
@@ -137,10 +163,14 @@ for (const text of [
   '同一商品被多个工厂消费时采用最高采购上限',
   '任一自动经营生产者对某商品选择 `keep` 全部保留',
   '出售价格下限必须严格高于采购价格上限',
-  '每个“玩家 + 地区 + 商品”最多维护一张关联自动买单和一张关联自动卖单',
   '不改成服务器后台常驻扫描任务',
   '旧 `onlineAutoBuyPolicies`、`onlineAutoSellPolicies`',
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
+for (const text of [
+  '不再维护 managed-order ID',
+  '自动采购：当日 `officialPrice <= 采购最高价`',
+  '自动出售：当日 `officialPrice >= 出售最低价`',
+]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
 
 for (const text of [
   'applyOnlineAutoSellPolicyAction(world, alice',
@@ -156,4 +186,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('工厂自动经营防回退检查通过');
+console.log('工厂自动经营防回退检查通过：工厂策略继续统一派生采购/出售阈值，在线客户端按当日官方系统价和库存缺口触发服务器即时交易，不再维护玩家托管挂单。');

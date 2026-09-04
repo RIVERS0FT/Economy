@@ -57,9 +57,14 @@ assert.match(formControls, /export function MoneyInput/);
 assert.match(formControls, /inputMode="decimal"/);
 assert.match(formControls, /normalizeMoneyDraft/);
 
-for (const path of ['src/pages/MarketPage.tsx', 'src/pages/BankPage.tsx', 'src/pages/AuctionPage.tsx', 'src/pages/ContractWorkspacePage.tsx']) {
+for (const path of ['src/pages/BankPage.tsx', 'src/pages/AuctionPage.tsx', 'src/pages/ContractWorkspacePage.tsx']) {
   assert.match(read(path), /MoneyInput/);
 }
+const marketPage = read('src/pages/MarketPage.tsx');
+assert.doesNotMatch(marketPage, /MoneyInput/);
+assert.match(marketPage, /officialPrice/);
+assert.match(marketPage, /IntegerInput/);
+assert.match(marketPage, /今日成交价/);
 assert.match(read('src/pages/ContractPage.tsx'), /ContractWorkspacePage/);
 
 assert.match(read('server/shared/economy-state-version.js'), /CURRENT_CLIENT_STATE_VERSION = 39/);
@@ -76,7 +81,8 @@ assert.match(runtimeActionExecutor, /cancelSettledCommodityOrder/);
 assert.match(runtimeActionExecutor, /action === 'cancelOrder'/);
 
 const facilityAutoProcure = read('server/src/facility-auto-procure.js');
-assert.match(facilityAutoProcure, /cancelSettledCommodityOrder/);
+assert.match(facilityAutoProcure, /commoditySystemPriceFor/);
+assert.match(facilityAutoProcure, /applyImmediateCommodityBuy/);
 assert.doesNotMatch(facilityAutoProcure, /applyAction\(world, user, 'cancelOrder'/);
 
 const banking = read('server/src/banking.js');

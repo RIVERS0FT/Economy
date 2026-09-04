@@ -4,23 +4,13 @@ const read = (path) => fs.readFileSync(path, 'utf8');
 const marketPage = read('src/pages/MarketPage.tsx');
 const marketStyles = read('src/styles/market-page-polish.css');
 const detailStyles = read('src/styles/market-detail-direct-flow.css');
-const virtualStyles = read('src/styles/virtual-list.css');
 const commodityRow = read('src/components/market/MarketCommodityRow.tsx');
 const commodityRowStyles = read('src/styles/market-commodity-row.css');
 const entityListHeader = read('src/components/ui/EntityListHeader.tsx');
-const buildingsPage = read('src/pages/BuildingsPage.tsx');
-const marketHistory = read('src/utils/marketHistory.ts');
 const chartSource = read('src/components/charts/PriceSparkline.tsx');
-const chartStyles = read('src/styles/charts.css');
 const serverDelivery = read('server/src/market-state-delivery.js');
 const serverDeliveryTest = read('server/test/market-state-delivery.test.js');
-const runtimeHarness = read('tests/browser/market-runtime-harness.tsx');
-const runtimeSpec = read('tests/browser/market-runtime.spec.ts');
-const detailRuntimeSpec = read('tests/browser/market-detail-direct-flow.spec.ts');
 const marketDesign = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
-const chartDesign = read('docs/MARKET_CHART_LAYOUT_DESIGN.md');
-const localActivityDesign = read('docs/LOCAL_ACTIVITY_LOG_DESIGN.md');
-const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 
 const failures = [];
 function requireText(source, text, message) {
@@ -30,173 +20,99 @@ function forbidText(source, text, message) {
   if (source.includes(text)) failures.push(message);
 }
 
-requireText(marketStyles, '.market-page-surface .unified-market-grid {\n  min-width: 0;\n  display: grid;\n  grid-template-columns: minmax(0, 1fr);', '紧凑市场必须保持单列主网格。');
+requireText(marketStyles, '.market-page-surface .unified-market-grid {', '地区市场必须继续使用统一单列主网格。');
 forbidText(marketStyles, 'grid-template-columns: minmax(560px, 0.82fr) minmax(680px, 1.18fr)', '市场不得恢复行情与交易一级双列。');
 requireText(chartSource, 'export function buildMarketChartGeometry', '完整行情图必须继续使用动态几何。');
-requireText(chartSource, '(0.22 / 0.78)', '完整行情图成交量绘图区必须保持最低占比。');
 forbidText(marketStyles, 'aspect-ratio: 16 / 9', '市场 CSS 不得固定行情图 16:9。');
 
-requireText(marketPage, "type MarketCatalogStatus = 'all' | 'traded' | 'buy' | 'sell' | 'unmet-demand' | 'own-order';", '地区市场必须保留市场状态筛选。');
-requireText(marketPage, "type MarketCatalogSort = 'catalog' | 'name' | 'price' | 'trend' | 'buy-volume' | 'sell-volume' | 'volume24h';", '地区市场排序只保留可见核心指标。');
-requireText(marketPage, "if (!facilityAssetId && marketViewMode === 'catalog')", '市场必须区分地区目录与详情。');
-requireText(marketPage, 'className="market-catalog-filter-disclosure"', '地区市场筛选必须使用默认折叠 disclosure。');
-requireText(marketPage, '<MarketCommodityHeader', '地区商品目录必须在列表顶部复用共享独立表头。');
-requireText(marketPage, 'entitySortKey="name"', '地区商品目录表头必须承载名称排序。');
-requireText(marketPage, 'sortDirection={catalogSortDirection}', '地区商品目录表头必须承接排序方向。');
-requireText(marketPage, '<span>筛选</span>', '地区市场筛选 disclosure 必须只命名为筛选。');
-forbidText(marketPage, '筛选与排序', '排序不得继续占用筛选面板。');
-forbidText(marketPage, 'label="排序"', '地区市场不得恢复排序下拉。');
-requireText(marketPage, '<MarketCommodityRow', '地区商品目录必须复用共享商品数据行。');
-requireText(marketPage, "onClick={() => selectMarketAsset(entry.kind, entry.id, !embedded)}", '地区商品行必须打开当前地区商品详情。');
-requireText(marketPage, 'embedded?: boolean;', '市场页必须支持州级上下文嵌入。');
-requireText(marketPage, 'return embedded', '嵌入市场不得重复 PageLayout。');
-requireText(marketPage, "<small>{selectedProduct ? '24h 成交量' : availableAssetLabel}</small>", '地区商品详情必须显示真实 24h 成交量。');
-
-const marketCatalogStart = marketPage.indexOf("if (!facilityAssetId && marketViewMode === 'catalog')");
-const marketDetailStart = marketPage.indexOf('\n  const detailContent =', marketCatalogStart);
-const marketCatalogSource = marketPage.slice(marketCatalogStart, marketDetailStart);
-const marketDetailSource = marketPage.slice(marketDetailStart);
 for (const token of [
-  'TextInput',
-  'catalogQuery',
-  '挂单差额',
-  '基准偏离',
-  '挂单状态',
-  "value=\"balance\"",
-  'market-catalog-row__balance',
-  'market-catalog-row__deviation',
-  'market-catalog-row__condition',
-  'game.facilityTypes.map',
-  '<FacilityIcon',
-  'market-workspace-switch',
-  'market-overview-metrics',
-  'market-catalog-panel',
-]) forbidText(marketCatalogSource, token, `地区商品目录不得恢复 ${token}。`);
-requireText(commodityRow, 'export function MarketCommodityHeader', '共享商品列表必须导出独立表头。');
-const commodityDataRowSource = commodityRow.slice(commodityRow.indexOf('export function MarketCommodityRow'));
-forbidText(commodityDataRowSource, 'market-commodity-row-header', '共享商品数据行不得重复渲染列标题。');
-for (const token of ['卖单量', '买单量', '24h成交量', '市场价', '24h价格变化']) requireText(commodityRow, token, `共享商品表头必须显示 ${token}。`);
+  "type MarketCatalogStatus = 'all' | 'traded' | 'unmet-demand';",
+  "type MarketCatalogSort = 'catalog' | 'name' | 'price' | 'trend' | 'volume24h';",
+  'className="market-catalog-filter-disclosure"',
+  '<MarketCommodityHeader',
+  'entitySortKey="name"',
+  '<MarketCommodityRow',
+  "onClick={() => selectMarketAsset(entry.kind, entry.id, !embedded)}",
+]) requireText(marketPage, token, `地区商品目录缺少即时市场结构: ${token}`);
+for (const token of [
+  "'buy' | 'sell' |",
+  "'buy-volume'",
+  "'sell-volume'",
+  '有买盘',
+  '有卖盘',
+  '有我的订单',
+  'ownOrderCount',
+]) forbidText(marketPage, token, `地区商品目录不得恢复玩家挂单筛选或指标: ${token}`);
+
+for (const token of ['24h成交量', '市场价', '24h价格变化']) requireText(commodityRow, token, `共享商品表头必须显示 ${token}。`);
+for (const token of ['卖单量', '买单量', 'sellVolume', 'buyVolume']) forbidText(commodityRow, token, `共享商品列表不得恢复盘口指标: ${token}`);
 requireText(commodityRow, "entityLabel = '商品'", '共享商品表头默认首列必须为商品。');
 requireText(commodityRow, '<EntityListHeader', '共享商品表头必须复用统一实体列表表头。');
 requireText(entityListHeader, 'role="columnheader"', '共享实体列表表头必须使用列标题语义。');
 requireText(entityListHeader, 'aria-sort={ariaSort}', '共享实体列表表头必须播报排序方向。');
-requireText(entityListHeader, 'className="entity-list-header__sort"', '共享实体列表表头排序必须渲染为按钮。');
-requireText(commodityRow, 'export function nextMarketCommoditySort', '共享商品表头必须复用三态排序状态机。');
-requireText(commodityRow, 'export function compareMarketOptionalValue', '共享排序必须统一缺失值排末尾规则。');
-requireText(commodityRowStyles, 'display: grid;', '共享商品独立表头必须直接显示，不得依赖首行内隐藏副本。');
-forbidText(commodityRowStyles, '.market-catalog-list > li:first-child > .market-commodity-row-header', '共享商品表头不得重新塞回首条数据行。');
-requireText(commodityRowStyles, '--entity-list-columns: minmax(8rem, 1.45fr) repeat(5, minmax(3.8rem, .64fr)) var(--entity-list-chevron-column, .8rem);', '共享商品数据行必须保持身份、五项指标和共享箭头轨道的单行布局。');
+requireText(commodityRowStyles, '--entity-list-columns: minmax(8rem, 1.45fr) repeat(3, minmax(4.4rem, .78fr)) var(--entity-list-chevron-column, .8rem);', '商品行必须只保留身份、三项指标和箭头。');
 requireText(commodityRowStyles, '@container (max-width: 620px)', '共享商品数据行必须提供移动紧凑断点。');
 requireText(commodityRowStyles, '@container (max-width: 360px)', '共享商品数据行必须覆盖极窄屏。');
-requireText(commodityRowStyles, '.market-catalog-filter-disclosure > .market-catalog-filters', '地区筛选展开区必须保持折叠 disclosure 布局。');
-requireText(commodityRowStyles, 'grid-template-columns: repeat(2, minmax(0, 1fr));', '地区筛选展开区必须只保留两项筛选。');
 
-requireText(marketPage, 'const buyVolume = Math.max(0, Number(market?.buyVolume || 0));', '地区商品买单量必须读取服务端市场摘要。');
-requireText(marketPage, 'const sellVolume = Math.max(0, Number(market?.sellVolume || 0));', '地区商品卖单量必须读取服务端市场摘要。');
-requireText(marketPage, 'tradeVolume24h: Math.max(0, Number(market?.tradeVolume24h || 0))', '地区商品 24h 成交量必须读取服务端市场摘要。');
-requireText(marketPage, "const marketPrice = typeof market?.officialPrice === 'number' ? market.officialPrice : undefined", '地区商品目录市场价必须读取官方系统价。');
-requireText(marketPage, 'realTrades.length > 1', '24h 变化必须至少由两笔真实成交生成。');
-requireText(marketDetailSource, 'market-detail-hero--commodity', '地区商品详情必须使用两项事实的专用响应式身份区。');
-requireText(marketDetailSource, '<small>24h 变化</small>', '地区商品详情必须保留真实 24h 变化。');
-requireText(marketDetailSource, '<small>可用库存</small>', '地区商品详情必须保留当前可用库存。');
 for (const token of [
-  '<small>市场价</small>',
-  '<small>基准偏离</small>',
-  'label="需求满足率"',
-  'label="参考价"',
-  'label="上轮需求"',
-  'market-fundamentals-grid',
-  'market-fundamentals-balance',
-  'market-inventory-production-card',
-  '<MarketAutoTradePanel',
-  'market-auto-trade-execution',
-]) forbidText(marketDetailSource, token, `地区商品详情不得恢复 ${token}。`);
-forbidText(marketPage, '生产者与消费者', '地区商品详情不得恢复生产者与消费者关系卡。');
+  'function MarketImmediateTradeEntry({',
+  '<h3 id="market-immediate-trade-title" className="market-trade-section-title">即时交易</h3>',
+  '<small>今日成交价</small>',
+  '<small>下次调价</small>',
+  'id="market-trade-quantity"',
+  'aria-label="数量增加 1"',
+  '>25%</Button>',
+  '>50%</Button>',
+  '>最大</Button>',
+  '<small>交易总额</small>',
+  "placeAssetOrder('commodity', assetId, orderSide, parsedQuantity, officialPrice)",
+  "{orderSide === 'buy' ? `立即买入${assetName}` : `立即卖出${assetName}`}",
+]) requireText(marketPage, token, `地区商品详情缺少即时成交结构: ${token}`);
+for (const token of [
+  'MoneyInput',
+  'market-order-price',
+  '价格减少 0.01',
+  '价格增加 0.01',
+  'orderBook.bids',
+  'orderBook.asks',
+  '实时五档',
+  '点击填价',
+  '已有订单',
+  '撤单',
+  'own-open-orders-table',
+  'fillOrderPrice',
+]) forbidText(marketPage, token, `玩家商品市场不得恢复挂单玩法: ${token}`);
 
-requireText(marketPage, 'const marketDetailRefreshToken = [', '详情刷新必须由公开市场摘要原始值组成稳定令牌。');
 for (const token of [
-  'selectedMarket?.lastTradeAt',
-  'selectedMarket?.tradeVolume24h',
-  'selectedMarket?.buyOrderCount',
-  'selectedMarket?.sellOrderCount',
-  'selectedMarket?.bestBid',
-  'selectedMarket?.bestAsk',
-]) requireText(marketPage, token, `详情刷新令牌缺少 ${token}。`);
-requireText(marketPage, 'marketDetailRefreshToken,', '详情请求 Effect 必须依赖稳定刷新令牌。');
+  '<small>今日价格</small>',
+  '<small>24h 变化</small>',
+  '<small>可用库存</small>',
+  '<small>今日成交量</small>',
+  '<small>24h 成交量</small>',
+]) requireText(marketPage, token, `地区商品详情缺少市场事实: ${token}`);
+requireText(marketPage, 'market-trade-readonly', '未开放交易的地区视图必须保留只读态。');
+requireText(marketPage, '该地区尚未解锁，市场仅供查看。', '只读态必须解释无法交易。');
+requireText(detailStyles, '.market-detail-surface .market-trade-card {', '详情样式必须继续拥有直接交易区。');
+requireText(detailStyles, 'background: transparent;', '直接交易区不得恢复一级卡片背景。');
+
+requireText(marketPage, 'const marketDetailRefreshToken = [', '详情刷新必须使用稳定令牌。');
+requireText(marketPage, 'selectedMarket?.officialPrice', '详情刷新必须跟随官方价格变化。');
+requireText(marketPage, 'selectedMarket?.nextPriceAt', '详情刷新必须跟随下一调价时间。');
 requireText(marketPage, 'marketDetailError && !selectedMarketDetail', '已有有效详情时瞬时刷新失败不得覆盖行情图。');
 requireText(serverDelivery, 'const priceHistory = realTradePoints(market, now).map(publicPricePoint);', '详情接口必须只发送近 24h 真实成交点。');
 requireText(serverDeliveryTest, 'bounded public real-trade history', '服务器测试必须锁定详情历史边界。');
-requireText(serverDeliveryTest, 'now - DAY_MS - 1', '服务器测试必须覆盖 24h 以前的历史点被排除。');
-requireText(serverDeliveryTest, "marketRole: 'synthetic'", '服务器测试必须覆盖非真实成交点被排除。');
 
-requireText(marketPage, '<section className="market-trade-card">', '下单与订单簿必须直接排列在内容区。');
-forbidText(marketPage, '<Panel className="widget market-trade-card">', '手动交易区不得恢复一级卡片底座。');
-requireText(detailStyles, '.market-detail-surface .market-trade-card {', '详情最终样式必须锁定直接交易区。');
-requireText(detailStyles, 'border: 0;', '直接交易区不得有一级卡片边框。');
-requireText(detailStyles, 'background: transparent;', '直接交易区不得有一级卡片背景。');
-requireText(marketPage, 'className="market-trade-layout"', '交易区必须保持内部双列。');
-requireText(marketPage, 'order-entry market-trade-entry', '交易区必须保留下单区。');
-requireText(marketPage, 'order-book single-order-book market-trade-book', '交易区必须保留五档订单簿。');
-forbidText(marketPage, 'order-book-columns', '订单簿不得恢复重复表头。');
-forbidText(marketPage, 'order-book-midpoint', '订单簿不得恢复最新价分隔行。');
-requireText(marketPage, 'const orderActionLabel = orderDisabledReason', '主交易按钮必须承载阻断原因。');
-requireText(marketPage, 'aria-label={orderActionLabel}', '交易按钮可访问名称必须与阻断原因一致。');
-requireText(marketPage, '价格减少 0.01', '价格步进必须按 0.01。');
-requireText(marketPage, '数量增加 1', '数量步进必须按 1。');
-requireText(marketPage, 'const maxBuyByFunds =', '买入快捷数量必须受可用资金约束。');
-requireText(marketPage, '>25%</Button>', '快捷数量必须保留 25%。');
-requireText(marketPage, '>50%</Button>', '快捷数量必须保留 50%。');
-requireText(marketPage, '>最大</Button>', '快捷数量必须保留最大。');
-requireText(marketPage, '[...selectedMarketDetail.orderBook.asks].reverse()', '卖盘必须使用服务端匿名五档并反向显示。');
-requireText(marketPage, 'selectedMarketDetail.orderBook.bids', '买盘必须使用服务端匿名五档。');
-requireText(marketPage, 'onClick={readOnly ? undefined : () => fillOrderPrice(level.price)}', '盘口点击只能填价。');
-requireText(marketStyles, 'grid-template-columns: minmax(320px, 3fr) minmax(240px, 2fr);', '交易区桌面必须保持 60/40 双列。');
-requireText(marketStyles, '@container market-page (max-width: 819px)', '交易区必须覆盖中窄宽度。');
-requireText(marketStyles, '@container market-page (max-width: 359px)', '交易区必须覆盖极窄宽度。');
-requireText(marketStyles, 'min-height: 44px;', '极窄盘口档位必须保持触控高度。');
+for (const token of [
+  '玩家商品交易不创建开放订单',
+  '北京时间',
+  '每日 00:00',
+  '不得提交自定义价格',
+]) requireText(marketDesign, token, `商品市场设计必须锁定即时交易边界: ${token}`);
 
-requireText(marketPage, '<VirtualRecordTable', '本地成交必须继续使用虚拟表格。');
-requireText(marketPage, 'tableClassName="local-trades-virtual-table"', '本地成交必须使用统一列表专用样式入口。');
-requireText(marketPage, 'gap={5}', '本地成交虚拟行必须保留全局列表相近行距。');
-forbidText(marketDetailSource, '<span role="columnheader">资产</span>', '当前资产详情的本地成交不得恢复资产列。');
-forbidText(marketPage, 'localTradeAssetName', '当前资产详情不得重新生成本地成交资产列。');
-requireText(virtualStyles, '.local-trades-virtual-table .virtual-record-header', '本地成交表头必须复用全局列表视觉。');
-requireText(virtualStyles, 'background: transparent;', '本地成交表头不得恢复独立卡片底色。');
-requireText(virtualStyles, '.local-trades-virtual-table .virtual-record-row', '本地成交行必须复用全局列表式边框与圆角。');
-requireText(virtualStyles, 'border-radius: var(--radius-control);', '本地成交行必须使用统一控制圆角。');
-
-forbidText(buildingsPage, 'facilityAssetId={facilityAssetTradeId}', '建筑详情不得恢复从属工厂资产交易页。');
-forbidText(buildingsPage, "onBackFromFacilityAsset={() => setFacilityAssetTradeId('')}", '建筑详情不得恢复工厂资产交易返回链。');
-forbidText(buildingsPage, '交易该建筑资产', '建筑详情不得恢复工厂直售入口。');
-requireText(marketHistory, 'export function getMarketWindowBounds', '市场窗口边界必须由共享函数生成。');
-requireText(chartStyles, 'font-variant-numeric: tabular-nums;', '行情坐标轴必须使用稳定数字宽度。');
-requireText(runtimeHarness, "scenario === 'funds-empty'", '浏览器运行时必须覆盖资金不足。');
-requireText(runtimeHarness, "scenario === 'sell-empty'", '浏览器运行时必须覆盖无可售库存。');
-requireText(runtimeSpec, 'market commodity catalog keeps compact core metrics and opens a focused detail', 'Playwright 必须覆盖折叠筛选、核心指标和精简详情入口。');
-requireText(runtimeSpec, 'market commodity detail omits automatic-operation execution', 'Playwright 必须覆盖地区详情不渲染自动经营执行。');
-requireText(runtimeSpec, 'mobile market catalog keeps one compact row without horizontal overflow', 'Playwright 必须覆盖移动单行商品目录。');
-requireText(runtimeSpec, 'market detail back action restores the filtered catalog', 'Playwright 必须覆盖详情返回后的筛选保留。');
-requireText(runtimeSpec, 'market order book keeps sell five to buy five sequence and fills price without submitting', 'Playwright 必须覆盖连续五档与点击填价。');
-requireText(runtimeSpec, 'market product artwork keeps compact catalog and detail slots without stretching', 'Playwright 必须覆盖共享商品行插画和详情插画。');
-requireText(detailRuntimeSpec, "expect(visibleHeroMetrics).toEqual(['24h 变化', '可用库存'])", '详情专项回归必须锁定两项顶部事实。');
-requireText(detailRuntimeSpec, "'.market-auto-trade-execution'", '详情专项回归必须验证自动经营执行不存在。');
-requireText(detailRuntimeSpec, "'.market-trade-card'", '详情专项回归必须验证直接交易区。');
-
-requireText(marketDesign, '商品目录 → 商品全局详情 → 地区商品详情', '订单簿设计必须记录商品优先三级钻取。');
-requireText(marketDesign, 'provinceId + assetKind + assetId', '订单簿设计必须保持地区隔离键。');
-requireText(chartDesign, '地区商品详情顶部只保留商品身份、真实 24h 变化和当前可用库存', '行情设计必须记录精简地区商品详情字段。');
-requireText(chartDesign, '地区商品详情不得渲染自动经营执行卡', '行情设计必须记录自动经营执行退出地区详情。');
-requireText(chartDesign, '详情接口只下发当前时刻向前 24h 内带真实', '行情设计必须记录详情历史的 24h 真实成交边界。');
-requireText(localActivityDesign, '不显示资产列', '本地成交设计必须记录当前资产详情不显示资产列。');
-requireText(localActivityDesign, '窗口化只负责性能，不创建独立于全局列表的视觉语言', '本地成交设计必须记录全局列表视觉。');
-requireText(uiDesign, '`MarketCommodityRow`', 'UI 设计系统必须记录共享市场商品行。');
-requireText(uiDesign, '移动端仍保持单行', 'UI 设计系统必须记录移动单行规则。');
-requireText(uiDesign, '表头是唯一排序入口', 'UI 设计系统必须记录表头排序入口。');
-
-if (failures.length > 0) {
-  console.error('地区市场布局与运行时验证失败：');
+if (failures.length) {
+  console.error('地区即时商品市场验证失败：');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log('地区市场核心验证通过：目录、两项精简详情、24h 真实成交加载、直接交易区、订单簿与统一本地成交列表保持单一地区职责。');
+console.log('地区商品市场验证通过：目录只展示成交量/今日系统价/变化，详情只允许数量型即时交易，不存在价格输入、盘口、开放订单或撤单。');

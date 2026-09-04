@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { dailyCheckInPeriodFor } from './daily-check-in.js';
 import { isOpenOrder } from './order-identity.js';
 import { matchIncomingOrder } from './order-matching.js';
 import {
@@ -6,7 +7,7 @@ import {
   LIQUIDITY_SIGNAL_WEIGHT,
 } from './market-demand/catalog.js';
 import { multiplyMoneyByInteger, roundInternalMoney } from './money.js';
-import { createSystemMarketRuntime } from './system-market.js';
+import { createSystemMarketRuntime, DAILY_SYSTEM_MARKET_VERSION } from './system-market.js';
 import {
   creditPopulationEmployment,
   recordPopulationSellerIncome,
@@ -40,13 +41,20 @@ export function createBalancedMarketRuntime({ products, constants }) {
 
   function createMarket(product, now, provinceId = DEFAULT_PROVINCE_ID) {
     const offsets = [-1, 0, 1, 0, 1, 1, 0, -1, 0, 1, 0, 0, 1, -1, 0, 1, 0, 1, 0, -1, 0, 1, 0, 0];
+    const period = dailyCheckInPeriodFor(now);
     return {
       productId: product.id,
       provinceId: normalizeProvinceId(provinceId),
       lastPrice: product.basePrice,
       lastTradePrice: null,
       officialPrice: product.basePrice,
-      nextPriceAt: now + constants.demandCycleMs,
+      systemPriceVersion: DAILY_SYSTEM_MARKET_VERSION,
+      priceDateKey: period.todayKey,
+      nextPriceAt: period.nextResetAt,
+      todayBuyQuantity: 0,
+      todaySellQuantity: 0,
+      previousDayBuyQuantity: 0,
+      previousDaySellQuantity: 0,
       cycleBuyQuantity: 0,
       cycleSellQuantity: 0,
       lastImbalance: 0,
@@ -97,7 +105,6 @@ export function createBalancedMarketRuntime({ products, constants }) {
     return liquidityGroupFor(world, order)?.reserves?.[String(order?.productId || '')];
   }
 
-
   function addLedger(player, category, amount, description, createdAt) {
     player.ledger ||= [];
     player.ledger.unshift({
@@ -110,7 +117,6 @@ export function createBalancedMarketRuntime({ products, constants }) {
     });
     player.ledger = player.ledger.slice(0, constants.maxLedgerPerPlayer);
   }
-
 
   function recordPrice(
     world,
@@ -150,7 +156,6 @@ export function createBalancedMarketRuntime({ products, constants }) {
     const player = world.players?.[String(order.ownerId)];
     if (!player) throw new Error(`Missing seller ${order.ownerId}`);
     const inventory = inventoryFor(player, order.productId, order.provinceId);
-    const total = multiplyMoneyByInteger(tradePrice, quantity) || 0;
     inventory.frozen -= quantity;
     player.credits = roundInternalMoney(player.credits + settlement.netTotal) || 0;
     player.stats ||= {};
