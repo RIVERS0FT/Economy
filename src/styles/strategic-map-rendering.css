@@ -1,23 +1,15 @@
 /* Strategic map rendering owns only the map camera viewport, route strokes and map-only floating surfaces. */
-@property --province-map-camera-transform {
-  syntax: '<transform-list>';
-  inherits: false;
-  initial-value: none;
-}
-
 .province-map-static-viewport,
 .province-map-world-svg {
   overflow: hidden;
 }
 
 .province-map-camera-surface {
-  transform: none !important;
   will-change: auto !important;
   backface-visibility: visible;
 }
 
 .province-map-static-viewport[data-map-zoom-active='true'] .province-map-camera-surface {
-  transform: var(--province-map-camera-transform, none) !important;
   transform-origin: 0 0 !important;
   will-change: transform !important;
   backface-visibility: hidden;
