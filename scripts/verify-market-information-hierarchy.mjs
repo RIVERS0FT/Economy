@@ -9,6 +9,7 @@ const globalMarket = read('src/pages/GlobalMarketPage.tsx');
 const regionalMarket = read('src/pages/MarketPage.tsx');
 const commodityRow = read('src/components/market/MarketCommodityRow.tsx');
 const commodityCss = read('src/styles/market-commodity-row.css');
+const marketDetailCss = read('src/styles/market-detail-direct-flow.css');
 const entityHeader = read('src/components/ui/EntityListHeader.tsx');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const marketDesign = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
@@ -88,7 +89,7 @@ for (const token of [
   'aspect-ratio: 1;',
   'padding-block: var(--space-2);',
   '.market-detail-surface .market-detail-product-artwork {\n  width: 100%;\n  height: 72%;\n}',
-]) requireText('src/styles/market-detail-direct-flow.css', token, 'regional product summary geometry');
+]) requireText(marketDetailCss, token, 'regional product summary geometry');
 for (const token of [
   'orderBook.bids',
   'orderBook.asks',
