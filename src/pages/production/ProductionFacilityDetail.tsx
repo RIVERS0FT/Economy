@@ -324,7 +324,7 @@ export function FacilityClusterInformation({
 }: Pick<
   FacilityClusterDetailSharedProps,
   'entry' | 'products' | 'inventories' | 'now' | 'onToggle'
-}) {
+>) {
   const { group, type } = entry;
   const liveNow = useNow(now);
   const recipeState = resolveFacilityDetailRecipeState(entry);
