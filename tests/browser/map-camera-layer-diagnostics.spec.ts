@@ -11,7 +11,7 @@ type LayerSnapshot = {
 };
 
 test('diagnose transient map compositing layers and paint counts', async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(30_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
   const viewport = page.getByTestId('us-mainland-map').locator('.province-map-static-viewport');
@@ -20,18 +20,14 @@ test('diagnose transient map compositing layers and paint counts', async ({ page
 
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('DOM.enable');
-  let latestLayers: LayerSnapshot[] = [];
-  const initialLayerTree = new Promise<void>((resolve) => {
-    const listener = (payload: { layers: LayerSnapshot[] }) => {
-      latestLayers = payload.layers;
-      cdp.off('LayerTree.layerTreeDidChange', listener);
-      resolve();
-    };
-    cdp.on('LayerTree.layerTreeDidChange', listener);
-  });
-  cdp.on('LayerTree.layerTreeDidChange', (payload) => { latestLayers = payload.layers as LayerSnapshot[]; });
   await cdp.send('LayerTree.enable');
-  await initialLayerTree;
+
+  let latestLayers: LayerSnapshot[] = [];
+  let layerTreeRevision = 0;
+  cdp.on('LayerTree.layerTreeDidChange', (payload) => {
+    latestLayers = payload.layers as LayerSnapshot[];
+    layerTreeRevision += 1;
+  });
 
   const { root } = await cdp.send('DOM.getDocument', { depth: 1, pierce: true });
   const backendNodeIdFor = async (selector: string) => {
@@ -74,9 +70,6 @@ test('diagnose transient map compositing layers and paint counts', async ({ page
     };
   }));
 
-  await page.waitForTimeout(50);
-  const idle = await describeLayers();
-
   const frames = await viewport.evaluate(async (container) => {
     const bounds = container.getBoundingClientRect();
     const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -96,11 +89,19 @@ test('diagnose transient map compositing layers and paint counts', async ({ page
     return samples;
   });
 
-  await page.waitForTimeout(30);
+  // LayerTree does not guarantee an initial event immediately after enable. The real
+  // wheel/RAF burst above creates the compositor change we need to observe instead.
+  await expect.poll(() => layerTreeRevision, { timeout: 3_000 }).toBeGreaterThan(0);
+  const activeRevision = layerTreeRevision;
   const active = await describeLayers();
-  console.log(`[map-camera-layer-tree] backend=${JSON.stringify(backendNodeIds)} idle=${JSON.stringify(idle)} active=${JSON.stringify(active)} frames=${JSON.stringify(frames)}`);
+
+  await expect.poll(async () => viewport.getAttribute('data-map-zoom-active'), { timeout: 3_000 }).toBe('false');
+  await page.waitForTimeout(50);
+  const settled = await describeLayers();
+
+  console.log(`[map-camera-layer-tree] backend=${JSON.stringify(backendNodeIds)} revisions=${JSON.stringify({ active: activeRevision, settled: layerTreeRevision })} active=${JSON.stringify(active)} settled=${JSON.stringify(settled)} frames=${JSON.stringify(frames)}`);
 
   await cdp.detach();
   expect(backendNodeIds.raster).not.toBeNull();
-  expect(latestLayers.length).toBeGreaterThan(0);
+  expect(layerTreeRevision).toBeGreaterThan(0);
 });
