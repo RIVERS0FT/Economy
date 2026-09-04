@@ -143,7 +143,7 @@ test('commodity market detail returns bounded public real-trade history, empty p
   );
 });
 
-test('repeated commodity market detail reuses committed-world projection without building public order-book runtime', () => {
+test('market detail store response omits an unchanged conditional payload; repeated commodity market detail reuses committed-world projection without building public order-book runtime', () => {
   const store = new EconomyStore(':memory:');
   try {
     store.getState(alice, now);
