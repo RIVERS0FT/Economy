@@ -1,0 +1,43 @@
+name: Fix commercial asset design
+
+on:
+  push:
+    branches:
+      - feat/commercial-buildings
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/commercial-buildings
+          fetch-depth: 0
+      - name: Record commercial asset valuation authority
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          text = path.read_text()
+          old = '商品按各州当日官方系统价估值；工厂按最近一次真实产权成交价估值，从未发生真实产权成交时工厂估值显示 0。'
+          new = '商品按各州当日官方系统价估值；工厂按最近一次真实产权成交价估值，从未发生真实产权成交时工厂估值显示 0；商业建筑按服务器目录 `systemValue` 估值，第一版全部计入可用建筑资产，不进入冻结、抵押或产权交易。'
+          if old not in text:
+              raise SystemExit('missing existing asset valuation authority sentence')
+          path.write_text(text.replace(old, new, 1))
+          Path('.github/workflows/fix-commercial-asset-design.yml').unlink()
+          PY
+      - name: Commit design alignment
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "docs: 明确商业建筑资产估值口径"
+          git push origin HEAD:feat/commercial-buildings
