@@ -70,7 +70,12 @@ function forbidText(path, fragments) {
   }
 }
 
-requireText('src/components/shell/GameShell.tsx', ['<CompactRank', 'ariaLabel={rankLabel}']);
+requireText('src/components/shell/GameShell.tsx', [
+  '<CompactRank',
+  'ariaLabel={rankLabel}',
+  'compactValue: formatCompactCurrency(game.credits)',
+  'compactValue: formatCompactCurrency(derived.totalAssets)',
+]);
 requireText('src/components/ui/CompactNumber.tsx', ['SafeTooltip', 'formatFullNumber(value)', 'formatCompactCurrency(value)']);
 requireText('src/components/ui/CurrencyAmount.tsx', ['SafeTooltip', 'formatCompactCurrency(primitive.value)']);
 forbidText('src/pages/OverviewPage.tsx', ['固定 3s 冷却', '<OverviewWorkButton']);
@@ -100,13 +105,18 @@ requireText('docs/UI_DESIGN_SYSTEM.md', [
   '恢复中文“秒／分钟／小时”的玩家时长展示',
   '恢复“第 N 名”或裸数字排名展示',
   '不得重复状态栏已经显示的净资产和排名',
+  '普通金额统一显示两位',
 ]);
 
 forbidText('src/pages/LeaderboardPage.tsx', [
   'value={`第 ${',
   '>{entry.rank}</span>',
 ]);
-forbidText('src/components/shell/GameShell.tsx', ['<>第 {currentRank} 名</>']);
+forbidText('src/components/shell/GameShell.tsx', [
+  '<>第 {currentRank} 名</>',
+  'compactValue: formatCompactNumber(game.credits)',
+  'compactValue: formatCompactNumber(derived.totalAssets)',
+]);
 forbidText('src/pages/OverviewPage.tsx', [
   'formatRank(',
   '排名第 ${currentRank} 名',
@@ -132,7 +142,7 @@ requireText('docs/UI_DESIGN_SYSTEM.md', [
 ]);
 
 if (failures.length) {
-  console.error(`时间与排名格式验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`显示格式验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 

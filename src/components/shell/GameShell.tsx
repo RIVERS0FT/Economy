@@ -8,7 +8,7 @@ import { GemIcon } from '../icons/GemIcon';
 import { CurrencyAmount } from '../ui/CurrencyAmount';
 import { CompactNumber, CompactRank } from '../ui/CompactNumber';
 import { MobileWorkspacePageSheet, type MobileWorkspaceSheetRequestClose } from '../ui/MobileWorkspacePageSheet';
-import { formatCompactNumber, formatCurrency, formatRank } from '../../utils/formatters';
+import { formatCompactCurrency, formatCompactNumber, formatCurrency, formatRank } from '../../utils/formatters';
 import { AuctionNewIdsContext, useNavigationBadges } from '../../hooks/useNavigationBadges';
 import { useNotificationCenter } from '../../hooks/useNotificationCenter';
 import {
@@ -109,11 +109,11 @@ export function GameShell({ model, children, offline = false }: {
   const statusItems = useMemo<StatusBarItem[]>(() => [
     {
       id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount>,
-      compactValue: formatCompactNumber(game.credits), detail: <>冻结 <CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount></>,
+      compactValue: formatCompactCurrency(game.credits), detail: <>冻结 <CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount></>,
     },
     {
       id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>,
-      compactValue: formatCompactNumber(derived.totalAssets),
+      compactValue: formatCompactCurrency(derived.totalAssets),
       detail: <span className={weeklyChange > 0 ? 'positive' : weeklyChange < 0 ? 'negative' : 'neutral'} aria-label={weeklyChangeLabel}><span className="status-weekly-trend"><ChevronIcon direction={weeklyTrendDirection} /> 本周</span> <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>,
       emphasis: 'primary',
       onClick: openBank,

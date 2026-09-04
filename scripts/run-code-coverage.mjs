@@ -9,6 +9,7 @@ const PHASES = Object.freeze({
     directory: 'tests/dt',
     matcher: /\.test\.ts$/,
     stripTypes: true,
+    coverageMode: 'explicit',
     include: [
       'src/app/adaptivePolling.js',
       'src/app/immediateCommandIntent.ts',
@@ -22,10 +23,10 @@ const PHASES = Object.freeze({
     directory: 'server/test',
     matcher: /\.test\.js$/,
     stripTypes: false,
-    include: [
-      'server/src/**/*.js',
-      'server/shared/**/*.js',
-      'shared/**/*.js',
+    coverageMode: 'loaded',
+    exclude: [
+      'server/test/*.test.js',
+      'server/test/**/*.test.js',
     ],
     thresholds: { lines: 60, functions: 55, branches: 50 },
   },
@@ -60,13 +61,17 @@ function runCoverage(phase, requestedTests) {
   const args = [];
   if (config.stripTypes) args.push('--experimental-strip-types');
   args.push('--experimental-test-coverage');
-  for (const pattern of config.include) args.push(`--test-coverage-include=${pattern}`);
+  if (config.coverageMode === 'explicit') {
+    for (const pattern of config.include ?? []) args.push(`--test-coverage-include=${pattern}`);
+  }
+  for (const pattern of config.exclude ?? []) args.push(`--test-coverage-exclude=${pattern}`);
   args.push(`--test-coverage-lines=${config.thresholds.lines}`);
   args.push(`--test-coverage-functions=${config.thresholds.functions}`);
   args.push(`--test-coverage-branches=${config.thresholds.branches}`);
   args.push('--test', ...tests);
 
   console.log(`ECONOMY_COVERAGE_PHASE=${phase}`);
+  console.log(`ECONOMY_COVERAGE_MODE=${config.coverageMode}`);
   console.log(`ECONOMY_COVERAGE_TESTS=${tests.join(',')}`);
   console.log(`ECONOMY_COVERAGE_THRESHOLDS=lines:${config.thresholds.lines},functions:${config.thresholds.functions},branches:${config.thresholds.branches}`);
 
