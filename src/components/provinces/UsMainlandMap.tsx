@@ -40,7 +40,11 @@ import {
   createProvinceMapTransportPhysicalPaths,
   transportCapitalRouteDataKind,
 } from './provinceMapTransportNetwork';
-import { createProvinceMapMainlandFocusBounds, createProvinceMapWorldOutlinePath } from './provinceMapWorldOutline';
+import {
+  createProvinceMapMainlandFocusBounds,
+  createProvinceMapWorldFillPath,
+  createProvinceMapWorldStrokePath,
+} from './provinceMapWorldOutline';
 
 const MOBILE_MAP_MAX_WIDTH = 720;
 
@@ -110,7 +114,8 @@ const mainlandOutlineGeometry = merge(
 );
 
 const provinceMapProjection = createProvinceMapProjection(mainlandFeatures.map((entry) => entry.geometry));
-const provinceMapWorldOutlinePath = createProvinceMapWorldOutlinePath(provinceMapProjection);
+const provinceMapWorldFillPath = createProvinceMapWorldFillPath(provinceMapProjection);
+const provinceMapWorldStrokePath = createProvinceMapWorldStrokePath(provinceMapProjection);
 const provinceMapMainlandOutlinePath = provinceGeometryPath(mainlandOutlineGeometry, provinceMapProjection);
 const provinceMapMainlandFocusBounds = createProvinceMapMainlandFocusBounds(provinceMapProjection);
 const capitalPointByProvinceId = new Map(
@@ -361,8 +366,9 @@ export function UsMainlandMap({
     container.dataset.mapContainViewport = `${width}x${height}`;
     container.dataset.mapIntrinsicAspect = provinceMapProjection.aspect.toFixed(6);
     container.dataset.mapTooltipMode = width > MOBILE_MAP_MAX_WIDTH ? 'desktop' : 'hidden-mobile';
-    container.dataset.mapWorldContext = 'continents-filled-10m';
-    container.dataset.mapWorldResolution = '10m';
+    container.dataset.mapWorldContext = 'continents-10m-fill-110m-stroke';
+    container.dataset.mapWorldFillResolution = '10m';
+    container.dataset.mapWorldStrokeResolution = '110m';
     container.dataset.mapMainlandOutlineResolution = '10m';
     container.dataset.mapWorldInteractive = 'false';
   }, []);
@@ -485,10 +491,10 @@ export function UsMainlandMap({
     </div>
   ) : null;
 
-  const accessibleSummary = `世界战略地图以 10m 大陆填充和海岸线提供地理背景，美国本土连续 ${provinces.length} 州是唯一可经营和交互地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}当前有 ${shipmentOverlays.length} 笔运输在途。美国外边界由同一份 10m 州界拓扑合并生成，并覆盖大陆对应海岸线，避免双重边线。世界背景、州面、州名、运输路线和在途标记位于同一个静态 SVG 世界面，并由根 SVG 的 viewBox Camera 同步缩放和平移；最小 1 倍镜头把美国本土居中，Camera 的 world bounds 在初始化或真实容器变化时固定，放大后根据当前倍率反求视场并在同一固定边界内约束中心。${routePickingActive ? '当前处于运输路线选州模式，只能按顺序选择美国本土州面作为站点，再次点击起点州可以闭环。' : '点击美国本土州面可以打开对应州页面，'}滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置到最小居中镜头。`;
+  const accessibleSummary = `世界战略地图以 10m 大陆填充和同源 110m 简化海岸描边提供地理背景，美国本土连续 ${provinces.length} 州是唯一可经营和交互地区。${selectedProvince ? `当前打开${selectedProvince.name}页面。` : '当前没有打开州页面。'}当前有 ${shipmentOverlays.length} 笔运输在途。美国外边界由同一份 10m 州界拓扑合并生成，并覆盖大陆对应海岸线，避免双重边线。世界背景、州面、州名、运输路线和在途标记位于同一个静态 SVG 世界面，并由根 SVG 的 viewBox Camera 同步缩放和平移；最小 1 倍镜头把美国本土居中，Camera 的 world bounds 在初始化或真实容器变化时固定，放大后根据当前倍率反求视场并在同一固定边界内约束中心。${routePickingActive ? '当前处于运输路线选州模式，只能按顺序选择美国本土州面作为站点，再次点击起点州可以闭环。' : '点击美国本土州面可以打开对应州页面，'}滚轮或双指可以缩放，拖动地图可以平移，双击或双触地图空白可以重置到最小居中镜头。`;
 
   return (
-    <div className="province-map-chart" data-province-count={provinces.length} data-map-feature-count={provinceMapWorld.length} data-selected-province-id={selectedProvinceId ?? ''} data-map-lens={lens} data-map-zoom-min="1" data-map-zoom-max="4" data-map-label-mode="curved-chinese-full-name" data-map-world-context="continents-filled-10m" data-route-picking={routePickingActive ? 'true' : 'false'} data-route-overlay-count={routeOverlays.length} data-route-network-kind={transportCapitalRouteDataKind} data-route-physical-edge-count={transportPhysicalPathByEdge.size} data-shipment-overlay-count={shipmentOverlays.length}>
+    <div className="province-map-chart" data-province-count={provinces.length} data-map-feature-count={provinceMapWorld.length} data-selected-province-id={selectedProvinceId ?? ''} data-map-lens={lens} data-map-zoom-min="1" data-map-zoom-max="4" data-map-label-mode="curved-chinese-full-name" data-map-world-context="continents-10m-fill-110m-stroke" data-route-picking={routePickingActive ? 'true' : 'false'} data-route-overlay-count={routeOverlays.length} data-route-network-kind={transportCapitalRouteDataKind} data-route-physical-edge-count={transportPhysicalPathByEdge.size} data-shipment-overlay-count={shipmentOverlays.length}>
       <div className="province-map-echart province-map-static-map" role="group" aria-label="世界战略地图，美国本土连续四十八州可交互" data-map-ready="true" data-testid="us-mainland-map" data-route-picking={routePickingActive ? 'true' : 'false'} data-route-overlay-count={routeOverlays.length} data-shipment-overlay-count={shipmentOverlays.length}>
         <div
           ref={viewportRef}
@@ -510,9 +516,9 @@ export function UsMainlandMap({
                   <path
                     className="province-map-world-shadow"
                     data-world-shadow="outer"
-                    data-world-resolution="10m"
+                    data-world-resolution="110m"
                     data-interactive="false"
-                    d={provinceMapWorldOutlinePath}
+                    d={provinceMapWorldStrokePath}
                     fillRule="evenodd"
                     vectorEffect="non-scaling-stroke"
                     pointerEvents="none"
@@ -522,17 +528,17 @@ export function UsMainlandMap({
                     data-world-fill="continents"
                     data-world-resolution="10m"
                     data-interactive="false"
-                    d={provinceMapWorldOutlinePath}
+                    d={provinceMapWorldFillPath}
                     fillRule="evenodd"
                     vectorEffect="non-scaling-stroke"
                     pointerEvents="none"
                   />
                   <path
                     className="province-map-world-outline"
-                    data-world-outline="continents-10m"
-                    data-world-resolution="10m"
+                    data-world-outline="continents-110m-stroke"
+                    data-world-resolution="110m"
                     data-interactive="false"
-                    d={provinceMapWorldOutlinePath}
+                    d={provinceMapWorldStrokePath}
                     vectorEffect="non-scaling-stroke"
                     pointerEvents="none"
                   />

@@ -14,6 +14,8 @@
 ## 2. 静态世界面
 
 - 战略地图只保留一个 `.province-map-world-svg`。世界大陆、美国连续 48 州、中文州名、运输路线和在途标记都位于这一个 SVG 世界坐标系中。
+- 世界背景的土地填充使用 `world-atlas@2.0.2` 的 Natural Earth 1:10m countries 数据，经确定性生成器 dissolve 北美上下文国家、裁剪未引用 arc 后形成运行时 TopoJSON；低对比海岸主线和外侧层次描边使用同一版本、同一国家集合按相同步骤派生的 1:110m TopoJSON。美国本土经营层和覆盖世界背景的最终美国外轮廓继续使用 `us-atlas@3.0.1` 的 1:10m 州界，不降低交互区域的边界精度。
+- `non-obvious reason`：根 SVG 的 `viewBox` 变化会让浏览器重新 tessellate 可见描边；1:10m 北美填充本身可以稳定保留，但不得把约十万级顶点的同一土地 path 再作为海岸主线和外侧描边重复绘制。两条世界背景描边各自必须保持低于 `2,000` 个 `M/L` 顶点和 `30,000` 个 path 字符；完整 atlas、预展开浮点 GeoJSON 和超出预算的描边不得进入玩家运行时。
 - `us-atlas` 州 path、世界大陆 path、中文州名基础布局、公路／铁路投影折线在模块初始化或真实容器尺寸变化之外不得重新生成。手势期间所有州 path `d`、世界 path `d`、州名基础中心和 glyph `transform` 必须保持不变。
 - `.province-map-camera-surface` 只作为稳定 DOM 世界宿主，不再承担缩放矩阵。其最终计算样式必须保持 `transform:none`、`will-change:auto`，不得把完整 SVG 世界长期提升为可缩放纹理。
 - 根 SVG 直接承担物理视口裁剪；屏幕外州仍完整挂载，不得按 Camera 可见性卸载或重建州面。
@@ -37,6 +39,12 @@
 - 放大只通过根 SVG viewBox 改变当前世界视场，使浏览器按当前倍率重新栅格化 SVG path 与文字；不得通过 `.province-map-camera-surface scale(...)` 放大旧低倍率纹理。
 - 州名自然字号、自然宽高比和静态 glyph 布局不因 Camera 变化重算；不得使用 `textLength`、`scaleX`、`scaleY` 拉伸文字。
 - 地图 viewBox 高频变化期间不得使用会导致大范围重复离屏栅格化的 SVG `drop-shadow` filter。世界背景层次使用普通低透明度描边；州 hover／选中、运输标记选中使用描边宽度、颜色和透明度表达，不依赖大范围滤镜。
+
+### 4.1 州面视觉交互
+
+- 战略地图州面交互固定采用“镜头底色 + 中性轮廓”分层。政治／资产／工业／市场／异常镜头只决定现有州 path 的底色和业务边界色；hover、focus 和 selected 不得用其他业务状态色覆盖底色，也不得复制第二条州面几何。
+- 普通鼠标 hover 使用 `--color-text-secondary` 的 `1.5px` 中性描边；selected 使用 `--color-text-primary` 的 `2.5px` 描边；selected 同时 hover 时提升为 `3px`。视觉优先级固定为“选中悬浮 > 选中 > 普通悬浮 > 默认”，所有状态继续保持 `filter:none`。
+- 交互视觉只由同一静态 SVG path 的 CSS `:hover`／`:focus-visible` 和外部 `data-selected` 驱动；不得使用 pointermove React state、ECharts emphasis/select、重新布局州名或改写 Camera。
 
 ## 5. 运输路线几何和运动
 
@@ -77,6 +85,7 @@
 - Camera RAF 中的 React state、DOM 测量、批量 `data-*`、path／标签重算或多个屏幕写入；
 - 州名位图化或随 CSS scale 放大的低倍率纹理；
 - 地图世界／选中州的大范围 `drop-shadow` 缩放滤镜；
+- 使用 1:10m 北美土地完整 path 重复绘制世界背景海岸主线或外侧描边；
 - 公路／铁路共享同一中心线、地面运输首府直线正式几何；
 - 运输路线强制并排、车道数据结构、laneOffset 或返程第二条线；
 - 航空首府直线正式显示和直线运动；
@@ -91,7 +100,7 @@
 - `src/pages/TransportPage.tsx` 与 `TransportRouteDraftContext`：路线 hover／focus／详情高亮身份。
 - `src/styles/province-map.css` 与最终战略地图渲染样式：矢量层级、无滤镜热路径、三种方式线型和地图专属实体表面。
 - `scripts/verify-provincial-economy.mjs`、`scripts/verify-transport-route-lanes.mjs` 与 `scripts/verify-province-map-focus.mjs`：结构防回退。
-- `tests/browser/map-zoom-transient.spec.ts`：同帧输入只发生一次根 SVG `viewBox` 属性变化、Camera Surface style 不变、诊断属性热路径不变、path/glyph 几何静态。
-- `tests/browser/province-map-world-boundary.spec.ts`：不同倍率下 fixed world bounds 不变，并按当前 viewBox 尺寸反求可用 Camera center。
+- `tests/browser/map-zoom-transient.spec.ts`：同帧输入只发生一次根 SVG `viewBox` 属性变化、Camera Surface style 不变、诊断属性热路径不变、path/glyph 几何静态，并以同浏览器空帧中位数为基线验证 Camera 帧成本没有因背景描边重新失控。
+- `tests/browser/province-map-world-boundary.spec.ts`：锁定 10m 土地填充、同源 110m 背景描边、10m 美国本土最终轮廓及背景描边复杂度预算；同时验证不同倍率下 fixed world bounds 不变，并按当前 viewBox 尺寸反求可用 Camera center。
 - `tests/browser/map-zoom-out-boundary.spec.ts`、`map-reset-sync.spec.ts`、`map-mobile-pinch.spec.ts`、`province-map-focus.spec.ts`：屏外州恢复、重置、移动双指和州交互不破坏同一 SVG Camera。
 - 运输浏览器回归必须验证重复路线共线、运行时无车道字段、往返无第二 path、公路／铁路／航空路径不同、航空包含 `Q` 曲线、运输标记沿对应几何、高亮不改变路线 `d`，以及地图镜头栏／选路面板最终 `backdrop-filter:none`。

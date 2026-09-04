@@ -103,7 +103,7 @@ async function mainlandFootprint(page: Page) {
   });
 }
 
-test('world context uses filled 10m land, filter-free coastline hierarchy and the contiguous-US 10m seam while only states stay interactive', async ({ page }) => {
+test('world context keeps 10m land fill, lightweight 110m strokes and the contiguous-US 10m seam while only states stay interactive', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
@@ -115,8 +115,9 @@ test('world context uses filled 10m land, filter-free coastline hierarchy and th
   const outline = map.locator('.province-map-world-outline');
   const mainlandOutline = map.locator('.province-map-mainland-outline');
   await expect(map).toHaveAttribute('data-map-ready', 'true');
-  await expect(canvas).toHaveAttribute('data-map-world-context', 'continents-filled-10m');
-  await expect(canvas).toHaveAttribute('data-map-world-resolution', '10m');
+  await expect(canvas).toHaveAttribute('data-map-world-context', 'continents-10m-fill-110m-stroke');
+  await expect(canvas).toHaveAttribute('data-map-world-fill-resolution', '10m');
+  await expect(canvas).toHaveAttribute('data-map-world-stroke-resolution', '110m');
   await expect(canvas).toHaveAttribute('data-map-mainland-outline-resolution', '10m');
   await expect(canvas).toHaveAttribute('data-map-world-interactive', 'false');
   await expect(canvas).toHaveAttribute('data-map-world-shadow-path-count', '1');
@@ -127,7 +128,10 @@ test('world context uses filled 10m land, filter-free coastline hierarchy and th
   await expect(fill).toHaveCount(1);
   await expect(outline).toHaveCount(1);
   await expect(mainlandOutline).toHaveCount(1);
-  await expect(outline).toHaveAttribute('data-world-outline', 'continents-10m');
+  await expect(shadow).toHaveAttribute('data-world-resolution', '110m');
+  await expect(fill).toHaveAttribute('data-world-resolution', '10m');
+  await expect(outline).toHaveAttribute('data-world-outline', 'continents-110m-stroke');
+  await expect(outline).toHaveAttribute('data-world-resolution', '110m');
   await expect(mainlandOutline).toHaveAttribute('data-mainland-outline', 'states-10m-union');
   await expect(mainlandOutline).toHaveAttribute('data-mainland-outline-source', 'us-atlas-states-10m');
   for (const layer of [shadow, fill, outline, mainlandOutline]) {
@@ -143,7 +147,30 @@ test('world context uses filled 10m land, filter-free coastline hierarchy and th
   await expect(map.locator('.province-map-region')).toHaveCount(48);
   await expect(map.locator('.province-map-region[role="button"]')).toHaveCount(48);
 
-  const outlinePathBefore = await outline.getAttribute('d');
+  const pathComplexity = await map.evaluate((element) => {
+    const stats = (selector: string) => {
+      const path = element.querySelector<SVGPathElement>(selector)?.getAttribute('d') ?? '';
+      return {
+        path,
+        characters: path.length,
+        vertices: path.match(/[ML]/g)?.length ?? 0,
+      };
+    };
+    return {
+      shadow: stats('.province-map-world-shadow'),
+      fill: stats('.province-map-world-fill'),
+      outline: stats('.province-map-world-outline'),
+    };
+  });
+  expect(pathComplexity.fill.vertices).toBeGreaterThan(100_000);
+  expect(pathComplexity.shadow.vertices).toBeLessThan(2_000);
+  expect(pathComplexity.outline.vertices).toBeLessThan(2_000);
+  expect(pathComplexity.shadow.characters).toBeLessThan(30_000);
+  expect(pathComplexity.outline.characters).toBeLessThan(30_000);
+  expect(pathComplexity.shadow.path).toBe(pathComplexity.outline.path);
+  expect(pathComplexity.outline.path).not.toBe(pathComplexity.fill.path);
+
+  const outlinePathBefore = pathComplexity.outline.path;
   const mainlandPathBefore = await mainlandOutline.getAttribute('d');
   expect(outlinePathBefore?.length || 0).toBeGreaterThan(100);
   expect(mainlandPathBefore?.length || 0).toBeGreaterThan(100);

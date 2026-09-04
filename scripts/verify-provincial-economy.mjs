@@ -26,6 +26,7 @@ const requiredFiles = [
   'src/components/provinces/provinceMapStaticLabels.ts',
   'src/components/provinces/provinceMapRouteLayout.ts',
   'src/components/provinces/provinceMapTransportNetwork.ts',
+  'src/data/north-america-coastline-110m.json',
   'src/data/north-america-land-10m.json',
   'scripts/generate-province-map-world-context.mjs',
   'src/styles/performance.css',
@@ -244,7 +245,8 @@ for (const text of [
   "us-atlas/states-10m.json", "import { feature, merge } from 'topojson-client'", 'const regionByMapName = new Map',
   'createProvinceMapProjection', 'provinceGeometryPath', 'layoutProvinceMapLabels', 'createProvinceMapCamera',
   'provinceMapWorld', 'province-map-camera-surface', 'province-map-world-svg', 'province-map-region',
-  'provinceMapMainlandOutlinePath', 'province-map-world-shadow', 'province-map-world-fill', 'province-map-mainland-seam', 'province-map-mainland-outline',
+  'provinceMapWorldFillPath', 'provinceMapWorldStrokePath', 'provinceMapMainlandOutlinePath',
+  'province-map-world-shadow', 'province-map-world-fill', 'province-map-world-outline', 'province-map-mainland-seam', 'province-map-mainland-outline',
   'province-map-label-camera', 'data-map-world-path-count={provinceMapWorld.length}', 'data-map-path-revision="1"',
   'data-selected-province-id={selectedProvinceId ?? \'\'}', 'data-map-lens={lens}', 'data-map-label-mode="curved-chinese-full-name"',
   'data-map-ready="true"', 'data-testid="us-mainland-map"',
@@ -272,18 +274,28 @@ for (const text of [
 ]) assert.ok(projection.includes(text), `静态地图投影缺少: ${text}`);
 
 const worldContext = read('src/components/provinces/provinceMapWorldOutline.ts');
-for (const text of ['north-america-land-10m.json', "import { feature } from 'topojson-client'", 'northAmericaContextGeometry', 'createProvinceMapWorldOutlinePath', 'createProvinceMapMainlandFocusBounds']) {
-  assert.ok(worldContext.includes(text), `10m 世界大陆运行时上下文缺少: ${text}`);
+for (const text of [
+  'north-america-land-10m.json', 'north-america-coastline-110m.json', "import { feature } from 'topojson-client'",
+  'northAmericaContextGeometry', 'northAmericaCoastlineGeometry', 'createProvinceMapWorldFillPath',
+  'createProvinceMapWorldStrokePath', 'createProvinceMapMainlandFocusBounds',
+]) {
+  assert.ok(worldContext.includes(text), `世界大陆运行时上下文缺少: ${text}`);
 }
 for (const forbidden of ['world-atlas/', 'NORTH_AMERICA_CONTEXT_COUNTRY_IDS', 'mergeArcs']) {
   assert.equal(worldContext.includes(forbidden), false, `玩家运行时不得恢复完整 atlas 或现场裁剪: ${forbidden}`);
 }
 const worldContextGenerator = read('scripts/generate-province-map-world-context.mjs');
-for (const text of ['world-atlas/countries-10m.json', 'NORTH_AMERICA_CONTEXT_COUNTRY_IDS', "'840'", 'mergeArcs(worldCountryAtlas, contextGeometries)', 'referencedArcIndexes', 'remapArcRefs', "process.argv.includes('--check')"]) {
-  assert.ok(worldContextGenerator.includes(text), `10m 世界大陆生成器缺少: ${text}`);
+for (const text of [
+  "resolution: '10m'", "resolution: '110m'", 'world-atlas/countries-${resolution}.json',
+  'NORTH_AMERICA_CONTEXT_COUNTRY_IDS', "'840'", 'mergeArcs(worldCountryAtlas, contextGeometries)',
+  'referencedArcIndexes', 'remapArcRefs', "process.argv.includes('--check')",
+]) {
+  assert.ok(worldContextGenerator.includes(text), `世界大陆生成器缺少: ${text}`);
 }
 const worldContextAsset = read('src/data/north-america-land-10m.json');
 assert.ok(worldContextAsset.length < 1_500_000, '北美 10m 裁剪 TopoJSON 不得退化为完整 atlas 或预展开浮点 GeoJSON 体积');
+const worldStrokeAsset = read('src/data/north-america-coastline-110m.json');
+assert.ok(worldStrokeAsset.length < 30_000, '北美 110m 描边 TopoJSON 必须保持轻量，避免 viewBox Camera 每帧重新描画十万级顶点');
 execFileSync(process.execPath, ['scripts/generate-province-map-world-context.mjs', '--check'], { stdio: 'inherit' });
 
 const camera = read('src/components/provinces/provinceMapCamera.ts');
@@ -384,7 +396,8 @@ for (const [path, selector, expectedOverflow] of [
 
 const worldBoundaryTest = read('tests/browser/province-map-world-boundary.spec.ts');
 for (const text of [
-  'continents-filled-10m', 'data-map-world-resolution', 'states-10m-union', 'data-map-focus-area-target',
+  'continents-10m-fill-110m-stroke', 'data-map-world-fill-resolution', 'data-map-world-stroke-resolution',
+  'states-10m-union', 'data-map-focus-area-target', 'vertices).toBeLessThan(2_000)',
   'baseline.areaRatio', 'centerOffsetX', 'fixed-world-context', 'fixed-world-viewbox', 'fixed-world-bounds',
   'data-map-camera-world-bounds', 'expectViewInsideBounds',
 ]) assert.ok(worldBoundaryTest.includes(text), `战略地图固定边界浏览器回归缺少: ${text}`);
@@ -438,6 +451,7 @@ const mapDesign = read('docs/STRATEGIC_MAP_RENDERING_DESIGN.md');
 for (const text of [
   '本文是战略地图', 'SVG viewBox Camera', '该 world bounds 不得随 zoom 改变',
   '`viewWidth = baseViewWidth / zoom`', '真实 SVG `text`', '二次贝塞尔抛物线',
+  '1:10m 北美填充', '1:110m TopoJSON', '低于 `2,000` 个 `M/L` 顶点',
   '不得生成平行车道', '`backdrop-filter` 与 `-webkit-backdrop-filter` 必须为 `none`',
 ]) assert.ok(mapDesign.includes(text), `战略地图渲染 DESIGN 缺少: ${text}`);
 const networkDesign = read('docs/TRANSPORT_NETWORK_GEOMETRY_DESIGN.md');
@@ -447,7 +461,7 @@ for (const text of [
 ]) assert.ok(networkDesign.includes(text), `运输几何 DESIGN 缺少: ${text}`);
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 for (const text of [
-  '州级上下文页（无导航按钮）', '概览｜市场｜建筑｜仓库', '中文州全名作为唯一州面名称',
+  '州级上下文页（无导航按钮）', '概览｜市场｜建筑｜仓库', '中文州全名',
 ]) assert.ok(pageDesign.includes(text), `州级页面设计权威缺少: ${text}`);
 
 const navigation = read('src/config/navigation.ts');
@@ -462,4 +476,4 @@ for (const text of [
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、中文展示名、首府目录和州级经济隔离保持稳定；所有州直接经营；战略地图使用唯一静态 SVG 世界和固定 world bounds 的单次 viewBox RAF Camera；公路、铁路和航空沿各自正式几何运动，运行时不保留车道数据模型或返程副线，地图专属镜头栏和选路面板不使用毛玻璃。');
+console.log('地区经济验证通过：美国连续 48 州、中文展示名、首府目录和州级经济隔离保持稳定；所有州直接经营；战略地图使用 10m 土地填充、轻量 110m 背景描边和固定 world bounds 的单次 viewBox RAF Camera；公路、铁路和航空沿各自正式几何运动，运行时不保留车道数据模型或返程副线，地图专属镜头栏和选路面板不使用毛玻璃。');

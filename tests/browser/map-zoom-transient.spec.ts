@@ -118,3 +118,45 @@ test('active wheel bursts mutate only the root SVG viewBox once per animation fr
   expect(result.cameraStyleMutations).toBe(0);
   expect(result.diagnosticMutations).toBe(0);
 });
+
+test('viewBox camera frames stay close to the same-browser empty-frame budget', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
+  const canvas = page.getByTestId('us-mainland-map').locator('.province-map-static-viewport');
+  await expect(canvas).toHaveAttribute('data-map-world-stroke-resolution', '110m');
+
+  const result = await canvas.evaluate(async (container) => {
+    const svg = container.querySelector<SVGSVGElement>('.province-map-world-svg');
+    if (!svg) throw new Error('map camera SVG is missing');
+    const originalViewBox = svg.getAttribute('viewBox') ?? '';
+    const [x, y, width, height] = originalViewBox.split(/\s+/).map(Number);
+    const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const median = (samples: number[]) => {
+      const sorted = [...samples].sort((left, right) => left - right);
+      return sorted[Math.floor(sorted.length / 2)];
+    };
+    const measure = async (mutate: ((index: number) => void) | null) => {
+      const samples: number[] = [];
+      for (let index = 0; index < 4; index += 1) await nextFrame();
+      for (let index = 0; index < 12; index += 1) {
+        const started = performance.now();
+        mutate?.(index);
+        await nextFrame();
+        samples.push(performance.now() - started);
+      }
+      return median(samples);
+    };
+
+    const emptyFrameMedianMs = await measure(null);
+    const cameraFrameMedianMs = await measure((index) => {
+      const direction = index % 2 === 0 ? 1 : -1;
+      svg.setAttribute('viewBox', `${x + direction * width * 0.004} ${y} ${width} ${height}`);
+    });
+    svg.setAttribute('viewBox', originalViewBox);
+    await nextFrame();
+    return { emptyFrameMedianMs, cameraFrameMedianMs };
+  });
+
+  expect(result.cameraFrameMedianMs).toBeLessThanOrEqual(result.emptyFrameMedianMs * 2 + 8);
+});

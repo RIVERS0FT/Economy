@@ -19,7 +19,7 @@ function rejectText(source, rejected, message) {
 const mapSource = read('src/components/provinces/UsMainlandMap.tsx');
 const styleSource = read('src/styles/province-map.css');
 const renderingSource = read('src/styles/strategic-map-rendering.css');
-const designSource = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
+const designSource = read('docs/STRATEGIC_MAP_RENDERING_DESIGN.md');
 const browserSource = read('tests/browser/province-map-focus.spec.ts');
 
 requireText(
@@ -111,22 +111,22 @@ rejectText(
 requireText(
   designSource,
   '战略地图州面交互固定采用“镜头底色 + 中性轮廓”分层',
-  'authoritative chrome design must record the province focus hierarchy',
+  'authoritative strategic map design must record the province focus hierarchy',
 );
 requireText(
   designSource,
   '选中悬浮 > 选中 > 普通悬浮 > 默认',
-  'authoritative chrome design must record province focus precedence',
+  'authoritative strategic map design must record province focus precedence',
 );
 requireText(
   designSource,
   '静态 SVG',
-  'authoritative chrome design must record the static SVG implementation boundary',
+  'authoritative strategic map design must record the static SVG implementation boundary',
 );
 requireText(
   designSource,
-  '`tests/browser/province-map-focus.spec.ts`',
-  'authoritative chrome design must register the browser regression',
+  '`province-map-focus.spec.ts`',
+  'authoritative strategic map design must register the browser regression',
 );
 
 requireText(
