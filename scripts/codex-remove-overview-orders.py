@@ -48,7 +48,7 @@ write(path, source)
 # Industry design: preserve legal fractional official prices in profit presentation.
 path = 'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md'
 source = read(path)
-old = '当日官方系统价必须使用统一两位小数价格边界：不低于 0.01、最多两位小数；客户端不得要求官方价为整数或不低于 1。'
+old = '当日官方系统价必须使用统一两位小数价格边界：不低于 0.01、最多两位小数；客户端不得要求成交价为整数或不低于 1，单厂利润所使用的官方价遵守同一边界。'
 new = '当日官方系统价必须使用统一两位小数价格边界：不低于 0.01、最多两位小数；客户端不得要求成交价为整数或不低于 1，也不得把低于 1 的合法官方价截断为 1。'
 source = replace_once(source, old, new, path)
 write(path, source)
