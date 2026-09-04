@@ -155,7 +155,6 @@ export function CommercePage({
         quantity,
       });
       await model.showResult(result);
-      if (result.ok) await model.refresh({ mode: 'authoritative' });
     } finally {
       setPendingAction('');
     }
