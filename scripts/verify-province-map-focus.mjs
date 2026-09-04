@@ -85,7 +85,17 @@ requireText(
 requireText(
   renderingSource,
   'filter: none;',
-  'viewBox zoom must not rerun SVG drop-shadow filters for province selection',
+  'viewBox settle must not rerun SVG drop-shadow filters for province selection',
+);
+requireText(
+  renderingSource,
+  '@property --province-map-camera-transform',
+  'transient camera transform property must be explicitly registered',
+);
+requireText(
+  renderingSource,
+  'inherits: false;',
+  'transient camera transform property must not invalidate the SVG subtree through inheritance',
 );
 requireText(
   styleSource,
@@ -122,6 +132,11 @@ requireText(
   designSource,
   '静态 SVG',
   'authoritative strategic map design must record the static SVG implementation boundary',
+);
+requireText(
+  designSource,
+  '必须通过 `@property` 注册为 `inherits:false`',
+  'authoritative strategic map design must prohibit inherited transient camera invalidation',
 );
 requireText(
   designSource,
