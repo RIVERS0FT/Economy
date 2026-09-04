@@ -70,7 +70,7 @@ for (const text of [
 
 for (const text of [
   '.application-map-layer > .strategic-map-lens-bar,',
-  'background: var(--color-surface);',
+  'background: var(--color-surface-panel);',
   '-webkit-backdrop-filter: none;',
   'backdrop-filter: none;',
 ]) requireText(mapRenderingPath, text);
