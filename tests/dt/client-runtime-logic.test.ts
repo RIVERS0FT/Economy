@@ -127,7 +127,7 @@ test('immediate facility intent lifecycle handles acknowledgement, reconciliatio
   const beforePrimaryOnly = notifications;
   const primaryOnly = setFacilityEnabledIntent(provinceId, facilityTypeId, true);
   assert.equal(notifications, beforePrimaryOnly + 1);
-  assert.equal(secondaryNotifications, 7);
+  assert.equal(secondaryNotifications, 8);
   rejectFacilityEnabledIntent(provinceId, facilityTypeId, primaryOnly);
 
   unsubscribe();
