@@ -13,11 +13,13 @@ export function FacilityGroupProgress({
   if (group.status !== 'running' || !group.cycleStartedAt) {
     return (
       <div className="progress-wrap facility-progress-running is-idle">
-        <div className="progress-meta">
-          <span>{group.status === 'error' ? '等待条件恢复' : '当前未运行'}</span>
-          <span>0%</span>
+        <div className="progress-track">
+          <span style={{ width: '0%' }} />
+          <div className="progress-track-copy">
+            <strong>{group.status === 'error' ? '等待条件恢复' : '当前未运行'}</strong>
+            <span>0%</span>
+          </div>
         </div>
-        <div className="progress-track"><span style={{ width: '0%' }} /></div>
       </div>
     );
   }
@@ -29,11 +31,13 @@ export function FacilityGroupProgress({
 
   return (
     <div className="progress-wrap facility-progress-running">
-      <div className="progress-meta">
-        <span>本周期剩余 {formatDuration(remaining)}</span>
-        <span>{Math.round(progress)}%</span>
+      <div className="progress-track">
+        <span style={{ width: `${progress}%` }} />
+        <div className="progress-track-copy">
+          <strong>本周期剩余 {formatDuration(remaining)}</strong>
+          <span>{Math.round(progress)}%</span>
+        </div>
       </div>
-      <div className="progress-track"><span style={{ width: `${progress}%` }} /></div>
     </div>
   );
 }

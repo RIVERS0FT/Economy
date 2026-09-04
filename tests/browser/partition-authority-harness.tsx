@@ -68,6 +68,7 @@ cache.accept({
         }],
         systemValue: 100,
       }],
+      commercialBuildingTypes: [{ id: 'convenience-store', name: '便利店' }],
       researchLevels: [{ id: 'C1', rank: 1, cost: 0, durationMs: 0 }],
       provinces: [{
         id: '110000',

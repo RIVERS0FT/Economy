@@ -106,6 +106,7 @@ function completePatches(version) {
       version,
       products: [{ id: 'wheat' }],
       facilityTypes: [{ id: 'farm' }],
+      commercialBuildingTypes: [{ id: 'convenience-store' }],
       researchLevels: [{ id: 'C1' }],
       provinces: [{ id: '110000' }],
       defaultProvinceId: '110000',

@@ -26,6 +26,7 @@ function sampleState(overrides = {}) {
     version: CURRENT_CLIENT_STATE_VERSION,
     products: [{ id: 'wheat' }],
     facilityTypes: [{ id: 'farm' }],
+    commercialBuildingTypes: [{ id: 'convenience-store' }],
     researchLevels: [{ id: 'C1' }],
     provinces: [{ id: '110000' }],
     defaultProvinceId: '110000',
@@ -113,6 +114,10 @@ test('partition hashing reports exact partition and high-volume field byte gauge
 
 test('incomplete catalog states are rejected before delivery', () => {
   assert.throws(
+    () => createStatePartitionSnapshot(sampleState({ commercialBuildingTypes: undefined })),
+    /客户端目录分区不完整：catalog\.commercialBuildingTypes/,
+  );
+  assert.throws(
     () => createStatePartitionSnapshot(sampleState({ provinces: undefined })),
     /客户端目录分区不完整：catalog\.provinces/,
   );
@@ -183,6 +188,22 @@ test('invalid cached catalog snapshots are never reused', () => {
 
   assert.notStrictEqual(second.partitions.catalog, invalidCatalog);
   assert.equal(second.partitions.catalog.provinces[0].id, '110000');
+});
+
+test('cached catalogs without commercial building types are never reused', () => {
+  const first = createStatePartitionSnapshot(sampleState());
+  const staleCatalog = { ...first.partitions.catalog };
+  delete staleCatalog.commercialBuildingTypes;
+  const second = createStatePartitionSnapshot(sampleState({ userId: 2, playerName: 'Bob' }), {
+    catalogSnapshot: {
+      version: first.partitions.catalog.version,
+      partition: staleCatalog,
+      revision: first.partitionRevisions.catalog,
+    },
+  });
+
+  assert.notStrictEqual(second.partitions.catalog, staleCatalog);
+  assert.equal(second.partitions.catalog.commercialBuildingTypes[0].id, 'convenience-store');
 });
 
 test('known partition revisions suppress unchanged partitions and isolate player slices', () => {

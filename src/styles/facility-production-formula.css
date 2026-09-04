@@ -256,18 +256,15 @@
   margin: 0;
 }
 
-.facility-formula-progress .progress-meta {
-  color: var(--color-text-secondary);
-  font-size: 0.7rem;
-  font-variant-numeric: tabular-nums;
-}
-
 .facility-formula-progress .progress-track {
   position: relative;
-  height: 0.55rem;
+  display: grid;
+  align-items: center;
+  width: 100%;
+  height: 1.625rem;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--color-info) 16%, var(--color-border));
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--color-text-primary) 5%, transparent), transparent),
     color-mix(in srgb, var(--color-bg-deep) 78%, var(--color-gridline));
@@ -276,55 +273,50 @@
     0 0 0 1px color-mix(in srgb, var(--color-text-primary) 2%, transparent);
 }
 
-.facility-formula-progress .progress-track span {
-  position: relative;
-  min-width: 0;
-  overflow: hidden;
+.facility-formula-progress .progress-track > span {
+  position: absolute;
+  inset: 0 auto 0 0;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--color-success-strong), var(--color-success));
   box-shadow: 0 0 0.7rem color-mix(in srgb, var(--color-success) 30%, transparent);
   transition: width var(--motion-normal) linear;
 }
 
-.facility-formula-progress .progress-track span::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(105deg, transparent 22%, color-mix(in srgb, var(--color-text-primary) 34%, transparent) 50%, transparent 78%);
-  transform: translateX(-115%);
-  animation: facility-formula-progress-sweep 2.8s linear infinite;
+.facility-formula-progress .progress-track-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+  color: var(--color-text-primary);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--color-bg-deep) 72%, transparent);
 }
 
-.facility-formula-progress .progress-track span::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  right: 0;
-  width: 0.55rem;
-  height: 0.55rem;
-  transform: translateY(-50%);
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
-  background: var(--color-success);
-  filter: drop-shadow(0 0 0.2rem color-mix(in srgb, var(--color-success) 48%, transparent));
+.facility-formula-progress .progress-track-copy strong,
+.facility-formula-progress .progress-track-copy span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.facility-formula-progress .facility-progress-running.is-idle .progress-track span::before,
-.facility-formula-progress .facility-progress-running.is-idle .progress-track span::after {
-  display: none;
+.facility-formula-progress .progress-track-copy span {
+  position: static;
+  text-align: right;
 }
 
-.facility-production-formula[data-status='error'] .facility-formula-progress .progress-meta {
+.facility-production-formula[data-status='error'] .facility-formula-progress .progress-track-copy {
   color: var(--color-danger);
 }
 
 .facility-production-formula[data-status='error'] .facility-formula-progress .progress-track {
   border-color: color-mix(in srgb, var(--color-danger) 28%, var(--color-border));
-}
-
-@keyframes facility-formula-progress-sweep {
-  to {
-    transform: translateX(115%);
-  }
 }
 
 @container (max-width: 560px) {
@@ -376,19 +368,13 @@
     height: 0.9rem;
   }
 
-  .facility-formula-progress .progress-meta {
+  .facility-formula-progress .progress-track-copy {
     font-size: 0.66rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .facility-formula-progress .progress-track span {
+  .facility-formula-progress .progress-track > span {
     transition: none;
-  }
-
-  .facility-formula-progress .progress-track span::before {
-    animation: none;
-    transform: none;
-    opacity: 0;
   }
 }

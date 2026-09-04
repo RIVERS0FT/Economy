@@ -11,6 +11,7 @@ function state(overrides = {}) {
     version: CURRENT_CLIENT_STATE_VERSION,
     products: [{ id: 'wheat' }],
     facilityTypes: [{ id: 'farm' }],
+    commercialBuildingTypes: [{ id: 'convenience-store' }],
     researchLevels: [{ id: 'C1' }],
     provinces: [{ id: '110000' }],
     defaultProvinceId: '110000',

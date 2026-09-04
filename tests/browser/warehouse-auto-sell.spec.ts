@@ -19,16 +19,22 @@ test.describe('warehouse and factory automatic operation responsibilities', () =
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test('factory detail owns the editable automatic-operation policy', async ({ page }) => {
-    await page.goto('runtime-test.html?view=production&scenario=cluster-summary');
+    await page.goto('runtime-test.html?view=production&scenario=production-methods');
     await page.locator('.facility-cluster-selector-card').first().click();
 
     const controls = page.locator('.facility-auto-operation');
     await expect(controls).toBeVisible();
     await expect(controls).toContainText('自动经营');
     await expect(controls).toContainText('原料保障');
-    await expect(controls).toContainText('经营模式');
-    await expect(controls).toContainText('产成品处理');
-    await expect(controls.getByRole('button', { name: '保存自动经营策略' })).toBeVisible();
+    await expect(controls).not.toContainText('经营模式');
+    await expect(controls).not.toContainText('产成品处理');
+    await expect(controls.getByRole('button', { name: '保存自动经营策略' })).toHaveCount(0);
+    await expect(controls).not.toContainText('系统仍通过本州统一商品订单簿执行真实买卖；合同保留与其他工厂的原料需求会一起计算，不创建工厂专属订单簿。');
+    await expect(controls.locator('[data-game-concept="factory-auto-operation"]')).toHaveCount(1);
+    await expect(controls.locator('[data-game-concept="input-coverage"]')).toHaveCount(1);
+    const productionSettings = page.locator('.facility-production-settings-grid');
+    await expect(productionSettings.getByRole('combobox')).toHaveCount(3);
+    await expect(productionSettings.getByRole('combobox', { name: '机械工厂原料保障' })).toHaveCount(1);
     await expect(page.locator('.facility-cluster-detail-card')).not.toContainText('目标自由库存');
     await expect(page.locator('.facility-cluster-detail-card')).not.toContainText('最低自由库存');
   });

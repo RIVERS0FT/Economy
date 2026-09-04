@@ -11,7 +11,6 @@ import type {
 } from '../../types';
 import { formatCurrency, formatDuration, formatNumber } from '../../utils/formatters';
 import { facilityEffectiveCount, projectFacilityStaffingRate } from '../../utils/facilityStaffing';
-import { FacilityAutoOperationControls } from './FacilityAutoOperationControls';
 import { FacilityGroupProgress } from './FacilityProgress';
 
 type MultiRecipeFacilityType = FacilityTypeDefinition & {
@@ -184,9 +183,7 @@ export function FacilityProductionFormula({
     .join('。');
 
   return (
-    <>
-      <FacilityAutoOperationControls group={group} />
-      <section className="facility-production-formula"
+    <section className="facility-production-formula"
         data-status={group.status}
         role="group"
         aria-label={description}
@@ -244,7 +241,6 @@ export function FacilityProductionFormula({
             <FacilityGroupProgress group={group} type={type} now={now} />
           </div>
         </div>
-      </section>
-    </>
+    </section>
   );
 }

@@ -474,7 +474,6 @@ export function BuildingsPage({
           onRecipeChange={changeSelectedFacilityRecipe}
           onOpenProductMarket={openProductMarket}
           onOpenContracts={openProductContracts}
-          titleId="facility-detail-title"
         />
       </PagePanel>
     </div>

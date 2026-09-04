@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { CompactNumber } from '../ui/CompactNumber';
 import { ChevronIcon } from '../icons/GameIcons';
 import { OperationMethodIcon } from '../icons/OperationMethodIcons';
@@ -276,6 +277,7 @@ export function FacilityProductionConfigControls({
   researchTechnologies,
   disabled,
   className = 'facility-production-settings-grid',
+  children,
   onProductChange,
   onMethodChange,
 }: {
@@ -289,6 +291,7 @@ export function FacilityProductionConfigControls({
   researchTechnologies: ResearchTechnologyDefinition[];
   disabled: boolean;
   className?: string;
+  children?: ReactNode;
   onProductChange: (baseRecipeId: string) => void;
   onMethodChange: (methodId: FacilityProductionMethodId) => void;
 }) {
@@ -315,6 +318,7 @@ export function FacilityProductionConfigControls({
         disabled={disabled}
         onMethodChange={onMethodChange}
       />
+      {children}
     </div>
   );
 }
