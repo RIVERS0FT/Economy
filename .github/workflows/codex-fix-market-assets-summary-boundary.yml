@@ -1,0 +1,43 @@
+name: Fix market assets summary boundary verifier
+
+on:
+  push:
+    branches:
+      - codex/daily-system-market
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Align market asset verifier with compact summary boundary
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-market-assets.mjs')
+          text = path.read_text()
+          old = '''  "assetKind === 'commodity' ? [] : publicDepth(getOrderBookDepth",
+  "assetKind === 'commodity'\n      ? EMPTY_PUBLIC_ORDER_BOOK",
+]) requireText('server/src/market-state-delivery.js', text);'''
+          new = '''  "assetKind === 'commodity' ? [] : publicDepth(getOrderBookDepth",
+  'includeOrderBook = true',
+  "includeOrderBook: assetKind !== 'commodity'",
+  "const bids = assetKind === 'commodity' ? [] : publicDepth",
+  "const asks = assetKind === 'commodity' ? [] : publicDepth",
+]) requireText('server/src/market-state-delivery.js', text);'''
+          if old not in text:
+              raise SystemExit('market assets legacy summary assertion not found')
+          path.write_text(text.replace(old, new, 1))
+          Path('.github/workflows/codex-fix-market-assets-summary-boundary.yml').unlink()
+          PY
+      - name: Commit verifier fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "更新市场资产摘要边界 verifier"
+          git push origin HEAD:codex/daily-system-market
