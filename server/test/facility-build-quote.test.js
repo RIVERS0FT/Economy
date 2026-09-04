@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { FACILITY_TYPE_CATALOG } from '../src/domain.js';
+import { commoditySystemPriceFor, FACILITY_TYPE_CATALOG } from '../src/domain.js';
 import { EconomyStore } from '../src/runtime-store.js';
 import {
   DEFAULT_PROVINCE_ID,
@@ -9,30 +9,9 @@ import {
 } from '../src/provinces.js';
 
 const buyer = { id: 311, email: 'quote-buyer@example.com', name: 'Quote Buyer', role: 'user' };
-const seller = { id: 312, email: 'quote-seller@example.com', name: 'Quote Seller', role: 'user' };
 const now = 1_700_300_000_000;
 
-function order(id, ownerId, productId, side, price, remaining, createdAt) {
-  return {
-    id,
-    provinceId: DEFAULT_PROVINCE_ID,
-    assetKind: 'commodity',
-    assetId: productId,
-    productId,
-    ownerType: 'player',
-    ownerId,
-    ownerName: ownerId === buyer.id ? buyer.name : seller.name,
-    side,
-    price,
-    quantity: remaining,
-    remaining,
-    status: 'open',
-    createdAt,
-    fills: [],
-  };
-}
-
-test('facility build quote reads real depth without changing the authoritative world', () => {
+test('facility build quote reads today official prices without changing the authoritative world', () => {
   const ranch = FACILITY_TYPE_CATALOG.find((item) => item.id === 'ranch');
   assert.deepEqual(ranch.buildInputs, [
     { productId: 'timber', quantity: 3 },
@@ -41,19 +20,14 @@ test('facility build quote reads real depth without changing the authoritative w
   const store = new EconomyStore(':memory:');
   try {
     store.getState(buyer, now);
-    store.getState(seller, now + 1);
-    const loaded = store.loadWorld(now + 2);
+    const loaded = store.loadWorld(now + 1);
     const buyerPlayer = loaded.world.players[String(buyer.id)];
     inventoryForProvince(buyerPlayer, 'timber', DEFAULT_PROVINCE_ID).available = 0;
     inventoryForProvince(buyerPlayer, 'ore', DEFAULT_PROVINCE_ID).available = 0;
-    loaded.world.orders = [
-      order('own-timber', buyer.id, 'timber', 'sell', 60, 1, now + 10),
-      order('timber-1', seller.id, 'timber', 'sell', 60, 1, now + 11),
-      order('timber-2', seller.id, 'timber', 'sell', 61, 2, now + 12),
-      order('ore-1', seller.id, 'ore', 'sell', 70, 2, now + 13),
-    ];
+    const timberPrice = commoditySystemPriceFor(loaded.world, 'timber', DEFAULT_PROVINCE_ID, now + 1);
+    const orePrice = commoditySystemPriceFor(loaded.world, 'ore', DEFAULT_PROVINCE_ID, now + 1);
     delete buyerPlayer.inventories[provinceScopedKey(DEFAULT_PROVINCE_ID, 'ore')];
-    store.saveWorld(loaded.revision, loaded.world, now + 2);
+    store.saveWorld(loaded.revision, loaded.world, now + 1);
     const before = store.database.prepare('SELECT revision, state_json, updated_at FROM economy_world WHERE id = 1').get();
     const committedWorldBefore = JSON.stringify(store.worldCache.world);
 
@@ -65,12 +39,12 @@ test('facility build quote reads real depth without changing the authoritative w
     assert.equal(response.serverNow, now + 20);
     assert.deepEqual(response.quote, {
       complete: true,
-      estimatedTotal: 322,
+      estimatedTotal: Number((timberPrice * 3 + orePrice * 2).toFixed(6)),
       missingQuantity: 5,
-      materialPriceCaps: { timber: 61, ore: 70 },
-      materialOrderPrices: { timber: 60, ore: 70 },
+      materialPriceCaps: { timber: timberPrice, ore: orePrice },
+      materialOrderPrices: { timber: timberPrice, ore: orePrice },
       unavailableProductIds: [],
-      selfCrossingProductIds: ['timber'],
+      selfCrossingProductIds: [],
     });
 
     const repeated = store.getFacilityBuildQuote(buyer, {
