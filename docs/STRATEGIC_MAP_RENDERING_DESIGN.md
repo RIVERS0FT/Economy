@@ -41,7 +41,7 @@
 - active 阶段的 `requestAnimationFrame` 热路径只允许：把内存 target 规范化为 current，并对 `.province-map-camera-surface` **直接写浏览器内建的 `style.transform` 一次**。这个 transform 必须完全由“固定 preload viewBox → current 目标 viewBox”的同一 Camera 数学推导，不得读取 DOM 几何、不得写根 SVG `viewBox`、不得发布 `data-*`、不得重绘 Canvas、不得创建定时器、不得提交 React state、不得重算 path／标签、不得调用 ECharts／ZRender。
 - Camera RAF 不得再通过 CSS custom property、`var(...)` 或 `@property` 间接驱动 transform。栅格快照解决的是复杂 SVG transform 下的重复栅格化，不改变“每个 RAF 只直接写一次内建 transform”的规则。
 - 同一任务中的多次 wheel／pointermove 必须合并为下一帧的一次 transient transform 写入。active 热路径不得同时写 transform 与 `viewBox`，不得每帧改 Canvas 尺寸、重新截图或更新 raster revision。
-- 输入 settle 使用单一 deadline 与单一定时器。只要仍有待提交 RAF，本轮不得先进入 idle；deadline 到达且 RAF 已清空后，必须 **一次性** 把 current Camera 提交为根 `.province-map-world-svg` 的最终 `viewBox`，随后清除 Camera transform 与 SVG 临时透明度，再切回 idle，使最终样式恢复 `transform:none / will-change:auto`，Canvas 同时恢复 `opacity:0`。
+- 输入 settle 使用单一 deadline 与单一定时器。只要仍有待提交 RAF，本轮不得先进入 idle；deadline 到达且 RAF 已清空后，必须 **一次性** 把 current Camera 提交为根 `.province-map-world-svg` 的最终 `viewBox`；**settle 后必须清除** Camera transform 与 SVG 临时透明度，再切回 idle，使最终样式恢复 `transform:none / will-change:auto`，Canvas 同时恢复 `opacity:0`。
 - reset 和真实容器 resize 可以直接提交新的 settled `viewBox`，并必须同时清除 transient transform 与 SVG 临时透明度。空白双击／双触回到动态 `1×` 美国居中视场。移动双指的 click 抑制窗口继续只负责输入仲裁，不复制 Camera。
 - `data-map-raster-ready`、`data-map-raster-revision`、像素尺寸与 preload viewBox 只在初始化、idle 快照完成、真实内容／容器变化和 active/idle 边界同步；不得为了展示每一帧的 current 值而重新生成快照或写诊断属性。
 
