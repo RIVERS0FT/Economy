@@ -49,7 +49,7 @@
 .global-operation-page .entity-list-row.global-facility-catalog-row {
   --global-facility-catalog-artwork-size: var(--global-facility-layout-artwork-size);
   --global-facility-catalog-main-row-size: 42px;
-  --global-facility-catalog-row-gap: 8px;
+  --global-facility-catalog-row-gap: 14px;
   grid-template-columns: var(--global-facility-layout-columns);
   grid-template-rows: var(--global-facility-catalog-main-row-size) var(--global-facility-production-control-size);
   align-content: center;
@@ -197,7 +197,7 @@
 /* Regional building rows follow the same flat list hierarchy without facility artwork. */
 .global-operation-page .entity-list-row.global-facility-region-row {
   --global-facility-region-main-row-size: 42px;
-  --global-facility-region-row-gap: 8px;
+  --global-facility-region-row-gap: 14px;
   grid-template-rows: var(--global-facility-region-main-row-size) var(--global-facility-production-control-size);
   align-content: center;
   align-items: center;
@@ -232,12 +232,12 @@
 
   .global-operation-page .entity-list-row.global-facility-catalog-row {
     --global-facility-catalog-main-row-size: 40px;
-    --global-facility-catalog-row-gap: 6px;
+    --global-facility-catalog-row-gap: 12px;
   }
 
   .global-operation-page .entity-list-row.global-facility-region-row {
     --global-facility-region-main-row-size: 40px;
-    --global-facility-region-row-gap: 6px;
+    --global-facility-region-row-gap: 12px;
   }
 
   .global-operation-page .global-facility-catalog-row__identity {
@@ -275,12 +275,12 @@
 
   .global-operation-page .entity-list-row.global-facility-catalog-row {
     --global-facility-catalog-main-row-size: 40px;
-    --global-facility-catalog-row-gap: 4px;
+    --global-facility-catalog-row-gap: 8px;
   }
 
   .global-operation-page .entity-list-row.global-facility-region-row {
     --global-facility-region-main-row-size: 40px;
-    --global-facility-region-row-gap: 4px;
+    --global-facility-region-row-gap: 8px;
   }
 
   .global-operation-page .global-facility-catalog-row__identity {
