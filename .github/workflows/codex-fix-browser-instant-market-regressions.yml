@@ -22,6 +22,7 @@ jobs:
       - run: node scripts/codex-fix-browser-instant-market-regressions.mjs
       - run: node scripts/codex-fix-market-runtime-base.mjs
       - run: node scripts/codex-split-strategic-layout-st.mjs
+      - run: node scripts/codex-fix-consistency-fixture.mjs
       - run: node scripts/codex-fix-daily-market-consistency.mjs
       - run: npm run generate:local-preview
       - run: npx tsc --noEmit
