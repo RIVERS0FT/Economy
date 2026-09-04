@@ -94,8 +94,8 @@ requireText(detailStyles, '.market-detail-surface .market-trade-card {', '详情
 requireText(detailStyles, 'background: transparent;', '直接交易区不得恢复一级卡片背景。');
 
 requireText(marketPage, 'const marketDetailRefreshToken = [', '详情刷新必须使用稳定令牌。');
-requireText(marketPage, 'selectedMarket?.officialPrice', '详情刷新必须跟随官方价格变化。');
-requireText(marketPage, 'selectedMarket?.nextPriceAt', '详情刷新必须跟随下一调价时间。');
+requireText(marketPage, 'selectedProductMarket?.officialPrice', '详情刷新必须跟随官方价格变化。');
+requireText(marketPage, 'selectedProductMarket?.nextPriceAt', '详情刷新必须跟随下一调价时间。');
 requireText(marketPage, 'marketDetailError && !selectedMarketDetail', '已有有效详情时瞬时刷新失败不得覆盖行情图。');
 requireText(serverDelivery, 'const priceHistory = realTradePoints(market, now).map(publicPricePoint);', '详情接口必须只发送近 24h 真实成交点。');
 requireText(serverDeliveryTest, 'bounded public real-trade history', '服务器测试必须锁定详情历史边界。');
