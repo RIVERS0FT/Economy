@@ -24,22 +24,21 @@ jobs:
           from pathlib import Path
           path = Path('tests/browser/province-map.spec.ts')
           text = path.read_text()
-          old = '''  await expect(tabs.getByRole('tab', { name: '市场', exact: true })).toBeVisible();
-          await expect(tabs.getByRole('tab', { name: '建筑', exact: true })).toBeVisible();
-          await expect(tabs.getByRole('tab', { name: '仓库', exact: true })).toBeVisible();
 
-          await tabs.getByRole('tab', { name: '建筑', exact: true }).click();
-          await expect(tabs.getByRole('tab', { name: '建筑', exact: true })).toHaveAttribute('aria-selected', 'true');'''
-          new = '''  await expect(tabs.getByRole('tab', { name: '市场', exact: true })).toBeVisible();
-          await expect(tabs.getByRole('tab', { name: '商业', exact: true })).toBeVisible();
-          await expect(tabs.getByRole('tab', { name: '工业', exact: true })).toBeVisible();
-          await expect(tabs.getByRole('tab', { name: '仓库', exact: true })).toBeVisible();
+          old_visible = "await expect(tabs.getByRole('tab', { name: '建筑', exact: true })).toBeVisible();"
+          new_visible = "await expect(tabs.getByRole('tab', { name: '商业', exact: true })).toBeVisible();\n  await expect(tabs.getByRole('tab', { name: '工业', exact: true })).toBeVisible();"
+          old_click = "await tabs.getByRole('tab', { name: '建筑', exact: true }).click();"
+          new_click = "await tabs.getByRole('tab', { name: '工业', exact: true }).click();"
+          old_selected = "await expect(tabs.getByRole('tab', { name: '建筑', exact: true })).toHaveAttribute('aria-selected', 'true');"
+          new_selected = "await expect(tabs.getByRole('tab', { name: '工业', exact: true })).toHaveAttribute('aria-selected', 'true');"
 
-          await tabs.getByRole('tab', { name: '工业', exact: true }).click();
-          await expect(tabs.getByRole('tab', { name: '工业', exact: true })).toHaveAttribute('aria-selected', 'true');'''
-          if old not in text:
-              raise SystemExit('missing stale four-tab province-map test block')
-          path.write_text(text.replace(old, new, 1))
+          for old in [old_visible, old_click, old_selected]:
+              if old not in text:
+                  raise SystemExit(f'missing stale province-map test token: {old}')
+          text = text.replace(old_visible, new_visible, 1)
+          text = text.replace(old_click, new_click, 1)
+          text = text.replace(old_selected, new_selected, 1)
+          path.write_text(text)
           Path('.github/workflows/fix-province-map-five-tabs.yml').unlink()
           PY
       - name: Commit browser test alignment
