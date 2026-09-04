@@ -197,7 +197,7 @@ test('active wheel bursts mutate only the transient camera transform once per an
   await expect(camera).toHaveCSS('will-change', 'auto');
 });
 
-test('transient raster camera frames stay close to the same-browser empty-frame budget', async ({ page }) => {
+test('transient camera frames stay close to the same-browser empty-frame budget', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('runtime-test.html?view=map', { waitUntil: 'domcontentloaded' });
