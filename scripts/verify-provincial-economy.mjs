@@ -297,6 +297,7 @@ assert.ok(worldContextAsset.length < 1_500_000, '北美 10m 裁剪 TopoJSON 不�
 const worldStrokeAsset = read('src/data/north-america-coastline-110m.json');
 assert.ok(worldStrokeAsset.length < 30_000, '北美 110m 描边 TopoJSON 必须保持轻量，避免 settled viewBox 提交重新描画十万级背景顶点');
 execFileSync(process.execPath, ['scripts/generate-province-map-world-context.mjs', '--check'], { stdio: 'inherit' });
+
 const camera = read('src/components/provinces/provinceMapCamera.ts');
 for (const text of [
   'export const PROVINCE_MAP_ZOOM_MIN = 1', 'export const PROVINCE_MAP_ZOOM_MAX = 4',
@@ -319,7 +320,10 @@ const writeCameraStart = camera.indexOf('const writeCamera = () => {');
 const writeCameraEnd = camera.indexOf('\n  };', writeCameraStart);
 assert.ok(writeCameraStart >= 0 && writeCameraEnd > writeCameraStart, '必须能定位地图相机 RAF 热路径');
 const writeCameraSource = camera.slice(writeCameraStart, writeCameraEnd);
-assert.ok(writeCameraSource.includes('surface.style.transform = transientTransformFor(current, metrics);'), '地图 active RAF 必须直接写唯一内建 transform');
+for (const text of [
+  'if (transientUsesRaster) raster.style.transform = transientTransformFor(current, metrics);',
+  'else surface.style.transform = transientTransformFor(current, metrics);',
+]) assert.ok(writeCameraSource.includes(text), `地图 active RAF 必须显式保持 raster-ready／live-SVG 二选一 transform 写入: ${text}`);
 for (const forbidden of ["svg.setAttribute('viewBox'", 'container.dataset', 'publishState(', 'getBoundingClientRect(', 'setTimeout(', 'setActive(', 'setState(', 'setProperty(', 'TRANSIENT_CAMERA_TRANSFORM_PROPERTY']) {
   assert.equal(writeCameraSource.includes(forbidden), false, `地图相机 RAF 热路径不得包含: ${forbidden}`);
 }
@@ -328,7 +332,9 @@ const commitCameraEnd = camera.indexOf('\n  };', commitCameraStart);
 assert.ok(commitCameraStart >= 0 && commitCameraEnd > commitCameraStart, '必须能定位地图 settle viewBox 提交');
 const commitCameraSource = camera.slice(commitCameraStart, commitCameraEnd);
 assert.ok(commitCameraSource.includes("svg.setAttribute('viewBox'"), '地图 settle 必须一次性提交最终 SVG viewBox');
-assert.ok(commitCameraSource.includes("surface.style.removeProperty('transform')"), '地图 settle 必须清除 transient Camera transform');
+for (const text of ["surface.style.removeProperty('transform')", "raster.style.removeProperty('transform')", "svg.style.removeProperty('opacity')"]) {
+  assert.ok(commitCameraSource.includes(text), `地图 settle 必须清理 transient raster/SVG 状态: ${text}`);
+}
 for (const forbidden of ['requestAnimationFrame(', 'container.dataset', 'getBoundingClientRect(', 'setState(', 'TRANSIENT_CAMERA_TRANSFORM_PROPERTY']) {
   assert.equal(commitCameraSource.includes(forbidden), false, `地图 settle 提交不得引入第二热路径: ${forbidden}`);
 }
@@ -379,7 +385,9 @@ assert.ok(performanceStyles.includes('.province-map-camera-surface') && performa
 assert.equal(performanceStyles.includes('will-change: transform;'), false, 'performance 基础样式不得永久提升 Camera');
 const renderingStyles = read('src/styles/strategic-map-rendering.css');
 for (const text of [
-  ".province-map-static-viewport[data-map-zoom-active='true'] .province-map-camera-surface", 'will-change: transform !important;',
+  ".province-map-static-viewport[data-map-zoom-active='true']:not([data-map-raster-ready='true']) .province-map-camera-surface", 'will-change: transform !important;',
+  ".province-map-static-viewport[data-map-zoom-active='true'][data-map-raster-ready='true'] .province-map-camera-raster", 'will-change: transform;',
+  ".province-map-static-viewport[data-map-zoom-active='true'][data-map-raster-ready='true'] .province-map-world-svg", 'opacity: 0;',
   ".province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-fill", 'display: none;',
   ".province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-shadow", 'fill-opacity: .78;',
   '.application-map-layer > .strategic-map-lens-bar', '.transport-map-picking-bar',
@@ -445,9 +453,11 @@ for (const text of [
 ]) assert.ok(syncTest.includes(text), `地图州名同步回归缺少: ${text}`);
 const zoomOutTest = read('tests/browser/map-zoom-out-boundary.spec.ts');
 for (const text of [
-  'states outside the committed viewBox re-enter during transient zoom-out because all 48 paths remain mounted',
-  'offscreenBeforeZoomOut', 'zoomOutActiveFrame.active', "toBe('true')", 'restoredDuringActiveZoom', 'pathsAfter', 'pathsBefore',
-  'zoomOutActiveFrame.cameraTransform', 'zoomedSettledViewBox',
+  'all 48 SVG paths remain mounted while active zoom-out is rendered by the raster and settle restores SVG geometry',
+  'offscreenBeforeZoomOut', 'zoomOutActiveFrame.active', 'zoomOutActiveFrame.rasterActive', 'pathsAfter', 'pathsBefore',
+  'expect(zoomOutActiveFrame.viewBox).toBe(zoomedSettledViewBox)',
+  "expect(zoomOutActiveFrame.cameraTransform).toBe('none')", "expect(zoomOutActiveFrame.rasterTransform).not.toBe('none')",
+  'zoomedSettledViewBox', "toHaveAttribute('data-map-zoom-current', '1.00000')",
 ]) assert.ok(zoomOutTest.includes(text), `地图屏外州恢复回归缺少: ${text}`);
 const resetTest = read('tests/browser/map-reset-sync.spec.ts');
 for (const text of [
@@ -472,7 +482,8 @@ for (const text of [
   '本文是战略地图', 'Transient Camera + settled viewBox', '该 world bounds 不得随 zoom 改变',
   '`viewWidth = baseViewWidth / zoom`', '真实 SVG `text`', '二次贝塞尔抛物线',
   '1:10m countries', '1:110m TopoJSON', '低于 `2,000` 个 `M/L` 顶点',
-  '直接写浏览器内建的 `style.transform`', 'CSS custom property', 'settle 后必须清除',
+  '直接写一次浏览器内建 `style.transform`', 'CSS custom property', 'settle 后 Surface 与 Canvas 均恢复',
+  'raster-ready active 时变换 `.province-map-camera-surface`', '`Image` + `decode()`',
   '不得生成平行车道', '`backdrop-filter` 与 `-webkit-backdrop-filter` 必须为 `none`',
 ]) assert.ok(mapDesign.includes(text), `战略地图渲染 DESIGN 缺少: ${text}`);
 const networkDesign = read('docs/TRANSPORT_NETWORK_GEOMETRY_DESIGN.md');
@@ -497,4 +508,4 @@ for (const text of [
 assert.ok(read('server/test/banking.test.js').includes('bank collateral locks only the selected province facility group'), '缺少银行跨省抵押防回退测试');
 assert.ok(read('server/test/commercial-contracts.test.js').includes('facility lease usage and locks stay in the contract province'), '缺少工厂租赁跨省锁定防回退测试');
 
-console.log('地区经济验证通过：美国连续 48 州、中文展示名、首府目录和州级经济隔离保持稳定；所有州直接经营；战略地图闲置使用 10m 土地填充和轻量 110m 背景描边，active RAF 只直接写浏览器内建 transform，settle 后单次提交根 SVG viewBox 并恢复 transform:none / will-change:auto；固定 world bounds 与州面、州名、路线矢量几何保持同一 Camera；公路、铁路和航空沿各自正式几何运动，运行时不保留车道数据模型或返程副线，地图专属镜头栏和选路面板不使用毛玻璃。');
+console.log('地区经济验证通过：美国连续 48 州、中文展示名、首府目录和州级经济隔离保持稳定；所有州直接经营；战略地图闲置使用 10m 土地填充和轻量 110m 背景描边，raster-ready active RAF 只直接变换 Canvas，snapshot 缺失时才回退变换 live-SVG Surface，settle 后单次提交根 SVG viewBox 并恢复 Surface/Canvas transform:none 与 will-change:auto；固定 world bounds 与州面、州名、路线矢量几何保持同一 Camera；公路、铁路和航空沿各自正式几何运动，运行时不保留车道数据模型或返程副线，地图专属镜头栏和选路面板不使用毛玻璃。');
