@@ -297,7 +297,6 @@ assert.ok(worldContextAsset.length < 1_500_000, '北美 10m 裁剪 TopoJSON 不�
 const worldStrokeAsset = read('src/data/north-america-coastline-110m.json');
 assert.ok(worldStrokeAsset.length < 30_000, '北美 110m 描边 TopoJSON 必须保持轻量，避免 settled viewBox 提交重新描画十万级背景顶点');
 execFileSync(process.execPath, ['scripts/generate-province-map-world-context.mjs', '--check'], { stdio: 'inherit' });
-
 const camera = read('src/components/provinces/provinceMapCamera.ts');
 for (const text of [
   'export const PROVINCE_MAP_ZOOM_MIN = 1', 'export const PROVINCE_MAP_ZOOM_MAX = 4',
@@ -432,11 +431,11 @@ for (const text of [
 const transientTest = read('tests/browser/map-zoom-transient.spec.ts');
 for (const text of [
   'active zoom uses one transient camera transform while static geometry stays immutable and settle commits one viewBox',
-  'pathData', 'glyphTransforms', 'active wheel bursts mutate only the transient camera transform once per animation frame and settle one viewBox',
-  'MutationObserver', 'viewBoxMutations', 'cameraStyleMutations', 'diagnosticMutations',
-  'expect(result.viewBoxMutations).toBe(0)', 'expect(result.cameraStyleMutations).toBe(1)', 'expect(result.diagnosticMutations).toBe(0)',
-  'transient camera frames stay close to the same-browser empty-frame budget',
-  'result.emptyFrameMedianMs * 2 + 8', 'detailedFillDisplay', 'cameraTransform',
+  'pathData', 'glyphTransforms', 'active wheel bursts mutate only the raster transform once per animation frame and settle one SVG viewBox',
+  'MutationObserver', 'viewBoxMutations', 'cameraStyleMutations', 'rasterStyleMutations', 'diagnosticMutations',
+  'expect(result.viewBoxMutations).toBe(0)', 'expect(result.cameraStyleMutations).toBe(0)', 'expect(result.rasterStyleMutations).toBe(1)', 'expect(result.diagnosticMutations).toBe(0)',
+  'transient raster frames stay close to the same-browser empty-frame budget',
+  'result.emptyFrameMedianMs * 2 + 8', 'detailedFillDisplay', 'cameraTransform', 'rasterTransform',
   "toHaveCSS('will-change', 'auto')",
 ]) assert.ok(transientTest.includes(text), `地图 transient Camera 热路径回归缺少: ${text}`);
 const syncTest = read('tests/browser/map-zoom-render-sync.spec.ts');
