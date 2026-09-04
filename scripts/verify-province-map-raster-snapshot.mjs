@@ -66,7 +66,6 @@ for (const text of [
   'if (transientUsesRaster) raster.style.transform = transform;',
   'else surface.style.transform = transform;',
   "svg.style.opacity = '0';",
-  'raster.style.transform = transform;',
   "svg.style.removeProperty('opacity');",
 ]) assert.ok(cameraSource.includes(text), `单一 Camera 未正确接入 raster-only transient 边界: ${text}`);
 assert.equal(cameraSource.includes('createProvinceMapRasterSnapshot'), false, 'Camera 热路径不得直接生成或更新栅格快照');
@@ -75,10 +74,10 @@ const writeCameraStart = cameraSource.indexOf('const writeCamera = () => {');
 const writeCameraEnd = cameraSource.indexOf('\n  };', writeCameraStart);
 assert.ok(writeCameraStart >= 0 && writeCameraEnd > writeCameraStart, '必须能定位地图 Camera RAF');
 const writeCamera = cameraSource.slice(writeCameraStart, writeCameraEnd);
-assert.ok(
-  writeCamera.includes('writeTransientTransform(transientTransformFor(current, metrics));'),
-  'Camera RAF 必须只通过统一写入口更新当前 transient target',
-);
+for (const text of [
+  'if (transientUsesRaster) raster.style.transform = transientTransformFor(current, metrics);',
+  'else surface.style.transform = transientTransformFor(current, metrics);',
+]) assert.ok(writeCamera.includes(text), `Camera RAF 必须显式保持 raster-ready／live-SVG 二选一 transform 写入: ${text}`);
 for (const forbidden of [
   "svg.setAttribute('viewBox'",
   'createProvinceMapRasterSnapshot',
@@ -95,10 +94,9 @@ for (const text of [
   "transientUsesRaster = container.dataset.mapRasterReady === 'true';",
   'if (transientUsesRaster) {',
   "svg.style.opacity = '0';",
-  'raster.style.transform = transform;',
+  'writeTransientTransform(transform);',
   'return;',
   "svg.setAttribute('viewBox', serializeViewBox(transientBasisView));",
-  'surface.style.transform = transform;',
 ]) assert.ok(prepareTransient.includes(text), `Camera active 准备缺少 raster-ready／SVG fallback 分流: ${text}`);
 
 const renderingCss = read('src/styles/strategic-map-rendering.css');
@@ -147,7 +145,7 @@ for (const text of [
   'expect(zoomOutActiveFrame.viewBox).toBe(zoomedSettledViewBox)',
   "expect(zoomOutActiveFrame.cameraTransform).toBe('none')",
   "expect(zoomOutActiveFrame.rasterTransform).not.toBe('none')",
-  "toHaveCount(48)",
+  'toHaveCount(48)',
   "toHaveAttribute('data-map-zoom-current', '1.00000')",
 ]) assert.ok(zoomOutSource.includes(text), `地图 zoom-out 回归缺少 settled SVG + active raster 边界: ${text}`);
 
