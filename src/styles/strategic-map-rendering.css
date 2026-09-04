@@ -5,7 +5,7 @@
 }
 
 .province-map-camera-surface {
-  contain: paint;
+  contain: none;
   will-change: auto !important;
   backface-visibility: visible;
 }
@@ -16,8 +16,9 @@
   backface-visibility: hidden;
 }
 
-/* The outer strategic viewport owns the active clip. Removing the inner SVG viewport clip avoids re-clipping the large
-   transiently transformed vector world on every compositor frame; settled mode restores the SVG clip with the final viewBox. */
+/* The outer strategic viewport owns the active clip. Removing the inner SVG viewport clip and paint containment avoids
+   re-clipping/repainting the large transiently transformed vector world on every compositor frame; settled mode restores
+   the SVG clip with the final viewBox. */
 .province-map-static-viewport[data-map-zoom-active='true'] .province-map-world-svg {
   overflow: visible;
 }
