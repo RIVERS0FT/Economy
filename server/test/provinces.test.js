@@ -180,8 +180,12 @@ test('same commodity immediate trades use independent state daily prices and inv
   buyer.credits = 1_000;
   seller.credits = 0;
   inventoryForProvince(seller, 'wheat', GEORGIA).available = 1;
-  world.markets[provinceScopedKey(CALIFORNIA, 'wheat')].officialPrice = 1;
-  world.markets[provinceScopedKey(GEORGIA, 'wheat')].officialPrice = 2;
+  const californiaMarket = world.markets[provinceScopedKey(CALIFORNIA, 'wheat')];
+  const georgiaMarketKey = provinceScopedKey(GEORGIA, 'wheat');
+  world.markets[georgiaMarketKey] = structuredClone(californiaMarket);
+  world.markets[georgiaMarketKey].provinceId = GEORGIA;
+  californiaMarket.officialPrice = 1;
+  world.markets[georgiaMarketKey].officialPrice = 2;
 
   const georgiaSell = applySettledCommodityOrder(world, bob, {
     provinceId: GEORGIA, productId: 'wheat', side: 'sell', quantity: 1, price: 999,

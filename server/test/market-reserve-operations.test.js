@@ -60,7 +60,7 @@ test('emergency reserve ask remains internal while player buying uses the daily 
   const latest = world.markets.wheat.priceHistory.at(-1);
   assert.equal(latest.marketRole, 'player');
   assert.equal(latest.signalWeight, 1);
-}
+});
 
 test('two shortage cycles publish a fixed-term market reserve procurement contract and settle into reserve inventory', () => {
   const world = createWorld(now);

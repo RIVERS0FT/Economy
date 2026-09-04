@@ -69,7 +69,7 @@ test('different products settle independently at their daily official prices wit
   assert.equal(buyer.inventories.wheat.available, 5);
   assert.equal(buyer.inventories.ore.available, 3);
   assert.equal(world.orders.some((order) => order.ownerType === 'player' && ['open', 'partial'].includes(order.status)), false);
-}
+});
 
 test('version 1 state migrates inventory and commodity orders without losing assets', () => {
   const world = {

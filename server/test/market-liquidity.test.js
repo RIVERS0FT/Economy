@@ -165,7 +165,7 @@ test('player immediate selling does not consume an internal reserve bid', () => 
   assert.equal(reserve.inventory, reserveInventoryBefore);
   assert.equal(group.credits + group.frozenCredits, reserveFundsBefore);
   assert.equal(buyOrder.remaining, reserveRemainingBefore);
-}
+});
 
 test('player immediate buying does not consume an internal reserve ask', () => {
   const world = createWorld(now);
@@ -191,7 +191,7 @@ test('player immediate buying does not consume an internal reserve ask', () => {
   assert.equal(reserve.frozenInventory, frozenBefore);
   assert.equal(group.credits + group.frozenCredits, fundsBefore);
   assert.equal(sellOrder.remaining, remainingBefore);
-}
+});
 
 test('liquidity orders are cancelled and re-reserved on the next cycle', () => {
   const world = createWorld(now);

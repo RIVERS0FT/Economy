@@ -197,7 +197,7 @@ test('commodity valuation uses the daily official price and ignores retired open
   assert.equal(market.lastTradePrice, 3);
   assert.equal(state.valuationPrices['commodity:wheat'], 11);
   assert.equal(state.assetSummary.commodityValue, 110);
-}
+});
 
 test('factory automatically recovers after funds return', () => {
   const world = createWorld(now);
