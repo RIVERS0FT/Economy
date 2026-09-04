@@ -13,7 +13,7 @@
 /* A real mouse-wheel interaction necessarily starts over the map. Prime the single camera layer on hover so Chromium can
    rasterize it before the first wheel frame; idle maps that are not under pointer intent still release the promotion. */
 @media (hover: hover) and (pointer: fine) {
-  .province-map-static-viewport:hover .province-map-camera-surface {
+  html[data-input-modality='mouse'] .province-map-static-viewport:hover .province-map-camera-surface {
     will-change: transform !important;
     backface-visibility: hidden;
   }
